@@ -7,7 +7,11 @@
 # workflow. Differences: the trigger (this branch only, subject tag [s2arm-delivery:N], or a manual
 # run naming the same build), the request and recipient guards, the Info.plist probe key set between
 # the generated host and the version stamp, and the probe checks on the built and on the signed
-# application. A push whose subject has no delivery tag runs nothing (every job is skipped).
+# application; the S2Arm engine: its JIT helper extension added to the generated host, its frameworks
+# downloaded from their authenticated producer run, placed in the built application with their
+# identity and checked in it and in the signed IPA; two declared edits of common steps (the Dolphin
+# packager run through the launcher with the S2Arm-aware extension set, one extension more in the
+# version check). A push whose subject has no delivery tag runs nothing (every job is skipped).
 name: RewindBox Switch 2 test IPA delivery
 run-name: RewindBox Switch 2 test delivery - ${{ github.sha }}
 'on':
@@ -427,6 +431,8 @@ jobs:
       run: python3 -B .github/diagnostics/s2arm/standard_delivery_s2arm.py libretro
     - name: Authenticate the replaced engine producer runs
       run: python3 -B .github/diagnostics/s2arm/standard_delivery_s2arm.py component-runs
+    - name: Download and authenticate the S2Arm engine frameworks of the pinned producer run
+      run: python3 -B .github/diagnostics/s2arm/standard_delivery_s2arm.py engine-download
     - name: Download the replaced MeloNX Core producer artifact
       run: python3 -B .github/diagnostics/s2arm/standard_delivery_s2arm.py download-melonx
     - name: Authenticate the replaced MeloNX Core inputs, gates and runtime evidence
@@ -564,6 +570,13 @@ jobs:
       run: |
         python3 build-utils/s2arm/set_probe_key.py set
         python3 build-utils/s2arm/set_probe_key.py check-host
+    - name: Add the S2Arm JIT helper extension to the generated host
+      shell: bash
+      run: |
+        set -euo pipefail
+        python3 build-utils/s2arm/configure_s2arm_ios.py
+        python3 build-utils/delivery_metrics.py s2arm_cocoa_pods env -u BUNDLE_GEMFILE -u BUNDLE_PATH pod install --project-directory=ios
+        python3 build-utils/s2arm/configure_s2arm_ios.py check-pods
     - name: Align application and extension versions to the pubspec version
       run: python3 build-utils/stamp_host_version.py
     - name: Verify the reviewed NeoSwap host source is the source CocoaPods will compile
@@ -647,6 +660,10 @@ jobs:
       run: python3 build-utils/melonx/package_runtime.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
     - name: Embed the standalone MeloNX MoltenVK with its provenance and Apache-2.0 notice
       run: python3 build-utils/melonx/package_standalone_moltenvk.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
+    - name: Embed the S2Arm engine frameworks and their identity in the built application
+      run: python3 -B .github/diagnostics/s2arm/standard_delivery_s2arm.py engine-embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
+    - name: Check the S2Arm engine frameworks, identity and JIT helper in the built application
+      run: python3 -B .github/diagnostics/s2arm/standard_delivery_s2arm.py engine-check-app build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
     - name: Wait for and authenticate the test jobs and the fresh delivery contract
       run: python3 -B .github/diagnostics/s2arm/standard_delivery_s2arm.py await-tests
     - name: Embed the build identity, the replaced Core proofs and exact retained provenance
@@ -656,7 +673,7 @@ jobs:
       run: |
         set -euo pipefail
         python3 -B .github/diagnostics/s2arm/standard_delivery_s2arm.py diff-check
-        python3 packages/dolphin_internal_bridge/ci/build_support.py package
+        python3 -B .github/diagnostics/s2arm/standard_delivery_s2arm.py dolphin-package
         python3 -B .github/diagnostics/s2arm/standard_delivery_s2arm.py structure "dist/$IPA_NAME.ipa"
         cp build/fast-native/identity.json dist/fast-native-identity.json
         cp build/fast-native/rpcs3-core-identity.json dist/rpcs3-core-identity.json
@@ -710,6 +727,8 @@ jobs:
       run: python3 -B .github/diagnostics/s2arm/standard_delivery_s2arm.py validate "dist/$IPA_NAME.ipa"
     - name: Check the S2Arm probe key and code in the signed IPA
       run: python3 build-utils/s2arm/set_probe_key.py check-ipa "dist/$IPA_NAME.ipa" --report build/delivery/s2arm-probe-ipa.json
+    - name: Check the S2Arm engine frameworks, identity and JIT helper in the signed IPA
+      run: python3 -B .github/diagnostics/s2arm/standard_delivery_s2arm.py engine-check-ipa "dist/$IPA_NAME.ipa"
     - name: Verify that no retired KartPad or Dusklight runtime is packaged
       shell: bash
       run: |
@@ -735,7 +754,7 @@ jobs:
             root = roots[0]
             bundles = [name for name in names if name == root + 'Info.plist' or
                        (name.startswith(root + 'PlugIns/') and name.endswith('.appex/Info.plist'))]
-            assert len(bundles) == 8, "Expected the application and its seven extensions"
+            assert len(bundles) == 9, "Expected the application and its eight extensions (S2ArmJITHelper included)"
             for name in bundles:
                 info = plistlib.loads(archive.read(name))
                 assert str(info['CFBundleVersion']) == os.environ['BUILD_NUMBER'], name

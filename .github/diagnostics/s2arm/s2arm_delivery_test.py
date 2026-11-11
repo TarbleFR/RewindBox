@@ -8,8 +8,12 @@ recipe and refuses a recipe it was not reviewed for; the base stays authenticate
 delivered it; the generated workflow is the committed one, triggers only on this branch and tag, keeps
 every common step and uploads only through the protected action; the Info.plist key is set once, in
 order, and the built application is checked; the draft manifests are accepted by the recipe's own checker.
+The S2Arm engine: its producer run and artifact authenticated (mocked API, synthetic producer archives),
+frameworks and identity embedded and checked in a synthetic built application and signed IPA, the in-memory
+S2Arm-aware extension sets of the two common validators (same outcome as the originals without the identity),
+the engine steps and the two declared edits of common steps, a draft carrying the engine, the verifier edit.
 Not covered here (needs the reshaped history, the network or a macOS build): freeze, the API-backed
-contract checks, the run itself.
+contract checks, the run itself, a real engine framework.
 """
 from __future__ import annotations
 
@@ -23,17 +27,20 @@ import os
 from pathlib import Path
 import plistlib
 import re
+import shutil
 import struct
 import subprocess
 import sys
 import tempfile
+import types
 import unittest
 from unittest import mock
 import zipfile
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
-for _part in (HERE, ROOT / 'build-utils/s2arm', ROOT / '.github/ipa-protection'):
+for _part in (HERE, ROOT / 'build-utils/s2arm', ROOT / '.github/ipa-protection', ROOT / 'build-utils', ROOT / 'test',
+              ROOT / '.github/diagnostics'):
     if str(_part) not in sys.path:
         sys.path.insert(0, str(_part))
 
@@ -42,6 +49,7 @@ import make_manifest  # noqa: E402
 import make_workflow  # noqa: E402
 import set_probe_key as probe  # noqa: E402
 import check_workflows  # noqa: E402
+import single_ipa_distribution_test as fixtures  # noqa: E402
 
 RECIPE = ROOT / line.RECIPE
 # The recipe file the launcher inventory was reviewed against (commit 687ea833). A different file is not an
@@ -333,9 +341,14 @@ class Workflow(unittest.TestCase):
                           'Check the committed recipient public key of this build'],
             'flutter': [], 'native': [], 'republish': [],
             'application': ['Check the committed recipient public key of this build',
+                            'Download and authenticate the S2Arm engine frameworks of the pinned producer run',
                             'Turn the S2Arm device probe on in the generated host',
+                            'Add the S2Arm JIT helper extension to the generated host',
                             'Check the S2Arm probe key and code in the compiled application',
-                            'Check the S2Arm probe key and code in the signed IPA']})
+                            'Embed the S2Arm engine frameworks and their identity in the built application',
+                            'Check the S2Arm engine frameworks, identity and JIT helper in the built application',
+                            'Check the S2Arm probe key and code in the signed IPA',
+                            'Check the S2Arm engine frameworks, identity and JIT helper in the signed IPA']})
         for job, steps in self.sd.REQUIRED_STEPS.items():
             self.assertLessEqual(steps, {step['name'] for step in self.spec['jobs'][job]['steps']}, job)
         self.assertEqual(tuple(self.spec['jobs']), self.sd.JOB_NAMES[:1] + ('flutter', 'native', 'republish', 'application'))
@@ -348,11 +361,16 @@ class Workflow(unittest.TestCase):
         calls = re.findall(r'python3 -B (\S+) (\S+)', self.text)
         recipe_calls = [script for script, _ in calls if 'standard_delivery' in script]
         self.assertEqual(set(recipe_calls), {'.github/diagnostics/s2arm/standard_delivery_s2arm.py'})
-        self.assertEqual(len(recipe_calls), self.common_text.count('.github/diagnostics/standard_delivery.py') + 3)
+        # The common calls, the three guards, the four engine steps and the routed Dolphin packager.
+        self.assertEqual(len(recipe_calls), self.common_text.count('.github/diagnostics/standard_delivery.py') + 3 + 5)
         self.assertNotIn('diagnostics/standard_delivery.py', self.text)
         operations = {operation for script, operation in calls if 'standard_delivery' in script}
         self.assertLessEqual(operations, set(self.sd.OPERATIONS) | set(line.LINE_OPERATIONS))
-        self.assertLessEqual({'request-guard', 'recipient-guard'}, operations)
+        self.assertLessEqual({'request-guard', 'recipient-guard', 'engine-download', 'engine-embed', 'engine-check-app',
+                              'engine-check-ipa', 'dolphin-package'}, operations)
+        self.assertEqual(set(line.LINE_OPERATIONS) - {'inventory'},
+                         set(line.PATH_OPERATIONS) | set(line.PLAIN_OPERATIONS))
+        self.assertLessEqual(set(line.EXTENDED_OPERATIONS), operations)
 
     def test_validators_encryption_and_split_are_the_common_ones(self):
         def lines(text, *needles):
@@ -394,7 +412,8 @@ class Workflow(unittest.TestCase):
         for earlier in ('Generate iOS host', 'Configure release host',
                         'Verify central session pod is in the actual generated host'):
             self.assertLess(names.index(earlier), key, earlier)
-        self.assertEqual(names[key + 1], 'Align application and extension versions to the pubspec version')
+        self.assertEqual(names[key + 1], 'Add the S2Arm JIT helper extension to the generated host')
+        self.assertEqual(names[key + 2], 'Align application and extension versions to the pubspec version')
         build = names.index('Compile Release device binary with measured AOT and Xcode phases')
         self.assertLess(key, build)
         self.assertEqual(names[build + 1], 'Check the S2Arm probe key and code in the compiled application')
@@ -662,6 +681,675 @@ class Manifest(unittest.TestCase):
                 self.assertEqual(self.sd.manifest_errors(json.loads(path.read_bytes())), [], path.name)
 
 
+ENGINE_ZIP_SHA = 'f' * 64
+ARTIFACT_ID = 777001
+ENGINE_RUN = 43100000001
+PRODUCER = '9' * 40
+
+
+def dylib(install_name, dependencies=(), signed=False, filetype=6, rpaths=()):
+    """A minimal arm64 iOS image: LC_BUILD_VERSION (iOS 18.0), LC_ID_DYLIB, LC_LOAD_DYLIB, LC_RPATH, optionally
+    an empty code-signature superblob (what signing adds; the payload fingerprint ignores it)."""
+    def text(kind, value):
+        raw = value.encode() + b'\0'
+        size = (24 + len(raw) + 7) // 8 * 8
+        return struct.pack('<6I', kind, size, 24, 0, 0, 0) + raw + bytes(size - 24 - len(raw))
+    commands = [struct.pack('<6I', 0x32, 24, 2, 18 << 16, 0, 0)]
+    if install_name:
+        commands.append(text(0xD, install_name))
+    commands += [text(0xC, item) for item in dependencies]
+    commands += [text(0x8000001C, item) for item in rpaths]
+    size = sum(map(len, commands)) + (16 if signed else 0)
+    body = b'image payload'
+    signature = struct.pack('>III', 0xFADE0CC0, 12, 0)
+    if signed:
+        commands.append(struct.pack('<4I', 0x1D, 16, 32 + size + len(body), len(signature)))
+    header = struct.pack('<8I', 0xFEEDFACF, 0x0100000C, 0, filetype, len(commands), size, 0, 0)
+    return header + b''.join(commands) + body + (signature if signed else b'')
+
+
+def framework_files(name, signed=False):
+    files = {f'{name}.framework/{name}': dylib(
+        f'@rpath/{name}.framework/{name}', ('/usr/lib/libSystem.B.dylib', '/System/Library/Frameworks/Metal.framework/Metal')
+        + (('@rpath/NS2Pro.framework/NS2Pro',) if name == 'S2ArmEngine' else ()), signed=signed),
+        f'{name}.framework/Info.plist': plistlib.dumps({'CFBundleExecutable': name, 'CFBundlePackageType': 'FMWK',
+                                                         'CFBundleIdentifier': 'org.s2arm.' + name}),
+        f'{name}.framework/{name.lower()}.metallib': b'MTLB fixture data'}
+    if signed:
+        files[f'{name}.framework/_CodeSignature/CodeResources'] = b'<plist>signed</plist>'
+    return files
+
+
+def zipped(files, symlink=None):
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, 'w') as archive:
+        for path, data in files.items():
+            archive.writestr(path, data)
+        if symlink:
+            entry = zipfile.ZipInfo(symlink)
+            entry.external_attr = (0o120777 << 16)
+            archive.writestr(entry, b'target')
+    return buffer.getvalue()
+
+
+PATCHES = {'build-utils/s2arm/engine/patches/0001-a.patch': b'patch one\n',
+           'build-utils/s2arm/engine/patches/0002-b.patch': b'patch two\n'}
+PIN = json.dumps({'s2arm': {'commit': '6b6a571553f7a687af46e03e2cdbf8ef4d77f335'}}).encode()
+
+
+class FakeRepo:
+    """The git queries the engine checks make, on a producer commit with the pin and two patches."""
+    def __init__(self, ancestor=True, files=None):
+        self.ancestor = ancestor
+        self.files = dict(PATCHES, **{'tools/s2arm_prototype/pin.json': PIN}) if files is None else files
+
+    def is_ancestor(self, ancestor, descendant):
+        return self.ancestor
+
+    def entries(self, ref):
+        assert ref == PRODUCER
+        return {path: ('100644', 'blob') for path in self.files}
+
+    def show(self, ref, path):
+        assert ref == PRODUCER
+        return self.files[path]
+
+
+def producer_artifact(zips=None, identity=None, extra=None):
+    zips = zips or {name: zipped(framework_files(name)) for name in line.ENGINE_FRAMEWORKS}
+    archives = {f'{name}.framework.zip': data for name, data in zips.items()}
+    value = dict(run=ENGINE_RUN, attempt=1, head_sha=PRODUCER, s2arm_commit='6b6a571553f7a687af46e03e2cdbf8ef4d77f335',
+                 patches=[dict(name=path.rsplit('/', 1)[1], sha256=sha(data)) for path, data in sorted(PATCHES.items())],
+                 files={name: sha(data) for name, data in archives.items()})
+    value.update(identity or {})
+    members = dict(archives, **{line.ENGINE_IDENTITY: json.dumps(value).encode()}, **(extra or {}))
+    return zipped(members), {name: sha(data) for name, data in archives.items()}
+
+
+def api_for(artifact, run=None, artifacts=None):
+    def get(endpoint):
+        if endpoint == f'actions/runs/{ENGINE_RUN}':
+            return dict(dict(id=ENGINE_RUN, path=line.ENGINE_WORKFLOW, head_branch=line.DELIVERY_BRANCH,
+                             status='completed', conclusion='success', run_attempt=1, head_sha=PRODUCER), **(run or {}))
+        if endpoint.startswith(f'actions/runs/{ENGINE_RUN}/artifacts?name='):
+            name = line.ENGINE_ARTIFACT.format(source=PRODUCER)
+            assert endpoint == f'actions/runs/{ENGINE_RUN}/artifacts?name={name}&per_page=100', endpoint
+            default = [dict(id=ARTIFACT_ID, name=name, size_in_bytes=len(artifact), digest='sha256:' + sha(artifact),
+                            expired=False, expires_at='2026-12-01T00:00:00Z',
+                            workflow_run=dict(id=ENGINE_RUN, head_sha=PRODUCER))]
+            return dict(artifacts=default if artifacts is None else artifacts(default))
+        raise AssertionError('unexpected endpoint ' + endpoint)
+    return get
+
+
+class EngineLine(unittest.TestCase):
+    """engine-download, engine-embed, engine-check-app and engine-check-ipa on synthetic producer data."""
+    def setUp(self):
+        directory = tempfile.TemporaryDirectory(prefix='s2arm-engine-')
+        self.addCleanup(directory.cleanup)
+        self.root = Path(directory.name)
+        self.sd = line.configure(private_recipe())
+        self.out = self.root / 'build/delivery'
+        (self.root / 'packages/s2arm_jit_helper/ios/Resources').mkdir(parents=True)
+        self.script = (ROOT / line.HELPER_SCRIPT).read_bytes()
+        (self.root / line.HELPER_SCRIPT).write_bytes(self.script)
+        self.artifact, self.zips = producer_artifact()
+        self.manifest = dict(build=803, images=dict(added=list(line.ENGINE_IMAGES)),
+                             s2arm=dict(engine=dict(workflow=line.ENGINE_WORKFLOW, run=ENGINE_RUN, zips=self.zips)))
+        for name, value in (('OUT', self.out), ('ROOT', self.root)):
+            patcher = mock.patch.object(self.sd, name, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        patcher = mock.patch.object(self.sd, 'ci_manifest', lambda: self.manifest)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def download(self, artifact=None, get=None, repo=None):
+        artifact = self.artifact if artifact is None else artifact
+        return line.engine_download(self.sd, get or api_for(artifact), lambda identifier, path: path.write_bytes(artifact),
+                                    repo or FakeRepo(), self.root)
+
+    def application(self, versions=('803', '0.0.8')):
+        app = self.root / 'Runner.app'
+        if app.exists():
+            shutil.rmtree(app)
+        helper = app / 'PlugIns' / line.HELPER
+        helper.mkdir(parents=True)
+        (app / 'Frameworks').mkdir()
+        host = {'CFBundleIdentifier': 'com.neogamelab.neostation', 'CFBundleVersion': versions[0],
+                'CFBundleShortVersionString': versions[1], 'CFBundleExecutable': 'Runner'}
+        (app / 'Info.plist').write_bytes(plistlib.dumps(host))
+        (helper / 'Info.plist').write_bytes(plistlib.dumps(helper_info(*versions)))
+        (helper / line.HELPER_EXECUTABLE).write_bytes(helper_image(signed=False))
+        (helper / 's2arm-universal.js').write_bytes(self.script)
+        return app
+
+    def test_download_authenticates_the_producer_run_and_its_files(self):
+        result = self.download()
+        self.assertEqual(result['producer']['artifact']['id'], ARTIFACT_ID)
+        self.assertEqual(result['producer']['source'], PRODUCER)
+        self.assertEqual(result['zips'], self.zips)
+        for name in line.ENGINE_ZIPS + (line.ENGINE_IDENTITY,):
+            self.assertTrue((self.root / line.ENGINE_DOWNLOAD / name).is_file(), name)
+        self.assertEqual(json.loads((self.out / 's2arm-engine-download.json').read_bytes())['result'], 'authenticated')
+
+    def test_download_refusals(self):
+        wrong_zip, _ = producer_artifact()
+        cases = {
+            'failed run': dict(get=api_for(self.artifact, run=dict(conclusion='failure'))),
+            'other branch': dict(get=api_for(self.artifact, run=dict(head_branch='Claude'))),
+            'other workflow': dict(get=api_for(self.artifact, run=dict(path='.github/workflows/s2arm-core.yml'))),
+            'unfinished run': dict(get=api_for(self.artifact, run=dict(status='in_progress'))),
+            'no artifact': dict(get=api_for(self.artifact, artifacts=lambda items: [])),
+            'two artifacts': dict(get=api_for(self.artifact, artifacts=lambda items: items * 2)),
+            'expired': dict(get=api_for(self.artifact, artifacts=lambda items: [dict(items[0], expired=True)])),
+            'other run artifact': dict(get=api_for(self.artifact, artifacts=lambda items: [
+                dict(items[0], workflow_run=dict(id=1, head_sha=PRODUCER))])),
+            'digest differs': dict(get=api_for(self.artifact, artifacts=lambda items: [
+                dict(items[0], digest='sha256:' + '0' * 64)])),
+            'commit not delivered': dict(repo=FakeRepo(ancestor=False)),
+            'patch series differs': dict(repo=FakeRepo(files=dict(PATCHES, **{
+                'tools/s2arm_prototype/pin.json': PIN, 'build-utils/s2arm/engine/patches/0003-c.patch': b'three'}))),
+            'pin differs': dict(repo=FakeRepo(files=dict(PATCHES, **{
+                'tools/s2arm_prototype/pin.json': json.dumps({'s2arm': {'commit': '1' * 40}}).encode()}))),
+        }
+        for name, case in cases.items():
+            with self.subTest(case=name):
+                with self.assertRaises((line.LineError, KeyError)):
+                    self.download(**case)
+        artifacts = {
+            'identity names another run': producer_artifact(identity=dict(run=1))[0],
+            'identity names another commit': producer_artifact(identity=dict(head_sha='8' * 40))[0],
+            'identity attempt beyond the run': producer_artifact(identity=dict(attempt=2))[0],
+            'identity files differ': producer_artifact(identity=dict(files={}))[0],
+            'extra member': producer_artifact(extra={'notes.txt': b'x'})[0],
+        }
+        for name, artifact in artifacts.items():
+            with self.subTest(case=name):
+                with self.assertRaises(line.LineError):
+                    self.download(artifact)
+        other = {name: zipped(dict(framework_files(name), **{f'{name}.framework/extra': b'1'}))
+                 for name in line.ENGINE_FRAMEWORKS}
+        artifact, _ = producer_artifact(zips=other)
+        with self.assertRaisesRegex(line.LineError, 'differ from the manifest'):
+            self.download(artifact)
+        for spec in (None, dict(workflow=line.ENGINE_WORKFLOW, run=0, zips=self.zips),
+                     dict(workflow=line.ENGINE_WORKFLOW, run=ENGINE_RUN, zips={'S2ArmEngine.framework.zip': 'f' * 64}),
+                     dict(workflow='x', run=ENGINE_RUN, zips=self.zips)):
+            with self.subTest(spec=spec):
+                self.manifest['s2arm'] = {} if spec is None else dict(engine=spec)
+                with self.assertRaises(line.LineError):
+                    self.download()
+
+    def test_framework_archives_are_checked(self):
+        def archive(name, change):
+            files = framework_files(name)
+            change(files)
+            return zipped(files)
+        executable = 'S2ArmEngine.framework/S2ArmEngine'
+        cases = {
+            'member outside': lambda files: files.update({'Other/file': b'x'}),
+            'nested dylib': lambda files: files.update({'S2ArmEngine.framework/libextra.dylib': b'x'}),
+            'nested framework': lambda files: files.update({'S2ArmEngine.framework/Frameworks/X.framework/X': b'x'}),
+            'second image': lambda files: files.update({'S2ArmEngine.framework/helper': dylib(None)}),
+            'not a dylib': lambda files: files.update({executable: dylib('@rpath/S2ArmEngine.framework/S2ArmEngine',
+                                                                          filetype=2)}),
+            'wrong install name': lambda files: files.update({executable: dylib('@rpath/Other.framework/Other')}),
+            'foreign dependency': lambda files: files.update({executable: dylib(
+                '@rpath/S2ArmEngine.framework/S2ArmEngine', ('@rpath/MoltenVK.framework/MoltenVK',))}),
+            'wrong executable name': lambda files: files.update({'S2ArmEngine.framework/Info.plist': plistlib.dumps(
+                {'CFBundleExecutable': 'Other', 'CFBundlePackageType': 'FMWK'})}),
+            'missing Info.plist': lambda files: files.pop('S2ArmEngine.framework/Info.plist'),
+        }
+        self.assertEqual(line.framework_inventory('S2ArmEngine', zipped(framework_files('S2ArmEngine')))['installName'],
+                         '@rpath/S2ArmEngine.framework/S2ArmEngine')
+        for name, change in cases.items():
+            with self.subTest(case=name):
+                with self.assertRaises((line.LineError, ValueError)):
+                    line.framework_inventory('S2ArmEngine', archive('S2ArmEngine', change))
+        with self.assertRaisesRegex(line.LineError, 'symbolic link'):
+            line.framework_inventory('NS2Pro', zipped(framework_files('NS2Pro'), symlink='NS2Pro.framework/link'))
+
+    def test_embed_then_check_the_built_application(self):
+        self.download()
+        app = self.application()
+        result = line.engine_embed(self.sd, app, self.root)
+        self.assertEqual(result['images'], list(line.ENGINE_IMAGES))
+        identity = json.loads((app / line.PACKAGED_IDENTITY).read_bytes())
+        self.assertEqual((identity['zips'], identity['producer']['run'], identity['build']), (self.zips, ENGINE_RUN, 803))
+        self.assertEqual(identity['jitHelper']['marker'], 'NeoStationS2ArmJITHelper')
+        self.assertIs(identity['physicalDeviceTested'], False)
+        for name in line.ENGINE_FRAMEWORKS:
+            for path, data in framework_files(name).items():
+                self.assertEqual((app / 'Frameworks' / path).read_bytes(), data)
+            self.assertTrue(os.access(app / 'Frameworks' / f'{name}.framework/{name}', os.X_OK))
+        self.assertEqual(line.engine_check_app(self.sd, app, self.root)['result'], 'passed')
+        with self.assertRaisesRegex(line.LineError, 'already'):
+            line.engine_embed(self.sd, app, self.root)
+        tampering = (
+            lambda app: (app / 'Frameworks/NS2Pro.framework/ns2pro.metallib').write_bytes(b'changed'),
+            lambda app: (app / 'Frameworks/NS2Pro.framework/extra.txt').write_bytes(b'extra'),
+            lambda app: (app / 'PlugIns' / line.HELPER / 's2arm-universal.js').write_bytes(b'// other'),
+            lambda app: (app / 'PlugIns' / line.HELPER / 'Info.plist').write_bytes(
+                plistlib.dumps(dict(helper_info('803', '0.0.8'), NeoStationS2ArmJITHelper='0'))),
+            lambda app: (app / 'PlugIns' / line.HELPER / 'Info.plist').write_bytes(plistlib.dumps(helper_info('802', '0.0.8'))),
+            lambda app: (app / 'PlugIns' / line.HELPER / line.HELPER_EXECUTABLE).write_bytes(
+                fixtures.packaging_image({}, filetype=2)),
+            lambda app: nested(app / 'PlugIns' / line.HELPER / 'Frameworks/StikJIT.framework/StikJIT',
+                               dylib('@rpath/StikJIT.framework/StikJIT')),
+            lambda app: (app / line.PACKAGED_IDENTITY).write_text('{}'),
+        )
+        for index, tamper in enumerate(tampering):
+            with self.subTest(case=index):
+                app = self.application()
+                line.engine_embed(self.sd, app, self.root)
+                tamper(app)
+                with self.assertRaises((line.LineError, ValueError, RuntimeError)):
+                    line.engine_check_app(self.sd, app, self.root)
+
+    def test_embed_refuses_archives_changed_after_the_download(self):
+        self.download()
+        (self.root / line.ENGINE_DOWNLOAD / 'NS2Pro.framework.zip').write_bytes(b'changed')
+        with self.assertRaisesRegex(line.LineError, 'changed after its download'):
+            line.engine_embed(self.sd, self.application(), self.root)
+
+    def signed_ipa(self, change=None):
+        """The common Dolphin packaging fixture at build 803 plus the signed S2Arm helper, frameworks and identity."""
+        self.download()
+        app = self.application()
+        line.engine_embed(self.sd, app, self.root)
+        members = fixtures.complete_dolphin_packaging_members()
+        for path in [name for name in members if name.endswith('Info.plist') and
+                     (name == fixtures.APP + 'Info.plist' or '.appex/' in name)]:
+            value = plistlib.loads(members[path])
+            value.update(CFBundleVersion='803', CFBundleShortVersionString='0.0.8')
+            members[path] = plistlib.dumps(value)
+        prefix = fixtures.APP + 'PlugIns/' + line.HELPER + '/'
+        members[prefix + 'Info.plist'] = plistlib.dumps(helper_info('803', '0.0.8'))
+        members[prefix + line.HELPER_EXECUTABLE] = helper_image(signed=True)
+        members[prefix + 's2arm-universal.js'] = self.script
+        for name in line.ENGINE_FRAMEWORKS:
+            for path, data in framework_files(name, signed=True).items():
+                members[fixtures.APP + 'Frameworks/' + path] = data
+        members[fixtures.APP + line.PACKAGED_IDENTITY] = (app / line.PACKAGED_IDENTITY).read_bytes()
+        if change:
+            change(members)
+        ipa = self.root / 'dist/NeoStation.ipa'
+        ipa.parent.mkdir(exist_ok=True)
+        with zipfile.ZipFile(ipa, 'w') as archive:
+            for path, data in members.items():
+                entry = zipfile.ZipInfo(path)
+                entry.external_attr = 0o100755 << 16
+                archive.writestr(entry, data)
+        from rewind607_delivery import zip_payloads
+        images = {name: record['fingerprint'] for name, record in zip_payloads(ipa).items()}
+        (self.out / 'signed-payload-identity.json').write_text(json.dumps(dict(ipaSha256=sha(ipa.read_bytes()),
+                                                                                images=images)))
+        return ipa
+
+    def test_check_the_signed_ipa(self):
+        ipa = self.signed_ipa()
+        result = line.engine_check_ipa(self.sd, ipa, self.root)
+        self.assertEqual(result['result'], 'passed')
+        self.assertIn(line.HELPER, result['distributionBundles'])
+        self.assertEqual(set(result['images']), set(line.ENGINE_IMAGES))
+        self.assertTrue(all(item['signed'] for item in result['frameworks'].values()))
+        self.assertTrue(result['helper']['signed'])
+        app = fixtures.APP
+        changes = {
+            'framework resource changed': lambda m: m.update({app + 'Frameworks/NS2Pro.framework/ns2pro.metallib': b'x'}),
+            'framework payload changed': lambda m: m.update({app + 'Frameworks/NS2Pro.framework/NS2Pro': dylib(
+                '@rpath/NS2Pro.framework/NS2Pro', ('/usr/lib/libc++.1.dylib',), signed=True)}),
+            'framework unsigned': lambda m: m.update({app + 'Frameworks/NS2Pro.framework/NS2Pro': dylib(
+                '@rpath/NS2Pro.framework/NS2Pro', ('/usr/lib/libSystem.B.dylib',
+                                                   '/System/Library/Frameworks/Metal.framework/Metal'))}),
+            'helper missing': lambda m: [m.pop(name) for name in list(m) if '/S2ArmJITHelper.appex/' in name],
+            'identity missing': lambda m: m.pop(app + line.PACKAGED_IDENTITY),
+            'engine framework missing': lambda m: m.pop(app + 'Frameworks/S2ArmEngine.framework/S2ArmEngine'),
+            'helper script changed': lambda m: m.update({app + 'PlugIns/S2ArmJITHelper.appex/s2arm-universal.js': b'//'}),
+        }
+        for name, change in changes.items():
+            with self.subTest(case=name):
+                with self.assertRaises((line.LineError, ValueError, RuntimeError, KeyError)):
+                    line.engine_check_ipa(self.sd, self.signed_ipa(change), self.root)
+        ipa = self.signed_ipa()
+        receipt = json.loads((self.out / 'signed-payload-identity.json').read_bytes())
+        receipt['images']['Frameworks/NS2Pro.framework/NS2Pro'] = '0' * 64
+        (self.out / 'signed-payload-identity.json').write_text(json.dumps(receipt))
+        with self.assertRaisesRegex(line.LineError, 'signer receipt'):
+            line.engine_check_ipa(self.sd, ipa, self.root)
+        self.manifest['images']['added'] = []
+        with self.assertRaisesRegex(line.LineError, 'does not declare the engine images'):
+            line.engine_check_ipa(self.sd, ipa, self.root)
+
+    def test_offline_verification_of_a_downloaded_ipa(self):
+        import verify_downloaded_delivery_s2arm as launcher
+        ipa = self.signed_ipa()
+        work = self.root / 'work'
+        (work / 'effective-tree' / line.HELPER_SCRIPT).parent.mkdir(parents=True)
+        (work / 'effective-tree' / line.HELPER_SCRIPT).write_bytes(self.script)
+        report = dict(execution=dict(source='a' * 40), manifest=dict(path='build-utils/delivery/803.json'))
+
+        class Repo:
+            def __init__(self, value):
+                self.value = value
+
+            def show(self, ref, path):
+                return json.dumps(self.value).encode()
+        self.assertEqual(launcher.engine_check(ipa, report, work, Repo(self.manifest))['result'], 'passed')
+        with self.assertRaisesRegex(line.LineError, 'does not declare'):
+            launcher.engine_check(ipa, report, work, Repo(dict(self.manifest, s2arm={})))
+        common = self.root / 'common.ipa'
+        with zipfile.ZipFile(common, 'w') as archive:
+            archive.writestr(fixtures.APP + 'Info.plist', b'x')
+        self.assertIsNone(launcher.engine_check(common, report, work, Repo(dict(self.manifest, s2arm={}))))
+        with self.assertRaisesRegex(line.LineError, 'lacks'):
+            launcher.engine_check(common, report, work, Repo(self.manifest))
+
+
+def helper_info(version, marketing):
+    contract = line.helper_contract()
+    return {'CFBundleExecutable': line.HELPER_EXECUTABLE, 'CFBundlePackageType': 'XPC!',
+            'CFBundleIdentifier': 'com.neogamelab.neostation' + contract['bundleSuffix'], 'CFBundleVersion': version,
+            'CFBundleShortVersionString': marketing, 'MinimumOSVersion': '17.4', contract['marker']: '1',
+            'NSExtension': {'NSExtensionPointIdentifier': 'com.apple.share-services',
+                            'NSExtensionPrincipalClass': contract['principalClass'],
+                            'NSExtensionAttributes': {'NSExtensionActivationRule': 'FALSEPREDICATE'}}}
+
+
+def helper_image(signed=True):
+    """The helper executable as the build links it: StikJIT of the host through @executable_path/../../Frameworks."""
+    image = fixtures.packaging_image({}, dependencies=(line.STIKJIT, '/System/Library/Frameworks/Foundation.framework/Foundation'),
+                                     rpaths=('@executable_path/Frameworks', '@executable_path/../../Frameworks'))
+    return image   # packaging_image always carries a (synthetic) code signature
+
+
+def nested(path, data):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(data)
+
+
+def private_module(name, path):
+    spec = importlib.util.spec_from_file_location(name + '_s2arm_private', ROOT / path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class ExtensionSets(unittest.TestCase):
+    """The S2Arm-aware closed extension sets of verify_ipa.validate and validate_rpcs3_ipa.validate_helper_bundles."""
+    def members(self, identity=True, frameworks=line.ENGINE_FRAMEWORKS, helper=True):
+        members = fixtures.complete_dolphin_packaging_members()
+        app = fixtures.APP
+        if helper:
+            members[app + 'PlugIns/' + line.HELPER + '/Info.plist'] = plistlib.dumps(
+                dict(helper_info('368', '0.0.2'), CFBundleIdentifier='com.neogamelab.neostation.s2armjithelper'))
+            members[app + 'PlugIns/' + line.HELPER + '/' + line.HELPER_EXECUTABLE] = helper_image(signed=True)
+        for name in frameworks:
+            for path, data in framework_files(name, signed=True).items():
+                members[app + 'Frameworks/' + path] = data
+        if identity:
+            members[app + line.PACKAGED_IDENTITY] = b'{}'
+        return members
+
+    def ipa(self, members):
+        directory = tempfile.mkdtemp(prefix='s2arm-sets-')
+        self.addCleanup(shutil.rmtree, directory)
+        path = Path(directory) / 'NeoStation.ipa'
+        with zipfile.ZipFile(path, 'w') as archive:
+            for name, data in members.items():
+                entry = zipfile.ZipInfo(name)
+                entry.external_attr = 0o100755 << 16
+                archive.writestr(entry, data)
+        return path
+
+    def extracted(self, members):
+        directory = Path(tempfile.mkdtemp(prefix='s2arm-sets-'))
+        self.addCleanup(shutil.rmtree, directory)
+        for name, data in members.items():
+            (directory / name).parent.mkdir(parents=True, exist_ok=True)
+            (directory / name).write_bytes(data)
+        return directory, directory / fixtures.APP
+
+    @staticmethod
+    def outcome(function, *arguments):
+        try:
+            return 'report', json.dumps(function(*arguments), sort_keys=True, default=str)
+        except Exception as error:   # noqa: BLE001 - the exact refusal is compared
+            return 'refused', type(error).__name__ + ': ' + str(error)
+
+    def wrapped(self):
+        modules = {'verify_ipa': private_module('verify_ipa', 'packages/dolphin_internal_bridge/ci/verify_ipa.py'),
+                   'validate_rpcs3_ipa': private_module('validate_rpcs3_ipa', 'build-utils/validate_rpcs3_ipa.py')}
+        originals = {name: private_module(name, path) for name, path in
+                     (('verify_ipa', 'packages/dolphin_internal_bridge/ci/verify_ipa.py'),
+                      ('validate_rpcs3_ipa', 'build-utils/validate_rpcs3_ipa.py'))}
+        self.assertEqual(line.extend_validators(modules), {path: 'extend' for path in line.EXTENSION_SETS})
+        self.assertTrue(modules['verify_ipa'].validate.s2armExtended)
+        self.assertIs(line.extend_validators(modules)['build-utils/validate_rpcs3_ipa.py'], 'extend')
+        return modules, originals
+
+    def test_the_s2arm_ipa_passes_only_the_extended_sets(self):
+        modules, originals = self.wrapped()
+        ipa = self.ipa(self.members())
+        kind, text = self.outcome(modules['verify_ipa'].validate, ipa)
+        self.assertEqual(kind, 'report', text)
+        self.assertIn(line.HELPER, json.loads(text)['embeddedExtensions'])
+        self.assertIn('Unexpected app-extension set', self.outcome(originals['verify_ipa'].validate, ipa)[1])
+        root, app = self.extracted(self.members())
+        info = plistlib.loads((app / 'Info.plist').read_bytes())
+        kind, text = self.outcome(modules['validate_rpcs3_ipa'].validate_helper_bundles, app, info, root)
+        self.assertEqual(kind, 'report', text)
+        self.assertEqual(json.loads(text)[line.HELPER], 'com.neogamelab.neostation.s2armjithelper')
+        self.assertIn('Unexpected app-extension set',
+                      self.outcome(originals['validate_rpcs3_ipa'].validate_helper_bundles, app, info, root)[1])
+        self.assertNotIn(line.HELPER, modules['verify_ipa'].EXPECTED_HELPERS, 'the set is extended only while it runs')
+        self.assertNotIn(line.HELPER, modules['validate_rpcs3_ipa'].EXPECTED_HELPERS)
+
+    def test_without_the_identity_the_validators_are_unchanged(self):
+        modules, originals = self.wrapped()
+        for members in (fixtures.complete_dolphin_packaging_members(), self.members(identity=False),
+                        self.members(identity=False, helper=False)):
+            ipa = self.ipa(members)
+            self.assertEqual(self.outcome(modules['verify_ipa'].validate, ipa),
+                             self.outcome(originals['verify_ipa'].validate, ipa))
+            root, app = self.extracted(members)
+            info = plistlib.loads((app / 'Info.plist').read_bytes())
+            self.assertEqual(self.outcome(modules['validate_rpcs3_ipa'].validate_helper_bundles, app, info, root),
+                             self.outcome(originals['validate_rpcs3_ipa'].validate_helper_bundles, app, info, root))
+        bad = Path(tempfile.mkdtemp(prefix='s2arm-sets-')) / 'not.ipa'
+        self.addCleanup(shutil.rmtree, bad.parent)
+        bad.write_bytes(b'not a zip')
+        self.assertEqual(self.outcome(modules['verify_ipa'].validate, bad), self.outcome(originals['verify_ipa'].validate, bad))
+
+    def test_the_identity_requires_the_frameworks_and_the_helper(self):
+        modules, _ = self.wrapped()
+        for frameworks in (('S2ArmEngine',), ('NS2Pro',)):
+            members = self.members(frameworks=frameworks)
+            self.assertIn('engine frameworks', self.outcome(modules['verify_ipa'].validate, self.ipa(members))[1])
+            root, app = self.extracted(members)
+            self.assertIn('engine frameworks', self.outcome(modules['validate_rpcs3_ipa'].validate_helper_bundles, app,
+                                                            plistlib.loads((app / 'Info.plist').read_bytes()), root)[1])
+        members = self.members(helper=False)
+        self.assertIn('Unexpected app-extension set', self.outcome(modules['verify_ipa'].validate, self.ipa(members))[1])
+
+    def test_the_reviewed_shape_is_required(self):
+        with tempfile.TemporaryDirectory(prefix='s2arm-review-') as directory:
+            root = Path(directory)
+            for path in line.EXTENSION_SETS:
+                (root / path).parent.mkdir(parents=True, exist_ok=True)
+                (root / path).write_text((ROOT / path).read_text())
+                self.assertEqual(line.extension_set_review(path, root), 'extend')
+            path = 'build-utils/validate_rpcs3_ipa.py'
+            source = (ROOT / path).read_text()
+            for changed in (source.replace('expected_helpers = dict(EXPECTED_HELPERS)', 'expected_helpers = EXPECTED_HELPERS'),
+                            source + '\n\ndef other():\n    return EXPECTED_HELPERS\n',
+                            source.replace('helper_identifiers = validate_helper_bundles(app, info, root)',
+                                           'helper_identifiers = globals()["validate_helper_bundles"](app, info, root)')):
+                self.assertNotEqual(changed, source)
+                (root / path).write_text(changed)
+                with self.assertRaisesRegex(line.LineError, 'review'):
+                    line.extension_set_review(path, root)
+            (root / path).write_text(source + '\n# S2Arm handled here\n')
+            self.assertEqual(line.extension_set_review(path, root), 'native')
+
+    def test_the_dolphin_packager_binds_the_extended_validator(self):
+        verify_ipa = importlib.import_module('verify_ipa')
+        rpcs3 = importlib.import_module('validate_rpcs3_ipa')
+        saved = verify_ipa.validate, rpcs3.validate_helper_bundles, sys.modules.get('build_support')
+        calls = []
+        fake = types.ModuleType('build_support')
+        try:
+            line.extend_validators()
+            fake.validate = verify_ipa.validate
+            fake.main = lambda: calls.append(list(sys.argv))
+            sys.modules['build_support'] = fake
+            result = line.dolphin_package(None)
+            self.assertEqual(result['result'], 'packaged')
+            self.assertEqual(calls, [[str(ROOT / 'packages/dolphin_internal_bridge/ci/build_support.py'), 'package']])
+            fake.validate = saved[0]
+            with self.assertRaisesRegex(line.LineError, 'did not bind'):
+                line.dolphin_package(None)
+        finally:
+            verify_ipa.validate, rpcs3.validate_helper_bundles = saved[0], saved[1]
+            if saved[2] is None:
+                sys.modules.pop('build_support', None)
+            else:
+                sys.modules['build_support'] = saved[2]
+
+
+class EngineWorkflow(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.sd = line.configure()
+        cls.text = (ROOT / line.WORKFLOW).read_text()
+        cls.common_text = (ROOT / line.COMMON_WORKFLOW).read_text()
+        cls.steps = cls.sd.load_yaml_subset(cls.text)['jobs']['application']['steps']
+        cls.names = [step['name'] for step in cls.steps]
+
+    def step(self, name):
+        return self.steps[self.names.index(name)]
+
+    def test_the_engine_steps_and_their_order(self):
+        names = self.names
+        jit = names.index('Add the S2Arm JIT helper extension to the generated host')
+        self.assertEqual(self.steps[jit]['run'], 'set -euo pipefail\npython3 build-utils/s2arm/configure_s2arm_ios.py\n'
+                         'python3 build-utils/delivery_metrics.py s2arm_cocoa_pods env -u BUNDLE_GEMFILE -u BUNDLE_PATH '
+                         'pod install --project-directory=ios\npython3 build-utils/s2arm/configure_s2arm_ios.py check-pods\n')
+        self.assertEqual(names[jit - 1], 'Turn the S2Arm device probe on in the generated host')
+        self.assertEqual(names[jit + 1], 'Align application and extension versions to the pubspec version')
+        self.assertLess(names.index('Configure release host'), jit)
+        download = names.index('Download and authenticate the S2Arm engine frameworks of the pinned producer run')
+        self.assertEqual(names[download - 1], 'Authenticate the replaced engine producer runs')
+        embed = names.index('Embed the S2Arm engine frameworks and their identity in the built application')
+        app = names.index('Check the S2Arm engine frameworks, identity and JIT helper in the built application')
+        package = names.index('Package the rebuilt application and retain current component identities')
+        seal = names.index('Seal every executable, framework and extension for SideStore')
+        signed = names.index('Check the S2Arm engine frameworks, identity and JIT helper in the signed IPA')
+        self.assertLess(names.index('Compile Release device binary with measured AOT and Xcode phases'), embed)
+        self.assertEqual(app, embed + 1)
+        self.assertLess(download, embed)
+        self.assertLess(app, package)
+        self.assertLess(package, seal)
+        self.assertEqual(names[signed - 1], 'Check the S2Arm probe key and code in the signed IPA')
+        self.assertLess(names.index('Verify every signed image, the replaced Core payloads and the retained payloads'),
+                        signed)
+        self.assertLess(signed, names.index('Prepare encrypted delivery and evidence'))
+        built = 'build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app'
+        self.assertEqual(self.steps[embed]['run'], make_workflow.LINE_CALL + 'engine-embed ' + built)
+        self.assertEqual(self.steps[app]['run'], make_workflow.LINE_CALL + 'engine-check-app ' + built)
+        self.assertEqual(self.steps[signed]['run'], make_workflow.LINE_CALL + 'engine-check-ipa "dist/$IPA_NAME.ipa"')
+        self.assertEqual(self.steps[download]['run'], make_workflow.LINE_CALL + 'engine-download')
+        self.assertEqual(self.text.count('configure_s2arm_ios.py'), 2)
+
+    def test_the_two_declared_edits_of_common_steps(self):
+        report = make_workflow.explain(self.common_text, self.text, self.sd.load_yaml_subset)
+        self.assertEqual([(item['step'], item['new']) for item in report['editedSteps']], [
+            ('Package the rebuilt application and retain current component identities',
+             make_workflow.LINE_CALL + 'dolphin-package'),
+            ('Verify final signed legal bundle and application and extension versions',
+             'assert len(bundles) == 9, "Expected the application and its eight extensions (S2ArmJITHelper included)"')])
+        package = self.step('Package the rebuilt application and retain current component identities')['run']
+        self.assertNotIn('build_support.py package', package)
+        self.assertLess(package.index('dolphin-package'), package.index('structure "dist/$IPA_NAME.ipa"'))
+        self.assertNotIn('== 8', self.step('Verify final signed legal bundle and application and extension versions')['run'])
+        self.assertEqual(self.text.count('build_support.py package'), 0)
+        self.assertEqual(self.common_text.count('build_support.py package'), 1)
+        # A common step that no longer holds the edited text stops the generation.
+        for job, name, old, new, count in make_workflow.STEP_EDITS:
+            for changed in (self.common_text.replace(old, old[:-1] + '#'), self.common_text.replace(old, old + '\n' + old)):
+                with self.subTest(step=name):
+                    with self.assertRaisesRegex(make_workflow.GenerationError, 'occurrence'):
+                        make_workflow.generate(changed)
+        # The count: the application, the common closed set, MeloNX's helper and RAM donor, the S2Arm helper.
+        validator = distribution_module()
+        self.assertEqual(1 + len(validator.EXPECTED_EXTENSIONS) + 2 + len(validator.S2ARM_EXTENSIONS), 9)
+
+
+def distribution_module():
+    import validate_single_ipa_distribution
+    return validate_single_ipa_distribution
+
+
+class EngineManifest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.sd = line.configure()
+
+    def test_a_draft_that_carries_the_engine(self):
+        zips = {name: sha(name.encode()) for name in line.ENGINE_ZIPS}
+        value = make_manifest.draft(self.sd, 'sibling', MODEL, 803, reviewed=[('1' * 40, 'engine')],
+                                    engine=dict(run=ENGINE_RUN, zips=zips))
+        self.assertEqual(self.sd.manifest_errors(value), [])
+        self.assertEqual(value['s2arm']['engine'], dict(workflow=line.ENGINE_WORKFLOW, run=ENGINE_RUN, zips=zips))
+        self.assertEqual(line.engine_spec(value), value['s2arm']['engine'])
+        self.assertEqual(value['images']['added'], sorted(line.ENGINE_IMAGES))
+        self.assertEqual(value['images']['removed'], [])
+        paths = value['s2arm']['deltaPaths']
+        for path in ('packages/s2arm_jit_helper/ios/Resources/s2arm-universal.js', 'build-utils/s2arm/configure_s2arm_ios.py',
+                     'build-utils/validate_single_ipa_distribution.py', 'packages/s2arm_probe/ios/s2arm_probe.podspec'):
+            self.assertIn(path, paths)
+        self.assertTrue(all(self.sd.is_product(path) for path in paths))
+        names = [name for name, _ in value['tests']['flutter']['additions']['commands']]
+        self.assertLessEqual({'s2arm-jit-helper', 's2arm-validator', 's2arm-configure'}, set(names))
+        self.assertEqual(len(names), len(set(names)))
+        self.assertIn('S2ArmEngine.framework and NS2Pro.framework of run', value['note'])
+        self.assertEqual(value['s2arm']['engineDelta']['images']['added'], list(line.ENGINE_IMAGES))
+        plain = make_manifest.draft(self.sd, 'sibling', MODEL, 803)
+        self.assertNotIn('engine', plain['s2arm'])
+        self.assertEqual(plain['images']['added'], [])
+        with self.assertRaises(line.LineError):
+            line.engine_spec(plain)
+        for engine in (dict(run=0, zips=zips), dict(run=ENGINE_RUN, zips={line.ENGINE_ZIPS[0]: 'f' * 64}),
+                       dict(run=ENGINE_RUN, zips=dict(zips, **{line.ENGINE_ZIPS[0]: 'F' * 64})),
+                       dict(run='43100000001', zips=zips)):
+            with self.subTest(engine=engine):
+                with self.assertRaises(SystemExit):
+                    make_manifest.draft(self.sd, 'sibling', MODEL, 803, engine=engine)
+
+
+class Verifier(unittest.TestCase):
+    def test_the_in_memory_edit_is_the_declared_one(self):
+        original = (ROOT / line.VERIFIER).read_text().splitlines()
+        edited = line.edited_verifier_source().splitlines()
+        changed = [(a, b) for a, b in zip(original, edited) if a != b]
+        self.assertEqual(len(original), len(edited))
+        self.assertEqual(len(changed), len(line.VERIFIER_EDITS))
+        for (before, after), (old, new, _) in zip(changed, line.VERIFIER_EDITS):
+            self.assertTrue(before.startswith(old) and after == new + before[len(old):], (before, after))
+        self.assertIn("8 + (root + 'S2Arm-native-identity.json' in names)", line.edited_verifier_source())
+        import verify_downloaded_delivery_s2arm as launcher
+        verifier = launcher.load_verifier()
+        self.assertTrue(verifier.S2ARM_EDITED)
+        self.assertIs(launcher.load_verifier(), verifier)
+        with tempfile.TemporaryDirectory(prefix='s2arm-verifier-') as directory:
+            target = Path(directory) / line.VERIFIER
+            target.parent.mkdir(parents=True)
+            target.write_text((ROOT / line.VERIFIER).read_text().replace('len(bundles) == 8', 'len(bundles) == 7'))
+            with self.assertRaisesRegex(line.LineError, 'review'):
+                line.edited_verifier_source(directory)
+
+
 class NewFiles(unittest.TestCase):
     def test_placement_and_content_rules(self):
         sd = line.configure()
@@ -672,8 +1360,16 @@ class NewFiles(unittest.TestCase):
             self.assertTrue(sd.is_recipe(path), path + ' must be a recipe path (no classification, never compiled)')
         self.assertTrue(sd.is_product('build-utils/s2arm/set_probe_key.py'),
                         'the key setter changes the application: it is product, reviewed with the probe')
+        product = ['build-utils/s2arm/set_probe_key.py', 'build-utils/s2arm/configure_s2arm_ios.py',
+                   'build-utils/validate_single_ipa_distribution.py', 'test/s2arm_jit_helper_test.py',
+                   'test/s2arm_validator_test.py', 'test/s2arm_configure_test.py'] + [
+            path.relative_to(ROOT).as_posix() for path in sorted((ROOT / 'packages/s2arm_jit_helper').rglob('*'))
+            if path.is_file()]
+        for path in product:
+            self.assertTrue(sd.is_product(path), path + ' reaches the application or its checks: it is product')
+        self.assertTrue(sd.is_recipe('docs/s2arm-jit-helper.md'))
         banned = re.compile('|'.join(('cl' + 'aude-', 'gp' + 't-', 'son' + 'net', 'op' + 'us', 'hai' + 'ku')), re.I)
-        for path in recipe + ['build-utils/s2arm/set_probe_key.py']:
+        for path in recipe + product + ['docs/s2arm-jit-helper.md']:
             text = (ROOT / path).read_text()
             self.assertIsNone(banned.search(text), path + ' names a model')
             self.assertNotIn('PRIVATE' + ' KEY', text, path)
