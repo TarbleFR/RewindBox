@@ -20,6 +20,31 @@ for lower,cls in [('rpcs3','Rpcs3'),('armsx2','Armsx2'),('dolphin','Dolphin')]:
     paths.append(f'packages/{lower}_jit_helper/ios/Classes/{cls}JITRequestHandlerBase.swift')
 for lower in ('rpcs3','armsx2'):
     paths.append(f'packages/{lower}_jit_helper/ios/Resources/{lower}-universal.js')
+ARMSX2_BRIDGE='packages/armsx2_internal_bridge/ios/Classes/Armsx2JitBridgePlugin.mm'
+# The storage classification of 31 October 2026 (ae78b4be) moved the helper's
+# text journal from Documents/ to Documents/Diagnostics/PS2/. Only the path of
+# the journal changed: the JIT state machine below it is the Build363 one.
+# Put back exactly that reviewed block; any other byte still fails the
+# comparison, and a block that differs in one character is not recognised.
+ARMSX2_JOURNAL_OLD=(b'    NSString* path = [documents URLByAppendingPathComponent:@"armsx2_jit_debug.log"].path;\n')
+ARMSX2_JOURNAL_NEW=(b'    NSURL* diagnostics = [[documents URLByAppendingPathComponent:@"Diagnostics" isDirectory:YES]\n'
+                    b'        URLByAppendingPathComponent:@"PS2" isDirectory:YES];\n'
+                    b'    [NSFileManager.defaultManager createDirectoryAtURL:diagnostics\n'
+                    b'        withIntermediateDirectories:YES attributes:nil error:nil];\n'
+                    b'    NSString* path = [diagnostics URLByAppendingPathComponent:@"armsx2_jit_debug.log"].path;\n')
+def armsx2_without_diagnostics_folder(current):
+    assert current.count(ARMSX2_JOURNAL_NEW)==1 and current.count(ARMSX2_JOURNAL_OLD)==0,\
+        'ARMSX2 JIT journal block is not the reviewed one'
+    return current.replace(ARMSX2_JOURNAL_NEW,ARMSX2_JOURNAL_OLD)
+# Controls of the rule itself: another folder, a second block or the old line
+# next to the new one are refused.
+for wrong in (ARMSX2_JOURNAL_NEW.replace(b'@"PS2"',b'@"PS3"'), ARMSX2_JOURNAL_NEW*2,
+              ARMSX2_JOURNAL_NEW+ARMSX2_JOURNAL_OLD, ARMSX2_JOURNAL_OLD):
+    try:
+        armsx2_without_diagnostics_folder(b'prefix\n'+wrong+b'suffix\n')
+    except AssertionError:
+        continue
+    raise SystemExit('The ARMSX2 journal rule accepted an unreviewed block')
 for path in paths:
     old=subprocess.check_output(['git','show',BASE+':'+path],cwd=ROOT).replace(b'\r\n',b'\n')
     current=(ROOT/path).read_bytes().replace(b'\r\n',b'\n')
@@ -38,6 +63,8 @@ for path in paths:
                   b'  }\n\n')
         assert current.count(cpu_import)==1 and current.count(cpu_gate)==1
         current=current.replace(cpu_import,b'').replace(cpu_gate,b'')
+    if path==ARMSX2_BRIDGE:
+        current=armsx2_without_diagnostics_folder(current)
     assert current==old,'Runtime JIT changed: '+path
 for path in ('.github/workflows/ios-ci.yml','build-utils/prepare_fast_native_runtime.py',
              'packages/dolphin_internal_bridge/ci/build_support.py'):
@@ -71,4 +98,4 @@ if identity_path.is_file():
                   for file in ('StikjitBridgePlugin','StikjitBridgePluginV2'))
     exports=set(re.findall(r'Self.resolve\(\s*"([a-z][a-z0-9_]+)"',bridge))
     assert set(identity['dynamicFFIExports'])==exports
-print('PASS: canonical source build; no obsolete donor JIT; 11 JIT runtime/patch files retain Build363 behavior plus the reviewed CPU eligibility gate')
+print('PASS: canonical source build; no obsolete donor JIT; 11 JIT runtime/patch files retain Build363 behavior plus the reviewed CPU eligibility gate and the reviewed ARMSX2 journal folder')
