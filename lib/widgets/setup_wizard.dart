@@ -27,6 +27,7 @@ import '../utils/gamepad_nav.dart';
 
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:neostation/l10n/app_locale.dart';
+import 'package:neostation/l10n/library_link_locale.dart';
 import 'package:neostation/l10n/ios_setup_locale.dart';
 import 'package:neostation/l10n/libretro_locale.dart';
 import 'package:neostation/screens/libretro/libretro_library_actions.dart';
@@ -2350,7 +2351,11 @@ class _SetupWizardState extends State<SetupWizard> with WidgetsBindingObserver {
         });
         AppNotification.showNotification(
           context,
-          AppLocale.cannotReadFolder.getString(context),
+          // iOS: the reason the folder could not be linked (picker not
+          // shown, access not kept or lost, folder unreadable).
+          Platform.isIOS
+              ? LibraryLinkLocale.failure(context, e)
+              : AppLocale.cannotReadFolder.getString(context),
           type: NotificationType.error,
         );
       }

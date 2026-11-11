@@ -740,8 +740,10 @@ PICKS = ('FilePicker.pickFiles(', 'FilePicker.getDirectoryPath(', 'FilePicker.sa
 # edit; its copy waits the picker's hour like any other).
 NOT_IMPORTS = {
     'lib/providers/sqlite_config_provider/scanning.dart': {'FilePicker.getDirectoryPath(': 1},
+    # The two folder picks of the settings (the RetroArch card and, since 11 November 2026, "Add ROM folder" on iOS)
+    # link a library folder in place: nothing is copied into the application's storage.
     'lib/screens/settings_screen/new_settings_options/directories_settings_content.dart': {
-        'FilePicker.getDirectoryPath(': 3, 'ExternalFolderAccess.pickAndBookmarkFolder(': 1},
+        'FilePicker.getDirectoryPath(': 3, 'ExternalFolderAccess.pickAndActivateFolder(': 2},
     'lib/widgets/setup_wizard.dart': {
         'FilePicker.getDirectoryPath(': 2, 'ExternalFolderAccess.pickAndActivateFolder(': 1},
     'lib/widgets/system_emulator_settings_dialog.dart': {'FilePicker.pickFiles(': 2},

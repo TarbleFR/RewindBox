@@ -2,6 +2,33 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 
+/// A native failure of the folder picker, or of the access to a folder
+/// picked earlier. A cancelled pick is not a failure: the pick methods
+/// return `null` for it, and only for it.
+///
+/// [code] is the native code: `NO_ROOT_VC` (no screen to show the picker
+/// on), `BOOKMARK_FAILED` (iOS refused to remember the folder),
+/// `RESOLVE_FAILED` / `ACCESS_DENIED` (iOS no longer gives the folder
+/// back), or `NOT_ACTIVATED` when a folder that was just picked cannot be
+/// reopened and the native side gave no other reason.
+class ExternalFolderAccessException implements Exception {
+  const ExternalFolderAccessException(this.code, {this.message, this.key});
+
+  final String code;
+
+  /// The system's own description, when it gave one.
+  final String? message;
+
+  /// The bookmark slot the failure belongs to.
+  final String? key;
+
+  @override
+  String toString() {
+    final detail = message == null || message!.isEmpty ? '' : ': $message';
+    return 'ExternalFolderAccessException($code$detail)';
+  }
+}
+
 /// Thin Dart wrapper around the native iOS folder-bookmark plugin.
 ///
 /// All methods are no-ops (return null) on platforms other than iOS, so
@@ -22,23 +49,44 @@ class ExternalFolderAccess {
   /// a folder linked before multi-bookmark support still resolves.
   static const String defaultBookmarkKey = 'retroarch';
 
+  /// Tests only: stands for `Platform.isIOS`.
+  static bool? debugIsIosOverride;
+
+  static bool get _isIos => debugIsIosOverride ?? Platform.isIOS;
+
+  static final Map<String, ExternalFolderAccessException> _resolveFailures =
+      <String, ExternalFolderAccessException>{};
+
+  /// Why the folder saved under [key] was not given back by the last
+  /// [resolveBookmarkedFolder]. `null` when it opened, or when no folder is
+  /// saved under that key (nothing was refused then).
+  static ExternalFolderAccessException? resolveFailure({
+    String key = defaultBookmarkKey,
+  }) => _resolveFailures[key];
+
   /// Presents the system folder picker — which can browse into any app's
   /// exposed "On My iPhone" location, e.g. RetroArch's — and persists a
   /// security-scoped bookmark for the picked folder so it stays accessible
   /// across app relaunches.
   ///
   /// Returns the picked folder's absolute path, or `null` if the user
-  /// cancelled, this isn't iOS, or the pick otherwise failed.
+  /// cancelled or this isn't iOS. A pick that failed throws an
+  /// [ExternalFolderAccessException]: a failure used to be reported as
+  /// `null` too, so the user saw nothing happen and could not tell why.
   static Future<String?> pickAndBookmarkFolder({
     String key = defaultBookmarkKey,
   }) async {
-    if (!Platform.isIOS) return null;
+    if (!_isIos) return null;
     try {
       return await _channel.invokeMethod<String>('pickAndBookmarkFolder', {
         'key': key,
       });
-    } on PlatformException {
-      return null;
+    } on PlatformException catch (error) {
+      throw ExternalFolderAccessException(
+        error.code,
+        message: error.message,
+        key: key,
+      );
     }
   }
 
@@ -59,7 +107,8 @@ class ExternalFolderAccess {
 
     final resolved = await resolveBookmarkedFolder(key: key);
     if (resolved == null) {
-      throw StateError('The selected folder could not be activated.');
+      throw resolveFailure(key: key) ??
+          ExternalFolderAccessException('NOT_ACTIVATED', key: key);
     }
     return resolved;
   }
@@ -68,17 +117,58 @@ class ExternalFolderAccess {
   /// starts security-scoped access to it for this app session.
   ///
   /// Returns the folder's absolute path, or `null` if no folder has been
-  /// linked under that key yet (or this isn't iOS).
+  /// linked under that key yet (or this isn't iOS). `null` is also returned
+  /// when iOS does not give a saved folder back; [resolveFailure] then holds
+  /// the reason, so the caller can tell "never linked" from "access lost".
   static Future<String?> resolveBookmarkedFolder({
     String key = defaultBookmarkKey,
   }) async {
-    if (!Platform.isIOS) return null;
+    if (!_isIos) return null;
     try {
-      return await _channel.invokeMethod<String>('resolveBookmarkedFolder', {
-        'key': key,
-      });
-    } on PlatformException {
+      final folder = await _channel.invokeMethod<String>(
+        'resolveBookmarkedFolder',
+        {'key': key},
+      );
+      _resolveFailures.remove(key);
+      return folder;
+    } on PlatformException catch (error) {
+      _resolveFailures[key] = ExternalFolderAccessException(
+        error.code,
+        message: error.message,
+        key: key,
+      );
       return null;
+    }
+  }
+
+  /// Gives the folder saved under [from] to the slot [to]; [from] is left
+  /// empty and the folder stays open. Returns whether [from] held a folder.
+  ///
+  /// A pick stores its folder at once: picking into a spare slot and moving
+  /// it only when the user confirms leaves the slot in use untouched when
+  /// they back out.
+  static Future<bool> moveBookmark({
+    required String from,
+    required String to,
+  }) async {
+    if (!_isIos) return false;
+    try {
+      final moved = await _channel.invokeMethod<bool>('moveBookmark', {
+        'from': from,
+        'to': to,
+      });
+      if (moved == true) {
+        final failure = _resolveFailures.remove(from);
+        _resolveFailures.remove(to);
+        if (failure != null) _resolveFailures[to] = failure;
+      }
+      return moved ?? false;
+    } on PlatformException catch (error) {
+      throw ExternalFolderAccessException(
+        error.code,
+        message: error.message,
+        key: to,
+      );
     }
   }
 
@@ -94,7 +184,8 @@ class ExternalFolderAccess {
   /// folder is picked via [pickAndBookmarkFolder]. Other keys are
   /// untouched.
   static Future<void> clearBookmark({String key = defaultBookmarkKey}) async {
-    if (!Platform.isIOS) return;
+    if (!_isIos) return;
+    _resolveFailures.remove(key);
     try {
       await _channel.invokeMethod<void>('clearBookmark', {'key': key});
     } on PlatformException {

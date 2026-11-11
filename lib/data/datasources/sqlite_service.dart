@@ -2439,6 +2439,37 @@ class SqliteService {
   /// a transaction opened while another is open inside it, so two concurrent
   /// saves interleaved their delete and inserts (UNIQUE constraint failed:
   /// user_rom_folders.path). A path listed twice is stored once.
+  // LIBRARY_RELOCATION_BEGIN: rows_follow_folder
+  /// The statement and its arguments that move the game rows of the library
+  /// folder [from] to [to]: the same row, the new path. A row whose new path
+  /// already exists is left where it is (`OR IGNORE`).
+  static ({String sql, List<Object?> arguments}) romPathRelocation(
+    String from,
+    String to,
+  ) {
+    final prefix = from.endsWith('/') ? from : '$from/';
+    final target = to.endsWith('/') ? to : '$to/';
+    // SQLite counts characters where Dart counts UTF-16 code units.
+    final characters = prefix.runes.length;
+    return (
+      sql:
+          'UPDATE OR IGNORE user_roms SET rom_path = ? || substr(rom_path, ?) '
+          'WHERE substr(rom_path, 1, ?) = ?',
+      arguments: <Object?>[target, characters + 1, characters, prefix],
+    );
+  }
+
+  /// Moves the game rows of a library folder that iOS gave a new path
+  /// ([from] -> [to]); returns the rows moved. Play time, favourites and
+  /// scraped data stay on their game.
+  static Future<int> relocateRomPaths(String from, String to) async {
+    if (from.isEmpty || to.isEmpty || from == to) return 0;
+    final db = await instance.database;
+    final statement = romPathRelocation(from, to);
+    return db.rawUpdate(statement.sql, statement.arguments);
+  }
+  // LIBRARY_RELOCATION_END: rows_follow_folder
+
   static Future<void> saveUserRomFolders(List<String> folders) {
     final snapshot = List<String>.of(folders);
     final write = _romFoldersWrite.then(
