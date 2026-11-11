@@ -2,9 +2,11 @@ name: XeniOS native core
 run-name: XeniOS native core • ${{ github.sha }}
 # The main session owns Core builds, pins and IPA delivery
 # (docs/AI_TASK_BOARD.md). docs/xenios-playlist.md § Core adaptation plan.
-# A push to the playlist's own branch runs the host checks only (asked by the
-# main session before #172 merges; to be revisited before it is removed):
-# compiling XeniaCore stays a dispatch with build_core.
+# A push to the playlist's own branch runs the host checks (asked by the main
+# session before #172 merged; to be revisited before it is removed). Compiling
+# XeniaCore is a dispatch with build_core, or, since a workflow absent from
+# main cannot be dispatched, a push to that branch whose commit message
+# contains [xenia-core] (asked by the main session for the Core pin).
 on:
   push:
     branches: [work/playlists-xenios-20261110]
@@ -21,7 +23,8 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: xenia-native-core-${{ github.ref }}
+  # A Core build has its own group: a later checks-only push never cancels it.
+  group: xenia-native-core-${{ github.ref }}-${{ contains(github.event.head_commit.message, '[xenia-core]') && github.sha || 'checks' }}
   cancel-in-progress: true
 jobs:
   checks:
@@ -198,7 +201,7 @@ jobs:
   core:
     name: Compile pinned XeniaCore iOS framework
     needs: checks
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_core }}
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.build_core) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[xenia-core]')) }}
     runs-on: ${{ inputs.runner || 'macos-26' }}
     timeout-minutes: 180
     env:
