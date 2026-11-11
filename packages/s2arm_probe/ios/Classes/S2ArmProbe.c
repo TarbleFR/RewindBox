@@ -153,6 +153,19 @@ static void poke_body(void *argument) {
     poke->seen = *cell;
 }
 
+// The helper script returns a debugserver error code as if it were an address
+// (for instance 0xE08), so only a plausible, page-aligned address is accepted.
+static uint8_t *helper_region(const char *step, rb_s2arm_prepare_fn prepare, uint64_t length) {
+    say(step, "begin", "command 1, address 0, %#llx bytes", (unsigned long long)length);
+    uint64_t address = prepare(0, length);
+    if (address < 0x10000 || (address & (PAGE - 1))) {
+        say(step, "failed", "the helper returned %#llx, not a region", (unsigned long long)address);
+        return NULL;
+    }
+    say(step, "passed", "%#llx%s", (unsigned long long)address, address + length <= TOP39 ? " (below 2^39)" : " (above 2^39)");
+    return (uint8_t *)address;
+}
+
 // ---- phase 1: helper attached --------------------------------------------------
 static void scan_holes(uint64_t *best_at, uint64_t *best, uint64_t *total, unsigned *regions, uint64_t *above) {
     vm_address_t cursor = 0x100000000ull;
@@ -217,13 +230,8 @@ static void probe_fixed(rb_s2arm_prepare_fn prepare) {
     }
     say("fixedData", "passed", "slot %p", (void *)g.slot);
 
-    say("helperRegion", "begin", "command 1, address 0, %#llx bytes", (unsigned long long)CODE_LEN);
-    g.code = (uint8_t *)prepare(0, CODE_LEN);
-    if (!g.code) {
-        say("helperRegion", "failed", "the helper returned 0");
-        return;
-    }
-    say("helperRegion", "passed", "%p%s", (void *)g.code, (uint64_t)g.code + CODE_LEN <= TOP39 ? " (below 2^39)" : " (above 2^39)");
+    g.code = helper_region("helperRegion", prepare, CODE_LEN);
+    if (!g.code) return;
     g.code_rw = writable_alias("helperAlias", g.code, CODE_LEN);
     if (!g.code_rw) return;
     if (!run_stub("helperExecute", g.code_rw + TEXT_LEN - STUB_BACK, g.code + TEXT_LEN - STUB_BACK)) return;
@@ -253,13 +261,8 @@ static void probe_fixed(rb_s2arm_prepare_fn prepare) {
 }
 
 static void probe_arena(rb_s2arm_prepare_fn prepare) {
-    say("arenaRegion", "begin", "command 1, address 0, %#llx bytes", (unsigned long long)SPAN);
-    g.arena = (uint8_t *)prepare(0, SPAN);
-    if (!g.arena) {
-        say("arenaRegion", "failed", "the helper returned 0");
-        return;
-    }
-    say("arenaRegion", "passed", "%p%s", (void *)g.arena, (uint64_t)g.arena + SPAN <= TOP39 ? " (below 2^39)" : " (above 2^39)");
+    g.arena = helper_region("arenaRegion", prepare, SPAN);
+    if (!g.arena) return;
     g.arena_rw = writable_alias("arenaAlias", g.arena, SPAN);
     if (!g.arena_rw) return;
     if (!run_stub("arenaExecute", g.arena_rw + TEXT_LEN - STUB_BACK, g.arena + TEXT_LEN - STUB_BACK)) return;
