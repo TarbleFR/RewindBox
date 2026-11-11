@@ -262,7 +262,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   (githubstatus.com major outage, incident opened 20:56): it never started, like every run created between 20:41 and
   20:52, while a run created at 21:37 ran; GitHub refused its cancellation (409, "has not been queued yet"; not
   retried). Second request (recipe 3.6, only the recipe changes): draft `8fb2ee39` (its note records why), frozen
-  there with the same effective digest, trigger `bd99e8b7`, run `43106533461` in progress. Base: the delivered 725 (run
+  there with the same effective digest, trigger `bd99e8b7`, run `43106533461`. Attempt 1: preflight and flutter green,
+  republish failed on `gh: HTTP 503` downloading the retained Dolphin archive `13410284965` (21:54, after the outage;
+  the application job had passed the same downloads); a verified delivery needs one successful attempt, so attempt 1
+  was cancelled and the whole run re-run: attempt 2 started 22:02:49, in progress. Base: the delivered 725 (run
   `42973548971`, receipt `a84cb29a`, 90 signed images). Replaced: RPCS3 Core 933 (pin `3fdc9f3b`), MeloNX Core 735
   (pin `3939c7a9`, replaces 731). Retained: Dolphin, ARMSX2, libretro, MeloNX dependencies, standalone MoltenVK
   `99605a2b` (inputs unchanged since 725). Added image: `xenia_internal_bridge.framework` (PR 172 plugin; XeniaCore,
