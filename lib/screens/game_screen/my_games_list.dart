@@ -1233,7 +1233,12 @@ class _SystemGamesListState extends State<SystemGamesList> {
   /// specialized view for systems with zero detected media files.
   /// includes controls for recursive scanning and directory management.
   Widget _buildEmptyState() {
-    if (widget.system.folderName == 'switch') {
+    // Embedded playlists whose import menu is the route's own button (Switch,
+    // and on iOS Xbox 360 and Switch 2): an empty library stays a playlist,
+    // with no recursive-scan switch (their scan root is fixed and private).
+    if (widget.system.folderName == 'switch' ||
+        _isXeniaLibrary ||
+        _isS2ArmLibrary) {
       return SwitchPlaylistEmptyState(
         systemName: widget.system.shortName ?? widget.system.realName,
         onBack: _goBack,
