@@ -3983,8 +3983,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 - **Owner/branch:** session `012mUASj3EQnvC86WC56AePw`, `work/s2arm-switch2-prototype-20261110`
   (merged with `Claude` `0c78f583`). Own paths: `packages/s2arm_probe/`, `native/s2arm/`,
   `build-utils/s2arm/`, `tools/s2arm_prototype/`, `.github/workflows/s2arm-*.yml`, `docs/s2arm-*.md`.
-- **Goal:** a Switch 2 playlist on S2Arm, games prepared on the phone. Separate IPA line
-  (builds from 801), built by this session (authorization above); never in the common IPA.
+- **Goal:** a Switch 2 playlist on S2Arm, games prepared on the phone. The device probe ships in
+  a common IPA by maintainer decision (below); the rest stays on this branch.
 - **State (11 Nov), host only, nothing run on an iPhone:**
   - Prototype: rewriter output loaded and run to its gates on macOS arm64; device probe written
     (three code placements; the process-mapped one is what RPCS3 already does on device, iOS 27
@@ -4000,12 +4000,16 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 - **Open or limit:** device questions D, E, F and iOS 26 unobserved; rewriting a converted NRO
   not shown end to end; NROs hidden in other files and ZBIC modules refused; unpack, system
   data, RomFS index, package layout not ported.
-- **Maintainer decision (11 Nov, this session): "Les deux cohabitent"** — the Switch 2 test IPA
-  gets a distinct application identifier (`com.neogamelab.neostation-switch2`, display name
-  `RewindBox S2`), applied by a late step of its own workflow; common identifiers untouched.
-- **Next:** own delivery workflow for test IPA 801, being written (delegated, isolated worktree;
-  probe + hook key, Core pins from `Claude`, distinct identifier),
-  then the maintainer's device run and the `s2armProbe.*` journal.
+- **Maintainer decision (11 Nov, this session, replaces the separate IPA and its distinct
+  identifier):** "installe ton chantier directement dans l'IPA principal dans le pire des cas elle
+  ne fera que crash l'application et tu auras ta réponse et je pourrai reprendre une nouvelle IPA
+  pour continuer avec MeloNX". The probe goes into the next common IPA, built by main as usual.
+  No separate workflow, key pair or identifier: the 801 recipient key is removed, its private
+  half deleted, nothing was built.
+- **Next:** main integrates `packages/s2arm_probe` (root pubspec workspace + dependency) and
+  sets `RewindBoxS2ArmProbe` in that common IPA (handoff sent 11 Nov); then the maintainer's
+  device run and the `s2armProbe.*` lines of `MeloNX-launch.log`. The probe then runs at the first
+  Switch launch of every app session of that IPA, until an IPA without the key replaces it.
 
 ### Codex orchestration — Codex
 
