@@ -3783,6 +3783,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 - **Open or limit:** nothing measured on an iPhone; device questions A–F all open. Batch handed
   to main (11 Nov): both branches, the root `pubspec.yaml` lines and the Info.plist key of a test
   IPA are main's to add.
+  Main received it and has not taken it: the maintainer asked it to hold new IPAs for the other
+  fixes; a separate test IPA needs the maintainer's request in main's session.
 - **Next:** when main delivers the test IPA, give the maintainer the steps (one Switch game launch
   after opening the app, send `MeloNX-launch.log`) and read the `s2armProbe.*` lines.
 
