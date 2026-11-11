@@ -2131,7 +2131,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
               one-engine-per-process flag; the S2Arm probe hook removed.
             - Contract 47b596a9, verified locally (421 checks without the archive). The RPCS3 Core 931 source closure is
               unchanged.
-            - Core CI run 43044568458 dispatched on d2053e98; result and pin pending. Core 733 stays pinned.
+            - Core CI run 43044568458 on d2053e98, job 130604996031 green: all 92 fresh Apple gates pass.
+            - **Pinned:** artifact 13870293486, 100535666 B, `f940778e` (downloaded through the MCP signed URL, digest
+              checked). iPhone binary `264a2f18`, 38472792 B. Fingerprint `a60542da`, contract `47b596a9`, pin `3939c7a9`.
+            - Verified offline on the downloaded artifact with the component verifier: `engine_evidence` passed, with 92
+              fresh gates and 17 scoped gates reused. Contract tests passed: 421, reads 440, arrays 545.
+            - Replaces Core 733 (run 43025166594), which stays the fallback with the same five-part MoltenVK.
+            - Not run on an iPhone; no FPS or memory claim.
         - **Core 929 request 2 (1ea6cf4a, run 43000618405):** core-build.json links the dependency of run 42998604606
           (a277f467; offline: run, jobs, three artifacts, host receipts and every recorded input checked with the repository
           verifier, libMoltenVK.a d19d3a42 byte-identical; the symbol check needs xcrun and passed in the Core job's
