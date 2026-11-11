@@ -1,0 +1,42 @@
+diff --git a/runtime/src/imgpack.c b/runtime/src/imgpack.c
+--- a/runtime/src/imgpack.c
++++ b/runtime/src/imgpack.c
+@@ -12,6 +12,13 @@
+ #include <sys/mman.h>
+ #include <mach-o/loader.h>
+ #include <mach/mach.h>
++#include <libkern/OSCacheControl.h>   // RewindBox guest: sys_icache_invalidate
++
++// RewindBox guest (runtime/src/rb_guest.c): another app loaded the engine. The pack is only read (no code signature to register) and
++//   game code reaches execution through pages the host makes executable (s2a_imgpack_map). These weak defaults are S2Arm.app's case
++//   (rb_guest.c not linked, e.g. per-file unit tests): never a guest
++__attribute__((weak)) int s2a_rb_guest_on(void) { return 0; }
++__attribute__((weak)) void *s2a_rb_guest_prepare_code(void *at, size_t len) { (void)at; (void)len; return NULL; }
+ 
+ #define PG 0x4000ull
+ typedef struct { char name[24]; struct { uint64_t off, len; } b[4]; } img_ent;   // 与 embed.py 每项 88 字节一致
+@@ -91,7 +98,7 @@
+     struct s2a_imgpack *p = calloc(1, sizeof *p);
+     if (!p) { close(fd); pthread_mutex_unlock(&g_mu); return fail(why, whyn, S2A_IMG_EFORMAT, "内存不足"); }
+     strlcpy(p->path, path, sizeof p->path); p->fd = fd;
+-    int rc = load(p, 1, why, whyn);
++    int rc = load(p, !s2a_rb_guest_on(), why, whyn);   // RewindBox guest: no signature registration, code is copied into host pages
+     if (rc) { close(fd); free(p->ent); free(p); pthread_mutex_unlock(&g_mu); return rc; }
+     p->next = g_open; g_open = p; *out = p;
+     pthread_mutex_unlock(&g_mu);
+@@ -125,6 +132,15 @@
+     if (err) *err = 0;
+     if (!p || (((uint64_t)(uintptr_t)at | off | len) & (PG - 1))) { if (err) *err = EINVAL; return S2A_IMG_EMAP; }
+     if (!len) return S2A_IMG_OK;
++    if (code && s2a_rb_guest_on()) {   // RewindBox guest: the host makes [at, at + len) executable and returns a writable alias of those pages;
++        //   the block is read into the alias, then the instruction cache is invalidated at at. Data blocks keep the file mapping below
++        void *rw = s2a_rb_guest_prepare_code(at, (size_t)len);
++        if (!rw) { if (err) *err = EPERM; return S2A_IMG_EPROT; }
++        errno = 0;
++        if (rd(p->fd, rw, (size_t)len, off)) { if (err) *err = errno ? errno : EIO; return S2A_IMG_EMAP; }
++        sys_icache_invalidate(at, (size_t)len);
++        return S2A_IMG_OK;
++    }
+     void *m = mmap(at, (size_t)len, code ? PROT_READ | PROT_EXEC : PROT_READ | PROT_WRITE, MAP_FIXED | MAP_PRIVATE, p->fd, (off_t)off);
+     if (m != at) { if (err) *err = m == MAP_FAILED ? errno : EFAULT; return S2A_IMG_EMAP; }
+     if (code && vm_protect(mach_task_self(), (vm_address_t)at, (vm_size_t)len, TRUE, VM_PROT_READ | VM_PROT_EXECUTE) != KERN_SUCCESS) { if (err) *err = EPERM; return S2A_IMG_EPROT; }

@@ -183,6 +183,30 @@ jobs:
           cat "$out/inventory.txt" | head -150
         env:
           S2A_RUN_ROOT: ${{ runner.temp }}/s2arm-run
+      - name: Check the guest entry points of the framework (patches 0003-0008)
+        # RewindBox dlopens the framework and looks these up with dlsym; die() finds s2a_rb_guest_fatal by name.
+        # rb_s2arm_engine_loaded belongs to RewindBox's host plugin and must not come from the framework.
+        working-directory: ${{ runner.temp }}/s2arm
+        shell: bash --noprofile --norc {0}
+        run: |
+          set -u
+          fw=build/ios/S2ArmEngine.framework
+          report="$GITHUB_WORKSPACE/proof/guest-entry-points.txt"
+          : > "$report"
+          status=0
+          note() { echo "$1" | tee -a "$report"; }
+          nm -gU "$fw/S2ArmEngine" | awk '{print $3}' | sort > "$RUNNER_TEMP/guest-exports.txt"
+          for sym in _s2a_rb_guest_configure _s2a_rb_guest_make_view_controller _s2a_rb_guest_start _s2a_rb_guest_stop _s2a_rb_guest_fatal; do
+            if grep -qx "$sym" "$RUNNER_TEMP/guest-exports.txt"; then note "ok   exported $sym"; else note "FAIL not exported: $sym"; status=1; fi
+          done
+          if grep -qx _rb_s2arm_engine_loaded "$RUNNER_TEMP/guest-exports.txt"; then note "FAIL _rb_s2arm_engine_loaded is exported (the host plugin owns it)"; status=1; else note "ok   _rb_s2arm_engine_loaded not exported"; fi
+          undefined=$(nm -u "$fw/S2ArmEngine" | grep '_s2a_rb_' | tr '\n' ' ')
+          if [ -n "$undefined" ]; then note "FAIL undefined guest symbols: $undefined"; status=1; else note "ok   no undefined _s2a_rb_ symbol"; fi
+          if cmp -s "$fw/Headers/rb_guest.h" runtime/src/rb_guest.h; then note "ok   Headers/rb_guest.h"; else note "FAIL Headers/rb_guest.h missing or not the patched runtime/src/rb_guest.h"; status=1; fi
+          for lang in en zh-Hans; do
+            if [ -f "$fw/$lang.lproj/S2ArmHost.strings" ]; then note "ok   $lang.lproj/S2ArmHost.strings"; else note "FAIL $lang.lproj/S2ArmHost.strings missing"; status=1; fi
+          done
+          exit $status
       - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
