@@ -3999,9 +3999,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   probe), `42948709020` (preparation), `42948709021` (iOS Core).
 - **Open or limit:** device questions D, E, F and iOS 26 unobserved; rewriting a converted NRO
   not shown end to end; NROs hidden in other files and ZBIC modules refused; unpack, system
-  data, RomFS index, package layout not ported. Maintainer to settle: application identifier of
-  the Switch 2 IPA (same as the common IPA or distinct).
-- **Next:** own delivery workflow for test IPA 801 (probe + hook key, Core pins from `Claude`),
+  data, RomFS index, package layout not ported.
+- **Maintainer decision (11 Nov, this session): "Les deux cohabitent"** — the Switch 2 test IPA
+  gets a distinct application identifier (`com.neogamelab.neostation-switch2`, display name
+  `RewindBox S2`), applied by a late step of its own workflow; common identifiers untouched.
+- **Next:** own delivery workflow for test IPA 801, being written (delegated, isolated worktree;
+  probe + hook key, Core pins from `Claude`, distinct identifier),
   then the maintainer's device run and the `s2armProbe.*` journal.
 
 ### Codex orchestration — Codex
