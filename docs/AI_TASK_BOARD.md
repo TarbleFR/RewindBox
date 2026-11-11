@@ -1881,7 +1881,51 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
         no 1280x720 read-back after the second window. `SPUPROF923` (sessions 4, 6, 11-17 fps): three Big SPURS kernels running
         91-93 %, the Little one 86-92 %, samples spread over many regions (real work, not one polling pc); 180-360 k heavy
         PUTLLC per window also park the PPU main thread (0.90-0.96 core). Next GOW3 lever not chosen yet.
-      - **Next:** pin Core 924 when its run is green, IPA 725 (Core 924 + database rule; skins PR 171 not integrated yet).
+      - **Cores 925 and 926 compiled, not pinned (11 Nov).** 925: run `42930926849` (iPhone Core green; Apple harness red on
+        the 919/921 tests because the 925 insertions sat next to the 921/923 lines; fixed by moving them in 926). 926
+        (engine `12e787c`, source `b4c70a37`, run `42935666936` green, both jobs): Black Ops II texture lookup memo served
+        (4,676,476 verified reuses on builds 662-724, 0 differences) and a retry of the MoltenVK boot record, superseded by 927.
+      - **Maintainer (11 Nov):** "il faut atteindre les 3ms de gains de travail" (Black Ops II stays at 60 Hz; 52 % of its
+        frames take two vblanks, 11 % one), then "Pas de protection et le but c'est de faire fonctionner les soumissions
+        asynchrones", applied "a chaque jeu le necessitant", "ne t'arrete pas avec deux defauts trouves"; **no new IPA before
+        all the fixes** ("attends tous les autres correctifs avant toute nouvelle IPA").
+      - **Core 927 (`REWINDBOX_MVK_ASYNC_DEFINITIVE_927`, `REWINDBOX_GPU_BACKGROUND_GATE_927`; engine `477180d`).**
+        [Doc](rpcs3-core927-mvk-async-definitive.md).
+        **Input identity:** private journals of builds 640-724 (not in Git); MoltenVK tree `db660224` (the Core's);
+        engine `12e787c` + this commit. **Findings (journals):** 16 asynchronous sessions (9 AC, 7 BO2; 9 processes,
+        76,148 presents), 0 acquire timeouts, encoding queue recorded each time; BO2 `submit` 0.05 ms/frame asynchronous vs
+        3.5-4.8 ms synchronous; every `failed_before` came from a boot ended before 900 guest flips. The only device loss
+        of the journals (IPA 650, AC, PID 8767, asynchronous) is raised 30 ms before `HOST_STATE app=background`: iOS refuses
+        background commits and MoltenVK marks the device lost (`MVKQueue::handleMTLCommandBufferError`, whatever
+        RESUME_LOST_DEVICE). **Findings (source, two read-only reviews + one review of the diff):** (1) the present barrier
+        gave up after 2 s while `MVKSemaphoreMTLEvent` counts at encode time and the acquisition reads the counter on the
+        calling thread; (2) the blocking ZCULL gather and (3) `vk::wait_for_fence` spun until MoltenVK had encoded the
+        submission (`MVKQueryPool::endQuery` runs at encode; query pools are never reused, so no stale result);
+        (4) nothing stopped GPU work in the background; (5) asynchronous texture streaming orders two queues with the same
+        encode-time counters. Rejected as defects after reading: object lifetime (all disposal waits for the fence), device
+        waits before swapchain rebuild/teardown, MetalFX handoff (already drained). **Change:** boot record removed (the
+        header stays as a comment-only file: the canonical delta drops no file); Automatic = every title, synchronous only
+        when the configuration turns asynchronous texture streaming on (Enabled keeps uploads on the RSX thread); barrier
+        never abandoned; a marker behind every submission of the presenting queue, the fence keeps the ticket, fence waits
+        and the gather sleep until encoded; background gate (passes around submit, present, acquire, MetalFX, device waits;
+        closed on `UIApplicationDidEnterBackground` with bounded waits 500 ms + 1 s settle, open on `DidBecomeActive`,
+        bypass while the emulator stops). `COREPROF OPT587` new fields, `COREPROF GPUGATE927`, `Resolved title policy 927`.
+        **Proof (host):** `test/rpcs3_mvk_async927_test.py` runs the real registry, tickets and gate against models of
+        MoltenVK's semaphore counter and query availability and of iOS background refusal, old rule as control: 4 -> 0
+        never-signalled waits, ~270,000 -> 0 `VK_NOT_READY` spins (same result), ~200 -> 0 and 30 -> 0 refused commits;
+        plain, ASan/UBSan, TSan (g++), plain (clang); real libdispatch on the macOS harness. **Validation:** closure,
+        codegen identities unchanged (PPU a987639e / SPU 477a3fa4), fold chain, 919-926 tests on the 927 tree, rerun list;
+        delivery checker `rpcs3_core_component.check_runtime_markers` now requires the record markers up to Core 926 and
+        refuses them from 927 (`test/rpcs3_core_marker_rule927_test.py`). **Not done:** no iPhone run; no FPS claim.
+        **Risks:** a title never run asynchronous may expose a MoltenVK defect (per-game Disabled restores synchronous);
+        the settle relies on iOS accepting GPU work until the background transition returns (Apple's documented rule):
+        confirm with `GPUGATE927` and the absence of `Device lost`.
+      - **MeloNX Core 725 pinned (`b83349ea`):** run `42933016136` on `e47b18d2`, artifact `13819773531` (`1ff1aa56…`),
+        iPhone `d9b8a837…` 38,439,896 B, fingerprint `9e1e2ae5…`, contract `45441585`, 82 fresh gates; MoltenVK rebuild
+        `90bd98a4…` pinned `e47b18d2`. `standard_delivery_contract_test` compares the frozen 724 manifest until the next draft.
+      - **Next:** compile Core 927, pin it; IPA 725 only on the maintainer's request (Core 927 + MeloNX Core 725 + database
+        rule; skins PR 171/173 to review). Device protocol for 927: `mvk_async=1` at first boot of BO2/GOW3/AC, leave the
+        app a few seconds in play and come back (no `Device lost`, `GPUGATE927 closes>=1`), `RSXSYNC551 submit` per frame.
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,

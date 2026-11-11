@@ -8,7 +8,9 @@
 #include "ios/IOSTitleLevers.h"
 
 namespace levers = rpcs3::ios::title_levers;
+#ifndef REWINDBOX_MVK_CANARY_RETIRED_927 // Core 927 retires the boot record (test/rpcs3_mvk_async927_test.py)
 namespace canary = rpcs3::ios::mvk_async_canary;
+#endif
 
 static int failures = 0;
 #define CHECK(cond) do { if (!(cond)) { std::fprintf(stderr, "CHECK failed line %d: %s\n", __LINE__, #cond); failures++; } } while (0)
@@ -26,6 +28,7 @@ int main()
 	CHECK(!levers::serves_texture_lookup_memo("BCES00510"));
 	CHECK(!levers::verifies_texture_lookup_memo("BCES00510"));
 
+#ifndef REWINDBOX_MVK_CANARY_RETIRED_927
 	// Canary: the 627 record (Black Ops II and God of War III failed) is another file; the 926 cell starts empty.
 	CHECK(canary::file_name == "rewindbox-mvk-async-926.txt");
 	auto old_records = canary::parse("BLES01717 failed\nBCES00510 failed\nBLES00158 ok\n");
@@ -47,6 +50,7 @@ int main()
 	// Not requested (the per-game setting Disabled): nothing recorded.
 	std::vector<canary::record> none;
 	CHECK(canary::on_boot(none, "BCES00510", false) == canary::verdict::off && none.empty());
+#endif
 
 	std::printf("{\"passed\": %s, \"checks\": \"title levers and canary rule\"}\n", failures ? "false" : "true");
 	return failures ? 1 : 0;
