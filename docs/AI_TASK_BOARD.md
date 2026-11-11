@@ -266,6 +266,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   Legal research complement (12 Nov, docs/evidence/xenia-metal-shader-converter/): DXBC AMD MIT + RSA/MD5 notices to add;
   Apple signer check to harden (`=anchor apple`); delivery source review to update for XeniaCore and static FFmpeg /
   libmspack (LGPL relinking means). Apple package/contract match, mirror provenance and re-signing stay without proof.
+  Targeted research on those three points (12 Nov, research-open-points-2026-11-12.md): new traceability (mirror
+  asset 705945125, uploader's claim only; Apple confirms iOS support since 3.1; 4.0 beta 2 iOS dylibs differ from
+  the pin), none closed. Closing 1-2 needs the original Apple installer extracted and its dylib hash compared.
 - **Common IPA 726 delivered and verified (11 Nov 22:37 UTC, main).** Run `43106533461` attempt 2 (trigger `bd99e8b7`,
   frozen on `8fb2ee39`), five jobs green. Four parts of 68,467,054 B = API digests; offline verification passed (six
   validators 0); IPA 272,927,734 B, SHA-256 `ac9612b4…d618`, 91 images (90 + `xenia_internal_bridge`), changed as
