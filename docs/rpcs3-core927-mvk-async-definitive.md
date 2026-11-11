@@ -143,6 +143,10 @@ marqueurs du vérificateur de livraison (les marqueurs du blocage sont exigés j
   attend au lieu de continuer : c'est le comportement du mode synchrone, signalé par `acquire_timeouts` ; (d) iOS accepte
   le travail GPU jusqu'au retour de la bascule vers l'arrière-plan (règle documentée par Apple) : c'est ce qui autorise le
   dernier vidage ; à confirmer par `COREPROF GPUGATE927` et l'absence de `Device lost` sur l'appareil.
+  **Corrigé par le Core 928** ([note](rpcs3-core928-gpu-gate-deactivation.md)) : le journal de l'IPA 650 montre le refus
+  30 ms *avant* que l'application traite la notification d'arrière-plan, et la documentation Metal d'Apple demande
+  d'arrêter les envois dès la désactivation ; la protection se ferme donc à la désactivation, et la ligne de journal
+  devient `COREPROF GPUGATE928`.
 
 ## 9. À vérifier sur l'iPhone (prochaine IPA, à la demande du mainteneur)
 

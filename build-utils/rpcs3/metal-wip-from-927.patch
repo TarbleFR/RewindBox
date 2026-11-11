@@ -1,0 +1,379 @@
+diff --git a/rpcs3/Emu/RSX/VK/VKCommandStream.cpp b/rpcs3/Emu/RSX/VK/VKCommandStream.cpp
+index 1874544..c554bc1 100644
+--- a/rpcs3/Emu/RSX/VK/VKCommandStream.cpp
++++ b/rpcs3/Emu/RSX/VK/VKCommandStream.cpp
+@@ -117,9 +117,11 @@ namespace vk
+ 	{
+ 		std::mutex s_ios_settle_fences_mutex;
+ 		std::vector<VkFence> s_ios_unsettled_fences;
++		// REWINDBOX_GPU_DEACTIVATION_GATE_928: whether the last settle got as far as the queues (under the mutex above).
++		bool s_ios_settle_reached_queues = false;
+ 	}
+ 
+-	bool ios_settle_queues(std::chrono::milliseconds limit)
++	bool ios_settle_queues(std::chrono::milliseconds limit, bool resume)
+ 	{
+ 		const render_device* dev = g_render_device;
+ 		if (!dev)
+@@ -127,6 +129,35 @@ namespace vk
+ 			return true;
+ 		}
+ 
++		if (resume)
++		{
++			// REWINDBOX_GPU_DEACTIVATION_GATE_928: the application is entering the background after a settle that
++			// returned false. When that settle reached the queues, nothing new is given to them: only the fences it
++			// left are waited for. When it did not, the whole settle is still to do (below).
++			std::lock_guard lock(s_ios_settle_fences_mutex);
++			if (s_ios_settle_reached_queues)
++			{
++				if (s_ios_unsettled_fences.empty())
++				{
++					return true;
++				}
++
++				const u64 limit_ns = static_cast<u64>(std::chrono::duration_cast<std::chrono::nanoseconds>(limit).count());
++				if (vkWaitForFences(*dev, ::size32(s_ios_unsettled_fences), s_ios_unsettled_fences.data(), VK_TRUE, limit_ns) != VK_SUCCESS)
++				{
++					return false;
++				}
++
++				for (const VkFence fence : s_ios_unsettled_fences)
++				{
++					vkDestroyFence(*dev, fence, nullptr);
++				}
++
++				s_ios_unsettled_fences.clear();
++				return true;
++			}
++		}
++
+ 		const auto deadline = std::chrono::steady_clock::now() + limit;
+ 
+ 		// A submitter that entered before the gate closed may still hold the submit lock.
+@@ -134,6 +165,8 @@ namespace vk
+ 		{
+ 			if (std::chrono::steady_clock::now() >= deadline)
+ 			{
++				std::lock_guard lock(s_ios_settle_fences_mutex);
++				s_ios_settle_reached_queues = false;
+ 				return false;
+ 			}
+ 
+@@ -143,6 +176,7 @@ namespace vk
+ 		// Fences an earlier settle left behind: those that have signalled since are released.
+ 		{
+ 			std::lock_guard lock(s_ios_settle_fences_mutex);
++			s_ios_settle_reached_queues = true;
+ 			std::erase_if(s_ios_unsettled_fences, [dev](VkFence fence)
+ 			{
+ 				if (vkGetFenceStatus(*dev, fence) != VK_SUCCESS)
+diff --git a/rpcs3/Emu/RSX/VK/VKHelpers.h b/rpcs3/Emu/RSX/VK/VKHelpers.h
+index 3cd2b53..2c6891b 100644
+--- a/rpcs3/Emu/RSX/VK/VKHelpers.h
++++ b/rpcs3/Emu/RSX/VK/VKHelpers.h
+@@ -68,7 +68,7 @@ namespace vk
+ #ifdef RPCS3_IOS
+ 	// REWINDBOX_GPU_BACKGROUND_GATE_927 (ios/IOSGpuBackgroundGate.h, VKCommandStream.cpp): everything submitted so far
+ 	// is encoded and executed, or the limit passed; and the fences such a wait left behind, once the device is idle.
+-	bool ios_settle_queues(std::chrono::milliseconds limit);
++	bool ios_settle_queues(std::chrono::milliseconds limit, bool resume);
+ 	void ios_release_settle_fences();
+ #endif
+ 
+diff --git a/rpcs3/ios/IOSGpuBackgroundGate.h b/rpcs3/ios/IOSGpuBackgroundGate.h
+index 6f4dce0..9eba5d8 100644
+--- a/rpcs3/ios/IOSGpuBackgroundGate.h
++++ b/rpcs3/ios/IOSGpuBackgroundGate.h
+@@ -14,23 +14,32 @@
+ // iOS suspended the process.
+ //
+ // IPA 650, Assassin's Creed, pid 8767, asynchronous MoltenVK submits: "Device lost" raised by vkGetQueryPoolResults at
+-// 1793814730.525, HOST_STATE app=background recorded at 1793814730.555. It is the only device loss of the device
+-// journals, and it happened as the application entered the background. With asynchronous submits the work queued
+-// before the transition is still encoded and committed after it; with synchronous ones the RSX thread still commits
+-// the frame it is building.
++// 1793814730.525, HOST_STATE app=background recorded at 1793814730.555 by the host's own observer of
++// UIApplicationDidEnterBackgroundNotification. It is the only device loss of the device journals. A command buffer
++// had therefore been refused at least 30 ms before that observer ran: iOS does not wait for the application to have
++// handled the background notification.
+ //
+-// The Core listens to the application itself (RPCS3IOSPlatform.mm), on the thread that posts, inside the transition:
+-// - UIApplicationDidEnterBackgroundNotification closes the gate. A thread about to submit, present, acquire an image
++// REWINDBOX_GPU_DEACTIVATION_GATE_928: the gate follows the procedure of Apple's Metal documentation ("Preparing your
++// Metal app to run in the background"): when the application is deactivated, stop sending work to Metal ("you've some
++// time before the system restricts your app from using Metal"); when it enters the background, make sure everything
++// committed is scheduled before returning; enable the code again only once the application is reactivated. Core 927
++// closed the gate at the background notification only, which the journal above shows can be too late.
++//
++// The Core listens to the application itself (RPCS3IOSPlatform.mm), on the thread that posts, inside each transition:
++// - UIApplicationWillResignActiveNotification closes the gate. A thread about to submit, present, acquire an image
+ //   or wait for the device parks before the call. The posting thread waits for the calls already inside, then for
+ //   everything queued so far to be encoded and executed (the renderer's settle function: an empty submission with a
+-//   fence on each queue). Each wait is bounded; then the transition goes on. iOS accepts GPU work until the
+-//   application returns from that transition (the rule Apple documents for applicationDidEnterBackground), which is
+-//   why the settle may still submit; when a call is still inside after its limit the settle is skipped, because the
+-//   queues are not the posting thread's to use then.
++//   fence on each queue). Each wait is bounded. When a call is still inside after its limit the settle is skipped,
++//   because the queues are not the posting thread's to use then.
++// - UIApplicationDidEnterBackgroundNotification finishes what the deactivation left: nothing when it settled; a wait,
++//   without any new submission, for the fences a settle left unsignalled; the whole procedure when no settle ran or
++//   when the settle never reached the queues.
+ // - UIApplicationDidBecomeActiveNotification opens the gate and the parked calls run, in their order.
+-// Nothing is dropped, skipped or reordered: the calls happen later, as they already do when iOS suspends the process.
+-// A thread of an emulator that is being stopped does not park (the bypass function): stopping in the background goes
+-// on as it did before the gate existed.
++// Nothing is dropped, skipped or reordered: the calls happen later. While the application is inactive (Control
++// Centre, the application switcher, a system alert) the picture therefore stands still and the game waits for its
++// renderer; it goes on when the application is active again.
++// A thread of an emulator that is being stopped does not park (the bypass function): stopping while inactive or in
++// the background goes on as it did before the gate existed.
+ namespace rpcs3::ios::gpu_gate
+ {
+ // The patience of the thread that closes the gate (iOS gives the transition about five seconds in all).
+@@ -40,11 +49,14 @@ inline constexpr std::chrono::milliseconds settle_limit{1000};
+ // A parked call looks at the bypass function this often.
+ inline constexpr std::chrono::milliseconds park_slice{100};
+ 
+-// Since boot (COREPROF GPUGATE927).
++// Since boot (COREPROF GPUGATE928).
++inline std::atomic<std::uint64_t> deactivations{0}, backgrounds{0}, found_not_active{0};
+ inline std::atomic<std::uint64_t> closes{0}, opens{0};
+ inline std::atomic<std::uint64_t> parks{0}, park_us{0}, park_bypasses{0};
+ inline std::atomic<std::uint64_t> in_flight_timeouts{0};
+ inline std::atomic<std::uint64_t> settles{0}, settle_us{0}, settle_timeouts{0};
++// Second attempts of a closing whose settle timed out (the background notification after the deactivation).
++inline std::atomic<std::uint64_t> settle_waits{0}, settle_wait_us{0}, settle_wait_timeouts{0};
+ 
+ inline std::uint64_t elapsed_us(std::chrono::steady_clock::time_point since) noexcept
+ {
+@@ -52,8 +64,10 @@ inline std::uint64_t elapsed_us(std::chrono::steady_clock::time_point since) noe
+ 		std::chrono::steady_clock::now() - since).count());
+ }
+ 
+-// Encoded and executed, or the limit passed: returns whether everything queued before the call completed.
+-using settle_function = bool (*)(std::chrono::milliseconds limit);
++// Encoded and executed, or the limit passed: returns whether everything queued before the call completed. resume:
++// an earlier call since the gate closed returned false. The fences that call left are then waited for without a new
++// submission; only when it left none (it never reached the queues) is the whole settle done now.
++using settle_function = bool (*)(std::chrono::milliseconds limit, bool resume);
+ // Called by a parked thread: whether that thread must go on although the gate is closed (its emulator is stopping).
+ using bypass_function = bool (*)();
+ 
+@@ -68,6 +82,9 @@ class gate
+ 	// Held while the settle function runs, so the renderer that owns it cannot go away under it.
+ 	std::mutex m_settle_mutex;
+ 	settle_function m_settle = nullptr;
++	// Since the gate closed: a settle ran, and it saw everything complete.
++	bool m_settle_ran = false;
++	bool m_settled = false;
+ 	std::atomic<bypass_function> m_bypass{nullptr};
+ 
+ public:
+@@ -164,6 +181,10 @@ public:
+ 		}
+ 
+ 		m_opened.notify_all();
++
++		// The next closing starts from nothing settled. Never held together with m_mutex.
++		std::lock_guard lock(m_settle_mutex);
++		m_settle_ran = m_settled = false;
+ 	}
+ 
+ 	bool closed() noexcept
+@@ -178,6 +199,8 @@ public:
+ 	{
+ 		std::lock_guard lock(m_settle_mutex);
+ 		m_settle = settle;
++		// Another renderer, or none: what the previous one settled says nothing about this one.
++		m_settle_ran = m_settled = false;
+ 	}
+ 
+ 	// A function that never goes away (it is looked at by parked threads without a lock), or null.
+@@ -186,8 +209,9 @@ public:
+ 		m_bypass.store(bypass, std::memory_order_relaxed);
+ 	}
+ 
+-	// The application entered the background: on the posting thread, before the transition finishes.
+-	void app_entered_background() noexcept
++private:
++	// No new call from now on; the calls inside leave; then what is queued completes. Bounded at every step.
++	void stop_and_settle() noexcept
+ 	{
+ 		if (!close())
+ 		{
+@@ -196,17 +220,58 @@ public:
+ 		}
+ 
+ 		std::lock_guard lock(m_settle_mutex);
+-		if (m_settle)
++		if (!m_settle || m_settled)
++		{
++			return;
++		}
++
++		const auto begin = std::chrono::steady_clock::now();
++		const bool resume = m_settle_ran;
++		m_settle_ran = true;
++		m_settled = m_settle(settle_limit, resume);
++		if (!resume)
+ 		{
+-			const auto begin = std::chrono::steady_clock::now();
+-			const bool settled = m_settle(settle_limit);
+ 			settles.fetch_add(1, std::memory_order_relaxed);
+ 			settle_us.fetch_add(elapsed_us(begin), std::memory_order_relaxed);
+-			if (!settled)
++			if (!m_settled)
+ 			{
+ 				settle_timeouts.fetch_add(1, std::memory_order_relaxed);
+ 			}
+ 		}
++		else
++		{
++			// A settle of this closing already timed out (background notification after the deactivation).
++			settle_waits.fetch_add(1, std::memory_order_relaxed);
++			settle_wait_us.fetch_add(elapsed_us(begin), std::memory_order_relaxed);
++			if (!m_settled)
++			{
++				settle_wait_timeouts.fetch_add(1, std::memory_order_relaxed);
++			}
++		}
++	}
++
++public:
++	// The application is being deactivated: on the posting thread. From here on nothing new goes to the GPU.
++	void app_will_resign_active() noexcept
++	{
++		deactivations.fetch_add(1, std::memory_order_relaxed);
++		stop_and_settle();
++	}
++
++	// The observers were installed while the application was not active (main thread): the same as a deactivation
++	// whose notification came before anyone listened.
++	void app_found_not_active() noexcept
++	{
++		found_not_active.fetch_add(1, std::memory_order_relaxed);
++		stop_and_settle();
++	}
++
++	// The application entered the background: on the posting thread, before the transition finishes. Only what the
++	// deactivation could not finish is left to do.
++	void app_entered_background() noexcept
++	{
++		backgrounds.fetch_add(1, std::memory_order_relaxed);
++		stop_and_settle();
+ 	}
+ 
+ 	void app_became_active() noexcept
+@@ -241,6 +306,6 @@ public:
+ 	pass& operator=(const pass&) = delete;
+ };
+ 
+-// Implemented in RPCS3IOSPlatform.mm: registers the two application observers, once per process.
++// Implemented in RPCS3IOSPlatform.mm: registers the three application observers, once per process.
+ void install_application_observers() noexcept;
+ } // namespace rpcs3::ios::gpu_gate
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index 78436f0..6471755 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -1000,6 +1000,13 @@ private:
+ 		episode::tick sample;
+ 		sample.now_us = now_us;
+ 		sample.state = freeze_state(Emu.GetStatus(false));
++		// REWINDBOX_GPU_DEACTIVATION_GATE_928: while the gate is closed the renderer waits on purpose (the application
++		// is inactive or in the background). That time counts as paused, not as running time without a frame.
++		if (sample.state == episode::emu::running && rpcs3::ios::gpu_gate::gate::instance().closed())
++		{
++			sample.state = episode::emu::paused;
++		}
++
+ 		sample.guest_flips = m_guest_frames.load(std::memory_order_acquire);
+ 		for (usz group = 0; group < core_group_count; ++group)
+ 		{
+@@ -2104,23 +2111,31 @@ private:
+                 submits, fence_waits, fence_us / 1000.0, fence_max / 1000.0, query_waits, query_us / 1000.0, query_max / 1000.0,
+                 encode_timeouts);
+         }
+-        // REWINDBOX_GPU_BACKGROUND_GATE_927 (ios/IOSGpuBackgroundGate.h): since boot, written in a window only once the
+-        // application has been to the background. closes= transitions; parks= calls that waited for the application to
+-        // be active again and for how long; park_bypasses= those that went on because the emulator was stopping;
+-        // in_flight_timeouts= transitions that did not see every call already inside return in 500 ms (no settle then);
+-        // settles= waits for the queues (count:total ms) and settle_timeouts= those that took over 1 s.
++        // REWINDBOX_GPU_BACKGROUND_GATE_927, REWINDBOX_GPU_DEACTIVATION_GATE_928 (ios/IOSGpuBackgroundGate.h): since
++        // boot, written in a window only once the gate has closed. deactivations= and backgrounds= notifications
++        // received, found_not_active= renderers created while the application was not active; closes= times the gate
++        // closed; parks= calls that waited for the application to be active again and for how long; park_bypasses=
++        // those that went on because the emulator was stopping; in_flight_timeouts= transitions that did not see
++        // every call already inside return in 500 ms (no settle then); settles= waits for the queues with a last
++        // submission (count:total ms), settle_timeouts= those that took over 1 s; settle_waits= waits at the
++        // background notification for what such a settle left, without a new submission (count:total ms:timeouts).
+         {
+             namespace gate = rpcs3::ios::gpu_gate;
+             if (const u64 closes = gate::closes.load(std::memory_order_relaxed))
+             {
+-                ios_core_profiler.notice("COREPROF GPUGATE927 session=%llu window=%llu closed=%u closes=%llu opens=%llu parks=%llu:%.3f "
+-                    "park_bypasses=%llu in_flight_timeouts=%llu settles=%llu:%.3f settle_timeouts=%llu scope=process_since_boot",
+-                    profile_session, profile_window, gate::gate::instance().closed() ? 1u : 0u, closes,
++                ios_core_profiler.notice("COREPROF GPUGATE928 session=%llu window=%llu closed=%u deactivations=%llu backgrounds=%llu "
++                    "found_not_active=%llu closes=%llu opens=%llu parks=%llu:%.3f park_bypasses=%llu in_flight_timeouts=%llu "
++                    "settles=%llu:%.3f settle_timeouts=%llu settle_waits=%llu:%.3f:%llu scope=process_since_boot",
++                    profile_session, profile_window, gate::gate::instance().closed() ? 1u : 0u,
++                    gate::deactivations.load(std::memory_order_relaxed), gate::backgrounds.load(std::memory_order_relaxed),
++                    gate::found_not_active.load(std::memory_order_relaxed), closes,
+                     gate::opens.load(std::memory_order_relaxed), gate::parks.load(std::memory_order_relaxed),
+                     gate::park_us.load(std::memory_order_relaxed) / 1000.0, gate::park_bypasses.load(std::memory_order_relaxed),
+                     gate::in_flight_timeouts.load(std::memory_order_relaxed),
+                     gate::settles.load(std::memory_order_relaxed), gate::settle_us.load(std::memory_order_relaxed) / 1000.0,
+-                    gate::settle_timeouts.load(std::memory_order_relaxed));
++                    gate::settle_timeouts.load(std::memory_order_relaxed), gate::settle_waits.load(std::memory_order_relaxed),
++                    gate::settle_wait_us.load(std::memory_order_relaxed) / 1000.0,
++                    gate::settle_wait_timeouts.load(std::memory_order_relaxed));
+             }
+         }
+         const auto& mem = memory_window.latest;
+diff --git a/rpcs3/ios/RPCS3IOSPlatform.mm b/rpcs3/ios/RPCS3IOSPlatform.mm
+index 79c81b7..591cbc5 100644
+--- a/rpcs3/ios/RPCS3IOSPlatform.mm
++++ b/rpcs3/ios/RPCS3IOSPlatform.mm
+@@ -106,9 +106,10 @@ void drain() noexcept
+ }
+ }
+ 
+-// REWINDBOX_GPU_BACKGROUND_GATE_927 (ios/IOSGpuBackgroundGate.h). The blocks are given no queue, so they run on the
+-// thread that posts the notification, the main thread, inside the transition: the gate is closed and the queues have
+-// settled before UIKit goes on to the background, and nothing is committed again before the application is active.
++// REWINDBOX_GPU_BACKGROUND_GATE_927, REWINDBOX_GPU_DEACTIVATION_GATE_928 (ios/IOSGpuBackgroundGate.h). The blocks are
++// given no queue, so they run on the thread that posts the notification, the main thread, inside the transition: the
++// gate is closed and the queues have settled when the application is deactivated, the background notification
++// finishes what is left, and nothing is committed again before the application is active.
+ namespace rpcs3::ios::gpu_gate
+ {
+ void install_application_observers() noexcept
+@@ -118,13 +119,26 @@ void install_application_observers() noexcept
+ 		@autoreleasepool
+ 		{
+ 			NSNotificationCenter* center = NSNotificationCenter.defaultCenter;
++			id resign = [center addObserverForName:UIApplicationWillResignActiveNotification object:nil queue:nil
++				usingBlock:^(NSNotification*) { gate::instance().app_will_resign_active(); }];
+ 			id background = [center addObserverForName:UIApplicationDidEnterBackgroundNotification object:nil queue:nil
+ 				usingBlock:^(NSNotification*) { gate::instance().app_entered_background(); }];
+ 			id active = [center addObserverForName:UIApplicationDidBecomeActiveNotification object:nil queue:nil
+ 				usingBlock:^(NSNotification*) { gate::instance().app_became_active(); }];
+ 			// Registered for the life of the process.
++			static_cast<void>(CFBridgingRetain(resign));
+ 			static_cast<void>(CFBridgingRetain(background));
+ 			static_cast<void>(CFBridgingRetain(active));
++
++			// The first renderer of the process may be created while the application is already inactive or in the
++			// background (a game started just before leaving): no notification will say so. The state is read on
++			// the main thread, where the notifications are posted, so the two cannot cross.
++			dispatch_async(dispatch_get_main_queue(), ^{
++				if (UIApplication.sharedApplication.applicationState != UIApplicationStateActive)
++				{
++					gate::instance().app_found_not_active();
++				}
++			});
+ 		}
+ 	});
+ }

@@ -384,6 +384,24 @@
   [self pressOn:overlay portrait:YES what:@"after turning back"];
 }
 
+/// A D-pad shows the arm under the finger pressed, not the whole cross.
+- (void)testTheDPadShowsThePressedArmOnly {
+  for (NSNumber* portraitValue in @[ @YES, @NO ]) {
+    const BOOL portrait = portraitValue.boolValue;
+    ARMSX2SkinOverlay* overlay = [self overlayPortrait:portrait];
+    NSDictionary* f = [self itemNamed:@"up" portrait:portrait][@"frame"];
+    XCTAssertNotNil(f);
+    const CGRect frame = CGRectMake([f[@"x"] doubleValue], [f[@"y"] doubleValue], [f[@"width"] doubleValue], [f[@"height"] doubleValue]);
+    __block FakeTouch* finger = nil;
+    SkinDPadArmCheck(self, overlay, frame, ^(CGPoint point) {
+      finger = [self touchAt:point];
+      [self begin:finger on:overlay];
+    }, ^{
+      [self end:finger on:overlay];
+    }, [NSString stringWithFormat:@"%@ %@", [self skinId], portrait ? @"portrait" : @"landscape"]);
+  }
+}
+
 /// Another skin chosen, then the session launched again (a new overlay reads the files):
 /// each skin gets its own game place and its controls; "default" leaves no overlay.
 - (void)testTheGameScreenFollowsASkinChangeAndARelaunch {

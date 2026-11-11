@@ -181,6 +181,10 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'pause-checkpoint-growth': 'delivered', 'vulkan-memory-journal': 'delivered',
             # Core 727: the allocator range-update proof run again on the final allocator (journal methods added).
             'allocator-range-update': 'delivered', 'allocator-blocks': 'delivered',
+            # Core 729 (lot 10): the main pipeline cache file written again once when it is at least twice main's data.
+            'pipeline-cache-compact': 'delivered',
+            # Core 731 (lot 11): the buffer cache's trim while only the device is short.
+            'cold-buffer-trim': 'delivered',
             # Core 661: the native display fixture declares EmbeddedMemory.cs (adapt_safe_point_compaction): rerun.
             'display-native': 'delivered',
             # Core 654: its receipt declares the collector (postimage), so the single-virtual-dependency fixture is rerun.
@@ -542,7 +546,9 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_array_barrier_epoch.py',
                                                      'build-utils/melonx/adapt_variant_replay_all.py',
                                                      'build-utils/melonx/adapt_pause_checkpoint_growth.py',
-                                                     'build-utils/melonx/adapt_vulkan_memory_journal.py'} and
+                                                     'build-utils/melonx/adapt_vulkan_memory_journal.py',
+                                                     'build-utils/melonx/adapt_pipeline_cache_compact.py',
+                                                     'build-utils/melonx/adapt_cold_buffer_trim.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -572,7 +578,9 @@ if not args.helpers_only:
     # Core 719: 195 preparation inputs (adapt_bgc_fragmentation_guard.py added), the same 206 prepared members.
     # Core 721: 196 (adapt_pipeline_cache_mapped_data.py added), the same 206 prepared members.
     # Core 723: 200 (the four lot 9 adapters added), the same 206 prepared members.
-    check(len(frozen['preparationInputs']) == 203 and len(frozen['preparedMembers']) == 207, 'Wrong final composition')  # Core 727: MemoryAllocator.cs joins
+    # Core 727: MemoryAllocator.cs joins; Core 729: adapt_pipeline_cache_compact.py joins the preparation inputs.
+    # Core 731: adapt_cold_buffer_trim.py joins them; the same 207 prepared members.
+    check(len(frozen['preparationInputs']) == 205 and len(frozen['preparedMembers']) == 207, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and

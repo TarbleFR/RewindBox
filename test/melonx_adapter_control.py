@@ -43,7 +43,7 @@ ORDER = ('adapt_pipeline_warmup_parity', 'adapt_device_short_trim', 'adapt_molte
          'adapt_bgc_fragmentation_guard', 'adapt_pipeline_cache_mapped_data',
          'adapt_gc_keepalive_dormant', 'adapt_gc_pause_journal', 'adapt_extra_array_dirty', 'adapt_array_barrier_epoch',
          'adapt_variant_replay_all', 'adapt_pause_checkpoint_growth',
-         'adapt_vulkan_memory_journal')
+         'adapt_vulkan_memory_journal', 'adapt_pipeline_cache_compact', 'adapt_cold_buffer_trim')
 
 
 def sha(path: Path) -> str:

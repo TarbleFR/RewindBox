@@ -105,8 +105,10 @@ ARRAY_COUNTERS = arrays.ARRAY_COUNTERS
 # array change, texture array barrier passes skipped when nothing changed); 82 with Core 725 (lot 9: every recorded
 # pipeline state replayed at launch, the 512-replay session cap gone); 84 with Core 727 (lot 9: a pause rewrites the
 # main pipeline cache only for 8 MiB of new content; the Vulkan allocator's blocks in the journal, and the allocator
-# range-update and block gates run again on the final allocator).
-FRESH_GATES = 86
+# range-update and block gates run again on the final allocator: 86); 87 with Core 729 (lot 10: the main pipeline cache
+# file written again once at the load when it is at least twice main's data); 88 with Core 731 (lot 11: while only the
+# device is short the buffer cache gives back the buffers unused for a minute of play).
+FRESH_GATES = 88
 HISTORICAL_RECEIPTS = 61
 
 

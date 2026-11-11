@@ -320,9 +320,13 @@ def shipped_patch_keeps_private_api_off(pin):
     files = re.findall(r'^diff --git a/(\S+)', text, re.M)
     return (hashlib.sha256((ROOT / pin['patch']).read_bytes()).hexdigest() == pin['patchSha256'] and
             'MVK_USE_METAL_PRIVATE_API' not in text and 'useMetalPrivateAPI' not in text and
+            # Lot 10: the fifth part (cache keys) adds MVKShaderModule.mm and the converter's configuration (cacheKey()).
             files == ['Common/MVKStrings.h', 'MoltenVK/MoltenVK/GPUObjects/MVKImage.h', 'MoltenVK/MoltenVK/GPUObjects/MVKImage.mm',
                       'MoltenVK/MoltenVK/GPUObjects/MVKPipeline.h', 'MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm',
-                      'MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h', 'MoltenVK/MoltenVK/Utility/MVKCodec.h'])
+                      'MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h', 'MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm',
+                      'MoltenVK/MoltenVK/Utility/MVKCodec.h',
+                      'MoltenVKShaderConverter/MoltenVKShaderConverter/SPIRVToMSLConverter.cpp',
+                      'MoltenVKShaderConverter/MoltenVKShaderConverter/SPIRVToMSLConverter.h'])
 
 
 build_script = (ROOT / 'build-utils/melonx/build_moltenvk_rebuild.py').read_text()

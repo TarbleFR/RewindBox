@@ -171,6 +171,8 @@ from adapt_array_barrier_epoch import apply as adapt_array_barrier_epoch
 from adapt_variant_replay_all import apply as adapt_variant_replay_all
 from adapt_pause_checkpoint_growth import apply as adapt_pause_checkpoint_growth
 from adapt_vulkan_memory_journal import apply as adapt_vulkan_memory_journal
+from adapt_pipeline_cache_compact import apply as adapt_pipeline_cache_compact
+from adapt_cold_buffer_trim import apply as adapt_cold_buffer_trim
 
 
 def replace_once(path, old, new):
@@ -490,6 +492,13 @@ def main():
     # Core 727 (lot 9, RAM diagnosis): what the Vulkan memory allocator holds, by memory type, every ~30 s (IPA 724: MoltenVK
     # 1 269 MB allocated, the texture and buffer caches 290 MiB of it).
     adapted += [source / name for name in adapt_vulkan_memory_journal(source)]
+    # Core 729 (lot 10, RAM and pipeline cache size; IPA 724 Hogwarts: 792 MiB of cache data, about nine tenths the binding
+    # tables MoltenVK no longer keeps or writes): a main file at least twice main's data is written again at the load.
+    adapted += [source / name for name in adapt_pipeline_cache_compact(source)]
+    # Core 731 (lot 11, IPA 724 Hogwarts: 24 cache trims in 150 s with the device at 4-9 % each evicted a quarter to a half of
+    # the buffers in use, recreated at once: 1 400 to 7 026 buffers per 5 s window): while only the device is short the
+    # buffer cache gives back what nothing used for a minute of play.
+    adapted += [source / name for name in adapt_cold_buffer_trim(source)]
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -624,7 +633,9 @@ def main():
                  'adapt_array_barrier_epoch.py',
                  'adapt_variant_replay_all.py',
                  'adapt_pause_checkpoint_growth.py',
-                 'adapt_vulkan_memory_journal.py']:
+                 'adapt_vulkan_memory_journal.py',
+                 'adapt_pipeline_cache_compact.py',
+                 'adapt_cold_buffer_trim.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

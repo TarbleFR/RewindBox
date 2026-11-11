@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../l10n/armsx2_ui_locale.dart';
 import '../l10n/console_manager_locale.dart';
+import '../l10n/launch_prerequisite_locale.dart';
 import '../l10n/libretro_locale.dart';
 import '../l10n/texture_catalog_locale.dart';
 import '../services/armsx2_internal_service.dart';
@@ -41,9 +42,14 @@ class _Armsx2InternalPlaylistActionsState
 
   void _interaction(bool active) => widget.onInteractionChanged?.call(active);
 
-  void _notice(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  void _notice(String message, {bool long = false}) {
+    if (!mounted || message.isEmpty) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: Duration(seconds: long ? 10 : 4),
+      ),
+    );
   }
 
   // Build 486: the console's HD textures page (PS2).
@@ -86,17 +92,23 @@ class _Armsx2InternalPlaylistActionsState
     try {
       if (action == 'games') {
         final result = await Armsx2InternalService.importGames();
-        if (result.imported > 0) {
+        // A file already on disk but missing from the list is shown too.
+        if (result.imported > 0 || result.alreadyPresent > 0) {
           await widget.onLibraryChanged();
-          _notice(_tf('gamesImported', {'count': result.imported}));
         }
-        if (result.rejected > 0) {
-          _notice(
-            result.errors.isNotEmpty
-                ? result.errors.first
-                : _t('gamesRejected'),
-          );
-        }
+        if (!mounted) return;
+        final problems = result.problemSummary(_t);
+        _notice(
+          [
+            if (result.imported > 0)
+              _tf('gamesImported', {'count': result.imported}),
+            if (problems.isNotEmpty)
+              problems
+            else if (result.rejected > 0)
+              _t('gamesRejected'),
+          ].join('\n'),
+          long: true,
+        );
       } else if (action == 'choose_bios') {
         await showArmsx2BiosPicker(context);
       } else if (action == 'boot_bios') {
@@ -126,21 +138,41 @@ class _Armsx2InternalPlaylistActionsState
           ended: HomeMusicService.armsx2SessionEnded,
         );
         if (!launched) {
+          if (!mounted) return;
+          // The reason in the user's language when it is a known one (no
+          // pairing file, LocalDevVPN off, …), else the technical text.
           _notice(
-            StikJitArmsx2Service.lastError ??
+            StikJitArmsx2Service.lastErrorText(
+                  LaunchPrerequisiteLocale.languageOf(
+                    Localizations.localeOf(context),
+                  ),
+                ) ??
+                StikJitArmsx2Service.lastError ??
                 _t('bootBiosFailed'),
           );
         }
       } else if (action == 'bios') {
         final result = await Armsx2InternalService.importBios();
+        if (!mounted) return;
+        final problems = result.problemSummary(_t);
         if (result.imported > 0) {
-          _notice(_tf('biosImported', {'count': result.imported}));
+          _notice(
+            [
+              _tf('biosImported', {'count': result.imported}),
+              if (problems.isNotEmpty) problems,
+            ].join('\n'),
+            long: true,
+          );
           if (mounted) await showArmsx2BiosPicker(context);
-        } else if (result.rejected > 0) {
-          _notice(result.errors.isNotEmpty ? result.errors.first : _t('biosImportFailed'));
+        } else if (result.rejected > 0 || problems.isNotEmpty) {
+          _notice(
+            problems.isNotEmpty ? problems : _t('biosImportFailed'),
+            long: true,
+          );
         }
       }
     } catch (error) {
+      if (!mounted) return;
       _notice(_tf('importFailed', {'error': error}));
     } finally {
       if (mounted) {

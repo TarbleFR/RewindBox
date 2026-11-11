@@ -197,7 +197,7 @@ index e385e9b..fb99f6c 100644
  										   MVKShaderModule* shaderModule,
  										   MVKPipeline* pipeline,
 diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm b/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm
-index 7eae64c..fc5b938 100644
+index 7eae64c..373221d 100644
 --- a/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm
 +++ b/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm
 @@ -2630,6 +2630,7 @@ protected:
@@ -292,7 +292,7 @@ index 7eae64c..fc5b938 100644
  // Loads any data indicated by the creation info.
  // This is the compliment of the writeData() function. The two must be kept aligned.
  void MVKPipelineCache::readData(const VkPipelineCacheCreateInfo* pCreateInfo) {
-@@ -2747,6 +2810,23 @@ void MVKPipelineCache::readData(const VkPipelineCacheCreateInfo* pCreateInfo) {
+@@ -2747,6 +2810,25 @@ void MVKPipelineCache::readData(const VkPipelineCacheCreateInfo* pCreateInfo) {
  		istream inStream(&mb);
  		cereal::BinaryInputArchive reader(inStream);
  
@@ -305,6 +305,8 @@ index 7eae64c..fc5b938 100644
 +		size_t chainLength = 0;
 +		uint32_t chainCount = 0;
 +		uint32_t librariesRead = 0;
++		// RewindBox: the resource bindings the data holds and those kept in the cache (cache keys), for the same line.
++		size_t bindingsRead = 0, bindingsKept = 0;
 +		for (const auto* next = (const VkBaseInStructure*)pCreateInfo->pNext; next; next = next->pNext) {
 +			if ((uint32_t)next->sType == kRewindBoxMappedCacheDataSType) { referenceData = true; }
 +			if (chainCount++ < 4 && chainLength < sizeof(chainTypes)) {
@@ -316,7 +318,7 @@ index 7eae64c..fc5b938 100644
  		// Read the data header...and ensure correct byte-order.
  		uint32_t hdrComponent;
  		uint8_t pcUUID[VK_UUID_SIZE];
-@@ -2784,12 +2864,23 @@ void MVKPipelineCache::readData(const VkPipelineCacheCreateInfo* pCreateInfo) {
+@@ -2784,12 +2866,25 @@ void MVKPipelineCache::readData(const VkPipelineCacheCreateInfo* pCreateInfo) {
  					reader(resultInfo);
  
  					MVKCompressor<std::string> compressedMSL;
@@ -338,25 +340,28 @@ index 7eae64c..fc5b938 100644
  					addPerformanceInterval(getPerformanceStats().pipelineCache.readPipelineCache, startTime);
  					slCache->addShaderLibrary(&shaderConversionConfig, resultInfo, compressedMSL);
 +					librariesRead++;
++					bindingsRead += shaderConversionConfig.resourceBindings.size();
++					bindingsKept += slCache->_shaderLibraries.back().first.resourceBindings.size();
  
  					break;
  				}
-@@ -2801,6 +2892,14 @@ void MVKPipelineCache::readData(const VkPipelineCacheCreateInfo* pCreateInfo) {
+@@ -2801,6 +2896,15 @@ void MVKPipelineCache::readData(const VkPipelineCacheCreateInfo* pCreateInfo) {
  			}
  		}
  
 +		// RewindBox: one line per cache loaded from data, so a journal says how the driver took it (IPA 724: the
 +		// footprint of a load meant to be referenced was that of a copied one, and nothing said which it was).
 +		if (librariesRead > 0) {
-+			MVKLogInfo("RewindBox pipeline cache load: %u shader libraries from %zu bytes; compressed MSL %s; pNext types%s.",
-+					   librariesRead, byteCount, referenceData ? "referenced in the caller's data" : "copied",
-+					   chainCount ? chainTypes : " none");
++			MVKLogInfo("RewindBox pipeline cache load: %u shader libraries from %zu bytes, resource bindings %zu read %zu kept; "
++					   "compressed MSL %s; pNext types%s.",
++					   librariesRead, byteCount, bindingsRead, bindingsKept,
++					   referenceData ? "referenced in the caller's data" : "copied", chainCount ? chainTypes : " none");
 +		}
 +
  	} catch (cereal::Exception& ex) {
  		setConfigurationResult(reportError(VK_ERROR_INITIALIZATION_FAILED, "Error reading pipeline cache data: %s", ex.what()));
  	}
-@@ -3063,11 +3162,23 @@ void serialize(Archive & archive, MVKShaderModuleKey& k) {
+@@ -3063,11 +3167,23 @@ void serialize(Archive & archive, MVKShaderModuleKey& k) {
  			k.codeHash);
  }
  
@@ -393,6 +398,66 @@ index c5b7499..596d9ec 100644
  
  	/** When true, representing a library created with source, but never specialized */
  	bool _maySpecializeWithMacro;
+diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm b/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm
+index 3aa44a4..e985016 100644
+--- a/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm
++++ b/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm
+@@ -20,6 +20,7 @@
+ #include "MVKPipeline.h"
+ #include "MVKFoundation.h"
+ #include <sys/stat.h>
++#include <cstdlib>
+ 
+ using namespace std;
+ using namespace mvk;
+@@ -357,11 +358,28 @@ MVKShaderLibrary* MVKShaderLibraryCache::findShaderLibrary(SPIRVToMSLConversionC
+ 	return nullptr;
+ }
+ 
++// RewindBox: a library is kept under its configuration's cacheKey(): the resource bindings a lookup reads, not the
++// pipeline layout's whole table (SPIRVToMSLConversionConfiguration::cacheKey). A library added from a conversion, read
++// from pipeline cache data (data written before this change holds the whole table: it is read, then only the key is
++// kept, and the next save writes the key) or merged from another cache. MVK_CONFIG_REWINDBOX_FULL_CACHE_KEYS in the
++// environment keeps the whole configuration as before: the control of test/melonx_cache_keys, set by nothing else.
++__attribute__((used)) static const char kRewindBoxCacheKeys[] =
++	"RewindBox cache keys: a cached library keeps the resource bindings a lookup reads, not the layout's table";
++
++static bool rewindBoxFullCacheKeys() {
++	static const bool full = getenv("MVK_CONFIG_REWINDBOX_FULL_CACHE_KEYS") != nullptr;
++	return full;
++}
++
++static SPIRVToMSLConversionConfiguration rewindBoxCacheKey(const SPIRVToMSLConversionConfiguration& shaderConfig) {
++	return rewindBoxFullCacheKeys() ? shaderConfig : shaderConfig.cacheKey();
++}
++
+ // Adds and returns a new shader library configured from the specified conversion configuration.
+ MVKShaderLibrary* MVKShaderLibraryCache::addShaderLibrary(const SPIRVToMSLConversionConfiguration* pShaderConfig,
+ 														  const SPIRVToMSLConversionResult& conversionResult) {
+ 	MVKShaderLibrary* shLib = new MVKShaderLibrary(_owner, conversionResult);
+-	_shaderLibraries.emplace_back(*pShaderConfig, shLib);
++	_shaderLibraries.emplace_back(rewindBoxCacheKey(*pShaderConfig), shLib);
+ 	return shLib;
+ }
+ 
+@@ -370,7 +388,7 @@ MVKShaderLibrary* MVKShaderLibraryCache::addShaderLibrary(const SPIRVToMSLConver
+ 														  const SPIRVToMSLConversionResultInfo& resultInfo,
+ 														  const MVKCompressor<std::string> compressedMSL) {
+ 	MVKShaderLibrary* shLib = new MVKShaderLibrary(_owner, resultInfo, compressedMSL);
+-	_shaderLibraries.emplace_back(*pShaderConfig, shLib);
++	_shaderLibraries.emplace_back(rewindBoxCacheKey(*pShaderConfig), shLib);
+ 	return shLib;
+ }
+ 
+@@ -379,7 +397,7 @@ void MVKShaderLibraryCache::merge(MVKShaderLibraryCache* other) {
+ 	if ( !other ) { return; }
+ 	for (auto& otherPair : other->_shaderLibraries) {
+ 		if ( !findShaderLibrary(&otherPair.first) ) {
+-			_shaderLibraries.emplace_back(otherPair.first, new MVKShaderLibrary(*otherPair.second));
++			_shaderLibraries.emplace_back(rewindBoxCacheKey(otherPair.first), new MVKShaderLibrary(*otherPair.second));
+ 			_shaderLibraries.back().second->_owner = _owner;
+ 		}
+ 	}
 diff --git a/MoltenVK/MoltenVK/Utility/MVKCodec.h b/MoltenVK/MoltenVK/Utility/MVKCodec.h
 index c5e1561..5ffded5 100644
 --- a/MoltenVK/MoltenVK/Utility/MVKCodec.h
@@ -426,3 +491,66 @@ index c5e1561..5ffded5 100644
  	size_t _uncompressedSize = 0;
  	MVKConfigCompressionAlgorithm _algorithm = MVK_CONFIG_COMPRESSION_ALGORITHM_NONE;
  };
+diff --git a/MoltenVKShaderConverter/MoltenVKShaderConverter/SPIRVToMSLConverter.cpp b/MoltenVKShaderConverter/MoltenVKShaderConverter/SPIRVToMSLConverter.cpp
+index 406f4f8..68579af 100644
+--- a/MoltenVKShaderConverter/MoltenVKShaderConverter/SPIRVToMSLConverter.cpp
++++ b/MoltenVKShaderConverter/MoltenVKShaderConverter/SPIRVToMSLConverter.cpp
+@@ -245,6 +245,41 @@ MVK_PUBLIC_SYMBOL void SPIRVToMSLConversionConfiguration::alignWith(const SPIRVT
+     }
+ }
+ 
++// RewindBox: the configuration a cached shader library is kept under, without the resource bindings that decide nothing.
++// A pipeline layout lists every binding of its descriptor set layouts, for each of the five stages when Metal argument
++// buffers are used, whether a shader uses it or not; the cache then holds that whole table once per library, in memory
++// and in the pipeline cache data (MeloNX declares 130 bindings per stage: about 1 250 entries of 136 bytes per library,
++// 792 MiB of 4 669 libraries in IPA 724, read, copied at each merge and written again whole at each save).
++// What reads a cached configuration's resource bindings:
++// - matches(): only those of the entry point's stage that are used by the shader;
++// - alignWith(): a binding of the other configuration takes the used flag of the last binding here that matches it, and
++//   false when none does.
++// So a binding that is not used gives false, which is what its absence gives. It is dropped, unless a used binding before
++// it matches it: then it is the last match, its false wins over that true, and it stays. Every other member is copied.
++MVK_PUBLIC_SYMBOL SPIRVToMSLConversionConfiguration SPIRVToMSLConversionConfiguration::cacheKey() const {
++	SPIRVToMSLConversionConfiguration key;
++	key.options = options;
++	key.shaderInputs = shaderInputs;
++	key.shaderOutputs = shaderOutputs;
++	key.discreteDescriptorSets = discreteDescriptorSets;
++	key.dynamicBufferDescriptors = dynamicBufferDescriptors;
++
++	size_t usedCount = 0;
++	for (const auto& rb : resourceBindings) { if (rb.outIsUsedByShader) { usedCount++; } }
++	key.resourceBindings.reserve(usedCount);
++
++	for (const auto& rb : resourceBindings) {
++		bool keep = rb.outIsUsedByShader;
++		if ( !keep ) {
++			for (const auto& kept : key.resourceBindings) {
++				if (kept.outIsUsedByShader && kept.matches(rb)) { keep = true; break; }
++			}
++		}
++		if (keep) { key.resourceBindings.push_back(rb); }
++	}
++	return key;
++}
++
+ 
+ #pragma mark -
+ #pragma mark SPIRVToMSLConverter
+diff --git a/MoltenVKShaderConverter/MoltenVKShaderConverter/SPIRVToMSLConverter.h b/MoltenVKShaderConverter/MoltenVKShaderConverter/SPIRVToMSLConverter.h
+index bffc072..6d59c83 100644
+--- a/MoltenVKShaderConverter/MoltenVKShaderConverter/SPIRVToMSLConverter.h
++++ b/MoltenVKShaderConverter/MoltenVKShaderConverter/SPIRVToMSLConverter.h
+@@ -190,6 +190,12 @@ namespace mvk {
+         /** Aligns certain aspects of this configuration with the source configuration. */
+         void alignWith(const SPIRVToMSLConversionConfiguration& srcContext);
+ 
++		/**
++		 * RewindBox: the copy of this configuration a cached shader library is kept under. Everything is copied
++		 * except the resource bindings neither matches() nor alignWith() can read a result from: see the definition.
++		 */
++		SPIRVToMSLConversionConfiguration cacheKey() const;
++
+ 	} SPIRVToMSLConversionConfiguration;
+ 
+ 

@@ -35,6 +35,13 @@ import Darwin
 //          31 default, 20 utility, 4 background)
 //   mem=   footprint MiB / headroom MiB / device available % / live donors
 //          (host-supplied; absent when the host gives none)
+//   vm=    the kernel's counters for this process over the interval (absent on
+//          the first line): MiB of its memory newly compressed / pages
+//          decompressed back (16 KiB each on an iPhone) / page faults / pages
+//          read from files. Compression and decompression running together
+//          are memory being pushed out and pulled back: time the threads
+//          spend in the kernel instead of the game ("-" for a counter that
+//          wrapped)
 //   in=    input the session's router handled in the interval (absent when
 //          none): tL/tR touch and pL/pR controller events for the left/right
 //          stick as count/largest magnitude; oL/oR the largest magnitude sent
@@ -54,6 +61,9 @@ final class MeloNXPerfJournal {
         static let gapLimit = 240
     }
     struct ThreadSample { let id: UInt64; let name: String; let cpuNs: UInt64; let priority: Int32 }
+    struct VmCounters { let compressedBytes: UInt64; let decompressions: Int64; let faults: Int64; let pageins: Int64 }
+    struct HwCounters { let cycles: UInt64; let instructions: UInt64; let time: UInt64; let performanceTime: UInt64; let runnable: UInt64 }
+    struct LevelTimes { let performance: UInt64; let total: UInt64 }
     static let topThreads = 6
     // The classified journal rotates at 8 MiB, retaining one previous file.
     // Host samples are also bounded to lineLimit lines per game. Native
@@ -135,6 +145,137 @@ final class MeloNXPerfJournal {
     }
 
     // Asynchronous: never waits on the sampler from the caller's thread.
+    // vm= field: the differences of TASK_VM_INFO's lifetime compression and decompression counts and TASK_EVENTS_INFO's
+    // fault and page-in counts since the previous line. Two task_info calls on the sampler queue; nothing is changed.
+    private var previousVm: VmCounters?
+
+    static func vmCounters() -> VmCounters? {
+        var vm = task_vm_info_data_t()
+        var vmCount = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<natural_t>.size)
+        let vmResult = withUnsafeMutablePointer(to:&vm) {
+            $0.withMemoryRebound(to:integer_t.self, capacity:Int(vmCount)) { task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &vmCount) }
+        }
+        var events = task_events_info_data_t()
+        var eventsCount = mach_msg_type_number_t(MemoryLayout<task_events_info_data_t>.size / MemoryLayout<natural_t>.size)
+        let eventsResult = withUnsafeMutablePointer(to:&events) {
+            $0.withMemoryRebound(to:integer_t.self, capacity:Int(eventsCount)) { task_info(mach_task_self_, task_flavor_t(TASK_EVENTS_INFO), $0, &eventsCount) }
+        }
+        guard vmResult == KERN_SUCCESS, eventsResult == KERN_SUCCESS else { return nil }
+        return VmCounters(compressedBytes:UInt64(vm.compressed_lifetime), decompressions:Int64(vm.decompressions),
+                          faults:Int64(events.faults), pageins:Int64(events.pageins))
+    }
+
+    static func vmField(from before: VmCounters, to now: VmCounters) -> String {
+        // The kernel keeps the three counts on 32 bits: a wrap gives a smaller value, written "-".
+        func count(_ now: Int64, _ before: Int64) -> String { now >= before ? String(now - before) : "-" }
+        let compressed = now.compressedBytes >= before.compressedBytes ? String((now.compressedBytes - before.compressedBytes) >> 20) : "-"
+        return "\(compressed)/\(count(now.decompressions, before.decompressions))/\(count(now.faults, before.faults))/\(count(now.pageins, before.pageins))"
+    }
+
+    private func vmActivity() -> String? {
+        guard let now = Self.vmCounters() else { return nil }
+        defer { previousVm = now }
+        guard let before = previousVm else { return nil }
+        return Self.vmField(from:before, to:now)
+    }
+
+    // hw= field: how the process's CPU time was served since the previous line, from proc_pid_rusage (RUSAGE_INFO_V6):
+    // the clock of that time (cycles per nanosecond of CPU time: GHz), instructions per cycle, the per cent of it spent
+    // on performance cores, and the time its threads were ready to run without a core, per cent of the CPU time used.
+    // The three ratios need no unit; the clock divides by the CPU time of the thread samples of the same line. One call
+    // on the sampler queue, nothing is changed; absent on the first line and where the call or the flavor is missing.
+    private var previousHw: HwCounters?
+    private static let processUsage: (@convention(c) (Int32, Int32, UnsafeMutableRawPointer) -> Int32)? = {
+        guard let symbol = dlsym(UnsafeMutableRawPointer(bitPattern:-2), "proc_pid_rusage") else { return nil }
+        return unsafeBitCast(symbol, to:(@convention(c) (Int32, Int32, UnsafeMutableRawPointer) -> Int32).self)
+    }()
+
+    static func hwCounters() -> HwCounters? {
+        guard let usage = processUsage else { return nil }
+        var info = rusage_info_v6()
+        let result = withUnsafeMutablePointer(to:&info) { usage(getpid(), RUSAGE_INFO_V6, UnsafeMutableRawPointer($0)) }
+        guard result == 0 else { return nil }
+        return HwCounters(cycles:info.ri_cycles, instructions:info.ri_instructions, time:info.ri_user_time &+ info.ri_system_time,
+                          performanceTime:info.ri_user_ptime &+ info.ri_system_ptime, runnable:info.ri_runnable_time)
+    }
+
+    static func hwField(from before: HwCounters, to now: HwCounters, cpuNs: UInt64) -> String? {
+        guard now.cycles >= before.cycles, now.instructions >= before.instructions, now.time > before.time, cpuNs > 0 else { return nil }
+        let cycles = Double(now.cycles - before.cycles), time = Double(now.time - before.time)
+        // A counter that went backwards is written "-", as is the ratio to cycles where the host counts none (a virtual machine).
+        func percent(_ now: UInt64, _ before: UInt64) -> String { now >= before ? String(Int((Double(now - before) / time * 100).rounded())) : "-" }
+        let clock = String(format:"%.1f", cycles / Double(cpuNs))
+        let perCycle = cycles > 0 ? String(format:"%.2f", Double(now.instructions - before.instructions) / cycles) : "-"
+        return "\(clock)/\(perCycle)/\(percent(now.performanceTime, before.performanceTime))/\(percent(now.runnable, before.runnable))"
+    }
+
+    private func hwActivity(cpuNs: UInt64) -> String? {
+        guard let now = Self.hwCounters() else { return nil }
+        defer { previousHw = now }
+        guard let before = previousHw else { return nil }
+        return Self.hwField(from:before, to:now, cpuNs:cpuNs)
+    }
+
+    // pc= field: for each thread listed in cpu=, in the same order, the per cent of its CPU time of the interval spent
+    // on performance cores ("-" when unknown: a thread without a previous sample, or no counts for it). From
+    // proc_pidinfo(PROC_PIDTHREADCOUNTS, 34: per thread and performance level, instructions, cycles, user and system
+    // time, energy), looked up at run time; the level named "Performance" by hw.perflevelN.name. At most
+    // levelThreads calls on the sampler queue, for the threads that used a millisecond or more; nothing is changed.
+    // Absent where the call, the flavor or the levels are missing, or when no value is known.
+    static let levelThreads = 48
+    private var previousLevels: [UInt64: LevelTimes] = [:]
+    private static let threadCounts: (@convention(c) (Int32, Int32, UInt64, UnsafeMutableRawPointer, Int32) -> Int32)? = {
+        guard let symbol = dlsym(UnsafeMutableRawPointer(bitPattern:-2), "proc_pidinfo") else { return nil }
+        return unsafeBitCast(symbol, to:(@convention(c) (Int32, Int32, UInt64, UnsafeMutableRawPointer, Int32) -> Int32).self)
+    }()
+    private static let performanceLevel: (index: Int, levels: Int)? = {
+        var levels: Int32 = 0
+        var size = MemoryLayout<Int32>.size
+        guard sysctlbyname("hw.nperflevels", &levels, &size, nil, 0) == 0, levels >= 1, levels <= 8 else { return nil }
+        for index in 0..<Int(levels) {
+            var name = [CChar](repeating:0, count:64)
+            var length = name.count - 1
+            guard sysctlbyname("hw.perflevel\(index).name", &name, &length, nil, 0) == 0 else { continue }
+            if String(cString:name) == "Performance" { return (index:index, levels:Int(levels)) }
+        }
+        return nil
+    }()
+
+    static func levelTimes(thread id: UInt64) -> LevelTimes? {
+        guard let counts = threadCounts, let level = performanceLevel else { return nil }
+        // struct proc_threadcounts: a 16-bit count of levels in the first eight bytes, then five 64-bit values per level.
+        var words = [UInt64](repeating:0, count:1 + level.levels * 5)
+        let size = Int32(words.count * MemoryLayout<UInt64>.size)
+        let copied = words.withUnsafeMutableBytes { counts(getpid(), 34, id, $0.baseAddress!, size) }
+        guard copied == size, Int(words[0] & 0xFFFF) == level.levels else { return nil }
+        var total: UInt64 = 0, performance: UInt64 = 0
+        for index in 0..<level.levels {
+            let time = words[1 + index * 5 + 2] &+ words[1 + index * 5 + 3]
+            total &+= time
+            if index == level.index { performance = time }
+        }
+        return LevelTimes(performance:performance, total:total)
+    }
+
+    static func performanceShare(from before: LevelTimes, to now: LevelTimes) -> String {
+        guard now.total > before.total, now.performance >= before.performance else { return "-" }
+        return String(Int((Double(now.performance - before.performance) / Double(now.total - before.total) * 100).rounded()))
+    }
+
+    // `threads`: this interval's threads by CPU time used, the busiest first; `listed`: how many of them cpu= lists.
+    private func performanceShares(threads: [(id: UInt64, ns: UInt64)], listed: Int) -> String? {
+        var current: [UInt64: LevelTimes] = [:]
+        for thread in threads.prefix(Self.levelThreads) where thread.ns >= 1_000_000 {
+            if let times = Self.levelTimes(thread:thread.id) { current[thread.id] = times }
+        }
+        defer { previousLevels = current }
+        let shares = threads.prefix(listed).map { thread -> String in
+            guard let now = current[thread.id], let before = previousLevels[thread.id] else { return "-" }
+            return Self.performanceShare(from:before, to:now)
+        }
+        return shares.contains { $0 != "-" } ? shares.joined(separator:",") : nil
+    }
+
     func stop() {
         queue.async { [self] in
             stalls.stop()
@@ -193,7 +334,7 @@ final class MeloNXPerfJournal {
         } else { fields.append("dsp=- out=-") }
 
         var current: [UInt64: UInt64] = [:]
-        var busy: [(name: String, ns: UInt64, priority: Int32)] = []
+        var busy: [(id: UInt64, name: String, ns: UInt64, priority: Int32)] = []
         var total: UInt64 = 0
         for thread in Self.threads() {
             current[thread.id] = thread.cpuNs
@@ -202,7 +343,7 @@ final class MeloNXPerfJournal {
             guard thread.cpuNs >= before else { continue }
             let used = thread.cpuNs - before
             total &+= used
-            busy.append((name:thread.name, ns:used, priority:thread.priority))
+            busy.append((id:thread.id, name:thread.name, ns:used, priority:thread.priority))
         }
         previousThreads = current
         busy.sort { $0.ns > $1.ns }
@@ -217,6 +358,10 @@ final class MeloNXPerfJournal {
         let footprint = memory()
         stalls.exit()
         if let text = footprint { fields.append("mem=" + text) }
+        if let text = vmActivity() { fields.append("vm=" + text) }
+        if let text = hwActivity(cpuNs:total) { fields.append("hw=" + text) }
+        let listed = busy.prefix(Self.topThreads).filter { $0.ns > 0 }.count
+        if let text = performanceShares(threads:busy.map { (id:$0.id, ns:$0.ns) }, listed:listed) { fields.append("pc=" + text) }
         if let text = Self.input() { fields.append("in=" + text) }
 
         let thermal = ProcessInfo.processInfo.thermalState.rawValue
