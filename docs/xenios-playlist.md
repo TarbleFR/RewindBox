@@ -344,7 +344,7 @@ supply is decided.
 
 Built on RewindBox's shared touch-layout layer
 ([Build 484](build484-touch-controls.md)), not on a new mechanism:
-`XeniaTouchControlsView` (`packages/xenia_internal_bridge/ios/Classes/
+`RBXeniaTouchControlsView` (`packages/xenia_internal_bridge/ios/Classes/
 XeniaTouchControls.{h,mm}`) follows the ARMSX2 controls element by element.
 
 - Layout key `xbox360` (`TouchControls/xbox360.json`, general and per-game
@@ -356,7 +356,7 @@ XeniaTouchControls.{h,mm}`) follows the ARMSX2 controls element by element.
   names come from the shared catalogue.
 - Pad of user 0: X_INPUT_GAMEPAD bits, sticks in [-1, 1] with Y up (the
   screen's Y is inverted), LT/RT full press while held.
-- Session (`XeniaSessionController`): the shared hide rule
+- Session (`RBXeniaSessionController`): the shared hide rule
   (`NeoTouchControlsShouldHide`: hidden under the menu, or with a compatible
   controller while `NeoStation.TouchControls.xbox360.HideWithControllerConnected`
   is on, never while editing; hiding releases every control); controller and
@@ -377,6 +377,54 @@ layout names and `layoutXbox360` ("Xbox 360", 12 locales) in
 Skins: no Xbox 360 controller skin pack is added; a skin overlay, its
 artwork, hit-testing and orientation rules belong to the Skins session,
 which can layer one over these controls later.
+
+## Review of #172 (11 Nov): launch transaction and runtime namespace
+
+- **JIT transaction (D1).** Dart refuses an unsupported or missing game
+  before `XeniaJitService.ensure()`; a Dart failure between `prepareJit` and
+  the bridge calls `abortJit`. In the bridge every failure of `launch:` ends
+  the transaction (`failLaunch`, and `if (stage) XeniaJitAbortTransaction()`
+  after the async stages, the detach failure included, as ARMSX2's
+  `failTransaction`), except while another launch is in flight (it keeps
+  its own). The helper refuses `prepareJit` only while `activeSession` or
+  `operationInProgress` is set, and the abort clears both: the next launch
+  prepares again. Tests: `test/xenia_launch_test.dart`,
+  `test/xenia_launch_transaction_test.py`.
+- **Tool reuse (D2).** `reuseAttachedTool` needs `handshakeActive` (our
+  helper session attached, not finished, not closed, debugger live); the
+  launch's nonce probe then confirms it. A debugger attached without a live
+  handshake is `staleTool`: refused with `restartRequired`, nothing attached
+  or launched (a closed helper would not answer the Core's x16=1, and a new
+  helper cannot attach over it). No evidence was found that the tool keeps
+  answering after `[session close]`, so it is not relied on.
+- **Objective-C classes (R1).** `RTLD_LOCAL` hides C symbols only; the
+  bridge's classes are `RBXenia…` (`RBXeniaSessionController`,
+  `RBXeniaTouchControlsView`, `RBXeniaVirtualStickView`, `RBXeniaJitSession`
+  through `tools/xenia/derive_jit_helper.py`). The two plugin classes keep
+  the names Flutter's registrant imports. `test/xenia_objc_namespace_test.py
+  --upstream` compares them with the 194 classes/protocols of the pinned
+  sources (no shared name); `verify_core.py` refuses a built Core defining
+  one of them (`nm -m`, or a Core whose classes cannot be listed).
+- **Session (R2, R3, R4).** Menu, quit and pause act only once the launch
+  reported success (`sessionRunning`); a Core stop/error during the launch
+  is held and becomes the launch's `bootFailed` result (one report, no
+  `ended`); the detach wait is 30 s (the Core issues its prepare and detach
+  inside `Emulator::Setup`, called from `EmulatorThread`, which boot waits
+  for), and its failure ends the transaction.
+- **Load.** An `abiMismatch` or `coreLoadFailed` Core is cached and reported
+  by `availability` (new `coreLoadFailed` state and message, 12 locales);
+  it is not opened again. `main.dart` logs a layout error instead of
+  failing startup.
+- **To confirm at the first compile:** the facade hands `g_host_controller`
+  (never presented) to upstream; if upstream re-parents the Metal view or
+  presents alerts on it, the render view leaves RewindBox's controller.
+- **CI.** `xenia-core.yml` also runs on a push to this branch (host checks,
+  the two new tests, the plugin compile, the helper type-check) and a
+  `plugin_app` job builds a throwaway Flutter app holding only
+  `xenia_internal_bridge` and `neo_touch_layout` for the simulator (compile
+  and link, iOS 18 Podfile). `build_core` stays a dispatch. No existing
+  workflow compiles the whole app for the simulator; `ios-ci.yml` builds the
+  IPA and stays with the main session.
 
 ## Legal gate (source/license declarations)
 

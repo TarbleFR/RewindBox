@@ -3851,6 +3851,15 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   (pubspec.yaml + 3 new local manifests); collector updated. Chain passes with Claude's
   pre-existing libretro podspec mismatch masked; refuses without the review / with a changed
   file; legal Python tests = same failing set as Claude `1a10d4a8b`.
+- **Review of #172 by 00 (11 Nov), fixed, host-tested, not compiled:** D1 launch failures end
+  the JIT transaction (Dart checks before `ensure`, `abortJit`; native `failLaunch` + abort on
+  every stage, as ARMSX2); D2 reuse only with `handshakeActive`, else `restartRequired`; R1
+  classes `RBXenia…` + namespace test vs pinned sources + `verify_core.py` `nm -m` check; R2/R3/R4
+  (`sessionRunning`, held events, 30 s detach); cached `abiMismatch`/`coreLoadFailed`; guarded
+  startup layout. CI: push trigger on this branch (checks + `plugin_app` simulator link job),
+  `build_core` dispatch only. Proof: `xenia_launch_test.dart`, `xenia_jit_service_test.dart`,
+  `xenia_launch_transaction_test.py`, `xenia_objc_namespace_test.py --upstream`; Dart 107/107;
+  legal chain still passes. Open: façade `g_host_controller` (first compile).
 - **Validation (Flutter 3.47.2 host):** 11 Nov: XeniOS + catalog/Consoles/touch suites
   91/91, scanner suites 41/41 (1 skip), storage contract 24/24, patch/validator/touch/C++
   checks OK, analyzer 111 = baseline. Earlier: new XeniOS + catalog/Consoles tests 65/65;
