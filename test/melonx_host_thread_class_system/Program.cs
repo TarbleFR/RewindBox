@@ -1,9 +1,12 @@
 // Fixture of test/melonx_host_thread_class_system_test.py (macOS): the adapter's real helper (Helper.cs, generated from
-// adapt_host_thread_class) with the system's own call, on the kinds of thread a process can have. One JSON line.
+// adapt_host_thread_class) with the system's own call, on the kinds of thread a process can have. One JSON line, written
+// by hand: the same source runs under the host runtime and compiled ahead of time (NativeAOT), where reflection-based
+// serialization is not available.
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Text.Json;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -31,15 +34,17 @@ public static unsafe class Program
     [DllImport("/usr/lib/libSystem.B.dylib", EntryPoint = "pthread_join")]
     private static extern int PthreadJoin(IntPtr thread, out IntPtr value);
 
-    private static readonly Dictionary<string, object> Report = new();
+    private static readonly Dictionary<string, string> Report = new();
 
     // helper: the adapter's RaiseCurrentThread; raw: the system call itself (its return value is an errno).
-    private static Dictionary<string, object> Measure(bool helper)
+    private static string Measure(bool helper)
     {
         uint before = QosClassSelf();
-        object answer = helper ? Ryujinx.Common.HostThreadClass.RaiseCurrentThread() : SetQosClassSelf(0x21, 0);
-        return new Dictionary<string, object> { ["classBefore"] = before, ["answer"] = answer, ["classAfter"] = QosClassSelf() };
+        string answer = helper ? (Ryujinx.Common.HostThreadClass.RaiseCurrentThread() ? "true" : "false") : SetQosClassSelf(0x21, 0).ToString();
+        return "{\"classBefore\":" + before + ",\"answer\":" + answer + ",\"classAfter\":" + QosClassSelf() + "}";
     }
+
+    private static string Text(string value) => "\"" + value.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
 
     private static string _kind;
     private static bool _helper;
@@ -54,7 +59,7 @@ public static unsafe class Program
     private static void SystemThread(string kind, bool helper)
     {
         _kind = kind; _helper = helper;
-        if (PthreadCreate(out IntPtr thread, IntPtr.Zero, &Start, IntPtr.Zero) != 0) { Report[kind] = "pthread_create failed"; return; }
+        if (PthreadCreate(out IntPtr thread, IntPtr.Zero, &Start, IntPtr.Zero) != 0) { Report[kind] = Text("pthread_create failed"); return; }
         PthreadJoin(thread, out _);
     }
 
@@ -74,10 +79,11 @@ public static unsafe class Program
         RuntimeThread("runtimeThreadRaw", false);
         RuntimeThread("runtimeThreadHelper", true);
         Task.Run(() => Report["poolThreadRaw"] = Measure(false)).Wait();
-        Report["records"] = Ryujinx.Common.EmbeddedLaunchDiagnostics.Records;
-        Report["runtime"] = RuntimeInformation.FrameworkDescription;
-        Report["os"] = RuntimeInformation.OSDescription;
-        Console.WriteLine(JsonSerializer.Serialize(Report));
+        Report["records"] = "[" + string.Join(",", Ryujinx.Common.EmbeddedLaunchDiagnostics.Records.Select(Text)) + "]";
+        Report["runtime"] = Text(RuntimeInformation.FrameworkDescription);
+        Report["aheadOfTime"] = RuntimeFeature.IsDynamicCodeSupported ? "false" : "true";
+        Report["os"] = Text(RuntimeInformation.OSDescription);
+        Console.WriteLine("{" + string.Join(",", Report.Select(pair => Text(pair.Key) + ":" + pair.Value)) + "}");
         return 0;
     }
 }
