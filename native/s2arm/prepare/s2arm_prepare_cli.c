@@ -10,9 +10,18 @@
 //   s2arm_prepare_cli ns2-dump <export dir> <out dir> [--name N] [--reference] [--max-module-bytes N]
 //                                     (exit 0, or 1 with a line on stderr)
 //   s2arm_prepare_cli ns2-detect <dir>                  (prints "<PROGRAM ID>\t<folder>", exit 0; 1 when not an export)
+//   s2arm_prepare_cli image-pack <root> <output.dylib> [module...]
+//   s2arm_prepare_cli caps <root> <s2a_caps.tsv> [<s2a_caps.all.tsv>]
+//   s2arm_prepare_cli module-dir <root> <dir> [--images <path>] [--save-identity <id> <name> <version> <content>]
+//                                     [--launch-ctx [--ctx-images V] [--ctx-module-dir V] [--ctx-game-data V] [--ctx-docs V]]
+//   s2arm_prepare_cli direct-skeleton <root> <chain> <tag> <reason file>
+//   s2arm_prepare_cli resource-pack <root> <dir> [--systemdata <dir>] [--link-systemdata] [--applied]
+//                                     (all: exit 0, or 1 with "result=<code> <message>" on stderr)
 //   s2arm_prepare_cli zbic-batch <manifest>             (one "frame|nso<TAB>input<TAB>expected<TAB>output" per line;
 //                                                        writes output on success, prints "<line> ok|err <message>")
 #include "s2arm_addr_need.h"
+#include "s2arm_caps.h"
+#include "s2arm_pack.h"
 #include "s2arm_modules.h"
 #include "s2arm_ns2_dump.h"
 #include "s2arm_nro.h"
@@ -112,6 +121,78 @@ int main(int argc, char **argv) {
         return result ? 1 : 0;
     }
     if (argc == 3 && !strcmp(argv[1], "zbic-batch")) return zbic_batch(argv[2]);
+    if (argc >= 4 && !strcmp(argv[1], "image-pack")) {
+        char error[1024] = "";
+        int result = rb_s2arm_image_pack(argv[2], (const char *const *)(argv + 4), (size_t)(argc - 4), argv[3], error, sizeof error);
+        if (result) fprintf(stderr, "result=%d %s\n", result, error);
+        return result ? 1 : 0;
+    }
+    if ((argc == 4 || argc == 5) && !strcmp(argv[1], "caps")) {
+        char error[1024] = "";
+        int engine = 0;
+        int result = rb_s2arm_caps(argv[2], argv[3], argc == 5 ? argv[4] : NULL, &engine, error, sizeof error);
+        if (result) fprintf(stderr, "result=%d %s\n", result, error);
+        else printf("engine_l1=%d\n", engine);
+        return result ? 1 : 0;
+    }
+    if (argc >= 4 && !strcmp(argv[1], "module-dir")) {
+        rb_s2arm_module_request request = {argv[2], argv[3], NULL, NULL, 0, NULL, NULL, NULL, NULL};
+        rb_s2arm_save_identity identity = {NULL, NULL, 0, NULL};
+        for (int i = 4; i < argc; i++) {
+            if (!strcmp(argv[i], "--images") && i + 1 < argc) request.images_path = argv[++i];
+            else if (!strcmp(argv[i], "--save-identity") && i + 4 < argc) {
+                identity.id = argv[i + 1];
+                identity.name = argv[i + 2];
+                identity.version = strtoll(argv[i + 3], NULL, 10);
+                identity.content_identity = argv[i + 4];
+                request.save_identity = &identity;
+                i += 4;
+            } else if (!strcmp(argv[i], "--launch-ctx")) request.write_launch_ctx = 1;
+            else if (!strcmp(argv[i], "--ctx-images") && i + 1 < argc) request.ctx_images = argv[++i];
+            else if (!strcmp(argv[i], "--ctx-module-dir") && i + 1 < argc) request.ctx_module_dir = argv[++i];
+            else if (!strcmp(argv[i], "--ctx-game-data") && i + 1 < argc) request.ctx_game_data = argv[++i];
+            else if (!strcmp(argv[i], "--ctx-docs") && i + 1 < argc) request.ctx_docs = argv[++i];
+            else {
+                fprintf(stderr, "usage: %s module-dir <root> <dir> [--images P] [--save-identity ID NAME VERSION CONTENT] [--launch-ctx ...]\n", argv[0]);
+                return 64;
+            }
+        }
+        char error[1024] = "";
+        int result = rb_s2arm_module_dir(&request, error, sizeof error);
+        if (result) fprintf(stderr, "result=%d %s\n", result, error);
+        return result ? 1 : 0;
+    }
+    if (argc == 6 && !strcmp(argv[1], "direct-skeleton")) {
+        FILE *f = fopen(argv[5], "rb");
+        char reason[65536];
+        size_t n = f ? fread(reason, 1, sizeof reason - 1, f) : 0;
+        if (f) fclose(f);
+        reason[n] = 0;
+        if (!f) {
+            fprintf(stderr, "cannot read %s\n", argv[5]);
+            return 1;
+        }
+        char error[1024] = "";
+        int result = rb_s2arm_direct_skeleton(argv[2], argv[3], argv[4], reason, error, sizeof error);
+        if (result) fprintf(stderr, "result=%d %s\n", result, error);
+        return result ? 1 : 0;
+    }
+    if (argc >= 4 && !strcmp(argv[1], "resource-pack")) {
+        rb_s2arm_resource_request request = {argv[2], argv[3], NULL, 0, 0, NULL, NULL, NULL};
+        for (int i = 4; i < argc; i++) {
+            if (!strcmp(argv[i], "--systemdata") && i + 1 < argc) request.systemdata_dir = argv[++i];
+            else if (!strcmp(argv[i], "--link-systemdata")) request.systemdata_link = 1;
+            else if (!strcmp(argv[i], "--applied")) request.write_applied = 1;
+            else {
+                fprintf(stderr, "usage: %s resource-pack <root> <dir> [--systemdata D] [--link-systemdata] [--applied]\n", argv[0]);
+                return 64;
+            }
+        }
+        char error[1024] = "";
+        int result = rb_s2arm_resource_pack(&request, error, sizeof error);
+        if (result) fprintf(stderr, "result=%d %s\n", result, error);
+        return result ? 1 : 0;
+    }
     if (argc == 3 && !strcmp(argv[1], "ns2-detect")) {
         char dump[4096], error[512] = "";
         uint64_t program = 0;
