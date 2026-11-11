@@ -1,0 +1,821 @@
+{
+ "schema": 1,
+ "build": 725,
+ "status": "draft",
+ "note": "Private common IPA 725 = the delivered 724 with every fix ready on 11 November 2026 (maintainer request). RPCS3 Core 928 (= 923 + 924 to 928): an accurate PUTLLC defers to a starving PPU before it locks its line (Black Ops II freeze of IPA 724); GPU memory packing (Black Ops II graphics memory); texture lookup memo served for Black Ops II; asynchronous MoltenVK submits definitive for every title that does not use asynchronous texture streaming, without boot record; the GPU gate closes when the application is deactivated and reopens when it is active again. Host: the RPCS3 database no longer turns asynchronous texture streaming on under iOS (God of War III corruption of IPA 724). MeloNX Core 731 (= 723 + 725 + 727 + 729 + 731) with the five-part MoltenVK patch (99605a2b): recorded pipeline states replayed at load, pause checkpoint growth, pipeline cache compacted once at load, cached shader libraries kept under the bindings a lookup reads, cold buffer trim; bridge journal fields. Skins PR 171 and 173 with the fourth Pocket revision review. Imports (maintainer requests of 11 November): every import says why a file is refused; a library folder shows which console folder feeds which playlist before it is added, and a folder iOS does not give back keeps its games; 'already in the library' compares the bytes; nothing is overwritten. Launch prerequisites: LocalDevVPN, pairing file, development signature, iOS version, PS2 BIOS and conditional retro BIOS each say what is missing and what to do. The S2Arm diagnostic hook of the MeloNX bridge is inert in this build (no Info.plist key). Base: the delivered and verified 724. Nothing of this build was run on an iPhone; no FPS, memory or stability claim.",
+ "base": {
+  "build": 724,
+  "source": "5738e4ff7e5a3b0dc2f229eadec0337b40fd7fc6",
+  "tree": "667c1d4235beafc0eac88cb0d870062b8ae79f13",
+  "run": 42914845416,
+  "attempt": 1,
+  "workflow": ".github/workflows/standard-delivery.yml",
+  "jobs": {
+   "preflight": {
+    "name": "preflight",
+    "id": 130174528354
+   },
+   "application": {
+    "name": "application",
+    "id": 130175184804
+   }
+  },
+  "receipt": {
+   "path": "docs/evidence/rewind724/delivery.json",
+   "sha256": "905d3604344b0495cb473128bc5a66f1343d0b902980b81896db4292e41beb87",
+   "proofFiles": 12
+  },
+  "identity": {
+   "path": "docs/evidence/rewind724/signed-payload-identity.json",
+   "sha256": "7fe77926af6422a49695e3bc4bf4e2f65bcb17ac5ecadade0850e9661fd56ccf",
+   "images": 90
+  },
+  "ipa": {
+   "name": "RewindBox-724.ipa",
+   "producerName": "RewindBox-Build724-5738e4ff7e5a3b0dc2f229eadec0337b40fd7fc6-cold.ipa",
+   "bytes": 271630484,
+   "sha256": "c3fcb1c772e217dae6d321089be17c561ca963164927a3e256e641d2bb15f446"
+  }
+ },
+ "components": {
+  "rpcs3": {
+   "mode": "replace",
+   "verifier": ".github/diagnostics/rpcs3_core_component.py",
+   "pin": "build-utils/rpcs3/core-pin.json",
+   "image": "Frameworks/libRPCS3Core.dylib",
+   "producerRoute": "RPCS3 Core route (.github/workflows/rpcs3-core610.yml driven by build-utils/rpcs3/core-build.json, build 928)",
+   "unchangedFromBase": false,
+   "pinSha256": "f37dae63e637b6341c3592a4735e299a5ae046b0f562018c73203c94dada6abd"
+  },
+  "melonx": {
+   "mode": "replace",
+   "verifier": ".github/diagnostics/melonx_dma_core_component.py",
+   "pin": "build-utils/melonx/dma-core-pin.json",
+   "packaging": "build-utils/melonx/package_runtime.py",
+   "image": "Frameworks/MeloNXCore.framework/MeloNXCore",
+   "producerRoute": ".github/workflows/melonx-core.yml",
+   "pinSha256": "77b53db73f81611c4c08724bcc24a671c4f7f9c8776d4b932b793e490db85984",
+   "replaces": {
+    "build": 723,
+    "source": "790664dabecf00279456657bb854b6de229ab715",
+    "run": 42883532005,
+    "job": 130065784537,
+    "artifact": 13799060992,
+    "packagedFingerprint": "3bccab5472d09963d97ebbd70ef4927385396737c60692ca9d3010660e5fc18b"
+   },
+   "unchangedFromBase": false
+  },
+  "dolphin": {
+   "mode": "retain",
+   "retainedSince": 608,
+   "image": "Frameworks/DolphinCore.framework/DolphinCore",
+   "payloadFingerprint": "640e4389559c800087b3d4b2a2748b4c11307ae6a79bc72f59d55430ccddd6fc",
+   "upstreamRevision": "7cac54161659421ed95c2cd1c0b0746539a4cd38",
+   "legalFolder": "Dolphin-session608",
+   "inputs": "rewind608_producers.input_paths",
+   "origin": {
+    "workflow": ".github/workflows/rewind608-retro-achievements-delivery.yml",
+    "source": "0279198b1c33d869550cae3cf35f155b9d3a4f79",
+    "tree": "67f9f0c891d86b09d04c4f273931eeb0d33f602e",
+    "run": 41293321826,
+    "attempt": 1,
+    "runConclusion": "failure",
+    "job": 124810929735,
+    "jobName": "Build608 Dolphin arm64",
+    "steps": [
+     "Patch and compile Dolphin Core",
+     "Materialize and validate Dolphin framework",
+     "Bind608 native inputs and compiled payload"
+    ],
+    "artifact": 13078193437,
+    "name": "RewindBox608-dolphin-0279198b1c33d869550cae3cf35f155b9d3a4f79-attempt1",
+    "bytes": 11191038,
+    "sha256": "9d32c236c79c43cd57053b000dfaba94c4e0d6f627bd04a657f74b36dd58c064",
+    "expiresAt": "2026-11-15T09:41:57Z"
+   },
+   "consumedBy": {
+    "build": 608,
+    "receipt": "docs/evidence/rewind608/delivery.json",
+    "sha256": "2930e4d30eb26b9de343283b3fbab9f723dc9dd63399317833b4bef572d1ae9b"
+   },
+   "republished": {
+    "build": 662,
+    "source": "73d9f856a17a1a22099676280a4e87f9ecc0c457",
+    "run": 42020264926,
+    "attempt": 1,
+    "job": 127221343382,
+    "artifact": 13410284965,
+    "name": "RewindBox-Build662-73d9f856a17a1a22099676280a4e87f9ecc0c457-attempt1-component-dolphin",
+    "bytes": 11192276,
+    "sha256": "82cbdac055d32bd2041f61064cc041607885f4991c6f6690a58e593d8f76af71"
+   }
+  },
+  "armsx2": {
+   "mode": "retain",
+   "retainedSince": 608,
+   "image": "Frameworks/ARMSX2Core.framework/ARMSX2Core",
+   "payloadFingerprint": "fab55193e509583b03c0e5b33ae8d8812745b5410d138a53e3779b6257f370d4",
+   "upstreamRevision": "9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe",
+   "legalFolder": "ARMSX2-session608",
+   "inputs": "rewind608_producers.input_paths",
+   "origin": {
+    "workflow": ".github/workflows/rewind608-retro-achievements-delivery.yml",
+    "source": "0279198b1c33d869550cae3cf35f155b9d3a4f79",
+    "tree": "67f9f0c891d86b09d04c4f273931eeb0d33f602e",
+    "run": 41293321826,
+    "attempt": 1,
+    "runConclusion": "failure",
+    "job": 124810929747,
+    "jobName": "Build608 ARMSX2 ABI9 arm64",
+    "steps": [
+     "Compile native core and verify binary ABI",
+     "Bind608 native inputs and compiled payload"
+    ],
+    "artifact": 13078023872,
+    "name": "RewindBox608-armsx2-0279198b1c33d869550cae3cf35f155b9d3a4f79-attempt1",
+    "bytes": 14042625,
+    "sha256": "e4354b47eee93d5dc8d53be070a88cc83ceb8b31ff4f7ccdca2eb2c2067b8763",
+    "expiresAt": "2026-11-15T09:57:51Z"
+   },
+   "consumedBy": {
+    "build": 608,
+    "receipt": "docs/evidence/rewind608/delivery.json",
+    "sha256": "2930e4d30eb26b9de343283b3fbab9f723dc9dd63399317833b4bef572d1ae9b"
+   },
+   "republished": {
+    "build": 662,
+    "source": "73d9f856a17a1a22099676280a4e87f9ecc0c457",
+    "run": 42020264926,
+    "attempt": 1,
+    "job": 127221343382,
+    "artifact": 13411546417,
+    "name": "RewindBox-Build662-73d9f856a17a1a22099676280a4e87f9ecc0c457-attempt1-component-armsx2",
+    "bytes": 14043861,
+    "sha256": "c5fdcd92bc7f5276987310ffaa4bc5be463a4a0587b4a836e669d62cc202c4b4"
+   }
+  },
+  "libretro": {
+   "mode": "retain-archive",
+   "destination": "dist/libretro",
+   "inputs": [
+    "build-utils/libretro/"
+   ],
+   "origin": {
+    "workflow": ".github/workflows/build497-checks.yml",
+    "branch": "Claude",
+    "source": "ab9361c29f7c9ab769c4263dd8b7427fc4f4c036",
+    "run": 39455712245,
+    "attempt": 1,
+    "runConclusion": "success",
+    "artifact": 12280822192,
+    "name": "LibretroCores-ab9361c29f7c9ab769c4263dd8b7427fc4f4c036",
+    "bytes": 55566830,
+    "sha256": "e06f641dd10409c815787fe1cf4ac6746920360a1023c83b23631b2bd693ba47",
+    "expiresAt": "2026-11-03T16:19:42Z"
+   },
+   "republished": {
+    "build": 662,
+    "source": "73d9f856a17a1a22099676280a4e87f9ecc0c457",
+    "run": 42020264926,
+    "attempt": 1,
+    "job": 127221343382,
+    "artifact": 13410529404,
+    "name": "RewindBox-Build662-73d9f856a17a1a22099676280a4e87f9ecc0c457-attempt1-component-libretro",
+    "bytes": 55568023,
+    "sha256": "d1338a9d0c7b7ef5557a6ef8e910df147b4b092741782275eef0daf34d05a170"
+   }
+  },
+  "melonx-dependencies": {
+   "mode": "retain-archive",
+   "destination": "dist/melonx-native",
+   "inputs": [
+    "build-utils/melonx/native-dependencies.json"
+   ],
+   "origin": {
+    "workflow": ".github/workflows/melonx-native-dependencies.yml",
+    "branch": "work/melonx-embedded-20261022",
+    "source": "66737aa9c959eb5915264bf178f179bda8643314",
+    "run": 39854858591,
+    "attempt": 1,
+    "runConclusion": "success",
+    "artifact": 12458409441,
+    "name": "MeloNX-native-dependencies-66737aa9c959eb5915264bf178f179bda8643314",
+    "bytes": 49178074,
+    "sha256": "12a1e4c7bf1c970c218ebddead965a51c3aa57af4d0e1fb5c0523ca8b1340261",
+    "expiresAt": "2026-11-05T21:09:37Z"
+   },
+   "republished": {
+    "build": 662,
+    "source": "73d9f856a17a1a22099676280a4e87f9ecc0c457",
+    "run": 42020264926,
+    "attempt": 1,
+    "job": 127221343382,
+    "artifact": 13411123524,
+    "name": "RewindBox-Build662-73d9f856a17a1a22099676280a4e87f9ecc0c457-attempt1-component-melonx-dependencies",
+    "bytes": 49179302,
+    "sha256": "f70032b3b4cccebeb213eefb122e806d0fd3da18581c6677561b825bceffb4b5"
+   }
+  },
+  "melonx-upstream": {
+   "mode": "pinned-source",
+   "inputs": [
+    "build-utils/melonx/source.json",
+    "build-utils/melonx/vendor_controller.py"
+   ],
+   "tree": "82a29e6f593f6244869481e9a489b8d5154175fe",
+   "controller": "c049ce88a5635bddcd88e1965c42aa8fc92fe961"
+  },
+  "stikjit": {
+   "mode": "pinned-source",
+   "inputs": [
+    "build-utils/stikjit/",
+    "build-utils/patch_stikjit_rpcs3.py",
+    "build-utils/patch_stikjit_compat.py",
+    "build-utils/install_patched_stikjit.py",
+    "build-utils/build_patched_stikjit.py"
+   ],
+   "cacheKeySuffix": "37844950677"
+  },
+  "donor": {
+   "mode": "pinned-release",
+   "build": 527,
+   "release": "0.0.9",
+   "asset": "RewindBox-Build527.ipa",
+   "assetId": 673430199,
+   "url": "https://github.com/TarbleFR/RewindBox/releases/download/0.0.9/RewindBox-Build527.ipa",
+   "bytes": 186673707,
+   "sha256": "884a44dea6e627fc9cd774d296dc2abf1ef683ca01572651d5c0e3425bd9756e",
+   "preparer": "build-utils/prepare_release527_native_runtime.py"
+  }
+ },
+ "product": {
+  "reviewedCommits": [
+   {
+    "commit": "d6b15c86fa3a53f1094d58007aa75f5250a9db81",
+    "note": "docs(delivery): IPA 724 receipt and board entry (run 42914845416, verified offline)"
+   },
+   {
+    "commit": "2fdda67324d4be611e59137ad2b072d2016c29d6",
+    "note": "RPCS3 Core 924 source: an accurate PUTLLC defers to a starving PPU before it locks its line (Black Ops II freeze of IPA 724); folded into Core 928."
+   },
+   {
+    "commit": "c2519a2538f9d0a9ba769458ad0976560ee4ff9e",
+    "note": "RPCS3 host: the RPCS3 database no longer turns asynchronous texture streaming on under iOS (God of War III corruption of IPA 724)."
+   },
+   {
+    "commit": "db9b8618688e14edf79e5ae07cb4a207102e8bc9",
+    "note": "[rpcs3-core-build] build(rpcs3): request the Core 924 compile (an SPU defers to a starving PPU before locking its line: Black Ops II freeze of IPA 724)"
+   },
+   {
+    "commit": "475c327b61dc9d57a475a37990b86967d68a5d77",
+    "note": "docs(board): IPA 724 device results (BO2 freeze cause, GOW3 database config), Core 924 requested; 725 recipient key"
+   },
+   {
+    "commit": "7f784f1f07230beff08b48851093761e04db0cc7",
+    "note": "docs(rpcs3): IPA 724 short stops are shader compiles; BO2 graphics memory attributed to VMA block fragmentation; Core 925 test and model"
+   },
+   {
+    "commit": "671271907955c677cc32edfe4577624f4b64aecb",
+    "note": "RPCS3 Core 925 source: GPU memory packing (Black Ops II graphics memory); folded into Core 928."
+   },
+   {
+    "commit": "e6789e43e20e2020a5b1f29dd727060cb8efb51c",
+    "note": "[rpcs3-core-build] build(rpcs3): request the Core 925 compile (Core 924 plus GPU memory packing for the Black Ops II graphics memory)"
+   },
+   {
+    "commit": "afa078602866bb3b64cc389c3d7174bbbb656aec",
+    "note": "RPCS3 Core 926 source: texture lookup memo served for Black Ops II; its boot-record retry is superseded by Core 927."
+   },
+   {
+    "commit": "46e8486c9c9a5b9f19114981de83e76b9bc372ae",
+    "note": "Merge of the MeloNX lot (58a982d2): Core 725 frozen; reviewed by main. Superseded in this build by Core 731."
+   },
+   {
+    "commit": "e47b18d2aedb3b0403ae4fafba711fd044a0a9fc",
+    "note": "build(melonx): MoltenVK v1.4.2 with the four-part recipe patch pinned (run 42929394881, binary 90bd98a4) for MeloNX Core 725"
+   },
+   {
+    "commit": "b4c70a3771c17b9bcb246fc33f7503bb07592723",
+    "note": "[rpcs3-core-build] build(rpcs3): request the Core 926 compile (Core 925 plus two Black Ops II FPS levers: asynchronous MoltenVK submits retried, texture lookup memo served)"
+   },
+   {
+    "commit": "b83349ea5bb74268cd10cb963e0c1e560802ef99",
+    "note": "build(melonx): pin MeloNX Core 725 (run 42933016136, artifact 13819773531, 1ff1aa56; iPhone d9b8a837 38439896 B, fingerprint 9e1e2ae5)"
+   },
+   {
+    "commit": "36e29a84961702926cc65ec144168326fb3443e8",
+    "note": "RPCS3 Core 927 source: asynchronous MoltenVK submits definitive for every title, no boot record, background gate."
+   },
+   {
+    "commit": "3589b6fe06be121de8864f6fd6151555bc232f12",
+    "note": "docs(rpcs3): Core 927 document: second review pass (no new defect)"
+   },
+   {
+    "commit": "916b8f19d5a70da4266b570fdf7b15efbf430788",
+    "note": "[rpcs3-core-build] build(rpcs3): request the Core 927 compile (asynchronous MoltenVK submits made definitive for every title, no boot record; background gate)"
+   },
+   {
+    "commit": "0284bbf4fedbef38845af67bdaa3292173743527",
+    "note": "Artifact upload protection (#174): workflows and their checker; no application content."
+   },
+   {
+    "commit": "39a6849c7e5e0a5df1b4999cd268f7f539c30e74",
+    "note": "docs(board): Core 927 published state (source 36e29a84, request 916b8f19, run 42946503173), second review pass"
+   },
+   {
+    "commit": "96c92e28f76baef96c0e5022c9f8e5f9e09b60f5",
+    "note": "build(rpcs3): Core inputs: reviewed drift of the two workflows changed by the artifact upload protection (#174)"
+   },
+   {
+    "commit": "81dc85211ce6d14e92632f71e5642d70a8c89316",
+    "note": "docs: record integrated IPA artifact protection and audit status"
+   },
+   {
+    "commit": "38402f9c3710bd05add6fcf4132ae6f2a9527be9",
+    "note": "docs: close IPA artifact audit with verified findings and retained releases"
+   },
+   {
+    "commit": "c53ad180736b45c46bcdab02807e232e7365f703",
+    "note": "Merge of the MeloNX lot (ee2e2b07): Core 727 frozen (pause checkpoint growth, Vulkan memory journal) and the inert S2Arm diagnostic hook of the bridge (runs only when an IPA sets RewindBoxS2ArmProbe; this build does not)."
+   },
+   {
+    "commit": "1a9f21677f19f79ffcd1dfd0e354122cfbdc102f",
+    "note": "build(melonx): the Core 727 contract binds the Core workflow as the artifact upload protection left it (#174)"
+   },
+   {
+    "commit": "996e5ce305e56b74d68475049f5cb90976d4fd4c",
+    "note": "test(rpcs3): the Core 927 host model sequences its scenarios with latches and the Core's own counters, not with durations"
+   },
+   {
+    "commit": "0d2b1d69625bb4c0f0e427d8aa058f12f2be2230",
+    "note": "[rpcs3-core-build-apple] test(rpcs3): rerun the Core 927 Apple host harnesses (927 host model sequenced with latches, no scheduling assumption)"
+   },
+   {
+    "commit": "0c78f5832c4e6decf1083cecdf18b436362cd63c",
+    "note": "docs(board): the maintainer authorizes the Switch 2 session to build its own IPA (11 Nov)"
+   },
+   {
+    "commit": "6669475f174d872297efaf7e667a22b72c507f0d",
+    "note": "build(rpcs3): pin RPCS3 Core 927 (run 42946503173, artifact 13823494096, dylib 77a1ac42 80957840 B; Apple host harnesses run 42950534430)"
+   },
+   {
+    "commit": "f32e99f5ec72a320115864b680a12d9119ba0f19",
+    "note": "build(melonx): pin MeloNX Core 727 (run 42948046731, artifact 13826421242, fb4a7203; iPhone 954c98b1 38456368 B, fingerprint bbae6fc3)"
+   },
+   {
+    "commit": "c7b1d25b4eafd54da28cd622d3d3795f735e5a1e",
+    "note": "docs(board): the Switch 2 test IPA is compiled by main after the common one (maintainer's correction, 11 Nov)"
+   },
+   {
+    "commit": "7490cc7904658f25f80053717b69a0baa72d9c79",
+    "note": "RPCS3 Core 928 source: the GPU gate closes when the application is deactivated (Apple's Metal procedure)."
+   },
+   {
+    "commit": "9a294f1fd4ddd674a79967c86f41ba13a2bcb34f",
+    "note": "[rpcs3-core-build] build(rpcs3): request the Core 928 compile (Core 927 plus the GPU gate closed when the application is deactivated)"
+   },
+   {
+    "commit": "b0ab67449593a90c6cd632a0ee8e3b4466b0062e",
+    "note": "Merge of MeloNX lot 10 (71f9983f): Core 729 frozen (pipeline cache compact) with the MoltenVK patch's fifth part; bridge vm= field."
+   },
+   {
+    "commit": "576f9fe6177e42866b050280a251a3e686a48414",
+    "note": "MoltenVK v1.4.2 with the five-part recipe patch pinned (run 42943460512, binary 99605a2b): goes with Core 731."
+   },
+   {
+    "commit": "f1c306d78f12ea2bef771a491565846d9a07109a",
+    "note": "Merge of skins PR 171 (66a0f0fa): GameCube / Wii Pocket pressed buttons follow their drawn outline; reviewed by main."
+   },
+   {
+    "commit": "3141e7b1028d193bbb06d10e3a33560d380e9ce6",
+    "note": "Merge of skins PR 173 (5972a17f): a D-pad shows the pressed arm only; reviewed by main."
+   },
+   {
+    "commit": "0d9e2a6a750a1956eac46f0466343bd2670355da",
+    "note": "[rpcs3-mvk-cache-check] build(rpcs3-moltenvk): request the MoltenVK dependency of RPCS3 Core 928 (this workflow is a recorded input, changed by the artifact upload protection #174)"
+   },
+   {
+    "commit": "840c3fb5ee984523e19da398975dfc91ed0fcf3c",
+    "note": "Merge of MeloNX lot 11 (e3620e88): Core 731 frozen (cold buffer trim), contract 518ea8dc, 88 gates; bridge hw= and pc= fields."
+   },
+   {
+    "commit": "d6e86a6fe5ee40abf04c3a6703fe325d1491fa49",
+    "note": "build(rpcs3): Core 928 links the MoltenVK dependency of run 42957981240 (same library d19d3a42; the dependency workflow, a recorded input, changed with #174)"
+   },
+   {
+    "commit": "6e6bbeeef23aa60b3a1a2ae6f1ae11865a1069fa",
+    "note": "[rpcs3-core-build] build(rpcs3): request the Core 928 compile again (request 2: the MoltenVK dependency of run 42957981240)"
+   },
+   {
+    "commit": "4fd0996a6a3e37bec9e1750008ae3f8f5d72f379",
+    "note": "Library folders: a folder iOS does not give back keeps its games and says so; adding a folder shows which console folder feeds which playlist; native folder picker never left pending."
+   },
+   {
+    "commit": "d45b1c80bed9e44732fb2bb8fe5590a5482f775c",
+    "note": "RPCS3 Core 928 pinned (run 42960159566; verified offline: digests, pin_errors, 15 Apple host commands, markers)."
+   },
+   {
+    "commit": "fa54e14a998221e3a71c76d8c02b71f1f23f83d4",
+    "note": "MeloNX Core 731 pinned (run 42958274015; verified offline with engine_evidence, 88 fresh gates; contract tests passed)."
+   },
+   {
+    "commit": "f36bac740ba1053cd7f7981c29aab348e1456e89",
+    "note": "Legal: the fourth Pocket skin revision review (PR 171) chained on the third, with the collector and the contract test."
+   },
+   {
+    "commit": "4591efa321b0ae13ac5f60fd7847a1cf8685340a",
+    "note": "docs: imports and launch prerequisites (French note) and the IPA 725 preparation on the board"
+   },
+   {
+    "commit": "e51e07ce40d32f3f54c77fdd51656e38107a68e2",
+    "note": "Port, step 2 (reviewed): the net change of the commits below, applied again from the bytes the delivery compiles; files that still carry the deferred b06888a9 lines are merged without them (git merge-file, no conflict). 1fbd5ed6: Retro console imports and library move: each refused file with its reason; a move of nothing no longer removes library folders.; 67fe1cdb: GameCube, Wii and PS2 imports: each refused file with its reason; PS2 texture panel never stays busy.; 94391656: PS3 and Switch imports: each refused file with its reason, full report for long lists; PS3 document picker recovers after a dismissed sheet (compiled with the iPhone SDK by run 42966947262).; d9859ccc: Retro console imports: review findings fixed (true cause kept, notices after a tab switch, .icloud, empty file, canonical paths).; 2c2e29f5: GameCube, Wii and PS2 imports: review findings fixed ('already in the library' compares the bytes, exclusive create, system text kept).; b1fb8dfb: Launch prerequisites: LocalDevVPN, pairing file, development signature, iOS version, PS2 BIOS and conditional retro BIOS each say what is missing and what to do, 12 languages.; 2b8b8ed7: Library folders: picking the folder of one console says which folder to choose instead."
+   },
+   {
+    "commit": "687ea833d1178db777b57a5a5ca85fbd73f8a710",
+    "note": "docs(board): the maintainer authorizes the other session (Switch 2, session 04) to compile IPA B; main keeps IPA A (725)"
+   }
+  ],
+  "sourceOnly": [
+   {
+    "commit": "1fbd5ed60fb6c0cc5aacba6fe0e52e43d871f3d1",
+    "targetBuild": 725,
+    "note": "Reviewed; its product change reaches 725 through the port (it touched files that still carry the deferred b06888a9 lines). Retro console imports and library move: each refused file with its reason; a move of nothing no longer removes library folders."
+   },
+   {
+    "commit": "67fe1cdbb097401aa2bf6bd1f994430539c53130",
+    "targetBuild": 725,
+    "note": "Reviewed; its product change reaches 725 through the port (it touched files that still carry the deferred b06888a9 lines). GameCube, Wii and PS2 imports: each refused file with its reason; PS2 texture panel never stays busy."
+   },
+   {
+    "commit": "94391656dfb078b5afb46d6565954c1cee44c47c",
+    "targetBuild": 725,
+    "note": "Reviewed; its product change reaches 725 through the port (it touched files that still carry the deferred b06888a9 lines). PS3 and Switch imports: each refused file with its reason, full report for long lists; PS3 document picker recovers after a dismissed sheet (compiled with the iPhone SDK by run 42966947262)."
+   },
+   {
+    "commit": "d9859ccc6f09940dc8cd5d84178beadbb1d8d1f0",
+    "targetBuild": 725,
+    "note": "Reviewed; its product change reaches 725 through the port (it touched files that still carry the deferred b06888a9 lines). Retro console imports: review findings fixed (true cause kept, notices after a tab switch, .icloud, empty file, canonical paths)."
+   },
+   {
+    "commit": "2c2e29f5cf8309215eac47a3691185e9e853f90f",
+    "targetBuild": 725,
+    "note": "Reviewed; its product change reaches 725 through the port (it touched files that still carry the deferred b06888a9 lines). GameCube, Wii and PS2 imports: review findings fixed ('already in the library' compares the bytes, exclusive create, system text kept)."
+   },
+   {
+    "commit": "b1fb8dfb595191814359b468e7de1605187563d1",
+    "targetBuild": 725,
+    "note": "Reviewed; its product change reaches 725 through the port (it touched files that still carry the deferred b06888a9 lines). Launch prerequisites: LocalDevVPN, pairing file, development signature, iOS version, PS2 BIOS and conditional retro BIOS each say what is missing and what to do, 12 languages."
+   },
+   {
+    "commit": "2b8b8ed728f46644faf2cac8cb87677a891ca2aa",
+    "targetBuild": 725,
+    "note": "Reviewed; its product change reaches 725 through the port (it touched files that still carry the deferred b06888a9 lines). Library folders: picking the folder of one console says which folder to choose instead."
+   },
+   {
+    "commit": "7c9766bd0f8844045019438eef4c9c6b106a3d10",
+    "targetBuild": 725,
+    "note": "Port, step 1 (bookkeeping): the ported paths at the bytes the delivery compiles; undone by steps 2 and 3."
+   },
+   {
+    "commit": "7656eb591129530ea7fd5b91b4a90788a9083074",
+    "targetBuild": 726,
+    "note": "Port, step 3: the deferred b06888a9 lines (contentPath of prepareLaunch) put back; deferred with b06888a9."
+   }
+  ],
+  "promotedCommits": []
+ },
+ "images": {
+  "mustChange": [
+   "Frameworks/App.framework/App",
+   "Frameworks/MeloNXCore.framework/MeloNXCore",
+   "Frameworks/MeloNXMoltenVKStandalone.framework/MeloNXMoltenVKStandalone",
+   "Frameworks/armsx2_internal_bridge.framework/armsx2_internal_bridge",
+   "Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge",
+   "Frameworks/external_folder_access.framework/external_folder_access",
+   "Frameworks/libRPCS3Core.dylib",
+   "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge",
+   "Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge",
+   "Runner"
+  ],
+  "added": [],
+  "removed": [],
+  "replaced": {
+   "rpcs3": "Frameworks/libRPCS3Core.dylib",
+   "melonx": "Frameworks/MeloNXCore.framework/MeloNXCore"
+  },
+  "retained": {
+   "dolphin": [
+    "Frameworks/DolphinCore.framework/DolphinCore"
+   ],
+   "armsx2": [
+    "Frameworks/ARMSX2Core.framework/ARMSX2Core"
+   ],
+   "libretro": [
+    "Frameworks/*_libretro.framework/*_libretro",
+    "Frameworks/MoltenVK.framework/MoltenVK"
+   ],
+   "melonx-dependencies": [
+    "Frameworks/MeloNXAvCodec.framework/MeloNXAvCodec",
+    "Frameworks/MeloNXAvUtil.framework/MeloNXAvUtil",
+    "Frameworks/MeloNXJitSupport.framework/MeloNXJitSupport",
+    "Frameworks/MeloNXMoltenVK.framework/MeloNXMoltenVK",
+    "Frameworks/MeloNXSDL3.framework/MeloNXSDL3"
+   ],
+   "melonx-upstream": []
+  }
+ },
+ "tests": {
+  "flutter": {
+   "mode": "fresh",
+   "additions": {
+    "flutterTests": [
+     "test/rewindbox_glacier_test.dart",
+     "test/glacier_menu_capture_test.dart",
+     "test/main_menu_tab_strip_test.dart",
+     "test/main_menu_tab_strip_styles_test.dart",
+     "test/header_one_line_test.dart",
+     "test/header_battery_test.dart",
+     "test/grid_geometry_test.dart",
+     "test/menu_carousel_correction_test.dart",
+     "test/liquid_glass_theme_test.dart",
+     "test/interface_style_locale_test.dart",
+     "test/interface_style_settings_test.dart",
+     "test/interface_style_screen_test.dart",
+     "test/builtin_theme_catalog_test.dart",
+     "test/nav_tabs_test.dart",
+     "test/system_bubbles_option_test.dart",
+     "test/system_bubble_render_test.dart",
+     "test/ui_correction_visual_test.dart",
+     "test/theme_provider_background_persistence_test.dart",
+     "test/retro_achievements_session_test.dart",
+     "test/retro_achievements_login_regression_test.dart",
+     "test/scraper_batch_flow_test.dart",
+     "test/game_box_sharp_scan_test.dart",
+     "test/game_box_sharp_back_test.dart",
+     "test/game_box_sources_test.dart",
+     "test/screenscraper_service_test.dart",
+     "test/screenscraper_manual_media_test.dart",
+     "test/retro_achievements_native_client_test.dart",
+     "test/game_manual_french_sources_test.dart",
+     "test/game_details_tab_persistence_test.dart",
+     "test/dolphin_skins_test.dart",
+     "test/libretro_consoles_tab_test.dart",
+     "test/bundled_controller_skins_test.dart",
+     "test/dolphin_pocket_test.dart",
+     "test/dolphin_skin_preview_images_test.dart",
+     "test/pocket_catalog_offline_ui_test.dart",
+     "test/libretro_skin_catalogs_test.dart",
+     "test/armsx2_playlist_skins_test.dart",
+     "test/rpcs3_game_profile_service_test.dart",
+     "test/main_nav_no_labels_test.dart",
+     "test/melonx_playlist_skins_test.dart",
+     "test/melonx_skins_test.dart",
+     "test/library_folder_inspection_test.dart",
+     "test/ios_linked_library_folders_test.dart",
+     "test/libretro_import_reasons_test.dart",
+     "test/console_import_failure_reporting_test.dart",
+     "test/ps3_switch_import_failure_reporting_test.dart",
+     "test/library_report_dialog_test.dart",
+     "test/launch_prerequisites_test.dart"
+    ],
+    "analyze": [
+     "lib/widgets/glacier",
+     "lib/services/system_art",
+     "lib/services/glacier_preset.dart",
+     "lib/themes",
+     "lib/widgets/main_menu_tab_strip.dart",
+     "lib/widgets/header.dart",
+     "lib/widgets/header_sort_dropdown.dart",
+     "lib/widgets/glass",
+     "lib/screens/systems_screen/my_systems_section",
+     "lib/screens/settings_screen/new_settings_options/themes_settings_content.dart",
+     "lib/screens/settings_screen/new_settings_options/system_art_settings_content.dart",
+     "lib/screens/settings_screen/interface_style",
+     "lib/providers/neo_assets_provider.dart",
+     "lib/providers/theme_provider.dart",
+     "lib/services/neo_assets_service.dart",
+     "lib/main.dart",
+     "lib/l10n",
+     "lib/services/game_box",
+     "lib/screens/game_box",
+     "lib/services/screenscraper",
+     "lib/services/screenscraper_service.dart",
+     "lib/screens/scraper_screen",
+     "lib/services/game_manual_french_sources.dart",
+     "lib/services/game_manual_service.dart",
+     "lib/widgets/game_box",
+     "lib/services/dolphin_skins.dart",
+     "lib/services/libretro_skin_service.dart",
+     "lib/services/libretro_skin_catalogs.dart",
+     "lib/services/libretro_skin_catalog_service.dart",
+     "lib/screens/libretro",
+     "lib/widgets/dolphin_internal_playlist_actions.dart",
+     "lib/services/rpcs3_game_profile_service.dart"
+    ],
+    "commands": [
+     [
+      "storage-contract",
+      [
+       "python3",
+       "-B",
+       "test/storage_contract_test.py"
+      ]
+     ],
+     [
+      "localization-12-locales",
+      [
+       "python3",
+       "-B",
+       "test/localization_12_locale_coverage_test.py"
+      ]
+     ],
+     [
+      "theme-surfaces-retained",
+      [
+       "python3",
+       "-B",
+       "test/theme_importer_retirement_test.py"
+      ]
+     ],
+     [
+      "game-box-strings",
+      [
+       "python3",
+       "-B",
+       "test/game_box_strings_test.py"
+      ]
+     ],
+     [
+      "pocket-skin-input-chain",
+      [
+       "python3",
+       "-B",
+       "test/pocket_skin_input_chain_test.py"
+      ]
+     ],
+     [
+      "dolphin-session-chrome",
+      [
+       "python3",
+       "-B",
+       "test/dolphin_session_chrome_test.py"
+      ]
+     ],
+     [
+      "armsx2-skin-menu-button",
+      [
+       "python3",
+       "-B",
+       "test/armsx2_skin_menu_button_test.py"
+      ]
+     ],
+     [
+      "melonx-standalone-moltenvk-packaging",
+      [
+       "python3",
+       "-B",
+       "test/melonx_standalone_parity_test.py"
+      ]
+     ]
+    ],
+    "flutterTestGlobs": [
+     "test/game_box*_test.dart"
+    ]
+   }
+  },
+  "native": {
+   "mode": "fresh",
+   "additions": {
+    "commands": [
+     [
+      "rpcs3-retroachievements-apple-clang",
+      [
+       "python3",
+       "-B",
+       "test/rpcs3_retroachievements_test.py"
+      ]
+     ],
+     [
+      "rpcs3-graphics-tests-612-apple",
+      [
+       "python3",
+       "-B",
+       "test/rpcs3_graphics_tests612_test.py"
+      ]
+     ],
+     [
+      "rpcs3-timeline-613-foundation",
+      [
+       "python3",
+       "-B",
+       "test/rpcs3_diagnostics546_native_test.py"
+      ]
+     ],
+     [
+      "melonx-perf-journal",
+      [
+       "python3",
+       "-B",
+       "test/melonx_perf_journal_test.py"
+      ]
+     ],
+     [
+      "rpcs3-core-log-621-foundation",
+      [
+       "python3",
+       "-B",
+       "test/rpcs3_core_log_durable552_test.py"
+      ]
+     ],
+     [
+      "rpcs3-log-budget-283-621",
+      [
+       "python3",
+       "-B",
+       "test/rpcs3_build283_boot_stability_test.py"
+      ]
+     ],
+     [
+      "rpcs3-host-diagnostics-487-621",
+      [
+       "python3",
+       "-B",
+       "test/rpcs3_build487_host_diagnostics_test.py"
+      ]
+     ],
+     [
+      "rpcs3-pipeline-cache-milestones-621",
+      [
+       "python3",
+       "-B",
+       "test/rpcs3_pipeline_cache_milestones_test.py"
+      ]
+     ],
+     [
+      "rpcs3-host-memory-before-core-load",
+      [
+       "python3",
+       "-B",
+       "test/rpcs3_host_memory_before_core_load_test.py"
+      ]
+     ],
+     [
+      "melonx-input-stick-swift",
+      [
+       "python3",
+       "-B",
+       "test/melonx_input_stick_test.py"
+      ]
+     ],
+     [
+      "rpcs3-host-bridge-ios-compile",
+      [
+       "python3",
+       "-B",
+       "test/rpcs3_host_bridge_ios_syntax_test.py"
+      ]
+     ],
+     [
+      "rpcs3-capture-analyzer",
+      [
+       "python3",
+       "-B",
+       "test/rpcs3_capture_analyzer_test.py"
+      ]
+     ],
+     [
+      "rpcs3-diagnostics-rotation-724-foundation",
+      [
+       "python3",
+       "-B",
+       "test/rpcs3_diagnostics_native_test.py"
+      ]
+     ],
+     [
+      "external-folder-access-swift-typecheck",
+      [
+       "python3",
+       "-B",
+       "test/external_folder_access_typecheck_test.py"
+      ]
+     ]
+    ]
+   },
+   "note": "On the macOS runner g++/clang++ resolve to Apple clang of the selected Xcode 16.4."
+  },
+  "awaitMinutes": 75
+ },
+ "recipient": {
+  "path": "build-utils/delivery-725-recipient.pem",
+  "sha256": "ff5050be45b95b09ea3919cf35000bf6b915a6a70b1e6ada528abd156ae1e756"
+ },
+ "republish": [
+  "rpcs3-core",
+  "rpcs3-host-tests",
+  "melonx-core",
+  "dolphin",
+  "armsx2",
+  "libretro",
+  "melonx-dependencies"
+ ]
+}
