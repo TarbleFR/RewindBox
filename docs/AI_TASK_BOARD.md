@@ -2080,6 +2080,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
           the next acquire, frame end, invalidation or CPU blit; the 1 KiB FIFO cache sees fewer patches than 4 KiB.
           Bounded to one epoch inside the texture cache; not linked to any observed defect. MT RSX off: no lost fault,
           flush or invalidation (refuted).
+        - **Maintainer (11 Nov, after the Core 929 report): "commence par l'ordre défini, ensuite tu attends les autres sessions avant de
+          compiler toute ipa".** Order for Black Ops II: (1) instrument the SPU waits (the 41 % "waiting" of SPUPROF923 is
+          unattributed: `spu_thread::current_func` is never cleared after the call, so `wait_calls=sys_spu_thread_send_event` is the
+          last named call, not the wait); (2) the exact reservation writer lock parks every PPU for each heavy PUTLLC (8-10 k per
+          frame); (3) pipelines compiled in play (12 blocking builds in 2 min). **No IPA is compiled until the other sessions are
+          ready** (Core builds and pins continue).
         - **Next:** compile and pin Core 929; next IPA = Core 929 + this menu + the 12 message fixes (68846c65, f3a4180f) +
           the StikJIT test fix 24a8246f; device protocol: resume the same savestate, open and close the pause menu,
           `GOW3MLAA909 ppu=savestate_memory`, menu shows 100 %.
