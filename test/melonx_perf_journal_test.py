@@ -80,6 +80,15 @@ check('if let text = hwActivity(cpuNs:total) { fields.append("hw=" + text) }' in
       'info.ri_user_ptime &+ info.ri_system_ptime' in journal and 'info.ri_runnable_time' in journal and
       'guard let before = previousHw else { return nil }' in journal,
       'hw= field: one read-only call, optional, absent on the first line')
+# pc= field (lot 11): the share of each listed thread's CPU time on performance cores, in the order of cpu=, from
+# proc_pidinfo's per-thread counts by performance level (flavor 34), looked up at run time; bounded, optional.
+check('if let text = performanceShares(threads:busy.map { (id:$0.id, ns:$0.ns) }, listed:listed) { fields.append("pc=" + text) }' in journal and
+      journal.index('fields.append("hw=" + text)') < journal.index('fields.append("pc=" + text)') < journal.index('fields.append("th=" + ') and
+      journal.count('dlsym(UnsafeMutableRawPointer(bitPattern:-2), "proc_pidinfo")') == 1 and 'counts(getpid(), 34, id, $0.baseAddress!, size)' in journal and
+      'static let levelThreads = 48' in journal and 'threads.prefix(Self.levelThreads) where thread.ns >= 1_000_000' in journal and
+      'if String(cString:name) == "Performance" { return (index:index, levels:Int(levels)) }' in journal and
+      'return shares.contains { $0 != "-" } ? shares.joined(separator:",") : nil' in journal,
+      'pc= field: per-thread share on performance cores, bounded calls, absent when nothing is known')
 # Lot 9: the engine call's own duration (a GC suspension in progress blocks it), timed around fps() only.
 check('let callStart = ProcessInfo.processInfo.systemUptime\n        let engine = fps()\n        let callMs = ' in journal and
       'fields.append("mgd=" + Self.decimal(callMs))' in journal, 'journal mgd field around the engine call')
@@ -183,6 +192,14 @@ print("hwField " + hw(MeloNXPerfJournal.HwCounters(cycles:3_201_000, instruction
 print("hwField " + hw(MeloNXPerfJournal.HwCounters(cycles:1_000, instructions:2_000, time:1_100, performanceTime:20, runnable:1_010), 2_000_000))
 print("hwField " + hw(MeloNXPerfJournal.HwCounters(cycles:9_000, instructions:9_000, time:100, performanceTime:40, runnable:10), 1_000_000))
 print("hwField " + hw(MeloNXPerfJournal.HwCounters(cycles:9_000, instructions:9_000, time:1_100, performanceTime:40, runnable:10), 0))
+// pc= field: the share is formatted from two samples; no CPU time or a counter that went backwards gives "-". The
+// per-level counts of the busy thread are read when the host has them (a virtual machine may not).
+func share(_ now: MeloNXPerfJournal.LevelTimes) -> String { MeloNXPerfJournal.performanceShare(from:MeloNXPerfJournal.LevelTimes(performance:100, total:200), to:now) }
+print("pcShare " + share(MeloNXPerfJournal.LevelTimes(performance:400, total:600)))
+print("pcShare " + share(MeloNXPerfJournal.LevelTimes(performance:100, total:200)))
+print("pcShare " + share(MeloNXPerfJournal.LevelTimes(performance:50, total:600)))
+if let levels = MeloNXPerfJournal.levelTimes(thread:worker.id) { print("pcLevels " + (levels.performance <= levels.total && levels.total > 0 ? "plausible" : "implausible")) }
+else { print("pcLevels unavailable") }
 let journal = MeloNXPerfJournal(path:path, interval:0.25, lineLimit:6,
     fps:{ ["gameFps":59.5,"gameFrameTimeMs":16.8,"fifoPercent":40.0] },
     presentation:{
@@ -237,7 +254,21 @@ exit(2)
         check('paused' not in samples[0] and 'paused' in samples[-1], samples)
         # vm= (the kernel's compression, decompression, fault and page-in counts over the interval): absent on the first
         # line, four counts on the others, before th=.
-        check(' vm=' not in samples[0] and all(re.search(r' vm=\d+/\d+/\d+/\d+ (hw=\S+ )?(in=\S+ )?th=', line) for line in samples[1:]), samples)
+        check(' vm=' not in samples[0] and all(re.search(r' vm=\d+/\d+/\d+/\d+ (hw=\S+ )?(pc=\S+ )?(in=\S+ )?th=', line) for line in samples[1:]), samples)
+        # pc= (per cent of each listed thread's CPU time on performance cores, in the order of cpu=): absent on the first
+        # line and where the host gives no per-level counts; never more values than threads listed.
+        levels = [line for line in result.stdout.splitlines() if line.startswith('pcLevels ')]
+        check(levels in (['pcLevels plausible'], ['pcLevels unavailable']), result.stdout)
+        check(' pc=' not in samples[0], samples[0])
+        for line in samples[1:]:
+            shares = re.search(r' pc=(\S+) ', line)
+            if levels == ['pcLevels unavailable']:
+                check(shares is None, line)
+            elif shares:
+                values = shares.group(1).split(',')
+                check(all(re.fullmatch(r'\d+|-', value) and (value == '-' or int(value) <= 100) for value in values) and
+                      len(values) == len(re.findall(r' \S+:\d+/-?\d+', line)), line)
+        check([line for line in result.stdout.splitlines() if line.startswith('pcShare ')] == ['pcShare 75', 'pcShare -', 'pcShare -'], result.stdout)
         # hw= (clock in GHz, instructions per cycle, per cent on performance cores, per cent ready without a core):
         # absent on the first line; on the others four values, "-" where the host counts no cycles (a virtual machine).
         check(' hw=' not in samples[0] and all(re.search(r' hw=\d+\.\d/(\d+\.\d\d|-)/(\d+|-)/(\d+|-) ', line) for line in samples[1:]), samples)

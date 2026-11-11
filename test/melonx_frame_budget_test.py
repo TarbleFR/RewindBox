@@ -22,11 +22,11 @@ def check(value, message):
     checks += 1
 
 
-def line(pid, t, gaps, cpu, vm=None, hw=None, paused=False):
+def line(pid, t, gaps, cpu, vm=None, hw=None, paused=False, pc=None, threads='Render:40/47 <MainThread>:30/31'):
     context = json.dumps(dict(build='731', pid=str(pid)), separators=(',', ':'))
     body = (f't={t} fps={len(gaps):.1f}/33.3/40 mgd=0.2 pres={len(gaps)}/0.0/0/0 long=0/0 gaps={",".join(str(g) for g in gaps)} '
-            f'cpu={cpu} Render:40/47 mem=4000/2000/9/0' + (f' vm={vm}' if vm else '') + (f' hw={hw}' if hw else '') + ' th=fair lp=0'
-            + (' paused' if paused else ''))
+            f'cpu={cpu} {threads} mem=4000/2000/9/0' + (f' vm={vm}' if vm else '') + (f' hw={hw}' if hw else '') + (f' pc={pc}' if pc else '')
+            + ' in=tL1/0.00,tR1/0.00 th=fair lp=0' + (' paused' if paused else ''))
     return f'[MeloNX:perf] {body} context={context}\n'
 
 
@@ -35,7 +35,7 @@ with tempfile.TemporaryDirectory(prefix='melonx-frame-budget-') as directory:
     log = Path(directory) / 'MeloNX-performance.log'
     with open(log, 'w') as out:
         for t in range(1, 11):
-            out.write(line(PID, t, [33] * 30, 250, vm='4/1000/5000/2', hw='3.0/2.00/60/10'))
+            out.write(line(PID, t, [33] * 30, 250, vm='4/1000/5000/2', hw='3.0/2.00/60/10', pc='90,-' if t == 1 else '90,20'))
             out.write(line(PID + 1, t, [500] * 2, 600, vm='900/900000/1/1', hw='9.9/9.99/99/99'))
         for t in range(11, 21):
             out.write(line(PID, t, [100] * 10, 300, vm='40/30000/90000/5', hw='2.0/1.00/30/50'))
@@ -52,6 +52,11 @@ with tempfile.TemporaryDirectory(prefix='melonx-frame-budget-') as directory:
     check(good['cpuService'] == dict(lines=10, clockGHzMedian=3.0, instructionsPerCycleMedian=2.0, performanceCoresPercentMedian=60.0,
                                      readyWithoutACorePercentMedian=10.0, instructionsPerFrameMillions=500),
           'CPU service of the first window: ' + json.dumps(good['cpuService']))
+    check(good['threads'] == [dict(name='Render', lines=10, corePercentMedian=40, priorities=[47], performanceCoresPercentMedian=90),
+                              dict(name='<MainThread>', lines=10, corePercentMedian=30, priorities=[31], performanceCoresPercentMedian=20)],
+          'threads of the first window, with their share on performance cores: ' + json.dumps(good['threads']))
+    check(slow['threads'][0]['performanceCoresPercentMedian'] is None and slow['threads'][0]['corePercentMedian'] == 40,
+          'a window without pc=: the threads without a share')
     check(slow['frames'] == 100 and slow['meanMs'] == 100.0 and slow['excessMs'] == 66.7 and slow['slowMs'] == 66.7 and slow['stutterMs'] == 0.0 and
           slow['slowFrames'] == 100 and round(slow['stutterMs'] + slow['slowMs'] + slow['fastMs'], 1) == slow['excessMs'],
           'ten seconds at 10 FPS: every gap is a slow frame, the classes add up: ' + json.dumps(slow))
@@ -65,13 +70,16 @@ with tempfile.TemporaryDirectory(prefix='melonx-frame-budget-') as directory:
     text = subprocess.run([sys.executable, str(TOOL), str(log), '--pid', str(PID), '--window', '1-10'], capture_output=True, text=True)
     check(text.returncode == 0 and 'memory activity (vm=, 10 lines): 40 MiB compressed, 156 MiB decompressed' in text.stdout and
           'CPU service (hw=, 10 lines, medians): clock 3.0 GHz, 2.0 instructions per cycle, 60.0 % on performance cores, 10.0 % ready without a core; '
-          'about 500 million instructions per frame' in text.stdout, 'the text report: ' + text.stdout[-700:])
+          'about 500 million instructions per frame' in text.stdout and
+          'threads (cpu=, pc=; medians): Render 40 % of a core at priority 47, 90 % on performance cores; '
+          '<MainThread> 30 % of a core at priority 31, 20 % on performance cores' in text.stdout, 'the text report: ' + text.stdout[-900:])
     old = Path(directory) / 'old.log'
     with open(old, 'w') as out:
         for t in range(1, 4):
             out.write(line(PID, t, [33] * 30, 250))
     plain = json.loads(subprocess.run([sys.executable, str(TOOL), str(old), '--pid', str(PID), '--window', '1-', '--json'],
                                       capture_output=True, text=True).stdout)['windows'][0]
-    check(plain['frames'] == 90 and plain['memoryActivity'] is None and plain['cpuService'] is None, 'a journal without the fields: no such section')
+    check(plain['frames'] == 90 and plain['memoryActivity'] is None and plain['cpuService'] is None and
+          [entry['performanceCoresPercentMedian'] for entry in plain['threads']] == [None, None], 'a journal without the fields: no such section')
 
 print(json.dumps(dict(result='passed', checks=checks)))

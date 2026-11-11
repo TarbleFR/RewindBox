@@ -22,7 +22,9 @@ the pause itself is not a gap):
   and pages decompressed, 16 KiB each, over the window; decompressed pages per line, median and maximum; page-ins) and
   how its CPU time was served (hw=: medians of the clock in GHz, of the instructions per cycle, of the share on
   performance cores and of the time ready without a core, both per cent of the CPU time used), with the instructions
-  executed per presented frame (clock x instructions per cycle x CPU time of each line, summed, over the frames).
+  executed per presented frame (clock x instructions per cycle x CPU time of each line, summed, over the frames);
+  and, for the threads cpu= lists in at least a quarter of the window's lines, their median share of a core and (pc=)
+  the median per cent of their CPU time spent on performance cores.
 
 The journal rounds a gap to the millisecond and the display shows a frame on a refresh: a gap within 1 ms of a multiple
 of 1000/60 ms is taken as that multiple (33 -> 33.33), so a frame on target contributes zero, not -0.33. A journal line
@@ -104,7 +106,21 @@ def budget(seconds, first, last, target, excluded=()):
                 pass
         service = dict(lines=len(clock), clockGHzMedian=median(0), instructionsPerCycleMedian=median(1), performanceCoresPercentMedian=median(2),
                        readyWithoutACorePercentMedian=median(3), instructionsPerFrameMillions=round(executed / frames / 1e6) if executed else None)
-    return dict(memoryActivity=memory, cpuService=service, window=[first, last if last is not None else chosen[-1]['t']], lines=len(chosen), frames=frames,
+    listed = {}
+    for s in chosen:
+        shares = s.get('pc') or []
+        for index, (name, core, priority) in enumerate(s.get('threads') or []):
+            entry = listed.setdefault(name, dict(core=[], performance=[], priority=set()))
+            entry['core'].append(core)
+            entry['priority'].add(priority)
+            if index < len(shares) and shares[index].isdigit():
+                entry['performance'].append(int(shares[index]))
+    threads = [dict(name=name, lines=len(entry['core']), corePercentMedian=statistics.median(entry['core']),
+                    priorities=sorted(entry['priority']),
+                    performanceCoresPercentMedian=statistics.median(entry['performance']) if entry['performance'] else None)
+               for name, entry in listed.items() if len(entry['core']) * 4 >= len(chosen)]
+    threads.sort(key=lambda entry: -entry['corePercentMedian'] * entry['lines'])
+    return dict(threads=threads or None, memoryActivity=memory, cpuService=service, window=[first, last if last is not None else chosen[-1]['t']], lines=len(chosen), frames=frames,
                 seconds=round(total / 1000, 1), meanMs=round(mean, 1), medianMs=round(statistics.median(gaps), 1),
                 p95Ms=round(percentile(gaps, 95), 1), p99Ms=round(percentile(gaps, 99), 1), maxMs=round(max(gaps)),
                 presentedFps=round(1000 / mean, 1),
@@ -160,6 +176,11 @@ def main():
             m = r['memoryActivity']
             print(f'    memory activity (vm=, {m["lines"]} lines): {m["compressedMiB"]} MiB compressed, {m["decompressedMiB"]} MiB decompressed; '
                   f'pages decompressed per line median {m["decompressedPagesMedian"]}, max {m["decompressedPagesMax"]}; {m["pageIns"]} page-ins')
+        if r['threads'] and any(entry['performanceCoresPercentMedian'] is not None for entry in r['threads']):
+            print('    threads (cpu=, pc=; medians): ' + '; '.join(
+                f'{entry["name"]} {entry["corePercentMedian"]:g} % of a core at priority {"/".join(str(p) for p in entry["priorities"])}, '
+                + (f'{entry["performanceCoresPercentMedian"]:g} % on performance cores' if entry['performanceCoresPercentMedian'] is not None else 'share unknown')
+                for entry in r['threads']))
         if r['cpuService']:
             c = r['cpuService']
             print(f'    CPU service (hw=, {c["lines"]} lines, medians): clock {c["clockGHzMedian"]} GHz, {c["instructionsPerCycleMedian"]} instructions '
