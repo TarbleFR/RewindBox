@@ -4450,9 +4450,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - **Not in this lot:** the dispatch's own repeated work (mapped-size scans, the shader lookup forced on the next
       draw: about 2 µs a dispatch on the host) and the exact-length arrays of the delta runs; after the device run.
     - **Not measured on a device; no frame, heat or memory gain is claimed.** Remaining for the verdict: as lot 12.
-    - **Next action:** main runs Core CI on the Core 735 source and ships it with this head's bridge in the next
-      private IPA; the device run then gives `arrDeltaChanged`, `gpuWork.arrayDelta` and `gpuDispatch` per sample
-      against IPA 725's.
+    - **Core 735 pinned by main (11 Nov, checked on `Claude` 4d391b8d):** merged as d2053e98 after main's review (no
+      defect); Core CI run 43044568458 green at the first attempt, all 92 fresh Apple gates (the three corrected for
+      Core 733 and remap-sweep-range included); artifact 13870293486, iPhone binary 264a2f18 (38 472 792 B), contract
+      47b596a9, pin 3939c7a9. Core 733 stays the fallback. Not run on an iPhone.
+    - **Next action:** the next private IPA (main, when every session is ready) with Core 735 and this head's bridge;
+      the device run then gives `arrDeltaChanged`, `gpuWork.arrayDelta` and `gpuDispatch` per sample against IPA 725's,
+      the frame times from t=130, `en=`/`sw=`/`th=`, the `[MeloNX:heap]` lines and the diagnostics queue's `cpu=`.
 - **S2Arm as a Switch 2 playlist engine, feasibility study (session 012mUASkkFGHaPcEUx9dsp8q, 10 Nov; maintainer request:
   recompilation and installation on the device, from the playlist; read-only study of jhaizhou-ops/S2Arm at its
   10 Nov head, Apache-2.0; nothing built or run):**
