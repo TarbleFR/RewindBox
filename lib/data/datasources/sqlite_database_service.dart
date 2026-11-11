@@ -688,7 +688,12 @@ class SqliteDatabaseService {
 
         batch.rawInsert(sql, [
           systemId,
-          entry.filename,
+          // Switch 2: every entry is a `main.npdm`; each game gets its own
+          // stored name so scraped metadata and media never collide
+          // (Switch2ExportContent.libraryFileName).
+          isSwitch2 && !entry.path.startsWith('content://')
+              ? Switch2ExportContent.libraryFileName(entry.path, titleId)
+              : entry.filename,
           entry.path,
           titleId,
           titleName,

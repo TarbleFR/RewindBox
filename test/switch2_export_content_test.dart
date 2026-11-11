@@ -85,6 +85,24 @@ void main() {
     test('exportFolder is three levels above the NPDM', () {
       expect(Switch2ExportContent.exportFolder('/g/Game/base/exefs/main.npdm'), '/g/Game');
     });
+
+    test('libraryFileName: <title id>.npdm, else folder name and a path digest, never main.npdm', () {
+      expect(
+        Switch2ExportContent.libraryFileName('/g/Game/base/exefs/main.npdm', '0100ABCDEF012000'),
+        '0100abcdef012000.npdm',
+      );
+      final a = Switch2ExportContent.libraryFileName('/g/Game/base/exefs/main.npdm', null);
+      final b = Switch2ExportContent.libraryFileName('/h/Game/base/exefs/main.npdm', null);
+      expect(a, matches(RegExp(r'^Game-[0-9a-f]{8}\.npdm$')));
+      expect(b, matches(RegExp(r'^Game-[0-9a-f]{8}\.npdm$')));
+      expect(a, isNot(b));
+      expect(Switch2ExportContent.libraryFileName('/g/Game/base/exefs/main.npdm', null), a);
+      expect(Switch2ExportContent.libraryFileName('/g/Game/base/exefs/main.npdm', 'not-an-id'), a);
+      expect(
+        Switch2ExportContent.libraryFileName('/g/Jeu: été?/base/exefs/main.npdm', ''),
+        matches(RegExp(r'^Jeu_ _t__-[0-9a-f]{8}\.npdm$')),
+      );
+    });
   });
 
   group('NACP', () {

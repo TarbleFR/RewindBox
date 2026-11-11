@@ -75,6 +75,24 @@ abstract final class Switch2ExportContent {
   /// The export folder of a library entry (`<export>/base/exefs/main.npdm` -> `<export>`).
   static String exportFolder(String npdmPath) => path.dirname(path.dirname(path.dirname(npdmPath)));
 
+  /// The `filename` stored for a library entry in `user_roms`. Every entry's file is `main.npdm`, and scraped
+  /// metadata is keyed by (system, filename) (`user_screenscraper_metadata`, UNIQUE(app_system_id, filename)) while
+  /// media files are named after the filename without its extension: each game gets its own name, like MeloNX's
+  /// `<title id>.melonx` rows. `<title id>.npdm` when the NPDM gives one (the box art copied from the export and
+  /// scraped media are then `<title id>.<ext>`), else the export folder's name with a short digest of the entry's
+  /// path (two roots may hold folders of the same name).
+  static String libraryFileName(String npdmPath, String? titleId) {
+    final id = titleId?.trim().toLowerCase() ?? '';
+    if (RegExp(r'^[0-9a-f]{16}$').hasMatch(id)) return '$id.npdm';
+    final folder = path.basename(exportFolder(npdmPath)).replaceAll(RegExp(r'[^A-Za-z0-9 ._-]'), '_').trim();
+    var hash = 0x811c9dc5; // FNV-1a 32 over the UTF-8 path: stable across runs, unlike String.hashCode
+    for (final byte in utf8.encode(path.normalize(npdmPath))) {
+      hash = ((hash ^ byte) * 0x01000193) & 0xffffffff;
+    }
+    final digest = hash.toRadixString(16).padLeft(8, '0');
+    return '${folder.isEmpty ? 'switch2' : folder}-$digest.npdm';
+  }
+
   // ---------------- NPDM ----------------
 
   /// The program id as 16 lowercase hex digits from NPDM bytes, or null: `META` magic, ACI0 offset u32 LE at 0x70,
