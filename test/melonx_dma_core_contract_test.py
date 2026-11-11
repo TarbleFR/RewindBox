@@ -575,7 +575,8 @@ if not args.helpers_only:
     # Core 719: 195 preparation inputs (adapt_bgc_fragmentation_guard.py added), the same 206 prepared members.
     # Core 721: 196 (adapt_pipeline_cache_mapped_data.py added), the same 206 prepared members.
     # Core 723: 200 (the four lot 9 adapters added), the same 206 prepared members.
-    check(len(frozen['preparationInputs']) == 203 and len(frozen['preparedMembers']) == 207, 'Wrong final composition')  # Core 727: MemoryAllocator.cs joins
+    # Core 727: MemoryAllocator.cs joins; Core 729: adapt_pipeline_cache_compact.py joins the preparation inputs.
+    check(len(frozen['preparationInputs']) == 204 and len(frozen['preparedMembers']) == 207, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
