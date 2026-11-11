@@ -4204,14 +4204,16 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       slot change under the lock and re-checked there; a live pointer always reachable within its probes; no
       allocation, other lock or re-entry on the hook's path; frames read only inside the thread's stack; the Swift
       mirror of the C layout; the window cannot close twice or leave the hook set. Two defects without a crash,
-      corrected in the next commit: `Stop` left the sampler marked active when another logger had replaced the hook
+      corrected in `6c6885c5` (stall-watch run 43013422259 green, the exports checked in a dead-stripped iOS
+      link): `Stop` left the sampler marked active when another logger had replaced the hook
       during the window (every later window refused); the three functions Swift looks up carried no export
       attribute (a dead-stripped link would have answered "no sampler in this build"). One estimation error kept
       and stated in the source: libmalloc reports a moved block after the move, so a sample another thread took at
-      the old address in between is the one removed. Residual assumption, not verified from source: no signal
-      handler that interrupts a thread inside the sampler's lock allocates (the bridge's own handlers do not; the
-      runtime's activation handler returns without work when the interrupted code is not managed, by the runtime's
-      design).
+      the old address in between is the one removed. Residual assumption: no signal handler that interrupts a
+      thread inside the sampler's lock allocates. Checked for the bridge's own handlers (review) and for the
+      runtime's suspension handler (dotnet/runtime v10.0.0, nativeaot `Thread::HijackCallback`, thread.cpp 655-673:
+      it neither blocks nor allocates before it knows the interrupted code is managed, and returns otherwise); not
+      checked for the engine's guest fault handler, which runs on faults of guest code, not inside the sampler.
     - **Not measured on a device; no memory or frame gain is claimed.** Remaining to gain for the verdict: the same
       as lot 12 (IPA 725: 22.0 FPS over the 78 s exported, footprint over 4 GiB).
     - **Next action:** main ships the bridge of this head with Core 733 in the next private IPA. From the device
