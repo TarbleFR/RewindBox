@@ -4294,6 +4294,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   `S2ArmJITHelper.appex` and requires the engine frameworks; diff written here, handed to main for
   review. 5th JIT extension agreed (copy of `rpcs3_jit_helper`); script has no limits of its own;
   16 MiB per command 1 is RPCS3's choice; core handshake from iOS 26.0.
+- **Parallel coding authorized by the maintainer (11 Nov, this session):** two coding agents on
+  disjoint paths. Agent A: engine guest patches (`build-utils/s2arm/engine/**`, `s2arm-engine.yml`).
+  Agent B: `packages/s2arm_jit_helper`, `build-utils/s2arm/configure_s2arm_ios.py`, the validator
+  diff (handoff to main), the test line's delivery wiring (`.github/diagnostics/s2arm/**`).
 
 ### Codex orchestration — Codex
 
