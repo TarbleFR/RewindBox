@@ -5,10 +5,13 @@
 //   s2arm_prepare_cli nro-exports <romfs> <output>
 //   s2arm_prepare_cli nro-to-nso <romfs> <output dir>
 //   s2arm_prepare_cli nso-normalize <in> <out>          (nx_unpack --nso-normalize: exit 0, or 1 with a line on stderr)
+//   s2arm_prepare_cli ns2-dump <export dir> <out dir> [--name N] [--reference]   (exit 0, or 1 with a line on stderr)
+//   s2arm_prepare_cli ns2-detect <dir>                  (prints "<PROGRAM ID>\t<folder>", exit 0; 1 when not an export)
 //   s2arm_prepare_cli zbic-batch <manifest>             (one "frame|nso<TAB>input<TAB>expected<TAB>output" per line;
 //                                                        writes output on success, prints "<line> ok|err <message>")
 #include "s2arm_addr_need.h"
 #include "s2arm_modules.h"
+#include "s2arm_ns2_dump.h"
 #include "s2arm_nro.h"
 #include "s2arm_prepare.h"
 #include "s2arm_zbic.h"
@@ -25,6 +28,11 @@ static void progress(void *context, const char *module, int index, int count) {
 static int cancelled(void *context) {
     (void)context;
     return g_cancel_after >= 0 && g_seen >= g_cancel_after;
+}
+
+static void ns2_note(void *context, const char *line) {
+    (void)context;
+    printf("%s\n", line);
 }
 
 static int zbic_batch(const char *manifest) {
@@ -88,6 +96,28 @@ int main(int argc, char **argv) {
         return result ? 1 : 0;
     }
     if (argc == 3 && !strcmp(argv[1], "zbic-batch")) return zbic_batch(argv[2]);
+    if (argc == 3 && !strcmp(argv[1], "ns2-detect")) {
+        char dump[4096], error[512] = "";
+        uint64_t program = 0;
+        if (rb_s2arm_ns2_detect(argv[2], dump, sizeof dump, &program, error, sizeof error)) return 1;
+        printf("%016llX\t%s\n", (unsigned long long)program, dump);
+        return 0;
+    }
+    if (argc >= 4 && !strcmp(argv[1], "ns2-dump")) {
+        rb_s2arm_ns2_dump_request request = {argv[2], argv[3], NULL, 0, ns2_note, NULL, NULL};
+        for (int i = 4; i < argc; i++) {
+            if (!strcmp(argv[i], "--name") && i + 1 < argc) request.name = argv[++i];
+            else if (!strcmp(argv[i], "--reference")) request.reference_data = 1;
+            else {
+                fprintf(stderr, "usage: %s ns2-dump <export dir> <out dir> [--name N] [--reference]\n", argv[0]);
+                return 64;
+            }
+        }
+        char error[1024] = "";
+        int result = rb_s2arm_ns2_dump(&request, error, sizeof error);
+        if (result) fprintf(stderr, "result=%d %s\n", result, error);
+        return result ? 1 : 0;
+    }
     if (argc >= 2 && !strcmp(argv[1], "addr-need")) {
         if (argc != 5) {
             fprintf(stderr, "usage: %s addr-need <main_nso> <npdm> <output>\n", argv[0]);
