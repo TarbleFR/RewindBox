@@ -265,14 +265,36 @@ abstract final class LibraryFolderInspector {
     InspectedConsoleFolder? pickedConsole;
     final own = consoles.isEmpty ? byFolder[path.basename(path.normalize(root)).toLowerCase()] : null;
     if (own != null) {
-      final games = ownGames.where((file) => own.extensions.contains(_extension(file))).toList()..sort();
-      pickedConsole = InspectedConsoleFolder(
-        system: own,
-        folderName: path.basename(path.normalize(root)),
-        games: games.length,
-        examples: [for (final game in games.take(exampleLimit)) path.basenameWithoutExtension(game)],
-        otherFiles: ownGames.length - games.length,
-      );
+      // A recursive console reads its sub-folders too (one folder per game).
+      var files = ownGames;
+      if (own.recursive) {
+        files = <String>[];
+        var count = 0;
+        try {
+          await for (final entity in Directory(root).list(recursive: true, followLinks: false)) {
+            if (++count > entryLimit) {
+              truncated = true;
+              break;
+            }
+            if (entity is File && !_hidden(entity.path)) files.add(entity.path);
+          }
+        } on FileSystemException {
+          // Unreadable: the own files found above stay the answer.
+          files = ownGames;
+        }
+      }
+      final games = files.where((file) => own.extensions.contains(_extension(file))).toList()..sort();
+      // A folder bearing a console's alias ("Nintendo") that holds no game
+      // of that console is a library with console folders under other names.
+      if (games.isNotEmpty) {
+        pickedConsole = InspectedConsoleFolder(
+          system: own,
+          folderName: path.basename(path.normalize(root)),
+          games: games.length,
+          examples: [for (final game in games.take(exampleLimit)) path.basenameWithoutExtension(game)],
+          otherFiles: files.length - games.length,
+        );
+      }
     }
     return LibraryFolderInspection(
       root: root,

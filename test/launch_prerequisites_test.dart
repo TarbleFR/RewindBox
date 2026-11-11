@@ -208,14 +208,33 @@ void main() {
       ..createSync(recursive: true)
       ..writeAsStringSync('x');
 
-    Future<List<String>> missing(String systemKey, String file, String core) =>
+    Future<List<String>> missing(String systemKey, String file, String core,
+            [Map<String, String> options = const <String, String>{}]) =>
         LibretroInternalService.missingConditionalBios(
           catalog: catalog,
           system: systemKey,
           romPath: path.join(games, file),
           coreId: core,
           systemDirectory: system,
+          options: options,
         );
+
+    test('64DD names the file with its System sub-folder', () async {
+      expect(await missing('n64', 'Game.ndd', 'mupen64plus_next'), ['Mupen64plus/IPL.n64']);
+      put(path.join(system, 'Mupen64plus'), 'IPL.n64');
+      expect(await missing('n64', 'Game.ndd', 'mupen64plus_next'), isEmpty);
+    });
+
+    test('PC Engine CD: another System Card selected closes the syscard3 entry', () async {
+      expect(await missing('pccd', 'Game.cue', 'mednafen_pce_fast'), ['syscard3.pce']);
+      expect(await missing('pccd', 'Game.cue', 'mednafen_pce_fast', {'pce_fast_cdbios': 'System Card 2'}), isEmpty);
+    });
+
+    test('Mesen reads FdsBios.bin first', () async {
+      expect(await missing('nes', 'Zelda.fds', 'mesen'), ['FdsBios.bin']);
+      put(system, 'FdsBios.bin');
+      expect(await missing('nes', 'Zelda.fds', 'mesen'), isEmpty);
+    });
 
     test('a Mega-CD disc without any regional BIOS names the three, one is enough', () async {
       expect(await missing('mcd', 'Sonic CD.chd', 'genesis_plus_gx'), ['bios_CD_U.bin / bios_CD_E.bin / bios_CD_J.bin']);
