@@ -59,10 +59,15 @@ def module(code=None, build_id=None, marker=b'', dynamic=True):
     return bytes(data)
 
 
-def exefs(directory, marker=None, build=0x11, static_module=False):
+def exefs(directory, marker=None, build=0x11, static_main=False, extra=None):
     """marker None: make_synth_exefs's ExeFS, the one run_code_stage_test.py rewrites (main and sdk
     without dynamic section: the engine rule raises and counts as not found). Else every module with
-    a dynamic section, main carrying the marker (b'' for none), and optionally one module without."""
+    a dynamic section and main carrying the marker (b'' for none), except:
+      static_main  main without dynamic section (the engine rule raises on it; the GPU-driver step of
+                   the code stage does not read main, sdk or rtld, so the code stage passes);
+      extra        'dynamic': one more module, subsdk1, with a valid dynamic symbol table and no marker;
+                   'static': subsdk1 without dynamic section, which the GPU-driver step (the last step
+                   of the code stage, S2Arm's and ours) refuses."""
     if marker is None:
         saved = sys.argv
         sys.argv = ['make_synth_exefs.py', str(directory)]
@@ -73,18 +78,18 @@ def exefs(directory, marker=None, build=0x11, static_module=False):
         w(directory / 'main', synth.build(build_id=bytes([build]) * 16))
         w(directory / 'main.npdm', make_synth_exefs.npdm(TID))
         return
-    w(directory / 'main', module(marker=marker, build_id=bytes([build]) * 16))
+    w(directory / 'main', module(marker=marker, build_id=bytes([build]) * 16, dynamic=not static_main))
     w(directory / 'main.npdm', make_synth_exefs.npdm(TID))
     w(directory / 'sdk', module(make_synth_exefs.SDK, bytes([0x53, 0x44]) + bytes(14)))
     w(directory / 'subsdk0', module(make_synth_exefs.SUBSDK0, bytes([0x53, 0x30]) + bytes(14)))
-    if static_module:   # no dynamic section: profile_guess raises on it, the engine rule then counts as not found
-        w(directory / 'subsdk1', module(make_synth_exefs.SUBSDK0, bytes([0x53, 0x31]) + bytes(14), dynamic=False))
+    if extra:
+        w(directory / 'subsdk1', module(make_synth_exefs.SUBSDK0, bytes([0x53, 0x31]) + bytes(14), dynamic=extra == 'dynamic'))
 
 
-def make_export(root, marker=None, romfs=None, delta=False, static_module=False):
+def make_export(root, marker=None, romfs=None, delta=False, static_main=False, extra=None):
     """base (+ a delta update when asked), an exported control folder with an icon, one DLC."""
     root = Path(root)
-    exefs(root / 'base/exefs', marker, static_module=static_module)
+    exefs(root / 'base/exefs', marker, static_main=static_main, extra=extra)
     files = romfs if romfs is not None else {'Data/a.bin': b'alpha', 'Data/sub/b.bin': b'beta' * 300, 'top.txt': b'top\n'}
     for rel, data in files.items():
         w(root / 'base/romfs' / rel, data)
@@ -92,7 +97,7 @@ def make_export(root, marker=None, romfs=None, delta=False, static_module=False)
     w(root / 'base/control/icon_AmericanEnglish.dat', b'\xff\xd8\xff synthetic icon')
     if delta:   # no file identical to the base: the base overlaid by the update (per-file links in --reference)
         u = root / 'updates/65536'
-        exefs(u / 'exefs', marker, build=0x12, static_module=static_module)
+        exefs(u / 'exefs', marker, build=0x12, static_main=static_main, extra=extra)
         w(u / 'romfs/Data/a.bin', b'alpha, updated')
         w(u / 'romfs/Data/new.bin', b'new in the update')
     w(root / 'dlc/040074a01bf13001/0/romfs/dlc.bin', b'dlc one')
@@ -173,8 +178,10 @@ class Chains:
         return self.run([self.cli, 'ns2-dump', export, root, *(['--reference'] if views else [])])
 
     def our_code(self, root):
-        if self.mine_only:
-            return fake_code_stage(root)
+        if self.mine_only:   # the rewriter steps faked, then our real last step (rb_s2arm_gpu_drivers), in the code stage's order
+            fake_code_stage(root)
+            rc, out = self.run([self.cli, 'gpu-drivers', root / 'exefs', root / 'gpu_drivers.tsv'])
+            return (1 if rc else 0), out
         rc, out = self.run([self.cli, 'code', root / 'exefs', root / 'romfs', root])
         return (1 if rc else 0), out
 
@@ -194,7 +201,7 @@ class Chains:
 
 
 def fake_code_stage(root):
-    """--mine-only: the rewriter is not available locally; write what it leaves, with a fixed layout."""
+    """--mine-only: the rewriter is not available locally; write what its steps leave, with a fixed layout."""
     for name in sorted(p.name for p in (root / 'exefs').iterdir() if p.is_file() and p.read_bytes()[:4] == b'NSO0'):
         if name == 'rtld':
             continue
@@ -203,8 +210,6 @@ def fake_code_stage(root):
         w(root / f'{name}.patched.bin', bytes((i * 7 + len(name)) & 255 for i in range(0xC000 + 0x2004)))
     shutil.copyfile(root / 'exefs/main.npdm', root / 'main.npdm')
     w(root / 'addr_need.tsv', 'synthetic\n')
-    w(root / 'gpu_drivers.tsv', '')
-    return 0, 'faked'
 
 
 # ---------------- trees ----------------
@@ -255,8 +260,11 @@ def litter(name):
 STAGES = ('unpack', 'code', 'tables', 'caps', 'direct', 'module', 'pack')
 
 
-def case(ch, name, export, *, tables=None, identity=None, systemdata=None, mutate=None, views=True, expect_fail=None, engine=None):
-    """mutate: {stage: function(root)} applied to every product root just before that stage."""
+def case(ch, name, export, *, tables=None, identity=None, systemdata=None, mutate=None, views=True, expect_fail=None, engine=None,
+         fail_check=None):
+    """mutate: {stage: function(root)} applied to every product root just before that stage.
+    fail_check(ch, sides, roots, results, export): for an expected failure, the further proof that every
+    side failed at the same point (a problem string, or None)."""
     d = ch.work / name
     shutil.rmtree(d, ignore_errors=True)
     d.mkdir(parents=True)
@@ -313,7 +321,12 @@ def case(ch, name, export, *, tables=None, identity=None, systemdata=None, mutat
         if rcs[lead] != 0:
             ok = all(rc != 0 for rc in rcs.values()) and expect_fail == stage
             lasts = {s: (results[(s, stage)][1].splitlines() or [''])[-1][-140:] for s in sides}
-            report(ok, name, f'{stage} fails on every side as expected: {lasts}' if ok else f'{stage}: rc {rcs}; {lasts}')
+            problem = fail_check(ch, sides, roots, results, export) if ok and fail_check else None
+            if problem:
+                report(False, name, f'{stage} fails on every side, but not at the same point: {problem}')
+                return
+            report(ok, name, f'{stage} fails on every side as expected{" (same step, same files left)" if fail_check else ""}: {lasts}'
+                   if ok else f'{stage}: rc {rcs}; {lasts}')
             return
         if any(rc != 0 for rc in rcs.values()):
             bad = {s: results[(s, stage)][1][-300:] for s in sides if rcs[s]}
@@ -390,6 +403,35 @@ def compare(ch, name, stage, sides, lead, roots, apps, packs, export, sysdir, en
     return None
 
 
+def failed_at_gpu_drivers(ch, sides, roots, results, export):
+    """The code stage failed on every side; proof that it failed at the same step, the last one (GPU-driver
+    modules: profile_guess.py --gpu-drivers raises in nso_syms.dynsyms, rb_s2arm_gpu_drivers refuses the
+    module), after the same earlier steps: S2Arm names that step, ours reports the GPU-driver check after its
+    last progress step ("tables"), and both roots hold the same files apart from gpu_drivers.tsv (opened by
+    S2Arm's step before the tool runs; S2Arm's pipeline drops the whole work root on this failure) and logs."""
+    lead = 'ref' if 'ref' in sides else 'copy'
+    if lead == 'ref' and results[('ref', 'code')][1] != 'code stage failed at gpu_drivers':
+        return f"S2Arm: {results[('ref', 'code')][1]}"
+    for s in sides:
+        if s == 'ref':
+            continue
+        out = results[(s, 'code')][1]
+        if 'subsdk1: malformed dynamic symbol table' not in out:
+            return f'{s}: {out[-160:]!r}'
+        steps = [line.split() for line in out.splitlines() if line.startswith('module ')]
+        if not ch.mine_only and (not steps or steps[-1][2:] != ['tables'] or steps[-1][1].split('/')[0] != steps[-1][1].split('/')[1]):
+            return f'{s}: last step {steps[-1] if steps else None}, not the last one (tables)'
+    want = without(ns2.tree(roots[lead]), names=('gpu_drivers.tsv',), suffixes=('.rewrite.log',))
+    for s in sides:
+        if s == lead:
+            continue
+        got, _, problem = follow_tree(roots[s], [export])
+        diff = differ(want, without(got, names=('gpu_drivers.tsv',), suffixes=('.rewrite.log',))) if not problem else [problem]
+        if diff:
+            return f'{s} root after the failure differs from {lead}: {diff[:8]}'
+    return None
+
+
 # ---------------- the reference module directory (run in a child process) ----------------
 def reference_module_dir(checkout, root, app):
     """pack/ship_ext.py container, the per-game part, with S2Arm's own functions."""
@@ -458,7 +500,17 @@ def main():
     case(ch, 'engine-unity', make_export(inputs / 'Unity', marker=b'UnityEngine\0'), engine=1)
     case(ch, 'engine-unreal-pak', make_export(inputs / 'Unreal', marker=b'Unreal\0', romfs={'Game/Content/Paks/a.PAK': b'pak', 'x.bin': b'x'}), engine=1)
     case(ch, 'engine-unreal-without-pak', make_export(inputs / 'UnrealNoPak', marker=b'Unreal\0'), engine=0)
-    case(ch, 'engine-unity-with-a-module-without-symbols', make_export(inputs / 'UnityStatic', marker=b'UnityEngine\0', static_module=True), engine=0)
+    # The module without symbols is main, which the GPU-driver step skips (main, sdk, rtld): the code stage
+    # passes on both sides and the engine rule raises on it (no engine, though main names Unity).
+    case(ch, 'engine-unity-with-a-module-without-symbols', make_export(inputs / 'UnityStatic', marker=b'UnityEngine\0', static_main=True),
+         engine=0)
+    # One more module with a valid dynamic symbol table and no engine marker: the rule still finds Unity in main.
+    case(ch, 'engine-unity-with-a-module-without-markers', make_export(inputs / 'UnityExtra', marker=b'UnityEngine\0', extra='dynamic'),
+         engine=1)
+    # A subsdk module without dynamic section: the code stage's last step (S2Arm's profile_guess.py
+    # --gpu-drivers, our rb_s2arm_gpu_drivers) refuses it on every side, after the same earlier steps.
+    case(ch, 'code-stage-module-without-dynamic-symbols', make_export(inputs / 'SubsdkStatic', marker=b'UnityEngine\0', extra='static'),
+         expect_fail='code', fail_check=failed_at_gpu_drivers)
 
     # failures (copy chain only: the mutations would write into the export folder through the links)
     def drop_line(key):
@@ -479,7 +531,7 @@ def main():
     case(ch, 'pack-tab-in-a-path', plain, mutate={'pack': lambda r: w(r / 'romfs/Data/a\tb.bin', b'tab')}, views=False, expect_fail='pack')
 
     print(f"{state['ran']} cases, {state['failed']} failed")
-    sys.exit(1 if state['failed'] or state['ran'] < (14 if mine_only else 17) else 0)
+    sys.exit(1 if state['failed'] or state['ran'] < (16 if mine_only else 19) else 0)
 
 
 if __name__ == '__main__':
