@@ -4266,6 +4266,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 - **Maintainer (11 Nov): "tu peux tout finir"; final test = import of a game and its launch with
   a controller or touch.** Scope: on-device import (export folder), engine as a guest, graphics,
   input (controller, touch), playlist entry; each milestone proved on device before the next.
+- **Engine plan written** (study doc § 6): engine = one dynamic framework loaded by `dlopen`
+  only when MeloNX's Core is not loaded; game code through the device-proved JIT placement;
+  S2Arm changed by a patch series. Milestones P0, E0, P1, E1–E5. **E0 running:** `make ios` of
+  S2Arm unmodified in CI (`s2arm-engine.yml`, run 43019888547). Session 01 asked about the JIT
+  transaction, MeloNX exclusivity and removing the probe hook.
 
 ### Codex orchestration — Codex
 
