@@ -2052,8 +2052,37 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
         - **Rejected/closed:** Asynchronous Texture Streaming as the cause of the GOW3 corruption; a BO2 regression in
           724/725 (not supported by the measurements). **In progress:** two read-only audits of the engine paths selected
           by 100 % scale and by MT RSX off (blit engine, render-target flush, component order, FIFO epochs).
-          **Next:** device check on IPA 725 with GOW3 per-game settings (Resolution 75 % alone, then MT RSX on) to name
-          the path; engine correction with a host proof; the database rule and 100 % default stay.
+          **Next (superseded below):** the device check by per-game settings was not possible (MT RSX is not in the app).
+        - **Maintainer, later on 11 Nov:** "je n'ai pas l'option Multithreaded RSX et je te l'avais déjà signalé" (**rule:
+          the app exposes per game only resolution, stretch, performance overlay, accuracy tests and language; never ask
+          the maintainer to change another RPCS3 setting**); "la résolution à 75 % n'est pas la solution car je l'avais
+          déjà" (journals 724/725: `rsx_res=100`, `sparse_overrides=0`: the 75 % came from the retired full file, the menu
+          showed no value); "le problème de GW3 n'arrive que lorsque je charge une sauvegarde".
+        - **GOW3 cause found (code + device):** Core 922 `REWINDBOX_GOW3_MLAA_SAVESTATE_922` wrote the MLAA pair (flag byte
+          0x52BF2F, call 0x231248) into the restored memory of a savestate made without it; upstream never patches a
+          savestate (`patch_engine::apply(applied, !ar ? hash : std::string{}, ...)`). The same 2,098,179,072-byte
+          savestate resumed correctly in 723 (`savestate_memory`, MLAA running) and broke at the first pause menu in 724
+          and 725 (`savestate_applied`); fresh boots of 724/725 apply the pair before the game initialises and are
+          correct. The six settings changed in 724 also apply to fresh boots: not the cause. **Core 929
+          (`REWINDBOX_GOW3_MLAA_SAVESTATE_UNTOUCHED_929`, engine `4d15b82`):** the loader returns to the 921/upstream rule
+          (pair at a fresh boot only); report value `savestate_applied` kept for reading old journals, never produced.
+          [Record](rpcs3-core929-gow3-savestate-untouched.md). Host proof `test/rpcs3_gow3_mlaa_savestate929_test.py`
+          (13 checks, g++ ASan/UBSan and clang; the Core 922 rule put back is caught; refuses the 928 source).
+          Packaging: core929-from-928.patch (= metal-wip-from-928.patch), core929-delta.json/.patch (5b3386a7), canonical
+          f061803a (460 postimages), core-build.json build 929; closure, fold chain, codegen (PPU a987639e / SPU 477a3fa4
+          unchanged), 919-928 feature tests, route, analyzer, pin, guards pass; Core 929 driver run locally.
+        - **Menu (`REWINDBOX_MENU_RESOLUTION_729`, host bridge):** the in-game resolution row shows the scale the last
+          boot applied (CONFIG_LAYERS title= line remembered next to the part=rsx line) and the list checks it; the
+          accuracy page still reads the RSX line only. Bridge tests reading these files: no new failure (the failing ones
+          fail identically on HEAD: identity pins, macOS-only checks, NeoPlay scope).
+        - **Open, proven by audit, impact not shown:** a jump-to-self the guest patches before the RSX FIFO reaches it
+          starts no texture epoch (`RSXFIFO.cpp` 339-343, 539-557), so a section validated earlier is served unhashed until
+          the next acquire, frame end, invalidation or CPU blit; the 1 KiB FIFO cache sees fewer patches than 4 KiB.
+          Bounded to one epoch inside the texture cache; not linked to any observed defect. MT RSX off: no lost fault,
+          flush or invalidation (refuted).
+        - **Next:** compile and pin Core 929; next IPA = Core 929 + this menu + the 12 message fixes (68846c65, f3a4180f) +
+          the StikJIT test fix 24a8246f; device protocol: resume the same savestate, open and close the pause menu,
+          `GOW3MLAA909 ppu=savestate_memory`, menu shows 100 %.
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,

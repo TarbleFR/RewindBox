@@ -1,5 +1,9 @@
 # RPCS3 Core 922 — contournement MLAA de God of War III à la reprise d'une sauvegarde d'état, mots de réservation dans le relevé de gel
 
+> **Retiré par le Core 929 (11 novembre 2026)** : l'écriture de la paire dans la mémoire restaurée d'une sauvegarde
+> d'état (section 3) cassait l'image de God of War III au premier menu pause après la reprise (builds 724 et 725). Voir
+> [rpcs3-core929-gow3-savestate-untouched.md](rpcs3-core929-gow3-savestate-untouched.md). Les sections 4 et 4 bis restent en vigueur.
+
 Core 922 = Core 921 + trois modifications (sections 3, 4 et 4 bis). **Aucune mesure iPhone n'a encore été faite avec ce Core.**
 
 ## 1. Données d'entrée (exports de l'appareil, builds 721 et 723)

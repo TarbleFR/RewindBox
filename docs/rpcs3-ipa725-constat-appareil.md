@@ -113,3 +113,18 @@ est observé par les journaux renvoyés après chaque IPA.
    correcte désigne le chemin fautif.
 3. Correction du moteur avec une preuve hôte du chemin fautif, puis une IPA ; la règle « base RPCS3, 100 % par
    défaut » reste en place.
+
+## 6. Mise à jour du 11 novembre 2026 (après les deux messages suivants du mainteneur)
+
+- « Je n'ai pas l'option Multithreaded RSX » : exact. Le menu en jeu de RewindBox ne propose que l'échelle de résolution,
+  l'étirement, l'affichage des performances, les tests de précision et la langue. Le contrôle suggéré en section 5 était
+  impossible ; il est retiré.
+- « la résolution à 75 % n'est pas la solution car je l'avais déjà avant sur ce curseur » : les journaux des builds 724 et
+  725 montrent `rsx_res=100` et aucun réglage par jeu enregistré (`sparse_overrides=0`) ; le 75 % des builds 674 à 723 venait
+  de l'ancien fichier complet du profil. Le menu n'affichait aucune valeur : il affiche maintenant la valeur appliquée au
+  dernier démarrage et la coche dans la liste (`REWINDBOX_MENU_RESOLUTION_729`).
+- « le problème de GW3 n'arrive que lorsque je charge une sauvegarde » : **cause trouvée**. Le Core 922 écrivait le
+  contournement MLAA dans la mémoire restaurée d'une sauvegarde d'état faite sans lui, ce que RPCS3 ne fait jamais ; le jeu
+  reprenait avec son MLAA en place et son drapeau effacé, et l'image cassait au premier menu pause. Les réglages changés en
+  724 s'appliquent aussi aux démarrages normaux, qui sont corrects : ils ne sont pas la cause. Le Core 929 retire cette
+  écriture ([compte rendu](rpcs3-core929-gow3-savestate-untouched.md)). La section 4 ci-dessus est corrigée d'autant.
