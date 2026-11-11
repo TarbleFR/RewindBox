@@ -101,10 +101,20 @@ tickets et du **vrai** verrou, contre des modèles des règles de MoltenVK et d'
 | Scénario | Ancienne règle | Core 927 |
 |---|---|---|
 | Sémaphores : 6 images, premier tampon long à encoder | 4 attentes GPU jamais signalées | 0 |
-| Lecture ZCULL avant encodage | environ 270 000 retours `VK_NOT_READY` (attente active) | 0, même résultat |
+| Lecture ZCULL avant encodage | attente active : 1 000 retours `VK_NOT_READY` avant même le début de l'encodage, puis pendant ses 60 ms (jusqu'à 270 000 selon la machine) | 0, même résultat |
+| Attente de barrière d'un envoi dont l'encodage dépasse 2 s | (aucune attente de l'encodage avant 927) | attendue jusqu'au bout, 1 dépassement compté, l'envoi suivant n'est pas attendu |
 | Présentation dont l'encodage dépasse 2 s | acquisition lancée par-dessus | attendue jusqu'au bout, 1 dépassement compté |
-| Soumissions synchrones pendant la bascule en arrière-plan | environ 200 refusées | 0, appels repris au retour, aucun perdu |
+| Soumissions synchrones pendant la bascule en arrière-plan | refusées tant que les fils tournent (30 à 210 selon la machine) | 0, appels repris au retour, aucun perdu |
 | 30 soumissions en file à la bascule | 30 refusées | 0 (file vidée avant la fin de la bascule) |
+
+Le test ne suppose aucune durée d'ordonnancement. Une étape qui doit être « encore en cours » est retenue par un verrou
+que le scénario relâche ; une étape qui doit « avoir eu lieu » est attendue, ou lue dans un compteur du Core lui-même (une
+attente qui dépasse 2 s compte un dépassement). Les seules durées comparées sont des planchers d'attentes qui ne peuvent
+pas finir plus tôt. Raison : la première exécution du lot Apple (run 42946503173, variante ASan/UBSan, vraie
+libdispatch) a échoué sur le scénario « le moteur de rendu reprend sa fonction pendant qu'une vidange tourne », qui
+supposait qu'un fil créé atteint son appel en moins de 30 ms ; la variante normale était passée et le Core n'était pas en
+cause. Contrôle du diagnostic : l'ancienne version du test échoue 4 fois sur 4 quand six boucles occupées partagent son
+cœur ; la nouvelle passe dans les trois variantes sous la même charge.
 
 Sur macOS (lot Apple du Core), le même test tourne sur la vraie bibliothèque libdispatch. `test/rpcs3_core927_test.py`
 enchaîne les incréments 901 à 927 et les tests de chacun ; `test/rpcs3_core927_codegen_test.py` vérifie que les identités
