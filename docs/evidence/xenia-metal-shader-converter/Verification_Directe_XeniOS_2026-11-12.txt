@@ -1,0 +1,314 @@
+VÉRIFICATION DIRECTE — XENIOS / METAL SHADER CONVERTER
+Contrôle du 12 novembre 2026 (France), 11 novembre 2026 vers 23:42–23:45 UTC.
+Demande : vérifier effectivement les trois points Apple et l’état des corrections demandées à la session 03.
+
+CONCLUSION
+Le fichier réel du miroir a été téléchargé, ses octets ont été contrôlés et le validateur du projet a été exécuté. La signature mathématique est cohérente avec une chaîne Apple dont la racine a été téléchargée séparément depuis le site officiel Apple.
+Cela renforce directement la preuve du signataire et de l’intégrité du miroir. Cela ne nomme pas le paquet d’installation Apple, ne rattache pas sa licence au fichier et ne tranche pas juridiquement la re-signature. Les trois points initiaux ne sont donc pas clôturés.
+
+1. MESURES EXÉCUTÉES SUR LE FICHIER RÉEL
+URL téléchargée :
+https://github.com/xenios-jp/metal-shader-converter/releases/download/ios-4.0.3/libmetalirconverter.dylib
+
+Taille : 30 189 152 octets.
+SHA-256 recalculé : bd6b729dcbde133a511d95130eb4d287a1e18b4170453f8b350e78a20bfc37aa.
+Format : Mach-O arm64, bibliothèque iPhoneOS.
+Minimum iOS : 13.0.0 ; SDK enregistré : 26.4.0.
+LC_SOURCE_VERSION : 33.39 ; current_version : 0.0.0.
+Identifiant : @rpath/libmetalirconverter.dylib.
+188 symboles exportés ; les 33 exports exigés par le projet sont présents.
+Aucune dépendance hors des préfixes système autorisés par le projet.
+Le nom de release 4.0.3 n’est pas une version commerciale démontrée par ces champs Mach-O.
+
+Validateur réellement exécuté :
+build-utils/xenia/validate_shader_converter.py
+Source immuable : TarbleFR/RewindBox@028a0fdf2c2e7174603f37400e47b4062bcf51f2.
+Commande : python3 validate_shader_converter.py libmetalirconverter.ios-4.0.3.dylib --pin source.json --require-pinned-digest
+Résultat : exit 0, ok=true, failures=[], matches_pinned_mirror=true.
+Ce test structurel ne réalise pas à lui seul une validation cryptographique de signature.
+
+La fonction signature_free_digest de ce même fichier a aussi été exécutée :
+b52636527c1e3f68876d9ffc079e19c298350d8631eb2f284632aff4b879fa1e.
+Elle correspond au pin source.json. La copie re-signée de l’IPA de référence n’a pas été retéléchargée pour ce contrôle : ce n’est donc pas une nouvelle comparaison de deux binaires.
+
+2. SIGNATURE : CE QUI A ÉTÉ VÉRIFIÉ, ET LA LIMITE CONSTATÉE
+Lecture indépendante des structures Mach-O et CodeDirectory, conformément aux structures publiées par Apple :
+https://github.com/apple-oss-distributions/Security/blob/main/OSX/libsecurity_codesigning/lib/codedirectory.h
+https://github.com/apple-oss-distributions/dyld/blob/main/common/CodeSigningTypes.h
+
+LC_CODE_SIGNATURE : offset 29 936 976, taille 252 176.
+CodeDirectory : version 0x20400, SHA-256, pages de 4096 octets, 7309 pages.
+Recalcul de chaque page : 7309/7309 correspondent ; aucun hash de page divergent.
+CodeDirectory identifier : libmetalirconverter.
+CDHash : 71a046f3605fd609a1c1196bfa6ca7bbc3634df2.
+
+Le CMS a été extrait sans exécuter, installer, modifier ou re-signer la bibliothèque.
+openssl cms -verify -binary -inform DER -in signature.cms -content CodeDirectory-0.bin -noverify -out /dev/null
+Résultat : exit 0, CMS Verification successful.
+Cette première commande vérifie seulement la signature mathématique, pas la confiance du certificat.
+
+Certificats observés :
+• Signataire : CN=Software Signing, OU=Apple Software, O=Apple Inc., C=US.
+  SHA-256 du certificat : d84db96af8c2e60ac4c851a21ec460f6f84e0235beb17d24a78712b9b021ed57.
+• Intermédiaire : Apple Code Signing Certification Authority.
+  SHA-256 : 5bdab1288fc16892fef50c658db54f1e2e19cf8f71cc55f77de2b95e051e2562.
+• Racine incorporée : Apple Root CA.
+  SHA-256 : b0b1730ecbc7ff4505142c49f1295e6eda6bcaed7e2c68c5be91b5a11001f024.
+
+La racine a été téléchargée séparément depuis le lien du site PKI officiel Apple :
+https://www.apple.com/certificateauthority/
+https://www.apple.com/appleca/AppleIncRootCertificate.cer
+Son SHA-256 correspond exactement à la racine incorporée.
+
+Vérification CMS/chaîne avec cette racine explicite, sans magasin système :
+openssl cms -verify -binary -inform DER -in signature.cms -content CodeDirectory-0.bin -CAfile AppleIncRootCertificate.pem -no-CApath -no-CAstore -purpose any -out /dev/null
+Résultat À LA DATE DU CONTRÔLE : exit 4, certificate has expired.
+
+Cause mesurée : le certificat signataire et l’intermédiaire ont tous deux pour fin de validité 2026-10-24 17:39:41 UTC. Aucun attribut CMS signingTime ni unsigned timestamp n’a été observé dans ce CMS.
+
+La même commande avec -no_check_time produit exit 0 : la signature et la chaîne sont mathématiquement cohérentes avec la racine Apple. Cette option a uniquement servi au diagnostic séparé. Elle ne doit PAS être ajoutée à la livraison pour faire passer un contrôle et ne constitue pas une validation temporelle/révocation/politique macOS.
+
+Conclusion bornée : intégrité et chaîne cryptographique Apple vérifiées ; validation temporelle générique OpenSSL échouée ; politique Apple codesign non exécutée dans cet environnement Linux. Ne pas en déduire que codesign refusera nécessairement le fichier : cette politique doit être observée sur macOS. Ne pas déclarer une signature « totalement validée » sur la seule base de -noverify ou -no_check_time.
+
+3. CONTRAT ET RE-SIGNATURE
+Le RTF déjà retrouvé a été relu et son empreinte locale recalculée :
+77 453 octets ; SHA-256 20108dfe30663a2c6c717d9c5ca92486d9a4682c85c8ab344b20470feac8d0c3.
+Copie : LICENSE.metal-shaderconverter.rtf, release metalsharp/VKD3D-Proton-MacOS/deps-metal-shaderconverter-4.0b3.
+Document : EA1844, 31 mai 2023.
+La section 2.B permet certains usages et la distribution des bibliothèques pour la conversion de shaders, sous les autres conditions du contrat. La section 2.E restreint notamment les modifications, avec ses exceptions. Le texte lu ne règle pas explicitement le remplacement de signature envisagé ici.
+Le contrat exact accompagnant le paquet d’origine demeure à récupérer. Apple rappelle aussi que la licence accompagnant un produit peut différer de celle consultable publiquement :
+https://www.apple.com/legal/sla/
+
+Apple confirme techniquement la bibliothèque sur iOS :
+https://github.com/apple/game-porting-toolkit/blob/main/docs/metal-shader-converter/compiling-shaders.md
+https://developer.apple.com/metal/shader-converter/
+Cette documentation technique ne fournit pas l’interprétation contractuelle manquante.
+
+4. ACCÈS AU PAQUET ORIGINAL : BLOCAGE VÉRIFIÉ
+Le catalogue officiel :
+https://developer.apple.com/download/all/?q=metal+shader+converter
+renvoie vers l’authentification Apple. La session navigateur précédente n’était pas connectée ; aucune acceptation de contrat n’a été réalisée.
+Recherche des fichiers disponibles : aucun paquet original pertinent n’a été retrouvé dans les résultats de fichiers accessibles ; le dossier de travail contient le contrat récupéré mais pas l’installateur. Ce constat n’atteste pas l’absence d’un paquet sur tous les appareils du mainteneur.
+L’accès distant au PC a répondu UNAVAILABLE / HTTP 429 lors de la vérification de disponibilité : aucun contenu du PC n’a pu être inspecté.
+Il manque donc un accès authentifié au téléchargement Apple ou le paquet original fourni par le mainteneur. Relever son SHA-256, sa signature, son identité, sa provenance puis extraire le payload iOS et la licence sans installer. Ne pas remplacer le pin par une autre version pour obtenir une correspondance.
+
+5. ÉTAT RÉEL DES CORRECTIONS DE LA SESSION 03
+Références examinées :
+- session03 work/playlists-xenios-20261110 : 028a0fdf2c2e7174603f37400e47b4062bcf51f2 ;
+- Claude : 5c9e1d4c988f5210e5c0964b2fdf29c41f036809 (archive du précédent message, documentation seule).
+
+AMD/RSA : AJOUTS PRÉSENTS dans la source session03.
+assets/legal/XeniOS-DXBC-notices.txt contient effectivement les mentions MIT AMD et RSA/MD5, avec les identités des sources. Copies et empreintes ajoutées à assets/legal/xenios/, raccordement à l’embarquement et à l’écran légal, nouveau test Dart. L’exécution de ce test Dart et le contenu de la prochaine IPA ne sont pas démontrés par les éléments consultés.
+
+Signataire : CONTRÔLE RENFORCÉ PRÉSENT dans build-utils/xenia/build_core.sh :
+codesign --verify --strict -R '=anchor apple'
+puis exigence identifier libmetalirconverter, anchor apple et CN Software Signing.
+C’est bien une modification effective, distincte d’une consigne. Le contrôle sur le vrai binaire doit encore être observé dans le job Core.
+
+LGPL / revue des sources livrées : TOUJOURS À COMPLÉTER au commit examiné.
+build-utils/collect_build_source_evidence.py, bloc XeniOS autour des lignes 506–522, décrit encore le périmètre playlist sans moteur et impose engine_binaries_bundled=[] et complete_corresponding_source_attested=False.
+docs/evidence/xenios-playlist-declarations-2026-11-11.json conserve ce même périmètre.
+Aucune nouvelle preuve complète de livraison des sources, configuration et moyens de re-liaison FFmpeg/libmspack du Core n’a été constatée dans le diff examiné. Conserver l’ancienne preuve historique et ajouter la revue correspondant aux nouveaux binaires.
+
+CI observée :
+https://github.com/TarbleFR/RewindBox/actions/runs/43121527685
+À l’inspection, les contrôles patch/API/façade/validateur, compilation du bridge iOS et type-check JIT étaient réussis ; le job simulateur était en cours et le job de compilation du vrai Core n’avait pas encore démarré. Le succès « Shader converter validator » ne prouve pas l’exécution de codesign dans build_core.sh. Aucune CI entièrement verte ni IPA nouvelle vérifiée n’est annoncée ici.
+
+6. TRANSMISSION ET SUITE
+Ajouter ce contrôle direct, avec ses limites, à docs/evidence/xenia-metal-shader-converter/ et au suivi existant, puis transmettre à la session 03.
+La nouvelle preuve renforce l’intégrité et l’identité du signataire, pas le lien avec un paquet Apple exact.
+Conserver les contrôles macOS existants ; relever leur résultat réel et ne jamais les affaiblir pour absorber l’expiration observée sous OpenSSL.
+Le travail du moteur déjà autorisé continue selon le périmètre du mainteneur. Ce rapport ne modifie pas son autorisation, ne lui prête pas de nouvelles décisions et ne remplace pas une clarification juridique.
+
+ANNEXES : résultats bruts des contrôles ci-dessus
+
+
+--- binary-measurements.json ---
+{
+  "sha256": "bd6b729dcbde133a511d95130eb4d287a1e18b4170453f8b350e78a20bfc37aa",
+  "size": 30189152,
+  "ncmds": 24,
+  "dylib": {
+    "name": "@rpath/libmetalirconverter.dylib",
+    "current": "0.0.0",
+    "compatibility": 0
+  },
+  "uuid": "c9d2d4d5b577313894fdb28067a8b8f9",
+  "build_version": {
+    "platform": 2,
+    "min_os": "13.0.0",
+    "sdk": "26.4.0"
+  },
+  "source_version": "33.39.0.0.0",
+  "signature": {
+    "offset": 29936976,
+    "size": 252176
+  },
+  "segments": [
+    {
+      "name": "__TEXT",
+      "fileoff": 0,
+      "filesize": 18907136
+    },
+    {
+      "name": "__DATA_CONST",
+      "fileoff": 18907136,
+      "filesize": 1376256
+    },
+    {
+      "name": "__DATA",
+      "fileoff": 20283392,
+      "filesize": 245760
+    },
+    {
+      "name": "__LINKEDIT",
+      "fileoff": 20529152,
+      "filesize": 9660000
+    }
+  ],
+  "signature_blobs": [
+    {
+      "type": "0x0",
+      "magic": "0xfade0c02",
+      "length": 234060,
+      "identifier": "libmetalirconverter",
+      "version": "0x20400",
+      "hash_type": 2,
+      "hash_size": 32,
+      "page_size": 4096,
+      "code_slots": 7309,
+      "code_limit": 29936976,
+      "bad_page_hashes": [],
+      "cdhash": "71a046f3605fd609a1c1196bfa6ca7bbc3634df2"
+    },
+    {
+      "type": "0x2",
+      "magic": "0xfade0c01",
+      "length": 68
+    },
+    {
+      "type": "0x10000",
+      "magic": "0xfade0b01",
+      "length": 4420,
+      "cms_file": "/workspace/scratch/9960148a81e3/xenios_verification_directe_20261112/signature.cms"
+    }
+  ]
+}
+
+--- cms-math-result.json ---
+{
+  "command": [
+    "openssl",
+    "cms",
+    "-verify",
+    "-binary",
+    "-inform",
+    "DER",
+    "-in",
+    "/workspace/scratch/9960148a81e3/xenios_verification_directe_20261112/signature.cms",
+    "-content",
+    "/workspace/scratch/9960148a81e3/xenios_verification_directe_20261112/CodeDirectory-0.bin",
+    "-noverify",
+    "-out",
+    "/dev/null"
+  ],
+  "returncode": 0,
+  "stderr": "CMS Verification successful\n"
+}
+--- cms-chain-results.json ---
+[
+  {
+    "label": "full_current_time",
+    "command": [
+      "openssl",
+      "cms",
+      "-verify",
+      "-binary",
+      "-inform",
+      "DER",
+      "-in",
+      "/workspace/scratch/9960148a81e3/xenios_verification_directe_20261112/signature.cms",
+      "-content",
+      "/workspace/scratch/9960148a81e3/xenios_verification_directe_20261112/CodeDirectory-0.bin",
+      "-CAfile",
+      "/workspace/scratch/9960148a81e3/xenios_verification_directe_20261112/AppleIncRootCertificate.pem",
+      "-no-CApath",
+      "-no-CAstore",
+      "-purpose",
+      "any",
+      "-out",
+      "/dev/null"
+    ],
+    "returncode": 4,
+    "stderr": "CMS Verification failure\n40C77968937F0000:error:17000064:CMS routines:cms_signerinfo_verify_cert:certificate verify error:../crypto/cms/cms_smime.c:290:Verify error: certificate has expired\n"
+  },
+  {
+    "label": "chain_math_no_time",
+    "command": [
+      "openssl",
+      "cms",
+      "-verify",
+      "-binary",
+      "-inform",
+      "DER",
+      "-in",
+      "/workspace/scratch/9960148a81e3/xenios_verification_directe_20261112/signature.cms",
+      "-content",
+      "/workspace/scratch/9960148a81e3/xenios_verification_directe_20261112/CodeDirectory-0.bin",
+      "-CAfile",
+      "/workspace/scratch/9960148a81e3/xenios_verification_directe_20261112/AppleIncRootCertificate.pem",
+      "-no-CApath",
+      "-no-CAstore",
+      "-purpose",
+      "any",
+      "-out",
+      "/dev/null",
+      "-no_check_time"
+    ],
+    "returncode": 0,
+    "stderr": "CMS Verification successful\n"
+  }
+]
+
+--- project-validator-result.json ---
+{
+  "ok": true,
+  "failures": [],
+  "bytes": 30189152,
+  "sha256": "bd6b729dcbde133a511d95130eb4d287a1e18b4170453f8b350e78a20bfc37aa",
+  "matches_pinned_reference": false,
+  "matches_pinned_mirror": true,
+  "install_name": "@rpath/libmetalirconverter.dylib",
+  "current_version": "0.0.0",
+  "platform": "IOS",
+  "minos": "13.0.0",
+  "sdk": "26.4.0",
+  "source_version": "33.39",
+  "cryptid": 0,
+  "code_signature": true,
+  "dependencies": [
+    "/usr/lib/libbz2.1.0.dylib",
+    "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+    "/usr/lib/libarchive.2.dylib",
+    "/usr/lib/libc++.1.dylib",
+    "/usr/lib/libSystem.B.dylib"
+  ],
+  "exported_symbols": 188
+}
+
+--- validation-provenance.json ---
+{
+  "source_commit": "028a0fdf2c2e7174603f37400e47b4062bcf51f2",
+  "validator_sha256": "1c893203451e8346b18b49fa57029090c39c1d13cbfd5bceb56632434c686724",
+  "command": [
+    "python3",
+    "/workspace/scratch/9960148a81e3/xenios_verification_directe_20261112/validate_shader_converter.py",
+    "/workspace/scratch/9960148a81e3/xenios_verification_directe_20261112/libmetalirconverter.ios-4.0.3.dylib",
+    "--pin",
+    "/workspace/scratch/9960148a81e3/xenios_verification_directe_20261112/source.json",
+    "--require-pinned-digest"
+  ],
+  "returncode": 0,
+  "signature_free_digest": "b52636527c1e3f68876d9ffc079e19c298350d8631eb2f284632aff4b879fa1e",
+  "signature_free_matches_pin": true
+}

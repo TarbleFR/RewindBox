@@ -269,6 +269,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   Targeted research on those three points (12 Nov, research-open-points-2026-11-12.md): new traceability (mirror
   asset 705945125, uploader's claim only; Apple confirms iOS support since 3.1; 4.0 beta 2 iOS dylibs differ from
   the pin), none closed. Closing 1-2 needs the original Apple installer extracted and its dylib hash compared.
+  Direct check (12 Nov, Codex, Verification_Directe_XeniOS_2026-11-12.txt `fdf4bc5c…322c`): mirror bytes = pin,
+  7309/7309 page hashes, validator `028a0fdf2` exit 0, signature-free digest = pin, CMS chain reaches the separately
+  downloaded Apple Root CA. New limit: leaf and intermediate expired 2026-10-24, no CMS timestamp; OpenSSL fails with
+  its time check (passes only as a no-time diagnostic, never in delivery). Keep strict codesign; record its real macOS
+  result. LGPL delivery review still incomplete at `028a0fdf2`. Points 1-3 stay open; Apple access is being requested.
 - **Common IPA 726 delivered and verified (11 Nov 22:37 UTC, main).** Run `43106533461` attempt 2 (trigger `bd99e8b7`,
   frozen on `8fb2ee39`), five jobs green. Four parts of 68,467,054 B = API digests; offline verification passed (six
   validators 0); IPA 272,927,734 B, SHA-256 `ac9612b4…d618`, 91 images (90 + `xenia_internal_bridge`), changed as
