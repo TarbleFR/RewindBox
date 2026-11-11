@@ -7,6 +7,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
 
 import '../data/datasources/sqlite_service.dart';
+import '../l10n/melonx_transfer_locale.dart';
 import '../providers/file_provider.dart';
 import '../providers/sqlite_config_provider.dart';
 import '../repositories/system_repository.dart';
@@ -40,14 +41,60 @@ abstract final class MelonxEmbeddedLibraryService {
     final picked = selection?.files.single;
     if (picked?.path == null) return null;
     final file = File(picked!.path!);
-    if (!extensions.contains(
-          path.extension(file.path).substring(1).toLowerCase(),
-        ) ||
-        !await file.exists() ||
-        await file.length() <= 0) {
-      throw const FormatException('A readable local file is required.');
-    }
+    final exists = await file.exists();
+    final failure = validatePicked(
+      file.path,
+      extensions,
+      exists: exists,
+      length: exists ? await file.length() : 0,
+    );
+    if (failure != null) throw FormatException(failure);
     return file;
+  }
+
+  /// Pure check of a picked file. Returns the MelonxTransferLocale key to
+  /// report (`wrongExtension:` carries the accepted extensions) or null.
+  static String? validatePicked(
+    String filePath,
+    Set<String> extensions, {
+    required bool exists,
+    required int length,
+  }) {
+    final raw = path.extension(filePath);
+    final extension = raw.length > 1 ? raw.substring(1).toLowerCase() : '';
+    if (!extensions.contains(extension)) {
+      final accepted = (extensions.toList()..sort()).map((e) => '.$e');
+      return 'wrongExtension:${accepted.join(', ')}';
+    }
+    if (!exists) return 'fileUnreadable';
+    if (length <= 0) return 'emptyFile';
+    return null;
+  }
+
+  /// What the add-on report stores for a refused file: the key of its
+  /// reason, followed by `:detail` when only a technical text explains it
+  /// (the report dialog shows that text after the generic sentence).
+  static String refusalCode(Object error) {
+    if (error is MelonxContentException) {
+      return error.code != 'failed' &&
+              MelonxTransferLocale.values['en']!.containsKey(error.code)
+          ? error.code
+          : 'failed:${error.message.trim()}';
+    }
+    if (error is FormatException) return error.message;
+    return 'failed:$error';
+  }
+
+  /// Disk-full becomes the existing 'insufficientSpace' key; other file errors
+  /// keep the OS text as the detail of 'copyFailed'.
+  static FormatException copyFailure(FileSystemException error) {
+    if (error.osError?.errorCode == 28) {
+      return const FormatException('insufficientSpace');
+    }
+    final detail = error.osError?.message.isNotEmpty == true
+        ? error.osError!.message
+        : error.message;
+    return FormatException('copyFailed:$detail');
   }
 
   static Future<File> _copyUnique(
@@ -101,8 +148,9 @@ abstract final class MelonxEmbeddedLibraryService {
         throw const FormatException('incompleteTransfer');
       }
       return await temporary.rename(file.path);
-    } catch (_) {
+    } catch (error) {
       if (await temporary.exists()) await temporary.delete();
+      if (error is FileSystemException) throw copyFailure(error);
       rethrow;
     }
   }
@@ -429,11 +477,7 @@ abstract final class MelonxEmbeddedLibraryService {
             'MeloNX import ${dlc ? 'DLC' : 'update'} completed: $name',
           );
         } catch (error, stack) {
-          refused[name] = error is MelonxContentException
-              ? error.code
-              : error is FormatException
-              ? error.message
-              : 'failed';
+          refused[name] = refusalCode(error);
           LoggerService.instance.e(
             'MeloNX import ${dlc ? 'DLC' : 'update'} failed: $name',
             error: error,

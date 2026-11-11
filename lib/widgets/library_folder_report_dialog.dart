@@ -109,6 +109,8 @@ class LibraryFolderReportDialog extends StatefulWidget {
     required this.lines,
     required this.confirmLabel,
     required this.positive,
+    this.title,
+    this.showCancel = true,
   });
 
   final List<LibraryReportLine> lines;
@@ -117,6 +119,33 @@ class LibraryFolderReportDialog extends StatefulWidget {
   /// Whether confirming adds the folder (primary colour) or only leads to
   /// another choice (neutral colour).
   final bool positive;
+
+  /// The dialog's title; the library-folder title when null.
+  final String? title;
+
+  /// Whether a cancel button stands next to the confirm one. A plain report
+  /// (nothing to decide) has a single button.
+  final bool showCancel;
+
+  /// Shows a result that is too long for a notice (every file an import
+  /// refused, each with its reason) until the user closes it. One button;
+  /// the gamepad scrolls with up and down and closes with A or B.
+  static Future<void> showLines(
+    BuildContext context, {
+    required String title,
+    required List<LibraryReportLine> lines,
+    String? closeLabel,
+  }) => showDialog<bool>(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) => LibraryFolderReportDialog(
+      lines: lines,
+      confirmLabel: closeLabel ?? AppLocale.ok.getString(ctx),
+      positive: false,
+      title: title,
+      showCancel: false,
+    ),
+  );
 
   /// [confirmKey] is the `LibraryLinkLocale` key of the confirm button;
   /// [confirmLabel], when given, is shown instead.
@@ -233,7 +262,7 @@ class _LibraryFolderReportDialogState extends State<LibraryFolderReportDialog> {
           SizedBox(width: 8.r),
           Flexible(
             child: Text(
-              LibraryLinkLocale.textFor(language, 'reportTitle'),
+              widget.title ?? LibraryLinkLocale.textFor(language, 'reportTitle'),
               style: theme.textTheme.titleMedium?.copyWith(
                 fontSize: 14.r,
                 color: accent,
@@ -270,32 +299,33 @@ class _LibraryFolderReportDialogState extends State<LibraryFolderReportDialog> {
         ),
       ),
       actions: [
-        TextButton(
-          key: const ValueKey('library-folder-report-cancel'),
-          onPressed: () => Navigator.of(context).pop(false),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                width: 18.r,
-                height: 18.r,
-                child: Image.asset(
-                  'assets/images/gamepad/Xbox_B_button.png',
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                  colorBlendMode: BlendMode.srcIn,
+        if (widget.showCancel)
+          TextButton(
+            key: const ValueKey('library-folder-report-cancel'),
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 18.r,
+                  height: 18.r,
+                  child: Image.asset(
+                    'assets/images/gamepad/Xbox_B_button.png',
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    colorBlendMode: BlendMode.srcIn,
+                  ),
                 ),
-              ),
-              SizedBox(width: 4.r),
-              Text(
-                AppLocale.cancel.getString(context),
-                style: TextStyle(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                  fontSize: 12.r,
+                SizedBox(width: 4.r),
+                Text(
+                  AppLocale.cancel.getString(context),
+                  style: TextStyle(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    fontSize: 12.r,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
         ElevatedButton(
           key: const ValueKey('library-folder-report-confirm'),
           style: ElevatedButton.styleFrom(
