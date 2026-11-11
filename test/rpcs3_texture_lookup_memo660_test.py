@@ -354,9 +354,12 @@ def check_draw(candidate: Path, control: Path) -> dict:
 
 def check_policy(candidate: Path) -> dict:
     levers = text(candidate, 'rpcs3/ios/IOSTitleLevers.h')
-    require('constexpr bool serves_texture_lookup_memo(std::string_view title_id) noexcept\n{\n\treturn is_assassins_creed_title(title_id);\n}' in levers and
-            'constexpr bool verifies_texture_lookup_memo(std::string_view title_id) noexcept\n{\n\treturn is_black_ops_ii_title(title_id);\n}' in levers,
-            'Automatic: Assassin\'s Creed served, Black Ops II verified')
+    # Core 660: Assassin's Creed served, Black Ops II verified. REWINDBOX_TEXMEMO_SERVE_BO2_926: both served, none only verified.
+    served_660 = ('constexpr bool serves_texture_lookup_memo(std::string_view title_id) noexcept\n{\n\treturn is_assassins_creed_title(title_id);\n}' in levers and
+                  'constexpr bool verifies_texture_lookup_memo(std::string_view title_id) noexcept\n{\n\treturn is_black_ops_ii_title(title_id);\n}' in levers)
+    served_926 = ('constexpr bool serves_texture_lookup_memo(std::string_view title_id) noexcept\n{\n\treturn is_assassins_creed_title(title_id) || is_black_ops_ii_title(title_id);\n}' in levers and
+                  'constexpr bool verifies_texture_lookup_memo(std::string_view title_id) noexcept\n{\n\tstatic_cast<void>(title_id);\n\treturn false;\n}' in levers)
+    require(served_660 or served_926, 'Automatic: Assassin\'s Creed served, Black Ops II verified (660) or served (926)')
     policy = text(candidate, 'rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp')
     resolve = policy[policy.index('void resolve_experimental_policy() noexcept'):]
     require(resolve.index('texture_validation::epoch_enabled.store(') < resolve.index('memo::configure(memo_mode);'), 'configured after the epoch flag')
