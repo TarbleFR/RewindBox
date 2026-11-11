@@ -4211,12 +4211,17 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 - **Open or limit:** device questions D, E, F and iOS 26 unobserved; rewriting a converted NRO
   not shown end to end; NROs hidden in other files and ZBIC modules refused; unpack, system
   data, RomFS index, package layout not ported.
-- **Maintainer decisions (11 Nov):** here, "installe ton chantier directement dans l'IPA
-  principal …"; in the principal session, main compiles both IPAs: A (fixes) then B (A + this
-  lot). This session builds no IPA: no delivery workflow written, nothing built, 801 key removed.
-- **Next:** main builds trial IPA B from [the handoff](s2arm-trial-ipa-handoff.md) (probe package,
-  pubspec lines, `RewindBoxS2ArmProbe`); this session fixes any pod build error; then the
-  maintainer's device run and the `s2armProbe.*` lines of `MeloNX-launch.log`.
+- **Who builds (11 Nov, latest, per the authorization section):** main compiles A (725); this
+  session compiles B = content of 725 + the probe, build 801, from this branch once 725 is
+  delivered. Earlier messages (separate identifier, probe inside the common IPA built by main)
+  are superseded; the maintainer can correct this reading.
+- **State of B: nothing built.** No delivery tooling exists on this line yet. In progress
+  (delegated, isolated worktree): reuse of the standard recipe unchanged through a launcher,
+  an own workflow triggered by `[s2arm-delivery:801]`, a manifest whose base is 725. Questions
+  on the recipe sent to main. Content and trial protocol: [handoff](s2arm-trial-ipa-handoff.md).
+- **Next:** review and integrate that tooling; when main sends the 725 source commit, merge it,
+  freeze the 801 manifest, commit the recipient key, trigger, follow the run, verify the
+  downloaded IPA, give it to the maintainer; then his device run and the `s2armProbe.*` lines.
 
 ### Codex orchestration — Codex
 
