@@ -188,15 +188,15 @@ check('let report = MeloNXEngineCallClass.interactive { runtime.diagnostics() }'
       'DispatchQueue(label:"com.neogamelab.neostation.melonx.diagnostics",qos:.utility)' in plugin and
       'timer.schedule(deadline:.now(),repeating:.milliseconds(300))' in plugin, 'the diagnostics drain calls the engine under the override')
 
-# The diagnostics poll (lot 14): the report is read into one kept buffer and decoded only when its bytes differ from the
-# previous call's; identical bytes return the previous dictionary; the calls are serialised.
+# The diagnostics poll (lot 14): MeloNXDiagnosticsReader (in MeloNXRuntimeAPI.swift) reads the engine's report into one
+# kept buffer and decodes it only when its bytes differ from the previous read's; the runtime's poll goes through it.
 api = (CLASSES / 'MeloNXRuntimeAPI.swift').read_text()
-poll = api[api.index('    private let diagnosticsLock = NSLock()'):api.index('    func offerMemory(')]
-check('private var diagnosticsBuffer = [CChar](repeating:0,count:524288)' in poll and poll.count('[CChar](repeating:0') == 1 and
-      'diagnosticsLock.lock(); defer { diagnosticsLock.unlock() }' in poll and
-      'if length == diagnosticsBytes.count, memcmp(diagnosticsBuffer,diagnosticsBytes,length) == 0 { return diagnosticsReport }' in poll and
-      poll.index('memcmp(diagnosticsBuffer,diagnosticsBytes,length)') < poll.index('JSONSerialization.jsonObject(') and poll.count('JSONSerialization.jsonObject(') == 1 and
-      'diagnosticsBytes = report == nil ? [] : Array(diagnosticsBuffer[0..<length])' in poll,
+reader = api[api.index('// BEGIN MeloNXDiagnosticsReader'):api.index('// END MeloNXDiagnosticsReader')]
+check('func diagnostics() -> [String: Any] { diagnosticsReader.read() }' in api and reader.count('JSONSerialization.jsonObject(') == 1 and
+      api.count('[CChar](repeating:0,count:524288)') == 0 and reader.count('[CChar](repeating:0,count:MeloNXDiagnosticsReader.capacity)') == 1 and
+      'lock.lock(); defer { lock.unlock() }' in reader and
+      reader.index('if length == bytes.count, memcmp(buffer,bytes,length) == 0 { return report }') < reader.index('JSONSerialization.jsonObject(') and
+      'bytes = decoded == nil ? [] : Array(buffer[0..<length])' in reader,
       'the diagnostics report is decoded only when its bytes changed, in a kept buffer, under a lock')
 # Hot spots (lot 12): "[MeloNX:hot]" profiles asked for by the sampler and taken by a native thread that calls no engine
 # closure and suspends nothing; bounded in samples, threads, places and profiles; written through the shared writer.
@@ -825,6 +825,77 @@ exit(0)
         first_window = written[written.index(headers[0]) + 1:written.index(headers[1])]
         check(any(re.match(r'\[MeloNX:heap\] #\d+ live=8/1 total=8/1 stack=heap\+0x', l) for l in first_window),
               'the 8 MiB block held through the window is in its report: ' + str(first_window[:4]))
+
+        # Diagnostics reader: the block of MeloNXRuntimeAPI.swift compiled alone, fed by a scripted engine. Every report
+        # that changes between two reads is decoded exactly once; an unchanged one is not decoded; a report that does not
+        # decode is decoded again; a refusal gives an empty answer. Then the CPU of 1 000 polls of a 24 KiB report, quiet,
+        # with the reader and with the poll as it was before lot 14 (a 512 KiB array zeroed, scanned and decoded).
+        (work / 'reader').mkdir()
+        (work / 'reader' / 'Reader.swift').write_text('import Foundation\n' + reader)
+        (work / 'reader' / 'main.swift').write_text(r"""import Foundation
+var current = ""
+var status: Int32 = 0
+let engine: (UnsafeMutablePointer<CChar>, Int32) -> Int32 = { buffer, capacity in
+    if status != 0 { return status }
+    let utf8 = Array(current.utf8CString)
+    guard utf8.count <= Int(capacity) else { return -Int32(utf8.count) }
+    utf8.withUnsafeBufferPointer { buffer.update(from:$0.baseAddress!, count:utf8.count) }
+    return 0
+}
+let reader = MeloNXDiagnosticsReader(engine)
+var lines: [String] = []
+func step(_ name: String, _ text: String?, refuse: Int32 = 0) {
+    if let text { current = text }
+    status = refuse
+    let before = reader.decodes
+    let report = reader.read()
+    lines.append("\(name) \(reader.decodes - before) \((report["sequence"] as? NSNumber)?.intValue ?? -1)")
+}
+step("first", #"{"sequence":1,"events":[]}"#)
+step("same", nil)
+step("same", nil)
+step("changed", #"{"sequence":2,"events":[]}"#)
+step("sameLengthOtherByte", #"{"sequence":3,"events":[]}"#)
+step("shorter", #"{"sequence":4}"#)
+step("longer", #"{"sequence":5,"events":[{"stage":"gpu"}]}"#)
+step("broken", #"{"sequence":6,"events":["#)
+step("brokenAgain", nil)
+step("fixed", #"{"sequence":7}"#)
+step("refused", nil, refuse: -1)
+step("afterRefusal", nil)
+step("backToOld", #"{"sequence":1,"events":[]}"#)
+for line in lines { print("READER " + line) }
+// The CPU of polls of an unchanged 24 KiB report.
+let events = (0..<64).map { #"{"sequence":\#($0),"stage":"gpu","status":"engineWarning","diagnostic":"\#(String(repeating:"x", count:340))"}"# }
+current = #"{"sequence":64,"events":["# + events.joined(separator:",") + "]}"
+status = 0
+func cpu() -> Double { var usage = rusage(); getrusage(RUSAGE_SELF, &usage); return Double(usage.ru_utime.tv_sec + usage.ru_stime.tv_sec) * 1e6 + Double(usage.ru_utime.tv_usec + usage.ru_stime.tv_usec) }
+_ = reader.read()
+var start = cpu()
+for _ in 0..<1000 { _ = reader.read() }
+let kept = (cpu() - start) / 1000
+start = cpu()
+for _ in 0..<1000 {
+    var output = [CChar](repeating:0,count:524288)
+    guard engine(&output,Int32(output.count)) == 0 else { break }
+    let data = Data(bytes:output,count:output.prefix { $0 != 0 }.count)
+    _ = (try? JSONSerialization.jsonObject(with:data)) as? [String:Any]
+}
+let previous = (cpu() - start) / 1000
+print(String(format:"READERCPU %.1f %.1f %d", kept, previous, current.utf8.count))
+""")
+        reader_executable = work / 'reader' / 'reader'
+        subprocess.run(['xcrun', 'swiftc', '-O', '-swift-version', '5', str(work / 'reader' / 'Reader.swift'), str(work / 'reader' / 'main.swift'),
+                        '-o', str(reader_executable)], check=True)
+        result = subprocess.run([str(reader_executable)], capture_output=True, text=True, timeout=300)
+        check(result.returncode == 0, result)
+        steps = [line.removeprefix('READER ') for line in result.stdout.splitlines() if line.startswith('READER ')]
+        check(steps == ['first 1 1', 'same 0 1', 'same 0 1', 'changed 1 2', 'sameLengthOtherByte 1 3', 'shorter 1 4', 'longer 1 5',
+                        'broken 1 -1', 'brokenAgain 1 -1', 'fixed 1 7', 'refused 0 -1', 'afterRefusal 0 7', 'backToOld 1 1'],
+              'every changed report is decoded once, an unchanged one never, a broken one again: ' + str(steps))
+        kept_us, previous_us, size = next(line for line in result.stdout.splitlines() if line.startswith('READERCPU ')).split(' ')[1:]
+        print(f'diagnostics poll of an unchanged {size}-byte report: {kept_us} us of CPU with the kept buffer, {previous_us} us as before lot 14', flush=True)
+        check(float(kept_us) * 4 < float(previous_us), 'an unchanged report costs much less than the poll before lot 14')
     print('Executed the performance journal on macOS.')
 
 print(f'PASS {checks} performance journal checks')

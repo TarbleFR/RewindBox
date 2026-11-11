@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate-source' in sys.argv else sys.argv[1]).resolve()
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import control_source  # noqa: E402
+from melonx_adapter_control import control_source, files_edited_later  # noqa: E402
 _HOLD = []
 FINAL_SOURCE = SOURCE
 SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_released_texture_flush', _HOLD)
@@ -87,8 +87,11 @@ with tempfile.TemporaryDirectory(prefix='melonx-released-texture-flush-') as tem
             changed = adapter.apply(work)
             check(sorted(str(p.relative_to(work)) for p in changed) == sorted(adapter.BASELINE), 'adapter changed other files')
             if FINAL_PREPARATION:
+                # A file a later adapter also edits (Texture.cs since Core 735, adapt_remap_sweep_range) is not the final
+                # preparation's bytes here: control_source() proved that this adapter then the later ones reproduce them.
+                shared = files_edited_later('adapt_released_texture_flush')
                 for name in adapter.BASELINE:
-                    check((work / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
+                    check(name in shared or (work / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
         texts[variant] = {name: (work / name).read_text(encoding='utf-8-sig') for name in adapter.BASELINE}
         for project in ('src/Ryujinx.Graphics.Gpu/Ryujinx.Graphics.Gpu.csproj', 'src/Ryujinx.Graphics.Vulkan/Ryujinx.Graphics.Vulkan.csproj'):
             result = subprocess.run([DOTNET, 'build', str(work / project), '-c', 'Release', '-nologo', '-m:1', '-p:NuGetAudit=false'],
