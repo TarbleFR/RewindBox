@@ -68,22 +68,33 @@ def member(text, signature):
 temporary = tempfile.TemporaryDirectory(prefix='melonx-evicted-buffer-recreate-')
 WORK = Path(temporary.name).resolve()
 CONTROL = WORK / 'control'
+# Core 731: adapt_cold_buffer_trim edits BufferCache.cs after this adapter (a stamp in AddBuffer and Touch, the end of
+# Trim, added members). POST is this adapter's own postimage (the later adapters reversed); the static comparison reads
+# it; the executed candidate is the final preparation, which must still hold this adapter's three replacements.
+POST = WORK / 'post'
+LATER = control_tools.postimage('adapt_evicted_buffer_recreate', FINAL_SOURCE, POST)
+check(LATER in ([], ['adapt_cold_buffer_trim']), 'the later adapters sharing the file are known: %s' % LATER)
 for name in adapter.BASELINE:
     (CONTROL / name).parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(FINAL_SOURCE / name, CONTROL / name)
+    shutil.copyfile(POST / name, CONTROL / name)
 
 # --- Control: the adapter reversed must be the Core 675 bytes; forward reproduces the final preparation ---
 control_tools._reverse('adapt_evicted_buffer_recreate', CONTROL)
 for name, expected in adapter.BASELINE.items():
     check(sha(CONTROL / name) == expected, 'control is the Core 675 postimage: ' + name)
 forward = WORK / 'forward'
+shutil.copytree(POST, forward)
 for name in adapter.BASELINE:
-    (forward / name).parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(CONTROL / name, forward / name)
 changed = sorted(str(p.relative_to(forward)) for p in adapter.apply(forward))
 check(changed == sorted(adapter.BASELINE), 'the adapter changes only its files')
 for name in adapter.BASELINE:
-    check((forward / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
+    check((forward / name).read_bytes() == (POST / name).read_bytes(), 'the postimage is the adapter: ' + name)
+for later in LATER:
+    __import__(later).apply(forward)
+for path in sorted(p for p in forward.rglob('*') if p.is_file()):
+    name = str(path.relative_to(forward))
+    check(path.read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter and the later ones: ' + name)
 drift = WORK / 'drift'
 (drift / CACHE).parent.mkdir(parents=True, exist_ok=True)
 (drift / CACHE).write_bytes((CONTROL / CACHE).read_bytes() + b'\n// unreviewed drift\n')
@@ -95,7 +106,9 @@ except AssertionError:
 check(drift_refused, 'a drifted BufferCache.cs is refused')
 
 # --- Static: the exact scope ---
-final, control = read(FINAL_SOURCE, CACHE), read(CONTROL, CACHE)
+final, control, shipped = read(POST, CACHE), read(CONTROL, CACHE), read(FINAL_SOURCE, CACHE)
+for new in (adapter.MULTI_NEW, adapter.LOOKUP_NEW, adapter.SPARSE_NEW):
+    check(shipped.count(new) == 1, 'the final preparation holds this adapter\'s replacement')
 check(control.count('GraphicsConfig.EnableHostMemoryBudgetTracking') == 5 and final.count('GraphicsConfig.EnableHostMemoryBudgetTracking') == 2,
       'only the three lookup/suppression conditions are removed')
 check('EnableHostMemoryBudgetTracking' in member(final, 'public ulong Trim(MemoryPressureLevel level)') and
@@ -114,7 +127,7 @@ check(restored == control, 'BufferCache.cs differs only by the three replacement
 environment = dict(os.environ, DOTNET_CLI_TELEMETRY_OPTOUT='1', DOTNET_NOLOGO='1', DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1')
 reports, compiled = {}, {}
 for variant in ('control', 'candidate'):
-    text = control if variant == 'control' else final
+    text = control if variant == 'control' else shipped
     fixture = WORK / ('fixture-' + variant)
     fixture.mkdir()
     members = '\n\n'.join(member(text, signature) for signature in MEMBERS)

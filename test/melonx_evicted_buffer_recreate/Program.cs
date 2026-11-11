@@ -128,6 +128,7 @@ namespace Ryujinx.Graphics.Gpu.Memory
         public ulong Address, Size;
         public ulong EndAddress => Address + Size;
         public System.Collections.Generic.LinkedListNode<Buffer> CacheNode;
+        public int LastUseEpoch; // adapt_cold_buffer_trim's stamp (Core 731); no scenario here reads an age
         public bool Disposed;
 
         public bool CanEvict() => true;
@@ -172,6 +173,10 @@ namespace Ryujinx.Graphics.Gpu.Memory
         public int EvictedDuringMulti;
 
         public BufferCache(ulong maxBytes) => _maxCachedBufferBytes = maxBytes;
+
+        // The clock adapt_cold_buffer_trim's stamps read in AddBuffer and Touch (Core 731): constant here, the capacity
+        // eviction these scenarios exercise does not depend on it (test/melonx_cold_buffer_trim runs the real one).
+        private int UseEpoch() => 0;
 
         public ulong CachedBytes => _cachedBufferBytes;
         public bool Holds(Buffer buffer) => _buffers.Contains(buffer);

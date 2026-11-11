@@ -180,6 +180,8 @@ LOT_FILES = {
     'adapt_pause_checkpoint_growth': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
     'adapt_vulkan_memory_journal': ['src/Ryujinx.Graphics.Vulkan/PipelineBase.cs'],
     'adapt_pipeline_cache_compact': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
+    # Core 731 (lot 11): the buffer cache's trim while only the device is short (Buffer.cs is outside this composition).
+    'adapt_cold_buffer_trim': ['src/Ryujinx.Graphics.Gpu/Memory/BufferCache.cs'],
 }
 
 checks = 0
