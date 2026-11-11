@@ -9,6 +9,7 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
 import 'package:neostation/l10n/s2arm_engine_locale.dart';
+import 'storage/storage_import_activity.dart';
 import 'storage/storage_stat_ffi.dart';
 
 /// Why the embedded Switch 2 engine cannot run, shown as a reason in the Consoles tab.
@@ -271,12 +272,12 @@ abstract final class S2ArmInternalService {
     String? dialogTitle,
     void Function(S2ArmImportProgress progress)? onProgress,
     S2ArmImportControl? control,
-  }) async {
+  }) => StorageImportActivity.run(() async {
     await ensureLayout();
     final folder = await FilePicker.getDirectoryPath(dialogTitle: dialogTitle, lockParentWindow: true);
     if (folder == null) return null;
     return importFolderAt(folder, onProgress: onProgress, control: control);
-  }
+  });
 
   /// Imports the export at [picked] (a readable local folder). Visible for tests. Refuses a folder that detectExport does
   /// not recognise as a Switch 2 export. Copies into staging beside Games, then renames, so the scan never sees a partial game.
