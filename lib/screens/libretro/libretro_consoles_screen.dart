@@ -312,13 +312,12 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
       if (result.alreadyPresent > 0) {
         _notice(_f('importAlreadyPresent', {'count': result.alreadyPresent}));
       }
-      if (!mounted) return;
-      for (final notice in LibretroImportMessages.forImport(Localizations.localeOf(context), result)) {
+      for (final notice in LibretroImportMessages.forImport(_locale, result)) {
         _notice(notice);
       }
     } catch (error) {
       _log.w('Libretro import failed for ${console.id}: $error');
-      if (mounted) _notice(LibretroImportMessages.failure(Localizations.localeOf(context), error));
+      _notice(LibretroImportMessages.failure(_locale, error));
     } finally {
       resumePageNavigation();
       if (mounted) setState(() => _importing = null);
@@ -382,13 +381,10 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
       );
       if (outcome == null) return;
       final move = outcome.move;
-      if (!mounted) return;
-      _notice(LibretroImportMessages.forMove(Localizations.localeOf(context), move, outcome.source));
+      _notice(LibretroImportMessages.forMove(_locale, move, outcome.source));
     } catch (error) {
       _log.w('Library move failed: $error');
-      if (mounted) {
-        _notice(LibretroImportMessages.failure(Localizations.localeOf(context), error, fallbackKey: 'libraryActionFailed'));
-      }
+      _notice(LibretroImportMessages.failure(_locale, error, fallbackKey: 'libraryActionFailed'));
     } finally {
       resumePageNavigation();
       if (mounted) setState(() => _libraryAction = null);

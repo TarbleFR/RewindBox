@@ -9,6 +9,7 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../l10n/library_link_locale.dart';
 import '../l10n/libretro_locale.dart';
 import '../models/game_model.dart';
 import '../models/system_model.dart';
@@ -50,6 +51,9 @@ enum LibretroRejectReason {
 
   /// Any other copy error.
   copyFailed,
+
+  /// The picked file has no content (0 bytes).
+  empty,
 }
 
 /// One picked file that was not imported, and why.
@@ -70,6 +74,19 @@ class LibretroMissingTracks {
   final List<String> files;
 }
 
+/// What [LibretroInternalService.copyReferencedTracks] found for one sheet.
+class LibretroTrackCopy {
+  const LibretroTrackCopy({this.missing = const <String>[], this.uncopied = const <String>[]});
+
+  /// Names that do not exist next to the sheet.
+  final List<String> missing;
+
+  /// Names that exist but whose copy failed.
+  final List<String> uncopied;
+
+  bool get isEmpty => missing.isEmpty && uncopied.isEmpty;
+}
+
 class LibretroImportResult {
   const LibretroImportResult({
     required this.imported,
@@ -80,6 +97,7 @@ class LibretroImportResult {
     this.createdLibraryRoot,
     this.rejectedFiles = const <LibretroRejectedFile>[],
     this.missingTracks = const <LibretroMissingTracks>[],
+    this.uncopiedTracks = const <LibretroMissingTracks>[],
     this.acceptedExtensions = const <String>[],
     this.noImportableType = false,
   });
@@ -89,6 +107,9 @@ class LibretroImportResult {
 
   /// Imported cue sheets and playlists whose tracks are not all there.
   final List<LibretroMissingTracks> missingTracks;
+
+  /// Imported sheets with tracks that exist next to them but failed to copy.
+  final List<LibretroMissingTracks> uncopiedTracks;
 
   /// File types the console accepts (without the dot), sorted.
   final List<String> acceptedExtensions;
@@ -569,6 +590,7 @@ abstract final class LibretroInternalService {
     final importedPaths = <String>[];
     final rejectedFiles = <LibretroRejectedFile>[];
     final missingTracks = <LibretroMissingTracks>[];
+    final uncopiedTracks = <LibretroMissingTracks>[];
     // Picked path -> length its import verified (docs/storage-audit-cleanup.md § 4).
     final verifiedCopies = <String, int>{};
     for (final file in selection.files) {
@@ -597,16 +619,20 @@ abstract final class LibretroInternalService {
         if (length == 0 || length != sourceLength) {
           await copied.delete();
           rejected++;
-          rejectedFiles.add(LibretroRejectedFile(file.name, LibretroRejectReason.noSpace));
+          rejectedFiles.add(LibretroRejectedFile(
+              file.name, sourceLength == 0 ? LibretroRejectReason.empty : LibretroRejectReason.noSpace));
           continue;
         }
         imported++;
         importedPaths.add(copied.path);
         if (extension == 'cue' || extension == 'm3u') {
           try {
-            final missing = await copyReferencedTracks(File(source), destination);
-            if (missing.isNotEmpty) {
-              missingTracks.add(LibretroMissingTracks(file.name, missing));
+            final tracks = await copyReferencedTracks(File(source), destination);
+            if (tracks.missing.isNotEmpty) {
+              missingTracks.add(LibretroMissingTracks(file.name, tracks.missing));
+            }
+            if (tracks.uncopied.isNotEmpty) {
+              uncopiedTracks.add(LibretroMissingTracks(file.name, tracks.uncopied));
             }
           } catch (error) {
             // The sheet is in the library: it counts once, as imported.
@@ -638,6 +664,7 @@ abstract final class LibretroInternalService {
       createdLibraryRoot: library == null ? destination.parent.path : null,
       rejectedFiles: rejectedFiles,
       missingTracks: missingTracks,
+      uncopiedTracks: uncopiedTracks,
       acceptedExtensions: extensions,
     );
   });
@@ -661,12 +688,22 @@ abstract final class LibretroInternalService {
   /// known one (folder access lost, no space left, source unreadable); null
   /// otherwise, then the raw text is the last resort.
   static String? knownFailureKey(Object error) {
-    if (error.runtimeType.toString() == 'ExternalFolderAccessException' ||
-        (error is StateError && error.message.toLowerCase().contains('folder'))) {
-      return 'importErrorFolderAccess';
-    }
+    if (error is ExternalFolderAccessException) return 'importErrorFolderAccess';
     if (_isNoSpace(error)) return 'importErrorNoSpace';
-    if (_isUnreadable(error)) return 'importErrorUnreadable';
+    final code = _osCode(error);
+    if (error is PathNotFoundException || code == 2) return null;
+    if (error is PathAccessException || code == 1 || code == 13) {
+      final target = error is FileSystemException ? error.path : null;
+      final message = error is FileSystemException ? error.message.toLowerCase() : '';
+      final known = target != null && target.isNotEmpty;
+      if (message.contains('directory listing') ||
+          (known && FileSystemEntity.typeSync(target) == FileSystemEntityType.directory)) {
+        return 'importErrorFolderAccess';
+      }
+      if (known && FileSystemEntity.typeSync(target) == FileSystemEntityType.file) {
+        return 'importErrorUnreadable';
+      }
+    }
     return null;
   }
 
@@ -708,9 +745,10 @@ abstract final class LibretroInternalService {
 
   /// A cue sheet or playlist only works with the files it names; copy those
   /// that sit next to the picked file when the picker granted access. Returns
-  /// the names that are neither in [destination] nor could be copied there.
+  /// the names that are not next to the sheet (missing) and those that are
+  /// but could not be copied (uncopied).
   @visibleForTesting
-  static Future<List<String>> copyReferencedTracks(File descriptor, Directory destination) async {
+  static Future<LibretroTrackCopy> copyReferencedTracks(File descriptor, Directory destination) async {
     final lines = await descriptor.readAsLines();
     final pattern = RegExp(r'FILE\s+"([^"]+)"', caseSensitive: false);
     final names = <String>{
@@ -720,6 +758,7 @@ abstract final class LibretroInternalService {
         ...lines.map((line) => line.trim()).where((line) => line.isNotEmpty && !line.startsWith('#')),
     };
     final missing = <String>[];
+    final uncopied = <String>[];
     for (final name in names) {
       final source = File(path.join(descriptor.parent.path, name));
       final target = File(path.join(destination.path, path.basename(name)));
@@ -732,10 +771,10 @@ abstract final class LibretroInternalService {
         }
       } catch (error) {
         _log.w('Libretro import could not copy the track $name: $error');
-        missing.add(path.basename(name));
+        uncopied.add(path.basename(name));
       }
     }
-    return missing;
+    return LibretroTrackCopy(missing: missing, uncopied: uncopied);
   }
 
   static Future<File> _uniqueDestination(Directory directory, String name) async {
@@ -854,6 +893,7 @@ abstract final class LibretroImportMessages {
         LibretroRejectReason.unreadable => LibretroLocale.format(locale, 'importRejectUnreadable', const {}),
         LibretroRejectReason.noSpace => LibretroLocale.format(locale, 'importRejectNoSpace', const {}),
         LibretroRejectReason.copyFailed => LibretroLocale.format(locale, 'importRejectCopyFailed', const {}),
+        LibretroRejectReason.empty => LibretroLocale.format(locale, 'importRejectEmpty', const {}),
       };
 
   static List<String> _lines(Locale locale, List<String> lines) => <String>[
@@ -891,6 +931,12 @@ abstract final class LibretroImportMessages {
               }),
       );
     }
+    for (final tracks in result.uncopiedTracks.take(_maxLines)) {
+      notices.add(LibretroLocale.format(locale, 'importTracksNotCopied', {
+        'file': tracks.name,
+        'tracks': tracks.files.take(5).join(', ') + (tracks.files.length > 5 ? ', …' : ''),
+      }));
+    }
     return notices;
   }
 
@@ -924,6 +970,10 @@ abstract final class LibretroImportMessages {
   /// The sentence for a failed import or library action: the known cause
   /// when there is one, else [fallbackKey] with the raw error.
   static String failure(Locale locale, Object error, {String fallbackKey = 'importFailed'}) {
+    LoggerService.instance.e('Import or library action failed: $error', error: error);
+    if (error is ExternalFolderAccessException) {
+      return LibraryLinkLocale.failureFor(LibraryLinkLocale.languageOf(locale), error);
+    }
     final key = LibretroInternalService.knownFailureKey(error);
     return key != null
         ? LibretroLocale.format(locale, key, const {})

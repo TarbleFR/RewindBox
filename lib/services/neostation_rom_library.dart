@@ -4,6 +4,7 @@ import 'package:path/path.dart' as path;
 
 import 'libretro_core_catalog.dart';
 import 'logger_service.dart';
+import 'storage/storage_roots.dart';
 
 /// Why a game of a library move is not (fully) moved.
 enum RomLibraryFailureReason {
@@ -128,7 +129,12 @@ abstract final class NeoStationRomLibrary {
   }) async {
     final source = path.normalize(sourceRoot);
     final destination = path.normalize(romsRoot);
-    if (source == destination || path.isWithin(destination, source) || path.isWithin(source, destination)) {
+    // iOS spells one folder `/var/…` or `/private/var/…`; a symlink too.
+    final canonicalSource = storageCanonicalPath(_resolved(source));
+    final canonicalDestination = storageCanonicalPath(_resolved(destination));
+    if (canonicalSource == canonicalDestination ||
+        path.isWithin(canonicalDestination, canonicalSource) ||
+        path.isWithin(canonicalSource, canonicalDestination)) {
       return const RomLibraryMove(ownLibrary: true);
     }
     final names = {for (final name in consoleFolderNames) name.trim().toLowerCase()};
@@ -146,10 +152,12 @@ abstract final class NeoStationRomLibrary {
       await for (final item in entity.list(recursive: true, followLinks: false)) {
         if (item is! File) continue;
         if (path.basename(item.path).startsWith('.')) {
-          if (item.path.endsWith('.icloud')) {
+          final hidden = path.basename(item.path);
+          // An iCloud placeholder is `.<name>.icloud`; `.icloud` and
+          // `..icloud` hold no name: plain hidden files.
+          if (hidden.endsWith('.icloud') && hidden.length > '.icloud'.length + 1) {
             failed++;
-            var name = path.basename(item.path);
-            name = name.substring(1, name.length - '.icloud'.length);
+            final name = hidden.substring(1, hidden.length - '.icloud'.length);
             failures.add(RomLibraryFailure(name, RomLibraryFailureReason.icloud));
           }
           continue;
@@ -215,6 +223,14 @@ abstract final class NeoStationRomLibrary {
       unrecognisedFolders: unrecognised..sort(),
       failures: failures,
     );
+  }
+
+  static String _resolved(String directory) {
+    try {
+      return Directory(directory).existsSync() ? Directory(directory).resolveSymbolicLinksSync() : directory;
+    } catch (_) {
+      return directory;
+    }
   }
 
   static Future<File> _unique(File file) async {
