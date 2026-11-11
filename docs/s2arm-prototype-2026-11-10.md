@@ -181,3 +181,31 @@ This checks the probe's logic only.
 | F memory | `footprint` in `phase1` and `phase2` lines |
 
 A step with `begin` and no result is the step that ended the process.
+
+## Step 3 — first device run (IPA 801, 11 Nov, observed)
+
+Input: IPA 801 (SHA-256 `0b277b25…a6ab`, receipt `docs/evidence/rewind801/`), installed by the
+maintainer, one Switch game launched first; journal `MeloNX-launch.log` received in this session
+(not committed: raw private journal). Session pid 52831, 09:27:40 UTC; MeloNX's own `jitProbe`
+passed just before the hook, flags 0x0, footprint 480.9 MiB at phase 1.
+
+| Step | Observed |
+| --- | --- |
+| `holes` | largest free range 62.74 GiB at `0x70506ec000`, 63.01 GiB free, nothing above 2^39 |
+| `window` | 64 GiB refused (`Cannot allocate memory`), 32 GiB reserved at `0x7080000000` |
+| `mapped*` | process `mmap` R\|X at the chosen address + command 1 on that address: prepared, for text and patch; `vm_remap` alias RW (cur=5 max=7); code written through the alias and executed at the chosen address, both pages: `signal=0 value=0x4d4c` |
+| `arena*` | helper region (command 1, address 0) at `0x142bac000`; alias, execute, `vm_protect` RW of data pages inside it, execute again: all passed |
+| `fixed*` | data pages, helper region, its own execution: passed; `vm_remap` onto the chosen address with RX (kr=0): passed; **`fixedExecuteText` begin with no result**: the launch hung there and the maintainer closed the app |
+
+What this answers (device, iOS 26+, universal helper attached; not yet after detach):
+- **A/B (placement):** a 2 MiB-aligned slot at a chosen address below 2^39 can hold executable
+  code through the RPCS3-style path (process maps R|X, helper prepares it, writable alias). This
+  is the placement S2Arm's loader needs. The arena placement also works.
+- **Fixed placement:** helper pages mapped again elsewhere are not usable: their first execution
+  does not return. Most likely a fault taken under the attached debugger, which the helper does
+  not hand back as a signal (inference from the hang; no crash report was read).
+- **Not answered yet:** everything of phase 2 (D redirections and gates, E `brk` after detach,
+  F memory during the run), because the hang came first.
+
+Fix: commit `7195731` (executes the fixed placement only with the opt-in flag
+`RB_S2ARM_PROBE_FIXED_EXECUTE`; the bridge passes 0). Next: IPA 802 with that fix, same trial.
