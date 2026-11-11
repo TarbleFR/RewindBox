@@ -3770,10 +3770,16 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   (read); it writes the hook in its own files from the specification, after its current Core handoff.
 - **Evidence:** [constat, host result, hook specification, expected journal](s2arm-prototype-2026-11-10.md);
   `tools/s2arm_prototype/`, `packages/s2arm_probe/`, `.github/workflows/s2arm-prototype-host.yml`.
-- **Open or limit:** nothing measured on an iPhone; device questions A–F all open. Blocked on
-  the session 01 hook, then on main adding the package and building a test IPA.
-- **Next:** answer session 01's objections; hand main the package line
-  and the maintainer's test steps once the hook exists.
+- **Hook agreed with session 01 (11 Nov, not written):** lookup from its `.mm`; Info.plist keys
+  `RewindBoxS2ArmProbe` and `RewindBoxS2ArmProbeMapped`, test IPA only; first game launch of the
+  process only; journal lines `s2armProbe.<step>` in `MeloNX-launch.log` with `fsync`; it also fixes
+  a helper-script defect (a debugserver error code returned as an address). The probe now rejects
+  such a reply (`d14e7f5`, CI run pending).
+- **Open or limit:** nothing measured on an iPhone; device questions A–F all open. Session 01
+  waits for the maintainer's agreement before touching the JIT bridge; then main adds the package
+  and builds a test IPA.
+- **Next:** confirm the CI run of `d14e7f5`; once the hook exists, hand main the package line and
+  give the maintainer the test steps.
 
 ### Codex orchestration — Codex
 
