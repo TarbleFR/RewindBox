@@ -1,0 +1,43 @@
+# Switch 2 playlist (S2Arm) — notices ready for integration
+
+**Draft for the integration owner. Nothing here is in a delivered IPA yet.** The delivery
+notice files (`docs/LEGAL_AND_CREDITS.md`, `NOTICE.md`,
+`docs/PACKAGE_SOURCES_AND_LICENSES.md`, `licenses/`) are not modified by this branch; the
+entries below are to be copied there when S2Arm code enters an IPA. Scope today: what
+`S2ArmPrepare.xcframework` contains. The list grows with each S2Arm component that enters
+the app (runtime, graphics, services each bring their own third parties, listed in S2Arm's
+`NOTICE` and `THIRD_PARTY_LICENSES.md`).
+
+## Components in `S2ArmPrepare.xcframework`
+
+| Component | Version / identity | Source | Licence | Use |
+| --- | --- | --- | --- | --- |
+| S2Arm rewriter (`runtime/rewriter`) | commit `6b6a571553f7a687af46e03e2cdbf8ef4d77f335` | https://github.com/jhaizhou-ops/S2Arm | Apache-2.0; keep S2Arm's `NOTICE` ("S2Arm, Copyright 2026 S2Arm contributors") | linked unmodified, built from the pinned source in CI |
+| Capstone | 5.0.7 (PyPI source archive, SHA-256 `796bdd69b05fa124fc2aa2e74b9a0b3d4c4e7f3e02add5e583cf2f3bca282ede`) | https://pypi.org/project/capstone/5.0.7/ · https://github.com/capstone-engine/capstone | BSD-3-Clause; LLVM-derived parts under the LLVM Release License (texts: S2Arm `runtime/rewriter/LICENSES/capstone.txt`, `capstone-llvm.txt`) | AArch64 disassembly inside the rewriter |
+| LZ4 | 1.9.4, as bundled by python-lz4 4.4.5 (source archive SHA-256 `5f0b9e53c1e82e88c10d7c180069363980136b9d7a8306c4dca4f760d60c39f0`) | https://pypi.org/project/lz4/4.4.5/ · https://github.com/lz4/lz4 | BSD-2-Clause (text: S2Arm `runtime/rewriter/LICENSES/lz4.txt`) | decompression of NSO segments |
+
+## RewindBox code derived from S2Arm
+
+These files are ports to C of S2Arm tools, written for RewindBox and kept under the
+repository's licence with S2Arm's Apache-2.0 notice; each states its origin in its header.
+Apache-2.0 section 4 applies: keep the licence text and the `NOTICE`, and state that the
+files were changed (they are translations, not copies).
+
+| RewindBox file | S2Arm origin (same pinned commit) |
+| --- | --- |
+| `native/s2arm/prepare/s2arm_prepare.c` | `pack/stage_rewrite.sh` (module list, order of steps) |
+| `native/s2arm/prepare/s2arm_addr_need.c` | `tools/addr_need.py` |
+| `native/s2arm/prepare/s2arm_modules.c` | `graphics/nvn/games/profile_guess.py` (`gpu_driver_modules`), `graphics/nvn/tools/nso_syms.py` |
+| `native/s2arm/prepare/s2arm_nro.c` | `tools/nro_exports.py`, `runtime/rewriter/nro_to_nso.py`, `graphics/nvn/tools/romfs_list.py` (walk rules) |
+| `packages/s2arm_probe/ios/Classes/S2ArmSynthModule.h` | output of the S2Arm rewriter for a synthetic module written for the test; no S2Arm source |
+
+## Points for the integration owner
+
+- Apache-2.0 code linked into a GPL-3.0 application is compatible in that direction; the
+  combined work is distributed under GPL-3.0 with the Apache notices kept.
+- S2Arm's own notice says some of its upstream sources have no declared licence (community
+  patches); none of that is used here, and the optional patch tables are left out of the port.
+- No game, key, firmware or other protected content is in the repository or in the xcframework.
+- The xcframework's identity file (`S2ArmPrepare-identity.json`, produced by
+  `.github/workflows/s2arm-core.yml`) records the S2Arm commit, both archive hashes and the
+  binary hashes for the pin.

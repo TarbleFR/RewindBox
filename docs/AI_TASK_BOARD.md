@@ -249,7 +249,8 @@ communication evidence, not another implementation queue.
 Main `012mUAShv9k6pSCnpW7oAF63` ·
 MeloNX `012mUASkkFGHaPcEUx9dsp8q` ·
 Skins `012mUASjgVWk8DKKjVbwTD2n` ·
-Playlists/XeniOS `012mUASiVyxdnhNTUKesGGm7`.
+Playlists/XeniOS `012mUASiVyxdnhNTUKesGGm7` ·
+Playlists/S2Arm `012mUASj3EQnvC86WC56AePw`.
 
 Current records below are snapshots. Consult exact pins/manifests/receipts before
 acting. [Detailed current handoff evidence](https://github.com/TarbleFR/RewindBox/blob/8d05234f211c03bbc94cf5faac2dd48e419d294b/docs/AI_TASK_BOARD.md#active-requirements)
@@ -4196,6 +4197,40 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 - **Effort observed:** `rb-effort-high` loaded as a native Skill at each 9 Nov phase
   (Switch geometry/hit test/orientation; the menu change done under it); loaded earlier in
   the 10 Nov session, not invoked again after its context compaction.
+
+### Switch 2 playlist (S2Arm) feasibility prototype — session 04
+
+- **Owner/branch:** session `012mUASj3EQnvC86WC56AePw`, `work/s2arm-switch2-prototype-20261110`
+  (merged with `Claude` `0c78f583`). Own paths: `packages/s2arm_probe/`, `native/s2arm/`,
+  `build-utils/s2arm/`, `tools/s2arm_prototype/`, `.github/workflows/s2arm-*.yml`, `docs/s2arm-*.md`.
+- **Goal:** a Switch 2 playlist on S2Arm, games prepared on the phone. The device probe ships in
+  a common IPA by maintainer decision (below); the rest stays on this branch.
+- **State (11 Nov), host only, nothing run on an iPhone:**
+  - Prototype: rewriter output loaded and run to its gates on macOS arm64; device probe written
+    (three code placements; the process-mapped one is what RPCS3 already does on device, iOS 27
+    beta, per main); bridge hook `d32738b5` in `Claude`, inert without `RewindBoxS2ArmProbe`.
+  - Preparation without bash/Python (batch 4): code stage ported to C and byte-compared with
+    S2Arm `6b6a5715` in CI (rewrite; address need 86 cases; GPU drivers/NRO 32 cases; chained
+    stage 5 cases); `S2ArmPrepare.xcframework` built for iOS arm64. Not linked into an app.
+  - Batches 5–6: owners' inputs collected; shared playlist files wait for PR #172; notices drafted.
+- **Evidence:** [prototype and probe](s2arm-prototype-2026-11-10.md),
+  [studies, batches, owners' inputs](s2arm-study-2026-11-11.md),
+  [notices](s2arm-legal-notices.md); last green runs on `831c0c2`: `42948708967` (host proof and
+  probe), `42948709020` (preparation), `42948709021` (iOS Core).
+- **Open or limit:** device questions D, E, F and iOS 26 unobserved; rewriting a converted NRO
+  not shown end to end; NROs hidden in other files and ZBIC modules refused; unpack, system
+  data, RomFS index, package layout not ported.
+- **Who builds (11 Nov, latest, per the authorization section):** main compiles A (725); this
+  session compiles B = content of 725 + the probe, build 801, from this branch once 725 is
+  delivered. Earlier messages (separate identifier, probe inside the common IPA built by main)
+  are superseded; the maintainer can correct this reading.
+- **State of B: nothing built.** No delivery tooling exists on this line yet. In progress
+  (delegated, isolated worktree): reuse of the standard recipe unchanged through a launcher,
+  an own workflow triggered by `[s2arm-delivery:801]`, a manifest whose base is 725. Questions
+  on the recipe sent to main. Content and trial protocol: [handoff](s2arm-trial-ipa-handoff.md).
+- **Next:** review and integrate that tooling; when main sends the 725 source commit, merge it,
+  freeze the 801 manifest, commit the recipient key, trigger, follow the run, verify the
+  downloaded IPA, give it to the maintainer; then his device run and the `s2armProbe.*` lines.
 
 ### Codex orchestration — Codex
 
