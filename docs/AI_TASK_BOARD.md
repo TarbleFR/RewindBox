@@ -3559,6 +3559,111 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     32 MiB buffer in pages, 400 random buffers about 81 % of their full copies, and a buffer under 16 KiB would hold a
     whole page. In 718 the buffer cache held 107-119 MiB in play, which bounds what full copies can hold; the device
     share (memory lines, then a count of the copies) decides whether the settle step is worth its risk.
+  - **IPA 724, Hogwarts 1x on the iPhone 16 Pro Max (pid 49375, 22:58:44-23:02 UTC 10 Nov, Core 723 `f8ffafe5…`, bridge
+    `b713354b`, private journals and video, not in Git).** Verdict NOT PLAYABLE: median 13.4 FPS, gaps p95 183 / p99
+    500 ms, longest 4 284 ms, footprint up to 5 414 MiB, 49 memory warnings, device 4-10 % available, thermal `fair`.
+    Three phases: 30 FPS held at t=28-72 s (footprint about 4.45 GB, device 8 %); degraded at t=73-106 s (windows with
+    1.3-3.7 s of graphics pipeline builds); collapsed from t=107 s (memory). Rendering looks correct in the video.
+    - **Memory is the first obstacle.** App footprint 5.2-5.4 GB plus 2.86 GB of guest memory in use in the donors on an
+      8 GB phone. Memory lines: t=30 `footprint=4496 graphics=542+91 internal=2238 compressed=3358`; t=150
+      `footprint=5377 graphics=1053+159 internal=988 compressed=6327`. Managed heap 0.66-0.8 GiB (inventory at the
+      pause: committed 662 MiB, gen2 267, LOH 267), texture cache 150 MiB, buffer cache 127 MiB, MoltenVK "GPU memory
+      allocated" 1 269 MB, JIT arena 1 GiB: about 2.3 GiB of native memory is not attributed. GC pauses per 5 s window
+      41-63 ms while 30 FPS holds, then 100-380 ms with windows of 1 951, 2 725 and 3 129 ms; the stall snapshots
+      resolved with the Core's symbol map show an ephemeral GC in `gc_heap::mark_through_cards_for_segments` (580 ms)
+      and a GC suspension in progress (417 ms): the heap is small, its pages are compressed. Audio DSP stalled 1.75 and
+      2.7 s (whole-process freezes).
+    - **The mapped pipeline cache of Core 721 gave no footprint change on the device.** Load curve 724 vs 718 (copy
+      mode): 2 060 -> 4 149 (t=6) -> 3 596 MiB (t=18) against 2 090 -> 4 256 (t=5) -> 3 678 MiB; MoltenVK's own
+      timings are the same in both ("Read MSL from pipeline cache" 0.605 ms x 4 669 against 0.561 ms x 4 799;
+      "Decompress MSL" 0.062 against 0.055 ms). The packaged MoltenVK is the three-part build (signed
+      `MeloNXMoltenVKStandalone` identical in IPA 722-724, changed from 721). Whether the Core's snapshot was
+      referenced is **not decided**: the journal line `pipelineCache mainDataMapped` is among this process's first 415
+      records, which a mid-session rotation moved to `MeloNX-core.log.1`; the export carries `MeloNX-core.log` only
+      (sequences 416-543). MoltenVK compiled 4 827 MTLLibraries in the session (4 669 at the load, "Compile MSL into a
+      MTLLibrary" avg 1.04 ms: Metal's own cache) and keeps them; 3 526 pipelines created.
+    - **Pipeline variants:** "ready before their first draw 506 ... late creations left 869 (4955 ms): new 160, planned
+      not built yet 701, built but missed 8 ... Replays: built 512 (compile 2273 ms, queue wait 30149 ms) ... held for
+      memory 0 ... still planned 843 of 1357": the replay stopped at its 512-per-session cap.
+    - **Freeze after a pause (open, next lot):** paused at t=192-196 s, resumed at t=197; the pause checkpoint wrote
+      `pipelineCache written: main 793,10 MiB in 10909 ms` for +1.06 MiB of growth (MoltenVK "Write MSL to pipeline
+      cache" 1.85 ms x 4 673) and went on after the resume: FPS 0-0.3 from t=197 to 205 (gaps 6 461 and 3 880 ms,
+      per-second journal lines missing), footprint flat (5 152-5 233 MiB). To decide: a pause checkpoint that waits
+      and is dropped when the game resumes, or a growth threshold; the write at the close and in background stays.
+    - Also seen: heap compaction at the pause 1 350 ms; the memory breakdown's walk stopped at its 400 ms bound in the
+      guest lease's 65 536 shared regions (`regions=74606/407.1ms/partial`). Load, second by second (performance
+      journal): 2 060 MiB at t=1, +1 078 over the 4 s the `RewindBox.PipelineCacheL...` thread reads the cache, +913 in
+      the second it ends (the merge into main), -640 by t=11 (staging destroyed) while `Vulkan_Pipeline_Compile_` runs
+      at 75-88 % from t=6 to 12; first game frame at t=27.
+  - **Core 725 frozen (11 Nov, this branch, on main's Core 723 pin; not delivered, not run on an iPhone):** contract
+    `45441585…` (201 inputs, 206 members, 82 gates; contract test 462 checks); only PipelineCacheManager.cs and
+    EmbeddedLaunchDiagnostics.cs differ from the Core 723 preparation. All 82 gates green on the final preparation
+    (78 on the first pass; hogwarts-dma-copies, gc-events and gc-fallback taught the change, compute-switch-bindings
+    green alone). MoltenVK iOS rebuild of the four-part patch: run 42929394881, artifact 13815049243, binary
+    `90bd98a4…` (4 838 864 B, markers 4/4, 428/428 exports). Bridge `0b7339ce`: macOS execution and iOS typecheck run
+    42928467031 green. [Receipts](evidence/melonx-725-gates/run.json),
+    [device protocol](evidence/melonx-725-gates/device-protocol.md). **Next (main):** Core CI, number and pin; move the
+    MoltenVK pin to that rebuild (`test/melonx_standalone_parity_test.py` refuses the tree until then); include
+    `MeloNX-core.log.1` in the diagnostics export; IPA. Content:
+    - `adapt_variant_replay_all` (`1b2c9a45`, PipelineCacheManager.cs): the replay cap is the journal's own bound
+      (2048 records); compile budget, two in flight, low priority and the 8 % memory hold unchanged. Gate
+      variant-replay-all, 39 checks on the production Vulkan assembly of both sides: control 512 of 600 and 512 of IPA
+      724's 1 357 states, candidate 600 and 1 357, each once; nothing starts at 5 % of device memory. The Core 711 gate
+      expects the 600 planned states once the later adapter is in the chain (107 checks).
+    - Engine journal (`0af21f4f`, EmbeddedLaunchDiagnostics.cs): when the Core journal already holds 3 MiB at
+      ConfigureJournal it becomes `.1` and the new file starts with its last whole lines (at most 1 MiB), so a process's
+      records stay in the exported file (test: 3.5 MiB journal rotated byte for byte, 1 048 468 bytes kept; 2.9 MiB
+      left as it is; Core 723 journal as control).
+    - Bridge memory breakdown v2 (`5cb6b545`, MeloNXPerfJournal.swift): one O(1) query per region, shared regions
+      under 1 MiB only counted, private anonymous regions up to 256 MiB page-walked for resident and compressed pages
+      (`private=`, `groups=name:resident+compressed/regions`, `top=`), walk bound 1.2 s, malloc zones apart.
+    - **Rejected by measurement: Metal libraries compiled on demand in MoltenVK** (`2cd604b4`,
+      `test/melonx_library_share/candidate-deferred-libraries.patch`, never in the recipe; 'RBX2' made libraries read
+      from cache data keep no MTLLibrary, compiled per function retrieval and released after). macOS real Metal, run
+      42925818096 (44 MB cache, 962 libraries, 2 400 pipelines, every mode 0 missing / 0 SPIR-V conversion / same bytes
+      written back): footprint at the load +1.3 MiB deferred against +32.4 referenced and +77.7 copied, but once the
+      pipelines exist +243.5 MiB deferred against +188.8 referenced (+236.0 copied), and pipeline creation 985 ms
+      against 431: each function retrieval compiles its own MTLLibrary (4 825 compilations) and the pipeline states keep
+      them. No Core change, recipe patch untouched. The same run, in RewindBox's flow (staging cache from the mapping,
+      merged into main, destroyed): copied +123.9 MiB at the load (the compressed MSL held twice on macOS) against
+      +33.6 referenced. Per pipeline on macOS: about 65 KiB kept (156 MiB for 2 400).
+    - **MoltenVK recipe patch, fourth part (`a91feea5`, patch `bfd4cd9b…`, diagnostic only, no behaviour change):** one
+      info line per pipeline cache loaded from data, "RewindBox pipeline cache load: N shader libraries from B bytes;
+      compressed MSL copied|referenced in the caller's data; pNext types 0x…|none", and its marker (four markers). The
+      bench requires the line of each mode in both flows. The iOS rebuild runs on that push; **the delivered MoltenVK
+      pin is main's to move** (a tree whose patch and pin disagree is refused by the packaging).
+    - **Open, decided by the next device journals (protocol: evidence/melonx-725-gates/device-protocol.md):** why the
+      mapped main cache saved nothing on the device (Core side: `pipelineCache mainDataMapped` at the start of
+      `MeloNX-core.log`, now kept in the exported file; driver side: the load line above in `MeloNX-stderr.log`), and
+      where the 2.3 GiB of unattributed native memory is (breakdown v2: `private=`, `zones=`, `malloc.large`,
+      `untagged`, `file`, `unwalked`). No footprint change is claimed for Core 725.
+
+- **S2Arm as a Switch 2 playlist engine, feasibility study (session 012mUASkkFGHaPcEUx9dsp8q, 10 Nov; maintainer request:
+  recompilation and installation on the device, from the playlist; read-only study of jhaizhou-ops/S2Arm at its
+  10 Nov head, Apache-2.0; nothing built or run):**
+  - S2Arm rewrites a game's AArch64 code statically and runs it natively (no CPU emulator); graphics go from NVN to
+    Metal; services are a Ryujinx-derived NativeAOT library. On iOS the rewritten code ships as a team-signed dylib
+    mapped MAP_FIXED after `F_ADDFILESIGS_RETURN` + `F_CHECK_LV` (`runtime/src/imgpack.c`): that signature is the only
+    reason a computer is needed per game.
+  - Portable to the device: the rewriter is a C library with no subprocess or Python (`runtime/rewriter`, already run
+    unchanged on an Android phone, about 30 s per large game on a Mac); unpacking is C# on LibHac (RewindBox ships both);
+    shaders missing from the prebuilt library are already translated and compiled on the phone (`newLibraryWithSource`,
+    "runtime-only" packages exist). The Mac/Android loader path (anonymous memory, copy, seal R|X) is the template for a
+    JIT-memory loader; RewindBox has the JIT helper and signs with increased-memory-limit and extended-virtual-addressing.
+  - To port or replace: the bash + Python orchestration and helpers (capstone, lz4, numpy, zstandard: widescreen/fps
+    tables, profile, capabilities, shader extraction), a build-time C compiler step (yaz0), the offline Metal compiler
+    (skipped by the runtime-only path, at the price of first-use hitches).
+  - Hard points, unproven: (1) executing the rewritten code from JIT memory at fixed addresses inside a 32-64 GB guest
+    window under RewindBox's JIT method, iOS 26 included, with the runtime's SIGTRAP/SIGSEGV traps while the JIT helper
+    is attached; (2) the runtime owns its process (constructor window reservation before any other allocator, `main`,
+    UIApplicationMain, process-wide signal handlers, one game per process, `_exit`) and statically links its own
+    NativeAOT runtime beside MeloNX's; (3) copied code is dirty memory (file-backed signed pages were clean).
+  - **Maintainer decision (10 Nov): prepare the bounded prototype, in its own discussion.** Handed to session
+    012mUASj3EQnvC86WC56AePw ("04 — RewindBox — Playlists émulateurs : S2Arm (Switch 2)", branch
+    `work/s2arm-switch2-prototype-20261110` from Claude): one module rewritten by S2Arm's own rewriter, loaded from a
+    data file into JIT memory and run to its first svc, host proof first (Linux rewriter, macOS arm64 run), then a
+    diagnostic entry for an iPhone trial IPA built by main. Owner of this topic from now on: that session; this one
+    keeps MeloNX only.
 
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard

@@ -197,7 +197,7 @@ index e385e9b..fb99f6c 100644
  										   MVKShaderModule* shaderModule,
  										   MVKPipeline* pipeline,
 diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm b/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm
-index 7eae64c..779c6c9 100644
+index 7eae64c..fc5b938 100644
 --- a/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm
 +++ b/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm
 @@ -2630,6 +2630,7 @@ protected:
@@ -220,7 +220,7 @@ index 7eae64c..779c6c9 100644
  			}
  			*pDataSize = _dataSize;
  			return VK_SUCCESS;
-@@ -2731,6 +2729,68 @@ void MVKPipelineCache::writeData(ostream& outstream, bool isCounting) {
+@@ -2731,6 +2729,71 @@ void MVKPipelineCache::writeData(ostream& outstream, bool isCounting) {
  #endif
  }
  
@@ -238,6 +238,9 @@ index 7eae64c..779c6c9 100644
 +
 +__attribute__((used)) static const char kRewindBoxCacheEntrySizes[] =
 +	"RewindBox cache size: entry sizes counted once and kept on each shader library";
++
++__attribute__((used)) static const char kRewindBoxCacheLoadLine[] =
++	"RewindBox cache load line: libraries read, MSL copied or referenced, pNext types seen";
 +
 +size_t MVKPipelineCache::countData() {
 +#if MVK_USE_CEREAL
@@ -289,7 +292,7 @@ index 7eae64c..779c6c9 100644
  // Loads any data indicated by the creation info.
  // This is the compliment of the writeData() function. The two must be kept aligned.
  void MVKPipelineCache::readData(const VkPipelineCacheCreateInfo* pCreateInfo) {
-@@ -2747,6 +2807,14 @@ void MVKPipelineCache::readData(const VkPipelineCacheCreateInfo* pCreateInfo) {
+@@ -2747,6 +2810,23 @@ void MVKPipelineCache::readData(const VkPipelineCacheCreateInfo* pCreateInfo) {
  		istream inStream(&mb);
  		cereal::BinaryInputArchive reader(inStream);
  
@@ -297,14 +300,23 @@ index 7eae64c..779c6c9 100644
 +		// (a read-only mapping of the cache file) instead of being copied: the caller keeps that data mapped and
 +		// unchanged until this cache, and every cache its libraries are merged into, is destroyed.
 +		bool referenceData = false;
++		// RewindBox: the first pNext structure types seen and the libraries read, for the load line below.
++		char chainTypes[64] = "";
++		size_t chainLength = 0;
++		uint32_t chainCount = 0;
++		uint32_t librariesRead = 0;
 +		for (const auto* next = (const VkBaseInStructure*)pCreateInfo->pNext; next; next = next->pNext) {
 +			if ((uint32_t)next->sType == kRewindBoxMappedCacheDataSType) { referenceData = true; }
++			if (chainCount++ < 4 && chainLength < sizeof(chainTypes)) {
++				int written = snprintf(chainTypes + chainLength, sizeof(chainTypes) - chainLength, " 0x%08x", (uint32_t)next->sType);
++				if (written > 0) { chainLength += (size_t)written; }
++			}
 +		}
 +
  		// Read the data header...and ensure correct byte-order.
  		uint32_t hdrComponent;
  		uint8_t pcUUID[VK_UUID_SIZE];
-@@ -2784,7 +2852,17 @@ void MVKPipelineCache::readData(const VkPipelineCacheCreateInfo* pCreateInfo) {
+@@ -2784,12 +2864,23 @@ void MVKPipelineCache::readData(const VkPipelineCacheCreateInfo* pCreateInfo) {
  					reader(resultInfo);
  
  					MVKCompressor<std::string> compressedMSL;
@@ -323,7 +335,28 @@ index 7eae64c..779c6c9 100644
  
  					// Add the shader library to the staging cache.
  					MVKShaderLibraryCache* slCache = getShaderLibraryCache(smKey);
-@@ -3063,11 +3141,23 @@ void serialize(Archive & archive, MVKShaderModuleKey& k) {
+ 					addPerformanceInterval(getPerformanceStats().pipelineCache.readPipelineCache, startTime);
+ 					slCache->addShaderLibrary(&shaderConversionConfig, resultInfo, compressedMSL);
++					librariesRead++;
+ 
+ 					break;
+ 				}
+@@ -2801,6 +2892,14 @@ void MVKPipelineCache::readData(const VkPipelineCacheCreateInfo* pCreateInfo) {
+ 			}
+ 		}
+ 
++		// RewindBox: one line per cache loaded from data, so a journal says how the driver took it (IPA 724: the
++		// footprint of a load meant to be referenced was that of a copied one, and nothing said which it was).
++		if (librariesRead > 0) {
++			MVKLogInfo("RewindBox pipeline cache load: %u shader libraries from %zu bytes; compressed MSL %s; pNext types%s.",
++					   librariesRead, byteCount, referenceData ? "referenced in the caller's data" : "copied",
++					   chainCount ? chainTypes : " none");
++		}
++
+ 	} catch (cereal::Exception& ex) {
+ 		setConfigurationResult(reportError(VK_ERROR_INITIALIZATION_FAILED, "Error reading pipeline cache data: %s", ex.what()));
+ 	}
+@@ -3063,11 +3162,23 @@ void serialize(Archive & archive, MVKShaderModuleKey& k) {
  			k.codeHash);
  }
  

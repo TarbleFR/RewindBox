@@ -4,6 +4,7 @@
  "changedPreparationInputs": [
   "build-utils/melonx/adapt_bindless_array_deltas.py",
   "build-utils/melonx/prepare_embedded.py",
+  "native/melonx/EmbeddedLaunchDiagnostics.cs",
   "native/melonx/EmbeddedLaunchPreflight.cs",
   "native/melonx/EmbeddedPerformanceDiagnostics.cs",
   "native/melonx/EmbeddedRuntime.cs"
@@ -79,7 +80,8 @@
   "build-utils/melonx/adapt_gc_keepalive_dormant.py",
   "build-utils/melonx/adapt_gc_pause_journal.py",
   "build-utils/melonx/adapt_extra_array_dirty.py",
-  "build-utils/melonx/adapt_array_barrier_epoch.py"
+  "build-utils/melonx/adapt_array_barrier_epoch.py",
+  "build-utils/melonx/adapt_variant_replay_all.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -165,7 +167,8 @@
   "src/Ryujinx.Library/EmbeddedRuntime.cs",
   "src/Ryujinx.Library/EmbeddedSession.cs",
   "src/Ryujinx.Library/Library.cs",
-  "src/Ryujinx.Library/Window/WindowBase.cs"
+  "src/Ryujinx.Library/Window/WindowBase.cs",
+  "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs"
  ],
  "productionAdditions": [],
  "fixtureInputs": [
@@ -3873,6 +3876,35 @@
    "requiredPostimages": [
     "src/Ryujinx.Graphics.Vulkan/TextureStorage.cs",
     "src/Ryujinx.Graphics.Vulkan/TextureArray.cs"
+   ]
+  },
+  {
+   "name": "variant-replay-all",
+   "script": "test/melonx_variant_replay_all_test.py",
+   "report": "variant-replay-all-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 3600,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false,
+    "productionVulkanAssemblyBuilt": true,
+    "control.cap.replayed": 512,
+    "control.all.replayed": 512,
+    "candidate.cap.replayed": 600,
+    "candidate.all.planned": 1357,
+    "candidate.all.replayed": 1357,
+    "candidate.all.mostExecutions": 1,
+    "candidate.all.heldExecuted": 0
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs"
    ]
   }
  ]

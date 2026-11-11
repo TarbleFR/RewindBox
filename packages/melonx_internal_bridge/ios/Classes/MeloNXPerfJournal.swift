@@ -509,19 +509,29 @@ final class MeloNXStallWatch {
 //   footprint= phys_footprint / its peak MiB (the figure iOS kills the process on)
 //   graphics=  the kernel's graphics ledger (Metal and IOAccelerator memory charged to the process) + its compressed part
 //   internal= compressed= device= media= neural= purgeable=  the other TASK_VM_INFO ledgers, MiB
-//   regions=   top-level regions read / time ms ("partial" when the walk hit its region or time bound); two O(1)
-//              queries per region, no page walk; the dyld shared region is skipped
-//   groups=    the 8 largest groups of regions by resident memory, name:resident MiB/regions, by VM tag ("file" for
-//              file-backed mappings, whose clean pages are not footprint); a name ending in "~s" is shared memory,
-//              counted per object (an object mapped more than once counts once, in the group of its tagged mapping,
-//              else of its largest one); compressed memory is the ledger's total (compressed=)
-//   top=       the 6 largest regions by resident memory: address:virtual MiB:group:share mode:resident MiB
+//   regions=   top-level regions read / time ms ("partial" when the walk hit its region or time bound, 1.2 s); one O(1)
+//              query per region; the dyld shared region is skipped
+//   private=   resident+compressed MiB of the private anonymous regions walked (the footprint's memory); unwalked=
+//              count/virtual MiB of private regions over 256 MiB (not page-walked: resident only, no compressed part);
+//              sharedSmall= count/virtual MiB of shared regions under 1 MiB (the guest memory lease), only counted
+//   zones=     the four largest malloc zones, name:MiB in use/MiB held from the system
+//   groups=    the 12 largest groups of regions, name:resident+compressed MiB/regions, by VM tag ("file" for file-backed
+//              mappings, whose clean pages are not footprint; the malloc zones apart); a name ending in "~s" is shared
+//              memory of 1 MiB or more, counted per object (an object mapped more than once counts once, in the group
+//              of its tagged mapping, else of its largest one), resident only
+//   top=       the 10 largest regions: address:virtual MiB:group:share mode:resident+compressed MiB
+// IPA 724 (Hogwarts): the first version read two counters per region and stopped at its 400 ms bound inside the 65 536
+// regions of the guest lease, and gave resident memory only, while most of the footprint was compressed.
 // Measurement only: it reads the process's own VM map and calls no engine closure.
 final class MeloNXMemoryBreakdown {
     static let maxRegions = 400_000
-    static let maxWalkMs = 400.0
-    static let topGroups = 8
-    static let topRegions = 6
+    static let maxWalkMs = 1200.0
+    static let topGroups = 12
+    static let topRegions = 10
+    // A private region larger than this is not page-walked (about 2 ms of VM map hold at this size).
+    static let maxPageWalkBytes: UInt64 = 256 << 20
+    // A shared region smaller than this is only counted (the guest memory lease is 64 KiB regions).
+    static let minSharedQueryBytes: UInt64 = 1 << 20
 
     private let path: String
     private let context: [String:String]
@@ -558,8 +568,8 @@ final class MeloNXMemoryBreakdown {
         _ = MeloNXStdioCapture.appendLine(MeloNXStdioCapture.contextualLine("[MeloNX:memory] " + Self.describe(seconds:seconds), context:context), to:path, limit:MeloNXPerfJournal.fileLimit)
     }
 
-    private struct Group { var resident: UInt64 = 0, regions = 0 }
-    private struct Region { let address: UInt64, size: UInt64, group: String, share: UInt8, resident: UInt64 }
+    private struct Group { var resident: UInt64 = 0, compressed: UInt64 = 0, regions = 0 }
+    private struct Region { let address: UInt64, size: UInt64, group: String, share: UInt8, resident: UInt64, compressed: UInt64 }
 
     static func describe(seconds: Int) -> String {
         var parts = ["t=\(seconds)"]
@@ -578,9 +588,15 @@ final class MeloNXMemoryBreakdown {
             parts.append("ledgers=\(vmStatus)")
         }
 
-        // Two O(1) queries per top-level region (no page walk, so the VM map is never held long): its tag, share mode,
-        // object and pager (submap short info, depth 0), then its resident pages from the object's own counters (top
-        // info). The dyld shared region (a submap) is skipped; compressed memory is the ledger's total above.
+        // One O(1) query per top-level region (submap short info, depth 0: tag, share mode, object, pager); the dyld
+        // shared region (a submap) is skipped. Then, by kind:
+        // - private anonymous memory (what the footprint is made of): its resident and compressed pages, from the
+        //   kernel's walk of that region's pages (submap info). A region over maxPageWalkBytes is not walked (the VM map
+        //   would be held too long): its resident pages come from the object's counters and it is listed in "unwalked";
+        // - file-backed and large shared regions: resident pages from the object's counters (top info), a shared object
+        //   counted once;
+        // - shared regions under minSharedQueryBytes (the guest memory lease is 65 536 of them, IPA 724: the walk stopped
+        //   at its 400 ms bound before the private regions above them): counted and sized only ("sharedSmall").
         let page = UInt64(vm_page_size)
         let begin = DispatchTime.now().uptimeNanoseconds
         var groups: [String: Group] = [:]
@@ -589,6 +605,9 @@ final class MeloNXMemoryBreakdown {
         var address: vm_address_t = 0
         var regions = 0
         var partial = false
+        var privateResident: UInt64 = 0, privateCompressed: UInt64 = 0
+        var unwalked = 0, unwalkedBytes: UInt64 = 0
+        var sharedSmall = 0, sharedSmallBytes: UInt64 = 0
         while true {
             if regions >= maxRegions || Double(DispatchTime.now().uptimeNanoseconds - begin) / 1e6 > maxWalkMs { partial = true; break }
             var size: vm_size_t = 0
@@ -605,21 +624,47 @@ final class MeloNXMemoryBreakdown {
             address &+= size
             if info.is_submap != 0 { continue }
             regions += 1
-            var top = vm_region_top_info_data_t()
-            var topCount = mach_msg_type_number_t(MemoryLayout<vm_region_top_info_data_t>.size / MemoryLayout<natural_t>.size)
-            var topAddress = regionAddress, topSize: vm_size_t = 0
-            var object: mach_port_t = 0
-            let topStatus = withUnsafeMutablePointer(to:&top) {
-                $0.withMemoryRebound(to:Int32.self, capacity:Int(topCount)) {
-                    vm_region_64(mach_task_self_, &topAddress, &topSize, VM_REGION_TOP_INFO, $0, &topCount, &object)
-                }
-            }
-            guard topStatus == KERN_SUCCESS, topAddress == regionAddress else { continue }
-            let resident = (UInt64(top.private_pages_resident) + UInt64(top.shared_pages_resident)) * page
             let share = UInt8(truncatingIfNeeded:info.share_mode)
             let mode = Int32(share)
             let shared = mode == SM_SHARED || mode == SM_TRUESHARED || mode == SM_SHARED_ALIASED
-            let name = (info.external_pager != 0 ? "file" : group(info.user_tag)) + (shared ? "~s" : "")
+            let file = info.external_pager != 0
+            let name = (file ? "file" : group(info.user_tag)) + (shared ? "~s" : "")
+            var resident: UInt64 = 0, compressed: UInt64 = 0
+            if shared && UInt64(size) < minSharedQueryBytes {
+                sharedSmall += 1
+                sharedSmallBytes += UInt64(size)
+                if address == 0 { break }
+                continue
+            }
+            if !shared && !file && UInt64(size) <= maxPageWalkBytes {
+                var full = vm_region_submap_info_data_64_t()
+                var fullCount = mach_msg_type_number_t(MemoryLayout<vm_region_submap_info_data_64_t>.size / MemoryLayout<natural_t>.size)
+                var fullAddress = regionAddress, fullSize: vm_size_t = 0
+                var fullDepth: natural_t = 0
+                let fullStatus = withUnsafeMutablePointer(to:&full) {
+                    $0.withMemoryRebound(to:integer_t.self, capacity:Int(fullCount)) {
+                        vm_region_recurse_64(mach_task_self_, &fullAddress, &fullSize, &fullDepth, $0, &fullCount)
+                    }
+                }
+                guard fullStatus == KERN_SUCCESS, fullAddress == regionAddress else { continue }
+                resident = UInt64(full.pages_resident) * page
+                compressed = UInt64(full.pages_swapped_out) * page
+                privateResident += resident
+                privateCompressed += compressed
+            } else {
+                var top = vm_region_top_info_data_t()
+                var topCount = mach_msg_type_number_t(MemoryLayout<vm_region_top_info_data_t>.size / MemoryLayout<natural_t>.size)
+                var topAddress = regionAddress, topSize: vm_size_t = 0
+                var object: mach_port_t = 0
+                let topStatus = withUnsafeMutablePointer(to:&top) {
+                    $0.withMemoryRebound(to:Int32.self, capacity:Int(topCount)) {
+                        vm_region_64(mach_task_self_, &topAddress, &topSize, VM_REGION_TOP_INFO, $0, &topCount, &object)
+                    }
+                }
+                guard topStatus == KERN_SUCCESS, topAddress == regionAddress else { continue }
+                resident = (UInt64(top.private_pages_resident) + UInt64(top.shared_pages_resident)) * page
+                if !shared && !file { unwalked += 1; unwalkedBytes += UInt64(size) }
+            }
             if shared {
                 // Every mapping of one object counts the same pages: the object counts once, in the group of a tagged
                 // mapping when it has one, else of its largest mapping.
@@ -632,11 +677,13 @@ final class MeloNXMemoryBreakdown {
                 }
             } else {
                 groups[name, default:Group()].resident += resident
+                groups[name, default:Group()].compressed += compressed
                 groups[name, default:Group()].regions += 1
             }
-            if resident > 0 && (largest.count < topRegions || resident > largest[largest.count - 1].resident) {
-                largest.append(Region(address:UInt64(regionAddress), size:UInt64(size), group:name, share:share, resident:resident))
-                largest.sort { $0.resident > $1.resident }
+            let weight = resident + compressed
+            if weight > 0 && (largest.count < topRegions || weight > largest[largest.count - 1].resident + largest[largest.count - 1].compressed) {
+                largest.append(Region(address:UInt64(regionAddress), size:UInt64(size), group:name, share:share, resident:resident, compressed:compressed))
+                largest.sort { $0.resident + $0.compressed > $1.resident + $1.compressed }
                 if largest.count > topRegions { largest.removeLast() }
             }
             if address == 0 { break } // wrapped past the top of the address space
@@ -647,19 +694,47 @@ final class MeloNXMemoryBreakdown {
         }
         let walkMs = Double(DispatchTime.now().uptimeNanoseconds - begin) / 1e6
         parts.append("regions=\(regions)/\(String(format:"%.1f", walkMs))ms" + (partial ? "/partial" : ""))
-        let ranked = groups.sorted { $0.value.resident != $1.value.resident ? $0.value.resident > $1.value.resident : $0.key < $1.key }
-        parts.append("groups=" + ranked.prefix(topGroups).map { "\($0.key):\(mib($0.value.resident))/\($0.value.regions)" }.joined(separator:","))
-        parts.append("top=" + largest.map { "0x" + String($0.address, radix:16) + ":\(mib($0.size)):\($0.group):\(shareName($0.share)):\(mib($0.resident))" }.joined(separator:","))
+        parts.append("private=\(mib(privateResident))+\(mib(privateCompressed)) unwalked=\(unwalked)/\(mib(unwalkedBytes)) sharedSmall=\(sharedSmall)/\(mib(sharedSmallBytes))")
+        parts.append("zones=" + zones())
+        let ranked = groups.sorted {
+            let a = $0.value.resident + $0.value.compressed, b = $1.value.resident + $1.value.compressed
+            return a != b ? a > b : $0.key < $1.key
+        }
+        parts.append("groups=" + ranked.prefix(topGroups).map { "\($0.key):\(mib($0.value.resident))+\(mib($0.value.compressed))/\($0.value.regions)" }.joined(separator:","))
+        parts.append("top=" + largest.map { "0x" + String($0.address, radix:16) + ":\(mib($0.size)):\($0.group):\(shareName($0.share)):\(mib($0.resident))+\(mib($0.compressed))" }.joined(separator:","))
         return parts.joined(separator:" ")
     }
 
     private static func mib<T: BinaryInteger>(_ bytes: T) -> String { String(Int64(clamping:bytes) >> 20) }
 
+    // The malloc zones' own counts: bytes in use / bytes held from the system (the difference is free space the
+    // allocator keeps), the four largest by bytes held. Each zone is asked once (its locks are taken briefly).
+    private static func zones() -> String {
+        var addresses: UnsafeMutablePointer<vm_address_t>? = nil
+        var count: UInt32 = 0
+        guard malloc_get_all_zones(mach_task_self_, nil, &addresses, &count) == KERN_SUCCESS, let addresses else { return "-" }
+        var found: [(name: String, used: UInt64, held: UInt64)] = []
+        for index in 0..<Int(count) {
+            guard let zone = UnsafeMutablePointer<malloc_zone_t>(bitPattern:UInt(addresses[index])) else { continue }
+            var statistics = malloc_statistics_t()
+            malloc_zone_statistics(zone, &statistics)
+            let raw = malloc_get_zone_name(zone).map { String(cString:$0) } ?? "zone\(index)"
+            let name = String(raw.map { $0.isLetter || $0.isNumber ? $0 : "_" })
+            found.append((name.isEmpty ? "zone\(index)" : name, UInt64(statistics.size_in_use), UInt64(statistics.size_allocated)))
+        }
+        found.sort { $0.held != $1.held ? $0.held > $1.held : $0.name < $1.name }
+        return found.isEmpty ? "-" : found.prefix(4).map { "\($0.name):\(mib($0.used))/\(mib($0.held))" }.joined(separator:",")
+    }
+
     // VM tags (mach/vm_statistics.h): the malloc zones together, the app-specific ones by number.
     private static func group(_ tag: UInt32) -> String {
         switch tag {
         case 0: return "untagged"
-        case 1...13: return "malloc"
+        case 3, 4, 8, 9: return "malloc.large"
+        case 2, 12: return "malloc.small"
+        case 7: return "malloc.tiny"
+        case 11: return "malloc.nano"
+        case 1, 5, 6, 10, 13: return "malloc"
         case 20: return "mach_msg"
         case 21: return "iokit"
         case 30: return "stack"
