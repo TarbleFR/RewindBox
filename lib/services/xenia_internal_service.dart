@@ -765,15 +765,56 @@ abstract final class XeniaInternalService {
     if (!runtime.ready) {
       return XeniaLaunchOutcome.failure(runtime.state.name, runtime.detail);
     }
-    // The dedicated XeniOS JIT helper, only when the Core needs it
-    // (docs/xenios-playlist.md § JIT helper).
-    final jit = await XeniaJitService.ensure();
-    if (!jit.success) return XeniaLaunchOutcome.failure(jit.error, jit.detail);
+    // Every cheap refusal comes before the JIT helper: a transaction opened
+    // for a launch that never reaches the bridge would refuse every later
+    // prepareJit until RewindBox restarts.
     final kind = contentKindFor(romPath);
     if (kind == null) return const XeniaLaunchOutcome.failure('unsupported');
     if (!await File(romPath).exists()) {
       return const XeniaLaunchOutcome.failure('gameUnreadable');
     }
+    // The dedicated XeniOS JIT helper, only when the Core needs it
+    // (docs/xenios-playlist.md § JIT helper).
+    final jit = await XeniaJitService.ensure();
+    if (!jit.success) return XeniaLaunchOutcome.failure(jit.error, jit.detail);
+    final Map<String, dynamic> report;
+    try {
+      report = await _bridgeLaunch(romPath, kind, title, uiLocale);
+    } on Object catch (error) {
+      // The bridge was not reached: end the transaction prepared for it
+      // (the bridge ends it itself on every failure it reports).
+      _log.e('XeniOS launch: $error');
+      await abortJit();
+      return XeniaLaunchOutcome.failure('launchFailed', error.toString());
+    }
+    if (report['success'] == true) return const XeniaLaunchOutcome.success();
+    final error = report['error']?.toString() ?? 'launchFailed';
+    _log.e('XeniOS launch failed: $error ${report['detail'] ?? ''}');
+    return XeniaLaunchOutcome.failure(error, report['detail']?.toString());
+  }
+
+  @visibleForTesting
+  static Future<void> Function() abortJit = XeniaInternalBridge.abortJit;
+
+  @visibleForTesting
+  static Future<Map<String, dynamic>> Function({
+    required String gamePath,
+    required int contentKind,
+    required String title,
+    required Map<String, String> settings,
+    required Map<String, String> directories,
+    String? touchGameKey,
+    String locale,
+    Map<String, String> texts,
+  })
+  bridgeLaunch = XeniaInternalBridge.launch;
+
+  static Future<Map<String, dynamic>> _bridgeLaunch(
+    String romPath,
+    int kind,
+    String title,
+    Locale uiLocale,
+  ) async {
     await ensureLayout();
     final gameKey = await XeniaSettingsService.gameKeyForFile(romPath);
     final values = await settings.launchSettings(
@@ -785,7 +826,7 @@ abstract final class XeniaInternalService {
       'XeniOS launch: ${path.basename(romPath)} key=$gameKey '
       'language=${values['user_language']} country=${values['user_country']}',
     );
-    final report = await XeniaInternalBridge.launch(
+    return bridgeLaunch(
       gamePath: romPath,
       contentKind: kind,
       title: title,
@@ -803,9 +844,5 @@ abstract final class XeniaInternalService {
           key: XeniaLocale.forLocale(uiLocale, 'session_$key'),
       },
     );
-    if (report['success'] == true) return const XeniaLaunchOutcome.success();
-    final error = report['error']?.toString() ?? 'launchFailed';
-    _log.e('XeniOS launch failed: $error ${report['detail'] ?? ''}');
-    return XeniaLaunchOutcome.failure(error, report['detail']?.toString());
   }
 }

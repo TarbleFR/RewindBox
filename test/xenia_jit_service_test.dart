@@ -59,8 +59,17 @@ void main() {
       XeniaJitPlan.attachForCoreHandshake,
     );
     expect(
-      XeniaJitService.planFor({'needsTool': true, 'toolAttached': true}),
+      XeniaJitService.planFor({
+        'needsTool': true,
+        'toolAttached': true,
+        'handshakeActive': true,
+      }),
       XeniaJitPlan.reuseAttachedTool,
+    );
+    expect(
+      XeniaJitService.planFor({'needsTool': true, 'toolAttached': true}),
+      XeniaJitPlan.staleTool,
+      reason: 'an attached debugger proves nothing about a live helper',
     );
     expect(
       XeniaJitService.planFor({'needsTool': false, 'debugged': true}),
@@ -87,12 +96,44 @@ void main() {
     },
   );
 
-  test('a tool still attached from an earlier attempt is reused', () async {
-    wire({'needsTool': true, 'toolAttached': true, 'debugged': true});
-    final outcome = await XeniaJitService.ensure();
-    expect(outcome.plan, XeniaJitPlan.reuseAttachedTool);
-    expect(calls, isEmpty);
-  });
+  test(
+    'a helper still attached with its handshake live is reused (the launch probes its nonce)',
+    () async {
+      wire({
+        'needsTool': true,
+        'toolAttached': true,
+        'debugged': true,
+        'handshakeActive': true,
+      });
+      final outcome = await XeniaJitService.ensure();
+      expect(outcome.plan, XeniaJitPlan.reuseAttachedTool);
+      expect(calls, isEmpty);
+    },
+  );
+
+  test(
+    'a debugger left attached after its transaction closed: restart, no attach',
+    () async {
+      wire({
+        'needsTool': true,
+        'toolAttached': true,
+        'debugged': true,
+        'handshakeActive': false,
+      });
+      final outcome = await XeniaJitService.ensure();
+      expect(outcome.success, isFalse);
+      expect(outcome.error, 'restartRequired');
+      expect(
+        calls,
+        isEmpty,
+        reason: 'no helper over an attached debugger, no launch',
+      );
+      for (final code in XeniaLocale.values.keys) {
+        expect(XeniaLocale.values[code]!['restartRequired'], isNotEmpty);
+      }
+      expect(XeniaLocale.launchErrorKey('restartRequired'), 'restartRequired');
+    },
+  );
 
   test(
     'TXM on iOS 26: the helper stays attached for the Core handshake, no completion here',

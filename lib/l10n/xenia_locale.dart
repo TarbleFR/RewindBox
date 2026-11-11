@@ -83,6 +83,7 @@ abstract final class XeniaLocale {
       'packageDataMissing': "Games on Demand header without its .data folder",
       'packageIncomplete': "Games on Demand package incomplete: its .data folder does not hold every data file",
       'packageNotGame': "Xbox 360 package that is not a game (save, add-on, update or original Xbox title)",
+      'coreLoadFailed': "The XeniOS engine of this build could not be loaded. Restart RewindBox; if it happens again, this build cannot run Xbox 360 games.",
     },
     'es': <String, String>{
       'importMenu': "XeniOS / Importar",
@@ -163,6 +164,7 @@ abstract final class XeniaLocale {
       'packageDataMissing': "cabecera de Games on Demand sin su carpeta .data",
       'packageIncomplete': "paquete de Games on Demand incompleto: su carpeta .data no contiene todos los archivos de datos",
       'packageNotGame': "paquete de Xbox 360 que no es un juego (partida guardada, complemento, actualización o juego de la Xbox original)",
+      'coreLoadFailed': "No se pudo cargar el motor XeniOS de esta versión. Reinicia RewindBox; si vuelve a ocurrir, esta versión no puede ejecutar juegos de Xbox 360.",
     },
     'ru': <String, String>{
       'importMenu': "XeniOS / Импорт",
@@ -243,6 +245,7 @@ abstract final class XeniaLocale {
       'packageDataMissing': "заголовок Games on Demand без папки .data",
       'packageIncomplete': "пакет Games on Demand неполный: в папке .data не хватает файлов данных",
       'packageNotGame': "пакет Xbox 360, который не является игрой (сохранение, дополнение, обновление или игра первой Xbox)",
+      'coreLoadFailed': "Не удалось загрузить движок XeniOS этой сборки. Перезапустите RewindBox; если это повторится, эта сборка не может запускать игры Xbox 360.",
     },
     'zh': <String, String>{
       'importMenu': "XeniOS / 导入",
@@ -323,6 +326,7 @@ abstract final class XeniaLocale {
       'packageDataMissing': "Games on Demand 头文件缺少对应的 .data 文件夹",
       'packageIncomplete': "Games on Demand 游戏包不完整：其 .data 文件夹缺少数据文件",
       'packageNotGame': "不是游戏的 Xbox 360 包（存档、追加内容、更新或初代 Xbox 游戏）",
+      'coreLoadFailed': "无法加载此版本的 XeniOS 引擎。请重新启动 RewindBox；如果再次出现，此版本无法运行 Xbox 360 游戏。",
     },
     'zh_Hant': <String, String>{
       'importMenu': "XeniOS / 匯入",
@@ -403,6 +407,7 @@ abstract final class XeniaLocale {
       'packageDataMissing': "Games on Demand 標頭檔缺少對應的 .data 資料夾",
       'packageIncomplete': "Games on Demand 遊戲包不完整：其 .data 資料夾缺少資料檔案",
       'packageNotGame': "不是遊戲的 Xbox 360 包（存檔、追加內容、更新或初代 Xbox 遊戲）",
+      'coreLoadFailed': "無法載入此版本的 XeniOS 引擎。請重新啟動 RewindBox；如果再次發生，此版本無法執行 Xbox 360 遊戲。",
     },
     'pt': <String, String>{
       'importMenu': "XeniOS / Importar",
@@ -483,6 +488,7 @@ abstract final class XeniaLocale {
       'packageDataMissing': "cabeçalho Games on Demand sem sua pasta .data",
       'packageIncomplete': "pacote Games on Demand incompleto: sua pasta .data não contém todos os arquivos de dados",
       'packageNotGame': "pacote de Xbox 360 que não é um jogo (save, complemento, atualização ou jogo do Xbox original)",
+      'coreLoadFailed': "Não foi possível carregar o motor XeniOS desta versão. Reinicie o RewindBox; se acontecer de novo, esta versão não pode executar jogos de Xbox 360.",
     },
     'fr': <String, String>{
       'importMenu': "XeniOS / Importer",
@@ -563,6 +569,7 @@ abstract final class XeniaLocale {
       'packageDataMissing': "en-tête Games on Demand sans son dossier .data",
       'packageIncomplete': "paquet Games on Demand incomplet : son dossier .data ne contient pas tous les fichiers de données",
       'packageNotGame': "paquet Xbox 360 qui n’est pas un jeu (sauvegarde, extension, mise à jour ou jeu Xbox d’origine)",
+      'coreLoadFailed': "Le moteur XeniOS de cette version n’a pas pu être chargé. Redémarrez RewindBox ; si cela se reproduit, cette version ne peut pas lancer de jeux Xbox 360.",
     },
     'de': <String, String>{
       'importMenu': "XeniOS / Import",
@@ -643,6 +650,7 @@ abstract final class XeniaLocale {
       'packageDataMissing': "Games-on-Demand-Header ohne seinen .data-Ordner",
       'packageIncomplete': "Games-on-Demand-Paket unvollständig: sein .data-Ordner enthält nicht alle Datendateien",
       'packageNotGame': "Xbox-360-Paket, das kein Spiel ist (Spielstand, Erweiterung, Update oder Spiel der ersten Xbox)",
+      'coreLoadFailed': "Die XeniOS-Engine dieses Builds konnte nicht geladen werden. Starte RewindBox neu; passiert es wieder, kann dieser Build keine Xbox-360-Spiele starten.",
     },
     'it': <String, String>{
       'importMenu': "XeniOS / Importa",
@@ -723,6 +731,7 @@ abstract final class XeniaLocale {
       'packageDataMissing': "intestazione Games on Demand senza la sua cartella .data",
       'packageIncomplete': "pacchetto Games on Demand incompleto: la sua cartella .data non contiene tutti i file di dati",
       'packageNotGame': "pacchetto Xbox 360 che non è un gioco (salvataggio, espansione, aggiornamento o gioco della prima Xbox)",
+      'coreLoadFailed': "Impossibile caricare il motore XeniOS di questa build. Riavvia RewindBox; se succede di nuovo, questa build non può avviare giochi Xbox 360.",
     },
     'id': <String, String>{
       'importMenu': "XeniOS / Impor",
@@ -803,6 +812,7 @@ abstract final class XeniaLocale {
       'packageDataMissing': "header Games on Demand tanpa folder .data-nya",
       'packageIncomplete': "paket Games on Demand tidak lengkap: folder .data-nya tidak memuat semua file data",
       'packageNotGame': "paket Xbox 360 yang bukan game (simpanan, add-on, pembaruan, atau game Xbox orisinal)",
+      'coreLoadFailed': "Mesin XeniOS pada build ini tidak dapat dimuat. Mulai ulang RewindBox; jika terjadi lagi, build ini tidak dapat menjalankan game Xbox 360.",
     },
     'ja': <String, String>{
       'importMenu': "XeniOS / 読み込み",
@@ -883,6 +893,7 @@ abstract final class XeniaLocale {
       'packageDataMissing': ".data フォルダのない Games on Demand ヘッダー",
       'packageIncomplete': "Games on Demand パッケージが不完全です：.data フォルダにすべてのデータファイルがありません",
       'packageNotGame': "ゲームではない Xbox 360 パッケージ（セーブ、追加コンテンツ、アップデート、初代 Xbox のゲーム）",
+      'coreLoadFailed': "このビルドの XeniOS エンジンを読み込めませんでした。RewindBox を再起動してください。再び起きる場合、このビルドでは Xbox 360 のゲームを起動できません。",
     },
     'ko': <String, String>{
       'importMenu': "XeniOS / 가져오기",
@@ -963,6 +974,7 @@ abstract final class XeniaLocale {
       'packageDataMissing': ".data 폴더가 없는 Games on Demand 헤더",
       'packageIncomplete': "Games on Demand 패키지가 불완전합니다: .data 폴더에 모든 데이터 파일이 없습니다",
       'packageNotGame': "게임이 아닌 Xbox 360 패키지(저장 데이터, 추가 콘텐츠, 업데이트 또는 초대 Xbox 게임)",
+      'coreLoadFailed': "이 빌드의 XeniOS 엔진을 불러올 수 없습니다. RewindBox를 다시 시작하세요. 다시 발생하면 이 빌드에서는 Xbox 360 게임을 실행할 수 없습니다.",
     },
   };
 
@@ -987,6 +999,7 @@ abstract final class XeniaLocale {
     'requiresIOS26' ||
     'engineMissing' ||
     'abiMismatch' ||
+    'coreLoadFailed' ||
     'unsupportedPlatform' ||
     'jitUnavailable' ||
     'sessionActive' ||

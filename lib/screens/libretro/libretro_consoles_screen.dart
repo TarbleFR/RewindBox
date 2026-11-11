@@ -223,16 +223,15 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
       ConsoleCatalog.listed(isMissing: _knownMissing);
 
   /// Why the XeniOS engine cannot run, for the Xbox 360 row.
-  String _xeniaUnavailableLine() => XeniaLocale.forLocale(
-    _locale,
-    switch (_xenia?.state) {
-      XeniaRuntimeState.requiresIOS26 => 'requiresIOS26',
-      XeniaRuntimeState.abiMismatch => 'abiMismatch',
-      XeniaRuntimeState.shaderConverterMissing => 'shaderConverterMissing',
-      XeniaRuntimeState.unsupportedPlatform => 'unsupportedPlatform',
-      _ => 'engineMissing',
-    },
-  );
+  String _xeniaUnavailableLine() =>
+      XeniaLocale.forLocale(_locale, switch (_xenia?.state) {
+        XeniaRuntimeState.requiresIOS26 => 'requiresIOS26',
+        XeniaRuntimeState.abiMismatch => 'abiMismatch',
+        XeniaRuntimeState.coreLoadFailed => 'coreLoadFailed',
+        XeniaRuntimeState.shaderConverterMissing => 'shaderConverterMissing',
+        XeniaRuntimeState.unsupportedPlatform => 'unsupportedPlatform',
+        _ => 'engineMissing',
+      });
 
   /// The system games of [console] are imported into, from the provider's
   /// systems (the database when they are not loaded yet).
@@ -568,10 +567,10 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
         if ((entry.engine != ConsoleEngine.xenia ||
                 _policy.isConsoleEnabled(entry.id)) &&
             !LibretroMainMenu.stateOfEntry(
-          entry,
-          provider.detectedSystems,
-          provider.hiddenSystemFolders,
-        ).isPresent)
+              entry,
+              provider.detectedSystems,
+              provider.hiddenSystemFolders,
+            ).isPresent)
           entry,
     ];
     if (missing.isEmpty) {

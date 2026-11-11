@@ -116,7 +116,7 @@ __attribute__((naked, noinline)) static uint64_t XeniaDebuggerProbe(uint64_t non
 static uint64_t XeniaDebuggerProbe(uint64_t nonce) { return 0; }
 #endif
 
-@interface XeniaJitSession : NSObject
+@interface RBXeniaJitSession : NSObject
 @property(nonatomic, readonly) uint16_t port;
 @property(nonatomic, readonly) uint32_t probeNonce;
 @property(nonatomic, readonly) NSString* token;
@@ -140,7 +140,7 @@ static uint64_t XeniaDebuggerProbe(uint64_t nonce) { return 0; }
 - (void)close;
 @end
 
-@implementation XeniaJitSession {
+@implementation RBXeniaJitSession {
   int _listener;
   int _client;
   uint16_t _port;
@@ -299,9 +299,9 @@ static uint64_t XeniaDebuggerProbe(uint64_t nonce) { return 0; }
 }
 
 - (void)startReader {
-  __weak XeniaJitSession* weakSelf = self;
+  __weak RBXeniaJitSession* weakSelf = self;
   dispatch_async(_readerQueue, ^{
-    XeniaJitSession* strongSelf = weakSelf;
+    RBXeniaJitSession* strongSelf = weakSelf;
     if (strongSelf == nil) return;
 
     struct pollfd descriptor = {strongSelf->_listener, POLLIN, 0};
@@ -508,7 +508,7 @@ static NSString* _Nullable XeniaFindHelperBundleIdentifier(void) {
 }
 
 static BOOL XeniaLaunchJitHelper(
-    XeniaJitSession* session,
+    RBXeniaJitSession* session,
     NSData* pairingData,
     NSError** error) {
   NSString* helperIdentifier = XeniaFindHelperBundleIdentifier();
@@ -582,7 +582,7 @@ static BOOL XeniaLaunchJitHelper(
 
 @interface XeniaJitBridgePlugin ()
 @property(nonatomic, strong) FlutterMethodChannel* channel;
-@property(atomic, strong, nullable) XeniaJitSession* activeSession;
+@property(atomic, strong, nullable) RBXeniaJitSession* activeSession;
 @property(nonatomic, assign) BOOL operationInProgress;
 @property(nonatomic, assign) BOOL completionInProgress;
 @end
@@ -590,14 +590,14 @@ static BOOL XeniaLaunchJitHelper(
 static __weak XeniaJitBridgePlugin* gXeniaJitBridge;
 
 BOOL XeniaJitHasActiveCoreHandshake(void) {
-  XeniaJitSession* session = gXeniaJitBridge.activeSession;
+  RBXeniaJitSession* session = gXeniaJitBridge.activeSession;
   return session != nil && session.requiresCoreHandshake &&
       session.attached && !session.finished && !session.closed &&
       XeniaHostHasLiveDebugger();
 }
 
 BOOL XeniaJitConfirmCoreLoadHandoff(void) {
-  XeniaJitSession* session = gXeniaJitBridge.activeSession;
+  RBXeniaJitSession* session = gXeniaJitBridge.activeSession;
   if (session == nil || !session.requiresCoreHandshake ||
       !session.attached || session.finished || session.closed) {
     return NO;
@@ -606,7 +606,7 @@ BOOL XeniaJitConfirmCoreLoadHandoff(void) {
 }
 
 BOOL XeniaJitWaitForDetach(NSTimeInterval timeout, NSString** message) {
-  XeniaJitSession* session = gXeniaJitBridge.activeSession;
+  RBXeniaJitSession* session = gXeniaJitBridge.activeSession;
   if (session == nil) {
     if (message) *message = @"No Xenia JIT transaction is active.";
     return NO;
@@ -629,7 +629,7 @@ BOOL XeniaJitWaitForDetach(NSTimeInterval timeout, NSString** message) {
 }
 
 void XeniaJitAbortTransaction(void) {
-  XeniaJitSession* session = gXeniaJitBridge.activeSession;
+  RBXeniaJitSession* session = gXeniaJitBridge.activeSession;
   [session close];
   gXeniaJitBridge.activeSession = nil;
   gXeniaJitBridge.operationInProgress = NO;
@@ -673,7 +673,7 @@ void XeniaJitAbortTransaction(void) {
   }
 
   if ([call.method isEqualToString:@"completeJit"]) {
-    XeniaJitSession* session = self.activeSession;
+    RBXeniaJitSession* session = self.activeSession;
     if (session == nil || self.completionInProgress) {
       result(@{@"success": @NO, @"message": @"No Xenia JIT transaction is ready to complete."});
       return;
@@ -790,7 +790,7 @@ void XeniaJitAbortTransaction(void) {
     }
 
     NSError* sessionError = nil;
-    XeniaJitSession* session = [[XeniaJitSession alloc]
+    RBXeniaJitSession* session = [[RBXeniaJitSession alloc]
         initWithError:&sessionError];
     if (session == nil) {
       response[@"message"] = sessionError.localizedDescription ?: @"Could not prepare the Xenia JIT helper.";

@@ -25,13 +25,13 @@ static NSString* const kXeniaRightStick = @"stick.right";
 /// A virtual stick: a pan relative to where the finger started, measured in
 /// the stick's own coordinates so a layout transform scales drawing, touch
 /// area and travel together (ARMSX2's stick, Y reported positive up).
-@interface XeniaVirtualStickView : UIView
+@interface RBXeniaVirtualStickView : UIView
 @property(nonatomic, copy, nullable) void (^valueChanged)(float x, float y);
 @property(nonatomic, strong) UIView* knob;
 - (void)recenter;
 @end
 
-@implementation XeniaVirtualStickView
+@implementation RBXeniaVirtualStickView
 - (instancetype)init {
   self = [super initWithFrame:CGRectZero];
   if (self) {
@@ -85,14 +85,14 @@ static NSString* const kXeniaRightStick = @"stick.right";
 }
 @end
 
-@implementation XeniaTouchControlsView {
+@implementation RBXeniaTouchControlsView {
   NSString* _locale;
   UIView* _dpad;
   NSDictionary<NSString*, UIButton*>* _buttonViews;
   uint32_t _buttonsState;
   NSArray<NSString*>* _order;
-  XeniaVirtualStickView* _leftStick;
-  XeniaVirtualStickView* _rightStick;
+  RBXeniaVirtualStickView* _leftStick;
+  RBXeniaVirtualStickView* _rightStick;
   NSArray<NeoTouchElement*>* _elements;
   NeoTouchLayout* _stored;
   NSString* _storedKey;
@@ -172,8 +172,8 @@ static NSString* const kXeniaRightStick = @"stick.right";
     button.titleLabel.font = [UIFont systemFontOfSize:10 weight:UIFontWeightSemibold];
     button.layer.cornerRadius = 12;
   }
-  _leftStick = [XeniaVirtualStickView new];
-  _rightStick = [XeniaVirtualStickView new];
+  _leftStick = [RBXeniaVirtualStickView new];
+  _rightStick = [RBXeniaVirtualStickView new];
   _leftStick.accessibilityIdentifier = @"xenia-left-stick";
   _rightStick.accessibilityIdentifier = @"xenia-right-stick";
   _buttonViews = @{@"a": a, @"b": b, @"x": x, @"y": y, @"lb": lb, @"rb": rb, @"lt": lt, @"rt": rt,
@@ -184,15 +184,15 @@ static NSString* const kXeniaRightStick = @"stick.right";
     UIView* view = [self viewForIdentifier:identifier];
     if (view.superview != self) [self addSubview:view];
   }
-  __weak XeniaTouchControlsView* weakSelf = self;
+  __weak RBXeniaTouchControlsView* weakSelf = self;
   _leftStick.valueChanged = ^(float sx, float sy) {
-    XeniaTouchControlsView* strongSelf = weakSelf;
+    RBXeniaTouchControlsView* strongSelf = weakSelf;
     if (!strongSelf) return;
     strongSelf->_leftX = sx;
     strongSelf->_leftY = sy;
   };
   _rightStick.valueChanged = ^(float sx, float sy) {
-    XeniaTouchControlsView* strongSelf = weakSelf;
+    RBXeniaTouchControlsView* strongSelf = weakSelf;
     if (!strongSelf) return;
     strongSelf->_rightX = sx;
     strongSelf->_rightY = sy;
@@ -407,7 +407,7 @@ static NSString* const kXeniaRightStick = @"stick.right";
 
 void XeniaTouchControlsRegisterPreview(void) {
   [NeoTouchLayoutRegistry registerPreviewFactory:^UIView<NeoTouchLayoutEditorHost>*(NSString* key, NSString* locale) {
-    XeniaTouchControlsView* preview = [[XeniaTouchControlsView alloc] initWithLocale:locale];
+    RBXeniaTouchControlsView* preview = [[RBXeniaTouchControlsView alloc] initWithLocale:locale];
     // A preview never receives a touch and has no session to send input to.
     preview.userInteractionEnabled = NO;
     return preview;

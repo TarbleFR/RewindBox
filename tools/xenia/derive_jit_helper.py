@@ -86,6 +86,10 @@ static BOOL ARMSX2RequiresCoreHandshake(void) {
 
 # Identity renames, in order (longest/most specific first).
 RENAMES = (
+    # Objective-C classes share one runtime namespace even with RTLD_LOCAL:
+    # the plugin's classes carry the RB prefix so none can meet a class of
+    # the XeniOS Core (docs/xenios-playlist.md § Native boundary).
+    ('ARMSX2JitSession', 'RBXeniaJitSession'),
     ('NeoStationARMSX2', 'NeoStationXenia'),
     ('ARMSX2JITHelper', 'XeniaJITHelper'),
     ('armsx2jithelper', 'xeniajithelper'),
