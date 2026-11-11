@@ -60,6 +60,33 @@ CATALOG_CREDIT_DOCUMENTS = (
     "HD_TEXTURE_CATALOG_SOURCES.md",
     "HD_TEXTURE_SOURCES_AND_CREDITS.md",
 )
+# Switch 2 (S2Arm) private test IPA only: an application that carries S2Arm-native-identity.json, which the common IPA
+# never does, ships the S2Arm engine. Its licence and notice texts are collected by the engine producer
+# (s2arm-engine.yml, build-utils/s2arm/engine/collect_licenses.py) from the engine's pinned sources and placed by the
+# test line's launcher in Legal/S2Arm with their manifest; --validate-only --app requires them for such an application.
+S2ARM_IDENTITY = "S2Arm-native-identity.json"
+S2ARM_LEGAL = "S2Arm"
+S2ARM_NOTICE_MANIFEST = "license-sources.json"
+S2ARM_REWINDBOX_NOTICE = "RewindBox-S2Arm-NOTICE.txt"
+S2ARM_REQUIRED_NOTICES = (
+    S2ARM_REWINDBOX_NOTICE,
+    # Apache-2.0 section 4: the licence and the NOTICE; S2Arm's own table of the third parties it carries.
+    "S2Arm/LICENSE", "S2Arm/NOTICE", "S2Arm/THIRD_PARTY_LICENSES.md",
+    # The .NET runtime compiled ahead of time into the engine, and the compiler that did it.
+    "dotnet/Microsoft.NETCore.App.Runtime.NativeAOT.ios-arm64/LICENSE.TXT",
+    "dotnet/Microsoft.NETCore.App.Runtime.NativeAOT.ios-arm64/THIRD-PARTY-NOTICES.TXT",
+    "dotnet/Microsoft.DotNet.ILCompiler/THIRD-PARTY-NOTICES.TXT",
+    # Codecs and the GLSL compiler, from the source archives the engine build fetches.
+    "libvpx/LICENSE", "libvpx/PATENTS", "opus/COPYING", "dav1d/COPYING", "glslang/LICENSE.txt",
+    # Third parties in S2Arm's tree.
+    "bcdec/LICENSE", "ns2pro-bridge/LICENSE", "Ryujinx/LICENSE.txt", "SPIRV-Cross/LICENSE",
+)
+S2ARM_NO_NINTENDO_DATA = (
+    "No Nintendo data ships with the S2Arm engine in this application: no system file, firmware, key, font or game "
+    "content of a console. Its system data (S2ArmSystemData) is only fonts under the SIL Open Font License, the IANA "
+    "time zone database and empty system data synthesised by S2Arm's generator."
+)
+S2ARM_SOURCE_KINDS = ("s2arm", "archive", "nuget", "rewindbox")
 
 
 def load_json(path: Path) -> dict:
@@ -184,6 +211,86 @@ def validate_additional_notices() -> dict[str, tuple[Path, str]]:
     return result
 
 
+def s2arm_notice_errors(files: dict[str, bytes]) -> list[str]:
+    """Problems of the S2Arm engine notices {path under Legal/S2Arm: bytes}; an empty list when complete: the manifest,
+    every text it lists with its SHA-256 and size and nothing else, the required texts, the no-Nintendo-data statement."""
+    def hexadecimal(value, length):
+        return isinstance(value, str) and len(value) == length and all(c in "0123456789abcdef" for c in value)
+
+    try:
+        manifest = json.loads(files[S2ARM_NOTICE_MANIFEST])
+    except (KeyError, ValueError):
+        return [f"no readable {S2ARM_NOTICE_MANIFEST}"]
+    s2arm = manifest.get("s2arm") if isinstance(manifest, dict) else None
+    components = manifest.get("components") if isinstance(manifest, dict) else None
+    if (not isinstance(s2arm, dict) or manifest.get("schema") != 1 or manifest.get("engine") != "S2Arm"
+            or not hexadecimal(s2arm.get("commit"), 40) or not isinstance(components, list) or not components):
+        return [f"{S2ARM_NOTICE_MANIFEST} is not an S2Arm notice manifest (schema, engine, S2Arm commit, components)"]
+    errors: list[str] = []
+    listed: set[str] = set()
+    for component in components:
+        entries = component.get("files") if isinstance(component, dict) else None
+        if not isinstance(entries, list) or not entries or not isinstance(component.get("component"), str):
+            errors.append(f"a component without its name or texts: {str(component)[:80]}")
+            continue
+        for entry in entries:
+            path = entry.get("path") if isinstance(entry, dict) else None
+            if (not isinstance(path, str) or path in listed or path == S2ARM_NOTICE_MANIFEST or "\\" in path
+                    or any(not part or part.startswith(".") for part in path.split("/"))):
+                errors.append(f"unsafe or repeated path: {path!r}")
+                continue
+            listed.add(path)
+            source = entry.get("source")
+            if (not hexadecimal(entry.get("sha256"), 64) or type(entry.get("bytes")) is not int
+                    or not isinstance(source, dict) or source.get("kind") not in S2ARM_SOURCE_KINDS):
+                errors.append(f"{path}: no SHA-256, size or source")
+            elif path not in files:
+                errors.append(f"{path} is missing")
+            elif (len(files[path]) != entry["bytes"] or not files[path]
+                  or hashlib.sha256(files[path]).hexdigest() != entry["sha256"]):
+                errors.append(f"{path} differs from {S2ARM_NOTICE_MANIFEST}")
+    unlisted = sorted(set(files) - listed - {S2ARM_NOTICE_MANIFEST})
+    if unlisted:
+        errors.append(f"not in {S2ARM_NOTICE_MANIFEST}: {', '.join(unlisted[:5])}")
+    missing = [path for path in S2ARM_REQUIRED_NOTICES if path not in listed]
+    if missing:
+        errors.append("required texts missing: " + ", ".join(missing))
+    if S2ARM_NO_NINTENDO_DATA not in files.get(S2ARM_REWINDBOX_NOTICE, b"").decode("utf-8", errors="replace"):
+        errors.append(f"{S2ARM_REWINDBOX_NOTICE} does not state that no Nintendo data ships")
+    return errors
+
+
+def validate_s2arm_notices(app: Path) -> dict:
+    """The S2Arm engine notices in Legal/S2Arm of an application that carries S2Arm-native-identity.json: complete
+    (s2arm_notice_errors), the manifest the identity records, of the engine's S2Arm commit. Returns the manifest."""
+    directory = app / "Legal" / S2ARM_LEGAL
+    if not directory.is_dir():
+        raise SystemExit(f"S2Arm identity requires the engine notices in Legal/{S2ARM_LEGAL}")
+    files = {}
+    for path in sorted(directory.rglob("*")):
+        if path.is_symlink():
+            raise SystemExit(f"Symbolic link in Legal/{S2ARM_LEGAL}: {path.relative_to(directory)}")
+        if path.is_file():
+            files[path.relative_to(directory).as_posix()] = path.read_bytes()
+    errors = s2arm_notice_errors(files)
+    manifest = {} if errors else json.loads(files[S2ARM_NOTICE_MANIFEST])
+    if not errors:
+        try:
+            identity = load_json(app / S2ARM_IDENTITY)
+        except ValueError:
+            identity = None
+        recorded = identity.get("licenses") if isinstance(identity, dict) else None
+        source = identity.get("sourceIdentity") if isinstance(identity, dict) else None
+        if not isinstance(recorded, dict) or recorded.get("sha256") != hashlib.sha256(
+                files[S2ARM_NOTICE_MANIFEST]).hexdigest():
+            errors.append(f"{S2ARM_IDENTITY} does not record this {S2ARM_NOTICE_MANIFEST}")
+        if not isinstance(source, dict) or source.get("s2arm_commit") != manifest["s2arm"]["commit"]:
+            errors.append(f"the notices are not of the engine's S2Arm commit ({S2ARM_IDENTITY})")
+    if errors:
+        raise SystemExit("S2Arm engine notices: " + "; ".join(errors))
+    return manifest
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--app", type=Path)
@@ -231,6 +338,11 @@ def main() -> None:
 
     if args.validate_only:
         collect_source_evidence(ROOT, os.environ.get("GITHUB_SHA", ""))
+        # Switch 2 (S2Arm) private test IPA only: with --app, an application that carries the S2Arm identity must ship
+        # the engine's notices; any other application (and no --app) is validated exactly as before.
+        if args.app is not None and (args.app / S2ARM_IDENTITY).is_file():
+            notices = validate_s2arm_notices(args.app)
+            print(f"Validated the S2Arm engine notices (S2Arm {notices['s2arm']['commit']}) in Legal/{S2ARM_LEGAL}")
         print("Validated all required notices and pinned revisions before compilation")
         return
 

@@ -705,7 +705,11 @@ jobs:
             root = roots[0]
             bundles = [name for name in names if name == root + 'Info.plist' or
                        (name.startswith(root + 'PlugIns/') and name.endswith('.appex/Info.plist'))]
-            assert len(bundles) == 8, "Expected the application and its seven extensions"
+            if root + 'S2Arm-native-identity.json' in names:
+                # Switch 2 (S2Arm) private test IPA only, never the common IPA: S2ArmJITHelper.appex, eighth extension.
+                assert root + 'PlugIns/S2ArmJITHelper.appex/Info.plist' in bundles and len(bundles) == 9, "Expected the application and its eight extensions (S2ArmJITHelper included)"
+            else:
+                assert len(bundles) == 8, "Expected the application and its seven extensions"
             for name in bundles:
                 info = plistlib.loads(archive.read(name))
                 assert str(info['CFBundleVersion']) == os.environ['BUILD_NUMBER'], name

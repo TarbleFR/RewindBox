@@ -1,0 +1,13 @@
+{
+  "purpose": "Feasibility prototype only. Fetched by CI; no S2Arm source is stored in this repository.",
+  "s2arm": {
+    "repository": "https://github.com/jhaizhou-ops/S2Arm",
+    "commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
+    "license": "Apache-2.0",
+    "used": ["runtime/rewriter (built)", "runtime/src/entry.S and platform/plat_asm.h (assembled into the macOS test only)"]
+  },
+  "dependencies": {
+    "capstone": {"version": "5.0.7", "sha256": "796bdd69b05fa124fc2aa2e74b9a0b3d4c4e7f3e02add5e583cf2f3bca282ede", "license": "BSD-3-Clause, LLVM release licence"},
+    "lz4": {"version": "4.4.5", "sha256": "5f0b9e53c1e82e88c10d7c180069363980136b9d7a8306c4dca4f760d60c39f0", "license": "BSD-2-Clause"}
+  }
+}

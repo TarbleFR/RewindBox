@@ -37,6 +37,10 @@ XENIOS_DECLARATIONS = (
     "packages/xenia_internal_bridge/ios/xenia_internal_bridge.podspec",
     "packages/xenia_jit_helper/ios/xenia_jit_helper.podspec",
 )
+S2ARM_PROBE_REVIEW = "docs/evidence/s2arm-probe-declarations-2026-11-11.json"
+S2ARM_PROBE_PODSPEC = "packages/s2arm_probe/ios/s2arm_probe.podspec"
+S2ARM_ENGINE_REVIEW = "docs/evidence/s2arm-engine-declarations-2026-11-11.json"
+S2ARM_ENGINE_PODSPEC = "packages/s2arm_engine_bridge/ios/s2arm_engine_bridge.podspec"
 SOURCE_DOCUMENTS = (
     "SOURCE_CODE_ACCESS.md",
     "PACKAGE_SOURCES_AND_LICENSES.md",
@@ -526,9 +530,72 @@ def repository_inputs(root: Path) -> dict[str, str]:
         for name, update in updates.items():
             if update.get("before") != declarations.get(name):
                 raise SystemExit(f"Wrong previous declaration identity: {name}")
-            if update.get("after") != sha256(read_input(root, root / name)):
+            # A later review overlay may move pubspec.yaml on (S2Arm probe, private test IPA only).
+            if not (name == "pubspec.yaml" and (root / S2ARM_PROBE_REVIEW).is_file()) and \
+                    update.get("after") != sha256(read_input(root, root / name)):
                 raise SystemExit(f"XeniOS playlist source/license declaration changed since review: {name}")
             declarations[name] = update["after"]
+    # Switch 2 (S2Arm) private test IPA only: the root pubspec.yaml gains the workspace member and the path
+    # dependency of the local diagnostic plugin packages/s2arm_probe (RewindBox code; its S2ArmSynthModule.h embeds
+    # data generated with the S2Arm rewriter, Apache-2.0). No hosted package, engine, Core or vendored source
+    # changes. Chained after the XeniOS playlist review. The review is absent from the common line, where this block
+    # does nothing.
+    s2arm_path = root / S2ARM_PROBE_REVIEW
+    if s2arm_path.is_file():
+        s2arm = json.loads(read_input(root, s2arm_path))
+        prior_name = XENIOS_PLAYLIST_REVIEW
+        changes = s2arm.get("dependency_changes", {})
+        if (s2arm.get("schema") != 1 or s2arm.get("baseline_inventory") != prior_name or
+                s2arm.get("baseline_inventory_sha256") != sha256(read_input(root, root / prior_name)) or
+                s2arm.get("pubspec_lock_sha256") != package_audit["pubspec_lock_sha256"] or
+                s2arm.get("complete_corresponding_source_attested") is not False or
+                changes != {"external_packages_added": [], "external_packages_removed": [],
+                            "system_frameworks_added": {S2ARM_PROBE_PODSPEC: ["Foundation"]}}):
+            raise SystemExit("S2Arm probe review has a different baseline or dependency scope")
+        updates = s2arm.get("declarations", {})
+        if set(updates) != {"pubspec.yaml", "packages/s2arm_probe/pubspec.yaml", S2ARM_PROBE_PODSPEC}:
+            raise SystemExit("S2Arm probe declaration review scope changed")
+        for name, update in updates.items():
+            if update.get("before") != declarations.get(name):
+                raise SystemExit(f"Wrong previous declaration identity: {name}")
+            # A later review overlay may move pubspec.yaml on (S2Arm engine bridge, private test IPA only).
+            if not (name == "pubspec.yaml" and (root / S2ARM_ENGINE_REVIEW).is_file()) and \
+                    update.get("after") != sha256(read_input(root, root / name)):
+                raise SystemExit(f"S2Arm probe source/license declaration changed since review: {name}")
+            declarations[name] = update["after"]
+        generated = s2arm.get("embedded_generated_data", {})
+        if (generated.get("path") != "packages/s2arm_probe/ios/Classes/S2ArmSynthModule.h" or generated.get("license") != "Apache-2.0" or
+                generated.get("sha256") != sha256(read_input(root, root / generated["path"]))):
+            raise SystemExit("S2Arm probe embedded generated data differs from the review")
+    # Switch 2 (S2Arm) private test IPA only, chained after the probe review: the root pubspec.yaml gains the workspace
+    # member and the path dependency of the local plugin packages/s2arm_engine_bridge (RewindBox host code of the
+    # embedded engine). Its podspec vendors S2ArmPrepare.xcframework, never committed: the delivery installs it from its
+    # authenticated producer run before CocoaPods. No hosted package, Core or vendored source of this tree changes.
+    engine_path = root / S2ARM_ENGINE_REVIEW
+    if engine_path.is_file():
+        engine = json.loads(read_input(root, engine_path))
+        changes = engine.get("dependency_changes", {})
+        if (engine.get("schema") != 1 or engine.get("baseline_inventory") != S2ARM_PROBE_REVIEW or
+                engine.get("baseline_inventory_sha256") != sha256(read_input(root, root / S2ARM_PROBE_REVIEW)) or
+                engine.get("pubspec_lock_sha256") != package_audit["pubspec_lock_sha256"] or
+                engine.get("complete_corresponding_source_attested") is not False or
+                changes != {"external_packages_added": [], "external_packages_removed": [],
+                            "system_frameworks_added": {S2ARM_ENGINE_PODSPEC: ["Foundation", "UIKit", "Security"]},
+                            "vendored_frameworks_added": {S2ARM_ENGINE_PODSPEC: ["Frameworks/S2ArmPrepare.xcframework"]}}):
+            raise SystemExit("S2Arm engine review has a different baseline or dependency scope")
+        updates = engine.get("declarations", {})
+        if set(updates) != {"pubspec.yaml", "packages/s2arm_engine_bridge/pubspec.yaml", S2ARM_ENGINE_PODSPEC}:
+            raise SystemExit("S2Arm engine declaration review scope changed")
+        for name, update in updates.items():
+            if update.get("before") != declarations.get(name):
+                raise SystemExit(f"Wrong previous declaration identity: {name}")
+            if update.get("after") != sha256(read_input(root, root / name)):
+                raise SystemExit(f"S2Arm engine source/license declaration changed since review: {name}")
+            declarations[name] = update["after"]
+        vendored = engine.get("vendored_library", {})
+        if (vendored.get("path") != "packages/s2arm_engine_bridge/ios/Frameworks/S2ArmPrepare.xcframework" or
+                vendored.get("in_repository") is not False or vendored.get("producer") != ".github/workflows/s2arm-core.yml"):
+            raise SystemExit("S2Arm engine vendored library differs from the review")
     for name, expected in declarations.items():
         if sha256(read_input(root, root / name)) != expected:
             raise SystemExit(f"Package source/license declaration changed since review: {name}")

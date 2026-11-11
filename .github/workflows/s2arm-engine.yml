@@ -1,0 +1,305 @@
+name: S2Arm engine (iOS) build check
+# Builds S2Arm's own iOS engine at the pinned commit (`make ios`: runtime, graphics,
+# NativeAOT services, codecs, NS2Pro), with no game, with only the patches of
+# build-utils/s2arm/engine/patches applied (first one: build with an SDK older than iOS 27).
+# It proves the toolchain on GitHub's macOS
+# runners and records what the engine is made of (images, sizes, exported and undefined symbols),
+# before any change that would host it inside RewindBox. Switch 2 test line only; nothing here is
+# part of the common IPA and no game, key or Nintendo file is used.
+'on':
+  workflow_dispatch:
+  push:
+    branches: [work/s2arm-switch2-prototype-20261110]
+    paths:
+      - .github/workflows/s2arm-engine.yml
+      - build-utils/s2arm/engine/**
+      - build-utils/embed_legal_bundle.py
+      - tools/s2arm_prototype/pin.json
+permissions:
+  contents: read
+concurrency:
+  group: s2arm-engine-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  engine:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-26, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fetch S2Arm at the pinned commit
+        run: |
+          set -euo pipefail
+          commit=$(python3 -c "import json;print(json.load(open('tools/s2arm_prototype/pin.json'))['s2arm']['commit'])")
+          repository=$(python3 -c "import json;print(json.load(open('tools/s2arm_prototype/pin.json'))['s2arm']['repository'])")
+          git init -q "$RUNNER_TEMP/s2arm"
+          git -C "$RUNNER_TEMP/s2arm" fetch -q --depth 1 "$repository" "$commit"
+          git -C "$RUNNER_TEMP/s2arm" checkout -q FETCH_HEAD
+          test "$(git -C "$RUNNER_TEMP/s2arm" rev-parse HEAD)" = "$commit"
+          mkdir -p proof
+          echo "s2arm $commit" > proof/inputs.txt
+          # RewindBox patch series against the pin (build-utils/s2arm/engine/patches, applied in order).
+          for patch in $(ls build-utils/s2arm/engine/patches/*.patch 2>/dev/null | sort); do
+            git -C "$RUNNER_TEMP/s2arm" apply --whitespace=nowarn "$GITHUB_WORKSPACE/$patch"
+            echo "patch $(basename "$patch") $(shasum -a 256 "$patch" | cut -d' ' -f1)" | tee -a proof/inputs.txt
+          done
+      - name: Select the newest installed Xcode with an iPhoneOS SDK
+        run: |
+          set -euo pipefail
+          ls -d /Applications/Xcode*.app | tee proof/xcodes.txt
+          best=
+          for app in $(ls -d /Applications/Xcode*.app | sort -V); do
+            [ -L "$app" ] && continue
+            if DEVELOPER_DIR="$app/Contents/Developer" xcrun --sdk iphoneos --show-sdk-version > /dev/null 2>&1; then best=$app; fi
+          done
+          test -n "$best"
+          echo "DEVELOPER_DIR=$best/Contents/Developer" >> "$GITHUB_ENV"
+          {
+            echo "selected $best"
+            DEVELOPER_DIR="$best/Contents/Developer" xcodebuild -version
+            echo "iphoneos SDK $(DEVELOPER_DIR="$best/Contents/Developer" xcrun --sdk iphoneos --show-sdk-version)"
+            echo "S2Arm pins: $(grep -E '^(IPHONEOS_DEPLOYMENT_TARGET|IPHONEOS_SDK_MAJOR)=' "$RUNNER_TEMP/s2arm/tools/toolchain.env" | tr '\n' ' ')"
+          } | tee -a proof/inputs.txt
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Install the build tools S2Arm's makefiles call
+        run: |
+          set -euo pipefail
+          command -v rg > /dev/null || brew install ripgrep
+          for tool in meson ninja; do command -v $tool > /dev/null || brew install $tool; done   # services/dav1d/build.sh
+          echo "meson $(meson --version) ninja $(ninja --version)" | tee -a proof/inputs.txt
+          rg --version | head -1 | tee -a proof/inputs.txt
+          # GNU timeout only (services/nxaot.sh calls it); the BSD tools stay first on PATH.
+          if ! command -v timeout > /dev/null; then
+            brew list coreutils > /dev/null 2>&1 || brew install coreutils
+            mkdir -p "$RUNNER_TEMP/shim"
+            ln -sf "$(command -v gtimeout)" "$RUNNER_TEMP/shim/timeout"
+            echo "$RUNNER_TEMP/shim" >> "$GITHUB_PATH"
+          fi
+          "$RUNNER_TEMP/shim/timeout" --version 2>/dev/null | head -1 | tee -a proof/inputs.txt || timeout --version | head -1 | tee -a proof/inputs.txt
+      - name: Prefetch the codec sources hosted outside GitHub, with retries
+        # Run 43024225545: downloads.xiph.org reset the connection on both runners. The archives go
+        # where S2Arm's fetch_source.sh looks first (<cache>/sources/<sha256>/<file>), checked by SHA-256.
+        working-directory: ${{ runner.temp }}/s2arm
+        run: |
+          set -euo pipefail
+          cache="$RUNNER_TEMP/s2arm-build-cache/sources"
+          fetch() {  # <build script> <file pattern> <url pattern>, $VER substituted
+            line=$(grep -m1 -E '^VER=[^;]+; SHA=[0-9a-f]{64}' "$1")
+            ver=$(printf '%s' "$line" | sed -E 's/^VER=([^;]+);.*/\1/'); sha=$(printf '%s' "$line" | sed -E 's/.*SHA=([0-9a-f]{64}).*/\1/')
+            file=${2//\$VER/$ver}; url=${3//\$VER/$ver}
+            mkdir -p "$cache/$sha"
+            curl -fsSL --retry 8 --retry-all-errors --retry-delay 10 --connect-timeout 30 -o "$cache/$sha/$file.part" "$url"
+            echo "$sha  $cache/$sha/$file.part" | shasum -a 256 -c -
+            mv "$cache/$sha/$file.part" "$cache/$sha/$file"
+            echo "prefetched $file $sha" | tee -a "$GITHUB_WORKSPACE/proof/inputs.txt"
+          }
+          fetch services/opus/build.sh 'opus-$VER.tar.gz' 'https://downloads.xiph.org/releases/opus/opus-$VER.tar.gz'
+          fetch services/dav1d/build.sh 'dav1d-$VER.tar.xz' 'https://downloads.videolan.org/pub/videolan/dav1d/$VER/dav1d-$VER.tar.xz'
+      - name: Build S2Arm's iOS engine with no game (make ios)
+        working-directory: ${{ runner.temp }}/s2arm
+        env:
+          S2A_DEVELOPER_DIR: ${{ env.DEVELOPER_DIR }}
+          S2A_RUN_ROOT: ${{ runner.temp }}/s2arm-run
+          S2A_BUILD_CACHE: ${{ runner.temp }}/s2arm-build-cache
+          NUGET_PACKAGES: ${{ runner.temp }}/nuget
+        shell: bash --noprofile --norc {0}
+        run: |
+          set -u
+          out="$GITHUB_WORKSPACE/proof"
+          export DOTNET="$(command -v dotnet)"
+          dotnet --info > "$out/dotnet-info.txt" 2>&1
+          head -8 "$out/dotnet-info.txt" >> "$out/inputs.txt"
+          start=$(date +%s)
+          status=0
+          make ios > "$out/make-ios.log" 2>&1 || status=$?
+          echo "make ios exit=$status seconds=$(( $(date +%s) - start ))" | tee "$out/result.txt"
+          if [ "$status" = 0 ]; then
+            start=$(date +%s)
+            make -f Makefile -f "$GITHUB_WORKSPACE/build-utils/s2arm/engine/guest.mk" ios-guest > "$out/make-ios-guest.log" 2>&1 || status=$?
+            echo "make ios-guest exit=$status seconds=$(( $(date +%s) - start ))" | tee -a "$out/result.txt"
+            tail -15 "$out/make-ios-guest.log"
+          fi
+          tail -60 "$out/make-ios.log"
+          for f in build/cs/*.err; do [ -s "$f" ] && { echo "== $f"; tail -60 "$f"; cp "$f" "$out/"; }; done
+          find "$S2A_RUN_ROOT" -name publish.log -print 2>/dev/null | while read -r f; do
+            echo "== $f"; grep -E " error |error [A-Z]+[0-9]+" "$f" | sort -u | head -40
+            cp "$f" "$out/nxaot-publish-$(basename "$(dirname "$f")").log"
+          done
+          exit $status
+      - name: Inventory the engine (images, sizes, symbols)
+        if: always()
+        working-directory: ${{ runner.temp }}/s2arm
+        shell: bash --noprofile --norc {0}
+        run: |
+          set -u
+          out="$GITHUB_WORKSPACE/proof"
+          app=build/ios/S2Arm.app
+          [ -d "$app" ] || { echo "no $app" | tee "$out/inventory.txt"; exit 0; }
+          {
+            echo "== bundle"; du -sh "$app"
+            echo "== files"; find "$app" -type f -exec ls -l {} + | awk '{print $5, $9}' | sort -k2
+            echo "== Mach-O images"
+            find "$app" -type f | while read -r f; do
+              if file "$f" | grep -q Mach-O; then echo "-- $f"; xcrun size -m "$f" | grep -E 'Segment|total' | head -12; otool -L "$f" | tail -n +2; fi
+            done
+            echo "== executable: defined external symbols"; nm -gU "$app/S2Arm" | wc -l
+            echo "== executable: undefined symbols (count, then non-system)"; nm -u "$app/S2Arm" | wc -l
+          } > "$out/inventory.txt" 2>&1
+          fw=build/ios/S2ArmEngine.framework
+          if [ -f "$fw/S2ArmEngine" ]; then
+            {
+              echo "== guest framework"; du -sh "$fw"; ls -l "$fw"
+              xcrun size -m "$fw/S2ArmEngine" | grep -E 'Segment|total' | head -12
+              otool -L "$fw/S2ArmEngine" | tail -n +2
+              echo "exports: $(nm -gU "$fw/S2ArmEngine" | wc -l)"
+              echo "undefined: $(nm -u "$fw/S2ArmEngine" | wc -l)"
+              echo "ObjC classes: $(nm -gU "$fw/S2ArmEngine" | grep -c '_OBJC_CLASS_\$_')"
+              echo "has _main: $(nm -gU "$fw/S2ArmEngine" | grep -c ' _main$')"
+              echo "S2A_Init: $(nm -gU "$fw/S2ArmEngine" | grep -c ' _S2A_Init$')"
+              echo "constructors (mod_init_func): $(otool -l "$fw/S2ArmEngine" | grep -A3 __mod_init_func | grep size | head -1)"
+            } >> "$out/inventory.txt" 2>&1
+            nm -gU "$fw/S2ArmEngine" | awk '{print $3}' | sort > "$out/framework-exports.txt"
+            nm -gU "$fw/S2ArmEngine" | grep '_OBJC_CLASS_\$_' | awk '{print $3}' | sort > "$out/framework-objc-classes.txt"
+          fi
+          nm -gU "$app/S2Arm" | awk '{print $3}' | sort > "$out/executable-exports.txt"
+          nm -u "$app/S2Arm" | sort > "$out/executable-undefined.txt"
+          lib=$(find "$S2A_RUN_ROOT" -name libs2a_cs.a 2>/dev/null | head -1)
+          if [ -n "$lib" ]; then
+            ls -l "$lib" >> "$out/inventory.txt"
+            nm -gU "$lib" | awk '{print $3}' | sort > "$out/services-exports.txt"
+            echo "services library external symbols: $(wc -l < "$out/services-exports.txt")" >> "$out/inventory.txt"
+            cat "$(dirname "$lib")/ldflags.txt" > "$out/services-ldflags.txt" 2>/dev/null || true
+          fi
+          grep -h "_S2A_\|_s2a_" "$out/executable-exports.txt" | head -400 > "$out/executable-s2a-exports.txt" || true
+          cat "$out/inventory.txt" | head -150
+        env:
+          S2A_RUN_ROOT: ${{ runner.temp }}/s2arm-run
+      - name: Check the guest entry points of the framework (patches 0003-0009)
+        # RewindBox dlopens the framework and looks these up with dlsym; die() finds s2a_rb_guest_fatal by name.
+        # rb_s2arm_engine_loaded belongs to RewindBox's host plugin and must not come from the framework.
+        # In a guest the engine reads its own Info.plist (patch 0009): S2ACommit is its build identity (diagnostics, dguard.c).
+        working-directory: ${{ runner.temp }}/s2arm
+        shell: bash --noprofile --norc {0}
+        run: |
+          set -u
+          fw=build/ios/S2ArmEngine.framework
+          report="$GITHUB_WORKSPACE/proof/guest-entry-points.txt"
+          : > "$report"
+          status=0
+          note() { echo "$1" | tee -a "$report"; }
+          nm -gU "$fw/S2ArmEngine" | awk '{print $3}' | sort > "$RUNNER_TEMP/guest-exports.txt"
+          for sym in _s2a_rb_guest_configure _s2a_rb_guest_make_view_controller _s2a_rb_guest_start _s2a_rb_guest_stop _s2a_rb_guest_fatal; do
+            if grep -qx "$sym" "$RUNNER_TEMP/guest-exports.txt"; then note "ok   exported $sym"; else note "FAIL not exported: $sym"; status=1; fi
+          done
+          if grep -qx _rb_s2arm_engine_loaded "$RUNNER_TEMP/guest-exports.txt"; then note "FAIL _rb_s2arm_engine_loaded is exported (the host plugin owns it)"; status=1; else note "ok   _rb_s2arm_engine_loaded not exported"; fi
+          undefined=$(nm -u "$fw/S2ArmEngine" | grep '_s2a_rb_' | tr '\n' ' ')
+          if [ -n "$undefined" ]; then note "FAIL undefined guest symbols: $undefined"; status=1; else note "ok   no undefined _s2a_rb_ symbol"; fi
+          if cmp -s "$fw/Headers/rb_guest.h" runtime/src/rb_guest.h; then note "ok   Headers/rb_guest.h"; else note "FAIL Headers/rb_guest.h missing or not the patched runtime/src/rb_guest.h"; status=1; fi
+          for lang in en zh-Hans; do
+            if [ -f "$fw/$lang.lproj/S2ArmHost.strings" ]; then note "ok   $lang.lproj/S2ArmHost.strings"; else note "FAIL $lang.lproj/S2ArmHost.strings missing"; status=1; fi
+          done
+          pin=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['s2arm']['commit'])" "$GITHUB_WORKSPACE/tools/s2arm_prototype/pin.json")
+          commit=$(plutil -extract S2ACommit raw -o - "$fw/Info.plist" 2>/dev/null)
+          if [ -n "$pin" ] && [ "$commit" = "$pin" ]; then note "ok   Info.plist S2ACommit $commit"; else note "FAIL Info.plist S2ACommit '$commit', expected the S2Arm commit $pin"; status=1; fi
+          # The host bridge stamps each game's direct shader skeleton with this chain (S2ArmGamePreparation.m).
+          chain=$(sed -n 's/^#define DMSH_CHAIN "\([0-9a-f]*\)".*/\1/p' graphics/nvn/gfx/nvn/dmsh_chain.h)
+          shipped=$(cat "$fw/S2ArmDirectChain.txt" 2>/dev/null | tr -d '\n')
+          if [ -n "$chain" ] && [ "$shipped" = "$chain" ]; then note "ok   S2ArmDirectChain.txt $shipped"; else note "FAIL S2ArmDirectChain.txt '$shipped', expected DMSH_CHAIN '$chain'"; status=1; fi
+          exit $status
+      - name: Collect the engine's licence and notice texts from its pinned sources
+        # For the legal bundle of the test IPA (Legal/S2Arm, docs/s2arm-legal-notices.md): S2Arm's LICENSE, NOTICE and
+        # THIRD_PARTY_LICENSES.md and the licence texts of the third parties that reach the iPhone, read from the pinned
+        # commit (git objects, not the patched tree), from the source archives this build fetched (checked against the
+        # SHA-256 their S2Arm build scripts pin) and from the .NET packs its NativeAOT compilation restored (checked
+        # against NuGet's SHA-512), with RewindBox's notice; license-sources.json lists each with its origin and SHA-256.
+        # Nothing is copied by hand; the result passes the legal gate's own rule (embed_legal_bundle.py).
+        run: |
+          set -euo pipefail
+          python3 -B build-utils/s2arm/engine/collect_licenses.py --s2arm "$RUNNER_TEMP/s2arm" \
+            --sources "$RUNNER_TEMP/s2arm-build-cache/sources" --nuget "$RUNNER_TEMP/nuget" \
+            --out "$RUNNER_TEMP/s2arm-engine-licenses"
+          cp "$RUNNER_TEMP/s2arm-engine-licenses/license-sources.json" proof/engine-license-sources.json
+      - name: Package the guest frameworks for RewindBox's delivery (macos-26 only)
+        # Producer side of the test line's delivery wiring (contract): S2ArmEngine.framework.zip and NS2Pro.framework.zip
+        # (ditto -c -k --keepParent, symlinks kept), the collected licences/ (license-sources.json and its texts) and
+        # s2arm-engine-identity.json, which records the licences' manifest, uploaded below as s2arm-engine-framework-<sha>.
+        if: success() && matrix.os == 'macos-26'
+        working-directory: ${{ runner.temp }}/s2arm
+        shell: bash --noprofile --norc {0}
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/s2arm-engine-framework"
+          rm -rf "$out"; mkdir -p "$out"
+          for fw in S2ArmEngine NS2Pro; do
+            test -f "build/ios/$fw.framework/$fw"
+            ditto -c -k --keepParent "build/ios/$fw.framework" "$out/$fw.framework.zip"
+          done
+          cp -R "$RUNNER_TEMP/s2arm-engine-licenses" "$out/licenses"
+          xcode=$(xcodebuild -version | sed -n 1p)
+          test -n "$xcode"
+          grep '^patch ' "$GITHUB_WORKSPACE/proof/inputs.txt" > "$RUNNER_TEMP/applied-patches.txt"   # name and SHA-256, in the order applied
+          python3 - "$out" build/ios "$GITHUB_WORKSPACE/tools/s2arm_prototype/pin.json" "$xcode" "$RUNNER_TEMP/applied-patches.txt" <<'PY'
+          import hashlib, json, os, stat, sys, zipfile
+          out, build, pin_file, xcode, applied = sys.argv[1:6]
+          def sha256(path):
+              h = hashlib.sha256()
+              with open(path, 'rb') as f:
+                  for block in iter(lambda: f.read(1 << 20), b''):
+                      h.update(block)
+              return h.hexdigest()
+          files = {}
+          for name in ('S2ArmEngine', 'NS2Pro'):
+              zpath, top = os.path.join(out, name + '.framework.zip'), name + '.framework'
+              with zipfile.ZipFile(zpath) as z:
+                  entries = z.infolist()
+                  extra = {e.filename for e in entries if e.filename.startswith(('__MACOSX', '._')) or '/._' in e.filename}   # ditto's AppleDouble metadata
+                  roots = {e.filename.split('/', 1)[0] for e in entries if e.filename not in extra}
+                  links = sum(1 for e in entries if stat.S_ISLNK(e.external_attr >> 16))
+                  if roots != {top} or top + '/' + name not in z.namelist():
+                      raise SystemExit(f'{zpath}: expected one {top}/ root holding {top}/{name}, got {sorted(roots)}')
+              on_disk = sum(1 for d, dirs, fs in os.walk(os.path.join(build, top)) for n in dirs + fs if os.path.islink(os.path.join(d, n)))
+              if links != on_disk:
+                  raise SystemExit(f'{zpath}: {links} symlink entries, {on_disk} symlinks in {top}')
+              files[name + '.framework.zip'] = sha256(zpath)
+              print(f'{name}.framework.zip: {os.path.getsize(zpath)} bytes, {len(entries)} entries, {links} symlinks, AppleDouble/__MACOSX entries {len(extra)}')
+          patches = [{'name': n, 'sha256': h} for _, n, h in (line.split() for line in open(applied) if line.strip())]
+          licenses = os.path.join(out, 'licenses')
+          texts = sum(len(names) for _, _, names in os.walk(licenses))
+          identity = {'run': int(os.environ['RUN_ID']), 'attempt': int(os.environ['RUN_ATTEMPT']), 'head_sha': os.environ['HEAD_SHA'],
+                      's2arm_commit': json.load(open(pin_file))['s2arm']['commit'], 'xcode': xcode, 'patches': patches, 'files': files,
+                      'licenses': {'manifest': 'licenses/license-sources.json',
+                                   'sha256': sha256(os.path.join(licenses, 'license-sources.json')), 'files': texts}}
+          with open(os.path.join(out, 's2arm-engine-identity.json'), 'w') as f:
+              json.dump(identity, f, indent=2)
+              f.write('\n')
+          PY
+          cat "$out/s2arm-engine-identity.json"
+          cp "$out/s2arm-engine-identity.json" "$GITHUB_WORKSPACE/proof/"
+      - name: Upload the guest frameworks for RewindBox's delivery (macos-26 only)
+        if: success() && matrix.os == 'macos-26'
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
+        with:
+          name: s2arm-engine-framework-${{ github.sha }}
+          path: ${{ runner.temp }}/s2arm-engine-framework/
+          if-no-files-found: error
+          retention-days: 30
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
+        if: always()
+        with:
+          name: s2arm-engine-${{ matrix.os }}-${{ github.sha }}
+          path: proof/
+          retention-days: 30
