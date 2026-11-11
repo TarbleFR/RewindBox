@@ -62,7 +62,7 @@ jobs:
       - run: command -v xcodegen >/dev/null || brew install xcodegen
       - name: Shared state and localized completion action in real UIKit
         run: python3 test/unified_catalog_browser_ui_test.py --native --followup477-only --result evidence/cheats477-final.xcresult
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: cheats477-editions-${{ needs.publish.outputs.tested_commit }}

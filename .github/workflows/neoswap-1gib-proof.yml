@@ -61,7 +61,7 @@ jobs:
               assert metal['gpuReadbackVerified'] is True, report
               assert metal['realRPCS3GameplayValidated'] is False and metal['realIPhoneValidated'] is False, report
           PY
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: NeoSwap-proof-${{ matrix.bytes }}-Metal${{ matrix.metal }}-${{ github.sha }}

@@ -29,7 +29,7 @@ jobs:
       - run: command -v xcodegen >/dev/null || brew install xcodegen
       - name: Direct switches and changed native menus on UIKit
         run: python3 test/unified_catalog_browser_ui_test.py --native --result evidence/direct-cheats.xcresult
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: direct-cheats-native-${{ github.sha }}
@@ -103,7 +103,7 @@ jobs:
       - run: command -v xcodegen >/dev/null || brew install xcodegen
       - name: Exact switches, one edition confirmation and late completion
         run: python3 test/unified_catalog_browser_ui_test.py --native --direct-toggle-only --result evidence/final-direct.xcresult
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: direct-cheats-final-ui-${{ github.sha }}

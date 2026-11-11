@@ -38,7 +38,7 @@ jobs:
         HANDOFF_DOUBLE_ONLY: '1'
         HANDOFF_EVIDENCE_NAME: double-open-${{ matrix.label }}
       run: python3 tools/test_retroarch_uikit_handoff.py
-    - uses: actions/upload-artifact@v4
+    - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       if: always()
       with:
         name: retroarch-double-open-${{ matrix.label }}-${{ github.sha }}

@@ -121,7 +121,7 @@ jobs:
         --verdicts build/dolphin-metal-verdicts.json
     - name: Upload the verdicts
       if: ${{ always() }}
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: slang-metal-verdicts-${{ github.sha }}
         path: |
@@ -156,7 +156,7 @@ jobs:
       run: >-
         python3 test/neo_shader_compiler_coexistence.py --dolphin-ios "$RUNNER_TEMP/dolphin-ios"
         --slang-shaders "$RUNNER_TEMP/slang-shaders" --evidence evidence/compiler-fixed
-    - uses: actions/upload-artifact@v4
+    - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       if: always()
       with:
         name: compiler-coexistence-${{ github.sha }}

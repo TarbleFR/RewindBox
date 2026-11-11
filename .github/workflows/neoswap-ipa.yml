@@ -12,10 +12,17 @@ on:
         required: true
         default: '421'
         type: string
+      delivery_recipient:
+        description: 'Existing build-utils/delivery-N-recipient.pem public key; keep its private key outside GitHub'
+        required: true
+        type: string
 
 permissions:
   contents: read
   actions: read
+
+env:
+  DELIVERY_RECIPIENT: ${{ inputs.delivery_recipient }}
 
 # Keep candidate IPA runs separate from native validation.
 concurrency:
@@ -34,6 +41,13 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
+      - name: Require an explicit recipient before starting this legacy build
+        shell: bash
+        run: |
+          if [[ ! "$DELIVERY_RECIPIENT" =~ ^build-utils/delivery-[0-9]+-recipient\.pem$ ]]; then
+            echo 'Select an existing delivery public key, or use standard-delivery.yml. Plaintext IPA delivery is disabled.' >&2
+            exit 1
+          fi
       - name: Require completed Build 411 without cancelling its run
         shell: bash
         run: |
@@ -164,6 +178,10 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Validate the selected public encryption key before compilation
+        shell: bash
+        run: openssl pkey -pubin -in "$DELIVERY_RECIPIENT" -noout
 
       - name: Validate pinned notices before tests and compilation
         run: |
@@ -1180,7 +1198,7 @@ jobs:
           shasum -a 256 dist/*.ipa | tee "dist/$IPA_NAME.sha256"
           ls -lah dist
 
-      - name: Prepare direct private IPA artifact
+      - name: Prepare local private IPA for encryption
         shell: bash
         run: |
           set -euo pipefail
@@ -1213,11 +1231,15 @@ jobs:
           test -s build/private-test/NeoStation.ipa
           test "$(find build/private-test -maxdepth 1 -type f -name '*.ipa' | wc -l | tr -d ' ')" = 1
 
-      - name: Upload direct private IPA
-        uses: actions/upload-artifact@v4
+      - name: Encrypt private IPA and reports before upload
+        shell: bash
+        run: python3 build-utils/delivery_cipher.py artifact build/private-test build/encrypted-private-test
+
+      - name: Upload encrypted private IPA
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: ${{ env.ARTIFACT_NAME }}
-          path: build/private-test/
+          path: build/encrypted-private-test/
           if-no-files-found: error
           retention-days: 3
 
@@ -1234,7 +1256,7 @@ jobs:
 
       - name: Upload fast diagnostics
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: ${{ env.ARTIFACT_NAME }}-diagnostics
           path: build/fast-diagnostics/

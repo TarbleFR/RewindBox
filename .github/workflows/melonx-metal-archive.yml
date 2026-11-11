@@ -27,7 +27,7 @@ jobs:
         persist-credentials: false
     - name: Stand-alone Metal binary archive probe
       run: python3 test/melonx_metal_binary_archive/run_probe.py
-    - uses: actions/upload-artifact@v4
+    - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       if: always()
       with:
         name: MeloNX-metal-archive-probe-${{ github.sha }}
@@ -55,7 +55,7 @@ jobs:
       with:
         path: .metal-archive/MoltenVK/External
         key: melonx-metal-archive-external-${{ hashFiles('build-utils/melonx/moltenvk-rebuild.json') }}-v1
-    - uses: actions/upload-artifact@v4
+    - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       if: always()
       with:
         name: MeloNX-metal-archive-mvk-${{ github.sha }}

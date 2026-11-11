@@ -56,7 +56,7 @@ jobs:
           python3 test/libretro_nestopia_skin_stability_probe.py \
             --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs" \
             --evidence evidence/nestopia-skins --label "$GITHUB_SHA"
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: nestopia-skin-stability-${{ github.sha }}
@@ -97,7 +97,7 @@ jobs:
           python3 test/libretro_nestopia_skin_stability_probe.py \
             --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs" \
             --evidence evidence/nestopia-asan --label "$GITHUB_SHA" --asan
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: nestopia-memory-sanitizers-${{ github.sha }}

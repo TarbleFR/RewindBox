@@ -85,7 +85,7 @@ jobs:
       run: |
         python3 test/libretro_simulator_probe.py run --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs" \
           --evidence evidence/this-commit --label "${GITHUB_SHA}"
-    - uses: actions/upload-artifact@v4
+    - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       if: always()
       with:
         name: libretro-simulator-probe-${{ github.sha }}
@@ -124,7 +124,7 @@ jobs:
       run: |
         python3 test/libretro_simulator_probe.py run --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs" \
           --lot1 --evidence evidence/lot1 --label "${GITHUB_SHA}"
-    - uses: actions/upload-artifact@v4
+    - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       if: always()
       with:
         name: libretro-simulator-lot1-${{ github.sha }}
@@ -159,7 +159,7 @@ jobs:
       run: |
         python3 test/libretro_simulator_probe.py run --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs" \
           --lot2 --evidence evidence/lot2 --label "${GITHUB_SHA}"
-    - uses: actions/upload-artifact@v4
+    - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       if: always()
       with:
         name: libretro-simulator-lot2-${{ github.sha }}
@@ -194,7 +194,7 @@ jobs:
       run: |
         python3 test/libretro_simulator_probe.py run --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs" \
           --beetle --evidence evidence/beetle --label "${GITHUB_SHA}"
-    - uses: actions/upload-artifact@v4
+    - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       if: always()
       with:
         name: libretro-simulator-beetle-${{ github.sha }}
@@ -232,7 +232,7 @@ jobs:
       run: |
         python3 test/libretro_simulator_probe.py run --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs" \
           --mesen --evidence evidence/mesen --label "${GITHUB_SHA}"
-    - uses: actions/upload-artifact@v4
+    - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       if: always()
       with:
         name: libretro-simulator-mesen-${{ github.sha }}
@@ -269,7 +269,7 @@ jobs:
         python3 test/libretro_simulator_probe.py run --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs" \
           --only shader-software shader-software-relaunch shader-vulkan shader-vulkan-relaunch \
           shader-desmume shader-desmume-relaunch --evidence evidence/shaders --label "${GITHUB_SHA}"
-    - uses: actions/upload-artifact@v4
+    - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       if: always()
       with:
         name: libretro-shader-session-probe-${{ github.sha }}
@@ -302,7 +302,7 @@ jobs:
         python3 test/libretro_simulator_probe.py run --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs" \
           --official-shaders --only official-software official-software-relaunch official-vulkan official-vulkan-relaunch \
           official-desmume official-desmume-relaunch --evidence evidence/official-shaders --label "${GITHUB_SHA}"
-    - uses: actions/upload-artifact@v4
+    - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       if: always()
       with:
         name: libretro-official-shader-session-probe-${{ github.sha }}
@@ -347,7 +347,7 @@ jobs:
           --sources "$RUNNER_TEMP/before-fix/packages/libretro_internal_bridge/ios" --only neovk-1 \
           --expect unfixed --evidence evidence/before-fix --label 940f114975c9ae4761b227e5efa9381ef9fa976e \
           --timeout 300
-    - uses: actions/upload-artifact@v4
+    - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       if: always()
       with:
         name: libretro-simulator-before-fix-${{ github.sha }}
@@ -396,7 +396,7 @@ jobs:
           --sources "$RUNNER_TEMP/before-reservation/packages/libretro_internal_bridge/ios" --only ppsspp-crowded \
           --expect unfixed --evidence evidence/before-reservation \
           --label 15a24516bf198f8f1dd43c300aadbbc7c313926c --timeout 300
-    - uses: actions/upload-artifact@v4
+    - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       if: always()
       with:
         name: libretro-simulator-before-reservation-${{ github.sha }}
