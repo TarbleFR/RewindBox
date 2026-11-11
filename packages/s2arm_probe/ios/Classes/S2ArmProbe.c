@@ -46,6 +46,9 @@ static struct {
     uint8_t *code_rw;  // writable alias of it
     uint8_t *arena;    // arena mode: one helper region of SPAN bytes
     uint8_t *arena_rw; // writable alias of it
+    uint8_t *mapped;         // mapped mode: slot whose code pages the process mapped itself
+    uint8_t *mapped_text_rw; // writable aliases of its text and patch pages
+    uint8_t *mapped_patch_rw;
 } g;
 
 static void say(const char *step, const char *status, const char *format, ...) {
@@ -222,7 +225,6 @@ static int reserve_window(void) {
 }
 
 static void probe_fixed(rb_s2arm_prepare_fn prepare) {
-    g.slot = (uint8_t *)(((uint64_t)g.window + SLOT_ALIGN + SLOT_ALIGN - 1) & ~(SLOT_ALIGN - 1));
     say("fixedData", "begin", "read-write pages at %p, %#llx bytes", (void *)g.slot, (unsigned long long)SPAN);
     if (mmap(g.slot, SPAN, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0) != g.slot) {
         say("fixedData", "failed", "%s", strerror(errno));
@@ -292,29 +294,41 @@ static void probe_arena(rb_s2arm_prepare_fn prepare) {
     g.modes |= RB_S2ARM_MODE_ARENA;
 }
 
-// Process-mapped executable memory handed to the helper. Noted as fatal on iOS 26 for the
-// old MeloNX probe, so it runs last and only on request.
-static void probe_self_mapped(rb_s2arm_prepare_fn prepare) {
-    struct { const char *name; int flags; } variants[] = {{"selfMapped", 0}, {"selfMappedJit", MAP_JIT}};
-    for (int i = 0; i < 2; i++) {
-        uint8_t *at = g.slot + (uint64_t)(2 + i) * SLOT_ALIGN;
-        say(variants[i].name, "begin", "mmap read-execute at %p", (void *)at);
-        void *mapped = mmap(at, PAGE, PROT_READ | PROT_EXEC, MAP_PRIVATE | MAP_ANON | MAP_FIXED | variants[i].flags, -1, 0);
-        if (mapped != at) {
-            say(variants[i].name, "failed", "mmap: %s", strerror(errno));
-            continue;
-        }
-        say(variants[i].name, "begin", "command 1 on %p", (void *)at);
-        uint64_t prepared = prepare((uint64_t)at, PAGE);
-        if (prepared != (uint64_t)at) {
-            say(variants[i].name, "failed", "the helper returned %#llx", (unsigned long long)prepared);
-            continue;
-        }
-        uint8_t *alias = writable_alias(variants[i].name, at, PAGE);
-        if (!alias) continue;
-        int ok = run_stub(variants[i].name, alias, at);
-        say(variants[i].name, ok ? "passed" : "failed", "process-mapped region at a chosen address");
+// The process maps read-execute pages itself at the chosen address, then hands each range to
+// the helper (command 1 with that address). This is what the RPCS3 Core of this app does for
+// its JIT arena, reported as observed on the maintainer's iPhone under iOS 27 beta; it runs
+// first because it is the one path with device evidence.
+static void probe_mapped(rb_s2arm_prepare_fn prepare) {
+    uint8_t *slot = g.slot + 2 * SLOT_ALIGN;
+    say("mappedData", "begin", "read-write pages at %p, %#llx bytes", (void *)slot, (unsigned long long)SPAN);
+    if (mmap(slot, SPAN, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0) != slot) {
+        say("mappedData", "failed", "%s", strerror(errno));
+        return;
     }
+    say("mappedData", "passed", "slot %p", (void *)slot);
+    struct { const char *name; uint64_t at, length; uint8_t **alias; } parts[] = {
+        {"text", 0, TEXT_LEN, &g.mapped_text_rw}, {"patch", PATCH_AT, PATCH_LEN, &g.mapped_patch_rw}};
+    for (int i = 0; i < 2; i++) {
+        uint8_t *at = slot + parts[i].at;
+        say("mappedCode", "begin", "%s: mmap read-execute at %p, %#llx bytes", parts[i].name, (void *)at, (unsigned long long)parts[i].length);
+        if (mmap(at, parts[i].length, PROT_READ | PROT_EXEC, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0) != at) {
+            say("mappedCode", "failed", "%s: mmap: %s", parts[i].name, strerror(errno));
+            return;
+        }
+        say("mappedCode", "begin", "%s: command 1 on %p", parts[i].name, (void *)at);
+        uint64_t prepared = prepare((uint64_t)at, parts[i].length);
+        if (prepared != (uint64_t)at) {
+            say("mappedCode", "failed", "%s: the helper returned %#llx", parts[i].name, (unsigned long long)prepared);
+            return;
+        }
+        say("mappedCode", "passed", "%s: prepared at %p", parts[i].name, (void *)at);
+        *parts[i].alias = writable_alias("mappedAlias", at, parts[i].length);
+        if (!*parts[i].alias) return;
+    }
+    if (!run_stub("mappedExecuteText", g.mapped_text_rw + TEXT_LEN - STUB_BACK, slot + TEXT_LEN - STUB_BACK)) return;
+    if (!run_stub("mappedExecutePatch", g.mapped_patch_rw + PATCH_LEN - STUB_BACK, slot + SPAN - STUB_BACK)) return;
+    g.mapped = slot;
+    g.modes |= RB_S2ARM_MODE_MAPPED;
 }
 
 int rb_s2arm_probe_attached(rb_s2arm_prepare_fn prepare, rb_s2arm_log_fn log, uint32_t flags) {
@@ -322,11 +336,16 @@ int rb_s2arm_probe_attached(rb_s2arm_prepare_fn prepare, rb_s2arm_log_fn log, ui
     g.log = log;
     say("phase1", "begin", "module sha256=%s span=%#llx text=%#llx patchAt=%#llx flags=%#x footprint=%.1f MiB", RB_S2ARM_SYNTH_SHA256,
         (unsigned long long)SPAN, (unsigned long long)TEXT_LEN, (unsigned long long)PATCH_AT, flags, footprint_mib());
-    if (reserve_window()) probe_fixed(prepare);
+    // Order: the path with device evidence first, the never-exercised remap last.
+    int window = reserve_window();
+    if (window) {
+        g.slot = (uint8_t *)(((uint64_t)g.window + SLOT_ALIGN + SLOT_ALIGN - 1) & ~(SLOT_ALIGN - 1));
+        probe_mapped(prepare);
+    }
     probe_arena(prepare);
-    if ((flags & RB_S2ARM_PROBE_SELF_MAPPED) && g.slot) probe_self_mapped(prepare);
-    say("phase1", g.modes ? "passed" : "failed", "modes fixed=%d arena=%d footprint=%.1f MiB", !!(g.modes & RB_S2ARM_MODE_FIXED),
-        !!(g.modes & RB_S2ARM_MODE_ARENA), footprint_mib());
+    if (window) probe_fixed(prepare);
+    say("phase1", g.modes ? "passed" : "failed", "modes mapped=%d fixed=%d arena=%d footprint=%.1f MiB", !!(g.modes & RB_S2ARM_MODE_MAPPED),
+        !!(g.modes & RB_S2ARM_MODE_FIXED), !!(g.modes & RB_S2ARM_MODE_ARENA), footprint_mib());
     return g.modes;
 }
 
@@ -473,14 +492,15 @@ static void release_window(void) {
     say("windowRelease", result ? "failed" : "passed", "errno=%d", result ? errno : 0);
     g.window = NULL;
     g.slot = NULL;
-    g.modes &= ~RB_S2ARM_MODE_FIXED;
+    g.mapped = NULL;
+    g.modes &= ~(RB_S2ARM_MODE_FIXED | RB_S2ARM_MODE_MAPPED);
 }
 
 int rb_s2arm_probe_detached(rb_s2arm_log_fn log) {
     if (!log || !g.log) return -1;
     g.log = log;
-    say("phase2", "begin", "modes fixed=%d arena=%d footprint=%.1f MiB", !!(g.modes & RB_S2ARM_MODE_FIXED), !!(g.modes & RB_S2ARM_MODE_ARENA),
-        footprint_mib());
+    say("phase2", "begin", "modes mapped=%d fixed=%d arena=%d footprint=%.1f MiB", !!(g.modes & RB_S2ARM_MODE_MAPPED),
+        !!(g.modes & RB_S2ARM_MODE_FIXED), !!(g.modes & RB_S2ARM_MODE_ARENA), footprint_mib());
     if (!g.modes) {
         say("phase2", "failed", "phase 1 found no way to place executable code");
         release_window();
@@ -491,19 +511,21 @@ int rb_s2arm_probe_detached(rb_s2arm_log_fn log) {
             say("phase2", "failed", "pthread_key_create");
             return 1;
         }
-    int fixed = -1, arena = -1;
+    int mapped = -1, fixed = -1, arena = -1;
+    if (g.modes & RB_S2ARM_MODE_MAPPED) mapped = run_module("mapped", g.mapped, g.mapped_text_rw, g.mapped_patch_rw);
     if (g.modes & RB_S2ARM_MODE_FIXED) fixed = run_module("fixed", g.slot, g.code_rw, g.code_rw + TEXT_LEN);
     if (g.modes & RB_S2ARM_MODE_ARENA) arena = run_module("arena", g.arena, g.arena_rw, g.arena_rw + PATCH_AT);
 
     // A new writable alias created after the detach (MeloNX never does this).
-    uint8_t *source = g.code ? g.code : g.arena;
+    uint8_t *source = g.mapped ? g.mapped : g.code ? g.code : g.arena;
     uint8_t *late = writable_alias("lateAlias", source, PAGE);
     if (late) run_stub("lateAliasExecute", late + PAGE - 2 * STUB_BACK, source + PAGE - 2 * STUB_BACK);
 
     release_window();
-    int ok = fixed == 1 || (fixed == -1 && arena == 1);
-    say("phase2", ok ? "passed" : "failed", "fixed=%d arena=%d (1 passed, 0 failed, -1 not available) footprint=%.1f MiB", fixed, arena,
-        footprint_mib());
+    // Passed = the module ran at a chosen address, or, when no such placement exists, in the arena.
+    int ok = mapped == 1 || fixed == 1 || (mapped == -1 && fixed == -1 && arena == 1);
+    say("phase2", ok ? "passed" : "failed", "mapped=%d fixed=%d arena=%d (1 passed, 0 failed, -1 not available) footprint=%.1f MiB", mapped,
+        fixed, arena, footprint_mib());
     return ok ? 0 : 1;
 }
 
@@ -521,7 +543,8 @@ static void release_window(void) {
     say("windowRelease", result ? "failed" : "passed", "errno=%d", result ? errno : 0);
     g.window = NULL;
     g.slot = NULL;
-    g.modes &= ~RB_S2ARM_MODE_FIXED;
+    g.mapped = NULL;
+    g.modes &= ~(RB_S2ARM_MODE_FIXED | RB_S2ARM_MODE_MAPPED);
 }
 
 int rb_s2arm_probe_detached(rb_s2arm_log_fn log) {

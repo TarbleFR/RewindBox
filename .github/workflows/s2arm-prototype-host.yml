@@ -93,19 +93,19 @@ jobs:
             tools/s2arm_prototype/device_probe_host_test.c "$classes/S2ArmProbe.c" "$classes/S2ArmProbeGate.S"
           set +e
           proof/device_probe_host_test 0 > proof/device-probe-host.txt 2>&1; status=$?
-          proof/device_probe_host_test 1 > proof/device-probe-host-selfmapped.txt 2>&1; risky=$?
           set -e
           cat proof/device-probe-host.txt
-          echo "== with process-mapped variants (informative, exit=$risky)"; cat proof/device-probe-host-selfmapped.txt
           test "$status" = 0
-          grep -q 'fixedRun passed signal=0 checks=16/16' proof/device-probe-host.txt
+          for mode in mapped fixed arena; do
+            grep -q "${mode}Run passed signal=0 checks=16/16" proof/device-probe-host.txt
+          done
           sdk=$(xcrun --sdk iphoneos --show-sdk-path)
           for source in S2ArmProbe.c S2ArmProbeGate.S S2ArmProbePlugin.m; do
             xcrun --sdk iphoneos clang -arch arm64 -miphoneos-version-min=17.4 -isysroot "$sdk" -fobjc-arc -Wall -Wextra -Werror \
               -I "$classes" -c "$classes/$source" -o "proof/ios-${source%.*}.o"
           done
           echo "iOS arm64 objects compiled"
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: s2arm-prototype-${{ runner.os }}-${{ github.sha }}

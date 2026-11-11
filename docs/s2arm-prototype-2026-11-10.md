@@ -106,6 +106,32 @@ Limits: macOS seals the code with `mprotect`, which the iPhone JIT forbids; x18 
 `tpidrro_el0` behaviour, signal delivery and address space on iOS are not covered. Questions
 A–F remain entirely open.
 
+## Existing device evidence from RPCS3 (reported by the main session, 11 Nov)
+
+Not measured by this prototype: the main session reports it from its private device logs
+(iPhone of the maintainer, "iOS Version 27.0", beta 24A5380h for IPA 674) and from reading
+the RPCS3 Core (`Utilities/JITIOS.cpp`, delta in `build-utils/rpcs3/embedded-core.patch`).
+
+- The RPCS3 Core takes a hole by `vm_allocate(VM_FLAGS_FIXED)`, then **maps read-execute
+  anonymous pages itself over it** (`mmap` with `MAP_FIXED`), and issues helper command 1 with
+  that address for each 16 MiB chunk; the reply must equal the address. The writable alias is a
+  `vm_remap` made after all commands 1 and before the detach.
+- Logged on device: code arena at about 5.28 GiB (IPA 662), about 482 GiB (IPA 676), and in
+  IPA 694 `universal_prepare_chunk … address=516469817344 … response=516469817344`,
+  `writable_alias_result … kern_return_t=0`, then PS3 games running their code from it after
+  the detach.
+- Address census of IPA 674 (iOS 27 beta): a free 64 GiB hole at `0x7000000000`, task maximum
+  `0x8000000000` (2^39), 538 MiB free below 64 GiB. The low window varies between launches:
+  no fixed address may be assumed.
+- One JIT transaction per process in RPCS3 as well.
+- Nothing measured under iOS 26.
+
+Consequence: questions A and B have a favourable precedent on iOS 27 beta for the
+process-mapped placement. The probe now runs that placement first (`mapped*` steps); the
+`vm_remap` placement (`fixed*`) and the single-arena placement (`arena*`) stay as
+comparisons. Still specific to S2Arm and unobserved: two small code ranges around data
+pages, the redirections and gates (D), a `brk` after the detach (E), memory (F).
+
 ## Step 3 — device probe (written, checked on the host, not yet in the app)
 
 `packages/s2arm_probe` (diagnostic only; no S2Arm source, no game content). The module it
@@ -122,9 +148,9 @@ This checks the probe's logic only.
 - **Lookup, no link dependency:** `NSClassFromString(@"S2ArmProbePlugin")`, then
   `+attachedFunction` and `+detachedFunction` return the two C functions declared in
   `packages/s2arm_probe/ios/Classes/S2ArmProbe.h`. Class absent: one journal line, nothing else.
-- **Trigger:** a diagnostic switch absent from the player path, chosen by the bridge owner
-  (proposal: an Info.plist boolean set only in the test IPA). A second switch passes
-  `RB_S2ARM_PROBE_SELF_MAPPED`; it is used only if the first journal asks for it.
+- **Trigger:** the Info.plist boolean `RewindBoxS2ArmProbe`, set only in a test IPA (hook
+  `d32738b5`, now in `Claude`, inert without the key). `RewindBoxS2ArmProbeMapped` is no longer
+  needed: the process-mapped placement always runs.
 - **Phase 1** `rb_s2arm_probe_attached(prepare, log, flags)`: after
   `MeloNXJitConfirmCoreLoadHandoff`, before `runtime.prepareJit()`. `prepare(address, length)`
   issues helper command 1 and returns x0. Calls made: `(0, 0x8000)` and `(0, 0x14000)`; with the
@@ -146,11 +172,12 @@ This checks the probe's logic only.
 | Question | Journal steps |
 | --- | --- |
 | A window below 2^39 | `holes` (largest hole), `window` (size obtained) |
-| B code at a chosen address | `helperRegion`, `fixedAlias`, `fixedExecuteText`, `fixedExecutePatch` |
+| B code at a chosen address, mapped by the process | `mappedData`, `mappedCode`, `mappedAlias`, `mappedExecuteText`, `mappedExecutePatch` |
+| B same, helper-allocated then remapped | `helperRegion`, `fixedAlias`, `fixedExecuteText`, `fixedExecutePatch` |
 | B fallback, one region with data inside | `arenaRegion`, `arenaDataProtect` or `arenaDataOverlay`, `arenaExecuteText/Patch` |
-| C write after detach | `fixedWrite` / `arenaWrite`, `lateAlias`, `lateAliasExecute` |
-| D redirections and gates | `fixedSlots`, `fixedRun` with `checks=16/16` (same for `arena`) |
-| E `brk` after detach | `brk=1` in `fixedRun` / `arenaRun` |
+| C write after detach | `mappedWrite` / `fixedWrite` / `arenaWrite`, `lateAlias`, `lateAliasExecute` |
+| D redirections and gates | `mappedSlots`, `mappedRun` with `checks=16/16` (same for `fixed`, `arena`) |
+| E `brk` after detach | `brk=1` in `mappedRun` / `fixedRun` / `arenaRun` |
 | F memory | `footprint` in `phase1` and `phase2` lines |
 
 A step with `begin` and no result is the step that ended the process.

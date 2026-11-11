@@ -3816,7 +3816,17 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     layout; optional tables (widescreen, frame rate, patches) left out on purpose.
   - Batches 5–6: owners' inputs in [the study](s2arm-study-2026-11-11.md) section 5. Shared
     playlist files belong to PR #172 until main integrates it; skins stay with session 02.
-- **Open or limit:** nothing measured on an iPhone; device questions A–F all open. Batch handed
+- **RPCS3 precedent (main's report, its private logs, iOS 27 beta only):** the RPCS3 Core maps
+  read-execute pages itself at a chosen address and has the helper prepare them, up to about
+  482 GiB, with a 64 GiB hole at `0x7000000000` and a 2^39 task maximum. Questions A and B thus
+  have a favourable precedent; the probe now runs that placement first (`mapped*`). D, E, F and
+  iOS 26 remain unobserved. [Detail](s2arm-prototype-2026-11-10.md).
+- **Integration inputs from main (11 Nov):** hook `d32738b5` is in `Claude` (inert without the
+  key); Core delivery = pinned run artifact verified by the IPA job (models:
+  `build-utils/rpcs3/core-pin.json`); workflows use the protected artifact upload (done on this
+  branch); notices prepared in [s2arm-legal-notices.md](s2arm-legal-notices.md), delivery
+  notice files untouched.
+- **Open or limit:** nothing of this prototype measured on an iPhone. Batch handed
   to main (11 Nov): both branches, the root `pubspec.yaml` lines and the Info.plist key of a test
   IPA are main's to add.
   Main received it and has not taken it: the maintainer asked it to hold new IPAs for the other

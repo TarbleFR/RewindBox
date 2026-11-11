@@ -15,11 +15,14 @@ typedef uint64_t (*rb_s2arm_prepare_fn)(uint64_t address, uint64_t length);
 typedef void (*rb_s2arm_log_fn)(const char *step, const char *status, const char *detail);
 
 enum {
-    RB_S2ARM_PROBE_SELF_MAPPED = 1u << 0, // also try process-mapped RX memory; may end the process
+    // Reserved. It used to gate the process-mapped placement, which now always runs: it is
+    // the placement the RPCS3 Core of this app already uses on device.
+    RB_S2ARM_PROBE_SELF_MAPPED = 1u << 0,
 };
 enum { // result bits of rb_s2arm_probe_attached
-    RB_S2ARM_MODE_FIXED = 1 << 0, // code runs at a chosen address inside the window
-    RB_S2ARM_MODE_ARENA = 1 << 1, // code and data share one helper-allocated region
+    RB_S2ARM_MODE_FIXED = 1 << 0,  // helper-allocated code mapped again at a chosen address (vm_remap)
+    RB_S2ARM_MODE_ARENA = 1 << 1,  // code and data share one helper-allocated region
+    RB_S2ARM_MODE_MAPPED = 1 << 2, // code pages mapped by the process at a chosen address, then prepared by the helper
 };
 
 // Phase 1: while the JIT helper is attached, before any detach. Never executes a brk.
