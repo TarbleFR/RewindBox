@@ -114,7 +114,7 @@ PLUGIN_IMAGES = {
     'dolphin_jit_helper': 'PlugIns/DolphinJITHelper.appex/DolphinJITHelper',
     'armsx2_jit_helper': 'PlugIns/ARMSX2JITHelper.appex/ARMSX2JITHelper',
 }
-COMPONENT_MODES = {'replace', 'retain', 'retain-archive', 'pinned-source', 'pinned-release'}
+COMPONENT_MODES = {'replace', 'retain', 'retain-archive', 'pinned-source', 'pinned-release', 'pinned-engine'}
 REPUBLISHED_KINDS = ('rpcs3-core', 'rpcs3-host-tests', 'melonx-core', 'dolphin', 'armsx2', 'libretro',
                      'melonx-dependencies')
 # The MeloNX Core verifier a manifest names (components.melonx.verifier); each owns its pin and contract.
@@ -125,6 +125,19 @@ MELONX_VERIFIERS = {
 }
 HEX40 = re.compile(r'[0-9a-f]{40}')
 HEX64 = re.compile(r'[0-9a-f]{64}')
+# Pinned engine components (components.<key>.mode == 'pinned-engine'; XeniaCore is the first). Closed allow-lists:
+# the verifier run on the artifact (`<verifier> verify <zip> --pin <pin>`), the scripts run on the embedded app, and
+# the pinned sources a side image (a binary the artifact never carries) may be fetched from.
+PINNED_ENGINE_VERIFIERS = ('build-utils/xenia/core_pin.py',)
+PINNED_ENGINE_CHECKS = ('build-utils/xenia/check_app_shader_converter.py',)
+PINNED_ENGINE_SIDE_SOURCES = ('build-utils/xenia/source.json#shader_converter.upstream_mirror',)
+PINNED_ENGINE_FIELDS = ('mode', 'pin', 'verifier', 'identityFile', 'frameworks', 'image', 'sideImages', 'extensions',
+                        'legalFolders', 'checks')
+# Optional, reserved for a second engine; accepted with these shapes and never read by the XeniaCore recipe:
+#   podLibraries: [non-empty name]            CocoaPods libraries the engine's host plugin links (validators)
+#   appResources: [{path, binary}]            data files shipped in the app root: app-relative path, key of pin binaries
+#   exportsList:  {image path: [symbol]}      exact exported symbols of an image (validators)
+PINNED_ENGINE_RESERVED = ('podLibraries', 'appResources', 'exportsList')
 
 
 def require(value, message):
@@ -435,6 +448,9 @@ def manifest_errors(value):
                   f'components.{key}.unchangedFromBase needs its image retained under images.retained.{key}, not replaced')
     check(value['components'].get('melonx', {}).get('verifier') in MELONX_VERIFIERS,
           'components.melonx.verifier must name a known MeloNX Core verifier')
+    for key, spec in value['components'].items():
+        if spec.get('mode') == 'pinned-engine':
+            errors.extend(engine_spec_errors(key, spec, value))
     for key in ('dolphin', 'armsx2'):
         check(value['components'].get(key, {}).get('mode') == 'retain', f'components.{key} must be retained')
     for key in ('libretro', 'melonx-dependencies'):
@@ -489,6 +505,93 @@ def manifest_errors(value):
         check(isinstance(value.get('frozen'), dict) and value['frozen'].get('inCI') is False, 'frozen record')
         for key in ('rpcs3', 'melonx'):
             check(HEX64.fullmatch(str(value['components'][key].get('pinSha256'))), f'frozen components.{key}.pinSha256')
+        for key in engine_components(value):
+            check(HEX64.fullmatch(str(value['components'][key].get('pinSha256'))), f'frozen components.{key}.pinSha256')
+    return errors
+
+
+def engine_components(manifest):
+    """{key: spec} of the pinned-engine components (empty for a manifest without that kind)."""
+    return {key: spec for key, spec in manifest['components'].items() if spec.get('mode') == 'pinned-engine'}
+
+
+def engine_producers(spec):
+    """{name: {workflow, branch?}} of a pinned engine: `producers`, or the single `producer` named 'engine'."""
+    if 'producers' in spec:
+        return spec['producers']
+    return {'engine': spec['producer']} if 'producer' in spec else {}
+
+
+def engine_spec_errors(key, spec, manifest):
+    errors = []
+    label = f'components.{key}'
+
+    def check(condition, message):
+        if not condition:
+            errors.append(f'{label}.{message}')
+
+    def text(value):
+        return isinstance(value, str) and bool(value)
+
+    def relative(value):
+        return text(value) and not value.startswith('/') and '..' not in value.split('/') and '\\' not in value
+
+    def texts(value):
+        return isinstance(value, list) and all(relative(item) for item in value)
+    for field in PINNED_ENGINE_FIELDS:
+        check(field in spec, f'{field} is required')
+    if 'pin' in spec:
+        check(relative(spec['pin']) and spec['pin'].endswith('.json'), 'pin must be a relative .json path')
+    check('pinSha256' not in spec or HEX64.fullmatch(str(spec['pinSha256'])), 'pinSha256 must be lowercase sha256 hex')
+    check(spec.get('verifier') in PINNED_ENGINE_VERIFIERS, 'verifier must be in PINNED_ENGINE_VERIFIERS')
+    check(relative(spec.get('identityFile')) and '/' not in str(spec.get('identityFile')),
+          'identityFile must be a file name at the app root')
+    frameworks = spec.get('frameworks')
+    check(texts(frameworks) and bool(frameworks) and all(
+        item.startswith('Frameworks/') and item.endswith('.framework') for item in frameworks),
+          'frameworks must be a non-empty list of Frameworks/<name>.framework')
+    check(relative(spec.get('image')) and any(
+        str(spec.get('image')).startswith(item + '/') for item in (frameworks if isinstance(frameworks, list) else ())),
+          'image must be inside one of the frameworks')
+    side = spec.get('sideImages')
+    check(isinstance(side, list) and all(
+        isinstance(item, dict) and set(item) == {'path', 'source'} and relative(item['path']) and
+        item['path'].startswith('Frameworks/') and item['source'] in PINNED_ENGINE_SIDE_SOURCES for item in side),
+          'sideImages must be [{path: Frameworks/..., source: one of PINNED_ENGINE_SIDE_SOURCES}]')
+    check(texts(spec.get('extensions')) and all(item.endswith('.appex') for item in spec.get('extensions') or ()),
+          'extensions must be a list of .appex names')
+    check(texts(spec.get('legalFolders')) and all(item.startswith('Legal/') for item in spec.get('legalFolders') or ()),
+          'legalFolders must be a list of Legal/... folders')
+    checks = spec.get('checks')
+    check(isinstance(checks, list) and all(item in PINNED_ENGINE_CHECKS for item in checks),
+          'checks must come from PINNED_ENGINE_CHECKS')
+    check(('producer' in spec) != ('producers' in spec), 'needs exactly one of producer or producers')
+    producers = engine_producers(spec)
+    check(isinstance(producers, dict) and bool(producers) and all(
+        text(name) and isinstance(item, dict) and set(item) <= {'workflow', 'branch'} and
+        relative(item.get('workflow')) and (item.get('branch') is None or text(item['branch']))
+        for name, item in producers.items()), 'producers must be {name: {workflow, branch?}}')
+    pods = spec.get('podLibraries')
+    check(pods is None or (isinstance(pods, list) and all(text(item) for item in pods)), 'podLibraries must be a list of names')
+    resources = spec.get('appResources')
+    check(resources is None or (isinstance(resources, list) and all(
+        isinstance(item, dict) and set(item) == {'path', 'binary'} and relative(item['path']) and text(item['binary'])
+        for item in resources)), 'appResources must be [{path, binary}]')
+    exports = spec.get('exportsList')
+    check(exports is None or (isinstance(exports, dict) and all(
+        relative(path) and isinstance(names, list) and all(text(n) for n in names) for path, names in exports.items())),
+          'exportsList must be {image path: [symbol]}')
+    images = manifest.get('images', {})
+    if spec.get('unchangedFromBase') is True:
+        held = set(images.get('retained', {}).get(key, []))
+        introduced = 'retained.' + key
+    else:
+        held = set(images.get('added', []))
+        introduced = 'added'
+    wanted = [spec.get('image')] + [item.get('path') for item in side if isinstance(item, dict)] \
+        if isinstance(side, list) else [spec.get('image')]
+    for image in wanted:
+        check(not isinstance(image, str) or image in held, f'image {image} must be listed in images.{introduced}')
     return errors
 
 

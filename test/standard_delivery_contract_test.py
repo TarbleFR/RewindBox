@@ -1165,6 +1165,114 @@ class UnchangedPinnedComponent(unittest.TestCase):
         self.assertFalse(sd.pinned_payload_rule(unchanged, 'melonx', 'a', 'b'))
 
 
+XENIA_PIN = 'build-utils/xenia/core-pin.json'
+XENIA_IMAGE = 'Frameworks/XeniaCore.framework/XeniaCore'
+XENIA_DYLIB = 'Frameworks/libmetalirconverter.dylib'
+XENIA_SOURCE = 'build-utils/xenia/source.json#shader_converter.upstream_mirror'
+
+
+def xenia_spec(**overrides):
+    spec = {
+        'mode': 'pinned-engine', 'pin': XENIA_PIN, 'pinSha256': 'a' * 64,
+        'verifier': 'build-utils/xenia/core_pin.py', 'identityFile': 'Xenia-native-identity.json',
+        'frameworks': ['Frameworks/XeniaCore.framework'], 'image': XENIA_IMAGE,
+        'sideImages': [{'path': XENIA_DYLIB, 'source': XENIA_SOURCE}],
+        'extensions': ['XeniaJITHelper.appex'],
+        'legalFolders': ['Legal/XeniOS', 'Legal/MetalShaderConverter'],
+        'checks': ['build-utils/xenia/check_app_shader_converter.py'],
+        'producers': {'engine': {'workflow': '.github/workflows/xenia-core.yml',
+                                 'branch': 'work/playlists-xenios-20261110'}},
+    }
+    spec.update(overrides)
+    return {k: v for k, v in spec.items() if v is not None}
+
+
+def xenia_manifest(**overrides):
+    """The frozen 726 manifest with a XeniaCore component that introduces its two images."""
+    value = copy.deepcopy(manifests()[726])
+    value['components']['xenia'] = xenia_spec(**overrides)
+    value['images']['added'] = list(value['images']['added']) + [XENIA_IMAGE, XENIA_DYLIB]
+    return value
+
+
+class PinnedEngineSchema(unittest.TestCase):
+    def errors(self, **overrides):
+        return sd.manifest_errors(xenia_manifest(**overrides))
+
+    def test_a_valid_xenia_component_is_accepted(self):
+        self.assertEqual(self.errors(), [])
+        self.assertEqual(self.errors(producers=None, producer={'workflow': '.github/workflows/xenia-core.yml'}), [])
+        self.assertIn('pinned-engine', sd.COMPONENT_MODES)
+        self.assertEqual(list(sd.engine_components(xenia_manifest())), ['xenia'])
+        # several producers, and the reserved optional fields of a second engine
+        two = {'engine': {'workflow': '.github/workflows/xenia-core.yml'}, 'second': {'workflow': 'a.yml', 'branch': 'x'}}
+        self.assertEqual(self.errors(producers=two, podLibraries=['Pod'], exportsList={XENIA_IMAGE: ['_a']},
+                                     appResources=[{'path': 'a.bin', 'binary': 'k'}]), [])
+
+    def test_the_closed_lists_hold_the_xenia_recipe(self):
+        self.assertEqual(sd.PINNED_ENGINE_VERIFIERS, ('build-utils/xenia/core_pin.py',))
+        self.assertEqual(sd.PINNED_ENGINE_CHECKS, ('build-utils/xenia/check_app_shader_converter.py',))
+        self.assertEqual(sd.PINNED_ENGINE_SIDE_SOURCES, (XENIA_SOURCE,))
+        for path in sd.PINNED_ENGINE_VERIFIERS + sd.PINNED_ENGINE_CHECKS:
+            self.assertTrue((ROOT / path).is_file(), path)
+
+    def test_refusals(self):
+        refused = {
+            'verifier': dict(verifier='build-utils/xenia/other.py'),
+            'check': dict(checks=['build-utils/xenia/other.py']),
+            'side source': dict(sideImages=[{'path': XENIA_DYLIB, 'source': 'build-utils/xenia/source.json#other'}]),
+            'side image shape': dict(sideImages=[{'path': XENIA_DYLIB}]),
+            'identity at a sub path': dict(identityFile='Legal/x.json'),
+            'framework': dict(frameworks=['XeniaCore.framework']),
+            'image outside the frameworks': dict(image='Frameworks/Other.framework/Other'),
+            'pin type': dict(pin=7), 'unsafe pin': dict(pin='../pin.json'),
+            'pinSha256 not hex': dict(pinSha256='xyz'),
+            'extensions type': dict(extensions='XeniaJITHelper.appex'),
+            'legal folder': dict(legalFolders=['Docs/XeniOS']),
+            'both producer forms': dict(producer={'workflow': 'w.yml'}),
+            'no producer': dict(producers=None),
+            'empty producers': dict(producers={}),
+            'producer key': dict(producers={'engine': {'workflow': 'w.yml', 'extra': 1}}),
+            'pods': dict(podLibraries='Pod'), 'resources': dict(appResources=[{'path': 'a'}]),
+            'exports': dict(exportsList={XENIA_IMAGE: 'x'}),
+        }
+        for name, overrides in refused.items():
+            self.assertTrue(self.errors(**overrides), name)
+        for field in sd.PINNED_ENGINE_FIELDS:
+            if field != 'mode':
+                self.assertTrue(self.errors(**{field: None}), 'missing ' + field)
+        value = xenia_manifest()
+        value['components']['xenia']['mode'] = 'pinned-enginee'
+        self.assertTrue(sd.manifest_errors(value))
+
+    def test_the_images_must_be_added(self):
+        for missing in (XENIA_IMAGE, XENIA_DYLIB):
+            value = xenia_manifest()
+            value['images']['added'].remove(missing)
+            self.assertTrue([e for e in sd.manifest_errors(value) if missing in e], missing)
+
+    def test_unchanged_engine_keeps_its_images_retained(self):
+        value = xenia_manifest(unchangedFromBase=True)
+        self.assertTrue([e for e in sd.manifest_errors(value) if 'images.retained.xenia' in e])
+        value['images']['retained']['xenia'] = [XENIA_IMAGE, XENIA_DYLIB]
+        self.assertEqual(sd.manifest_errors(value), [])
+
+    def test_frozen_needs_the_pin_digest(self):
+        value = xenia_manifest(pinSha256=None)
+        self.assertEqual(value['status'], 'frozen')
+        self.assertTrue([e for e in sd.manifest_errors(value) if 'pinSha256' in e])
+        draft = copy.deepcopy(value)
+        draft['status'] = 'draft'
+        self.assertFalse([e for e in sd.manifest_errors(draft) if 'xenia' in e])
+
+    def test_a_manifest_without_the_kind_is_what_it_was(self):
+        for build, manifest in manifests().items():
+            self.assertEqual(sd.engine_components(manifest), {}, build)
+        self.assertEqual(sd.manifest_errors(manifests()[726]), [])
+        self.assertEqual(sd.manifest_errors(xenia_manifest()), [])
+        self.assertEqual(sd.engine_producers({}), {})
+
+
 class EffectiveTree611(unittest.TestCase):
     def test_replay_of_the_build_history(self):
         _, manifest = current_manifest()
