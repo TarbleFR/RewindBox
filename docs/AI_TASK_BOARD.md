@@ -4222,24 +4222,20 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   data, RomFS index, package layout not ported.
 - **Who builds (11 Nov, per the authorization section):** main compiled A (725, delivered); this
   session compiles B (801) from this branch. The maintainer can correct this reading.
-- **IPA B = 801: attempt 1 failed, nothing built.** Source `0cade99d`, run 42985983425/1,
-  workflow `s2arm-delivery.yml`. preflight (contract with API), republish, flutter and native
-  (incl. the 8 legal-review negative controls): success. application 130407923269: failure at
-  the common step "Build canonical StikJIT from pinned sources", before any probe compile.
-- **Cause (read in the job log):** the StikJIT interface cache of `Claude` is not readable
-  from this branch (cache miss), so the from-source build runs (it passes) and then
-  `test/stikjit_unified_build_test.py:41` fails: `Runtime JIT changed:
-  packages/armsx2_internal_bridge/ios/Classes/Armsx2JitBridgePlugin.mm`. That file is the one
-  of 725 (blob `fcdc577c`); it differs from the test's reference `23825537` by 6 lines (the
-  debug log moved to `Documents/Diagnostics/PS2/`). Common-line latent defect on a cold cache;
-  not a file of this line, so not edited here. Reported to main with three options.
-- **Content of 801 (unchanged for the retry):** base 724 with the classification of the frozen
-  725 manifest; effective tree = 725's plus 10 probe files, `pubspec.yaml` and the collector
-  block of the source declaration review; Core pins unchanged (RPCS3 928, MeloNX 731).
-- **Still never run:** pod build of the probe in the application, the built-app probe check.
-- **Next:** main's decision on the StikJIT test; apply it as a reviewed change, refreeze, rerun,
-  follow to the end; then verify, compare the signed inventory with 725, give the IPA to the
-  maintainer, send main number/size/SHA-256, delete the private key.
+- **IPA B = 801 delivered to the maintainer (11 Nov), not yet observed on a device.** Source
+  `5f6af31a`, run 42990584090 attempt 1 (`s2arm-delivery.yml`): all five jobs success; tests
+  flutter and native fresh (incl. legal-review negative controls). IPA 272237184 bytes, SHA-256
+  `0b277b25…a6ab`, 90 images, `com.neogamelab.neostation`, version 0.0.8 (801),
+  `RewindBoxS2ArmProbe` = true, `RewindBoxS2ArmProbeMapped` absent. Verified offline after
+  download (`docs/evidence/rewind801/`); private key deleted. First request (run 42985983425)
+  stopped on the common StikJIT cold-cache test; main's fix `24a8246f` is a reviewed change.
+- **Content:** base 724 with the classification of the frozen 725 manifest; effective tree =
+  725's plus the probe files, `pubspec.yaml`, the source declaration review and that test fix.
+  Signed inventory against 725: App and 87 other images identical; Runner differs (probe
+  linked, symbols and class found); `dolphin_internal_bridge` differs with no Dolphin source
+  change (the linker-stub variation seen in 720 and 725; not compared section by section here).
+- **Next:** the maintainer's device run (iOS 26+, launch a Switch game first, send
+  `MeloNX-launch.log`); analyse the `s2armProbe.*` lines. Nothing about the probe is observed yet.
 
 ### Codex orchestration — Codex
 
