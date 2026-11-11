@@ -369,13 +369,16 @@ public:
 			sync(ptimer);
 			if (forced_passes.load() != before) nested_calls += 100; // the nested call must not work
 		}
+		// Counted before the pages are released: a guest thread that finds its page released
+		// (wait_result::released) also finds the pass. Counted after, an RSX thread preempted
+		// between the two let a check read 0 (Apple host, Core 932 rerun 1).
+		forced_passes++;
 		{
 			std::scoped_lock lock(m_pages_mutex);
 			for (auto& block : m_locked_pages)
 				for (auto& entry : block)
 					entry.second.refs = 0;
 		}
-		forced_passes++;
 	}
 
 	// RSX thread, read_report(): on_report_enqueued locks the page.

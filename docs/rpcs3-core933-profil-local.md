@@ -4,8 +4,11 @@ Demande du mainteneur (chantier urgent du 11 novembre 2026, transmis par Codex, 
 RPCS3, les corrections iOS et le comportement observé, et **garder pour les lancements suivants les décisions validées pour un
 jeu sur cet appareil**, en partageant une correction par mécanisme plutôt que par liste de titres.
 
-**Niveau de preuve.** Écrit et testé sur hôte (Linux, g++, ASan/UBSan). Pas encore compilé pour iOS au moment de ce dossier ;
-rien n'a été exécuté sur un iPhone ; aucun gain d'images par seconde, d'énergie ou de mémoire n'est annoncé.
+**Niveau de preuve.** Écrit et testé sur hôte (Linux, g++, ASan/UBSan). **Compilé pour iOS** par la CI : source `cab3606b`,
+demande `bbef3768`, run `43077626247`, travail iPhone vert. Artefact `13884331357` (zip `98a5f3a8…`, 30 567 592 octets),
+bibliothèque `fb1d3f0f…`, 81 096 000 octets, identité `rpcs3-ios-core933`, ABI 30. Le binaire contient
+`Resolved title policy 933`, `COREPROF LOCALPROFILE933`, l'en-tête `rewindbox-local-profile 1` et le chemin `local_profiles/`.
+Rien n'a été exécuté sur un iPhone ; aucun gain d'images par seconde, d'énergie ou de mémoire n'est annoncé.
 
 Moteur : branche `core933-resolver` (base Core 932 `94354ea`), commits :
 - `c798c82`, le profil et la règle ;
