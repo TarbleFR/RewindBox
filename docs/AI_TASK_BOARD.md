@@ -3878,6 +3878,14 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       reviewed later work (`4700d445`, the Switch skin path `8e2f4bd1`, `6ddc96fd`, `65a9e633`). Historical as it
       stands; to re-scope to presence checks or retire with the controller's owner. `65a9e633` (the Swift name of the
       skin interaction call) is in this branch through the merges.
+    - **Integration (main, 11 Nov 04:18):** IPA 725 carries Core 731, not 727 (merge `840c3fb5` of `e3620e88`, compile
+      run 42958274015 queued; fallback Core 729; Core 727 only with the four-part MoltenVK). Reason given to main: with
+      the five-part MoltenVK main's data is a fraction of the 792 MiB file, and Core 727's growth rule counts from the
+      file's size, so nothing would be checkpointed in play or at a pause (only at a normal close). Main's question on
+      `SaveCache` answered from the 731 preparation: the four writes of the main cache hold `_mainCacheLock` (play and
+      pause checkpoints, the compaction at the load, `MergeAndSave`); the data is flushed with `view.Flush()` (msync)
+      before the rename, no fsync of the descriptor or directory: a process kill cannot leave a torn file under the
+      final name, a system crash can at worst lose the rename. Unchanged.
     - **Next action:** main integrates Core 731 with the five-part MoltenVK and the bridge head; the device run of the
       [protocol](evidence/melonx-731-gates/device-protocol.md) (two sessions, nothing deleted). Then, by what `hw=`,
       `pc=`, `vm=` and the memory breakdown say: the guest threads' scheduling class, the memory still held, or the
