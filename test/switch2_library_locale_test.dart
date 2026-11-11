@@ -23,6 +23,9 @@ void main() {
       expect(entry.value['preparing'], contains('{name}'), reason: entry.key);
       expect(entry.value['imported'], contains('{count}'), reason: entry.key);
       expect(entry.value['duplicates'], contains('{count}'), reason: entry.key);
+      expect(entry.value['deleteConfirm'], contains('{name}'), reason: entry.key);
+      expect(entry.value['deleteConfirmLinked'], contains('{name}'), reason: entry.key);
+      expect(entry.value['deleted'], contains('{name}'), reason: entry.key);
     }
   });
 

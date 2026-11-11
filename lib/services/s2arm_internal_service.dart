@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'package:neostation/l10n/s2arm_engine_locale.dart';
 import 'storage/storage_import_activity.dart';
+import 'switch2_export_content.dart';
 import 'storage/storage_stat_ffi.dart';
 
 /// Why the embedded Switch 2 engine cannot run, shown as a reason in the Consoles tab.
@@ -138,6 +139,7 @@ abstract final class S2ArmInternalService {
           ));
         }
       } else if (call.method == 'sessionEnded') {
+        _sessionRunning = false;
         _sessionEvents.add(S2ArmSessionEvent((arguments['code'] as num?)?.toInt() ?? 0, arguments['reason']?.toString() ?? ''));
       }
       return null;
@@ -458,6 +460,15 @@ abstract final class S2ArmInternalService {
 
   static bool _launching = false;
 
+  /// True from a successful launch until the native `sessionEnded` event.
+  static bool _sessionRunning = false;
+
+  /// A game is being prepared, launched or running: its files must not be deleted.
+  static bool get busy => _preparing || _launching || _sessionRunning;
+
+  @visibleForTesting
+  static set sessionRunningForTesting(bool value) => _sessionRunning = value;
+
   /// Launches the game at [exportFolder], preparing it first when its engine files are not ready. [pairingFilePath] is the
   /// stored JIT pairing file. Reports success only when the engine configured and started.
   static Future<S2ArmLaunchOutcome> launch(
@@ -484,7 +495,10 @@ abstract final class S2ArmInternalService {
         'docs': prepared['docs'],
         'pairingFilePath': pairingFilePath,
       });
-      if (report?['success'] == true) return const S2ArmLaunchOutcome.success();
+      if (report?['success'] == true) {
+        _sessionRunning = true;
+        return const S2ArmLaunchOutcome.success();
+      }
       return S2ArmLaunchOutcome.failure((report?['error'] ?? 'launchFailed').toString(), report?['diagnostic']?.toString());
     } on MissingPluginException {
       return const S2ArmLaunchOutcome.failure('unavailable');
@@ -494,4 +508,76 @@ abstract final class S2ArmInternalService {
       _launching = false;
     }
   }
+
+  // ---------------- delete ----------------
+
+  /// The app's private `Library` folder, where the native host keeps `S2Arm/<gid>`.
+  @visibleForTesting
+  static Future<Directory> Function() libraryDirectory = getLibraryDirectory;
+
+  static final RegExp _gidPattern = RegExp(r'^[0-9A-Fa-f]{16}$');
+
+  /// Whether the export of library entry [romPath] is inside RewindBox's own `Documents/S2Arm/Games`.
+  static Future<bool> isInsideGames(String romPath) async {
+    final games = path.normalize((await gamesDirectory()).path);
+    return path.isWithin(games, path.normalize(Switch2ExportContent.exportFolder(romPath)));
+  }
+
+  /// Deletes the Switch 2 game whose library entry is [romPath] (`<export>/base/exefs/main.npdm`).
+  /// - refused with [S2ArmDeleteException] `deleteBusy` while a game is preparing, launching or running;
+  /// - the game's prepared data `Library/S2Arm/<gid>` is deleted except `docs` (saves are kept);
+  /// - the export folder is deleted only when it is inside RewindBox's own `Documents/S2Arm/Games`; a user-linked
+  ///   export elsewhere is left untouched on disk.
+  /// Returns true when the export folder was deleted. The caller removes the database row and media.
+  static Future<bool> deleteGame(String romPath) async {
+    if (busy) throw const S2ArmDeleteException('deleteBusy');
+    final target = path.normalize(Switch2ExportContent.exportFolder(romPath));
+    final inside = await isInsideGames(romPath);
+    // The gid comes from the export itself, so the prepared data is removed before the export.
+    String? gid;
+    if (await Directory(target).exists()) {
+      final detected = await detectExport(target);
+      final value = detected['gid']?.toString();
+      if (detected['success'] == true && value != null && _gidPattern.hasMatch(value)) gid = value;
+    }
+    if (gid != null) await _deletePrepared(gid);
+    if (!inside) return false;
+    if (await FileSystemEntity.isLink(target)) {
+      await Link(target).delete();
+      return true;
+    }
+    final directory = Directory(target);
+    if (await directory.exists()) await directory.delete(recursive: true);
+    return true;
+  }
+
+  /// Everything in `Library/S2Arm/<gid>` except `docs`, which holds the saves.
+  static Future<void> _deletePrepared(String gid) async {
+    final Directory library;
+    try {
+      library = await libraryDirectory();
+    } on UnsupportedError {
+      return;
+    } on MissingPluginException {
+      return;
+    }
+    final prepared = Directory(path.join(library.path, 'S2Arm', gid));
+    if (!await prepared.exists()) return;
+    await for (final entry in prepared.list(followLinks: false)) {
+      if (path.basename(entry.path) == 'docs') continue;
+      if (entry is Directory) {
+        await entry.delete(recursive: true);
+      } else {
+        await entry.delete();
+      }
+    }
+  }
+}
+
+/// A refused or failed Switch 2 game deletion; [code] is a Switch2LibraryLocale key.
+class S2ArmDeleteException implements Exception {
+  const S2ArmDeleteException(this.code);
+  final String code;
+  @override
+  String toString() => code;
 }

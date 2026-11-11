@@ -272,6 +272,11 @@ class NeoAssetsProvider extends ChangeNotifier {
 
   /// Synchronous variant for resolving background paths.
   /// Preserves WebP/GIF precedence, then falls back to cached video media.
+  ///
+  /// A downloaded pack rarely covers every system (no Switch 2 art in most
+  /// of them). Rather than an empty card, a system the active pack lacks
+  /// shows its default image: the one of RewindBox Glacier, the pack
+  /// embedded in the app and installed at launch. "None" keeps no art.
   String? getBackgroundForSystemSync(String systemFolderName) {
     if (!hasActiveTheme) return null;
     final image = NeoAssetsService.resolveBackgroundPathSync(
@@ -280,10 +285,24 @@ class NeoAssetsProvider extends ChangeNotifier {
     );
     if (image != null && File(image).existsSync()) return image;
 
-    return _resolveCachedVideoBackgroundSync(
-          _activeThemeFolder,
-          systemFolderName,
-        ) ??
-        image;
+    final video = _resolveCachedVideoBackgroundSync(
+      _activeThemeFolder,
+      systemFolderName,
+    );
+    if (video != null) return video;
+
+    return defaultBackgroundForSystemSync(systemFolderName) ?? image;
+  }
+
+  /// The embedded pack's image for [systemFolderName] (its aliases
+  /// included), or null when it has none or is not installed yet.
+  String? defaultBackgroundForSystemSync(String systemFolderName) {
+    if (BundledSystemArt.isBundled(_activeThemeFolder)) return null;
+    final fallback = NeoAssetsService.resolveBackgroundPathSync(
+      BundledSystemArt.folder,
+      systemFolderName,
+    );
+    if (fallback == null || !File(fallback).existsSync()) return null;
+    return fallback;
   }
 }
