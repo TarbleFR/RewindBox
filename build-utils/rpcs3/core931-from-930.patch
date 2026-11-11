@@ -993,7 +993,7 @@ index 816a766..0a8017b 100644
  	ios_experimental_log.notice("Resolved title policy 920: lever_comparison=%s park_spin_alternates=%d busy_wait_alternates=%d",
  		g_cfg.ios_experimental.lever_comparison.get() == ios_experimental_mode::enabled ? "requested" : "off",
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index 6471755..af7211f 100644
+index 6471755..4f25ccf 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
 @@ -49,6 +49,10 @@
@@ -1007,17 +1007,18 @@ index 6471755..af7211f 100644
  #include "util/asm.hpp" // REWINDBOX_BUSY_WAIT_REFERENCE_918: utils::arm_timer_scale
  #include "IOSCapture912.h"
  #include "IOSZcullLabelPage.h" // REWINDBOX_ZCULL_LABEL_PAGE_624
-@@ -91,6 +95,9 @@
+@@ -91,6 +95,10 @@
  
  #ifdef __APPLE__
  #include <mach/mach.h>
++#include <mach/mach_time.h> // REWINDBOX_ENERGY_931: mach_timebase_info
 +#include <dlfcn.h>
 +#include <sys/resource.h>
 +#include <unistd.h>
  #endif
  
  #ifdef RPCS3_IOS
-@@ -244,6 +251,64 @@ task_events_sample sample_task_events()
+@@ -244,6 +252,64 @@ task_events_sample sample_task_events()
  	return sample;
  }
  
@@ -1082,7 +1083,7 @@ index 6471755..af7211f 100644
  u64 process_memory_footprint()
  {
  #ifdef __APPLE__
-@@ -2519,6 +2584,41 @@ private:
+@@ -2519,6 +2585,41 @@ private:
  			m_task_events_window = profile_window;
  		}
  
@@ -1124,7 +1125,7 @@ index 6471755..af7211f 100644
  		// REWINDBOX_PARK_SPIN_COMPARE_917 and REWINDBOX_BUSY_WAIT_REFERENCE_918 (ios/IOSWriterParkSpin917.h): this
  		// window was reported above with the levers it ran with (RANGELOCKPROF park_spin=, SCHED918 busy_wait_scale=);
  		// now the levers of the next one. Each lever alternates only when its own setting is Automatic.
-@@ -2526,13 +2626,19 @@ private:
+@@ -2526,13 +2627,19 @@ private:
  			namespace cmp = rpcs3::ios::writer_park::compare;
  			const bool spin_allowed = cmp::allowed.load(std::memory_order_relaxed);
  			const bool busy_allowed = cmp::busy_wait_allowed.load(std::memory_order_relaxed);
@@ -1145,7 +1146,7 @@ index 6471755..af7211f 100644
  #ifdef ARCH_ARM64
  				const u64 scale_this_window = utils::arm_timer_scale.load(std::memory_order_relaxed);
  				const u64 scale_next_window = !busy_allowed ? scale_this_window : cmp::busy_wait_at(next_step) ? cmp::busy_wait_scale_on.load(std::memory_order_relaxed) : 1;
-@@ -2556,7 +2662,7 @@ private:
+@@ -2556,7 +2663,7 @@ private:
  						"this_window_busy_wait_scale=%u next_window_busy_wait_scale=%u compared=%s storm=%u lead=%u period=%u rest=%u bound=%llu",
  						profile_session, profile_window, ios_putllc_heavy_window, m_park_compare.windows, m_park_compare.decided_cycle, cmp::cycles, next_step, cmp::compared,
  						spin_this_window ? 1u : 0u, spin_next_window ? 1u : 0u, static_cast<u32>(scale_this_window), static_cast<u32>(scale_next_window),
@@ -1154,7 +1155,7 @@ index 6471755..af7211f 100644
  						cmp::lead, cmp::period, cmp::rest, cmp::bound_heavy);
  				}
  			}
-@@ -2580,6 +2686,9 @@ private:
+@@ -2580,6 +2687,9 @@ private:
      task_events_sample m_task_events; // REWINDBOX_BUSY_WAIT_REFERENCE_918: the counts at the previous report, report thread only
      u64 m_task_events_session = ~0ull;
      u64 m_task_events_window = 0;
@@ -1164,7 +1165,7 @@ index 6471755..af7211f 100644
      // REWINDBOX_FREEZE_EPISODE_621: sampler thread only.
      rpcs3::ios::freeze_episode::tracker m_freeze_episode;
      u64 m_freeze_session = 0;
-@@ -2827,6 +2936,9 @@ void record_range_lock_episode(u64 wait_ticks, u64 iterations) noexcept
+@@ -2827,6 +2937,9 @@ void record_range_lock_episode(u64 wait_ticks, u64 iterations) noexcept
  
  void record_writer_lock(u32 source, u64 acquire_ticks, u64 hold_ticks) noexcept
  {

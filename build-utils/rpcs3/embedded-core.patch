@@ -141440,10 +141440,10 @@ index 0000000..cee4f58
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d800542..af7211f 100644
+index d800542..4f25ccf 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
-@@ -1,26 +1,313 @@
+@@ -1,26 +1,314 @@
  #include "stdafx.h"
 +#include "ios/NeoSwapStorage/FrameClient.h"
 +#include "RPCS3IOSWriterCounters.h"
@@ -141541,6 +141541,7 @@ index d800542..af7211f 100644
  
  #ifdef __APPLE__
  #include <mach/mach.h>
++#include <mach/mach_time.h> // REWINDBOX_ENERGY_931: mach_timebase_info
 +#include <dlfcn.h>
 +#include <sys/resource.h>
 +#include <unistd.h>
@@ -141757,7 +141758,7 @@ index d800542..af7211f 100644
  
  u64 process_memory_footprint()
  {
-@@ -38,31 +325,564 @@ u64 process_memory_footprint()
+@@ -38,31 +326,564 @@ u64 process_memory_footprint()
  #endif
  }
  
@@ -142332,7 +142333,7 @@ index d800542..af7211f 100644
  		{
  			return RPCS3_IOS_INVALID_ARGUMENT;
  		}
-@@ -72,10 +892,10 @@ public:
+@@ -72,10 +893,10 @@ public:
  
  		std::lock_guard lock(m_sample_mutex);
  		const auto now = sample_clock::now();
@@ -142345,7 +142346,7 @@ index d800542..af7211f 100644
  		result.cpu_usage_percent = std::clamp(m_cpu_stats.get_usage(), 0.0, 100.0);
  		result.valid_fields |= RPCS3_IOS_PERFORMANCE_CPU_VALID;
  
-@@ -108,12 +928,1777 @@ public:
+@@ -108,12 +929,1777 @@ public:
  			result.valid_fields |= RPCS3_IOS_PERFORMANCE_MEMORY_VALID;
  		}
  
@@ -144125,7 +144126,7 @@ index d800542..af7211f 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +2706,93 @@ private:
+@@ -121,6 +2707,93 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -144219,7 +144220,7 @@ index d800542..af7211f 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +2800,93 @@ performance_registry g_performance_registry;
+@@ -128,6 +2801,93 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -144313,7 +144314,7 @@ index d800542..af7211f 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +2897,131 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +2898,131 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -144445,7 +144446,7 @@ index d800542..af7211f 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +3031,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +3032,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  

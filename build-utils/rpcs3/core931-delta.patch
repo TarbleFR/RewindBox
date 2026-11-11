@@ -106269,7 +106269,7 @@ index 094a672..cee4f58 100644
  	// scale: (cycles / 100) * scale ticks (rpcs3/util/asm.hpp).
  	constexpr std::uint64_t arm64_busy_wait_nanoseconds(std::uint64_t cycles, std::uint64_t cntfrq, std::uint64_t scale) noexcept
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index 08e293e..af7211f 100644
+index 08e293e..4f25ccf 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
 @@ -5,6 +5,7 @@
@@ -106336,10 +106336,11 @@ index 08e293e..af7211f 100644
  
  // NEOSTATION_BUILD258_CORE_ARCHITECTURE_V1
  // NEOSTATION_BUILD258_RUNTIME_RESILIENCE_V1
-@@ -63,10 +95,14 @@
+@@ -63,10 +95,15 @@
  
  #ifdef __APPLE__
  #include <mach/mach.h>
++#include <mach/mach_time.h> // REWINDBOX_ENERGY_931: mach_timebase_info
 +#include <dlfcn.h>
 +#include <sys/resource.h>
 +#include <unistd.h>
@@ -106351,7 +106352,7 @@ index 08e293e..af7211f 100644
  #include <malloc/malloc.h>
  #include <os/proc.h>
  #include <sys/sysctl.h>
-@@ -188,6 +224,91 @@ thread_usage_sample sample_core_threads()
+@@ -188,6 +225,91 @@ thread_usage_sample sample_core_threads()
  	return result;
  }
  
@@ -106443,7 +106444,7 @@ index 08e293e..af7211f 100644
  u64 process_memory_footprint()
  {
  #ifdef __APPLE__
-@@ -204,6 +325,36 @@ u64 process_memory_footprint()
+@@ -204,6 +326,36 @@ u64 process_memory_footprint()
  #endif
  }
  
@@ -106480,7 +106481,7 @@ index 08e293e..af7211f 100644
  rpcs3::ios::diagnostics::ProcessMemorySample sample_process_memory()
  {
      rpcs3::ios::diagnostics::ProcessMemorySample sample;
-@@ -430,7 +581,8 @@ public:
+@@ -430,7 +582,8 @@ public:
  		m_profile_session.fetch_add(1, std::memory_order_relaxed);
  		rpcs3::ios::frame_trace::profile.reset(m_profile_session.load(std::memory_order_relaxed));
  		rpcs3::ios::renderer_causality::profile.reset(m_profile_session.load(std::memory_order_relaxed));
@@ -106490,7 +106491,7 @@ index 08e293e..af7211f 100644
  		m_last_signal_dump_us = 0;
  		m_profile_guest_baseline = 0;
  		m_last_guest_flip_tsc.store(0, std::memory_order_relaxed);
-@@ -496,6 +648,7 @@ public:
+@@ -496,6 +649,7 @@ public:
  
  	void record_pipeline_job_queued(u32 pending_jobs) noexcept
  	{
@@ -106498,7 +106499,7 @@ index 08e293e..af7211f 100644
  		m_pipeline_queued.fetch_add(1, std::memory_order_relaxed);
  		u32 peak = m_pipeline_peak_pending.load(std::memory_order_relaxed);
  		while (peak < pending_jobs && !m_pipeline_peak_pending.compare_exchange_weak(
-@@ -506,6 +659,7 @@ public:
+@@ -506,6 +660,7 @@ public:
  
  	void record_pipeline_job_completed(u64 queue_wait_ticks, u64 compile_ticks) noexcept
  	{
@@ -106506,7 +106507,7 @@ index 08e293e..af7211f 100644
  		m_event_costs[0].record(queue_wait_ticks);
  		m_event_costs[1].record(compile_ticks);
  		m_pipeline_completed.fetch_add(1, std::memory_order_relaxed);
-@@ -617,9 +771,13 @@ public:
+@@ -617,9 +772,13 @@ public:
  		}
  	}
  
@@ -106522,7 +106523,7 @@ index 08e293e..af7211f 100644
  		m_event_costs[4].record(wait_microseconds);
  		m_rsx_semaphore_waits.fetch_add(1, std::memory_order_relaxed);
  		m_rsx_semaphore_wait_us.fetch_add(wait_microseconds, std::memory_order_relaxed);
-@@ -844,6 +1002,11 @@ private:
+@@ -844,6 +1003,11 @@ private:
  				report = now >= m_next_report;
  			}
  
@@ -106534,7 +106535,7 @@ index 08e293e..af7211f 100644
  			if (report)
  			{
  				report_profile_window();
-@@ -851,9 +1014,107 @@ private:
+@@ -851,9 +1015,107 @@ private:
  		}
  	}
  
@@ -106642,7 +106643,7 @@ index 08e293e..af7211f 100644
  		const u64 frequency = utils::get_tsc_freq();
  		std::array<double, core_group_count> average_cores{};
  		std::array<double, core_group_count> average_threads{};
-@@ -874,6 +1135,8 @@ private:
+@@ -874,6 +1136,8 @@ private:
          double seconds_without_frames = 0.0;
          rpcs3::ios::diagnostics::GuestFrameWindow::Sample guest_frames;
          rpcs3::ios::frame_trace::Profile::Snapshot frame_causes;
@@ -106651,7 +106652,7 @@ index 08e293e..af7211f 100644
          rpcs3::ios::renderer_causality::Profile::Snapshot renderer_causes;
          rpcs3::ios::signal_trace::summary_result signal_summary;
          rpcs3::ios::signal_trace::snapshot_result signal_snapshot;
-@@ -897,6 +1160,8 @@ private:
+@@ -897,6 +1161,8 @@ private:
              profile_window = ++m_report_window;
              guest_frames = m_guest_frame_window.take();
              frame_causes = rpcs3::ios::frame_trace::profile.take();
@@ -106660,7 +106661,7 @@ index 08e293e..af7211f 100644
              renderer_causes = rpcs3::ios::renderer_causality::profile.take();
              signal_report_us = get_system_time();
              signal_summary = rpcs3::ios::signal_trace::summary();
-@@ -997,6 +1262,21 @@ private:
+@@ -997,6 +1263,21 @@ private:
              guest_frames.p95_us / 1000.0, guest_frames.p99_us / 1000.0, guest_frames.maximum_us / 1000.0,
              guest_frames.over_50ms, guest_frames.over_100ms, guest_frames.total_us / 1000.0, elapsed_ms, frame_histogram.empty() ? "none" : frame_histogram,
              guest_window_flips, guest_progress.wall_guest_fps, guest_progress.completed_interval_fps, guest_progress.last_guest_flip_age_ms);
@@ -106682,7 +106683,7 @@ index 08e293e..af7211f 100644
          {
              const u64 anchor_before = utils::get_tsc();
              const u64 anchor_us = static_cast<u64>(std::chrono::duration_cast<std::chrono::microseconds>(
-@@ -1018,12 +1298,29 @@ private:
+@@ -1018,12 +1299,29 @@ private:
                  const auto wait_ms = [&](u64 ticks) {
                      return rpcs3::ios::frame_trace::microseconds(ticks, frame.frequency) / 1000.0;
                  };
@@ -106713,7 +106714,7 @@ index 08e293e..af7211f 100644
                      frame.session, profile_window, frame.frame, frame.begin_ticks, frame.end_ticks, frame.frequency,
                      frame.interval_available ? 1u : 0u, frame.interval_us / 1000.0,
                      frame.stages_sampled ? 1u : 0u, frame.forced ? 1u : 0u, frame.draws, frame.submits,
-@@ -1035,9 +1332,61 @@ private:
+@@ -1035,9 +1333,61 @@ private:
                      frame.stages_sampled ? frame.flip_us / 1000.0 : -1.0,
                      wait_ms(frame.waits.fence_ticks), wait_ms(frame.waits.submit_ticks),
                      wait_ms(frame.waits.drawable_ticks), wait_ms(frame.waits.present_ticks),
@@ -106776,7 +106777,7 @@ index 08e293e..af7211f 100644
          report_renderer_causes(renderer_causes, profile_session, profile_window);
          report_signal_causes(signal_summary, signal_dump ? &signal_snapshot : nullptr,
              profile_session, profile_window, signal_report_us);
-@@ -1161,6 +1510,21 @@ private:
+@@ -1161,6 +1511,21 @@ private:
              costs[4].count, costs[4].total / 1000.0, costs[4].maximum / 1000.0,
              costs[5].count, milliseconds(costs[5].total), milliseconds(costs[5].maximum),
              costs[6].count, milliseconds(costs[6].total), milliseconds(costs[6].maximum));
@@ -106798,7 +106799,7 @@ index 08e293e..af7211f 100644
          // REWINDBOX_COMPILE_PRESSURE_V1 / REWINDBOX_FENCE_WAIT_V1: draw-blocking
          // pipeline builds, SPU polls that waited passively meanwhile, and GPU
          // fence waits finished within the bounded spin or blocked in MoltenVK.
-@@ -1206,6 +1570,201 @@ private:
+@@ -1206,6 +1571,201 @@ private:
                  static_cast<unsigned long long>(sync::metal_compiles_interactive.exchange(0, std::memory_order_relaxed)),
                  static_cast<unsigned long long>(sync::metal_compiles_default.exchange(0, std::memory_order_relaxed)));
          }
@@ -107000,7 +107001,7 @@ index 08e293e..af7211f 100644
          // REWINDBOX_RSX_FRAME_PROFILE_V1: RPCS3's own per-frame RSX statistics;
          // stage times are averages over the sampled frames of the window.
          {
-@@ -1229,8 +1788,9 @@ private:
+@@ -1229,8 +1789,9 @@ private:
                  vc_requests, vc_misses, lookups, elided, idles, rpcs3::ios::rsx_sync::rsx_frame_sample_period);
          }
          // REWINDBOX_FEEDBACK_CENSUS_610: color-feedback work of the window. Per-frame
@@ -107012,7 +107013,7 @@ index 08e293e..af7211f 100644
          {
              namespace census = rpcs3::ios::feedback_census;
              auto& c = census::counters;
-@@ -1242,10 +1802,190 @@ private:
+@@ -1242,10 +1803,190 @@ private:
              ios_core_profiler.notice(
                  "COREPROF FEEDBACK610 session=%llu window=%llu draw_renderpasses=%llu snapshot_draws=%llu snapshot_copies=%llu "
                  "duplicate_copies=%llu snapshot_mpix=%.3f pb_draws=%llu msaa_feedback_reads=%llu depth_feedback_reads=%llu "
@@ -107204,7 +107205,7 @@ index 08e293e..af7211f 100644
          // REWINDBOX_SPU_WAIT_PROFILE_V1: SPU time outside guest code, summed over
          // the SPU threads (deltas of monotonic per-thread totals).
          {
-@@ -1258,14 +1998,20 @@ private:
+@@ -1258,14 +1999,20 @@ private:
                  d[i] = now_totals[i] >= s_previous[i] ? now_totals[i] - s_previous[i] : 0;
              }
              s_previous = now_totals;
@@ -107227,7 +107228,7 @@ index 08e293e..af7211f 100644
          }
          // CELL555_READBACK_EXPORT: fixed five origins, one bounded line per window.
          {
-@@ -1281,6 +2027,14 @@ private:
+@@ -1281,6 +2028,14 @@ private:
              }
              ios_core_profiler.notice("%s scope=process_window_all_threads parent_includes_gpu_fence=1 bytes_scope=confirmed_requested_not_dma_payload window_boundary_approximate=1", line);
          }
@@ -107242,7 +107243,7 @@ index 08e293e..af7211f 100644
          // CELL559_OPT_EXPORT: work the 559 paths avoided in this window, one bounded line.
          {
              namespace overwrite = rpcs3::ios::full_overwrite;
-@@ -1296,6 +2050,39 @@ private:
+@@ -1296,6 +2051,39 @@ private:
                  validation::epoch_enabled.load(std::memory_order_relaxed) ? 1u : 0u,
                  validation::epoch_skips.exchange(0, std::memory_order_relaxed), validation::epoch_skip_bytes.exchange(0, std::memory_order_relaxed),
                  validation::epoch_bumps.exchange(0, std::memory_order_relaxed));
@@ -107282,7 +107283,7 @@ index 08e293e..af7211f 100644
          }
          // CELL581_TEXTURE_PREHASH: RSX validations served by the worker and its work, one bounded line.
          {
-@@ -1315,9 +2102,11 @@ private:
+@@ -1315,9 +2103,11 @@ private:
          {
              namespace prehash = rpcs3::ios::texture_prehash;
              ios_core_profiler.notice("COREPROF OPT583 session=%llu window=%llu worker_passed=%llu worker_refills=%llu "
@@ -107296,7 +107297,7 @@ index 08e293e..af7211f 100644
          }
          // CELL560_OPT_EXPORT: framebuffer commits that skipped the GPU wait and what
          // became of their bytes in this window, one bounded line.
-@@ -1339,32 +2128,80 @@ private:
+@@ -1339,32 +2129,80 @@ private:
          // frame had used its budget, one bounded line.
          {
              namespace early = rpcs3::ios::early_submit;
@@ -107387,7 +107388,7 @@ index 08e293e..af7211f 100644
          }
          const auto& mem = memory_window.latest;
          const auto& peak = memory_window.peak;
-@@ -1376,6 +2213,14 @@ private:
+@@ -1376,6 +2214,14 @@ private:
              profile_session, profile_window, memory_window.samples, mem.valid ? 1u : 0u,
              mem.footprint, mem.resident, mem.compressed, mem.virtual_bytes,
              peak.footprint, peak.resident, peak.compressed, peak.virtual_bytes);
@@ -107402,7 +107403,7 @@ index 08e293e..af7211f 100644
          ios_core_profiler.notice(
              "COREPROF JITPUB527 session=%llu window=%llu calls=%llu empty_calls=%llu deferred_calls=%llu history_ranges=%llu dirty_ranges=%llu "
              "flushed_bytes=%llu total_ms=%.3f max_ms=%.3f retained_metadata_bytes=%llu peak_metadata_bytes=%llu "
-@@ -1383,6 +2228,18 @@ private:
+@@ -1383,6 +2229,18 @@ private:
              profile_session, profile_window, publication.calls, publication.empty_calls, publication.deferred_calls, publication.history_ranges, publication.dirty_ranges,
              publication.flushed_bytes, milliseconds(publication.ticks), milliseconds(publication.max_ticks),
              publication.retained_metadata_bytes, publication.peak_metadata_bytes);
@@ -107421,7 +107422,7 @@ index 08e293e..af7211f 100644
  
  		// NEOSTATION_BUILD481_SPU_OBJECT_CACHE_V1: obj_* fields of the persistent
  		// SPU object cache (counts per window; bytes of loaded/written objects).
-@@ -1413,11 +2270,30 @@ private:
+@@ -1413,11 +2271,30 @@ private:
  		// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (D7): wl_<source>_max_hold_us is the
  		// longest single hold of the window next to the sums, in microseconds.
  		const auto microseconds = [frequency](u64 ticks) { return rpcs3::ios::profiler::ticks_to_us(ticks, frequency); };
@@ -107453,7 +107454,7 @@ index 08e293e..af7211f 100644
  			profile_session, range.count, milliseconds(range.ticks), milliseconds(range.maximum_ticks),
  			range_iterations_max, range_blocker_sum, range_blocker_max,
  			writer_count[0], milliseconds(writer_acquire[0]), milliseconds(writer_hold[0]),
-@@ -1427,7 +2303,10 @@ private:
+@@ -1427,7 +2304,10 @@ private:
  			writer_count[4], milliseconds(writer_acquire[4]), milliseconds(writer_hold[4]),
  			writer_avoided[1], writer_avoided[3],
  			microseconds(writer_hold_max[0]), microseconds(writer_hold_max[1]), microseconds(writer_hold_max[2]),
@@ -107465,7 +107466,7 @@ index 08e293e..af7211f 100644
  
  		// NEOSTATION_BUILD444_JIT_PHASE_PROFILE_V1: name=events:total_ms:max_ms:bytes
  		// per LLVM phase, exclusive of nested phases; headroom_min_mib is the
-@@ -1522,6 +2401,10 @@ private:
+@@ -1522,6 +2402,10 @@ private:
  		const u64 window_frames = current_frames > frame_baseline ? current_frames - frame_baseline : 0;
  		if (!window_frames && Emu.GetStatus(false) == system_state::stopped)
  		{
@@ -107476,7 +107477,7 @@ index 08e293e..af7211f 100644
  			return;
  		}
  
-@@ -1612,9 +2495,14 @@ private:
+@@ -1612,9 +2496,14 @@ private:
  		const u64 rsx_window_elapsed_us = m_rsx_window_elapsed_us.exchange(0, std::memory_order_relaxed);
  		const u64 rsx_window_idle_us = m_rsx_window_idle_us.exchange(0, std::memory_order_relaxed);
  		const double rsx_fifo_busy = rpcs3::ios::profiler::rsx_fifo_busy_percent(rsx_window_elapsed_us, rsx_window_idle_us);
@@ -107493,7 +107494,7 @@ index 08e293e..af7211f 100644
  		ios_core_profiler.notice(
  			"COREPROF frames=%llu avg_fps=%.3f low1_fps=%.3f frametime_ms=%.3f p95_ms=%.3f p99_ms=%.3f "
  			"ppu_ms=%.3f spu_ms=%.3f rsx_ms=%.3f jit_ms=%.3f gpu_time_ms=-1 "
-@@ -1643,21 +2531,167 @@ private:
+@@ -1643,21 +2532,167 @@ private:
  			group_cores(core_group::jit), group_cores(core_group::other),
  			compile_threads, compile_cores, average_threads[static_cast<usz>(core_group::other)],
  			rsx_fifo_busy, rsx_main_cores, top_list, guest_progress.wall_guest_fps, guest_progress.last_guest_flip_age_ms);
@@ -107669,7 +107670,7 @@ index 08e293e..af7211f 100644
      u64 m_last_signal_dump_us = 0; // guarded by m_profile_mutex
      rpcs3::ios::diagnostics::GuestFrameWindow m_guest_frame_window;
      rpcs3::ios::diagnostics::ProcessMemoryWindow m_process_memory;
-@@ -1902,6 +2936,9 @@ void record_range_lock_episode(u64 wait_ticks, u64 iterations) noexcept
+@@ -1902,6 +2937,9 @@ void record_range_lock_episode(u64 wait_ticks, u64 iterations) noexcept
  
  void record_writer_lock(u32 source, u64 acquire_ticks, u64 hold_ticks) noexcept
  {
@@ -107679,7 +107680,7 @@ index 08e293e..af7211f 100644
  	g_performance_registry.record_writer_lock(source, acquire_ticks, hold_ticks);
  }
  
-@@ -1945,9 +2982,9 @@ void record_vram_allocation(bool allocated, u64 bytes) noexcept
+@@ -1945,9 +2983,9 @@ void record_vram_allocation(bool allocated, u64 bytes) noexcept
  	g_performance_registry.record_vram_allocation(allocated, bytes);
  }
  

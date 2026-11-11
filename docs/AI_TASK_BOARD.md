@@ -2174,8 +2174,17 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
             - 931 lines moved out of 921's hunk context.
             - Gate observers of 927/928 are byte-identical.
             - The sharded fields read like the old atomics.
-          - Package: canonical 08348801 (467 postimages), delta 07be0337, build 931, identity rpcs3-ios-core931; increment
-            core931-from-930.patch (cf048393).
+          - Package (request 1, source 5cd7ca83): canonical 08348801 (467 postimages), delta 07be0337, build 931, identity
+            rpcs3-ios-core931; increment core931-from-930.patch (cf048393).
+          - **Compile request 1 (fa363abf, run 43030700177) failed at the iOS syntax gate.** `RPCS3IOSPerformance.cpp:259`:
+            `mach_timebase_info_data_t` unknown; `<mach/mach_time.h>` was missing in the Apple-only ENERGY931 code. The host
+            cannot compile that code. These were the only errors among the 47 units. Fixed in engine `605901a` (one
+            include).
+          - The Apple ARM64 host harness job of the same run was green, 15 commands. Core 931 thermal: 71 checks, six controls,
+            with `arm64: 1`, so the LDAXR/WFE/CLREX path ran on Apple silicon (macOS runner VM; its wake latency is not the
+            iPhone's).
+          - Request 2 package: canonical e121254c (467 postimages), delta 29299716. Every local check passed again: closure,
+            feature tests 923-931, codegen, fold, route, analyzer, pin, guards, and the driver (1476 s).
           - Validation (host Linux, g++), all green:
             - closure;
             - feature tests 923 to 931 (931: 71 checks, six controls caught);

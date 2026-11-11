@@ -5,7 +5,7 @@
   "upstream_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
   "base_canonical_patch_sha256": "a63b964354acb157f99fa9ba4787e18e19faf2473eb90b5710134bf9a88cdaaf",
   "patch": "build-utils/rpcs3/core931-delta.patch",
-  "patch_sha256": "07be03378fc324490abfdf4f9654e3cd76eb4d6bbd629dc93991c84c3828d048",
+  "patch_sha256": "2929971698ba7a49aa792ccdb438b55c8d15118b41af62f7ee2f1f78c44074f5",
   "abi_version": 30,
   "abi_version_changed": false,
   "exports_added": [
@@ -328,7 +328,7 @@
     "rpcs3/ios/RPCS3IOSFreezeDump.h": "956f41413196d4361ba2438fdf43ded0884f918060145e77129524a66d82e9f0",
     "rpcs3/ios/RPCS3IOSFreezeEpisode.h": "990e1dd5e890723b35d9654d6d74de3897b3ef9a2df4534e144ebd3e03b7d4ba",
     "rpcs3/ios/RPCS3IOSLeverHelpers.h": "8ce7969c2d47a3ef2ff47d38219c67b7a9b4293cdc82e85ffe1f1b81b647917f",
-    "rpcs3/ios/RPCS3IOSPerformance.cpp": "d212bc094ccfa35729d88a806ee9d971d79888b09fcccee9f1524b44cee8094d",
+    "rpcs3/ios/RPCS3IOSPerformance.cpp": "c907a3c9d3fafd5c8f45c47932b36c678a66d17eeee2461eac5cb7c9463be0b8",
     "rpcs3/ios/RPCS3IOSPerformance.h": "9594e4eb93371a9cc53e5f664c091836cd3e3527909b92c31bea937a1b8fbcfc",
     "rpcs3/ios/RPCS3IOSPlatform.mm": "5dcc9b1c91c37f26197cbd723d567542386668959aee839a670f0b7802688815",
     "rpcs3/ios/RPCS3IOSProfilerHelpers.h": "939b3d79c7940d36a9e8bbae3cfb68ff5aefc6e84f151134231f834d17ee274b",
@@ -671,7 +671,7 @@
   "iphone_validation_run": false,
   "increment_from_core930": {
     "patch": "build-utils/rpcs3/core931-from-930.patch",
-    "patch_sha256": "cf048393b68f1157c4eb497f1b5dc2cc7b3d6ccf82d442f9d890b7e3c6fe3cba",
+    "patch_sha256": "b0843e56b3ebc4405c39528ff2d3bfb19890b4611963db82d8d3c8f8783143fc",
     "insertions_only": false,
     "removed_lines": 33,
     "files": 15,
@@ -699,7 +699,7 @@
       "rpcs3/ios/IOSWriterLockRecord931.h": "3852644ce016c4b4c2cc676f1935d206f225d2343bb51c6c1959343afbbe8aa7",
       "rpcs3/ios/IOSWriterParkSpin917.h": "81a46e763203761c67bda8cd8679d61d63b1793ebda292c5c507742b0b8118d9",
       "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "b7de788af050454513cdbb523baf78ef09b4fe61717b82fe7aa8d571bcee7e26",
-      "rpcs3/ios/RPCS3IOSPerformance.cpp": "d212bc094ccfa35729d88a806ee9d971d79888b09fcccee9f1524b44cee8094d",
+      "rpcs3/ios/RPCS3IOSPerformance.cpp": "c907a3c9d3fafd5c8f45c47932b36c678a66d17eeee2461eac5cb7c9463be0b8",
       "rpcs3/ios/RPCS3IOSPlatform.mm": "5dcc9b1c91c37f26197cbd723d567542386668959aee839a670f0b7802688815",
       "rpcs3/ios/RPCS3IOSSettings.cpp": "22ba942622f4e247c79ddf80be6e0b1b7cc66f9e796e24829eab62c45b968f38"
     },
