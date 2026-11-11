@@ -25,7 +25,7 @@ jobs:
           set -euo pipefail
           test "$(gh release view 0.0.8 --json isDraft --jq .isDraft)" = true
           gh release upload 0.0.8 release-output/*
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: RewindBox-0.0.8-release-evidence
           path: |

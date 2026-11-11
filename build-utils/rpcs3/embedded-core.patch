@@ -69455,10 +69455,10 @@ index e11a275..353f459 100644
  	{
 diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
 new file mode 100644
-index 0000000..aba9151
+index 0000000..23ddd61
 --- /dev/null
 +++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
-@@ -0,0 +1,179 @@
+@@ -0,0 +1,186 @@
 +# CELL591: the exact reviewed JITLLVM change clears a stack ObjectCache on
 +# recoverable failure; SPULLVM drops finalized IR after obtaining native code.
 +# Neither changes object emission, relocations or the callable ABI.
@@ -69571,6 +69571,13 @@ index 0000000..aba9151
 +    # objects call the same host function. Same effective hash, exact snapshot.
 +    elseif(source STREQUAL "Cell/SPUThread.cpp" AND
 +           actual STREQUAL "28b20cc80a3974315ed0eb3797733b7c56e6ca8c6f26cf01c587021b5b196a23")
++        set(${output} "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4" PARENT_SCOPE)
++    # REWINDBOX_GATE_BEFORE_LINE_924: SPUThread.cpp changes in the host body of do_putllc() only (the
++    # deferral to a starving PPU is made before the line is locked, through ios/IOSPassiveLockGate.h)
++    # and adds that one include. No emitter, helper signature, SPU layout or relocation target changes:
++    # the objects call the same host function. Same effective hash, exact snapshot.
++    elseif(source STREQUAL "Cell/SPUThread.cpp" AND
++           actual STREQUAL "8cc8b519ea4fc31b3e0b4b1cf7cfd75f83dd9602e0c141aca0d495f18f0ed6b6")
 +        set(${output} "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4" PARENT_SCOPE)
 +    # CELL559: compile() builds the LLVM analysis managers and the function pass
 +    # pipeline only when no cached object is linked. A miss runs the same passes
@@ -79428,10 +79435,10 @@ index faf4082..d08c480 100644
  	// Interpreter table (spu_itype -> ptr)
  	static std::array<u64, 256> g_interpreter_table;
 diff --git a/rpcs3/Emu/Cell/SPUThread.cpp b/rpcs3/Emu/Cell/SPUThread.cpp
-index bc9ec5e..2f7c20c 100644
+index bc9ec5e..98a7cd0 100644
 --- a/rpcs3/Emu/Cell/SPUThread.cpp
 +++ b/rpcs3/Emu/Cell/SPUThread.cpp
-@@ -25,11 +25,23 @@
+@@ -25,11 +25,24 @@
  
  #include <unordered_set>
  
@@ -79449,13 +79456,14 @@ index bc9ec5e..2f7c20c 100644
 +#include "ios/IOSSpuNoopSpin.h"
 +#include "ios/IOSCapture912.h"
 +#include "ios/IOSSpursRelaxedStore.h" // REWINDBOX_SPURS_RELAXED_STORE_916
++#include "ios/IOSPassiveLockGate.h" // REWINDBOX_GATE_BEFORE_LINE_924
  #ifdef ARCH_ARM64
  #include "Emu/CPU/Backends/AArch64/SPUReservationScan.h"
 +#include "Emu/CPU/Backends/AArch64/SPUReservationHash.h"
  #endif
  #endif
  
-@@ -309,6 +321,14 @@ extern bool cmp_rdata(const spu_rdata_t& _lhs, const spu_rdata_t& _rhs)
+@@ -309,6 +322,14 @@ extern bool cmp_rdata(const spu_rdata_t& _lhs, const spu_rdata_t& _rhs)
  #endif
  }
  
@@ -79470,7 +79478,7 @@ index bc9ec5e..2f7c20c 100644
  #if defined(ARCH_X64)
  static FORCE_INLINE void mov_rdata_avx(__m256i* dst, const __m256i* src)
  {
-@@ -407,6 +427,26 @@ extern void mov_rdata(spu_rdata_t& _dst, const spu_rdata_t& _src)
+@@ -407,6 +428,26 @@ extern void mov_rdata(spu_rdata_t& _dst, const spu_rdata_t& _src)
  	_mm_storeu_si128(reinterpret_cast<__m128i*>(_dst + 80), v1);
  	_mm_storeu_si128(reinterpret_cast<__m128i*>(_dst + 96), v2);
  	_mm_storeu_si128(reinterpret_cast<__m128i*>(_dst + 112), v3);
@@ -79497,7 +79505,7 @@ index bc9ec5e..2f7c20c 100644
  #else
  	std::memcpy(_dst, _src, 128);
  #endif
-@@ -417,6 +457,9 @@ __forceinline
+@@ -417,6 +458,9 @@ __forceinline
  #endif
  extern u32 compute_rdata_hash32(const spu_rdata_t& _src)
  {
@@ -79507,7 +79515,7 @@ index bc9ec5e..2f7c20c 100644
  	const auto rhs = reinterpret_cast<const v128*>(_src);
  	const v128 a = gv_add32(rhs[0], rhs[1]);
  	const v128 c = gv_add32(rhs[4], rhs[5]);
-@@ -425,6 +468,7 @@ extern u32 compute_rdata_hash32(const spu_rdata_t& _src)
+@@ -425,6 +469,7 @@ extern u32 compute_rdata_hash32(const spu_rdata_t& _src)
  	const v128 r = gv_add32(gv_add32(a, b), gv_add32(c, d));
  	const v128 r1 = gv_add32(r, gv_shuffle32<1, 0, 3, 2>(r));
  	return r1._u32[0] + r1._u32[2];
@@ -79515,7 +79523,7 @@ index bc9ec5e..2f7c20c 100644
  }
  
  #if defined(ARCH_X64)
-@@ -491,6 +535,26 @@ extern void mov_rdata_nt(spu_rdata_t& _dst, const spu_rdata_t& _src)
+@@ -491,6 +536,26 @@ extern void mov_rdata_nt(spu_rdata_t& _dst, const spu_rdata_t& _src)
  	_mm_stream_si128(reinterpret_cast<__m128i*>(_dst + 80), v1);
  	_mm_stream_si128(reinterpret_cast<__m128i*>(_dst + 96), v2);
  	_mm_stream_si128(reinterpret_cast<__m128i*>(_dst + 112), v3);
@@ -79542,7 +79550,7 @@ index bc9ec5e..2f7c20c 100644
  #else
  	std::memcpy(_dst, _src, 128);
  #endif
-@@ -539,6 +603,12 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write);
+@@ -539,6 +604,12 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write);
  
  extern thread_local u64 g_tls_fault_spu;
  
@@ -79555,7 +79563,7 @@ index bc9ec5e..2f7c20c 100644
  const extern spu_decoder<spu_itype> g_spu_itype;
  const extern spu_decoder<spu_iflag> g_spu_iflag;
  
-@@ -549,14 +619,29 @@ namespace vm
+@@ -549,14 +620,29 @@ namespace vm
  	// Defined here for performance reasons
  	writer_lock::~writer_lock() noexcept
  	{
@@ -79589,7 +79597,7 @@ index bc9ec5e..2f7c20c 100644
  	}
  }
  
-@@ -661,6 +746,11 @@ std::array<u32, 2> op_branch_targets(u32 pc, spu_opcode_t op)
+@@ -661,6 +747,11 @@ std::array<u32, 2> op_branch_targets(u32 pc, spu_opcode_t op)
  		{
  			res[1] = umax;
  		}
@@ -79601,7 +79609,7 @@ index bc9ec5e..2f7c20c 100644
  
  		break;
  	}
-@@ -1352,6 +1442,7 @@ void spu_thread::cpu_init()
+@@ -1352,6 +1443,7 @@ void spu_thread::cpu_init()
  
  	ch_events.raw() = {};
  	interrupts_enabled = false;
@@ -79609,7 +79617,7 @@ index bc9ec5e..2f7c20c 100644
  	raddr = 0;
  
  	ch_dec_start_timestamp = get_timebased_time();
-@@ -1485,6 +1576,8 @@ extern thread_local std::string(*g_tls_log_prefix)();
+@@ -1485,6 +1577,8 @@ extern thread_local std::string(*g_tls_log_prefix)();
  
  void spu_thread::cpu_task()
  {
@@ -79618,7 +79626,7 @@ index bc9ec5e..2f7c20c 100644
  #ifdef __APPLE__
  	jit_write_protect(true);
  #endif
-@@ -1566,7 +1659,7 @@ void spu_thread::cpu_task()
+@@ -1566,7 +1660,7 @@ void spu_thread::cpu_task()
  		{
  			if (state) [[unlikely]]
  			{
@@ -79627,7 +79635,7 @@ index bc9ec5e..2f7c20c 100644
  					break;
  			}
  
-@@ -1586,6 +1679,7 @@ void spu_thread::cpu_task()
+@@ -1586,6 +1680,7 @@ void spu_thread::cpu_task()
  			}
  
  			spu_runtime::g_gateway(*this, _ptr<u8>(0), nullptr);
@@ -79635,7 +79643,7 @@ index bc9ec5e..2f7c20c 100644
  		}
  
  		if (unsavable && is_stopped(state - cpu_flag::stop))
-@@ -1632,7 +1726,10 @@ void spu_thread::cpu_work()
+@@ -1632,7 +1727,10 @@ void spu_thread::cpu_work()
  		return;
  	}
  
@@ -79647,7 +79655,7 @@ index bc9ec5e..2f7c20c 100644
  
  	bool work_left = false;
  
-@@ -1676,13 +1773,19 @@ void spu_thread::cpu_work()
+@@ -1676,13 +1774,19 @@ void spu_thread::cpu_work()
  
  	bool gen_interrupt = false;
  
@@ -79670,7 +79678,7 @@ index bc9ec5e..2f7c20c 100644
  			{
  				mask &= ~SPU_EVENT_LR;
  			}
-@@ -1691,7 +1794,16 @@ void spu_thread::cpu_work()
+@@ -1691,7 +1795,16 @@ void spu_thread::cpu_work()
  		}
  
  		gen_interrupt = check_mfc_interrupts(pc);
@@ -79688,7 +79696,7 @@ index bc9ec5e..2f7c20c 100644
  	}
  
  	in_cpu_work = false;
-@@ -1713,7 +1825,7 @@ void spu_thread::cpu_work()
+@@ -1713,7 +1826,7 @@ void spu_thread::cpu_work()
  		});
  	}
  
@@ -79697,7 +79705,7 @@ index bc9ec5e..2f7c20c 100644
  	{
  		// Interrupt! escape everything and restart execution
  		spu_runtime::g_escape(this);
-@@ -1738,6 +1850,7 @@ struct raw_spu_cleanup
+@@ -1738,6 +1851,7 @@ struct raw_spu_cleanup
  
  void spu_thread::cleanup()
  {
@@ -79705,7 +79713,7 @@ index bc9ec5e..2f7c20c 100644
  	// Deallocate local storage
  	ensure(vm::dealloc(vm_offset(), vm::spu, &shm));
  
-@@ -1941,6 +2054,13 @@ spu_thread::spu_thread(utils::serial& ar, lv2_spu_group* group)
+@@ -1941,6 +2055,13 @@ spu_thread::spu_thread(utils::serial& ar, lv2_spu_group* group)
  
  	serialize_common(ar);
  
@@ -79719,7 +79727,7 @@ index bc9ec5e..2f7c20c 100644
  	raddr = ::narrow<u32>(ar.pop<u64>());
  
  	if (raddr)
-@@ -2079,6 +2199,22 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
+@@ -2079,6 +2200,22 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
  
  	u32 eal = args.eal;
  	u32 lsa = args.lsa & 0x3ffff;
@@ -79742,7 +79750,7 @@ index bc9ec5e..2f7c20c 100644
  
  	// Keep src point to const
  	u8* dst = nullptr;
-@@ -2304,6 +2440,8 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
+@@ -2304,6 +2441,8 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
  				}
  				}
  
@@ -79751,7 +79759,7 @@ index bc9ec5e..2f7c20c 100644
  				if (time0 != vm::reservation_acquire(eal) || (size0 == 128 && !cmp_rdata(*reinterpret_cast<spu_rdata_t*>(dst0), *reinterpret_cast<const spu_rdata_t*>(src))))
  				{
  					continue;
-@@ -2340,7 +2478,9 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
+@@ -2340,7 +2479,9 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
  			}
  		}
  
@@ -79762,7 +79770,7 @@ index bc9ec5e..2f7c20c 100644
  		{
  			for (u32 size0, size = args.size;; size -= size0, dst += size0, src += size0, eal += size0)
  			{
-@@ -2535,6 +2675,9 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
+@@ -2535,6 +2676,9 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
  				std::memcpy(dump.data, is_get ? dst : src, std::min<u32>(args.size, 128));
  			}
  
@@ -79772,7 +79780,7 @@ index bc9ec5e..2f7c20c 100644
  			return;
  		}
  		else
-@@ -2747,6 +2890,9 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
+@@ -2747,6 +2891,9 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
  			std::memcpy(dump.data, is_get ? dst : src, std::min<u32>(args.size, 128));
  		}
  
@@ -79782,7 +79790,7 @@ index bc9ec5e..2f7c20c 100644
  		return;
  	}
  
-@@ -2823,6 +2969,9 @@ plain_access:
+@@ -2823,6 +2970,9 @@ plain_access:
  		dump.block_hash = _this->block_hash;
  		std::memcpy(dump.data, is_get ? dst : src, std::min<u32>(args.size, 128));
  	}
@@ -79792,7 +79800,7 @@ index bc9ec5e..2f7c20c 100644
  }
  
  bool spu_thread::do_dma_check(const spu_mfc_cmd& args)
-@@ -2878,6 +3027,13 @@ bool spu_thread::do_dma_check(const spu_mfc_cmd& args)
+@@ -2878,6 +3028,13 @@ bool spu_thread::do_dma_check(const spu_mfc_cmd& args)
  
  bool spu_thread::do_list_transfer(spu_mfc_cmd& args)
  {
@@ -79806,7 +79814,7 @@ index bc9ec5e..2f7c20c 100644
  	perf_meter<"MFC_LIST"_u64> perf0(nullptr);
  
  	// Amount of elements to fetch in one go
-@@ -3298,8 +3454,11 @@ bool spu_thread::do_list_transfer(spu_mfc_cmd& args)
+@@ -3298,8 +3455,11 @@ bool spu_thread::do_list_transfer(spu_mfc_cmd& args)
  			arg_lsa += utils::align<u32>(size, 16);
  		}
  		// Avoid inlining huge transfers because it intentionally drops range lock unlock
@@ -79819,7 +79827,7 @@ index bc9ec5e..2f7c20c 100644
  			if (addr >> 28 != rsx::constants::local_mem_base >> 28)
  			{
  				rsx_lock.update_if_enabled(addr, size, range_lock);
-@@ -3378,6 +3537,12 @@ bool spu_thread::do_list_transfer(spu_mfc_cmd& args)
+@@ -3378,6 +3538,12 @@ bool spu_thread::do_list_transfer(spu_mfc_cmd& args)
  			}
  			}
  
@@ -79832,7 +79840,7 @@ index bc9ec5e..2f7c20c 100644
  			arg_lsa += utils::align<u32>(size, 16);
  		}
  		else if (size)
-@@ -3439,6 +3604,26 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3439,6 +3605,26 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  
  	// Store conditionally
  	const u32 addr = args.eal & -128;
@@ -79859,7 +79867,7 @@ index bc9ec5e..2f7c20c 100644
  
  	if ([&]()
  	{
-@@ -3450,6 +3635,73 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3450,6 +3636,73 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  		}
  
  		const auto& to_write = _ref<spu_rdata_t>(args.lsa & 0x3ff80);
@@ -79933,7 +79941,7 @@ index bc9ec5e..2f7c20c 100644
  		auto& res = vm::reservation_acquire(addr);
  
  		// TODO: Limit scope!!
-@@ -3457,26 +3709,33 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3457,26 +3710,33 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  
  		if (rtime != res)
  		{
@@ -79980,7 +79988,7 @@ index bc9ec5e..2f7c20c 100644
  			{
  				raddr = 0; // Disable notification
  				return true;
-@@ -3488,7 +3747,13 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3488,7 +3748,17 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  		static const auto cast_as = [](void* ptr, usz pos){ return reinterpret_cast<u128*>(ptr) + pos; };
  		static const auto cast_as_const = [](const void* ptr, usz pos){ return reinterpret_cast<const u128*>(ptr) + pos; };
  
@@ -79991,11 +79999,15 @@ index bc9ec5e..2f7c20c 100644
 +#ifdef RPCS3_IOS
 +		// Resolve RSX readback before owning the line; fetch_op below revalidates rtime.
 +		if (accurate) utils::trigger_write_page_fault(vm::base(addr));
++
++		// REWINDBOX_GATE_BEFORE_LINE_924 (ios/IOSPassiveLockGate.h): the deferral to a starving PPU, or to the window
++		// it opened, is made here, before this line is locked; the writer lock below does not defer again.
++		const rpcs3::ios::passive_gate::ahead_scope ios_gate_ahead(accurate);
 +#endif
  
  		auto [_oldd, _ok] = res.fetch_op([&](u64& r)
  		{
-@@ -3503,29 +3768,107 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3503,29 +3773,107 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  
  		if (!_ok)
  		{
@@ -80105,7 +80117,7 @@ index bc9ec5e..2f7c20c 100644
  			vm::writer_lock lock(addr, range_lock);
  
  			if (cmp_rdata(rdata, super_data))
-@@ -3537,6 +3880,9 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3537,6 +3885,9 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  					{
  						return true;
  					}
@@ -80115,7 +80127,7 @@ index bc9ec5e..2f7c20c 100644
  				}
  				else
  				{
-@@ -3545,13 +3891,72 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3545,13 +3896,72 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  				}
  			}
  
@@ -80188,7 +80200,7 @@ index bc9ec5e..2f7c20c 100644
  		if (raddr)
  		{
  			if (raddr != spurs_addr || pc != 0x11e4)
-@@ -3579,6 +3984,10 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3579,6 +3989,10 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  	}
  	else
  	{
@@ -80199,7 +80211,7 @@ index bc9ec5e..2f7c20c 100644
  		if (raddr)
  		{
  			// Last check for event before we clear the reservation
-@@ -3631,7 +4040,7 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+@@ -3631,7 +4045,7 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
  
  			if (!(at_read_time & 127))
  			{
@@ -80208,7 +80220,7 @@ index bc9ec5e..2f7c20c 100644
  				{
  					// Write of the same data (verified atomically)
  					vm::try_reservation_update(addr);
-@@ -3640,6 +4049,19 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+@@ -3640,6 +4054,19 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
  			}
  		}
  
@@ -80228,7 +80240,7 @@ index bc9ec5e..2f7c20c 100644
  		for (u64 j = 0;; j++)
  		{
  			auto [_oldd, _ok] = res.fetch_op([&](u128& r)
-@@ -3714,8 +4136,11 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+@@ -3714,8 +4141,11 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
  		}
  		else
  		{
@@ -80242,7 +80254,7 @@ index bc9ec5e..2f7c20c 100644
  
  			// Hard lock
  			auto spu = cpu ? cpu->try_get<spu_thread>() : nullptr;
-@@ -3726,6 +4151,9 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+@@ -3726,6 +4156,9 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
  				cpu->state += cpu_flag::wait;
  			}
  
@@ -80252,7 +80264,7 @@ index bc9ec5e..2f7c20c 100644
  			vm::writer_lock lock(addr, spu ? spu->range_lock : nullptr);
  			mov_rdata(sdata, *static_cast<const spu_rdata_t*>(to_write));
  			vm::reservation_acquire(addr) += 32;
-@@ -3880,8 +4308,15 @@ bool spu_thread::do_mfc(bool can_escape, bool must_finish)
+@@ -3880,8 +4313,15 @@ bool spu_thread::do_mfc(bool can_escape, bool must_finish)
  	auto get_exec_mask = [&size = mfc_size]
  	{
  		// Get commands' execution mask
@@ -80270,7 +80282,7 @@ index bc9ec5e..2f7c20c 100644
  	};
  
  	// Process enqueued commands
-@@ -3941,8 +4376,9 @@ bool spu_thread::do_mfc(bool can_escape, bool must_finish)
+@@ -3941,8 +4381,9 @@ bool spu_thread::do_mfc(bool can_escape, bool must_finish)
  
  bool spu_thread::check_mfc_interrupts(u32 next_pc)
  {
@@ -80281,7 +80293,7 @@ index bc9ec5e..2f7c20c 100644
  		srr0 = next_pc;
  
  		// Test for BR/BRA instructions (they are equivalent at zero pc)
-@@ -4263,8 +4699,47 @@ u32 evaluate_spin_optimization(std::span<u8> stats, u64 evaluate_time, const cfg
+@@ -4263,8 +4704,47 @@ u32 evaluate_spin_optimization(std::span<u8> stats, u64 evaluate_time, const cfg
  	return busy_waiting_switch;
  }
  
@@ -80329,7 +80341,7 @@ index bc9ec5e..2f7c20c 100644
  	// Stall infinitely if MFC queue is full
  	while (mfc_size >= 16) [[unlikely]]
  	{
-@@ -4273,11 +4748,57 @@ bool spu_thread::process_mfc_cmd()
+@@ -4273,11 +4753,57 @@ bool spu_thread::process_mfc_cmd()
  
  		if (test_stopped())
  		{
@@ -80389,7 +80401,7 @@ index bc9ec5e..2f7c20c 100644
  
  		if (mfc_size < 16)
  		{
-@@ -4288,11 +4809,76 @@ bool spu_thread::process_mfc_cmd()
+@@ -4288,11 +4814,76 @@ bool spu_thread::process_mfc_cmd()
  
  		if (is_stopped(old))
  		{
@@ -80467,7 +80479,7 @@ index bc9ec5e..2f7c20c 100644
  
  	spu::scheduler::concurrent_execution_watchdog watchdog(*this);
  	spu_log.trace("DMAC: (%s)", ch_mfc_cmd);
-@@ -4306,6 +4892,25 @@ bool spu_thread::process_mfc_cmd()
+@@ -4306,6 +4897,25 @@ bool spu_thread::process_mfc_cmd()
  	{
  		perf_meter<"GETLLAR"_u64> perf0;
  
@@ -80493,7 +80505,7 @@ index bc9ec5e..2f7c20c 100644
  		const u32 addr = ch_mfc_cmd.eal & -128;
  		const auto& data = vm::_ref<spu_rdata_t>(addr);
  
-@@ -4315,7 +4920,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4315,7 +4925,7 @@ bool spu_thread::process_mfc_cmd()
  			spu_log.trace(u8"GETLLAR after fail: addr=0x%x, time=%u c", last_faddr, (perf0.get() - last_ftsc));
  		}
  
@@ -80502,7 +80514,7 @@ index bc9ec5e..2f7c20c 100644
  		{
  			rtime = last_ftime;
  			raddr = last_faddr;
-@@ -4355,8 +4960,14 @@ bool spu_thread::process_mfc_cmd()
+@@ -4355,8 +4965,14 @@ bool spu_thread::process_mfc_cmd()
  					// Need to check twice for it to be accurate, the code is before and not after this check for:
  					// 1. Reduce time between reservation accesses so TSX panelty would be lowered
  					// 2. Increase the chance of change detection: if GETLLAR has been called again new data is probably wanted
@@ -80518,7 +80530,7 @@ index bc9ec5e..2f7c20c 100644
  						if (this_time != rtime)
  						{
  							// Reservation was lost but the data itself remains unchanged so try to ignore it
-@@ -4367,7 +4978,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4367,7 +4983,7 @@ bool spu_thread::process_mfc_cmd()
  						if ([&]() -> bool
  						{
  							// Validation that it is indeed GETLLAR spinning (large time window is intentional)
@@ -80527,7 +80539,7 @@ index bc9ec5e..2f7c20c 100644
  							{
  								// Seemingly not
  								getllar_busy_waiting_switch = umax;
-@@ -4441,7 +5052,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4441,7 +5057,7 @@ bool spu_thread::process_mfc_cmd()
  								}
  							}
  							// Don't be stubborn, force operating sleep if too much time has passed
@@ -80536,7 +80548,7 @@ index bc9ec5e..2f7c20c 100644
  							{
  								// Hidden value to force busy waiting
  								if (!g_cfg.core.spu_getllar_spin_optimization_disabled)
-@@ -4452,6 +5063,18 @@ bool spu_thread::process_mfc_cmd()
+@@ -4452,6 +5068,18 @@ bool spu_thread::process_mfc_cmd()
  								}
  							}
  
@@ -80555,7 +80567,7 @@ index bc9ec5e..2f7c20c 100644
  							// Either 1 or umax
  							return getllar_busy_waiting_switch != 0;
  						}())
-@@ -4472,6 +5095,11 @@ bool spu_thread::process_mfc_cmd()
+@@ -4472,6 +5100,11 @@ bool spu_thread::process_mfc_cmd()
  							if (getllar_busy_waiting_switch == 1)
  							{
  								getllar_wait_time[(addr % SPU_LS_SIZE) / 128].front() = 0;
@@ -80567,7 +80579,7 @@ index bc9ec5e..2f7c20c 100644
  
  #if defined(ARCH_X64)
  								if (utils::has_um_wait())
-@@ -4522,7 +5150,15 @@ bool spu_thread::process_mfc_cmd()
+@@ -4522,7 +5155,15 @@ bool spu_thread::process_mfc_cmd()
  						if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(addr, rtime); wait_var)
  						{
  							cache_line_waiter_index = register_cache_line_waiter(addr);
@@ -80583,7 +80595,7 @@ index bc9ec5e..2f7c20c 100644
  							vm::reservation_notifier_end_wait(*wait_var);
  						}
  
-@@ -4533,7 +5169,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4533,7 +5174,7 @@ bool spu_thread::process_mfc_cmd()
  						// Quick check if there were reservation changes
  						const u64 new_time = res;
  
@@ -80592,7 +80604,7 @@ index bc9ec5e..2f7c20c 100644
  						{
  							if (g_cfg.core.mfc_debug)
  							{
-@@ -4551,8 +5187,13 @@ bool spu_thread::process_mfc_cmd()
+@@ -4551,8 +5192,13 @@ bool spu_thread::process_mfc_cmd()
  								rtime = new_time;
  							}
  
@@ -80608,7 +80620,7 @@ index bc9ec5e..2f7c20c 100644
  
  							// Reset perf
  							perf0.restart();
-@@ -4659,6 +5300,8 @@ bool spu_thread::process_mfc_cmd()
+@@ -4659,6 +5305,8 @@ bool spu_thread::process_mfc_cmd()
  
  			mov_rdata(rdata, data);
  
@@ -80617,7 +80629,7 @@ index bc9ec5e..2f7c20c 100644
  			if (u64 time0 = vm::reservation_acquire(addr); ntime != time0)
  			{
  				// Reservation data has been modified recently
-@@ -5075,7 +5718,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
+@@ -5075,7 +5723,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
  	if ((addr >> 28) < 2 || (addr >> 28) == 0xd)
  	{
  		// Always-allocated memory does not need strict checking (vm::main or vm::stack)
@@ -80626,7 +80638,7 @@ index bc9ec5e..2f7c20c 100644
  	}
  
  	if ((addr >> 20) == (current_eal >> 20))
-@@ -5083,13 +5726,13 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
+@@ -5083,13 +5731,13 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
  		if (vm::check_addr(addr, vm::page_1m_size))
  		{
  			// Same random-access-memory page as the current MFC command, assume allocated
@@ -80642,7 +80654,7 @@ index bc9ec5e..2f7c20c 100644
  		}
  	}
  
-@@ -5163,7 +5806,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
+@@ -5163,7 +5811,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
  	const bool res = cmp_rdata(data, vm::_ref<decltype(rdata)>(addr));
  
  	range_lock->release(0);
@@ -80651,7 +80663,7 @@ index bc9ec5e..2f7c20c 100644
  }
  
  bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range_lock)
-@@ -5171,7 +5814,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
+@@ -5171,7 +5819,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
  	if ((addr >> 28) < 2 || (addr >> 28) == 0xd)
  	{
  		// Always-allocated memory does not need strict checking (vm::main or vm::stack)
@@ -80660,7 +80672,7 @@ index bc9ec5e..2f7c20c 100644
  	}
  
  	// Ensure data is allocated (HACK: would raise LR event if not)
-@@ -5244,7 +5887,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
+@@ -5244,7 +5892,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
  	const bool res = compute_rdata_hash32(*vm::get_super_ptr<decltype(rdata)>(addr)) == hash;
  
  	range_lock->release(0);
@@ -80669,7 +80681,7 @@ index bc9ec5e..2f7c20c 100644
  }
  
  usz spu_thread::register_cache_line_waiter(u32 addr)
-@@ -5352,6 +5995,7 @@ retry:
+@@ -5352,6 +6000,7 @@ retry:
  			// Set next event to the next time the decrementer underflows
  			ch_dec_start_timestamp -= res << 32;
  			collect |= SPU_EVENT_TM;
@@ -80677,7 +80689,7 @@ index bc9ec5e..2f7c20c 100644
  		}
  	}
  
-@@ -5400,29 +6044,155 @@ void spu_thread::set_events(u32 bits)
+@@ -5400,29 +6049,155 @@ void spu_thread::set_events(u32 bits)
  	}
  }
  
@@ -80734,7 +80746,8 @@ index bc9ec5e..2f7c20c 100644
 -			if (state.none_of(cpu_flag::pending))
 +			const u64 now = get_timebased_time();
 +			sleep_us = umax;
-+			{
+ 			{
+-				state += cpu_flag::pending;
 +				std::lock_guard lock(mutex);
 +				u64 sleep_scaled_ticks = umax;
 +				const auto pending_end = std::remove_if(armed.begin(), armed.end(), [&](const entry& pending)
@@ -80764,10 +80777,9 @@ index bc9ec5e..2f7c20c 100644
 +					// than one per pending entry. No allocation when nothing expires.
 +					sleep_us = sleep_scaled_ticks / (80 * std::max<u64>(g_cfg.core.clocks_scale, 1)) + 1;
 +				}
-+			}
+ 			}
 +			for (const auto& e : due_entries)
- 			{
--				state += cpu_flag::pending;
++			{
 +				// Retain the thread while publishing work, outside the timer lock.
 +				if (const auto spu = idm::get<named_thread<spu_thread>>(e.id, [](auto&) {}))
 +				{
@@ -80780,7 +80792,7 @@ index bc9ec5e..2f7c20c 100644
 +						spu->cpu_thread::notify();
 +					}
 +				}
- 			}
++			}
 +			due_entries.clear();
  		}
  	}
@@ -80845,7 +80857,7 @@ index bc9ec5e..2f7c20c 100644
  }
  
  u32 spu_thread::get_ch_count(u32 ch)
-@@ -5760,8 +6530,16 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5760,8 +6535,16 @@ s64 spu_thread::get_ch_value(u32 ch)
  			eventstat_busy_waiting_switch = value ? 1 : 0;
  		}
  
@@ -80862,7 +80874,7 @@ index bc9ec5e..2f7c20c 100644
  			const auto old = +state;
  
  			if (is_stopped(old))
-@@ -5792,7 +6570,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5792,7 +6575,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  				{
  					set_lr = true;
  				}
@@ -80871,7 +80883,7 @@ index bc9ec5e..2f7c20c 100644
  				{
  					if (vm::reservation_acquire(raddr) == rtime)
  					{
-@@ -5929,7 +6707,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5929,7 +6712,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  						// Abort notifications are handled specially for performance reasons
  						if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(raddr, rtime); wait_var)
  						{
@@ -80880,7 +80892,7 @@ index bc9ec5e..2f7c20c 100644
  							{
  								raddr = 0;
  								set_events(SPU_EVENT_LR);
-@@ -5949,7 +6727,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5949,7 +6732,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  #ifdef __linux__
  					if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(_raddr, rtime); wait_var)
  					{
@@ -80889,7 +80901,7 @@ index bc9ec5e..2f7c20c 100644
  						{
  							raddr = 0;
  							set_events(SPU_EVENT_LR);
-@@ -6029,7 +6807,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -6029,7 +6812,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  
  					if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(_raddr, rtime); wait_var)
  					{
@@ -80898,7 +80910,7 @@ index bc9ec5e..2f7c20c 100644
  						{
  							raddr = 0;
  							set_events(SPU_EVENT_LR);
-@@ -6056,6 +6834,14 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -6056,6 +6839,14 @@ s64 spu_thread::get_ch_value(u32 ch)
  			thread_ctrl::wait_on(state, old, 100);
  		}
  
@@ -80913,7 +80925,7 @@ index bc9ec5e..2f7c20c 100644
  		if (is_reservation_data_checking_thread)
  		{
  			s_is_reservation_data_checking_thread = 0;
-@@ -6452,6 +7238,9 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
+@@ -6452,6 +7243,9 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
  		ch_dec_start_timestamp = get_timebased_time();
  		ch_dec_value = value;
  		is_dec_frozen = false;
@@ -80923,7 +80935,7 @@ index bc9ec5e..2f7c20c 100644
  		return true;
  	}
  
-@@ -6479,6 +7268,8 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
+@@ -6479,6 +7273,8 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
  			}
  		}
  
@@ -80932,7 +80944,7 @@ index bc9ec5e..2f7c20c 100644
  		return true;
  	}
  
-@@ -6509,6 +7300,7 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
+@@ -6509,6 +7305,7 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
  			// Save current time, this will be the reported value until the decrementer resumes
  			ch_dec_value = read_dec().first;
  			is_dec_frozen = true;
@@ -82036,7 +82048,7 @@ index 669f759..d0e01fd 100644
  
  		return false;
 diff --git a/rpcs3/Emu/Memory/vm.cpp b/rpcs3/Emu/Memory/vm.cpp
-index e7f55d7..d36f750 100644
+index e7f55d7..e7c1b4f 100644
 --- a/rpcs3/Emu/Memory/vm.cpp
 +++ b/rpcs3/Emu/Memory/vm.cpp
 @@ -12,7 +12,12 @@
@@ -82208,23 +82220,24 @@ index e7f55d7..d36f750 100644
  		if (cpu_thread* cpu = cpu_thread::get_current(); cpu && cpu->get_class() == thread_class::ppu)
  		{
  			// cpu_flag::wait must be added by the caller
-@@ -494,6 +596,15 @@ namespace vm
+@@ -494,6 +596,16 @@ namespace vm
  			}
  		}
  
 +#ifdef RPCS3_IOS
 +		// CELL571_PASSIVE_LOCK_FAIRNESS: let a starving passive locker through before
 +		// publishing this lock (bounded; ios/IOSPassiveLockGate.h).
++		// REWINDBOX_GATE_BEFORE_LINE_924: unless the caller already did, before locking its line.
 +		if (range_lock)
 +		{
-+			rpcs3::ios::passive_gate::defer_writer();
++			rpcs3::ios::passive_gate::defer_writer_once();
 +		}
 +#endif
 +
  		for (u64 i = 0;; i++)
  		{
  			auto& bits = get_range_lock_bits(true);
-@@ -539,13 +650,21 @@ namespace vm
+@@ -539,13 +651,21 @@ namespace vm
  
  		if (range_lock)
  		{
@@ -82247,7 +82260,7 @@ index e7f55d7..d36f750 100644
  				}
  			}
  
-@@ -589,18 +708,50 @@ namespace vm
+@@ -589,18 +709,50 @@ namespace vm
  
  				reservation_lock_wait(wait_iteration);
  			}
@@ -82298,7 +82311,7 @@ index e7f55d7..d36f750 100644
  	}
  
  	atomic_t<u32>* reservation_notifier_notify(u32 raddr, u64 rtime, bool postpone)
-@@ -1044,7 +1195,7 @@ namespace vm
+@@ -1044,7 +1196,7 @@ namespace vm
  		else
  		{
  			shm->unmap_critical(g_base_addr + addr);
@@ -82307,7 +82320,7 @@ index e7f55d7..d36f750 100644
  			shm->unmap_critical(g_sudo_addr + addr);
  #endif
  		}
-@@ -1321,7 +1472,7 @@ namespace vm
+@@ -1321,7 +1473,7 @@ namespace vm
  			};
  
  			// Special path for whole-allocated areas allowing 4k granularity
@@ -82316,7 +82329,7 @@ index e7f55d7..d36f750 100644
  
  			if (!map_critical(vm::_ptr<u8>(addr), this->flags & page_size_4k && utils::get_page_size() > 4096 ? utils::protection::rw : utils::protection::no) || !map_critical(vm::get_super_ptr(addr), utils::protection::rw))
  			{
-@@ -1361,7 +1512,7 @@ namespace vm
+@@ -1361,7 +1513,7 @@ namespace vm
  			if (m_common)
  			{
  				m_common->unmap_critical(vm::base(addr));
@@ -82325,7 +82338,7 @@ index e7f55d7..d36f750 100644
  				m_common->unmap_critical(vm::get_super_ptr(addr));
  #endif
  				ensure(m_common.use_count() == 1);
-@@ -1415,7 +1566,7 @@ namespace vm
+@@ -1415,7 +1567,7 @@ namespace vm
  			shm = *src;
  		else
  		{
@@ -82334,7 +82347,7 @@ index e7f55d7..d36f750 100644
  		}
  
  		const u32 max = (this->addr + this->size - size) & (0 - align);
-@@ -1435,6 +1586,101 @@ namespace vm
+@@ -1435,6 +1587,101 @@ namespace vm
  			return 0;
  		}
  
@@ -82436,7 +82449,7 @@ index e7f55d7..d36f750 100644
  		// Search for an appropriate place (unoptimized)
  		for (;; addr += align)
  		{
-@@ -1494,7 +1740,7 @@ namespace vm
+@@ -1494,7 +1741,7 @@ namespace vm
  			shm = *src;
  		else
  		{
@@ -82445,7 +82458,7 @@ index e7f55d7..d36f750 100644
  		}
  
  		vm::writer_lock lock;
-@@ -1725,6 +1971,52 @@ namespace vm
+@@ -1725,6 +1972,52 @@ namespace vm
  
  		ar.breathe();
  
@@ -82498,7 +82511,7 @@ index e7f55d7..d36f750 100644
  		for (usz iter_count = 0; size; iter_count += sizeof(u32), ptr += byte_of_pages * sizeof(u32))
  		{
  			const u32 bitmap = read_from_ptr<le_t<u32>>(bit_array, iter_count);
-@@ -1757,6 +2049,7 @@ namespace vm
+@@ -1757,6 +2050,7 @@ namespace vm
  			}
  		}
  
@@ -82506,7 +82519,7 @@ index e7f55d7..d36f750 100644
  		ar.breathe();
  	}
  
-@@ -1808,7 +2101,7 @@ namespace vm
+@@ -1808,7 +2102,7 @@ namespace vm
  	{
  		if (flags & preallocated)
  		{
@@ -82515,7 +82528,7 @@ index e7f55d7..d36f750 100644
  			m_common->map_critical(vm::base(addr), this->flags & page_size_4k && utils::get_page_size() > 4096 ? utils::protection::rw : utils::protection::no);
  			m_common->map_critical(vm::get_super_ptr(addr));
  		}
-@@ -1849,6 +2142,13 @@ namespace vm
+@@ -1849,6 +2143,13 @@ namespace vm
  			{
  				pflags |= page_size_64k;
  			}
@@ -82529,7 +82542,7 @@ index e7f55d7..d36f750 100644
  			else if (!(flags & (page_size_mask & ~page_size_1m)))
  			{
  				pflags |= page_size_1m;
-@@ -2403,7 +2703,7 @@ namespace vm
+@@ -2403,7 +2704,7 @@ namespace vm
  
  			const u32 flags = ar.pop<u32>();
  			const u64 size = ar.pop<u64>();
@@ -111107,23 +111120,42 @@ index fd4e667..7cffebe 100644
  
  	void AsyncTaskScheduler::flush(queue_submit_t& submit_info, VkBool32 force_flush)
 diff --git a/rpcs3/Emu/RSX/VK/VKCommandStream.cpp b/rpcs3/Emu/RSX/VK/VKCommandStream.cpp
-index 4925d88..e7b92ac 100644
+index 4925d88..1874544 100644
 --- a/rpcs3/Emu/RSX/VK/VKCommandStream.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKCommandStream.cpp
-@@ -9,6 +9,12 @@
+@@ -9,6 +9,20 @@
  #include "Emu/RSX/RSXThread.h"
  #include "Emu/system_config.h"
  
 +#ifdef RPCS3_IOS
++#include "ios/IOSGpuBackgroundGate.h"
 +#include "ios/IOSGpuTiming.h"
++#include "ios/IOSMoltenVKExec.h"
 +#include "ios/IOSRsxSyncProfile.h"
 +#include "util/asm.hpp"
++
++#include <array>
++#include <chrono>
++#include <mutex>
++#include <thread>
++#include <vector>
 +#endif
 +
  namespace vk
  {
  	// global submit guard to prevent race condition on queue submit
-@@ -42,7 +48,19 @@ namespace vk
+@@ -28,6 +42,10 @@ namespace vk
+ 	static void queue_submit_impl(const queue_submit_t& submit_info)
+ 	{
+ 		ensure(submit_info.pfence);
++#ifdef RPCS3_IOS
++		// REWINDBOX_GPU_BACKGROUND_GATE_927 (ios/IOSGpuBackgroundGate.h): parks while the application is in the background.
++		const rpcs3::ios::gpu_gate::pass ios_gpu_pass;
++#endif
+ 		acquire_global_submit_lock();
+ 		VkSubmitInfo info
+ 		{
+@@ -42,7 +60,22 @@ namespace vk
  			.pSignalSemaphores = submit_info.signal_semaphores.data()
  		};
  
@@ -111134,6 +111166,9 @@ index 4925d88..e7b92ac 100644
 +#endif
  		vkQueueSubmit(submit_info.queue, 1, &info, submit_info.pfence->handle);
 +#ifdef RPCS3_IOS
++		// REWINDBOX_MVK_ASYNC_DEFINITIVE_927 (ios/IOSMoltenVKExec.h): the marker queued behind this submission, written
++		// before the fence is published as flushed; 0 with synchronous submits and for the transfer queue.
++		submit_info.pfence->ios_encode_ticket = rpcs3::ios::moltenvk_exec::mark_submit(submit_info.queue);
 +		const u64 ios_submit_ticks = utils::get_tsc() - ios_submit_begin;
 +		rpcs3::ios::rsx_sync::submit_ticks.record(ios_submit_ticks);
 +		rpcs3::ios::frame_trace::waits().submit_ticks += ios_submit_ticks;
@@ -111143,7 +111178,136 @@ index 4925d88..e7b92ac 100644
  		release_global_submit_lock();
  
  		// Signal fence
-@@ -96,10 +114,26 @@ namespace vk
+@@ -74,6 +107,128 @@ namespace vk
+ 		queue_submit_impl(*packet);
+ 	}
+ 
++#ifdef RPCS3_IOS
++	// REWINDBOX_GPU_BACKGROUND_GATE_927 (ios/IOSGpuBackgroundGate.h): the settle function of the gate. The gate is
++	// closed and the caller is the thread that posts the application's transition. An empty submission with a fence
++	// goes behind everything each queue was given (behind MoltenVK's encoding queue with asynchronous submits, and
++	// Metal executes a queue's command buffers in the order they were committed): when the fences signal, nothing
++	// this renderer submitted is left to encode or to execute.
++	namespace
++	{
++		std::mutex s_ios_settle_fences_mutex;
++		std::vector<VkFence> s_ios_unsettled_fences;
++	}
++
++	bool ios_settle_queues(std::chrono::milliseconds limit)
++	{
++		const render_device* dev = g_render_device;
++		if (!dev)
++		{
++			return true;
++		}
++
++		const auto deadline = std::chrono::steady_clock::now() + limit;
++
++		// A submitter that entered before the gate closed may still hold the submit lock.
++		while (!g_submit_mutex.try_lock())
++		{
++			if (std::chrono::steady_clock::now() >= deadline)
++			{
++				return false;
++			}
++
++			std::this_thread::sleep_for(std::chrono::milliseconds(1));
++		}
++
++		// Fences an earlier settle left behind: those that have signalled since are released.
++		{
++			std::lock_guard lock(s_ios_settle_fences_mutex);
++			std::erase_if(s_ios_unsettled_fences, [dev](VkFence fence)
++			{
++				if (vkGetFenceStatus(*dev, fence) != VK_SUCCESS)
++				{
++					return false;
++				}
++
++				vkDestroyFence(*dev, fence, nullptr);
++				return true;
++			});
++		}
++
++		std::array<VkFence, 3> fences{};
++		u32 count = 0;
++		std::array<VkQueue, 3> queues{ dev->get_graphics_queue(), dev->get_present_queue(), dev->get_transfer_queue() };
++		for (u32 i = 0; i < queues.size(); i++)
++		{
++			const VkQueue queue = queues[i];
++			if (!queue || (i > 0 && queue == queues[0]) || (i > 1 && queue == queues[1]))
++			{
++				continue;
++			}
++
++			VkFenceCreateInfo info{};
++			info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
++			VkFence fence = VK_NULL_HANDLE;
++			if (vkCreateFence(*dev, &info, nullptr, &fence) != VK_SUCCESS)
++			{
++				continue;
++			}
++
++			if (vkQueueSubmit(queue, 0, nullptr, fence) != VK_SUCCESS)
++			{
++				vkDestroyFence(*dev, fence, nullptr);
++				continue;
++			}
++
++			fences[count++] = fence;
++		}
++
++		g_submit_mutex.unlock();
++
++		if (!count)
++		{
++			return true;
++		}
++
++		const auto now = std::chrono::steady_clock::now();
++		const u64 remaining_ns = now < deadline
++			? static_cast<u64>(std::chrono::duration_cast<std::chrono::nanoseconds>(deadline - now).count()) : 0;
++		const bool settled = vkWaitForFences(*dev, count, fences.data(), VK_TRUE, remaining_ns) == VK_SUCCESS;
++
++		// A fence that has not signalled still belongs to its submission: it is destroyed with the renderer, once the
++		// device is idle (ios_release_settle_fences).
++		std::lock_guard lock(s_ios_settle_fences_mutex);
++		for (u32 i = 0; i < count; i++)
++		{
++			if (settled)
++			{
++				vkDestroyFence(*dev, fences[i], nullptr);
++			}
++			else
++			{
++				s_ios_unsettled_fences.push_back(fences[i]);
++			}
++		}
++
++		return settled;
++	}
++
++	void ios_release_settle_fences()
++	{
++		const render_device* dev = g_render_device;
++		std::lock_guard lock(s_ios_settle_fences_mutex);
++		for (const VkFence fence : s_ios_unsettled_fences)
++		{
++			if (dev)
++			{
++				vkDestroyFence(*dev, fence, nullptr);
++			}
++		}
++
++		s_ios_unsettled_fences.clear();
++	}
++#endif
++
+ 	void driver_manager_t::operator()()
+ 	{
+ 		while (thread_ctrl::state() != thread_state::aborting)
+@@ -96,10 +251,26 @@ namespace vk
  
  	void driver_manager_t::notify_completed(u64 eid)
  	{
@@ -111913,10 +112077,10 @@ index 572935e..eaff79b 100644
  	};
  
 diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.cpp b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
-index 63cab28..6e0a987 100644
+index 63cab28..3062b27 100644
 --- a/rpcs3/Emu/RSX/VK/VKGSRender.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
-@@ -16,10 +16,25 @@
+@@ -16,10 +16,26 @@
  #include "vkutils/scratch.h"
  
  #include "Emu/RSX/rsx_methods.h"
@@ -111935,6 +112099,7 @@ index 63cab28..6e0a987 100644
 +#include "ios/IOSRsxIdlePark.h"
 +#include "ios/RPCS3IOSExperimentalPolicy.h"
 +#include "ios/IOSFrameTrace.h"
++#include "ios/IOSGpuBackgroundGate.h"
 +#include "ios/IOSGpuTiming.h"
 +#include "util/sysinfo.hpp"
 +#include "util/tsc.hpp"
@@ -111942,8 +112107,21 @@ index 63cab28..6e0a987 100644
  
  #include "../Program/SPIRVCommon.h"
  
-@@ -475,6 +490,30 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+@@ -473,8 +489,43 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+ 
+ 	m_device = const_cast<vk::render_device*>(&m_swapchain->get_device());
  	vk::set_current_renderer(m_swapchain->get_device());
++#ifdef RPCS3_IOS
++	// REWINDBOX_GPU_BACKGROUND_GATE_927 (ios/IOSGpuBackgroundGate.h): what the application's move to the background
++	// waits for, from now until the destructor takes it back; and a thread of an emulator that is being stopped does
++	// not park (stopping in the background goes on as before).
++	rpcs3::ios::gpu_gate::gate::instance().set_bypass([]() -> bool
++	{
++		const system_state state = Emu.GetStatus(false);
++		return state == system_state::stopping || state == system_state::stopped;
++	});
++	rpcs3::ios::gpu_gate::gate::instance().set_settle(&vk::ios_settle_queues);
++#endif
  	vk::init();
  
 +	// Keep hardware fallback local to this renderer; never overwrite saved settings.
@@ -111973,7 +112151,7 @@ index 63cab28..6e0a987 100644
  	m_swapchain_dims.width = m_frame->client_width();
  	m_swapchain_dims.height = m_frame->client_height();
  
-@@ -486,6 +525,10 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+@@ -486,6 +537,10 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
  	// create command buffer...
  	m_command_buffer_pool.create((*m_device), m_device->get_graphics_queue_family());
  	m_primary_cb_list.create(m_command_buffer_pool, vk::command_buffer::access_type_hint::flush_only);
@@ -111984,7 +112162,7 @@ index 63cab28..6e0a987 100644
  	m_current_command_buffer = m_primary_cb_list.get();
  	m_current_command_buffer->begin();
  
-@@ -537,7 +580,7 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+@@ -537,7 +592,7 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
  
  	m_flushable_data_heaps = vk::data_heap_manager::to_list().filter(FN(x->has_shadow()));
  
@@ -111993,19 +112171,57 @@ index 63cab28..6e0a987 100644
  
  	if (shadermode == shader_mode::async_with_interpreter || shadermode == shader_mode::interpreter_only)
  	{
-@@ -796,6 +839,11 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+@@ -695,6 +750,19 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+ 			rsx_log.error("Cannot run graphics and async transfer in the same queue. Async uploads are disabled. This is a limitation of your GPU");
+ 			backend_config.supports_asynchronous_compute = false;
+ 		}
++#ifdef RPCS3_IOS
++		// REWINDBOX_MVK_ASYNC_DEFINITIVE_927: asynchronous texture streaming hands uploads to the second queue and
++		// orders them against the graphics queue with events and semaphores. With asynchronous MoltenVK submits each
++		// queue encodes on its own thread and MoltenVK advances those counters when it encodes
++		// (MVKSemaphoreMTLEvent, MVKSync.mm:122-130), no longer in the order of the calls. The two are not combined:
++		// Automatic keeps synchronous submits for a configuration that asks for the streaming
++		// (RPCS3IOSExperimentalPolicy.cpp); asynchronous submits asked for by name keep the uploads on the RSX thread.
++		if (backend_config.supports_asynchronous_compute && rpcs3::ios::get_experimental_policy().moltenvk_async_submits)
++		{
++			rsx_log.warning("Asynchronous texture streaming is not combined with MoltenVK asynchronous submits: textures are uploaded on the RSX thread for this boot");
++			backend_config.supports_asynchronous_compute = false;
++		}
++#endif
+ 	}
+ 
+ 	// Sanity checks
+@@ -796,6 +864,11 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
  
  VKGSRender::~VKGSRender()
  {
 +#ifdef RPCS3_IOS
 +	rpcs3::ios::shader_timing::configuration.end(this);
-+	// CELL587_MVK_ASYNC_CANARY: the renderer shuts down without a crash.
-+	rpcs3::ios::confirm_moltenvk_async_boot("renderer shutdown");
++	// REWINDBOX_GPU_BACKGROUND_GATE_927: the gate no longer calls into this renderer (waits for a settle in progress).
++	rpcs3::ios::gpu_gate::gate::instance().set_settle(nullptr);
 +#endif
  	if (m_device == VK_NULL_HANDLE)
  	{
  		//Initialization failed
-@@ -875,6 +923,10 @@ VKGSRender::~VKGSRender()
+@@ -809,7 +882,17 @@ VKGSRender::~VKGSRender()
+ 	}
+ 
+ 	//Wait for device to finish up with resources
++#ifdef RPCS3_IOS
++	{
++		// REWINDBOX_GPU_BACKGROUND_GATE_927: MoltenVK waits for a queue by committing an empty command buffer.
++		const rpcs3::ios::gpu_gate::pass ios_gpu_pass;
++		vkDeviceWaitIdle(*m_device);
++	}
++	// The fences of a settle that ran out of time: their submissions have completed now.
++	vk::ios_release_settle_fences();
++#else
+ 	vkDeviceWaitIdle(*m_device);
++#endif
+ 
+ 	// Globals. TODO: Refactor lifetime management
+ 	if (auto async_scheduler = g_fxo->try_get<vk::AsyncTaskScheduler>())
+@@ -875,6 +958,10 @@ VKGSRender::~VKGSRender()
  	m_stencil_mirror_sampler.reset();
  
  	// Queries
@@ -112016,7 +112232,7 @@ index 63cab28..6e0a987 100644
  	m_occlusion_query_manager.reset();
  	m_cond_render_buffer.reset();
  
-@@ -935,6 +987,9 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
+@@ -935,6 +1022,9 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
  			g_fxo->get<rsx::dma_manager>().set_mem_fault_flag();
  			m_queue_status |= flush_queue_state::deadlock;
  			m_eng_interrupt_mask |= rsx::backend_interrupt;
@@ -112026,7 +112242,7 @@ index 63cab28..6e0a987 100644
  
  			// Wait for deadlock to clear
  			while (m_queue_status & flush_queue_state::deadlock)
-@@ -959,6 +1014,10 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
+@@ -959,6 +1049,10 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
  			m_flush_requests.post(false);
  			m_eng_interrupt_mask |= rsx::backend_interrupt;
  			has_queue_ref = true;
@@ -112037,7 +112253,7 @@ index 63cab28..6e0a987 100644
  		}
  		else
  		{
-@@ -983,6 +1042,11 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
+@@ -983,6 +1077,11 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
  			};
  		}
  
@@ -112049,7 +112265,7 @@ index 63cab28..6e0a987 100644
  		m_texture_cache.flush_all(*m_secondary_cb_list.next(), result, data_transfer_completed_callback);
  
  		if (has_queue_ref)
-@@ -1019,12 +1083,39 @@ void VKGSRender::on_invalidate_memory_range(const utils::address_range32 &range,
+@@ -1019,12 +1118,39 @@ void VKGSRender::on_invalidate_memory_range(const utils::address_range32 &range,
  
  void VKGSRender::on_semaphore_acquire_wait()
  {
@@ -112089,7 +112305,7 @@ index 63cab28..6e0a987 100644
  }
  
  bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
-@@ -1048,6 +1139,13 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
+@@ -1048,6 +1174,13 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
  				for (auto i = 0ull; i < texture_array.size(); ++i)
  				{
  					const auto& tex = texture_array[i];
@@ -112103,7 +112319,7 @@ index 63cab28..6e0a987 100644
  					const auto addr = rsx::get_address(tex.offset(), tex.location());
  					exclusion_list.insert(addr);
  				}
-@@ -1096,33 +1194,18 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
+@@ -1096,33 +1229,18 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
  		return any_cache_relieved;
  	}
  
@@ -112118,7 +112334,15 @@ index 63cab28..6e0a987 100644
 -			{
 -				return;
 -			}
--
++		// Spilling and resolve-cache eviction destroy image views. Invalidate
++		// every cached framebuffer descriptor, even when a global refresh is
++		// already pending: load_texture_env only refreshes the current shader's
++		// referenced slots before clearing that global flag.
++		const bool invalidate_fragment_samplers = rsx::invalidate_sampler_context(
++			fs_sampler_state, m_textures_dirty, rsx::texture_upload_context::framebuffer_storage);
++		const bool invalidate_vertex_samplers = rsx::invalidate_sampler_context(
++			vs_sampler_state, m_vertex_textures_dirty, rsx::texture_upload_context::framebuffer_storage);
+ 
 -			for (auto i = 0ull; i < texture_array.size(); ++i)
 -			{
 -				if (texture_array[i].enabled() &&
@@ -112133,21 +112357,13 @@ index 63cab28..6e0a987 100644
 -
 -		scan_array(rsx::method_registers.fragment_textures, fs_sampler_state);
 -		scan_array(rsx::method_registers.vertex_textures, vs_sampler_state);
-+		// Spilling and resolve-cache eviction destroy image views. Invalidate
-+		// every cached framebuffer descriptor, even when a global refresh is
-+		// already pending: load_texture_env only refreshes the current shader's
-+		// referenced slots before clearing that global flag.
-+		const bool invalidate_fragment_samplers = rsx::invalidate_sampler_context(
-+			fs_sampler_state, m_textures_dirty, rsx::texture_upload_context::framebuffer_storage);
-+		const bool invalidate_vertex_samplers = rsx::invalidate_sampler_context(
-+			vs_sampler_state, m_vertex_textures_dirty, rsx::texture_upload_context::framebuffer_storage);
- 
+-
 -		if (invalidate_samplers)
 +		if (invalidate_fragment_samplers || invalidate_vertex_samplers)
  		{
  			m_samplers_dirty.store(true);
  		}
-@@ -1234,8 +1317,13 @@ void VKGSRender::bind_viewport()
+@@ -1234,8 +1352,13 @@ void VKGSRender::bind_viewport()
  		m_graphics_state.clear(rsx::pipeline_state::zclip_config_state_dirty);
  	}
  
@@ -112161,7 +112377,7 @@ index 63cab28..6e0a987 100644
  }
  
  void VKGSRender::on_init_thread()
-@@ -1250,8 +1338,8 @@ void VKGSRender::on_init_thread()
+@@ -1250,8 +1373,8 @@ void VKGSRender::on_init_thread()
  	GSRender::on_init_thread();
  	zcull_ctrl.reset(static_cast<::rsx::reports::ZCULL_control*>(this));
  
@@ -112172,7 +112388,7 @@ index 63cab28..6e0a987 100644
  	{
  		std::unique_ptr<rsx::shader_loading_dialog> dlg = m_overlay_manager
  			? std::make_unique<rsx::shader_loading_dialog_native>(this)
-@@ -1260,7 +1348,7 @@ void VKGSRender::on_init_thread()
+@@ -1260,7 +1383,7 @@ void VKGSRender::on_init_thread()
  		dlg->close();
  	}
  
@@ -112181,7 +112397,7 @@ index 63cab28..6e0a987 100644
  	{
  		if (!m_overlay_manager)
  		{
-@@ -1276,12 +1364,34 @@ void VKGSRender::on_init_thread()
+@@ -1276,12 +1399,34 @@ void VKGSRender::on_init_thread()
  			m_shaders_cache->load(&dlg);
  		}
  	}
@@ -112216,7 +112432,7 @@ index 63cab28..6e0a987 100644
  	zcull_ctrl.release();
  }
  
-@@ -1326,6 +1436,7 @@ void VKGSRender::clear_surface(u32 mask)
+@@ -1326,6 +1471,7 @@ void VKGSRender::clear_surface(u32 mask)
  
  	const bool full_frame = (scissor_w == fb_width && scissor_h == fb_height);
  	bool update_color = false, update_z = false;
@@ -112224,7 +112440,7 @@ index 63cab28..6e0a987 100644
  	auto surface_depth_format = rsx::method_registers.surface_depth_fmt();
  
  	if (auto ds = std::get<1>(m_rtts.m_bound_depth_stencil); mask & RSX_GCM_CLEAR_DEPTH_STENCIL_MASK)
-@@ -1513,6 +1624,7 @@ void VKGSRender::clear_surface(u32 mask)
+@@ -1513,6 +1659,7 @@ void VKGSRender::clear_surface(u32 mask)
  				rsx::method_registers.stencil_mask(), renderpass);
  
  			depth_stencil_mask &= ~VK_IMAGE_ASPECT_STENCIL_BIT;
@@ -112232,7 +112448,7 @@ index 63cab28..6e0a987 100644
  		}
  
  		if (depth_stencil_mask)
-@@ -1530,17 +1642,132 @@ void VKGSRender::clear_surface(u32 mask)
+@@ -1530,17 +1677,132 @@ void VKGSRender::clear_surface(u32 mask)
  
  	if (!clear_descriptors.empty())
  	{
@@ -112365,7 +112581,7 @@ index 63cab28..6e0a987 100644
  		// wait for the latest instruction to execute
  		m_current_command_buffer->reset();
  
-@@ -1659,6 +1886,29 @@ void VKGSRender::write_barrier(u32 address, u32 range)
+@@ -1659,6 +1921,29 @@ void VKGSRender::write_barrier(u32 address, u32 range)
  	m_rtts.invalidate_range(utils::address_range32::start_length(address, range));
  }
  
@@ -112395,7 +112611,7 @@ index 63cab28..6e0a987 100644
  void VKGSRender::sync_hint(rsx::FIFO::interrupt_hint hint, rsx::reports::sync_hint_payload_t payload)
  {
  	rsx::thread::sync_hint(hint, payload);
-@@ -1718,6 +1968,12 @@ void VKGSRender::sync_hint(rsx::FIFO::interrupt_hint hint, rsx::reports::sync_hi
+@@ -1718,6 +2003,12 @@ void VKGSRender::sync_hint(rsx::FIFO::interrupt_hint hint, rsx::reports::sync_hi
  		// This heavyweight hint should be used with caution
  		std::lock_guard lock(m_flush_queue_mutex);
  		flush_command_queue();
@@ -112408,7 +112624,7 @@ index 63cab28..6e0a987 100644
  
  		if (m_flush_requests.pending())
  		{
-@@ -1801,12 +2057,15 @@ void VKGSRender::do_local_task(rsx::FIFO::state state)
+@@ -1801,12 +2092,15 @@ void VKGSRender::do_local_task(rsx::FIFO::state state)
  
  bool VKGSRender::load_program()
  {
@@ -112426,7 +112642,7 @@ index 63cab28..6e0a987 100644
  	{
  		get_current_fragment_program(fs_sampler_state);
  		ensure(current_fragment_program.valid);
-@@ -1862,8 +2121,13 @@ bool VKGSRender::load_program()
+@@ -1862,8 +2156,13 @@ bool VKGSRender::load_program()
  		);
  
  		properties.renderpass_key = m_current_renderpass_key;
@@ -112440,7 +112656,7 @@ index 63cab28..6e0a987 100644
  			m_pipeline_properties == properties)
  		{
  			// Nothing changed
-@@ -1872,7 +2136,6 @@ bool VKGSRender::load_program()
+@@ -1872,7 +2171,6 @@ bool VKGSRender::load_program()
  
  		// Fallthrough
  		m_pipeline_properties = properties;
@@ -112448,7 +112664,7 @@ index 63cab28..6e0a987 100644
  	}
  	else
  	{
-@@ -1912,7 +2175,11 @@ bool VKGSRender::load_program()
+@@ -1912,7 +2210,11 @@ bool VKGSRender::load_program()
  
  		vk::leave_uninterruptible();
  
@@ -112461,7 +112677,7 @@ index 63cab28..6e0a987 100644
  		{
  			// Notify the user with HUD notification
  			if (g_cfg.misc.show_shader_compilation_hint)
-@@ -2409,6 +2676,10 @@ void VKGSRender::close_and_submit_command_buffer(vk::fence* pFence, VkSemaphore
+@@ -2409,6 +2711,10 @@ void VKGSRender::close_and_submit_command_buffer(vk::fence* pFence, VkSemaphore
  
  			vk::queue_submit_t submit_info{ m_device->get_graphics_queue(), nullptr };
  			secondary_command_buffer->submit(submit_info, force_flush);
@@ -112472,7 +112688,7 @@ index 63cab28..6e0a987 100644
  		}
  
  		vk::clear_status_interrupt(vk::heap_dirty);
-@@ -2467,13 +2738,23 @@ void VKGSRender::close_and_submit_command_buffer(vk::fence* pFence, VkSemaphore
+@@ -2467,13 +2773,23 @@ void VKGSRender::close_and_submit_command_buffer(vk::fence* pFence, VkSemaphore
  		{
  			const VkSemaphore async_sema = *async_scheduler->get_sema();
  			secondary_submit_info.queue_signal(async_sema);
@@ -112496,7 +112712,7 @@ index 63cab28..6e0a987 100644
  	}
  
  	if (signal_semaphore)
-@@ -2482,10 +2763,426 @@ void VKGSRender::close_and_submit_command_buffer(vk::fence* pFence, VkSemaphore
+@@ -2482,10 +2798,426 @@ void VKGSRender::close_and_submit_command_buffer(vk::fence* pFence, VkSemaphore
  	}
  
  	m_current_command_buffer->submit(primary_submit_info, force_flush);
@@ -112923,7 +113139,7 @@ index 63cab28..6e0a987 100644
  void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  {
  	const bool clipped_scissor = (context == rsx::framebuffer_creation_context::context_draw);
-@@ -2602,6 +3299,20 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+@@ -2602,6 +3334,20 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  		flush_command_queue();
  	}
  
@@ -112944,7 +113160,7 @@ index 63cab28..6e0a987 100644
  	if (!m_rtts.superseded_surfaces.empty())
  	{
  		for (auto& surface : m_rtts.superseded_surfaces)
-@@ -2636,6 +3347,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+@@ -2636,6 +3382,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  			if (!lock) [[likely]]
  			{
  				m_texture_cache.commit_framebuffer_memory_region(*m_current_command_buffer, surface->get_memory_range());
@@ -112954,7 +113170,7 @@ index 63cab28..6e0a987 100644
  				continue;
  			}
  
-@@ -2663,6 +3377,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+@@ -2663,6 +3412,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  		else
  		{
  			m_texture_cache.commit_framebuffer_memory_region(*m_current_command_buffer, surface_range);
@@ -112964,7 +113180,7 @@ index 63cab28..6e0a987 100644
  		}
  	}
  
-@@ -2679,6 +3396,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+@@ -2679,6 +3431,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  		else
  		{
  			m_texture_cache.commit_framebuffer_memory_region(*m_current_command_buffer, surface_range);
@@ -112974,7 +113190,7 @@ index 63cab28..6e0a987 100644
  		}
  	}
  
-@@ -2720,7 +3440,7 @@ void VKGSRender::renderctl(u32 request_code, void* args)
+@@ -2720,7 +3475,7 @@ void VKGSRender::renderctl(u32 request_code, void* args)
  	{
  		const auto packet = reinterpret_cast<vk::queue_submit_t*>(args);
  		vk::queue_submit(packet);
@@ -112983,7 +113199,7 @@ index 63cab28..6e0a987 100644
  		break;
  	}
  	default:
-@@ -2801,8 +3521,41 @@ bool VKGSRender::check_occlusion_query_status(rsx::reports::occlusion_query_info
+@@ -2801,8 +3556,41 @@ bool VKGSRender::check_occlusion_query_status(rsx::reports::occlusion_query_info
  	if (data.is_current(m_current_command_buffer))
  		return false;
  
@@ -113025,7 +113241,7 @@ index 63cab28..6e0a987 100644
  }
  
  void VKGSRender::get_occlusion_query_result(rsx::reports::occlusion_query_info* query)
-@@ -2811,10 +3564,26 @@ void VKGSRender::get_occlusion_query_result(rsx::reports::occlusion_query_info*
+@@ -2811,10 +3599,26 @@ void VKGSRender::get_occlusion_query_result(rsx::reports::occlusion_query_info*
  	if (data.indices.empty())
  		return;
  
@@ -113154,7 +113370,7 @@ index e3817d8..d28c5bd 100644
  	// External callback in case we need to suddenly submit a commandlist unexpectedly, e.g in a violation handler
  	void emergency_query_cleanup(vk::command_buffer* commands);
 diff --git a/rpcs3/Emu/RSX/VK/VKGSRenderTypes.hpp b/rpcs3/Emu/RSX/VK/VKGSRenderTypes.hpp
-index e6dae0f..878d84c 100644
+index e6dae0f..29f1ed0 100644
 --- a/rpcs3/Emu/RSX/VK/VKGSRenderTypes.hpp
 +++ b/rpcs3/Emu/RSX/VK/VKGSRenderTypes.hpp
 @@ -2,6 +2,7 @@
@@ -113165,18 +113381,19 @@ index e6dae0f..878d84c 100644
  #include "VKDataHeapManager.h"
  #include "VKResourceManager.h"
  
-@@ -14,6 +15,10 @@
+@@ -14,6 +15,11 @@
  #include <optional>
  #include <thread>
  
 +#ifdef RPCS3_IOS
++#include "ios/IOSMoltenVKExec.h"
 +#include "ios/IOSRsxSyncProfile.h"
 +#endif
 +
  // Initial heap allocation values. The heaps are growable and will automatically increase in size to accomodate demands
  #define VK_ATTRIB_RING_BUFFER_SIZE_M 64
  #define VK_TEXTURE_UPLOAD_RING_BUFFER_SIZE_M 64
-@@ -94,6 +99,9 @@ namespace vk
+@@ -94,6 +100,9 @@ namespace vk
  		{
  			if (is_pending && !poke())
  			{
@@ -113186,7 +113403,7 @@ index e6dae0f..878d84c 100644
  				wait(FRAME_PRESENT_TIMEOUT);
  			}
  
-@@ -143,6 +151,13 @@ namespace vk
+@@ -143,6 +152,13 @@ namespace vk
  			}
  
  			const auto ret = vk::wait_for_fence(m_submit_fence, timeout);
@@ -113200,11 +113417,27 @@ index e6dae0f..878d84c 100644
  
  			lock.upgrade();
  
-@@ -174,6 +189,27 @@ namespace vk
+@@ -174,6 +190,43 @@ namespace vk
  
  			m_submit_fence->wait_flush();
  		}
 +#ifdef RPCS3_IOS
++
++		// REWINDBOX_MVK_ASYNC_DEFINITIVE_927 (ios/IOSMoltenVKExec.h): sleeps until MoltenVK has encoded this chunk's
++		// submission. Returns at once with synchronous submits, for a chunk that is not pending and for a submission
++		// already encoded.
++		void ios_wait_encoded(rpcs3::ios::moltenvk_exec::wait_site site)
++		{
++			reader_lock lock(guard_mutex);
++
++			if (!is_pending)
++			{
++				return;
++			}
++
++			m_submit_fence->wait_flush();
++			rpcs3::ios::moltenvk_exec::wait_for_encoding(m_submit_fence->ios_encode_ticket, site);
++		}
 +
 +		// REWINDBOX_GPU_TIMING_621 (ios/IOSGpuTiming.h): whether this chunk's last submission completed: a fence status read,
 +		// never a wait, and none of poke()'s reclamation side effects.
@@ -113228,7 +113461,21 @@ index e6dae0f..878d84c 100644
  	};
  
  	struct occlusion_data
-@@ -216,6 +252,11 @@ namespace vk
+@@ -199,6 +252,13 @@ namespace vk
+ 			{
+ 				// Allocation stack is FIFO and very long so no need to actually wait for fence signal
+ 				command_buffer_to_wait->flush();
++#ifdef RPCS3_IOS
++				// REWINDBOX_MVK_ASYNC_DEFINITIVE_927: the newest query of this report is in that command buffer, and
++				// MoltenVK marks a query as written by the device when it encodes its end. Before that,
++				// vkGetQueryPoolResults(WAIT) returns VK_NOT_READY at once and the gather would spin; sleep until the
++				// command buffer is encoded, then MoltenVK's own wait blocks until the GPU has the result.
++				command_buffer_to_wait->ios_wait_encoded(rpcs3::ios::moltenvk_exec::wait_site::query);
++#endif
+ 			}
+ 		}
+ 	};
+@@ -216,6 +276,11 @@ namespace vk
  		data_heap_manager::managed_heap_snapshot_t heap_snapshot;
  		u64 heap_snapshot_id = 0;
  		u64 last_frame_sync_time = 0;
@@ -113240,7 +113487,7 @@ index e6dae0f..878d84c 100644
  
  		void init(VkDevice dev)
  		{
-@@ -380,5 +421,13 @@ namespace vk
+@@ -380,5 +445,13 @@ namespace vk
  		{
  			return &m_cb_list[m_current_index % Count];
  		}
@@ -113279,6 +113526,33 @@ index 9360215..fbdb63f 100644
  		switch (g_driver_vendor)
  		{
  		case driver_vendor::AMD:
+diff --git a/rpcs3/Emu/RSX/VK/VKHelpers.h b/rpcs3/Emu/RSX/VK/VKHelpers.h
+index 6cbb33c..3cd2b53 100644
+--- a/rpcs3/Emu/RSX/VK/VKHelpers.h
++++ b/rpcs3/Emu/RSX/VK/VKHelpers.h
+@@ -2,6 +2,9 @@
+ 
+ #include "util/types.hpp"
+ #include <vector>
++#ifdef RPCS3_IOS
++#include <chrono>
++#endif
+ 
+ #include "VulkanAPI.h"
+ #include "Utilities/geometry.h"
+@@ -62,6 +65,12 @@ namespace vk
+ 	void acquire_global_submit_lock();
+ 	void release_global_submit_lock();
+ 	void queue_submit(const vk::queue_submit_t* packet);
++#ifdef RPCS3_IOS
++	// REWINDBOX_GPU_BACKGROUND_GATE_927 (ios/IOSGpuBackgroundGate.h, VKCommandStream.cpp): everything submitted so far
++	// is encoded and executed, or the limit passed; and the fences such a wait left behind, once the device is idle.
++	bool ios_settle_queues(std::chrono::milliseconds limit);
++	void ios_release_settle_fences();
++#endif
+ 
+ 	template<class T>
+ 	T* get_compute_task();
 diff --git a/rpcs3/Emu/RSX/VK/VKOverlays.cpp b/rpcs3/Emu/RSX/VK/VKOverlays.cpp
 index eaa2e3a..56a4d56 100644
 --- a/rpcs3/Emu/RSX/VK/VKOverlays.cpp
@@ -113700,10 +113974,10 @@ index 712505e..d67babe 100644
  	}
  }
 diff --git a/rpcs3/Emu/RSX/VK/VKPresent.cpp b/rpcs3/Emu/RSX/VK/VKPresent.cpp
-index a604696..7c733fa 100644
+index a604696..d6dc643 100644
 --- a/rpcs3/Emu/RSX/VK/VKPresent.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKPresent.cpp
-@@ -12,6 +12,17 @@
+@@ -12,6 +12,18 @@
  #include "util/asm.hpp"
  #include "util/video_provider.h"
  
@@ -113713,6 +113987,7 @@ index a604696..7c733fa 100644
 +#include "ios/IOSReadbackProfile.h"
 +#include "ios/IOSTextureResidency.h"
 +#include "ios/IOSTextureCacheProfile.h" // REWINDBOX_TEXCACHE_PROFILE_621
++#include "ios/IOSGpuBackgroundGate.h"
 +#include "ios/IOSMoltenVKExec.h"
 +#include "ios/RPCS3IOSExperimentalPolicy.h"
 +#include "Emu/RSX/Common/sampler_invalidation.h"
@@ -113721,11 +113996,29 @@ index a604696..7c733fa 100644
  extern atomic_t<bool> g_user_asked_for_screenshot;
  extern atomic_t<recording_mode> g_recording_mode;
  
-@@ -159,7 +170,22 @@ void VKGSRender::present(vk::frame_context_t *ctx)
+@@ -81,7 +93,15 @@ bool VKGSRender::reinitialize_swapchain()
+ 	m_upscaler.reset();
+ 
+ 	// Drain all the queues
++#ifdef RPCS3_IOS
++	{
++		// REWINDBOX_GPU_BACKGROUND_GATE_927: MoltenVK waits for a queue by committing an empty command buffer.
++		const rpcs3::ios::gpu_gate::pass ios_gpu_pass;
++		vkDeviceWaitIdle(*m_device);
++	}
++#else
+ 	vkDeviceWaitIdle(*m_device);
++#endif
+ 
+ 	// Clean the FBO caches
+ 	for (u32 i = 0; i < m_swapchain->get_swap_image_count(); ++i)
+@@ -159,7 +179,24 @@ void VKGSRender::present(vk::frame_context_t *ctx)
  
  	if (!swapchain_unavailable)
  	{
 +#ifdef RPCS3_IOS
++		// REWINDBOX_GPU_BACKGROUND_GATE_927 (ios/IOSGpuBackgroundGate.h): parks while the application is in the background.
++		const rpcs3::ios::gpu_gate::pass ios_gpu_pass;
 +		const u64 ios_present_begin = utils::get_tsc();
 +		const VkResult ios_present_result = m_swapchain->present(ctx->present_wait_semaphore, ctx->present_image);
 +		const u64 ios_present_ticks = utils::get_tsc() - ios_present_begin;
@@ -113744,7 +114037,7 @@ index a604696..7c733fa 100644
  		{
  		case VK_SUCCESS:
  			break;
-@@ -183,6 +209,54 @@ void VKGSRender::present(vk::frame_context_t *ctx)
+@@ -183,6 +220,57 @@ void VKGSRender::present(vk::frame_context_t *ctx)
  	// Presentation image released; reset value
  	ctx->present_image = -1;
  }
@@ -113755,6 +114048,8 @@ index a604696..7c733fa 100644
 +// encoding queue has not run yet: it releases the drawable that present and
 +// the render before it use. Synchronous submits encode inside the call; there
 +// is nothing to wait for.
++// REWINDBOX_MVK_ASYNC_DEFINITIVE_927: the wait is never abandoned. The acquisition also reads the counter of the
++// frame's event semaphore, which the queued submit that waits for it advances when it is encoded.
 +void VKGSRender::ios_wait_for_queued_present()
 +{
 +	if (!rpcs3::ios::get_experimental_policy().moltenvk_async_submits)
@@ -113787,6 +114082,7 @@ index a604696..7c733fa 100644
 +
 +	// No recorded encoding queue (the build did not rename the MoltenVK reference):
 +	// wait for the device queue instead, which is slower but keeps the order.
++	const rpcs3::ios::gpu_gate::pass ios_gpu_pass; // REWINDBOX_GPU_BACKGROUND_GATE_927: the wait commits a command buffer
 +	const auto begin = std::chrono::steady_clock::now();
 +	vk::acquire_global_submit_lock();
 +	vkQueueWaitIdle(m_device->get_present_queue());
@@ -113799,7 +114095,7 @@ index a604696..7c733fa 100644
  
  void VKGSRender::advance_queued_frames()
  {
-@@ -191,10 +265,83 @@ void VKGSRender::advance_queued_frames()
+@@ -191,10 +279,83 @@ void VKGSRender::advance_queued_frames()
  
  	// Run video memory balancer
  	m_device->rebalance_memory_type_usage();
@@ -113886,7 +114182,7 @@ index a604696..7c733fa 100644
  
  	// Texture cache is also double buffered to prevent use-after-free
  	m_texture_cache.on_frame_end();
-@@ -233,6 +380,11 @@ void VKGSRender::queue_swap_request(bool wait_on_acquire)
+@@ -233,6 +394,11 @@ void VKGSRender::queue_swap_request(bool wait_on_acquire)
  			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT);
  	}
  
@@ -113898,7 +114194,7 @@ index a604696..7c733fa 100644
  	// Set up a present request for this frame as well
  	present(m_current_frame);
  
-@@ -250,11 +402,21 @@ void VKGSRender::frame_context_cleanup(vk::frame_context_t *ctx)
+@@ -250,11 +416,21 @@ void VKGSRender::frame_context_cleanup(vk::frame_context_t *ctx)
  	ensure(ctx->swap_command_buffer);
  
  	// Perform hard swap here
@@ -113920,7 +114216,7 @@ index a604696..7c733fa 100644
  
  	// Resource cleanup.
  	{
-@@ -392,6 +554,11 @@ vk::viewable_image* VKGSRender::get_present_source(/* inout */ vk::present_surfa
+@@ -392,6 +568,11 @@ vk::viewable_image* VKGSRender::get_present_source(/* inout */ vk::present_surfa
  			flush_command_queue();
  		}
  
@@ -113932,7 +114228,7 @@ index a604696..7c733fa 100644
  		m_texture_cache.invalidate_range(*m_current_command_buffer, range, rsx::invalidation_cause::read);
  		image_to_flip = m_texture_cache.upload_image_simple(*m_current_command_buffer, expected_format, info->address, info->width, info->height, info->pitch);
  	}
-@@ -428,6 +595,10 @@ vk::viewable_image* VKGSRender::get_present_source(/* inout */ vk::present_surfa
+@@ -428,6 +609,10 @@ vk::viewable_image* VKGSRender::get_present_source(/* inout */ vk::present_surfa
  
  void VKGSRender::flip(const rsx::display_flip_info_t& info)
  {
@@ -113943,7 +114239,7 @@ index a604696..7c733fa 100644
  	// Check swapchain condition/status
  	if (!m_swapchain->supports_automatic_wm_reports())
  	{
-@@ -597,6 +768,14 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
+@@ -597,7 +782,24 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
  
  	u64 timeout = m_swapchain->get_swap_image_count() <= 2? 0ull: 100000000ull;
  	u32 out_of_date_rebuilds = 0;
@@ -113954,11 +114250,21 @@ index a604696..7c733fa 100644
 +	ios_wait_for_queued_present();
 +	// REWINDBOX_RSX_SYNC_PROFILE_V1: CAMetalLayer may block here for a drawable.
 +	const u64 ios_acquire_begin = utils::get_tsc();
-+#endif
++	// REWINDBOX_GPU_BACKGROUND_GATE_927 (ios/IOSGpuBackgroundGate.h): MoltenVK signals the acquisition's semaphore by
++	// committing a command buffer; each call parks while the application is in the background.
++	const auto ios_acquire = [this](u64 acquire_timeout)
++	{
++		const rpcs3::ios::gpu_gate::pass ios_gpu_pass;
++		return m_swapchain->acquire_next_swapchain_image(m_current_frame->acquire_signal_semaphore, acquire_timeout, &m_current_frame->present_image);
++	};
++	while (VkResult status = ios_acquire(timeout))
++#else
  	while (VkResult status = m_swapchain->acquire_next_swapchain_image(m_current_frame->acquire_signal_semaphore, timeout, &m_current_frame->present_image))
++#endif
  	{
  		switch (status)
-@@ -641,6 +820,12 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
+ 		{
+@@ -641,6 +843,12 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
  		}
  	}
  
@@ -113971,7 +114277,7 @@ index a604696..7c733fa 100644
  	// Confirm that the driver did not silently fail
  	ensure(m_current_frame->present_image != umax);
  
-@@ -718,7 +903,9 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
+@@ -718,7 +926,9 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
  
  		if (g_cfg.video.record_with_overlays && has_overlay)
  		{
@@ -113982,7 +114288,7 @@ index a604696..7c733fa 100644
  			single_target_pass = vk::get_renderpass(*m_device, key);
  			ensure(single_target_pass != VK_NULL_HANDLE);
  
-@@ -880,12 +1067,19 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
+@@ -880,18 +1090,31 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
  			metal_fx_input->change_layout(*m_current_command_buffer, VK_IMAGE_LAYOUT_GENERAL);
  			metal_fx_output->change_layout(*m_current_command_buffer, VK_IMAGE_LAYOUT_GENERAL);
  
@@ -114002,20 +114308,19 @@ index a604696..7c733fa 100644
  
  			m_current_command_buffer = m_primary_cb_list.next();
  			m_current_command_buffer->reset();
-@@ -1060,6 +1254,13 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
- 	}
+ 			m_current_command_buffer->begin();
  
- 	queue_swap_request(!acquire_consumed_before_present);
-+#ifdef RPCS3_IOS
-+	// CELL587_MVK_ASYNC_CANARY: guest flips presented by this boot (ios/IOSMoltenVKAsyncCanary.h).
-+	if (info.emu_flip)
-+	{
-+		rpcs3::ios::note_moltenvk_async_flip();
-+	}
-+#endif
- 
- 	m_frame_stats.flip_time = m_profiler.duration();
- 
+-			if (m_metal_fx_spatial->encode())
++			// REWINDBOX_GPU_BACKGROUND_GATE_927: MetalFX commits its own command buffer.
++			const auto ios_metal_fx_encode = [this]()
++			{
++				const rpcs3::ios::gpu_gate::pass ios_gpu_pass;
++				return m_metal_fx_spatial->encode();
++			};
++			if (ios_metal_fx_encode())
+ 			{
+ 				image_to_flip = metal_fx_output;
+ 				buffer_width = metal_fx_output->width();
 diff --git a/rpcs3/Emu/RSX/VK/VKProgramBuffer.h b/rpcs3/Emu/RSX/VK/VKProgramBuffer.h
 index ad7d5a0..d050618 100644
 --- a/rpcs3/Emu/RSX/VK/VKProgramBuffer.h
@@ -117407,19 +117712,20 @@ index e169caa..11fc668 100644
  		u64 m_update_after_bind_mask = 0;
  		u64 m_push_type_mask = 0;
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/device.cpp b/rpcs3/Emu/RSX/VK/vkutils/device.cpp
-index 2b2e2c3..da36d2d 100644
+index 2b2e2c3..874aafa 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/device.cpp
 +++ b/rpcs3/Emu/RSX/VK/vkutils/device.cpp
-@@ -6,6 +6,8 @@
+@@ -6,6 +6,9 @@
  #include "Utilities/File.h"
  #ifdef RPCS3_IOS
  #include "ios/RPCS3IOSBootProgress.h"
 +#include "ios/RPCS3IOSExperimentalPolicy.h"
++#include "ios/IOSGpuBackgroundGate.h"
 +#include "ios/IOSMoltenVKExec.h"
  #include "Emu/cache_utils.hpp"
  #endif
  #include <vulkan/vulkan_core.h>
-@@ -162,6 +164,9 @@ namespace vk
+@@ -162,6 +165,9 @@ namespace vk
  			return;
  		}
  
@@ -117429,7 +117735,7 @@ index 2b2e2c3..da36d2d 100644
  		if (!create_info.initialDataSize)
  		{
  			rsx_log.notice("Vulkan driver pipeline cache initialized empty.");
-@@ -174,13 +179,36 @@ namespace vk
+@@ -174,13 +180,36 @@ namespace vk
  		}
  	}
  
@@ -117467,7 +117773,7 @@ index 2b2e2c3..da36d2d 100644
  		std::vector<u8> data;
  		for (u32 attempt = 0; attempt < 2; ++attempt)
  		{
-@@ -189,6 +217,7 @@ namespace vk
+@@ -189,6 +218,7 @@ namespace vk
  			if (result != VK_SUCCESS)
  			{
  				rsx_log.warning("Vulkan driver pipeline cache size query failed (VkResult %d).", static_cast<s32>(result));
@@ -117475,7 +117781,7 @@ index 2b2e2c3..da36d2d 100644
  				return;
  			}
  
-@@ -197,6 +226,7 @@ namespace vk
+@@ -197,6 +227,7 @@ namespace vk
  				rsx_log.warning(
  					"Vulkan driver pipeline cache size %llu is outside the persisted limit; cache was not saved.",
  					static_cast<u64>(data_size));
@@ -117483,7 +117789,7 @@ index 2b2e2c3..da36d2d 100644
  				return;
  			}
  
-@@ -212,6 +242,7 @@ namespace vk
+@@ -212,6 +243,7 @@ namespace vk
  			if (result != VK_INCOMPLETE || attempt == 1)
  			{
  				rsx_log.warning("Vulkan driver pipeline cache readback failed (VkResult %d).", static_cast<s32>(result));
@@ -117491,7 +117797,7 @@ index 2b2e2c3..da36d2d 100644
  				return;
  			}
  		}
-@@ -229,6 +260,7 @@ namespace vk
+@@ -229,6 +261,7 @@ namespace vk
  		if (!fs::create_path(fs::get_parent_dir(path)))
  		{
  			rsx_log.warning("Vulkan driver pipeline cache directory could not be created.");
@@ -117499,7 +117805,7 @@ index 2b2e2c3..da36d2d 100644
  			return;
  		}
  
-@@ -239,10 +271,15 @@ namespace vk
+@@ -239,10 +272,15 @@ namespace vk
  			!pending.commit())
  		{
  			rsx_log.warning("Vulkan driver pipeline cache could not be saved atomically.");
@@ -117516,7 +117822,7 @@ index 2b2e2c3..da36d2d 100644
  	}
  
  	void render_device::save_and_destroy_pipeline_cache()
-@@ -252,7 +289,7 @@ namespace vk
+@@ -252,7 +290,7 @@ namespace vk
  			return;
  		}
  
@@ -117525,7 +117831,7 @@ index 2b2e2c3..da36d2d 100644
  		vkDestroyPipelineCache(dev, m_pipeline_cache, nullptr);
  		m_pipeline_cache = VK_NULL_HANDLE;
  		m_pipeline_cache_path.clear();
-@@ -381,6 +418,13 @@ namespace vk
+@@ -381,6 +419,13 @@ namespace vk
  #ifdef __APPLE__
  		optional_features_support.portability              = device_extensions.is_supported(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME);
  		optional_features_support.metal_objects            = device_extensions.is_supported(VK_EXT_METAL_OBJECTS_EXTENSION_NAME);
@@ -117539,7 +117845,7 @@ index 2b2e2c3..da36d2d 100644
  #endif
  
  		optional_features_support.debug_utils              = instance_extensions.is_supported(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-@@ -412,6 +456,7 @@ namespace vk
+@@ -412,6 +457,7 @@ namespace vk
  		// Core properties only
  		vkGetPhysicalDeviceMemoryProperties(dev, &memory_properties);
  		vkGetPhysicalDeviceProperties(dev, &props);
@@ -117547,7 +117853,7 @@ index 2b2e2c3..da36d2d 100644
  
  		if (!allow_extensions)
  		{
-@@ -459,6 +504,15 @@ namespace vk
+@@ -459,6 +505,15 @@ namespace vk
  		vkGetPhysicalDeviceProperties2(dev, &properties2);
  		props = properties2.properties;
  
@@ -117563,7 +117869,7 @@ index 2b2e2c3..da36d2d 100644
  		if (descriptor_indexing_support)
  		{
  			if (descriptor_indexing_props.maxUpdateAfterBindDescriptorsInAllPools < 800'000)
-@@ -823,6 +877,11 @@ namespace vk
+@@ -823,6 +878,11 @@ namespace vk
  		{
  			requested_extensions.push_back(VK_EXT_PROVOKING_VERTEX_EXTENSION_NAME);
  		}
@@ -117575,7 +117881,7 @@ index 2b2e2c3..da36d2d 100644
  		
  #ifdef __APPLE__
  		if (pgpu->optional_features_support.portability)
-@@ -836,6 +895,36 @@ namespace vk
+@@ -836,6 +896,36 @@ namespace vk
  		}
  #endif
  
@@ -117612,7 +117918,7 @@ index 2b2e2c3..da36d2d 100644
  		enabled_features.robustBufferAccess = VK_TRUE;
  		enabled_features.fullDrawIndexUint32 = VK_TRUE;
  		enabled_features.independentBlend = VK_TRUE;
-@@ -1081,11 +1170,39 @@ namespace vk
+@@ -1081,11 +1171,39 @@ namespace vk
  			device.pNext = &provoking_vertex_info;
  		}
  
@@ -117652,6 +117958,20 @@ index 2b2e2c3..da36d2d 100644
  
  		// Dump some diagnostics to the log
  		rsx_log.notice("%u extensions loaded:", ::size32(requested_extensions));
+@@ -1102,6 +1220,13 @@ namespace vk
+ 		{
+ 			vkGetDeviceQueue(dev, present_queue_idx, 0, &m_present_queue);
+ 		}
++#ifdef RPCS3_IOS
++		// REWINDBOX_MVK_ASYNC_DEFINITIVE_927 (ios/IOSMoltenVKExec.h): the queue whose encoding queue begin_device() was
++		// told to match; its submissions are ticketed. REWINDBOX_GPU_BACKGROUND_GATE_927 (ios/IOSGpuBackgroundGate.h):
++		// the application observers, once per process.
++		rpcs3::ios::moltenvk_exec::set_presenting_queue(present_queue_idx != umax ? m_present_queue : m_graphics_queue);
++		rpcs3::ios::gpu_gate::install_application_observers();
++#endif
+ 
+ 		memory_map = vk::get_memory_mapping(pdev);
+ 		m_formats_support = vk::get_optimal_tiling_supported_formats(pdev);
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/device.h b/rpcs3/Emu/RSX/VK/vkutils/device.h
 index ffafbae..b330223 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/device.h
@@ -117998,7 +118318,7 @@ index 5b96c13..5a5f85d 100644
  			{
  				barrier.srcAccessMask |= VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/instance.cpp b/rpcs3/Emu/RSX/VK/vkutils/instance.cpp
-index 87bbe4b..dd1aefb 100644
+index 87bbe4b..aced33f 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/instance.cpp
 +++ b/rpcs3/Emu/RSX/VK/vkutils/instance.cpp
 @@ -1,6 +1,10 @@
@@ -118030,9 +118350,9 @@ index 87bbe4b..dd1aefb 100644
 +				// REWINDBOX_MOLTENVK_ASYNC_SUBMITS_V1: vkQueueSubmit returns once the
 +				// submission is queued; MoltenVK encodes the Metal commands on its
 +				// queue thread. Fences, semaphores and submission order are unchanged.
-+				// CELL587_MVK_ASYNC_CANARY: the boot is recorded as armed first
-+				// (ios/IOSMoltenVKAsyncCanary.h); without that record it stays synchronous.
-+				if (rpcs3::ios::get_experimental_policy().moltenvk_async_submits && rpcs3::ios::arm_moltenvk_async_boot())
++				// REWINDBOX_MVK_ASYNC_DEFINITIVE_927: the resolved policy decides alone; no boot record
++				// stands between it and the setting (ios/IOSMoltenVKExec.h).
++				if (rpcs3::ios::get_experimental_policy().moltenvk_async_submits)
 +				{
 +					mvk_settings.push_back(VkLayerSettingEXT{ kMVKMoltenVKDriverLayerName, "MVK_CONFIG_SYNCHRONOUS_QUEUE_SUBMITS", VK_LAYER_SETTING_TYPE_BOOL32_EXT, 1, &setting_false });
 +					rsx_log.notice("MoltenVK asynchronous submits enabled for this boot");
@@ -118042,17 +118362,18 @@ index 87bbe4b..dd1aefb 100644
  				mvk_layer_settings_create_info.sType = VK_STRUCTURE_TYPE_LAYER_SETTINGS_CREATE_INFO_EXT;
  				mvk_layer_settings_create_info.pNext = next_info;
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/memory.cpp b/rpcs3/Emu/RSX/VK/vkutils/memory.cpp
-index 3db1b27..72bd887 100644
+index 3db1b27..5baed61 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/memory.cpp
 +++ b/rpcs3/Emu/RSX/VK/vkutils/memory.cpp
-@@ -1,3 +1,6 @@
+@@ -1,3 +1,7 @@
 +#ifdef RPCS3_IOS
 +#include "ios/IOSGPUMemoryProfile.h"
++#include "ios/IOSGpuMemoryPacking.h" // REWINDBOX_GPU_MEMORY_PACKING_925
 +#endif
  #include "device.h"
  #include "memory.h"
  #include "VRAMBudgetPolicy.h"
-@@ -174,6 +177,13 @@ namespace vk
+@@ -174,6 +178,13 @@ namespace vk
  
  		VkPhysicalDeviceMemoryProperties memory_properties;
  		vkGetPhysicalDeviceMemoryProperties(pdev, &memory_properties);
@@ -118066,7 +118387,7 @@ index 3db1b27..72bd887 100644
  
  		std::vector<VkDeviceSize> heap_limits;
  		const auto configured_vram_allocation_limit = g_cfg.video.vk.vram_allocation_limit * 0x100000ull;
-@@ -212,6 +222,9 @@ namespace vk
+@@ -212,6 +223,9 @@ namespace vk
  		}
  
  		CHECK_RESULT(vmaCreateAllocator(&allocatorInfo, &m_allocator));
@@ -118076,7 +118397,7 @@ index 3db1b27..72bd887 100644
  
  		// Allow fastest possible allocation on start
  		set_fastest_allocation_flags();
-@@ -237,6 +250,9 @@ namespace vk
+@@ -237,6 +251,9 @@ namespace vk
  	void mem_allocator_vma::destroy()
  	{
  		vmaDestroyAllocator(m_allocator);
@@ -118086,7 +118407,7 @@ index 3db1b27..72bd887 100644
  	}
  
  	mem_allocator_vk::mem_handle_t mem_allocator_vma::alloc(const memory_allocation_request& request)
-@@ -256,6 +272,15 @@ namespace vk
+@@ -256,9 +273,33 @@ namespace vk
  				create_info.memoryTypeBits = 1u << memory_type_index;
  				create_info.flags = m_allocation_flags;
  
@@ -118098,11 +118419,29 @@ index 3db1b27..72bd887 100644
 +					// makes is already its own VkDeviceMemory.
 +					create_info.flags |= VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
 +				}
++#ifdef RPCS3_IOS
++				// REWINDBOX_GPU_MEMORY_PACKING_925 (ios/IOSGpuMemoryPacking.h): from 1 MiB up, memory of its own.
++				const bool ios_packed = !request.dedicated && rpcs3::ios::gpu_memory_packing::wants_dedicated(
++					rpcs3::ios::gpu_memory_packing::enabled.load(std::memory_order_relaxed), mem_req.size);
++				if (ios_packed)
++				{
++					create_info.flags |= VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
++				}
++#endif
 +
  				error_code = vmaAllocateMemory(m_allocator, &mem_req, &create_info, &vma_alloc, nullptr);
  				if (error_code == VK_SUCCESS)
  				{
-@@ -347,6 +372,16 @@ namespace vk
++#ifdef RPCS3_IOS
++					if (ios_packed)
++					{
++						rpcs3::ios::gpu_memory_packing::note_dedicated(mem_req.size);
++					}
++#endif
+ 					return { VK_SUCCESS, memory_type_index };
+ 				}
+ 			}
+@@ -347,6 +388,16 @@ namespace vk
  	f32 mem_allocator_vma::get_memory_usage()
  	{
  		vmaGetHeapBudgets(m_allocator, stats.data());
@@ -118119,6 +118458,21 @@ index 3db1b27..72bd887 100644
  
  		// Filter out the Re-BAR heap
  		if (::size32(stats) > m_rebar_heap_idx)
+@@ -385,6 +436,14 @@ namespace vk
+ 
+ 	void mem_allocator_vma::set_fastest_allocation_flags()
+ 	{
++#ifdef RPCS3_IOS
++		// REWINDBOX_GPU_MEMORY_PACKING_925: the smallest free range that fits, as under pressure.
++		if (rpcs3::ios::gpu_memory_packing::enabled.load(std::memory_order_relaxed))
++		{
++			m_allocation_flags = VMA_ALLOCATION_CREATE_STRATEGY_MIN_MEMORY_BIT;
++			return;
++		}
++#endif
+ 		m_allocation_flags = VMA_ALLOCATION_CREATE_STRATEGY_MIN_TIME_BIT;
+ 	}
+ 
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/memory.h b/rpcs3/Emu/RSX/VK/vkutils/memory.h
 index 352aaba..5837ecc 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/memory.h
@@ -118488,16 +118842,17 @@ index 0000000..f8fb59f
 +	};
 +}
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/sync.cpp b/rpcs3/Emu/RSX/VK/vkutils/sync.cpp
-index 6d36283..c1d9474 100644
+index 6d36283..6db976f 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/sync.cpp
 +++ b/rpcs3/Emu/RSX/VK/vkutils/sync.cpp
-@@ -8,9 +8,22 @@
+@@ -8,9 +8,23 @@
  
  #include "Emu/Cell/timers.hpp"
  
 +#ifdef RPCS3_IOS
 +#include "ios/RPCS3IOSPerformance.h"
 +#include "ios/IOSCompilePressure.h"
++#include "ios/IOSMoltenVKExec.h"
 +#include "ios/IOSRsxSyncProfile.h"
 +#include <chrono>
 +#endif
@@ -118514,7 +118869,7 @@ index 6d36283..c1d9474 100644
  namespace vk
  {
  	namespace globals
-@@ -173,14 +186,29 @@ namespace vk
+@@ -173,14 +187,29 @@ namespace vk
  	void fence::signal_flushed()
  	{
  		flushed.release(true);
@@ -118544,7 +118899,7 @@ index 6d36283..c1d9474 100644
  	}
  
  	fence::operator bool() const
-@@ -231,13 +259,38 @@ namespace vk
+@@ -231,13 +260,38 @@ namespace vk
  			.flags = 0
  		};
  
@@ -118583,7 +118938,7 @@ index 6d36283..c1d9474 100644
  
  	event::~event()
  	{
-@@ -562,32 +615,105 @@ namespace vk
+@@ -562,32 +616,109 @@ namespace vk
  	VkResult wait_for_fence(fence* pFence, u64 timeout)
  	{
  		pFence->wait_flush();
@@ -118600,6 +118955,10 @@ index 6d36283..c1d9474 100644
  		else
  		{
 +#ifdef RPCS3_IOS
++			// REWINDBOX_MVK_ASYNC_DEFINITIVE_927 (ios/IOSMoltenVKExec.h): with asynchronous MoltenVK submits the fence
++			// cannot signal before its submission is encoded; sleep until then, so that the spin below covers the GPU
++			// and not the encoding. No wait with synchronous submits (ticket 0) or once the submission is encoded.
++			rpcs3::ios::moltenvk_exec::wait_for_encoding(pFence->ios_encode_ticket, rpcs3::ios::moltenvk_exec::wait_site::fence);
 +			// REWINDBOX_FENCE_WAIT_V1 (ios/IOSCompilePressure.h): bounded spin,
 +			// then block in MoltenVK instead of spinning for the GPU's duration.
 +			using namespace rpcs3::ios::fence_wait;
@@ -118698,10 +119057,10 @@ index 6d36283..c1d9474 100644
  		const u64 freq = utils::get_tsc_freq();
  
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/sync.h b/rpcs3/Emu/RSX/VK/vkutils/sync.h
-index 9177e84..3e3b523 100644
+index 9177e84..d1de49c 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/sync.h
 +++ b/rpcs3/Emu/RSX/VK/vkutils/sync.h
-@@ -20,7 +20,12 @@ namespace vk
+@@ -20,9 +20,20 @@ namespace vk
  
  	struct fence
  	{
@@ -118713,8 +119072,16 @@ index 9177e84..3e3b523 100644
 +#endif
  		VkFence handle         = VK_NULL_HANDLE;
  		VkDevice owner         = VK_NULL_HANDLE;
++#ifdef RPCS3_IOS
++		// REWINDBOX_MVK_ASYNC_DEFINITIVE_927 (ios/IOSMoltenVKExec.h): the marker MoltenVK's encoding queue runs behind
++		// the submission that carries this fence; written by the submitting thread before signal_flushed(), read after
++		// wait_flush(). 0: synchronous submits, or a queue that is not ticketed.
++		u64 ios_encode_ticket  = 0;
++#endif
  
-@@ -51,6 +56,10 @@ namespace vk
+ 		fence(VkDevice dev);
+ 		~fence();
+@@ -51,6 +62,10 @@ namespace vk
  		// For events_v1 and events_v2
  		VkEvent m_vk_event = VK_NULL_HANDLE;
  
@@ -118725,7 +119092,7 @@ index 9177e84..3e3b523 100644
  		// For gpu_label
  		std::unique_ptr<gpu_label> m_label{};
  
-@@ -66,6 +75,10 @@ namespace vk
+@@ -66,6 +81,10 @@ namespace vk
  		void gpu_wait(const command_buffer& cmd, const VkDependencyInfoKHR& dependency) const;
  		VkResult status() const;
  		void reset() const;
@@ -120313,7 +120680,7 @@ index 130f54b..4c096c9 100644
  void clean_savestates(std::string_view title_id, std::string_view boot_path, usz max_files, usz max_files_size);
 +void clean_orphaned_savestate_temps();
 diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
-index 7072922..a924a14 100644
+index 7072922..718577e 100644
 --- a/rpcs3/Emu/system_config.h
 +++ b/rpcs3/Emu/system_config.h
 @@ -26,6 +26,9 @@ struct cfg_root : cfg::node
@@ -120389,7 +120756,7 @@ index 7072922..a924a14 100644
  
  		cfg::_enum<ios_experimental_mode> neon_byte_swap{ this, "ARM64 Byte-Swap Uploads", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> neon_primitive_restart{ this, "ARM64 Primitive-Restart Uploads", ios_experimental_mode::automatic };
-@@ -134,6 +184,65 @@ struct cfg_root : cfg::node
+@@ -134,6 +184,67 @@ struct cfg_root : cfg::node
  		cfg::_enum<ios_experimental_mode> vulkan_command_buffer_reclamation{ this, "Vulkan Command-Buffer Reclamation", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> expanded_spu_scratch{ this, "Expanded ARM64 SPU Scratch", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> persistent_spu_object_cache{ this, "Persistent SPU Object Cache", ios_experimental_mode::automatic };
@@ -120444,6 +120811,8 @@ index 7072922..a924a14 100644
 +		// REWINDBOX_TEXTURE_LOOKUP_MEMO_660 (ios/IOSTextureLookupMemo.h): Automatic serves hits for Assassin's Creed and
 +		// verifies every hit for Black Ops II; needs Texture Validation Per FIFO Batch.
 +		cfg::_enum<ios_experimental_mode> texture_lookup_memo{ this, "Texture Lookup Memo", ios_experimental_mode::automatic };
++		// REWINDBOX_GPU_MEMORY_PACKING_925 (ios/IOSGpuMemoryPacking.h): Automatic enables it for every title.
++		cfg::_enum<ios_experimental_mode> gpu_memory_packing{ this, "GPU Memory Packing", ios_experimental_mode::automatic };
 +
 +		// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers L2, L5, L9; L3 is the
 +		// Bounded sleep value of fifo_idle_mode above). Defaults keep the Build
@@ -123652,6 +124021,314 @@ index 0000000..598eda7
 +	return executable[0] ? std::string(executable.data()) : std::string("-");
 +}
 +} // namespace rpcs3::ios::gow3_mlaa
+diff --git a/rpcs3/ios/IOSGpuBackgroundGate.h b/rpcs3/ios/IOSGpuBackgroundGate.h
+new file mode 100644
+index 0000000..6f4dce0
+--- /dev/null
++++ b/rpcs3/ios/IOSGpuBackgroundGate.h
+@@ -0,0 +1,246 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <chrono>
++#include <condition_variable>
++#include <cstdint>
++#include <mutex>
++
++// REWINDBOX_GPU_BACKGROUND_GATE_927: iOS executes no Metal command buffer for an application in the background. One
++// committed there fails with MTLCommandBufferErrorNotPermitted, and MoltenVK then reports the device and the physical
++// device lost, whatever MVK_CONFIG_RESUME_LOST_DEVICE says (MVKQueue::handleMTLCommandBufferError, MVKQueue.mm:234-241):
++// the next Vulkan call ends the RSX thread. Nothing told the renderer about the transition; it kept submitting until
++// iOS suspended the process.
++//
++// IPA 650, Assassin's Creed, pid 8767, asynchronous MoltenVK submits: "Device lost" raised by vkGetQueryPoolResults at
++// 1793814730.525, HOST_STATE app=background recorded at 1793814730.555. It is the only device loss of the device
++// journals, and it happened as the application entered the background. With asynchronous submits the work queued
++// before the transition is still encoded and committed after it; with synchronous ones the RSX thread still commits
++// the frame it is building.
++//
++// The Core listens to the application itself (RPCS3IOSPlatform.mm), on the thread that posts, inside the transition:
++// - UIApplicationDidEnterBackgroundNotification closes the gate. A thread about to submit, present, acquire an image
++//   or wait for the device parks before the call. The posting thread waits for the calls already inside, then for
++//   everything queued so far to be encoded and executed (the renderer's settle function: an empty submission with a
++//   fence on each queue). Each wait is bounded; then the transition goes on. iOS accepts GPU work until the
++//   application returns from that transition (the rule Apple documents for applicationDidEnterBackground), which is
++//   why the settle may still submit; when a call is still inside after its limit the settle is skipped, because the
++//   queues are not the posting thread's to use then.
++// - UIApplicationDidBecomeActiveNotification opens the gate and the parked calls run, in their order.
++// Nothing is dropped, skipped or reordered: the calls happen later, as they already do when iOS suspends the process.
++// A thread of an emulator that is being stopped does not park (the bypass function): stopping in the background goes
++// on as it did before the gate existed.
++namespace rpcs3::ios::gpu_gate
++{
++// The patience of the thread that closes the gate (iOS gives the transition about five seconds in all).
++inline constexpr std::chrono::milliseconds in_flight_limit{500};
++inline constexpr std::chrono::milliseconds settle_limit{1000};
++
++// A parked call looks at the bypass function this often.
++inline constexpr std::chrono::milliseconds park_slice{100};
++
++// Since boot (COREPROF GPUGATE927).
++inline std::atomic<std::uint64_t> closes{0}, opens{0};
++inline std::atomic<std::uint64_t> parks{0}, park_us{0}, park_bypasses{0};
++inline std::atomic<std::uint64_t> in_flight_timeouts{0};
++inline std::atomic<std::uint64_t> settles{0}, settle_us{0}, settle_timeouts{0};
++
++inline std::uint64_t elapsed_us(std::chrono::steady_clock::time_point since) noexcept
++{
++	return static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(
++		std::chrono::steady_clock::now() - since).count());
++}
++
++// Encoded and executed, or the limit passed: returns whether everything queued before the call completed.
++using settle_function = bool (*)(std::chrono::milliseconds limit);
++// Called by a parked thread: whether that thread must go on although the gate is closed (its emulator is stopping).
++using bypass_function = bool (*)();
++
++class gate
++{
++	std::mutex m_mutex;
++	std::condition_variable m_opened; // parked calls
++	std::condition_variable m_idle;   // the thread that closes
++	bool m_closed = false;
++	std::uint32_t m_inside = 0;
++
++	// Held while the settle function runs, so the renderer that owns it cannot go away under it.
++	std::mutex m_settle_mutex;
++	settle_function m_settle = nullptr;
++	std::atomic<bypass_function> m_bypass{nullptr};
++
++public:
++	static gate& instance() noexcept
++	{
++		static gate s_gate;
++		return s_gate;
++	}
++
++	// Before a call that gives work to the GPU. Parks while the gate is closed.
++	void enter() noexcept
++	{
++		std::unique_lock lock(m_mutex);
++		if (m_closed)
++		{
++			const auto begin = std::chrono::steady_clock::now();
++			bool parked = false;
++			for (;;)
++			{
++				// Looked at before the first wait too: a stopping emulator makes many calls and none of them waits.
++				const bypass_function bypass = m_bypass.load(std::memory_order_relaxed);
++				if (bypass && bypass())
++				{
++					park_bypasses.fetch_add(1, std::memory_order_relaxed);
++					break;
++				}
++
++				if (!parked)
++				{
++					parked = true;
++					parks.fetch_add(1, std::memory_order_relaxed);
++				}
++
++				if (m_opened.wait_for(lock, park_slice, [this] { return !m_closed; }))
++				{
++					break;
++				}
++			}
++
++			if (parked)
++			{
++				park_us.fetch_add(elapsed_us(begin), std::memory_order_relaxed);
++			}
++		}
++
++		++m_inside;
++	}
++
++	// After the call.
++	void leave() noexcept
++	{
++		bool idle = false;
++		{
++			std::lock_guard lock(m_mutex);
++			idle = --m_inside == 0;
++		}
++
++		if (idle)
++		{
++			m_idle.notify_all();
++		}
++	}
++
++	// No new call enters from now on. Returns whether the calls already inside left within the limit.
++	bool close(std::chrono::milliseconds limit = in_flight_limit) noexcept
++	{
++		std::unique_lock lock(m_mutex);
++		if (!m_closed)
++		{
++			m_closed = true;
++			closes.fetch_add(1, std::memory_order_relaxed);
++		}
++
++		const bool idle = m_idle.wait_for(lock, limit, [this] { return m_inside == 0; });
++		if (!idle)
++		{
++			in_flight_timeouts.fetch_add(1, std::memory_order_relaxed);
++		}
++
++		return idle;
++	}
++
++	void open() noexcept
++	{
++		{
++			std::lock_guard lock(m_mutex);
++			if (!m_closed)
++			{
++				return;
++			}
++
++			m_closed = false;
++			opens.fetch_add(1, std::memory_order_relaxed);
++		}
++
++		m_opened.notify_all();
++	}
++
++	bool closed() noexcept
++	{
++		std::lock_guard lock(m_mutex);
++		return m_closed;
++	}
++
++	// The renderer gives its settle function once its device exists and takes it back (null) before the device
++	// goes; taking it back waits for a settle in progress.
++	void set_settle(settle_function settle) noexcept
++	{
++		std::lock_guard lock(m_settle_mutex);
++		m_settle = settle;
++	}
++
++	// A function that never goes away (it is looked at by parked threads without a lock), or null.
++	void set_bypass(bypass_function bypass) noexcept
++	{
++		m_bypass.store(bypass, std::memory_order_relaxed);
++	}
++
++	// The application entered the background: on the posting thread, before the transition finishes.
++	void app_entered_background() noexcept
++	{
++		if (!close())
++		{
++			// A call is still inside (counted): the queues are in use, nothing more can be asked of them from here.
++			return;
++		}
++
++		std::lock_guard lock(m_settle_mutex);
++		if (m_settle)
++		{
++			const auto begin = std::chrono::steady_clock::now();
++			const bool settled = m_settle(settle_limit);
++			settles.fetch_add(1, std::memory_order_relaxed);
++			settle_us.fetch_add(elapsed_us(begin), std::memory_order_relaxed);
++			if (!settled)
++			{
++				settle_timeouts.fetch_add(1, std::memory_order_relaxed);
++			}
++		}
++	}
++
++	void app_became_active() noexcept
++	{
++		open();
++	}
++};
++
++// A call that gives work to the GPU, on this thread. A pass inside another one of the same thread is the same call.
++inline thread_local std::uint32_t pass_depth = 0;
++
++class pass
++{
++public:
++	pass() noexcept
++	{
++		if (pass_depth++ == 0)
++		{
++			gate::instance().enter();
++		}
++	}
++
++	~pass()
++	{
++		if (--pass_depth == 0)
++		{
++			gate::instance().leave();
++		}
++	}
++
++	pass(const pass&) = delete;
++	pass& operator=(const pass&) = delete;
++};
++
++// Implemented in RPCS3IOSPlatform.mm: registers the two application observers, once per process.
++void install_application_observers() noexcept;
++} // namespace rpcs3::ios::gpu_gate
+diff --git a/rpcs3/ios/IOSGpuMemoryPacking.h b/rpcs3/ios/IOSGpuMemoryPacking.h
+new file mode 100644
+index 0000000..2bd4633
+--- /dev/null
++++ b/rpcs3/ios/IOSGpuMemoryPacking.h
+@@ -0,0 +1,50 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <cstdint>
++
++// REWINDBOX_GPU_MEMORY_PACKING_925: the Vulkan memory allocator (VMA) carves every allocation under half a block out
++// of 64 MiB blocks (VRAMBudgetPolicy.h), and on an Apple GPU MoltenVK backs each block with one placement MTLHeap of
++// that size: a block is physical memory for as long as one allocation lives in it. Upstream picks VMA's fastest
++// strategy until the allocator's load exceeds 75 % of the heap, and the heap MoltenVK reports is the unified memory of
++// the device (7.4 GiB), so on iOS the fastest strategy is the only one ever used.
++//
++// IPA 724, Call of Duty: Black Ops II, pid 50194, session 8 (JITMEM, one sample per 5 s): the bytes allocated reach
++// 805 MiB after 2 minutes and stay there (777-813 MiB), while the blocks go from 648 to 1136 MiB in steps of 64 MiB
++// and the unused part of the blocks from 45 to 360 MiB; the kernel's graphics ledger (COREPROF MEMPARTS923) follows the
++// blocks, not the allocations (ledger minus blocks: 198, 209, 250-290 MiB; ledger minus allocations: 293, 448,
++// 580 MiB), and the footprint goes from 3.40 to 4.06 GB. The textures the title streams are allocated and released all
++// the time, in every size; each release leaves a hole only an allocation of that size or smaller can take.
++//
++// With the lever on:
++// - an allocation of `dedicated_from` bytes or more gets device memory of its own (VMA dedicated memory, as it already
++//   does unasked above half a block): its memory goes back to the system when it is released, and it leaves no hole;
++// - the smaller ones are placed in the smallest free range that fits (VMA's minimum-memory strategy, the one upstream
++//   switches to under pressure) instead of the first one found.
++// What is allocated, when, and its contents do not change; only where the allocator places it.
++// Host experiment on the pinned VMA 3.3.0 behind a mock device (test/rpcs3_gpu_memory_packing925_test.py), a Black Ops
++// II-shaped load (521 MiB that stay, textures of 16 KiB to 4 MiB allocated and released at random up to 290 MiB):
++// unused block bytes 166-204 MiB before, 28-51 MiB after. Not measured on an iPhone.
++namespace rpcs3::ios::gpu_memory_packing
++{
++inline std::atomic<bool> enabled{false};
++
++// Allocations from this size up get memory of their own.
++inline constexpr std::uint64_t dedicated_from = 1024 * 1024;
++
++constexpr bool wants_dedicated(bool lever_on, std::uint64_t size) noexcept
++{
++	return lever_on && size >= dedicated_from;
++}
++
++// Since boot: allocations this lever gave memory of their own, and their bytes (COREPROF GPUPACK925).
++inline std::atomic<std::uint64_t> dedicated_allocations{0};
++inline std::atomic<std::uint64_t> dedicated_bytes{0};
++
++inline void note_dedicated(std::uint64_t size) noexcept
++{
++	dedicated_allocations.fetch_add(1, std::memory_order_relaxed);
++	dedicated_bytes.fetch_add(size, std::memory_order_relaxed);
++}
++} // namespace rpcs3::ios::gpu_memory_packing
 diff --git a/rpcs3/ios/IOSGpuTiming.h b/rpcs3/ios/IOSGpuTiming.h
 new file mode 100644
 index 0000000..b42617f
@@ -125112,241 +125789,28 @@ index 6dc9a20..ae705ec 100644
  		// Streaming compression is bounded, but committing guest/RSX state can
 diff --git a/rpcs3/ios/IOSMoltenVKAsyncCanary.h b/rpcs3/ios/IOSMoltenVKAsyncCanary.h
 new file mode 100644
-index 0000000..f1008e5
+index 0000000..ebe5486
 --- /dev/null
 +++ b/rpcs3/ios/IOSMoltenVKAsyncCanary.h
-@@ -0,0 +1,225 @@
+@@ -0,0 +1,12 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
-+#include <cstdint>
-+#include <string>
-+#include <string_view>
-+#include <vector>
-+
-+// CELL587_MVK_ASYNC_CANARY: asynchronous MoltenVK submits run only for titles
-+// whose last asynchronous boot finished. A boot that turns them on first
-+// records the title as armed, durably; it becomes ok after confirm_presents
-+// presents or when the renderer shuts down cleanly. A boot that finds its title
-+// still armed knows the previous asynchronous boot ended without either (a
-+// crash, or the process being killed): the title is marked failed and keeps
-+// synchronous submits from then on. The record file carries the Core cell in
-+// its name, so a later Core tries again once.
++// CELL587_MVK_ASYNC_CANARY, retired by REWINDBOX_MVK_ASYNC_DEFINITIVE_927 (ios/IOSMoltenVKExec.h).
 +//
-+// REWINDBOX_MVK_ASYNC_RETRY_627: God of War III has been on synchronous submits since a
-+// boot of an earlier build ended without either: Build 622 logs (PID 1598), OPT587
-+// mvk_async=0 canary=failed_before, RSXSYNC551 submit 684-762 ms per 5 s window on the RSX
-+// thread, about 5 ms of each 37 ms frame. With asynchronous submits Assassin's Creed
-+// spends 15 ms per window on the same call (Build 624). This Core takes the second try
-+// that rule gives: a title whose boot fails again goes back to synchronous submits.
-+namespace rpcs3::ios::mvk_async_canary
-+{
-+inline constexpr std::string_view file_name = "rewindbox-mvk-async-627.txt";
-+inline constexpr std::uint32_t confirm_presents = 900;
-+
-+enum class state : std::uint8_t
-+{
-+	armed,
-+	ok,
-+	failed,
-+};
-+
-+struct record
-+{
-+	std::string title;
-+	state value = state::ok;
-+};
-+
-+constexpr std::string_view state_name(state value) noexcept
-+{
-+	switch (value)
-+	{
-+	case state::armed: return "armed";
-+	case state::ok: return "ok";
-+	case state::failed: return "failed";
-+	}
-+
-+	return "ok";
-+}
-+
-+// Title IDs are 4 upper-case letters and 5 digits; anything else in the file is ignored.
-+constexpr bool valid_title(std::string_view title) noexcept
-+{
-+	if (title.size() != 9)
-+	{
-+		return false;
-+	}
-+
-+	for (std::size_t i = 0; i < title.size(); i++)
-+	{
-+		const char c = title[i];
-+		if (i < 4 ? !(c >= 'A' && c <= 'Z') : !(c >= '0' && c <= '9'))
-+		{
-+			return false;
-+		}
-+	}
-+
-+	return true;
-+}
-+
-+// One "<title> <state>" line per title; the last line of a title wins.
-+inline std::vector<record> parse(std::string_view text)
-+{
-+	std::vector<record> records;
-+	while (!text.empty())
-+	{
-+		const std::size_t end = text.find('\n');
-+		std::string_view line = text.substr(0, end);
-+		text = end == std::string_view::npos ? std::string_view{} : text.substr(end + 1);
-+
-+		const std::size_t space = line.find(' ');
-+		if (space == std::string_view::npos)
-+		{
-+			continue;
-+		}
-+
-+		const std::string_view title = line.substr(0, space);
-+		const std::string_view name = line.substr(space + 1);
-+		state value;
-+		if (name == "armed") value = state::armed;
-+		else if (name == "ok") value = state::ok;
-+		else if (name == "failed") value = state::failed;
-+		else continue;
-+
-+		if (!valid_title(title))
-+		{
-+			continue;
-+		}
-+
-+		bool replaced = false;
-+		for (auto& existing : records)
-+		{
-+			if (existing.title == title)
-+			{
-+				existing.value = value;
-+				replaced = true;
-+			}
-+		}
-+
-+		if (!replaced)
-+		{
-+			records.push_back({std::string(title), value});
-+		}
-+	}
-+
-+	return records;
-+}
-+
-+inline std::string serialize(const std::vector<record>& records)
-+{
-+	std::string text;
-+	for (const auto& entry : records)
-+	{
-+		text += entry.title;
-+		text += ' ';
-+		text += state_name(entry.value);
-+		text += '\n';
-+	}
-+
-+	return text;
-+}
-+
-+inline record* find(std::vector<record>& records, std::string_view title) noexcept
-+{
-+	for (auto& entry : records)
-+	{
-+		if (entry.title == title)
-+		{
-+			return &entry;
-+		}
-+	}
-+
-+	return nullptr;
-+}
-+
-+enum class verdict : std::uint8_t
-+{
-+	off,                  // not requested: the records are unchanged
-+	run,                  // requested and allowed: the title is now armed
-+	failed_before,        // an earlier asynchronous boot of the title failed
-+	previous_boot_failed, // this boot found the title armed: now failed
-+	invalid_title,        // no usable title ID: synchronous
-+	record_failed,        // the armed record could not be written: synchronous
-+};
-+
-+constexpr std::string_view verdict_name(verdict value) noexcept
-+{
-+	switch (value)
-+	{
-+	case verdict::off: return "off";
-+	case verdict::run: return "armed";
-+	case verdict::failed_before: return "failed_before";
-+	case verdict::previous_boot_failed: return "previous_boot_failed";
-+	case verdict::invalid_title: return "invalid_title";
-+	case verdict::record_failed: return "record_failed";
-+	}
-+
-+	return "off";
-+}
-+
-+// At boot, before the Vulkan instance exists. Returns whether this boot may use
-+// asynchronous submits; records receives the state to write before it continues.
-+inline verdict on_boot(std::vector<record>& records, std::string_view title, bool requested)
-+{
-+	record* entry = find(records, title);
-+	if (entry && entry->value == state::armed)
-+	{
-+		entry->value = state::failed;
-+		return verdict::previous_boot_failed;
-+	}
-+
-+	if (!requested)
-+	{
-+		return verdict::off;
-+	}
-+
-+	if (!valid_title(title))
-+	{
-+		return verdict::invalid_title;
-+	}
-+
-+	if (entry && entry->value == state::failed)
-+	{
-+		return verdict::failed_before;
-+	}
-+
-+	if (entry)
-+	{
-+		entry->value = state::armed;
-+	}
-+	else
-+	{
-+		records.push_back({std::string(title), state::armed});
-+	}
-+
-+	return verdict::run;
-+}
-+
-+// After confirm_presents presents, or at a clean renderer shutdown. Returns true when
-+// the title was armed and is now ok.
-+inline bool on_confirm(std::vector<record>& records, std::string_view title)
-+{
-+	record* entry = find(records, title);
-+	if (!entry || entry->value != state::armed)
-+	{
-+		return false;
-+	}
-+
-+	entry->value = state::ok;
-+	return true;
-+}
-+}
++// Cores 587 to 926 kept a boot record per title: a title whose asynchronous boot had ended before 900 guest flips or
++// a clean renderer shutdown went back to synchronous MoltenVK submits, for good. The record marked boots that had
++// ended for any reason (every Black Ops II and God of War III boot since build 676 was refused that way) and never a
++// failure of the submits themselves: in 16 asynchronous sessions of the device journals no acquisition timed out.
++//
++// Nothing reads or writes a record any more and nothing includes this header. The file stays, without code, because
++// the canonical source delta does not drop files (build-utils/rpcs3/regenerate_canonical_delta.py).
 diff --git a/rpcs3/ios/IOSMoltenVKExec.h b/rpcs3/ios/IOSMoltenVKExec.h
 new file mode 100644
-index 0000000..559f816
+index 0000000..3d8caf1
 --- /dev/null
 +++ b/rpcs3/ios/IOSMoltenVKExec.h
-@@ -0,0 +1,199 @@
+@@ -0,0 +1,234 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -125381,6 +125845,21 @@ index 0000000..559f816
 +// thread queues a marker behind it; before the next acquisition it waits for
 +// the marker of the last present. Command buffers submitted since that present
 +// keep encoding while the RSX thread records.
++//
++// REWINDBOX_MVK_ASYNC_DEFINITIVE_927: asynchronous submits are the rule for every title and no boot record turns
++// them off. Every asynchronous session in the device journals (builds 640 to 694: 9 of Assassin's Creed, 7 of Black
++// Ops II; 9 processes, 76,148 presents) ran with 0 acquisitions timed out and the encoding queue recorded each time;
++// every title marked failed had only ended a boot before 900 guest flips. What the order of encoding needs is
++// stated here and kept by waiting, never by giving up:
++// - MoltenVK's event semaphores count at encoding time (MVKSemaphoreMTLEvent::encodeWait increments the value that
++//   vkAcquireNextImageKHR reads on the calling thread, MVKSync.mm:122-130): an acquisition that overtook the queued
++//   submit waiting for the same semaphore would hand out its token again and the GPU would wait for a value nobody
++//   signals. The wait for the last present marker is therefore never abandoned (it was after 2 s).
++// - Every submission to the presenting queue gets a marker and its fence remembers the ticket. A thread that needs
++//   the result of a submission (a fence wait, an occlusion gather) sleeps until that submission is encoded instead
++//   of spinning: MoltenVK changes a query to "written by the device" only when it encodes vkCmdEndQuery
++//   (MVKQueryPool::endQuery), so vkGetQueryPoolResults with VK_QUERY_RESULT_WAIT_BIT returns VK_NOT_READY at once
++//   before that, and a fence cannot signal before its commands exist.
 +namespace rpcs3::ios::moltenvk_exec
 +{
 +// MVKQueue::initName and initExecQueue: "MoltenVKQueue-<family>-<index>-<priority>-Dispatch".
@@ -125444,21 +125923,22 @@ index 0000000..559f816
 +	return result;
 +}
 +
-+// A waiter gives up after this long and acquires as before (a stalled queue thread is a
-+// GPU or driver failure that the fence timeouts of RPCS3 report).
++// A waiter that has slept this long counts one timeout and keeps waiting, as the thread that encodes inside
++// vkQueueSubmit does with synchronous submits. The count and the longest wait are reported (COREPROF OPT587).
 +constexpr std::chrono::milliseconds wait_limit{2000};
 +
-+// Present tickets: issued in order on the presenting thread, completed in order by the
-+// marker that runs behind each present on MoltenVK's serial queue. Tickets never
-+// restart, so a marker left on the queue of a destroyed device cannot complete a newer
-+// ticket of the next device's queue.
++// Encoding tickets: issued in order for every present and every submission of the presenting queue, completed in
++// order by the marker that runs behind each on MoltenVK's serial queue. Tickets never restart, so a marker left on
++// the queue of a destroyed device cannot complete a newer ticket of the next device's queue. A ticket is issued
++// after its own submission was queued, and a later ticket after that, so a completed ticket means its submission
++// and every earlier one are encoded, whichever thread queued the markers first.
 +class present_tracker
 +{
 +	std::mutex m_mutex;
 +	std::condition_variable m_cv;
 +	std::uint64_t m_issued = 0;
 +	std::uint64_t m_completed = 0;
-+	std::array<std::uint64_t, 16> m_issue_us{};
++	std::array<std::uint64_t, 64> m_issue_us{};
 +
 +public:
 +	std::uint64_t issue(std::uint64_t now_us) noexcept
@@ -125515,12 +125995,23 @@ index 0000000..559f816
 +	}
 +};
 +
++// Who waits for a submission to be encoded.
++enum class wait_site : std::uint8_t
++{
++	fence, // vk::wait_for_fence, before its spin and MoltenVK's own wait
++	query, // an occlusion gather, before vkGetQueryPoolResults waits for the device
++	count,
++};
++
 +// Profile counters, read and cleared by the 5 s performance window (COREPROF OPT587).
 +inline std::atomic<std::uint32_t> exec_queues{0};
 +inline std::atomic<bool> barrier_missing{false};
 +inline std::atomic<std::uint64_t> presents_marked{0}, marker_lag_us{0}, marker_lag_max_us{0};
 +inline std::atomic<std::uint64_t> acquire_waits{0}, acquire_wait_us{0}, acquire_wait_max_us{0}, acquire_timeouts{0};
 +inline std::atomic<std::uint64_t> drains{0}, drain_us{0};
++// REWINDBOX_MVK_ASYNC_DEFINITIVE_927: submissions marked, and the waits for one to be encoded, by site.
++inline std::atomic<std::uint64_t> submits_marked{0}, encode_wait_timeouts{0};
++inline std::array<std::atomic<std::uint64_t>, static_cast<std::size_t>(wait_site::count)> encode_waits{}, encode_wait_us{}, encode_wait_max_us{};
 +
 +inline void record_max(std::atomic<std::uint64_t>& maximum, std::uint64_t value) noexcept
 +{
@@ -125541,17 +126032,25 @@ index 0000000..559f816
 +// After vkQueuePresentKHR: queue a marker behind the present. Returns its ticket, or 0
 +// when the presenting queue has no unambiguous recorded identity.
 +std::uint64_t mark_present() noexcept;
-+// Before vkAcquireNextImageKHR: wait until the marker of ticket has run.
++// Before vkAcquireNextImageKHR: wait until the marker of ticket has run, however long that takes.
 +void wait_for_present(std::uint64_t ticket) noexcept;
++// The VkQueue that presents (its handle), given once the device has its queues; null forgets it.
++void set_presenting_queue(void* vk_queue) noexcept;
++// After vkQueueSubmit on vk_queue: queue a marker behind the submission. Returns its ticket, or 0 when vk_queue
++// is not the presenting queue or no encoding queue is recorded for it (synchronous submits).
++std::uint64_t mark_submit(void* vk_queue) noexcept;
++// Sleep until the submission of ticket is encoded, however long that takes. Returns false without waiting for
++// ticket 0 and for a submission already encoded.
++bool wait_for_encoding(std::uint64_t ticket, wait_site site) noexcept;
 +// Wait until everything queued so far on every recorded queue has been encoded.
 +void drain() noexcept;
 +}
 diff --git a/rpcs3/ios/IOSMoltenVKExecQueue.h b/rpcs3/ios/IOSMoltenVKExecQueue.h
 new file mode 100644
-index 0000000..31c14fd
+index 0000000..4e1d5fe
 --- /dev/null
 +++ b/rpcs3/ios/IOSMoltenVKExecQueue.h
-@@ -0,0 +1,238 @@
+@@ -0,0 +1,302 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -125607,6 +126106,7 @@ index 0000000..31c14fd
 +	std::uint32_t m_count = 0;
 +	std::uint32_t m_present_family = 0;
 +	std::uint32_t m_present_index = 0;
++	void* m_presenting_vk_queue = nullptr;
 +	present_tracker m_presents;
 +
 +	static void present_marker(void* context) noexcept
@@ -125614,6 +126114,12 @@ index 0000000..31c14fd
 +		const std::uint64_t lag = instance().m_presents.complete(reinterpret_cast<std::uintptr_t>(context), now_us());
 +		marker_lag_us.fetch_add(lag, std::memory_order_relaxed);
 +		record_max(marker_lag_max_us, lag);
++	}
++
++	// A marker behind a submission: completes its ticket; the lag statistics are those of presents.
++	static void encode_marker(void* context) noexcept
++	{
++		instance().m_presents.complete(reinterpret_cast<std::uintptr_t>(context), now_us());
 +	}
 +
 +	static void drain_marker(void*) noexcept
@@ -125702,7 +126208,14 @@ index 0000000..31c14fd
 +		m_count = 0;
 +		m_present_family = present_family;
 +		m_present_index = present_index;
++		m_presenting_vk_queue = nullptr;
 +		exec_queues.store(0, std::memory_order_relaxed);
++	}
++
++	void set_presenting_queue(void* vk_queue) noexcept
++	{
++		std::lock_guard lock(m_mutex);
++		m_presenting_vk_queue = vk_queue;
 +	}
 +
 +	std::uint32_t queue_count() noexcept
@@ -125733,29 +126246,79 @@ index 0000000..31c14fd
 +		return ticket;
 +	}
 +
++	// REWINDBOX_MVK_ASYNC_DEFINITIVE_927: a marker behind a submission of the presenting VkQueue.
++	std::uint64_t mark_submit(void* vk_queue) noexcept
++	{
++		dispatch_queue_t queue = nullptr;
++		{
++			std::lock_guard lock(m_mutex);
++			if (!vk_queue || vk_queue != m_presenting_vk_queue)
++			{
++				return 0;
++			}
++
++			hold(queue, present_queue_locked());
++		}
++
++		if (!queue)
++		{
++			return 0;
++		}
++
++		const std::uint64_t ticket = m_presents.issue(now_us());
++		dispatch_async_f(queue, reinterpret_cast<void*>(static_cast<std::uintptr_t>(ticket)), encode_marker);
++		submits_marked.fetch_add(1, std::memory_order_relaxed);
++		hold(queue, nullptr);
++		return ticket;
++	}
++
++	// Sleeps until the marker of ticket has run, counting each wait_limit that passes; never gives up.
++	// Returns false when the marker had already run.
++	bool wait_until_encoded(std::uint64_t ticket, std::atomic<std::uint64_t>& timeouts, std::uint64_t& waited_us) noexcept
++	{
++		const std::uint64_t begin = now_us();
++		auto result = m_presents.wait(ticket);
++		if (result == present_tracker::wait_result::ready)
++		{
++			return false;
++		}
++
++		while (result == present_tracker::wait_result::timed_out)
++		{
++			timeouts.fetch_add(1, std::memory_order_relaxed);
++			result = m_presents.wait(ticket);
++		}
++
++		waited_us = now_us() - begin;
++		return true;
++	}
++
 +	void wait_for_present(std::uint64_t ticket) noexcept
 +	{
-+		if (!ticket)
++		std::uint64_t waited = 0;
++		if (!ticket || !wait_until_encoded(ticket, acquire_timeouts, waited))
 +		{
 +			return;
 +		}
 +
-+		const std::uint64_t begin = now_us();
-+		switch (m_presents.wait(ticket))
-+		{
-+		case present_tracker::wait_result::ready:
-+			return;
-+		case present_tracker::wait_result::waited:
-+			break;
-+		case present_tracker::wait_result::timed_out:
-+			acquire_timeouts.fetch_add(1, std::memory_order_relaxed);
-+			break;
-+		}
-+
-+		const std::uint64_t waited = now_us() - begin;
 +		acquire_waits.fetch_add(1, std::memory_order_relaxed);
 +		acquire_wait_us.fetch_add(waited, std::memory_order_relaxed);
 +		record_max(acquire_wait_max_us, waited);
++	}
++
++	bool wait_for_encoding(std::uint64_t ticket, wait_site site) noexcept
++	{
++		std::uint64_t waited = 0;
++		if (!ticket || !wait_until_encoded(ticket, encode_wait_timeouts, waited))
++		{
++			return false;
++		}
++
++		const auto index = static_cast<std::size_t>(site);
++		encode_waits[index].fetch_add(1, std::memory_order_relaxed);
++		encode_wait_us[index].fetch_add(waited, std::memory_order_relaxed);
++		record_max(encode_wait_max_us[index], waited);
++		return true;
 +	}
 +
 +	void drain() noexcept
@@ -125792,10 +126355,10 @@ index 0000000..31c14fd
 +}
 diff --git a/rpcs3/ios/IOSPassiveLockGate.h b/rpcs3/ios/IOSPassiveLockGate.h
 new file mode 100644
-index 0000000..0fe3d1f
+index 0000000..3d51930
 --- /dev/null
 +++ b/rpcs3/ios/IOSPassiveLockGate.h
-@@ -0,0 +1,294 @@
+@@ -0,0 +1,353 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -126088,6 +126651,65 @@ index 0000000..0fe3d1f
 +	}
 +
 +	return true;
++}
++
++// REWINDBOX_GATE_BEFORE_LINE_924: an accurate PUTLLC takes its line's reservation lock
++// (rsrv_unique_lock) and only then the writer lock, whose deferral above ran with that
++// line locked. During the window a
++// starving PPU opened on leaving, the first SPU to reach its writer lock therefore kept its
++// line locked for the whole window: a PPU whose next step is a conditional store on that
++// same line (ppu_store_reservation fails on a locked line) spent every window failing it.
++// IPA 724, Call of Duty: Black Ops II, pid 50194: the main thread waits for a semaphore, the
++// PPU thread Secondary holds a reservation on 0x2e208d8 whose word shows the lock of another
++// thread for 27 us across the dump, and six SPUs complete 1.5 million PUTLLC per second on
++// that line (7.5 million per 5 s window, none sleeping), 6010 windows opened and 8671 writer
++// locks deferred 115 us each in the same window; no frame for the rest of the session.
++// The deferral is now made before the line is locked, and the writer lock that follows does
++// not defer a second time. The same waits, in the same bound; the reservation time and the
++// line's contents are validated after it exactly as before (the lock is taken by the same
++// fetch_op, the comparison is made under the same writer lock). Nothing is skipped: a PUTLLC
++// whose line changed while it deferred fails, as it does when the line changes at any other
++// moment before its lock. A PPU's conditional store of a full line and a 128-byte store keep
++// the earlier order (they lock their line, then defer in the writer lock): neither is on the
++// path observed, and PPUThread.cpp is an input of the PPU cache identity.
++inline thread_local bool deferred_ahead = false;
++
++class ahead_scope
++{
++public:
++	// `active` false: no deferral here, and the writer lock defers as before.
++	explicit ahead_scope(bool active = true) noexcept
++		: m_active(active)
++	{
++		if (active)
++		{
++			defer_writer();
++			deferred_ahead = true;
++		}
++	}
++
++	ahead_scope(const ahead_scope&) = delete;
++	ahead_scope& operator=(const ahead_scope&) = delete;
++
++	~ahead_scope()
++	{
++		if (m_active)
++		{
++			deferred_ahead = false;
++		}
++	}
++
++private:
++	const bool m_active;
++};
++
++// vm::writer_lock: defers unless the caller did so before locking its line.
++inline void defer_writer_once() noexcept
++{
++	if (!deferred_ahead)
++	{
++		defer_writer();
++	}
 +}
 +}
 diff --git a/rpcs3/ios/IOSPipelineQueue.h b/rpcs3/ios/IOSPipelineQueue.h
@@ -131154,10 +131776,10 @@ index 0000000..b1d21f2
 +}
 diff --git a/rpcs3/ios/IOSTitleLevers.h b/rpcs3/ios/IOSTitleLevers.h
 new file mode 100644
-index 0000000..ad58594
+index 0000000..e7c9dba
 --- /dev/null
 +++ b/rpcs3/ios/IOSTitleLevers.h
-@@ -0,0 +1,257 @@
+@@ -0,0 +1,255 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -131182,8 +131804,8 @@ index 0000000..ad58594
 +// GPU, 2.1-6.7 ms per frame and 0.8-1.06 s per 5 s window in the ~700-draw
 +// scenes, with Multithreaded RSX on.
 +//
-+// CELL587_MVK_ENCODE_BARRIER: God of War III is the Automatic title of
-+// asynchronous MoltenVK submits (ios/IOSMoltenVKExec.h, IOSMoltenVKAsyncCanary.h).
++// CELL587_MVK_ENCODE_BARRIER: God of War III was the first Automatic title of
++// asynchronous MoltenVK submits (ios/IOSMoltenVKExec.h).
 +// Its build 583 logs spend 490-640 ms per 5 s window in vkQueueSubmit (1,200-2,500
 +// submits, RSXSYNC551 submit=), the Metal encoding of synchronous submits, on the
 +// RSX offloader thread that the RSX thread waits for at each submission.
@@ -131219,9 +131841,9 @@ index 0000000..ad58594
 +// windows 22-37 (PID 55119, 27-36 fps) keep the RSX FIFO busy 60-97 % and spend
 +// 0.93-1.36 s per 5 s window inside vkQueueSubmit (4,065-5,435 submits, RSXSYNC
 +// submit=), the Metal encoding that the RSX thread waits for at each submission,
-+// above the 490-640 ms that made God of War III the first Automatic title. The
-+// boot canary of 587 still returns the title to synchronous submits after a boot
-+// that did not finish. No frame-rate gain is measured yet.
++// above the 490-640 ms that made God of War III the first Automatic title.
++// REWINDBOX_MVK_ASYNC_DEFINITIVE_927: Automatic is now every title and the boot
++// record of 587 is gone (RPCS3IOSExperimentalPolicy.cpp, ios/IOSMoltenVKExec.h).
 +namespace rpcs3::ios::title_levers
 +{
 +constexpr bool is_black_ops_ii_title(std::string_view title_id) noexcept
@@ -131341,16 +131963,6 @@ index 0000000..ad58594
 +	return is_black_ops_ii_title(title_id);
 +}
 +
-+// REWINDBOX_BO2_MVK_ASYNC_619: Black Ops II joins God of War III and Assassin's
-+// Creed in the Automatic mode of asynchronous MoltenVK submits (CELL587, boot
-+// canary kept). Build 617 multiplayer windows 18-28 (PID 65755, session 3, 30 fps,
-+// mvk_async=0) spend 0.80 s per 5 s window inside vkQueueSubmit on the RSX thread
-+// (RSXSYNC551 submit=1051:796.9 ms), 4-27 ms in the 45-120 ms frames.
-+constexpr bool joins_mvk_async_automatic_619(std::string_view title_id) noexcept
-+{
-+	return is_black_ops_ii_title(title_id);
-+}
-+
 +// REWINDBOX_EARLY_SUBMIT_BOUNDARY_659: Assassin's Creed and Black Ops II join the
 +// Automatic mode of early command buffer submission (561), in the boundary mode.
 +// IPA 657 (Core 655, PID 10471): every Assassin's Creed command buffer other than
@@ -131377,14 +131989,22 @@ index 0000000..ad58594
 +// counters (1,243-1,545 lookups per frame, 48-51 % epoch skips, 4.0-5.7 ms of texture stage) but 248-293 CPU
 +// uploads per window, each of which ends every entry: its Automatic mode verifies every hit (the full lookup
 +// runs and its result is used), so TEXMEMO660 measures what it would gain before any hit is served.
++// REWINDBOX_TEXMEMO_SERVE_BO2_926: that measurement is done. Black Ops II ran the memo in verify_all mode on builds
++// 662, 676, 721, 723 and 724: 4,676,476 reuses looked up in full and compared, 0 differences, never disabled (and
++// 84,796 reuses served with 0 differences when a boot set the memo to Enabled, build 662, PID 13540). Build 724
++// (PID 50194, session 8): 1,498,418 of 4,509,555 lookups were such reuses, 23.7 s of lookups over 51 windows. Its
++// hits are now served, with the verification of every served title: the first reuse of each (slot, key), the first
++// 256 hits of a boot, then one hit in 64, and any difference turns the memo off for the rest of the boot.
 +constexpr bool serves_texture_lookup_memo(std::string_view title_id) noexcept
 +{
-+	return is_assassins_creed_title(title_id);
++	return is_assassins_creed_title(title_id) || is_black_ops_ii_title(title_id);
 +}
 +
++// No title is only verified any more; Enabled/Disabled per game still choose for any title.
 +constexpr bool verifies_texture_lookup_memo(std::string_view title_id) noexcept
 +{
-+	return is_black_ops_ii_title(title_id);
++	static_cast<void>(title_id);
++	return false;
 +}
 +
 +// REWINDBOX_ZCULL_WATCHED_FLUSH_660 (ios/IOSZcullWatched.h): Assassin's Creed submits the command buffer
@@ -136505,7 +137125,7 @@ index 0000000..6e4c976
 +}
 diff --git a/rpcs3/ios/RPCS3IOSBootDiagnostics.h b/rpcs3/ios/RPCS3IOSBootDiagnostics.h
 new file mode 100644
-index 0000000..c4701b2
+index 0000000..395a32c
 --- /dev/null
 +++ b/rpcs3/ios/RPCS3IOSBootDiagnostics.h
 @@ -0,0 +1,604 @@
@@ -136895,7 +137515,7 @@ index 0000000..c4701b2
 +	// are cfg::to_string() text. invariance is what the vertex shaders get
 +	// (policy and Shader Precision not Low, as VKVertexProgram.cpp decides on
 +	// Apple GPUs); invariance_policy is the resolved setting. mvk_async is the
-+	// boot's resolved request (the asynchronous-submit canary already applied).
++	// boot's resolved policy (REWINDBOX_MVK_ASYNC_DEFINITIVE_927: nothing else decides).
 +	// overrides lists, among the sparse user override keys applied on this boot,
 +	// only those of the settings this line reports (rsx_override_keys).
 +	inline constexpr std::string_view rsx_override_keys[] = {
@@ -137358,10 +137978,10 @@ index b4602fe..37a708a 100644
  
  	rpcs3_ios_status begin_content_install() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index 7c3389b..1cfb5bb 100644
+index 7c3389b..816a766 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-@@ -1,10 +1,41 @@
+@@ -1,8 +1,34 @@
  #include "stdafx.h"
  #include "RPCS3IOSExperimentalPolicy.h"
  
@@ -137386,147 +138006,17 @@ index 7c3389b..1cfb5bb 100644
 +#include "IOSTitleLevers.h"
 +#include "IOSLoadOpClear907.h"
 +#include "IOSThreadQoS.h"
-+#include "IOSMoltenVKAsyncCanary.h"
 +#include "IOSInPassReadTransition.h"
 +#include "IOSSpuObjectBindings.h" // REWINDBOX_SPU_DIRECT_OBJECT_HIT_660
 +#include "IOSTextureLookupMemo.h" // REWINDBOX_TEXTURE_LOOKUP_MEMO_660
 +#include "IOSZcullWatched.h" // REWINDBOX_ZCULL_WATCHED_FLUSH_660, REWINDBOX_ZCULL_DEPTH_GUARD_660
++#include "IOSGpuMemoryPacking.h" // REWINDBOX_GPU_MEMORY_PACKING_925
 +#include "Utilities/File.h"
 +#include "util/asm.hpp" // NEOSTATION_BUILD487_DIAGNOSTICS_V1 (L2): utils::arm_timer_scale
  #include "util/logs.hpp"
  
-+#include <cerrno>
-+#include <fcntl.h>
-+#include <mutex>
-+#include <unistd.h>
-+
  LOG_CHANNEL(ios_experimental_log, "iOS Experimental");
- 
- namespace rpcs3::ios
-@@ -13,6 +44,122 @@ namespace
- {
- experimental_policy s_policy{};
- 
-+// CELL587_MVK_ASYNC_CANARY (ios/IOSMoltenVKAsyncCanary.h): this boot's title, verdict and state.
-+std::mutex s_mvk_canary_mutex;
-+std::string s_mvk_canary_title;
-+mvk_async_canary::verdict s_mvk_canary_verdict = mvk_async_canary::verdict::off;
-+bool s_mvk_canary_armed = false;
-+std::atomic<bool> s_mvk_canary_confirmed{false};
-+std::atomic<u32> s_mvk_canary_flips{0};
-+
-+std::string mvk_canary_path()
-+{
-+	return fs::get_config_dir() + std::string(mvk_async_canary::file_name);
-+}
-+
-+std::vector<mvk_async_canary::record> read_mvk_canary()
-+{
-+	const fs::file file(mvk_canary_path());
-+	return file ? mvk_async_canary::parse(file.to_string()) : std::vector<mvk_async_canary::record>{};
-+}
-+
-+// Written to a temporary file, flushed to storage and renamed: a crash at any point
-+// leaves the previous or the new records whole.
-+bool write_mvk_canary(const std::vector<mvk_async_canary::record>& records)
-+{
-+	const std::string path = mvk_canary_path();
-+	const std::string temp = path + ".tmp";
-+	const std::string text = mvk_async_canary::serialize(records);
-+	const int fd = ::open(temp.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
-+	if (fd < 0)
-+	{
-+		return false;
-+	}
-+
-+	usz written = 0;
-+	while (written < text.size())
-+	{
-+		const ssize_t count = ::write(fd, text.data() + written, text.size() - written);
-+		if (count < 0 && errno == EINTR)
-+		{
-+			continue;
-+		}
-+
-+		if (count <= 0)
-+		{
-+			::close(fd);
-+			return false;
-+		}
-+
-+		written += static_cast<usz>(count);
-+	}
-+
-+	const bool synced = ::fsync(fd) == 0;
-+	::close(fd);
-+	if (!synced || ::rename(temp.c_str(), path.c_str()) != 0)
-+	{
-+		return false;
-+	}
-+
-+	if (const int directory = ::open(fs::get_config_dir().c_str(), O_RDONLY | O_CLOEXEC); directory >= 0)
-+	{
-+		::fsync(directory);
-+		::close(directory);
-+	}
-+
-+	return true;
-+}
-+
-+// At policy resolution: a title still armed failed its last asynchronous boot. Arming
-+// itself waits for the Vulkan instance (arm_moltenvk_async_boot), so a boot that never
-+// creates the renderer leaves no record.
-+bool resolve_mvk_async(std::string_view title, bool requested)
-+{
-+	std::lock_guard lock(s_mvk_canary_mutex);
-+	s_mvk_canary_title = title;
-+	s_mvk_canary_armed = false;
-+	s_mvk_canary_confirmed.store(false, std::memory_order_relaxed);
-+	s_mvk_canary_flips.store(0, std::memory_order_relaxed);
-+
-+	// For verdict::run the armed record is not written here (arm_moltenvk_async_boot).
-+	auto records = read_mvk_canary();
-+	const auto verdict = mvk_async_canary::on_boot(records, title, requested);
-+	if (verdict == mvk_async_canary::verdict::previous_boot_failed)
-+	{
-+		if (!write_mvk_canary(records))
-+		{
-+			ios_experimental_log.error("MoltenVK asynchronous submits: could not record that the last asynchronous boot of %s did not finish", s_mvk_canary_title);
-+		}
-+
-+		ios_experimental_log.warning("MoltenVK asynchronous submits stay off for %s: its last asynchronous boot did not finish (crash or forced exit)", s_mvk_canary_title);
-+	}
-+	else if (verdict == mvk_async_canary::verdict::failed_before)
-+	{
-+		ios_experimental_log.warning("MoltenVK asynchronous submits stay off for %s: an earlier asynchronous boot did not finish", s_mvk_canary_title);
-+	}
-+
-+	s_mvk_canary_verdict = verdict;
-+	return verdict == mvk_async_canary::verdict::run;
-+}
-+
-+void confirm_mvk_async_locked(const char* reason)
-+{
-+	if (!s_mvk_canary_armed || s_mvk_canary_confirmed.load(std::memory_order_relaxed))
-+	{
-+		return;
-+	}
-+
-+	auto records = read_mvk_canary();
-+	if (mvk_async_canary::on_confirm(records, s_mvk_canary_title) && !write_mvk_canary(records))
-+	{
-+		ios_experimental_log.error("MoltenVK asynchronous submits: could not confirm the boot of %s", s_mvk_canary_title);
-+		return;
-+	}
-+
-+	s_mvk_canary_confirmed.store(true, std::memory_order_relaxed);
-+	ios_experimental_log.notice("MoltenVK asynchronous submits: boot of %s confirmed (%s)", s_mvk_canary_title, reason);
-+}
-+
- bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
- {
- 	switch (mode)
-@@ -27,6 +174,91 @@ bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
+@@ -27,6 +53,91 @@ bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
  
  	return automatic_value;
  }
@@ -137618,7 +138108,7 @@ index 7c3389b..1cfb5bb 100644
  }
  
  const experimental_policy& get_experimental_policy() noexcept
-@@ -47,6 +279,134 @@ void resolve_experimental_policy() noexcept
+@@ -47,7 +158,139 @@ void resolve_experimental_policy() noexcept
  	const bool fps_batch = resolve_mode(g_cfg.ios_experimental.fps_optimization_batch, false);
  	resolved.dma_copy_specialization = arm64_default && resolve_mode(g_cfg.ios_experimental.dma_copy_specialization, fps_batch);
  	resolved.texture_hash_hybrid = arm64_default && resolve_mode(g_cfg.ios_experimental.texture_hash_hybrid, fps_batch);
@@ -137751,9 +138241,14 @@ index 7c3389b..1cfb5bb 100644
 +		memo::configure(memo_mode);
 +	}
  	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
++	// REWINDBOX_GPU_MEMORY_PACKING_925 (ios/IOSGpuMemoryPacking.h): Automatic is every title. Black Ops II, build 724:
++	// 805 MiB allocated in 1136 MiB of 64 MiB blocks, each a placement heap the kernel counts whole.
++	resolved.gpu_memory_packing = resolve_mode(g_cfg.ios_experimental.gpu_memory_packing, true);
++	rpcs3::ios::gpu_memory_packing::enabled.store(resolved.gpu_memory_packing, std::memory_order_relaxed);
  	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
  	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
-@@ -58,27 +418,276 @@ void resolve_experimental_policy() noexcept
+ 	resolved.mobile_spu_scheduling = resolve_mode(g_cfg.ios_experimental.mobile_spu_scheduling, false);
+@@ -58,27 +301,235 @@ void resolve_experimental_policy() noexcept
  	resolved.rsx_dma_wait_parking = resolve_mode(g_cfg.ios_experimental.rsx_dma_wait_parking, arm64_default);
  	resolved.vulkan_command_buffer_reclamation = resolve_mode(g_cfg.ios_experimental.vulkan_command_buffer_reclamation, arm64_default);
  	resolved.expanded_spu_scratch = resolve_mode(g_cfg.ios_experimental.expanded_spu_scratch, arm64_default);
@@ -137761,15 +138256,17 @@ index 7c3389b..1cfb5bb 100644
 +	// that set it to Enabled (the RPCS3 database is the reference); the bypass itself only touches the six serials and the
 +	// exact executables and SPU modules it knows (PPUModule.cpp, sys_spu.cpp).
 +	resolved.gow3_mlaa_bypass = resolve_mode(g_cfg.ios_experimental.gow3_mlaa_bypass, is_god_of_war_iii_title(title_id));
-+	// CELL587_MVK_ENCODE_BARRIER / CELL587_MVK_ASYNC_CANARY: Automatic is God of War III, whose
-+	// Metal encoding took 490-640 ms per 5 s window on build 583 (RSXSYNC551 submit), now that
-+	// acquisitions wait for the last queued present (ios/IOSMoltenVKExec.h), and only while its
-+	// last asynchronous boot finished (ios/IOSMoltenVKAsyncCanary.h).
-+	// REWINDBOX_AC_MVK_ASYNC_610 adds Assassin's Creed: 0.93-1.36 s per window on build 601.
-+	resolved.moltenvk_async_submits = resolve_mvk_async(title_id,
-+		resolve_mode(g_cfg.ios_experimental.moltenvk_async_submits,
-+			rpcs3::ios::title_levers::joins_mvk_async_automatic_619(title_id) || // REWINDBOX_BO2_MVK_ASYNC_619
-+			is_god_of_war_iii_title(title_id) || rpcs3::ios::title_levers::is_assassins_creed_title(title_id)));
++	// CELL587_MVK_ENCODE_BARRIER (ios/IOSMoltenVKExec.h): MoltenVK encodes the Metal commands on its queue thread and
++	// acquisitions wait for the last queued present. On the RSX thread the encoding took 490-640 ms per 5 s window in
++	// God of War III (build 583), 0.93-1.36 s in Assassin's Creed (build 601), 462-606 ms in Black Ops II (builds 694
++	// to 724: 3.5-4.8 ms of each frame); queued, the same call takes 0.05 ms per frame (builds 643 to 662).
++	// REWINDBOX_MVK_ASYNC_DEFINITIVE_927: Automatic is every title, and nothing but the setting turns it off: the
++	// boot record of Cores 587 to 926 is gone (16 asynchronous sessions in the journals, 0 failed acquisitions; every
++	// title it had marked had only ended a boot before 900 guest flips). One configuration keeps synchronous submits
++	// in Automatic: asynchronous texture streaming, which orders two queues by counters that MoltenVK advances when
++	// it encodes (VKGSRender.cpp); Enabled keeps asynchronous submits and the streaming stays on the RSX thread.
++	resolved.moltenvk_async_submits = resolve_mode(g_cfg.ios_experimental.moltenvk_async_submits,
++		!g_cfg.video.vk.asynchronous_texture_streaming);
 +	// REWINDBOX_POSITION_INVARIANCE_610: Automatic is the title list.
 +	// REWINDBOX_POSITION_INVARIANCE_612: Enabled/Disabled (a per-game override) test the
 +	// other value; the vertex shader text changes, so Metal compiles new pipelines.
@@ -137893,7 +138390,7 @@ index 7c3389b..1cfb5bb 100644
 +	// counter facts behind spin_timing: cntfrq=, timer_scale= and
 +	// getllar_ticks=<refail>/<spin window>/<forced sleep>.
 +	// REWINDBOX_POSITION_INVARIANCE_610 appends position_invariance= and mvk_async=
-+	// (the policy request; the canary may still turn the latter off at instance creation).
++	// (since REWINDBOX_MVK_ASYNC_DEFINITIVE_927 the latter is what the boot runs with).
  	ios_experimental_log.notice(
 -		"Resolved boot policy: swap=%d restart=%d precomputed=%d mobile_spu=%d fifo=%u wfe=%d deferred_get=%d getllar=%d rsx_park=%d vk_cb_reclaim=%d spu_scratch=%u spu_object_cache=%d",
 +		"Resolved boot policy: swap=%d restart=%d precomputed=%d mobile_spu=%d fifo=%u wfe=%d deferred_get=%d getllar=%d rsx_park=%d vk_cb_reclaim=%d spu_scratch=%u spu_object_cache=%d gow3_mlaa=%d spin_timing=%s fifo_idle=%s spuobj_keys=%u warmup_scope=%s cntfrq=%u timer_scale=%u getllar_ticks=%u/%u/%u position_invariance=%d mvk_async=%d",
@@ -137910,7 +138407,7 @@ index 7c3389b..1cfb5bb 100644
 +		resolved.position_invariance, resolved.moltenvk_async_submits);
 +	// REWINDBOX_ZCLIP_WINDOW_Z_616: its own line, the boot policy line keeps its fields.
 +	ios_experimental_log.notice("Resolved title policy 616: zclip_window_z=%d spu_object_prefetch=%d", resolved.zclip_fallback_window_z, resolved.spu_object_prefetch);
-+	// REWINDBOX_ZCULL_ON_DEMAND_619: its own line; mvk_async= is the policy request (the canary may turn it off).
++	// REWINDBOX_ZCULL_ON_DEMAND_619: its own line; mvk_async= is the resolved policy.
 +	ios_experimental_log.notice("Resolved title policy 619: zcull_on_demand=%d zclip_pinned_affine=%d mvk_async=%d",
 +		resolved.zcull_on_demand, resolved.zclip_pinned_affine, resolved.moltenvk_async_submits);
 +	// REWINDBOX_GPU_TIMING_621: its own line.
@@ -137941,6 +138438,18 @@ index 7c3389b..1cfb5bb 100644
 +	ios_experimental_log.notice("Resolved title policy 660: texture_lookup_memo=%d verify_all=%d ways=%u verify_first=%u verify_period=%u",
 +		resolved.texture_lookup_memo, resolved.texture_lookup_memo_verify_all, static_cast<u32>(rpcs3::ios::texture_lookup_memo::ways),
 +		static_cast<u32>(rpcs3::ios::texture_lookup_memo::verify_first), static_cast<u32>(rpcs3::ios::texture_lookup_memo::verify_period));
++	// REWINDBOX_GPU_MEMORY_PACKING_925: its own line.
++	ios_experimental_log.notice("Resolved title policy 925: gpu_memory_packing=%d dedicated_from=%u strategy=%s",
++		resolved.gpu_memory_packing, static_cast<u32>(rpcs3::ios::gpu_memory_packing::dedicated_from),
++		resolved.gpu_memory_packing ? "min_memory" : "min_time");
++	// REWINDBOX_MVK_ASYNC_DEFINITIVE_927: its own line. rule= says what decided: the setting, or Automatic (every
++	// title; synchronous when the configuration asks for asynchronous texture streaming).
++	ios_experimental_log.notice("Resolved title policy 927: mvk_async=%d rule=%s texture_streaming=%d boot_record=none",
++		resolved.moltenvk_async_submits,
++		g_cfg.ios_experimental.moltenvk_async_submits.get() == ios_experimental_mode::automatic
++			? (g_cfg.video.vk.asynchronous_texture_streaming ? "automatic_texture_streaming" : "automatic_every_title")
++			: (resolved.moltenvk_async_submits ? "setting_enabled" : "setting_disabled"),
++		g_cfg.video.vk.asynchronous_texture_streaming ? 1 : 0);
 +	// REWINDBOX_ZCULL_WATCHED_FLUSH_660, REWINDBOX_ZCULL_DEPTH_GUARD_660: their own line.
 +	ios_experimental_log.notice("Resolved title policy 660: zcull_watched_flush=%d zcull_depth_guard=%d watch_frames=%u "
 +		"watched_submits_per_frame=%u min_lead_us=%u depth_hard_cap=%u",
@@ -137982,66 +138491,11 @@ index 7c3389b..1cfb5bb 100644
 +	ios_experimental_log.notice("SPU spin timing at Core init: spin_timing=%s cntfrq=%u timer_scale=%u getllar_ticks=%u/%u/%u",
 +		spin_timing_token(g_cfg.ios_experimental.spu_spin_timing), s_policy.spu_spin_cntfrq, s_policy.spu_spin_timer_scale,
 +		s_policy.spu_spin.getllar_refail_ticks, s_policy.spu_spin.getllar_spin_window_ticks, s_policy.spu_spin.getllar_forced_sleep_ticks);
-+}
-+
-+bool arm_moltenvk_async_boot() noexcept
-+{
-+	std::lock_guard lock(s_mvk_canary_mutex);
-+	if (!s_policy.moltenvk_async_submits)
-+	{
-+		return false;
-+	}
-+
-+	if (s_mvk_canary_armed)
-+	{
-+		return true;
-+	}
-+
-+	auto records = read_mvk_canary();
-+	if (mvk_async_canary::on_boot(records, s_mvk_canary_title, true) != mvk_async_canary::verdict::run || !write_mvk_canary(records))
-+	{
-+		s_policy.moltenvk_async_submits = false;
-+		s_mvk_canary_verdict = mvk_async_canary::verdict::record_failed;
-+		ios_experimental_log.error("MoltenVK asynchronous submits off for this boot: the boot record of %s could not be written", s_mvk_canary_title);
-+		return false;
-+	}
-+
-+	s_mvk_canary_armed = true;
-+	return true;
-+}
-+
-+void note_moltenvk_async_flip() noexcept
-+{
-+	if (s_mvk_canary_confirmed.load(std::memory_order_relaxed) ||
-+		s_mvk_canary_flips.fetch_add(1, std::memory_order_relaxed) + 1 != mvk_async_canary::confirm_presents)
-+	{
-+		return;
-+	}
-+
-+	std::lock_guard lock(s_mvk_canary_mutex);
-+	confirm_mvk_async_locked("guest flips");
-+}
-+
-+void confirm_moltenvk_async_boot(const char* reason) noexcept
-+{
-+	std::lock_guard lock(s_mvk_canary_mutex);
-+	confirm_mvk_async_locked(reason);
-+}
-+
-+const char* moltenvk_async_canary_verdict() noexcept
-+{
-+	std::lock_guard lock(s_mvk_canary_mutex);
-+	return mvk_async_canary::verdict_name(s_mvk_canary_verdict).data();
-+}
-+
-+bool moltenvk_async_boot_confirmed() noexcept
-+{
-+	return s_mvk_canary_confirmed.load(std::memory_order_relaxed);
  }
  
  u32 get_spu_gateway_scratch_size() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-index 8fba197..a9457cb 100644
+index 8fba197..77f7b66 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 @@ -1,6 +1,7 @@
@@ -138100,7 +138554,7 @@ index 8fba197..a9457cb 100644
  	u32 fifo_cache_bytes = 1024;
  	bool fifo_idle_wfe = false;
  	bool deferred_get_publishing = false;
-@@ -20,14 +62,140 @@ struct experimental_policy
+@@ -20,8 +62,122 @@ struct experimental_policy
  	bool vulkan_command_buffer_reclamation = false;
  	bool expanded_spu_scratch = false;
  	bool persistent_spu_object_cache = false;
@@ -138179,6 +138633,8 @@ index 8fba197..a9457cb 100644
 +	bool texture_lookup_memo = false;
 +	// With it, every hit runs the full lookup and is compared (counters only, nothing skipped).
 +	bool texture_lookup_memo_verify_all = false;
++	// REWINDBOX_GPU_MEMORY_PACKING_925: GPU allocations of 1 MiB or more get memory of their own, the others the best fit.
++	bool gpu_memory_packing = false;
 +	// REWINDBOX_ZCULL_WATCHED_FLUSH_660 (ios/IOSZcullWatched.h): a report into a slot a guest waited for arms the
 +	// boundary submission of its command buffer. Title scoped, with the asynchronous reads and the boundary mode.
 +	bool zcull_watched_flush = false;
@@ -138221,26 +138677,6 @@ index 8fba197..a9457cb 100644
  // Replaced only while boot is serialized and before emulation workers exist.
  // Consumers either snapshot fields in their constructor or configure a hot-path
  // function pointer from resolve_experimental_policy().
- const experimental_policy& get_experimental_policy() noexcept;
- void resolve_experimental_policy() noexcept;
- 
-+// CELL587_MVK_ASYNC_CANARY (ios/IOSMoltenVKAsyncCanary.h). Called where the Vulkan
-+// instance turns asynchronous MoltenVK submits on: records the title as armed,
-+// durably, before any submission. Returns false, and turns them off for this
-+// boot, when the record cannot be written.
-+bool arm_moltenvk_async_boot() noexcept;
-+// A guest flip presented with them; the boot is confirmed after
-+// mvk_async_canary::confirm_presents of them.
-+void note_moltenvk_async_flip() noexcept;
-+// A clean renderer shutdown confirms the boot too.
-+void confirm_moltenvk_async_boot(const char* reason) noexcept;
-+// For the performance window: the canary verdict name of this boot, and whether it is confirmed.
-+const char* moltenvk_async_canary_verdict() noexcept;
-+bool moltenvk_async_boot_confirmed() noexcept;
-+
- // The generated ARM64 SPU gateways are process-lifetime functions, while the
- // effective experimental policy is resolved once per boot. Keep the immediate
- // choice behind this tiny accessor so a later boot can return to the upstream
 diff --git a/rpcs3/ios/RPCS3IOSFreezeDump.cpp b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
 new file mode 100644
 index 0000000..a3f1443
@@ -140011,10 +140447,10 @@ index 0000000..cee4f58
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d800542..745f8cc 100644
+index d800542..78436f0 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
-@@ -1,26 +1,246 @@
+@@ -1,26 +1,248 @@
  #include "stdafx.h"
 +#include "ios/NeoSwapStorage/FrameClient.h"
 +#include "RPCS3IOSWriterCounters.h"
@@ -140037,6 +140473,7 @@ index d800542..745f8cc 100644
 +#include "IOSDeferredCommit.h"
 +#include "IOSEarlySubmit.h"
 +#include "IOSMoltenVKExec.h"
++#include "IOSGpuBackgroundGate.h" // REWINDBOX_GPU_BACKGROUND_GATE_927
 +#include "IOSCompileAdmission.h"
 +#include "IOSRuntimeMetrics.h"
 +#include "IOSShaderTiming.h"
@@ -140079,6 +140516,7 @@ index d800542..745f8cc 100644
 +#include "util/logs.hpp"
  #include "util/sysinfo.hpp"
 +#include "util/tsc.hpp"
++#include "IOSGpuMemoryPacking.h" // REWINDBOX_GPU_MEMORY_PACKING_925
 +
 +// NEOSTATION_BUILD258_CORE_ARCHITECTURE_V1
 +// NEOSTATION_BUILD258_RUNTIME_RESILIENCE_V1
@@ -140261,7 +140699,7 @@ index d800542..745f8cc 100644
  
  u64 process_memory_footprint()
  {
-@@ -38,31 +258,564 @@ u64 process_memory_footprint()
+@@ -38,31 +260,564 @@ u64 process_memory_footprint()
  #endif
  }
  
@@ -140836,7 +141274,7 @@ index d800542..745f8cc 100644
  		{
  			return RPCS3_IOS_INVALID_ARGUMENT;
  		}
-@@ -72,10 +825,10 @@ public:
+@@ -72,10 +827,10 @@ public:
  
  		std::lock_guard lock(m_sample_mutex);
  		const auto now = sample_clock::now();
@@ -140849,7 +141287,7 @@ index d800542..745f8cc 100644
  		result.cpu_usage_percent = std::clamp(m_cpu_stats.get_usage(), 0.0, 100.0);
  		result.valid_fields |= RPCS3_IOS_PERFORMANCE_CPU_VALID;
  
-@@ -108,12 +861,1674 @@ public:
+@@ -108,12 +863,1718 @@ public:
  			result.valid_fields |= RPCS3_IOS_PERFORMANCE_MEMORY_VALID;
  		}
  
@@ -142064,24 +142502,56 @@ index d800542..745f8cc 100644
 +                early::boundary_textures.exchange(0, std::memory_order_relaxed), early::fallback_submits.exchange(0, std::memory_order_relaxed),
 +                early::disarmed.exchange(0, std::memory_order_relaxed), early::max_deferred_draws);
 +        }
-+        // CELL587_MVK_ENCODE_BARRIER / CELL587_MVK_ASYNC_CANARY: asynchronous MoltenVK submits
-+        // of this boot (canary verdict, confirmation), the encoding queues recorded for the
-+        // device, the presents marked, how long their markers waited behind earlier work on
-+        // the encoding queue (lag), and the acquisitions that had to wait for one. With
-+        // asynchronous submits RSXSYNC551 submit= times the queueing only.
++        // CELL587_MVK_ENCODE_BARRIER: asynchronous MoltenVK submits of this boot, the encoding
++        // queues recorded for the device, the presents marked, how long their markers waited
++        // behind earlier work on the encoding queue (lag), and the acquisitions that had to
++        // wait for one. With asynchronous submits RSXSYNC551 submit= times the queueing only.
++        // REWINDBOX_MVK_ASYNC_DEFINITIVE_927: no boot record any more (the canary= and confirmed=
++        // fields are gone); submits_marked= counts the submissions given a marker, and
++        // fence_encode_waits= / query_encode_waits= (count:total ms:longest ms) the fence waits
++        // and occlusion gathers that slept until their submission was encoded instead of
++        // spinning; acquire_timeouts= and encode_wait_timeouts= count 2 s periods a wait lasted
++        // (the wait goes on).
 +        {
 +            namespace exec = rpcs3::ios::moltenvk_exec;
 +            const auto take = [](std::atomic<u64>& value) { return value.exchange(0, std::memory_order_relaxed); };
 +            const u64 marked = take(exec::presents_marked), lag = take(exec::marker_lag_us), lag_max = take(exec::marker_lag_max_us);
 +            const u64 waits = take(exec::acquire_waits), wait_us = take(exec::acquire_wait_us), wait_max = take(exec::acquire_wait_max_us);
 +            const u64 timeouts = take(exec::acquire_timeouts), drains = take(exec::drains), drain_us = take(exec::drain_us);
-+            ios_core_profiler.notice("COREPROF OPT587 session=%llu window=%llu mvk_async=%u canary=%s confirmed=%u exec_queues=%u "
++            const u64 submits = take(exec::submits_marked), encode_timeouts = take(exec::encode_wait_timeouts);
++            const auto fence_site = static_cast<usz>(exec::wait_site::fence), query_site = static_cast<usz>(exec::wait_site::query);
++            const u64 fence_waits = take(exec::encode_waits[fence_site]), fence_us = take(exec::encode_wait_us[fence_site]);
++            const u64 fence_max = take(exec::encode_wait_max_us[fence_site]);
++            const u64 query_waits = take(exec::encode_waits[query_site]), query_us = take(exec::encode_wait_us[query_site]);
++            const u64 query_max = take(exec::encode_wait_max_us[query_site]);
++            ios_core_profiler.notice("COREPROF OPT587 session=%llu window=%llu mvk_async=%u boot_record=none exec_queues=%u "
 +                "barrier_missing=%u presents_marked=%llu marker_lag_ms=%.3f marker_lag_max_ms=%.3f acquire_waits=%llu:%.3f:%.3f "
-+                "acquire_timeouts=%llu drains=%llu:%.3f scope=process_window_counters window_boundary_approximate=1",
++                "acquire_timeouts=%llu drains=%llu:%.3f submits_marked=%llu fence_encode_waits=%llu:%.3f:%.3f "
++                "query_encode_waits=%llu:%.3f:%.3f encode_wait_timeouts=%llu scope=process_window_counters window_boundary_approximate=1",
 +                profile_session, profile_window, rpcs3::ios::get_experimental_policy().moltenvk_async_submits ? 1u : 0u,
-+                rpcs3::ios::moltenvk_async_canary_verdict(), rpcs3::ios::moltenvk_async_boot_confirmed() ? 1u : 0u,
 +                exec::exec_queues.load(std::memory_order_relaxed), exec::barrier_missing.load(std::memory_order_relaxed) ? 1u : 0u,
-+                marked, lag / 1000.0, lag_max / 1000.0, waits, wait_us / 1000.0, wait_max / 1000.0, timeouts, drains, drain_us / 1000.0);
++                marked, lag / 1000.0, lag_max / 1000.0, waits, wait_us / 1000.0, wait_max / 1000.0, timeouts, drains, drain_us / 1000.0,
++                submits, fence_waits, fence_us / 1000.0, fence_max / 1000.0, query_waits, query_us / 1000.0, query_max / 1000.0,
++                encode_timeouts);
++        }
++        // REWINDBOX_GPU_BACKGROUND_GATE_927 (ios/IOSGpuBackgroundGate.h): since boot, written in a window only once the
++        // application has been to the background. closes= transitions; parks= calls that waited for the application to
++        // be active again and for how long; park_bypasses= those that went on because the emulator was stopping;
++        // in_flight_timeouts= transitions that did not see every call already inside return in 500 ms (no settle then);
++        // settles= waits for the queues (count:total ms) and settle_timeouts= those that took over 1 s.
++        {
++            namespace gate = rpcs3::ios::gpu_gate;
++            if (const u64 closes = gate::closes.load(std::memory_order_relaxed))
++            {
++                ios_core_profiler.notice("COREPROF GPUGATE927 session=%llu window=%llu closed=%u closes=%llu opens=%llu parks=%llu:%.3f "
++                    "park_bypasses=%llu in_flight_timeouts=%llu settles=%llu:%.3f settle_timeouts=%llu scope=process_since_boot",
++                    profile_session, profile_window, gate::gate::instance().closed() ? 1u : 0u, closes,
++                    gate::opens.load(std::memory_order_relaxed), gate::parks.load(std::memory_order_relaxed),
++                    gate::park_us.load(std::memory_order_relaxed) / 1000.0, gate::park_bypasses.load(std::memory_order_relaxed),
++                    gate::in_flight_timeouts.load(std::memory_order_relaxed),
++                    gate::settles.load(std::memory_order_relaxed), gate::settle_us.load(std::memory_order_relaxed) / 1000.0,
++                    gate::settle_timeouts.load(std::memory_order_relaxed));
++            }
 +        }
 +        const auto& mem = memory_window.latest;
 +        const auto& peak = memory_window.peak;
@@ -142108,6 +142578,18 @@ index d800542..745f8cc 100644
 +            profile_session, profile_window, publication.calls, publication.empty_calls, publication.deferred_calls, publication.history_ranges, publication.dirty_ranges,
 +            publication.flushed_bytes, milliseconds(publication.ticks), milliseconds(publication.max_ticks),
 +            publication.retained_metadata_bytes, publication.peak_metadata_bytes);
++        {
++            // REWINDBOX_GPU_MEMORY_PACKING_925 (ios/IOSGpuMemoryPacking.h): what the lever placed alone, since boot;
++            // JITMEM vma_block_bytes, vma_allocated and vma_unused carry the result.
++            namespace packing = rpcs3::ios::gpu_memory_packing;
++            ios_core_profiler.notice(
++                "COREPROF GPUPACK925 session=%llu window=%llu enabled=%d dedicated_from=%llu dedicated=%llu:%llu "
++                "dedicated_tuple=allocations:bytes scope=process_since_boot",
++                profile_session, profile_window, packing::enabled.load(std::memory_order_relaxed) ? 1 : 0,
++                static_cast<unsigned long long>(packing::dedicated_from),
++                static_cast<unsigned long long>(packing::dedicated_allocations.load(std::memory_order_relaxed)),
++                static_cast<unsigned long long>(packing::dedicated_bytes.load(std::memory_order_relaxed)));
++        }
 +
 +		// NEOSTATION_BUILD481_SPU_OBJECT_CACHE_V1: obj_* fields of the persistent
 +		// SPU object cache (counts per window; bytes of loaded/written objects).
@@ -142526,7 +143008,7 @@ index d800542..745f8cc 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +2536,93 @@ private:
+@@ -121,6 +2582,93 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -142620,7 +143102,7 @@ index d800542..745f8cc 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +2630,93 @@ performance_registry g_performance_registry;
+@@ -128,6 +2676,93 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -142714,7 +143196,7 @@ index d800542..745f8cc 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +2727,128 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +2773,128 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -142843,7 +143325,7 @@ index d800542..745f8cc 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +2858,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +2904,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  
@@ -142973,10 +143455,10 @@ index 88392e0..cf34b97 100644
  // allocation workload, such as an LLVM compilation batch.
  u64 relieve_process_memory_pressure() noexcept;
 diff --git a/rpcs3/ios/RPCS3IOSPlatform.mm b/rpcs3/ios/RPCS3IOSPlatform.mm
-index 41559b0..4b399d3 100644
+index 41559b0..79c81b7 100644
 --- a/rpcs3/ios/RPCS3IOSPlatform.mm
 +++ b/rpcs3/ios/RPCS3IOSPlatform.mm
-@@ -8,9 +8,102 @@
+@@ -8,9 +8,142 @@
  #include <TargetConditionals.h>
  
  #include <dispatch/dispatch.h>
@@ -142987,6 +143469,7 @@ index 41559b0..4b399d3 100644
 +#include <cstdint>
 +#include <thread>
 +
++#include "IOSGpuBackgroundGate.h"
 +#include "IOSMoltenVKExecQueue.h"
 +#include "IOSReservationLockPolicy.h"
 +#include "IOSRsxSyncProfile.h"
@@ -143056,9 +143539,48 @@ index 41559b0..4b399d3 100644
 +	gcd::registry::instance().wait_for_present(ticket);
 +}
 +
++void set_presenting_queue(void* vk_queue) noexcept
++{
++	gcd::registry::instance().set_presenting_queue(vk_queue);
++}
++
++std::uint64_t mark_submit(void* vk_queue) noexcept
++{
++	return gcd::registry::instance().mark_submit(vk_queue);
++}
++
++bool wait_for_encoding(std::uint64_t ticket, wait_site site) noexcept
++{
++	return gcd::registry::instance().wait_for_encoding(ticket, site);
++}
++
 +void drain() noexcept
 +{
 +	gcd::registry::instance().drain();
++}
++}
++
++// REWINDBOX_GPU_BACKGROUND_GATE_927 (ios/IOSGpuBackgroundGate.h). The blocks are given no queue, so they run on the
++// thread that posts the notification, the main thread, inside the transition: the gate is closed and the queues have
++// settled before UIKit goes on to the background, and nothing is committed again before the application is active.
++namespace rpcs3::ios::gpu_gate
++{
++void install_application_observers() noexcept
++{
++	static dispatch_once_t once;
++	dispatch_once(&once, ^{
++		@autoreleasepool
++		{
++			NSNotificationCenter* center = NSNotificationCenter.defaultCenter;
++			id background = [center addObserverForName:UIApplicationDidEnterBackgroundNotification object:nil queue:nil
++				usingBlock:^(NSNotification*) { gate::instance().app_entered_background(); }];
++			id active = [center addObserverForName:UIApplicationDidBecomeActiveNotification object:nil queue:nil
++				usingBlock:^(NSNotification*) { gate::instance().app_became_active(); }];
++			// Registered for the life of the process.
++			static_cast<void>(CFBridgingRetain(background));
++			static_cast<void>(CFBridgingRetain(active));
++		}
++	});
 +}
 +}
  
@@ -143450,7 +143972,7 @@ index 0000000..dcc1fad
 +}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index b7b0474..4d3078e 100644
+index b7b0474..d0824e3 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
 @@ -1,21 +1,45 @@
@@ -143499,7 +144021,15 @@ index b7b0474..4d3078e 100644
  #define SETTING(KEY, CATEGORY, SECTION, NAME, DESCRIPTION, KIND, ENTRY, MINIMUM, MAXIMUM, STEP) \
  	setting_record{KEY, CATEGORY, SECTION, NAME, DESCRIPTION, KIND, &ENTRY, MINIMUM, MAXIMUM, STEP, setting_scope::global_and_game}
  
-@@ -93,13 +117,14 @@ const std::array catalog{
+@@ -56,6 +80,7 @@ const std::array catalog{
+ 	SETTING("gpu.strict_rendering", "GPU", "Rendering", "Strict rendering mode", "Disables selected rendering approximations for compatibility.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.strict_rendering_mode, 0, 1, 1),
+ 	SETTING("gpu.multithreaded_rsx", "GPU", "Rendering", "Multithreaded RSX", "Uses an additional host thread for selected RSX work.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.multithreaded_rsx, 0, 1, 1),
+ 	SETTING("gpu.async_texture_uploads", "GPU", "Rendering", "Asynchronous texture streaming", "Uploads Vulkan textures asynchronously when supported by MoltenVK.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.vk.asynchronous_texture_streaming, 0, 1, 1),
++	SETTING("experimental.gpu_memory_packing", "Experimental", "FPS Experiments", "GPU memory packing", "Graphics memory is taken from the system in blocks of 64 MB, and a block stays allocated while anything remains in it. With this setting, a texture, buffer or render target of 1 MB or more gets memory of its own, returned to the system when it is released, and the smaller ones are placed in the smallest free space that fits. What is drawn does not change; only the memory the graphics blocks keep unused. Automatic enables it for every title; Disabled places every allocation in the first free space of a block as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.gpu_memory_packing, 0, 0, 0),
+ 	SETTING("gpu.zcull_accuracy", "GPU", "Rendering", "ZCULL accuracy", "Selects precise, approximate, or relaxed ZCULL synchronization.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.video.precise_zpass_count, 0, 0, 0),
+ 
+ 	// Audio
+@@ -93,13 +118,14 @@ const std::array catalog{
  	// Advanced
  	SETTING("advanced.debug_console_mode", "Advanced", "CPU Compatibility", "Debug console mode", "Emulates additional debug-console behavior required by some software.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.core.debug_console_mode, 0, 1, 1),
  	SETTING("advanced.accurate_spu_dma", "Advanced", "CPU Compatibility", "Accurate SPU DMA", "Uses stricter ordering for SPU DMA operations.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.core.spu_accurate_dma, 0, 1, 1),
@@ -143515,7 +144045,7 @@ index b7b0474..4d3078e 100644
  	SETTING("advanced.read_color_buffers", "Advanced", "GPU Compatibility", "Read color buffers", "Allows the CPU to read rendered color-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_color_buffers, 0, 1, 1),
  	SETTING("advanced.read_depth_buffer", "Advanced", "GPU Compatibility", "Read depth buffers", "Allows the CPU to read rendered depth-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_depth_buffer, 0, 1, 1),
  	SETTING("advanced.write_depth_buffer", "Advanced", "GPU Compatibility", "Write depth buffers", "Mirrors depth-buffer data into emulated memory.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.write_depth_buffer, 0, 1, 1),
-@@ -122,21 +147,78 @@ const std::array catalog{
+@@ -122,21 +148,78 @@ const std::array catalog{
  	SETTING("experimental.fps_optimization_batch", "Experimental", "FPS Experiments", "FPS optimization batch", "Enables the DMA copy and large-texture hash experiments together on the next boot. Automatic is disabled. Individual overrides take precedence. Gameplay benefit requires device profiling.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fps_optimization_batch, 0, 0, 0),
  	SETTING("experimental.dma_copy_specialization", "Experimental", "FPS Experiments", "Specialize small DMA copies", "Tests fixed-size copies for 64 to 128 bytes while retaining DMA synchronization. Automatic follows FPS optimization batch; Disabled restores the original copy loop. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.dma_copy_specialization, 0, 0, 0),
  	SETTING("experimental.texture_hash_hybrid", "Experimental", "FPS Experiments", "Hybrid large-texture hash", "Tests a different ARM64 implementation of the same hash for ranges of at least 4 KiB. Every byte is still checked. Automatic follows FPS optimization batch; Disabled restores the original hash. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_hash_hybrid, 0, 0, 0),
@@ -143558,7 +144088,7 @@ index b7b0474..4d3078e 100644
 +	GAME_SETTING("experimental.position_invariance", "Experimental", "MoltenVK", "Position invariance", "Asks Metal to compute the vertex position the same way in every shader that writes it, so passes that draw the same geometry again (weapon models, lit walls) get identical depth. Automatic enables it for Call of Duty: Black Ops II and Assassin's Creed; Disabled restores the previous shaders. Metal compiles new shaders on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.position_invariance, 0, 0, 0),
 +	GAME_SETTING("experimental.native_half_registers", "Experimental", "GPU", "Native half-precision registers", "Computes the half-precision registers of PlayStation 3 pixel shaders (the RSX H registers) in native 16-bit floats, as the RSX does, instead of 32-bit floats clamped to the half range; every other precision rule stays as with High precision. The Apple GPU executes 16-bit float math at twice the rate. Automatic enables it for Assassin's Creed; Disabled restores 32-bit registers. Shaders are compiled again on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.native_half_registers, 0, 0, 0),
 +	GAME_SETTING("experimental.load_op_clear", "Experimental", "GPU", "Clear as render pass load", "When a render pass starts with a clear of its whole framebuffer, the GPU starts the pass cleared instead of loading the old image from memory and then drawing the clear over it. The image is the same. Automatic enables it for Assassin's Creed; Disabled restores the previous clears. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.load_op_clear, 0, 0, 0),
-+	GAME_SETTING("experimental.moltenvk_async_submits", "Experimental", "MoltenVK", "MoltenVK asynchronous submits", "Encodes Metal commands on MoltenVK's queue thread instead of the RSX thread. Automatic enables it for God of War III and Assassin's Creed while their last asynchronous boot finished; Enabled requests it for this game under the same condition; Disabled keeps synchronous submits. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.moltenvk_async_submits, 0, 0, 0),
++	GAME_SETTING("experimental.moltenvk_async_submits", "Experimental", "MoltenVK", "MoltenVK asynchronous submits", "Encodes Metal commands on MoltenVK's queue thread instead of the RSX thread. Automatic enables it for every game, except a game whose configuration turns asynchronous texture streaming on; Enabled keeps it on and uploads textures on the RSX thread; Disabled keeps synchronous submits. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.moltenvk_async_submits, 0, 0, 0),
 +	// REWINDBOX_GPU_TIMING_621 (ios/IOSGpuTiming.h): the accuracy test page can switch the probe off to measure its cost.
 +	GAME_SETTING("experimental.gpu_timing", "Experimental", "MoltenVK", "GPU timing probe", "Records the GPU execution time of the RSX command buffers with two Vulkan timestamps each, read after they complete, for the performance journal. Automatic and Enabled keep it on; Disabled measures what it costs. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.gpu_timing, 0, 0, 0),
 +	GAME_SETTING("experimental.zcull_on_demand", "Experimental", "ZCULL", "ZCULL on-demand reads", "Once the game touches its ZCULL report memory, writes the occlusion reports only when a game thread reads them, instead of waiting for the GPU at every report label. Automatic follows the title list (Assassin's Creed, Black Ops II); Enabled and Disabled test the other mode. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_on_demand, 0, 0, 0),
@@ -143579,7 +144109,7 @@ index b7b0474..4d3078e 100644
 +	GAME_SETTING("experimental.spu_direct_object_hits", "Experimental", "SPU", "SPU direct object hits", "Links an SPU block found in the persistent object cache without building its LLVM IR again, when every symbol of the object is a known SPU helper or patchpoint; any other object takes the usual path. The same code runs. Automatic enables it for every game; Disabled builds the IR of every hit as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.spu_direct_object_hits, 0, 0, 0),
 +	GAME_SETTING("experimental.spu_qos_below_rsx", "Experimental", "SPU", "SPU QoS below RSX and PPU", "Runs SPU threads one iOS quality-of-service class below the PPU and RSX threads, which then keep the performance cores whenever they are runnable. Automatic follows the title list (God of War III, Assassin's Creed, Black Ops II). Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.spu_qos_below_rsx, 0, 0, 0),
 +	// REWINDBOX_TEXTURE_LOOKUP_MEMO_660 (ios/IOSTextureLookupMemo.h)
-+	GAME_SETTING("experimental.texture_lookup_memo", "Experimental", "FPS Experiments", "Texture lookup memo", "With Texture Validation Per FIFO Batch, a texture slot looked up again before the next synchronization point, with the same texture registers and nothing in the texture cache changed since, reuses the result of its last lookup instead of searching the cache again. The first 256 reuses of a boot and then one in 64 still search and compare; any difference turns the memo off until the next boot. Automatic enables it for Assassin's Creed, and for Call of Duty: Black Ops II in a measuring mode that searches and compares at every reuse; Enabled enables it for any game that validates textures per FIFO batch; Disabled searches every time as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_lookup_memo, 0, 0, 0),
++	GAME_SETTING("experimental.texture_lookup_memo", "Experimental", "FPS Experiments", "Texture lookup memo", "With Texture Validation Per FIFO Batch, a texture slot looked up again before the next synchronization point, with the same texture registers and nothing in the texture cache changed since, reuses the result of its last lookup instead of searching the cache again. The first 256 reuses of a boot and then one in 64 still search and compare; any difference turns the memo off until the next boot. Automatic enables it for Assassin's Creed and Call of Duty: Black Ops II; Enabled enables it for any game that validates textures per FIFO batch; Disabled searches every time as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_lookup_memo, 0, 0, 0),
 +	GAME_SETTING("experimental.light_measurement", "Experimental", "MoltenVK", "Light measurement profile", "A run for frame rates: turns off the GPU timing probe, the sampled frame stages, the signal trace and the freeze dumps, and keeps only the summary line of the performance journal. Causes need a run without it. Automatic is off. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.light_measurement, 0, 0, 0),
 +	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers). Defaults keep the Build 483 behavior except the cache-only retained keys.
 +	// The retained keys apply to each title's own cache directory, so they take a per-title value like any SETTING
@@ -143596,7 +144126,7 @@ index b7b0474..4d3078e 100644
  	SETTING("emulator.shader_compiler_threads", "Emulator", "Compilation", "Max Shader Compile Threads", "Limits concurrent shader compiler threads; zero is automatic.", kind::RPCS3_IOS_SETTING_INTEGER, g_cfg.video.shader_compiler_threads_count, 0, 16, 1),
  	// Temporarily hidden until SwiftUI guest-dialog fallbacks are complete.
  	// SETTING("emulator.native_interface", "Emulator", "Behavior", "Use native user interface", "Uses RPCS3's controller-driven in-game overlays instead of desktop dialogs.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.misc.use_native_interface, 0, 1, 1),
-@@ -205,6 +287,89 @@ const std::array catalog{
+@@ -205,6 +288,89 @@ const std::array catalog{
  #undef GAME_SETTING
  #undef GLOBAL_SETTING
  
@@ -143686,7 +144216,7 @@ index b7b0474..4d3078e 100644
  constexpr std::size_t maximum_preset_name_size = 80;
  constexpr std::size_t maximum_preset_config_size = 1024 * 1024;
  constexpr std::size_t maximum_presets_per_title = 128;
-@@ -573,6 +738,151 @@ bool remove_game_settings(std::string_view title_id) noexcept
+@@ -573,6 +739,151 @@ bool remove_game_settings(std::string_view title_id) noexcept
  	return fs::remove_file(path) || fs::g_tls_error == fs::error::noent;
  }
  

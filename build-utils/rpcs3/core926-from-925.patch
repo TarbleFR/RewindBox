@@ -1,0 +1,239 @@
+diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
+index 78e6b50..718577e 100644
+--- a/rpcs3/Emu/system_config.h
++++ b/rpcs3/Emu/system_config.h
+@@ -154,8 +154,6 @@ struct cfg_root : cfg::node
+ 		cfg::_enum<ios_experimental_mode> scoped_texture_revalidation{ this, "Scoped Texture Revalidation", ios_experimental_mode::automatic };
+ 		// REWINDBOX_STALE_TEXTURE_SWEEP_921 (ios/IOSStaleTextureSweep.h): Automatic enables it for every title.
+ 		cfg::_enum<ios_experimental_mode> stale_texture_sweep{ this, "Stale Texture Release", ios_experimental_mode::automatic };
+-		// REWINDBOX_GPU_MEMORY_PACKING_925 (ios/IOSGpuMemoryPacking.h): Automatic enables it for every title.
+-		cfg::_enum<ios_experimental_mode> gpu_memory_packing{ this, "GPU Memory Packing", ios_experimental_mode::automatic };
+ 		// CELL579_WRITER_YIELD: Automatic enables it for every title.
+ 		cfg::_enum<ios_experimental_mode> writer_yield_no_depress{ this, "Writer Lock Yield Without Depression", ios_experimental_mode::automatic };
+ 		// REWINDBOX_WRITER_PARK_SPIN_917 (ios/IOSWriterParkSpin917.h): Automatic enables it for every title.
+@@ -237,6 +235,8 @@ struct cfg_root : cfg::node
+ 		// REWINDBOX_TEXTURE_LOOKUP_MEMO_660 (ios/IOSTextureLookupMemo.h): Automatic serves hits for Assassin's Creed and
+ 		// verifies every hit for Black Ops II; needs Texture Validation Per FIFO Batch.
+ 		cfg::_enum<ios_experimental_mode> texture_lookup_memo{ this, "Texture Lookup Memo", ios_experimental_mode::automatic };
++		// REWINDBOX_GPU_MEMORY_PACKING_925 (ios/IOSGpuMemoryPacking.h): Automatic enables it for every title.
++		cfg::_enum<ios_experimental_mode> gpu_memory_packing{ this, "GPU Memory Packing", ios_experimental_mode::automatic };
+ 
+ 		// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers L2, L5, L9; L3 is the
+ 		// Bounded sleep value of fifo_idle_mode above). Defaults keep the Build
+diff --git a/rpcs3/ios/IOSMoltenVKAsyncCanary.h b/rpcs3/ios/IOSMoltenVKAsyncCanary.h
+index f1008e5..ca7e38c 100644
+--- a/rpcs3/ios/IOSMoltenVKAsyncCanary.h
++++ b/rpcs3/ios/IOSMoltenVKAsyncCanary.h
+@@ -21,9 +21,17 @@
+ // thread, about 5 ms of each 37 ms frame. With asynchronous submits Assassin's Creed
+ // spends 15 ms per window on the same call (Build 624). This Core takes the second try
+ // that rule gives: a title whose boot fails again goes back to synchronous submits.
++//
++// REWINDBOX_MVK_ASYNC_RETRY_926: Call of Duty: Black Ops II ran asynchronous submits on build 662 (PIDs 13540 and
++// 13941): RSXSYNC551 submit 7.5-8.3 ms per 5 s window, 0.05 ms per frame. Those were the boots of its 9-40 s
++// stalls on heavy PUTLLC (later corrected by Cores 664 and 924): one was ended while armed, and from build 676 on
++// every Black Ops II boot is canary=failed_before, its RSX thread spending 3.5-4.8 ms per frame in the same call
++// (builds 694, 723, 724: 462-606 ms per window, 0.36-0.77 ms per submit). God of War III is failed_before too
++// (build 723). An unfinished boot says the process ended, not that asynchronous submits caused it. This Core takes
++// the second try the rule above gives every title, with the same protection.
+ namespace rpcs3::ios::mvk_async_canary
+ {
+-inline constexpr std::string_view file_name = "rewindbox-mvk-async-627.txt";
++inline constexpr std::string_view file_name = "rewindbox-mvk-async-926.txt";
+ inline constexpr std::uint32_t confirm_presents = 900;
+ 
+ enum class state : std::uint8_t
+diff --git a/rpcs3/ios/IOSTitleLevers.h b/rpcs3/ios/IOSTitleLevers.h
+index ad58594..438a0eb 100644
+--- a/rpcs3/ios/IOSTitleLevers.h
++++ b/rpcs3/ios/IOSTitleLevers.h
+@@ -217,14 +217,22 @@ constexpr bool early_submit_at_pass_boundary(std::string_view title_id) noexcept
+ // counters (1,243-1,545 lookups per frame, 48-51 % epoch skips, 4.0-5.7 ms of texture stage) but 248-293 CPU
+ // uploads per window, each of which ends every entry: its Automatic mode verifies every hit (the full lookup
+ // runs and its result is used), so TEXMEMO660 measures what it would gain before any hit is served.
++// REWINDBOX_TEXMEMO_SERVE_BO2_926: that measurement is done. Black Ops II ran the memo in verify_all mode on builds
++// 662, 676, 721, 723 and 724: 4,676,476 reuses looked up in full and compared, 0 differences, never disabled (and
++// 84,796 reuses served with 0 differences when a boot set the memo to Enabled, build 662, PID 13540). Build 724
++// (PID 50194, session 8): 1,498,418 of 4,509,555 lookups were such reuses, 23.7 s of lookups over 51 windows. Its
++// hits are now served, with the verification of every served title: the first reuse of each (slot, key), the first
++// 256 hits of a boot, then one hit in 64, and any difference turns the memo off for the rest of the boot.
+ constexpr bool serves_texture_lookup_memo(std::string_view title_id) noexcept
+ {
+-	return is_assassins_creed_title(title_id);
++	return is_assassins_creed_title(title_id) || is_black_ops_ii_title(title_id);
+ }
+ 
++// No title is only verified any more; Enabled/Disabled per game still choose for any title.
+ constexpr bool verifies_texture_lookup_memo(std::string_view title_id) noexcept
+ {
+-	return is_black_ops_ii_title(title_id);
++	static_cast<void>(title_id);
++	return false;
+ }
+ 
+ // REWINDBOX_ZCULL_WATCHED_FLUSH_660 (ios/IOSZcullWatched.h): Assassin's Creed submits the command buffer
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+index 8a2a26d..cd52ddf 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+@@ -19,7 +19,6 @@
+ #include "IOSWriterParkSpin917.h" // REWINDBOX_WRITER_PARK_SPIN_917
+ #include "IOSTextureResidency.h"
+ #include "IOSStaleTextureSweep.h" // REWINDBOX_STALE_TEXTURE_SWEEP_921
+-#include "IOSGpuMemoryPacking.h" // REWINDBOX_GPU_MEMORY_PACKING_925
+ #include "IOSTitleLevers.h"
+ #include "IOSLoadOpClear907.h"
+ #include "IOSThreadQoS.h"
+@@ -28,6 +27,7 @@
+ #include "IOSSpuObjectBindings.h" // REWINDBOX_SPU_DIRECT_OBJECT_HIT_660
+ #include "IOSTextureLookupMemo.h" // REWINDBOX_TEXTURE_LOOKUP_MEMO_660
+ #include "IOSZcullWatched.h" // REWINDBOX_ZCULL_WATCHED_FLUSH_660, REWINDBOX_ZCULL_DEPTH_GUARD_660
++#include "IOSGpuMemoryPacking.h" // REWINDBOX_GPU_MEMORY_PACKING_925
+ #include "Utilities/File.h"
+ #include "util/asm.hpp" // NEOSTATION_BUILD487_DIAGNOSTICS_V1 (L2): utils::arm_timer_scale
+ #include "util/logs.hpp"
+@@ -366,10 +366,6 @@ void resolve_experimental_policy() noexcept
+ 	// 527 MiB of sections and a 568 MiB pool after 4.4 minutes, build 666); the pass releases only those that changed.
+ 	resolved.stale_texture_sweep = resolve_mode(g_cfg.ios_experimental.stale_texture_sweep, true);
+ 	rpcs3::ios::stale_texture_sweep::enabled.store(resolved.stale_texture_sweep, std::memory_order_relaxed);
+-	// REWINDBOX_GPU_MEMORY_PACKING_925 (ios/IOSGpuMemoryPacking.h): Automatic is every title. Black Ops II, build 724:
+-	// 805 MiB allocated in 1136 MiB of 64 MiB blocks, each a placement heap the kernel counts whole.
+-	resolved.gpu_memory_packing = resolve_mode(g_cfg.ios_experimental.gpu_memory_packing, true);
+-	rpcs3::ios::gpu_memory_packing::enabled.store(resolved.gpu_memory_packing, std::memory_order_relaxed);
+ 	// CELL575_TITLE_LEVERS: with the texture epoch, Call of Duty: Black Ops II and Bladestorm;
+ 	// CELL589_TITLE_LEVERS: Assassin's Creed.
+ 	resolved.scoped_texture_revalidation = resolve_mode(g_cfg.ios_experimental.scoped_texture_revalidation, texture_epoch_title);
+@@ -413,6 +409,10 @@ void resolve_experimental_policy() noexcept
+ 		memo::configure(memo_mode);
+ 	}
+ 	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
++	// REWINDBOX_GPU_MEMORY_PACKING_925 (ios/IOSGpuMemoryPacking.h): Automatic is every title. Black Ops II, build 724:
++	// 805 MiB allocated in 1136 MiB of 64 MiB blocks, each a placement heap the kernel counts whole.
++	resolved.gpu_memory_packing = resolve_mode(g_cfg.ios_experimental.gpu_memory_packing, true);
++	rpcs3::ios::gpu_memory_packing::enabled.store(resolved.gpu_memory_packing, std::memory_order_relaxed);
+ 	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
+ 	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
+ 	resolved.mobile_spu_scheduling = resolve_mode(g_cfg.ios_experimental.mobile_spu_scheduling, false);
+@@ -597,6 +597,10 @@ void resolve_experimental_policy() noexcept
+ 	ios_experimental_log.notice("Resolved title policy 660: texture_lookup_memo=%d verify_all=%d ways=%u verify_first=%u verify_period=%u",
+ 		resolved.texture_lookup_memo, resolved.texture_lookup_memo_verify_all, static_cast<u32>(rpcs3::ios::texture_lookup_memo::ways),
+ 		static_cast<u32>(rpcs3::ios::texture_lookup_memo::verify_first), static_cast<u32>(rpcs3::ios::texture_lookup_memo::verify_period));
++	// REWINDBOX_GPU_MEMORY_PACKING_925: its own line.
++	ios_experimental_log.notice("Resolved title policy 925: gpu_memory_packing=%d dedicated_from=%u strategy=%s",
++		resolved.gpu_memory_packing, static_cast<u32>(rpcs3::ios::gpu_memory_packing::dedicated_from),
++		resolved.gpu_memory_packing ? "min_memory" : "min_time");
+ 	// REWINDBOX_ZCULL_WATCHED_FLUSH_660, REWINDBOX_ZCULL_DEPTH_GUARD_660: their own line.
+ 	ios_experimental_log.notice("Resolved title policy 660: zcull_watched_flush=%d zcull_depth_guard=%d watch_frames=%u "
+ 		"watched_submits_per_frame=%u min_lead_us=%u depth_hard_cap=%u",
+@@ -628,10 +632,6 @@ void resolve_experimental_policy() noexcept
+ 	ios_experimental_log.notice("Resolved title policy 921: stale_texture_sweep=%d bytes_per_pass=%u sections_per_pass=%u idle_frames=%u",
+ 		resolved.stale_texture_sweep, static_cast<u32>(rpcs3::ios::stale_texture_sweep::bytes_per_pass),
+ 		static_cast<u32>(rpcs3::ios::stale_texture_sweep::sections_per_pass), static_cast<u32>(rpcs3::ios::texture_residency::min_idle_frames));
+-	// REWINDBOX_GPU_MEMORY_PACKING_925: its own line.
+-	ios_experimental_log.notice("Resolved title policy 925: gpu_memory_packing=%d dedicated_from=%u strategy=%s",
+-		resolved.gpu_memory_packing, static_cast<u32>(rpcs3::ios::gpu_memory_packing::dedicated_from),
+-		resolved.gpu_memory_packing ? "min_memory" : "min_time");
+ }
+ 
+ void apply_spu_spin_timing_policy() noexcept
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+index 9e60749..33cbecd 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+@@ -35,8 +35,6 @@ struct experimental_policy
+ 	bool texture_residency = false;
+ 	// REWINDBOX_STALE_TEXTURE_SWEEP_921: idle textures whose guest bytes changed are released.
+ 	bool stale_texture_sweep = false;
+-	// REWINDBOX_GPU_MEMORY_PACKING_925: GPU allocations of 1 MiB or more get memory of their own, the others the best fit.
+-	bool gpu_memory_packing = false;
+ 	// CELL573_SCOPED_RSX_WRITES: RSX writes revalidate only the textures they overlap.
+ 	bool scoped_texture_revalidation = false;
+ 	// CELL579_WRITER_YIELD: a writer holding its exclusive bit yields without Darwin's priority depression.
+@@ -139,6 +137,8 @@ struct experimental_policy
+ 	bool texture_lookup_memo = false;
+ 	// With it, every hit runs the full lookup and is compared (counters only, nothing skipped).
+ 	bool texture_lookup_memo_verify_all = false;
++	// REWINDBOX_GPU_MEMORY_PACKING_925: GPU allocations of 1 MiB or more get memory of their own, the others the best fit.
++	bool gpu_memory_packing = false;
+ 	// REWINDBOX_ZCULL_WATCHED_FLUSH_660 (ios/IOSZcullWatched.h): a report into a slot a guest waited for arms the
+ 	// boundary submission of its command buffer. Title scoped, with the asynchronous reads and the boundary mode.
+ 	bool zcull_watched_flush = false;
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index f93aee9..086b898 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -36,7 +36,6 @@
+ #include "IOSTextureCacheProfile.h" // REWINDBOX_TEXCACHE_PROFILE_621
+ #include "IOSTextureLookupMemo.h" // REWINDBOX_TEXTURE_LOOKUP_MEMO_660
+ #include "IOSStaleTextureSweep.h" // REWINDBOX_STALE_TEXTURE_SWEEP_921
+-#include "IOSGpuMemoryPacking.h" // REWINDBOX_GPU_MEMORY_PACKING_925
+ #include "IOSTextureResidency.h"
+ #include "IOSRenderPassCensus.h" // REWINDBOX_RENDERPASS_CENSUS_652
+ #include "IOSInPassReadTransition.h" // REWINDBOX_IN_PASS_READ_TRANSITION_655
+@@ -63,6 +62,7 @@
+ #include "util/logs.hpp"
+ #include "util/sysinfo.hpp"
+ #include "util/tsc.hpp"
++#include "IOSGpuMemoryPacking.h" // REWINDBOX_GPU_MEMORY_PACKING_925
+ 
+ // NEOSTATION_BUILD258_CORE_ARCHITECTURE_V1
+ // NEOSTATION_BUILD258_RUNTIME_RESILIENCE_V1
+@@ -2107,6 +2107,15 @@ private:
+                 "external=%llu reusable=%llu scope=kernel_ledger_at_report graphics_scope=ledger_tag_graphics_footprint",
+                 profile_session, profile_window, parts.valid ? 1u : 0u, parts.graphics, parts.graphics_compressed, parts.internal,
+                 parts.compressed, parts.external, parts.reusable);
++        }
++        ios_core_profiler.notice(
++            "COREPROF JITPUB527 session=%llu window=%llu calls=%llu empty_calls=%llu deferred_calls=%llu history_ranges=%llu dirty_ranges=%llu "
++            "flushed_bytes=%llu total_ms=%.3f max_ms=%.3f retained_metadata_bytes=%llu peak_metadata_bytes=%llu "
++            "scope=process_window_counters window_boundary_approximate=1",
++            profile_session, profile_window, publication.calls, publication.empty_calls, publication.deferred_calls, publication.history_ranges, publication.dirty_ranges,
++            publication.flushed_bytes, milliseconds(publication.ticks), milliseconds(publication.max_ticks),
++            publication.retained_metadata_bytes, publication.peak_metadata_bytes);
++        {
+             // REWINDBOX_GPU_MEMORY_PACKING_925 (ios/IOSGpuMemoryPacking.h): what the lever placed alone, since boot;
+             // JITMEM vma_block_bytes, vma_allocated and vma_unused carry the result.
+             namespace packing = rpcs3::ios::gpu_memory_packing;
+@@ -2118,13 +2127,6 @@ private:
+                 static_cast<unsigned long long>(packing::dedicated_allocations.load(std::memory_order_relaxed)),
+                 static_cast<unsigned long long>(packing::dedicated_bytes.load(std::memory_order_relaxed)));
+         }
+-        ios_core_profiler.notice(
+-            "COREPROF JITPUB527 session=%llu window=%llu calls=%llu empty_calls=%llu deferred_calls=%llu history_ranges=%llu dirty_ranges=%llu "
+-            "flushed_bytes=%llu total_ms=%.3f max_ms=%.3f retained_metadata_bytes=%llu peak_metadata_bytes=%llu "
+-            "scope=process_window_counters window_boundary_approximate=1",
+-            profile_session, profile_window, publication.calls, publication.empty_calls, publication.deferred_calls, publication.history_ranges, publication.dirty_ranges,
+-            publication.flushed_bytes, milliseconds(publication.ticks), milliseconds(publication.max_ticks),
+-            publication.retained_metadata_bytes, publication.peak_metadata_bytes);
+ 
+ 		// NEOSTATION_BUILD481_SPU_OBJECT_CACHE_V1: obj_* fields of the persistent
+ 		// SPU object cache (counts per window; bytes of loaded/written objects).
+diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
+index 99f9924..5390681 100644
+--- a/rpcs3/ios/RPCS3IOSSettings.cpp
++++ b/rpcs3/ios/RPCS3IOSSettings.cpp
+@@ -80,6 +80,7 @@ const std::array catalog{
+ 	SETTING("gpu.strict_rendering", "GPU", "Rendering", "Strict rendering mode", "Disables selected rendering approximations for compatibility.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.strict_rendering_mode, 0, 1, 1),
+ 	SETTING("gpu.multithreaded_rsx", "GPU", "Rendering", "Multithreaded RSX", "Uses an additional host thread for selected RSX work.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.multithreaded_rsx, 0, 1, 1),
+ 	SETTING("gpu.async_texture_uploads", "GPU", "Rendering", "Asynchronous texture streaming", "Uploads Vulkan textures asynchronously when supported by MoltenVK.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.vk.asynchronous_texture_streaming, 0, 1, 1),
++	SETTING("experimental.gpu_memory_packing", "Experimental", "FPS Experiments", "GPU memory packing", "Graphics memory is taken from the system in blocks of 64 MB, and a block stays allocated while anything remains in it. With this setting, a texture, buffer or render target of 1 MB or more gets memory of its own, returned to the system when it is released, and the smaller ones are placed in the smallest free space that fits. What is drawn does not change; only the memory the graphics blocks keep unused. Automatic enables it for every title; Disabled places every allocation in the first free space of a block as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.gpu_memory_packing, 0, 0, 0),
+ 	SETTING("gpu.zcull_accuracy", "GPU", "Rendering", "ZCULL accuracy", "Selects precise, approximate, or relaxed ZCULL synchronization.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.video.precise_zpass_count, 0, 0, 0),
+ 
+ 	// Audio
+@@ -166,7 +167,6 @@ const std::array catalog{
+ 	SETTING("experimental.texture_prehash", "Experimental", "FPS Experiments", "Texture pre-validation", "With Texture Validation Per FIFO Batch, a texture used again after new guest commands is hashed again to check that the game did not change it. A worker thread now hashes, as soon as new commands arrive, the textures the previous frame checked next, so the RSX thread finds the result ready. Every byte is still checked and a result is used only for the commands it was taken for. Needs Texture Validation Per FIFO Batch. Automatic enables it for God of War III; Disabled hashes on the RSX thread as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_prehash, 0, 0, 0),
+ 	SETTING("experimental.texture_residency", "Experimental", "FPS Experiments", "Texture residency cap", "When cached textures use more than 768 MB, the textures no draw has used for 64 frames are released, at most 128 MB every 16 frames: first those whose memory the game has since filled with another texture, then the oldest. Textures in use are kept; a released texture the game samples again is uploaded again from its memory. Limits the memory held by textures whose memory the game has reused for other data. Automatic enables it for God of War III; Disabled keeps every texture until it is found stale. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_residency, 0, 0, 0),
+ 	SETTING("experimental.stale_texture_sweep", "Experimental", "FPS Experiments", "Stale texture release", "Each frame, the textures no draw has used for 64 frames are checked against the game memory they came from, a few megabytes at a time; those whose memory the game has since filled with other data are released, as their next use would have released them. A texture whose memory is unchanged is kept however long it stays unused, and the textures in use are not checked. Limits the memory held by textures the game no longer has. Automatic enables it for every title; Disabled keeps every texture until it is used again. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.stale_texture_sweep, 0, 0, 0),
+-	SETTING("experimental.gpu_memory_packing", "Experimental", "FPS Experiments", "GPU memory packing", "Graphics memory is taken from the system in blocks of 64 MB, and a block stays allocated while anything remains in it. With this setting, a texture, buffer or render target of 1 MB or more gets memory of its own, returned to the system when it is released, and the smaller ones are placed in the smallest free space that fits. What is drawn does not change; only the memory the graphics blocks keep unused. Automatic enables it for every title; Disabled places every allocation in the first free space of a block as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.gpu_memory_packing, 0, 0, 0),
+ 	SETTING("experimental.scoped_texture_revalidation", "Experimental", "FPS Experiments", "Scoped texture revalidation", "With texture validation per FIFO batch, a render target the RSX writes back to memory or commits over a range makes only the textures over that range check their contents again, instead of every texture. Guest commands, semaphores and the end of a frame still recheck every texture. Automatic enables it for God of War III, Call of Duty: Black Ops II, Bladestorm and Assassin's Creed; Disabled rechecks every texture after any RSX write as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.scoped_texture_revalidation, 0, 0, 0),
+ 	SETTING("experimental.neon_byte_swap", "Experimental", "ARM64 Uploads", "ARM64 byte-swap uploads", "Uses a four-lane NEON path for swapped RSX uploads. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.neon_byte_swap, 0, 0, 0),
+ 	SETTING("experimental.neon_primitive_restart", "Experimental", "ARM64 Uploads", "ARM64 primitive-restart uploads", "Uses NEON min/max and restart filtering for index uploads. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.neon_primitive_restart, 0, 0, 0),
+@@ -206,7 +206,7 @@ const std::array catalog{
+ 	GAME_SETTING("experimental.spu_direct_object_hits", "Experimental", "SPU", "SPU direct object hits", "Links an SPU block found in the persistent object cache without building its LLVM IR again, when every symbol of the object is a known SPU helper or patchpoint; any other object takes the usual path. The same code runs. Automatic enables it for every game; Disabled builds the IR of every hit as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.spu_direct_object_hits, 0, 0, 0),
+ 	GAME_SETTING("experimental.spu_qos_below_rsx", "Experimental", "SPU", "SPU QoS below RSX and PPU", "Runs SPU threads one iOS quality-of-service class below the PPU and RSX threads, which then keep the performance cores whenever they are runnable. Automatic follows the title list (God of War III, Assassin's Creed, Black Ops II). Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.spu_qos_below_rsx, 0, 0, 0),
+ 	// REWINDBOX_TEXTURE_LOOKUP_MEMO_660 (ios/IOSTextureLookupMemo.h)
+-	GAME_SETTING("experimental.texture_lookup_memo", "Experimental", "FPS Experiments", "Texture lookup memo", "With Texture Validation Per FIFO Batch, a texture slot looked up again before the next synchronization point, with the same texture registers and nothing in the texture cache changed since, reuses the result of its last lookup instead of searching the cache again. The first 256 reuses of a boot and then one in 64 still search and compare; any difference turns the memo off until the next boot. Automatic enables it for Assassin's Creed, and for Call of Duty: Black Ops II in a measuring mode that searches and compares at every reuse; Enabled enables it for any game that validates textures per FIFO batch; Disabled searches every time as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_lookup_memo, 0, 0, 0),
++	GAME_SETTING("experimental.texture_lookup_memo", "Experimental", "FPS Experiments", "Texture lookup memo", "With Texture Validation Per FIFO Batch, a texture slot looked up again before the next synchronization point, with the same texture registers and nothing in the texture cache changed since, reuses the result of its last lookup instead of searching the cache again. The first 256 reuses of a boot and then one in 64 still search and compare; any difference turns the memo off until the next boot. Automatic enables it for Assassin's Creed and Call of Duty: Black Ops II; Enabled enables it for any game that validates textures per FIFO batch; Disabled searches every time as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_lookup_memo, 0, 0, 0),
+ 	GAME_SETTING("experimental.light_measurement", "Experimental", "MoltenVK", "Light measurement profile", "A run for frame rates: turns off the GPU timing probe, the sampled frame stages, the signal trace and the freeze dumps, and keeps only the summary line of the performance journal. Causes need a run without it. Automatic is off. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.light_measurement, 0, 0, 0),
+ 	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers). Defaults keep the Build 483 behavior except the cache-only retained keys.
+ 	// The retained keys apply to each title's own cache directory, so they take a per-title value like any SETTING

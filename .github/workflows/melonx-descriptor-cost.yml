@@ -25,7 +25,7 @@ jobs:
         persist-credentials: false
     - name: Build MoltenVK v1.4.2 (recipe patch) for macOS and time descriptor writes and binds
       run: python3 test/melonx_descriptor_cost/run_descriptor_cost.py
-    - uses: actions/upload-artifact@v4
+    - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       if: always()
       with:
         name: MeloNX-descriptor-cost-${{ github.sha }}

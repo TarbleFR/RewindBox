@@ -94,7 +94,7 @@ jobs:
       - name: Actual UIKit download, edition confirmation, imports and lifecycle
         if: ${{ !cancelled() }}
         run: python3 test/unified_catalog_browser_ui_test.py --native ${{ contains(github.event.head_commit.message, '[unified-ui-regional-only]') && '--regional-only' || '' }} --result evidence/unified-cheat-browser.xcresult
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: unified-cheats-native-${{ github.sha }}
@@ -129,7 +129,7 @@ jobs:
           python3 test/unified_identity_core_probe.py
           --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs"
           --evidence evidence/unified-core-effects --label "$GITHUB_SHA"
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: unified-cheats-effects-${{ github.sha }}

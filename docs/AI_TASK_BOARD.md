@@ -1844,6 +1844,93 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       locally (no Flutter). Source `e6510aeb`, request `367b8980`, run `42899482941` in progress. Risk: the database turns
       Asynchronous Texture Streaming on for GOW3, never run on the device. MeloNX Core 723 pinned `249d287d` (run `42883532005`).
       **Next:** pin Core 922, IPA 724 (Core 922 + MeloNX 723 + skins PR 170 + performance retention + profile removal).
+    - **Device results, IPA 724 (build 724 = Core 923, one process PID 50194; private journals, not in Git) and Core 924.**
+      - **BO2 (BLES01717, session 8, database entry + 1 per-game override, accurate reservations):** play windows 10-40 at
+        20-35 fps, four stops of 0.6-1.1 s (windows 25, 31, 32, 39: **synchronous Metal shader compiles, not the freeze**,
+        `SHADERSTALL538_EVENT` 535-946 ms each with 474-814 ms in the fragment library and 4-9 ms of RSX thread CPU; 13 such
+        compiles in build 723's BO2 session, no costly fingerprint common to both sessions; shader mode Legacy, the iOS
+        default), then no frame from window 41 on. Frozen windows:
+        `SPUWAIT551 putllc_ok` 7.6 and 8.5 M per 5 s (2.0 M in play), `putllc_heavy` 6.0 and 6.7 M, `getllar_sleep` 0;
+        `PPUGRACE664` 6010 and 6155 windows opened, 8671 and 8768 writer locks deferred 994 and 1012 ms. `FREEZE_DUMP`: main on a
+        semaphore 3.2 s; PPU Secondary (0.97 core) holds a reservation on 0x2e208d8 at time 0x83d1ee800 while the line word
+        reads 0x83d1ee840 (another thread's lock) on two reads 27 us apart; six SPUs on GETLLAR/PUTLLC of 0x2e20880/0x2e20c00.
+        **Rejected hypothesis:** the reservation word does not go backwards; the dump reads its line records before its thread
+        records (`ts=`), which explains the build 723 reading. **Cause (source):** `do_putllc` locks its line
+        (`rsrv_unique_lock`), then `vm::writer_lock` defers to the starving PPU and its grace window with the line locked, and
+        `ppu_store_reservation` fails on a locked line. **Core 924 (`REWINDBOX_GATE_BEFORE_LINE_924`):** the deferral is made
+        before the line lock (`passive_gate::ahead_scope`), the writer lock does not defer again; same waits and bound, same
+        validation after; `do_putllc` only (PPU full-line store and 128-byte store unchanged: not on the observed path,
+        PPUThread.cpp is a PPU identity input); one exact SPUThread.cpp alias, identities unchanged. Host model
+        (`test/rpcs3_gate_line924_test.py`, g++/clang++/ASan+UBSan): line word 64 before, 0 after while a writer defers; PPU
+        stores on the polled line x3 to x13 in the storm model (writer stores drop there; not a device figure). Engine `72e79fb`,
+        source `2fdda673`, request `db9b8618`, run `42926781861`. [Doc](rpcs3-core924-bo2-gate-before-line.md). **Remaining
+        BO2 cost:** every data-changing accurate PUTLLC still parks every PPU (273 k/s in play): the 20-35 fps ceiling and its
+        oscillation. **New measurement:** MEMPARTS923 graphics ledger 0.91 -> 1.39 GB and footprint 3.40 -> 4.06 GB in 2 min
+        of play while `texture_mib` stays 100-110. **Attributed (11 Nov):** JITMEM `vma_allocated` plateaus at 777-813 MiB
+        while `vma_block_bytes` goes 648 -> 1136 MiB in 64 MiB steps (`vma_unused` 45 -> 360); the ledger follows the blocks
+        (each a placement MTLHeap). iOS only ever used VMA's fastest strategy (load < 50 % of a 7.4 GiB unified heap).
+        **Core 925 in preparation (`REWINDBOX_GPU_MEMORY_PACKING_925`, engine `ecbc453`):** allocations >= 1 MiB get dedicated
+        memory, the others the minimum-memory strategy; setting GPU Memory Packing (Automatic = on), `COREPROF GPUPACK925`.
+        Host model on the pinned VMA 3.3.0 behind a mock device, BO2-shaped load: unused 169-210 -> 31-50 MiB
+        (`test/rpcs3_gpu_memory_packing925_test.py`). Not modelled: the time Metal takes to create a heap per allocation.
+      - **GOW3 (BCES00510, database entry as is: async_tex=true, 100 %, mt_rsx=false):** maintainer reports unplayable graphics
+        errors on fresh boots (sessions 1-3) and savestates (4, 6); no journal line names the setting. By elimination against
+        build 723 (async_tex=false, 75 %, mt_rsx=true) and the Build 552/610 withdrawals, `sanitiseForIOS` no longer applies
+        `Asynchronous Texture Streaming: true` from the database (179 of 2187 entries; `c2519a25`; Dart tests run in the
+        delivery's Flutter group). **Hypothesis, to confirm on the device.** Confirmed: `GOW3MLAA909 ppu=savestate_applied`,
+        no 1280x720 read-back after the second window. `SPUPROF923` (sessions 4, 6, 11-17 fps): three Big SPURS kernels running
+        91-93 %, the Little one 86-92 %, samples spread over many regions (real work, not one polling pc); 180-360 k heavy
+        PUTLLC per window also park the PPU main thread (0.90-0.96 core). Next GOW3 lever not chosen yet.
+      - **Cores 925 and 926 compiled, not pinned (11 Nov).** 925: run `42930926849` (iPhone Core green; Apple harness red on
+        the 919/921 tests because the 925 insertions sat next to the 921/923 lines; fixed by moving them in 926). 926
+        (engine `12e787c`, source `b4c70a37`, run `42935666936` green, both jobs): Black Ops II texture lookup memo served
+        (4,676,476 verified reuses on builds 662-724, 0 differences) and a retry of the MoltenVK boot record, superseded by 927.
+      - **Maintainer (11 Nov):** "il faut atteindre les 3ms de gains de travail" (Black Ops II stays at 60 Hz; 52 % of its
+        frames take two vblanks, 11 % one), then "Pas de protection et le but c'est de faire fonctionner les soumissions
+        asynchrones", applied "a chaque jeu le necessitant", "ne t'arrete pas avec deux defauts trouves"; **no new IPA before
+        all the fixes** ("attends tous les autres correctifs avant toute nouvelle IPA").
+      - **Core 927 (`REWINDBOX_MVK_ASYNC_DEFINITIVE_927`, `REWINDBOX_GPU_BACKGROUND_GATE_927`; engine `477180d`).**
+        [Doc](rpcs3-core927-mvk-async-definitive.md).
+        **Input identity:** private journals of builds 640-724 (not in Git); MoltenVK tree `db660224` (the Core's);
+        engine `12e787c` + this commit. **Findings (journals):** 16 asynchronous sessions (9 AC, 7 BO2; 9 processes,
+        76,148 presents), 0 acquire timeouts, encoding queue recorded each time; BO2 `submit` 0.05 ms/frame asynchronous vs
+        3.5-4.8 ms synchronous; every `failed_before` came from a boot ended before 900 guest flips. The only device loss
+        of the journals (IPA 650, AC, PID 8767, asynchronous) is raised 30 ms before `HOST_STATE app=background`: iOS refuses
+        background commits and MoltenVK marks the device lost (`MVKQueue::handleMTLCommandBufferError`, whatever
+        RESUME_LOST_DEVICE). **Findings (source, two read-only reviews + one review of the diff):** (1) the present barrier
+        gave up after 2 s while `MVKSemaphoreMTLEvent` counts at encode time and the acquisition reads the counter on the
+        calling thread; (2) the blocking ZCULL gather and (3) `vk::wait_for_fence` spun until MoltenVK had encoded the
+        submission (`MVKQueryPool::endQuery` runs at encode; query pools are never reused, so no stale result);
+        (4) nothing stopped GPU work in the background; (5) asynchronous texture streaming orders two queues with the same
+        encode-time counters. Rejected as defects after reading: object lifetime (all disposal waits for the fence), device
+        waits before swapchain rebuild/teardown, MetalFX handoff (already drained). **Change:** boot record removed (the
+        header stays as a comment-only file: the canonical delta drops no file); Automatic = every title, synchronous only
+        when the configuration turns asynchronous texture streaming on (Enabled keeps uploads on the RSX thread); barrier
+        never abandoned; a marker behind every submission of the presenting queue, the fence keeps the ticket, fence waits
+        and the gather sleep until encoded; background gate (passes around submit, present, acquire, MetalFX, device waits;
+        closed on `UIApplicationDidEnterBackground` with bounded waits 500 ms + 1 s settle, open on `DidBecomeActive`,
+        bypass while the emulator stops). `COREPROF OPT587` new fields, `COREPROF GPUGATE927`, `Resolved title policy 927`.
+        **Proof (host):** `test/rpcs3_mvk_async927_test.py` runs the real registry, tickets and gate against models of
+        MoltenVK's semaphore counter and query availability and of iOS background refusal, old rule as control: 4 -> 0
+        never-signalled waits, ~270,000 -> 0 `VK_NOT_READY` spins (same result), ~200 -> 0 and 30 -> 0 refused commits;
+        plain, ASan/UBSan, TSan (g++), plain (clang); real libdispatch on the macOS harness. **Validation:** closure,
+        codegen identities unchanged (PPU a987639e / SPU 477a3fa4), fold chain, 919-926 tests on the 927 tree, rerun list;
+        delivery checker `rpcs3_core_component.check_runtime_markers` now requires the record markers up to Core 926 and
+        refuses them from 927 (`test/rpcs3_core_marker_rule927_test.py`). **Not done:** no iPhone run; no FPS claim.
+        **Risks:** a title never run asynchronous may expose a MoltenVK defect (per-game Disabled restores synchronous);
+        the settle relies on iOS accepting GPU work until the background transition returns (Apple's documented rule):
+        confirm with `GPUGATE927` and the absence of `Device lost`.
+      - **MeloNX Core 725 pinned (`b83349ea`):** run `42933016136` on `e47b18d2`, artifact `13819773531` (`1ff1aa56…`),
+        iPhone `d9b8a837…` 38,439,896 B, fingerprint `9e1e2ae5…`, contract `45441585`, 82 fresh gates; MoltenVK rebuild
+        `90bd98a4…` pinned `e47b18d2`. `standard_delivery_contract_test` compares the frozen 724 manifest until the next draft.
+      - **Core 927 published state:** source `36e29a84` (+ doc `3589b6fe`), compile request `916b8f19`, run `42946503173`
+        (pin pending). Second read-only pass over the areas the first did not reach (descriptor sets, lazy Metal objects,
+        argument buffers, encoding-pool caches, query copies, queue teardown, main-thread calls from the queue thread,
+        MetalFX releases, overlay lock): no new defect; MoltenVK's queue thread never calls the main thread synchronously
+        on iOS, so the settle of the background transition cannot deadlock.
+      - **Next:** pin Core 927 when run `42946503173` is green; IPA 725 only on the maintainer's request (Core 927 + MeloNX Core 725 + database
+        rule; skins PR 171/173 to review). Device protocol for 927: `mvk_async=1` at first boot of BO2/GOW3/AC, leave the
+        app a few seconds in play and come back (no `Device lost`, `GPUGATE927 closes>=1`), `RSXSYNC551 submit` per frame.
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,
@@ -3950,6 +4037,32 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 - **Docs:** successive consolidations preserve immutable evidence and current
   requirements without product/pin/CI/permission changes. Keep only current state
   here. Verified 640 watch is complete; do not recreate it from an old status.
+
+### Private test IPA protection — Codex
+
+- **11 Nov — integrated and audited:** [Claude #174](https://github.com/TarbleFR/RewindBox/pull/174)
+  (`0284bbf4`) and [main #175](https://github.com/TarbleFR/RewindBox/pull/175)
+  (`c60bcb5c`). All **980** artifact uploads across **213** existing workflows
+  use the immutable plaintext-IPA guard. Legacy NeoSwap requires a public recipient
+  key and encrypts its staging directory before upload. Keep the guard on future
+  uploads. Public releases/public source remain available; no product/Core/pin edit.
+- **Verified:** 24 boundary tests and real rejected/allowed uploads on Ubuntu,
+  macOS and Windows (runs `42946234456`, `42946507180`); delivery workflow,
+  exact reuse rendering and recipient/encryption checks pass. Main's merge tree
+  contains exactly the 224 intended recipe/doc/test files, no deletion. Concurrent
+  Claude work is preserved; its owner recorded the reviewed input drift.
+- **Historical audit complete:** job `130277987195`, run `42945740946`,
+  inspected all **2,155** artifacts in its snapshot. **No plaintext IPA detected;
+  no deletions.** Final classes: 70 encrypted envelopes, 568 encrypted transport
+  pieces, 1,517 other artifacts. Two parser findings were manually resolved with
+  verified digests: a random ZIP end-marker in ciphertext and a 212-byte XML
+  ServerBusy response named `ios.zip`. The upload guard was not relaxed.
+  Encrypted contents were not decrypted. Public 0.0.11 IPA asset/hash unchanged.
+- **Unrelated main failures remain visible:** run `42946507230` fails the old
+  branding baseline (same four failures reproduced on original `48467f5`) and
+  Flutter analysis (122 informational findings). They were not suppressed;
+  no repository protection, Dart source, analyzer setting or lockfile was changed.
+  [Scope, audited IDs and evidence](evidence/private-ipa-protection-2026-11-11.json).
 
 ### Actions history cleanup — Codex
 

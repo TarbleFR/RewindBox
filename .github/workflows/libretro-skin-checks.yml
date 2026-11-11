@@ -89,7 +89,7 @@ jobs:
         if [ -n "$PROBE_DEVICE" ]; then args+=(--device "$PROBE_DEVICE"); fi
         python3 test/libretro_skin_press_probe.py --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs" \
           --evidence evidence/skin-press --label "${GITHUB_SHA}" "${args[@]}"
-    - uses: actions/upload-artifact@v4
+    - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       if: always()
       with:
         name: libretro-directional-skins-${{ github.sha }}

@@ -73,7 +73,7 @@ jobs:
         run: |
           mkdir -p build/dolphin-motion
           cp /tmp/touch-shake.log /tmp/external-display.log build/dolphin-motion/ 2>/dev/null || true
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: Dolphin-Phone-Shake-Tests-${{ github.sha }}

@@ -56,13 +56,13 @@ jobs:
       - name: Run corrected core with original skin and nonzero heap initialization
         run: python3 .github/diagnostics/nestopia_bgcolor/skin.py --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs" --evidence evidence/nestopia-skin --label "$GITHUB_SHA"
       - name: Preserve the verified original compiled-core artifact identity
-        uses: actions/upload-artifact@v4
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: LibretroCores-c3408821b2b9c47c6e31ae25b45c113aa9fd3f74
           path: dist/libretro/
           retention-days: 14
           if-no-files-found: error
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: nestopia-reset-proof-${{ github.sha }}

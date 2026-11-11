@@ -36,7 +36,7 @@ jobs:
         run: python3 .github/diagnostics/hogwarts606_presentation_recovery.py finalize
       - name: Preserve exact recovery checks and failures
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: Hogwarts606-host-${{ github.sha }}
           path: build/hogwarts606-host

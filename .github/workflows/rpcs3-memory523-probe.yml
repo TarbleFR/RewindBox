@@ -51,7 +51,7 @@ jobs:
           sha=lambda p:hashlib.sha256(p.read_bytes()).hexdigest()
           Path('build/rpcs3-memory523-probe/identity.json').write_text(json.dumps(dict(source=os.environ['GITHUB_SHA'],nativeInputs={p:sha(root/p) for p in files},fixtureInputs={p:sha(Path(p)) for p in inputs},physicalDeviceTested=False),indent=2)+'\n')
           PY
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: RPCS3-memory523-probe-${{ github.sha }}

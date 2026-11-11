@@ -46,6 +46,43 @@ Video:
     expect(merged, contains('iOS Experimental:\n  RSX FIFO Read Cache: 4 KiB'));
   });
 
+  test('does not apply the database\'s asynchronous texture streaming', () {
+    // BCES00510 (God of War III), live GameDB shape; IPA 724 device result.
+    final result = Rpcs3ConfigAdapter.sanitiseForIOS('''
+Video:
+  Vulkan:
+    Asynchronous Texture Streaming: true
+  Shader Precision: Ultra
+  Write Color Buffers: true
+Core:
+  SPU Block Size: Mega
+''');
+    expect(result, isNot(contains('Asynchronous Texture Streaming')));
+    expect(result, isNot(contains('Vulkan:')));
+    expect(
+      result,
+      'Video:\n  Shader Precision: Ultra\n  Write Color Buffers: true\n'
+      'Core:\n  SPU Block Size: Mega\n',
+    );
+    // An entry that turns it off, and a sibling Vulkan key, are kept.
+    final kept = Rpcs3ConfigAdapter.sanitiseForIOS('''
+Video:
+  Vulkan:
+    Asynchronous Texture Streaming: false
+    Asynchronous Queue Scheduler: Fast
+''');
+    expect(kept, contains('Asynchronous Texture Streaming: false'));
+    expect(kept, contains('Asynchronous Queue Scheduler: Fast'));
+    // The user's own choice for a title still turns it on.
+    final chosen = Rpcs3ConfigAdapter.mergeScalarOverrides(
+      'Video:\n  Vulkan:\n    Asynchronous Texture Streaming: true\n',
+      {
+        const ['Video', 'Vulkan', 'Asynchronous Texture Streaming']: 'true',
+      },
+    );
+    expect(chosen, contains('Asynchronous Texture Streaming: true'));
+  });
+
   test('drops upstream-only keys the Core rejects and sections they empty', () {
     // Live GameDB shapes (1 November 2026): BCES00009 carries both VFS keys,
     // BLES00028 the Core key; the Core's strict validation refuses the whole

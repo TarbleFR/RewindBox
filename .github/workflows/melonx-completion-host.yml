@@ -56,7 +56,7 @@ jobs:
       - name: Bind fresh host results to exact source inputs
         run: python3 .github/diagnostics/melonx_unreal_completion_host.py --finalize
       - name: Preserve actual targeted host results
-        uses: actions/upload-artifact@v4
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: MeloNX-completion-host-${{ github.sha }}

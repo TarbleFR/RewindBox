@@ -23,7 +23,7 @@ jobs:
         run: python3 test/build485_targeted_test.py
       - name: Preserve exact targeted proof
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: build485-${{ github.sha }}
           path: build/build485/

@@ -67,7 +67,7 @@ jobs:
           LLVM_DIR="$(brew --prefix llvm@22)/lib/cmake/llvm" \
             python3 .github/diagnostics/rpcs3cell581_core.py --source "$SOURCE"
       - name: Preserve native measurements before full Core compilation
-        uses: actions/upload-artifact@v4
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: RPCS3Core-preflight-${{ github.sha }}
           path: |
@@ -98,7 +98,7 @@ jobs:
           nm -gU "$CORE" > build/rpcs3-core-diagnostics/exports.txt
           python3 .github/diagnostics/rpcs3cell581_core.py --write-core-identity dist/rpcs3
       - name: Upload source-built581 Core
-        uses: actions/upload-artifact@v4
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: RPCS3Core-${{ github.sha }}
           path: dist/rpcs3/
@@ -114,7 +114,7 @@ jobs:
           key: rpcs3-audit-arm64-xcode16.4-llvm22-${{ hashFiles('build-utils/build_rpcs3_embedded_core.sh','build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch') }}-${{ github.sha }}
       - name: Upload diagnostic results including partial failures
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: RPCS3Core-diagnostics-${{ github.sha }}
           path: build/rpcs3-core-diagnostics/
