@@ -35,6 +35,13 @@ import Darwin
 //          31 default, 20 utility, 4 background)
 //   mem=   footprint MiB / headroom MiB / device available % / live donors
 //          (host-supplied; absent when the host gives none)
+//   vm=    the kernel's counters for this process over the interval (absent on
+//          the first line): MiB of its memory newly compressed / pages
+//          decompressed back (16 KiB each on an iPhone) / page faults / pages
+//          read from files. Compression and decompression running together
+//          are memory being pushed out and pulled back: time the threads
+//          spend in the kernel instead of the game ("-" for a counter that
+//          wrapped)
 //   in=    input the session's router handled in the interval (absent when
 //          none): tL/tR touch and pL/pR controller events for the left/right
 //          stick as count/largest magnitude; oL/oR the largest magnitude sent
@@ -54,6 +61,7 @@ final class MeloNXPerfJournal {
         static let gapLimit = 240
     }
     struct ThreadSample { let id: UInt64; let name: String; let cpuNs: UInt64; let priority: Int32 }
+    struct VmCounters { let compressedBytes: UInt64; let decompressions: Int64; let faults: Int64; let pageins: Int64 }
     static let topThreads = 6
     // The classified journal rotates at 8 MiB, retaining one previous file.
     // Host samples are also bounded to lineLimit lines per game. Native
@@ -135,6 +143,40 @@ final class MeloNXPerfJournal {
     }
 
     // Asynchronous: never waits on the sampler from the caller's thread.
+    // vm= field: the differences of TASK_VM_INFO's lifetime compression and decompression counts and TASK_EVENTS_INFO's
+    // fault and page-in counts since the previous line. Two task_info calls on the sampler queue; nothing is changed.
+    private var previousVm: VmCounters?
+
+    static func vmCounters() -> VmCounters? {
+        var vm = task_vm_info_data_t()
+        var vmCount = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<natural_t>.size)
+        let vmResult = withUnsafeMutablePointer(to:&vm) {
+            $0.withMemoryRebound(to:integer_t.self, capacity:Int(vmCount)) { task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &vmCount) }
+        }
+        var events = task_events_info_data_t()
+        var eventsCount = mach_msg_type_number_t(MemoryLayout<task_events_info_data_t>.size / MemoryLayout<natural_t>.size)
+        let eventsResult = withUnsafeMutablePointer(to:&events) {
+            $0.withMemoryRebound(to:integer_t.self, capacity:Int(eventsCount)) { task_info(mach_task_self_, task_flavor_t(TASK_EVENTS_INFO), $0, &eventsCount) }
+        }
+        guard vmResult == KERN_SUCCESS, eventsResult == KERN_SUCCESS else { return nil }
+        return VmCounters(compressedBytes:UInt64(vm.compressed_lifetime), decompressions:Int64(vm.decompressions),
+                          faults:Int64(events.faults), pageins:Int64(events.pageins))
+    }
+
+    static func vmField(from before: VmCounters, to now: VmCounters) -> String {
+        // The kernel keeps the three counts on 32 bits: a wrap gives a smaller value, written "-".
+        func count(_ now: Int64, _ before: Int64) -> String { now >= before ? String(now - before) : "-" }
+        let compressed = now.compressedBytes >= before.compressedBytes ? String((now.compressedBytes - before.compressedBytes) >> 20) : "-"
+        return "\(compressed)/\(count(now.decompressions, before.decompressions))/\(count(now.faults, before.faults))/\(count(now.pageins, before.pageins))"
+    }
+
+    private func vmActivity() -> String? {
+        guard let now = Self.vmCounters() else { return nil }
+        defer { previousVm = now }
+        guard let before = previousVm else { return nil }
+        return Self.vmField(from:before, to:now)
+    }
+
     func stop() {
         queue.async { [self] in
             stalls.stop()
@@ -217,6 +259,7 @@ final class MeloNXPerfJournal {
         let footprint = memory()
         stalls.exit()
         if let text = footprint { fields.append("mem=" + text) }
+        if let text = vmActivity() { fields.append("vm=" + text) }
         if let text = Self.input() { fields.append("in=" + text) }
 
         let thermal = ProcessInfo.processInfo.thermalState.rawValue

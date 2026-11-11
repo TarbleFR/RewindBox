@@ -68,6 +68,10 @@ check('self.pacing.gapsMs.count < MeloNXPerfJournal.Presentation.gapLimit' in co
       'pacing.gapsMs.removeAll(keepingCapacity: true)' in controller and 'static let gapLimit = 240' in journal,
       'bounded gap list reset on read')
 check('fields.append("long=\\(over50)/\\(over100)")' in journal and 'fields.append("gaps=" + ' in journal, 'journal fields')
+check('if let text = vmActivity() { fields.append("vm=" + text) }' in journal and
+      journal.index('fields.append("mem=" + text)') < journal.index('fields.append("vm=" + text)') < journal.index('fields.append("th=" + ') and
+      journal.count('task_flavor_t(TASK_EVENTS_INFO)') == 1 and 'vm.compressed_lifetime' in journal and 'vm.decompressions' in journal,
+      'vm= field: compression, decompression, faults and page-ins over the interval, read only')
 # Lot 9: the engine call's own duration (a GC suspension in progress blocks it), timed around fps() only.
 check('let callStart = ProcessInfo.processInfo.systemUptime\n        let engine = fps()\n        let callMs = ' in journal and
       'fields.append("mgd=" + Self.decimal(callMs))' in journal, 'journal mgd field around the engine call')
@@ -158,6 +162,11 @@ for _ in 0..<200 { _ = MeloNXPerfJournal.threads() }
 mach_port_get_refs(mach_task_self_, me, MACH_PORT_RIGHT_SEND, &after)
 mach_port_deallocate(mach_task_self_, me)
 guard before == after else { print("refs", before, after); exit(5) }
+// vm= field: real counters readable, differences formatted, a wrapped counter written "-".
+guard let vmNow = MeloNXPerfJournal.vmCounters(), vmNow.faults > 0 else { print("vm counters"); exit(6) }
+let vmBefore = MeloNXPerfJournal.VmCounters(compressedBytes:10 << 20, decompressions:100, faults:1_000, pageins:5)
+print("vmField " + MeloNXPerfJournal.vmField(from:vmBefore, to:MeloNXPerfJournal.VmCounters(compressedBytes:42 << 20, decompressions:350, faults:1_900, pageins:5)))
+print("vmField " + MeloNXPerfJournal.vmField(from:vmBefore, to:MeloNXPerfJournal.VmCounters(compressedBytes:5 << 20, decompressions:99, faults:2_000, pageins:6)))
 let journal = MeloNXPerfJournal(path:path, interval:0.25, lineLimit:6,
     fps:{ ["gameFps":59.5,"gameFrameTimeMs":16.8,"fifoPercent":40.0] },
     presentation:{
@@ -210,6 +219,11 @@ exit(2)
             check(int(re.search(r' cpu=(\d+)', line).group(1)) >= int(worker.group(1)), line)
             check(len(re.findall(r' \S+:\d+/\d+', line)) <= 6, line)
         check('paused' not in samples[0] and 'paused' in samples[-1], samples)
+        # vm= (the kernel's compression, decompression, fault and page-in counts over the interval): absent on the first
+        # line, four counts on the others, before th=.
+        check(' vm=' not in samples[0] and all(re.search(r' vm=\d+/\d+/\d+/\d+ (in=\S+ )?th=', line) for line in samples[1:]), samples)
+        check([line for line in result.stdout.splitlines() if line.startswith('vmField ')] == ['vmField 32/250/900/0', 'vmField -/-/1000/1'],
+              result.stdout)
         total = int(re.search(r'^end: (\d+) s sampled, 6 lines;', body[-1]).group(1))
         check(total >= 9, body[-1])
         check(f'{total * 60} frames presented, {total * 2} gaps over 20 ms, 0 over 40 ms, {total} over 50 ms, 0 over 100 ms'

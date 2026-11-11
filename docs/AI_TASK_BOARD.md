@@ -3749,11 +3749,75 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     ("vulkanMemory sample" about every 30 s: the Vulkan allocator's blocks, dedicated, mapped and pooled free bytes by
     memory type; gate 26 checks), commit `1b0c13ea`. S2Arm diagnostic hook in the bridge for session 04
     (`d32738b5`, test IPAs only, macOS run 42933024817 green).
-    - **Open, decided by the next device journals (protocol: evidence/melonx-725-gates/device-protocol.md):** why the
-      mapped main cache saved nothing on the device (Core side: `pipelineCache mainDataMapped` at the start of
-      `MeloNX-core.log`, now kept in the exported file; driver side: the load line above in `MeloNX-stderr.log`), and
-      where the 2.3 GiB of unattributed native memory is (breakdown v2: `private=`, `zones=`, `malloc.large`,
-      `untagged`, `file`, `unwalked`). No footprint change is claimed for Core 725.
+    - **Answered by lot 10 below (sources and sizes, 11 Nov):** the mapped main cache saved nothing because the cache
+      data is binding tables, not MSL. **Still open, for the next device journals:** where the rest of the unattributed
+      native memory is (breakdown v2: `private=`, `zones=`, `malloc.large`, `untagged`, `file`, `unwalked`) and the
+      0.8 GB between MoltenVK's allocated figure and the caches (`vulkanMemory` samples). No footprint change is claimed
+      for Core 725 or 727.
+  - **Lot 10 (11 Nov): why Core 721's mapped cache showed nothing, and the correction (MoltenVK recipe patch fifth part +
+    Core 729; frozen here, not delivered, not run on an iPhone).**
+    - **Cause (sources + IPA 724 sizes; neither side had failed, the premise was wrong):** the 792.03 MiB of cache data are
+      4 669 entries of 177 876 bytes, and they are not shader source. MeloNX declares 261 bindings for a vertex + fragment
+      program (`ShaderInfoBuilder.AddStageInfo`: 18 uniform, 16 storage, 64 texture, 32 image bindings per stage) and
+      MoltenVK with Metal argument buffers ("Descriptor sets binding resources using Metal3 argument buffers" in that
+      session) lists each once per Metal stage in every shader's conversion configuration, which it keeps with each
+      cached library: 1 305 entries, 134 bytes serialized, 136 in memory. Those tables are in the heap of every cache
+      holding the library (staging and main at the load: +1 078 MiB, then +913 MiB in the second of the merge) and are
+      written again whole at every save (10.9 s at the pause). The compressed MSL Core 721 references is the small rest.
+      A lookup also aligns the pipeline's whole table with the cached one, entry by entry (alignWith, n x m).
+    - **Fix:** `SPIRVToMSLConversionConfiguration::cacheKey()` (recipe patch `560669f0…`, five markers, commit
+      `73cf9e93`): a cached library is kept under its configuration without the resource bindings no lookup can read a
+      result from (matches() reads the used bindings of the entry stage; alignWith() gives a binding the flag of the last
+      matching binding, false when none matches: an unused binding is dropped unless a used one before it matches it).
+      Same data format both ways. `adapt_pipeline_cache_compact` (commit `49290aba`): at the end of the background load a
+      main file at least twice main's data, by 8 MiB or more, is written again once (existing SaveCache; the mapped
+      snapshot stays valid); the budget estimate and the growth rule take main's data. Bridge: `vm=` on each per-second
+      line (MiB compressed, pages decompressed, faults, page-ins).
+    - **Proof:** property test on MoltenVK's own matches()/alignWith() (`test/melonx_cache_keys`, any host): 2 400
+      lookups and alignments identical, a prune without the order rule caught 1 020-1 074 times. macOS, real Metal, MeloNX's
+      descriptor set layouts ([run 42943460686](https://github.com/TarbleFR/RewindBox/actions/runs/42943460686),
+      [report](evidence/melonx-729-gates/cache-keys-macos-report.json); 780 libraries, 2 160 pipelines, control and
+      candidate in one binary): bindings per library 1 315 whole, 6.2 kept; data 176.6 MB whole, 39.8 MB with keys;
+      footprint after the load +334.5 MiB whole, +66.7 MiB with keys (+458.6 / +282.2 after the pipelines); the 2 160
+      pipelines from the loaded cache 14.9 and 12.6 s whole, 1.4 and 1.1 s with keys; one more pipeline of a cached
+      program 8.99 and 5.62 ms whole, 0.46 and 0.25 ms with keys; size query 297 ms -> 1.7 ms; write 463 ms -> 18-25 ms;
+      every load 0 pipeline missing, 0 SPIR-V conversion, 24 draws with the colours of the bound resources, the same
+      pixels in the nine runs; whole data is written back at the key size; a whole-keeping MoltenVK reads key data.
+      iOS rebuild [run 42943460512](https://github.com/TarbleFR/RewindBox/actions/runs/42943460512) green; bridge
+      macOS + iOS typecheck run 42945472943 green. Gate `pipeline-cache-compact` (50 checks, real manager on the content
+      double in key mode: a 12.5 MiB file is 803 KiB after the load with its 200 libraries, read small at the next launch
+      of a killed session; control keeps it whole).
+    - **Core 729 frozen: contract `1e9d597b…` (204 inputs, 207 members, 87 gates; contract test 474
+      checks; [receipts](evidence/melonx-729-gates/run.json),
+      [device protocol](evidence/melonx-729-gates/device-protocol.md)).** Main must rebuild/pin MoltenVK from the
+      five-part patch with this Core (the contract binds the patch).
+      **Realigned on `Claude` `1a9f2167` (11 Nov, merged here):** the contract frozen at `37937b4a` was `0501ae30…`;
+      PR #174 replaced the upload step of `melonx-core.yml`, a fixed input, so that one entry is `be62c65b…` ->
+      `a4fd766d…` and nothing else differs (a freeze run again on the merged tree is the same JSON; its bytes vary
+      from run to run by the key order of `baselineUnadaptedMembers` alone, so the frozen file with that entry is
+      published). No preparation input, fixture or gate script changed: no gate run again. `melonx-cache-keys.yml`
+      uploads through the protected action (`check_workflows.py` passes; `scan.py` run locally on its two path
+      patterns, 23 files; not run on a runner since).
+    - **Reference recomputed (`tools/melonx/frame_budget.py`, pid 49375):** after 88 s 1 370 frames in 121.9 s, mean
+      89.0 ms, excess +55.6 = stutters +36.2 (220 gaps over 100 ms) + slow frames +19.9 - 0.5; after 107 s 93.9 ms
+      (+60.6). Corrections: 28-72 s is not all play (28-49 s are menus and loading; play starts at t=52: 38.7 ms,
+      25.8 presented FPS, never a stable 30); without the 6.2 s after the resume (197-205 s) the excess after 88 s is
+      +52.0; the session ended at t=217 without an end line. In those 121.8 s (engine windows, overlapping): GC pauses
+      14.6 s (seven windows of 0.6-3.1 s), pipeline builds on the render thread 7.3 s. No thread is saturated in any
+      phase (the busiest uses 54 % of a core); frame time follows about 0.6 x the sum of the chain's CPU per frame
+      (guest threads, GPU thread, render thread, MoltenVK's encoding), which doubles after 88 s while the process's
+      resident anonymous memory falls from 2 238 to 783 MiB and 6.4 GiB are compressed (`[MeloNX:memory]` v1 lines);
+      during the 2.5-4.3 s gaps the sampler itself writes no line (whole-process stalls).
+    - **Asynchronous submissions (maintainer question): already asynchronous** (`config.SynchronousQueueSubmits =
+      false`, MVKInitialization.cs). IPA 724 in play: 18-33 Metal command buffers per frame, submits 1.8 ms per frame
+      on the render thread, Metal encoding 5.6-14.5 ms per frame on MoltenVK's own thread, fence waits 0.2 ms per frame,
+      GPU busy 11-35 % (the engine's own measure). Neither the submission mode nor the GPU limits the frame; no trial.
+    - **Not supported by the evidence, left:** BC textures expanded on the device (Apple9 GPUs report BC support); the
+      Vulkan allocator hoarding blocks (pooling is off: every allocation is dedicated). The 0.8 GB between MoltenVK's
+      allocated figure and the caches is for the `vulkanMemory` samples of the next run. Expected on the device, unknown
+      until measured: no load step, a footprint lower by several hundred MiB (the tables compress well, so the physical
+      gain is smaller than the footprint's), pipeline creations several times cheaper; the memory shortage itself
+      probably remains and the `vm=` field and the breakdown will size it.
 
 - **S2Arm as a Switch 2 playlist engine, feasibility study (session 012mUASkkFGHaPcEUx9dsp8q, 10 Nov; maintainer request:
   recompilation and installation on the device, from the playlist; read-only study of jhaizhou-ops/S2Arm at its

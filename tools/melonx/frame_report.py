@@ -410,7 +410,9 @@ def report_render_commands(lines, chosen):
             datetime.fromisoformat(stamp) - timedelta(milliseconds=float(match.group(1)))).isoformat()[:19]]
         if not inside:
             continue
-        top = [entry.split() for entry in match.group(3).split(';') if entry.strip()]
+        # From build 705 the line goes on with the GPU thread's sync waits and their own top list: the first list only.
+        top = [entry.split() for entry in match.group(3).split('; GPU thread sync waits')[0].split(';') if entry.strip()]
+        top = [entry for entry in top if len(entry) == 3]
         parsed.append(dict(frames=sum(s['presented'] for s in inside), busy=float(match.group(2)),
                            fps=statistics.mean(s['fps'] for s in inside), top={n: (int(c), float(ms)) for n, c, ms in top}))
     if not parsed:
@@ -542,6 +544,28 @@ def main():
                                          'DMA float GPU copy', 'DMA GPU region copy', 'DMA GPU read-back',
                                          'Background pipeline compile missed', 'ServiceNv Wait')):
             attributions.append(line)
+    if args.stderr:
+        # The engine journal keeps the end of a session (it rotates at 3 MiB); the stderr capture holds the same three
+        # lines for the whole session. Whichever has more of a kind is read.
+        captured = dict(render=[], stage=[], detail=[])
+        for line in open(args.stderr, encoding='utf-8', errors='replace'):
+            if marker not in line or ' context=' not in line:
+                continue
+            for kind, key in (('render', 'Render thread commands over '), ('stage', 'Vulkan render stages over '),
+                              ('detail', 'Vulkan pass and GPU detail over ')):
+                if key in line:
+                    body, context_text = line.rsplit(' context=', 1)
+                    try:
+                        stamp = json.loads(context_text).get('timestamp', '')
+                    except ValueError:
+                        continue
+                    captured[kind].append(dict(timestamp=stamp, diagnostic=body[body.index(key):]))
+        if len(captured['render']) > len(render_lines):
+            render_lines = captured['render']
+        if len(captured['stage']) > len(stage_lines):
+            stage_lines = captured['stage']
+        if len(captured['detail']) > len(detail_lines):
+            detail_lines = captured['detail']
     render_commands = report_render_commands(render_lines, chosen)
     stages = report_render_stages(stage_lines, chosen)
     detail = report_render_detail(detail_lines, chosen)

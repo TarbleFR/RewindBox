@@ -18,7 +18,7 @@ SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import control_source, files_edited_later  # noqa: E402
+from melonx_adapter_control import control_source, files_edited_later, postimage  # noqa: E402
 _HOLD = []
 CONTROL, FINAL_PREPARATION = control_source(SOURCE, 'adapt_pause_checkpoint_growth', _HOLD)
 import adapt_pause_checkpoint_growth as adapter  # noqa: E402
@@ -50,9 +50,20 @@ def member(text, signature):
 
 
 check(FINAL_PREPARATION, 'the source given is a final preparation containing the adapter')
-check(not files_edited_later('adapt_pause_checkpoint_growth'), 'no later adapter edits the file')
+# Core 729: adapt_pipeline_cache_compact edits the same file after this adapter. The static comparison reads this
+# adapter's postimage (the later adapters reversed); the executed part runs the final preparation, whose decision
+# method must still be this adapter's.
+LATER = sorted(files_edited_later('adapt_pause_checkpoint_growth'))
+check(LATER in ([], [adapter.MANAGER]), 'only the manager is shared with later adapters: %s' % LATER)
+_POST = tempfile.TemporaryDirectory(prefix='melonx-pause-checkpoint-post-')
+POST = Path(_POST.name).resolve()
+postimage('adapt_pause_checkpoint_growth', SOURCE, POST)
 control_text = (CONTROL / adapter.MANAGER).read_text(encoding='utf-8-sig')
-candidate_text = (SOURCE / adapter.MANAGER).read_text(encoding='utf-8-sig')
+candidate_text = (POST / adapter.MANAGER).read_text(encoding='utf-8-sig')
+final_text = (SOURCE / adapter.MANAGER).read_text(encoding='utf-8-sig')
+check(member(final_text, 'private bool MainGrowthWorthWriting(long size, long now, bool pause)') ==
+      member(candidate_text, 'private bool MainGrowthWorthWriting(long size, long now, bool pause)'),
+      'the final preparation keeps this adapter\'s decision method')
 check(sha(CONTROL / adapter.MANAGER) == adapter.BASELINE[adapter.MANAGER], 'control is the Core 725 preparation')
 check(control_text.replace(adapter.RULE_OLD, adapter.RULE_NEW) == candidate_text and control_text.count(adapter.RULE_OLD) == 1,
       'the candidate is the control plus the one replacement')

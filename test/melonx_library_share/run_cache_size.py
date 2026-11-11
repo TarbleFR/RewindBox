@@ -68,7 +68,12 @@ def main():
     sh(['git', '-C', target, 'checkout', '-q', '--force', '--detach', 'FETCH_HEAD'])
     sh([target / 'fetchDependencies', '--macos'], cwd=target, log='fetchDependencies.log')
     salt = int(os.environ.get('GITHUB_RUN_ID', str(int(time.time())))) % 1_000_000_007
-    environment = dict(os.environ, MVK_CONFIG_PERFORMANCE_TRACKING='1', MVK_CONFIG_LOG_LEVEL='1')
+    # Lot 10: the recipe patch's fifth part keeps a cached library under its cache key, so its data is smaller than
+    # the shipped build's wherever a configuration lists a binding the shader does not use. This measure is the size
+    # query's (second part), proved by the same bytes as the shipped build: the candidate keeps whole configurations
+    # here (the bench switch; ignored by the shipped build). The keys are measured by test/melonx_cache_keys.
+    environment = dict(os.environ, MVK_CONFIG_PERFORMANCE_TRACKING='1', MVK_CONFIG_LOG_LEVEL='1',
+                       MVK_CONFIG_REWINDBOX_FULL_CACHE_KEYS='1')
     results = {}
     for name, patch in (('shipped', SHIPPED), ('candidate', CANDIDATE)):
         binary, library = build(target, patch, name)

@@ -1,0 +1,2056 @@
+{
+ "identity": {
+  "moltenvk": {
+   "repository": "https://github.com/KhronosGroup/MoltenVK.git",
+   "tag": "v1.4.2",
+   "revision": "db66022459ffb663aa2b50f6b018bc2e124f5edf"
+  },
+  "patch": {
+   "path": "build-utils/melonx/moltenvk/rewindbox-moltenvk.patch",
+   "sha256": "560669f0b982c10a82c7591fe43ef875125beb7f3c0033140458e430c7921d6e"
+  },
+  "library": {
+   "sha256": "2f5d5c24b620f624679410ccc20bfad1b11e7227c450b231a41a947d34640f51",
+   "bytes": 10943920
+  },
+  "test": "39ca892edb054ac7c04560bde7c4eb383235f6e6e287bf4261e868c3b9b3b50a",
+  "propertyTest": "9b58096077281542c7331cb6931ff9be0ae6fc3ba2f314e5466b28a9ef7aa6cf",
+  "shaders": "8ad1a1c2f41cae8f239885511b3a55423f0e23ee1c563c94329925bd4d8f9589",
+  "rounds": 60,
+  "salt": 943460392,
+  "descriptorSets": "Metal argument buffers.",
+  "xcode": [
+   "Xcode 26.6",
+   "Build version 17F113"
+  ],
+  "os": [
+   "ProductName:",
+   "macOS",
+   "ProductVersion:",
+   "26.7.2",
+   "BuildVersion:",
+   "25G332"
+  ]
+ },
+ "propertyTest": {
+  "result": "passed",
+  "rounds": 400,
+  "lookupsMatching": 1776,
+  "lookupsNotMatching": 624,
+  "alignChecks": 2400,
+  "mergePairs": 800,
+  "mergePairsMatching": 175,
+  "naivePruneCaught": 1074,
+  "unusedKeptByOrderRule": 640,
+  "bindingsWhole": 444451,
+  "bindingsKept": 68074,
+  "meloNXShape": {
+   "bindingsWhole": 1305,
+   "bindingsKept": 23,
+   "bytesPerBindingInMemory": 136
+  },
+  "seed": 943460392
+ },
+ "data": {
+  "libraries": 780,
+  "wholeBytes": 176635672,
+  "keyBytes": 39843112,
+  "wholeBytesPerLibrary": 226456,
+  "keyBytesPerLibrary": 51081,
+  "bindingsPerLibraryWhole": 1315.0,
+  "bindingsPerLibraryKept": 6.2,
+  "tablesInMemoryMiB": 132.4
+ },
+ "loads": {
+  "control-load-full": {
+   "footprintGrowthMiB": {
+    "Staging": 198.5,
+    "Merge": 334.5,
+    "Destroy": 334.5,
+    "Pipelines": 458.6,
+    "Write": 627.2
+   },
+   "loadMs": 827,
+   "pipelinesMs": 14904,
+   "oneMorePipelineMs": 8.988,
+   "sizeQueryMs": 296.95,
+   "writeMs": 462.9,
+   "bytes": 176635672
+  },
+  "candidate-load-full": {
+   "footprintGrowthMiB": {
+    "Staging": 64.4,
+    "Merge": 66.7,
+    "Destroy": 66.7,
+    "Pipelines": 282.2,
+    "Write": 320.3
+   },
+   "loadMs": 635,
+   "pipelinesMs": 1429,
+   "oneMorePipelineMs": 0.459,
+   "sizeQueryMs": 1.73,
+   "writeMs": 17.6,
+   "bytes": 39843112
+  },
+  "candidate-load-key": {
+   "footprintGrowthMiB": {
+    "Staging": 64.2,
+    "Merge": 66.4,
+    "Destroy": 66.4,
+    "Pipelines": 282.0,
+    "Write": 320.1
+   },
+   "loadMs": 410,
+   "pipelinesMs": 966,
+   "oneMorePipelineMs": 0.31,
+   "sizeQueryMs": 1.24,
+   "writeMs": 4.7,
+   "bytes": 39843112
+  },
+  "control-load-key": {
+   "footprintGrowthMiB": {
+    "Staging": 64.2,
+    "Merge": 66.5,
+    "Destroy": 66.5,
+    "Pipelines": 282.0,
+    "Write": 320.2
+   },
+   "loadMs": 151,
+   "pipelinesMs": 1237,
+   "oneMorePipelineMs": 0.349,
+   "sizeQueryMs": 1.44,
+   "writeMs": 5.2,
+   "bytes": 39843112
+  },
+  "control-load-full-2": {
+   "footprintGrowthMiB": {
+    "Staging": 198.4,
+    "Merge": 334.5,
+    "Destroy": 334.5,
+    "Pipelines": 458.6,
+    "Write": 627.3
+   },
+   "loadMs": 682,
+   "pipelinesMs": 12627,
+   "oneMorePipelineMs": 5.618,
+   "sizeQueryMs": 188.33,
+   "writeMs": 341.7,
+   "bytes": 176635672
+  },
+  "candidate-load-full-2": {
+   "footprintGrowthMiB": {
+    "Staging": 64.5,
+    "Merge": 66.7,
+    "Destroy": 66.7,
+    "Pipelines": 282.3,
+    "Write": 320.4
+   },
+   "loadMs": 610,
+   "pipelinesMs": 1113,
+   "oneMorePipelineMs": 0.253,
+   "sizeQueryMs": 1.09,
+   "writeMs": 24.9,
+   "bytes": 39843112
+  },
+  "candidate-load-key-2": {
+   "footprintGrowthMiB": {
+    "Staging": 64.2,
+    "Merge": 66.5,
+    "Destroy": 66.5,
+    "Pipelines": 282.2,
+    "Write": 320.3
+   },
+   "loadMs": 151,
+   "pipelinesMs": 1077,
+   "oneMorePipelineMs": 0.286,
+   "sizeQueryMs": 1.22,
+   "writeMs": 4.9,
+   "bytes": 39843112
+  }
+ },
+ "results": {
+  "control-save": {
+   "mode": "save",
+   "rounds": 60,
+   "layoutBindings": 261,
+   "shaderModules": 780,
+   "pipelines": 2160,
+   "missing": 0,
+   "bytes": 176635672,
+   "writeResult": 0,
+   "fileBytes": 0,
+   "footprintStartMiB": 4.53253,
+   "footprintAfterStagingMiB": 0,
+   "footprintAfterMergeMiB": 0,
+   "footprintAfterDestroyMiB": 0,
+   "footprintAfterPipelinesMiB": 476.69,
+   "footprintAfterWriteMiB": 645.237,
+   "loadMs": 0,
+   "createMs": 209108,
+   "again": 0,
+   "againMissing": 0,
+   "againMs": 0,
+   "sizeQueryMs": 254.747,
+   "writeMs": 435.364,
+   "mvkMslCompileAtLoad": 0,
+   "draws": 24,
+   "wrongPixels": 0,
+   "pixelsUnchangedByContents": 0,
+   "pixels": [
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     79,
+     82,
+     59,
+     255
+    ],
+    [
+     92,
+     95,
+     33,
+     255
+    ],
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     80,
+     82,
+     59,
+     255
+    ],
+    [
+     92,
+     95,
+     34,
+     255
+    ],
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     80,
+     83,
+     60,
+     255
+    ],
+    [
+     93,
+     95,
+     34,
+     255
+    ],
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     80,
+     82,
+     59,
+     255
+    ],
+    [
+     93,
+     95,
+     34,
+     255
+    ],
+    [
+     44,
+     29,
+     51,
+     255
+    ],
+    [
+     82,
+     41,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ],
+    [
+     44,
+     29,
+     52,
+     255
+    ],
+    [
+     82,
+     41,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ],
+    [
+     44,
+     29,
+     52,
+     255
+    ],
+    [
+     83,
+     42,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ],
+    [
+     44,
+     29,
+     52,
+     255
+    ],
+    [
+     82,
+     41,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ]
+   ],
+   "dataHash": "5bc996ee80b9ace6",
+   "mvkMslCompile": {
+    "count": 781,
+    "totalMs": 159690,
+    "maxMs": 1395.37
+   },
+   "mvkSpirvToMsl": {
+    "count": 780,
+    "totalMs": 6004.41,
+    "maxMs": 41.8249
+   },
+   "mvkPipelineCompile": {
+    "count": 2160,
+    "totalMs": 32927.6,
+    "maxMs": 171.437
+   },
+   "mvkReadPipelineCache": {
+    "count": 0,
+    "totalMs": 0,
+    "maxMs": 0
+   },
+   "mvkWritePipelineCache": {
+    "count": 780,
+    "totalMs": 434.273,
+    "maxMs": 3.15088
+   },
+   "mvkSizePipelineCache": {
+    "count": 780,
+    "totalMs": 253.276,
+    "maxMs": 4.08042
+   },
+   "seconds": 219.0
+  },
+  "candidate-save": {
+   "mode": "save",
+   "rounds": 60,
+   "layoutBindings": 261,
+   "shaderModules": 780,
+   "pipelines": 2160,
+   "missing": 0,
+   "bytes": 39843112,
+   "writeResult": 0,
+   "fileBytes": 0,
+   "footprintStartMiB": 4.95441,
+   "footprintAfterStagingMiB": 0,
+   "footprintAfterMergeMiB": 0,
+   "footprintAfterDestroyMiB": 0,
+   "footprintAfterPipelinesMiB": 335.565,
+   "footprintAfterWriteMiB": 373.596,
+   "loadMs": 0,
+   "createMs": 7535.51,
+   "again": 0,
+   "againMissing": 0,
+   "againMs": 0,
+   "sizeQueryMs": 1.72067,
+   "writeMs": 16.4026,
+   "mvkMslCompileAtLoad": 0,
+   "draws": 24,
+   "wrongPixels": 0,
+   "pixelsUnchangedByContents": 0,
+   "pixels": [
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     79,
+     82,
+     59,
+     255
+    ],
+    [
+     92,
+     95,
+     33,
+     255
+    ],
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     80,
+     82,
+     59,
+     255
+    ],
+    [
+     92,
+     95,
+     34,
+     255
+    ],
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     80,
+     83,
+     60,
+     255
+    ],
+    [
+     93,
+     95,
+     34,
+     255
+    ],
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     80,
+     82,
+     59,
+     255
+    ],
+    [
+     93,
+     95,
+     34,
+     255
+    ],
+    [
+     44,
+     29,
+     51,
+     255
+    ],
+    [
+     82,
+     41,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ],
+    [
+     44,
+     29,
+     52,
+     255
+    ],
+    [
+     82,
+     41,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ],
+    [
+     44,
+     29,
+     52,
+     255
+    ],
+    [
+     83,
+     42,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ],
+    [
+     44,
+     29,
+     52,
+     255
+    ],
+    [
+     82,
+     41,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ]
+   ],
+   "dataHash": "a558148a653e289a",
+   "mvkMslCompile": {
+    "count": 781,
+    "totalMs": 301.838,
+    "maxMs": 3.85154
+   },
+   "mvkSpirvToMsl": {
+    "count": 780,
+    "totalMs": 5475.36,
+    "maxMs": 21.2599
+   },
+   "mvkPipelineCompile": {
+    "count": 2160,
+    "totalMs": 1389.3,
+    "maxMs": 6.02487
+   },
+   "mvkReadPipelineCache": {
+    "count": 0,
+    "totalMs": 0,
+    "maxMs": 0
+   },
+   "mvkWritePipelineCache": {
+    "count": 780,
+    "totalMs": 16.1087,
+    "maxMs": 1.60342
+   },
+   "mvkSizePipelineCache": {
+    "count": 780,
+    "totalMs": 1.32986,
+    "maxMs": 0.010375
+   },
+   "seconds": 14.0
+  },
+  "control-load-full": {
+   "mode": "load",
+   "rounds": 60,
+   "layoutBindings": 261,
+   "shaderModules": 780,
+   "pipelines": 2160,
+   "missing": 0,
+   "bytes": 176635672,
+   "writeResult": 0,
+   "fileBytes": 176635672,
+   "footprintStartMiB": 4.98572,
+   "footprintAfterStagingMiB": 203.44,
+   "footprintAfterMergeMiB": 339.456,
+   "footprintAfterDestroyMiB": 339.456,
+   "footprintAfterPipelinesMiB": 463.55,
+   "footprintAfterWriteMiB": 632.206,
+   "loadMs": 826.985,
+   "createMs": 14903.7,
+   "again": 48,
+   "againMissing": 0,
+   "againMs": 431.443,
+   "sizeQueryMs": 296.949,
+   "writeMs": 462.894,
+   "mvkMslCompileAtLoad": 781,
+   "draws": 24,
+   "wrongPixels": 0,
+   "pixelsUnchangedByContents": 0,
+   "pixels": [
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     79,
+     82,
+     59,
+     255
+    ],
+    [
+     92,
+     95,
+     33,
+     255
+    ],
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     80,
+     82,
+     59,
+     255
+    ],
+    [
+     92,
+     95,
+     34,
+     255
+    ],
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     80,
+     83,
+     60,
+     255
+    ],
+    [
+     93,
+     95,
+     34,
+     255
+    ],
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     80,
+     82,
+     59,
+     255
+    ],
+    [
+     93,
+     95,
+     34,
+     255
+    ],
+    [
+     44,
+     29,
+     51,
+     255
+    ],
+    [
+     82,
+     41,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ],
+    [
+     44,
+     29,
+     52,
+     255
+    ],
+    [
+     82,
+     41,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ],
+    [
+     44,
+     29,
+     52,
+     255
+    ],
+    [
+     83,
+     42,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ],
+    [
+     44,
+     29,
+     52,
+     255
+    ],
+    [
+     82,
+     41,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ]
+   ],
+   "dataHash": "91632a4560df991c",
+   "mvkMslCompile": {
+    "count": 781,
+    "totalMs": 189.862,
+    "maxMs": 4.24942
+   },
+   "mvkSpirvToMsl": {
+    "count": 0,
+    "totalMs": 0,
+    "maxMs": 0
+   },
+   "mvkPipelineCompile": {
+    "count": 2208,
+    "totalMs": 1647.97,
+    "maxMs": 8.81137
+   },
+   "mvkReadPipelineCache": {
+    "count": 780,
+    "totalMs": 415.888,
+    "maxMs": 4.17008
+   },
+   "mvkWritePipelineCache": {
+    "count": 780,
+    "totalMs": 462.116,
+    "maxMs": 5.22387
+   },
+   "mvkSizePipelineCache": {
+    "count": 780,
+    "totalMs": 295.569,
+    "maxMs": 4.41075
+   },
+   "seconds": 23.7,
+   "loadLine": "780 shader libraries from 176635672 bytes, resource bindings 1025700 read 1025700 kept; compressed MSL referenced in the caller's data; pNext types 0x52425831.",
+   "librariesRead": 780,
+   "bindingsRead": 1025700,
+   "bindingsKept": 1025700
+  },
+  "candidate-load-full": {
+   "mode": "load",
+   "rounds": 60,
+   "layoutBindings": 261,
+   "shaderModules": 780,
+   "pipelines": 2160,
+   "missing": 0,
+   "bytes": 39843112,
+   "writeResult": 0,
+   "fileBytes": 176635672,
+   "footprintStartMiB": 4.89191,
+   "footprintAfterStagingMiB": 69.2987,
+   "footprintAfterMergeMiB": 71.58,
+   "footprintAfterDestroyMiB": 71.58,
+   "footprintAfterPipelinesMiB": 287.096,
+   "footprintAfterWriteMiB": 325.221,
+   "loadMs": 634.787,
+   "createMs": 1429.46,
+   "again": 48,
+   "againMissing": 0,
+   "againMs": 22.039,
+   "sizeQueryMs": 1.72967,
+   "writeMs": 17.5681,
+   "mvkMslCompileAtLoad": 781,
+   "draws": 24,
+   "wrongPixels": 0,
+   "pixelsUnchangedByContents": 0,
+   "pixels": [
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     79,
+     82,
+     59,
+     255
+    ],
+    [
+     92,
+     95,
+     33,
+     255
+    ],
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     80,
+     82,
+     59,
+     255
+    ],
+    [
+     92,
+     95,
+     34,
+     255
+    ],
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     80,
+     83,
+     60,
+     255
+    ],
+    [
+     93,
+     95,
+     34,
+     255
+    ],
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     80,
+     82,
+     59,
+     255
+    ],
+    [
+     93,
+     95,
+     34,
+     255
+    ],
+    [
+     44,
+     29,
+     51,
+     255
+    ],
+    [
+     82,
+     41,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ],
+    [
+     44,
+     29,
+     52,
+     255
+    ],
+    [
+     82,
+     41,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ],
+    [
+     44,
+     29,
+     52,
+     255
+    ],
+    [
+     83,
+     42,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ],
+    [
+     44,
+     29,
+     52,
+     255
+    ],
+    [
+     82,
+     41,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ]
+   ],
+   "dataHash": "b8a5ea2031e151ea",
+   "mvkMslCompile": {
+    "count": 781,
+    "totalMs": 185.979,
+    "maxMs": 4.61854
+   },
+   "mvkSpirvToMsl": {
+    "count": 0,
+    "totalMs": 0,
+    "maxMs": 0
+   },
+   "mvkPipelineCompile": {
+    "count": 2208,
+    "totalMs": 1196.77,
+    "maxMs": 4.47637
+   },
+   "mvkReadPipelineCache": {
+    "count": 780,
+    "totalMs": 422.382,
+    "maxMs": 4.37413
+   },
+   "mvkWritePipelineCache": {
+    "count": 780,
+    "totalMs": 17.2422,
+    "maxMs": 0.138708
+   },
+   "mvkSizePipelineCache": {
+    "count": 780,
+    "totalMs": 1.52848,
+    "maxMs": 0.05125
+   },
+   "seconds": 8.0,
+   "loadLine": "780 shader libraries from 176635672 bytes, resource bindings 1025700 read 4860 kept; compressed MSL referenced in the caller's data; pNext types 0x52425831.",
+   "librariesRead": 780,
+   "bindingsRead": 1025700,
+   "bindingsKept": 4860
+  },
+  "candidate-load-key": {
+   "mode": "load",
+   "rounds": 60,
+   "layoutBindings": 261,
+   "shaderModules": 780,
+   "pipelines": 2160,
+   "missing": 0,
+   "bytes": 39843112,
+   "writeResult": 0,
+   "fileBytes": 39843112,
+   "footprintStartMiB": 4.95441,
+   "footprintAfterStagingMiB": 69.1578,
+   "footprintAfterMergeMiB": 71.3922,
+   "footprintAfterDestroyMiB": 71.3922,
+   "footprintAfterPipelinesMiB": 286.94,
+   "footprintAfterWriteMiB": 325.065,
+   "loadMs": 409.505,
+   "createMs": 965.638,
+   "again": 48,
+   "againMissing": 0,
+   "againMs": 14.886,
+   "sizeQueryMs": 1.23904,
+   "writeMs": 4.704,
+   "mvkMslCompileAtLoad": 781,
+   "draws": 24,
+   "wrongPixels": 0,
+   "pixelsUnchangedByContents": 0,
+   "pixels": [
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     79,
+     82,
+     59,
+     255
+    ],
+    [
+     92,
+     95,
+     33,
+     255
+    ],
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     80,
+     82,
+     59,
+     255
+    ],
+    [
+     92,
+     95,
+     34,
+     255
+    ],
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     80,
+     83,
+     60,
+     255
+    ],
+    [
+     93,
+     95,
+     34,
+     255
+    ],
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     80,
+     82,
+     59,
+     255
+    ],
+    [
+     93,
+     95,
+     34,
+     255
+    ],
+    [
+     44,
+     29,
+     51,
+     255
+    ],
+    [
+     82,
+     41,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ],
+    [
+     44,
+     29,
+     52,
+     255
+    ],
+    [
+     82,
+     41,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ],
+    [
+     44,
+     29,
+     52,
+     255
+    ],
+    [
+     83,
+     42,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ],
+    [
+     44,
+     29,
+     52,
+     255
+    ],
+    [
+     82,
+     41,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ]
+   ],
+   "dataHash": "b8a5ea2031e151ea",
+   "mvkMslCompile": {
+    "count": 781,
+    "totalMs": 133.681,
+    "maxMs": 2.85933
+   },
+   "mvkSpirvToMsl": {
+    "count": 0,
+    "totalMs": 0,
+    "maxMs": 0
+   },
+   "mvkPipelineCompile": {
+    "count": 2208,
+    "totalMs": 785.057,
+    "maxMs": 2.59742
+   },
+   "mvkReadPipelineCache": {
+    "count": 780,
+    "totalMs": 186.947,
+    "maxMs": 2.16758
+   },
+   "mvkWritePipelineCache": {
+    "count": 780,
+    "totalMs": 4.49817,
+    "maxMs": 0.018
+   },
+   "mvkSizePipelineCache": {
+    "count": 780,
+    "totalMs": 1.11747,
+    "maxMs": 0.004125
+   },
+   "seconds": 7.6,
+   "loadLine": "780 shader libraries from 39843112 bytes, resource bindings 4860 read 4860 kept; compressed MSL referenced in the caller's data; pNext types 0x52425831.",
+   "librariesRead": 780,
+   "bindingsRead": 4860,
+   "bindingsKept": 4860
+  },
+  "control-load-key": {
+   "mode": "load",
+   "rounds": 60,
+   "layoutBindings": 261,
+   "shaderModules": 780,
+   "pipelines": 2160,
+   "missing": 0,
+   "bytes": 39843112,
+   "writeResult": 0,
+   "fileBytes": 39843112,
+   "footprintStartMiB": 4.93884,
+   "footprintAfterStagingMiB": 69.111,
+   "footprintAfterMergeMiB": 71.3923,
+   "footprintAfterDestroyMiB": 71.3923,
+   "footprintAfterPipelinesMiB": 286.987,
+   "footprintAfterWriteMiB": 325.127,
+   "loadMs": 151.233,
+   "createMs": 1237.12,
+   "again": 48,
+   "againMissing": 0,
+   "againMs": 16.7473,
+   "sizeQueryMs": 1.44071,
+   "writeMs": 5.19729,
+   "mvkMslCompileAtLoad": 781,
+   "draws": 24,
+   "wrongPixels": 0,
+   "pixelsUnchangedByContents": 0,
+   "pixels": [
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     79,
+     82,
+     59,
+     255
+    ],
+    [
+     92,
+     95,
+     33,
+     255
+    ],
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     80,
+     82,
+     59,
+     255
+    ],
+    [
+     92,
+     95,
+     34,
+     255
+    ],
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     80,
+     83,
+     60,
+     255
+    ],
+    [
+     93,
+     95,
+     34,
+     255
+    ],
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     80,
+     82,
+     59,
+     255
+    ],
+    [
+     93,
+     95,
+     34,
+     255
+    ],
+    [
+     44,
+     29,
+     51,
+     255
+    ],
+    [
+     82,
+     41,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ],
+    [
+     44,
+     29,
+     52,
+     255
+    ],
+    [
+     82,
+     41,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ],
+    [
+     44,
+     29,
+     52,
+     255
+    ],
+    [
+     83,
+     42,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ],
+    [
+     44,
+     29,
+     52,
+     255
+    ],
+    [
+     82,
+     41,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ]
+   ],
+   "dataHash": "b8a5ea2031e151ea",
+   "mvkMslCompile": {
+    "count": 781,
+    "totalMs": 111.048,
+    "maxMs": 0.935791
+   },
+   "mvkSpirvToMsl": {
+    "count": 0,
+    "totalMs": 0,
+    "maxMs": 0
+   },
+   "mvkPipelineCompile": {
+    "count": 2208,
+    "totalMs": 999.254,
+    "maxMs": 3.72367
+   },
+   "mvkReadPipelineCache": {
+    "count": 780,
+    "totalMs": 12.5418,
+    "maxMs": 0.360333
+   },
+   "mvkWritePipelineCache": {
+    "count": 780,
+    "totalMs": 4.97607,
+    "maxMs": 0.036958
+   },
+   "mvkSizePipelineCache": {
+    "count": 780,
+    "totalMs": 1.30565,
+    "maxMs": 0.044416
+   },
+   "seconds": 7.0,
+   "loadLine": "780 shader libraries from 39843112 bytes, resource bindings 4860 read 4860 kept; compressed MSL referenced in the caller's data; pNext types 0x52425831.",
+   "librariesRead": 780,
+   "bindingsRead": 4860,
+   "bindingsKept": 4860
+  },
+  "control-load-full-2": {
+   "mode": "load",
+   "rounds": 60,
+   "layoutBindings": 261,
+   "shaderModules": 780,
+   "pipelines": 2160,
+   "missing": 0,
+   "bytes": 176635672,
+   "writeResult": 0,
+   "fileBytes": 176635672,
+   "footprintStartMiB": 4.92322,
+   "footprintAfterStagingMiB": 203.33,
+   "footprintAfterMergeMiB": 339.377,
+   "footprintAfterDestroyMiB": 339.377,
+   "footprintAfterPipelinesMiB": 463.518,
+   "footprintAfterWriteMiB": 632.175,
+   "loadMs": 681.864,
+   "createMs": 12626.7,
+   "again": 48,
+   "againMissing": 0,
+   "againMs": 269.65,
+   "sizeQueryMs": 188.334,
+   "writeMs": 341.704,
+   "mvkMslCompileAtLoad": 781,
+   "draws": 24,
+   "wrongPixels": 0,
+   "pixelsUnchangedByContents": 0,
+   "pixels": [
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     79,
+     82,
+     59,
+     255
+    ],
+    [
+     92,
+     95,
+     33,
+     255
+    ],
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     80,
+     82,
+     59,
+     255
+    ],
+    [
+     92,
+     95,
+     34,
+     255
+    ],
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     80,
+     83,
+     60,
+     255
+    ],
+    [
+     93,
+     95,
+     34,
+     255
+    ],
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     80,
+     82,
+     59,
+     255
+    ],
+    [
+     93,
+     95,
+     34,
+     255
+    ],
+    [
+     44,
+     29,
+     51,
+     255
+    ],
+    [
+     82,
+     41,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ],
+    [
+     44,
+     29,
+     52,
+     255
+    ],
+    [
+     82,
+     41,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ],
+    [
+     44,
+     29,
+     52,
+     255
+    ],
+    [
+     83,
+     42,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ],
+    [
+     44,
+     29,
+     52,
+     255
+    ],
+    [
+     82,
+     41,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ]
+   ],
+   "dataHash": "91632a4560df991c",
+   "mvkMslCompile": {
+    "count": 781,
+    "totalMs": 162.325,
+    "maxMs": 1.86896
+   },
+   "mvkSpirvToMsl": {
+    "count": 0,
+    "totalMs": 0,
+    "maxMs": 0
+   },
+   "mvkPipelineCompile": {
+    "count": 2208,
+    "totalMs": 1350.74,
+    "maxMs": 4.43896
+   },
+   "mvkReadPipelineCache": {
+    "count": 780,
+    "totalMs": 387.04,
+    "maxMs": 8.90908
+   },
+   "mvkWritePipelineCache": {
+    "count": 780,
+    "totalMs": 341.338,
+    "maxMs": 3.86908
+   },
+   "mvkSizePipelineCache": {
+    "count": 780,
+    "totalMs": 188.001,
+    "maxMs": 3.82517
+   },
+   "seconds": 19.8,
+   "loadLine": "780 shader libraries from 176635672 bytes, resource bindings 1025700 read 1025700 kept; compressed MSL referenced in the caller's data; pNext types 0x52425831.",
+   "librariesRead": 780,
+   "bindingsRead": 1025700,
+   "bindingsKept": 1025700
+  },
+  "candidate-load-full-2": {
+   "mode": "load",
+   "rounds": 60,
+   "layoutBindings": 261,
+   "shaderModules": 780,
+   "pipelines": 2160,
+   "missing": 0,
+   "bytes": 39843112,
+   "writeResult": 0,
+   "fileBytes": 176635672,
+   "footprintStartMiB": 4.97009,
+   "footprintAfterStagingMiB": 69.455,
+   "footprintAfterMergeMiB": 71.6738,
+   "footprintAfterDestroyMiB": 71.6738,
+   "footprintAfterPipelinesMiB": 287.237,
+   "footprintAfterWriteMiB": 325.362,
+   "loadMs": 610.16,
+   "createMs": 1112.95,
+   "again": 48,
+   "againMissing": 0,
+   "againMs": 12.1301,
+   "sizeQueryMs": 1.08804,
+   "writeMs": 24.9252,
+   "mvkMslCompileAtLoad": 781,
+   "draws": 24,
+   "wrongPixels": 0,
+   "pixelsUnchangedByContents": 0,
+   "pixels": [
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     79,
+     82,
+     59,
+     255
+    ],
+    [
+     92,
+     95,
+     33,
+     255
+    ],
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     80,
+     82,
+     59,
+     255
+    ],
+    [
+     92,
+     95,
+     34,
+     255
+    ],
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     80,
+     83,
+     60,
+     255
+    ],
+    [
+     93,
+     95,
+     34,
+     255
+    ],
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     80,
+     82,
+     59,
+     255
+    ],
+    [
+     93,
+     95,
+     34,
+     255
+    ],
+    [
+     44,
+     29,
+     51,
+     255
+    ],
+    [
+     82,
+     41,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ],
+    [
+     44,
+     29,
+     52,
+     255
+    ],
+    [
+     82,
+     41,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ],
+    [
+     44,
+     29,
+     52,
+     255
+    ],
+    [
+     83,
+     42,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ],
+    [
+     44,
+     29,
+     52,
+     255
+    ],
+    [
+     82,
+     41,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ]
+   ],
+   "dataHash": "b8a5ea2031e151ea",
+   "mvkMslCompile": {
+    "count": 781,
+    "totalMs": 174.533,
+    "maxMs": 1.31221
+   },
+   "mvkSpirvToMsl": {
+    "count": 0,
+    "totalMs": 0,
+    "maxMs": 0
+   },
+   "mvkPipelineCompile": {
+    "count": 2208,
+    "totalMs": 918.676,
+    "maxMs": 2.68875
+   },
+   "mvkReadPipelineCache": {
+    "count": 780,
+    "totalMs": 409.164,
+    "maxMs": 1.4445
+   },
+   "mvkWritePipelineCache": {
+    "count": 780,
+    "totalMs": 24.6994,
+    "maxMs": 0.985833
+   },
+   "mvkSizePipelineCache": {
+    "count": 780,
+    "totalMs": 0.984234,
+    "maxMs": 0.0055
+   },
+   "seconds": 7.5,
+   "loadLine": "780 shader libraries from 176635672 bytes, resource bindings 1025700 read 4860 kept; compressed MSL referenced in the caller's data; pNext types 0x52425831.",
+   "librariesRead": 780,
+   "bindingsRead": 1025700,
+   "bindingsKept": 4860
+  },
+  "candidate-load-key-2": {
+   "mode": "load",
+   "rounds": 60,
+   "layoutBindings": 261,
+   "shaderModules": 780,
+   "pipelines": 2160,
+   "missing": 0,
+   "bytes": 39843112,
+   "writeResult": 0,
+   "fileBytes": 39843112,
+   "footprintStartMiB": 4.89191,
+   "footprintAfterStagingMiB": 69.0641,
+   "footprintAfterMergeMiB": 71.3453,
+   "footprintAfterDestroyMiB": 71.3453,
+   "footprintAfterPipelinesMiB": 287.096,
+   "footprintAfterWriteMiB": 325.237,
+   "loadMs": 151.307,
+   "createMs": 1077.15,
+   "again": 48,
+   "againMissing": 0,
+   "againMs": 13.7072,
+   "sizeQueryMs": 1.2205,
+   "writeMs": 4.87592,
+   "mvkMslCompileAtLoad": 781,
+   "draws": 24,
+   "wrongPixels": 0,
+   "pixelsUnchangedByContents": 0,
+   "pixels": [
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     79,
+     82,
+     59,
+     255
+    ],
+    [
+     92,
+     95,
+     33,
+     255
+    ],
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     80,
+     82,
+     59,
+     255
+    ],
+    [
+     92,
+     95,
+     34,
+     255
+    ],
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     80,
+     83,
+     60,
+     255
+    ],
+    [
+     93,
+     95,
+     34,
+     255
+    ],
+    [
+     67,
+     57,
+     21,
+     255
+    ],
+    [
+     80,
+     82,
+     59,
+     255
+    ],
+    [
+     93,
+     95,
+     34,
+     255
+    ],
+    [
+     44,
+     29,
+     51,
+     255
+    ],
+    [
+     82,
+     41,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ],
+    [
+     44,
+     29,
+     52,
+     255
+    ],
+    [
+     82,
+     41,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ],
+    [
+     44,
+     29,
+     52,
+     255
+    ],
+    [
+     83,
+     42,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ],
+    [
+     44,
+     29,
+     52,
+     255
+    ],
+    [
+     82,
+     41,
+     77,
+     255
+    ],
+    [
+     57,
+     80,
+     90,
+     255
+    ]
+   ],
+   "dataHash": "b8a5ea2031e151ea",
+   "mvkMslCompile": {
+    "count": 781,
+    "totalMs": 120.768,
+    "maxMs": 1.88079
+   },
+   "mvkSpirvToMsl": {
+    "count": 0,
+    "totalMs": 0,
+    "maxMs": 0
+   },
+   "mvkPipelineCompile": {
+    "count": 2208,
+    "totalMs": 882.632,
+    "maxMs": 3.77354
+   },
+   "mvkReadPipelineCache": {
+    "count": 780,
+    "totalMs": 9.75716,
+    "maxMs": 0.086791
+   },
+   "mvkWritePipelineCache": {
+    "count": 780,
+    "totalMs": 4.66642,
+    "maxMs": 0.022958
+   },
+   "mvkSizePipelineCache": {
+    "count": 780,
+    "totalMs": 1.09155,
+    "maxMs": 0.003791
+   },
+   "seconds": 6.0,
+   "loadLine": "780 shader libraries from 39843112 bytes, resource bindings 4860 read 4860 kept; compressed MSL referenced in the caller's data; pNext types 0x52425831.",
+   "librariesRead": 780,
+   "bindingsRead": 4860,
+   "bindingsKept": 4860
+  }
+ },
+ "limits": "macOS runner (its Metal device and driver), synthetic shaders: sizes, counts and the equality of behaviour hold for any device; the footprints and times are this runner's. Nothing here is an iPhone measurement."
+}

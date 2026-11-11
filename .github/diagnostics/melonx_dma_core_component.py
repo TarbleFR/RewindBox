@@ -67,7 +67,7 @@ CONTROL_PREPARED = {
 # pipeline state replayed at launch, the 512-replay session cap gone); 84 with Core 727 (lot 9: a pause rewrites the
 # main pipeline cache only for 8 MiB of new content; the Vulkan allocator's blocks in the journal, and the allocator
 # range-update and block gates run again on the final allocator).
-FRESH_GATES = 86
+FRESH_GATES = 87
 HISTORICAL_RECEIPTS = 61
 GPU_WORK_ROWS = 13
 READ_COUNTERS = 4
