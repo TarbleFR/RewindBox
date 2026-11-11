@@ -78,6 +78,25 @@ jobs:
             echo "$RUNNER_TEMP/shim" >> "$GITHUB_PATH"
           fi
           "$RUNNER_TEMP/shim/timeout" --version 2>/dev/null | head -1 | tee -a proof/inputs.txt || timeout --version | head -1 | tee -a proof/inputs.txt
+      - name: Prefetch the codec sources hosted outside GitHub, with retries
+        # Run 43024225545: downloads.xiph.org reset the connection on both runners. The archives go
+        # where S2Arm's fetch_source.sh looks first (<cache>/sources/<sha256>/<file>), checked by SHA-256.
+        working-directory: ${{ runner.temp }}/s2arm
+        run: |
+          set -euo pipefail
+          cache="$RUNNER_TEMP/s2arm-build-cache/sources"
+          fetch() {  # <build script> <file pattern> <url pattern>, $VER substituted
+            line=$(grep -m1 -E '^VER=[^;]+; SHA=[0-9a-f]{64}' "$1")
+            ver=$(printf '%s' "$line" | sed -E 's/^VER=([^;]+);.*/\1/'); sha=$(printf '%s' "$line" | sed -E 's/.*SHA=([0-9a-f]{64}).*/\1/')
+            file=${2//\$VER/$ver}; url=${3//\$VER/$ver}
+            mkdir -p "$cache/$sha"
+            curl -fsSL --retry 8 --retry-all-errors --retry-delay 10 --connect-timeout 30 -o "$cache/$sha/$file.part" "$url"
+            echo "$sha  $cache/$sha/$file.part" | shasum -a 256 -c -
+            mv "$cache/$sha/$file.part" "$cache/$sha/$file"
+            echo "prefetched $file $sha" | tee -a "$GITHUB_WORKSPACE/proof/inputs.txt"
+          }
+          fetch services/opus/build.sh 'opus-$VER.tar.gz' 'https://downloads.xiph.org/releases/opus/opus-$VER.tar.gz'
+          fetch services/dav1d/build.sh 'dav1d-$VER.tar.xz' 'https://downloads.videolan.org/pub/videolan/dav1d/$VER/dav1d-$VER.tar.xz'
       - name: Build S2Arm's iOS engine with no game (make ios)
         working-directory: ${{ runner.temp }}/s2arm
         env:
