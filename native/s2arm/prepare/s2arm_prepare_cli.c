@@ -4,10 +4,14 @@
 //   s2arm_prepare_cli gpu-drivers <exefs> <output>
 //   s2arm_prepare_cli nro-exports <romfs> <output>
 //   s2arm_prepare_cli nro-to-nso <romfs> <output dir>
+//   s2arm_prepare_cli nso-normalize <in> <out>          (nx_unpack --nso-normalize: exit 0, or 1 with a line on stderr)
+//   s2arm_prepare_cli zbic-batch <manifest>             (one "frame|nso<TAB>input<TAB>expected<TAB>output" per line;
+//                                                        writes output on success, prints "<line> ok|err <message>")
 #include "s2arm_addr_need.h"
 #include "s2arm_modules.h"
 #include "s2arm_nro.h"
 #include "s2arm_prepare.h"
+#include "s2arm_zbic.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,7 +27,67 @@ static int cancelled(void *context) {
     return g_cancel_after >= 0 && g_seen >= g_cancel_after;
 }
 
+static int zbic_batch(const char *manifest) {
+    FILE *list = fopen(manifest, "r");
+    if (!list) {
+        fprintf(stderr, "cannot read %s\n", manifest);
+        return 2;
+    }
+    char line[8192];
+    int number = 0;
+    while (fgets(line, sizeof line, list)) {
+        number++;
+        line[strcspn(line, "\r\n")] = 0;
+        char *mode = strtok(line, "\t"), *input = strtok(NULL, "\t"), *expected = strtok(NULL, "\t"), *output = strtok(NULL, "\t");
+        if (!mode || !input || !expected || !output) {
+            printf("%d err bad manifest line\n", number);
+            continue;
+        }
+        char error[512] = "";
+        int result;
+        if (!strcmp(mode, "nso")) result = rb_s2arm_nso_normalize_file(input, output, error, sizeof error);
+        else {
+            FILE *f = fopen(input, "rb");
+            uint8_t *data = NULL, *plain = NULL;
+            size_t len = 0, want = (size_t)strtoull(expected, NULL, 10);
+            result = 2;
+            if (f && fseek(f, 0, SEEK_END) == 0) {
+                long size = ftell(f);
+                rewind(f);
+                data = malloc(size > 0 ? (size_t)size : 1);
+                plain = malloc(want ? want : 1);
+                if (size >= 0 && data && plain && fread(data, 1, (size_t)size, f) == (size_t)size) {
+                    len = (size_t)size;
+                    result = rb_s2arm_zbic_decompress(data, len, plain, want, error, sizeof error);
+                    if (result == 0) {
+                        FILE *o = fopen(output, "wb");
+                        if (!o || (want && fwrite(plain, 1, want, o) != want)) result = 2;
+                        if (o && fclose(o)) result = 2;
+                    }
+                }
+            }
+            if (f) fclose(f);
+            free(data);
+            free(plain);
+        }
+        printf("%d %s %s\n", number, result ? "err" : "ok", error);
+    }
+    fclose(list);
+    return 0;
+}
+
 int main(int argc, char **argv) {
+    if (argc >= 2 && !strcmp(argv[1], "nso-normalize")) {
+        if (argc != 4) {
+            fprintf(stderr, "usage: %s nso-normalize <in> <out>\n", argv[0]);
+            return 64;
+        }
+        char error[512] = "";
+        int result = rb_s2arm_nso_normalize_file(argv[2], argv[3], error, sizeof error);
+        if (result) fprintf(stderr, "%s\n", error);
+        return result ? 1 : 0;
+    }
+    if (argc == 3 && !strcmp(argv[1], "zbic-batch")) return zbic_batch(argv[2]);
     if (argc >= 2 && !strcmp(argv[1], "addr-need")) {
         if (argc != 5) {
             fprintf(stderr, "usage: %s addr-need <main_nso> <npdm> <output>\n", argv[0]);
