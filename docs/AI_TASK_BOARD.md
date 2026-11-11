@@ -2099,11 +2099,19 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
           macos-26): "FAILED: macOS: the thread is in the user-interactive class after the call: {... \"value\": false,
           \"requests\": [], \"applePlatform\": true, \"classBefore\": 0, \"classAfter\": 0}" (test line 224); the two gates
           before it passed. Not pinned, not rerun (deterministic); Core 731 fa54e14a stays pinned. Reported to the MeloNX
-          session for a corrected head. Not run on an iPhone.
+          session for a corrected head. Corrected head 150dcac4 merged as 7298c4ba: the gate was wrong (CoreCLR host threads
+          read class 0 and get EPERM; the NativeAOT fixture puts system, Thread and pool threads in 0x21: runs 43008139574,
+          43008463899); macOS acceptance = answer agreeing with the class read back + the required NativeAOT system test.
+          Contract 5769e41d, 91 gates, 483/419, reads 440, arrays 545. Core CI again: run 43009346249. Not run on an iPhone.
         - **Core 929 request 2 (1ea6cf4a, run 43000618405):** core-build.json links the dependency of run 42998604606
           (a277f467; offline: run, jobs, three artifacts, host receipts and every recorded input checked with the repository
           verifier, libMoltenVK.a d19d3a42 byte-identical; the symbol check needs xcrun and passed in the Core job's
           authentication step). Request 1's Apple host harness job passed on f235abc4.
+        - **Core 929 compiled and verified (run 43000618405, attempt 1, both jobs green):** artifact 13850405143 (c86e1a23),
+          dylib 82d8ce7f 80958696 B, fingerprint eabb95f9, PPU a987639e / SPU 477a3fa4, Apple host 15 commands; pin verified
+          in a tree at 1ea6cf4a (pin_errors clean, bundle) and kept as the fallback in
+          [evidence/rpcs3-core929](evidence/rpcs3-core929/README.md). Not the current pin: Claude carries the Core 930
+          source; the current pin stays Core 928 until Core 930 replaces it.
         - **Core 930 (`REWINDBOX_SPU_WAIT_SITE_930`, engine `e0ab634`, point 1 of the order):** source dd461ee7, canonical
           5078f1d4 (461 postimages), delta 733644e4, build 930; driver passed locally (1449 s) with closure, feature tests
           924-930, codegen (no input change), fold chain, route, analyzer, pin, guards. Compile request 454e6495, run
