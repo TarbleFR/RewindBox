@@ -245,7 +245,7 @@ def configure(sd=None):
 
 # --- Operations of this line ---------------------------------------------------------------------------
 
-def request_guard(sd, environment=None):
+def request_guard(sd, environment=None, repo=None):
     """Preflight, before anything else: the run is on the line branch and its head commit requests one build
     of this line; a manual run must name that same build."""
     environment = os.environ if environment is None else environment
@@ -254,7 +254,7 @@ def request_guard(sd, environment=None):
             'A delivery of this line runs on ' + DELIVERY_BRANCH + ' only')
     event = environment.get('GITHUB_EVENT_NAME', '')
     require(event in ('push', 'workflow_dispatch'), 'Unexpected event: ' + repr(event))
-    repo = sd.Repo()
+    repo = repo or sd.Repo()
     head = repo.commit('HEAD')
     require(head == environment.get('GITHUB_SHA', head), 'Checkout differs from the triggering source')
     requested = subject_build(repo.subject(head))
@@ -266,10 +266,11 @@ def request_guard(sd, environment=None):
     return dict(result='accepted', event=event, branch=DELIVERY_BRANCH, build=requested, source=head)
 
 
-def recipient_guard(sd, environment=None, root=ROOT):
+def recipient_guard(sd, environment=None, manifest=None):
     """The recipient public key of this build, and no other, receives the delivery."""
     environment = os.environ if environment is None else environment
-    manifest = sd.ci_manifest()
+    manifest = manifest or sd.ci_manifest()
+    root = sd.ROOT
     expected = recipient_path(manifest['build'])
     value = environment.get('DELIVERY_RECIPIENT', '')
     require(value, 'DELIVERY_RECIPIENT is not set: delivery_cipher.py would encrypt to an old key')
