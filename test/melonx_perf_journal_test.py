@@ -114,6 +114,9 @@ check('static let maxRegions = 400_000' in breakdown and 'static let maxWalkMs =
       'first: Double = 30, every: Double = 60, maxLines: Int = 30' in breakdown and
       'guard lines < maxLines else { timer?.cancel(); timer = nil; return }' in breakdown and
       'qos:.utility' in breakdown and breakdown.count('MeloNXStdioCapture.appendLine(') == 1, 'breakdown bounds')
+check(breakdown.count('malloc_zone_statistics(zone, &statistics)') == 1 and breakdown.count('malloc_get_all_zones(mach_task_self_, nil, &addresses, &count)') == 1 and
+      'found.prefix(4)' in breakdown and all(name not in breakdown for name in ('malloc_zone_pressure_relief', 'malloc_zone_batch_free', 'malloc_destroy_zone', 'free(')),
+      'malloc zones are read (statistics only), four at most')
 check('task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO)' in breakdown and
       'vm_region_recurse_64(mach_task_self_, &address, &size, &depth, $0, &count)' in breakdown and
       'vm_region_submap_short_info_data_64_t()' in breakdown and 'VM_REGION_TOP_INFO' in breakdown and
@@ -326,7 +329,10 @@ exit(0)
         print(line, flush=True)
         check(re.match(r't=0 footprint=(\d+)/(\d+) graphics=\d+\+\d+ internal=\d+ compressed=\d+ device=\d+ media=\d+ neural=\d+ '
                        r'purgeable=\d+\+\d+ regions=(\d+)/[\d.]+ms private=(\d+)\+(\d+) unwalked=(\d+)/(\d+) sharedSmall=(\d+)/(\d+) '
-                       r'groups=\S+ top=\S+$', line), line)
+                       r'zones=\S+ groups=\S+ top=\S+$', line), line)
+        zones = [(z.split(':')[0], *map(int, z.split(':')[1].split('/'))) for z in re.search(r' zones=(\S+)', line).group(1).split(',')]
+        check(1 <= len(zones) <= 4 and all(used <= held for _, used, held in zones) and zones == sorted(zones, key=lambda z: (-z[2], z[0])),
+              'malloc zones: in use within held, largest first: ' + str(zones))
         # The dyld shared region is skipped (a submap): a small macOS process still has a few dozen top-level regions.
         check(int(re.search(r' footprint=(\d+)/', line).group(1)) >= 96 and int(re.search(r' regions=(\d+)/', line).group(1)) > 20, line)
         # name:resident+compressed/regions -> [resident, compressed, regions]

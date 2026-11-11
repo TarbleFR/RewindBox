@@ -514,6 +514,7 @@ final class MeloNXStallWatch {
 //   private=   resident+compressed MiB of the private anonymous regions walked (the footprint's memory); unwalked=
 //              count/virtual MiB of private regions over 256 MiB (not page-walked: resident only, no compressed part);
 //              sharedSmall= count/virtual MiB of shared regions under 1 MiB (the guest memory lease), only counted
+//   zones=     the four largest malloc zones, name:MiB in use/MiB held from the system
 //   groups=    the 12 largest groups of regions, name:resident+compressed MiB/regions, by VM tag ("file" for file-backed
 //              mappings, whose clean pages are not footprint; the malloc zones apart); a name ending in "~s" is shared
 //              memory of 1 MiB or more, counted per object (an object mapped more than once counts once, in the group
@@ -694,6 +695,7 @@ final class MeloNXMemoryBreakdown {
         let walkMs = Double(DispatchTime.now().uptimeNanoseconds - begin) / 1e6
         parts.append("regions=\(regions)/\(String(format:"%.1f", walkMs))ms" + (partial ? "/partial" : ""))
         parts.append("private=\(mib(privateResident))+\(mib(privateCompressed)) unwalked=\(unwalked)/\(mib(unwalkedBytes)) sharedSmall=\(sharedSmall)/\(mib(sharedSmallBytes))")
+        parts.append("zones=" + zones())
         let ranked = groups.sorted {
             let a = $0.value.resident + $0.value.compressed, b = $1.value.resident + $1.value.compressed
             return a != b ? a > b : $0.key < $1.key
@@ -704,6 +706,25 @@ final class MeloNXMemoryBreakdown {
     }
 
     private static func mib<T: BinaryInteger>(_ bytes: T) -> String { String(Int64(clamping:bytes) >> 20) }
+
+    // The malloc zones' own counts: bytes in use / bytes held from the system (the difference is free space the
+    // allocator keeps), the four largest by bytes held. Each zone is asked once (its locks are taken briefly).
+    private static func zones() -> String {
+        var addresses: UnsafeMutablePointer<vm_address_t>? = nil
+        var count: UInt32 = 0
+        guard malloc_get_all_zones(mach_task_self_, nil, &addresses, &count) == KERN_SUCCESS, let addresses else { return "-" }
+        var found: [(name: String, used: UInt64, held: UInt64)] = []
+        for index in 0..<Int(count) {
+            guard let zone = UnsafeMutablePointer<malloc_zone_t>(bitPattern:UInt(addresses[index])) else { continue }
+            var statistics = malloc_statistics_t()
+            malloc_zone_statistics(zone, &statistics)
+            let raw = malloc_get_zone_name(zone).map { String(cString:$0) } ?? "zone\(index)"
+            let name = String(raw.map { $0.isLetter || $0.isNumber ? $0 : "_" })
+            found.append((name.isEmpty ? "zone\(index)" : name, UInt64(statistics.size_in_use), UInt64(statistics.size_allocated)))
+        }
+        found.sort { $0.held != $1.held ? $0.held > $1.held : $0.name < $1.name }
+        return found.isEmpty ? "-" : found.prefix(4).map { "\($0.name):\(mib($0.used))/\(mib($0.held))" }.joined(separator:",")
+    }
 
     // VM tags (mach/vm_statistics.h): the malloc zones together, the app-specific ones by number.
     private static func group(_ tag: UInt32) -> String {
