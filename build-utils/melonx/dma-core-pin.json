@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "e47b18d2aedb3b0403ae4fafba711fd044a0a9fc",
-  "run": 42933016136,
-  "job": 130236164433,
+  "source": "1a9f21677f19f79ffcd1dfd0e354122cfbdc102f",
+  "run": 42948046731,
+  "job": 130285507868,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 13819773531,
-  "name": "MeloNX-engine-e47b18d2aedb3b0403ae4fafba711fd044a0a9fc",
-  "bytes": 100461522,
-  "sha256": "1ff1aa565703dd4b2d213c1ad87c1eba9d80167a21ad357a24bc6d1784b94ddf",
-  "expiresAt": "2026-11-25T01:32:37Z",
+  "artifact": 13826421242,
+  "name": "MeloNX-engine-1a9f21677f19f79ffcd1dfd0e354122cfbdc102f",
+  "bytes": 100495794,
+  "sha256": "fb4a720350dac23487f5ccaf5785864798491290c5e4dbdfb0f7ff9fb422945c",
+  "expiresAt": "2026-11-25T03:36:52Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "d9b8a8375a142c35219f7c7259e7f8e3ece2e5d9f2d6d44b8437e5288de937ec",
-      "bytes": 38439896
+      "sha256": "954c98b1a25817e24c5856c8eab0e5dc201a9ba78b92bbff50cbf26bcfcb1ef4",
+      "bytes": 38456368
     },
     "iossimulator-arm64": {
-      "sha256": "9909fa8b586cfa59237fcc1baa65339e26acb8d12196903b916288de2fb63807",
-      "bytes": 38756824
+      "sha256": "b7b6bad378b11670254d9ce10a83edeb8020df48328bff7a4aa731c7c1c19d36",
+      "bytes": 38773432
     }
   },
   "identities": {
-    "ios-arm64": "5e446852f4a36ff11ebffb7616bbe5c3d1d93e4c8370cd840ea6ffeca3360730",
-    "iossimulator-arm64": "2e860517f3ddd9ad873b85e7089c3faca7c0cfdb8cf4257d96a92c73107c3423"
+    "ios-arm64": "deb03a663d7d0e4f61c5e0718751d6cd369b7ee1bdf30b4899d88e51ec047884",
+    "iossimulator-arm64": "fdc24a555707d0a51b7b731c5716e7ecb591f180c399cfb047bc3430a2809a0e"
   },
-  "contractSha256": "45441585a2730a75d6c1353032d67d2167c95bb2ecd7e352c1d3c91c99ee14fa",
-  "resultSha256": "9872a3f672c6c08719330c7c856f6eb1669efb4cb7d230ecda6645fba327eb68",
-  "packagedFingerprint": "9e1e2ae5930bddbe8b09b4ee55751d6f8f80c72cd2d897b301e82d2e64705b41",
+  "contractSha256": "f494197a7706ed1264f13926edbe3ae49e3b2ace35a6cc08ddbc8e7968dcbd75",
+  "resultSha256": "4d05cb72eee9cd8eec014057f9ffd306c27459f1447cebf76adfab9412a69424",
+  "packagedFingerprint": "bbae6fc352bbbbe0d8bfcd073119754038193ff6c2dca900c577cb2f44ce9b16",
   "replaces": {
-    "source": "790664dabecf00279456657bb854b6de229ab715",
-    "run": 42883532005,
-    "artifact": 13799060992,
-    "packagedFingerprint": "3bccab5472d09963d97ebbd70ef4927385396737c60692ca9d3010660e5fc18b",
-    "reason": "MeloNX lot for the next IPA (branch work/melonx-fps-stability-20261103 head 58a982d2, merged as 46e8486c; engine built at e47b18d2): Core 725 = Core 723 + every recorded pipeline state replayed at launch (adapt_variant_replay_all.py) and the engine journal room made at process start (rotation of MeloNX-core.log); contract 45441585, 82 fresh Apple gates. MoltenVK v1.4.2 with the four-part recipe patch (binary 90bd98a4, pipeline cache load diagnostic line) pinned separately. Replaces Core 723 of IPA 724. Not run on an iPhone; no FPS claim."
+    "source": "e47b18d2aedb3b0403ae4fafba711fd044a0a9fc",
+    "run": 42933016136,
+    "artifact": 13819773531,
+    "packagedFingerprint": "9e1e2ae5930bddbe8b09b4ee55751d6f8f80c72cd2d897b301e82d2e64705b41",
+    "reason": "MeloNX lot for the next IPA (branch work/melonx-fps-stability-20261103 head ee2e2b07, merged as c53ad180; engine built at 1a9f2167): Core 727 = Core 725 + a pause rewrites the main pipeline cache only for 8 MiB of new content (adapt_pause_checkpoint_growth.py; IPA 724, Hogwarts Legacy: 793 MiB rewritten in 10.9 s for +1.06 MiB, the game resumed into it) and the Vulkan allocator blocks in the journal (adapt_vulkan_memory_journal.py, one \"vulkanMemory sample\" line about every 30 s, diagnostic only); contract f494197a = the frozen 1aa56e30 with the bound hash of .github/workflows/melonx-core.yml refreshed after the artifact upload protection (#174) changed its upload step; 86 fresh Apple gates. The merge also carries the inert S2Arm diagnostic hook of the bridge (d32738b5, runs only when an IPA sets RewindBoxS2ArmProbe; no file of the repository does). Replaces Core 725, never delivered. Not run on an iPhone; no FPS or memory claim."
   }
 }
