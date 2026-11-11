@@ -1,6 +1,8 @@
 name: S2Arm engine (iOS) build check
-# Builds S2Arm's own iOS engine at the pinned commit, unmodified (`make ios`: runtime, graphics,
-# NativeAOT services, codecs, NS2Pro), with no game. It proves the toolchain on GitHub's macOS
+# Builds S2Arm's own iOS engine at the pinned commit (`make ios`: runtime, graphics,
+# NativeAOT services, codecs, NS2Pro), with no game, with only the patches of
+# build-utils/s2arm/engine/patches applied (first one: build with an SDK older than iOS 27).
+# It proves the toolchain on GitHub's macOS
 # runners and records what the engine is made of (images, sizes, exported and undefined symbols),
 # before any change that would host it inside RewindBox. Switch 2 test line only; nothing here is
 # part of the common IPA and no game, key or Nintendo file is used.
@@ -43,6 +45,11 @@ jobs:
           test "$(git -C "$RUNNER_TEMP/s2arm" rev-parse HEAD)" = "$commit"
           mkdir -p proof
           echo "s2arm $commit" > proof/inputs.txt
+          # RewindBox patch series against the pin (build-utils/s2arm/engine/patches, applied in order).
+          for patch in $(ls build-utils/s2arm/engine/patches/*.patch 2>/dev/null | sort); do
+            git -C "$RUNNER_TEMP/s2arm" apply --whitespace=nowarn "$GITHUB_WORKSPACE/$patch"
+            echo "patch $(basename "$patch") $(shasum -a 256 "$patch" | cut -d' ' -f1)" | tee -a proof/inputs.txt
+          done
       - name: Select the newest installed Xcode with an iPhoneOS SDK
         run: |
           set -euo pipefail
