@@ -33,7 +33,7 @@ void main() {
     ),
   );
 
-  testWidgets('the playlist import button offers game import and the Xbox 360 settings', (tester) async {
+  testWidgets('the playlist import button offers game and folder import and the Xbox 360 settings', (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
     final interactions = <bool>[];
     await tester.pumpWidget(app(
@@ -48,6 +48,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('xenia-internal-import-menu')));
     await tester.pumpAndSettle();
     expect(find.text(XeniaLocale.values['en']!['importGames']!), findsOneWidget);
+    expect(find.text(XeniaLocale.values['en']!['importFolder']!), findsOneWidget);
     expect(find.text(XeniaLocale.values['en']!['globalSettings']!), findsOneWidget);
     expect(interactions, <bool>[true], reason: 'the playlist gamepad navigation pauses while the menu is open');
     debugDefaultTargetPlatformOverride = null;

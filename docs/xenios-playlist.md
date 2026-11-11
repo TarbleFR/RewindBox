@@ -43,8 +43,9 @@ controller navigation → launch through `GameLaunchService`'s isolated
 | --- | --- |
 | `.iso` (XGD/XISO) | Imported after GDFX validation at the engine's partition offsets (`gdfx_util.h` `kGdfxLikelyOffsets`); title/media ID read from `default.xex` (XEX2 execution info `0x00040006`) |
 | `.zar` (ZArchive) | Imported (non-empty); the engine's reader validates it at boot |
-| `.xex` | Refused: a loose executable needs its whole title folder (folder import not implemented yet) — scanned and launchable when it already sits in a library folder |
-| GOD/STFS (header + `.data`) | Not importable as one file; not offered |
+| `.xex`, `.god` | Refused as single files ("use Import a game folder"): a loose executable needs its whole title folder, a package header its `.data` |
+| Title folder with `default.xex` | Folder import (below) |
+| GOD (SVOD header + `<header>.data`), single-file STFS (arcade) | Folder import (below) |
 | `.xeniosprofile`, `.toml` | Refused as "profile, not a game" / "touch layout, not a game" |
 
 Import rules: multiple selection; duplicate = same name and size, or another
@@ -55,6 +56,61 @@ space"; 4 MiB chunked copy on the IO thread into `<name>.importing`, length
 verified twice, then renamed; cancel between chunks deletes the temporary file
 and keeps every earlier verified game; the source is never written. Picker
 copies are discarded only after a verified copy (storage contract § 4).
+
+## Folder import (XEX/GOD)
+
+Import menu → "Import a game folder (XEX/GOD)" → Files folder picker
+(`FilePicker.getDirectoryPath`, read in place, no picker copy) →
+`XeniaFolderContent.scan` → staged copy → targeted `xbox360` rescan.
+
+What the engine consumes (XeniOS cf7c7ee45, `emulator.cc` LaunchPath picks
+the device from the file's magic, never its extension; a directory path is
+the XNA/indie path and is never used):
+
+- **Title folder**: launched by `default.xex`; `HostPathDevice` mounts its
+  parent as `game:` (emulator.cc:803, 865-896), so the whole folder
+  (other `.xex`, media) is copied with its tree. A folder holding
+  `default.xex` is one game: its subfolders are not searched further.
+- **Content package**: a file starting with `CON `/`LIVE`/`PIRS`
+  (`xcontent_container_device.h`), mounted by XContentContainerDevice. SVOD
+  (Games on Demand, `volume_type` 1 at 0x3A9) needs `<header path>.data`
+  holding exactly `data_file_count` (0x39D) regular files, each at most
+  0xA290000 bytes; `SvodContainerDevice::LoadHostFiles` counts every entry,
+  so a `.DS_Store` would break it. STFS (`volume_type` 0, arcade) is one file.
+  Header fields are big-endian: content type 0x344, media ID 0x354, title ID
+  0x360, display name 0x411 (UTF-16BE, first language). Launchable content
+  types, as XeniOS's library: 0x4000, 0x7000, 0xD0000, 0x80000, 0x2000000;
+  saves, add-ons, updates and original-Xbox titles (0x5000) are refused.
+- Search: the picked folder and up to 5 levels below it (the console layout
+  `<TitleID>/00007000/<hash>` fits), not following links, skipping hidden
+  folders and `.data` folders; other files are ignored, as in XeniOS.
+
+Copy: `Documents/XeniOS/.importing/<n>` (beside `Games`, never scanned) then
+one rename into `Games/<title>` (`<title> (2)` when taken). A title folder
+keeps its tree minus Finder metadata (`.DS_Store`, `._*`); a package becomes
+`<title>.god` plus `<title>.god.data/` with only its counted data files (the
+engine finds the data by the header's name + `.data` and reads the magic, so
+the rename is safe; the hash name was only XeniOS's library heuristic).
+Every file's length is checked; cancel (between 4 MiB chunks, and before
+the final rename) and every failure delete the stage; the staging folder is
+also cleared before each import. Duplicate = same kind with the same title,
+media and disc IDs (name and size without a title ID). Free space: total
+size + 512 MiB. Refusals: `folderNoGame`, `executableInvalid`,
+`packageDataMissing`, `packageIncomplete`, `packageNotGame`, `unreadable`,
+`notEnoughSpace`, `copyFailed` (12 locales).
+
+Library on iOS: the `xbox360` scan adds `god` to the system's extensions and
+keeps only `default.xex` among executables and nothing under a `.data`
+folder; the row's title is the title folder's name (`default.xex`) or the
+package name (`.god`), set when the row is first written. A `.god` launches
+with content kind 4 (`NEO_XENIA_CONTENT_PACKAGE`, accepted by
+`XeniaCore.mm` Boot; ABI unchanged at 2, an older Core refuses it with
+"unsupported content kind"). Existing extension-less GOD headers in the
+user's own library folders are not listed; import them instead. Android
+scanning is unchanged.
+
+Tests: `test/xenia_folder_import_test.dart` (synthetic XEX2 and XContent
+headers, no game content).
 
 ## Settings
 
@@ -324,7 +380,8 @@ which can layer one over these controls later.
   helper extension, pod and bridge, the touch controls and session (above); compiling needs a macOS runner
   (Xcode 27 for the Core) and a dispatch by the main session. Not
   implemented: the IPA wiring of the helper (main session); an Xbox 360
-  skin (Skins session); rumble; folder (XEX/GOD) import.
+  skin (Skins session); rumble. Folder (XEX/GOD) import is implemented and
+  host-tested (§ Folder import); no device observation.
 - Until the Core ships, every launch returns `engineMissing` (or
   `requiresIOS26`): no fake success. No iPhone observation exists.
 

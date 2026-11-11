@@ -124,6 +124,10 @@ abstract final class XeniaInternalService {
   static Future<Directory> contentDirectory() => _child('Content');
   static Future<Directory> engineDirectory() => _child('Engine');
   static Future<Directory> frontendDirectory() => _child('Frontend');
+
+  /// Staging of folder imports, beside `Games` so that the final move is a
+  /// rename on the same volume and the scan never sees a partial game.
+  static Future<Directory> stagingDirectory() => _child('.importing');
   static Future<Directory> cacheDirectory() async =>
       Directory(path.join((await cachesDirectory()).path, 'XeniOS'));
 
@@ -285,6 +289,327 @@ abstract final class XeniaInternalService {
     return XeniaImportResult(items, cancelled: cancelled);
   }
 
+  /// Picks a folder in Files and imports the Xbox 360 games it holds: title
+  /// folders with `default.xex`, Games on Demand packages (header plus
+  /// `.data`) and single-file STFS packages (docs/xenios-playlist.md §
+  /// Folder import). Returns null when the picker was dismissed. The folder
+  /// is read in place; nothing is left in the picker's inbox.
+  static Future<XeniaImportResult?> importFolder({
+    String? dialogTitle,
+    void Function(XeniaImportProgress progress)? onProgress,
+    XeniaImportControl? control,
+  }) => StorageImportActivity.run(() async {
+    await ensureLayout();
+    final folder = await FilePicker.getDirectoryPath(
+      dialogTitle: dialogTitle,
+      lockParentWindow: true,
+    );
+    if (folder == null) return null;
+    return importFolderAt(
+      Directory(folder),
+      onProgress: onProgress,
+      control: control,
+    );
+  });
+
+  /// Imports the games of [picked] (a readable local folder). Visible for
+  /// tests.
+  static Future<XeniaImportResult> importFolderAt(
+    Directory picked, {
+    void Function(XeniaImportProgress progress)? onProgress,
+    XeniaImportControl? control,
+  }) async {
+    final games = await gamesDirectory();
+    await games.create(recursive: true);
+    final staging = await stagingDirectory();
+    await _removeStaging(staging);
+    final scan = await XeniaFolderContent.scan(picked);
+    final items = <XeniaImportItem>[
+      for (final problem in scan.problems)
+        XeniaImportItem(problem.name, problem.reason),
+    ];
+    for (final problem in scan.problems) {
+      _log.w(
+        'XeniOS folder import: ${problem.name} refused (${problem.reason}).',
+      );
+    }
+    var cancelled = false;
+    final existing = await _libraryIdentities(games);
+    for (var index = 0; index < scan.games.length; index++) {
+      final game = scan.games[index];
+      if (control?.cancelled ?? false) {
+        cancelled = true;
+        break;
+      }
+      final identity = _identityOf(
+        game.kind,
+        game.titleId,
+        game.mediaId,
+        game.discNumber,
+        game.title,
+        game.totalBytes,
+      );
+      if (existing.contains(identity)) {
+        _log.i('XeniOS folder import: ${game.title} already in the library.');
+        items.add(XeniaImportItem(game.title, 'duplicate'));
+        continue;
+      }
+      final free = freeBytes(games.path);
+      if (free != null && free < game.totalBytes + spaceMargin) {
+        items.add(XeniaImportItem(game.title, 'notEnoughSpace'));
+        continue;
+      }
+      final stage = Directory(path.join(staging.path, '$index'));
+      try {
+        final launch = await _stageFolderGame(
+          game,
+          stage,
+          control: control,
+          progress: (done, total) => onProgress?.call(
+            XeniaImportProgress(
+              name: game.title,
+              index: index + 1,
+              count: scan.games.length,
+              done: done,
+              total: total,
+            ),
+          ),
+        );
+        final target = await _freeDirectory(games, game.title);
+        await stage.rename(target.path);
+        final destination = path.join(
+          target.path,
+          path.relative(launch, from: stage.path),
+        );
+        existing.add(identity);
+        items.add(
+          XeniaImportItem(game.title, 'imported', destination: destination),
+        );
+        _log.i(
+          'XeniOS folder import: ${game.title} imported '
+          '(${game.kind.name}, ${game.files.length} files).',
+        );
+      } on _Cancelled {
+        _log.i('XeniOS folder import: cancelled during ${game.title}.');
+        cancelled = true;
+        break;
+      } on FileSystemException catch (error) {
+        _log.e('XeniOS folder import: ${game.title} failed: $error');
+        final osCode = error.osError?.errorCode;
+        items.add(
+          XeniaImportItem(
+            game.title,
+            osCode == 28 ? 'notEnoughSpace' : 'copyFailed',
+          ),
+        );
+      } finally {
+        await _removeStaging(stage);
+      }
+    }
+    await _removeStaging(staging);
+    return XeniaImportResult(items, cancelled: cancelled);
+  }
+
+  static Future<void> _removeStaging(Directory directory) async {
+    try {
+      if (await directory.exists()) await directory.delete(recursive: true);
+    } on FileSystemException catch (error) {
+      _log.w('XeniOS folder import: staging not removed: $error');
+    }
+  }
+
+  /// Copies [game] into [stage] and returns its launch file there. An
+  /// executable keeps its title folder's tree; a package header becomes
+  /// `<title>.god` with its data files in `<title>.god.data` (the engine
+  /// finds the data beside the header by name and reads the header's magic,
+  /// not its name). Every copied length is checked.
+  static Future<String> _stageFolderGame(
+    XeniaFolderGame game,
+    Directory stage, {
+    XeniaImportControl? control,
+    void Function(int done, int total)? progress,
+  }) async {
+    await stage.create(recursive: true);
+    // Source path -> staged path (File has no value equality).
+    final targets = <String, String>{};
+    String launch;
+    if (game.kind == XeniaFolderGameKind.executable) {
+      for (final file in game.files) {
+        targets[file.path] = path.join(
+          stage.path,
+          path.relative(file.path, from: game.root.path),
+        );
+      }
+      launch = targets[game.launchFile.path]!;
+    } else {
+      final header = '${_safeName(game.title)}.god';
+      launch = path.join(stage.path, header);
+      targets[game.launchFile.path] = launch;
+      for (final file in game.files.skip(1)) {
+        targets[file.path] = path.join(
+          stage.path,
+          '$header.data',
+          path.basename(file.path),
+        );
+      }
+    }
+    var done = 0;
+    progress?.call(0, game.totalBytes);
+    for (final entry in targets.entries) {
+      final source = File(entry.key);
+      final expected = await source.length();
+      await Directory(path.dirname(entry.value)).create(recursive: true);
+      await _copyBytes(
+        source,
+        File(entry.value),
+        control: control,
+        progress: (copied) => progress?.call(done + copied, game.totalBytes),
+      );
+      if (await File(entry.value).length() != expected) {
+        throw const FileSystemException('Copied length mismatch');
+      }
+      done += expected;
+      progress?.call(done, game.totalBytes);
+    }
+    // A cancel after the last chunk still keeps nothing.
+    if (control?.cancelled ?? false) throw _Cancelled();
+    return launch;
+  }
+
+  static Future<void> _copyBytes(
+    File source,
+    File target, {
+    XeniaImportControl? control,
+    void Function(int copied)? progress,
+  }) async {
+    RandomAccessFile? input;
+    RandomAccessFile? output;
+    try {
+      input = await source.open();
+      output = await target.open(mode: FileMode.write);
+      var copied = 0;
+      final watch = Stopwatch()..start();
+      while (true) {
+        if (control?.cancelled ?? false) throw _Cancelled();
+        final bytes = await input.read(_chunk);
+        if (bytes.isEmpty) break;
+        await output.writeFrom(bytes);
+        copied += bytes.length;
+        if (watch.elapsedMilliseconds >= 100) {
+          progress?.call(copied);
+          watch.reset();
+        }
+      }
+      await output.flush();
+    } finally {
+      await output?.close();
+      await input?.close();
+    }
+  }
+
+  static String _safeName(String value) {
+    final cleaned = value
+        .replaceAll(RegExp(r'[\x00-\x1F/\\:*?"<>|]'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    return cleaned.isEmpty || cleaned.startsWith('.')
+        ? 'Xbox 360 game'
+        : cleaned;
+  }
+
+  static Future<Directory> _freeDirectory(Directory games, String title) async {
+    final base = _safeName(title);
+    var target = Directory(path.join(games.path, base));
+    for (
+      var index = 2;
+      await target.exists() || await File(target.path).exists();
+      index++
+    ) {
+      if (index > 9999) {
+        throw const FileSystemException('No free destination name');
+      }
+      target = Directory(path.join(games.path, '$base ($index)'));
+    }
+    return target;
+  }
+
+  /// Identity of a folder game: title, media and disc IDs when the header
+  /// has them, otherwise its name and size.
+  static String _identityOf(
+    XeniaFolderGameKind kind,
+    String? titleId,
+    String? mediaId,
+    int? discNumber,
+    String title,
+    int bytes,
+  ) => titleId != null
+      ? '${kind.name}:$titleId:${mediaId ?? ''}:${discNumber ?? ''}'
+      : '${kind.name}:name:${title.toLowerCase()}:$bytes';
+
+  /// Identities of the folder games already in `XeniOS/Games` (one level
+  /// of title folders, as the folder import writes them).
+  static Future<Set<String>> _libraryIdentities(Directory games) async {
+    final identities = <String>{};
+    await for (final entity in games.list(followLinks: false)) {
+      if (entity is! Directory) continue;
+      final List<FileSystemEntity> children;
+      try {
+        children = await entity.list(followLinks: false).toList();
+      } on FileSystemException {
+        continue;
+      }
+      for (final child in children.whereType<File>()) {
+        final name = path.basename(child.path).toLowerCase();
+        try {
+          if (name == XeniaFolderContent.executableName) {
+            final game = await XeniaFolderContent.scan(entity);
+            for (final found in game.games) {
+              identities.add(
+                _identityOf(
+                  found.kind,
+                  found.titleId,
+                  found.mediaId,
+                  found.discNumber,
+                  found.title,
+                  found.totalBytes,
+                ),
+              );
+            }
+          } else if (XeniaContent.kindForName(name) ==
+              XeniaContentKind.package) {
+            final info = await XeniaFolderContent.inspectPackage(child);
+            if (info == null) continue;
+            var bytes = await child.length();
+            final data = Directory('${child.path}.data');
+            if (await data.exists()) {
+              await for (final part in data.list(followLinks: false)) {
+                if (part is File &&
+                    !XeniaFolderContent.isSystemClutter(
+                      path.basename(part.path),
+                    )) {
+                  bytes += await part.length();
+                }
+              }
+            }
+            identities.add(
+              _identityOf(
+                XeniaFolderGameKind.package,
+                info.titleId,
+                info.mediaId,
+                null,
+                path.basenameWithoutExtension(child.path),
+                bytes,
+              ),
+            );
+          }
+        } on FileSystemException {
+          continue;
+        }
+      }
+    }
+    return identities;
+  }
+
   static Future<String?> _refusal(File source) async {
     switch (XeniaContent.kindForName(source.path)) {
       case XeniaContentKind.profile:
@@ -292,6 +617,7 @@ abstract final class XeniaInternalService {
       case XeniaContentKind.touchLayout:
         return 'touchLayoutNotGame';
       case XeniaContentKind.looseExecutable:
+      case XeniaContentKind.package:
         return 'folderRequired';
       case XeniaContentKind.unsupported:
         return 'unsupported';
@@ -424,6 +750,7 @@ abstract final class XeniaInternalService {
         XeniaContentKind.discImage => 1,
         XeniaContentKind.zarArchive => 2,
         XeniaContentKind.looseExecutable => 3,
+        XeniaContentKind.package => 4,
         _ => null,
       };
 

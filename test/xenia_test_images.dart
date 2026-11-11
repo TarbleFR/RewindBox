@@ -76,9 +76,7 @@ Future<File> writeXboxImage(
     await handle.setPosition(partitionOffset + rootSector * sector);
     await handle.writeFrom(root);
     await handle.setPosition(partitionOffset + xexSector * sector);
-    await handle.writeFrom(
-      truncateExecutable ? xex.sublist(0, 0x20) : xex,
-    );
+    await handle.writeFrom(truncateExecutable ? xex.sublist(0, 0x20) : xex);
     if (padding > 0) {
       await handle.setPosition(await handle.length() + padding - 1);
       await handle.writeByte(0);
@@ -87,4 +85,55 @@ Future<File> writeXboxImage(
     await handle.close();
   }
   return file;
+}
+
+/// An XEX2 header (a loose `default.xex`) carrying [titleId]/[mediaId]; no
+/// code. Optional [padding] bytes make two folders differ in size.
+Uint8List xexHeaderBytes({
+  int titleId = 0x4D5307E6,
+  int mediaId = 0x11223344,
+  int padding = 0,
+}) {
+  const size = 0x100;
+  final xex = Uint8List(size + padding);
+  final view = ByteData.sublistView(xex);
+  view.setUint32(0, 0x58455832); // 'XEX2'
+  view.setUint32(8, size);
+  view.setUint32(0x14, 1);
+  view.setUint32(0x18, 0x00040006);
+  view.setUint32(0x1C, 0x30);
+  view.setUint32(0x30, mediaId);
+  view.setUint32(0x3C, titleId);
+  xex[0x42] = 1;
+  xex[0x43] = 1;
+  return xex;
+}
+
+/// An XContent package header (STFS/SVOD, big-endian) with the fields
+/// XeniaFolderContent reads; the rest is zero. No game content.
+Future<File> writeXContentHeader(
+  String filePath, {
+  String magic = 'LIVE',
+  int contentType = 0x00007000,
+  int titleId = 0x4D5307E6,
+  int mediaId = 0x11223344,
+  bool svod = true,
+  int dataFileCount = 2,
+  String displayName = 'Synthetic Game',
+}) async {
+  final header = Uint8List(0xA000);
+  final view = ByteData.sublistView(header);
+  header.setRange(0, 4, magic.codeUnits);
+  view.setUint32(0x340, 0xAD0E);
+  view.setUint32(0x344, contentType);
+  view.setUint32(0x354, mediaId);
+  view.setUint32(0x360, titleId);
+  view.setUint32(0x39D, dataFileCount);
+  view.setUint32(0x3A9, svod ? 1 : 0);
+  for (var index = 0; index < displayName.length; index++) {
+    view.setUint16(0x411 + index * 2, displayName.codeUnitAt(index));
+  }
+  final file = File(filePath);
+  await file.parent.create(recursive: true);
+  return file.writeAsBytes(header);
 }

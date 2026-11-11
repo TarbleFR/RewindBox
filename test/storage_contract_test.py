@@ -669,7 +669,8 @@ IMPORT_SITES = {
         'static Future<Armsx2ImportResult> importGames(',
         'static Future<Armsx2ImportResult> importBios(',),
     'lib/services/xenia_internal_service.dart': (
-        'static Future<XeniaImportResult?> importGames(',),
+        'static Future<XeniaImportResult?> importGames(',
+        'static Future<XeniaImportResult?> importFolder(',),
     'lib/services/rpcs3_internal_service.dart': (
         'static Future<bool> importFirmware(',
         'static Future<Rpcs3ImportResult> importGames(',

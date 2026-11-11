@@ -7,7 +7,8 @@ import '../screens/xenia/xenia_settings_screen.dart';
 import '../services/xenia_internal_service.dart';
 
 /// Import button of the Xbox 360 playlist, at the place of the other
-/// embedded playlists' buttons: import games from Files, Xbox 360 settings.
+/// embedded playlists' buttons: import games or a game folder (XEX/GOD)
+/// from Files, Xbox 360 settings.
 class XeniaInternalPlaylistActions extends StatefulWidget {
   const XeniaInternalPlaylistActions({
     super.key,
@@ -44,7 +45,7 @@ class _XeniaInternalPlaylistActionsState
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<void> _import() async {
+  Future<void> _import({required bool folder}) async {
     final control = XeniaImportControl();
     final progress = ValueNotifier<XeniaImportProgress?>(null);
     var dialogShown = false;
@@ -61,13 +62,21 @@ class _XeniaInternalPlaylistActionsState
 
     XeniaImportResult? result;
     try {
-      result = await XeniaInternalService.importGames(
-        control: control,
-        onProgress: (value) {
-          progress.value = value;
-          showProgress();
-        },
-      );
+      void onProgress(XeniaImportProgress value) {
+        progress.value = value;
+        showProgress();
+      }
+
+      result = folder
+          ? await XeniaInternalService.importFolder(
+              dialogTitle: _t('importFolder'),
+              control: control,
+              onProgress: onProgress,
+            )
+          : await XeniaInternalService.importGames(
+              control: control,
+              onProgress: onProgress,
+            );
     } finally {
       if (dialogShown && mounted) Navigator.of(context).pop();
       progress.dispose();
@@ -94,8 +103,8 @@ class _XeniaInternalPlaylistActionsState
     setState(() => _busy = true);
     _interaction(true);
     try {
-      if (action == 'games') {
-        await _import();
+      if (action == 'games' || action == 'folder') {
+        await _import(folder: action == 'folder');
       } else if (action == 'settings') {
         await XeniaSettingsScreen.open(context);
       }
@@ -142,6 +151,11 @@ class _XeniaInternalPlaylistActionsState
             key: const ValueKey('xenia-import-games'),
             value: 'games',
             child: Text(_t('importGames')),
+          ),
+          PopupMenuItem(
+            key: const ValueKey('xenia-import-folder'),
+            value: 'folder',
+            child: Text(_t('importFolder')),
           ),
           PopupMenuItem(
             key: const ValueKey('xenia-global-settings'),

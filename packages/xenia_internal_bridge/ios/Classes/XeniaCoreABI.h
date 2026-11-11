@@ -24,6 +24,7 @@ extern "C" {
 #define NEO_XENIA_CONTENT_DISC_IMAGE 1u  // .iso (XGD/XISO)
 #define NEO_XENIA_CONTENT_ZAR 2u         // .zar (ZArchive)
 #define NEO_XENIA_CONTENT_EXECUTABLE 3u  // loose default.xex in its folder
+#define NEO_XENIA_CONTENT_PACKAGE 4u     // GOD/SVOD header + .data, or STFS file
 
 // jit_state() bits (XeniOS cpu/backend/jit_memory_ios.h and
 // ui/ios/shared/ios_system_utils.h). Callable right after dlopen, before

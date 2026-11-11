@@ -268,8 +268,11 @@ int Boot(const char* absolute_path, uint32_t kind, uint32_t timeout_ms, char* er
     Copy(error, capacity, "boot before prepare or without a path");
     return 0;
   }
+  // Emulator::LaunchPath picks the device from the file's magic; the kind
+  // only bounds what RewindBox hands over (an XContent header is mounted by
+  // XContentContainerDevice, its SVOD data found in "<header>.data").
   if (kind != NEO_XENIA_CONTENT_DISC_IMAGE && kind != NEO_XENIA_CONTENT_ZAR &&
-      kind != NEO_XENIA_CONTENT_EXECUTABLE) {
+      kind != NEO_XENIA_CONTENT_EXECUTABLE && kind != NEO_XENIA_CONTENT_PACKAGE) {
     Copy(error, capacity, "unsupported content kind");
     return 0;
   }

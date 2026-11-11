@@ -411,7 +411,7 @@ Points d'appel exacts, **après** la vérification de longueur existante et jama
 `dolphin_internal_v2_service.dart:263-266` (`importGames`, après `sourceLength == outputLength`) ;
 `kartpad_internal_service.dart:212` (`importGame`, après `temporary.rename`) ; `dusklight_internal_service.dart:164`
 (`importGames`, après `temporary.rename`) ; `armsx2_internal_service.dart:149-153` (`_copySelection`, jeux et BIOS) ;
-`xenia_internal_service.dart` (`importFiles`, après `length == outputLength`, copies supprimées après la boucle ; playlist Xbox 360, docs/xenios-playlist.md) ;
+`xenia_internal_service.dart` (`importFiles`, après `length == outputLength`, copies supprimées après la boucle ; playlist Xbox 360, docs/xenios-playlist.md ; `importFolder`, encapsulé dans `StorageImportActivity.run`, lit le dossier choisi en place et ne laisse aucune copie du sélecteur : inchangé) ;
 `rpcs3_internal_service.dart:608` (`importFirmware`, après `_stageFirmware`) et `rpcs3_save_exchange_service.dart:863-869`
 où `FilePicker.clearTemporaryFiles()` est **remplacé** par `StoragePickerCopies.discardAfterVerifiedImport(pickedPath)`
 pour la source ZIP (décision 4 ter). `Rpcs3InternalService.importGames()` (`:684`) et les imports « open in place »

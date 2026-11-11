@@ -3831,7 +3831,20 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   `game_settings_emulator_tab.dart`, `assets/systems/xbox360.json`, `pubspec.yaml`,
   `storage_contract_test.py`/`libretro_frontend_ui_contract_test.py` (new call site, new
   tab rule), `docs/storage-audit-cleanup.md`.
-- **Validation (Flutter 3.47.2 host):** new XeniOS + catalog/Consoles tests 65/65;
+- **Folder import XEX/GOD (11 Nov, host-tested, no device):** menu "Import a game folder"
+  → `XeniaFolderContent.scan` (title folder with `default.xex`; XContent header
+  CON/LIVE/PIRS: SVOD + `<header>.data` with exactly `data_file_count` files, or STFS
+  single file; launchable content types only) → stage `XeniOS/.importing/<n>` → rename
+  to `Games/<title>`; package renamed `<title>.god` + `.god.data` (LaunchPath reads the
+  magic, emulator.cc:761-844, svod_container_device.cc:36-83). Scan on iOS: `god` added,
+  only `default.xex`, nothing under `.data`, title from folder/package. Content kind 4
+  `NEO_XENIA_CONTENT_PACKAGE` accepted by `XeniaCore.mm` (ABI stays 2). Proof:
+  `test/xenia_folder_import_test.dart` 11/11 (synthetic headers). Shared files touched:
+  `sqlite_database_service.dart` (iOS xbox360 only), `storage_contract_test.py`
+  (+`importFolder` import site), `docs/storage-audit-cleanup.md`.
+- **Validation (Flutter 3.47.2 host):** 11 Nov: XeniOS + catalog/Consoles/touch suites
+  91/91, scanner suites 41/41 (1 skip), storage contract 24/24, patch/validator/touch/C++
+  checks OK, analyzer 111 = baseline. Earlier: new XeniOS + catalog/Consoles tests 65/65;
   XeniOS, JIT, touch panel and settings suites 92/92; `xenia_touch_controls_test.py`,
   touch catalogues and host checks PASS; shader-converter validator 7/7;
   `xenia_core_patch_test.py` (incl. helper drift and bridge order) and
@@ -3847,7 +3860,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   Until then launches return `engineMissing`/`requiresIOS26`, never a fake success.
 - **Next:** main dispatches `xenia-core.yml` (`checks`, then `build_core`) and wires the
   helper; component fixes what the compile reports, then the first TXM-iPhone session
-  (helper attach, touch/controller play, editor, quit, second launch without attach).
+  (helper attach, touch/controller play, editor, quit, second launch without attach;
+  one ISO, one title folder, one GOD import and launch).
 
 ### Codex orchestration — Codex
 
