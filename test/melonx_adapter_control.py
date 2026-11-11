@@ -43,7 +43,8 @@ ORDER = ('adapt_pipeline_warmup_parity', 'adapt_device_short_trim', 'adapt_molte
          'adapt_bgc_fragmentation_guard', 'adapt_pipeline_cache_mapped_data',
          'adapt_gc_keepalive_dormant', 'adapt_gc_pause_journal', 'adapt_extra_array_dirty', 'adapt_array_barrier_epoch',
          'adapt_variant_replay_all', 'adapt_pause_checkpoint_growth',
-         'adapt_vulkan_memory_journal', 'adapt_pipeline_cache_compact', 'adapt_cold_buffer_trim')
+         'adapt_vulkan_memory_journal', 'adapt_pipeline_cache_compact', 'adapt_cold_buffer_trim',
+         'adapt_host_thread_class')
 
 
 def sha(path: Path) -> str:
@@ -210,6 +211,16 @@ def journal_without_start_room(text: str) -> str:
     end = text.index('    // Engine warnings and errors repeat:')
     assert start < end and text.index(JOURNAL_START_CALL) < start
     return (text[:start] + text[end:]).replace(JOURNAL_START_CALL, '')
+
+
+def journal_of_earlier_cores(text: str) -> str:
+    """The engine journal the Cores before 725 were prepared with: Core 733's kept snapshot reversed first (the exact
+    pairs of build-utils/melonx/core733_native.py), then Core 725's room at the start of a process taken out. A journal
+    without either addition is returned as it is."""
+    import core733_native
+    if core733_native.present(text, core733_native.JOURNAL):
+        text = core733_native.reverse(text, core733_native.JOURNAL)
+    return journal_without_start_room(text)
 
 
 def use_authenticated_libhac_feed(tree: Path, root: Path) -> bool:
