@@ -31,6 +31,8 @@ jobs:
           persist-credentials: false
       - name: Exercise the upload boundary, including nested archives
         run: python3 -m unittest discover -s .github/actions/upload-protected-artifact -p test_scan.py -v
+      - name: Require guarded uploads in every workflow
+        run: python3 .github/ipa-protection/check_workflows.py
       - name: Prepare harmless boundary probes
         run: |
           mkdir -p build/ipa-policy-allowed build/ipa-policy-blocked
@@ -84,5 +86,28 @@ jobs:
         with:
           name: IPA-artifact-inventory-${{ github.run_id }}
           path: build/ipa-artifact-audit/
+          if-no-files-found: error
+          retention-days: 90
+  inspect-retained-artifacts:
+    if: ${{ github.event_name == 'push' && github.repository == 'TarbleFR/RewindBox' && contains(github.event.head_commit.message, '[ipa-artifact-inspect]') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Inspect retained artifacts without changing or deleting them
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 -u .github/ipa-protection/inspect_artifacts.py
+      - name: Preserve inspection findings, including incomplete runs
+        if: ${{ always() }}
+        uses: ./.github/actions/upload-protected-artifact
+        with:
+          name: IPA-artifact-inspection-${{ github.run_id }}
+          path: build/ipa-artifact-inspection/
           if-no-files-found: error
           retention-days: 90

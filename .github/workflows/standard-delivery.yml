@@ -54,7 +54,7 @@ jobs:
     - name: Preserve the delivery contract log
       id: contract-log
       if: ${{ steps.manifest.outputs.build != '' }}
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ steps.manifest.outputs.artifact-prefix }}-attempt${{ github.run_attempt }}-contract
         path: build/standard-delivery/contract/
@@ -97,7 +97,7 @@ jobs:
       run: python3 -B .github/diagnostics/standard_delivery.py tests flutter
     - name: Preserve actual command results
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ needs.preflight.outputs.artifact-prefix }}-attempt${{ github.run_attempt }}-tests-flutter
         path: build/validation/flutter/
@@ -174,7 +174,7 @@ jobs:
       run: python3 -B .github/diagnostics/standard_delivery.py tests native
     - name: Preserve actual command results
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ needs.preflight.outputs.artifact-prefix }}-attempt${{ github.run_attempt }}-tests-native
         path: build/validation/native/
@@ -182,7 +182,7 @@ jobs:
         retention-days: 14
     - name: Preserve real XCTest bundles and native diagnostics
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ needs.preflight.outputs.artifact-prefix }}-attempt${{ github.run_attempt }}-tests-xctest
         path: |
@@ -229,7 +229,7 @@ jobs:
       run: python3 -B .github/diagnostics/standard_delivery.py republish
     - name: Republish the authenticated rpcs3-core archive
       if: ${{ hashFiles('build/republish/rpcs3-core/republication.json') != '' }}
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ needs.preflight.outputs.artifact-prefix }}-attempt${{ github.run_attempt }}-component-rpcs3-core
         path: build/republish/rpcs3-core/
@@ -238,7 +238,7 @@ jobs:
         compression-level: 0
     - name: Republish the authenticated rpcs3-host-tests archive
       if: ${{ hashFiles('build/republish/rpcs3-host-tests/republication.json') != '' }}
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ needs.preflight.outputs.artifact-prefix }}-attempt${{ github.run_attempt }}-component-rpcs3-host-tests
         path: build/republish/rpcs3-host-tests/
@@ -247,7 +247,7 @@ jobs:
         compression-level: 0
     - name: Republish the authenticated melonx-core archive
       if: ${{ hashFiles('build/republish/melonx-core/republication.json') != '' }}
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ needs.preflight.outputs.artifact-prefix }}-attempt${{ github.run_attempt }}-component-melonx-core
         path: build/republish/melonx-core/
@@ -256,7 +256,7 @@ jobs:
         compression-level: 0
     - name: Republish the authenticated dolphin archive
       if: ${{ hashFiles('build/republish/dolphin/republication.json') != '' }}
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ needs.preflight.outputs.artifact-prefix }}-attempt${{ github.run_attempt }}-component-dolphin
         path: build/republish/dolphin/
@@ -265,7 +265,7 @@ jobs:
         compression-level: 0
     - name: Republish the authenticated armsx2 archive
       if: ${{ hashFiles('build/republish/armsx2/republication.json') != '' }}
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ needs.preflight.outputs.artifact-prefix }}-attempt${{ github.run_attempt }}-component-armsx2
         path: build/republish/armsx2/
@@ -274,7 +274,7 @@ jobs:
         compression-level: 0
     - name: Republish the authenticated libretro archive
       if: ${{ hashFiles('build/republish/libretro/republication.json') != '' }}
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ needs.preflight.outputs.artifact-prefix }}-attempt${{ github.run_attempt }}-component-libretro
         path: build/republish/libretro/
@@ -283,7 +283,7 @@ jobs:
         compression-level: 0
     - name: Republish the authenticated melonx-dependencies archive
       if: ${{ hashFiles('build/republish/melonx-dependencies/republication.json') != '' }}
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ needs.preflight.outputs.artifact-prefix }}-attempt${{ github.run_attempt }}-component-melonx-dependencies
         path: build/republish/melonx-dependencies/
@@ -645,7 +645,7 @@ jobs:
         python3 build-utils/delivery_cipher.py artifact build/recovery-artifact build/encrypted-recovery
         python3 build-utils/split_encrypted_delivery.py build/encrypted-recovery build/encrypted-recovery-parts
     - name: Preserve sealed recovery piece 1 of 4
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}-recovery-part00
         path: build/encrypted-recovery-parts/part00/
@@ -653,7 +653,7 @@ jobs:
         retention-days: 14
         compression-level: 0
     - name: Preserve sealed recovery piece 2 of 4
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}-recovery-part01
         path: build/encrypted-recovery-parts/part01/
@@ -661,7 +661,7 @@ jobs:
         retention-days: 14
         compression-level: 0
     - name: Preserve sealed recovery piece 3 of 4
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}-recovery-part02
         path: build/encrypted-recovery-parts/part02/
@@ -669,7 +669,7 @@ jobs:
         retention-days: 14
         compression-level: 0
     - name: Preserve sealed recovery piece 4 of 4
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}-recovery-part03
         path: build/encrypted-recovery-parts/part03/
@@ -728,7 +728,7 @@ jobs:
 
         python3 build-utils/delivery_metrics.py artifact_encryption python3 build-utils/delivery_cipher.py artifact build/delivery-artifact build/encrypted-delivery
     - name: Upload encrypted IPA and verification reports
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}
         path: build/encrypted-delivery/
@@ -738,7 +738,7 @@ jobs:
     - name: Prepare bounded encrypted transport pieces
       run: python3 build-utils/split_encrypted_delivery.py build/encrypted-delivery build/encrypted-delivery-parts
     - name: Upload encrypted transport piece 1 of 4
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}-part00
         path: build/encrypted-delivery-parts/part00/
@@ -746,7 +746,7 @@ jobs:
         retention-days: 14
         compression-level: 0
     - name: Upload encrypted transport piece 2 of 4
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}-part01
         path: build/encrypted-delivery-parts/part01/
@@ -754,7 +754,7 @@ jobs:
         retention-days: 14
         compression-level: 0
     - name: Upload encrypted transport piece 3 of 4
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}-part02
         path: build/encrypted-delivery-parts/part02/
@@ -762,7 +762,7 @@ jobs:
         retention-days: 14
         compression-level: 0
     - name: Upload encrypted transport piece 4 of 4
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}-part03
         path: build/encrypted-delivery-parts/part03/
@@ -779,7 +779,7 @@ jobs:
         python3 build-utils/delivery_cipher.py artifact build/delivery build/encrypted-diagnostics
     - name: Upload diagnostics
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}-diagnostics
         path: build/encrypted-diagnostics/

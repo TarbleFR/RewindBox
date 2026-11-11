@@ -26,7 +26,7 @@ jobs:
           path: dist/melonx
       - name: Compare both shapes with the actual shipped native validator
         run: python3 test/melonx_key_shape_probe.py dist/melonx/libhac-feed/Ryujinx.LibHac.0.21.0-alpha.129.nupkg
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: MeloNX-key-shape-${{ github.sha }}

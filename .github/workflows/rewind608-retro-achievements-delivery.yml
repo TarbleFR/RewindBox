@@ -67,7 +67,7 @@ jobs:
     - name: Preserve actual608 command results
       id: proof
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: RewindBox608-flutter-${{ github.sha }}-attempt${{ github.run_attempt }}
         path: build/validation608/flutter/
@@ -111,7 +111,7 @@ jobs:
     - name: Preserve actual608 command results
       id: proof
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: RewindBox608-native-${{ github.sha }}-attempt${{ github.run_attempt }}
         path: build/validation608/native/
@@ -119,7 +119,7 @@ jobs:
         retention-days: 14
     - name: Preserve real XCTest bundles and native diagnostics
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: RewindBox608-XCTest-${{ github.sha }}-attempt${{ github.run_attempt }}
         path: |
@@ -266,7 +266,7 @@ jobs:
     - name: Bind608 native inputs and compiled payload
       run: python3 -B .github/diagnostics/rewind608_producers.py manifest dolphin --upstream "$RUNNER_TEMP/dolphin-ios"
     - name: Upload Dolphin Core
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: RewindBox608-dolphin-${{ github.sha }}-attempt${{ github.run_attempt }}
         path: dist/dolphin/
@@ -283,7 +283,7 @@ jobs:
         path: .dolphin-ccache
     - name: Upload diagnostics
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: RewindBox608-Dolphin-diagnostics-${{ github.sha }}-attempt${{ github.run_attempt }}
         path: build/dolphin-core-diagnostics/
@@ -335,7 +335,7 @@ jobs:
         mkdir -p "$RUNNER_TEMP/armsx2-host-source"
         git archive HEAD | gzip > "$RUNNER_TEMP/armsx2-host-source/neostation.tar.gz"
         printf 'host=%s\narmsx2=%s\n' "$GITHUB_SHA" '${{ steps.source.outputs.revision }}' > "$RUNNER_TEMP/armsx2-host-source/identity.txt"
-    - uses: actions/upload-artifact@v4
+    - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: RewindBox608-ARMSX2-host-source-${{ github.sha }}-attempt${{ github.run_attempt }}
         path: ${{ runner.temp }}/armsx2-host-source/
@@ -396,7 +396,7 @@ jobs:
       run: bash build-utils/armsx2/build_core.sh .native-sources/ARMSX2
     - name: Bind608 native inputs and compiled payload
       run: python3 -B .github/diagnostics/rewind608_producers.py manifest armsx2 --upstream .native-sources/ARMSX2
-    - uses: actions/upload-artifact@v4
+    - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: RewindBox608-armsx2-${{ github.sha }}-attempt${{ github.run_attempt }}
         path: dist/armsx2/
@@ -412,7 +412,7 @@ jobs:
         cp build/armsx2-core/CMakeCache.txt build/armsx2-diagnostics/ 2>/dev/null || true
         cp build/armsx2-core/binary-path-leaks.txt build/armsx2-diagnostics/ 2>/dev/null || true
         printf 'host=%s\narmsx2=%s\n' "$GITHUB_SHA" '${{ steps.source.outputs.revision }}' > build/armsx2-diagnostics/identity.txt
-    - uses: actions/upload-artifact@v4
+    - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       if: always()
       with:
         name: RewindBox608-ARMSX2Core-diagnostics-${{ github.sha }}-attempt${{ github.run_attempt }}
@@ -457,7 +457,7 @@ jobs:
     - name: Preserve explicit reused-origin proof and current contract logs
       id: proof
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: RewindBox608-reuse-${{ github.sha }}-attempt${{ github.run_attempt }}
         path: build/validation608/reuse/
@@ -961,7 +961,7 @@ jobs:
         python3 build-utils/delivery_cipher.py artifact build/recovery-artifact build/encrypted-recovery
         python3 build-utils/split_encrypted_delivery.py build/encrypted-recovery build/encrypted-recovery-parts
     - name: Preserve sealed recovery piece 1 of 4
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}-recovery-part00
         path: build/encrypted-recovery-parts/part00/
@@ -969,7 +969,7 @@ jobs:
         retention-days: 14
         compression-level: 0
     - name: Preserve sealed recovery piece 2 of 4
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}-recovery-part01
         path: build/encrypted-recovery-parts/part01/
@@ -977,7 +977,7 @@ jobs:
         retention-days: 14
         compression-level: 0
     - name: Preserve sealed recovery piece 3 of 4
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}-recovery-part02
         path: build/encrypted-recovery-parts/part02/
@@ -985,7 +985,7 @@ jobs:
         retention-days: 14
         compression-level: 0
     - name: Preserve sealed recovery piece 4 of 4
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}-recovery-part03
         path: build/encrypted-recovery-parts/part03/
@@ -1038,7 +1038,7 @@ jobs:
 
         python3 build-utils/delivery_metrics.py artifact_encryption python3 build-utils/delivery_cipher.py artifact build/delivery-artifact build/encrypted-delivery
     - name: Upload encrypted IPA and verification reports
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}
         path: build/encrypted-delivery/
@@ -1048,7 +1048,7 @@ jobs:
     - name: Prepare bounded encrypted transport pieces
       run: python3 build-utils/split_encrypted_delivery.py build/encrypted-delivery build/encrypted-delivery-parts
     - name: Upload encrypted transport piece 1 of 4
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}-part00
         path: build/encrypted-delivery-parts/part00/
@@ -1056,7 +1056,7 @@ jobs:
         retention-days: 14
         compression-level: 0
     - name: Upload encrypted transport piece 2 of 4
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}-part01
         path: build/encrypted-delivery-parts/part01/
@@ -1064,7 +1064,7 @@ jobs:
         retention-days: 14
         compression-level: 0
     - name: Upload encrypted transport piece 3 of 4
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}-part02
         path: build/encrypted-delivery-parts/part02/
@@ -1072,7 +1072,7 @@ jobs:
         retention-days: 14
         compression-level: 0
     - name: Upload encrypted transport piece 4 of 4
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}-part03
         path: build/encrypted-delivery-parts/part03/
@@ -1089,7 +1089,7 @@ jobs:
         python3 build-utils/delivery_cipher.py artifact build/delivery build/encrypted-diagnostics
     - name: Upload diagnostics
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}-diagnostics
         path: build/encrypted-diagnostics/

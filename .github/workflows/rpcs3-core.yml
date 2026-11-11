@@ -224,7 +224,7 @@ jobs:
           PY
           cp dist/rpcs3/identity.json build/rpcs3-core-diagnostics/identity.json
       - name: Upload RPCS3 recovery Core
-        uses: actions/upload-artifact@v4
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: RPCS3Core-${{ github.sha }}
           path: dist/rpcs3/
@@ -232,7 +232,7 @@ jobs:
           retention-days: 30
       - name: Upload diagnostics
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: RPCS3Core-diagnostics-${{ github.sha }}
           path: build/rpcs3-core-diagnostics/

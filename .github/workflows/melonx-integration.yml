@@ -126,7 +126,7 @@ jobs:
         cache: true
     - name: Compile only the registered Swift plugin against the actual Flutter and iPhone SDK
       run: python3 test/melonx_native_sdk_test.py
-    - uses: actions/upload-artifact@v4
+    - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       if: always()
       with:
         name: MeloNX-retirement-proof-${{ github.sha }}

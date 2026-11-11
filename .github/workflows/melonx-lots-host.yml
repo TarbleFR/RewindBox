@@ -32,7 +32,7 @@ jobs:
           flutter test --concurrency=1 --reporter expanded test/melonx_unreal_profiles_test.dart test/melonx_unreal_profile_dialog_test.dart test/melonx_hogwarts_graphics_options_test.dart test/melonx_graphics_durable_test.dart | tee build/melonx-lots-host/flutter-tests.txt
       - name: Analyze the changed profile service and UI
         run: dart analyze lib/services/melonx_unreal_profiles.dart lib/widgets/melonx_unreal_profile_dialog.dart
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: MeloNX-lots-host-${{ github.sha }}

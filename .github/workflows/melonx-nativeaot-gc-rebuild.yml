@@ -28,7 +28,7 @@ jobs:
         persist-credentials: false
     - name: Build the patched NativeAOT workstation GC for ios-arm64 and iossimulator-arm64
       run: python3 build-utils/melonx/build_nativeaot_gc_rebuild.py
-    - uses: actions/upload-artifact@v4
+    - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       if: always()
       with:
         name: MeloNX-NativeAOT-GC-rebuild-${{ github.sha }}
