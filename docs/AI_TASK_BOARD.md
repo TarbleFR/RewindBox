@@ -3981,95 +3981,28 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 ### Switch 2 playlist (S2Arm) feasibility prototype — session 04
 
 - **Owner/branch:** session `012mUASj3EQnvC86WC56AePw`, `work/s2arm-switch2-prototype-20261110`
-  (from `Claude` `d6b15c86`). Paths owned: `docs/s2arm-prototype-2026-11-10.md`, later a
-  `tools/s2arm_prototype/`, `packages/s2arm_probe/`, the host-proof workflow. No MeloNX, skin or XeniOS path touched.
-- **Goal:** decide whether S2Arm-rewritten code can run from JIT memory in RewindBox, loaded
-  from a data file at a fixed address, to its first gate, with a `brk` handled. Only this
-  prototype is approved; no playlist, game, graphics or service work.
-- **State (10 Nov): step 2 host proof passed in CI; nothing run on an iPhone.** Run `42920636820`
-  attempt 1, commit `ab4619be`, 3/3 jobs. S2Arm `6b6a5715` rewriter built on ubuntu-24.04 and
-  macos-15 (arm64): synthetic module rewritten with 0 gaps, 9 sites, 2 gates; the five outputs are
-  byte-identical on both systems (`main.patched.bin` SHA-256 `e2341dfd…9698`). On macOS the module,
-  loaded from data files at a fixed slot of a reserved window, ran through S2Arm's `sw_gate` to its
-  `cntpct` and `svc` gates: 15/15 checks (KTLS, KTLR, K18 slots, gate values, one `brk` handled by
-  SIGTRAP). Controls failed as required: no gate 139, wrong TLS slot 3, empty key page 139, no
-  `brk` handler 133.
-- **Step 3 (10 Nov): device probe written, host-checked only, not in the app.**
-  `packages/s2arm_probe` (no S2Arm source, no game content). Run `42924925273`, commit `92f5007`:
-  with a stand-in for the JIT helper on macOS arm64 both placements (code remapped at a chosen
-  address; one helper region with data inside) ran the module, 16/16 checks each, and the sources
-  compile for iOS arm64 with `-Werror`. Later commits (module header committed, window released
-  after phase 2; `c70f229`) passed the same checks in run `42925954171`, 3/3 jobs, including the
-  byte comparison of the committed module header with the rewriter's output.
-- **Session 01 answers (read/measured, its evidence):** chosen-address preparation never exercised
-  on iOS 26; aliases made before detach stay usable (measured); unknown `brk` loops while attached
-  (read); it writes the hook in its own files from the specification, after its current Core handoff.
-- **Evidence:** [constat, host result, hook specification, expected journal](s2arm-prototype-2026-11-10.md);
-  `tools/s2arm_prototype/`, `packages/s2arm_probe/`, `.github/workflows/s2arm-prototype-host.yml`.
-- **Hook agreed with session 01 (11 Nov, not written):** lookup from its `.mm`; Info.plist keys
-  `RewindBoxS2ArmProbe` and `RewindBoxS2ArmProbeMapped`, test IPA only; first game launch of the
-  process only; journal lines `s2armProbe.<step>` in `MeloNX-launch.log` with `fsync`; it also fixes
-  a helper-script defect (a debugserver error code returned as an address). The probe now rejects
-  such a reply (`d14e7f5`, run `42932102875` passed). Session 01 reports the maintainer told it
-  to write the hook now.
-- **Hook written by session 01 (11 Nov):** `d32738b5` on `work/melonx-fps-stability-20261103`
-  (its run `42933024817`), reviewed here against the probe: signatures, phase order, journal match.
-  It runs only with `RewindBoxS2ArmProbe`, on the first JIT transaction, with the universal helper
-  (iOS 26).
-- **Parallel studies (11 Nov, maintainer request; reading only):** [JIT helpers of the other
-  engines, runtime cohabitation, preparation chain, proposed batches](s2arm-study-2026-11-11.md).
-  Findings: only the MeloNX bridge limits JIT to one transaction per process (ARMSX2 re-attaches
-  at every launch); RPCS3 already reserves chosen address ranges for JIT (asked main how, and
-  whether device-observed); S2Arm installs signal handlers without chaining and links its
-  NativeAOT services statically; no complete on-device preparation exists upstream. No batch
-  is started or committed to.
-- **Batches 4–6 authorised by the maintainer (11 Nov) before the device result. Two IPA lines
-  (his words relayed to main for confirmation):** a Switch 2 test IPA carrying this branch, and
-  the usual IPA without Switch 2. This branch therefore stays out of the common IPA.
-  - Batch 4 slice 1 done on the host: `native/s2arm/prepare/` rewrite stage, byte-identical to
-    S2Arm's command line on a synthetic ExeFS, five refusal cases, iOS arm64 compilation (run
-    `42940946139` on `2a7341d`; run `42940786190` was red from a test-harness defect, fixed).
-  - Batch 4 slice 2 done on the host: `s2arm_addr_need.c`, port of `tools/addr_need.py`
-    (delegated, reviewed, `999c8c3`). Run `42942687934`, Linux and macOS: 86 cases, 0 failed
-    (78 tables byte-identical to the original, 7 refused by both, ZBIC refused by the port
-    only), iOS arm64 compilation. ZBIC-compressed NSOs are not supported.
-  - `S2ArmPrepare.xcframework` built for iOS arm64: run `42944199721` on `dd6466a` (Xcode 16.4),
-    zip SHA-256 `08bc14d2…8c40`, library `b83d16c7…4e1b`; the build script checks that only
-    `rb_s2arm_*` symbols are visible. Five earlier runs failed on the build script (target
-    processor, library lookup, Capstone linked twice), none on the library code. Not linked
-    into any app; how main wants to receive it is asked.
-  - Batch 4 slice 3 done on the host: GPU driver list, NRO exports, NRO conversion
-    (`s2arm_modules.c`, `s2arm_nro.c`, delegated, `ee62f31`). Run `42945032631`: 32 cases,
-    0 failed (17 identical outputs, 12 refused by both, 2 refused by the port only). NROs
-    hidden inside other RomFS files (zstd upstream) are refused, not converted.
-  - Batch 4 slice 4 done on the host: `rb_s2arm_prepare_code` chains the code stage in the
-    packer's order. Run `42946936286` on `d8c4e2b`, Linux and macOS: 5 cases against the same
-    steps run by S2Arm's tools (2 successes required identical, 3 refusals matched). Run
-    `42945922401` was red from the fixture (no dynamic symbols in the synthetic subsdk0),
-    fixed. The synthetic NRO is rejected by the rewriter on both sides: rewriting a converted
-    NRO is not yet shown end to end.
-  - Left in batch 4: unpack (C# on LibHac upstream), system data, RomFS index, package
-    layout; optional tables (widescreen, frame rate, patches) left out on purpose.
-  - Batches 5–6: owners' inputs in [the study](s2arm-study-2026-11-11.md) section 5. Shared
-    playlist files belong to PR #172 until main integrates it; skins stay with session 02.
-- **RPCS3 precedent (main's report, its private logs, iOS 27 beta only):** the RPCS3 Core maps
-  read-execute pages itself at a chosen address and has the helper prepare them, up to about
-  482 GiB, with a 64 GiB hole at `0x7000000000` and a 2^39 task maximum. Questions A and B thus
-  have a favourable precedent; the probe now runs that placement first (`mapped*`; host check
-  run `42948708967` on `831c0c2`, three placements 16/16, iOS compilation). D, E, F and iOS 26
-  remain unobserved. [Detail](s2arm-prototype-2026-11-10.md).
-- **Integration inputs from main (11 Nov):** hook `d32738b5` is in `Claude` (inert without the
-  key); Core delivery = pinned run artifact verified by the IPA job (models:
-  `build-utils/rpcs3/core-pin.json`; pin file not written yet); workflows use the protected
-  artifact upload (runs `42948709020`, `42948709021` on `831c0c2`); notices prepared in [s2arm-legal-notices.md](s2arm-legal-notices.md), delivery
-  notice files untouched.
-- **Open or limit:** nothing of this prototype measured on an iPhone. Batch handed
-  to main (11 Nov): both branches, the root `pubspec.yaml` lines and the Info.plist key of a test
-  IPA are main's to add.
-  Main received it and has not taken it: the maintainer asked it to hold new IPAs for the other
-  fixes; a separate test IPA needs the maintainer's request in main's session.
-- **Next:** when main delivers the test IPA, give the maintainer the steps (one Switch game launch
-  after opening the app, send `MeloNX-launch.log`) and read the `s2armProbe.*` lines.
+  (merged with `Claude` `0c78f583`). Own paths: `packages/s2arm_probe/`, `native/s2arm/`,
+  `build-utils/s2arm/`, `tools/s2arm_prototype/`, `.github/workflows/s2arm-*.yml`, `docs/s2arm-*.md`.
+- **Goal:** a Switch 2 playlist on S2Arm, games prepared on the phone. Separate IPA line
+  (builds from 801), built by this session (authorization above); never in the common IPA.
+- **State (11 Nov), host only, nothing run on an iPhone:**
+  - Prototype: rewriter output loaded and run to its gates on macOS arm64; device probe written
+    (three code placements; the process-mapped one is what RPCS3 already does on device, iOS 27
+    beta, per main); bridge hook `d32738b5` in `Claude`, inert without `RewindBoxS2ArmProbe`.
+  - Preparation without bash/Python (batch 4): code stage ported to C and byte-compared with
+    S2Arm `6b6a5715` in CI (rewrite; address need 86 cases; GPU drivers/NRO 32 cases; chained
+    stage 5 cases); `S2ArmPrepare.xcframework` built for iOS arm64. Not linked into an app.
+  - Batches 5–6: owners' inputs collected; shared playlist files wait for PR #172; notices drafted.
+- **Evidence:** [prototype and probe](s2arm-prototype-2026-11-10.md),
+  [studies, batches, owners' inputs](s2arm-study-2026-11-11.md),
+  [notices](s2arm-legal-notices.md); last green runs on `831c0c2`: `42948708967` (host proof and
+  probe), `42948709020` (preparation), `42948709021` (iOS Core).
+- **Open or limit:** device questions D, E, F and iOS 26 unobserved; rewriting a converted NRO
+  not shown end to end; NROs hidden in other files and ZBIC modules refused; unpack, system
+  data, RomFS index, package layout not ported. Maintainer to settle: application identifier of
+  the Switch 2 IPA (same as the common IPA or distinct).
+- **Next:** own delivery workflow for test IPA 801 (probe + hook key, Core pins from `Claude`),
+  then the maintainer's device run and the `s2armProbe.*` journal.
 
 ### Codex orchestration — Codex
 
