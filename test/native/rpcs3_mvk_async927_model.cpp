@@ -15,12 +15,19 @@
 // - iOS refuses a command buffer committed once the application is in the background (IPA 650, pid 8767: the device
 //   was lost as the application entered the background).
 // No iPhone result is inferred.
+//
+// Sequencing: a scenario never assumes how long the host takes to start, wake or schedule a thread (the macOS runner
+// under AddressSanitizer took more than 30 ms to bring a new thread to its first call). A step that must still be in
+// progress is held by a latch the scenario releases; a step that must have happened is waited for (eventually) or
+// seen through a counter of the Core itself (a wait that outlasts wait_limit counts a timeout). The only durations
+// compared are lower bounds of waits that cannot end early.
 #include "ios/IOSGpuBackgroundGate.h"
 #include "ios/IOSMoltenVKExecQueue.h"
 
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <cstdint>
 #include <cstdio>
 #include <mutex>
@@ -40,6 +47,46 @@ static double ms_since(std::chrono::steady_clock::time_point begin)
 	return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - begin).count();
 }
 
+// Holds a step of a scenario until the scenario lets it go on.
+struct latch
+{
+	std::mutex mutex;
+	std::condition_variable cv;
+	bool open = false;
+
+	void release()
+	{
+		// Notified under the lock: the waiter may destroy the latch as soon as it can lock again.
+		std::lock_guard lock(mutex);
+		open = true;
+		cv.notify_all();
+	}
+
+	void wait()
+	{
+		std::unique_lock lock(mutex);
+		cv.wait(lock, [this] { return open; });
+	}
+};
+
+// Waits for something another thread is about to do. The limit only ends a run that is already wrong.
+template <typename F>
+static bool eventually(F&& condition, std::chrono::milliseconds limit = std::chrono::seconds(60))
+{
+	const auto end = std::chrono::steady_clock::now() + limit;
+	while (!condition())
+	{
+		if (std::chrono::steady_clock::now() >= end)
+		{
+			return false;
+		}
+
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+	}
+
+	return true;
+}
+
 // RPCS3IOSPlatform.mm's rbx_mvk_exec_q_create, minus the C linkage.
 static dispatch_queue_t hook(const char* label)
 {
@@ -53,18 +100,17 @@ static dispatch_queue_t hook(const char* label)
 	return queue;
 }
 
-// A submission on MoltenVK's encoding queue: encoding takes sleep_ms.
+// A submission on MoltenVK's encoding queue: encoding lasts until the scenario releases it.
 struct job
 {
-	explicit job(int ms) : sleep_ms(ms) {}
 	std::atomic<bool> done{false};
-	int sleep_ms;
+	latch encoding;
 };
 
 static void run_job(void* context)
 {
 	auto* item = static_cast<job*>(context);
-	std::this_thread::sleep_for(std::chrono::milliseconds(item->sleep_ms));
+	item->encoding.wait();
 	item->done.store(true, std::memory_order_release);
 }
 
@@ -84,39 +130,70 @@ static void tickets(dispatch_queue_t mvk)
 	CHECK(queues.mark_submit(&g_transfer_vk_queue) == 0 && queues.mark_submit(nullptr) == 0);
 	CHECK(exec::submits_marked.load() == 0);
 
-	job first(80), later(300);
+	job first, later;
 	dispatch_async_f(mvk, &first, run_job);
 	const std::uint64_t t1 = queues.mark_submit(&g_presenting_vk_queue);
 	dispatch_async_f(mvk, &later, run_job);
 	const std::uint64_t t2 = queues.mark_submit(&g_presenting_vk_queue);
 	CHECK(t1 != 0 && t2 == t1 + 1 && exec::submits_marked.load() == 2);
 
-	auto begin = std::chrono::steady_clock::now();
-	CHECK(queues.wait_for_encoding(t1, exec::wait_site::fence));
-	const double waited = ms_since(begin);
-	CHECK(first.done.load(std::memory_order_acquire) && !later.done.load(std::memory_order_acquire)); // exactly its own submission
-	CHECK(waited >= 50 && waited < 280);
-	CHECK(exec::encode_waits[fence_site].load() == 1 && exec::encode_wait_us[fence_site].load() >= 50'000);
+	// The fence wait of the first submission sleeps for as long as MoltenVK encodes it. Here that outlasts wait_limit:
+	// one period is counted and the wait goes on (before 927 only the present barrier waited, and it gave up there).
+	const std::uint64_t acquire_timeouts_before = exec::acquire_timeouts.load();
+	std::atomic<bool> returned{false}, waited{false};
+	std::thread waiter([&]
+	{
+		waited.store(queues.wait_for_encoding(t1, exec::wait_site::fence));
+		returned.store(true);
+	});
+	CHECK(eventually([] { return exec::encode_wait_timeouts.load() >= 1; })); // it has been inside for wait_limit
+	CHECK(!returned.load());
+	first.encoding.release();
+	waiter.join();
+	CHECK(waited.load() && first.done.load(std::memory_order_acquire));
+	CHECK(!later.done.load(std::memory_order_acquire)); // exactly its own submission: the next one is still being encoded
+	CHECK(exec::encode_waits[fence_site].load() == 1 &&
+		exec::encode_wait_us[fence_site].load() >= static_cast<std::uint64_t>(exec::wait_limit.count()) * 1000);
+	CHECK(exec::acquire_timeouts.load() == acquire_timeouts_before); // counted for the fence, not for the acquisition
 
 	// Already encoded, or no ticket (synchronous submits): no wait, nothing counted.
 	CHECK(!queues.wait_for_encoding(t1, exec::wait_site::fence) && !queues.wait_for_encoding(0, exec::wait_site::query));
 	CHECK(exec::encode_waits[fence_site].load() == 1 && exec::encode_waits[query_site].load() == 0);
 
-	CHECK(queues.wait_for_encoding(t2, exec::wait_site::query));
-	CHECK(later.done.load(std::memory_order_acquire) && exec::encode_waits[query_site].load() == 1);
+	// The gather's wait, on its own counter. Whether it found the submission still being encoded is the host's
+	// scheduling; what holds either way: it is encoded on return, and a wait that happened is counted once.
+	std::atomic<bool> about_to_wait{false};
+	std::thread encoder([&]
+	{
+		eventually([&] { return about_to_wait.load(); });
+		std::this_thread::sleep_for(50ms);
+		later.encoding.release();
+	});
+	about_to_wait.store(true);
+	const bool query_waited = queues.wait_for_encoding(t2, exec::wait_site::query);
+	encoder.join();
+	CHECK(later.done.load(std::memory_order_acquire));
+	CHECK(exec::encode_waits[query_site].load() == (query_waited ? 1u : 0u) && exec::encode_waits[fence_site].load() == 1);
 
 	// A present whose encoding outlasts wait_limit (2 s): the acquisition still waits for it. Before 927 it went on
-	// after 2 s with the present still queued.
-	job slow(static_cast<int>(exec::wait_limit.count()) + 300);
+	// after 2 s with the present still queued. MoltenVK finishes here only once the Core has counted that period.
+	job slow;
 	dispatch_async_f(mvk, &slow, run_job);
 	const std::uint64_t present = queues.mark_present();
 	const std::uint64_t waits_before = exec::acquire_waits.load(), timeouts_before = exec::acquire_timeouts.load();
-	begin = std::chrono::steady_clock::now();
+	const std::uint64_t encode_timeouts_before = exec::encode_wait_timeouts.load();
+	std::thread slow_encoder([&]
+	{
+		eventually([&] { return exec::acquire_timeouts.load() > timeouts_before; });
+		slow.encoding.release();
+	});
+	const auto begin = std::chrono::steady_clock::now();
 	queues.wait_for_present(present);
 	CHECK(slow.done.load(std::memory_order_acquire));
-	CHECK(ms_since(begin) >= static_cast<double>(exec::wait_limit.count()) + 250);
-	CHECK(exec::acquire_waits.load() == waits_before + 1 && exec::acquire_timeouts.load() == timeouts_before + 1);
-	CHECK(exec::encode_wait_timeouts.load() == 0);
+	CHECK(ms_since(begin) >= static_cast<double>(exec::wait_limit.count()));
+	slow_encoder.join();
+	CHECK(exec::acquire_waits.load() == waits_before + 1 && exec::acquire_timeouts.load() >= timeouts_before + 1);
+	CHECK(exec::encode_wait_timeouts.load() == encode_timeouts_before); // counted for the acquisition only
 }
 
 // ---- 2. MoltenVK's event semaphore: why the acquisition must never overtake -------------------------------------
@@ -151,14 +228,19 @@ struct frame_submit
 {
 	frame_model* model = nullptr;
 	int context = 0;
-	int encode_ms = 0;
+	latch* stalled = nullptr; // earlier commands of the buffer take long to encode
 	std::atomic<bool> encoded{false};
 };
 
 static void encode_frame_submit(void* raw)
 {
 	auto* submit = static_cast<frame_submit*>(raw);
-	std::this_thread::sleep_for(std::chrono::milliseconds(submit->encode_ms)); // earlier commands of the buffer
+	std::this_thread::sleep_for(1ms); // earlier commands of the buffer
+	if (submit->stalled)
+	{
+		submit->stalled->wait();
+	}
+
 	const std::uint64_t needed = submit->model->semaphores[submit->context].encode_wait();
 	{
 		std::lock_guard lock(submit->model->mutex);
@@ -184,7 +266,10 @@ static void run_old_marker(void* raw)
 	marker->cv.notify_all();
 }
 
-// Six frames; the first one's command buffer takes stall_ms to encode. Returns the waits no signal will ever satisfy.
+// Six frames; the first one's command buffer takes long to encode. Returns the waits no signal will ever satisfy.
+// Rule before 927: the renderer gives up after old_limit, so it is through its six frames while that command buffer
+// is still being encoded (held until then: the outcome does not depend on the host's speed). Strict rule: the
+// renderer waits, so MoltenVK is given stall_ms and the renderer follows however long that takes.
 static int semaphore_frames(dispatch_queue_t mvk, bool strict, int stall_ms, std::chrono::milliseconds old_limit)
 {
 	constexpr int frames = 6;
@@ -193,6 +278,16 @@ static int semaphore_frames(dispatch_queue_t mvk, bool strict, int stall_ms, std
 	std::vector<old_marker> markers(frames);
 	std::uint64_t last_ticket = 0;
 	old_marker* last_marker = nullptr;
+	latch stall;
+	std::thread encoder;
+	if (strict)
+	{
+		encoder = std::thread([&]
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(stall_ms));
+			stall.release();
+		});
+	}
 
 	for (int frame = 0; frame < frames; frame++)
 	{
@@ -215,7 +310,7 @@ static int semaphore_frames(dispatch_queue_t mvk, bool strict, int stall_ms, std
 		auto& submit = submits[frame];
 		submit.model = &model;
 		submit.context = context;
-		submit.encode_ms = frame == 0 ? stall_ms : 1;
+		submit.stalled = frame == 0 ? &stall : nullptr;
 		dispatch_async_f(mvk, &submit, encode_frame_submit);
 		if (strict)
 		{
@@ -226,6 +321,15 @@ static int semaphore_frames(dispatch_queue_t mvk, bool strict, int stall_ms, std
 			last_marker = &markers[frame];
 			dispatch_async_f(mvk, last_marker, run_old_marker);
 		}
+	}
+
+	if (strict)
+	{
+		encoder.join();
+	}
+	else
+	{
+		stall.release(); // the six frames are submitted: MoltenVK encodes them now
 	}
 
 	registry::instance().drain();
@@ -291,6 +395,7 @@ struct query_submit
 	query_model* query = nullptr;
 	dispatch_queue_t gpu = nullptr;
 	int encode_ms = 0;
+	latch* start = nullptr; // encoding starts when the scenario says so
 };
 
 static void gpu_completes(void* raw)
@@ -302,6 +407,11 @@ static void gpu_completes(void* raw)
 static void encode_query_submit(void* raw)
 {
 	auto* submit = static_cast<query_submit*>(raw);
+	if (submit->start)
+	{
+		submit->start->wait();
+	}
+
 	std::this_thread::sleep_for(std::chrono::milliseconds(submit->encode_ms));
 	submit->query->end_query();
 	dispatch_async_f(submit->gpu, submit->query, gpu_completes); // committed: the GPU runs it
@@ -310,23 +420,33 @@ static void encode_query_submit(void* raw)
 // Returns how many times the gather got VK_NOT_READY back at once (the spin of vk::query_pool_manager::get_query_result).
 static std::uint64_t gather(dispatch_queue_t mvk, dispatch_queue_t gpu, bool encode_wait, std::uint64_t& result)
 {
+	// Control: MoltenVK starts encoding (60 ms) once the gather is seen spinning, so the spin does not depend on which
+	// thread the host runs first. With the wait there is nothing to hold: the gather sleeps until the encoding is done.
+	constexpr std::uint64_t seen_spinning = 1000;
 	query_model query;
-	query_submit submit{&query, gpu, 60};
+	latch start;
+	query_submit submit{&query, gpu, 60, encode_wait ? nullptr : &start};
 	dispatch_async_f(mvk, &submit, encode_query_submit);
 	const std::uint64_t ticket = registry::instance().mark_submit(&g_presenting_vk_queue);
 	CHECK(ticket != 0);
 
 	if (encode_wait)
 	{
-		CHECK(registry::instance().wait_for_encoding(ticket, exec::wait_site::query)); // occlusion_data::sync()
+		registry::instance().wait_for_encoding(ticket, exec::wait_site::query); // occlusion_data::sync()
 	}
 
 	std::uint64_t not_ready = 0;
 	while (!query.results_wait(result))
 	{
-		not_ready++;
+		if (++not_ready == seen_spinning)
+		{
+			start.release();
+		}
+
 		std::this_thread::yield(); // utils::pause()
 	}
+
+	CHECK(encode_wait || not_ready >= seen_spinning);
 
 	registry::instance().drain();
 	dispatch_sync_f(gpu, nullptr, [](void*) {});
@@ -335,6 +455,9 @@ static std::uint64_t gather(dispatch_queue_t mvk, dispatch_queue_t gpu, bool enc
 
 // ---- 4. The background gate (real class) ------------------------------------------------------------------------
 // iOS: a command buffer committed while the application is in the background is refused.
+// From Core 928 the gate closes at the deactivation and its settle function takes a second argument: its scenarios,
+// these ones included, are in test/native/rpcs3_gpu_gate928_model.cpp, and this part is compiled for Core 927 only.
+#ifndef REWINDBOX_GPU_DEACTIVATION_GATE_928
 struct metal_model
 {
 	std::atomic<bool> background{false};
@@ -348,27 +471,34 @@ struct metal_model
 
 static metal_model* g_metal = nullptr;
 static dispatch_queue_t g_settle_queue = nullptr;
-static std::atomic<int> g_settle_sleep_ms{0};
+static latch* g_settle_running = nullptr; // a settle that is still running until the scenario releases it
+static std::atomic<bool> g_settle_started{false}, g_settle_finished{false};
 
 // What vk::ios_settle_queues does with Vulkan (an empty submission with a fence behind everything queued): here a
 // marker behind everything queued on the encoding queue, waited for within the limit.
 static bool model_settle(std::chrono::milliseconds limit)
 {
-	std::this_thread::sleep_for(std::chrono::milliseconds(g_settle_sleep_ms.load()));
-	if (!g_settle_queue)
+	g_settle_started.store(true);
+	if (g_settle_running)
 	{
-		return true;
+		g_settle_running->wait();
 	}
 
-	old_marker marker;
-	dispatch_async_f(g_settle_queue, &marker, run_old_marker);
-	std::unique_lock lock(marker.mutex);
-	const bool settled = marker.cv.wait_for(lock, limit, [&] { return marker.done; });
-	if (!settled)
+	bool settled = true;
+	if (g_settle_queue)
 	{
-		// The marker must not outlive this frame: wait for it now (the test only reaches this on a failure).
-		marker.cv.wait(lock, [&] { return marker.done; });
+		old_marker marker;
+		dispatch_async_f(g_settle_queue, &marker, run_old_marker);
+		std::unique_lock lock(marker.mutex);
+		settled = marker.cv.wait_for(lock, limit, [&] { return marker.done; });
+		if (!settled)
+		{
+			// The marker must not outlive this frame: wait for it now (the test only reaches this on a failure).
+			marker.cv.wait(lock, [&] { return marker.done; });
+		}
 	}
+
+	g_settle_finished.store(true);
 	return settled;
 }
 
@@ -438,8 +568,9 @@ static gate_results gate_model(dispatch_queue_t mvk)
 	{
 		submitters control;
 		control.start(3, false);
-		std::this_thread::sleep_for(20ms);
+		CHECK(eventually([&] { return control.metal.committed.load() > 0; }));
 		control.metal.background.store(true);
+		CHECK(eventually([&] { return control.metal.refused.load() > 0; }));
 		std::this_thread::sleep_for(30ms);
 		control.join();
 		results.refused_without_gate = control.metal.refused.load();
@@ -449,31 +580,39 @@ static gate_results gate_model(dispatch_queue_t mvk)
 	{
 		submitters gated;
 		gated.start(3, true);
-		std::this_thread::sleep_for(20ms);
+		CHECK(eventually([&] { return gated.metal.committed.load() > 0; }));
 		const std::uint64_t closes_before = gpu_gate::closes.load(), parks_before = gpu_gate::parks.load();
 		gate.app_entered_background();           // UIApplicationDidEnterBackgroundNotification, posting thread
 		const std::uint64_t committed_at_close = gated.metal.committed.load();
 		gated.metal.background.store(true);      // the transition is over: iOS refuses from here on
+		CHECK(eventually([&] { return gpu_gate::parks.load() >= parks_before + 3; })); // the calls are waiting, not dropped
 		std::this_thread::sleep_for(50ms);
 		CHECK(gate.closed() && gpu_gate::closes.load() == closes_before + 1);
 		CHECK(gated.metal.committed.load() == committed_at_close); // nothing was committed in the background
-		CHECK(gpu_gate::parks.load() >= parks_before + 1);         // the calls are waiting, not dropped
 		gated.metal.background.store(false);
 		gate.app_became_active();                // UIApplicationDidBecomeActiveNotification
-		std::this_thread::sleep_for(20ms);
-		CHECK(!gate.closed() && gated.metal.committed.load() > committed_at_close); // and they run afterwards
+		CHECK(eventually([&] { return gated.metal.committed.load() > committed_at_close; })); // and they run afterwards
+		CHECK(!gate.closed());
 		gated.join();
 		results.refused_with_gate = gated.metal.refused.load();
 		CHECK(gated.metal.committed.load() == gated.calls.load()); // every call committed once
 	}
 
-	// Asynchronous submits: 30 submissions are queued (2 ms of encoding each) when the application leaves.
+	// Asynchronous submits: 30 submissions are queued (2 ms of encoding each) when the application leaves. Without a
+	// settle nothing waits for the queue: it is held until the transition is over, so that what was queued is still
+	// there whatever the host's speed. With the settle the transition itself waits for the queue.
 	for (const bool settle : {false, true})
 	{
 		metal_model metal;
 		g_metal = &metal;
 		g_settle_queue = settle ? mvk : nullptr;
 		gate.set_settle(&model_settle);
+		job still_queued;
+		if (!settle)
+		{
+			dispatch_async_f(mvk, &still_queued, run_job);
+		}
+
 		for (int i = 0; i < 30; i++)
 		{
 			const gpu_gate::pass pass;
@@ -483,9 +622,11 @@ static gate_results gate_model(dispatch_queue_t mvk)
 		const std::uint64_t settles_before = gpu_gate::settles.load(), timeouts_before = gpu_gate::settle_timeouts.load();
 		gate.app_entered_background();
 		metal.background.store(true);
+		still_queued.encoding.release();
 		registry::instance().drain(); // whatever is still queued is encoded and committed now, in the background
 		(settle ? results.refused_async_with_settle : results.refused_async_without_settle) = metal.refused.load();
 		CHECK(metal.committed.load() + metal.refused.load() == 30);
+		CHECK(metal.refused.load() == (settle ? 0u : 30u));
 		CHECK(gpu_gate::settles.load() == settles_before + 1 && gpu_gate::settle_timeouts.load() == timeouts_before);
 		gate.set_settle(nullptr);
 		gate.app_became_active();
@@ -494,51 +635,51 @@ static gate_results gate_model(dispatch_queue_t mvk)
 
 	// A call already inside when the gate closes is waited for, up to the limit, and counted beyond it.
 	{
+		latch call;
 		std::atomic<bool> inside{false};
 		std::thread caller([&]
 		{
 			const gpu_gate::pass pass;
 			inside.store(true);
-			std::this_thread::sleep_for(150ms);
+			call.wait();
 			// The same thread, one level down, while the gate is closed: part of the same call, it does not park.
 			const gpu_gate::pass nested;
 			inside.store(false);
 		});
-		while (!inside.load())
-		{
-			std::this_thread::yield();
-		}
+		CHECK(eventually([&] { return inside.load(); }));
 
 		const std::uint64_t timeouts_before = gpu_gate::in_flight_timeouts.load();
-		auto begin = std::chrono::steady_clock::now();
+		const auto begin = std::chrono::steady_clock::now();
 		CHECK(!gate.close(20ms));
 		CHECK(ms_since(begin) >= 15 && gpu_gate::in_flight_timeouts.load() == timeouts_before + 1);
-		CHECK(gate.close(2000ms)); // it leaves; the gate is idle
-		CHECK(!inside.load());
+		call.release();
+		CHECK(gate.close(60s)); // it leaves; the gate is idle
+		CHECK(!inside.load() && gpu_gate::in_flight_timeouts.load() == timeouts_before + 1);
 		caller.join();
 		gate.open();
 	}
 
 	// A call still inside after the limit of the transition: no settle, the queues are not the posting thread's then.
 	{
+		latch call;
 		std::atomic<bool> inside{false};
 		std::thread caller([&]
 		{
 			const gpu_gate::pass pass;
 			inside.store(true);
-			std::this_thread::sleep_for(std::chrono::milliseconds(gpu_gate::in_flight_limit.count() + 200));
+			call.wait();
 		});
-		while (!inside.load())
-		{
-			std::this_thread::yield();
-		}
+		CHECK(eventually([&] { return inside.load(); }));
 
 		g_settle_queue = nullptr;
 		gate.set_settle(&model_settle);
 		const std::uint64_t settles_before = gpu_gate::settles.load(), timeouts_before = gpu_gate::in_flight_timeouts.load();
+		const auto begin = std::chrono::steady_clock::now();
 		gate.app_entered_background();
+		CHECK(ms_since(begin) >= static_cast<double>(gpu_gate::in_flight_limit.count()) - 5);
 		CHECK(gpu_gate::settles.load() == settles_before && gpu_gate::in_flight_timeouts.load() == timeouts_before + 1);
 		CHECK(gate.closed());
+		call.release();
 		caller.join();
 		gate.set_settle(nullptr);
 		gate.app_became_active();
@@ -550,24 +691,24 @@ static gate_results gate_model(dispatch_queue_t mvk)
 		gate.set_bypass([]() -> bool { return stopping.load(); });
 		gate.app_entered_background();
 		std::atomic<bool> through{false};
-		const std::uint64_t bypasses_before = gpu_gate::park_bypasses.load();
+		const std::uint64_t bypasses_before = gpu_gate::park_bypasses.load(), parks_before = gpu_gate::parks.load();
 		std::thread caller([&]
 		{
 			const gpu_gate::pass pass; // the device wait of VKGSRender::~VKGSRender
 			through.store(true);
 		});
+		CHECK(eventually([&] { return gpu_gate::parks.load() == parks_before + 1; })); // parked: the emulator is running
 		std::this_thread::sleep_for(250ms);
-		CHECK(!through.load() && gate.closed()); // parked: the emulator is running
+		CHECK(!through.load() && gate.closed());
 		stopping.store(true);
 		caller.join();
 		CHECK(through.load() && gate.closed() && gpu_gate::park_bypasses.load() == bypasses_before + 1);
-		// Its next calls do not wait at all (a stopping renderer makes many).
-		const auto begin = std::chrono::steady_clock::now();
+		// Its next calls do not wait at all (a stopping renderer makes many): none of them is counted as parked.
 		for (int i = 0; i < 20; i++)
 		{
 			const gpu_gate::pass pass;
 		}
-		CHECK(ms_since(begin) < static_cast<double>(gpu_gate::park_slice.count()) && gpu_gate::park_bypasses.load() == bypasses_before + 21);
+		CHECK(gpu_gate::parks.load() == parks_before + 1 && gpu_gate::park_bypasses.load() == bypasses_before + 21);
 		stopping.store(false);
 		gate.set_bypass(nullptr);
 		gate.app_became_active();
@@ -575,21 +716,34 @@ static gate_results gate_model(dispatch_queue_t mvk)
 
 	// The renderer takes its settle function back while a settle runs: it waits for the settle to finish.
 	{
+		latch running;
 		g_settle_queue = nullptr;
-		g_settle_sleep_ms.store(120);
+		g_settle_running = &running;
+		g_settle_started.store(false);
+		g_settle_finished.store(false);
 		gate.set_settle(&model_settle);
 		std::thread transition([&] { gate.app_entered_background(); });
-		std::this_thread::sleep_for(30ms);
-		const auto begin = std::chrono::steady_clock::now();
-		gate.set_settle(nullptr); // VKGSRender::~VKGSRender
-		CHECK(ms_since(begin) >= 60);
+		CHECK(eventually([] { return g_settle_started.load(); })); // the settle is running
+		std::atomic<bool> taken{false}, finished_when_taken{false};
+		std::thread renderer([&]
+		{
+			gate.set_settle(nullptr); // VKGSRender::~VKGSRender
+			finished_when_taken.store(g_settle_finished.load());
+			taken.store(true);
+		});
+		std::this_thread::sleep_for(100ms);
+		CHECK(!taken.load()); // still waiting for it
+		running.release();
+		renderer.join();
 		transition.join();
-		g_settle_sleep_ms.store(0);
+		CHECK(taken.load() && finished_when_taken.load()); // it came back only once the settle had finished
+		g_settle_running = nullptr;
 		gate.app_became_active();
 	}
 
 	return results;
 }
+#endif // REWINDBOX_GPU_DEACTIVATION_GATE_928
 
 int main()
 {
@@ -611,21 +765,28 @@ int main()
 	CHECK(result_old == 7 && result_new == 7); // the same answer
 	CHECK(spins_old > 100 && spins_new == 0);  // without a spin
 
+#ifndef REWINDBOX_GPU_DEACTIVATION_GATE_928
 	const gate_results gate = gate_model(mvk);
 	CHECK(gate.refused_without_gate > 0 && gate.refused_with_gate == 0);
 	CHECK(gate.refused_async_without_settle > 0 && gate.refused_async_with_settle == 0);
+#endif
 
 	queues.begin_device(0, 0);
 	dispatch_release(mvk);
 	dispatch_release(gpu);
 
 	std::printf("{\"failures\": %d, \"semaphore\": {\"neverSignaledOldRule\": %d, \"neverSignaledStrict\": %d}, "
-		"\"query\": {\"notReadySpinsOldRule\": %llu, \"notReadySpinsEncodeWait\": %llu}, "
-		"\"gate\": {\"refusedWithoutGate\": %llu, \"refusedWithGate\": %llu, \"refusedQueuedWithoutSettle\": %llu, "
-		"\"refusedQueuedWithSettle\": %llu}}\n",
+		"\"query\": {\"notReadySpinsOldRule\": %llu, \"notReadySpinsEncodeWait\": %llu}, ",
 		g_failures, hazards_old, hazards_strict, static_cast<unsigned long long>(spins_old),
-		static_cast<unsigned long long>(spins_new), static_cast<unsigned long long>(gate.refused_without_gate),
+		static_cast<unsigned long long>(spins_new));
+#ifndef REWINDBOX_GPU_DEACTIVATION_GATE_928
+	std::printf("\"gate\": {\"refusedWithoutGate\": %llu, \"refusedWithGate\": %llu, \"refusedQueuedWithoutSettle\": %llu, "
+		"\"refusedQueuedWithSettle\": %llu}}\n",
+		static_cast<unsigned long long>(gate.refused_without_gate),
 		static_cast<unsigned long long>(gate.refused_with_gate), static_cast<unsigned long long>(gate.refused_async_without_settle),
 		static_cast<unsigned long long>(gate.refused_async_with_settle));
+#else
+	std::printf("\"gate\": null}\n");
+#endif
 	return g_failures ? 1 : 0;
 }

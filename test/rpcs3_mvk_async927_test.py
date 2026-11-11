@@ -33,6 +33,11 @@ This test checks the source and compiles test/native/rpcs3_mvk_async927_model.cp
 encoding-queue registry, tickets and gate, against models of MoltenVK's semaphore counter, of its query availability
 and of iOS refusing background commits, each with the rule before 927 as control. Plain, ASan/UBSan and TSan. On
 macOS the queue is the real libdispatch; elsewhere test/native/dispatch_shim. No iPhone or FPS result is inferred.
+
+From Core 928 (REWINDBOX_GPU_DEACTIVATION_GATE_928) the gate closes when the application is deactivated and its
+settle function takes a second argument. On such a source this test keeps everything about the submits (source and
+model) and the passes around the GPU calls; the gate's own text and scenarios, these ones included, are checked by
+test/rpcs3_gpu_gate928_test.py.
 """
 from __future__ import annotations
 
@@ -171,14 +176,16 @@ def source_checks(source: Path) -> dict:
 
     # --- the background gate ---------------------------------------------------------------------------------------------
     gate = read(source, GATE)
+    gate928 = 'REWINDBOX_GPU_DEACTIVATION_GATE_928' in gate
     require('inline constexpr std::chrono::milliseconds in_flight_limit{500};' in gate and
             'inline constexpr std::chrono::milliseconds settle_limit{1000};' in gate, 'bounded waits of the posting thread')
     enter = between(gate, 'void enter() noexcept', '// After the call.')
     require(enter.index('if (bypass && bypass())') < enter.index('if (m_opened.wait_for(lock, park_slice, [this] { return !m_closed; }))'),
             'a parked call waits for the gate; only a stopping emulator goes on, without waiting first')
-    background = between(gate, 'void app_entered_background() noexcept', 'void app_became_active() noexcept')
-    require(background.index('if (!close())') < background.index('return;') < background.index('m_settle(settle_limit)'),
-            'no settle while a call is still inside')
+    if not gate928:
+        background = between(gate, 'void app_entered_background() noexcept', 'void app_became_active() noexcept')
+        require(background.index('if (!close())') < background.index('return;') < background.index('m_settle(settle_limit)'),
+                'no settle while a call is still inside')
     observers = between(platform_mm, 'void install_application_observers() noexcept', 'namespace rpcs3::ios\n{\nvoid reservation_lock_yield()')
     require('static dispatch_once_t once;' in observers, 'once per process')
     require('addObserverForName:UIApplicationDidEnterBackgroundNotification object:nil queue:nil\n'
@@ -201,13 +208,15 @@ def source_checks(source: Path) -> dict:
     destructor = between(render, 'VKGSRender::~VKGSRender()', '// Globals. TODO: Refactor lifetime management')
     require(destructor.index('rpcs3::ios::gpu_gate::gate::instance().set_settle(nullptr);') < destructor.index('vkDeviceWaitIdle(*m_device);') <
             destructor.index('vk::ios_release_settle_fences();'), 'the renderer takes it back before its device goes')
-    settle = between(stream, 'bool ios_settle_queues(std::chrono::milliseconds limit)', 'void ios_release_settle_fences()')
+    signature = 'bool ios_settle_queues(std::chrono::milliseconds limit, bool resume)' if gate928 else 'bool ios_settle_queues(std::chrono::milliseconds limit)'
+    settle = between(stream, signature, 'void ios_release_settle_fences()')
     require(settle.index('while (!g_submit_mutex.try_lock())') < settle.index('vkQueueSubmit(queue, 0, nullptr, fence)') <
             settle.index('g_submit_mutex.unlock();') < settle.index('vkWaitForFences(*dev, count, fences.data(), VK_TRUE, remaining_ns)'),
             'an empty submission with a fence behind each queue, then a bounded wait outside the submit lock')
-    require('bool ios_settle_queues(std::chrono::milliseconds limit);' in read(source, HELPERS), 'declaration')
-    require('"COREPROF GPUGATE927 session=%llu window=%llu closed=%u closes=%llu opens=%llu parks=%llu:%.3f "' in perf and
-            '"park_bypasses=%llu in_flight_timeouts=%llu settles=%llu:%.3f settle_timeouts=%llu scope=process_since_boot"' in perf, 'gate report line')
+    require(signature + ';' in read(source, HELPERS), 'declaration')
+    if not gate928:
+        require('"COREPROF GPUGATE927 session=%llu window=%llu closed=%u closes=%llu opens=%llu parks=%llu:%.3f "' in perf and
+                '"park_bypasses=%llu in_flight_timeouts=%llu settles=%llu:%.3f settle_timeouts=%llu scope=process_since_boot"' in perf, 'gate report line')
 
     # A non-iOS compiler sees the previous text of the shared files: every 927 line is inside an RPCS3_IOS block, and the
     # only shared lines touched are repeated unchanged in the #else branches.
@@ -217,7 +226,8 @@ def source_checks(source: Path) -> dict:
         for line in lines:
             require(line in text, rel + ': the shared line is kept for other platforms')
     return {'bootRecord': 'none', 'automatic': 'every title without asynchronous texture streaming', 'presentBarrier': 'never abandoned',
-            'ticketedWaits': ['fence', 'occlusion gather'], 'gatePasses': 7, 'inFlightLimitMs': 500, 'settleLimitMs': 1000}
+            'ticketedWaits': ['fence', 'occlusion gather'], 'gatePasses': 7, 'inFlightLimitMs': 500, 'settleLimitMs': 1000,
+            'gate': 'closed at the deactivation (Core 928): rpcs3_gpu_gate928_test.py' if gate928 else 'closed at the background notification (Core 927)'}
 
 
 def compiler_is_clang(cxx: str) -> bool:
@@ -236,6 +246,10 @@ def run_model(source: Path, cxx: str, sanitize: bool) -> dict:
     if not compiler_is_clang(cxx):
         # The registry header asks __has_feature(objc_arc) behind defined(__OBJC__); GCC has no such builtin.
         extra += ['-D__has_feature(x)=0']
+    # From Core 928 the gate's scenarios are those of test/native/rpcs3_gpu_gate928_model.cpp (another settle signature).
+    gate928 = 'REWINDBOX_GPU_DEACTIVATION_GATE_928' in read(source, GATE)
+    if gate928:
+        extra += ['-DREWINDBOX_GPU_DEACTIVATION_GATE_928']
     reports = {}
     with tempfile.TemporaryDirectory(prefix='mvk-async927-') as tmp:
         for label, flags in variants:
@@ -256,8 +270,9 @@ def run_model(source: Path, cxx: str, sanitize: bool) -> dict:
                     'the rule before 927 hands a semaphore token out twice; the strict barrier never does')
             require(report['query']['notReadySpinsOldRule'] > 100 and report['query']['notReadySpinsEncodeWait'] == 0,
                     'the gather spun on VK_NOT_READY; it now sleeps until its command buffer is encoded')
-            require(report['gate']['refusedWithoutGate'] > 0 and report['gate']['refusedWithGate'] == 0 and
-                    report['gate']['refusedQueuedWithoutSettle'] > 0 and report['gate']['refusedQueuedWithSettle'] == 0,
+            require((report['gate'] is None) == gate928, 'the gate scenarios run here for Core 927 and in the 928 test afterwards')
+            require(gate928 or (report['gate']['refusedWithoutGate'] > 0 and report['gate']['refusedWithGate'] == 0 and
+                                report['gate']['refusedQueuedWithoutSettle'] > 0 and report['gate']['refusedQueuedWithSettle'] == 0),
                     'commits were refused in the background; with the gate and the settle none is')
             reports[label] = report
     return {'variants': reports, 'realLibdispatch': real_libdispatch}

@@ -138,6 +138,21 @@ again (3 Nov; reconfirmed 4 Nov). Its ordinary fast-forward commits to
 `origin/Claude` are authorized, with `[skip ci]` unless CI is intended. Reconcile
 only owned unpushed commits after inspecting remote advances/conflicts.
 
+**Switch 2 (S2Arm) test IPA: compiled by main, after the common one (maintainer, 11 Nov, principal session).**
+Three messages, in order: "Autorise la session Switch 2 à compiler sa propre IPA"; "Fini les correctifs et créé deux
+fois l'IPA, une avec les correctifs et une autre avec le test pour la Switch 2"; then, correcting main's reading of the
+first two: "Il y a un malentendu je veux que ça soit toi qui compile une deuxième IPA après les corrections des cores
+et autres correctifs que tu m'aura donner puis tu compile pareillement une IPA mais cette fois avec ceux de la sessions
+Switch 2."
+- **Main compiles both, with the same recipe:** (A) the common IPA with the fixes; then (B) a second IPA = the same
+  base plus the work of session 04 (012mUASj3EQnvC86WC56AePw, branch `work/s2arm-switch2-prototype-20261110`).
+- Session 04 builds no IPA. It hands main a frozen commit of its branch (origin/Claude merged in), the list of what
+  the IPA must contain and activate (packages, Info.plist keys, native libraries), its proofs, the legal entries of
+  what enters the binary, and the device protocol. The earlier reading (session 04 builds its own IPA, build numbers
+  from 801) is withdrawn.
+- The common line stays without a Switch 2 engine: (A) carries only the inert bridge hook `d32738b5`; what (B) adds is
+  not kept in the common line after it. The delivery rules of this section apply to both.
+
 **Recipe approval `49e4f2e` remains valid:** explicitly reviewed/classified merges
 already integrated are accepted; preserve shared history, source/component/package/
 signature checks and the ban on post-freeze merges. Do not reopen that approval.
@@ -1923,14 +1938,50 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       - **MeloNX Core 725 pinned (`b83349ea`):** run `42933016136` on `e47b18d2`, artifact `13819773531` (`1ff1aa56…`),
         iPhone `d9b8a837…` 38,439,896 B, fingerprint `9e1e2ae5…`, contract `45441585`, 82 fresh gates; MoltenVK rebuild
         `90bd98a4…` pinned `e47b18d2`. `standard_delivery_contract_test` compares the frozen 724 manifest until the next draft.
-      - **Core 927 published state:** source `36e29a84` (+ doc `3589b6fe`), compile request `916b8f19`, run `42946503173`
-        (pin pending). Second read-only pass over the areas the first did not reach (descriptor sets, lazy Metal objects,
-        argument buffers, encoding-pool caches, query copies, queue teardown, main-thread calls from the queue thread,
-        MetalFX releases, overlay lock): no new defect; MoltenVK's queue thread never calls the main thread synchronously
-        on iOS, so the settle of the background transition cannot deadlock.
-      - **Next:** pin Core 927 when run `42946503173` is green; IPA 725 only on the maintainer's request (Core 927 + MeloNX Core 725 + database
-        rule; skins PR 171/173 to review). Device protocol for 927: `mvk_async=1` at first boot of BO2/GOW3/AC, leave the
-        app a few seconds in play and come back (no `Device lost`, `GPUGATE927 closes>=1`), `RSXSYNC551 submit` per frame.
+      - **Core 927 pinned as the fallback (`6669475f`, pin `ac4c2658`):** source `36e29a84`, request `916b8f19`, run
+        `42946503173`: iPhone Core job `130280489281` green, artifact `13823494096` (30,512,556 B, `632f6c29…`), dylib
+        `77a1ac42…` 80,957,840 B, fingerprint `abcac5d3…`, identities unchanged. Its Apple job failed in the new 927 host
+        model, ASan/UBSan variant on the real libdispatch, on one duration assumption of the test (a new thread expected
+        inside its call within 30 ms; the plain variant had passed). The model was rewritten without any scheduling
+        assumption (`996e5ce3`: latches and the Core's own counters; control: with six busy loops on its core the old
+        model fails 4 of 4, the new one passes 18 of 18) and the harnesses rerun on `0d2b1d69`: run `42950534430`, 15 of
+        15, artifact `13825687561`. Second read-only pass (descriptor sets, lazy Metal objects, argument buffers,
+        encoding-pool caches, query copies, queue teardown, main-thread calls from the queue thread, MetalFX releases,
+        overlay lock): no new defect.
+      - **Core 928 (`REWINDBOX_GPU_DEACTIVATION_GATE_928`; engine `4d2abe8`).**
+        [Doc](rpcs3-core928-gpu-gate-deactivation.md). **Input identity:** the IPA 650 journal (private), Apple's Metal
+        article "Preparing your Metal app to run in the background", engine `477180d` + this commit. **Finding:** the
+        only device loss is raised at 1793814730.525 and the host's own observer of
+        `UIApplicationDidEnterBackgroundNotification` runs at .555 (`queue: mainQueue`, timestamp taken in the handler):
+        a command buffer had been refused at least 30 ms before the application handled the notification, so the Core
+        927 gate, closed there, would not have prevented it. Apple: stop sending work when the application is
+        deactivated ("you've some time before the system restricts your app from using Metal"), make sure what was
+        committed is scheduled at the background notification, enable again once reactivated. **Change:** the gate
+        closes and settles at `UIApplicationWillResignActiveNotification`; the background notification only finishes
+        (nothing after a settle; a resumed settle, which gives the queues nothing new, after one that timed out; the
+        whole procedure when a call was still inside or the queues were never reached); a renderer created while the
+        application is not active closes it at once; the freeze episode sampler counts the closed time as paused;
+        `COREPROF GPUGATE928`. Visible consequence: the picture stands still while the application is inactive (Control
+        Centre, application switcher, alerts). **Proof (host):** `test/rpcs3_gpu_gate928_test.py`: the real gate against
+        the documented restriction, Core 927 rule as control (about 200 frames refused -> 0; 30 queued -> 0), every
+        rule of the gate; the real text of `vk::ios_settle_queues` executed against a model of its six Vulkan calls
+        (12 submissions by six whole settles, none by a resumed wait); plain, ASan/UBSan, TSan (g++), plain (clang);
+        36 of 36 with six busy loops on the models' core. **Validation:** closure, codegen identities unchanged
+        (PPU a987639e / SPU 477a3fa4), fold chain, 919-927 tests on the 928 tree; the delivery checker requires exactly
+        one gate line, `GPUGATE927` or `GPUGATE928`. **Not done:** no iPhone run. **Risks:** the frozen picture while
+        inactive is a visible change; a main thread stalled for long (memory pressure) can still handle the
+        deactivation too late.
+      - **MeloNX Core 727 pinned (`f32e99f5`, pin `81e2b533`):** merge `c53ad180` of `ee2e2b07` (pause checkpoint from
+        8 MiB of growth; Vulkan allocator blocks in the journal; carries the inert S2Arm hook `d32738b5`); the DMA
+        contract's bound `melonx-core.yml` hash refreshed after #174 (`1a9f2167`, contract `1aa56e30` -> `f494197a`, the
+        only input of 220 that differed); run `42948046731`, artifact `13826421242` (100,495,794 B, `fb4a7203…`), iPhone
+        `954c98b1…` 38,456,368 B, fingerprint `bbae6fc3…`, 86 fresh gates.
+      - **Maintainer (11 Nov):** "Fini les correctifs et créé deux fois l'IPA, une avec les correctifs et une autre avec
+        le test pour la Switch 2", then main compiles both (see "Standing IPA compilation authorization").
+      - **Next:** request and pin Core 928; integrate skins PR 171/173 (revision review for the two rebuilt Pocket
+        packs); IPA (A) = Core 928 + MeloNX Core 727 + skins + database rule; then IPA (B) = (A) + session 04's frozen
+        commit. Device protocol: `mvk_async=1` at first boot of BO2/GOW3/AC; Control Centre and a short leave in play
+        (`GPUGATE928`, no `Device lost`, no freeze episode while closed); `RSXSYNC551 submit` per frame.
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,
@@ -3851,6 +3902,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     data file into JIT memory and run to its first svc, host proof first (Linux rewriter, macOS arm64 run), then a
     diagnostic entry for an iPhone trial IPA built by main. Owner of this topic from now on: that session; this one
     keeps MeloNX only.
+  - **Maintainer decision (11 Nov, principal session, corrected the same hour):** main compiles the Switch 2 test
+    IPA itself, as a second IPA after the common one, with the same recipe and session 04's work added ("je veux que
+    ça soit toi qui compile ... pareillement une IPA mais cette fois avec ceux de la sessions Switch 2"; full quotes
+    in "Standing IPA compilation authorization"). Session 04 hands its frozen commit to main and builds nothing. The
+    hook `d32738b5` reached `Claude` with the MeloNX Core 727 merge `c53ad180` and is inert in the common IPA.
 
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard

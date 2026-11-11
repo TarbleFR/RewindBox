@@ -40,8 +40,13 @@ def main() -> None:
     assert refused(before.replace(b'rewindbox-mvk-async-926.txt', b''), 'canary file name')
     assert refused(before.replace(b'canary=%s confirmed=%u exec_queues=%u', b''), 'Core runtime marker missing')
 
-    # A Core from 927: none of the record's markers, all of what replaced them.
-    after = b'\0'.join(kept + [component.DEFINITIVE_927, *component.DEFINITIVE_927_MARKERS])
+    # A Core from 927: none of the record's markers, all of what replaced them, and the report line of its GPU gate
+    # (closed by the background notification in Core 927, by the deactivation from Core 928): one of the two, not both.
+    definitive = b'\0'.join(kept + [component.DEFINITIVE_927, *component.DEFINITIVE_927_MARKERS])
+    assert refused(definitive, 'the GPU gate report line')
+    assert refused(b'\0'.join([definitive, *component.GATE_MARKERS]), 'the GPU gate report line')
+    assert component.check_runtime_markers(definitive + b'\0' + component.GATE_MARKERS[1], MARKERS) is True
+    after = definitive + b'\0' + component.GATE_MARKERS[0]
     assert component.check_runtime_markers(after, MARKERS) is True
     for leftover in (b'rewindbox-mvk-async-926.txt', b'canary=%s confirmed=%u exec_queues=%u', component.BOOT_RECORD_MARKERS[1]):
         assert refused(after + b'\0' + leftover, 'still carries a marker of it'), leftover
@@ -50,11 +55,17 @@ def main() -> None:
     for marker in kept:
         assert refused(after.replace(marker, b'x' * len(marker)), 'Core runtime marker missing'), marker
 
-    # The markers named here are the strings of the Core 927 source.
+    # The markers named here are the strings of the Core 927 source, and of the Core 928 one for its gate line.
     build = (ROOT / 'build-utils/rpcs3/core927-from-926.patch').read_bytes()
-    for marker in (component.DEFINITIVE_927, *component.DEFINITIVE_927_MARKERS):
+    for marker in (component.DEFINITIVE_927, *component.DEFINITIVE_927_MARKERS, component.GATE_MARKERS[0]):
         assert marker in build, marker
-    print('PASS: runtime marker rule (boot record required up to Core 926, refused from Core 927 with its replacements required)')
+    gate928 = ROOT / 'build-utils/rpcs3/core928-from-927.patch'
+    if gate928.is_file():
+        increment = gate928.read_bytes()
+        assert b'+                ios_core_profiler.notice("' + component.GATE_MARKERS[1] in increment and \
+            b'-                ios_core_profiler.notice("' + component.GATE_MARKERS[0] in increment, 'the 928 increment renames the gate line'
+    print('PASS: runtime marker rule (boot record required up to Core 926, refused from Core 927 with its replacements required; '
+          'one GPU gate report line, 927 or 928)')
 
 
 if __name__ == '__main__':

@@ -74,8 +74,11 @@ DEFINITIVE_927_MARKERS = (
     b'boot_record=none exec_queues=%u',                   # COREPROF OPT587 without the record fields
     b'fence_encode_waits=%llu:%.3f:%.3f',                 # waits for a submission to be encoded
     b'automatic_every_title',                             # the Automatic rule
-    b'COREPROF GPUGATE927',                               # the background gate
 )
+# The GPU gate reports under the number of the Core that gave it its rule: closed by the background notification
+# (Core 927), closed when the application is deactivated (REWINDBOX_GPU_DEACTIVATION_GATE_928, from Core 928). A Core
+# without boot record carries exactly one of the two lines.
+GATE_MARKERS = (b'COREPROF GPUGATE927', b'COREPROF GPUGATE928')
 
 
 def require(value, message):
@@ -410,6 +413,8 @@ def check_runtime_markers(packaged, markers):
     if definitive:
         for marker in DEFINITIVE_927_MARKERS:
             require(marker in packaged, 'Core runtime marker missing: ' + repr(marker))
+        require(sum(marker in packaged for marker in GATE_MARKERS) == 1,
+                'Core runtime marker missing or doubled: the GPU gate report line ' + repr(GATE_MARKERS))
     return definitive
 
 
