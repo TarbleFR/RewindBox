@@ -3966,25 +3966,29 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### Private test IPA protection — Codex
 
-- **11 Nov — integrated:** [Claude #174](https://github.com/TarbleFR/RewindBox/pull/174)
+- **11 Nov — integrated and audited:** [Claude #174](https://github.com/TarbleFR/RewindBox/pull/174)
   (`0284bbf4`) and [main #175](https://github.com/TarbleFR/RewindBox/pull/175)
   (`c60bcb5c`). All **980** artifact uploads across **213** existing workflows
-  pass the immutable plaintext-IPA boundary; legacy NeoSwap encrypts before upload
-  and requires a selected public recipient key. Keep this guard on future uploads.
-  Public release assets/public source remain public; no product/Core/pin change.
+  use the immutable plaintext-IPA guard. Legacy NeoSwap requires a public recipient
+  key and encrypts its staging directory before upload. Keep the guard on future
+  uploads. Public releases/public source remain available; no product/Core/pin edit.
 - **Verified:** 24 boundary tests and real rejected/allowed uploads on Ubuntu,
   macOS and Windows (runs `42946234456`, `42946507180`); delivery workflow,
-  exact reuse rendering and recipient/encryption tests pass. The main merge tree
-  contains exactly the 224 intended recipe/doc/test files, with no deletion.
-  Concurrent Claude work is preserved; its owner recorded the reviewed input drift.
+  exact reuse rendering and recipient/encryption checks pass. Main's merge tree
+  contains exactly the 224 intended recipe/doc/test files, no deletion. Concurrent
+  Claude work is preserved; its owner recorded the reviewed input drift.
+- **Historical audit complete:** job `130277987195`, run `42945740946`,
+  inspected all **2,155** artifacts in its snapshot. **No plaintext IPA detected;
+  no deletions.** Final classes: 70 encrypted envelopes, 568 encrypted transport
+  pieces, 1,517 other artifacts. Two parser findings were manually resolved with
+  verified digests: a random ZIP end-marker in ciphertext and a 212-byte XML
+  ServerBusy response named `ios.zip`. The upload guard was not relaxed.
+  Encrypted contents were not decrypted. Public 0.0.11 IPA asset/hash unchanged.
 - **Unrelated main failures remain visible:** run `42946507230` fails the old
   branding baseline (same four failures reproduced on original `48467f5`) and
   Flutter analysis (122 informational findings). They were not suppressed;
   no repository protection, Dart source, analyzer setting or lockfile was changed.
-- **Historical audit still running:** read-only run `42945740946`; initial
-  inventory lists 2,146 retained artifacts. No artifact or release deletion yet.
-  Do not describe incomplete inspection as a clean result.
-  [Scope and evidence](evidence/private-ipa-protection-2026-11-11.json).
+  [Scope, audited IDs and evidence](evidence/private-ipa-protection-2026-11-11.json).
 
 ### Actions history cleanup — Codex
 
