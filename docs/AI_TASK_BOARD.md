@@ -4304,6 +4304,15 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   session end parks threads instead of `_exit`, strings and game files from the framework/module dir.
   Nothing run on a device. Follow-up 0009 (no pad recording, logs to the host's docs dir, other screens'
   resources) and the framework producer upload requested.
+- **Maintainer (11 Nov): the Switch 2 library comes first; one real trial "as if the work were
+  finished"** (library entry, game import, preparation, launch from the library, play with a
+  controller or touch), no intermediate device trial. Switch 2 exports need no keys; `prod.keys`
+  only for the deferred Switch 1; optional system-files import proposed. Library mapping started
+  (MeloNX Switch and PR #172 XeniOS as models); sessions 03/02 to be consulted before shared files.
+- **Agent B integrated** (`009b2d9`): `packages/s2arm_jit_helper`, `configure_s2arm_ios.py`,
+  validator conditional (handoff to main, `a14f67c`), test-line engine download/embed/checks. Four
+  other closed extension sets (Dolphin `verify_ipa.py`, `validate_rpcs3_ipa.py`, two `== 8` counts)
+  are extended in memory by the launcher for now; main asked to choose native conditionals instead.
 
 ### Codex orchestration — Codex
 
