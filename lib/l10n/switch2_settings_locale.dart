@@ -545,12 +545,33 @@ abstract final class Switch2SettingsLocale {
     'Thai': 'ไทย',
   };
 
-  /// Settings keys whose label the native menu reuses as `menu.<key>`.
-  static const List<String> menuSharedKeys = <String>[
-    'resolution', 'antiAliasing', 'scalingFilter', 'frameRateLimit', 'mode', 'imageFormat', 'gameLanguage',
-    'res050', 'res075', 'res100', 'aaNone', 'aaSmaaMedium', 'aaSmaaHigh', 'filterBilinear', 'filterNearest',
-    'fps30', 'fps60', 'fps120', 'fpsUnlimited', 'modeHandheld', 'modeDocked', 'formatWide', 'format169', 'languageAuto',
-  ];
+  /// `menu.*` keys of the native menu that reuse the settings label of the same name.
+  static const Map<String, String> menuSharedKeys = <String, String>{
+    'menu.resolution': 'resolution',
+    'menu.antiAliasing': 'antiAliasing',
+    'menu.scalingFilter': 'scalingFilter',
+    'menu.frameRateLimit': 'frameRateLimit',
+    'menu.mode': 'mode',
+    'menu.imageFormat': 'imageFormat',
+    'menu.gameLanguage': 'gameLanguage',
+    'menu.res050': 'res050',
+    'menu.res075': 'res075',
+    'menu.res100': 'res100',
+    'menu.aaNone': 'aaNone',
+    'menu.aaSmaaMedium': 'aaSmaaMedium',
+    'menu.aaSmaaHigh': 'aaSmaaHigh',
+    'menu.filterBilinear': 'filterBilinear',
+    'menu.filterNearest': 'filterNearest',
+    'menu.fps30': 'fps30',
+    'menu.fps60': 'fps60',
+    'menu.fps120': 'fps120',
+    'menu.fpsUnlimited': 'fpsUnlimited',
+    'menu.modeHandheld': 'modeHandheld',
+    'menu.modeDocked': 'modeDocked',
+    'menu.formatWide': 'formatWide',
+    'menu.format169': 'format169',
+    'menu.languageAuto': 'languageAuto',
+  };
 
   /// `zh_Hant` for Traditional Chinese (script Hant, or Taiwan, Hong Kong, Macao); English outside the 12 locales.
   static String codeFor(Locale locale) {
@@ -572,7 +593,7 @@ abstract final class Switch2SettingsLocale {
     String lookup(String key) => table[key] ?? english[key] ?? key;
     return <String, String>{
       for (final key in table.keys.where((key) => key.startsWith('menu.'))) key: lookup(key),
-      for (final key in menuSharedKeys) 'menu.$key': lookup(key),
+      for (final entry in menuSharedKeys.entries) entry.key: lookup(entry.value),
       for (final entry in languageNames.entries) 'lang.${entry.key}': entry.value,
     };
   }
