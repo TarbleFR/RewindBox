@@ -1,5 +1,5 @@
 diff --git a/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp b/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
-index 2bda1d7..bd9f349 100644
+index 2bda1d7..be8ec43 100644
 --- a/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
 +++ b/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
 @@ -515,7 +515,7 @@ void MTLGSRender::submit_frame(const mtl::object& source, u32 display_width, u32
@@ -7,7 +7,7 @@ index 2bda1d7..bd9f349 100644
  		// M4: the native overlays are prepared before the pass opens (their uploads may submit), over the image area.
  		{
 -			const auto rect = mtl::present_pass::fit(display_width, display_height, m_drawable_width, m_drawable_height);
-+			const auto rect = mtl::present_pass::place(display_width, display_height, m_drawable_width, m_drawable_height, g_cfg.video.stretch_to_display_area);  // REWINDBOX_METAL_STRETCH_934
++			const auto rect = mtl::present_pass::place(display_width, display_height, m_drawable_width, m_drawable_height, g_cfg.video.stretch_to_display_area.get());  // REWINDBOX_METAL_STRETCH_934
  			areau image_area{ 0, 0, m_drawable_width, m_drawable_height };
  			if (rect.right > rect.left && rect.top > rect.bottom)
  			{
@@ -19,7 +19,7 @@ index 2bda1d7..bd9f349 100644
 +			// Fit the display buffer in the drawable, keeping its aspect ratio unless Stretch To Display Area is on.
  			mtl::present_pass::parameters params{};
 -			params.rect = mtl::present_pass::fit(display_width, display_height, m_drawable_width, m_drawable_height);
-+			params.rect = mtl::present_pass::place(display_width, display_height, m_drawable_width, m_drawable_height, g_cfg.video.stretch_to_display_area);  // REWINDBOX_METAL_STRETCH_934
++			params.rect = mtl::present_pass::place(display_width, display_height, m_drawable_width, m_drawable_height, g_cfg.video.stretch_to_display_area.get());  // REWINDBOX_METAL_STRETCH_934
  			params.uv_scale[0] = uv_scale_x;
  			params.uv_scale[1] = uv_scale_y;
  			std::memcpy(mtl::buffer_contents(slot.constants), &params, sizeof(params));

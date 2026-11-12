@@ -71,13 +71,44 @@ def check_present(tree, cxx, work):
     return run.returncode == 0, run.stdout.strip()
 
 
-def check_present_wiring(tree):
+WIRING_STUB = r'''
+#include "Emu/RSX/Metal/MTLPresent.h"
+// The real cfg::_bool converts to bool only explicitly (Utilities/Config.h): an implicit use fails to compile.
+namespace cfg { struct _bool { bool value = true; explicit operator bool() const { return value; } bool get() const { return value; } }; }
+struct video_cfg { cfg::_bool stretch_to_display_area; };
+struct root_cfg { video_cfg video; } g_cfg;
+int main()
+{
+	unsigned display_width = 1280, display_height = 720, m_drawable_width = 2556, m_drawable_height = 1179;
+	int failures = 0;
+@CALLS@
+	return failures;
+}
+'''
+
+
+def check_present_wiring(tree, cxx=None, work=None):
     source = (tree / 'rpcs3/Emu/RSX/Metal/MTLGSRender.cpp').read_text()
-    uses = source.count('mtl::present_pass::place(display_width, display_height, m_drawable_width, m_drawable_height, '
-                        'g_cfg.video.stretch_to_display_area)')
+    calls = re.findall(r'mtl::present_pass::place\(display_width, display_height, m_drawable_width, m_drawable_height, [^;]*\);', source)
     fits = len(re.findall(r'present_pass::fit\(', source))
-    ok = uses == 2 and fits == 0
-    return ok, f'place() with the setting at {uses} of 2 sites, fit() left at {fits}'
+    if len(calls) != 2 or fits:
+        return False, f'place() at {len(calls)} of 2 sites, fit() left at {fits}'
+    if not all('stretch_to_display_area' in call for call in calls):
+        return False, 'a place() call does not read Stretch To Display Area'
+    if cxx and work:
+        # The two call expressions exactly as written, compiled against the explicit-only cfg::_bool.
+        body = '\n'.join('\t{ const auto rect = ' + call + ' if (rect.left != -1.f) ++failures; }' for call in calls)
+        unit = Path(work) / 'wiring934.cpp'
+        unit.write_text(WIRING_STUB.replace('@CALLS@', body))
+        build = subprocess.run([cxx, '-std=c++20', '-I', str(tree / 'rpcs3'), '-I', str(tree), '-o', str(Path(work) / 'wiring934'),
+                                str(unit)], capture_output=True, text=True)
+        if build.returncode:
+            return False, 'the place() calls do not compile against cfg::_bool: ' + build.stderr.strip().splitlines()[-1][:200]
+        run = subprocess.run([str(Path(work) / 'wiring934')], capture_output=True, text=True)
+        if run.returncode:
+            return False, 'the place() calls do not stretch with the setting on'
+    return True, 'place() reads the setting at 2 of 2 sites, fit() left at 0, both calls compile against cfg::_bool'
+
 
 
 def check_settings(tree):
@@ -117,7 +148,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix='core934-') as tmp:
         work = Path(tmp)
         for name, (ok, detail) in (('present', check_present(tree, args.cxx, work)),
-                                   ('present wiring', check_present_wiring(tree)),
+                                   ('present wiring', check_present_wiring(tree, args.cxx, work)),
                                    ('settings rule', check_settings(tree))):
             print(('PASS' if ok else 'FAIL') + f': {name}: {detail}')
             failures += not ok
@@ -152,9 +183,12 @@ def main():
                     lambda: check_present(copy, args.cxx, work)),
             control('present back to fit()', 'rpcs3/Emu/RSX/Metal/MTLGSRender.cpp',
                     'mtl::present_pass::place(display_width, display_height, m_drawable_width, m_drawable_height, '
-                    'g_cfg.video.stretch_to_display_area)',
+                    'g_cfg.video.stretch_to_display_area.get())',
                     'mtl::present_pass::fit(display_width, display_height, m_drawable_width, m_drawable_height)',
-                    lambda: check_present_wiring(copy)),
+                    lambda: check_present_wiring(copy, args.cxx, work)),
+            control('setting passed without get() (the Core 934 request 1 compile error)', 'rpcs3/Emu/RSX/Metal/MTLGSRender.cpp',
+                    'g_cfg.video.stretch_to_display_area.get())', 'g_cfg.video.stretch_to_display_area)',
+                    lambda: check_present_wiring(copy, args.cxx, work)),
             control('legacy custom config read again', 'rpcs3/ios/RPCS3IOSSettings.cpp',
                     '\treturn settings_load_error::none;\n}\n\nbool save_game_settings',
                     '\tconst std::string custom_path = rpcs3::utils::get_custom_config_path(std::string{title_id});\n'
