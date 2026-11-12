@@ -37,6 +37,30 @@ XENIOS_DECLARATIONS = (
     "packages/xenia_internal_bridge/ios/xenia_internal_bridge.podspec",
     "packages/xenia_jit_helper/ios/xenia_jit_helper.podspec",
 )
+# The delivery that ships XeniaCore, chained after the Xbox 360 playlist review: binds the engine pin, the recipe
+# files compiled into the binary, and the statically linked LGPL libraries with their chosen relinking means.
+XENIOS_CORE_REVIEW = "docs/evidence/xenios-core-delivery-declarations-2026-11-12.json"
+XENIOS_CORE_PIN = "build-utils/xenia/core-pin.json"
+XENIOS_CORE_RECIPE = (
+    "build-utils/xenia/build_core.sh",
+    "build-utils/xenia/prepare_source.py",
+    "build-utils/xenia/rewindbox-core.patch",
+    "build-utils/xenia/upstream-files.json",
+    "packages/xenia_internal_bridge/core/XeniaCore.mm",
+    "packages/xenia_internal_bridge/core/XeniaCoreInput.h",
+    "packages/xenia_internal_bridge/core/exports.txt",
+    "packages/xenia_internal_bridge/core/neo_xenia_core_hooks.h",
+    "packages/xenia_internal_bridge/core/target.cmake",
+    "packages/xenia_internal_bridge/ios/Classes/XeniaCoreABI.h",
+)
+XENIOS_CORE_BUNDLED = ("Frameworks/XeniaCore.framework/XeniaCore", "Frameworks/libmetalirconverter.dylib")
+XENIOS_LGPL = {
+    "FFmpeg": {"path": "third_party/FFmpeg", "repository": "https://github.com/has207/FFmpeg.git",
+               "branch": "xmaframes", "gitlink": "dfc5a3993b405f3a8b382756828cdfae06380c8b",
+               "license": "LGPL-2.1-or-later"},
+    "libmspack": {"path": "third_party/mspack", "tree": "91d0f9431729969b6d015dd8cd1e4168a27f74de",
+                  "license": "LGPL-2.1"},
+}
 SOURCE_DOCUMENTS = (
     "SOURCE_CODE_ACCESS.md",
     "PACKAGE_SOURCES_AND_LICENSES.md",
@@ -108,6 +132,58 @@ def check_switch2_glacier_tile(root: Path, pubspec_lock_sha256: str) -> None:
         raw = read_input(root, pack / name)
         if len(raw) != identity["size"] or sha256(raw) != identity["sha256"]:
             raise SystemExit("Switch 2 Glacier tile file differs from the index: " + name)
+
+
+def check_xenios_core_delivery(root: Path, pubspec_lock_sha256: str) -> None:
+    """The review of the delivery that ships XeniaCore, chained after the Xbox 360 playlist review (whose
+    engine_binaries_bundled is empty). It binds build-utils/xenia/core-pin.json (the binary, its fingerprint, the
+    XeniOS revision), the RewindBox files compiled into that binary (so the IPA's own host archive holds the recipe that
+    built it), and the two statically linked LGPL libraries (FFmpeg, libmspack) with their sources, configuration and
+    the relinking means chosen. No package or declaration changes. A core pin without this review is refused."""
+    pin_path = root / XENIOS_CORE_PIN
+    review_path = root / XENIOS_CORE_REVIEW
+    if not review_path.is_file():
+        if pin_path.is_file():
+            raise SystemExit("XeniaCore is pinned without its delivery source review")
+        return
+    review = json.loads(read_input(root, review_path))
+    engine = review.get("engine", {})
+    if (review.get("schema") != 1 or review.get("baseline_inventory") != XENIOS_PLAYLIST_REVIEW or
+            review.get("baseline_inventory_sha256") != sha256(read_input(root, root / XENIOS_PLAYLIST_REVIEW)) or
+            review.get("pubspec_lock_sha256") != pubspec_lock_sha256 or
+            review.get("complete_corresponding_source_attested") is not False or
+            review.get("dependency_changes") != {"external_packages_added": [], "external_packages_removed": [],
+                                                 "declarations_changed": []} or
+            review.get("engine_binaries_bundled") != list(XENIOS_CORE_BUNDLED)):
+        raise SystemExit("XeniaCore delivery review has a different baseline or scope")
+    pin = json.loads(read_input(root, pin_path))
+    source = json.loads(read_input(root, root / "build-utils/xenia/source.json"))
+    binary = pin.get("binaries", {}).get("ios-arm64", {})
+    if (engine.get("core_pin") != XENIOS_CORE_PIN or engine.get("core_pin_sha256") != sha256(read_input(root, pin_path))
+            or pin.get("status") != "verified" or engine.get("revision") != source.get("revision") or
+            pin.get("source") != source.get("revision") or engine.get("repository") != source.get("repository") or
+            engine.get("binary_sha256") != binary.get("sha256") or
+            engine.get("packaged_fingerprint") != pin.get("packagedFingerprint")):
+        raise SystemExit("XeniaCore delivery review is not bound to the current core pin")
+    recipe = engine.get("recipe_sha256", {})
+    if set(recipe) != set(XENIOS_CORE_RECIPE):
+        raise SystemExit("XeniaCore delivery review recipe scope changed")
+    for name, digest in recipe.items():
+        if sha256(read_input(root, root / name)) != digest:
+            raise SystemExit(f"XeniaCore recipe changed since its delivery review: {name}")
+    components = {entry.get("name"): entry for entry in review.get("lgpl_components", [])}
+    if set(components) != set(XENIOS_LGPL) or len(review.get("lgpl_components", [])) != len(XENIOS_LGPL):
+        raise SystemExit("XeniaCore delivery review LGPL scope changed")
+    for name, expected in XENIOS_LGPL.items():
+        entry = components[name]
+        if ({key: entry.get("source", {}).get(key) for key in expected if key != "license"} !=
+                {key: value for key, value in expected.items() if key != "license"} or
+                entry.get("license") != expected["license"] or entry.get("linking") != "static" or
+                entry.get("modifications") != "not enumerated"):
+            raise SystemExit(f"XeniaCore delivery review LGPL entry differs: {name}")
+    means = review.get("relinking_means", {})
+    if means.get("chosen") != "LGPL-2.1 section 6(a)" or means.get("legal_clearance") is not False:
+        raise SystemExit("XeniaCore delivery review must state its relinking means without a clearance claim")
 
 
 def repository_inputs(root: Path) -> dict[str, str]:
@@ -529,11 +605,12 @@ def repository_inputs(root: Path) -> dict[str, str]:
             if update.get("after") != sha256(read_input(root, root / name)):
                 raise SystemExit(f"XeniOS playlist source/license declaration changed since review: {name}")
             declarations[name] = update["after"]
+    check_xenios_core_delivery(root, package_audit["pubspec_lock_sha256"])
     for name, expected in declarations.items():
         if sha256(read_input(root, root / name)) != expected:
             raise SystemExit(f"Package source/license declaration changed since review: {name}")
     patterns = (
-        "pubspec_overrides.yaml", "packages/*/pubspec.yaml",
+        "pubspec_overrides.yaml", "packages/*/pubspec.yaml", XENIOS_CORE_PIN,
         "packages/*/ios/*.podspec", "build-utils/*/source.json",
         "build-utils/*/upstream-files.json", "build-utils/*/*.patch",
         "build-utils/rpcs3/canonical-source.json", "native/*/source.json",

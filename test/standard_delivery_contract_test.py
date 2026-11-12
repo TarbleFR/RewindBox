@@ -14,9 +14,11 @@ checked for everything a draft carries and the pending RPCS3 Core pin is reporte
 from __future__ import annotations
 
 import ast
+import contextlib
 import copy
 from functools import lru_cache
 import hashlib
+import io
 import json
 import os
 from pathlib import Path
@@ -822,6 +824,10 @@ class Workflow(unittest.TestCase):
         old = {s['name']: s for s in sd.load_yaml_subset(WORKFLOW610.read_text())['jobs']['application']['steps']}
         new = {s['name']: s for s in steps('application')}
         for name in UNCHANGED_610_STEPS:
+            if name == 'Configure release host':
+                # Only the pinned-engine guard (PinnedEngineWorkflow) differs from the delivered step.
+                self.assertEqual(dict(new[name], run=new[name]['run'].replace(ENGINE_GUARD, '')), old[name], name)
+                continue
             self.assertEqual(new[name], old[name], name)
         environment = workflow()['jobs']['application']['env']
         old_environment = sd.load_yaml_subset(WORKFLOW610.read_text())['jobs']['application']['env']
@@ -1163,6 +1169,619 @@ class UnchangedPinnedComponent(unittest.TestCase):
         self.assertFalse(sd.pinned_payload_rule(replaced, 'melonx', 'a', 'a'))
         self.assertTrue(sd.pinned_payload_rule(unchanged, 'melonx', 'a', 'a'))
         self.assertFalse(sd.pinned_payload_rule(unchanged, 'melonx', 'a', 'b'))
+
+
+XENIA_PIN = 'build-utils/xenia/core-pin.json'
+XENIA_IMAGE = 'Frameworks/XeniaCore.framework/XeniaCore'
+XENIA_DYLIB = 'Frameworks/libmetalirconverter.dylib'
+XENIA_SOURCE = 'build-utils/xenia/source.json#shader_converter.upstream_mirror'
+
+
+def xenia_spec(**overrides):
+    spec = {
+        'mode': 'pinned-engine', 'pin': XENIA_PIN, 'pinSha256': 'a' * 64,
+        'verifier': 'build-utils/xenia/core_pin.py', 'identityFile': 'Xenia-native-identity.json',
+        'frameworks': ['Frameworks/XeniaCore.framework'], 'image': XENIA_IMAGE,
+        'sideImages': [{'path': XENIA_DYLIB, 'source': XENIA_SOURCE}],
+        'extensions': ['XeniaJITHelper.appex'],
+        'legalFolders': ['Legal/XeniOS', 'Legal/MetalShaderConverter'],
+        'checks': ['build-utils/xenia/check_app_shader_converter.py'],
+        'producers': {'engine': {'workflow': '.github/workflows/xenia-core.yml',
+                                 'branch': 'work/playlists-xenios-20261110'}},
+    }
+    spec.update(overrides)
+    return {k: v for k, v in spec.items() if v is not None}
+
+
+def xenia_manifest(**overrides):
+    """The frozen 726 manifest with a XeniaCore component that introduces its two images."""
+    value = copy.deepcopy(manifests()[726])
+    value['components']['xenia'] = xenia_spec(**overrides)
+    value['images']['added'] = list(value['images']['added']) + [XENIA_IMAGE, XENIA_DYLIB]
+    return value
+
+
+class PinnedEngineSchema(unittest.TestCase):
+    def errors(self, **overrides):
+        return sd.manifest_errors(xenia_manifest(**overrides))
+
+    def test_a_valid_xenia_component_is_accepted(self):
+        self.assertEqual(self.errors(), [])
+        self.assertEqual(self.errors(producers=None, producer={'workflow': '.github/workflows/xenia-core.yml'}), [])
+        self.assertIn('pinned-engine', sd.COMPONENT_MODES)
+        self.assertEqual(list(sd.engine_components(xenia_manifest())), ['xenia'])
+        # several producers, and the reserved optional fields of a second engine
+        two = {'engine': {'workflow': '.github/workflows/xenia-core.yml'}, 'second': {'workflow': 'a.yml', 'branch': 'x'}}
+        self.assertEqual(self.errors(producers=two, podLibraries=['Pod'], exportsList={XENIA_IMAGE: ['_a']},
+                                     appResources=[{'path': 'a.bin', 'binary': 'k'}]), [])
+
+    def test_the_closed_lists_hold_the_xenia_recipe(self):
+        self.assertEqual(sd.PINNED_ENGINE_VERIFIERS, ('build-utils/xenia/core_pin.py',))
+        self.assertEqual(sd.PINNED_ENGINE_CHECKS, ('build-utils/xenia/check_app_shader_converter.py',))
+        self.assertEqual(sd.PINNED_ENGINE_SIDE_SOURCES, (XENIA_SOURCE,))
+        for path in sd.PINNED_ENGINE_VERIFIERS + sd.PINNED_ENGINE_CHECKS:
+            self.assertTrue((ROOT / path).is_file(), path)
+
+    def test_refusals(self):
+        refused = {
+            'verifier': dict(verifier='build-utils/xenia/other.py'),
+            'check': dict(checks=['build-utils/xenia/other.py']),
+            'side source': dict(sideImages=[{'path': XENIA_DYLIB, 'source': 'build-utils/xenia/source.json#other'}]),
+            'side image shape': dict(sideImages=[{'path': XENIA_DYLIB}]),
+            'identity at a sub path': dict(identityFile='Legal/x.json'),
+            'framework': dict(frameworks=['XeniaCore.framework']),
+            'image outside the frameworks': dict(image='Frameworks/Other.framework/Other'),
+            'pin type': dict(pin=7), 'unsafe pin': dict(pin='../pin.json'),
+            'pinSha256 not hex': dict(pinSha256='xyz'),
+            'extensions type': dict(extensions='XeniaJITHelper.appex'),
+            'legal folder': dict(legalFolders=['Docs/XeniOS']),
+            'both producer forms': dict(producer={'workflow': 'w.yml'}),
+            'no producer': dict(producers=None),
+            'empty producers': dict(producers={}),
+            'producer key': dict(producers={'engine': {'workflow': 'w.yml', 'extra': 1}}),
+            'pods': dict(podLibraries='Pod'), 'resources': dict(appResources=[{'path': 'a'}]),
+            'exports': dict(exportsList={XENIA_IMAGE: 'x'}),
+        }
+        for name, overrides in refused.items():
+            self.assertTrue(self.errors(**overrides), name)
+        for field in sd.PINNED_ENGINE_FIELDS:
+            if field != 'mode':
+                self.assertTrue(self.errors(**{field: None}), 'missing ' + field)
+        value = xenia_manifest()
+        value['components']['xenia']['mode'] = 'pinned-enginee'
+        self.assertTrue(sd.manifest_errors(value))
+
+    def test_the_images_must_be_added(self):
+        for missing in (XENIA_IMAGE, XENIA_DYLIB):
+            value = xenia_manifest()
+            value['images']['added'].remove(missing)
+            self.assertTrue([e for e in sd.manifest_errors(value) if missing in e], missing)
+
+    def test_unchanged_engine_keeps_its_images_retained(self):
+        value = xenia_manifest(unchangedFromBase=True)
+        self.assertTrue([e for e in sd.manifest_errors(value) if 'images.retained.xenia' in e])
+        value['images']['retained']['xenia'] = [XENIA_IMAGE, XENIA_DYLIB]
+        self.assertEqual(sd.manifest_errors(value), [])
+
+    def test_frozen_needs_the_pin_digest(self):
+        value = xenia_manifest(pinSha256=None)
+        self.assertEqual(value['status'], 'frozen')
+        self.assertTrue([e for e in sd.manifest_errors(value) if 'pinSha256' in e])
+        draft = copy.deepcopy(value)
+        draft['status'] = 'draft'
+        self.assertFalse([e for e in sd.manifest_errors(draft) if 'xenia' in e])
+
+    def test_a_manifest_without_the_kind_is_what_it_was(self):
+        for build, manifest in manifests().items():
+            self.assertEqual(sd.engine_components(manifest), {}, build)
+        self.assertEqual(sd.manifest_errors(manifests()[726]), [])
+        self.assertEqual(sd.manifest_errors(xenia_manifest()), [])
+        self.assertEqual(sd.engine_producers({}), {})
+
+
+def load_module(name, path):
+    import importlib.util
+    found = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(found)
+    found.loader.exec_module(module)
+    return module
+
+
+core_pin_test = load_module('xenia_core_pin_test_for_delivery', ROOT / 'test/xenia_core_pin_test.py')
+converter_test = core_pin_test.generator
+NEXT_HEAD = REPO.commit('HEAD')
+XENIA_BRANCH = 'work/playlists-xenios-20261110'
+
+
+class EngineFixture(unittest.TestCase):
+    """A synthetic XeniaCore artifact, pin and side image in a temporary root (no XeniOS or Apple bytes)."""
+
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.root)
+        xenia = self.root / 'build-utils/xenia'
+        xenia.mkdir(parents=True)
+        for name in ('core_pin.py', 'validate_shader_converter.py'):
+            shutil.copy(ROOT / 'build-utils/xenia' / name, xenia / name)
+        shutil.copy(ROOT / 'build-utils/delivery_benchmark.py', self.root / 'build-utils/delivery_benchmark.py')
+        (self.root / 'packages').symlink_to(ROOT / 'packages')  # the Mach-O reader of payload_fingerprint
+        source = json.loads((ROOT / 'build-utils/xenia/source.json').read_text())
+        self.image = converter_test.ShaderConverterValidator.signed_image()
+        mirror = source['shader_converter']['upstream_mirror']
+        mirror.update(bytes=len(self.image), sha256=sha(self.image),
+                      signature_free_sha256=sd.converter_module().signature_free_digest(self.image))
+        self.mirror = mirror
+        (xenia / 'source.json').write_text(json.dumps(source))
+        self.binary = core_pin_test.core_binary()
+        self.zip = core_pin_test.artifact(self.root, self.binary)
+        self.name = 'XeniaCore-' + NEXT_HEAD
+        module = load_module('core_pin_in_fixture', xenia / 'core_pin.py')
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(module.main(['pin', str(self.zip), '--run', '1', '--job', '2', '--attempt', '1', '--artifact', '3',
+                                          '--name', self.name, '--expires', '2026-11-25T00:00:00Z']), 0)
+        self.pin_path = xenia / 'core-pin.json'
+        self.manifest = self.make_manifest()
+
+    def make_manifest(self, **overrides):
+        return xenia_manifest(pinSha256=sha(self.pin_path.read_bytes()), **overrides)
+
+    def rewrite_pin(self, **changes):
+        pin = json.loads(self.pin_path.read_text())
+        pin.update(changes)
+        self.pin_path.write_text(json.dumps(pin, indent=2))
+        self.manifest = self.make_manifest()
+
+    def api(self, branch=XENIA_BRANCH, conclusion='success', artifacts=None, head=NEXT_HEAD, path=None):
+        run = {'id': 1, 'path': path or '.github/workflows/xenia-core.yml', 'head_branch': branch, 'status': 'completed',
+               'conclusion': conclusion, 'run_attempt': 1, 'head_sha': head}
+        listing = artifacts if artifacts is not None else [
+            {'id': 3, 'name': self.name, 'expired': False, 'digest': 'sha256:' + sha(self.zip.read_bytes()),
+             'size_in_bytes': self.zip.stat().st_size},
+            {'id': 4, 'name': 'XeniaCore-diagnostics-' + NEXT_HEAD, 'expired': False, 'digest': 'sha256:' + '0' * 64,
+             'size_in_bytes': 1}]
+        return lambda endpoint: run if endpoint == 'actions/runs/1' else {'artifacts': listing}
+
+    def download(self, **options):
+        calls, image = [], options.pop('image', self.image)
+
+        def fetch(url):
+            calls.append(url)
+            return image
+        arguments = dict(root=self.root, get=self.api(), download=lambda artifact, path: shutil.copy(self.zip, path),
+                         fetch=fetch, repo=REPO)
+        arguments.update(options)
+        manifest = arguments.pop('manifest', self.manifest)
+        result = sd.engine_download('xenia', manifest, **arguments)
+        return result, calls
+
+
+class PinnedEngineDownload(EngineFixture):
+    def test_the_pinned_artifact_is_downloaded_verified_and_extracted(self):
+        result, calls = self.download()
+        framework = self.root / 'dist/xenia/XeniaCore.framework/XeniaCore'
+        self.assertEqual(framework.read_bytes(), self.binary)
+        self.assertEqual(result['producers']['engine']['artifact'], 3)
+        self.assertIn('XeniaCore pin: OK', result['producers']['engine']['verifier'])
+        side = self.root / 'dist/xenia-side/libmetalirconverter.dylib'
+        self.assertEqual(side.read_bytes(), self.image, 'the side image is stored byte for byte')
+        self.assertEqual(calls, ['https://github.com/xenios-jp/metal-shader-converter/releases/download/ios-4.0.3/'
+                                 'libmetalirconverter.dylib'])
+        self.assertEqual(result['sideImages'][0]['signatureFreeSha256'], self.mirror['signature_free_sha256'])
+        self.assertFalse((self.root / 'dist/xenia/libmetalirconverter.dylib').exists())
+
+    def test_the_real_verifier_refuses_an_artifact_that_is_not_the_pinned_one(self):
+        other = self.root / 'other'
+        other.mkdir()
+        changed = core_pin_test.artifact(other, core_pin_test.core_binary(
+            dependencies=('/usr/lib/libSystem.B.dylib', '@rpath/libmetalirconverter.dylib', '/usr/lib/libc++.1.dylib')))
+        self.rewrite_pin(sha256=sha(changed.read_bytes()), bytes=changed.stat().st_size)
+        with self.assertRaisesRegex(ValueError, 'engine verifier refused'):
+            self.download(get=self.api(artifacts=[{'id': 3, 'name': self.name, 'expired': False, 'size_in_bytes':
+                                                   changed.stat().st_size, 'digest': 'sha256:' + sha(changed.read_bytes())}]),
+                          download=lambda artifact, path: shutil.copy(changed, path))
+
+    def test_producer_authentication_refusals(self):
+        cases = {
+            'branch': dict(get=self.api(branch='Claude')),
+            'workflow': dict(get=self.api(path='.github/workflows/other.yml')),
+            'conclusion': dict(get=self.api(conclusion='failure')),
+            'head differs from the artifact name': dict(get=self.api(head='1' * 40)),
+            'two artifacts': dict(get=self.api(artifacts=[
+                {'id': 3, 'name': self.name, 'expired': False, 'digest': 'sha256:' + sha(self.zip.read_bytes()),
+                 'size_in_bytes': self.zip.stat().st_size}] * 2)),
+            'no artifact': dict(get=self.api(artifacts=[])),
+            'other artifact id': dict(get=self.api(artifacts=[
+                {'id': 9, 'name': self.name, 'expired': False, 'digest': 'sha256:' + sha(self.zip.read_bytes()),
+                 'size_in_bytes': self.zip.stat().st_size}])),
+            'expired': dict(get=self.api(artifacts=[
+                {'id': 3, 'name': self.name, 'expired': True, 'digest': 'sha256:' + sha(self.zip.read_bytes()),
+                 'size_in_bytes': self.zip.stat().st_size}])),
+            'no digest': dict(get=self.api(artifacts=[
+                {'id': 3, 'name': self.name, 'expired': False, 'size_in_bytes': self.zip.stat().st_size}])),
+            'digest differs': dict(get=self.api(artifacts=[
+                {'id': 3, 'name': self.name, 'expired': False, 'digest': 'sha256:' + '0' * 64,
+                 'size_in_bytes': self.zip.stat().st_size}])),
+        }
+        for label, options in cases.items():
+            with self.subTest(label), self.assertRaises(ValueError):
+                self.download(**options)
+
+        class Detached:
+            def is_ancestor(self, *_):
+                return False
+        with self.assertRaisesRegex(ValueError, 'not an ancestor'):
+            self.download(repo=Detached())
+        # a named producer branch is what is required; absent, the delivery branch
+        value = self.make_manifest(producers={'engine': {'workflow': '.github/workflows/xenia-core.yml'}})
+        self.download(manifest=value, get=self.api(branch=sd.BRANCH))
+        with self.assertRaises(ValueError):
+            self.download(manifest=value)
+
+    def test_head_sha_of_the_pin_must_be_the_run_commit(self):
+        self.rewrite_pin(headSha=NEXT_HEAD)
+        self.download()
+        self.rewrite_pin(headSha='2' * 40)
+        with self.assertRaises(ValueError):
+            self.download()
+
+    def test_the_artifact_bytes_the_pin_and_the_verifier_are_checked(self):
+        other = self.root / 'tampered.zip'
+        other.write_bytes(self.zip.read_bytes() + b'x')
+        with self.assertRaisesRegex(ValueError, 'pinned size or sha256'):
+            self.download(download=lambda artifact, path: shutil.copy(other, path))
+        with self.assertRaisesRegex(ValueError, 'changed after the freeze'):
+            self.download(manifest=xenia_manifest())
+        with self.assertRaises(ValueError):
+            self.download(verify=lambda *a: sd.require(False, 'refused'))
+        self.rewrite_pin(status='pending')
+        with self.assertRaisesRegex(ValueError, 'not verified'):
+            self.download()
+
+    def test_the_side_image_must_be_the_pinned_one(self):
+        patched = bytearray(self.image)
+        patched[100] ^= 1
+        with self.assertRaisesRegex(ValueError, 'pinned bytes or sha256'):
+            self.download(image=bytes(patched))
+        with self.assertRaisesRegex(ValueError, 'pinned bytes or sha256'):
+            self.download(image=self.image + b'\0')
+        # the right sha256 of a modified image is not enough: the signature-free digest is pinned as well
+        modified = converter_test.ShaderConverterValidator.signed_image(payload=b'code' * 63 + b'cod3')
+        source = json.loads((self.root / 'build-utils/xenia/source.json').read_text())
+        source['shader_converter']['upstream_mirror'].update(bytes=len(modified), sha256=sha(modified))
+        (self.root / 'build-utils/xenia/source.json').write_text(json.dumps(source))
+        with self.assertRaisesRegex(ValueError, 'beyond its code signature'):
+            self.download(image=modified)
+        with self.assertRaises(ValueError):
+            sd.engine_side_source('build-utils/xenia/source.json#shader_converter', self.root)
+
+    def test_unsafe_and_overlapping_members_are_refused(self):
+        for member in ('../escape', '/absolute', 'a\\b'):
+            bad = self.root / 'bad.zip'
+            with zipfile.ZipFile(bad, 'w') as archive:
+                archive.writestr(member, 'x')
+            with self.assertRaisesRegex(ValueError, 'Unsafe member'):
+                sd.extract_engine_zip(bad, self.root / 'out', set())
+        with self.assertRaisesRegex(ValueError, 'same member'):
+            sd.extract_engine_zip(self.zip, self.root / 'out', set(sd.PINNED_ENGINE_CHECKS) | {'XeniaCore.json'})
+
+    def test_several_producers_and_pin_shapes(self):
+        pin = json.loads(self.pin_path.read_text())
+        entry = {key: pin[key] for key in ('run', 'attempt', 'artifact', 'name', 'bytes', 'sha256')}
+        second = dict(entry, artifact=5)
+        spec = xenia_spec(producers={'engine': {'workflow': 'w.yml'}, 'second': {'workflow': 'w.yml'}})
+        multi = dict(pin, producers={'engine': entry, 'second': second}, zips={'engine': entry['sha256']})
+        self.assertEqual(sd.engine_pin_errors(spec, multi), [])
+        self.assertTrue(sd.engine_pin_errors(spec, pin), 'a single-producer pin does not feed two producers')
+        self.assertTrue(sd.engine_pin_errors(spec, dict(multi, zips={'engine': '0' * 64})))
+        self.assertTrue(sd.engine_pin_errors(spec, dict(multi, producers={'engine': entry})))
+        self.assertEqual(sd.engine_pin_errors(xenia_spec(), dict(pin, headSha=NEXT_HEAD, zips={'engine': entry['sha256']})), [])
+        self.assertTrue(sd.engine_pin_errors(xenia_spec(), dict(pin, headSha='abc')))
+        data = dict(pin, binaries=dict(pin['binaries'], **{'Resources/data.bin': {'sha256': 'b' * 64, 'bytes': 2}}))
+        self.assertEqual(sd.engine_pin_errors(xenia_spec(), data), [])
+        self.assertTrue(sd.engine_pin_errors(xenia_spec(), dict(pin, binaries={'x': {'sha256': 'b'}})))
+
+    def test_an_absent_component_is_refused_and_726_has_none(self):
+        with self.assertRaises(ValueError):
+            sd.engine_download('xenia', manifests()[726], root=self.root)
+
+
+PROTECTED_UPLOAD = 'TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb'
+ENGINE_GUARD = ('if python3 -B .github/diagnostics/standard_delivery.py engine-present xenia; then\n'
+                '  python3 build-utils/configure_xenia_ios.py\n'
+                'fi\n')
+ENGINE_STEPS = {
+    'detect': 'Detect pinned engine components',
+    'download': 'Download and authenticate the pinned XeniaCore engine and its shader converter',
+    'verify': 'Verify the pinned XeniaCore engine and its shader converter',
+    'embed': 'Embed the pinned XeniaCore engine and its shader converter, then check the app',
+}
+
+
+class PinnedEngineWorkflow(unittest.TestCase):
+    def order(self):
+        return [item['name'] for item in steps('application')]
+
+    def test_the_steps_exist_once_and_only_in_the_application_job(self):
+        for name in ENGINE_STEPS.values():
+            self.assertEqual(self.order().count(name), 1, name)
+            for job in sd.JOB_NAMES:
+                if job != 'application':
+                    self.assertNotIn(name, [item['name'] for item in steps(job)])
+        self.assertEqual(step('application', ENGINE_STEPS['detect'])['id'], 'engines')
+        self.assertEqual(step('application', ENGINE_STEPS['detect'])['run'],
+                         'python3 -B .github/diagnostics/standard_delivery.py engines')
+
+    def test_every_engine_step_is_conditional_on_the_component(self):
+        condition = "${{ steps.engines.outputs.xenia == 'true' }}"
+        for name in ('download', 'verify', 'embed'):
+            self.assertEqual(step('application', ENGINE_STEPS[name]).get('if'), condition, name)
+        self.assertNotIn('if', step('application', ENGINE_STEPS['detect']))
+        self.assertTrue(set(sd.CI_OPERATIONS) >= {'engines', 'engine-present', 'download-engine', 'verify-engine',
+                                                  'embed-engine'})
+        self.assertIn('download-engine xenia', step('application', ENGINE_STEPS['download'])['run'])
+        self.assertIn('verify-engine xenia', step('application', ENGINE_STEPS['verify'])['run'])
+
+    def test_the_order(self):
+        order = self.order()
+        index = order.index
+        # download and verify before the host is configured (configure_xenia_ios.py reads dist/xenia)
+        self.assertLess(index('Authenticate the replaced engine producer runs'), index(ENGINE_STEPS['detect']))
+        self.assertLess(index(ENGINE_STEPS['detect']), index(ENGINE_STEPS['download']))
+        self.assertLess(index(ENGINE_STEPS['download']), index(ENGINE_STEPS['verify']))
+        self.assertLess(index(ENGINE_STEPS['verify']), index('Configure release host'))
+        # embedded after the ARMSX2 and libretro dittos and the legal bundle (the checks read Legal/), before the
+        # identity, the packaging, the signing and the sealing
+        for earlier in ('Embed lazy-loaded ARMSX2 Core framework', 'Embed lazy-loaded libretro cores, MoltenVK and system assets',
+                        'Embed legal, license and source notices', 'Compile Release device binary with measured AOT and Xcode phases'):
+            self.assertLess(index(earlier), index(ENGINE_STEPS['embed']), earlier)
+        for later in ('Wait for and authenticate the test jobs and the fresh delivery contract',
+                      'Embed the build identity, the replaced Core proofs and exact retained provenance',
+                      'Package the rebuilt application and retain current component identities',
+                      'Seal every executable, framework and extension for SideStore'):
+            self.assertGreater(index(later), index(ENGINE_STEPS['embed']), later)
+
+    def test_the_jit_helper_is_configured_right_after_armsx2_and_only_with_the_component(self):
+        text = step('application', 'Configure release host')['run']
+        armsx2 = 'python3 build-utils/configure_armsx2_ios.py\n'
+        self.assertEqual(text.count('configure_xenia_ios.py'), 1)
+        self.assertIn(armsx2 + ENGINE_GUARD, text)
+        self.assertLess(text.index('standard_delivery.py engine-present xenia'), text.index('configure_xenia_ios.py'))
+        # only the guard is new: without it the step is the delivered one
+        old = {s['name']: s for s in sd.load_yaml_subset(WORKFLOW610.read_text())['jobs']['application']['steps']}
+        self.assertEqual(text.replace(ENGINE_GUARD, ''), old['Configure release host']['run'])
+        self.assertTrue((ROOT / 'build-utils/configure_xenia_ios.py').is_file())
+
+    def test_the_embed_copies_byte_for_byte_and_never_rewrites_or_uploads_the_converter(self):
+        run = step('application', ENGINE_STEPS['embed'])['run']
+        self.assertIn('ditto dist/xenia/XeniaCore.framework "$APP/Frameworks/XeniaCore.framework"', run)
+        self.assertIn('cp dist/xenia-side/libmetalirconverter.dylib "$APP/Frameworks/libmetalirconverter.dylib"', run)
+        self.assertIn('standard_delivery.py embed-engine xenia "$APP"', run)
+        text = '\n'.join(step('application', name)['run'] for name in ENGINE_STEPS.values())
+        for tool in ('install_name_tool', 'strip ', 'lipo', 'codesign', 'vtool'):
+            self.assertNotIn(tool, text)
+        for item in steps('application'):
+            if 'uses' in item and 'upload' in item['uses']:
+                self.assertEqual(item['uses'], PROTECTED_UPLOAD, item['name'])
+                self.assertNotIn('dist/xenia', str(item.get('with', {}).get('path')), item['name'])
+                self.assertNotIn('libmetalirconverter', str(item.get('with', {}).get('path')), item['name'])
+        self.assertEqual(sd.ENGINE_CACHE, 'build/standard-engine')
+        for item in steps('application'):
+            self.assertNotIn('upload-artifact@', item.get('uses', ''))
+
+    def test_the_protection_checker_accepts_the_workflows(self):
+        process = subprocess.run([sys.executable, '.github/ipa-protection/check_workflows.py'], cwd=ROOT,
+                                 capture_output=True, timeout=300)
+        self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
+
+    def test_the_embed_step_matches_the_component_spec(self):
+        spec = xenia_spec()
+        run = step('application', ENGINE_STEPS['embed'])['run']
+        for framework in spec['frameworks']:
+            self.assertIn('Frameworks/' + sd.engine_member(framework) + '"', run)
+        for item in spec['sideImages']:
+            self.assertIn('dist/xenia-side/' + sd.engine_member(item['path']), run)
+
+
+class PinnedEngineEmbed(EngineFixture):
+    """Embedding, the app checks, the sealed inventory and the final IPA of a synthetic engine."""
+
+    def setUp(self):
+        super().setUp()
+        self.download()
+        shutil.copy(ROOT / 'build-utils/xenia/check_app_shader_converter.py', self.root / 'build-utils/xenia')
+        (self.root / 'assets').symlink_to(ROOT / 'assets')
+        self.app = self.root / 'Runner.app'
+        shutil.copytree(self.root / 'dist/xenia/XeniaCore.framework', self.app / 'Frameworks/XeniaCore.framework')
+        (self.app / 'Frameworks/libmetalirconverter.dylib').write_bytes(self.image)  # copied before signing
+        (self.app / 'Runner').write_bytes(converter_test.dylib())
+        for path in (ROOT / 'assets/legal/metal-shader-converter').iterdir():
+            if path.name != 'license-sources.json':
+                (self.app / 'Legal/MetalShaderConverter').mkdir(parents=True, exist_ok=True)
+                (self.app / 'Legal/MetalShaderConverter' / path.name).write_bytes(path.read_bytes())
+        (self.app / 'Legal/XeniOS').mkdir(parents=True)
+        (self.app / 'Legal/XeniOS/LICENSE').write_text('BSD-3-Clause')
+
+    def embed(self, **options):
+        return sd.engine_embed('xenia', self.manifest, self.app, root=self.root, **options)
+
+    def test_the_embedded_engine_is_checked_and_its_identity_written(self):
+        result = self.embed()
+        identity = json.loads((self.app / 'Xenia-native-identity.json').read_text())
+        pin = json.loads(self.pin_path.read_text())
+        self.assertEqual(identity, result['identity'])
+        self.assertEqual(identity['component'], 'xenia')
+        self.assertEqual(identity['pin'], 'build-utils/xenia/core-pin.json')
+        self.assertEqual(identity['pinSha256'], sha(self.pin_path.read_bytes()))
+        self.assertEqual((identity['run'], identity['artifact']), (1, 3))
+        self.assertEqual(identity['producers'], {'engine': {'run': 1, 'attempt': 1, 'artifact': 3}})
+        self.assertEqual(identity['binaries'], {'ios-arm64': pin['binaries']['ios-arm64']['sha256']})
+        self.assertEqual(identity['packagedFingerprint'], pin['packagedFingerprint'])
+        side = identity['sideImages'][0]
+        self.assertEqual((side['path'], side['signatureFreeSha256']),
+                         ('Frameworks/libmetalirconverter.dylib', self.mirror['signature_free_sha256']))
+        self.assertEqual(side['sha256'], sha(self.image), 'the identity records the fetched bytes (before signing)')
+        self.assertIn('Shader converter use: OK', result['checks']['build-utils/xenia/check_app_shader_converter.py'])
+
+    def test_refusals(self):
+        framework = self.app / 'Frameworks/XeniaCore.framework/XeniaCore'
+        original = framework.read_bytes()
+        framework.write_bytes(original + b'\0')
+        with self.assertRaisesRegex(ValueError, 'not the verified engine artifact'):
+            self.embed()
+        framework.write_bytes(original)
+        (self.app / 'Frameworks/libmetalirconverter.dylib').write_bytes(self.image[:-1])
+        with self.assertRaisesRegex(ValueError, 'not the fetched side image'):
+            self.embed()
+        (self.app / 'Frameworks/libmetalirconverter.dylib').write_bytes(self.image)
+        shutil.rmtree(self.app / 'Legal/MetalShaderConverter')
+        with self.assertRaisesRegex(ValueError, 'embed the legal bundle'):
+            self.embed()
+
+    def test_the_app_check_refuses_a_modified_converter_and_another_loader(self):
+        self.embed()
+        modified = converter_test.ShaderConverterValidator.signed_image(payload=b'code' * 63 + b'cod3')
+        (self.app / 'Frameworks/libmetalirconverter.dylib').write_bytes(modified)
+        with self.assertRaisesRegex(ValueError, 'not the fetched side image'):
+            self.embed()
+        (self.app / 'Frameworks/libmetalirconverter.dylib').write_bytes(self.image)
+        (self.app / 'PlugIns/Other.appex').mkdir(parents=True)
+        (self.app / 'PlugIns/Other.appex/Other').write_bytes(core_pin_test.core_binary())
+        with self.assertRaisesRegex(ValueError, 'only XeniaCore'):
+            self.embed()
+
+    def test_the_payload_rule_and_the_evidence(self):
+        pin = json.loads(self.pin_path.read_text())
+        image = XENIA_IMAGE
+        evidence = sd.engine_evidence('xenia', self.manifest, {}, root=self.root)
+        self.assertEqual(evidence['payloadFingerprint'], pin['packagedFingerprint'])
+        self.assertEqual(sd.engine_evidence('xenia', self.manifest, {image: 'other'}, root=self.root)['pinSha256'],
+                         evidence['pinSha256'])
+        with self.assertRaisesRegex(ValueError, 'new to the delivery'):
+            sd.engine_evidence('xenia', self.manifest, {image: pin['packagedFingerprint']}, root=self.root)
+        unchanged = self.make_manifest(unchangedFromBase=True)
+        unchanged['images']['retained']['xenia'] = [XENIA_IMAGE, XENIA_DYLIB]
+        sd.engine_evidence('xenia', unchanged, {image: pin['packagedFingerprint']}, root=self.root)
+        with self.assertRaises(ValueError):
+            sd.engine_evidence('xenia', unchanged, {image: 'other'}, root=self.root)
+        # a file that is not the pinned one
+        (self.root / 'dist/xenia/XeniaCore.framework/XeniaCore').write_bytes(self.binary + b'\0')
+        with self.assertRaisesRegex(ValueError, 'not a pinned binary'):
+            sd.engine_evidence('xenia', self.manifest, root=self.root)
+        (self.root / 'dist/xenia/XeniaCore.framework/XeniaCore').write_bytes(self.binary)
+        # a changed side image is refused by its digests
+        (self.root / 'dist/xenia-side/libmetalirconverter.dylib').write_bytes(self.image[:-1])
+        with self.assertRaisesRegex(ValueError, 'pinned bytes or sha256'):
+            sd.engine_evidence('xenia', self.manifest, root=self.root)
+
+    def test_data_files_of_the_pin_are_compared_by_bytes_and_only_macho_gets_the_fingerprint_rule(self):
+        pin = json.loads(self.pin_path.read_text())
+        data = b'plain data'
+        (self.root / 'dist/xenia/Resources').mkdir()
+        (self.root / 'dist/xenia/Resources/table.bin').write_bytes(data)
+        binaries = dict(pin['binaries'], **{'Resources/table.bin': {'sha256': sha(data), 'bytes': len(data),
+                                                                    'fingerprint': 'c' * 64}})
+        self.rewrite_pin(binaries=binaries)
+        sd.engine_evidence('xenia', self.manifest, root=self.root)  # not a Mach-O: no fingerprint rule
+        (self.root / 'dist/xenia/Resources/table.bin').write_bytes(data + b'!')
+        with self.assertRaisesRegex(ValueError, 'pinned engine file differs'):
+            sd.engine_evidence('xenia', self.manifest, root=self.root)
+        macho = core_pin_test.core_binary()
+        (self.root / 'dist/xenia/Resources/table.bin').write_bytes(macho)
+        binaries['Resources/table.bin'] = {'sha256': sha(macho), 'bytes': len(macho), 'fingerprint': 'c' * 64}
+        self.rewrite_pin(binaries=binaries)
+        with self.assertRaisesRegex(ValueError, 'Mach-O differs'):
+            sd.engine_evidence('xenia', self.manifest, root=self.root)
+
+    def sealed(self):
+        pin = json.loads(self.pin_path.read_text())
+        return {XENIA_IMAGE: pin['packagedFingerprint'], XENIA_DYLIB: 'd' * 64, 'Runner': 'e' * 64}
+
+    def test_the_sealed_inventory_rule(self):
+        original = sd.engine_pin
+        sd.engine_pin = lambda spec, root=ROOT: original(spec, self.root)
+        self.addCleanup(setattr, sd, 'engine_pin', original)
+        self.assertEqual(sd.engine_inventory(self.manifest, self.sealed()), 1)
+        for broken in ({**self.sealed(), XENIA_IMAGE: 'f' * 64},
+                       {k: v for k, v in self.sealed().items() if k != XENIA_DYLIB},
+                       {k: v for k, v in self.sealed().items() if k != XENIA_IMAGE}):
+            with self.assertRaises(ValueError):
+                sd.engine_inventory(self.manifest, broken)
+        self.assertEqual(sd.engine_inventory(manifests()[726], self.sealed()), 0)
+
+    def test_the_inventory_names_come_from_images_added(self):
+        names = (set(self.manifest['images']['baseImages']) - set(self.manifest['images']['removed'])) | \
+            set(self.manifest['images']['added'])
+        self.assertLessEqual({XENIA_IMAGE, XENIA_DYLIB}, names)
+        self.assertEqual(sd.validate_inventory(sorted(names), self.manifest), len(names))
+        with self.assertRaises(ValueError):
+            sd.validate_inventory(sorted(names - {XENIA_DYLIB}), self.manifest)
+
+    def archive(self, image=None, side=None, identity=None):
+        buffer = io.BytesIO()
+        prefix = sd.APP_ROOT
+        pin = json.loads(self.pin_path.read_text())
+        if identity is None:
+            identity = sd.engine_identity('xenia', self.manifest, self.root)
+        with zipfile.ZipFile(buffer, 'w') as archive:
+            archive.writestr(prefix + XENIA_IMAGE, image or self.binary)
+            archive.writestr(prefix + XENIA_DYLIB, side or converter_test.ShaderConverterValidator.signed_image(
+                signature=b'Z' * 4096, linkedit_size=0x5000))
+            archive.writestr(prefix + 'Xenia-native-identity.json', json.dumps(identity))
+        self.assertTrue(pin)
+        return zipfile.ZipFile(io.BytesIO(buffer.getvalue()))
+
+    def test_the_final_ipa(self):
+        original = sd.engine_pin
+        sd.engine_pin = lambda spec, root=ROOT: original(spec, self.root)
+        self.addCleanup(setattr, sd, 'engine_pin', original)
+        converter = sd.converter_module(self.root)
+        original_converter = sd.converter_module
+        sd.converter_module = lambda root=ROOT: converter
+        self.addCleanup(setattr, sd, 'converter_module', original_converter)
+        evidence = sd.engine_evidence('xenia', self.manifest, root=self.root)
+        original_side = sd.engine_side_source
+        sd.engine_side_source = lambda source, root=ROOT: original_side(source, self.root)
+        self.addCleanup(setattr, sd, 'engine_side_source', original_side)
+        result = sd.engine_ipa(self.archive(), sd.APP_ROOT, 'xenia', self.manifest, evidence, self.root)
+        self.assertEqual(result['sideImages'], [XENIA_DYLIB])
+        modified = converter_test.ShaderConverterValidator.signed_image(payload=b'code' * 63 + b'cod3')
+        refused = {
+            'side image': dict(side=modified),
+            'engine image': dict(image=core_pin_test.core_binary(exports=['_NeoXenia_GetAPI', '_x'])),
+            'identity': dict(identity={'component': 'xenia'}),
+        }
+        for label, options in refused.items():
+            with self.subTest(label), self.assertRaises(ValueError):
+                sd.engine_ipa(self.archive(**options), sd.APP_ROOT, 'xenia', self.manifest, evidence, self.root)
+
+
+class PinnedEngineAbsent(unittest.TestCase):
+    """A manifest without a pinned-engine component behaves as before."""
+
+    def test_726_is_untouched(self):
+        manifest = manifests()[726]
+        self.assertEqual(sd.manifest_errors(manifest), [])
+        self.assertEqual(sd.engine_components(manifest), {})
+        self.assertEqual(sd.engine_receipts(manifest, {}), {})
+        self.assertEqual(sd.engine_inventory(manifest, {}), 0)
+        self.assertEqual(set(sd.image_expectations(manifest)), {'retained', 'replaced', 'mustChange', 'added', 'removed'})
+        self.assertNotIn('xenia', manifest['components'])
+        self.assertNotIn('pinned-engine', {spec['mode'] for spec in manifest['components'].values()})
+
+    def test_decisions_do_not_depend_on_the_kind(self):
+        manifest = manifests()[726]
+        names = set(manifest['images']['baseImages']) - set(manifest['images']['removed']) | set(manifest['images']['added'])
+        self.assertEqual(sd.validate_inventory(sorted(names), manifest), len(names))
+        self.assertEqual(sd.pinned_payload_rule(manifest, 'melonx', 'a', 'b'), True)
+        for build, other in manifests().items():
+            self.assertEqual(sd.engine_components(other), {}, build)
+            self.assertEqual(sd.manifest_errors(other), [], build) if other['status'] == 'frozen' else None
+
+    def test_the_engine_operations_exist_but_need_the_component(self):
+        self.assertTrue({'engines', 'engine-present', 'download-engine', 'verify-engine', 'embed-engine'} <=
+                        set(sd.OPERATIONS))
+        with self.assertRaises(ValueError):
+            sd.engine_embed('xenia', manifests()[726], Path('/nonexistent'))
 
 
 class EffectiveTree611(unittest.TestCase):

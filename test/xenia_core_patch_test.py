@@ -25,16 +25,45 @@ def fail(message: str) -> None:
     raise SystemExit('xenia core patch: ' + message)
 
 
+# Built on GitHub's runners, which have no Xcode 27: the two iOS 27 SDK uses
+# of xenia-ui-ios (StateReporting, scene accessories) are compiled only when
+# the SDK has them. Upstream already calls both under @available(iOS 27.0, *);
+# with an iOS 27 SDK every line here is a no-op.
+SDK_FILES = ['src/xenia/ui/ios/CMakeLists.txt', 'src/xenia/ui/ios/app/ios_external_display.mm',
+             'src/xenia/ui/ios/shared/ios_state_reporting.mm']
+SDK_ALLOWED = re.compile(
+    r'^(#if __has_include\(<StateReporting/StateReporting\.h>\)|#ifndef XE_NEO_HAS_STATE_REPORTING|'
+    r'#define XE_NEO_HAS_STATE_REPORTING 1|#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 270000|#else|#endif|'
+    r'  \(void\)title_id;|//.*|#.*|execute_process\(COMMAND xcrun --sdk iphoneos --show-sdk-path|'
+    r'  OUTPUT_VARIABLE XE_NEO_IOS_SDK_PATH OUTPUT_STRIP_TRAILING_WHITESPACE\)|'
+    r'if\(EXISTS "\$\{XE_NEO_IOS_SDK_PATH\}/System/Library/Frameworks/StateReporting\.framework"\)|'
+    r'endif\(\))$')
+
+
+def check_sdk_hunks(patch: str) -> None:
+    for name in SDK_FILES:
+        hunk = patch.split(f'diff --git a/{name} ', 1)[1].split('\ndiff --git ', 1)[0]
+        for line in hunk.splitlines()[4:]:
+            if line.startswith('-'):
+                fail(f'{name}: the SDK adaptation removes upstream lines')
+            if line.startswith('+') and not SDK_ALLOWED.match(line[1:]):
+                fail(f'{name}: not an SDK guard: {line[1:]!r}')
+        added = [line[1:] for line in hunk.splitlines() if line.startswith('+')]
+        if name.endswith('.mm') and sum(line.startswith('#if') for line in added) != added.count('#endif'):
+            fail(f'{name}: unbalanced SDK guards')
+
+
 def check_patch() -> None:
     patch = (XENIA / 'rewindbox-core.patch').read_text()
     files = re.findall(r'^diff --git a/(\S+) ', patch, re.M)
-    if files != ['cmake/ios/App.cmake', 'src/xenia/app/xenia_main_ios.mm']:
+    if files != ['cmake/ios/App.cmake', 'src/xenia/app/xenia_main_ios.mm'] + SDK_FILES:
         fail(f'unexpected patched files {files}')
+    check_sdk_hunks(patch)
     removed = [line for line in patch.splitlines() if line.startswith('-') and not line.startswith('---')]
     if removed:
         fail(f'the patch must only add guarded lines, it removes {removed[:3]}')
     added = [line[1:] for line in patch.splitlines() if line.startswith('+') and not line.startswith('+++')]
-    main_hunks = patch.split('diff --git a/src/xenia/app/xenia_main_ios.mm', 1)[1]
+    main_hunks = patch.split('diff --git a/src/xenia/app/xenia_main_ios.mm', 1)[1].split('\ndiff --git ', 1)[0]
     opens = len(re.findall(r'^\+#if !?XE_NEO_EMBEDDED_CORE', main_hunks, re.M))
     closes = len(re.findall(r'^\+#endif', main_hunks, re.M))
     if opens == 0 or opens != closes:

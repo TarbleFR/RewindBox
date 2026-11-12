@@ -5158,6 +5158,44 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   `build_core` dispatch only. Proof: `xenia_launch_test.dart`, `xenia_jit_service_test.dart`,
   `xenia_launch_transaction_test.py`, `xenia_objc_namespace_test.py --upstream`; Dart 107/107;
   legal chain still passes. Open: façade `g_host_controller` (first compile).
+- **IPA lot (12 Nov, maintainer allows the engine and the converter in the next private common IPA; dossier open
+  points 1-3 accepted, not resolved):** done on this branch, not yet handed off: empty-library hint (b072f976f);
+  converter pin with signature-free digest b5263652 equal on the Apple-signed mirror asset and XeniOS's re-signed copy
+  (afc7a4bf7); signing requirements `anchor apple` + observed identity (Software Signing chain, no Team ID) replacing
+  the `grep -q` check that failed run 43119228652 under pipefail (028a0fdf2); legal: EA1844 + acknowledgements RTFs,
+  headers Apache-2.0, XeniOS BSD-3 + acknowledgements, DXBC AMD MIT + RSA MD5 complement, Boost.Context provenance,
+  provenance facts of the mirror asset (35b7c07ec, 028a0fdf2, 108bc002a); `check_app_shader_converter.py` (2.B/2.E/2.D/13);
+  `core_pin.py` pin/verify (+ CI codesign report); generic `pinned-engine` delivery component, XeniaCore first
+  (70a63e627: standard_delivery.py, standard-delivery.yml, 34 contract cases; 726 decisions unchanged). Core built with
+  an iOS 26 SDK (Xcode 26.6: no Xcode 27 on GitHub runners): StateReporting and the external-display accessory are
+  absent even on iOS 27 (logged at start). Apple package check recorded (c6d08cd97): EA1844 = the official 4.0 beta 3
+  package's License.rtf; its iOS dylib 33.40 (3040a91e) is not the pinned 33.39 (430 bytes: LC_UUID,
+  LC_SOURCE_VERSION, LC_RPATH, signature); point 1 partly answered, 2-3 open; pin, binary, validator and codesign
+  requirement unchanged. Delivery review gate (350cf09fe): `check_xenios_core_delivery` binds core-pin.json, the 10
+  recipe files compiled into the binary, FFmpeg (has207 xmaframes @ dfc5a399, overlay ffmpeg-xenia, LGPL-2.1+, no GPL
+  flag) and libmspack (in-tree 91d0f943, LGPL-2.1), modifications "not enumerated", §6(a) as the chosen means with
+  `legal_clearance: false` and the accompany-vs-6(c)/(d) question left to the maintainer; a pin without its review is
+  refused; build_source_evidence/legal_bundle_preflight failure sets identical before/after (pre-existing). Notices
+  state the LGPL sources and rebuild means. Test `xenios_core_delivery_review_test.py` 9/9 with a temporary pin, to be
+  committed with the real pin and review (skips with that reason until then). Run 43121527685 (028a0fdf2): both
+  converter codesign requirements passed (the script compiles only after them), XeniaCore compiled and linked
+  (1357/1358, 27 min), then verify_core.py refused an absolute `/Users/runner/` path. Causes in our target: CMake's
+  build-tree LC_RPATH to the converter's runner directory, and the -g debug map (N_OSO object paths). Fixed in
+  79f3409f0 (`SKIP_BUILD_RPATH`, `-Wl,-S`; the check stays and now lists every leaked string with its place). Run
+  43126203790 (79f3409f0) green: checks, plugin_app and core (compile + verify_core.py, no build path left; converter
+  kept out; XeniaCore-79f3409f0… uploaded through the protected action), 34 min. Pinned by the ubuntu pin job (run
+  43131262723): artifact 13904214253 (9,533,089 B, 73187aa0…dcd0, expires 26 Nov), binary e0a533dc…b011
+  (37,719,376 B, SDK 26.5, minos 26.0), fingerprint 97e08271…f9cd; codesign's report of the converter in that run:
+  libmetalirconverter, Software Signing > Apple Code Signing CA > Apple Root CA, no Team ID, CDHash 71a046f3…, both
+  requirements satisfied. core-pin.json 8b850d7b…1e33 committed byte-identical to the job output; delivery review
+  xenios-core-delivery-declarations-2026-11-12.json bound to it (recipe = 79f3409f0), gate test 9/9 without skip;
+  collector/legal failure sets unchanged; delivery contract 108 tests, same 14 history errors. Merged with Claude
+  52e2d9a4 (92c6dbc40, no conflict): macOS run 43131882796 green (checks incl. the review gate, plugin_app). Handed
+  off to 00 (12 Nov). Pin route: ubuntu `pin` job (9ceefdcd4), `[xenia-pin run=<id>]`, downloads the zip by id via the API and
+  prints core-pin.json + base64 (this session cannot reach the artifact store). The producer runs on this branch:
+  the delivery manifest names it (`producers.engine.branch`) or main rebuilds on Claude. Pending: handoff to 00;
+  IPA closed-set validators after 00 integrates session 04's 13d34c25 (identity-file design
+  `Xenia-native-identity.json`); the artifact expires 26 Nov (14-day retention, not republished).
 - **Validation (Flutter 3.47.2 host):** 11 Nov: XeniOS + catalog/Consoles/touch suites
   91/91, scanner suites 41/41 (1 skip), storage contract 24/24, patch/validator/touch/C++
   checks OK, analyzer 111 = baseline. Earlier: new XeniOS + catalog/Consoles tests 65/65;

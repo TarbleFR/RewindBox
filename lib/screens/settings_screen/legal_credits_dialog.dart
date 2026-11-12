@@ -58,6 +58,27 @@ class LegalCreditsDialog {
       'assets/legal/melonx/MeloNX-Ryujinx-LICENSE.txt',
     ),
     _LegalEntry(
+      'XeniOS (Xenia for iOS)',
+      'Ben Vanik, the Xenia project and XeniOS contributors',
+      'BSD-3-Clause; component notices in Legal/XeniOS',
+      'https://github.com/xenios-jp/XeniOS',
+      'assets/legal/XeniOS-BSD-3-Clause.txt',
+    ),
+    _LegalEntry(
+      'DXBC checksum (AMD), in XeniOS',
+      'Advanced Micro Devices, Inc.; adapted by Xenia; derived from the RSA Data Security, Inc. MD5 Message Digest Algorithm',
+      'MIT (AMD); RSA Data Security MD5 notice',
+      'https://github.com/GPUOpen-Archive/common-src-ShaderUtils',
+      'assets/legal/XeniOS-DXBC-notices.txt',
+    ),
+    _LegalEntry(
+      'Apple Metal Shader Converter (runtime used by XeniOS)',
+      'Apple Inc.',
+      'Apple software license agreement EA1844; headers Apache-2.0; Apple acknowledgements',
+      'https://developer.apple.com/metal/shader-converter/',
+      'assets/legal/Apple-Metal-Shader-Converter-NOTICES.txt',
+    ),
+    _LegalEntry(
       'Melo-Controller',
       'stossy11 and contributors; original controls and editor',
       'Original license retained',
@@ -262,8 +283,10 @@ class LegalCreditsDialog {
             child: SingleChildScrollView(
               child: SelectableText(
                 contents,
-                style: Theme.of(documentContext).textTheme.bodySmall
-                    ?.copyWith(fontFamily: 'monospace', height: 1.35),
+                style: Theme.of(documentContext).textTheme.bodySmall?.copyWith(
+                  fontFamily: 'monospace',
+                  height: 1.35,
+                ),
               ),
             ),
           ),

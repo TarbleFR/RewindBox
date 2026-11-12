@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "review_date": "2026-11-12",
+  "scope": "XeniOS (Xenia for iOS) notices for XeniaCore.framework, RewindBox's embedded Xbox 360 engine built from the pinned revision (build-utils/xenia/source.json). The framework also carries LICENSE.txt and Acknowledgements.json.",
+  "components": [
+    {
+      "component": "XeniOS",
+      "repository": "https://github.com/xenios-jp/XeniOS",
+      "revision": "cf7c7ee452314913124d205e41e325b33891aacb",
+      "files": [
+        {
+          "path": "XeniOS-LICENSE.txt",
+          "sha256": "369ea6b0f7ba57544067e9d470ca82a927da787fb0a749b11cb55f1fd0ba47ae",
+          "bytes": 1481,
+          "upstream_path": "LICENSE",
+          "source_blob_sha": "bc759869a1975823a4e1b1c78cb4e5356cadb7bf",
+          "source_url": "https://github.com/xenios-jp/XeniOS/blob/cf7c7ee452314913124d205e41e325b33891aacb/LICENSE",
+          "content": "BSD-3-Clause",
+          "exact_copy": true
+        },
+        {
+          "path": "XeniOS-Acknowledgements.json",
+          "sha256": "8ceebb73ee6854ab7b8ade3752ad7b5360aca3958dc4e623840fb35ec3af785d",
+          "bytes": 225235,
+          "upstream_path": "assets/apple/Acknowledgements.json",
+          "source_blob_sha": "e02596832fa470c33c7d46834f174970d4278676",
+          "source_url": "https://github.com/xenios-jp/XeniOS/blob/cf7c7ee452314913124d205e41e325b33891aacb/assets/apple/Acknowledgements.json",
+          "content": "XeniOS's third-party notices, as its app shows them",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "DXBC checksum (AMD), XeniOS third_party/dxbc linked by XeniaCore",
+      "note": "Completes the entry XeniOS's Acknowledgements.json lists with an empty text (the upstream JSON above stays an exact copy). XeniOS's DXBCChecksum.cpp (16,615 B, 73279b79725ea61ec1a04a059a9d954e0573a630491c475bf9b2aecd002cb29b) is Xenia's adaptation of AMD's (16,502 B, b643a548a60966b28bce280a3a9acf5961d2ae63dd28a68a72288dbe18085462); not identical. Its MD5 code is derived from the RSA Data Security, Inc. MD5 Message Digest Algorithm. Source: the maintainer's complement docs/evidence/xenia-metal-shader-converter/Complement_Mentions_XeniOS_2026-11-12.txt.",
+      "files": [
+        {
+          "path": "DXBC-AMD-ShaderUtils-LICENSE.txt",
+          "sha256": "f7367ebb0b4cc04b8102f0ca95f55adca7329b9ac2fcfb221339a45a5272ef86",
+          "bytes": 1116,
+          "repository": "https://github.com/GPUOpen-Archive/common-src-ShaderUtils",
+          "revision": "545195d74ff0758f74ebf9a8b4c541f9390a1df7",
+          "upstream_path": "LICENSE",
+          "source_blob_sha": "67b03370a9d9a66c8ba3d209701109df2d62fa8c",
+          "source_url": "https://raw.githubusercontent.com/GPUOpen-Archive/common-src-ShaderUtils/545195d74ff0758f74ebf9a8b4c541f9390a1df7/LICENSE",
+          "retrieved": "2026-11-12",
+          "content": "MIT, Copyright (c) 2016-2018 Advanced Micro Devices, Inc.",
+          "exact_copy": true
+        },
+        {
+          "path": "DXBC-RSA-MD5-notice.txt",
+          "sha256": "f4397560fee8256bd0e675c653cfc80ecaff0305977bb71dd8e1b038f2b44b30",
+          "bytes": 1854,
+          "repository": "https://github.com/xenios-jp/XeniOS",
+          "revision": "cf7c7ee452314913124d205e41e325b33891aacb",
+          "upstream_path": "third_party/dxbc/DXBCChecksum.cpp",
+          "source_blob_sha": "635fc9cff0f05cdd43c18a08b49b7a4c2fe237e4",
+          "lines": "1-9 and 50-72",
+          "source_url": "https://github.com/xenios-jp/XeniOS/blob/cf7c7ee452314913124d205e41e325b33891aacb/third_party/dxbc/DXBCChecksum.cpp",
+          "content": "AMD copyright 2008-2016 header and the RSA Data Security, Inc. 1990 MD5 notice, verbatim",
+          "exact_copy": false,
+          "extract": "lines 1-9, a blank line, lines 50-72 of the source file, unchanged"
+        }
+      ]
+    }
+  ],
+  "provenance": {
+    "boost_context": {
+      "texts": "BSL-1.0, already in XeniOS-Acknowledgements.json (taken there from Mesa); primary text https://www.boost.org/LICENSE_1_0.txt",
+      "files_linked": "XeniOS third_party/boost_context selects the arm64 Mach-O variant (third_party/boost_context/CMakeLists.txt:50): src/asm/make_, jump_ and ontop_arm64_aapcs_macho_gas.S",
+      "repository": "https://github.com/boostorg/context",
+      "revision": "d2142b69252150dafb5f6569b7eb9a42312a92a3",
+      "files": {
+        "src/asm/make_arm64_aapcs_macho_gas.S": {
+          "bytes": 3563,
+          "sha256": "70f07951a0bd02415f8c36b0fec2007f6cd33f1e121e569396d313a637d399dd"
+        },
+        "src/asm/jump_arm64_aapcs_macho_gas.S": {
+          "bytes": 4121,
+          "sha256": "948981fc56f53c319e709f17212d1b9c7a202c59ed3767a5b361cb5fa2b81f12"
+        },
+        "src/asm/ontop_arm64_aapcs_macho_gas.S": {
+          "bytes": 4127,
+          "sha256": "f23eb7e1359bfdd347f56e2e2ae4ef33468c67e74e65eaabeac9950da1f85b5d"
+        }
+      },
+      "copyright": "Edward Nevill + Oliver Kowalke 2015, Boost Software License 1.0 (header of each file, read 12 Nov 2026)"
+    }
+  }
+}
