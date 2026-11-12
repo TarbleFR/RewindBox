@@ -5,6 +5,7 @@
 //     clocks): which collections raise their thread, where the override ends for each kind of collection, that
 //     nothing is allocated inside a collection, the accounting by class, the session mark.
 //   "plain" (not an Apple platform): nothing is registered and collections run as they are.
+//   "unraised": the platform gives the registering thread no override: nothing is registered.
 //   "apple" (macOS arm64): the production platform functions (QoS classes, overrides, thread clocks) on threads of real
 //     classes, while user-interactive threads run native code that a collection does not stop: wall and CPU time of
 //     the collections a utility thread triggers, with the raising off and on.
@@ -193,8 +194,8 @@ static unsafe class Program
     static JsonObject HostRun()
     {
         Host.Install();
-        int first = CollectionClass.Register(), second = CollectionClass.Register();
         Host.SetClass(CollectionClass.UserInteractive); // the main thread
+        int first = CollectionClass.Register(), second = CollectionClass.Register();
 
         // 1. A utility thread's own collections.
         var utility = On(() =>
@@ -365,9 +366,10 @@ static unsafe class Program
     }
 
     // Nothing registered (not this platform, or a runtime without the registration): collections run as they are.
-    static JsonObject UnregisteredRun(string mode, bool install)
+    static JsonObject UnregisteredRun(string mode, bool install, bool known)
     {
         if (install) Host.Install();
+        if (known) Host.SetClass(CollectionClass.UserInteractive); // else the fixture's platform gives this thread no override
         int first = CollectionClass.Register(), second = CollectionClass.Register();
         int before = GC.CollectionCount(0);
         On(() => { AllocateUntil(10); GC.Collect(2, GCCollectionMode.Forced, blocking: true); return 0; });
@@ -385,8 +387,9 @@ static unsafe class Program
         JsonObject result = mode switch
         {
             "apple" => AppleRun(),
-            "plain" => UnregisteredRun(mode, install: false),
-            "refused" => UnregisteredRun(mode, install: true),
+            "plain" => UnregisteredRun(mode, install: false, known: false),
+            "refused" => UnregisteredRun(mode, install: true, known: true),
+            "unraised" => UnregisteredRun(mode, install: true, known: false),
             _ => HostRun(),
         };
         Console.WriteLine(result.ToJsonString());

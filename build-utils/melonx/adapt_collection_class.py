@@ -15,7 +15,10 @@ priority 20 and received 15.6 ms of CPU in 961 ms, the render and GPU threads pa
 (test/melonx_collection_class/qos_probe.c, workflow run 43315146893, as an interactive job, three runs): 20 ms of CPU on
 a utility, default or background thread while cores + 2 user-interactive threads are busy takes 107-120 ms; with a
 user-interactive QoS override on the thread (started by itself or by another thread) 20.0 ms; the override ended, 108-188 ms
-again; a user-interactive thread 20.0 ms throughout.
+again; a user-interactive thread 20.0 ms throughout. This class with the real runtime, same workflow (run 43323499544,
+compiled ahead of time for osx-arm64; cores + 2 user-interactive threads in native calls of several hundred
+milliseconds each, as guest threads in translated code): the collections a utility thread triggered took 10 197.8 ms
+for 492.7 ms of CPU with the raising off (the longest 890.4 ms for 31.3 ms of CPU) and 510.8 ms for 491.6 ms with it on.
 
 Change (EmbeddedSession.cs only). The runtime's restricted callouts for the start and the end of a collection
 (RhRegisterGcCallout, the registration its own Objective-C support uses) are registered once per process when the
@@ -30,7 +33,8 @@ line is the measure that decides the mechanism (wall far above CPU for the lower
 near CPU with it). The callouts allocate nothing and call only functions bound at the registration.
 No collection is added, requested, delayed or resized; no thread keeps a raised class outside a collection; threads
 that are not in a collection are untouched; CollectionClass.RaiseCollectingThread = false leaves the accounting alone.
-Other platforms and a runtime without the callouts: nothing is registered (status 2 or 3 in the journal line).
+Other platforms, a runtime without the callouts, a system that gives the registering thread no override: nothing is
+registered (status 2, 3 or 4 in the journal line). The end callout is registered before the start one.
 
 Expected on the device (same save and route): ephemeral pauses that promote under 5 MiB stay under 33 ms (729: up to
 720 ms), gcPause summary "over 33.3 ms" 33 -> 10 or fewer, and the class line shows wall within 1.5 times CPU for every
@@ -136,7 +140,7 @@ public static unsafe class CollectionClass
     }
 
     private static Totals _totals;
-    private static int _status; // 0 not asked, 1 registered, 2 not this platform, 3 refused by the runtime
+    private static int _status; // 0 not asked, 1 registered, 2 not this platform, 3 refused by the runtime, 4 no override
     private static nint _token; // the override in force
     private static nint _startThread;
     private static ulong _startWallNs, _startCpuNs;
@@ -213,7 +217,10 @@ public static unsafe class CollectionClass
         }
     }
 
-    /// <summary>Once per process, from an engine thread before play: 1 registered, 2 not this platform, 3 refused.</summary>
+    /// <summary>
+    /// Once per process, from an engine thread before play: 1 registered, 2 not this platform, 3 refused by the runtime,
+    /// 4 no override from the system.
+    /// </summary>
     public static int Register()
     {
         int status = System.Threading.Volatile.Read(ref _status);
@@ -227,9 +234,17 @@ public static unsafe class CollectionClass
             CpuNs();
             WallNs();
             nint token = Raise(self);
-            if (token != 0) Lower(token);
-            bool registered = (RhRegisterGcCallout(StartCollection, &OnStart) & 0xff) != 0 && (RhRegisterGcCallout(EndCollection, &OnEnd) & 0xff) != 0;
-            status = registered ? 1 : 3;
+            if (token == 0)
+            {
+                status = 4; // the system gives this thread no override (and the end function is not bound): nothing registered
+            }
+            else
+            {
+                Lower(token);
+                // The end first: a start is never reported without its end.
+                bool registered = (RhRegisterGcCallout(EndCollection, &OnEnd) & 0xff) != 0 && (RhRegisterGcCallout(StartCollection, &OnStart) & 0xff) != 0;
+                status = registered ? 1 : 3;
+            }
         }
         catch (System.Exception)
         {
@@ -278,7 +293,11 @@ public static unsafe class CollectionClass
         int status = Status;
         if (status != 1)
         {
-            return status switch { 0 => "collection class: not registered", 2 => "collection class: not this platform", _ => "collection class: refused by the runtime" } +
+            return status switch
+            {
+                0 => "collection class: not registered", 2 => "collection class: not this platform",
+                4 => "collection class: no override from the system", _ => "collection class: refused by the runtime",
+            } +
                 " (adapt_collection_class)";
         }
         System.Text.StringBuilder text = new("Collections that stopped the engine, by the class of the thread that ran them: ");

@@ -24,6 +24,7 @@ Executed (test/melonx_collection_class/Program.cs with the adapter's class text,
   the next collection or the background thread - or, with a poll as the keep-alive's, by the poll; a session mark
   restarts the totals;
 - compiled ahead of time without the fixture's platform (not an Apple platform): nothing registered, collections run;
+- compiled ahead of time with a platform that gives the registering thread no override: nothing registered;
 - on the just-in-time runtime, which has no such registration: refused, reported, collections run.
 The Apple scheduler and the production QoS calls are exercised by the workflow melonx-collection-class.yml on macOS
 arm64 (the same fixture, mode "apple"); this gate does not run them.
@@ -126,10 +127,18 @@ with tempfile.TemporaryDirectory(prefix='melonx-collection-class-') as temporary
     postimages = {}
     if FINAL_PREPARATION:
         final_text = (FINAL_SOURCE / name).read_text(encoding='utf-8-sig')
+        without_later = final_text
+        if name in files_edited_later('adapt_collection_class'):
+            # Core 745: adapt_stall_compaction adds two lines to this file after this adapter (the poll and the stop
+            # request; nothing of the class): the final text is compared with them undone.
+            import adapt_stall_compaction as stall  # noqa: E402
+            check(files_edited_later('adapt_collection_class') == {name}, 'the only later adapter on this file is adapt_stall_compaction')
+            for old, new in reversed(stall.FILE_PAIRS[stall.SESSION]):
+                check(without_later.count(new) == 1, 'the later adapter\'s replacement, once: ' + new.strip().splitlines()[-1][:70])
+                without_later = without_later.replace(new, old)
         for _, new in adapter.PAIRS:
-            check(final_text.count(new) == 1, 'replacement in the final preparation: ' + new.strip().splitlines()[0][:70])
-        if name not in files_edited_later('adapt_collection_class'):
-            check((candidate / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
+            check(without_later.count(new) == 1, 'replacement in the final preparation: ' + new.strip().splitlines()[0][:70])
+        check(without_later == (candidate / name).read_text(encoding='utf-8-sig'), 'final preparation is the adapter (later lines undone): ' + name)
         shutil.rmtree(candidate)
         shutil.copytree(FINAL_SOURCE, candidate, ignore=ignore, symlinks=True)
         after = final_text
@@ -175,6 +184,10 @@ with tempfile.TemporaryDirectory(prefix='melonx-collection-class-') as temporary
     check('if (!Applies) return' in register and register.index('if (!Applies) return') < register.index('try'),
           'another platform: nothing is bound or registered')
     check('catch (System.Exception)' in register and 'status = 3;' in register, 'a runtime without the registration is reported, not fatal')
+    check(register.index('if (token == 0)') < register.index('status = 4;') < register.index('Lower(token);') < register.index('RhRegisterGcCallout('),
+          'no override from the system for the registering thread: nothing is registered (the end function would be unbound)')
+    check(register.index('RhRegisterGcCallout(EndCollection, &OnEnd)') < register.index('RhRegisterGcCallout(StartCollection, &OnStart)'),
+          'the end callout is registered before the start one: no start is reported without its end')
     check('qosClass != UserInteractive && qosClass != Unspecified' in on_start and 'RaiseCollectingThread &&' in on_start,
           'a user-interactive thread and a thread outside the classes are left as they are; the raising has a switch')
     check(on_start.index('Interlocked.Exchange(ref _token, 0)') < on_start.index('Raise(self)') and
@@ -202,11 +215,13 @@ with tempfile.TemporaryDirectory(prefix='melonx-collection-class-') as temporary
     rid = 'linux-arm64' if os.uname().machine in ('aarch64', 'arm64') else 'linux-x64'
     run([DOTNET, 'publish', str(fixture / 'Fixture.csproj'), '-r', rid, '-c', 'Release', '-nologo', '-o', str(fixture / 'aot')], fixture)
     plain = json.loads(run([str(fixture / 'aot/Fixture'), 'plain'], fixture).strip().splitlines()[-1])
+    unraised = json.loads(run([str(fixture / 'aot/Fixture'), 'unraised'], fixture).strip().splitlines()[-1])
     r = json.loads(run([str(fixture / 'aot/Fixture'), 'host'], fixture).strip().splitlines()[-1])
 
 print(json.dumps({k: v for k, v in r.items() if k not in ('describe', 'marked')})[:2400], flush=True)
 
-for unregistered, status, said in ((refused_run, 3, 'refused by the runtime'), (plain, 2, 'not this platform')):
+for unregistered, status, said in ((refused_run, 3, 'refused by the runtime'), (plain, 2, 'not this platform'),
+                                   (unraised, 4, 'no override from the system')):
     check(unregistered['registered'] == unregistered['registeredAgain'] == unregistered['status'] == status and said in unregistered['describe'],
           '%s: reported as status %d' % (unregistered['mode'], status))
     check(unregistered['collections'] >= 10 and unregistered['starts'] == unregistered['ends'] == unregistered['raised'] == 0 and
@@ -231,8 +246,9 @@ check(s['endedByPoll'] == 0 and s['endedByNextStart'] + s['endedByAnotherThread'
       'a collection that goes on in the background leaves its override until the next collection or its end: %s' % s)
 check(p['endedByPoll'] >= 1 and p['endedByPoll'] >= p['endedByNextStart'] + p['endedByAnotherThread'],
       'with the keep-alive\'s poll that override is ended while the engine runs: %s' % p)
-check(r['platform']['mostAlive'] == 1 and r['platform']['raises'] == r['platform']['lowers'] == r['raised'] and r['platform']['alive'] == 0,
-      'never two overrides at once; as many ended as started: %s' % r['platform'])
+check(r['platform']['mostAlive'] == 1 and r['platform']['raises'] == r['platform']['lowers'] == r['raised'] + 1 and
+      r['platform']['alive'] == 0 and r['platform']['unknownThread'] == 0,
+      'never two overrides at once; as many ended as started (the registration\'s own included): %s' % r['platform'])
 for request in r['background']['requests']:
     check(request['inForceAtReturn'] == (request['endsAtReturn'] == 0) and request['endedByPoll'] == int(request['inForceAtReturn']) and
           not request['inForceAfterPoll'] and request['aliveAfterPoll'] == 0 and not request['inForceAfter'] and request['raised'] == 1,
@@ -255,7 +271,7 @@ report = {
     'overridesStartedAndEnded': [r['platform']['raises'], r['platform']['lowers']], 'mostOverridesAtOnce': r['platform']['mostAlive'],
     'leftByBackgroundCollections': {'endedByNextStartOrBackgroundThread': s['endedByNextStart'] + s['endedByAnotherThread'],
                                     'endedByPollWhenPolled': p['endedByPoll']},
-    'probe': r, 'plain': plain, 'refused': refused_run,
+    'probe': r, 'plain': plain, 'refused': refused_run, 'unraised': unraised,
     'deviceEvidence': 'IPA 729 Hogwarts Legacy (private journal, pid 58475): gcPause gen0 363.9 ms promoting 2.2 MiB, 447.6 ms '
                       'promoting 0.1 MiB, 720.6 ms promoting 1.1 MiB; 33 pauses over 33.3 ms. IPA 725: a collection on a thread of '
                       'priority 20 received 15.6 ms of CPU in 961 ms',
