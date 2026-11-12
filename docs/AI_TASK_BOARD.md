@@ -6173,6 +6173,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   (cd84c2b24, includes cc3af454, no conflict): Xbox 360 Python checks, storage contract, Dart 62/62 OK; delivery
   contract = Claude alone + the 2 PocketSkinRevisionReview errors (the 729-frozen product tree still names
   84386936; they clear when the 730 manifest freezes 2d176a7f). The next manifest must name pinSha256 2d176a7f.
+  Pin and review commit fecc05ada: macOS run 43224531418 green (checks incl. the transport test, the review gate,
+  IPA closed sets, facade C++, bridge compile at the iOS 18 target, helper type-check; plugin_app). Handed off to
+  00 with the XeniOS green light for IPA 730 (12 Nov). Shared layer in this lot: one xenia-core.yml step. Next:
+  device run on IPA 730 (two launches in a row without restart, touch and controller input, the `XeniOS JIT:`
+  line with transportFullWidth true and codeRegion own).
 - **Validation (Flutter 3.47.2 host):** 11 Nov: XeniOS + catalog/Consoles/touch suites
   91/91, scanner suites 41/41 (1 skip), storage contract 24/24, patch/validator/touch/C++
   checks OK, analyzer 111 = baseline. Earlier: new XeniOS + catalog/Consoles tests 65/65;
