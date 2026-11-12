@@ -5090,6 +5090,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - Validation: on the 726 effective tree the legal gate accepts, and `s2arm_legal_review_test`
     passes 10/10. `test/s2arm_*.py` and `test/switch2_*.py` pass. `standard_delivery_contract_test`
     has the same 4 shallow-clone errors as `Claude` 9c9817e8.
+  - Closed sets, `f7280619` + `a5976aed`: the branch merges Claude b4ef45fc and follows session 03's
+    `IDENTITY_ENGINES` design. S2Arm adds three constants, one table entry and one `ENGINE_HELPERS` entry.
+    The three other validators are byte-identical to Claude. The 5 closed-set tests are adapted; an S2Arm
+    image packaged without its identity file is now refused.
   - Open for main: delete the launcher (`.github/diagnostics/s2arm/`, `s2arm-delivery.yml`,
     `set_probe_key.py`) together with its test `s2arm_delivery_test.py`, which no longer works
     since 9c9817e8 (40 errors)? Main also has to choose the S2Arm test groups of the next
