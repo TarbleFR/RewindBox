@@ -330,36 +330,94 @@ abstract final class S2ArmInternalService {
     await _removeStaging(staging);
 
     final detected = await detectExport(picked);
-    if (detected['success'] != true) {
+    final exports = detected['success'] == true
+        ? <Map<String, dynamic>>[detected]
+        : await _exportsBelow(picked);
+    if (exports.isEmpty) {
       return S2ArmImportResult(<S2ArmImportItem>[S2ArmImportItem(path.basename(picked), (detected['code'] ?? 'notExportFolder').toString())]);
     }
-    final exportDir = (detected['exportDir'] ?? picked).toString();
+    final items = <S2ArmImportItem>[];
+    try {
+      for (var index = 0; index < exports.length; index++) {
+        final item = await _importOne(exports[index], games, staging,
+            index: index + 1, count: exports.length, onProgress: onProgress, control: control);
+        if (item == null) return S2ArmImportResult(items, cancelled: true);
+        items.add(item);
+      }
+    } finally {
+      await _removeStaging(staging);
+    }
+    return S2ArmImportResult(items);
+  }
+
+  /// The Switch 2 exports inside [picked] when it is not one itself: a folder that holds the game folder (for example
+  /// "<game> + Emulator/<game>/base/exefs/main.npdm") or several games. Looks up to three levels down, never inside an
+  /// export's own base / exefs / romfs, and asks detectExport about each candidate that has base/exefs/main.npdm.
+  static Future<List<Map<String, dynamic>>> _exportsBelow(String picked) async {
+    final found = <Map<String, dynamic>>[];
+    var level = <Directory>[Directory(picked)];
+    for (var depth = 0; depth < 3 && level.isNotEmpty && found.length < 200; depth++) {
+      final next = <Directory>[];
+      for (final folder in level) {
+        final List<FileSystemEntity> children;
+        try {
+          children = await folder.list(followLinks: false).toList();
+        } on FileSystemException {
+          continue;
+        }
+        children.sort((a, b) => a.path.compareTo(b.path));
+        for (final child in children) {
+          final name = path.basename(child.path);
+          if (child is! Directory || name.startsWith('.') || const {'base', 'exefs', 'romfs'}.contains(name)) continue;
+          if (await File(path.join(child.path, 'base', 'exefs', 'main.npdm')).exists()) {
+            final detected = await detectExport(child.path);
+            if (detected['success'] == true) {
+              found.add(detected['exportDir'] == null ? {...detected, 'exportDir': child.path} : detected);
+              continue;
+            }
+          }
+          next.add(child);
+        }
+      }
+      level = next;
+    }
+    return found;
+  }
+
+  /// Copies one detected export into Games/<title> through staging. Null when the player cancelled.
+  static Future<S2ArmImportItem?> _importOne(
+    Map<String, dynamic> detected,
+    Directory games,
+    Directory staging, {
+    required int index,
+    required int count,
+    void Function(S2ArmImportProgress progress)? onProgress,
+    S2ArmImportControl? control,
+  }) async {
+    final exportDir = detected['exportDir'].toString();
     final info = await gameInfo(exportDir);
     final title = _safeName((info['title'] ?? path.basename(exportDir)).toString(), detected['gid']?.toString());
 
     final source = Directory(exportDir);
     final total = await _directorySize(source);
     final free = freeBytes(games.path);
-    if (free != null && free < total + spaceMargin) {
-      return S2ArmImportResult(<S2ArmImportItem>[S2ArmImportItem(title, 'notEnoughSpace')]);
-    }
-    final stage = Directory(path.join(staging.path, '0'));
+    if (free != null && free < total + spaceMargin) return S2ArmImportItem(title, 'notEnoughSpace');
+    final stage = Directory(path.join(staging.path, '$index'));
     try {
       var done = 0;
       await _copyDirectory(source, stage, control: control, progress: (copied) {
-        onProgress?.call(S2ArmImportProgress(name: title, index: 1, count: 1, done: done + copied, total: total));
+        onProgress?.call(S2ArmImportProgress(name: title, index: index, count: count, done: done + copied, total: total));
       }, onFileDone: (bytes) => done += bytes);
       final target = await _freeDirectory(games, title);
       await stage.rename(target.path);
-      return S2ArmImportResult(<S2ArmImportItem>[S2ArmImportItem(title, 'imported', destination: target.path)]);
+      return S2ArmImportItem(title, 'imported', destination: target.path);
     } on _Cancelled {
-      return const S2ArmImportResult(<S2ArmImportItem>[], cancelled: true);
+      return null;
     } on FileSystemException catch (error) {
       final osCode = error.osError?.errorCode;
-      return S2ArmImportResult(<S2ArmImportItem>[S2ArmImportItem(title, osCode == 28 ? 'notEnoughSpace' : 'copyFailed')]);
+      return S2ArmImportItem(title, osCode == 28 ? 'notEnoughSpace' : 'copyFailed');
     } finally {
       await _removeStaging(stage);
-      await _removeStaging(staging);
     }
   }
 

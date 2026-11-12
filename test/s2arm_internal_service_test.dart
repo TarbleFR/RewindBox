@@ -9,6 +9,7 @@ import 'package:neostation/l10n/s2arm_engine_locale.dart';
 import 'package:neostation/l10n/switch2_library_locale.dart';
 import 'package:neostation/l10n/switch2_settings_locale.dart';
 import 'package:neostation/services/s2arm_internal_service.dart';
+import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
 /// The Switch 2 engine service maps the native error codes to localized messages and the native status to a runtime state,
@@ -132,6 +133,39 @@ void main() {
       expect(await File('${imported.path}/base/exefs/main').length(), 1024);
       final staging = await S2ArmInternalService.stagingDirectory();
       expect(await staging.exists(), isFalse, reason: 'staging is cleaned up');
+    });
+
+    test('a folder that holds the game folder, or several games, imports each export below it', () async {
+      Future<void> game(String folder, int bytes) async {
+        final exefs = await Directory('$folder/base/exefs').create(recursive: true);
+        await File('${exefs.path}/main.npdm').writeAsBytes(List<int>.filled(bytes, 3));
+        await Directory('$folder/base/romfs').create(recursive: true);
+      }
+      final pack = '${temp.path}/Mario Kart World + Emulator';
+      await game('$pack/Mario Kart World', 64);
+      await game('${temp.path}/Two games/A', 16);
+      await game('${temp.path}/Two games/sub/B', 32);
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        final folder = (call.arguments as Map)['exportFolder'] as String;
+        if (call.method == 'detectExport') {
+          if (!await File('$folder/base/exefs/main.npdm').exists()) return {'success': false, 'code': 'notExportFolder'};
+          final gid = folder.endsWith('/A') ? '0100000000000A00' : folder.endsWith('/B') ? '0100000000000B00' : '0100ABCDEF000000';
+          return {'success': true, 'exportDir': folder, 'gid': gid, 'programId': gid.toLowerCase()};
+        }
+        if (call.method == 'gameInfo') return {'success': true, 'title': path.basename(folder)};
+        return null;
+      });
+      final result = await S2ArmInternalService.importFolderAt(pack);
+      expect(result.imported, 1, reason: result.items.map((i) => i.reason).join(','));
+      expect(result.items.single.destination!.endsWith('Games/Mario Kart World'), isTrue);
+      expect(await File('${result.items.single.destination}/base/exefs/main.npdm').length(), 64);
+      final both = await S2ArmInternalService.importFolderAt('${temp.path}/Two games');
+      expect(both.imported, 2);
+      expect(both.items.map((i) => i.name).toList(), ['A', 'B']);
+      final empty = await Directory('${temp.path}/Nothing/inside').create(recursive: true);
+      final none = await S2ArmInternalService.importFolderAt(empty.parent.path);
+      expect(none.imported, 0);
+      expect(none.items.single.reason, 'notExportFolder');
     });
 
     test('too little free space refuses the import before copying', () async {
