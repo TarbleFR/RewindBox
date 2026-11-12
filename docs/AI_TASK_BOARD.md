@@ -5526,19 +5526,25 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   `Xenia-native-identity.json`); the artifact expires 26 Nov (14-day retention, not republished).
   First device run (12 Nov, IPA 727, maintainer's TXM iPhone, app.log 39384 lines, container 842D3E76): Fable
   Anniversary ISO imported before this IPA. `XeniOS JIT: … needsTool, brokerPath, not debugged, plan=attachForCoreHandshake`,
-  the helper attach answered (Dart reached the bridge), `XeniOS launch: …`, then the log ends: RewindBox closed to the
-  Home screen, no Dart error, no `launched`. app.log holds no native XeniOS stage (helper NSLog only; its file journal is
-  iOS < 26). Code facts: upstream FatalError on iOS calls the IOSSystemHooks (note, message box) then
-  `quick_exit(EXIT_FAILURE)` (logging.cc:901-925); our Core installs no hooks (no SetIOSSystemHooks in core/ or the
-  patch), so any Core fatal closes RewindBox silently, with no .ips — matches the report. Candidates, unproven: (1) the
-  512 MB code-region reservation below 8 GB is a static initializer (jit_memory_ios.cc:66-71, "take it while the
-  process loads"), run here at our lazy dlopen (`jitState`), late in a large app; if none is left the x16=1 prepare is
-  a FatalError ("couldn't find room…"); (2) the x16=1/x16=0 requests unanswered (kJitTurnedOffMessage); (3) a real crash
-  (an .ips would exist). Evidence asked: `Documents/XeniOS/Engine/xenia.log` (written from prepare on, truncated by
-  the next Xbox 360 launch) and any .ips. An earlier attempt in the same process (04:35) failed before the JIT log
-  line; the early refusals of XeniaInternalService.launch do not log their reason. Next, once the cause is known: Core
-  fix in one rebuild (hooks that persist the fatal reason for the next start, plus the early host reservation if (1)),
-  and log the early refusals.
+  the helper attach answered, `XeniOS launch: …`, then RewindBox closed to the Home screen. Cause proven by the
+  maintainer's `Engine/xenia.log` (383 lines): `Setup: Initializing Processor…`, `iOS JIT: no room for the code region
+  below 8 GB`, FatalError "Xenia couldn't find room for its JIT memory…", `ShowSimpleMessageBox is not available on
+  iOS`. The JIT tool's prepare keeps only addresses below 8 GB; XeniOS reserves the 512 MiB region with a static
+  initializer at process load (jit_memory_ios.cc:66-71); RewindBox dlopens the Core at the first Xbox 360 launch
+  (`jitState`), late, so the room was gone. FatalError = IOSSystemHooks then `quick_exit` (logging.cc:901-925); our
+  Core installed no hook: silent close, no .ips. Also seen: an earlier attempt in the same process (04:35) failed
+  before the JIT log line; early refusals did not log their reason. Fix c579a0e7b `[xenia-core]` (Core ABI 4) +
+  71c828f5d: patch adds only `NeoXeniaAdoptExecuteRegion` after the anonymous namespace of jit_memory_ios.cc (patch
+  test pins its lines); `adopt_code_region`, `NEO_XENIA_JIT_CODE_REGION_HELD`, `validate_jit` refuses a broker-path
+  title without a held region; the bridge reserves 512 MiB PROT_NONE below 8 GB at plugin registration (iOS 26+,
+  Core present, flag `RBXeniaReserveCodeRegion` set by a broker-path load, or games in `Documents/XeniOS/Games`) and
+  hands it over after the dlopen (`codeRegion` host/own/none in the `XeniOS JIT:` line); Dart `noCodeRegion` refuses
+  `jitMemoryUnavailable` (12 locales) before any attach; `note_fatal_error` hook writes `Engine/last-fatal.txt`, logged
+  and removed at the next Xbox 360 launch; early refusals logged. system_ios.h digest added to upstream-files.json.
+  Local: patch test with --upstream OK, converter/touch/verify_core/identity/launch-transaction/objc-namespace OK,
+  Xbox 360 Dart suites 58/58, analyzer clean on changed files; delivery review refuses the changed recipe until the
+  new pin (expected). Core run 43158794942 in progress. Next: pin job, review rebind, merge Claude, macOS run, handoff
+  to 00; device check = `codeRegion=host` or `own` in the JIT log line, then boot.
 - **Validation (Flutter 3.47.2 host):** 11 Nov: XeniOS + catalog/Consoles/touch suites
   91/91, scanner suites 41/41 (1 skip), storage contract 24/24, patch/validator/touch/C++
   checks OK, analyzer 111 = baseline. Earlier: new XeniOS + catalog/Consoles tests 65/65;
