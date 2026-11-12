@@ -20,6 +20,8 @@ abstract final class MelonxLaunchFailureLocale {
           "The local game content could not be validated. See the technical details; your imported files have been preserved.",
       "quarantined":
           "MeloNX could not confirm a safe shutdown. Close and reopen RewindBox before trying again; its native resources remain protected.",
+      "switchRestartRequired":
+          "The Switch engine did not stop cleanly, so RewindBox must be restarted before any other game can start. Close RewindBox completely (swipe it up in the app switcher), then open it again.",
     },
     "fr": {
       "keysMissing":
@@ -38,6 +40,8 @@ abstract final class MelonxLaunchFailureLocale {
           "Le contenu du jeu local n’a pas pu être validé. Consultez les détails techniques ; vos fichiers importés sont conservés.",
       "quarantined":
           "MeloNX n’a pas confirmé un arrêt sûr. Fermez puis rouvrez RewindBox avant de réessayer ; ses ressources natives restent protégées.",
+      "switchRestartRequired":
+          "Le moteur Switch ne s’est pas arrêté proprement : RewindBox doit être redémarré avant de lancer un autre jeu. Fermez complètement RewindBox (balayez-le vers le haut dans le sélecteur d’apps), puis rouvrez-le.",
     },
     "es": {
       "keysMissing":
@@ -56,6 +60,8 @@ abstract final class MelonxLaunchFailureLocale {
           "No se pudo validar el contenido local del juego. Consulta los detalles técnicos; se han conservado tus archivos importados.",
       "quarantined":
           "MeloNX no pudo confirmar un cierre seguro. Cierra y vuelve a abrir RewindBox antes de reintentar; sus recursos nativos siguen protegidos.",
+      "switchRestartRequired":
+          "El motor de Switch no se detuvo correctamente, así que hay que reiniciar RewindBox antes de iniciar otro juego. Cierra RewindBox por completo (deslízalo hacia arriba en el selector de apps) y vuelve a abrirlo.",
     },
     "de": {
       "keysMissing":
@@ -74,6 +80,8 @@ abstract final class MelonxLaunchFailureLocale {
           "Der lokale Spielinhalt konnte nicht geprüft werden. Siehe technische Details; deine importierten Dateien bleiben erhalten.",
       "quarantined":
           "MeloNX konnte das sichere Beenden nicht bestätigen. Schließe und öffne RewindBox vor einem neuen Versuch; die nativen Ressourcen bleiben geschützt.",
+      "switchRestartRequired":
+          "Die Switch-Engine wurde nicht sauber beendet. RewindBox muss neu gestartet werden, bevor ein anderes Spiel starten kann. Schließe RewindBox vollständig (im App-Umschalter nach oben wischen) und öffne es erneut.",
     },
     "it": {
       "keysMissing":
@@ -92,6 +100,8 @@ abstract final class MelonxLaunchFailureLocale {
           "Impossibile verificare il contenuto locale del gioco. Consulta i dettagli tecnici; i file importati sono stati conservati.",
       "quarantined":
           "MeloNX non ha confermato un arresto sicuro. Chiudi e riapri RewindBox prima di riprovare; le risorse native restano protette.",
+      "switchRestartRequired":
+          "Il motore Switch non si è arrestato correttamente: devi riavviare RewindBox prima di avviare un altro gioco. Chiudi completamente RewindBox (scorrilo verso l’alto nel selettore delle app), poi riaprilo.",
     },
     "pt": {
       "keysMissing":
@@ -110,6 +120,8 @@ abstract final class MelonxLaunchFailureLocale {
           "Não foi possível validar o conteúdo local do jogo. Consulte os detalhes técnicos; os ficheiros importados foram preservados.",
       "quarantined":
           "O MeloNX não confirmou um encerramento seguro. Feche e reabra o RewindBox antes de tentar novamente; os recursos nativos continuam protegidos.",
+      "switchRestartRequired":
+          "O motor do Switch não parou corretamente; é preciso reiniciar o RewindBox antes de iniciar outro jogo. Feche o RewindBox por completo (deslize-o para cima no seletor de apps) e abra-o de novo.",
     },
     "ru": {
       "keysMissing":
@@ -128,6 +140,8 @@ abstract final class MelonxLaunchFailureLocale {
           "Не удалось проверить локальные файлы игры. См. технические подробности; импортированные файлы сохранены.",
       "quarantined":
           "MeloNX не подтвердил безопасное завершение. Закройте и снова откройте RewindBox; нативные ресурсы остаются защищёнными.",
+      "switchRestartRequired":
+          "Движок Switch не завершился корректно, поэтому перед запуском другой игры нужно перезапустить RewindBox. Полностью закройте RewindBox (смахните его вверх в переключателе приложений) и откройте снова.",
     },
     "id": {
       "keysMissing":
@@ -146,6 +160,8 @@ abstract final class MelonxLaunchFailureLocale {
           "Konten game lokal tidak dapat divalidasi. Lihat detail teknis; file impor Anda tetap disimpan.",
       "quarantined":
           "MeloNX tidak dapat memastikan penghentian yang aman. Tutup dan buka kembali RewindBox; sumber daya native tetap dilindungi.",
+      "switchRestartRequired":
+          "Mesin Switch tidak berhenti dengan benar, jadi RewindBox harus dimulai ulang sebelum game lain bisa dijalankan. Tutup RewindBox sepenuhnya (geser ke atas di pengalih aplikasi), lalu buka lagi.",
     },
     "ja": {
       "keysMissing":
@@ -162,6 +178,8 @@ abstract final class MelonxLaunchFailureLocale {
           "ローカルのゲーム内容を検証できませんでした。技術情報を確認してください。インポート済みファイルは保持されています。",
       "quarantined":
           "MeloNXの安全な停止を確認できませんでした。RewindBoxを閉じて開き直してください。ネイティブリソースは保護されたままです。",
+      "switchRestartRequired":
+          "Switch エンジンが正常に終了しなかったため、ほかのゲームを起動する前に RewindBox を再起動する必要があります。App スイッチャーで RewindBox を上にスワイプして完全に終了し、もう一度開いてください。",
     },
     "ko": {
       "keysMissing": "개인 prod.keys를 Documents/MeloNX/system으로 가져온 뒤 다시 시도하세요.",
@@ -175,6 +193,8 @@ abstract final class MelonxLaunchFailureLocale {
       "invalidContent": "로컬 게임 콘텐츠를 검증할 수 없습니다. 기술 정보를 확인하세요. 가져온 파일은 보존됩니다.",
       "quarantined":
           "MeloNX의 안전한 종료를 확인하지 못했습니다. RewindBox를 닫고 다시 여세요. 네이티브 리소스는 계속 보호됩니다.",
+      "switchRestartRequired":
+          "Switch 엔진이 정상적으로 종료되지 않아 다른 게임을 시작하기 전에 RewindBox를 다시 시작해야 합니다. 앱 전환기에서 RewindBox를 위로 쓸어 올려 완전히 닫은 뒤 다시 여세요.",
     },
     "zh": {
       "keysMissing": "请将个人 prod.keys 导入 Documents/MeloNX/system，然后重试。",
@@ -185,6 +205,8 @@ abstract final class MelonxLaunchFailureLocale {
       "jitUnavailable": "无法为 RewindBox 授权 JIT。请检查所选 JIT 方式及使用中的 LocalDevVPN。",
       "invalidContent": "无法验证本地游戏内容。请查看技术详情；已导入的文件会保留。",
       "quarantined": "MeloNX 无法确认已安全停止。请关闭并重新打开 RewindBox；原生资源将继续受到保护。",
+      "switchRestartRequired":
+          "Switch 引擎未能正常停止，启动其他游戏前需要重新启动 RewindBox。请在应用切换器中向上轻扫，完全关闭 RewindBox，然后重新打开。",
     },
     "zh_Hant": {
       "keysMissing": "請將個人 prod.keys 匯入 Documents/MeloNX/system，然後重試。",
@@ -195,6 +217,8 @@ abstract final class MelonxLaunchFailureLocale {
       "jitUnavailable": "無法為 RewindBox 授權 JIT。請檢查所選 JIT 方式及使用中的 LocalDevVPN。",
       "invalidContent": "無法驗證本機遊戲內容。請查看技術詳情；已匯入的檔案會保留。",
       "quarantined": "MeloNX 無法確認已安全停止。請關閉並重新開啟 RewindBox；原生資源將繼續受到保護。",
+      "switchRestartRequired":
+          "Switch 引擎未能正常停止，啟動其他遊戲前需要重新啟動 RewindBox。請在 App 切換器中向上滑動，完全關閉 RewindBox，然後重新開啟。",
     },
   };
   static String text(Locale locale, String key) {
