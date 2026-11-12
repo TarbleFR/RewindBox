@@ -5725,8 +5725,17 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   storage contract and Dart suites 59/59 OK. The 727 manifest and evidence keep pin 7e13268b (delivered); the next
   manifest must name c00755f6. macOS run 43166070527 on ea373c3a7 green (checks incl. the review gate,
   plugin_app); delivery contract: 5 errors, the same set as Claude c192962e alone (none Xenia; Xenia schema tests
-  pass). Handed off to 00 (12 Nov). Shared layer: xenia-core.yml pin selection only. Next: the device run on the
-  next IPA: `codeRegion=host` or `own` in the `XeniOS JIT:` line, then boot.
+  pass). Handed off to 00 (12 Nov). Shared layer: xenia-core.yml pin selection only.
+  Second device run (IPA 728 = Claude with all of the above; app.log 40838 lines, container 66D0D7FC): first
+  Xbox 360 launch of a process `codeRegion: none` -> refused `jitMemoryUnavailable` as designed (registration did
+  not reserve; flag not yet set, games check or no room: not visible in app.log). After a restart `codeRegion:
+  host, codeRegionHeld: true`, attach, launch, then RewindBox closed; Engine/xenia.log ends at `Loaded config`
+  (config.cc:329), no `x>` line: a real crash, not a FatalError (no last-fatal record expected). Xenia logs from
+  a background thread, so the tail can be lost; next upstream steps are SaveConfig, xe_ios_microphone_start,
+  xe_ios_party_voice_start (xenia_main_ios.mm:738-751). Diagnostics 1fdfeebb2 (bridge/Dart only, pin unchanged):
+  `registration` + `freeBelow8GBMiB` in the JIT line; synced Engine/launch-journal.txt replayed into app.log by
+  the next launch. Run 43176261471 green; suites 60/60. Waiting for the maintainer's .ips of this crash.
+  Next: read the .ips (exception, crashing thread), fix, then a device run with the journal.
 - **Validation (Flutter 3.47.2 host):** 11 Nov: XeniOS + catalog/Consoles/touch suites
   91/91, scanner suites 41/41 (1 skip), storage contract 24/24, patch/validator/touch/C++
   checks OK, analyzer 111 = baseline. Earlier: new XeniOS + catalog/Consoles tests 65/65;
