@@ -1,8 +1,9 @@
 # Switch 2: stop cleanly, then start another game in the same RewindBox session
 
 The maintainer asked for this project on 12 Nov 2026, after asking why the other emulators can switch games without
-restarting RewindBox and the Switch 2 engine cannot. It is not part of the IPA built next: the maintainer chose to ship
-the preparation progress first. It cannot be validated on a device before a first Switch 2 game boots (task E2).
+restarting RewindBox and the Switch 2 engine cannot. The maintainer chose to ship the preparation progress first (IPA
+729), so this project is for a later IPA. It cannot be validated on a device before a first Switch 2 game boots (task
+E2).
 
 Today, after one Switch 2 game in a process, `launchGame` refuses a second one with `engineRestartRequired`
 (`packages/s2arm_engine_bridge/ios/Classes/S2ArmEngineBridgePlugin.m`). The player must close RewindBox and open it again.
@@ -104,7 +105,7 @@ iOS settings page uses ("restart now", `ios/app.m:91,429`).
 - The parked game threads and their mappings have to be released, or the memory grows with each game.
 - Every step is unobserved until a first Switch 2 game boots on the iPhone.
 
-## Step 1 implemented (12 Nov 2026, reviewed, engine build next)
+## Step 1 implemented (12 Nov 2026, reviewed, built and pinned)
 
 - Engine patch `build-utils/s2arm/engine/patches/0010-guest-park-and-resume-the-same-game.patch`:
   - `s2a_host_park` and `s2a_host_resume` in session.c (above);
@@ -127,7 +128,13 @@ iOS settings page uses ("restart now", `ios/app.m:91,429`).
   - the bridge test (163 checks): the guest ABI is compared with the struct the whole series produces;
   - `test/s2arm_engine_exports_test.py` and `test/s2arm_session_menu_test.py` (each launch path checked on its own);
   - the Dart service test: the parked game resumes, another game and an end are refused.
-- Then: the engine build, an engine pin, and the device check once a first game boots.
+- Built and pinned:
+  - The engine is s2arm-engine.yml run 43204364693 on `779d9a7f`, green on macOS 15 and 26. Its guest entry-point
+    check covers the three new exports.
+  - Verified pin `930a84b0`, engine-pin.json SHA-256 `77da9cf1…39ee` (pin job run 43206559527).
+  - The bridge iOS compile (43204364702) and the Flutter tests (43204364819) are green.
+- Then the device check, once a first game boots: Quit, then launch the same game again and see the first frame.
+  Then check the save, the memory after three cycles, SIGTERM while parked, and Quit during a resume.
 
 ### Independent review of patch 0010 (12 Nov 2026)
 

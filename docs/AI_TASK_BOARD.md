@@ -5526,9 +5526,16 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - First pin attempt, run 43185240791, refused the artifact: it held a fifth member, `patches.txt`. Fixed in
       `a6f958fd`.
     - Not observed on a device. The pass shares are estimates until a journal gives the durations.
-  - **Relaunch in the same session (maintainer, 12 Nov): step 1 implemented and reviewed, engine build running.** The
-    maintainer chose to ship the progress lot first (IPA 729); this one is for a later IPA. Plan, inventory, design and
-    review: `docs/s2arm-relaunch-in-session.md`.
+  - **Relaunch in the same session (maintainer, 12 Nov): step 1 built, verified pin `930a84b0`, sent to main for a later
+    IPA.** The maintainer chose to ship the progress lot first (IPA 729). Plan, inventory, design and review:
+    `docs/s2arm-relaunch-in-session.md`.
+    - Pin `930a84b0`: engine-pin.json SHA-256 `77da9cf1…39ee`, the bytes the pin job printed in run 43206559527 (draft
+      `adb5e935`).
+      - Engine: run 43204364693 on `779d9a7f`, artifact 13937907087, expires 2026-12-12 11:07 UTC. Series 0001-0010,
+        equal to the checkout. packagedFingerprint `2f58c547…`.
+      - Prepare 43185893094 and sysdata 43038032448 unchanged. `identity.preparePatches` is recorded.
+      - Only the engine image, `Headers/rb_guest.h` and the licence digest changed (same 36 files; the notice changed).
+      - Three new exports. The recipe pins no `exportsList`.
     - S2Arm already restarts a session in-process for the same game (`session.c:440`, `:671`). Our guest stop took the
       process shutdown instead (`rb_guest.c:127`).
     - A different game needs new executable pages after the JIT helper has detached (`S2ArmEngineBridgePlugin.m:345`).
@@ -5560,14 +5567,20 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       - session menu, exports, pinned engine (21);
       - Dart service test.
       session.c and rb_guest.c compile here without warnings on both paths.
-    - CI on `779d9a7f`: engine 43204364693, bridge iOS 43204364702, library 43204364819, core 43204364873.
-    - Not observed on a device: it needs a first booting game (E2).
+    - CI, all green:
+      - on `779d9a7f`: engine 43204364693 (macOS 15 and 26, guest entry points 0003-0010), bridge iOS 43204364702,
+        library 43204364819, core 43204364873;
+      - on the merge `0a54d048`: library 43204718659;
+      - on the draft `adb5e935`: library 43206559190.
+    - Not observed on a device: it needs a first booting game (E2). Then: Quit and relaunch the same game, the save,
+      memory over three cycles, SIGTERM while parked, and Quit during a resume.
   - **The notice names the preparation patch series (main's follow-up after IPA 729).** Commit `c0441c6e`.
     - The packaged notice names `build-utils/s2arm/prepare/patches`.
     - The pin records the series as `identity.preparePatches` and checks it against the checkout. verify refuses another
       series.
     - `test/s2arm_pinned_engine_test.py`: 21 tests.
-    - Engine run 43201097301 is green, but it has only the notice. The pin takes the `779d9a7f` build, which has both.
+    - Engine run 43201097301 is green, but it has only the notice; it is not pinned. Pin `930a84b0` (above) carries both
+      the notice and the relaunch.
   - Main withdrew the launcher deletion (12 Nov): it stays as is. Formerly open: delete the launcher (`.github/diagnostics/s2arm/`, `s2arm-delivery.yml`,
     `set_probe_key.py`) together with its test `s2arm_delivery_test.py`, which no longer works
     since 9c9817e8 (40 errors)? Main also has to choose the S2Arm test groups of the next
