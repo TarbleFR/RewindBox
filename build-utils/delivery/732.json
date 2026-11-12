@@ -370,12 +370,32 @@
       {
         "commit": "8d7928ec25a5a30da12f86b7222d6da94c3faa8f",
         "note": "Reviewed by main: fix(legal): the disc reader review accepts a product tree that still holds the previously declared libretro podspec [skip ci]"
+      },
+      {
+        "commit": "545960ce747bea5a447f2802fd45f180aff43735",
+        "note": "Reviewed by main: delivery: IPA 732 draft (base 731: XeniaCore c7d6a5c4, S2Arm engine 9560e56f, licence audit; RPCS3 934 and MeloNX 743 kept) [skip ci]"
+      },
+      {
+        "commit": "4f5a3045de39afcd6ca961b62d05dd0b25dffa50",
+        "note": "Reviewed by main: [ipa-delivery:732] build(delivery): private IPA 732 = the delivered 731 with XeniaCore c7d6a5c4, S2Arm engine 9560e56f and the licence audit"
+      },
+      {
+        "commit": "d29675695930c0ce64e3eb76c92b27793579c65e",
+        "note": "Reviewed by main: docs(board): MeloNX lot 10 \u2014 retention root (nifm network address event) with adapter and host gate, live capture tooling, memory figures, handoff [skip ci]"
+      },
+      {
+        "commit": "f80ee9155bd56b34a6082f5f7aa9b4b6a41fb169",
+        "note": "Reviewed by main: docs(board): MeloNX lot 10 \u2014 live capture run 43284521762 green on macOS and iOS typecheck [skip ci]"
+      },
+      {
+        "commit": "67645447bf900b7e239dee7968448b7b524900d6",
+        "note": "Reviewed by main: fix(s2arm): the helper copy record and the engine review tests follow the licence audit (IPA 732 run 43283225614) [skip ci]"
       }
     ],
     "sourceOnly": [],
     "promotedCommits": [],
-    "freezeCommit": "545960ce747bea5a447f2802fd45f180aff43735",
-    "freezeTree": "0ea75f6a73a176005f4c69308974ca7ca521c61a",
+    "freezeCommit": "474862f523fe72214fedc5874c1891d9a488ff43",
+    "freezeTree": "b24bfd628b18841fe54acff6dd5f303f74e689c3",
     "baseEffectiveDigest": "fd4c9ec6f0357192bfe3b24d516ce651690b5eb09bab72740b95f7a013d00015",
     "inheritedDeferredPaths": [
       "build-utils/maintenance/actions-cleanup-2026-11-10-followup.json",
@@ -524,6 +544,36 @@
       {
         "commit": "545960ce747bea5a447f2802fd45f180aff43735",
         "subject": "delivery: IPA 732 draft (base 731: XeniaCore c7d6a5c4, S2Arm engine 9560e56f, licence audit; RPCS3 934 and MeloNX 743 kept) [skip ci]",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "4f5a3045de39afcd6ca961b62d05dd0b25dffa50",
+        "subject": "[ipa-delivery:732] build(delivery): private IPA 732 = the delivered 731 with XeniaCore c7d6a5c4, S2Arm engine 9560e56f and the licence audit",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "d29675695930c0ce64e3eb76c92b27793579c65e",
+        "subject": "docs(board): MeloNX lot 10 \u2014 retention root (nifm network address event) with adapter and host gate, live capture tooling, memory figures, handoff [skip ci]",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "f80ee9155bd56b34a6082f5f7aa9b4b6a41fb169",
+        "subject": "docs(board): MeloNX lot 10 \u2014 live capture run 43284521762 green on macOS and iOS typecheck [skip ci]",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "67645447bf900b7e239dee7968448b7b524900d6",
+        "subject": "fix(s2arm): the helper copy record and the engine review tests follow the licence audit (IPA 732 run 43283225614) [skip ci]",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "474862f523fe72214fedc5874c1891d9a488ff43",
+        "subject": "delivery: IPA 732 draft again after run 43283225614 (S2Arm test fixes 67645447) [skip ci]",
         "role": "recipe",
         "productPaths": 0
       }
@@ -720,6 +770,11 @@
         "gitBlob": "4e621dee023ec0bf1ac340870878fa9dd37862a7",
         "sha256": "c7353ec88227d11068b9177472b31002922f50b2a7f2053cb1ea117b8c2d2f95"
       },
+      "packages/s2arm_jit_helper/copy-of-rpcs3.json": {
+        "mode": "100644",
+        "gitBlob": "8f8bfbbd8ead9b50c6348e3c192c324ae7cb951f",
+        "sha256": "1766fbf86f3a75716101b69e3341debfbd5c6b47b342697bee3b6b75694affcc"
+      },
       "packages/stikjit_bridge/LICENSE": {
         "mode": "100644",
         "gitBlob": "a5940b46ee3b1697d4648f30212d4100bbd57224",
@@ -799,6 +854,11 @@
         "mode": "100644",
         "gitBlob": "5cfbabadff3c38569dc59b4143f06b8f8908910e",
         "sha256": "fae5884db1e8ac6c9a3d0f9ff1d3e8a7e693da0845ee377c1c0f53940d3fd9d8"
+      },
+      "test/s2arm_legal_review_test.py": {
+        "mode": "100644",
+        "gitBlob": "29cee780de36b37b936dad5c13e54a9df3a57bcc",
+        "sha256": "5fb582393db55a984c7bf25abdc8fc9bc2985f83101726d8519582fd05187b8a"
       },
       "test/s2arm_store_bench_test.py": {
         "mode": "100644",
@@ -981,7 +1041,7 @@
       "test/ra_disc_hash_reader_test.py": null,
       "test/retro_achievements_identification_test.dart": null
     },
-    "effectiveDigest": "4ba54f973181a9286bcba7b05cedda4a242d67c6ee85730df67ade55decf6a0b",
+    "effectiveDigest": "662f421fbccf226e33cff10abb8eeac270368942e1b6867ef9b986ce1a088d55",
     "productFiles": 7956,
     "embeddedRecipeInputs": {
       "LICENSE.md": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
@@ -2535,8 +2595,8 @@
     "melonx-dependencies"
   ],
   "frozen": {
-    "at": "2026-11-12T18:45:15Z",
-    "commit": "545960ce747bea5a447f2802fd45f180aff43735",
+    "at": "2026-11-12T19:19:57Z",
+    "commit": "474862f523fe72214fedc5874c1891d9a488ff43",
     "tool": "standard_delivery.py freeze",
     "inCI": false
   }

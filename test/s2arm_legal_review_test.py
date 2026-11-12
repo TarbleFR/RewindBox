@@ -29,6 +29,11 @@ ROOT = Path(__file__).resolve().parents[1]
 COLLECTOR = 'build-utils/collect_build_source_evidence.py'
 PRIOR = 'docs/evidence/xenios-playlist-declarations-2026-11-11.json'
 ENGINE_REVIEW = 'docs/evidence/s2arm-engine-declarations-2026-11-11.json'
+# The legal assets review (12 Nov, session 03's licence audit) is chained after the engine review and moves
+# pubspec.yaml on by the asset lines below; the engine review's postimage is the checked-out file without them.
+LEGAL_ASSETS_REVIEW = 'docs/evidence/legal-assets-declarations-2026-11-12.json'
+LEGAL_ASSET_LINES = (b'    # Notices the Legal and credits dialog opens offline (MeloNX, engines, XeniOS).\n'
+                     b'    - assets/legal/engines/\n    - assets/legal/melonx/\n    - assets/legal/xenios/\n',)
 ENGINE_PACKAGE = ('packages/s2arm_engine_bridge/pubspec.yaml', 'packages/s2arm_engine_bridge/ios/s2arm_engine_bridge.podspec')
 ENGINE_PODSPEC = ENGINE_PACKAGE[1]
 VENDORED = 'packages/s2arm_engine_bridge/ios/Frameworks/S2ArmPrepare.xcframework'
@@ -47,9 +52,23 @@ def load_collector():
     return module
 
 
-def prior_pubspec():
-    """pubspec.yaml as the XeniOS playlist review left it: the checked-out file without the bridge lines (each once)."""
+def without(data, lines, what):
+    for line in lines:
+        if data.count(line) != 1:
+            raise AssertionError(f'pubspec.yaml does not carry the {what} line {line!r} exactly once')
+        data = data.replace(line, b'')
+    return data
+
+
+def engine_pubspec():
+    """pubspec.yaml as the engine review left it: the checked-out file without the legal assets lines."""
     data = (ROOT / 'pubspec.yaml').read_bytes()
+    return without(data, LEGAL_ASSET_LINES, 'legal assets') if (ROOT / LEGAL_ASSETS_REVIEW).is_file() else data
+
+
+def prior_pubspec():
+    """pubspec.yaml as the XeniOS playlist review left it: the engine review's postimage without the bridge lines."""
+    data = engine_pubspec()
     for line in BRIDGE_LINES:
         if data.count(line) != 1:
             raise AssertionError(f'pubspec.yaml does not carry the bridge line {line!r} exactly once')
@@ -104,7 +123,7 @@ class Gate:
 
 
 class EngineReview(Gate, unittest.TestCase):
-    """The engine bridge review, chained after the XeniOS playlist review: the last review of pubspec.yaml."""
+    """The engine bridge review, chained after the XeniOS playlist review; the legal assets review follows it."""
     def review(self, **changes):
         return self.edited(ENGINE_REVIEW, changes)
 
@@ -120,7 +139,13 @@ class EngineReview(Gate, unittest.TestCase):
         self.assertEqual(engine['declarations']['pubspec.yaml']['before'], prior['declarations']['pubspec.yaml']['after'],
                          'the review starts from the identity the last review of pubspec.yaml ended on')
         self.assertEqual(engine['declarations']['pubspec.yaml']['before'], sha(prior_pubspec()))
-        self.assertEqual(engine['declarations']['pubspec.yaml']['after'], sha((ROOT / 'pubspec.yaml').read_bytes()))
+        self.assertEqual(engine['declarations']['pubspec.yaml']['after'], sha(engine_pubspec()))
+        if (ROOT / LEGAL_ASSETS_REVIEW).is_file():
+            assets = json.loads((ROOT / LEGAL_ASSETS_REVIEW).read_bytes())
+            self.assertEqual(assets['baseline_inventory'], ENGINE_REVIEW)
+            self.assertEqual(assets['declarations']['pubspec.yaml'],
+                             dict(before=sha(engine_pubspec()), after=sha((ROOT / 'pubspec.yaml').read_bytes())),
+                             'the legal assets review starts where the engine review ended and ends the chain')
         for name in ENGINE_PACKAGE:
             self.assertEqual(engine['declarations'][name], dict(before=None, after=sha((ROOT / name).read_bytes())))
         self.assertEqual(engine['pubspec_lock_sha256'], sha((ROOT / 'pubspec.lock').read_bytes()),
@@ -153,8 +178,17 @@ class EngineReview(Gate, unittest.TestCase):
         self.assertNotIn('S2ARM_PROBE', text, 'the probe review is gone from the gate')
 
     def test_pubspec_changed_after_the_engine_review_is_refused(self):
-        self.refused({'pubspec.yaml': (ROOT / 'pubspec.yaml').read_bytes() + b'# changed after the review\n'},
-                     'S2Arm engine source/license declaration changed since review: pubspec.yaml')
+        # Without the later legal assets review, the engine review's own check refuses a moved pubspec.yaml.
+        self.refused({'pubspec.yaml': engine_pubspec() + b'# changed after the review\n'},
+                     'S2Arm engine source/license declaration changed since review: pubspec.yaml',
+                     hidden=[LEGAL_ASSETS_REVIEW])
+        if (ROOT / LEGAL_ASSETS_REVIEW).is_file():
+            self.refused({'pubspec.yaml': (ROOT / 'pubspec.yaml').read_bytes() + b'# changed after the review\n'},
+                         'Legal assets source/license declaration changed since review: pubspec.yaml')
+
+    def test_the_engine_review_postimage_is_accepted_without_the_legal_assets_review(self):
+        declarations = self.run_with({'pubspec.yaml': engine_pubspec()}, hidden=[LEGAL_ASSETS_REVIEW])
+        self.assertIsInstance(declarations, dict)
 
     def test_bridge_declarations_changed_after_the_review_are_refused(self):
         for name in ENGINE_PACKAGE:
@@ -208,7 +242,7 @@ class EngineReview(Gate, unittest.TestCase):
 
     def test_the_tree_before_the_engine_review_is_still_accepted(self):
         # The engine review absent and pubspec.yaml without its two lines: the XeniOS playlist review's chain as it was.
-        declarations = self.run_with({'pubspec.yaml': prior_pubspec()}, hidden=[ENGINE_REVIEW])
+        declarations = self.run_with({'pubspec.yaml': prior_pubspec()}, hidden=[ENGINE_REVIEW, LEGAL_ASSETS_REVIEW])
         self.assertIsInstance(declarations, dict)
 
 

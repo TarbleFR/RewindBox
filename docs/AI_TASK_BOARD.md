@@ -359,6 +359,30 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     `Claude-Session` line.
   - **Next:** download, verify offline, receipts, record, delete the key, send the file; give session 04 the freeze
     commit for 803 (sibling of 726).
+- **IPA 732 delivered and verified (12 Nov 19:5xZ, main; maintainer: build once Switch 2 has finished, with XeniOS).**
+  - Second request: run `43289133482` attempt 1, trigger `77af35c2`, frozen on `474862f5`, effective digest `662f421f`,
+    7956 product files. All 5 jobs succeeded.
+  - First request, run 43283225614 (trigger 4f5a3045): the flutter job failed on two S2Arm tests older than session 03's
+    licence audit. Fixed in 67645447: the helper LICENSE is recorded as a rename, and the engine review tests follow the
+    legal assets review. Before that, main's 8d7928ec: the disc reader review accepts the delivered tree's previously
+    declared libretro podspec (b06888a9 was never delivered).
+  - IPA `RewindBox-732.ipa`: 329956970 B, SHA-256 `97952e981eea2eff72bb93f35627a831221aa4bf0ed9abaeb67d48dbb93ade52`.
+  - Contents:
+    - XeniaCore c7d6a5c4 (profile sign-in, guest dialogs, rumble, all pads) and the licence audit;
+    - S2Arm engine 9560e56f (patch 0011: store self-test skipped under the JIT helper; boot code in the spare pool;
+      engine log in Files);
+    - RPCS3 934 and MeloNX 743 kept.
+  - Offline verification `passed-offline-checks`:
+    - 97 images; 46 retained fingerprints; all 6 validators exit 0;
+    - identities Xenia c7d6a5c4 and S2Arm 9560e56f;
+    - RewindBox-MODIFICATIONS.md, the XeniOS date notices and the RA disc-reader notices are packaged;
+    - Legal XeniOS 6/6, MetalShaderConverter 3/3, S2Arm 35/35.
+  - Undeclared image changes, not fatal: XeniaCore and S2ArmEngine (declared engine images), plus the armsx2 and melonx
+    bridges, whose only change is a LICENSE file. That is the same rebuild drift as 729/731; cause unexplained.
+  - Receipt `docs/evidence/rewind732/delivery.json` (14 proof files + 2 engine receipts). Key shredded; file sent.
+  - Not run on an iPhone. Device checks:
+    - session 03: START past the title, saves/dialogs, rumble, pad loss, edge swipe, `profile sign-in` line;
+    - session 04: Mario Kart World boot asks for its code within seconds; engine log in Files.
 - **Next IPA (732) queue (main, 12 Nov 15:5xZ).**
   - Session 03 handoff merged on Claude as 5b53672e (code head 22058559, board 22bc25c7; macOS run 43249822171 green).
     - XeniaCore pin c7d6a5c4 (2bbc9daf7, run 43241572889): profile sign-in for player 1 (the cause of Fable
@@ -5223,42 +5247,71 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     hook `d32738b5` reached `Claude` with the MeloNX Core 727 merge `c53ad180` and is inert in the common IPA.
 
 - **MeloNX lot 10: stutters, memory, heat, shaders on IPA 729 / Core 743 (Claude Code session
-  01JA5QgKeoGVH5oVjNyhcj3D, 12 Nov; owner: this session for analysis and the next MeloNX Core's GC/retention adapters;
-  the Core number is main's to assign, tentatively 745; no IPA, nothing frozen or delivered is touched):** input IPA 729,
-  Core 743 (source `3d2645ea`, iPhone binary `b1957006…`), private journals core/launch/performance/stderr, pid 58475:
-  Hogwarts gen 1 (session 25431A89, 1x, async shaders on, host memory budget on), then Smash gen 2 in the same process
-  (session 854293EB, 1x, async shaders off, budget off). Not a controlled A/B (different titles, options and memory).
-  - **GC freezes (proof: gcPause/gcEvent lines against the host sampler's `.NET_BGC` CPU, `pres` max gap and `vm=`):**
-    every long gen0 pause in play is the ephemeral collection that starts a background gen2 (its index is the
-    background's + 1 and the background's own first pause is 0.001-0.007 ms): Hogwarts 145/177/186/200 (95-364 ms,
-    BGC 144/176/185/199) and the 816.7 ms gap at 12:50:14 (BGC 226, line budget spent), Smash 236/268/283/291
-    (134-721 ms; 291 = the 733 ms gap, BGC 290). Those seconds also carry a burst of iOS decompressions (Smash
-    6 968-29 334 pages of 16 KiB, i.e. 109-458 MiB, against 100-1 500 outside; Hogwarts 3 439-34 384). A background gen2
-    that starts without an ephemeral (first pause self-accounted, 1.5-25 ms) never coincides with a freeze: from
-    12:51:45 Smash runs keep-alive-paced backgrounds every ~13 s with decompressions near 0 and 16.7 ms gaps.
-    `check_for_ephemeral_alloc` (gc.cpp) runs that ephemeral only when gen0's budget is spent, i.e. for an
-    allocation-triggered background, not for the keep-alive's GC.Collect: the keep-alive (Core 693) is not the cause.
-    Not proven yet: which part of that suspension (ephemeral work, the BGC thread's root scan and restart, waiting on
-    compressed pages) takes the time; no behaviour change until a journal separates them.
-  - **Retention (proof: sessionRetention/retentionChain lines):** after Hogwarts' close, after the final collections,
-    the Switch, GpuContext, statistics, Horizon, kernel, cpuMemory, renderer, audio driver, window, Npad and touch
-    managers, 11/29 service processes and 11/81 KThreads are still reachable; the application process and its CPU
-    context are released. Same at Smash's first frame (6 full collections later, heap 972 MB) and after Smash's close
-    (2/2 sessions). Smash's first-frame compaction keeps gen2 484 MiB and LOH 468 MiB against Hogwarts' 104 and 266:
-    about 570 MiB of the closed session rides into the next game and every background gen2 marks it again. Teardown
-    lines are clean (guest stopped 196/60 ms, GPU released, close passed). Leads read and discarded this time (each
-    releases or never holds the session): NativeGamepadDriver.OnInputUpdated (unsubscribed in the window's dispose),
-    InputManager mouse driver, Npad gamepad events, Apple audio GCHandle and completion block, the static
-    `RenderStageTimer.MemoryUsage` (holds the Vulkan allocator only), the pause pipeline-cache checkpoint work item,
-    TranslatedEntries and other thread statics, BackgroundCompilationScheduler threads, EmbeddedSession/coordinator
-    statics, time zone manager. Root not found by reading.
-  - **Next (this session):** a fresh branch from `Claude` with two adapters and their gates, for main's next MeloNX
-    Core: (1) the pause journal says for each long ephemeral whether it started a background gen2 and whether the
-    keep-alive asked for that background, never drops a pause of 100 ms or more, and gives per-minute counts over
-    100/250/500 ms with the session generation; (2) at close, only when the Switch is still reachable after the final
-    collection, the window shell and then the Switch's own references are cut in stages with a blocking collection and
-    the reachable parts and heap after each, so the first stage that frees the session names the root's entry. Board
-    and handoff to main before any Core build; no IPA from this session.
+  01JA5QgKeoGVH5oVjNyhcj3D, 12 Nov; owner: this session for analysis, the capture tooling and the adapters below; main
+  owns the Core number, wiring, freeze, CI and any IPA; branch `work/melonx-lot10-20261112` from `Claude` `e602b6aa`,
+  head `3b895511`; nothing frozen or delivered is touched; IPA 730-732 keep Core 743):** input IPA 729, Core 743 (source
+  `3d2645ea`, iPhone binary `b1957006…`), private journals, pid 58475: Hogwarts gen 1 (session 25431A89, 1x, async
+  shaders on, host memory budget on, MoltenVK standalone `1bdc5159`), then Smash gen 2 in the same process (session
+  854293EB, 1x, async shaders off, budget off). Not a controlled A/B.
+  - **Reference figures (`tools/melonx/live_capture.py report`, whole sessions, loading included):** Hogwarts 147 s of
+    play: 17.7 presented frames/s, frame time p50/p95/p99 50/117/200 ms, gaps over 100/250/500 ms 62.5/5.3/1.6 per
+    minute, footprint 2 109-4 882 MiB, device available down to 4 %, 9.8 GiB decompressed and 11.6 GiB compressed per
+    minute, 1 966 late audio episodes, 640 starvations. Smash 237 s: 52.9 frames/s, p50/p95/p99 17/17/17 ms, gaps
+    9.1/2.5/1.3 per minute, 1.0 GiB decompressed per minute, 1 starvation.
+  - **Hogwarts' first limit is memory, not the render path:** PacePresent lines give 142 frames in 5.03 s, all paced at
+    33 ms, at t = 30 s (footprint under 4 GiB); from t = 60 s the footprint is 4.7-4.9 GiB, the `[MeloNX:memory]` line
+    shows 5.2-5.5 GiB of the process in the compressor (internal resident 1.2 GiB) and the game runs at 13-17 fps while
+    iOS decompresses about 160 MiB/s. Where the footprint is at t = 90-150 s: graphics ledger 1 154-1 208 MiB (Vulkan
+    device memory 702-752 MiB: images 445-458 MiB in 8 000-9 400 dedicated blocks, buffers 244-307 MiB in 5 700; the
+    texture cache accounts for 155-169 MiB, the buffer cache 126-211 MiB); native heap 903-910 MiB, of which the heap
+    sampler attributes about 500 MiB to MoltenVK and Metal shader and pipeline objects (stacks #1-#5, #7, #11, #14:
+    205 + 130 + 40 + 34 + 24 + 16 + 11 + 8 MiB); managed heap 760-840 MiB committed (LOH 478-545 MiB, 190-268 MiB of it
+    free). Not reduced by this lot: the MoltenVK shader/pipeline memory belongs to the MeloNX owner's lots 6-8.
+  - **GC freezes (unchanged finding):** every long gen0 pause in play is the ephemeral collection that starts an
+    allocation-triggered background gen2 (index = background + 1, background first pause 0.001-0.007 ms): Hogwarts
+    95-364 ms and the 816.7 ms gap, Smash 134-721 ms (the 733 ms gap). Each coincides with a decompression burst
+    (109-458 MiB in that second); keep-alive-paced backgrounds (first pause 1.5-25 ms) never do. Which thread spends the
+    time is what the freeze records below measure on the device; no GC setting is changed.
+  - **Retention root found (source) and reproduced (host):** nifm's `IGeneralService` subscribes an instance method to
+    the runtime's static `NetworkChange.NetworkAddressChanged` and unsubscribes only in `Dispose`;
+    `ServerBase.DestroySession` disposes a closed session's root object only, so a general service created in a domain
+    the guest closes is never disposed, and the static event keeps it, its `ServerBase`, the `KernelContext` and the
+    `Switch` (the 729 lines: Switch, GpuContext, Horizon, kernel, renderer, window, the eleven ServerBase processes,
+    1/1 then 2/2). It is the only subscription of a session object to a process-wide event in the engine.
+    **`adapt_nifm_network_watch`** (committed, NOT wired; IGeneralService.cs and Library.cs on the Core 743
+    preparation): one static handler counts the changes, the cache compares the count where it is read; the
+    sessionRetention line adds "Nifm general services created C, disposed D". Gate
+    `test/melonx_nifm_network_watch_test.py`, 35 checks, production Ryujinx.HLE (control and candidate) and
+    Ryujinx.Library built, real IGeneralService/ServerBase/KernelContext/Switch chain on the host .NET 10 runtime:
+    control keeps 4 of 4 parts and, over eleven undisposed sessions, 11 Switches and 92.3 MB; candidate 0 and 6.7 kB;
+    a disposed service releases in both; the cached interface is returned identically (cached, cached, fresh after a
+    change, refilled once); one static subscription for five services. Device: "essai appareil en attente"; the proof
+    that this path held the 729 sessions is `sessionRetention released` with C - D above 0 after a close. If the Switch
+    is still retained, the next step is the staged cut at close (window shell, then the Switch's references) with the
+    reachable parts after each. Rollback: drop the adapter.
+  - **Capture while playing (bridge, committed on the branch, not in any IPA):** `MeloNXLiveCapture.swift` keeps 40 s
+    of presentations, drawable requests and 50 ms samples of the twelve busiest threads (CPU, run state, pc and three
+    return addresses) with the process's decompression and fault counters; a gap of 100 ms or more, a manual mark (a
+    volume button, or the computer's datagram) and one smooth stretch per minute write a bounded `[MeloNX:freeze]`
+    record (at most 40 per kind and session, one automatic record per 3 s) naming the threads that worked inside the
+    gap and where. With an address entered in the game menu ("Live capture"), every performance-journal line and engine
+    event is also sent as numbered UDP datagrams to a private IPv4 address (bounded queue, oldest dropped, non-blocking
+    socket, utility thread); the journal files stay the record. `tools/melonx/live_capture.py listen|report|compare`
+    receives, marks and reports. Checks: `test/melonx_live_capture_test.py` 40 checks anywhere; the real recorder
+    compiled and run on macOS arm64 and typechecked for the iOS 18 SDK (workflow `melonx-live-capture.yml`, run
+    43284521762 green on `041fbb53`: a 300 ms held frame gives one record naming the busy thread with its CPU time and
+    place, a gap while paused none, the computer's mark a record, a 4 kB line arrives whole, 5 000 queued lines do not
+    block the caller, the recorder's own CPU time is journaled; runs 43282389167 and 43283154457 failed on two timing
+    assertions of the test, too strict for the runner). The session view controller's hooks (two ring writes, start,
+    stop, pause, the menu entry) are compiled only by the IPA build.
+  - **Not done in this lot:** submissions (3D syncpoints, SetReference, strict flushes), the 13 warmed-but-missed
+    Hogwarts variants, the Vulkan window crossing two sessions, CPU % above the physical capacity, the 966 dropped
+    stderr lines.
+  - **Handoff to main:** next MeloNX Core = 743 + `adapt_nifm_network_watch` (wire after `adapt_build_journal_load_wait`
+    in prepare_embedded.py, ORDER, the plan with gate `nifm-network-watch`, freeze, Core CI); next IPA with that Core
+    and the bridge commits of the branch. Device protocol: same save and route for both builds; Hogwarts 5 min from a
+    cold start of the app, close, Smash 3 min, close, Hogwarts again 5 min, without leaving the app; then 20 min of
+    Hogwarts; the journals (or the capture) of each; compare with `live_capture.py compare`.
 
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
