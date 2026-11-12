@@ -5076,7 +5076,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   libmetalirconverter, Software Signing > Apple Code Signing CA > Apple Root CA, no Team ID, CDHash 71a046f3…, both
   requirements satisfied. core-pin.json 8b850d7b…1e33 committed byte-identical to the job output; delivery review
   xenios-core-delivery-declarations-2026-11-12.json bound to it (recipe = 79f3409f0), gate test 9/9 without skip;
-  collector/legal failure sets unchanged; delivery contract 108 tests, same 14 history errors. Pin route: ubuntu `pin` job (9ceefdcd4), `[xenia-pin run=<id>]`, downloads the zip by id via the API and
+  collector/legal failure sets unchanged; delivery contract 108 tests, same 14 history errors. Merged with Claude
+  52e2d9a4 (92c6dbc40, no conflict): macOS run 43131882796 green (checks incl. the review gate, plugin_app). Handed
+  off to 00 (12 Nov). Pin route: ubuntu `pin` job (9ceefdcd4), `[xenia-pin run=<id>]`, downloads the zip by id via the API and
   prints core-pin.json + base64 (this session cannot reach the artifact store). The producer runs on this branch:
   the delivery manifest names it (`producers.engine.branch`) or main rebuilds on Claude. Pending: handoff to 00;
   IPA closed-set validators after 00 integrates session 04's 13d34c25 (identity-file design
