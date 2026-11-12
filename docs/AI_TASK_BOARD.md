@@ -359,6 +359,14 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     `Claude-Session` line.
   - **Next:** download, verify offline, receipts, record, delete the key, send the file; give session 04 the freeze
     commit for 803 (sibling of 726).
+- **Next IPA (729) gating (maintainer, 12 Nov 08:2xZ): wait until the Switch 2 session (04) says it has finished.**
+  Already on Claude:
+  - session 04: 4c74414f (import capacity, clone, preparation progress and reuse) and 46c7e0db (Switch 1 / Switch 2
+    separation);
+  - session 03 diagnostics: f76facc4;
+  - MeloNX Consoles probe: d8b5e0e5;
+  - MeloNX Core 743 recipe: 3d2645ea. Build run 43174115676; pin pending.
+  Nothing is built until 04 sends an explicit "Switch 2 finished".
 - **IPA 728 device finding (session 04, maintainer app.log pid 57620, 07:07Z).**
   - Confirmed: the S2Arm status reads available=true, and the Switch 2 Consoles switch turns on (bc43c4ed).
   - P0 found: opening the Consoles page loads MeloNXCore. `libretro_consoles_screen.dart:151` calls
