@@ -5202,7 +5202,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   test/ipa_identity_engines_test.py 12/12 (synthetic IPAs, the real heredoc); single_ipa_distribution OK; donor and
   deployment suites same pre-existing failures; delivery contract: the 14 history errors plus main's MeloNX Core 737
   pin error, present on Claude without this change. Commit 8a076372d, macOS run 43135024285 green; handed to 00
-  (changedInputs data given) and the table to extend sent to 04 (12 Nov). Pin route: ubuntu `pin` job (9ceefdcd4), `[xenia-pin run=<id>]`, downloads the zip by id via the API and
+  (changedInputs data given) and the table to extend sent to 04 (12 Nov). Merged into Claude as c0aae7294; main
+  records the Dolphin changedInputs for the manifest. Session 03 handoff complete; next: the first TXM-iPhone session
+  once the common IPA (waiting on Core 934, Core 737, S2Arm) is delivered. Pin route: ubuntu `pin` job (9ceefdcd4), `[xenia-pin run=<id>]`, downloads the zip by id via the API and
   prints core-pin.json + base64 (this session cannot reach the artifact store). The producer runs on this branch:
   the delivery manifest names it (`producers.engine.branch`) or main rebuilds on Claude. Pending: handoff to 00;
   IPA closed-set validators after 00 integrates session 04's 13d34c25 (identity-file design
