@@ -58,17 +58,20 @@ void main() {
     });
 
     test('the two restart messages name one engine each, with no ambiguity between them', () {
+      // German writes the console in compounds ("Switch-2-Spiel", "Switch-1-Engine").
+      final switch2 = RegExp(r'Switch[ -]2');
+      final switch1 = RegExp(r'Switch[ -]1');
       for (final entry in S2ArmEngineLocale.values.entries) {
         final secondGame = entry.value['restartRequired']!;
         final switch1Loaded = entry.value['switch1EngineLoaded']!;
         expect(secondGame, isNot(equals(switch1Loaded)), reason: entry.key);
         for (final text in [secondGame, switch1Loaded]) {
           expect(text.contains('MeloNX'), isFalse, reason: '${entry.key}: the player sees consoles, not engine names');
-          expect(text.contains('Switch 2'), isTrue, reason: '${entry.key}: both are about the Switch 2 engine');
+          expect(switch2.hasMatch(text), isTrue, reason: '${entry.key}: both are about the Switch 2 engine');
         }
-        expect(secondGame.contains('Switch 1'), isFalse, reason: '${entry.key}: a second Switch 2 launch is not about Switch 1');
+        expect(switch1.hasMatch(secondGame), isFalse, reason: '${entry.key}: a second Switch 2 launch is not about Switch 1');
         expect(secondGame.contains('Nintendo Switch'), isFalse, reason: entry.key);
-        expect(switch1Loaded.contains('Switch 1'), isTrue, reason: '${entry.key}: says which engine blocks the launch');
+        expect(switch1.hasMatch(switch1Loaded), isTrue, reason: '${entry.key}: says which engine blocks the launch');
       }
     });
 
