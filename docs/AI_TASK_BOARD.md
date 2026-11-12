@@ -4703,8 +4703,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       `verify_dma_core.py preflight` needs Apple ARM64 (not run here). Not delivered, no IPA, not run on an iPhone.
     - **Host run of `71765f2f` (melonx-host 43125000475, failed):** the UIKit presentation step did not compile
       the plugin: its doubles lacked `MeloNXEngineCallClass` (lot 12) and `MeloNXMemoryLease.isRetained` /
-      `retire(runtime:reason:)` (71765f2f); fixed in `61106a6e`. The donor lease test runs in that workflow only on a
-      push whose head commit carries `[melonx-display]` (a dispatched run skips it): its retry cases are not run yet.
+      `retire(runtime:reason:)` (71765f2f); fixed in `61106a6e`: melonx-host run 43129273832 on `e4c03c18` green
+      (steps 1-11, the presentation step included). The donor lease test runs in that workflow only on a push whose
+      head commit carries `[melonx-display]` (a dispatched run skips it): its retry cases are not run yet; main's
+      integration commit will carry the tag.
     - **Next action:** main: Core 737 CI, pin and an IPA together with `71765f2f`; on the device, several Switch
       closes (pads attached) then a PS3 launch: no `close quarantined`, no `Collection was modified`.
   - **Lot 14 (11 Nov; maintainer: "une vraie mise à jour pour sentir du changement" on RAM, heat, shaders): GPU thread
