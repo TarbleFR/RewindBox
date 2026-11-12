@@ -205,6 +205,8 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             # Core 743: submissions by cause and host syncs by site; the build journal without the main load wait.
             'submit-causes': 'delivered',
             'build-journal-load-wait': 'delivered',
+            # Core 743: its receipt declares SyncManager.cs, which adapt_submit_causes changes: run again on the final one.
+            'sync-allocations': 'delivered',
             # Core 661: the native display fixture declares EmbeddedMemory.cs (adapt_safe_point_compaction): rerun.
             'display-native': 'delivered',
             # Core 654: its receipt declares the collector (postimage), so the single-virtual-dependency fixture is rerun.
@@ -288,7 +290,10 @@ RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'pe
          CORE87 + 'allocator-range-update-checks.json', CORE87 + 'allocator-blocks-checks.json',
          # Core 733: adapt_host_thread_class adds the class request to KTimeManager.cs, which this core87 receipt
          # declares; it is run again on the final timer manager against the delivered one.
-         CORE87 + 'kernel-timer-allocations-checks.json'}
+         CORE87 + 'kernel-timer-allocations-checks.json',
+         # Core 743: adapt_submit_causes adds counters to SyncManager.Create and names the interrupt flush's cause in
+         # SyncManager.cs, which this core87 receipt declares; it is run again on the final sync manager against the delivered one.
+         CORE87 + 'sync-allocation-checks.json'}
 # Production files that joined the prepared source with this increment (unadapted in the delivered Core).
 JOINED = {CONFIG, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY,
           # Core 639 (adapt_pipeline_warmup_parity): pinned upstream members that join the prepared source.

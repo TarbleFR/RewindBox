@@ -75,8 +75,8 @@ CONTROL_PREPARED = {
 # controller manager keeps its own copy of the input configuration); 94 with Core 739 (programs translated during play
 # bind once their shader modules exist, in every title); 95 with Core 741 (a texture array keeps its storage set from small
 # element changes, Hogwarts Legacy policy); 97 with Core 743 (submissions by cause and host syncs by site; the build
-# journal without the main cache load wait; diagnostics only).
-FRESH_GATES = 97
+# journal without the main cache load wait; diagnostics only; sync-allocations run again on the final sync manager).
+FRESH_GATES = 98
 HISTORICAL_RECEIPTS = 61
 GPU_WORK_ROWS = 13
 READ_COUNTERS = 4

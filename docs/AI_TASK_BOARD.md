@@ -4794,9 +4794,42 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       pause copies 34.6 MiB of survivors. The copy is required by the threaded renderer (guest memory may change before
       the upload); which objects survive is not journaled (no allocation-by-type source on the device): no safe
       reduction identified, open.
-    - **Next action:** Hogwarts lot 2: count submits and CreateSync by cause (strict site, readback, query) in the
-      journal, then reduce the dominant one with its own gate; the reference passes follow the command buffer count.
-      Not before that measurement: no sync semantics change on a guess. Main: Core 739 CI and pin, then Core 741.
+    - **Core 743 frozen (12 Nov, contract b95bb282; 98 gates, 212 preparation inputs, 213 prepared members; Core 741 +
+      diagnostics only, every title; local commits on work/melonx-fps-stability-20261103, pushed):** (1)
+      adapt_submit_causes (ten files): each of the 16 submission sites of the Vulkan backend names its cause just before
+      FlushAllCommands / FlushCommandsImpl; the render stages line ends, after its unchanged text, with "; submits by
+      cause: strict sync, sync wait, draw auto-flush, attachment auto-flush, query, disposed resources, buffer read, texture
+      read, staging buffer full, helper, present, other; syncs created submitting N, waiting for the command buffer N; fast
+      flush mode N of M frames, sync waits N ms"; GpuContext.CreateHostSyncIfNeeded takes its caller's name
+      ([CallerMemberName], no call site changed) and the GPU thread writes every 5 s "Host syncs created over N ms: strict T
+      (GPFifo syncpoint, 3D syncpoint, SetReference, counter reports, queued syncpoints, DMA read-back, DMA buffer read-back,
+      texture unbind, WaitForIdle, other); not strict ...". Gate submit-causes, 128 checks: additive edits only, every
+      submission site named, every CreateHostSyncIfNeeded call in a mapped method, production Vulkan and Gpu assemblies
+      built, the production RenderStageTimer of both trees run under a fake clock (the control's line is a byte-identical
+      prefix of the candidate's and both parse with frame_report.py; scripted causes exact, reset each window). (2)
+      adapt_build_journal_load_wait (PipelineState.cs): the build journal takes a worker creation's time without its wait
+      for the main cache's background load and nothing for a creation main served; the first long wait is recorded once
+      ("pipelineBuilds mainLoadWait"). Gate build-journal-load-wait, 46 checks (the IPA 727 case: control 1 305 ms, a
+      "compilation"; candidate 0; a wait then a 900 ms compile: 900). Rerun on the Core 743 preparation: the 34 gates
+      binding the eleven files, all passed; sync-allocations joins as a fresh gate (its core87 receipt declares
+      SyncManager.cs): delivered and final sync managers give the same functional digest, 120 566 checks, 219 scenarios and
+      allocations. Tests taught the later adapter without loosening them: vulkan-memory-journal undoes adapt_submit_causes's
+      PipelineBase.cs replacements (each once) before its exact comparison; fragmented-reads composes and binds the four
+      new files; melonx_adapter_control_order_test.py reads the `adapted += adapt_X(source)` form too (it had failed
+      unseen since Core 735, when that form joined; it detects a swapped pair). No rendering, sync, flush or pipeline
+      change: no FPS claim. Rollback: remove the two adapters (Core 741).
+    - **Device protocol for the next private IPA (Core 743, or 741 without the split):** Hogwarts Legacy, same save, 3-5
+      min including a zone change and the place of the 05:46:17 freeze, then home, then close from the menu; then a
+      Switch close and a PS3 launch in the same session (P0 726); Smash 1 min of play (SetProgram bursts, Core 739). Read:
+      texture array barrier passes (Core 741: about 10-30 ms per 5 s expected, refuted above 100 ms); the submit causes
+      and the host sync sites (which strict site or auto-flush mode dominates the about 25 command buffers per frame);
+      "pipelineBuilds" (no launch-time "compiled again"; mainLoadWait served); "compute prepare ... pipelines" at the
+      freeze place (below 100 ms expected). Async on/off: two Hogwarts sessions on the same path, the setting changed by the
+      maintainer in the UI.
+    - **Next action:** from the next Hogwarts run with Core 743: reduce the dominant submission cause with its own gate
+      (a strict-sync site, or the fast flush mode's 1.5 ms draw auto-flush), the reference passes and submissions following
+      the command buffer count; no sync semantics change before that measurement. Main: Core 739 CI and pin, then Core
+      741 or Core 743 (743 includes 741).
   - **IPA 726 device run read (12 Nov): Hogwarts Legacy on Core 735, pid 54035, 23:43:42-23:46:20 (the session
     of the P0 726 close); journals private (scratchpad), aggregates only. Not a like-for-like comparison with 725:
     the phone was in the "serious" thermal state for 99 of the 100 warm seconds (725, pid 51986: "fair").**

@@ -528,11 +528,13 @@
     "src/Ryujinx.Graphics.Gpu/Window.cs",
     "src/Ryujinx.Graphics.Shader/CodeGen/Spirv/Instructions.cs",
     "src/Ryujinx.Graphics.Shader/CodeGen/Spirv/SpirvGenerator.cs",
+    "src/Ryujinx.Graphics.Vulkan/AutoFlushCounter.cs",
     "src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs",
     "src/Ryujinx.Graphics.Vulkan/BarrierBatch.cs",
     "src/Ryujinx.Graphics.Vulkan/BufferHolder.cs",
     "src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs",
     "src/Ryujinx.Graphics.Vulkan/FramebufferParams.cs",
+    "src/Ryujinx.Graphics.Vulkan/HelperShader.cs",
     "src/Ryujinx.Graphics.Vulkan/ImageArray.cs",
     "src/Ryujinx.Graphics.Vulkan/MoltenVK/MVKInitialization.cs",
     "src/Ryujinx.Graphics.Vulkan/PersistentFlushBuffer.cs",
@@ -544,6 +546,8 @@
     "src/Ryujinx.Graphics.Vulkan/PipelineState.cs",
     "src/Ryujinx.Graphics.Vulkan/ResourceArray.cs",
     "src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs",
+    "src/Ryujinx.Graphics.Vulkan/StagingBuffer.cs",
+    "src/Ryujinx.Graphics.Vulkan/SyncManager.cs",
     "src/Ryujinx.Graphics.Vulkan/TextureArray.cs",
     "src/Ryujinx.Graphics.Vulkan/TextureStorage.cs",
     "src/Ryujinx.Graphics.Vulkan/TextureView.cs",
@@ -991,6 +995,15 @@
      "reportPath": [
       "compiledSourceInputs",
       "candidate",
+      "src/Ryujinx.Graphics.Vulkan/AutoFlushCounter.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Vulkan/AutoFlushCounter.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
       "src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs"
      ],
      "productionPath": "src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs"
@@ -1030,6 +1043,15 @@
       "src/Ryujinx.Graphics.Vulkan/FramebufferParams.cs"
      ],
      "productionPath": "src/Ryujinx.Graphics.Vulkan/FramebufferParams.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Vulkan/HelperShader.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Vulkan/HelperShader.cs"
     },
     {
      "variant": "candidate",
@@ -1129,6 +1151,24 @@
       "src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs"
      ],
      "productionPath": "src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Vulkan/StagingBuffer.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Vulkan/StagingBuffer.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Vulkan/SyncManager.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Vulkan/SyncManager.cs"
     },
     {
      "variant": "candidate",
@@ -4335,6 +4375,29 @@
    },
    "requiredPostimages": [
     "src/Ryujinx.Graphics.Vulkan/PipelineState.cs"
+   ]
+  },
+  {
+   "name": "sync-allocations",
+   "script": "test/melonx_sync_allocations_test.py",
+   "report": "sync-allocation-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 1800,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "deliveredPreparedWithFinalCandidate",
+    "physicalDeviceTested": false,
+    "sameFunctionalDigest": true,
+    "sameAllocations": true
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Vulkan/SyncManager.cs"
    ]
   }
  ]
