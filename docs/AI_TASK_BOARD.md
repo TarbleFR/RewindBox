@@ -359,7 +359,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     `Claude-Session` line.
   - **Next:** download, verify offline, receipts, record, delete the key, send the file; give session 04 the freeze
     commit for 803 (sibling of 726).
-- **Next IPA (730) queue (main, 12 Nov 12:05Z).** Build only when the maintainer asks.
+- **Next IPA (730) queue (main, 12 Nov 12:05Z).** Maintainer (12:4xZ): build it as soon as XeniOS (session 03) sends
+  its green light and fixes. Also on Claude: S2Arm pin 175018a2 (spin pass off, MKW stuck fix, cc3af454).
   - On Claude: session 04 S2Arm pin 930a84b0. It carries the prepare patches in the notice, plus relaunch-in-session
     step 1 (de72efdd).
   - Waiting: the session 03 XeniaCore pin, now d7ad7e834. It supersedes dc7c7f4b0 and keeps the EnumerateDevices input
