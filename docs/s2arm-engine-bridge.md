@@ -40,8 +40,9 @@ ARMSX2 bridges are `.mm`, where a comparison is a C++ `bool`. Not observed on a 
   (even if the load then fails), so MeloNX's bridge, which reads it through `dlsym(RTLD_DEFAULT, "rb_s2arm_engine_loaded")`,
   refuses to load MeloNXCore afterwards (session 01, `a18490cb`).
 - Before opening the engine the plugin reads MeloNX's `rb_melonx_core_loaded()` the same way; if it answers non-zero it
-  refuses the launch with its own code, `melonxCoreLoaded` (message `melonxLoaded`: the Switch 1 engine was loaded in
-  this session, close and reopen RewindBox). It answered `engineRestartRequired` before 12 Nov 2026.
+  refuses the launch with its own code, `switch1EngineLoaded` (same-named message: the Switch 1 engine was loaded in
+  this session, close and reopen RewindBox). It answered `engineRestartRequired` before 12 Nov 2026. The status map
+  keeps the flag as `melonxCoreLoaded` (diagnostics only).
 - After one launch in a process the plugin refuses a second (`engineRestartRequired`, message `restartRequired`, about
   Switch 2 only): v1 is one Switch 2 game per process.
 
@@ -227,13 +228,17 @@ console, never an engine:
 
 - The two "close and reopen" refusals are two codes and two messages in the 12 languages. A Switch 2 game already ran
   in this process: `engineRestartRequired` → `restartRequired`, which speaks of Switch 2 only (it used to say "a Switch 2
-  or Nintendo Switch game"). The Switch 1 engine is loaded in this process: `melonxCoreLoaded` → `melonxLoaded` ("the
-  Switch 1 engine ... keeps the Switch 2 engine from starting"), from the Dart status check and now from the native
-  refusal too, which answered `engineRestartRequired` before.
+  or Nintendo Switch game"). The Switch 1 engine is loaded in this process: `switch1EngineLoaded` → `switch1EngineLoaded`
+  ("the Switch 1 engine ... keeps the Switch 2 engine from starting"), from the Dart status check and now from the
+  native refusal too, which answered `engineRestartRequired` before.
+- The failure dialog shows `S2Arm: <code>` and the native diagnostic under "Technical details", so the code (formerly
+  `melonxCoreLoaded`, message key `melonxLoaded`) and the diagnostic name the console, not the engine. Logs, the native
+  journal and the status map may still name MeloNX: they are diagnostics, not player surfaces.
 - The Switch 2 playlist menu (`docs/s2arm-switch2-library.md`) no longer offers prod.keys: S2Arm needs none, and it stays
   in the Switch 1 playlist.
 
-Checked by `test/s2arm_engine_bridge_test.py` (138 checks: the native refusal has its own code),
-`test/s2arm_internal_service_test.dart` (each message names one engine's console and the two differ; the native code
-reaches `melonxLoaded`), `test/s2arm_playlist_menu_contract_test.dart` and `test/switch2_empty_hint_contract_test.py`.
+Checked by `test/s2arm_engine_bridge_test.py` (139 checks: the native refusal has its own code; no error code or
+diagnostic literal names MeloNX), `test/s2arm_internal_service_test.dart` (each message names one console and the two
+differ; the native code reaches its message and its technical details name no engine),
+`test/s2arm_playlist_menu_contract_test.dart` and `test/switch2_empty_hint_contract_test.py`.
 Not observed on a device.
