@@ -382,10 +382,13 @@ Apple's acknowledgements for the components it contains (zlib/libpng, MIT,
 BSD-2-Clause, LLVM/NCSA). The headers alone are Apache-2.0. The runtime is
 shipped with its bytes unchanged apart from the code signature iOS requires,
 for free private builds only; it is not sold, rented, hosted or sublicensed.
-Open points recorded by the maintainer's dossier
-(`docs/evidence/xenia-metal-shader-converter/README.md`) are not resolved by
-this notice: whether EA1844 governs the pinned `ios-4.0.3` runtime, the
-runtime's provenance, and re-signing under clause 2.E.
+EA1844 is the licence of Apple's official Metal Shader Converter 4.0 beta 3
+package; that package's iOS library is another build than the shipped one
+(same code and data, different build identity), so the exact Apple installer
+of the shipped bytes is not identified. Open points recorded by the
+maintainer's dossier (`docs/evidence/xenia-metal-shader-converter/README.md`)
+are not resolved by this notice: point 1 is partly answered, the provenance
+of the shipped bytes and re-signing under clause 2.E remain open.
 
 ## Game boxes, cover scans and manuals
 

@@ -102,7 +102,7 @@
         "note": "An Apple signature shows Apple signed these bytes; it does not name the Apple package or the agreement that governs them (dossier open point 1)."
       },
       "provenance": {
-        "status": "open points 1-3 not closed (docs/evidence/xenia-metal-shader-converter/research-open-points-2026-11-12.md); accepted by the maintainer for the next private common IPA, not resolved",
+        "status": "point 1 partly answered (the contract provenance is established for the official 4.0 beta 3 package, not the exact installer of the pinned bytes); points 2 and 3 open; accepted by the maintainer for the next private common IPA, not resolved",
         "release_asset": {
           "id": 705945125,
           "uploaded": "2026-11-03T14:44:05Z",
@@ -131,7 +131,26 @@
           }
         ],
         "established": "Apple ships libmetalirconverter for iOS since Metal Shader Converter 3.1 (product page)",
-        "closing_procedure": "with the original Apple installer: record it (provenance, signature, SHA-256), extract without installing, take the iOS dylib and Resources/English.lproj/License.rtf, compare the raw digest with bd6b729d...37aa; a different digest keeps the points open and the pinned bytes are never switched to make it match"
+        "closing_procedure": "with the original Apple installer: record it (provenance, signature, SHA-256), extract without installing, take the iOS dylib and Resources/English.lproj/License.rtf, compare the raw digest with bd6b729d...37aa; a different digest keeps the points open and the pinned bytes are never switched to make it match",
+        "apple_package_check": {
+          "source": "docs/evidence/xenia-metal-shader-converter/Verification_Paquet_Apple_XeniOS_2026-11-12.txt",
+          "package": {
+            "name": "Metal Shader Converter 4.0 beta 3.pkg",
+            "bytes": 48239331,
+            "sha256": "449833211e4ef0d46bfaa94848e801acff49e226d3c348bba0673f13716be622",
+            "signature": "XAR, Software Update > Apple Software Update Certification Authority > Apple Root CA (OpenSSL with time check; not pkgutil/codesign, no revocation check)"
+          },
+          "license_rtf": "Resources/English.lproj/License.rtf is byte-identical to EA1844 (20108dfe...c8d0c3); no re-signing clause found",
+          "package_ios_dylib": {
+            "path": "usr/local/lib_iOS/libmetalirconverter.dylib",
+            "bytes": 30189152,
+            "sha256": "3040a91ea3559dbcf966f3dfbb21614275e217b4f63fcf8c67de23b17d3f5518",
+            "source_version": "33.40",
+            "signature_free_sha256": "e456a88e1640049669f5864bdf1898dff249e8922413c5b6c0ae53bccebe40ac"
+          },
+          "comparison_with_pin": "NOT the pinned bytes: 430 bytes differ (LC_UUID, LC_SOURCE_VERSION 33.40 vs 33.39, LC_RPATH, and the signature); bytes identical from offset 3128 to 29,936,976 (code and data); signature-free digests differ. A proximity, not an extraction proof.",
+          "decision": "the pin, the binary, the validator and the codesign requirement are unchanged; nothing is switched to make a check match"
+        }
       }
     }
   }

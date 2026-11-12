@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "review_date": "2026-11-12",
-  "scope": "Notices shipped with Apple's Metal Shader Converter runtime (Frameworks/libmetalirconverter.dylib), used only by XeniaCore to convert Xbox 360 shaders (docs/xenios-playlist.md). The agreement and Apple's acknowledgements are the maintainer's legal dossier (docs/evidence/xenia-metal-shader-converter/README.md), fetched by URL and checked against its sizes and digests; the headers licence is XeniOS's copy. Not a declaration that redistribution is resolved: the dossier's open points (1) EA1844 vs the pinned ios-4.0.3 runtime (clause 1.B), (2) the runtime's provenance, (3) re-signing under clause 2.E remain open.",
+  "scope": "Notices shipped with Apple's Metal Shader Converter runtime (Frameworks/libmetalirconverter.dylib), used only by XeniaCore to convert Xbox 360 shaders (docs/xenios-playlist.md). The agreement EA1844 is the License.rtf of the official Apple package Metal Shader Converter 4.0 beta 3.pkg (SHA-256 449833211e4e...e622, see source.json provenance; byte-identical to the copy fetched here by URL). That package's iOS library is not the pinned runtime (another build, 33.40 vs 33.39): the contract's provenance is established for that package, not for the exact installer of the pinned bytes. Not a declaration that redistribution is resolved: point 1 is partly answered, points 2 (provenance of the pinned bytes) and 3 (re-signing under clause 2.E) stay open; the maintainer's delivery decision is not an authorisation from the rights holder.",
   "dossier": "docs/evidence/xenia-metal-shader-converter/README.md",
   "components": [
     {
