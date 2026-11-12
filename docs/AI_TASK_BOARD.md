@@ -5135,6 +5135,16 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - Tile art: session 02's PR #178 (Glacier fallback for systems missing from a downloaded pack).
   - Open: licence texts by kept-symbol inventory; the empty-state hint once session 03's `hint` is on Claude; how the
     engine enters the common recipe (main to decide).
+- **Licence texts settled (12 Nov, run `43125597914` on `601e716b`, green):**
+  - Method: the kept-code inventory (NativeAOT symbols per package assembly, link map) is now a blocking step.
+  - Texts now shipped:
+    - 8 packages with kept code: LibHac, Humanizer.Core, MsgPack.Cli, Open.Nat.V2, RecyclableMemoryStream,
+      NetCoreServer, Gommon, System.IO.Hashing. Texts come from the nupkg or the nuspec's source commit, hash-checked.
+    - The deko3d port, which is linked (`libnvn.a(nvn_tex.c.o)`), from devkitPro/deko3d `373bfd43`.
+  - Absent: 62 packages with no kept code; ZstdSharp.Port and SkiaSharp are not in the restore; no ICU.
+  - Commits for main: `91afd9f0`, `26d94dac` (handoff to main, legal gate), `601e716b`. The gate accepts the result
+    (35 texts). Engine zips: `S2ArmEngine` `57e81f95…560a`, `NS2Pro` `1cf9b41e…c027`.
+  - Next: the S2Arm instance of session 03's generic `pinned-engine` kind.
 - **803 preparation (11 Nov, evening):**
   - GitHub Actions incident (20:48–21:21 UTC). Every run of the repo created 20:41–20:52 stays "queued" with no jobs,
     and cancelling one answers 409 "not been queued yet". This includes engine run `43097515562` and main's 726 runs;
