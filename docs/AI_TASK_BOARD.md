@@ -359,6 +359,31 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     `Claude-Session` line.
   - **Next:** download, verify offline, receipts, record, delete the key, send the file; give session 04 the freeze
     commit for 803 (sibling of 726).
+- **IPA 727 delivered and verified (12 Nov 04:25Z, main).**
+  - Run `43151344182` attempt 1, trigger `bd80b2b9`, frozen on `7d90218f`, effective digest `28dc0833`. All 5 jobs
+    succeeded.
+  - IPA `RewindBox-727.ipa`: 329470998 B, SHA-256 `982f9f93d091d149ac427a51f027632ae820309490d9bfe1f655d0d9f2cf828d`.
+  - Offline verification `passed-offline-checks`:
+    - the 4 parts match their API digests;
+    - SHA256SUMS and the signer receipt match;
+    - 97 images; 44 retained fingerprints verified;
+    - 2 identity engines (XeniaCore, S2Arm);
+    - validators melonx, neoplay, shaders, legal, no-kartpad and no-dusklight all exit 0.
+  - Undeclared image changes, reported and not fatal:
+    - `armsx2_internal_bridge` (as in 726) and `dolphin_internal_bridge`, both rebuilt from source;
+    - the only Dolphin bridge diff since 726 is the CI file `verify_ipa.py`, which is not compiled;
+    - both retained Cores' fingerprints equal the base;
+    - cause not yet explained.
+  - Legal folders: every file matches its `license-sources.json` digest, none empty.
+    - `Legal/XeniOS`: 4/4.
+    - `Legal/MetalShaderConverter`: 3/3.
+    - `Legal/S2Arm`: 35/35.
+  - Extension set: ARMSX2, Dolphin, MeloNX (JIT + RAM donor), NeoSwap (donor + relay), RPCS3, S2Arm and Xenia
+    helpers.
+  - Receipt `docs/evidence/rewind727/delivery.json`: 14 proof files, plus the two engine embedded receipts. Private
+    key shredded after the verified delivery. File sent to the maintainer.
+  - Not run on an iPhone; no FPS, memory, heat or stability claim.
+  - Next: the ON HOLD RPCS3 heat/performance lot (#123) can open against IPA 727.
 - **IPA 727 requested (12 Nov 03:33Z, main).** Both handoffs the maintainer required are in: session 04's Switch 2
   save import (merge `1b32dd7f` of `22997cd2`; s2arm_session_menu, storage_contract, s2arm_engine_bridge 66 checks,
   s2arm_legal_review green locally) and session 03's Xbox 360 display lot (merge of `c22262d7`, XeniaCore ABI 3, pin
