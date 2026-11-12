@@ -4725,8 +4725,14 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       (steps 1-11, the presentation step included). The donor lease test runs in that workflow only on a push whose
       head commit carries `[melonx-display]` (a dispatched run skips it): its retry cases are not run yet; main's
       integration commit will carry the tag.
-    - **Next action:** main: Core 737 CI, pin and an IPA together with `71765f2f`; on the device, several Switch
-      closes (pads attached) then a PS3 launch: no `close quarantined`, no `Collection was modified`.
+    - **CI (12 Nov, merged by main as 36ed5e93, then b4ef45fc):** MeloNX Core 737 compile 43131998605 green (gates,
+      NativeAOT ABI, ARM64 iOS app run, teardown and backing release); melonx-host 43131937235 green 14/14 (donor
+      lease test with the retry cases included); melonx-display 43136718386 green after `07f4509b` (zh_Hant lacked
+      the three Hogwarts GPU labels of 153e0ec9) and `29e06306` (the key-import widget test's wait gave up at 100
+      rounds, the import needs 103-104; intermittent on both sides of every candidate, not a regression): first
+      green since 28 Oct.
+    - **Next action:** main: pin Core 737 and an IPA; on the device, several Switch closes (pads attached) then a
+      PS3 launch: no `close quarantined`, no `Collection was modified`.
   - **Lot 14 (11 Nov; maintainer: "une vraie mise à jour pour sentir du changement" on RAM, heat, shaders): GPU thread
     work per frame. Core 735 frozen here (contract `47b596a9…`), not delivered, not run on an iPhone.**
     - **Input identity:** the IPA 725 `performance` samples of lot 13 (pid 51986) and two host profiles on copies of
