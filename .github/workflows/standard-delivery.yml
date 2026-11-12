@@ -719,6 +719,9 @@ jobs:
         python3 - <<'PYVERSION'
         import json, os, plistlib, zipfile
         from pathlib import Path
+        # Identity file -> the JIT helpers it adds; equal to IDENTITY_ENGINES of
+        # build-utils/validate_single_ipa_distribution.py (test/ipa_identity_engines_test.py).
+        ENGINE_HELPERS = {'Xenia-native-identity.json': ['XeniaJITHelper.appex']}
         version = next(line.partition(':')[2].strip().strip('"' + chr(39)).split('+')[0]
                        for line in Path('pubspec.yaml').read_text().splitlines() if line.startswith('version:'))
         with zipfile.ZipFile('dist/' + os.environ['IPA_NAME'] + '.ipa') as archive:
@@ -729,7 +732,12 @@ jobs:
             root = roots[0]
             bundles = [name for name in names if name == root + 'Info.plist' or
                        (name.startswith(root + 'PlugIns/') and name.endswith('.appex/Info.plist'))]
-            assert len(bundles) == 8, "Expected the application and its seven extensions"
+            # The application and its seven extensions, plus the helper of each engine whose identity file is packaged.
+            helpers = [helper for identity, extensions in ENGINE_HELPERS.items() if root + identity in names
+                       for helper in extensions]
+            for helper in helpers:
+                assert root + 'PlugIns/' + helper + '/Info.plist' in bundles, 'Missing engine helper ' + helper
+            assert len(bundles) == 8 + len(helpers), f"Expected the application, its seven extensions and {helpers}"
             for name in bundles:
                 info = plistlib.loads(archive.read(name))
                 assert str(info['CFBundleVersion']) == os.environ['BUILD_NUMBER'], name

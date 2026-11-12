@@ -36,6 +36,8 @@ for _part in ('.github/diagnostics', 'build-utils', 'packages/dolphin_internal_b
         sys.path.insert(0, str(ROOT / _part))
 
 import standard_delivery as sd  # noqa: E402
+from delivery_benchmark import payload_fingerprint  # noqa: E402
+from validate_single_ipa_distribution import IDENTITY_ENGINES  # noqa: E402
 
 PART_MEMBERS = {'data.bin', 'format.json', 'password.rsa', 'manifest.json'}
 FORMAT = {'cipher': 'AES-256-CBC PBKDF2 200000', 'keyEnvelope': 'RSA OAEP SHA256', 'content': 'tar',
@@ -189,6 +191,28 @@ def effective_checkout(repo, manifest, source, target):
     return target
 
 
+def packaged_engine_helpers(archive, root, bundles, manifest, read_source):
+    """The JIT helpers of the engines packaged with their identity file (validate_single_ipa_distribution
+    IDENTITY_ENGINES), each present in `bundles`. The identity files are exactly those of the manifest's pinned
+    engines, and each names its pinned payload, which the packaged image carries (docs/xenios-playlist.md)."""
+    names = set(archive.namelist())
+    present = [identity for identity in IDENTITY_ENGINES if root + identity in names]
+    helpers = [helper for identity in present for helper in IDENTITY_ENGINES[identity][0]]
+    require(all('PlugIns/' + helper + '/Info.plist' in bundles for helper in helpers), 'Missing engine helper')
+    pinned = sd.engine_components(manifest)
+    require({spec['identityFile'] for spec in pinned.values()} == set(present),
+            'The packaged engine identities differ from the pinned engines of the manifest')
+    for key, spec in pinned.items():
+        pin_raw = read_source(spec['pin'])
+        pin = json.loads(pin_raw)
+        identity = json.loads(archive.read(root + spec['identityFile']))
+        require(identity.get('component') == key and identity.get('pinSha256') == sha(pin_raw) and
+                identity.get('packagedFingerprint') == pin['packagedFingerprint'] and
+                payload_fingerprint(archive.read(root + spec['image'])) == pin['packagedFingerprint'],
+                f'The packaged {key} engine is not its pinned payload')
+    return helpers
+
+
 def verify(args):
     repo = sd.Repo(ROOT)
     require(args.work.is_dir() and not any(args.work.iterdir()), 'The work directory must exist and be empty')
@@ -249,7 +273,8 @@ def verify(args):
             bundles[name[len(root):]] = dict(CFBundleIdentifier=info['CFBundleIdentifier'],
                 CFBundleVersion=str(info['CFBundleVersion']), CFBundleShortVersionString=info['CFBundleShortVersionString'],
                 MinimumOSVersion=info.get('MinimumOSVersion'))
-        require(len(bundles) == 8 and all(b['CFBundleVersion'] == str(args.build) and
+        helpers = packaged_engine_helpers(archive, root, bundles, manifest, read_source)
+        require(len(bundles) == 8 + len(helpers) and all(b['CFBundleVersion'] == str(args.build) and
                 b['CFBundleShortVersionString'] == version for b in bundles.values()), 'Wrong bundle versions')
         identity_raw = archive.read(root + sd.IDENTITY)
         identity = json.loads(identity_raw)
