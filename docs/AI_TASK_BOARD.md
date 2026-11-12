@@ -257,6 +257,15 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### Common IPA — main Claude Code
 
+- **GOW3 stretch mode no longer applies (maintainer, 12 Nov, IPA 726; Metal 4 off, so Vulkan).** Cause (code, Core 933):
+  since Core 922 the boot ignores a legacy full custom_configs file (CONFIG_DB922), but the settings API still read it and
+  `rpcs3_ios_set_game_setting` saved every per-game change into it (has_custom_config), so Stretch to fill screen (and
+  any per-game choice of God of War III) never reached the boot. Core 934 (engine `core934-settings-rule` 524e068):
+  REWINDBOX_SETTINGS_API_RULE_934 (API = global < database < sparse overrides, change saved as an override; reset
+  removes the overrides; preset apply refused instead of a silent no-op, independent review) and
+  REWINDBOX_METAL_STRETCH_934 (the Metal 4 present honoured no stretch either). Local: test 934 passes, fails on 933,
+  six controls caught; full host checks running. Not compiled for iOS yet; nothing on iPhone. After the IPA the user
+  selects Stretch once more (the old choice sits in the ignored file).
 - **Device report on 726 (11 Nov): after a Switch game, a PS3 launch (BO2) is refused with the MeloNX 'quarantined'
   message.** Main's code reading, not yet confirmed by a journal. Two triggers reach the same block:
   - engine state 4: `Load()` threw, possibly during teardown after Stop;
@@ -741,6 +750,20 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### RPCS3 FPS, stability and audio — main Claude Code
 
+- **ON HOLD — after delivery of the next common IPA (maintainer, 12 Nov): RPCS3 heat, sustained performance and
+  stability lot.** Do not start (no investigation, agent, engine change, test or build for this lot) until the next
+  common IPA (Core 934 settings/stretch fix plus the engine handoffs already in scope) is compiled, verified and handed
+  to the maintainer with build number, engine versions and receipt; IPA 726, a green CI or a compiled Core do not count.
+  When it opens: cite that IPA's number, manifest and receipt, take it as the reference, work in the following version.
+  Received and checked (private, not in Git): prompt 20,059 B `f20c9a09…3a93`; performance(9) 2,519,922 B / 3352 lines
+  `0df0077a…5c9b`; causes(8) 3,398,915 B / 3210 `2457504b…5483`; milestones(7) 475,472 B / 737 `277996b7…b36a`;
+  diagnostic(9) 156,933 B / 242 `8458f0f5…9f3a`; timeline(5) 901,832 B / 181 `cd05cb54…61c3`; restore-trace(2)
+  396,710 B / 895 `852675a5…847d` (logs 7,849,784 B). Priorities recorded from the prompt: (1) THERMAL931
+  wfe_longest_us=18446744073 on 23/32 lines (PID 54406), cause not yet shown, fix the measurement and exclude invalid
+  values; (2) less heat at equal useful work on THERMAL931/932, hysteresis only if shown lacking, menu stays non-pausing;
+  (3) BO2 frame 7474 (3439.706 ms, 3277.326 ms blocking pipeline compile) and other avoidable stalls, shader mode Legacy
+  Recompiler audited; (4) LOCALPROFILE933 learned but not validated, resolver extended by mechanism. Constraints: 1x and
+  fidelity kept, no FPS cap, no 60 FPS promise, no gain without comparable device evidence.
 - **URGENT maintainer instruction, 11 Nov (relayed by Codex) — RPCS3 global optimisation: per-game
   profiles, behaviour, shared iOS corrections, thermal.** Prompt file received and read in full
   (243 lines; private upload, not in Git). Added to the current work; owner main
@@ -5080,6 +5103,25 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   one ISO, one title folder, one GOD import and launch).
 
 ### Codex orchestration — Codex
+
+- **S2Arm content/provenance audit — 12 Nov (maintainer request, read-only product audit).**
+  Compared upstream `623985973908399bd64d36aa326009807c354fdc`, pinned upstream
+  `6b6a571553f7a687af46e03e2cdbf8ef4d77f335` and the session-04 adaptation at
+  `8353aab97bdf6e5415ba1b926717f118ae3da79d`; 20 locally exercised/read source files
+  match their Git blobs. No complete commercial game or user key found in the inspected
+  inventory/build paths; game profiles/shader reference tables are present (not game payloads).
+  No final IPA/release binary inspection: do not turn this into a distribution certificate.
+  **“Only personally dumped games” is not enforced by the examined route:** the export detector
+  checks folder/META/ACI0/program-id, not ownership or extraction provenance
+  ([native source](https://github.com/TarbleFR/RewindBox/blob/8353aab97bdf6e5415ba1b926717f118ae3da79d/native/s2arm/prepare/s2arm_ns2_dump.c#L658)).
+  Seven Linux checks passed: synthetic original and copied input accepted by upstream/native
+  detectors, invalid headers rejected by both, copied synthetic export converted upstream.
+  No game, key or Nintendo account used; no full-game compilation/device claim.
+  Switch 2 host preparation consumes an already-decrypted export; upstream also has a distinct
+  NSP/XCI + LibHac/keys path. This is neither legal clearance nor a finding of illegality.
+  Report delivered privately: `Audit_S2Arm_Dumps_Contenu_2026-11-12.txt`, 22,174 bytes,
+  SHA-256 `2c6441e5e12f73d2496a7bf663524a4512f61ac7dc89a8315c4e68ea079ab322`.
+  No product/Core/pin/CI/IPA change or new implementation task; existing delivery priority remains.
 
 - **Playlists/XeniOS routing — created and started (10 Nov).**
   Session [03 Playlists](https://claude.ai/code/session_012mUASiVyxdnhNTUKesGGm7),
