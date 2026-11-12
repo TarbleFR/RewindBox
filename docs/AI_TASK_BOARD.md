@@ -4849,6 +4849,21 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       new files; melonx_adapter_control_order_test.py reads the `adapted += adapt_X(source)` form too (it had failed
       unseen since Core 735, when that form joined; it detects a swapped pair). No rendering, sync, flush or pipeline
       change: no FPS claim. Rollback: remove the two adapters (Core 741).
+    - **P0 IPA 728, the Consoles page loaded MeloNXCore (bridge and Dart; independent of the Core 743 pin):** found by
+      session 04 in the maintainer's app.log (pid 57620, 07:07Z): libretro_consoles_screen.dart initState calls
+      MelonxInternalService.runtimeAvailable(), which invoked the bridge's "diagnostics"; that runs ensureRuntime(), marks
+      the process and loads MeloNXCore and its NativeAOT runtime, so S2Arm read melonxCoreLoaded=true and refused every
+      Switch 2 launch until RewindBox restarted. Fix 051a3691: a bridge method "availability" answers without opening
+      MeloNXCore or marking the process (the engine's framework in the bundle, the library recovery marker, the Switch 2
+      engine's flag rb_s2arm_engine_loaded, rb_melonx_core_loaded, the memory entitlements read only);
+      runtimeAvailable() asks it; "diagnostics" keeps loading the engine for the launch path (unchanged). Tests:
+      melonx_core_loaded_test.py 8 checks (fails on the previous plugin); melonx_embedded_route_test.dart (probes ask
+      "availability" only, never "diagnostics"); melonx_presentation (real plugin in UIKit on the simulator: availability
+      before any load constructs no runtime and marks nothing; after the launch path's single load it reports the engine
+      loaded). Local: Flutter 45 tests passed; the Swift scenario needs macOS: runs 43176758764 (melonx-host),
+      43176746291 (stall watch), 43176762671 (integration). Pre-existing, unrelated failures seen on this head:
+      melonx_hogwarts_graphics_test.py expects 11 translations and finds 12 since zh_Hant joined (only the historical
+      rewind599-601 workflows run it); rewind604_delivery_contract_test.py and melonx_capture_journal_test.py (historical).
     - **Device protocol for the next private IPA (Core 743, or 741 without the split):** Hogwarts Legacy, same save, 3-5
       min including a zone change and the place of the 05:46:17 freeze, then home, then close from the menu; then a
       Switch close and a PS3 launch in the same session (P0 726); Smash 1 min of play (SetProgram bursts, Core 739). Read:
