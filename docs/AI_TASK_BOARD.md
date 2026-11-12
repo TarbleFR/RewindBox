@@ -5002,7 +5002,7 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       pause copies 34.6 MiB of survivors. The copy is required by the threaded renderer (guest memory may change before
       the upload); which objects survive is not journaled (no allocation-by-type source on the device): no safe
       reduction identified, open.
-    - **Core 743 frozen (12 Nov, contract b95bb282; 98 gates, 212 preparation inputs, 213 prepared members; Core 741 +
+    - **Core 743 frozen (12 Nov, contract b95bb281; 98 gates, 212 preparation inputs, 213 prepared members; Core 741 +
       diagnostics only, every title; local commits on work/melonx-fps-stability-20261103, pushed):** (1)
       adapt_submit_causes (ten files): each of the 16 submission sites of the Vulkan backend names its cause just before
       FlushAllCommands / FlushCommandsImpl; the render stages line ends, after its unchanged text, with "; submits by
@@ -5045,6 +5045,31 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       Claude 3d2645ea's bytes). Pre-existing, unrelated failures seen on this head:
       melonx_hogwarts_graphics_test.py expects 11 translations and finds 12 since zh_Hant joined (only the historical
       rewind599-601 workflows run it); rewind604_delivery_contract_test.py and melonx_capture_journal_test.py (historical).
+    - **Main's residual risks after delivery run 43312487102 (12 Nov 23:24), fixed in c5541fe0:** melonx_perf_journal_test.py
+      keeps its lower bounds (stages, scripted sleeps) and checks relations of the run instead of the fixed upper bounds
+      600/1600/1900/900 ms (records in order while the first call is in flight, each at most its measured duration; each
+      0.5 s stall shorter than the 1.6 s one); main's spinner check 31fd341d is kept. package_standalone_moltenvk.py
+      download_artifact() tries a failed request again after 5, 10 and 20 s into an emptied file (the digest is still
+      checked; exercised with a fake gh). melonx-host 43329316902 on c5541fe0: the performance journal step passed on macOS.
+    - **Native heap lot handed by MeloNX lot 10 (docs/evidence/melonx-lot10/handoff.md; analysis only, no change yet):**
+      the four largest live stacks of the IPA 729 [MeloNX:heap] record, symbolicated with `nm -n` of the pinned MoltenVK
+      1.4.2 rebuild (artifact 13822530542, binary 99605a2b; the packaged MeloNXMoltenVKStandalone `1bdc5159` is taken to be
+      that binary under another install name, to confirm against the IPA's MeloNX-standalone-moltenvk-identity.json):
+      #1 205 MiB `SPIRVToMSLConverter::setSPIRV`+0x4c < `MVKShaderModule::MVKShaderModule`+0x3a4 <
+      `MVKDevice::createShaderModule`+0x30 < `vkCreateShaderModule`+0x54: MoltenVK's copy of every live shader module's
+      SPIR-V (a std::vector<uint32_t>). Needed while the module lives: every graphics pipeline creation reads the vertex
+      (and tessellation) module's SPIR-V for its stage outputs and inputs (MVKPipeline.mm, getShaderOutputs and
+      getShaderInputs), and every conversion miss parses it again (SPIRVToMSLConverter::convert, CompilerMSL); it cannot be
+      released before the module's last pipeline, and late variants are still created in play. It can be kept compressed
+      (lossless), decompressed for each use: a MoltenVK patch, to be measured on macOS (ratio on the engine's SPIR-V, time
+      per pipeline creation) before any pin. #2 130 MiB `MVKShaderLibraryCompiler::newMTLLibrary` block <
+      `MVKMetalCompiler::compile` block: the shader libraries' MTLLibrary objects (Metal and AGX allocations); libraries on
+      demand were measured and refuted on macOS (run 42925818096). #3 40 MiB `MVKDescriptorPool::Create`+0x4c4 <
+      `vkCreateDescriptorPool`: the descriptor pools' host storage; only the engine's pool sizes change it, which needs the
+      pool count and sizes on the device. #4 34 MiB `MVKRenderPipelineCompiler::newMTLRenderPipelineState` block: the
+      Metal render pipeline states the pipelines use. Not symbolicated: #5, #7, #11 and #14 (their offsets are not in the
+      handoff; the raw record is needed) and the MeloNXCore frames (the Core 743 artifact's symbol map, artifact
+      13926697149).
     - **Device protocol for the next private IPA (Core 743, or 741 without the split):** Hogwarts Legacy, same save, 3-5
       min including a zone change and the place of the 05:46:17 freeze, then home, then close from the menu; then a
       Switch close and a PS3 launch in the same session (P0 726); Smash 1 min of play (SetProgram bursts, Core 739). Read:
@@ -5057,8 +5082,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       (a strict-sync site, or the fast flush mode's 1.5 ms draw auto-flush), the reference passes and submissions following
       the command buffer count; no sync semantics change before that measurement. Main (12 Nov 07:17): IPA 728 shipped
       with Core 737 (maintainer); Core 743 merged on Claude as 3d2645ea (--no-ff, recipe byte for byte d4b7f9d7, contract
-      b95bb282); its Core build is push run 43174115676, the pin follows when it is green, for the next IPA (the 739 build
-      43165030959 is green and kept). This work branch was fast-forwarded to 3d2645ea.
+      b95bb281); its Core build, push run 43174115676 (job 131034109192, artifact 13926697149, 100586761 B), is green
+      and pinned on Claude as 4e84cee0 (pin sha256 a429f212; iPhone binary b1957006, 38472824 B; packaged fingerprint
+      d5d1ef62; engine_evidence offline with 98 fresh Apple gates, 16 reused scoped). It replaces Core 737 (run
+      43131998605, the fallback) in the next IPA, which waits for the Switch 2 session (maintainer). The 739 build
+      43165030959 is green and kept. Correction: this entry and the 743 commit messages wrote the contract as
+      b95bb282; its SHA-256 begins b95bb281 (b95bb28196277ca5...). This work branch follows Claude (4e84cee0).
   - **IPA 726 device run read (12 Nov): Hogwarts Legacy on Core 735, pid 54035, 23:43:42-23:46:20 (the session
     of the P0 726 close); journals private (scratchpad), aggregates only. Not a like-for-like comparison with 725:
     the phone was in the "serious" thermal state for 99 of the 100 warm seconds (725, pid 51986: "fair").**

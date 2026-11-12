@@ -32,7 +32,9 @@ from pathlib import Path
 import plistlib
 import shutil
 import subprocess
+import sys
 import tarfile
+import time
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -106,10 +108,22 @@ def run(*args):
     return subprocess.check_output(list(map(str, args)), stderr=subprocess.STDOUT, text=True)
 
 
-def download_artifact(artifact, target):
-    """The artifact's zip through the API (gh follows the redirect to the storage without the token)."""
-    with target.open('wb') as stream:
-        subprocess.run(['gh', 'api', f'repos/{REPOSITORY}/actions/artifacts/{artifact}/zip'], stdout=stream, check=True)
+def download_artifact(artifact, target, attempts=4):
+    """The artifact's zip through the API (gh follows the redirect to the storage without the token).
+
+    GitHub answered 503 for unexpired artifact zips twice on 12 Nov: a failed request is tried again, each time into an
+    emptied file, after 5, 10 and 20 s. The caller still checks the archive's digest against its pin."""
+    for attempt in range(1, attempts + 1):
+        with target.open('wb') as stream:
+            result = subprocess.run(['gh', 'api', f'repos/{REPOSITORY}/actions/artifacts/{artifact}/zip'], stdout=stream)
+        if result.returncode == 0:
+            return
+        if attempt < attempts:
+            delay = 5 * 2 ** (attempt - 1)
+            print(f'artifact {artifact}: gh api exited {result.returncode} (attempt {attempt}/{attempts}), again in {delay} s',
+                  file=sys.stderr, flush=True)
+            time.sleep(delay)
+    raise subprocess.CalledProcessError(result.returncode, result.args)
 
 
 def fetch_rebuild():
