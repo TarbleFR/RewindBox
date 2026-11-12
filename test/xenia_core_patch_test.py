@@ -140,17 +140,23 @@ def check_patch() -> None:
     closes = len(re.findall(r'^\+#endif', main_hunks, re.M))
     if opens == 0 or opens != closes:
         fail(f'unbalanced XE_NEO_EMBEDDED_CORE guards ({opens} #if, {closes} #endif)')
-    for needed in ('NeoXeniaApplyLaunchOverrides();', 'NeoXeniaNotifyTitleLaunched();',
+    for needed in ('NeoXeniaApplyHostRoots();', 'NeoXeniaApplyLaunchOverrides();', 'NeoXeniaNotifyTitleLaunched();',
                    'NeoXeniaCreateInputDriver(window, kZOrderHidInput)',
                    'NeoXeniaCreateEmulatorApp(', 'xe_ios_microphone_start();',
                    'xe_ios_live_social_install(std::move(live_host));'):
         if not any(needed in line for line in added) and needed not in main_hunks:
             fail(f'missing hook or guard: {needed}')
+    # The saved config names the container that wrote it: the host's roots are
+    # set again right after config::SetupConfig, before the roots are read.
+    setup = main_hunks.index('config::SetupConfig(storage_root);')
+    roots = main_hunks.index('+  NeoXeniaApplyHostRoots();')
+    if not setup < roots < main_hunks.index('std::filesystem::path content_root = cvars::content_root;'):
+        fail('NeoXeniaApplyHostRoots must follow config::SetupConfig and precede the content root')
     if 'include("${NEO_XENIA_ADAPTER_DIR}/core/target.cmake")' not in patch:
         fail('App.cmake does not include the RewindBox target')
     hooks = (CORE / 'neo_xenia_core_hooks.h').read_text()
     facade = (CORE / 'XeniaCore.mm').read_text()
-    for symbol in ('NeoXeniaApplyLaunchOverrides', 'NeoXeniaNotifyTitleLaunched',
+    for symbol in ('NeoXeniaApplyHostRoots', 'NeoXeniaApplyLaunchOverrides', 'NeoXeniaNotifyTitleLaunched',
                    'NeoXeniaCreateInputDriver', 'NeoXeniaCreateEmulatorApp'):
         if symbol not in hooks:
             fail(f'{symbol} not declared in neo_xenia_core_hooks.h')
@@ -158,7 +164,7 @@ def check_patch() -> None:
         fail('NeoXeniaNotifyGuestSwap is not declared extern "C" in neo_xenia_core_hooks.h')
     if 'extern "C" int NeoXeniaAdoptExecuteRegion(void* reservation, size_t size);' not in hooks:
         fail('NeoXeniaAdoptExecuteRegion is not declared extern "C" in neo_xenia_core_hooks.h')
-    for symbol in ('void NeoXeniaApplyLaunchOverrides()', 'void NeoXeniaNotifyTitleLaunched()',
+    for symbol in ('void NeoXeniaApplyHostRoots() {', 'void NeoXeniaApplyLaunchOverrides()', 'void NeoXeniaNotifyTitleLaunched()',
                    'NeoXeniaCreateInputDriver(xe::ui::Window* window',
                    'extern "C" void NeoXeniaNotifyGuestSwap(void) {', 'int GetStats(NeoXeniaStats* out) {'):
         if symbol not in facade:

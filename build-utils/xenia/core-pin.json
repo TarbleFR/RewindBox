@@ -1,23 +1,23 @@
 {
   "status": "verified",
   "source": "cf7c7ee452314913124d205e41e325b33891aacb",
-  "run": 43158794942,
-  "job": 130987235752,
-  "attempt": 2,
+  "run": 43185423246,
+  "job": 131072773559,
+  "attempt": 1,
   "workflow": ".github/workflows/xenia-core.yml",
-  "artifact": 13918817166,
-  "name": "XeniaCore-c579a0e7be4681610fc54b43ac7cd0448b060ac7",
-  "bytes": 9533042,
-  "sha256": "cc266472c32810288097c77d44fec698d81dee37d5c56b5637a2b91b492f9b96",
-  "expiresAt": "2026-11-26T05:43:53Z",
+  "artifact": 13930153853,
+  "name": "XeniaCore-4375638f27f3ec223f2a91537bc50451cd165fc7",
+  "bytes": 9533734,
+  "sha256": "6a49378c4d6ff089645ed8c46392f524cf2cd31a4ae6bea0f07974d5f49da0d1",
+  "expiresAt": "2026-11-26T09:25:56Z",
   "image": "Frameworks/XeniaCore.framework/XeniaCore",
   "binaries": {
     "ios-arm64": {
-      "sha256": "8da52f76fd511d691441f188f744f02d8fc2141fca3dda316b160ae68474ee70",
-      "bytes": 37719960
+      "sha256": "5043531dc5560457b33bad3a340a5d33f5126220d69299278e7a09db1cb88580",
+      "bytes": 37720040
     }
   },
-  "packagedFingerprint": "d5fe8a7cda560ca215968fdaaf6275632323ae560bbe373516a532b45710f2c2",
+  "packagedFingerprint": "bf68661507b63ca2857aab784f12b9a85f53aa28736aa011fbbd506c98ce99fe",
   "minimumOS": "26.0.0",
   "sdk": "26.5.0",
   "dependencies": [
@@ -153,9 +153,9 @@
   },
   "replaces": {
     "source": "cf7c7ee452314913124d205e41e325b33891aacb",
-    "run": 43143255347,
-    "artifact": 13911882257,
-    "packagedFingerprint": "d386ae411b8b60d586af9b816c83e5938c3878c7135db6d3ba402e552d87f1f3",
-    "reason": "Core ABI 4: the JIT code region below 8 GB is held from RewindBox's launch (first device run closed RewindBox: no room for the code region); fatal-error record"
+    "run": 43158794942,
+    "artifact": 13918817166,
+    "packagedFingerprint": "d5fe8a7cda560ca215968fdaaf6275632323ae560bbe373516a532b45710f2c2",
+    "reason": "host roots set again after config::SetupConfig (IPA 728 abort: the saved config named the previous app container)"
   }
 }
