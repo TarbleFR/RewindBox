@@ -570,12 +570,19 @@ exit(0)
         stall_lines = [line.removeprefix('[MeloNX:stall] ') for line in stall_log.read_text().splitlines() if line.startswith('[MeloNX:stall] ')]
         headers = [line for line in stall_lines if re.match(r'#\d+\.\d+ \w+ in flight \d+ ms, \d+ threads', line)]
         check([h.split(' ')[0] for h in headers] == ['#1.0', '#1.1', '#2.0', '#3.0', '#4.0', '#5.0', '#6.0'], headers)
-        check(300 <= int(re.search(r'in flight (\d+) ms', headers[0]).group(1)) < 600 and
-              1300 <= int(re.search(r'in flight (\d+) ms', headers[1]).group(1)) < 1600, headers[:2])
         ends = [line for line in stall_lines if re.match(r'#\d+ end: fps returned after', line)]
         check([e.split(' ')[0] for e in ends] == ['#1', '#2', '#3', '#4', '#5', '#6'], ends)
         first = float(re.search(r'after ([\d.]+) ms', ends[0]).group(1))
-        check(1590 <= first < 1900 and all(490 <= float(re.search(r'after ([\d.]+) ms', e).group(1)) < 900 for e in ends[1:]), ends)
+        later = [float(re.search(r'after ([\d.]+) ms', e).group(1)) for e in ends[1:]]
+        # The lower bounds are the stages (300 and 1300 ms) and the scripted sleeps (1.6 s, then 0.5 s), which usleep
+        # never shortens. A loaded shared runner wakes the watch and the sleepers late, so no fixed upper bound is asked
+        # (600, 1600, 1900 and 900 ms were): the two records come in order while the first call is in flight (each at
+        # most the call's own measured duration, the end's clock read coming after the record's), and each 0.5 s stall
+        # ends shorter than the 1.6 s one.
+        flight0 = int(re.search(r'in flight (\d+) ms', headers[0]).group(1))
+        flight1 = int(re.search(r'in flight (\d+) ms', headers[1]).group(1))
+        check(300 <= flight0 < flight1 and 1300 <= flight1 <= first, (headers[:2], ends[:1]))
+        check(first >= 1590 and all(490 <= value < first for value in later), ends)
         def row(stage, thread):
             found = [line for line in stall_lines if line.startswith(stage + ' t') and (' ' + thread + ' ') in line]
             check(len(found) == 1, (stage, thread, found))
