@@ -16,6 +16,7 @@ import hashlib
 import json
 import re
 import shutil
+import struct
 import subprocess
 import sys
 from pathlib import Path
@@ -39,6 +40,65 @@ def defined_objc_classes(nm_output: str) -> set[str]:
     return names
 
 
+FORBIDDEN_PATHS = (b'/Users/runner/', b'/Users/builder/', b'/home/runner/')
+LOAD_COMMANDS = {0x2: 'LC_SYMTAB', 0xC: 'LC_LOAD_DYLIB', 0xD: 'LC_ID_DYLIB', 0x19: 'LC_SEGMENT_64',
+                 0x8000001C: 'LC_RPATH', 0x80000018: 'LC_LOAD_WEAK_DYLIB'}
+
+
+def regions(data: bytes) -> list[tuple[int, int, str]]:
+    """File ranges of a thin 64-bit Mach-O: each load command, each section, the string table."""
+    if len(data) < 32 or struct.unpack_from('<I', data, 0)[0] != 0xFEEDFACF:
+        return []
+    ncmds = struct.unpack_from('<I', data, 16)[0]
+    found, offset = [], 32
+    for _ in range(ncmds):
+        if offset + 8 > len(data):
+            break
+        command, size = struct.unpack_from('<II', data, offset)
+        if size < 8:
+            break
+        name = LOAD_COMMANDS.get(command, hex(command))
+        found.append((offset, offset + size, 'load command ' + name))
+        if command == 0x19:
+            nsects = struct.unpack_from('<I', data, offset + 64)[0]
+            for index in range(nsects):
+                base = offset + 72 + 80 * index
+                if base + 80 > offset + size:
+                    break
+                section = data[base:base + 16].rstrip(b'\0').decode('ascii', 'replace')
+                segment = data[base + 16:base + 32].rstrip(b'\0').decode('ascii', 'replace')
+                length, start = struct.unpack_from('<QI', data, base + 40)
+                if start:
+                    found.append((start, start + length, f'section {segment},{section}'))
+        elif command == 0x2:
+            stroff, strsize = struct.unpack_from('<II', data, offset + 16)
+            found.append((stroff, stroff + strsize, 'symbol string table (N_SO/N_OSO debug map, symbol names)'))
+        offset += size
+    return found
+
+
+def leaked_paths(data: bytes, limit: int = 40) -> list[str]:
+    """Every distinct printable string holding an absolute build path, with where it sits (empty when none)."""
+    spans = regions(data)
+    seen, report = set(), []
+    for forbidden in FORBIDDEN_PATHS:
+        start = data.find(forbidden)
+        while start != -1:
+            begin, end = start, start
+            while begin > 0 and 0x20 <= data[begin - 1] < 0x7F:
+                begin -= 1
+            while end < len(data) and 0x20 <= data[end] < 0x7F:
+                end += 1
+            text = data[begin:end].decode('ascii', 'replace')
+            where = next((name for low, high, name in spans if low <= begin < high), 'outside any section')
+            if (where, text) not in seen:
+                seen.add((where, text))
+                report.append(f'{where} @0x{begin:x}: {text}')
+            start = data.find(forbidden, end)
+    total = len(report)
+    return report[:limit] + ([f'... {total - limit} more'] if total > limit else [])
+
+
 def run(*args: str) -> str:
     return subprocess.check_output(args, text=True)
 
@@ -52,9 +112,10 @@ def main() -> None:
     framework = candidates[0]
     binary = framework / 'XeniaCore'
     data = binary.read_bytes()
-    for forbidden in (b'/Users/runner/', b'/Users/builder/', b'/home/runner/'):
-        if forbidden in data:
-            raise SystemExit(f'Absolute build path {forbidden!r} leaked into XeniaCore')
+    leaks = leaked_paths(data)
+    if leaks:
+        # Refused, never relaxed: every leaked string is listed with its place in the binary.
+        raise SystemExit('Absolute build paths leaked into XeniaCore:\n- ' + '\n- '.join(leaks))
     facts = macho.parse(data)
     failures = []
     if facts['cpu'] != 'arm64' or facts['filetype'] != 'dylib':

@@ -70,6 +70,10 @@ jobs:
         run: python3 test/xenia_launch_transaction_test.py
       - name: Shader converter validator
         run: python3 test/xenia_shader_converter_validator_test.py
+      - name: Build-path check of the Core and the delivery review gate
+        run: |
+          python3 -B test/xenia_verify_core_test.py
+          python3 -B test/xenios_core_delivery_review_test.py
       - name: Dedicated JIT helper matches its ARMSX2 reference
         run: python3 tools/xenia/derive_jit_helper.py --check
       - name: Touch controls contract and shared catalogues
