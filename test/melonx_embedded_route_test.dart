@@ -43,12 +43,40 @@ void main() {
     addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
     messenger.setMockMethodCallHandler(channel, null);
     expect(await MelonxInternalService.runtimeAvailable(), isFalse);
+    final methods = <String>[];
     for (final report in [null, true, {'available': false}, {'available': 1}]) {
-      messenger.setMockMethodCallHandler(channel, (_) async => report);
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        methods.add(call.method);
+        return report;
+      });
       expect(await MelonxInternalService.runtimeAvailable(), isFalse);
     }
-    messenger.setMockMethodCallHandler(channel, (_) async => {'available': true});
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      methods.add(call.method);
+      return {'available': true};
+    });
     expect(await MelonxInternalService.runtimeAvailable(), isTrue);
+    expect(methods, List.filled(5, 'availability'));
+  });
+
+  test('the Consoles probe never asks for the engine (IPA 728: it loaded MeloNXCore and blocked Switch 2)', () async {
+    final channel = MelonxInternalService.channel;
+    final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+    final methods = <String>[];
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      methods.add(call.method);
+      // 'diagnostics' loads MeloNXCore in the bridge: a probe must never reach it.
+      if (call.method == 'diagnostics') throw StateError('the probe loaded the engine');
+      return {'available': true, 'coreLoaded': false, 'framework': true};
+    });
+    for (var visit = 0; visit < 3; visit++) {
+      expect(await MelonxInternalService.runtimeAvailable(), isTrue);
+    }
+    expect(methods, ['availability', 'availability', 'availability']);
+    final screen = File('lib/screens/libretro/libretro_consoles_screen.dart').readAsStringSync();
+    expect(screen, contains('MelonxInternalService.runtimeAvailable()'));
+    expect(screen, isNot(contains("'diagnostics'")));
   });
 
   test('all status messages exist in twelve languages and Traditional Chinese is selected', () {

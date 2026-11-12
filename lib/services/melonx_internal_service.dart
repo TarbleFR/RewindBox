@@ -339,10 +339,15 @@ abstract final class MelonxInternalService {
     return moved != gamePath && await File(moved).exists() ? moved : gamePath;
   }
 
+  /// Whether this build can run Switch games, asked without loading the engine
+  /// ('availability'). Through 'diagnostics' the Consoles page loaded
+  /// MeloNXCore on every visit, and the Switch 2 engine then refused every
+  /// launch until RewindBox restarted (IPA 728). The launch path keeps
+  /// 'diagnostics', which loads the engine it is about to use.
   static Future<bool> runtimeAvailable() async {
     _installDiagnostics();
     try {
-      final report = await channel.invokeMethod<Object?>('diagnostics');
+      final report = await channel.invokeMethod<Object?>('availability');
       return report is Map && report['available'] == true;
     } on MissingPluginException {
       return false;

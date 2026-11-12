@@ -37,6 +37,8 @@ enum MeloNXStrings { static var locale="en" }
 // this test is the registrar's.
 var coreMarkedLoading = 0
 func rb_melonx_core_mark_loading() { coreMarkedLoading += 1 }
+// The exported flag S2Arm reads: set once the process has begun loading MeloNXCore.
+func rb_melonx_core_loaded() -> Int32 { coreMarkedLoading > 0 ? 1 : 0 }
 enum MeloNXLaunchJournal {
     static var sink: (([String:Any])->Void)?
     static var path: String? { nil }
@@ -52,7 +54,9 @@ enum MeloNXHostError: Error {
 final class SessionAPI {}
 final class MeloNXRuntimeAPI {
     let session=SessionAPI()
-    init(library:URL,frameworks:URL,root:URL,moltenVk:Int32=0) throws {}
+    // Every construction is a load of MeloNXCore in production (the plugin's ensureRuntime).
+    static var constructed=0
+    init(library:URL,frameworks:URL,root:URL,moltenVk:Int32=0) throws { MeloNXRuntimeAPI.constructed += 1 }
     func content(path:String="",operation:Int32) throws -> [String:Any] {
         if operation == 9 { Probe.setJournal(path) }
         return operation == 8 ? ["success":true,"titleId":"0100AAAA00000000"] : ["success":true]
