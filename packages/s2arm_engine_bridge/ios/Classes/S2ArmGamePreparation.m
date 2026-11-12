@@ -435,7 +435,11 @@ static NSString *mapPrepareCode(int rc) {
   NSString *gameDir = S2ArmGameDirectory(gid);
   NSString *root = [gameDir stringByAppendingPathComponent:@"root"];
   NSString *moduleDir = [gameDir stringByAppendingPathComponent:@"module"];
-  NSString *imagesPath = [moduleDir stringByAppendingPathComponent:[NSString stringWithFormat:@"S2AImages-%@.dylib", gid]];
+  // The image pack lives outside moduleDir. rb_s2arm_module_dir builds <module_dir>.tmp and swaps it in for the whole module
+  // directory at its end, so a pack written inside it was deleted: Mario Kart World on device (12 Nov) prepared with
+  // imagePack 0 bytes, then failed to launch with errno 2. S2Arm's own layout keeps it apart too (Frameworks/ vs Games/<gid>).
+  NSString *imagesDir = [gameDir stringByAppendingPathComponent:@"images"];
+  NSString *imagesPath = [imagesDir stringByAppendingPathComponent:[NSString stringWithFormat:@"S2AImages-%@.dylib", gid]];
   NSString *packDir = [gameDir stringByAppendingPathComponent:@"pack"];
   NSString *docsDir = [gameDir stringByAppendingPathComponent:@"docs"];   // kept across preparations (saves)
   NSString *stampPath = [gameDir stringByAppendingPathComponent:@"prepared.json"];
@@ -448,10 +452,10 @@ static NSString *mapPrepareCode(int rc) {
   }
   s2arm_journal("prepare", "begin", "\"gid\":\"%s\"", gid.UTF8String);
 
-  // The root, module and pack are rebuilt from scratch; docs is preserved. The stamp goes first, so an interrupted
-  // preparation is never reused.
+  // The root, module, image pack and pack are rebuilt from scratch; docs is preserved. The stamp goes first, so an
+  // interrupted preparation is never reused.
   [files removeItemAtPath:stampPath error:nil];
-  for (NSString *path in @[ root, moduleDir, packDir ]) [files removeItemAtPath:path error:nil];
+  for (NSString *path in @[ root, moduleDir, imagesDir, packDir ]) [files removeItemAtPath:path error:nil];
   for (NSString *path in @[ gameDir, docsDir, moduleDir ]) [files createDirectoryAtPath:path withIntermediateDirectories:YES attributes:nil error:nil];
 
   NSMutableDictionary *sizes = [NSMutableDictionary dictionary];
@@ -512,7 +516,10 @@ static NSString *mapPrepareCode(int rc) {
   rc = rb_s2arm_module_dir(&module, error, sizeof error);
   if (rc != RB_S2ARM_PACK_OK) return [self fail:(rc == RB_S2ARM_PACK_IO ? S2ArmErrorIo : S2ArmErrorExportInvalid) stage:@"module" detail:error];
   durations[@"module"] = @((s2arm_code_now_ns() - t0) / 1000000ull);
-  sizes[@"imagePack"] = @([[files attributesOfItemAtPath:imagesPath error:nil][NSFileSize] unsignedLongLongValue]);
+  unsigned long long imagePackBytes = [[files attributesOfItemAtPath:imagesPath error:nil][NSFileSize] unsignedLongLongValue];
+  sizes[@"imagePack"] = @(imagePackBytes);
+  // A preparation without its image pack is a failed one: never "passed" with 0 bytes, then a launch that cannot open it.
+  if (imagePackBytes == 0) return [self fail:S2ArmErrorIo stage:@"module" detail:"the image pack is missing or empty after the module step"];
 
   // 6. resource pack (RomFS and DLC linked into the product root; system data copied; .applied).
   // The system data is copied (systemdata_link 0, ~20 MB per game), not linked: it lives in the app bundle, whose path
