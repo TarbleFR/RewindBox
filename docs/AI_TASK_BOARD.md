@@ -257,6 +257,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### Common IPA — main Claude Code
 
+- **GOW3 stretch mode no longer applies (maintainer, 12 Nov, IPA 726).** Code reading (Core 933 delta): the native
+  Metal 4 renderer's present pass (`MTLGSRender` flip, `mtl::present_pass::fit`) always fits the display buffer with
+  its aspect ratio kept and never reads `g_cfg.video.stretch_to_display_area`; the Vulkan path keeps upstream
+  behaviour (no RewindBox change touches stretch). No retired per-game key between Cores 901-933, so the override file
+  is not the cause. To confirm with the maintainer: whether Native Metal 4 is on for GOW3 and what the screen shows.
+  Fix planned for the next Core: the Metal present honours Stretch To Display Area (full drawable quad) like Vulkan.
 - **Device report on 726 (11 Nov): after a Switch game, a PS3 launch (BO2) is refused with the MeloNX 'quarantined'
   message.** Main's code reading, not yet confirmed by a journal. Two triggers reach the same block:
   - engine state 4: `Load()` threw, possibly during teardown after Stop;
