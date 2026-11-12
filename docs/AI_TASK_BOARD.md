@@ -5711,8 +5711,16 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - Next:
       - handoff to main for IPA 733 with the speed lot, then the maintainer's device run (journal + host.log after an app
         restart);
-      - later, the 65 s RomFS directory table: S2Arm reads a prebuilt `romfs.s2aidx` (services/romfs_index) when the
-        preparation provides one.
+      - later, the 65 s RomFS directory table. S2Arm reads a prebuilt `romfs.s2aidx` when the pack holds one
+        (services/S2A.Services/RomFsIndex.cs, "S2ARFS01").
+        - The file is LibHac's RomFS image layout: per file, its offset, length and path, plus every non-file byte (header,
+          hash and metadata tables).
+        - Option 1: port LibHac's RomFS builder into the preparation library, byte-exact with services/romfs_index and
+          compared in CI. Every launch would gain the time.
+        - Option 2: an engine patch writing the index after the first slow build. Smaller, but the first launch keeps its
+          65 s.
+        - Waiting for the IPA 733 report before choosing.
+    - IPA 733 (main, 21:40Z): merged as `9069b182`, trigger 087380fb, run 43312487102. Holds patch 0012 and the speed lot.
   - **IPA 732 device report (maintainer, 12 Nov 20:09Z: S2Arm journal and three engine logs): the boot now asks for its
     code at once; the engine runs after the helper detaches. What it does next is not known yet.**
     - Journal, pid 60681: preparation passed in 432 s (unchanged library). Launch: `start` passed, then the 6 boot blocks
