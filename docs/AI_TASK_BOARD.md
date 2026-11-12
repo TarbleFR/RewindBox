@@ -5709,8 +5709,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       (`FATAL … 外置镜像映射 0x7100000000 … errno=1`), code 134.
     - The engine log of the 732 run reaches Files at the next app start (or at the session's end). Next: that log and
       what the screen showed.
-  - **Preparation speed (maintainer request, 12 Nov): commit `74951ac7`, same outputs, for a later IPA (needs a new
-    prepare pin).**
+  - **Preparation speed (maintainer request, 12 Nov): commits `74951ac7` + `2175b72e`, same outputs, verified pin
+    `24dcf030` (SHA-256 `58ca7025…e86e`), handed to main for a later IPA.**
     - Where the 427 s of IPA 731 went (journal + app.log):
       - clearing the previous root: 14 s;
       - unpack: 119 s, a mkdir per path component from `/` before each of about 205 000 links, plus walks with
@@ -5720,8 +5720,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       - pack: 204 s, SHA-256 of 22 GB in portable C on one thread.
     - Changes:
       - SHA-256 from CommonCrypto on Apple;
-      - the pack hashes with up to 4 threads (one buffer each, progress and callbacks on the calling thread, first
-        failure wins);
+      - the pack hashes with up to 4 threads (one buffer each, progress and callbacks on the calling thread; the
+        earliest file's failure is reported, as with one thread: `2175b72e`, from the review);
       - makedirs tries the path first, and the view remembers the previous link's directory;
       - the walks take types from readdir and stat only links and unknown types;
       - caps skips its RomFS walk when main names neither Unity nor Unreal;
@@ -5735,9 +5735,21 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
         0.95 → 0.46 s;
       - new `test/s2arm_prepare_speed_test.py` (23 checks; each reverted fix fails it);
       - bridge test 189 checks; all `test/s2arm_*_test.py` pass.
-    - CI on `74951ac7` running: prepare 43303700695 (comparisons with S2Arm, Linux and macOS), core 43303700519
-      (xcframework), bridge iOS 43303700475, library 43303700638. Not measured on the phone; the progress bar's
-      step weights still follow old guesses.
+    - Independent review (rb-core-review) of `74951ac7`: no data race, deadlock or leak, outputs unchanged. Two low
+      notes: the error order (fixed in `2175b72e`, checked with two unreadable files, old and new libraries and
+      ThreadSanitizer); a folder listed but not searchable is walked from its listing, as `os.walk` does (accepted,
+      documented).
+    - Green:
+      - prepare 43304794303 on `2175b72e`: every comparison with S2Arm on Linux and macOS (ns2_dump, code stage,
+        caps, image pack, resource pack);
+      - core 43304794526 (xcframework, artifact 13983851142);
+      - bridge iOS 43303700475 on `74951ac7`;
+      - pin job 43305551417.
+    - Verified pin `24dcf030`: prepare run 43304794526 (`2175b72e`); engine 43278195639 and sysdata unchanged.
+    - Not measured on the phone. The progress bar's step weights still follow old guesses.
+    - Found on the way, not from this work: `.github/diagnostics/s2arm/s2arm_delivery_test.py` fails (5 failures, 40
+      errors) on `361032b5` and on Claude `85ca8948` alike. The separate S2Arm test-delivery launcher no longer
+      matches the standard recipe's line constants. That line is dormant (common IPA since 727).
   - **IPA 731 device report (maintainer, 12 Nov, S2Arm journal): the engine starts, then waits 10 minutes before asking
     for code. Fix: verified pin `eb8f20bf` with engine patch 0011, merged on Claude by main as `1f301991`, delivered in
     IPA 732 (run 43289133482, 329956970 B, IPA SHA-256 `97952e98…de52`, S2Arm identity `9560e56f`, receipt
