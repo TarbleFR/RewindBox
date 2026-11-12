@@ -7,6 +7,8 @@
 #import "S2ArmJitSession.h"
 #import "S2ArmGamePreparation.h"
 #import "S2ArmLaunchJournal.h"
+#import "S2ArmSettings.h"
+#import "S2ArmSessionMenu.h"
 
 #import <UIKit/UIKit.h>
 #import <dlfcn.h>
@@ -41,6 +43,9 @@ static NSString *S2ArmEnginePath(void) {
 @property(atomic, strong, nullable) S2ArmJitSession *jitSession;
 @property(atomic, assign) BOOL engineLoaded;      // the engine was dlopen'd: one per process, no retry after this
 @property(atomic, assign) BOOL launchInProgress;  // a launch attempt is running now
+@property(nonatomic, copy, nullable) NSDictionary<NSString *, NSString *> *menuStrings;   // from Dart, for the in-game menu
+@property(nonatomic, strong, nullable) UIViewController *engineViewController;   // presented while a game runs (main thread)
+@property(nonatomic, strong, nullable) S2ArmSessionMenu *sessionMenu;             // RewindBox's in-game menu (main thread)
 @end
 
 @implementation S2ArmEngineBridgePlugin
@@ -105,6 +110,15 @@ static NSString *S2ArmEnginePath(void) {
   }
   if ([call.method isEqualToString:@"launchGame"]) {
     [self launchGame:call.arguments result:result];
+    return;
+  }
+  // Switch 2 settings: the engine's own NSUserDefaults keys and the game language (S2ArmSettings.h).
+  if ([call.method isEqualToString:@"getSettings"]) {
+    result(S2ArmSettingsSnapshot());
+    return;
+  }
+  if ([call.method isEqualToString:@"setSettings"]) {
+    result(S2ArmSettingsApply([call.arguments isKindOfClass:NSDictionary.class] ? call.arguments : @{}));
     return;
   }
   result(FlutterMethodNotImplemented);
@@ -183,6 +197,7 @@ static NSString *S2ArmEnginePath(void) {
   NSString *gameData = args[@"gameData"];
   NSString *docs = args[@"docs"];
   NSString *pairing = args[@"pairingFilePath"];
+  NSDictionary *menuStrings = [args[@"menuStrings"] isKindOfClass:NSDictionary.class] ? args[@"menuStrings"] : @{};
   if (![gid isKindOfClass:NSString.class] || ![images isKindOfClass:NSString.class] || ![moduleDir isKindOfClass:NSString.class] ||
       ![gameData isKindOfClass:NSString.class] || ![docs isKindOfClass:NSString.class]) {
     result(@{@"success" : @NO, @"error" : S2ArmErrorInvalidArguments});
@@ -199,6 +214,7 @@ static NSString *S2ArmEnginePath(void) {
     }
     self.launchInProgress = YES;
   }
+  self.menuStrings = menuStrings;
   // MeloNX's Core and this engine cannot share a process (two .NET runtimes). If MeloNX loaded, ask for a restart.
   if (S2ArmMeloNXCoreLoaded()) {
     self.launchInProgress = NO;
@@ -270,6 +286,7 @@ static NSDictionary *launchFail(NSString *error, NSString *stage, NSString *deta
   // Environment the engine's main sets, then the flag before the dlopen, then the dlopen (RTLD_NOW | RTLD_GLOBAL).
   setenv("DOTNET_GCSegmentSize", kGcSegmentSize.UTF8String, 0);
   setenv("MTL_SHADER_CACHE_SIZE", kShaderCacheSize.UTF8String, 0);
+  S2ArmSettingsPrepareLaunch();   // the game language, and the engine's brief overlay that the in-game menu shows or hides
   rb_s2arm_engine_mark_loading();
   self.engineLoaded = YES;   // from here the engine lives in this process: no second launch, even if the dlopen fails
   s2arm_journal("dlopen", "begin", NULL);
@@ -282,6 +299,7 @@ static NSDictionary *launchFail(NSString *error, NSString *stage, NSString *deta
   s2a_rb_guest_configure_fn configure = (s2a_rb_guest_configure_fn)dlsym(engine, S2A_RB_GUEST_CONFIGURE);
   s2a_rb_guest_make_view_controller_fn makeVC = (s2a_rb_guest_make_view_controller_fn)dlsym(engine, S2A_RB_GUEST_MAKE_VIEW_CONTROLLER);
   s2a_rb_guest_start_fn start = (s2a_rb_guest_start_fn)dlsym(engine, S2A_RB_GUEST_START);
+  s2a_rb_guest_stop_fn stop = (s2a_rb_guest_stop_fn)dlsym(engine, S2A_RB_GUEST_STOP);   // the in-game menu's Quit
   if (!configure || !makeVC || !start) {
     return launchFail(@"engineAbiMissing", @"dlsym", @"The engine does not export the guest entry points.");
   }
@@ -332,6 +350,7 @@ static NSDictionary *launchFail(NSString *error, NSString *stage, NSString *deta
                            char error[600] = "";
                            startRc = start(error, sizeof error);
                            if (startRc != 0) startError = @(error);
+                           else [self attachSessionMenuTo:vc stop:stop];
                            dispatch_semaphore_signal(done);
                          }];
   });
@@ -406,13 +425,40 @@ static NSDictionary *launchFail(NSString *error, NSString *stage, NSString *deta
   return @{@"success" : @YES};
 }
 
+#pragma mark - in-game menu
+
+// Main thread, once the engine started in its presented view controller.
+- (void)attachSessionMenuTo:(UIViewController *)vc stop:(s2a_rb_guest_stop_fn)stop {
+  self.engineViewController = vc;
+  self.sessionMenu = [[S2ArmSessionMenu alloc] initWithViewController:vc
+                                                              strings:self.menuStrings ?: @{}
+                                                                 stop:^{
+                                                                   s2arm_journal("menu", "quit", NULL);
+                                                                   // The engine stops on its own queue; session_ended follows.
+                                                                   if (stop) stop("rewindbox-menu");
+                                                                 }];
+  [self.sessionMenu attach];
+  s2arm_journal("menu", "attached", NULL);
+}
+
+// Main thread: the session is over (Quit from either menu, or an engine stop): remove the menu and the game view.
+- (void)closeSessionView {
+  [self.sessionMenu detach];
+  self.sessionMenu = nil;
+  UIViewController *vc = self.engineViewController;
+  self.engineViewController = nil;
+  if (vc.presentingViewController) [vc.presentingViewController dismissViewControllerAnimated:NO completion:nil];
+}
+
 #pragma mark - engine callbacks
 
 static void s2arm_session_ended(int code, const char *reason, void *context) {
   S2ArmEngineBridgePlugin *self = (__bridge S2ArmEngineBridgePlugin *)context;
   s2arm_journal("sessionEnded", code == S2A_RB_ENDED_NORMAL ? "normal" : "failed", "\"code\":%d", code);
+  NSString *why = reason ? @(reason) : @"";
   dispatch_async(dispatch_get_main_queue(), ^{
-    [self.channel invokeMethod:@"sessionEnded" arguments:@{@"code" : @(code), @"reason" : reason ? @(reason) : @""}];
+    [self closeSessionView];
+    [self.channel invokeMethod:@"sessionEnded" arguments:@{@"code" : @(code), @"reason" : why}];
   });
 }
 

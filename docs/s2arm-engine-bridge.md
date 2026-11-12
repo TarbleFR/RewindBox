@@ -81,6 +81,35 @@ Shaped like `XeniaInternalService` (PR #172) so the shared library layer calls b
   native session-end stream.
 - `messageKey` / `localizedError` map the native codes to `lib/l10n/s2arm_engine_locale.dart` (12 locales).
 
+## Settings and in-game menu
+
+No engine change: everything below uses what the pinned engine already reads in guest mode (S2Arm `ios/settings.m`,
+`ios/hud.m`, services `Host.cs`, read at the pinned commit).
+
+- **Settings** (`S2ArmSettings.m`; channel methods `getSettings` / `setSettings`): resolution scale 0.5× / 0.75× / 1×,
+  anti-aliasing (none, SMAA medium, SMAA high), scaling filter (bilinear, nearest), frame-rate limit (30, 60, 120, none),
+  console mode (handheld, docked), image format (widescreen, or 16:9 with black bars), performance overlay, game
+  language. They are stored under the engine's own `NSUserDefaults` keys (`S2AResolutionScale`, `S2AAntiAliasing`,
+  `S2AScalingFilter`, `S2AFrameRateLimit`, `S2ADockedMode`, `S2AWidescreen`), so the RewindBox screens and the engine's
+  own settings page agree. The engine reads them once per process when a game starts, and a process runs one Switch 2
+  game: a change applies to the next game, after RewindBox is restarted. Scales above 1 are not offered: the engine's
+  direct mode (the only one it ships) clamps them to 1. The game language is `S2A_SYSTEM_LANGUAGE` (a `SystemLanguage`
+  name), set before the dlopen; "automatic" leaves it unset and the engine follows the iPhone's languages.
+- **Performance overlay**: the engine's own brief overlay ("FPS · memory", top right). The bridge turns it on before the
+  start (`S2APerfHUD`) and the in-game menu hides or shows it live; the RewindBox preference is
+  `RewindBoxS2ArmPerformanceOverlay`.
+- **In-game menu** (`S2ArmSessionMenu.m`, native UIKit like MeloNX and RPCS3): a ☰ button at the top right of the game,
+  or − and + held together on a controller (state read by polling; the engine's input handlers are not touched). Rows:
+  show / hide the performance overlay, settings (each value written at once, with the next-launch note), quit (confirmed,
+  then `s2a_rb_guest_stop`: saves written, then `session_ended`), resume. The game keeps running behind the menu: the
+  engine exports no pause. Strings come from Dart at launch (`menuStrings`, `lib/l10n/switch2_settings_locale.dart`,
+  12 languages), English when a key is missing. The engine's own gear menu (top left, English or Chinese) stays for
+  controls, cheats and saves.
+- **End of session**: on `session_ended` (either menu's quit, or an engine stop) the bridge removes the menu and dismisses
+  the game view controller before it tells Dart.
+- Checked by `test/s2arm_session_menu_test.py` and compiled for iOS arm64 by `.github/workflows/s2arm-bridge-ios.yml`.
+  Not observed on a device.
+
 ## Delivery (pinned-engine component `s2arm`)
 
 The common delivery carries the bridge: `packages/s2arm_engine_bridge` is a workspace member and a path dependency of the
