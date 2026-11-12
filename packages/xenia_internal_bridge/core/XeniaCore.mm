@@ -21,6 +21,7 @@
 #include <cstring>
 #include <mutex>
 #include <string>
+#include <time.h>
 #include <utility>
 #include <vector>
 
@@ -53,7 +54,8 @@ using Reason = xe::ui::IOSWindowedAppContext::EmulationPauseReason;
 const char* const kManagedKeys[] = {
     "framerate_limit", "guest_display_refresh_cap", "present_letterbox",
     "use_50Hz_mode", "async_shader_compilation", "apu_max_queued_frames",
-    "xma_decoder", "mount_cache", "user_language", "user_country"};
+    "xma_decoder", "mount_cache", "user_language", "user_country",
+    "widescreen", "internal_display_resolution"};
 
 // Forced for every RewindBox session: the host has no microphone usage
 // description, no head-pose entitlement and no XeniOS account services.
@@ -70,6 +72,9 @@ UIViewController* g_host_controller = nil;
 bool g_initialized = false;
 std::string g_storage_root;
 std::vector<std::pair<std::string, std::string>> g_overrides;
+
+// Guest swaps of the running title (NeoXeniaNotifyGuestSwap), for get_stats.
+std::atomic<uint64_t> g_guest_frames{0};
 
 uint64_t g_transaction = 0;
 NeoXeniaEvent g_event = nullptr;
@@ -293,6 +298,7 @@ int Boot(const char* absolute_path, uint32_t kind, uint32_t timeout_ms, char* er
     g_title_state = TitleState::kBooting;
     g_failure.clear();
   }
+  g_guest_frames.store(0, std::memory_order_relaxed);
   const std::string path(absolute_path);
   dispatch_async(dispatch_get_main_queue(), ^{
     g_context->LaunchGame(path);
@@ -375,6 +381,13 @@ void SetAxes(float left_x, float left_y, float right_x, float right_y, float lef
   g_packet.fetch_add(1, std::memory_order_release);
 }
 
+int GetStats(NeoXeniaStats* out) {
+  if (!out || out->size < sizeof(NeoXeniaStats)) return 0;
+  out->guest_frames = g_guest_frames.load(std::memory_order_relaxed);
+  out->sample_ns = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
+  return 1;
+}
+
 const NeoXeniaAPI kAPI = {
     sizeof(NeoXeniaAPI),
     NEO_XENIA_ABI_VERSION,
@@ -390,6 +403,7 @@ const NeoXeniaAPI kAPI = {
     SetButtons,
     SetAxes,
     JitState,
+    GetStats,
 };
 
 }  // namespace
@@ -414,6 +428,10 @@ void NeoXeniaApplyLaunchOverrides() {
 void NeoXeniaNotifyTitleLaunched() {
   SetTitleState(TitleState::kRunning);
   Emit("firstFrame", "title launched");
+}
+
+extern "C" void NeoXeniaNotifyGuestSwap(void) {
+  g_guest_frames.fetch_add(1, std::memory_order_relaxed);
 }
 
 std::unique_ptr<xe::hid::InputDriver> NeoXeniaCreateInputDriver(xe::ui::Window* window,

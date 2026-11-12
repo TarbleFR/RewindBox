@@ -170,6 +170,26 @@ override of the running game, saved only for a managed key with an accepted
 value) and `overlayChanged {level}` (global). Aspect ratio, resolution and
 letterbox apply at the next start of that game; the overlay applies at once.
 
+Native side (`ios/Classes/XeniaSessionMenu.mm`, opened by the session's Menu
+button or the controller's Home button, as the other playlists' in-game menus):
+Resume; Display › Performance overlay (Off / Simple / Detailed); This game ›
+Aspect ratio (16:9 / 4:3), Resolution reported to the game (640×480 … 1920×1080,
+1280×720 default), Letterbox; Edit touch controls; Quit. The game is paused
+and the Core receives a neutral pad while it is open; a swipe down resumes.
+The overlay (`RBXeniaPerformanceOverlay`, top centre, takes no touch) samples
+the Core twice a second: Simple shows the guest FPS; Detailed adds the frame
+time, the process memory footprint and the device thermal state. FPS is the
+rate of guest swaps between two samples (ABI 3 `get_stats`; samples spanning a
+pause, the menu or the background are dropped).
+
+Core ABI 3 (`XeniaCoreABI.h`): `get_stats(NeoXeniaStats*)` returns the guest
+frame counter and its sample time; the counter is fed by one weak hook the
+patch adds as the first statement of `MetalCommandProcessor::IssueSwap`
+(`NeoXeniaNotifyGuestSwap`, a no-op outside XeniaCore; the patch test allows
+exactly those lines) and restarts at each boot. `kManagedKeys` (Core) and
+`XeniaManagedKeys` (bridge) gain `widescreen` and `internal_display_resolution`.
+Not live on device: no iPhone run of this menu or overlay yet.
+
 Not exposed: internal resolution scaling (`draw_resolution_scale` does not
 exist on the Metal backend) and vsync (the XeniOS iOS UI has none),
 renderer choice (Metal only), QoS/JIT debug cvars, `xma_decoder=fake`, the

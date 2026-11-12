@@ -206,3 +206,23 @@ index 7c4ee63..d15d0bf 100644
    }
 +#endif
  }
+diff --git a/src/xenia/gpu/metal/metal_command_processor.cc b/src/xenia/gpu/metal/metal_command_processor.cc
+index ae55503..6ba7ba9 100644
+--- a/src/xenia/gpu/metal/metal_command_processor.cc
++++ b/src/xenia/gpu/metal/metal_command_processor.cc
+@@ -3308,10 +3308,15 @@ void MetalCommandProcessor::InitializeShaderStorage(
+   }
+ }
+ 
++// RewindBox embedded Core (build-utils/xenia): counts guest frames for the
++// host's performance overlay. Weak: undefined, so a no-op, outside XeniaCore.
++extern "C" __attribute__((weak)) void NeoXeniaNotifyGuestSwap(void);
++
+ void MetalCommandProcessor::IssueSwap(uint32_t frontbuffer_ptr,
+                                       uint32_t frontbuffer_width,
+                                       uint32_t frontbuffer_height) {
+   SCOPE_profile_cpu_f("gpu");
++  if (NeoXeniaNotifyGuestSwap) NeoXeniaNotifyGuestSwap();
+   EndZPDFrame();
+   ProcessCompletedSubmissions();
+   LogFrameGpuWaits();

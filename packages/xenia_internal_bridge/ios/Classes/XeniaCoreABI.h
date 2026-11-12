@@ -12,7 +12,9 @@ extern "C" {
 #endif
 
 // ABI 2 adds jit_state (the JIT helper decision). ABI 1 was never built.
-#define NEO_XENIA_ABI_VERSION 2u
+// ABI 3 adds get_stats (the host's performance overlay) and the widescreen and
+// internal_display_resolution settings.
+#define NEO_XENIA_ABI_VERSION 3u
 
 // The Core is built from XeniOS with its upstream iOS 26.0 deployment
 // target (XeniOS CMakeLists.txt:4-11). The host app targets iOS 18: the
@@ -74,6 +76,15 @@ typedef struct NeoXeniaConfiguration {
   void* context;
 } NeoXeniaConfiguration;
 
+// A sample of the running title for the host's performance overlay. The
+// host derives rates from two samples; the counters restart at each boot.
+typedef struct NeoXeniaStats {
+  uint32_t size;          // Set by the caller to sizeof(NeoXeniaStats).
+  uint32_t reserved;
+  uint64_t guest_frames;  // Frames the guest presented (GPU swaps) since boot.
+  uint64_t sample_ns;     // CLOCK_UPTIME_RAW of the sample, in nanoseconds.
+} NeoXeniaStats;
+
 typedef struct NeoXeniaAPI {
   uint32_t size;
   uint32_t version;
@@ -104,6 +115,8 @@ typedef struct NeoXeniaAPI {
                    float left_trigger, float right_trigger);
   // ABI 2: NEO_XENIA_JIT_* bits; any thread.
   uint32_t (*jit_state)(void);
+  // ABI 3: any thread. 0 when out is null or smaller than NeoXeniaStats.
+  int (*get_stats)(NeoXeniaStats* out);
 } NeoXeniaAPI;
 
 typedef const NeoXeniaAPI* (*NeoXeniaGetAPI)(uint32_t version);

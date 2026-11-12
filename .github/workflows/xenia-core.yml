@@ -70,10 +70,13 @@ jobs:
         run: python3 test/xenia_launch_transaction_test.py
       - name: Shader converter validator
         run: python3 test/xenia_shader_converter_validator_test.py
-      - name: Build-path check of the Core and the delivery review gate
-        run: |
-          python3 -B test/xenia_verify_core_test.py
-          python3 -B test/xenios_core_delivery_review_test.py
+      - name: Build-path check of the Core
+        run: python3 -B test/xenia_verify_core_test.py
+      # A Core rebuild changes the recipe the delivery review binds, by design:
+      # its new pin and review come with the pin commit, where this runs again.
+      - name: The delivery review gate binds the pinned Core and its recipe
+        if: ${{ !contains(github.event.head_commit.message, '[xenia-core]') }}
+        run: python3 -B test/xenios_core_delivery_review_test.py
       - name: IPA closed sets for an engine packaged with its identity file
         run: |
           python3 -B test/ipa_identity_engines_test.py

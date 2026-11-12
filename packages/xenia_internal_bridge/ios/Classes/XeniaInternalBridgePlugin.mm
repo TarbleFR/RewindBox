@@ -12,6 +12,7 @@
 #import "XeniaInternalBridgePlugin.h"
 #import "XeniaCoreABI.h"
 #import "XeniaJitBridgePlugin.h"
+#import "XeniaSessionMenu.h"
 #import "XeniaTouchControls.h"
 #include <cmath>
 
@@ -42,7 +43,8 @@ static NSSet<NSString*>* XeniaManagedKeys(void) {
     keys = [NSSet setWithArray:@[
       @"framerate_limit", @"guest_display_refresh_cap", @"present_letterbox",
       @"use_50Hz_mode", @"async_shader_compilation", @"apu_max_queued_frames",
-      @"xma_decoder", @"mount_cache", @"user_language", @"user_country"
+      @"xma_decoder", @"mount_cache", @"user_language", @"user_country",
+      @"widescreen", @"internal_display_resolution"
     ]];
   });
   return keys;
@@ -94,6 +96,10 @@ static UIViewController* XeniaTopViewController(void) {
 - (void)deliverEvent:(NSString*)event transaction:(uint64_t)transaction message:(NSString*)message;
 - (void)requestStopFromMenu;
 - (void)setUserPaused:(BOOL)paused;
+/// The in-game menu changed a setting: Dart saves it (settingChanged for this
+/// game, overlayChanged for every Xbox 360 game).
+- (void)reportSettingChanged:(NSString*)key value:(NSString*)value;
+- (void)reportOverlayChanged:(NSString*)level;
 /// The launch reported success and no teardown runs: the menu, quit and
 /// pause act only then (a Quit during the presentation would queue a
 /// shutdown before prepare and boot).
@@ -113,18 +119,24 @@ static void XeniaEventCallback(void* /*context*/, uint64_t transaction,
 }
 
 // Full-screen host of the Core's render view, RewindBox's Xbox 360 touch
-// controls (shared touch-layout layer), a Menu button (Resume / touch
-// controls / Quit) and the game-controller relay. No XeniOS launcher,
-// library or onboarding.
-@interface RBXeniaSessionController : UIViewController
+// controls (shared touch-layout layer), the performance overlay, a Menu
+// button (RBXeniaSessionMenu: Resume, performance overlay, this game's aspect
+// ratio / reported resolution / letterbox, touch controls, Quit) and the
+// game-controller relay. No XeniOS launcher, library or onboarding.
+@interface RBXeniaSessionController : UIViewController <RBXeniaSessionMenuHost>
 @property(nonatomic, weak) XeniaInternalBridgePlugin* owner;
 @property(nonatomic, assign) const NeoXeniaAPI* api;
 @property(nonatomic, strong) UIView* renderView;
 @property(nonatomic, copy) NSString* gameTitle;
 @property(nonatomic, copy) NSString* touchGameKey;
 @property(nonatomic, copy) NSString* locale;
-/// Localized by Dart (XeniaLocale): menu, resume, quit.
+/// Localized by Dart (XeniaLocale): menu, resume, quit and the in-game menu
+/// and overlay texts (XeniaSessionMenu.h).
 @property(nonatomic, copy) NSDictionary<NSString*, NSString*>* texts;
+/// The effective managed settings of this launch (what the menu shows).
+@property(nonatomic, copy) NSDictionary<NSString*, NSString*>* gameSettings;
+/// off | simple | detailed (all Xbox 360 games).
+@property(nonatomic, copy) NSString* overlayLevel;
 @property(nonatomic, assign) BOOL menuOpen;
 @property(nonatomic, readonly) BOOL editingTouchControls;
 @end
@@ -154,6 +166,8 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
 @implementation RBXeniaSessionController {
   CADisplayLink* _input;
   UIButton* _menuButton;
+  RBXeniaPerformanceOverlay* _overlay;
+  NSTimer* _overlayTimer;
   RBXeniaTouchControlsView* _touch;
   NeoTouchControllerMonitor* _monitor;
   NeoTouchLayoutEditor* _editor;
@@ -181,6 +195,17 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
   _touch.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
   _touch.gameKey = self.touchGameKey;
   [self.view addSubview:_touch];
+  // Above the controls (it takes no touch), top centre, clear of the Menu button.
+  _overlay = [[RBXeniaPerformanceOverlay alloc] initWithTexts:self.texts locale:self.locale];
+  _overlay.translatesAutoresizingMaskIntoConstraints = NO;
+  [self.view addSubview:_overlay];
+  [NSLayoutConstraint activateConstraints:@[
+    [_overlay.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor constant:8],
+    [_overlay.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor],
+  ]];
+  [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(applicationBecameActive:)
+                                             name:UIApplicationDidBecomeActiveNotification
+                                           object:nil];
   __weak RBXeniaSessionController* weakSelf = self;
   _monitor = [[NeoTouchControllerMonitor alloc] initWithChangeHandler:^(BOOL) {
     [weakSelf updateTouchVisibility];
@@ -205,6 +230,7 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
     [_menuButton.heightAnchor constraintEqualToConstant:44],
   ]];
   [self updateTouchVisibility];
+  [self applyOverlayLevel:self.overlayLevel];
 }
 
 - (void)dealloc {
@@ -214,6 +240,42 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
 
 - (void)controllerPreferenceChanged:(NSNotification*)notification {
   [self updateTouchVisibility];
+}
+
+- (void)applicationBecameActive:(NSNotification*)notification {
+  // The rate of the first sample after the background would span the pause.
+  [_overlay resetSamples];
+}
+
+// Sampled twice a second while the level is not off; the rate is measured
+// between two samples of the Core's guest frame counter (NeoXeniaAPI get_stats).
+- (void)applyOverlayLevel:(NSString*)level {
+  self.overlayLevel = [RBXeniaOverlayLevels() containsObject:level] ? level : @"off";
+  _overlay.level = self.overlayLevel;
+  const BOOL sampling = ![self.overlayLevel isEqualToString:@"off"] && self.api && self.api->get_stats;
+  if (!sampling) {
+    [_overlayTimer invalidate];
+    _overlayTimer = nil;
+  } else if (!_overlayTimer) {
+    __weak RBXeniaSessionController* weakSelf = self;
+    _overlayTimer = [NSTimer timerWithTimeInterval:0.5 repeats:YES block:^(NSTimer*) {
+      [weakSelf sampleOverlay];
+    }];
+    [NSRunLoop.mainRunLoop addTimer:_overlayTimer forMode:NSRunLoopCommonModes];
+  }
+  [self.view bringSubviewToFront:_overlay];
+  [self.view bringSubviewToFront:_menuButton];
+}
+
+- (void)sampleOverlay {
+  const NeoXeniaAPI* api = self.api;
+  if (!api || !api->get_stats || self.menuOpen || self.editingTouchControls || !self.owner.sessionRunning) {
+    [_overlay resetSamples];
+    return;
+  }
+  NeoXeniaStats stats = {};
+  stats.size = sizeof stats;
+  if (api->get_stats(&stats)) [_overlay sampleGuestFrames:stats.guest_frames atNanoseconds:stats.sample_ns];
 }
 
 - (BOOL)editingTouchControls {
@@ -240,6 +302,8 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
 }
 
 - (void)stopInput {
+  [_overlayTimer invalidate];
+  _overlayTimer = nil;
   [_input invalidate];
   _input = nil;
   [_touch releaseAllInput];
@@ -311,29 +375,46 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
   [self updateTouchVisibility];
   [self sendNeutralPad];
   [self.owner setUserPaused:YES];
-  UIAlertController* menu =
-      [UIAlertController alertControllerWithTitle:self.gameTitle
-                                          message:nil
-                                   preferredStyle:UIAlertControllerStyleAlert];
-  __weak RBXeniaSessionController* weakSelf = self;
-  [menu addAction:[UIAlertAction actionWithTitle:[self text:@"resume" fallback:@"Resume"]
-                                           style:UIAlertActionStyleCancel
-                                         handler:^(UIAlertAction*) {
-    weakSelf.menuOpen = NO;
-    [weakSelf updateTouchVisibility];
-    [weakSelf.owner setUserPaused:NO];
-  }]];
-  [menu addAction:[UIAlertAction actionWithTitle:NeoTouchLayoutText(@"editTouchControls", self.locale)
-                                           style:UIAlertActionStyleDefault
-                                         handler:^(UIAlertAction*) {
-    [weakSelf beginTouchEditing];
-  }]];
-  [menu addAction:[UIAlertAction actionWithTitle:[self text:@"quit" fallback:@"Quit"]
-                                           style:UIAlertActionStyleDestructive
-                                         handler:^(UIAlertAction*) {
-    [weakSelf.owner requestStopFromMenu];
-  }]];
-  [self presentViewController:menu animated:YES completion:nil];
+  NSMutableDictionary<NSString*, NSString*>* texts = [self.texts mutableCopy] ?: [NSMutableDictionary dictionary];
+  texts[@"touchControls"] = NeoTouchLayoutText(@"editTouchControls", self.locale);
+  RBXeniaSessionMenu* menu = [[RBXeniaSessionMenu alloc] initWithTitle:self.gameTitle
+                                                                 texts:texts
+                                                                locale:self.locale
+                                                              settings:self.gameSettings ?: @{}
+                                                          overlayLevel:self.overlayLevel
+                                                                  host:self];
+  UINavigationController* navigation = [[UINavigationController alloc] initWithRootViewController:menu];
+  navigation.modalPresentationStyle = UIModalPresentationFormSheet;
+  navigation.presentationController.delegate = menu;
+  [self presentViewController:navigation animated:YES completion:nil];
+}
+
+- (void)sessionMenuResume {
+  self.menuOpen = NO;
+  [_overlay resetSamples];
+  [self updateTouchVisibility];
+  [self.owner setUserPaused:NO];
+}
+
+- (void)sessionMenuEditTouchControls {
+  [self beginTouchEditing];
+}
+
+- (void)sessionMenuQuit {
+  [self.owner requestStopFromMenu];
+}
+
+- (void)sessionMenuSetOverlayLevel:(NSString*)level {
+  [self applyOverlayLevel:level];
+  [self.owner reportOverlayChanged:self.overlayLevel];
+}
+
+- (void)sessionMenuSetGameSetting:(NSString*)key value:(NSString*)value {
+  if (![XeniaManagedKeys() containsObject:key]) return;
+  NSMutableDictionary<NSString*, NSString*>* settings = [self.gameSettings mutableCopy] ?: [NSMutableDictionary dictionary];
+  settings[key] = value;
+  self.gameSettings = settings;
+  [self.owner reportSettingChanged:key value:value];
 }
 
 // The shared editor over the real controls; the game stays paused and the
@@ -583,6 +664,8 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
   controller.touchGameKey = [args[@"touchGameKey"] isKindOfClass:NSString.class] ? args[@"touchGameKey"] : nil;
   controller.locale = [args[@"locale"] isKindOfClass:NSString.class] ? args[@"locale"] : @"en";
   controller.texts = [args[@"texts"] isKindOfClass:NSDictionary.class] ? args[@"texts"] : @{};
+  controller.gameSettings = [NSDictionary dictionaryWithObjects:values forKeys:keys];
+  controller.overlayLevel = [args[@"overlay"] isKindOfClass:NSString.class] ? args[@"overlay"] : @"off";
   controller.modalPresentationStyle = UIModalPresentationFullScreen;
   self.session = controller;
   UIViewController* presenter = XeniaTopViewController();
@@ -714,6 +797,18 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
   if (!self.api || !self.sessionRunning) return;
   self.api->request_stop();
   [self teardownWithReason:@"userQuit" detail:@"" notify:YES];
+}
+
+// Fire and forget: Dart persists (XeniaInternalService), the session keeps
+// its own copy for the menu.
+- (void)reportSettingChanged:(NSString*)key value:(NSString*)value {
+  if (key.length == 0 || value.length == 0) return;
+  [self.channel invokeMethod:@"settingChanged" arguments:@{@"key" : key, @"value" : value}];
+}
+
+- (void)reportOverlayChanged:(NSString*)level {
+  if (![RBXeniaOverlayLevels() containsObject:level]) return;
+  [self.channel invokeMethod:@"overlayChanged" arguments:@{@"level" : level}];
 }
 
 // Stops the title off main, then releases the view and dismisses on main.
