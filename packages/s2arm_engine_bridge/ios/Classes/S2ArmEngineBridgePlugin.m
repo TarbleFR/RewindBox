@@ -12,6 +12,8 @@
 
 #import <UIKit/UIKit.h>
 #import <dlfcn.h>
+#import <errno.h>
+#import <sys/clonefile.h>
 
 static NSString *const kChannel = @"neostation/s2arm_internal";
 static NSString *const kProgressMethod = @"prepareProgress";
@@ -96,10 +98,38 @@ static NSString *S2ArmEnginePath(void) {
       result(@{@"success" : @NO});
       return;
     }
+    // The capacity iOS gives a task the user asked for: it counts the space the system can purge (caches), as the
+    // Settings app does. NSFileSystemFreeSize and statvfs count none of it: IPA 728 refused a Switch 2 import as "not
+    // enough space" while Settings showed about 68 GB available.
+    NSNumber *important = nil;
+    [[NSURL fileURLWithPath:probe] getResourceValue:&important forKey:NSURLVolumeAvailableCapacityForImportantUsageKey error:nil];
     result(@{
       @"success" : @YES,
       @"freeBytes" : attributes[NSFileSystemFreeSize] ?: @0,
+      @"importantFreeBytes" : important ?: @0,
       @"systemNumber" : attributes[NSFileSystemNumber] ?: @0,
+    });
+    return;
+  }
+  if ([call.method isEqualToString:@"cloneTree"]) {
+    // An APFS copy-on-write clone of a whole folder (clonefile(2)): instant, and it takes no space until a file changes.
+    // The import uses it for a game on the same volume, and falls back to its byte copy when this fails (another volume,
+    // another file system). The destination must be inside Documents and must not exist yet.
+    NSDictionary *args = [call.arguments isKindOfClass:NSDictionary.class] ? call.arguments : @{};
+    NSString *from = [args[@"from"] isKindOfClass:NSString.class] ? args[@"from"] : nil;
+    NSString *to = [args[@"to"] isKindOfClass:NSString.class] ? args[@"to"] : nil;
+    NSString *documents = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
+    if (!from.isAbsolutePath || !to.isAbsolutePath || !documents || !S2ArmPathInside(to, documents) ||
+        [NSFileManager.defaultManager fileExistsAtPath:to]) {
+      result(@{@"success" : @NO, @"errno" : @(EINVAL)});
+      return;
+    }
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+      int status = clonefile(from.fileSystemRepresentation, to.fileSystemRepresentation, CLONE_NOFOLLOW);
+      int code = status == 0 ? 0 : errno;
+      dispatch_async(dispatch_get_main_queue(), ^{
+        result(@{@"success" : status == 0 ? @YES : @NO, @"errno" : @(code)});
+      });
     });
     return;
   }
@@ -198,11 +228,12 @@ static NSString *S2ArmEnginePath(void) {
   preparation.directChain = [arguments[@"directChain"] isKindOfClass:NSString.class] ? arguments[@"directChain"] : nil;
   preparation.systemDataFolder = [arguments[@"systemDataFolder"] isKindOfClass:NSString.class] ? arguments[@"systemDataFolder"] : nil;
   __weak S2ArmEngineBridgePlugin *weakSelf = self;
-  preparation.progress = ^(NSString *step, NSInteger index, NSInteger count, double fraction) {
+  preparation.progress = ^(NSString *step, NSInteger index, NSInteger count, double fraction, NSString *detail) {
     S2ArmEngineBridgePlugin *strongSelf = weakSelf;
     dispatch_async(dispatch_get_main_queue(), ^{
       [strongSelf.channel invokeMethod:kProgressMethod
-                             arguments:@{@"step" : step, @"index" : @(index), @"count" : @(count), @"fraction" : @(fraction)}];
+                             arguments:@{@"step" : step, @"index" : @(index), @"count" : @(count), @"fraction" : @(fraction),
+                                         @"detail" : detail ?: @""}];
     });
   };
   self.activePreparation = preparation;

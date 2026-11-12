@@ -189,3 +189,31 @@ producer finds the source archives and .NET packs where the collector reads them
 Only CI and a device can verify: Swift/Objective-C compilation and linking against the real frameworks, the `dlopen` and
 `dlsym` of the guest entry points, `prepare_code` on device, the detach timing, the spare pool after the detach, the
 presentation, and the session end.
+
+### IPA 728 on device: import space, preparation feedback and reuse, MeloNX
+
+The maintainer's test of IPA 728, with app.log. The Consoles switch now turns on (`available: true`). Three problems
+remained.
+- **Import refused for space** with about 68 GB available in Settings. The check used statvfs (`freeBytes`), which counts
+  no purgeable space.
+  - `storageInfo` now also gives `importantFreeBytes` (`NSURLVolumeAvailableCapacityForImportantUsageKey`), and the
+    import checks it (`availableBytes`).
+  - The import first tries `cloneTree`, an APFS `clonefile(2)` of the whole export into staging. It accepts only a
+    destination inside Documents, onto a free path, without following links. On the same volume it is instant and takes
+    no space. Otherwise, after removing any partial clone, the byte copy runs as before.
+- **"code · 0%" for minutes.** The code stage was given no progress callback, and every launch prepared the game again
+  from scratch.
+  - The code stage now reports each step: addr_need, nro, each module, tables. The resource pack reports bytes. Events
+    are throttled to 1 % or 250 ms, and each carries `detail` (the module), shown as "code · main".
+  - `<game>/prepared.json` keeps the result and a fingerprint of the inputs. The fingerprint covers the app build, the
+    direct chain, the system data list, the export folder, its parts, every ExeFS file by size and date, and the
+    RomFS roots. A later launch with the same inputs and its outputs still present (image pack, `.applied`) reuses the
+    result (`reused: true`). The stamp is removed before a new preparation and written after its last step.
+  - Dart opens the native journal in `Documents/Diagnostics/S2Arm/s2arm-journal.jsonl`; it was never opened before. It
+    logs one app.log line per step and module, the result with step durations and sizes, and the launch outcome.
+- **MeloNX loaded by the Consoles tab.** Its `runtimeAvailable()` → `diagnostics` loads MeloNXCore and its NativeAOT
+  runtime. After that, `melonxCoreLoaded` is true and an S2Arm launch is refused until RewindBox restarts. `launch()` now
+  reads the status first and fails with `melonxCoreLoaded` (message `melonxLoaded`, 12 languages: close and reopen, then
+  start the Switch 2 game) before any preparation. The MeloNX probe itself belongs to main and the MeloNX owner; reported.
+Checked by `test/s2arm_engine_bridge_test.py` (137 checks), `test/s2arm_internal_service_test.dart` (clone, space,
+early refusal, progress detail) and the iOS compile. Not observed on a device.
