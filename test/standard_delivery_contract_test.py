@@ -1274,8 +1274,10 @@ class PinnedEngineSchema(unittest.TestCase):
         self.assertFalse([e for e in sd.manifest_errors(draft) if 'xenia' in e])
 
     def test_a_manifest_without_the_kind_is_what_it_was(self):
+        # Every manifest up to 726 was written before the kind existed; 727 is the first to declare pinned engines.
         for build, manifest in manifests().items():
-            self.assertEqual(sd.engine_components(manifest), {}, build)
+            if build <= 726:
+                self.assertEqual(sd.engine_components(manifest), {}, build)
         self.assertEqual(sd.manifest_errors(manifests()[726]), [])
         self.assertEqual(sd.manifest_errors(xenia_manifest()), [])
         self.assertEqual(sd.engine_producers({}), {})
@@ -1776,7 +1778,8 @@ class PinnedEngineAbsent(unittest.TestCase):
         self.assertEqual(sd.validate_inventory(sorted(names), manifest), len(names))
         self.assertEqual(sd.pinned_payload_rule(manifest, 'melonx', 'a', 'b'), True)
         for build, other in manifests().items():
-            self.assertEqual(sd.engine_components(other), {}, build)
+            if build <= 726:  # manifests written before the kind existed (727 is the first to declare it)
+                self.assertEqual(sd.engine_components(other), {}, build)
             self.assertEqual(sd.manifest_errors(other), [], build) if other['status'] == 'frozen' else None
 
     def test_the_engine_operations_exist_but_need_the_component(self):
