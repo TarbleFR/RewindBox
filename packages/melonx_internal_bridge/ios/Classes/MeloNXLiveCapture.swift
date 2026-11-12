@@ -41,9 +41,10 @@ final class MeloNXLiveCapture {
     static let refreshSeconds = 2.0
     static let statsSeconds = 10.0
     static let smoothSeconds = 60.0
-    // The two periods a host check shortens; production keeps the values above.
+    // The periods a host check shortens; production keeps the values above.
     var statsInterval = MeloNXLiveCapture.statsSeconds
     var smoothInterval = MeloNXLiveCapture.smoothSeconds
+    var automaticSpacing = MeloNXLiveCapture.automaticSpacingSeconds
     static let gapTriggerMs = 100.0
     static let captureLimit = 40
     static let smoothLimit = 10
@@ -270,7 +271,7 @@ final class MeloNXLiveCapture {
             for trigger in fresh {
                 lastTrigger = max(lastTrigger, trigger.time)
                 if trigger.kind == "gap" {
-                    guard trigger.time - lastAutomatic >= Self.automaticSpacingSeconds else { counts["gapSkipped", default:0] += 1; continue }
+                    guard trigger.time - lastAutomatic >= automaticSpacing else { counts["gapSkipped", default:0] += 1; continue }
                     lastAutomatic = trigger.time
                 }
                 guard counts[trigger.kind, default:0] < Self.captureLimit else { counts[trigger.kind + "Skipped", default:0] += 1; continue }

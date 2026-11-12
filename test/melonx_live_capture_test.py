@@ -219,6 +219,7 @@ spinner.name = "Harness Busy"
 spinner.start()
 let capture = MeloNXLiveCapture()
 capture.statsInterval = 2
+capture.automaticSpacing = 0   // a loaded runner holds some 16 ms sleeps past 100 ms: the held frame keeps its own record
 capture.start(path:path, context:["session":"HARNESS-SESSION", "generation":"7"], target:"127.0.0.1:" + port)
 var frame: UInt64 = 0
 func present(_ seconds: Double) {
