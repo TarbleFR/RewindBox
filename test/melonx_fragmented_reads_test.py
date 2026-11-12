@@ -110,7 +110,12 @@ CORE667 = ('adapt_buffer_array_barriers', 'adapt_hogwarts_precise_math', 'adapt_
            'adapt_worker_library_share',
            # Core 743: submissions by cause and host syncs by site (SyncManager.cs, AutoFlushCounter.cs, StagingBuffer.cs and
            # HelperShader.cs join the composition); the build journal without the main load wait (PipelineState.cs).
-           'adapt_submit_causes', 'adapt_build_journal_load_wait')
+           'adapt_submit_causes', 'adapt_build_journal_load_wait',
+           # Core 745: Hogwarts' paced strict host syncs (GpuContext.cs, AutoFlushCounter.cs); programs of one code share
+           # their pipelines (ShaderCollection.cs).
+           'adapt_paced_strict_syncs', 'adapt_sibling_pipelines',
+           # Core 745: a bound texture array walks its textures when one needs it (Texture.cs, TextureBindingsArrayCache.cs).
+           'adapt_array_sync_epochs')
 COMPOSED = sorted(set(COMPOSED) | {name for module in CORE667 for name in __import__(module).BASELINE
                                    if name.startswith('src/Ryujinx.Graphics.')})
 # Production files the candidate build compiles and this receipt binds (the region type is unchanged). Library.cs

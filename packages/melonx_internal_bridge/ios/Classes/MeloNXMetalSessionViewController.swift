@@ -43,11 +43,13 @@ private final class MeloNXObservedMetalLayer: CAMetalLayer {
         }
         lastAcquired = requested
         observationLock.unlock()
+        MeloNXLiveCapture.shared.noteAcquire(time:requested, waitMs:waitMs)
         drawable.addPresentedHandler { [weak self] value in
             guard let self, value.presentedTime > 0 else { return }
             self.observationLock.lock()
             self.presentedFrames += 1
             let first = self.presentedFrames == 1
+            let presented = self.presentedFrames
             if self.lastPresented > 0, value.presentedTime > self.lastPresented {
                 let gap = (value.presentedTime - self.lastPresented) * 1000
                 self.pacing.maxGapMs = max(self.pacing.maxGapMs, gap)
@@ -61,6 +63,7 @@ private final class MeloNXObservedMetalLayer: CAMetalLayer {
             }
             self.lastPresented = max(self.lastPresented, value.presentedTime)
             self.observationLock.unlock()
+            MeloNXLiveCapture.shared.notePresented(time:value.presentedTime, frame:presented)
             if first { DispatchQueue.main.async { [weak self] in self?.firstPresentation?() } }
         }
         return drawable
@@ -250,6 +253,8 @@ final class MeloNXMetalSessionViewController: UIViewController {
             memory:{ MeloNXMetalSessionViewController.memoryField() })
         perf = journal
         journal.start()
+        // Freeze records and the optional live copy to a computer (MeloNXLiveCapture.swift): this session's, until it ends.
+        MeloNXLiveCapture.shared.start(path:path, context:MeloNXStdioCapture.context(generation:generation), owner:ObjectIdentifier(self))
     }
     // "footprint MiB/headroom MiB/device %/donors": phys_footprint, the
     // headroom to this process's jetsam limit (os_proc_available_memory), the
@@ -301,6 +306,7 @@ final class MeloNXMetalSessionViewController: UIViewController {
                 surface:surface.metalLayer,pointer:Unmanaged.passUnretained(surface.metalLayer).toOpaque(),
                 prepared:{ [weak self] id in self?.installControls(generation:id) },beforeRun:beforeRun) { [weak self, finished] result in
                     self?.perf?.stop(); self?.perf = nil
+                    if let self { MeloNXLiveCapture.shared.stop(owner:ObjectIdentifier(self)) }
                     MeloNXHeapSample.shared.end()
                     MeloNXStdioCapture.end(); UIApplication.shared.isIdleTimerDisabled = false
                     self?.skinSession?.close(); self?.skinSession = nil
@@ -334,6 +340,7 @@ final class MeloNXMetalSessionViewController: UIViewController {
     }
     private func applyPause() {
         perf?.setPaused(!pauseReasons.isEmpty)
+        MeloNXLiveCapture.shared.setPaused(!pauseReasons.isEmpty)
         surface.metalLayer.restartPacing()
         router?.suspend(!pauseReasons.isEmpty)
         if let skinSession, pauseReasons.isEmpty {
@@ -351,6 +358,33 @@ final class MeloNXMetalSessionViewController: UIViewController {
         }
         host.setPaused(!pauseReasons.isEmpty)
     }
+    // The computer that receives the performance journal while the game runs (tools/melonx/live_capture.py prints the
+    // address to enter). Private IPv4 addresses only; empty turns the copy off. The journal files stay complete either way.
+    private func showLiveCapture() {
+        let alert = UIAlertController(title:MeloNXText("Live capture"),
+            message:MeloNXText("Address of the computer running live_capture.py, for example 192.168.1.20:47800. Empty: off."),preferredStyle:.alert)
+        alert.addTextField { field in
+            field.text = MeloNXLiveCapture.preferred
+            field.placeholder = "192.168.1.20:47800"
+            field.keyboardType = .numbersAndPunctuation
+            field.autocorrectionType = .no
+        }
+        alert.addAction(UIAlertAction(title:MeloNXText("Cancel"),style:.cancel) { [weak self] _ in self?.setPause("menu",enabled:false) })
+        alert.addAction(UIAlertAction(title:MeloNXText("Done"),style:.default) { [weak self, weak alert] _ in
+            let text = alert?.textFields?.first?.text ?? ""
+            MeloNXLiveCapture.preferred = text
+            if !text.trimmingCharacters(in:.whitespaces).isEmpty && MeloNXLiveCapture.preferred.isEmpty {
+                let refused = UIAlertController(title:MeloNXText("Not a private IPv4 address."),message:nil,preferredStyle:.alert)
+                refused.addAction(UIAlertAction(title:MeloNXText("Done"),style:.default) { [weak self] _ in self?.setPause("menu",enabled:false) })
+                self?.present(refused,animated:true)
+                return
+            }
+            MeloNXLiveCapture.shared.restart()
+            self?.setPause("menu",enabled:false)
+        })
+        present(alert,animated:true)
+    }
+
     @objc private func showMenu() {
         guard presentedViewController == nil, !closing, !saving else { return }
         setPause("menu",enabled:true)
@@ -361,6 +395,7 @@ final class MeloNXMetalSessionViewController: UIViewController {
             self.saveOption("showRamGraph",value:!(self.settings["showRamGraph"] as? Bool ?? true))
         })
         menu.addAction(UIAlertAction(title:MeloNXText("Memory status"),style:.default) { [weak self] _ in self?.showMemoryStatus() })
+        menu.addAction(UIAlertAction(title:MeloNXText("Live capture") + ": " + (MeloNXLiveCapture.preferred.isEmpty ? MeloNXText("Off") : MeloNXLiveCapture.preferred),style:.default) { [weak self] _ in self?.showLiveCapture() })
         menu.addAction(UIAlertAction(title:MeloNXText("Emulation priority") + ": " + MeloNXText(Self.priorityNames[Int(MeloNXEmulationPriority.applied ?? 0)]),style:.default) { [weak self] _ in self?.showPriority() })
         if ready {
             menu.addAction(UIAlertAction(title:MeloNXText("Screen format"),style:.default) { [weak self] _ in self?.showFormats() })
@@ -485,6 +520,7 @@ final class MeloNXMetalSessionViewController: UIViewController {
     }
     deinit {
         perf?.stop()
+        MeloNXLiveCapture.shared.stop(owner:ObjectIdentifier(self))
         memoryGraph?.setSampling(false)
         observers.forEach { NotificationCenter.default.removeObserver($0) }
         router?.close(); MeloNXTextInput.shared.detach(self); host.requestStop()
