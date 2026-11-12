@@ -502,6 +502,31 @@ left to the maintainer. `check_xenios_core_delivery` refuses a pin without
 this review, a changed recipe file, another pin, or a clearance claim
 (`test/xenios_core_delivery_review_test.py`, 9 tests).
 
+## IPA closed sets: the Xenia identity file (12 Nov 2026)
+
+The pinned-engine delivery step writes `Xenia-native-identity.json` at the
+app root when it embeds XeniaCore (`standard_delivery.py engine_embed`). That
+file is the only signal the IPA validators read, the same model as
+`MeloNX-native-identity.json` and the one agreed with session 04 for S2Arm.
+One table, `IDENTITY_ENGINES` in `build-utils/validate_single_ipa_distribution.py`,
+maps it to the helper it adds (`XeniaJITHelper.appex`: suffix `.xeniajithelper`,
+principal `XeniaJITRequestHandler`, marker `NeoStationXeniaJITHelper`,
+share-services) and the images it requires (`XeniaCore.framework/XeniaCore`,
+`libmetalirconverter.dylib`). Without the file the expected sets are today's,
+and either image alone is refused. The places that hold closed sets import it:
+`validate_single_ipa_distribution.validate`, the Dolphin `ci/verify_ipa.py`
+(a retained Dolphin input: the build that crosses it declares
+`components.dolphin.changedInputs`, base blob `60324580…3216` → `613eed25…136c`),
+`validate_rpcs3_ipa.validate_helper_bundles` (run by the delivery's structure
+step), the delivery's version step (8 bundles plus one helper per packaged
+identity, each helper's Info.plist required) and
+`verify_downloaded_delivery.packaged_engine_helpers` (the identities equal the
+manifest's pinned engines; each names its pinned payload, which the packaged
+image carries). `embed_legal_bundle.py` is unchanged: the XeniOS and Metal
+Shader Converter notices ship in every build. `test/ipa_identity_engines_test.py`
+(11 tests) runs each place on synthetic IPAs, the version step from the real
+workflow heredoc.
+
 ## State and limits (10 Nov 2026)
 
 - Implemented and host-tested: catalog, policy, Consoles tab, playlist import
