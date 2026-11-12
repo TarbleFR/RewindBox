@@ -92,7 +92,9 @@
   "build-utils/melonx/adapt_playtime_warmup_all_titles.py",
   "build-utils/melonx/adapt_array_storage_counts.py",
   "build-utils/melonx/adapt_submit_causes.py",
-  "build-utils/melonx/adapt_build_journal_load_wait.py"
+  "build-utils/melonx/adapt_build_journal_load_wait.py",
+  "build-utils/melonx/adapt_nifm_network_watch.py",
+  "build-utils/melonx/adapt_paced_strict_syncs.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -193,7 +195,8 @@
   "src/Ryujinx.Graphics.Vulkan/SyncManager.cs",
   "src/Ryujinx.Graphics.Vulkan/AutoFlushCounter.cs",
   "src/Ryujinx.Graphics.Vulkan/StagingBuffer.cs",
-  "src/Ryujinx.Graphics.Vulkan/HelperShader.cs"
+  "src/Ryujinx.Graphics.Vulkan/HelperShader.cs",
+  "src/Ryujinx.HLE/HOS/Services/Nifm/StaticService/IGeneralService.cs"
  ],
  "productionAdditions": [],
  "fixtureInputs": [
@@ -327,7 +330,9 @@
   "docs/evidence/melonx-739-gates/setprogram-warmup-checks.json",
   "test/melonx_array_storage_counts/Program.cs",
   "test/melonx_submit_causes/Program.cs",
-  "test/melonx_build_journal_load_wait/Program.cs"
+  "test/melonx_build_journal_load_wait/Program.cs",
+  "test/melonx_nifm_network_watch/Program.cs",
+  "test/melonx_paced_strict_syncs/Program.cs"
  ],
  "fixtureProductionInputs": [
   "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs",
@@ -4398,6 +4403,61 @@
    },
    "requiredPostimages": [
     "src/Ryujinx.Graphics.Vulkan/SyncManager.cs"
+   ]
+  },
+  {
+   "name": "nifm-network-watch",
+   "script": "test/melonx_nifm_network_watch_test.py",
+   "report": "nifm-network-watch-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 3600,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false,
+    "productionHleAssemblyBuilt": true,
+    "productionLibraryAssemblyBuilt": true,
+    "controlSwitchesKeptOfEleven": 11,
+    "candidateSwitchesKeptOfEleven": 0,
+    "subscriptions": 1
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.HLE/HOS/Services/Nifm/StaticService/IGeneralService.cs",
+    "src/Ryujinx.Library/Library.cs"
+   ]
+  },
+  {
+   "name": "paced-strict-syncs",
+   "script": "test/melonx_paced_strict_syncs_test.py",
+   "report": "paced-strict-syncs-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 3600,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false,
+    "productionVulkanAssemblyBuilt": true,
+    "productionGpuAssemblyBuilt": true,
+    "productionLibraryAssemblyBuilt": true,
+    "policyOffEqualsControl": true,
+    "candidateCommandBuffersPerFrame": 10
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Gpu/GpuContext.cs",
+    "src/Ryujinx.Graphics.Vulkan/AutoFlushCounter.cs",
+    "src/Ryujinx.Library/Library.cs"
    ]
   }
  ]

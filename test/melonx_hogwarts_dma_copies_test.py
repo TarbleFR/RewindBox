@@ -197,6 +197,11 @@ LOT_FILES = {
     'adapt_submit_causes': ['src/Ryujinx.Graphics.Vulkan/PipelineBase.cs', 'src/Ryujinx.Graphics.Vulkan/PipelineFull.cs',
                             'src/Ryujinx.Graphics.Vulkan/BufferHolder.cs', 'src/Ryujinx.Graphics.Vulkan/Window.cs'],
     'adapt_build_journal_load_wait': [],
+    # Core 745: nifm's general service off the runtime's network address event (its journal text in Library.cs;
+    # IGeneralService.cs is outside this composition); Hogwarts' paced strict host syncs (two assignments in Library.cs;
+    # GpuContext.cs and AutoFlushCounter.cs are outside it).
+    'adapt_nifm_network_watch': ['src/Ryujinx.Library/Library.cs'],
+    'adapt_paced_strict_syncs': ['src/Ryujinx.Library/Library.cs'],
 }
 
 checks = 0
