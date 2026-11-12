@@ -79,6 +79,24 @@ UNCHANGED_TEST_STEPS = ('Set up Flutter3.47.2', 'Resolve exact workspace lock', 
 RUN_STEPS = {'flutter': 'Run source contracts and Flutter behavior',
              'native': 'Run actual Xcode16.4 tests and host compilation'}
 PIL_IMPORT = re.compile(r'^\s*(?:from PIL\b|import PIL\b)', re.M)
+# The two changes to the delivered 610 Flutter setup steps (test jobs and application). The action is pinned to the
+# commit its v2 tag named on 12 Nov 2026, and its pub cache is off: that cache's key always appends
+# hashFiles('**/pubspec.lock') over the whole checkout, which did not finish within GitHub's 120 s limit on a loaded
+# macOS runner (run 43322868775, native job). Exactly these two changes are accepted; anything else still fails.
+FLUTTER_STEPS = ('Set up Flutter3.47.2', 'Set up Flutter 3.47.2')
+FLUTTER_ACTION_PIN = 'subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2'
+
+
+def flutter_step_as_delivered(step_value):
+    if step_value.get('name') not in FLUTTER_STEPS:
+        return step_value
+    if step_value.get('uses') != FLUTTER_ACTION_PIN:
+        raise AssertionError(f"{step_value.get('name')}: the Flutter action is not the pinned commit: "
+                             f"{step_value.get('uses')}")
+    if step_value.get('with', {}).get('pub-cache') is not False:
+        raise AssertionError(f"{step_value.get('name')}: the pub cache (workspace-wide hashFiles) is not off")
+    return dict(step_value, uses='subosito/flutter-action@v2',
+                **{'with': {k: v for k, v in step_value['with'].items() if k != 'pub-cache'}})
 
 
 def sha(data: bytes) -> str:
@@ -823,7 +841,7 @@ class Workflow(unittest.TestCase):
             after = {s['name']: s for s in steps(group)}
             for name in UNCHANGED_TEST_STEPS:
                 if name in before:
-                    self.assertEqual(after[name], before[name], name)
+                    self.assertEqual(flutter_step_as_delivered(after[name]), before[name], name)
             self.assertEqual(workflow()['jobs'][group]['runs-on'], old['jobs'][group]['runs-on'])
             self.assertEqual(workflow()['jobs'][group]['timeout-minutes'], old['jobs'][group]['timeout-minutes'])
             self.assertEqual(step(group, RUN_STEPS[group])['run'],
@@ -923,7 +941,7 @@ class Workflow(unittest.TestCase):
                 # Only the pinned-engine guard (PinnedEngineWorkflow) differs from the delivered step.
                 self.assertEqual(dict(new[name], run=new[name]['run'].replace(ENGINE_GUARD, '')), old[name], name)
                 continue
-            self.assertEqual(new[name], old[name], name)
+            self.assertEqual(flutter_step_as_delivered(new[name]), old[name], name)
         environment = workflow()['jobs']['application']['env']
         old_environment = sd.load_yaml_subset(WORKFLOW610.read_text())['jobs']['application']['env']
         for key in ('IPA_NAME', 'HOMEBREW_NO_AUTO_UPDATE', 'BUNDLE_GEMFILE', 'SCREENSCRAPER_DEV_ID',
@@ -2533,6 +2551,122 @@ class TriggerCommit(unittest.TestCase):
         self.assertFalse(sd.push_triggers({'tags': ['v*']}, 'Claude', ['a']))
         self.assertTrue(sd.push_triggers({'branches-ignore': ['main']}, 'Claude', ['a']))
 
+
+
+class TransientGitHubAnswers(unittest.TestCase):
+    """IPA 733 run 43312487102: GitHub answered 503 for unexpired artifacts twice. Every read of the recipe retries a
+    transient failure (no answer, 5xx, rate limit) a bounded number of times and raises a definitive answer at once:
+    a purged artifact's 404 must still reach archive_origin(), which then requires its pinned republication."""
+
+    class Done:
+        def __init__(self, code, out=b'', err=b''):
+            self.returncode, self.stdout, self.stderr = code, out, err
+
+    @staticmethod
+    def scripted(*answers):
+        calls = []
+
+        def run(command, **_):
+            answer = answers[len(calls)]
+            calls.append(command)
+            if isinstance(answer, BaseException):
+                raise answer
+            return answer
+        return run, calls
+
+    def test_api_reads_retry_transient_failures_only(self):
+        quiet = contextlib.redirect_stderr(io.StringIO())
+        for read in (sd.api, retained.gh_api):
+            with self.subTest(read=read.__module__), quiet:
+                run, calls = self.scripted(self.Done(1, err=b'gh: HTTP 503\n'), subprocess.TimeoutExpired('gh', 120),
+                                           self.Done(1, err=b'gh: API rate limit exceeded (HTTP 403)\n'),
+                                           self.Done(0, out=b'{"id": 7}'))
+                self.assertEqual(read('actions/runs/7', run=run, sleep=lambda _: None), {'id': 7})
+                self.assertEqual(len(calls), 4)
+                for definitive in (b'gh: Not Found (HTTP 404)\n', b'gh: Resource not accessible (HTTP 403)\n'):
+                    run, calls = self.scripted(self.Done(1, err=definitive))
+                    with self.assertRaises(subprocess.CalledProcessError):
+                        read('actions/artifacts/1', run=run, sleep=lambda _: None)
+                    self.assertEqual(len(calls), 1, definitive)
+                run, calls = self.scripted(*[self.Done(1, err=b'gh: HTTP 502\n')] * 5)
+                with self.assertRaises(subprocess.CalledProcessError):
+                    read('actions/runs/7', run=run, sleep=lambda _: None)
+                self.assertEqual(len(calls), 5, 'bounded: the fifth failure is raised')
+
+    def test_artifact_downloads_retry_and_stay_bounded(self):
+        quiet = contextlib.redirect_stderr(io.StringIO())
+        for download in (sd.download_artifact, retained.gh_download):
+            with self.subTest(download=download.__module__), quiet, tempfile.TemporaryDirectory() as folder:
+                path = Path(folder) / 'a.zip'
+                calls = []
+
+                def flaky(command, stdout=None, **_):
+                    calls.append(command)
+                    if len(calls) < 3:
+                        raise subprocess.CalledProcessError(1, command)
+                    stdout.write(b'zip')
+                download(5, path, run=flaky, sleep=lambda _: None)
+                self.assertEqual((len(calls), path.read_bytes()), (3, b'zip'))
+
+                def broken(command, **_):
+                    raise subprocess.CalledProcessError(1, command)
+                with self.assertRaises(subprocess.CalledProcessError):
+                    download(5, path, run=broken, sleep=lambda _: None)
+
+    def test_the_pinned_release_asset_retries_transient_failures_only(self):
+        import http.client
+        import urllib.error
+
+        class Answer(io.BytesIO):
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_):
+                return False
+        url = 'https://github.com/owner/name/releases/download/tag/asset'
+
+        def opener(*answers):
+            calls = []
+
+            def open_url(_, timeout):
+                answer = answers[len(calls)]
+                calls.append(timeout)
+                if isinstance(answer, BaseException):
+                    raise answer
+                return Answer(answer)
+            return open_url, calls
+        with contextlib.redirect_stderr(io.StringIO()):
+            open_url, calls = opener(urllib.error.HTTPError(url, 503, 'busy', {}, None), urllib.error.URLError('reset'),
+                                     http.client.IncompleteRead(b''), b'bytes')
+            self.assertEqual(sd.fetch_url(url, opener=open_url, sleep=lambda _: None), b'bytes')
+            self.assertEqual(len(calls), 4)
+            open_url, calls = opener(urllib.error.HTTPError(url, 404, 'gone', {}, None))
+            with self.assertRaises(urllib.error.HTTPError):
+                sd.fetch_url(url, opener=open_url, sleep=lambda _: None)
+            self.assertEqual(len(calls), 1)
+
+    def test_a_job_log_request_without_a_complete_answer_is_retried(self):
+        import urllib.error
+        answers = [urllib.error.URLError('reset'), TimeoutError('read'), 'SHA256 digest of uploaded artifact zip is x']
+
+        def answer(_):
+            value = answers.pop(0)
+            if isinstance(value, BaseException):
+                raise value
+            return value
+        with mock_attribute(sd, 'api_text', answer), mock_attribute(sd.time, 'sleep', lambda _: None), \
+                contextlib.redirect_stderr(io.StringIO()):
+            self.assertIn('SHA256 digest', sd.job_log(1))
+
+
+@contextlib.contextmanager
+def mock_attribute(owner, name, value):
+    saved = getattr(owner, name)
+    setattr(owner, name, value)
+    try:
+        yield
+    finally:
+        setattr(owner, name, saved)
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

@@ -187,8 +187,40 @@ def write_environment(**values):
                 print(f'{key}={value}', file=output)
 
 
-def api(endpoint):
-    return json.loads(subprocess.check_output(['gh', 'api', f'repos/{REPOSITORY}/' + endpoint], cwd=ROOT, timeout=120))
+GH_ATTEMPTS = 5
+
+
+def transient_gh_failure(stderr):
+    """A gh api failure worth another request: no HTTP status (no response), a 5xx, or a rate limit."""
+    codes = re.findall(r'HTTP (\d{3})', stderr or '')
+    if not codes:
+        return True
+    code = int(codes[-1])
+    return code >= 500 or code == 429 or (code == 403 and 'rate limit' in stderr.lower())
+
+
+def api(endpoint, attempts=GH_ATTEMPTS, run=subprocess.run, sleep=time.sleep):
+    """JSON of a REST endpoint.
+
+    A transient failure (no response, 5xx, rate limit: GitHub answered 503 during IPA 733 run 43312487102) is retried
+    with a growing delay. A definitive answer is raised at once, as before: a purged artifact's 404 is how
+    retained_components.archive_origin knows that its pinned republication stands in for it."""
+    command = ['gh', 'api', f'repos/{REPOSITORY}/' + endpoint]
+    for attempt in range(1, attempts + 1):
+        try:
+            done = run(command, cwd=ROOT, timeout=120, capture_output=True)
+        except subprocess.TimeoutExpired:
+            if attempt == attempts:
+                raise
+        else:
+            if done.returncode == 0:
+                return json.loads(done.stdout)
+            stderr = done.stderr.decode(errors='replace') if isinstance(done.stderr, bytes) else (done.stderr or '')
+            print(stderr, end='', file=sys.stderr)
+            if attempt == attempts or not transient_gh_failure(stderr):
+                raise subprocess.CalledProcessError(done.returncode, command, done.stdout, done.stderr)
+        print(f'{endpoint}: request {attempt} of {attempts} failed; retrying', file=sys.stderr)
+        sleep(15 * attempt)
 
 
 def api_text(endpoint):
@@ -224,10 +256,21 @@ def api_text(endpoint):
         return response.read().decode(errors='replace')
 
 
-def download_artifact(artifact, path):
-    with open(path, 'wb') as output:
-        subprocess.run(['gh', 'api', f'repos/{REPOSITORY}/actions/artifacts/{artifact}/zip'], stdout=output,
-                       cwd=ROOT, check=True, timeout=600)
+def download_artifact(artifact, path, attempts=GH_ATTEMPTS, run=subprocess.run, sleep=time.sleep):
+    """Download an artifact zip; a failed request (GitHub answered 503 for unexpired artifacts in IPA 733 run
+    43312487102) is retried with a growing delay. Every caller still checks the bytes by size and SHA-256."""
+    for attempt in range(1, attempts + 1):
+        try:
+            with open(path, 'wb') as output:
+                run(['gh', 'api', f'repos/{REPOSITORY}/actions/artifacts/{artifact}/zip'], stdout=output,
+                    cwd=ROOT, check=True, timeout=600)
+            return
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
+            if attempt == attempts:
+                raise
+            print(f'artifact {artifact}: download attempt {attempt} of {attempts} failed ({error}); retrying',
+                  file=sys.stderr)
+            sleep(15 * attempt)
 
 
 # --- Git -----------------------------------------------------------------------------------------------
@@ -773,11 +816,28 @@ def engine_side_url(pinned):
     return f"https://github.com/{pinned['repository']}/releases/download/{pinned['release_tag']}/{pinned['asset']}"
 
 
-def fetch_url(url):
+def fetch_url(url, attempts=GH_ATTEMPTS, opener=None, sleep=time.sleep):
+    """The pinned release asset; a transient failure (no complete answer, 5xx, 429) is retried with a growing delay,
+    a definitive HTTP answer (404) is raised at once. check_side_image() checks the bytes."""
+    import http.client
+    import urllib.error
     import urllib.request
     require(url.startswith('https://github.com/'), 'Unexpected side image host: ' + url)
-    with urllib.request.urlopen(url, timeout=900) as response:
-        return response.read()
+    opener = opener or urllib.request.urlopen
+    for attempt in range(1, attempts + 1):
+        try:
+            with opener(url, timeout=900) as response:
+                return response.read()
+        except urllib.error.HTTPError as error:
+            if attempt == attempts or not (error.code >= 500 or error.code == 429):
+                raise
+            reason = error
+        except (OSError, http.client.HTTPException) as error:
+            if attempt == attempts:
+                raise
+            reason = error
+        print(f'{url}: download attempt {attempt} of {attempts} failed ({reason}); retrying', file=sys.stderr)
+        sleep(15 * attempt)
 
 
 def check_side_image(data, pinned, root=ROOT):
@@ -1716,13 +1776,16 @@ def fresh_evidence(group, job, current, manifest, get=None, log=None):
 
 
 def job_log(job_id, attempts=8):
+    import http.client
     for attempt in range(attempts):
         try:
             text = api_text(f'actions/jobs/{job_id}/logs')
             if 'SHA256 digest of uploaded artifact zip is' in text:
                 return text
-        except subprocess.CalledProcessError:
-            pass
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError, http.client.HTTPException) as error:
+            # A request that got no complete answer (the blob redirect's urlopen raises urllib/socket errors, which
+            # are OSError) is retried like a log that is not yet complete.
+            print(f'job {job_id} log: request {attempt + 1} of {attempts} failed ({error})', file=sys.stderr)
         time.sleep(15 * (attempt + 1))
     raise ValueError(f'The log of job {job_id} is not available')
 

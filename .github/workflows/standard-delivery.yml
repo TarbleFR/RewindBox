@@ -79,11 +79,16 @@ jobs:
     - name: Materialize the frozen effective product tree
       run: python3 -B .github/diagnostics/standard_delivery.py materialize
     - name: Set up Flutter3.47.2
-      uses: subosito/flutter-action@v2
+      uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+      # The action is pinned to the commit its v2 tag named on 12 Nov 2026, and its pub cache is off: that cache's key
+      # always appends hashFiles('**/pubspec.lock') over the whole checkout (action.yaml line 135), which did not
+      # finish within GitHub's 120 s limit on a loaded macOS runner (run 43322868775, native job). The Flutter SDK
+      # cache stays; the dependencies come from the locked `flutter pub get --enforce-lockfile`.
       with:
         flutter-version: 3.47.2
         channel: stable
         cache: true
+        pub-cache: false
     - name: Resolve exact workspace lock
       run: flutter pub get --enforce-lockfile
     - name: Provide the pinned Pillow of the skin verifiers
@@ -150,11 +155,16 @@ jobs:
         nohup xcrun simctl bootstatus "$UDID" -b < /dev/null > "$RUNNER_TEMP/target-simulator-boot.log" 2>&1 &
         echo "Booting $UDID in the background"
     - name: Set up Flutter3.47.2
-      uses: subosito/flutter-action@v2
+      uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+      # The action is pinned to the commit its v2 tag named on 12 Nov 2026, and its pub cache is off: that cache's key
+      # always appends hashFiles('**/pubspec.lock') over the whole checkout (action.yaml line 135), which did not
+      # finish within GitHub's 120 s limit on a loaded macOS runner (run 43322868775, native job). The Flutter SDK
+      # cache stays; the dependencies come from the locked `flutter pub get --enforce-lockfile`.
       with:
         flutter-version: 3.47.2
         channel: stable
         cache: true
+        pub-cache: false
     - name: Resolve exact workspace lock
       run: flutter pub get --enforce-lockfile
     - name: Prepare real Flutter iOS headers and simulator project tool
@@ -328,13 +338,18 @@ jobs:
       with:
         xcode-version: '26.3'
     - name: Set up Flutter 3.47.2
-      uses: subosito/flutter-action@v2
+      uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+      # The action is pinned to the commit its v2 tag named on 12 Nov 2026, and its pub cache is off: that cache's key
+      # always appends hashFiles('**/pubspec.lock') over the whole checkout (action.yaml line 135), which did not
+      # finish within GitHub's 120 s limit on a loaded macOS runner (run 43322868775, native job). The Flutter SDK
+      # cache stays; the dependencies come from the locked `flutter pub get --enforce-lockfile`.
       with:
         flutter-version: 3.47.2
         channel: stable
         cache: true
         cache-key: neostation-benchmark-sdk-${{ runner.os }}-${{ runner.arch }}-3.47.2-${{ env.CACHE_NAMESPACE }}
         pub-cache-key: neostation-benchmark-pub-${{ runner.os }}-${{ runner.arch }}-3.47.2-${{ hashFiles('pubspec.lock') }}-${{ env.CACHE_NAMESPACE }}
+        pub-cache: false
     - name: Record exact build environment and start measurement
       run: |
         mkdir -p build/delivery

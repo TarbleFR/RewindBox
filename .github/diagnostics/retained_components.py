@@ -24,9 +24,11 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
+import time
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -61,14 +63,52 @@ def sha_file(path):
     return digest.hexdigest()
 
 
-def gh_api(endpoint):
-    return json.loads(subprocess.check_output(['gh', 'api', f'repos/{REPOSITORY}/' + endpoint], cwd=ROOT, timeout=120))
+def transient_gh_failure(stderr):
+    """A gh api failure worth another request: no HTTP status (no response), a 5xx, or a rate limit."""
+    codes = re.findall(r'HTTP (\d{3})', stderr or '')
+    if not codes:
+        return True
+    code = int(codes[-1])
+    return code >= 500 or code == 429 or (code == 403 and 'rate limit' in stderr.lower())
 
 
-def gh_download(artifact, path):
-    with open(path, 'wb') as output:
-        subprocess.run(['gh', 'api', f'repos/{REPOSITORY}/actions/artifacts/{artifact}/zip'],
-                       stdout=output, cwd=ROOT, check=True, timeout=600)
+def gh_api(endpoint, attempts=5, run=subprocess.run, sleep=time.sleep):
+    """JSON of a REST endpoint. A transient failure (no response, 5xx, rate limit) is retried with a growing delay;
+    a definitive answer is raised at once, as before: archive_origin() reads a purged original's 404 as the sign
+    that its pinned republication stands in for it."""
+    command = ['gh', 'api', f'repos/{REPOSITORY}/' + endpoint]
+    for attempt in range(1, attempts + 1):
+        try:
+            done = run(command, cwd=ROOT, timeout=120, capture_output=True)
+        except subprocess.TimeoutExpired:
+            if attempt == attempts:
+                raise
+        else:
+            if done.returncode == 0:
+                return json.loads(done.stdout)
+            stderr = done.stderr.decode(errors='replace') if isinstance(done.stderr, bytes) else (done.stderr or '')
+            print(stderr, end='', file=sys.stderr)
+            if attempt == attempts or not transient_gh_failure(stderr):
+                raise subprocess.CalledProcessError(done.returncode, command, done.stdout, done.stderr)
+        print(f'{endpoint}: request {attempt} of {attempts} failed; retrying', file=sys.stderr)
+        sleep(15 * attempt)
+
+
+def gh_download(artifact, path, attempts=5, run=subprocess.run, sleep=time.sleep):
+    """Download an artifact zip; a failed request (GitHub answered 503 for an unexpired artifact in IPA 733 run
+    43312487102) is retried with a growing delay. fetch_artifact still checks the size and SHA-256."""
+    for attempt in range(1, attempts + 1):
+        try:
+            with open(path, 'wb') as output:
+                run(['gh', 'api', f'repos/{REPOSITORY}/actions/artifacts/{artifact}/zip'],
+                    stdout=output, cwd=ROOT, check=True, timeout=600)
+            return
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
+            if attempt == attempts:
+                raise
+            print(f'artifact {artifact}: download attempt {attempt} of {attempts} failed ({error}); retrying',
+                  file=sys.stderr)
+            sleep(15 * attempt)
 
 
 def safe_extract(archive_path, destination):
