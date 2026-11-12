@@ -367,6 +367,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - MeloNX Consoles probe: d8b5e0e5;
   - MeloNX Core 743 recipe: 3d2645ea. Build run 43174115676; pin pending.
   Nothing is built until 04 sends an explicit "Switch 2 finished".
+  - "Switch 2 finished" received from session 04 at 08:57Z. Its final lot is merged as bc75feac: preparation
+    progress, engine-pin 6afbd2c9.
   - Also waits for session 03's XeniaCore pin.
     - Cause, proven by .ips Runner-2026-11-12-082610: SIGABRT from an uncaught std::filesystem error in
       EmulatorAppIOS::OnInitialize. xenia-edge.config.toml kept the IPA 727 container's absolute roots, and iOS gives
