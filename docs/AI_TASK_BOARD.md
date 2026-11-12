@@ -260,10 +260,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 - **Handoff waiting for main, sent at the maintainer's request (12 Nov, MeloNX lot 10, session
   `01JA5QgKeoGVH5oVjNyhcj3D`; a direct message to main's session is refused as "not found", so it is recorded here).**
-  Goal: the six lot 10 adapters in a Core and an IPA. State: ready on `work/melonx-lot10-20261112`, head `7040c3e1`
-  (18 commits `Claude` does not have: adapters, gates, proposed wiring for `prepare_embedded.py`, `ORDER`, the plan's
-  104 gates, the contract test, `FRESH_GATES`); `Claude` has not touched those files since the branch point
-  `e602b6aa`. Evidence: host gates and two macOS arm64 runs only, no device result
+  Goal: the six lot 10 adapters in a Core and an IPA. State: ready on `work/melonx-lot10-20261112`, head `d17a29f2`
+  (adapters, gates, proposed wiring for `prepare_embedded.py`, `ORDER`, the plan's 104 gates, the contract test,
+  `FRESH_GATES`); `Claude` has not touched those files since the branch point `e602b6aa`. **Take `d17a29f2`, not
+  `7040c3e1`:** the four commits after it change tests only (no adapter, no wiring) and are needed for the Core CI,
+  which runs the gates on macOS arm64: at `7040c3e1` the `collection-class` gate published its fixture for Linux from
+  macOS and would have failed there. Both new gates' executed parts now pass on macOS arm64 (workflow run
+  43331900586). Evidence: host gates and two macOS arm64 runs only, no device result
   ([lot entry](#melonx-fps-memory-black-launch-and-artifacts--existing-owner),
   [handoff](evidence/melonx-lot10/handoff.md)). Next, by main: take the branch (fallbacks: `8f71c4e1` four adapters,
   `d3d83cc0` five), choose the Core number (the branch says 745), freeze, Core CI, pin, next IPA with the bridge
@@ -5300,7 +5303,7 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 - **MeloNX lot 10: correction lots on the IPA 729 / Core 743 findings (Claude Code session 01JA5QgKeoGVH5oVjNyhcj3D,
   12 Nov; owner: this session for the adapters, their gates, the capture tooling and the proposed wiring; main owns the
   Core number, the freeze, Core CI, the pin and any IPA; branch `work/melonx-lot10-20261112` from `Claude` `e602b6aa`,
-  head `7040c3e1`; no contract frozen, no Core built, no pin; IPA 730-733 keep Core 743):** full state per lot, proofs,
+  head `d17a29f2`; no contract frozen, no Core built, no pin; IPA 730-733 keep Core 743):** full state per lot, proofs,
   expected device figures and refutation criteria in [the handoff](evidence/melonx-lot10/handoff.md). Nothing below has
   a device result: "host gate passed" and "wired" do not mean corrected on the iPhone.
   - **Before (IPA 729, private journals, pid 58475):** Hogwarts 147 s of play, 17.7 presented frames/s, p50/p95/p99
@@ -5326,7 +5329,7 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     windows, leave 455 MiB with 165-234 MiB free for the whole session; the host pause's compaction at the end gave
     306 MiB of footprint back). The existing compaction now also runs when no frame was presented for 700 ms, with
     128 MiB or more free, the device at 15 % or less, 10 s after the first frame, 8 s after the last compaction, three
-    times a session at most, never in a host pause. Gate `stall-compaction` 100 checks: none during 10.4 s of frames,
+    times a session at most, never in a host pause. Gate `stall-compaction` 101 checks: none during 10.4 s of frames,
     one 840 ms into a gap (171 MiB free -> 0, resident 449 -> 283 MiB); replayed on the 729 session it fires in the
     loading stalls of the 36th and 46th seconds, never in the 76 s of play after. Device: `heapCompacted
     presentationGap` lines with the footprint before and after. *Graphics resources:* no change, nothing saved; the
@@ -5347,7 +5350,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     four-adapter: the ten gates that read its two files; six-adapter (plus collection class and stall compaction): the
     twelve gates that read their three files and hogwarts-dma-copies. The other gates were not run again on the later
     preparations. Contract test helpers pass; the composition checks need the freeze. Independent reviews of the two
-    new adapters: no proven defect, four hardening changes made (handoff).
+    new adapters: no proven defect, four hardening changes made (handoff). The two new gates' executed parts also
+    pass on macOS arm64, the Core CI's host (run 43331900586; the first form of `collection-class` would have failed
+    there).
   - **Handoff to main:** take the branch (wiring proposed in `prepare_embedded.py`, `ORDER`, the plan's six gates, the
     contract test's expectations, `FRESH_GATES` 104; `8f71c4e1` is the four-adapter proposal, `d3d83cc0` the
     five-adapter one, the head the six-adapter one; `adapt_stall_compaction` goes after `adapt_collection_class`);

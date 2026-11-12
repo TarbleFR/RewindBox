@@ -6,7 +6,7 @@ State on 12 Nov, written by the lot's session for main and the MeloNX owner. Fig
 **MeloNX lot 10: correction lots on the IPA 729 / Core 743 findings (Claude Code session 01JA5QgKeoGVH5oVjNyhcj3D, 12
 Nov; owner: this session for the adapters, their gates, the capture tooling and the proposed wiring below; main owns
 the Core number, the freeze, Core CI, the pin and any IPA; branch `work/melonx-lot10-20261112` from `Claude`
-`e602b6aa`, head `7040c3e1`; no contract frozen, no Core built, no pin; IPA 730-732 keep Core 743)** input IPA 729,
+`e602b6aa`, head `d17a29f2`; no contract frozen, no Core built, no pin; IPA 730-732 keep Core 743)** input IPA 729,
 Core 743 (source `3d2645ea`, iPhone binary `b1957006…`), private journals, pid 58475: Hogwarts gen 1 (session
 25431A89, 1x, async shaders on, host memory budget on, MoltenVK standalone `1bdc5159`), then Smash gen 2 in the same
 process (session 854293EB). "Written", "host gate passed" and "wired" below do not mean "corrected on the iPhone": no
@@ -103,7 +103,7 @@ appears. Not treated: the 5 "planned not built yet" and the 31 new states of a s
   compaction writes the existing
   `memory heapCompacted` line with the reason `presentationGap <ms>`, footprint and heap before and after, and the
   pause. No periodic collection: none without a 700 ms presentation gap, three at most in a session.
-  Gate `stall-compaction` (100 checks; production Ryujinx.Library built; the candidate's compaction class unchanged
+  Gate `stall-compaction` (101 checks; production Ryujinx.Library built; the candidate's compaction class unchanged
   against the host's segments collector with the Core's settings): no compaction during 10.4 s of frames at 30 per
   second with 171 MiB free; one compaction 840 ms into a gap, free space 171 -> 0 MiB, resident 449 -> 283 MiB; none
   while the device is not short, while a stop is requested, in a host pause, right after a resume, after the session's
@@ -202,6 +202,13 @@ bgc-fragmentation-guard, gc-keepalive-dormant, gc-pause-journal, teardown-phase-
 safe-point-compaction, display-native, retention-chain); the other 92 were not run again on it. Two existing gates
 were taught the later edits: display-native compares EmbeddedMemory.cs without the new entry point (and compiles the
 final file), performance-diagnostics undoes the two adapters' lines of the session file before its comparison.
+The Core CI runs the gates on macOS arm64: both new gates have a `--fixture-only` mode (their executed part and its
+checks, without a preparation) that the workflow `melonx-collection-class.yml` runs there (run 43331900586: 24 and 18
+checks). It found three things the Linux host could not: the first form of the collection-class gate published its
+fixture for Linux, used Linux clock identifiers and expected "not this platform" in the plain run; and on macOS arm64
+the runtime never starts a background collection without a collection before it (20 000 large allocations), so no
+override is ever left for the poll there (on Linux x64 within a few hundred). Third measurement of the class on that
+run: 9 206.2 ms for 489.9 ms of CPU with the raising off, 481.4 ms for 451.9 ms with it on.
 Independent review of the two new adapters: collection class: no proven defect; two hardening changes
 made (the end callout is registered before the start one; nothing is registered when the system gives the registering
 thread no override, which would have left the end function to be bound inside a collection); the reviewer's open point,
@@ -217,7 +224,8 @@ compaction another path ran while the poll waited for the gate counts against th
 review and take the branch (wiring proposed in `prepare_embedded.py`, `ORDER`, the plan's gates `nifm-network-watch`,
 `paced-strict-syncs`, `sibling-pipelines`, `array-sync-epochs`, `collection-class` and `stall-compaction`, the contract
 test's expectations (218 preparation inputs, 214 prepared members) and `FRESH_GATES` 104; `origin/Claude` at `14272228`
-has not touched these files since the branch point); choose the Core number (the branch says 745) and which adapters go
+has not touched these files since the branch point); take the head `d17a29f2` (the four commits after `7040c3e1`
+change tests only and are needed for the gates to pass on the Core CI's macOS host); choose the Core number (the branch says 745) and which adapters go
 in: each one is independent of the others except `adapt_stall_compaction`, which is applied after
 `adapt_collection_class` (it adds its poll line after that adapter's); the branch at `8f71c4e1` is the four-adapter
 proposal, at `d3d83cc0` the five-adapter one. Freeze, Core CI, pin; next IPA with that Core and the bridge capture
