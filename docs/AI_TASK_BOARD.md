@@ -5393,7 +5393,7 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 ### Switch 2 playlist (S2Arm) feasibility prototype — session 04
 
 - **Owner/branch:** session `012mUASj3EQnvC86WC56AePw`, `work/s2arm-switch2-prototype-20261110`
-  (merged with `Claude` `c5e09298` in `0a54d048`). Own paths: `packages/s2arm_engine_bridge/`, `native/s2arm/`,
+  (level with `Claude` `de72efdd`). Own paths: `packages/s2arm_engine_bridge/`, `native/s2arm/`,
   `build-utils/s2arm/`, `tools/s2arm_prototype/`, `.github/workflows/s2arm-*.yml`, `docs/s2arm-*.md`.
 - **Goal:** a Switch 2 playlist on S2Arm, games prepared on the phone. The device probe ships in
   a common IPA by maintainer decision (below); the rest stays on this branch.
@@ -5526,8 +5526,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - First pin attempt, run 43185240791, refused the artifact: it held a fifth member, `patches.txt`. Fixed in
       `a6f958fd`.
     - Not observed on a device. The pass shares are estimates until a journal gives the durations.
-  - **Relaunch in the same session (maintainer, 12 Nov): step 1 built, verified pin `930a84b0`, sent to main for a later
-    IPA.** The maintainer chose to ship the progress lot first (IPA 729). Plan, inventory, design and review:
+  - **Relaunch in the same session (maintainer, 12 Nov): step 1 built, verified pin `930a84b0`, merged on Claude by
+    main as `de72efdd`.** It is queued for the next IPA, which main builds only on the maintainer's request. The
+    maintainer chose to ship the progress lot first (IPA 729). Plan, inventory, design and review:
     `docs/s2arm-relaunch-in-session.md`.
     - Pin `930a84b0`: engine-pin.json SHA-256 `77da9cf1…39ee`, the bytes the pin job printed in run 43206559527 (draft
       `adb5e935`).
