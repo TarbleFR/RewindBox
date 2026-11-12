@@ -155,8 +155,15 @@ static int rewrite_one(const char *input, const char *module, const char *output
         return fail(error, error_size, RB_S2ARM_PREPARE_INVALID, "path too long");
     FILE *log = fopen(log_path, "w");
     if (!log) return fail(error, error_size, RB_S2ARM_PREPARE_IO, "cannot write the log of %s", module);
-    // The values S2Arm's packer uses: default Apple target, spin gate on, no optional table.
-    s2a_rewrite_request rewrite = {.input = input, .output_dir = output_dir, .module = module, .spin = 1};
+    // S2Arm's packer values (default Apple target, no optional table), with the spin pass off.
+    // - Mario Kart World on an iPhone (IPA 729, 12 Nov): main (42 MB of text) passed every other pass in under 3 s, then
+    //   stayed in the spin pass for over 20 minutes without finishing.
+    // - The pass is an optimisation, as the rewriter itself says. It puts a gate in the game's spin-wait loops so that a
+    //   thread spinning for over 2 s sleeps (runtime S2A_SPIN, thread.c s2a_spin_wait). Virtual cores are off by
+    //   default, so nothing else depends on it.
+    // - S2Arm's own Android path rewrites with S2A_REWRITE_SPIN=0.
+    // - At the pinned commit only the spin code reads the original image (g->orig), which is not copied with spin 0.
+    s2a_rewrite_request rewrite = {.input = input, .output_dir = output_dir, .module = module, .spin = 0};
     if (work && work->request->work) s2a_rewrite_set_progress(rewriter_progress, work);
     int result = s2a_rewrite_files_with_options(&rewrite, NULL, log);
     s2a_rewrite_set_progress(NULL, NULL);

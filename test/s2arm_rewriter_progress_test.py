@@ -126,6 +126,13 @@ check(prepare_yml.count('"$RUNNER_TEMP/rewriter/s2a-rewrite"') >= 3 and 'rewrite
 core_yml = (ROOT / '.github/workflows/s2arm-core.yml').read_text(encoding='utf-8')
 check('build-utils/s2arm/prepare/patches/*.patch' in core_yml and "'patches'" in core_yml,
       's2arm-core.yml applies the prepare patches and records them in the identity')
+# The phone rewrites with the spin pass off (Mario Kart World, IPA 729: over 20 minutes in it); the CI references must
+# run the same configuration, or their comparisons would not cover what the phone runs.
+prepare_c = (ROOT / 'native/s2arm/prepare/s2arm_prepare.c').read_text(encoding='utf-8')
+check('.module = module, .spin = 0};' in prepare_c and '.spin = 1' not in prepare_c, 'the on-device rewrite turns the spin pass off')
+check("env['S2A_REWRITE_SPIN'] = '0'" in (ROOT / 'tools/s2arm_prototype/run_code_stage_test.py').read_text(encoding='utf-8')
+      and 'S2A_REWRITE_SPIN=0 "$reference"' in (ROOT / 'tools/s2arm_prototype/run_prepare_test.sh').read_text(encoding='utf-8'),
+      'both CI references rewrite with S2A_REWRITE_SPIN=0, as the phone does')
 notices = (ROOT / 'docs/s2arm-legal-notices.md').read_text(encoding='utf-8')
 check('`build-utils/s2arm/prepare/patches/0001-rewriter-progress-report.patch`' in notices, 'the legal notices list the patch')
 

@@ -37,7 +37,8 @@ typedef struct {
 
 // Rewrites every code module the runtime loads (main, subsdk0-9, sdk; nothing
 // else in ExeFS is a module) with S2Arm's rewriter in its packing defaults
-// (Apple target, spin gate on), one module at a time, and copies main.npdm.
+// (Apple target), with the spin pass off (see rewrite_one), one module at a
+// time, and copies main.npdm.
 // Each module's rewriter log goes to <output_dir>/<module>.rewrite.log.
 // On failure `error` (may be NULL) receives one line and the outputs of the
 // failing module are not to be used.
