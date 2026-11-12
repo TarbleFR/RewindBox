@@ -3,14 +3,14 @@
   "packagedFingerprint": "2f58c5476892b59e243c7d1f3877e5854048212f90b7a2dbb7a48c3704e82554",
   "producers": {
     "engine": {
-      "run": 43204364693,
+      "run": 43278195639,
       "attempt": 1,
-      "artifact": 13937907087,
-      "name": "s2arm-engine-framework-779d9a7f812b6c3aba878495a2037041f7659ce0",
-      "bytes": 23927285,
-      "sha256": "733b3d201ea516e5e2635b18deabbb7095026219b6d2a02d8d253eab37f89a07",
-      "headSha": "779d9a7f812b6c3aba878495a2037041f7659ce0",
-      "expiresAt": "2026-12-12T11:07:23Z",
+      "artifact": 13971369524,
+      "name": "s2arm-engine-framework-496e1d8ff094649ff40dbfcafcf0f8f19d96c6d7",
+      "bytes": 23927946,
+      "sha256": "07916e3986bbf7a6dadfe97691a17ecd0f4a6969e21f07cedb1d553efff8d2a0",
+      "headSha": "496e1d8ff094649ff40dbfcafcf0f8f19d96c6d7",
+      "expiresAt": "2026-12-12T18:30:22Z",
       "members": {
         "S2ArmEngine.framework.zip": "ba593e5ecaa013a04c1ecd51d8e100698ae00ca1d35aa4ec268248639c07dad9",
         "NS2Pro.framework.zip": "8dd8188e7c5c34a31dd7cb637fedb5c18c2f39e1111fe859935439167a35882f"
