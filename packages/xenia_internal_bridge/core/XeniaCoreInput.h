@@ -27,6 +27,11 @@ inline std::atomic<int16_t> g_lx{0}, g_ly{0}, g_rx{0}, g_ry{0};
 inline std::atomic<uint8_t> g_lt{0}, g_rt{0};
 inline std::atomic<uint32_t> g_packet{0};
 
+// Rumble of user 0 (left: low-frequency motor, right: high-frequency, each
+// 0..65535) as last forwarded, and where the facade forwards a change.
+inline std::atomic<uint32_t> g_vibration{0};
+inline void (*g_vibration_sink)(uint16_t left, uint16_t right) = nullptr;
+
 
 // Applies one cvar the way the engine's own config loader does
 // (IConfigVar::LoadConfigValue from a TOML node).
@@ -92,9 +97,18 @@ class NeoXeniaInputDriver final : public xe::hid::InputDriver {
     return X_ERROR_SUCCESS;
   }
 
-  X_RESULT SetState(uint32_t user_index, xe::hid::X_INPUT_VIBRATION* /*vibration*/) override {
-    // Rumble is not forwarded yet; the pad stays connected.
-    return user_index == 0 ? X_ERROR_SUCCESS : X_ERROR_DEVICE_NOT_CONNECTED;
+  // XInputSetState: forwarded only when it changes (titles repeat it every
+  // frame), as XeniOS's SDL driver rumbles the pad (sdl_input_driver.cc).
+  X_RESULT SetState(uint32_t user_index, xe::hid::X_INPUT_VIBRATION* vibration) override {
+    if (user_index != 0) return X_ERROR_DEVICE_NOT_CONNECTED;
+    if (!vibration) return X_ERROR_SUCCESS;
+    const uint16_t left = static_cast<uint16_t>(vibration->left_motor_speed);
+    const uint16_t right = static_cast<uint16_t>(vibration->right_motor_speed);
+    const uint32_t packed = (uint32_t(left) << 16) | right;
+    if (g_vibration.exchange(packed, std::memory_order_relaxed) != packed && g_vibration_sink) {
+      g_vibration_sink(left, right);
+    }
+    return X_ERROR_SUCCESS;
   }
 
   X_RESULT GetKeystroke(uint32_t /*user_index*/, uint32_t /*flags*/,
