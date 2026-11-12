@@ -359,6 +359,29 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     `Claude-Session` line.
   - **Next:** download, verify offline, receipts, record, delete the key, send the file; give session 04 the freeze
     commit for 803 (sibling of 726).
+- **IPA 729 delivered and verified (12 Nov 10:2xZ, main).**
+  - Run `43195224577` attempt 1, trigger `8e502a40`, frozen on `7e9a352a`, effective digest `c4380012`, 7919 product
+    files. All 5 jobs succeeded on the first request.
+  - IPA `RewindBox-729.ipa`: 329516805 B, SHA-256 `a06b20d92fcd30b995cac6f2e932f676dde799d4f32d372918fbda06e0e00944`.
+  - Contents:
+    - MeloNX Core 743 (pin a429f212);
+    - XeniaCore pin 84386936 (host roots after config load);
+    - Switch 2 final lots (engine-pin 6afbd2c9, prepare progress patch);
+    - the Consoles probe;
+    - RPCS3 Core 934 kept.
+  - Offline verification `passed-offline-checks`:
+    - 97 images; 46 retained fingerprints;
+    - all 6 validators exit 0;
+    - packaged Xenia identity names pin 84386936.
+  - Undeclared image changes, not fatal:
+    - XeniaCore, the new pinned payload;
+    - the libretro and rpcs3 bridges, rebuilt from unchanged sources. Cause still unexplained.
+  - Legal folders: XeniOS 4/4, MetalShaderConverter 3/3 and S2Arm 35/35 match their digests; 9 extensions.
+  - Follow-up for session 04 (not blocking, S2Arm is Apache-2.0): the IPA's RewindBox-S2Arm-NOTICE.txt still says the
+    preparation library is built from the S2Arm commit. It does not name the new prepare patch
+    0001-rewriter-progress-report, which is listed only in docs/s2arm-legal-notices.md.
+  - Receipt `docs/evidence/rewind729/delivery.json` (14 proof files + 2 engine receipts). Key shredded; file sent.
+  - Not run on an iPhone.
 - **Next IPA (729) gating (maintainer, 12 Nov 08:2xZ): wait until the Switch 2 session (04) says it has finished.**
   Already on Claude:
   - session 04: 4c74414f (import capacity, clone, preparation progress and reuse) and 46c7e0db (Switch 1 / Switch 2
