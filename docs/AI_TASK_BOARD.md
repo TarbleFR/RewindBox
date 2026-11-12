@@ -257,6 +257,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### Common IPA — main Claude Code
 
+- **Maintainer, 12 Nov: no IPA before sessions 03 (XeniOS) and 04 (Switch 2) finish their new instructions and send
+  their changes; then main integrates both and compiles the next IPA.** MeloNX Core 737 pinned (`277ea289`); Core 934
+  request 2 compiling (run `43136576356`), local driver green.
 - **Next common IPA, in progress (12 Nov, main).** RPCS3 Core 934 compile run `43129466421` (request `affc2a3b`,
   source `4f160c8b`). MeloNX P0 726 handoff merged `36ed5e93` ([melonx-display]: display/lease run `43131937219`);
   MeloNX Core 737 compile dispatched, run `43131998605` (duplicate push run `43131937165` cancelled). Still to come:
