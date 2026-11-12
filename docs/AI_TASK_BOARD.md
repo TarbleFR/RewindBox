@@ -4586,6 +4586,48 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       run: `heap_report.py` on the `[MeloNX:heap]` lines, the `zones=` values over time, `lohAfterBytes` and
       `lohFreeAfterBytes`; then the correction of the largest owner. The sampler is to be removed once the owner is
       known.
+  - **P0 726 (12 Nov): after a Switch game every launch (PS3 included) was refused "quarantined" — fix in the host
+    and Dart layers, not run on an iPhone; the trigger in the device's journal is still to read.**
+    - **Input identity:** main's report of the maintainer's attempt on IPA 726 (Core 735); the attempt's
+      MeloNX-launch.log is requested, not received. Reference: IPA 725's journal (pid 51986) ends its Switch session
+      with `memory released` then `close passed` (08:02:58): the release worked there.
+    - **Mechanism (code, both triggers):** a `memory retained` record (sent to Dart by every `MeloNXLaunchJournal.record`)
+      or a refused launch with `requiresRestart` set `MelonxInternalService.nativeQuarantined`, which nothing ever
+      cleared; `MeloNXMemoryLease.retire` ran once after the outcome and nothing retried it (the next Switch
+      `prepare` retries, but Dart refused before any native call); `GameLaunchService.launchGame` refused every system
+      on iOS (since 5445f9bb, 24 Oct). The engine side: `EmbeddedSessionCoordinator.Run` sets state 4 on an
+      exception (its text reaches `sessionResult failed` and `close quarantined`); `neostation_melonx_memory_withdraw`
+      refuses while the state is not 0 or donated allocations are live (`MachJitWorkaround.DestroySharedMemory` frees
+      them as each shared `MemoryBlock` is disposed or finalized).
+    - **Maintainer's question "since the S2Arm hook?":** the hook (d32738b5, 11 Nov 00:39) ran only in test IPAs that
+      set `RewindBoxS2ArmProbe`; IPA 725, built after it, released the donor at close; IPA 726 has no hook
+      (removed in a18490cb). 726 is the first IPA with Core 733 + 735 and the lot 12-14 bridge: those are the changes
+      the journal must be read against.
+    - **Cross-engine scope (evidence):** the MeloNX donor is MeloNX's own: its "MeloNX RAM" extension
+      (`configure_melonx_memory_ios.py`) and `DonatedMemory` in the engine; NeoSwap's donors are `<bundle>.neoswapdonor`
+      sessions with their own pool (NeoSwapPlugin.mm `launchDonor`); no other engine reads MeloNX's region. A retained
+      region costs address space (up to 4 GiB) and keeps MeloNX's donor processes alive: a memory cost, not a safety
+      one. An engine quarantine (state 4, a host kept active) may still have guest threads and handlers: it keeps
+      refusing every engine; so does `jitRestartRequired` (no evidence the helper is reusable by another engine).
+    - **Change (`71765f2f`):** native `releaseRetainedSession` (plugin): with no host active and nothing starting,
+      retires a retained donor again on the library queue and answers `engineQuarantined` and `donorState`; a
+      retained record now says which proof was missing (`the engine refused to withdraw (donated bytes used …, live
+      allocations …)`, or the donor's reservation). Dart: three states; `engineQuarantined` and `jitRestartRequired`
+      refuse every engine and are never cleared; `donorRetained` refuses Switch only, is retried before any launch
+      of any engine (and when a Switch route closes), and is cleared only by that native answer (`retainedCleared`
+      journal line); the service's own refusal no longer reclassifies itself. A non-Switch launch refused for an
+      engine quarantine shows `switchRestartRequired` (twelve languages, no MeloNX wording: the Switch engine needs
+      RewindBox to be restarted; swipe it up in the app switcher, then reopen it).
+    - **Validation:** `test/melonx_launch_flow_test.py` 15 cases green locally and in melonx-launch-checks run
+      43125004560 (retained -> retried -> released, busy and unknown answers never clear, engine and JIT
+      restrictions never cleared, classification of refusals, a PS3 launch after a retained donor not refused, the
+      engine-quarantine message without "MeloNX"); `test/melonx_memory_lease_test.py` gains the retry cases (macOS,
+      melonx-host run 43125000475). That run's step 7 of launch checks (`game_audio_handoff_test.py`) fails without
+      this change too: its harness lacks the `XeniaInternalBridge` and `S2ArmInternalService` stubs of PR #172 and
+      the Switch 2 layer (not in this lane).
+    - **Next action:** the attempt's MeloNX-launch.log decides the trigger: `close quarantined` with the exception of
+      `sessionResult failed` (then the Core is fixed at that cause), or `memory retained … live allocations N` after
+      `close passed` (then which shared blocks outlive the teardown).
   - **Lot 14 (11 Nov; maintainer: "une vraie mise à jour pour sentir du changement" on RAM, heat, shaders): GPU thread
     work per frame. Core 735 frozen here (contract `47b596a9…`), not delivered, not run on an iPhone.**
     - **Input identity:** the IPA 725 `performance` samples of lot 13 (pid 51986) and two host profiles on copies of
