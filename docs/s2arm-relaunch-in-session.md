@@ -58,6 +58,46 @@ services, are not read yet. The main lines below were checked a second time in t
 The first two steps are engine patches (`build-utils/s2arm/engine/patches/`, marked `RewindBox`, listed in the legal
 notices) plus bridge changes. The engine needs a new build and a new `engine` pin from main.
 
+## Step 1 design: park on Quit, resume the same game (12 Nov 2026)
+
+Engine patch `0010` (session.c, rb_guest.c, rb_guest.h). It builds only on S2Arm's own in-process restart, the one its
+iOS settings page uses ("restart now", `ios/app.m:91,429`).
+
+- **Park.**
+  - `s2a_host_park(callback, context)` is `s2a_host_restart` with a flag, and `restart_session` honours it. It runs the
+    whole retirement: quiesce, `S2A_ShutdownSession`, graphics destroy, every per-session reset, window, memory,
+    loader, os. Then the generation CAS `RUNNING -> RESTARTING(old + 1)`.
+  - It stops before `g_rebuild()`: no guest, and `restart_done_notify` is not called, so the first-frame barrier
+    stays shut.
+  - The control worker's callback reports "parked".
+  - `s2a_rb_guest_stop` asks for a park when `s2a_session_rebuild_supported()` holds and the host gave a
+    `session_parked` callback (new member of `s2a_rb_guest_config`; the size grows, so older hosts keep the old path).
+    If the park is refused or fails, it falls back to today's process shutdown, so no regression.
+- **Resume.**
+  - `s2a_rb_guest_resume()` is refused unless the engine is parked. It runs `s2a_host_rebuild()` on the retirement
+    worker, as `restart_session` does: graphics settings, pad and gfx resets, `load_session_modules`,
+    `S2A_InitSession`, guest start.
+  - Then `restart_guest_publish_running` and `restart_done_notify`.
+  - The host presents the engine's view controller again (`app.m` keeps the same one); `s2a_rb_guest_start` is not
+    called a second time.
+- **No new executable pages.**
+  - In guest mode `s2a_window_session_reset` keeps the code pages (`vawin.c:303-325`, prepared by patch 0004).
+  - The loader reuses a block in place when its content is byte-identical (`code_same`, `loader.c:690-698`), and
+    `s2a_imgpack_map` (the only caller of `prepare_code`) is not reached for it.
+  - So the same game resumes without the JIT helper, which detached 2 s after the first boot.
+- **Bridge.**
+  - The status map gains `parkedGameId`.
+  - `launchGame` for that title id resumes: no configure, no JIT transaction, no pool. It then presents the view
+    controller.
+  - A different title id is still refused (`engineRestartRequired`) until step 3.
+- **Dart.** `launch()` no longer refuses an `engineLoaded` engine whose `parkedGameId` is the game's id.
+- **Proof.**
+  - Static checks of the patch: the park skips only `g_rebuild` and the barrier; the resume calls the same rebuild,
+    publish and notify as `restart_session`; the fallback is the process shutdown.
+  - The engine CI build.
+  - On a device, once a first game boots: Quit, launch the same game again, and see the first frame. Then the save,
+    and the memory after three cycles.
+
 ## Risks
 
 - The restart path is S2Arm's own, but it has only been used for the same game, from its settings menu.
