@@ -1,0 +1,122 @@
+{
+ "schema": 1,
+ "review_date": "2026-11-12",
+ "scope": "Delivery that ships XeniaCore (docs/xenios-playlist.md), chained after the Xbox 360 playlist review, whose engine_binaries_bundled is empty. It binds the engine pin (build-utils/xenia/core-pin.json: XeniOS revision, binary, packaged fingerprint, producing run), the RewindBox files compiled into that binary, and the two statically linked LGPL libraries of XeniOS, FFmpeg and libmspack: their exact sources, configuration and the relinking means chosen. Apple's Metal Shader Converter runtime ships beside it, not built from source, under Apple's EA1844 (assets/legal/metal-shader-converter; open points 1-3 of the maintainer's dossier stay open). No package, dependency or source declaration changes. This review does not attest complete corresponding source and is not a legal clearance.",
+ "baseline_inventory": "docs/evidence/xenios-playlist-declarations-2026-11-11.json",
+ "baseline_inventory_sha256": "0e90ab79d4cd76762137babb3933dde42fc24c0e1f475a46b9ce4d5001f2742b",
+ "pubspec_lock_sha256": "6ceb0c3787c1c35c844950338e99e408ff548dbc4aacfff0270c5b1ddd285a8e",
+ "complete_corresponding_source_attested": false,
+ "dependency_changes": {
+  "external_packages_added": [],
+  "external_packages_removed": [],
+  "declarations_changed": []
+ },
+ "engine_binaries_bundled": [
+  "Frameworks/XeniaCore.framework/XeniaCore",
+  "Frameworks/libmetalirconverter.dylib"
+ ],
+ "engine": {
+  "component": "XeniaCore (XeniOS, Xbox 360)",
+  "repository": "https://github.com/xenios-jp/XeniOS.git",
+  "revision": "cf7c7ee452314913124d205e41e325b33891aacb",
+  "license": "BSD-3-Clause (assets/legal/XeniOS-BSD-3-Clause.txt); third-party notices in assets/legal/xenios",
+  "core_pin": "build-utils/xenia/core-pin.json",
+  "core_pin_sha256": "8b850d7b9ce08ab29e62b495ba65dbcc666d3949619186d249d99b5bbc841e33",
+  "producer": {
+   "workflow": ".github/workflows/xenia-core.yml",
+   "run": 43126203790,
+   "artifact": 13904214253
+  },
+  "binary_sha256": "e0a533dcfaf145326943f521f6896e8ad7c7717e0b41cc4e33398b4930e7b011",
+  "packaged_fingerprint": "97e0827169312b47ac8fa5479080100e9e8f4cddaed5073321fa79d4ccfdf9cd",
+  "recipe_sha256": {
+   "build-utils/xenia/build_core.sh": "d214d6b3e7918365ca786156fc31ba30908cb99785f56c28577041e5c48b21db",
+   "build-utils/xenia/prepare_source.py": "7f0d94e507a731136625842827962770e6fd201753e64e5365a28575762409d5",
+   "build-utils/xenia/rewindbox-core.patch": "27b5e4540e14d6034d58ee32e257e8fd1953891720973f0489131f8aff3865f3",
+   "build-utils/xenia/upstream-files.json": "aa38d987b36b175547c869e5b63495ecf77dc181da569b282ab8d84ce0a4697d",
+   "packages/xenia_internal_bridge/core/XeniaCore.mm": "f675f02a300008ab95caf93f847eda761cb4602b49132d7086ef0c6f01e9c47b",
+   "packages/xenia_internal_bridge/core/XeniaCoreInput.h": "8fcc9d8ce7b022d68e4c84bfdfadad59e49d2cd80b24b49b5e3975ee606c4856",
+   "packages/xenia_internal_bridge/core/exports.txt": "22d0dd9e29951f50f70642650e75d64133c96735195dfb564afd62e569644e02",
+   "packages/xenia_internal_bridge/core/neo_xenia_core_hooks.h": "7453d735cf1a12b762bed42cdec30c8d07c1878976267e75aa764308056c25d6",
+   "packages/xenia_internal_bridge/core/target.cmake": "b61b5f8e89e9671d576fca3174a19996ab8906102fcd5aacb1bbe4b8a153d261",
+   "packages/xenia_internal_bridge/ios/Classes/XeniaCoreABI.h": "eee41f3f5d9784d1a98b7d793a509b3d9a70d717d7b1d85d3e7d7f567f0e05b1"
+  },
+  "recipe_note": "These RewindBox files are compiled into, or drive the build of, the pinned binary; the collector refuses the tree if any of them differs, so the IPA's own host source archive (BUILD_SOURCE_EVIDENCE.json immutable_host_source_archive) holds the recipe that built it.",
+  "unpinned_build_inputs": "xenia-build.py fetchdata downloads the embedded game databases (xenia-manager/x360db, the xenia-canary game-compatibility release) at build time without a pinned revision; a later rebuild may embed newer data. They are data, not LGPL code."
+ },
+ "lgpl_components": [
+  {
+   "name": "FFmpeg",
+   "libraries": [
+    "libavutil",
+    "libavcodec",
+    "libavformat"
+   ],
+   "license": "LGPL-2.1-or-later",
+   "license_evidence": "third_party/ffmpeg-xenia/config.h of the pinned revision: FFMPEG_LICENSE \"LGPL version 2.1 or later\", FFMPEG_CONFIGURATION \"xenia-custom\"; no CONFIG_GPL, CONFIG_NONFREE or CONFIG_VERSION3 define in the overlay. The LGPL-2.1 text ships in the XeniOS acknowledgements.",
+   "source": {
+    "path": "third_party/FFmpeg",
+    "repository": "https://github.com/has207/FFmpeg.git",
+    "branch": "xmaframes",
+    "gitlink": "dfc5a3993b405f3a8b382756828cdfae06380c8b"
+   },
+   "configuration": {
+    "path": "third_party/ffmpeg-xenia",
+    "tree": "960c7c849d970707ff5f4adb8632fa0990568fa7",
+    "config_h_blob": "3df8db9e5cc107d058e6de37160a089bde673fab",
+    "build": "third_party/CMakeLists.txt of the pinned revision lists 133 FFmpeg source files (9 of them architecture-specific: 7 aarch64, 2 x86) for the three static libraries; FFmpeg's configure is not run",
+    "enabled": {
+     "decoders": [
+      "mp3float",
+      "mp3",
+      "wmapro",
+      "wmav2",
+      "xmaframes"
+     ],
+     "demuxers": [
+      "asf",
+      "mp3"
+     ]
+    }
+   },
+   "modifications": "not enumerated",
+   "modifications_note": "A fork (branch xmaframes, which adds the xmaframes decoder); its changes from upstream FFmpeg were not reviewed here. The pinned gitlink is the exact source.",
+   "linking": "static"
+  },
+  {
+   "name": "libmspack",
+   "libraries": [
+    "mspack"
+   ],
+   "license": "LGPL-2.1",
+   "license_evidence": "lzxd.c header (GNU LGPL version 2.1, (C) 2003-2013 Stuart Caie) and COPYING.LIB (blob b1e3f5a2638797271cbc9b91b856c05ed6942c8f) in the pinned revision; the text ships in the XeniOS acknowledgements.",
+   "source": {
+    "path": "third_party/mspack",
+    "tree": "91d0f9431729969b6d015dd8cd1e4168a27f74de",
+    "in_tree": true
+   },
+   "configuration": {
+    "build": "third_party/CMakeLists.txt: static library mspack from lzxd.c, system.c and logging.cc",
+    "files": {
+     "lzxd.c": "5483664095c2be0371da9170c6cadc6dcca47572",
+     "system.c": "16aa8806d0858d998ce89412b0bc757554f1e3ec",
+     "logging.cc": "65e4f015b0bcfc94be51158e25d80d82f740df80",
+     "COPYING.LIB": "b1e3f5a2638797271cbc9b91b856c05ed6942c8f"
+    }
+   },
+   "modifications": "not enumerated",
+   "modifications_note": "A vendored subset (the LZX decoder); logging.cc is Xenia's own. Its differences from an upstream libmspack release were not reviewed here.",
+   "linking": "static"
+  }
+ ],
+ "other_components": {
+  "Boost.Context": "BSL-1.0, not LGPL: make_, jump_ and ontop_arm64_aapcs_macho_gas.S of boostorg/context at d2142b69252150dafb5f6569b7eb9a42312a92a3 (assets/legal/xenios/license-sources.json provenance)",
+  "Metal Shader Converter": "Apple binary, Frameworks/libmetalirconverter.dylib, bytes unchanged except the code signature; no source exists to offer (build-utils/xenia/source.json shader_converter)"
+ },
+ "relinking_means": {
+  "chosen": "LGPL-2.1 section 6(a)",
+  "statement": "The complete source of XeniaCore (XeniOS at the pinned revision with its submodules, FFmpeg at the pinned gitlink, libmspack in-tree) and the scripts that build it (the recipe files bound above, in the IPA's immutable host source archive) let a user rebuild XeniaCore.framework with a modified FFmpeg or libmspack and place it back in the app. This is the means chosen, not a statement that it satisfies the licence.",
+  "legal_clearance": false,
+  "open": "The sources are referenced by immutable revision and URL, not copied into the IPA. Whether that is the 'accompany' of 6(a) or calls for 6(c)/(d) (a written offer, or equivalent access from the same place) is the maintainer's decision; it is not settled here. Rebuilding also needs Apple's iOS SDK and the converter runtime, and re-signing the app; this review does not change that."
+ }
+}

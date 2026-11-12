@@ -5047,11 +5047,17 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   build-tree LC_RPATH to the converter's runner directory, and the -g debug map (N_OSO object paths). Fixed in
   79f3409f0 (`SKIP_BUILD_RPATH`, `-Wl,-S`; the check stays and now lists every leaked string with its place). Run
   43126203790 (79f3409f0) green: checks, plugin_app and core (compile + verify_core.py, no build path left; converter
-  kept out; XeniaCore-79f3409f0… uploaded through the protected action), 34 min. Pinned by the ubuntu pin job. Pin route: ubuntu `pin` job (9ceefdcd4), `[xenia-pin run=<id>]`, downloads the zip by id via the API and
+  kept out; XeniaCore-79f3409f0… uploaded through the protected action), 34 min. Pinned by the ubuntu pin job (run
+  43131262723): artifact 13904214253 (9,533,089 B, 73187aa0…dcd0, expires 26 Nov), binary e0a533dc…b011
+  (37,719,376 B, SDK 26.5, minos 26.0), fingerprint 97e08271…f9cd; codesign's report of the converter in that run:
+  libmetalirconverter, Software Signing > Apple Code Signing CA > Apple Root CA, no Team ID, CDHash 71a046f3…, both
+  requirements satisfied. core-pin.json 8b850d7b…1e33 committed byte-identical to the job output; delivery review
+  xenios-core-delivery-declarations-2026-11-12.json bound to it (recipe = 79f3409f0), gate test 9/9 without skip;
+  collector/legal failure sets unchanged; delivery contract 108 tests, same 14 history errors. Pin route: ubuntu `pin` job (9ceefdcd4), `[xenia-pin run=<id>]`, downloads the zip by id via the API and
   prints core-pin.json + base64 (this session cannot reach the artifact store). The producer runs on this branch:
-  the delivery manifest names it (`producers.engine.branch`) or main rebuilds on Claude. Pending: green core job,
-  core-pin.json + review, IPA closed-set validators after 00 integrates session 04's 13d34c25 (identity-file design
-  `Xenia-native-identity.json`).
+  the delivery manifest names it (`producers.engine.branch`) or main rebuilds on Claude. Pending: handoff to 00;
+  IPA closed-set validators after 00 integrates session 04's 13d34c25 (identity-file design
+  `Xenia-native-identity.json`); the artifact expires 26 Nov (14-day retention, not republished).
 - **Validation (Flutter 3.47.2 host):** 11 Nov: XeniOS + catalog/Consoles/touch suites
   91/91, scanner suites 41/41 (1 skip), storage contract 24/24, patch/validator/touch/C++
   checks OK, analyzer 111 = baseline. Earlier: new XeniOS + catalog/Consoles tests 65/65;
