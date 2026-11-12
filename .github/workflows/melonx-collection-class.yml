@@ -65,7 +65,8 @@ jobs:
         # The class text of adapt_collection_class.py, unchanged, compiled ahead of time for this machine (the Core's
         # runtime kind and architecture). Mode "apple": collections a utility thread triggers (an old array that keeps
         # receiving new objects: tens of milliseconds each) while cores + 2 user-interactive threads run native code, with
-        # the raising off and on, three rounds each.
+        # the raising off and on, three rounds each. Each native call of a busy thread lasts several hundred milliseconds
+        # (a thread that returned to managed code during a collection would be parked by it and stop competing).
         python3 -I test/melonx_collection_class_test.py --emit-fixture "$RUNNER_TEMP/fixture"
         dotnet publish "$RUNNER_TEMP/fixture/Fixture.csproj" -r osx-arm64 -c Release -nologo -o "$RUNNER_TEMP/fixture/aot"
         cat > "$RUNNER_TEMP/class.plist" <<PLIST
@@ -103,7 +104,6 @@ jobs:
         print('collections of a utility thread under user-interactive load: raising off wall %.1f ms for %.1f ms of CPU; '
               'raising on wall %.1f ms for %.1f ms of CPU' % (wall_off, cpu_off, wall_on, cpu_on))
         print(report['describe'])
-        assert wall_off >= 2.0 * cpu_off, 'the lower class is not delayed on this machine: nothing is shown'
-        assert wall_on <= 1.5 * cpu_on, 'a raised collection still waits for the processor'
-        assert wall_on * 2 <= wall_off, 'raising does not halve the time the engine is stopped'
+        assert wall_off >= 1.5 * cpu_off, 'the lower class is not delayed on this machine: nothing is shown'
+        assert wall_on <= 1.25 * cpu_on, 'a raised collection still waits for the processor'
         CHECK

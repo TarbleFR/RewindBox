@@ -307,6 +307,9 @@ static unsafe class Program
         };
     }
 
+    const uint NativeBytes = 1u << 30;
+    static byte* _native;
+
     // Collections a utility thread triggers while user-interactive threads run native code (not stopped by a collection).
     static JsonObject AppleRound(bool raise, int collections, int loads)
     {
@@ -318,11 +321,10 @@ static unsafe class Program
             busy[i] = new Thread(() =>
             {
                 Apple.SetClass(CollectionClass.UserInteractive, 0);
-                byte* data = (byte*)NativeMemory.Alloc(1 << 20);
                 byte* digest = stackalloc byte[32];
-                new Span<byte>(data, 1 << 20).Fill(1);
-                while (Volatile.Read(ref stop) == 0) Apple.Sha256(data, 1 << 20, digest); // native code, preemptive
-                NativeMemory.Free(data);
+                // One call lasts several hundred milliseconds: like a guest thread in translated code, this thread
+                // does not come back to managed code (where a collection would park it) for the length of a collection.
+                while (Volatile.Read(ref stop) == 0) Apple.Sha256(_native, NativeBytes, digest);
             });
             busy[i].Start();
         }
@@ -350,6 +352,8 @@ static unsafe class Program
     {
         int registered = CollectionClass.Register();
         int cores = Apple.Cores();
+        _native = (byte*)NativeMemory.Alloc(NativeBytes);
+        new Span<byte>(_native, (int)NativeBytes).Fill(1);
         Apple.SetClass(CollectionClass.UserInteractive, 0);
         JsonArray rounds = new();
         for (int i = 0; i < 3; i++)
