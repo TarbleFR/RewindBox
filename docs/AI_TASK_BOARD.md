@@ -4845,7 +4845,7 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       pause copies 34.6 MiB of survivors. The copy is required by the threaded renderer (guest memory may change before
       the upload); which objects survive is not journaled (no allocation-by-type source on the device): no safe
       reduction identified, open.
-    - **Core 743 frozen (12 Nov, contract b95bb282; 98 gates, 212 preparation inputs, 213 prepared members; Core 741 +
+    - **Core 743 frozen (12 Nov, contract b95bb281; 98 gates, 212 preparation inputs, 213 prepared members; Core 741 +
       diagnostics only, every title; local commits on work/melonx-fps-stability-20261103, pushed):** (1)
       adapt_submit_causes (ten files): each of the 16 submission sites of the Vulkan backend names its cause just before
       FlushAllCommands / FlushCommandsImpl; the render stages line ends, after its unchanged text, with "; submits by
@@ -4900,8 +4900,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       (a strict-sync site, or the fast flush mode's 1.5 ms draw auto-flush), the reference passes and submissions following
       the command buffer count; no sync semantics change before that measurement. Main (12 Nov 07:17): IPA 728 shipped
       with Core 737 (maintainer); Core 743 merged on Claude as 3d2645ea (--no-ff, recipe byte for byte d4b7f9d7, contract
-      b95bb282); its Core build is push run 43174115676, the pin follows when it is green, for the next IPA (the 739 build
-      43165030959 is green and kept). This work branch was fast-forwarded to 3d2645ea.
+      b95bb281); its Core build, push run 43174115676 (job 131034109192, artifact 13926697149, 100586761 B), is green
+      and pinned on Claude as 4e84cee0 (pin sha256 a429f212; iPhone binary b1957006, 38472824 B; packaged fingerprint
+      d5d1ef62; engine_evidence offline with 98 fresh Apple gates, 16 reused scoped). It replaces Core 737 (run
+      43131998605, the fallback) in the next IPA, which waits for the Switch 2 session (maintainer). The 739 build
+      43165030959 is green and kept. Correction: this entry and the 743 commit messages wrote the contract as
+      b95bb282; its SHA-256 begins b95bb281 (b95bb28196277ca5...). This work branch follows Claude (4e84cee0).
   - **IPA 726 device run read (12 Nov): Hogwarts Legacy on Core 735, pid 54035, 23:43:42-23:46:20 (the session
     of the P0 726 close); journals private (scratchpad), aggregates only. Not a like-for-like comparison with 725:
     the phone was in the "serious" thermal state for 99 of the 100 warm seconds (725, pid 51986: "fair").**
