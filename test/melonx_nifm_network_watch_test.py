@@ -107,6 +107,18 @@ with tempfile.TemporaryDirectory(prefix='melonx-nifm-network-watch-') as tempora
           'private static void OnAddressChanged(object sender, EventArgs e)' in watch, 'a static handler: no lock, thread, timer or collection')
     check('NifmSessionDiagnostics.Describe()' in after[adapter.LIBRARY] and 'GC.Collect' not in adapter.JOURNAL_NEW, 'journal line only in the Library')
 
+    # Bound to the final preparation: the tree built and executed as the candidate is the final preparation itself, later
+    # adapters included (control_source reproduced it from this control); each replacement of this adapter is in it once.
+    postimages = {}
+    if FINAL_PREPARATION:
+        for name, pairs in ((adapter.SERVICE, adapter.SERVICE_PAIRS), (adapter.LIBRARY, adapter.LIBRARY_PAIRS)):
+            final_text = (FINAL_SOURCE / name).read_text(encoding='utf-8-sig')
+            for _, new in pairs:
+                check(final_text.count(new) == 1, 'replacement in the final preparation: ' + new.strip().splitlines()[0][:70])
+        shutil.rmtree(candidate)
+        shutil.copytree(FINAL_SOURCE, candidate, ignore=ignore, symlinks=True)
+        postimages = {name: hashlib.sha256((candidate / name).read_bytes()).hexdigest() for name in adapter.BASELINE}
+
     for tree, project in ((control, 'src/Ryujinx.HLE/Ryujinx.HLE.csproj'), (candidate, 'src/Ryujinx.HLE/Ryujinx.HLE.csproj'),
                           (candidate, 'src/Ryujinx.Library/Ryujinx.Library.csproj')):
         result = run([DOTNET, 'build', str(tree / project), '-c', 'Release', '-nologo', '-m:1', '-p:NuGetAudit=false'], tree)
@@ -157,6 +169,11 @@ report = {
     'controlSwitchesKeptOfEleven': c['switchesAlive'], 'candidateSwitchesKeptOfEleven': k['switchesAlive'],
     'controlHeapAfterElevenBytes': c['heapAfterElevenBytes'], 'candidateHeapAfterElevenBytes': k['heapAfterElevenBytes'],
     'observations': k['observations'], 'networkAvailable': k['networkAvailable'], 'subscriptions': seam['subscriptions'],
+    'postimages': postimages, 'sourceBaseline': adapter.BASELINE,
+    'inputs': {path: hashlib.sha256((ROOT / path).read_bytes()).hexdigest() for path in (
+        'build-utils/melonx/adapt_nifm_network_watch.py', 'build-utils/melonx/adapt_session.py',
+        'test/melonx_nifm_network_watch_test.py', 'test/melonx_nifm_network_watch/Program.cs', 'test/melonx_adapter_control.py')},
+    'limitation': 'Host runtime and collector; the device check is the sessionRetention line after a close.',
 }
 out = ROOT / 'dist/melonx/nifm-network-watch-checks.json'
 out.parent.mkdir(parents=True, exist_ok=True)

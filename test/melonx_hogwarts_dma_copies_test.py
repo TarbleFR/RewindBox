@@ -202,6 +202,8 @@ LOT_FILES = {
     # GpuContext.cs and AutoFlushCounter.cs are outside it).
     'adapt_nifm_network_watch': ['src/Ryujinx.Library/Library.cs'],
     'adapt_paced_strict_syncs': ['src/Ryujinx.Library/Library.cs'],
+    # Core 745: programs of one code share their pipelines (ShaderCollection.cs, in this composition).
+    'adapt_sibling_pipelines': ['src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs'],
 }
 
 checks = 0

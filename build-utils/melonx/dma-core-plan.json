@@ -94,7 +94,8 @@
   "build-utils/melonx/adapt_submit_causes.py",
   "build-utils/melonx/adapt_build_journal_load_wait.py",
   "build-utils/melonx/adapt_nifm_network_watch.py",
-  "build-utils/melonx/adapt_paced_strict_syncs.py"
+  "build-utils/melonx/adapt_paced_strict_syncs.py",
+  "build-utils/melonx/adapt_sibling_pipelines.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -332,7 +333,8 @@
   "test/melonx_submit_causes/Program.cs",
   "test/melonx_build_journal_load_wait/Program.cs",
   "test/melonx_nifm_network_watch/Program.cs",
-  "test/melonx_paced_strict_syncs/Program.cs"
+  "test/melonx_paced_strict_syncs/Program.cs",
+  "test/melonx_sibling_pipelines/Program.cs"
  ],
  "fixtureProductionInputs": [
   "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs",
@@ -4458,6 +4460,32 @@
     "src/Ryujinx.Graphics.Gpu/GpuContext.cs",
     "src/Ryujinx.Graphics.Vulkan/AutoFlushCounter.cs",
     "src/Ryujinx.Library/Library.cs"
+   ]
+  },
+  {
+   "name": "sibling-pipelines",
+   "script": "test/melonx_sibling_pipelines_test.py",
+   "report": "sibling-pipelines-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 3600,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false,
+    "productionVulkanAssemblyBuilt": true,
+    "controlCreationsOfOneSharedState": 2,
+    "candidateCreationsOfOneSharedState": 1,
+    "candidateDestroyedTwice": 0,
+    "candidateBoundAfterDestruction": 0
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs"
    ]
   }
  ]

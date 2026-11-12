@@ -126,6 +126,21 @@ with tempfile.TemporaryDirectory(prefix='melonx-paced-strict-syncs-') as tempora
           flush.count('MinDrawCountForFlush') == before[adapter.AUTO_FLUSH].count('MinDrawCountForFlush'),
           'only the two voluntary intervals depend on the policy (4 ms, 8 ms); the draw-count floor and the query rules are unchanged')
 
+    # Bound to the final preparation: the tree built and executed as the candidate is the final preparation itself, later
+    # adapters included (control_source reproduced it from this control); each replacement of this adapter is in it once.
+    postimages = {}
+    if FINAL_PREPARATION:
+        for name, pairs in adapter.FILE_PAIRS.items():
+            final_text = (FINAL_SOURCE / name).read_text(encoding='utf-8-sig')
+            for _, new in pairs:
+                check(final_text.count(new) == 1, 'replacement in the final preparation: ' + new.strip().splitlines()[0][:70])
+        shutil.rmtree(candidate)
+        shutil.copytree(FINAL_SOURCE, candidate, ignore=shutil.ignore_patterns('.git', 'bin', 'obj', 'MeloNX'), symlinks=True)
+        postimages = {name: hashlib.sha256((candidate / name).read_bytes()).hexdigest() for name in adapter.BASELINE}
+        # The replay below runs the final preparation's auto-flush counter and pacer.
+        gpu = (candidate / adapter.GPU_CONTEXT).read_text(encoding='utf-8-sig')
+        flush = (candidate / adapter.AUTO_FLUSH).read_text(encoding='utf-8-sig')
+
     for project in ('src/Ryujinx.Graphics.Vulkan/Ryujinx.Graphics.Vulkan.csproj', 'src/Ryujinx.Graphics.Gpu/Ryujinx.Graphics.Gpu.csproj',
                     'src/Ryujinx.Library/Ryujinx.Library.csproj'):
         result = run([DOTNET, 'build', str(candidate / project), '-c', 'Release', '-nologo', '-m:1', '-p:NuGetAudit=false'], candidate)
@@ -179,6 +194,11 @@ report = {
     'productionLibraryAssemblyBuilt': True, 'controlCommandBuffersPerFrame': frame['commandBuffers'],
     'candidateCommandBuffersPerFrame': paced['commandBuffers'], 'candidateLongestGapMs': paced['longestGapMs'],
     'policyOffEqualsControl': True, 'control': c, 'candidate': k,
+    'postimages': postimages, 'sourceBaseline': adapter.BASELINE,
+    'inputs': {path: hashlib.sha256((ROOT / path).read_bytes()).hexdigest() for path in (
+        'build-utils/melonx/adapt_paced_strict_syncs.py', 'build-utils/melonx/adapt_session.py',
+        'test/melonx_paced_strict_syncs_test.py', 'test/melonx_paced_strict_syncs/Program.cs', 'test/melonx_adapter_control.py')},
+    'limitation': 'A replay of one frame on the production auto-flush counter with a fake clock; no MoltenVK, no device.',
 }
 out = ROOT / 'dist/melonx/paced-strict-syncs-checks.json'
 out.parent.mkdir(parents=True, exist_ok=True)

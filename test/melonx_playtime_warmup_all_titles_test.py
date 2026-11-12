@@ -84,9 +84,23 @@ check(candidate.count('DetachPlayTimeWarmUps') == 1, 'one assignment only')
 check(candidate.index('warmUpVulkan.DetachPlayTimeWarmUps = true;') < candidate.index('renderer = renderer.TryMakeThreaded(options.BackendThreading);'),
       'set on the Vulkan renderer before the threaded wrapper')
 if FINAL_PREPARATION:
-    from melonx_adapter_control import files_edited_later  # noqa: E402
-    check(not files_edited_later('adapt_playtime_warmup_all_titles'), 'no later adapter edits Library.cs')
-    check((FINAL_SOURCE / L).read_text(encoding='utf-8-sig') == candidate, 'the final preparation is the control plus the adapter')
+    from melonx_adapter_control import files_edited_later, later_sharing  # noqa: E402
+    # Core 745: adapt_nifm_network_watch (one more text in the sessionRetention journal line) and adapt_paced_strict_syncs
+    # (two Hogwarts assignments) edit Library.cs after this adapter. Each of their replacements is undone, once, from
+    # the final preparation before the exact comparison; no other later adapter edits the file.
+    later = later_sharing('adapt_playtime_warmup_all_titles')
+    check(later == ['adapt_nifm_network_watch', 'adapt_paced_strict_syncs'] and files_edited_later('adapt_playtime_warmup_all_titles') == {L},
+          'the later adapters editing Library.cs are the two reviewed ones: %s' % later)
+    final_text = (FINAL_SOURCE / L).read_text(encoding='utf-8-sig')
+    for name in reversed(later):
+        module = __import__(name)
+        pairs = module.LIBRARY_PAIRS if hasattr(module, 'LIBRARY_PAIRS') else module.FILE_PAIRS[L]
+        for old, new in reversed(pairs):
+            check(final_text.count(new) == 1, name + ': replacement present once in the final Library.cs')
+            final_text = final_text.replace(new, old)
+    for policy in ('GpuContext.PaceStrictHostSyncs = hogwarts;', 'SubmitPacing.Paced = hogwarts;'):
+        check((FINAL_SOURCE / L).read_text(encoding='utf-8-sig').count(policy) == 1, 'later Hogwarts policy keeps its scope: ' + policy)
+    check(final_text == candidate, 'the final preparation is the control plus the adapter and the two later adapters\' replacements')
 
 # The policy-on proof, on this very Library.cs.
 gate = json.loads((ROOT / EVIDENCE).read_text())
