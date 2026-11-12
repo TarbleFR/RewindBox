@@ -109,10 +109,20 @@ check(len(adapter.PAIRS) == 3 and [pair[0] for pair in adapter.PAIRS] == [adapte
       sorted(adapter.BASELINE) == sorted([adapter.CACHE, adapter.TEXTURE, adapter.POOL]),
       'three replacements: one in TextureCache.cs, one in Texture.cs, one in TexturePool.cs, and no other file')
 if FINAL_PREPARATION:
-    from melonx_adapter_control import files_edited_later  # noqa: E402
-    check(not files_edited_later('adapt_remap_sweep_range'), 'no later adapter edits these files')
+    from melonx_adapter_control import files_edited_later, later_sharing  # noqa: E402
+    # Core 745: adapt_array_sync_epochs edits Texture.cs after this adapter (the dirty and invalidation epochs; nothing
+    # of the remap check). Its replacements in that file are undone, each once, from the final preparation before the
+    # exact comparison; no other later adapter edits these files.
+    LATER = later_sharing('adapt_remap_sweep_range')
+    check(LATER == ['adapt_array_sync_epochs'] and files_edited_later('adapt_remap_sweep_range') == {adapter.TEXTURE},
+          'the only later adapter on these files is adapt_array_sync_epochs, on Texture.cs: %s' % LATER)
+    import adapt_array_sync_epochs as epochs  # noqa: E402
     for name in adapter.BASELINE:
-        check(candidate_text[name] == text(FINAL_SOURCE, name), name + ': the final preparation is the control plus the adapter\'s replacements')
+        final_text = text(FINAL_SOURCE, name)
+        for old, new in reversed(epochs.FILE_PAIRS.get(name, ())):
+            check(final_text.count(new) == 1, name + ': later replacement present once')
+            final_text = final_text.replace(new, old)
+        check(candidate_text[name] == final_text, name + ': the final preparation is the control plus the adapter\'s replacements (and the later adapter\'s)')
 check(all(adapter.TOUCH_NEW.count(part) == 1 for part in (adapter.NEVER_SWEPT_RULE, adapter.NO_OWNER_RULE, adapter.OWNER_TEST)),
       'the check holds its three tests once each')
 check(member(control[adapter.TEXTURE], '        public void UpdatePoolMappings()') ==
@@ -178,8 +188,12 @@ for side in ('control', 'candidate'):
         check(sorted(str(p.relative_to(tree)) for p in changed) == sorted(adapter.BASELINE), 'the adapter changed its three files')
         for name in adapter.BASELINE:
             check(text(tree, name) == candidate_text[name], 'candidate is the control plus the adapter\'s replacements: ' + name)
-            if FINAL_PREPARATION:
-                check((tree / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
+        if FINAL_PREPARATION:
+            # The candidate that is built and run is the final preparation: the later adapter is applied on top.
+            for later in LATER:
+                __import__(later).apply(tree)
+            for name in adapter.BASELINE:
+                check((tree / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter and the later one: ' + name)
         sources = [path.read_text(encoding='utf-8-sig', errors='replace') for path in (tree / 'src').rglob('*.cs')]
         check(sum(s.count('PoolMappingsTouch(') for s in sources) == 2 and sum(s.count('.ChannelMemoryManager') for s in sources) == 1 and
               sum(s.count('ChannelMemoryManager =>') for s in sources) == 1 and sum(s.count('RemapSweepOverlapped') for s in sources) == 4,
@@ -233,13 +247,17 @@ VARIANTS = {
     'addressSpaceIgnored': [(adapter.OWNER_TEST, adapter.OWNER_TEST.replace('owner.Pool.ChannelMemoryManager == memoryManager && ', ''))],
 }
 texture_path = trees['candidate'] / adapter.TEXTURE
+# Core 745: the wrong variants alter the adapter's text in the candidate's own Texture.cs (the final one, which also holds
+# the later adapt_array_sync_epochs the candidate's array cache is compiled with), not in a copy of the control's.
+candidate_texture = texture_path.read_text(encoding='utf-8-sig')
+check(candidate_texture.count(adapter.TOUCH_NEW) == 1, 'the adapter\'s text is once in the candidate\'s Texture.cs')
 for variant, replacements in VARIANTS.items():
     wrong = adapter.TOUCH_NEW
     for old, new in replacements:
         check(wrong.count(old) == 1 and old != new, variant + ': one site to alter in the adapter\'s text')
         wrong = wrong.replace(old, new)
     check(control[adapter.TEXTURE].count(adapter.TOUCH_OLD) == 1, variant + ': one site in the control')
-    texture_path.write_text(control[adapter.TEXTURE].replace(adapter.TOUCH_OLD, wrong), encoding='utf-8')
+    texture_path.write_text(candidate_texture.replace(adapter.TOUCH_NEW, wrong), encoding='utf-8')
     build_probe('candidate')
     reports[variant] = run_probe('candidate', 'gated', 'wrong variant ' + variant)
 shutil.rmtree(WORK)

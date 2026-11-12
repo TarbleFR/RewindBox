@@ -32,6 +32,20 @@ enum MeloNXStdioCapture {
     private static var diagnosticsDirectory: URL?
     private static var pendingContext: [String:String] = [:]
     private static var contexts: [Int64:[String:String]] = [:]
+    // MeloNXLiveCapture's copy of every journal line for a computer on the local network (nil: none). The closure only
+    // queues the line and never blocks; it is called outside this file's locks.
+    private static var liveTee: ((String) -> Void)?
+    private static var liveWanted: (() -> Bool)?
+    static func setLiveTee(_ tee: ((String) -> Void)?, wanted: (() -> Bool)? = nil) {
+        routeLock.lock(); liveTee = tee; liveWanted = wanted; routeLock.unlock()
+    }
+    /// A line that is in no journal file of this writer (the engine keeps its own): built and queued only while a
+    /// computer is listening.
+    static func forwardLive(_ line: () -> String?) {
+        routeLock.lock(); let tee = liveTee; let wanted = liveWanted; routeLock.unlock()
+        guard let tee, wanted?() == true, let text = line() else { return }
+        tee(text)
+    }
 
     static func configureDiagnostics(directory: URL) throws {
         try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true)
@@ -254,11 +268,13 @@ enum MeloNXStdioCapture {
         let line = Array((text + "\n").utf8)
         guard Int64(line.count) <= limit else { return false }
         routeLock.lock()
+        let tee = liveTee
         let categorized = diagnosticsDirectory.map { directory in
             URL(fileURLWithPath:path).deletingLastPathComponent().standardizedFileURL == directory.standardizedFileURL &&
             ["MeloNX-stderr.log", "MeloNX-performance.log"].contains(URL(fileURLWithPath:path).lastPathComponent)
         } ?? false
         routeLock.unlock()
+        tee?(text)
         appendLock.lock(); defer { appendLock.unlock() }
         if categorized,
            let size = (try? FileManager.default.attributesOfItem(atPath:path)[.size]) as? NSNumber,

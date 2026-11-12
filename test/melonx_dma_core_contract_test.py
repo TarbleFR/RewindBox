@@ -70,6 +70,12 @@ from adapt_host_thread_class import BASELINE as C733_HOST_THREAD_CLASS  # noqa: 
 from adapt_npad_config_snapshot import BASELINE as C737_NPAD_CONFIG_SNAPSHOT  # noqa: E402
 from adapt_submit_causes import BASELINE as C743_SUBMIT_CAUSES  # noqa: E402
 from adapt_build_journal_load_wait import BASELINE as C743_BUILD_JOURNAL_LOAD_WAIT  # noqa: E402
+from adapt_nifm_network_watch import BASELINE as C745_NIFM_NETWORK_WATCH, SERVICE as C745_NIFM_SERVICE  # noqa: E402
+from adapt_paced_strict_syncs import BASELINE as C745_PACED_STRICT_SYNCS  # noqa: E402
+from adapt_sibling_pipelines import BASELINE as C745_SIBLING_PIPELINES  # noqa: E402
+from adapt_array_sync_epochs import BASELINE as C745_ARRAY_SYNC_EPOCHS  # noqa: E402
+from adapt_collection_class import BASELINE as C745_COLLECTION_CLASS  # noqa: E402
+from adapt_stall_compaction import BASELINE as C745_STALL_COMPACTION  # noqa: E402
 from adapt_array_delta_invalidated import BASELINE as C697_ARRAY_DELTA_INVALIDATED  # noqa: E402
 from adapt_pipeline_cache_background import BASELINE as C697_PIPELINE_CACHE_BACKGROUND  # noqa: E402
 from adapt_sync_wait_attribution import BASELINE as C699_SYNC_WAIT_ATTRIBUTION  # noqa: E402
@@ -205,6 +211,17 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             # Core 743: submissions by cause and host syncs by site; the build journal without the main load wait.
             'submit-causes': 'delivered',
             'build-journal-load-wait': 'delivered',
+            # Core 745: a closed session is not kept by nifm's network address subscription; Hogwarts paced strict syncs.
+            'nifm-network-watch': 'delivered',
+            'paced-strict-syncs': 'delivered',
+            # Core 745: programs of one code share the pipelines they hold.
+            'sibling-pipelines': 'delivered',
+            # Core 745: a bound texture array walks its textures when one of them needs it.
+            'array-sync-epochs': 'delivered',
+            # Core 745: a collection that stops the engine runs in the user-interactive class.
+            'collection-class': 'delivered',
+            # Core 745: the heap's free space is given back while the game presents nothing.
+            'stall-compaction': 'delivered',
             # Core 743: its receipt declares SyncManager.cs, which adapt_submit_causes changes: run again on the final one.
             'sync-allocations': 'delivered',
             # Core 661: the native display fixture declares EmbeddedMemory.cs (adapt_safe_point_compaction): rerun.
@@ -270,7 +287,12 @@ CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES
            set(C737_NPAD_CONFIG_SNAPSHOT) |
            # Core 743: the submission sites' ten files (SyncManager.cs, AutoFlushCounter.cs, StagingBuffer.cs changed for the
            # first time in this plan; HelperShader.cs new) and PipelineState.cs (already changed).
-           set(C743_SUBMIT_CAUSES) | set(C743_BUILD_JOURNAL_LOAD_WAIT))
+           set(C743_SUBMIT_CAUSES) | set(C743_BUILD_JOURNAL_LOAD_WAIT) |
+           # Core 745: nifm's IGeneralService.cs (new) and Library.cs; GpuContext.cs, AutoFlushCounter.cs and Library.cs
+           # (already changed); ShaderCollection.cs (already changed).
+           # Texture.cs and TextureBindingsArrayCache.cs (already changed).
+           set(C745_NIFM_NETWORK_WATCH) | set(C745_PACED_STRICT_SYNCS) | set(C745_SIBLING_PIPELINES) |
+           set(C745_ARRAY_SYNC_EPOCHS))
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
@@ -348,6 +370,9 @@ JOINED = JOINED | C733_JOINED
 JOINED = JOINED | {'src/Ryujinx.Input/HLE/NpadManager.cs'}
 # Core 743 (adapt_submit_causes): the helper shader's three submissions name their cause; HelperShader.cs joins.
 JOINED = JOINED | {'src/Ryujinx.Graphics.Vulkan/HelperShader.cs'}
+# Core 745 (adapt_nifm_network_watch): nifm's general service no longer subscribes to the runtime's network address
+# event; IGeneralService.cs joins.
+JOINED = JOINED | {C745_NIFM_SERVICE}
 REUSED_FRESH = set()
 
 
@@ -521,7 +546,8 @@ if not args.helpers_only:
     # Core 733: 94 (seven of the eight files of the host thread class; SurfaceFlinger.cs was already changed).
     # Core 737: 95 (NpadManager.cs).
     # Core 743: 99 (SyncManager.cs, AutoFlushCounter.cs, StagingBuffer.cs, HelperShader.cs).
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 99 and not frozen["productionAdditions"], "Unexpected production scope")
+    # Core 745: 100 (IGeneralService.cs).
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 100 and not frozen["productionAdditions"], "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
                                                      'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
                                                      'build-utils/melonx/adapt_queued_syncpoints.py',
@@ -604,7 +630,13 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_playtime_warmup_all_titles.py',
                                                      'build-utils/melonx/adapt_array_storage_counts.py',
                                                      'build-utils/melonx/adapt_submit_causes.py',
-                                                     'build-utils/melonx/adapt_build_journal_load_wait.py'} and
+                                                     'build-utils/melonx/adapt_build_journal_load_wait.py',
+                                                     'build-utils/melonx/adapt_nifm_network_watch.py',
+                                                     'build-utils/melonx/adapt_paced_strict_syncs.py',
+                                                     'build-utils/melonx/adapt_sibling_pipelines.py',
+                                                     'build-utils/melonx/adapt_array_sync_epochs.py',
+                                                     'build-utils/melonx/adapt_collection_class.py',
+                                                     'build-utils/melonx/adapt_stall_compaction.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -643,7 +675,10 @@ if not args.helpers_only:
     # Core 741: adapt_array_storage_counts.py joins them; the same 212 prepared members (TextureArray.cs already one).
     # Core 743: adapt_submit_causes.py and adapt_build_journal_load_wait.py join them; HelperShader.cs joins the prepared
     # members (213).
-    check(len(frozen['preparationInputs']) == 212 and len(frozen['preparedMembers']) == 213, 'Wrong final composition')
+    # Core 745: adapt_nifm_network_watch.py, adapt_paced_strict_syncs.py, adapt_sibling_pipelines.py and
+    # adapt_array_sync_epochs.py join them; IGeneralService.cs joins the prepared members (214). adapt_collection_class.py
+    # and adapt_stall_compaction.py join them too (their files are members already).
+    check(len(frozen['preparationInputs']) == 218 and len(frozen['preparedMembers']) == 214, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
@@ -692,6 +727,35 @@ if not args.helpers_only:
           gate['npad-config-snapshot']['assertions'].get('productionInputAssemblyBuilt') is True,
           'The Core 737 change is not bound by its gate')
     OUTSIDE_GPU |= set(C737_NPAD_CONFIG_SNAPSHOT)
+    # Core 745: IGeneralService.cs (Ryujinx.HLE) and Library.cs are bound by the nifm gate, which builds the production
+    # Ryujinx.HLE and Ryujinx.Library from the final preparation; the paced syncs' three files by theirs, which builds
+    # the production Vulkan, Gpu and Library assemblies (GpuContext.cs and AutoFlushCounter.cs stay in the GPU closure).
+    check(set(C745_NIFM_NETWORK_WATCH) == set(gate['nifm-network-watch']['requiredPostimages']) and
+          gate['nifm-network-watch']['assertions'].get('productionHleAssemblyBuilt') is True and
+          gate['nifm-network-watch']['assertions'].get('productionLibraryAssemblyBuilt') is True and
+          gate['nifm-network-watch']['assertions'].get('candidateSwitchesKeptOfEleven') == 0 and
+          set(C745_PACED_STRICT_SYNCS) == set(gate['paced-strict-syncs']['requiredPostimages']) and
+          gate['paced-strict-syncs']['assertions'].get('productionVulkanAssemblyBuilt') is True and
+          gate['paced-strict-syncs']['assertions'].get('productionGpuAssemblyBuilt') is True and
+          gate['paced-strict-syncs']['assertions'].get('policyOffEqualsControl') is True and
+          set(C745_SIBLING_PIPELINES) == set(gate['sibling-pipelines']['requiredPostimages']) and
+          gate['sibling-pipelines']['assertions'].get('productionVulkanAssemblyBuilt') is True and
+          gate['sibling-pipelines']['assertions'].get('candidateCreationsOfOneSharedState') == 1 and
+          gate['sibling-pipelines']['assertions'].get('candidateDestroyedTwice') == 0 and
+          set(C745_ARRAY_SYNC_EPOCHS) == set(gate['array-sync-epochs']['requiredPostimages']) and
+          gate['array-sync-epochs']['assertions'].get('productionGpuAssemblyBuilt') is True and
+          gate['array-sync-epochs']['assertions'].get('scenariosWithIdenticalStates') == 122 and
+          gate['array-sync-epochs']['assertions'].get('quietUpdateSyncCallsCandidate') == 0 and
+          set(C745_COLLECTION_CLASS) == set(gate['collection-class']['requiredPostimages']) and
+          gate['collection-class']['assertions'].get('productionLibraryAssemblyBuilt') is True and
+          gate['collection-class']['assertions'].get('bytesAllocatedInsideCollections') == 0 and
+          gate['collection-class']['assertions'].get('mostOverridesAtOnce') == 1 and
+          set(C745_STALL_COMPACTION) == set(gate['stall-compaction']['requiredPostimages']) and
+          gate['stall-compaction']['assertions'].get('productionLibraryAssemblyBuilt') is True and
+          gate['stall-compaction']['assertions'].get('compactionsDuringPresentedFrames') == 0 and
+          gate['stall-compaction']['assertions'].get('replay729FiredInPlay') == 0,
+          'The Core 745 changes are not bound by their gates')
+    OUTSIDE_GPU |= {C745_NIFM_SERVICE}
     check(CHANGES - OUTSIDE_GPU <= set(gate['fragmented-reads']['requiredPostimages']) and
           # Library.cs and the two HLE files (Core 647) are outside the GPU/Vulkan closure; their own gates bind them.
           CHANGES - {LIBRARY} - OUTSIDE_GPU <= {b['productionPath'] for b in gate['fragmented-reads']['compiledBindings']},
@@ -744,7 +808,9 @@ if not args.helpers_only:
                                             # Core 733: the four files outside the GPU closure are read from no control.
                                             path not in C733_JOINED and
                                             # Core 737: NpadManager.cs likewise (its gate rebuilds its control).
-                                            path not in C737_NPAD_CONFIG_SNAPSHOT}},
+                                            path not in C737_NPAD_CONFIG_SNAPSHOT and
+                                            # Core 745: IGeneralService.cs likewise (its gate rebuilds its control).
+                                            path != C745_NIFM_SERVICE}},
                         'ada': arrays_frozen['controlUnadaptedMembers']['ada']},
           'Control-only upstream inventories differ from the arrays contract plus the files joining the prepared source')
     rejects(lambda: verify.check_control_inventories({**frozen, 'controlUnadaptedMembers': {k: v for k, v in unadapted.items() if k != 'ada'}}),

@@ -300,7 +300,7 @@ static class Program
             {
                 if (host == null) continue;
                 Texture t = owners[World.Raw(host)];
-                Check.That(t.StepSynced, $"{context}: bound {t.Name} synchronised");
+                Check.That(t.Target == Target.TextureBuffer || !t.Dirty, $"{context}: bound {t.Name} synchronised");
                 Check.That(!blacklist || t.ScaleMode == TextureScaleMode.Blacklisted, $"{context}: bound {t.Name} blacklisted");
             }
         }
@@ -503,6 +503,7 @@ static class Program
         w.Update(binding, Kind.Texture);
         VerifyAgainstPools(w, Kind.Texture, 0, "scaled texture bound");
         texture.PendingUpload = true;
+        texture.SignalGroupDirty(); // a CPU write to tracked memory signals the texture
         if (poolWritten) w.Textures.Write(40, 1);
         w.Update(binding, Kind.Texture);
         Check.That(!texture.Scaled && texture.ScaleMode == TextureScaleMode.Blacklisted, "fixture: the synchronisation replaced the storage");
@@ -840,6 +841,21 @@ namespace Ryujinx.Graphics.Gpu.Image
         public int InvalidatedSequence;
         public TestRange Range;
         public bool Scaled, Disposed, StepSynced, StepSignaled, PendingUpload;
+        // Core 745 (adapt_array_sync_epochs): the final cache walks an array's textures only when one was signalled
+        // dirty, invalidated or added. The double therefore carries Texture._dirty (a new texture is dirty) and the
+        // members the final cache reads; StepSynced now records a synchronisation that had something to do, which is
+        // what a call recorded before for the delivered cache and the candidate alike (both synchronise every bound
+        // texture that is dirty in the step; the delivered cache also calls the others, to no effect).
+        public bool Dirty = true;
+        internal static int DirtyEpoch, DirtyWriters, InvalidationWriters;
+        internal int ContextUseEpoch => 0; // no use clock in this fixture
+        public void SignalGroupDirty()
+        {
+            System.Threading.Interlocked.Increment(ref DirtyWriters);
+            Dirty = true;
+            System.Threading.Interlocked.Increment(ref DirtyEpoch);
+            System.Threading.Interlocked.Decrement(ref DirtyWriters);
+        }
         public string Name => World.Describe(Host);
         public string SignalName => Parent == null ? "t" + Key : "a" + Key + "." + Format;
         public Texture(World world, ITexture host, int key, int format, Texture parent)
@@ -857,6 +873,8 @@ namespace Ryujinx.Graphics.Gpu.Image
         public void SynchronizeMemory()
         {
             Use();
+            if (Target == Target.TextureBuffer || !Dirty) return;
+            Dirty = false;
             StepSynced = true;
             if (PendingUpload)
             {

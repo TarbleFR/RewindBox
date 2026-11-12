@@ -137,7 +137,15 @@ with tempfile.TemporaryDirectory(prefix='melonx-performance-diagnostics-') as te
     # (applied after the guard, latest first); their gates (gc-pause-journal, gc-keepalive-dormant) bind them.
     import adapt_gc_keepalive_dormant as _dormant
     import adapt_gc_pause_journal as _pause
-    for _module in (_pause, _dormant):
+    # Core 745: adapt_collection_class's replacements (the class at the file's end, the keep-alive's registration, poll
+    # and journal line) are undone before those (applied last); its gate (collection-class) binds them.
+    import adapt_collection_class as _collection
+    # Core 745: then adapt_stall_compaction's two lines in this file (the poll and the stop request), applied after it.
+    import adapt_stall_compaction as _stall
+    for _old, _new in reversed(_stall.FILE_PAIRS[_stall.SESSION]):
+        assert session_core.count(_new) <= 1
+        session_core = session_core.replace(_new, _old)
+    for _module in (_collection, _pause, _dormant):
         for _old, _new in reversed(_module.PAIRS):
             assert session_core.count(_new) <= 1
             session_core = session_core.replace(_new, _old)

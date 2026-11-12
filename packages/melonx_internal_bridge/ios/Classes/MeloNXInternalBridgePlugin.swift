@@ -81,6 +81,10 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
             guard sequence > nativeSequence else { continue }
             nativeSequence = sequence
             MeloNXLaunchJournal.relayCore(event)
+            // The engine's own journal file stays the record; a computer listening gets a copy of each event.
+            MeloNXStdioCapture.forwardLive {
+                (try? JSONSerialization.data(withJSONObject:event,options:[.sortedKeys])).flatMap { String(data:$0,encoding:.utf8) }.map { "[MeloNX:core] " + $0 }
+            }
         }
         // One sample normally, at most preceding+final on stop. Neither is in
         // the Core's 64-event ring. Append exactly once on this utility queue.

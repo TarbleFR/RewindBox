@@ -626,6 +626,9 @@ namespace Ryujinx.Graphics.Gpu.Image
         public Texture(ITexture host) => Host = host;
         public ITexture GetTargetTexture(Target target) => Host;
         public void SynchronizeMemory() { }
+        // Core 745 (adapt_array_sync_epochs): the members the final cache reads; nothing signals a texture here.
+        internal static int DirtyEpoch, DirtyWriters, InvalidationWriters;
+        internal int ContextUseEpoch => 0;
         public void SignalModified() { }
         public void BlacklistScale() => ScaleMode = TextureScaleMode.Blacklisted;
     }

@@ -197,6 +197,19 @@ LOT_FILES = {
     'adapt_submit_causes': ['src/Ryujinx.Graphics.Vulkan/PipelineBase.cs', 'src/Ryujinx.Graphics.Vulkan/PipelineFull.cs',
                             'src/Ryujinx.Graphics.Vulkan/BufferHolder.cs', 'src/Ryujinx.Graphics.Vulkan/Window.cs'],
     'adapt_build_journal_load_wait': [],
+    # Core 745: nifm's general service off the runtime's network address event (its journal text in Library.cs;
+    # IGeneralService.cs is outside this composition); Hogwarts' paced strict host syncs (two assignments in Library.cs;
+    # GpuContext.cs and AutoFlushCounter.cs are outside it).
+    'adapt_nifm_network_watch': ['src/Ryujinx.Library/Library.cs'],
+    'adapt_paced_strict_syncs': ['src/Ryujinx.Library/Library.cs'],
+    # Core 745: programs of one code share their pipelines (ShaderCollection.cs, in this composition).
+    'adapt_sibling_pipelines': ['src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs'],
+    # Core 745: a bound texture array walks its textures when one needs it (the files of it in this composition).
+    'adapt_array_sync_epochs': [],
+    # Core 745: collections run in the user-interactive class (no file of this lot).
+    'adapt_collection_class': [],
+    # Core 745: the heap's free space given back in a presentation gap (no file of this lot).
+    'adapt_stall_compaction': [],
 }
 
 checks = 0

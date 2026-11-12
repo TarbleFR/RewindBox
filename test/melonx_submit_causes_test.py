@@ -144,9 +144,18 @@ check(set(gpu_calls) == set(adapter.SITES) and all(gpu_calls[m] == {adapter.SITE
 check(sum(1 for m in adapter.SITES if f'"{m}" =>' in adapter.CONTEXT_MEMBERS_NEW) == len(adapter.SITES) == 9, 'each site has a case')
 if FINAL_PREPARATION:
     later = files_edited_later('adapt_submit_causes')
-    check(not later, 'no later adapter edits these files: ' + str(sorted(later)))
+    # Core 745: adapt_paced_strict_syncs, a later adapter, paces the strict host syncs in GpuContext.cs and the voluntary
+    # submissions in AutoFlushCounter.cs. Its replacements are undone from the final text (each required once) before the
+    # same exact comparison; no other later adapter may edit these files.
+    import adapt_paced_strict_syncs as paced  # noqa: E402
+    check(later <= {paced.GPU_CONTEXT, paced.AUTO_FLUSH},
+          'no later adapter edits these files but adapt_paced_strict_syncs: ' + str(sorted(later)))
     for name in adapter.BASELINE:
-        check(read(FINAL_SOURCE, name) == candidate[name], 'the final preparation is the control plus the adapter: ' + name)
+        final = read(FINAL_SOURCE, name)
+        for old, new in reversed(paced.FILE_PAIRS.get(name, ())):
+            check(final.count(new) == 1, 'adapt_paced_strict_syncs: each replacement once in ' + name)
+            final = final.replace(new, old)
+        check(final == candidate[name], 'the final preparation is the control plus the adapter: ' + name)
 
 environment = dict(os.environ, DOTNET_CLI_TELEMETRY_OPTOUT='1', DOTNET_NOLOGO='1')
 pin = json.loads((ROOT / 'build-utils/melonx/source.json').read_text())

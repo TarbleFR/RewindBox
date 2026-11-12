@@ -1287,6 +1287,48 @@
       "이 Switch 엔진에서는 캡처를 사용할 수 없습니다",
       "此 Switch 引擎不支持截屏",
       "此 Switch 引擎不支援擷取"
+    ],
+    "Live capture": [
+      "Live capture",
+      "Capture en direct",
+      "Live-Aufzeichnung",
+      "Captura en directo",
+      "Acquisizione in diretta",
+      "Captura em direto",
+      "Запись в реальном времени",
+      "Perekaman langsung",
+      "ライブキャプチャ",
+      "실시간 캡처",
+      "实时采集",
+      "即時擷取"
+    ],
+    "Address of the computer running live_capture.py, for example 192.168.1.20:47800. Empty: off.": [
+      "Address of the computer running live_capture.py, for example 192.168.1.20:47800. Empty: off.",
+      "Adresse de l’ordinateur qui exécute live_capture.py, par exemple 192.168.1.20:47800. Vide : désactivé.",
+      "Adresse des Computers, auf dem live_capture.py läuft, zum Beispiel 192.168.1.20:47800. Leer: aus.",
+      "Dirección del ordenador que ejecuta live_capture.py, por ejemplo 192.168.1.20:47800. Vacío: desactivado.",
+      "Indirizzo del computer che esegue live_capture.py, per esempio 192.168.1.20:47800. Vuoto: disattivato.",
+      "Endereço do computador que executa live_capture.py, por exemplo 192.168.1.20:47800. Vazio: desativado.",
+      "Адрес компьютера, на котором запущен live_capture.py, например 192.168.1.20:47800. Пусто: выключено.",
+      "Alamat komputer yang menjalankan live_capture.py, misalnya 192.168.1.20:47800. Kosong: nonaktif.",
+      "live_capture.py を実行しているコンピューターのアドレス（例：192.168.1.20:47800）。空欄：オフ。",
+      "live_capture.py를 실행하는 컴퓨터의 주소(예: 192.168.1.20:47800). 비워 두면 꺼집니다.",
+      "运行 live_capture.py 的电脑地址，例如 192.168.1.20:47800。留空：关闭。",
+      "執行 live_capture.py 的電腦位址，例如 192.168.1.20:47800。留空：關閉。"
+    ],
+    "Not a private IPv4 address.": [
+      "Not a private IPv4 address.",
+      "Ce n’est pas une adresse IPv4 privée.",
+      "Keine private IPv4-Adresse.",
+      "No es una dirección IPv4 privada.",
+      "Non è un indirizzo IPv4 privato.",
+      "Não é um endereço IPv4 privado.",
+      "Это не частный IPv4-адрес.",
+      "Bukan alamat IPv4 privat.",
+      "プライベート IPv4 アドレスではありません。",
+      "사설 IPv4 주소가 아닙니다.",
+      "不是私有 IPv4 地址。",
+      "不是私人 IPv4 位址。"
     ]
   }
 }

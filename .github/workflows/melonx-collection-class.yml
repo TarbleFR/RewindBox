@@ -1,0 +1,109 @@
+name: MeloNX collection class
+run-name: Collection class on macOS • ${{ github.sha }}
+# Lot 10. A blocking collection runs on the thread whose allocation triggered it while every engine thread waits; the
+# guest's own threads keep running native code in the user-interactive class. This workflow measures, on a real macOS
+# arm64 runner (the scheduler and QoS interfaces of iOS), what that costs a lower-class thread and which way of
+# raising it for the collection's duration works. Nothing is built for delivery.
+'on':
+  push:
+    branches:
+    - work/melonx-lot10-20261112
+    paths:
+    - .github/workflows/melonx-collection-class.yml
+    - test/melonx_collection_class/**
+    - test/melonx_collection_class_test.py
+    - build-utils/melonx/adapt_collection_class.py
+permissions:
+  contents: read
+concurrency:
+  group: melonx-collection-class-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  collection-class:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - name: Scheduling probe (a low-class thread's work under user-interactive load, and the ways of raising it)
+      run: |
+        clang -O2 -o "$RUNNER_TEMP/qos_probe" test/melonx_collection_class/qos_probe.c
+        echo "as the runner's own job (its launchd policy clamps every thread to one priority):"
+        "$RUNNER_TEMP/qos_probe"
+        # The runner is a throttled launchd job: every class reads the same priority there. The same binary as an
+        # interactive system job, which is what an app in the foreground is to the scheduler.
+        cat > "$RUNNER_TEMP/probe.plist" <<PLIST
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0"><dict>
+          <key>Label</key><string>com.rewindbox.qosprobe</string>
+          <key>ProcessType</key><string>Interactive</string>
+          <key>ProgramArguments</key><array><string>/bin/sh</string><string>-c</string>
+            <string>for run in 1 2 3; do $RUNNER_TEMP/qos_probe; done; echo done</string></array>
+          <key>StandardOutPath</key><string>$RUNNER_TEMP/probe.out</string>
+          <key>StandardErrorPath</key><string>$RUNNER_TEMP/probe.err</string>
+          <key>RunAtLoad</key><true/>
+        </dict></plist>
+        PLIST
+        sed -i '' 's/^        //' "$RUNNER_TEMP/probe.plist"
+        sudo chown root:wheel "$RUNNER_TEMP/probe.plist"
+        sudo launchctl bootstrap system "$RUNNER_TEMP/probe.plist"
+        for wait in $(seq 1 60); do grep -q '^done$' "$RUNNER_TEMP/probe.out" 2>/dev/null && break; sleep 1; done
+        sudo launchctl bootout system/com.rewindbox.qosprobe || true
+        echo "as an interactive system job:"
+        cat "$RUNNER_TEMP/probe.out"; cat "$RUNNER_TEMP/probe.err" || true
+        grep -q '^done$' "$RUNNER_TEMP/probe.out"
+    - uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.0.100
+    - name: The adapter's class with the runtime's collection callouts and the system's QoS calls (ahead of time, macOS arm64)
+      env:
+        DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+        DOTNET_NOLOGO: '1'
+      run: |
+        # The class text of adapt_collection_class.py, unchanged, compiled ahead of time for this machine (the Core's
+        # runtime kind and architecture). Mode "apple": collections a utility thread triggers (an old array that keeps
+        # receiving new objects: tens of milliseconds each) while cores + 2 user-interactive threads run native code, with
+        # the raising off and on, three rounds each. Each native call of a busy thread lasts several hundred milliseconds
+        # (a thread that returned to managed code during a collection would be parked by it and stop competing).
+        python3 -I test/melonx_collection_class_test.py --emit-fixture "$RUNNER_TEMP/fixture"
+        dotnet publish "$RUNNER_TEMP/fixture/Fixture.csproj" -r osx-arm64 -c Release -nologo -o "$RUNNER_TEMP/fixture/aot"
+        cat > "$RUNNER_TEMP/class.plist" <<PLIST
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0"><dict>
+          <key>Label</key><string>com.rewindbox.collectionclass</string>
+          <key>ProcessType</key><string>Interactive</string>
+          <key>ProgramArguments</key><array><string>/bin/sh</string><string>-c</string>
+            <string>$RUNNER_TEMP/fixture/aot/Fixture apple; echo done</string></array>
+          <key>StandardOutPath</key><string>$RUNNER_TEMP/class.out</string>
+          <key>StandardErrorPath</key><string>$RUNNER_TEMP/class.err</string>
+          <key>RunAtLoad</key><true/>
+        </dict></plist>
+        PLIST
+        sed -i '' 's/^        //' "$RUNNER_TEMP/class.plist"
+        sudo chown root:wheel "$RUNNER_TEMP/class.plist"
+        sudo launchctl bootstrap system "$RUNNER_TEMP/class.plist"
+        for wait in $(seq 1 240); do grep -q '^done$' "$RUNNER_TEMP/class.out" 2>/dev/null && break; sleep 1; done
+        sudo launchctl bootout system/com.rewindbox.collectionclass || true
+        echo "as an interactive system job:"
+        cat "$RUNNER_TEMP/class.out"; cat "$RUNNER_TEMP/class.err" || true
+        grep -q '^done$' "$RUNNER_TEMP/class.out"
+        python3 -I - "$RUNNER_TEMP/class.out" <<'CHECK'
+        import json, sys
+        report = json.loads(next(line for line in open(sys.argv[1]) if line.startswith('{')))
+        assert report['registered'] == 1, 'the runtime refused the callouts: %s' % report['registered']
+        off = [r for r in report['rounds'] if not r['raise']]
+        on = [r for r in report['rounds'] if r['raise']]
+        for r in report['rounds']:
+            assert r['setClassStatus'] == 0 and r['classIsUtility'] and r['collections'] >= 8 and not r['inForceAfter'], r
+        assert all(r['raised'] == 0 for r in off) and all(r['raised'] >= r['collections'] for r in on), 'raised only when asked'
+        wall_off, cpu_off = sum(r['wallMs'] for r in off), sum(r['cpuMs'] for r in off)
+        wall_on, cpu_on = sum(r['wallMs'] for r in on), sum(r['cpuMs'] for r in on)
+        print('collections of a utility thread under user-interactive load: raising off wall %.1f ms for %.1f ms of CPU; '
+              'raising on wall %.1f ms for %.1f ms of CPU' % (wall_off, cpu_off, wall_on, cpu_on))
+        print(report['describe'])
+        assert wall_off >= 1.5 * cpu_off, 'the lower class is not delayed on this machine: nothing is shown'
+        assert wall_on <= 1.25 * cpu_on, 'a raised collection still waits for the processor'
+        CHECK
