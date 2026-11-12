@@ -44,6 +44,9 @@ jobs:
           test/switch2_game_box_test.dart
           test/game_box_physical_test.dart
           test/game_box_spine_design_test.dart
+          test/system_art_fallback_inset_test.dart
+          test/system_art_default_fallback_test.dart
+          test/system_bubbles_option_test.dart
           test/console_manager_test.dart
           test/libretro_consoles_tab_test.dart
           test/rewindbox_glacier_test.dart

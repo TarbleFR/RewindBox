@@ -107,3 +107,20 @@ cardboard box. It now has:
 GameTDB is not asked for Switch 2 games (`GameTdb.platformOf` is unchanged): an exact-title match could take the Switch 1
 print of a title. `test/switch2_game_box_test.dart`; the S2Arm library CI also runs `game_box_physical_test.dart` and
 `game_box_spine_design_test.dart`. Not observed on a device.
+
+## Fallback tile under another pack
+
+The maintainer's main menu after IPA 727 used a downloaded pack that has no Switch 2 tile. On their screenshot, the
+Glacier fallback measured 333 px against 307 px for the pack's tiles, on the same centre. The pack's capsules sit inside
+a transparent margin of about 3 % per side, with their own small rounded card and shadow; the fallback filled the whole
+art rect. Main approved the change to its files, with conditions.
+- `NeoAssetsProvider.fallbackInset` is the margin of the active pack's tiles. It is measured once per pack folder,
+  after the frame: the median, over up to 4 tiles decoded 96 px wide, of each tile's smallest distance from an edge to
+  alpha above 128. It is clamped to 0–12 % and is 0 while pending, after any read or decode error, for the embedded
+  pack, for "None" and for opaque packs. The pinned Canvas and RiiSU tiles were checked and are opaque.
+- `SystemCard` insets only the embedded fallback shown under such a pack by that margin, with the corner radius
+  scaled by the tile. A pack's own tiles and every other art keep the same widget tree.
+- No string or asset change. `test/system_art_fallback_inset_test.dart` covers the margin of a tile, the median and
+  clamp, engine-decoded tiles, a decode failure (0), and the pending, once-only and not-installed cases. It also checks
+  the card: with a margin only the fallback is inset; with an opaque pack the layout is unchanged.
+Not observed on a device.
