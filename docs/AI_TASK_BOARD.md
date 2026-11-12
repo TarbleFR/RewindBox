@@ -5274,10 +5274,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     event is also sent as numbered UDP datagrams to a private IPv4 address (bounded queue, oldest dropped, non-blocking
     socket, utility thread); the journal files stay the record. `tools/melonx/live_capture.py listen|report|compare`
     receives, marks and reports. Checks: `test/melonx_live_capture_test.py` 40 checks anywhere; the real recorder
-    compiled and run on macOS arm64 (workflow `melonx-live-capture.yml`, runs 43282389167 and 43283154457: recorder,
-    datagrams and the computer's mark worked, two timing assertions of the test were too strict for the runner; run
-    43284521762 pending) and typechecked for iOS 18. The session view controller's hooks (two ring writes, start, stop,
-    pause, the menu entry) are compiled only by the IPA build.
+    compiled and run on macOS arm64 and typechecked for the iOS 18 SDK (workflow `melonx-live-capture.yml`, run
+    43284521762 green on `041fbb53`: a 300 ms held frame gives one record naming the busy thread with its CPU time and
+    place, a gap while paused none, the computer's mark a record, a 4 kB line arrives whole, 5 000 queued lines do not
+    block the caller, the recorder's own CPU time is journaled; runs 43282389167 and 43283154457 failed on two timing
+    assertions of the test, too strict for the runner). The session view controller's hooks (two ring writes, start,
+    stop, pause, the menu entry) are compiled only by the IPA build.
   - **Not done in this lot:** submissions (3D syncpoints, SetReference, strict flushes), the 13 warmed-but-missed
     Hogwarts variants, the Vulkan window crossing two sessions, CPU % above the physical capacity, the 966 dropped
     stderr lines.
