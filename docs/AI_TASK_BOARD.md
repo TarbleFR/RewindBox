@@ -5353,7 +5353,7 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 ### Switch 2 playlist (S2Arm) feasibility prototype — session 04
 
 - **Owner/branch:** session `012mUASj3EQnvC86WC56AePw`, `work/s2arm-switch2-prototype-20261110`
-  (merged with `Claude` `9c9817e8`). Own paths: `packages/s2arm_engine_bridge/`, `native/s2arm/`,
+  (merged with `Claude` `d8b5e0e5`). Own paths: `packages/s2arm_engine_bridge/`, `native/s2arm/`,
   `build-utils/s2arm/`, `tools/s2arm_prototype/`, `.github/workflows/s2arm-*.yml`, `docs/s2arm-*.md`.
 - **Goal:** a Switch 2 playlist on S2Arm, games prepared on the phone. The device probe ships in
   a common IPA by maintainer decision (below); the rest stays on this branch.
@@ -5438,6 +5438,29 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - **The Consoles tab loads MeloNXCore** (`runtimeAvailable` → `diagnostics` → `ensureRuntime`), which blocks an S2Arm
       launch until a restart. `launch()` now refuses before preparing (`melonxCoreLoaded`, message `melonxLoaded`). Main
       gave the probe fix to the MeloNX owner.
+  - **No ambiguity between the two engines (maintainer, 12 Nov, after IPA 728).** The Switch 2 surfaces no longer show
+    the Switch 1 engine. Commits `5d98e8b5`, `c1197b11` and `ee192c10`, merged with Claude `d8b5e0e5` in `609613be`.
+    - Switch 2 playlist menu: import games, import a save, open saves, the Switch 2 settings, delete. The prod.keys item
+      and its handler are gone, with the two imports of Switch 1 engine files (S2Arm needs no keys; prod.keys stays in
+      the Switch 1 playlist). The empty playlist only says how to import games. `switch2_library_locale.dart` names
+      neither MeloNX nor prod.keys (`importKeys`, `importKeysHint`, `keysFailed` removed, 12 languages).
+    - Two refusals, two codes, two messages (12 languages). `engineRestartRequired` → `restartRequired`: a Switch 2 game
+      already ran, Switch 2 only (it said "a Switch 2 or Nintendo Switch game"). `switch1EngineLoaded` (code and key,
+      formerly `melonxCoreLoaded` / `melonxLoaded`): "the Switch 1 engine was loaded ... keeps the Switch 2 engine from
+      starting". The native refusal now answers it too; it answered `engineRestartRequired`. The failure dialog shows
+      the code and diagnostic under Technical details, so neither names MeloNX. The status flag keeps the name
+      `melonxCoreLoaded` (diagnostics only).
+    - Tests, changed to the maintainer's rule and not weakened. The menu contract forbids the prod.keys item and any
+      Switch 1 engine import or name; it had required them. The empty-hint contract forbids prod.keys and MeloNX; it had
+      required them, and fails on the previous strings (26 failures). New: the two messages differ and each names its
+      console (German compounds accepted), the native code reaches its message with no engine in the technical
+      details, and the bridge has 139 checks (the code, its journal reason, no MeloNX in an error or diagnostic
+      literal; both fail on the previous plugin).
+    - Validation: local Python contracts pass (bridge 139, session menu, storage, pinned engine, empty hint, Switch 1
+      core-loaded, Glacier tile review). CI: iOS compile 43180244951 green on `5d98e8b5`; library 43180244946 red, 192
+      passed and 1 failed (my German check, fixed in `ee192c10`). Final runs: see the handoff. Not observed on a device.
+    - With Claude `051a3691` the Consoles page no longer loads the Switch 1 engine. The `switch1EngineLoaded` refusal
+      should then appear only after a Switch 1 game in the same session.
   - Main withdrew the launcher deletion (12 Nov): it stays as is. Formerly open: delete the launcher (`.github/diagnostics/s2arm/`, `s2arm-delivery.yml`,
     `set_probe_key.py`) together with its test `s2arm_delivery_test.py`, which no longer works
     since 9c9817e8 (40 errors)? Main also has to choose the S2Arm test groups of the next
