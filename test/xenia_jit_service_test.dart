@@ -57,6 +57,7 @@ void main() {
     expect(
       XeniaJitService.planFor({
         'needsTool': true,
+        'transportFullWidth': true,
         'codeRegionHeld': true,
         'toolAttached': false,
       }),
@@ -65,6 +66,7 @@ void main() {
     expect(
       XeniaJitService.planFor({
         'needsTool': true,
+        'transportFullWidth': true,
         'codeRegionHeld': true,
         'toolAttached': true,
         'handshakeActive': true,
@@ -74,6 +76,7 @@ void main() {
     expect(
       XeniaJitService.planFor({
         'needsTool': true,
+        'transportFullWidth': true,
         'codeRegionHeld': true,
         'toolAttached': true,
       }),
@@ -92,10 +95,16 @@ void main() {
 
   test('without a code region below 8 GB nothing attaches: the prepare would close RewindBox', () async {
     for (final state in <Map<String, dynamic>>[
-      {'needsTool': true, 'toolAttached': false, 'codeRegionHeld': false},
-      {'needsTool': true, 'toolAttached': false},
       {
         'needsTool': true,
+        'transportFullWidth': true,
+        'toolAttached': false,
+        'codeRegionHeld': false,
+      },
+      {'needsTool': true, 'transportFullWidth': true, 'toolAttached': false},
+      {
+        'needsTool': true,
+        'transportFullWidth': true,
         'toolAttached': true,
         'handshakeActive': true,
         'codeRegionHeld': false,
@@ -127,6 +136,58 @@ void main() {
   });
 
   test(
+    'a JIT tool without full-width addresses never attaches: no truncated code region',
+    () async {
+      for (final state in <Map<String, dynamic>>[
+        {
+          'needsTool': true,
+          'transportFullWidth': false,
+          'transportDetail':
+              'StikJIT.framework lacks NEOSTATION_STIKJIT_RPCS3_V1',
+          'codeRegionHeld': true,
+          'toolAttached': false,
+        },
+        {'needsTool': true, 'codeRegionHeld': true, 'toolAttached': false},
+        {
+          'needsTool': true,
+          'transportFullWidth': false,
+          'codeRegionHeld': true,
+          'toolAttached': true,
+          'handshakeActive': true,
+        },
+      ]) {
+        expect(XeniaJitService.planFor(state), XeniaJitPlan.toolUnsupported);
+        wire(state);
+        final outcome = await XeniaJitService.ensure();
+        expect(outcome.success, isFalse);
+        expect(outcome.error, 'jitToolUnsupported');
+        expect(outcome.detail, state['transportDetail']);
+        expect(calls, isEmpty, reason: 'no pairing, route or helper');
+      }
+      // Without TXM no tool prepares anything: the transport is not read.
+      expect(
+        XeniaJitService.planFor({
+          'needsTool': false,
+          'debugged': true,
+          'transportFullWidth': false,
+        }),
+        XeniaJitPlan.ready,
+      );
+      expect(
+        XeniaLocale.launchErrorKey('jitToolUnsupported'),
+        'jitToolUnsupported',
+      );
+      expect(
+        XeniaLocale.launchErrorKey('jitToolUnverified'),
+        'restartRequired',
+      );
+      for (final code in XeniaLocale.values.keys) {
+        expect(XeniaLocale.values[code]!['jitToolUnsupported'], isNotEmpty);
+      }
+    },
+  );
+
+  test(
     'a prepared region or a debugged non-TXM process needs no helper',
     () async {
       wire({'needsTool': false, 'debugged': true});
@@ -146,6 +207,7 @@ void main() {
     () async {
       wire({
         'needsTool': true,
+        'transportFullWidth': true,
         'codeRegionHeld': true,
         'toolAttached': true,
         'debugged': true,
@@ -162,6 +224,7 @@ void main() {
     () async {
       wire({
         'needsTool': true,
+        'transportFullWidth': true,
         'codeRegionHeld': true,
         'toolAttached': true,
         'debugged': true,
@@ -187,6 +250,7 @@ void main() {
     () async {
       wire({
         'needsTool': true,
+        'transportFullWidth': true,
         'codeRegionHeld': true,
         'toolAttached': false,
         'debugged': false,
@@ -220,6 +284,7 @@ void main() {
   test('failures are distinct facts with their own message', () async {
     wire({
       'needsTool': true,
+      'transportFullWidth': true,
       'codeRegionHeld': true,
       'toolAttached': false,
     }, pairing: false);
@@ -228,6 +293,7 @@ void main() {
 
     wire({
       'needsTool': true,
+      'transportFullWidth': true,
       'codeRegionHeld': true,
       'toolAttached': false,
     }, route: false);
@@ -246,6 +312,7 @@ void main() {
     ]) {
       wire({
         'needsTool': true,
+        'transportFullWidth': true,
         'codeRegionHeld': true,
         'toolAttached': false,
       });

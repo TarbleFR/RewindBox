@@ -176,12 +176,32 @@ ACCESS = {
 'ko': ['iOS가 RewindBox에 이 폴더에 대한 접근을 허용하지 않았습니다. 다시 선택하세요'],
 'id': ['iOS tidak memberi RewindBox akses ke folder ini: pilih lagi'],
 }
-KEYS = KEYS + MEMORY_KEYS + ACCESS_KEYS
+# The StikJIT the XeniOS helper would load does not write full 64-bit
+# addresses (XeniaJitService.toolUnsupported): Xbox 360 games are blocked.
+TOOL_KEYS = ['jitToolUnsupported']
+
+TOOL = {
+'en': ['This RewindBox build has a JIT tool that cannot prepare memory for XeniOS safely, so Xbox 360 games are blocked. Install a complete RewindBox build.'],
+'fr': ['Cette version de RewindBox contient un outil JIT qui ne peut pas préparer la mémoire de XeniOS en toute sécurité : les jeux Xbox 360 sont bloqués. Installez une version complète de RewindBox.'],
+'de': ['Dieser RewindBox-Build enthält ein JIT-Werkzeug, das den Speicher für XeniOS nicht sicher vorbereiten kann; Xbox-360-Spiele sind daher gesperrt. Installiere einen vollständigen RewindBox-Build.'],
+'es': ['Esta versión de RewindBox tiene una herramienta JIT que no puede preparar la memoria de XeniOS con seguridad, así que los juegos de Xbox 360 están bloqueados. Instala una versión completa de RewindBox.'],
+'it': ['Questa versione di RewindBox ha uno strumento JIT che non può preparare la memoria di XeniOS in sicurezza, quindi i giochi Xbox 360 sono bloccati. Installa una versione completa di RewindBox.'],
+'pt': ['Esta versão do RewindBox tem uma ferramenta JIT que não consegue preparar a memória do XeniOS com segurança, por isso os jogos de Xbox 360 estão bloqueados. Instale uma versão completa do RewindBox.'],
+'ru': ['В этой сборке RewindBox инструмент JIT не может безопасно подготовить память для XeniOS, поэтому игры Xbox 360 заблокированы. Установите полную сборку RewindBox.'],
+'zh': ['此 RewindBox 版本中的 JIT 工具无法安全地为 XeniOS 准备内存，因此 Xbox 360 游戏已被阻止。请安装完整的 RewindBox 版本。'],
+'zh_Hant': ['此 RewindBox 版本中的 JIT 工具無法安全地為 XeniOS 準備記憶體，因此 Xbox 360 遊戲已被阻擋。請安裝完整的 RewindBox 版本。'],
+'ja': ['この RewindBox ビルドの JIT ツールは XeniOS のメモリを安全に準備できないため、Xbox 360 ゲームはブロックされています。完全な RewindBox ビルドをインストールしてください。'],
+'ko': ['이 RewindBox 빌드의 JIT 도구는 XeniOS용 메모리를 안전하게 준비할 수 없어 Xbox 360 게임이 차단되었습니다. 완전한 RewindBox 빌드를 설치하세요.'],
+'id': ['Build RewindBox ini memiliki alat JIT yang tidak dapat menyiapkan memori XeniOS dengan aman, sehingga game Xbox 360 diblokir. Instal build RewindBox yang lengkap.'],
+}
+KEYS = KEYS + MEMORY_KEYS + ACCESS_KEYS + TOOL_KEYS
+for _code, _values in TOOL.items():
+    assert len(_values) == len(TOOL_KEYS), (_code, len(_values))
 for _code, _values in ACCESS.items():
     assert len(_values) == len(ACCESS_KEYS), (_code, len(_values))
 for _code, _values in MEMORY.items():
     assert len(_values) == len(MEMORY_KEYS), (_code, len(_values))
-    T[_code] = T[_code] + _values + ACCESS[_code]
+    T[_code] = T[_code] + _values + ACCESS[_code] + TOOL[_code]
 
 order = ['en','es','ru','zh','zh_Hant','pt','fr','de','it','id','ja','ko']
 for code in order:
@@ -233,7 +253,9 @@ out.append('''
     'pairingRequired' ||
     'jitAttachFailed' ||
     'jitHelperIncomplete' ||
-    'jitMemoryUnavailable' => error!,
+    'jitMemoryUnavailable' ||
+    'jitToolUnsupported' => error!,
+    'jitToolUnverified' => 'restartRequired',
     'jitHandshakeFailed' => 'jitAttachFailed',
     'jitDetachFailed' => 'jitHelperIncomplete',
     _ => 'launchFailed',

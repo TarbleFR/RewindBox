@@ -79,6 +79,46 @@ static BOOL XeniaSupportedOS(void) {
 // Device runs before that change: 36 to 687 MiB were left below 8 GB, the
 // 512 MiB region often found no room and the launch was refused.
 
+// The JIT tool that answers the Core's prepare request must write full 64-bit
+// addresses: the Core's code region is no longer kept below 8 GB, and a tool
+// that drops high address bits (StikDebug 3.1.x) would prepare, and zero, the
+// low alias instead. RewindBox's StikJIT carries this marker only when built
+// with build-utils/patch_stikjit_rpcs3.py (16 hex digits per address;
+// build-utils/stikjit/source.json transport_marker, required in the IPA by
+// validate_stikjit_ipa.py). XeniaJITHelper links the app's StikJIT.framework
+// (configure_xenia_ios.py: runpath @executable_path/Frameworks, then
+// ../../Frameworks), so both places it could load from are checked.
+static NSString* const kXeniaFullWidthTransportMarker = @"NEOSTATION_STIKJIT_RPCS3_V1";
+
+static BOOL XeniaFileContains(NSString* path, NSString* marker) {
+  NSData* data = [NSData dataWithContentsOfFile:path options:NSDataReadingMappedIfSafe error:nil];
+  NSData* needle = [marker dataUsingEncoding:NSUTF8StringEncoding];
+  return data.length && needle.length &&
+         [data rangeOfData:needle options:0 range:NSMakeRange(0, data.length)].location != NSNotFound;
+}
+
+// nil when every StikJIT binary the helper can load writes full-width
+// addresses; otherwise why not. Once per process (the bundle does not change).
+static NSString* XeniaJitTransportProblem(void) {
+  static NSString* problem;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    NSBundle* main = NSBundle.mainBundle;
+    NSString* app = [main.privateFrameworksPath stringByAppendingPathComponent:@"StikJIT.framework/StikJIT"];
+    NSString* helper = [main.builtInPlugInsPath
+        stringByAppendingPathComponent:@"XeniaJITHelper.appex/Frameworks/StikJIT.framework/StikJIT"];
+    if (![NSFileManager.defaultManager fileExistsAtPath:app]) {
+      problem = @"StikJIT.framework is missing from the app";
+    } else if (!XeniaFileContains(app, kXeniaFullWidthTransportMarker)) {
+      problem = @"the app's StikJIT does not write full 64-bit addresses";
+    } else if ([NSFileManager.defaultManager fileExistsAtPath:helper] &&
+               !XeniaFileContains(helper, kXeniaFullWidthTransportMarker)) {
+      problem = @"XeniaJITHelper carries a StikJIT that does not write full 64-bit addresses";
+    }
+  });
+  return problem;
+}
+
 // Launch stages, appended and synced to <storage root>/launch-journal.txt as
 // they happen: a crash leaves the last stage reached on disk (Xenia's own log
 // is written by a background thread and loses its tail), and the next Xbox 360
@@ -590,6 +630,8 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
     @"codeRegionHeld" : @((state & NEO_XENIA_JIT_CODE_REGION_HELD) != 0),
     @"codeRegion" : self.codeRegion ?: @"none",
     @"handshakeActive" : @(XeniaJitHasActiveCoreHandshake()),
+    @"transportFullWidth" : @(XeniaJitTransportProblem() == nil),
+    @"transportDetail" : XeniaJitTransportProblem() ?: @"",
   };
 }
 
@@ -747,7 +789,15 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
       // set CS_DEBUGGED and left would make the Core's prepare fatal.
       const BOOL handshake = XeniaJitHasActiveCoreHandshake();
       XeniaJournal(journal, handshake ? @"nonce probe" : @"no handshake");
-      if (handshake && !XeniaJitConfirmCoreLoadHandoff()) stage = @"jitHandshakeFailed";
+      // While the Core still needs a tool, its prepare request goes to whatever
+      // debugger is attached: only RewindBox's own helper (its live handshake,
+      // proved by the nonce probe below) on a full-width StikJIT may answer.
+      // Dart refuses these cases before any attach; this is the last guard.
+      if ((api->jit_state() & NEO_XENIA_JIT_NEEDS_TOOL) && (!handshake || XeniaJitTransportProblem())) {
+        stage = @"jitToolUnverified";
+        jitDetail = XeniaJitTransportProblem() ?: @"the attached debugger is not RewindBox's XeniOS helper";
+      }
+      if (!stage && handshake && !XeniaJitConfirmCoreLoadHandoff()) stage = @"jitHandshakeFailed";
       if (!stage) {
         XeniaJournal(journal, @"prepare");
         if (!api->prepare(&configuration, kXeniaPrepareTimeoutMs, failure, sizeof failure)) {

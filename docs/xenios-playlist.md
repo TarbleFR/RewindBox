@@ -368,6 +368,7 @@ region held).
 
 | Core state | Plan |
 | --- | --- |
+| tool needed, the app's StikJIT lacks the full-width marker (`transportFullWidth` false) | refused, `jitToolUnsupported` (§ Code region) |
 | tool needed, no code region below 8 GB held | refused, `jitMemoryUnavailable` (§ Code region) |
 | no tool needed, debugged | nothing (second and later sessions) |
 | tool needed, still attached (an earlier boot failed before the prepare) | reuse it |
@@ -377,7 +378,7 @@ region held).
 Helper connected, expected PID attached and `CS_DEBUGGED` are checked as
 separate facts; each failure has its own message in the 12 locales
 (`pairingRequired`, `jitAttachFailed`, `jitHelperIncomplete`,
-`jitUnavailable`, `jitMemoryUnavailable`). Manual LocalDevVPN only; no external JIT app.
+`jitUnavailable`, `jitMemoryUnavailable`, `jitToolUnsupported`). Manual LocalDevVPN only; no external JIT app.
 
 ## Code region
 
@@ -488,6 +489,27 @@ the free-space measurement are removed (they held 512 MiB of address space for
 nothing, which other engines such as RPCS3 need). `adopt_code_region(nullptr,
 0)` still reports `codeRegion` (own or none) in the `XeniOS JIT:` line, and
 `noCodeRegion` stays as a safety net.
+
+**Only that StikJIT may prepare the region** (main session's condition): the
+lifted limit is safe only while the debugger answering the Core's prepare
+writes full 64-bit addresses. Every link is checked by
+`test/xenia_jit_transport_test.py` (run by `xenia-core.yml`):
+`patch_stikjit_rpcs3.py` (16 digits, marker `NEOSTATION_STIKJIT_RPCS3_V1`, the
+`transport_marker` of `build-utils/stikjit/source.json`) →
+`install_patched_stikjit.py` refuses a framework without the marker →
+`configure_xenia_ios.py` links `XeniaJITHelper` against that framework, embeds
+no copy in the appex and loads the app's (`@executable_path/../../Frameworks`)
+→ `validate_stikjit_ipa.py` requires the marker in the IPA's
+`Frameworks/StikJIT.framework/StikJIT`. At run time the bridge reads the
+marker in the app's StikJIT and in any copy inside `XeniaJITHelper.appex`
+(`transportFullWidth`, `transportDetail` in `jitState`, once per process).
+While the Core still needs a tool: Dart refuses `transportFullWidth` false with
+`jitToolUnsupported` (12 locales) before any pairing, route or helper; the
+bridge refuses again before the nonce probe and `prepare` when the transport
+is not full-width or the attached debugger is not RewindBox's helper with a
+live handshake (an external StikDebug 3.1.x attached on its own has none):
+`jitToolUnverified`, shown as `restartRequired`. No path runs the Core's
+prepare through a tool that could truncate the region's address.
 
 **IPA wiring, for the main session** (delivery files, not edited here):
 call `build-utils/configure_xenia_ios.py` after the XeniaCore pin (it
