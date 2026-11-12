@@ -87,6 +87,34 @@ void main() {
           const S2ArmRuntimeAvailability(S2ArmRuntimeState.engineMissing);
       expect((await S2ArmInternalService.availability()).state, S2ArmRuntimeState.engineMissing);
     });
+
+    test('a native flag that arrives as 1 counts as true and 0 as false (IPA 727 sent its comparisons as C ints)', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      Map<String, Object?> report = const {};
+      messenger.setMockMethodCallHandler(channel, (call) async => call.method == 'status' ? report : null);
+      Future<S2ArmRuntimeState> stateFor(Map<String, Object?> value) async {
+        report = value;
+        S2ArmInternalService.availabilityForTesting = null;
+        return (await S2ArmInternalService.availability()).state;
+      }
+
+      // What the 727 bridge sent with the engine, system data and helper present: the Consoles switch stayed off.
+      const sent727 = <String, Object?>{'enginePresent': true, 'systemDataPresent': 1, 'helperPresent': 1, 'iosMajor': 26,
+          'universalHandshake': true, 'available': 1, 'engineLoaded': 0};
+      expect(await stateFor(sent727), S2ArmRuntimeState.ready);
+      expect(await stateFor({...sent727, 'systemDataPresent': 0}), S2ArmRuntimeState.systemDataMissing);
+      expect(await stateFor({...sent727, 'helperPresent': 0}), S2ArmRuntimeState.jitHelperMissing);
+      expect(await stateFor({...sent727, 'available': 0}), S2ArmRuntimeState.unknown);
+      // What the bridge sends now: BOOLs.
+      const booleans = <String, Object?>{'enginePresent': true, 'systemDataPresent': true, 'helperPresent': true,
+          'iosMajor': 26, 'universalHandshake': true, 'available': true};
+      expect(await stateFor(booleans), S2ArmRuntimeState.ready);
+      expect(await stateFor({...booleans, 'enginePresent': false}), S2ArmRuntimeState.engineMissing);
+      expect(await stateFor({...booleans, 'universalHandshake': false, 'iosMajor': 18}), S2ArmRuntimeState.requiresIOS26);
+      expect(S2ArmInternalService.flag('1'), isFalse, reason: 'only true or a number');
+      expect(S2ArmInternalService.flag(null), isFalse);
+    });
   });
 
   group('import', () {
@@ -257,6 +285,9 @@ void main() {
       });
       expect(S2ArmSettings.fromMap(const {}), S2ArmSettings.defaults);
       expect(S2ArmSettings.fromMap(const {'antiAliasing': 'Bogus', 'docked': 'yes'}), S2ArmSettings.defaults);
+      // A flag boxed from an Objective-C comparison arrives as a number.
+      final numbers = S2ArmSettings.fromMap(const {'docked': 1, 'widescreen': 0, 'performanceOverlay': 1});
+      expect([numbers.docked, numbers.widescreen, numbers.performanceOverlay], [true, false, true]);
     });
 
     test('getSettings and setSettings round trip through the channel', () async {

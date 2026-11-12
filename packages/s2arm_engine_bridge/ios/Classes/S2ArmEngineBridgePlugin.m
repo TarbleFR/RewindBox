@@ -68,7 +68,8 @@ static NSString *S2ArmEnginePath(void) {
   }
   if ([call.method isEqualToString:@"configureLaunchJournal"]) {
     NSString *path = [call.arguments isKindOfClass:NSDictionary.class] ? call.arguments[@"path"] : nil;
-    result(@(path.isAbsolutePath && s2arm_journal_open(path.fileSystemRepresentation) == 0));
+    BOOL opened = path.isAbsolutePath && s2arm_journal_open(path.fileSystemRepresentation) == 0;
+    result(@(opened));  // a BOOL, so Dart gets true / false (see status)
     return;
   }
   if ([call.method isEqualToString:@"detectExport"]) {
@@ -147,6 +148,9 @@ static NSString *S2ArmEnginePath(void) {
 
 #pragma mark - status
 
+// Every flag is a BOOL before it is boxed. In this Objective-C file (not Objective-C++) a comparison or `&&` is a C
+// int, so @(a != nil) is an ordinary NSNumber, and Flutter's codec sends it as 1, not true. Dart's `== true` then failed:
+// on IPA 727 the Consoles switch stayed off with the engine, system data and helper all present.
 - (NSDictionary *)status {
   NSOperatingSystemVersion os = NSProcessInfo.processInfo.operatingSystemVersion;
   BOOL enginePresent = S2ArmEnginePath().length && [NSFileManager.defaultManager fileExistsAtPath:S2ArmEnginePath()];
@@ -155,20 +159,25 @@ static NSString *S2ArmEnginePath(void) {
     ns2pro = [NSFileManager.defaultManager
         fileExistsAtPath:[NSBundle.mainBundle.privateFrameworksPath stringByAppendingPathComponent:@"NS2Pro.framework/NS2Pro"]];
   }
+  BOOL floorMet = os.majorVersion >= 18;  // S2Arm.app deployment target
+  BOOL available = enginePresent && floorMet;
+  BOOL helperPresent = S2ArmFindHelperBundleIdentifier() != nil;
+  BOOL systemDataPresent = S2ArmShippedSystemData() != nil;
+  BOOL engineLoaded = rb_s2arm_engine_loaded() != 0;
   return @{
-    @"available" : @(enginePresent && os.majorVersion >= 18),
+    @"available" : @(available),
     @"enginePresent" : @(enginePresent),
     @"ns2proPresent" : @(ns2pro),
     @"iosMajor" : @(os.majorVersion),
-    @"engineFloorMet" : @(os.majorVersion >= 18),            // S2Arm.app deployment target
+    @"engineFloorMet" : @(floorMet),
     @"universalHandshake" : @(S2ArmRequiresCoreHandshake()),  // iOS 26+: the host drives commands 3/1/0
     @"getTaskAllow" : @(S2ArmHostHasGetTaskAllow()),
     @"debugged" : @(S2ArmHostIsDebugged()),
-    @"helperPresent" : @(S2ArmFindHelperBundleIdentifier() != nil),
-    @"systemDataPresent" : @(S2ArmShippedSystemData() != nil),
+    @"helperPresent" : @(helperPresent),
+    @"systemDataPresent" : @(systemDataPresent),
     @"directChain" : S2ArmShippedDirectChain() ?: [NSNull null],
     @"melonxCoreLoaded" : @(S2ArmMeloNXCoreLoaded()),
-    @"engineLoaded" : @(rb_s2arm_engine_loaded() != 0),
+    @"engineLoaded" : @(engineLoaded),
     @"journalLines" : @(s2arm_journal_lines()),
   };
 }

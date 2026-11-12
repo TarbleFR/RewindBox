@@ -22,6 +22,16 @@ Method channel `neostation/s2arm_internal`. Files:
 | `S2ArmGuestABI.h`, `S2ArmPrepareABI.h` | copies of the engine's `rb_guest.h` struct and the `rb_s2arm_*` entry points |
 | `S2ArmEngineBridgePlugin.{h,m}` | the method channel: `status`, `detectExport`, `gameInfo`, `storageInfo`, `prepareGame`, `cancelPrepare`, `launchGame`, `configureLaunchJournal` |
 
+**Booleans sent to Dart are BOOLs.** The bridge is Objective-C, not Objective-C++. A comparison, `!`, `&&` or `||` is a C
+`int` there, and `@(x != nil)` is an ordinary `NSNumber` that Flutter's codec sends as `1`, not `true`. IPA 727 sent
+`systemDataPresent`, `helperPresent`, `available`, `engineFloorMet` and `engineLoaded` that way. `_readAvailability`
+compared them with `== true` and returned `systemDataMissing`, so the Consoles switch stayed off with every part present.
+The maintainer forwarded that analysis. Each flag is now a `BOOL` local before it is boxed. Dart reads flags with
+`S2ArmInternalService.flag` (true or a non-zero number), and `S2ArmSettings.fromMap` accepts a number too.
+`test/s2arm_engine_bridge_test.py` fails on any boxed comparison in `Classes/*.m`; the 727 code fails it on six. The
+libretro bridge hit the same trap in Build 454 (`test/libretro_channel_codec_test.py`). The XeniOS, RPCS3, Dolphin and
+ARMSX2 bridges are `.mm`, where a comparison is a C++ `bool`. Not observed on a device.
+
 ### One engine per process
 
 `S2ArmEngine` carries one NativeAOT runtime; MeloNX's Core carries another. They cannot share a process, so:

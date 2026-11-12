@@ -44,9 +44,10 @@ class S2ArmSettings {
       return value != null && allowed.contains(value) ? value : fallback;
     }
 
+    // A number counts too: an Objective-C comparison boxed as a C int arrives as 1 or 0 (S2ArmInternalService.flag).
     bool flag(String key, bool fallback) {
       final value = map[key];
-      return value is bool ? value : fallback;
+      return value is bool ? value : value is num ? value != 0 : fallback;
     }
 
     return S2ArmSettings(

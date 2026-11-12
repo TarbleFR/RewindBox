@@ -278,16 +278,22 @@ abstract final class S2ArmInternalService {
           'available', 'ns2proPresent', 'directChain', 'melonxCoreLoaded', 'engineLoaded'])
         key: report[key],
     }}');
-    if (report['enginePresent'] != true) return const S2ArmRuntimeAvailability(S2ArmRuntimeState.engineMissing);
-    if (report['systemDataPresent'] != true) return const S2ArmRuntimeAvailability(S2ArmRuntimeState.systemDataMissing);
-    if (report['helperPresent'] != true) return const S2ArmRuntimeAvailability(S2ArmRuntimeState.jitHelperMissing);
+    if (!flag(report['enginePresent'])) return const S2ArmRuntimeAvailability(S2ArmRuntimeState.engineMissing);
+    if (!flag(report['systemDataPresent'])) return const S2ArmRuntimeAvailability(S2ArmRuntimeState.systemDataMissing);
+    if (!flag(report['helperPresent'])) return const S2ArmRuntimeAvailability(S2ArmRuntimeState.jitHelperMissing);
     final major = (report['iosMajor'] as num?)?.toInt() ?? 0;
-    if (report['universalHandshake'] != true && major < 26) {
+    if (!flag(report['universalHandshake']) && major < 26) {
       return const S2ArmRuntimeAvailability(S2ArmRuntimeState.requiresIOS26);
     }
-    if (report['available'] == true) return const S2ArmRuntimeAvailability(S2ArmRuntimeState.ready);
+    if (flag(report['available'])) return const S2ArmRuntimeAvailability(S2ArmRuntimeState.ready);
     return const S2ArmRuntimeAvailability(S2ArmRuntimeState.unknown);
   }
+
+  /// A native yes / no value: true, or a non-zero number. IPA 727: a comparison boxed in the bridge's Objective-C (not
+  /// C++) file is a C int, Flutter's codec sent it as 1, and `!= true` read systemDataPresent as missing, so the Consoles
+  /// switch stayed off. The bridge now boxes BOOLs; this keeps a stray int from turning the engine off again.
+  @visibleForTesting
+  static bool flag(Object? value) => value == true || (value is num && value != 0);
 
   static Future<Map<String, dynamic>> status() async {
     _installHandler();
