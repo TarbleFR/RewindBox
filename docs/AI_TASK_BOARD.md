@@ -5616,7 +5616,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - Not observed on a device. The pass shares are estimates until a journal gives the durations.
   - **IPA 730 device report (maintainer, 12 Nov, journal + app.log + screenshot): the preparation finishes, the launch
     failed on a missing image pack. Fix `b3c2fe6a` (bridge only, no pin), merged on Claude by main as `9661d929`,
-    queued for IPA 731 (built on the maintainer's request).**
+    delivered in IPA 731 (run 43238363574, receipt `d5cf7fcc`). Device check pending: Mario Kart World re-prepares,
+    then the first launch of a prepared Switch 2 game (E2).**
     - Observed, pin 175018a2:
       - Mario Kart World prepared in 439 s. Unpack took 119 s and code 66 s: main 2 s with the spin pass at 0 ms, the
         NRO and table walks about 30 s each. Caps took 31 s and pack 207 s.
