@@ -5975,8 +5975,15 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   ~/…); iOS gives the app a new container on every update. Fix 4375638f2 [xenia-core]: the patch calls
   NeoXeniaApplyHostRoots() right after SetupConfig (embedded #else of the microphone guard), the facade sets
   storage_root/content_root/cache_root/log_file again from the first prepare; ABI 4 unchanged; patch test OK.
-  Run 43185423246: checks, plugin_app green; core compiled and verified (08:52-09:25). Next: pin, review rebind,
-  merge Claude 4e84cee0+, checks, handoff (00 holds the next IPA for this pin).
+  Run 43185423246: checks, plugin_app green; core compiled and verified (08:52-09:25). Pin job 43191523530:
+  core-pin.json 84386936…f653 rebuilt byte-identical (job 131072773559, artifact 13930153853, 9,533,734 B,
+  6a49378c…; binary 5043531d…, 37,720,040 B; fingerprint bf686615…; replaces c00755f6 with its reason); review
+  rebound 75a7f45b0 (recipe commit 4375638f2), gate test OK. Merged Claude 6e6edf61 (20947fbac, no conflict):
+  macOS run 43192588443 green; Xbox 360 Python checks, storage contract, Dart 60/60 OK; delivery contract = Claude
+  alone + 2 PocketSkinRevisionReview errors (core-pin.json is a product file read from the 728-frozen effective
+  tree, the review a recipe file read from HEAD; they clear when the next manifest freezes 84386936). Handed off
+  to 00 (12 Nov); the next manifest must name pinSha256 84386936. Next: device run on the next IPA (launch journal
+  and registration line in app.log).
 - **Validation (Flutter 3.47.2 host):** 11 Nov: XeniOS + catalog/Consoles/touch suites
   91/91, scanner suites 41/41 (1 skip), storage contract 24/24, patch/validator/touch/C++
   checks OK, analyzer 111 = baseline. Earlier: new XeniOS + catalog/Consoles tests 65/65;
