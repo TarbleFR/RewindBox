@@ -1,23 +1,23 @@
 {
   "status": "verified",
   "source": "cf7c7ee452314913124d205e41e325b33891aacb",
-  "run": 43217888486,
-  "job": 131182949291,
+  "run": 43241572889,
+  "job": 131265441453,
   "attempt": 1,
   "workflow": ".github/workflows/xenia-core.yml",
-  "artifact": 13946139906,
-  "name": "XeniaCore-d7ad7e834236498d6bab9c9efcb4405dd7c3b8ff",
-  "bytes": 9534484,
-  "sha256": "eeed2297ee35f492e4266aa4cc0ecac7d92a1e05a5a114c8fbd2270c4f2e6ebc",
-  "expiresAt": "2026-11-26T13:04:01Z",
+  "artifact": 13957752125,
+  "name": "XeniaCore-2bbc9daf76881aff89170b052895c49cd04b1638",
+  "bytes": 9542933,
+  "sha256": "2e29104fc026480a4989fbed7f6d1757249c1371a3bdeae36b15e83180932018",
+  "expiresAt": "2026-11-26T15:31:05Z",
   "image": "Frameworks/XeniaCore.framework/XeniaCore",
   "binaries": {
     "ios-arm64": {
-      "sha256": "6c5116373375b528e6cb085a5f212ab0c20bda4b3d551bd6a4abaeabe4a3e5b7",
-      "bytes": 37720504
+      "sha256": "8c59ad09cd1bf729082e7f105a6d776ecd4d8d4d766b9da45cecadd235bdc891",
+      "bytes": 37751320
     }
   },
-  "packagedFingerprint": "bd6351c04a98c1aceed55d340bb295842e8c1670e774b4546463245e0819e662",
+  "packagedFingerprint": "9cbc552026cc34e7d23ce4f24463a96c370bde56705f3d5fba32d54bbbd61700",
   "minimumOS": "26.0.0",
   "sdk": "26.5.0",
   "dependencies": [
@@ -153,9 +153,9 @@
   },
   "replaces": {
     "source": "cf7c7ee452314913124d205e41e325b33891aacb",
-    "run": 43185423246,
-    "artifact": 13930153853,
-    "packagedFingerprint": "bf68661507b63ca2857aab784f12b9a85f53aa28736aa011fbbd506c98ce99fe",
-    "reason": "XeniOS's 8 GB code-region limit lifted for RewindBox's StikJIT; the host pad is enumerated for slot 0"
+    "run": 43217888486,
+    "artifact": 13946139906,
+    "packagedFingerprint": "bd6351c04a98c1aceed55d340bb295842e8c1670e774b4546463245e0819e662",
+    "reason": "a profile is signed in before the title runs and the title's sign-in, message box and keyboard prompts are answered (Fable Anniversary stayed on its title screen); rumble forwarded"
   }
 }

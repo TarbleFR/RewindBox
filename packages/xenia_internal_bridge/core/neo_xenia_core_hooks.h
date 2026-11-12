@@ -31,6 +31,10 @@ void NeoXeniaApplyLaunchOverrides();
 
 // Emulator thread, after Emulator::LaunchPath succeeded.
 void NeoXeniaNotifyTitleLaunched();
+// The kernel is set up and no title runs yet (EmulatorThread, once per
+// emulator): player 1 is signed in before the title reads its sign-in state
+// or the console identity some titles encrypt saves with (XConfig).
+void NeoXeniaNotifyKernelReady();
 
 // GPU command processor thread, once per guest swap
 // (MetalCommandProcessor::IssueSwap, a weak reference added by the patch).

@@ -21,23 +21,23 @@
   "revision": "cf7c7ee452314913124d205e41e325b33891aacb",
   "license": "BSD-3-Clause (assets/legal/XeniOS-BSD-3-Clause.txt); third-party notices in assets/legal/xenios",
   "core_pin": "build-utils/xenia/core-pin.json",
-  "core_pin_sha256": "2d176a7fd036c196eeebb3c3a2543e363bc0542ae81af3236672ce924b44fd77",
+  "core_pin_sha256": "c7d6a5c4756e4441c2686d99c5889913e5bf56dcb3f19c8338758c36c09540e9",
   "producer": {
    "workflow": ".github/workflows/xenia-core.yml",
-   "run": 43217888486,
-   "artifact": 13946139906
+   "run": 43241572889,
+   "artifact": 13957752125
   },
-  "binary_sha256": "6c5116373375b528e6cb085a5f212ab0c20bda4b3d551bd6a4abaeabe4a3e5b7",
-  "packaged_fingerprint": "bd6351c04a98c1aceed55d340bb295842e8c1670e774b4546463245e0819e662",
+  "binary_sha256": "8c59ad09cd1bf729082e7f105a6d776ecd4d8d4d766b9da45cecadd235bdc891",
+  "packaged_fingerprint": "9cbc552026cc34e7d23ce4f24463a96c370bde56705f3d5fba32d54bbbd61700",
   "recipe_sha256": {
    "build-utils/xenia/build_core.sh": "d214d6b3e7918365ca786156fc31ba30908cb99785f56c28577041e5c48b21db",
    "build-utils/xenia/prepare_source.py": "7f0d94e507a731136625842827962770e6fd201753e64e5365a28575762409d5",
-   "build-utils/xenia/rewindbox-core.patch": "17595f900391067574f1144aaa4c0710b8e4a2dfc3b0b9bcad1551c5bfcf3f70",
+   "build-utils/xenia/rewindbox-core.patch": "6da07402539a16c87c3fd6056bc2d0045ce20e636b970ecaa1570153a0a73349",
    "build-utils/xenia/upstream-files.json": "9180942799452162fef228c060517263fdb1664e063e7fe02c599177f3552dc0",
-   "packages/xenia_internal_bridge/core/XeniaCore.mm": "8343aa8bb5a0d09aac5e733f1c1993d017465ef30354d3c996f19b1f7dc26efc",
-   "packages/xenia_internal_bridge/core/XeniaCoreInput.h": "598d4da187e1593126dfcb338e0c0dd6d3f28581dcff1069f5546d97bc13db77",
+   "packages/xenia_internal_bridge/core/XeniaCore.mm": "253468dd0dc42f73d5f8448d06d618c8264fe53e5c6442eddbd8c9a8704bd76c",
+   "packages/xenia_internal_bridge/core/XeniaCoreInput.h": "236edbf81355c7141b2ed2707b714ca41c69ad52759d7d82c40875cd68924a1d",
    "packages/xenia_internal_bridge/core/exports.txt": "22d0dd9e29951f50f70642650e75d64133c96735195dfb564afd62e569644e02",
-   "packages/xenia_internal_bridge/core/neo_xenia_core_hooks.h": "f26c13d064d2a6dc682b97efd73c2ad0f91d329e0d565e185b4f6800a0f86aed",
+   "packages/xenia_internal_bridge/core/neo_xenia_core_hooks.h": "a9b0a244ac532c78a42b8d5b30da2acd70d8c92d31b4dc7af65b6e18f7276136",
    "packages/xenia_internal_bridge/core/target.cmake": "b61b5f8e89e9671d576fca3174a19996ab8906102fcd5aacb1bbe4b8a153d261",
    "packages/xenia_internal_bridge/ios/Classes/XeniaCoreABI.h": "712d0ea9cc21de22d95f9a7ea6c3a7b17b04c43dcda58deffb6350bb90c8fae9"
   },

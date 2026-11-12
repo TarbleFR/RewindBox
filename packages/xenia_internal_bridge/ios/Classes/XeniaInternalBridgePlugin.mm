@@ -16,6 +16,7 @@
 #import "XeniaTouchControls.h"
 #include <cmath>
 
+#import <CoreHaptics/CoreHaptics.h>
 #import <Foundation/Foundation.h>
 #import <GameController/GameController.h>
 #import <QuartzCore/QuartzCore.h>
@@ -207,6 +208,8 @@ static void XeniaEventCallback(void* /*context*/, uint64_t transaction,
 @property(nonatomic, copy) NSString* overlayLevel;
 @property(nonatomic, assign) BOOL menuOpen;
 @property(nonatomic, readonly) BOOL editingTouchControls;
+/// The Core's rumble of player 1 ("left,right", 0..65535): played on the pad.
+- (void)playVibration:(NSString*)speeds;
 @end
 
 // One pad of the RewindBox session (XInput bits, sticks Y up, triggers 0..1).
@@ -214,6 +217,32 @@ struct XeniaPadState {
   uint32_t buttons = 0;
   float lx = 0, ly = 0, rx = 0, ry = 0, lt = 0, rt = 0;
 };
+
+// X_INPUT_GAMEPAD_* (xenia/hid/input.h) of one game controller.
+static XeniaPadState XeniaReadPad(GCExtendedGamepad* pad) {
+  XeniaPadState state;
+  if (pad.dpad.up.pressed) state.buttons |= 0x0001;
+  if (pad.dpad.down.pressed) state.buttons |= 0x0002;
+  if (pad.dpad.left.pressed) state.buttons |= 0x0004;
+  if (pad.dpad.right.pressed) state.buttons |= 0x0008;
+  if (pad.buttonMenu.pressed) state.buttons |= 0x0010;  // Start
+  if (pad.buttonOptions.pressed) state.buttons |= 0x0020;  // Back
+  if (pad.leftThumbstickButton.pressed) state.buttons |= 0x0040;
+  if (pad.rightThumbstickButton.pressed) state.buttons |= 0x0080;
+  if (pad.leftShoulder.pressed) state.buttons |= 0x0100;
+  if (pad.rightShoulder.pressed) state.buttons |= 0x0200;
+  if (pad.buttonA.pressed) state.buttons |= 0x1000;
+  if (pad.buttonB.pressed) state.buttons |= 0x2000;
+  if (pad.buttonX.pressed) state.buttons |= 0x4000;
+  if (pad.buttonY.pressed) state.buttons |= 0x8000;
+  state.lx = pad.leftThumbstick.xAxis.value;
+  state.ly = pad.leftThumbstick.yAxis.value;
+  state.rx = pad.rightThumbstick.xAxis.value;
+  state.ry = pad.rightThumbstick.yAxis.value;
+  state.lt = pad.leftTrigger.value;
+  state.rt = pad.rightTrigger.value;
+  return state;
+}
 
 // The RPCS3 merge policy (RPCS3PadMerge.h): buttons OR, triggers maximum,
 // each stick takes the larger deflection.
@@ -239,10 +268,19 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
   RBXeniaTouchControlsView* _touch;
   NeoTouchControllerMonitor* _monitor;
   NeoTouchLayoutEditor* _editor;
+  // Rumble of player 1 on the first pad with haptics (CoreHaptics: one
+  // looping continuous event whose intensity follows the Core's motors).
+  CHHapticEngine* _hapticEngine;
+  id<CHHapticAdvancedPatternPlayer> _hapticPlayer;
+  GCController* _hapticController;
+  BOOL _hapticPlaying;
 }
 
 - (BOOL)prefersStatusBarHidden { return YES; }
 - (BOOL)prefersHomeIndicatorAutoHidden { return YES; }
+// A swipe from an edge reaches the game first; a second one opens Home or
+// Control Center (XeniOS defers every edge while a game runs).
+- (UIRectEdge)preferredScreenEdgesDeferringSystemGestures { return UIRectEdgeAll; }
 
 - (NSString*)text:(NSString*)key fallback:(NSString*)fallback {
   NSString* value = self.texts[key];
@@ -281,6 +319,9 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
   [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(controllerPreferenceChanged:)
                                              name:NeoTouchControllerPreferenceDidChangeNotification
                                            object:nil];
+  [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(controllerDisconnected:)
+                                             name:GCControllerDidDisconnectNotification
+                                           object:nil];
 
   _menuButton = [UIButton buttonWithType:UIButtonTypeSystem];
   [_menuButton setImage:[UIImage systemImageNamed:@"line.3.horizontal.circle"]
@@ -308,6 +349,108 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
 
 - (void)controllerPreferenceChanged:(NSNotification*)notification {
   [self updateTouchVisibility];
+}
+
+// The last game controller left mid-game: the menu opens and pauses the
+// title instead of letting it run without its player (XeniOS does the same).
+- (void)controllerDisconnected:(NSNotification*)notification {
+  if (notification.object == _hapticController) [self stopHaptics];
+  for (GCController* controller in GCController.controllers) {
+    if (controller.extendedGamepad) return;
+  }
+  [self openMenu];
+}
+
+- (void)playVibration:(NSString*)speeds {
+  NSArray<NSString*>* parts = [speeds componentsSeparatedByString:@","];
+  const float left = parts.count == 2 ? MIN(MAX(parts[0].floatValue / 65535.f, 0.f), 1.f) : 0.f;
+  const float right = parts.count == 2 ? MIN(MAX(parts[1].floatValue / 65535.f, 0.f), 1.f) : 0.f;
+  const float intensity = MAX(left, right);
+  if (intensity <= 0.f || self.menuOpen) {
+    [self stopVibration];
+    return;
+  }
+  if (![self prepareHaptics]) return;
+  // The left motor is the heavy one, the right one the light buzz.
+  const float sharpness = right > left ? 0.3f : -0.3f;
+  NSError* error = nil;
+  NSArray<CHHapticDynamicParameter*>* parameters = @[
+    [[CHHapticDynamicParameter alloc] initWithParameterID:CHHapticDynamicParameterIDHapticIntensityControl
+                                                    value:intensity
+                                             relativeTime:0],
+    [[CHHapticDynamicParameter alloc] initWithParameterID:CHHapticDynamicParameterIDHapticSharpnessControl
+                                                    value:sharpness
+                                             relativeTime:0],
+  ];
+  [_hapticPlayer sendParameters:parameters atTime:CHHapticTimeImmediate error:&error];
+  if (!_hapticPlaying && [_hapticPlayer startAtTime:CHHapticTimeImmediate error:&error]) _hapticPlaying = YES;
+}
+
+- (void)stopVibration {
+  if (_hapticPlaying) [_hapticPlayer stopAtTime:CHHapticTimeImmediate error:nil];
+  _hapticPlaying = NO;
+}
+
+- (BOOL)prepareHaptics {
+  GCController* target = nil;
+  for (GCController* controller in GCController.controllers) {
+    if (controller.extendedGamepad && controller.haptics) {
+      target = controller;
+      break;
+    }
+  }
+  if (!target) {
+    [self stopHaptics];
+    return NO;
+  }
+  if (target == _hapticController && _hapticPlayer) return YES;
+  [self stopHaptics];
+  CHHapticEngine* engine = [target.haptics createEngineWithLocality:GCHapticsLocalityDefault];
+  NSError* error = nil;
+  if (!engine || ![engine startAndReturnError:&error]) return NO;
+  __weak RBXeniaSessionController* weakSelf = self;
+  // Stopped by iOS (background, audio interruption) or reset: rebuilt by the next rumble.
+  engine.stoppedHandler = ^(CHHapticEngineStoppedReason) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+      [weakSelf stopHaptics];
+    });
+  };
+  engine.resetHandler = ^{
+    dispatch_async(dispatch_get_main_queue(), ^{
+      [weakSelf stopHaptics];
+    });
+  };
+  CHHapticEvent* event = [[CHHapticEvent alloc]
+      initWithEventType:CHHapticEventTypeHapticContinuous
+             parameters:@[
+               [[CHHapticEventParameter alloc] initWithParameterID:CHHapticEventParameterIDHapticIntensity
+                                                             value:1],
+               [[CHHapticEventParameter alloc] initWithParameterID:CHHapticEventParameterIDHapticSharpness
+                                                             value:0.5],
+             ]
+           relativeTime:0
+               duration:30];
+  CHHapticPattern* pattern = [[CHHapticPattern alloc] initWithEvents:@[ event ] parameters:@[] error:&error];
+  id<CHHapticAdvancedPatternPlayer> player = pattern ? [engine createAdvancedPlayerWithPattern:pattern
+                                                                                          error:&error]
+                                                     : nil;
+  if (!player) {
+    [engine stopWithCompletionHandler:nil];
+    return NO;
+  }
+  player.loopEnabled = YES;
+  _hapticEngine = engine;
+  _hapticPlayer = player;
+  _hapticController = target;
+  return YES;
+}
+
+- (void)stopHaptics {
+  [self stopVibration];
+  [_hapticEngine stopWithCompletionHandler:nil];
+  _hapticEngine = nil;
+  _hapticPlayer = nil;
+  _hapticController = nil;
 }
 
 - (void)applicationBecameActive:(NSNotification*)notification {
@@ -363,6 +506,7 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
 
 - (void)viewDidAppear:(BOOL)animated {
   [super viewDidAppear:animated];
+  [self setNeedsUpdateOfScreenEdgesDeferringSystemGestures];
   if (!_input) {
     _input = [CADisplayLink displayLinkWithTarget:self selector:@selector(pollInput)];
     [_input addToRunLoop:NSRunLoop.mainRunLoop forMode:NSRunLoopCommonModes];
@@ -376,6 +520,7 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
   _input = nil;
   [_touch releaseAllInput];
   [_monitor invalidate];
+  [self stopHaptics];
 }
 
 - (void)sendNeutralPad {
@@ -394,32 +539,16 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
     return;
   }
   XeniaPadState controller;
-  GCExtendedGamepad* pad = GCController.current.extendedGamepad;
-  if (pad) {
+  // Every connected controller, merged (GCController.current can be nil or
+  // another pad than the one in the player's hands).
+  for (GCController* connected in GCController.controllers) {
+    GCExtendedGamepad* pad = connected.extendedGamepad;
+    if (!pad) continue;
     if (pad.buttonHome.pressed) {
       [self openMenu];
       return;
     }
-    if (pad.dpad.up.pressed) controller.buttons |= 0x0001;
-    if (pad.dpad.down.pressed) controller.buttons |= 0x0002;
-    if (pad.dpad.left.pressed) controller.buttons |= 0x0004;
-    if (pad.dpad.right.pressed) controller.buttons |= 0x0008;
-    if (pad.buttonMenu.pressed) controller.buttons |= 0x0010;  // Start
-    if (pad.buttonOptions.pressed) controller.buttons |= 0x0020;  // Back
-    if (pad.leftThumbstickButton.pressed) controller.buttons |= 0x0040;
-    if (pad.rightThumbstickButton.pressed) controller.buttons |= 0x0080;
-    if (pad.leftShoulder.pressed) controller.buttons |= 0x0100;
-    if (pad.rightShoulder.pressed) controller.buttons |= 0x0200;
-    if (pad.buttonA.pressed) controller.buttons |= 0x1000;
-    if (pad.buttonB.pressed) controller.buttons |= 0x2000;
-    if (pad.buttonX.pressed) controller.buttons |= 0x4000;
-    if (pad.buttonY.pressed) controller.buttons |= 0x8000;
-    controller.lx = pad.leftThumbstick.xAxis.value;
-    controller.ly = pad.leftThumbstick.yAxis.value;
-    controller.rx = pad.rightThumbstick.xAxis.value;
-    controller.ry = pad.rightThumbstick.yAxis.value;
-    controller.lt = pad.leftTrigger.value;
-    controller.rt = pad.rightTrigger.value;
+    controller = XeniaMergePads(controller, XeniaReadPad(pad));
   }
   XeniaPadState state = controller;
   if (!_touch.hidden) {
@@ -440,6 +569,7 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
 - (void)openMenu {
   if (self.menuOpen || self.editingTouchControls || !self.owner.sessionRunning) return;
   self.menuOpen = YES;
+  [self stopVibration];
   [self updateTouchVisibility];
   [self sendNeutralPad];
   [self.owner setUserPaused:YES];
@@ -866,6 +996,10 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
       _pendingEndReason = event;
       _pendingEndDetail = message;
     }
+    return;
+  }
+  if ([event isEqualToString:@"vibration"]) {
+    [self.session playVibration:message];
     return;
   }
   if ([event isEqualToString:@"stopped"] || [event isEqualToString:@"error"]) {

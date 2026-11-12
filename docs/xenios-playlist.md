@@ -511,6 +511,38 @@ live handshake (an external StikDebug 3.1.x attached on its own has none):
 `jitToolUnverified`, shown as `restartRequired`. No path runs the Core's
 prepare through a tool that could truncate the region's address.
 
+**Fourth device run (IPA 730, Fable Anniversary)**: the launch reached `launched` (`codeRegion=own`) and
+the title screen ran at 30 FPS, but START never went past it. `Engine/xenia.log`: `ProfileManager: Found 0
+Profiles`, then at START `iOS XAM: native dialog requested` answered at once with `000004C7` (cancelled): the
+title asked for a sign-in (XamShowSigninUI), and in the embedding nothing answered it. Audit of everything
+XeniOS's app layer (`ui/ios/app/ios_app_delegate.mm` and its view controllers, not compiled into XeniaCore)
+does for a running game, now held by `test/xenia_embedding_test.py` (with `--upstream`, every app-layer
+`IOSWindowedAppContext` callback is installed by the facade or listed with the reason it is not needed):
+
+- Sign-in: the facade answers the title's sign-in itself, without a screen: a profile already in the asking
+  player's slot, else the first one signed in nowhere, else a new one named `RewindBox` (then `RewindBox 2`…).
+  Player 1 is also signed in as soon as the emulated kernel exists, before the title runs
+  (`NeoXeniaNotifyKernelReady`, one guarded patch line after `iOS: Emulator setup complete`), and again at
+  each later title start: XeniOS derives the console identity some titles encrypt saves with from the
+  signed-in profile (`XConfig::ResolveOwner`; without one it was random each run: `XConfig: No machine id`).
+  XeniOS's ProfileManager keeps the login for the next launches (`logged_profile_slot_0_xuid`).
+- Guest message boxes and the guest keyboard (XamShowMessageBoxUI, XamShowKeyboardUI) were presented on the
+  facade's host controller, which is in no window, so they were answered as cancelled too. They are now shown
+  on the window of the render view (on top of the session), with XeniOS's rules (cancel style, preferred
+  action, B cancels); Cancel/OK use UIKit's own translations. A stop cancels a prompt a title waits on.
+- Rumble: `NeoXeniaInputDriver::SetState` ignored it. A change of player 1's motors is forwarded
+  (`vibration` event, `left,right` 0..65535) and played by the bridge with CoreHaptics on the first pad with
+  haptics (heavy left motor, light right one); stopped by the menu and the end of the session.
+- Controllers: every connected pad is read and merged (was `GCController.current` only, which can be nil or
+  another pad); losing the last pad mid-game opens the menu, which pauses the title.
+- Edge swipes are deferred while a game runs (`preferredScreenEdgesDeferringSystemGestures`), so one swipe no
+  longer leaves the game or opens Control Center.
+- Background: on top of the bridge's pause, the app holds a background task until the pause has settled (no
+  GPU or JIT work in flight when iOS suspends it) and notes/restores the audio session (a call that ended
+  without "should resume" left the game silent), as XeniOS's lifecycle observer does.
+- Not needed: achievements screen, gamer card, online panel (the title gets a cancel), XeniOS's own touch
+  controls and profile UI refresh. The idle timer is already held by EmulatorAppIOS (screen stays awake).
+
 **IPA wiring, for the main session** (delivery files, not edited here):
 call `build-utils/configure_xenia_ios.py` after the XeniaCore pin (it
 requires `dist/xenia/XeniaCore.framework`), add the `XeniaJITHelper` pod

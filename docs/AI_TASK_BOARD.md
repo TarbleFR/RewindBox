@@ -6259,6 +6259,32 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   00 with the XeniOS green light for IPA 730 (12 Nov). Shared layer in this lot: one xenia-core.yml step. Next:
   device run on IPA 730 (two launches in a row without restart, touch and controller input, the `XeniOS JIT:`
   line with transportFullWidth true and codeRegion own).
+  Fourth device run (IPA 730, Fable Anniversary): launched (`codeRegion=own`), title screen at 30 FPS, the pad bound
+  (`New controller connected to slot 0`), but START never passed it: `ProfileManager: Found 0 Profiles`, then XAM's
+  sign-in dialog answered at once with 000004C7 (cancelled): nothing in the embedding answered XeniOS's app-layer
+  prompts. Maintainer asked to check every point. Audit of what XeniOS's app layer (not compiled into XeniaCore) does
+  for a running game; dbba843ad + 2bbc9daf7 [xenia-core]: profile sign-in answered without a screen (existing,
+  free, else new "RewindBox"), player 1 signed in once the kernel exists and before the title runs
+  (NeoXeniaNotifyKernelReady, one guarded patch line; XConfig derives the console identity some titles encrypt saves
+  with from that profile); guest message boxes and keyboard shown on the render view's window (they were presented
+  on the host controller, in no window: cancelled); rumble forwarded (`vibration` event) and played with CoreHaptics;
+  every pad merged (was GCController.current), losing the last pad opens the menu; edge swipes deferred; background
+  task until the pause settles and audio-session restore. test/xenia_embedding_test.py (--upstream): every app-layer
+  IOSWindowedAppContext callback installed or listed with its reason. Core run 43241572889 (2bbc9daf7) green: checks,
+  plugin_app, core (compiled, verify_core.py). Pin job 131289253511 (run 43248970284): core-pin.json c7d6a5c4…40e9
+  byte-identical (job 131265441453, artifact 13957752125, 9,542,933 B, 2e29104f…, expires 26 Nov; binary 8c59ad09…c891,
+  37,751,320 B, SDK 26.5, minos 26.0; fingerprint 9cbc5520…1700; replaces 2d176a7f with its reason); review rebound (10
+  recipe digests equal at 2bbc9daf7), gate OK; the app's legal check passes in full. Licence audit (maintainer, 12 Nov) c1dddbdaa: see
+  docs/LICENSE_AUDIT_2026-11-12.md (libchdr/zstd/LZMA notices and review for the libretro podspec unreviewed since
+  b06888a9, date in XeniOS, CoreHaptics review, RewindBox-MODIFICATIONS.md required, 25 package LICENSE files,
+  12-locale disclaimer and missing credits, MeloNX texts offline, legal tests repaired after 11 days red, open items).
+  Merged Claude d5cf7fcc (220585599, no conflict): macOS run 43249822171 green (checks incl. embedding and transport
+  tests, review gate, closed sets, facade C++, bridge compile, helper type-check; plugin_app); the app's legal check
+  passes in full on this tree (on Claude it refused the libretro podspec since b06888a9); build_source_evidence 12/12,
+  legal_bundle_preflight 8/8, Xbox 360 Python and Dart (71 with the legal dialog) OK; delivery contract = Claude (OK)
+  + the 2 PocketSkinRevisionReview errors of the 731-frozen pin (clear when the next manifest freezes c7d6a5c4).
+  Handed off to 00 with the XeniOS green light (12 Nov). Next manifest: pinSha256 c7d6a5c4. Next: device run (title
+  screen past START, prompts, rumble, pad drop, edge swipes).
 - **Validation (Flutter 3.47.2 host):** 11 Nov: XeniOS + catalog/Consoles/touch suites
   91/91, scanner suites 41/41 (1 skip), storage contract 24/24, patch/validator/touch/C++
   checks OK, analyzer 111 = baseline. Earlier: new XeniOS + catalog/Consoles tests 65/65;
