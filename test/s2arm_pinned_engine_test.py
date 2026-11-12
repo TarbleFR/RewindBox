@@ -494,9 +494,13 @@ class Refused(Fixture):
             self.download(get=self.api(branch='Claude'))
 
     def test_a_draft_pin_is_refused(self):
-        draft = json.loads((ROOT / 'build-utils/s2arm/engine-pin.json').read_text())
-        self.assertEqual(draft['status'], 'draft')
-        self.assertTrue(sd.engine_pin_errors(component(), draft))
+        # The committed pin is the one the pin job of s2arm-engine.yml verified (run 43134938018); the same pin
+        # marked draft is refused.
+        committed = json.loads((ROOT / 'build-utils/s2arm/engine-pin.json').read_text())
+        self.assertEqual(committed['status'], 'verified')
+        draft = dict(committed, status='draft')
+        self.assertTrue([e for e in sd.engine_pin_errors(component(), draft) if 'draft' in e or 'verified' in e],
+                        sd.engine_pin_errors(component(), draft))
 
     def test_a_pin_resource_that_names_no_binary(self):
         spec = component(appResources=[{'path': 'S2ArmSystemData/SHA256SUMS', 'binary': 'sysdata/missing'}])
