@@ -54,8 +54,9 @@ BSD-3-Clause); third-party files inside them keep their own notices.
 
 ## RetroAchievements disc reader (libchdr)
 
-So that RetroAchievements identifies .chd and .cso images, the libretro bridge
-compiles a pinned copy of libchdr (https://github.com/rtissera/libchdr,
+Builds whose libretro bridge includes the RetroAchievements disc reader
+(NEOSTATION_RA_DISC_READER_V1, so that RetroAchievements identifies .chd and
+.cso images) compile a pinned copy of libchdr (https://github.com/rtissera/libchdr,
 `47d794151b2b64f6aba60304e6480f4f5a2bc24b`, BSD-3-Clause) with its LZMA SDK
 decoder (public domain) and the single-file Zstandard decoder (BSD, the option
 taken of zstd's BSD or GPLv2 choice). Their texts are in

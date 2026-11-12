@@ -6331,6 +6331,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   + the 2 PocketSkinRevisionReview errors of the 731-frozen pin (clear when the next manifest freezes c7d6a5c4).
   Handed off to 00 with the XeniOS green light (12 Nov). Next manifest: pinSha256 c7d6a5c4. Next: device run (title
   screen past START, prompts, rumble, pad drop, edge swipes).
+  Main merged the lot (5b53672e) and triggered IPA 732 (4f5a3045, run 43283225614). Main's fix 8d7928ec: the delivered
+  effective tree still holds the libretro podspec the RA session review declared (2da2d082), b06888a9's disc reader
+  having never been promoted into a delivery; check_ra_disc_reader now keeps that declaration for exactly that
+  identity (no libchdr compiled) and refuses any other unreviewed bytes. Correction recorded here and in the audit
+  record: no delivered IPA compiled libchdr without its notice; the defect was the deferred, unreviewed path that the
+  raw tree's legal check refused. Merged Claude 4f5a3045 (d56ece4aa): legal check, build_source_evidence,
+  legal_bundle_preflight, s2arm legal bundle and modifications notice OK.
 - **Validation (Flutter 3.47.2 host):** 11 Nov: XeniOS + catalog/Consoles/touch suites
   91/91, scanner suites 41/41 (1 skip), storage contract 24/24, patch/validator/touch/C++
   checks OK, analyzer 111 = baseline. Earlier: new XeniOS + catalog/Consoles tests 65/65;
