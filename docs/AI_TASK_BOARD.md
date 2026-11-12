@@ -5268,7 +5268,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - **Main-menu logo too big, not centred.** `839c0465` recomposes the Glacier tile: the logo is at 72 %, centred.
       The index, `contentDigest` and tile review follow, and `switch2_glacier_tile_review_test` passes. Green: 43161834531.
     - **Game boxes like Switch 1 (main approved, `725522b1`).** `fa578446` adds the `switch2` profile, wrap layout and
-      spine design, with `test/switch2_game_box_test.dart`. Run 43162148615.
+      spine design, with `test/switch2_game_box_test.dart`. Green: 43162148615, merge head `766ce43b` 43162348750.
+    - **Switch 2 tile larger than a downloaded pack's tiles (main approved, for IPA 728).** On the maintainer's
+      screenshot it measured 333 px against 307 px. That pack has no Switch 2 tile, and its capsules sit inside a
+      transparent margin of about 3 %. `a6ea707a` (system card, assets provider) insets only the embedded fallback by
+      the active pack's measured margin: async, once per folder, 0 while pending or on error, the median of up to 4
+      tiles, clamped to 0–12 %. Test: `test/system_art_fallback_inset_test.dart`. Green: 43164598300. Merged with
+      Claude `18c8c905` in `675f79a4`.
     - Told main: the XeniOS `importFolder` uses `FilePicker.getDirectoryPath` (main passed it to session 03).
     - Nothing observed on a device. The next IPA's app.log has an `S2Arm status: {…}` line with the native flags.
   - Main withdrew the launcher deletion (12 Nov): it stays as is. Formerly open: delete the launcher (`.github/diagnostics/s2arm/`, `s2arm-delivery.yml`,
