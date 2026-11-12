@@ -5035,6 +5035,25 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       Claude 3d2645ea's bytes). Pre-existing, unrelated failures seen on this head:
       melonx_hogwarts_graphics_test.py expects 11 translations and finds 12 since zh_Hant joined (only the historical
       rewind599-601 workflows run it); rewind604_delivery_contract_test.py and melonx_capture_journal_test.py (historical).
+    - **Native heap lot handed by MeloNX lot 10 (docs/evidence/melonx-lot10/handoff.md; analysis only, no change yet):**
+      the four largest live stacks of the IPA 729 [MeloNX:heap] record, symbolicated with `nm -n` of the pinned MoltenVK
+      1.4.2 rebuild (artifact 13822530542, binary 99605a2b; the packaged MeloNXMoltenVKStandalone `1bdc5159` is taken to be
+      that binary under another install name, to confirm against the IPA's MeloNX-standalone-moltenvk-identity.json):
+      #1 205 MiB `SPIRVToMSLConverter::setSPIRV`+0x4c < `MVKShaderModule::MVKShaderModule`+0x3a4 <
+      `MVKDevice::createShaderModule`+0x30 < `vkCreateShaderModule`+0x54: MoltenVK's copy of every live shader module's
+      SPIR-V (a std::vector<uint32_t>). Needed while the module lives: every graphics pipeline creation reads the vertex
+      (and tessellation) module's SPIR-V for its stage outputs and inputs (MVKPipeline.mm, getShaderOutputs and
+      getShaderInputs), and every conversion miss parses it again (SPIRVToMSLConverter::convert, CompilerMSL); it cannot be
+      released before the module's last pipeline, and late variants are still created in play. It can be kept compressed
+      (lossless), decompressed for each use: a MoltenVK patch, to be measured on macOS (ratio on the engine's SPIR-V, time
+      per pipeline creation) before any pin. #2 130 MiB `MVKShaderLibraryCompiler::newMTLLibrary` block <
+      `MVKMetalCompiler::compile` block: the shader libraries' MTLLibrary objects (Metal and AGX allocations); libraries on
+      demand were measured and refuted on macOS (run 42925818096). #3 40 MiB `MVKDescriptorPool::Create`+0x4c4 <
+      `vkCreateDescriptorPool`: the descriptor pools' host storage; only the engine's pool sizes change it, which needs the
+      pool count and sizes on the device. #4 34 MiB `MVKRenderPipelineCompiler::newMTLRenderPipelineState` block: the
+      Metal render pipeline states the pipelines use. Not symbolicated: #5, #7, #11 and #14 (their offsets are not in the
+      handoff; the raw record is needed) and the MeloNXCore frames (the Core 743 artifact's symbol map, artifact
+      13926697149).
     - **Device protocol for the next private IPA (Core 743, or 741 without the split):** Hogwarts Legacy, same save, 3-5
       min including a zone change and the place of the 05:46:17 freeze, then home, then close from the menu; then a
       Switch close and a PS3 launch in the same session (P0 726); Smash 1 min of play (SetProgram bursts, Core 739). Read:
