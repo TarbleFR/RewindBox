@@ -5068,6 +5068,25 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### Codex orchestration — Codex
 
+- **S2Arm content/provenance audit — 12 Nov (maintainer request, read-only product audit).**
+  Compared upstream `623985973908399bd64d36aa326009807c354fdc`, pinned upstream
+  `6b6a571553f7a687af46e03e2cdbf8ef4d77f335` and the session-04 adaptation at
+  `8353aab97bdf6e5415ba1b926717f118ae3da79d`; 20 locally exercised/read source files
+  match their Git blobs. No complete commercial game or user key found in the inspected
+  inventory/build paths; game profiles/shader reference tables are present (not game payloads).
+  No final IPA/release binary inspection: do not turn this into a distribution certificate.
+  **“Only personally dumped games” is not enforced by the examined route:** the export detector
+  checks folder/META/ACI0/program-id, not ownership or extraction provenance
+  ([native source](https://github.com/TarbleFR/RewindBox/blob/8353aab97bdf6e5415ba1b926717f118ae3da79d/native/s2arm/prepare/s2arm_ns2_dump.c#L658)).
+  Seven Linux checks passed: synthetic original and copied input accepted by upstream/native
+  detectors, invalid headers rejected by both, copied synthetic export converted upstream.
+  No game, key or Nintendo account used; no full-game compilation/device claim.
+  Switch 2 host preparation consumes an already-decrypted export; upstream also has a distinct
+  NSP/XCI + LibHac/keys path. This is neither legal clearance nor a finding of illegality.
+  Report delivered privately: `Audit_S2Arm_Dumps_Contenu_2026-11-12.txt`, 22,174 bytes,
+  SHA-256 `2c6441e5e12f73d2496a7bf663524a4512f61ac7dc89a8315c4e68ea079ab322`.
+  No product/Core/pin/CI/IPA change or new implementation task; existing delivery priority remains.
+
 - **Playlists/XeniOS routing — created and started (10 Nov).**
   Session [03 Playlists](https://claude.ai/code/session_012mUASiVyxdnhNTUKesGGm7),
   branch `work/playlists-xenios-20261110` from `71d0f0a6`; UI Opus5.5/High,
