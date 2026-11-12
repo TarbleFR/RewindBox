@@ -301,14 +301,18 @@ What changed (outputs are the same byte for byte; CI compares them with S2Arm's 
 
 - SHA-256 comes from CommonCrypto on Apple systems (`s2arm_sha256.c`), which uses the CPU's SHA-256 instructions.
 - The resource pack hashes the RomFS and DLC files with up to four threads. Each thread has one 4 MiB buffer. The
-  calling thread reports progress every 100 ms, the first failure wins, and cancel is polled between chunks
-  (`hash_linked` in `s2arm_pack.c`).
+  calling thread reports progress every 100 ms, and cancel is polled between chunks (`hash_linked` in `s2arm_pack.c`).
+  Errors come out as they did with one thread. A failure stops the files after it, the files before it finish, and the
+  earliest file's failure is the one reported.
 - `makedirs` (ns2_dump) tries the path itself first and goes up only when a parent is missing. The in-place view
   remembers the directory of the previous link and makes the link before any `unlink`.
 - The walks take the entry type from `readdir` (`s2arm_dirent.h`). They `stat` only links and entries of unknown type.
   The NRO walk stats only links named `*.nro`, and the pack walk stats files with `fstatat` relative to their directory.
 - The caps engine rule skips the RomFS walk when main names neither Unity nor Unreal: the walk could only turn the
   answer to False, and it is already False.
+- One difference from the old C walks remains, and the review accepted it. A folder that can be listed but not
+  searched (read without execute permission) is now walked from its listing, as Python's `os.walk` does through
+  `scandir`. Before, a stat of each entry failed. An export imported by the app has no such folder.
 - The bridge moves the previous root aside (one `rename`) and deletes it at background QoS once the preparation has
   ended. Only `.discarded-*` entries are deleted there. The root holds about 150 MB until then.
 - The journal adds `cleared`, `unpackLayout` / `unpackUpdates` / `unpackDone`, `packWalk` and `packDone` lines. They

@@ -1486,15 +1486,17 @@ static int ls_cmp(const void *pa, const void *pb) {   // pkg_srcs.ls: hidden nam
 
 // The files under the RomFS and DLC links, read in place and hashed by up to HASH_THREADS threads: the whole RomFS
 // (22 GB for Mario Kart World) went through one thread before, at about 110 MB/s on the phone (pack step 204 s of a
-// 427 s preparation, IPA 731). Each file's digest goes to its own slot, so index.tsv is the same in any order; the
-// first failure wins and stops the others. Progress and the request's callbacks other than `cancelled` stay on the
-// calling thread (the bridge's progress throttle is not thread-safe); `cancelled` is polled by every thread, between
-// 4 MiB chunks, as before.
+// 427 s preparation, IPA 731). Each file's digest goes to its own slot, so index.tsv is the same in any order. Errors
+// are reported as the one-thread loop did: a failure stops the files after it, the files before it run to their end,
+// and the failure of the earliest file is the one reported. Positions are handed out in order, so when a file fails
+// every earlier one has been started. Progress and the request's callbacks other than `cancelled` stay on the calling
+// thread (the bridge's progress throttle is not thread-safe); `cancelled` is polled by every thread, between 4 MiB
+// chunks, as before.
 #define HASH_THREADS 4
 #define HASH_CHUNK ((size_t)4 << 20)
 
 typedef struct {
-    ctx_t *x;                         // x->error is written once, under lock, by the first failure
+    ctx_t *x;                         // x->error is written under lock, by the earliest failure
     const rb_s2arm_resource_request *r;
     pfile_t *files;
     const size_t *todo;               // indexes into files, in index order
@@ -1503,19 +1505,20 @@ typedef struct {
     int inline_progress;              // 1: the work runs on the calling thread (no thread could start)
     atomic_size_t next;
     atomic_uint_least64_t done;       // bytes hashed so far, including what came before (copies)
-    atomic_int failed;
+    atomic_size_t failed_at;          // position (in todo) of the earliest failure so far; SIZE_MAX: none
     pthread_mutex_t lock;
     pthread_cond_t idle;              // signalled when the last thread ends
     int active;                       // threads still working, under lock
-    int code;                         // the first failure, under lock
+    int code;                         // the earliest failure's code, under lock
 } hash_pool_t;
 
+// Records the failure of the file at position `at` when no earlier file has failed; later files then stop.
 #if defined(__GNUC__)
-__attribute__((format(printf, 3, 4)))
+__attribute__((format(printf, 4, 5)))
 #endif
-static int pool_fail(hash_pool_t *p, int code, const char *fmt, ...) {
+static int pool_fail(hash_pool_t *p, size_t at, int code, const char *fmt, ...) {
     pthread_mutex_lock(&p->lock);
-    if (!p->code) {
+    if (at < atomic_load(&p->failed_at)) {
         p->code = code;
         if (p->x->error && p->x->error_size) {
             va_list ap;
@@ -1523,32 +1526,33 @@ static int pool_fail(hash_pool_t *p, int code, const char *fmt, ...) {
             vsnprintf(p->x->error, p->x->error_size, fmt, ap);
             va_end(ap);
         }
-        atomic_store(&p->failed, 1);
+        atomic_store(&p->failed_at, at);
     }
     pthread_mutex_unlock(&p->lock);
     return code;
 }
 
-static int hash_one(hash_pool_t *p, pfile_t *f, uint8_t *b) {
+static int hash_one(hash_pool_t *p, size_t at, uint8_t *b) {
+    pfile_t *f = &p->files[p->todo[at]];
     int fd = open(f->src, O_RDONLY);
-    if (fd < 0) return pool_fail(p, RB_S2ARM_PACK_IO, "cannot read %s", f->src);
+    if (fd < 0) return pool_fail(p, at, RB_S2ARM_PACK_IO, "cannot read %s", f->src);
     s2arm_sha256_ctx h;
     s2arm_sha256_init(&h);
     uint64_t got = 0;
     int code = 0;
     for (;;) {
-        if (atomic_load(&p->failed)) {   // another file failed: stop without a message of our own
+        if (atomic_load(&p->failed_at) < at) {   // an earlier file failed: this one would not have been read
             code = -1;
             break;
         }
         if (p->r->cancelled && p->r->cancelled(p->r->context)) {
-            code = pool_fail(p, RB_S2ARM_PACK_CANCELLED, "cancelled");
+            code = pool_fail(p, at, RB_S2ARM_PACK_CANCELLED, "cancelled");
             break;
         }
         ssize_t k = read(fd, b, HASH_CHUNK);
         if (k < 0 && errno == EINTR) continue;
         if (k < 0) {
-            code = pool_fail(p, RB_S2ARM_PACK_IO, "cannot read %s", f->src);
+            code = pool_fail(p, at, RB_S2ARM_PACK_IO, "cannot read %s", f->src);
             break;
         }
         if (k == 0) break;
@@ -1558,7 +1562,7 @@ static int hash_one(hash_pool_t *p, pfile_t *f, uint8_t *b) {
         if (p->inline_progress && p->r->progress) p->r->progress(p->r->context, done, p->total);
     }
     close(fd);
-    if (!code && got != f->size) code = pool_fail(p, RB_S2ARM_PACK_IO, "%s changed while being read", f->src);
+    if (!code && got != f->size) code = pool_fail(p, at, RB_S2ARM_PACK_IO, "%s changed while being read", f->src);
     if (!code) s2arm_sha256_final(&h, f->sha);
     return code;
 }
@@ -1566,10 +1570,10 @@ static int hash_one(hash_pool_t *p, pfile_t *f, uint8_t *b) {
 static void *hash_worker(void *arg) {
     hash_pool_t *p = arg;
     uint8_t *b = malloc(HASH_CHUNK);   // one buffer per thread, not one per file
-    if (!b) pool_fail(p, RB_S2ARM_PACK_IO, "out of memory");
-    while (b && !atomic_load(&p->failed)) {
-        size_t k = atomic_fetch_add(&p->next, 1);
-        if (k >= p->count || hash_one(p, &p->files[p->todo[k]], b)) break;
+    if (!b) pool_fail(p, 0, RB_S2ARM_PACK_IO, "out of memory");
+    while (b) {
+        size_t k = atomic_fetch_add(&p->next, 1);   // positions in order: every earlier one is already taken
+        if (k >= p->count || k > atomic_load(&p->failed_at) || hash_one(p, k, b)) break;
     }
     free(b);
     pthread_mutex_lock(&p->lock);
@@ -1585,7 +1589,7 @@ static int hash_linked(ctx_t *x, const rb_s2arm_resource_request *r, pfile_t *fi
     p.x = x, p.r = r, p.files = files, p.todo = todo, p.count = count, p.total = total;
     atomic_init(&p.next, 0);
     atomic_init(&p.done, *done);
-    atomic_init(&p.failed, 0);
+    atomic_init(&p.failed_at, SIZE_MAX);
     if (pthread_mutex_init(&p.lock, NULL)) return fail(x, RB_S2ARM_PACK_IO, "cannot create a lock");
     if (pthread_cond_init(&p.idle, NULL)) {
         pthread_mutex_destroy(&p.lock);

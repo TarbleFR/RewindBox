@@ -9,7 +9,7 @@ portable C), plus about 14 s deleting the previous root before the unpack. The R
 fixes themselves:
   - SHA-256 from CommonCrypto on Apple systems (the CPU's SHA-256 instructions);
   - the resource pack hashes the linked files with up to four threads, one buffer per thread, progress
-    from the calling thread only, the first failure winning;
+    from the calling thread only, and the earliest file's failure reported, as with one thread;
   - os.makedirs tries the path itself first: no mkdir for every component from / before each link;
   - the in-place view remembers the directory of the previous link;
   - the walks read the entry type from readdir and stat only links and unknown types;
@@ -109,7 +109,7 @@ check('if (type == DT_UNKNOWN || (type == DT_LNK && !litter)) {' in scan and 'in
 pack = read('s2arm_pack.c')
 check('#define HASH_THREADS 4' in pack and '#define HASH_CHUNK ((size_t)4 << 20)' in pack, 'up to four hashing threads, 4 MiB reads')
 worker = body(pack, 'static void *hash_worker(void *arg) {')
-one = body(pack, 'static int hash_one(hash_pool_t *p, pfile_t *f, uint8_t *b) {')
+one = body(pack, 'static int hash_one(hash_pool_t *p, size_t at, uint8_t *b) {')
 check('uint8_t *b = malloc(HASH_CHUNK);' in worker and 'malloc' not in one, 'one read buffer per thread, not one per file')
 check(ordered(one, 'p->r->cancelled(p->r->context)', 'read(fd, b, HASH_CHUNK)'),
       'every thread polls the cancel callback between chunks')
@@ -118,9 +118,13 @@ linked = body(pack, 'static int hash_linked(ctx_t *x, const rb_s2arm_resource_re
 check('pthread_cond_timedwait(&p.idle, &p.lock, &deadline);' in linked and 'r->progress(r->context, atomic_load(&p.done), total);' in linked
       and 'pthread_join(threads[i], NULL);' in linked and 'hash_worker(&p);' in linked,
       'the calling thread reports progress while the threads hash, joins them, and hashes alone when none starts')
-fail = body(pack, 'static int pool_fail(hash_pool_t *p, int code, const char *fmt, ...) {')
-check(ordered(fail, 'pthread_mutex_lock(&p->lock);', 'if (!p->code) {', 'vsnprintf(', 'pthread_mutex_unlock(&p->lock);'),
-      'the first failure writes the error, under the lock')
+fail = body(pack, 'static int pool_fail(hash_pool_t *p, size_t at, int code, const char *fmt, ...) {')
+check(ordered(fail, 'pthread_mutex_lock(&p->lock);', 'if (at < atomic_load(&p->failed_at)) {', 'vsnprintf(',
+              'atomic_store(&p->failed_at, at);', 'pthread_mutex_unlock(&p->lock);'),
+      'the earliest file\'s failure writes the error, under the lock (as the one-thread loop reported it)')
+check('if (k >= p->count || k > atomic_load(&p->failed_at) || hash_one(p, k, b)) break;' in worker
+      and 'if (atomic_load(&p->failed_at) < at) {' in one,
+      'a failure stops the files after it; the files before it run to their end, so the earliest failure is found')
 resource = body(pack, 'int rb_s2arm_resource_pack(const rb_s2arm_resource_request *r, char *error, size_t error_size) {')
 check('linked_files[nlinked++] = i;' in resource and 'code = hash_linked(&x, r, files.v, linked_files, nlinked, &done, total);' in resource
       and ordered(resource, 'code = hash_linked(', 's2arm_sha256_hex(files.v[i].sha, hex);'),
