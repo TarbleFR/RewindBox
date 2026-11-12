@@ -301,6 +301,17 @@ check('[moduleDir stringByAppendingPathComponent:[NSString stringWithFormat:@"S2
       and 'NSString *imagesPath = [imagesDir stringByAppendingPathComponent:' in prep,
       'the image pack is written outside the module directory that rb_s2arm_module_dir replaces')
 check('@[ root, moduleDir, imagesDir, packDir ]' in prep, 'a new preparation removes the previous image pack with the other outputs')
+# Mario Kart World on IPA 731: the engine stalled 10 minutes, its own log (<game>/docs/host.log) is in Library, and a 16 MB
+# pool could not serve main's 42 MB after the forced detach.
+export = plugin[plugin.index('static void S2ArmExportEngineLogs(void) {'):plugin.index('static BOOL S2ArmMeloNXCoreLoaded(void) {')]
+check('@"Diagnostics/S2Arm/engine"' in export and '@"host.log"' in export and '@"logs"' in export,
+      'the engine logs (host.log and its archive) are copied to Documents/Diagnostics/S2Arm/engine/<gid>')
+register = plugin[plugin.index('+ (void)registerWithRegistrar:'):plugin.index('- (void)handleMethodCall:')]
+ended_fn = plugin[plugin.index('static void s2arm_session_ended(int code, const char *reason, void *context) {'):]
+check('S2ArmExportEngineLogs()' in register and 'S2ArmExportEngineLogs()' in ended_fn[:600],
+      'the copy runs at each app start (after a crash) and at each session end')
+check('uint64_t pool = plan.boot_code_bytes + plan.later_code_bytes + (16ull << 20);' in plugin,
+      'the spare pool also covers the boot code, for a detach forced before the boot is served')
 module_step = prep[prep.index('rc = rb_s2arm_module_dir(&module, error, sizeof error);'):prep.index('// 6. resource pack')]
 check('if (imagePackBytes == 0) return [self fail:S2ArmErrorIo stage:@"module"' in module_step,
       'the module step fails when the image pack is missing or empty, instead of a passed preparation that cannot launch')
