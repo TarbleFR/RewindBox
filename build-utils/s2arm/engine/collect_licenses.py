@@ -16,8 +16,13 @@ OUT/license-sources.json with its component, licence, origin, size and SHA-256:
   nuget      a file of a .NET package the NativeAOT build restored into --nuget, at the version its
              services/aot/obj/project.assets.json names (or, absent there, the one version restored), read from the
              package archive, whose SHA-512 is checked against NuGet's record beside it (<id>.<version>.nupkg.sha512)
+  pinned-url a text of a package or port whose archive does not carry it, fetched over HTTPS from the pinned source
+             commit named by the package's nuspec (PINNED_URLS: URL with the commit in it, SHA-256 and size are fixed in
+             this script; a different digest, an HTTP error or an empty body fails the run, nothing else is trusted)
   rewindbox  RewindBox's notice for the engine, build-utils/s2arm/engine/RewindBox-S2Arm-NOTICE.txt of --rewindbox
              (default: this repository)
+Only the code the engine really keeps ships a text (build-utils/s2arm/engine/kept_code_inventory.py --check proves which
+packages and linked archives that is; the packages with no kept code ship none).
 OUT must not exist. The result must pass the rule the legal gate applies to an application that carries the engine
 (build-utils/embed_legal_bundle.py, s2arm_notice_errors); otherwise nothing is left in OUT and the run fails.
 """
@@ -34,6 +39,8 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import urllib.error
+import urllib.request
 import zipfile
 
 REWINDBOX = Path(__file__).resolve().parents[3]
@@ -83,6 +90,42 @@ PACKAGES = (
     ('.NET runtime, NativeAOT for ios-arm64 (compiled into the engine)', 'MIT',
      'Microsoft.NETCore.App.Runtime.NativeAOT.ios-arm64', ('LICENSE.TXT', 'THIRD-PARTY-NOTICES.TXT')),
     ('.NET ILCompiler (the NativeAOT compiler)', 'MIT', 'Microsoft.DotNet.ILCompiler', ('THIRD-PARTY-NOTICES.TXT',)),
+    # Packages with NativeAOT code kept in the engine whose archive carries a text (member: exact relative path).
+    ('Gommon (kept in the engine)', 'MIT', 'Gommon', ('content/LICENSE',)),
+    ('Open.Nat.V2 (kept in the engine)', 'MIT', 'Open.Nat.V2', ('LICENSE',)),
+    ('Ryujinx.LibHac (kept in the engine)', 'MIT, ISC (hactool), XTSSharp notice', 'Ryujinx.LibHac', ('LICENSE',)),
+    ('System.IO.Hashing (kept in the engine)', 'MIT', 'System.IO.Hashing', ('THIRD-PARTY-NOTICES.TXT',)),
+)
+# Texts the packages and ports kept in the engine do not carry: (component, licence, path in Legal/S2Arm, URL at the
+# pinned commit, SHA-256, size, commit). Fetched by fetch_url, checked against the digest.
+PINNED_URLS = (
+    ('Humanizer.Core 3.0.10 (kept in the engine)', 'MIT', 'Humanizer/license.txt',
+     'https://raw.githubusercontent.com/Humanizr/Humanizer/90f0cb1d7427635f38b46350bb1dc5fca2164f2d/license.txt',
+     'e24ec7f2eea5c5f4b3e2c08308109ba99b49b4b56ea7ff0e0a178f2bdd4bbce8', 1565,
+     '90f0cb1d7427635f38b46350bb1dc5fca2164f2d'),
+    ('Microsoft.IO.RecyclableMemoryStream 3.0.1 (kept in the engine)', 'MIT', 'RecyclableMemoryStream/LICENSE',
+     'https://raw.githubusercontent.com/Microsoft/Microsoft.IO.RecyclableMemoryStream/'
+     'e29a28387da9018fa9605a1dcb3f7a0435aa9974/LICENSE',
+     '7d6aa3550cf7aeb25ef542f616d8ead585633e3b607c65e1db4aa804e4971a91', 1093,
+     'e29a28387da9018fa9605a1dcb3f7a0435aa9974'),
+    ('NetCoreServer 8.0.7 (kept in the engine)', 'MIT', 'NetCoreServer/LICENSE',
+     'https://raw.githubusercontent.com/chronoxor/NetCoreServer/cb58a43ba0bbce6182d9a5259388c75763d63db7/LICENSE',
+     'c3b066857b02a103e45b683cc97a95cd49e5cca6bedd8fbc5de489d3e7caa632', 1078,
+     'cb58a43ba0bbce6182d9a5259388c75763d63db7'),
+    # No repository in the package's nuspec: its licenseUrl names Apache-2.0; the commit is the git tag 1.0.1.
+    ('MsgPack.Cli 1.0.1 (kept in the engine)', 'Apache-2.0', 'MsgPack.Cli/LICENSE.txt',
+     'https://raw.githubusercontent.com/msgpack/msgpack-cli/e1b574a0814e4cd8e2f18de04223e46e4f47ea75/LICENSE.txt',
+     'c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4', 11357,
+     'e1b574a0814e4cd8e2f18de04223e46e4f47ea75'),
+    ('System.IO.Hashing 10.0.9 (kept in the engine)', 'MIT', 'System.IO.Hashing/LICENSE.TXT',
+     'https://raw.githubusercontent.com/dotnet/dotnet/901ca941248413c79832d2fdbd709da0c4386353/LICENSE.TXT',
+     'ae48df11a335dc1a615f4f938b69cba73bcf4485c4f97af49b38efb0f216353b', 1115,
+     '901ca941248413c79832d2fdbd709da0c4386353'),
+    ('deko3d texture layout (port in nvn_tex.c, linked in libnvn.a)', 'zlib, Copyright (C) 2018-2020 fincs',
+     'deko3d/LICENSE',
+     'https://raw.githubusercontent.com/devkitPro/deko3d/373bfd43d8b2d805fa2eb7d406dbb823032df958/LICENSE',
+     'a0b4cee8af79009481c8dd619bf51c1c909f92893b44c51e0b6dfb27fb7edd83', 853,
+     '373bfd43d8b2d805fa2eb7d406dbb823032df958'),
 )
 # The compiler's host package (runtime.<host>.Microsoft.DotNet.ILCompiler), collected when the build restored one.
 HOST_COMPILER = re.compile(r'runtime\.([a-z0-9][a-z0-9.-]*)\.microsoft\.dotnet\.ilcompiler')
@@ -204,6 +247,26 @@ def package_version(package, listed, nuget):
     return versions.pop(), origin
 
 
+def fetch_url(url):
+    """The body of an HTTPS address (module-level so that tests serve it offline)."""
+    require(url.startswith('https://'), f'{url}: not an HTTPS address')
+    try:
+        with urllib.request.urlopen(url, timeout=60) as response:
+            return response.read()
+    except (urllib.error.URLError, OSError) as error:
+        raise CollectError(f'{url}: {error}') from error
+
+
+def pinned_url_texts(collection):
+    for component, licence, path, url, digest, size, commit in PINNED_URLS:
+        require(commit in url and url.startswith('https://'), f'{path}: the address does not name its commit')
+        data = fetch_url(url)
+        require(data, f'{path}: empty body from {url}')
+        require(sha256(data) == digest, f'{path}: {url} is not the pinned text (SHA-256 {sha256(data)}, expected {digest})')
+        require(len(data) == size, f'{path}: {len(data)} bytes, expected {size}')
+        collection.add(component, licence, path, data, dict(kind='pinned-url', url=url, sha256=digest, commit=commit))
+
+
 def package_member(nuget, package, version, member):
     folder = Path(nuget) / package.lower() / version.lower()
     stem = f'{package.lower()}.{version.lower()}.nupkg'
@@ -214,7 +277,7 @@ def package_member(nuget, package, version, member):
     require(digest == (folder / (stem + '.sha512')).read_text().strip(), f'{folder / stem} differs from its NuGet SHA-512')
     with zipfile.ZipFile(io.BytesIO(raw)) as archive:
         names = [name for name in archive.namelist() if name.lower() == member.lower()]
-        require(len(names) == 1, f'{package} {version}: no {member} at the root of the package')
+        require(len(names) == 1, f'{package} {version}: no {member} in the package (exact path)')
         data = archive.read(names[0])
     extracted = folder / names[0]
     require(not extracted.exists() or extracted.read_bytes() == data, f'{extracted} differs from the package archive')
@@ -250,6 +313,7 @@ def collect(tree, sources, nuget, out, rewindbox=REWINDBOX, assets=None):
     s2arm_texts(tree, collection)
     archive_texts(tree, sources, collection)
     nuget_texts(getattr(tree, 'path', None), nuget, collection, assets)
+    pinned_url_texts(collection)
     manifest = dict(schema=1, engine='S2Arm', s2arm=dict(repository=pin['repository'], commit=tree.commit),
                     collector=COLLECTOR, components=list(collection.components.values()))
     raw = (json.dumps(manifest, indent=1) + '\n').encode()

@@ -234,35 +234,43 @@ jobs:
           shipped=$(cat "$fw/S2ArmDirectChain.txt" 2>/dev/null | tr -d '\n')
           if [ -n "$chain" ] && [ "$shipped" = "$chain" ]; then note "ok   S2ArmDirectChain.txt $shipped"; else note "FAIL S2ArmDirectChain.txt '$shipped', expected DMSH_CHAIN '$chain'"; status=1; fi
           exit $status
-      - name: Inventory the code the engine keeps per licensed component (informational)
+      - name: Inventory the code the engine keeps per licensed component (blocking)
         # main's rule (11 Nov): a component with kept code ships its licence text, one with none is recorded as absent.
-        # Managed: symbols of the services library per package assembly; native: the final link's map.
-        if: always()
+        # Managed: symbols of the services library per package assembly; native: the final link's map. --check fails
+        # when a package with kept code has no licence entry or a linked archive matches no rule (kept_code_inventory.py);
+        # the packages with no kept code are listed in the output, which is the proof. The step runs before the collection.
         working-directory: ${{ runner.temp }}/s2arm
         shell: bash --noprofile --norc {0}
         env:
           S2A_RUN_ROOT: ${{ runner.temp }}/s2arm-run
         run: |
-          set -u
+          set -u -o pipefail
           out="$GITHUB_WORKSPACE/proof"
           lib=$(find "$S2A_RUN_ROOT" build -name libs2a_cs.a 2>/dev/null | head -1)
           map=build/ios/S2ArmEngine.map
-          [ -n "$lib" ] && [ -f "$map" ] || { echo "no services library or link map" | tee "$out/kept-code-inventory.txt"; exit 0; }
+          [ -n "$lib" ] && [ -f "$map" ] || { echo "no services library or link map" | tee "$out/kept-code-inventory.txt"; exit 1; }
+          gzip -c "$map" > "$out/S2ArmEngine.map.gz"
           nm "$lib" 2>/dev/null > "$RUNNER_TEMP/services-nm.txt" || true
           assets=()
           while IFS= read -r f; do assets+=(--assets "$f"); done < <(find "$S2A_RUN_ROOT" services graphics platform tests/visual -name project.assets.json -path '*obj*' 2>/dev/null | sort -u)
           echo "assets files: ${#assets[@]}"
+          status=0
           python3 -B "$GITHUB_WORKSPACE/build-utils/s2arm/engine/kept_code_inventory.py" --services-nm "$RUNNER_TEMP/services-nm.txt" \
-            "${assets[@]}" --link-map "$map" --nuget "$RUNNER_TEMP/nuget" --out "$out/kept-code-inventory.json" | tee "$out/kept-code-inventory.txt"
-          python3 -c "import json,sys;d=json.load(open(sys.argv[1]));print(json.dumps(d.get('licenceMaterial',{}),indent=1))" "$out/kept-code-inventory.json" | tee -a "$out/kept-code-inventory.txt"
-          python3 -c "import json,sys;d=json.load(open(sys.argv[1]));[print(('KEPT  ' if v['kept'] else 'none  ')+k+' '+v['version']+' '+str(sum(a['symbols'] for a in v['assemblies'].values()))) for k,v in sorted(d['managed'].items())]" "$out/kept-code-inventory.json" | tee -a "$out/kept-code-inventory.txt"
-          gzip -c "$map" > "$out/S2ArmEngine.map.gz"
+            "${assets[@]}" --link-map "$map" --nuget "$RUNNER_TEMP/nuget" --out "$out/kept-code-inventory.json" --check \
+            | tee "$out/kept-code-inventory.txt" || status=$?
+          if [ -s "$out/kept-code-inventory.json" ]; then
+            python3 -c "import json,sys;d=json.load(open(sys.argv[1]));print(json.dumps(d.get('licenceMaterial',{}),indent=1))" "$out/kept-code-inventory.json" | tee -a "$out/kept-code-inventory.txt"
+            python3 -c "import json,sys;d=json.load(open(sys.argv[1]));[print(('KEPT  ' if v['kept'] else 'none  ')+k+' '+v['version']+' '+str(sum(a['symbols'] for a in v['assemblies'].values()))) for k,v in sorted(d['managed'].items())]" "$out/kept-code-inventory.json" | tee -a "$out/kept-code-inventory.txt"
+          fi
+          exit $status
       - name: Collect the engine's licence and notice texts from its pinned sources
         # For the legal bundle of the test IPA (Legal/S2Arm, docs/s2arm-legal-notices.md): S2Arm's LICENSE, NOTICE and
         # THIRD_PARTY_LICENSES.md and the licence texts of the third parties that reach the iPhone, read from the pinned
         # commit (git objects, not the patched tree), from the source archives this build fetched (checked against the
         # SHA-256 their S2Arm build scripts pin) and from the .NET packs its NativeAOT compilation restored (checked
-        # against NuGet's SHA-512), with RewindBox's notice; license-sources.json lists each with its origin and SHA-256.
+        # against NuGet's SHA-512), and, for the NuGet packages and the deko3d port whose code the engine keeps (the
+        # inventory step before this one proves which), from the pinned source commit over HTTPS (SHA-256 fixed in the
+        # collector), with RewindBox's notice; license-sources.json lists each with its origin and SHA-256.
         # Nothing is copied by hand; the result passes the legal gate's own rule (embed_legal_bundle.py).
         run: |
           set -euo pipefail

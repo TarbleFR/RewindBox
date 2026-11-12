@@ -8,8 +8,11 @@ On a synthetic S2Arm commit, source cache and NuGet folder: every text is read f
 comment of a header of the commit, a member of a source archive checked against the SHA-256 its build script pins, a
 file of a .NET package checked against NuGet's SHA-512) and listed with it in license-sources.json; the result passes
 the legal gate's rule for the S2Arm engine notices; a checkout that is not the pin, a missing or changed archive or
-package, a second version or top folder, a header without a licence comment, an existing output folder are refused,
-and nothing is written then.
+package or package member, a second version or top folder, a header without a licence comment, a fetched text with
+another digest, an HTTP error or an empty body, an existing output folder are refused, and nothing is written then.
+The texts the engine keeps (8 NuGet packages: 4 from their package, 4 and the deko3d port from a pinned source commit)
+are fetched through collector.fetch_url, which the tests replace: nothing here touches the network. With
+S2ARM_LICENSE_COPIES (a folder with the six real texts) the fixed digests of PINNED_URLS are checked against them.
 With S2ARM_PINNED_TREE (a checkout of S2Arm at tools/s2arm_prototype/pin.json, read with git, never built or run): the
 texts of the pinned commit and its archive pins. Skipped otherwise. Only the engine producer (s2arm-engine.yml) shows
 the real source archives and .NET packages.
@@ -26,6 +29,7 @@ import sys
 import tarfile
 import tempfile
 import unittest
+from unittest import mock
 import zipfile
 from pathlib import Path
 
@@ -100,6 +104,27 @@ PACKAGE_FILES = {
 }
 
 
+NEW_PACKAGE_FILES = {   # the packages with kept code whose archive carries a text (member: exact relative path)
+    'Gommon': {'content/LICENSE': b'Gommon licence fixture\n', 'contentFiles/any/net9.0/LICENSE': b'decoy copy\n'},
+    'Open.Nat.V2': {'LICENSE': b'Open.Nat.V2 licence fixture\n'},
+    'Ryujinx.LibHac': {'LICENSE': b'LibHac licence fixture\n'},
+    'System.IO.Hashing': {'THIRD-PARTY-NOTICES.TXT': b'System.IO.Hashing notices fixture\n'},
+}
+PACKAGE_FILES.update(NEW_PACKAGE_FILES)
+PINNED_PATHS = ('Humanizer/license.txt', 'RecyclableMemoryStream/LICENSE', 'NetCoreServer/LICENSE', 'MsgPack.Cli/LICENSE.txt',
+                'System.IO.Hashing/LICENSE.TXT', 'deko3d/LICENSE')
+
+
+def pinned_text(path):
+    return f'{path} pinned text fixture\n'.encode()
+
+
+def fixture_pinned_urls():
+    """PINNED_URLS with the digests and sizes of the fixture texts (the real ones are checked in PinnedUrlTable)."""
+    return tuple((component, licence, path, url, sha(pinned_text(path)), len(pinned_text(path)), commit)
+                 for component, licence, path, url, _, _, commit in collector.PINNED_URLS)
+
+
 class Fixture:
     """A synthetic build: the S2Arm commit, its source cache, its NuGet folder and assets file, a RewindBox root."""
     def __init__(self, directory):
@@ -129,12 +154,14 @@ class Fixture:
             (folder / stem).write_bytes(raw)
             (folder / (stem + '.sha512')).write_text(base64.b64encode(hashlib.sha512(raw).digest()).decode())
             for name, data in members.items():
+                (folder / name).parent.mkdir(parents=True, exist_ok=True)
                 (folder / name).write_bytes(data)
         self.assets = {'project': {'frameworks': {'net10.0': {'downloadDependencies': [
             {'name': 'Microsoft.NETCore.App.Runtime.NativeAOT.ios-arm64', 'version': f'[{VERSION}]'},
             {'name': 'runtime.osx-arm64.Microsoft.DotNet.ILCompiler', 'version': f'[{VERSION}]'}]}}},
             'libraries': {f'Microsoft.DotNet.ILCompiler/{VERSION}': {'type': 'package'},
                           'S2A.Services/1.0.0': {'type': 'project'}}}
+        self.assets['libraries'].update({f'{package}/{VERSION}': {'type': 'package'} for package in NEW_PACKAGE_FILES})
         (self.rewindbox / 'tools/s2arm_prototype').mkdir(parents=True)
         (self.rewindbox / collector.PIN).write_text(json.dumps(
             {'s2arm': {'repository': 'https://github.com/jhaizhou-ops/S2Arm', 'commit': COMMIT}}))
@@ -150,6 +177,18 @@ class Collection(unittest.TestCase):
     def setUp(self):
         directory = tempfile.TemporaryDirectory(prefix='s2arm-licenses-')
         self.addCleanup(directory.cleanup)
+        self.served = {url: pinned_text(path) for _, _, path, url, _, _, _ in collector.PINNED_URLS}
+        self.fetched = []
+
+        def fetch(url):
+            self.fetched.append(url)
+            if url not in self.served:
+                raise collector.CollectError(f'{url}: HTTP Error 404: Not Found')
+            return self.served[url]
+        for name, value in (('fetch_url', fetch), ('PINNED_URLS', fixture_pinned_urls())):
+            patch = mock.patch.object(collector, name, value)
+            patch.start()
+            self.addCleanup(patch.stop)
         self.fixture = Fixture(directory.name)
 
     def written(self):
@@ -182,11 +221,21 @@ class Collection(unittest.TestCase):
                     url=url.replace('$VER', version), member=f'{top}/{member}'))
         for package, members in PACKAGE_FILES.items():
             for member, data in members.items():
+                if member.startswith('contentFiles/'):   # the decoy copy: only content/LICENSE is taken
+                    self.assertNotIn(f'dotnet/{package}/{member}', entries)
+                    continue
                 entry = entries[f'dotnet/{package}/{member}']
                 self.assertEqual(files[f'dotnet/{package}/{member}'], data)
                 self.assertEqual((entry['source']['package'], entry['source']['version'], entry['source']['member']),
                                  (package, VERSION, member))
                 self.assertEqual(len(base64.b64decode(entry['source']['nupkgSHA512'])), 64)
+        self.assertEqual(files['dotnet/Gommon/content/LICENSE'], b'Gommon licence fixture\n')
+        self.assertEqual(entries['dotnet/Gommon/content/LICENSE']['source']['member'], 'content/LICENSE')
+        for component, _, path, url, _, _, commit in collector.PINNED_URLS:
+            self.assertEqual(files[path], pinned_text(path))
+            self.assertEqual(entries[path]['source'], dict(kind='pinned-url', url=url, sha256=sha(pinned_text(path)),
+                                                           commit=commit))
+        self.assertEqual(sorted(self.fetched), sorted(url for _, _, _, url, _, _, _ in collector.PINNED_URLS))
         self.assertEqual(entries['dotnet/Microsoft.DotNet.ILCompiler/THIRD-PARTY-NOTICES.TXT']['source']['versionFrom'],
                          collector.ASSETS)
         self.assertEqual(files[legal.S2ARM_REWINDBOX_NOTICE], (ROOT / collector.NOTICE).read_bytes())
@@ -254,7 +303,7 @@ class Collection(unittest.TestCase):
         (folder / stem).write_bytes(raw)
         (folder / (stem + '.sha512')).write_text(base64.b64encode(hashlib.sha512(raw).digest()).decode())
         (folder / 'THIRD-PARTY-NOTICES.TXT').unlink()
-        self.refused('no THIRD-PARTY-NOTICES.TXT at the root of the package')
+        self.refused('no THIRD-PARTY-NOTICES.TXT in the package')
         (folder / stem).unlink()
         self.refused(f'no {stem} with its .sha512')
         assets = json.loads(json.dumps(fixture.assets))
@@ -264,6 +313,25 @@ class Collection(unittest.TestCase):
         (fixture.root / 'existing').mkdir()
         with self.assertRaisesRegex(collector.CollectError, 'exists'):
             fixture.collect(out=fixture.root / 'existing')
+
+    def test_a_fetched_text_that_is_not_the_pinned_one_is_refused(self):
+        url = next(url for _, _, path, url, _, _, _ in collector.PINNED_URLS if path == 'NetCoreServer/LICENSE')
+        self.served[url] = b'someone else wrote this\n'
+        self.refused('NetCoreServer/LICENSE: .* is not the pinned text')
+        self.served[url] = b''
+        self.refused('NetCoreServer/LICENSE: empty body')
+        self.served[url] = pinned_text('NetCoreServer/LICENSE') + b'x'
+        self.refused('is not the pinned text')
+        del self.served[url]
+        self.refused('HTTP Error 404')
+
+    def test_a_package_member_that_is_missing_is_refused(self):
+        folder = self.fixture.nuget / 'gommon' / VERSION
+        stem = f'gommon.{VERSION}.nupkg'
+        raw = nupkg({'contentFiles/any/net9.0/LICENSE': b'decoy copy\n'})   # the decoy alone is not the text
+        (folder / stem).write_bytes(raw)
+        (folder / (stem + '.sha512')).write_text(base64.b64encode(hashlib.sha512(raw).digest()).decode())
+        self.refused('no content/LICENSE in the package')
 
     def test_the_command_line(self):
         fixture = self.fixture
@@ -290,6 +358,33 @@ class Collection(unittest.TestCase):
     def written_cli(self):
         out = self.fixture.root / 'cli'
         return [path for path in out.rglob('*') if path.is_file()]
+
+
+class PinnedUrlTable(unittest.TestCase):
+    def test_the_table(self):
+        self.assertEqual(sorted(path for _, _, path, _, _, _, _ in collector.PINNED_URLS), sorted(PINNED_PATHS))
+        for component, licence, path, url, digest, size, commit in collector.PINNED_URLS:
+            self.assertRegex(url, r'^https://raw\.githubusercontent\.com/[^/]+/[^/]+/[0-9a-f]{40}/[^/]+$', path)
+            self.assertIn(f'/{commit}/', url)
+            self.assertRegex(digest, r'^[0-9a-f]{64}$')
+            self.assertGreater(size, 0)
+        for path in PINNED_PATHS:
+            self.assertIn(path, legal.S2ARM_REQUIRED_NOTICES)
+
+    @unittest.skipUnless(os.environ.get('S2ARM_LICENSE_COPIES'), 'S2ARM_LICENSE_COPIES names no folder')
+    def test_the_digests_against_the_real_texts(self):
+        folder = Path(os.environ['S2ARM_LICENSE_COPIES'])
+        copies = {'Humanizer/license.txt': 'Humanizer.license.txt',
+                  'RecyclableMemoryStream/LICENSE': 'Microsoft_Microsoft.IO.RecyclableMemoryStream.LICENSE',
+                  'NetCoreServer/LICENSE': 'chronoxor_NetCoreServer.LICENSE', 'MsgPack.Cli/LICENSE.txt': 'msgpack.LICENSE.txt',
+                  'System.IO.Hashing/LICENSE.TXT': 'dotnet.LICENSE.TXT', 'deko3d/LICENSE': 'devkitPro_deko3d.LICENSE'}
+        for _, _, path, _, digest, size, _ in collector.PINNED_URLS:
+            data = (folder / copies[path]).read_bytes()
+            self.assertEqual((sha(data), len(data)), (digest, size), path)
+
+    def test_the_fetch_refuses_what_is_not_https(self):
+        with self.assertRaisesRegex(collector.CollectError, 'not an HTTPS address'):
+            collector.fetch_url('http://example.invalid/x')
 
 
 @unittest.skipUnless(os.environ.get('S2ARM_PINNED_TREE'), 'S2ARM_PINNED_TREE names no S2Arm checkout')

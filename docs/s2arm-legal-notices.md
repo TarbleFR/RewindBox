@@ -17,8 +17,9 @@ Every piece comes from an authenticated producer run of the test line
 ([delivery](s2arm-engine-bridge.md#delivery-test-line)); S2Arm is at commit
 `6b6a571553f7a687af46e03e2cdbf8ef4d77f335` (`tools/s2arm_prototype/pin.json`). Third parties
 of the engine are those S2Arm's own `THIRD_PARTY_LICENSES.md` marks "进 IPA" (in the iPhone
-package) at that commit; what the guest framework actually links is to be confirmed against
-the framework before the notices are final (two rows are conditional in S2Arm's own table).
+package) at that commit, completed by what the engine build really keeps: the kept-code inventory
+(`build-utils/s2arm/engine/kept_code_inventory.py --check`, a blocking step of `s2arm-engine.yml`, runs 43119291210
+and 43122083170) settles it for the NuGet packages and for the linked native archives.
 
 ### Draft notice lines (for `docs/LEGAL_AND_CREDITS.md`, main's decision)
 
@@ -73,7 +74,9 @@ carries `S2Arm-native-identity.json` (and only for it).
    a file of the pinned S2Arm commit (from the repository objects, not the patched tree) or the exact
    licence comment of a header (its lines recorded); a member of a source archive the build fetched,
    checked against the SHA-256 its S2Arm build script pins; a file of a .NET package the NativeAOT build
-   restored, at the restored version, checked against NuGet's SHA-512. The result must pass the gate's
+   restored, at the restored version, checked against NuGet's SHA-512; for the packages and the deko3d port whose text the
+   archives lack, a text fetched over HTTPS from the pinned source commit and accepted only with the SHA-256 fixed in the
+   collector (kind `pinned-url`). The result must pass the gate's
    rule, then goes into the engine artifact as `licenses/`, recorded by `s2arm-engine-identity.json`.
 2. **Launcher.** `engine-download` checks the texts against that record, the gate's rule, the pin and
    the producer commit's RewindBox notice; `engine-embed` puts them in `Runner.app/Legal/S2Arm` after
@@ -101,6 +104,15 @@ carries `S2Arm-native-identity.json` (and only for it).
 | `ns2pro-bridge/LICENSE` | ns2pro-bridge (`NS2Pro.framework`) | `runtime/ns2pro/LICENSE` | yes |
 | `Ryujinx/LICENSE.txt` | the Ryujinx tree compiled into the services | `compat/tree/LICENSE.txt` | yes |
 | `SPIRV-Cross/LICENSE` | SPIRV-Cross vulkan-sdk-1.4.363.0 | `graphics/third_party/spirv_cross/LICENSE` | yes |
+| `dotnet/Gommon/content/LICENSE` | Gommon 2.8.1.2 (MIT), kept | the package archive (`content/LICENSE`, not the `contentFiles` copy) | yes |
+| `dotnet/Open.Nat.V2/LICENSE` | Open.Nat.V2 3.2.1 (MIT), kept | the package archive | yes |
+| `dotnet/Ryujinx.LibHac/LICENSE` | Ryujinx.LibHac 0.21.0-alpha.133 (MIT, with the ISC hactool and XTSSharp notices), kept | the package archive | yes |
+| `dotnet/System.IO.Hashing/THIRD-PARTY-NOTICES.TXT`, `System.IO.Hashing/LICENSE.TXT` | System.IO.Hashing 10.0.9 (MIT), kept | the package archive; the licence from the pinned `dotnet/dotnet` commit named by its nuspec | yes |
+| `Humanizer/license.txt` | Humanizer.Core 3.0.10 (MIT), kept | pinned source commit `90f0cb1d` of its nuspec repository (HTTPS, SHA-256 fixed in the collector) | yes |
+| `RecyclableMemoryStream/LICENSE` | Microsoft.IO.RecyclableMemoryStream 3.0.1 (MIT), kept | pinned commit `e29a2838` (same way) | yes |
+| `NetCoreServer/LICENSE` | NetCoreServer 8.0.7 (MIT), kept | pinned commit `cb58a43b` (same way) | yes |
+| `MsgPack.Cli/LICENSE.txt` | MsgPack.Cli 1.0.1 (Apache-2.0), kept; its nuspec has no repository, only a licenceUrl | commit `e1b574a0` (git tag 1.0.1), same way | yes |
+| `deko3d/LICENSE` | deko3d texture layout (zlib, © 2018-2020 fincs), ported in `nvn_tex.c`, linked as `libnvn.a(nvn_tex.c.o)` | pinned commit `373bfd43` of devkitPro/deko3d (same way) | yes |
 | `direct-graphics-layer/LICENSE` | S2Arm direct graphics layer parts (© 2026 seedds) | `graphics/nvn/LICENSE` | no |
 | `MacNativeGames/LICENSE` | nvn_bcdec, parts of `nvn_mtl.m` | `graphics/nvn/third_party/macnativegames/LICENSE` | no |
 | `SMAA/AA-LICENSE.txt` | SMAA shaders through Ryujinx | `graphics/metal/shaders/AA-LICENSE.txt` | no |
@@ -115,14 +127,33 @@ commit read from its repository objects (all 13 files and the two comments;
 archive (its pinned SHA-256) and the real .NET 10.0.15 packs. Only the engine producer run shows the
 four archives and the packs as that build restored them.
 
-Not located, so not shipped (no text invented): the zlib licence text of deko3d (S2Arm ports its
-texture layout in `graphics/nvn/gfx/nvn/nvn_tex.c`, whose line 2 names "zlib license, Copyright (C)
-2018-2020 fincs"; S2Arm pins no deko3d commit and keeps no copy of the text; zlib asks for its notice
-in source distributions only); the texts of the Ryujinx NuGet references (MsgPack.Cli 1.0.1 under
-Apache-2.0 and eight MIT packages of `compat/tree/Directory.Packages.props`) and ZstdSharp.Port, which
-S2Arm lists as in the reference closure without having checked what NativeAOT keeps; LibHac, which
-S2Arm marks as not in the IPA although `Ryujinx.HLE`, which references it, is a trimmer root of
-`services/aot/S2A.Aot.csproj`. These are points for main below.
+The settled state, from the kept-code inventory (runs 43119291210 and 43122083170: the services library's symbols per
+package assembly, and the final link's map):
+
+- **Kept code, text shipped.** Eight NuGet packages have NativeAOT code kept in the engine; each ships its text, taken
+  from its own archive (Gommon, Open.Nat.V2, Ryujinx.LibHac, System.IO.Hashing's notices; SHA-512 checked against
+  NuGet's record) or from the pinned source commit its nuspec names, fetched over HTTPS in CI and accepted only with
+  the SHA-256 fixed in `collect_licenses.py` (Humanizer.Core, Microsoft.IO.RecyclableMemoryStream, NetCoreServer,
+  MsgPack.Cli, System.IO.Hashing's licence). The deko3d port is the same: its zlib text comes from the pinned
+  devkitPro/deko3d commit. The libnvn rule of the check covers it, with S2Arm, MacNativeGames' `nvn_bcdec`, the direct
+  graphics layer and `nvn.h`.
+- **No kept code, no text.** The other 62 packages of the restore (the Humanizer.Core resource packages,
+  Microsoft.IdentityModel.*, System.CodeDom, Microsoft.Bcl.Cryptography, the Extensions abstractions, the ILCompiler and
+  ILLink build packages) have no kept code: "no kept code, inventory of run 43122083170" (listed one by one in the
+  inventory output of that run, `proof/kept-code-inventory.txt`). A package that gains kept code makes the check fail
+  until its text is added.
+- **Not in the restore.** ZstdSharp.Port and SkiaSharp are not among the restored packages, so neither has a text.
+- **Linked archives.** `libs2a_cs.a` (S2Arm, Ryujinx, the .NET runtime, the packages above), `libnvn.a`, `libdsx.a`
+  (SPIRV-Cross, S2Arm), `libglx.a` (glslang, S2Arm's `gl_xlate`), `libnxgal.a` (S2Arm, the D3D11 tessellator
+  reference), the `obj_app` objects (S2Arm), `libs2a_dav1d.a`, `libs2a_vpx.a`, `libs2a_opus.a` and the runtime pack's
+  native archives each map to a rule of the check. `libclang_rt.ios.a` is LLVM compiler-rt (Apache-2.0 with the LLVM
+  exception, which asks for no notice for compiled object code): recorded, no text. Apple SDK stubs and system
+  libraries are not distributed.
+- **glslang.** Its `LICENSE.txt` includes the GPL-3 Bison exception section, which covers `glslang_tab.cpp` (Bison
+  output): nothing more is needed for it.
+- **`nvn_deswizzle.c`.** Its "reference port fdb3710d" is seedds's upstream direct graphics chain (nxnative, MIT,
+  © 2026 seedds), whose text already ships as `direct-graphics-layer/LICENSE`.
+- **ICU.** Absent: the engine builds with `InvariantGlobalization=true`.
 
 ### `S2ArmEngine.framework`, `NS2Pro.framework` (`s2arm-engine.yml`)
 
@@ -131,8 +162,9 @@ S2Arm marks as not in the IPA although `Ryujinx.HLE`, which references it, is a 
 | S2Arm runtime, services, graphics, iOS guest (with RewindBox patches 0001–0009) | `6b6a5715` | Apache-2.0; keep `NOTICE` | `LICENSE`, `NOTICE` | yes |
 | ns2pro-bridge | baseline `4d7ce092` | MIT | `runtime/ns2pro/LICENSE` | yes (`NS2Pro.framework`) |
 | Ryujinx tree | `compat/tree` | MIT | `compat/tree/LICENSE.txt` | yes |
-| Ryujinx NuGet references: MsgPack.Cli 1.0.1 (Apache-2.0); Humanizer 3.0.10, Gommon 2.8.1.2, Microsoft.IO.RecyclableMemoryStream 3.0.1, Microsoft.IdentityModel.JsonWebTokens 8.19.1, SkiaSharp 3.119.4, NetCoreServer 8.0.7, Open.Nat.V2 3.2.1, System.IO.Hashing 10.0.9 (MIT) | `compat/tree/Directory.Packages.props` | as listed | each package's `LICENSE` | in the reference closure; kept after NativeAOT trimming not verified by S2Arm |
-| ZstdSharp.Port | 0.8.8 | MIT | nupkg in `compat/packages` | if the host build references it |
+| Ryujinx NuGet packages kept in the engine: Gommon 2.8.1.2, Open.Nat.V2 3.2.1, Ryujinx.LibHac 0.21.0-alpha.133 (MIT; LibHac also the ISC hactool and XTSSharp notices), System.IO.Hashing 10.0.9, Humanizer.Core 3.0.10, Microsoft.IO.RecyclableMemoryStream 3.0.1, NetCoreServer 8.0.7 (MIT), MsgPack.Cli 1.0.1 (Apache-2.0) | `compat/tree/Directory.Packages.props` | as listed | the package archive or the pinned source commit of its nuspec (table above) | kept (inventory of runs 43119291210, 43122083170) |
+| Other NuGet packages of the restore (62, e.g. Microsoft.IdentityModel.*, System.CodeDom, Humanizer.Core resource packages) | — | — | none | no kept code, inventory of run 43122083170 |
+| ZstdSharp.Port, SkiaSharp | — | — | none | not in the restore |
 | .NET runtime (NativeAOT) | 10.x | MIT | dotnet `LICENSE.txt`, `ThirdPartyNotices.txt` | yes (statically compiled) |
 | Direct graphics layer parts | `86d9ba12` | MIT (© 2026 seedds) | `graphics/nvn/LICENSE` | yes |
 | SPIRV-Cross | vulkan-sdk-1.4.363.0 | Apache-2.0 | `graphics/third_party/spirv_cross/LICENSE` | yes (`libnxgal.a`) |
@@ -142,12 +174,12 @@ S2Arm marks as not in the IPA although `Ryujinx.HLE`, which references it, is a 
 | nvn.h | h1k421 | MIT | its file header | yes |
 | D3D11 tessellator reference | Mesa main, 2026-10-21 | MIT (Microsoft) | `graphics/metal/gal_tess_d3d.h` header | yes |
 | SMAA shaders | through Ryujinx | MIT | `graphics/metal/shaders/AA-LICENSE.txt` | yes |
-| deko3d texture layout (port) | — | zlib (© 2018-2020 fincs) | `graphics/nvn/gfx/nvn/nvn_tex.c` header | yes |
+| deko3d texture layout (port) | devkitPro/deko3d `373bfd43` | zlib (© 2018-2020 fincs) | `deko3d/LICENSE` (pinned commit, SHA-256 checked) | yes (`libnvn.a(nvn_tex.c.o)`) |
 | libvpx (S2Arm patches `services/vpx/patches/`) | 1.17.0 | BSD-3-Clause + patent grant | its source archive (`LICENSE`, `PATENTS`) | yes (static) |
 | libopus | 1.6.1 | BSD-3-Clause + patent grant | its source archive (`COPYING`) | yes (static) |
 | dav1d | 1.5.4 | BSD-2-Clause | its source archive (`COPYING`) | yes (static) |
 
-Not in the IPA per S2Arm's table: Vulkan-Headers, LibHac, Capstone/LZ4 of S2Arm's own rewriter
+Not in the IPA per S2Arm's table: Vulkan-Headers, Capstone/LZ4 of S2Arm's own rewriter
 tool, Python packages, the macOS launcher's runtime, Homebrew libraries, GNU bash.
 
 ### `S2ArmSystemData` (`s2arm-prepare.yml`, macOS artifact)
@@ -177,8 +209,8 @@ next two tables (S2Arm rewriter, Capstone, LZ4; RewindBox's ports of S2Arm tools
 - glslang: S2Arm's table marks it as not in the IPA, but S2Arm's `graphics/build.mk` links `libglx.a`
   (`graphics/third_party/glslang/build.sh`, glslang 16.6.0) into the iOS application, hence the guest
   framework: its text is required.
-- To decide: deko3d's zlib text, the Ryujinx NuGet references and ZstdSharp.Port, LibHac (see
-  "Not located" above); a check of the engine framework's symbols would settle what NativeAOT kept.
+- Settled by the kept-code inventory (see "The settled state" above): deko3d's zlib text, the Ryujinx NuGet
+  references, ZstdSharp.Port, LibHac (kept in the engine although S2Arm's table says otherwise: its text ships).
 
 ## Components in `S2ArmPrepare.xcframework`
 
