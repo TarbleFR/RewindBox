@@ -1,10 +1,12 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui' show Locale;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/l10n/s2arm_engine_locale.dart';
+import 'package:neostation/l10n/switch2_library_locale.dart';
 import 'package:neostation/l10n/switch2_settings_locale.dart';
 import 'package:neostation/services/s2arm_internal_service.dart';
 import 'package:path_provider/path_provider.dart';
@@ -353,6 +355,163 @@ void main() {
       await makePrepared();
       expect(await S2ArmInternalService.deleteGame(npdm), isTrue);
       expect(await File('${library.path}/S2Arm/$gid/pack.bin').exists(), isTrue);
+    });
+  });
+
+  group('saves', () {
+    late Directory temp;
+    const gid = '0100ABCDEF000000';
+    setUp(() async {
+      temp = await Directory.systemTemp.createTemp('s2arm-saves-');
+      S2ArmInternalService.documentsDirectory = () async => Directory('${temp.path}/Documents');
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'detectExport') {
+          final folder = (call.arguments as Map)['exportFolder'] as String;
+          if (folder.endsWith('not-a-game')) return {'success': false, 'code': 'notExportFolder'};
+          return {'success': true, 'exportDir': folder, 'gid': gid, 'programId': gid.toLowerCase()};
+        }
+        if (call.method == 'gameInfo') return {'success': true, 'title': 'Test: Game', 'titleId': gid.toLowerCase()};
+        return null;
+      });
+    });
+    tearDown(() async {
+      S2ArmInternalService.documentsDirectory = getApplicationDocumentsDirectory;
+      S2ArmInternalService.sessionRunningForTesting = false;
+      if (await temp.exists()) await temp.delete(recursive: true);
+    });
+
+    Future<Directory> picked(String name, Map<String, int> files) async {
+      final folder = await Directory('${temp.path}/picked/$name').create(recursive: true);
+      for (final entry in files.entries) {
+        final file = File('${folder.path}/${entry.key}');
+        await file.parent.create(recursive: true);
+        await file.writeAsBytes(List<int>.filled(entry.value, 1));
+      }
+      return folder;
+    }
+
+    test('each game has one save folder in Documents/S2Arm/Saves, found again by its title id', () async {
+      final folder = await S2ArmInternalService.saveFolderFor('/export');
+      expect(folder, isNotNull);
+      expect(folder!.path, '${temp.path}/Documents/S2Arm/Saves/Test Game [$gid]');
+      expect(await folder.exists(), isTrue);
+      final renamed = await folder.rename('${temp.path}/Documents/S2Arm/Saves/My save [$gid]');
+      expect((await S2ArmInternalService.saveFolderFor('/export'))!.path, renamed.path);
+      expect(await S2ArmInternalService.saveFolderFor('/not-a-game'), isNull);
+    });
+
+    test('an imported save is copied as picked; the previous one is kept as a backup', () async {
+      final first = await picked('JKSV', {'Test Game/User - 2026.11.12 @ 10.00.00/save.bin': 64});
+      final result = await S2ArmInternalService.importSaveAt('/export', first.path);
+      expect(result.files, 1);
+      expect(result.backup, isNull);
+      expect(await File('${result.folder}/JKSV/Test Game/User - 2026.11.12 @ 10.00.00/save.bin').length(), 64);
+      final second = await picked('0x0100abcdef000000 Test Game', {'2026-11-12/save.bin': 32, '2026-11-12/extra.bin': 8});
+      final again = await S2ArmInternalService.importSaveAt('/export', second.path);
+      expect(again.files, 2);
+      expect(again.backup, '${result.folder} (backup)');
+      expect(await File('${again.backup}/JKSV/Test Game/User - 2026.11.12 @ 10.00.00/save.bin').exists(), isTrue);
+      expect(await Directory('${again.folder}/JKSV').exists(), isFalse, reason: 'the folder holds only the new save');
+      expect(await File('${again.folder}/0x0100abcdef000000 Test Game/2026-11-12/save.bin').length(), 32);
+    });
+
+    test('an empty folder, the saves folder itself and a non-export are refused, nothing changes', () async {
+      final empty = await Directory('${temp.path}/picked/empty').create(recursive: true);
+      await expectLater(S2ArmInternalService.importSaveAt('/export', empty.path),
+          throwsA(isA<S2ArmSaveException>().having((e) => e.code, 'code', 'saveEmpty')));
+      final target = (await S2ArmInternalService.saveFolderFor('/export'))!;
+      await File('${target.path}/kept.bin').writeAsBytes([1, 2, 3]);
+      await expectLater(S2ArmInternalService.importSaveAt('/export', target.path),
+          throwsA(isA<S2ArmSaveException>().having((e) => e.code, 'code', 'saveSameFolder')));
+      await expectLater(S2ArmInternalService.importSaveAt('/export', (await S2ArmInternalService.savesDirectory()).path),
+          throwsA(isA<S2ArmSaveException>().having((e) => e.code, 'code', 'saveSameFolder')));
+      final save = await picked('save', {'a.bin': 4});
+      await expectLater(S2ArmInternalService.importSaveAt('/not-a-game', save.path),
+          throwsA(isA<S2ArmSaveException>().having((e) => e.code, 'code', 'saveNotExport')));
+      expect(await File('${target.path}/kept.bin').readAsBytes(), [1, 2, 3]);
+    });
+
+    test('the game a save names is read like the engine reads it', () async {
+      final checkpoint = await picked('0x0100AAAA00000000 Other Game', {'2026-11-12/save.bin': 8});
+      expect(await S2ArmInternalService.saveProgramId(checkpoint.path), '0100aaaa00000000');
+      final yuzu = await picked('nand', {'0000000000000000/${'1' * 32}/0100BBBB00000000/save.bin': 8});
+      expect(await S2ArmInternalService.saveProgramId(yuzu.path), '0100bbbb00000000');
+      final ryujinx = await picked('ryujinx', {'0000000000000001/0/save.bin': 8});
+      final meta = ByteData(0x40)..setUint64(0, 0x0100CCCC00000000, Endian.little)..setUint8(0x20, 1);
+      await File('${ryujinx.path}/0000000000000001/ExtraData0').writeAsBytes(meta.buffer.asUint8List());
+      expect(await S2ArmInternalService.saveProgramId(ryujinx.path), '0100cccc00000000');
+      final jksv = await picked('JKSV', {'Some Game/User - 2026.11.12 @ 10.00.00/save.bin': 8});
+      expect(await S2ArmInternalService.saveProgramId(jksv.path), isNull, reason: 'JKSV names no game');
+      final both = await picked('both', {'0x0100AAAA00000000 A/x/save.bin': 1, '0x0100DDDD00000000 B/x/save.bin': 1});
+      expect(await S2ArmInternalService.saveProgramId(both.path), isNull, reason: 'two games: let the engine decide');
+    });
+
+    test('a save of another library game goes to that game, a save of a game not in the library to its own folder', () async {
+      final other = await Directory('${temp.path}/Documents/S2Arm/Games/Other Game').create(recursive: true);
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        final folder = (call.arguments as Map)['exportFolder'] as String;
+        if (call.method == 'detectExport') {
+          final id = folder == other.path ? '0100AAAA00000000' : gid;
+          return {'success': true, 'exportDir': folder, 'gid': id, 'programId': id.toLowerCase()};
+        }
+        if (call.method == 'gameInfo') return {'success': true, 'title': folder == other.path ? 'Other Game' : 'Test Game'};
+        return null;
+      });
+      final save = await picked('0x0100AAAA00000000 Other Game', {'2026-11-12/save.bin': 8});
+      final result = await S2ArmInternalService.importSaveAt('/export', save.path);
+      expect(result.redirectedTo, '0100AAAA00000000');
+      expect(result.redirectedTitle, 'Other Game');
+      expect(result.folder, '${temp.path}/Documents/S2Arm/Saves/Other Game [0100AAAA00000000]');
+      expect(await File('${result.folder}/0x0100AAAA00000000 Other Game/2026-11-12/save.bin').exists(), isTrue);
+      final ownFolder = Directory('${temp.path}/Documents/S2Arm/Saves/Test Game [$gid]');
+      expect(await ownFolder.exists(), isFalse, reason: 'the selected game is untouched');
+
+      final missing = await picked('0x0100EEEE00000000 Missing', {'x/save.bin': 8});
+      final away = await S2ArmInternalService.importSaveAt('/export', missing.path);
+      expect(away.redirectedTo, '0100EEEE00000000');
+      expect(away.redirectedTitle, isNull);
+      expect(away.folder, '${temp.path}/Documents/S2Arm/Saves/Switch 2 [0100EEEE00000000]');
+    });
+
+    test("a save that names the selected game, or no game, stays with the selected game", () async {
+      final mine = await picked('0x${gid.toLowerCase()} Test Game', {'x/save.bin': 8});
+      final result = await S2ArmInternalService.importSaveAt('/export', mine.path);
+      expect(result.redirectedTo, isNull);
+      expect(result.folder, '${temp.path}/Documents/S2Arm/Saves/Test Game [$gid]');
+    });
+
+    test('no import while a Switch 2 game runs', () async {
+      S2ArmInternalService.sessionRunningForTesting = true;
+      await expectLater(S2ArmInternalService.importSave('/export'),
+          throwsA(isA<S2ArmSaveException>().having((e) => e.code, 'code', 'saveGameRunning')));
+    });
+
+    test('launchGame receives the game save folder', () async {
+      S2ArmInternalService.availabilityForTesting = const S2ArmRuntimeAvailability(S2ArmRuntimeState.ready);
+      Map<Object?, Object?>? arguments;
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'detectExport') return {'success': true, 'exportDir': '/export', 'gid': gid};
+        if (call.method == 'gameInfo') return {'success': true, 'title': 'Test Game'};
+        if (call.method == 'prepareGame') return {'success': true, 'gid': gid, 'imagesPath': '/i', 'moduleDir': '/m', 'gameData': '/g', 'docs': '/d'};
+        if (call.method == 'launchGame') {
+          arguments = call.arguments as Map<Object?, Object?>;
+          return {'success': true};
+        }
+        return null;
+      });
+      final outcome = await S2ArmInternalService.launch('/export', pairingFilePath: '/pair');
+      S2ArmInternalService.sessionRunningForTesting = false;
+      expect(outcome.success, isTrue);
+      expect(arguments!['saveFolder'], '${temp.path}/Documents/S2Arm/Saves/Test Game [$gid]');
+    });
+
+    test('every locale carries the save strings', () {
+      for (final code in Switch2LibraryLocale.values.keys) {
+        for (final key in const ['importSave', 'importSaveHint', 'openSaves', 'openSavesHint', 'openSavesFailed', 'saveImported',
+            'saveImportedBackup', 'saveGameRunning', 'saveEmpty', 'saveSameFolder', 'saveNotExport', 'saveFailed']) {
+          expect(Switch2LibraryLocale.values[code]![key], isNotEmpty, reason: '$code $key');
+        }
+      }
     });
   });
 }

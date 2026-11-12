@@ -120,5 +120,32 @@ class Menu(unittest.TestCase):
         self.assertIn('if (host.presentedViewController != self.presented) return NO;', present)
 
 
+class Saves(unittest.TestCase):
+    """The game's save folder is Documents/S2Arm/Saves/<game>, given to the engine as S2A_SAVE_FOLDER before the dlopen."""
+
+    def test_the_bridge_sets_the_save_folder_before_the_engine_loads(self):
+        prepare = PLUGIN.index('S2ArmPrepareSaveFolder(self.saveFolder, docs);')
+        self.assertLess(PLUGIN.index('S2ArmSettingsPrepareLaunch();'), prepare)
+        self.assertLess(prepare, PLUGIN.index('dlopen(enginePath'))
+        body = block(PLUGIN, 'static void S2ArmPrepareSaveFolder(NSString *folder, NSString *docs) {')
+        self.assertIn('!S2ArmPathInside(folder, documents)', body, 'only a folder inside Documents')
+        self.assertIn('setenv("S2A_SAVE_FOLDER", folder.fileSystemRepresentation, 1);', body)
+        self.assertLess(body.index('copyItemAtPath'), body.index('setenv("S2A_SAVE_FOLDER"'))
+        self.assertNotIn('removeItemAtPath', body, 'the old private save is never deleted')
+
+    def test_open_folder_stays_in_documents(self):
+        body = PLUGIN[PLUGIN.index('isEqualToString:@"openFolder"'):PLUGIN.index('isEqualToString:@"setSettings"')]
+        self.assertIn('S2ArmPathInside(folder, documents)', body)
+        self.assertIn('url.scheme = @"shareddocuments";', body)
+
+    def test_dart_passes_the_folder_and_imports_inside_the_activity(self):
+        service = (ROOT / 'lib/services/s2arm_internal_service.dart').read_text()
+        self.assertIn("static Future<Directory> savesDirectory() => _child('Saves');", service)
+        self.assertIn("if (saveFolder != null) 'saveFolder': saveFolder.path,", service)
+        start = service.index('static Future<S2ArmSaveImportResult?> importSave(')
+        self.assertIn('StorageImportActivity.run(() async {', service[start:start + 300])
+        self.assertIn("Directory('${target.path} (backup)')", service, 'the previous save is kept')
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

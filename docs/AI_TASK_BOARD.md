@@ -5111,6 +5111,15 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       `test/s2arm_session_menu_test.py` and `test/switch2_settings_locale_test.dart`.
     - Limits: changes apply to the next game, after RewindBox restarts (one game per process). There is no pause
       (the engine exports none). Not observed on a device.
+  - Switch 2 saves (maintainer request, 12 Nov), new handoff on top of Claude `19b99762`: `f382409b` and `2ab99d6b`.
+    There is no engine change.
+    - Each game has a save folder that the Files app shows: `Documents/S2Arm/Saves/<title> [<TITLE ID>]`. The bridge
+      passes it as `S2A_SAVE_FOLDER`, and the engine reads and writes native saves there.
+    - Playlist menu: "Import a save" and "Open the saves folder".
+    - A save that names another game (Ryujinx, yuzu or Checkpoint) goes to that game's folder.
+    - The previous content is kept as `(backup)`.
+    - Green: `flutter analyze` and tests 43146548370 on `2ab99d6b`; iOS compile 43146259805 on `f382409b`.
+    - Not observed on a device.
   - Main withdrew the launcher deletion (12 Nov): it stays as is. Formerly open: delete the launcher (`.github/diagnostics/s2arm/`, `s2arm-delivery.yml`,
     `set_probe_key.py`) together with its test `s2arm_delivery_test.py`, which no longer works
     since 9c9817e8 (40 errors)? Main also has to choose the S2Arm test groups of the next

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:path/path.dart' as path;
 
 import '../l10n/melonx_transfer_locale.dart';
 import '../l10n/switch2_library_locale.dart';
@@ -9,6 +10,7 @@ import '../repositories/game_repository.dart';
 import '../services/melonx_embedded_library_service.dart';
 import '../services/s2arm_internal_service.dart';
 import '../services/storage/storage_import_activity.dart';
+import '../services/switch2_export_content.dart';
 import 'delete_game_dialog.dart';
 import 'switch2_engine_settings_panel.dart';
 
@@ -187,6 +189,42 @@ class _S2ArmInternalPlaylistActionsState
     if (mounted) _notice(_tf('deleted', {'name': name}));
   }
 
+  Future<void> _importSave() async {
+    final romPath = widget.romPath;
+    if (romPath == null) return;
+    final name = widget.gameName ?? widget.romName ?? '';
+    final S2ArmSaveImportResult? result;
+    try {
+      result = await S2ArmInternalService.importSave(
+        Switch2ExportContent.exportFolder(romPath),
+        dialogTitle: _t('importSave'),
+      );
+    } on S2ArmSaveException catch (error) {
+      _notice(_t(error.code));
+      return;
+    } catch (error) {
+      _notice('${_t('saveFailed')}\n$error');
+      return;
+    }
+    if (result == null || !mounted) return;
+    final redirected = result.redirectedTo;
+    final lines = [
+      if (redirected == null) _tf('saveImported', {'name': name, 'count': '${result.files}'}),
+      if (redirected != null && result.redirectedTitle != null)
+        _tf('saveRedirected', {'name': result.redirectedTitle, 'id': redirected}),
+      if (redirected != null && result.redirectedTitle == null) _tf('saveRedirectedMissing', {'id': redirected}),
+      if (result.backup != null) _tf('saveImportedBackup', {'backup': path.basename(result.backup!)}),
+    ];
+    _notice(lines.join('\n'));
+  }
+
+  Future<void> _openSaves() async {
+    final romPath = widget.romPath;
+    if (romPath == null) return;
+    final opened = await S2ArmInternalService.openSaveFolder(Switch2ExportContent.exportFolder(romPath));
+    if (!opened) _notice(_t('openSavesFailed'));
+  }
+
   Future<void> _openSettings() async {
     await showDialog<void>(
       context: context,
@@ -216,6 +254,8 @@ class _S2ArmInternalPlaylistActionsState
       if (action == 'keys') await _importKeys();
       if (action == 'delete') await _delete();
       if (action == 'settings') await _openSettings();
+      if (action == 'importSave') await _importSave();
+      if (action == 'openSaves') await _openSaves();
     } finally {
       if (mounted) {
         setState(() => _busy = false);
@@ -279,6 +319,18 @@ class _S2ArmInternalPlaylistActionsState
             value: 'settings',
             child: Text(Switch2SettingsLocale.text(context, 'title')),
           ),
+          if (widget.romPath != null)
+            PopupMenuItem(
+              key: const ValueKey('s2arm-import-save'),
+              value: 'importSave',
+              child: _item(_t('importSave'), _t('importSaveHint')),
+            ),
+          if (widget.romPath != null)
+            PopupMenuItem(
+              key: const ValueKey('s2arm-open-saves'),
+              value: 'openSaves',
+              child: _item(_t('openSaves'), _t('openSavesHint')),
+            ),
           if (widget.romPath != null && widget.appSystemId != null)
             PopupMenuItem(
               key: const ValueKey('s2arm-delete-game'),
