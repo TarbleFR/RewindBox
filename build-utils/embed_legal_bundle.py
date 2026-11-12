@@ -80,13 +80,20 @@ S2ARM_REQUIRED_NOTICES = (
     "libvpx/LICENSE", "libvpx/PATENTS", "opus/COPYING", "dav1d/COPYING", "glslang/LICENSE.txt",
     # Third parties in S2Arm's tree.
     "bcdec/LICENSE", "ns2pro-bridge/LICENSE", "Ryujinx/LICENSE.txt", "SPIRV-Cross/LICENSE",
+    # NuGet packages with NativeAOT code kept in the engine (kept-code inventory of the engine build): from their
+    # package archive, or from the pinned source commit of their nuspec (kind pinned-url, SHA-256 fixed by the collector).
+    "dotnet/Gommon/content/LICENSE", "dotnet/Open.Nat.V2/LICENSE", "dotnet/Ryujinx.LibHac/LICENSE",
+    "dotnet/System.IO.Hashing/THIRD-PARTY-NOTICES.TXT", "System.IO.Hashing/LICENSE.TXT",
+    "Humanizer/license.txt", "RecyclableMemoryStream/LICENSE", "NetCoreServer/LICENSE", "MsgPack.Cli/LICENSE.txt",
+    # The deko3d texture layout ported into nvn_tex.c (libnvn.a).
+    "deko3d/LICENSE",
 )
 S2ARM_NO_NINTENDO_DATA = (
     "No Nintendo data ships with the S2Arm engine in this application: no system file, firmware, key, font or game "
     "content of a console. Its system data (S2ArmSystemData) is only fonts under the SIL Open Font License, the IANA "
     "time zone database and empty system data synthesised by S2Arm's generator."
 )
-S2ARM_SOURCE_KINDS = ("s2arm", "archive", "nuget", "rewindbox")
+S2ARM_SOURCE_KINDS = ("s2arm", "archive", "nuget", "pinned-url", "rewindbox")
 
 
 def load_json(path: Path) -> dict:
