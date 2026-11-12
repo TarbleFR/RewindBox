@@ -365,8 +365,12 @@ jobs:
           if len(jobs) != 1 or jobs[0]['conclusion'] != 'success' or jobs[0]['run_attempt'] != run['run_attempt']:
               sys.exit('the core job of that run did not succeed in its latest attempt')
           artifacts = json.loads((folder / 'artifacts.json').read_text())['artifacts']
+          # A rerun keeps the artifacts of the failed attempt, and its diagnostics share the name
+          # (run 43158794942): only what the core job of the latest attempt uploaded counts.
+          started = jobs[0]['started_at']
           def one(name):
-              found = [item for item in artifacts if item['name'] == name and not item['expired']]
+              found = [item for item in artifacts if item['name'] == name and not item['expired']
+                       and item['created_at'] >= started]
               if len(found) != 1 or not str(found[0].get('digest', '')).startswith('sha256:'):
                   sys.exit(f'not exactly one unexpired artifact {name} with a digest')
               return found[0]
