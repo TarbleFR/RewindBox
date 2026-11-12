@@ -359,6 +359,19 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     `Claude-Session` line.
   - **Next:** download, verify offline, receipts, record, delete the key, send the file; give session 04 the freeze
     commit for 803 (sibling of 726).
+- **Next IPA (732) queue (main, 12 Nov 15:5xZ).**
+  - Session 03 handoff merged on Claude as 5b53672e (code head 22058559, board 22bc25c7; macOS run 43249822171 green).
+    - XeniaCore pin c7d6a5c4 (2bbc9daf7, run 43241572889): profile sign-in for player 1 (the cause of Fable
+      Anniversary's START refused on 730), guest dialogs and keyboard on the render window, rumble, all pads, menu on pad
+      loss.
+    - Licence audit c1dddbdaa: RA disc-reader notices, date (MIT) in XeniOS notices, RewindBox-MODIFICATIONS.md
+      required, legal dialog assets, 25 package LICENSE files, legal test chain repaired.
+  - Main's local checks on the merge:
+    - Xbox 360 suites (embedding, patch, transport, pin, touch, launch, namespace, verify_core) OK;
+    - legal suites (modifications notice, build source evidence, preflight, s2arm legal bundle) OK; stikjit host OK.
+    - Delivery contract: only the 2 PocketSkinRevisionReview errors that clear when the 732 manifest freezes c7d6a5c4.
+  - RPCS3/MeloNX packages get only LICENSE files; no Core input or pin changed.
+  - Waits for the maintainer's go.
 - **IPA 731 delivered and verified (12 Nov 15:0xZ, main; maintainer asked for it with session 04's fix).**
   - Run `43238363574` attempt 1, trigger `5e4eb9c7`, frozen on `8667a630`, effective digest `fd4c9ec6`, 7922 product
     files. All 5 jobs succeeded on the first request.
