@@ -67,6 +67,7 @@ from adapt_worker_main_cache_lookup import BASELINE as C691_WORKER_MAIN_CACHE_LO
 from adapt_compute_switch_bindings import BASELINE as C693_COMPUTE_SWITCH_BINDINGS  # noqa: E402
 from adapt_bgc_keepalive import BASELINE as C693_BGC_KEEPALIVE  # noqa: E402
 from adapt_host_thread_class import BASELINE as C733_HOST_THREAD_CLASS  # noqa: E402
+from adapt_npad_config_snapshot import BASELINE as C737_NPAD_CONFIG_SNAPSHOT  # noqa: E402
 from adapt_array_delta_invalidated import BASELINE as C697_ARRAY_DELTA_INVALIDATED  # noqa: E402
 from adapt_pipeline_cache_background import BASELINE as C697_PIPELINE_CACHE_BACKGROUND  # noqa: E402
 from adapt_sync_wait_attribution import BASELINE as C699_SYNC_WAIT_ATTRIBUTION  # noqa: E402
@@ -193,6 +194,8 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'kernel-timer-allocations': 'delivered',
             # Core 735 (lot 14): the remap sweep of the partially mapped textures.
             'remap-sweep-range': 'delivered',
+            # Core 737: the controller manager's own copy of the input configuration.
+            'npad-config-snapshot': 'delivered',
             # Core 661: the native display fixture declares EmbeddedMemory.cs (adapt_safe_point_compaction): rerun.
             'display-native': 'delivered',
             # Core 654: its receipt declares the collector (postimage), so the single-virtual-dependency fixture is rerun.
@@ -251,7 +254,9 @@ CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES
            set(C717_WORKER_LIBRARY_SHARE) |
            # Core 733: the eight files of the host thread class (SurfaceFlinger.cs already changed; KThread.cs,
            # KTimeManager.cs and AudioProcessor.cs prepared members changed for the first time; four files new).
-           set(C733_HOST_THREAD_CLASS))
+           set(C733_HOST_THREAD_CLASS) |
+           # Core 737: NpadManager.cs (new).
+           set(C737_NPAD_CONFIG_SNAPSHOT))
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
@@ -322,6 +327,8 @@ JOINED = JOINED | {'src/Ryujinx.Graphics.Vulkan/MemoryAllocator.cs'}
 C733_JOINED = {'src/Ryujinx.Common/PreciseSleep/NanosleepPool.cs', 'src/Ryujinx.HLE/HOS/Kernel/KernelContext.cs',
                'src/Ryujinx.Audio/Renderer/Server/AudioRendererManager.cs', 'src/Ryujinx.Audio/AudioManager.cs'}
 JOINED = JOINED | C733_JOINED
+# Core 737 (adapt_npad_config_snapshot): the controller manager joins the prepared source.
+JOINED = JOINED | {'src/Ryujinx.Input/HLE/NpadManager.cs'}
 REUSED_FRESH = set()
 
 
@@ -493,7 +500,8 @@ if not args.helpers_only:
     check(frozen['reusedAppleGates'] == sum(v == 'unchanged-scoped-proof-not-reexecuted' for v in frozen['retainedDisposition'].values()), 'Wrong reuse count')
     # Core 703: 84 changed production files (ShaderInfoBuilder.cs joins). Core 725: 85 (the engine journal joins). Core 727: 87.
     # Core 733: 94 (seven of the eight files of the host thread class; SurfaceFlinger.cs was already changed).
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 94 and not frozen["productionAdditions"], "Unexpected production scope")
+    # Core 737: 95 (NpadManager.cs).
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 95 and not frozen["productionAdditions"], "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
                                                      'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
                                                      'build-utils/melonx/adapt_queued_syncpoints.py',
@@ -571,7 +579,8 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_pipeline_cache_compact.py',
                                                      'build-utils/melonx/adapt_cold_buffer_trim.py',
                                                      'build-utils/melonx/adapt_host_thread_class.py',
-                                                     'build-utils/melonx/adapt_remap_sweep_range.py'} and
+                                                     'build-utils/melonx/adapt_remap_sweep_range.py',
+                                                     'build-utils/melonx/adapt_npad_config_snapshot.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -605,7 +614,8 @@ if not args.helpers_only:
     # Core 731: adapt_cold_buffer_trim.py joins them; the same 207 prepared members.
     # Core 733: adapt_host_thread_class.py joins them; four files join the prepared members (211).
     # Core 735: adapt_remap_sweep_range.py joins them; the same 211 prepared members.
-    check(len(frozen['preparationInputs']) == 207 and len(frozen['preparedMembers']) == 211, 'Wrong final composition')
+    # Core 737: adapt_npad_config_snapshot.py joins them; NpadManager.cs joins the prepared members (212).
+    check(len(frozen['preparationInputs']) == 208 and len(frozen['preparedMembers']) == 212, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
@@ -648,6 +658,12 @@ if not args.helpers_only:
           set(gate['diagnostics-snapshot-reuse']['requiredPostimages']) == {JOURNAL_FILE, 'src/Ryujinx.Library/EmbeddedRuntime.cs'},
           'The Core 733 changes are not bound by their gates')
     OUTSIDE_GPU |= set(C733_HOST_THREAD_CLASS)
+    # Core 737: NpadManager.cs (Ryujinx.Input) is bound by its gate, which builds the production Ryujinx.Input from the final
+    # preparation.
+    check(set(C737_NPAD_CONFIG_SNAPSHOT) == set(gate['npad-config-snapshot']['requiredPostimages']) and
+          gate['npad-config-snapshot']['assertions'].get('productionInputAssemblyBuilt') is True,
+          'The Core 737 change is not bound by its gate')
+    OUTSIDE_GPU |= set(C737_NPAD_CONFIG_SNAPSHOT)
     check(CHANGES - OUTSIDE_GPU <= set(gate['fragmented-reads']['requiredPostimages']) and
           # Library.cs and the two HLE files (Core 647) are outside the GPU/Vulkan closure; their own gates bind them.
           CHANGES - {LIBRARY} - OUTSIDE_GPU <= {b['productionPath'] for b in gate['fragmented-reads']['compiledBindings']},
@@ -698,7 +714,9 @@ if not args.helpers_only:
                                             # Core 727: MemoryAllocator.cs joins, read only by its own gates (delivered control).
                                             path != 'src/Ryujinx.Graphics.Vulkan/MemoryAllocator.cs' and
                                             # Core 733: the four files outside the GPU closure are read from no control.
-                                            path not in C733_JOINED}},
+                                            path not in C733_JOINED and
+                                            # Core 737: NpadManager.cs likewise (its gate rebuilds its control).
+                                            path not in C737_NPAD_CONFIG_SNAPSHOT}},
                         'ada': arrays_frozen['controlUnadaptedMembers']['ada']},
           'Control-only upstream inventories differ from the arrays contract plus the files joining the prepared source')
     rejects(lambda: verify.check_control_inventories({**frozen, 'controlUnadaptedMembers': {k: v for k, v in unadapted.items() if k != 'ada'}}),

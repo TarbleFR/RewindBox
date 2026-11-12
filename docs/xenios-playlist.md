@@ -426,6 +426,28 @@ which can layer one over these controls later.
   workflow compiles the whole app for the simulator; `ios-ci.yml` builds the
   IPA and stays with the main session.
 
+## Core built with an iOS 26 SDK (12 Nov 2026)
+
+GitHub's macOS runners have Xcode 26.x only, so XeniaCore is built with the
+newest iOS 26 SDK there (`rewindbox-core.patch` guards the two iOS 27 SDK uses).
+Consequence, stated plainly: **StateReporting and the external-display scene
+accessory (UISceneAccessory) are absent from this Core, including on iOS 27
+devices such as the maintainer's iPhone** — compiled out, not merely unused.
+XeniaCore logs it once at start (`RewindBox XeniaCore: iOS SDK …; StateReporting
+and the external-display scene accessory are compiled out`). A Core built with
+Xcode 27 would have both, unchanged from upstream.
+
+The converter's signature is checked by signing requirements in
+`build_core.sh`: `codesign --verify --strict -R '=anchor apple'`, then the
+identity observed on the pinned mirror asset (identifier
+`libmetalirconverter`, leaf « Software Signing », Apple Code Signing
+Certification Authority, Apple Root CA, no Team ID; read from the asset's
+signature on 12 Nov 2026 and recorded in `source.json`). The former
+`grep -q "Authority=Apple"` check was too weak (a third-party chain ending at
+Apple Root CA passes it) and, under `pipefail`, failed run 43119228652 by
+itself (grep closing the pipe made `tee` fail). An Apple signature does not
+name the Apple package or agreement behind the bytes (dossier open point 1).
+
 ## Legal gate (source/license declarations)
 
 `build-utils/collect_build_source_evidence.py` binds `pubspec.yaml` to the
@@ -442,6 +464,43 @@ the converter's source and notice declarations are due when the Core ships.
 Checked 11 Nov: the chain passes on this branch once the pre-existing
 `libretro_internal_bridge.podspec` mismatch of `Claude` is masked; it refuses
 the branch without this review and refuses a changed declared file.
+
+## XeniaCore pin and its delivery review (12 Nov 2026)
+
+Run 43126203790 (commit 79f3409f0, Xcode 26.x, iOS SDK 26.5) built
+XeniaCore; `verify_core.py` passed (arm64 iPhoneOS, minos 26.0, only
+`NeoXenia_GetAPI` exported, `@rpath/libmetalirconverter.dylib` dependency,
+no Objective-C class shared with the bridge, no absolute build path). The
+first full link (run 43121527685) had been refused for two runner paths:
+CMake's build-tree `LC_RPATH` to the converter's directory and the `-g`
+debug map; `target.cmake` now sets `SKIP_BUILD_RPATH` and links with `-Wl,-S`.
+
+`build-utils/xenia/core-pin.json` (SHA-256 `8b850d7b…1e33`) was written by
+`core_pin.py pin` in the ubuntu `pin` job (run 43131262723, triggered by
+`[xenia-pin run=43126203790]`): it downloaded artifact 13904214253
+(`XeniaCore-79f3409f0…`, 9,533,089 B, `73187aa0…dcd0`, expires 26 Nov) by id,
+checked its digest against the API, then pinned and verified it. The binary
+is 37,719,376 B, `e0a533dc…b011`, packaged fingerprint `97e08271…f9cd`. The
+pin records codesign's own report of the converter in that run: identifier
+`libmetalirconverter`, authorities Software Signing > Apple Code Signing
+Certification Authority > Apple Root CA, TeamIdentifier not set, CDHash
+`71a046f3…`, and both requirements (`=anchor apple`, the pinned identity)
+satisfied. The committed file is byte-identical to the job's output (same
+SHA-256). The run is on this branch: a delivery manifest names it
+(`producers.engine.branch`) or main rebuilds on `Claude`.
+
+`docs/evidence/xenios-core-delivery-declarations-2026-11-12.json`, chained
+after the playlist review, binds that pin, the ten RewindBox files compiled
+into the binary (equal to 79f3409f0) and the two statically linked LGPL
+libraries: FFmpeg (has207/FFmpeg `xmaframes` @ `dfc5a399…`, XeniOS overlay
+`third_party/ffmpeg-xenia`, LGPL 2.1 or later, no GPL/nonfree/version3
+flag) and libmspack (in-tree `third_party/mspack`, LGPL 2.1). Their changes
+from upstream are not enumerated. LGPL-2.1 §6(a) is recorded as the means
+chosen, with `legal_clearance: false`; whether referencing the sources by
+immutable revision is the « accompany » of §6(a) or calls for §6(c)/(d) is
+left to the maintainer. `check_xenios_core_delivery` refuses a pin without
+this review, a changed recipe file, another pin, or a clearance claim
+(`test/xenios_core_delivery_review_test.py`, 9 tests).
 
 ## State and limits (10 Nov 2026)
 

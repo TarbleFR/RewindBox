@@ -71,8 +71,9 @@ CONTROL_PREPARED = {
 # device is short the buffer cache gives back the buffers unused for a minute of play); 91 with Core 733 (lot 12: the
 # threads a frame or the sound waits for in the user-interactive class; the diagnostics snapshot keeps its bytes; the
 # kernel timer proof run again on the final timer manager, whose worker asks the class); 92 with Core 735 (lot 14: a
-# Map or Unmap re-queues the partially mapped textures it can concern, not all of them).
-FRESH_GATES = 92
+# Map or Unmap re-queues the partially mapped textures it can concern, not all of them); 93 with Core 737 (the
+# controller manager keeps its own copy of the input configuration).
+FRESH_GATES = 93
 HISTORICAL_RECEIPTS = 61
 GPU_WORK_ROWS = 13
 READ_COUNTERS = 4

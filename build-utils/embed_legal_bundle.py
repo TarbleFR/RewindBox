@@ -40,6 +40,11 @@ REQUIRED_LEGAL_FILES = (
     # Build 450: the shader compilers vendored by neo_shader_kit.
     "glslang-LICENSE.txt",
     "SPIRV-Cross-Apache-2.0.txt",
+    # Xbox 360: XeniOS, and Apple's Metal Shader Converter notices (the
+    # maintainer's dossier text), shown in Settings > Legal and credits.
+    "XeniOS-BSD-3-Clause.txt",
+    "XeniOS-DXBC-notices.txt",
+    "Apple-Metal-Shader-Converter-NOTICES.txt",
 )
 # The Khronos SDK tag both shader compilers are vendored at
 # (packages/neo_shader_kit/ios/ThirdParty/*/SOURCE.txt).
@@ -53,6 +58,10 @@ ADDITIONAL_NOTICE_COLLECTIONS = (
     ("ppsspp", "PPSSPP"),
     ("packages", "Packages"),
     ("engines", "Engines"),
+    # Xbox 360 (docs/xenios-playlist.md): XeniOS for XeniaCore, Apple's agreement
+    # and acknowledgements for the Metal Shader Converter runtime it uses.
+    ("xenios", "XeniOS"),
+    ("metal-shader-converter", "MetalShaderConverter"),
 )
 CATALOG_CREDIT_DOCUMENTS = (
     "CHEAT_CATALOG_SOURCES.md",

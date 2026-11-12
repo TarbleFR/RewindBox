@@ -26,7 +26,35 @@ abstract final class MelonxInternalService {
   static final libraryEditing = ValueNotifier(false);
   static bool get _editing => libraryEditing.value;
   static bool _diagnosticsInstalled = false;
-  static bool nativeQuarantined = false;
+
+  /// A run returned while its native host stayed active: guest resources may
+  /// still be in use. No engine starts until RewindBox restarts (never cleared).
+  static bool engineQuarantined = false;
+
+  /// MeloNX's JIT transaction cannot be done again in this process: no
+  /// embedded engine starts until RewindBox restarts (never cleared).
+  static bool jitRestartRequired = false;
+
+  /// The last session could not give back MeloNX's donated memory (its
+  /// allocations were still live, or the engine had not stopped). Only a
+  /// Switch session is refused, and only until the native side proves the
+  /// donor released ([refreshSessionQuarantine], which retries it).
+  static bool donorRetained = false;
+
+  /// Any of the three: the Switch engine cannot start now.
+  static bool get nativeQuarantined => engineQuarantined || jitRestartRequired || donorRetained;
+  static set nativeQuarantined(bool value) {
+    engineQuarantined = value;
+    jitRestartRequired = value;
+    donorRetained = value;
+  }
+
+  /// Whether a launch of this system must be refused now. A retained donor
+  /// concerns MeloNX only: its region and donor processes are MeloNX's own (the
+  /// "MeloNX RAM" extension, not NeoSwap's ".neoswapdonor" ones) and no other
+  /// engine reads them.
+  static bool blocksLaunch({required bool switchSystem}) =>
+      engineQuarantined || jitRestartRequired || (switchSystem && donorRetained);
 
   static void _installDiagnostics() {
     if (_diagnosticsInstalled) return;
@@ -44,9 +72,10 @@ abstract final class MelonxInternalService {
       }
       if (call.method == 'launchDiagnostic'  && call.arguments is Map) {
         final event = Map<String, dynamic>.from(call.arguments as Map);
-        // Retained donor mappings also block other embedded engines until restart.
+        // A retained donor refuses the next Switch session until the native side
+        // proves it released (refreshSessionQuarantine retries it).
         if (event['stage'] == 'memory' && event['status'] == 'retained') {
-          nativeQuarantined = true;
+          donorRetained = true;
         }
         MelonxLaunchDiagnostics.record(
           event['stage']?.toString() ?? 'native',
@@ -57,13 +86,27 @@ abstract final class MelonxInternalService {
     });
   }
 
-  /// A run can return while its native resources stay retained until RewindBox
-  /// restarts (failed or unproven teardown). The game has ended, but no other
-  /// Switch session may start. Unknown answers never clear a known quarantine.
+  /// A run can return while its native resources stay retained (failed or
+  /// unproven teardown). The native side retires a retained donor again and
+  /// answers with its proof: whether a host stayed active (engineQuarantined,
+  /// never cleared before RewindBox restarts) and the donor's state after that
+  /// attempt. Only that answer clears [donorRetained]; an unknown, refused or
+  /// busy answer never clears a known restriction.
   static Future<bool> refreshSessionQuarantine() async {
     try {
-      if (await channel.invokeMethod<Object?>('isSessionQuarantined') == true) {
-        nativeQuarantined = true;
+      final answer = await channel.invokeMethod<Object?>('releaseRetainedSession');
+      if (answer is Map) {
+        if (answer['engineQuarantined'] == true) engineQuarantined = true;
+        final donorState = answer['donorState']?.toString();
+        if (answer['busy'] != true && answer['engineQuarantined'] == false && donorState != null) {
+          final wasRetained = donorRetained;
+          donorRetained = donorState == 'retained';
+          if (wasRetained && !donorRetained) {
+            MelonxLaunchDiagnostics.record('memory', 'retainedCleared', {'donorState': donorState});
+          }
+        } else if (donorState == 'retained') {
+          donorRetained = true;
+        }
       }
     } on PlatformException {
       // Keep the current state.
@@ -383,7 +426,17 @@ abstract final class MelonxInternalService {
       locale: locale,
       context: context,
     );
-    if (result['requiresRestart'] == true) nativeQuarantined = true;
+    // This service's own refusal (restrictedHere) restates a known restriction;
+    // only a native answer classifies a new one.
+    if (result['requiresRestart'] == true && result['restrictedHere'] != true) {
+      if (result['sessionActive'] == true) {
+        engineQuarantined = true;
+      } else if (result['error'] == 'jitRestartRequired') {
+        jitRestartRequired = true;
+      } else {
+        donorRetained = true;
+      }
+    }
     MelonxLaunchDiagnostics.record(
       result['stage']?.toString() ?? 'launchResult',
       result['success'] == true ? 'passed' : 'failed',
@@ -398,13 +451,17 @@ abstract final class MelonxInternalService {
     BuildContext? context,
   }) async {
     if (_launching || _editing) return {'success': false, 'error': 'busy'};
+    // A donor the last session kept is retired again first: only a native proof
+    // that it is released lets this session start.
+    if (nativeQuarantined) await refreshSessionQuarantine();
     if (nativeQuarantined)
       return {
         'success': false,
         'error': 'quarantined',
         'stage': 'close',
-        'sessionActive': true,
+        'sessionActive': engineQuarantined,
         'requiresRestart': true,
+        'restrictedHere': true,
       };
     _launching = true;
     var nativeTransaction = false;

@@ -440,6 +440,15 @@ jobs:
         python3 build-utils/melonx/vendor_controller.py .native-sources/Melo-Controller .native-sources/MeloNX
     - name: Package the standalone MeloNX app's own MoltenVK (maintainer exception, pinned upstream bytes)
       run: python3 build-utils/melonx/package_standalone_moltenvk.py --source .native-sources/MeloNX
+    - name: Detect pinned engine components
+      id: engines
+      run: python3 -B .github/diagnostics/standard_delivery.py engines
+    - name: Download and authenticate the pinned XeniaCore engine and its shader converter
+      if: ${{ steps.engines.outputs.xenia == 'true' }}
+      run: python3 -B .github/diagnostics/standard_delivery.py download-engine xenia
+    - name: Verify the pinned XeniaCore engine and its shader converter
+      if: ${{ steps.engines.outputs.xenia == 'true' }}
+      run: python3 -B .github/diagnostics/standard_delivery.py verify-engine xenia
     - name: Prepare emulator build definitions
       shell: bash
       run: |
@@ -475,6 +484,9 @@ jobs:
         python3 packages/dolphin_internal_bridge/ci/build_support.py configure
         python3 build-utils/configure_rpcs3_ios_v2.py
         python3 build-utils/configure_armsx2_ios.py
+        if python3 -B .github/diagnostics/standard_delivery.py engine-present xenia; then
+          python3 build-utils/configure_xenia_ios.py
+        fi
         python3 build-utils/configure_neoswap_donor.py
         python3 build-utils/configure_neoplay_ios.py
         python3 build-utils/configure_external_display_ios.py
@@ -619,6 +631,18 @@ jobs:
       run: python3 build-utils/melonx/package_runtime.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
     - name: Embed the standalone MeloNX MoltenVK with its provenance and Apache-2.0 notice
       run: python3 build-utils/melonx/package_standalone_moltenvk.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
+    - name: Embed the pinned XeniaCore engine and its shader converter, then check the app
+      if: ${{ steps.engines.outputs.xenia == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        APP="build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app"
+        test -d "$APP"
+        mkdir -p "$APP/Frameworks"
+        rm -rf "$APP/Frameworks/XeniaCore.framework" "$APP/Frameworks/libmetalirconverter.dylib"
+        ditto dist/xenia/XeniaCore.framework "$APP/Frameworks/XeniaCore.framework"
+        cp dist/xenia-side/libmetalirconverter.dylib "$APP/Frameworks/libmetalirconverter.dylib"
+        python3 -B .github/diagnostics/standard_delivery.py embed-engine xenia "$APP"
     - name: Wait for and authenticate the test jobs and the fresh delivery contract
       run: python3 -B .github/diagnostics/standard_delivery.py await-tests
     - name: Embed the build identity, the replaced Core proofs and exact retained provenance

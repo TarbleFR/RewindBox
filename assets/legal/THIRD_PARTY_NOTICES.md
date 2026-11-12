@@ -358,6 +358,50 @@ statement are both recorded; the separately pinned Melo-Controller is GPLv3.
 An upstream list does not prove which source/configuration produced a bundled
 native dependency. See the next-release review before binary distribution.
 
+## XeniOS (Xbox 360) and Apple Metal Shader Converter
+
+The Xbox 360 playlist embeds XeniaCore, built from XeniOS (Xenia for iOS,
+https://github.com/xenios-jp/XeniOS) at `cf7c7ee452314913124d205e41e325b33891aacb`
+with RewindBox's guarded adaptation patch (`build-utils/xenia/`). XeniOS is
+BSD-3-Clause (`XeniOS-BSD-3-Clause.txt`); its third-party notices are in
+`xenios/XeniOS-Acknowledgements.json` and inside `XeniaCore.framework`. Its
+DXBC checksum entry has an empty text there: `XeniOS-DXBC-notices.txt`
+completes it with AMD's MIT licence (GPUOpen-Archive/common-src-ShaderUtils
+at 545195d7) and the RSA Data Security, Inc. 1990 MD5 notice; the code is
+derived from the RSA Data Security, Inc. MD5 Message Digest Algorithm, and
+XeniOS's DXBCChecksum.cpp is adapted from AMD's, not identical to it.
+Boost.Context (BSL-1.0, text in the acknowledgements) reaches the Core through
+`make_`, `jump_` and `ontop_arm64_aapcs_macho_gas.S` of boostorg/context at
+d2142b69 (Edward Nevill and Oliver Kowalke, 2015).
+
+FFmpeg (libavutil, libavcodec, libavformat; LGPL version 2.1 or later, as
+its build configuration states) and libmspack (LGPL version 2.1) are linked
+statically into XeniaCore; their licence texts are in
+`xenios/XeniOS-Acknowledgements.json`. Their exact sources, at the XeniOS
+revision above: FFmpeg from https://github.com/has207/FFmpeg (branch
+`xmaframes`) at `dfc5a3993b405f3a8b382756828cdfae06380c8b`, configured by
+XeniOS's `third_party/ffmpeg-xenia`; libmspack in XeniOS's
+`third_party/mspack`. With them, the XeniOS sources and RewindBox's build
+recipe (`build-utils/xenia/` and `packages/xenia_internal_bridge/core/` in
+this app's source archive), XeniaCore.framework can be rebuilt with a
+modified FFmpeg or libmspack and put back in the app.
+
+XeniaCore uses Apple's Metal Shader Converter runtime
+(`Frameworks/libmetalirconverter.dylib`) only to convert Xbox 360 shaders.
+It is Apple software under Apple's « Software License Agreement for Metal
+Shader Converter » (EA1844, 5/31/2023; `metal-shader-converter/`), with
+Apple's acknowledgements for the components it contains (zlib/libpng, MIT,
+BSD-2-Clause, LLVM/NCSA). The headers alone are Apache-2.0. The runtime is
+shipped with its bytes unchanged apart from the code signature iOS requires,
+for free private builds only; it is not sold, rented, hosted or sublicensed.
+EA1844 is the licence of Apple's official Metal Shader Converter 4.0 beta 3
+package; that package's iOS library is another build than the shipped one
+(same code and data, different build identity), so the exact Apple installer
+of the shipped bytes is not identified. Open points recorded by the
+maintainer's dossier (`docs/evidence/xenia-metal-shader-converter/README.md`)
+are not resolved by this notice: point 1 is partly answered, the provenance
+of the shipped bytes and re-signing under clause 2.E remain open.
+
 ## Game boxes, cover scans and manuals
 
 The 3D viewer displays existing user-supplied or ScreenScraper artwork and

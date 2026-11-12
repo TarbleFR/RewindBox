@@ -127,6 +127,42 @@ def parse(data: bytes) -> dict:
     return facts
 
 
+LC_SEGMENT_64 = 0x19
+
+
+def signature_free_digest(data: bytes) -> str:
+    """SHA-256 of the image with only its code signature left out.
+
+    Agreement EA1844 clause 2.E: the runtime ships unmodified. Embedding it
+    in an IPA replaces Apple's signature with the app's (iOS requires it), so
+    the bytes compared are everything before the signature blob, with the
+    two places that blob's size is written zeroed: LC_CODE_SIGNATURE's
+    dataoff/datasize and __LINKEDIT's vmsize/filesize. Any other changed byte
+    (install_name_tool, strip, lipo, a patch) changes this digest.
+    """
+    import hashlib
+    if data[:4] != b'\xcf\xfa\xed\xfe':
+        raise ValueError('not a thin 64-bit Mach-O image')
+    ncmds, sizeofcmds = struct.unpack_from('<II', data, 16)
+    canonical = bytearray(data)
+    signature = None
+    offset = 32
+    for _ in range(ncmds):
+        cmd, size = struct.unpack_from('<II', data, offset)
+        if size < 8 or offset + size > 32 + sizeofcmds:
+            raise ValueError('malformed load commands')
+        if cmd == LC_CODE_SIGNATURE:
+            signature = struct.unpack_from('<I', data, offset + 8)[0]
+            canonical[offset + 8:offset + 16] = bytes(8)
+        elif cmd == LC_SEGMENT_64 and data[offset + 8:offset + 24].rstrip(b'\0') == b'__LINKEDIT':
+            canonical[offset + 32:offset + 40] = bytes(8)  # vmsize
+            canonical[offset + 48:offset + 56] = bytes(8)  # filesize
+        offset += size
+    if signature is None:
+        raise ValueError('the image carries no code signature')
+    return hashlib.sha256(bytes(canonical[:signature])).hexdigest()
+
+
 def check(facts: dict, pin: dict, digest: str, size: int, require_digest: bool) -> list[str]:
     expected = pin['shader_converter']
     failures = []

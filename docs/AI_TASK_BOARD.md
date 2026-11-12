@@ -258,12 +258,50 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### Common IPA — main Claude Code
 
+- **Next common IPA, in progress (12 Nov, main).** RPCS3 Core 934 compile run `43129466421` (request `affc2a3b`,
+  source `4f160c8b`). MeloNX P0 726 handoff merged `36ed5e93` ([melonx-display]: display/lease run `43131937219`);
+  MeloNX Core 737 compile dispatched, run `43131998605` (duplicate push run `43131937165` cancelled). Still to come:
+  XeniOS (03) and S2Arm (04) pinned-engine handoffs, pins, freeze, delivery. The RPCS3 heat lot stays ON HOLD.
+- **GOW3 stretch mode no longer applies (maintainer, 12 Nov, IPA 726; Metal 4 off, so Vulkan).** Cause (code, Core 933):
+  since Core 922 the boot ignores a legacy full custom_configs file (CONFIG_DB922), but the settings API still read it and
+  `rpcs3_ios_set_game_setting` saved every per-game change into it (has_custom_config), so Stretch to fill screen (and
+  any per-game choice of God of War III) never reached the boot. Core 934 (engine `core934-settings-rule` 524e068):
+  REWINDBOX_SETTINGS_API_RULE_934 (API = global < database < sparse overrides, change saved as an override; reset
+  removes the overrides; preset apply refused instead of a silent no-op, independent review) and
+  REWINDBOX_METAL_STRETCH_934 (the Metal 4 present honoured no stretch either). Local: test 934 passes, fails on 933,
+  six controls caught; full host checks running. Not compiled for iOS yet; nothing on iPhone. After the IPA the user
+  selects Stretch once more (the old choice sits in the ignored file).
+- **Device report on 726 (11 Nov): after a Switch game, a PS3 launch (BO2) is refused with the MeloNX 'quarantined'
+  message.** Main's code reading, not yet confirmed by a journal. Two triggers reach the same block:
+  - engine state 4: `Load()` threw, possibly during teardown after Stop;
+  - donor only: live donated allocations at the single `retire` right after the outcome, never retried.
+  Either way, Dart's `nativeQuarantined` is never cleared, and `GameLaunchService.launchGame` blocks every system
+  (5445f9bb). Routed to the MeloNX owner (01): find the trigger from the attempt's journal; fix a teardown exception
+  at its cause; retry the donor release and clear the flag only on native proof; review the cross-engine scope with
+  evidence; give non-Switch launches a plain restart message. No control removed. Waiting for the maintainer's
+  journal and 01's handoff.
 - **Maintainer decision (11 Nov): libmetalirconverter.dylib may ship in the IPA; the XeniOS engine goes into the next IPA.** Relayed to session 03:
   XeniaCore, the converter (pinned, licence text in the legal chain) and the JIT helper appex come as a handoff for the
   next common build. Device report on 726: an empty Xbox 360 / Switch 2 library opened the generic recursive-scan
   panel. Fixed in `79979d07`, with a source-contract test. Asked of session 04: the Switch 2 import menu gets the same
   entries as Switch (games, prod.keys, firmware if needed), and the engine row says "not included in this version"
   instead of "reinstall".
+  Legal research complement (12 Nov, docs/evidence/xenia-metal-shader-converter/): DXBC AMD MIT + RSA/MD5 notices to add;
+  Apple signer check to harden (`=anchor apple`); delivery source review to update for XeniaCore and static FFmpeg /
+  libmspack (LGPL relinking means). Apple package/contract match, mirror provenance and re-signing stay without proof.
+  Targeted research on those three points (12 Nov, research-open-points-2026-11-12.md): new traceability (mirror
+  asset 705945125, uploader's claim only; Apple confirms iOS support since 3.1; 4.0 beta 2 iOS dylibs differ from
+  the pin), none closed. Closing 1-2 needs the original Apple installer extracted and its dylib hash compared.
+  Direct check (12 Nov, Codex, Verification_Directe_XeniOS_2026-11-12.txt `fdf4bc5c…322c`): mirror bytes = pin,
+  7309/7309 page hashes, validator `028a0fdf2` exit 0, signature-free digest = pin, CMS chain reaches the separately
+  downloaded Apple Root CA. New limit: leaf and intermediate expired 2026-10-24, no CMS timestamp; OpenSSL fails with
+  its time check (passes only as a no-time diagnostic, never in delivery). Keep strict codesign; record its real macOS
+  result. LGPL delivery review still incomplete at `028a0fdf2`.
+  Apple package check (12 Nov, Codex, Verification_Paquet_Apple_XeniOS_2026-11-12.txt `cd5e43d0…b121`), replacing the
+  "Apple access needed" blocker: official 4.0 beta 3 pkg `44983321…e622` (XAR chain verified, OpenSSL only) carries
+  EA1844 byte-identical (`20108dfe…`). Its iOS dylib `3040a91e…` (33.40) is NOT the pin `bd6b…` (33.39): same size,
+  code/data bytes identical, 430 bytes differ (UUID, source version, rpath, signature). Point 1 partly answered (contract
+  provenance for this package), points 2-3 open. Pin, binary and checks unchanged.
 - **Common IPA 726 delivered and verified (11 Nov 22:37 UTC, main).** Run `43106533461` attempt 2 (trigger `bd99e8b7`,
   frozen on `8fb2ee39`), five jobs green. Four parts of 68,467,054 B = API digests; offline verification passed (six
   validators 0); IPA 272,927,734 B, SHA-256 `ac9612b4…d618`, 91 images (90 + `xenia_internal_bridge`), changed as
@@ -717,6 +755,20 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### RPCS3 FPS, stability and audio — main Claude Code
 
+- **ON HOLD — after delivery of the next common IPA (maintainer, 12 Nov): RPCS3 heat, sustained performance and
+  stability lot.** Do not start (no investigation, agent, engine change, test or build for this lot) until the next
+  common IPA (Core 934 settings/stretch fix plus the engine handoffs already in scope) is compiled, verified and handed
+  to the maintainer with build number, engine versions and receipt; IPA 726, a green CI or a compiled Core do not count.
+  When it opens: cite that IPA's number, manifest and receipt, take it as the reference, work in the following version.
+  Received and checked (private, not in Git): prompt 20,059 B `f20c9a09…3a93`; performance(9) 2,519,922 B / 3352 lines
+  `0df0077a…5c9b`; causes(8) 3,398,915 B / 3210 `2457504b…5483`; milestones(7) 475,472 B / 737 `277996b7…b36a`;
+  diagnostic(9) 156,933 B / 242 `8458f0f5…9f3a`; timeline(5) 901,832 B / 181 `cd05cb54…61c3`; restore-trace(2)
+  396,710 B / 895 `852675a5…847d` (logs 7,849,784 B). Priorities recorded from the prompt: (1) THERMAL931
+  wfe_longest_us=18446744073 on 23/32 lines (PID 54406), cause not yet shown, fix the measurement and exclude invalid
+  values; (2) less heat at equal useful work on THERMAL931/932, hysteresis only if shown lacking, menu stays non-pausing;
+  (3) BO2 frame 7474 (3439.706 ms, 3277.326 ms blocking pipeline compile) and other avoidable stalls, shader mode Legacy
+  Recompiler audited; (4) LOCALPROFILE933 learned but not validated, resolver extended by mechanism. Constraints: 1x and
+  fidelity kept, no FPS cap, no 60 FPS promise, no gain without comparable device evidence.
 - **URGENT maintainer instruction, 11 Nov (relayed by Codex) — RPCS3 global optimisation: per-game
   profiles, behaviour, shared iOS corrections, thermal.** Prompt file received and read in full
   (243 lines; private upload, not in Git). Added to the current work; owner main
@@ -4567,6 +4619,115 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       run: `heap_report.py` on the `[MeloNX:heap]` lines, the `zones=` values over time, `lohAfterBytes` and
       `lohFreeAfterBytes`; then the correction of the largest owner. The sampler is to be removed once the owner is
       known.
+  - **IPA 726 device run read (12 Nov): Hogwarts Legacy on Core 735, pid 54035, 23:43:42-23:46:20 (the session
+    of the P0 726 close); journals private (scratchpad), aggregates only. Not a like-for-like comparison with 725:
+    the phone was in the "serious" thermal state for 99 of the 100 warm seconds (725, pid 51986: "fair").**
+    - **Playability (tools/melonx/playability_verdict.py, warm-up 30 s):** 726 median 16.1 / mean 17.3 FPS over
+      100 s, gaps p95 117 ms, p99 200 ms, one over 1 s, footprint max 4 759 MiB; 725 median 23.7 / mean 22.4 over
+      47 s, footprint max 4 727 MiB.
+    - **Thermal throttling is what changed (hw= field):** from t=49 s ("serious" again) the clock of the time on
+      performance cores falls from 2.6-3.6 GHz to 1.3-2.0 GHz and the threads' wait for a core rises from 27-50 %
+      of their CPU time to 148-1 008 % (they wait 1.5 to 10 times as long as they run); FPS falls from 30 to 6-22
+      within seconds. en= 0.8-3.2 W (performance cores 0.5-2.9 W).
+    - **Lot 14 (adapt_remap_sweep_range) refuted on the device:** counts do not depend on the clock: changed pool
+      ids per game frame 235 (725) -> 268 (726), array-delta calls per frame 3.66 -> 3.31; arrayDelta wall per call
+      1.22 -> 1.95 ms (the throttled CPU). The remap sweep is not what changes these ids; the change stays harmless
+      (same digests in its gate) and can be kept or reverted at the integration owner's choice.
+    - **Native heap owners (task #42; [MeloNX:heap], 120 s window, live 702 MiB of DefaultMallocZone 899/980 MiB;
+      names from the Core 735 artifact's symbol map and `nm -n` of the pinned MoltenVK 1.4.2 rebuild, artifact
+      13822530542, binary 99605a2b):** 203 MiB `SPIRVToMSLConverter::setSPIRV` <- `MVKShaderModule` <-
+      `vkCreateShaderModule` <- engine `Shader.Compile` on the background compilation workers: MoltenVK keeps a copy
+      of every live shader module's SPIR-V (it converts it again for each new pipeline configuration; the engine's
+      Shader keeps none); 121 MiB Metal allocations under `MVKShaderLibraryCompiler::newMTLLibrary` and 35 MiB under
+      `newMTLRenderPipelineState` (compiled libraries and pipeline states); 77 MiB `MVKDescriptorPool::Create`
+      (descriptor pools of `DescriptorSetManager`, three stacks, incl. texture arrays' own sets); about 55 MiB the
+      JIT's address tables (`AddressTable.GetPage`); 13 MiB the main pipeline cache merge.
+    - **Next RAM levers (not implemented):** the number of shader modules alive (every program of the disk cache is
+      created at boot) and what each keeps; MoltenVK's descriptor pool preallocation against the pools' sizes. Each
+      needs a host measurement before a device claim.
+  - **P0 726 (12 Nov): after a Switch game every launch (PS3 included) was refused "quarantined" — trigger read in
+    the attempt's journal: an engine quarantine from a race in the Core's controller manager at close. Fixed at its
+    cause in Core 737 (adapt_npad_config_snapshot, frozen here, not delivered) plus the host/Dart retry of `71765f2f`;
+    neither run on an iPhone.**
+    - **Input identity:** main's report of the maintainer's attempt on IPA 726 (Core 735); the maintainer's uploaded
+      MeloNX-launch.log, core, performance and stderr journals (build 726, Switch session pid 54035; private, kept
+      in the scratchpad only, not in Git). Reference: IPA 725's journal (pid 51986) ends its Switch session
+      with `memory released` then `close passed` (08:02:58): the release worked there.
+    - **Mechanism (code, both triggers):** a `memory retained` record (sent to Dart by every `MeloNXLaunchJournal.record`)
+      or a refused launch with `requiresRestart` set `MelonxInternalService.nativeQuarantined`, which nothing ever
+      cleared; `MeloNXMemoryLease.retire` ran once after the outcome and nothing retried it (the next Switch
+      `prepare` retries, but Dart refused before any native call); `GameLaunchService.launchGame` refused every system
+      on iOS (since 5445f9bb, 24 Oct). The engine side: `EmbeddedSessionCoordinator.Run` sets state 4 on an
+      exception (its text reaches `sessionResult failed` and `close quarantined`); `neostation_melonx_memory_withdraw`
+      refuses while the state is not 0 or donated allocations are live (`MachJitWorkaround.DestroySharedMemory` frees
+      them as each shared `MemoryBlock` is disposed or finalized).
+    - **Maintainer's question "since the S2Arm hook?":** the hook (d32738b5, 11 Nov 00:39) ran only in test IPAs that
+      set `RewindBoxS2ArmProbe`; IPA 725, built after it, released the donor at close; IPA 726 has no hook
+      (removed in a18490cb). 726 is the first IPA with Core 733 + 735 and the lot 12-14 bridge: those are the changes
+      the journal must be read against.
+    - **Cross-engine scope (evidence):** the MeloNX donor is MeloNX's own: its "MeloNX RAM" extension
+      (`configure_melonx_memory_ios.py`) and `DonatedMemory` in the engine; NeoSwap's donors are `<bundle>.neoswapdonor`
+      sessions with their own pool (NeoSwapPlugin.mm `launchDonor`); no other engine reads MeloNX's region. A retained
+      region costs address space (up to 4 GiB) and keeps MeloNX's donor processes alive: a memory cost, not a safety
+      one. An engine quarantine (state 4, a host kept active) may still have guest threads and handlers: it keeps
+      refusing every engine; so does `jitRestartRequired` (no evidence the helper is reusable by another engine).
+    - **Change (`71765f2f`):** native `releaseRetainedSession` (plugin): with no host active and nothing starting,
+      retires a retained donor again on the library queue and answers `engineQuarantined` and `donorState`; a
+      retained record now says which proof was missing (`the engine refused to withdraw (donated bytes used …, live
+      allocations …)`, or the donor's reservation). Dart: three states; `engineQuarantined` and `jitRestartRequired`
+      refuse every engine and are never cleared; `donorRetained` refuses Switch only, is retried before any launch
+      of any engine (and when a Switch route closes), and is cleared only by that native answer (`retainedCleared`
+      journal line); the service's own refusal no longer reclassifies itself. A non-Switch launch refused for an
+      engine quarantine shows `switchRestartRequired` (twelve languages, no MeloNX wording: the Switch engine needs
+      RewindBox to be restarted; swipe it up in the app switcher, then reopen it).
+    - **Validation:** `test/melonx_launch_flow_test.py` 15 cases green locally and in melonx-launch-checks run
+      43125004560 (retained -> retried -> released, busy and unknown answers never clear, engine and JIT
+      restrictions never cleared, classification of refusals, a PS3 launch after a retained donor not refused, the
+      engine-quarantine message without "MeloNX"); `test/melonx_memory_lease_test.py` gains the retry cases (macOS,
+      melonx-host run 43125000475). That run's step 7 of launch checks (`game_audio_handoff_test.py`) fails without
+      this change too: its harness lacks the `XeniaInternalBridge` and `S2ArmInternalService` stubs of PR #172 and
+      the Switch 2 layer (not in this lane).
+    - **Trigger (journal, pid 54035, 11 Nov 23:46):** `close begin` at :19; at :20.96 the core journal records `gpu
+      failed` with `System.InvalidOperationException: Collection was modified; enumeration operation may not execute.`
+      at `Ryujinx.Input.HLE.NpadManager.Update` <- `WindowBase.UpdateFrame` <- `MainLoop` (stderr stack), then
+      `Session termination is unproven; restart RewindBox.` (state 4), `close quarantined` and `memory retained`
+      (4 GiB, a consequence: the engine refuses to withdraw while state is 4). Not the donor alone, not the S2Arm
+      hook (absent from 726). An older, separate quarantine in the same log (5 Nov, pid 15186: a
+      NullReferenceException in `TextureArray.QueueWriteToReadBarriers` during `GpuContext.Dispose`) is not this one.
+    - **Cause (code):** `Library._inputConfiguration` is one `List<InputConfig>` handed by reference to the window's
+      NpadManager (`WindowBase.Initialize`, then `ReloadConfiguration` at every attach and detach), which stores it as
+      `_inputConfig` and enumerates it under its own `_lock` on every frame. `AttachGamepadCore`/`DetachGamepadCore`
+      change it (RemoveAll, Add) under `inputConfigurationLock` before calling `ReloadConfiguration`; at close the
+      host detaches its pads (`MeloNXInputRouter.close`, `MeloNXInputRouter.swift:153`) while the main loop still
+      runs: List's version check throws in Update. Upstream MeloNX code, a few microseconds per frame: rare and
+      independent of the game, which is why earlier closes passed.
+    - **Core 737 (`adapt_npad_config_snapshot`, NpadManager.cs only, every title):** ReloadConfiguration copies the
+      list it is given under the manager's lock, reads that copy and keeps it; nothing else can change the manager's
+      list. No exception is caught or reclassified; the library, its lock and its call order are unchanged. Gate
+      `npad-config-snapshot` (93rd; `test/melonx_npad_config_snapshot_test.py`, real NpadManager/NpadController over
+      driver doubles, production Ryujinx.Input built from both sides): forced interleaving (the library's change made
+      on a second thread while the manager enumerates under its lock) for detach, attach, last-pad detach with the
+      keyboard fallback and the session's Clear: the control throws the device's exception in all four, the candidate
+      never, and ends as in the sequential order; a seeded 400-step script (attach, absent pads, detach, driver
+      connect/disconnect, unblock, detach all) gives equal digests at every step (controllers, configuration per
+      player, entries, flag, every driver call); the control's manager holds the library's list at 393 steps, the
+      candidate's at 0; two wrong variants caught (copy not kept: the exception again; valid entries kept: sequence
+      differs at step 15). Limitation: Update itself needs a running Switch device and is not executed; it reads the
+      same field under the same lock, unchanged.
+    - **Validation (local, Linux x64, SDK 10.0.100):** the Core 737 preparation differs from Core 735 by NpadManager.cs
+      only; `npad-config-snapshot` on it, bound to the final preparation: 104 checks passed (101 on the Core 735
+      tree first); rerun on it and passed: `retention-chain`, `session-retention`, `gc-pause-journal` (they build
+      Ryujinx.Library, which compiles Ryujinx.Input) and `hogwarts-dma-copies` (its lot list); freeze contract
+      `09ac5655…` (93 fresh gates); contract test 488 checks with the arrays archive, 424 without;
+      `verify_dma_core.py preflight` needs Apple ARM64 (not run here). Not delivered, no IPA, not run on an iPhone.
+    - **Host run of `71765f2f` (melonx-host 43125000475, failed):** the UIKit presentation step did not compile
+      the plugin: its doubles lacked `MeloNXEngineCallClass` (lot 12) and `MeloNXMemoryLease.isRetained` /
+      `retire(runtime:reason:)` (71765f2f); fixed in `61106a6e`: melonx-host run 43129273832 on `e4c03c18` green
+      (steps 1-11, the presentation step included). The donor lease test runs in that workflow only on a push whose
+      head commit carries `[melonx-display]` (a dispatched run skips it): its retry cases are not run yet; main's
+      integration commit will carry the tag.
+    - **Next action:** main: Core 737 CI, pin and an IPA together with `71765f2f`; on the device, several Switch
+      closes (pads attached) then a PS3 launch: no `close quarantined`, no `Collection was modified`.
   - **Lot 14 (11 Nov; maintainer: "une vraie mise à jour pour sentir du changement" on RAM, heat, shaders): GPU thread
     work per frame. Core 735 frozen here (contract `47b596a9…`), not delivered, not run on an iPhone.**
     - **Input identity:** the IPA 725 `performance` samples of lot 13 (pid 51986) and two host profiles on copies of
@@ -5260,6 +5421,44 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   `build_core` dispatch only. Proof: `xenia_launch_test.dart`, `xenia_jit_service_test.dart`,
   `xenia_launch_transaction_test.py`, `xenia_objc_namespace_test.py --upstream`; Dart 107/107;
   legal chain still passes. Open: façade `g_host_controller` (first compile).
+- **IPA lot (12 Nov, maintainer allows the engine and the converter in the next private common IPA; dossier open
+  points 1-3 accepted, not resolved):** done on this branch, not yet handed off: empty-library hint (b072f976f);
+  converter pin with signature-free digest b5263652 equal on the Apple-signed mirror asset and XeniOS's re-signed copy
+  (afc7a4bf7); signing requirements `anchor apple` + observed identity (Software Signing chain, no Team ID) replacing
+  the `grep -q` check that failed run 43119228652 under pipefail (028a0fdf2); legal: EA1844 + acknowledgements RTFs,
+  headers Apache-2.0, XeniOS BSD-3 + acknowledgements, DXBC AMD MIT + RSA MD5 complement, Boost.Context provenance,
+  provenance facts of the mirror asset (35b7c07ec, 028a0fdf2, 108bc002a); `check_app_shader_converter.py` (2.B/2.E/2.D/13);
+  `core_pin.py` pin/verify (+ CI codesign report); generic `pinned-engine` delivery component, XeniaCore first
+  (70a63e627: standard_delivery.py, standard-delivery.yml, 34 contract cases; 726 decisions unchanged). Core built with
+  an iOS 26 SDK (Xcode 26.6: no Xcode 27 on GitHub runners): StateReporting and the external-display accessory are
+  absent even on iOS 27 (logged at start). Apple package check recorded (c6d08cd97): EA1844 = the official 4.0 beta 3
+  package's License.rtf; its iOS dylib 33.40 (3040a91e) is not the pinned 33.39 (430 bytes: LC_UUID,
+  LC_SOURCE_VERSION, LC_RPATH, signature); point 1 partly answered, 2-3 open; pin, binary, validator and codesign
+  requirement unchanged. Delivery review gate (350cf09fe): `check_xenios_core_delivery` binds core-pin.json, the 10
+  recipe files compiled into the binary, FFmpeg (has207 xmaframes @ dfc5a399, overlay ffmpeg-xenia, LGPL-2.1+, no GPL
+  flag) and libmspack (in-tree 91d0f943, LGPL-2.1), modifications "not enumerated", §6(a) as the chosen means with
+  `legal_clearance: false` and the accompany-vs-6(c)/(d) question left to the maintainer; a pin without its review is
+  refused; build_source_evidence/legal_bundle_preflight failure sets identical before/after (pre-existing). Notices
+  state the LGPL sources and rebuild means. Test `xenios_core_delivery_review_test.py` 9/9 with a temporary pin, to be
+  committed with the real pin and review (skips with that reason until then). Run 43121527685 (028a0fdf2): both
+  converter codesign requirements passed (the script compiles only after them), XeniaCore compiled and linked
+  (1357/1358, 27 min), then verify_core.py refused an absolute `/Users/runner/` path. Causes in our target: CMake's
+  build-tree LC_RPATH to the converter's runner directory, and the -g debug map (N_OSO object paths). Fixed in
+  79f3409f0 (`SKIP_BUILD_RPATH`, `-Wl,-S`; the check stays and now lists every leaked string with its place). Run
+  43126203790 (79f3409f0) green: checks, plugin_app and core (compile + verify_core.py, no build path left; converter
+  kept out; XeniaCore-79f3409f0… uploaded through the protected action), 34 min. Pinned by the ubuntu pin job (run
+  43131262723): artifact 13904214253 (9,533,089 B, 73187aa0…dcd0, expires 26 Nov), binary e0a533dc…b011
+  (37,719,376 B, SDK 26.5, minos 26.0), fingerprint 97e08271…f9cd; codesign's report of the converter in that run:
+  libmetalirconverter, Software Signing > Apple Code Signing CA > Apple Root CA, no Team ID, CDHash 71a046f3…, both
+  requirements satisfied. core-pin.json 8b850d7b…1e33 committed byte-identical to the job output; delivery review
+  xenios-core-delivery-declarations-2026-11-12.json bound to it (recipe = 79f3409f0), gate test 9/9 without skip;
+  collector/legal failure sets unchanged; delivery contract 108 tests, same 14 history errors. Merged with Claude
+  52e2d9a4 (92c6dbc40, no conflict): macOS run 43131882796 green (checks incl. the review gate, plugin_app). Handed
+  off to 00 (12 Nov). Pin route: ubuntu `pin` job (9ceefdcd4), `[xenia-pin run=<id>]`, downloads the zip by id via the API and
+  prints core-pin.json + base64 (this session cannot reach the artifact store). The producer runs on this branch:
+  the delivery manifest names it (`producers.engine.branch`) or main rebuilds on Claude. Pending: handoff to 00;
+  IPA closed-set validators after 00 integrates session 04's 13d34c25 (identity-file design
+  `Xenia-native-identity.json`); the artifact expires 26 Nov (14-day retention, not republished).
 - **Validation (Flutter 3.47.2 host):** 11 Nov: XeniOS + catalog/Consoles/touch suites
   91/91, scanner suites 41/41 (1 skip), storage contract 24/24, patch/validator/touch/C++
   checks OK, analyzer 111 = baseline. Earlier: new XeniOS + catalog/Consoles tests 65/65;
@@ -5282,6 +5481,25 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   one ISO, one title folder, one GOD import and launch).
 
 ### Codex orchestration — Codex
+
+- **S2Arm content/provenance audit — 12 Nov (maintainer request, read-only product audit).**
+  Compared upstream `623985973908399bd64d36aa326009807c354fdc`, pinned upstream
+  `6b6a571553f7a687af46e03e2cdbf8ef4d77f335` and the session-04 adaptation at
+  `8353aab97bdf6e5415ba1b926717f118ae3da79d`; 20 locally exercised/read source files
+  match their Git blobs. No complete commercial game or user key found in the inspected
+  inventory/build paths; game profiles/shader reference tables are present (not game payloads).
+  No final IPA/release binary inspection: do not turn this into a distribution certificate.
+  **“Only personally dumped games” is not enforced by the examined route:** the export detector
+  checks folder/META/ACI0/program-id, not ownership or extraction provenance
+  ([native source](https://github.com/TarbleFR/RewindBox/blob/8353aab97bdf6e5415ba1b926717f118ae3da79d/native/s2arm/prepare/s2arm_ns2_dump.c#L658)).
+  Seven Linux checks passed: synthetic original and copied input accepted by upstream/native
+  detectors, invalid headers rejected by both, copied synthetic export converted upstream.
+  No game, key or Nintendo account used; no full-game compilation/device claim.
+  Switch 2 host preparation consumes an already-decrypted export; upstream also has a distinct
+  NSP/XCI + LibHac/keys path. This is neither legal clearance nor a finding of illegality.
+  Report delivered privately: `Audit_S2Arm_Dumps_Contenu_2026-11-12.txt`, 22,174 bytes,
+  SHA-256 `2c6441e5e12f73d2496a7bf663524a4512f61ac7dc89a8315c4e68ea079ab322`.
+  No product/Core/pin/CI/IPA change or new implementation task; existing delivery priority remains.
 
 - **Playlists/XeniOS routing — created and started (10 Nov).**
   Session [03 Playlists](https://claude.ai/code/session_012mUASiVyxdnhNTUKesGGm7),

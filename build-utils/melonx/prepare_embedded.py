@@ -175,6 +175,7 @@ from adapt_pipeline_cache_compact import apply as adapt_pipeline_cache_compact
 from adapt_cold_buffer_trim import apply as adapt_cold_buffer_trim
 from adapt_host_thread_class import apply as adapt_host_thread_class
 from adapt_remap_sweep_range import apply as adapt_remap_sweep_range
+from adapt_npad_config_snapshot import apply as adapt_npad_config_snapshot
 
 
 def replace_once(path, old, new):
@@ -509,6 +510,10 @@ def main():
     # per call of which 88 % changed, in steady scenes too): a Map or Unmap re-queues the partially mapped textures it can
     # concern, not all of them.
     adapted += adapt_remap_sweep_range(source)
+    # Core 737 (IPA 726: a close ended with "Collection was modified" in NpadManager.Update, the session's end could not be
+    # proven and every later launch of every engine was refused): the controller manager keeps its own copy of the
+    # input configuration, which the library changes under another lock while a frame enumerates it.
+    adapted += adapt_npad_config_snapshot(source)
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -647,7 +652,8 @@ def main():
                  'adapt_pipeline_cache_compact.py',
                  'adapt_cold_buffer_trim.py',
                  'adapt_host_thread_class.py',
-                 'adapt_remap_sweep_range.py']:
+                 'adapt_remap_sweep_range.py',
+                 'adapt_npad_config_snapshot.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

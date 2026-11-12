@@ -104,5 +104,12 @@ final class MeloNXMemoryLease {
     func prepare(runtime:MeloNXRuntimeAPI,enabled:Bool,isCurrent:@escaping()->Bool) throws {
         if retained {throw MeloNXHostError.load("Retained donor reservation fixture")}
     }
-    func retire(runtime:MeloNXRuntimeAPI)->Bool {true}
+    var isRetained:Bool { retained }
+    @discardableResult func retire(runtime:MeloNXRuntimeAPI, reason:String = "")->Bool {true}
+}
+
+// The engine call class (MeloNXPerfJournal.swift) runs the call on a user-interactive thread; this fixture checks
+// presentation and registration only, so the call runs in place.
+enum MeloNXEngineCallClass {
+    static func interactive<T>(_ call: () -> T) -> T { call() }
 }

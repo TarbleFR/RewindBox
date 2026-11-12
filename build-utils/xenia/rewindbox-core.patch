@@ -136,3 +136,73 @@ index 4228f01..10fead5 100644
 +#else
  XE_DEFINE_WINDOWED_APP(xenia, xe::app::EmulatorAppIOS::Create);
 +#endif
+diff --git a/src/xenia/ui/ios/CMakeLists.txt b/src/xenia/ui/ios/CMakeLists.txt
+index 86c4105..92ed037 100644
+--- a/src/xenia/ui/ios/CMakeLists.txt
++++ b/src/xenia/ui/ios/CMakeLists.txt
+@@ -250,9 +250,15 @@ target_compile_options(xenia-ui-ios PRIVATE
+ )
+ 
+ # StateReporting (ios_state_reporting.mm) is new in iOS 27; the app runs on 26.
++# RewindBox embedded Core: linked only when the selected SDK has it (an iOS 26
++# SDK has no StateReporting.framework; ios_state_reporting.mm then reports nothing).
++execute_process(COMMAND xcrun --sdk iphoneos --show-sdk-path
++  OUTPUT_VARIABLE XE_NEO_IOS_SDK_PATH OUTPUT_STRIP_TRAILING_WHITESPACE)
++if(EXISTS "${XE_NEO_IOS_SDK_PATH}/System/Library/Frameworks/StateReporting.framework")
+ target_link_options(xenia-ui-ios PUBLIC
+   "SHELL:-weak_framework StateReporting"
+ )
++endif()
+ 
+ target_link_libraries(xenia-ui-ios PUBLIC
+   xenia-apu-voice
+diff --git a/src/xenia/ui/ios/app/ios_external_display.mm b/src/xenia/ui/ios/app/ios_external_display.mm
+index 118a9f4..76bb80c 100644
+--- a/src/xenia/ui/ios/app/ios_external_display.mm
++++ b/src/xenia/ui/ios/app/ios_external_display.mm
+@@ -173,6 +173,9 @@ void PostHostDidChange() {
+ @end
+ 
+ NSObject* XeniaExternalDisplayRegisterSceneAccessory(UIViewController* view_controller) {
++// RewindBox embedded Core: scene accessories are iOS 27 SDK API; with an
++// iOS 26 SDK the external display is not offered (nil, as before iOS 27).
++#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 270000
+   if (@available(iOS 27.0, *)) {
+     UISceneConfiguration* configuration = [[[UISceneConfiguration alloc]
+         initWithName:@"External Display"
+@@ -185,6 +188,7 @@ NSObject* XeniaExternalDisplayRegisterSceneAccessory(UIViewController* view_cont
+     registration.enabled = YES;
+     return [registration retain];
+   }
++#endif
+   return nil;
+ }
+ 
+diff --git a/src/xenia/ui/ios/shared/ios_state_reporting.mm b/src/xenia/ui/ios/shared/ios_state_reporting.mm
+index 7c4ee63..d15d0bf 100644
+--- a/src/xenia/ui/ios/shared/ios_state_reporting.mm
++++ b/src/xenia/ui/ios/shared/ios_state_reporting.mm
+@@ -11,9 +11,17 @@
+ 
+ #import <Foundation/Foundation.h>
+ // Weak-linked: the framework is new in iOS 27, the app runs on 26.
++#if __has_include(<StateReporting/StateReporting.h>)
++// RewindBox embedded Core: also builds with an iOS 26 SDK, where the
++// framework does not exist (the report is then never made).
++#define XE_NEO_HAS_STATE_REPORTING 1
+ #import <StateReporting/StateReporting.h>
++#endif
+ 
+ void xe_ios_state_reporting_note_title(uint32_t title_id) {
++#ifndef XE_NEO_HAS_STATE_REPORTING
++  (void)title_id;
++#else
+   if (@available(iOS 27.0, *)) {
+     @autoreleasepool {
+       // Rare (a game starting or ending), far below the rate limit.
+@@ -29,4 +37,5 @@ void xe_ios_state_reporting_note_title(uint32_t title_id) {
+                             volatileMetadata:nil];
+     }
+   }
++#endif
+ }

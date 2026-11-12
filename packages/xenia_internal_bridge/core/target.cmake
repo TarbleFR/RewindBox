@@ -60,6 +60,9 @@ target_link_options(XeniaCore PRIVATE
   # App/Frameworks/libmetalirconverter.dylib, beside XeniaCore.framework.
   "-Wl,-rpath,@executable_path/Frameworks"
   "-Wl,-rpath,@loader_path/.."
+  # XeniOS keeps -g in Release: drop the debug map (N_SO/N_OSO stabs), which
+  # names every object by its absolute build path; symbols stay for nm -m.
+  "-Wl,-S"
 )
 set_target_properties(XeniaCore PROPERTIES
   FRAMEWORK TRUE
@@ -73,6 +76,9 @@ set_target_properties(XeniaCore PROPERTIES
   XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED NO
   BUILD_WITH_INSTALL_NAME_DIR TRUE
   INSTALL_NAME_DIR "@rpath"
+  # As XeniOS's own targets: no build-tree LC_RPATH (CMake would add the
+  # converter's absolute directory on the runner).
+  SKIP_BUILD_RPATH TRUE
 )
 # Credits travel with the binary (Xenia BSD license, XeniOS acknowledgements).
 add_custom_command(TARGET XeniaCore POST_BUILD

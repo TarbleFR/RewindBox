@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "review_date": "2026-11-12",
+  "scope": "Notices shipped with Apple's Metal Shader Converter runtime (Frameworks/libmetalirconverter.dylib), used only by XeniaCore to convert Xbox 360 shaders (docs/xenios-playlist.md). The agreement EA1844 is the License.rtf of the official Apple package Metal Shader Converter 4.0 beta 3.pkg (SHA-256 449833211e4e...e622, see source.json provenance; byte-identical to the copy fetched here by URL). That package's iOS library is not the pinned runtime (another build, 33.40 vs 33.39): the contract's provenance is established for that package, not for the exact installer of the pinned bytes. Not a declaration that redistribution is resolved: point 1 is partly answered, points 2 (provenance of the pinned bytes) and 3 (re-signing under clause 2.E) stay open; the maintainer's delivery decision is not an authorisation from the rights holder.",
+  "dossier": "docs/evidence/xenia-metal-shader-converter/README.md",
+  "components": [
+    {
+      "component": "Apple Metal Shader Converter (runtime agreement and acknowledgements)",
+      "release": "metalsharp/VKD3D-Proton-MacOS deps-metal-shaderconverter-4.0b3 (Metal Shader Converter 4.0 beta 3)",
+      "files": [
+        {
+          "path": "LICENSE.metal-shaderconverter.rtf",
+          "sha256": "20108dfe30663a2c6c717d9c5ca92486d9a4682c85c8ab344b20470feac8d0c3",
+          "bytes": 77453,
+          "source_url": "https://github.com/metalsharp/VKD3D-Proton-MacOS/releases/download/deps-metal-shaderconverter-4.0b3/LICENSE.metal-shaderconverter.rtf",
+          "retrieved": "2026-11-12",
+          "content": "SOFTWARE LICENSE AGREEMENT FOR METAL SHADER CONVERTER, EA1844, 5/31/2023",
+          "exact_copy": true
+        },
+        {
+          "path": "ACKNOWLEDGEMENTS.metal-shaderconverter.rtf",
+          "sha256": "01ed5de80de6e1ca7c074ef602d867ef0bdbf0be3abc97adb7199c1ad380c3ba",
+          "bytes": 11348,
+          "source_url": "https://github.com/metalsharp/VKD3D-Proton-MacOS/releases/download/deps-metal-shaderconverter-4.0b3/ACKNOWLEDGEMENTS.metal-shaderconverter.rtf",
+          "retrieved": "2026-11-12",
+          "content": "Apple's third-party notices for the runtime (zlib/libpng, MIT, BSD-2-Clause, LLVM/NCSA): reproduced with binary distribution (EA1844 clause 13)",
+          "same_bytes_as": "xenios-jp/XeniOS@cf7c7ee452314913124d205e41e325b33891aacb:third_party/metal-shader-converter/Acknowledgements.rtf (blob 17ebbfebd1740cc739752aa899cf1b27c8a7db0b)",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "Apple Metal Shader Converter headers",
+      "repository": "https://github.com/xenios-jp/XeniOS",
+      "revision": "cf7c7ee452314913124d205e41e325b33891aacb",
+      "files": [
+        {
+          "path": "Metal-Shader-Converter-headers-Apache-2.0.txt",
+          "sha256": "60911e90d17eb7373139890425e6d0f93f43bfe5c81b91eed71841c175436e94",
+          "bytes": 11349,
+          "upstream_path": "third_party/metal-shader-converter/LICENSE.txt",
+          "source_blob_sha": "408ab67a27536f90c47fbaeed7556b1d920caeb4",
+          "source_url": "https://github.com/xenios-jp/XeniOS/blob/cf7c7ee452314913124d205e41e325b33891aacb/third_party/metal-shader-converter/LICENSE.txt",
+          "content": "Apache-2.0, Copyright 2023-2025 Apple Inc.: the headers only, not the runtime",
+          "exact_copy": true
+        }
+      ]
+    }
+  ]
+}

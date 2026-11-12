@@ -119,6 +119,31 @@ class ShaderConverterValidator(unittest.TestCase):
         self.assertTrue(any('pinned upstream mirror' in failure for failure in report['failures']))
         self.assertFalse(report['matches_pinned_mirror'])
 
+    @staticmethod
+    def signed_image(payload: bytes = b'code' * 64, signature: bytes = b'S' * 32, *, linkedit_size: int = 0x4000) -> bytes:
+        """A minimal thin arm64 image: __LINKEDIT, then LC_CODE_SIGNATURE pointing at the trailing blob."""
+        header_size, commands_size = 32, 72 + 16
+        body_offset = header_size + commands_size
+        sig_offset = body_offset + len(payload)
+        segment = struct.pack('<II16sQQQQIIII', 0x19, 72, b'__LINKEDIT', 0x8000, linkedit_size,
+                              body_offset, linkedit_size, 1, 1, 0, 0)
+        code_signature = struct.pack('<IIII', validator.LC_CODE_SIGNATURE, 16, sig_offset, len(signature))
+        header = struct.pack('<IiiIIIII', validator.MH_MAGIC_64, validator.CPU_TYPE_ARM64, 0,
+                             validator.MH_DYLIB, 2, commands_size, 0, 0)
+        return header + segment + code_signature + payload + signature
+
+    def test_the_signature_free_digest_ignores_only_the_signature(self) -> None:
+        original = self.signed_image()
+        resigned = self.signed_image(signature=b'R' * 4096, linkedit_size=0x5000)
+        self.assertEqual(validator.signature_free_digest(original), validator.signature_free_digest(resigned),
+                         'a new signature (and the __LINKEDIT size it needs) is not a modification')
+        patched = self.signed_image(payload=b'code' * 63 + b'cod3')
+        self.assertNotEqual(validator.signature_free_digest(original), validator.signature_free_digest(patched),
+                            'any other changed byte (install_name_tool, strip, a patch) is')
+        with self.assertRaises(ValueError):
+            validator.signature_free_digest(dylib())  # no signature: nothing to compare against
+        self.assertRegex(PIN['shader_converter']['upstream_mirror']['signature_free_sha256'], '^[0-9a-f]{64}$')
+
     def test_the_pin_matches_the_native_bridge(self) -> None:
         # The bridge's availability check and the packaging path agree.
         plugin = (ROOT / 'packages' / 'xenia_internal_bridge' / 'ios' / 'Classes' /

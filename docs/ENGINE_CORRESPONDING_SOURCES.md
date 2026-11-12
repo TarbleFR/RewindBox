@@ -334,6 +334,26 @@ original NuGet package. The upstream MIT/GPL statement conflict and the
 controller's separate licensing also remain recorded in the
 [staged notice manifest](../assets/legal/melonx/license-sources.json).
 
+## XeniOS (Xbox 360) embedded Core (12 November 2026)
+
+- Source: `xenios-jp/XeniOS` at `cf7c7ee452314913124d205e41e325b33891aacb`
+  (BSD-3-Clause), the revision of the owner's reference IPA attestation.
+- Local modifications: `build-utils/xenia/rewindbox-core.patch` (added lines
+  only, behind `XE_NEO_EMBEDDED_CORE` or an iOS 27 SDK guard) and the facade
+  `packages/xenia_internal_bridge/core/` (RewindBox sources). The upstream
+  files the adapter depends on are pinned by digest in
+  `build-utils/xenia/upstream-files.json`.
+- Build: `.github/workflows/xenia-core.yml` (`core` job) with
+  `build-utils/xenia/build_core.sh`; the built framework is pinned by
+  `build-utils/xenia/core-pin.json` (run, artifact, binary digest, packaged
+  fingerprint) and verified by `build-utils/xenia/core_pin.py verify`.
+- Not built from source: Apple's Metal Shader Converter runtime
+  (`libmetalirconverter.dylib`), Apple software under agreement EA1844,
+  fetched from the mirror pinned in `build-utils/xenia/source.json` (digest,
+  Apple code signature, signature-free digest). Its source is not available;
+  see `docs/evidence/xenia-metal-shader-converter/README.md` for the open
+  points.
+
 ## Notice corrections and next source collection
 
 This review adds **19 exact upstream files for 11 components** under
