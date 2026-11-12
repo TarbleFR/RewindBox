@@ -5184,6 +5184,44 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     in "Standing IPA compilation authorization"). Session 04 hands its frozen commit to main and builds nothing. The
     hook `d32738b5` reached `Claude` with the MeloNX Core 727 merge `c53ad180` and is inert in the common IPA.
 
+- **MeloNX lot 10: stutters, memory, heat, shaders on IPA 729 / Core 743 (Claude Code session
+  01JA5QgKeoGVH5oVjNyhcj3D, 12 Nov; owner: this session for analysis and the next MeloNX Core's GC/retention adapters;
+  the Core number is main's to assign, tentatively 745; no IPA, nothing frozen or delivered is touched):** input IPA 729,
+  Core 743 (source `3d2645ea`, iPhone binary `b1957006…`), private journals core/launch/performance/stderr, pid 58475:
+  Hogwarts gen 1 (session 25431A89, 1x, async shaders on, host memory budget on), then Smash gen 2 in the same process
+  (session 854293EB, 1x, async shaders off, budget off). Not a controlled A/B (different titles, options and memory).
+  - **GC freezes (proof: gcPause/gcEvent lines against the host sampler's `.NET_BGC` CPU, `pres` max gap and `vm=`):**
+    every long gen0 pause in play is the ephemeral collection that starts a background gen2 (its index is the
+    background's + 1 and the background's own first pause is 0.001-0.007 ms): Hogwarts 145/177/186/200 (95-364 ms,
+    BGC 144/176/185/199) and the 816.7 ms gap at 12:50:14 (BGC 226, line budget spent), Smash 236/268/283/291
+    (134-721 ms; 291 = the 733 ms gap, BGC 290). Those seconds also carry a burst of iOS decompressions (Smash
+    6 968-29 334 pages of 16 KiB, i.e. 109-458 MiB, against 100-1 500 outside; Hogwarts 3 439-34 384). A background gen2
+    that starts without an ephemeral (first pause self-accounted, 1.5-25 ms) never coincides with a freeze: from
+    12:51:45 Smash runs keep-alive-paced backgrounds every ~13 s with decompressions near 0 and 16.7 ms gaps.
+    `check_for_ephemeral_alloc` (gc.cpp) runs that ephemeral only when gen0's budget is spent, i.e. for an
+    allocation-triggered background, not for the keep-alive's GC.Collect: the keep-alive (Core 693) is not the cause.
+    Not proven yet: which part of that suspension (ephemeral work, the BGC thread's root scan and restart, waiting on
+    compressed pages) takes the time; no behaviour change until a journal separates them.
+  - **Retention (proof: sessionRetention/retentionChain lines):** after Hogwarts' close, after the final collections,
+    the Switch, GpuContext, statistics, Horizon, kernel, cpuMemory, renderer, audio driver, window, Npad and touch
+    managers, 11/29 service processes and 11/81 KThreads are still reachable; the application process and its CPU
+    context are released. Same at Smash's first frame (6 full collections later, heap 972 MB) and after Smash's close
+    (2/2 sessions). Smash's first-frame compaction keeps gen2 484 MiB and LOH 468 MiB against Hogwarts' 104 and 266:
+    about 570 MiB of the closed session rides into the next game and every background gen2 marks it again. Teardown
+    lines are clean (guest stopped 196/60 ms, GPU released, close passed). Leads read and discarded this time (each
+    releases or never holds the session): NativeGamepadDriver.OnInputUpdated (unsubscribed in the window's dispose),
+    InputManager mouse driver, Npad gamepad events, Apple audio GCHandle and completion block, the static
+    `RenderStageTimer.MemoryUsage` (holds the Vulkan allocator only), the pause pipeline-cache checkpoint work item,
+    TranslatedEntries and other thread statics, BackgroundCompilationScheduler threads, EmbeddedSession/coordinator
+    statics, time zone manager. Root not found by reading.
+  - **Next (this session):** a fresh branch from `Claude` with two adapters and their gates, for main's next MeloNX
+    Core: (1) the pause journal says for each long ephemeral whether it started a background gen2 and whether the
+    keep-alive asked for that background, never drops a pause of 100 ms or more, and gives per-minute counts over
+    100/250/500 ms with the session generation; (2) at close, only when the Switch is still reachable after the final
+    collection, the window shell and then the Switch's own references are cut in stages with a blocking collection and
+    the reachable parts and heap after each, so the first stage that frees the session names the root's entry. Board
+    and handoff to main before any Core build; no IPA from this session.
+
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
   relativeOffset 0x40000018). All five sessions ran ten mutually exclusive resolution cheats at once (Handheld RRS
