@@ -389,7 +389,9 @@ was written.
 
 **ABI 4** (`XeniaCoreABI.h`): once a launch has loaded the Core on the TXM
 broker path, the bridge sets `RBXeniaReserveCodeRegion` in the app's user
-defaults. From then on, every RewindBox launch (iOS 26+, Core present) reserves
+defaults. From then on, and whenever `Documents/XeniOS/Games` already holds a
+game (the first launch after an update), every RewindBox launch (iOS 26+, Core
+present) reserves
 `NEO_XENIA_CODE_REGION_SIZE` PROT_NONE below `NEO_XENIA_CODE_REGION_LIMIT` at
 plugin registration, with XeniOS's own hint search. Right after the dlopen,
 `adopt_code_region` either keeps the Core's own reservation (`OWN`, the host
@@ -400,12 +402,13 @@ The Dart `jitState` map carries `codeRegionHeld` and `codeRegion` (host, own or
 none) into the `XeniOS JIT:` log line.
 
 **Without a held region** while a tool is still needed (the first Xbox 360
-launch of a process that was already full), nothing attaches:
+launch of a process that was already full, with no imported game and no
+earlier Xbox 360 launch), nothing attaches:
 `XeniaJitPlan.noCodeRegion` refuses with `jitMemoryUnavailable` ("close
 RewindBox from the app switcher and reopen it", 12 locales). `validate_jit`
 refuses the same state before `boot`. RewindBox is not closed, and the next
 launch reserves the region. Cost: 512 MiB of address space (no memory) below
-8 GB, held only by users who have launched an Xbox 360 game; other engines'
+8 GB, held only by users who have imported or launched an Xbox 360 game; other engines'
 allocations go elsewhere.
 
 **Fatal record**: the Core installs XeniOS's `note_fatal_error` hook (at the

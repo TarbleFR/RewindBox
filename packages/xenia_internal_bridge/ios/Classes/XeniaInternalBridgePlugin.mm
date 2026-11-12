@@ -77,7 +77,8 @@ static BOOL XeniaSupportedOS(void) {
 // have filled the low address space (first device run: "no room for the code
 // region below 8 GB", a FatalError that closed RewindBox). Once a launch has
 // loaded the Core on the TXM broker path, every later RewindBox launch reserves
-// the region at plugin registration and hands it to the Core.
+// the region at plugin registration and hands it to the Core; so does a launch
+// with Xbox 360 games already imported, before any launch set the flag.
 static NSString* const kXeniaReserveCodeRegionKey = @"RBXeniaReserveCodeRegion";
 // From registration until loadCore hands it over or unmaps it; main only.
 static void* gXeniaHostCodeRegion = nullptr;
@@ -94,6 +95,18 @@ static void* XeniaReserveCodeRegion(void) {
     munmap(mapping, size);
   }
   return nullptr;
+}
+
+// Documents/XeniOS/Games (XeniaInternalService.gamesDirectory) holds a game.
+static BOOL XeniaHasImportedGames(void) {
+  NSURL* documents = [NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory
+                                                          inDomains:NSUserDomainMask].firstObject;
+  NSString* games = [documents URLByAppendingPathComponent:@"XeniOS/Games" isDirectory:YES].path;
+  if (!games) return NO;
+  for (NSString* name in [NSFileManager.defaultManager contentsOfDirectoryAtPath:games error:nil]) {
+    if (![name hasPrefix:@"."]) return YES;
+  }
+  return NO;
 }
 
 static UIViewController* XeniaTopViewController(void) {
@@ -523,8 +536,8 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
   // First, before the app fills the address space below 8 GB.
-  if (XeniaSupportedOS() && [NSUserDefaults.standardUserDefaults boolForKey:kXeniaReserveCodeRegionKey] &&
-      [NSFileManager.defaultManager fileExistsAtPath:XeniaFrameworkPath()]) {
+  if (XeniaSupportedOS() && [NSFileManager.defaultManager fileExistsAtPath:XeniaFrameworkPath()] &&
+      ([NSUserDefaults.standardUserDefaults boolForKey:kXeniaReserveCodeRegionKey] || XeniaHasImportedGames())) {
     gXeniaHostCodeRegion = XeniaReserveCodeRegion();
     NSLog(@"[Xenia] code region: %@", gXeniaHostCodeRegion ? @"reserved below 8 GB" : @"no room below 8 GB");
   }
