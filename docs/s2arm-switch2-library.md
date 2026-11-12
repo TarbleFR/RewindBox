@@ -84,4 +84,13 @@ service answers `engineMissing`: the playlist is listed but unavailable and noth
   `build-utils/collect_build_source_evidence.py` (previous and new index digests, the added tile and the three declared
   files, each against the index and the bytes). Negative controls: `test/switch2_glacier_tile_review_test.py` (8 tests;
   each check mutation-tested). Main reviews it with the rest of this branch.
+- 12 Nov 2026, after IPA 727: the maintainer asked for the main-menu logo smaller and centred. On the 727 tile the logo
+  covered 49 % of the tile's width and 44 % of its height, centred at 39 % of the height. That placed it high in the
+  0.8 portrait card (which crops the sides) and in the footer thumbnail. The tile is recomposed on the same red
+  background:
+  - the logo is at 72 % of its former width (181×162 px), centred, drawn from `assets/images/logos/switch2.webp`;
+  - the background under the former logo is filled from each row's surrounding red, with no visible trace under a
+    contrast check.
+  The index entry, the `contentDigest` (installed copies are replaced at the next start) and the review's index, digest
+  and tile identity follow. `test/switch2_glacier_tile_review_test.py` passes. Not observed on a device.
 
