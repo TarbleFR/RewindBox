@@ -584,6 +584,7 @@ class DeclaredInputChanges(unittest.TestCase):
     def test_manifest_shape_refusals(self):
         _, manifest = current_manifest()
         good = copy.deepcopy(manifest)
+        good['components']['dolphin'].pop('inheritedChangedInputs', None)
         good['components']['dolphin']['changedInputs'] = [
             dict(path=VERIFY_IPA, baseBlob='a' * 40, newBlob='b' * 40, commit='c' * 40)]
         self.assertEqual(sd.manifest_errors(good), [])
