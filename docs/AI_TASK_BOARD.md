@@ -5543,8 +5543,14 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   and removed at the next Xbox 360 launch; early refusals logged. system_ios.h digest added to upstream-files.json.
   Local: patch test with --upstream OK, converter/touch/verify_core/identity/launch-transaction/objc-namespace OK,
   Xbox 360 Dart suites 58/58, analyzer clean on changed files; delivery review refuses the changed recipe until the
-  new pin (expected). Core run 43158794942 in progress. Next: pin job, review rebind, merge Claude, macOS run, handoff
-  to 00; device check = `codeRegion=host` or `own` in the JIT log line, then boot.
+  new pin (expected). Run 43158794942 (c579a0e7b): checks and plugin_app green (bridge compiles); core attempt 1
+  failed before compiling (submodule clones of public repos refused: "could not read Username for
+  https://github.com"; same step green 2 h earlier), attempt 2 green: compiled, verify_core.py passed, artifact
+  uploaded (05:13-05:43). Folder pick (main's report from 04's Switch 2 finding, confirmed in file_picker
+  12.0.0-beta.3 IOSFilePickerHandler.swift:193-197, no security-scoped access for a directory): 7de68c77d,
+  importFolder uses ExternalFolderAccess.pickAndActivateFolder (bookmark xenia-import), `folderAccessFailed`
+  (12 locales); suites 59/59, storage contract 25/25. Next: pin job, review rebind, merge Claude, macOS run,
+  handoff to 00; device check = `codeRegion=host` or `own` in the JIT log line, then boot.
 - **Validation (Flutter 3.47.2 host):** 11 Nov: XeniOS + catalog/Consoles/touch suites
   91/91, scanner suites 41/41 (1 skip), storage contract 24/24, patch/validator/touch/C++
   checks OK, analyzer 111 = baseline. Earlier: new XeniOS + catalog/Consoles tests 65/65;
