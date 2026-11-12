@@ -424,6 +424,20 @@ an earlier session: …`) and removes it. The early refusals of
 `XeniaInternalService.launch` (availability, kind, missing file, JIT plan) are
 logged with their reason (`XeniOS launch refused: …`).
 
+**Second device run (IPA 728)**: the first launch of a process was refused
+cleanly (`codeRegion: none`); after a restart `codeRegion: host` (the flag was
+set), then RewindBox closed again and `Engine/xenia.log` ended at `Loaded
+config`, with no FatalError line: a real crash, close to that line (Xenia's log
+is written by a background thread, so its tail can be lost). Diagnostics added
+in the bridge for the next run: the `XeniOS JIT:` line carries `registration`
+(reserved, noRoom or notRequested, why: flag or imported games, and the
+largest free gap below 8 GB at registration) and `freeBelow8GBMiB` (now); every
+launch appends and syncs its stages to `Engine/launch-journal.txt` (launch,
+present, presented, nonce probe, prepare, validate_jit, boot, the detach wait,
+then launched or failed), which the next Xbox 360 launch copies into app.log
+(`XeniOS: previous launch stages: …`, an error when the last stage is neither
+launched nor failed).
+
 **IPA wiring, for the main session** (delivery files, not edited here):
 call `build-utils/configure_xenia_ios.py` after the XeniaCore pin (it
 requires `dist/xenia/XeniaCore.framework`), add the `XeniaJITHelper` pod

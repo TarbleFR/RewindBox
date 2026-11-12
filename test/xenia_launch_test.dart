@@ -116,6 +116,24 @@ void main() {
     },
   );
 
+  test('the previous launch journal is logged once, then removed', () async {
+    final engine = await XeniaInternalService.engineDirectory();
+    await engine.create(recursive: true);
+    final journal = File(path.join(engine.path, 'launch-journal.txt'))
+      ..writeAsStringSync(
+        '10.000 launch: codeRegion=host\n10.100 present\n10.400 presented\n'
+        '10.401 nonce probe\n10.402 prepare\n',
+      );
+    final stages = await XeniaInternalService.takePreviousLaunchJournal();
+    expect(stages, hasLength(5));
+    expect(stages!.last, '10.402 prepare');
+    expect(journal.existsSync(), isFalse);
+    expect(await XeniaInternalService.takePreviousLaunchJournal(), isNull);
+    journal.writeAsStringSync('1.0 present\n2.0 launched\n');
+    expect(await launch(game.path), isA<XeniaLaunchOutcome>());
+    expect(journal.existsSync(), isFalse, reason: 'read before each launch');
+  });
+
   test(
     'no code region below 8 GB: refused before the helper and the bridge',
     () async {

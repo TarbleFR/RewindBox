@@ -21,7 +21,10 @@
 #import <QuartzCore/QuartzCore.h>
 #import <UIKit/UIKit.h>
 #import <dlfcn.h>
+#include <fcntl.h>
+#include <mach/mach.h>
 #include <sys/mman.h>
+#include <unistd.h>
 #include <atomic>
 #include <string>
 #include <vector>
@@ -82,6 +85,32 @@ static BOOL XeniaSupportedOS(void) {
 static NSString* const kXeniaReserveCodeRegionKey = @"RBXeniaReserveCodeRegion";
 // From registration until loadCore hands it over or unmaps it; main only.
 static void* gXeniaHostCodeRegion = nullptr;
+// What registration did, for the `XeniOS JIT:` line of app.log (the NSLog
+// below never reaches it): reserved, noRoom, or notRequested, why, and the
+// largest free gap below 8 GB at that moment. Set once, on main.
+static NSString* gXeniaRegistration = @"notRegistered";
+
+// The largest unmapped range between 4 GB (the end of __PAGEZERO) and the
+// 8 GB limit, in MiB: what a reservation of the code region could still get.
+static uint64_t XeniaLargestFreeBelowLimitMiB(void) {
+  vm_address_t cursor = (vm_address_t)1 << 32;
+  const vm_address_t limit = (vm_address_t)NEO_XENIA_CODE_REGION_LIMIT;
+  uint64_t largest = 0;
+  while (cursor < limit) {
+    vm_address_t region = cursor;
+    vm_size_t size = 0;
+    vm_region_basic_info_data_64_t info;
+    mach_msg_type_number_t count = VM_REGION_BASIC_INFO_COUNT_64;
+    mach_port_t object = MACH_PORT_NULL;
+    const kern_return_t kr = vm_region_64(mach_task_self(), &region, &size, VM_REGION_BASIC_INFO_64,
+                                          (vm_region_info_t)&info, &count, &object);
+    const vm_address_t gap_end = kr == KERN_SUCCESS && region < limit ? region : limit;
+    if (gap_end > cursor && gap_end - cursor > largest) largest = gap_end - cursor;
+    if (kr != KERN_SUCCESS || region >= limit) break;
+    cursor = region + size;
+  }
+  return largest >> 20;
+}
 
 // XeniOS's own search (jit_memory_ios.cc MapBelowExecuteRegionLimit): hints
 // only, so nothing already mapped is replaced. PROT_NONE: no memory is used.
@@ -95,6 +124,22 @@ static void* XeniaReserveCodeRegion(void) {
     munmap(mapping, size);
   }
   return nullptr;
+}
+
+// Launch stages, appended and synced to <storage root>/launch-journal.txt as
+// they happen: a crash leaves the last stage reached on disk (Xenia's own log
+// is written by a background thread and loses its tail), and the next Xbox 360
+// launch copies the journal into app.log (XeniaInternalService
+// .takePreviousLaunchJournal). Any thread; a few lines per launch.
+static void XeniaJournal(NSString* path, NSString* stage) {
+  if (!path.length) return;
+  NSString* line = [NSString stringWithFormat:@"%.3f %@\n", NSProcessInfo.processInfo.systemUptime, stage];
+  const char* bytes = line.UTF8String;
+  const int fd = open(path.fileSystemRepresentation, O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC, 0600);
+  if (fd < 0) return;
+  (void)write(fd, bytes, strlen(bytes));
+  fsync(fd);
+  close(fd);
 }
 
 // Documents/XeniOS/Games (XeniaInternalService.gamesDirectory) holds a game.
@@ -536,10 +581,16 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
   // First, before the app fills the address space below 8 GB.
-  if (XeniaSupportedOS() && [NSFileManager.defaultManager fileExistsAtPath:XeniaFrameworkPath()] &&
-      ([NSUserDefaults.standardUserDefaults boolForKey:kXeniaReserveCodeRegionKey] || XeniaHasImportedGames())) {
-    gXeniaHostCodeRegion = XeniaReserveCodeRegion();
-    NSLog(@"[Xenia] code region: %@", gXeniaHostCodeRegion ? @"reserved below 8 GB" : @"no room below 8 GB");
+  if (XeniaSupportedOS() && [NSFileManager.defaultManager fileExistsAtPath:XeniaFrameworkPath()]) {
+    const BOOL flagged = [NSUserDefaults.standardUserDefaults boolForKey:kXeniaReserveCodeRegionKey];
+    const BOOL games = !flagged && XeniaHasImportedGames();
+    const uint64_t free_mib = XeniaLargestFreeBelowLimitMiB();
+    if (flagged || games) gXeniaHostCodeRegion = XeniaReserveCodeRegion();
+    gXeniaRegistration = [NSString stringWithFormat:@"%@ (%@), largest free below 8 GB %llu MiB",
+                          !(flagged || games) ? @"notRequested" : gXeniaHostCodeRegion ? @"reserved" : @"noRoom",
+                          flagged ? @"flag" : games ? @"imported games" : @"no flag, no imported game",
+                          free_mib];
+    NSLog(@"[Xenia] code region at registration: %@", gXeniaRegistration);
   }
   XeniaInternalBridgePlugin* plugin = [[XeniaInternalBridgePlugin alloc] init];
   plugin.channel = [FlutterMethodChannel methodChannelWithName:kXeniaChannel
@@ -609,6 +660,8 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
     @"brokerPath" : @((state & NEO_XENIA_JIT_BROKER_PATH) != 0),
     @"codeRegionHeld" : @((state & NEO_XENIA_JIT_CODE_REGION_HELD) != 0),
     @"codeRegion" : self.codeRegion ?: @"none",
+    @"registration" : gXeniaRegistration,
+    @"freeBelow8GBMiB" : @(XeniaLargestFreeBelowLimitMiB()),
     @"handshakeActive" : @(XeniaJitHasActiveCoreHandshake()),
   };
 }
@@ -703,6 +756,12 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
   }
   NSString* title = [args[@"title"] isKindOfClass:NSString.class] ? args[@"title"] : @"";
   const NeoXeniaAPI* api = self.api;
+  // Dart read the previous journal before this call; each launch starts afresh.
+  NSString* journal = [storage stringByAppendingPathComponent:@"launch-journal.txt"];
+  [NSFileManager.defaultManager removeItemAtPath:journal error:nil];
+  XeniaJournal(journal, [NSString stringWithFormat:@"launch: codeRegion=%@, jit_state=0x%x, free below 8 GB %llu MiB",
+                                                   self.codeRegion ?: @"none", api->jit_state(),
+                                                   XeniaLargestFreeBelowLimitMiB()]);
   const uint64_t transaction = ++gXeniaTransaction;
   _transaction = transaction;
   _userPaused = NO;
@@ -738,8 +797,10 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
     return;
   }
 
+  XeniaJournal(journal, @"present");
   _launchPending = YES;
   [presenter presentViewController:controller animated:YES completion:^{
+    XeniaJournal(journal, @"presented");
     dispatch_async(self.sessionQueue, ^{
       std::vector<std::string> storageKeys, storageValues;
       std::vector<NeoXeniaSetting> settings;
@@ -767,18 +828,29 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
       // nonce probe (brk #0xf00d, x16=3) before the Core runs: a tool that
       // set CS_DEBUGGED and left would make the Core's prepare fatal.
       const BOOL handshake = XeniaJitHasActiveCoreHandshake();
-      if (handshake && !XeniaJitConfirmCoreLoadHandoff()) {
-        stage = @"jitHandshakeFailed";
-      } else if (!api->prepare(&configuration, kXeniaPrepareTimeoutMs, failure, sizeof failure)) {
-        stage = @"prepareFailed";
-      } else if (!api->validate_jit(failure, sizeof failure)) {
-        stage = @"jitUnavailable";
-      } else if (!api->boot(gamePath.fileSystemRepresentation, kind.unsignedIntValue,
-                            kXeniaBootTimeoutMs, failure, sizeof failure)) {
-        stage = @"bootFailed";
-      } else if (handshake) {
+      XeniaJournal(journal, handshake ? @"nonce probe" : @"no handshake");
+      if (handshake && !XeniaJitConfirmCoreLoadHandoff()) stage = @"jitHandshakeFailed";
+      if (!stage) {
+        XeniaJournal(journal, @"prepare");
+        if (!api->prepare(&configuration, kXeniaPrepareTimeoutMs, failure, sizeof failure)) {
+          stage = @"prepareFailed";
+        }
+      }
+      if (!stage) {
+        XeniaJournal(journal, @"validate_jit");
+        if (!api->validate_jit(failure, sizeof failure)) stage = @"jitUnavailable";
+      }
+      if (!stage) {
+        XeniaJournal(journal, @"boot");
+        if (!api->boot(gamePath.fileSystemRepresentation, kind.unsignedIntValue,
+                       kXeniaBootTimeoutMs, failure, sizeof failure)) {
+          stage = @"bootFailed";
+        }
+      }
+      if (!stage && handshake) {
         // Emulator::Setup ran the Core's one-time prepare (x16=1) and detach
         // (x16=0): the helper must confirm it detached with CS_DEBUGGED kept.
+        XeniaJournal(journal, @"booted; waiting for the helper's detach");
         NSString* message = nil;
         if (!XeniaJitWaitForDetach(kXeniaDetachTimeout, &message)) {
           stage = @"jitDetachFailed";
@@ -792,6 +864,7 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
       // with a closed helper (XeniaJitService.planFor).
       if (stage) XeniaJitAbortTransaction();
       NSString* detail = jitDetail ?: @(failure);
+      XeniaJournal(journal, stage ? [NSString stringWithFormat:@"failed: %@ %@", stage, detail] : @"launched");
       dispatch_async(dispatch_get_main_queue(), ^{
         NSString* outcome = stage;
         NSString* outcomeDetail = detail;
