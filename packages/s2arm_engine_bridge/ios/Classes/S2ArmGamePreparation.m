@@ -3,6 +3,7 @@
 #import "S2ArmGuestABI.h"
 #import "S2ArmPrepareABI.h"
 #import "S2ArmLaunchJournal.h"
+#import "S2ArmCodePages.h"   // s2arm_code_now_ns
 
 #import <CommonCrypto/CommonDigest.h>
 #import <stdatomic.h>
