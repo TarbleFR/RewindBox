@@ -5696,6 +5696,48 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - First pin attempt, run 43185240791, refused the artifact: it held a fifth member, `patches.txt`. Fixed in
       `a6f958fd`.
     - Not observed on a device. The pass shares are estimates until a journal gives the durations.
+  - **IPA 732 device report (maintainer, 12 Nov 20:09Z: S2Arm journal and three engine logs): the boot now asks for its
+    code at once; the engine runs after the helper detaches. What it does next is not known yet.**
+    - Journal, pid 60681: preparation passed in 432 s (unchanged library). Launch: `start` passed, then the 6 boot blocks
+      (57 MB, main 42 MB at 0x7300000000) were served in ATTACHED mode in 4-83 ms each, all within 0.2 s. `bootServed`
+      passed, `jitDetach` passed, then `launch running` (servedBlocks 6). No later line in the next 3 minutes: no
+      `sessionEnded`, no FATAL. Pool 73.7 MB (boot + 16 MB). Footprint during the preparation 1.2-1.4 GB (731:
+      0.4-0.6 GB), with 5.2-5.4 GB still available; not explained yet.
+    - The three engine logs are all from IPA 731 runs (container copies made when 732 started): 15:14Z and 15:18Z
+      (closed during the wait) and 17:57Z. The 17:57Z one confirms the 0011 cause from the engine itself: the store
+      emulation self-test measured 300 ms per fault over 2000 faults. After the forced detach, mapping main failed
+      (`FATAL … 外置镜像映射 0x7100000000 … errno=1`), code 134.
+    - The engine log of the 732 run reaches Files at the next app start (or at the session's end). Next: that log and
+      what the screen showed.
+  - **Preparation speed (maintainer request, 12 Nov): commit `74951ac7`, same outputs, for a later IPA (needs a new
+    prepare pin).**
+    - Where the 427 s of IPA 731 went (journal + app.log):
+      - clearing the previous root: 14 s;
+      - unpack: 119 s, a mkdir per path component from `/` before each of about 205 000 links, plus walks with
+        stats;
+      - code: 60 s, two RomFS walks of 29 s each with an lstat and a stat per entry (the modules took 3 s);
+      - caps: 29 s, a third walk for an engine rule that cannot match;
+      - pack: 204 s, SHA-256 of 22 GB in portable C on one thread.
+    - Changes:
+      - SHA-256 from CommonCrypto on Apple;
+      - the pack hashes with up to 4 threads (one buffer each, progress and callbacks on the calling thread, first
+        failure wins);
+      - makedirs tries the path first, and the view remembers the previous link's directory;
+      - the walks take types from readdir and stat only links and unknown types;
+      - caps skips its RomFS walk when main names neither Unity nor Unreal;
+      - the bridge moves the previous root aside and deletes it at background QoS after the preparation;
+      - new journal lines: `cleared`, `unpackLayout`/`unpackUpdates`/`unpackDone`, `packWalk`, `packDone`.
+      - Details: `docs/s2arm-engine-bridge.md`, "Preparation speed".
+    - Checked locally (scratch harness, not in Git):
+      - old and new library: identical outputs and errors on 17 case/mode combinations;
+      - ThreadSanitizer clean on full and cancelled packs;
+      - 60 000-file delta tree on Linux, unpack 1.42 → 0.85 s, caps 0.25 → 0 s, NRO walk 0.25 → 0.04 s, pack
+        0.95 → 0.46 s;
+      - new `test/s2arm_prepare_speed_test.py` (23 checks; each reverted fix fails it);
+      - bridge test 189 checks; all `test/s2arm_*_test.py` pass.
+    - CI on `74951ac7` running: prepare 43303700695 (comparisons with S2Arm, Linux and macOS), core 43303700519
+      (xcframework), bridge iOS 43303700475, library 43303700638. Not measured on the phone; the progress bar's
+      step weights still follow old guesses.
   - **IPA 731 device report (maintainer, 12 Nov, S2Arm journal): the engine starts, then waits 10 minutes before asking
     for code. Fix: verified pin `eb8f20bf` with engine patch 0011, merged on Claude by main as `1f301991`, delivered in
     IPA 732 (run 43289133482, 329956970 B, IPA SHA-256 `97952e98…de52`, S2Arm identity `9560e56f`, receipt
