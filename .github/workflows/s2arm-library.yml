@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - work/s2arm-switch2-library-20261111
+      - work/s2arm-switch2-prototype-20261110
   workflow_dispatch:
 
 permissions:
@@ -39,9 +40,13 @@ jobs:
           test/s2arm_playlist_menu_contract_test.dart
           test/switch2_export_content_test.dart
           test/switch2_library_locale_test.dart
+          test/switch2_settings_locale_test.dart
           test/console_manager_test.dart
           test/libretro_consoles_tab_test.dart
           test/rewindbox_glacier_test.dart
+
+      - name: Switch 2 settings and in-game menu contract (Dart strings against the native bridge)
+        run: python3 -B test/s2arm_session_menu_test.py
 
       - name: Switch 2 empty-state hint contract
         run: python3 -B test/switch2_empty_hint_contract_test.py

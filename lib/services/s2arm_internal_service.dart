@@ -507,12 +507,14 @@ abstract final class S2ArmInternalService {
     String exportFolder, {
     required String pairingFilePath,
     void Function(S2ArmImportProgress progress)? onPrepareProgress,
+    Locale? locale,
   }) async {
     final runtime = await availability();
     if (!runtime.ready) return S2ArmLaunchOutcome.failure(runtime.state.name, runtime.detail);
     if (_launching) return const S2ArmLaunchOutcome.failure('busy');
     _launching = true;
-    final uiLocale = Switch2SettingsLocale.codeFor(PlatformDispatcher.instance.locale);
+    // The in-game menu speaks RewindBox's language (the app's locale when the caller has it, else the system one).
+    final uiLocale = Switch2SettingsLocale.codeFor(locale ?? PlatformDispatcher.instance.locale);
     try {
       final detected = await detectExport(exportFolder);
       if (detected['success'] != true) return S2ArmLaunchOutcome.failure((detected['code'] ?? 'notExportFolder').toString());
