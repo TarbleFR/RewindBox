@@ -750,6 +750,20 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### RPCS3 FPS, stability and audio — main Claude Code
 
+- **ON HOLD — after delivery of the next common IPA (maintainer, 12 Nov): RPCS3 heat, sustained performance and
+  stability lot.** Do not start (no investigation, agent, engine change, test or build for this lot) until the next
+  common IPA (Core 934 settings/stretch fix plus the engine handoffs already in scope) is compiled, verified and handed
+  to the maintainer with build number, engine versions and receipt; IPA 726, a green CI or a compiled Core do not count.
+  When it opens: cite that IPA's number, manifest and receipt, take it as the reference, work in the following version.
+  Received and checked (private, not in Git): prompt 20,059 B `f20c9a09…3a93`; performance(9) 2,519,922 B / 3352 lines
+  `0df0077a…5c9b`; causes(8) 3,398,915 B / 3210 `2457504b…5483`; milestones(7) 475,472 B / 737 `277996b7…b36a`;
+  diagnostic(9) 156,933 B / 242 `8458f0f5…9f3a`; timeline(5) 901,832 B / 181 `cd05cb54…61c3`; restore-trace(2)
+  396,710 B / 895 `852675a5…847d` (logs 7,849,784 B). Priorities recorded from the prompt: (1) THERMAL931
+  wfe_longest_us=18446744073 on 23/32 lines (PID 54406), cause not yet shown, fix the measurement and exclude invalid
+  values; (2) less heat at equal useful work on THERMAL931/932, hysteresis only if shown lacking, menu stays non-pausing;
+  (3) BO2 frame 7474 (3439.706 ms, 3277.326 ms blocking pipeline compile) and other avoidable stalls, shader mode Legacy
+  Recompiler audited; (4) LOCALPROFILE933 learned but not validated, resolver extended by mechanism. Constraints: 1x and
+  fidelity kept, no FPS cap, no 60 FPS promise, no gain without comparable device evidence.
 - **URGENT maintainer instruction, 11 Nov (relayed by Codex) — RPCS3 global optimisation: per-game
   profiles, behaviour, shared iOS corrections, thermal.** Prompt file received and read in full
   (243 lines; private upload, not in Git). Added to the current work; owner main
