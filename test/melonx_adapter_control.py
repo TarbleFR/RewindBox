@@ -45,7 +45,7 @@ ORDER = ('adapt_pipeline_warmup_parity', 'adapt_device_short_trim', 'adapt_molte
          'adapt_variant_replay_all', 'adapt_pause_checkpoint_growth',
          'adapt_vulkan_memory_journal', 'adapt_pipeline_cache_compact', 'adapt_cold_buffer_trim',
          'adapt_host_thread_class', 'adapt_remap_sweep_range', 'adapt_npad_config_snapshot',
-         'adapt_playtime_warmup_all_titles')
+         'adapt_playtime_warmup_all_titles', 'adapt_array_storage_counts')
 
 
 def sha(path: Path) -> str:

@@ -190,6 +190,8 @@ LOT_FILES = {
     'adapt_npad_config_snapshot': [],
     # Core 739: the play-time warm-up for every title (one assignment in Library.cs).
     'adapt_playtime_warmup_all_titles': ['src/Ryujinx.Library/Library.cs'],
+    # Core 741 (Hogwarts lot): the texture array's storage counts.
+    'adapt_array_storage_counts': ['src/Ryujinx.Graphics.Vulkan/TextureArray.cs'],
 }
 
 checks = 0
