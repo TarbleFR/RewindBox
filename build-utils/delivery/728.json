@@ -411,6 +411,14 @@
       {
         "commit": "39afc6f1c2be00735190f3e70906eae6b2b52615",
         "note": "Reviewed by main: test(delivery): the changedInputs shape test drops an inherited entry for the same path from the current manifest [skip ci]"
+      },
+      {
+        "commit": "688d8d1ddb3e75807dbf51dbe711123dae61c6f2",
+        "note": "Reviewed by main: delivery: IPA 728 draft (base 727, XeniaCore ABI 4, Switch 2 fixes; RPCS3 934 kept; MeloNX awaits the Core 739 pin) [skip ci]"
+      },
+      {
+        "commit": "65d0e3e6fe2ca881a9f239ec2e6664035dbd5b10",
+        "note": "Reviewed by main: build(melonx): take the Core 739 recipe back out of Claude; IPA 728 ships MeloNX Core 737 (maintainer) [skip ci]"
       }
     ],
     "sourceOnly": [],
