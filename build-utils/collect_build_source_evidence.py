@@ -42,6 +42,18 @@ S2ARM_ENGINE_PODSPEC = "packages/s2arm_engine_bridge/ios/s2arm_engine_bridge.pod
 # The delivery that ships XeniaCore, chained after the Xbox 360 playlist review: binds the engine pin, the recipe
 # files compiled into the binary, and the statically linked LGPL libraries with their chosen relinking means.
 XENIOS_CORE_REVIEW = "docs/evidence/xenios-core-delivery-declarations-2026-11-12.json"
+# The RetroAchievements disc reader (b06888a9): the libretro podspec compiles a vendored libchdr. Chained on the
+# session review, whose libretro podspec postimage it moves on.
+RA_DISC_READER_REVIEW = "docs/evidence/ra-disc-reader-declarations-2026-11-12.json"
+# Xbox 360 controller rumble: the xenia bridge podspec links CoreHaptics (a system framework). Chained on the XeniOS
+# playlist review, whose xenia podspec postimage it moves on.
+XENIOS_HAPTICS_REVIEW = "docs/evidence/xenios-haptics-declarations-2026-11-12.json"
+XENIA_BRIDGE_PODSPEC = "packages/xenia_internal_bridge/ios/xenia_internal_bridge.podspec"
+# Licence audit: the notice folders the Legal and credits dialog opens become Flutter assets. Chained on the S2Arm
+# engine review, whose pubspec.yaml postimage it moves on.
+LEGAL_ASSETS_REVIEW = "docs/evidence/legal-assets-declarations-2026-11-12.json"
+LEGAL_ASSETS_ADDED = ["assets/legal/engines/", "assets/legal/melonx/", "assets/legal/xenios/"]
+LIBRETRO_PODSPEC = "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec"
 XENIOS_CORE_PIN = "build-utils/xenia/core-pin.json"
 XENIOS_CORE_RECIPE = (
     "build-utils/xenia/build_core.sh",
@@ -93,6 +105,51 @@ def read_input(root: Path, path: Path) -> bytes:
     if not data:
         raise SystemExit(f"Empty source evidence: {path.relative_to(root)}")
     return data
+
+
+def check_ra_disc_reader(root: Path, pubspec_lock_sha256: str, declarations: dict) -> None:
+    """The disc reader review: the libretro podspec's only change since the session review is the vendored libchdr
+    (BSD-3-Clause, with the public-domain LZMA SDK and the BSD Zstandard decoder), every file bound by digest, and its
+    notices ship in the libretro legal set."""
+    review = json.loads(read_input(root, root / RA_DISC_READER_REVIEW))
+    prior = "docs/evidence/retro-achievements-session-declarations-2026-11-01.json"
+    vendored = review.get("dependency_changes", {}).get("vendored_sources", {})
+    if (review.get("schema") != 1 or review.get("baseline_inventory") != prior or
+            review.get("baseline_inventory_sha256") != sha256(read_input(root, root / prior)) or
+            review.get("pubspec_lock_sha256") != pubspec_lock_sha256 or
+            review.get("complete_corresponding_source_attested") is not False or
+            review.get("dependency_changes", {}).get("external_packages_added") != []):
+        raise SystemExit("RetroAchievements disc reader review has a different baseline or dependency scope")
+    updates = review.get("declarations", {})
+    if set(updates) != {LIBRETRO_PODSPEC}:
+        raise SystemExit("RetroAchievements disc reader declaration review scope changed")
+    update = updates[LIBRETRO_PODSPEC]
+    if update.get("before") != declarations.get(LIBRETRO_PODSPEC):
+        raise SystemExit(f"Wrong previous declaration identity: {LIBRETRO_PODSPEC}")
+    current = sha256(read_input(root, root / LIBRETRO_PODSPEC))
+    if current == update.get("before"):
+        # A delivered product tree that still holds the podspec the session review declared (IPA 731's effective tree:
+        # b06888a9's disc reader was never promoted into a delivery) compiles no libchdr; that previous declaration
+        # stands and nothing else is accepted. The shipped notices then cover more than is compiled, never less.
+        return
+    if update.get("after") != current:
+        raise SystemExit(f"Disc reader source/license declaration changed since review: {LIBRETRO_PODSPEC}")
+    declarations[LIBRETRO_PODSPEC] = update["after"]
+    vendored_root = vendored.get("path", "")
+    vendored_files = vendored.get("files_sha256", {})
+    actual = sorted(str(path.relative_to(root)) for path in (root / vendored_root).rglob("*")
+                    if path.is_file()) if vendored_root else []
+    if (vendored_root != "packages/libretro_internal_bridge/ios/ThirdParty/libchdr" or
+            not vendored.get("license") or sorted(vendored_files) != actual or vendored.get("files") != len(actual)):
+        raise SystemExit("Vendored libchdr sources differ from the disc reader review")
+    for name, expected in vendored_files.items():
+        if sha256(read_input(root, root / name)) != expected:
+            raise SystemExit(f"Vendored libchdr source changed since review: {name}")
+    manifest = json.loads(read_input(root, root / "assets/legal/libretro/license-sources.json"))
+    notice = "RA-disc-reader-NOTICES.txt"
+    listed = {entry.get("path"): entry.get("sha256") for entry in manifest.get("support_files", [])}
+    if listed.get(notice) != sha256(read_input(root, root / "assets/legal/libretro" / notice)):
+        raise SystemExit("The libchdr, LZMA and Zstandard notices are not in the libretro legal set")
 
 
 def check_switch2_glacier_tile(root: Path, pubspec_lock_sha256: str) -> None:
@@ -188,44 +245,10 @@ def check_xenios_core_delivery(root: Path, pubspec_lock_sha256: str) -> None:
         raise SystemExit("XeniaCore delivery review must state its relinking means without a clearance claim")
 
 
-def repository_inputs(root: Path) -> dict[str, str]:
-    """Hash the source declarations and local modifications without executing them."""
-    required = [root / "pubspec.yaml", root / "pubspec.lock"]
-    for name in SOURCE_DOCUMENTS:
-        required.append(root / "docs" / name)
-    for name in SOURCE_EVIDENCE:
-        required.append(root / "docs/evidence" / name)
-    package_audit = json.loads(read_input(root, root / "docs/evidence/package-sources-license-audit-2026-10-21.json"))
-    if package_audit.get("pubspec_lock_sha256") != sha256(read_input(root, root / "pubspec.lock")):
-        raise SystemExit("Package source/license inventory is stale for pubspec.lock")
-    declarations = dict(package_audit.get("source_declaration_sha256", {}))
-    if not declarations:
-        raise SystemExit("Package source/license inventory lacks dependency declaration identities")
-    # Preserve the historical review; authenticate the narrowly scoped follow-up
-    # instead of silently relabeling old package evidence as a new review.
-    followup_path = root / "docs/evidence/achievement-translation-declarations-2026-10-31.json"
-    followup = json.loads(read_input(root, followup_path))
-    baseline_path = "docs/evidence/package-sources-license-audit-2026-10-21.json"
-    if (followup.get("schema") != 1 or followup.get("baseline_inventory") != baseline_path or
-            followup.get("baseline_inventory_sha256") != sha256(read_input(root, root / baseline_path)) or
-            followup.get("pubspec_lock_sha256") != package_audit["pubspec_lock_sha256"] or
-            followup.get("complete_corresponding_source_attested") is not False):
-        raise SystemExit("Achievement translation declaration review has a different baseline")
-    updates = followup.get("declarations", {})
-    expected_updates = {
-        "pubspec.yaml",
-        "packages/armsx2_internal_bridge/ios/armsx2_internal_bridge.podspec",
-        "packages/dolphin_internal_bridge/ios/dolphin_internal_bridge.podspec",
-        "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec",
-        "packages/achievement_translation/pubspec.yaml",
-        "packages/achievement_translation/ios/achievement_translation.podspec",
-    }
-    if set(updates) != expected_updates:
-        raise SystemExit("Achievement translation review scope changed")
-    for name, update in updates.items():
-        if update.get("before") != declarations.get(name):
-            raise SystemExit(f"Wrong historical declaration identity: {name}")
-        declarations[name] = update["after"]
+def check_review_chain(root: Path, package_audit: dict, declarations: dict) -> None:
+    """The declaration reviews chained after the achievement translation follow-up, in order. Each starts at the
+    exact postimage of the one before and moves only its own declarations on (updating declarations in place);
+    repository_inputs then binds every declaration to the checked-out file."""
     # Build608 adds a second, separately reviewed local plugin. Preserve the
     # original audit and605 follow-up verbatim; this overlay must start at their
     # exact postimages and may change only the six session declarations.
@@ -254,13 +277,18 @@ def repository_inputs(root: Path) -> dict[str, str]:
     later_pubspec = (root / "docs/evidence/rewindbox-glacier-declarations-2026-11-02.json").is_file()
     # The PS2 Pocket skins review overlay may move the ARMSX2 bridge podspec on (system frameworks).
     later_armsx2 = (root / PS2_POCKET_REVIEW).is_file()
+    # The disc reader review overlay moves the libretro bridge podspec on (vendored libchdr).
+    later_libretro = (root / RA_DISC_READER_REVIEW).is_file()
     for name, update in updates.items():
         if update.get("before") != declarations.get(name):
             raise SystemExit(f"Wrong previous declaration identity: {name}")
         if not (later_pubspec and name == "pubspec.yaml") and not (later_armsx2 and name == ARMSX2_PODSPEC) and \
+                not (later_libretro and name == LIBRETRO_PODSPEC) and \
                 update.get("after") != sha256(read_input(root, root / name)):
             raise SystemExit(f"Session source/license declaration changed since review: {name}")
         declarations[name] = update["after"]
+    if later_libretro:
+        check_ra_disc_reader(root, package_audit["pubspec_lock_sha256"], declarations)
     # Build611: PS3 RetroAchievements through RPCS3. The RPCS3 bridge compiles a
     # vendored rcheevos copy, byte-identical to the declared libretro copy. This
     # overlay starts at the session review's exact postimage and may change only
@@ -604,8 +632,10 @@ def repository_inputs(root: Path) -> dict[str, str]:
         for name, update in updates.items():
             if update.get("before") != declarations.get(name):
                 raise SystemExit(f"Wrong previous declaration identity: {name}")
-            # A later review overlay may move pubspec.yaml on (S2Arm engine bridge).
+            # A later review overlay may move pubspec.yaml on (S2Arm engine bridge), or the xenia bridge podspec
+            # (controller rumble).
             if not (name == "pubspec.yaml" and (root / S2ARM_ENGINE_REVIEW).is_file()) and \
+                    not (name == XENIA_BRIDGE_PODSPEC and (root / XENIOS_HAPTICS_REVIEW).is_file()) and \
                     update.get("after") != sha256(read_input(root, root / name)):
                 raise SystemExit(f"XeniOS playlist source/license declaration changed since review: {name}")
             declarations[name] = update["after"]
@@ -631,13 +661,94 @@ def repository_inputs(root: Path) -> dict[str, str]:
         for name, update in updates.items():
             if update.get("before") != declarations.get(name):
                 raise SystemExit(f"Wrong previous declaration identity: {name}")
-            if update.get("after") != sha256(read_input(root, root / name)):
+            # The legal assets review overlay may move pubspec.yaml on.
+            if not (name == "pubspec.yaml" and (root / LEGAL_ASSETS_REVIEW).is_file()) and \
+                    update.get("after") != sha256(read_input(root, root / name)):
                 raise SystemExit(f"S2Arm engine source/license declaration changed since review: {name}")
             declarations[name] = update["after"]
         vendored = engine.get("vendored_library", {})
         if (vendored.get("path") != "packages/s2arm_engine_bridge/ios/Frameworks/S2ArmPrepare.xcframework" or
                 vendored.get("in_repository") is not False or vendored.get("producer") != ".github/workflows/s2arm-core.yml"):
             raise SystemExit("S2Arm engine vendored library differs from the review")
+    legal_assets_path = root / LEGAL_ASSETS_REVIEW
+    if legal_assets_path.is_file():
+        legal_assets = json.loads(read_input(root, legal_assets_path))
+        if (legal_assets.get("schema") != 1 or legal_assets.get("baseline_inventory") != S2ARM_ENGINE_REVIEW or
+                legal_assets.get("baseline_inventory_sha256") != sha256(read_input(root, root / S2ARM_ENGINE_REVIEW)) or
+                legal_assets.get("pubspec_lock_sha256") != package_audit["pubspec_lock_sha256"] or
+                legal_assets.get("complete_corresponding_source_attested") is not False or
+                legal_assets.get("dependency_changes") != {"external_packages_added": [], "external_packages_removed": [],
+                                                           "assets_added": LEGAL_ASSETS_ADDED}):
+            raise SystemExit("Legal assets review has a different baseline or dependency scope")
+        updates = legal_assets.get("declarations", {})
+        if set(updates) != {"pubspec.yaml"}:
+            raise SystemExit("Legal assets declaration review scope changed")
+        update = updates["pubspec.yaml"]
+        if update.get("before") != declarations.get("pubspec.yaml"):
+            raise SystemExit("Wrong previous declaration identity: pubspec.yaml")
+        if update.get("after") != sha256(read_input(root, root / "pubspec.yaml")):
+            raise SystemExit("Legal assets source/license declaration changed since review: pubspec.yaml")
+        declarations["pubspec.yaml"] = update["after"]
+    haptics_path = root / XENIOS_HAPTICS_REVIEW
+    if haptics_path.is_file():
+        haptics = json.loads(read_input(root, haptics_path))
+        if (haptics.get("schema") != 1 or haptics.get("baseline_inventory") != XENIOS_PLAYLIST_REVIEW or
+                haptics.get("baseline_inventory_sha256") != sha256(read_input(root, root / XENIOS_PLAYLIST_REVIEW)) or
+                haptics.get("pubspec_lock_sha256") != package_audit["pubspec_lock_sha256"] or
+                haptics.get("complete_corresponding_source_attested") is not False or
+                haptics.get("dependency_changes") != {"external_packages_added": [], "external_packages_removed": [],
+                                                      "system_frameworks_added": {XENIA_BRIDGE_PODSPEC: ["CoreHaptics"]}}):
+            raise SystemExit("XeniOS haptics review has a different baseline or dependency scope")
+        updates = haptics.get("declarations", {})
+        if set(updates) != {XENIA_BRIDGE_PODSPEC}:
+            raise SystemExit("XeniOS haptics declaration review scope changed")
+        update = updates[XENIA_BRIDGE_PODSPEC]
+        if update.get("before") != declarations.get(XENIA_BRIDGE_PODSPEC):
+            raise SystemExit(f"Wrong previous declaration identity: {XENIA_BRIDGE_PODSPEC}")
+        if update.get("after") != sha256(read_input(root, root / XENIA_BRIDGE_PODSPEC)):
+            raise SystemExit(f"XeniOS haptics source/license declaration changed since review: {XENIA_BRIDGE_PODSPEC}")
+        declarations[XENIA_BRIDGE_PODSPEC] = update["after"]
+
+
+def repository_inputs(root: Path) -> dict[str, str]:
+    """Hash the source declarations and local modifications without executing them."""
+    required = [root / "pubspec.yaml", root / "pubspec.lock"]
+    for name in SOURCE_DOCUMENTS:
+        required.append(root / "docs" / name)
+    for name in SOURCE_EVIDENCE:
+        required.append(root / "docs/evidence" / name)
+    package_audit = json.loads(read_input(root, root / "docs/evidence/package-sources-license-audit-2026-10-21.json"))
+    if package_audit.get("pubspec_lock_sha256") != sha256(read_input(root, root / "pubspec.lock")):
+        raise SystemExit("Package source/license inventory is stale for pubspec.lock")
+    declarations = dict(package_audit.get("source_declaration_sha256", {}))
+    if not declarations:
+        raise SystemExit("Package source/license inventory lacks dependency declaration identities")
+    # Preserve the historical review; authenticate the narrowly scoped follow-up
+    # instead of silently relabeling old package evidence as a new review.
+    followup_path = root / "docs/evidence/achievement-translation-declarations-2026-10-31.json"
+    followup = json.loads(read_input(root, followup_path))
+    baseline_path = "docs/evidence/package-sources-license-audit-2026-10-21.json"
+    if (followup.get("schema") != 1 or followup.get("baseline_inventory") != baseline_path or
+            followup.get("baseline_inventory_sha256") != sha256(read_input(root, root / baseline_path)) or
+            followup.get("pubspec_lock_sha256") != package_audit["pubspec_lock_sha256"] or
+            followup.get("complete_corresponding_source_attested") is not False):
+        raise SystemExit("Achievement translation declaration review has a different baseline")
+    updates = followup.get("declarations", {})
+    expected_updates = {
+        "pubspec.yaml",
+        "packages/armsx2_internal_bridge/ios/armsx2_internal_bridge.podspec",
+        "packages/dolphin_internal_bridge/ios/dolphin_internal_bridge.podspec",
+        "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec",
+        "packages/achievement_translation/pubspec.yaml",
+        "packages/achievement_translation/ios/achievement_translation.podspec",
+    }
+    if set(updates) != expected_updates:
+        raise SystemExit("Achievement translation review scope changed")
+    for name, update in updates.items():
+        if update.get("before") != declarations.get(name):
+            raise SystemExit(f"Wrong historical declaration identity: {name}")
+        declarations[name] = update["after"]
+    check_review_chain(root, package_audit, declarations)
     check_xenios_core_delivery(root, package_audit["pubspec_lock_sha256"])
     for name, expected in declarations.items():
         if sha256(read_input(root, root / name)) != expected:

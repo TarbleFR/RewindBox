@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 
 namespace xe {
@@ -18,16 +19,32 @@ class WindowedAppContext;
 }  // namespace ui
 }  // namespace xe
 
+// Main thread, in EmulatorAppIOS::OnInitialize right after
+// config::SetupConfig: sets the host's storage, content and cache roots and log
+// path again over the saved config, whose absolute paths name the container
+// that wrote it (iOS gives the app a new container on every update).
+void NeoXeniaApplyHostRoots();
+
 // Emulator thread, right after config::LoadGameConfigForFile: applies the
 // effective RewindBox settings of the title being booted.
 void NeoXeniaApplyLaunchOverrides();
 
 // Emulator thread, after Emulator::LaunchPath succeeded.
 void NeoXeniaNotifyTitleLaunched();
+// The kernel is set up and no title runs yet (EmulatorThread, once per
+// emulator): player 1 is signed in before the title reads its sign-in state
+// or the console identity some titles encrypt saves with (XConfig).
+void NeoXeniaNotifyKernelReady();
 
 // GPU command processor thread, once per guest swap
 // (MetalCommandProcessor::IssueSwap, a weak reference added by the patch).
 extern "C" void NeoXeniaNotifyGuestSwap(void);
+
+// Read by the patch in jit_memory_ios.cc (a weak reference), from the Core's
+// static initializers on: the highest address the JIT tool can prepare. The
+// patched StikJIT RewindBox ships writes full 64-bit addresses, so XeniOS's
+// 8 GB limit (StikDebug 3.1.x) does not apply.
+extern "C" uintptr_t NeoXeniaExecuteRegionLimit(void);
 
 // Defined by the patch in jit_memory_ios.cc: hands the host's code-region
 // reservation to IOSJitMemory when its own found no room below 8 GB.

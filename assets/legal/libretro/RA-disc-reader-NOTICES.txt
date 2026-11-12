@@ -1,0 +1,95 @@
+RetroAchievements disc reader in the libretro bridge (NEOSTATION_RA_DISC_READER_V1)
+
+packages/libretro_internal_bridge/ios/Classes/RBDiscHashReader.c lets rcheevos
+identify .chd and .cso images. The libretro bridge compiles, for that, the
+pinned copy of libchdr in packages/libretro_internal_bridge/ios/ThirdParty/libchdr
+(upstream https://github.com/rtissera/libchdr at
+47d794151b2b64f6aba60304e6480f4f5a2bc24b) with two of its bundled dependencies:
+the LZMA SDK decoder (deps/lzma-26.02) and the single-file Zstandard decoder
+(deps/zstd-1.5.7/zstddeclib.c). Its header include/dr_libs/dr_flac.h is
+reached by libchdr. The texts below are reproduced as published; the source
+copy is described in ThirdParty/libchdr/NEOSTATION_NOTICE.md.
+
+----------------------------------------------------------------------
+libchdr: BSD-3-Clause (ThirdParty/libchdr/LICENSE.txt, SHA-256
+e3989a7aee74a91b8cdbdfe204a6b8d03288863ec7533a21c51f1a987ba73539)
+----------------------------------------------------------------------
+
+Copyright Romain Tisserand
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
+      documentation and/or other materials provided with the distribution.
+    * Neither the name of the <organization> nor the
+      names of its contributors may be used to endorse or promote products
+      derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
+DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+----------------------------------------------------------------------
+Zstandard decoder: BSD license, the option RewindBox takes of zstd's
+"BSD or GPLv2" choice (header of deps/zstd-1.5.7/zstddeclib.c). The
+LICENSE file of zstd v1.5.7 (https://github.com/facebook/zstd/blob/v1.5.7/LICENSE,
+SHA-256 7055266497633c9025b777c78eb7235af13922117480ed5c674677adc381c9d8), which the copied
+decoder names:
+----------------------------------------------------------------------
+
+BSD License
+
+For Zstandard software
+
+Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+ * Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+ * Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+ * Neither the name Facebook, nor Meta, nor the names of its contributors may
+   be used to endorse or promote products derived from this software without
+   specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+----------------------------------------------------------------------
+LZMA SDK decoder: public domain (ThirdParty/libchdr/deps/lzma-26.02/LICENSE,
+SHA-256 06721414a6decad6d6677feb470f01f47126e154d895d85bc1e17628697715e5)
+----------------------------------------------------------------------
+
+LZMA SDK is placed in the public domain.
+
+Anyone is free to copy, modify, publish, use, compile, sell, or distribute the original LZMA SDK code, either in source code form or as a compiled binary, for any purpose, commercial or non-commercial, and by any means.
+
+----------------------------------------------------------------------
+dr_flac (include/dr_libs/dr_flac.h): public domain (Unlicense) or MIT No
+Attribution, at the user's choice (end of the file). No notice is required;
+it is listed for completeness.
+----------------------------------------------------------------------

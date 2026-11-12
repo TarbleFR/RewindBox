@@ -13,6 +13,34 @@ ROOT = Path(__file__).resolve().parents[1]
 DOLPHIN = "7cac54161659421ed95c2cd1c0b0746539a4cd38"
 
 
+def review_chain_inputs() -> set[str]:
+    """Every repository file the source evidence's review chain reads (reviews, the declarations, vendored sources
+    and pins they bind), recorded on the checked-out repository: the fixture copies them, so the packager checks the
+    same chain as on the real tree."""
+    import importlib.util
+    from unittest.mock import patch
+    spec = importlib.util.spec_from_file_location("chain_evidence", ROOT / "build-utils/collect_build_source_evidence.py")
+    evidence = importlib.util.module_from_spec(spec)
+    sys.dont_write_bytecode = True
+    spec.loader.exec_module(evidence)
+    reads = set()
+    original = evidence.read_input
+
+    def recording(root, path):
+        reads.add(str(Path(path).resolve().relative_to(Path(root).resolve())))
+        return original(root, path)
+
+    with patch.object(evidence, "read_input", recording):
+        try:
+            evidence.repository_inputs(ROOT)
+        except SystemExit:
+            pass  # the copy then fails the same way, as the real check would
+    return reads
+
+
+CHAIN_INPUTS = review_chain_inputs()
+
+
 class LegalBundlePreflightTests(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
@@ -63,6 +91,11 @@ class LegalBundlePreflightTests(unittest.TestCase):
             target = self.root / name
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / name, target)
+        for name in CHAIN_INPUTS:
+            target = self.root / name
+            if not target.exists():
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(ROOT / name, target)
 
     def run_packager(self, *args):
         return subprocess.run(

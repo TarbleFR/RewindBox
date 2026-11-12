@@ -11,6 +11,7 @@
 #endif
 #include "s2arm_ns2_dump.h"
 #include "lz4.h"
+#include "s2arm_dirent.h"
 #include "s2arm_zbic.h"
 
 #include <dirent.h>
@@ -298,24 +299,28 @@ static int write_all(const char *path, const void *data, size_t n) {
     return bad ? -1 : 0;
 }
 
-static int makedirs(const char *path) {   // os.makedirs(exist_ok=True)
+// os.makedirs(exist_ok=True). The path itself first, its parent only when it is missing: the
+// in-place view of a delta update makes one link per RomFS file (about 205 000 for Mario Kart
+// World), and a mkdir for every component from / before each of them (the previous loop, about
+// 20 calls per link) made most of the 119 s unpack step seen on the phone (IPA 731).
+static int makedirs(const char *path) {
+    if (!mkdir(path, 0777)) return 0;
+    if (errno == EEXIST) return is_dir(path) ? 0 : -1;
+    if (errno != ENOENT) return -1;
     size_t n = strlen(path);
-    char *p = malloc(n + 1);
-    if (!p) return -1;
-    memcpy(p, path, n + 1);
-    for (size_t i = 1; i <= n; i++)
-        if (p[i] == '/' || p[i] == 0) {
-            char saved = p[i];
-            p[i] = 0;
-            if (mkdir(p, 0777) && errno != EEXIST) {
-                free(p);
-                return -1;
-            }
-            p[i] = saved;
-        }
-    int ok = is_dir(path);
-    free(p);
-    return ok ? 0 : -1;
+    while (n > 1 && path[n - 1] == '/') n--;   // trailing separators, the last name, then its separators
+    while (n > 0 && path[n - 1] != '/') n--;
+    while (n > 1 && path[n - 1] == '/') n--;
+    if (n == 0 || (n == 1 && path[0] == '/')) return -1;   // nothing above it to create
+    char *parent = malloc(n + 1);
+    if (!parent) return -1;
+    memcpy(parent, path, n);
+    parent[n] = 0;
+    int r = makedirs(parent);
+    free(parent);
+    if (r) return -1;
+    if (!mkdir(path, 0777)) return 0;
+    return errno == EEXIST && is_dir(path) ? 0 : -1;
 }
 
 static int make_parent(const char *path) {
@@ -482,6 +487,42 @@ static int listdir(const char *path, list_t *out) {
     return 0;
 }
 
+// listdir() with each entry's type from readdir (s2arm_dirent.h) kept in the byte after the name's
+// terminating NUL, so that sorting and freeing stay listdir()'s. The walks read it to spare a stat
+// on real files and directories.
+static unsigned char listed_type(const char *name) { return (unsigned char)name[strlen(name) + 1]; }
+static int listdir_typed(const char *path, list_t *out) {
+    DIR *d = opendir(path);
+    if (!d) return -1;
+    struct dirent *e;
+    int ok = 1;
+    while (ok && (e = readdir(d))) {
+        if (!strcmp(e->d_name, ".") || !strcmp(e->d_name, "..")) continue;
+        size_t n = strlen(e->d_name);
+        char *s = malloc(n + 2);
+        if (s) {
+            memcpy(s, e->d_name, n + 1);
+            s[n + 1] = (char)s2arm_dirent_type(e);
+        }
+        ok = list_add(out, s);
+    }
+    closedir(d);
+    if (!ok) return -2;
+    if (out->n) qsort(out->v, out->n, sizeof *out->v, cmp_str);
+    return 0;
+}
+
+// What os.walk makes of a listed entry: 1 a directory it enters, 2 a link to a directory (listed,
+// not entered), 0 anything else (a file for the walks). Only links and unknown types need a stat.
+static int dir_kind(const char *path, const char *listed_name) {
+    unsigned char t = listed_type(listed_name);
+    if (t == DT_DIR) return 1;
+    if (t == DT_LNK) return is_dir(path) ? 2 : 0;
+    if (t != DT_UNKNOWN) return 0;
+    if (!is_dir(path)) return 0;
+    return is_link(path) ? 2 : 1;
+}
+
 // walk(): relative path -> absolute path, files only, ".listing" skipped; sorted by relative path.
 typedef struct {
     char **rel, **abs;
@@ -526,7 +567,7 @@ oom:
 static int walk_into(map_t *m, const char *dir, const char *rel, int depth) {
     if (depth > MAX_DEPTH) return 0;
     list_t names = {0};
-    int r = listdir(dir, &names);
+    int r = listdir_typed(dir, &names);
     if (r == -1) return 1;   // os.walk skips what it cannot list
     if (r) return 0;
     int ok = 1;
@@ -539,8 +580,9 @@ static int walk_into(map_t *m, const char *dir, const char *rel, int depth) {
             ok = 0;
             break;
         }
-        if (is_dir(abs)) {
-            if (!is_link(abs)) ok = walk_into(m, abs, sub, depth + 1);
+        int kind = dir_kind(abs, names.v[i]);
+        if (kind) {
+            if (kind == 1) ok = walk_into(m, abs, sub, depth + 1);
             free(abs);
             free(sub);
         } else if (!strcmp(names.v[i], ".listing")) {
@@ -1080,17 +1122,20 @@ static char *relpath(const char *to, const char *from) {
 static int tree_clean(const char *dir, int depth) {
     if (depth > MAX_DEPTH) return 0;
     list_t names = {0};
-    if (listdir(dir, &names) || !names.n) {
+    if (listdir_typed(dir, &names) || !names.n) {
         list_free(&names);
         return 0;
     }
     int ok = 1;
     for (size_t i = 0; i < names.n && ok; i++) {
         char *p = pjoin(dir, names.v[i]);
+        unsigned char t = listed_type(names.v[i]);   // lstat's file type, from the listing when it gives one
+        mode_t mode = t == DT_DIR ? S_IFDIR : t == DT_REG ? S_IFREG : t == DT_LNK ? S_IFLNK : t == DT_UNKNOWN ? 0 : S_IFIFO;
         struct stat st;
-        if (!p || lstat(p, &st)) ok = 0;
-        else if (S_ISDIR(st.st_mode)) ok = tree_clean(p, depth + 1);
-        else ok = S_ISREG(st.st_mode) && strcmp(names.v[i], ".listing");
+        if (p && !mode && !lstat(p, &st)) mode = st.st_mode & S_IFMT;
+        if (!p || !mode) ok = 0;
+        else if (S_ISDIR(mode)) ok = tree_clean(p, depth + 1);
+        else ok = S_ISREG(mode) && strcmp(names.v[i], ".listing");
         free(p);
     }
     list_free(&names);
@@ -1102,6 +1147,7 @@ typedef struct {
     char *real_dump;   // the resolved export folder
     const char *dump;  // the export folder as given: every source path starts with it
     size_t dump_len;
+    char *made_dir;    // the directory the previous link went into, known to exist (links come in path order)
 } out_t;
 
 // A relative symlink at <tmp>/<area>/<rel> (rel may be empty: the area itself) to a path under the export folder.
@@ -1115,9 +1161,22 @@ static int link_view(ctx_t *x, out_t *o, const char *src, const char *tmp, const
     if (slash) *slash = 0;   // the directory the link lives in
     char *target = real && where ? relpath(real, where) : NULL;
     int r = -1;
-    if (at && target && !make_parent(at)) {
-        unlink(at);
-        r = symlink(target, at);
+    if (at && target) {
+        const char *cut = strrchr(at, '/');
+        size_t dn = cut ? (size_t)(cut - at) : 0;
+        int known = o->made_dir && strlen(o->made_dir) == dn && !memcmp(o->made_dir, at, dn);
+        if (known || !make_parent(at)) {
+            if (!known && cut) {
+                free(o->made_dir);
+                o->made_dir = malloc(dn + 1);
+                if (o->made_dir) memcpy(o->made_dir, at, dn), o->made_dir[dn] = 0;
+            }
+            r = symlink(target, at);
+            if (r && errno == EEXIST) {   // replaced, as before (unlink, then link)
+                unlink(at);
+                r = symlink(target, at);
+            }
+        }
     }
     free(at);
     free(real);
@@ -1151,7 +1210,7 @@ static int convert(ctx_t *x, const char *dump, const char *out, const char *name
     char *icon = NULL, *dumpname = NULL;
     list_t ups = {0}, dlcs = {0};
     map_t ex = {0}, rb = {0}, ru = {0};
-    out_t o = {NULL, NULL, NULL, 0};
+    out_t o = {NULL, NULL, NULL, 0, NULL};
     sb_t builds = {0}, aoc_rows = {0}, aoc_idx = {0}, text = {0}, nm = {0}, nzh = {0}, dver = {0};
     uint8_t *nacp = malloc(NACP_SIZE);
     uint64_t tid = 0, tid2 = 0;
@@ -1661,7 +1720,7 @@ done:
     free(nacp);
     list_free(&ups), list_free(&dlcs);
     map_free(&ex), map_free(&rb), map_free(&ru);
-    free(o.final_out), free(o.real_dump), free(builds.p), free(aoc_rows.p), free(aoc_idx.p), free(text.p), free(nm.p), free(nzh.p), free(dver.p);
+    free(o.final_out), free(o.real_dump), free(o.made_dir), free(builds.p), free(aoc_rows.p), free(aoc_idx.p), free(text.p), free(nm.p), free(nzh.p), free(dver.p);
     return code;
 }
 

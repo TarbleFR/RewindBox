@@ -684,6 +684,41 @@ void main() {
       expect(calls, isNot(contains('prepareGame')));
     });
 
+    test('the game the player quit resumes in the same session; another Switch 2 game still needs a restart', () async {
+      S2ArmInternalService.availabilityForTesting = const S2ArmRuntimeAvailability(S2ArmRuntimeState.ready);
+      final calls = <String>[];
+      var parkedId = gid.toLowerCase();
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        calls.add(call.method);
+        switch (call.method) {
+          case 'status':
+            return {'available': true, 'melonxCoreLoaded': 0, 'engineLoaded': 1, 'parkedGameId': parkedId};
+          case 'detectExport':
+            return {'success': true, 'exportDir': '/export', 'gid': gid};
+          case 'prepareGame':
+            return {'success': true, 'gid': gid, 'reused': true, 'imagesPath': '/i', 'moduleDir': '/m', 'gameData': '/g', 'docs': '/d'};
+          case 'launchGame':
+            return {'success': true, 'gid': gid, 'stage': 'running', 'resumed': true};
+        }
+        return null;
+      });
+      final resumed = await S2ArmInternalService.launch('/export', pairingFilePath: '/pair');
+      expect(resumed.success, isTrue, reason: 'the parked game (title id compared without case) resumes');
+      expect(calls, containsAllInOrder(['status', 'detectExport', 'prepareGame', 'launchGame']));
+
+      calls.clear();
+      parkedId = '0100AAAA00000000';
+      final other = await S2ArmInternalService.launch('/export', pairingFilePath: '/pair');
+      expect(other.error, 'engineRestartRequired');
+      expect(calls, isNot(contains('prepareGame')), reason: 'no preparation for a game that cannot start now');
+
+      calls.clear();
+      parkedId = '';
+      final ended = await S2ArmInternalService.launch('/export', pairingFilePath: '/pair');
+      expect(ended.error, 'engineRestartRequired');
+      expect(calls, isNot(contains('detectExport')), reason: 'nothing is parked: refused before reading the export');
+    });
+
     test('the native refusal of the Switch 1 engine keeps its own code up to the message', () async {
       S2ArmInternalService.availabilityForTesting = const S2ArmRuntimeAvailability(S2ArmRuntimeState.ready);
       // The Switch 1 engine loaded between the status check and the native launch: the plugin answers itself.
@@ -737,6 +772,38 @@ void main() {
       expect(result['reused'], isTrue);
       expect(seen, ['code · main', 'caps']);
       expect(fractions.first, closeTo(0.5, 1e-9));
+    });
+
+    test('the code stage reports its pass and counts, and the whole preparation is one weighted bar', () async {
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'prepareGame') {
+          for (final event in const [
+            {'step': 'unpack', 'index': 0, 'count': 6, 'fraction': 1.0, 'detail': ''},
+            {'step': 'code', 'index': 1, 'count': 6, 'fraction': 0.25, 'detail': 'main', 'phase': 'analyze', 'attempt': 1,
+             'done': 1234, 'total': 5678},
+            {'step': 'code', 'index': 1, 'count': 6, 'fraction': 0.5, 'detail': 'main', 'phase': 'generate', 'attempt': 2,
+             'done': 40, 'total': 90},
+            {'step': 'pack', 'index': 5, 'count': 6, 'fraction': 0.5, 'detail': ''},
+          ]) {
+            await messenger.handlePlatformMessage(
+                channel.name, channel.codec.encodeMethodCall(MethodCall('prepareProgress', event)), (_) {});
+          }
+          return {'success': true, 'gid': gid, 'durationsMs': <String, Object?>{}, 'sizes': <String, Object?>{}};
+        }
+        return null;
+      });
+      final seen = <S2ArmImportProgress>[];
+      await S2ArmInternalService.prepare(exportFolder: '/export', onProgress: seen.add);
+      expect(seen.map((p) => p.step), ['unpack', 'code', 'code', 'pack']);
+      final analyze = seen[1];
+      expect([analyze.part, analyze.phase, analyze.attempt, analyze.unitsDone, analyze.unitsTotal], ['main', 'analyze', 1, 1234, 5678]);
+      expect(seen[2].attempt, 2);
+      // unpack 4 %, code 80 %, caps and direct 2 % each, module 6 %, pack 6 %.
+      expect(seen.map((p) => p.overall), [closeTo(0.04, 1e-9), closeTo(0.24, 1e-9), closeTo(0.44, 1e-9), closeTo(0.97, 1e-9)]);
+      expect(seen.map((p) => p.overall!).toList(), orderedEquals([...seen.map((p) => p.overall!)]..sort()));
+      expect(S2ArmInternalService.preparationOverall('done', 0), 1);
+      expect(S2ArmInternalService.preparationOverall('unknown', 0.5), isNull);
+      expect(S2ArmInternalService.preparationSteps.fold<double>(0, (sum, step) => sum + step.value), closeTo(1, 1e-9));
     });
 
     test('no import while a Switch 2 game runs', () async {

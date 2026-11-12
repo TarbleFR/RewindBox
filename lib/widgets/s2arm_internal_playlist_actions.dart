@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -386,7 +388,9 @@ class _S2ArmImportDialog extends StatelessWidget {
 /// Non-dismissible dialog shown while S2ArmInternalService.launch prepares a
 /// game (stage and percent from `onPrepareProgress`). The launch route owns
 /// its lifetime.
-class S2ArmPrepareDialog extends StatelessWidget {
+/// The launch preparation of a Switch 2 game: the step and its part, the phase with its own counts, one bar for the whole
+/// preparation (weighted by step, the code stage first) and the elapsed time, so a long code stage never looks frozen.
+class S2ArmPrepareDialog extends StatefulWidget {
   const S2ArmPrepareDialog({
     super.key,
     required this.progress,
@@ -396,37 +400,71 @@ class S2ArmPrepareDialog extends StatelessWidget {
   final ValueListenable<S2ArmImportProgress?> progress;
   final String title;
 
+  /// The clock of the elapsed time; tests replace it.
+  @visibleForTesting
+  static DateTime Function() clock = DateTime.now;
+
+  @override
+  State<S2ArmPrepareDialog> createState() => _S2ArmPrepareDialogState();
+}
+
+class _S2ArmPrepareDialogState extends State<S2ArmPrepareDialog> {
+  late final DateTime _started = S2ArmPrepareDialog.clock();
+  Timer? _ticker;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final locale = Localizations.maybeLocaleOf(context) ?? const Locale('en');
+    final elapsed = S2ArmPrepareDialog.clock().difference(_started);
     return PopScope(
       canPop: false,
       child: AlertDialog(
         key: const ValueKey('s2arm-prepare-dialog'),
         content: ValueListenableBuilder<S2ArmImportProgress?>(
-          valueListenable: progress,
+          valueListenable: widget.progress,
           builder: (context, value, _) {
-            final fraction = value?.fraction;
-            final stage = value?.name ?? '';
+            final lines = s2armPreparationLines(locale, value);
+            final bar = value?.overall ?? value?.fraction;
+            final status = [
+              // floor, so 100 % means done; the epsilon absorbs 0.29 * 100 = 28.999999999999996.
+              if (bar != null) '${(bar * 100 + 1e-6).floor().clamp(0, 100)} %',
+              Switch2LibraryLocale.format(locale, 'prepElapsed', {'time': s2armElapsedText(locale, elapsed)}),
+            ].join(' · ');
             return Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
                   Switch2LibraryLocale.textf(context, 'preparing', {
-                    'name': title,
+                    'name': widget.title,
                   }),
                 ),
-                if (stage.isNotEmpty) ...[
+                for (final line in lines) ...[
                   const SizedBox(height: 8),
-                  Text(
-                    fraction == null
-                        ? stage
-                        : '$stage · ${(fraction * 100).round()}%',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
+                  Text(line, style: Theme.of(context).textTheme.bodySmall),
                 ],
                 const SizedBox(height: 12),
-                LinearProgressIndicator(value: fraction),
+                LinearProgressIndicator(value: bar),
+                const SizedBox(height: 8),
+                Text(
+                  status,
+                  key: const ValueKey('s2arm-prepare-status'),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
               ],
             );
           },
@@ -434,6 +472,79 @@ class S2ArmPrepareDialog extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The step line (step, part, pass) and the phase line (phase, counts) of a preparation; the step and its percent for an
+/// older event without step. Visible for tests.
+List<String> s2armPreparationLines(Locale locale, S2ArmImportProgress? value) {
+  if (value == null) return const [];
+  String t(String key, [Map<String, Object?> parameters = const {}]) => Switch2LibraryLocale.format(locale, key, parameters);
+  final step = value.step;
+  if (step == null) {
+    final fraction = value.fraction;
+    return [if (value.name.isNotEmpty) fraction == null ? value.name : '${value.name} · ${(fraction * 100).round()}%'];
+  }
+  if (step == 'done') return [if (value.part == 'reused') t('prepReused')];
+  const stepKeys = {
+    'unpack': 'prepStepUnpack',
+    'code': 'prepStepCode',
+    'caps': 'prepStepCaps',
+    'direct': 'prepStepDirect',
+    'module': 'prepStepModule',
+    'pack': 'prepStepPack',
+  };
+  final head = <String>[if (stepKeys[step] != null) t(stepKeys[step]!)];
+  final part = value.part;
+  if (step == 'code' && part != null && part.isNotEmpty) {
+    const partKeys = {
+      'main': 'prepPartMain',
+      'zbic': 'prepPartZbic',
+      'addr_need': 'prepPartAddrNeed',
+      'nro': 'prepPartNro',
+      'tables': 'prepPartTables',
+    };
+    head.add(partKeys[part] != null ? t(partKeys[part]!) : t('prepPartModule', {'name': part}));
+  }
+  if (value.attempt > 1) head.add(t('prepAttempt', {'n': value.attempt}));
+  final detail = <String>[];
+  const phaseKeys = {
+    'load': 'prepPhaseRead',
+    'prepass': 'prepPhaseRead',
+    'boundaries': 'prepPhaseFind',
+    'scan': 'prepPhaseFind',
+    'data': 'prepPhaseFind',
+    'analyze': 'prepPhaseAnalyze',
+    'generate': 'prepPhaseGenerate',
+    'late': 'prepPhaseGenerate',
+    'spins': 'prepPhaseGenerate',
+    'outputs': 'prepPhaseWrite',
+  };
+  final phase = value.phase;
+  if (phase != null && phaseKeys[phase] != null) detail.add(t(phaseKeys[phase]!));
+  final done = value.unitsDone ?? 0, total = value.unitsTotal ?? 0;
+  if (phase == 'walk' && done > 0) {
+    detail.add(t('prepCountEntries', {'count': done}));
+  } else if (total > 0) {
+    if (phase == 'analyze') {
+      detail.add(t('prepCountFunctions', {'done': done, 'total': total}));
+    } else if (phase == 'generate') {
+      detail.add(t('prepCount', {'done': done, 'total': total}));
+    } else if (const {'boundaries', 'scan', 'spins', 'zbic'}.contains(phase)) {
+      detail.add(t('prepCountMegabytes', {'done': (done / 1000000).round(), 'total': (total / 1000000).round()}));
+    }
+  }
+  return [
+    if (head.isNotEmpty) head.join(' · '),
+    if (detail.isNotEmpty) detail.join(' · '),
+  ];
+}
+
+/// "1 min 05 s", "42 s" (each locale's units). Visible for tests.
+String s2armElapsedText(Locale locale, Duration elapsed) {
+  final seconds = elapsed.inSeconds < 0 ? 0 : elapsed.inSeconds;
+  final minutes = seconds ~/ 60;
+  if (minutes == 0) return Switch2LibraryLocale.format(locale, 'prepSeconds', {'s': seconds});
+  return Switch2LibraryLocale.format(locale, 'prepMinutesSeconds', {'m': minutes, 's': (seconds % 60).toString().padLeft(2, '0')});
 }
 
 /// The localized message of an S2Arm launch failure key: the iOS 26 line of

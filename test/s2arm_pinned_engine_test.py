@@ -92,10 +92,11 @@ def engine_artifact(drop=(), identity=None, zips=None):
     return zipped({name: data for name, data in members.items() if name not in drop})
 
 
-def prepare_artifact(archive=None):
+def prepare_artifact(archive=None, patches=None):
     archive = archive or zipped(xcframework())
     ident = dict(component='S2ArmPrepare.xcframework', source=HEADS['prepare'], s2arm=S2ARM_COMMIT, dependencies={},
-                 sha256={'S2ArmPrepare.xcframework.zip': sha(archive), 'libS2ArmPrepare.a': sha(LIBRARY)}, xcode='fixture')
+                 sha256={'S2ArmPrepare.xcframework.zip': sha(archive), 'libS2ArmPrepare.a': sha(LIBRARY)}, xcode='fixture',
+                 patches=pin_tool.prepare_patch_series() if patches is None else patches)
     members = {'S2ArmPrepare.xcframework.zip': archive,
                'sha256.txt': f'{sha(archive)}  S2ArmPrepare.xcframework.zip\n{sha(LIBRARY)}  libS2ArmPrepare.a\n'.encode(),
                'undefined.txt': b'\n_free\n_malloc\n', 'S2ArmPrepare-identity.json': json.dumps(ident).encode()}
@@ -347,6 +348,36 @@ class AllAncestors:
         return True
 
 
+class PreparePatches(Fixture):
+    """The prepare patch series: recorded in the pin from the artifact, equal to the repository's, checked by verify."""
+
+    def test_the_pin_records_the_series_of_the_artifact(self):
+        self.assertEqual(self.pin['identity']['preparePatches'], pin_tool.prepare_patch_series())
+        names = [patch['name'] for patch in self.pin['identity']['preparePatches']]
+        self.assertIn('0001-rewriter-progress-report.patch', names)
+        notice = (ROOT / 'build-utils/s2arm/engine/RewindBox-S2Arm-NOTICE.txt').read_text()
+        self.assertIn('build-utils/s2arm/prepare/patches', notice)
+        self.assertIn('"preparePatches"', notice)
+
+    def test_a_library_built_with_another_series_is_not_pinned(self):
+        other = [dict(name='0001-rewriter-progress-report.patch', sha256='0' * 64)]
+        archives = dict(self.archives, prepare=prepare_artifact(patches=other))
+        with self.assertRaises(SystemExit) as refused:
+            pin_tool.build_pin(meta_for(archives), archives)
+        self.assertIn('was built with', str(refused.exception))
+
+    def test_verify_refuses_a_preparation_artifact_whose_series_is_not_the_pinned_one(self):
+        pin = json.loads(json.dumps(self.pin))
+        pin['identity']['preparePatches'] = []
+        self.write_pin(pin)
+        path = self.root / 'prepare.zip'
+        path.write_bytes(self.archives['prepare'])
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            self.assertEqual(pin_tool.main(['verify', str(path), '--pin', str(self.root / 'build-utils/s2arm/engine-pin.json')]), 1)
+        self.assertIn('preparation patch series differs', output.getvalue())
+
+
 class Accepted(Fixture):
     def test_the_pin_is_well_formed_for_the_component(self):
         self.assertEqual(sd.engine_pin_errors(self.manifest['components']['s2arm'], self.pin), [])
@@ -382,6 +413,9 @@ class Accepted(Fixture):
         self.assertEqual(identity['sourceIdentity']['s2arm_commit'], S2ARM_COMMIT, 'read by the legal gate')
         self.assertEqual(identity['licenses'], self.pin['identity']['licenses'])
         self.assertEqual(sorted(identity['producers']), ['engine', 'prepare', 'sysdata'])
+        # The preparation library's RewindBox patch series is packaged too, as the engine's (notice: "preparePatches").
+        self.assertEqual(identity['preparePatches'], pin_tool.prepare_patch_series())
+        self.assertTrue(identity['preparePatches'], 'build-utils/s2arm/prepare/patches holds the rewriter patch')
         self.assertEqual(record['identity'], identity)
         self.assertIn('S2Arm app OK', app_check.check_app(app, self.root))
         import embed_legal_bundle as gate

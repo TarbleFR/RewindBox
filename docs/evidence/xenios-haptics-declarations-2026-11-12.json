@@ -1,0 +1,24 @@
+{
+ "schema": 1,
+ "review_date": "2026-11-12",
+ "scope": "Xbox 360 controller rumble (dbba843ad): the xenia_internal_bridge podspec links Apple's CoreHaptics system framework, with which the bridge plays the Core's rumble on the game controller (GCController.haptics). No third-party code, hosted package, engine or Core source changes.",
+ "baseline_inventory": "docs/evidence/xenios-playlist-declarations-2026-11-11.json",
+ "baseline_inventory_sha256": "0e90ab79d4cd76762137babb3933dde42fc24c0e1f475a46b9ce4d5001f2742b",
+ "pubspec_lock_sha256": "6ceb0c3787c1c35c844950338e99e408ff548dbc4aacfff0270c5b1ddd285a8e",
+ "declarations": {
+  "packages/xenia_internal_bridge/ios/xenia_internal_bridge.podspec": {
+   "before": "904d1a2fe719c1946b3dc350390fe8100e0ab380e37165f1b958c9fede29a78f",
+   "after": "b7e30cf1fb0087c8f5e33fc67a15f15123a15473bb5433b83cfcd7bef08e2118"
+  }
+ },
+ "dependency_changes": {
+  "external_packages_added": [],
+  "external_packages_removed": [],
+  "system_frameworks_added": {
+   "packages/xenia_internal_bridge/ios/xenia_internal_bridge.podspec": [
+    "CoreHaptics"
+   ]
+  }
+ },
+ "complete_corresponding_source_attested": false
+}

@@ -41,6 +41,8 @@ typedef struct {
     void (*progress)(void *context, const char *step, int index, int count);
     int (*cancelled)(void *context);
     void *context;
+    void (*work)(void *context, const char *part, const char *phase, int attempt, unsigned long long done,
+                 unsigned long long total, double fraction);
 } rb_s2arm_code_request;
 int rb_s2arm_prepare_code(const rb_s2arm_code_request *request, char *error, size_t error_size);
 

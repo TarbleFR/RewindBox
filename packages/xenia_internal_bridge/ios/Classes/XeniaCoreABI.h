@@ -48,11 +48,11 @@ extern "C" {
 // process (XeniOS FatalError), so the title must not boot.
 #define NEO_XENIA_JIT_CODE_REGION_HELD (1u << 4)
 
-// ABI 4: the code region the JIT tool prepares must lie below 8 GB (XeniOS
-// jit_memory_ios.cc kExecuteRegionLimit). XeniOS reserves it while its process
-// loads; RewindBox dlopens the Core late, when the low address space may be
-// taken, so the host reserves it at its own launch (PROT_NONE, this size, below
-// this limit) and hands it to adopt_code_region.
+// ABI 4: XeniOS keeps the code region below 8 GB (jit_memory_ios.cc
+// kExecuteRegionLimit, for StikDebug 3.1.x, which drops the high address bits).
+// RewindBox's patched StikJIT prepares any address, so XeniaCore lifts that
+// limit (NeoXeniaExecuteRegionLimit) and its own reservation always finds room;
+// a host may still hand one (this size, below this limit) to adopt_code_region.
 #define NEO_XENIA_CODE_REGION_SIZE ((size_t)1 << 29)
 #define NEO_XENIA_CODE_REGION_LIMIT ((uintptr_t)1 << 33)
 // adopt_code_region results.

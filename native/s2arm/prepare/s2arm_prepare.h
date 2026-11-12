@@ -37,7 +37,8 @@ typedef struct {
 
 // Rewrites every code module the runtime loads (main, subsdk0-9, sdk; nothing
 // else in ExeFS is a module) with S2Arm's rewriter in its packing defaults
-// (Apple target, spin gate on), one module at a time, and copies main.npdm.
+// (Apple target), with the spin pass off (see rewrite_one), one module at a
+// time, and copies main.npdm.
 // Each module's rewriter log goes to <output_dir>/<module>.rewrite.log.
 // On failure `error` (may be NULL) receives one line and the outputs of the
 // failing module are not to be used.
@@ -51,6 +52,15 @@ typedef struct {
     void (*progress)(void *context, const char *step, int index, int count);
     int (*cancelled)(void *context); // polled between steps. May be NULL.
     void *context;
+    // RewindBox progress bar (may be NULL): the work inside the steps, at most every 100 ms and at each new part or
+    // phase. part: "zbic", "addr_need", "nro", a module name ("main", "subsdk0", "nro0"...) or "tables". phase: "start",
+    // "zbic" (bytes of the ExeFS decoded), "walk" (RomFS entries seen, no total), or a pass of S2Arm's rewriter: "load",
+    // "prepass", "boundaries" and "scan" (bytes of text), "data", "analyze" (functions), "generate" (rewrite units),
+    // "late", "spins" (bytes of text), "outputs". attempt: 1, or 2... when the rewriter redoes a module with a new
+    // layout. done / total: the phase's own units (total 0 = no count). fraction: the whole code stage in [0, 1],
+    // weighted by module size; it never goes back.
+    void (*work)(void *context, const char *part, const char *phase, int attempt, unsigned long long done,
+                 unsigned long long total, double fraction);
 } rb_s2arm_code_request;
 
 // The whole code stage of S2Arm's packer (pack/stage_rewrite.sh without its optional

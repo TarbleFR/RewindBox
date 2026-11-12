@@ -11,6 +11,7 @@
 #define _POSIX_C_SOURCE 200809L
 #include "s2arm_caps.h"
 #include "lz4.h"
+#include "s2arm_dirent.h"
 
 #include <dirent.h>
 #include <errno.h>
@@ -76,7 +77,9 @@ static void list_free(list_t *l) {
     memset(l, 0, sizeof *l);
 }
 static int cmp_str(const void *a, const void *b) { return strcmp(*(char *const *)a, *(char *const *)b); }
-static int listdir(const char *path, list_t *out) {   // sorted names; -1 unreadable, -2 out of memory
+// Sorted names; -1 unreadable, -2 out of memory. Each name keeps its readdir type (s2arm_dirent.h) in the byte after
+// its terminating NUL, for romfs_scan.
+static int listdir(const char *path, list_t *out) {
     DIR *d = opendir(path);
     if (!d) return -1;
     struct dirent *e;
@@ -94,10 +97,11 @@ static int listdir(const char *path, list_t *out) {   // sorted names; -1 unread
             out->cap = cap;
         }
         size_t l = strlen(e->d_name) + 1;
-        char *s = malloc(l);
+        char *s = malloc(l + 1);
         if (!s) ok = 0;
         else {
             memcpy(s, e->d_name, l);
+            s[l] = (char)s2arm_dirent_type(e);
             out->v[out->n++] = s;
         }
     }
@@ -335,16 +339,25 @@ static int romfs_scan(const char *dir, int depth, int *pak) {
             ok = 0;
             break;
         }
-        struct stat ls, st;
-        int lok = lstat(p, &ls) == 0, sok = stat(p, &st) == 0;
-        int realdir = lok && S_ISDIR(ls.st_mode), walkdir = sok && S_ISDIR(st.st_mode);
-        if (!realdir && (!strcmp(nm, ".DS_Store") || !strncmp(nm, "._", 2))) {
+        // lstat and stat as romfs_list does, unless the listing's type settles them: a real directory or regular
+        // file is the same followed or not, and any other type that is not a link is not a regular file.
+        unsigned char type = (unsigned char)nm[strlen(nm) + 1];
+        int litter = !strcmp(nm, ".DS_Store") || !strncmp(nm, "._", 2);
+        int realdir = type == DT_DIR, walkdir = type == DT_DIR, regular = type == DT_REG;
+        if (type == DT_UNKNOWN || (type == DT_LNK && !litter)) {
+            struct stat ls, st;
+            int lok = type == DT_UNKNOWN && lstat(p, &ls) == 0, sok = stat(p, &st) == 0;
+            realdir = lok && S_ISDIR(ls.st_mode);
+            walkdir = sok && S_ISDIR(st.st_mode);
+            regular = sok && S_ISREG(st.st_mode);
+        }
+        if (!realdir && litter) {
             free(p);
             continue;   // macOS junk is left out of the walk
         }
         if (walkdir) {
             if (realdir) ok = romfs_scan(p, depth + 1, pak);   // symlinked directories are not entered
-        } else if (!(sok && S_ISREG(st.st_mode)))
+        } else if (!regular)
             ok = 0;   // not a regular file once followed: IsADirectoryError / FileNotFoundError
         else if (engine_ext(nm))
             *pak = 1;
@@ -390,6 +403,9 @@ static int engine_l1(const char *root) {
     ok = npdm && npdm_ok(npdm);
     free(npdm);
     if (!ok) goto done;
+    // Neither Unity nor Unreal: the rule is False whatever the RomFS holds, so it is not walked (29 s on the phone for
+    // Mario Kart World's 205 000 entries, IPA 731). The walk can only turn the answer to False, never to True.
+    if (!unity && !unreal) goto done;
     int pak = 0;
     if (is_dir(rf)) ok = romfs_scan(rf, 0, &pak);
     else ok = 0;   // a RomFS manifest file instead of a folder: not supported, counted as an exception

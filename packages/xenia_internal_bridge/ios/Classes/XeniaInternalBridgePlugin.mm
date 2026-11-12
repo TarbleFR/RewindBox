@@ -16,14 +16,13 @@
 #import "XeniaTouchControls.h"
 #include <cmath>
 
+#import <CoreHaptics/CoreHaptics.h>
 #import <Foundation/Foundation.h>
 #import <GameController/GameController.h>
 #import <QuartzCore/QuartzCore.h>
 #import <UIKit/UIKit.h>
 #import <dlfcn.h>
 #include <fcntl.h>
-#include <mach/mach.h>
-#include <sys/mman.h>
 #include <unistd.h>
 #include <atomic>
 #include <string>
@@ -74,56 +73,51 @@ static BOOL XeniaSupportedOS(void) {
   return [NSProcessInfo.processInfo isOperatingSystemAtLeastVersion:minimum];
 }
 
-// The code region (docs/xenios-playlist.md § Code region). The JIT tool only
-// prepares it below 8 GB, and XeniOS takes that room while its own process
-// loads; this Core is dlopened at the first Xbox 360 launch, when the app may
-// have filled the low address space (first device run: "no room for the code
-// region below 8 GB", a FatalError that closed RewindBox). Once a launch has
-// loaded the Core on the TXM broker path, every later RewindBox launch reserves
-// the region at plugin registration and hands it to the Core; so does a launch
-// with Xbox 360 games already imported, before any launch set the flag.
-static NSString* const kXeniaReserveCodeRegionKey = @"RBXeniaReserveCodeRegion";
-// From registration until loadCore hands it over or unmaps it; main only.
-static void* gXeniaHostCodeRegion = nullptr;
-// What registration did, for the `XeniOS JIT:` line of app.log (the NSLog
-// below never reaches it): reserved, noRoom, or notRequested, why, and the
-// largest free gap below 8 GB at that moment. Set once, on main.
-static NSString* gXeniaRegistration = @"notRegistered";
+// The code region (docs/xenios-playlist.md § Code region): the Core reserves it
+// itself when it loads. Its limit is the JIT tool's (the patched StikJIT writes
+// full 64-bit addresses, XeniaCore.mm NeoXeniaExecuteRegionLimit), not XeniOS's
+// 8 GB, so no host reservation is needed; adopt_code_region only reports it.
+// Device runs before that change: 36 to 687 MiB were left below 8 GB, the
+// 512 MiB region often found no room and the launch was refused.
 
-// The largest unmapped range between 4 GB (the end of __PAGEZERO) and the
-// 8 GB limit, in MiB: what a reservation of the code region could still get.
-static uint64_t XeniaLargestFreeBelowLimitMiB(void) {
-  vm_address_t cursor = (vm_address_t)1 << 32;
-  const vm_address_t limit = (vm_address_t)NEO_XENIA_CODE_REGION_LIMIT;
-  uint64_t largest = 0;
-  while (cursor < limit) {
-    vm_address_t region = cursor;
-    vm_size_t size = 0;
-    vm_region_basic_info_data_64_t info;
-    mach_msg_type_number_t count = VM_REGION_BASIC_INFO_COUNT_64;
-    mach_port_t object = MACH_PORT_NULL;
-    const kern_return_t kr = vm_region_64(mach_task_self(), &region, &size, VM_REGION_BASIC_INFO_64,
-                                          (vm_region_info_t)&info, &count, &object);
-    const vm_address_t gap_end = kr == KERN_SUCCESS && region < limit ? region : limit;
-    if (gap_end > cursor && gap_end - cursor > largest) largest = gap_end - cursor;
-    if (kr != KERN_SUCCESS || region >= limit) break;
-    cursor = region + size;
-  }
-  return largest >> 20;
+// The JIT tool that answers the Core's prepare request must write full 64-bit
+// addresses: the Core's code region is no longer kept below 8 GB, and a tool
+// that drops high address bits (StikDebug 3.1.x) would prepare, and zero, the
+// low alias instead. RewindBox's StikJIT carries this marker only when built
+// with build-utils/patch_stikjit_rpcs3.py (16 hex digits per address;
+// build-utils/stikjit/source.json transport_marker, required in the IPA by
+// validate_stikjit_ipa.py). XeniaJITHelper links the app's StikJIT.framework
+// (configure_xenia_ios.py: runpath @executable_path/Frameworks, then
+// ../../Frameworks), so both places it could load from are checked.
+static NSString* const kXeniaFullWidthTransportMarker = @"NEOSTATION_STIKJIT_RPCS3_V1";
+
+static BOOL XeniaFileContains(NSString* path, NSString* marker) {
+  NSData* data = [NSData dataWithContentsOfFile:path options:NSDataReadingMappedIfSafe error:nil];
+  NSData* needle = [marker dataUsingEncoding:NSUTF8StringEncoding];
+  return data.length && needle.length &&
+         [data rangeOfData:needle options:0 range:NSMakeRange(0, data.length)].location != NSNotFound;
 }
 
-// XeniOS's own search (jit_memory_ios.cc MapBelowExecuteRegionLimit): hints
-// only, so nothing already mapped is replaced. PROT_NONE: no memory is used.
-static void* XeniaReserveCodeRegion(void) {
-  const size_t size = NEO_XENIA_CODE_REGION_SIZE;
-  const uintptr_t step = (uintptr_t)1 << 28;
-  for (uintptr_t hint = (uintptr_t)1 << 32; hint + size <= NEO_XENIA_CODE_REGION_LIMIT; hint += step) {
-    void* mapping = mmap((void*)hint, size, PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0);
-    if (mapping == MAP_FAILED) continue;
-    if ((uintptr_t)mapping + size <= NEO_XENIA_CODE_REGION_LIMIT) return mapping;
-    munmap(mapping, size);
-  }
-  return nullptr;
+// nil when every StikJIT binary the helper can load writes full-width
+// addresses; otherwise why not. Once per process (the bundle does not change).
+static NSString* XeniaJitTransportProblem(void) {
+  static NSString* problem;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    NSBundle* main = NSBundle.mainBundle;
+    NSString* app = [main.privateFrameworksPath stringByAppendingPathComponent:@"StikJIT.framework/StikJIT"];
+    NSString* helper = [main.builtInPlugInsPath
+        stringByAppendingPathComponent:@"XeniaJITHelper.appex/Frameworks/StikJIT.framework/StikJIT"];
+    if (![NSFileManager.defaultManager fileExistsAtPath:app]) {
+      problem = @"StikJIT.framework is missing from the app";
+    } else if (!XeniaFileContains(app, kXeniaFullWidthTransportMarker)) {
+      problem = @"the app's StikJIT does not write full 64-bit addresses";
+    } else if ([NSFileManager.defaultManager fileExistsAtPath:helper] &&
+               !XeniaFileContains(helper, kXeniaFullWidthTransportMarker)) {
+      problem = @"XeniaJITHelper carries a StikJIT that does not write full 64-bit addresses";
+    }
+  });
+  return problem;
 }
 
 // Launch stages, appended and synced to <storage root>/launch-journal.txt as
@@ -140,18 +134,6 @@ static void XeniaJournal(NSString* path, NSString* stage) {
   (void)write(fd, bytes, strlen(bytes));
   fsync(fd);
   close(fd);
-}
-
-// Documents/XeniOS/Games (XeniaInternalService.gamesDirectory) holds a game.
-static BOOL XeniaHasImportedGames(void) {
-  NSURL* documents = [NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory
-                                                          inDomains:NSUserDomainMask].firstObject;
-  NSString* games = [documents URLByAppendingPathComponent:@"XeniOS/Games" isDirectory:YES].path;
-  if (!games) return NO;
-  for (NSString* name in [NSFileManager.defaultManager contentsOfDirectoryAtPath:games error:nil]) {
-    if (![name hasPrefix:@"."]) return YES;
-  }
-  return NO;
 }
 
 static UIViewController* XeniaTopViewController(void) {
@@ -226,6 +208,8 @@ static void XeniaEventCallback(void* /*context*/, uint64_t transaction,
 @property(nonatomic, copy) NSString* overlayLevel;
 @property(nonatomic, assign) BOOL menuOpen;
 @property(nonatomic, readonly) BOOL editingTouchControls;
+/// The Core's rumble of player 1 ("left,right", 0..65535): played on the pad.
+- (void)playVibration:(NSString*)speeds;
 @end
 
 // One pad of the RewindBox session (XInput bits, sticks Y up, triggers 0..1).
@@ -233,6 +217,32 @@ struct XeniaPadState {
   uint32_t buttons = 0;
   float lx = 0, ly = 0, rx = 0, ry = 0, lt = 0, rt = 0;
 };
+
+// X_INPUT_GAMEPAD_* (xenia/hid/input.h) of one game controller.
+static XeniaPadState XeniaReadPad(GCExtendedGamepad* pad) {
+  XeniaPadState state;
+  if (pad.dpad.up.pressed) state.buttons |= 0x0001;
+  if (pad.dpad.down.pressed) state.buttons |= 0x0002;
+  if (pad.dpad.left.pressed) state.buttons |= 0x0004;
+  if (pad.dpad.right.pressed) state.buttons |= 0x0008;
+  if (pad.buttonMenu.pressed) state.buttons |= 0x0010;  // Start
+  if (pad.buttonOptions.pressed) state.buttons |= 0x0020;  // Back
+  if (pad.leftThumbstickButton.pressed) state.buttons |= 0x0040;
+  if (pad.rightThumbstickButton.pressed) state.buttons |= 0x0080;
+  if (pad.leftShoulder.pressed) state.buttons |= 0x0100;
+  if (pad.rightShoulder.pressed) state.buttons |= 0x0200;
+  if (pad.buttonA.pressed) state.buttons |= 0x1000;
+  if (pad.buttonB.pressed) state.buttons |= 0x2000;
+  if (pad.buttonX.pressed) state.buttons |= 0x4000;
+  if (pad.buttonY.pressed) state.buttons |= 0x8000;
+  state.lx = pad.leftThumbstick.xAxis.value;
+  state.ly = pad.leftThumbstick.yAxis.value;
+  state.rx = pad.rightThumbstick.xAxis.value;
+  state.ry = pad.rightThumbstick.yAxis.value;
+  state.lt = pad.leftTrigger.value;
+  state.rt = pad.rightTrigger.value;
+  return state;
+}
 
 // The RPCS3 merge policy (RPCS3PadMerge.h): buttons OR, triggers maximum,
 // each stick takes the larger deflection.
@@ -258,10 +268,19 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
   RBXeniaTouchControlsView* _touch;
   NeoTouchControllerMonitor* _monitor;
   NeoTouchLayoutEditor* _editor;
+  // Rumble of player 1 on the first pad with haptics (CoreHaptics: one
+  // looping continuous event whose intensity follows the Core's motors).
+  CHHapticEngine* _hapticEngine;
+  id<CHHapticAdvancedPatternPlayer> _hapticPlayer;
+  GCController* _hapticController;
+  BOOL _hapticPlaying;
 }
 
 - (BOOL)prefersStatusBarHidden { return YES; }
 - (BOOL)prefersHomeIndicatorAutoHidden { return YES; }
+// A swipe from an edge reaches the game first; a second one opens Home or
+// Control Center (XeniOS defers every edge while a game runs).
+- (UIRectEdge)preferredScreenEdgesDeferringSystemGestures { return UIRectEdgeAll; }
 
 - (NSString*)text:(NSString*)key fallback:(NSString*)fallback {
   NSString* value = self.texts[key];
@@ -300,6 +319,9 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
   [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(controllerPreferenceChanged:)
                                              name:NeoTouchControllerPreferenceDidChangeNotification
                                            object:nil];
+  [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(controllerDisconnected:)
+                                             name:GCControllerDidDisconnectNotification
+                                           object:nil];
 
   _menuButton = [UIButton buttonWithType:UIButtonTypeSystem];
   [_menuButton setImage:[UIImage systemImageNamed:@"line.3.horizontal.circle"]
@@ -327,6 +349,108 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
 
 - (void)controllerPreferenceChanged:(NSNotification*)notification {
   [self updateTouchVisibility];
+}
+
+// The last game controller left mid-game: the menu opens and pauses the
+// title instead of letting it run without its player (XeniOS does the same).
+- (void)controllerDisconnected:(NSNotification*)notification {
+  if (notification.object == _hapticController) [self stopHaptics];
+  for (GCController* controller in GCController.controllers) {
+    if (controller.extendedGamepad) return;
+  }
+  [self openMenu];
+}
+
+- (void)playVibration:(NSString*)speeds {
+  NSArray<NSString*>* parts = [speeds componentsSeparatedByString:@","];
+  const float left = parts.count == 2 ? MIN(MAX(parts[0].floatValue / 65535.f, 0.f), 1.f) : 0.f;
+  const float right = parts.count == 2 ? MIN(MAX(parts[1].floatValue / 65535.f, 0.f), 1.f) : 0.f;
+  const float intensity = MAX(left, right);
+  if (intensity <= 0.f || self.menuOpen) {
+    [self stopVibration];
+    return;
+  }
+  if (![self prepareHaptics]) return;
+  // The left motor is the heavy one, the right one the light buzz.
+  const float sharpness = right > left ? 0.3f : -0.3f;
+  NSError* error = nil;
+  NSArray<CHHapticDynamicParameter*>* parameters = @[
+    [[CHHapticDynamicParameter alloc] initWithParameterID:CHHapticDynamicParameterIDHapticIntensityControl
+                                                    value:intensity
+                                             relativeTime:0],
+    [[CHHapticDynamicParameter alloc] initWithParameterID:CHHapticDynamicParameterIDHapticSharpnessControl
+                                                    value:sharpness
+                                             relativeTime:0],
+  ];
+  [_hapticPlayer sendParameters:parameters atTime:CHHapticTimeImmediate error:&error];
+  if (!_hapticPlaying && [_hapticPlayer startAtTime:CHHapticTimeImmediate error:&error]) _hapticPlaying = YES;
+}
+
+- (void)stopVibration {
+  if (_hapticPlaying) [_hapticPlayer stopAtTime:CHHapticTimeImmediate error:nil];
+  _hapticPlaying = NO;
+}
+
+- (BOOL)prepareHaptics {
+  GCController* target = nil;
+  for (GCController* controller in GCController.controllers) {
+    if (controller.extendedGamepad && controller.haptics) {
+      target = controller;
+      break;
+    }
+  }
+  if (!target) {
+    [self stopHaptics];
+    return NO;
+  }
+  if (target == _hapticController && _hapticPlayer) return YES;
+  [self stopHaptics];
+  CHHapticEngine* engine = [target.haptics createEngineWithLocality:GCHapticsLocalityDefault];
+  NSError* error = nil;
+  if (!engine || ![engine startAndReturnError:&error]) return NO;
+  __weak RBXeniaSessionController* weakSelf = self;
+  // Stopped by iOS (background, audio interruption) or reset: rebuilt by the next rumble.
+  engine.stoppedHandler = ^(CHHapticEngineStoppedReason) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+      [weakSelf stopHaptics];
+    });
+  };
+  engine.resetHandler = ^{
+    dispatch_async(dispatch_get_main_queue(), ^{
+      [weakSelf stopHaptics];
+    });
+  };
+  CHHapticEvent* event = [[CHHapticEvent alloc]
+      initWithEventType:CHHapticEventTypeHapticContinuous
+             parameters:@[
+               [[CHHapticEventParameter alloc] initWithParameterID:CHHapticEventParameterIDHapticIntensity
+                                                             value:1],
+               [[CHHapticEventParameter alloc] initWithParameterID:CHHapticEventParameterIDHapticSharpness
+                                                             value:0.5],
+             ]
+           relativeTime:0
+               duration:30];
+  CHHapticPattern* pattern = [[CHHapticPattern alloc] initWithEvents:@[ event ] parameters:@[] error:&error];
+  id<CHHapticAdvancedPatternPlayer> player = pattern ? [engine createAdvancedPlayerWithPattern:pattern
+                                                                                          error:&error]
+                                                     : nil;
+  if (!player) {
+    [engine stopWithCompletionHandler:nil];
+    return NO;
+  }
+  player.loopEnabled = YES;
+  _hapticEngine = engine;
+  _hapticPlayer = player;
+  _hapticController = target;
+  return YES;
+}
+
+- (void)stopHaptics {
+  [self stopVibration];
+  [_hapticEngine stopWithCompletionHandler:nil];
+  _hapticEngine = nil;
+  _hapticPlayer = nil;
+  _hapticController = nil;
 }
 
 - (void)applicationBecameActive:(NSNotification*)notification {
@@ -382,6 +506,7 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
 
 - (void)viewDidAppear:(BOOL)animated {
   [super viewDidAppear:animated];
+  [self setNeedsUpdateOfScreenEdgesDeferringSystemGestures];
   if (!_input) {
     _input = [CADisplayLink displayLinkWithTarget:self selector:@selector(pollInput)];
     [_input addToRunLoop:NSRunLoop.mainRunLoop forMode:NSRunLoopCommonModes];
@@ -395,6 +520,7 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
   _input = nil;
   [_touch releaseAllInput];
   [_monitor invalidate];
+  [self stopHaptics];
 }
 
 - (void)sendNeutralPad {
@@ -413,32 +539,16 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
     return;
   }
   XeniaPadState controller;
-  GCExtendedGamepad* pad = GCController.current.extendedGamepad;
-  if (pad) {
+  // Every connected controller, merged (GCController.current can be nil or
+  // another pad than the one in the player's hands).
+  for (GCController* connected in GCController.controllers) {
+    GCExtendedGamepad* pad = connected.extendedGamepad;
+    if (!pad) continue;
     if (pad.buttonHome.pressed) {
       [self openMenu];
       return;
     }
-    if (pad.dpad.up.pressed) controller.buttons |= 0x0001;
-    if (pad.dpad.down.pressed) controller.buttons |= 0x0002;
-    if (pad.dpad.left.pressed) controller.buttons |= 0x0004;
-    if (pad.dpad.right.pressed) controller.buttons |= 0x0008;
-    if (pad.buttonMenu.pressed) controller.buttons |= 0x0010;  // Start
-    if (pad.buttonOptions.pressed) controller.buttons |= 0x0020;  // Back
-    if (pad.leftThumbstickButton.pressed) controller.buttons |= 0x0040;
-    if (pad.rightThumbstickButton.pressed) controller.buttons |= 0x0080;
-    if (pad.leftShoulder.pressed) controller.buttons |= 0x0100;
-    if (pad.rightShoulder.pressed) controller.buttons |= 0x0200;
-    if (pad.buttonA.pressed) controller.buttons |= 0x1000;
-    if (pad.buttonB.pressed) controller.buttons |= 0x2000;
-    if (pad.buttonX.pressed) controller.buttons |= 0x4000;
-    if (pad.buttonY.pressed) controller.buttons |= 0x8000;
-    controller.lx = pad.leftThumbstick.xAxis.value;
-    controller.ly = pad.leftThumbstick.yAxis.value;
-    controller.rx = pad.rightThumbstick.xAxis.value;
-    controller.ry = pad.rightThumbstick.yAxis.value;
-    controller.lt = pad.leftTrigger.value;
-    controller.rt = pad.rightTrigger.value;
+    controller = XeniaMergePads(controller, XeniaReadPad(pad));
   }
   XeniaPadState state = controller;
   if (!_touch.hidden) {
@@ -459,6 +569,7 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
 - (void)openMenu {
   if (self.menuOpen || self.editingTouchControls || !self.owner.sessionRunning) return;
   self.menuOpen = YES;
+  [self stopVibration];
   [self updateTouchVisibility];
   [self sendNeutralPad];
   [self.owner setUserPaused:YES];
@@ -580,18 +691,6 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
 }
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
-  // First, before the app fills the address space below 8 GB.
-  if (XeniaSupportedOS() && [NSFileManager.defaultManager fileExistsAtPath:XeniaFrameworkPath()]) {
-    const BOOL flagged = [NSUserDefaults.standardUserDefaults boolForKey:kXeniaReserveCodeRegionKey];
-    const BOOL games = !flagged && XeniaHasImportedGames();
-    const uint64_t free_mib = XeniaLargestFreeBelowLimitMiB();
-    if (flagged || games) gXeniaHostCodeRegion = XeniaReserveCodeRegion();
-    gXeniaRegistration = [NSString stringWithFormat:@"%@ (%@), largest free below 8 GB %llu MiB",
-                          !(flagged || games) ? @"notRequested" : gXeniaHostCodeRegion ? @"reserved" : @"noRoom",
-                          flagged ? @"flag" : games ? @"imported games" : @"no flag, no imported game",
-                          free_mib];
-    NSLog(@"[Xenia] code region at registration: %@", gXeniaRegistration);
-  }
   XeniaInternalBridgePlugin* plugin = [[XeniaInternalBridgePlugin alloc] init];
   plugin.channel = [FlutterMethodChannel methodChannelWithName:kXeniaChannel
                                                binaryMessenger:registrar.messenger];
@@ -660,9 +759,9 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
     @"brokerPath" : @((state & NEO_XENIA_JIT_BROKER_PATH) != 0),
     @"codeRegionHeld" : @((state & NEO_XENIA_JIT_CODE_REGION_HELD) != 0),
     @"codeRegion" : self.codeRegion ?: @"none",
-    @"registration" : gXeniaRegistration,
-    @"freeBelow8GBMiB" : @(XeniaLargestFreeBelowLimitMiB()),
     @"handshakeActive" : @(XeniaJitHasActiveCoreHandshake()),
+    @"transportFullWidth" : @(XeniaJitTransportProblem() == nil),
+    @"transportDetail" : XeniaJitTransportProblem() ?: @"",
   };
 }
 
@@ -697,18 +796,10 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
     return _loadFailure;
   }
   self.api = api;
-  // ABI 4, once: the Core keeps the reservation its static initializers just
-  // made, or takes the host's (its own found no room below 8 GB).
-  void* reservation = gXeniaHostCodeRegion;
-  gXeniaHostCodeRegion = nullptr;
-  const int region = api->adopt_code_region(reservation, reservation ? NEO_XENIA_CODE_REGION_SIZE : 0);
-  if (reservation && region != NEO_XENIA_CODE_REGION_ADOPTED) munmap(reservation, NEO_XENIA_CODE_REGION_SIZE);
-  self.codeRegion = region == NEO_XENIA_CODE_REGION_ADOPTED ? @"host"
-                    : region == NEO_XENIA_CODE_REGION_OWN   ? @"own"
-                                                             : @"none";
-  // Only the TXM broker path needs the region below 8 GB.
-  [NSUserDefaults.standardUserDefaults setBool:(api->jit_state() & NEO_XENIA_JIT_BROKER_PATH) != 0
-                                        forKey:kXeniaReserveCodeRegionKey];
+  // ABI 4, once: whether the reservation the Core's static initializers just
+  // made holds (no host reservation is handed over).
+  const int region = api->adopt_code_region(nullptr, 0);
+  self.codeRegion = region == NEO_XENIA_CODE_REGION_OWN ? @"own" : @"none";
   return nil;
 }
 
@@ -759,9 +850,8 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
   // Dart read the previous journal before this call; each launch starts afresh.
   NSString* journal = [storage stringByAppendingPathComponent:@"launch-journal.txt"];
   [NSFileManager.defaultManager removeItemAtPath:journal error:nil];
-  XeniaJournal(journal, [NSString stringWithFormat:@"launch: codeRegion=%@, jit_state=0x%x, free below 8 GB %llu MiB",
-                                                   self.codeRegion ?: @"none", api->jit_state(),
-                                                   XeniaLargestFreeBelowLimitMiB()]);
+  XeniaJournal(journal, [NSString stringWithFormat:@"launch: codeRegion=%@, jit_state=0x%x",
+                                                   self.codeRegion ?: @"none", api->jit_state()]);
   const uint64_t transaction = ++gXeniaTransaction;
   _transaction = transaction;
   _userPaused = NO;
@@ -829,7 +919,15 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
       // set CS_DEBUGGED and left would make the Core's prepare fatal.
       const BOOL handshake = XeniaJitHasActiveCoreHandshake();
       XeniaJournal(journal, handshake ? @"nonce probe" : @"no handshake");
-      if (handshake && !XeniaJitConfirmCoreLoadHandoff()) stage = @"jitHandshakeFailed";
+      // While the Core still needs a tool, its prepare request goes to whatever
+      // debugger is attached: only RewindBox's own helper (its live handshake,
+      // proved by the nonce probe below) on a full-width StikJIT may answer.
+      // Dart refuses these cases before any attach; this is the last guard.
+      if ((api->jit_state() & NEO_XENIA_JIT_NEEDS_TOOL) && (!handshake || XeniaJitTransportProblem())) {
+        stage = @"jitToolUnverified";
+        jitDetail = XeniaJitTransportProblem() ?: @"the attached debugger is not RewindBox's XeniOS helper";
+      }
+      if (!stage && handshake && !XeniaJitConfirmCoreLoadHandoff()) stage = @"jitHandshakeFailed";
       if (!stage) {
         XeniaJournal(journal, @"prepare");
         if (!api->prepare(&configuration, kXeniaPrepareTimeoutMs, failure, sizeof failure)) {
@@ -898,6 +996,10 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
       _pendingEndReason = event;
       _pendingEndDetail = message;
     }
+    return;
+  }
+  if ([event isEqualToString:@"vibration"]) {
+    [self.session playVibration:message];
     return;
   }
   if ([event isEqualToString:@"stopped"] || [event isEqualToString:@"error"]) {

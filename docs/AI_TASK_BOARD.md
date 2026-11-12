@@ -359,6 +359,144 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     `Claude-Session` line.
   - **Next:** download, verify offline, receipts, record, delete the key, send the file; give session 04 the freeze
     commit for 803 (sibling of 726).
+- **Next IPA (733) queue (main, 12 Nov 21:0xZ).**
+  - Session 04 preparation speed lot merged on Claude as 43654249 (head b6537c09).
+    - S2Arm pin 58ca7025: only the prepare producer changes (s2arm-core 43304794526 on 2175b72e); the engine
+      (0001-0011) and sysdata are unchanged.
+    - The fix targets the 731 Mario Kart World preparation (427 s): parallel pack hashing with CommonCrypto, no mkdir
+      per path component, fewer RomFS walks, the previous root deleted in the background. Outputs are byte-identical.
+      Not measured on the phone yet.
+  - Main's local checks on the merge: all test/s2arm_*_test.py, legal modifications notice, build source evidence and
+    legal bundle preflight pass.
+  - IPA 732 on device (session 04, from the journal): the boot asked for its code at once (57 MB served in 0.2 s), the
+    helper detached, and there was no crash for 3 minutes. A fix for what comes after the boot may follow.
+  - Waits for the maintainer's go.
+- **IPA 732 delivered and verified (12 Nov 19:5xZ, main; maintainer: build once Switch 2 has finished, with XeniOS).**
+  - Second request: run `43289133482` attempt 1, trigger `77af35c2`, frozen on `474862f5`, effective digest `662f421f`,
+    7956 product files. All 5 jobs succeeded.
+  - First request, run 43283225614 (trigger 4f5a3045): the flutter job failed on two S2Arm tests older than session 03's
+    licence audit. Fixed in 67645447: the helper LICENSE is recorded as a rename, and the engine review tests follow the
+    legal assets review. Before that, main's 8d7928ec: the disc reader review accepts the delivered tree's previously
+    declared libretro podspec (b06888a9 was never delivered).
+  - IPA `RewindBox-732.ipa`: 329956970 B, SHA-256 `97952e981eea2eff72bb93f35627a831221aa4bf0ed9abaeb67d48dbb93ade52`.
+  - Contents:
+    - XeniaCore c7d6a5c4 (profile sign-in, guest dialogs, rumble, all pads) and the licence audit;
+    - S2Arm engine 9560e56f (patch 0011: store self-test skipped under the JIT helper; boot code in the spare pool;
+      engine log in Files);
+    - RPCS3 934 and MeloNX 743 kept.
+  - Offline verification `passed-offline-checks`:
+    - 97 images; 46 retained fingerprints; all 6 validators exit 0;
+    - identities Xenia c7d6a5c4 and S2Arm 9560e56f;
+    - RewindBox-MODIFICATIONS.md, the XeniOS date notices and the RA disc-reader notices are packaged;
+    - Legal XeniOS 6/6, MetalShaderConverter 3/3, S2Arm 35/35.
+  - Undeclared image changes, not fatal: XeniaCore and S2ArmEngine (declared engine images), plus the armsx2 and melonx
+    bridges, whose only change is a LICENSE file. That is the same rebuild drift as 729/731; cause unexplained.
+  - Receipt `docs/evidence/rewind732/delivery.json` (14 proof files + 2 engine receipts). Key shredded; file sent.
+  - Not run on an iPhone. Device checks:
+    - session 03: START past the title, saves/dialogs, rumble, pad loss, edge swipe, `profile sign-in` line;
+    - session 04: Mario Kart World boot asks for its code within seconds; engine log in Files.
+- **Next IPA (732) queue (main, 12 Nov 15:5xZ).**
+  - Session 03 handoff merged on Claude as 5b53672e (code head 22058559, board 22bc25c7; macOS run 43249822171 green).
+    - XeniaCore pin c7d6a5c4 (2bbc9daf7, run 43241572889): profile sign-in for player 1 (the cause of Fable
+      Anniversary's START refused on 730), guest dialogs and keyboard on the render window, rumble, all pads, menu on pad
+      loss.
+    - Licence audit c1dddbdaa: RA disc-reader notices, date (MIT) in XeniOS notices, RewindBox-MODIFICATIONS.md
+      required, legal dialog assets, 25 package LICENSE files, legal test chain repaired.
+  - Main's local checks on the merge:
+    - Xbox 360 suites (embedding, patch, transport, pin, touch, launch, namespace, verify_core) OK;
+    - legal suites (modifications notice, build source evidence, preflight, s2arm legal bundle) OK; stikjit host OK.
+    - Delivery contract: only the 2 PocketSkinRevisionReview errors that clear when the 732 manifest freezes c7d6a5c4.
+  - RPCS3/MeloNX packages get only LICENSE files; no Core input or pin changed.
+  - Maintainer (12 Nov 18:2xZ): build 732 as soon as session 04 (Switch 2) has finished and handed over its fixes,
+    together with this XeniOS lot. Session 04 is on 496e1d8f (engine patch 0011, needs a new engine pin).
+- **IPA 731 delivered and verified (12 Nov 15:0xZ, main; maintainer asked for it with session 04's fix).**
+  - Run `43238363574` attempt 1, trigger `5e4eb9c7`, frozen on `8667a630`, effective digest `fd4c9ec6`, 7922 product
+    files. All 5 jobs succeeded on the first request.
+  - IPA `RewindBox-731.ipa`: 329525805 B, SHA-256 `23f50247830706a74fd8a81dcebb73fb6d5745c139d6f647259657fc066fe3e4`.
+  - Contents: the delivered 730 plus the S2Arm image pack fix b3c2fe6a (merge 9661d929). XeniaCore 2d176a7f, S2Arm
+    engine 175018a2, RPCS3 934 and MeloNX 743 are retained unchanged (unchangedFromBase).
+  - Offline verification `passed-offline-checks`:
+    - 97 images; 49 retained fingerprints; all 6 validators exit 0;
+    - packaged identities name Xenia 2d176a7f and S2Arm fde6f47d;
+    - Runner carries the new module-step refusal string.
+  - Undeclared image changes, not fatal: the armsx2, dolphin and rpcs3 internal bridges. Their sources are unchanged
+    since 730 (git diff 3cea0357..HEAD empty), so this is the same rebuild drift seen in 729. Cause still unexplained.
+  - Receipt `docs/evidence/rewind731/delivery.json` (14 proof files + 2 engine receipts). Key shredded; file sent.
+  - Not run on an iPhone. Device check: Mario Kart World re-prepares, then the first launch of a prepared Switch 2
+    game (E2).
+- **Next IPA (731) queue (main, 12 Nov 14:2xZ).**
+  - Session 04 fix b3c2fe6a merged on Claude as 9661d929. Bridge only, no pin change.
+    - Cause, confirmed in s2arm_pack.c: rb_s2arm_module_dir writes the image pack, then runs rmtree(dest) and renames
+      .tmp over it. A pack inside <game>/module was deleted, so Mario Kart World on 730 prepared in 439 s with imagePack
+      0 B and launched with errno 2.
+    - The pack now goes to <game>/images; makedirs creates its parent. An empty pack fails at stage module.
+    - Local checks: s2arm bridge 174, park/resume 41, pinned engine, exports and session menu all OK. CI: bridge iOS
+      43234357440, library 43234357505.
+  - The first launch of a prepared Switch 2 game (E2) waits for that IPA.
+- **IPA 730 delivered and verified (12 Nov 13:5xZ, main).**
+  - Built on session 03's green light (code head fecc05ad, merged on Claude with --no-ff as 1732871f).
+  - Run `43226062701` attempt 1, trigger `3cea0357`, frozen on `4c5763ca`, effective digest `94378cd1`, 7922 product
+    files. All 5 jobs succeeded on the first request.
+  - IPA `RewindBox-730.ipa`: 329525542 B, SHA-256 `7674ec257012739678cee567c535fd5899577e4060e9cd86d55e346bf957009c`.
+  - Contents:
+    - XeniaCore pin 2d176a7f (d7ad7e834): 8 GB code-region limit lifted for the full-width StikJIT, no host
+      reservation; attach refused before prepare without the full-width transport; host pad enumerated for slot 0;
+    - S2Arm engine pin 175018a2 (fde6f47d): spin pass off on the phone, guest park and resume (patch 0010),
+      preparation diagnostics;
+    - RPCS3 Core 934 and MeloNX Core 743 kept.
+  - Offline verification `passed-offline-checks`:
+    - 97 images; 46 retained fingerprints;
+    - all 6 validators exit 0;
+    - packaged identities name Xenia pin 2d176a7f and S2Arm pin fde6f47d; StikJIT carries the full-width marker.
+  - Changed images: App, Runner, xenia_internal_bridge (declared mustChange), XeniaCore and S2ArmEngine (declared
+    engine images in images.added; the verifier lists them as undeclared because it only reads mustChange). No MeloNX,
+    RPCS3 or libretro image changed this time.
+  - Legal folders: XeniOS 4/4, MetalShaderConverter 3/3 and S2Arm 35/35 match their digests; 9 extensions.
+  - Receipt `docs/evidence/rewind730/delivery.json` (14 proof files + 2 engine receipts). Key shredded; file sent.
+  - Not run on an iPhone. Device checks asked by session 03:
+    - two Xbox 360 launches in a row without restarting the app;
+    - touch and controller input;
+    - app.log `XeniOS JIT:` line with transportFullWidth true and codeRegion own.
+- **Next IPA (730) queue (main, 12 Nov 12:05Z).** Maintainer (12:4xZ): build it as soon as XeniOS (session 03) sends
+  its green light and fixes. Also on Claude: S2Arm pin 175018a2 (spin pass off, MKW stuck fix, cc3af454).
+  - On Claude: session 04 S2Arm pin 930a84b0. It carries the prepare patches in the notice, plus relaunch-in-session
+    step 1 (de72efdd).
+  - Waiting: the session 03 XeniaCore pin, now d7ad7e834. It supersedes dc7c7f4b0 and keeps the EnumerateDevices input
+    fix.
+    - Change: the JIT code region is no longer limited to below 8 GB. A weak NeoXeniaExecuteRegionLimit hook returns
+      2^47, and the bridge's 512 MiB host reservation is removed.
+    - Premise checked by main: the embedded StikJIT is patched for full-width addresses (patch_stikjit_rpcs3.py).
+    - Merge conditions sent to 03:
+      - every Xbox 360 attach path goes through that patched transport, or the launch refuses before attach, with a test;
+      - no RPCS3/MeloNX regression from removing the reservation.
+  - Also on Claude: session 04 preparation diagnostics cb0f27e6 (16 MB-stack code stage, memory journal; MKW ended
+    during main's rewrite on 729).
+    - IPA 729 on device: XeniOS boots, and Fable ran about 2170 frames.
+    - No input reached the game: the input driver enumerated no device.
+    - The second launch was refused: noRoom, 442 MiB below 8 GB. The reservation moves to an image constructor.
+- **IPA 729 delivered and verified (12 Nov 10:2xZ, main).**
+  - Run `43195224577` attempt 1, trigger `8e502a40`, frozen on `7e9a352a`, effective digest `c4380012`, 7919 product
+    files. All 5 jobs succeeded on the first request.
+  - IPA `RewindBox-729.ipa`: 329516805 B, SHA-256 `a06b20d92fcd30b995cac6f2e932f676dde799d4f32d372918fbda06e0e00944`.
+  - Contents:
+    - MeloNX Core 743 (pin a429f212);
+    - XeniaCore pin 84386936 (host roots after config load);
+    - Switch 2 final lots (engine-pin 6afbd2c9, prepare progress patch);
+    - the Consoles probe;
+    - RPCS3 Core 934 kept.
+  - Offline verification `passed-offline-checks`:
+    - 97 images; 46 retained fingerprints;
+    - all 6 validators exit 0;
+    - packaged Xenia identity names pin 84386936.
+  - Undeclared image changes, not fatal:
+    - XeniaCore, the new pinned payload;
+    - the libretro and rpcs3 bridges, rebuilt from unchanged sources. Cause still unexplained.
+  - Legal folders: XeniOS 4/4, MetalShaderConverter 3/3 and S2Arm 35/35 match their digests; 9 extensions.
+  - Follow-up for session 04 (not blocking, S2Arm is Apache-2.0): the IPA's RewindBox-S2Arm-NOTICE.txt still says the
+    preparation library is built from the S2Arm commit. It does not name the new prepare patch
+    0001-rewriter-progress-report, which is listed only in docs/s2arm-legal-notices.md.
+  - Receipt `docs/evidence/rewind729/delivery.json` (14 proof files + 2 engine receipts). Key shredded; file sent.
+  - Not run on an iPhone.
 - **Next IPA (729) gating (maintainer, 12 Nov 08:2xZ): wait until the Switch 2 session (04) says it has finished.**
   Already on Claude:
   - session 04: 4c74414f (import capacity, clone, preparation progress and reuse) and 46c7e0db (Switch 1 / Switch 2
@@ -367,6 +505,15 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - MeloNX Consoles probe: d8b5e0e5;
   - MeloNX Core 743 recipe: 3d2645ea. Build run 43174115676; pin pending.
   Nothing is built until 04 sends an explicit "Switch 2 finished".
+  - "Switch 2 finished" received from session 04 at 08:57Z. Its final lot is merged as bc75feac: preparation
+    progress, engine-pin 6afbd2c9.
+  - Also waits for session 03's XeniaCore pin.
+    - Cause, proven by .ips Runner-2026-11-12-082610: SIGABRT from an uncaught std::filesystem error in
+      EmulatorAppIOS::OnInitialize. xenia-edge.config.toml kept the IPA 727 container's absolute roots, and iOS gives
+      the app a new container on each update.
+    - Fix 4375638f2 [xenia-core], ABI 4: NeoXeniaApplyHostRoots runs after SetupConfig.
+    - Without it, Xbox 360 still aborts on any device that ran an earlier IPA.
+  - MeloNX Core 743 is pinned (4e84cee0, pin a429f212).
 - **IPA 728 device finding (session 04, maintainer app.log pid 57620, 07:07Z).**
   - Confirmed: the S2Arm status reads available=true, and the Switch 2 Consoles switch turns on (bc43c4ed).
   - P0 found: opening the Consoles page loads MeloNXCore. `libretro_consoles_screen.dart:151` calls
@@ -5115,6 +5262,65 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     in "Standing IPA compilation authorization"). Session 04 hands its frozen commit to main and builds nothing. The
     hook `d32738b5` reached `Claude` with the MeloNX Core 727 merge `c53ad180` and is inert in the common IPA.
 
+- **MeloNX lot 10: correction lots on the IPA 729 / Core 743 findings (Claude Code session 01JA5QgKeoGVH5oVjNyhcj3D,
+  12 Nov; owner: this session for the adapters, their gates, the capture tooling and the proposed wiring; main owns the
+  Core number, the freeze, Core CI, the pin and any IPA; branch `work/melonx-lot10-20261112` from `Claude` `e602b6aa`,
+  head `7040c3e1`; no contract frozen, no Core built, no pin; IPA 730-733 keep Core 743):** full state per lot, proofs,
+  expected device figures and refutation criteria in [the handoff](evidence/melonx-lot10/handoff.md). Nothing below has
+  a device result: "host gate passed" and "wired" do not mean corrected on the iPhone.
+  - **Before (IPA 729, private journals, pid 58475):** Hogwarts 147 s of play, 17.7 presented frames/s, p50/p95/p99
+    50/117/200 ms, gaps over 100/250/500 ms 62.5/5.3/1.6 per minute, footprint up to 4 882 MiB; Smash 52.9 frames/s.
+  - **L1 retention between games:** `adapt_nifm_network_watch` (nifm's general service off the runtime's static
+    network address event). Gate `nifm-network-watch` 42 checks: control keeps 11 Switches of 11, candidate 0. Device
+    check: `sessionRetention released` after each close of Hogwarts, Smash, Hogwarts. **L2 (another root):** opened only
+    if a close still journals `retained` with this Core.
+  - **L5a submissions (Hogwarts only):** `adapt_paced_strict_syncs` (strict host syncs of syncpoint increments and
+    SetReference, and the two voluntary submissions, at most one per 4 ms). Gate `paced-strict-syncs` 54 checks: one
+    729 frame replayed on the production auto-flush counter, 34 command buffers -> 10. Device: 24-31 per frame -> 14 or
+    fewer; removed if sync waits exceed 4 ms per frame or fps fall.
+  - **L5b array walks (every title):** `adapt_array_sync_epochs` (a bound texture array walks its textures when one
+    was signalled dirty, invalidated, added or left the scale blacklist, or the use clock ticked; 729: arrayDelta
+    459-1 136 ms per 5 s of the GPU thread). Gate `array-sync-epochs` 118 checks: 122 scenarios with identical states
+    in control and candidate, 3 200 synchronisations per update -> 0 to 6. One defect found by independent review
+    (scale blacklist left without a signal), fixed and kept as a failing variant. Device: arrayDelta under 200 ms.
+  - **L6 warmed variants missed at the draw (every title):** `adapt_sibling_pipelines` (host programs of one code on
+    one layout entry share their pipelines; 729: 13 "built but missed"). Gate `sibling-pipelines` 62 checks. Independent
+    review: no lifetime, locking or bind-validity defect. Device: 13 -> 2 or fewer, a `pipelineSiblings` line.
+  - **L3 memory during a first Hogwarts session, per item.** *Managed heap:* `adapt_stall_compaction` (729: the
+    first-frame compaction leaves the LOH at 266 MiB; the loading's bursts, GPU thread 275 and 216 MiB in two 5 s
+    windows, leave 455 MiB with 165-234 MiB free for the whole session; the host pause's compaction at the end gave
+    306 MiB of footprint back). The existing compaction now also runs when no frame was presented for 700 ms, with
+    128 MiB or more free, the device at 15 % or less, 10 s after the first frame, 8 s after the last compaction, three
+    times a session at most, never in a host pause. Gate `stall-compaction` 100 checks: none during 10.4 s of frames,
+    one 840 ms into a gap (171 MiB free -> 0, resident 449 -> 283 MiB); replayed on the 729 session it fires in the
+    loading stalls of the 36th and 46th seconds, never in the 76 s of play after. Device: `heapCompacted
+    presentationGap` lines with the footprint before and after. *Graphics resources:* no change, nothing saved; the
+    Vulkan images hold 2.9 times the texture cache's guest bytes and the capture cannot say why (image bytes by kind
+    are missing). *Native heap* (about 500 MiB of MoltenVK and Metal shader and pipeline objects): no change by this
+    session; lot for the MeloNX owner in the handoff.
+  - **L4 GC freezes (every title):** `adapt_collection_class` (729: ephemeral collections promoting 0.1-2.2 MiB stop
+    the engine for 364-720 ms; a blocking collection runs on the thread that triggered it, in a lower class than the
+    guest's threads, which it does not stop). The collecting thread gets a user-interactive override for the
+    collection's duration through the runtime's collection callouts; one journal line per session gives, per class of
+    collecting thread, count, wall and CPU time. Gate `collection-class` 91 checks. macOS arm64, the class compiled
+    ahead of time with the real runtime under user-interactive native load (runs 43323499544, 43326597266): the
+    collections of a utility thread take 10 198 and 9 839 ms for 493 and 479 ms of CPU without the override (the
+    longest 890 ms for 31 ms), 511 and 536 ms with it. Device: low-promotion pauses under 33 ms, the `gcPause class`
+    line with wall within 1.5 times CPU; removed if the pauses stay with wall near CPU. **L7 heat:** nothing changed,
+    nothing claimed (729: thermal state nominal or fair over 6 minutes); read from a 20-minute run of the next IPA.
+  - **Local gates (Linux host):** three-adapter preparation 101 of 101 (hogwarts-dma-copies only when run alone);
+    four-adapter: the ten gates that read its two files; six-adapter (plus collection class and stall compaction): the
+    twelve gates that read their three files and hogwarts-dma-copies. The other gates were not run again on the later
+    preparations. Contract test helpers pass; the composition checks need the freeze. Independent reviews of the two
+    new adapters: no proven defect, four hardening changes made (handoff).
+  - **Handoff to main:** take the branch (wiring proposed in `prepare_embedded.py`, `ORDER`, the plan's six gates, the
+    contract test's expectations, `FRESH_GATES` 104; `8f71c4e1` is the four-adapter proposal, `d3d83cc0` the
+    five-adapter one, the head the six-adapter one; `adapt_stall_compaction` goes after `adapt_collection_class`);
+    choose the Core number (the branch says 745); freeze, Core CI, pin; next IPA with that Core and the bridge capture
+    commits; record the Core binary the IPA holds. Device protocol in the handoff (5 min Hogwarts, Smash, Hogwarts
+    with closes, then 20 min).
+  - **Handoff to the MeloNX owner:** the native heap lot above (section "Lot handed to the MeloNX owner").
+
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
   relativeOffset 0x40000018). All five sessions ran ten mutually exclusive resolution cheats at once (Handheld RRS
@@ -5365,7 +5571,7 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 ### Switch 2 playlist (S2Arm) feasibility prototype — session 04
 
 - **Owner/branch:** session `012mUASj3EQnvC86WC56AePw`, `work/s2arm-switch2-prototype-20261110`
-  (merged with `Claude` `d8b5e0e5`). Own paths: `packages/s2arm_engine_bridge/`, `native/s2arm/`,
+  (level with `Claude` `85ca8948`, fast-forward after main's 732 receipt). Own paths: `packages/s2arm_engine_bridge/`, `native/s2arm/`,
   `build-utils/s2arm/`, `tools/s2arm_prototype/`, `.github/workflows/s2arm-*.yml`, `docs/s2arm-*.md`.
 - **Goal:** a Switch 2 playlist on S2Arm, games prepared on the phone. The device probe ships in
   a common IPA by maintainer decision (below); the rest stays on this branch.
@@ -5475,6 +5681,271 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       main for the next IPA. Not observed on a device.
     - With Claude `051a3691` the Consoles page no longer loads the Switch 1 engine. The `switch1EngineLoaded` refusal
       should then appear only after a Switch 1 game in the same session.
+  - **Real progress for the preparation (maintainer, 12 Nov: "never stuck at 0").** IPA 728 showed "code · 0%" for
+    minutes on Mario Kart World. Code `97df7333`; the artifact fix is `a6f958fd`. Verified pin `60a15cd3`
+    (engine-pin.json SHA-256 `6afbd2c9…3635`, pin job run 43186436153); only the prepare entry changed: run
+    43185893094, artifact 13928561427. Merged with Claude `554a5777` in `f31ef2a3`.
+    - Rewriter: `build-utils/s2arm/prepare/patches/0001-rewriter-progress-report.patch` adds a per-thread callback
+      (passes, plus counts inside the long loops). It adds 67 lines and removes none, and is marked RewindBox. It is
+      listed in `docs/s2arm-legal-notices.md` and recorded in `S2ArmPrepare-identity.json`.
+    - Code stage `work` callback (`rb_s2arm_code_request`, new last member): a weighted fraction that never goes back.
+    - Bridge: the pass and its counts, plus a `codePhase` journal with durations, so the pass shares can be set from
+      measured costs.
+    - Dialog: a bar for the whole preparation, the localized step, module and phase with counts, and the elapsed time
+      (26 strings × 12).
+    - Proof:
+      - `s2arm-prepare.yml` 43184657493 is green on macOS and Linux. Every comparison runs the patched library against
+        the unpatched `s2a-rewrite` (identical bytes), and the bar is checked on each code-stage case.
+      - `test/s2arm_rewriter_progress_test.py` (68 checks) passes and fails four bad patch variants.
+      - Bridge iOS compile 43184657518 (155 checks; the pod ABI copy is now checked member by member, where the old
+        check was a no-op).
+      - Library 43184657663 (`flutter analyze` and tests, including `s2arm_prepare_dialog_test.dart`).
+      - Core 43185893094.
+    - First pin attempt, run 43185240791, refused the artifact: it held a fifth member, `patches.txt`. Fixed in
+      `a6f958fd`.
+    - Not observed on a device. The pass shares are estimates until a journal gives the durations.
+  - **IPA 732 engine log (maintainer, 12 Nov 21:2xZ, host.log of the 732 run): the game boots, runs nnMain, then crashes on
+    sparse textures 30 s later. Fix: engine patch `0012` (`6aaba2bd`), engine build running.**
+    - What the log shows:
+      - 0011 works: "store emulation self-test skipped: a debugger is attached";
+      - modules relocated, services up, but "RomFS 目录表建" (RomFS directory table) took 65.2 s;
+      - then nnosInitialize, nninitStartup, DT_INIT and nnMain ran;
+      - the NVN2 device came up on Metal 4 (A18 Pro), with a 3-texture swap chain;
+      - heartbeats stayed at frame 0.
+    - Crash:
+      - the game called nvnTextureGetSparseTileLayout, whose engine stub zeroes the layout;
+      - it then sent 0-byte tile mappings into a virtual pool, and vm_remap refused 9 of them ("(0 bytes) failed: 4");
+      - SIGSEGV at address 0x4, pc main+0x5b57a4.
+    - Cause in the engine (pin 6b6a5715; upstream main 1701b27f is the same): the builder query and nvn_tex.c's layout already
+      follow the SDK's 64 KiB sparse pages; only the texture query was a stub.
+    - Patch 0012 (hle_nvn.c):
+      - the texture query answers nvn_tex_sparse_layout on its own description, the builder's answer;
+      - a valid 0-byte MapVirtual request maps nothing and succeeds;
+      - each is logged once.
+    - Tests: new `test/s2arm_sparse_layout_test.py` (13 checks, run by s2arm-bridge-ios.yml); `s2arm_store_bench_test.py`
+      now checks 0011 as the 11th patch. Legal notices: 0012 row, series 0001–0012.
+    - Green: engine 43308161284 (macOS 15 and 26, guest entry points); bridge iOS 43308161296 (with the new test).
+      Independent review (rb-core-review): no actionable defect. Its notes are not blocking: the old Chinese stub comment
+      is stale; four rare pre-existing mismatches between nvn_tex_sparse_layout and level_walk (compressed non-power-of-two
+      sizes, packaged block height, 16x MSAA, sparse with linear); no positive engine test of the texture query.
+    - Verified pin: SHA-256 `9ddb304e…99d5`, pin job 43311510026. Engine 43308161284 (`6aaba2bd`, series 0001-0012),
+      prepare 43304794526 (speed lot), sysdata unchanged.
+    - Next:
+      - handoff to main for IPA 733 with the speed lot, then the maintainer's device run (journal + host.log after an app
+        restart);
+      - later, the 65 s RomFS directory table: S2Arm reads a prebuilt `romfs.s2aidx` (services/romfs_index) when the
+        preparation provides one.
+  - **IPA 732 device report (maintainer, 12 Nov 20:09Z: S2Arm journal and three engine logs): the boot now asks for its
+    code at once; the engine runs after the helper detaches. What it does next is not known yet.**
+    - Journal, pid 60681: preparation passed in 432 s (unchanged library). Launch: `start` passed, then the 6 boot blocks
+      (57 MB, main 42 MB at 0x7300000000) were served in ATTACHED mode in 4-83 ms each, all within 0.2 s. `bootServed`
+      passed, `jitDetach` passed, then `launch running` (servedBlocks 6). No later line in the next 3 minutes: no
+      `sessionEnded`, no FATAL. Pool 73.7 MB (boot + 16 MB). Footprint during the preparation 1.2-1.4 GB (731:
+      0.4-0.6 GB), with 5.2-5.4 GB still available; not explained yet.
+    - The three engine logs are all from IPA 731 runs (container copies made when 732 started): 15:14Z and 15:18Z
+      (closed during the wait) and 17:57Z. The 17:57Z one confirms the 0011 cause from the engine itself: the store
+      emulation self-test measured 300 ms per fault over 2000 faults. After the forced detach, mapping main failed
+      (`FATAL … 外置镜像映射 0x7100000000 … errno=1`), code 134.
+    - The engine log of the 732 run reaches Files at the next app start (or at the session's end). Next: that log and
+      what the screen showed.
+    - Maintainer, later: "same stop as last time" on screen. The four files sent again are byte-identical to the 20:09Z
+      upload (same sizes and SHA-256). Asked for the 732 engine log after a full app restart: `S2ArmExportEngineLogs`
+      overwrites the copies at each app start. The on-screen stop is now after the boot code was served, so it is not
+      the 731 stall.
+  - **Preparation speed (maintainer request, 12 Nov): commits `74951ac7` + `2175b72e`, same outputs, verified pin
+    `24dcf030` (SHA-256 `58ca7025…e86e`), handed to main for a later IPA.**
+    - Where the 427 s of IPA 731 went (journal + app.log):
+      - clearing the previous root: 14 s;
+      - unpack: 119 s, a mkdir per path component from `/` before each of about 205 000 links, plus walks with
+        stats;
+      - code: 60 s, two RomFS walks of 29 s each with an lstat and a stat per entry (the modules took 3 s);
+      - caps: 29 s, a third walk for an engine rule that cannot match;
+      - pack: 204 s, SHA-256 of 22 GB in portable C on one thread.
+    - Changes:
+      - SHA-256 from CommonCrypto on Apple;
+      - the pack hashes with up to 4 threads (one buffer each, progress and callbacks on the calling thread; the
+        earliest file's failure is reported, as with one thread: `2175b72e`, from the review);
+      - makedirs tries the path first, and the view remembers the previous link's directory;
+      - the walks take types from readdir and stat only links and unknown types;
+      - caps skips its RomFS walk when main names neither Unity nor Unreal;
+      - the bridge moves the previous root aside and deletes it at background QoS after the preparation;
+      - new journal lines: `cleared`, `unpackLayout`/`unpackUpdates`/`unpackDone`, `packWalk`, `packDone`.
+      - Details: `docs/s2arm-engine-bridge.md`, "Preparation speed".
+    - Checked locally (scratch harness, not in Git):
+      - old and new library: identical outputs and errors on 17 case/mode combinations;
+      - ThreadSanitizer clean on full and cancelled packs;
+      - 60 000-file delta tree on Linux, unpack 1.42 → 0.85 s, caps 0.25 → 0 s, NRO walk 0.25 → 0.04 s, pack
+        0.95 → 0.46 s;
+      - new `test/s2arm_prepare_speed_test.py` (23 checks; each reverted fix fails it);
+      - bridge test 189 checks; all `test/s2arm_*_test.py` pass.
+    - Independent review (rb-core-review) of `74951ac7`: no data race, deadlock or leak, outputs unchanged. Two low
+      notes: the error order (fixed in `2175b72e`, checked with two unreadable files, old and new libraries and
+      ThreadSanitizer); a folder listed but not searchable is walked from its listing, as `os.walk` does (accepted,
+      documented).
+    - Green:
+      - prepare 43304794303 on `2175b72e`: every comparison with S2Arm on Linux and macOS (ns2_dump, code stage,
+        caps, image pack, resource pack);
+      - core 43304794526 (xcframework, artifact 13983851142);
+      - bridge iOS 43303700475 on `74951ac7`;
+      - pin job 43305551417.
+    - Verified pin `24dcf030`: prepare run 43304794526 (`2175b72e`); engine 43278195639 and sysdata unchanged.
+    - Not measured on the phone. The progress bar's step weights still follow old guesses.
+    - Found on the way, not from this work: `.github/diagnostics/s2arm/s2arm_delivery_test.py` fails (5 failures, 40
+      errors) on `361032b5` and on Claude `85ca8948` alike. The separate S2Arm test-delivery launcher no longer
+      matches the standard recipe's line constants. That line is dormant (common IPA since 727).
+  - **IPA 731 device report (maintainer, 12 Nov, S2Arm journal): the engine starts, then waits 10 minutes before asking
+    for code. Fix: verified pin `eb8f20bf` with engine patch 0011, merged on Claude by main as `1f301991`, delivered in
+    IPA 732 (run 43289133482, 329956970 B, IPA SHA-256 `97952e98…de52`, S2Arm identity `9560e56f`, receipt
+    `85ca8948`). Device check pending: Mario Kart World re-prepares (new build number), then boots.**
+    - Main's first 732 request (run 43283225614) failed on two S2Arm tests after session 03's licence audit; main fixed
+      them on Claude in `67645447` (helper LICENSE in `copy-of-rpcs3.json`, legal review test on the new chain). On the
+      fast-forwarded tree `85ca8948`, `test/s2arm_*_test.py`, `legal_modifications_notice_test`,
+      `legal_bundle_preflight_test` and `build_source_evidence_test` pass (local).
+    - Observed:
+      - prepared (image pack 85 MB);
+      - launch: imagePack read (6 boot blocks, 57 MB), helper attached, jitProbe, pool 16 MB, dlopen, configure, view,
+        start passed.
+      - Then no prepareCode call for 600 s, then a bootServed timeout and a forced detach.
+      - 49 ms later the engine asked for main's 42 MB at 0x7100000000. The pool was exhausted and the session ended
+        with code 134.
+      - Two earlier runs were closed during the same wait.
+    - Cause, engine source at the pin: crash.c `s2a_emul_store_bench`.
+      - It runs at the first thread's fault set-up and makes 2000 deliberate faults to time the store emulation.
+      - Under the attached JIT helper each fault stops the process for the debugger: about 0.3 s each, 10 minutes.
+    - Fix, commit `496e1d8f`:
+      - Engine patch 0011 (crash.c only): skip that self-test when P_TRACED. It is a measurement, one log line.
+      - Bridge: the spare pool covers boot + later + 16 MB, as a fallback for a forced detach. That path (pool pages
+        remapped) has not been observed.
+      - Bridge: the engine's `host.log` and `logs/` are copied to `Documents/Diagnostics/S2Arm/engine/<gid>/` at app
+        start and at session end.
+      - New `test/s2arm_store_bench_test.py`, 9 checks. Bridge test: 177 checks.
+    - Pin `eb8f20bf`, SHA-256 `9560e56f…8b8d`, from pin job run 43280704030.
+      - Engine: run 43278195639, artifact 13971369524, series 0001-0011, packagedFingerprint `70ca3332…`.
+      - Prepare 43218734813 and sysdata unchanged.
+    - Green:
+      - engine 43278195639 (macOS 15 and 26);
+      - bridge iOS 43278195858;
+      - library 43278195698, then 43280703962 on the tree merged with Claude `5fe7b3c7` (`d7e8f671`);
+      - core 43278195885.
+    - Next, on IPA 732: the boot should ask for its code within seconds of start. If it fails again, the engine log is
+      now in Files.
+  - **IPA 730 device report (maintainer, 12 Nov, journal + app.log + screenshot): the preparation finishes, the launch
+    failed on a missing image pack. Fix `b3c2fe6a` (bridge only, no pin), merged on Claude by main as `9661d929`,
+    delivered in IPA 731 (run 43238363574, receipt `d5cf7fcc`). Device check pending: Mario Kart World re-prepares,
+    then the first launch of a prepared Switch 2 game (E2).**
+    - Observed, pin 175018a2:
+      - Mario Kart World prepared in 439 s. Unpack took 119 s and code 66 s: main 2 s with the spin pass at 0 ms, the
+        NRO and table walks about 30 s each. Caps took 31 s and pack 207 s.
+      - Footprint stayed between 420 and 620 MB, with about 6 GB still available.
+      - The result was "passed" with `imagePack: 0`. The launch then failed at once: `exportInvalid at imagePack: image
+        pack not readable (errno 2)`, shown as an incomplete export.
+    - Cause: the bridge wrote the pack inside `<game>/module`.
+      - `rb_s2arm_module_dir` builds `<module_dir>.tmp`, writes the pack, then removes the module directory and
+        renames `.tmp` over it. The pack is deleted.
+      - S2Arm and the CI pack tests keep it apart (`Frameworks/` vs `Games/<gid>`), so CI never saw it.
+    - Fix:
+      - the pack goes to `<game>/images/S2AImages-<gid>.dylib`, removed with the other outputs;
+      - the module step fails (`storageError`) on a missing or empty pack.
+      - Bridge test: 174 checks. Green: iOS compile 43234357440, library 43234357505. Merged with Claude `2404da58` in
+        `e839da74`.
+    - Next: the first launch of a prepared Switch 2 game (E2) on the IPA that carries `b3c2fe6a`.
+  - **IPA 729 device report (maintainer, 12 Nov): Mario Kart World's preparation never leaves the rewriter's spin pass.
+    Fix: verified pin `175018a2` (spin pass off on the phone), merged on Claude by main as `cc3af454`, queued for the next
+    IPA (built on the maintainer's request).**
+    - Journal and screenshot, two runs:
+      - main (42 MB of text) passes load, prepass, boundaries, scan, data, analyze, generate and late in under 3 s;
+      - then the spin pass, with "Génération du code adapté · 0 / 42 Mo" at 60 % after 20 min 20 s;
+      - the first run ended about 5 minutes into the pass.
+      Not memory and not the crash first suspected (below). The bar cannot move there: the text loop finishes inside
+      the library's 100 ms throttle, and the per-region loops report nothing.
+    - Commit `74037ee0`: `rewrite_one` asks for `.spin = 0`.
+      - The rewriter calls the pass an optional optimisation. It only lets a guest thread spinning for over 2 s sleep
+        (`s2a_spin_wait`). Virtual cores are off by default.
+      - S2Arm's Android path rewrites with `S2A_REWRITE_SPIN=0`. At the pin only the spin code reads `g->orig`.
+      - The CI references run `S2A_REWRITE_SPIN=0` too. `s2arm_rewriter_progress_test.py` (70 checks) keeps them in
+        step.
+      - Green:
+        - prepare 43218734949;
+        - core 43218734813;
+        - library 43218734893;
+        - host proof 43218735052.
+    - Pin `175018a2`: SHA-256 `fde6f47d…a101`, the bytes of pin job run 43219881920. Only the prepare producer changed:
+      run 43218734813, artifact 13944104260. Merged with Claude `5acf1435`.
+    - Open:
+      - why the pass is so slow on this game, not measured; it must be measured and bounded before it comes back on;
+      - energy in guest spin-waits without the gate, not measured.
+    - Earlier reading of the first app.log, kept for the record:
+    - Observed:
+      - The import was cloned (22239 MB) and the status was available.
+      - Preparation: unpack, code at 131 s, `addr_need`, `nro`, then `main` at 160 s.
+      - Then the app ended with no message, at about 6 %. 6 % is the start of main: its LOAD and PREPASS passes report
+        only when they begin.
+    - Not settled: memory (iOS ends an app over its limit silently; the rewriter was written for a computer, and its own
+      comment cites a 15.8 GB peak on another large game before a fix) or a crash.
+    - Asked of the maintainer: `Documents/Diagnostics/S2Arm/s2arm-journal.jsonl` and the iOS report (`JetsamEvent-…` or
+      a crash `.ips`).
+    - Commit `0984b3d4` changes the bridge only. Green: iOS compile 43214401741, library 43214401673.
+      - The code stage runs on its own 16 MB-stack thread. The rewriter's spin walk can need over 540 KB, more than a
+        GCD worker's 512 KB; it was validated on a command-line main thread (8 MB).
+      - The journal records phys_footprint and os_proc_available_memory at each phase's start and end, and every
+        256 MB of growth.
+    - Next: read the two files. If it is memory, reduce the rewriter's peak or split main.
+  - **Relaunch in the same session (maintainer, 12 Nov): step 1 built, verified pin `930a84b0`, merged on Claude by
+    main as `de72efdd`.** It is queued for the next IPA, which main builds only on the maintainer's request. The
+    maintainer chose to ship the progress lot first (IPA 729). Plan, inventory, design and review:
+    `docs/s2arm-relaunch-in-session.md`.
+    - Pin `930a84b0`: engine-pin.json SHA-256 `77da9cf1…39ee`, the bytes the pin job printed in run 43206559527 (draft
+      `adb5e935`).
+      - Engine: run 43204364693 on `779d9a7f`, artifact 13937907087, expires 2026-12-12 11:07 UTC. Series 0001-0010,
+        equal to the checkout. packagedFingerprint `2f58c547…`.
+      - Prepare 43185893094 and sysdata 43038032448 unchanged. `identity.preparePatches` is recorded.
+      - Only the engine image, `Headers/rb_guest.h` and the licence digest changed (same 36 files; the notice changed).
+      - Three new exports. The recipe pins no `exportsList`.
+    - S2Arm already restarts a session in-process for the same game (`session.c:440`, `:671`). Our guest stop took the
+      process shutdown instead (`rb_guest.c:127`).
+    - A different game needs new executable pages after the JIT helper has detached (`S2ArmEngineBridgePlugin.m:345`).
+    - Steps: same game first, then the latches and a per-game reset, then another game.
+    - Step 1 is engine patch `0010-guest-park-and-resume-the-same-game.patch`, in `b3a35698` with review fixes in
+      `779d9a7f`.
+      - Quit parks the session through S2Arm's restart retirement: quiesce, managed shutdown (the save is written
+        back), GPU and per-session resets. It stops before the rebuild.
+      - Launching the same title id resumes the game in the same view controller, with no dlopen, configure or JIT
+        transaction.
+      - Any refusal or failure ends as before, with the process shutdown. Another game is still refused
+        (`engineRestartRequired`).
+      - The patch adds three exports.
+    - With an engine built before 0010, the bridge changes do nothing:
+      - the launch needs only the old entry points;
+      - the config grows only at its end;
+      - the resume refuses without the new exports.
+    - An independent review found 6 defects, all fixed:
+      - a failed resume;
+      - a timed-out park;
+      - the park flag set before the CAS;
+      - Quit, SIGTERM and app termination while parked;
+      - "busy" now answered before "restart";
+      - ownership of the stop reason.
+      A code block that differs on resume stays a device check.
+    - Checks:
+      - `test/s2arm_park_resume_test.py`, 41 checks; each fix fails its own check when removed;
+      - bridge, 163 checks;
+      - session menu, exports, pinned engine (21);
+      - Dart service test.
+      session.c and rb_guest.c compile here without warnings on both paths.
+    - CI, all green:
+      - on `779d9a7f`: engine 43204364693 (macOS 15 and 26, guest entry points 0003-0010), bridge iOS 43204364702,
+        library 43204364819, core 43204364873;
+      - on the merge `0a54d048`: library 43204718659;
+      - on the draft `adb5e935`: library 43206559190.
+    - Not observed on a device: it needs a first booting game (E2). Then: Quit and relaunch the same game, the save,
+      memory over three cycles, SIGTERM while parked, and Quit during a resume.
+  - **The notice names the preparation patch series (main's follow-up after IPA 729).** Commit `c0441c6e`.
+    - The packaged notice names `build-utils/s2arm/prepare/patches`.
+    - The pin records the series as `identity.preparePatches` and checks it against the checkout. verify refuses another
+      series.
+    - `test/s2arm_pinned_engine_test.py`: 21 tests.
+    - Engine run 43201097301 is green, but it has only the notice; it is not pinned. Pin `930a84b0` (above) carries both
+      the notice and the relaunch.
   - Main withdrew the launcher deletion (12 Nov): it stays as is. Formerly open: delete the launcher (`.github/diagnostics/s2arm/`, `s2arm-delivery.yml`,
     `set_probe_key.py`) together with its test `s2arm_delivery_test.py`, which no longer works
     since 9c9817e8 (40 errors)? Main also has to choose the S2Arm test groups of the next
@@ -5933,7 +6404,89 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   xe_ios_party_voice_start (xenia_main_ios.mm:738-751). Diagnostics 1fdfeebb2 (bridge/Dart only, pin unchanged):
   `registration` + `freeBelow8GBMiB` in the JIT line; synced Engine/launch-journal.txt replayed into app.log by
   the next launch. Run 43176261471 green; suites 60/60. Waiting for the maintainer's .ips of this crash.
-  Next: read the .ips (exception, crashing thread), fix, then a device run with the journal.
+  Cause of that crash, from the maintainer's Runner-2026-11-12-082610.ips (IPA 728, pid 57665, 12 s after start):
+  EXC_CRASH (SIGABRT), main thread, abort() after an uncaught std::filesystem::filesystem_error from
+  create_directories in EmulatorAppIOS::OnInitialize()+912 (facade InitializeOnMain). config::SetupConfig reads
+  xenia-edge.config.toml over the roots prepare set; that file, written under IPA 727, held the absolute roots of
+  the previous app container (the second dump prints /var/mobile/Containers/Data/Application/<uuid>/…, the first
+  ~/…); iOS gives the app a new container on every update. Fix 4375638f2 [xenia-core]: the patch calls
+  NeoXeniaApplyHostRoots() right after SetupConfig (embedded #else of the microphone guard), the facade sets
+  storage_root/content_root/cache_root/log_file again from the first prepare; ABI 4 unchanged; patch test OK.
+  Run 43185423246: checks, plugin_app green; core compiled and verified (08:52-09:25). Pin job 43191523530:
+  core-pin.json 84386936…f653 rebuilt byte-identical (job 131072773559, artifact 13930153853, 9,533,734 B,
+  6a49378c…; binary 5043531d…, 37,720,040 B; fingerprint bf686615…; replaces c00755f6 with its reason); review
+  rebound 75a7f45b0 (recipe commit 4375638f2), gate test OK. Merged Claude 6e6edf61 (20947fbac, no conflict):
+  macOS run 43192588443 green; Xbox 360 Python checks, storage contract, Dart 60/60 OK; delivery contract = Claude
+  alone + 2 PocketSkinRevisionReview errors (core-pin.json is a product file read from the 728-frozen effective
+  tree, the review a recipe file read from HEAD; they clear when the next manifest freezes 84386936). Handed off
+  to 00 (12 Nov); the next manifest must name pinSha256 84386936. Next: device run on the next IPA (launch journal
+  and registration line in app.log).
+  Third device run (IPA 729, XeniaCore 84386936): the launch journal reaches `launched` (Fable Anniversary, boot 6 s,
+  about 2170 guest frames), but neither touch nor controller input reached the title; the next launch was refused
+  `jitMemoryUnavailable` (`registration: noRoom (flag)`, 442 MiB free below 8 GB; the booted launch had 687 MiB).
+  Input cause: XeniOS's InputSystem binds guest slots only to enumerated devices (ReconcileBindings at
+  InputSystem::Setup); NeoXeniaInputDriver enumerated none. Fix dc7c7f4b0 [xenia-core]: one auto-bound device
+  `rewindbox-host-pad` for slot 0 (facade C++ check and patch test). Its build was superseded by d7ad7e834
+  [xenia-core] (maintainer: no launch may depend on free address space): XeniOS keeps the code region below 8 GB
+  only because StikDebug 3.1.x drops high address bits; RewindBox's StikJIT writes 16 hex digits
+  (patch_stikjit_rpcs3.py, marker required by validate_stikjit_ipa.py, RPCS3's 0x7000000000 arena relies on it);
+  the A64 code cache uses its encoded indirection on iOS. Patch: weak `NeoXeniaExecuteRegionLimit` hook right after
+  `kExecuteRegionLimit` (external linkage checked with clang/nm), facade returns 2^47; the bridge's 512 MiB
+  reservation, its flag and the free-space measurement removed (nothing else reads `RBXeniaReserveCodeRegion`; the
+  key left in 728/729 users' defaults is unused). Main's merge conditions:
+  (1) every attach path through the full-width StikJIT, else refused before attach, with a test: 31f575f6f
+  (bridge/Dart only, no recipe file): the bridge reads `NEOSTATION_STIKJIT_RPCS3_V1` in the app's StikJIT and in
+  any copy inside XeniaJITHelper.appex (`transportFullWidth`); Dart `toolUnsupported` refuses `jitToolUnsupported`
+  (12 locales) before pairing, route or helper; the bridge refuses `jitToolUnverified` (shown `restartRequired`)
+  before the nonce probe and `prepare` when the transport is not full-width or the attached debugger has no live
+  RewindBox handshake (an external StikDebug attached on its own). `test/xenia_jit_transport_test.py` (8 cases, in
+  xenia-core.yml; its step green on macOS, run 43219560296) ties patch -> install -> helper linkage (no embedded copy,
+  runpath ../../Frameworks) -> IPA validator -> bridge -> Dart -> the 2^47 limit; Dart 62/62.
+  (2) no RPCS3/MeloNX regression: no RPCS3, MeloNX, StikJIT or shared file differs from Claude (16 files, all
+  Xbox 360 plus xenia-core.yml). On 1189e73db (merge of Claude 5acf1435, no conflict) and on Claude 5acf1435:
+  the 608 RPCS3/MeloNX/StikJIT Python files give the same result per file (73 pass; 535 need source checkouts,
+  built Cores or the macOS toolchain here); the 58 RPCS3/MeloNX/StikJIT/Switch Dart files, 507 tests, the same
+  4 pre-existing failures (RPCS3 Build 231 x2, rpcs3_saves_locale export report, French lead sentence); delivery
+  contract the same 2 errors; storage contract OK on both.
+  Run 43217888486 (d7ad7e834): checks, plugin_app and core green (compiled, verify_core.py passed, artifact
+  uploaded through the protected action, 12:33-13:03). Pin job 131202057689 (run 43223902046): core-pin.json
+  2d176a7f…fd77 rebuilt byte-identical (job 131182949291, artifact 13946139906, 9,534,484 B, eeed2297…, expires
+  26 Nov; binary 6c511637…e5b7, 37,720,504 B, SDK 26.5, minos 26.0; fingerprint bd6351c0…e662; replaces 84386936
+  with its reason); review rebound (10 recipe digests equal at d7ad7e834), gate test OK. Merged Claude 8c0fc392
+  (cd84c2b24, includes cc3af454, no conflict): Xbox 360 Python checks, storage contract, Dart 62/62 OK; delivery
+  contract = Claude alone + the 2 PocketSkinRevisionReview errors (the 729-frozen product tree still names
+  84386936; they clear when the 730 manifest freezes 2d176a7f). The next manifest must name pinSha256 2d176a7f.
+  Pin and review commit fecc05ada: macOS run 43224531418 green (checks incl. the transport test, the review gate,
+  IPA closed sets, facade C++, bridge compile at the iOS 18 target, helper type-check; plugin_app). Handed off to
+  00 with the XeniOS green light for IPA 730 (12 Nov). Shared layer in this lot: one xenia-core.yml step. Next:
+  device run on IPA 730 (two launches in a row without restart, touch and controller input, the `XeniOS JIT:`
+  line with transportFullWidth true and codeRegion own).
+  Fourth device run (IPA 730, Fable Anniversary): launched (`codeRegion=own`), title screen at 30 FPS, the pad bound
+  (`New controller connected to slot 0`), but START never passed it: `ProfileManager: Found 0 Profiles`, then XAM's
+  sign-in dialog answered at once with 000004C7 (cancelled): nothing in the embedding answered XeniOS's app-layer
+  prompts. Maintainer asked to check every point. Audit of what XeniOS's app layer (not compiled into XeniaCore) does
+  for a running game; dbba843ad + 2bbc9daf7 [xenia-core]: profile sign-in answered without a screen (existing,
+  free, else new "RewindBox"), player 1 signed in once the kernel exists and before the title runs
+  (NeoXeniaNotifyKernelReady, one guarded patch line; XConfig derives the console identity some titles encrypt saves
+  with from that profile); guest message boxes and keyboard shown on the render view's window (they were presented
+  on the host controller, in no window: cancelled); rumble forwarded (`vibration` event) and played with CoreHaptics;
+  every pad merged (was GCController.current), losing the last pad opens the menu; edge swipes deferred; background
+  task until the pause settles and audio-session restore. test/xenia_embedding_test.py (--upstream): every app-layer
+  IOSWindowedAppContext callback installed or listed with its reason. Core run 43241572889 (2bbc9daf7) green: checks,
+  plugin_app, core (compiled, verify_core.py). Pin job 131289253511 (run 43248970284): core-pin.json c7d6a5c4…40e9
+  byte-identical (job 131265441453, artifact 13957752125, 9,542,933 B, 2e29104f…, expires 26 Nov; binary 8c59ad09…c891,
+  37,751,320 B, SDK 26.5, minos 26.0; fingerprint 9cbc5520…1700; replaces 2d176a7f with its reason); review rebound (10
+  recipe digests equal at 2bbc9daf7), gate OK; the app's legal check passes in full. Licence audit (maintainer, 12 Nov) c1dddbdaa: see
+  docs/LICENSE_AUDIT_2026-11-12.md (libchdr/zstd/LZMA notices and review for the libretro podspec unreviewed since
+  b06888a9, date in XeniOS, CoreHaptics review, RewindBox-MODIFICATIONS.md required, 25 package LICENSE files,
+  12-locale disclaimer and missing credits, MeloNX texts offline, legal tests repaired after 11 days red, open items).
+  Merged Claude d5cf7fcc (220585599, no conflict): macOS run 43249822171 green (checks incl. embedding and transport
+  tests, review gate, closed sets, facade C++, bridge compile, helper type-check; plugin_app); the app's legal check
+  passes in full on this tree (on Claude it refused the libretro podspec since b06888a9); build_source_evidence 12/12,
+  legal_bundle_preflight 8/8, Xbox 360 Python and Dart (71 with the legal dialog) OK; delivery contract = Claude (OK)
+  + the 2 PocketSkinRevisionReview errors of the 731-frozen pin (clear when the next manifest freezes c7d6a5c4).
+  Handed off to 00 with the XeniOS green light (12 Nov). Next manifest: pinSha256 c7d6a5c4. Next: device run (title
+  screen past START, prompts, rumble, pad drop, edge swipes).
 - **Validation (Flutter 3.47.2 host):** 11 Nov: XeniOS + catalog/Consoles/touch suites
   91/91, scanner suites 41/41 (1 skip), storage contract 24/24, patch/validator/touch/C++
   checks OK, analyzer 111 = baseline. Earlier: new XeniOS + catalog/Consoles tests 65/65;

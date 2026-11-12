@@ -13,7 +13,7 @@ index 1dc7b36..795b39a 100644
 +  include("${NEO_XENIA_ADAPTER_DIR}/core/target.cmake")
 +endif()
 diff --git a/src/xenia/app/xenia_main_ios.mm b/src/xenia/app/xenia_main_ios.mm
-index 4228f01..10fead5 100644
+index 4228f01..a225206 100644
 --- a/src/xenia/app/xenia_main_ios.mm
 +++ b/src/xenia/app/xenia_main_ios.mm
 @@ -62,6 +62,11 @@
@@ -28,7 +28,7 @@ index 4228f01..10fead5 100644
  
  // Graphics system.
  #include "xenia/gpu/metal/metal_graphics_system.h"
-@@ -736,9 +741,13 @@ bool EmulatorAppIOS::OnInitialize() {
+@@ -736,9 +741,17 @@ bool EmulatorAppIOS::OnInitialize() {
    XELOGI("iOS: Storage root: {}", xe::strip_pii(xe::path_to_utf8(storage_root)));
  
    config::SetupConfig(storage_root);
@@ -38,11 +38,15 @@ index 4228f01..10fead5 100644
    xe_ios_microphone_start();
    // Party voice follows the party, the Microphone choice and Party/Game Chat.
    xe_ios_party_voice_start();
++#else
++  // The saved config holds the absolute roots of the container that wrote it,
++  // and iOS gives the app a new container on every update: the host's win.
++  NeoXeniaApplyHostRoots();
 +#endif
  
    std::filesystem::path content_root = cvars::content_root;
    if (content_root.empty()) {
-@@ -906,6 +915,7 @@ bool EmulatorAppIOS::OnInitialize() {
+@@ -906,6 +919,7 @@ bool EmulatorAppIOS::OnInitialize() {
        [value release];
      }
    });
@@ -50,7 +54,7 @@ index 4228f01..10fead5 100644
    // Microphone access is asked when a game with voice chat first starts, not at launch.
    emulator_->on_launch.AddListener([this](uint32_t, const std::string_view) {
      uint32_t system_flags = 0;
-@@ -931,6 +941,7 @@ bool EmulatorAppIOS::OnInitialize() {
+@@ -931,6 +945,7 @@ bool EmulatorAppIOS::OnInitialize() {
      }
      xe_ios_diagnostics_note_title(title_id, jit_base, jit_size);
    });
@@ -58,7 +62,7 @@ index 4228f01..10fead5 100644
  
    // Create the display window from the Metal view in the app context.
    window_ = ui::Window::Create(app_context(), "Xenia", 1280, 720);
-@@ -1528,7 +1539,11 @@ bool EmulatorAppIOS::OnInitialize() {
+@@ -1528,7 +1543,11 @@ bool EmulatorAppIOS::OnInitialize() {
        profiles->Login(xuid, 0, true);
        return profiles->GetProfile(xuid) ? xuid : 0;
      };
@@ -70,7 +74,7 @@ index 4228f01..10fead5 100644
    }
  
    // Profile files (.xeniosprofile) for the account screens: export, and import of one
-@@ -2259,6 +2274,11 @@ void EmulatorAppIOS::EmulatorThread(const std::filesystem::path& game_path,
+@@ -2259,6 +2278,11 @@ void EmulatorAppIOS::EmulatorThread(const std::filesystem::path& game_path,
      launch_status.open = true;
      XELOGI("iOS: Loading game config for: {}", xe::strip_pii(xe::path_to_utf8(game_path)));
      config::LoadGameConfigForFile(game_path);
@@ -82,7 +86,18 @@ index 4228f01..10fead5 100644
      app_context().CallInUIThread([this]() {
        ApplyGuestDisplayRefreshCapToWindowFromUIThread(cvars::guest_display_refresh_cap);
      });
-@@ -2515,6 +2535,9 @@ void EmulatorAppIOS::EmulatorThread(const std::filesystem::path& game_path,
+@@ -2372,6 +2396,10 @@ void EmulatorAppIOS::EmulatorThread(const std::filesystem::path& game_path,
+     emulator_cpu_initialized_.store(require_cpu_backend, std::memory_order_release);
+     static_cast<ui::IOSWindowedAppContext&>(app_context()).SetProfileServicesReady(true);
+     XELOGI("iOS: Emulator setup complete");
++#if XE_NEO_EMBEDDED_CORE
++    // RewindBox has no profile screen: player 1 is signed in before any title runs.
++    NeoXeniaNotifyKernelReady();
++#endif
+ 
+     if (!launched_with_game) {
+       app_context().CallInUIThread([this]() {
+@@ -2515,6 +2543,9 @@ void EmulatorAppIOS::EmulatorThread(const std::filesystem::path& game_path,
      }
  
      XELOGI("iOS: Game launched successfully");
@@ -92,7 +107,7 @@ index 4228f01..10fead5 100644
      // A shader wait that began before the GPU existed.
      ApplyCompileThreadBoost();
      if (g_graphics_is_metal.load(std::memory_order_acquire)) {
-@@ -2542,9 +2565,11 @@ void EmulatorAppIOS::EmulatorThread(const std::filesystem::path& game_path,
+@@ -2542,9 +2573,11 @@ void EmulatorAppIOS::EmulatorThread(const std::filesystem::path& game_path,
  }
  
  std::unique_ptr<apu::AudioSystem> EmulatorAppIOS::CreateAudioSystem(cpu::Processor* processor) {
@@ -104,7 +119,7 @@ index 4228f01..10fead5 100644
    const std::string apu_name = cvars::apu;
    if (apu_name == "phase") {
      XELOGI("Audio backend: PHASE (spatial) selected via --apu/apu cvar");
-@@ -2581,6 +2606,11 @@ std::vector<std::unique_ptr<hid::InputDriver>> EmulatorAppIOS::CreateInputDriver
+@@ -2581,6 +2614,11 @@ std::vector<std::unique_ptr<hid::InputDriver>> EmulatorAppIOS::CreateInputDriver
      ui::Window* window) {
    std::vector<std::unique_ptr<hid::InputDriver>> drivers;
  
@@ -116,7 +131,7 @@ index 4228f01..10fead5 100644
    auto touch_driver = xe::hid::touch::Create(window, kZOrderHidInput);
    if (touch_driver && XSUCCEEDED(touch_driver->Setup())) {
      drivers.emplace_back(std::move(touch_driver));
-@@ -2591,10 +2621,19 @@ std::vector<std::unique_ptr<hid::InputDriver>> EmulatorAppIOS::CreateInputDriver
+@@ -2591,10 +2629,19 @@ std::vector<std::unique_ptr<hid::InputDriver>> EmulatorAppIOS::CreateInputDriver
    if (drivers.empty()) {
      drivers.emplace_back(xe::hid::nop::Create(window, kZOrderHidInput));
    }
@@ -227,10 +242,29 @@ index ae55503..6ba7ba9 100644
    ProcessCompletedSubmissions();
    LogFrameGpuWaits();
 diff --git a/src/xenia/cpu/backend/jit_memory_ios.cc b/src/xenia/cpu/backend/jit_memory_ios.cc
-index 5067c76..121f3cd 100644
+index 5067c76..afb84ca 100644
 --- a/src/xenia/cpu/backend/jit_memory_ios.cc
 +++ b/src/xenia/cpu/backend/jit_memory_ios.cc
-@@ -79,6 +79,23 @@ constexpr char kJitTurnedOffMessage[] =
+@@ -40,6 +40,18 @@ namespace {
+ // address and prepares the low-memory alias instead, zeroing the heap pages
+ // there. Below 8 GB the address survives.
+ constexpr uintptr_t kExecuteRegionLimit = uintptr_t(1) << 33;
++// RewindBox embedded Core (build-utils/xenia): its JIT tool, the patched
++// StikJIT, writes full 64-bit addresses, so XeniaCore lifts this limit. Weak:
++// undefined, so the limit above stands, outside XeniaCore. Declared outside
++// the anonymous namespace so the reference keeps external linkage.
++}  // namespace
++extern "C" __attribute__((weak)) uintptr_t NeoXeniaExecuteRegionLimit(void);
++namespace {
++uintptr_t NeoExecuteRegionLimit() {
++  return NeoXeniaExecuteRegionLimit ? NeoXeniaExecuteRegionLimit()
++                                    : kExecuteRegionLimit;
++}
++#define kExecuteRegionLimit NeoExecuteRegionLimit()
+ // The code region's size on iOS: CodeCacheBase::kGeneratedCodeSize, page
+ // rounded (code_cache_base.h asserts that it fits).
+ constexpr size_t kExecuteRegionReserveSize =
+@@ -79,6 +91,23 @@ constexpr char kJitTurnedOffMessage[] =
  
  }  // namespace
  

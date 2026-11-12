@@ -60,9 +60,28 @@ def module_from(source, name):
     return module
 
 
+# Changes of the common line made after that blob, outside the S2Arm statements, applied to it before comparing
+# (each old text must occur once): the reference stays the reviewed blob plus these listed, dated additions.
+LATER_COMMON_CHANGES = (
+    # Licence audit of 12 Nov 2026: the engines modification notice is required in every legal bundle.
+    ('    "Apple-Metal-Shader-Converter-NOTICES.txt",\n)',
+     '    "Apple-Metal-Shader-Converter-NOTICES.txt",\n'
+     '    # GPL-2.0 2(a), GPL-3.0 5(a), Apache-2.0 4(b), MPL-2.0 3: which engines RewindBox modified, from which\n'
+     '    # upstream revision, and where the changes are (test/legal_modifications_notice_test.py keeps it current).\n'
+     '    "RewindBox-MODIFICATIONS.md",\n)'),
+)
+
+
 def pre_change_source():
     result = subprocess.run(['git', 'cat-file', 'blob', PRE_CHANGE_BLOB], cwd=ROOT, capture_output=True)
-    return result.stdout.decode() if result.returncode == 0 else None
+    if result.returncode != 0:
+        return None
+    source = result.stdout.decode()
+    for old, new in LATER_COMMON_CHANGES:
+        if source.count(old) != 1:
+            raise AssertionError(f'later common-line change no longer applies to the reference: {old[:60]!r}')
+        source = source.replace(old, new)
+    return source
 
 
 def is_s2arm(node):

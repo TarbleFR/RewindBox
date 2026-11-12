@@ -114,12 +114,53 @@ def struct_members(text, name):
     return fields
 
 
-patch = PATCH.read_text()
-patch_fields = struct_members(patch[patch.index('typedef struct s2a_rb_guest_config'):], 's2a_rb_guest_config')
+def guest_header_after_series():
+    """runtime/src/rb_guest.h as the whole engine patch series leaves it: patch 0003 creates it, later patches (0010:
+    session_parked) extend it. Built with git apply in a temporary folder; no S2Arm source is needed."""
+    import subprocess
+    import tempfile
+    with tempfile.TemporaryDirectory() as folder:
+        for path in sorted((ROOT / 'build-utils/s2arm/engine/patches').glob('*.patch')):
+            text = path.read_text()
+            if 'b/runtime/src/rb_guest.h' not in text:
+                continue
+            applied = subprocess.run(['git', 'apply', '--whitespace=nowarn', '--include=runtime/src/rb_guest.h', str(path)],
+                                     cwd=folder, capture_output=True, text=True)
+            if applied.returncode:
+                return None, f'{path.name}: {applied.stderr.strip()}'
+        return (Path(folder) / 'runtime/src/rb_guest.h').read_text(), None
+
+
+header, header_error = guest_header_after_series()
+check(header is not None, f'the guest header builds from the patch series ({header_error})')
+patch_fields = struct_members(header[header.index('typedef struct s2a_rb_guest_config'):], 's2a_rb_guest_config') if header else []
 abi = read('S2ArmGuestABI.h')
 abi_fields = struct_members(abi[abi.index('typedef struct s2a_rb_guest_config'):], 's2a_rb_guest_config')
 check(patch_fields == abi_fields and patch_fields[:3] == ['size', 'game_id', 'images'] and 'prepare_code' in patch_fields,
-      f'the guest config ABI matches patch 0003 ({abi_fields} vs {patch_fields})')
+      f'the guest config ABI matches the patch series ({abi_fields} vs {patch_fields})')
+check(patch_fields[-2:] == ['session_parked', 'parked_context'], 'patch 0010 appends session_parked last (older hosts keep working)')
+
+def struct_field_names(text, name):
+    """The member names of `typedef struct { ... } name;`, in order (comments removed, function pointers and
+    comma-separated declarators included)."""
+    end = text.index('} ' + name + ';')
+    start = text.rindex('typedef struct', 0, end)
+    body = re.sub(r'//[^\n]*|/\*.*?\*/', '', text[text.index('{', start) + 1:end], flags=re.S)
+    names = []
+    for declaration in body.split(';'):
+        declaration = ' '.join(declaration.split())
+        if not declaration:
+            continue
+        pointer = re.match(r'.*?\(\s*\*\s*(\w+)\s*\)\s*\(', declaration)
+        if pointer:
+            names.append(pointer.group(1))
+            continue
+        for part in declaration.split(','):
+            found = re.findall(r'(\w+)\s*(?:\[[^\]]*\])?\s*$', part.strip())
+            if found:
+                names.append(found[-1])
+    return names
+
 
 # The preparation ABI copied into the pod names the same struct members as native/s2arm/prepare.
 prep_abi = read('S2ArmPrepareABI.h')
@@ -132,6 +173,11 @@ for header, struct_name in (('s2arm_ns2_dump.h', 'rb_s2arm_ns2_dump_request'), (
     check(set(w for w in want if w not in ('struct',)) <= set(mine) or set(mine) <= set(want) or struct_name in mine or True,
           f'{struct_name} is declared in the pod')
     check(('} ' + struct_name) in prep_abi, f'{struct_name} is declared in the pod ABI')
+    # Field for field, in order: the pod's copy is the layout the library reads (a missing or moved member would
+    # shift every member after it).
+    native_members, pod_members = struct_field_names(source, struct_name), struct_field_names(prep_abi, struct_name)
+    check(native_members and native_members == pod_members,
+          f'{struct_name}: the pod copy has the native members in order ({pod_members} vs {native_members})')
 for symbol in ('rb_s2arm_ns2_detect', 'rb_s2arm_ns2_dump', 'rb_s2arm_prepare_code', 'rb_s2arm_caps', 'rb_s2arm_module_dir',
                'rb_s2arm_direct_skeleton', 'rb_s2arm_resource_pack'):
     check(symbol in prep_abi, f'the pod declares {symbol}')
@@ -206,12 +252,40 @@ for local in ('available', 'helperPresent', 'systemDataPresent', 'engineLoaded',
 
 # IPA 728 on device: the preparation sat on "code · 0%" for minutes and every launch prepared again from scratch.
 prep = read('S2ArmGamePreparation.m')
-check('prep_code_progress, prep_cancelled, (__bridge void *)self}' in prep, 'the code stage reports its steps (not NULL)')
+check('prep_code_progress, prep_cancelled, (__bridge void *)self, prep_code_work}' in prep,
+      'the code stage reports its steps and its progress bar (not NULL)')
+# The code stage's bar: the library's weighted fraction with the rewriter's pass and counts; the step callback only journals,
+# so two fractions of different meaning never alternate on screen.
+code_work = prep[prep.index('static void prep_code_work('):]
+code_work = code_work[:code_work.index('\n}\n')]
+check('fraction:fraction' in code_work and '@"phase" : phaseName' in code_work and '@"attempt" : @(attempt)' in code_work
+      and '@"done" : @(done)' in code_work and '@"total" : @(total)' in code_work, 'the bar sends the pass, its counts and the fraction')
+step_only = prep[prep.index('static void prep_code_progress('):]
+step_only = step_only[:step_only.index('\n}\n')]
+check('emit:' not in step_only and 's2arm_journal("prepare", "codeStep"' in step_only, 'the step callback only journals')
+check('s2arm_journal("prepare", "codePhase"' in prep and '"ms' in prep[prep.index('"codePhase"'):prep.index('"codePhase"') + 200],
+      'each phase of the code stage is journaled with its duration')
+check('NSDictionary *_Nullable work);' in read('S2ArmGamePreparation.h'), 'the progress block carries the work counts')
+# Mario Kart World on device (12 Nov, after IPA 729): the app ended with no message while the rewriter worked on main.
+# The rewriter was validated as a command-line tool on a main thread (8 MB stack); on the phone it runs on its own
+# thread with a larger stack, and the journal records the memory at each phase and as it grows.
+check('rc = prep_code_with_stack(&code, error, sizeof error);' in prep and prep.count('rb_s2arm_prepare_code(') == 2,
+      'the code stage runs through prep_code_with_stack (the second call is its fallback when no thread is created)')
+stack = re.search(r'kCodeStackBytes = (\d+)u << 20', prep)
+check(stack is not None and int(stack.group(1)) >= 8 and 'pthread_attr_setstacksize(&attributes, kCodeStackBytes)' in prep
+      and 'pthread_join(thread, NULL);' in prep, 'the code-stage thread has at least the 8 MB stack of a main thread, and is joined')
+check('"codePhaseBegin"' in prep and '\\"footprintMB\\":%llu,\\"availableMB\\":%llu' in prep[prep.index('"codePhase"'):prep.index('"codePhaseBegin"')]
+      and 'phys_footprint' in prep and 'os_proc_available_memory()' in prep,
+      'each phase is journaled at its start and its end with the footprint and the memory iOS still allows')
+check('s2arm_journal("prepare", "codeMemory"' in prep[prep.index('static void prep_code_work('):]
+      and 'footprint >= self->_memoryNotedMB + kMemoryStepMB' in prep, 'a memory line each time the footprint grows by a step')
 check('prep_pack_progress, prep_cancelled, (__bridge void *)self}' in prep, 'the resource pack reports its bytes')
 run = prep[prep.index('- (NSDictionary *)run {'):]
 check(run.index('reusablePreparation(stampPath, fingerprint, gid)') < run.index('[files removeItemAtPath:stampPath error:nil];')
-      < run.index('for (NSString *path in @[ root, moduleDir, packDir ]) [files removeItemAtPath:path error:nil];'),
-      'a finished preparation is reused first; otherwise its stamp goes before the outputs are rebuilt')
+      < run.index('if (rename(tree.fileSystemRepresentation, aside.fileSystemRepresentation) == 0) _discarded = aside;')
+      < run.index('for (NSString *path in @[ moduleDir, imagesDir, packDir ]) [files removeItemAtPath:path error:nil];')
+      < run.index('rb_s2arm_ns2_dump(&dump, error, sizeof error)'),
+      'a finished preparation is reused first; otherwise its stamp goes, then the previous outputs, before the unpack')
 check(run.index('rb_s2arm_resource_pack(&resource') < run.index('[stamp writeToFile:stampPath atomically:YES]'),
       'the stamp is written only after the last step succeeded')
 fingerprint = prep[prep.index('static NSString *preparationFingerprint('):]
@@ -221,6 +295,54 @@ for part in ('CFBundleVersion', 'chain', 'exportDir', '@"exefs"', '@"romfs"', 'S
 reuse = prep[prep.index('static NSDictionary *_Nullable reusablePreparation('):]
 reuse = reuse[:reuse.index('\n}\n')]
 check('@".applied"' in reuse and '@"imagesPath"' in reuse, 'a reused preparation still has its image pack and .applied')
+# Mario Kart World on device (12 Nov): the preparation "passed" with imagePack 0 bytes and the launch failed with errno 2.
+# rb_s2arm_module_dir replaces the whole module directory (<module_dir>.tmp renamed over it) after writing the pack, so a
+# pack inside moduleDir is deleted. It lives in <game>/images, removed with the other outputs; an empty pack fails.
+check('[moduleDir stringByAppendingPathComponent:[NSString stringWithFormat:@"S2AImages-' not in prep
+      and 'NSString *imagesDir = [gameDir stringByAppendingPathComponent:@"images"];' in prep
+      and 'NSString *imagesPath = [imagesDir stringByAppendingPathComponent:' in prep,
+      'the image pack is written outside the module directory that rb_s2arm_module_dir replaces')
+check('@[ moduleDir, imagesDir, packDir ]' in prep and 'for (NSString *tree in @[ root, [root stringByAppendingString:@".tmp"] ])' in prep
+      and 'else [files removeItemAtPath:tree error:nil];' in prep,
+      'a new preparation removes the previous image pack with the other outputs; the previous root (and a leftover root.tmp) is '
+      'moved aside, or removed in place when it cannot be')
+# Mario Kart World on IPA 731: deleting the previous root took about 14 s before the unpack (one link per RomFS file in the
+# view of a delta update). It is moved aside and deleted at background QoS once the preparation has ended, and only what a
+# preparation moved aside (.discarded-*) is ever deleted there.
+discard = prep[prep.index('static void prep_remove_discarded(NSString *gameDir) {'):]
+discard = discard[:discard.index('\n}\n')]
+check('dispatch_get_global_queue(QOS_CLASS_BACKGROUND, 0)' in discard and 'if (![name hasPrefix:@".discarded-"]) continue;' in discard
+      and discard.count('removeItemAtPath:') == 1,
+      'the discarded roots are deleted in the background, and nothing but .discarded-* entries')
+wrapper = prep[prep.index('- (NSDictionary *)run {'):prep.index('- (NSDictionary *)runSteps {')]
+check(wrapper.index('NSDictionary *result = [self runSteps];') < wrapper.index('if (_cleanupDir) prep_remove_discarded(_cleanupDir);')
+      < wrapper.index('return result;'), 'the discarded roots are deleted only once the preparation has ended, whatever its result')
+check('[@".discarded-" stringByAppendingString:NSUUID.UUID.UUIDString]' in prep, 'each moved-aside root has a name of its own')
+# The unpack's information lines (ns2_dump notes) and the pack's walk and hashing times go to the journal as counts, fixed
+# words and durations only: the journal never holds a path or a title.
+note = prep[prep.index('static void prep_unpack_note(void *context, const char *line) {'):]
+note = note[:note.index('\n}\n')]
+journal_calls = re.findall(r's2arm_journal\((.*?)\);', note, re.S)
+check('prep_unpack_note, prep_cancelled,' in prep and len(journal_calls) == 3
+      and all('line' not in call.split('",', 2)[-1] for call in journal_calls)
+      and all(call.count('%s') <= 1 and ('%s' not in call or call.rstrip().endswith('files, source, ms')) for call in journal_calls),
+      'ns2_dump notes reach the journal as numbers and fixed words, never the line itself')
+check('"packWalk"' in prep and '"packDone"' in prep and '\\"hashMs\\":%llu' in prep and '"cleared"' in prep,
+      'the journal splits the pack stage into its walk and its hashing, and times the clearing of the previous outputs')
+# Mario Kart World on IPA 731: the engine stalled 10 minutes, its own log (<game>/docs/host.log) is in Library, and a 16 MB
+# pool could not serve main's 42 MB after the forced detach.
+export = plugin[plugin.index('static void S2ArmExportEngineLogs(void) {'):plugin.index('static BOOL S2ArmMeloNXCoreLoaded(void) {')]
+check('@"Diagnostics/S2Arm/engine"' in export and '@"host.log"' in export and '@"logs"' in export,
+      'the engine logs (host.log and its archive) are copied to Documents/Diagnostics/S2Arm/engine/<gid>')
+register = plugin[plugin.index('+ (void)registerWithRegistrar:'):plugin.index('- (void)handleMethodCall:')]
+ended_fn = plugin[plugin.index('static void s2arm_session_ended(int code, const char *reason, void *context) {'):]
+check('S2ArmExportEngineLogs()' in register and 'S2ArmExportEngineLogs()' in ended_fn[:600],
+      'the copy runs at each app start (after a crash) and at each session end')
+check('uint64_t pool = plan.boot_code_bytes + plan.later_code_bytes + (16ull << 20);' in plugin,
+      'the spare pool also covers the boot code, for a detach forced before the boot is served')
+module_step = prep[prep.index('rc = rb_s2arm_module_dir(&module, error, sizeof error);'):prep.index('// 6. resource pack')]
+check('if (imagePackBytes == 0) return [self fail:S2ArmErrorIo stage:@"module"' in module_step,
+      'the module step fails when the image pack is missing or empty, instead of a passed preparation that cannot launch')
 plugin = read('S2ArmEngineBridgePlugin.m')
 check('NSURLVolumeAvailableCapacityForImportantUsageKey' in plugin and '@"importantFreeBytes"' in plugin,
       'storageInfo gives the capacity for user-requested work (it counts purgeable space)')
@@ -228,6 +350,7 @@ clone = plugin[plugin.index('isEqualToString:@"cloneTree"'):plugin.index('isEqua
 check('S2ArmPathInside(to, documents)' in clone and 'fileExistsAtPath:to' in clone and 'clonefile(' in clone and
       'CLONE_NOFOLLOW' in clone, 'cloneTree clones only into Documents, onto a free path, without following links')
 check('@"detail" : detail ?: @""' in plugin, 'the progress event carries the code-stage module')
+check('if (work) [arguments addEntriesFromDictionary:work];' in plugin, 'the progress event carries the pass and its counts')
 
 
 # ---------------- executed ----------------

@@ -190,7 +190,7 @@ jobs:
           cat "$out/inventory.txt" | head -150
         env:
           S2A_RUN_ROOT: ${{ runner.temp }}/s2arm-run
-      - name: Check the guest entry points of the framework (patches 0003-0009)
+      - name: Check the guest entry points of the framework (patches 0003-0010)
         # RewindBox dlopens the framework and looks these up with dlsym; die() finds s2a_rb_guest_fatal by name.
         # rb_s2arm_engine_loaded belongs to RewindBox's host plugin and must not come from the framework.
         # In a guest the engine reads its own Info.plist (patch 0009): S2ACommit is its build identity (diagnostics, dguard.c).
@@ -204,7 +204,8 @@ jobs:
           status=0
           note() { echo "$1" | tee -a "$report"; }
           nm -gU "$fw/S2ArmEngine" | awk '{print $3}' | sort > "$RUNNER_TEMP/guest-exports.txt"
-          for sym in _s2a_rb_guest_configure _s2a_rb_guest_make_view_controller _s2a_rb_guest_start _s2a_rb_guest_stop _s2a_rb_guest_fatal; do
+          for sym in _s2a_rb_guest_configure _s2a_rb_guest_make_view_controller _s2a_rb_guest_start _s2a_rb_guest_stop _s2a_rb_guest_fatal \
+                     _s2a_rb_guest_parked _s2a_rb_guest_view_controller _s2a_rb_guest_resume; do
             if grep -qx "$sym" "$RUNNER_TEMP/guest-exports.txt"; then note "ok   exported $sym"; else note "FAIL not exported: $sym"; status=1; fi
           done
           if grep -qx _rb_s2arm_engine_loaded "$RUNNER_TEMP/guest-exports.txt"; then note "FAIL _rb_s2arm_engine_loaded is exported (the host plugin owns it)"; status=1; else note "ok   _rb_s2arm_engine_loaded not exported"; fi

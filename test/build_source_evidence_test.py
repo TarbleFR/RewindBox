@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import plistlib
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -58,6 +59,13 @@ class BuildSourceEvidenceTests(unittest.TestCase):
         self.env = patch.dict(os.environ, {"FLUTTER_ROOT": ""})
         self.env.start()
         self.addCleanup(self.env.stop)
+        # This synthetic checkout models the package audit and its first follow-up only. The reviews chained after it
+        # bind real declarations, vendored sources and pins: they are exercised on the repository itself
+        # (RepositoryReviewChainTests), not on this fixture.
+        for name in ("check_review_chain", "check_xenios_core_delivery"):
+            stub = patch.object(evidence, name, lambda *args: None)
+            stub.start()
+            self.addCleanup(stub.stop)
         self.app = self.root / "Runner.app"
         self.notice_relative = "Frameworks/App.framework/flutter_assets/NOTICES.txt"
         self.notice = self.put("Runner.app/" + self.notice_relative,
@@ -211,6 +219,59 @@ class BuildSourceEvidenceTests(unittest.TestCase):
         self.notice.unlink()
         with self.assertRaisesRegex(SystemExit, "missing Flutter runtime"):
             evidence.collect(self.root, COMMIT, self.app)
+
+
+class RepositoryReviewChainTests(unittest.TestCase):
+    """The review chain on the checked-out repository: every declaration, vendored source and pin the reviews bind
+    still has its reviewed bytes. A shipped change without its review fails here (as the libretro podspec did for
+    11 days before the disc reader review)."""
+
+    def test_the_repository_review_chain_holds(self):
+        inputs = evidence.repository_inputs(ROOT)
+        for name in ("pubspec.yaml", "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec",
+                     "packages/xenia_internal_bridge/ios/xenia_internal_bridge.podspec"):
+            self.assertIn(name, inputs)
+
+    def test_a_shipped_declaration_change_without_review_is_refused(self):
+        podspec = ROOT / "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec"
+        original = evidence.read_input
+
+        def altered(root, path):
+            data = original(root, path)
+            return data + b"\n# unreviewed\n" if path == podspec else data
+
+        with patch.object(evidence, "read_input", altered):
+            with self.assertRaisesRegex(SystemExit, "declaration changed since review"):
+                evidence.repository_inputs(ROOT)
+
+    def test_a_product_tree_without_the_disc_reader_keeps_the_previous_declaration(self):
+        # IPA 731's effective product tree still holds the podspec the RetroAchievements session review declared
+        # (b06888a9's disc reader was never delivered). That exact identity passes; any other unreviewed bytes do not.
+        podspec = ROOT / "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec"
+        review = json.loads((ROOT / evidence.RA_DISC_READER_REVIEW).read_bytes())
+        before = review["declarations"][evidence.LIBRETRO_PODSPEC]["before"]
+        blob = subprocess.run(["git", "-C", str(ROOT), "rev-list", "--all", "--", str(podspec.relative_to(ROOT))],
+                              capture_output=True, text=True, check=True).stdout.split()
+        previous = next((data for data in (subprocess.run(["git", "-C", str(ROOT), "show",
+                                                           f"{commit}:{podspec.relative_to(ROOT).as_posix()}"],
+                                                          capture_output=True).stdout for commit in blob)
+                         if hashlib.sha256(data).hexdigest() == before), None)
+        if previous is None:
+            self.skipTest("the previously declared podspec is not in this clone's history")
+        original = evidence.read_input
+
+        def delivered(root, path):
+            return previous if path == podspec else original(root, path)
+
+        self.assertIn(evidence.LIBRETRO_PODSPEC, self._inputs(delivered))
+        with patch.object(evidence, "read_input", lambda root, path: previous + b"\n# other\n"
+                          if path == podspec else original(root, path)):
+            with self.assertRaisesRegex(SystemExit, "declaration changed since review"):
+                evidence.repository_inputs(ROOT)
+
+    def _inputs(self, reader):
+        with patch.object(evidence, "read_input", reader):
+            return evidence.repository_inputs(ROOT)
 
 
 if __name__ == "__main__":

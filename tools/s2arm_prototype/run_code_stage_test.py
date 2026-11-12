@@ -5,7 +5,7 @@ Usage: run_code_stage_test.py <s2arm_checkout> <s2a-rewrite> <s2arm_prepare_cli>
 
 The reference is the core of pack/stage_rewrite.sh in its order, each step by the
 original tool: addr_need.py, nro_to_nso.py, the rewriter command line per module
-(spin gate on, Apple target), main.npdm, nro_exports.py, profile_guess.py
+(Apple target, spin pass off as on the phone), main.npdm, nro_exports.py, profile_guess.py
 --gpu-drivers. Both sides get the same synthetic ExeFS/RomFS (no game content).
 A successful reference needs the same files and bytes (rewriter logs aside);
 a failing reference needs a failing library.
@@ -45,7 +45,7 @@ def snapshot(root):
 def reference(checkout, rewriter, exefs, romfs, out):
     """Returns 0, or the name of the first step that failed."""
     env = {k: v for k, v in os.environ.items() if not k.startswith('S2A_')}
-    env['S2A_REWRITE_SPIN'] = '1'
+    env['S2A_REWRITE_SPIN'] = '0'   # as rewrite_one in native/s2arm/prepare/s2arm_prepare.c
     py = [sys.executable]
     build = (exefs / 'main').read_bytes()[0x40:0x50].hex() if (exefs / 'main').is_file() else '00' * 16
 
@@ -110,6 +110,21 @@ def case(name, checkout, rewriter, cli, work, exefs, romfs, expect_success=None,
     different = sorted(k for k in set(a) | set(b) if a.get(k) != b.get(k))
     ok = run.returncode == 0 and not different
     report(ok, name, f'{len(a)} files identical' if ok else f'library: {last}; differing: {different[:8]}')
+    if ok:
+        bar_ok, bar_line = progress_bar(run.stderr)
+        report(bar_ok, f'{name} progress bar', bar_line)
+
+
+def progress_bar(stderr):
+    """The CLI's summary of the code stage's progress bar (rb_s2arm_code_request.work, through the patched rewriter):
+    events came, the fraction stayed in [0, 1], never went back and ended at 1; the passes were reported."""
+    line = next((l for l in stderr.splitlines() if l.startswith('work events=')), '')
+    fields = dict(item.split('=', 1) for item in line.split()[1:] if '=' in item)
+    phases = set(fields.get('phases', '').split(','))
+    ok = (bool(line) and int(fields.get('events', 0)) > 0 and fields.get('backwards') == '0' and fields.get('outside') == '0'
+          and abs(float(fields.get('last', 0)) - 1) < 1e-6 and 'main' in fields.get('parts', '').split(',')
+          and {'start', 'load', 'scan', 'analyze', 'outputs', 'end'} <= phases)
+    return ok, line or 'no progress summary'
 
 
 def main():

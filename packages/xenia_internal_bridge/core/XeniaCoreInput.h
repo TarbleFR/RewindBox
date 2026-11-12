@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include <vector>
 
 #include "xenia/base/cvar.h"
 #include "xenia/hid/input.h"
@@ -25,6 +26,11 @@ inline std::atomic<uint32_t> g_buttons{0};
 inline std::atomic<int16_t> g_lx{0}, g_ly{0}, g_rx{0}, g_ry{0};
 inline std::atomic<uint8_t> g_lt{0}, g_rt{0};
 inline std::atomic<uint32_t> g_packet{0};
+
+// Rumble of user 0 (left: low-frequency motor, right: high-frequency, each
+// 0..65535) as last forwarded, and where the facade forwards a change.
+inline std::atomic<uint32_t> g_vibration{0};
+inline void (*g_vibration_sink)(uint16_t left, uint16_t right) = nullptr;
 
 
 // Applies one cvar the way the engine's own config loader does
@@ -91,9 +97,18 @@ class NeoXeniaInputDriver final : public xe::hid::InputDriver {
     return X_ERROR_SUCCESS;
   }
 
-  X_RESULT SetState(uint32_t user_index, xe::hid::X_INPUT_VIBRATION* /*vibration*/) override {
-    // Rumble is not forwarded yet; the pad stays connected.
-    return user_index == 0 ? X_ERROR_SUCCESS : X_ERROR_DEVICE_NOT_CONNECTED;
+  // XInputSetState: forwarded only when it changes (titles repeat it every
+  // frame), as XeniOS's SDL driver rumbles the pad (sdl_input_driver.cc).
+  X_RESULT SetState(uint32_t user_index, xe::hid::X_INPUT_VIBRATION* vibration) override {
+    if (user_index != 0) return X_ERROR_DEVICE_NOT_CONNECTED;
+    if (!vibration) return X_ERROR_SUCCESS;
+    const uint16_t left = static_cast<uint16_t>(vibration->left_motor_speed);
+    const uint16_t right = static_cast<uint16_t>(vibration->right_motor_speed);
+    const uint32_t packed = (uint32_t(left) << 16) | right;
+    if (g_vibration.exchange(packed, std::memory_order_relaxed) != packed && g_vibration_sink) {
+      g_vibration_sink(left, right);
+    }
+    return X_ERROR_SUCCESS;
   }
 
   X_RESULT GetKeystroke(uint32_t /*user_index*/, uint32_t /*flags*/,
@@ -102,6 +117,22 @@ class NeoXeniaInputDriver final : public xe::hid::InputDriver {
   }
 
   xe::hid::InputType GetInputType() const override { return xe::hid::InputType::Controller; }
+
+  // XeniOS's InputSystem reaches a driver only through the guest-slot
+  // bindings it builds from the devices drivers enumerate (ReconcileBindings,
+  // first at InputSystem::Setup). The host pad is one device, bound to slot 0
+  // as the XeniOS touch overlay is (touch_input_driver_ios.cc). Without it no
+  // touch or controller input reached the title (first booted device run).
+  std::vector<xe::hid::InputDeviceInfo> EnumerateDevices() override {
+    xe::hid::InputDeviceInfo info = {};
+    info.driver_slot = 0;
+    info.stable_id = "rewindbox-host-pad";
+    info.display_name = "RewindBox";
+    info.subtype = xe::hid::XINPUT_DEVSUBTYPE_GAMEPAD;
+    info.preferred_slot = 0;
+    info.auto_bind = true;
+    return {std::move(info)};
+  }
 };
 
 inline int16_t Axis(float value) {

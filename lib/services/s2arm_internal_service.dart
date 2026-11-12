@@ -99,13 +99,40 @@ class S2ArmSaveException implements Exception {
 }
 
 class S2ArmImportProgress {
-  const S2ArmImportProgress({required this.name, required this.index, required this.count, required this.done, required this.total});
+  const S2ArmImportProgress({
+    required this.name,
+    required this.index,
+    required this.count,
+    required this.done,
+    required this.total,
+    this.step,
+    this.part,
+    this.phase,
+    this.attempt = 0,
+    this.unitsDone,
+    this.unitsTotal,
+    this.overall,
+  });
   final String name;
   final int index;
   final int count;
   final int done;
   final int total;
   double? get fraction => total <= 0 ? null : (done / total).clamp(0.0, 1.0);
+
+  // A preparation only (null for an import copy). step: unpack, code, caps, direct, module, pack or done. part: the
+  // code stage's part (zbic, addr_need, nro, a module such as main, tables) or "reused". phase: the part's phase (a
+  // pass of the rewriter, "walk", "zbic"...). attempt: 2... when the rewriter redoes a module with a new layout.
+  // unitsDone / unitsTotal: the phase's own counts (functions, rewrite units, bytes, files), total 0 = no count.
+  final String? step;
+  final String? part;
+  final String? phase;
+  final int attempt;
+  final int? unitsDone;
+  final int? unitsTotal;
+
+  /// The whole preparation in [0, 1], weighted by step ([S2ArmInternalService.preparationOverall]).
+  final double? overall;
 }
 
 class S2ArmImportControl {
@@ -230,13 +257,21 @@ abstract final class S2ArmInternalService {
         _logPrepareStep(step, detail);
         final progress = _activePrepareProgress;
         if (progress != null) {
+          final fraction = ((arguments['fraction'] as num?)?.toDouble() ?? 0).clamp(0.0, 1.0);
           progress(S2ArmImportProgress(
             // "code · main": the module the code stage is on, so a long stage visibly moves.
             name: detail.isEmpty ? step : '$step · $detail',
             index: (arguments['index'] as num?)?.toInt() ?? 0,
             count: (arguments['count'] as num?)?.toInt() ?? 0,
-            done: (((arguments['fraction'] as num?)?.toDouble() ?? 0) * 1000).round(),
+            done: (fraction * 1000).round(),
             total: 1000,
+            step: step,
+            part: detail.isEmpty ? null : detail,
+            phase: arguments['phase']?.toString(),
+            attempt: (arguments['attempt'] as num?)?.toInt() ?? 0,
+            unitsDone: (arguments['done'] as num?)?.toInt(),
+            unitsTotal: (arguments['total'] as num?)?.toInt(),
+            overall: preparationOverall(step, fraction),
           ));
         }
       } else if (call.method == 'sessionEnded') {
@@ -245,6 +280,30 @@ abstract final class S2ArmInternalService {
       }
       return null;
     });
+  }
+
+  // ---------------- preparation progress ----------------
+
+  /// The share of a whole preparation each step takes on the bar: the code stage (the rewriter) is by far the longest.
+  /// The code stage's own fraction is already weighted by module size and by the rewriter's passes.
+  static const List<MapEntry<String, double>> preparationSteps = [
+    MapEntry('unpack', 0.04),
+    MapEntry('code', 0.80),
+    MapEntry('caps', 0.02),
+    MapEntry('direct', 0.02),
+    MapEntry('module', 0.06),
+    MapEntry('pack', 0.06),
+  ];
+
+  /// The whole preparation in [0, 1] when [step] is at [fraction]; 1 when done; null for an unknown step.
+  static double? preparationOverall(String step, double fraction) {
+    if (step == 'done') return 1;
+    var before = 0.0;
+    for (final entry in preparationSteps) {
+      if (entry.key == step) return (before + entry.value * fraction.clamp(0.0, 1.0)).clamp(0.0, 1.0);
+      before += entry.value;
+    }
+    return null;
   }
 
   // ---------------- error mapping ----------------
@@ -795,9 +854,14 @@ abstract final class S2ArmInternalService {
         LoggerService.instance.w('S2Arm launch: refused before preparing, the Switch 1 engine (MeloNX) is loaded in this process');
         return const S2ArmLaunchOutcome.failure('switch1EngineLoaded');
       }
-      if (flag(now['engineLoaded'])) return const S2ArmLaunchOutcome.failure('engineRestartRequired');
+      // One Switch 2 game per process, except the game the player quit: the engine parked it and it resumes (patch 0010).
+      final parked = (now['parkedGameId'] ?? '').toString().toUpperCase();
+      if (flag(now['engineLoaded']) && parked.isEmpty) return const S2ArmLaunchOutcome.failure('engineRestartRequired');
       final detected = await detectExport(exportFolder);
       if (detected['success'] != true) return S2ArmLaunchOutcome.failure((detected['code'] ?? 'notExportFolder').toString());
+      if (flag(now['engineLoaded']) && (detected['gid'] ?? '').toString().toUpperCase() != parked) {
+        return const S2ArmLaunchOutcome.failure('engineRestartRequired');
+      }
       final prepared = await prepare(exportFolder: (detected['exportDir'] ?? exportFolder).toString(), onProgress: onPrepareProgress);
       if (prepared['success'] != true) {
         return S2ArmLaunchOutcome.failure((prepared['code'] ?? 'prepareFailed').toString(), prepared['diagnostic']?.toString());

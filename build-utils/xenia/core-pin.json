@@ -1,23 +1,23 @@
 {
   "status": "verified",
   "source": "cf7c7ee452314913124d205e41e325b33891aacb",
-  "run": 43158794942,
-  "job": 130987235752,
-  "attempt": 2,
+  "run": 43241572889,
+  "job": 131265441453,
+  "attempt": 1,
   "workflow": ".github/workflows/xenia-core.yml",
-  "artifact": 13918817166,
-  "name": "XeniaCore-c579a0e7be4681610fc54b43ac7cd0448b060ac7",
-  "bytes": 9533042,
-  "sha256": "cc266472c32810288097c77d44fec698d81dee37d5c56b5637a2b91b492f9b96",
-  "expiresAt": "2026-11-26T05:43:53Z",
+  "artifact": 13957752125,
+  "name": "XeniaCore-2bbc9daf76881aff89170b052895c49cd04b1638",
+  "bytes": 9542933,
+  "sha256": "2e29104fc026480a4989fbed7f6d1757249c1371a3bdeae36b15e83180932018",
+  "expiresAt": "2026-11-26T15:31:05Z",
   "image": "Frameworks/XeniaCore.framework/XeniaCore",
   "binaries": {
     "ios-arm64": {
-      "sha256": "8da52f76fd511d691441f188f744f02d8fc2141fca3dda316b160ae68474ee70",
-      "bytes": 37719960
+      "sha256": "8c59ad09cd1bf729082e7f105a6d776ecd4d8d4d766b9da45cecadd235bdc891",
+      "bytes": 37751320
     }
   },
-  "packagedFingerprint": "d5fe8a7cda560ca215968fdaaf6275632323ae560bbe373516a532b45710f2c2",
+  "packagedFingerprint": "9cbc552026cc34e7d23ce4f24463a96c370bde56705f3d5fba32d54bbbd61700",
   "minimumOS": "26.0.0",
   "sdk": "26.5.0",
   "dependencies": [
@@ -153,9 +153,9 @@
   },
   "replaces": {
     "source": "cf7c7ee452314913124d205e41e325b33891aacb",
-    "run": 43143255347,
-    "artifact": 13911882257,
-    "packagedFingerprint": "d386ae411b8b60d586af9b816c83e5938c3878c7135db6d3ba402e552d87f1f3",
-    "reason": "Core ABI 4: the JIT code region below 8 GB is held from RewindBox's launch (first device run closed RewindBox: no room for the code region); fatal-error record"
+    "run": 43217888486,
+    "artifact": 13946139906,
+    "packagedFingerprint": "bd6351c04a98c1aceed55d340bb295842e8c1670e774b4546463245e0819e662",
+    "reason": "a profile is signed in before the title runs and the title's sign-in, message box and keyboard prompts are answered (Fable Anniversary stayed on its title screen); rumble forwarded"
   }
 }

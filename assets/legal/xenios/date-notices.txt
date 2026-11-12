@@ -1,0 +1,85 @@
+Howard Hinnant's date library in XeniOS (XeniaCore)
+
+XeniaCore compiles XeniOS's src/xenia/base/chrono.h, which includes
+third_party/date (https://github.com/HowardHinnant/date, submodule commit
+f94b8f36c6180be0021876c4a397a054fe50c6f2 at XeniOS
+cf7c7ee452314913124d205e41e325b33891aacb): include/date/date.h and
+include/date/tz.h. XeniOS's Acknowledgements.json does not list it. Each file
+carries its own MIT notice (the project's LICENSE.txt, shipped beside this
+file as date-LICENSE.txt, says so); the two notices are reproduced below as
+published.
+
+----------------------------------------------------------------------
+include/date/date.h (SHA-256 bb1e68b8f17f900508e151844221050cbbdf33f39d160410c9bc8fbd6a612ae7)
+----------------------------------------------------------------------
+
+// The MIT License (MIT)
+//
+// Copyright (c) 2015, 2016, 2017 Howard Hinnant
+// Copyright (c) 2016 Adrian Colomitchi
+// Copyright (c) 2017 Florian Dang
+// Copyright (c) 2017 Paul Thompson
+// Copyright (c) 2018, 2019 Tomasz Kamiński
+// Copyright (c) 2019 Jiangang Zhuang
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+// Our apologies.  When the previous paragraph was written, lowercase had not yet
+// been invented (that would involve another several millennia of evolution).
+// We did not mean to shout.
+
+----------------------------------------------------------------------
+include/date/tz.h (SHA-256 0749f7275b5533fb34aef80f189d01831088c92d2662491c910d1ed983413f55)
+----------------------------------------------------------------------
+
+// The MIT License (MIT)
+//
+// Copyright (c) 2015, 2016, 2017 Howard Hinnant
+// Copyright (c) 2017 Jiangang Zhuang
+// Copyright (c) 2017 Aaron Bishop
+// Copyright (c) 2017 Tomasz Kamiński
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+// Our apologies.  When the previous paragraph was written, lowercase had not yet
+// been invented (that would involve another several millennia of evolution).
+// We did not mean to shout.
+
+----------------------------------------------------------------------
+Also compiled, without a notice requirement: miniaudio (XeniOS
+third_party/miniaudio at 9634bedb5b5a2ca38c1ee7108a9358a4e233f14d, public
+domain or MIT No Attribution, used by src/xenia/ui/audio_helper.cc) and
+microprofile (third_party/microprofile, released under unlicense.org, used
+by src/xenia/base/profiling.cc).

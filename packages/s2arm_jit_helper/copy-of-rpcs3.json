@@ -65,6 +65,13 @@
         ["NeoStationRPCS3JITHelper", "NeoStationS2ArmJITHelper", 1],
         ["Rpcs3JITRequestHandler", "S2ArmJITRequestHandler", 1]
       ]
+    },
+    "packages/s2arm_jit_helper/LICENSE": {
+      "source": "packages/rpcs3_jit_helper/LICENSE",
+      "sourceSha256": "a3cbd576e4a0888f99907438a5612cbbb8deebb91d773331a423b8fb6c4460aa",
+      "replacements": [
+        ["rpcs3_jit_helper", "s2arm_jit_helper", 1]
+      ]
     }
   }
 }
