@@ -10,6 +10,9 @@
 #import <os/proc.h>
 #import <pthread.h>
 #import <stdatomic.h>
+#import <stdio.h>
+#import <string.h>
+#import <sys/stat.h>
 
 NSString *const S2ArmErrorNotExportFolder = @"notExportFolder";
 NSString *const S2ArmErrorExportInvalid = @"exportInvalid";
@@ -224,6 +227,15 @@ static int prep_code_with_stack(const rb_s2arm_code_request *request, char *erro
   NSString *_phaseName;
   uint64_t _phaseStartNs;
   unsigned long long _phaseDone, _phaseTotal;
+  // The resource pack stage: its start, when its first progress came (the walk and the links done) and the last total.
+  uint64_t _packStartNs, _packFirstNs;
+  unsigned long long _packTotal;
+  // The unpack stage's start, for the timing of ns2_dump's information lines.
+  uint64_t _unpackStartNs;
+  // The previous preparation's root, moved aside by this one, and the game folder whose .discarded-* entries are deleted in
+  // the background once it has ended.
+  NSString *_discarded;
+  NSString *_cleanupDir;
 }
 
 - (void)cancel {
@@ -314,10 +326,58 @@ static void prep_code_work(void *context, const char *part, const char *phase, i
           work:@{@"phase" : phaseName, @"attempt" : @(attempt), @"done" : @(done), @"total" : @(total)}];
 }
 
-// The resource pack stage, by bytes.
+// The resource pack stage, by bytes. Its first call marks the end of the walk and the links (journaled with the bytes
+// still to read); the stage's end is journaled by run with the hashing time.
 static void prep_pack_progress(void *context, uint64_t done, uint64_t total) {
   S2ArmGamePreparation *self = (__bridge S2ArmGamePreparation *)context;
+  if (!self->_packFirstNs) {
+    self->_packFirstNs = s2arm_code_now_ns();
+    s2arm_journal("prepare", "packWalk", "\"ms\":%llu,\"totalBytes\":%llu",
+                  (unsigned long long)((self->_packFirstNs - self->_packStartNs) / 1000000ull), (unsigned long long)total);
+  }
+  self->_packTotal = total;
   [self emit:@"pack" index:5 count:kPrepareSteps fraction:(total ? (double)done / (double)total : 0) detail:nil];
+}
+
+// ns2_dump's information lines, reduced to counts and fixed words for the journal (which never holds a path or a title): how
+// the RomFS is laid out (a delta update is one link per file) and how many files it has, with the time since the unpack
+// began. The lines are the library's own wording (native/s2arm/prepare/s2arm_ns2_dump.c).
+static void prep_unpack_note(void *context, const char *line) {
+  S2ArmGamePreparation *self = (__bridge S2ArmGamePreparation *)context;
+  if (!line) return;
+  unsigned long long ms = (s2arm_code_now_ns() - self->_unpackStartNs) / 1000000ull;
+  size_t base = 0, update = 0, files = 0, updates = 0;
+  if (sscanf(line, "romfs: base %zu + update %zu overlaid", &base, &update) == 2) {
+    s2arm_journal("prepare", "unpackLayout", "\"layout\":\"overlay\",\"base\":%zu,\"update\":%zu,\"ms\":%llu", base, update, ms);
+    return;
+  }
+  if (sscanf(line, "%zu updates, using the newest", &updates) == 1) {
+    s2arm_journal("prepare", "unpackUpdates", "\"updates\":%zu,\"ms\":%llu", updates, ms);
+    return;
+  }
+  const char *romfs = strstr(line, "; romfs ");
+  if (!strncmp(line, "Switch 2 export -> ", 19) && romfs && sscanf(romfs, "; romfs %zu files (", &files) == 1) {
+    const char *open = strchr(romfs, '(');
+    const char *source = open && !strncmp(open, "(update only)", 13) ? "update" : open && !strncmp(open, "(base + update)", 15) ? "overlay" : "base";
+    s2arm_journal("prepare", "unpackDone", "\"files\":%zu,\"source\":\"%s\",\"ms\":%llu", files, source, ms);
+  }
+}
+
+// Removes what earlier preparations of this game moved aside (.discarded-*), at background QoS: its disk work is
+// throttled behind the foreground. Called once a preparation has ended, never while one writes.
+static void prep_remove_discarded(NSString *gameDir) {
+  dispatch_async(dispatch_get_global_queue(QOS_CLASS_BACKGROUND, 0), ^{
+    NSFileManager *files = NSFileManager.defaultManager;
+    uint64_t start = s2arm_code_now_ns();
+    NSUInteger removed = 0;
+    for (NSString *name in [files contentsOfDirectoryAtPath:gameDir error:nil] ?: @[]) {
+      if (![name hasPrefix:@".discarded-"]) continue;
+      if ([files removeItemAtPath:[gameDir stringByAppendingPathComponent:name] error:nil]) removed++;
+    }
+    if (removed)
+      s2arm_journal("prepare", "discardedRemoved", "\"folders\":%lu,\"ms\":%llu", (unsigned long)removed,
+                    (unsigned long long)((s2arm_code_now_ns() - start) / 1000000ull));
+  });
 }
 
 static NSString *sha256Hex(NSData *data) {
@@ -420,6 +480,14 @@ static NSString *mapPrepareCode(int rc) {
 }
 
 - (NSDictionary *)run {
+  NSDictionary *result = [self runSteps];
+  // The previous root moved aside at the start (and any left by a preparation the app did not finish) goes now, in the
+  // background: on success, on failure and on cancel alike.
+  if (_cleanupDir) prep_remove_discarded(_cleanupDir);
+  return result;
+}
+
+- (NSDictionary *)runSteps {
   NSFileManager *files = NSFileManager.defaultManager;
   NSString *chain = self.directChain ?: S2ArmShippedDirectChain();
   if (chain.length < 1 || chain.length > 12) return [self fail:S2ArmErrorEngineChainMissing stage:@"setup" detail:"no direct library chain version"];
@@ -433,6 +501,7 @@ static NSString *mapPrepareCode(int rc) {
   NSString *gid = detected[@"gid"];
   NSString *exportDir = detected[@"exportDir"];
   NSString *gameDir = S2ArmGameDirectory(gid);
+  _cleanupDir = gameDir;
   NSString *root = [gameDir stringByAppendingPathComponent:@"root"];
   NSString *moduleDir = [gameDir stringByAppendingPathComponent:@"module"];
   // The image pack lives outside moduleDir. rb_s2arm_module_dir builds <module_dir>.tmp and swaps it in for the whole module
@@ -453,10 +522,23 @@ static NSString *mapPrepareCode(int rc) {
   s2arm_journal("prepare", "begin", "\"gid\":\"%s\"", gid.UTF8String);
 
   // The root, module, image pack and pack are rebuilt from scratch; docs is preserved. The stamp goes first, so an
-  // interrupted preparation is never reused.
+  // interrupted preparation is never reused. The previous root is moved aside (one rename) and deleted in the background
+  // once this preparation has ended: deleting it here took about 14 s for Mario Kart World on the phone (IPA 731), since the
+  // RomFS view of a delta update holds one link per file. It holds about 150 MB besides (the modules and their rewrites)
+  // until then. The other three are small and go at once, as before.
+  uint64_t clearStart = s2arm_code_now_ns();
   [files removeItemAtPath:stampPath error:nil];
-  for (NSString *path in @[ root, moduleDir, imagesDir, packDir ]) [files removeItemAtPath:path error:nil];
+  for (NSString *tree in @[ root, [root stringByAppendingString:@".tmp"] ]) {   // root.tmp: an unpack the app did not finish
+    struct stat treeStat;
+    if (lstat(tree.fileSystemRepresentation, &treeStat) != 0) continue;
+    NSString *aside = [gameDir stringByAppendingPathComponent:[@".discarded-" stringByAppendingString:NSUUID.UUID.UUIDString]];
+    if (rename(tree.fileSystemRepresentation, aside.fileSystemRepresentation) == 0) _discarded = aside;
+    else [files removeItemAtPath:tree error:nil];
+  }
+  for (NSString *path in @[ moduleDir, imagesDir, packDir ]) [files removeItemAtPath:path error:nil];
   for (NSString *path in @[ gameDir, docsDir, moduleDir ]) [files createDirectoryAtPath:path withIntermediateDirectories:YES attributes:nil error:nil];
+  s2arm_journal("prepare", "cleared", "\"ms\":%llu,\"rootMovedAside\":%d",
+                (unsigned long long)((s2arm_code_now_ns() - clearStart) / 1000000ull), _discarded ? 1 : 0);
 
   NSMutableDictionary *sizes = [NSMutableDictionary dictionary];
   NSMutableDictionary *durations = [NSMutableDictionary dictionary];
@@ -466,7 +548,9 @@ static NSString *mapPrepareCode(int rc) {
   // 1. ns2-dump --reference: RomFS and DLC read in place through relative links.
   [self emit:@"unpack" index:0 count:steps fraction:0];
   uint64_t t0 = s2arm_code_now_ns();
-  rb_s2arm_ns2_dump_request dump = {exportDir.fileSystemRepresentation, root.fileSystemRepresentation, NULL, 1, NULL, prep_cancelled, (__bridge void *)self, 0};
+  _unpackStartNs = t0;
+  rb_s2arm_ns2_dump_request dump = {exportDir.fileSystemRepresentation, root.fileSystemRepresentation, NULL, 1, prep_unpack_note, prep_cancelled,
+                                    (__bridge void *)self, 0};
   int rc = rb_s2arm_ns2_dump(&dump, error, sizeof error);
   if (rc != RB_S2ARM_NS2_OK) {
     NSString *code = rc == RB_S2ARM_NS2_CANCELLED ? S2ArmErrorCancelled : rc == RB_S2ARM_NS2_IO ? S2ArmErrorIo : S2ArmErrorExportInvalid;
@@ -527,6 +611,9 @@ static NSString *mapPrepareCode(int rc) {
   // would dangle after an update. RomFS and DLC links stay inside the data container and survive updates.
   [self emit:@"pack" index:5 count:steps fraction:0];
   t0 = s2arm_code_now_ns();
+  _packStartNs = t0;
+  _packFirstNs = 0;
+  _packTotal = 0;
   rb_s2arm_resource_request resource = {root.fileSystemRepresentation, packDir.fileSystemRepresentation, systemData.fileSystemRepresentation, 0, 1,
                                         prep_pack_progress, prep_cancelled, (__bridge void *)self};
   rc = rb_s2arm_resource_pack(&resource, error, sizeof error);
@@ -535,6 +622,9 @@ static NSString *mapPrepareCode(int rc) {
     return [self fail:mapped stage:@"pack" detail:error];
   }
   durations[@"pack"] = @((s2arm_code_now_ns() - t0) / 1000000ull);
+  s2arm_journal("prepare", "packDone", "\"ms\":%llu,\"hashMs\":%llu,\"totalBytes\":%llu",
+                (unsigned long long)((s2arm_code_now_ns() - t0) / 1000000ull),
+                (unsigned long long)(_packFirstNs ? (s2arm_code_now_ns() - _packFirstNs) / 1000000ull : 0), _packTotal);
 
   [self emit:@"done" index:6 count:steps fraction:1];
   s2arm_journal("prepare", "passed", "\"gid\":\"%s\",\"imagePackBytes\":%llu", gid.UTF8String, [sizes[@"imagePack"] unsignedLongLongValue]);

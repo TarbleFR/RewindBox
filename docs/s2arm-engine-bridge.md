@@ -284,3 +284,44 @@ The maintainer asked for a real progress bar: on IPA 728 the dialog showed "code
 - Limits: the pass shares are estimates until the journal of a real run gives the durations. Nothing has been
   observed on a device. The new library needs a new `prepare` pin (`build-utils/s2arm/engine-pin.json`); the engine
   and the system data are unchanged.
+
+## Preparation speed (Mario Kart World, IPA 731 timings)
+
+The S2Arm journal and app.log of IPA 731 give 427 s for a full preparation:
+
+| Step | Time | Where it went |
+| --- | --- | --- |
+| clearing | 14 s | deleting the previous root, whose RomFS view of a delta update holds one link per file |
+| unpack | 119 s | a `mkdir` for every path component from `/` before each of about 205 000 links, plus walks with a `stat` per entry |
+| code | 60 s | two RomFS walks of 29 s each (NRO conversion, NRO exports), with an `lstat` and a `stat` per entry; the modules took 3 s |
+| caps | 29 s | a third RomFS walk, for an engine rule that cannot match (main names neither Unity nor Unreal) |
+| pack | 204 s | SHA-256 of the whole RomFS (22 GB) in portable C on one thread, about 110 MB/s |
+
+What changed (outputs are the same byte for byte; CI compares them with S2Arm's tools on Linux and macOS):
+
+- SHA-256 comes from CommonCrypto on Apple systems (`s2arm_sha256.c`), which uses the CPU's SHA-256 instructions.
+- The resource pack hashes the RomFS and DLC files with up to four threads. Each thread has one 4 MiB buffer. The
+  calling thread reports progress every 100 ms, and cancel is polled between chunks (`hash_linked` in `s2arm_pack.c`).
+  Errors come out as they did with one thread. A failure stops the files after it, the files before it finish, and the
+  earliest file's failure is the one reported.
+- `makedirs` (ns2_dump) tries the path itself first and goes up only when a parent is missing. The in-place view
+  remembers the directory of the previous link and makes the link before any `unlink`.
+- The walks take the entry type from `readdir` (`s2arm_dirent.h`). They `stat` only links and entries of unknown type.
+  The NRO walk stats only links named `*.nro`, and the pack walk stats files with `fstatat` relative to their directory.
+- The caps engine rule skips the RomFS walk when main names neither Unity nor Unreal: the walk could only turn the
+  answer to False, and it is already False.
+- One difference from the old C walks remains, and the review accepted it. A folder that can be listed but not
+  searched (read without execute permission) is now walked from its listing, as Python's `os.walk` does through
+  `scandir`. Before, a stat of each entry failed. An export imported by the app has no such folder.
+- The bridge moves the previous root aside (one `rename`) and deletes it at background QoS once the preparation has
+  ended. Only `.discarded-*` entries are deleted there. The root holds about 150 MB until then.
+- The journal adds `cleared`, `unpackLayout` / `unpackUpdates` / `unpackDone`, `packWalk` and `packDone` lines. They
+  carry counts, fixed words and durations only. With them, the next device run shows where the remaining time goes.
+
+Local check (scratch harness, Linux, not the phone): the old and new libraries gave identical outputs and errors on 17
+case and mode combinations, including delta overlays, links to files and to folders, a dangling link, a FIFO, Unity, and
+Unreal with `.pak`. ThreadSanitizer reported nothing on a full pack or on early and late cancels. On a 60 000-file delta
+tree with a warm cache: unpack 1.42 → 0.85 s, caps 0.25 → 0.00 s, NRO walk 0.25 → 0.04 s, pack 0.95 → 0.46 s.
+The phone's times are not measured yet. Its `stat` costs about 140 µs per RomFS entry in a walk, far more than on
+this machine. The progress bar's step weights (unpack 4 %, code 80 %, pack 6 %...) still follow the old guesses, to
+be set from the next journal.

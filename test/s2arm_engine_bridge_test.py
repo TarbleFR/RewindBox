@@ -282,8 +282,10 @@ check('s2arm_journal("prepare", "codeMemory"' in prep[prep.index('static void pr
 check('prep_pack_progress, prep_cancelled, (__bridge void *)self}' in prep, 'the resource pack reports its bytes')
 run = prep[prep.index('- (NSDictionary *)run {'):]
 check(run.index('reusablePreparation(stampPath, fingerprint, gid)') < run.index('[files removeItemAtPath:stampPath error:nil];')
-      < run.index('for (NSString *path in @[ root, moduleDir, imagesDir, packDir ]) [files removeItemAtPath:path error:nil];'),
-      'a finished preparation is reused first; otherwise its stamp goes before the outputs are rebuilt')
+      < run.index('if (rename(tree.fileSystemRepresentation, aside.fileSystemRepresentation) == 0) _discarded = aside;')
+      < run.index('for (NSString *path in @[ moduleDir, imagesDir, packDir ]) [files removeItemAtPath:path error:nil];')
+      < run.index('rb_s2arm_ns2_dump(&dump, error, sizeof error)'),
+      'a finished preparation is reused first; otherwise its stamp goes, then the previous outputs, before the unpack')
 check(run.index('rb_s2arm_resource_pack(&resource') < run.index('[stamp writeToFile:stampPath atomically:YES]'),
       'the stamp is written only after the last step succeeded')
 fingerprint = prep[prep.index('static NSString *preparationFingerprint('):]
@@ -300,7 +302,33 @@ check('[moduleDir stringByAppendingPathComponent:[NSString stringWithFormat:@"S2
       and 'NSString *imagesDir = [gameDir stringByAppendingPathComponent:@"images"];' in prep
       and 'NSString *imagesPath = [imagesDir stringByAppendingPathComponent:' in prep,
       'the image pack is written outside the module directory that rb_s2arm_module_dir replaces')
-check('@[ root, moduleDir, imagesDir, packDir ]' in prep, 'a new preparation removes the previous image pack with the other outputs')
+check('@[ moduleDir, imagesDir, packDir ]' in prep and 'for (NSString *tree in @[ root, [root stringByAppendingString:@".tmp"] ])' in prep
+      and 'else [files removeItemAtPath:tree error:nil];' in prep,
+      'a new preparation removes the previous image pack with the other outputs; the previous root (and a leftover root.tmp) is '
+      'moved aside, or removed in place when it cannot be')
+# Mario Kart World on IPA 731: deleting the previous root took about 14 s before the unpack (one link per RomFS file in the
+# view of a delta update). It is moved aside and deleted at background QoS once the preparation has ended, and only what a
+# preparation moved aside (.discarded-*) is ever deleted there.
+discard = prep[prep.index('static void prep_remove_discarded(NSString *gameDir) {'):]
+discard = discard[:discard.index('\n}\n')]
+check('dispatch_get_global_queue(QOS_CLASS_BACKGROUND, 0)' in discard and 'if (![name hasPrefix:@".discarded-"]) continue;' in discard
+      and discard.count('removeItemAtPath:') == 1,
+      'the discarded roots are deleted in the background, and nothing but .discarded-* entries')
+wrapper = prep[prep.index('- (NSDictionary *)run {'):prep.index('- (NSDictionary *)runSteps {')]
+check(wrapper.index('NSDictionary *result = [self runSteps];') < wrapper.index('if (_cleanupDir) prep_remove_discarded(_cleanupDir);')
+      < wrapper.index('return result;'), 'the discarded roots are deleted only once the preparation has ended, whatever its result')
+check('[@".discarded-" stringByAppendingString:NSUUID.UUID.UUIDString]' in prep, 'each moved-aside root has a name of its own')
+# The unpack's information lines (ns2_dump notes) and the pack's walk and hashing times go to the journal as counts, fixed
+# words and durations only: the journal never holds a path or a title.
+note = prep[prep.index('static void prep_unpack_note(void *context, const char *line) {'):]
+note = note[:note.index('\n}\n')]
+journal_calls = re.findall(r's2arm_journal\((.*?)\);', note, re.S)
+check('prep_unpack_note, prep_cancelled,' in prep and len(journal_calls) == 3
+      and all('line' not in call.split('",', 2)[-1] for call in journal_calls)
+      and all(call.count('%s') <= 1 and ('%s' not in call or call.rstrip().endswith('files, source, ms')) for call in journal_calls),
+      'ns2_dump notes reach the journal as numbers and fixed words, never the line itself')
+check('"packWalk"' in prep and '"packDone"' in prep and '\\"hashMs\\":%llu' in prep and '"cleared"' in prep,
+      'the journal splits the pack stage into its walk and its hashing, and times the clearing of the previous outputs')
 # Mario Kart World on IPA 731: the engine stalled 10 minutes, its own log (<game>/docs/host.log) is in Library, and a 16 MB
 # pool could not serve main's 42 MB after the forced detach.
 export = plugin[plugin.index('static void S2ArmExportEngineLogs(void) {'):plugin.index('static BOOL S2ArmMeloNXCoreLoaded(void) {')]

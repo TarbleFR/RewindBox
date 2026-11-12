@@ -8,6 +8,7 @@
 // "._" are skipped.
 #define _POSIX_C_SOURCE 200809L
 #include "s2arm_nro.h"
+#include "s2arm_dirent.h"
 
 #include <dirent.h>
 #include <errno.h>
@@ -345,13 +346,19 @@ static int strvec_push(strvec_t *s, char *str) {   // takes ownership on success
 static int cmp_str(const void *a, const void *b) { return strcmp(*(char *const *)a, *(char *const *)b); }
 
 // Lists the names of one directory (without . and ..); 0 when it cannot be opened, -1 out of memory.
+// Each name keeps its readdir type (s2arm_dirent.h) in the byte after its terminating NUL.
 static int list_names(const char *path, strvec_t *names) {
     DIR *d = opendir(path);
     if (!d) return 0;
     int st = 1;
     for (struct dirent *e; (e = readdir(d));) {
         if (!strcmp(e->d_name, ".") || !strcmp(e->d_name, "..")) continue;
-        char *copy = strdup(e->d_name);
+        size_t n = strlen(e->d_name);
+        char *copy = malloc(n + 2);
+        if (copy) {
+            memcpy(copy, e->d_name, n + 1);
+            copy[n + 1] = (char)s2arm_dirent_type(e);
+        }
         if (!copy || !strvec_push(names, copy)) {
             free(copy);
             st = -1;
@@ -382,13 +389,24 @@ static int walk_nro(ctx_t *x, const char *root, const char *rel, int depth, strv
             st = fail(x, RB_S2ARM_NRO_IO, "out of memory");
             break;
         }
+        // lstat and stat as romfs_list does, unless the listing's type settles the outcome: a real directory
+        // or file needs neither, and a link matters only when named *.nro (a link to a directory is never
+        // entered nor collected; to anything else, it is collected only for that name).
         struct stat ls, fs;
         int real_dir = 0, is_link = 0, follows_dir = 0;
-        if (lstat(full, &ls) == 0) {
-            is_link = S_ISLNK(ls.st_mode);
-            real_dir = S_ISDIR(ls.st_mode);
-        }
-        if (stat(full, &fs) == 0) follows_dir = S_ISDIR(fs.st_mode);
+        unsigned char type = (unsigned char)name[strlen(name) + 1];
+        if (type == DT_DIR) {
+            real_dir = follows_dir = 1;
+        } else if (type == DT_LNK) {
+            is_link = 1;
+            if (ends_nro_ci(name, ".nro") && stat(full, &fs) == 0) follows_dir = S_ISDIR(fs.st_mode);
+        } else if (type == DT_UNKNOWN) {
+            if (lstat(full, &ls) == 0) {
+                is_link = S_ISLNK(ls.st_mode);
+                real_dir = S_ISDIR(ls.st_mode);
+            }
+            if (stat(full, &fs) == 0) follows_dir = S_ISDIR(fs.st_mode);
+        }   // any other type (regular file, FIFO...): neither a directory nor a link
         int keep = 1;
         if (!real_dir && (!strcmp(name, ".DS_Store") || !strncmp(name, "._", 2))) keep = 0;   // macOS litter
         if (keep && follows_dir) {

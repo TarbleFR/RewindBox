@@ -5563,7 +5563,7 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 ### Switch 2 playlist (S2Arm) feasibility prototype — session 04
 
 - **Owner/branch:** session `012mUASj3EQnvC86WC56AePw`, `work/s2arm-switch2-prototype-20261110`
-  (merged with `Claude` `5fe7b3c7` in `d7e8f671`). Own paths: `packages/s2arm_engine_bridge/`, `native/s2arm/`,
+  (level with `Claude` `85ca8948`, fast-forward after main's 732 receipt). Own paths: `packages/s2arm_engine_bridge/`, `native/s2arm/`,
   `build-utils/s2arm/`, `tools/s2arm_prototype/`, `.github/workflows/s2arm-*.yml`, `docs/s2arm-*.md`.
 - **Goal:** a Switch 2 playlist on S2Arm, games prepared on the phone. The device probe ships in
   a common IPA by maintainer decision (below); the rest stays on this branch.
@@ -5696,8 +5696,68 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - First pin attempt, run 43185240791, refused the artifact: it held a fifth member, `patches.txt`. Fixed in
       `a6f958fd`.
     - Not observed on a device. The pass shares are estimates until a journal gives the durations.
+  - **IPA 732 device report (maintainer, 12 Nov 20:09Z: S2Arm journal and three engine logs): the boot now asks for its
+    code at once; the engine runs after the helper detaches. What it does next is not known yet.**
+    - Journal, pid 60681: preparation passed in 432 s (unchanged library). Launch: `start` passed, then the 6 boot blocks
+      (57 MB, main 42 MB at 0x7300000000) were served in ATTACHED mode in 4-83 ms each, all within 0.2 s. `bootServed`
+      passed, `jitDetach` passed, then `launch running` (servedBlocks 6). No later line in the next 3 minutes: no
+      `sessionEnded`, no FATAL. Pool 73.7 MB (boot + 16 MB). Footprint during the preparation 1.2-1.4 GB (731:
+      0.4-0.6 GB), with 5.2-5.4 GB still available; not explained yet.
+    - The three engine logs are all from IPA 731 runs (container copies made when 732 started): 15:14Z and 15:18Z
+      (closed during the wait) and 17:57Z. The 17:57Z one confirms the 0011 cause from the engine itself: the store
+      emulation self-test measured 300 ms per fault over 2000 faults. After the forced detach, mapping main failed
+      (`FATAL … 外置镜像映射 0x7100000000 … errno=1`), code 134.
+    - The engine log of the 732 run reaches Files at the next app start (or at the session's end). Next: that log and
+      what the screen showed.
+  - **Preparation speed (maintainer request, 12 Nov): commits `74951ac7` + `2175b72e`, same outputs, verified pin
+    `24dcf030` (SHA-256 `58ca7025…e86e`), handed to main for a later IPA.**
+    - Where the 427 s of IPA 731 went (journal + app.log):
+      - clearing the previous root: 14 s;
+      - unpack: 119 s, a mkdir per path component from `/` before each of about 205 000 links, plus walks with
+        stats;
+      - code: 60 s, two RomFS walks of 29 s each with an lstat and a stat per entry (the modules took 3 s);
+      - caps: 29 s, a third walk for an engine rule that cannot match;
+      - pack: 204 s, SHA-256 of 22 GB in portable C on one thread.
+    - Changes:
+      - SHA-256 from CommonCrypto on Apple;
+      - the pack hashes with up to 4 threads (one buffer each, progress and callbacks on the calling thread; the
+        earliest file's failure is reported, as with one thread: `2175b72e`, from the review);
+      - makedirs tries the path first, and the view remembers the previous link's directory;
+      - the walks take types from readdir and stat only links and unknown types;
+      - caps skips its RomFS walk when main names neither Unity nor Unreal;
+      - the bridge moves the previous root aside and deletes it at background QoS after the preparation;
+      - new journal lines: `cleared`, `unpackLayout`/`unpackUpdates`/`unpackDone`, `packWalk`, `packDone`.
+      - Details: `docs/s2arm-engine-bridge.md`, "Preparation speed".
+    - Checked locally (scratch harness, not in Git):
+      - old and new library: identical outputs and errors on 17 case/mode combinations;
+      - ThreadSanitizer clean on full and cancelled packs;
+      - 60 000-file delta tree on Linux, unpack 1.42 → 0.85 s, caps 0.25 → 0 s, NRO walk 0.25 → 0.04 s, pack
+        0.95 → 0.46 s;
+      - new `test/s2arm_prepare_speed_test.py` (23 checks; each reverted fix fails it);
+      - bridge test 189 checks; all `test/s2arm_*_test.py` pass.
+    - Independent review (rb-core-review) of `74951ac7`: no data race, deadlock or leak, outputs unchanged. Two low
+      notes: the error order (fixed in `2175b72e`, checked with two unreadable files, old and new libraries and
+      ThreadSanitizer); a folder listed but not searchable is walked from its listing, as `os.walk` does (accepted,
+      documented).
+    - Green:
+      - prepare 43304794303 on `2175b72e`: every comparison with S2Arm on Linux and macOS (ns2_dump, code stage,
+        caps, image pack, resource pack);
+      - core 43304794526 (xcframework, artifact 13983851142);
+      - bridge iOS 43303700475 on `74951ac7`;
+      - pin job 43305551417.
+    - Verified pin `24dcf030`: prepare run 43304794526 (`2175b72e`); engine 43278195639 and sysdata unchanged.
+    - Not measured on the phone. The progress bar's step weights still follow old guesses.
+    - Found on the way, not from this work: `.github/diagnostics/s2arm/s2arm_delivery_test.py` fails (5 failures, 40
+      errors) on `361032b5` and on Claude `85ca8948` alike. The separate S2Arm test-delivery launcher no longer
+      matches the standard recipe's line constants. That line is dormant (common IPA since 727).
   - **IPA 731 device report (maintainer, 12 Nov, S2Arm journal): the engine starts, then waits 10 minutes before asking
-    for code. Fix: verified pin `eb8f20bf` with engine patch 0011, for IPA 732.**
+    for code. Fix: verified pin `eb8f20bf` with engine patch 0011, merged on Claude by main as `1f301991`, delivered in
+    IPA 732 (run 43289133482, 329956970 B, IPA SHA-256 `97952e98…de52`, S2Arm identity `9560e56f`, receipt
+    `85ca8948`). Device check pending: Mario Kart World re-prepares (new build number), then boots.**
+    - Main's first 732 request (run 43283225614) failed on two S2Arm tests after session 03's licence audit; main fixed
+      them on Claude in `67645447` (helper LICENSE in `copy-of-rpcs3.json`, legal review test on the new chain). On the
+      fast-forwarded tree `85ca8948`, `test/s2arm_*_test.py`, `legal_modifications_notice_test`,
+      `legal_bundle_preflight_test` and `build_source_evidence_test` pass (local).
     - Observed:
       - prepared (image pack 85 MB);
       - launch: imagePack read (6 boot blocks, 57 MB), helper attached, jitProbe, pool 16 MB, dlopen, configure, view,
