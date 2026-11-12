@@ -67,6 +67,11 @@ check('"2000000"' in plugin and '"67108864"' in plugin, 'the GC segment size and
 check('RTLD_NOW | RTLD_GLOBAL' in plugin and 'RTLD_LOCAL' not in plugin,
       'the engine is opened RTLD_NOW | RTLD_GLOBAL (85 internal dlsym(RTLD_DEFAULT))')
 check(plugin.index('engineRestartRequired') and 'melonxCoreLoaded' in plugin, 'MeloNX loaded refuses with a restart error')
+check('@"error" : @"switch1EngineLoaded"' in plugin and 'A Switch 2 game already ran in this process.' in plugin
+      and '\\"reason\\":\\"switch1EngineLoaded\\"' in plugin,
+      'the Switch 1 engine refusal has its own code, distinct from a second Switch 2 launch')
+check(not re.search(r'@"(?:error|diagnostic)" : @"[^"]*(?:MeloNX|melonx)', plugin),
+      'no error code or diagnostic the player sees names MeloNX (the failure dialog shows both)')
 # The guest sequence order: configure, make view controller, start.
 order = [plugin.index('S2A_RB_GUEST_CONFIGURE'), plugin.index('S2A_RB_GUEST_MAKE_VIEW_CONTROLLER'), plugin.index('S2A_RB_GUEST_START')]
 check(order == sorted(order), 'the guest entry points are looked up in sequence order')

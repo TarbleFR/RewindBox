@@ -254,8 +254,8 @@ abstract final class S2ArmInternalService {
     switch (code) {
       case 'engineRestartRequired':
         return 'restartRequired';
-      case 'melonxCoreLoaded':
-        return 'melonxLoaded';
+      case 'switch1EngineLoaded':
+        return 'switch1EngineLoaded';
       case 'notExportFolder':
         return 'notExportFolder';
       case 'notDownloaded':
@@ -786,13 +786,14 @@ abstract final class S2ArmInternalService {
     // The in-game menu speaks RewindBox's language (the app's locale when the caller has it, else the system one).
     final uiLocale = Switch2SettingsLocale.codeFor(locale ?? PlatformDispatcher.instance.locale);
     try {
-      // MeloNX's core and the S2Arm engine cannot share a process (two NativeAOT runtimes), and the native launch refuses
-      // once MeloNX is loaded. The Consoles tab loads MeloNX to read its state (IPA 728), so say it now, before a long
-      // preparation, rather than after it.
+      // The Switch 1 engine's core (MeloNX) and the S2Arm engine cannot share a process (two NativeAOT runtimes), and the
+      // native launch refuses once it is loaded. The Consoles tab loaded it to read its state (IPA 728), so say it now,
+      // before a long preparation, rather than after it. Its own code and message, never the Switch 2 restart one; the
+      // code shows in the failure dialog's technical details, so it names the console, not the engine.
       final now = await status();
       if (flag(now['melonxCoreLoaded'])) {
-        LoggerService.instance.w('S2Arm launch: refused before preparing, MeloNX is loaded in this process');
-        return const S2ArmLaunchOutcome.failure('melonxCoreLoaded');
+        LoggerService.instance.w('S2Arm launch: refused before preparing, the Switch 1 engine (MeloNX) is loaded in this process');
+        return const S2ArmLaunchOutcome.failure('switch1EngineLoaded');
       }
       if (flag(now['engineLoaded'])) return const S2ArmLaunchOutcome.failure('engineRestartRequired');
       final detected = await detectExport(exportFolder);

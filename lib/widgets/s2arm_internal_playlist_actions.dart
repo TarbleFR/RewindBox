@@ -3,21 +3,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:path/path.dart' as path;
 
-import '../l10n/melonx_transfer_locale.dart';
 import '../l10n/switch2_library_locale.dart';
 import '../l10n/switch2_settings_locale.dart';
 import '../repositories/game_repository.dart';
-import '../services/melonx_embedded_library_service.dart';
 import '../services/s2arm_internal_service.dart';
 import '../services/storage/storage_import_activity.dart';
 import '../services/switch2_export_content.dart';
 import 'delete_game_dialog.dart';
 import 'switch2_engine_settings_panel.dart';
 
-/// Menu of the Switch 2 playlist, modelled on MeloNX's: import games (an export
-/// folder from Files, docs/s2arm-switch2-library.md § Import), import prod.keys
-/// (the one store MeloNX owns; not needed for Switch 2 games) and delete the
-/// highlighted game. No firmware item: S2Arm uses none.
+/// Menu of the Switch 2 playlist: import games (an export folder from Files,
+/// docs/s2arm-switch2-library.md § Import), saves, the Switch 2 settings and
+/// delete the highlighted game. Nothing of the Switch 1 engine: no prod.keys
+/// (S2Arm needs none) and no firmware. The maintainer wants no ambiguity
+/// between the two engines.
 class S2ArmInternalPlaylistActions extends StatefulWidget {
   const S2ArmInternalPlaylistActions({
     super.key,
@@ -115,43 +114,6 @@ class _S2ArmInternalPlaylistActionsState
     }
   }
 
-  /// The shared prod.keys import of MeloNX (its picker, validation and storage): the same dialog lines.
-  Future<void> _importKeys() async {
-    final MelonxKeysReport report;
-    try {
-      report = await MelonxEmbeddedLibraryService.importKeys();
-    } catch (error) {
-      _notice('${_t('keysFailed')}\n$error');
-      return;
-    }
-    if (!mounted) return;
-    final lines = <String>[
-      for (final name in report.imported)
-        '${MelonxTransferLocale.text(context, 'imported')}: $name',
-      for (final item in report.refused.entries)
-        '${MelonxTransferLocale.text(context, 'rejected')}: ${item.key} — ${MelonxTransferLocale.text(context, item.value)}',
-      for (final item in report.ignored.entries)
-        '${item.key}: ${MelonxTransferLocale.text(context, 'keyExtras')} (${item.value})',
-      for (final item in report.invalidSizes.entries)
-        '${item.key}: ${MelonxTransferLocale.text(context, 'keyInvalidSizes')} (${item.value})',
-      if (report.prodMissing) MelonxTransferLocale.text(context, 'requiredProd'),
-    ];
-    if (lines.isEmpty) return;
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(_t('importKeys')),
-        content: Text(lines.join('\n')),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(_t('done')),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _delete() async {
     final romPath = widget.romPath;
     final appSystemId = widget.appSystemId;
@@ -190,7 +152,7 @@ class _S2ArmInternalPlaylistActionsState
     if (mounted) _notice(_tf('deleted', {'name': name}));
   }
 
-  /// Always offered, like MeloNX's save import. Without a selected game the save goes to the game it names, or to the
+  /// Always offered. Without a selected game the save goes to the game it names, or to the
   /// library game the player chooses when it names none.
   Future<void> _importSave() async {
     final romPath = widget.romPath;
@@ -289,7 +251,6 @@ class _S2ArmInternalPlaylistActionsState
     _interaction(true);
     try {
       if (action == 'folder') await _import();
-      if (action == 'keys') await _importKeys();
       if (action == 'delete') await _delete();
       if (action == 'settings') await _openSettings();
       if (action == 'importSave') await _importSave();
@@ -347,7 +308,7 @@ class _S2ArmInternalPlaylistActionsState
             value: 'folder',
             child: _item(_t('importGames'), _t('importGamesHint')),
           ),
-          // Saves come second, as in MeloNX's menu, with or without a selected game.
+          // Saves come second, with or without a selected game.
           PopupMenuItem(
             key: const ValueKey('s2arm-import-save'),
             value: 'importSave',
@@ -357,11 +318,6 @@ class _S2ArmInternalPlaylistActionsState
             key: const ValueKey('s2arm-open-saves'),
             value: 'openSaves',
             child: _item(_t('openSaves'), _t('openSavesHint')),
-          ),
-          PopupMenuItem(
-            key: const ValueKey('s2arm-import-keys'),
-            value: 'keys',
-            child: _item(_t('importKeys'), _t('importKeysHint')),
           ),
           PopupMenuItem(
             key: const ValueKey('s2arm-settings'),
