@@ -5072,10 +5072,28 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 ### Switch 2 playlist (S2Arm) feasibility prototype — session 04
 
 - **Owner/branch:** session `012mUASj3EQnvC86WC56AePw`, `work/s2arm-switch2-prototype-20261110`
-  (merged with `Claude` `0c78f583`). Own paths: `packages/s2arm_probe/`, `native/s2arm/`,
+  (merged with `Claude` `9c9817e8`). Own paths: `packages/s2arm_engine_bridge/`, `native/s2arm/`,
   `build-utils/s2arm/`, `tools/s2arm_prototype/`, `.github/workflows/s2arm-*.yml`, `docs/s2arm-*.md`.
 - **Goal:** a Switch 2 playlist on S2Arm, games prepared on the phone. The device probe ships in
   a common IPA by maintainer decision (below); the rest stays on this branch.
+- **Handoff to main (12 Nov), published on this branch, not yet merged:**
+  - Verified pin `8772b6be` (`build-utils/s2arm/engine-pin.json`, SHA-256 `02feeda2…96f0`). Its bytes
+    are the ones the pin job of `s2arm-engine.yml` printed in run 43134938018. The engine is run
+    43125597914 (artifact 13902059765, expires 2026-12-12 00:25 UTC). Prepare is run 43061107011
+    (13873527906, expires 2026-12-11 16:45). Sysdata is run 43038032448 (13863124984, expires
+    2026-12-11 14:28). The first pin run, 43134513394, failed: urllib sent the token to the
+    artifact storage redirect (HTTP 401). Fixed in `6b4a4ee2`.
+  - Ship-clean `5c95eb99`. The probe is removed with its pubspec lines and its review. The engine
+    review now chains after the XeniOS playlist review. Records 801/802 and the 801–803 keys are
+    retired. Before that, `current_manifest()` read 802, so 4 contract checks failed on this branch
+    only. The legal review test moved to `test/`.
+  - Validation: on the 726 effective tree the legal gate accepts, and `s2arm_legal_review_test`
+    passes 10/10. `test/s2arm_*.py` and `test/switch2_*.py` pass. `standard_delivery_contract_test`
+    has the same 4 shallow-clone errors as `Claude` 9c9817e8.
+  - Open for main: delete the launcher (`.github/diagnostics/s2arm/`, `s2arm-delivery.yml`,
+    `set_probe_key.py`) together with its test `s2arm_delivery_test.py`, which no longer works
+    since 9c9817e8 (40 errors)? Main also has to choose the S2Arm test groups of the next
+    manifest. Then: green run on the merged tree, device test.
 - **State (11 Nov), host only, nothing run on an iPhone:**
   - Prototype: rewriter output loaded and run to its gates on macOS arm64; device probe written
     (three code placements; the process-mapped one is what RPCS3 already does on device, iOS 27
