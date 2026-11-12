@@ -31,9 +31,7 @@ from validate_rpcs3_passive_dlopen import (
     ValidationError as PassiveValidationError,
     validate as validate_passive_dlopen,
 )
-from validate_single_ipa_distribution import (
-    DistributionError, S2ARM_EXTENSIONS, S2ARM_FRAMEWORKS, S2ARM_IDENTITY, require_arm64_executable,
-)
+from validate_single_ipa_distribution import DistributionError, identity_engine_helpers, require_arm64_executable
 FORBIDDEN_UNDEFINED_SYMBOLS = {
     '_vm_map', '__os_log_default', '__os_log_error_impl', '_os_log_type_enabled'
 }
@@ -259,13 +257,9 @@ def validate_helper_bundles(app: Path, info: dict, archive_root: Path | None = N
         for component in ('MeloNXCore', 'MeloNXMoltenVK', 'MeloNXSDL3', 'MeloNXAvCodec', 'MeloNXAvUtil', 'MeloNXJitSupport'):
             demand((app / f'Frameworks/{component}.framework/{component}').is_file(),
                    'MeloNX identity requires the complete private runtime: ' + component)
-    # Switch 2 (S2Arm) private test IPA only, on the MeloNX model: S2Arm-native-identity.json, which the common IPA
-    # never carries, adds S2ArmJITHelper.appex to the closed set and requires the engine frameworks.
-    if (app / S2ARM_IDENTITY).is_file():
-        expected_helpers.update(S2ARM_EXTENSIONS)
-        for component in S2ARM_FRAMEWORKS:
-            demand((app / f'Frameworks/{component}.framework/{component}').is_file(),
-                   'S2Arm identity requires the engine frameworks: ' + component)
+    engine_helpers, engine_problems = identity_engine_helpers(lambda relative: (app / relative).is_file())
+    demand(not engine_problems, '; '.join(engine_problems))
+    expected_helpers.update(engine_helpers)
     demand({path.name for path in extensions} == set(expected_helpers),
            'Unexpected app-extension set: expected '
            f'{sorted(expected_helpers)}, got {sorted(path.name for path in extensions)}')

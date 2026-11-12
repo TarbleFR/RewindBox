@@ -14,8 +14,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / 'build-utils'))
 from validate_single_ipa_distribution import (
-    DONOR_CONTRACTS, RELAY_CONTRACTS, DONOR_EXTENSION_POINT, S2ARM_EXTENSIONS, S2ARM_FRAMEWORKS, S2ARM_IDENTITY,
-    validate as validate_distribution,
+    DONOR_CONTRACTS, RELAY_CONTRACTS, DONOR_EXTENSION_POINT, identity_engine_helpers, validate as validate_distribution,
 )
 
 ARM64 = 0x0100000C
@@ -191,13 +190,9 @@ def validate(ipa: Path) -> dict:
             for component in ('MeloNXCore', 'MeloNXMoltenVK', 'MeloNXSDL3', 'MeloNXAvCodec', 'MeloNXAvUtil', 'MeloNXJitSupport'):
                 demand(app + f'/Frameworks/{component}.framework/{component}' in names,
                        'MeloNX identity requires the complete private runtime: ' + component)
-        # Switch 2 (S2Arm) private test IPA only, on the MeloNX model: S2Arm-native-identity.json, which the common IPA
-        # never carries, adds S2ArmJITHelper.appex to the closed set and requires the engine frameworks.
-        if app + '/' + S2ARM_IDENTITY in names:
-            expected_helpers.update(S2ARM_EXTENSIONS)
-            for component in S2ARM_FRAMEWORKS:
-                demand(app + f'/Frameworks/{component}.framework/{component}' in names,
-                       'S2Arm identity requires the engine frameworks: ' + component)
+        engine_helpers, engine_problems = identity_engine_helpers(lambda relative: app + '/' + relative in names)
+        demand(not engine_problems, '; '.join(engine_problems))
+        expected_helpers.update(engine_helpers)
         demand(
             set(extension_roots) == set(expected_helpers),
             'Unexpected app-extension set: expected '

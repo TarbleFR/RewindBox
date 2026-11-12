@@ -5,7 +5,7 @@
   "upstream_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
   "base_canonical_patch_sha256": "a63b964354acb157f99fa9ba4787e18e19faf2473eb90b5710134bf9a88cdaaf",
   "patch": "build-utils/rpcs3/core934-delta.patch",
-  "patch_sha256": "0e8517a9ab2499ff7ab6173298a6a9ba786576d676e5b6e319850b0311d4d091",
+  "patch_sha256": "9b8a91e60844cba08ec3d11a4624b74ef6106be09a28159d0b43cc0d40e4ea7e",
   "abi_version": 30,
   "abi_version_changed": false,
   "exports_added": [
@@ -171,7 +171,7 @@
     "rpcs3/Emu/RSX/Metal/MTLFormats.h": "1f8286b9bfa254fc5c5b3164688dc30364af9d64ec52fd5c25a8839ecf865ccc",
     "rpcs3/Emu/RSX/Metal/MTLFragmentProgram.cpp": "d7b22039e7b445887ac6d4ad93f28b5818ba7f1a6c4707b705d862a20ad3bb08",
     "rpcs3/Emu/RSX/Metal/MTLFragmentProgram.h": "71152d0bef3d4c38630ac0a888e36a1b6409a5d2f1b9d9f54ed926093b3107f5",
-    "rpcs3/Emu/RSX/Metal/MTLGSRender.cpp": "b17d650c94106627d1c29c7543dcb5e0325ad59f3dd3071b5caa44e99fc1befa",
+    "rpcs3/Emu/RSX/Metal/MTLGSRender.cpp": "fa2f17f69acfdec36d45d91efe09596285291e6f8eb879160ec3f61704a9fd2f",
     "rpcs3/Emu/RSX/Metal/MTLGSRender.h": "3d33d9f0efb7dc5ffe94bd33031af827302dc88c6665ae05aae482637c9264fd",
     "rpcs3/Emu/RSX/Metal/MTLM4Counters.h": "e7a9c7551f7c07baf66469858c43bcf733a2c5364e11ddc96d09bf4e406b7a2e",
     "rpcs3/Emu/RSX/Metal/MTLM4Math.h": "44a59be37ff12042b250e16d943d9dd900b6a90f97f52d7e9e756a2e81c24503",
@@ -694,7 +694,7 @@
   "iphone_validation_run": false,
   "increment_from_core933": {
     "patch": "build-utils/rpcs3/core934-from-933.patch",
-    "patch_sha256": "0206b76ce540a8fbd9467d88a4bcc731fdcf95ecf20659f73fb2cc6892fd5fa9",
+    "patch_sha256": "3fde99bae164fa9ef018cfc671b885549656335ef0f5466627cdbf4482991136",
     "insertions_only": false,
     "removed_lines": 36,
     "files": 4,
@@ -705,7 +705,7 @@
       "rpcs3/ios/RPCS3IOSSettings.cpp": "22ba942622f4e247c79ddf80be6e0b1b7cc66f9e796e24829eab62c45b968f38"
     },
     "files_after_sha256": {
-      "rpcs3/Emu/RSX/Metal/MTLGSRender.cpp": "b17d650c94106627d1c29c7543dcb5e0325ad59f3dd3071b5caa44e99fc1befa",
+      "rpcs3/Emu/RSX/Metal/MTLGSRender.cpp": "fa2f17f69acfdec36d45d91efe09596285291e6f8eb879160ec3f61704a9fd2f",
       "rpcs3/Emu/RSX/Metal/MTLPresent.h": "892c55d0170e665ae6480f61cd63b32873cf925a4fe3d98feffba27da876c8e2",
       "rpcs3/ios/RPCS3IOS.cpp": "eba62a92b927ea71f4d471110590c0ab5e4afa09918ef38ecbbc95fe9de36a0e",
       "rpcs3/ios/RPCS3IOSSettings.cpp": "5923e19777759a83d1c8a61d698636e31903d3c296cacaa29ae99e9a0f20e6c1"

@@ -5472,7 +5472,18 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   xenios-core-delivery-declarations-2026-11-12.json bound to it (recipe = 79f3409f0), gate test 9/9 without skip;
   collector/legal failure sets unchanged; delivery contract 108 tests, same 14 history errors. Merged with Claude
   52e2d9a4 (92c6dbc40, no conflict): macOS run 43131882796 green (checks incl. the review gate, plugin_app). Handed
-  off to 00 (12 Nov). Pin route: ubuntu `pin` job (9ceefdcd4), `[xenia-pin run=<id>]`, downloads the zip by id via the API and
+  off to 00 (12 Nov) and merged into Claude as 9c9817e87 (a merge: the producer commit 79f3409f0 stays an ancestor).
+  Main names this branch as producers.engine.branch and asks the maintainer the LGPL §6(a) question. IPA closed sets
+  (12 Nov, on Claude 9c9817e87; 04's changedInputs is a7a0bf5f): one table IDENTITY_ENGINES in
+  validate_single_ipa_distribution.py, Xenia-native-identity.json -> XeniaJITHelper.appex + XeniaCore + converter
+  images; without the file today's sets, an image alone refused. Used by validate_single_ipa_distribution.validate,
+  Dolphin ci/verify_ipa.py (retained input: changedInputs 60324580…3216 -> 613eed25…136c), validate_rpcs3_ipa
+  helper bundles, the delivery version step (8 + one helper per identity, literal table checked equal by the test)
+  and verify_downloaded_delivery.packaged_engine_helpers (identities = manifest pinned engines, pinned payload).
+  test/ipa_identity_engines_test.py 12/12 (synthetic IPAs, the real heredoc); single_ipa_distribution OK; donor and
+  deployment suites same pre-existing failures; delivery contract: the 14 history errors plus main's MeloNX Core 737
+  pin error, present on Claude without this change. Commit 8a076372d, macOS run 43135024285 green; handed to 00
+  (changedInputs data given) and the table to extend sent to 04 (12 Nov). Pin route: ubuntu `pin` job (9ceefdcd4), `[xenia-pin run=<id>]`, downloads the zip by id via the API and
   prints core-pin.json + base64 (this session cannot reach the artifact store). The producer runs on this branch:
   the delivery manifest names it (`producers.engine.branch`) or main rebuilds on Claude. Pending: handoff to 00;
   IPA closed-set validators after 00 integrates session 04's 13d34c25 (identity-file design

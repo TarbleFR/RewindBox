@@ -44,8 +44,19 @@ EXPECTED_EXTENSIONS = {
     **DONOR_CONTRACTS,
     **RELAY_CONTRACTS,
 }
-# Switch 2 (S2Arm) private test IPA only, on the MeloNX model below: these join the closed set only when the
-# application carries S2Arm-native-identity.json, which the common IPA never does.
+# Engines packaged only with their identity file at the app root, written by the delivery step that embeds them
+# (.github/diagnostics/standard_delivery.py engine_embed; docs/xenios-playlist.md). The file adds the engine's JIT
+# helper to the closed extension set and requires its images; without it the expected sets are today's and the
+# images are refused, so a build without the engine validates byte for byte as before.
+XENIA_IDENTITY = 'Xenia-native-identity.json'
+XENIA_EXTENSIONS = {
+    'XeniaJITHelper.appex': {
+        'bundleSuffix': '.xeniajithelper',
+        'principalClass': 'XeniaJITRequestHandler',
+        'marker': 'NeoStationXeniaJITHelper',
+    },
+}
+XENIA_IMAGES = ('Frameworks/XeniaCore.framework/XeniaCore', 'Frameworks/libmetalirconverter.dylib')
 S2ARM_IDENTITY = 'S2Arm-native-identity.json'
 S2ARM_EXTENSIONS = {
     'S2ArmJITHelper.appex': {
@@ -54,7 +65,8 @@ S2ARM_EXTENSIONS = {
         'marker': 'NeoStationS2ArmJITHelper',
     },
 }
-S2ARM_FRAMEWORKS = ('S2ArmEngine', 'NS2Pro')
+S2ARM_IMAGES = ('Frameworks/S2ArmEngine.framework/S2ArmEngine', 'Frameworks/NS2Pro.framework/NS2Pro')
+IDENTITY_ENGINES = {XENIA_IDENTITY: (XENIA_EXTENSIONS, XENIA_IMAGES), S2ARM_IDENTITY: (S2ARM_EXTENSIONS, S2ARM_IMAGES)}
 PACKET_TUNNEL_EXTENSION_POINT = 'com.apple.networkextension.packet-tunnel'
 SHARE_EXTENSION_POINT = 'com.apple.share-services'
 DONOR_EXTENSION_POINT = 'com.apple.ar.viewer'
@@ -73,6 +85,21 @@ class DistributionError(RuntimeError):
 def demand(condition: bool, message: str) -> None:
     if not condition:
         raise DistributionError(message)
+
+
+def identity_engine_helpers(present) -> tuple[dict, list[str]]:
+    """(helpers to add to the closed extension set, problems) for the identity files at the app root.
+
+    `present(relative)` says whether a regular file exists at that path under the app. An identity requires every
+    image of its engine; an image without its identity is a problem too."""
+    helpers, problems = {}, []
+    for identity, (extensions, images) in IDENTITY_ENGINES.items():
+        if present(identity):
+            problems += [f'{identity} requires {image}' for image in images if not present(image)]
+            helpers.update(extensions)
+        else:
+            problems += [f'{image} is packaged without {identity}' for image in images if present(image)]
+    return helpers, problems
 
 
 def load_plist(path: Path) -> dict:
@@ -178,11 +205,9 @@ def validate(ipa: Path) -> dict:
             for component in ('MeloNXCore', 'MeloNXMoltenVK', 'MeloNXSDL3', 'MeloNXAvCodec', 'MeloNXAvUtil', 'MeloNXJitSupport'):
                 demand((app / f'Frameworks/{component}.framework/{component}').is_file(),
                        'MeloNX identity requires the complete private runtime: ' + component)
-        if (app / S2ARM_IDENTITY).is_file():
-            expected_extensions.update(S2ARM_EXTENSIONS)
-            for component in S2ARM_FRAMEWORKS:
-                demand((app / f'Frameworks/{component}.framework/{component}').is_file(),
-                       'S2Arm identity requires the engine frameworks: ' + component)
+        engine_helpers, engine_problems = identity_engine_helpers(lambda relative: (app / relative).is_file())
+        demand(not engine_problems, '; '.join(engine_problems))
+        expected_extensions.update(engine_helpers)
         demand(
             actual_extension_names == set(expected_extensions),
             'Unexpected app-extension set: expected '
