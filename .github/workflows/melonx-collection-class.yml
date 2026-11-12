@@ -29,4 +29,28 @@ jobs:
     - name: Scheduling probe (a low-class thread's work under user-interactive load, and the ways of raising it)
       run: |
         clang -O2 -o "$RUNNER_TEMP/qos_probe" test/melonx_collection_class/qos_probe.c
-        for run in 1 2 3; do "$RUNNER_TEMP/qos_probe"; done
+        echo "as the runner's own job (its launchd policy clamps every thread to one priority):"
+        "$RUNNER_TEMP/qos_probe"
+        # The runner is a throttled launchd job: every class reads the same priority there. The same binary as an
+        # interactive system job, which is what an app in the foreground is to the scheduler.
+        cat > "$RUNNER_TEMP/probe.plist" <<PLIST
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0"><dict>
+          <key>Label</key><string>com.rewindbox.qosprobe</string>
+          <key>ProcessType</key><string>Interactive</string>
+          <key>ProgramArguments</key><array><string>/bin/sh</string><string>-c</string>
+            <string>for run in 1 2 3; do $RUNNER_TEMP/qos_probe; done; echo done</string></array>
+          <key>StandardOutPath</key><string>$RUNNER_TEMP/probe.out</string>
+          <key>StandardErrorPath</key><string>$RUNNER_TEMP/probe.err</string>
+          <key>RunAtLoad</key><true/>
+        </dict></plist>
+        PLIST
+        sed -i '' 's/^        //' "$RUNNER_TEMP/probe.plist"
+        sudo chown root:wheel "$RUNNER_TEMP/probe.plist"
+        sudo launchctl bootstrap system "$RUNNER_TEMP/probe.plist"
+        for wait in $(seq 1 60); do grep -q '^done$' "$RUNNER_TEMP/probe.out" 2>/dev/null && break; sleep 1; done
+        sudo launchctl bootout system/com.rewindbox.qosprobe || true
+        echo "as an interactive system job:"
+        cat "$RUNNER_TEMP/probe.out"; cat "$RUNNER_TEMP/probe.err" || true
+        grep -q '^done$' "$RUNNER_TEMP/probe.out"
