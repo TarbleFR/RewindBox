@@ -12,7 +12,10 @@
       "sha256": null,
       "headSha": "601e716b3468455ce8fc5ffcec6b2a15d80a4edd",
       "expiresAt": null,
-      "unpack": ["S2ArmEngine.framework.zip", "NS2Pro.framework.zip"],
+      "unpack": [
+        "S2ArmEngine.framework.zip",
+        "NS2Pro.framework.zip"
+      ],
       "members": {
         "S2ArmEngine.framework.zip": "57e81f9529b68b61414e231aa82efad3b99313a03ba9b8161515b2abf326560a",
         "NS2Pro.framework.zip": "1cf9b41e88f1b8136fa255fdb7c9cc8546f3701e7687a410b940475f24cac027"
@@ -21,7 +24,7 @@
     "prepare": {
       "run": 43061107011,
       "attempt": null,
-      "artifact": null,
+      "artifact": 13873527906,
       "name": "S2ArmPrepare-b43922e226d46caba6e7eb72d73d1196c0dc94c0",
       "bytes": null,
       "sha256": null,
@@ -35,7 +38,7 @@
     "sysdata": {
       "run": 43038032448,
       "attempt": null,
-      "artifact": null,
+      "artifact": 13863124984,
       "name": "s2arm-sysdata-macOS-78df9bf8caa5834fa33195ecffe74cfdbc86e7de",
       "bytes": null,
       "sha256": null,
@@ -48,12 +51,22 @@
       }
     }
   },
-  "zips": {"engine": null, "prepare": null, "sysdata": null},
+  "zips": {
+    "engine": null,
+    "prepare": null,
+    "sysdata": null
+  },
   "binaries": {
     "NS2Pro.framework/NS2Pro": null,
     "S2ArmEngine.framework/S2ArmEngine": null,
-    "prepare/S2ArmPrepare.xcframework.zip": {"sha256": "99f02a40bde12ecacd034f85b239f5ab3ea8b0100457c9266b8f0f3520e2d533", "bytes": null},
-    "sysdata/SHA256SUMS": {"sha256": "d69cee225120276ede73c2a7710a2f40df0fc85443f498254538b24f557ace29", "bytes": null}
+    "prepare/S2ArmPrepare.xcframework.zip": {
+      "sha256": "99f02a40bde12ecacd034f85b239f5ab3ea8b0100457c9266b8f0f3520e2d533",
+      "bytes": null
+    },
+    "sysdata/SHA256SUMS": {
+      "sha256": "d69cee225120276ede73c2a7710a2f40df0fc85443f498254538b24f557ace29",
+      "bytes": null
+    }
   },
   "identity": null,
   "knownOnly": {
