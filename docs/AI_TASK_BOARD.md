@@ -359,6 +359,16 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     `Claude-Session` line.
   - **Next:** download, verify offline, receipts, record, delete the key, send the file; give session 04 the freeze
     commit for 803 (sibling of 726).
+- **IPA 727 requested (12 Nov 03:33Z, main).** Both handoffs the maintainer required are in: session 04's Switch 2
+  save import (merge `1b32dd7f` of `22997cd2`; s2arm_session_menu, storage_contract, s2arm_engine_bridge 66 checks,
+  s2arm_legal_review green locally) and session 03's Xbox 360 display lot (merge of `c22262d7`, XeniaCore ABI 3, pin
+  `7e13268b`, producer `06a580d41` an ancestor; xenia_core_patch, xenia_touch_controls, shader_converter_validator green
+  locally; session 03's macOS run `43147427878` was on its own merged tree, without session 04's lot: the two lots touch
+  disjoint files). Manifest frozen on `53579c72` (effective digest `05d3c856`, 7901 product files, 38 reviewed
+  first-parent commits; first try listed the side-branch commits and the replay refused them as missing). Offline
+  contract 108 OK on draft and frozen manifest; trigger-paths accepted (no other workflow runs). Trigger `2088c712`,
+  run `43149001356`. Private key outside Git. Not run on an iPhone. Next: download, verify, receipt, delete the key,
+  send the file; then the ON HOLD RPCS3 thermal lot.
 - **Integration queue for the next common IPA (11 Nov evening, main).** No IPA before the other sessions are ready.
   - **RPCS3:** Cores 932 (`fa94f636`) and 933 (`b055869b`) pinned; nothing of 931-933 observed on an iPhone yet.
   - **PR #172 integrated (`945bec13`, session 03, Xbox 360 / XeniOS, head `7be66a89`):** the review findings were
