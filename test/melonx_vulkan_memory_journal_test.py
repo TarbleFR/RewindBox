@@ -51,7 +51,27 @@ def member(text, signature):
 
 
 check(FINAL_PREPARATION, 'the source given is a final preparation containing the adapter')
-check(not files_edited_later('adapt_vulkan_memory_journal'), 'no later adapter edits its files')
+# Core 743: adapt_submit_causes, a later adapter, adds its submission counters to RenderStageTimer in PipelineBase.cs. Its
+# replacements are undone from the final text (each required once, none left) before the same exact comparison; no other
+# later adapter may edit these files.
+LATER = {'src/Ryujinx.Graphics.Vulkan/PipelineBase.cs': ['adapt_submit_causes']}
+check(files_edited_later('adapt_vulkan_memory_journal') <= set(LATER), 'no later adapter edits its files but adapt_submit_causes')
+
+
+def without_later(name, text):
+    import importlib
+    for later_name in LATER.get(name, []):
+        later = importlib.import_module(later_name)
+        if later.TAG not in text:
+            continue
+        for path, old, new in reversed(later.PAIRS):
+            if path == name:
+                check(text.count(new) == 1, later_name + ': each replacement once in ' + name)
+                text = text.replace(new, old)
+        check(later.TAG not in text, later_name + ': no edit left in ' + name)
+    return text
+
+
 for name, expected in adapter.BASELINE.items():
     check(sha(CONTROL / name) == expected, 'control is the Core 725 preparation: ' + name)
     control_text = (CONTROL / name).read_text(encoding='utf-8-sig')
@@ -59,7 +79,7 @@ for name, expected in adapter.BASELINE.items():
     for old, new in adapter.EDITS[name]:
         check(rebuilt.count(old) == 1, 'one site: ' + old.strip()[:50])
         rebuilt = rebuilt.replace(old, new)
-    check(rebuilt == (SOURCE / name).read_text(encoding='utf-8-sig'), 'the candidate is the control plus the replacements: ' + name)
+    check(rebuilt == without_later(name, (SOURCE / name).read_text(encoding='utf-8-sig')), 'the candidate is the control plus the replacements: ' + name)
 blocks_c = (CONTROL / adapter.BLOCKS).read_text(encoding='utf-8-sig')
 blocks_k = (SOURCE / adapter.BLOCKS).read_text(encoding='utf-8-sig')
 for signature in ('public unsafe MemoryAllocation Allocate(ulong size, ulong alignment, bool map)', 'private void InsertBlock(Block block)',
