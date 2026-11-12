@@ -359,6 +359,16 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     `Claude-Session` line.
   - **Next:** download, verify offline, receipts, record, delete the key, send the file; give session 04 the freeze
     commit for 803 (sibling of 726).
+- **IPA 727 device findings relayed by session 04 (12 Nov 05:02Z).** Fixes are on session 04's branch, not on Claude yet.
+  - **Switch 2 import refused every Files export.** file_picker getDirectoryPath returns a bare path without
+    security-scoped access. Fixed by 04 in `7a33d9f3`, plus `89eb15aa` and `471c763e`.
+  - **Switch 2 Consoles switch stays off.** `_s2arm.ready` is false; `7a33d9f3` logs the status line.
+  - **Switch 2 covers.** Main approved 04 changing `game_box_profile`, `game_box_art_fit` and `game_box_spine_design`
+    from the Switch 1 values, with a test.
+  - **RPCS3 checked by main.** Its folder import uses `Rpcs3DocumentPickerPlugin` `pickGameFolder`, which starts
+    security-scoped access. The `FilePicker` variant `Rpcs3InternalService.importExtractedGameFolder` has no caller.
+    Not affected.
+  - **XeniOS `importFolder`** uses `FilePicker.getDirectoryPath`. Passed to session 03.
 - **IPA 727 delivered and verified (12 Nov 04:25Z, main).**
   - Run `43151344182` attempt 1, trigger `bd80b2b9`, frozen on `7d90218f`, effective digest `28dc0833`. All 5 jobs
     succeeded.
