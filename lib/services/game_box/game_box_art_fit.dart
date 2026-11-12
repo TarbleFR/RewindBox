@@ -156,7 +156,8 @@ class GameBoxWrapLayout {
   ///   1080 = 776 + 80 + 776 (Mario Kart 8 AMKP01, New Super Mario Bros. U
   ///   ARPP01) (2 Nov 2026).
   static GameBoxWrapLayout? forProfile(GameBoxProfile profile) => switch (profile.id) {
-        'switch' => const GameBoxWrapLayout(panel: 1166, spine: 122, height: 1888),
+        // A Switch 2 case has the Switch case's size, so a full Switch 2 sheet uses the Switch template.
+        'switch' || 'switch2' => const GameBoxWrapLayout(panel: 1166, spine: 122, height: 1888),
         // The PS3 template's spine (20 mm at the panels' scale) is wider than
         // the case's flat spine: it is drawn on it whole, as before.
         'ps3' => const GameBoxWrapLayout(panel: 928, spine: 144, height: 1080, spineFit: GameBoxSpineFit.stretch),

@@ -374,6 +374,12 @@ class GameBoxProfile {
     bodyColor: Color(0xFF2B2B2E), labelRect: (0.10, 0.08, 0.80, 0.72),
     cornerRadius: 1.5,
   );
+  // Nintendo Switch 2 game cards: the Switch card's size, red.
+  static const _cardSwitch2 = GameBoxCartridgeStyle(
+    id: 'switch2', width: 21, height: 31, thickness: 3.3,
+    bodyColor: Color(0xFFD3122A), labelRect: (0.10, 0.08, 0.80, 0.72),
+    cornerRadius: 1.5,
+  );
   static const _cardVita = GameBoxCartridgeStyle(
     id: 'vita', width: 22, height: 30, thickness: 2.0,
     bodyColor: Color(0xFF26262A), labelRect: (0.10, 0.10, 0.80, 0.70),
@@ -546,6 +552,13 @@ class GameBoxProfile {
     // thick (the GameTDB full-cover template gives an 11 mm spine). The red
     // spine and corner/band are printed on the cover sheet, not the plastic.
     'switch': _handheld('switch', const Color(0xFFE6EAED), _cardSwitch,
+        width: 105, height: 170, depth: 11, radius: 4,
+        material: GameBoxCaseMaterial.clear, insertColor: const Color(0xFFE60012),
+        interiorColor: const Color(0xFFDDE1E4)),
+    // Nintendo Switch 2: the Switch case (clear, 170 × 105 × 11 mm, the red band printed on the cover) holding a red
+    // game card. The maintainer asked for Switch 2 boxes like the Switch ones (12 Nov 2026); without this entry the
+    // system's "cartridge" media gave a cardboard box.
+    'switch2': _handheld('switch2', const Color(0xFFE6EAED), _cardSwitch2,
         width: 105, height: 170, depth: 11, radius: 4,
         material: GameBoxCaseMaterial.clear, insertColor: const Color(0xFFE60012),
         interiorColor: const Color(0xFFDDE1E4)),

@@ -94,3 +94,16 @@ service answers `engineMissing`: the playlist is listed but unavailable and noth
   The index entry, the `contentDigest` (installed copies are replaced at the next start) and the review's index, digest
   and tile identity follow. `test/switch2_glacier_tile_review_test.py` passes. Not observed on a device.
 
+
+## Game boxes
+
+The maintainer asked for Switch 2 game boxes like the Switch ones (12 Nov 2026). Main approved the change to its
+game-box files on the board (725522b1). `switch2` had no `GameBoxProfile` entry, so its `cartridge` media gave a
+cardboard box. It now has:
+- `game_box_profile.dart`: the Switch case (clear, 105 × 170 × 11 mm, the red insert band, the same interior) holding a
+  red Switch 2 game card the size of a Switch card;
+- `game_box_art_fit.dart`: a full sheet cut with the Switch template (1166 + 122 + 1166 × 1888);
+- `game_box_spine_design.dart`: the Switch spine (white, red 26 mm head) with the `switch2` logo, added to the shipped logos.
+GameTDB is not asked for Switch 2 games (`GameTdb.platformOf` is unchanged): an exact-title match could take the Switch 1
+print of a title. `test/switch2_game_box_test.dart`; the S2Arm library CI also runs `game_box_physical_test.dart` and
+`game_box_spine_design_test.dart`. Not observed on a device.

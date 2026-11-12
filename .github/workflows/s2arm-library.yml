@@ -41,6 +41,9 @@ jobs:
           test/switch2_export_content_test.dart
           test/switch2_library_locale_test.dart
           test/switch2_settings_locale_test.dart
+          test/switch2_game_box_test.dart
+          test/game_box_physical_test.dart
+          test/game_box_spine_design_test.dart
           test/console_manager_test.dart
           test/libretro_consoles_tab_test.dart
           test/rewindbox_glacier_test.dart

@@ -54,7 +54,7 @@ class GameBoxSpineDesign {
     '2600', '32x', '3do', '3ds', '5200', '7800', 'a2', 'amiga', 'cdi', 'dc', 'ds', 'fc', 'fds', 'gb', 'gba',
     'gbc', 'gc', 'genesis', 'gg', 'jag', 'jagcd', 'lynx', 'mcd', 'md', 'n64', 'neogeo', 'nes', 'ngcd', 'ngp',
     'ngpc', 'pccd', 'pce', 'pcfx', 'ps1', 'ps2', 'ps3', 'psp', 'sat', 'satellaview', 'scd', 'sfc', 'sms',
-    'snes', 'switch', 'tg16', 'tgcd', 'vb', 'vita', 'wii', 'wiiu', 'ws', 'wsc', 'xbox', 'xbox360',
+    'snes', 'switch', 'switch2', 'tg16', 'tgcd', 'vb', 'vita', 'wii', 'wiiu', 'ws', 'wsc', 'xbox', 'xbox360',
   };
 
   static const Color _white = Color(0xFFFFFFFF);
@@ -110,6 +110,10 @@ class GameBoxSpineDesign {
       case 'switch':
         return const GameBoxSpineDesign(
             background: _white, ink: _darkInk, logo: 'switch', logoInk: _white, head: Color(0xFFE60012), headMm: 26);
+      // The Switch spine with the Switch 2 logo.
+      case 'switch2':
+        return const GameBoxSpineDesign(
+            background: _white, ink: _darkInk, logo: 'switch2', logoInk: _white, head: Color(0xFFE60012), headMm: 26);
     }
     // Other platforms: the cover's own colour (a black NES border, a grey
     // SNES frame…), the platform's mark at the top, the game's logo.
