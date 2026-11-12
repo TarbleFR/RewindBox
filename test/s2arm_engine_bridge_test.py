@@ -266,6 +266,19 @@ check('emit:' not in step_only and 's2arm_journal("prepare", "codeStep"' in step
 check('s2arm_journal("prepare", "codePhase"' in prep and '"ms' in prep[prep.index('"codePhase"'):prep.index('"codePhase"') + 200],
       'each phase of the code stage is journaled with its duration')
 check('NSDictionary *_Nullable work);' in read('S2ArmGamePreparation.h'), 'the progress block carries the work counts')
+# Mario Kart World on device (12 Nov, after IPA 729): the app ended with no message while the rewriter worked on main.
+# The rewriter was validated as a command-line tool on a main thread (8 MB stack); on the phone it runs on its own
+# thread with a larger stack, and the journal records the memory at each phase and as it grows.
+check('rc = prep_code_with_stack(&code, error, sizeof error);' in prep and prep.count('rb_s2arm_prepare_code(') == 2,
+      'the code stage runs through prep_code_with_stack (the second call is its fallback when no thread is created)')
+stack = re.search(r'kCodeStackBytes = (\d+)u << 20', prep)
+check(stack is not None and int(stack.group(1)) >= 8 and 'pthread_attr_setstacksize(&attributes, kCodeStackBytes)' in prep
+      and 'pthread_join(thread, NULL);' in prep, 'the code-stage thread has at least the 8 MB stack of a main thread, and is joined')
+check('"codePhaseBegin"' in prep and '\\"footprintMB\\":%llu,\\"availableMB\\":%llu' in prep[prep.index('"codePhase"'):prep.index('"codePhaseBegin"')]
+      and 'phys_footprint' in prep and 'os_proc_available_memory()' in prep,
+      'each phase is journaled at its start and its end with the footprint and the memory iOS still allows')
+check('s2arm_journal("prepare", "codeMemory"' in prep[prep.index('static void prep_code_work('):]
+      and 'footprint >= self->_memoryNotedMB + kMemoryStepMB' in prep, 'a memory line each time the footprint grows by a step')
 check('prep_pack_progress, prep_cancelled, (__bridge void *)self}' in prep, 'the resource pack reports its bytes')
 run = prep[prep.index('- (NSDictionary *)run {'):]
 check(run.index('reusablePreparation(stampPath, fingerprint, gid)') < run.index('[files removeItemAtPath:stampPath error:nil];')

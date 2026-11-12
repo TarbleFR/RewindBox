@@ -6,6 +6,9 @@
 #import "S2ArmCodePages.h"   // s2arm_code_now_ns
 
 #import <CommonCrypto/CommonDigest.h>
+#import <mach/mach.h>
+#import <os/proc.h>
+#import <pthread.h>
 #import <stdatomic.h>
 
 NSString *const S2ArmErrorNotExportFolder = @"notExportFolder";
@@ -156,8 +159,61 @@ NSDictionary *S2ArmGameInfo(NSString *folder, NSString *localePref) {
 // The steps of a preparation, as reported to Dart: unpack, code, caps, direct, module, pack, then done.
 static const NSInteger kPrepareSteps = 6;
 
+// Memory, in MB: the process footprint (what iOS counts to end an app for memory) and what iOS still allows it. The
+// rewriter was written for a computer; on the phone an app over its limit is ended with no message, so the journal
+// (fsynced per line) records the climb before it.
+static unsigned long long prep_footprint_mb(void) {
+  task_vm_info_data_t info;
+  mach_msg_type_number_t count = TASK_VM_INFO_COUNT;
+  if (task_info(mach_task_self(), TASK_VM_INFO, (task_info_t)&info, &count) != KERN_SUCCESS) return 0;
+  return info.phys_footprint >> 20;
+}
+
+static unsigned long long prep_available_mb(void) {
+  return (unsigned long long)os_proc_available_memory() >> 20;
+}
+
+// The code stage runs on its own thread with a 16 MB stack. The rewriter was validated as a command-line tool, on a main
+// thread (8 MB); a GCD worker has 512 KB, and its spin-region walk recurses up to 129 nodes deep with a frame of over
+// 4.2 KB (a 256-entry Delta array), over 540 KB.
+enum { kCodeStackBytes = 16u << 20, kMemoryStepMB = 256 };
+
+typedef struct {
+  const rb_s2arm_code_request *request;
+  char *error;
+  size_t errorSize;
+  int result;
+} prep_code_call;
+
+static void *prep_code_thread(void *argument) {
+  prep_code_call *call = argument;
+  pthread_setname_np("RewindBox S2Arm code stage");
+  call->result = rb_s2arm_prepare_code(call->request, call->error, call->errorSize);
+  return NULL;
+}
+
+static int prep_code_with_stack(const rb_s2arm_code_request *request, char *error, size_t errorSize) {
+  prep_code_call call = {request, error, errorSize, RB_S2ARM_PREPARE_IO};
+  pthread_attr_t attributes;
+  pthread_t thread;
+  int created = pthread_attr_init(&attributes);
+  if (!created) {
+    created = pthread_attr_setstacksize(&attributes, kCodeStackBytes);
+    if (!created) created = pthread_create(&thread, &attributes, prep_code_thread, &call);
+    pthread_attr_destroy(&attributes);
+  }
+  if (created) {   // no thread: the same call on this one, as before
+    s2arm_journal("prepare", "codeThread", "\"created\":false,\"errno\":%d", created);
+    return rb_s2arm_prepare_code(request, error, errorSize);
+  }
+  pthread_join(thread, NULL);
+  return call.result;
+}
+
 @implementation S2ArmGamePreparation {
   _Atomic int _cancelled;
+  // The last footprint journaled during the code stage (MB): a memory line each time it grows by kMemoryStepMB.
+  unsigned long long _memoryNotedMB;
   // Progress throttle (the work queue only): the last step, part and fraction sent, and when.
   NSString *_lastStep;
   NSString *_lastDetail;
@@ -222,9 +278,13 @@ static void prep_code_progress(void *context, const char *step, int index, int c
     return;
   }
   if (_phaseName.length && ![_phaseName isEqualToString:@"start"])
-    s2arm_journal("prepare", "codePhase", "\"part\":\"%s\",\"phase\":\"%s\",\"ms\":%llu,\"done\":%llu,\"total\":%llu",
+    s2arm_journal("prepare", "codePhase",
+                  "\"part\":\"%s\",\"phase\":\"%s\",\"ms\":%llu,\"done\":%llu,\"total\":%llu,\"footprintMB\":%llu,\"availableMB\":%llu",
                   _phasePart.UTF8String, _phaseName.UTF8String, (unsigned long long)((now - _phaseStartNs) / 1000000ull),
-                  _phaseDone, _phaseTotal);
+                  _phaseDone, _phaseTotal, prep_footprint_mb(), prep_available_mb());
+  // The phase that begins, with the memory at its start: if iOS ends the app inside it, this is the journal's last line.
+  s2arm_journal("prepare", "codePhaseBegin", "\"part\":\"%s\",\"phase\":\"%s\",\"footprintMB\":%llu,\"availableMB\":%llu",
+                part.UTF8String, phase.UTF8String, prep_footprint_mb(), prep_available_mb());
   _phasePart = part;
   _phaseName = phase;
   _phaseStartNs = now;
@@ -240,6 +300,12 @@ static void prep_code_work(void *context, const char *part, const char *phase, i
   NSString *partName = part ? @(part) : @"";
   NSString *phaseName = phase ? @(phase) : @"";
   [self notePhase:phaseName part:partName done:done total:total];
+  unsigned long long footprint = prep_footprint_mb();   // called at most every 100 ms (the library's throttle)
+  if (footprint >= self->_memoryNotedMB + kMemoryStepMB) {
+    self->_memoryNotedMB = footprint;
+    s2arm_journal("prepare", "codeMemory", "\"part\":\"%s\",\"phase\":\"%s\",\"done\":%llu,\"total\":%llu,\"footprintMB\":%llu,\"availableMB\":%llu",
+                  partName.UTF8String, phaseName.UTF8String, done, total, footprint, prep_available_mb());
+  }
   [self emit:@"code"
          index:1
          count:kPrepareSteps
@@ -413,7 +479,10 @@ static NSString *mapPrepareCode(int rc) {
       [files fileExistsAtPath:romfs] ? romfs.fileSystemRepresentation : NULL,
       root.fileSystemRepresentation,
       prep_code_progress, prep_cancelled, (__bridge void *)self, prep_code_work};
-  rc = rb_s2arm_prepare_code(&code, error, sizeof error);
+  _memoryNotedMB = 0;
+  s2arm_journal("prepare", "codeMemory", "\"part\":\"\",\"phase\":\"begin\",\"footprintMB\":%llu,\"availableMB\":%llu",
+                prep_footprint_mb(), prep_available_mb());
+  rc = prep_code_with_stack(&code, error, sizeof error);
   if (rc != RB_S2ARM_PREPARE_OK) return [self fail:mapPrepareCode(rc) stage:@"code" detail:error];
   durations[@"code"] = @((s2arm_code_now_ns() - t0) / 1000000ull);
 
