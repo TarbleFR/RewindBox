@@ -394,11 +394,19 @@ jobs:
           echo "codesign -dvvv of the converter in run $PIN_RUN:"
           cat "$RUNNER_TEMP/pin/signature.txt"
       - name: Pin and verify
+        env:
+          MESSAGE: ${{ github.event.head_commit.message }}
         run: |
           set -euo pipefail
+          # Replacing a pin needs its reason, a "Pin-Reason: ..." line of the commit message.
+          reason="$(printf '%s\n' "$MESSAGE" | sed -nE 's/^Pin-Reason: (.+)$/\1/p' | head -n 1)"
+          if [ -f build-utils/xenia/core-pin.json ] && [ -z "$reason" ]; then
+            echo "::error::A pin exists: the commit message needs a Pin-Reason: line"; exit 1
+          fi
           python3 build-utils/xenia/core_pin.py pin "$RUNNER_TEMP/pin/XeniaCore.zip" \
             --run "$PIN_RUN" --job "$PIN_JOB" --attempt "$PIN_ATTEMPT" --artifact "$PIN_ARTIFACT" \
-            --name "$PIN_NAME" --expires "$PIN_EXPIRES" --converter-signature "$RUNNER_TEMP/pin/signature.txt" > /dev/null
+            --name "$PIN_NAME" --expires "$PIN_EXPIRES" --converter-signature "$RUNNER_TEMP/pin/signature.txt" \
+            --replaces-reason "$reason" > /dev/null
           python3 build-utils/xenia/core_pin.py verify "$RUNNER_TEMP/pin/XeniaCore.zip"
           echo "core-pin.json SHA-256: $(sha256sum build-utils/xenia/core-pin.json | cut -d' ' -f1)"
           echo "core-pin.json base64 (exact bytes):"
