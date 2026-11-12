@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui' show Locale;
 
 import 'package:flutter/foundation.dart';
@@ -428,6 +429,55 @@ void main() {
       await expectLater(S2ArmInternalService.importSaveAt('/not-a-game', save.path),
           throwsA(isA<S2ArmSaveException>().having((e) => e.code, 'code', 'saveNotExport')));
       expect(await File('${target.path}/kept.bin').readAsBytes(), [1, 2, 3]);
+    });
+
+    test('the game a save names is read like the engine reads it', () async {
+      final checkpoint = await picked('0x0100AAAA00000000 Other Game', {'2026-11-12/save.bin': 8});
+      expect(await S2ArmInternalService.saveProgramId(checkpoint.path), '0100aaaa00000000');
+      final yuzu = await picked('nand', {'0000000000000000/${'1' * 32}/0100BBBB00000000/save.bin': 8});
+      expect(await S2ArmInternalService.saveProgramId(yuzu.path), '0100bbbb00000000');
+      final ryujinx = await picked('ryujinx', {'0000000000000001/0/save.bin': 8});
+      final meta = ByteData(0x40)..setUint64(0, 0x0100CCCC00000000, Endian.little)..setUint8(0x20, 1);
+      await File('${ryujinx.path}/0000000000000001/ExtraData0').writeAsBytes(meta.buffer.asUint8List());
+      expect(await S2ArmInternalService.saveProgramId(ryujinx.path), '0100cccc00000000');
+      final jksv = await picked('JKSV', {'Some Game/User - 2026.11.12 @ 10.00.00/save.bin': 8});
+      expect(await S2ArmInternalService.saveProgramId(jksv.path), isNull, reason: 'JKSV names no game');
+      final both = await picked('both', {'0x0100AAAA00000000 A/x/save.bin': 1, '0x0100DDDD00000000 B/x/save.bin': 1});
+      expect(await S2ArmInternalService.saveProgramId(both.path), isNull, reason: 'two games: let the engine decide');
+    });
+
+    test('a save of another library game goes to that game, a save of a game not in the library to its own folder', () async {
+      final other = await Directory('${temp.path}/Documents/S2Arm/Games/Other Game').create(recursive: true);
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        final folder = (call.arguments as Map)['exportFolder'] as String;
+        if (call.method == 'detectExport') {
+          final id = folder == other.path ? '0100AAAA00000000' : gid;
+          return {'success': true, 'exportDir': folder, 'gid': id, 'programId': id.toLowerCase()};
+        }
+        if (call.method == 'gameInfo') return {'success': true, 'title': folder == other.path ? 'Other Game' : 'Test Game'};
+        return null;
+      });
+      final save = await picked('0x0100AAAA00000000 Other Game', {'2026-11-12/save.bin': 8});
+      final result = await S2ArmInternalService.importSaveAt('/export', save.path);
+      expect(result.redirectedTo, '0100AAAA00000000');
+      expect(result.redirectedTitle, 'Other Game');
+      expect(result.folder, '${temp.path}/Documents/S2Arm/Saves/Other Game [0100AAAA00000000]');
+      expect(await File('${result.folder}/0x0100AAAA00000000 Other Game/2026-11-12/save.bin').exists(), isTrue);
+      final ownFolder = Directory('${temp.path}/Documents/S2Arm/Saves/Test Game [$gid]');
+      expect(await ownFolder.exists(), isFalse, reason: 'the selected game is untouched');
+
+      final missing = await picked('0x0100EEEE00000000 Missing', {'x/save.bin': 8});
+      final away = await S2ArmInternalService.importSaveAt('/export', missing.path);
+      expect(away.redirectedTo, '0100EEEE00000000');
+      expect(away.redirectedTitle, isNull);
+      expect(away.folder, '${temp.path}/Documents/S2Arm/Saves/Switch 2 [0100EEEE00000000]');
+    });
+
+    test("a save that names the selected game, or no game, stays with the selected game", () async {
+      final mine = await picked('0x${gid.toLowerCase()} Test Game', {'x/save.bin': 8});
+      final result = await S2ArmInternalService.importSaveAt('/export', mine.path);
+      expect(result.redirectedTo, isNull);
+      expect(result.folder, '${temp.path}/Documents/S2Arm/Saves/Test Game [$gid]');
     });
 
     test('no import while a Switch 2 game runs', () async {

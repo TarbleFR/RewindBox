@@ -38,6 +38,8 @@ void main() {
     expect(menu, contains('S2ArmInternalService.openSaveFolder('));
     expect(menu, contains("_t('importSaveHint')"));
     expect(menu, contains("_t('openSavesHint')"));
+    expect(menu, contains("_tf('saveRedirected'"));
+    expect(menu, contains("_tf('saveRedirectedMissing'"));
   });
 
   test('the Emulators tab shows the settings panel for switch2 only', () {

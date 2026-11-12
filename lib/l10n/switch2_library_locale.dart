@@ -29,7 +29,7 @@ abstract final class Switch2LibraryLocale {
       'deleteFailed': "The game could not be deleted.",
       'deleted': "{name} deleted.",
       'importSave': "Import a save",
-      'importSaveHint': "Pick the game's save folder (JKSV, Checkpoint, Ryujinx or yuzu). Used the next time the game starts.",
+      'importSaveHint': "Pick the save folder (JKSV, Checkpoint, Ryujinx or yuzu). A save that names another game goes to that game. Used the next time the game starts.",
       'openSaves': "Open the saves folder",
       'openSavesHint': "Files → On My iPhone → RewindBox → S2Arm → Saves. Updated every time you quit the game.",
       'openSavesFailed': "The Files app could not be opened. The saves are in Files → On My iPhone → RewindBox → S2Arm → Saves.",
@@ -40,6 +40,8 @@ abstract final class Switch2LibraryLocale {
       'saveSameFolder': "Pick the folder where your save is, not the RewindBox saves folder.",
       'saveNotExport': "This game's folder is not a Switch 2 export.",
       'saveFailed': "The save could not be imported.",
+      'saveRedirected': "This save belongs to {name} ({id}). It was put in that game's save folder.",
+      'saveRedirectedMissing': "This save belongs to another game ({id}) that is not in your library yet. It was put in its save folder and will be used once you add that game.",
       'emptyHint': "Use the button at the top right to import games: pick each game's export folder. You can import prod.keys there too (shared with MeloNX); Switch 2 games do not need them.",
     },
     'es': <String, String>{
@@ -77,6 +79,8 @@ abstract final class Switch2LibraryLocale {
       'saveSameFolder': "Elige la carpeta donde está tu partida, no la carpeta de partidas de RewindBox.",
       'saveNotExport': "La carpeta de este juego no es una exportación de Switch 2.",
       'saveFailed': "No se pudo importar la partida.",
+      'saveRedirected': "Esta partida pertenece a {name} ({id}). Se guardó en la carpeta de partidas de ese juego.",
+      'saveRedirectedMissing': "Esta partida pertenece a otro juego ({id}) que aún no está en tu biblioteca. Se guardó en su carpeta y se usará cuando añadas ese juego.",
       'emptyHint': "Usa el botón de arriba a la derecha para importar juegos: elige la carpeta de exportación de cada juego. También puedes importar prod.keys allí (compartidas con MeloNX); los juegos de Switch 2 no las necesitan.",
     },
     'ru': <String, String>{
@@ -114,6 +118,8 @@ abstract final class Switch2LibraryLocale {
       'saveSameFolder': "Выберите папку с вашим сохранением, а не папку сохранений RewindBox.",
       'saveNotExport': "Папка этой игры не является экспортом Switch 2.",
       'saveFailed': "Не удалось импортировать сохранение.",
+      'saveRedirected': "Это сохранение относится к игре {name} ({id}). Оно помещено в папку сохранений этой игры.",
+      'saveRedirectedMissing': "Это сохранение относится к другой игре ({id}), которой ещё нет в вашей библиотеке. Оно помещено в её папку сохранений и будет использовано, когда вы добавите эту игру.",
       'emptyHint': "Чтобы импортировать игры, нажмите кнопку в правом верхнем углу и выберите папку экспорта каждой игры. Там же можно импортировать prod.keys (общие с MeloNX); играм Switch 2 они не нужны.",
     },
     'zh': <String, String>{
@@ -151,6 +157,8 @@ abstract final class Switch2LibraryLocale {
       'saveSameFolder': "请选择存档所在的文件夹，而不是 RewindBox 的存档文件夹。",
       'saveNotExport': "此游戏的文件夹不是 Switch 2 导出文件夹。",
       'saveFailed': "无法导入存档。",
+      'saveRedirected': "此存档属于 {name}（{id}），已放入该游戏的存档文件夹。",
+      'saveRedirectedMissing': "此存档属于另一款尚未加入游戏库的游戏（{id}），已放入它的存档文件夹，添加该游戏后即可使用。",
       'emptyHint': "使用右上角的按钮导入游戏：选择每个游戏的导出文件夹。也可以在那里导入 prod.keys（与 MeloNX 共用）；Switch 2 游戏不需要它们。",
     },
     'zh_Hant': <String, String>{
@@ -188,6 +196,8 @@ abstract final class Switch2LibraryLocale {
       'saveSameFolder': "請選擇存檔所在的資料夾，而不是 RewindBox 的存檔資料夾。",
       'saveNotExport': "此遊戲的資料夾不是 Switch 2 匯出資料夾。",
       'saveFailed': "無法匯入存檔。",
+      'saveRedirected': "此存檔屬於 {name}（{id}），已放入該遊戲的存檔資料夾。",
+      'saveRedirectedMissing': "此存檔屬於另一款尚未加入遊戲庫的遊戲（{id}），已放入它的存檔資料夾，加入該遊戲後即可使用。",
       'emptyHint': "使用右上角的按鈕匯入遊戲：選擇每個遊戲的匯出資料夾。也可以在那裡匯入 prod.keys（與 MeloNX 共用）；Switch 2 遊戲不需要它們。",
     },
     'pt': <String, String>{
@@ -225,6 +235,8 @@ abstract final class Switch2LibraryLocale {
       'saveSameFolder': "Escolha a pasta onde está o seu jogo salvo, não a pasta de jogos salvos do RewindBox.",
       'saveNotExport': "A pasta deste jogo não é uma exportação de Switch 2.",
       'saveFailed': "Não foi possível importar o jogo salvo.",
+      'saveRedirected': "Este jogo salvo pertence a {name} ({id}). Foi colocado na pasta de jogos salvos desse jogo.",
+      'saveRedirectedMissing': "Este jogo salvo pertence a outro jogo ({id}) que ainda não está na sua biblioteca. Foi colocado na pasta dele e será usado quando você adicionar esse jogo.",
       'emptyHint': "Use o botão no canto superior direito para importar jogos: escolha a pasta de exportação de cada jogo. Você também pode importar prod.keys ali (compartilhadas com o MeloNX); os jogos de Switch 2 não precisam delas.",
     },
     'fr': <String, String>{
@@ -251,7 +263,7 @@ abstract final class Switch2LibraryLocale {
       'deleteFailed': "Le jeu n’a pas pu être supprimé.",
       'deleted': "{name} supprimé.",
       'importSave': "Importer une sauvegarde",
-      'importSaveHint': "Choisissez le dossier de sauvegarde du jeu (JKSV, Checkpoint, Ryujinx ou yuzu). Utilisée au prochain lancement du jeu.",
+      'importSaveHint': "Choisissez le dossier de sauvegarde (JKSV, Checkpoint, Ryujinx ou yuzu). Une sauvegarde d'un autre jeu va dans le dossier de ce jeu. Utilisée au prochain lancement.",
       'openSaves': "Ouvrir le dossier des sauvegardes",
       'openSavesHint': "Fichiers → Sur mon iPhone → RewindBox → S2Arm → Saves. Mis à jour chaque fois que vous quittez le jeu.",
       'openSavesFailed': "Impossible d'ouvrir l'app Fichiers. Les sauvegardes sont dans Fichiers → Sur mon iPhone → RewindBox → S2Arm → Saves.",
@@ -262,6 +274,8 @@ abstract final class Switch2LibraryLocale {
       'saveSameFolder': "Choisissez le dossier où se trouve votre sauvegarde, pas le dossier des sauvegardes de RewindBox.",
       'saveNotExport': "Le dossier de ce jeu n'est pas un export Switch 2.",
       'saveFailed': "La sauvegarde n'a pas pu être importée.",
+      'saveRedirected': "Cette sauvegarde appartient à {name} ({id}). Elle a été placée dans le dossier de sauvegarde de ce jeu.",
+      'saveRedirectedMissing': "Cette sauvegarde appartient à un autre jeu ({id}) qui n'est pas encore dans votre bibliothèque. Elle a été placée dans son dossier de sauvegarde et servira quand vous ajouterez ce jeu.",
       'emptyHint': "Utilisez le bouton en haut à droite pour importer des jeux : choisissez le dossier exporté de chaque jeu. Vous pouvez aussi y importer prod.keys (partagé avec MeloNX) ; les jeux Switch 2 n'en ont pas besoin.",
     },
     'de': <String, String>{
@@ -299,6 +313,8 @@ abstract final class Switch2LibraryLocale {
       'saveSameFolder': "Wähle den Ordner mit deinem Spielstand, nicht den Spielstandordner von RewindBox.",
       'saveNotExport': "Der Ordner dieses Spiels ist kein Switch-2-Export.",
       'saveFailed': "Der Spielstand konnte nicht importiert werden.",
+      'saveRedirected': "Dieser Spielstand gehört zu {name} ({id}). Er wurde in den Spielstandordner dieses Spiels gelegt.",
+      'saveRedirectedMissing': "Dieser Spielstand gehört zu einem anderen Spiel ({id}), das noch nicht in deiner Bibliothek ist. Er wurde in dessen Spielstandordner gelegt und wird verwendet, sobald du das Spiel hinzufügst.",
       'emptyHint': "Importiere Spiele über die Schaltfläche oben rechts: Wähle den Exportordner jedes Spiels. Dort kannst du auch prod.keys importieren (gemeinsam mit MeloNX); Switch-2-Spiele brauchen sie nicht.",
     },
     'it': <String, String>{
@@ -336,6 +352,8 @@ abstract final class Switch2LibraryLocale {
       'saveSameFolder': "Scegli la cartella in cui si trova il tuo salvataggio, non la cartella dei salvataggi di RewindBox.",
       'saveNotExport': "La cartella di questo gioco non è un'esportazione Switch 2.",
       'saveFailed': "Impossibile importare il salvataggio.",
+      'saveRedirected': "Questo salvataggio appartiene a {name} ({id}). È stato messo nella cartella dei salvataggi di quel gioco.",
+      'saveRedirectedMissing': "Questo salvataggio appartiene a un altro gioco ({id}) non ancora presente nella tua libreria. È stato messo nella sua cartella e verrà usato quando aggiungerai quel gioco.",
       'emptyHint': "Usa il pulsante in alto a destra per importare i giochi: scegli la cartella di esportazione di ogni gioco. Lì puoi importare anche prod.keys (condivise con MeloNX); i giochi Switch 2 non ne hanno bisogno.",
     },
     'id': <String, String>{
@@ -373,6 +391,8 @@ abstract final class Switch2LibraryLocale {
       'saveSameFolder': "Pilih folder tempat data simpanan Anda, bukan folder simpanan RewindBox.",
       'saveNotExport': "Folder game ini bukan ekspor Switch 2.",
       'saveFailed': "Data simpanan tidak dapat diimpor.",
+      'saveRedirected': "Data simpanan ini milik {name} ({id}). Data ditaruh di folder simpanan game tersebut.",
+      'saveRedirectedMissing': "Data simpanan ini milik game lain ({id}) yang belum ada di pustaka Anda. Data ditaruh di folder simpanannya dan akan dipakai setelah Anda menambahkan game itu.",
       'emptyHint': "Gunakan tombol di kanan atas untuk mengimpor game: pilih folder ekspor setiap game. Kamu juga bisa mengimpor prod.keys di sana (dipakai bersama MeloNX); game Switch 2 tidak memerlukannya.",
     },
     'ja': <String, String>{
@@ -410,6 +430,8 @@ abstract final class Switch2LibraryLocale {
       'saveSameFolder': "RewindBox のセーブフォルダではなく、セーブデータがあるフォルダを選んでください。",
       'saveNotExport': "このゲームのフォルダは Switch 2 のエクスポートではありません。",
       'saveFailed': "セーブデータを読み込めませんでした。",
+      'saveRedirected': "このセーブデータは {name}（{id}）のものです。そのゲームのセーブフォルダに入れました。",
+      'saveRedirectedMissing': "このセーブデータは、まだライブラリにない別のゲーム（{id}）のものです。そのゲームのセーブフォルダに入れたので、ゲームを追加すると使われます。",
       'emptyHint': "右上のボタンからゲームをインポートします。各ゲームのエクスポートフォルダーを選んでください。prod.keys もそこでインポートできます（MeloNX と共用）。Switch 2 のゲームには不要です。",
     },
     'ko': <String, String>{
@@ -447,6 +469,8 @@ abstract final class Switch2LibraryLocale {
       'saveSameFolder': "RewindBox 저장 폴더가 아니라 저장 데이터가 있는 폴더를 선택하세요.",
       'saveNotExport': "이 게임의 폴더는 Switch 2 내보내기가 아닙니다.",
       'saveFailed': "저장 데이터를 가져올 수 없습니다.",
+      'saveRedirected': "이 저장 데이터는 {name}({id})의 것입니다. 해당 게임의 저장 폴더에 넣었습니다.",
+      'saveRedirectedMissing': "이 저장 데이터는 아직 라이브러리에 없는 다른 게임({id})의 것입니다. 해당 게임의 저장 폴더에 넣었으며, 게임을 추가하면 사용됩니다.",
       'emptyHint': "오른쪽 위 버튼으로 게임을 가져오세요. 각 게임의 내보내기 폴더를 선택합니다. 그곳에서 prod.keys도 가져올 수 있습니다(MeloNX와 공유). Switch 2 게임에는 필요하지 않습니다.",
     },
   };

@@ -114,7 +114,10 @@ No engine change: everything below uses what the pinned engine already reads in 
   clean quit writes the progress back there. A save already in the old private folder is copied once into an empty new
   one. The playlist menu imports a save for the selected game (a folder picked in Files, copied in as one sub-folder,
   inside `StorageImportActivity.run`; refused while a game runs; the previous content kept as `<name> (backup)`) and
-  opens the folder in Files (`shareddocuments:`). Checked by `test/s2arm_session_menu_test.py` (Saves) and
+  opens the folder in Files (`shareddocuments:`). A save that names its game (Ryujinx `ExtraData0`, a yuzu path, a Checkpoint
+  `0x<id> …` folder; `saveProgramId`, read as the engine's `Detect` reads them) goes to that game's folder when it is not
+  the selected one: the library game's title names the folder, or `Switch 2 [<id>]` when the game is not imported yet.
+  JKSV and plain files name no game and stay with the selected game; a save naming several games too (the engine decides). Checked by `test/s2arm_session_menu_test.py` (Saves) and
   `test/s2arm_internal_service_test.dart` (saves). Not observed on a device.
 - **End of session**: on `session_ended` (either menu's quit, or an engine stop) the bridge removes the menu and dismisses
   the game view controller before it tells Dart.

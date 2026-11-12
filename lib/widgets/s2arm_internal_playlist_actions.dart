@@ -207,8 +207,12 @@ class _S2ArmInternalPlaylistActionsState
       return;
     }
     if (result == null || !mounted) return;
+    final redirected = result.redirectedTo;
     final lines = [
-      _tf('saveImported', {'name': name, 'count': '${result.files}'}),
+      if (redirected == null) _tf('saveImported', {'name': name, 'count': '${result.files}'}),
+      if (redirected != null && result.redirectedTitle != null)
+        _tf('saveRedirected', {'name': result.redirectedTitle, 'id': redirected}),
+      if (redirected != null && result.redirectedTitle == null) _tf('saveRedirectedMissing', {'id': redirected}),
       if (result.backup != null) _tf('saveImportedBackup', {'backup': path.basename(result.backup!)}),
     ];
     _notice(lines.join('\n'));
