@@ -109,7 +109,8 @@ class _S2ArmInternalPlaylistActionsState
     if (duplicates > 0) _notice(_tf('duplicates', {'count': duplicates}));
     for (final item in result.rejected.take(3)) {
       _notice(
-        '${item.name}: ${S2ArmInternalService.localizedError(locale, item.reason)}',
+        '${item.name}: ${S2ArmInternalService.localizedError(locale, item.reason)}'
+        '${item.detail == null ? '' : '\n(${item.detail})'}',
       );
     }
   }

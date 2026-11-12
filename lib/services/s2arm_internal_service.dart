@@ -38,10 +38,13 @@ class S2ArmRuntimeAvailability {
 
 /// Outcome of one game in a Switch 2 import. [reason] is an S2ArmEngineLocale key (or 'imported' / 'duplicate').
 class S2ArmImportItem {
-  const S2ArmImportItem(this.name, this.reason, {this.destination});
+  const S2ArmImportItem(this.name, this.reason, {this.destination, this.detail});
   final String name;
   final String reason;
   final String? destination;
+
+  /// The native diagnostic of a refusal (what the export check read), shown under the message.
+  final String? detail;
   bool get imported => reason == 'imported';
 }
 
@@ -191,6 +194,8 @@ abstract final class S2ArmInternalService {
         return 'restartRequired';
       case 'notExportFolder':
         return 'notExportFolder';
+      case 'notDownloaded':
+        return 'notDownloaded';
       case 'exportInvalid':
       case 'gameIdMismatch':
         return 'exportInvalid';
@@ -334,7 +339,12 @@ abstract final class S2ArmInternalService {
         ? <Map<String, dynamic>>[detected]
         : await _exportsBelow(picked);
     if (exports.isEmpty) {
-      return S2ArmImportResult(<S2ArmImportItem>[S2ArmImportItem(path.basename(picked), (detected['code'] ?? 'notExportFolder').toString())]);
+      // Files that iCloud has not downloaded to the iPhone are only placeholders (".<name>.icloud"): say so.
+      final reason = await _hasICloudPlaceholder(picked) ? 'notDownloaded' : (detected['code'] ?? 'notExportFolder').toString();
+      final detail = detected['diagnostic']?.toString();
+      return S2ArmImportResult(<S2ArmImportItem>[
+        S2ArmImportItem(path.basename(picked), reason, detail: detail == null || detail.isEmpty ? null : detail),
+      ]);
     }
     final items = <S2ArmImportItem>[];
     try {
@@ -382,6 +392,22 @@ abstract final class S2ArmInternalService {
       level = next;
     }
     return found;
+  }
+
+  /// Whether [picked] holds, up to four levels down, a file iCloud has not downloaded yet (".<name>.icloud").
+  static Future<bool> _hasICloudPlaceholder(String picked) async {
+    try {
+      var seen = 0;
+      await for (final entry in Directory(picked).list(recursive: true, followLinks: false)) {
+        if (++seen > 20000) break;
+        if (path.split(path.relative(entry.path, from: picked)).length > 5) continue;
+        final name = path.basename(entry.path);
+        if (entry is File && name.startsWith('.') && name.endsWith('.icloud')) return true;
+      }
+    } on FileSystemException {
+      return false;
+    }
+    return false;
   }
 
   /// Copies one detected export into Games/<title> through staging. Null when the player cancelled.

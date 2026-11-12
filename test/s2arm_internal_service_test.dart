@@ -168,6 +168,28 @@ void main() {
       expect(none.items.single.reason, 'notExportFolder');
     });
 
+    test('a game iCloud has not downloaded says so, and a refusal carries the native diagnostic', () async {
+      final exefs = await Directory('${temp.path}/Cloud/Game/base/exefs').create(recursive: true);
+      await File('${exefs.path}/.main.npdm.icloud').writeAsBytes([1]);
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'detectExport') {
+          return {'success': false, 'code': 'notExportFolder', 'diagnostic': 'needs base/exefs/main.npdm'};
+        }
+        return null;
+      });
+      final cloud = await S2ArmInternalService.importFolderAt('${temp.path}/Cloud');
+      expect(cloud.items.single.reason, 'notDownloaded');
+      expect(cloud.items.single.detail, 'needs base/exefs/main.npdm');
+      expect(S2ArmInternalService.messageKey('notDownloaded'), 'notDownloaded');
+      for (final code in S2ArmEngineLocale.values.keys) {
+        expect(S2ArmEngineLocale.values[code]!['notDownloaded'], isNotEmpty, reason: code);
+      }
+      final plain = await Directory('${temp.path}/Plain/Game/base/exefs').create(recursive: true);
+      await File('${plain.path}/main').writeAsBytes([1]);
+      final refused = await S2ArmInternalService.importFolderAt('${temp.path}/Plain');
+      expect(refused.items.single.reason, 'notExportFolder');
+    });
+
     test('too little free space refuses the import before copying', () async {
       S2ArmInternalService.freeBytes = (_) => 1024;   // below the margin
       final source = await Directory('${temp.path}/export/base/exefs').create(recursive: true);
