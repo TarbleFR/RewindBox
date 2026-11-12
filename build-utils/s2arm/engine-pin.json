@@ -1,19 +1,19 @@
 {
   "status": "verified",
-  "packagedFingerprint": "2f58c5476892b59e243c7d1f3877e5854048212f90b7a2dbb7a48c3704e82554",
+  "packagedFingerprint": "70ca333207790af8834ffacee37c3f3a511daa208df5930be24ad2a7c32aa331",
   "producers": {
     "engine": {
-      "run": 43204364693,
+      "run": 43278195639,
       "attempt": 1,
-      "artifact": 13937907087,
-      "name": "s2arm-engine-framework-779d9a7f812b6c3aba878495a2037041f7659ce0",
-      "bytes": 23927285,
-      "sha256": "733b3d201ea516e5e2635b18deabbb7095026219b6d2a02d8d253eab37f89a07",
-      "headSha": "779d9a7f812b6c3aba878495a2037041f7659ce0",
-      "expiresAt": "2026-12-12T11:07:23Z",
+      "artifact": 13971369524,
+      "name": "s2arm-engine-framework-496e1d8ff094649ff40dbfcafcf0f8f19d96c6d7",
+      "bytes": 23927946,
+      "sha256": "07916e3986bbf7a6dadfe97691a17ecd0f4a6969e21f07cedb1d553efff8d2a0",
+      "headSha": "496e1d8ff094649ff40dbfcafcf0f8f19d96c6d7",
+      "expiresAt": "2026-12-12T18:30:22Z",
       "members": {
-        "S2ArmEngine.framework.zip": "ba593e5ecaa013a04c1ecd51d8e100698ae00ca1d35aa4ec268248639c07dad9",
-        "NS2Pro.framework.zip": "8dd8188e7c5c34a31dd7cb637fedb5c18c2f39e1111fe859935439167a35882f"
+        "S2ArmEngine.framework.zip": "96bd93a0ef674a027edc1cda48564ebcc2fb396ff053f34092beeb257bc49352",
+        "NS2Pro.framework.zip": "1a30c3e085950eae44f443a26580f9fc34bc2b7b0047bfd8e1337fedc8c47456"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -56,7 +56,7 @@
     }
   },
   "zips": {
-    "engine": "733b3d201ea516e5e2635b18deabbb7095026219b6d2a02d8d253eab37f89a07",
+    "engine": "07916e3986bbf7a6dadfe97691a17ecd0f4a6969e21f07cedb1d553efff8d2a0",
     "prepare": "9d234741156b70ba67cef91fd788c59571957650778985635d2038ea4830359c",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -87,9 +87,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "68bdfde2ba170ec4b7e5df5069d8973c1766233ea61a655ea06911391bb012ab",
+      "sha256": "e1bbf9abd9b9e590cc497b697e3b6be7a494c319e7b4f0d69a9bd14deba49e8e",
       "bytes": 107453752,
-      "fingerprint": "2f58c5476892b59e243c7d1f3877e5854048212f90b7a2dbb7a48c3704e82554"
+      "fingerprint": "70ca333207790af8834ffacee37c3f3a511daa208df5930be24ad2a7c32aa331"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -118,9 +118,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 43204364693,
+      "run": 43278195639,
       "attempt": 1,
-      "head_sha": "779d9a7f812b6c3aba878495a2037041f7659ce0",
+      "head_sha": "496e1d8ff094649ff40dbfcafcf0f8f19d96c6d7",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -163,11 +163,15 @@
         {
           "name": "0010-guest-park-and-resume-the-same-game.patch",
           "sha256": "7d6892ca6f8cfc2b0dac2fcdd038b7091ab0f43ea51630922eb8383e20928c63"
+        },
+        {
+          "name": "0011-guest-skip-the-store-emulation-self-test-under-a-debugger.patch",
+          "sha256": "f2d58c1f2177fd036e7a54ac85b97d7ec97333156a1784900ad88f0a12ac5696"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "ba593e5ecaa013a04c1ecd51d8e100698ae00ca1d35aa4ec268248639c07dad9",
-        "NS2Pro.framework.zip": "8dd8188e7c5c34a31dd7cb637fedb5c18c2f39e1111fe859935439167a35882f"
+        "S2ArmEngine.framework.zip": "96bd93a0ef674a027edc1cda48564ebcc2fb396ff053f34092beeb257bc49352",
+        "NS2Pro.framework.zip": "1a30c3e085950eae44f443a26580f9fc34bc2b7b0047bfd8e1337fedc8c47456"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",

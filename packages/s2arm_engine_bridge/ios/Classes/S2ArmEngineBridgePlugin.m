@@ -31,6 +31,36 @@ static UIViewController *S2ArmTopViewController(void);
 static BOOL S2ArmPathInside(NSString *path, NSString *root);
 static void S2ArmPrepareSaveFolder(NSString *folder, NSString *docs);
 
+// The engine writes its own log to <game>/docs/host.log (patch 0009) and keeps the previous ones in <game>/docs/logs/,
+// inside Library, which Files does not show. A copy goes to Documents/Diagnostics/S2Arm/engine/<gid>/ at each app start
+// and at each session end, so that the player can send it: Mario Kart World on IPA 731 stalled 10 minutes in the
+// engine, and nothing of the engine's own account could be read.
+static void S2ArmExportEngineLogs(void) {
+  NSFileManager *files = NSFileManager.defaultManager;
+  NSString *documents = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
+  NSString *library = S2ArmLibraryRoot();
+  if (!documents.length || !library.length) return;
+  NSString *outRoot = [documents stringByAppendingPathComponent:@"Diagnostics/S2Arm/engine"];
+  for (NSString *gid in [files contentsOfDirectoryAtPath:library error:nil]) {
+    NSString *docs = [[library stringByAppendingPathComponent:gid] stringByAppendingPathComponent:@"docs"];
+    NSMutableArray<NSString *> *sources = [NSMutableArray array];
+    NSString *current = [docs stringByAppendingPathComponent:@"host.log"];
+    if ([files fileExistsAtPath:current]) [sources addObject:current];
+    NSString *archive = [docs stringByAppendingPathComponent:@"logs"];
+    for (NSString *name in [files contentsOfDirectoryAtPath:archive error:nil]) {
+      if ([name hasPrefix:@"host-"] && [name hasSuffix:@".log"]) [sources addObject:[archive stringByAppendingPathComponent:name]];
+    }
+    if (!sources.count) continue;
+    NSString *out = [outRoot stringByAppendingPathComponent:gid];
+    [files createDirectoryAtPath:out withIntermediateDirectories:YES attributes:nil error:nil];
+    for (NSString *source in sources) {
+      NSString *target = [out stringByAppendingPathComponent:source.lastPathComponent];
+      [files removeItemAtPath:target error:nil];
+      [files copyItemAtPath:source toPath:target error:nil];
+    }
+  }
+}
+
 static BOOL S2ArmMeloNXCoreLoaded(void) {
   int (*loaded)(void) = (int (*)(void))dlsym(RTLD_DEFAULT, "rb_melonx_core_loaded");
   return loaded && loaded() != 0;
@@ -64,6 +94,8 @@ static NSString *S2ArmEnginePath(void) {
   instance.channel = channel;
   instance.workQueue = dispatch_queue_create("com.neogamelab.neostation.s2arm.work", DISPATCH_QUEUE_SERIAL);
   [registrar addMethodCallDelegate:instance channel:channel];
+  // The previous run's engine log (a crash ends the process before session_ended can copy it).
+  dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ S2ArmExportEngineLogs(); });
 }
 
 - (void)handleMethodCall:(FlutterMethodCall *)call result:(FlutterResult)result {
@@ -399,7 +431,10 @@ static NSDictionary *launchFail(NSString *error, NSString *stage, NSString *deta
     }
     s2arm_journal("jitProbe", "passed", NULL);
     // The spare pool covers code the game loads after the detach (later NROs): command 1 cannot run once detached.
-    uint64_t pool = plan.later_code_bytes + (16ull << 20);
+    // It also covers the boot code: if the boot is not served before the deadline, the helper detaches anyway and the
+    // engine's first request must still find pages. Mario Kart World on IPA 731 asked for main's 42 MB right after a
+    // forced detach, and a 16 MB pool ended the session (pool exhausted, code 134).
+    uint64_t pool = plan.boot_code_bytes + plan.later_code_bytes + (16ull << 20);
     if (s2arm_code_prepare_pool(pool) != 0) {
       s2arm_journal("pool", "skipped", "\"bytes\":%llu", (unsigned long long)pool);   // launch still proceeds; later NROs may fail
     }
@@ -594,6 +629,7 @@ static void s2arm_session_ended(int code, const char *reason, void *context) {
   S2ArmEngineBridgePlugin *self = (__bridge S2ArmEngineBridgePlugin *)context;
   self.parkedGameId = nil;   // an end (or a failed resume) leaves nothing to resume
   s2arm_journal("sessionEnded", code == S2A_RB_ENDED_NORMAL ? "normal" : "failed", "\"code\":%d", code);
+  dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ S2ArmExportEngineLogs(); });
   NSString *why = reason ? @(reason) : @"";
   dispatch_async(dispatch_get_main_queue(), ^{
     [self closeSessionView];

@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import plistlib
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -242,6 +243,35 @@ class RepositoryReviewChainTests(unittest.TestCase):
         with patch.object(evidence, "read_input", altered):
             with self.assertRaisesRegex(SystemExit, "declaration changed since review"):
                 evidence.repository_inputs(ROOT)
+
+    def test_a_product_tree_without_the_disc_reader_keeps_the_previous_declaration(self):
+        # IPA 731's effective product tree still holds the podspec the RetroAchievements session review declared
+        # (b06888a9's disc reader was never delivered). That exact identity passes; any other unreviewed bytes do not.
+        podspec = ROOT / "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec"
+        review = json.loads((ROOT / evidence.RA_DISC_READER_REVIEW).read_bytes())
+        before = review["declarations"][evidence.LIBRETRO_PODSPEC]["before"]
+        blob = subprocess.run(["git", "-C", str(ROOT), "rev-list", "--all", "--", str(podspec.relative_to(ROOT))],
+                              capture_output=True, text=True, check=True).stdout.split()
+        previous = next((data for data in (subprocess.run(["git", "-C", str(ROOT), "show",
+                                                           f"{commit}:{podspec.relative_to(ROOT).as_posix()}"],
+                                                          capture_output=True).stdout for commit in blob)
+                         if hashlib.sha256(data).hexdigest() == before), None)
+        if previous is None:
+            self.skipTest("the previously declared podspec is not in this clone's history")
+        original = evidence.read_input
+
+        def delivered(root, path):
+            return previous if path == podspec else original(root, path)
+
+        self.assertIn(evidence.LIBRETRO_PODSPEC, self._inputs(delivered))
+        with patch.object(evidence, "read_input", lambda root, path: previous + b"\n# other\n"
+                          if path == podspec else original(root, path)):
+            with self.assertRaisesRegex(SystemExit, "declaration changed since review"):
+                evidence.repository_inputs(ROOT)
+
+    def _inputs(self, reader):
+        with patch.object(evidence, "read_input", reader):
+            return evidence.repository_inputs(ROOT)
 
 
 if __name__ == "__main__":

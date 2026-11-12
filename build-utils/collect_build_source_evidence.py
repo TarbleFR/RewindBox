@@ -126,7 +126,13 @@ def check_ra_disc_reader(root: Path, pubspec_lock_sha256: str, declarations: dic
     update = updates[LIBRETRO_PODSPEC]
     if update.get("before") != declarations.get(LIBRETRO_PODSPEC):
         raise SystemExit(f"Wrong previous declaration identity: {LIBRETRO_PODSPEC}")
-    if update.get("after") != sha256(read_input(root, root / LIBRETRO_PODSPEC)):
+    current = sha256(read_input(root, root / LIBRETRO_PODSPEC))
+    if current == update.get("before"):
+        # A delivered product tree that still holds the podspec the session review declared (IPA 731's effective tree:
+        # b06888a9's disc reader was never promoted into a delivery) compiles no libchdr; that previous declaration
+        # stands and nothing else is accepted. The shipped notices then cover more than is compiled, never less.
+        return
+    if update.get("after") != current:
         raise SystemExit(f"Disc reader source/license declaration changed since review: {LIBRETRO_PODSPEC}")
     declarations[LIBRETRO_PODSPEC] = update["after"]
     vendored_root = vendored.get("path", "")

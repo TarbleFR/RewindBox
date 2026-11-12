@@ -161,7 +161,7 @@ package assembly, and the final link's map):
 
 | Component | Version / identity | Licence | Licence text (at the S2Arm pin) | In the IPA (S2Arm's table) |
 | --- | --- | --- | --- | --- |
-| S2Arm runtime, services, graphics, iOS guest (with RewindBox patches 0001–0009) | `6b6a5715` | Apache-2.0; keep `NOTICE` | `LICENSE`, `NOTICE` | yes |
+| S2Arm runtime, services, graphics, iOS guest (with RewindBox patches 0001–0011) | `6b6a5715` | Apache-2.0; keep `NOTICE` | `LICENSE`, `NOTICE` | yes |
 | ns2pro-bridge | baseline `4d7ce092` | MIT | `runtime/ns2pro/LICENSE` | yes (`NS2Pro.framework`) |
 | Ryujinx tree | `compat/tree` | MIT | `compat/tree/LICENSE.txt` | yes |
 | Ryujinx NuGet packages kept in the engine: Gommon 2.8.1.2, Open.Nat.V2 3.2.1, Ryujinx.LibHac 0.21.0-alpha.133 (MIT; LibHac also the ISC hactool and XTSSharp notices), System.IO.Hashing 10.0.9, Humanizer.Core 3.0.10, Microsoft.IO.RecyclableMemoryStream 3.0.1, NetCoreServer 8.0.7 (MIT), MsgPack.Cli 1.0.1 (Apache-2.0) | `compat/tree/Directory.Packages.props` | as listed | the package archive or the pinned source commit of its nuspec (table above) | kept (inventory of runs 43119291210, 43122083170) |
@@ -248,6 +248,7 @@ files were changed (they are translations, not copies).
 | `build-utils/s2arm/engine/patches/0008-guest-strings-and-game-files-from-engine-bundle.patch` | modifies `ios/s2a_l10n.h`, `ios/save_transfer.m`; changes marked `RewindBox` in comments |
 | `build-utils/s2arm/engine/patches/0009-guest-log-in-docs-pad-recording-off-engine-resources.patch` | modifies `runtime/src/os.c`, `runtime/src/logcap.c`, `runtime/src/native.h`, `runtime/src/launchctx.c`, `runtime/src/sesdiag.c`, `runtime/include/s2a_launch_ctx.h`, `ios/diag.m`, `ios/loadpage.m`, `ios/hud.m`, `ios/cpatch_settings.m`, `ios/controller.m`, `ios/vpad.m`, `ios/s2a_l10n.h`, and the RewindBox files `runtime/src/rb_guest.c`, `runtime/src/rb_guest.h` of 0003; changes marked `RewindBox` in comments |
 | `build-utils/s2arm/engine/patches/0010-guest-park-and-resume-the-same-game.patch` | modifies `runtime/src/session.c`, `runtime/include/s2a_session.h`, `runtime/src/rb_guest.c`, `runtime/src/rb_guest.h`, `ios/app.m`: Quit parks the session through S2Arm's own in-process restart retirement, and the same game resumes; changes marked `RewindBox` / `patch 0010` in comments |
+| `build-utils/s2arm/engine/patches/0011-guest-skip-the-store-emulation-self-test-under-a-debugger.patch` | modifies `runtime/src/crash.c`: the store emulation self-test (a measurement, one log line) is skipped while a debugger is attached, since each of its 2000 faults stops the process for it; change marked `RewindBox (patch 0011)` in comments |
 | `build-utils/s2arm/prepare/patches/0001-rewriter-progress-report.patch` (on-device preparation library, S2ArmPrepare.xcframework) | modifies `runtime/rewriter/rewriter.c`, `runtime/rewriter/rewriter.h`: a progress callback per thread (`s2a_rewrite_set_progress`) called at each pass and inside the long loops; it only reads loop counters, no output byte depends on it (`test/s2arm_rewriter_progress_test.py`; outputs compared with the unpatched rewriter in `s2arm-prepare.yml`); changes marked `RewindBox` in comments |
 
 `native/s2arm/prepare/s2arm_sha256.c` is not derived from S2Arm (SHA-256 written from FIPS 180-4).
