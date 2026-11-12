@@ -4735,9 +4735,28 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       of 1 748 variants replayed, 82 late variants in 37 ms, 2 programs made in play. The session ran with the user's
       per-game "Async shaders" on: "not ready by cause: async skips 110" (then 12) draws in two windows: skipped draws
       the default (off) never makes.
-    - **Next action:** Hogwarts lot (own Core, Hogwarts policy): the render-thread descriptor write cost first (named
-      calls, a host profile on the real DescriptorSetUpdater), then the memory attribution of the uncounted Vulkan
-      images. Main: Core 739 CI and pin when the integration order allows.
+    - **Core 741 (Hogwarts lot 1, frozen here: contract `a5c080af…`, 95 fresh gates; not delivered, not run on an
+      iPhone) = Core 739 + `adapt_array_storage_counts`** (TextureArray.cs only, under
+      EncodingPolicy.IncrementalArrayDescriptors: Hogwarts Legacy only). Cost: texture array barrier passes 240-290 ms
+      per 5 s on the render thread (433.5 ms in the window the maintainer's audit cites), "sets rebuilt 806-1 125 over
+      61-64 million elements": a storage change in an element empties the array's barrier set and the next pass walks
+      every element. Fix: a count per storage, built by the existing walk; a change of at most LargeChange elements
+      moves the counts and keeps the set; anything else falls back to the walk; a changed set is never skipped by the
+      epoch check. Measured before wiring (`tools/melonx/array_storage_counts_bench.py`, production members of Core
+      739 and Core 741, Linux host): a pass after a 40-element change 656-760 us -> 0.8-1.2 us at 54 000 elements
+      (the device's average walk), 4.9-10.2 ms -> 1.0-1.4 us at 524 288; the counts add 3-7 us per element change.
+      Gate `array-storage-counts` (95th, 165 checks): policy off byte for byte; policy on the same barriers per
+      operation, the set exact after every pass, elements walked 123.1 M -> 3.7 M; three wrong variants caught. Rerun
+      and passed on the Core 741 preparation: fragmented-reads, hogwarts-dma-copies, single-resource-bindings,
+      bounded-binding-snapshots, artifact-counters, bindless-retention, array-reference-deltas, array-barrier-epoch,
+      core667-fixes (its TextureArray check now undoes this adapter's replacements, each required once, before the
+      same byte comparison with the Core 663 method); contract test 492 checks (428 without the archive).
+      Falsifiable device expectation: texture array barrier passes about 10-30 ms per 5 s instead of 240-290 ms
+      (about 2.2-2.5 ms of render thread per frame); refuted if they stay above 100 ms. Rollback: remove the adapter.
+    - **Next action:** Hogwarts lot 2: the reference passes (33 348 per window, 1.7 M references, 288-364 ms) and
+      the command buffer count that multiplies them (2 818-3 466 submits per 5 s); the arrayDelta allocations at the
+      memory warning (3 calls, 1 572 864 elements examined, 145 396 KiB allocated, then a 303.6 ms gen0 pause).
+      Main: Core 739 CI and pin, then Core 741 when the integration order allows.
   - **IPA 726 device run read (12 Nov): Hogwarts Legacy on Core 735, pid 54035, 23:43:42-23:46:20 (the session
     of the P0 726 close); journals private (scratchpad), aggregates only. Not a like-for-like comparison with 725:
     the phone was in the "serious" thermal state for 99 of the 100 warm seconds (725, pid 51986: "fair").**
