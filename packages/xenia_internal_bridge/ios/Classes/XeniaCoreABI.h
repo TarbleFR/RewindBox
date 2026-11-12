@@ -14,7 +14,9 @@ extern "C" {
 // ABI 2 adds jit_state (the JIT helper decision). ABI 1 was never built.
 // ABI 3 adds get_stats (the host's performance overlay) and the widescreen and
 // internal_display_resolution settings.
-#define NEO_XENIA_ABI_VERSION 3u
+// ABI 4 adds adopt_code_region and NEO_XENIA_JIT_CODE_REGION_HELD: the code
+// region below 8 GB that the host reserves while it launches.
+#define NEO_XENIA_ABI_VERSION 4u
 
 // The Core is built from XeniOS with its upstream iOS 26.0 deployment
 // target (XeniOS CMakeLists.txt:4-11). The host app targets iOS 18: the
@@ -41,6 +43,22 @@ extern "C" {
 #define NEO_XENIA_JIT_CS_DEBUGGED (1u << 2)
 // The Core uses the TXM broker path (dual-mapped, prepared region).
 #define NEO_XENIA_JIT_BROKER_PATH (1u << 3)
+// ABI 4: address space below 8 GB is held for the code region (its one-time
+// prepare). Meaningful while NEEDS_TOOL: without it that prepare would end the
+// process (XeniOS FatalError), so the title must not boot.
+#define NEO_XENIA_JIT_CODE_REGION_HELD (1u << 4)
+
+// ABI 4: the code region the JIT tool prepares must lie below 8 GB (XeniOS
+// jit_memory_ios.cc kExecuteRegionLimit). XeniOS reserves it while its process
+// loads; RewindBox dlopens the Core late, when the low address space may be
+// taken, so the host reserves it at its own launch (PROT_NONE, this size, below
+// this limit) and hands it to adopt_code_region.
+#define NEO_XENIA_CODE_REGION_SIZE ((size_t)1 << 29)
+#define NEO_XENIA_CODE_REGION_LIMIT ((uintptr_t)1 << 33)
+// adopt_code_region results.
+#define NEO_XENIA_CODE_REGION_NONE 0      // none held: on the broker path no title boots
+#define NEO_XENIA_CODE_REGION_ADOPTED 1   // the Core owns the host's reservation now
+#define NEO_XENIA_CODE_REGION_OWN 2       // the Core holds its own; the host unmaps its reservation
 
 // Events reported by the Core on any thread. `event` is one of:
 // "firstFrame", "paused", "resumed", "stopped", "error". `message` is a
@@ -117,6 +135,12 @@ typedef struct NeoXeniaAPI {
   uint32_t (*jit_state)(void);
   // ABI 3: any thread. 0 when out is null or smaller than NeoXeniaStats.
   int (*get_stats)(NeoXeniaStats* out);
+  // ABI 4: main thread, once, right after NeoXenia_GetAPI and before
+  // prepare. `reservation` is the host's NEO_XENIA_CODE_REGION_SIZE PROT_NONE
+  // mapping below NEO_XENIA_CODE_REGION_LIMIT, or null. Returns a
+  // NEO_XENIA_CODE_REGION_* value; on any value but ADOPTED the host keeps
+  // ownership of its reservation (and unmaps it).
+  int (*adopt_code_region)(void* reservation, size_t size);
 } NeoXeniaAPI;
 
 typedef const NeoXeniaAPI* (*NeoXeniaGetAPI)(uint32_t version);

@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:external_folder_access/external_folder_access.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/l10n/xenia_locale.dart';
 import 'package:neostation/services/xenia_content.dart';
@@ -12,6 +14,7 @@ import 'xenia_test_images.dart';
 /// playlist (docs/xenios-playlist.md § Folder import). Synthetic headers
 /// only; no game content.
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   late Directory temp;
   late Directory picked;
   late Directory games;
@@ -117,6 +120,41 @@ void main() {
       );
     },
   );
+
+  test('the folder pick opens iOS security-scoped access before reading the folder', () async {
+    // file_picker's directory pick returned a bare path, which iOS does not
+    // open outside the app container (IPA 727). The pick now goes through
+    // the bookmark plugin: picked, bookmarked, then resolved (access on).
+    await titleFolder('Forza');
+    const channel = MethodChannel('neostation/external_folder_access');
+    final calls = <String>[];
+    var refuse = false;
+    ExternalFolderAccess.debugIsIosOverride = true;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+          calls.add('${call.method}:${(call.arguments as Map)['key']}');
+          if (call.method == 'resolveBookmarkedFolder' && refuse) {
+            throw PlatformException(code: 'ACCESS_DENIED');
+          }
+          return picked.path;
+        });
+    addTearDown(() {
+      ExternalFolderAccess.debugIsIosOverride = null;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+    });
+    final result = await XeniaInternalService.importFolder();
+    expect(result!.imported, 1);
+    expect(calls, <String>[
+      'pickAndBookmarkFolder:xenia-import',
+      'resolveBookmarkedFolder:xenia-import',
+    ]);
+    refuse = true;
+    final refused = await XeniaInternalService.importFolder();
+    expect(refused!.imported, 0);
+    expect(refused.items.single.name, 'ACCESS_DENIED');
+    expect(refused.items.single.reason, 'folderAccessFailed');
+  });
 
   test('picking the title folder itself imports that one game', () async {
     final root = await titleFolder('Halo');
@@ -321,6 +359,7 @@ void main() {
       'packageIncomplete',
       'packageNotGame',
       'folderRequired',
+      'folderAccessFailed',
     ]) {
       for (final code in XeniaLocale.values.keys) {
         expect(

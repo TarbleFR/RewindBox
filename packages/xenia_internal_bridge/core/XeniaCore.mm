@@ -19,9 +19,11 @@
 #include <chrono>
 #include <condition_variable>
 #include <cstring>
+#include <fcntl.h>
 #include <mutex>
 #include <string>
 #include <time.h>
+#include <unistd.h>
 #include <utility>
 #include <vector>
 
@@ -32,6 +34,7 @@
 #include "xenia/base/cvar.h"
 #include "xenia/cpu/backend/jit_memory_ios.h"
 #include "xenia/base/logging.h"
+#include "xenia/base/system_ios.h"
 #include "xenia/hid/input.h"
 #include "xenia/hid/input_driver.h"
 #include "xenia/ui/ios/app/windowed_app_context_ios.h"
@@ -75,6 +78,14 @@ std::vector<std::pair<std::string, std::string>> g_overrides;
 
 // Guest swaps of the running title (NeoXeniaNotifyGuestSwap), for get_stats.
 std::atomic<uint64_t> g_guest_frames{0};
+
+// A code region below 8 GB is held for the one-time JIT prepare (set once by
+// adopt_code_region, which the bridge calls right after loading the Core).
+std::atomic<bool> g_code_region_held{false};
+
+// Where a FatalError's reason is kept (Documents/XeniOS/Engine), written once
+// by the first prepare before the hooks are installed.
+std::string g_fatal_record_path;
 
 uint64_t g_transaction = 0;
 NeoXeniaEvent g_event = nullptr;
@@ -121,6 +132,21 @@ void SetTitleState(TitleState state, const std::string& failure = {}) {
     if (!failure.empty()) g_failure = failure;
   }
   g_state_changed.notify_all();
+}
+
+// XeniOS's FatalError ends the process (quick_exit) after its iOS hooks: the
+// XeniOS app records the session and shows the reason (ios_crash_reporting.mm).
+// RewindBox has neither, so the reason is kept for the host's next start.
+void NoteFatalError(std::string_view message) {
+  if (g_fatal_record_path.empty()) return;
+  std::string text = xe::strip_pii(message);
+  if (text.size() > 4096) text.resize(4096);
+  text += '\n';
+  const int fd = open(g_fatal_record_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
+  if (fd < 0) return;
+  (void)write(fd, text.data(), text.size());
+  fsync(fd);
+  close(fd);
 }
 
 // ---------------------------------------------------------------- ABI calls
@@ -226,6 +252,11 @@ int Prepare(const NeoXeniaConfiguration* configuration, uint32_t /*timeout_ms*/,
     int argc = 1;
     char** argv_ptr = argv;
     cvar::ParseLaunchArguments(argc, argv_ptr, "", {});
+    // Before any Xenia thread exists (system_ios.h).
+    g_fatal_record_path = std::string(configuration->storage_root) + "/last-fatal.txt";
+    xe::IOSSystemHooks hooks = {};
+    hooks.note_fatal_error = NoteFatalError;
+    xe::SetIOSSystemHooks(hooks);
     // Read by EmulatorAppIOS::OnInitialize before config::SetupConfig.
     SetCvar("storage_root", configuration->storage_root);
     SetCvar("content_root", configuration->content_root);
@@ -254,6 +285,7 @@ uint32_t JitState(void) {
   if (IOSJitMemory::ToolAttached()) state |= NEO_XENIA_JIT_TOOL_ATTACHED;
   if (xe_is_cs_debugged()) state |= NEO_XENIA_JIT_CS_DEBUGGED;
   if (IOSJitMemory::PacksCode()) state |= NEO_XENIA_JIT_BROKER_PATH;
+  if (g_code_region_held.load(std::memory_order_acquire)) state |= NEO_XENIA_JIT_CODE_REGION_HELD;
   return state;
 }
 
@@ -261,6 +293,14 @@ int ValidateJit(char* error, size_t capacity) {
   // Before the one-time prepare, a tool that set CS_DEBUGGED and left would
   // turn the Core's prepare brk into a fatal "JIT was turned off" error.
   const uint32_t state = JitState();
+  // Without room below 8 GB that prepare is a FatalError, which would close
+  // RewindBox (jit_memory_ios.cc RequestExternalJitPrepare).
+  if ((state & NEO_XENIA_JIT_NEEDS_TOOL) && !(state & NEO_XENIA_JIT_CODE_REGION_HELD)) {
+    Copy(error, capacity,
+         "JIT unavailable: no address space below 8 GB is held for the code region; restart "
+         "RewindBox (iOS 26 TXM)");
+    return 0;
+  }
   if ((state & NEO_XENIA_JIT_NEEDS_TOOL) && !(state & NEO_XENIA_JIT_TOOL_ATTACHED)) {
     Copy(error, capacity,
          "JIT unavailable: the JIT helper must stay attached until the first game prepares "
@@ -388,6 +428,16 @@ int GetStats(NeoXeniaStats* out) {
   return 1;
 }
 
+static_assert(NEO_XENIA_CODE_REGION_SIZE ==
+                  xe::cpu::backend::IOSJitMemory::kExecuteRegionReserveSize,
+              "the host reserves the size IOSJitMemory holds");
+
+int AdoptCodeRegion(void* reservation, size_t size) {
+  const int result = NeoXeniaAdoptExecuteRegion(reservation, size);
+  g_code_region_held.store(result != NEO_XENIA_CODE_REGION_NONE, std::memory_order_release);
+  return result;
+}
+
 const NeoXeniaAPI kAPI = {
     sizeof(NeoXeniaAPI),
     NEO_XENIA_ABI_VERSION,
@@ -404,6 +454,7 @@ const NeoXeniaAPI kAPI = {
     SetAxes,
     JitState,
     GetStats,
+    AdoptCodeRegion,
 };
 
 }  // namespace

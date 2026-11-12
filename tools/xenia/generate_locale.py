@@ -140,6 +140,49 @@ for _code, _values in EXTRA.items():
     assert len(_values) == len(EXTRA_KEYS), (_code, len(_values))
     T[_code] = T[_code] + _values
 
+# The code region below 8 GB that the Core's one-time JIT prepare needs was not
+# held in this RewindBox process (docs/xenios-playlist.md § Code region).
+MEMORY_KEYS = ['jitMemoryUnavailable']
+
+MEMORY = {
+'en': ['XeniOS could not get the memory it needs for JIT in this session. Close RewindBox from the app switcher, reopen it, then start the Xbox 360 game again.'],
+'fr': ['XeniOS n’a pas pu obtenir la mémoire nécessaire au JIT dans cette session. Fermez RewindBox depuis le sélecteur d’apps, rouvrez-le, puis relancez le jeu Xbox 360.'],
+'de': ['XeniOS konnte in dieser Sitzung nicht den Speicher erhalten, den es für JIT braucht. Schließe RewindBox im App-Umschalter, öffne es erneut und starte das Xbox-360-Spiel noch einmal.'],
+'es': ['XeniOS no pudo obtener la memoria que necesita para el JIT en esta sesión. Cierra RewindBox desde el selector de apps, ábrelo de nuevo y vuelve a iniciar el juego de Xbox 360.'],
+'it': ['XeniOS non ha potuto ottenere la memoria necessaria al JIT in questa sessione. Chiudi RewindBox dal selettore delle app, riaprilo e avvia di nuovo il gioco Xbox 360.'],
+'pt': ['O XeniOS não conseguiu obter a memória necessária para o JIT nesta sessão. Feche o RewindBox no seletor de apps, abra-o novamente e inicie o jogo de Xbox 360 outra vez.'],
+'ru': ['XeniOS не удалось получить память, нужную для JIT, в этом сеансе. Закройте RewindBox в переключателе приложений, откройте его снова и запустите игру Xbox 360 ещё раз.'],
+'zh': ['XeniOS 在本次会话中无法获得 JIT 所需的内存。请在应用切换器中关闭 RewindBox，重新打开后再启动该 Xbox 360 游戏。'],
+'zh_Hant': ['XeniOS 在本次工作階段中無法取得 JIT 所需的記憶體。請在 App 切換器中關閉 RewindBox，重新開啟後再啟動該 Xbox 360 遊戲。'],
+'ja': ['このセッションでは、XeniOS が JIT に必要なメモリを確保できませんでした。App スイッチャーで RewindBox を終了してから再度開き、Xbox 360 ゲームをもう一度起動してください。'],
+'ko': ['이번 세션에서 XeniOS가 JIT에 필요한 메모리를 확보하지 못했습니다. 앱 전환기에서 RewindBox를 닫고 다시 연 다음 Xbox 360 게임을 다시 시작하세요.'],
+'id': ['XeniOS tidak dapat memperoleh memori yang diperlukan untuk JIT di sesi ini. Tutup RewindBox dari pengalih aplikasi, buka lagi, lalu jalankan kembali game Xbox 360.'],
+}
+# The folder import's picker could not open the picked folder with iOS's
+# security-scoped access (XeniaInternalService.importFolder).
+ACCESS_KEYS = ['folderAccessFailed']
+
+ACCESS = {
+'en': ['iOS did not give RewindBox access to this folder: pick it again'],
+'fr': ['iOS n’a pas ouvert ce dossier à RewindBox : choisissez-le à nouveau'],
+'de': ['iOS hat RewindBox keinen Zugriff auf diesen Ordner gegeben: wähle ihn erneut'],
+'es': ['iOS no dio a RewindBox acceso a esta carpeta: vuelve a elegirla'],
+'it': ['iOS non ha dato a RewindBox l’accesso a questa cartella: sceglila di nuovo'],
+'pt': ['o iOS não deu ao RewindBox acesso a esta pasta: escolha-a de novo'],
+'ru': ['iOS не предоставила RewindBox доступ к этой папке: выберите её снова'],
+'zh': ['iOS 未向 RewindBox 开放此文件夹：请重新选择'],
+'zh_Hant': ['iOS 未向 RewindBox 開放此資料夾：請重新選擇'],
+'ja': ['iOS がこのフォルダへのアクセスを RewindBox に許可しませんでした。もう一度選択してください'],
+'ko': ['iOS가 RewindBox에 이 폴더에 대한 접근을 허용하지 않았습니다. 다시 선택하세요'],
+'id': ['iOS tidak memberi RewindBox akses ke folder ini: pilih lagi'],
+}
+KEYS = KEYS + MEMORY_KEYS + ACCESS_KEYS
+for _code, _values in ACCESS.items():
+    assert len(_values) == len(ACCESS_KEYS), (_code, len(_values))
+for _code, _values in MEMORY.items():
+    assert len(_values) == len(MEMORY_KEYS), (_code, len(_values))
+    T[_code] = T[_code] + _values + ACCESS[_code]
+
 order = ['en','es','ru','zh','zh_Hant','pt','fr','de','it','id','ja','ko']
 for code in order:
     assert len(T[code]) == len(KEYS), (code, len(T[code]), len(KEYS))
@@ -189,7 +232,8 @@ out.append('''
     'shaderConverterMissing' ||
     'pairingRequired' ||
     'jitAttachFailed' ||
-    'jitHelperIncomplete' => error!,
+    'jitHelperIncomplete' ||
+    'jitMemoryUnavailable' => error!,
     'jitHandshakeFailed' => 'jitAttachFailed',
     'jitDetachFailed' => 'jitHelperIncomplete',
     _ => 'launchFailed',

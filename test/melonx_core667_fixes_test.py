@@ -149,8 +149,18 @@ for name, signature, guard in ((TEXTURE_ARRAY, 'public void QueueWriteToReadBarr
         # Core 723: adapt_array_barrier_epoch edits this method later (the skip after the guard, the pass counters); its
         # gate (array-barrier-epoch) executes them, so they are undone before the comparison with the Core 663 method.
         import adapt_array_barrier_epoch
-        check(final_text.count(adapt_array_barrier_epoch.PASS_NEW) == 1, name + ': the epoch pass is the one adapter edit after the guard')
-        compared = member(final_text.replace(adapt_array_barrier_epoch.PASS_NEW, adapt_array_barrier_epoch.PASS_OLD), signature)
+        # Core 741: adapt_array_storage_counts edits the same pass afterwards (the counted walk, the changed-set flag); its
+        # gate (array-storage-counts) executes them. Each of its replacements must be there exactly once and is undone
+        # first, newest first; what remains must hold the epoch pass once and, without it, be the Core 663 method.
+        import adapt_array_storage_counts
+        undone_text = final_text
+        if adapt_array_storage_counts.TAG in final_text:
+            for _, storage_old, storage_new in reversed(adapt_array_storage_counts.PAIRS):
+                check(undone_text.count(storage_new) == 1, name + ': each adapt_array_storage_counts replacement once')
+                undone_text = undone_text.replace(storage_new, storage_old)
+            check(adapt_array_storage_counts.TAG not in undone_text, name + ': no adapt_array_storage_counts edit left')
+        check(undone_text.count(adapt_array_barrier_epoch.PASS_NEW) == 1, name + ': the epoch pass is the one adapter edit after the guard')
+        compared = member(undone_text.replace(adapt_array_barrier_epoch.PASS_NEW, adapt_array_barrier_epoch.PASS_OLD), signature)
     check(compared.replace(guard, adapt_buffer_array_barriers.TEXTURE_OLD if name == TEXTURE_ARRAY else adapt_buffer_array_barriers.IMAGE_OLD)
           == control_method, name + ': the rest of QueueWriteToReadBarriers is the Core 663 method')
     check('_isBuffer = isBuffer;' in read(FINAL_SOURCE, name) and read(FINAL_SOURCE, name).count('_isBuffer =') == 1,

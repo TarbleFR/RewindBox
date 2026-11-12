@@ -51,6 +51,17 @@ class Synthetic(unittest.TestCase):
     def test_exact_declaration_is_accepted(self):
         self.assertEqual(self.run_check([self.entry()]), {PATH})
 
+    def test_an_inherited_declaration_is_accepted_with_the_same_proofs(self):
+        inherited = dict(self.entry(), build=727)
+        found = retained.declared_native_changes(
+            'dolphin', {'inheritedChangedInputs': [inherited]}, self.original, {RECIPE},
+            root=self.root, read_blob=self.blobs.__getitem__)
+        self.assertEqual(found, {PATH})
+        (self.root / PATH).write_bytes(b'other bytes\n')
+        with self.assertRaisesRegex(ValueError, 'current bytes are not newBlob'):
+            retained.declared_native_changes('dolphin', {'inheritedChangedInputs': [inherited]}, self.original,
+                                             {RECIPE}, root=self.root, read_blob=self.blobs.__getitem__)
+
     def test_no_declaration_accepts_nothing(self):
         self.assertEqual(self.run_check([]), set())
         self.assertEqual(retained.declared_native_changes('dolphin', {}, self.original, {RECIPE},

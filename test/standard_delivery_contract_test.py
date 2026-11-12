@@ -584,6 +584,7 @@ class DeclaredInputChanges(unittest.TestCase):
     def test_manifest_shape_refusals(self):
         _, manifest = current_manifest()
         good = copy.deepcopy(manifest)
+        good['components']['dolphin'].pop('inheritedChangedInputs', None)
         good['components']['dolphin']['changedInputs'] = [
             dict(path=VERIFY_IPA, baseBlob='a' * 40, newBlob='b' * 40, commit='c' * 40)]
         self.assertEqual(sd.manifest_errors(good), [])
@@ -623,6 +624,100 @@ class DeclaredInputChanges(unittest.TestCase):
         # Without the verify change both return the same count.
         self.unchanged_verifier()
         self.assertEqual(self.run_rule(plain, old), self.run_rule(plain))
+
+
+class InheritedInputChanges(unittest.TestCase):
+    """components.<retained>.inheritedChangedInputs: a change a delivered base declared stays declared (728 after 727:
+    verify_ipa.py is unchanged since 727 but still differs from what the retained608 Core recorded)."""
+    V1, V2 = b'verify v1\n', b'verify v2\n'
+    BASE_BUILD = 9727
+
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.git = g = Git(self.directory.name)
+        g.write(VERIFY_IPA, self.V1)
+        g.write(DOLPHIN_CORE, 'core\n')
+        g.write('packages/dolphin_internal_bridge/ci/build_support.py', 'support\n')
+        g.commit('older')
+        g.write(VERIFY_IPA, self.V2)
+        self.change = g.commit('verify')
+        self.declared = dict(path=VERIFY_IPA, baseBlob=git_blob(self.V1), newBlob=git_blob(self.V2),
+                             commit=self.change)
+        self.repo = sd.Repo(self.directory.name)
+
+    def deliver_base(self, base_spec):
+        """Commit the base delivery's frozen manifest at the base source, with the given dolphin entries."""
+        value = dict(build=self.BASE_BUILD, status='frozen', product=dict(restore={}, effectiveDigest='a' * 64),
+                     components=dict(dolphin=dict(mode='retain', inputs='rewind608_producers.input_paths', **base_spec)))
+        self.git.write(sd.manifest_path(self.BASE_BUILD), json.dumps(value))
+        self.base = self.git.commit('base delivery')
+        self.git.write('NOTES', 'after the base\n')
+        self.git.commit('later')
+
+    def manifest(self, **entry):
+        item = dict(self.declared, build=self.BASE_BUILD)
+        item.update(entry)
+        return dict(base=dict(source=self.base, build=self.BASE_BUILD), product=dict(reviewedCommits=[]),
+                    components=dict(dolphin=dict(mode='retain', inputs='rewind608_producers.input_paths',
+                                                 inheritedChangedInputs=[item])))
+
+    def run_rule(self, manifest):
+        reader = sd.EffectiveReader(self.repo, self.repo.entries('HEAD'))
+        return sd.retained_inputs_unchanged(manifest, self.repo, reader.listing, reader.read)
+
+    def refused(self, manifest, text):
+        with self.assertRaises(ValueError) as caught:
+            self.run_rule(manifest)
+        self.assertIn(text, str(caught.exception))
+
+    def test_declared_by_the_base_is_accepted(self):
+        self.deliver_base(dict(changedInputs=[self.declared]))
+        self.assertGreater(self.run_rule(self.manifest()), 0)
+
+    def test_inherited_by_the_base_is_accepted(self):
+        self.deliver_base(dict(inheritedChangedInputs=[dict(self.declared, build=self.BASE_BUILD)]))
+        self.assertGreater(self.run_rule(self.manifest()), 0)
+
+    def test_a_base_that_does_not_declare_it_refuses(self):
+        self.deliver_base({})
+        self.refused(self.manifest(), f'the base delivery {self.BASE_BUILD} does not declare this entry')
+
+    def test_a_different_entry_than_the_base_refuses(self):
+        self.deliver_base(dict(changedInputs=[self.declared]))
+        self.refused(self.manifest(commit='c' * 40), 'does not declare this entry')
+        self.refused(self.manifest(build=self.BASE_BUILD - 1), 'does not declare this entry')
+
+    def test_other_current_bytes_refuse(self):
+        self.deliver_base(dict(changedInputs=[self.declared]))
+        self.refused(self.manifest(newBlob=git_blob(b'other\n')), 'the current bytes are not newBlob')
+
+    def test_a_change_since_the_base_stays_refused(self):
+        self.deliver_base(dict(changedInputs=[self.declared]))
+        self.git.write(VERIFY_IPA, 'verify v3\n')
+        self.git.commit('again')
+        self.refused(self.manifest(), 'A retained component input changed since the base: ' + repr([VERIFY_IPA]))
+
+    def test_manifest_shape_refusals(self):
+        _, manifest = current_manifest()
+        good = copy.deepcopy(manifest)
+        good['components']['dolphin'].pop('changedInputs', None)
+        good['components']['dolphin']['inheritedChangedInputs'] = [
+            dict(path=VERIFY_IPA, baseBlob='a' * 40, newBlob='b' * 40, commit='c' * 40, build=727)]
+        self.assertEqual(sd.manifest_errors(good), [])
+
+        def errors(change):
+            value = copy.deepcopy(good)
+            change(value['components'])
+            return sd.manifest_errors(value)
+        entry = lambda c: c['dolphin']['inheritedChangedInputs'][0]
+        self.assertTrue(errors(lambda c: entry(c).pop('build')))
+        self.assertTrue(errors(lambda c: entry(c).update(build='727')))
+        self.assertTrue(errors(lambda c: entry(c).update(extra=1)))
+        self.assertTrue(errors(lambda c: entry(c).update(baseBlob=entry(c)['newBlob'])))
+        self.assertTrue(errors(lambda c: c['dolphin'].update(changedInputs=[
+            {k: v for k, v in entry(c).items() if k != 'build'}])))
+        self.assertTrue(errors(lambda c: c['rpcs3'].update(inheritedChangedInputs=[dict(entry(c))])))
 
 
 class Workflow(unittest.TestCase):

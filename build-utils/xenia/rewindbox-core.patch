@@ -226,3 +226,31 @@ index ae55503..6ba7ba9 100644
    EndZPDFrame();
    ProcessCompletedSubmissions();
    LogFrameGpuWaits();
+diff --git a/src/xenia/cpu/backend/jit_memory_ios.cc b/src/xenia/cpu/backend/jit_memory_ios.cc
+index 5067c76..121f3cd 100644
+--- a/src/xenia/cpu/backend/jit_memory_ios.cc
++++ b/src/xenia/cpu/backend/jit_memory_ios.cc
+@@ -79,6 +79,23 @@ constexpr char kJitTurnedOffMessage[] =
+ 
+ }  // namespace
+ 
++// RewindBox embedded Core (build-utils/xenia): the host app holds the code
++// region from its own launch and hands it over after its late dlopen of this
++// Core, when the reservation above found no room. Returns 2 when the Core
++// already holds one, 1 when it takes the host's, 0 when none is held.
++extern "C" int NeoXeniaAdoptExecuteRegion(void* reservation, size_t size) {
++  if (execute_region_reservation) {
++    return 2;
++  }
++  const uintptr_t base = reinterpret_cast<uintptr_t>(reservation);
++  if (!base || size != kExecuteRegionReserveSize ||
++      base + size > kExecuteRegionLimit) {
++    return 0;
++  }
++  execute_region_reservation = static_cast<uint8_t*>(reservation);
++  return 1;
++}
++
+ // Device detection and the external JIT preparation protocol originate in
+ // XeniOS preview 2f888db75. Keep the platform policy in this translation unit.
+ struct IOSJitMemory::Impl {

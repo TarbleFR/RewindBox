@@ -37,6 +37,7 @@ void main() {
     // the Core's handshake and the transaction stays open for the launch.
     XeniaJitService.jitState = () async => <String, dynamic>{
       'needsTool': true,
+      'codeRegionHeld': true,
       'toolAttached': false,
     };
     XeniaJitService.pairingFile = () async => File('/tmp/pairing.plist');
@@ -90,6 +91,45 @@ void main() {
         title: 'Game',
         uiLocale: const Locale('fr'),
       );
+
+  test(
+    'a fatal error record of an earlier session is logged once, then removed',
+    () async {
+      final engine = await XeniaInternalService.engineDirectory();
+      await engine.create(recursive: true);
+      final record = File(path.join(engine.path, 'last-fatal.txt'))
+        ..writeAsStringSync(
+          "Xenia couldn't find room for its JIT memory in the part of the "
+          'address space the JIT tool can prepare.\n',
+        );
+      final launched = await launch(game.path);
+      expect(
+        launched.success,
+        isTrue,
+        reason: 'the record never blocks a launch',
+      );
+      expect(record.existsSync(), isFalse);
+      expect(await XeniaInternalService.takePreviousFatal(), isNull);
+      record.writeAsStringSync('  \n');
+      expect(await XeniaInternalService.takePreviousFatal(), isNull);
+      expect(record.existsSync(), isFalse);
+    },
+  );
+
+  test(
+    'no code region below 8 GB: refused before the helper and the bridge',
+    () async {
+      XeniaJitService.jitState = () async => <String, dynamic>{
+        'needsTool': true,
+        'toolAttached': false,
+        'codeRegionHeld': false,
+      };
+      final refused = await launch(game.path);
+      expect(refused.success, isFalse);
+      expect(refused.error, 'jitMemoryUnavailable');
+      expect(calls, isEmpty, reason: 'no helper attach, no bridge launch');
+    },
+  );
 
   test(
     'an unsupported or missing game is refused before any JIT helper',

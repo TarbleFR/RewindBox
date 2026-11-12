@@ -60,8 +60,13 @@ copies are discarded only after a verified copy (storage contract § 4).
 ## Folder import (XEX/GOD)
 
 Import menu → "Import a game folder (XEX/GOD)" → Files folder picker
-(`FilePicker.getDirectoryPath`, read in place, no picker copy) →
-`XeniaFolderContent.scan` → staged copy → targeted `xbox360` rescan.
+(`ExternalFolderAccess.pickAndActivateFolder`, bookmark `xenia-import`, read
+in place, no picker copy) → `XeniaFolderContent.scan` → staged copy →
+targeted `xbox360` rescan. The pick opens iOS's security-scoped access for the
+session: file_picker 12.0.0-beta.3's `getDirectoryPath` returns a bare path
+without it (`IOSFilePickerHandler.swift`), so a folder outside RewindBox's
+container read as empty (found on Switch 2 with IPA 727, same call here). A
+folder iOS does not open is refused as `folderAccessFailed` (12 locales).
 
 What the engine consumes (XeniOS cf7c7ee45, `emulator.cc` LaunchPath picks
 the device from the file's magic, never its extension; a directory path is
@@ -358,10 +363,12 @@ byte-equal to the ARMSX2/RPCS3 one and already implements those commands
 
 **Decision, before every launch** (`lib/services/xenia_jit_service.dart`):
 the bridge loads the Core and reads `jit_state` (ABI 2:
-`NeedsAttachedTool`, `ToolAttached`, `CS_DEBUGGED`, broker path).
+`NeedsAttachedTool`, `ToolAttached`, `CS_DEBUGGED`, broker path; ABI 4: code
+region held).
 
 | Core state | Plan |
 | --- | --- |
+| tool needed, no code region below 8 GB held | refused, `jitMemoryUnavailable` (§ Code region) |
 | no tool needed, debugged | nothing (second and later sessions) |
 | tool needed, still attached (an earlier boot failed before the prepare) | reuse it |
 | tool needed, not attached | pairing file → LocalDevVPN route probe → helper with the core handshake → launch: nonce probe (x16=3) **before** `prepare`, `validate_jit` refuses a missing tool, `boot` runs the Core's prepare and detach, then the helper's detach is confirmed (`XeniaJitWaitForDetach`) |
@@ -370,7 +377,52 @@ the bridge loads the Core and reads `jit_state` (ABI 2:
 Helper connected, expected PID attached and `CS_DEBUGGED` are checked as
 separate facts; each failure has its own message in the 12 locales
 (`pairingRequired`, `jitAttachFailed`, `jitHelperIncomplete`,
-`jitUnavailable`). Manual LocalDevVPN only; no external JIT app.
+`jitUnavailable`, `jitMemoryUnavailable`). Manual LocalDevVPN only; no external JIT app.
+
+## Code region
+
+**First device run (12 Nov 2026, IPA 727)**: RewindBox closed to the Home
+screen right after `XeniOS launch`. The engine log (`Engine/xenia.log`) ended
+with `iOS JIT: no room for the code region below 8 GB` then the FatalError
+"Xenia couldn't find room for its JIT memory…": the JIT tool's prepare only
+keeps addresses below 8 GB (`kExecuteRegionLimit`), so XeniOS reserves the
+512 MiB region with a static initializer while its process loads. RewindBox
+dlopens the Core at the first Xbox 360 launch, when the rest of the app may
+already hold that address space. XeniOS's FatalError then calls its iOS hooks
+and `quick_exit`: with no hook installed nothing was shown and no crash report
+was written.
+
+**ABI 4** (`XeniaCoreABI.h`): once a launch has loaded the Core on the TXM
+broker path, the bridge sets `RBXeniaReserveCodeRegion` in the app's user
+defaults. From then on, and whenever `Documents/XeniOS/Games` already holds a
+game (the first launch after an update), every RewindBox launch (iOS 26+, Core
+present) reserves
+`NEO_XENIA_CODE_REGION_SIZE` PROT_NONE below `NEO_XENIA_CODE_REGION_LIMIT` at
+plugin registration, with XeniOS's own hint search. Right after the dlopen,
+`adopt_code_region` either keeps the Core's own reservation (`OWN`, the host
+unmaps its own) or hands the host's to `IOSJitMemory` (`ADOPTED`, through
+`NeoXeniaAdoptExecuteRegion`, the only function the patch adds to
+`jit_memory_ios.cc`). `jit_state` then reports `NEO_XENIA_JIT_CODE_REGION_HELD`.
+The Dart `jitState` map carries `codeRegionHeld` and `codeRegion` (host, own or
+none) into the `XeniOS JIT:` log line.
+
+**Without a held region** while a tool is still needed (the first Xbox 360
+launch of a process that was already full, with no imported game and no
+earlier Xbox 360 launch), nothing attaches:
+`XeniaJitPlan.noCodeRegion` refuses with `jitMemoryUnavailable` ("close
+RewindBox from the app switcher and reopen it", 12 locales). `validate_jit`
+refuses the same state before `boot`. RewindBox is not closed, and the next
+launch reserves the region. Cost: 512 MiB of address space (no memory) below
+8 GB, held only by users who have imported or launched an Xbox 360 game; other engines'
+allocations go elsewhere.
+
+**Fatal record**: the Core installs XeniOS's `note_fatal_error` hook (at the
+first prepare, before any Xenia thread): any other FatalError writes its reason
+to `Engine/last-fatal.txt` before XeniOS ends the process. The next Xbox 360
+launch logs it to app.log (`XeniOS: an engine fatal error closed RewindBox in
+an earlier session: …`) and removes it. The early refusals of
+`XeniaInternalService.launch` (availability, kind, missing file, JIT plan) are
+logged with their reason (`XeniOS launch refused: …`).
 
 **IPA wiring, for the main session** (delivery files, not edited here):
 call `build-utils/configure_xenia_ios.py` after the XeniaCore pin (it

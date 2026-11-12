@@ -251,7 +251,8 @@ def declared_native_changes(kind, spec, original_inputs, recipes, root=None, rea
             return subprocess.run(['git', '-C', str(root), 'cat-file', 'blob', blob],
                                   capture_output=True, check=True).stdout
     declared = set()
-    for entry in spec.get('changedInputs') or ():
+    # inheritedChangedInputs: a change a delivered base declared; the recipe proved it is in that base manifest.
+    for entry in list(spec.get('changedInputs') or ()) + list(spec.get('inheritedChangedInputs') or ()):
         path = entry['path']
         label = f'Declared changed input {path} of retained608 {kind}: '
         require(path in original_inputs and path not in recipes, label + 'not a retained608 compiled input')
