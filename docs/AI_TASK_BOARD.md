@@ -5709,6 +5709,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       (`FATAL … 外置镜像映射 0x7100000000 … errno=1`), code 134.
     - The engine log of the 732 run reaches Files at the next app start (or at the session's end). Next: that log and
       what the screen showed.
+    - Maintainer, later: "same stop as last time" on screen. The four files sent again are byte-identical to the 20:09Z
+      upload (same sizes and SHA-256). Asked for the 732 engine log after a full app restart: `S2ArmExportEngineLogs`
+      overwrites the copies at each app start. The on-screen stop is now after the boot code was served, so it is not
+      the 731 stall.
   - **Preparation speed (maintainer request, 12 Nov): commits `74951ac7` + `2175b72e`, same outputs, verified pin
     `24dcf030` (SHA-256 `58ca7025…e86e`), handed to main for a later IPA.**
     - Where the 427 s of IPA 731 went (journal + app.log):
