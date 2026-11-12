@@ -22,8 +22,6 @@
 #import <UIKit/UIKit.h>
 #import <dlfcn.h>
 #include <fcntl.h>
-#include <mach/mach.h>
-#include <sys/mman.h>
 #include <unistd.h>
 #include <atomic>
 #include <string>
@@ -74,56 +72,51 @@ static BOOL XeniaSupportedOS(void) {
   return [NSProcessInfo.processInfo isOperatingSystemAtLeastVersion:minimum];
 }
 
-// The code region (docs/xenios-playlist.md § Code region). The JIT tool only
-// prepares it below 8 GB, and XeniOS takes that room while its own process
-// loads; this Core is dlopened at the first Xbox 360 launch, when the app may
-// have filled the low address space (first device run: "no room for the code
-// region below 8 GB", a FatalError that closed RewindBox). Once a launch has
-// loaded the Core on the TXM broker path, every later RewindBox launch reserves
-// the region at plugin registration and hands it to the Core; so does a launch
-// with Xbox 360 games already imported, before any launch set the flag.
-static NSString* const kXeniaReserveCodeRegionKey = @"RBXeniaReserveCodeRegion";
-// From registration until loadCore hands it over or unmaps it; main only.
-static void* gXeniaHostCodeRegion = nullptr;
-// What registration did, for the `XeniOS JIT:` line of app.log (the NSLog
-// below never reaches it): reserved, noRoom, or notRequested, why, and the
-// largest free gap below 8 GB at that moment. Set once, on main.
-static NSString* gXeniaRegistration = @"notRegistered";
+// The code region (docs/xenios-playlist.md § Code region): the Core reserves it
+// itself when it loads. Its limit is the JIT tool's (the patched StikJIT writes
+// full 64-bit addresses, XeniaCore.mm NeoXeniaExecuteRegionLimit), not XeniOS's
+// 8 GB, so no host reservation is needed; adopt_code_region only reports it.
+// Device runs before that change: 36 to 687 MiB were left below 8 GB, the
+// 512 MiB region often found no room and the launch was refused.
 
-// The largest unmapped range between 4 GB (the end of __PAGEZERO) and the
-// 8 GB limit, in MiB: what a reservation of the code region could still get.
-static uint64_t XeniaLargestFreeBelowLimitMiB(void) {
-  vm_address_t cursor = (vm_address_t)1 << 32;
-  const vm_address_t limit = (vm_address_t)NEO_XENIA_CODE_REGION_LIMIT;
-  uint64_t largest = 0;
-  while (cursor < limit) {
-    vm_address_t region = cursor;
-    vm_size_t size = 0;
-    vm_region_basic_info_data_64_t info;
-    mach_msg_type_number_t count = VM_REGION_BASIC_INFO_COUNT_64;
-    mach_port_t object = MACH_PORT_NULL;
-    const kern_return_t kr = vm_region_64(mach_task_self(), &region, &size, VM_REGION_BASIC_INFO_64,
-                                          (vm_region_info_t)&info, &count, &object);
-    const vm_address_t gap_end = kr == KERN_SUCCESS && region < limit ? region : limit;
-    if (gap_end > cursor && gap_end - cursor > largest) largest = gap_end - cursor;
-    if (kr != KERN_SUCCESS || region >= limit) break;
-    cursor = region + size;
-  }
-  return largest >> 20;
+// The JIT tool that answers the Core's prepare request must write full 64-bit
+// addresses: the Core's code region is no longer kept below 8 GB, and a tool
+// that drops high address bits (StikDebug 3.1.x) would prepare, and zero, the
+// low alias instead. RewindBox's StikJIT carries this marker only when built
+// with build-utils/patch_stikjit_rpcs3.py (16 hex digits per address;
+// build-utils/stikjit/source.json transport_marker, required in the IPA by
+// validate_stikjit_ipa.py). XeniaJITHelper links the app's StikJIT.framework
+// (configure_xenia_ios.py: runpath @executable_path/Frameworks, then
+// ../../Frameworks), so both places it could load from are checked.
+static NSString* const kXeniaFullWidthTransportMarker = @"NEOSTATION_STIKJIT_RPCS3_V1";
+
+static BOOL XeniaFileContains(NSString* path, NSString* marker) {
+  NSData* data = [NSData dataWithContentsOfFile:path options:NSDataReadingMappedIfSafe error:nil];
+  NSData* needle = [marker dataUsingEncoding:NSUTF8StringEncoding];
+  return data.length && needle.length &&
+         [data rangeOfData:needle options:0 range:NSMakeRange(0, data.length)].location != NSNotFound;
 }
 
-// XeniOS's own search (jit_memory_ios.cc MapBelowExecuteRegionLimit): hints
-// only, so nothing already mapped is replaced. PROT_NONE: no memory is used.
-static void* XeniaReserveCodeRegion(void) {
-  const size_t size = NEO_XENIA_CODE_REGION_SIZE;
-  const uintptr_t step = (uintptr_t)1 << 28;
-  for (uintptr_t hint = (uintptr_t)1 << 32; hint + size <= NEO_XENIA_CODE_REGION_LIMIT; hint += step) {
-    void* mapping = mmap((void*)hint, size, PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0);
-    if (mapping == MAP_FAILED) continue;
-    if ((uintptr_t)mapping + size <= NEO_XENIA_CODE_REGION_LIMIT) return mapping;
-    munmap(mapping, size);
-  }
-  return nullptr;
+// nil when every StikJIT binary the helper can load writes full-width
+// addresses; otherwise why not. Once per process (the bundle does not change).
+static NSString* XeniaJitTransportProblem(void) {
+  static NSString* problem;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    NSBundle* main = NSBundle.mainBundle;
+    NSString* app = [main.privateFrameworksPath stringByAppendingPathComponent:@"StikJIT.framework/StikJIT"];
+    NSString* helper = [main.builtInPlugInsPath
+        stringByAppendingPathComponent:@"XeniaJITHelper.appex/Frameworks/StikJIT.framework/StikJIT"];
+    if (![NSFileManager.defaultManager fileExistsAtPath:app]) {
+      problem = @"StikJIT.framework is missing from the app";
+    } else if (!XeniaFileContains(app, kXeniaFullWidthTransportMarker)) {
+      problem = @"the app's StikJIT does not write full 64-bit addresses";
+    } else if ([NSFileManager.defaultManager fileExistsAtPath:helper] &&
+               !XeniaFileContains(helper, kXeniaFullWidthTransportMarker)) {
+      problem = @"XeniaJITHelper carries a StikJIT that does not write full 64-bit addresses";
+    }
+  });
+  return problem;
 }
 
 // Launch stages, appended and synced to <storage root>/launch-journal.txt as
@@ -140,18 +133,6 @@ static void XeniaJournal(NSString* path, NSString* stage) {
   (void)write(fd, bytes, strlen(bytes));
   fsync(fd);
   close(fd);
-}
-
-// Documents/XeniOS/Games (XeniaInternalService.gamesDirectory) holds a game.
-static BOOL XeniaHasImportedGames(void) {
-  NSURL* documents = [NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory
-                                                          inDomains:NSUserDomainMask].firstObject;
-  NSString* games = [documents URLByAppendingPathComponent:@"XeniOS/Games" isDirectory:YES].path;
-  if (!games) return NO;
-  for (NSString* name in [NSFileManager.defaultManager contentsOfDirectoryAtPath:games error:nil]) {
-    if (![name hasPrefix:@"."]) return YES;
-  }
-  return NO;
 }
 
 static UIViewController* XeniaTopViewController(void) {
@@ -580,18 +561,6 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
 }
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
-  // First, before the app fills the address space below 8 GB.
-  if (XeniaSupportedOS() && [NSFileManager.defaultManager fileExistsAtPath:XeniaFrameworkPath()]) {
-    const BOOL flagged = [NSUserDefaults.standardUserDefaults boolForKey:kXeniaReserveCodeRegionKey];
-    const BOOL games = !flagged && XeniaHasImportedGames();
-    const uint64_t free_mib = XeniaLargestFreeBelowLimitMiB();
-    if (flagged || games) gXeniaHostCodeRegion = XeniaReserveCodeRegion();
-    gXeniaRegistration = [NSString stringWithFormat:@"%@ (%@), largest free below 8 GB %llu MiB",
-                          !(flagged || games) ? @"notRequested" : gXeniaHostCodeRegion ? @"reserved" : @"noRoom",
-                          flagged ? @"flag" : games ? @"imported games" : @"no flag, no imported game",
-                          free_mib];
-    NSLog(@"[Xenia] code region at registration: %@", gXeniaRegistration);
-  }
   XeniaInternalBridgePlugin* plugin = [[XeniaInternalBridgePlugin alloc] init];
   plugin.channel = [FlutterMethodChannel methodChannelWithName:kXeniaChannel
                                                binaryMessenger:registrar.messenger];
@@ -660,9 +629,9 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
     @"brokerPath" : @((state & NEO_XENIA_JIT_BROKER_PATH) != 0),
     @"codeRegionHeld" : @((state & NEO_XENIA_JIT_CODE_REGION_HELD) != 0),
     @"codeRegion" : self.codeRegion ?: @"none",
-    @"registration" : gXeniaRegistration,
-    @"freeBelow8GBMiB" : @(XeniaLargestFreeBelowLimitMiB()),
     @"handshakeActive" : @(XeniaJitHasActiveCoreHandshake()),
+    @"transportFullWidth" : @(XeniaJitTransportProblem() == nil),
+    @"transportDetail" : XeniaJitTransportProblem() ?: @"",
   };
 }
 
@@ -697,18 +666,10 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
     return _loadFailure;
   }
   self.api = api;
-  // ABI 4, once: the Core keeps the reservation its static initializers just
-  // made, or takes the host's (its own found no room below 8 GB).
-  void* reservation = gXeniaHostCodeRegion;
-  gXeniaHostCodeRegion = nullptr;
-  const int region = api->adopt_code_region(reservation, reservation ? NEO_XENIA_CODE_REGION_SIZE : 0);
-  if (reservation && region != NEO_XENIA_CODE_REGION_ADOPTED) munmap(reservation, NEO_XENIA_CODE_REGION_SIZE);
-  self.codeRegion = region == NEO_XENIA_CODE_REGION_ADOPTED ? @"host"
-                    : region == NEO_XENIA_CODE_REGION_OWN   ? @"own"
-                                                             : @"none";
-  // Only the TXM broker path needs the region below 8 GB.
-  [NSUserDefaults.standardUserDefaults setBool:(api->jit_state() & NEO_XENIA_JIT_BROKER_PATH) != 0
-                                        forKey:kXeniaReserveCodeRegionKey];
+  // ABI 4, once: whether the reservation the Core's static initializers just
+  // made holds (no host reservation is handed over).
+  const int region = api->adopt_code_region(nullptr, 0);
+  self.codeRegion = region == NEO_XENIA_CODE_REGION_OWN ? @"own" : @"none";
   return nil;
 }
 
@@ -759,9 +720,8 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
   // Dart read the previous journal before this call; each launch starts afresh.
   NSString* journal = [storage stringByAppendingPathComponent:@"launch-journal.txt"];
   [NSFileManager.defaultManager removeItemAtPath:journal error:nil];
-  XeniaJournal(journal, [NSString stringWithFormat:@"launch: codeRegion=%@, jit_state=0x%x, free below 8 GB %llu MiB",
-                                                   self.codeRegion ?: @"none", api->jit_state(),
-                                                   XeniaLargestFreeBelowLimitMiB()]);
+  XeniaJournal(journal, [NSString stringWithFormat:@"launch: codeRegion=%@, jit_state=0x%x",
+                                                   self.codeRegion ?: @"none", api->jit_state()]);
   const uint64_t transaction = ++gXeniaTransaction;
   _transaction = transaction;
   _userPaused = NO;
@@ -829,7 +789,15 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
       // set CS_DEBUGGED and left would make the Core's prepare fatal.
       const BOOL handshake = XeniaJitHasActiveCoreHandshake();
       XeniaJournal(journal, handshake ? @"nonce probe" : @"no handshake");
-      if (handshake && !XeniaJitConfirmCoreLoadHandoff()) stage = @"jitHandshakeFailed";
+      // While the Core still needs a tool, its prepare request goes to whatever
+      // debugger is attached: only RewindBox's own helper (its live handshake,
+      // proved by the nonce probe below) on a full-width StikJIT may answer.
+      // Dart refuses these cases before any attach; this is the last guard.
+      if ((api->jit_state() & NEO_XENIA_JIT_NEEDS_TOOL) && (!handshake || XeniaJitTransportProblem())) {
+        stage = @"jitToolUnverified";
+        jitDetail = XeniaJitTransportProblem() ?: @"the attached debugger is not RewindBox's XeniOS helper";
+      }
+      if (!stage && handshake && !XeniaJitConfirmCoreLoadHandoff()) stage = @"jitHandshakeFailed";
       if (!stage) {
         XeniaJournal(journal, @"prepare");
         if (!api->prepare(&configuration, kXeniaPrepareTimeoutMs, failure, sizeof failure)) {

@@ -33,6 +33,13 @@ enum XeniaJitPlan {
   /// Not debugged and no tool needed afterwards: classic attach, then detach.
   attachClassic,
 
+  /// A tool is needed, but the StikJIT the XeniOS helper would load does not
+  /// write full 64-bit addresses (`transportFullWidth` false): the Core's code
+  /// region is not kept below 8 GB, so such a tool would prepare the wrong
+  /// pages. Refused with `jitToolUnsupported` before any helper attaches
+  /// (docs/xenios-playlist.md § Code region).
+  toolUnsupported,
+
   /// A tool is needed, but no address space below 8 GB is held for the code
   /// region its one-time prepare maps (`codeRegionHeld` false): that prepare
   /// would be a XeniOS fatal error that closes RewindBox. Refused with
@@ -93,6 +100,9 @@ abstract final class XeniaJitService {
     final debugged = state['debugged'] == true;
     final handshake = state['handshakeActive'] == true;
     if (needsTool) {
+      if (state['transportFullWidth'] != true) {
+        return XeniaJitPlan.toolUnsupported;
+      }
       if (state['codeRegionHeld'] != true) return XeniaJitPlan.noCodeRegion;
       if (!attached) return XeniaJitPlan.attachForCoreHandshake;
       return handshake
@@ -114,6 +124,12 @@ abstract final class XeniaJitService {
       return const XeniaJitOutcome.failure(
         'restartRequired',
         'a debugger is attached without a live XeniOS helper handshake',
+      );
+    }
+    if (plan == XeniaJitPlan.toolUnsupported) {
+      return XeniaJitOutcome.failure(
+        'jitToolUnsupported',
+        state['transportDetail']?.toString(),
       );
     }
     if (plan == XeniaJitPlan.noCodeRegion) {
