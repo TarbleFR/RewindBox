@@ -114,12 +114,31 @@ def struct_members(text, name):
     return fields
 
 
-patch = PATCH.read_text()
-patch_fields = struct_members(patch[patch.index('typedef struct s2a_rb_guest_config'):], 's2a_rb_guest_config')
+def guest_header_after_series():
+    """runtime/src/rb_guest.h as the whole engine patch series leaves it: patch 0003 creates it, later patches (0010:
+    session_parked) extend it. Built with git apply in a temporary folder; no S2Arm source is needed."""
+    import subprocess
+    import tempfile
+    with tempfile.TemporaryDirectory() as folder:
+        for path in sorted((ROOT / 'build-utils/s2arm/engine/patches').glob('*.patch')):
+            text = path.read_text()
+            if 'b/runtime/src/rb_guest.h' not in text:
+                continue
+            applied = subprocess.run(['git', 'apply', '--whitespace=nowarn', '--include=runtime/src/rb_guest.h', str(path)],
+                                     cwd=folder, capture_output=True, text=True)
+            if applied.returncode:
+                return None, f'{path.name}: {applied.stderr.strip()}'
+        return (Path(folder) / 'runtime/src/rb_guest.h').read_text(), None
+
+
+header, header_error = guest_header_after_series()
+check(header is not None, f'the guest header builds from the patch series ({header_error})')
+patch_fields = struct_members(header[header.index('typedef struct s2a_rb_guest_config'):], 's2a_rb_guest_config') if header else []
 abi = read('S2ArmGuestABI.h')
 abi_fields = struct_members(abi[abi.index('typedef struct s2a_rb_guest_config'):], 's2a_rb_guest_config')
 check(patch_fields == abi_fields and patch_fields[:3] == ['size', 'game_id', 'images'] and 'prepare_code' in patch_fields,
-      f'the guest config ABI matches patch 0003 ({abi_fields} vs {patch_fields})')
+      f'the guest config ABI matches the patch series ({abi_fields} vs {patch_fields})')
+check(patch_fields[-2:] == ['session_parked', 'parked_context'], 'patch 0010 appends session_parked last (older hosts keep working)')
 
 def struct_field_names(text, name):
     """The member names of `typedef struct { ... } name;`, in order (comments removed, function pointers and
@@ -247,6 +266,19 @@ check('emit:' not in step_only and 's2arm_journal("prepare", "codeStep"' in step
 check('s2arm_journal("prepare", "codePhase"' in prep and '"ms' in prep[prep.index('"codePhase"'):prep.index('"codePhase"') + 200],
       'each phase of the code stage is journaled with its duration')
 check('NSDictionary *_Nullable work);' in read('S2ArmGamePreparation.h'), 'the progress block carries the work counts')
+# Mario Kart World on device (12 Nov, after IPA 729): the app ended with no message while the rewriter worked on main.
+# The rewriter was validated as a command-line tool on a main thread (8 MB stack); on the phone it runs on its own
+# thread with a larger stack, and the journal records the memory at each phase and as it grows.
+check('rc = prep_code_with_stack(&code, error, sizeof error);' in prep and prep.count('rb_s2arm_prepare_code(') == 2,
+      'the code stage runs through prep_code_with_stack (the second call is its fallback when no thread is created)')
+stack = re.search(r'kCodeStackBytes = (\d+)u << 20', prep)
+check(stack is not None and int(stack.group(1)) >= 8 and 'pthread_attr_setstacksize(&attributes, kCodeStackBytes)' in prep
+      and 'pthread_join(thread, NULL);' in prep, 'the code-stage thread has at least the 8 MB stack of a main thread, and is joined')
+check('"codePhaseBegin"' in prep and '\\"footprintMB\\":%llu,\\"availableMB\\":%llu' in prep[prep.index('"codePhase"'):prep.index('"codePhaseBegin"')]
+      and 'phys_footprint' in prep and 'os_proc_available_memory()' in prep,
+      'each phase is journaled at its start and its end with the footprint and the memory iOS still allows')
+check('s2arm_journal("prepare", "codeMemory"' in prep[prep.index('static void prep_code_work('):]
+      and 'footprint >= self->_memoryNotedMB + kMemoryStepMB' in prep, 'a memory line each time the footprint grows by a step')
 check('prep_pack_progress, prep_cancelled, (__bridge void *)self}' in prep, 'the resource pack reports its bytes')
 run = prep[prep.index('- (NSDictionary *)run {'):]
 check(run.index('reusablePreparation(stampPath, fingerprint, gid)') < run.index('[files removeItemAtPath:stampPath error:nil];')

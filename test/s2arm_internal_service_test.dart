@@ -684,6 +684,41 @@ void main() {
       expect(calls, isNot(contains('prepareGame')));
     });
 
+    test('the game the player quit resumes in the same session; another Switch 2 game still needs a restart', () async {
+      S2ArmInternalService.availabilityForTesting = const S2ArmRuntimeAvailability(S2ArmRuntimeState.ready);
+      final calls = <String>[];
+      var parkedId = gid.toLowerCase();
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        calls.add(call.method);
+        switch (call.method) {
+          case 'status':
+            return {'available': true, 'melonxCoreLoaded': 0, 'engineLoaded': 1, 'parkedGameId': parkedId};
+          case 'detectExport':
+            return {'success': true, 'exportDir': '/export', 'gid': gid};
+          case 'prepareGame':
+            return {'success': true, 'gid': gid, 'reused': true, 'imagesPath': '/i', 'moduleDir': '/m', 'gameData': '/g', 'docs': '/d'};
+          case 'launchGame':
+            return {'success': true, 'gid': gid, 'stage': 'running', 'resumed': true};
+        }
+        return null;
+      });
+      final resumed = await S2ArmInternalService.launch('/export', pairingFilePath: '/pair');
+      expect(resumed.success, isTrue, reason: 'the parked game (title id compared without case) resumes');
+      expect(calls, containsAllInOrder(['status', 'detectExport', 'prepareGame', 'launchGame']));
+
+      calls.clear();
+      parkedId = '0100AAAA00000000';
+      final other = await S2ArmInternalService.launch('/export', pairingFilePath: '/pair');
+      expect(other.error, 'engineRestartRequired');
+      expect(calls, isNot(contains('prepareGame')), reason: 'no preparation for a game that cannot start now');
+
+      calls.clear();
+      parkedId = '';
+      final ended = await S2ArmInternalService.launch('/export', pairingFilePath: '/pair');
+      expect(ended.error, 'engineRestartRequired');
+      expect(calls, isNot(contains('detectExport')), reason: 'nothing is parked: refused before reading the export');
+    });
+
     test('the native refusal of the Switch 1 engine keeps its own code up to the message', () async {
       S2ArmInternalService.availabilityForTesting = const S2ArmRuntimeAvailability(S2ArmRuntimeState.ready);
       // The Switch 1 engine loaded between the status check and the native launch: the plugin answers itself.

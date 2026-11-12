@@ -359,6 +359,45 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     `Claude-Session` line.
   - **Next:** download, verify offline, receipts, record, delete the key, send the file; give session 04 the freeze
     commit for 803 (sibling of 726).
+- **Next IPA (730) queue (main, 12 Nov 12:05Z).** Build only when the maintainer asks.
+  - On Claude: session 04 S2Arm pin 930a84b0. It carries the prepare patches in the notice, plus relaunch-in-session
+    step 1 (de72efdd).
+  - Waiting: the session 03 XeniaCore pin, now d7ad7e834. It supersedes dc7c7f4b0 and keeps the EnumerateDevices input
+    fix.
+    - Change: the JIT code region is no longer limited to below 8 GB. A weak NeoXeniaExecuteRegionLimit hook returns
+      2^47, and the bridge's 512 MiB host reservation is removed.
+    - Premise checked by main: the embedded StikJIT is patched for full-width addresses (patch_stikjit_rpcs3.py).
+    - Merge conditions sent to 03:
+      - every Xbox 360 attach path goes through that patched transport, or the launch refuses before attach, with a test;
+      - no RPCS3/MeloNX regression from removing the reservation.
+  - Also on Claude: session 04 preparation diagnostics cb0f27e6 (16 MB-stack code stage, memory journal; MKW ended
+    during main's rewrite on 729).
+    - IPA 729 on device: XeniOS boots, and Fable ran about 2170 frames.
+    - No input reached the game: the input driver enumerated no device.
+    - The second launch was refused: noRoom, 442 MiB below 8 GB. The reservation moves to an image constructor.
+- **IPA 729 delivered and verified (12 Nov 10:2xZ, main).**
+  - Run `43195224577` attempt 1, trigger `8e502a40`, frozen on `7e9a352a`, effective digest `c4380012`, 7919 product
+    files. All 5 jobs succeeded on the first request.
+  - IPA `RewindBox-729.ipa`: 329516805 B, SHA-256 `a06b20d92fcd30b995cac6f2e932f676dde799d4f32d372918fbda06e0e00944`.
+  - Contents:
+    - MeloNX Core 743 (pin a429f212);
+    - XeniaCore pin 84386936 (host roots after config load);
+    - Switch 2 final lots (engine-pin 6afbd2c9, prepare progress patch);
+    - the Consoles probe;
+    - RPCS3 Core 934 kept.
+  - Offline verification `passed-offline-checks`:
+    - 97 images; 46 retained fingerprints;
+    - all 6 validators exit 0;
+    - packaged Xenia identity names pin 84386936.
+  - Undeclared image changes, not fatal:
+    - XeniaCore, the new pinned payload;
+    - the libretro and rpcs3 bridges, rebuilt from unchanged sources. Cause still unexplained.
+  - Legal folders: XeniOS 4/4, MetalShaderConverter 3/3 and S2Arm 35/35 match their digests; 9 extensions.
+  - Follow-up for session 04 (not blocking, S2Arm is Apache-2.0): the IPA's RewindBox-S2Arm-NOTICE.txt still says the
+    preparation library is built from the S2Arm commit. It does not name the new prepare patch
+    0001-rewriter-progress-report, which is listed only in docs/s2arm-legal-notices.md.
+  - Receipt `docs/evidence/rewind729/delivery.json` (14 proof files + 2 engine receipts). Key shredded; file sent.
+  - Not run on an iPhone.
 - **Next IPA (729) gating (maintainer, 12 Nov 08:2xZ): wait until the Switch 2 session (04) says it has finished.**
   Already on Claude:
   - session 04: 4c74414f (import capacity, clone, preparation progress and reuse) and 46c7e0db (Switch 1 / Switch 2
@@ -5370,7 +5409,7 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 ### Switch 2 playlist (S2Arm) feasibility prototype — session 04
 
 - **Owner/branch:** session `012mUASj3EQnvC86WC56AePw`, `work/s2arm-switch2-prototype-20261110`
-  (merged with `Claude` `d8b5e0e5`). Own paths: `packages/s2arm_engine_bridge/`, `native/s2arm/`,
+  (level with `Claude` `de72efdd`). Own paths: `packages/s2arm_engine_bridge/`, `native/s2arm/`,
   `build-utils/s2arm/`, `tools/s2arm_prototype/`, `.github/workflows/s2arm-*.yml`, `docs/s2arm-*.md`.
 - **Goal:** a Switch 2 playlist on S2Arm, games prepared on the phone. The device probe ships in
   a common IPA by maintainer decision (below); the rest stays on this branch.
@@ -5503,12 +5542,78 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - First pin attempt, run 43185240791, refused the artifact: it held a fifth member, `patches.txt`. Fixed in
       `a6f958fd`.
     - Not observed on a device. The pass shares are estimates until a journal gives the durations.
-  - **Relaunch in the same session (maintainer, 12 Nov): project opened, not for this IPA.** The maintainer chose to
-    ship the progress lot first. Plan and inventory: `docs/s2arm-relaunch-in-session.md`.
-    - S2Arm already restarts a session in-process for the same game (`session.c:440`, `:671`). Our guest stop takes
-      the process shutdown instead (`rb_guest.c:127`).
+  - **IPA 729 device report (maintainer, 12 Nov, app.log): Mario Kart World, the app ended during the rewrite of main.**
+    - Observed:
+      - The import was cloned (22239 MB) and the status was available.
+      - Preparation: unpack, code at 131 s, `addr_need`, `nro`, then `main` at 160 s.
+      - Then the app ended with no message, at about 6 %. 6 % is the start of main: its LOAD and PREPASS passes report
+        only when they begin.
+    - Not settled: memory (iOS ends an app over its limit silently; the rewriter was written for a computer, and its own
+      comment cites a 15.8 GB peak on another large game before a fix) or a crash.
+    - Asked of the maintainer: `Documents/Diagnostics/S2Arm/s2arm-journal.jsonl` and the iOS report (`JetsamEvent-…` or
+      a crash `.ips`).
+    - Commit `0984b3d4` changes the bridge only. Green: iOS compile 43214401741, library 43214401673.
+      - The code stage runs on its own 16 MB-stack thread. The rewriter's spin walk can need over 540 KB, more than a
+        GCD worker's 512 KB; it was validated on a command-line main thread (8 MB).
+      - The journal records phys_footprint and os_proc_available_memory at each phase's start and end, and every
+        256 MB of growth.
+    - Next: read the two files. If it is memory, reduce the rewriter's peak or split main.
+  - **Relaunch in the same session (maintainer, 12 Nov): step 1 built, verified pin `930a84b0`, merged on Claude by
+    main as `de72efdd`.** It is queued for the next IPA, which main builds only on the maintainer's request. The
+    maintainer chose to ship the progress lot first (IPA 729). Plan, inventory, design and review:
+    `docs/s2arm-relaunch-in-session.md`.
+    - Pin `930a84b0`: engine-pin.json SHA-256 `77da9cf1…39ee`, the bytes the pin job printed in run 43206559527 (draft
+      `adb5e935`).
+      - Engine: run 43204364693 on `779d9a7f`, artifact 13937907087, expires 2026-12-12 11:07 UTC. Series 0001-0010,
+        equal to the checkout. packagedFingerprint `2f58c547…`.
+      - Prepare 43185893094 and sysdata 43038032448 unchanged. `identity.preparePatches` is recorded.
+      - Only the engine image, `Headers/rb_guest.h` and the licence digest changed (same 36 files; the notice changed).
+      - Three new exports. The recipe pins no `exportsList`.
+    - S2Arm already restarts a session in-process for the same game (`session.c:440`, `:671`). Our guest stop took the
+      process shutdown instead (`rb_guest.c:127`).
     - A different game needs new executable pages after the JIT helper has detached (`S2ArmEngineBridgePlugin.m:345`).
     - Steps: same game first, then the latches and a per-game reset, then another game.
+    - Step 1 is engine patch `0010-guest-park-and-resume-the-same-game.patch`, in `b3a35698` with review fixes in
+      `779d9a7f`.
+      - Quit parks the session through S2Arm's restart retirement: quiesce, managed shutdown (the save is written
+        back), GPU and per-session resets. It stops before the rebuild.
+      - Launching the same title id resumes the game in the same view controller, with no dlopen, configure or JIT
+        transaction.
+      - Any refusal or failure ends as before, with the process shutdown. Another game is still refused
+        (`engineRestartRequired`).
+      - The patch adds three exports.
+    - With an engine built before 0010, the bridge changes do nothing:
+      - the launch needs only the old entry points;
+      - the config grows only at its end;
+      - the resume refuses without the new exports.
+    - An independent review found 6 defects, all fixed:
+      - a failed resume;
+      - a timed-out park;
+      - the park flag set before the CAS;
+      - Quit, SIGTERM and app termination while parked;
+      - "busy" now answered before "restart";
+      - ownership of the stop reason.
+      A code block that differs on resume stays a device check.
+    - Checks:
+      - `test/s2arm_park_resume_test.py`, 41 checks; each fix fails its own check when removed;
+      - bridge, 163 checks;
+      - session menu, exports, pinned engine (21);
+      - Dart service test.
+      session.c and rb_guest.c compile here without warnings on both paths.
+    - CI, all green:
+      - on `779d9a7f`: engine 43204364693 (macOS 15 and 26, guest entry points 0003-0010), bridge iOS 43204364702,
+        library 43204364819, core 43204364873;
+      - on the merge `0a54d048`: library 43204718659;
+      - on the draft `adb5e935`: library 43206559190.
+    - Not observed on a device: it needs a first booting game (E2). Then: Quit and relaunch the same game, the save,
+      memory over three cycles, SIGTERM while parked, and Quit during a resume.
+  - **The notice names the preparation patch series (main's follow-up after IPA 729).** Commit `c0441c6e`.
+    - The packaged notice names `build-utils/s2arm/prepare/patches`.
+    - The pin records the series as `identity.preparePatches` and checks it against the checkout. verify refuses another
+      series.
+    - `test/s2arm_pinned_engine_test.py`: 21 tests.
+    - Engine run 43201097301 is green, but it has only the notice; it is not pinned. Pin `930a84b0` (above) carries both
+      the notice and the relaunch.
   - Main withdrew the launcher deletion (12 Nov): it stays as is. Formerly open: delete the launcher (`.github/diagnostics/s2arm/`, `s2arm-delivery.yml`,
     `set_probe_key.py`) together with its test `s2arm_delivery_test.py`, which no longer works
     since 9c9817e8 (40 errors)? Main also has to choose the S2Arm test groups of the next

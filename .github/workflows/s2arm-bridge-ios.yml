@@ -10,7 +10,9 @@ name: S2Arm engine bridge (iOS compile)
     paths:
       - .github/workflows/s2arm-bridge-ios.yml
       - packages/s2arm_engine_bridge/**
+      - build-utils/s2arm/engine/patches/**
       - lib/l10n/switch2_settings_locale.dart
+      - test/s2arm_park_resume_test.py
       - test/s2arm_session_menu_test.py
 permissions:
   contents: read
@@ -56,3 +58,4 @@ jobs:
         run: |
           python3 -B test/s2arm_engine_bridge_test.py
           python3 -B test/s2arm_session_menu_test.py
+          python3 -B test/s2arm_park_resume_test.py
