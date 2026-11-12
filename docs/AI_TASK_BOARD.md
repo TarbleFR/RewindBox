@@ -5094,7 +5094,21 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     `IDENTITY_ENGINES` design. S2Arm adds three constants, one table entry and one `ENGINE_HELPERS` entry.
     The three other validators are byte-identical to Claude. The 5 closed-set tests are adapted; an S2Arm
     image packaged without its identity file is now refused.
-  - Open for main: delete the launcher (`.github/diagnostics/s2arm/`, `s2arm-delivery.yml`,
+  - Switch 2 settings and in-game menu (maintainer request, 12 Nov, for the next IPA). Commits `20904b71`,
+    `ea3f4f5d`…`75402573`, `101db627` and `531e565f`. There is no engine change and the pin is unchanged.
+    - Settings in the Switch 2 Emulators tab and the playlist menu: resolution 0.5/0.75/1, AA, filter, FPS limit,
+      docked, image format, performance overlay, game language. They are stored under the engine's own
+      NSUserDefaults keys and `S2A_SYSTEM_LANGUAGE`.
+    - Native in-game menu: a ☰ button, or − and + on a controller. Live overlay toggle, settings, and Quit through
+      `s2a_rb_guest_stop`. Strings come from Dart in 12 languages and follow the app's language.
+    - The game view is dismissed on `session_ended`.
+    - Found by the new iOS compile: `S2ArmGamePreparation.m` lacked the `S2ArmCodePages.h` import, so the call was an
+      implicit declaration that would have stopped the IPA build. Fixed in `531e565f`.
+    - Green on `531e565f`: iOS compile 43141364074 and `flutter analyze` + tests 43141364019. New manifest tests:
+      `test/s2arm_session_menu_test.py` and `test/switch2_settings_locale_test.dart`.
+    - Limits: changes apply to the next game, after RewindBox restarts (one game per process). There is no pause
+      (the engine exports none). Not observed on a device.
+  - Main withdrew the launcher deletion (12 Nov): it stays as is. Formerly open: delete the launcher (`.github/diagnostics/s2arm/`, `s2arm-delivery.yml`,
     `set_probe_key.py`) together with its test `s2arm_delivery_test.py`, which no longer works
     since 9c9817e8 (40 errors)? Main also has to choose the S2Arm test groups of the next
     manifest. Then: green run on the merged tree, device test.
