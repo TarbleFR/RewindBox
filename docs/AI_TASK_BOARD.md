@@ -5513,7 +5513,22 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   test/ipa_identity_engines_test.py 12/12 (synthetic IPAs, the real heredoc); single_ipa_distribution OK; donor and
   deployment suites same pre-existing failures; delivery contract: the 14 history errors plus main's MeloNX Core 737
   pin error, present on Claude without this change. Commit 8a076372d, macOS run 43135024285 green; handed to 00
-  (changedInputs data given) and the table to extend sent to 04 (12 Nov). Pin route: ubuntu `pin` job (9ceefdcd4), `[xenia-pin run=<id>]`, downloads the zip by id via the API and
+  (changedInputs data given) and the table to extend sent to 04 (12 Nov). Merged into Claude as c0aae7294; main
+  records the Dolphin changedInputs for the manifest. Session 03 handoff complete; next: the first TXM-iPhone session
+  once the common IPA (waiting on Core 934, Core 737, S2Arm) is delivered.
+  Maintainer's display lot (12 Nov): Xbox 360 in-game menu as the other playlists (Resume; Display > performance
+  overlay Off/Simple/Detailed, live, all games; This game > aspect 16:9/4:3 `widescreen`, resolution reported to the
+  game `internal_display_resolution` 0-16, letterbox, next launch, saved per game; touch controls; Quit), overlay
+  RBXeniaPerformanceOverlay (guest FPS; detailed: frame time, footprint, thermal). Core ABI 3 `get_stats` fed by a weak
+  IssueSwap hook (patch test allows exactly those lines); Dart side 595368885 (catalogue, settings screen, channel
+  settingChanged/overlayChanged persisted, 12 locales). Fixes found by CI: ARC case scopes (43141211632), ABI asserts
+  (43142260645). Run 43143255347 (06a580d41) green: checks, plugin_app, core. Internal resolution scaling absent on
+  the XeniOS Metal backend (texture cache 1x1): not offered. No device run. Pinned (pin job 43147109105):
+  core-pin.json 7e13268b…a4f2 byte-identical, artifact 13911882257 (expires 26 Nov), binary 86b26e13…, fingerprint
+  d386ae41…, 'replaces' 8b850d7b with its reason; delivery review regenerated (3e13eb8e0, 9/9). Merged with Claude
+  19b99762 (f7151ab52): macOS run 43147427878 green; Xenia Python/Dart (55) OK; legal failure sets unchanged;
+  delivery contract: 13 history errors + main's MeloNX manifest pinSha256 failure, present on Claude alone.
+  Handed to 00 (12 Nov). Pin route: ubuntu `pin` job (9ceefdcd4), `[xenia-pin run=<id>]`, downloads the zip by id via the API and
   prints core-pin.json + base64 (this session cannot reach the artifact store). The producer runs on this branch:
   the delivery manifest names it (`producers.engine.branch`) or main rebuilds on Claude. Pending: handoff to 00;
   IPA closed-set validators after 00 integrates session 04's 13d34c25 (identity-file design

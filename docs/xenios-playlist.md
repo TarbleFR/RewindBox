@@ -136,6 +136,8 @@ All of them apply at the next launch (stated in the UI).
 | --- | --- | --- |
 | `user_language` | Automatic, 1–9, 11–17 (`xbox.h` XLanguage) | `kernel/xconfig.cc:142` (XCONFIG_USER_LANGUAGE) |
 | `user_country` | Automatic, the `xconfig.cc:39-53` table | `kernel/xconfig.cc:160` |
+| `widescreen` | on (16:9, default) / off (4:3) | `kernel/xboxkrnl/xboxkrnl_video.cc:59, 214, 219`, `kernel/xconfig.cc:145` |
+| `internal_display_resolution` | 0–16 (default 8 = 1280×720; 17 = custom is not offered) | `gpu/graphics_system.cc:571-577`, `kernel/xconfig.cc:169, 176` |
 | `use_50Hz_mode` | on/off | `kernel/xconfig.cc:120`, `xboxkrnl_video.cc:55` |
 | `framerate_limit` | 0 (unlimited), 30, 45, 60, 90, 120 | `gpu/command_processor.cc:489` |
 | `guest_display_refresh_cap` | on/off | `app/xenia_main_ios.mm:944, 2261-2263` |
@@ -145,7 +147,51 @@ All of them apply at the next launch (stated in the UI).
 | `xma_decoder` | new, old, master | `apu/xma_decoder.cc:161-167` |
 | `mount_cache` | on/off | `emulator.cc:1974` |
 
-Not exposed: resolution scale and vsync (the XeniOS iOS UI has none),
+`widescreen` is the aspect ratio the console reports; games read it when they
+set their video mode. `internal_display_resolution` is the resolution reported
+to the game: only games offering several resolutions use it, higher ones load
+the GPU more.
+
+Frontend-only (not a cvar, not in `managedKeys`, not sent in `settings`): the
+performance overlay level `off` (default) / `simple` / `detailed`, global to
+every Xbox 360 game, stored in the same file as
+`"frontend": {"performance_overlay": "<level>"}` (`"version": 1` unchanged; a
+missing or invalid object means `off`). It is passed at launch as `overlay`
+and drawn natively by the bridge from a Core frame counter (the engine has no
+overlay of its own).
+
+### In-game menu
+
+The launch `texts` map carries `menu`, `resume`, `quit` and the `display`,
+`overlay`, `aspect`, `resolution`, `letterbox`, `fps`, `thermal`... strings
+(locale keys `session_*`). The bridge reports changes on the
+`rewindbox/xenia_internal` channel: `settingChanged {key, value}` (a per-game
+override of the running game, saved only for a managed key with an accepted
+value) and `overlayChanged {level}` (global). Aspect ratio, resolution and
+letterbox apply at the next start of that game; the overlay applies at once.
+
+Native side (`ios/Classes/XeniaSessionMenu.mm`, opened by the session's Menu
+button or the controller's Home button, as the other playlists' in-game menus):
+Resume; Display › Performance overlay (Off / Simple / Detailed); This game ›
+Aspect ratio (16:9 / 4:3), Resolution reported to the game (640×480 … 1920×1080,
+1280×720 default), Letterbox; Edit touch controls; Quit. The game is paused
+and the Core receives a neutral pad while it is open; a swipe down resumes.
+The overlay (`RBXeniaPerformanceOverlay`, top centre, takes no touch) samples
+the Core twice a second: Simple shows the guest FPS; Detailed adds the frame
+time, the process memory footprint and the device thermal state. FPS is the
+rate of guest swaps between two samples (ABI 3 `get_stats`; samples spanning a
+pause, the menu or the background are dropped).
+
+Core ABI 3 (`XeniaCoreABI.h`): `get_stats(NeoXeniaStats*)` returns the guest
+frame counter and its sample time; the counter is fed by one weak hook the
+patch adds as the first statement of `MetalCommandProcessor::IssueSwap`
+(`NeoXeniaNotifyGuestSwap`, a no-op outside XeniaCore; the patch test allows
+exactly those lines) and restarts at each boot. `kManagedKeys` (Core) and
+`XeniaManagedKeys` (bridge) gain `widescreen` and `internal_display_resolution`.
+Not live on device: no iPhone run of this menu or overlay yet.
+
+Not exposed: internal resolution scaling (`draw_resolution_scale` does not
+exist on the Metal backend) and vsync (the XeniOS iOS UI has none),
 renderer choice (Metal only), QoS/JIT debug cvars, `xma_decoder=fake`, the
 audio backend (kept at the engine default pending audio arbitration review).
 

@@ -25,6 +25,10 @@ void NeoXeniaApplyLaunchOverrides();
 // Emulator thread, after Emulator::LaunchPath succeeded.
 void NeoXeniaNotifyTitleLaunched();
 
+// GPU command processor thread, once per guest swap
+// (MetalCommandProcessor::IssueSwap, a weak reference added by the patch).
+extern "C" void NeoXeniaNotifyGuestSwap(void);
+
 // The only input driver of the embedded Core: user 0, fed by the host.
 std::unique_ptr<xe::hid::InputDriver> NeoXeniaCreateInputDriver(
     xe::ui::Window* window, size_t window_z_order);

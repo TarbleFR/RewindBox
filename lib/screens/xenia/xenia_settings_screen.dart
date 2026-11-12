@@ -59,12 +59,20 @@ class _XeniaSettingsScreenState extends State<XeniaSettingsScreen>
 
   String _valueLabel(XeniaOption option, String value) {
     if (value == XeniaSettingsService.automatic) return _t('automatic');
+    if (option.key == 'widescreen') {
+      return _t(value == 'true' ? 'widescreenOn' : 'widescreenOff');
+    }
     if (option.kind == XeniaOptionKind.toggle) {
       return _t(value == 'true' ? 'on' : 'off');
     }
     return switch (option.key) {
       'user_language' => XeniaSettingsService.languageNames[value] ?? value,
       'user_country' => XeniaSettingsService.countryCodes[value] ?? value,
+      'internal_display_resolution' =>
+        (XeniaSettingsService.displayResolutions[value] ?? value) +
+            (value == option.engineDefault
+                ? ' (${_t('resolutionDefault')})'
+                : ''),
       'framerate_limit' => value == '0' ? _t('unlimited') : '$value FPS',
       'xma_decoder' => _t(switch (value) {
         'old' => 'decoderOld',
@@ -144,6 +152,69 @@ class _XeniaSettingsScreenState extends State<XeniaSettingsScreen>
     await _write(option.key, picked == inherit ? null : picked);
   }
 
+  String _overlayLabel(String level) => _t(switch (level) {
+    'simple' => 'overlaySimple',
+    'detailed' => 'overlayDetailed',
+    _ => 'overlayOff',
+  });
+
+  Future<void> _editOverlay() async {
+    final current = _service.performanceOverlay;
+    final picked = await showDialog<String>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: Text(_t('performance_overlay')),
+        children: [
+          for (final level in XeniaSettingsService.overlayLevels)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, level),
+              child: Row(
+                children: [
+                  Icon(
+                    level == current
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_unchecked,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 12),
+                  Flexible(child: Text(_overlayLabel(level))),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+    if (picked == null) return;
+    try {
+      await _service.setPerformanceOverlay(picked);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            XeniaLocale.textf(context, 'saveFailed', {'error': error}),
+          ),
+        ),
+      );
+    }
+    if (mounted) setState(() {});
+  }
+
+  /// Frontend-only, global to every Xbox 360 game, also changeable in game.
+  Widget _overlayRow() => LibretroFocusRing(
+    radius: 12,
+    child: ListTile(
+      key: const ValueKey('xenia-setting-performance_overlay'),
+      title: Text(_t('performance_overlay')),
+      subtitle: Text(
+        '${_overlayLabel(_service.performanceOverlay)}\n${_t('overlayHelp')}',
+      ),
+      isThreeLine: true,
+      trailing: const Icon(Icons.chevron_right),
+      onTap: _editOverlay,
+    ),
+  );
+
   Widget _row(XeniaOption option) {
     final resolved = _service.resolve(option.key, gameKey: widget.gameKey);
     final own =
@@ -152,6 +223,8 @@ class _XeniaSettingsScreenState extends State<XeniaSettingsScreen>
     final help = switch (option.key) {
       'user_language' => _t('languageHelp'),
       'user_country' => _t('countryHelp'),
+      'widescreen' => _t('widescreenHelp'),
+      'internal_display_resolution' => _t('resolutionHelp'),
       _ => null,
     };
     final subtitle = <String>[
@@ -247,6 +320,9 @@ class _XeniaSettingsScreenState extends State<XeniaSettingsScreen>
         ),
       );
       children.addAll(rows.map(_row));
+      if (section == XeniaOptionSection.graphics && !_isGame) {
+        children.add(_overlayRow());
+      }
     }
     children.add(
       Padding(
