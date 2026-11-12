@@ -359,6 +359,15 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     `Claude-Session` line.
   - **Next:** download, verify offline, receipts, record, delete the key, send the file; give session 04 the freeze
     commit for 803 (sibling of 726).
+- **Next IPA (731) queue (main, 12 Nov 14:2xZ).**
+  - Session 04 fix b3c2fe6a merged on Claude as 9661d929. Bridge only, no pin change.
+    - Cause, confirmed in s2arm_pack.c: rb_s2arm_module_dir writes the image pack, then runs rmtree(dest) and renames
+      .tmp over it. A pack inside <game>/module was deleted, so Mario Kart World on 730 prepared in 439 s with imagePack
+      0 B and launched with errno 2.
+    - The pack now goes to <game>/images; makedirs creates its parent. An empty pack fails at stage module.
+    - Local checks: s2arm bridge 174, park/resume 41, pinned engine, exports and session menu all OK. CI: bridge iOS
+      43234357440, library 43234357505.
+  - The first launch of a prepared Switch 2 game (E2) waits for that IPA.
 - **IPA 730 delivered and verified (12 Nov 13:5xZ, main).**
   - Built on session 03's green light (code head fecc05ad, merged on Claude with --no-ff as 1732871f).
   - Run `43226062701` attempt 1, trigger `3cea0357`, frozen on `4c5763ca`, effective digest `94378cd1`, 7922 product
