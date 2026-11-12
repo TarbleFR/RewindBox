@@ -40,8 +40,11 @@ ARMSX2 bridges are `.mm`, where a comparison is a C++ `bool`. Not observed on a 
   (even if the load then fails), so MeloNX's bridge, which reads it through `dlsym(RTLD_DEFAULT, "rb_s2arm_engine_loaded")`,
   refuses to load MeloNXCore afterwards (session 01, `a18490cb`).
 - Before opening the engine the plugin reads MeloNX's `rb_melonx_core_loaded()` the same way; if it answers non-zero it
-  refuses the launch with `engineRestartRequired` ("restart RewindBox").
-- After one launch in a process the plugin refuses a second (`engineRestartRequired`): v1 is one Switch 2 game per process.
+  refuses the launch with its own code, `switch1EngineLoaded` (same-named message: the Switch 1 engine was loaded in
+  this session, close and reopen RewindBox). It answered `engineRestartRequired` before 12 Nov 2026. The status map
+  keeps the flag as `melonxCoreLoaded` (diagnostics only).
+- After one launch in a process the plugin refuses a second (`engineRestartRequired`, message `restartRequired`, about
+  Switch 2 only): v1 is one Switch 2 game per process.
 
 ### Launch sequence (`launchGame`)
 
@@ -189,3 +192,95 @@ producer finds the source archives and .NET packs where the collector reads them
 Only CI and a device can verify: Swift/Objective-C compilation and linking against the real frameworks, the `dlopen` and
 `dlsym` of the guest entry points, `prepare_code` on device, the detach timing, the spare pool after the detach, the
 presentation, and the session end.
+
+### IPA 728 on device: import space, preparation feedback and reuse, MeloNX
+
+The maintainer's test of IPA 728, with app.log. The Consoles switch now turns on (`available: true`). Three problems
+remained.
+- **Import refused for space** with about 68 GB available in Settings. The check used statvfs (`freeBytes`), which counts
+  no purgeable space.
+  - `storageInfo` now also gives `importantFreeBytes` (`NSURLVolumeAvailableCapacityForImportantUsageKey`), and the
+    import checks it (`availableBytes`).
+  - The import first tries `cloneTree`, an APFS `clonefile(2)` of the whole export into staging. It accepts only a
+    destination inside Documents, onto a free path, without following links. On the same volume it is instant and takes
+    no space. Otherwise, after removing any partial clone, the byte copy runs as before.
+- **"code · 0%" for minutes.** The code stage was given no progress callback, and every launch prepared the game again
+  from scratch.
+  - The code stage now reports each step: addr_need, nro, each module, tables. The resource pack reports bytes. Events
+    are throttled to 1 % or 250 ms, and each carries `detail` (the module), shown as "code · main".
+  - `<game>/prepared.json` keeps the result and a fingerprint of the inputs. The fingerprint covers the app build, the
+    direct chain, the system data list, the export folder, its parts, every ExeFS file by size and date, and the
+    RomFS roots. A later launch with the same inputs and its outputs still present (image pack, `.applied`) reuses the
+    result (`reused: true`). The stamp is removed before a new preparation and written after its last step.
+  - Dart opens the native journal in `Documents/Diagnostics/S2Arm/s2arm-journal.jsonl`; it was never opened before. It
+    logs one app.log line per step and module, the result with step durations and sizes, and the launch outcome.
+- **MeloNX loaded by the Consoles tab.** Its `runtimeAvailable()` → `diagnostics` loads MeloNXCore and its NativeAOT
+  runtime. After that, `melonxCoreLoaded` is true and an S2Arm launch is refused until RewindBox restarts. `launch()` now
+  reads the status first and fails with `melonxCoreLoaded` (message `melonxLoaded`, 12 languages: close and reopen, then
+  start the Switch 2 game) before any preparation. The MeloNX probe itself belongs to main and the MeloNX owner; reported.
+Checked by `test/s2arm_engine_bridge_test.py` (137 checks), `test/s2arm_internal_service_test.dart` (clone, space,
+early refusal, progress detail) and the iOS compile. Not observed on a device.
+
+### No ambiguity between the two engines (12 Nov 2026)
+
+The maintainer asked that the Switch 2 surfaces never mix in the Switch 1 engine. Every player-facing string names a
+console, never an engine:
+
+- The two "close and reopen" refusals are two codes and two messages in the 12 languages. A Switch 2 game already ran
+  in this process: `engineRestartRequired` → `restartRequired`, which speaks of Switch 2 only (it used to say "a Switch 2
+  or Nintendo Switch game"). The Switch 1 engine is loaded in this process: `switch1EngineLoaded` → `switch1EngineLoaded`
+  ("the Switch 1 engine ... keeps the Switch 2 engine from starting"), from the Dart status check and now from the
+  native refusal too, which answered `engineRestartRequired` before.
+- The failure dialog shows `S2Arm: <code>` and the native diagnostic under "Technical details", so the code (formerly
+  `melonxCoreLoaded`, message key `melonxLoaded`) and the diagnostic name the console, not the engine. Logs, the native
+  journal and the status map may still name MeloNX: they are diagnostics, not player surfaces.
+- The Switch 2 playlist menu (`docs/s2arm-switch2-library.md`) no longer offers prod.keys: S2Arm needs none, and it stays
+  in the Switch 1 playlist.
+
+Checked by `test/s2arm_engine_bridge_test.py` (139 checks: the native refusal has its own code; no error code or
+diagnostic literal names MeloNX), `test/s2arm_internal_service_test.dart` (each message names one console and the two
+differ; the native code reaches its message and its technical details name no engine),
+`test/s2arm_playlist_menu_contract_test.dart` and `test/switch2_empty_hint_contract_test.py`.
+Not observed on a device.
+
+### Real progress during the preparation (12 Nov 2026)
+
+The maintainer asked for a real progress bar: on IPA 728 the dialog showed "code · 0%" for minutes on Mario Kart World.
+`4454bf54` (next IPA) only reported each part of the code stage, so the main module stayed one block.
+
+- **Rewriter.** `build-utils/s2arm/prepare/patches/0001-rewriter-progress-report.patch` adds a per-thread callback,
+  `s2a_rewrite_set_progress`, to S2Arm's `runtime/rewriter`. It reports the attempt number and each pass: load,
+  prepass, boundaries, scan, data, analyze, generate, late, spins and outputs. Inside the long loops it adds counts:
+  every 256 KiB of text for boundaries, scan and spins, every function for analyze, every 256 units for generate.
+  - It only adds lines (67, none removed), and the code it adds reads only loop counters.
+    `test/s2arm_rewriter_progress_test.py` (68 checks) refuses any added line that is not a report. It also refuses
+    any assignment outside `rb_*`. Four bad variants of the patch fail it.
+  - `s2arm-prepare.yml` builds the reference `s2a-rewrite` from the unpatched checkout and our library from a
+    patched copy. Every existing comparison (rewrite, whole code stage, per-game files) therefore checks that the
+    patched rewriter writes the same bytes.
+  - `s2arm-core.yml` applies the series before it builds `S2ArmPrepare.xcframework` and records it in the identity
+    (`patches`). Listed in `docs/s2arm-legal-notices.md`.
+- **Code stage.** `rb_s2arm_code_request.work` (new last member; the pod's copy in `S2ArmPrepareABI.h` is checked
+  member by member, in order) reports `part`, `phase`, `attempt`, `done`/`total` and one `fraction` for the whole code
+  stage. That fraction never goes back.
+  - Weights: a module's rewrite counts for its size, and the address-need table for 5 % of main.
+  - Each RomFS walk counts for 1 % of the modules and reports its entries (`rb_s2arm_nro_to_nso_ex`,
+    `rb_s2arm_nro_exports_ex`).
+  - The ZBIC decoding of the ExeFS takes the first 5 %.
+  - Inside a module the passes take fixed shares: analyze 40 %, generate 25 %, the rest 35 %.
+  - A new layout (attempt 2 and later) continues from where the bar is.
+  - The test CLI checks every event: in [0, 1], never back, ending at 1. `run_code_stage_test.py` reports it per case.
+- **Bridge.** `prep_code_work` sends the fraction with `phase`, `attempt`, `done` and `total`. The step callback
+  only writes `codeStep` to the journal, so two fractions of different meaning never alternate. Each phase is
+  journaled (`codePhase`, with its duration and counts), so the pass shares can follow measured costs after the
+  next device run.
+- **Dialog.** One bar for the whole preparation. Its weights are unpack 4 %, code 80 %, caps 2 %, direct 2 %,
+  module 6 % and pack 6 % (`S2ArmInternalService.preparationOverall`). Above the bar, the step and its part, then
+  the phase and its counts: "Compilation du code du jeu · module principal · passe 2", then "Analyse des
+  fonctions · 1234 / 5678 fonctions". Below it, the percentage and the elapsed time, which moves every second even
+  when a pass reports nothing. The 26 new strings come in 12 languages (`prep*` keys of
+  `lib/l10n/switch2_library_locale.dart`). Tests: `test/s2arm_prepare_dialog_test.dart` and
+  `test/s2arm_internal_service_test.dart`.
+- Limits: the pass shares are estimates until the journal of a real run gives the durations. Nothing has been
+  observed on a device. The new library needs a new `prepare` pin (`build-utils/s2arm/engine-pin.json`); the engine
+  and the system data are unchanged.

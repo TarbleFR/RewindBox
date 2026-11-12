@@ -59,10 +59,19 @@ final class ProbeScene:UIResponder,UIWindowSceneDelegate {
         }
         DispatchQueue.main.asyncAfter(deadline:.now()+0.1) {
             if self.old { self.noWindow();return }
-            self.call("configureLaunchJournal",["path":self.legacy.path]) { result in
-                self.check(result["success"] as? Bool == true,"journal configuration through actual plugin")
-                self.check(Probe.journalPath == self.diagnostics.appendingPathComponent("MeloNX-core.log").path,"native Core canonical path")
-                self.noWindow()
+            // The Consoles page's probe (IPA 728): it answers without loading MeloNXCore or marking the process.
+            self.call("availability") { availability in
+                self.check(availability["coreLoaded"] as? Bool == false && availability["available"] is Bool &&
+                           availability["framework"] is Bool && availability["recoveryRequired"] as? Bool == false &&
+                           availability["switch2EngineLoaded"] as? Bool == false && availability["memoryEntitlements"] is [String:Any],
+                           "availability answers before any load")
+                self.check(MeloNXRuntimeAPI.constructed == 0 && coreMarkedLoading == 0,
+                           "availability never constructs the runtime nor marks the process")
+                self.call("configureLaunchJournal",["path":self.legacy.path]) { result in
+                    self.check(result["success"] as? Bool == true,"journal configuration through actual plugin")
+                    self.check(Probe.journalPath == self.diagnostics.appendingPathComponent("MeloNX-core.log").path,"native Core canonical path")
+                    self.noWindow()
+                }
             }
         }
     }
@@ -83,6 +92,14 @@ final class ProbeScene:UIResponder,UIWindowSceneDelegate {
             self.check(Probe.detachCalls == 1 && Probe.starts == 0,"prepared without guest")
             self.call("diagnostics") { status in
                 self.check(status["jitArenaReady"] as? Bool == !self.old,"arena retained independently of presentation")
+                if !self.old {
+                    // "diagnostics" and the launch keep loading the engine they use, once; the probe then reports it.
+                    self.check(MeloNXRuntimeAPI.constructed == 1 && coreMarkedLoading == 1,"the launch path loads the runtime once")
+                    self.call("availability") { availability in
+                        self.check(availability["coreLoaded"] as? Bool == true && MeloNXRuntimeAPI.constructed == 1,
+                                   "availability reports the loaded engine without a second load")
+                    }
+                }
                 self.window?.makeKeyAndVisible()
                 self.registrar.viewController=self.window?.rootViewController
                 DispatchQueue.main.asyncAfter(deadline:.now()+0.2) { self.attachedAfterRegistration() }

@@ -153,8 +153,21 @@ NSDictionary *S2ArmGameInfo(NSString *folder, NSString *localePref) {
   return info;
 }
 
+// The steps of a preparation, as reported to Dart: unpack, code, caps, direct, module, pack, then done.
+static const NSInteger kPrepareSteps = 6;
+
 @implementation S2ArmGamePreparation {
   _Atomic int _cancelled;
+  // Progress throttle (the work queue only): the last step, part and fraction sent, and when.
+  NSString *_lastStep;
+  NSString *_lastDetail;
+  double _lastFraction;
+  uint64_t _lastEmitNs;
+  // The code stage's phases, journaled with their durations so that the bar's shares can follow measured costs.
+  NSString *_phasePart;
+  NSString *_phaseName;
+  uint64_t _phaseStartNs;
+  unsigned long long _phaseDone, _phaseTotal;
 }
 
 - (void)cancel {
@@ -167,7 +180,86 @@ static int prep_cancelled(void *context) {
 }
 
 - (void)emit:(NSString *)step index:(NSInteger)index count:(NSInteger)count fraction:(double)fraction {
-  if (self.progress) self.progress(step, index, count, fraction);
+  [self emit:step index:index count:count fraction:fraction detail:nil work:nil];
+}
+
+- (void)emit:(NSString *)step index:(NSInteger)index count:(NSInteger)count fraction:(double)fraction detail:(NSString *_Nullable)detail {
+  [self emit:step index:index count:count fraction:fraction detail:detail work:nil];
+}
+
+// Sends progress when the step or its part changes, at the end of a step, or after 1 % or 250 ms: the pack stage reports
+// bytes far more often than the method channel needs.
+- (void)emit:(NSString *)step
+       index:(NSInteger)index
+       count:(NSInteger)count
+    fraction:(double)fraction
+      detail:(NSString *_Nullable)detail
+        work:(NSDictionary *_Nullable)work {
+  if (!self.progress) return;
+  uint64_t now = s2arm_code_now_ns();
+  BOOL sameStep = [_lastStep isEqualToString:step] && ((_lastDetail == nil && detail == nil) || [_lastDetail isEqualToString:detail]);
+  if (sameStep && fraction < 1 && fraction - _lastFraction < 0.01 && now - _lastEmitNs < 250000000ull) return;
+  _lastStep = step;
+  _lastDetail = detail;
+  _lastFraction = fraction;
+  _lastEmitNs = now;
+  self.progress(step, index, count, fraction, detail, work);
+}
+
+// The code stage's steps (addr_need, nro, each module, tables). The bar itself comes from prep_code_work: this one
+// only marks the step in the journal, so that two fractions of different meaning never alternate on screen.
+static void prep_code_progress(void *context, const char *step, int index, int count) {
+  (void)context;
+  s2arm_journal("prepare", "codeStep", "\"step\":\"%s\",\"index\":%d,\"count\":%d", step ? step : "", index, count);
+}
+
+// Journals the duration of each phase of each part when the next one begins (rewriter passes included).
+- (void)notePhase:(NSString *)phase part:(NSString *)part done:(unsigned long long)done total:(unsigned long long)total {
+  uint64_t now = s2arm_code_now_ns();
+  if ([_phasePart isEqualToString:part] && [_phaseName isEqualToString:phase]) {
+    _phaseDone = done;
+    _phaseTotal = total;
+    return;
+  }
+  if (_phaseName.length && ![_phaseName isEqualToString:@"start"])
+    s2arm_journal("prepare", "codePhase", "\"part\":\"%s\",\"phase\":\"%s\",\"ms\":%llu,\"done\":%llu,\"total\":%llu",
+                  _phasePart.UTF8String, _phaseName.UTF8String, (unsigned long long)((now - _phaseStartNs) / 1000000ull),
+                  _phaseDone, _phaseTotal);
+  _phasePart = part;
+  _phaseName = phase;
+  _phaseStartNs = now;
+  _phaseDone = done;
+  _phaseTotal = total;
+}
+
+// The code stage's progress bar (rb_s2arm_code_request.work): IPA 728 showed "code · 0%" for minutes on Mario Kart World,
+// since nothing reported inside the code stage. Now every pass of the rewriter moves the bar, with its own counts.
+static void prep_code_work(void *context, const char *part, const char *phase, int attempt, unsigned long long done,
+                           unsigned long long total, double fraction) {
+  S2ArmGamePreparation *self = (__bridge S2ArmGamePreparation *)context;
+  NSString *partName = part ? @(part) : @"";
+  NSString *phaseName = phase ? @(phase) : @"";
+  [self notePhase:phaseName part:partName done:done total:total];
+  [self emit:@"code"
+         index:1
+         count:kPrepareSteps
+      fraction:fraction
+        detail:partName
+          work:@{@"phase" : phaseName, @"attempt" : @(attempt), @"done" : @(done), @"total" : @(total)}];
+}
+
+// The resource pack stage, by bytes.
+static void prep_pack_progress(void *context, uint64_t done, uint64_t total) {
+  S2ArmGamePreparation *self = (__bridge S2ArmGamePreparation *)context;
+  [self emit:@"pack" index:5 count:kPrepareSteps fraction:(total ? (double)done / (double)total : 0) detail:nil];
+}
+
+static NSString *sha256Hex(NSData *data) {
+  unsigned char digest[CC_SHA256_DIGEST_LENGTH];
+  CC_SHA256(data.bytes, (CC_LONG)data.length, digest);
+  NSMutableString *hex = [NSMutableString stringWithCapacity:CC_SHA256_DIGEST_LENGTH * 2];
+  for (int i = 0; i < CC_SHA256_DIGEST_LENGTH; i++) [hex appendFormat:@"%02x", digest[i]];
+  return hex;
 }
 
 // A content fingerprint stable across preparations of the same export: SHA-256 of unpack.tsv (name, version, update, DLC).
@@ -175,11 +267,58 @@ static int prep_cancelled(void *context) {
 static NSString *_Nullable contentIdentity(NSString *root) {
   NSData *data = [NSData dataWithContentsOfFile:[root stringByAppendingPathComponent:@"unpack.tsv"]];
   if (data.length == 0) return nil;
-  unsigned char digest[CC_SHA256_DIGEST_LENGTH];
-  CC_SHA256(data.bytes, (CC_LONG)data.length, digest);
-  NSMutableString *hex = [NSMutableString stringWithCapacity:CC_SHA256_DIGEST_LENGTH * 2];
-  for (int i = 0; i < CC_SHA256_DIGEST_LENGTH; i++) [hex appendFormat:@"%02x", digest[i]];
-  return hex;
+  return sha256Hex(data);
+}
+
+// What a finished preparation depends on, kept in <game>/prepared.json:
+// - this app build (engine and preparation code);
+// - the direct library chain and the system data list;
+// - the export as found: its folder, each top-level part (base, update, DLC) with its date, every ExeFS file by size and
+//   date, and each RomFS root.
+// Any change prepares again. The folder is part of it because the RomFS is read in place through links into the export.
+static NSString *preparationFingerprint(NSString *exportDir, NSString *chain, NSString *systemData) {
+  NSFileManager *files = NSFileManager.defaultManager;
+  NSMutableString *text = [NSMutableString stringWithString:@"s2arm-prepared 1\n"];
+  [text appendFormat:@"build %@\nchain %@\nexport %@\n", NSBundle.mainBundle.infoDictionary[@"CFBundleVersion"] ?: @"-", chain,
+                     exportDir];
+  for (NSString *part in [[files contentsOfDirectoryAtPath:exportDir error:nil] sortedArrayUsingSelector:@selector(compare:)]) {
+    if ([part hasPrefix:@"."]) continue;
+    NSString *partPath = [exportDir stringByAppendingPathComponent:part];
+    [text appendFormat:@"part %@ %.0f\n", part, [[files attributesOfItemAtPath:partPath error:nil].fileModificationDate timeIntervalSince1970]];
+    NSString *exefs = [partPath stringByAppendingPathComponent:@"exefs"];
+    for (NSString *name in [[files contentsOfDirectoryAtPath:exefs error:nil] sortedArrayUsingSelector:@selector(compare:)]) {
+      NSDictionary *file = [files attributesOfItemAtPath:[exefs stringByAppendingPathComponent:name] error:nil];
+      [text appendFormat:@"exefs %@/%@ %llu %.0f\n", part, name, file.fileSize, [file.fileModificationDate timeIntervalSince1970]];
+    }
+    NSString *romfs = [partPath stringByAppendingPathComponent:@"romfs"];
+    NSDictionary *romfsAttributes = [files attributesOfItemAtPath:romfs error:nil];
+    if (romfsAttributes) {
+      [text appendFormat:@"romfs %@ %.0f %lu\n", part, [romfsAttributes.fileModificationDate timeIntervalSince1970],
+                         (unsigned long)[files contentsOfDirectoryAtPath:romfs error:nil].count];
+    }
+  }
+  NSData *sums = [NSData dataWithContentsOfFile:[systemData stringByAppendingPathComponent:@"SHA256SUMS"]];
+  [text appendFormat:@"systemdata %@\n", sums.length ? sha256Hex(sums) : @"-"];
+  return sha256Hex([text dataUsingEncoding:NSUTF8StringEncoding]);
+}
+
+// The result of a finished preparation of the same inputs, still on disk, or nil. Before, every launch prepared the game
+// again from scratch: minutes for a large game.
+static NSDictionary *_Nullable reusablePreparation(NSString *stampPath, NSString *fingerprint, NSString *gid) {
+  NSData *data = [NSData dataWithContentsOfFile:stampPath];
+  id stamp = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
+  if (![stamp isKindOfClass:NSDictionary.class] || ![stamp[@"fingerprint"] isEqual:fingerprint]) return nil;
+  NSDictionary *result = stamp[@"result"];
+  if (![result isKindOfClass:NSDictionary.class] || ![result[@"gid"] isEqual:gid] || ![result[@"success"] isEqual:@YES]) return nil;
+  NSFileManager *files = NSFileManager.defaultManager;
+  for (NSString *key in @[ @"root", @"moduleDir", @"imagesPath", @"gameData", @"docs" ]) {
+    id path = result[key];
+    if (![path isKindOfClass:NSString.class] || ![files fileExistsAtPath:path]) return nil;
+  }
+  if (![files fileExistsAtPath:[result[@"gameData"] stringByAppendingPathComponent:@".applied"]]) return nil;
+  NSMutableDictionary *reused = [result mutableCopy];
+  reused[@"reused"] = @YES;
+  return reused;
 }
 
 static NSString *_Nullable unpackField(NSString *root, NSString *key) {
@@ -233,16 +372,26 @@ static NSString *mapPrepareCode(int rc) {
   NSString *imagesPath = [moduleDir stringByAppendingPathComponent:[NSString stringWithFormat:@"S2AImages-%@.dylib", gid]];
   NSString *packDir = [gameDir stringByAppendingPathComponent:@"pack"];
   NSString *docsDir = [gameDir stringByAppendingPathComponent:@"docs"];   // kept across preparations (saves)
+  NSString *stampPath = [gameDir stringByAppendingPathComponent:@"prepared.json"];
+  NSString *fingerprint = preparationFingerprint(exportDir, chain, systemData);
+  NSDictionary *reused = reusablePreparation(stampPath, fingerprint, gid);
+  if (reused) {
+    s2arm_journal("prepare", "reused", "\"gid\":\"%s\"", gid.UTF8String);
+    [self emit:@"done" index:kPrepareSteps count:kPrepareSteps fraction:1 detail:@"reused"];
+    return reused;
+  }
   s2arm_journal("prepare", "begin", "\"gid\":\"%s\"", gid.UTF8String);
 
-  // The root, module and pack are rebuilt from scratch; docs is preserved.
+  // The root, module and pack are rebuilt from scratch; docs is preserved. The stamp goes first, so an interrupted
+  // preparation is never reused.
+  [files removeItemAtPath:stampPath error:nil];
   for (NSString *path in @[ root, moduleDir, packDir ]) [files removeItemAtPath:path error:nil];
   for (NSString *path in @[ gameDir, docsDir, moduleDir ]) [files createDirectoryAtPath:path withIntermediateDirectories:YES attributes:nil error:nil];
 
   NSMutableDictionary *sizes = [NSMutableDictionary dictionary];
   NSMutableDictionary *durations = [NSMutableDictionary dictionary];
   char error[1024] = "";
-  const NSInteger steps = 6;
+  const NSInteger steps = kPrepareSteps;
 
   // 1. ns2-dump --reference: RomFS and DLC read in place through relative links.
   [self emit:@"unpack" index:0 count:steps fraction:0];
@@ -263,7 +412,7 @@ static NSString *mapPrepareCode(int rc) {
       [root stringByAppendingPathComponent:@"exefs"].fileSystemRepresentation,
       [files fileExistsAtPath:romfs] ? romfs.fileSystemRepresentation : NULL,
       root.fileSystemRepresentation,
-      NULL, prep_cancelled, (__bridge void *)self};
+      prep_code_progress, prep_cancelled, (__bridge void *)self, prep_code_work};
   rc = rb_s2arm_prepare_code(&code, error, sizeof error);
   if (rc != RB_S2ARM_PREPARE_OK) return [self fail:mapPrepareCode(rc) stage:@"code" detail:error];
   durations[@"code"] = @((s2arm_code_now_ns() - t0) / 1000000ull);
@@ -303,7 +452,7 @@ static NSString *mapPrepareCode(int rc) {
   [self emit:@"pack" index:5 count:steps fraction:0];
   t0 = s2arm_code_now_ns();
   rb_s2arm_resource_request resource = {root.fileSystemRepresentation, packDir.fileSystemRepresentation, systemData.fileSystemRepresentation, 0, 1,
-                                        NULL, prep_cancelled, (__bridge void *)self};
+                                        prep_pack_progress, prep_cancelled, (__bridge void *)self};
   rc = rb_s2arm_resource_pack(&resource, error, sizeof error);
   if (rc != RB_S2ARM_PACK_OK) {
     NSString *mapped = rc == RB_S2ARM_PACK_CANCELLED ? S2ArmErrorCancelled : rc == RB_S2ARM_PACK_IO ? S2ArmErrorIo : S2ArmErrorExportInvalid;
@@ -313,7 +462,7 @@ static NSString *mapPrepareCode(int rc) {
 
   [self emit:@"done" index:6 count:steps fraction:1];
   s2arm_journal("prepare", "passed", "\"gid\":\"%s\",\"imagePackBytes\":%llu", gid.UTF8String, [sizes[@"imagePack"] unsignedLongLongValue]);
-  return @{
+  NSDictionary *result = @{
     @"success" : @YES,
     @"gid" : gid,
     @"programId" : detected[@"programId"],
@@ -326,6 +475,12 @@ static NSString *mapPrepareCode(int rc) {
     @"sizes" : sizes,
     @"durationsMs" : durations,
   };
+  // The next launch of the same inputs reuses this preparation.
+  NSData *stamp = [NSJSONSerialization dataWithJSONObject:@{@"fingerprint" : fingerprint, @"result" : result} options:0 error:nil];
+  if (stamp && ![stamp writeToFile:stampPath atomically:YES]) s2arm_journal("prepare", "stamp", "\"written\":false");
+  NSMutableDictionary *fresh = [result mutableCopy];
+  fresh[@"reused"] = @NO;
+  return fresh;
 }
 
 @end

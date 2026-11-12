@@ -359,6 +359,23 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     `Claude-Session` line.
   - **Next:** download, verify offline, receipts, record, delete the key, send the file; give session 04 the freeze
     commit for 803 (sibling of 726).
+- **Next IPA (729) gating (maintainer, 12 Nov 08:2xZ): wait until the Switch 2 session (04) says it has finished.**
+  Already on Claude:
+  - session 04: 4c74414f (import capacity, clone, preparation progress and reuse) and 46c7e0db (Switch 1 / Switch 2
+    separation);
+  - session 03 diagnostics: f76facc4;
+  - MeloNX Consoles probe: d8b5e0e5;
+  - MeloNX Core 743 recipe: 3d2645ea. Build run 43174115676; pin pending.
+  Nothing is built until 04 sends an explicit "Switch 2 finished".
+  - "Switch 2 finished" received from session 04 at 08:57Z. Its final lot is merged as bc75feac: preparation
+    progress, engine-pin 6afbd2c9.
+  - Also waits for session 03's XeniaCore pin.
+    - Cause, proven by .ips Runner-2026-11-12-082610: SIGABRT from an uncaught std::filesystem error in
+      EmulatorAppIOS::OnInitialize. xenia-edge.config.toml kept the IPA 727 container's absolute roots, and iOS gives
+      the app a new container on each update.
+    - Fix 4375638f2 [xenia-core], ABI 4: NeoXeniaApplyHostRoots runs after SetupConfig.
+    - Without it, Xbox 360 still aborts on any device that ran an earlier IPA.
+  - MeloNX Core 743 is pinned (4e84cee0, pin a429f212).
 - **IPA 728 device finding (session 04, maintainer app.log pid 57620, 07:07Z).**
   - Confirmed: the S2Arm status reads available=true, and the Switch 2 Consoles switch turns on (bc43c4ed).
   - P0 found: opening the Consoles page loads MeloNXCore. `libretro_consoles_screen.dart:151` calls
@@ -4861,6 +4878,25 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       new files; melonx_adapter_control_order_test.py reads the `adapted += adapt_X(source)` form too (it had failed
       unseen since Core 735, when that form joined; it detects a swapped pair). No rendering, sync, flush or pipeline
       change: no FPS claim. Rollback: remove the two adapters (Core 741).
+    - **P0 IPA 728, the Consoles page loaded MeloNXCore (bridge and Dart; independent of the Core 743 pin):** found by
+      session 04 in the maintainer's app.log (pid 57620, 07:07Z): libretro_consoles_screen.dart initState calls
+      MelonxInternalService.runtimeAvailable(), which invoked the bridge's "diagnostics"; that runs ensureRuntime(), marks
+      the process and loads MeloNXCore and its NativeAOT runtime, so S2Arm read melonxCoreLoaded=true and refused every
+      Switch 2 launch until RewindBox restarted. Fix 051a3691: a bridge method "availability" answers without opening
+      MeloNXCore or marking the process (the engine's framework in the bundle, the library recovery marker, the Switch 2
+      engine's flag rb_s2arm_engine_loaded, rb_melonx_core_loaded, the memory entitlements read only);
+      runtimeAvailable() asks it; "diagnostics" keeps loading the engine for the launch path (unchanged). Tests:
+      melonx_core_loaded_test.py 8 checks (fails on the previous plugin); melonx_embedded_route_test.dart (probes ask
+      "availability" only, never "diagnostics"); melonx_presentation (real plugin in UIKit on the simulator: availability
+      before any load constructs no runtime and marks nothing; after the launch path's single load it reports the engine
+      loaded). Local: Flutter 45 tests passed. macOS on 051a3691: melonx-host 43176758764 green (the registered
+      plugin in UIKit: 28 checks, the four availability checks among them; old control reproduced); stall watch
+      43176746291 green; melonx-integration 43176762671: analysis and the console scenarios (these tests) green, then
+      red at retroarch_baseline_scope_test.py (7 failures on scanning.dart, config_service.dart and Store.cpp, files
+      this fix does not touch, changed by the Switch 2 and XeniOS work 3712b522 and 74f668c2; reproduced locally on
+      Claude 3d2645ea's bytes). Pre-existing, unrelated failures seen on this head:
+      melonx_hogwarts_graphics_test.py expects 11 translations and finds 12 since zh_Hant joined (only the historical
+      rewind599-601 workflows run it); rewind604_delivery_contract_test.py and melonx_capture_journal_test.py (historical).
     - **Device protocol for the next private IPA (Core 743, or 741 without the split):** Hogwarts Legacy, same save, 3-5
       min including a zone change and the place of the 05:46:17 freeze, then home, then close from the menu; then a
       Switch close and a PS3 launch in the same session (P0 726); Smash 1 min of play (SetProgram bursts, Core 739). Read:
@@ -4871,8 +4907,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       maintainer in the UI.
     - **Next action:** from the next Hogwarts run with Core 743: reduce the dominant submission cause with its own gate
       (a strict-sync site, or the fast flush mode's 1.5 ms draw auto-flush), the reference passes and submissions following
-      the command buffer count; no sync semantics change before that measurement. Main: Core 739 CI and pin, then Core
-      741 or Core 743 (743 includes 741).
+      the command buffer count; no sync semantics change before that measurement. Main (12 Nov 07:17): IPA 728 shipped
+      with Core 737 (maintainer); Core 743 merged on Claude as 3d2645ea (--no-ff, recipe byte for byte d4b7f9d7, contract
+      b95bb282); its Core build is push run 43174115676, the pin follows when it is green, for the next IPA (the 739 build
+      43165030959 is green and kept). This work branch was fast-forwarded to 3d2645ea.
   - **IPA 726 device run read (12 Nov): Hogwarts Legacy on Core 735, pid 54035, 23:43:42-23:46:20 (the session
     of the P0 726 close); journals private (scratchpad), aggregates only. Not a like-for-like comparison with 725:
     the phone was in the "serious" thermal state for 99 of the 100 warm seconds (725, pid 51986: "fair").**
@@ -5332,7 +5370,7 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 ### Switch 2 playlist (S2Arm) feasibility prototype — session 04
 
 - **Owner/branch:** session `012mUASj3EQnvC86WC56AePw`, `work/s2arm-switch2-prototype-20261110`
-  (merged with `Claude` `9c9817e8`). Own paths: `packages/s2arm_engine_bridge/`, `native/s2arm/`,
+  (merged with `Claude` `d8b5e0e5`). Own paths: `packages/s2arm_engine_bridge/`, `native/s2arm/`,
   `build-utils/s2arm/`, `tools/s2arm_prototype/`, `.github/workflows/s2arm-*.yml`, `docs/s2arm-*.md`.
 - **Goal:** a Switch 2 playlist on S2Arm, games prepared on the phone. The device probe ships in
   a common IPA by maintainer decision (below); the rest stays on this branch.
@@ -5405,6 +5443,72 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       Claude `18c8c905` in `675f79a4`.
     - Told main: the XeniOS `importFolder` uses `FilePicker.getDirectoryPath` (main passed it to session 03).
     - Nothing observed on a device. The next IPA's app.log has an `S2Arm status: {…}` line with the native flags.
+  - **IPA 728 device report (maintainer, 12 Nov, app.log pid 57620).** On device: `available: true` and the Switch 2
+    Consoles switch turns on, so `bc43c4ed` is confirmed. Three fixes in `4454bf54`, merged with Claude `fb996f15` in
+    `fba17375`. Green: iOS compile 43176880195, `flutter analyze` and tests 43176880157.
+    - **Import refused for space with about 68 GB available.** statvfs counts no purgeable space. The import now checks
+      `importantFreeBytes` (`NSURLVolumeAvailableCapacityForImportantUsageKey`). It first tries the new `cloneTree`
+      (`clonefile(2)`, Documents only, onto a free path): instant and space-free on the same volume. Otherwise it copies.
+    - **"code · 0%" for minutes.** The code stage now reports each module and the pack its bytes. `<game>/prepared.json`
+      lets a launch with the same inputs reuse a finished preparation. Before, every launch prepared from scratch.
+      The journal is in `Documents/Diagnostics/S2Arm/s2arm-journal.jsonl`, and app.log has the steps.
+    - **The Consoles tab loads MeloNXCore** (`runtimeAvailable` → `diagnostics` → `ensureRuntime`), which blocks an S2Arm
+      launch until a restart. `launch()` now refuses before preparing (`melonxCoreLoaded`, message `melonxLoaded`). Main
+      gave the probe fix to the MeloNX owner.
+  - **No ambiguity between the two engines (maintainer, 12 Nov, after IPA 728).** The Switch 2 surfaces no longer show
+    the Switch 1 engine. Commits `5d98e8b5`, `c1197b11` and `ee192c10`, merged with Claude `d8b5e0e5` in `609613be`.
+    - Switch 2 playlist menu: import games, import a save, open saves, the Switch 2 settings, delete. The prod.keys item
+      and its handler are gone, with the two imports of Switch 1 engine files (S2Arm needs no keys; prod.keys stays in
+      the Switch 1 playlist). The empty playlist only says how to import games. `switch2_library_locale.dart` names
+      neither MeloNX nor prod.keys (`importKeys`, `importKeysHint`, `keysFailed` removed, 12 languages).
+    - Two refusals, two codes, two messages (12 languages). `engineRestartRequired` → `restartRequired`: a Switch 2 game
+      already ran, Switch 2 only (it said "a Switch 2 or Nintendo Switch game"). `switch1EngineLoaded` (code and key,
+      formerly `melonxCoreLoaded` / `melonxLoaded`): "the Switch 1 engine was loaded ... keeps the Switch 2 engine from
+      starting". The native refusal now answers it too; it answered `engineRestartRequired`. The failure dialog shows
+      the code and diagnostic under Technical details, so neither names MeloNX. The status flag keeps the name
+      `melonxCoreLoaded` (diagnostics only).
+    - Tests, changed to the maintainer's rule and not weakened. The menu contract forbids the prod.keys item and any
+      Switch 1 engine import or name; it had required them. The empty-hint contract forbids prod.keys and MeloNX; it had
+      required them, and fails on the previous strings (26 failures). New: the two messages differ and each names its
+      console (German compounds accepted), the native code reaches its message with no engine in the technical
+      details, and the bridge has 139 checks (the code, its journal reason, no MeloNX in an error or diagnostic
+      literal; both fail on the previous plugin).
+    - Validation: local Python contracts pass (bridge 139, session menu, storage, pinned engine, empty hint, Switch 1
+      core-loaded, Glacier tile review). CI: iOS compile 43180244951 green on `5d98e8b5`; library 43180244946 red, 192
+      passed and 1 failed (my German check, fixed in `ee192c10`). Final: iOS compile 43180772112 green on `c1197b11`
+      (the last native change); `flutter analyze`, tests and Python contracts 43180929784 green on `ee192c10`. Sent to
+      main for the next IPA. Not observed on a device.
+    - With Claude `051a3691` the Consoles page no longer loads the Switch 1 engine. The `switch1EngineLoaded` refusal
+      should then appear only after a Switch 1 game in the same session.
+  - **Real progress for the preparation (maintainer, 12 Nov: "never stuck at 0").** IPA 728 showed "code · 0%" for
+    minutes on Mario Kart World. Code `97df7333`; the artifact fix is `a6f958fd`. Verified pin `60a15cd3`
+    (engine-pin.json SHA-256 `6afbd2c9…3635`, pin job run 43186436153); only the prepare entry changed: run
+    43185893094, artifact 13928561427. Merged with Claude `554a5777` in `f31ef2a3`.
+    - Rewriter: `build-utils/s2arm/prepare/patches/0001-rewriter-progress-report.patch` adds a per-thread callback
+      (passes, plus counts inside the long loops). It adds 67 lines and removes none, and is marked RewindBox. It is
+      listed in `docs/s2arm-legal-notices.md` and recorded in `S2ArmPrepare-identity.json`.
+    - Code stage `work` callback (`rb_s2arm_code_request`, new last member): a weighted fraction that never goes back.
+    - Bridge: the pass and its counts, plus a `codePhase` journal with durations, so the pass shares can be set from
+      measured costs.
+    - Dialog: a bar for the whole preparation, the localized step, module and phase with counts, and the elapsed time
+      (26 strings × 12).
+    - Proof:
+      - `s2arm-prepare.yml` 43184657493 is green on macOS and Linux. Every comparison runs the patched library against
+        the unpatched `s2a-rewrite` (identical bytes), and the bar is checked on each code-stage case.
+      - `test/s2arm_rewriter_progress_test.py` (68 checks) passes and fails four bad patch variants.
+      - Bridge iOS compile 43184657518 (155 checks; the pod ABI copy is now checked member by member, where the old
+        check was a no-op).
+      - Library 43184657663 (`flutter analyze` and tests, including `s2arm_prepare_dialog_test.dart`).
+      - Core 43185893094.
+    - First pin attempt, run 43185240791, refused the artifact: it held a fifth member, `patches.txt`. Fixed in
+      `a6f958fd`.
+    - Not observed on a device. The pass shares are estimates until a journal gives the durations.
+  - **Relaunch in the same session (maintainer, 12 Nov): project opened, not for this IPA.** The maintainer chose to
+    ship the progress lot first. Plan and inventory: `docs/s2arm-relaunch-in-session.md`.
+    - S2Arm already restarts a session in-process for the same game (`session.c:440`, `:671`). Our guest stop takes
+      the process shutdown instead (`rb_guest.c:127`).
+    - A different game needs new executable pages after the JIT helper has detached (`S2ArmEngineBridgePlugin.m:345`).
+    - Steps: same game first, then the latches and a per-game reset, then another game.
   - Main withdrew the launcher deletion (12 Nov): it stays as is. Formerly open: delete the launcher (`.github/diagnostics/s2arm/`, `s2arm-delivery.yml`,
     `set_probe_key.py`) together with its test `s2arm_delivery_test.py`, which no longer works
     since 9c9817e8 (40 errors)? Main also has to choose the S2Arm test groups of the next

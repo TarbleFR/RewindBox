@@ -1,23 +1,24 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:path/path.dart' as path;
 
-import '../l10n/melonx_transfer_locale.dart';
 import '../l10n/switch2_library_locale.dart';
 import '../l10n/switch2_settings_locale.dart';
 import '../repositories/game_repository.dart';
-import '../services/melonx_embedded_library_service.dart';
 import '../services/s2arm_internal_service.dart';
 import '../services/storage/storage_import_activity.dart';
 import '../services/switch2_export_content.dart';
 import 'delete_game_dialog.dart';
 import 'switch2_engine_settings_panel.dart';
 
-/// Menu of the Switch 2 playlist, modelled on MeloNX's: import games (an export
-/// folder from Files, docs/s2arm-switch2-library.md § Import), import prod.keys
-/// (the one store MeloNX owns; not needed for Switch 2 games) and delete the
-/// highlighted game. No firmware item: S2Arm uses none.
+/// Menu of the Switch 2 playlist: import games (an export folder from Files,
+/// docs/s2arm-switch2-library.md § Import), saves, the Switch 2 settings and
+/// delete the highlighted game. Nothing of the Switch 1 engine: no prod.keys
+/// (S2Arm needs none) and no firmware. The maintainer wants no ambiguity
+/// between the two engines.
 class S2ArmInternalPlaylistActions extends StatefulWidget {
   const S2ArmInternalPlaylistActions({
     super.key,
@@ -115,43 +116,6 @@ class _S2ArmInternalPlaylistActionsState
     }
   }
 
-  /// The shared prod.keys import of MeloNX (its picker, validation and storage): the same dialog lines.
-  Future<void> _importKeys() async {
-    final MelonxKeysReport report;
-    try {
-      report = await MelonxEmbeddedLibraryService.importKeys();
-    } catch (error) {
-      _notice('${_t('keysFailed')}\n$error');
-      return;
-    }
-    if (!mounted) return;
-    final lines = <String>[
-      for (final name in report.imported)
-        '${MelonxTransferLocale.text(context, 'imported')}: $name',
-      for (final item in report.refused.entries)
-        '${MelonxTransferLocale.text(context, 'rejected')}: ${item.key} — ${MelonxTransferLocale.text(context, item.value)}',
-      for (final item in report.ignored.entries)
-        '${item.key}: ${MelonxTransferLocale.text(context, 'keyExtras')} (${item.value})',
-      for (final item in report.invalidSizes.entries)
-        '${item.key}: ${MelonxTransferLocale.text(context, 'keyInvalidSizes')} (${item.value})',
-      if (report.prodMissing) MelonxTransferLocale.text(context, 'requiredProd'),
-    ];
-    if (lines.isEmpty) return;
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(_t('importKeys')),
-        content: Text(lines.join('\n')),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(_t('done')),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _delete() async {
     final romPath = widget.romPath;
     final appSystemId = widget.appSystemId;
@@ -190,7 +154,7 @@ class _S2ArmInternalPlaylistActionsState
     if (mounted) _notice(_tf('deleted', {'name': name}));
   }
 
-  /// Always offered, like MeloNX's save import. Without a selected game the save goes to the game it names, or to the
+  /// Always offered. Without a selected game the save goes to the game it names, or to the
   /// library game the player chooses when it names none.
   Future<void> _importSave() async {
     final romPath = widget.romPath;
@@ -289,7 +253,6 @@ class _S2ArmInternalPlaylistActionsState
     _interaction(true);
     try {
       if (action == 'folder') await _import();
-      if (action == 'keys') await _importKeys();
       if (action == 'delete') await _delete();
       if (action == 'settings') await _openSettings();
       if (action == 'importSave') await _importSave();
@@ -347,7 +310,7 @@ class _S2ArmInternalPlaylistActionsState
             value: 'folder',
             child: _item(_t('importGames'), _t('importGamesHint')),
           ),
-          // Saves come second, as in MeloNX's menu, with or without a selected game.
+          // Saves come second, with or without a selected game.
           PopupMenuItem(
             key: const ValueKey('s2arm-import-save'),
             value: 'importSave',
@@ -357,11 +320,6 @@ class _S2ArmInternalPlaylistActionsState
             key: const ValueKey('s2arm-open-saves'),
             value: 'openSaves',
             child: _item(_t('openSaves'), _t('openSavesHint')),
-          ),
-          PopupMenuItem(
-            key: const ValueKey('s2arm-import-keys'),
-            value: 'keys',
-            child: _item(_t('importKeys'), _t('importKeysHint')),
           ),
           PopupMenuItem(
             key: const ValueKey('s2arm-settings'),
@@ -430,7 +388,9 @@ class _S2ArmImportDialog extends StatelessWidget {
 /// Non-dismissible dialog shown while S2ArmInternalService.launch prepares a
 /// game (stage and percent from `onPrepareProgress`). The launch route owns
 /// its lifetime.
-class S2ArmPrepareDialog extends StatelessWidget {
+/// The launch preparation of a Switch 2 game: the step and its part, the phase with its own counts, one bar for the whole
+/// preparation (weighted by step, the code stage first) and the elapsed time, so a long code stage never looks frozen.
+class S2ArmPrepareDialog extends StatefulWidget {
   const S2ArmPrepareDialog({
     super.key,
     required this.progress,
@@ -440,37 +400,71 @@ class S2ArmPrepareDialog extends StatelessWidget {
   final ValueListenable<S2ArmImportProgress?> progress;
   final String title;
 
+  /// The clock of the elapsed time; tests replace it.
+  @visibleForTesting
+  static DateTime Function() clock = DateTime.now;
+
+  @override
+  State<S2ArmPrepareDialog> createState() => _S2ArmPrepareDialogState();
+}
+
+class _S2ArmPrepareDialogState extends State<S2ArmPrepareDialog> {
+  late final DateTime _started = S2ArmPrepareDialog.clock();
+  Timer? _ticker;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final locale = Localizations.maybeLocaleOf(context) ?? const Locale('en');
+    final elapsed = S2ArmPrepareDialog.clock().difference(_started);
     return PopScope(
       canPop: false,
       child: AlertDialog(
         key: const ValueKey('s2arm-prepare-dialog'),
         content: ValueListenableBuilder<S2ArmImportProgress?>(
-          valueListenable: progress,
+          valueListenable: widget.progress,
           builder: (context, value, _) {
-            final fraction = value?.fraction;
-            final stage = value?.name ?? '';
+            final lines = s2armPreparationLines(locale, value);
+            final bar = value?.overall ?? value?.fraction;
+            final status = [
+              // floor, so 100 % means done; the epsilon absorbs 0.29 * 100 = 28.999999999999996.
+              if (bar != null) '${(bar * 100 + 1e-6).floor().clamp(0, 100)} %',
+              Switch2LibraryLocale.format(locale, 'prepElapsed', {'time': s2armElapsedText(locale, elapsed)}),
+            ].join(' · ');
             return Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
                   Switch2LibraryLocale.textf(context, 'preparing', {
-                    'name': title,
+                    'name': widget.title,
                   }),
                 ),
-                if (stage.isNotEmpty) ...[
+                for (final line in lines) ...[
                   const SizedBox(height: 8),
-                  Text(
-                    fraction == null
-                        ? stage
-                        : '$stage · ${(fraction * 100).round()}%',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
+                  Text(line, style: Theme.of(context).textTheme.bodySmall),
                 ],
                 const SizedBox(height: 12),
-                LinearProgressIndicator(value: fraction),
+                LinearProgressIndicator(value: bar),
+                const SizedBox(height: 8),
+                Text(
+                  status,
+                  key: const ValueKey('s2arm-prepare-status'),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
               ],
             );
           },
@@ -478,6 +472,79 @@ class S2ArmPrepareDialog extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The step line (step, part, pass) and the phase line (phase, counts) of a preparation; the step and its percent for an
+/// older event without step. Visible for tests.
+List<String> s2armPreparationLines(Locale locale, S2ArmImportProgress? value) {
+  if (value == null) return const [];
+  String t(String key, [Map<String, Object?> parameters = const {}]) => Switch2LibraryLocale.format(locale, key, parameters);
+  final step = value.step;
+  if (step == null) {
+    final fraction = value.fraction;
+    return [if (value.name.isNotEmpty) fraction == null ? value.name : '${value.name} · ${(fraction * 100).round()}%'];
+  }
+  if (step == 'done') return [if (value.part == 'reused') t('prepReused')];
+  const stepKeys = {
+    'unpack': 'prepStepUnpack',
+    'code': 'prepStepCode',
+    'caps': 'prepStepCaps',
+    'direct': 'prepStepDirect',
+    'module': 'prepStepModule',
+    'pack': 'prepStepPack',
+  };
+  final head = <String>[if (stepKeys[step] != null) t(stepKeys[step]!)];
+  final part = value.part;
+  if (step == 'code' && part != null && part.isNotEmpty) {
+    const partKeys = {
+      'main': 'prepPartMain',
+      'zbic': 'prepPartZbic',
+      'addr_need': 'prepPartAddrNeed',
+      'nro': 'prepPartNro',
+      'tables': 'prepPartTables',
+    };
+    head.add(partKeys[part] != null ? t(partKeys[part]!) : t('prepPartModule', {'name': part}));
+  }
+  if (value.attempt > 1) head.add(t('prepAttempt', {'n': value.attempt}));
+  final detail = <String>[];
+  const phaseKeys = {
+    'load': 'prepPhaseRead',
+    'prepass': 'prepPhaseRead',
+    'boundaries': 'prepPhaseFind',
+    'scan': 'prepPhaseFind',
+    'data': 'prepPhaseFind',
+    'analyze': 'prepPhaseAnalyze',
+    'generate': 'prepPhaseGenerate',
+    'late': 'prepPhaseGenerate',
+    'spins': 'prepPhaseGenerate',
+    'outputs': 'prepPhaseWrite',
+  };
+  final phase = value.phase;
+  if (phase != null && phaseKeys[phase] != null) detail.add(t(phaseKeys[phase]!));
+  final done = value.unitsDone ?? 0, total = value.unitsTotal ?? 0;
+  if (phase == 'walk' && done > 0) {
+    detail.add(t('prepCountEntries', {'count': done}));
+  } else if (total > 0) {
+    if (phase == 'analyze') {
+      detail.add(t('prepCountFunctions', {'done': done, 'total': total}));
+    } else if (phase == 'generate') {
+      detail.add(t('prepCount', {'done': done, 'total': total}));
+    } else if (const {'boundaries', 'scan', 'spins', 'zbic'}.contains(phase)) {
+      detail.add(t('prepCountMegabytes', {'done': (done / 1000000).round(), 'total': (total / 1000000).round()}));
+    }
+  }
+  return [
+    if (head.isNotEmpty) head.join(' · '),
+    if (detail.isNotEmpty) detail.join(' · '),
+  ];
+}
+
+/// "1 min 05 s", "42 s" (each locale's units). Visible for tests.
+String s2armElapsedText(Locale locale, Duration elapsed) {
+  final seconds = elapsed.inSeconds < 0 ? 0 : elapsed.inSeconds;
+  final minutes = seconds ~/ 60;
+  if (minutes == 0) return Switch2LibraryLocale.format(locale, 'prepSeconds', {'s': seconds});
+  return Switch2LibraryLocale.format(locale, 'prepMinutesSeconds', {'m': minutes, 's': (seconds % 60).toString().padLeft(2, '0')});
 }
 
 /// The localized message of an S2Arm launch failure key: the iOS 26 line of

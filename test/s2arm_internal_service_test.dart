@@ -48,12 +48,31 @@ void main() {
         'jitPairingRequired': 'jitUnavailable',
         'cancelled': 'cancelled',
         'unavailable': 'unavailable',
+        'switch1EngineLoaded': 'switch1EngineLoaded',
       };
       cases.forEach((code, key) {
         expect(S2ArmInternalService.messageKey(code), key, reason: code);
         expect(S2ArmInternalService.localizedError(en, {'code': code}), S2ArmEngineLocale.text(en, key));
         expect(S2ArmInternalService.localizedError(fr, {'error': code}), S2ArmEngineLocale.text(fr, key));
       });
+    });
+
+    test('the two restart messages name one engine each, with no ambiguity between them', () {
+      // German writes the console in compounds ("Switch-2-Spiel", "Switch-1-Engine").
+      final switch2 = RegExp(r'Switch[ -]2');
+      final switch1 = RegExp(r'Switch[ -]1');
+      for (final entry in S2ArmEngineLocale.values.entries) {
+        final secondGame = entry.value['restartRequired']!;
+        final switch1Loaded = entry.value['switch1EngineLoaded']!;
+        expect(secondGame, isNot(equals(switch1Loaded)), reason: entry.key);
+        for (final text in [secondGame, switch1Loaded]) {
+          expect(text.contains('MeloNX'), isFalse, reason: '${entry.key}: the player sees consoles, not engine names');
+          expect(switch2.hasMatch(text), isTrue, reason: '${entry.key}: both are about the Switch 2 engine');
+        }
+        expect(switch1.hasMatch(secondGame), isFalse, reason: '${entry.key}: a second Switch 2 launch is not about Switch 1');
+        expect(secondGame.contains('Nintendo Switch'), isFalse, reason: entry.key);
+        expect(switch1.hasMatch(switch1Loaded), isTrue, reason: '${entry.key}: says which engine blocks the launch');
+      }
     });
 
     test('an unknown code falls back to the generic launch failure', () {
@@ -65,7 +84,7 @@ void main() {
       final keys = {
         for (final code in ['engineRestartRequired', 'notExportFolder', 'exportInvalid', 'gameUnsupported', 'rewriterFailed',
                             'storageError', 'insufficientSpace', 'systemDataMissing', 'engineChainMissing', 'jitUnavailable',
-                            'cancelled', 'unavailable', 'x'])
+                            'cancelled', 'unavailable', 'switch1EngineLoaded', 'x'])
           S2ArmInternalService.messageKey(code),
       };
       expect(S2ArmEngineLocale.values.length, 12);
@@ -162,6 +181,83 @@ void main() {
       expect(await File('${imported.path}/base/exefs/main').length(), 1024);
       final staging = await S2ArmInternalService.stagingDirectory();
       expect(await staging.exists(), isFalse, reason: 'staging is cleaned up');
+    });
+
+    group('space and clone (IPA 728: "not enough space" with about 68 GB available in Settings)', () {
+      late Future<bool> Function(String from, String to) originalClone;
+      late Future<int?> Function(String path) originalAvailable;
+      late Directory exportDir;
+      setUp(() async {
+        originalClone = S2ArmInternalService.cloneTree;
+        originalAvailable = S2ArmInternalService.availableBytes;
+        final exefs = await Directory('${temp.path}/export/base/exefs').create(recursive: true);
+        await File('${exefs.path}/main').writeAsBytes(List<int>.filled(4096, 7));
+        exportDir = Directory('${temp.path}/export');
+        messenger.setMockMethodCallHandler(channel, (call) async {
+          if (call.method == 'detectExport') {
+            return {'success': true, 'exportDir': exportDir.path, 'gid': '0100ABCDEF000000', 'programId': '0100abcdef000000'};
+          }
+          if (call.method == 'gameInfo') return {'success': true, 'title': 'Test Game', 'titleId': '0100abcdef000000'};
+          return null;
+        });
+      });
+      tearDown(() {
+        S2ArmInternalService.cloneTree = originalClone;
+        S2ArmInternalService.availableBytes = originalAvailable;
+      });
+
+      Future<void> copyTree(Directory from, Directory to) async {
+        await to.create(recursive: true);
+        await for (final entry in from.list(followLinks: false)) {
+          final target = path.join(to.path, path.basename(entry.path));
+          if (entry is Directory) await copyTree(entry, Directory(target));
+          if (entry is File) await entry.copy(target);
+        }
+      }
+
+      test('a game on the same volume is cloned: no byte copy and no free space needed', () async {
+        S2ArmInternalService.freeBytes = (_) => 0;
+        S2ArmInternalService.availableBytes = (_) async => 0;
+        final clones = <String>[];
+        S2ArmInternalService.cloneTree = (from, to) async {
+          expect(await Directory(to).exists(), isFalse, reason: 'clonefile needs a free destination');
+          expect(await Directory(to).parent.exists(), isTrue, reason: 'and its parent');
+          clones.add(from);
+          await copyTree(Directory(from), Directory(to));   // stands for clonefile(2)
+          return true;
+        };
+        final progress = <double?>[];
+        final result = await S2ArmInternalService.importFolderAt(exportDir.path, onProgress: (p) => progress.add(p.fraction));
+        expect(result.imported, 1, reason: result.items.map((i) => i.reason).join(','));
+        expect(clones, [exportDir.path]);
+        expect(await File('${result.items.single.destination}/base/exefs/main').length(), 4096);
+        expect(progress.last, 1.0);
+        expect(await (await S2ArmInternalService.stagingDirectory()).exists(), isFalse);
+      });
+
+      test('without a clone the copy checks the space iOS gives a task the user asked for, not statvfs', () async {
+        S2ArmInternalService.cloneTree = (from, to) async {
+          await Directory(to).create(recursive: true);   // a half-made clone is cleaned before the copy
+          await File('$to/partial').writeAsString('x');
+          return false;
+        };
+        S2ArmInternalService.freeBytes = (_) => 0;   // statvfs alone would refuse
+        S2ArmInternalService.availableBytes = (_) async => 4096 + S2ArmInternalService.spaceMargin - 1;
+        final refused = await S2ArmInternalService.importFolderAt(exportDir.path);
+        expect(refused.items.single.reason, 'notEnoughSpace');
+        S2ArmInternalService.availableBytes = (_) async => 1 << 40;
+        final copied = await S2ArmInternalService.importFolderAt(exportDir.path);
+        expect(copied.imported, 1, reason: copied.items.map((i) => i.reason).join(','));
+        final destination = copied.items.single.destination!;
+        expect(await File('$destination/base/exefs/main').length(), 4096);
+        expect(await File('$destination/partial').exists(), isFalse);
+      });
+
+      test('off iOS the available space is the statvfs one', () async {
+        S2ArmInternalService.freeBytes = (_) => 1234;
+        expect(await originalAvailable(temp.path), 1234);
+        expect(await originalClone(exportDir.path, '${temp.path}/clone'), isFalse);
+      });
     });
 
     test('a folder that holds the game folder, or several games, imports each export below it', () async {
@@ -566,6 +662,113 @@ void main() {
       final result = await S2ArmInternalService.importSaveAt('/export', mine.path);
       expect(result.redirectedTo, isNull);
       expect(result.folder, '${temp.path}/Documents/S2Arm/Saves/Test Game [$gid]');
+    });
+
+    test('a launch is refused before preparing when the Switch 1 engine is loaded, or when a Switch 2 game already ran', () async {
+      S2ArmInternalService.availabilityForTesting = const S2ArmRuntimeAvailability(S2ArmRuntimeState.ready);
+      final calls = <String>[];
+      Map<String, Object?> state = {'available': true, 'melonxCoreLoaded': true, 'engineLoaded': false};
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        calls.add(call.method);
+        if (call.method == 'status') return state;
+        return null;
+      });
+      final refused = await S2ArmInternalService.launch('/export', pairingFilePath: '/pair');
+      expect(refused.success, isFalse);
+      expect(refused.error, 'switch1EngineLoaded');
+      expect(calls, isNot(contains('prepareGame')), reason: 'no long preparation that cannot launch');
+      expect(S2ArmInternalService.localizedError(fr, {'error': refused.error}), S2ArmEngineLocale.text(fr, 'switch1EngineLoaded'));
+      state = {'available': true, 'melonxCoreLoaded': 0, 'engineLoaded': 1};
+      final again = await S2ArmInternalService.launch('/export', pairingFilePath: '/pair');
+      expect(again.error, 'engineRestartRequired');
+      expect(calls, isNot(contains('prepareGame')));
+    });
+
+    test('the native refusal of the Switch 1 engine keeps its own code up to the message', () async {
+      S2ArmInternalService.availabilityForTesting = const S2ArmRuntimeAvailability(S2ArmRuntimeState.ready);
+      // The Switch 1 engine loaded between the status check and the native launch: the plugin answers itself.
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        switch (call.method) {
+          case 'status':
+            return {'available': true, 'melonxCoreLoaded': 0, 'engineLoaded': 0};
+          case 'detectExport':
+            return {'success': true, 'exportDir': '/export', 'gid': gid};
+          case 'prepareGame':
+            return {'success': true, 'gid': gid, 'imagesPath': '/i', 'moduleDir': '/m', 'gameData': '/g', 'docs': '/d'};
+          case 'launchGame':
+            return {'success': false, 'error': 'switch1EngineLoaded', 'diagnostic': 'The Switch 1 engine ran'};
+        }
+        return null;
+      });
+      final refused = await S2ArmInternalService.launch('/export', pairingFilePath: '/pair');
+      expect(refused.error, 'switch1EngineLoaded');
+      // The launch route shows 'S2Arm: <error>\n<detail>' as the failure dialog's technical details.
+      expect('${refused.error}\n${refused.detail}'.toLowerCase(), isNot(contains('melonx')));
+      expect(S2ArmInternalService.localizedError(fr, {'error': refused.error}), S2ArmEngineLocale.text(fr, 'switch1EngineLoaded'));
+      expect(S2ArmInternalService.localizedError(fr, {'error': refused.error}),
+          isNot(S2ArmEngineLocale.text(fr, 'restartRequired')));
+    });
+
+    test('the preparation shows the code-stage module and says when it reused a finished one', () async {
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'prepareGame') {
+          await messenger.handlePlatformMessage(
+            channel.name,
+            channel.codec.encodeMethodCall(const MethodCall(
+                'prepareProgress', {'step': 'code', 'index': 1, 'count': 6, 'fraction': 0.5, 'detail': 'main'})),
+            (_) {},
+          );
+          await messenger.handlePlatformMessage(
+            channel.name,
+            channel.codec.encodeMethodCall(const MethodCall(
+                'prepareProgress', {'step': 'caps', 'index': 2, 'count': 6, 'fraction': 0.0, 'detail': ''})),
+            (_) {},
+          );
+          return {'success': true, 'gid': gid, 'reused': true, 'durationsMs': <String, Object?>{}, 'sizes': <String, Object?>{}};
+        }
+        return null;
+      });
+      final seen = <String>[];
+      final fractions = <double?>[];
+      final result = await S2ArmInternalService.prepare(exportFolder: '/export', onProgress: (p) {
+        seen.add(p.name);
+        fractions.add(p.fraction);
+      });
+      expect(result['reused'], isTrue);
+      expect(seen, ['code · main', 'caps']);
+      expect(fractions.first, closeTo(0.5, 1e-9));
+    });
+
+    test('the code stage reports its pass and counts, and the whole preparation is one weighted bar', () async {
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'prepareGame') {
+          for (final event in const [
+            {'step': 'unpack', 'index': 0, 'count': 6, 'fraction': 1.0, 'detail': ''},
+            {'step': 'code', 'index': 1, 'count': 6, 'fraction': 0.25, 'detail': 'main', 'phase': 'analyze', 'attempt': 1,
+             'done': 1234, 'total': 5678},
+            {'step': 'code', 'index': 1, 'count': 6, 'fraction': 0.5, 'detail': 'main', 'phase': 'generate', 'attempt': 2,
+             'done': 40, 'total': 90},
+            {'step': 'pack', 'index': 5, 'count': 6, 'fraction': 0.5, 'detail': ''},
+          ]) {
+            await messenger.handlePlatformMessage(
+                channel.name, channel.codec.encodeMethodCall(MethodCall('prepareProgress', event)), (_) {});
+          }
+          return {'success': true, 'gid': gid, 'durationsMs': <String, Object?>{}, 'sizes': <String, Object?>{}};
+        }
+        return null;
+      });
+      final seen = <S2ArmImportProgress>[];
+      await S2ArmInternalService.prepare(exportFolder: '/export', onProgress: seen.add);
+      expect(seen.map((p) => p.step), ['unpack', 'code', 'code', 'pack']);
+      final analyze = seen[1];
+      expect([analyze.part, analyze.phase, analyze.attempt, analyze.unitsDone, analyze.unitsTotal], ['main', 'analyze', 1, 1234, 5678]);
+      expect(seen[2].attempt, 2);
+      // unpack 4 %, code 80 %, caps and direct 2 % each, module 6 %, pack 6 %.
+      expect(seen.map((p) => p.overall), [closeTo(0.04, 1e-9), closeTo(0.24, 1e-9), closeTo(0.44, 1e-9), closeTo(0.97, 1e-9)]);
+      expect(seen.map((p) => p.overall!).toList(), orderedEquals([...seen.map((p) => p.overall!)]..sort()));
+      expect(S2ArmInternalService.preparationOverall('done', 0), 1);
+      expect(S2ArmInternalService.preparationOverall('unknown', 0.5), isNull);
+      expect(S2ArmInternalService.preparationSteps.fold<double>(0, (sum, step) => sum + step.value), closeTo(1, 1e-9));
     });
 
     test('no import while a Switch 2 game runs', () async {

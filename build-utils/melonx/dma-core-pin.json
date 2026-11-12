@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "36ed5e93e659a1adbc41a64af2949f3b4dc68677",
-  "run": 43131998605,
-  "job": 130898251486,
+  "source": "3d2645ea030e0f1a3da39c99f0a55a6d03300eab",
+  "run": 43174115676,
+  "job": 131034109192,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 13908363518,
-  "name": "MeloNX-engine-36ed5e93e659a1adbc41a64af2949f3b4dc68677",
-  "bytes": 100539609,
-  "sha256": "d0ffab62b840cd1cea8982026d2d64a651cb925cb3974e6caedd2ee59cbf49d6",
-  "expiresAt": "2026-11-26T02:05:36Z",
+  "artifact": 13926697149,
+  "name": "MeloNX-engine-3d2645ea030e0f1a3da39c99f0a55a6d03300eab",
+  "bytes": 100586761,
+  "sha256": "a5848a399d6736286b0371a023ce2d2aa32e025c86e3d5d48a86d893b0e69f52",
+  "expiresAt": "2026-11-26T08:21:13Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "75bd20879d0a223b9b859b38e8316785fb29c9cda5ac9a2fb18766aa8e07ec9c",
-      "bytes": 38472792
+      "sha256": "b195700691ddc45be97caf1a3666c0eb6f903f3c84cf51dcf8405a4eadfc66d2",
+      "bytes": 38472824
     },
     "iossimulator-arm64": {
-      "sha256": "21ca523914a298018def682e0dd11cec0e618db4a258e04a650be79acdf7586d",
-      "bytes": 38789976
+      "sha256": "80f078c35a7946f70c78c8d524cee714985c36f012b620ae532be6a91676c224",
+      "bytes": 38806504
     }
   },
   "identities": {
-    "ios-arm64": "a3875fc3528523c012852862d6fc13ccb2eea80c158b191ae63040089fbeeb11",
-    "iossimulator-arm64": "174cb53a4c5674ece92ecc10c1d366a278e3f31b0352a357774e5b4268f03513"
+    "ios-arm64": "cc181f74574b613d82617e6602cb9bc98636f4804b1685454057a78411d4d2e8",
+    "iossimulator-arm64": "5d42d35f3809f8d8bac81d987d9bdda656af1b6e9c6cc42b28ac6c7310347dae"
   },
-  "contractSha256": "09ac56559769dd90321a6db770c05034822c4ac61966eec94fd04f70915535eb",
-  "resultSha256": "f38326a822e6465cba1f7b062d757a20ec2862ba58f58f45c7770d6b787becf2",
-  "packagedFingerprint": "3c15f4a0feb0778d0b79ee37160bb06b7756011e7704b8dc48b6e756efb2a60b",
+  "contractSha256": "b95bb28196277ca5908968ad3fe0d08cb67952c0f0d6753394994123c2066927",
+  "resultSha256": "55d00852083203bf8cf368944b92502e7ddf9f4776c4d3eaaab4e3eda302a0a5",
+  "packagedFingerprint": "d5d1ef622e6ef36e8725595eaa04bf1a3e8e18a48324772b0e3d723c36297c6e",
   "replaces": {
-    "source": "d2053e980a9364a3fe994ebd127a15f3fe0eafb5",
-    "run": 43044568458,
-    "artifact": 13870293486,
-    "packagedFingerprint": "a60542da6a6cd4643fb8796ab7daf27016ce78204ac84af6086ac7da02791b40",
-    "reason": "MeloNX P0 726 handoff (branch work/melonx-fps-stability-20261103, head e4c03c18, merged as 36ed5e93; engine built at 36ed5e93): Core 737 = Core 735 + adapt_npad_config_snapshot (NpadManager.cs: ReloadConfiguration copies the library input configuration list under the manager lock, so a pad detached during a frame no longer throws Collection was modified after Stop; IPA 726 pid 54035: state 4, close quarantined, every engine refused). Contract 09ac5655, 93 fresh Apple gates (the new gate npad-config-snapshot: control throws 4/4, candidate 0/4). Same five-part MoltenVK as Core 735. Replaces Core 735 (run 43044568458), which stays the fallback. Not run on an iPhone; no FPS or memory claim."
+    "source": "36ed5e93e659a1adbc41a64af2949f3b4dc68677",
+    "run": 43131998605,
+    "artifact": 13908363518,
+    "packagedFingerprint": "3c15f4a0feb0778d0b79ee37160bb06b7756011e7704b8dc48b6e756efb2a60b",
+    "reason": "MeloNX Core 743 candidate (branch work/melonx-fps-stability-20261103, head d4b7f9d7, merged as 3d2645ea; engine built at 3d2645ea): Core 743 = Core 737 + adapt_playtime_warmup_all_titles (Core 739: play-time warm-ups detached in every title) + adapt_array_storage_counts (Core 741: texture-array storage counts, Hogwarts-only policy) + adapt_submit_causes and adapt_build_journal_load_wait (diagnostics only). Contract b95bb281, 98 fresh Apple gates. Replaces Core 737 (run 43131998605), which stays the fallback. Not run on an iPhone; no FPS or memory claim."
   }
 }

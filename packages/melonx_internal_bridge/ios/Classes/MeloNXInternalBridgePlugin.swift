@@ -136,9 +136,32 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
         return runtime
     }
 
+    /// Whether this build can run a Switch game, answered without opening MeloNXCore and without marking the process
+    /// (ensureRuntime alone does both): the engine's framework in the bundle, no library recovery pending, no other
+    /// NativeAOT engine in the process (the Switch 2 one), whether MeloNXCore has begun loading (the flag S2Arm reads), and
+    /// the memory entitlements (read only; no RAM is committed).
+    private func runtimeAvailability() -> [String:Any] {
+        let documents = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0]
+        let recovery = FileManager.default.fileExists(atPath:documents.appendingPathComponent("MeloNX/.rewindbox-transfer.json").path)
+        let framework = Bundle.main.privateFrameworksURL.map {
+            FileManager.default.fileExists(atPath:$0.appendingPathComponent("MeloNXCore.framework/MeloNXCore").path)
+        } ?? false
+        var switch2Engine = false
+        if let symbol = dlsym(UnsafeMutableRawPointer(bitPattern:-2), "rb_s2arm_engine_loaded") {
+            switch2Engine = unsafeBitCast(symbol, to:(@convention(c) () -> Int32).self)() != 0
+        }
+        return ["available":framework && !recovery && !switch2Engine, "framework":framework, "recoveryRequired":recovery,
+                "switch2EngineLoaded":switch2Engine, "coreLoaded":rb_melonx_core_loaded() != 0,
+                "memoryEntitlements":MeloNXMemoryEntitlements()]
+    }
+
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         let arguments = call.arguments as? [String:Any] ?? [:]
         switch call.method {
+        // The Consoles page asks this on every visit. Through "diagnostics" it loaded MeloNXCore and marked the process,
+        // and the Switch 2 engine then refused every launch until RewindBox restarted (IPA 728, 12 Nov). "diagnostics"
+        // still loads the engine: the launch path asks it.
+        case "availability": result(runtimeAvailability())
         case "memoryEntitlements": result(MeloNXMemoryEntitlements())
         case "storageCapacity":
             do {

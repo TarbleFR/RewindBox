@@ -110,6 +110,21 @@ def case(name, checkout, rewriter, cli, work, exefs, romfs, expect_success=None,
     different = sorted(k for k in set(a) | set(b) if a.get(k) != b.get(k))
     ok = run.returncode == 0 and not different
     report(ok, name, f'{len(a)} files identical' if ok else f'library: {last}; differing: {different[:8]}')
+    if ok:
+        bar_ok, bar_line = progress_bar(run.stderr)
+        report(bar_ok, f'{name} progress bar', bar_line)
+
+
+def progress_bar(stderr):
+    """The CLI's summary of the code stage's progress bar (rb_s2arm_code_request.work, through the patched rewriter):
+    events came, the fraction stayed in [0, 1], never went back and ended at 1; the passes were reported."""
+    line = next((l for l in stderr.splitlines() if l.startswith('work events=')), '')
+    fields = dict(item.split('=', 1) for item in line.split()[1:] if '=' in item)
+    phases = set(fields.get('phases', '').split(','))
+    ok = (bool(line) and int(fields.get('events', 0)) > 0 and fields.get('backwards') == '0' and fields.get('outside') == '0'
+          and abs(float(fields.get('last', 0)) - 1) < 1e-6 and 'main' in fields.get('parts', '').split(',')
+          and {'start', 'load', 'scan', 'analyze', 'outputs', 'end'} <= phases)
+    return ok, line or 'no progress summary'
 
 
 def main():
