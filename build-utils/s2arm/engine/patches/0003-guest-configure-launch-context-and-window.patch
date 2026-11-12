@@ -1,0 +1,337 @@
+diff --git a/runtime/include/s2a_launch_ctx.h b/runtime/include/s2a_launch_ctx.h
+--- a/runtime/include/s2a_launch_ctx.h
++++ b/runtime/include/s2a_launch_ctx.h
+@@ -54,6 +54,13 @@
+ // 多款容器选游戏（主线程，界面 Play 后、起宿主前）：按 ③ 构造本款上下文、校验、建本款文档根、冻结、写 S2A_GAME_DATA / S2A_DOCS / S2A_RYU_DATA / S2A_LAUNCH_GAME_ID。
+ //   成功回 NULL，之后 s2a_launch_ctx_get() 回本款；失败回原因（不冻结，可换一款再选）。不是容器模式 / 本进程已选过 = 拒绝（一进程一款：请关掉 App 重新打开）
+ const char *s2a_launch_ctx_select(const char *gid);
++// RewindBox guest (runtime/src/rb_guest.c, engine loaded by another app as S2ArmEngine.framework): the host gives the context instead of
++//   the executable directory / HOME / S2A_LAUNCH_CTX. Same keys, checks and defaults as a context file (①: absolute paths, game_id
++//   [A-Za-z0-9._-] not starting with '.', caps_dir NULL = module_dir, ryu_data NULL = <docs>/S2A/ryujinx, host.log in $HOME/Documents);
++//   docs is created level by level. Must come before the first s2a_launch_ctx_get / _container / _bundle_dir: it freezes the context
++//   (source S2A_LCTX_FILE, never a container, the four roots written into the environment). NULL = frozen; otherwise the reason. Once
++const char *s2a_launch_ctx_set_guest(const char *game_id, const char *images, const char *module_dir, const char *caps_dir,
++                                     const char *game_data, const char *ryu_data, const char *docs);
+ // 进程内冻结一次（线程安全）：可执行文件目录取 _NSGetExecutablePath，home 取 $HOME（没有 = "."），文件取 S2A_LAUNCH_CTX。
+ //   文件来源时把四个根写进进程环境。失败回 NULL，原因见 s2a_launch_ctx_error()（宿主 main 开头据此停）。
+ //   多款容器模式：s2a_launch_ctx_select 成功之前一律回 NULL（error =「还没选游戏」），之后回本款
+diff --git a/runtime/src/launchctx.c b/runtime/src/launchctx.c
+--- a/runtime/src/launchctx.c
++++ b/runtime/src/launchctx.c
+@@ -155,6 +155,8 @@
+ static s2a_launch_ctx g_ctx; static _Atomic int g_ok; static char g_err[600];
+ static char g_bundle[S2A_LCTX_PATH]; static int g_container;
+ static pthread_mutex_t g_sel_mu = PTHREAD_MUTEX_INITIALIZER; static int g_selected;
++// RewindBox guest (s2a_launch_ctx_set_guest): the host's context, taken by decide() instead of the executable directory / HOME
++static s2a_launch_ctx g_guest_ctx; static _Atomic int g_guest_set, g_guest_seen, g_guest_used;
+ static int export_env(void) {   // 冻结后的四个根写进进程环境（覆盖起局方旧值）；兼容来源不调
+     static const struct { const char *k; size_t off; } ex[] = {
+         {"S2A_GAME_DATA", offsetof(s2a_launch_ctx, game_data)}, {"S2A_DOCS", offsetof(s2a_launch_ctx, docs)},
+@@ -171,6 +173,14 @@
+     if (_NSGetExecutablePath(exe, &n)) { snprintf(g_err, sizeof g_err, "取不到可执行文件路径"); return; }
+     char *sl = strrchr(exe, '/'); if (sl) *sl = 0;
+     put(g_bundle, exe);
++    if (atomic_load(&g_guest_set)) {   // RewindBox guest: the host's context; never a container, environment written as for ①
++        atomic_store(&g_guest_seen, 1);
++        g_ctx = g_guest_ctx; put(g_ctx.bundle_dir, g_bundle);
++        if (export_env()) return;
++        LOG("launch context: given by the RewindBox host (game %s), modules %s, image pack %s, resource pack %s, documents %s", g_ctx.game_id, g_ctx.module_dir, g_ctx.images, g_ctx.game_data, g_ctx.docs);
++        atomic_store(&g_guest_used, 1); atomic_store(&g_ok, 1);
++        return;
++    }
+     const char *ctx = getenv("S2A_LAUNCH_CTX");
+     if (!(ctx && *ctx) && s2a_launch_ctx_is_container_dir(g_bundle)) {   // ③ 容器：此刻不冻结，等 s2a_launch_ctx_select
+         g_container = 1;
+@@ -221,6 +231,39 @@
+     return r;
+ }
+ 
++// RewindBox guest (runtime/src/rb_guest.c): see s2a_launch_ctx.h. Checks and defaults of a context file (①); docs created level by level
++static int guest_abs(char *dst, const char *v, const char *key, char *why, size_t why_n) {
++    if (!v || v[0] != '/') { WHY("%s must be an absolute path", key); return -1; }
++    if (put(dst, v)) { WHY("%s is too long", key); return -1; }
++    return 0;
++}
++const char *s2a_launch_ctx_set_guest(const char *game_id, const char *images, const char *module_dir, const char *caps_dir,
++                                     const char *game_data, const char *ryu_data, const char *docs) {
++    static atomic_int once; static char why_buf[700]; char *why = why_buf; const size_t why_n = sizeof why_buf;
++    if (atomic_exchange(&once, 1)) return "the guest launch context can be given once per process";
++    s2a_launch_ctx *c = &g_guest_ctx; memset(c, 0, sizeof *c);
++    if (!game_id || !id_ok(game_id) || game_id[0] == '.' || strlen(game_id) >= sizeof c->game_id) {
++        WHY("game_id \"%s\" must be [A-Za-z0-9._-], not start with '.', and be shorter than %zu bytes", game_id ? game_id : "", sizeof c->game_id); return why; }
++    strcpy(c->game_id, game_id);
++    if (guest_abs(c->images, images, "images", why, why_n) || guest_abs(c->module_dir, module_dir, "module_dir", why, why_n)
++        || guest_abs(c->game_data, game_data, "game_data", why, why_n) || guest_abs(c->docs, docs, "docs", why, why_n)) return why;
++    if (caps_dir ? guest_abs(c->caps_dir, caps_dir, "caps_dir", why, why_n) : put(c->caps_dir, c->module_dir)) { if (!why[0]) WHY("module_dir is too long"); return why; }
++    if (ryu_data ? guest_abs(c->ryu_data, ryu_data, "ryu_data", why, why_n) : join(c->ryu_data, c->docs, "S2A/ryujinx")) { if (!why[0]) WHY("docs is too long"); return why; }
++    const char *home = getenv("HOME");
++    if (join(c->log_dir, home && *home ? home : ".", "Documents")) { WHY("HOME is too long"); return why; }   // host.log stays process level, as for ①
++    for (char *q = c->docs + 1; ; q++) {
++        if (*q && *q != '/') continue;
++        char k = *q; *q = 0; int bad = mkdir(c->docs, 0755) && errno != EEXIST; *q = k;
++        if (bad) { WHY("cannot create docs %s (errno %d)", c->docs, errno); return why; }
++        if (!k) break;
++    }
++    c->source = S2A_LCTX_FILE;
++    atomic_store(&g_guest_set, 1);
++    pthread_once(&g_once, decide);
++    if (atomic_load(&g_guest_used)) return NULL;
++    return atomic_load(&g_guest_seen) ? g_err : "the launch context was already frozen before the host gave it";
++}
++
+ const char *s2a_launch_ctx_begin(void) {
+     static atomic_int started;
+     if (atomic_fetch_add(&started, 1)) return "本进程已经起过一局游戏，同一进程不再起第二局：请从后台划掉 App 后重新打开";
+diff --git a/runtime/src/rb_guest.c b/runtime/src/rb_guest.c
+new file mode 100644
+--- /dev/null
++++ b/runtime/src/rb_guest.c
+@@ -0,0 +1,127 @@
++// RewindBox: S2Arm's iOS engine as a guest of another app (S2ArmEngine.framework); interface and host sequence in rb_guest.h.
++//   Everything here waits for s2a_rb_guest_configure. Before it, and always in S2Arm.app where nothing calls it, every query below
++//   answers "not a guest" and s2a_rb_guest_exit is S2Arm's own _exit, so the app's behaviour is unchanged.
++#if defined(__APPLE__)
++#include "native.h"
++#include "rb_guest.h"
++#include "imgpack.h"
++#include "s2a_launch_ctx.h"
++#include <dispatch/dispatch.h>
++#include <errno.h>
++#include <pthread.h>
++#include <signal.h>
++#include <stdarg.h>
++#include <stdatomic.h>
++#include <unistd.h>
++
++int s2a_rb_guest_window_deferred(void);       // vawin.c: the constructor left the window and the launch context to configure
++void s2a_rb_guest_window_boot(void);          // vawin.c: the constructor's window reservation, deferred
++void s2a_host_shutdown(const char *why);      // lifecycle.c
++
++static _Atomic int g_on;        // 1 once s2a_rb_guest_configure passed its checks (before the launch context and the window)
++static _Atomic int g_ended;     // the session is over and the host was told (session_ended sent at most once)
++static _Atomic int g_term;      // the process itself ends: 1 = SIGTERM (exit as S2Arm does), 2 = the app terminates (back to UIKit)
++static _Atomic int g_started;   // the host thread exists (ios/app.m s2a_rb_guest_start)
++static _Atomic int g_ready;     // s2a_rb_guest_configure returned 0 (ios/app.m: the view controller needs it)
++static s2a_rb_guest_config g_cfg;   // the host's hooks; its paths are copied into the launch context
++
++int s2a_rb_guest_on(void) { return atomic_load(&g_on); }
++int s2a_rb_guest_session_over(void) { return atomic_load(&g_ended); }
++int s2a_rb_guest_ready(void) { return atomic_load(&g_ready); }
++void s2a_rb_guest_started(void) { atomic_store(&g_started, 1); }
++
++static int refuse(char *error, size_t n, const char *fmt, ...) __attribute__((format(printf, 3, 4)));
++static int refuse(char *error, size_t n, const char *fmt, ...) {
++    char b[800]; va_list ap; va_start(ap, fmt); vsnprintf(b, sizeof b, fmt, ap); va_end(ap);
++    if (error && n) snprintf(error, n, "%s", b);
++    LOG("【红】RewindBox guest: %s", b);
++    return -1;
++}
++
++__attribute__((visibility("default"), used)) int s2a_rb_guest_configure(const s2a_rb_guest_config *c, char *error, size_t error_size) {
++    static _Atomic int called;
++    if (error && error_size) error[0] = 0;
++    if (atomic_exchange(&called, 1)) return refuse(error, error_size, "s2a_rb_guest_configure was already called in this process (one game per process)");
++    if (!c || c->size < sizeof *c) return refuse(error, error_size, "config size %u, expected at least %zu", c ? c->size : 0u, sizeof *c);
++    if (!s2a_rb_guest_window_deferred())   // vawin.c: not loaded by RewindBox (S2Arm.app itself, or the host plugin's rb_s2arm_engine_loaded missing)
++        return refuse(error, error_size, "the engine's constructors ran as in S2Arm.app: guest mode needs S2ArmEngine.framework loaded by a host that exports rb_s2arm_engine_loaded");
++    if (!c->prepare_code) return refuse(error, error_size, "prepare_code is required: game code reaches execution through pages the host makes executable");
++    if (!c->images || c->images[0] != '/') return refuse(error, error_size, "images must be an absolute path");
++    {   // the image pack is opened while the window is sized (loader.c ext_pack stops the process when it cannot): check it here first
++        s2a_imgpack *pk = NULL; char why[512] = "";
++        int rc = s2a_imgpack_index(c->images, &pk, why, sizeof why);
++        s2a_imgpack_free(pk);
++        if (rc) return refuse(error, error_size, "image pack %s: %s (code %d)", c->images, why, rc);
++    }
++    g_cfg = *c;
++    // From here the image pack opens without code signature registration and game code goes through prepare_code (imgpack.c)
++    atomic_store(&g_on, 1);
++    const char *why = s2a_launch_ctx_set_guest(c->game_id, c->images, c->module_dir, c->caps_dir, c->game_data, c->ryu_data, c->docs);
++    if (why) return refuse(error, error_size, "launch context: %s", why);
++    // Same reservation as S2Arm's constructor (vawin.c), now that main.npdm and the image pack are known; then the .NET GC limit,
++    //   which S2Arm's main sets right after the window (it reads the free low address space)
++    s2a_rb_guest_window_boot();
++    if (!s2a_window_ok()) return refuse(error, error_size, "the engine's address window could not be reserved (host.log, lines 地址窗口)");
++    s2a_gc_limit_apply();
++    atomic_store(&g_ready, 1);
++    LOG("RewindBox guest: configured for game %s; next the view controller and the start", c->game_id);
++    return 0;
++}
++
++// imgpack.c: the host's executable pages for [at, at + len), as a writable alias (NULL = refused)
++void *s2a_rb_guest_prepare_code(void *at, size_t len) {
++    return g_cfg.prepare_code ? g_cfg.prepare_code(at, len, g_cfg.prepare_context) : NULL;
++}
++
++// The end of the session, once (normal end, start failure, watchdog, fatal error). Never from a signal handler (see s2a_rb_guest_fatal)
++void s2a_rb_guest_ended(int code, const char *why) {
++    if (!s2a_rb_guest_on() || atomic_exchange(&g_ended, 1)) return;
++    LOG("RewindBox guest: session ended, code %d (%s)", code, why && *why ? why : "-");
++    s2a_logcon_flush();
++    if (g_cfg.session_ended) g_cfg.session_ended(code, why ? why : "", g_cfg.ended_context);
++}
++
++// die() (native.h s2a_native_fatal) right before abort(). The engine's signal handlers keep their signal blocked while they run
++//   (no SA_NODEFER), so a blocked one means die() was reached inside a handler, where the host's callback must not run
++__attribute__((visibility("default"), used)) void s2a_rb_guest_fatal(const char *why) {
++    if (!s2a_rb_guest_on() || atomic_load(&g_ended)) return;
++    static const int handled[] = {SIGSEGV, SIGBUS, SIGILL, SIGTRAP, SIGFPE, SIGABRT, SIGURG, SIGUSR2};
++    sigset_t cur;
++    if (pthread_sigmask(SIG_BLOCK, NULL, &cur)) return;
++    for (size_t i = 0; i < sizeof handled / sizeof *handled; i++) if (sigismember(&cur, handled[i])) return;
++    s2a_rb_guest_ended(128 + SIGABRT, why);
++}
++
++// The process itself ends (lifecycle.c SIGTERM source, ios/app.m terminate notification): how = 1 SIGTERM, 2 the app terminates.
++//   A session that already ended has parked its threads: on SIGTERM there is nothing left to shut down, exit as S2Arm does
++void s2a_rb_guest_terminating(int how) {
++    if (!s2a_rb_guest_on()) return;
++    if (how == 1) atomic_store(&g_term, 1);
++    else { int none = 0; atomic_compare_exchange_strong(&g_term, &none, how); }
++    if (how == 1 && atomic_load(&g_ended)) _exit(0);
++}
++
++// Last step of an orderly shutdown, where S2Arm calls _exit (lifecycle.c). A guest host is told first; then this thread stays parked
++//   (the shutdown already stopped the guest threads, services and GPU) so that the host's process keeps running. SIGTERM still exits;
++//   the app's own termination and the host's main thread return to the caller instead of parking
++void s2a_rb_guest_exit(int code, const char *why) {
++    if (!s2a_rb_guest_on()) _exit(code);
++    s2a_rb_guest_ended(code, why);
++    int term = atomic_load(&g_term);
++    if (term == 1) _exit(code);
++    if (term == 2 || pthread_main_np()) return;
++    LOG("RewindBox guest: orderly shutdown complete (%s); this thread stays parked, the host keeps the process", why ? why : "-");
++    for (;;) pause();
++}
++
++__attribute__((visibility("default"), used)) void s2a_rb_guest_stop(const char *reason) {
++    if (!s2a_rb_guest_on() || atomic_load(&g_ended)) return;
++    const char *dup = strdup(reason && *reason ? reason : "RewindBox: stop requested"), *why = dup ? dup : "RewindBox: stop requested";   // kept: the shutdown logs it later
++    if (!atomic_load(&g_started)) { s2a_rb_guest_ended(0, why); return; }   // nothing started yet: nothing to shut down
++    LOG("RewindBox guest: stop requested (%s)", why);
++    // Same path as the engine's own "quit game" (ios/save_transfer.m): a background queue, never the caller's thread
++    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{ s2a_host_shutdown(why); });
++}
++#else
++typedef int s2a_rb_guest_not_apple;   // Android: the guest entry is Apple only (an empty translation unit is a -Wpedantic warning)
++#endif
+diff --git a/runtime/src/rb_guest.h b/runtime/src/rb_guest.h
+new file mode 100644
+--- /dev/null
++++ b/runtime/src/rb_guest.h
+@@ -0,0 +1,73 @@
++// RewindBox: S2Arm's iOS engine as a guest of another app (S2ArmEngine.framework). Public interface of runtime/src/rb_guest.c and
++//   ios/app.m; copied into S2ArmEngine.framework/Headers. Nothing here is called in S2Arm.app itself, so its behaviour is unchanged.
++//
++// Host sequence, one Switch 2 game per process (S2Arm's own launch context allows one game per process):
++//   1. Before dlopen, set the process environment S2Arm's main sets: setenv("DOTNET_GCSegmentSize", "2000000", 0) and
++//      setenv("MTL_SHADER_CACHE_SIZE", "67108864", 0).
++//   2. dlopen(".../S2ArmEngine.framework/S2ArmEngine", RTLD_NOW | RTLD_GLOBAL): the engine looks up its own functions with
++//      dlsym(RTLD_DEFAULT). When the process exports rb_s2arm_engine_loaded (RewindBox's host plugin; the engine looks it up,
++//      never defines it), the constructors leave the address window and the launch context to step 3.
++//   3. s2a_rb_guest_configure(&config, error, sizeof error), right after dlopen, on any thread: freezes the launch context from
++//      the config, reserves the engine's address window (the algorithm of S2Arm's constructor, now that the game is known) and
++//      sets the .NET GC limit. 0 = ready; otherwise error holds the reason and the engine must not be used further.
++//   4. Main thread: UIViewController *vc = s2a_rb_guest_make_view_controller(); present it full screen (landscape only).
++//   5. Main thread, once vc is in a window (for example in the presentation's completion block): s2a_rb_guest_start(error, n).
++//   6. config.session_ended(code, reason, context) reports the end of the session, once, on any engine thread. After it the
++//      engine's threads stay parked and the process keeps running: dismiss vc; another Switch 2 game needs a new process.
++//      s2a_rb_guest_stop asks for that end (the same orderly shutdown as the game's own exit).
++#pragma once
++#include <stddef.h>
++#include <stdint.h>
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++typedef struct s2a_rb_guest_config {
++    uint32_t size;            // sizeof(s2a_rb_guest_config)
++    const char *game_id;      // [A-Za-z0-9._-], not starting with '.', shorter than 128 bytes (title id)
++    const char *images;       // absolute path of the game's image pack (S2AEMB01 layout; it needs no code signature here)
++    const char *module_dir;   // absolute: <name>.fixups.tsv / .gates.tsv / .widen.tsv, main.npdm, save-identity.json, sidecar tables
++    const char *caps_dir;     // absolute, s2a_caps.tsv; NULL = module_dir
++    const char *game_data;    // absolute: resource pack root (exefs/main.npdm, romfs/, ctl/control.nacp)
++    const char *ryu_data;     // absolute, services data root (saves); NULL = <docs>/S2A/ryujinx
++    const char *docs;         // absolute: this game's documents root (wire/, patches, env.txt...); created when missing
++    // Game code: returns a writable alias of [address, address + length) after making those pages executable at address, or NULL
++    //   (the module mapping then fails). Called on engine threads (never the main thread), possibly concurrently, for each code
++    //   block of every module, at boot and when the game loads an NRO through nn::ro. address and length are 16 KiB aligned and
++    //   lie inside the engine's address window, where the range holds the engine's own anonymous read-write pages until the host
++    //   replaces them. The engine writes the block through the alias right after the call returns and invalidates the
++    //   instruction cache at address; it never uses that alias again. Code pages are never unmapped or remapped by the engine
++    //   afterwards (an in-process restart of the same game reuses them in place, as S2Arm does with signed pages).
++    void *(*prepare_code)(void *address, size_t length, void *context);
++    void *prepare_context;
++    // End of the session (may be NULL), at most once, on an engine thread: code 0 = normal end (the game exited, the player quit
++    //   through the engine's menu, s2a_rb_guest_stop); otherwise the exit status S2Arm.app uses for that failure (1 = the session
++    //   could not start, 86 = watchdog or GPU stop, 134 = fatal engine error: the process aborts after the call). Not called from
++    //   inside a signal handler, so a crash in a signal handler ends the process without it.
++    void (*session_ended)(int code, const char *reason, void *context);
++    void *ended_context;
++} s2a_rb_guest_config;
++
++// First engine call after dlopen, once per process. 0 = configured; -1 = refused, error (may be NULL) holds the reason.
++int s2a_rb_guest_configure(const s2a_rb_guest_config *config, char *error, size_t error_size);
++
++// Main thread, after s2a_rb_guest_configure: S2Arm's game view controller as its scene delegate builds it after a game is chosen
++//   (game view, load page, touch pad, controllers, HUD). Autoreleased; nil when refused (see host.log). Once per process.
++#ifdef __OBJC__
++@class UIViewController;
++UIViewController *s2a_rb_guest_make_view_controller(void);
++#else
++void *s2a_rb_guest_make_view_controller(void);
++#endif
++
++// Main thread, once the view controller is in a window: the sequence S2Arm runs after a game is chosen (save manager first when
++//   one was requested, then the host thread: services, modules, game). 0 = started; -1 = refused, error holds the reason.
++int s2a_rb_guest_start(char *error, size_t error_size);
++
++// Any thread: ends the session as the game's own exit does (saves written, services and GPU stopped), then session_ended(0, reason).
++void s2a_rb_guest_stop(const char *reason);
++
++#ifdef __cplusplus
++}
++#endif
+diff --git a/runtime/src/vawin.c b/runtime/src/vawin.c
+--- a/runtime/src/vawin.c
++++ b/runtime/src/vawin.c
+@@ -34,6 +34,7 @@
+ #endif
+ #include <crt_externs.h>
+ #include <mach-o/dyld.h>
++#include <mach-o/getsect.h>   // RewindBox: rb_guest_load
+ #include <mach-o/loader.h>
+ 
+ static int g_ok;            // 1 = 窗口已占到（首选位置整块 64 GB，或退路：2^39 以下最大空洞里的一块，见 vawin_reserve）
+@@ -655,11 +656,30 @@
+ //   理由只有一条：解包局用不到客体内存，不占最省（地址、构造期时间）。11-07 曾把测试设备1 解包慢（16 GB 约 300 秒）归因到「匿名窗口在」，
+ //   14:39 同进程复测证否：匿名窗口在时 1 GB 写 2833 MB/s、解 16 GB 18.7 秒；上午慢局全在 05:46–06:51、快局全在 07:37 之后，窗口有无与时段完全重合（坑记录 11-07「机上解包约 50 MB/秒」）
+ static int apply_only(void) { const char *e = getenv("S2A_PACK_APPLY_ONLY"); return e && *e == '1'; }
+-__attribute__((constructor(101))) static void vawin_boot(void) {
++// RewindBox: 1 when RewindBox loaded the engine (S2ArmEngine.framework): this code is not in the main executable (read from its header, no
++//   dyld call) and the process has RewindBox's host plugin, whose rb_s2arm_engine_loaded export the engine only looks up. S2Arm.app,
++//   whether launched directly or inside a container app (LiveContainer), has no such export: 0, nothing deferred
++static int g_rb_deferred;   // the constructor left the window and the launch context to s2a_rb_guest_configure
++static int rb_guest_load(void) {
++    const struct mach_header_64 *mh = (const struct mach_header_64 *)_NSGetMachExecuteHeader(); unsigned long n = 0;
++    const uint8_t *t = mh ? (const uint8_t *)getsegmentdata(mh, "__TEXT", &n) : NULL; uintptr_t me = (uintptr_t)&rb_guest_load;
++    if (!t || (me >= (uintptr_t)t && me < (uintptr_t)t + n)) return 0;
++    return dlsym(RTLD_DEFAULT, "rb_s2arm_engine_loaded") != NULL;
++}
++static void vawin_boot_now(void) {
+     if (apply_only()) { vaguard_release(); LOG("地址窗口：解包专用局（S2A_PACK_APPLY_ONLY=1）不占客体窗口、不起命令记录区"); return; }   // 不占也要放行 Mac 护栏（同 S2A_VAWIN_NORESERVE）
+     s2a_window_reserve();
+     cmd_arena_reserve();
+ }
++__attribute__((constructor(101))) static void vawin_boot(void) {
++    // RewindBox: as a guest the game is not known at dlopen (the window is sized from its main.npdm and image pack, through the launch
++    //   context): s2a_rb_guest_configure reserves it once the host gave them (runtime/src/rb_guest.c)
++    if (rb_guest_load()) { g_rb_deferred = 1; LOG("address window: engine loaded by RewindBox, reserved by s2a_rb_guest_configure"); return; }
++    vawin_boot_now();
++}
++// RewindBox guest (runtime/src/rb_guest.c): whether the constructor deferred, and its reservation once the host's launch context is frozen
++int s2a_rb_guest_window_deferred(void) { return g_rb_deferred; }
++void s2a_rb_guest_window_boot(void) { if (g_rb_deferred) vawin_boot_now(); }
+ 
+ // 布局只用窗口前 size 字节时，把尾部还给系统（Metal 的大缓冲要用，见 layout.c）
+ // ---------- 窗口尾部统一分配（10-24 维护者批：异度神剑3 测试设备2 低区耗尽 OOM）----------

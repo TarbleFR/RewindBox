@@ -37,8 +37,11 @@ service answers `engineMissing`: the playlist is listed but unavailable and noth
 - **Box art without scraping.** During `refreshS2ArmInternalLibrary`, for a row without box2d media, the export's
   `icon_<Language>.dat` (JPEG) is copied to `media/switch2/box2d/<title id>.jpg`, the title-id key MeloNX's library
   also uses. Existing or scraped media is never overwritten.
-- **Scraping.** The row's file name is `main.npdm`, so it is never an identity: Switch 2 lookups send the title as
-  `romnom`, never an MD5 of `main.npdm`, never the title id as `serialnum`; a row without a title is not looked up.
+- **Stored file name.** Every entry is a `main.npdm`, so each row is stored as `<title id>.npdm`
+  (`Switch2ExportContent.libraryFileName`; without a title id, `<export folder>-<path digest>.npdm`). Scraped metadata
+  is `UNIQUE(app_system_id, filename)` and media are named after the file name: a shared `main.npdm` would merge the games.
+- **Scraping.** The stored name is not a ROM identity: Switch 2 lookups send the title as `romnom`, never an MD5 of
+  `main.npdm`, never the title id as `serialnum`; a row without a title is not looked up.
   ScreenScraper system id 296 is what the ScreenScraper site lists for Switch 2; it is not confirmed through the API.
 - **Launch.** iOS and `switch2` only, policy first, then the stored JIT pairing file (`PairingFileService`, the store
   the other JIT engines use) or a localized failure, then `S2ArmInternalService.launch` behind a non-dismissible
@@ -53,9 +56,9 @@ service answers `engineMissing`: the playlist is listed but unavailable and noth
 - `S2ArmInternalService.importFolder` must run as `=> StorageImportActivity.run(...)` and import
   `storage/storage_import_activity.dart`; `test/storage_contract_test.py` lists it in `IMPORT_SITES` and fails until
   then (its folder picker was already unlisted before this change).
-- Box art is looked up by `GameModel._mediaLookupNames()` (`lib/models/game_model.dart`), which keys Switch 2 rows by
-  the file name `main`. Until it adds a `switch2` branch keyed by the title id (as MeloNX and RPCS3 virtual rows),
-  the copied icon is not found by the game list.
+- Box art: resolved since the stored name became `<title id>.npdm`. `GameModel._mediaLookupNames()` uses the stored
+  name without its extension (`DatabaseGameModel.romname`), so it finds `media/switch2/box2d/<title id>.jpg`, the
+  name of the copied icon. No `switch2` branch is needed there.
 
 ## Unverified
 

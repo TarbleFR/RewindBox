@@ -4,11 +4,13 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../l10n/melonx_transfer_locale.dart';
 import '../l10n/switch2_library_locale.dart';
+import '../l10n/switch2_settings_locale.dart';
 import '../repositories/game_repository.dart';
 import '../services/melonx_embedded_library_service.dart';
 import '../services/s2arm_internal_service.dart';
 import '../services/storage/storage_import_activity.dart';
 import 'delete_game_dialog.dart';
+import 'switch2_engine_settings_panel.dart';
 
 /// Menu of the Switch 2 playlist, modelled on MeloNX's: import games (an export
 /// folder from Files, docs/s2arm-switch2-library.md § Import), import prod.keys
@@ -185,6 +187,26 @@ class _S2ArmInternalPlaylistActionsState
     if (mounted) _notice(_tf('deleted', {'name': name}));
   }
 
+  Future<void> _openSettings() async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(Switch2SettingsLocale.text(ctx, 'title')),
+        contentPadding: EdgeInsets.zero,
+        content: const SizedBox(
+          width: 420,
+          child: SingleChildScrollView(child: Switch2EngineSettingsPanel()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(_t('done')),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _selected(String action) async {
     if (_busy) return;
     setState(() => _busy = true);
@@ -193,6 +215,7 @@ class _S2ArmInternalPlaylistActionsState
       if (action == 'folder') await _import();
       if (action == 'keys') await _importKeys();
       if (action == 'delete') await _delete();
+      if (action == 'settings') await _openSettings();
     } finally {
       if (mounted) {
         setState(() => _busy = false);
@@ -250,6 +273,11 @@ class _S2ArmInternalPlaylistActionsState
             key: const ValueKey('s2arm-import-keys'),
             value: 'keys',
             child: _item(_t('importKeys'), _t('importKeysHint')),
+          ),
+          PopupMenuItem(
+            key: const ValueKey('s2arm-settings'),
+            value: 'settings',
+            child: Text(Switch2SettingsLocale.text(context, 'title')),
           ),
           if (widget.romPath != null && widget.appSystemId != null)
             PopupMenuItem(

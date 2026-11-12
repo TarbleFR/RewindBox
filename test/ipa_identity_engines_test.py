@@ -87,7 +87,12 @@ class IdentityEngines(unittest.TestCase):
         self.assertEqual(validator.IDENTITY_ENGINES, {'Xenia-native-identity.json': (
             {'XeniaJITHelper.appex': {'bundleSuffix': '.xeniajithelper', 'principalClass': 'XeniaJITRequestHandler',
                                       'marker': 'NeoStationXeniaJITHelper'}},
-            ('Frameworks/XeniaCore.framework/XeniaCore', 'Frameworks/libmetalirconverter.dylib'))})
+            ('Frameworks/XeniaCore.framework/XeniaCore', 'Frameworks/libmetalirconverter.dylib')),
+            # Switch 2 (S2Arm), its contract checked by test/s2arm_validator_test.py.
+            'S2Arm-native-identity.json': (
+            {'S2ArmJITHelper.appex': {'bundleSuffix': '.s2armjithelper', 'principalClass': 'S2ArmJITRequestHandler',
+                                      'marker': 'NeoStationS2ArmJITHelper'}},
+            ('Frameworks/S2ArmEngine.framework/S2ArmEngine', 'Frameworks/NS2Pro.framework/NS2Pro'))})
         helper = plistlib.loads((ROOT / 'native/xenia_internal_helper/Info.plist').read_bytes())
         contract = validator.XENIA_EXTENSIONS['XeniaJITHelper.appex']
         self.assertEqual(helper['NSExtension']['NSExtensionPrincipalClass'], contract['principalClass'])

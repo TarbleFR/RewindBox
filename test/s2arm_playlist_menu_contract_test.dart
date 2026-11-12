@@ -21,6 +21,19 @@ void main() {
     expect(menu, contains("_t('importKeysHint')"));
   });
 
+  test('the menu opens the Switch 2 engine settings panel', () {
+    expect(menu, contains("ValueKey('s2arm-settings')"));
+    expect(menu, contains("value: 'settings'"));
+    expect(menu, contains("Switch2SettingsLocale.text(context, 'title')"));
+    expect(menu, contains('Switch2EngineSettingsPanel()'));
+    expect(menu, isNot(contains("value: 'firmware'")));
+  });
+
+  test('the Emulators tab shows the settings panel for switch2 only', () {
+    final tabs = File('lib/widgets/system_emulator_settings_dialog/tabs.dart').readAsStringSync();
+    expect(tabs, contains("if (console == 'switch2') const Switch2EngineSettingsPanel()"));
+  });
+
   test('prod.keys goes through the one MeloNX import and store, with its refusal messages', () {
     expect(menu, contains('MelonxEmbeddedLibraryService.importKeys()'));
     expect(menu, contains("MelonxTransferLocale.text(context, item.value)"));

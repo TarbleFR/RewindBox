@@ -57,7 +57,16 @@ XENIA_EXTENSIONS = {
     },
 }
 XENIA_IMAGES = ('Frameworks/XeniaCore.framework/XeniaCore', 'Frameworks/libmetalirconverter.dylib')
-IDENTITY_ENGINES = {XENIA_IDENTITY: (XENIA_EXTENSIONS, XENIA_IMAGES)}
+S2ARM_IDENTITY = 'S2Arm-native-identity.json'
+S2ARM_EXTENSIONS = {
+    'S2ArmJITHelper.appex': {
+        'bundleSuffix': '.s2armjithelper',
+        'principalClass': 'S2ArmJITRequestHandler',
+        'marker': 'NeoStationS2ArmJITHelper',
+    },
+}
+S2ARM_IMAGES = ('Frameworks/S2ArmEngine.framework/S2ArmEngine', 'Frameworks/NS2Pro.framework/NS2Pro')
+IDENTITY_ENGINES = {XENIA_IDENTITY: (XENIA_EXTENSIONS, XENIA_IMAGES), S2ARM_IDENTITY: (S2ARM_EXTENSIONS, S2ARM_IMAGES)}
 PACKET_TUNNEL_EXTENSION_POINT = 'com.apple.networkextension.packet-tunnel'
 SHARE_EXTENSION_POINT = 'com.apple.share-services'
 DONOR_EXTENSION_POINT = 'com.apple.ar.viewer'

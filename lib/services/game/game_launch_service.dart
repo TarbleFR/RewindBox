@@ -475,6 +475,7 @@ class GameLaunchService {
             exportFolder,
             pairingFilePath: pairingFilePath,
             onPrepareProgress: (value) => prepareProgress.value = value,
+            locale: locale,
           );
         } finally {
           if (prepareDialogShown && context.mounted) {

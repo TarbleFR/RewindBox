@@ -626,6 +626,7 @@ extension _Tabs on _SystemEmulatorSettingsDialogState {
           // for the GameCube, Wii, PS2 and PS3 embedded engines.
           if (EmbeddedTouchControlsPanel.supports(console))
             EmbeddedTouchControlsPanel(console: console),
+          if (console == 'switch2') const Switch2EngineSettingsPanel(),
         ],
       );
     }

@@ -45,6 +45,7 @@ import '../services/storage/storage_import_activity.dart';
 import 'dolphin_wii_motion_panel.dart';
 import 'embedded_touch_controls_panel.dart';
 import 'libretro_engine_panel.dart';
+import 'switch2_engine_settings_panel.dart';
 import 'glass/glass_surface.dart';
 
 part 'system_emulator_settings_dialog/gamepad_nav.dart';
