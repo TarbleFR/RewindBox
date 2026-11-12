@@ -113,8 +113,9 @@ ARRAY_COUNTERS = arrays.ARRAY_COUNTERS
 # Map or Unmap re-queues the partially mapped textures it can concern, not all of them); 93 with Core 737 (the
 # controller manager keeps its own copy of the input configuration); 94 with Core 739 (programs translated during play
 # bind once their shader modules exist, in every title); 95 with Core 741 (a texture array keeps its storage set from small
-# element changes, Hogwarts Legacy policy).
-FRESH_GATES = 95
+# element changes, Hogwarts Legacy policy); 97 with Core 743 (submissions by cause and host syncs by site; the build
+# journal without the main cache load wait; diagnostics only).
+FRESH_GATES = 97
 HISTORICAL_RECEIPTS = 61
 
 

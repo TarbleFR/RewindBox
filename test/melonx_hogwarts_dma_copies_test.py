@@ -192,6 +192,11 @@ LOT_FILES = {
     'adapt_playtime_warmup_all_titles': ['src/Ryujinx.Library/Library.cs'],
     # Core 741 (Hogwarts lot): the texture array's storage counts.
     'adapt_array_storage_counts': ['src/Ryujinx.Graphics.Vulkan/TextureArray.cs'],
+    # Core 743 (Hogwarts lots 2 and 3, diagnostics): the submission causes in this composition's four Vulkan files; the
+    # build journal's PipelineState.cs is outside it.
+    'adapt_submit_causes': ['src/Ryujinx.Graphics.Vulkan/PipelineBase.cs', 'src/Ryujinx.Graphics.Vulkan/PipelineFull.cs',
+                            'src/Ryujinx.Graphics.Vulkan/BufferHolder.cs', 'src/Ryujinx.Graphics.Vulkan/Window.cs'],
+    'adapt_build_journal_load_wait': [],
 }
 
 checks = 0

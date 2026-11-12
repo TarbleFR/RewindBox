@@ -4766,6 +4766,34 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       follows the same load. (c) Audio: t=51-109, 184 queue starvations and 767 ms of silence; the seconds with a
       starvation average 19.7 FPS (largest gap 134 ms) against 24.0 FPS (76 ms) without: audio starves with the CPU
       contention, it is not an audio-path defect.
+    - **Hogwarts lot 3, pipeline freezes (pid 56836; private journals, aggregates only; no behaviour change):** (a) the
+      1 216.8 ms gap at 05:46:17 UTC (t=76) is the render thread in a compute dispatch, "compute prepare ... pipelines
+      5 292 calls 1 073.9 ms": the dispatch joined the play-time warm-up of a compute program translated in play
+      (TryWaitForBackgroundComputePipeline) while a worker built it (computePipelineBuild [1, 1 072.158 ms] in the
+      05:46:18 sample; journal "workers 2 in 2 370 ms"). The pipeline is new: its key is not among the 1 543 the journal
+      holds from 19 sessions (compute keys journaled since Core 687, each written at once). MoltenVK's statistics of the
+      same block: SPIR-V to MSL max 37.8 ms, MSL to MTLLibrary 812.3 ms and 692.8 ms (two new libraries; the other 4 787
+      take 0.009-5.5 ms, the Metal compiler's cache), pipeline state 220.6 ms; a new graphics pipeline (945 ms, worker) at
+      the same moment. A compute dispatch is never skipped (ShaderInfoBuilder: async compilation needs a pipeline state,
+      graphics programs only), so the wait is the first compilation itself. The worker merged it into main
+      (adapt_worker_library_share) and the close saved main 93.32 -> 93.47 MiB in 276 ms. Expected at the same place in
+      the next session: no compute wait; refuted if "compute prepare ... pipelines" passes 100 ms there or the journal
+      counts it compiled again. (b) "compiled again 1 in 1 299 ms" (56836; 1 346 ms in 55836, 1 308 ms in 54035) is no
+      lost pipeline: the first worker creation of each launch waits for the main cache's background load (1 307 and
+      1 350 ms) and is then served by main ("Worker pipelines found in the main cache: 1 (not in it: 0)", 20 ms after
+      the load); the journal timed the wait as a compilation (fixed by Core 743, below). (c) The 142 skipped draws are
+      async skips ("not ready" 110 at 05:45:54, 12, 6, 14 at 05:46:19) of the maintainer's async shader setting
+      (graphics programs without shader writes); variants: 1 041 ready before their first draw, 75 late creations in
+      21 ms (36 new, 5 planned not built yet, 34 built but missed: a key mismatch the replay expects at 0, open). The
+      async on/off comparison needs the device: same save and path, two sessions, the setting changed by the maintainer
+      in the UI (not by a build), compare "not ready by cause", the pipelineVariants summary and the gaps over 100 ms.
+    - **Hogwarts lot 4, zone-load allocations (no change made):** the 145 396 KiB of the three arrayDelta calls at
+      05:45:48 are nested in compute (151 573 KiB) and bindings (154 951 KiB) and hold the texture synchronisations
+      (texSync 4 687 calls, 132.3 ms, 167 748 KiB, about 36 KiB each): Texture.SynchronizeFull converts each new
+      texture's guest data into a pooled MemoryOwner (ArrayPool) that the render thread uploads; the 303.6 ms gen0
+      pause copies 34.6 MiB of survivors. The copy is required by the threaded renderer (guest memory may change before
+      the upload); which objects survive is not journaled (no allocation-by-type source on the device): no safe
+      reduction identified, open.
     - **Next action:** Hogwarts lot 2: count submits and CreateSync by cause (strict site, readback, query) in the
       journal, then reduce the dominant one with its own gate; the reference passes follow the command buffer count.
       Not before that measurement: no sync semantics change on a guess. Main: Core 739 CI and pin, then Core 741.

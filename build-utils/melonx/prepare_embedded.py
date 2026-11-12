@@ -178,6 +178,8 @@ from adapt_remap_sweep_range import apply as adapt_remap_sweep_range
 from adapt_npad_config_snapshot import apply as adapt_npad_config_snapshot
 from adapt_playtime_warmup_all_titles import apply as adapt_playtime_warmup_all_titles
 from adapt_array_storage_counts import apply as adapt_array_storage_counts
+from adapt_submit_causes import apply as adapt_submit_causes
+from adapt_build_journal_load_wait import apply as adapt_build_journal_load_wait
 
 
 def replace_once(path, old, new):
@@ -523,6 +525,10 @@ def main():
     # Core 741 (IPA 727 Hogwarts Legacy: texture array barrier passes 240-290 ms per 5 s on the render thread, sets rebuilt
     # over 61-64 million elements): a texture array keeps its storage set from small element changes (Hogwarts policy).
     adapted += adapt_array_storage_counts(source)
+    # Core 743 (IPA 727 Hogwarts Legacy: about 25 command buffers per frame, their causes not journaled; a 1.3 s "compiled
+    # again" at every launch that is the wait for the main cache's background load): diagnostics only, every title.
+    adapted += adapt_submit_causes(source)
+    adapted += adapt_build_journal_load_wait(source)
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -664,7 +670,8 @@ def main():
                  'adapt_remap_sweep_range.py',
                  'adapt_npad_config_snapshot.py',
                  'adapt_playtime_warmup_all_titles.py',
-                 'adapt_array_storage_counts.py']:
+                 'adapt_array_storage_counts.py',
+                 'adapt_submit_causes.py', 'adapt_build_journal_load_wait.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'
