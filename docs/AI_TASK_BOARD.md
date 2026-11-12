@@ -359,7 +359,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     `Claude-Session` line.
   - **Next:** download, verify offline, receipts, record, delete the key, send the file; give session 04 the freeze
     commit for 803 (sibling of 726).
-- **Next IPA (730) queue (main, 12 Nov 12:05Z).** Build only when the maintainer asks.
+- **Next IPA (730) queue (main, 12 Nov 12:05Z).** Maintainer (12:4xZ): build it as soon as XeniOS (session 03) sends
+  its green light and fixes. Also on Claude: S2Arm pin 175018a2 (spin pass off, MKW stuck fix, cc3af454).
   - On Claude: session 04 S2Arm pin 930a84b0. It carries the prepare patches in the notice, plus relaunch-in-session
     step 1 (de72efdd).
   - Waiting: the session 03 XeniaCore pin, now d7ad7e834. It supersedes dc7c7f4b0 and keeps the EnumerateDevices input
@@ -5409,7 +5410,7 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 ### Switch 2 playlist (S2Arm) feasibility prototype — session 04
 
 - **Owner/branch:** session `012mUASj3EQnvC86WC56AePw`, `work/s2arm-switch2-prototype-20261110`
-  (level with `Claude` `de72efdd`). Own paths: `packages/s2arm_engine_bridge/`, `native/s2arm/`,
+  (merged with `Claude` `5acf1435`). Own paths: `packages/s2arm_engine_bridge/`, `native/s2arm/`,
   `build-utils/s2arm/`, `tools/s2arm_prototype/`, `.github/workflows/s2arm-*.yml`, `docs/s2arm-*.md`.
 - **Goal:** a Switch 2 playlist on S2Arm, games prepared on the phone. The device probe ships in
   a common IPA by maintainer decision (below); the rest stays on this branch.
@@ -5542,7 +5543,31 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - First pin attempt, run 43185240791, refused the artifact: it held a fifth member, `patches.txt`. Fixed in
       `a6f958fd`.
     - Not observed on a device. The pass shares are estimates until a journal gives the durations.
-  - **IPA 729 device report (maintainer, 12 Nov, app.log): Mario Kart World, the app ended during the rewrite of main.**
+  - **IPA 729 device report (maintainer, 12 Nov): Mario Kart World's preparation never leaves the rewriter's spin pass.
+    Fix: verified pin `175018a2` (spin pass off on the phone), for the next IPA.**
+    - Journal and screenshot, two runs:
+      - main (42 MB of text) passes load, prepass, boundaries, scan, data, analyze, generate and late in under 3 s;
+      - then the spin pass, with "Génération du code adapté · 0 / 42 Mo" at 60 % after 20 min 20 s;
+      - the first run ended about 5 minutes into the pass.
+      Not memory and not the crash first suspected (below). The bar cannot move there: the text loop finishes inside
+      the library's 100 ms throttle, and the per-region loops report nothing.
+    - Commit `74037ee0`: `rewrite_one` asks for `.spin = 0`.
+      - The rewriter calls the pass an optional optimisation. It only lets a guest thread spinning for over 2 s sleep
+        (`s2a_spin_wait`). Virtual cores are off by default.
+      - S2Arm's Android path rewrites with `S2A_REWRITE_SPIN=0`. At the pin only the spin code reads `g->orig`.
+      - The CI references run `S2A_REWRITE_SPIN=0` too. `s2arm_rewriter_progress_test.py` (70 checks) keeps them in
+        step.
+      - Green:
+        - prepare 43218734949;
+        - core 43218734813;
+        - library 43218734893;
+        - host proof 43218735052.
+    - Pin `175018a2`: SHA-256 `fde6f47d…a101`, the bytes of pin job run 43219881920. Only the prepare producer changed:
+      run 43218734813, artifact 13944104260. Merged with Claude `5acf1435`.
+    - Open:
+      - why the pass is so slow on this game, not measured; it must be measured and bounded before it comes back on;
+      - energy in guest spin-waits without the gate, not measured.
+    - Earlier reading of the first app.log, kept for the record:
     - Observed:
       - The import was cloned (22239 MB) and the status was available.
       - Preparation: unpack, code at 131 s, `addr_need`, `nro`, then `main` at 160 s.

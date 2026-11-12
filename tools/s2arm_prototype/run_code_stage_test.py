@@ -5,7 +5,7 @@ Usage: run_code_stage_test.py <s2arm_checkout> <s2a-rewrite> <s2arm_prepare_cli>
 
 The reference is the core of pack/stage_rewrite.sh in its order, each step by the
 original tool: addr_need.py, nro_to_nso.py, the rewriter command line per module
-(spin gate on, Apple target), main.npdm, nro_exports.py, profile_guess.py
+(Apple target, spin pass off as on the phone), main.npdm, nro_exports.py, profile_guess.py
 --gpu-drivers. Both sides get the same synthetic ExeFS/RomFS (no game content).
 A successful reference needs the same files and bytes (rewriter logs aside);
 a failing reference needs a failing library.
@@ -45,7 +45,7 @@ def snapshot(root):
 def reference(checkout, rewriter, exefs, romfs, out):
     """Returns 0, or the name of the first step that failed."""
     env = {k: v for k, v in os.environ.items() if not k.startswith('S2A_')}
-    env['S2A_REWRITE_SPIN'] = '1'
+    env['S2A_REWRITE_SPIN'] = '0'   # as rewrite_one in native/s2arm/prepare/s2arm_prepare.c
     py = [sys.executable]
     build = (exefs / 'main').read_bytes()[0x40:0x50].hex() if (exefs / 'main').is_file() else '00' * 16
 

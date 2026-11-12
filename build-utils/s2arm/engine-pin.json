@@ -21,16 +21,16 @@
       ]
     },
     "prepare": {
-      "run": 43185893094,
+      "run": 43218734813,
       "attempt": 1,
-      "artifact": 13928561427,
-      "name": "S2ArmPrepare-a6f958fd97eb49bdd0780aa98bf537d24d584bc0",
-      "bytes": 447274,
-      "sha256": "581a2416021ec38478d16f349ef18f82e44f8dd248399b61f5d9b77c268b0e22",
-      "headSha": "a6f958fd97eb49bdd0780aa98bf537d24d584bc0",
-      "expiresAt": "2026-12-12T08:49:45Z",
+      "artifact": 13944104260,
+      "name": "S2ArmPrepare-74037ee039ccc473c03cb06fdfb91dc93a115afd",
+      "bytes": 447471,
+      "sha256": "9d234741156b70ba67cef91fd788c59571957650778985635d2038ea4830359c",
+      "headSha": "74037ee039ccc473c03cb06fdfb91dc93a115afd",
+      "expiresAt": "2026-12-12T12:33:38Z",
       "members": {
-        "S2ArmPrepare.xcframework.zip": "c7a41f4b1d4efe93f3a9107bb693cd9dcfacadc0382f5ca810daa6ad66ac704c"
+        "S2ArmPrepare.xcframework.zip": "584cd429f8fd6eb8a138b72cf747bde1145c23a732dd88df263f91cf7287634f"
       },
       "subdir": "prepare"
     },
@@ -57,7 +57,7 @@
   },
   "zips": {
     "engine": "733b3d201ea516e5e2635b18deabbb7095026219b6d2a02d8d253eab37f89a07",
-    "prepare": "581a2416021ec38478d16f349ef18f82e44f8dd248399b61f5d9b77c268b0e22",
+    "prepare": "9d234741156b70ba67cef91fd788c59571957650778985635d2038ea4830359c",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
   "binaries": {
@@ -108,8 +108,8 @@
       "bytes": 30925
     },
     "prepare/S2ArmPrepare.xcframework.zip": {
-      "sha256": "c7a41f4b1d4efe93f3a9107bb693cd9dcfacadc0382f5ca810daa6ad66ac704c",
-      "bytes": 460338
+      "sha256": "584cd429f8fd6eb8a138b72cf747bde1145c23a732dd88df263f91cf7287634f",
+      "bytes": 460361
     },
     "sysdata/SHA256SUMS": {
       "sha256": "d69cee225120276ede73c2a7710a2f40df0fc85443f498254538b24f557ace29",
