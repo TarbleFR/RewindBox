@@ -42,6 +42,9 @@ abstract final class Switch2LibraryLocale {
       'saveFailed': "The save could not be imported.",
       'saveRedirected': "This save belongs to {name} ({id}). It was put in that game's save folder.",
       'saveRedirectedMissing': "This save belongs to another game ({id}) that is not in your library yet. It was put in its save folder and will be used once you add that game.",
+      'saveChooseGame': "Which game is this save for?",
+      'saveNoGame': "This save does not say which game it is for. Select the game in the list, then import the save again.",
+      'saveImportedForId': "Save imported for the game {id}, which is not in your library yet. It will be used once you add that game.",
       'emptyHint': "Use the button at the top right to import games: pick each game's export folder. You can import prod.keys there too (shared with MeloNX); Switch 2 games do not need them.",
     },
     'es': <String, String>{
@@ -81,6 +84,9 @@ abstract final class Switch2LibraryLocale {
       'saveFailed': "No se pudo importar la partida.",
       'saveRedirected': "Esta partida pertenece a {name} ({id}). Se guardó en la carpeta de partidas de ese juego.",
       'saveRedirectedMissing': "Esta partida pertenece a otro juego ({id}) que aún no está en tu biblioteca. Se guardó en su carpeta y se usará cuando añadas ese juego.",
+      'saveChooseGame': "¿De qué juego es esta partida?",
+      'saveNoGame': "Esta partida no indica de qué juego es. Selecciona el juego en la lista y vuelve a importarla.",
+      'saveImportedForId': "Partida importada para el juego {id}, que aún no está en tu biblioteca. Se usará cuando añadas ese juego.",
       'emptyHint': "Usa el botón de arriba a la derecha para importar juegos: elige la carpeta de exportación de cada juego. También puedes importar prod.keys allí (compartidas con MeloNX); los juegos de Switch 2 no las necesitan.",
     },
     'ru': <String, String>{
@@ -120,6 +126,9 @@ abstract final class Switch2LibraryLocale {
       'saveFailed': "Не удалось импортировать сохранение.",
       'saveRedirected': "Это сохранение относится к игре {name} ({id}). Оно помещено в папку сохранений этой игры.",
       'saveRedirectedMissing': "Это сохранение относится к другой игре ({id}), которой ещё нет в вашей библиотеке. Оно помещено в её папку сохранений и будет использовано, когда вы добавите эту игру.",
+      'saveChooseGame': "Для какой игры это сохранение?",
+      'saveNoGame': "В этом сохранении не указано, к какой игре оно относится. Выберите игру в списке и импортируйте сохранение снова.",
+      'saveImportedForId': "Сохранение импортировано для игры {id}, которой ещё нет в вашей библиотеке. Оно будет использовано, когда вы добавите эту игру.",
       'emptyHint': "Чтобы импортировать игры, нажмите кнопку в правом верхнем углу и выберите папку экспорта каждой игры. Там же можно импортировать prod.keys (общие с MeloNX); играм Switch 2 они не нужны.",
     },
     'zh': <String, String>{
@@ -159,6 +168,9 @@ abstract final class Switch2LibraryLocale {
       'saveFailed': "无法导入存档。",
       'saveRedirected': "此存档属于 {name}（{id}），已放入该游戏的存档文件夹。",
       'saveRedirectedMissing': "此存档属于另一款尚未加入游戏库的游戏（{id}），已放入它的存档文件夹，添加该游戏后即可使用。",
+      'saveChooseGame': "这个存档属于哪款游戏？",
+      'saveNoGame': "此存档没有注明所属游戏。请先在列表中选择游戏，然后重新导入存档。",
+      'saveImportedForId': "已为尚未加入游戏库的游戏（{id}）导入存档，添加该游戏后即可使用。",
       'emptyHint': "使用右上角的按钮导入游戏：选择每个游戏的导出文件夹。也可以在那里导入 prod.keys（与 MeloNX 共用）；Switch 2 游戏不需要它们。",
     },
     'zh_Hant': <String, String>{
@@ -198,6 +210,9 @@ abstract final class Switch2LibraryLocale {
       'saveFailed': "無法匯入存檔。",
       'saveRedirected': "此存檔屬於 {name}（{id}），已放入該遊戲的存檔資料夾。",
       'saveRedirectedMissing': "此存檔屬於另一款尚未加入遊戲庫的遊戲（{id}），已放入它的存檔資料夾，加入該遊戲後即可使用。",
+      'saveChooseGame': "這個存檔屬於哪款遊戲？",
+      'saveNoGame': "此存檔沒有註明所屬遊戲。請先在列表中選擇遊戲，然後重新匯入存檔。",
+      'saveImportedForId': "已為尚未加入遊戲庫的遊戲（{id}）匯入存檔，加入該遊戲後即可使用。",
       'emptyHint': "使用右上角的按鈕匯入遊戲：選擇每個遊戲的匯出資料夾。也可以在那裡匯入 prod.keys（與 MeloNX 共用）；Switch 2 遊戲不需要它們。",
     },
     'pt': <String, String>{
@@ -237,6 +252,9 @@ abstract final class Switch2LibraryLocale {
       'saveFailed': "Não foi possível importar o jogo salvo.",
       'saveRedirected': "Este jogo salvo pertence a {name} ({id}). Foi colocado na pasta de jogos salvos desse jogo.",
       'saveRedirectedMissing': "Este jogo salvo pertence a outro jogo ({id}) que ainda não está na sua biblioteca. Foi colocado na pasta dele e será usado quando você adicionar esse jogo.",
+      'saveChooseGame': "A qual jogo pertence este jogo salvo?",
+      'saveNoGame': "Este jogo salvo não indica a qual jogo pertence. Selecione o jogo na lista e importe-o novamente.",
+      'saveImportedForId': "Jogo salvo importado para o jogo {id}, que ainda não está na sua biblioteca. Será usado quando você adicionar esse jogo.",
       'emptyHint': "Use o botão no canto superior direito para importar jogos: escolha a pasta de exportação de cada jogo. Você também pode importar prod.keys ali (compartilhadas com o MeloNX); os jogos de Switch 2 não precisam delas.",
     },
     'fr': <String, String>{
@@ -276,6 +294,9 @@ abstract final class Switch2LibraryLocale {
       'saveFailed': "La sauvegarde n'a pas pu être importée.",
       'saveRedirected': "Cette sauvegarde appartient à {name} ({id}). Elle a été placée dans le dossier de sauvegarde de ce jeu.",
       'saveRedirectedMissing': "Cette sauvegarde appartient à un autre jeu ({id}) qui n'est pas encore dans votre bibliothèque. Elle a été placée dans son dossier de sauvegarde et servira quand vous ajouterez ce jeu.",
+      'saveChooseGame': "À quel jeu appartient cette sauvegarde ?",
+      'saveNoGame': "Cette sauvegarde n'indique pas à quel jeu elle appartient. Sélectionnez le jeu dans la liste, puis importez-la à nouveau.",
+      'saveImportedForId': "Sauvegarde importée pour le jeu {id}, qui n'est pas encore dans votre bibliothèque. Elle servira quand vous ajouterez ce jeu.",
       'emptyHint': "Utilisez le bouton en haut à droite pour importer des jeux : choisissez le dossier exporté de chaque jeu. Vous pouvez aussi y importer prod.keys (partagé avec MeloNX) ; les jeux Switch 2 n'en ont pas besoin.",
     },
     'de': <String, String>{
@@ -315,6 +336,9 @@ abstract final class Switch2LibraryLocale {
       'saveFailed': "Der Spielstand konnte nicht importiert werden.",
       'saveRedirected': "Dieser Spielstand gehört zu {name} ({id}). Er wurde in den Spielstandordner dieses Spiels gelegt.",
       'saveRedirectedMissing': "Dieser Spielstand gehört zu einem anderen Spiel ({id}), das noch nicht in deiner Bibliothek ist. Er wurde in dessen Spielstandordner gelegt und wird verwendet, sobald du das Spiel hinzufügst.",
+      'saveChooseGame': "Zu welchem Spiel gehört dieser Spielstand?",
+      'saveNoGame': "Dieser Spielstand gibt nicht an, zu welchem Spiel er gehört. Wähle das Spiel in der Liste aus und importiere den Spielstand erneut.",
+      'saveImportedForId': "Spielstand für das Spiel {id} importiert, das noch nicht in deiner Bibliothek ist. Er wird verwendet, sobald du das Spiel hinzufügst.",
       'emptyHint': "Importiere Spiele über die Schaltfläche oben rechts: Wähle den Exportordner jedes Spiels. Dort kannst du auch prod.keys importieren (gemeinsam mit MeloNX); Switch-2-Spiele brauchen sie nicht.",
     },
     'it': <String, String>{
@@ -354,6 +378,9 @@ abstract final class Switch2LibraryLocale {
       'saveFailed': "Impossibile importare il salvataggio.",
       'saveRedirected': "Questo salvataggio appartiene a {name} ({id}). È stato messo nella cartella dei salvataggi di quel gioco.",
       'saveRedirectedMissing': "Questo salvataggio appartiene a un altro gioco ({id}) non ancora presente nella tua libreria. È stato messo nella sua cartella e verrà usato quando aggiungerai quel gioco.",
+      'saveChooseGame': "A quale gioco appartiene questo salvataggio?",
+      'saveNoGame': "Questo salvataggio non indica a quale gioco appartiene. Seleziona il gioco nell'elenco, poi importalo di nuovo.",
+      'saveImportedForId': "Salvataggio importato per il gioco {id}, non ancora presente nella tua libreria. Verrà usato quando aggiungerai quel gioco.",
       'emptyHint': "Usa il pulsante in alto a destra per importare i giochi: scegli la cartella di esportazione di ogni gioco. Lì puoi importare anche prod.keys (condivise con MeloNX); i giochi Switch 2 non ne hanno bisogno.",
     },
     'id': <String, String>{
@@ -393,6 +420,9 @@ abstract final class Switch2LibraryLocale {
       'saveFailed': "Data simpanan tidak dapat diimpor.",
       'saveRedirected': "Data simpanan ini milik {name} ({id}). Data ditaruh di folder simpanan game tersebut.",
       'saveRedirectedMissing': "Data simpanan ini milik game lain ({id}) yang belum ada di pustaka Anda. Data ditaruh di folder simpanannya dan akan dipakai setelah Anda menambahkan game itu.",
+      'saveChooseGame': "Data simpanan ini untuk game apa?",
+      'saveNoGame': "Data simpanan ini tidak menyebutkan game-nya. Pilih game di daftar, lalu impor data simpanan lagi.",
+      'saveImportedForId': "Data simpanan diimpor untuk game {id} yang belum ada di pustaka Anda. Data akan dipakai setelah Anda menambahkan game itu.",
       'emptyHint': "Gunakan tombol di kanan atas untuk mengimpor game: pilih folder ekspor setiap game. Kamu juga bisa mengimpor prod.keys di sana (dipakai bersama MeloNX); game Switch 2 tidak memerlukannya.",
     },
     'ja': <String, String>{
@@ -432,6 +462,9 @@ abstract final class Switch2LibraryLocale {
       'saveFailed': "セーブデータを読み込めませんでした。",
       'saveRedirected': "このセーブデータは {name}（{id}）のものです。そのゲームのセーブフォルダに入れました。",
       'saveRedirectedMissing': "このセーブデータは、まだライブラリにない別のゲーム（{id}）のものです。そのゲームのセーブフォルダに入れたので、ゲームを追加すると使われます。",
+      'saveChooseGame': "このセーブデータはどのゲームのものですか？",
+      'saveNoGame': "このセーブデータには対象のゲームが記録されていません。リストでゲームを選んでから、もう一度読み込んでください。",
+      'saveImportedForId': "まだライブラリにないゲーム（{id}）のセーブデータを読み込みました。そのゲームを追加すると使われます。",
       'emptyHint': "右上のボタンからゲームをインポートします。各ゲームのエクスポートフォルダーを選んでください。prod.keys もそこでインポートできます（MeloNX と共用）。Switch 2 のゲームには不要です。",
     },
     'ko': <String, String>{
@@ -471,6 +504,9 @@ abstract final class Switch2LibraryLocale {
       'saveFailed': "저장 데이터를 가져올 수 없습니다.",
       'saveRedirected': "이 저장 데이터는 {name}({id})의 것입니다. 해당 게임의 저장 폴더에 넣었습니다.",
       'saveRedirectedMissing': "이 저장 데이터는 아직 라이브러리에 없는 다른 게임({id})의 것입니다. 해당 게임의 저장 폴더에 넣었으며, 게임을 추가하면 사용됩니다.",
+      'saveChooseGame': "이 저장 데이터는 어떤 게임의 것인가요?",
+      'saveNoGame': "이 저장 데이터에는 어떤 게임의 것인지 나와 있지 않습니다. 목록에서 게임을 선택한 뒤 다시 가져오세요.",
+      'saveImportedForId': "아직 라이브러리에 없는 게임({id})의 저장 데이터를 가져왔습니다. 해당 게임을 추가하면 사용됩니다.",
       'emptyHint': "오른쪽 위 버튼으로 게임을 가져오세요. 각 게임의 내보내기 폴더를 선택합니다. 그곳에서 prod.keys도 가져올 수 있습니다(MeloNX와 공유). Switch 2 게임에는 필요하지 않습니다.",
     },
   };

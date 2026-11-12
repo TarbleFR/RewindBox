@@ -70,11 +70,24 @@ class S2ArmSaveImportResult {
   final int files;
   final String? backup;
 
-  /// The title id the save names when it is not the selected game's: it went to that game's folder instead.
+  /// The title id the save names when it is not the selected game's, or when no game was selected: it went to that game's
+  /// folder.
   final String? redirectedTo;
 
   /// That game's title when it is in the library (Documents/S2Arm/Games), else null.
   final String? redirectedTitle;
+}
+
+/// A Switch 2 game of Documents/S2Arm/Games that a save can be put in: [S2ArmInternalService.importSave] asks for one
+/// when no game is selected and the save does not name its game.
+class S2ArmSaveGame {
+  const S2ArmSaveGame({required this.title, required this.exportFolder, required this.gid, this.programId});
+  final String title;
+  final String exportFolder;
+
+  /// The title id, 16 lower-case hex digits.
+  final String gid;
+  final String? programId;
 }
 
 /// Why a save import was refused; [code] is a Switch2LibraryLocale key.
@@ -749,27 +762,45 @@ abstract final class S2ArmInternalService {
     return ids.length == 1 ? ids.single : null;
   }
 
-  /// The title of the library game in Documents/S2Arm/Games whose title id is [gid], or null when none is there.
-  static Future<String?> _libraryTitleFor(String gid) async {
+  /// The Switch 2 games in Documents/S2Arm/Games, sorted by title: the games a save can be put in when none is selected.
+  static Future<List<S2ArmSaveGame>> libraryGames() async {
     final games = await gamesDirectory();
-    if (!await games.exists()) return null;
+    if (!await games.exists()) return const <S2ArmSaveGame>[];
+    final found = <S2ArmSaveGame>[];
     await for (final entry in games.list(followLinks: false)) {
       if (entry is! Directory) continue;
       final detected = await detectExport(entry.path);
-      final id = detected['gid']?.toString().toLowerCase();
-      final program = detected['programId']?.toString().toLowerCase();
-      if (detected['success'] == true && (id == gid || program == gid)) {
-        final info = await gameInfo((detected['exportDir'] ?? entry.path).toString());
-        return (info['title'] ?? path.basename(entry.path)).toString();
-      }
+      final gid = detected['gid']?.toString().toLowerCase();
+      if (detected['success'] != true || gid == null || !_gidPattern.hasMatch(gid)) continue;
+      final exportDir = (detected['exportDir'] ?? entry.path).toString();
+      final info = await gameInfo(exportDir);
+      found.add(S2ArmSaveGame(
+        title: (info['title'] ?? path.basename(entry.path)).toString(),
+        exportFolder: exportDir,
+        gid: gid,
+        programId: detected['programId']?.toString().toLowerCase(),
+      ));
+    }
+    found.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+    return found;
+  }
+
+  /// The title of the library game in Documents/S2Arm/Games whose title id is [gid], or null when none is there.
+  static Future<String?> _libraryTitleFor(String gid) async {
+    for (final game in await libraryGames()) {
+      if (game.gid == gid || game.programId == gid) return game.title;
     }
     return null;
   }
 
   /// Picks a save folder in Files (exported from a console with JKSV or Checkpoint, or copied from Ryujinx / yuzu) and puts
-  /// it in the save folder of the game at [exportFolder]. The engine reads it the next time the game starts. Returns null
-  /// when the picker was dismissed.
-  static Future<S2ArmSaveImportResult?> importSave(String exportFolder, {String? dialogTitle}) =>
+  /// it in the save folder of the game at [exportFolder]. The engine reads it the next time the game starts.
+  ///
+  /// With no game selected ([exportFolder] null), the save goes to the game it names. A save that names no game (JKSV,
+  /// plain files) goes to the library game [chooseGame] returns; it is refused with saveNoGame when the library has no
+  /// game or no [chooseGame] is given. Returns null when the picker or the choice was dismissed.
+  static Future<S2ArmSaveImportResult?> importSave(String? exportFolder, {String? dialogTitle,
+      Future<S2ArmSaveGame?> Function(List<S2ArmSaveGame> games)? chooseGame}) =>
       StorageImportActivity.run(() async {
     if (_sessionRunning) throw const S2ArmSaveException('saveGameRunning');
     final String? picked;
@@ -779,23 +810,35 @@ abstract final class S2ArmInternalService {
       throw const S2ArmSaveException('saveFailed');
     }
     if (picked == null) return null;
-    return importSaveAt(exportFolder, picked);
+    var game = exportFolder;
+    if (game == null && await saveProgramId(picked) == null) {
+      final games = await libraryGames();
+      if (games.isEmpty || chooseGame == null) throw const S2ArmSaveException('saveNoGame');
+      final chosen = await chooseGame(games);
+      if (chosen == null) return null;
+      game = chosen.exportFolder;
+    }
+    return importSaveAt(game, picked);
   });
 
   /// Copies the folder [picked] into the game's save folder, as one sub-folder, so the engine's own recognition (JKSV,
   /// Checkpoint, Ryujinx, yuzu, NX2Apple, plain files) sees it as picked. What the save folder held before is kept beside
-  /// it as "<name> (backup)" (one backup, replaced by the next import). Visible for tests.
-  static Future<S2ArmSaveImportResult> importSaveAt(String exportFolder, String picked) async {
-    final selected = await detectExport(exportFolder);
-    final selectedGid = selected['gid']?.toString();
-    if (selected['success'] != true || selectedGid == null || !_gidPattern.hasMatch(selectedGid)) {
-      throw const S2ArmSaveException('saveNotExport');
+  /// it as "<name> (backup)" (one backup, replaced by the next import). With [exportFolder] null, the save must name its
+  /// game (saveNoGame otherwise). Visible for tests.
+  static Future<S2ArmSaveImportResult> importSaveAt(String? exportFolder, String picked) async {
+    var own = const <String?>{};
+    if (exportFolder != null) {
+      final selected = await detectExport(exportFolder);
+      final selectedGid = selected['gid']?.toString();
+      if (selected['success'] != true || selectedGid == null || !_gidPattern.hasMatch(selectedGid)) {
+        throw const S2ArmSaveException('saveNotExport');
+      }
+      own = {selectedGid.toLowerCase(), selected['programId']?.toString().toLowerCase()};
     }
     final source = Directory(picked);
     if (!await source.exists()) throw const S2ArmSaveException('saveEmpty');
-    // A save that names another game goes to that game's folder: the player picked the wrong game in the list.
+    // A save that names another game goes to that game's folder: the player picked the wrong game in the list, or none.
     final saveId = await saveProgramId(picked);
-    final own = {selectedGid.toLowerCase(), selected['programId']?.toString().toLowerCase()};
     String? redirectedTo;
     String? redirectedTitle;
     final Directory target;
@@ -803,6 +846,8 @@ abstract final class S2ArmInternalService {
       redirectedTo = saveId.toUpperCase();
       redirectedTitle = await _libraryTitleFor(saveId);
       target = await _saveFolderForId(saveId, () async => redirectedTitle ?? '');
+    } else if (exportFolder == null) {
+      throw const S2ArmSaveException('saveNoGame');
     } else {
       final folder = await saveFolderFor(exportFolder);
       if (folder == null) throw const S2ArmSaveException('saveNotExport');
@@ -835,9 +880,17 @@ abstract final class S2ArmInternalService {
     );
   }
 
-  /// Opens the game's save folder in the Files app (creating it first). False when Files could not be opened.
-  static Future<bool> openSaveFolder(String exportFolder) async {
-    final folder = await saveFolderFor(exportFolder);
+  /// Opens the game's save folder in the Files app (creating it first), or Documents/S2Arm/Saves itself when no game is
+  /// selected ([exportFolder] null). False when Files could not be opened.
+  static Future<bool> openSaveFolder(String? exportFolder) async {
+    final Directory? folder;
+    if (exportFolder == null) {
+      final saves = await savesDirectory();
+      await saves.create(recursive: true);
+      folder = saves;
+    } else {
+      folder = await saveFolderFor(exportFolder);
+    }
     if (folder == null) return false;
     try {
       return await channel.invokeMethod<bool>('openFolder', {'path': folder.path}) ?? false;
