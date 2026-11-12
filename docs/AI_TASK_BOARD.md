@@ -6278,6 +6278,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   docs/LICENSE_AUDIT_2026-11-12.md (libchdr/zstd/LZMA notices and review for the libretro podspec unreviewed since
   b06888a9, date in XeniOS, CoreHaptics review, RewindBox-MODIFICATIONS.md required, 25 package LICENSE files,
   12-locale disclaimer and missing credits, MeloNX texts offline, legal tests repaired after 11 days red, open items).
+  Merged Claude d5cf7fcc (220585599, no conflict): macOS run 43249822171 green (checks incl. embedding and transport
+  tests, review gate, closed sets, facade C++, bridge compile, helper type-check; plugin_app); the app's legal check
+  passes in full on this tree (on Claude it refused the libretro podspec since b06888a9); build_source_evidence 12/12,
+  legal_bundle_preflight 8/8, Xbox 360 Python and Dart (71 with the legal dialog) OK; delivery contract = Claude (OK)
+  + the 2 PocketSkinRevisionReview errors of the 731-frozen pin (clear when the next manifest freezes c7d6a5c4).
+  Handed off to 00 with the XeniOS green light (12 Nov). Next manifest: pinSha256 c7d6a5c4. Next: device run (title
+  screen past START, prompts, rumble, pad drop, edge swipes).
 - **Validation (Flutter 3.47.2 host):** 11 Nov: XeniOS + catalog/Consoles/touch suites
   91/91, scanner suites 41/41 (1 skip), storage contract 24/24, patch/validator/touch/C++
   checks OK, analyzer 111 = baseline. Earlier: new XeniOS + catalog/Consoles tests 65/65;
