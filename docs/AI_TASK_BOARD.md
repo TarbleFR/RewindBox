@@ -4697,6 +4697,47 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       run: `heap_report.py` on the `[MeloNX:heap]` lines, the `zones=` values over time, `lohAfterBytes` and
       `lohFreeAfterBytes`; then the correction of the largest owner. The sampler is to be removed once the owner is
       known.
+  - **IPA 727 device runs read (12 Nov) and Core 739 frozen here (contract `f4f867b6…`, 94 fresh gates; not delivered,
+    not run on an iPhone).** Input identity: IPA 727, MeloNX Core 737 (pin 36ed5e93, iPhone binary 75bd2087, contract
+    09ac5655); maintainer's journals of 12 Nov (private, scratchpad only): Super Smash Bros. Ultimate v13.0.4 pid 56632
+    (05:22:54-05:30:56, asyncShaders=False, thermal nominal throughout) and Hogwarts Legacy pid 56836 (05:45:01-05:47:00,
+    asyncShaders=True, fair 46 s then serious 24 s). The two titles are analysed separately.
+    - **Smash (pid 56632):** mean 58.2 / median 60.0 FPS over 462 s, gaps p99 17 ms, 44 gaps over 100 ms, longest
+      1 800 ms (t=207), 1 350, 733, 700, 583, 533 ms; footprint 3 251 -> 3 767 MiB (t=30-450; graphics +278, malloc
+      +83, the rest +155; Vulkan buffers 34 -> 174 MiB in 3 234 dedicated blocks, images 211-260 MiB); CPU 0.92 W, 15.8 mJ
+      per presented frame (726 Smash pid 54630, nominal: 0.83 W, 14.0 mJ: no CPU heat change between the two IPAs on
+      this title). GC is not the stutter (longest pause 78 ms); the 60 s memory walks (361-509 ms) coincide with no
+      large gap. The large gaps fall in pipeline bursts: 192 programs made in play, 177 render-thread pipeline
+      compilations in 30.7 s (none compiled again), the 1 209 known variants replayed (594 ready before their first
+      draw, 99 late new variants for 1.4 s); render-thread SetProgram 1 394/989/813/778/763/670 ms per 5 s window and
+      CreateProgram 28-82 ms per program: `adapt_setprogram_warmup`'s policy (DetachPlayTimeWarmUps) was on for
+      Hogwarts only.
+    - **Core 739 = Core 737 + `adapt_playtime_warmup_all_titles`** (Library.cs, one assignment: the policy for every
+      title; every other Hogwarts policy keeps its scope; no draw is skipped either way). 94th gate
+      `playtime-warmup-all-titles` binds the scope change to the setprogram-warmup proof run on this very Library.cs
+      (evidence `docs/evidence/melonx-739-gates/setprogram-warmup-checks.json`: host burst SetProgram 1 571.5 -> 1.4 ms,
+      first draw 1 603 -> 444 ms, every draw with its exact pipeline). Rerun on the Core 739 preparation and passed: the
+      12 gates binding Library.cs (fragmented-reads, hogwarts-dma-copies, descriptor-scratch-all-titles,
+      binder-teardown, present-pacing, setprogram-warmup, forced-syncpoint-wait, session-retention,
+      safe-point-compaction, moltenvk-stage-ordering, pipeline-cache-persist, retention-chain) and the new gate;
+      contract test 490 checks (426 without the archive). For Hogwarts it changes nothing (the policy was already on).
+      To read on the device: render-stage SetProgram ms, pipeline build lines, gaps in Smash bursts, worker caches'
+      memory. Rollback: remove the adapter.
+    - **Hogwarts (pid 56836), the three dominant costs:** (1) memory pressure: at t=48 the footprint jumps 3 775 ->
+      4 428 MiB (zone load), device available 5-9 %; in the seconds where threads wait for a core >= 150 % of their CPU
+      time the kernel decompresses about 7 460 pages/s and compresses 152 MiB/s (670 pages/s otherwise), FPS 21.0 vs
+      25.8 (same in 726 pid 55836: 7 676 pages/s, 18.2 vs 27.9 FPS); Vulkan images 408-479 MiB in 6 162-9 060 dedicated
+      allocations while the texture cache counts 160-184 MiB, buffers 259 MiB vs 171 MiB counted; managed heap about
+      0.8 GiB with 170-200 MiB of LOH fragmentation after background GCs. (2) render-thread descriptor writes: draw
+      prepare descriptors 842-1 074 ms and compute prepare descriptors 400-515 ms per 5 s window (about 10-12 ms per
+      frame at 22-28 frames/s); renderDrain 2.6-3.6 s per 5.1 s. (3) GPU-thread compute with nested array deltas
+      (compute 0.7-1.3 s, arrayDelta 0.5-0.9 s per window). Not shaders: render-thread pipeline compilations 0, 1 743
+      of 1 748 variants replayed, 82 late variants in 37 ms, 2 programs made in play. The session ran with the user's
+      per-game "Async shaders" on: "not ready by cause: async skips 110" (then 12) draws in two windows: skipped draws
+      the default (off) never makes.
+    - **Next action:** Hogwarts lot (own Core, Hogwarts policy): the render-thread descriptor write cost first (named
+      calls, a host profile on the real DescriptorSetUpdater), then the memory attribution of the uncounted Vulkan
+      images. Main: Core 739 CI and pin when the integration order allows.
   - **IPA 726 device run read (12 Nov): Hogwarts Legacy on Core 735, pid 54035, 23:43:42-23:46:20 (the session
     of the P0 726 close); journals private (scratchpad), aggregates only. Not a like-for-like comparison with 725:
     the phone was in the "serious" thermal state for 99 of the 100 warm seconds (725, pid 51986: "fair").**
