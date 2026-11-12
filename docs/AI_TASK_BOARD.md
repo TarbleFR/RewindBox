@@ -359,6 +359,30 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     `Claude-Session` line.
   - **Next:** download, verify offline, receipts, record, delete the key, send the file; give session 04 the freeze
     commit for 803 (sibling of 726).
+- **IPA 732 delivered and verified (12 Nov 19:5xZ, main; maintainer: build once Switch 2 has finished, with XeniOS).**
+  - Second request: run `43289133482` attempt 1, trigger `77af35c2`, frozen on `474862f5`, effective digest `662f421f`,
+    7956 product files. All 5 jobs succeeded.
+  - First request, run 43283225614 (trigger 4f5a3045): the flutter job failed on two S2Arm tests older than session 03's
+    licence audit. Fixed in 67645447: the helper LICENSE is recorded as a rename, and the engine review tests follow the
+    legal assets review. Before that, main's 8d7928ec: the disc reader review accepts the delivered tree's previously
+    declared libretro podspec (b06888a9 was never delivered).
+  - IPA `RewindBox-732.ipa`: 329956970 B, SHA-256 `97952e981eea2eff72bb93f35627a831221aa4bf0ed9abaeb67d48dbb93ade52`.
+  - Contents:
+    - XeniaCore c7d6a5c4 (profile sign-in, guest dialogs, rumble, all pads) and the licence audit;
+    - S2Arm engine 9560e56f (patch 0011: store self-test skipped under the JIT helper; boot code in the spare pool;
+      engine log in Files);
+    - RPCS3 934 and MeloNX 743 kept.
+  - Offline verification `passed-offline-checks`:
+    - 97 images; 46 retained fingerprints; all 6 validators exit 0;
+    - identities Xenia c7d6a5c4 and S2Arm 9560e56f;
+    - RewindBox-MODIFICATIONS.md, the XeniOS date notices and the RA disc-reader notices are packaged;
+    - Legal XeniOS 6/6, MetalShaderConverter 3/3, S2Arm 35/35.
+  - Undeclared image changes, not fatal: XeniaCore and S2ArmEngine (declared engine images), plus the armsx2 and melonx
+    bridges, whose only change is a LICENSE file. That is the same rebuild drift as 729/731; cause unexplained.
+  - Receipt `docs/evidence/rewind732/delivery.json` (14 proof files + 2 engine receipts). Key shredded; file sent.
+  - Not run on an iPhone. Device checks:
+    - session 03: START past the title, saves/dialogs, rumble, pad loss, edge swipe, `profile sign-in` line;
+    - session 04: Mario Kart World boot asks for its code within seconds; engine log in Files.
 - **Next IPA (732) queue (main, 12 Nov 15:5xZ).**
   - Session 03 handoff merged on Claude as 5b53672e (code head 22058559, board 22bc25c7; macOS run 43249822171 green).
     - XeniaCore pin c7d6a5c4 (2bbc9daf7, run 43241572889): profile sign-in for player 1 (the cause of Fable
