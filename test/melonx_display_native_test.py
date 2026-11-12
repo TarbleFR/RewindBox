@@ -17,6 +17,11 @@ if CANDIDATE:
  # compared without it (once, exactly), and compiled against a no-op Library.RecordRetentionChain stub.
  from adapt_retention_chain import FIRST_FRAME_OLD,FIRST_FRAME_NEW
  final=(CANDIDATE/FINAL_MEMORY).read_text(encoding='utf-8-sig');native=(ROOT/'native/melonx/EmbeddedMemory.cs').read_text(encoding='utf-8-sig')
+ # Core 745 (adapt_stall_compaction) adds the presentation-gap entry point to that class and one line to its resume
+ # and session-end steps: it is compared without them (each once, exactly); what is compiled is the final file.
+ from adapt_stall_compaction import FILE_PAIRS as STALL_PAIRS,MEMORY as STALL_MEMORY
+ if all(final.count(new)==1 for old,new in STALL_PAIRS[STALL_MEMORY]):
+  for old,new in reversed(STALL_PAIRS[STALL_MEMORY]):final=final.replace(new,old,1)
  RETENTION_CHAIN=final.count(FIRST_FRAME_NEW)==1
  if RETENTION_CHAIN:final=final.replace(FIRST_FRAME_NEW,FIRST_FRAME_OLD,1)
  assert final.count(COMPACTION_CLASS)==1 and final.replace(COMPACTION_CLASS,'',1).rstrip()==native.rstrip(),'final EmbeddedMemory is the native file plus the compaction class only'

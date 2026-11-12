@@ -75,6 +75,7 @@ from adapt_paced_strict_syncs import BASELINE as C745_PACED_STRICT_SYNCS  # noqa
 from adapt_sibling_pipelines import BASELINE as C745_SIBLING_PIPELINES  # noqa: E402
 from adapt_array_sync_epochs import BASELINE as C745_ARRAY_SYNC_EPOCHS  # noqa: E402
 from adapt_collection_class import BASELINE as C745_COLLECTION_CLASS  # noqa: E402
+from adapt_stall_compaction import BASELINE as C745_STALL_COMPACTION  # noqa: E402
 from adapt_array_delta_invalidated import BASELINE as C697_ARRAY_DELTA_INVALIDATED  # noqa: E402
 from adapt_pipeline_cache_background import BASELINE as C697_PIPELINE_CACHE_BACKGROUND  # noqa: E402
 from adapt_sync_wait_attribution import BASELINE as C699_SYNC_WAIT_ATTRIBUTION  # noqa: E402
@@ -219,6 +220,8 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'array-sync-epochs': 'delivered',
             # Core 745: a collection that stops the engine runs in the user-interactive class.
             'collection-class': 'delivered',
+            # Core 745: the heap's free space is given back while the game presents nothing.
+            'stall-compaction': 'delivered',
             # Core 743: its receipt declares SyncManager.cs, which adapt_submit_causes changes: run again on the final one.
             'sync-allocations': 'delivered',
             # Core 661: the native display fixture declares EmbeddedMemory.cs (adapt_safe_point_compaction): rerun.
@@ -632,7 +635,8 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_paced_strict_syncs.py',
                                                      'build-utils/melonx/adapt_sibling_pipelines.py',
                                                      'build-utils/melonx/adapt_array_sync_epochs.py',
-                                                     'build-utils/melonx/adapt_collection_class.py'} and
+                                                     'build-utils/melonx/adapt_collection_class.py',
+                                                     'build-utils/melonx/adapt_stall_compaction.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -673,8 +677,8 @@ if not args.helpers_only:
     # members (213).
     # Core 745: adapt_nifm_network_watch.py, adapt_paced_strict_syncs.py, adapt_sibling_pipelines.py and
     # adapt_array_sync_epochs.py join them; IGeneralService.cs joins the prepared members (214). adapt_collection_class.py
-    # joins them too (EmbeddedSession.cs already a member).
-    check(len(frozen['preparationInputs']) == 217 and len(frozen['preparedMembers']) == 214, 'Wrong final composition')
+    # and adapt_stall_compaction.py join them too (their files are members already).
+    check(len(frozen['preparationInputs']) == 218 and len(frozen['preparedMembers']) == 214, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
@@ -745,7 +749,11 @@ if not args.helpers_only:
           set(C745_COLLECTION_CLASS) == set(gate['collection-class']['requiredPostimages']) and
           gate['collection-class']['assertions'].get('productionLibraryAssemblyBuilt') is True and
           gate['collection-class']['assertions'].get('bytesAllocatedInsideCollections') == 0 and
-          gate['collection-class']['assertions'].get('mostOverridesAtOnce') == 1,
+          gate['collection-class']['assertions'].get('mostOverridesAtOnce') == 1 and
+          set(C745_STALL_COMPACTION) == set(gate['stall-compaction']['requiredPostimages']) and
+          gate['stall-compaction']['assertions'].get('productionLibraryAssemblyBuilt') is True and
+          gate['stall-compaction']['assertions'].get('compactionsDuringPresentedFrames') == 0 and
+          gate['stall-compaction']['assertions'].get('replay729FiredInPlay') == 0,
           'The Core 745 changes are not bound by their gates')
     OUTSIDE_GPU |= {C745_NIFM_SERVICE}
     check(CHANGES - OUTSIDE_GPU <= set(gate['fragmented-reads']['requiredPostimages']) and

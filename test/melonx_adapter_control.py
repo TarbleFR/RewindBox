@@ -48,7 +48,7 @@ ORDER = ('adapt_pipeline_warmup_parity', 'adapt_device_short_trim', 'adapt_molte
          'adapt_playtime_warmup_all_titles', 'adapt_array_storage_counts', 'adapt_submit_causes',
          'adapt_build_journal_load_wait', 'adapt_nifm_network_watch',
          'adapt_paced_strict_syncs', 'adapt_sibling_pipelines', 'adapt_array_sync_epochs',
-         'adapt_collection_class')
+         'adapt_collection_class', 'adapt_stall_compaction')
 
 
 def sha(path: Path) -> str:

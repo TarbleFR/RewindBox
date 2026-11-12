@@ -208,6 +208,8 @@ LOT_FILES = {
     'adapt_array_sync_epochs': [],
     # Core 745: collections run in the user-interactive class (no file of this lot).
     'adapt_collection_class': [],
+    # Core 745: the heap's free space given back in a presentation gap (no file of this lot).
+    'adapt_stall_compaction': [],
 }
 
 checks = 0

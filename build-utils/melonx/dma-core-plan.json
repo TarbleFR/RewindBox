@@ -97,7 +97,8 @@
   "build-utils/melonx/adapt_paced_strict_syncs.py",
   "build-utils/melonx/adapt_sibling_pipelines.py",
   "build-utils/melonx/adapt_array_sync_epochs.py",
-  "build-utils/melonx/adapt_collection_class.py"
+  "build-utils/melonx/adapt_collection_class.py",
+  "build-utils/melonx/adapt_stall_compaction.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -338,7 +339,8 @@
   "test/melonx_paced_strict_syncs/Program.cs",
   "test/melonx_sibling_pipelines/Program.cs",
   "test/melonx_array_sync_epochs/Program.cs",
-  "test/melonx_collection_class/Program.cs"
+  "test/melonx_collection_class/Program.cs",
+  "test/melonx_stall_compaction/Program.cs"
  ],
  "fixtureProductionInputs": [
   "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs",
@@ -4543,6 +4545,33 @@
    },
    "requiredPostimages": [
     "src/Ryujinx.Library/EmbeddedSession.cs"
+   ]
+  },
+  {
+   "name": "stall-compaction",
+   "script": "test/melonx_stall_compaction_test.py",
+   "report": "stall-compaction-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 3600,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false,
+    "productionLibraryAssemblyBuilt": true,
+    "compactionsDuringPresentedFrames": 0,
+    "replay729FiredInPlay": 0,
+    "liveFreeAfterMiB": 0
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Library/EmbeddedMemory.cs",
+    "src/Ryujinx.Library/EmbeddedSession.cs",
+    "src/Ryujinx.Library/Window/WindowBase.cs"
    ]
   }
  ]
