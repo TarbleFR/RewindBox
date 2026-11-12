@@ -4600,6 +4600,32 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       run: `heap_report.py` on the `[MeloNX:heap]` lines, the `zones=` values over time, `lohAfterBytes` and
       `lohFreeAfterBytes`; then the correction of the largest owner. The sampler is to be removed once the owner is
       known.
+  - **IPA 726 device run read (12 Nov): Hogwarts Legacy on Core 735, pid 54035, 23:43:42-23:46:20 (the session
+    of the P0 726 close); journals private (scratchpad), aggregates only. Not a like-for-like comparison with 725:
+    the phone was in the "serious" thermal state for 99 of the 100 warm seconds (725, pid 51986: "fair").**
+    - **Playability (tools/melonx/playability_verdict.py, warm-up 30 s):** 726 median 16.1 / mean 17.3 FPS over
+      100 s, gaps p95 117 ms, p99 200 ms, one over 1 s, footprint max 4 759 MiB; 725 median 23.7 / mean 22.4 over
+      47 s, footprint max 4 727 MiB.
+    - **Thermal throttling is what changed (hw= field):** from t=49 s ("serious" again) the clock of the time on
+      performance cores falls from 2.6-3.6 GHz to 1.3-2.0 GHz and the threads' wait for a core rises from 27-50 %
+      of their CPU time to 148-1 008 % (they wait 1.5 to 10 times as long as they run); FPS falls from 30 to 6-22
+      within seconds. en= 0.8-3.2 W (performance cores 0.5-2.9 W).
+    - **Lot 14 (adapt_remap_sweep_range) refuted on the device:** counts do not depend on the clock: changed pool
+      ids per game frame 235 (725) -> 268 (726), array-delta calls per frame 3.66 -> 3.31; arrayDelta wall per call
+      1.22 -> 1.95 ms (the throttled CPU). The remap sweep is not what changes these ids; the change stays harmless
+      (same digests in its gate) and can be kept or reverted at the integration owner's choice.
+    - **Native heap owners (task #42; [MeloNX:heap], 120 s window, live 702 MiB of DefaultMallocZone 899/980 MiB;
+      names from the Core 735 artifact's symbol map and `nm -n` of the pinned MoltenVK 1.4.2 rebuild, artifact
+      13822530542, binary 99605a2b):** 203 MiB `SPIRVToMSLConverter::setSPIRV` <- `MVKShaderModule` <-
+      `vkCreateShaderModule` <- engine `Shader.Compile` on the background compilation workers: MoltenVK keeps a copy
+      of every live shader module's SPIR-V (it converts it again for each new pipeline configuration; the engine's
+      Shader keeps none); 121 MiB Metal allocations under `MVKShaderLibraryCompiler::newMTLLibrary` and 35 MiB under
+      `newMTLRenderPipelineState` (compiled libraries and pipeline states); 77 MiB `MVKDescriptorPool::Create`
+      (descriptor pools of `DescriptorSetManager`, three stacks, incl. texture arrays' own sets); about 55 MiB the
+      JIT's address tables (`AddressTable.GetPage`); 13 MiB the main pipeline cache merge.
+    - **Next RAM levers (not implemented):** the number of shader modules alive (every program of the disk cache is
+      created at boot) and what each keeps; MoltenVK's descriptor pool preallocation against the pools' sizes. Each
+      needs a host measurement before a device claim.
   - **P0 726 (12 Nov): after a Switch game every launch (PS3 included) was refused "quarantined" — trigger read in
     the attempt's journal: an engine quarantine from a race in the Core's controller manager at close. Fixed at its
     cause in Core 737 (adapt_npad_config_snapshot, frozen here, not delivered) plus the host/Dart retry of `71765f2f`;
