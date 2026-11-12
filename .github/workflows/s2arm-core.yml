@@ -38,11 +38,11 @@ jobs:
           test "$(git -C "$RUNNER_TEMP/s2arm" rev-parse HEAD)" = "$commit"
           python3 "$RUNNER_TEMP/s2arm/runtime/rewriter/prepare_deps.py" "$RUNNER_TEMP/deps"
           # RewindBox's prepare patches (build-utils/s2arm/prepare/patches, in order): the rewriter's progress report.
-          mkdir -p proof
-          : > proof/patches.txt
+          # The list goes into S2ArmPrepare-identity.json; the artifact keeps exactly its four members (engine_pin.py).
+          : > "$RUNNER_TEMP/prepare-patches.txt"
           for patch in $(ls build-utils/s2arm/prepare/patches/*.patch | sort); do
             git -C "$RUNNER_TEMP/s2arm" apply --whitespace=nowarn "$GITHUB_WORKSPACE/$patch"
-            echo "$(basename "$patch") $(shasum -a 256 "$patch" | cut -d' ' -f1)" | tee -a proof/patches.txt
+            echo "$(basename "$patch") $(shasum -a 256 "$patch" | cut -d' ' -f1)" | tee -a "$RUNNER_TEMP/prepare-patches.txt"
           done
       - name: The rewriter patch only reports progress
         run: python3 -B test/s2arm_rewriter_progress_test.py
@@ -60,7 +60,8 @@ jobs:
               'source': os.environ['GITHUB_SHA'],
               's2arm': pin['s2arm']['commit'],
               'dependencies': {name: entry['sha256'] for name, entry in pin['dependencies'].items()},
-              'patches': [{'name': n, 'sha256': h} for n, h in (line.split() for line in open('proof/patches.txt') if line.strip())],
+              'patches': [{'name': n, 'sha256': h} for n, h in
+                          (line.split() for line in open(os.environ['RUNNER_TEMP'] + '/prepare-patches.txt') if line.strip())],
               'sha256': dict(reversed(line.split()) for line in open('proof/sha256.txt').read().splitlines()),
               'xcode': subprocess.run(['xcodebuild', '-version'], capture_output=True, text=True).stdout.split('\n')[0],
           }
