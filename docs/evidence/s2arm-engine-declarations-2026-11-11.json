@@ -29,7 +29,7 @@
   },
   "packages/s2arm_engine_bridge/pubspec.yaml": {
    "before": null,
-   "after": "05e96d74715da74311fc09161d1a000a11803030603ac4a259e33dca776f5563"
+   "after": "be519a9a89560bfe28bd5720c7b8f7d45433005d3f416678e40ac035b91ac319"
   },
   "packages/s2arm_engine_bridge/ios/s2arm_engine_bridge.podspec": {
    "before": null,

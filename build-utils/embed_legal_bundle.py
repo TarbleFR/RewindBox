@@ -69,10 +69,10 @@ CATALOG_CREDIT_DOCUMENTS = (
     "HD_TEXTURE_CATALOG_SOURCES.md",
     "HD_TEXTURE_SOURCES_AND_CREDITS.md",
 )
-# Switch 2 (S2Arm) private test IPA only: an application that carries S2Arm-native-identity.json, which the common IPA
-# never does, ships the S2Arm engine. Its licence and notice texts are collected by the engine producer
-# (s2arm-engine.yml, build-utils/s2arm/engine/collect_licenses.py) from the engine's pinned sources and placed by the
-# test line's launcher in Legal/S2Arm with their manifest; --validate-only --app requires them for such an application.
+# Switch 2 (S2Arm): an application that carries S2Arm-native-identity.json (written by the pinned-engine embed step,
+# components.s2arm) ships the S2Arm engine. Its licence and notice texts are collected by the engine producer
+# (s2arm-engine.yml, build-utils/s2arm/engine/collect_licenses.py) from the engine's pinned sources and placed by that
+# embed step in Legal/S2Arm with their manifest; --validate-only --app requires them for such an application.
 S2ARM_IDENTITY = "S2Arm-native-identity.json"
 S2ARM_LEGAL = "S2Arm"
 S2ARM_NOTICE_MANIFEST = "license-sources.json"
@@ -354,7 +354,7 @@ def main() -> None:
 
     if args.validate_only:
         collect_source_evidence(ROOT, os.environ.get("GITHUB_SHA", ""))
-        # Switch 2 (S2Arm) private test IPA only: with --app, an application that carries the S2Arm identity must ship
+        # Switch 2 (S2Arm): with --app, an application that carries the S2Arm identity must ship
         # the engine's notices; any other application (and no --app) is validated exactly as before.
         if args.app is not None and (args.app / S2ARM_IDENTITY).is_file():
             notices = validate_s2arm_notices(args.app)

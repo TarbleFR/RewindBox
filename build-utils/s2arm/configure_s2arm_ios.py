@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Add the Switch 2 (S2Arm) engine's JIT helper extension to the generated iOS host (private test IPA only).
+"""Add the Switch 2 (S2Arm) engine's JIT helper extension to the generated iOS host (delivery step, components.s2arm).
 
 The helper part of build-utils/configure_rpcs3_ios_v1.py (configure_helper_files, configure_podfile,
 configure_xcode_project), renamed: the S2ArmJITHelper extension target (S2ArmJITHelper.appex, bundle
