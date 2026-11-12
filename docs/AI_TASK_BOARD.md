@@ -5400,7 +5400,7 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 ### Switch 2 playlist (S2Arm) feasibility prototype — session 04
 
 - **Owner/branch:** session `012mUASj3EQnvC86WC56AePw`, `work/s2arm-switch2-prototype-20261110`
-  (merged with `Claude` `c5e09298` in `0a54d048`). Own paths: `packages/s2arm_engine_bridge/`, `native/s2arm/`,
+  (level with `Claude` `de72efdd`). Own paths: `packages/s2arm_engine_bridge/`, `native/s2arm/`,
   `build-utils/s2arm/`, `tools/s2arm_prototype/`, `.github/workflows/s2arm-*.yml`, `docs/s2arm-*.md`.
 - **Goal:** a Switch 2 playlist on S2Arm, games prepared on the phone. The device probe ships in
   a common IPA by maintainer decision (below); the rest stays on this branch.
@@ -5533,8 +5533,25 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - First pin attempt, run 43185240791, refused the artifact: it held a fifth member, `patches.txt`. Fixed in
       `a6f958fd`.
     - Not observed on a device. The pass shares are estimates until a journal gives the durations.
-  - **Relaunch in the same session (maintainer, 12 Nov): step 1 built, verified pin `930a84b0`, sent to main for a later
-    IPA.** The maintainer chose to ship the progress lot first (IPA 729). Plan, inventory, design and review:
+  - **IPA 729 device report (maintainer, 12 Nov, app.log): Mario Kart World, the app ended during the rewrite of main.**
+    - Observed:
+      - The import was cloned (22239 MB) and the status was available.
+      - Preparation: unpack, code at 131 s, `addr_need`, `nro`, then `main` at 160 s.
+      - Then the app ended with no message, at about 6 %. 6 % is the start of main: its LOAD and PREPASS passes report
+        only when they begin.
+    - Not settled: memory (iOS ends an app over its limit silently; the rewriter was written for a computer, and its own
+      comment cites a 15.8 GB peak on another large game before a fix) or a crash.
+    - Asked of the maintainer: `Documents/Diagnostics/S2Arm/s2arm-journal.jsonl` and the iOS report (`JetsamEvent-…` or
+      a crash `.ips`).
+    - Commit `0984b3d4` changes the bridge only. Green: iOS compile 43214401741, library 43214401673.
+      - The code stage runs on its own 16 MB-stack thread. The rewriter's spin walk can need over 540 KB, more than a
+        GCD worker's 512 KB; it was validated on a command-line main thread (8 MB).
+      - The journal records phys_footprint and os_proc_available_memory at each phase's start and end, and every
+        256 MB of growth.
+    - Next: read the two files. If it is memory, reduce the rewriter's peak or split main.
+  - **Relaunch in the same session (maintainer, 12 Nov): step 1 built, verified pin `930a84b0`, merged on Claude by
+    main as `de72efdd`.** It is queued for the next IPA, which main builds only on the maintainer's request. The
+    maintainer chose to ship the progress lot first (IPA 729). Plan, inventory, design and review:
     `docs/s2arm-relaunch-in-session.md`.
     - Pin `930a84b0`: engine-pin.json SHA-256 `77da9cf1…39ee`, the bytes the pin job printed in run 43206559527 (draft
       `adb5e935`).
