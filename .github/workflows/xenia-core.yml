@@ -23,8 +23,8 @@ on:
 permissions:
   contents: read
 concurrency:
-  # A Core build has its own group: a later checks-only push never cancels it.
-  group: xenia-native-core-${{ github.ref }}-${{ contains(github.event.head_commit.message, '[xenia-core]') && github.sha || 'checks' }}
+  # A Core build or a pin has its own group: a later checks-only push never cancels it.
+  group: xenia-native-core-${{ github.ref }}-${{ (contains(github.event.head_commit.message, '[xenia-core]') || contains(github.event.head_commit.message, '[xenia-pin run=')) && github.sha || 'checks' }}
   cancel-in-progress: true
 jobs:
   checks:
@@ -306,3 +306,91 @@ jobs:
           path: build/xenia-diagnostics/
           if-no-files-found: error
           retention-days: 7
+  # Pins a XeniaCore artifact the core job built: it is downloaded by id through
+  # the REST API (the component session cannot reach the artifact store), then
+  # core_pin.py pin (with codesign's report of the converter from that run's
+  # diagnostics) and core_pin.py verify run on the real zip. The log prints
+  # core-pin.json, its SHA-256 and its exact bytes (base64) for the component to
+  # commit. Uploads nothing. A push whose commit message contains
+  # [xenia-pin run=<id>] runs it.
+  pin:
+    name: Pin a built XeniaCore artifact (prints core-pin.json, uploads nothing)
+    if: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[xenia-pin run=') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Authenticate the producing run and its artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          set -euo pipefail
+          run="$(printf '%s\n' "$MESSAGE" | sed -nE 's/.*\[xenia-pin run=([0-9]+)\].*/\1/p' | head -n 1)"
+          [ -n "$run" ] || { echo "::error::No [xenia-pin run=<id>] in the commit message"; exit 1; }
+          mkdir -p "$RUNNER_TEMP/pin"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run" > "$RUNNER_TEMP/pin/run.json"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs?per_page=100" > "$RUNNER_TEMP/pin/jobs.json"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/artifacts?per_page=100" > "$RUNNER_TEMP/pin/artifacts.json"
+          python3 - "$RUNNER_TEMP/pin" >> "$GITHUB_ENV" <<'PY'
+          import json, sys
+          from pathlib import Path
+          folder = Path(sys.argv[1])
+          run = json.loads((folder / 'run.json').read_text())
+          if (run['path'] != '.github/workflows/xenia-core.yml' or run['status'] != 'completed' or
+                  run['conclusion'] != 'success'):
+              sys.exit(f"run {run['id']} is not a successful xenia-core.yml run")
+          head = run['head_sha']
+          jobs = [job for job in json.loads((folder / 'jobs.json').read_text())['jobs']
+                  if job['name'] == 'Compile pinned XeniaCore iOS framework']
+          if len(jobs) != 1 or jobs[0]['conclusion'] != 'success' or jobs[0]['run_attempt'] != run['run_attempt']:
+              sys.exit('the core job of that run did not succeed in its latest attempt')
+          artifacts = json.loads((folder / 'artifacts.json').read_text())['artifacts']
+          def one(name):
+              found = [item for item in artifacts if item['name'] == name and not item['expired']]
+              if len(found) != 1 or not str(found[0].get('digest', '')).startswith('sha256:'):
+                  sys.exit(f'not exactly one unexpired artifact {name} with a digest')
+              return found[0]
+          core, diagnostics = one('XeniaCore-' + head), one('XeniaCore-diagnostics-' + head)
+          print(f"PIN_RUN={run['id']}\nPIN_ATTEMPT={run['run_attempt']}\nPIN_JOB={jobs[0]['id']}")
+          print(f"PIN_ARTIFACT={core['id']}\nPIN_NAME={core['name']}\nPIN_EXPIRES={core['expires_at']}")
+          print(f"PIN_DIGEST={core['digest']}\nPIN_BYTES={core['size_in_bytes']}")
+          print(f"PIN_DIAGNOSTICS={diagnostics['id']}\nPIN_DIAGNOSTICS_DIGEST={diagnostics['digest']}")
+          PY
+      - name: Download both artifacts by id and check their digests
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          fetch() {
+            curl -fsSL --retry 3 -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' \
+              -o "$2" "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/$1/zip"
+          }
+          fetch "$PIN_ARTIFACT" "$RUNNER_TEMP/pin/XeniaCore.zip"
+          fetch "$PIN_DIAGNOSTICS" "$RUNNER_TEMP/pin/diagnostics.zip"
+          test "sha256:$(sha256sum "$RUNNER_TEMP/pin/XeniaCore.zip" | cut -d' ' -f1)" = "$PIN_DIGEST"
+          test "$(stat -c %s "$RUNNER_TEMP/pin/XeniaCore.zip")" = "$PIN_BYTES"
+          test "sha256:$(sha256sum "$RUNNER_TEMP/pin/diagnostics.zip" | cut -d' ' -f1)" = "$PIN_DIAGNOSTICS_DIGEST"
+          unzip -p "$RUNNER_TEMP/pin/diagnostics.zip" shader-converter-signature.txt > "$RUNNER_TEMP/pin/signature.txt"
+          echo "codesign -dvvv of the converter in run $PIN_RUN:"
+          cat "$RUNNER_TEMP/pin/signature.txt"
+      - name: Pin and verify
+        run: |
+          set -euo pipefail
+          python3 build-utils/xenia/core_pin.py pin "$RUNNER_TEMP/pin/XeniaCore.zip" \
+            --run "$PIN_RUN" --job "$PIN_JOB" --attempt "$PIN_ATTEMPT" --artifact "$PIN_ARTIFACT" \
+            --name "$PIN_NAME" --expires "$PIN_EXPIRES" --converter-signature "$RUNNER_TEMP/pin/signature.txt" > /dev/null
+          python3 build-utils/xenia/core_pin.py verify "$RUNNER_TEMP/pin/XeniaCore.zip"
+          echo "core-pin.json SHA-256: $(sha256sum build-utils/xenia/core-pin.json | cut -d' ' -f1)"
+          echo "core-pin.json base64 (exact bytes):"
+          base64 -w0 build-utils/xenia/core-pin.json
+          echo
+          cat build-utils/xenia/core-pin.json
