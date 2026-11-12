@@ -13,7 +13,7 @@ index 1dc7b36..795b39a 100644
 +  include("${NEO_XENIA_ADAPTER_DIR}/core/target.cmake")
 +endif()
 diff --git a/src/xenia/app/xenia_main_ios.mm b/src/xenia/app/xenia_main_ios.mm
-index 4228f01..f5afc90 100644
+index 4228f01..a225206 100644
 --- a/src/xenia/app/xenia_main_ios.mm
 +++ b/src/xenia/app/xenia_main_ios.mm
 @@ -62,6 +62,11 @@
@@ -86,7 +86,18 @@ index 4228f01..f5afc90 100644
      app_context().CallInUIThread([this]() {
        ApplyGuestDisplayRefreshCapToWindowFromUIThread(cvars::guest_display_refresh_cap);
      });
-@@ -2515,6 +2539,9 @@ void EmulatorAppIOS::EmulatorThread(const std::filesystem::path& game_path,
+@@ -2372,6 +2396,10 @@ void EmulatorAppIOS::EmulatorThread(const std::filesystem::path& game_path,
+     emulator_cpu_initialized_.store(require_cpu_backend, std::memory_order_release);
+     static_cast<ui::IOSWindowedAppContext&>(app_context()).SetProfileServicesReady(true);
+     XELOGI("iOS: Emulator setup complete");
++#if XE_NEO_EMBEDDED_CORE
++    // RewindBox has no profile screen: player 1 is signed in before any title runs.
++    NeoXeniaNotifyKernelReady();
++#endif
+ 
+     if (!launched_with_game) {
+       app_context().CallInUIThread([this]() {
+@@ -2515,6 +2543,9 @@ void EmulatorAppIOS::EmulatorThread(const std::filesystem::path& game_path,
      }
  
      XELOGI("iOS: Game launched successfully");
@@ -96,7 +107,7 @@ index 4228f01..f5afc90 100644
      // A shader wait that began before the GPU existed.
      ApplyCompileThreadBoost();
      if (g_graphics_is_metal.load(std::memory_order_acquire)) {
-@@ -2542,9 +2569,11 @@ void EmulatorAppIOS::EmulatorThread(const std::filesystem::path& game_path,
+@@ -2542,9 +2573,11 @@ void EmulatorAppIOS::EmulatorThread(const std::filesystem::path& game_path,
  }
  
  std::unique_ptr<apu::AudioSystem> EmulatorAppIOS::CreateAudioSystem(cpu::Processor* processor) {
@@ -108,7 +119,7 @@ index 4228f01..f5afc90 100644
    const std::string apu_name = cvars::apu;
    if (apu_name == "phase") {
      XELOGI("Audio backend: PHASE (spatial) selected via --apu/apu cvar");
-@@ -2581,6 +2610,11 @@ std::vector<std::unique_ptr<hid::InputDriver>> EmulatorAppIOS::CreateInputDriver
+@@ -2581,6 +2614,11 @@ std::vector<std::unique_ptr<hid::InputDriver>> EmulatorAppIOS::CreateInputDriver
      ui::Window* window) {
    std::vector<std::unique_ptr<hid::InputDriver>> drivers;
  
@@ -120,7 +131,7 @@ index 4228f01..f5afc90 100644
    auto touch_driver = xe::hid::touch::Create(window, kZOrderHidInput);
    if (touch_driver && XSUCCEEDED(touch_driver->Setup())) {
      drivers.emplace_back(std::move(touch_driver));
-@@ -2591,10 +2625,19 @@ std::vector<std::unique_ptr<hid::InputDriver>> EmulatorAppIOS::CreateInputDriver
+@@ -2591,10 +2629,19 @@ std::vector<std::unique_ptr<hid::InputDriver>> EmulatorAppIOS::CreateInputDriver
    if (drivers.empty()) {
      drivers.emplace_back(xe::hid::nop::Create(window, kZOrderHidInput));
    }

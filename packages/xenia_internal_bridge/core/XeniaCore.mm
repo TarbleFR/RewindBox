@@ -37,8 +37,10 @@
 #include "xenia/base/system_ios.h"
 #include "xenia/hid/input.h"
 #include "xenia/hid/input_driver.h"
+#include "xenia/ui/ios/app/ios_lifecycle_audio_session.h"
 #include "xenia/ui/ios/app/windowed_app_context_ios.h"
 #import "xenia/ui/ios/game/ios_metal_view.h"
+#import "xenia/ui/ios/shared/ios_alert_actions.h"
 #include "xenia/ui/ios/shared/ios_system_utils.h"
 #include "xenia/ui/windowed_app.h"
 #include "xenia/xbox.h"
@@ -125,6 +127,241 @@ void Emit(const char* event, const std::string& message) {
   if (callback && transaction) callback(context, transaction, event, message.c_str());
 }
 
+NSString* ToNS(const std::string& text) {
+  NSString* value = text.empty() ? nil : [NSString stringWithUTF8String:text.c_str()];
+  return value ?: @"";
+}
+
+// UIKit's own translation of a standard button title (Cancel, OK), so a
+// guest prompt follows the device language without an English fallback in
+// the Core; the key itself when UIKit has none.
+NSString* SystemButtonTitle(NSString* key) {
+  return [[NSBundle bundleForClass:UIApplication.class] localizedStringForKey:key
+                                                                       value:key
+                                                                       table:nil];
+}
+
+// The guest's prompts (message boxes, keyboard) are presented on the window
+// that shows the render view, i.e. on top of the bridge's session; never on
+// the host controller, which is in no window (XeniaPresentGuestPrompt answers
+// a prompt it cannot show as cancelled: the title-screen sign-in of the first
+// booted run). Main thread.
+UIViewController* PromptRoot() {
+  UIWindow* window = g_view.window;
+  if (!window) {
+    for (UIScene* scene in UIApplication.sharedApplication.connectedScenes) {
+      if (![scene isKindOfClass:UIWindowScene.class]) continue;
+      for (UIWindow* candidate in ((UIWindowScene*)scene).windows) {
+        if (candidate.isKeyWindow) {
+          window = candidate;
+          break;
+        }
+      }
+      if (window) break;
+    }
+  }
+  return window.rootViewController;
+}
+
+// IOSWindowedAppContext::PromptMessageBoxUI (windowed_app_context_ios.mm)
+// on PromptRoot(): the first Cancel/No/Back of several buttons gets the
+// cancel style, the guest's default is the preferred action, and an alert
+// that cannot be shown or is dismissed (B on a controller) is cancelled.
+bool PromptMessageBox(const std::string& title, const std::string& text,
+                      const std::vector<std::string>& buttons, uint32_t default_button,
+                      uint32_t* selected_out) {
+  NSMutableArray<NSString*>* names = [NSMutableArray array];
+  for (const auto& button : buttons) [names addObject:button.empty() ? @"OK" : ToNS(button)];
+  if (!names.count) [names addObject:@"OK"];
+  const uint32_t preferred = std::min<uint32_t>(default_button, uint32_t(names.count - 1));
+  if (selected_out) *selected_out = preferred;
+  // The answer cannot be waited for on main; the guest asks from a worker.
+  if ([NSThread isMainThread]) return false;
+  NSString* titleNS = ToNS(title);
+  NSString* textNS = ToNS(text);
+  dispatch_semaphore_t done = dispatch_semaphore_create(0);
+  __block uint32_t picked = preferred;
+  __block BOOL answered = NO;
+  dispatch_async(dispatch_get_main_queue(), ^{
+    UIAlertController* alert =
+        [UIAlertController alertControllerWithTitle:titleNS.length ? titleNS : nil
+                                            message:textNS.length ? textNS : nil
+                                     preferredStyle:UIAlertControllerStyleAlert];
+    BOOL hasCancel = NO;
+    for (NSUInteger index = 0; index < names.count; ++index) {
+      UIAlertActionStyle style = UIAlertActionStyleDefault;
+      if (!hasCancel && names.count > 1) {
+        for (NSString* cancel in @[ @"Cancel", @"No", @"Back" ]) {
+          if ([names[index] caseInsensitiveCompare:cancel] == NSOrderedSame) {
+            style = UIAlertActionStyleCancel;
+            hasCancel = YES;
+            break;
+          }
+        }
+      }
+      UIAlertAction* action = [UIAlertAction actionWithTitle:names[index]
+                                                       style:style
+                                                     handler:^(UIAlertAction*) {
+                                                       picked = uint32_t(index);
+                                                       answered = YES;
+                                                       dispatch_semaphore_signal(done);
+                                                     }];
+      [alert addAction:action];
+      if (index == preferred) alert.preferredAction = action;
+    }
+    XeniaAlertSetCancelHandler(alert, ^{
+      dispatch_semaphore_signal(done);
+    });
+    XeniaPresentGuestPrompt(PromptRoot(), alert, ^{
+      dispatch_semaphore_signal(done);
+    });
+  });
+  dispatch_semaphore_wait(done, DISPATCH_TIME_FOREVER);
+  if (selected_out) *selected_out = picked;
+  return answered;
+}
+
+// The guest keyboard (XamShowKeyboardUI), as XeniOS's
+// presentSystemKeyboardPromptWithTitle (ios_main_view_controller.mm) on
+// PromptRoot(): the default text, the guest's length limit, Cancel and OK.
+bool PromptKeyboard(const std::string& title, const std::string& description,
+                    const std::string& default_text, size_t max_length, std::string* text_out,
+                    bool* cancelled_out) {
+  if (cancelled_out) *cancelled_out = true;
+  if ([NSThread isMainThread]) return false;
+  NSString* titleNS = ToNS(title);
+  NSString* descriptionNS = ToNS(description);
+  NSString* defaultNS = ToNS(default_text);
+  dispatch_semaphore_t done = dispatch_semaphore_create(0);
+  __block BOOL cancelled = YES;
+  __block NSString* typed = @"";
+  dispatch_async(dispatch_get_main_queue(), ^{
+    UIAlertController* alert =
+        [UIAlertController alertControllerWithTitle:titleNS.length ? titleNS : nil
+                                            message:descriptionNS.length ? descriptionNS : nil
+                                     preferredStyle:UIAlertControllerStyleAlert];
+    [alert addTextFieldWithConfigurationHandler:^(UITextField* field) {
+      field.text = defaultNS;
+      field.autocapitalizationType = UITextAutocapitalizationTypeNone;
+      field.autocorrectionType = UITextAutocorrectionTypeNo;
+      field.clearButtonMode = UITextFieldViewModeWhileEditing;
+      if (max_length) XeniaLimitTextFieldLength(field, max_length);
+    }];
+    __weak UIAlertController* weakAlert = alert;
+    [alert addAction:[UIAlertAction actionWithTitle:SystemButtonTitle(@"Cancel")
+                                              style:UIAlertActionStyleCancel
+                                            handler:^(UIAlertAction*) {
+                                              dispatch_semaphore_signal(done);
+                                            }]];
+    UIAlertAction* ok = [UIAlertAction actionWithTitle:SystemButtonTitle(@"OK")
+                                                 style:UIAlertActionStyleDefault
+                                               handler:^(UIAlertAction*) {
+                                                 typed = weakAlert.textFields.firstObject.text ?: @"";
+                                                 cancelled = NO;
+                                                 dispatch_semaphore_signal(done);
+                                               }];
+    [alert addAction:ok];
+    alert.preferredAction = ok;
+    XeniaPresentGuestPrompt(PromptRoot(), alert, ^{
+      dispatch_semaphore_signal(done);
+    });
+  });
+  dispatch_semaphore_wait(done, DISPATCH_TIME_FOREVER);
+  if (text_out) *text_out = std::string(typed.UTF8String ?: "");
+  if (cancelled_out) *cancelled_out = cancelled;
+  return true;
+}
+
+// A title's sign-in (XamShowSigninUI) and the start of every title: RewindBox
+// has no profile screen, so a profile is signed in to the asking player's slot
+// without a prompt: one already there, else the first profile signed in
+// nowhere, else a new one ("RewindBox", then "RewindBox 2"...). XeniOS's
+// ProfileManager then keeps it signed in for the next launches
+// (logged_profile_slot_N_xuid). Without it the first booted titles stayed on
+// their title screen: no profile existed and the sign-in prompt was answered
+// as cancelled. Main thread, as XeniOS's own profile picker, or the emulator
+// thread before any title runs (NeoXeniaNotifyKernelReady).
+bool SignInProfileOnMain(uint32_t user_index) {
+  if (!g_context) return false;
+  const uint32_t slot = user_index < 4 ? user_index : 0;
+  const auto profiles = g_context->ListProfiles();
+  for (const auto& profile : profiles) {
+    if (profile.signed_in && uint32_t(profile.signed_in_slot) == slot) return true;
+  }
+  uint64_t xuid = 0;
+  for (const auto& profile : profiles) {
+    if (!profile.signed_in) {
+      xuid = profile.xuid;
+      break;
+    }
+  }
+  for (size_t number = 1; !xuid && number <= profiles.size() + 1; ++number) {
+    const std::string gamertag =
+        number == 1 ? std::string("RewindBox") : "RewindBox " + std::to_string(number);
+    bool taken = false;
+    for (const auto& profile : profiles) taken = taken || profile.gamertag == gamertag;
+    if (taken) continue;
+    xuid = g_context->CreateProfile(gamertag);
+    if (!xuid) XELOGW("RewindBox: the profile {} could not be created", gamertag);
+    break;
+  }
+  const bool signed_in = xuid && g_context->SignInProfile(xuid, slot);
+  XELOGI("RewindBox: profile sign-in for player {}: {}", slot + 1, signed_in ? "done" : "failed");
+  return signed_in;
+}
+
+bool SignInProfile(uint32_t user_index) {
+  if ([NSThread isMainThread]) return SignInProfileOnMain(user_index);
+  __block bool signed_in = false;
+  dispatch_sync(dispatch_get_main_queue(), ^{
+    signed_in = SignInProfileOnMain(user_index);
+  });
+  return signed_in;
+}
+
+// Rumble of player 1 when it changes (NeoXeniaInputDriver::SetState):
+// "left,right" motor speeds 0..65535, played by the bridge on the pad.
+void ForwardVibration(uint16_t left, uint16_t right) {
+  Emit("vibration", std::to_string(left) + "," + std::to_string(right));
+}
+
+// What XeniOS's lifecycle observer (ios_lifecycle_observer.mm, app layer, not
+// in this Core) adds to the bridge's own pause: a background task until the
+// pause has settled (no GPU or JIT work in flight when iOS suspends the app)
+// and the audio session's background note and restore (a call or Siri that
+// ended without "should resume" left the game silent).
+void InstallLifecycleObservers() {
+  NSNotificationCenter* center = NSNotificationCenter.defaultCenter;
+  [center addObserverForName:UIApplicationDidEnterBackgroundNotification
+                      object:nil
+                       queue:NSOperationQueue.mainQueue
+                  usingBlock:^(NSNotification*) {
+                    xe::ui::IOSAudioSessionNoteBackgrounded();
+                    if (!g_context) return;
+                    UIApplication* application = UIApplication.sharedApplication;
+                    __block UIBackgroundTaskIdentifier task = UIBackgroundTaskInvalid;
+                    void (^end)(void) = ^{
+                      if (task == UIBackgroundTaskInvalid) return;
+                      [application endBackgroundTask:task];
+                      task = UIBackgroundTaskInvalid;
+                    };
+                    task = [application beginBackgroundTaskWithName:@"rewindbox.xenia.pause"
+                                                  expirationHandler:end];
+                    if (task == UIBackgroundTaskInvalid) return;
+                    g_context->RunWhenEmulationPauseSettled([end]() {
+                      dispatch_async(dispatch_get_main_queue(), end);
+                    });
+                    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, int64_t(4 * NSEC_PER_SEC)),
+                                   dispatch_get_main_queue(), end);
+                  }];
+  [center addObserverForName:UIApplicationDidBecomeActiveNotification
+                      object:nil
+                       queue:NSOperationQueue.mainQueue
+                  usingBlock:^(NSNotification*) {
+                    xe::ui::IOSAudioSessionRestoreIfNeeded("app became active");
+                  }];
+}
+
 bool IsManaged(const std::string& key) {
   for (const char* managed : kManagedKeys) {
     if (key == managed) return true;
@@ -194,6 +431,13 @@ bool InitializeOnMain(std::string* failure) {
       Emit("error", why);
     });
     g_context->set_game_stop_stuck_callback([]() { Emit("stopStuck", ""); });
+    // The app-layer prompts of XeniaAppDelegate that a title can wait on.
+    g_context->set_signin_ui_prompt_callback(
+        [](uint32_t user_index, uint32_t /*users_needed*/) { return SignInProfile(user_index); });
+    g_context->set_message_box_prompt_callback(PromptMessageBox);
+    g_context->set_keyboard_prompt_callback(PromptKeyboard);
+    g_vibration_sink = ForwardVibration;
+    InstallLifecycleObservers();
     // The steps of XeniaAppDelegate (ui/ios/app/ios_app_delegate.mm:95-268)
     // that the Core needs, without its launcher, JIT hand-off or crash log.
     [g_view layoutIfNeeded];
@@ -381,6 +625,8 @@ void SetPaused(int paused) {
 void RequestStop(void) {
   if (!g_context) return;
   dispatch_async(dispatch_get_main_queue(), ^{
+    // A guest waiting on a prompt would hold its thread through the stop.
+    XeniaCancelGuestAlerts(PromptRoot());
     g_context->SetEmulationPaused(Reason::kUser, false);
     g_context->TerminateCurrentGame();
   });
@@ -504,7 +750,20 @@ void NeoXeniaApplyLaunchOverrides() {
   XELOGI("RewindBox: {} launch override(s) applied", overrides.size());
 }
 
+void NeoXeniaNotifyKernelReady() {
+  // On the emulator thread, before any guest thread: XeniOS's profile calls
+  // only reach the ProfileManager here (the picture cache is synchronized),
+  // and a later title start in this process signs in again below.
+  SignInProfileOnMain(0);
+}
+
 void NeoXeniaNotifyTitleLaunched() {
+  // A title of a later launch in this process (the kernel is kept): player 1
+  // is signed in again if a title signed them out.
+  neo_xenia::g_vibration.store(0, std::memory_order_relaxed);
+  dispatch_async(dispatch_get_main_queue(), ^{
+    SignInProfileOnMain(0);
+  });
   SetTitleState(TitleState::kRunning);
   Emit("firstFrame", "title launched");
 }

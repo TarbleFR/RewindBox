@@ -1,0 +1,12 @@
+version = 1
+# Machine-readable licensing (https://reuse.software) for RewindBox's own Dart
+# application code, which carries no per-file header. A file's own SPDX header
+# takes precedence ("closest"). Third-party code elsewhere in the repository
+# (packages/*/ios/ThirdParty, vendored engines, assets) keeps its own notices
+# and is not covered here; see NOTICE.md and assets/legal/THIRD_PARTY_NOTICES.md.
+
+[[annotations]]
+path = ["lib/**"]
+precedence = "closest"
+SPDX-FileCopyrightText = "2025-2026 Miguel Soto (NeoStation) and contributors; 2026 TarbleFR (RewindBox) and contributors"
+SPDX-License-Identifier = "GPL-3.0-or-later"

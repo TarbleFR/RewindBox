@@ -102,6 +102,7 @@ jobs:
           python3 -m py_compile             build-utils/embed_legal_bundle.py             build-utils/validate_legal_bundle_ipa.py
           python3 test/legal_bundle_preflight_test.py
           python3 test/build_source_evidence_test.py
+          python3 test/legal_modifications_notice_test.py
           python3 test/locked_package_sources_test.py
           python3 tools/system_art/canvas_es_de.py --check
 

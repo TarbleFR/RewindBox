@@ -19,7 +19,7 @@ or library is embedded.
   s.dependency 'neo_touch_layout'
   s.platform = :ios, '18.0'
   s.ios.deployment_target = '18.0'
-  s.frameworks = 'UIKit', 'Foundation', 'GameController', 'QuartzCore', 'Security'
+  s.frameworks = 'UIKit', 'Foundation', 'GameController', 'QuartzCore', 'Security', 'CoreHaptics'
   s.libraries = 'c++'
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',

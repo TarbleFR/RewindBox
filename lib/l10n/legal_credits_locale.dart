@@ -83,6 +83,35 @@ abstract final class LegalCreditsLocale {
     'zh_Hant': 'RewindBox 建構於多個開源專案之上。每個元件均保留其自身授權與作者資訊。署名不代表相關專案對 RewindBox 的認可。',
   };
 
+  // Free software, no warranty, source; no affiliation with console makers;
+  // no game, BIOS, firmware or key included.
+  static const Map<String, String> _disclaimers = {
+    'de':
+        'RewindBox ist freie Software unter der GNU GPL Version 3 oder später und wird ohne jede Gewährleistung bereitgestellt; der Quellcode ist auf github.com/TarbleFR/RewindBox veröffentlicht. RewindBox ist nicht mit Nintendo, Sony Interactive Entertainment, Microsoft, Sega oder einem anderen Konsolenhersteller verbunden und wird von ihnen weder unterstützt noch gesponsert; ihre Namen und Marken gehören ihren Inhabern und dienen nur zur Bezeichnung kompatibler Systeme. Es sind keine Spiele, BIOS, Firmware oder Schlüssel enthalten: Verwende nur Inhalte, die du rechtmäßig nutzen darfst.',
+    'en':
+        'RewindBox is free software under the GNU GPL version 3 or later, provided without any warranty; its source is published at github.com/TarbleFR/RewindBox. It is not affiliated with, endorsed or sponsored by Nintendo, Sony Interactive Entertainment, Microsoft, Sega or any other console maker; their names and trademarks belong to their owners and only identify compatible systems. No game, BIOS, firmware or key is included: use only content you are legally entitled to use.',
+    'es':
+        'RewindBox es software libre bajo la GNU GPL versión 3 o posterior y se ofrece sin ninguna garantía; su código fuente está publicado en github.com/TarbleFR/RewindBox. No está afiliado, respaldado ni patrocinado por Nintendo, Sony Interactive Entertainment, Microsoft, Sega ni ningún otro fabricante de consolas; sus nombres y marcas pertenecen a sus titulares y solo identifican los sistemas compatibles. No incluye juegos, BIOS, firmware ni claves: usa solo contenido que tengas derecho a usar legalmente.',
+    'fr':
+        'RewindBox est un logiciel libre sous GNU GPL version 3 ou ultérieure, fourni sans aucune garantie ; son code source est publié sur github.com/TarbleFR/RewindBox. Il n’est ni affilié, ni approuvé, ni sponsorisé par Nintendo, Sony Interactive Entertainment, Microsoft, Sega ou tout autre fabricant de consoles ; leurs noms et marques appartiennent à leurs titulaires et servent uniquement à désigner les systèmes compatibles. Aucun jeu, BIOS, firmware ni clé n’est inclus : n’utilisez que des contenus que vous avez légalement le droit d’utiliser.',
+    'id':
+        'RewindBox adalah perangkat lunak bebas di bawah GNU GPL versi 3 atau yang lebih baru, disediakan tanpa jaminan apa pun; kode sumbernya diterbitkan di github.com/TarbleFR/RewindBox. RewindBox tidak berafiliasi dengan, tidak didukung, dan tidak disponsori oleh Nintendo, Sony Interactive Entertainment, Microsoft, Sega, atau produsen konsol lainnya; nama dan merek dagang mereka milik pemiliknya dan hanya menunjukkan sistem yang kompatibel. Tidak ada game, BIOS, firmware, atau kunci yang disertakan: gunakan hanya konten yang secara sah boleh Anda gunakan.',
+    'it':
+        'RewindBox è software libero sotto la GNU GPL versione 3 o successiva, fornito senza alcuna garanzia; il codice sorgente è pubblicato su github.com/TarbleFR/RewindBox. Non è affiliato, approvato né sponsorizzato da Nintendo, Sony Interactive Entertainment, Microsoft, Sega o altri produttori di console; i loro nomi e marchi appartengono ai rispettivi titolari e servono solo a indicare i sistemi compatibili. Non sono inclusi giochi, BIOS, firmware né chiavi: usa solo contenuti che hai il diritto legale di usare.',
+    'ja':
+        'RewindBox は GNU GPL バージョン 3 以降のもとで提供されるフリーソフトウェアで、いかなる保証もありません。ソースコードは github.com/TarbleFR/RewindBox で公開されています。Nintendo、Sony Interactive Entertainment、Microsoft、Sega その他のゲーム機メーカーとは提携しておらず、承認や支援も受けていません。各社の名称と商標はそれぞれの権利者に帰属し、対応システムを示すためにのみ使用しています。ゲーム、BIOS、ファームウェア、キーは含まれていません。法的に使用が認められたコンテンツのみを使用してください。',
+    'ko':
+        'RewindBox는 GNU GPL 버전 3 이상에 따른 자유 소프트웨어이며 어떠한 보증도 없이 제공됩니다. 소스 코드는 github.com/TarbleFR/RewindBox에 공개되어 있습니다. Nintendo, Sony Interactive Entertainment, Microsoft, Sega 또는 기타 콘솔 제조사와 제휴하거나 그들로부터 승인 또는 후원을 받지 않았습니다. 해당 이름과 상표는 각 소유자에게 있으며 호환 시스템을 표시하는 용도로만 사용됩니다. 게임, BIOS, 펌웨어, 키는 포함되어 있지 않습니다. 합법적으로 사용할 권리가 있는 콘텐츠만 사용하세요.',
+    'pt':
+        'O RewindBox é software livre sob a GNU GPL versão 3 ou posterior e é fornecido sem qualquer garantia; o código-fonte está publicado em github.com/TarbleFR/RewindBox. Não é afiliado, endossado nem patrocinado pela Nintendo, Sony Interactive Entertainment, Microsoft, Sega ou qualquer outro fabricante de consoles; seus nomes e marcas pertencem aos respectivos titulares e apenas identificam os sistemas compatíveis. Nenhum jogo, BIOS, firmware ou chave está incluído: use apenas conteúdo que você tem o direito legal de usar.',
+    'ru':
+        'RewindBox — свободное программное обеспечение по лицензии GNU GPL версии 3 или более поздней, предоставляемое без каких-либо гарантий; исходный код опубликован на github.com/TarbleFR/RewindBox. Приложение не связано с Nintendo, Sony Interactive Entertainment, Microsoft, Sega или другими производителями консолей и не одобрено и не спонсируется ими; их названия и товарные знаки принадлежат правообладателям и лишь обозначают совместимые системы. Игры, BIOS, прошивки и ключи не входят в комплект: используйте только контент, который вы вправе использовать законно.',
+    'zh':
+        'RewindBox 是依据 GNU GPL 第 3 版或更高版本发布的自由软件，不提供任何担保；其源代码发布于 github.com/TarbleFR/RewindBox。RewindBox 与 Nintendo、Sony Interactive Entertainment、Microsoft、Sega 或任何其他游戏机厂商均无关联，也未获得其认可或赞助；相关名称和商标归其各自所有者所有，仅用于标识兼容的系统。不包含任何游戏、BIOS、固件或密钥：请仅使用您有合法权利使用的内容。',
+    'zh_Hant':
+        'RewindBox 是依據 GNU GPL 第 3 版或更新版本發布的自由軟體，不提供任何擔保；其原始碼發布於 github.com/TarbleFR/RewindBox。RewindBox 與 Nintendo、Sony Interactive Entertainment、Microsoft、Sega 或任何其他遊戲主機廠商均無關聯，亦未獲其認可或贊助；相關名稱與商標歸其各自所有者所有，僅用於標示相容的系統。不包含任何遊戲、BIOS、韌體或金鑰：請僅使用您有合法權利使用的內容。',
+  };
+
   static const Map<String, String> _fullRecords = {
     'de': 'Vollständige Hinweise und Quellen',
     'en': 'Full notices and source records',
@@ -149,6 +178,8 @@ abstract final class LegalCreditsLocale {
   static String dialogTitle(BuildContext context) =>
       _lookup(_dialogTitles, context);
   static String intro(BuildContext context) => _lookup(_intros, context);
+  static String disclaimer(BuildContext context) =>
+      _lookup(_disclaimers, context);
   static String fullRecord(BuildContext context) =>
       _lookup(_fullRecords, context);
   static String close(BuildContext context) => _lookup(_closeLabels, context);
