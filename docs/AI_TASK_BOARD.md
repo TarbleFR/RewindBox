@@ -5723,8 +5723,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   reason); review regenerated (62375c11f: pin, producer, binary, fingerprint, 5 recipe files; recipe commit
   c579a0e7b), review gate test OK. Merged with Claude c192962e (ea373c3a7, no conflict): Xbox 360 Python checks,
   storage contract and Dart suites 59/59 OK. The 727 manifest and evidence keep pin 7e13268b (delivered); the next
-  manifest must name c00755f6. Next: macOS run of ea373c3a7, handoff to 00; device check = `codeRegion=host` or
-  `own` in the `XeniOS JIT:` line, then boot.
+  manifest must name c00755f6. macOS run 43166070527 on ea373c3a7 green (checks incl. the review gate,
+  plugin_app); delivery contract: 5 errors, the same set as Claude c192962e alone (none Xenia; Xenia schema tests
+  pass). Handed off to 00 (12 Nov). Shared layer: xenia-core.yml pin selection only. Next: the device run on the
+  next IPA: `codeRegion=host` or `own` in the `XeniOS JIT:` line, then boot.
 - **Validation (Flutter 3.47.2 host):** 11 Nov: XeniOS + catalog/Consoles/touch suites
   91/91, scanner suites 41/41 (1 skip), storage contract 24/24, patch/validator/touch/C++
   checks OK, analyzer 111 = baseline. Earlier: new XeniOS + catalog/Consoles tests 65/65;
