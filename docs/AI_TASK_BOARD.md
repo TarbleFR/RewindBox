@@ -359,7 +359,32 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     `Claude-Session` line.
   - **Next:** download, verify offline, receipts, record, delete the key, send the file; give session 04 the freeze
     commit for 803 (sibling of 726).
-- **Next IPA (730) queue (main, 12 Nov 12:05Z).** Build only when the maintainer asks.
+- **IPA 730 delivered and verified (12 Nov 13:5xZ, main).**
+  - Built on session 03's green light (code head fecc05ad, merged on Claude with --no-ff as 1732871f).
+  - Run `43226062701` attempt 1, trigger `3cea0357`, frozen on `4c5763ca`, effective digest `94378cd1`, 7922 product
+    files. All 5 jobs succeeded on the first request.
+  - IPA `RewindBox-730.ipa`: 329525542 B, SHA-256 `7674ec257012739678cee567c535fd5899577e4060e9cd86d55e346bf957009c`.
+  - Contents:
+    - XeniaCore pin 2d176a7f (d7ad7e834): 8 GB code-region limit lifted for the full-width StikJIT, no host
+      reservation; attach refused before prepare without the full-width transport; host pad enumerated for slot 0;
+    - S2Arm engine pin 175018a2 (fde6f47d): spin pass off on the phone, guest park and resume (patch 0010),
+      preparation diagnostics;
+    - RPCS3 Core 934 and MeloNX Core 743 kept.
+  - Offline verification `passed-offline-checks`:
+    - 97 images; 46 retained fingerprints;
+    - all 6 validators exit 0;
+    - packaged identities name Xenia pin 2d176a7f and S2Arm pin fde6f47d; StikJIT carries the full-width marker.
+  - Changed images: App, Runner, xenia_internal_bridge (declared mustChange), XeniaCore and S2ArmEngine (declared
+    engine images in images.added; the verifier lists them as undeclared because it only reads mustChange). No MeloNX,
+    RPCS3 or libretro image changed this time.
+  - Legal folders: XeniOS 4/4, MetalShaderConverter 3/3 and S2Arm 35/35 match their digests; 9 extensions.
+  - Receipt `docs/evidence/rewind730/delivery.json` (14 proof files + 2 engine receipts). Key shredded; file sent.
+  - Not run on an iPhone. Device checks asked by session 03:
+    - two Xbox 360 launches in a row without restarting the app;
+    - touch and controller input;
+    - app.log `XeniOS JIT:` line with transportFullWidth true and codeRegion own.
+- **Next IPA (730) queue (main, 12 Nov 12:05Z).** Maintainer (12:4xZ): build it as soon as XeniOS (session 03) sends
+  its green light and fixes. Also on Claude: S2Arm pin 175018a2 (spin pass off, MKW stuck fix, cc3af454).
   - On Claude: session 04 S2Arm pin 930a84b0. It carries the prepare patches in the notice, plus relaunch-in-session
     step 1 (de72efdd).
   - Waiting: the session 03 XeniaCore pin, now d7ad7e834. It supersedes dc7c7f4b0 and keeps the EnumerateDevices input
@@ -5159,6 +5184,44 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     in "Standing IPA compilation authorization"). Session 04 hands its frozen commit to main and builds nothing. The
     hook `d32738b5` reached `Claude` with the MeloNX Core 727 merge `c53ad180` and is inert in the common IPA.
 
+- **MeloNX lot 10: stutters, memory, heat, shaders on IPA 729 / Core 743 (Claude Code session
+  01JA5QgKeoGVH5oVjNyhcj3D, 12 Nov; owner: this session for analysis and the next MeloNX Core's GC/retention adapters;
+  the Core number is main's to assign, tentatively 745; no IPA, nothing frozen or delivered is touched):** input IPA 729,
+  Core 743 (source `3d2645ea`, iPhone binary `b1957006…`), private journals core/launch/performance/stderr, pid 58475:
+  Hogwarts gen 1 (session 25431A89, 1x, async shaders on, host memory budget on), then Smash gen 2 in the same process
+  (session 854293EB, 1x, async shaders off, budget off). Not a controlled A/B (different titles, options and memory).
+  - **GC freezes (proof: gcPause/gcEvent lines against the host sampler's `.NET_BGC` CPU, `pres` max gap and `vm=`):**
+    every long gen0 pause in play is the ephemeral collection that starts a background gen2 (its index is the
+    background's + 1 and the background's own first pause is 0.001-0.007 ms): Hogwarts 145/177/186/200 (95-364 ms,
+    BGC 144/176/185/199) and the 816.7 ms gap at 12:50:14 (BGC 226, line budget spent), Smash 236/268/283/291
+    (134-721 ms; 291 = the 733 ms gap, BGC 290). Those seconds also carry a burst of iOS decompressions (Smash
+    6 968-29 334 pages of 16 KiB, i.e. 109-458 MiB, against 100-1 500 outside; Hogwarts 3 439-34 384). A background gen2
+    that starts without an ephemeral (first pause self-accounted, 1.5-25 ms) never coincides with a freeze: from
+    12:51:45 Smash runs keep-alive-paced backgrounds every ~13 s with decompressions near 0 and 16.7 ms gaps.
+    `check_for_ephemeral_alloc` (gc.cpp) runs that ephemeral only when gen0's budget is spent, i.e. for an
+    allocation-triggered background, not for the keep-alive's GC.Collect: the keep-alive (Core 693) is not the cause.
+    Not proven yet: which part of that suspension (ephemeral work, the BGC thread's root scan and restart, waiting on
+    compressed pages) takes the time; no behaviour change until a journal separates them.
+  - **Retention (proof: sessionRetention/retentionChain lines):** after Hogwarts' close, after the final collections,
+    the Switch, GpuContext, statistics, Horizon, kernel, cpuMemory, renderer, audio driver, window, Npad and touch
+    managers, 11/29 service processes and 11/81 KThreads are still reachable; the application process and its CPU
+    context are released. Same at Smash's first frame (6 full collections later, heap 972 MB) and after Smash's close
+    (2/2 sessions). Smash's first-frame compaction keeps gen2 484 MiB and LOH 468 MiB against Hogwarts' 104 and 266:
+    about 570 MiB of the closed session rides into the next game and every background gen2 marks it again. Teardown
+    lines are clean (guest stopped 196/60 ms, GPU released, close passed). Leads read and discarded this time (each
+    releases or never holds the session): NativeGamepadDriver.OnInputUpdated (unsubscribed in the window's dispose),
+    InputManager mouse driver, Npad gamepad events, Apple audio GCHandle and completion block, the static
+    `RenderStageTimer.MemoryUsage` (holds the Vulkan allocator only), the pause pipeline-cache checkpoint work item,
+    TranslatedEntries and other thread statics, BackgroundCompilationScheduler threads, EmbeddedSession/coordinator
+    statics, time zone manager. Root not found by reading.
+  - **Next (this session):** a fresh branch from `Claude` with two adapters and their gates, for main's next MeloNX
+    Core: (1) the pause journal says for each long ephemeral whether it started a background gen2 and whether the
+    keep-alive asked for that background, never drops a pause of 100 ms or more, and gives per-minute counts over
+    100/250/500 ms with the session generation; (2) at close, only when the Switch is still reachable after the final
+    collection, the window shell and then the Switch's own references are cut in stages with a blocking collection and
+    the reachable parts and heap after each, so the first stage that frees the session names the root's entry. Board
+    and handoff to main before any Core build; no IPA from this session.
+
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
   relativeOffset 0x40000018). All five sessions ran ten mutually exclusive resolution cheats at once (Handheld RRS
@@ -6114,6 +6177,46 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   tree, the review a recipe file read from HEAD; they clear when the next manifest freezes 84386936). Handed off
   to 00 (12 Nov); the next manifest must name pinSha256 84386936. Next: device run on the next IPA (launch journal
   and registration line in app.log).
+  Third device run (IPA 729, XeniaCore 84386936): the launch journal reaches `launched` (Fable Anniversary, boot 6 s,
+  about 2170 guest frames), but neither touch nor controller input reached the title; the next launch was refused
+  `jitMemoryUnavailable` (`registration: noRoom (flag)`, 442 MiB free below 8 GB; the booted launch had 687 MiB).
+  Input cause: XeniOS's InputSystem binds guest slots only to enumerated devices (ReconcileBindings at
+  InputSystem::Setup); NeoXeniaInputDriver enumerated none. Fix dc7c7f4b0 [xenia-core]: one auto-bound device
+  `rewindbox-host-pad` for slot 0 (facade C++ check and patch test). Its build was superseded by d7ad7e834
+  [xenia-core] (maintainer: no launch may depend on free address space): XeniOS keeps the code region below 8 GB
+  only because StikDebug 3.1.x drops high address bits; RewindBox's StikJIT writes 16 hex digits
+  (patch_stikjit_rpcs3.py, marker required by validate_stikjit_ipa.py, RPCS3's 0x7000000000 arena relies on it);
+  the A64 code cache uses its encoded indirection on iOS. Patch: weak `NeoXeniaExecuteRegionLimit` hook right after
+  `kExecuteRegionLimit` (external linkage checked with clang/nm), facade returns 2^47; the bridge's 512 MiB
+  reservation, its flag and the free-space measurement removed (nothing else reads `RBXeniaReserveCodeRegion`; the
+  key left in 728/729 users' defaults is unused). Main's merge conditions:
+  (1) every attach path through the full-width StikJIT, else refused before attach, with a test: 31f575f6f
+  (bridge/Dart only, no recipe file): the bridge reads `NEOSTATION_STIKJIT_RPCS3_V1` in the app's StikJIT and in
+  any copy inside XeniaJITHelper.appex (`transportFullWidth`); Dart `toolUnsupported` refuses `jitToolUnsupported`
+  (12 locales) before pairing, route or helper; the bridge refuses `jitToolUnverified` (shown `restartRequired`)
+  before the nonce probe and `prepare` when the transport is not full-width or the attached debugger has no live
+  RewindBox handshake (an external StikDebug attached on its own). `test/xenia_jit_transport_test.py` (8 cases, in
+  xenia-core.yml; its step green on macOS, run 43219560296) ties patch -> install -> helper linkage (no embedded copy,
+  runpath ../../Frameworks) -> IPA validator -> bridge -> Dart -> the 2^47 limit; Dart 62/62.
+  (2) no RPCS3/MeloNX regression: no RPCS3, MeloNX, StikJIT or shared file differs from Claude (16 files, all
+  Xbox 360 plus xenia-core.yml). On 1189e73db (merge of Claude 5acf1435, no conflict) and on Claude 5acf1435:
+  the 608 RPCS3/MeloNX/StikJIT Python files give the same result per file (73 pass; 535 need source checkouts,
+  built Cores or the macOS toolchain here); the 58 RPCS3/MeloNX/StikJIT/Switch Dart files, 507 tests, the same
+  4 pre-existing failures (RPCS3 Build 231 x2, rpcs3_saves_locale export report, French lead sentence); delivery
+  contract the same 2 errors; storage contract OK on both.
+  Run 43217888486 (d7ad7e834): checks, plugin_app and core green (compiled, verify_core.py passed, artifact
+  uploaded through the protected action, 12:33-13:03). Pin job 131202057689 (run 43223902046): core-pin.json
+  2d176a7f…fd77 rebuilt byte-identical (job 131182949291, artifact 13946139906, 9,534,484 B, eeed2297…, expires
+  26 Nov; binary 6c511637…e5b7, 37,720,504 B, SDK 26.5, minos 26.0; fingerprint bd6351c0…e662; replaces 84386936
+  with its reason); review rebound (10 recipe digests equal at d7ad7e834), gate test OK. Merged Claude 8c0fc392
+  (cd84c2b24, includes cc3af454, no conflict): Xbox 360 Python checks, storage contract, Dart 62/62 OK; delivery
+  contract = Claude alone + the 2 PocketSkinRevisionReview errors (the 729-frozen product tree still names
+  84386936; they clear when the 730 manifest freezes 2d176a7f). The next manifest must name pinSha256 2d176a7f.
+  Pin and review commit fecc05ada: macOS run 43224531418 green (checks incl. the transport test, the review gate,
+  IPA closed sets, facade C++, bridge compile at the iOS 18 target, helper type-check; plugin_app). Handed off to
+  00 with the XeniOS green light for IPA 730 (12 Nov). Shared layer in this lot: one xenia-core.yml step. Next:
+  device run on IPA 730 (two launches in a row without restart, touch and controller input, the `XeniOS JIT:`
+  line with transportFullWidth true and codeRegion own).
 - **Validation (Flutter 3.47.2 host):** 11 Nov: XeniOS + catalog/Consoles/touch suites
   91/91, scanner suites 41/41 (1 skip), storage contract 24/24, patch/validator/touch/C++
   checks OK, analyzer 111 = baseline. Earlier: new XeniOS + catalog/Consoles tests 65/65;

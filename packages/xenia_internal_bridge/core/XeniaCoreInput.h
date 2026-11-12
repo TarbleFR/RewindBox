@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include <vector>
 
 #include "xenia/base/cvar.h"
 #include "xenia/hid/input.h"
@@ -102,6 +103,22 @@ class NeoXeniaInputDriver final : public xe::hid::InputDriver {
   }
 
   xe::hid::InputType GetInputType() const override { return xe::hid::InputType::Controller; }
+
+  // XeniOS's InputSystem reaches a driver only through the guest-slot
+  // bindings it builds from the devices drivers enumerate (ReconcileBindings,
+  // first at InputSystem::Setup). The host pad is one device, bound to slot 0
+  // as the XeniOS touch overlay is (touch_input_driver_ios.cc). Without it no
+  // touch or controller input reached the title (first booted device run).
+  std::vector<xe::hid::InputDeviceInfo> EnumerateDevices() override {
+    xe::hid::InputDeviceInfo info = {};
+    info.driver_slot = 0;
+    info.stable_id = "rewindbox-host-pad";
+    info.display_name = "RewindBox";
+    info.subtype = xe::hid::XINPUT_DEVSUBTYPE_GAMEPAD;
+    info.preferred_slot = 0;
+    info.auto_bind = true;
+    return {std::move(info)};
+  }
 };
 
 inline int16_t Axis(float value) {

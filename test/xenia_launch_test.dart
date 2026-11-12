@@ -37,6 +37,7 @@ void main() {
     // the Core's handshake and the transaction stays open for the launch.
     XeniaJitService.jitState = () async => <String, dynamic>{
       'needsTool': true,
+      'transportFullWidth': true,
       'codeRegionHeld': true,
       'toolAttached': false,
     };
@@ -139,12 +140,29 @@ void main() {
     () async {
       XeniaJitService.jitState = () async => <String, dynamic>{
         'needsTool': true,
+        'transportFullWidth': true,
         'toolAttached': false,
         'codeRegionHeld': false,
       };
       final refused = await launch(game.path);
       expect(refused.success, isFalse);
       expect(refused.error, 'jitMemoryUnavailable');
+      expect(calls, isEmpty, reason: 'no helper attach, no bridge launch');
+    },
+  );
+
+  test(
+    'a JIT tool without full-width addresses: refused before the helper and the bridge',
+    () async {
+      XeniaJitService.jitState = () async => <String, dynamic>{
+        'needsTool': true,
+        'transportFullWidth': false,
+        'codeRegionHeld': true,
+        'toolAttached': false,
+      };
+      final refused = await launch(game.path);
+      expect(refused.success, isFalse);
+      expect(refused.error, 'jitToolUnsupported');
       expect(calls, isEmpty, reason: 'no helper attach, no bridge launch');
     },
   );

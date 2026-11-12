@@ -21,25 +21,25 @@
   "revision": "cf7c7ee452314913124d205e41e325b33891aacb",
   "license": "BSD-3-Clause (assets/legal/XeniOS-BSD-3-Clause.txt); third-party notices in assets/legal/xenios",
   "core_pin": "build-utils/xenia/core-pin.json",
-  "core_pin_sha256": "8438693650ac8477b47192f29cac8020aff58e74df1b4cffcd37a67f84e6f653",
+  "core_pin_sha256": "2d176a7fd036c196eeebb3c3a2543e363bc0542ae81af3236672ce924b44fd77",
   "producer": {
    "workflow": ".github/workflows/xenia-core.yml",
-   "run": 43185423246,
-   "artifact": 13930153853
+   "run": 43217888486,
+   "artifact": 13946139906
   },
-  "binary_sha256": "5043531dc5560457b33bad3a340a5d33f5126220d69299278e7a09db1cb88580",
-  "packaged_fingerprint": "bf68661507b63ca2857aab784f12b9a85f53aa28736aa011fbbd506c98ce99fe",
+  "binary_sha256": "6c5116373375b528e6cb085a5f212ab0c20bda4b3d551bd6a4abaeabe4a3e5b7",
+  "packaged_fingerprint": "bd6351c04a98c1aceed55d340bb295842e8c1670e774b4546463245e0819e662",
   "recipe_sha256": {
    "build-utils/xenia/build_core.sh": "d214d6b3e7918365ca786156fc31ba30908cb99785f56c28577041e5c48b21db",
    "build-utils/xenia/prepare_source.py": "7f0d94e507a731136625842827962770e6fd201753e64e5365a28575762409d5",
-   "build-utils/xenia/rewindbox-core.patch": "d5f1b41c2f523d2344fb95a39b2b467fc9cbf0fa3070a6a7d72d3cbe13372ecb",
+   "build-utils/xenia/rewindbox-core.patch": "17595f900391067574f1144aaa4c0710b8e4a2dfc3b0b9bcad1551c5bfcf3f70",
    "build-utils/xenia/upstream-files.json": "9180942799452162fef228c060517263fdb1664e063e7fe02c599177f3552dc0",
-   "packages/xenia_internal_bridge/core/XeniaCore.mm": "a4bca3480e0d90719b919285edc6d076dee070e19248c5343f59d8a81911d9bb",
-   "packages/xenia_internal_bridge/core/XeniaCoreInput.h": "8fcc9d8ce7b022d68e4c84bfdfadad59e49d2cd80b24b49b5e3975ee606c4856",
+   "packages/xenia_internal_bridge/core/XeniaCore.mm": "8343aa8bb5a0d09aac5e733f1c1993d017465ef30354d3c996f19b1f7dc26efc",
+   "packages/xenia_internal_bridge/core/XeniaCoreInput.h": "598d4da187e1593126dfcb338e0c0dd6d3f28581dcff1069f5546d97bc13db77",
    "packages/xenia_internal_bridge/core/exports.txt": "22d0dd9e29951f50f70642650e75d64133c96735195dfb564afd62e569644e02",
-   "packages/xenia_internal_bridge/core/neo_xenia_core_hooks.h": "5a185ca20d1a94dffc98d8a20f4fda112a9da2225bb5eca0b6b206e6f412a88b",
+   "packages/xenia_internal_bridge/core/neo_xenia_core_hooks.h": "f26c13d064d2a6dc682b97efd73c2ad0f91d329e0d565e185b4f6800a0f86aed",
    "packages/xenia_internal_bridge/core/target.cmake": "b61b5f8e89e9671d576fca3174a19996ab8906102fcd5aacb1bbe4b8a153d261",
-   "packages/xenia_internal_bridge/ios/Classes/XeniaCoreABI.h": "7762900f9aed6749e0d8da0f51aa9e775010252e10f2409e4860cdb893cd0b56"
+   "packages/xenia_internal_bridge/ios/Classes/XeniaCoreABI.h": "712d0ea9cc21de22d95f9a7ea6c3a7b17b04c43dcda58deffb6350bb90c8fae9"
   },
   "recipe_note": "These RewindBox files are compiled into, or drive the build of, the pinned binary; the collector refuses the tree if any of them differs, so the IPA's own host source archive (BUILD_SOURCE_EVIDENCE.json immutable_host_source_archive) holds the recipe that built it.",
   "unpinned_build_inputs": "xenia-build.py fetchdata downloads the embedded game databases (xenia-manager/x360db, the xenia-canary game-compatibility release) at build time without a pinned revision; a later rebuild may embed newer data. They are data, not LGPL code."

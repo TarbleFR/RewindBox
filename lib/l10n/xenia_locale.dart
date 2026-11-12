@@ -123,6 +123,7 @@ abstract final class XeniaLocale {
       'session_saveFailed': "Setting not saved.",
       'jitMemoryUnavailable': "XeniOS could not get the memory it needs for JIT in this session. Close RewindBox from the app switcher, reopen it, then start the Xbox 360 game again.",
       'folderAccessFailed': "iOS did not give RewindBox access to this folder: pick it again",
+      'jitToolUnsupported': "This RewindBox build has a JIT tool that cannot prepare memory for XeniOS safely, so Xbox 360 games are blocked. Install a complete RewindBox build.",
     },
     'es': <String, String>{
       'importMenu': "XeniOS / Importar",
@@ -243,6 +244,7 @@ abstract final class XeniaLocale {
       'session_saveFailed': "Ajuste no guardado.",
       'jitMemoryUnavailable': "XeniOS no pudo obtener la memoria que necesita para el JIT en esta sesión. Cierra RewindBox desde el selector de apps, ábrelo de nuevo y vuelve a iniciar el juego de Xbox 360.",
       'folderAccessFailed': "iOS no dio a RewindBox acceso a esta carpeta: vuelve a elegirla",
+      'jitToolUnsupported': "Esta versión de RewindBox tiene una herramienta JIT que no puede preparar la memoria de XeniOS con seguridad, así que los juegos de Xbox 360 están bloqueados. Instala una versión completa de RewindBox.",
     },
     'ru': <String, String>{
       'importMenu': "XeniOS / Импорт",
@@ -363,6 +365,7 @@ abstract final class XeniaLocale {
       'session_saveFailed': "Настройка не сохранена.",
       'jitMemoryUnavailable': "XeniOS не удалось получить память, нужную для JIT, в этом сеансе. Закройте RewindBox в переключателе приложений, откройте его снова и запустите игру Xbox 360 ещё раз.",
       'folderAccessFailed': "iOS не предоставила RewindBox доступ к этой папке: выберите её снова",
+      'jitToolUnsupported': "В этой сборке RewindBox инструмент JIT не может безопасно подготовить память для XeniOS, поэтому игры Xbox 360 заблокированы. Установите полную сборку RewindBox.",
     },
     'zh': <String, String>{
       'importMenu': "XeniOS / 导入",
@@ -483,6 +486,7 @@ abstract final class XeniaLocale {
       'session_saveFailed': "设置未保存。",
       'jitMemoryUnavailable': "XeniOS 在本次会话中无法获得 JIT 所需的内存。请在应用切换器中关闭 RewindBox，重新打开后再启动该 Xbox 360 游戏。",
       'folderAccessFailed': "iOS 未向 RewindBox 开放此文件夹：请重新选择",
+      'jitToolUnsupported': "此 RewindBox 版本中的 JIT 工具无法安全地为 XeniOS 准备内存，因此 Xbox 360 游戏已被阻止。请安装完整的 RewindBox 版本。",
     },
     'zh_Hant': <String, String>{
       'importMenu': "XeniOS / 匯入",
@@ -603,6 +607,7 @@ abstract final class XeniaLocale {
       'session_saveFailed': "設定未儲存。",
       'jitMemoryUnavailable': "XeniOS 在本次工作階段中無法取得 JIT 所需的記憶體。請在 App 切換器中關閉 RewindBox，重新開啟後再啟動該 Xbox 360 遊戲。",
       'folderAccessFailed': "iOS 未向 RewindBox 開放此資料夾：請重新選擇",
+      'jitToolUnsupported': "此 RewindBox 版本中的 JIT 工具無法安全地為 XeniOS 準備記憶體，因此 Xbox 360 遊戲已被阻擋。請安裝完整的 RewindBox 版本。",
     },
     'pt': <String, String>{
       'importMenu': "XeniOS / Importar",
@@ -723,6 +728,7 @@ abstract final class XeniaLocale {
       'session_saveFailed': "Ajuste não salvo.",
       'jitMemoryUnavailable': "O XeniOS não conseguiu obter a memória necessária para o JIT nesta sessão. Feche o RewindBox no seletor de apps, abra-o novamente e inicie o jogo de Xbox 360 outra vez.",
       'folderAccessFailed': "o iOS não deu ao RewindBox acesso a esta pasta: escolha-a de novo",
+      'jitToolUnsupported': "Esta versão do RewindBox tem uma ferramenta JIT que não consegue preparar a memória do XeniOS com segurança, por isso os jogos de Xbox 360 estão bloqueados. Instale uma versão completa do RewindBox.",
     },
     'fr': <String, String>{
       'importMenu': "XeniOS / Importer",
@@ -843,6 +849,7 @@ abstract final class XeniaLocale {
       'session_saveFailed': "Réglage non enregistré.",
       'jitMemoryUnavailable': "XeniOS n’a pas pu obtenir la mémoire nécessaire au JIT dans cette session. Fermez RewindBox depuis le sélecteur d’apps, rouvrez-le, puis relancez le jeu Xbox 360.",
       'folderAccessFailed': "iOS n’a pas ouvert ce dossier à RewindBox : choisissez-le à nouveau",
+      'jitToolUnsupported': "Cette version de RewindBox contient un outil JIT qui ne peut pas préparer la mémoire de XeniOS en toute sécurité : les jeux Xbox 360 sont bloqués. Installez une version complète de RewindBox.",
     },
     'de': <String, String>{
       'importMenu': "XeniOS / Import",
@@ -963,6 +970,7 @@ abstract final class XeniaLocale {
       'session_saveFailed': "Einstellung nicht gespeichert.",
       'jitMemoryUnavailable': "XeniOS konnte in dieser Sitzung nicht den Speicher erhalten, den es für JIT braucht. Schließe RewindBox im App-Umschalter, öffne es erneut und starte das Xbox-360-Spiel noch einmal.",
       'folderAccessFailed': "iOS hat RewindBox keinen Zugriff auf diesen Ordner gegeben: wähle ihn erneut",
+      'jitToolUnsupported': "Dieser RewindBox-Build enthält ein JIT-Werkzeug, das den Speicher für XeniOS nicht sicher vorbereiten kann; Xbox-360-Spiele sind daher gesperrt. Installiere einen vollständigen RewindBox-Build.",
     },
     'it': <String, String>{
       'importMenu': "XeniOS / Importa",
@@ -1083,6 +1091,7 @@ abstract final class XeniaLocale {
       'session_saveFailed': "Impostazione non salvata.",
       'jitMemoryUnavailable': "XeniOS non ha potuto ottenere la memoria necessaria al JIT in questa sessione. Chiudi RewindBox dal selettore delle app, riaprilo e avvia di nuovo il gioco Xbox 360.",
       'folderAccessFailed': "iOS non ha dato a RewindBox l’accesso a questa cartella: sceglila di nuovo",
+      'jitToolUnsupported': "Questa versione di RewindBox ha uno strumento JIT che non può preparare la memoria di XeniOS in sicurezza, quindi i giochi Xbox 360 sono bloccati. Installa una versione completa di RewindBox.",
     },
     'id': <String, String>{
       'importMenu': "XeniOS / Impor",
@@ -1203,6 +1212,7 @@ abstract final class XeniaLocale {
       'session_saveFailed': "Pengaturan tidak tersimpan.",
       'jitMemoryUnavailable': "XeniOS tidak dapat memperoleh memori yang diperlukan untuk JIT di sesi ini. Tutup RewindBox dari pengalih aplikasi, buka lagi, lalu jalankan kembali game Xbox 360.",
       'folderAccessFailed': "iOS tidak memberi RewindBox akses ke folder ini: pilih lagi",
+      'jitToolUnsupported': "Build RewindBox ini memiliki alat JIT yang tidak dapat menyiapkan memori XeniOS dengan aman, sehingga game Xbox 360 diblokir. Instal build RewindBox yang lengkap.",
     },
     'ja': <String, String>{
       'importMenu': "XeniOS / 読み込み",
@@ -1323,6 +1333,7 @@ abstract final class XeniaLocale {
       'session_saveFailed': "設定を保存できませんでした。",
       'jitMemoryUnavailable': "このセッションでは、XeniOS が JIT に必要なメモリを確保できませんでした。App スイッチャーで RewindBox を終了してから再度開き、Xbox 360 ゲームをもう一度起動してください。",
       'folderAccessFailed': "iOS がこのフォルダへのアクセスを RewindBox に許可しませんでした。もう一度選択してください",
+      'jitToolUnsupported': "この RewindBox ビルドの JIT ツールは XeniOS のメモリを安全に準備できないため、Xbox 360 ゲームはブロックされています。完全な RewindBox ビルドをインストールしてください。",
     },
     'ko': <String, String>{
       'importMenu': "XeniOS / 가져오기",
@@ -1443,6 +1454,7 @@ abstract final class XeniaLocale {
       'session_saveFailed': "설정이 저장되지 않았습니다.",
       'jitMemoryUnavailable': "이번 세션에서 XeniOS가 JIT에 필요한 메모리를 확보하지 못했습니다. 앱 전환기에서 RewindBox를 닫고 다시 연 다음 Xbox 360 게임을 다시 시작하세요.",
       'folderAccessFailed': "iOS가 RewindBox에 이 폴더에 대한 접근을 허용하지 않았습니다. 다시 선택하세요",
+      'jitToolUnsupported': "이 RewindBox 빌드의 JIT 도구는 XeniOS용 메모리를 안전하게 준비할 수 없어 Xbox 360 게임이 차단되었습니다. 완전한 RewindBox 빌드를 설치하세요.",
     },
   };
 
@@ -1477,7 +1489,9 @@ abstract final class XeniaLocale {
     'pairingRequired' ||
     'jitAttachFailed' ||
     'jitHelperIncomplete' ||
-    'jitMemoryUnavailable' => error!,
+    'jitMemoryUnavailable' ||
+    'jitToolUnsupported' => error!,
+    'jitToolUnverified' => 'restartRequired',
     'jitHandshakeFailed' => 'jitAttachFailed',
     'jitDetachFailed' => 'jitHelperIncomplete',
     _ => 'launchFailed',

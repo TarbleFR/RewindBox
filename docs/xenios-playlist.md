@@ -368,6 +368,7 @@ region held).
 
 | Core state | Plan |
 | --- | --- |
+| tool needed, the app's StikJIT lacks the full-width marker (`transportFullWidth` false) | refused, `jitToolUnsupported` (§ Code region) |
 | tool needed, no code region below 8 GB held | refused, `jitMemoryUnavailable` (§ Code region) |
 | no tool needed, debugged | nothing (second and later sessions) |
 | tool needed, still attached (an earlier boot failed before the prepare) | reuse it |
@@ -377,7 +378,7 @@ region held).
 Helper connected, expected PID attached and `CS_DEBUGGED` are checked as
 separate facts; each failure has its own message in the 12 locales
 (`pairingRequired`, `jitAttachFailed`, `jitHelperIncomplete`,
-`jitUnavailable`, `jitMemoryUnavailable`). Manual LocalDevVPN only; no external JIT app.
+`jitUnavailable`, `jitMemoryUnavailable`, `jitToolUnsupported`). Manual LocalDevVPN only; no external JIT app.
 
 ## Code region
 
@@ -453,6 +454,62 @@ Fix: the patch calls `NeoXeniaApplyHostRoots()` right after
 `config::SetupConfig` in the embedded build (the `#else` of the existing
 microphone guard), and the facade sets the four cvars again from the roots of
 the first `prepare` before OnInitialize reads `content_root` and `cache_root`.
+
+**Third device run (first boot, Fable Anniversary)**: the launch journal shows
+every stage through `launched` (boot 6 s, about 2170 guest frames), but neither
+the touch controls nor the controller reached the title. XeniOS's
+`InputSystem` reaches a driver only through guest-slot bindings it builds from
+the devices drivers enumerate (`ReconcileBindings`, first at
+`InputSystem::Setup`, input_system.cc:53-58 and 483-600); our
+`NeoXeniaInputDriver` enumerated none, so slot 0 stayed empty. It now lists the
+host pad as one auto-bound device for slot 0 (`rewindbox-host-pad`), as XeniOS's
+touch overlay does (touch_input_driver_ios.cc:380-393); the facade C++ check
+asserts it. The next launch was refused (`registration: noRoom (flag), largest
+free below 8 GB 442 MiB`, where the booted launch had 687 MiB): at plugin
+registration the Flutter engine, the Dart VM and UIKit already hold part of the
+low address space. The reservation now runs in a constructor of the bridge
+image (`XeniaReserveCodeRegionAtLoad`), before them; it reads the flag with
+CoreFoundation preferences, and `registration` reports `… at image load`.
+
+**The 8 GB limit lifted (maintainer's request: no launch may depend on free
+address space)**: XeniOS keeps the code region below 8 GB only because
+StikDebug 3.1.x drops the high bits of the address it prepares. RewindBox's
+JIT helpers use its patched StikJIT 1.9.0: `build-utils/patch_stikjit_rpcs3.py`
+writes 16 hex digits per address (upstream 1.9.0 writes 9), and
+`validate_stikjit_ipa.py` requires that patch's marker in the IPA's
+`StikJIT.framework`; RPCS3's arena at `0x7000000000` relies on it. On iOS the
+A64 code cache always uses the encoded indirection (rel32 plus a 64-bit table,
+code_cache_base.h), so it puts no limit on the code address either. The patch
+therefore adds a weak hook right after `kExecuteRegionLimit`
+(`NeoXeniaExecuteRegionLimit`, declared outside the anonymous namespace so the
+reference keeps external linkage; every later use of the constant reads it),
+and the facade returns 2^47. The Core's own reservation, made when it loads,
+then always finds room; the bridge's reservation at image load, its flag and
+the free-space measurement are removed (they held 512 MiB of address space for
+nothing, which other engines such as RPCS3 need). `adopt_code_region(nullptr,
+0)` still reports `codeRegion` (own or none) in the `XeniOS JIT:` line, and
+`noCodeRegion` stays as a safety net.
+
+**Only that StikJIT may prepare the region** (main session's condition): the
+lifted limit is safe only while the debugger answering the Core's prepare
+writes full 64-bit addresses. Every link is checked by
+`test/xenia_jit_transport_test.py` (run by `xenia-core.yml`):
+`patch_stikjit_rpcs3.py` (16 digits, marker `NEOSTATION_STIKJIT_RPCS3_V1`, the
+`transport_marker` of `build-utils/stikjit/source.json`) →
+`install_patched_stikjit.py` refuses a framework without the marker →
+`configure_xenia_ios.py` links `XeniaJITHelper` against that framework, embeds
+no copy in the appex and loads the app's (`@executable_path/../../Frameworks`)
+→ `validate_stikjit_ipa.py` requires the marker in the IPA's
+`Frameworks/StikJIT.framework/StikJIT`. At run time the bridge reads the
+marker in the app's StikJIT and in any copy inside `XeniaJITHelper.appex`
+(`transportFullWidth`, `transportDetail` in `jitState`, once per process).
+While the Core still needs a tool: Dart refuses `transportFullWidth` false with
+`jitToolUnsupported` (12 locales) before any pairing, route or helper; the
+bridge refuses again before the nonce probe and `prepare` when the transport
+is not full-width or the attached debugger is not RewindBox's helper with a
+live handshake (an external StikDebug 3.1.x attached on its own has none):
+`jitToolUnverified`, shown as `restartRequired`. No path runs the Core's
+prepare through a tool that could truncate the region's address.
 
 **IPA wiring, for the main session** (delivery files, not edited here):
 call `build-utils/configure_xenia_ios.py` after the XeniaCore pin (it

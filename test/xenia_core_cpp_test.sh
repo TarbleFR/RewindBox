@@ -18,7 +18,12 @@ int main() {
   xe::hid::X_INPUT_CAPABILITIES caps{};
   neo_xenia::NeoXeniaInputDriver driver(nullptr, 0);
   neo_xenia::g_buttons.store(xe::hid::X_INPUT_GAMEPAD_A);
-  const bool ok = driver.GetState(0, &state) == X_ERROR_SUCCESS &&
+  // The InputSystem binds slot 0 only to an enumerated, auto-bound device.
+  const auto devices = driver.EnumerateDevices();
+  const bool bound = devices.size() == 1 && devices[0].driver_slot == 0 &&
+                     devices[0].preferred_slot == 0 && devices[0].auto_bind &&
+                     !devices[0].stable_id.empty();
+  const bool ok = bound && driver.GetState(0, &state) == X_ERROR_SUCCESS &&
                   driver.GetCapabilities(0, 0, &caps) == X_ERROR_SUCCESS &&
                   driver.GetState(1, &state) == X_ERROR_DEVICE_NOT_CONNECTED &&
                   neo_xenia::Axis(2.f) == 32767 && neo_xenia::Trigger(-1.f) == 0;

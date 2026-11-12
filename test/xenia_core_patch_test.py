@@ -60,6 +60,20 @@ SWAP_HOOK_ALLOWED = {
 # after the anonymous namespace of jit_memory_ios.cc, hands it over. Nothing
 # upstream changes: the function is unused outside XeniaCore.
 JIT_REGION_FILES = ['src/xenia/cpu/backend/jit_memory_ios.cc']
+JIT_LIMIT_ADDED = [
+    '// RewindBox embedded Core (build-utils/xenia): its JIT tool, the patched',
+    '// StikJIT, writes full 64-bit addresses, so XeniaCore lifts this limit. Weak:',
+    '// undefined, so the limit above stands, outside XeniaCore. Declared outside',
+    '// the anonymous namespace so the reference keeps external linkage.',
+    '}  // namespace',
+    'extern "C" __attribute__((weak)) uintptr_t NeoXeniaExecuteRegionLimit(void);',
+    'namespace {',
+    'uintptr_t NeoExecuteRegionLimit() {',
+    '  return NeoXeniaExecuteRegionLimit ? NeoXeniaExecuteRegionLimit()',
+    '                                    : kExecuteRegionLimit;',
+    '}',
+    '#define kExecuteRegionLimit NeoExecuteRegionLimit()',
+]
 JIT_REGION_ADDED = [
     '// RewindBox embedded Core (build-utils/xenia): the host app holds the code',
     '// region from its own launch and hands it over after its late dlopen of this',
@@ -86,12 +100,17 @@ def check_code_region_hook(patch: str) -> None:
         hunk = patch.split(f'diff --git a/{name} ', 1)[1].split('\ndiff --git ', 1)[0]
         body = hunk.splitlines()[4:]
         if any(line.startswith('-') for line in body):
-            fail(f'{name}: the code-region hook removes upstream lines')
+            fail(f'{name}: the code-region hooks remove upstream lines')
         added = [line[1:] for line in body if line.startswith('+')]
-        if added != JIT_REGION_ADDED:
-            fail(f'{name}: not exactly the code-region adoption function: {added}')
-        before = hunk.split('\n+' + JIT_REGION_ADDED[0], 1)[0]
-        if not before.rstrip().endswith('}  // namespace'):
+        if added != JIT_LIMIT_ADDED + JIT_REGION_ADDED:
+            fail(f'{name}: not exactly the code-region limit hook and adoption function: {added}')
+        # The limit hook follows the 8 GB constant (every later use reads the
+        # hook); the adoption function follows the anonymous namespace.
+        before_limit = hunk.split('\n+' + JIT_LIMIT_ADDED[0], 1)[0]
+        if not before_limit.rstrip().endswith('constexpr uintptr_t kExecuteRegionLimit = uintptr_t(1) << 33;'):
+            fail(f'{name}: the limit hook must directly follow kExecuteRegionLimit')
+        before_adopt = hunk.split('\n+' + JIT_REGION_ADDED[0], 1)[0]
+        if not before_adopt.rstrip().endswith('}  // namespace'):
             fail(f'{name}: the adoption function must follow the anonymous namespace')
 
 
@@ -162,6 +181,9 @@ def check_patch() -> None:
             fail(f'{symbol} not declared in neo_xenia_core_hooks.h')
     if 'extern "C" void NeoXeniaNotifyGuestSwap(void);' not in hooks:
         fail('NeoXeniaNotifyGuestSwap is not declared extern "C" in neo_xenia_core_hooks.h')
+    if 'extern "C" uintptr_t NeoXeniaExecuteRegionLimit(void);' not in hooks or \
+            'extern "C" uintptr_t NeoXeniaExecuteRegionLimit(void) { return uintptr_t(1) << 47; }' not in facade:
+        fail('the code-region limit hook is not declared and defined by the facade')
     if 'extern "C" int NeoXeniaAdoptExecuteRegion(void* reservation, size_t size);' not in hooks:
         fail('NeoXeniaAdoptExecuteRegion is not declared extern "C" in neo_xenia_core_hooks.h')
     for symbol in ('void NeoXeniaApplyHostRoots() {', 'void NeoXeniaApplyLaunchOverrides()', 'void NeoXeniaNotifyTitleLaunched()',
@@ -169,6 +191,11 @@ def check_patch() -> None:
                    'extern "C" void NeoXeniaNotifyGuestSwap(void) {', 'int GetStats(NeoXeniaStats* out) {'):
         if symbol not in facade:
             fail(f'{symbol} not defined by XeniaCore.mm')
+    # XeniOS binds guest slots only to enumerated devices: the host pad must be one.
+    driver = (CORE / 'XeniaCoreInput.h').read_text()
+    if 'std::vector<xe::hid::InputDeviceInfo> EnumerateDevices() override' not in driver or \
+            'info.auto_bind = true;' not in driver or 'info.preferred_slot = 0;' not in driver:
+        fail('NeoXeniaInputDriver does not enumerate the host pad for slot 0')
     if (CORE / 'exports.txt').read_text().split() != ['_NeoXenia_GetAPI']:
         fail('exports.txt must list only _NeoXenia_GetAPI')
     managed = re.search(r'kManagedKeys\[\] = \{(.*?)\};', facade, re.S).group(1)
