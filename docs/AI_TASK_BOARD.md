@@ -369,6 +369,27 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   contract 108 OK on draft and frozen manifest; trigger-paths accepted (no other workflow runs). Trigger `2088c712`,
   run `43149001356`. Private key outside Git. Not run on an iPhone. Next: download, verify, receipt, delete the key,
   send the file; then the ON HOLD RPCS3 thermal lot.
+  - **Run `43149001356` red (3 failures, one root cause for two):**
+    - republish: retained608 Dolphin input check refused `verify_ipa.py`;
+    - application: StikJIT `stikjit_scoped_host_test` (expected_helpers count);
+    - flutter: 1/1332 `armsx2_embedded_library_contract_test`, switch2 added by `6d492d75`.
+
+    `c0aae729` changed `verify_ipa.py`. Only the freeze and the source contract read `changedInputs`.
+
+    Fix `d68da380`:
+    - `declared_native_changes` checks that the path is a 608 input and not a recipe file, that the current bytes
+      are newBlob, and that baseBlob equals the recorded 608 bytes; nothing else is relaxed;
+    - the StikJIT test normalizes the exact 3-line engine block;
+    - the ARMSX2 contract now expects switch2.
+
+    Validation:
+    - new `test/retained608_declared_changes_test.py` 7/7, run locally: it imports the recipe, so it is kept out of
+      the groups;
+    - on real data only `verify_ipa.py` differs, and it is the declared path;
+    - offline contract 108 OK.
+
+    Second request: frozen on `7d90218f` (digest `28dc0833`), trigger `bd80b2b9`, queued behind run 1, whose native
+    job was still running.
 - **Integration queue for the next common IPA (11 Nov evening, main).** No IPA before the other sessions are ready.
   - **RPCS3:** Cores 932 (`fa94f636`) and 933 (`b055869b`) pinned; nothing of 931-933 observed on an iPhone yet.
   - **PR #172 integrated (`945bec13`, session 03, Xbox 360 / XeniOS, head `7be66a89`):** the review findings were
