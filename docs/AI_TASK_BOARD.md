@@ -5041,9 +5041,16 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   `legal_clearance: false` and the accompany-vs-6(c)/(d) question left to the maintainer; a pin without its review is
   refused; build_source_evidence/legal_bundle_preflight failure sets identical before/after (pre-existing). Notices
   state the LGPL sources and rebuild means. Test `xenios_core_delivery_review_test.py` 9/9 with a temporary pin, to be
-  committed with the real pin and review. Pending: XeniaCore run 43121527685 (compiling since 23:47Z), the artifact
-  zip (blob host blocked here), core-pin.json + review, IPA closed-set validators after 00 integrates session 04's
-  13d34c25 (identity-file design `Xenia-native-identity.json`).
+  committed with the real pin and review (skips with that reason until then). Run 43121527685 (028a0fdf2): both
+  converter codesign requirements passed (the script compiles only after them), XeniaCore compiled and linked
+  (1357/1358, 27 min), then verify_core.py refused an absolute `/Users/runner/` path. Causes in our target: CMake's
+  build-tree LC_RPATH to the converter's runner directory, and the -g debug map (N_OSO object paths). Fixed in
+  79f3409f0 (`SKIP_BUILD_RPATH`, `-Wl,-S`; the check stays and now lists every leaked string with its place), rebuild
+  running. Pin route: ubuntu `pin` job (9ceefdcd4), `[xenia-pin run=<id>]`, downloads the zip by id via the API and
+  prints core-pin.json + base64 (this session cannot reach the artifact store). The producer runs on this branch:
+  the delivery manifest names it (`producers.engine.branch`) or main rebuilds on Claude. Pending: green core job,
+  core-pin.json + review, IPA closed-set validators after 00 integrates session 04's 13d34c25 (identity-file design
+  `Xenia-native-identity.json`).
 - **Validation (Flutter 3.47.2 host):** 11 Nov: XeniOS + catalog/Consoles/touch suites
   91/91, scanner suites 41/41 (1 skip), storage contract 24/24, patch/validator/touch/C++
   checks OK, analyzer 111 = baseline. Earlier: new XeniOS + catalog/Consoles tests 65/65;
