@@ -79,6 +79,61 @@ class LegalCreditsDialog {
       'assets/legal/Apple-Metal-Shader-Converter-NOTICES.txt',
     ),
     _LegalEntry(
+      'S2Arm (Switch 2)',
+      'S2Arm contributors; .NET runtime and listed third parties',
+      'Apache-2.0 with NOTICE; component notices in Legal/S2Arm',
+      'https://github.com/jhaizhou-ops/S2Arm',
+    ),
+    _LegalEntry(
+      'RewindBox modifications to the engines',
+      'TarbleFR; changes made from August 2026',
+      'Notice of modified engines, revisions and change locations',
+      'https://github.com/TarbleFR/RewindBox',
+      'assets/legal/RewindBox-MODIFICATIONS.md',
+    ),
+    _LegalEntry(
+      'FFmpeg (in RPCS3, MeloNX and XeniOS)',
+      'FFmpeg developers',
+      'LGPL-2.1-or-later; GPL where configured, per engine',
+      'https://ffmpeg.org/legal.html',
+      'assets/legal/engines/RPCS3-FFmpeg-LICENSE-md.txt',
+    ),
+    _LegalEntry(
+      'SDL3 (in MeloNX and XeniOS)',
+      'Sam Lantinga and SDL contributors',
+      'zlib',
+      'https://github.com/libsdl-org/SDL',
+      'assets/legal/melonx/SDL3-COPYING.txt',
+    ),
+    _LegalEntry(
+      'MoltenVK',
+      'The Brenwill Workshop Ltd. and MoltenVK contributors',
+      'Apache-2.0',
+      'https://github.com/KhronosGroup/MoltenVK',
+      'assets/legal/libretro/MoltenVK-LICENSE',
+    ),
+    _LegalEntry(
+      'librashader (in ARMSX2)',
+      'librashader contributors (SnowflakePowered)',
+      'MPL-2.0 or GPL-3.0',
+      'https://github.com/SnowflakePowered/librashader',
+      'assets/legal/engines/librashader-LICENSE.md',
+    ),
+    _LegalEntry(
+      'rcheevos (RetroAchievements)',
+      'RetroAchievements and rcheevos contributors',
+      'MIT',
+      'https://github.com/RetroAchievements/rcheevos',
+      'assets/legal/libretro/rcheevos-LICENSE.txt',
+    ),
+    _LegalEntry(
+      'libchdr, Zstandard, LZMA SDK (RetroAchievements disc reader)',
+      'Romain Tisserand; Meta Platforms, Inc.; Igor Pavlov',
+      'BSD-3-Clause · BSD · public domain',
+      'https://github.com/rtissera/libchdr',
+      'assets/legal/libretro/RA-disc-reader-NOTICES.txt',
+    ),
+    _LegalEntry(
       'Melo-Controller',
       'stossy11 and contributors; original controls and editor',
       'Original license retained',
@@ -192,11 +247,22 @@ class LegalCreditsDialog {
                 Flexible(
                   child: ListView.separated(
                     shrinkWrap: true,
-                    itemCount: _entries.length,
+                    // The free-software, trademark and no-content notice
+                    // scrolls with the entries (a phone has no room above).
+                    itemCount: _entries.length + 1,
                     separatorBuilder: (context, index) =>
                         const Divider(height: 1),
                     itemBuilder: (context, index) {
-                      final entry = _entries[index];
+                      if (index == 0) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Text(
+                            LegalCreditsLocale.disclaimer(context),
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        );
+                      }
+                      final entry = _entries[index - 1];
                       return ListTile(
                         contentPadding: EdgeInsets.zero,
                         title: Text(

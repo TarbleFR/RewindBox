@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -14,7 +16,7 @@ void main() {
     );
     // 14 cores, 30 with the sixteen of lot 1, 34 with the four of lot 2
     // (14 October 2026), then 35 with Mesen (20 October 2026, NES HD packs).
-    expect(credits, contains('35 iOS ARM64 libretro core binaries'));
+    expect(credits, contains('35 iOS ARM64 Libretro cores'));
     expect(credits, contains('Mesen'));
     expect(credits, contains('Snes9x'));
     expect(credits, contains('Beetle PCE Fast'));
@@ -93,4 +95,72 @@ void main() {
     expect(tester.widget<SelectableText>(find.byType(SelectableText)).data,
         contains('Source provenance and known limitation'));
   });
+
+  test('every licence text the dialog opens is bundled', () async {
+    // A licence path that is not a Flutter asset silently opens the web
+    // page instead (the MeloNX entries before the licence audit).
+    final source = File(
+      'lib/screens/settings_screen/legal_credits_dialog.dart',
+    ).readAsStringSync();
+    final assets = RegExp(
+      r"'(assets/legal/[^']+)'",
+    ).allMatches(source).map((match) => match.group(1)!).toSet();
+    expect(assets.length, greaterThan(20));
+    for (final asset in assets) {
+      final text = await rootBundle.loadString(asset);
+      expect(text.trim(), isNotEmpty, reason: asset);
+    }
+  });
+
+  testWidgets(
+    'the free-software, trademark and no-content notice is in all twelve locales',
+    (tester) async {
+      const locales = [
+        Locale('en'),
+        Locale('es'),
+        Locale('ru'),
+        Locale('zh'),
+        Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'),
+        Locale('pt'),
+        Locale('fr'),
+        Locale('de'),
+        Locale('it'),
+        Locale('id'),
+        Locale('ja'),
+        Locale('ko'),
+      ];
+      final texts = <String>{};
+      for (final locale in locales) {
+        await tester.pumpWidget(
+          MaterialApp(
+            locale: locale,
+            supportedLocales: locales,
+            localizationsDelegates: GlobalMaterialLocalizations.delegates,
+            home: Builder(
+              builder: (context) {
+                final text = LegalCreditsLocale.disclaimer(context);
+                texts.add(text);
+                return Text(text);
+              },
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
+      expect(texts.length, 12, reason: 'No locale should fall back to English');
+      for (final text in texts) {
+        for (final name in [
+          'GNU GPL',
+          'github.com/TarbleFR/RewindBox',
+          'Nintendo',
+          'Sony',
+          'Microsoft',
+          'Sega',
+          'BIOS',
+        ]) {
+          expect(text, contains(name));
+        }
+      }
+    },
+  );
 }

@@ -156,6 +156,10 @@ flutter:
     - assets/sounds/
     - assets/legal/
     - assets/legal/libretro/
+    # Notices the Legal and credits dialog opens offline (MeloNX, engines, XeniOS).
+    - assets/legal/engines/
+    - assets/legal/melonx/
+    - assets/legal/xenios/
   shaders:
     - assets/shaders/stripes.frag
     - assets/shaders/fluid.frag

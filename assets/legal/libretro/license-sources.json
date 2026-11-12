@@ -653,6 +653,10 @@
     {
       "path": "libretro-api-MIT.txt",
       "sha256": "eec543ed830432633ebea21686a8a0729bc6edb0f82e1a6d370fadef382b1b15"
+    },
+    {
+      "path": "RA-disc-reader-NOTICES.txt",
+      "sha256": "950a634cb3457b37263c6a5601b9390ea2d83f0c85a1f96b63d719abeb6616cc"
     }
   ]
 }

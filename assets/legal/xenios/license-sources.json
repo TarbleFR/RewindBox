@@ -62,6 +62,38 @@
           "extract": "lines 1-9, a blank line, lines 50-72 of the source file, unchanged"
         }
       ]
+    },
+    {
+      "component": "date (Howard Hinnant), XeniOS third_party/date compiled into XeniaCore",
+      "note": "Not listed in XeniOS's Acknowledgements.json (found by RewindBox's licence audit of 12 Nov 2026: src/xenia/base/chrono.h includes date/tz.h). MIT per file; miniaudio and microprofile, also compiled, need no notice (public domain / MIT-0 and unlicense.org).",
+      "files": [
+        {
+          "path": "date-LICENSE.txt",
+          "sha256": "c90f6c00fb961170560299cbda28ca2d45804913aa8b2a9f36dbb8e0028d6930",
+          "bytes": 1637,
+          "repository": "https://github.com/HowardHinnant/date",
+          "revision": "f94b8f36c6180be0021876c4a397a054fe50c6f2",
+          "upstream_path": "LICENSE.txt",
+          "source_blob_sha": "79ea0698bb05850ae4143d073007c3ca44c3bb09",
+          "source_url": "https://raw.githubusercontent.com/HowardHinnant/date/f94b8f36c6180be0021876c4a397a054fe50c6f2/LICENSE.txt",
+          "retrieved": "2026-11-12",
+          "content": "MIT, licensed per file",
+          "exact_copy": true
+        },
+        {
+          "path": "date-notices.txt",
+          "sha256": "0356d8c4cbadef7e6d3d7c05fe9ae588ee50d3f6fea68751f40a736b075a2015",
+          "bytes": 4412,
+          "repository": "https://github.com/HowardHinnant/date",
+          "revision": "f94b8f36c6180be0021876c4a397a054fe50c6f2",
+          "upstream_path": "include/date/date.h, include/date/tz.h",
+          "source_url": "https://raw.githubusercontent.com/HowardHinnant/date/f94b8f36c6180be0021876c4a397a054fe50c6f2/include/date/date.h",
+          "retrieved": "2026-11-12",
+          "content": "the MIT notices of date.h and tz.h, verbatim, with RewindBox's introduction",
+          "exact_copy": false,
+          "extract": "the leading comment block of each header, unchanged"
+        }
+      ]
     }
   ],
   "provenance": {

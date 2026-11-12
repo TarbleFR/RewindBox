@@ -1,4 +1,4 @@
-# NeoStation iOS — Third-Party Notices
+# RewindBox (iOS fork of NeoStation) — Third-Party Notices
 
 These notices are used by NeoStation’s build packager. Updates to this directory
 apply to subsequent builds and do not rewrite previously published IPAs.
@@ -6,7 +6,7 @@ The complete 35-core development reference collection is in `libretro/`; the pos
 packager verifies its hashes and embeds it under `Legal/Libretro/`.
 
 The full maintained attribution record is:
-https://github.com/TarbleFR/neostation-ios/blob/Claude/docs/LEGAL_AND_CREDITS.md
+https://github.com/TarbleFR/RewindBox/blob/Claude/docs/LEGAL_AND_CREDITS.md
 
 The exact 0.0.1 source/binary identity manifest is:
 https://github.com/TarbleFR/neostation-ios/blob/main/docs/RELEASE_0.0.1_SOURCE_MANIFEST.md
@@ -26,7 +26,7 @@ or datasets.
 
 The second source-rights review records unresolved permission, FBNeo/Patreon,
 source-correspondence and overlay-notice findings:
-https://github.com/TarbleFR/neostation-ios/blob/main/docs/SOURCE_RIGHTS_REVIEW_2026-10-18.md
+https://github.com/TarbleFR/RewindBox/blob/main/docs/SOURCE_RIGHTS_REVIEW_2026-10-18.md
 Credits and included license texts do not establish complete redistribution
 clearance. Additional verified upstream cheat notices are archived in the
 source repository at `docs/licenses/cheats/`. The next-release packager copies
@@ -34,16 +34,33 @@ them to `Legal/Cheats/` and includes the catalogue/creator registers in
 `Legal/Catalogs/`; it also checks the new reader/dependency notice hashes.
 These changes do not attest that the additions are present in an already
 delivered IPA. The preparation record is:
-https://github.com/TarbleFR/neostation-ios/blob/Claude/docs/RELEASE_NEXT_LICENSE_REVIEW.md
+https://github.com/TarbleFR/RewindBox/blob/Claude/docs/RELEASE_NEXT_LICENSE_REVIEW.md
 
 Exact package archive sources, local modifications and engine source records:
-https://github.com/TarbleFR/neostation-ios/blob/Claude/docs/SOURCE_CODE_ACCESS.md
+https://github.com/TarbleFR/RewindBox/blob/Claude/docs/SOURCE_CODE_ACCESS.md
 The continued review adds native package notices under `Legal/Packages/`,
 identified engine dependency notices under `Legal/Engines/` and source/build
 resolution evidence under `Legal/Sources/`. The existing
 Flutter notice collection and CocoaPods acknowledgements are retained. A
 Dart wrapper's license does not replace the licenses or terms of its native
 dependencies; the package-specific inventory preserves that distinction.
+
+`RewindBox-MODIFICATIONS.md` (in every build's Legal directory) states which
+engines RewindBox modified, from which upstream revision and where the
+changes are: Dolphin, RPCS3, ARMSX2, MeloNX, XeniOS, S2Arm, StikJIT and the
+Nestopia and PPSSPP libretro cores. RewindBox's own local packages carry their
+licence in `packages/<name>/LICENSE` (GPL-3.0-or-later; xenia_internal_bridge
+BSD-3-Clause); third-party files inside them keep their own notices.
+
+## RetroAchievements disc reader (libchdr)
+
+So that RetroAchievements identifies .chd and .cso images, the libretro bridge
+compiles a pinned copy of libchdr (https://github.com/rtissera/libchdr,
+`47d794151b2b64f6aba60304e6480f4f5a2bc24b`, BSD-3-Clause) with its LZMA SDK
+decoder (public domain) and the single-file Zstandard decoder (BSD, the option
+taken of zstd's BSD or GPLv2 choice). Their texts are in
+`libretro/RA-disc-reader-NOTICES.txt`; dr_flac, which libchdr includes, is
+public domain or MIT-0. rcheevos (MIT) is in `libretro/rcheevos-LICENSE.txt`.
 
 
 ## Bundled System Art: RewindBox Glacier
@@ -372,7 +389,12 @@ derived from the RSA Data Security, Inc. MD5 Message Digest Algorithm, and
 XeniOS's DXBCChecksum.cpp is adapted from AMD's, not identical to it.
 Boost.Context (BSL-1.0, text in the acknowledgements) reaches the Core through
 `make_`, `jump_` and `ontop_arm64_aapcs_macho_gas.S` of boostorg/context at
-d2142b69 (Edward Nevill and Oliver Kowalke, 2015).
+d2142b69 (Edward Nevill and Oliver Kowalke, 2015). Howard Hinnant's date
+library (MIT per file, XeniOS `third_party/date` at f94b8f36), compiled into
+the Core through `src/xenia/base/chrono.h`, is not in XeniOS's
+acknowledgements: `xenios/date-LICENSE.txt` and `xenios/date-notices.txt`
+complete them. miniaudio (public domain or MIT-0) and microprofile
+(unlicense.org), also compiled, need no notice.
 
 FFmpeg (libavutil, libavcodec, libavformat; LGPL version 2.1 or later, as
 its build configuration states) and libmspack (LGPL version 2.1) are linked

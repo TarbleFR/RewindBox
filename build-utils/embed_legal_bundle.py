@@ -45,6 +45,9 @@ REQUIRED_LEGAL_FILES = (
     "XeniOS-BSD-3-Clause.txt",
     "XeniOS-DXBC-notices.txt",
     "Apple-Metal-Shader-Converter-NOTICES.txt",
+    # GPL-2.0 2(a), GPL-3.0 5(a), Apache-2.0 4(b), MPL-2.0 3: which engines RewindBox modified, from which
+    # upstream revision, and where the changes are (test/legal_modifications_notice_test.py keeps it current).
+    "RewindBox-MODIFICATIONS.md",
 )
 # The Khronos SDK tag both shader compilers are vendored at
 # (packages/neo_shader_kit/ios/ThirdParty/*/SOURCE.txt).
