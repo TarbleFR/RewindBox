@@ -257,12 +257,15 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### Common IPA — main Claude Code
 
-- **GOW3 stretch mode no longer applies (maintainer, 12 Nov, IPA 726).** Code reading (Core 933 delta): the native
-  Metal 4 renderer's present pass (`MTLGSRender` flip, `mtl::present_pass::fit`) always fits the display buffer with
-  its aspect ratio kept and never reads `g_cfg.video.stretch_to_display_area`; the Vulkan path keeps upstream
-  behaviour (no RewindBox change touches stretch). No retired per-game key between Cores 901-933, so the override file
-  is not the cause. To confirm with the maintainer: whether Native Metal 4 is on for GOW3 and what the screen shows.
-  Fix planned for the next Core: the Metal present honours Stretch To Display Area (full drawable quad) like Vulkan.
+- **GOW3 stretch mode no longer applies (maintainer, 12 Nov, IPA 726; Metal 4 off, so Vulkan).** Cause (code, Core 933):
+  since Core 922 the boot ignores a legacy full custom_configs file (CONFIG_DB922), but the settings API still read it and
+  `rpcs3_ios_set_game_setting` saved every per-game change into it (has_custom_config), so Stretch to fill screen (and
+  any per-game choice of God of War III) never reached the boot. Core 934 (engine `core934-settings-rule` 524e068):
+  REWINDBOX_SETTINGS_API_RULE_934 (API = global < database < sparse overrides, change saved as an override; reset
+  removes the overrides; preset apply refused instead of a silent no-op, independent review) and
+  REWINDBOX_METAL_STRETCH_934 (the Metal 4 present honoured no stretch either). Local: test 934 passes, fails on 933,
+  six controls caught; full host checks running. Not compiled for iOS yet; nothing on iPhone. After the IPA the user
+  selects Stretch once more (the old choice sits in the ignored file).
 - **Device report on 726 (11 Nov): after a Switch game, a PS3 launch (BO2) is refused with the MeloNX 'quarantined'
   message.** Main's code reading, not yet confirmed by a journal. Two triggers reach the same block:
   - engine state 4: `Load()` threw, possibly during teardown after Stop;

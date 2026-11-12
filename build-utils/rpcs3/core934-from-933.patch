@@ -44,7 +44,7 @@ index 4ff281a..4973e36 100644
 +	}
  }
 diff --git a/rpcs3/ios/RPCS3IOS.cpp b/rpcs3/ios/RPCS3IOS.cpp
-index d9aa2c8..4fca8be 100644
+index d9aa2c8..0340763 100644
 --- a/rpcs3/ios/RPCS3IOS.cpp
 +++ b/rpcs3/ios/RPCS3IOS.cpp
 @@ -504,8 +504,9 @@ bool load_settings_for_api(std::string_view title_id, bool& has_custom_config)
@@ -59,8 +59,28 @@ index d9aa2c8..4fca8be 100644
  	if (!title_id.empty() && !has_custom_config)
  	{
  		if (!apply_database_settings_for_api(title_id))
+@@ -3461,13 +3462,15 @@ extern "C" rpcs3_ios_status rpcs3_ios_reset_game_settings(const char* title_id)
+ 		{
+ 			return RPCS3_IOS_SETTINGS_SAVE_FAILED;
+ 		}
+-		reset_current_settings(rpcs3::ios::setting_context::game);
+-		if (!rpcs3::ios::save_game_settings(title_id))
++		// REWINDBOX_SETTINGS_API_RULE_934: a full custom_configs file is not applied at boot since Core 922, so
++		// writing one restored nothing. Removing the user's sparse overrides returns the title to global <
++		// RPCS3 database, which is what the boot then runs.
++		if (!rpcs3::ios::remove_game_setting_overrides(title_id))
+ 		{
+-			set_error(fmt::format("Unable to save default game settings for %s", title_id));
++			set_error(fmt::format("Unable to remove the user settings of %s", title_id));
+ 			return RPCS3_IOS_SETTINGS_SAVE_FAILED;
+ 		}
+-		emit_log(4, fmt::format("Restored all iOS-exposed settings to RPCS3 defaults for %s", title_id));
++		emit_log(4, fmt::format("Removed the user settings of %s; the game uses the global settings and the RPCS3 database", title_id));
+ 		return RPCS3_IOS_OK;
+ 	}
+ 	catch (const std::exception& error)
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index 7828813..df13320 100644
+index 7828813..c1eeb5d 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
 @@ -703,21 +703,15 @@ settings_load_error load_effective_settings(std::string_view title_id, bool& has
@@ -94,3 +114,28 @@ index 7828813..df13320 100644
  }
  
  bool save_game_settings(std::string_view title_id) noexcept
+@@ -949,18 +943,12 @@ game_settings_preset_result apply_game_settings_preset(
+ 	{
+ 		return result;
+ 	}
+-	std::string content;
+-	if (auto result = read_validated_configuration(preset_path(title_id, preset.name), content); !result)
+-	{
+-		return result;
+-	}
+-	if (!fs::create_path(rpcs3::utils::get_custom_config_dir()))
+-	{
+-		return preset_failure(
+-			game_settings_preset_error::storage_failed,
+-			"RPCS3 could not create its custom configuration directory");
+-	}
+-	return write_configuration(rpcs3::utils::get_custom_config_path(std::string{title_id}), content);
++	// REWINDBOX_SETTINGS_API_RULE_934: a preset was applied by writing a full custom_configs file, which the boot
++	// no longer applies since Core 922 (and the API no longer reads since Core 934). Report it instead of
++	// succeeding with no effect; the preset file is kept.
++	return preset_failure(
++		game_settings_preset_error::invalid_config,
++		"Applying a preset is not available: a full game configuration is no longer applied at boot; change the game's settings one by one");
+ }
+ 
+ game_settings_preset_result duplicate_game_settings_preset(

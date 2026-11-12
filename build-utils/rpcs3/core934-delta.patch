@@ -106199,7 +106199,7 @@ index 0000000..5c32c08
 +}
 +}
 diff --git a/rpcs3/ios/RPCS3IOS.cpp b/rpcs3/ios/RPCS3IOS.cpp
-index 607ca5f..4fca8be 100644
+index 607ca5f..0340763 100644
 --- a/rpcs3/ios/RPCS3IOS.cpp
 +++ b/rpcs3/ios/RPCS3IOS.cpp
 @@ -1,5 +1,6 @@
@@ -106327,7 +106327,27 @@ index 607ca5f..4fca8be 100644
  		if (std::string_view{key} == "gpu.resolution")
  		{
  			const std::vector<std::string> options = supported_game_resolution_options(game.resolution);
-@@ -4483,6 +4538,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_big_picture_mode(void) noexcept
+@@ -3407,13 +3462,15 @@ extern "C" rpcs3_ios_status rpcs3_ios_reset_game_settings(const char* title_id)
+ 		{
+ 			return RPCS3_IOS_SETTINGS_SAVE_FAILED;
+ 		}
+-		reset_current_settings(rpcs3::ios::setting_context::game);
+-		if (!rpcs3::ios::save_game_settings(title_id))
++		// REWINDBOX_SETTINGS_API_RULE_934: a full custom_configs file is not applied at boot since Core 922, so
++		// writing one restored nothing. Removing the user's sparse overrides returns the title to global <
++		// RPCS3 database, which is what the boot then runs.
++		if (!rpcs3::ios::remove_game_setting_overrides(title_id))
+ 		{
+-			set_error(fmt::format("Unable to save default game settings for %s", title_id));
++			set_error(fmt::format("Unable to remove the user settings of %s", title_id));
+ 			return RPCS3_IOS_SETTINGS_SAVE_FAILED;
+ 		}
+-		emit_log(4, fmt::format("Restored all iOS-exposed settings to RPCS3 defaults for %s", title_id));
++		emit_log(4, fmt::format("Removed the user settings of %s; the game uses the global settings and the RPCS3 database", title_id));
+ 		return RPCS3_IOS_OK;
+ 	}
+ 	catch (const std::exception& error)
+@@ -4483,6 +4540,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_big_picture_mode(void) noexcept
  		set_error("RPCS3Core must be ready and emulation stopped before booting Big Picture Mode");
  		return result;
  	}
@@ -106335,7 +106355,7 @@ index 607ca5f..4fca8be 100644
  	if (!g_display_surface.snapshot().valid())
  	{
  		set_error("Attach a valid iOS Metal display surface before booting Big Picture Mode");
-@@ -4526,6 +4582,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_vsh(void) noexcept
+@@ -4526,6 +4584,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_vsh(void) noexcept
  		set_error("RPCS3Core must be ready and emulation stopped before booting XMB");
  		return result;
  	}
@@ -106343,7 +106363,7 @@ index 607ca5f..4fca8be 100644
  	if (!g_display_surface.snapshot().valid())
  	{
  		set_error("Attach a valid iOS Metal display surface before booting XMB");
-@@ -4686,6 +4743,8 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4686,6 +4745,8 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  		Emu.DeactivateBigPictureMode();
  		Emu.SetForceBoot(true);
  		rpcs3::ios::restore_failure::reset();
@@ -106352,7 +106372,7 @@ index 607ca5f..4fca8be 100644
  		const game_boot_result result = Emu.BootGame(boot_path, game->title_id);
  		if (result != game_boot_result::no_errors)
  		{
-@@ -4697,6 +4756,9 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4697,6 +4758,9 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  			return RPCS3_IOS_BOOT_FAILED;
  		}
  
@@ -106362,7 +106382,7 @@ index 607ca5f..4fca8be 100644
  		emit_log(4, requested_savestate_id.empty()
  			? fmt::format("Installed game boot request completed: %s", game->title_id)
  			: fmt::format("Save-state boot request completed: %s", game->title_id));
-@@ -5628,3 +5690,104 @@ extern "C" RPCS3_IOS_EXPORT int32_t rpcs3_ios_set_source_archive_api(const NeoSw
+@@ -5628,3 +5692,104 @@ extern "C" RPCS3_IOS_EXPORT int32_t rpcs3_ios_set_source_archive_api(const NeoSw
  {
      return neostation::source_client::install(api);
  }
@@ -110924,7 +110944,7 @@ index 6a52e85..f4b30ed 100644
  
  	return true;
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index 55cd3b3..df13320 100644
+index 55cd3b3..c1eeb5d 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
 @@ -7,18 +7,39 @@
@@ -111168,6 +111188,31 @@ index 55cd3b3..df13320 100644
  	return write_game_setting_overrides(title_id, values);
  }
  
+@@ -822,18 +943,12 @@ game_settings_preset_result apply_game_settings_preset(
+ 	{
+ 		return result;
+ 	}
+-	std::string content;
+-	if (auto result = read_validated_configuration(preset_path(title_id, preset.name), content); !result)
+-	{
+-		return result;
+-	}
+-	if (!fs::create_path(rpcs3::utils::get_custom_config_dir()))
+-	{
+-		return preset_failure(
+-			game_settings_preset_error::storage_failed,
+-			"RPCS3 could not create its custom configuration directory");
+-	}
+-	return write_configuration(rpcs3::utils::get_custom_config_path(std::string{title_id}), content);
++	// REWINDBOX_SETTINGS_API_RULE_934: a preset was applied by writing a full custom_configs file, which the boot
++	// no longer applies since Core 922 (and the API no longer reads since Core 934). Report it instead of
++	// succeeding with no effect; the preset file is kept.
++	return preset_failure(
++		game_settings_preset_error::invalid_config,
++		"Applying a preset is not available: a full game configuration is no longer applied at boot; change the game's settings one by one");
+ }
+ 
+ game_settings_preset_result duplicate_game_settings_preset(
 diff --git a/rpcs3/ios/RPCS3IOSSettings.h b/rpcs3/ios/RPCS3IOSSettings.h
 index b00e894..340053b 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.h

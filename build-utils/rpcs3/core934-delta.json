@@ -5,7 +5,7 @@
   "upstream_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
   "base_canonical_patch_sha256": "a63b964354acb157f99fa9ba4787e18e19faf2473eb90b5710134bf9a88cdaaf",
   "patch": "build-utils/rpcs3/core934-delta.patch",
-  "patch_sha256": "7a9e458c47501fb23acd4ef19c11b50d4c18171fbe64f55b8b6caf4f3f3e01b1",
+  "patch_sha256": "0e8517a9ab2499ff7ab6173298a6a9ba786576d676e5b6e319850b0311d4d091",
   "abi_version": 30,
   "abi_version_changed": false,
   "exports_added": [
@@ -322,7 +322,7 @@
     "rpcs3/ios/IOSZcullLabelPage.h": "d5dda8affe89446b8625ddfe0865ad9897feeb92f50d8990cc630402722edaad",
     "rpcs3/ios/IOSZcullOnDemand.h": "2ec03131ae10e322007d50f265f42d7fbfa9e22ae589b11e3dfa4402934d2117",
     "rpcs3/ios/IOSZcullWatched.h": "274974f62585d54826da428a84e584cc7f6f705941b7660759431e48ca617872",
-    "rpcs3/ios/RPCS3IOS.cpp": "eb0e169e88a0fb5be7925d5503cbb5cfe7a2f9cdf2e765c737fb10707ebf64bc",
+    "rpcs3/ios/RPCS3IOS.cpp": "eba62a92b927ea71f4d471110590c0ab5e4afa09918ef38ecbbc95fe9de36a0e",
     "rpcs3/ios/RPCS3IOS.exports": "4a7d309cc7a0df18f215f8582897931fc1d14bf0ec399e4c18afe2e87ccbad7d",
     "rpcs3/ios/RPCS3IOS.h": "e12732f8e0914f765e81e9ba2fb8278862369d91c03967c38e021e384e215987",
     "rpcs3/ios/RPCS3IOSAchievements.h": "bf04cc1b6ef98e4ebf777b33ce921803a17409b6cbc52b224e145f67708d9399",
@@ -339,7 +339,7 @@
     "rpcs3/ios/RPCS3IOSPlatform.mm": "1eb8c8beace5aab2bebbce414bf83f6b4e3b5578bef4c25740e240702405e7ad",
     "rpcs3/ios/RPCS3IOSProfilerHelpers.h": "939b3d79c7940d36a9e8bbae3cfb68ff5aefc6e84f151134231f834d17ee274b",
     "rpcs3/ios/RPCS3IOSRuntimePatches.cpp": "7944fa116d8ef679362837401376619357480d24cf8e19477a8ac2ed319aa50a",
-    "rpcs3/ios/RPCS3IOSSettings.cpp": "67db0b3033e4d7e49a51ffcb2d9cc92e220df3bd9e2137a9ed33c68a17b98747",
+    "rpcs3/ios/RPCS3IOSSettings.cpp": "5923e19777759a83d1c8a61d698636e31903d3c296cacaa29ae99e9a0f20e6c1",
     "rpcs3/ios/RPCS3IOSSettings.h": "0b45e4a93d68697b54639ddb72e72273c324eb7a38c12805f76eb8cc2e7313d4",
     "rpcs3/util/asm.hpp": "f22ca3b4a597bdef11aca1a51a20e06f6a5929f832b28a920513088f94b2d8da"
   },
@@ -694,9 +694,9 @@
   "iphone_validation_run": false,
   "increment_from_core933": {
     "patch": "build-utils/rpcs3/core934-from-933.patch",
-    "patch_sha256": "ddd61a4c6f351f7eb3aa636739ec5ff2e2e5b7915e972d876df65546be0e281b",
+    "patch_sha256": "0206b76ce540a8fbd9467d88a4bcc731fdcf95ecf20659f73fb2cc6892fd5fa9",
     "insertions_only": false,
-    "removed_lines": 20,
+    "removed_lines": 36,
     "files": 4,
     "files_before_sha256": {
       "rpcs3/Emu/RSX/Metal/MTLGSRender.cpp": "3b9e9eb6742cf76bc465943c25db6382743899e959dc44384fa2453e46ac4252",
@@ -707,8 +707,8 @@
     "files_after_sha256": {
       "rpcs3/Emu/RSX/Metal/MTLGSRender.cpp": "b17d650c94106627d1c29c7543dcb5e0325ad59f3dd3071b5caa44e99fc1befa",
       "rpcs3/Emu/RSX/Metal/MTLPresent.h": "892c55d0170e665ae6480f61cd63b32873cf925a4fe3d98feffba27da876c8e2",
-      "rpcs3/ios/RPCS3IOS.cpp": "eb0e169e88a0fb5be7925d5503cbb5cfe7a2f9cdf2e765c737fb10707ebf64bc",
-      "rpcs3/ios/RPCS3IOSSettings.cpp": "67db0b3033e4d7e49a51ffcb2d9cc92e220df3bd9e2137a9ed33c68a17b98747"
+      "rpcs3/ios/RPCS3IOS.cpp": "eba62a92b927ea71f4d471110590c0ab5e4afa09918ef38ecbbc95fe9de36a0e",
+      "rpcs3/ios/RPCS3IOSSettings.cpp": "5923e19777759a83d1c8a61d698636e31903d3c296cacaa29ae99e9a0f20e6c1"
     },
     "new_files": []
   }

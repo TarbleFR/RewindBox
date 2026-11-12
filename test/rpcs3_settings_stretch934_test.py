@@ -11,7 +11,9 @@ REWINDBOX_METAL_STRETCH_934 (rpcs3/Emu/RSX/Metal/MTLPresent.h, MTLGSRender.cpp):
 image with its aspect ratio; place() fills the drawable when Stretch To Display Area is on, as VKPresent.cpp does.
 
 Usage: rpcs3_settings_stretch934_test.py --source TREE [--cxx g++]
-Each check has a control that reverts the fix on a copy and must be caught.
+Each check has a control that reverts the fix on a copy and must be caught. The reset API removes the sparse overrides
+instead of writing the ignored full file, and applying a preset (which wrote that file) is refused instead of succeeding
+with no effect (independent review of Core 934).
 """
 import argparse, re, shutil, subprocess, sys, tempfile
 from pathlib import Path
@@ -95,7 +97,14 @@ def check_settings(tree):
     api = (tree / 'rpcs3/ios/RPCS3IOS.cpp').read_text()
     if not re.search(r'has_custom_config\s*\?\s*rpcs3::ios::save_game_settings\(title_id\)\s*:\s*rpcs3::ios::save_game_setting_override\(title_id, key, value\)', api):
         problems.append('set_game_setting no longer chooses the sparse override when there is no custom config')
-    return not problems, '; '.join(problems) or 'API = global < database < sparse overrides; set_game_setting saves an override'
+    reset = function_body(api, 'extern "C" rpcs3_ios_status rpcs3_ios_reset_game_settings(const char* title_id) noexcept')
+    if 'save_game_settings(' in re.sub(r'//[^\n]*', '', reset) or 'remove_game_setting_overrides(title_id)' not in reset:
+        problems.append('reset_game_settings still writes the ignored full file instead of removing the overrides')
+    preset = function_body(settings, 'game_settings_preset_result apply_game_settings_preset(')
+    if 'get_custom_config_path' in re.sub(r'//[^\n]*', '', preset) or 'preset_failure(' not in preset:
+        problems.append('apply_game_settings_preset still succeeds by writing the ignored full file')
+    return not problems, '; '.join(problems) or ('API = global < database < sparse overrides; set_game_setting saves an override; '
+                                                 'reset removes the overrides; a preset apply is refused, not silent')
 
 
 def main():
@@ -151,6 +160,14 @@ def main():
                     '\tconst std::string custom_path = rpcs3::utils::get_custom_config_path(std::string{title_id});\n'
                     '\tif (fs::file custom_config{custom_path}) { has_custom_config = true; g_cfg.from_string(custom_config.to_string()); }\n'
                     '\treturn settings_load_error::none;\n}\n\nbool save_game_settings',
+                    lambda: check_settings(copy)),
+            control('reset writes the full file again', 'rpcs3/ios/RPCS3IOS.cpp',
+                    'if (!rpcs3::ios::remove_game_setting_overrides(title_id))\n\t\t{\n\t\t\tset_error(fmt::format("Unable to remove the user settings of %s"',
+                    'if (!rpcs3::ios::save_game_settings(title_id))\n\t\t{\n\t\t\tset_error(fmt::format("Unable to remove the user settings of %s"',
+                    lambda: check_settings(copy)),
+            control('preset apply writes the full file again', 'rpcs3/ios/RPCS3IOSSettings.cpp',
+                    '\treturn preset_failure(\n\t\tgame_settings_preset_error::invalid_config,\n\t\t"Applying a preset is not available',
+                    '\treturn write_configuration(rpcs3::utils::get_custom_config_path(std::string{title_id}), std::string{});\n\treturn preset_failure(\n\t\tgame_settings_preset_error::invalid_config,\n\t\t"Applying a preset is not available',
                     lambda: check_settings(copy)),
             control('boot rule 922 removed', 'rpcs3/Emu/System.cpp', 'legacy_custom_ignored=1', 'legacy_custom_applied=1',
                     lambda: check_settings(copy)),
