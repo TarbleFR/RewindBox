@@ -368,7 +368,16 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - **RPCS3 checked by main.** Its folder import uses `Rpcs3DocumentPickerPlugin` `pickGameFolder`, which starts
     security-scoped access. The `FilePicker` variant `Rpcs3InternalService.importExtractedGameFolder` has no caller.
     Not affected.
-  - **XeniOS `importFolder`** uses `FilePicker.getDirectoryPath`. Passed to session 03.
+  - **XeniOS `importFolder`.** Session 03 confirmed it uses `FilePicker.getDirectoryPath` (package source, directory
+    path only). Fixed in `7de68c77d` with `pickAndActivateFolder` (bookmark `xenia-import`) and `folderAccessFailed`
+    in 12 locales. Xbox 360 Dart 59/59, storage 25/25. Not seen on a device.
+  - **First Xbox 360 launch on 727 closed RewindBox.** Shown by `Engine/xenia.log`: "iOS JIT: no room for the code
+    region below 8 GB", then a XeniOS FatalError (quick_exit, no .ips). The 512 MiB JIT region must be reserved at
+    process load; the lazy dlopen of the Core comes too late. Session 03's fix (on its branch, not on Claude):
+    - `c579a0e7b` (Core ABI 4): the bridge reserves the region at plugin registration and hands it to the Core;
+    - `71c828f5d`: Dart refuses `jitMemoryUnavailable` before any attach, and `Engine/last-fatal.txt` records the
+      reason.
+    - Core run `43158794942` was in progress; pin, review and handoff to follow.
 - **IPA 727 delivered and verified (12 Nov 04:25Z, main).**
   - Run `43151344182` attempt 1, trigger `bd80b2b9`, frozen on `7d90218f`, effective digest `28dc0833`. All 5 jobs
     succeeded.
