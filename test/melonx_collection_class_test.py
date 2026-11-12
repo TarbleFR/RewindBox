@@ -271,9 +271,13 @@ for label, phase in (('as it is', s), ('with the poll', p)):
     check(phase['ends'] >= phase['starts'] >= 20 and phase['generation2'] >= 3, 'four classes, %s: collections of every kind ran: %s' % (label, phase))
 check(s['endedByPoll'] == 0, 'without a poll no override is ended by one: %s' % s)
 g = r['lingering']
-check(g['seenInForce'] >= 1 and g['endedByPoll'] >= 1 and not g['inForceAfterRelease'] and g['alive'] == 0 and not g['inForceAfter'],
-      'a background collection with nothing to collect first leaves its override on the thread that started it; the poll ends it '
-      'while the engine runs: %s' % g)
+# Whether a background collection starts without a collection before it is the runtime's choice on each host: Linux x64
+# does it within a few hundred large allocations; macOS arm64 never did in 20 000 (run 43331485520: there every
+# background collection reports the end of a first collection on the starting thread, which ends the override).
+check(not g['inForceAfterRelease'] and g['alive'] == 0 and not g['inForceAfter'] and g['endedByPoll'] <= g['seenInForce'] and
+      (g['seenInForce'] == 0 or g['endedByPoll'] >= 1) and (APPLE or g['seenInForce'] >= 1),
+      'a background collection with nothing to collect first leaves its override on the thread that started it and the poll ends it '
+      'while the engine runs (where the runtime starts one that way); nothing is ever left in force: %s' % g)
 check(r['platform']['mostAlive'] == 1 and r['platform']['raises'] == r['platform']['lowers'] == r['raised'] + 1 and
       r['platform']['alive'] == 0 and r['platform']['unknownThread'] == 0,
       'never two overrides at once; as many ended as started (the registration\'s own included): %s' % r['platform'])
