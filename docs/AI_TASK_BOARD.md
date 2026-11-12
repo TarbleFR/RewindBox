@@ -4859,8 +4859,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       maintainer in the UI.
     - **Next action:** from the next Hogwarts run with Core 743: reduce the dominant submission cause with its own gate
       (a strict-sync site, or the fast flush mode's 1.5 ms draw auto-flush), the reference passes and submissions following
-      the command buffer count; no sync semantics change before that measurement. Main: Core 739 CI and pin, then Core
-      741 or Core 743 (743 includes 741).
+      the command buffer count; no sync semantics change before that measurement. Main (12 Nov 07:17): IPA 728 shipped
+      with Core 737 (maintainer); Core 743 merged on Claude as 3d2645ea (--no-ff, recipe byte for byte d4b7f9d7, contract
+      b95bb282); its Core build is push run 43174115676, the pin follows when it is green, for the next IPA (the 739 build
+      43165030959 is green and kept). This work branch was fast-forwarded to 3d2645ea.
   - **IPA 726 device run read (12 Nov): Hogwarts Legacy on Core 735, pid 54035, 23:43:42-23:46:20 (the session
     of the P0 726 close); journals private (scratchpad), aggregates only. Not a like-for-like comparison with 725:
     the phone was in the "serious" thermal state for 99 of the 100 warm seconds (725, pid 51986: "fair").**
