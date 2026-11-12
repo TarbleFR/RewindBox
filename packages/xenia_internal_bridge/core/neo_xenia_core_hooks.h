@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 
 namespace xe {
@@ -34,6 +35,12 @@ void NeoXeniaNotifyTitleLaunched();
 // GPU command processor thread, once per guest swap
 // (MetalCommandProcessor::IssueSwap, a weak reference added by the patch).
 extern "C" void NeoXeniaNotifyGuestSwap(void);
+
+// Read by the patch in jit_memory_ios.cc (a weak reference), from the Core's
+// static initializers on: the highest address the JIT tool can prepare. The
+// patched StikJIT RewindBox ships writes full 64-bit addresses, so XeniOS's
+// 8 GB limit (StikDebug 3.1.x) does not apply.
+extern "C" uintptr_t NeoXeniaExecuteRegionLimit(void);
 
 // Defined by the patch in jit_memory_ios.cc: hands the host's code-region
 // reservation to IOSJitMemory when its own found no room below 8 GB.

@@ -470,6 +470,25 @@ low address space. The reservation now runs in a constructor of the bridge
 image (`XeniaReserveCodeRegionAtLoad`), before them; it reads the flag with
 CoreFoundation preferences, and `registration` reports `… at image load`.
 
+**The 8 GB limit lifted (maintainer's request: no launch may depend on free
+address space)**: XeniOS keeps the code region below 8 GB only because
+StikDebug 3.1.x drops the high bits of the address it prepares. RewindBox's
+JIT helpers use its patched StikJIT 1.9.0: `build-utils/patch_stikjit_rpcs3.py`
+writes 16 hex digits per address (upstream 1.9.0 writes 9), and
+`validate_stikjit_ipa.py` requires that patch's marker in the IPA's
+`StikJIT.framework`; RPCS3's arena at `0x7000000000` relies on it. On iOS the
+A64 code cache always uses the encoded indirection (rel32 plus a 64-bit table,
+code_cache_base.h), so it puts no limit on the code address either. The patch
+therefore adds a weak hook right after `kExecuteRegionLimit`
+(`NeoXeniaExecuteRegionLimit`, declared outside the anonymous namespace so the
+reference keeps external linkage; every later use of the constant reads it),
+and the facade returns 2^47. The Core's own reservation, made when it loads,
+then always finds room; the bridge's reservation at image load, its flag and
+the free-space measurement are removed (they held 512 MiB of address space for
+nothing, which other engines such as RPCS3 need). `adopt_code_region(nullptr,
+0)` still reports `codeRegion` (own or none) in the `XeniOS JIT:` line, and
+`noCodeRegion` stays as a safety net.
+
 **IPA wiring, for the main session** (delivery files, not edited here):
 call `build-utils/configure_xenia_ios.py` after the XeniaCore pin (it
 requires `dist/xenia/XeniaCore.framework`), add the `XeniaJITHelper` pod

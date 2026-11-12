@@ -471,6 +471,15 @@ const NeoXeniaAPI kAPI = {
 
 // ---------------------------------------------------------- upstream hooks
 
+// XeniOS keeps its code region below 8 GB because StikDebug 3.1.x drops the
+// high bits of the address it prepares (jit_memory_ios.cc). RewindBox's
+// helpers use its patched StikJIT (build-utils/patch_stikjit_rpcs3.py: 16 hex
+// digits per address; validate_stikjit_ipa.py requires that patch's marker in
+// the IPA), which prepares any address, as RPCS3's arena at 0x7000000000
+// shows. With the 8 GB limit the region often found no room (device runs:
+// 36 to 687 MiB free below 8 GB). Called from static initializers: no state.
+extern "C" uintptr_t NeoXeniaExecuteRegionLimit(void) { return uintptr_t(1) << 47; }
+
 void NeoXeniaApplyHostRoots() {
   // IPA 728: the config saved under IPA 727 named the previous container's
   // Content folder; create_directories on it threw and RewindBox aborted.

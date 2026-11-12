@@ -231,10 +231,29 @@ index ae55503..6ba7ba9 100644
    ProcessCompletedSubmissions();
    LogFrameGpuWaits();
 diff --git a/src/xenia/cpu/backend/jit_memory_ios.cc b/src/xenia/cpu/backend/jit_memory_ios.cc
-index 5067c76..121f3cd 100644
+index 5067c76..afb84ca 100644
 --- a/src/xenia/cpu/backend/jit_memory_ios.cc
 +++ b/src/xenia/cpu/backend/jit_memory_ios.cc
-@@ -79,6 +79,23 @@ constexpr char kJitTurnedOffMessage[] =
+@@ -40,6 +40,18 @@ namespace {
+ // address and prepares the low-memory alias instead, zeroing the heap pages
+ // there. Below 8 GB the address survives.
+ constexpr uintptr_t kExecuteRegionLimit = uintptr_t(1) << 33;
++// RewindBox embedded Core (build-utils/xenia): its JIT tool, the patched
++// StikJIT, writes full 64-bit addresses, so XeniaCore lifts this limit. Weak:
++// undefined, so the limit above stands, outside XeniaCore. Declared outside
++// the anonymous namespace so the reference keeps external linkage.
++}  // namespace
++extern "C" __attribute__((weak)) uintptr_t NeoXeniaExecuteRegionLimit(void);
++namespace {
++uintptr_t NeoExecuteRegionLimit() {
++  return NeoXeniaExecuteRegionLimit ? NeoXeniaExecuteRegionLimit()
++                                    : kExecuteRegionLimit;
++}
++#define kExecuteRegionLimit NeoExecuteRegionLimit()
+ // The code region's size on iOS: CodeCacheBase::kGeneratedCodeSize, page
+ // rounded (code_cache_base.h asserts that it fits).
+ constexpr size_t kExecuteRegionReserveSize =
+@@ -79,6 +91,23 @@ constexpr char kJitTurnedOffMessage[] =
  
  }  // namespace
  
