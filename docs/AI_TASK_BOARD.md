@@ -359,6 +359,21 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     `Claude-Session` line.
   - **Next:** download, verify offline, receipts, record, delete the key, send the file; give session 04 the freeze
     commit for 803 (sibling of 726).
+- **IPA 731 delivered and verified (12 Nov 15:0xZ, main; maintainer asked for it with session 04's fix).**
+  - Run `43238363574` attempt 1, trigger `5e4eb9c7`, frozen on `8667a630`, effective digest `fd4c9ec6`, 7922 product
+    files. All 5 jobs succeeded on the first request.
+  - IPA `RewindBox-731.ipa`: 329525805 B, SHA-256 `23f50247830706a74fd8a81dcebb73fb6d5745c139d6f647259657fc066fe3e4`.
+  - Contents: the delivered 730 plus the S2Arm image pack fix b3c2fe6a (merge 9661d929). XeniaCore 2d176a7f, S2Arm
+    engine 175018a2, RPCS3 934 and MeloNX 743 are retained unchanged (unchangedFromBase).
+  - Offline verification `passed-offline-checks`:
+    - 97 images; 49 retained fingerprints; all 6 validators exit 0;
+    - packaged identities name Xenia 2d176a7f and S2Arm fde6f47d;
+    - Runner carries the new module-step refusal string.
+  - Undeclared image changes, not fatal: the armsx2, dolphin and rpcs3 internal bridges. Their sources are unchanged
+    since 730 (git diff 3cea0357..HEAD empty), so this is the same rebuild drift seen in 729. Cause still unexplained.
+  - Receipt `docs/evidence/rewind731/delivery.json` (14 proof files + 2 engine receipts). Key shredded; file sent.
+  - Not run on an iPhone. Device check: Mario Kart World re-prepares, then the first launch of a prepared Switch 2
+    game (E2).
 - **Next IPA (731) queue (main, 12 Nov 14:2xZ).**
   - Session 04 fix b3c2fe6a merged on Claude as 9661d929. Bridge only, no pin change.
     - Cause, confirmed in s2arm_pack.c: rb_s2arm_module_dir writes the image pack, then runs rmtree(dest) and renames
