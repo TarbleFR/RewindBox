@@ -5682,6 +5682,37 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - First pin attempt, run 43185240791, refused the artifact: it held a fifth member, `patches.txt`. Fixed in
       `a6f958fd`.
     - Not observed on a device. The pass shares are estimates until a journal gives the durations.
+  - **IPA 732 engine log (maintainer, 12 Nov 21:2xZ, host.log of the 732 run): the game boots, runs nnMain, then crashes on
+    sparse textures 30 s later. Fix: engine patch `0012` (`6aaba2bd`), engine build running.**
+    - What the log shows:
+      - 0011 works: "store emulation self-test skipped: a debugger is attached";
+      - modules relocated, services up, but "RomFS 目录表建" (RomFS directory table) took 65.2 s;
+      - then nnosInitialize, nninitStartup, DT_INIT and nnMain ran;
+      - the NVN2 device came up on Metal 4 (A18 Pro), with a 3-texture swap chain;
+      - heartbeats stayed at frame 0.
+    - Crash:
+      - the game called nvnTextureGetSparseTileLayout, whose engine stub zeroes the layout;
+      - it then sent 0-byte tile mappings into a virtual pool, and vm_remap refused 9 of them ("(0 bytes) failed: 4");
+      - SIGSEGV at address 0x4, pc main+0x5b57a4.
+    - Cause in the engine (pin 6b6a5715; upstream main 1701b27f is the same): the builder query and nvn_tex.c's layout already
+      follow the SDK's 64 KiB sparse pages; only the texture query was a stub.
+    - Patch 0012 (hle_nvn.c):
+      - the texture query answers nvn_tex_sparse_layout on its own description, the builder's answer;
+      - a valid 0-byte MapVirtual request maps nothing and succeeds;
+      - each is logged once.
+    - Tests: new `test/s2arm_sparse_layout_test.py` (13 checks, run by s2arm-bridge-ios.yml); `s2arm_store_bench_test.py`
+      now checks 0011 as the 11th patch. Legal notices: 0012 row, series 0001–0012.
+    - Green: engine 43308161284 (macOS 15 and 26, guest entry points); bridge iOS 43308161296 (with the new test).
+      Independent review (rb-core-review): no actionable defect. Its notes are not blocking: the old Chinese stub comment
+      is stale; four rare pre-existing mismatches between nvn_tex_sparse_layout and level_walk (compressed non-power-of-two
+      sizes, packaged block height, 16x MSAA, sparse with linear); no positive engine test of the texture query.
+    - Verified pin: SHA-256 `9ddb304e…99d5`, pin job 43311510026. Engine 43308161284 (`6aaba2bd`, series 0001-0012),
+      prepare 43304794526 (speed lot), sysdata unchanged.
+    - Next:
+      - handoff to main for IPA 733 with the speed lot, then the maintainer's device run (journal + host.log after an app
+        restart);
+      - later, the 65 s RomFS directory table: S2Arm reads a prebuilt `romfs.s2aidx` (services/romfs_index) when the
+        preparation provides one.
   - **IPA 732 device report (maintainer, 12 Nov 20:09Z: S2Arm journal and three engine logs): the boot now asks for its
     code at once; the engine runs after the helper detaches. What it does next is not known yet.**
     - Journal, pid 60681: preparation passed in 432 s (unchanged library). Launch: `start` passed, then the 6 boot blocks
@@ -5695,6 +5726,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       (`FATAL … 外置镜像映射 0x7100000000 … errno=1`), code 134.
     - The engine log of the 732 run reaches Files at the next app start (or at the session's end). Next: that log and
       what the screen showed.
+    - Maintainer, later: "same stop as last time" on screen. The four files sent again are byte-identical to the 20:09Z
+      upload (same sizes and SHA-256). Asked for the 732 engine log after a full app restart: `S2ArmExportEngineLogs`
+      overwrites the copies at each app start. The on-screen stop is now after the boot code was served, so it is not
+      the 731 stall.
   - **Preparation speed (maintainer request, 12 Nov): commits `74951ac7` + `2175b72e`, same outputs, verified pin
     `24dcf030` (SHA-256 `58ca7025…e86e`), handed to main for a later IPA.**
     - Where the 427 s of IPA 731 went (journal + app.log):
