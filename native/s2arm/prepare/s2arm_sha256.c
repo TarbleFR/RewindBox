@@ -3,6 +3,22 @@
 
 #include <string.h>
 
+#if defined(__APPLE__)
+// CC_LONG is 32 bits: longer inputs go in 1 GiB slices.
+void s2arm_sha256_init(s2arm_sha256_ctx *s) { CC_SHA256_Init(&s->cc); }
+
+void s2arm_sha256_update(s2arm_sha256_ctx *s, const void *data, size_t n) {
+    const uint8_t *p = data;
+    while (n) {
+        size_t take = n < ((size_t)1 << 30) ? n : ((size_t)1 << 30);
+        CC_SHA256_Update(&s->cc, p, (CC_LONG)take);
+        p += take;
+        n -= take;
+    }
+}
+
+void s2arm_sha256_final(s2arm_sha256_ctx *s, uint8_t out[32]) { CC_SHA256_Final(out, &s->cc); }
+#else
 static const uint32_t K256[64] = {
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be,
     0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa,
@@ -79,6 +95,7 @@ void s2arm_sha256_final(s2arm_sha256_ctx *s, uint8_t out[32]) {
     for (int i = 0; i < 8; i++)
         for (int k = 0; k < 4; k++) out[4 * i + k] = (uint8_t)(s->h[i] >> (24 - 8 * k));
 }
+#endif
 
 void s2arm_sha256(const void *data, size_t len, uint8_t out[32]) {
     s2arm_sha256_ctx s;

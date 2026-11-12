@@ -9,18 +9,22 @@
 #define _XOPEN_SOURCE 700   // realpath, symlink, pwrite
 #endif
 #include "s2arm_pack.h"
+#include "s2arm_dirent.h"
 #include "s2arm_sha256.h"
 
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <pthread.h>
+#include <stdatomic.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
 
 #define PG 0x4000            // 16 KiB: blocks, segments
@@ -523,14 +527,23 @@ static int list_add(list_t *l, char *s) {
 }
 static int cmp_str(const void *a, const void *b) { return strcmp(*(char *const *)a, *(char *const *)b); }
 
-// Names of a directory (no "." / ".."), sorted; -1 unreadable, -2 out of memory.
+// Names of a directory (no "." / ".."), sorted; -1 unreadable, -2 out of memory. Each name keeps its readdir type
+// (s2arm_dirent.h) in the byte after its terminating NUL, for walk_source.
 static int listdir(const char *path, list_t *out) {
     DIR *d = opendir(path);
     if (!d) return -1;
     struct dirent *e;
     int ok = 1;
     while (ok && (e = readdir(d)))
-        if (strcmp(e->d_name, ".") && strcmp(e->d_name, "..")) ok = list_add(out, sdup(e->d_name));
+        if (strcmp(e->d_name, ".") && strcmp(e->d_name, "..")) {
+            size_t n = strlen(e->d_name);
+            char *s = malloc(n + 2);
+            if (s) {
+                memcpy(s, e->d_name, n + 1);
+                s[n + 1] = (char)s2arm_dirent_type(e);
+            }
+            ok = list_add(out, s);
+        }
     closedir(d);
     if (!ok) return -2;
     if (out->n) qsort(out->v, out->n, sizeof *out->v, cmp_str);
@@ -1403,16 +1416,24 @@ static int walk_source(ctx_t *x, pfiles_t *out, const char *name, const char *di
     if (r) return fail(x, RB_S2ARM_PACK_IO, "out of memory");
     list_t dirs = {0};
     int code = 0;
+    // The stats are relative to the directory (fstatat), as stat(p) but without resolving its path again for each file.
+    int dfd = open(dir, O_RDONLY | O_DIRECTORY);
     for (size_t i = 0; i < names.n && !code; i++) {   // files of this directory first (sorted), then the subdirectories
         char *p = pjoin(dir, names.v[i]);
         if (!p) {
             code = fail(x, RB_S2ARM_PACK_IO, "out of memory");
             break;
         }
+        unsigned char type = (unsigned char)names.v[i][strlen(names.v[i]) + 1];
+        if (type == DT_DIR) {   // a real directory (the listing says so: neither a stat nor an lstat is needed)
+            if (!list_add(&dirs, sdup(names.v[i]))) code = fail(x, RB_S2ARM_PACK_IO, "out of memory");
+            free(p);
+            continue;
+        }
         struct stat st;
-        int st_ok = stat(p, &st) == 0;
-        if (st_ok && S_ISDIR(st.st_mode)) {
-            if (!is_link(p) && !list_add(&dirs, sdup(names.v[i]))) code = fail(x, RB_S2ARM_PACK_IO, "out of memory");
+        int st_ok = (dfd >= 0 ? fstatat(dfd, names.v[i], &st, 0) : stat(p, &st)) == 0;
+        if (st_ok && S_ISDIR(st.st_mode)) {   // a link to a directory is listed, not entered
+            if (type == DT_UNKNOWN && !is_link(p) && !list_add(&dirs, sdup(names.v[i]))) code = fail(x, RB_S2ARM_PACK_IO, "out of memory");
             free(p);
             continue;
         }
@@ -1435,6 +1456,7 @@ static int walk_source(ctx_t *x, pfiles_t *out, const char *name, const char *di
         free(full);
         free(p);
     }
+    if (dfd >= 0) close(dfd);
     for (size_t i = 0; i < dirs.n && !code; i++) {
         char *p = pjoin(dir, dirs.v[i]), *sub = *rel ? pjoin(rel, dirs.v[i]) : sdup(dirs.v[i]);
         code = p && sub ? walk_source(x, out, name, p, sub, depth + 1) : fail(x, RB_S2ARM_PACK_IO, "out of memory");
@@ -1462,41 +1484,150 @@ static int ls_cmp(const void *pa, const void *pb) {   // pkg_srcs.ls: hidden nam
     return strcmp(a, b);
 }
 
-static int hash_file(ctx_t *x, const char *path, uint64_t size, uint8_t out[32], uint64_t *done, uint64_t total,
-                     const rb_s2arm_resource_request *r) {
-    int fd = open(path, O_RDONLY);
-    if (fd < 0) return fail(x, RB_S2ARM_PACK_IO, "cannot read %s", path);
-    static const size_t CHUNK = 4 << 20;
-    uint8_t *b = malloc(CHUNK);
-    if (!b) {
-        close(fd);
-        return fail(x, RB_S2ARM_PACK_IO, "out of memory");
+// The files under the RomFS and DLC links, read in place and hashed by up to HASH_THREADS threads: the whole RomFS
+// (22 GB for Mario Kart World) went through one thread before, at about 110 MB/s on the phone (pack step 204 s of a
+// 427 s preparation, IPA 731). Each file's digest goes to its own slot, so index.tsv is the same in any order; the
+// first failure wins and stops the others. Progress and the request's callbacks other than `cancelled` stay on the
+// calling thread (the bridge's progress throttle is not thread-safe); `cancelled` is polled by every thread, between
+// 4 MiB chunks, as before.
+#define HASH_THREADS 4
+#define HASH_CHUNK ((size_t)4 << 20)
+
+typedef struct {
+    ctx_t *x;                         // x->error is written once, under lock, by the first failure
+    const rb_s2arm_resource_request *r;
+    pfile_t *files;
+    const size_t *todo;               // indexes into files, in index order
+    size_t count;
+    uint64_t total;
+    int inline_progress;              // 1: the work runs on the calling thread (no thread could start)
+    atomic_size_t next;
+    atomic_uint_least64_t done;       // bytes hashed so far, including what came before (copies)
+    atomic_int failed;
+    pthread_mutex_t lock;
+    pthread_cond_t idle;              // signalled when the last thread ends
+    int active;                       // threads still working, under lock
+    int code;                         // the first failure, under lock
+} hash_pool_t;
+
+#if defined(__GNUC__)
+__attribute__((format(printf, 3, 4)))
+#endif
+static int pool_fail(hash_pool_t *p, int code, const char *fmt, ...) {
+    pthread_mutex_lock(&p->lock);
+    if (!p->code) {
+        p->code = code;
+        if (p->x->error && p->x->error_size) {
+            va_list ap;
+            va_start(ap, fmt);
+            vsnprintf(p->x->error, p->x->error_size, fmt, ap);
+            va_end(ap);
+        }
+        atomic_store(&p->failed, 1);
     }
+    pthread_mutex_unlock(&p->lock);
+    return code;
+}
+
+static int hash_one(hash_pool_t *p, pfile_t *f, uint8_t *b) {
+    int fd = open(f->src, O_RDONLY);
+    if (fd < 0) return pool_fail(p, RB_S2ARM_PACK_IO, "cannot read %s", f->src);
     s2arm_sha256_ctx h;
     s2arm_sha256_init(&h);
     uint64_t got = 0;
     int code = 0;
     for (;;) {
-        if (stop(x)) {
-            code = fail(x, RB_S2ARM_PACK_CANCELLED, "cancelled");
+        if (atomic_load(&p->failed)) {   // another file failed: stop without a message of our own
+            code = -1;
             break;
         }
-        ssize_t k = read(fd, b, CHUNK);
+        if (p->r->cancelled && p->r->cancelled(p->r->context)) {
+            code = pool_fail(p, RB_S2ARM_PACK_CANCELLED, "cancelled");
+            break;
+        }
+        ssize_t k = read(fd, b, HASH_CHUNK);
         if (k < 0 && errno == EINTR) continue;
         if (k < 0) {
-            code = fail(x, RB_S2ARM_PACK_IO, "cannot read %s", path);
+            code = pool_fail(p, RB_S2ARM_PACK_IO, "cannot read %s", f->src);
             break;
         }
         if (k == 0) break;
         s2arm_sha256_update(&h, b, (size_t)k);
         got += (uint64_t)k;
-        *done += (uint64_t)k;
-        if (r->progress) r->progress(r->context, *done, total);
+        uint64_t done = atomic_fetch_add(&p->done, (uint64_t)k) + (uint64_t)k;
+        if (p->inline_progress && p->r->progress) p->r->progress(p->r->context, done, p->total);
+    }
+    close(fd);
+    if (!code && got != f->size) code = pool_fail(p, RB_S2ARM_PACK_IO, "%s changed while being read", f->src);
+    if (!code) s2arm_sha256_final(&h, f->sha);
+    return code;
+}
+
+static void *hash_worker(void *arg) {
+    hash_pool_t *p = arg;
+    uint8_t *b = malloc(HASH_CHUNK);   // one buffer per thread, not one per file
+    if (!b) pool_fail(p, RB_S2ARM_PACK_IO, "out of memory");
+    while (b && !atomic_load(&p->failed)) {
+        size_t k = atomic_fetch_add(&p->next, 1);
+        if (k >= p->count || hash_one(p, &p->files[p->todo[k]], b)) break;
     }
     free(b);
-    close(fd);
-    if (!code && got != size) code = fail(x, RB_S2ARM_PACK_IO, "%s changed while being read", path);
-    if (!code) s2arm_sha256_final(&h, out);
+    pthread_mutex_lock(&p->lock);
+    if (--p->active == 0) pthread_cond_signal(&p->idle);
+    pthread_mutex_unlock(&p->lock);
+    return NULL;
+}
+
+static int hash_linked(ctx_t *x, const rb_s2arm_resource_request *r, pfile_t *files, const size_t *todo, size_t count,
+                       uint64_t *done, uint64_t total) {
+    hash_pool_t p;
+    memset(&p, 0, sizeof p);
+    p.x = x, p.r = r, p.files = files, p.todo = todo, p.count = count, p.total = total;
+    atomic_init(&p.next, 0);
+    atomic_init(&p.done, *done);
+    atomic_init(&p.failed, 0);
+    if (pthread_mutex_init(&p.lock, NULL)) return fail(x, RB_S2ARM_PACK_IO, "cannot create a lock");
+    if (pthread_cond_init(&p.idle, NULL)) {
+        pthread_mutex_destroy(&p.lock);
+        return fail(x, RB_S2ARM_PACK_IO, "cannot create a condition");
+    }
+    long cpus = sysconf(_SC_NPROCESSORS_ONLN);
+    size_t want = cpus < 1 ? 1 : cpus > HASH_THREADS ? HASH_THREADS : (size_t)cpus;
+    if (want > count) want = count;
+    pthread_t threads[HASH_THREADS];
+    size_t started = 0;
+    pthread_mutex_lock(&p.lock);
+    for (size_t i = 0; i < want; i++) {
+        if (pthread_create(&threads[started], NULL, hash_worker, &p)) break;
+        started++;
+        p.active++;   // under lock: a thread that ends at once waits for it before counting itself out
+    }
+    if (!started) {   // no thread: the same work here, with progress after each chunk as before
+        pthread_mutex_unlock(&p.lock);
+        p.inline_progress = 1;
+        p.active = 1;
+        hash_worker(&p);
+    } else {
+        while (p.active > 0) {   // progress every 100 ms from this thread, until the last thread signals its end
+            struct timespec deadline;
+            clock_gettime(CLOCK_REALTIME, &deadline);
+            deadline.tv_nsec += 100 * 1000000L;
+            if (deadline.tv_nsec >= 1000000000L) deadline.tv_sec++, deadline.tv_nsec -= 1000000000L;
+            pthread_cond_timedwait(&p.idle, &p.lock, &deadline);
+            if (p.active > 0 && r->progress) {
+                pthread_mutex_unlock(&p.lock);
+                r->progress(r->context, atomic_load(&p.done), total);
+                pthread_mutex_lock(&p.lock);
+            }
+        }
+        pthread_mutex_unlock(&p.lock);
+        for (size_t i = 0; i < started; i++) pthread_join(threads[i], NULL);
+    }
+    *done = atomic_load(&p.done);
+    int code = p.code;
+    pthread_cond_destroy(&p.idle);
+    pthread_mutex_destroy(&p.lock);
+    if (!code && r->progress) r->progress(r->context, *done, total);
     return code;
 }
 
@@ -1599,13 +1730,15 @@ int rb_s2arm_resource_pack(const rb_s2arm_resource_request *r, char *error, size
         free(lp);
         free(atp);
     }
-    for (size_t i = 0; i < files.n && !code; i++) {
+    size_t *linked_files = files.n ? malloc(files.n * sizeof *linked_files) : NULL, nlinked = 0;
+    if (files.n && !linked_files && !code) code = fail(&x, RB_S2ARM_PACK_IO, "out of memory");
+    for (size_t i = 0; i < files.n && !code; i++) {   // the copies here, in order; the linked files are hashed below
         pfile_t *f = &files.v[i];
         int linked = 0;
         for (int k = 0; k < ns; k++)
             if (srcs[k].link == 1 && !strncmp(f->rel, srcs[k].name, strlen(srcs[k].name)) && f->rel[strlen(srcs[k].name)] == '/') linked = 1;
         if (linked) {
-            code = hash_file(&x, f->src, f->size, f->sha, &done, total, r);
+            linked_files[nlinked++] = i;
             continue;
         }
         char *dst = pjoin(tmp, f->rel), *dir = dst ? sdup(dst) : NULL, *slash = dir ? strrchr(dir, '/') : NULL;
@@ -1622,6 +1755,8 @@ int rb_s2arm_resource_pack(const rb_s2arm_resource_request *r, char *error, size
         free(dst);
         free(dir);
     }
+    if (!code && nlinked) code = hash_linked(&x, r, files.v, linked_files, nlinked, &done, total);
+    free(linked_files);
     if (!code) {   // index.tsv, manifest.json (version 2), then the device's bookkeeping
         char hex[65];
         for (size_t i = 0; i < files.n && !code; i++) {

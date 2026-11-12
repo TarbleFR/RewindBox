@@ -9,6 +9,7 @@ name: S2Arm on-device preparation checks
       - .github/workflows/s2arm-prepare.yml
       - build-utils/s2arm/prepare/**
       - native/s2arm/**
+      - test/s2arm_prepare_speed_test.py
       - test/s2arm_rewriter_progress_test.py
       - tools/s2arm_prototype/**
 permissions:
@@ -64,6 +65,8 @@ jobs:
           cmake --build "$RUNNER_TEMP/rewriter-rb" --parallel 4
       - name: The rewriter patch only reports progress
         run: python3 -B test/s2arm_rewriter_progress_test.py
+      - name: The preparation's speed fixes are in place (outputs compared with S2Arm below)
+        run: python3 -B test/s2arm_prepare_speed_test.py
       - name: Build S2Arm's nx_unpack and ZBIC test, and the ZBIC batch driver over S2Arm's decoder
         env:
           DOTNET_CLI_TELEMETRY_OPTOUT: '1'

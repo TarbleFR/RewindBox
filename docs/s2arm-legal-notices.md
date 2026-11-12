@@ -251,7 +251,9 @@ files were changed (they are translations, not copies).
 | `build-utils/s2arm/engine/patches/0011-guest-skip-the-store-emulation-self-test-under-a-debugger.patch` | modifies `runtime/src/crash.c`: the store emulation self-test (a measurement, one log line) is skipped while a debugger is attached, since each of its 2000 faults stops the process for it; change marked `RewindBox (patch 0011)` in comments |
 | `build-utils/s2arm/prepare/patches/0001-rewriter-progress-report.patch` (on-device preparation library, S2ArmPrepare.xcframework) | modifies `runtime/rewriter/rewriter.c`, `runtime/rewriter/rewriter.h`: a progress callback per thread (`s2a_rewrite_set_progress`) called at each pass and inside the long loops; it only reads loop counters, no output byte depends on it (`test/s2arm_rewriter_progress_test.py`; outputs compared with the unpatched rewriter in `s2arm-prepare.yml`); changes marked `RewindBox` in comments |
 
-`native/s2arm/prepare/s2arm_sha256.c` is not derived from S2Arm (SHA-256 written from FIPS 180-4).
+`native/s2arm/prepare/s2arm_sha256.c` is not derived from S2Arm (SHA-256 written from FIPS 180-4; on Apple systems it
+calls the system's CommonCrypto). `native/s2arm/prepare/s2arm_dirent.h` is not derived from S2Arm either (the readdir
+entry types its walks read).
 
 ## System data tree (CI artifact of `build_sysdata_bundle.sh`; not in the repository)
 

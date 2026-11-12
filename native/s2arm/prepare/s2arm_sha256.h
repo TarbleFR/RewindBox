@@ -1,19 +1,33 @@
-// RewindBox: SHA-256 for the preparation library (FIPS 180-4), portable C, no global state.
+// RewindBox: SHA-256 for the preparation library (FIPS 180-4), no global state.
 // Internal: the names do not start with rb_s2arm_, so the xcframework keeps them local.
+// On Apple systems it is CommonCrypto's (the SHA-256 instructions of the CPU): the resource pack
+// hashes the whole RomFS, 22 GB for Mario Kart World, and the portable C below read it at about
+// 110 MB/s on the phone (pack step 204 s of a 427 s preparation, IPA 731). Elsewhere (the Linux CI
+// leg) it is the portable C. Both give the same digests; CI compares them with hashlib.
 #pragma once
 #include <stddef.h>
 #include <stdint.h>
+
+#if defined(__APPLE__)
+#include <CommonCrypto/CommonDigest.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#if defined(__APPLE__)
+typedef struct {
+    CC_SHA256_CTX cc;
+} s2arm_sha256_ctx;
+#else
 typedef struct {
     uint32_t h[8];
     uint8_t buf[64];
     uint64_t total;
     size_t fill;
 } s2arm_sha256_ctx;
+#endif
 
 void s2arm_sha256_init(s2arm_sha256_ctx *s);
 void s2arm_sha256_update(s2arm_sha256_ctx *s, const void *data, size_t len);
