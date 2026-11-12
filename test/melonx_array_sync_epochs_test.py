@@ -10,7 +10,8 @@ SynchronizeMemory walk, two ValidateTextures walks), whatever changed.
 Static: only Texture.cs and TextureBindingsArrayCache.cs change, each replacement once and reversing to the control.
 What makes the skipped walks no-ops is read in the source: a texture's dirty flag is written true by its initialiser
 and by SignalGroupDirty only, and Texture.SynchronizeMemory of a texture that is not dirty only stamps LastUseEpoch;
-that clock is in seconds; a blacklisted scale mode stays; every InvalidatedSequence move goes through one method; both
+that clock is in seconds; a scale mode is written by the constructors, BlacklistScale and AssignScaleMode only, the
+last signalling a texture that leaves the blacklist; every InvalidatedSequence move goes through one method; the
 writers count themselves in flight around the flag (or sequence) and the epoch; the array's texture set is written at
 five places, the three outside the delta path after a Reset.
 Built: the production Ryujinx.Graphics.Gpu of the candidate.
@@ -18,8 +19,8 @@ Executed (test/melonx_array_sync_epochs/Program.cs: the production cache, thread
 control and of the candidate; pools, textures, memory and the renderer transport doubled, the texture double with the
 dirty flag, the use clock and the writers' protocol):
 - 72 random scenarios (texture, sampler and image arrays; stores; scale blacklist; format views; threaded or not) with
-  pool writes, removals, invalidations, scaling, CPU writes to texture memory, dirty signals on any texture and ticks
-  of the use clock, the shared-entry, texture buffer, removal, failure, log overflow, invalidation, replaced-storage
+  pool writes, removals, invalidations, scaling, CPU writes to texture memory, dirty signals on any texture, scale
+  modes leaving the blacklist and ticks of the use clock, the shared-entry, texture buffer, removal, failure, log overflow, invalidation, replaced-storage
   and quiet scenarios of the bindless gate: at every step the control and the candidate leave the same backend
   contents, the same store set, the same uploaded textures and the same state in every texture (dirty flag, use
   stamp, uploads, scale mode, pending upload);
@@ -149,9 +150,21 @@ with tempfile.TemporaryDirectory(prefix='melonx-array-sync-epochs-') as temporar
           'the synchronisation of a texture that is not dirty only stamps its last use; unchanged by the adapter')
     context = (candidate / 'src/Ryujinx.Graphics.Gpu/GpuContext.cs').read_text(encoding='utf-8-sig')
     check('TextureUseEpoch = (int)(now / 1000);' in context and context.count('TextureUseEpoch =') == 1, 'the use clock counts seconds, set at one place')
-    check('bool unscaled = ScaleMode == TextureScaleMode.Blacklisted' in texture and
-          'TextureScaleMode newScaleMode = unscaled ? ScaleMode : TextureScaleMode.Scaled;' in texture and
-          texture.count('ScaleMode = TextureScaleMode.Blacklisted;') == 1, 'a blacklisted scale mode stays blacklisted')
+    # A scale mode is written by the two constructors (a new texture), by BlacklistScale (into the blacklist) and by
+    # SetScale, which gives a view its storage's mode and a storage its view's: those four assignments go through
+    # AssignScaleMode, which signals a texture that leaves the blacklist. No other file writes a scale mode.
+    scale = member(texture, 'public void SetScale(float scale)')
+    assign = member(texture, 'private static void AssignScaleMode(Texture texture, TextureScaleMode mode)')
+    check(len(re.findall(r'\bScaleMode = ', old_texture)) == 7 and len(re.findall(r'\bScaleMode = ', member(old_texture, 'public void SetScale(float scale)'))) == 4 and
+          not re.search(r'\bScaleMode = ', scale) and scale.count('AssignScaleMode(') == 4 and len(re.findall(r'\bScaleMode = ', texture)) == 4 and
+          texture.count('ScaleMode = scaleMode;') == 2 and texture.count('ScaleMode = TextureScaleMode.Blacklisted;') == 1,
+          'the scale mode is assigned by the constructors, BlacklistScale and AssignScaleMode only')
+    check(ordered(assign, 'bool leavesBlacklist = texture.ScaleMode == TextureScaleMode.Blacklisted && mode != TextureScaleMode.Blacklisted;',
+                  'Interlocked.Increment(ref DirtyWriters);', 'texture.ScaleMode = mode;', 'Interlocked.Increment(ref DirtyEpoch);',
+                  'Interlocked.Decrement(ref DirtyWriters);'), 'a texture that leaves the blacklist is signalled after its mode is written')
+    others = [str(path.relative_to(candidate)) for path in (candidate / 'src/Ryujinx.Graphics.Gpu').rglob('*.cs')
+              if path.name != 'Texture.cs' and re.search(r'\.ScaleMode = ', path.read_text(encoding='utf-8-sig', errors='replace'))]
+    check(not others, 'no other file of the GPU project writes a scale mode: %s' % others)
     signal = member(texture, 'public void SignalGroupDirty()')
     check(ordered(signal, 'Interlocked.Increment(ref DirtyWriters);', '_dirty = true;', 'Interlocked.Increment(ref DirtyEpoch);',
                   'Interlocked.Decrement(ref DirtyWriters);'), 'SignalGroupDirty: counted in flight; the epoch moves after the flag is set')
@@ -220,6 +233,15 @@ with tempfile.TemporaryDirectory(prefix='melonx-array-sync-epochs-') as temporar
         reports[variant] = json.loads(next(line for line in result.stdout.splitlines() if line.startswith('{')))
     check(compiled['control'] == adapter.BASELINE[adapter.CACHE] and compiled['candidate'] == sha(candidate / adapter.CACHE) != compiled['control'],
           'the fixture compiled the control\'s cache and the candidate\'s')
+    # The check has teeth: the candidate's cache with a texture double whose scale mode leaves the blacklist without the
+    # signal (the first version of the adapter assumed it could not) must fail the fixture.
+    silent = base / 'candidate'
+    project = silent / 'test.csproj'
+    project.write_text(project.read_text().replace('<DefineConstants>ADAPTED</DefineConstants>', '<DefineConstants>ADAPTED;NO_SCALE_SIGNAL</DefineConstants>'))
+    wrong = subprocess.run([DOTNET, 'run', '--project', str(project), '-c', 'Release'], capture_output=True, text=True, timeout=1800, cwd=silent,
+                           env=dict(os.environ, DOTNET_CLI_TELEMETRY_OPTOUT='1', DOTNET_NOLOGO='1'))
+    silent_fails = wrong.returncode != 0 and 'blacklisted' in (wrong.stdout + wrong.stderr)
+    check(silent_fails, 'a scale mode that leaves the blacklist unsignalled is caught by the fixture: rc %s %s' % (wrong.returncode, (wrong.stdout + wrong.stderr)[-300:]))
 
 c, k = reports['control'], reports['candidate']
 check(c['checks'] == k['checks'] > 1_000_000, 'the same checks ran on both: %s / %s' % (c['checks'], k['checks']))
@@ -269,7 +291,7 @@ report = {
     'quietUpdateSyncCallsControl': c['visits'][0]['syncCallsPerUpdate'], 'quietUpdateSyncCallsCandidate': k['visits'][0]['syncCallsPerUpdate'],
     'quietUpdateSequenceReadsControl': c['visits'][0]['sequenceReadsPerUpdate'],
     'quietUpdateSequenceReadsCandidate': k['visits'][0]['sequenceReadsPerUpdate'],
-    'visits': visits, 'writers': k['writers'],
+    'visits': visits, 'writers': k['writers'], 'unsignalledScaleModeCaught': silent_fails,
     'deviceEvidence': 'IPA 729 Hogwarts Legacy (private journal, pid 58475): gpuWork arrayDelta 170-534 calls and 459-1 136 ms per 5 s '
                       'window during play, bindings 956-1 773 ms',
     'inputs': {path: sha(ROOT / path) for path in inputs},

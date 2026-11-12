@@ -16,7 +16,10 @@ Change:
 - Texture.cs: SignalGroupDirty, the only writer of a texture's dirty flag after its creation, moves a process-wide
   DirtyEpoch after setting the flag, and the three places that move InvalidatedSequence go through one method; both
   count their writers in flight (DirtyWriters, InvalidationWriters), so a reader that finds no writer and an unmoved
-  epoch knows that nothing was signalled since it last read the epoch, from any thread.
+  epoch knows that nothing was signalled since it last read the epoch, from any thread. SetScale's four scale mode
+  assignments go through AssignScaleMode, which moves DirtyEpoch when a texture leaves Blacklisted (a view follows
+  its storage's mode and a storage its view's; found by the independent review of the first version, which assumed
+  a blacklisted mode stayed).
 - TextureBindingsArrayCache.cs (CacheEntry): ValidateTextures returns at once when no InvalidatedSequence moved since
   its last complete walk and the set was not refilled. SynchronizeMemory returns after synchronising only the
   textures added since its last complete walk when, since that walk, no texture was signalled dirty, the use clock
@@ -66,7 +69,54 @@ EPOCH_NEW = '''        internal static int InvalidationEpoch;
             System.Threading.Interlocked.Increment(ref InvalidationEpoch);
             System.Threading.Interlocked.Decrement(ref InvalidationWriters);
         }
+
+        // RewindBox (adapt_array_sync_epochs): SetScale gives a view its storage's scale mode and a storage its view's,
+        // so a texture can leave Blacklisted without a new storage. A bound array's walk blacklists it again: the change
+        // is signalled as a dirty flag is, and the next update of every array walks.
+        private static void AssignScaleMode(Texture texture, TextureScaleMode mode)
+        {
+            bool leavesBlacklist = texture.ScaleMode == TextureScaleMode.Blacklisted && mode != TextureScaleMode.Blacklisted;
+
+            if (leavesBlacklist)
+            {
+                System.Threading.Interlocked.Increment(ref DirtyWriters);
+            }
+
+            texture.ScaleMode = mode;
+
+            if (leavesBlacklist)
+            {
+                System.Threading.Interlocked.Increment(ref DirtyEpoch);
+                System.Threading.Interlocked.Decrement(ref DirtyWriters);
+            }
+        }
 '''
+
+# The four assignments of SetScale (the constructors' and BlacklistScale's are not changed: a new texture enters an array
+# through a noted addition or a refill, and BlacklistScale only enters the blacklist).
+SCALE_PAIRS = (
+    ('''                _viewStorage.ScaleMode = newScaleMode;
+''', '''                AssignScaleMode(_viewStorage, newScaleMode); // RewindBox (adapt_array_sync_epochs)
+'''),
+    ('''                    view.ReplaceStorage(newView);
+                    view.ScaleMode = newScaleMode;
+''', '''                    view.ReplaceStorage(newView);
+                    AssignScaleMode(view, newScaleMode); // RewindBox (adapt_array_sync_epochs)
+'''),
+    ('''                ScaleMode = newScaleMode;
+
+                foreach (Texture view in _views)
+                {
+                    view.ScaleMode = newScaleMode;
+                }
+''', '''                AssignScaleMode(this, newScaleMode); // RewindBox (adapt_array_sync_epochs)
+
+                foreach (Texture view in _views)
+                {
+                    AssignScaleMode(view, newScaleMode); // RewindBox (adapt_array_sync_epochs): same statement as above
+                }
+'''),
+)
 
 DIRTY_OLD = '''        public void SignalGroupDirty()
         {
@@ -310,7 +360,7 @@ VALIDATE_NEW = '''            public bool ValidateTextures()
             }
 '''
 
-TEXTURE_PAIRS = MOVE_PAIRS + ((EPOCH_OLD, EPOCH_NEW), (DIRTY_OLD, DIRTY_NEW))
+TEXTURE_PAIRS = MOVE_PAIRS + SCALE_PAIRS + ((EPOCH_OLD, EPOCH_NEW), (DIRTY_OLD, DIRTY_NEW))
 CACHE_PAIRS = ((FIELDS_OLD, FIELDS_NEW), (ADDED_OLD, ADDED_NEW), (SYNC_OLD, SYNC_NEW), (RESET_OLD, RESET_NEW),
                (VALIDATE_OLD, VALIDATE_NEW))
 FILE_PAIRS = {TEXTURE: TEXTURE_PAIRS, CACHE: CACHE_PAIRS}

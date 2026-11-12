@@ -174,7 +174,7 @@ sealed class World
         for (int i = 0; i < operations; i++)
         {
             int id = Random.Next(Length);
-            switch (Random.Next(16))
+            switch (Random.Next(17))
             {
                 case 0: Textures.Write(id, Random.Next(3) == 0 ? 0 : 1 + Random.Next(LibrarySize)); break;
                 case 1: Textures.Write(id, Textures.Keys[id]); break; // identical bytes rewritten
@@ -196,6 +196,7 @@ sealed class World
                 case 11: case 12: RandomLibraryTexture().CpuWrite(); break; // the game writes a texture's memory
                 case 13: UseEpoch++; break; // a second passes
                 case 14: All[Random.Next(All.Count)].SignalGroupDirty(); break; // any texture, bound or not, alive or not
+                case 15: All[Random.Next(All.Count)].LeaveBlacklist(); break; // SetScale through a view or its storage
                 default: Textures.Write(id, 1 + Random.Next(LibrarySize)); break;
             }
         }
@@ -1027,6 +1028,21 @@ namespace Ryujinx.Graphics.Gpu.Image
             Dirty = true;
             System.Threading.Interlocked.Increment(ref DirtyEpoch);
             System.Threading.Interlocked.Decrement(ref DirtyWriters);
+        }
+        // Texture.SetScale: a view takes its storage's scale mode and a storage its view's, so a blacklisted texture can
+        // be scaled again without a new storage. The candidate's AssignScaleMode signals it as a dirty flag is
+        // (NO_SCALE_SIGNAL builds the variant without that signal, which the gate must see fail).
+        public void LeaveBlacklist()
+        {
+            if (Disposed || ScaleMode != TextureScaleMode.Blacklisted) return;
+#if !NO_SCALE_SIGNAL
+            System.Threading.Interlocked.Increment(ref DirtyWriters);
+#endif
+            ScaleMode = TextureScaleMode.Eligible;
+#if !NO_SCALE_SIGNAL
+            System.Threading.Interlocked.Increment(ref DirtyEpoch);
+            System.Threading.Interlocked.Decrement(ref DirtyWriters);
+#endif
         }
         // A CPU write to the texture's memory: tracked, so the texture is signalled dirty.
         public void CpuWrite() { PendingUpload = true; SignalGroupDirty(); }
