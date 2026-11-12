@@ -2,7 +2,7 @@
   "schema": 1,
   "build": 727,
   "status": "draft",
-  "note": "Private common IPA 727 = the delivered 726 with the RPCS3 Core 934 (per-game settings of the in-game menu saved where the boot reads them, so God of War III stretches again; the Metal 4 present honours Stretch To Display Area), the MeloNX Core 737 (a pad detached while a frame reads the controllers no longer quarantines the engine after a Switch game; a donor kept by the last Switch session is retried and blocks only Switch; plain restart message for other engines) and the two engines the maintainer asked for: XeniOS (Xbox 360: XeniaCore pinned, Apple Metal Shader Converter libmetalirconverter.dylib shipped unmodified except its code signature, the JIT helper extension; the three converter points stay without proof, the maintainer's decision is not a rights holder's authorisation) and S2Arm (Switch 2: pinned engine, settings and in-game menu). Engine closed sets checked by identity file. MeloNX display tests repaired. Base: the delivered and verified 726. Nothing of this build was run on an iPhone; no FPS, memory, heat or stability claim.",
+  "note": "Private common IPA 727 = the delivered 726 with the RPCS3 Core 934 (per-game settings of the in-game menu saved where the boot reads them, so God of War III stretches again; the Metal 4 present honours Stretch To Display Area), the MeloNX Core 737 (a pad detached while a frame reads the controllers no longer quarantines the engine after a Switch game; a donor kept by the last Switch session is retried and blocks only Switch; plain restart message for other engines) and the two engines the maintainer asked for: XeniOS (Xbox 360: XeniaCore pinned, Apple Metal Shader Converter libmetalirconverter.dylib shipped unmodified except its code signature, the JIT helper extension; the three converter points stay without proof, the maintainer's decision is not a rights holder's authorisation; Core ABI 3 with the in-game display settings: performance overlay, aspect ratio, reported resolution, letterbox) and S2Arm (Switch 2: pinned engine, settings, in-game menu, saves in a Files-visible folder per game with import from the playlist menu). Engine closed sets checked by identity file. MeloNX display tests repaired. Base: the delivered and verified 726. Nothing of this build was run on an iPhone; no FPS, memory, heat or stability claim.",
   "base": {
     "build": 726,
     "source": "bd99e8b7e3e60ade69dbeffcc18b866c789a0db8",
@@ -258,7 +258,7 @@
     "xenia": {
       "mode": "pinned-engine",
       "pin": "build-utils/xenia/core-pin.json",
-      "pinSha256": "8b850d7b9ce08ab29e62b495ba65dbcc666d3949619186d249d99b5bbc841e33",
+      "pinSha256": "7e13268b3648eb50af7d22dd5ee1ced57b3ce11c2d7239bca3fd4ed95143a4f2",
       "verifier": "build-utils/xenia/core_pin.py",
       "identityFile": "Xenia-native-identity.json",
       "frameworks": [
@@ -481,6 +481,14 @@
       {
         "commit": "19b997627eac3bb543b700babed12fc939a0a582",
         "note": "Reviewed by main: Merge Switch 2 (S2Arm) engine handoff, session 04: pinned engine (engine-pin 02feeda2), IDENTITY_ENGINES entry, legal texts, settings and in-game menu [skip ci]"
+      },
+      {
+        "commit": "1b32dd7f7a748a0a3269b3382e386275e579162a",
+        "note": "Reviewed by main: Merge session 04: Switch 2 save import (22997cd2) [skip ci]"
+      },
+      {
+        "commit": "5a15a1f96af948266304eef6e7092eb69f42f231",
+        "note": "Reviewed by main: Merge session 03: XeniOS in-game display settings, Core ABI 3 pin 7e13268b (c22262d7) [skip ci]"
       }
     ],
     "sourceOnly": [],
