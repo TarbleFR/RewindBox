@@ -384,7 +384,7 @@ jobs:
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/pin"
           python3 - "$RUNNER_TEMP/pin" <<'PY'
-          import json, os, re, subprocess, sys, urllib.request
+          import json, os, re, subprocess, sys, urllib.error, urllib.request
           folder = sys.argv[1]
           workflows = {'engine': '.github/workflows/s2arm-engine.yml', 'prepare': '.github/workflows/s2arm-core.yml',
                        'sysdata': '.github/workflows/s2arm-prepare.yml'}
@@ -409,9 +409,21 @@ jobs:
               if len(listing) != 1 or listing[0]['expired'] or not str(listing[0].get('digest', '')).startswith('sha256:'):
                   sys.exit(f'not exactly one unexpired artifact {wanted} with a digest')
               item = listing[0]
+              # The API answers with a redirect to a signed storage URL. urllib would forward the Authorization
+              # header there, which the storage refuses (401): follow the redirect by hand, without the token.
+              class NoRedirect(urllib.request.HTTPRedirectHandler):
+                  def redirect_request(self, *args, **kwargs):
+                      return None
               request = urllib.request.Request(f"https://api.github.com/repos/{repository}/actions/artifacts/{item['id']}/zip",
                                                headers={'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json'})
-              with urllib.request.urlopen(request, timeout=600) as response:
+              try:
+                  urllib.request.build_opener(NoRedirect).open(request, timeout=120)
+                  sys.exit(f'no redirect for the {name} artifact download')
+              except urllib.error.HTTPError as error:
+                  if error.code not in (301, 302, 303, 307, 308) or not error.headers.get('Location'):
+                      raise
+                  location = error.headers['Location']
+              with urllib.request.urlopen(location, timeout=600) as response:
                   data = response.read()
               import hashlib
               if 'sha256:' + hashlib.sha256(data).hexdigest() != item['digest'] or len(data) != item['size_in_bytes']:
