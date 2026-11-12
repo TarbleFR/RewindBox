@@ -1,11 +1,11 @@
-# S2Arm engine host bridge (Switch 2 test line)
+# S2Arm engine host bridge (Switch 2 playlist)
 
 Host side of the embedded Switch 2 engine: the Flutter plugin `packages/s2arm_engine_bridge` and the Dart service
 `lib/services/s2arm_internal_service.dart`. It prepares a game on the phone, loads `S2ArmEngine.framework`, drives the
 engine's guest sequence and the S2Arm JIT helper, and reports every step to a journal. Nothing of S2Arm or of any game is
 stored here; the engine framework, `NS2Pro.framework`, `S2ArmPrepare.xcframework` and the system data are supplied by the
-test line's delivery (`docs/s2arm-study-2026-11-11.md` §§ 6–9, `s2arm-engine.yml`, `s2arm-core.yml`, `s2arm-prepare.yml`;
-[Delivery](#delivery-test-line) below). Nothing here has run on a device.
+delivery from their pinned producer runs (`docs/s2arm-study-2026-11-11.md` §§ 6–9, `s2arm-engine.yml`, `s2arm-core.yml`,
+`s2arm-prepare.yml`; [Delivery](#delivery-pinned-engine-component-s2arm) below). Nothing here has run on a device.
 
 ## Plugin `packages/s2arm_engine_bridge`
 
@@ -81,33 +81,34 @@ Shaped like `XeniaInternalService` (PR #172) so the shared library layer calls b
   native session-end stream.
 - `messageKey` / `localizedError` map the native codes to `lib/l10n/s2arm_engine_locale.dart` (12 locales).
 
-## Delivery (test line)
+## Delivery (pinned-engine component `s2arm`)
 
-Every build of `s2arm-delivery.yml` carries the bridge: `packages/s2arm_engine_bridge` is a workspace member and a path
-dependency of the root `pubspec.yaml` (no `pubspec.lock` change), accepted by the legal gate through
-`docs/evidence/s2arm-engine-declarations-2026-11-11.json`, chained after the probe review. Nothing of S2Arm is committed: each
-piece comes from a successful run of this branch's producer, named in the build's manifest, authenticated through the API by
-`.github/diagnostics/s2arm/standard_delivery_s2arm.py` (run: workflow, branch, success, commit in the delivered history; one
-unexpired artifact named after that commit; its size and digest) and checked again in the application and the signed IPA.
+The common delivery carries the bridge: `packages/s2arm_engine_bridge` is a workspace member and a path dependency of the
+root `pubspec.yaml` (no `pubspec.lock` change), accepted by the legal gate through
+`docs/evidence/s2arm-engine-declarations-2026-11-11.json`, chained after the XeniOS playlist review. Nothing of S2Arm is
+committed: each piece comes from a successful run of its producer on this branch, pinned in
+`build-utils/s2arm/engine-pin.json` (run, attempt, artifact id, size, digest, members), authenticated through the API by the
+generic `pinned-engine` kind of `.github/diagnostics/standard_delivery.py` (`download-engine s2arm`, `verify-engine s2arm`,
+`embed-engine s2arm`, with `build-utils/s2arm/engine_pin.py` as verifier and `build-utils/s2arm/check_app.py` as check) and
+checked again in the application and the signed IPA. The pin job of `s2arm-engine.yml` (`[s2arm-pin engine=… prepare=…
+sysdata=…]` in a commit message) writes and prints the pin; the producer artifacts expire after 30 days.
 
-| Piece | Producer, manifest | Steps | Checked |
+| Piece | Producer (pin entry) | Steps | Checked |
 | --- | --- | --- | --- |
-| `S2ArmEngine.framework` (with `S2ArmDirectChain.txt`), `NS2Pro.framework` | `s2arm-engine.yml`, `s2arm.engine` | `engine-download`, `engine-embed` | archives against the manifest, identity against the pin and the patch series; byte for byte in the application, payload and signature in the IPA; the chain present, well formed, recorded |
-| The engine's licence and notice texts (`licenses/` of the same artifact: `license-sources.json` and the texts it lists) | `s2arm-engine.yml` (`build-utils/s2arm/engine/collect_licenses.py`, from the pinned commit, the source archives the build fetched and the .NET packs it restored) | `engine-download`, `engine-embed` into `Runner.app/Legal/S2Arm` after the legal bundle | the legal gate's rule (every listed text with its digest and size, nothing else, the required texts, the statement that no Nintendo data ships), the record of the producer identity, the pin, the producer commit's RewindBox notice; again in the application, the signed IPA and offline, and by the legal gate itself (`embed_legal_bundle.py --validate-only --app`, right after `engine-check-app`) |
-| `S2ArmPrepare.xcframework` (static `libS2ArmPrepare.a`, only `rb_s2arm_*` visible) | `s2arm-core.yml` (`S2ArmPrepare-<sha>`), `s2arm.prepare` = run, SHA-256 of `S2ArmPrepare.xcframework.zip` | `prepare-download`, `prepare-install` into `ios/Frameworks/` of the package, before the first `pod install` | the zip against the manifest and `sha256.txt`; `S2ArmPrepare-identity.json` against the producer commit's pin (S2Arm commit, Capstone and LZ4 digests) and `sha256.txt`; one iOS arm64 device library, the bytes `sha256.txt` measured, and its headers; `undefined.txt` leaves no `rb_s2arm_*` undefined; the podspec vendors that path alone (`ios/Frameworks/` is ignored by the package `.gitignore`) |
-| System data tree: `systemdata/` (open fonts, tz data, synthesised empty data), `licenses/`, `SOURCES.tsv`, `SHA256SUMS` | `s2arm-prepare.yml` (`s2arm-sysdata-macOS-<sha>`), `s2arm.sysdata` = run, SHA-256 of its `SHA256SUMS` | `sysdata-download`, `sysdata-embed` as `Runner.app/S2ArmSystemData`, right before `engine-embed` | every file against `SHA256SUMS` (missing, extra or changed refused), its digest against the manifest; the OFL and tz licence texts, the fonts; `SOURCES.tsv`'s S2Arm commit against the pin; no Mach-O, bundle, hidden or case-colliding path |
+| `S2ArmEngine.framework` (with `S2ArmDirectChain.txt`), `NS2Pro.framework` | `s2arm-engine.yml` (`producers.engine`) | download, embed | archives against the manifest, identity against the pin and the patch series; byte for byte in the application, payload and signature in the IPA; the chain present, well formed, recorded |
+| The engine's licence and notice texts (`licenses/` of the same artifact: `license-sources.json` and the texts it lists) | `s2arm-engine.yml` (`build-utils/s2arm/engine/collect_licenses.py`, from the pinned commit, the source archives the build fetched and the .NET packs it restored) | download, embed into `Runner.app/Legal/S2Arm` after the legal bundle | the legal gate's rule (every listed text with its digest and size, nothing else, the required texts, the statement that no Nintendo data ships), the record of the producer identity, the pin, the producer commit's RewindBox notice; again in the application, the signed IPA and offline, and by the legal gate itself (`embed_legal_bundle.py --validate-only --app`, right after `engine-check-app`) |
+| `S2ArmPrepare.xcframework` (static `libS2ArmPrepare.a`, only `rb_s2arm_*` visible) | `s2arm-core.yml` (`S2ArmPrepare-<sha>`, `producers.prepare`) | download, `engine_pin.py install-prepare` into `ios/Frameworks/` of the package, before the first `pod install` | the zip against the manifest and `sha256.txt`; `S2ArmPrepare-identity.json` against the producer commit's pin (S2Arm commit, Capstone and LZ4 digests) and `sha256.txt`; one iOS arm64 device library, the bytes `sha256.txt` measured, and its headers; `undefined.txt` leaves no `rb_s2arm_*` undefined; the podspec vendors that path alone (`ios/Frameworks/` is ignored by the package `.gitignore`) |
+| System data tree: `systemdata/` (open fonts, tz data, synthesised empty data), `licenses/`, `SOURCES.tsv`, `SHA256SUMS` | `s2arm-prepare.yml` (`s2arm-sysdata-macOS-<sha>`, `producers.sysdata`) | download, embed as `Runner.app/S2ArmSystemData` with the engine | every file against `SHA256SUMS` (missing, extra or changed refused), its digest against the manifest; the OFL and tz licence texts, the fonts; `SOURCES.tsv`'s S2Arm commit against the pin; no Mach-O, bundle, hidden or case-colliding path |
 | The plugin itself | this build (CocoaPods, Xcode) | the compilation | the generated registrant registers `S2ArmEngineBridgePlugin` once; the Runner executable defines the plugin class, `rb_s2arm_engine_loaded`, `rb_s2arm_engine_mark_loading` and the seven `rb_s2arm_*` entry points it calls (nm -gU), leaves no `rb_s2arm_*` undefined (nm -u), and exports `rb_s2arm_engine_loaded` in its dyld export trie; no separate bridge or preparation image |
 
-`engine-embed` records the pieces in `S2Arm-native-identity.json` (`prepare`, `systemData`, `bridge`, `licenses`);
-`engine-check-app` (with the generated registrant), `engine-check-ipa` and, offline against the manifest,
-`verify_downloaded_delivery_s2arm.py` check them. Drafts: `make_manifest.py ... --prepare-run RUN --prepare-zip SHA
---sysdata-run RUN --sysdata-tree SHA`. The texts of `Legal/S2Arm`, their origins and what could not be located are in
+The embed step records the pieces in `S2Arm-native-identity.json`; `check_app.py`, the IPA checks and the offline verifier
+check them. The texts of `Legal/S2Arm`, their origins and what could not be located are in
 [the notices](s2arm-legal-notices.md#the-texts-in-the-test-ipa-legals2arm).
 
 The common steps run unchanged: every closed extension set or count the application meets (the single-IPA validator,
 the Dolphin packager's and seal's `verify_ipa.validate`, the structure step's `validate_rpcs3_ipa`, the version check of
 the workflow, the offline verifier) and the legal gate carry their own conditional on `S2Arm-native-identity.json`
-(handed to main), inert in the common IPA; nothing is patched in memory (`docs/s2arm-jit-helper.md`, Validators).
+(handed to main), inert in an application without the S2Arm identity; nothing is patched in memory (`docs/s2arm-jit-helper.md`, Validators).
 Only CI can verify that CocoaPods links the vendored static library into Runner and the real symbol table, and that the
 producer finds the source archives and .NET packs where the collector reads them; only a device the rest.
 
@@ -119,8 +120,8 @@ producer finds the source archives and .NET packs where the collector reads them
   pieces (the flag, the journal, the `S2AEMB01` reader).
 - `test/s2arm_internal_service_test.dart`: the error mapping across locales, the availability override, and the import
   through a fake channel.
-- `.github/diagnostics/s2arm/s2arm_delivery_test.py` (the delivery steps above on synthetic producers, their refusals, the
-  checks of the application, the IPA and offline) and `s2arm_legal_review_test.py` (the chained declaration reviews; on the
+- `test/s2arm_pinned_engine_test.py` (the S2Arm instance of the pinned-engine kind on synthetic producers, its refusals,
+  the committed pin) and `test/s2arm_legal_review_test.py` (the chained declaration review; on the
   effective tree of a build, skipped elsewhere).
 - `test/s2arm_engine_licenses_test.py` (the producer's collection of the texts; with `S2ARM_PINNED_TREE`, on the pinned
   commit), `test/s2arm_legal_bundle_test.py` (the legal gate's conditional), and the tests of the closed-set conditionals:

@@ -40,9 +40,9 @@ if str(ROOT / 'build-utils') not in sys.path:
 import embed_legal_bundle as legal  # noqa: E402
 
 PATH = 'build-utils/embed_legal_bundle.py'
-# embed_legal_bundle.py of the common line before the S2Arm statements (origin/Claude at 41c76404; same blob on this
-# branch's base ba04c914).
-PRE_CHANGE_BLOB = 'a63fe9d547adf567d54da3555c30c0be2aad270e'
+# embed_legal_bundle.py of the common line before the S2Arm statements (origin/Claude at 9c9817e8, with the XeniOS
+# notices; the S2Arm branch merged that commit).
+PRE_CHANGE_BLOB = 'de8c5e83f67f5c702032f00284f4f963cc2c1126'
 DOLPHIN = '7cac54161659421ed95c2cd1c0b0746539a4cd38'
 COMMIT = '6b6a571553f7a687af46e03e2cdbf8ef4d77f335'
 S2ARM_FUNCTIONS = ('s2arm_notice_errors', 'validate_s2arm_notices')

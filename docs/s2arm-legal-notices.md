@@ -1,6 +1,8 @@
 # Switch 2 playlist (S2Arm) — notices ready for integration
 
-**Nothing here is in a delivered IPA yet** (no build of the test line carries the engine so far). The
+**Nothing here is in a delivered IPA yet.** The separate test line is retired: the S2Arm pieces now reach the common
+delivery as its pinned-engine component `s2arm` (`build-utils/s2arm/engine-pin.json`), and the sections below that say
+"test IPA" describe that application. The
 common line's notice files (`docs/LEGAL_AND_CREDITS.md`, `NOTICE.md`,
 `docs/PACKAGE_SOURCES_AND_LICENSES.md`, `licenses/`) are not modified by this branch. The test IPA
 carries the engine's own licence and notice texts in its legal bundle, `Legal/S2Arm`
@@ -14,7 +16,7 @@ the tables after it detail `S2ArmPrepare.xcframework` and the RewindBox code der
 ## What the test IPA ships with the engine and its bridge
 
 Every piece comes from an authenticated producer run of the test line
-([delivery](s2arm-engine-bridge.md#delivery-test-line)); S2Arm is at commit
+([delivery](s2arm-engine-bridge.md#delivery-pinned-engine-component-s2arm)); S2Arm is at commit
 `6b6a571553f7a687af46e03e2cdbf8ef4d77f335` (`tools/s2arm_prototype/pin.json`). Third parties
 of the engine are those S2Arm's own `THIRD_PARTY_LICENSES.md` marks "进 IPA" (in the iPhone
 package) at that commit, completed by what the engine build really keeps: the kept-code inventory
@@ -258,7 +260,6 @@ To ship in the app with the engine, together with the licence texts in its `lice
 | `systemdata/010000000000080E/` (time zone data) | IANA tz release pinned in S2Arm `services/systemdata/tzdata-pins.sh` (2026f, SHA-512 checked), compiled by `make_tzdata.sh` | public domain (tz `LICENSE`) |
 | `systemdata/<id>/` + `<id>.synth` (0802, 0823, 0849 …) | empty but well-formed structures written by S2Arm `pack/sysdata_synth.py`; no Nintendo data | generated output of Apache-2.0 code |
 | `tools/s2arm_prototype/zbic_batch/Program.cs` | test driver only (CI): compiles S2Arm's two ZBIC files from the pinned checkout; no S2Arm source stored |
-| `packages/s2arm_probe/ios/Classes/S2ArmSynthModule.h` | output of the S2Arm rewriter for a synthetic module written for the test; no S2Arm source |
 
 ## Points for the integration owner
 

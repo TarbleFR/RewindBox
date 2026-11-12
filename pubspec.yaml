@@ -27,7 +27,6 @@ workspace:
   - packages/neo_touch_layout
   - packages/neo_texture_catalog
   - packages/neo_box_reader
-  - packages/s2arm_probe
   - packages/s2arm_engine_bridge
 
 version: 0.0.8+480
@@ -66,8 +65,6 @@ dependencies:
     path: packages/melonx_internal_bridge
   xenia_internal_bridge:
     path: packages/xenia_internal_bridge
-  s2arm_probe:
-    path: packages/s2arm_probe
   s2arm_engine_bridge:
     path: packages/s2arm_engine_bridge
   libretro_internal_bridge:

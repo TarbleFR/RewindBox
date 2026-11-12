@@ -21,7 +21,7 @@ Differences from the original, on purpose:
   deployment target to 18.0. This script runs after the host is configured: it requires the first two to be
   set already and never touches the deployment target.
 - No Core check: the engine frameworks are placed in the built application after the compilation, by the
-  test line's delivery launcher (.github/diagnostics/s2arm/standard_delivery_s2arm.py engine-embed).
+  delivery from their pinned producer runs (build-utils/s2arm/engine-pin.json, pinned-engine component).
 
 Run it on the configured host, then `pod install` again so CocoaPods integrates the new target, then
 `check-pods`:
