@@ -5510,7 +5510,7 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 ### Switch 2 playlist (S2Arm) feasibility prototype — session 04
 
 - **Owner/branch:** session `012mUASj3EQnvC86WC56AePw`, `work/s2arm-switch2-prototype-20261110`
-  (level with `Claude` `9661d929`). Own paths: `packages/s2arm_engine_bridge/`, `native/s2arm/`,
+  (merged with `Claude` `5fe7b3c7` in `d7e8f671`). Own paths: `packages/s2arm_engine_bridge/`, `native/s2arm/`,
   `build-utils/s2arm/`, `tools/s2arm_prototype/`, `.github/workflows/s2arm-*.yml`, `docs/s2arm-*.md`.
 - **Goal:** a Switch 2 playlist on S2Arm, games prepared on the phone. The device probe ships in
   a common IPA by maintainer decision (below); the rest stays on this branch.
@@ -5643,6 +5643,36 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - First pin attempt, run 43185240791, refused the artifact: it held a fifth member, `patches.txt`. Fixed in
       `a6f958fd`.
     - Not observed on a device. The pass shares are estimates until a journal gives the durations.
+  - **IPA 731 device report (maintainer, 12 Nov, S2Arm journal): the engine starts, then waits 10 minutes before asking
+    for code. Fix: verified pin `eb8f20bf` with engine patch 0011, for IPA 732.**
+    - Observed:
+      - prepared (image pack 85 MB);
+      - launch: imagePack read (6 boot blocks, 57 MB), helper attached, jitProbe, pool 16 MB, dlopen, configure, view,
+        start passed.
+      - Then no prepareCode call for 600 s, then a bootServed timeout and a forced detach.
+      - 49 ms later the engine asked for main's 42 MB at 0x7100000000. The pool was exhausted and the session ended
+        with code 134.
+      - Two earlier runs were closed during the same wait.
+    - Cause, engine source at the pin: crash.c `s2a_emul_store_bench`.
+      - It runs at the first thread's fault set-up and makes 2000 deliberate faults to time the store emulation.
+      - Under the attached JIT helper each fault stops the process for the debugger: about 0.3 s each, 10 minutes.
+    - Fix, commit `496e1d8f`:
+      - Engine patch 0011 (crash.c only): skip that self-test when P_TRACED. It is a measurement, one log line.
+      - Bridge: the spare pool covers boot + later + 16 MB, as a fallback for a forced detach. That path (pool pages
+        remapped) has not been observed.
+      - Bridge: the engine's `host.log` and `logs/` are copied to `Documents/Diagnostics/S2Arm/engine/<gid>/` at app
+        start and at session end.
+      - New `test/s2arm_store_bench_test.py`, 9 checks. Bridge test: 177 checks.
+    - Pin `eb8f20bf`, SHA-256 `9560e56f…8b8d`, from pin job run 43280704030.
+      - Engine: run 43278195639, artifact 13971369524, series 0001-0011, packagedFingerprint `70ca3332…`.
+      - Prepare 43218734813 and sysdata unchanged.
+    - Green:
+      - engine 43278195639 (macOS 15 and 26);
+      - bridge iOS 43278195858;
+      - library 43278195698, then 43280703962 on the tree merged with Claude `5fe7b3c7` (`d7e8f671`);
+      - core 43278195885.
+    - Next, on IPA 732: the boot should ask for its code within seconds of start. If it fails again, the engine log is
+      now in Files.
   - **IPA 730 device report (maintainer, 12 Nov, journal + app.log + screenshot): the preparation finishes, the launch
     failed on a missing image pack. Fix `b3c2fe6a` (bridge only, no pin), merged on Claude by main as `9661d929`,
     delivered in IPA 731 (run 43238363574, receipt `d5cf7fcc`). Device check pending: Mario Kart World re-prepares,
