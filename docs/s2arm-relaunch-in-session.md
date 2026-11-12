@@ -104,15 +104,16 @@ iOS settings page uses ("restart now", `ios/app.m:91,429`).
 - The parked game threads and their mappings have to be released, or the memory grows with each game.
 - Every step is unobserved until a first Switch 2 game boots on the iPhone.
 
-## Step 1 implemented (12 Nov 2026, not built yet)
+## Step 1 implemented (12 Nov 2026, reviewed, engine build next)
 
 - Engine patch `build-utils/s2arm/engine/patches/0010-guest-park-and-resume-the-same-game.patch`:
   - `s2a_host_park` and `s2a_host_resume` in session.c (above);
   - `s2a_rb_guest_stop` parks when the host gave `session_parked` and falls back to the shutdown;
   - `s2a_rb_guest_parked`, `s2a_rb_guest_view_controller` and `s2a_rb_guest_resume`.
   - The config accepts the size of a host built before the patch.
-  - The series 0001-0010 applies on the pin. The non-Apple path of session.c compiles without warnings here; the
-    Apple path is compiled by the engine build.
+  - The series 0001-0010 applies on the pin. session.c and rb_guest.c compile here without warnings (`-Wall -Wextra`) on
+    the non-Apple path, and on the Apple path through stub headers. app.m and the real Apple build are the engine
+    build's.
 - Exports: the three new entry points are in `build-utils/s2arm/engine/export_list.py` (the framework exports only that
   list), and `s2arm-engine.yml` checks them. Without this, `dlsym` would not have found them.
 - Bridge:
@@ -121,9 +122,35 @@ iOS settings page uses ("restart now", `ios/app.m:91,429`).
   - `status` gives `parkedGameId`, and `session_parked` sends `sessionEnded` with `parked: true`.
 - Dart: `launch()` lets only the parked title id through.
 - Tests:
-  - `test/s2arm_park_resume_test.py` (33 checks);
+  - `test/s2arm_park_resume_test.py` (41 checks). A missing anchor is a FAIL line; each review fix below fails its own
+    check when it is removed;
   - the bridge test (163 checks): the guest ABI is compared with the struct the whole series produces;
   - `test/s2arm_engine_exports_test.py` and `test/s2arm_session_menu_test.py` (each launch path checked on its own);
   - the Dart service test: the parked game resumes, another game and an end are refused.
-- Then: the engine build, an engine pin from main, and the device check once a first game boots.
+- Then: the engine build, an engine pin, and the device check once a first game boots.
+
+### Independent review of patch 0010 (12 Nov 2026)
+
+A separate read of the park, resume and stop paths against S2Arm's restart found these defects. All are fixed in the
+patch and the bridge except the last one, which only a device can settle.
+
+1. **A failed resume left what the rebuild started running.** It now fails the session, then stops and joins the guests
+   and services, as a failed restart does (`stop_failed`, `s2a_gate_stop_begin`).
+2. **A park that timed out fell back to a shutdown while the retirement worker still owned the services and the GPU.**
+   That would dispose them twice. When the retirement is still busy, the session now ends for the host without a
+   shutdown. That process cannot run another Switch 2 game.
+3. **The park flag was set before the restart request was accepted.** A Quit during S2Arm's own restart could have
+   turned that restart into a park. The flag is now stored by the accepted request only, after its CAS, under the
+   request lock.
+4. **Quit, SIGTERM and app termination did not know about the park.**
+   - Quit during a park, a resume or a restart is ignored, so a shutdown never runs on top of one.
+   - SIGTERM while parked exits at once, as after an end.
+   - App termination while parked runs no shutdown: the save was written by the park.
+5. **A second tap during a launch or a resume answered "restart required".** The bridge now answers "busy" first.
+6. **The stop reason leaked after a park, and could be a literal.** `park_result` frees it after a park and after a
+   timed-out park, and keeps it for the fallback shutdown, which logs it later. A park now needs the heap copy.
+7. **Device check: the same game whose code blocks differ.** A block reuses its page only when it is byte-identical
+   (`code_same`). Otherwise the loader takes pages from the spare pool, sized for the first boot's later NROs. The JIT
+   helper detached after that boot, so an empty pool cannot be refilled: the resume then fails and the session ends.
+   Only a device run shows whether this happens.
 

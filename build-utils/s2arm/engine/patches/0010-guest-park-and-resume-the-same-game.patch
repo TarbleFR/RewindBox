@@ -1,5 +1,5 @@
 diff --git a/ios/app.m b/ios/app.m
-index 507bf4e..2c13e6f 100644
+index 507bf4e..85e832d 100644
 --- a/ios/app.m
 +++ b/ios/app.m
 @@ -961,6 +961,19 @@ static int rb_start_host(char *error, size_t error_size) {   // startHost on the
@@ -22,11 +22,19 @@ index 507bf4e..2c13e6f 100644
  __attribute__((visibility("default"), used)) int s2a_rb_guest_start(char *error, size_t error_size) {
      static int started;
      if (error && error_size) error[0] = 0;
+@@ -972,6 +985,7 @@ __attribute__((visibility("default"), used)) int s2a_rb_guest_start(char *error,
+     [NSNotificationCenter.defaultCenter addObserverForName:UIApplicationWillTerminateNotification object:nil queue:nil usingBlock:^(NSNotification *n) { (void)n;
+         s2a_guest_run_mark(0); s2a_rb_guest_terminating(2);
+         if (s2a_host_boot_pending()) return;
++        if (s2a_rb_guest_parked()) return;   // patch 0010: parked, the save is written and nothing runs; the process just ends
+         s2a_controller_set_foreground(0); s2a_host_shutdown("iOS app terminating (RewindBox host)"); }];
+     if (s2a_ios_save_management_requested()) {   // as sceneDidBecomeActive: the save manager first (over the game view), then the host
+         UIViewController *m = s2a_ios_save_manager(^{ [g_rb_vc dismissViewControllerAnimated:NO completion:^{ rb_start_host(NULL, 0); }]; });
 diff --git a/runtime/include/s2a_session.h b/runtime/include/s2a_session.h
-index 31311f5..ac6ad01 100644
+index 31311f5..1576f0d 100644
 --- a/runtime/include/s2a_session.h
 +++ b/runtime/include/s2a_session.h
-@@ -21,6 +21,14 @@ typedef void (*s2a_restart_callback)(int result, const char *detail, void *conte
+@@ -21,6 +21,16 @@ typedef void (*s2a_restart_callback)(int result, const char *detail, void *conte
  // Timeout reports failure once and seals rebuilding; an execution worker may
  // still own old resources. Failure is not proof that cleanup has completed.
  int s2a_host_restart(s2a_restart_callback callback, void *context);
@@ -38,11 +46,13 @@ index 31311f5..ac6ad01 100644
 +// half), then publishes RUNNING and calls the restart-done hook. 0 = accepted, -1 = not parked, -3 = busy.
 +int s2a_host_resume(s2a_restart_callback callback, void *context);
 +int s2a_host_parked(void);
++// RewindBox (patch 0010): 1 while an accepted retirement / resume still runs (even after its timeout was reported).
++int s2a_session_retirement_busy(void);
  int s2a_host_session_state(void);
  // 重启完成登记点（进程级，壳在启动时登记一次；会话复位不清）：任何发起方（设置页 / 游戏 ExecuteProgram /
  // 测试开关）的进程内重启，新局起来后都在控制线程上调一次，generation 是新会话代号；失败 / 超时不调（失败已报红）。
 diff --git a/runtime/src/rb_guest.c b/runtime/src/rb_guest.c
-index 00854ae..d262e4c 100644
+index 00854ae..91f4270 100644
 --- a/runtime/src/rb_guest.c
 +++ b/runtime/src/rb_guest.c
 @@ -4,6 +4,7 @@
@@ -83,7 +93,16 @@ index 00854ae..d262e4c 100644
      // From here the image pack opens without code signature registration and game code goes through prepare_code (imgpack.c)
      atomic_store(&g_on, 1);
      const char *why = s2a_launch_ctx_set_guest(c->game_id, c->images, c->module_dir, c->caps_dir, c->game_data, c->ryu_data, c->docs);
-@@ -118,14 +124,54 @@ void s2a_rb_guest_exit(int code, const char *why) {
+@@ -102,7 +108,7 @@ void s2a_rb_guest_terminating(int how) {
+     if (!s2a_rb_guest_on()) return;
+     if (how == 1) atomic_store(&g_term, 1);
+     else { int none = 0; atomic_compare_exchange_strong(&g_term, &none, how); }
+-    if (how == 1 && atomic_load(&g_ended)) _exit(0);
++    if (how == 1 && (atomic_load(&g_ended) || s2a_host_parked())) _exit(0);   // patch 0010: parked = nothing left to shut down
+ }
+ 
+ // Last step of an orderly shutdown, where S2Arm calls _exit (lifecycle.c). A guest host is told first; then this thread stays parked
+@@ -118,14 +124,70 @@ void s2a_rb_guest_exit(int code, const char *why) {
      for (;;) pause();
  }
  
@@ -94,7 +113,16 @@ index 00854ae..d262e4c 100644
 +    if (!result) {
 +        LOG("RewindBox guest: session parked (%s); the same game can resume in this process", why);
 +        s2a_logcon_flush();
-+        if (g_cfg.session_parked) g_cfg.session_parked(why, g_cfg.parked_context);
++        if (g_cfg.session_parked) g_cfg.session_parked(why, g_cfg.parked_context);   // the host copies the reason
++        free((void *)why);
++        return;
++    }
++    if (s2a_session_retirement_busy()) {
++        // The retirement worker still owns the services and the GPU (a timeout): a shutdown now would dispose them twice.
++        //   The session ends for the host; this process cannot run another Switch 2 game.
++        LOG("【红】RewindBox guest: the park timed out (%s); the session ends without a shutdown", detail ? detail : "-");
++        s2a_rb_guest_ended(EXIT_FAILURE, detail && *detail ? detail : "RewindBox: the park timed out");
++        free((void *)why);
 +        return;
 +    }
 +    LOG("【红】RewindBox guest: the park failed (%s); orderly shutdown instead", detail ? detail : "-");
@@ -105,9 +133,16 @@ index 00854ae..d262e4c 100644
      if (!s2a_rb_guest_on() || atomic_load(&g_ended)) return;
      const char *dup = strdup(reason && *reason ? reason : "RewindBox: stop requested"), *why = dup ? dup : "RewindBox: stop requested";   // kept: the shutdown logs it later
      if (!atomic_load(&g_started)) { s2a_rb_guest_ended(0, why); return; }   // nothing started yet: nothing to shut down
++    if (s2a_host_session_state() == S2A_SESSION_RESTARTING || s2a_session_retirement_busy()) {
++        // Patch 0010: a park, a resume or S2Arm's own restart is running; a shutdown on top of it would race its retirement
++        //   or its rebuild. The player can quit again once the game runs.
++        LOG("RewindBox guest: stop ignored (%s): a park, resume or restart is running", why);
++        free((void *)dup);
++        return;
++    }
      LOG("RewindBox guest: stop requested (%s)", why);
 +    // Patch 0010: park when the host can resume and the engine can rebuild in-process (S2Arm's restart retirement, no rebuild)
-+    if (g_cfg.session_parked && s2a_session_rebuild_supported()) {
++    if (dup && g_cfg.session_parked && s2a_session_rebuild_supported()) {   // park_result frees dup
 +        int rc = s2a_host_park(park_result, (void *)why);
 +        if (!rc) return;
 +        LOG("RewindBox guest: no park (%d); orderly shutdown", rc);
@@ -189,7 +224,7 @@ index 2af63a1..bd101b4 100644
  }
  #endif
 diff --git a/runtime/src/session.c b/runtime/src/session.c
-index 6d53d3d..d94021c 100644
+index 6d53d3d..a9a4a73 100644
 --- a/runtime/src/session.c
 +++ b/runtime/src/session.c
 @@ -100,6 +100,13 @@ static const char restart_failed[] = "游戏重启失败，请完全退出应用
@@ -206,7 +241,7 @@ index 6d53d3d..d94021c 100644
  static int (*g_cancel_waits)(unsigned);
  void s2a_gate_process_exit(void);
  
-@@ -439,6 +446,22 @@ static void stop_failed(struct stop_progress *progress) {
+@@ -439,6 +446,24 @@ static void stop_failed(struct stop_progress *progress) {
  #if defined(__APPLE__)   // 进程内重建只在苹果路径（安卓 s2a_session_rebuild_supported() = 0）
  static const char *restart_session(unsigned *generation, struct stop_progress *progress) {
      unsigned old = *generation;
@@ -222,6 +257,8 @@ index 6d53d3d..d94021c 100644
 +        if (detail) {
 +            s2a_session_service_failed(old);
 +            LOG("【红】RewindBox：停放的会话 %u 恢复失败：%s", old, detail);
++            // As a failed restart below: stop and join the guests and services the rebuild may have started
++            stop_failed(progress);
 +            s2a_gate_stop_begin();
 +        } else LOG("RewindBox：停放的会话 %u 已恢复（同一款，代码页复用）", old);
 +        return detail;
@@ -229,7 +266,7 @@ index 6d53d3d..d94021c 100644
      const char *detail = retirement_error(old);
      if (!detail) detail = quiesce(progress);
      if (!detail) detail = retirement_error(old);
-@@ -490,6 +513,14 @@ static const char *restart_session(unsigned *generation, struct stop_progress *p
+@@ -490,6 +515,14 @@ static const char *restart_session(unsigned *generation, struct stop_progress *p
  #if defined(__APPLE__)
              dispatch_semaphore_signal(g_retirement_completion);
  #endif
@@ -244,7 +281,7 @@ index 6d53d3d..d94021c 100644
              atomic_store(&g_rebuilding, 1);
              atomic_store(&g_stop_requested, 0);
              if (g_rebuild()) detail = "新会话启动失败，请查看应用日志";
-@@ -499,6 +530,7 @@ static const char *restart_session(unsigned *generation, struct stop_progress *p
+@@ -499,6 +532,7 @@ static const char *restart_session(unsigned *generation, struct stop_progress *p
          detail = "新游戏线程在重建期间终止，请查看应用日志";
      atomic_store(&g_rebuilding, 0);
      if (detail) {
@@ -252,7 +289,7 @@ index 6d53d3d..d94021c 100644
          s2a_session_service_failed(*generation);
          LOG("【红】进程内重启失败：%s", detail);
          // Reuse the old native join result even when strict managed retirement
-@@ -596,8 +628,9 @@ static void *control_worker(void *unused) {
+@@ -596,8 +630,9 @@ static void *control_worker(void *unused) {
          if (exiting()) return NULL;
          // 重启完成登记点先于本次请求的回调：放屏障与发起方无关（设置页 / 游戏 ExecuteProgram 走同一处）；
          //   iOS 壳两者都派回主线程，先放屏障、后回设置页，与原设置页回调里的先后一致
@@ -264,7 +301,25 @@ index 6d53d3d..d94021c 100644
      }
  }
  #endif
-@@ -729,3 +762,39 @@ int s2a_host_restart(s2a_restart_callback callback, void *context) {
+@@ -668,7 +703,10 @@ int s2a_session_prepare(void) {
+     return rc ? -1 : 0;
+ }
+ 
+-int s2a_host_restart(s2a_restart_callback callback, void *context) {
++static int request_restart(s2a_restart_callback callback, void *context, int park);
++int s2a_host_restart(s2a_restart_callback callback, void *context) { return request_restart(callback, context, 0); }
++// RewindBox (patch 0010): s2a_host_restart's body, with the park flag stored only once this request is accepted
++static int request_restart(s2a_restart_callback callback, void *context, int park) {
+     if (pthread_mutex_trylock(&g_request_mu)) return -3;
+     int state = s2a_host_session_state();
+     if (!atomic_load(&g_control_ready) || exiting()) { pthread_mutex_unlock(&g_request_mu); return -2; }
+@@ -724,8 +762,50 @@ int s2a_host_restart(s2a_restart_callback callback, void *context) {
+         pthread_mutex_unlock(&g_request_mu); return -1;
+     }
+     g_restart_guest_gate = 0;
++    atomic_store(&g_park_request, park);   // RewindBox (patch 0010): read by restart_session after the wake below
+     pthread_mutex_unlock(&g_lifecycle_mu);
+     pthread_mutex_unlock(&g_request_mu);
      wake_control();
      return 0;
  }
@@ -273,11 +328,16 @@ index 6d53d3d..d94021c 100644
 +//   Park: the restart above, flagged; restart_session stops after the generation CAS (old guests, services, GPU and
 +//   per-session state retired) and does not call the restart-done hook, so the first-frame barrier stays closed.
 +//   Resume: the restart's second half on the same retirement worker (s2a_host_rebuild, publish RUNNING, restart-done).
-+int s2a_host_park(s2a_restart_callback callback, void *context) {
-+    atomic_store(&g_park_request, 1);
-+    int result = s2a_host_restart(callback, context);
-+    if (result) atomic_store(&g_park_request, 0);
-+    return result;
++int s2a_host_park(s2a_restart_callback callback, void *context) { return request_restart(callback, context, 1); }
++
++// RewindBox (patch 0010): an accepted retirement or resume still owns the session's resources (a timeout reported it while
++//   the retirement worker runs on). The host must not start a process shutdown on top of it.
++int s2a_session_retirement_busy(void) {
++#if defined(__APPLE__)
++    return atomic_load(&g_retirement_active) && !atomic_load(&g_retirement_done);
++#else
++    return 0;
++#endif
 +}
 +
 +int s2a_host_resume(s2a_restart_callback callback, void *context) {

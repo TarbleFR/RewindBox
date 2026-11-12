@@ -272,17 +272,17 @@ static NSString *S2ArmEnginePath(void) {
   }
   BOOL resume = NO;
   @synchronized(self) {
+    if (self.launchInProgress) {   // first: a second tap while a launch or a resume runs is "busy", not "restart"
+      result(@{@"success" : @NO, @"error" : @"busy"});
+      return;
+    }
     if (self.engineLoaded || rb_s2arm_engine_loaded() != 0) {
       // Patch 0010: the game Quit parked resumes in this process; any other Switch 2 game still needs a new process.
-      resume = self.parkedGameId && [self.parkedGameId caseInsensitiveCompare:gid] == NSOrderedSame && !self.launchInProgress;
+      resume = self.parkedGameId && [self.parkedGameId caseInsensitiveCompare:gid] == NSOrderedSame;
       if (!resume) {
         result(@{@"success" : @NO, @"error" : @"engineRestartRequired", @"diagnostic" : @"A Switch 2 game already ran in this process."});
         return;
       }
-    }
-    if (self.launchInProgress) {
-      result(@{@"success" : @NO, @"error" : @"busy"});
-      return;
     }
     self.launchInProgress = YES;
   }
