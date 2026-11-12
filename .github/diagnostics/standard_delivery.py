@@ -128,8 +128,8 @@ HEX64 = re.compile(r'[0-9a-f]{64}')
 # Pinned engine components (components.<key>.mode == 'pinned-engine'; XeniaCore is the first). Closed allow-lists:
 # the verifier run on the artifact (`<verifier> verify <zip> --pin <pin>`), the scripts run on the embedded app, and
 # the pinned sources a side image (a binary the artifact never carries) may be fetched from.
-PINNED_ENGINE_VERIFIERS = ('build-utils/xenia/core_pin.py',)
-PINNED_ENGINE_CHECKS = ('build-utils/xenia/check_app_shader_converter.py',)
+PINNED_ENGINE_VERIFIERS = ('build-utils/xenia/core_pin.py', 'build-utils/s2arm/engine_pin.py')
+PINNED_ENGINE_CHECKS = ('build-utils/xenia/check_app_shader_converter.py', 'build-utils/s2arm/check_app.py')
 PINNED_ENGINE_SIDE_SOURCES = ('build-utils/xenia/source.json#shader_converter.upstream_mirror',)
 PINNED_ENGINE_FIELDS = ('mode', 'pin', 'verifier', 'identityFile', 'frameworks', 'image', 'sideImages', 'extensions',
                         'legalFolders', 'checks')
@@ -568,9 +568,10 @@ def engine_spec_errors(key, spec, manifest):
     check(('producer' in spec) != ('producers' in spec), 'needs exactly one of producer or producers')
     producers = engine_producers(spec)
     check(isinstance(producers, dict) and bool(producers) and all(
-        text(name) and isinstance(item, dict) and set(item) <= {'workflow', 'branch'} and
-        relative(item.get('workflow')) and (item.get('branch') is None or text(item['branch']))
-        for name, item in producers.items()), 'producers must be {name: {workflow, branch?}}')
+        text(name) and isinstance(item, dict) and set(item) <= {'workflow', 'branch', 'subdir'} and
+        relative(item.get('workflow')) and (item.get('branch') is None or text(item['branch'])) and
+        (item.get('subdir') is None or (relative(item['subdir']) and '/' not in item['subdir']))
+        for name, item in producers.items()), 'producers must be {name: {workflow, branch?, subdir?}}')
     pods = spec.get('podLibraries')
     check(pods is None or (isinstance(pods, list) and all(text(item) for item in pods)), 'podLibraries must be a list of names')
     resources = spec.get('appResources')
@@ -650,6 +651,13 @@ def engine_pin_errors(spec, pin):
               f'producer {name}: run, attempt, artifact, name, bytes and sha256 are required')
     if isinstance(pin.get('producers'), dict):
         check(set(pin['producers']) == set(producers), 'the pin and the component name different producers')
+    for item in spec.get('appResources') or ():
+        check(isinstance(binaries, dict) and item.get('binary') in binaries,
+              f"appResources {item.get('path')}: its binary is not listed by the pin")
+    extra = pin.get('identity')
+    check(extra is None or (isinstance(extra, dict) and not set(extra) & {
+        'component', 'pin', 'pinSha256', 'producers', 'binaries', 'packagedFingerprint', 'sideImages', 'run', 'artifact'}),
+          'identity (optional) must be an object that does not redefine the generic identity fields')
     zips = pin.get('zips')
     if zips is not None:
         check(isinstance(zips, dict) and all(HEX64.fullmatch(str(value)) for value in zips.values()) and
@@ -776,7 +784,7 @@ def engine_download(key, manifest, root=ROOT, get=None, download=None, fetch=Non
     if target.exists():
         shutil.rmtree(target)
     target.mkdir(parents=True)
-    taken, producers = set(), {}
+    taken, producers = {}, {}
     cache = root / ENGINE_CACHE / key
     cache.mkdir(parents=True, exist_ok=True)
     for name in engine_producers(spec):
@@ -788,7 +796,15 @@ def engine_download(key, manifest, root=ROOT, get=None, download=None, fetch=Non
         require(len(data) == entry['bytes'] and sha(data) == entry['sha256'],
                 f'Downloaded engine artifact {name} differs from the pinned size or sha256')
         producers[name]['verifier'] = verify(spec, archive, root)
-        extract_engine_zip(archive, target, taken)
+        subdir = engine_producers(spec)[name].get('subdir')
+        place = target / subdir if subdir else target
+        extract_engine_zip(archive, place, taken.setdefault(subdir, set()))
+        for member in entry.get('unpack', ()):
+            # Optional pin field: archives the artifact carries that hold the real tree (S2Arm's framework zips).
+            nested = place / member
+            require(nested.is_file(), f'The engine artifact {name} has no archive to unpack: {member}')
+            extract_engine_zip(nested, place, taken[subdir])
+            nested.unlink()
     side_target = engine_side_dist(key, root)
     if side_target.exists():
         shutil.rmtree(side_target)
@@ -863,12 +879,50 @@ def engine_identity(key, manifest, root=ROOT):
                   sideImages=evidence['sideImages'])
     if len(producers) == 1:
         record.update(run=next(iter(producers.values()))['run'], artifact=next(iter(producers.values()))['artifact'])
+    # Optional pin field `identity`: facts the pin authenticated that other validators read from the identity file.
+    record.update(pin.get('identity') or {})
     return record
 
 
 def engine_tree(folder):
     return {str(path.relative_to(folder)): path.read_bytes() for path in sorted(Path(folder).rglob('*'))
             if path.is_file()}
+
+
+def engine_exports(data):
+    """Exported symbols (dyld export trie) of a Mach-O image; a fat image is read through its arm64 slice."""
+    sys.path.insert(0, str(Path(ROOT) / 'build-utils'))
+    from validate_shader_compiler_ipa import exported_symbols
+    if data[:4] in (b'\xca\xfe\xba\xbe', b'\xca\xfe\xba\xbf'):
+        wide = data[:4] == b'\xca\xfe\xba\xbf'
+        stride, size = (32, 8) if wide else (20, 4)
+        for index in range(int.from_bytes(data[4:8], 'big')):
+            at = 8 + index * stride
+            if int.from_bytes(data[at:at + 4], 'big') == 0x0100000C:
+                offset = int.from_bytes(data[at + 8:at + 8 + size], 'big')
+                data = data[offset:offset + int.from_bytes(data[at + 8 + size:at + 8 + 2 * size], 'big')]
+                break
+        else:
+            raise ValueError('The image has no arm64 slice')
+    return sorted(exported_symbols(data))
+
+
+def engine_pods(spec, lock_text):
+    """podLibraries (optional): each CocoaPods library the engine's host plugin links is in the Podfile.lock."""
+    listed = set(re.findall(r'^  - ([A-Za-z0-9_.+-]+) \(', lock_text, re.M))
+    missing = [name for name in spec.get('podLibraries') or () if name not in listed]
+    require(not missing, f'The Podfile.lock lacks the engine pod libraries: {missing}')
+
+
+def engine_extras(spec, pin, read):
+    """appResources (data files byte for byte from the pin) and exportsList (exact exported symbols) of an app or IPA;
+    read(relative path) -> bytes. Both are optional fields of the component."""
+    for item in spec.get('appResources') or ():
+        data, expected = read(item['path']), pin['binaries'][item['binary']]
+        require(sha(data) == expected['sha256'] and len(data) == expected['bytes'],
+                f"The app resource {item['path']} is not the pinned {item['binary']}")
+    for image, names in (spec.get('exportsList') or {}).items():
+        require(engine_exports(read(image)) == sorted(names), f'The exported symbols of {image} differ from exportsList')
 
 
 def engine_embed(key, manifest, app, root=ROOT, run_checks=True):
@@ -888,6 +942,11 @@ def engine_embed(key, manifest, app, root=ROOT, run_checks=True):
     for folder in spec['legalFolders']:
         require((app / folder).is_dir() and any(path.is_file() for path in (app / folder).rglob('*')),
                 f'{folder} is not embedded (embed the legal bundle before the engine checks)')
+    pin = engine_pin(spec, root)
+    engine_extras(spec, pin, lambda relative: (app / relative).read_bytes())
+    lock = root / 'ios/Podfile.lock'
+    if spec.get('podLibraries') and lock.is_file():
+        engine_pods(spec, lock.read_text())
     (app / spec['identityFile']).write_text(json.dumps(record, indent=2) + '\n')
     results = {}
     for script in spec['checks'] if run_checks else ():
@@ -910,6 +969,7 @@ def engine_ipa(archive, prefix, key, manifest, evidence, root=ROOT):
         pinned = engine_side_source(item['source'], root)
         digest = converter_module(root).signature_free_digest(archive.read(prefix + item['path']))
         require(digest == pinned['signature_free_sha256'], f"The packaged {item['path']} differs beyond its code signature")
+    engine_extras(spec, pin, lambda relative: archive.read(prefix + relative))
     identity = json.loads(archive.read(prefix + spec['identityFile']))
     require(identity.get('component') == key and identity.get('pinSha256') == evidence['pinSha256'] and
             identity.get('packagedFingerprint') == pin['packagedFingerprint'] and

@@ -37,6 +37,8 @@ XENIOS_DECLARATIONS = (
     "packages/xenia_internal_bridge/ios/xenia_internal_bridge.podspec",
     "packages/xenia_jit_helper/ios/xenia_jit_helper.podspec",
 )
+S2ARM_ENGINE_REVIEW = "docs/evidence/s2arm-engine-declarations-2026-11-11.json"
+S2ARM_ENGINE_PODSPEC = "packages/s2arm_engine_bridge/ios/s2arm_engine_bridge.podspec"
 # The delivery that ships XeniaCore, chained after the Xbox 360 playlist review: binds the engine pin, the recipe
 # files compiled into the binary, and the statically linked LGPL libraries with their chosen relinking means.
 XENIOS_CORE_REVIEW = "docs/evidence/xenios-core-delivery-declarations-2026-11-12.json"
@@ -602,9 +604,40 @@ def repository_inputs(root: Path) -> dict[str, str]:
         for name, update in updates.items():
             if update.get("before") != declarations.get(name):
                 raise SystemExit(f"Wrong previous declaration identity: {name}")
-            if update.get("after") != sha256(read_input(root, root / name)):
+            # A later review overlay may move pubspec.yaml on (S2Arm engine bridge).
+            if not (name == "pubspec.yaml" and (root / S2ARM_ENGINE_REVIEW).is_file()) and \
+                    update.get("after") != sha256(read_input(root, root / name)):
                 raise SystemExit(f"XeniOS playlist source/license declaration changed since review: {name}")
             declarations[name] = update["after"]
+    # Switch 2 (S2Arm), chained after the XeniOS playlist review: the root pubspec.yaml gains the workspace member and
+    # the path dependency of the local plugin packages/s2arm_engine_bridge (RewindBox host code of the embedded engine).
+    # Its podspec vendors S2ArmPrepare.xcframework, never committed: the delivery installs it from its pinned,
+    # authenticated producer run before CocoaPods. No hosted package, Core or vendored source of this tree changes.
+    engine_path = root / S2ARM_ENGINE_REVIEW
+    if engine_path.is_file():
+        engine = json.loads(read_input(root, engine_path))
+        changes = engine.get("dependency_changes", {})
+        if (engine.get("schema") != 1 or engine.get("baseline_inventory") != XENIOS_PLAYLIST_REVIEW or
+                engine.get("baseline_inventory_sha256") != sha256(read_input(root, root / XENIOS_PLAYLIST_REVIEW)) or
+                engine.get("pubspec_lock_sha256") != package_audit["pubspec_lock_sha256"] or
+                engine.get("complete_corresponding_source_attested") is not False or
+                changes != {"external_packages_added": [], "external_packages_removed": [],
+                            "system_frameworks_added": {S2ARM_ENGINE_PODSPEC: ["Foundation", "UIKit", "Security"]},
+                            "vendored_frameworks_added": {S2ARM_ENGINE_PODSPEC: ["Frameworks/S2ArmPrepare.xcframework"]}}):
+            raise SystemExit("S2Arm engine review has a different baseline or dependency scope")
+        updates = engine.get("declarations", {})
+        if set(updates) != {"pubspec.yaml", "packages/s2arm_engine_bridge/pubspec.yaml", S2ARM_ENGINE_PODSPEC}:
+            raise SystemExit("S2Arm engine declaration review scope changed")
+        for name, update in updates.items():
+            if update.get("before") != declarations.get(name):
+                raise SystemExit(f"Wrong previous declaration identity: {name}")
+            if update.get("after") != sha256(read_input(root, root / name)):
+                raise SystemExit(f"S2Arm engine source/license declaration changed since review: {name}")
+            declarations[name] = update["after"]
+        vendored = engine.get("vendored_library", {})
+        if (vendored.get("path") != "packages/s2arm_engine_bridge/ios/Frameworks/S2ArmPrepare.xcframework" or
+                vendored.get("in_repository") is not False or vendored.get("producer") != ".github/workflows/s2arm-core.yml"):
+            raise SystemExit("S2Arm engine vendored library differs from the review")
     check_xenios_core_delivery(root, package_audit["pubspec_lock_sha256"])
     for name, expected in declarations.items():
         if sha256(read_input(root, root / name)) != expected:

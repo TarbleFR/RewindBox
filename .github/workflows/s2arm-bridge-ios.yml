@@ -1,0 +1,58 @@
+name: S2Arm engine bridge (iOS compile)
+
+# Compiles every native source of packages/s2arm_engine_bridge for iOS arm64 against the Flutter iOS headers, and runs the
+# Switch 2 settings and in-game menu contract. The full application is built only by the common delivery; this catches
+# Objective-C errors in the bridge before it. No engine, no game, no upload, no secret.
+'on':
+  workflow_dispatch:
+  push:
+    branches: [work/s2arm-switch2-prototype-20261110]
+    paths:
+      - .github/workflows/s2arm-bridge-ios.yml
+      - packages/s2arm_engine_bridge/**
+      - lib/l10n/switch2_settings_locale.dart
+      - test/s2arm_session_menu_test.py
+permissions:
+  contents: read
+concurrency:
+  group: s2arm-bridge-ios-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  compile:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: stable
+          cache: true
+      - name: Flutter iOS engine headers
+        run: flutter precache --ios
+      - name: Compile the bridge sources for iOS arm64
+        run: |
+          set -euo pipefail
+          root=$(dirname "$(dirname "$(command -v flutter)")")
+          framework=$(find "$root/bin/cache/artifacts/engine/ios" -path '*ios-arm64/Flutter.framework' -type d | head -1)
+          test -n "$framework" && test -f "$framework/Headers/Flutter.h"
+          sdk=$(xcrun --sdk iphoneos --show-sdk-path)
+          classes=packages/s2arm_engine_bridge/ios/Classes
+          mkdir -p build/s2arm-bridge
+          count=0
+          for source in "$classes"/*.m "$classes"/*.c; do
+            flags=(-arch arm64 -miphoneos-version-min=18.0 -isysroot "$sdk" -fmodules -Wall -Werror -I "$classes" -F "$(dirname "$framework")")
+            case "$source" in *.m) flags+=(-fobjc-arc -x objective-c) ;; *) flags+=(-x c) ;; esac
+            xcrun --sdk iphoneos clang "${flags[@]}" -c "$source" -o "build/s2arm-bridge/$(basename "$source").o"
+            echo "compiled $source"
+            count=$((count + 1))
+          done
+          echo "$count sources compiled for iOS arm64"
+          nm -gU build/s2arm-bridge/S2ArmSettings.m.o | grep -q '_S2ArmSettingsSnapshot'
+          nm -gU build/s2arm-bridge/S2ArmSessionMenu.m.o | grep -q 'OBJC_CLASS_\$_S2ArmSessionMenu'
+      - name: Bridge and in-game menu contracts
+        run: |
+          python3 -B test/s2arm_engine_bridge_test.py
+          python3 -B test/s2arm_session_menu_test.py

@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "purpose": "Every file of this package is the RPCS3 JIT helper file named here with exactly these replacements, applied in order (old text, new text, occurrences of the old text at that step). test/s2arm_jit_helper_test.py checks the copy against the source at sourceSha256; docs/s2arm-jit-helper.md explains each rename. The debugger protocol (BRK #0xf00d commands 0 detach, 1 prepare region, 2 new breakpoints, 3 probe with nonce+1), the request fields and the reporter events are not renamed.",
+  "files": {
+    "packages/s2arm_jit_helper/ios/Classes/S2ArmJITRequestHandlerBase.swift": {
+      "source": "packages/rpcs3_jit_helper/ios/Classes/Rpcs3JITRequestHandlerBase.swift",
+      "sourceSha256": "7ffcf5dbd376cfc853f7a152ec9c147c92263d4e77d22742067cfc2a2580164d",
+      "replacements": [
+        ["rpcs3RequestType", "s2armRequestType", 3],
+        ["com.neogamelab.neostation.rpcs3-jit-request", "com.neogamelab.neostation.s2arm-jit-request", 1],
+        ["com.neogamelab.neostation.rpcs3.jit-helper", "com.neogamelab.neostation.s2arm.jit-helper", 2],
+        ["Rpcs3JITRequestHandlerBase", "S2ArmJITRequestHandlerBase", 2],
+        ["Rpcs3HelperReporter", "S2ArmHelperReporter", 3],
+        ["Rpcs3HelperError", "S2ArmHelperError", 11],
+        ["NeoStationRPCS3StikJIT", "NeoStationS2ArmStikJIT", 1],
+        ["NeoStationRPCS3JIT", "NeoStationS2ArmJIT", 1],
+        ["rpcs3-universal", "s2arm-universal", 2],
+        ["NEOSTATION_DEBUGGER_ATTACHED_V1", "NEOSTATION_S2ARM_DEBUGGER_ATTACHED_V1", 1],
+        ["      // RPCS3 selects its mirrored Universal arena by OS version, not TXM\n      // detection. Even a non-TXM device on iOS 26 needs this script running\n      // when Core constructors request their executable regions.\n", "      // The S2Arm host asks for the universal handshake by OS version (iOS 26.0\n      // and later), not TXM detection. Even a non-TXM device on iOS 26 needs this\n      // script running when the engine requests its executable regions.\n", 1],
+        ["embedded RPCS3 engine", "embedded Switch 2 (S2Arm) engine", 1],
+        ["RPCS3", "S2Arm", 8]
+      ]
+    },
+    "packages/s2arm_jit_helper/ios/Classes/S2ArmHelperJournal.swift": {
+      "source": "packages/rpcs3_jit_helper/ios/Classes/Rpcs3HelperJournal.swift",
+      "sourceSha256": "0c5ab07b04ba5f01d95d1e09a45c4c8fefcd35bf090683f42479472f0bd2982b",
+      "replacements": [
+        ["Rpcs3HelperJournal", "S2ArmHelperJournal", 1],
+        ["NEOSTATION_RPCS3_PREPARE_", "NEOSTATION_S2ARM_PREPARE_", 1],
+        ["NEOSTATION_DEBUGGER_", "NEOSTATION_S2ARM_DEBUGGER_", 1],
+        ["RPCS3_", "S2ARM_", 2]
+      ]
+    },
+    "packages/s2arm_jit_helper/ios/Resources/s2arm-universal.js": {
+      "source": "packages/rpcs3_jit_helper/ios/Resources/rpcs3-universal.js",
+      "sourceSha256": "a57a40c181b8b8965a9ab98a08fdde861e48d00e818c76c3fc9cfd49057dbf51",
+      "replacements": [
+        ["NEOSTATION_STIKJIT_UNIVERSAL_V1", "NEOSTATION_S2ARM_STIKJIT_UNIVERSAL_V1", 3],
+        ["NEOSTATION_DEBUGGER_ATTACHED_V1", "NEOSTATION_S2ARM_DEBUGGER_ATTACHED_V1", 1],
+        ["NEOSTATION_DEBUGGER_PROBE_V1", "NEOSTATION_S2ARM_DEBUGGER_PROBE_V1", 1]
+      ]
+    },
+    "packages/s2arm_jit_helper/ios/s2arm_jit_helper.podspec": {
+      "source": "packages/rpcs3_jit_helper/ios/rpcs3_jit_helper.podspec",
+      "sourceSha256": "a2ccd002e1de024210b23fb4660a99ac1de237a34599a743d2c0a1de2e608ec0",
+      "replacements": [
+        ["rpcs3_jit_helper", "s2arm_jit_helper", 2],
+        ["helper for RewindBox RPCS3.", "helper for RewindBox S2Arm.", 1],
+        ["embedded PlayStation 3\nengine.", "embedded Nintendo Switch 2\nengine (S2Arm).", 1]
+      ]
+    },
+    "packages/s2arm_jit_helper/extension/S2ArmJITExtensionEntry.swift": {
+      "source": "native/rpcs3_internal_helper/Rpcs3JITExtensionEntry.swift",
+      "sourceSha256": "95bf84f8b6847e677be236ff0cdea8cf18448c1b7aed5bcad0f4df6b5cd8466f",
+      "replacements": [
+        ["import rpcs3_jit_helper", "import s2arm_jit_helper", 1],
+        ["Rpcs3JITRequestHandler", "S2ArmJITRequestHandler", 3]
+      ]
+    },
+    "packages/s2arm_jit_helper/extension/Info.plist": {
+      "source": "native/rpcs3_internal_helper/Info.plist",
+      "sourceSha256": "f043e5d40ae591043fe7ac51f6e5feaea0103b923f454ae93ea45b10b30825b2",
+      "replacements": [
+        ["RewindBox RPCS3 JIT Helper", "RewindBox S2Arm JIT Helper", 1],
+        ["NeoStationRPCS3JITHelper", "NeoStationS2ArmJITHelper", 1],
+        ["Rpcs3JITRequestHandler", "S2ArmJITRequestHandler", 1]
+      ]
+    }
+  }
+}

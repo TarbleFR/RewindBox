@@ -1,9 +1,11 @@
 import 'dart:io';
 import 'dart:ui' show Locale;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/l10n/s2arm_engine_locale.dart';
+import 'package:neostation/l10n/switch2_settings_locale.dart';
 import 'package:neostation/services/s2arm_internal_service.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -177,6 +179,80 @@ void main() {
       final outcome = await S2ArmInternalService.launch('/export', pairingFilePath: '/pair');
       expect(outcome.success, isFalse);
       expect(S2ArmEngineLocale.text(en, S2ArmInternalService.messageKey(outcome.error)), S2ArmEngineLocale.text(en, 'restartRequired'));
+    });
+  });
+
+  group('settings and launch arguments', () {
+    const locales = ['en', 'fr', 'es', 'de', 'it', 'pt', 'ru', 'id', 'ja', 'ko', 'zh', 'zh_Hant'];
+
+    test('the defaults are the documented ones', () {
+      expect(S2ArmSettings.defaults.toMap(), {
+        'resolutionScale': '1',
+        'antiAliasing': 'None',
+        'scalingFilter': 'Bilinear',
+        'frameRateLimit': '0',
+        'docked': false,
+        'widescreen': true,
+        'performanceOverlay': false,
+        'gameLanguage': 'auto',
+      });
+      expect(S2ArmSettings.fromMap(const {}), S2ArmSettings.defaults);
+      expect(S2ArmSettings.fromMap(const {'antiAliasing': 'Bogus', 'docked': 'yes'}), S2ArmSettings.defaults);
+    });
+
+    test('getSettings and setSettings round trip through the channel', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      var stored = S2ArmSettings.defaults.toMap();
+      Object? received;
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'getSettings') return stored;
+        if (call.method == 'setSettings') {
+          received = call.arguments;
+          stored = {...stored, ...Map<String, Object?>.from(call.arguments as Map)};
+          return stored;
+        }
+        return null;
+      });
+      final loaded = await S2ArmInternalService.loadSettings();
+      expect(loaded, S2ArmSettings.defaults);
+      final changed = loaded!.copyWith(resolutionScale: '0.5', frameRateLimit: '60', docked: true, gameLanguage: 'French');
+      final saved = await S2ArmInternalService.saveSettings(changed);
+      expect(received, changed.toMap());
+      expect(saved, changed);
+      expect(await S2ArmInternalService.loadSettings(), changed);
+    });
+
+    test('loadSettings is null off iOS and when the channel fails', () async {
+      expect(await S2ArmInternalService.loadSettings(), isNull);
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      messenger.setMockMethodCallHandler(channel, (call) async => throw PlatformException(code: 'x'));
+      expect(await S2ArmInternalService.loadSettings(), isNull);
+      expect(await S2ArmInternalService.saveSettings(S2ArmSettings.defaults), isNull);
+    });
+
+    test('launchGame receives uiLocale and the resolved menu strings', () async {
+      S2ArmInternalService.availabilityForTesting = const S2ArmRuntimeAvailability(S2ArmRuntimeState.ready);
+      Map<Object?, Object?>? arguments;
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'detectExport') return {'success': true, 'exportDir': '/export'};
+        if (call.method == 'prepareGame') return {'success': true, 'gid': 'g', 'imagesPath': '/i', 'moduleDir': '/m', 'gameData': '/g', 'docs': '/d'};
+        if (call.method == 'launchGame') {
+          arguments = call.arguments as Map<Object?, Object?>;
+          return {'success': true};
+        }
+        return null;
+      });
+      final outcome = await S2ArmInternalService.launch('/export', pairingFilePath: '/pair');
+      S2ArmInternalService.sessionRunningForTesting = false;
+      expect(outcome.success, isTrue);
+      final uiLocale = arguments!['uiLocale'] as String;
+      expect(locales, contains(uiLocale));
+      final strings = Map<String, String>.from(arguments!['menuStrings'] as Map);
+      expect(strings['menu.quit'], Switch2SettingsLocale.menuStrings(uiLocale)['menu.quit']);
+      expect(strings['menu.quit'], isNotEmpty);
+      expect(strings.keys, contains('lang.French'));
     });
   });
 

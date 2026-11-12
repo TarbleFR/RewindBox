@@ -1,0 +1,160 @@
+diff --git a/ios/app.m b/ios/app.m
+--- a/ios/app.m
++++ b/ios/app.m
+@@ -35,6 +35,8 @@
+ void *s2a_shell_cloud_sync_vc(const char *game_id, void (*done)(void *ctx), void *ctx) __attribute__((weak_import));
+ void s2a_boot_rebase(const char *why);   // boot.c：起局计时起点改为此刻（多款容器点 Play；不进 native.h——它在抽取阶段键里，改它冷全库）
+ const char *s2a_host_pre_ui_checks(void);   // host_main.c：起 UIKit 前读游戏相关值的检查（多款容器在选游戏之后调）
++// RewindBox guest (runtime/src/rb_guest.c, engine loaded by another app); in S2Arm.app never a guest: these do nothing / answer 0
++void s2a_rb_guest_ended(int code, const char *why); int s2a_rb_guest_session_over(void);
+ #include <stdatomic.h>
+ #include <pthread.h>
+ // UIKit lifecycle events publish on the main thread, independently of the
+@@ -346,6 +348,7 @@
+ }
+ void s2a_ios_render_init_failed(void) {
+     LOG("【红】iOS 渲染初始化失败：请求暂停游戏并显示错误，保留日志与诊断入口");
++    s2a_rb_guest_ended(EXIT_FAILURE, "renderer attach failed");   // RewindBox guest: this session cannot go on (the page below stays)
+     // Serialize the terminal state with UIKit foreground notifications, so a
+     // foreground callback cannot undo the failure's guest freeze.
+     dispatch_async(dispatch_get_main_queue(), ^{
+@@ -363,6 +366,7 @@
+     (void)why;   // 原文已由 nvn_mtl.m mtl_gpu_halt 打进 host.log（第一条错误原文、帧号、提交序号），不上屏
+     atomic_store(&g_gpu_stopped, 1);
+     LOG("【红】iOS 壳：GPU 挂死安全停 → 冻结游戏线程、显示错误页（UIKit），不再恢复本局");
++    s2a_rb_guest_ended(86, "GPU stopped after a hang");   // RewindBox guest: this session cannot go on (the page below stays)
+     dispatch_async(dispatch_get_main_queue(), ^{
+         atomic_store(&g_render_failed, 1);
+         s2a_controller_set_foreground(0); s2a_guest_freeze(1);
+@@ -538,7 +542,8 @@
+     // 测试层契约第 4 节：每分钟一行「[电] 电量 <N>%，<充电中|已充满|未充电>」（拔电时电量闸 / 局中停局用）
+     { void s2a_diag_boot(void); s2a_diag_boot(); }   // 导出诊断包（diag.m）：订阅 MetricKit、设置页开关回前台时检查
+     UIDevice.currentDevice.batteryMonitoringEnabled = YES;
+-    void (^battery)(NSTimer *) = ^(NSTimer *t) { (void)t; UIDevice *d = UIDevice.currentDevice; UIDeviceBatteryState st = d.batteryState;
++    void (^battery)(NSTimer *) = ^(NSTimer *t) { (void)t; if (t && s2a_rb_guest_session_over()) { [t invalidate]; return; }   // RewindBox guest: the session ended, the host's process goes on
++        UIDevice *d = UIDevice.currentDevice; UIDeviceBatteryState st = d.batteryState;
+         LOG("[电] 电量 %d%%，%s", (int)lroundf(d.batteryLevel * 100), st == UIDeviceBatteryStateCharging ? "充电中" : st == UIDeviceBatteryStateFull ? "已充满" : "未充电"); };
+     battery(nil); [NSTimer scheduledTimerWithTimeInterval:60 repeats:YES block:battery];
+     // 前后台（10-20 测试设备1 一款第一方动作冒险游戏切桌面后 GPU 拒收后台提交、渲染器按出错退出）：iOS 只禁后台提交 GPU，进后台 = 游戏线程在系统调用出入口冻结 + GPU 闸门关
+@@ -562,6 +567,7 @@
+     // 心跳：每 10 秒一行，被系统直接杀（SIGKILL 不进崩溃处理）时也能看到死前最后的帧号 / 热状态 / 内存（10-20 维护者 一款第一方动作冒险游戏闪退，日志 12 秒后无一行）
+     // 低区余量（10-21 巫师3 玩约 2 分钟低区耗尽、Metal 申请失败崩溃）：每行带上，局中能看到往下掉的过程
+     [NSTimer scheduledTimerWithTimeInterval:10 repeats:YES block:^(NSTimer *t) { (void)t;
++        if (s2a_rb_guest_session_over()) { [t invalidate]; return; }   // RewindBox guest: no heartbeat once the session ended (the host's process goes on)
+         g_brightness = UIScreen.mainScreen.brightness;   // 自动亮度 / 手动调过也跟上（主线程）
+         s2a_brightness_hold_log();
+         // 前后台状态只能在主线程读；其余（整窗 mincore 扫描、分区账、能耗、输入延迟）放后台串行队列：11-05 0400486024DEC000客体内存文件后备后，
+diff --git a/runtime/src/ap_host.c b/runtime/src/ap_host.c
+--- a/runtime/src/ap_host.c
++++ b/runtime/src/ap_host.c
+@@ -91,6 +91,8 @@
+ // 单测把 _exit(86) 换成钩子，验「到点真走这条路径」而不真死（同 graphics/metal/gal_gpuwd.h:45 的口径）
+ static void (*g_exit_hook)(int);
+ void s2a_ap_set_exit_hook(void (*fn)(int)) { g_exit_hook = fn; }
++// RewindBox guest (runtime/src/rb_guest.c): the host hears of the session's end before _exit(86); weak default = S2Arm.app (nothing to tell)
++__attribute__((weak)) void s2a_rb_guest_ended(int code, const char *why) { (void)code; (void)why; }
+ static int stall_exit_s(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_STALL_EXIT_S"); v = e && *e ? atoi(e) : 0; } return v; }
+ // 判定分离成纯函数（单测直接打表，不走时钟）：idle = 已停的 250 ms 次数，n = 已打过的现场份数，lim = 打现场的阈值次数
+ //   （= 4 × S2A_STALL_DUMP_S），s = S2A_STALL_EXIT_S。条件用「现场已打 ≥1 份、且又停了 s 秒」而不是「n ≥ 3」：
+@@ -160,6 +162,7 @@
+             LOG("【红】出图停住看门：上屏帧数停在 %llu 已 %d 秒，现场已打 %d 次仍不前进，主动退出（退出码 86；S2A_STALL_EXIT_S=%d）",
+                 (unsigned long long)f, stall_s(), n, stall_exit_s());
+             fflush(NULL);
++            s2a_rb_guest_ended(86, "picture stalled (S2A_STALL_EXIT_S watchdog)");
+             if (g_exit_hook) g_exit_hook(86);
+             _exit(86);   // 钩子返回也不许再转：卡住的局宁可多退一次，也不能让看门线程继续空转
+         }
+diff --git a/runtime/src/host_main.c b/runtime/src/host_main.c
+--- a/runtime/src/host_main.c
++++ b/runtime/src/host_main.c
+@@ -182,8 +182,10 @@
+ //   不回收半建资源、不在同一进程再起第二局（托管层 / 图形装配 / session.c 三层都按此设计，生命周期代码不为失败改）。
+ //   之后只分「怎么告诉人」：iOS 人手局停在提示页（按错误码的玩家话术 +「复制诊断」+ 划掉重开；内部摘要只进诊断），Mac 与自动化局照旧失败退出码 1。
+ //   code = S2A_INIT_FAIL_E_*（调用点一处一个，码表在 s2a_init_fail.h）
++void s2a_rb_guest_ended(int code, const char *why);   // runtime/src/rb_guest.c: RewindBox guest only, a no-op in S2Arm.app
+ static void failed_session(int code) {
+     const char *why = s2a_init_fail_summary(code), *cid = s2a_init_fail_code_id(code);
++    { char r[400]; snprintf(r, sizeof r, "the session could not start: %s (%s)", cid, why); s2a_rb_guest_ended(EXIT_FAILURE, r); }   // the page below stays
+     s2a_session_process_exit(s2a_session_generation());
+     if (s2a_init_fail_action(TARGET_OS_IPHONE, s2a_unattended()) == S2A_INIT_FAIL_PAGE) {
+ #if TARGET_OS_IPHONE
+@@ -285,6 +287,7 @@
+       if (!s2a_selfcheck()) {
+ #if TARGET_OS_IPHONE
+           const char *t, *b; s2a_selfcheck_page(&t, &b);   // 细节（地址上限、内存上限）已在 host.log「【红】自检不过」，随诊断包带走
++          s2a_rb_guest_ended(EXIT_FAILURE, "self-check failed (address window or memory, see host.log)");   // RewindBox guest: the page below stays
+           s2a_ios_show_notice("exclamationmark.triangle.fill", t, b, 0, 0, 1); s2a_front_run(NULL); for (;;) pause();   // 画面上给提示，不起游戏
+ #endif
+       } }
+diff --git a/runtime/src/lifecycle.c b/runtime/src/lifecycle.c
+--- a/runtime/src/lifecycle.c
++++ b/runtime/src/lifecycle.c
+@@ -23,6 +23,11 @@
+ void s2a_svc_red_summary(void);
+ __attribute__((weak)) void s2a_trap_report(const char *when);   // traps.c；只编 lifecycle.c 的单测里没有它
+ unsigned s2a_unresolved_count(void);
++// RewindBox guest (runtime/src/rb_guest.c, engine loaded by another app): the end of an orderly shutdown tells the host and parks the
++//   calling thread instead of _exit. These weak defaults are S2Arm.app's behaviour, for builds without rb_guest.c (per-file unit tests)
++__attribute__((weak)) void s2a_rb_guest_exit(int code, const char *why) { (void)why; _exit(code); }
++__attribute__((weak)) int s2a_rb_guest_session_over(void) { return 0; }
++__attribute__((weak)) void s2a_rb_guest_terminating(int how) { (void)how; }
+ // 收尾各阶段的累计耗时。1.5 秒兜底只会给出「超时」，不会说明停在哪一步；
+ // 每次收局都打一次这几行，真机上直接看出是哪一步越过了预算。
+ #define S2A_SHUTDOWN_STAGE(name, start) LOG("收局阶段 %s：累计 %.1f ms", (name), (double)(now_ns() - (start)) / 1e6)
+@@ -104,7 +109,9 @@
+     s2a_lowva_peak_report("收局");
+     S2A_SHUTDOWN_STAGE("统计与诊断汇总", t0);
+ #if !defined(__ANDROID__)
+-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 1500 * NSEC_PER_MSEC), dispatch_get_global_queue(QOS_CLASS_USER_INTERACTIVE, 0), ^{ LOG("【红】优雅退出 1.5 秒未完成，直接退出"); s2a_direct_summary(0); s2a_logcon_flush(); _exit(0); });
++    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 1500 * NSEC_PER_MSEC), dispatch_get_global_queue(QOS_CLASS_USER_INTERACTIVE, 0), ^{
++        if (s2a_rb_guest_session_over()) return;   // RewindBox guest: the shutdown already finished and the process stays (never in S2Arm.app)
++        LOG("【红】优雅退出 1.5 秒未完成，直接退出"); s2a_direct_summary(0); s2a_logcon_flush(); s2a_rb_guest_exit(0, "orderly shutdown did not finish within 1.5 s"); });
+ #endif
+     // 先让阻塞在服务等待里的调用立刻返回（C# 导出 S2A_CancelWaits，按名字取：不带 C# 的宿主构建里没有），再停游戏线程的系统调用、等在 C# 里的走完
+ #if defined(__ANDROID__)
+@@ -172,7 +179,7 @@
+     s2a_direct_summary(1);   // _exit 不跑 atexit；显式打印现编汇总，不改变停机语义
+     { void (*clr)(void) = (void (*)(void))dlsym(RTLD_DEFAULT, "s2a_sesmark_clear_home"); if (clr) clr(); }   // 会话标记（sesdiag.c）：正常收尾，下次启动不问「上次没正常退出」
+     LOG("优雅退出完成（%.3f 秒）", (now_ns() - t0) / 1e9);
+-    s2a_logcon_flush(); _exit(0);
++    s2a_logcon_flush(); s2a_rb_guest_exit(0, why);   // _exit(0); RewindBox guest: the host is told and this thread parks (rb_guest.c)
+ }
+ void s2a_term_install(void) {
+ #if defined(__ANDROID__)
+@@ -182,7 +189,7 @@
+     signal(SIGTERM, SIG_IGN);   // 交给 GCD 信号源在普通线程上收尾
+     static dispatch_source_t src;
+     src = dispatch_source_create(DISPATCH_SOURCE_TYPE_SIGNAL, SIGTERM, 0, dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0));
+-    dispatch_source_set_event_handler(src, ^{ s2a_host_shutdown("SIGTERM"); });
++    dispatch_source_set_event_handler(src, ^{ s2a_rb_guest_terminating(1); s2a_host_shutdown("SIGTERM"); });   // RewindBox guest: SIGTERM still exits
+     dispatch_resume(src);
+ #endif
+ }
+diff --git a/runtime/src/native.h b/runtime/src/native.h
+--- a/runtime/src/native.h
++++ b/runtime/src/native.h
+@@ -82,6 +82,9 @@
+ __attribute__((noreturn)) static inline void s2a_native_fatal(void) {
+     void (*boot_abort)(void) = (void (*)(void))dlsym(RTLD_DEFAULT, "s2a_session_abort_boot");
+     if (boot_abort) boot_abort();
++    // RewindBox guest (runtime/src/rb_guest.c): tell the host before the abort; a no-op in S2Arm.app and inside the engine's signal handlers
++    void (*rb_fatal)(const char *) = (void (*)(const char *))dlsym(RTLD_DEFAULT, "s2a_rb_guest_fatal");
++    if (rb_fatal) rb_fatal("fatal engine error (FATAL line in host.log)");
+     abort();
+ }
+ #define die(...) do { LOG("FATAL " __VA_ARGS__); s2a_native_fatal(); } while (0)
+diff --git a/runtime/src/pack_apply.c b/runtime/src/pack_apply.c
+--- a/runtime/src/pack_apply.c
++++ b/runtime/src/pack_apply.c
+@@ -499,7 +499,11 @@
+     if (st == S2A_IMPORT_READY) { s2a_ios_hide_pack_help(); note_ready_reopen(); return; }
+     char d[1024]; s2a_pack_help_detail(st, 1, d, sizeof d); s2a_ios_show_pack_help(help_title(st), d, g_imp_name, break_recheck);
+ }
++// RewindBox guest (runtime/src/rb_guest.c): the host prepared the game data and has its own import flow, so S2Arm's import help does not
++//   apply; the Break ends the session as any other. The weak default is S2Arm.app's case (rb_guest.c not linked)
++__attribute__((weak)) int s2a_rb_guest_on(void) { return 0; }
+ int s2a_pack_help_on_break(void) {
++    if (s2a_rb_guest_on()) return 0;
+     if (!imp_docs(g_imp_docs, sizeof g_imp_docs)) s2a_container_docs(g_imp_docs, sizeof g_imp_docs);   // 不查闸门的局（开发指定资源包）照旧核进程级 Documents
+     if (!g_imp_name[0]) { CFStringRef dn = CFBundleGetValueForInfoDictionaryKey(CFBundleGetMainBundle(), CFSTR("CFBundleDisplayName"));
+         if (!dn || !CFStringGetCString(dn, g_imp_name, sizeof g_imp_name, kCFStringEncodingUTF8)) strlcpy(g_imp_name, "S2Arm", sizeof g_imp_name); }
