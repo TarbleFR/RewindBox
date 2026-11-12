@@ -2,6 +2,7 @@
 """adapt_stall_compaction on the final preparation, against its predecessor as control.
 
 Usage: melonx_stall_compaction_test.py <predecessor preparation> [--candidate-source <final preparation containing the adapter>]
+       melonx_stall_compaction_test.py --fixture-only   (the executed part and its checks, no preparation)
 
 IPA 729 Hogwarts Legacy: the first-frame compaction leaves the large object heap at 266 MiB; the loading that follows
 (GPU thread: 275 and 216 MiB in two 5 s windows) leaves it at 455 MiB with 165-234 MiB free for the whole session; the
@@ -30,15 +31,20 @@ from pathlib import Path
 import hashlib, json, os, platform, re, shutil, subprocess, sys, tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate-source' in sys.argv else sys.argv[1]).resolve()
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import control_source, files_edited_later  # noqa: E402
 import adapt_stall_compaction as adapter  # noqa: E402
-_HOLD = []
-FINAL_SOURCE = SOURCE
-SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_stall_compaction', _HOLD)
+# --fixture-only: the executed part alone (no preparation needed), with the same checks, on the class as the adapters
+# make it: the macOS workflow runs it on the kind of host the Core CI runs the gates on.
+FIXTURE_ONLY = '--fixture-only' in sys.argv
+FINAL_PREPARATION = False
+if not FIXTURE_ONLY:
+    SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate-source' in sys.argv else sys.argv[1]).resolve()
+    from melonx_adapter_control import control_source, files_edited_later  # noqa: E402
+    _HOLD = []
+    FINAL_SOURCE = SOURCE
+    SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_stall_compaction', _HOLD)
 
 DOTNET = os.environ.get('DOTNET', 'dotnet')
 BEGIN, END = '// RewindBox (adapt_safe_point_compaction) begin\n', '// RewindBox (adapt_safe_point_compaction) end\n'
@@ -93,103 +99,20 @@ def body(text, signature):
     return text[start:at]
 
 
-ignore = shutil.ignore_patterns('.git', 'bin', 'obj', 'MeloNX')
-with tempfile.TemporaryDirectory(prefix='melonx-stall-compaction-') as temporary:
-    temporary = Path(temporary).resolve()
-    candidate = temporary / 'candidate'
-    shutil.copytree(SOURCE, candidate, ignore=ignore, symlinks=True)
-    for name, digest in adapter.BASELINE.items():
-        check(sha(candidate / name) == digest, 'control is the predecessor\'s output: ' + name)
-    before = {name: (candidate / name).read_text(encoding='utf-8-sig') for name in adapter.BASELINE}
-    others = {str(path.relative_to(candidate)): sha(path) for path in (candidate / 'src/Ryujinx.Library').rglob('*.cs')
-              if str(path.relative_to(candidate)) not in adapter.BASELINE}
-    changed = adapter.apply(candidate)
-    check(sorted(str(path.relative_to(candidate)) for path in changed) == sorted(adapter.BASELINE), 'adapter changed other files')
-    try:
-        adapter.apply(candidate)
-        refused = False
-    except AssertionError:
-        refused = True
-    check(refused, 'fail closed: an adapted tree is refused')
-    after = {name: (candidate / name).read_text(encoding='utf-8-sig') for name in adapter.BASELINE}
-    for name, pairs in adapter.FILE_PAIRS.items():
-        restored = after[name]
-        for old, new in reversed(pairs):
-            check(restored.count(new) == 1, 'replacement present once: ' + new.strip().splitlines()[0][:70])
-            restored = restored.replace(new, old)
-        check(restored == before[name], 'nothing else changes in ' + name)
-    for path, digest in others.items():
-        check(sha(candidate / path) == digest, 'not touched: ' + path)
+def synthesized_class():
+    """The compaction class as the adapters make it: adapt_safe_point_compaction's class, adapt_retention_chain's line in
+    its first-frame step, then this adapter's replacements."""
+    from adapt_safe_point_compaction import COMPACTION_CLASS
+    from adapt_retention_chain import FIRST_FRAME_OLD, FIRST_FRAME_NEW
+    text = COMPACTION_CLASS
+    for old, new in ((FIRST_FRAME_OLD, FIRST_FRAME_NEW), *adapter.FILE_PAIRS[adapter.MEMORY]):
+        assert text.count(old) == 1, old[:70]
+        text = text.replace(old, new)
+    return text
 
-    postimages = {}
-    if FINAL_PREPARATION:
-        later = files_edited_later('adapt_stall_compaction')
-        for name, pairs in adapter.FILE_PAIRS.items():
-            final_text = (FINAL_SOURCE / name).read_text(encoding='utf-8-sig')
-            for _, new in pairs:
-                check(final_text.count(new) == 1, 'replacement in the final preparation: ' + new.strip().splitlines()[0][:70])
-            if name not in later:
-                check((candidate / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
-        shutil.rmtree(candidate)
-        shutil.copytree(FINAL_SOURCE, candidate, ignore=ignore, symlinks=True)
-        after = {name: (candidate / name).read_text(encoding='utf-8-sig') for name in adapter.BASELINE}
-        postimages = {name: sha(candidate / name) for name in adapter.BASELINE}
 
-    # --- static ---
-    memory, window, session = after[adapter.MEMORY], after[adapter.WINDOW], after[adapter.SESSION]
-    klass = memory[memory.index(BEGIN):memory.index(END) + len(END)]
-    check(klass.count('System.GC.Collect(') == 1 and klass.count('Compact(') == 4 and 'GCSettings.LatencyMode' not in klass and
-          'TryStartNoGCRegion' not in klass, 'one collection in the class, the existing Compact; three callers and its definition')
-    poll = body(klass, 'internal static void OnPoll()')
-    check(poll.lstrip('{ \n').startswith('try') and 'catch (System.Exception error)' in poll and 'heapCompactionFailed' in poll,
-          'the poll is inside its own catch and journals a failure')
-    order = [poll.index(mark) for mark in ('if (first == 0 ||', 'if (gap < StallGapMs', 'System.GC.GetGCMemoryInfo()', 'stopping()', 'Compact(')]
-    check(order == sorted(order), 'the poll checks the session, then the gap, then the heap, the stop request last, then compacts')
-    check('if (System.Threading.Volatile.Read(ref Compactions) != before)' in poll and
-          poll.index('Compactions) != before') < poll.index('Interlocked.Increment(ref _stallCompactions)'),
-          'a compaction is counted only if one ran (the gate may be busy)')
-    check('!Ryujinx.Memory.HostMemoryBudget.IsConstrained' in poll, 'constrained hosts only, as the other two entry points')
-    rule = klass[klass.index('internal static bool ShouldCompactInStall('):klass.index('// The keep-alive\'s poll')]
-    for term in ('reclaimable >= StallReclaimableBytes', 'devicePercent >= 0 && devicePercent <= PauseDeviceShortPercent',
-                 'sinceFirstFrameMs >= StallAfterFirstFrameMs', 'sinceLastPresentMs >= StallGapMs',
-                 'sinceLastCompactionMs >= StallIntervalMs', 'done < StallMaxPerSession'):
-        check(term in rule, 'the rule: ' + term)
-    resume = body(klass, 'internal static void BeforeResume()')
-    check(resume.index('Volatile.Write(ref _lastPresent') < resume.index('Monitor.Enter(_gate)'),
-          'a resume stamps a frame, then still waits for a collection in flight')
-    check('Volatile.Write(ref _firstPresent, 0)' in body(klass, 'internal static void OnSessionEnd()'), 'the session\'s end disarms the poll')
-    compact = body(klass, 'private static void Compact(string reason, int generation = -1, long presentStamp = -1)')
-    check(compact.index('Monitor.TryEnter(_gate)') < compact.index('Volatile.Read(ref _lastPresent) != presentStamp') < compact.index('System.GC.Collect(') and
-          'presentStamp: stamp' in poll and poll.index('long stamp = System.Threading.Volatile.Read(ref _lastPresent);') < poll.index('long gap = now - stamp;'),
-          'inside the gate, before collecting: the stamp the poll saw is still the last one (a frame or a resume cancels it)')
-    check('Monitor.TryEnter(_gate)' in compact and 'Interlocked.Exchange(ref _lastCompaction' in compact,
-          'the compaction itself is the existing one: behind its gate, stamping its time')
-    loop = window[window.index('if (Device.PresentLoop(SwapBuffers))'):window.index('EmbeddedHeapCompaction.AfterFirstFrame();')]
-    check(loop.count('EmbeddedHeapCompaction.NotePresented();') == 1 and window.count('NotePresented') == 1 and
-          loop.index('NotePresented') < loop.index('if (!_ranFirstFrame)'), 'the render loop stamps each presented frame, before the first-frame branch')
-    keepalive = session[session.index('public static class BackgroundGcKeepAlive'):]
-    check(keepalive.count('EmbeddedHeapCompaction.OnPoll();') == 1 and
-          re.search(r'System\.Threading\.Thread\.Sleep\(PollMs\);.*?EmbeddedHeapCompaction\.OnPoll\(\);\s*long now = ReadMilliseconds\(\);', keepalive, re.S),
-          'the keep-alive polls once per loop, after its sleep')
-    check(session.count('EmbeddedHeapCompaction.WatchStalls(static () => EmbeddedSessions.IsStopping);') == 1 and
-          session.index('EmbeddedHeapCompaction.WatchStalls(') < session.index('BackgroundGcKeepAlive.Start(generation);'),
-          'the session\'s run gives the poll its stop request and clears the earlier session\'s state before the keep-alive starts')
-    watch = body(klass, 'internal static void WatchStalls(System.Func<bool> stopping)')
-    check(all(mark in watch for mark in ('Volatile.Write(ref _firstPresent, 0)', 'Volatile.Write(ref _stallCompactions, 0)',
-                                         'Volatile.Write(ref _hostPaused, false)')), 'a session\'s run starts from nothing')
-    pause = body(klass, 'internal static void OnHostPause(bool paused, System.Func<bool> stopping)')
-    check('Volatile.Write(ref _hostPaused, paused)' in pause and 'Volatile.Read(ref _hostPaused)' in poll and
-          'Volatile.Write(ref _hostPaused, false)' in resume and 'Volatile.Read(ref _hostPaused)' in compact,
-          'a host pause keeps its own rule: the poll returns in it, and so does a compaction that reaches the gate after it began')
-
-    # --- built ---
-    out = run([DOTNET, 'build', str(candidate / 'src/Ryujinx.Library/Ryujinx.Library.csproj'), '-c', 'Release', '-nologo', '-m:1',
-               '-p:NuGetAudit=false'], candidate)
-    warnings = sorted(set(line.split(': warning ')[1].split(':')[0] for line in out.splitlines()
-                          if ': warning ' in line and any(Path(name).name in line for name in adapter.BASELINE)))
-    check(' error ' not in out, 'production Ryujinx.Library assembly builds')
-
-    # --- executed ---
+def execute(temporary, klass):
+    """Builds the fixture with the class text and runs its three modes."""
     fixture = temporary / 'fixture'
     fixture.mkdir()
     shutil.copyfile(ROOT / 'test/melonx_stall_compaction/Program.cs', fixture / 'Program.cs')
@@ -205,9 +128,114 @@ with tempfile.TemporaryDirectory(prefix='melonx-stall-compaction-') as temporary
     gc_library = 'libclrgc.dylib' if platform.system() == 'Darwin' else 'libclrgc.so'
     gc_environment = {'DOTNET_GCName': gc_library, 'DOTNET_GCConserveMemory': '5', 'DOTNET_GCHighMemPercent': '63'}
     probe = [DOTNET, 'bin/Release/net10.0/Probe.dll']
-    policy = json.loads(run(probe + ['policy'], fixture).strip().splitlines()[-1])
-    replay = json.loads(run(probe + ['replay', str(fixture / 'session729.json')], fixture).strip().splitlines()[-1])
-    live = json.loads(run(probe + ['live'], fixture, timeout=600, env=gc_environment).strip().splitlines()[-1])
+    return (json.loads(run(probe + ['policy'], fixture).strip().splitlines()[-1]),
+            json.loads(run(probe + ['replay', str(fixture / 'session729.json')], fixture).strip().splitlines()[-1]),
+            json.loads(run(probe + ['live'], fixture, timeout=600, env=gc_environment).strip().splitlines()[-1]))
+
+
+if FIXTURE_ONLY:
+    with tempfile.TemporaryDirectory(prefix='melonx-stall-compaction-') as temporary:
+        policy, replay, live = execute(Path(temporary).resolve(), synthesized_class())
+else:
+    ignore = shutil.ignore_patterns('.git', 'bin', 'obj', 'MeloNX')
+    with tempfile.TemporaryDirectory(prefix='melonx-stall-compaction-') as temporary:
+        temporary = Path(temporary).resolve()
+        candidate = temporary / 'candidate'
+        shutil.copytree(SOURCE, candidate, ignore=ignore, symlinks=True)
+        for name, digest in adapter.BASELINE.items():
+            check(sha(candidate / name) == digest, 'control is the predecessor\'s output: ' + name)
+        before = {name: (candidate / name).read_text(encoding='utf-8-sig') for name in adapter.BASELINE}
+        others = {str(path.relative_to(candidate)): sha(path) for path in (candidate / 'src/Ryujinx.Library').rglob('*.cs')
+                  if str(path.relative_to(candidate)) not in adapter.BASELINE}
+        changed = adapter.apply(candidate)
+        check(sorted(str(path.relative_to(candidate)) for path in changed) == sorted(adapter.BASELINE), 'adapter changed other files')
+        try:
+            adapter.apply(candidate)
+            refused = False
+        except AssertionError:
+            refused = True
+        check(refused, 'fail closed: an adapted tree is refused')
+        after = {name: (candidate / name).read_text(encoding='utf-8-sig') for name in adapter.BASELINE}
+        for name, pairs in adapter.FILE_PAIRS.items():
+            restored = after[name]
+            for old, new in reversed(pairs):
+                check(restored.count(new) == 1, 'replacement present once: ' + new.strip().splitlines()[0][:70])
+                restored = restored.replace(new, old)
+            check(restored == before[name], 'nothing else changes in ' + name)
+        for path, digest in others.items():
+            check(sha(candidate / path) == digest, 'not touched: ' + path)
+
+        postimages = {}
+        if FINAL_PREPARATION:
+            later = files_edited_later('adapt_stall_compaction')
+            for name, pairs in adapter.FILE_PAIRS.items():
+                final_text = (FINAL_SOURCE / name).read_text(encoding='utf-8-sig')
+                for _, new in pairs:
+                    check(final_text.count(new) == 1, 'replacement in the final preparation: ' + new.strip().splitlines()[0][:70])
+                if name not in later:
+                    check((candidate / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
+            shutil.rmtree(candidate)
+            shutil.copytree(FINAL_SOURCE, candidate, ignore=ignore, symlinks=True)
+            after = {name: (candidate / name).read_text(encoding='utf-8-sig') for name in adapter.BASELINE}
+            postimages = {name: sha(candidate / name) for name in adapter.BASELINE}
+
+        # --- static ---
+        memory, window, session = after[adapter.MEMORY], after[adapter.WINDOW], after[adapter.SESSION]
+        klass = memory[memory.index(BEGIN):memory.index(END) + len(END)]
+        check(klass.count('System.GC.Collect(') == 1 and klass.count('Compact(') == 4 and 'GCSettings.LatencyMode' not in klass and
+              'TryStartNoGCRegion' not in klass, 'one collection in the class, the existing Compact; three callers and its definition')
+        poll = body(klass, 'internal static void OnPoll()')
+        check(poll.lstrip('{ \n').startswith('try') and 'catch (System.Exception error)' in poll and 'heapCompactionFailed' in poll,
+              'the poll is inside its own catch and journals a failure')
+        order = [poll.index(mark) for mark in ('if (first == 0 ||', 'if (gap < StallGapMs', 'System.GC.GetGCMemoryInfo()', 'stopping()', 'Compact(')]
+        check(order == sorted(order), 'the poll checks the session, then the gap, then the heap, the stop request last, then compacts')
+        check('if (System.Threading.Volatile.Read(ref Compactions) != before)' in poll and
+              poll.index('Compactions) != before') < poll.index('Interlocked.Increment(ref _stallCompactions)'),
+              'a compaction is counted only if one ran (the gate may be busy)')
+        check('!Ryujinx.Memory.HostMemoryBudget.IsConstrained' in poll, 'constrained hosts only, as the other two entry points')
+        rule = klass[klass.index('internal static bool ShouldCompactInStall('):klass.index('// The keep-alive\'s poll')]
+        for term in ('reclaimable >= StallReclaimableBytes', 'devicePercent >= 0 && devicePercent <= PauseDeviceShortPercent',
+                     'sinceFirstFrameMs >= StallAfterFirstFrameMs', 'sinceLastPresentMs >= StallGapMs',
+                     'sinceLastCompactionMs >= StallIntervalMs', 'done < StallMaxPerSession'):
+            check(term in rule, 'the rule: ' + term)
+        resume = body(klass, 'internal static void BeforeResume()')
+        check(resume.index('Volatile.Write(ref _lastPresent') < resume.index('Monitor.Enter(_gate)'),
+              'a resume stamps a frame, then still waits for a collection in flight')
+        check('Volatile.Write(ref _firstPresent, 0)' in body(klass, 'internal static void OnSessionEnd()'), 'the session\'s end disarms the poll')
+        compact = body(klass, 'private static void Compact(string reason, int generation = -1, long presentStamp = -1)')
+        check(compact.index('Monitor.TryEnter(_gate)') < compact.index('Volatile.Read(ref _lastPresent) != presentStamp') < compact.index('System.GC.Collect(') and
+              'presentStamp: stamp' in poll and poll.index('long stamp = System.Threading.Volatile.Read(ref _lastPresent);') < poll.index('long gap = now - stamp;'),
+              'inside the gate, before collecting: the stamp the poll saw is still the last one (a frame or a resume cancels it)')
+        check('Monitor.TryEnter(_gate)' in compact and 'Interlocked.Exchange(ref _lastCompaction' in compact,
+              'the compaction itself is the existing one: behind its gate, stamping its time')
+        loop = window[window.index('if (Device.PresentLoop(SwapBuffers))'):window.index('EmbeddedHeapCompaction.AfterFirstFrame();')]
+        check(loop.count('EmbeddedHeapCompaction.NotePresented();') == 1 and window.count('NotePresented') == 1 and
+              loop.index('NotePresented') < loop.index('if (!_ranFirstFrame)'), 'the render loop stamps each presented frame, before the first-frame branch')
+        keepalive = session[session.index('public static class BackgroundGcKeepAlive'):]
+        check(keepalive.count('EmbeddedHeapCompaction.OnPoll();') == 1 and
+              re.search(r'System\.Threading\.Thread\.Sleep\(PollMs\);.*?EmbeddedHeapCompaction\.OnPoll\(\);\s*long now = ReadMilliseconds\(\);', keepalive, re.S),
+              'the keep-alive polls once per loop, after its sleep')
+        check(session.count('EmbeddedHeapCompaction.WatchStalls(static () => EmbeddedSessions.IsStopping);') == 1 and
+              session.index('EmbeddedHeapCompaction.WatchStalls(') < session.index('BackgroundGcKeepAlive.Start(generation);'),
+              'the session\'s run gives the poll its stop request and clears the earlier session\'s state before the keep-alive starts')
+        watch = body(klass, 'internal static void WatchStalls(System.Func<bool> stopping)')
+        check(all(mark in watch for mark in ('Volatile.Write(ref _firstPresent, 0)', 'Volatile.Write(ref _stallCompactions, 0)',
+                                             'Volatile.Write(ref _hostPaused, false)')), 'a session\'s run starts from nothing')
+        pause = body(klass, 'internal static void OnHostPause(bool paused, System.Func<bool> stopping)')
+        check('Volatile.Write(ref _hostPaused, paused)' in pause and 'Volatile.Read(ref _hostPaused)' in poll and
+              'Volatile.Write(ref _hostPaused, false)' in resume and 'Volatile.Read(ref _hostPaused)' in compact,
+              'a host pause keeps its own rule: the poll returns in it, and so does a compaction that reaches the gate after it began')
+
+        # --- built ---
+        out = run([DOTNET, 'build', str(candidate / 'src/Ryujinx.Library/Ryujinx.Library.csproj'), '-c', 'Release', '-nologo', '-m:1',
+                   '-p:NuGetAudit=false'], candidate)
+        warnings = sorted(set(line.split(': warning ')[1].split(':')[0] for line in out.splitlines()
+                              if ': warning ' in line and any(Path(name).name in line for name in adapter.BASELINE)))
+        check(' error ' not in out, 'production Ryujinx.Library assembly builds')
+
+        # --- executed ---
+        check(klass == synthesized_class(), 'the class of the final preparation is the three adapters\' text (what --fixture-only compiles)')
+        policy, replay, live = execute(temporary, klass)
 
 print(json.dumps({'policy': policy, 'replay': replay, 'live': {k: v for k, v in live.items() if k != 'lines'}}), flush=True)
 
@@ -248,6 +276,10 @@ check(700 - 290 <= live['nextSessionWaitedMs'] <= 8000 and live['total'] == 2 an
 gap_lines = [line for line in live['lines'] if 'heapCompacted' in line]
 check(len(gap_lines) == 2 and all(re.match(r'memory heapCompacted: presentationGap \d+ ms: footprint \d+ -> \d+ MiB; ', line) for line in gap_lines),
       'each compaction writes the journal line with its reason and the footprint before and after: %s' % [line[:90] for line in gap_lines])
+
+if FIXTURE_ONLY:
+    print(f'PASS {checks} stall compaction fixture checks on {platform.system()}')
+    raise SystemExit(0)
 
 inputs = ['build-utils/melonx/adapt_stall_compaction.py', 'build-utils/melonx/adapt_session.py', 'test/melonx_stall_compaction_test.py',
           'test/melonx_stall_compaction/Program.cs', 'test/melonx_adapter_control.py']
