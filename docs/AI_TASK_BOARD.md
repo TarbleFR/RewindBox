@@ -6142,7 +6142,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   4 pre-existing failures (RPCS3 Build 231 x2, rpcs3_saves_locale export report, French lead sentence); delivery
   contract the same 2 errors; storage contract OK on both.
   Run 43217888486 (d7ad7e834): checks, plugin_app and core green (compiled, verify_core.py passed, artifact
-  uploaded through the protected action, 12:33-13:03); pinned next.
+  uploaded through the protected action, 12:33-13:03). Pin job 131202057689 (run 43223902046): core-pin.json
+  2d176a7f…fd77 rebuilt byte-identical (job 131182949291, artifact 13946139906, 9,534,484 B, eeed2297…, expires
+  26 Nov; binary 6c511637…e5b7, 37,720,504 B, SDK 26.5, minos 26.0; fingerprint bd6351c0…e662; replaces 84386936
+  with its reason); review rebound (10 recipe digests equal at d7ad7e834), gate test OK. Merged Claude 8c0fc392
+  (cd84c2b24, includes cc3af454, no conflict): Xbox 360 Python checks, storage contract, Dart 62/62 OK; delivery
+  contract = Claude alone + the 2 PocketSkinRevisionReview errors (the 729-frozen product tree still names
+  84386936; they clear when the 730 manifest freezes 2d176a7f). The next manifest must name pinSha256 2d176a7f.
 - **Validation (Flutter 3.47.2 host):** 11 Nov: XeniOS + catalog/Consoles/touch suites
   91/91, scanner suites 41/41 (1 skip), storage contract 24/24, patch/validator/touch/C++
   checks OK, analyzer 111 = baseline. Earlier: new XeniOS + catalog/Consoles tests 65/65;
