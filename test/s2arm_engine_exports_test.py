@@ -38,7 +38,7 @@ class ExportList(unittest.TestCase):
         # Only exact strings count: a name inside a log message is not a lookup.
         self.assertNotIn('_s2a_hidden_fn', result['keep'])
         self.assertEqual((result['exportsBefore'], result['dropped'], result['droppedGlslang'], result['droppedCxx'],
-                          result['droppedObjcClasses']), (12, 4, 1, 1, 1))
+                          result['droppedObjcClasses']), (7 + len(tool.GUEST_ENTRY_POINTS), 4, 1, 1, 1))
         self.assertEqual((result['missingGuestEntryPoints'], result['refusedKept']), ([], []))
 
     def test_an_unexported_looked_up_name_is_not_added(self):
@@ -57,7 +57,7 @@ class ExportList(unittest.TestCase):
             self.assertEqual(tool.main(arguments), 0)
             self.assertEqual(out.read_text().split(), sorted(['_S2A_InitSession'] +
                                                              ['_' + n for n in tool.GUEST_ENTRY_POINTS]))
-            self.assertEqual(json.loads(report.read_text())['kept'], 6)
+            self.assertEqual(json.loads(report.read_text())['kept'], 1 + len(tool.GUEST_ENTRY_POINTS))
             # A guest entry point missing from the unrestricted link.
             out.unlink()
             listing.write_text('\n'.join(ENTRY[1:]) + '\n')
@@ -81,7 +81,8 @@ class ExportList(unittest.TestCase):
         self.assertEqual(len(final), 1, 'one final link writes the framework binary')
         self.assertIn('-Wl,-exported_symbols_list,$(S2ARM_GUEST_EXPORTS)', final[0])
         bridge = (ROOT / 'packages/s2arm_engine_bridge/ios/Classes/S2ArmGuestABI.h').read_text()
-        for name in tool.GUEST_ENTRY_POINTS[:4]:
+        # Every entry point but s2a_rb_guest_fatal (the engine's own die() finds it) is looked up by the host bridge.
+        for name in [name for name in tool.GUEST_ENTRY_POINTS if name != 's2a_rb_guest_fatal']:
             self.assertIn(f'"{name}"', bridge, 'the host bridge looks it up by this name')
 
 

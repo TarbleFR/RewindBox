@@ -103,3 +103,27 @@ iOS settings page uses ("restart now", `ios/app.m:91,429`).
 - The restart path is S2Arm's own, but it has only been used for the same game, from its settings menu.
 - The parked game threads and their mappings have to be released, or the memory grows with each game.
 - Every step is unobserved until a first Switch 2 game boots on the iPhone.
+
+## Step 1 implemented (12 Nov 2026, not built yet)
+
+- Engine patch `build-utils/s2arm/engine/patches/0010-guest-park-and-resume-the-same-game.patch`:
+  - `s2a_host_park` and `s2a_host_resume` in session.c (above);
+  - `s2a_rb_guest_stop` parks when the host gave `session_parked` and falls back to the shutdown;
+  - `s2a_rb_guest_parked`, `s2a_rb_guest_view_controller` and `s2a_rb_guest_resume`.
+  - The config accepts the size of a host built before the patch.
+  - The series 0001-0010 applies on the pin. The non-Apple path of session.c compiles without warnings here; the
+    Apple path is compiled by the engine build.
+- Exports: the three new entry points are in `build-utils/s2arm/engine/export_list.py` (the framework exports only that
+  list), and `s2arm-engine.yml` checks them. Without this, `dlsym` would not have found them.
+- Bridge:
+  - `resumeParkedGame` presents the parked view controller, then calls `s2a_rb_guest_resume` in the presentation's
+    completion. No dlopen, configure or JIT is involved. The settings apply again first.
+  - `status` gives `parkedGameId`, and `session_parked` sends `sessionEnded` with `parked: true`.
+- Dart: `launch()` lets only the parked title id through.
+- Tests:
+  - `test/s2arm_park_resume_test.py` (33 checks);
+  - the bridge test (163 checks): the guest ABI is compared with the struct the whole series produces;
+  - `test/s2arm_engine_exports_test.py` and `test/s2arm_session_menu_test.py` (each launch path checked on its own);
+  - the Dart service test: the parked game resumes, another game and an end are refused.
+- Then: the engine build, an engine pin from main, and the device check once a first game boots.
+

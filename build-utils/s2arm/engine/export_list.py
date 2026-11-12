@@ -31,7 +31,9 @@ import sys
 from pathlib import Path
 
 GUEST_ENTRY_POINTS = ('s2a_rb_guest_configure', 's2a_rb_guest_make_view_controller', 's2a_rb_guest_start',
-                      's2a_rb_guest_stop', 's2a_rb_guest_fatal')
+                      's2a_rb_guest_stop', 's2a_rb_guest_fatal',
+                      # patch 0010: the host resumes the game Quit parked (S2ArmEngineBridgePlugin.m resumeParkedGame)
+                      's2a_rb_guest_parked', 's2a_rb_guest_view_controller', 's2a_rb_guest_resume')
 IDENTIFIER = re.compile(rb'[A-Za-z_][A-Za-z0-9_$.]{1,255}')
 UTF16_IDENTIFIER = re.compile(rb'(?:[A-Za-z_]\x00)(?:[A-Za-z0-9_$.]\x00){1,255}')
 REFUSED_IN_KEPT = re.compile(r'glslang', re.IGNORECASE)

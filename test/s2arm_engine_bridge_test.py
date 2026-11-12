@@ -114,12 +114,31 @@ def struct_members(text, name):
     return fields
 
 
-patch = PATCH.read_text()
-patch_fields = struct_members(patch[patch.index('typedef struct s2a_rb_guest_config'):], 's2a_rb_guest_config')
+def guest_header_after_series():
+    """runtime/src/rb_guest.h as the whole engine patch series leaves it: patch 0003 creates it, later patches (0010:
+    session_parked) extend it. Built with git apply in a temporary folder; no S2Arm source is needed."""
+    import subprocess
+    import tempfile
+    with tempfile.TemporaryDirectory() as folder:
+        for path in sorted((ROOT / 'build-utils/s2arm/engine/patches').glob('*.patch')):
+            text = path.read_text()
+            if 'b/runtime/src/rb_guest.h' not in text:
+                continue
+            applied = subprocess.run(['git', 'apply', '--whitespace=nowarn', '--include=runtime/src/rb_guest.h', str(path)],
+                                     cwd=folder, capture_output=True, text=True)
+            if applied.returncode:
+                return None, f'{path.name}: {applied.stderr.strip()}'
+        return (Path(folder) / 'runtime/src/rb_guest.h').read_text(), None
+
+
+header, header_error = guest_header_after_series()
+check(header is not None, f'the guest header builds from the patch series ({header_error})')
+patch_fields = struct_members(header[header.index('typedef struct s2a_rb_guest_config'):], 's2a_rb_guest_config') if header else []
 abi = read('S2ArmGuestABI.h')
 abi_fields = struct_members(abi[abi.index('typedef struct s2a_rb_guest_config'):], 's2a_rb_guest_config')
 check(patch_fields == abi_fields and patch_fields[:3] == ['size', 'game_id', 'images'] and 'prepare_code' in patch_fields,
-      f'the guest config ABI matches patch 0003 ({abi_fields} vs {patch_fields})')
+      f'the guest config ABI matches the patch series ({abi_fields} vs {patch_fields})')
+check(patch_fields[-2:] == ['session_parked', 'parked_context'], 'patch 0010 appends session_parked last (older hosts keep working)')
 
 def struct_field_names(text, name):
     """The member names of `typedef struct { ... } name;`, in order (comments removed, function pointers and
