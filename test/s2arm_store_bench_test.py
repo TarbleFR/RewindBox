@@ -41,7 +41,7 @@ bench = patch[patch.index(' void s2a_emul_store_bench(void) {\n'):] if ' void s2
 at = [bench.find(part) for part in ('getenv("S2A_TRACK_EMUL_STORE")', '(kp.kp_proc.p_flag & P_TRACED)', 'mmap(NULL, 0x4000')]
 check(min(at) >= 0 and at == sorted(at), 'the debugger check comes before the test page and its 2000 faults')
 series = sorted(p.name for p in (ROOT / 'build-utils/s2arm/engine/patches').glob('*.patch'))
-check(series[-1] == PATCH.name and len(series) == 11, f'0011 is the last of 11 engine patches: {series[-2:]}')
+check(len(series) >= 11 and series[10] == PATCH.name, f'0011 is the 11th engine patch: {series[9:12]}')
 notices = (ROOT / 'docs/s2arm-legal-notices.md').read_text(encoding='utf-8')
 check(PATCH.name in notices, 'the legal notices list patch 0011')
 

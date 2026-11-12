@@ -1,0 +1,39 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 80569fa..f31ce78 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -733,9 +733,18 @@ NVN(nvnTextureBuilderSetGLTextureName, void, NVNtextureBuilder *b, uint32_t name
+ NVN(nvnTextureBuilderGetGLTextureName, uint32_t, const NVNtextureBuilder *b) { return ((const tex_builder_t *)b)->gl_name; }
+ // ---- 稀疏贴图：本项目不支持 sparse tiling（Builder 的 sparse 布局一律按普通纹理建），查询时把输出结构清零并点名一次，
+ //      不返回「看起来像成功」的假布局 ----
++// RewindBox (patch 0012): the texture's own layout, the same answer as nvnTextureBuilderGetSparseTileLayout on the builder it
++//   was made from (nvn_tex_sparse_layout on the description TextureInitialize copied). nvn_tex.c already lays sparse textures
++//   out by those 64 KiB pages (sparse_levels, level_walk), and MapVirtual maps tiles into virtual pools. Mario Kart World
++//   (0400C3F00006E000, IPA 732) asks the texture, not the builder: with the empty layout it sent 0-byte tile mappings, MapVirtual
++//   failed 9 times and the game crashed on a null pointer (address 0x4) 30 s after nnMain. A texture that is not sparse still
++//   gets all zeros, as before; so does an object that was never initialized.
+ NVN(nvnTextureGetSparseTileLayout, void, const NVNtexture *t, NVNtextureSparseTileLayout *layout) {
+-    (void)t; if (layout) memset(layout, 0, sizeof *layout);
+-    static int once; if (!once++) LOG("【红】 nvnTextureGetSparseTileLayout: sparse tiled textures are not supported, the layout is reported empty");
++    uint32_t tile[4] = {0, 0, 0, 0};
++    if (t) nvn_tex_sparse_layout(&CTX(t)->d, tile);
++    if (layout) memcpy(layout, tile, sizeof tile);
++    static _Atomic int logged; if (tile[0] && !atomic_exchange(&logged, 1))
++        LOG("RewindBox: nvnTextureGetSparseTileLayout: %u tiled levels, tile %ux%ux%u (the texture's own layout; later queries are not logged)", tile[0], tile[1], tile[2], tile[3]);
+ }
+ // ---- 调试 ID：NVN 没有 SetDebugID，驱动侧自行给。本层用对象的初始化序号（tex_t.serial，单调、每对象唯一、跨拷贝稳定）当调试 ID ----
+ NVN(nvnTextureGetDebugID, uint64_t, const NVNtexture *t) { return CTX(t)->serial; }
+@@ -4006,6 +4015,13 @@ static int vpool_map(struct vpool *v, const map_req *r) {   // caller holds g_vp
+     if (((uint64_t)r->voff | r->size | (uint64_t)r->poff) & 0xFFF) { LOG("【红】 virtual pool %p: request %#llx+%#llx (physical offset %#llx) is not 4 KB aligned", (const void *)v->pool, (unsigned long long)r->voff, (unsigned long long)r->size, (unsigned long long)r->poff); return 0; }
+     const pool_t *ph = (const pool_t *)r->phys;
+     if (ph && (!ph->mem || r->poff < 0 || (uint64_t)r->poff + r->size > ph->size)) { LOG("【红】 virtual pool %p: physical pool %p (%#llx bytes, storage %p) cannot supply %#llx+%#llx", (const void *)v->pool, (const void *)ph, (unsigned long long)ph->size, (void *)ph->mem, (unsigned long long)r->poff, (unsigned long long)r->size); return 0; }
++    // RewindBox (patch 0012): a valid request of 0 bytes maps nothing, as a GPU page table update of 0 pages; vm_remap refuses a
++    //   0-byte range (KERN_INVALID_ARGUMENT, 4), which made MapVirtual fail for it (Mario Kart World, IPA 732, before 0012's layout fix).
++    if (!r->size) {
++        static _Atomic uint64_t zero; if (!atomic_fetch_add(&zero, 1))
++            LOG("RewindBox: virtual pool %p: a 0-byte %s request at %#llx maps nothing; accepted (later cases are not logged)", (const void *)v->pool, ph ? "map" : "unmap", (unsigned long long)r->voff);
++        return 1;
++    }
+     vpt_set(v, (uint64_t)r->voff, r->size, ph ? ph->mem + r->poff : NULL);
+     vm_address_t to = (vm_address_t)(v->base + r->voff);
+     // Not aliased (see above): kept in the page table; host pages of it already addressable become copies of the table (vsh_*), the others when a buffer first uses them
