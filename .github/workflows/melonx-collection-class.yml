@@ -1,0 +1,32 @@
+name: MeloNX collection class
+run-name: Collection class on macOS • ${{ github.sha }}
+# Lot 10. A blocking collection runs on the thread whose allocation triggered it while every engine thread waits; the
+# guest's own threads keep running native code in the user-interactive class. This workflow measures, on a real macOS
+# arm64 runner (the scheduler and QoS interfaces of iOS), what that costs a lower-class thread and which way of
+# raising it for the collection's duration works. Nothing is built for delivery.
+'on':
+  push:
+    branches:
+    - work/melonx-lot10-20261112
+    paths:
+    - .github/workflows/melonx-collection-class.yml
+    - test/melonx_collection_class/**
+    - test/melonx_collection_class_test.py
+    - build-utils/melonx/adapt_collection_class.py
+permissions:
+  contents: read
+concurrency:
+  group: melonx-collection-class-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  collection-class:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - name: Scheduling probe (a low-class thread's work under user-interactive load, and the ways of raising it)
+      run: |
+        clang -O2 -o "$RUNNER_TEMP/qos_probe" test/melonx_collection_class/qos_probe.c
+        for run in 1 2 3; do "$RUNNER_TEMP/qos_probe"; done
