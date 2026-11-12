@@ -93259,7 +93259,7 @@ index 0000000..438c533
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp b/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
 new file mode 100644
-index 0000000..2bda1d7
+index 0000000..bd9f349
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
 @@ -0,0 +1,1058 @@
@@ -93780,7 +93780,7 @@ index 0000000..2bda1d7
 +	{
 +		// M4: the native overlays are prepared before the pass opens (their uploads may submit), over the image area.
 +		{
-+			const auto rect = mtl::present_pass::fit(display_width, display_height, m_drawable_width, m_drawable_height);
++			const auto rect = mtl::present_pass::place(display_width, display_height, m_drawable_width, m_drawable_height, g_cfg.video.stretch_to_display_area);  // REWINDBOX_METAL_STRETCH_934
 +			areau image_area{ 0, 0, m_drawable_width, m_drawable_height };
 +			if (rect.right > rect.left && rect.top > rect.bottom)
 +			{
@@ -93802,9 +93802,9 @@ index 0000000..2bda1d7
 +
 +		if (source && display_width && display_height && m_drawable_width && m_drawable_height)
 +		{
-+			// Fit the display buffer in the drawable, keeping its aspect ratio.
++			// Fit the display buffer in the drawable, keeping its aspect ratio unless Stretch To Display Area is on.
 +			mtl::present_pass::parameters params{};
-+			params.rect = mtl::present_pass::fit(display_width, display_height, m_drawable_width, m_drawable_height);
++			params.rect = mtl::present_pass::place(display_width, display_height, m_drawable_width, m_drawable_height, g_cfg.video.stretch_to_display_area);  // REWINDBOX_METAL_STRETCH_934
 +			params.uv_scale[0] = uv_scale_x;
 +			params.uv_scale[1] = uv_scale_y;
 +			std::memcpy(mtl::buffer_contents(slot.constants), &params, sizeof(params));
@@ -97858,10 +97858,10 @@ index 0000000..080f0f4
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLPresent.h b/rpcs3/Emu/RSX/Metal/MTLPresent.h
 new file mode 100644
-index 0000000..4ff281a
+index 0000000..4973e36
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLPresent.h
-@@ -0,0 +1,92 @@
+@@ -0,0 +1,103 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -97952,6 +97952,17 @@ index 0000000..4ff281a
 +		const f32 half_width = static_cast<f32>(source_width * scale / target_width);
 +		const f32 half_height = static_cast<f32>(source_height * scale / target_height);
 +		return {-half_width, -half_height, half_width, half_height};
++	}
++
++	// REWINDBOX_METAL_STRETCH_934: Stretch To Display Area fills the drawable, as the Vulkan renderer does
++	// (VKPresent.cpp keeps the aspect ratio only when the setting is off). An empty source or target draws nothing.
++	inline rectangle place(u32 source_width, u32 source_height, u32 target_width, u32 target_height, bool stretch) noexcept
++	{
++		if (!stretch || !source_width || !source_height || !target_width || !target_height)
++		{
++			return fit(source_width, source_height, target_width, target_height);
++		}
++		return {-1.f, -1.f, 1.f, 1.f};
 +	}
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLProgramBuffer.cpp b/rpcs3/Emu/RSX/Metal/MTLProgramBuffer.cpp
@@ -139041,7 +139052,7 @@ index 0000000..112f20b
 +}
 +} // namespace vk
 diff --git a/rpcs3/ios/RPCS3IOS.cpp b/rpcs3/ios/RPCS3IOS.cpp
-index 74a6dc7..d9aa2c8 100644
+index 74a6dc7..4fca8be 100644
 --- a/rpcs3/ios/RPCS3IOS.cpp
 +++ b/rpcs3/ios/RPCS3IOS.cpp
 @@ -1,6 +1,16 @@
@@ -139184,7 +139195,7 @@ index 74a6dc7..d9aa2c8 100644
  }
  
  class callback_log_listener final : public logs::listener
-@@ -448,16 +493,32 @@ private:
+@@ -448,16 +493,33 @@ private:
  	std::string m_name;
  };
  
@@ -139203,8 +139214,9 @@ index 74a6dc7..d9aa2c8 100644
  
 -	set_error(std::string{rpcs3::ios::settings_load_error_detail(result)});
 -	return false;
-+	// Load recommendations before sparse explicit user overrides. Legacy full
-+	// custom configs remain authoritative and deliberately suppress GameDB.
++	// Load recommendations before sparse explicit user overrides. A legacy full
++	// custom config is no longer read (REWINDBOX_SETTINGS_API_RULE_934), so
++	// has_custom_config is false and the title gets the database and its overrides.
 +	if (!title_id.empty() && !has_custom_config)
 +	{
 +		if (!apply_database_settings_for_api(title_id))
@@ -139221,7 +139233,7 @@ index 74a6dc7..d9aa2c8 100644
  }
  
  bool apply_database_settings_for_api(std::string_view title_id)
-@@ -904,10 +965,10 @@ EmuCallbacks make_callbacks()
+@@ -904,10 +966,10 @@ EmuCallbacks make_callbacks()
  		g_config.main_thread_callback(g_config.user_context, &invoke_main_thread_payload, payload);
  	};
  
@@ -139234,7 +139246,7 @@ index 74a6dc7..d9aa2c8 100644
  	callbacks.on_ready = []() {};
  	callbacks.on_missing_fw = []() { emit_log(5, "PlayStation 3 firmware is not installed yet"); };
  	callbacks.on_emulation_stop_no_response = [](std::shared_ptr<atomic_t<bool>>, int)
-@@ -963,8 +1024,25 @@ EmuCallbacks make_callbacks()
+@@ -963,8 +1025,25 @@ EmuCallbacks make_callbacks()
  	};
  	callbacks.init_gs_render = [](utils::serial* archive)
  	{
@@ -139260,7 +139272,7 @@ index 74a6dc7..d9aa2c8 100644
  		case video_renderer::vulkan:
  #ifdef HAVE_VULKAN
  			g_fxo->init<rsx::thread, named_thread<VKGSRender>>(archive);
-@@ -1267,15 +1345,15 @@ extern "C" uint32_t rpcs3_ios_abi_version(void) noexcept
+@@ -1267,15 +1346,15 @@ extern "C" uint32_t rpcs3_ios_abi_version(void) noexcept
  
  extern "C" const char* rpcs3_ios_build_info(void) noexcept
  {
@@ -139279,7 +139291,7 @@ index 74a6dc7..d9aa2c8 100644
  		return RPCS3_IOS_INVALID_STATE;
  	}
  
-@@ -1289,40 +1367,105 @@ extern "C" rpcs3_ios_status rpcs3_ios_initialize(const rpcs3_ios_config* config)
+@@ -1289,40 +1368,105 @@ extern "C" rpcs3_ios_status rpcs3_ios_initialize(const rpcs3_ios_config* config)
  		return result;
  	}
  
@@ -139408,7 +139420,7 @@ index 74a6dc7..d9aa2c8 100644
  		// A developer can request one bounded SPU profile through the injected
  		// cache root. Consume the request so subsequent launches stay unchanged.
  		const std::string profile_request = fs::get_cache_dir() + "jit-profile.once";
-@@ -1383,20 +1526,27 @@ extern "C" rpcs3_ios_status rpcs3_ios_initialize(const rpcs3_ios_config* config)
+@@ -1383,20 +1527,27 @@ extern "C" rpcs3_ios_status rpcs3_ios_initialize(const rpcs3_ios_config* config)
  				jit_stats.expanded ? "expanded" : "standard"));
  		}
  		Emu.SetCallbacks(make_callbacks());
@@ -139439,7 +139451,7 @@ index 74a6dc7..d9aa2c8 100644
  		emit_jit_arena_statistics("after core initialization");
  		return RPCS3_IOS_OK;
  	}
-@@ -1519,6 +1669,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_run_llvm_self_test(uint64_t input, uint64_
+@@ -1519,6 +1670,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_run_llvm_self_test(uint64_t input, uint64_
  
  		using test_function = uint64_t (*)(uint64_t);
  		const auto function_address = compiler.get("rpcs3_ios_test_function");
@@ -139447,7 +139459,7 @@ index 74a6dc7..d9aa2c8 100644
  		if (!function_address)
  		{
  			set_error("LLVM did not publish the self-test function");
-@@ -3161,7 +3312,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_enumerate_game_settings(
+@@ -3161,7 +3313,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_enumerate_game_settings(
  		}
  		bool custom_config = false;
  		const bool loaded = load_settings_for_api(title_id, custom_config);
@@ -139456,7 +139468,7 @@ index 74a6dc7..d9aa2c8 100644
  		if (!loaded)
  		{
  			return RPCS3_IOS_SETTINGS_SAVE_FAILED;
-@@ -3198,6 +3349,15 @@ extern "C" rpcs3_ios_status rpcs3_ios_set_game_setting(
+@@ -3198,6 +3350,15 @@ extern "C" rpcs3_ios_status rpcs3_ios_set_game_setting(
  		set_error("A setting key and value are required");
  		return RPCS3_IOS_INVALID_ARGUMENT;
  	}
@@ -139472,7 +139484,7 @@ index 74a6dc7..d9aa2c8 100644
  	if (const auto result = rpcs3::ios::validate_idle_operation_contract(
  		g_lifecycle.state(), current_emulation_state()); result != RPCS3_IOS_OK)
  	{
-@@ -3219,6 +3379,30 @@ extern "C" rpcs3_ios_status rpcs3_ios_set_game_setting(
+@@ -3219,6 +3380,30 @@ extern "C" rpcs3_ios_status rpcs3_ios_set_game_setting(
  			return RPCS3_IOS_SETTINGS_SAVE_FAILED;
  		}
  		normalize_current_game_resolution(game.resolution);
@@ -139503,7 +139515,7 @@ index 74a6dc7..d9aa2c8 100644
  		if (std::string_view{key} == "gpu.resolution")
  		{
  			const std::vector<std::string> options = supported_game_resolution_options(game.resolution);
-@@ -3233,12 +3417,15 @@ extern "C" rpcs3_ios_status rpcs3_ios_set_game_setting(
+@@ -3233,12 +3418,15 @@ extern "C" rpcs3_ios_status rpcs3_ios_set_game_setting(
  		{
  			return result;
  		}
@@ -139522,7 +139534,7 @@ index 74a6dc7..d9aa2c8 100644
  		return RPCS3_IOS_OK;
  	}
  	catch (const std::exception& error)
-@@ -3310,7 +3497,8 @@ extern "C" rpcs3_ios_status rpcs3_ios_remove_game_settings(const char* title_id)
+@@ -3310,7 +3498,8 @@ extern "C" rpcs3_ios_status rpcs3_ios_remove_game_settings(const char* title_id)
  
  	try
  	{
@@ -139532,7 +139544,7 @@ index 74a6dc7..d9aa2c8 100644
  		{
  			set_error(fmt::format("Unable to remove the custom configuration for %s", title_id));
  			return RPCS3_IOS_SETTINGS_SAVE_FAILED;
-@@ -3388,10 +3576,6 @@ extern "C" rpcs3_ios_status rpcs3_ios_save_game_settings_preset(
+@@ -3388,10 +3577,6 @@ extern "C" rpcs3_ios_status rpcs3_ios_save_game_settings_preset(
  		{
  			return RPCS3_IOS_SETTINGS_SAVE_FAILED;
  		}
@@ -139543,7 +139555,7 @@ index 74a6dc7..d9aa2c8 100644
  		normalize_current_game_resolution(game.resolution);
  		const auto result = finish_game_settings_preset_result(
  			rpcs3::ios::save_current_game_settings_preset(title_id, name));
-@@ -4353,6 +4537,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_big_picture_mode(void) noexcept
+@@ -4353,6 +4538,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_big_picture_mode(void) noexcept
  		set_error("RPCS3Core must be ready and emulation stopped before booting Big Picture Mode");
  		return result;
  	}
@@ -139551,7 +139563,7 @@ index 74a6dc7..d9aa2c8 100644
  	if (!g_display_surface.snapshot().valid())
  	{
  		set_error("Attach a valid iOS Metal display surface before booting Big Picture Mode");
-@@ -4396,6 +4581,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_vsh(void) noexcept
+@@ -4396,6 +4582,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_vsh(void) noexcept
  		set_error("RPCS3Core must be ready and emulation stopped before booting XMB");
  		return result;
  	}
@@ -139559,7 +139571,7 @@ index 74a6dc7..d9aa2c8 100644
  	if (!g_display_surface.snapshot().valid())
  	{
  		set_error("Attach a valid iOS Metal display surface before booting XMB");
-@@ -4444,6 +4630,12 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4444,6 +4631,12 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  	const char* savestate_id) noexcept
  {
  	std::lock_guard lock(g_api_mutex);
@@ -139572,7 +139584,7 @@ index 74a6dc7..d9aa2c8 100644
  	if (!title_id || !title_id[0])
  	{
  		set_error("An installed title ID is required");
-@@ -4471,6 +4663,8 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4471,6 +4664,8 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  		set_error("RPCS3Core must be ready and emulation stopped before booting a game");
  		return result;
  	}
@@ -139581,7 +139593,7 @@ index 74a6dc7..d9aa2c8 100644
  	if (!g_display_surface.snapshot().valid())
  	{
  		set_error("Attach a valid iOS Metal display surface before booting a game");
-@@ -4486,7 +4680,37 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4486,7 +4681,37 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  			return RPCS3_IOS_GAME_NOT_FOUND;
  		}
  
@@ -139620,7 +139632,7 @@ index 74a6dc7..d9aa2c8 100644
  		if (!requested_savestate_id.empty())
  		{
  			const auto savestates = enumerate_title_savestates(game->title_id, game->path);
-@@ -4503,21 +4727,6 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4503,21 +4728,6 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  				return RPCS3_IOS_BOOT_FAILED;
  			}
  			boot_path = selected->path;
@@ -139642,7 +139654,7 @@ index 74a6dc7..d9aa2c8 100644
  		}
  
  		if (requested_savestate_id.empty())
-@@ -4532,14 +4741,23 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4532,14 +4742,23 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  		prepare_rpcn_for_guest_boot();
  		Emu.DeactivateBigPictureMode();
  		Emu.SetForceBoot(true);
@@ -139667,7 +139679,7 @@ index 74a6dc7..d9aa2c8 100644
  		emit_log(4, requested_savestate_id.empty()
  			? fmt::format("Installed game boot request completed: %s", game->title_id)
  			: fmt::format("Save-state boot request completed: %s", game->title_id));
-@@ -4644,7 +4862,37 @@ extern "C" rpcs3_ios_status rpcs3_ios_get_performance_metrics(
+@@ -4644,7 +4863,37 @@ extern "C" rpcs3_ios_status rpcs3_ios_get_performance_metrics(
  		if (result != RPCS3_IOS_OK)
  		{
  			set_error("Performance metrics require a compatible output structure");
@@ -139705,7 +139717,7 @@ index 74a6dc7..d9aa2c8 100644
  		return result;
  	}
  	catch (const std::exception& error)
-@@ -4730,15 +4978,210 @@ extern "C" rpcs3_ios_status rpcs3_ios_resume_emulation(void) noexcept
+@@ -4730,15 +4979,210 @@ extern "C" rpcs3_ios_status rpcs3_ios_resume_emulation(void) noexcept
  	return RPCS3_IOS_INTERNAL_ERROR;
  }
  
@@ -139916,7 +139928,7 @@ index 74a6dc7..d9aa2c8 100644
  	try
  	{
  		// An explicit wrapper stop leaves the full-screen session. It must not
-@@ -4783,7 +5226,15 @@ extern "C" rpcs3_ios_state rpcs3_ios_get_state(void) noexcept
+@@ -4783,7 +5227,15 @@ extern "C" rpcs3_ios_state rpcs3_ios_get_state(void) noexcept
  
  extern "C" rpcs3_ios_status rpcs3_ios_shutdown(void) noexcept
  {
@@ -139933,7 +139945,7 @@ index 74a6dc7..d9aa2c8 100644
  	bool should_run = false;
  	if (const auto result = g_lifecycle.begin_shutdown(should_run); result != RPCS3_IOS_OK)
  	{
-@@ -4822,7 +5273,18 @@ extern "C" rpcs3_ios_status rpcs3_ios_shutdown(void) noexcept
+@@ -4822,7 +5274,18 @@ extern "C" rpcs3_ios_status rpcs3_ios_shutdown(void) noexcept
  		g_display_surface.clear();
  		emit_jit_arena_statistics("before core shutdown completion");
  		logs::listener::sync_all();
@@ -139953,7 +139965,7 @@ index 74a6dc7..d9aa2c8 100644
  		emit_log(4, "RPCS3Core shutdown completed");
  		return RPCS3_IOS_OK;
  	}
-@@ -4846,9 +5308,485 @@ extern "C" const char* rpcs3_ios_last_error(void) noexcept
+@@ -4846,9 +5309,485 @@ extern "C" const char* rpcs3_ios_last_error(void) noexcept
  	return copy.c_str();
  }
  
@@ -148120,7 +148132,7 @@ index 6a52e85..f4b30ed 100644
  
  	return true;
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index b7b0474..7828813 100644
+index b7b0474..df13320 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
 @@ -1,21 +1,45 @@
@@ -148365,7 +148377,38 @@ index b7b0474..7828813 100644
  constexpr std::size_t maximum_preset_name_size = 80;
  constexpr std::size_t maximum_preset_config_size = 1024 * 1024;
  constexpr std::size_t maximum_presets_per_title = 128;
-@@ -573,6 +740,151 @@ bool remove_game_settings(std::string_view title_id) noexcept
+@@ -536,21 +703,15 @@ settings_load_error load_effective_settings(std::string_view title_id, bool& has
+ 		return settings_load_error::none;
+ 	}
+ 
+-	const std::string custom_path = rpcs3::utils::get_custom_config_path(std::string{title_id});
+-	if (fs::file custom_config{custom_path})
+-	{
+-		has_custom_config = true;
+-		if (!g_cfg.from_string(custom_config.to_string()))
+-		{
+-			return settings_load_error::game_invalid;
+-		}
+-		g_cfg.name = custom_path;
+-		return settings_load_error::none;
+-	}
+-
+-	return fs::g_tls_error == fs::error::noent
+-		? settings_load_error::none
+-		: settings_load_error::game_access_failed;
++	// REWINDBOX_SETTINGS_API_RULE_934: the settings API follows the boot rule of Core 922
++	// (REWINDBOX_CONFIG_DATABASE_RULE_922 in System.cpp): a full custom_configs file is a snapshot of an
++	// earlier RewindBox title profile and is no longer applied at boot, so the API does not read it
++	// either. The file stays on disk. Before this, a title with such a file (God of War III) showed the
++	// file's values in the in-game menu and every per-game change was saved into the file the boot
++	// ignores, so Stretch to fill screen and every other per-game choice had no effect. Now the title
++	// is global < RPCS3 database < the user's sparse overrides here as at boot, and a change is
++	// saved as a sparse override.
++	return settings_load_error::none;
+ }
+ 
+ bool save_game_settings(std::string_view title_id) noexcept
+@@ -573,6 +734,151 @@ bool remove_game_settings(std::string_view title_id) noexcept
  	return fs::remove_file(path) || fs::g_tls_error == fs::error::noent;
  }
  
