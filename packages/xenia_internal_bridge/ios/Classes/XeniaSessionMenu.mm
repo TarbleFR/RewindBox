@@ -286,12 +286,14 @@ typedef NS_ENUM(NSInteger, RBXeniaGameRow) {
 
 - (void)tableView:(UITableView*)tableView didSelectRowAtIndexPath:(NSIndexPath*)indexPath {
   [tableView deselectRowAtIndexPath:indexPath animated:YES];
-  __weak RBXeniaSessionMenu* weakSelf = self;
+  // Each case is its own scope: a block literal may not be jumped over (ARC).
   switch (indexPath.section) {
-    case RBXeniaMenuSectionResume:
+    case RBXeniaMenuSectionResume: {
       [self closeThen:^(id<RBXeniaSessionMenuHost> host) { [host sessionMenuResume]; }];
       break;
-    case RBXeniaMenuSectionDisplay:
+    }
+    case RBXeniaMenuSectionDisplay: {
+      __weak RBXeniaSessionMenu* weakSelf = self;
       [self pushChoiceTitled:[self text:@"overlay" fallback:@"Performance overlay"]
                       values:RBXeniaOverlayLevels()
                       titles:[self overlayTitles]
@@ -305,7 +307,9 @@ typedef NS_ENUM(NSInteger, RBXeniaGameRow) {
         [strongSelf.host sessionMenuSetOverlayLevel:value];
       }];
       break;
+    }
     case RBXeniaMenuSectionGame: {
+      __weak RBXeniaSessionMenu* weakSelf = self;
       NSString* key = nil;
       NSString* title = nil;
       NSString* fallback = nil;
@@ -326,13 +330,14 @@ typedef NS_ENUM(NSInteger, RBXeniaGameRow) {
       }];
       break;
     }
-    default:
+    default: {
       if (indexPath.row == 0) {
         [self closeThen:^(id<RBXeniaSessionMenuHost> host) { [host sessionMenuEditTouchControls]; }];
       } else {
         [self closeThen:^(id<RBXeniaSessionMenuHost> host) { [host sessionMenuQuit]; }];
       }
       break;
+    }
   }
 }
 
