@@ -92,7 +92,7 @@ carries `S2Arm-native-identity.json` (and only for it).
 
 | `Legal/S2Arm/…` | Component | Origin | Required by the gate |
 | --- | --- | --- | --- |
-| `RewindBox-S2Arm-NOTICE.txt` | RewindBox's notice for the engine: S2Arm's licence and NOTICE, the patch series (Apache-2.0 §4(b)), where the texts are, no Nintendo data | `build-utils/s2arm/engine/RewindBox-S2Arm-NOTICE.txt` at the producer commit | yes, with its statement |
+| `RewindBox-S2Arm-NOTICE.txt` | RewindBox's notice for the engine: S2Arm's licence and NOTICE, the engine patch series and the preparation library's patch series (`build-utils/s2arm/prepare/patches`, recorded as `preparePatches` in `S2Arm-native-identity.json`) (Apache-2.0 §4(b)), where the texts are, no Nintendo data | `build-utils/s2arm/engine/RewindBox-S2Arm-NOTICE.txt` at the producer commit | yes, with its statement |
 | `S2Arm/LICENSE`, `S2Arm/NOTICE` | S2Arm, Apache-2.0 §4(a) and (d) | `LICENSE`, `NOTICE` of the pin | yes |
 | `S2Arm/THIRD_PARTY_LICENSES.md` | S2Arm's own third-party table | `THIRD_PARTY_LICENSES.md` of the pin | yes |
 | `dotnet/Microsoft.NETCore.App.Runtime.NativeAOT.ios-arm64/LICENSE.TXT`, `…/THIRD-PARTY-NOTICES.TXT` | .NET runtime compiled into the engine (10.0.15 at E0; the version restored is recorded) | the runtime pack's archive | yes |
