@@ -6089,6 +6089,33 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   tree, the review a recipe file read from HEAD; they clear when the next manifest freezes 84386936). Handed off
   to 00 (12 Nov); the next manifest must name pinSha256 84386936. Next: device run on the next IPA (launch journal
   and registration line in app.log).
+  Third device run (IPA 729, XeniaCore 84386936): the launch journal reaches `launched` (Fable Anniversary, boot 6 s,
+  about 2170 guest frames), but neither touch nor controller input reached the title; the next launch was refused
+  `jitMemoryUnavailable` (`registration: noRoom (flag)`, 442 MiB free below 8 GB; the booted launch had 687 MiB).
+  Input cause: XeniOS's InputSystem binds guest slots only to enumerated devices (ReconcileBindings at
+  InputSystem::Setup); NeoXeniaInputDriver enumerated none. Fix dc7c7f4b0 [xenia-core]: one auto-bound device
+  `rewindbox-host-pad` for slot 0 (facade C++ check and patch test). Its build was superseded by d7ad7e834
+  [xenia-core] (maintainer: no launch may depend on free address space): XeniOS keeps the code region below 8 GB
+  only because StikDebug 3.1.x drops high address bits; RewindBox's StikJIT writes 16 hex digits
+  (patch_stikjit_rpcs3.py, marker required by validate_stikjit_ipa.py, RPCS3's 0x7000000000 arena relies on it);
+  the A64 code cache uses its encoded indirection on iOS. Patch: weak `NeoXeniaExecuteRegionLimit` hook right after
+  `kExecuteRegionLimit` (external linkage checked with clang/nm), facade returns 2^47; the bridge's 512 MiB
+  reservation, its flag and the free-space measurement removed (nothing else reads `RBXeniaReserveCodeRegion`; the
+  key left in 728/729 users' defaults is unused). Main's merge conditions:
+  (1) every attach path through the full-width StikJIT, else refused before attach, with a test: 31f575f6f
+  (bridge/Dart only, no recipe file): the bridge reads `NEOSTATION_STIKJIT_RPCS3_V1` in the app's StikJIT and in
+  any copy inside XeniaJITHelper.appex (`transportFullWidth`); Dart `toolUnsupported` refuses `jitToolUnsupported`
+  (12 locales) before pairing, route or helper; the bridge refuses `jitToolUnverified` (shown `restartRequired`)
+  before the nonce probe and `prepare` when the transport is not full-width or the attached debugger has no live
+  RewindBox handshake (an external StikDebug attached on its own). `test/xenia_jit_transport_test.py` (8 cases, in
+  xenia-core.yml; its step green on macOS, run 43219560296) ties patch -> install -> helper linkage (no embedded copy,
+  runpath ../../Frameworks) -> IPA validator -> bridge -> Dart -> the 2^47 limit; Dart 62/62.
+  (2) no RPCS3/MeloNX regression: no RPCS3, MeloNX, StikJIT or shared file differs from Claude (16 files, all
+  Xbox 360 plus xenia-core.yml). On 1189e73db (merge of Claude 5acf1435, no conflict) and on Claude 5acf1435:
+  the 608 RPCS3/MeloNX/StikJIT Python files give the same result per file (73 pass; 535 need source checkouts,
+  built Cores or the macOS toolchain here); the 58 RPCS3/MeloNX/StikJIT/Switch Dart files, 507 tests, the same
+  4 pre-existing failures (RPCS3 Build 231 x2, rpcs3_saves_locale export report, French lead sentence); delivery
+  contract the same 2 errors; storage contract OK on both.
 - **Validation (Flutter 3.47.2 host):** 11 Nov: XeniOS + catalog/Consoles/touch suites
   91/91, scanner suites 41/41 (1 skip), storage contract 24/24, patch/validator/touch/C++
   checks OK, analyzer 111 = baseline. Earlier: new XeniOS + catalog/Consoles tests 65/65;
