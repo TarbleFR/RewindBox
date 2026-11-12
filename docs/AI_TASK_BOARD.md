@@ -5524,6 +5524,21 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   the delivery manifest names it (`producers.engine.branch`) or main rebuilds on Claude. Pending: handoff to 00;
   IPA closed-set validators after 00 integrates session 04's 13d34c25 (identity-file design
   `Xenia-native-identity.json`); the artifact expires 26 Nov (14-day retention, not republished).
+  First device run (12 Nov, IPA 727, maintainer's TXM iPhone, app.log 39384 lines, container 842D3E76): Fable
+  Anniversary ISO imported before this IPA. `XeniOS JIT: … needsTool, brokerPath, not debugged, plan=attachForCoreHandshake`,
+  the helper attach answered (Dart reached the bridge), `XeniOS launch: …`, then the log ends: RewindBox closed to the
+  Home screen, no Dart error, no `launched`. app.log holds no native XeniOS stage (helper NSLog only; its file journal is
+  iOS < 26). Code facts: upstream FatalError on iOS calls the IOSSystemHooks (note, message box) then
+  `quick_exit(EXIT_FAILURE)` (logging.cc:901-925); our Core installs no hooks (no SetIOSSystemHooks in core/ or the
+  patch), so any Core fatal closes RewindBox silently, with no .ips — matches the report. Candidates, unproven: (1) the
+  512 MB code-region reservation below 8 GB is a static initializer (jit_memory_ios.cc:66-71, "take it while the
+  process loads"), run here at our lazy dlopen (`jitState`), late in a large app; if none is left the x16=1 prepare is
+  a FatalError ("couldn't find room…"); (2) the x16=1/x16=0 requests unanswered (kJitTurnedOffMessage); (3) a real crash
+  (an .ips would exist). Evidence asked: `Documents/XeniOS/Engine/xenia.log` (written from prepare on, truncated by
+  the next Xbox 360 launch) and any .ips. An earlier attempt in the same process (04:35) failed before the JIT log
+  line; the early refusals of XeniaInternalService.launch do not log their reason. Next, once the cause is known: Core
+  fix in one rebuild (hooks that persist the fatal reason for the next start, plus the early host reservation if (1)),
+  and log the early refusals.
 - **Validation (Flutter 3.47.2 host):** 11 Nov: XeniOS + catalog/Consoles/touch suites
   91/91, scanner suites 41/41 (1 skip), storage contract 24/24, patch/validator/touch/C++
   checks OK, analyzer 111 = baseline. Earlier: new XeniOS + catalog/Consoles tests 65/65;
