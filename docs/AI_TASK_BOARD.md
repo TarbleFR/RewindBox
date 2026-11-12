@@ -359,6 +359,18 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     `Claude-Session` line.
   - **Next:** download, verify offline, receipts, record, delete the key, send the file; give session 04 the freeze
     commit for 803 (sibling of 726).
+- **IPA 728 device finding (session 04, maintainer app.log pid 57620, 07:07Z).**
+  - Confirmed: the S2Arm status reads available=true, and the Switch 2 Consoles switch turns on (bc43c4ed).
+  - P0 found: opening the Consoles page loads MeloNXCore. `libretro_consoles_screen.dart:151` calls
+    `MelonxInternalService.runtimeAvailable()` → native `diagnostics` → `ensureRuntime()`
+    (`MeloNXInternalBridgePlugin.swift:228`). S2Arm then reports melonxCoreLoaded=true, and every Switch 2 launch is
+    refused (two NativeAOT runtimes in one process) until RewindBox restarts.
+  - Owners:
+    - MeloNX owner: a probe that does not load the core, used by runtimeAvailable, with a test. Main approved the Dart
+      line in the Consoles screen.
+    - Session 04: an up-front refusal with a restart message, the important-usage capacity for the space check, and
+      the preparation progress and re-prepare fixes.
+  - For the next IPA.
 - **IPA 728 delivered and verified (12 Nov 06:58Z, main).** Only the Switch 2 (session 04) and XeniOS (session 03) work.
   - RPCS3 Core 934 and MeloNX Core 737 are kept from 727. The maintainer moved MeloNX 739/741/743 to a later IPA, so the
     739 recipe paths merged in 18c8c905 were restored to their 93809b12 bytes on Claude. History was not rewritten.
