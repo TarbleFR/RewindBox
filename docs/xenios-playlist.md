@@ -438,6 +438,22 @@ then launched or failed), which the next Xbox 360 launch copies into app.log
 (`XeniOS: previous launch stages: …`, an error when the last stage is neither
 launched nor failed).
 
+**Cause of that crash** (the maintainer's `Runner-2026-11-12-082610.ips`, IPA
+728): `EXC_CRASH (SIGABRT)`, main thread, `abort()` after an uncaught
+`std::filesystem::filesystem_error` thrown by `create_directories` in
+`EmulatorAppIOS::OnInitialize()+912`, called from the facade's
+`InitializeOnMain`. `config::SetupConfig` reads the saved
+`xenia-edge.config.toml` over the roots `prepare` had set, and that file, written
+under IPA 727, held the absolute `content_root`, `cache_root`, `storage_root` and
+`log_file` of the previous app container (the config dump shows them as
+`/var/mobile/Containers/Data/Application/<uuid>/…` where the first run showed
+`~/…`). iOS gives the app a new container on every update, so
+`create_directories(content_root)` aimed at a directory the app may not create.
+Fix: the patch calls `NeoXeniaApplyHostRoots()` right after
+`config::SetupConfig` in the embedded build (the `#else` of the existing
+microphone guard), and the facade sets the four cvars again from the roots of
+the first `prepare` before OnInitialize reads `content_root` and `cache_root`.
+
 **IPA wiring, for the main session** (delivery files, not edited here):
 call `build-utils/configure_xenia_ios.py` after the XeniaCore pin (it
 requires `dist/xenia/XeniaCore.framework`), add the `XeniaJITHelper` pod
