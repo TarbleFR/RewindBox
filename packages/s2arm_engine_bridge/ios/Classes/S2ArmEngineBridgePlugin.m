@@ -26,6 +26,7 @@ static NSTimeInterval const kCompletionTimeout = 120.0;
 static uint64_t const kBootQuiesceNs = 2000000000ull;   // 2 s with no hook activity after boot code served = detach
 
 static void s2arm_session_ended(int code, const char *reason, void *context);
+static void s2arm_session_parked(const char *reason, void *context);
 static UIViewController *S2ArmTopViewController(void);
 static BOOL S2ArmPathInside(NSString *path, NSString *root);
 static void S2ArmPrepareSaveFolder(NSString *folder, NSString *docs);
@@ -51,6 +52,8 @@ static NSString *S2ArmEnginePath(void) {
 @property(nonatomic, strong, nullable) UIViewController *engineViewController;   // presented while a game runs (main thread)
 @property(nonatomic, strong, nullable) S2ArmSessionMenu *sessionMenu;             // RewindBox's in-game menu (main thread)
 @property(nonatomic, copy, nullable) NSString *saveFolder;   // Documents/S2Arm/Saves/<game>, given to the engine
+@property(atomic, copy, nullable) NSString *runningGameId;   // the title id of the game the engine was configured for
+@property(atomic, copy, nullable) NSString *parkedGameId;    // patch 0010: Quit parked this game; it can resume in this process
 @end
 
 @implementation S2ArmEngineBridgePlugin
@@ -208,6 +211,7 @@ static NSString *S2ArmEnginePath(void) {
     @"directChain" : S2ArmShippedDirectChain() ?: [NSNull null],
     @"melonxCoreLoaded" : @(S2ArmMeloNXCoreLoaded()),
     @"engineLoaded" : @(engineLoaded),
+    @"parkedGameId" : self.parkedGameId ?: @"",
     @"journalLines" : @(s2arm_journal_lines()),
   };
 }
@@ -266,14 +270,19 @@ static NSString *S2ArmEnginePath(void) {
     result(@{@"success" : @NO, @"error" : S2ArmErrorInvalidArguments});
     return;
   }
+  BOOL resume = NO;
   @synchronized(self) {
-    if (self.engineLoaded || rb_s2arm_engine_loaded() != 0) {
-      result(@{@"success" : @NO, @"error" : @"engineRestartRequired", @"diagnostic" : @"A Switch 2 game already ran in this process."});
-      return;
-    }
-    if (self.launchInProgress) {
+    if (self.launchInProgress) {   // first: a second tap while a launch or a resume runs is "busy", not "restart"
       result(@{@"success" : @NO, @"error" : @"busy"});
       return;
+    }
+    if (self.engineLoaded || rb_s2arm_engine_loaded() != 0) {
+      // Patch 0010: the game Quit parked resumes in this process; any other Switch 2 game still needs a new process.
+      resume = self.parkedGameId && [self.parkedGameId caseInsensitiveCompare:gid] == NSOrderedSame;
+      if (!resume) {
+        result(@{@"success" : @NO, @"error" : @"engineRestartRequired", @"diagnostic" : @"A Switch 2 game already ran in this process."});
+        return;
+      }
     }
     self.launchInProgress = YES;
   }
@@ -289,10 +298,57 @@ static NSString *S2ArmEnginePath(void) {
     return;
   }
   dispatch_async(self.workQueue, ^{
-    NSDictionary *report = [self runLaunchWithGid:gid images:images moduleDir:moduleDir gameData:gameData docs:docs pairing:pairing];
+    NSDictionary *report = resume ? [self resumeParkedGame:gid]
+                                  : [self runLaunchWithGid:gid images:images moduleDir:moduleDir gameData:gameData docs:docs pairing:pairing];
     self.launchInProgress = NO;
     dispatch_async(dispatch_get_main_queue(), ^{ result(report); });
   });
+}
+
+// Patch 0010: the game the player quit was parked (its guests, services, GPU and memory retired, its code pages kept). It
+// boots again in the same view controller: no dlopen, no configure, no JIT transaction (the same code pages are reused).
+- (NSDictionary *)resumeParkedGame:(NSString *)gid {
+  s2arm_journal("resume", "begin", "\"gid\":\"%s\"", gid.UTF8String);
+  s2a_rb_guest_parked_fn parked = (s2a_rb_guest_parked_fn)dlsym(RTLD_DEFAULT, S2A_RB_GUEST_PARKED);
+  s2a_rb_guest_view_controller_fn viewController = (s2a_rb_guest_view_controller_fn)dlsym(RTLD_DEFAULT, S2A_RB_GUEST_VIEW_CONTROLLER);
+  s2a_rb_guest_resume_fn resume = (s2a_rb_guest_resume_fn)dlsym(RTLD_DEFAULT, S2A_RB_GUEST_RESUME);
+  s2a_rb_guest_stop_fn stop = (s2a_rb_guest_stop_fn)dlsym(RTLD_DEFAULT, S2A_RB_GUEST_STOP);
+  if (!parked || !viewController || !resume || !parked()) {
+    self.parkedGameId = nil;
+    return launchFail(@"engineRestartRequired", @"resume", @"The engine has no parked session to resume.");
+  }
+  S2ArmSettingsPrepareLaunch();   // settings changed while parked apply now (the rebuild reloads the graphics settings)
+  __block UIViewController *vc = nil;
+  dispatch_sync(dispatch_get_main_queue(), ^{ vc = (__bridge UIViewController *)viewController(); });
+  if (!vc) return launchFail(@"engineViewFailed", @"resume", @"The engine did not return the parked view controller.");
+  dispatch_semaphore_t done = dispatch_semaphore_create(0);
+  __block int resumeRc = 0;
+  __block NSString *resumeError = nil;
+  dispatch_async(dispatch_get_main_queue(), ^{
+    UIViewController *presenter = S2ArmTopViewController();
+    if (!presenter) {
+      resumeError = @"no foreground view controller to present the game on";
+      resumeRc = -1;
+      dispatch_semaphore_signal(done);
+      return;
+    }
+    [presenter presentViewController:vc
+                           animated:NO
+                         completion:^{
+                           char error[600] = "";
+                           resumeRc = resume(error, sizeof error);
+                           if (resumeRc != 0) {
+                             resumeError = @(error);
+                             [vc.presentingViewController dismissViewControllerAnimated:NO completion:nil];
+                           } else [self attachSessionMenuTo:vc stop:stop];
+                           dispatch_semaphore_signal(done);
+                         }];
+  });
+  dispatch_semaphore_wait(done, DISPATCH_TIME_FOREVER);
+  if (resumeRc != 0) return launchFail(@"engineStartFailed", @"resume", resumeError);
+  self.parkedGameId = nil;
+  s2arm_journal("resume", "passed", NULL);
+  return @{@"success" : @YES, @"gid" : gid, @"stage" : @"running", @"resumed" : @YES};
 }
 
 static NSDictionary *launchFail(NSString *error, NSString *stage, NSString *detail) {
@@ -384,6 +440,9 @@ static NSDictionary *launchFail(NSString *error, NSString *stage, NSString *deta
   config.prepare_context = (__bridge void *)self;
   config.session_ended = s2arm_session_ended;
   config.ended_context = (__bridge void *)self;
+  config.session_parked = s2arm_session_parked;   // patch 0010: Quit parks the session; the same game can resume
+  config.parked_context = (__bridge void *)self;
+  self.runningGameId = gid;
 
   char configError[600] = "";
   s2arm_journal("configure", "begin", NULL);
@@ -519,8 +578,21 @@ static NSDictionary *launchFail(NSString *error, NSString *stage, NSString *deta
 
 #pragma mark - engine callbacks
 
+// Patch 0010: Quit parked the session. The game view closes as for an end; the same game can resume in this process.
+static void s2arm_session_parked(const char *reason, void *context) {
+  S2ArmEngineBridgePlugin *self = (__bridge S2ArmEngineBridgePlugin *)context;
+  self.parkedGameId = self.runningGameId;
+  s2arm_journal("sessionParked", "passed", NULL);
+  NSString *why = reason ? @(reason) : @"";
+  dispatch_async(dispatch_get_main_queue(), ^{
+    [self closeSessionView];
+    [self.channel invokeMethod:@"sessionEnded" arguments:@{@"code" : @(S2A_RB_ENDED_NORMAL), @"reason" : why, @"parked" : @YES}];
+  });
+}
+
 static void s2arm_session_ended(int code, const char *reason, void *context) {
   S2ArmEngineBridgePlugin *self = (__bridge S2ArmEngineBridgePlugin *)context;
+  self.parkedGameId = nil;   // an end (or a failed resume) leaves nothing to resume
   s2arm_journal("sessionEnded", code == S2A_RB_ENDED_NORMAL ? "normal" : "failed", "\"code\":%d", code);
   NSString *why = reason ? @(reason) : @"";
   dispatch_async(dispatch_get_main_queue(), ^{

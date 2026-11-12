@@ -9,7 +9,10 @@ RewindBox changed S2Arm to host its engine in this application: the patch series
 the RewindBox repository (https://github.com/TarbleFR/RewindBox), applied to that commit, each change marked
 "RewindBox" in comments. The name and SHA-256 of every patch are recorded in S2Arm-native-identity.json at the root of
 the application. The preparation library linked into the application (S2ArmPrepare.xcframework: S2Arm's rewriter,
-with Capstone and LZ4) and RewindBox's C ports of S2Arm tools are built from the same commit.
+with Capstone and LZ4) and RewindBox's C ports of S2Arm tools are built from the same commit. RewindBox changed S2Arm's
+rewriter for that library with the patch series build-utils/s2arm/prepare/patches of the same repository, applied to
+that commit, each change marked "RewindBox" in comments (a progress report; the rewritten code is the same). The name
+and SHA-256 of every patch of that series are recorded in S2Arm-native-identity.json under "preparePatches".
 
 The engine also contains third-party code; S2Arm's own table of it is S2Arm/THIRD_PARTY_LICENSES.md. The exact
 licence and notice texts of the components that reach this application are in the folders beside this file. Each is

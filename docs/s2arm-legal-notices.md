@@ -92,7 +92,7 @@ carries `S2Arm-native-identity.json` (and only for it).
 
 | `Legal/S2Arm/…` | Component | Origin | Required by the gate |
 | --- | --- | --- | --- |
-| `RewindBox-S2Arm-NOTICE.txt` | RewindBox's notice for the engine: S2Arm's licence and NOTICE, the patch series (Apache-2.0 §4(b)), where the texts are, no Nintendo data | `build-utils/s2arm/engine/RewindBox-S2Arm-NOTICE.txt` at the producer commit | yes, with its statement |
+| `RewindBox-S2Arm-NOTICE.txt` | RewindBox's notice for the engine: S2Arm's licence and NOTICE, the engine patch series and the preparation library's patch series (`build-utils/s2arm/prepare/patches`, recorded as `preparePatches` in `S2Arm-native-identity.json`) (Apache-2.0 §4(b)), where the texts are, no Nintendo data | `build-utils/s2arm/engine/RewindBox-S2Arm-NOTICE.txt` at the producer commit | yes, with its statement |
 | `S2Arm/LICENSE`, `S2Arm/NOTICE` | S2Arm, Apache-2.0 §4(a) and (d) | `LICENSE`, `NOTICE` of the pin | yes |
 | `S2Arm/THIRD_PARTY_LICENSES.md` | S2Arm's own third-party table | `THIRD_PARTY_LICENSES.md` of the pin | yes |
 | `dotnet/Microsoft.NETCore.App.Runtime.NativeAOT.ios-arm64/LICENSE.TXT`, `…/THIRD-PARTY-NOTICES.TXT` | .NET runtime compiled into the engine (10.0.15 at E0; the version restored is recorded) | the runtime pack's archive | yes |
@@ -247,6 +247,7 @@ files were changed (they are translations, not copies).
 | `build-utils/s2arm/engine/patches/0007-guest-view-controller-and-start.patch` | modifies `ios/app.m`, `ios/vpad.m`, `runtime/src/host_main.c`; changes marked `RewindBox` in comments |
 | `build-utils/s2arm/engine/patches/0008-guest-strings-and-game-files-from-engine-bundle.patch` | modifies `ios/s2a_l10n.h`, `ios/save_transfer.m`; changes marked `RewindBox` in comments |
 | `build-utils/s2arm/engine/patches/0009-guest-log-in-docs-pad-recording-off-engine-resources.patch` | modifies `runtime/src/os.c`, `runtime/src/logcap.c`, `runtime/src/native.h`, `runtime/src/launchctx.c`, `runtime/src/sesdiag.c`, `runtime/include/s2a_launch_ctx.h`, `ios/diag.m`, `ios/loadpage.m`, `ios/hud.m`, `ios/cpatch_settings.m`, `ios/controller.m`, `ios/vpad.m`, `ios/s2a_l10n.h`, and the RewindBox files `runtime/src/rb_guest.c`, `runtime/src/rb_guest.h` of 0003; changes marked `RewindBox` in comments |
+| `build-utils/s2arm/engine/patches/0010-guest-park-and-resume-the-same-game.patch` | modifies `runtime/src/session.c`, `runtime/include/s2a_session.h`, `runtime/src/rb_guest.c`, `runtime/src/rb_guest.h`, `ios/app.m`: Quit parks the session through S2Arm's own in-process restart retirement, and the same game resumes; changes marked `RewindBox` / `patch 0010` in comments |
 | `build-utils/s2arm/prepare/patches/0001-rewriter-progress-report.patch` (on-device preparation library, S2ArmPrepare.xcframework) | modifies `runtime/rewriter/rewriter.c`, `runtime/rewriter/rewriter.h`: a progress callback per thread (`s2a_rewrite_set_progress`) called at each pass and inside the long loops; it only reads loop counters, no output byte depends on it (`test/s2arm_rewriter_progress_test.py`; outputs compared with the unpatched rewriter in `s2arm-prepare.yml`); changes marked `RewindBox` in comments |
 
 `native/s2arm/prepare/s2arm_sha256.c` is not derived from S2Arm (SHA-256 written from FIPS 180-4).

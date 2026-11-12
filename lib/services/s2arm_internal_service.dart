@@ -854,9 +854,14 @@ abstract final class S2ArmInternalService {
         LoggerService.instance.w('S2Arm launch: refused before preparing, the Switch 1 engine (MeloNX) is loaded in this process');
         return const S2ArmLaunchOutcome.failure('switch1EngineLoaded');
       }
-      if (flag(now['engineLoaded'])) return const S2ArmLaunchOutcome.failure('engineRestartRequired');
+      // One Switch 2 game per process, except the game the player quit: the engine parked it and it resumes (patch 0010).
+      final parked = (now['parkedGameId'] ?? '').toString().toUpperCase();
+      if (flag(now['engineLoaded']) && parked.isEmpty) return const S2ArmLaunchOutcome.failure('engineRestartRequired');
       final detected = await detectExport(exportFolder);
       if (detected['success'] != true) return S2ArmLaunchOutcome.failure((detected['code'] ?? 'notExportFolder').toString());
+      if (flag(now['engineLoaded']) && (detected['gid'] ?? '').toString().toUpperCase() != parked) {
+        return const S2ArmLaunchOutcome.failure('engineRestartRequired');
+      }
       final prepared = await prepare(exportFolder: (detected['exportDir'] ?? exportFolder).toString(), onProgress: onPrepareProgress);
       if (prepared['success'] != true) {
         return S2ArmLaunchOutcome.failure((prepared['code'] ?? 'prepareFailed').toString(), prepared['diagnostic']?.toString());

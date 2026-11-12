@@ -86,13 +86,20 @@ class Bridge(unittest.TestCase):
         self.assertIn('S2ArmSettingsApply(', PLUGIN)
 
     def test_launch_order(self):
-        prepare = PLUGIN.index('S2ArmSettingsPrepareLaunch();')
-        self.assertLess(PLUGIN.index('setenv("MTL_SHADER_CACHE_SIZE"'), prepare)
-        self.assertLess(prepare, PLUGIN.index('rb_s2arm_engine_mark_loading();'))
-        self.assertLess(prepare, PLUGIN.index('dlopen(enginePath'))
-        start = PLUGIN.index('startRc = start(error, sizeof error);')
-        attach = PLUGIN.index('else [self attachSessionMenuTo:vc stop:stop];')
+        # The first launch (runLaunchWithGid): settings after the engine's environment, before the dlopen.
+        launch = PLUGIN.index('- (NSDictionary *)runLaunchWithGid')
+        prepare = PLUGIN.index('S2ArmSettingsPrepareLaunch();', launch)
+        self.assertLess(PLUGIN.index('setenv("MTL_SHADER_CACHE_SIZE"', launch), prepare)
+        self.assertLess(prepare, PLUGIN.index('rb_s2arm_engine_mark_loading();', launch))
+        self.assertLess(prepare, PLUGIN.index('dlopen(enginePath', launch))
+        start = PLUGIN.index('startRc = start(error, sizeof error);', launch)
+        attach = PLUGIN.index('else [self attachSessionMenuTo:vc stop:stop];', launch)
         self.assertLess(start, attach, 'the menu is attached only after a successful start')
+        # The resume of a parked game (patch 0010): settings changed meanwhile apply, the menu follows a successful resume.
+        resume = PLUGIN.index('- (NSDictionary *)resumeParkedGame:')
+        body = PLUGIN[resume:PLUGIN.index('static NSDictionary *launchFail(', resume)]
+        self.assertLess(body.index('S2ArmSettingsPrepareLaunch();'), body.index('resumeRc = resume(error, sizeof error);'))
+        self.assertLess(body.index('resumeRc = resume(error, sizeof error);'), body.index('} else [self attachSessionMenuTo:vc stop:stop];'))
         self.assertIn('dlsym(engine, S2A_RB_GUEST_STOP)', PLUGIN)
 
     def test_the_session_end_closes_the_game_view_first(self):

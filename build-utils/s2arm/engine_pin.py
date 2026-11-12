@@ -50,6 +50,7 @@ PREPARE_ZIP = 'S2ArmPrepare.xcframework.zip'
 PREPARE_MEMBERS = (PREPARE_ZIP, 'sha256.txt', 'undefined.txt', 'S2ArmPrepare-identity.json')
 PREPARE_XCFRAMEWORK = 'S2ArmPrepare.xcframework'
 PREPARE_LIBRARY = 'libS2ArmPrepare.a'
+PREPARE_PATCHES = 'build-utils/s2arm/prepare/patches'
 BRIDGE_FRAMEWORKS = 'packages/s2arm_engine_bridge/ios/Frameworks'
 SYSDATA_SUMS = 'SHA256SUMS'
 SYSDATA_SOURCES = 'SOURCES.tsv'
@@ -254,7 +255,19 @@ def prepare_facts(files):
             identity.get('sha256') == sums, 'S2ArmPrepare-identity.json does not describe this archive')
     left = sorted(name for name in files['undefined.txt'].decode('utf-8', errors='replace').split() if name.startswith('_rb_s2arm_'))
     require(not left, f'undefined.txt leaves rb_s2arm_* entry points undefined: {left}')
-    return dict(members={PREPARE_ZIP: sha(files[PREPARE_ZIP])}, identity=identity)
+    # The RewindBox patch series the library's S2Arm rewriter was built with (s2arm-core.yml), name and SHA-256 in order:
+    # the pin records it (identity.preparePatches, copied into S2Arm-native-identity.json) beside the engine's own series.
+    patches = identity.get('patches', [])
+    require(isinstance(patches, list) and all(isinstance(p, dict) and set(p) == {'name', 'sha256'} and
+                                              str(p['name']).endswith('.patch') and HEX64.fullmatch(str(p['sha256']))
+                                              for p in patches), 'S2ArmPrepare-identity.json patches must be [{name, sha256}]')
+    return dict(members={PREPARE_ZIP: sha(files[PREPARE_ZIP])}, identity=identity, patches=patches)
+
+
+def prepare_patch_series(root=ROOT):
+    """build-utils/s2arm/prepare/patches of this checkout, as S2ArmPrepare-identity.json records it."""
+    folder = Path(root) / PREPARE_PATCHES
+    return [dict(name=path.name, sha256=sha(path.read_bytes())) for path in sorted(folder.glob('*.patch'))]
 
 
 def sysdata_facts(files):
@@ -300,6 +313,7 @@ def binary_entries(kind, files, facts):
 
 def build_pin(meta, archives):
     producers, binaries, zips, identity = {}, {}, {}, {}
+    prepare_patches = None
     for name, raw in archives.items():
         files = read_zip(raw, name)
         kind = classify(files)
@@ -318,6 +332,10 @@ def build_pin(meta, archives):
             identity = dict(sourceIdentity=ident, licenses=facts['licences'])
         elif kind == 'prepare':
             entry['subdir'] = 'prepare'
+            prepare_patches = facts['patches']
+            require(prepare_patches == prepare_patch_series(),
+                    f'the preparation library was built with {prepare_patches}, this checkout has {prepare_patch_series()} '
+                    f'in {PREPARE_PATCHES}')
         else:
             entry['subdir'] = 'sysdata'
             entry['sources'] = facts['sources']
@@ -325,6 +343,8 @@ def build_pin(meta, archives):
         zips[name] = sha(raw)
         binaries.update(binary_entries(kind, files, facts))
     image = binaries['S2ArmEngine.framework/S2ArmEngine']
+    if prepare_patches is not None:
+        identity = dict(identity, preparePatches=prepare_patches)
     return dict(status='verified', packagedFingerprint=image['fingerprint'], producers=producers, zips=zips,
                 binaries=dict(sorted(binaries.items())), identity=identity)
 
@@ -355,8 +375,11 @@ def verify(archive, pin_path):
             ident = facts['identity']
             if ident['run'] != entry.get('run') or ident['head_sha'] != entry.get('headSha'):
                 failures.append(f'{ENGINE_IDENTITY} names another run or commit than the pin')
-            if pin.get('identity') != dict(sourceIdentity=ident, licenses=facts['licences']):
+            recorded = {key: value for key, value in (pin.get('identity') or {}).items() if key != 'preparePatches'}
+            if recorded != dict(sourceIdentity=ident, licenses=facts['licences']):
                 failures.append('the engine identity or licence record differs from the pin')
+        if kind == 'prepare' and (pin.get('identity') or {}).get('preparePatches') != facts['patches']:
+            failures.append('the preparation patch series differs from the pin (identity.preparePatches)')
         if kind == 'sysdata' and facts['sources'] != entry.get('sources'):
             failures.append('SOURCES.tsv differs from the pin')
     if failures:
