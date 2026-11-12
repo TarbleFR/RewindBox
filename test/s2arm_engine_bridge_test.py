@@ -282,7 +282,7 @@ check('s2arm_journal("prepare", "codeMemory"' in prep[prep.index('static void pr
 check('prep_pack_progress, prep_cancelled, (__bridge void *)self}' in prep, 'the resource pack reports its bytes')
 run = prep[prep.index('- (NSDictionary *)run {'):]
 check(run.index('reusablePreparation(stampPath, fingerprint, gid)') < run.index('[files removeItemAtPath:stampPath error:nil];')
-      < run.index('for (NSString *path in @[ root, moduleDir, packDir ]) [files removeItemAtPath:path error:nil];'),
+      < run.index('for (NSString *path in @[ root, moduleDir, imagesDir, packDir ]) [files removeItemAtPath:path error:nil];'),
       'a finished preparation is reused first; otherwise its stamp goes before the outputs are rebuilt')
 check(run.index('rb_s2arm_resource_pack(&resource') < run.index('[stamp writeToFile:stampPath atomically:YES]'),
       'the stamp is written only after the last step succeeded')
@@ -293,6 +293,17 @@ for part in ('CFBundleVersion', 'chain', 'exportDir', '@"exefs"', '@"romfs"', 'S
 reuse = prep[prep.index('static NSDictionary *_Nullable reusablePreparation('):]
 reuse = reuse[:reuse.index('\n}\n')]
 check('@".applied"' in reuse and '@"imagesPath"' in reuse, 'a reused preparation still has its image pack and .applied')
+# Mario Kart World on device (12 Nov): the preparation "passed" with imagePack 0 bytes and the launch failed with errno 2.
+# rb_s2arm_module_dir replaces the whole module directory (<module_dir>.tmp renamed over it) after writing the pack, so a
+# pack inside moduleDir is deleted. It lives in <game>/images, removed with the other outputs; an empty pack fails.
+check('[moduleDir stringByAppendingPathComponent:[NSString stringWithFormat:@"S2AImages-' not in prep
+      and 'NSString *imagesDir = [gameDir stringByAppendingPathComponent:@"images"];' in prep
+      and 'NSString *imagesPath = [imagesDir stringByAppendingPathComponent:' in prep,
+      'the image pack is written outside the module directory that rb_s2arm_module_dir replaces')
+check('@[ root, moduleDir, imagesDir, packDir ]' in prep, 'a new preparation removes the previous image pack with the other outputs')
+module_step = prep[prep.index('rc = rb_s2arm_module_dir(&module, error, sizeof error);'):prep.index('// 6. resource pack')]
+check('if (imagePackBytes == 0) return [self fail:S2ArmErrorIo stage:@"module"' in module_step,
+      'the module step fails when the image pack is missing or empty, instead of a passed preparation that cannot launch')
 plugin = read('S2ArmEngineBridgePlugin.m')
 check('NSURLVolumeAvailableCapacityForImportantUsageKey' in plugin and '@"importantFreeBytes"' in plugin,
       'storageInfo gives the capacity for user-requested work (it counts purgeable space)')
