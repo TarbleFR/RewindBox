@@ -359,6 +359,30 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     `Claude-Session` line.
   - **Next:** download, verify offline, receipts, record, delete the key, send the file; give session 04 the freeze
     commit for 803 (sibling of 726).
+- **IPA 728 delivered and verified (12 Nov 06:58Z, main).** Only the Switch 2 (session 04) and XeniOS (session 03) work.
+  - RPCS3 Core 934 and MeloNX Core 737 are kept from 727. The maintainer moved MeloNX 739/741/743 to a later IPA, so the
+    739 recipe paths merged in 18c8c905 were restored to their 93809b12 bytes on Claude. History was not rewritten.
+  - Run `43168854436` attempt 1, trigger `e2a1cef4`, frozen on `0c9237f6`, effective digest `5c1f91f9`. All 5 jobs
+    succeeded on the first request.
+  - IPA `RewindBox-728.ipa`: 329481290 B, SHA-256 `7ff6360ed0a77e5544a9f91d0cfcbd04e5df3c692d284eb04c04eec885b09ee1`.
+  - Offline verification `passed-offline-checks`:
+    - the 4 parts equal their API digests; SHA256SUMS and the signer receipt match;
+    - 97 images, 47 retained fingerprints; the RPCS3 and MeloNX Cores equal 727;
+    - validators melonx, neoplay, shaders, legal, no-kartpad and no-dusklight all exit 0;
+    - the packaged Xenia identity names pin `c00755f6` (run 43158794942).
+  - Undeclared image changes, reported and not fatal:
+    - XeniaCore, the new pinned payload, checked by the engine rule;
+    - the armsx2, dolphin, libretro, melonx and rpcs3 bridges, rebuilt from sources unchanged since 727 (727 showed 2
+      of them). The cause is not explained yet.
+  - Legal folders: XeniOS 4/4, MetalShaderConverter 3/3 and S2Arm 35/35 files match their digests. The 9 extensions are
+    as expected.
+  - Recipe changes for this build:
+    - `inheritedChangedInputs` (73325bfd);
+    - merge 1c1d5760 (first parent c192962e) put the delivered line back after Claude was fast-forwarded off it.
+      Handoffs are merged with --no-ff from now on.
+  - Receipt `docs/evidence/rewind728/delivery.json`, with 14 proof files and the 2 engine receipts. Key shredded.
+  - The session disk filled after the receipt; old delivery work folders were removed. Not run on an iPhone.
+  - Next: merge, build and pin MeloNX 739/741 for a later IPA; then the ON HOLD RPCS3 thermal lot.
 - **IPA 728 gating (maintainer, 12 Nov).**
   - Compile once session 04 (Switch 2) and session 03 (XeniOS) have finished and sent their handoffs.
   - MeloNX keeps working and does not gate this IPA.
