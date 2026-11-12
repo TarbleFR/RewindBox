@@ -5176,6 +5176,28 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - The previous content is kept as `(backup)`.
     - Green: `flutter analyze` and tests 43146548370 on `2ab99d6b`; iOS compile 43146259805 on `f382409b`.
     - Not observed on a device.
+  - **IPA 727 device report (maintainer, 12 Nov) and its fixes.** New handoff on top of Claude `725522b1`, head
+    `fa578446`: `89eb15aa`, `471c763e`, `7a33d9f3`, `5a76ee06`, `bc43c4ed`, `839c0465`, `fa578446`.
+    - **Consoles switch could not be turned on. Cause found: `bc43c4ed`.** The bridge is Objective-C (`.m`), so
+      `@(x != nil)` and `@(a && b)` are C ints. Flutter sends them as `1`, and Dart's `!= true` read `systemDataPresent`
+      as missing, with `helperPresent` and `available` failing the same way. The analysis came forwarded by the
+      maintainer and matches the code.
+      - Fix: the native flags are BOOL locals before boxing, and Dart's `flag()` takes true or a non-zero number.
+      - `test/s2arm_engine_bridge_test.py` refuses any boxed comparison; on the 727 code it reports the six faulty ones.
+      - Green: iOS compile 43161141434, `flutter analyze` and tests 43161141609.
+    - **Import refused for every export picked in Files.** file_picker gives a picked folder's path without
+      security-scoped access. Fixed in `7a33d9f3` with `ExternalFolderAccess.pickAndActivateFolder`, for games and saves.
+      Also `89eb15aa` (export found up to 3 levels below the pick) and `471c763e` (iCloud placeholder message and the
+      native diagnostic). Green: 43156862326, 43157362011, 43158702303.
+    - **No save import button.** It showed only with a game selected. Since `5a76ee06` it is always in the menu, second
+      as in MeloNX's. Without a selection, the save goes to the game it names; otherwise the player picks a game in a list.
+      Green: 43160214636.
+    - **Main-menu logo too big, not centred.** `839c0465` recomposes the Glacier tile: the logo is at 72 %, centred.
+      The index, `contentDigest` and tile review follow, and `switch2_glacier_tile_review_test` passes. Green: 43161834531.
+    - **Game boxes like Switch 1 (main approved, `725522b1`).** `fa578446` adds the `switch2` profile, wrap layout and
+      spine design, with `test/switch2_game_box_test.dart`. Run 43162148615.
+    - Told main: the XeniOS `importFolder` uses `FilePicker.getDirectoryPath` (main passed it to session 03).
+    - Nothing observed on a device. The next IPA's app.log has an `S2Arm status: {…}` line with the native flags.
   - Main withdrew the launcher deletion (12 Nov): it stays as is. Formerly open: delete the launcher (`.github/diagnostics/s2arm/`, `s2arm-delivery.yml`,
     `set_probe_key.py`) together with its test `s2arm_delivery_test.py`, which no longer works
     since 9c9817e8 (40 errors)? Main also has to choose the S2Arm test groups of the next
