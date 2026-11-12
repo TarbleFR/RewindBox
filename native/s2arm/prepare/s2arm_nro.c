@@ -26,6 +26,10 @@
 typedef struct {
     char *error;
     size_t error_size;
+    // RewindBox progress display: each RomFS entry the walk sees (may be NULL). Reports only.
+    void (*seen)(void *context, unsigned long long entries);
+    void *seen_context;
+    unsigned long long entries;
 } ctx_t;
 
 #if defined(__GNUC__)
@@ -368,6 +372,7 @@ static int walk_nro(ctx_t *x, const char *root, const char *rel, int depth, strv
     int st = 0;
     if (listed < 0) st = fail(x, RB_S2ARM_NRO_IO, "out of memory");
     for (size_t i = 0; !st && i < names.n; i++) {
+        if (x->seen) x->seen(x->seen_context, ++x->entries);   // progress display only
         const char *name = names.v[i];
         char *full = join_path(dir, name);
         char *relname = rel[0] ? join_path(rel, name) : strdup(name);
@@ -501,7 +506,12 @@ static int nro_exports_of(ctx_t *x, const char *rel, const uint8_t *d, size_t le
 }
 
 int rb_s2arm_nro_exports(const char *romfs_dir, const char *output_path, char *error, size_t error_size) {
-    ctx_t x = {error, error_size};
+    return rb_s2arm_nro_exports_ex(romfs_dir, output_path, NULL, NULL, error, error_size);
+}
+
+int rb_s2arm_nro_exports_ex(const char *romfs_dir, const char *output_path, void (*on_entry)(void *context, unsigned long long entries),
+                            void *context, char *error, size_t error_size) {
+    ctx_t x = {error, error_size, on_entry, context, 0};
     if (error && error_size) error[0] = 0;
     if (!romfs_dir || !output_path) return fail(&x, RB_S2ARM_NRO_INVALID, "missing path");
     if (!isdir(romfs_dir)) return RB_S2ARM_NRO_OK;   // os.path.isdir(nd) else []: nothing to write
@@ -651,7 +661,12 @@ typedef struct {
 } mod_t;
 
 int rb_s2arm_nro_to_nso(const char *romfs_dir, const char *output_dir, char *error, size_t error_size) {
-    ctx_t x = {error, error_size};
+    return rb_s2arm_nro_to_nso_ex(romfs_dir, output_dir, NULL, NULL, error, error_size);
+}
+
+int rb_s2arm_nro_to_nso_ex(const char *romfs_dir, const char *output_dir, void (*on_entry)(void *context, unsigned long long entries),
+                           void *context, char *error, size_t error_size) {
+    ctx_t x = {error, error_size, on_entry, context, 0};
     if (error && error_size) error[0] = 0;
     if (!romfs_dir || !output_dir) return fail(&x, RB_S2ARM_NRO_INVALID, "missing path");
     strvec_t found = {0};

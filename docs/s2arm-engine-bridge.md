@@ -242,3 +242,45 @@ diagnostic literal names MeloNX), `test/s2arm_internal_service_test.dart` (each 
 differ; the native code reaches its message and its technical details name no engine),
 `test/s2arm_playlist_menu_contract_test.dart` and `test/switch2_empty_hint_contract_test.py`.
 Not observed on a device.
+
+### Real progress during the preparation (12 Nov 2026)
+
+The maintainer asked for a real progress bar: on IPA 728 the dialog showed "code · 0%" for minutes on Mario Kart World.
+`4454bf54` (next IPA) only reported each part of the code stage, so the main module stayed one block.
+
+- **Rewriter.** `build-utils/s2arm/prepare/patches/0001-rewriter-progress-report.patch` adds a per-thread callback,
+  `s2a_rewrite_set_progress`, to S2Arm's `runtime/rewriter`. It reports the attempt number and each pass: load,
+  prepass, boundaries, scan, data, analyze, generate, late, spins and outputs. Inside the long loops it adds counts:
+  every 256 KiB of text for boundaries, scan and spins, every function for analyze, every 256 units for generate.
+  - It only adds lines (67, none removed), and the code it adds reads only loop counters.
+    `test/s2arm_rewriter_progress_test.py` (68 checks) refuses any added line that is not a report. It also refuses
+    any assignment outside `rb_*`. Four bad variants of the patch fail it.
+  - `s2arm-prepare.yml` builds the reference `s2a-rewrite` from the unpatched checkout and our library from a
+    patched copy. Every existing comparison (rewrite, whole code stage, per-game files) therefore checks that the
+    patched rewriter writes the same bytes.
+  - `s2arm-core.yml` applies the series before it builds `S2ArmPrepare.xcframework` and records it in the identity
+    (`patches`). Listed in `docs/s2arm-legal-notices.md`.
+- **Code stage.** `rb_s2arm_code_request.work` (new last member; the pod's copy in `S2ArmPrepareABI.h` is checked
+  member by member, in order) reports `part`, `phase`, `attempt`, `done`/`total` and one `fraction` for the whole code
+  stage. That fraction never goes back.
+  - Weights: a module's rewrite counts for its size, and the address-need table for 5 % of main.
+  - Each RomFS walk counts for 1 % of the modules and reports its entries (`rb_s2arm_nro_to_nso_ex`,
+    `rb_s2arm_nro_exports_ex`).
+  - The ZBIC decoding of the ExeFS takes the first 5 %.
+  - Inside a module the passes take fixed shares: analyze 40 %, generate 25 %, the rest 35 %.
+  - A new layout (attempt 2 and later) continues from where the bar is.
+  - The test CLI checks every event: in [0, 1], never back, ending at 1. `run_code_stage_test.py` reports it per case.
+- **Bridge.** `prep_code_work` sends the fraction with `phase`, `attempt`, `done` and `total`. The step callback
+  only writes `codeStep` to the journal, so two fractions of different meaning never alternate. Each phase is
+  journaled (`codePhase`, with its duration and counts), so the pass shares can follow measured costs after the
+  next device run.
+- **Dialog.** One bar for the whole preparation. Its weights are unpack 4 %, code 80 %, caps 2 %, direct 2 %,
+  module 6 % and pack 6 % (`S2ArmInternalService.preparationOverall`). Above the bar, the step and its part, then
+  the phase and its counts: "Compilation du code du jeu · module principal · passe 2", then "Analyse des
+  fonctions · 1234 / 5678 fonctions". Below it, the percentage and the elapsed time, which moves every second even
+  when a pass reports nothing. The 26 new strings come in 12 languages (`prep*` keys of
+  `lib/l10n/switch2_library_locale.dart`). Tests: `test/s2arm_prepare_dialog_test.dart` and
+  `test/s2arm_internal_service_test.dart`.
+- Limits: the pass shares are estimates until the journal of a real run gives the durations. Nothing has been
+  observed on a device. The new library needs a new `prepare` pin (`build-utils/s2arm/engine-pin.json`); the engine
+  and the system data are unchanged.

@@ -32,6 +32,36 @@
 #include <string.h>
 
 static int g_seen, g_cancel_after = -1;
+
+// The code stage's progress bar events (rb_s2arm_code_request.work), checked as they come: the fraction stays in
+// [0, 1] and never goes back; a summary goes to stderr for tools/s2arm_prototype/run_code_stage_test.py.
+static struct {
+    long events, backwards, outside;
+    double last;
+    char parts[512], phases[512];
+} g_work;
+static void note_name(char *list, size_t size, const char *name) {
+    char item[80];
+    snprintf(item, sizeof item, ",%s,", name);
+    char padded[520];
+    snprintf(padded, sizeof padded, ",%s,", list);
+    if (strstr(padded, item)) return;
+    size_t used = strlen(list);
+    snprintf(list + used, size - used, "%s%s", used ? "," : "", name);
+}
+static void work(void *context, const char *part, const char *phase, int attempt, unsigned long long done,
+                 unsigned long long total, double fraction) {
+    (void)context;
+    (void)attempt;
+    (void)done;
+    (void)total;
+    g_work.events++;
+    if (fraction < g_work.last) g_work.backwards++;
+    if (fraction < 0 || fraction > 1) g_work.outside++;
+    g_work.last = fraction;
+    note_name(g_work.parts, sizeof g_work.parts, part);
+    note_name(g_work.phases, sizeof g_work.phases, phase);
+}
 static void progress(void *context, const char *module, int index, int count) {
     (void)context;
     g_seen++;
@@ -258,8 +288,10 @@ int main(int argc, char **argv) {
     }
     if (argc == 5 && !strcmp(argv[1], "code")) { // code <exefs> <romfs or -> <output>
         char error[256] = "";
-        rb_s2arm_code_request request = {argv[2], strcmp(argv[3], "-") ? argv[3] : NULL, argv[4], progress, NULL, NULL};
+        rb_s2arm_code_request request = {argv[2], strcmp(argv[3], "-") ? argv[3] : NULL, argv[4], progress, NULL, NULL, work};
         int result = rb_s2arm_prepare_code(&request, error, sizeof error);
+        fprintf(stderr, "work events=%ld backwards=%ld outside=%ld last=%.6f parts=%s phases=%s\n", g_work.events, g_work.backwards,
+                g_work.outside, g_work.last, g_work.parts, g_work.phases);
         printf("result=%d %s\n", result, error);
         return result;
     }

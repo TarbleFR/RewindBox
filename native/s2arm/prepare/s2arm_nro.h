@@ -25,11 +25,17 @@ enum {
 // '/' separated). Without a RomFS directory or without any *.nro nothing is written and RB_S2ARM_NRO_OK is
 // returned, as the original. Symbol names are decoded as UTF-8 with replacement, as the original does.
 int rb_s2arm_nro_exports(const char *romfs_dir, const char *output_path, char *error, size_t error_size);
+// The same, calling seen (may be NULL) with the count of RomFS entries walked so far, for a progress display.
+int rb_s2arm_nro_exports_ex(const char *romfs_dir, const char *output_path, void (*seen)(void *context, unsigned long long entries),
+                            void *context, char *error, size_t error_size);
 
 // Converts every *.nro file of <romfs_dir> to an NSO named nro0, nro1, ... in <output_dir> (same content is stored
 // once, in sorted RomFS-relative path order) and writes <output_dir>/nro_modules.tsv. Without any module nothing is
 // written and RB_S2ARM_NRO_OK is returned. Returns RB_S2ARM_NRO_UNSUPPORTED in the situation described above.
 int rb_s2arm_nro_to_nso(const char *romfs_dir, const char *output_dir, char *error, size_t error_size);
+// The same, calling seen (may be NULL) with the count of RomFS entries walked so far, for a progress display.
+int rb_s2arm_nro_to_nso_ex(const char *romfs_dir, const char *output_dir, void (*seen)(void *context, unsigned long long entries),
+                           void *context, char *error, size_t error_size);
 
 #ifdef __cplusplus
 }

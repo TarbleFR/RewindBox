@@ -163,6 +163,11 @@ static const NSInteger kPrepareSteps = 6;
   NSString *_lastDetail;
   double _lastFraction;
   uint64_t _lastEmitNs;
+  // The code stage's phases, journaled with their durations so that the bar's shares can follow measured costs.
+  NSString *_phasePart;
+  NSString *_phaseName;
+  uint64_t _phaseStartNs;
+  unsigned long long _phaseDone, _phaseTotal;
 }
 
 - (void)cancel {
@@ -175,12 +180,21 @@ static int prep_cancelled(void *context) {
 }
 
 - (void)emit:(NSString *)step index:(NSInteger)index count:(NSInteger)count fraction:(double)fraction {
-  [self emit:step index:index count:count fraction:fraction detail:nil];
+  [self emit:step index:index count:count fraction:fraction detail:nil work:nil];
+}
+
+- (void)emit:(NSString *)step index:(NSInteger)index count:(NSInteger)count fraction:(double)fraction detail:(NSString *_Nullable)detail {
+  [self emit:step index:index count:count fraction:fraction detail:detail work:nil];
 }
 
 // Sends progress when the step or its part changes, at the end of a step, or after 1 % or 250 ms: the pack stage reports
 // bytes far more often than the method channel needs.
-- (void)emit:(NSString *)step index:(NSInteger)index count:(NSInteger)count fraction:(double)fraction detail:(NSString *_Nullable)detail {
+- (void)emit:(NSString *)step
+       index:(NSInteger)index
+       count:(NSInteger)count
+    fraction:(double)fraction
+      detail:(NSString *_Nullable)detail
+        work:(NSDictionary *_Nullable)work {
   if (!self.progress) return;
   uint64_t now = s2arm_code_now_ns();
   BOOL sameStep = [_lastStep isEqualToString:step] && ((_lastDetail == nil && detail == nil) || [_lastDetail isEqualToString:detail]);
@@ -189,15 +203,49 @@ static int prep_cancelled(void *context) {
   _lastDetail = detail;
   _lastFraction = fraction;
   _lastEmitNs = now;
-  self.progress(step, index, count, fraction, detail);
+  self.progress(step, index, count, fraction, detail, work);
 }
 
-// The code stage's own steps (addr_need, nro, each module, tables): IPA 728 showed "code · 0%" for minutes on Mario
-// Kart World because no progress was asked for.
+// The code stage's steps (addr_need, nro, each module, tables). The bar itself comes from prep_code_work: this one
+// only marks the step in the journal, so that two fractions of different meaning never alternate on screen.
 static void prep_code_progress(void *context, const char *step, int index, int count) {
+  (void)context;
+  s2arm_journal("prepare", "codeStep", "\"step\":\"%s\",\"index\":%d,\"count\":%d", step ? step : "", index, count);
+}
+
+// Journals the duration of each phase of each part when the next one begins (rewriter passes included).
+- (void)notePhase:(NSString *)phase part:(NSString *)part done:(unsigned long long)done total:(unsigned long long)total {
+  uint64_t now = s2arm_code_now_ns();
+  if ([_phasePart isEqualToString:part] && [_phaseName isEqualToString:phase]) {
+    _phaseDone = done;
+    _phaseTotal = total;
+    return;
+  }
+  if (_phaseName.length && ![_phaseName isEqualToString:@"start"])
+    s2arm_journal("prepare", "codePhase", "\"part\":\"%s\",\"phase\":\"%s\",\"ms\":%llu,\"done\":%llu,\"total\":%llu",
+                  _phasePart.UTF8String, _phaseName.UTF8String, (unsigned long long)((now - _phaseStartNs) / 1000000ull),
+                  _phaseDone, _phaseTotal);
+  _phasePart = part;
+  _phaseName = phase;
+  _phaseStartNs = now;
+  _phaseDone = done;
+  _phaseTotal = total;
+}
+
+// The code stage's progress bar (rb_s2arm_code_request.work): IPA 728 showed "code · 0%" for minutes on Mario Kart World,
+// since nothing reported inside the code stage. Now every pass of the rewriter moves the bar, with its own counts.
+static void prep_code_work(void *context, const char *part, const char *phase, int attempt, unsigned long long done,
+                           unsigned long long total, double fraction) {
   S2ArmGamePreparation *self = (__bridge S2ArmGamePreparation *)context;
-  double fraction = count > 0 ? (double)index / (double)count : 0;
-  [self emit:@"code" index:1 count:kPrepareSteps fraction:fraction detail:step ? @(step) : nil];
+  NSString *partName = part ? @(part) : @"";
+  NSString *phaseName = phase ? @(phase) : @"";
+  [self notePhase:phaseName part:partName done:done total:total];
+  [self emit:@"code"
+         index:1
+         count:kPrepareSteps
+      fraction:fraction
+        detail:partName
+          work:@{@"phase" : phaseName, @"attempt" : @(attempt), @"done" : @(done), @"total" : @(total)}];
 }
 
 // The resource pack stage, by bytes.
@@ -364,7 +412,7 @@ static NSString *mapPrepareCode(int rc) {
       [root stringByAppendingPathComponent:@"exefs"].fileSystemRepresentation,
       [files fileExistsAtPath:romfs] ? romfs.fileSystemRepresentation : NULL,
       root.fileSystemRepresentation,
-      prep_code_progress, prep_cancelled, (__bridge void *)self};
+      prep_code_progress, prep_cancelled, (__bridge void *)self, prep_code_work};
   rc = rb_s2arm_prepare_code(&code, error, sizeof error);
   if (rc != RB_S2ARM_PREPARE_OK) return [self fail:mapPrepareCode(rc) stage:@"code" detail:error];
   durations[@"code"] = @((s2arm_code_now_ns() - t0) / 1000000ull);
