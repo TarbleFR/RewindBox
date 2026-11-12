@@ -73,6 +73,7 @@ from adapt_build_journal_load_wait import BASELINE as C743_BUILD_JOURNAL_LOAD_WA
 from adapt_nifm_network_watch import BASELINE as C745_NIFM_NETWORK_WATCH, SERVICE as C745_NIFM_SERVICE  # noqa: E402
 from adapt_paced_strict_syncs import BASELINE as C745_PACED_STRICT_SYNCS  # noqa: E402
 from adapt_sibling_pipelines import BASELINE as C745_SIBLING_PIPELINES  # noqa: E402
+from adapt_array_sync_epochs import BASELINE as C745_ARRAY_SYNC_EPOCHS  # noqa: E402
 from adapt_array_delta_invalidated import BASELINE as C697_ARRAY_DELTA_INVALIDATED  # noqa: E402
 from adapt_pipeline_cache_background import BASELINE as C697_PIPELINE_CACHE_BACKGROUND  # noqa: E402
 from adapt_sync_wait_attribution import BASELINE as C699_SYNC_WAIT_ATTRIBUTION  # noqa: E402
@@ -213,6 +214,8 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'paced-strict-syncs': 'delivered',
             # Core 745: programs of one code share the pipelines they hold.
             'sibling-pipelines': 'delivered',
+            # Core 745: a bound texture array walks its textures when one of them needs it.
+            'array-sync-epochs': 'delivered',
             # Core 743: its receipt declares SyncManager.cs, which adapt_submit_causes changes: run again on the final one.
             'sync-allocations': 'delivered',
             # Core 661: the native display fixture declares EmbeddedMemory.cs (adapt_safe_point_compaction): rerun.
@@ -281,7 +284,9 @@ CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES
            set(C743_SUBMIT_CAUSES) | set(C743_BUILD_JOURNAL_LOAD_WAIT) |
            # Core 745: nifm's IGeneralService.cs (new) and Library.cs; GpuContext.cs, AutoFlushCounter.cs and Library.cs
            # (already changed); ShaderCollection.cs (already changed).
-           set(C745_NIFM_NETWORK_WATCH) | set(C745_PACED_STRICT_SYNCS) | set(C745_SIBLING_PIPELINES))
+           # Texture.cs and TextureBindingsArrayCache.cs (already changed).
+           set(C745_NIFM_NETWORK_WATCH) | set(C745_PACED_STRICT_SYNCS) | set(C745_SIBLING_PIPELINES) |
+           set(C745_ARRAY_SYNC_EPOCHS))
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
@@ -622,7 +627,8 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_build_journal_load_wait.py',
                                                      'build-utils/melonx/adapt_nifm_network_watch.py',
                                                      'build-utils/melonx/adapt_paced_strict_syncs.py',
-                                                     'build-utils/melonx/adapt_sibling_pipelines.py'} and
+                                                     'build-utils/melonx/adapt_sibling_pipelines.py',
+                                                     'build-utils/melonx/adapt_array_sync_epochs.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -661,9 +667,9 @@ if not args.helpers_only:
     # Core 741: adapt_array_storage_counts.py joins them; the same 212 prepared members (TextureArray.cs already one).
     # Core 743: adapt_submit_causes.py and adapt_build_journal_load_wait.py join them; HelperShader.cs joins the prepared
     # members (213).
-    # Core 745: adapt_nifm_network_watch.py, adapt_paced_strict_syncs.py and adapt_sibling_pipelines.py join them;
-    # IGeneralService.cs joins the prepared members (214).
-    check(len(frozen['preparationInputs']) == 215 and len(frozen['preparedMembers']) == 214, 'Wrong final composition')
+    # Core 745: adapt_nifm_network_watch.py, adapt_paced_strict_syncs.py, adapt_sibling_pipelines.py and
+    # adapt_array_sync_epochs.py join them; IGeneralService.cs joins the prepared members (214).
+    check(len(frozen['preparationInputs']) == 216 and len(frozen['preparedMembers']) == 214, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
@@ -726,7 +732,11 @@ if not args.helpers_only:
           set(C745_SIBLING_PIPELINES) == set(gate['sibling-pipelines']['requiredPostimages']) and
           gate['sibling-pipelines']['assertions'].get('productionVulkanAssemblyBuilt') is True and
           gate['sibling-pipelines']['assertions'].get('candidateCreationsOfOneSharedState') == 1 and
-          gate['sibling-pipelines']['assertions'].get('candidateDestroyedTwice') == 0,
+          gate['sibling-pipelines']['assertions'].get('candidateDestroyedTwice') == 0 and
+          set(C745_ARRAY_SYNC_EPOCHS) == set(gate['array-sync-epochs']['requiredPostimages']) and
+          gate['array-sync-epochs']['assertions'].get('productionGpuAssemblyBuilt') is True and
+          gate['array-sync-epochs']['assertions'].get('scenariosWithIdenticalStates') == 122 and
+          gate['array-sync-epochs']['assertions'].get('quietUpdateSyncCallsCandidate') == 0,
           'The Core 745 changes are not bound by their gates')
     OUTSIDE_GPU |= {C745_NIFM_SERVICE}
     check(CHANGES - OUTSIDE_GPU <= set(gate['fragmented-reads']['requiredPostimages']) and

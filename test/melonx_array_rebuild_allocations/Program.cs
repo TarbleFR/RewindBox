@@ -923,6 +923,19 @@ namespace Ryujinx.Graphics.Gpu.Image
         public int InvalidatedSequence;
         public TestRange Range;
         public bool Scaled, Disposed, StepSynced, StepSignaled, PendingUpload;
+        // Core 745 (adapt_array_sync_epochs): the final cache walks an array's textures only when one was signalled
+        // dirty, invalidated or added: the double carries Texture._dirty (a new texture is dirty) and the members the
+        // final cache reads. StepSynced records a synchronisation that had something to do.
+        public bool Dirty = true;
+        internal static int DirtyEpoch, DirtyWriters, InvalidationWriters;
+        internal int ContextUseEpoch => 0; // no use clock in this fixture
+        public void SignalGroupDirty()
+        {
+            System.Threading.Interlocked.Increment(ref DirtyWriters);
+            Dirty = true;
+            System.Threading.Interlocked.Increment(ref DirtyEpoch);
+            System.Threading.Interlocked.Decrement(ref DirtyWriters);
+        }
         public string Name => World.Describe(Host);
         public string SignalName => Parent == null ? "t" + Key : "a" + Key + "." + Format;
         public Texture(World world, ITexture host, int key, int format, Texture parent)
@@ -937,6 +950,8 @@ namespace Ryujinx.Graphics.Gpu.Image
         public void SynchronizeMemory()
         {
             Use();
+            if (Target == Target.TextureBuffer || !Dirty) return;
+            Dirty = false;
             StepSynced = true;
             if (PendingUpload)
             {

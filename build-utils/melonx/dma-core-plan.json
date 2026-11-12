@@ -95,7 +95,8 @@
   "build-utils/melonx/adapt_build_journal_load_wait.py",
   "build-utils/melonx/adapt_nifm_network_watch.py",
   "build-utils/melonx/adapt_paced_strict_syncs.py",
-  "build-utils/melonx/adapt_sibling_pipelines.py"
+  "build-utils/melonx/adapt_sibling_pipelines.py",
+  "build-utils/melonx/adapt_array_sync_epochs.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -334,7 +335,8 @@
   "test/melonx_build_journal_load_wait/Program.cs",
   "test/melonx_nifm_network_watch/Program.cs",
   "test/melonx_paced_strict_syncs/Program.cs",
-  "test/melonx_sibling_pipelines/Program.cs"
+  "test/melonx_sibling_pipelines/Program.cs",
+  "test/melonx_array_sync_epochs/Program.cs"
  ],
  "fixtureProductionInputs": [
   "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs",
@@ -4486,6 +4488,34 @@
    },
    "requiredPostimages": [
     "src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs"
+   ]
+  },
+  {
+   "name": "array-sync-epochs",
+   "script": "test/melonx_array_sync_epochs_test.py",
+   "report": "array-sync-epochs-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 3600,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false,
+    "productionGpuAssemblyBuilt": true,
+    "productionCacheAndCommandsCompiled": true,
+    "scenariosWithIdenticalStates": 122,
+    "quietUpdateSyncCallsControl": 3200,
+    "quietUpdateSyncCallsCandidate": 0,
+    "quietUpdateSequenceReadsCandidate": 0
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Gpu/Image/Texture.cs",
+    "src/Ryujinx.Graphics.Gpu/Image/TextureBindingsArrayCache.cs"
    ]
   }
  ]

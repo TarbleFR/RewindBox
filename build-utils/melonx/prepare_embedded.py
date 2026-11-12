@@ -183,6 +183,7 @@ from adapt_build_journal_load_wait import apply as adapt_build_journal_load_wait
 from adapt_nifm_network_watch import apply as adapt_nifm_network_watch
 from adapt_paced_strict_syncs import apply as adapt_paced_strict_syncs
 from adapt_sibling_pipelines import apply as adapt_sibling_pipelines
+from adapt_array_sync_epochs import apply as adapt_array_sync_epochs
 
 
 def replace_once(path, old, new):
@@ -543,6 +544,10 @@ def main():
     # pipelines they hold (ShaderCollection.cs): the states the launch's replays built for one are no longer created
     # again on the render thread by the other (IPA 729 Hogwarts: "built but missed 13").
     adapted += adapt_sibling_pipelines(source)
+    # Core 745 (same increment; IPA 729 Hogwarts: arrayDelta 459-1 136 ms per 5 s of the GPU thread): a bound texture
+    # array walks its textures when one of them was signalled dirty, invalidated or added, or when the use clock ticks,
+    # not three times at every update (Texture.cs, TextureBindingsArrayCache.cs).
+    adapted += adapt_array_sync_epochs(source)
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -686,7 +691,8 @@ def main():
                  'adapt_playtime_warmup_all_titles.py',
                  'adapt_array_storage_counts.py',
                  'adapt_submit_causes.py', 'adapt_build_journal_load_wait.py',
-                 'adapt_nifm_network_watch.py', 'adapt_paced_strict_syncs.py', 'adapt_sibling_pipelines.py']:
+                 'adapt_nifm_network_watch.py', 'adapt_paced_strict_syncs.py', 'adapt_sibling_pipelines.py',
+                 'adapt_array_sync_epochs.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

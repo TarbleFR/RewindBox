@@ -204,6 +204,8 @@ LOT_FILES = {
     'adapt_paced_strict_syncs': ['src/Ryujinx.Library/Library.cs'],
     # Core 745: programs of one code share their pipelines (ShaderCollection.cs, in this composition).
     'adapt_sibling_pipelines': ['src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs'],
+    # Core 745: a bound texture array walks its textures when one needs it (the files of it in this composition).
+    'adapt_array_sync_epochs': [],
 }
 
 checks = 0

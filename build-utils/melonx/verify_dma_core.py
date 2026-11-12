@@ -115,9 +115,10 @@ ARRAY_COUNTERS = arrays.ARRAY_COUNTERS
 # bind once their shader modules exist, in every title); 95 with Core 741 (a texture array keeps its storage set from small
 # element changes, Hogwarts Legacy policy); 97 with Core 743 (submissions by cause and host syncs by site; the build
 # journal without the main cache load wait; diagnostics only; sync-allocations run again on the final sync manager);
-# 101 with Core 745 (a closed session is not kept by nifm's network address subscription; Hogwarts Legacy paces its
-# strict host syncs and voluntary submissions; programs of one code share the pipelines they hold).
-FRESH_GATES = 101
+# 102 with Core 745 (a closed session is not kept by nifm's network address subscription; Hogwarts Legacy paces its
+# strict host syncs and voluntary submissions; programs of one code share the pipelines they hold; a bound texture
+# array walks its textures when one of them needs it).
+FRESH_GATES = 102
 HISTORICAL_RECEIPTS = 61
 
 
