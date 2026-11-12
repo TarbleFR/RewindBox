@@ -404,11 +404,13 @@ static unsafe class Program
         int before = GC.CollectionCount(0);
         On(() => { AllocateUntil(10); GC.Collect(2, GCCollectionMode.Forced, blocking: true); return 0; });
         CollectionClass.ReleaseAfterRestart();
+        long starts = CollectionClass.Starts, ends = CollectionClass.Ends, raised = CollectionClass.Raised;
+        string described = CollectionClass.Describe();
         CollectionClass.MarkSession();
         return new JsonObject { ["mode"] = mode, ["registered"] = first, ["registeredAgain"] = second, ["status"] = CollectionClass.Status,
-            ["collections"] = GC.CollectionCount(0) - before, ["starts"] = CollectionClass.Starts, ["ends"] = CollectionClass.Ends,
-            ["raised"] = CollectionClass.Raised, ["inForce"] = CollectionClass.OverrideInForce, ["platformRaises"] = Host.Raises,
-            ["platformLowers"] = Host.Lowers, ["describe"] = CollectionClass.Describe() };
+            ["collections"] = GC.CollectionCount(0) - before, ["starts"] = starts, ["ends"] = ends, ["startsAfterMark"] = CollectionClass.Starts,
+            ["raised"] = raised, ["inForce"] = CollectionClass.OverrideInForce, ["platformRaises"] = Host.Raises,
+            ["platformLowers"] = Host.Lowers, ["describe"] = described };
     }
 
     static int Main(string[] arguments)

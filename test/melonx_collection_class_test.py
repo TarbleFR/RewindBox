@@ -243,7 +243,8 @@ unregistered_runs = [(refused_run, 3, 'refused by the runtime'), (unraised, 4, '
 if APPLE:
     # On an Apple host the production platform applies: the plain run registers with the system's own functions.
     check(plain['registered'] == plain['registeredAgain'] == plain['status'] == 1 and plain['collections'] >= 10 and
-          plain['starts'] >= 1 and plain['ends'] >= plain['starts'] and not plain['inForce'] and 'by the class of the thread' in plain['describe'],
+          plain['starts'] >= 1 and plain['ends'] >= plain['starts'] and plain['startsAfterMark'] == 0 and not plain['inForce'] and
+          'by the class of the thread' in plain['describe'],
           'plain on an Apple host: registered with the system\'s QoS functions, collections reported, nothing left raised: %s' % plain)
 else:
     unregistered_runs.append((plain, 2, 'not this platform'))
