@@ -121,6 +121,28 @@ abi_fields = struct_members(abi[abi.index('typedef struct s2a_rb_guest_config'):
 check(patch_fields == abi_fields and patch_fields[:3] == ['size', 'game_id', 'images'] and 'prepare_code' in patch_fields,
       f'the guest config ABI matches patch 0003 ({abi_fields} vs {patch_fields})')
 
+def struct_field_names(text, name):
+    """The member names of `typedef struct { ... } name;`, in order (comments removed, function pointers and
+    comma-separated declarators included)."""
+    end = text.index('} ' + name + ';')
+    start = text.rindex('typedef struct', 0, end)
+    body = re.sub(r'//[^\n]*|/\*.*?\*/', '', text[text.index('{', start) + 1:end], flags=re.S)
+    names = []
+    for declaration in body.split(';'):
+        declaration = ' '.join(declaration.split())
+        if not declaration:
+            continue
+        pointer = re.match(r'.*?\(\s*\*\s*(\w+)\s*\)\s*\(', declaration)
+        if pointer:
+            names.append(pointer.group(1))
+            continue
+        for part in declaration.split(','):
+            found = re.findall(r'(\w+)\s*(?:\[[^\]]*\])?\s*$', part.strip())
+            if found:
+                names.append(found[-1])
+    return names
+
+
 # The preparation ABI copied into the pod names the same struct members as native/s2arm/prepare.
 prep_abi = read('S2ArmPrepareABI.h')
 for header, struct_name in (('s2arm_ns2_dump.h', 'rb_s2arm_ns2_dump_request'), ('s2arm_pack.h', 'rb_s2arm_module_request'),
@@ -132,6 +154,11 @@ for header, struct_name in (('s2arm_ns2_dump.h', 'rb_s2arm_ns2_dump_request'), (
     check(set(w for w in want if w not in ('struct',)) <= set(mine) or set(mine) <= set(want) or struct_name in mine or True,
           f'{struct_name} is declared in the pod')
     check(('} ' + struct_name) in prep_abi, f'{struct_name} is declared in the pod ABI')
+    # Field for field, in order: the pod's copy is the layout the library reads (a missing or moved member would
+    # shift every member after it).
+    native_members, pod_members = struct_field_names(source, struct_name), struct_field_names(prep_abi, struct_name)
+    check(native_members and native_members == pod_members,
+          f'{struct_name}: the pod copy has the native members in order ({pod_members} vs {native_members})')
 for symbol in ('rb_s2arm_ns2_detect', 'rb_s2arm_ns2_dump', 'rb_s2arm_prepare_code', 'rb_s2arm_caps', 'rb_s2arm_module_dir',
                'rb_s2arm_direct_skeleton', 'rb_s2arm_resource_pack'):
     check(symbol in prep_abi, f'the pod declares {symbol}')
@@ -206,7 +233,20 @@ for local in ('available', 'helperPresent', 'systemDataPresent', 'engineLoaded',
 
 # IPA 728 on device: the preparation sat on "code · 0%" for minutes and every launch prepared again from scratch.
 prep = read('S2ArmGamePreparation.m')
-check('prep_code_progress, prep_cancelled, (__bridge void *)self}' in prep, 'the code stage reports its steps (not NULL)')
+check('prep_code_progress, prep_cancelled, (__bridge void *)self, prep_code_work}' in prep,
+      'the code stage reports its steps and its progress bar (not NULL)')
+# The code stage's bar: the library's weighted fraction with the rewriter's pass and counts; the step callback only journals,
+# so two fractions of different meaning never alternate on screen.
+code_work = prep[prep.index('static void prep_code_work('):]
+code_work = code_work[:code_work.index('\n}\n')]
+check('fraction:fraction' in code_work and '@"phase" : phaseName' in code_work and '@"attempt" : @(attempt)' in code_work
+      and '@"done" : @(done)' in code_work and '@"total" : @(total)' in code_work, 'the bar sends the pass, its counts and the fraction')
+step_only = prep[prep.index('static void prep_code_progress('):]
+step_only = step_only[:step_only.index('\n}\n')]
+check('emit:' not in step_only and 's2arm_journal("prepare", "codeStep"' in step_only, 'the step callback only journals')
+check('s2arm_journal("prepare", "codePhase"' in prep and '"ms' in prep[prep.index('"codePhase"'):prep.index('"codePhase"') + 200],
+      'each phase of the code stage is journaled with its duration')
+check('NSDictionary *_Nullable work);' in read('S2ArmGamePreparation.h'), 'the progress block carries the work counts')
 check('prep_pack_progress, prep_cancelled, (__bridge void *)self}' in prep, 'the resource pack reports its bytes')
 run = prep[prep.index('- (NSDictionary *)run {'):]
 check(run.index('reusablePreparation(stampPath, fingerprint, gid)') < run.index('[files removeItemAtPath:stampPath error:nil];')
@@ -228,6 +268,7 @@ clone = plugin[plugin.index('isEqualToString:@"cloneTree"'):plugin.index('isEqua
 check('S2ArmPathInside(to, documents)' in clone and 'fileExistsAtPath:to' in clone and 'clonefile(' in clone and
       'CLONE_NOFOLLOW' in clone, 'cloneTree clones only into Documents, onto a free path, without following links')
 check('@"detail" : detail ?: @""' in plugin, 'the progress event carries the code-stage module')
+check('if (work) [arguments addEntriesFromDictionary:work];' in plugin, 'the progress event carries the pass and its counts')
 
 
 # ---------------- executed ----------------

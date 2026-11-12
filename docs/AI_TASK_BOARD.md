@@ -5478,6 +5478,35 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       main for the next IPA. Not observed on a device.
     - With Claude `051a3691` the Consoles page no longer loads the Switch 1 engine. The `switch1EngineLoaded` refusal
       should then appear only after a Switch 1 game in the same session.
+  - **Real progress for the preparation (maintainer, 12 Nov: "never stuck at 0").** IPA 728 showed "code · 0%" for
+    minutes on Mario Kart World. Code `97df7333`; the artifact fix is `a6f958fd`. Verified pin `60a15cd3`
+    (engine-pin.json SHA-256 `6afbd2c9…3635`, pin job run 43186436153); only the prepare entry changed: run
+    43185893094, artifact 13928561427. Merged with Claude `554a5777` in `f31ef2a3`.
+    - Rewriter: `build-utils/s2arm/prepare/patches/0001-rewriter-progress-report.patch` adds a per-thread callback
+      (passes, plus counts inside the long loops). It adds 67 lines and removes none, and is marked RewindBox. It is
+      listed in `docs/s2arm-legal-notices.md` and recorded in `S2ArmPrepare-identity.json`.
+    - Code stage `work` callback (`rb_s2arm_code_request`, new last member): a weighted fraction that never goes back.
+    - Bridge: the pass and its counts, plus a `codePhase` journal with durations, so the pass shares can be set from
+      measured costs.
+    - Dialog: a bar for the whole preparation, the localized step, module and phase with counts, and the elapsed time
+      (26 strings × 12).
+    - Proof:
+      - `s2arm-prepare.yml` 43184657493 is green on macOS and Linux. Every comparison runs the patched library against
+        the unpatched `s2a-rewrite` (identical bytes), and the bar is checked on each code-stage case.
+      - `test/s2arm_rewriter_progress_test.py` (68 checks) passes and fails four bad patch variants.
+      - Bridge iOS compile 43184657518 (155 checks; the pod ABI copy is now checked member by member, where the old
+        check was a no-op).
+      - Library 43184657663 (`flutter analyze` and tests, including `s2arm_prepare_dialog_test.dart`).
+      - Core 43185893094.
+    - First pin attempt, run 43185240791, refused the artifact: it held a fifth member, `patches.txt`. Fixed in
+      `a6f958fd`.
+    - Not observed on a device. The pass shares are estimates until a journal gives the durations.
+  - **Relaunch in the same session (maintainer, 12 Nov): project opened, not for this IPA.** The maintainer chose to
+    ship the progress lot first. Plan and inventory: `docs/s2arm-relaunch-in-session.md`.
+    - S2Arm already restarts a session in-process for the same game (`session.c:440`, `:671`). Our guest stop takes
+      the process shutdown instead (`rb_guest.c:127`).
+    - A different game needs new executable pages after the JIT helper has detached (`S2ArmEngineBridgePlugin.m:345`).
+    - Steps: same game first, then the latches and a per-game reset, then another game.
   - Main withdrew the launcher deletion (12 Nov): it stays as is. Formerly open: delete the launcher (`.github/diagnostics/s2arm/`, `s2arm-delivery.yml`,
     `set_probe_key.py`) together with its test `s2arm_delivery_test.py`, which no longer works
     since 9c9817e8 (40 errors)? Main also has to choose the S2Arm test groups of the next

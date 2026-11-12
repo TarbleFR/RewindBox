@@ -228,12 +228,13 @@ static NSString *S2ArmEnginePath(void) {
   preparation.directChain = [arguments[@"directChain"] isKindOfClass:NSString.class] ? arguments[@"directChain"] : nil;
   preparation.systemDataFolder = [arguments[@"systemDataFolder"] isKindOfClass:NSString.class] ? arguments[@"systemDataFolder"] : nil;
   __weak S2ArmEngineBridgePlugin *weakSelf = self;
-  preparation.progress = ^(NSString *step, NSInteger index, NSInteger count, double fraction, NSString *detail) {
+  preparation.progress = ^(NSString *step, NSInteger index, NSInteger count, double fraction, NSString *detail, NSDictionary *work) {
     S2ArmEngineBridgePlugin *strongSelf = weakSelf;
+    NSMutableDictionary *arguments = [@{@"step" : step, @"index" : @(index), @"count" : @(count), @"fraction" : @(fraction),
+                                        @"detail" : detail ?: @""} mutableCopy];
+    if (work) [arguments addEntriesFromDictionary:work];   // phase, attempt, done, total (code stage)
     dispatch_async(dispatch_get_main_queue(), ^{
-      [strongSelf.channel invokeMethod:kProgressMethod
-                             arguments:@{@"step" : step, @"index" : @(index), @"count" : @(count), @"fraction" : @(fraction),
-                                         @"detail" : detail ?: @""}];
+      [strongSelf.channel invokeMethod:kProgressMethod arguments:arguments];
     });
   };
   self.activePreparation = preparation;

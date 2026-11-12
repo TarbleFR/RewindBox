@@ -41,9 +41,10 @@ NSDictionary *S2ArmDetectExport(NSString *folder);
 NSDictionary *S2ArmGameInfo(NSString *folder, NSString *_Nullable localePref);
 
 /// [fraction] is the share of [step] done (0–1). [detail] names the part of the step running (the code stage's module, e.g.
-/// "main"), or "reused" when a finished preparation of the same inputs is reused; nil otherwise.
+/// "main"), or "reused" when a finished preparation of the same inputs is reused; nil otherwise. [work], for the code
+/// stage only: {phase, attempt, done, total} of the library's progress bar (rb_s2arm_code_request.work), else nil.
 typedef void (^S2ArmPrepareProgress)(NSString *step, NSInteger stepIndex, NSInteger stepCount, double fraction,
-                                     NSString *_Nullable detail);
+                                     NSString *_Nullable detail, NSDictionary *_Nullable work);
 
 @interface S2ArmGamePreparation : NSObject
 @property(nonatomic, copy) NSString *exportFolder;                // absolute, inside Documents/S2Arm/Games
