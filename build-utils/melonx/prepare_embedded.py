@@ -184,6 +184,7 @@ from adapt_nifm_network_watch import apply as adapt_nifm_network_watch
 from adapt_paced_strict_syncs import apply as adapt_paced_strict_syncs
 from adapt_sibling_pipelines import apply as adapt_sibling_pipelines
 from adapt_array_sync_epochs import apply as adapt_array_sync_epochs
+from adapt_collection_class import apply as adapt_collection_class
 
 
 def replace_once(path, old, new):
@@ -548,6 +549,10 @@ def main():
     # array walks its textures when one of them was signalled dirty, invalidated or added, or when the use clock ticks,
     # not three times at every update (Texture.cs, TextureBindingsArrayCache.cs).
     adapted += adapt_array_sync_epochs(source)
+    # Core 745 (same increment; IPA 729 Hogwarts: ephemeral collections of a few MiB stopping the engine for 364-720 ms):
+    # a collection that stops the engine runs in the user-interactive class whichever thread triggers it, and each one
+    # is accounted by the class of the thread that ran it (EmbeddedSession.cs).
+    adapted += adapt_collection_class(source)
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -692,7 +697,7 @@ def main():
                  'adapt_array_storage_counts.py',
                  'adapt_submit_causes.py', 'adapt_build_journal_load_wait.py',
                  'adapt_nifm_network_watch.py', 'adapt_paced_strict_syncs.py', 'adapt_sibling_pipelines.py',
-                 'adapt_array_sync_epochs.py']:
+                 'adapt_array_sync_epochs.py', 'adapt_collection_class.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

@@ -206,6 +206,8 @@ LOT_FILES = {
     'adapt_sibling_pipelines': ['src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs'],
     # Core 745: a bound texture array walks its textures when one needs it (the files of it in this composition).
     'adapt_array_sync_epochs': [],
+    # Core 745: collections run in the user-interactive class (no file of this lot).
+    'adapt_collection_class': [],
 }
 
 checks = 0

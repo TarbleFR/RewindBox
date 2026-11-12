@@ -96,7 +96,8 @@
   "build-utils/melonx/adapt_nifm_network_watch.py",
   "build-utils/melonx/adapt_paced_strict_syncs.py",
   "build-utils/melonx/adapt_sibling_pipelines.py",
-  "build-utils/melonx/adapt_array_sync_epochs.py"
+  "build-utils/melonx/adapt_array_sync_epochs.py",
+  "build-utils/melonx/adapt_collection_class.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -336,7 +337,8 @@
   "test/melonx_nifm_network_watch/Program.cs",
   "test/melonx_paced_strict_syncs/Program.cs",
   "test/melonx_sibling_pipelines/Program.cs",
-  "test/melonx_array_sync_epochs/Program.cs"
+  "test/melonx_array_sync_epochs/Program.cs",
+  "test/melonx_collection_class/Program.cs"
  ],
  "fixtureProductionInputs": [
   "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs",
@@ -4516,6 +4518,31 @@
    "requiredPostimages": [
     "src/Ryujinx.Graphics.Gpu/Image/Texture.cs",
     "src/Ryujinx.Graphics.Gpu/Image/TextureBindingsArrayCache.cs"
+   ]
+  },
+  {
+   "name": "collection-class",
+   "script": "test/melonx_collection_class_test.py",
+   "report": "collection-class-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 3600,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false,
+    "productionLibraryAssemblyBuilt": true,
+    "utilityCollectionsRaised": 25,
+    "bytesAllocatedInsideCollections": 0,
+    "mostOverridesAtOnce": 1
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Library/EmbeddedSession.cs"
    ]
   }
  ]
