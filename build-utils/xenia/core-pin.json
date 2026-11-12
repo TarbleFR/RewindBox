@@ -1,23 +1,23 @@
 {
   "status": "verified",
   "source": "cf7c7ee452314913124d205e41e325b33891aacb",
-  "run": 43143255347,
-  "job": 130936110043,
-  "attempt": 1,
+  "run": 43158794942,
+  "job": 130987235752,
+  "attempt": 2,
   "workflow": ".github/workflows/xenia-core.yml",
-  "artifact": 13911882257,
-  "name": "XeniaCore-06a580d41d213f3c6d74054a8b8707e09f7b6148",
-  "bytes": 9533084,
-  "sha256": "802e6af8b9af6290cfe0f0b1bb579142641c7d6b296bcf521b276ea07c773563",
-  "expiresAt": "2026-11-26T03:12:37Z",
+  "artifact": 13918817166,
+  "name": "XeniaCore-c579a0e7be4681610fc54b43ac7cd0448b060ac7",
+  "bytes": 9533042,
+  "sha256": "cc266472c32810288097c77d44fec698d81dee37d5c56b5637a2b91b492f9b96",
+  "expiresAt": "2026-11-26T05:43:53Z",
   "image": "Frameworks/XeniaCore.framework/XeniaCore",
   "binaries": {
     "ios-arm64": {
-      "sha256": "86b26e13ea8205962fc16e7f593ad5654930e507e92e38e9d7c3b18e3dd05570",
-      "bytes": 37719560
+      "sha256": "8da52f76fd511d691441f188f744f02d8fc2141fca3dda316b160ae68474ee70",
+      "bytes": 37719960
     }
   },
-  "packagedFingerprint": "d386ae411b8b60d586af9b816c83e5938c3878c7135db6d3ba402e552d87f1f3",
+  "packagedFingerprint": "d5fe8a7cda560ca215968fdaaf6275632323ae560bbe373516a532b45710f2c2",
   "minimumOS": "26.0.0",
   "sdk": "26.5.0",
   "dependencies": [
@@ -153,9 +153,9 @@
   },
   "replaces": {
     "source": "cf7c7ee452314913124d205e41e325b33891aacb",
-    "run": 43126203790,
-    "artifact": 13904214253,
-    "packagedFingerprint": "97e0827169312b47ac8fa5479080100e9e8f4cddaed5073321fa79d4ccfdf9cd",
-    "reason": "Core ABI 3: guest frame counter for the in-game performance overlay; widescreen and internal_display_resolution managed keys"
+    "run": 43143255347,
+    "artifact": 13911882257,
+    "packagedFingerprint": "d386ae411b8b60d586af9b816c83e5938c3878c7135db6d3ba402e552d87f1f3",
+    "reason": "Core ABI 4: the JIT code region below 8 GB is held from RewindBox's launch (first device run closed RewindBox: no room for the code region); fatal-error record"
   }
 }
