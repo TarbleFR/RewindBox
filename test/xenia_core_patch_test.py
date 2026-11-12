@@ -169,6 +169,11 @@ def check_patch() -> None:
                    'extern "C" void NeoXeniaNotifyGuestSwap(void) {', 'int GetStats(NeoXeniaStats* out) {'):
         if symbol not in facade:
             fail(f'{symbol} not defined by XeniaCore.mm')
+    # XeniOS binds guest slots only to enumerated devices: the host pad must be one.
+    driver = (CORE / 'XeniaCoreInput.h').read_text()
+    if 'std::vector<xe::hid::InputDeviceInfo> EnumerateDevices() override' not in driver or \
+            'info.auto_bind = true;' not in driver or 'info.preferred_slot = 0;' not in driver:
+        fail('NeoXeniaInputDriver does not enumerate the host pad for slot 0')
     if (CORE / 'exports.txt').read_text().split() != ['_NeoXenia_GetAPI']:
         fail('exports.txt must list only _NeoXenia_GetAPI')
     managed = re.search(r'kManagedKeys\[\] = \{(.*?)\};', facade, re.S).group(1)

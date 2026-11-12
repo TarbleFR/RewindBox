@@ -454,6 +454,22 @@ Fix: the patch calls `NeoXeniaApplyHostRoots()` right after
 microphone guard), and the facade sets the four cvars again from the roots of
 the first `prepare` before OnInitialize reads `content_root` and `cache_root`.
 
+**Third device run (first boot, Fable Anniversary)**: the launch journal shows
+every stage through `launched` (boot 6 s, about 2170 guest frames), but neither
+the touch controls nor the controller reached the title. XeniOS's
+`InputSystem` reaches a driver only through guest-slot bindings it builds from
+the devices drivers enumerate (`ReconcileBindings`, first at
+`InputSystem::Setup`, input_system.cc:53-58 and 483-600); our
+`NeoXeniaInputDriver` enumerated none, so slot 0 stayed empty. It now lists the
+host pad as one auto-bound device for slot 0 (`rewindbox-host-pad`), as XeniOS's
+touch overlay does (touch_input_driver_ios.cc:380-393); the facade C++ check
+asserts it. The next launch was refused (`registration: noRoom (flag), largest
+free below 8 GB 442 MiB`, where the booted launch had 687 MiB): at plugin
+registration the Flutter engine, the Dart VM and UIKit already hold part of the
+low address space. The reservation now runs in a constructor of the bridge
+image (`XeniaReserveCodeRegionAtLoad`), before them; it reads the flag with
+CoreFoundation preferences, and `registration` reports `… at image load`.
+
 **IPA wiring, for the main session** (delivery files, not edited here):
 call `build-utils/configure_xenia_ios.py` after the XeniaCore pin (it
 requires `dist/xenia/XeniaCore.framework`), add the `XeniaJITHelper` pod

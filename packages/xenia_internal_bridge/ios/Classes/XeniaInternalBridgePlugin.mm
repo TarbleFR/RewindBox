@@ -154,6 +154,30 @@ static BOOL XeniaHasImportedGames(void) {
   return NO;
 }
 
+// The reservation runs when this image loads, before UIKit, the Flutter engine
+// and the Dart VM take their share of the address space below 8 GB. At plugin
+// registration it was too late: 687 MiB free in one launch, 442 MiB in the next
+// (third device run), below the 512 MiB the code region needs. Only the
+// CoreFoundation preference, the bundle and a directory listing are read here.
+__attribute__((constructor)) static void XeniaReserveCodeRegionAtLoad(void) {
+  @autoreleasepool {
+    if (!XeniaSupportedOS() || ![NSFileManager.defaultManager fileExistsAtPath:XeniaFrameworkPath()]) {
+      gXeniaRegistration = @"notRequested (no Core or iOS below 26)";
+      return;
+    }
+    Boolean valid = false;
+    const BOOL flagged = CFPreferencesGetAppBooleanValue((__bridge CFStringRef)kXeniaReserveCodeRegionKey,
+                                                         kCFPreferencesCurrentApplication, &valid) && valid;
+    const BOOL games = !flagged && XeniaHasImportedGames();
+    const uint64_t free_mib = XeniaLargestFreeBelowLimitMiB();
+    if (flagged || games) gXeniaHostCodeRegion = XeniaReserveCodeRegion();
+    gXeniaRegistration = [NSString stringWithFormat:@"%@ at image load (%@), largest free below 8 GB %llu MiB",
+                          !(flagged || games) ? @"notRequested" : gXeniaHostCodeRegion ? @"reserved" : @"noRoom",
+                          flagged ? @"flag" : games ? @"imported games" : @"no flag, no imported game",
+                          free_mib];
+  }
+}
+
 static UIViewController* XeniaTopViewController(void) {
   UIWindow* keyWindow = nil;
   for (UIScene* scene in UIApplication.sharedApplication.connectedScenes) {
@@ -580,18 +604,7 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
 }
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
-  // First, before the app fills the address space below 8 GB.
-  if (XeniaSupportedOS() && [NSFileManager.defaultManager fileExistsAtPath:XeniaFrameworkPath()]) {
-    const BOOL flagged = [NSUserDefaults.standardUserDefaults boolForKey:kXeniaReserveCodeRegionKey];
-    const BOOL games = !flagged && XeniaHasImportedGames();
-    const uint64_t free_mib = XeniaLargestFreeBelowLimitMiB();
-    if (flagged || games) gXeniaHostCodeRegion = XeniaReserveCodeRegion();
-    gXeniaRegistration = [NSString stringWithFormat:@"%@ (%@), largest free below 8 GB %llu MiB",
-                          !(flagged || games) ? @"notRequested" : gXeniaHostCodeRegion ? @"reserved" : @"noRoom",
-                          flagged ? @"flag" : games ? @"imported games" : @"no flag, no imported game",
-                          free_mib];
-    NSLog(@"[Xenia] code region at registration: %@", gXeniaRegistration);
-  }
+  NSLog(@"[Xenia] code region at image load: %@", gXeniaRegistration);
   XeniaInternalBridgePlugin* plugin = [[XeniaInternalBridgePlugin alloc] init];
   plugin.channel = [FlutterMethodChannel methodChannelWithName:kXeniaChannel
                                                binaryMessenger:registrar.messenger];
