@@ -5458,7 +5458,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       literal; both fail on the previous plugin).
     - Validation: local Python contracts pass (bridge 139, session menu, storage, pinned engine, empty hint, Switch 1
       core-loaded, Glacier tile review). CI: iOS compile 43180244951 green on `5d98e8b5`; library 43180244946 red, 192
-      passed and 1 failed (my German check, fixed in `ee192c10`). Final runs: see the handoff. Not observed on a device.
+      passed and 1 failed (my German check, fixed in `ee192c10`). Final: iOS compile 43180772112 green on `c1197b11`
+      (the last native change); `flutter analyze`, tests and Python contracts 43180929784 green on `ee192c10`. Sent to
+      main for the next IPA. Not observed on a device.
     - With Claude `051a3691` the Consoles page no longer loads the Switch 1 engine. The `switch1EngineLoaded` refusal
       should then appear only after a Switch 1 game in the same session.
   - Main withdrew the launcher deletion (12 Nov): it stays as is. Formerly open: delete the launcher (`.github/diagnostics/s2arm/`, `s2arm-delivery.yml`,
