@@ -258,6 +258,16 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### Common IPA — main Claude Code
 
+- **Handoff waiting for main, sent at the maintainer's request (12 Nov, MeloNX lot 10, session
+  `01JA5QgKeoGVH5oVjNyhcj3D`; a direct message to main's session is refused as "not found", so it is recorded here).**
+  Goal: the six lot 10 adapters in a Core and an IPA. State: ready on `work/melonx-lot10-20261112`, head `7040c3e1`
+  (18 commits `Claude` does not have: adapters, gates, proposed wiring for `prepare_embedded.py`, `ORDER`, the plan's
+  104 gates, the contract test, `FRESH_GATES`); `Claude` has not touched those files since the branch point
+  `e602b6aa`. Evidence: host gates and two macOS arm64 runs only, no device result
+  ([lot entry](#melonx-fps-memory-black-launch-and-artifacts--existing-owner),
+  [handoff](evidence/melonx-lot10/handoff.md)). Next, by main: take the branch (fallbacks: `8f71c4e1` four adapters,
+  `d3d83cc0` five), choose the Core number (the branch says 745), freeze, Core CI, pin, next IPA with the bridge
+  capture commits, record the IPA's `coreSHA256`.
 - **Maintainer, 12 Nov: no IPA before sessions 03 (XeniOS) and 04 (Switch 2) finish their new instructions and send
   their changes; then main integrates both and compiles the next IPA.** MeloNX Core 737 pinned (`277ea289`); Core 934
   request 2 compiling (run `43136576356`), local driver green.
