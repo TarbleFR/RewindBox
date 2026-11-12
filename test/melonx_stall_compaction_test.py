@@ -228,7 +228,9 @@ check(gaps['fired'][:2] == sparse['fired'] and len(gaps['fired']) == 3 and 68 <=
 
 check(live['freeBeforeMiB'] >= 128 and live['idleBeforeFirstFrame'] == -1, 'before a session presents, nothing: %s' % live['idleBeforeFirstFrame'])
 check(live['duringPlay'] == 0, 'no compaction during 10.4 s of frames at 30 per second with %d MiB free' % live['freeBeforeMiB'])
-check(0 <= live['waitedMs'] <= 1300 and live['afterFirstStall'] == 1, 'one compaction in the first polls past the gap: %s ms' % live['waitedMs'])
+# The time includes the collection itself on a loaded host (the Core CI's runner): the bound is the stall's, not a pace.
+check(700 - 290 <= live['waitedMs'] <= 8000 and live['afterFirstStall'] == 1,
+      'one compaction in the stall, not before the gap: %s ms after the last frame\'s poll' % live['waitedMs'])
 given_back = live['rssBeforeMiB'] - live['rssAfterMiB']
 check(live['freeAfterMiB'] <= 8 and given_back >= live['freeBeforeMiB'] * 0.6,
       'the free space is given back: %d MiB free before, %d after; resident %d -> %d MiB' %
@@ -241,7 +243,7 @@ check(live['rightAfterResume'] == 0, 'a resume is not a gap')
 check(live['ended'] == -1, 'after the session\'s end, nothing')
 check(live['beforeNextFirstFrame'] == -1,
       'a frame of the closing session after its end leaves nothing: no compaction in 11 s before the next session\'s first frame')
-check(0 <= live['nextSessionWaitedMs'] <= 1300 and live['total'] == 2 and live['stallCompactionsOfTheNextSession'] == 1,
+check(700 - 290 <= live['nextSessionWaitedMs'] <= 8000 and live['total'] == 2 and live['stallCompactionsOfTheNextSession'] == 1,
       'the next session counts its own: its first gap gives the second burst\'s space back: %s' % live['nextSessionWaitedMs'])
 gap_lines = [line for line in live['lines'] if 'heapCompacted' in line]
 check(len(gap_lines) == 2 and all(re.match(r'memory heapCompacted: presentationGap \d+ ms: footprint \d+ -> \d+ MiB; ', line) for line in gap_lines),

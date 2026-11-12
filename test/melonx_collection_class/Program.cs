@@ -61,8 +61,10 @@ static unsafe class Host
     }
     static void Lower(nint token) { Lowers++; Interlocked.Decrement(ref Alive); }
     static ulong Clock(int clock) { Timespec time; clock_gettime(clock, &time); return (ulong)time.Seconds * 1_000_000_000UL + (ulong)time.Nanoseconds; }
-    static ulong WallNs() => Clock(1); // CLOCK_MONOTONIC
-    static ulong CpuNs() => Clock(3);  // CLOCK_THREAD_CPUTIME_ID
+    // CLOCK_MONOTONIC and CLOCK_THREAD_CPUTIME_ID: 1 and 3 on Linux, 6 and 16 on macOS (the Core CI runs this gate there).
+    static readonly int WallClock = OperatingSystem.IsMacOS() ? 6 : 1, CpuClock = OperatingSystem.IsMacOS() ? 16 : 3;
+    static ulong WallNs() => Clock(WallClock);
+    static ulong CpuNs() => Clock(CpuClock);
 
     public static void Install()
     {
@@ -283,6 +285,34 @@ static unsafe class Program
             return new JsonObject { ["requests"] = requests };
         });
 
+        // 6b. A background collection with nothing to collect first, made on purpose: large blocks only, so the old
+        //     generation's budget runs out while the young one's does not. Its override is still in force when the
+        //     allocation returns; the poll ends it.
+        var lingering = On(() =>
+        {
+            Host.SetClass(CollectionClass.Default);
+            List<byte[]> keep = new();
+            Random random = new(5);
+            long polls = CollectionClass.EndedAfterRestart;
+            int seen = 0, allocations = 0;
+            bool inForceAfterRelease = false;
+            for (; allocations < 20000 && CollectionClass.EndedAfterRestart - polls < 2; allocations++)
+            {
+                keep.Add(new byte[256 * 1024 + random.Next(1 << 20)]);
+                if (keep.Count > 300) keep.RemoveRange(0, 100);
+                if (CollectionClass.OverrideInForce)
+                {
+                    seen++;
+                    CollectionClass.ReleaseAfterRestart();
+                    inForceAfterRelease |= CollectionClass.OverrideInForce;
+                }
+            }
+            keep.Clear();
+            WaitForBackground(-1);
+            return new JsonObject { ["allocations"] = allocations, ["seenInForce"] = seen, ["endedByPoll"] = CollectionClass.EndedAfterRestart - polls,
+                ["inForceAfterRelease"] = inForceAfterRelease, ["alive"] = Host.Alive, ["inForceAfter"] = CollectionClass.OverrideInForce };
+        });
+
         // 7. The collections the macOS measurement uses (an old array that keeps receiving new objects): their cost here.
         var surviving = On(() =>
         {
@@ -302,7 +332,7 @@ static unsafe class Program
         JsonObject marked = new JsonObject { ["starts"] = CollectionClass.Starts, ["raised"] = CollectionClass.Raised,
             ["utility"] = CollectionClass.Of(CollectionClass.Utility).Count, ["describe"] = CollectionClass.Describe() };
         return new JsonObject {
-            ["mode"] = "host", ["registered"] = first, ["registeredAgain"] = second, ["utility"] = utility, ["interactive"] = interactive, ["unspecified"] = unspecified, ["allocation"] = allocation, ["off"] = off, ["stress"] = stress, ["polled"] = polled, ["background"] = background, ["surviving"] = surviving,
+            ["mode"] = "host", ["registered"] = first, ["registeredAgain"] = second, ["utility"] = utility, ["interactive"] = interactive, ["unspecified"] = unspecified, ["allocation"] = allocation, ["off"] = off, ["stress"] = stress, ["polled"] = polled, ["background"] = background, ["lingering"] = lingering, ["surviving"] = surviving,
             ["platform"] = new JsonObject { ["raises"] = Host.Raises, ["lowers"] = Host.Lowers, ["alive"] = Host.Alive, ["mostAlive"] = Host.MostAlive, ["unknownThread"] = Host.UnknownThread },
             ["raised"] = raisedInAll, ["describe"] = describe, ["marked"] = marked
         };
