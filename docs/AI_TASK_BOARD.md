@@ -4860,8 +4860,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       melonx_core_loaded_test.py 8 checks (fails on the previous plugin); melonx_embedded_route_test.dart (probes ask
       "availability" only, never "diagnostics"); melonx_presentation (real plugin in UIKit on the simulator: availability
       before any load constructs no runtime and marks nothing; after the launch path's single load it reports the engine
-      loaded). Local: Flutter 45 tests passed; the Swift scenario needs macOS: runs 43176758764 (melonx-host),
-      43176746291 (stall watch), 43176762671 (integration). Pre-existing, unrelated failures seen on this head:
+      loaded). Local: Flutter 45 tests passed. macOS on 051a3691: melonx-host 43176758764 green (the registered
+      plugin in UIKit: 28 checks, the four availability checks among them; old control reproduced); stall watch
+      43176746291 green; melonx-integration 43176762671: analysis and the console scenarios (these tests) green, then
+      red at retroarch_baseline_scope_test.py (7 failures on scanning.dart, config_service.dart and Store.cpp, files
+      this fix does not touch, changed by the Switch 2 and XeniOS work 3712b522 and 74f668c2; reproduced locally on
+      Claude 3d2645ea's bytes). Pre-existing, unrelated failures seen on this head:
       melonx_hogwarts_graphics_test.py expects 11 translations and finds 12 since zh_Hant joined (only the historical
       rewind599-601 workflows run it); rewind604_delivery_contract_test.py and melonx_capture_journal_test.py (historical).
     - **Device protocol for the next private IPA (Core 743, or 741 without the split):** Hogwarts Legacy, same save, 3-5
