@@ -249,7 +249,11 @@ class WithTheIdentityFile(unittest.TestCase):
             'dotnet/Microsoft.NETCore.App.Runtime.NativeAOT.ios-arm64/THIRD-PARTY-NOTICES.TXT',
             'dotnet/Microsoft.DotNet.ILCompiler/THIRD-PARTY-NOTICES.TXT',
             'libvpx/LICENSE', 'libvpx/PATENTS', CODEC + '/COPYING', 'dav1d/COPYING', 'glslang/LICENSE.txt',
-            'bcdec/LICENSE', 'ns2pro-bridge/LICENSE', 'Ryujinx/LICENSE.txt', 'SPIRV-Cross/LICENSE'))
+            'bcdec/LICENSE', 'ns2pro-bridge/LICENSE', 'Ryujinx/LICENSE.txt', 'SPIRV-Cross/LICENSE',
+            'dotnet/Gommon/content/LICENSE', 'dotnet/Open.Nat.V2/LICENSE', 'dotnet/Ryujinx.LibHac/LICENSE',
+            'dotnet/System.IO.Hashing/THIRD-PARTY-NOTICES.TXT', 'System.IO.Hashing/LICENSE.TXT',
+            'Humanizer/license.txt', 'RecyclableMemoryStream/LICENSE', 'NetCoreServer/LICENSE', 'MsgPack.Cli/LICENSE.txt',
+            'deko3d/LICENSE'))
         for path in legal.S2ARM_REQUIRED_NOTICES:
             with self.subTest(missing=path):
                 texts = {name: data for name, data in notice_files().items()
