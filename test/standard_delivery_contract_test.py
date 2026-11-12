@@ -1216,8 +1216,10 @@ class PinnedEngineSchema(unittest.TestCase):
                                      appResources=[{'path': 'a.bin', 'binary': 'k'}]), [])
 
     def test_the_closed_lists_hold_the_xenia_recipe(self):
-        self.assertEqual(sd.PINNED_ENGINE_VERIFIERS, ('build-utils/xenia/core_pin.py',))
-        self.assertEqual(sd.PINNED_ENGINE_CHECKS, ('build-utils/xenia/check_app_shader_converter.py',))
+        # XeniaCore's entries first, then S2Arm's (the second instance of the kind); the lists stay closed.
+        self.assertEqual(sd.PINNED_ENGINE_VERIFIERS, ('build-utils/xenia/core_pin.py', 'build-utils/s2arm/engine_pin.py'))
+        self.assertEqual(sd.PINNED_ENGINE_CHECKS, ('build-utils/xenia/check_app_shader_converter.py',
+                                                   'build-utils/s2arm/check_app.py'))
         self.assertEqual(sd.PINNED_ENGINE_SIDE_SOURCES, (XENIA_SOURCE,))
         for path in sd.PINNED_ENGINE_VERIFIERS + sd.PINNED_ENGINE_CHECKS:
             self.assertTrue((ROOT / path).is_file(), path)
