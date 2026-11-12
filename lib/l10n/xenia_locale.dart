@@ -121,6 +121,7 @@ abstract final class XeniaLocale {
       'session_thermalSerious': "Hot",
       'session_thermalCritical': "Critical",
       'session_saveFailed': "Setting not saved.",
+      'jitMemoryUnavailable': "XeniOS could not get the memory it needs for JIT in this session. Close RewindBox from the app switcher, reopen it, then start the Xbox 360 game again.",
     },
     'es': <String, String>{
       'importMenu': "XeniOS / Importar",
@@ -239,6 +240,7 @@ abstract final class XeniaLocale {
       'session_thermalSerious': "Alta",
       'session_thermalCritical': "Crítica",
       'session_saveFailed': "Ajuste no guardado.",
+      'jitMemoryUnavailable': "XeniOS no pudo obtener la memoria que necesita para el JIT en esta sesión. Cierra RewindBox desde el selector de apps, ábrelo de nuevo y vuelve a iniciar el juego de Xbox 360.",
     },
     'ru': <String, String>{
       'importMenu': "XeniOS / Импорт",
@@ -357,6 +359,7 @@ abstract final class XeniaLocale {
       'session_thermalSerious': "Горячее",
       'session_thermalCritical': "Критическая",
       'session_saveFailed': "Настройка не сохранена.",
+      'jitMemoryUnavailable': "XeniOS не удалось получить память, нужную для JIT, в этом сеансе. Закройте RewindBox в переключателе приложений, откройте его снова и запустите игру Xbox 360 ещё раз.",
     },
     'zh': <String, String>{
       'importMenu': "XeniOS / 导入",
@@ -475,6 +478,7 @@ abstract final class XeniaLocale {
       'session_thermalSerious': "过热",
       'session_thermalCritical': "严重",
       'session_saveFailed': "设置未保存。",
+      'jitMemoryUnavailable': "XeniOS 在本次会话中无法获得 JIT 所需的内存。请在应用切换器中关闭 RewindBox，重新打开后再启动该 Xbox 360 游戏。",
     },
     'zh_Hant': <String, String>{
       'importMenu': "XeniOS / 匯入",
@@ -593,6 +597,7 @@ abstract final class XeniaLocale {
       'session_thermalSerious': "過熱",
       'session_thermalCritical': "嚴重",
       'session_saveFailed': "設定未儲存。",
+      'jitMemoryUnavailable': "XeniOS 在本次工作階段中無法取得 JIT 所需的記憶體。請在 App 切換器中關閉 RewindBox，重新開啟後再啟動該 Xbox 360 遊戲。",
     },
     'pt': <String, String>{
       'importMenu': "XeniOS / Importar",
@@ -711,6 +716,7 @@ abstract final class XeniaLocale {
       'session_thermalSerious': "Quente",
       'session_thermalCritical': "Crítica",
       'session_saveFailed': "Ajuste não salvo.",
+      'jitMemoryUnavailable': "O XeniOS não conseguiu obter a memória necessária para o JIT nesta sessão. Feche o RewindBox no seletor de apps, abra-o novamente e inicie o jogo de Xbox 360 outra vez.",
     },
     'fr': <String, String>{
       'importMenu': "XeniOS / Importer",
@@ -829,6 +835,7 @@ abstract final class XeniaLocale {
       'session_thermalSerious': "Très chaude",
       'session_thermalCritical': "Critique",
       'session_saveFailed': "Réglage non enregistré.",
+      'jitMemoryUnavailable': "XeniOS n’a pas pu obtenir la mémoire nécessaire au JIT dans cette session. Fermez RewindBox depuis le sélecteur d’apps, rouvrez-le, puis relancez le jeu Xbox 360.",
     },
     'de': <String, String>{
       'importMenu': "XeniOS / Import",
@@ -947,6 +954,7 @@ abstract final class XeniaLocale {
       'session_thermalSerious': "Heiß",
       'session_thermalCritical': "Kritisch",
       'session_saveFailed': "Einstellung nicht gespeichert.",
+      'jitMemoryUnavailable': "XeniOS konnte in dieser Sitzung nicht den Speicher erhalten, den es für JIT braucht. Schließe RewindBox im App-Umschalter, öffne es erneut und starte das Xbox-360-Spiel noch einmal.",
     },
     'it': <String, String>{
       'importMenu': "XeniOS / Importa",
@@ -1065,6 +1073,7 @@ abstract final class XeniaLocale {
       'session_thermalSerious': "Alta",
       'session_thermalCritical': "Critica",
       'session_saveFailed': "Impostazione non salvata.",
+      'jitMemoryUnavailable': "XeniOS non ha potuto ottenere la memoria necessaria al JIT in questa sessione. Chiudi RewindBox dal selettore delle app, riaprilo e avvia di nuovo il gioco Xbox 360.",
     },
     'id': <String, String>{
       'importMenu': "XeniOS / Impor",
@@ -1183,6 +1192,7 @@ abstract final class XeniaLocale {
       'session_thermalSerious': "Panas",
       'session_thermalCritical': "Kritis",
       'session_saveFailed': "Pengaturan tidak tersimpan.",
+      'jitMemoryUnavailable': "XeniOS tidak dapat memperoleh memori yang diperlukan untuk JIT di sesi ini. Tutup RewindBox dari pengalih aplikasi, buka lagi, lalu jalankan kembali game Xbox 360.",
     },
     'ja': <String, String>{
       'importMenu': "XeniOS / 読み込み",
@@ -1301,6 +1311,7 @@ abstract final class XeniaLocale {
       'session_thermalSerious': "高温",
       'session_thermalCritical': "危険",
       'session_saveFailed': "設定を保存できませんでした。",
+      'jitMemoryUnavailable': "このセッションでは、XeniOS が JIT に必要なメモリを確保できませんでした。App スイッチャーで RewindBox を終了してから再度開き、Xbox 360 ゲームをもう一度起動してください。",
     },
     'ko': <String, String>{
       'importMenu': "XeniOS / 가져오기",
@@ -1419,6 +1430,7 @@ abstract final class XeniaLocale {
       'session_thermalSerious': "뜨거움",
       'session_thermalCritical': "위험",
       'session_saveFailed': "설정이 저장되지 않았습니다.",
+      'jitMemoryUnavailable': "이번 세션에서 XeniOS가 JIT에 필요한 메모리를 확보하지 못했습니다. 앱 전환기에서 RewindBox를 닫고 다시 연 다음 Xbox 360 게임을 다시 시작하세요.",
     },
   };
 
@@ -1452,7 +1464,8 @@ abstract final class XeniaLocale {
     'shaderConverterMissing' ||
     'pairingRequired' ||
     'jitAttachFailed' ||
-    'jitHelperIncomplete' => error!,
+    'jitHelperIncomplete' ||
+    'jitMemoryUnavailable' => error!,
     'jitHandshakeFailed' => 'jitAttachFailed',
     'jitDetachFailed' => 'jitHelperIncomplete',
     _ => 'launchFailed',

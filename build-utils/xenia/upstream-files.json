@@ -18,5 +18,6 @@
   "src/xenia/cpu/backend/jit_memory_ios.cc": "02d4fedb27183494c1d594722a881228aeec037e074cc6e086ccaee1e92ff716",
   "src/xenia/ui/ios/CMakeLists.txt": "67a462642e06e9d5661727c26b16ce498efa608cced67bc0713d44e17c1b9ac6",
   "src/xenia/ui/ios/app/ios_external_display.mm": "5f862f17103417cb12ff7be76f1c50bdd8184c18d73c0632ecb29152be1281ab",
-  "src/xenia/ui/ios/shared/ios_state_reporting.mm": "ee2535e35c5dcef49a35eabe429dcaa98b53fba6a2c9a6837203c6e6d8d109f1"
+  "src/xenia/ui/ios/shared/ios_state_reporting.mm": "ee2535e35c5dcef49a35eabe429dcaa98b53fba6a2c9a6837203c6e6d8d109f1",
+  "src/xenia/base/system_ios.h": "29b2ea2e364ad71a8eb57ddfab2406a9ad84aa75bc47745ad968222b22f68ab9"
 }

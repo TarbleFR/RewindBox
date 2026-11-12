@@ -48,7 +48,7 @@ jobs:
           import json, os, re
           from pathlib import Path
           source = json.loads(Path('build-utils/xenia/source.json').read_text())
-          assert source['abi_version'] == 3
+          assert source['abi_version'] == 4
           assert source['repository'] == 'https://github.com/xenios-jp/XeniOS.git'
           assert re.fullmatch('[0-9a-f]{40}', source['revision'])
           with open(os.environ['GITHUB_OUTPUT'], 'a') as output:

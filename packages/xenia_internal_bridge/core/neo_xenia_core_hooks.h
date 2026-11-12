@@ -29,6 +29,11 @@ void NeoXeniaNotifyTitleLaunched();
 // (MetalCommandProcessor::IssueSwap, a weak reference added by the patch).
 extern "C" void NeoXeniaNotifyGuestSwap(void);
 
+// Defined by the patch in jit_memory_ios.cc: hands the host's code-region
+// reservation to IOSJitMemory when its own found no room below 8 GB.
+// Returns a NEO_XENIA_CODE_REGION_* value (XeniaCoreABI.h).
+extern "C" int NeoXeniaAdoptExecuteRegion(void* reservation, size_t size);
+
 // The only input driver of the embedded Core: user 0, fed by the host.
 std::unique_ptr<xe::hid::InputDriver> NeoXeniaCreateInputDriver(
     xe::ui::Window* window, size_t window_z_order);
