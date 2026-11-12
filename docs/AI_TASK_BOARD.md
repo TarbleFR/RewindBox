@@ -5261,7 +5261,7 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 - **MeloNX lot 10: correction lots on the IPA 729 / Core 743 findings (Claude Code session 01JA5QgKeoGVH5oVjNyhcj3D,
   12 Nov; owner: this session for the adapters, their gates, the capture tooling and the proposed wiring; main owns the
   Core number, the freeze, Core CI, the pin and any IPA; branch `work/melonx-lot10-20261112` from `Claude` `e602b6aa`,
-  head `8f71c4e1`; no contract frozen, no Core built, no pin; IPA 730-732 keep Core 743):** full state per lot, proofs,
+  head `7040c3e1`; no contract frozen, no Core built, no pin; IPA 730-733 keep Core 743):** full state per lot, proofs,
   expected device figures and refutation criteria in [the handoff](evidence/melonx-lot10/handoff.md). Nothing below has
   a device result: "host gate passed" and "wired" do not mean corrected on the iPhone.
   - **Before (IPA 729, private journals, pid 58475):** Hogwarts 147 s of play, 17.7 presented frames/s, p50/p95/p99
@@ -5282,19 +5282,37 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - **L6 warmed variants missed at the draw (every title):** `adapt_sibling_pipelines` (host programs of one code on
     one layout entry share their pipelines; 729: 13 "built but missed"). Gate `sibling-pipelines` 62 checks. Independent
     review: no lifetime, locking or bind-validity defect. Device: 13 -> 2 or fewer, a `pipelineSiblings` line.
-  - **L3 memory during a first Hogwarts session: nothing reduced by this lot.** Graphics resources: no change, no
-    further safe release identified from this capture. Native heap (about 500 MiB of MoltenVK and Metal shader and
-    pipeline objects): lot for the MeloNX owner in the handoff (eight stacks, 409 MiB in the first four, to symbolicate
-    and treat). Managed heap (LOH 478 MiB of which 190 free): no change, blocked on attribution by size class.
-  - **L4 GC freezes:** mechanism not decided, no change; the deciding measure is the bridge capture's freeze records.
-    **L7 heat:** nothing claimed; read from a 20-minute run of the next IPA.
-  - **Local gates (Linux host):** three-adapter preparation 101 of 101 (hogwarts-dma-copies only when run alone, a
-    load-sensitive timing); four-adapter preparation: the ten gates that read its two changed files; the others not
-    run again on it. Contract test helpers 55 checks; the composition checks need the freeze.
-  - **Handoff to main:** take the branch (wiring proposed in `prepare_embedded.py`, `ORDER`, the plan's four gates, the
-    contract test's expectations, `FRESH_GATES` 102; without its last three commits the branch at `40cba346` is the
-    three-adapter proposal; `origin/Claude` has not touched these files since the branch point); choose the Core number
-    (the branch says 745); freeze, Core CI, pin; next IPA (the 733 queue) with that Core and the bridge capture
+  - **L3 memory during a first Hogwarts session, per item.** *Managed heap:* `adapt_stall_compaction` (729: the
+    first-frame compaction leaves the LOH at 266 MiB; the loading's bursts, GPU thread 275 and 216 MiB in two 5 s
+    windows, leave 455 MiB with 165-234 MiB free for the whole session; the host pause's compaction at the end gave
+    306 MiB of footprint back). The existing compaction now also runs when no frame was presented for 700 ms, with
+    128 MiB or more free, the device at 15 % or less, 10 s after the first frame, 8 s after the last compaction, three
+    times a session at most, never in a host pause. Gate `stall-compaction` 100 checks: none during 10.4 s of frames,
+    one 840 ms into a gap (171 MiB free -> 0, resident 449 -> 283 MiB); replayed on the 729 session it fires in the
+    loading stalls of the 36th and 46th seconds, never in the 76 s of play after. Device: `heapCompacted
+    presentationGap` lines with the footprint before and after. *Graphics resources:* no change, nothing saved; the
+    Vulkan images hold 2.9 times the texture cache's guest bytes and the capture cannot say why (image bytes by kind
+    are missing). *Native heap* (about 500 MiB of MoltenVK and Metal shader and pipeline objects): no change by this
+    session; lot for the MeloNX owner in the handoff.
+  - **L4 GC freezes (every title):** `adapt_collection_class` (729: ephemeral collections promoting 0.1-2.2 MiB stop
+    the engine for 364-720 ms; a blocking collection runs on the thread that triggered it, in a lower class than the
+    guest's threads, which it does not stop). The collecting thread gets a user-interactive override for the
+    collection's duration through the runtime's collection callouts; one journal line per session gives, per class of
+    collecting thread, count, wall and CPU time. Gate `collection-class` 91 checks. macOS arm64, the class compiled
+    ahead of time with the real runtime under user-interactive native load (runs 43323499544, 43326597266): the
+    collections of a utility thread take 10 198 and 9 839 ms for 493 and 479 ms of CPU without the override (the
+    longest 890 ms for 31 ms), 511 and 536 ms with it. Device: low-promotion pauses under 33 ms, the `gcPause class`
+    line with wall within 1.5 times CPU; removed if the pauses stay with wall near CPU. **L7 heat:** nothing changed,
+    nothing claimed (729: thermal state nominal or fair over 6 minutes); read from a 20-minute run of the next IPA.
+  - **Local gates (Linux host):** three-adapter preparation 101 of 101 (hogwarts-dma-copies only when run alone);
+    four-adapter: the ten gates that read its two files; six-adapter (plus collection class and stall compaction): the
+    twelve gates that read their three files and hogwarts-dma-copies. The other gates were not run again on the later
+    preparations. Contract test helpers pass; the composition checks need the freeze. Independent reviews of the two
+    new adapters: no proven defect, four hardening changes made (handoff).
+  - **Handoff to main:** take the branch (wiring proposed in `prepare_embedded.py`, `ORDER`, the plan's six gates, the
+    contract test's expectations, `FRESH_GATES` 104; `8f71c4e1` is the four-adapter proposal, `d3d83cc0` the
+    five-adapter one, the head the six-adapter one; `adapt_stall_compaction` goes after `adapt_collection_class`);
+    choose the Core number (the branch says 745); freeze, Core CI, pin; next IPA with that Core and the bridge capture
     commits; record the Core binary the IPA holds. Device protocol in the handoff (5 min Hogwarts, Smash, Hogwarts
     with closes, then 20 min).
   - **Handoff to the MeloNX owner:** the native heap lot above (section "Lot handed to the MeloNX owner").
