@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""The empty Switch 2 playlist says how to import, through SwitchPlaylistEmptyState's `hint` (plain python3).
+"""The empty Switch 2 playlist says how to import, through SwitchPlaylistEmptyState's `hint`, and names nothing of
+the Switch 1 engine (plain python3).
 
     python3 -B test/switch2_empty_hint_contract_test.py
 """
@@ -27,8 +28,15 @@ for code in LOCALES:
     entry = block and re.search(r"'emptyHint': \"([^\"]+)\"", block.group(1))
     if not entry:
         failures.append(f'{code}: no emptyHint')
-    elif 'prod.keys' not in entry.group(1) or 'MeloNX' not in entry.group(1):
-        failures.append(f'{code}: emptyHint must name prod.keys and MeloNX (shared keys)')
+    elif any(word in entry.group(1) for word in ('prod.keys', 'MeloNX', 'Switch 1')):
+        failures.append(f'{code}: emptyHint must not name prod.keys or the Switch 1 engine (S2Arm needs no keys)')
+    if block and re.search(r"'(importKeys|importKeysHint|keysFailed)':", block.group(1)):
+        failures.append(f'{code}: a prod.keys string is left in the Switch 2 library strings')
+
+# The maintainer wants no ambiguity between the two engines: the Switch 2 library strings never name the Switch 1 one.
+for word in ('MeloNX', 'prod.keys'):
+    if word in locale:
+        failures.append(f'switch2_library_locale.dart names {word}')
 
 for failure in failures:
     print('FAIL ' + failure)

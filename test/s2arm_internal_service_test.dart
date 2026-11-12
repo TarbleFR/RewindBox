@@ -57,6 +57,21 @@ void main() {
       });
     });
 
+    test('the two restart messages name one engine each, with no ambiguity between them', () {
+      for (final entry in S2ArmEngineLocale.values.entries) {
+        final secondGame = entry.value['restartRequired']!;
+        final switch1Loaded = entry.value['melonxLoaded']!;
+        expect(secondGame, isNot(equals(switch1Loaded)), reason: entry.key);
+        for (final text in [secondGame, switch1Loaded]) {
+          expect(text.contains('MeloNX'), isFalse, reason: '${entry.key}: the player sees consoles, not engine names');
+          expect(text.contains('Switch 2'), isTrue, reason: '${entry.key}: both are about the Switch 2 engine');
+        }
+        expect(secondGame.contains('Switch 1'), isFalse, reason: '${entry.key}: a second Switch 2 launch is not about Switch 1');
+        expect(secondGame.contains('Nintendo Switch'), isFalse, reason: entry.key);
+        expect(switch1Loaded.contains('Switch 1'), isTrue, reason: '${entry.key}: says which engine blocks the launch');
+      }
+    });
+
     test('an unknown code falls back to the generic launch failure', () {
       expect(S2ArmInternalService.messageKey('somethingNew'), 'launchFailed');
       expect(S2ArmInternalService.localizedError(fr, {'error': 'somethingNew'}), S2ArmEngineLocale.text(fr, 'launchFailed'));
@@ -664,6 +679,29 @@ void main() {
       final again = await S2ArmInternalService.launch('/export', pairingFilePath: '/pair');
       expect(again.error, 'engineRestartRequired');
       expect(calls, isNot(contains('prepareGame')));
+    });
+
+    test('the native refusal of the Switch 1 engine keeps its own code up to the message', () async {
+      S2ArmInternalService.availabilityForTesting = const S2ArmRuntimeAvailability(S2ArmRuntimeState.ready);
+      // MeloNX loaded between the status check and the native launch: the plugin answers melonxCoreLoaded itself.
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        switch (call.method) {
+          case 'status':
+            return {'available': true, 'melonxCoreLoaded': 0, 'engineLoaded': 0};
+          case 'detectExport':
+            return {'success': true, 'exportDir': '/export', 'gid': gid};
+          case 'prepareGame':
+            return {'success': true, 'gid': gid, 'imagesPath': '/i', 'moduleDir': '/m', 'gameData': '/g', 'docs': '/d'};
+          case 'launchGame':
+            return {'success': false, 'error': 'melonxCoreLoaded', 'diagnostic': 'The Switch 1 engine (MeloNX) ran'};
+        }
+        return null;
+      });
+      final refused = await S2ArmInternalService.launch('/export', pairingFilePath: '/pair');
+      expect(refused.error, 'melonxCoreLoaded');
+      expect(S2ArmInternalService.localizedError(fr, {'error': refused.error}), S2ArmEngineLocale.text(fr, 'melonxLoaded'));
+      expect(S2ArmInternalService.localizedError(fr, {'error': refused.error}),
+          isNot(S2ArmEngineLocale.text(fr, 'restartRequired')));
     });
 
     test('the preparation shows the code-stage module and says when it reused a finished one', () async {

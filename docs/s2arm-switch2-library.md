@@ -47,6 +47,12 @@ service answers `engineMissing`: the playlist is listed but unavailable and noth
   the other JIT engines use) or a localized failure, then `S2ArmInternalService.launch` behind a non-dismissible
   progress dialog. A failure returns `GameLaunchResult.failure(localized, 'S2Arm: error\ndetail')`; the route never
   falls through to another engine. Unlike XeniOS it does not open the pairing-file picker itself.
+- **Nothing of the Switch 1 engine (12 Nov 2026, maintainer).** The import menu offers import games, import a save,
+  open the saves folder, the Switch 2 settings and delete the selected game. It has no prod.keys item (S2Arm needs
+  none; prod.keys stays in the Switch 1 playlist) and no firmware item. The empty playlist only says how to import
+  games. `lib/l10n/switch2_library_locale.dart` names neither MeloNX nor prod.keys; `importKeys`, `importKeysHint` and
+  `keysFailed` are gone. Checked by `test/s2arm_playlist_menu_contract_test.dart` and
+  `test/switch2_empty_hint_contract_test.py`.
 - **Consoles tab reasons.** `engineMissing` -> `engineChainMissing`, `systemDataMissing`, `jitHelperMissing` ->
   `jitUnavailable`, `unsupportedPlatform` / `unknown` -> `unavailable` (all `S2ArmEngineLocale`), `requiresIOS26` ->
   `Switch2LibraryLocale` (the engine locale has no such key).

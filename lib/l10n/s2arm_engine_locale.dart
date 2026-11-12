@@ -1,13 +1,14 @@
 import 'package:flutter/widgets.dart';
 
-/// Switch 2 (S2Arm) embedded-engine status and preparation errors, never an external-app fallback. Same structure as
-/// lib/l10n/melonx_launch_failure_locale.dart: one message map per language, resolved by text(Locale, key).
+/// Switch 2 (S2Arm) embedded-engine status and preparation errors, never an external-app fallback: one message map per
+/// language, resolved by text(Locale, key). restartRequired (a Switch 2 game already ran) and melonxLoaded (the Switch 1
+/// engine was loaded) stay two distinct messages, each naming its own console, never an engine's name.
 abstract final class S2ArmEngineLocale {
   static const values = <String, Map<String, String>>{
     "en": {
       "unavailable": "The embedded Switch 2 engine is unavailable in this build.",
-      "restartRequired": "A Switch 2 or Nintendo Switch game already ran in this session. Close and reopen RewindBox before starting another game.",
-      "melonxLoaded": "The Nintendo Switch engine (MeloNX) is already loaded in this session: the Consoles tab or a Nintendo Switch game loads it, and only one of the two engines can run. Close and reopen RewindBox, then start the Switch 2 game.",
+      "restartRequired": "A Switch 2 game already ran in this session. Close and reopen RewindBox before starting another one.",
+      "melonxLoaded": "The Switch 1 engine was loaded in this session, and it keeps the Switch 2 engine from starting. Close and reopen RewindBox, then start the Switch 2 game.",
       "notExportFolder": "This folder is not a Switch 2 console export. Select the exported game folder (it holds base/exefs/main.npdm).",
       "notDownloaded": "The game's files are not on this iPhone yet (they are in iCloud). In the Files app, touch and hold the game folder, choose Download Now, wait until it is downloaded, then import again.",
       "exportInvalid": "The Switch 2 export folder is incomplete or could not be read. Export the game again and re-import it.",
@@ -23,8 +24,8 @@ abstract final class S2ArmEngineLocale {
     },
     "fr": {
       "unavailable": "Le moteur Switch 2 intégré est indisponible dans cette version.",
-      "restartRequired": "Un jeu Switch 2 ou Nintendo Switch a déjà été lancé dans cette session. Fermez puis rouvrez RewindBox avant de démarrer un autre jeu.",
-      "melonxLoaded": "Le moteur Nintendo Switch (MeloNX) est déjà chargé dans cette session : l'onglet Consoles ou un jeu Nintendo Switch le charge, et un seul des deux moteurs peut fonctionner. Fermez puis rouvrez RewindBox, puis lancez le jeu Switch 2.",
+      "restartRequired": "Un jeu Switch 2 a déjà été lancé dans cette session. Fermez puis rouvrez RewindBox avant d'en lancer un autre.",
+      "melonxLoaded": "Le moteur de la Switch 1 a été chargé dans cette session et il empêche le moteur Switch 2 de démarrer. Fermez puis rouvrez RewindBox, puis lancez le jeu Switch 2.",
       "notExportFolder": "Ce dossier n’est pas un export de console Switch 2. Sélectionnez le dossier du jeu exporté (il contient base/exefs/main.npdm).",
       "notDownloaded": "Les fichiers du jeu ne sont pas encore sur cet iPhone (ils sont dans iCloud). Dans l'app Fichiers, maintenez le doigt sur le dossier du jeu, choisissez « Télécharger maintenant », attendez la fin du téléchargement, puis importez à nouveau.",
       "exportInvalid": "Le dossier d’export Switch 2 est incomplet ou illisible. Réexportez le jeu puis réimportez-le.",
@@ -40,8 +41,8 @@ abstract final class S2ArmEngineLocale {
     },
     "es": {
       "unavailable": "El motor Switch 2 integrado no está disponible en esta versión.",
-      "restartRequired": "Ya se ejecutó un juego de Switch 2 o Nintendo Switch en esta sesión. Cierra y vuelve a abrir RewindBox antes de iniciar otro juego.",
-      "melonxLoaded": "El motor de Nintendo Switch (MeloNX) ya está cargado en esta sesión: la pestaña Consolas o un juego de Nintendo Switch lo carga, y solo uno de los dos motores puede funcionar. Cierra y vuelve a abrir RewindBox y luego inicia el juego de Switch 2.",
+      "restartRequired": "Ya se ejecutó un juego de Switch 2 en esta sesión. Cierra y vuelve a abrir RewindBox antes de iniciar otro.",
+      "melonxLoaded": "El motor de Switch 1 se cargó en esta sesión e impide que arranque el motor de Switch 2. Cierra y vuelve a abrir RewindBox y luego inicia el juego de Switch 2.",
       "notExportFolder": "Esta carpeta no es una exportación de consola Switch 2. Selecciona la carpeta del juego exportado (contiene base/exefs/main.npdm).",
       "notDownloaded": "Los archivos del juego aún no están en este iPhone (están en iCloud). En la app Archivos, mantén pulsada la carpeta del juego, elige «Descargar ahora», espera a que termine y vuelve a importar.",
       "exportInvalid": "La carpeta de exportación de Switch 2 está incompleta o no se pudo leer. Vuelve a exportar el juego e impórtalo de nuevo.",
@@ -57,8 +58,8 @@ abstract final class S2ArmEngineLocale {
     },
     "de": {
       "unavailable": "Die integrierte Switch-2-Engine ist in dieser Version nicht verfügbar.",
-      "restartRequired": "In dieser Sitzung wurde bereits ein Switch-2- oder Nintendo-Switch-Spiel ausgeführt. Schließe und öffne RewindBox neu, bevor du ein anderes Spiel startest.",
-      "melonxLoaded": "Die Nintendo-Switch-Engine (MeloNX) ist in dieser Sitzung bereits geladen: Der Tab „Konsolen“ oder ein Nintendo-Switch-Spiel lädt sie, und nur eine der beiden Engines kann laufen. Schließe RewindBox, öffne es erneut und starte dann das Switch-2-Spiel.",
+      "restartRequired": "In dieser Sitzung lief bereits ein Switch-2-Spiel. Schließe RewindBox und öffne es erneut, bevor du ein weiteres startest.",
+      "melonxLoaded": "Die Switch-1-Engine wurde in dieser Sitzung geladen und verhindert den Start der Switch-2-Engine. Schließe RewindBox, öffne es erneut und starte dann das Switch-2-Spiel.",
       "notExportFolder": "Dieser Ordner ist kein Switch-2-Konsolenexport. Wähle den Ordner des exportierten Spiels (er enthält base/exefs/main.npdm).",
       "notDownloaded": "Die Dateien des Spiels sind noch nicht auf diesem iPhone (sie liegen in iCloud). Halte in der Dateien-App den Spielordner gedrückt, wähle „Jetzt laden“, warte, bis er geladen ist, und importiere erneut.",
       "exportInvalid": "Der Switch-2-Exportordner ist unvollständig oder konnte nicht gelesen werden. Exportiere das Spiel erneut und importiere es noch einmal.",
@@ -74,8 +75,8 @@ abstract final class S2ArmEngineLocale {
     },
     "it": {
       "unavailable": "Il motore Switch 2 integrato non è disponibile in questa versione.",
-      "restartRequired": "In questa sessione è già stato eseguito un gioco Switch 2 o Nintendo Switch. Chiudi e riapri RewindBox prima di avviare un altro gioco.",
-      "melonxLoaded": "Il motore Nintendo Switch (MeloNX) è già caricato in questa sessione: la scheda Console o un gioco Nintendo Switch lo carica, e può funzionare solo uno dei due motori. Chiudi e riapri RewindBox, poi avvia il gioco Switch 2.",
+      "restartRequired": "In questa sessione è già stato eseguito un gioco Switch 2. Chiudi e riapri RewindBox prima di avviarne un altro.",
+      "melonxLoaded": "Il motore Switch 1 è stato caricato in questa sessione e impedisce l'avvio del motore Switch 2. Chiudi e riapri RewindBox, poi avvia il gioco Switch 2.",
       "notExportFolder": "Questa cartella non è un'esportazione dalla console Switch 2. Seleziona la cartella del gioco esportato (contiene base/exefs/main.npdm).",
       "notDownloaded": "I file del gioco non sono ancora su questo iPhone (sono su iCloud). Nell'app File tieni premuta la cartella del gioco, scegli «Scarica ora», attendi il download e importa di nuovo.",
       "exportInvalid": "La cartella di esportazione Switch 2 è incompleta o illeggibile. Riesporta il gioco e reimportalo.",
@@ -91,8 +92,8 @@ abstract final class S2ArmEngineLocale {
     },
     "pt": {
       "unavailable": "O motor Switch 2 integrado não está disponível nesta versão.",
-      "restartRequired": "Já foi executado um jogo da Switch 2 ou da Nintendo Switch nesta sessão. Feche e reabra o RewindBox antes de iniciar outro jogo.",
-      "melonxLoaded": "O motor do Nintendo Switch (MeloNX) já está carregado nesta sessão: a aba Consoles ou um jogo de Nintendo Switch o carrega, e só um dos dois motores pode funcionar. Feche e reabra o RewindBox e depois inicie o jogo de Switch 2.",
+      "restartRequired": "Um jogo de Switch 2 já foi executado nesta sessão. Feche e reabra o RewindBox antes de iniciar outro.",
+      "melonxLoaded": "O motor do Switch 1 foi carregado nesta sessão e impede o motor do Switch 2 de iniciar. Feche e reabra o RewindBox e depois inicie o jogo de Switch 2.",
       "notExportFolder": "Esta pasta não é uma exportação da consola Switch 2. Selecione a pasta do jogo exportado (contém base/exefs/main.npdm).",
       "notDownloaded": "Os arquivos do jogo ainda não estão neste iPhone (estão no iCloud). No app Arquivos, toque e segure a pasta do jogo, escolha \"Baixar Agora\", aguarde o download e importe novamente.",
       "exportInvalid": "A pasta de exportação da Switch 2 está incompleta ou não pôde ser lida. Exporte o jogo novamente e volte a importá-lo.",
@@ -108,8 +109,8 @@ abstract final class S2ArmEngineLocale {
     },
     "ru": {
       "unavailable": "Встроенный движок Switch 2 недоступен в этой версии.",
-      "restartRequired": "В этом сеансе уже запускалась игра Switch 2 или Nintendo Switch. Закройте и снова откройте RewindBox перед запуском другой игры.",
-      "melonxLoaded": "Движок Nintendo Switch (MeloNX) уже загружен в этом сеансе: его загружает вкладка «Консоли» или игра Nintendo Switch, а работать может только один из двух движков. Закройте и снова откройте RewindBox, затем запустите игру Switch 2.",
+      "restartRequired": "В этом сеансе уже запускалась игра Switch 2. Закройте и снова откройте RewindBox, прежде чем запускать другую.",
+      "melonxLoaded": "В этом сеансе был загружен движок Switch 1, и он не даёт запуститься движку Switch 2. Закройте и снова откройте RewindBox, затем запустите игру Switch 2.",
       "notExportFolder": "Эта папка не является экспортом консоли Switch 2. Выберите папку экспортированной игры (в ней есть base/exefs/main.npdm).",
       "notDownloaded": "Файлы игры ещё не загружены на этот iPhone (они в iCloud). В приложении «Файлы» нажмите и удерживайте папку игры, выберите «Загрузить», дождитесь окончания загрузки и импортируйте снова.",
       "exportInvalid": "Папка экспорта Switch 2 неполная или не читается. Экспортируйте игру заново и импортируйте её снова.",
@@ -125,8 +126,8 @@ abstract final class S2ArmEngineLocale {
     },
     "id": {
       "unavailable": "Mesin Switch 2 bawaan tidak tersedia dalam versi ini.",
-      "restartRequired": "Game Switch 2 atau Nintendo Switch sudah dijalankan di sesi ini. Tutup dan buka kembali RewindBox sebelum memulai game lain.",
-      "melonxLoaded": "Mesin Nintendo Switch (MeloNX) sudah dimuat di sesi ini: tab Konsol atau game Nintendo Switch memuatnya, dan hanya satu dari dua mesin yang dapat berjalan. Tutup dan buka kembali RewindBox, lalu mulai game Switch 2.",
+      "restartRequired": "Game Switch 2 sudah dijalankan di sesi ini. Tutup dan buka kembali RewindBox sebelum memulai game lain.",
+      "melonxLoaded": "Mesin Switch 1 dimuat di sesi ini dan mencegah mesin Switch 2 berjalan. Tutup dan buka kembali RewindBox, lalu mulai game Switch 2.",
       "notExportFolder": "Folder ini bukan ekspor konsol Switch 2. Pilih folder game yang diekspor (berisi base/exefs/main.npdm).",
       "notDownloaded": "File game belum ada di iPhone ini (masih di iCloud). Di app File, sentuh lama folder game, pilih Unduh Sekarang, tunggu hingga selesai, lalu impor lagi.",
       "exportInvalid": "Folder ekspor Switch 2 tidak lengkap atau tidak dapat dibaca. Ekspor ulang game lalu impor kembali.",
@@ -142,8 +143,8 @@ abstract final class S2ArmEngineLocale {
     },
     "ja": {
       "unavailable": "このバージョンでは内蔵Switch 2エンジンを利用できません。",
-      "restartRequired": "このセッションではすでにSwitch 2またはNintendo Switchのゲームを実行しました。別のゲームを始める前にRewindBoxを閉じて開き直してください。",
-      "melonxLoaded": "Nintendo Switch エンジン（MeloNX）はこのセッションですでに読み込まれています。「ゲーム機」タブや Nintendo Switch のゲームで読み込まれ、2 つのエンジンは同時に動作できません。RewindBox を閉じて開き直してから、Switch 2 のゲームを起動してください。",
+      "restartRequired": "このセッションではすでに Switch 2 のゲームを起動しました。別のゲームを始める前に、RewindBox を閉じて開き直してください。",
+      "melonxLoaded": "このセッションで Switch 1 のエンジンが読み込まれたため、Switch 2 のエンジンを起動できません。RewindBox を閉じて開き直してから、Switch 2 のゲームを起動してください。",
       "notExportFolder": "このフォルダはSwitch 2本体のエクスポートではありません。エクスポートしたゲームのフォルダ（base/exefs/main.npdmを含む）を選択してください。",
       "notDownloaded": "ゲームのファイルがまだこのiPhoneにありません（iCloud上にあります）。ファイルアプリでゲームフォルダを長押しして「今すぐダウンロード」を選び、ダウンロードが終わってから再度読み込んでください。",
       "exportInvalid": "Switch 2のエクスポートフォルダが不完全か、読み取れませんでした。ゲームを再エクスポートして取り込み直してください。",
@@ -159,8 +160,8 @@ abstract final class S2ArmEngineLocale {
     },
     "ko": {
       "unavailable": "이 버전에서는 내장 Switch 2 엔진을 사용할 수 없습니다.",
-      "restartRequired": "이 세션에서 이미 Switch 2 또는 Nintendo Switch 게임을 실행했습니다. 다른 게임을 시작하기 전에 RewindBox를 닫고 다시 여세요.",
-      "melonxLoaded": "Nintendo Switch 엔진(MeloNX)이 이번 세션에 이미 로드되어 있습니다. 콘솔 탭이나 Nintendo Switch 게임이 이 엔진을 로드하며, 두 엔진 중 하나만 실행할 수 있습니다. RewindBox를 닫았다가 다시 연 뒤 Switch 2 게임을 시작하세요.",
+      "restartRequired": "이번 세션에서 이미 Switch 2 게임을 실행했습니다. 다른 게임을 시작하기 전에 RewindBox를 닫았다가 다시 여세요.",
+      "melonxLoaded": "이번 세션에서 Switch 1 엔진이 로드되어 Switch 2 엔진을 시작할 수 없습니다. RewindBox를 닫았다가 다시 연 뒤 Switch 2 게임을 시작하세요.",
       "notExportFolder": "이 폴더는 Switch 2 본체 내보내기가 아닙니다. 내보낸 게임 폴더(base/exefs/main.npdm 포함)를 선택하세요.",
       "notDownloaded": "게임 파일이 아직 이 iPhone에 없습니다(iCloud에 있음). 파일 앱에서 게임 폴더를 길게 누르고 '지금 다운로드'를 선택한 다음, 다운로드가 끝나면 다시 가져오세요.",
       "exportInvalid": "Switch 2 내보내기 폴더가 불완전하거나 읽을 수 없습니다. 게임을 다시 내보낸 뒤 다시 가져오세요.",
@@ -176,8 +177,8 @@ abstract final class S2ArmEngineLocale {
     },
     "zh": {
       "unavailable": "此版本无法使用内置 Switch 2 引擎。",
-      "restartRequired": "本次会话已运行过 Switch 2 或 Nintendo Switch 游戏。启动其他游戏前，请关闭并重新打开 RewindBox。",
-      "melonxLoaded": "Nintendo Switch 引擎（MeloNX）已在本次会话中加载：“游戏机”标签页或 Nintendo Switch 游戏会加载它，而两个引擎只能运行一个。请关闭并重新打开 RewindBox，然后启动 Switch 2 游戏。",
+      "restartRequired": "本次会话已运行过一款 Switch 2 游戏。启动另一款游戏前，请关闭并重新打开 RewindBox。",
+      "melonxLoaded": "本次会话已加载 Switch 1 引擎，它会阻止 Switch 2 引擎启动。请关闭并重新打开 RewindBox，然后启动 Switch 2 游戏。",
       "notExportFolder": "此文件夹不是 Switch 2 主机导出。请选择导出的游戏文件夹（其中包含 base/exefs/main.npdm）。",
       "notDownloaded": "游戏文件尚未下载到此 iPhone（仍在 iCloud 中）。在“文件”App 中按住游戏文件夹，选择“立即下载”，下载完成后再导入。",
       "exportInvalid": "Switch 2 导出文件夹不完整或无法读取。请重新导出游戏并再次导入。",
@@ -193,8 +194,8 @@ abstract final class S2ArmEngineLocale {
     },
     "zh_Hant": {
       "unavailable": "此版本無法使用內建 Switch 2 引擎。",
-      "restartRequired": "本次工作階段已執行過 Switch 2 或 Nintendo Switch 遊戲。啟動其他遊戲前，請關閉並重新開啟 RewindBox。",
-      "melonxLoaded": "Nintendo Switch 引擎（MeloNX）已在本次工作階段中載入：「遊戲機」分頁或 Nintendo Switch 遊戲會載入它，而兩個引擎只能執行一個。請關閉並重新開啟 RewindBox，然後啟動 Switch 2 遊戲。",
+      "restartRequired": "本次工作階段已執行過一款 Switch 2 遊戲。啟動另一款遊戲前，請關閉並重新開啟 RewindBox。",
+      "melonxLoaded": "本次工作階段已載入 Switch 1 引擎，它會阻止 Switch 2 引擎啟動。請關閉並重新開啟 RewindBox，然後啟動 Switch 2 遊戲。",
       "notExportFolder": "此資料夾不是 Switch 2 主機匯出。請選擇匯出的遊戲資料夾（其中包含 base/exefs/main.npdm）。",
       "notDownloaded": "遊戲檔案尚未下載到此 iPhone（仍在 iCloud 中）。在「檔案」App 中按住遊戲資料夾，選擇「立即下載」，下載完成後再匯入。",
       "exportInvalid": "Switch 2 匯出資料夾不完整或無法讀取。請重新匯出遊戲並再次匯入。",

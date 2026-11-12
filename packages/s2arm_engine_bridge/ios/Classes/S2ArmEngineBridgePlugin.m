@@ -278,11 +278,12 @@ static NSString *S2ArmEnginePath(void) {
   }
   self.menuStrings = menuStrings;
   self.saveFolder = saveFolder;
-  // MeloNX's Core and this engine cannot share a process (two .NET runtimes). If MeloNX loaded, ask for a restart.
+  // The Switch 1 engine's Core (MeloNX) and this engine cannot share a process (two .NET runtimes). Its own code,
+  // distinct from engineRestartRequired (a Switch 2 game already ran), so the message names the right engine.
   if (S2ArmMeloNXCoreLoaded()) {
     self.launchInProgress = NO;
     s2arm_journal("launch", "refused", "\"reason\":\"melonxCoreLoaded\"");
-    result(@{@"success" : @NO, @"error" : @"engineRestartRequired", @"diagnostic" : @"MeloNX ran in this session of RewindBox."});
+    result(@{@"success" : @NO, @"error" : @"melonxCoreLoaded", @"diagnostic" : @"The Switch 1 engine (MeloNX) ran in this session of RewindBox."});
     return;
   }
   dispatch_async(self.workQueue, ^{
