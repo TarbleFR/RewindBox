@@ -9,9 +9,13 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
 import 'package:neostation/l10n/s2arm_engine_locale.dart';
+import 'package:neostation/l10n/switch2_settings_locale.dart';
+import 's2arm_settings.dart';
 import 'storage/storage_import_activity.dart';
 import 'switch2_export_content.dart';
 import 'storage/storage_stat_ffi.dart';
+
+export 's2arm_settings.dart';
 
 /// Why the embedded Switch 2 engine cannot run, shown as a reason in the Consoles tab.
 enum S2ArmRuntimeState {
@@ -456,6 +460,34 @@ abstract final class S2ArmInternalService {
     }
   }
 
+  // ---------------- settings ----------------
+
+  /// The stored engine settings, or null when this is not iOS or the native side does not answer.
+  static Future<S2ArmSettings?> loadSettings() async {
+    if (defaultTargetPlatform != TargetPlatform.iOS) return null;
+    try {
+      final map = await channel.invokeMapMethod<String, Object?>('getSettings');
+      return map == null ? null : S2ArmSettings.fromMap(map);
+    } on MissingPluginException {
+      return null;
+    } on PlatformException {
+      return null;
+    }
+  }
+
+  /// Stores [settings]; returns what the native side kept after validation, or null when it did not answer.
+  static Future<S2ArmSettings?> saveSettings(S2ArmSettings settings) async {
+    if (defaultTargetPlatform != TargetPlatform.iOS) return null;
+    try {
+      final map = await channel.invokeMapMethod<String, Object?>('setSettings', settings.toMap());
+      return map == null ? null : S2ArmSettings.fromMap(map);
+    } on MissingPluginException {
+      return null;
+    } on PlatformException {
+      return null;
+    }
+  }
+
   // ---------------- launch ----------------
 
   static bool _launching = false;
@@ -480,6 +512,7 @@ abstract final class S2ArmInternalService {
     if (!runtime.ready) return S2ArmLaunchOutcome.failure(runtime.state.name, runtime.detail);
     if (_launching) return const S2ArmLaunchOutcome.failure('busy');
     _launching = true;
+    final uiLocale = Switch2SettingsLocale.codeFor(PlatformDispatcher.instance.locale);
     try {
       final detected = await detectExport(exportFolder);
       if (detected['success'] != true) return S2ArmLaunchOutcome.failure((detected['code'] ?? 'notExportFolder').toString());
@@ -494,6 +527,8 @@ abstract final class S2ArmInternalService {
         'gameData': prepared['gameData'],
         'docs': prepared['docs'],
         'pairingFilePath': pairingFilePath,
+        'uiLocale': uiLocale,
+        'menuStrings': Switch2SettingsLocale.menuStrings(uiLocale),
       });
       if (report?['success'] == true) {
         _sessionRunning = true;
