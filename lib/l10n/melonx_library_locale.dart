@@ -968,6 +968,10 @@ abstract final class MelonxLibraryLocale {
       "Automatic": "自动",
     },
     "zh_Hant": {
+      "Synchronize occlusion results": "同步遮擋查詢結果",
+      "Group GPU query submissions": "合併 GPU 查詢提交",
+      "Hogwarts GPU options apply on the next launch. Disable them here to compare.": "Hogwarts GPU 選項將在下次啟動時生效。可在此關閉以進行比較。",
+
       "Use RamDonor": "使用 RamDonor",
       "Donor in use": "已用借入記憶體",
       "RamDonor lends memory through the bundled extension. If unavailable, MeloNX uses normal memory.": "RamDonor 透過內建擴充功能借出記憶體。若無法使用，MeloNX 會使用一般記憶體。",
