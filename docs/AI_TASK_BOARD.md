@@ -5409,7 +5409,7 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 ### Switch 2 playlist (S2Arm) feasibility prototype — session 04
 
 - **Owner/branch:** session `012mUASj3EQnvC86WC56AePw`, `work/s2arm-switch2-prototype-20261110`
-  (merged with `Claude` `5acf1435`). Own paths: `packages/s2arm_engine_bridge/`, `native/s2arm/`,
+  (level with `Claude` `cc3af454`). Own paths: `packages/s2arm_engine_bridge/`, `native/s2arm/`,
   `build-utils/s2arm/`, `tools/s2arm_prototype/`, `.github/workflows/s2arm-*.yml`, `docs/s2arm-*.md`.
 - **Goal:** a Switch 2 playlist on S2Arm, games prepared on the phone. The device probe ships in
   a common IPA by maintainer decision (below); the rest stays on this branch.
@@ -5543,7 +5543,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       `a6f958fd`.
     - Not observed on a device. The pass shares are estimates until a journal gives the durations.
   - **IPA 729 device report (maintainer, 12 Nov): Mario Kart World's preparation never leaves the rewriter's spin pass.
-    Fix: verified pin `175018a2` (spin pass off on the phone), for the next IPA.**
+    Fix: verified pin `175018a2` (spin pass off on the phone), merged on Claude by main as `cc3af454`, queued for the next
+    IPA (built on the maintainer's request).**
     - Journal and screenshot, two runs:
       - main (42 MB of text) passes load, prepass, boundaries, scan, data, analyze, generate and late in under 3 s;
       - then the spin pass, with "Génération du code adapté · 0 / 42 Mo" at 60 % after 20 min 20 s;
