@@ -806,6 +806,7 @@ abstract final class XeniaInternalService {
     String? touchGameKey,
     String locale,
     Map<String, String> texts,
+    String overlay,
   })
   bridgeLaunch = XeniaInternalBridge.launch;
 
@@ -817,6 +818,8 @@ abstract final class XeniaInternalService {
   ) async {
     await ensureLayout();
     final gameKey = await XeniaSettingsService.gameKeyForFile(romPath);
+    _sessionGameKey = gameKey;
+    _listenToBridge();
     final values = await settings.launchSettings(
       gameKey: gameKey,
       uiLocale: uiLocale,
@@ -840,9 +843,97 @@ abstract final class XeniaInternalService {
       touchGameKey: gameKey,
       locale: uiLocale.toLanguageTag(),
       texts: <String, String>{
-        for (final key in const ['menu', 'resume', 'quit'])
+        for (final key in const [
+          'menu',
+          'resume',
+          'quit',
+          ...sessionTextKeys,
+        ])
           key: XeniaLocale.forLocale(uiLocale, 'session_$key'),
       },
+      overlay: settings.performanceOverlay,
     );
+  }
+
+  /// Keys of the launch `texts` map the in-game menu and overlay read, beside
+  /// menu/resume/quit (locale key `session_<key>`).
+  @visibleForTesting
+  static const List<String> sessionTextKeys = <String>[
+    'display',
+    'overlay',
+    'overlayOff',
+    'overlaySimple',
+    'overlayDetailed',
+    'appliesNow',
+    'aspect',
+    'aspectWide',
+    'aspectStandard',
+    'resolution',
+    'letterbox',
+    'on',
+    'off',
+    'default',
+    'thisGame',
+    'nextLaunch',
+    'fps',
+    'frameTime',
+    'memory',
+    'thermal',
+    'thermalNominal',
+    'thermalFair',
+    'thermalSerious',
+    'thermalCritical',
+    'saveFailed',
+  ];
+
+  /// Game key of the running (last launched) session, for per-game changes
+  /// the in-game menu reports.
+  static String? _sessionGameKey;
+  static StreamSubscription<Map<String, String>>? _settingSubscription;
+  static StreamSubscription<String>? _overlaySubscription;
+  static StreamSubscription<Map<String, dynamic>>? _sessionSubscription;
+
+  /// Subscribes once, however many launches follow.
+  static void _listenToBridge() {
+    _settingSubscription ??= XeniaInternalBridge.settingChanges.listen(
+      (change) => unawaited(onSettingChanged(change['key'], change['value'])),
+    );
+    _overlaySubscription ??= XeniaInternalBridge.overlayChanges.listen(
+      (level) => unawaited(onOverlayChanged(level)),
+    );
+    _sessionSubscription ??= XeniaInternalBridge.sessionEvents.listen((event) {
+      if (event['event'] == 'ended') _sessionGameKey = null;
+    });
+  }
+
+  /// A per-game cvar changed in the in-game menu: saved as an override of the
+  /// running game when the key is managed and the value accepted.
+  @visibleForTesting
+  static Future<void> onSettingChanged(String? key, String? value) async {
+    final gameKey = _sessionGameKey;
+    final option = key == null ? null : XeniaSettingsService.option(key);
+    if (gameKey == null || option == null || value == null) {
+      _log.w('XeniOS in-game setting ignored: $key=$value');
+      return;
+    }
+    if (!option.accepts(value)) {
+      _log.w('XeniOS in-game setting refused: $key=$value');
+      return;
+    }
+    try {
+      await settings.setGame(gameKey, key!, value);
+    } catch (error) {
+      _log.e('XeniOS in-game setting not saved: $key=$value: $error');
+    }
+  }
+
+  /// The overlay level changed in the in-game menu (global).
+  @visibleForTesting
+  static Future<void> onOverlayChanged(String? level) async {
+    try {
+      await settings.setPerformanceOverlay(level ?? '');
+    } catch (error) {
+      _log.e('XeniOS overlay level not saved: $level: $error');
+    }
   }
 }

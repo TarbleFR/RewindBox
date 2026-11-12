@@ -55,7 +55,8 @@ class XeniaResolvedValue {
 /// Global Xbox 360 settings and per-game overrides of the XeniOS engine.
 ///
 /// Stored by RewindBox in `Documents/XeniOS/Frontend/settings.json`
-/// (`{"version":1,"global":{key:value},"games":{gameKey:{key:value}}}`),
+/// (`{"version":1,"global":{key:value},"games":{gameKey:{key:value}},
+/// "frontend":{"performance_overlay":level}}`),
 /// never in the engine's own `config/<TITLEID>.config.toml`, which guest
 /// writes (a game changing its language) keep for themselves. Writes go
 /// through a temporary file and a rename. A per-game value overrides the
@@ -225,6 +226,23 @@ class XeniaSettingsService {
         engineDefault: 'false',
         section: XeniaOptionSection.console,
       ),
+      // Consumers at XeniOS cf7c7ee45: kernel/xboxkrnl/xboxkrnl_video.cc:59,214,219
+      // and kernel/xconfig.cc:145. The console reports 16:9 when true, 4:3 when
+      // false; games read it when they set their video mode (next launch).
+      const XeniaOption(
+        key: 'widescreen',
+        kind: XeniaOptionKind.toggle,
+        engineDefault: 'true',
+        section: XeniaOptionSection.console,
+      ),
+      // Consumers at XeniOS cf7c7ee45: gpu/graphics_system.cc:571-577 and
+      // kernel/xconfig.cc:169,176. 17 (custom) is not offered.
+      XeniaOption(
+        key: 'internal_display_resolution',
+        kind: XeniaOptionKind.choice,
+        engineDefault: '8',
+        values: <String>[for (var id = 0; id <= 16; id++) '$id'],
+      ),
       const XeniaOption(
         key: 'framerate_limit',
         kind: XeniaOptionKind.choice,
@@ -269,6 +287,34 @@ class XeniaSettingsService {
     ],
   );
 
+  /// `internal_display_resolution` IDs offered (17 = custom is not).
+  static const Map<String, String> displayResolutions = <String, String>{
+    '0': '640×480',
+    '1': '640×576',
+    '2': '720×480',
+    '3': '720×576',
+    '4': '800×600',
+    '5': '848×480',
+    '6': '1024×768',
+    '7': '1152×864',
+    '8': '1280×720',
+    '9': '1280×768',
+    '10': '1280×960',
+    '11': '1280×1024',
+    '12': '1360×768',
+    '13': '1440×900',
+    '14': '1680×1050',
+    '15': '1920×540',
+    '16': '1920×1080',
+  };
+
+  /// Frontend-only performance overlay levels (not a cvar).
+  static const List<String> overlayLevels = <String>[
+    'off',
+    'simple',
+    'detailed',
+  ];
+
   static final Map<String, XeniaOption> _byKey = <String, XeniaOption>{
     for (final option in options) option.key: option,
   };
@@ -283,6 +329,7 @@ class XeniaSettingsService {
   final Future<Directory> Function() _frontendDirectory;
   Map<String, String> _global = <String, String>{};
   Map<String, Map<String, String>> _games = <String, Map<String, String>>{};
+  String _overlay = 'off';
   bool _loaded = false;
 
   // ---------------------------------------------------------------- identity
@@ -340,6 +387,13 @@ class XeniaSettingsService {
                 if (entry.key is String && _clean(entry.value).isNotEmpty)
                   entry.key as String: _clean(entry.value),
           };
+          final frontend = decoded['frontend'];
+          if (frontend is Map) {
+            final level = frontend['performance_overlay'];
+            if (level is String && overlayLevels.contains(level)) {
+              _overlay = level;
+            }
+          }
         }
       }
     } catch (error) {
@@ -370,6 +424,7 @@ class XeniaSettingsService {
         'version': 1,
         'global': _global,
         'games': _games,
+        'frontend': <String, String>{'performance_overlay': _overlay},
       }),
       flush: true,
     );
@@ -377,6 +432,23 @@ class XeniaSettingsService {
   }
 
   // ------------------------------------------------------------------ values
+
+  /// Performance overlay level ('off', 'simple', 'detailed'): frontend-only,
+  /// global to every Xbox 360 game, never sent as a cvar.
+  String get performanceOverlay => _overlay;
+
+  Future<void> setPerformanceOverlay(String level) async {
+    if (!overlayLevels.contains(level)) throw ArgumentError.value(level);
+    await load();
+    final previous = _overlay;
+    _overlay = level;
+    try {
+      await _save();
+    } catch (_) {
+      _overlay = previous;
+      rethrow;
+    }
+  }
 
   String? globalValue(String key) => _global[key];
   String? gameValue(String gameKey, String key) => _games[gameKey]?[key];
