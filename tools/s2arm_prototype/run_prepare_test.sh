@@ -13,9 +13,10 @@ cat "$work/run.log"
 check "library rewrite succeeds (exit $status)" '[ "$status" = 0 ]'
 check "modules are main, subsdk0, sdk and nothing else" \
   '[ "$(grep "^module" "$work/run.log" | cut -d" " -f3 | tr "\n" " ")" = "main subsdk0 sdk " ]'
-# Reference: the pinned S2Arm command line, as pack/stage_rewrite.sh runs it (spin gate on, Apple target).
+# Reference: the pinned S2Arm command line, as pack/stage_rewrite.sh runs it (Apple target), with the spin pass off as on
+# the phone (S2A_REWRITE_SPIN=0, native/s2arm/prepare/s2arm_prepare.c rewrite_one).
 for module in main subsdk0 sdk; do
-  env -u S2A_TARGET S2A_REWRITE_SPIN=1 "$reference" "$work/exefs/$module" "$work/ref" "$module" > "$work/ref/$module.rewrite.log" 2>&1 \
+  env -u S2A_TARGET S2A_REWRITE_SPIN=0 "$reference" "$work/exefs/$module" "$work/ref" "$module" > "$work/ref/$module.rewrite.log" 2>&1 \
     || { echo "FAIL reference rewrite of $module" | tee -a "$report"; bad=1; }
 done
 cp "$work/exefs/main.npdm" "$work/ref/main.npdm"
