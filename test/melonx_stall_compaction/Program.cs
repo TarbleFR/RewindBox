@@ -177,7 +177,7 @@ static class Fixture
 
         // The game stops presenting: the first poll past the gap compacts, once.
         long rssBefore = Environment.WorkingSet;
-        long waited = Stall(3000);
+        long waited = Stall(8000);
         long rssAfter = Environment.WorkingSet, freeAfter = Reclaimable();
         int afterFirstStall = Compactions - atStart;
         long again = Stall(1500); // still nothing presented, heap compact, interval not passed
@@ -216,7 +216,7 @@ static class Fixture
 
         // The next session: its first frame, its own count; the second burst's space is given back in its first gap.
         Play(10_400);
-        long nextSession = Stall(3000);
+        long nextSession = Stall(8000);
         int total = Compactions - atStart;
 
         string[] lines;

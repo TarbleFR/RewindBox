@@ -13,6 +13,9 @@ run-name: Collection class on macOS • ${{ github.sha }}
     - test/melonx_collection_class/**
     - test/melonx_collection_class_test.py
     - build-utils/melonx/adapt_collection_class.py
+    - test/melonx_stall_compaction/**
+    - test/melonx_stall_compaction_test.py
+    - build-utils/melonx/adapt_stall_compaction.py
 permissions:
   contents: read
 concurrency:
@@ -57,6 +60,20 @@ jobs:
     - uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 10.0.100
+    - name: The gate's executed part on this host (the Core CI runs the gates on macOS arm64)
+      env:
+        DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+        DOTNET_NOLOGO: '1'
+      run: |
+        # The same builds, runs and checks as the collection-class gate, without a preparation: the class compiled just
+        # in time (refused by that runtime) and ahead of time for osx-arm64 (the fixture's platform functions with the
+        # runtime's real callouts; the system's own functions in the plain run).
+        python3 -I test/melonx_collection_class_test.py --fixture-only
+    - name: The stall-compaction gate's executed part on this host (segments collector of the host runtime)
+      env:
+        DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+        DOTNET_NOLOGO: '1'
+      run: python3 -I test/melonx_stall_compaction_test.py --fixture-only
     - name: The adapter's class with the runtime's collection callouts and the system's QoS calls (ahead of time, macOS arm64)
       env:
         DOTNET_CLI_TELEMETRY_OPTOUT: '1'
