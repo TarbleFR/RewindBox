@@ -4753,10 +4753,22 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       same byte comparison with the Core 663 method); contract test 492 checks (428 without the archive).
       Falsifiable device expectation: texture array barrier passes about 10-30 ms per 5 s instead of 240-290 ms
       (about 2.2-2.5 ms of render thread per frame); refuted if they stay above 100 ms. Rollback: remove the adapter.
-    - **Next action:** Hogwarts lot 2: the reference passes (33 348 per window, 1.7 M references, 288-364 ms) and
-      the command buffer count that multiplies them (2 818-3 466 submits per 5 s); the arrayDelta allocations at the
-      memory warning (3 calls, 1 572 864 elements examined, 145 396 KiB allocated, then a 303.6 ms gen0 pause).
-      Main: Core 739 CI and pin, then Core 741 when the integration order allows.
+    - **Hogwarts pid 56836, further readings (no change made):** (a) the multiplier of the permanent descriptor work:
+      about 3 261 command buffers per 5 s window (2 818-3 466 submits; about 25-30 per frame) against fewer than 3 per
+      frame in Smash; the texture array reference passes (33 348 per window, 1.7 M references, 288-364 ms) and barrier
+      passes (33 597) run once per array per command buffer, so their count follows the command buffers. CreateSync
+      2 116-2 526 calls per window on the render thread; SyncManager.Create flushes (a submit, a new command buffer)
+      for a strict sync, and strict syncs come from GPFifoClass (two sites), ThreedClass, GpuContext (two) and a DMA
+      site: which ones dominate is not journaled. (b) The memory-warning hypothesis "pressure -> invalidations" is not
+      supported: no trim or eviction line at 05:45:48; the 50 963 changed pool elements of the three arrayDelta calls
+      (1 572 864 examined, 145 396 KiB allocated, 539 ms) coincide with the zone load (footprint 3 775 -> 4 428 MiB
+      between t=45 and t=48); the 303.6 ms gen0 pause promotes 34.6 MiB of live objects (new textures); the iOS warning
+      follows the same load. (c) Audio: t=51-109, 184 queue starvations and 767 ms of silence; the seconds with a
+      starvation average 19.7 FPS (largest gap 134 ms) against 24.0 FPS (76 ms) without: audio starves with the CPU
+      contention, it is not an audio-path defect.
+    - **Next action:** Hogwarts lot 2: count submits and CreateSync by cause (strict site, readback, query) in the
+      journal, then reduce the dominant one with its own gate; the reference passes follow the command buffer count.
+      Not before that measurement: no sync semantics change on a guess. Main: Core 739 CI and pin, then Core 741.
   - **IPA 726 device run read (12 Nov): Hogwarts Legacy on Core 735, pid 54035, 23:43:42-23:46:20 (the session
     of the P0 726 close); journals private (scratchpad), aggregates only. Not a like-for-like comparison with 725:
     the phone was in the "serious" thermal state for 99 of the 100 warm seconds (725, pid 51986: "fair").**
