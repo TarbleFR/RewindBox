@@ -29,6 +29,37 @@ void main() {
     expect(menu, isNot(contains("value: 'firmware'")));
   });
 
+  test('the menu imports a save and opens the saves folder for the selected game', () {
+    expect(menu, contains("ValueKey('s2arm-import-save')"));
+    expect(menu, contains("value: 'importSave'"));
+    expect(menu, contains('S2ArmInternalService.importSave('));
+    expect(menu, contains("ValueKey('s2arm-open-saves')"));
+    expect(menu, contains("value: 'openSaves'"));
+    expect(menu, contains('S2ArmInternalService.openSaveFolder('));
+    expect(menu, contains("_t('importSaveHint')"));
+    expect(menu, contains("_t('openSavesHint')"));
+    expect(menu, contains("_tf('saveRedirected'"));
+    expect(menu, contains("_tf('saveRedirectedMissing'"));
+  });
+
+  test('the save items are always offered, second as in MeloNX; delete needs a selected game', () {
+    final items = menu.substring(menu.indexOf('itemBuilder:'));
+    for (final key in ['s2arm-import-save', 's2arm-open-saves']) {
+      final item = items.lastIndexOf('PopupMenuItem(', items.indexOf("ValueKey('$key')"));
+      final previousLine = items.substring(0, item).trimRight().split('\n').last.trim();
+      expect(previousLine, isNot(startsWith('if (')), reason: '$key is offered with or without a selected game');
+    }
+    expect(items.indexOf("ValueKey('s2arm-import-folder')"), lessThan(items.indexOf("ValueKey('s2arm-import-save')")));
+    expect(items.indexOf("ValueKey('s2arm-import-save')"), lessThan(items.indexOf("ValueKey('s2arm-import-keys')")));
+    final delete = items.indexOf("ValueKey('s2arm-delete-game')");
+    expect(items.substring(items.lastIndexOf('if (', delete), delete), contains('widget.romPath != null'));
+    // Without a selected game: the game the save names, else the player's choice; the Saves folder itself.
+    expect(menu, contains('romPath == null ? null : Switch2ExportContent.exportFolder(romPath)'));
+    expect(menu, contains('chooseGame: (games) async {'));
+    expect(menu, contains("_t('saveChooseGame')"));
+    expect(menu, contains("_tf('saveImportedForId'"));
+  });
+
   test('the Emulators tab shows the settings panel for switch2 only', () {
     final tabs = File('lib/widgets/system_emulator_settings_dialog/tabs.dart').readAsStringSync();
     expect(tabs, contains("if (console == 'switch2') const Switch2EngineSettingsPanel()"));

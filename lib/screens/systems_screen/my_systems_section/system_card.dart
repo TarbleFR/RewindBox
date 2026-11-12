@@ -7,6 +7,7 @@ import 'package:neostation/services/music_player_service.dart';
 import 'package:neostation/services/sfx_service.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:material_symbols_icons/symbols.dart';
@@ -77,6 +78,11 @@ class _SystemCardState extends State<SystemCard> {
   String? _themeBackgroundPath;
   bool _themeBackgroundExists = false;
   String _lastThemeFolder = '';
+
+  /// The art is the embedded pack's image, shown because the active pack has
+  /// none for this system; it is inset by [NeoAssetsProvider.fallbackInset].
+  bool _themeBackgroundIsFallback = false;
+  double _fallbackInset = 0;
 
   /// Cached wheel file and existence check — computed once, not on every build.
   File? _cachedWheelFile;
@@ -211,6 +217,9 @@ class _SystemCardState extends State<SystemCard> {
     final themeFolder = context.select<NeoAssetsProvider, String>(
       (p) => p.activeThemeFolder,
     );
+    final fallbackInset = context.select<NeoAssetsProvider, double>(
+      (p) => p.fallbackInset,
+    );
 
     if (!widget.info.isGame && themeFolder != _lastThemeFolder) {
       _lastThemeFolder = themeFolder;
@@ -227,7 +236,15 @@ class _SystemCardState extends State<SystemCard> {
       final themePath = _themeBackgroundPath;
       _themeBackgroundExists =
           themePath != null && themePath.isNotEmpty && File(themePath).existsSync();
+      _themeBackgroundIsFallback =
+          _themeBackgroundExists &&
+          themePath == neoAssets.defaultBackgroundForSystemSync(folderName);
+      // Measured after this frame, once per pack; 0 until then.
+      if (_themeBackgroundIsFallback) {
+        unawaited(neoAssets.ensureFallbackInsetMeasured());
+      }
     }
+    _fallbackInset = _themeBackgroundIsFallback ? fallbackInset : 0;
 
     if (widget.carouselArtworkOnly) return _buildCarouselArtwork(context);
     final glacierRadius = widget.glacierRadius;
@@ -677,23 +694,46 @@ class _SystemCardState extends State<SystemCard> {
     // SCENARIO C: Static image (Custom or Theme-provided).
     final activeBgPath = hasCustomBg ? customBgPath : _themeBackgroundPath;
     final hasActiveBg = activeBgPath != null && activeBgPath.isNotEmpty;
+    final borderRadius =
+        Theme.of(context).extension<CornerRadii>()?.radiusInternal ??
+        BorderRadius.circular(widget.info.isGame ? 9.r : 25.r);
+    final art = hasActiveBg
+        ? Image.file(
+            File(activeBgPath),
+            key: ValueKey('${activeBgPath}_${widget.info.imageVersion}'),
+            fit: BoxFit.cover,
+            cacheWidth: widget.backgroundCacheWidth,
+            errorBuilder: (context, error, stackTrace) =>
+                _buildBundledBackground(),
+          )
+        : _buildBundledBackground();
 
+    // The embedded fallback under a pack whose tiles sit inside a transparent
+    // margin: the same margin, and the corner radius scaled with the tile, so
+    // it is the size of its neighbours. Every other art is drawn as before.
+    final inset = !hasCustomBg && hasActiveBg ? _fallbackInset : 0.0;
+    if (inset > 0) {
+      return Positioned.fill(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final side = constraints.biggest.shortestSide;
+            if (!side.isFinite) {
+              return ClipRRect(borderRadius: borderRadius, child: art);
+            }
+            return Padding(
+              key: const ValueKey('system-art-fallback-inset'),
+              padding: EdgeInsets.all(side * inset),
+              child: ClipRRect(
+                borderRadius: borderRadius * (1 - 2 * inset),
+                child: art,
+              ),
+            );
+          },
+        ),
+      );
+    }
     return Positioned.fill(
-      child: ClipRRect(
-        borderRadius:
-            Theme.of(context).extension<CornerRadii>()?.radiusInternal ??
-            BorderRadius.circular(widget.info.isGame ? 9.r : 25.r),
-        child: hasActiveBg
-            ? Image.file(
-                File(activeBgPath),
-                key: ValueKey('${activeBgPath}_${widget.info.imageVersion}'),
-                fit: BoxFit.cover,
-                cacheWidth: widget.backgroundCacheWidth,
-                errorBuilder: (context, error, stackTrace) =>
-                    _buildBundledBackground(),
-              )
-            : _buildBundledBackground(),
-      ),
+      child: ClipRRect(borderRadius: borderRadius, child: art),
     );
   }
 

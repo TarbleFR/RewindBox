@@ -22,6 +22,16 @@ Method channel `neostation/s2arm_internal`. Files:
 | `S2ArmGuestABI.h`, `S2ArmPrepareABI.h` | copies of the engine's `rb_guest.h` struct and the `rb_s2arm_*` entry points |
 | `S2ArmEngineBridgePlugin.{h,m}` | the method channel: `status`, `detectExport`, `gameInfo`, `storageInfo`, `prepareGame`, `cancelPrepare`, `launchGame`, `configureLaunchJournal` |
 
+**Booleans sent to Dart are BOOLs.** The bridge is Objective-C, not Objective-C++. A comparison, `!`, `&&` or `||` is a C
+`int` there, and `@(x != nil)` is an ordinary `NSNumber` that Flutter's codec sends as `1`, not `true`. IPA 727 sent
+`systemDataPresent`, `helperPresent`, `available`, `engineFloorMet` and `engineLoaded` that way. `_readAvailability`
+compared them with `== true` and returned `systemDataMissing`, so the Consoles switch stayed off with every part present.
+The maintainer forwarded that analysis. Each flag is now a `BOOL` local before it is boxed. Dart reads flags with
+`S2ArmInternalService.flag` (true or a non-zero number), and `S2ArmSettings.fromMap` accepts a number too.
+`test/s2arm_engine_bridge_test.py` fails on any boxed comparison in `Classes/*.m`; the 727 code fails it on six. The
+libretro bridge hit the same trap in Build 454 (`test/libretro_channel_codec_test.py`). The XeniOS, RPCS3, Dolphin and
+ARMSX2 bridges are `.mm`, where a comparison is a C++ `bool`. Not observed on a device.
+
 ### One engine per process
 
 `S2ArmEngine` carries one NativeAOT runtime; MeloNX's Core carries another. They cannot share a process, so:
@@ -105,6 +115,25 @@ No engine change: everything below uses what the pinned engine already reads in 
   engine exports no pause. Strings come from Dart at launch (`menuStrings`, `lib/l10n/switch2_settings_locale.dart`,
   12 languages), English when a key is missing. The engine's own gear menu (top left, English or Chinese) stays for
   controls, cheats and saves.
+- **Saves** (`S2ArmPrepareSaveFolder`, `S2ArmInternalService.saveFolderFor` / `importSave` / `openSaveFolder`): each game
+  has one folder, `Documents/S2Arm/Saves/<title> [<TITLE ID>]`, visible in the Files app (On My iPhone → RewindBox → S2Arm
+  → Saves) and found again by its title id. The bridge gives it to the engine as `S2A_SAVE_FOLDER` before the dlopen (the
+  engine's default, `<docs>/SaveData`, is in the private Library). The engine (S2Arm services `SaveFolder.cs`) reads it
+  when the game starts if its content changed since the last write-back: JKSV, Checkpoint, Ryujinx, yuzu, NX2Apple or
+  plain files; a save of another game is refused and the current save kept; an empty folder keeps the current save. A
+  clean quit writes the progress back there. A save already in the old private folder is copied once into an empty new
+  one. The playlist menu imports a save for the selected game (a folder picked in Files, copied in as one sub-folder,
+  inside `StorageImportActivity.run`; refused while a game runs; the previous content kept as `<name> (backup)`) and
+  opens the folder in Files (`shareddocuments:`). A save that names its game (Ryujinx `ExtraData0`, a yuzu path, a Checkpoint
+  `0x<id> …` folder; `saveProgramId`, read as the engine's `Detect` reads them) goes to that game's folder when it is not
+  the selected one: the library game's title names the folder, or `Switch 2 [<id>]` when the game is not imported yet.
+  JKSV and plain files name no game and stay with the selected game; a save naming several games too (the engine decides).
+  Both save items are always in the menu, second as in MeloNX's (IPA 727 showed them only with a game selected, and the
+  maintainer looked for them without one). With no game selected, a save goes to the game it names. A save that names
+  none goes to the game picked in a list of the Documents/S2Arm/Games games (`libraryGames`), or is refused with
+  `saveNoGame` ("select the game in the list") when that list is empty. "Open the saves folder" then opens
+  `Documents/S2Arm/Saves` itself. Checked by `test/s2arm_session_menu_test.py` (Saves),
+  `test/s2arm_internal_service_test.dart` (saves) and `test/s2arm_playlist_menu_contract_test.dart`. Not observed on a device.
 - **End of session**: on `session_ended` (either menu's quit, or an engine stop) the bridge removes the menu and dismisses
   the game view controller before it tells Dart.
 - Checked by `test/s2arm_session_menu_test.py` and compiled for iOS arm64 by `.github/workflows/s2arm-bridge-ios.yml`.

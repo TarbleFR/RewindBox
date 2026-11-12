@@ -359,6 +359,88 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     `Claude-Session` line.
   - **Next:** download, verify offline, receipts, record, delete the key, send the file; give session 04 the freeze
     commit for 803 (sibling of 726).
+- **IPA 728 gating (maintainer, 12 Nov).**
+  - Compile once session 04 (Switch 2) and session 03 (XeniOS) have finished and sent their handoffs.
+  - MeloNX keeps working and does not gate this IPA.
+  - Already on Claude: session 04's lot `766ce43b`.
+  - Awaited:
+    - session 04: the pack-margin fix for fallback tiles;
+    - session 03: XeniaCore ABI 4, which reserves the JIT region at load, and the folder access fix.
+- **IPA 727 device findings relayed by session 04 (12 Nov 05:02Z).** Fixes are on session 04's branch, not on Claude yet.
+  - **Switch 2 import refused every Files export.** file_picker getDirectoryPath returns a bare path without
+    security-scoped access. Fixed by 04 in `7a33d9f3`, plus `89eb15aa` and `471c763e`.
+  - **Switch 2 Consoles switch stays off.** `_s2arm.ready` is false; `7a33d9f3` logs the status line.
+  - **Switch 2 covers.** Main approved 04 changing `game_box_profile`, `game_box_art_fit` and `game_box_spine_design`
+    from the Switch 1 values, with a test.
+  - **RPCS3 checked by main.** Its folder import uses `Rpcs3DocumentPickerPlugin` `pickGameFolder`, which starts
+    security-scoped access. The `FilePicker` variant `Rpcs3InternalService.importExtractedGameFolder` has no caller.
+    Not affected.
+  - **XeniOS `importFolder`.** Session 03 confirmed it uses `FilePicker.getDirectoryPath` (package source, directory
+    path only). Fixed in `7de68c77d` with `pickAndActivateFolder` (bookmark `xenia-import`) and `folderAccessFailed`
+    in 12 locales. Xbox 360 Dart 59/59, storage 25/25. Not seen on a device.
+  - **First Xbox 360 launch on 727 closed RewindBox.** Shown by `Engine/xenia.log`: "iOS JIT: no room for the code
+    region below 8 GB", then a XeniOS FatalError (quick_exit, no .ips). The 512 MiB JIT region must be reserved at
+    process load; the lazy dlopen of the Core comes too late. Session 03's fix (on its branch, not on Claude):
+    - `c579a0e7b` (Core ABI 4): the bridge reserves the region at plugin registration and hands it to the Core;
+    - `71c828f5d`: Dart refuses `jitMemoryUnavailable` before any attach, and `Engine/last-fatal.txt` records the
+      reason.
+    - Core run `43158794942` was in progress; pin, review and handoff to follow.
+- **IPA 727 delivered and verified (12 Nov 04:25Z, main).**
+  - Run `43151344182` attempt 1, trigger `bd80b2b9`, frozen on `7d90218f`, effective digest `28dc0833`. All 5 jobs
+    succeeded.
+  - IPA `RewindBox-727.ipa`: 329470998 B, SHA-256 `982f9f93d091d149ac427a51f027632ae820309490d9bfe1f655d0d9f2cf828d`.
+  - Offline verification `passed-offline-checks`:
+    - the 4 parts match their API digests;
+    - SHA256SUMS and the signer receipt match;
+    - 97 images; 44 retained fingerprints verified;
+    - 2 identity engines (XeniaCore, S2Arm);
+    - validators melonx, neoplay, shaders, legal, no-kartpad and no-dusklight all exit 0.
+  - Undeclared image changes, reported and not fatal:
+    - `armsx2_internal_bridge` (as in 726) and `dolphin_internal_bridge`, both rebuilt from source;
+    - the only Dolphin bridge diff since 726 is the CI file `verify_ipa.py`, which is not compiled;
+    - both retained Cores' fingerprints equal the base;
+    - cause not yet explained.
+  - Legal folders: every file matches its `license-sources.json` digest, none empty.
+    - `Legal/XeniOS`: 4/4.
+    - `Legal/MetalShaderConverter`: 3/3.
+    - `Legal/S2Arm`: 35/35.
+  - Extension set: ARMSX2, Dolphin, MeloNX (JIT + RAM donor), NeoSwap (donor + relay), RPCS3, S2Arm and Xenia
+    helpers.
+  - Receipt `docs/evidence/rewind727/delivery.json`: 14 proof files, plus the two engine embedded receipts. Private
+    key shredded after the verified delivery. File sent to the maintainer.
+  - Not run on an iPhone; no FPS, memory, heat or stability claim.
+  - Next: the ON HOLD RPCS3 heat/performance lot (#123) can open against IPA 727.
+- **IPA 727 requested (12 Nov 03:33Z, main).** Both handoffs the maintainer required are in: session 04's Switch 2
+  save import (merge `1b32dd7f` of `22997cd2`; s2arm_session_menu, storage_contract, s2arm_engine_bridge 66 checks,
+  s2arm_legal_review green locally) and session 03's Xbox 360 display lot (merge of `c22262d7`, XeniaCore ABI 3, pin
+  `7e13268b`, producer `06a580d41` an ancestor; xenia_core_patch, xenia_touch_controls, shader_converter_validator green
+  locally; session 03's macOS run `43147427878` was on its own merged tree, without session 04's lot: the two lots touch
+  disjoint files). Manifest frozen on `53579c72` (effective digest `05d3c856`, 7901 product files, 38 reviewed
+  first-parent commits; first try listed the side-branch commits and the replay refused them as missing). Offline
+  contract 108 OK on draft and frozen manifest; trigger-paths accepted (no other workflow runs). Trigger `2088c712`,
+  run `43149001356`. Private key outside Git. Not run on an iPhone. Next: download, verify, receipt, delete the key,
+  send the file; then the ON HOLD RPCS3 thermal lot.
+  - **Run `43149001356` red (3 failures, one root cause for two):**
+    - republish: retained608 Dolphin input check refused `verify_ipa.py`;
+    - application: StikJIT `stikjit_scoped_host_test` (expected_helpers count);
+    - flutter: 1/1332 `armsx2_embedded_library_contract_test`, switch2 added by `6d492d75`.
+
+    `c0aae729` changed `verify_ipa.py`. Only the freeze and the source contract read `changedInputs`.
+
+    Fix `d68da380`:
+    - `declared_native_changes` checks that the path is a 608 input and not a recipe file, that the current bytes
+      are newBlob, and that baseBlob equals the recorded 608 bytes; nothing else is relaxed;
+    - the StikJIT test normalizes the exact 3-line engine block;
+    - the ARMSX2 contract now expects switch2.
+
+    Validation:
+    - new `test/retained608_declared_changes_test.py` 7/7, run locally: it imports the recipe, so it is kept out of
+      the groups;
+    - on real data only `verify_ipa.py` differs, and it is the declared path;
+    - offline contract 108 OK.
+
+    Second request: frozen on `7d90218f` (digest `28dc0833`), trigger `bd80b2b9`, queued behind run 1, whose native
+    job was still running.
 - **Integration queue for the next common IPA (11 Nov evening, main).** No IPA before the other sessions are ready.
   - **RPCS3:** Cores 932 (`fa94f636`) and 933 (`b055869b`) pinned; nothing of 931-933 observed on an iPhone yet.
   - **PR #172 integrated (`945bec13`, session 03, Xbox 360 / XeniOS, head `7be66a89`):** the review findings were
@@ -4622,6 +4704,47 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       run: `heap_report.py` on the `[MeloNX:heap]` lines, the `zones=` values over time, `lohAfterBytes` and
       `lohFreeAfterBytes`; then the correction of the largest owner. The sampler is to be removed once the owner is
       known.
+  - **IPA 727 device runs read (12 Nov) and Core 739 frozen here (contract `f4f867b6…`, 94 fresh gates; not delivered,
+    not run on an iPhone).** Input identity: IPA 727, MeloNX Core 737 (pin 36ed5e93, iPhone binary 75bd2087, contract
+    09ac5655); maintainer's journals of 12 Nov (private, scratchpad only): Super Smash Bros. Ultimate v13.0.4 pid 56632
+    (05:22:54-05:30:56, asyncShaders=False, thermal nominal throughout) and Hogwarts Legacy pid 56836 (05:45:01-05:47:00,
+    asyncShaders=True, fair 46 s then serious 24 s). The two titles are analysed separately.
+    - **Smash (pid 56632):** mean 58.2 / median 60.0 FPS over 462 s, gaps p99 17 ms, 44 gaps over 100 ms, longest
+      1 800 ms (t=207), 1 350, 733, 700, 583, 533 ms; footprint 3 251 -> 3 767 MiB (t=30-450; graphics +278, malloc
+      +83, the rest +155; Vulkan buffers 34 -> 174 MiB in 3 234 dedicated blocks, images 211-260 MiB); CPU 0.92 W, 15.8 mJ
+      per presented frame (726 Smash pid 54630, nominal: 0.83 W, 14.0 mJ: no CPU heat change between the two IPAs on
+      this title). GC is not the stutter (longest pause 78 ms); the 60 s memory walks (361-509 ms) coincide with no
+      large gap. The large gaps fall in pipeline bursts: 192 programs made in play, 177 render-thread pipeline
+      compilations in 30.7 s (none compiled again), the 1 209 known variants replayed (594 ready before their first
+      draw, 99 late new variants for 1.4 s); render-thread SetProgram 1 394/989/813/778/763/670 ms per 5 s window and
+      CreateProgram 28-82 ms per program: `adapt_setprogram_warmup`'s policy (DetachPlayTimeWarmUps) was on for
+      Hogwarts only.
+    - **Core 739 = Core 737 + `adapt_playtime_warmup_all_titles`** (Library.cs, one assignment: the policy for every
+      title; every other Hogwarts policy keeps its scope; no draw is skipped either way). 94th gate
+      `playtime-warmup-all-titles` binds the scope change to the setprogram-warmup proof run on this very Library.cs
+      (evidence `docs/evidence/melonx-739-gates/setprogram-warmup-checks.json`: host burst SetProgram 1 571.5 -> 1.4 ms,
+      first draw 1 603 -> 444 ms, every draw with its exact pipeline). Rerun on the Core 739 preparation and passed: the
+      12 gates binding Library.cs (fragmented-reads, hogwarts-dma-copies, descriptor-scratch-all-titles,
+      binder-teardown, present-pacing, setprogram-warmup, forced-syncpoint-wait, session-retention,
+      safe-point-compaction, moltenvk-stage-ordering, pipeline-cache-persist, retention-chain) and the new gate;
+      contract test 490 checks (426 without the archive). For Hogwarts it changes nothing (the policy was already on).
+      To read on the device: render-stage SetProgram ms, pipeline build lines, gaps in Smash bursts, worker caches'
+      memory. Rollback: remove the adapter.
+    - **Hogwarts (pid 56836), the three dominant costs:** (1) memory pressure: at t=48 the footprint jumps 3 775 ->
+      4 428 MiB (zone load), device available 5-9 %; in the seconds where threads wait for a core >= 150 % of their CPU
+      time the kernel decompresses about 7 460 pages/s and compresses 152 MiB/s (670 pages/s otherwise), FPS 21.0 vs
+      25.8 (same in 726 pid 55836: 7 676 pages/s, 18.2 vs 27.9 FPS); Vulkan images 408-479 MiB in 6 162-9 060 dedicated
+      allocations while the texture cache counts 160-184 MiB, buffers 259 MiB vs 171 MiB counted; managed heap about
+      0.8 GiB with 170-200 MiB of LOH fragmentation after background GCs. (2) render-thread descriptor writes: draw
+      prepare descriptors 842-1 074 ms and compute prepare descriptors 400-515 ms per 5 s window (about 10-12 ms per
+      frame at 22-28 frames/s); renderDrain 2.6-3.6 s per 5.1 s. (3) GPU-thread compute with nested array deltas
+      (compute 0.7-1.3 s, arrayDelta 0.5-0.9 s per window). Not shaders: render-thread pipeline compilations 0, 1 743
+      of 1 748 variants replayed, 82 late variants in 37 ms, 2 programs made in play. The session ran with the user's
+      per-game "Async shaders" on: "not ready by cause: async skips 110" (then 12) draws in two windows: skipped draws
+      the default (off) never makes.
+    - **Next action:** Hogwarts lot (own Core, Hogwarts policy): the render-thread descriptor write cost first (named
+      calls, a host profile on the real DescriptorSetUpdater), then the memory attribution of the uncounted Vulkan
+      images. Main: Core 739 CI and pin when the integration order allows.
   - **IPA 726 device run read (12 Nov): Hogwarts Legacy on Core 735, pid 54035, 23:43:42-23:46:20 (the session
     of the P0 726 close); journals private (scratchpad), aggregates only. Not a like-for-like comparison with 725:
     the phone was in the "serious" thermal state for 99 of the 100 warm seconds (725, pid 51986: "fair").**
@@ -4729,8 +4852,14 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       (steps 1-11, the presentation step included). The donor lease test runs in that workflow only on a push whose
       head commit carries `[melonx-display]` (a dispatched run skips it): its retry cases are not run yet; main's
       integration commit will carry the tag.
-    - **Next action:** main: Core 737 CI, pin and an IPA together with `71765f2f`; on the device, several Switch
-      closes (pads attached) then a PS3 launch: no `close quarantined`, no `Collection was modified`.
+    - **CI (12 Nov, merged by main as 36ed5e93, then b4ef45fc):** MeloNX Core 737 compile 43131998605 green (gates,
+      NativeAOT ABI, ARM64 iOS app run, teardown and backing release); melonx-host 43131937235 green 14/14 (donor
+      lease test with the retry cases included); melonx-display 43136718386 green after `07f4509b` (zh_Hant lacked
+      the three Hogwarts GPU labels of 153e0ec9) and `29e06306` (the key-import widget test's wait gave up at 100
+      rounds, the import needs 103-104; intermittent on both sides of every candidate, not a regression): first
+      green since 28 Oct.
+    - **Next action:** main: pin Core 737 and an IPA; on the device, several Switch closes (pads attached) then a
+      PS3 launch: no `close quarantined`, no `Collection was modified`.
   - **Lot 14 (11 Nov; maintainer: "une vraie mise à jour pour sentir du changement" on RAM, heat, shaders): GPU thread
     work per frame. Core 735 frozen here (contract `47b596a9…`), not delivered, not run on an iPhone.**
     - **Input identity:** the IPA 725 `performance` samples of lot 13 (pid 51986) and two host profiles on copies of
@@ -5111,6 +5240,43 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       `test/s2arm_session_menu_test.py` and `test/switch2_settings_locale_test.dart`.
     - Limits: changes apply to the next game, after RewindBox restarts (one game per process). There is no pause
       (the engine exports none). Not observed on a device.
+  - Switch 2 saves (maintainer request, 12 Nov), new handoff on top of Claude `19b99762`: `f382409b` and `2ab99d6b`.
+    There is no engine change.
+    - Each game has a save folder that the Files app shows: `Documents/S2Arm/Saves/<title> [<TITLE ID>]`. The bridge
+      passes it as `S2A_SAVE_FOLDER`, and the engine reads and writes native saves there.
+    - Playlist menu: "Import a save" and "Open the saves folder".
+    - A save that names another game (Ryujinx, yuzu or Checkpoint) goes to that game's folder.
+    - The previous content is kept as `(backup)`.
+    - Green: `flutter analyze` and tests 43146548370 on `2ab99d6b`; iOS compile 43146259805 on `f382409b`.
+    - Not observed on a device.
+  - **IPA 727 device report (maintainer, 12 Nov) and its fixes.** New handoff on top of Claude `725522b1`, head
+    `fa578446`: `89eb15aa`, `471c763e`, `7a33d9f3`, `5a76ee06`, `bc43c4ed`, `839c0465`, `fa578446`.
+    - **Consoles switch could not be turned on. Cause found: `bc43c4ed`.** The bridge is Objective-C (`.m`), so
+      `@(x != nil)` and `@(a && b)` are C ints. Flutter sends them as `1`, and Dart's `!= true` read `systemDataPresent`
+      as missing, with `helperPresent` and `available` failing the same way. The analysis came forwarded by the
+      maintainer and matches the code.
+      - Fix: the native flags are BOOL locals before boxing, and Dart's `flag()` takes true or a non-zero number.
+      - `test/s2arm_engine_bridge_test.py` refuses any boxed comparison; on the 727 code it reports the six faulty ones.
+      - Green: iOS compile 43161141434, `flutter analyze` and tests 43161141609.
+    - **Import refused for every export picked in Files.** file_picker gives a picked folder's path without
+      security-scoped access. Fixed in `7a33d9f3` with `ExternalFolderAccess.pickAndActivateFolder`, for games and saves.
+      Also `89eb15aa` (export found up to 3 levels below the pick) and `471c763e` (iCloud placeholder message and the
+      native diagnostic). Green: 43156862326, 43157362011, 43158702303.
+    - **No save import button.** It showed only with a game selected. Since `5a76ee06` it is always in the menu, second
+      as in MeloNX's. Without a selection, the save goes to the game it names; otherwise the player picks a game in a list.
+      Green: 43160214636.
+    - **Main-menu logo too big, not centred.** `839c0465` recomposes the Glacier tile: the logo is at 72 %, centred.
+      The index, `contentDigest` and tile review follow, and `switch2_glacier_tile_review_test` passes. Green: 43161834531.
+    - **Game boxes like Switch 1 (main approved, `725522b1`).** `fa578446` adds the `switch2` profile, wrap layout and
+      spine design, with `test/switch2_game_box_test.dart`. Green: 43162148615, merge head `766ce43b` 43162348750.
+    - **Switch 2 tile larger than a downloaded pack's tiles (main approved, for IPA 728).** On the maintainer's
+      screenshot it measured 333 px against 307 px. That pack has no Switch 2 tile, and its capsules sit inside a
+      transparent margin of about 3 %. `a6ea707a` (system card, assets provider) insets only the embedded fallback by
+      the active pack's measured margin: async, once per folder, 0 while pending or on error, the median of up to 4
+      tiles, clamped to 0–12 %. Test: `test/system_art_fallback_inset_test.dart`. Green: 43164598300. Merged with
+      Claude `18c8c905` in `675f79a4`.
+    - Told main: the XeniOS `importFolder` uses `FilePicker.getDirectoryPath` (main passed it to session 03).
+    - Nothing observed on a device. The next IPA's app.log has an `S2Arm status: {…}` line with the native flags.
   - Main withdrew the launcher deletion (12 Nov): it stays as is. Formerly open: delete the launcher (`.github/diagnostics/s2arm/`, `s2arm-delivery.yml`,
     `set_probe_key.py`) together with its test `s2arm_delivery_test.py`, which no longer works
     since 9c9817e8 (40 errors)? Main also has to choose the S2Arm test groups of the next

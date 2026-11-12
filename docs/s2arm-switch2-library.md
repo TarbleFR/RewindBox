@@ -84,4 +84,43 @@ service answers `engineMissing`: the playlist is listed but unavailable and noth
   `build-utils/collect_build_source_evidence.py` (previous and new index digests, the added tile and the three declared
   files, each against the index and the bytes). Negative controls: `test/switch2_glacier_tile_review_test.py` (8 tests;
   each check mutation-tested). Main reviews it with the rest of this branch.
+- 12 Nov 2026, after IPA 727: the maintainer asked for the main-menu logo smaller and centred. On the 727 tile the logo
+  covered 49 % of the tile's width and 44 % of its height, centred at 39 % of the height. That placed it high in the
+  0.8 portrait card (which crops the sides) and in the footer thumbnail. The tile is recomposed on the same red
+  background:
+  - the logo is at 72 % of its former width (181×162 px), centred, drawn from `assets/images/logos/switch2.webp`;
+  - the background under the former logo is filled from each row's surrounding red, with no visible trace under a
+    contrast check.
+  The index entry, the `contentDigest` (installed copies are replaced at the next start) and the review's index, digest
+  and tile identity follow. `test/switch2_glacier_tile_review_test.py` passes. Not observed on a device.
 
+
+## Game boxes
+
+The maintainer asked for Switch 2 game boxes like the Switch ones (12 Nov 2026). Main approved the change to its
+game-box files on the board (725522b1). `switch2` had no `GameBoxProfile` entry, so its `cartridge` media gave a
+cardboard box. It now has:
+- `game_box_profile.dart`: the Switch case (clear, 105 × 170 × 11 mm, the red insert band, the same interior) holding a
+  red Switch 2 game card the size of a Switch card;
+- `game_box_art_fit.dart`: a full sheet cut with the Switch template (1166 + 122 + 1166 × 1888);
+- `game_box_spine_design.dart`: the Switch spine (white, red 26 mm head) with the `switch2` logo, added to the shipped logos.
+GameTDB is not asked for Switch 2 games (`GameTdb.platformOf` is unchanged): an exact-title match could take the Switch 1
+print of a title. `test/switch2_game_box_test.dart`; the S2Arm library CI also runs `game_box_physical_test.dart` and
+`game_box_spine_design_test.dart`. Not observed on a device.
+
+## Fallback tile under another pack
+
+The maintainer's main menu after IPA 727 used a downloaded pack that has no Switch 2 tile. On their screenshot, the
+Glacier fallback measured 333 px against 307 px for the pack's tiles, on the same centre. The pack's capsules sit inside
+a transparent margin of about 3 % per side, with their own small rounded card and shadow; the fallback filled the whole
+art rect. Main approved the change to its files, with conditions.
+- `NeoAssetsProvider.fallbackInset` is the margin of the active pack's tiles. It is measured once per pack folder,
+  after the frame: the median, over up to 4 tiles decoded 96 px wide, of each tile's smallest distance from an edge to
+  alpha above 128. It is clamped to 0–12 % and is 0 while pending, after any read or decode error, for the embedded
+  pack, for "None" and for opaque packs. The pinned Canvas and RiiSU tiles were checked and are opaque.
+- `SystemCard` insets only the embedded fallback shown under such a pack by that margin, with the corner radius
+  scaled by the tile. A pack's own tiles and every other art keep the same widget tree.
+- No string or asset change. `test/system_art_fallback_inset_test.dart` covers the margin of a tile, the median and
+  clamp, engine-decoded tiles, a decode failure (0), and the pending, once-only and not-installed cases. It also checks
+  the card: with a margin only the fallback is inset; with an opaque pack the layout is unchanged.
+Not observed on a device.

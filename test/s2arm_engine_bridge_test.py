@@ -135,6 +135,71 @@ check('resolution: workspace' in (ROOT / 'packages/s2arm_engine_bridge/pubspec.y
       'the plugin pubspec is a workspace member')
 
 
+def without_comments(text):
+    """The source with // and /* */ comments removed (string and character literals kept)."""
+    out, i = [], 0
+    while i < len(text):
+        if text.startswith('//', i):
+            i = text.find('\n', i)
+            i = len(text) if i == -1 else i
+        elif text.startswith('/*', i):
+            i = text.index('*/', i) + 2
+        elif text[i] in '"\'':
+            quote, end = text[i], i + 1
+            while text[end] != quote:
+                end += 2 if text[end] == '\\' else 1
+            out.append(text[i:end + 1])
+            i = end + 1
+        else:
+            out.append(text[i])
+            i += 1
+    return ''.join(out)
+
+
+def boxed_expressions(text):
+    """The top level of every @( ... ) of an Objective-C source: comments dropped, nested (), [], {} and string
+    literals blanked out."""
+    text = without_comments(text)
+    found = []
+    start = text.find('@(')
+    while start != -1:
+        depth, i, top = 1, start + 2, []
+        while i < len(text) and depth:
+            c = text[i]
+            if c == '"':
+                end = i + 1
+                while text[end] != '"':
+                    end += 2 if text[end] == '\\' else 1
+                i = end
+            elif c in '([{':
+                depth += 1
+            elif c in ')]}':
+                depth -= 1
+            elif depth == 1:
+                top.append(c)
+            i += 1
+        found.append(''.join(top))
+        start = text.find('@(', i)
+    return found
+
+
+# The bridge is Objective-C, not C++: a comparison, `!`, `&&`, `||` or `c ? 1 : 0` is a C int there, and @(int) reaches
+# Dart as 1, not true (IPA 727: systemDataPresent arrived as 1 and the Consoles switch stayed off). Every boxed value is a
+# variable, a property, a call or a literal; flags are BOOL locals first. `x ?: y` keeps x's type (a C string here).
+for source in sorted(PKG.glob('*.m')):
+    for expression in boxed_expressions(source.read_text()):
+        top = expression.replace('->', '.').replace('?:', '')
+        check(not re.search(r'==|!=|<|>|&&|\|\||!|\?', top),
+              f'{source.name}: @({expression.strip()}) boxes a comparison or logical result (a C int, not a BOOL)')
+status = read('S2ArmEngineBridgePlugin.m')
+status = status[status.index('- (NSDictionary *)status {'):]
+status = status[:status.index('\n}\n')]
+for flag in ('available', 'enginePresent', 'helperPresent', 'systemDataPresent', 'engineLoaded', 'engineFloorMet'):
+    check(re.search(r'@"%s" : @\(\w+\)' % flag, status), f'status boxes {flag} from a BOOL local')
+for local in ('available', 'helperPresent', 'systemDataPresent', 'engineLoaded', 'floorMet'):
+    check(f'BOOL {local} = ' in status, f'status declares BOOL {local}')
+
+
 # ---------------- executed ----------------
 def synth_pack(entries):
     """A minimal Mach-O (feedfacf) with one LC_SEGMENT_64 __TEXT holding a __swidx S2AEMB01 index for `entries`

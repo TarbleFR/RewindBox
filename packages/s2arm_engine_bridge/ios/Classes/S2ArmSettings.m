@@ -45,13 +45,14 @@ NSDictionary<NSString *, id> *S2ArmSettingsSnapshot(void) {
   if ([scale isEqualToString:@"1.5"] || [scale isEqualToString:@"2"]) scale = @"1";
   // Widescreen is on unless it was stored as NO (S2Arm settings.m:137).
   id wide = [defaults objectForKey:kWidescreen];
+  BOOL widescreen = wide == nil ? YES : [defaults boolForKey:kWidescreen];  // a BOOL, so Dart gets true / false
   return @{
     @"resolutionScale" : scale,
     @"antiAliasing" : StoredChoice(defaults, kAntiAliasing, @"None", S2ArmSettingsValues(@"antiAliasing")),
     @"scalingFilter" : StoredChoice(defaults, kScalingFilter, @"Bilinear", S2ArmSettingsValues(@"scalingFilter")),
     @"frameRateLimit" : StoredChoice(defaults, kFrameRateLimit, @"0", S2ArmSettingsValues(@"frameRateLimit")),
     @"docked" : @([defaults boolForKey:kDocked]),
-    @"widescreen" : @(wide == nil ? YES : [defaults boolForKey:kWidescreen]),
+    @"widescreen" : @(widescreen),
     @"performanceOverlay" : @([defaults boolForKey:kPerformanceOverlay]),
     @"gameLanguage" : StoredChoice(defaults, kGameLanguage, @"auto", GameLanguages()),
   };

@@ -25,6 +25,8 @@ static uint64_t const kBootQuiesceNs = 2000000000ull;   // 2 s with no hook acti
 
 static void s2arm_session_ended(int code, const char *reason, void *context);
 static UIViewController *S2ArmTopViewController(void);
+static BOOL S2ArmPathInside(NSString *path, NSString *root);
+static void S2ArmPrepareSaveFolder(NSString *folder, NSString *docs);
 
 static BOOL S2ArmMeloNXCoreLoaded(void) {
   int (*loaded)(void) = (int (*)(void))dlsym(RTLD_DEFAULT, "rb_melonx_core_loaded");
@@ -46,6 +48,7 @@ static NSString *S2ArmEnginePath(void) {
 @property(nonatomic, copy, nullable) NSDictionary<NSString *, NSString *> *menuStrings;   // from Dart, for the in-game menu
 @property(nonatomic, strong, nullable) UIViewController *engineViewController;   // presented while a game runs (main thread)
 @property(nonatomic, strong, nullable) S2ArmSessionMenu *sessionMenu;             // RewindBox's in-game menu (main thread)
+@property(nonatomic, copy, nullable) NSString *saveFolder;   // Documents/S2Arm/Saves/<game>, given to the engine
 @end
 
 @implementation S2ArmEngineBridgePlugin
@@ -65,7 +68,8 @@ static NSString *S2ArmEnginePath(void) {
   }
   if ([call.method isEqualToString:@"configureLaunchJournal"]) {
     NSString *path = [call.arguments isKindOfClass:NSDictionary.class] ? call.arguments[@"path"] : nil;
-    result(@(path.isAbsolutePath && s2arm_journal_open(path.fileSystemRepresentation) == 0));
+    BOOL opened = path.isAbsolutePath && s2arm_journal_open(path.fileSystemRepresentation) == 0;
+    result(@(opened));  // a BOOL, so Dart gets true / false (see status)
     return;
   }
   if ([call.method isEqualToString:@"detectExport"]) {
@@ -117,6 +121,24 @@ static NSString *S2ArmEnginePath(void) {
     result(S2ArmSettingsSnapshot());
     return;
   }
+  if ([call.method isEqualToString:@"openFolder"]) {
+    // Shows a folder of the app's Documents in the Files app (shareddocuments: is the Files app's own scheme).
+    NSString *folder = [call.arguments isKindOfClass:NSDictionary.class] ? call.arguments[@"path"] : nil;
+    NSString *documents = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
+    if (![folder isKindOfClass:NSString.class] || !S2ArmPathInside(folder, documents)) {
+      result(@NO);
+      return;
+    }
+    NSURLComponents *url = [NSURLComponents new];
+    url.scheme = @"shareddocuments";
+    url.path = folder.stringByStandardizingPath;
+    if (!url.URL) {
+      result(@NO);
+      return;
+    }
+    [UIApplication.sharedApplication openURL:url.URL options:@{} completionHandler:^(BOOL success) { result(@(success)); }];
+    return;
+  }
   if ([call.method isEqualToString:@"setSettings"]) {
     result(S2ArmSettingsApply([call.arguments isKindOfClass:NSDictionary.class] ? call.arguments : @{}));
     return;
@@ -126,6 +148,9 @@ static NSString *S2ArmEnginePath(void) {
 
 #pragma mark - status
 
+// Every flag is a BOOL before it is boxed. In this Objective-C file (not Objective-C++) a comparison or `&&` is a C
+// int, so @(a != nil) is an ordinary NSNumber, and Flutter's codec sends it as 1, not true. Dart's `== true` then failed:
+// on IPA 727 the Consoles switch stayed off with the engine, system data and helper all present.
 - (NSDictionary *)status {
   NSOperatingSystemVersion os = NSProcessInfo.processInfo.operatingSystemVersion;
   BOOL enginePresent = S2ArmEnginePath().length && [NSFileManager.defaultManager fileExistsAtPath:S2ArmEnginePath()];
@@ -134,20 +159,25 @@ static NSString *S2ArmEnginePath(void) {
     ns2pro = [NSFileManager.defaultManager
         fileExistsAtPath:[NSBundle.mainBundle.privateFrameworksPath stringByAppendingPathComponent:@"NS2Pro.framework/NS2Pro"]];
   }
+  BOOL floorMet = os.majorVersion >= 18;  // S2Arm.app deployment target
+  BOOL available = enginePresent && floorMet;
+  BOOL helperPresent = S2ArmFindHelperBundleIdentifier() != nil;
+  BOOL systemDataPresent = S2ArmShippedSystemData() != nil;
+  BOOL engineLoaded = rb_s2arm_engine_loaded() != 0;
   return @{
-    @"available" : @(enginePresent && os.majorVersion >= 18),
+    @"available" : @(available),
     @"enginePresent" : @(enginePresent),
     @"ns2proPresent" : @(ns2pro),
     @"iosMajor" : @(os.majorVersion),
-    @"engineFloorMet" : @(os.majorVersion >= 18),            // S2Arm.app deployment target
+    @"engineFloorMet" : @(floorMet),
     @"universalHandshake" : @(S2ArmRequiresCoreHandshake()),  // iOS 26+: the host drives commands 3/1/0
     @"getTaskAllow" : @(S2ArmHostHasGetTaskAllow()),
     @"debugged" : @(S2ArmHostIsDebugged()),
-    @"helperPresent" : @(S2ArmFindHelperBundleIdentifier() != nil),
-    @"systemDataPresent" : @(S2ArmShippedSystemData() != nil),
+    @"helperPresent" : @(helperPresent),
+    @"systemDataPresent" : @(systemDataPresent),
     @"directChain" : S2ArmShippedDirectChain() ?: [NSNull null],
     @"melonxCoreLoaded" : @(S2ArmMeloNXCoreLoaded()),
-    @"engineLoaded" : @(rb_s2arm_engine_loaded() != 0),
+    @"engineLoaded" : @(engineLoaded),
     @"journalLines" : @(s2arm_journal_lines()),
   };
 }
@@ -198,6 +228,7 @@ static NSString *S2ArmEnginePath(void) {
   NSString *docs = args[@"docs"];
   NSString *pairing = args[@"pairingFilePath"];
   NSDictionary *menuStrings = [args[@"menuStrings"] isKindOfClass:NSDictionary.class] ? args[@"menuStrings"] : @{};
+  NSString *saveFolder = [args[@"saveFolder"] isKindOfClass:NSString.class] ? args[@"saveFolder"] : nil;
   if (![gid isKindOfClass:NSString.class] || ![images isKindOfClass:NSString.class] || ![moduleDir isKindOfClass:NSString.class] ||
       ![gameData isKindOfClass:NSString.class] || ![docs isKindOfClass:NSString.class]) {
     result(@{@"success" : @NO, @"error" : S2ArmErrorInvalidArguments});
@@ -215,6 +246,7 @@ static NSString *S2ArmEnginePath(void) {
     self.launchInProgress = YES;
   }
   self.menuStrings = menuStrings;
+  self.saveFolder = saveFolder;
   // MeloNX's Core and this engine cannot share a process (two .NET runtimes). If MeloNX loaded, ask for a restart.
   if (S2ArmMeloNXCoreLoaded()) {
     self.launchInProgress = NO;
@@ -287,6 +319,7 @@ static NSDictionary *launchFail(NSString *error, NSString *stage, NSString *deta
   setenv("DOTNET_GCSegmentSize", kGcSegmentSize.UTF8String, 0);
   setenv("MTL_SHADER_CACHE_SIZE", kShaderCacheSize.UTF8String, 0);
   S2ArmSettingsPrepareLaunch();   // the game language, and the engine's brief overlay that the in-game menu shows or hides
+  S2ArmPrepareSaveFolder(self.saveFolder, docs);   // the save folder the player sees in Files (S2A_SAVE_FOLDER)
   rb_s2arm_engine_mark_loading();
   self.engineLoaded = YES;   // from here the engine lives in this process: no second launch, even if the dlopen fails
   s2arm_journal("dlopen", "begin", NULL);
@@ -460,6 +493,42 @@ static void s2arm_session_ended(int code, const char *reason, void *context) {
     [self closeSessionView];
     [self.channel invokeMethod:@"sessionEnded" arguments:@{@"code" : @(code), @"reason" : why}];
   });
+}
+
+// Whether `path` is `root` or inside it, after resolving symbolic links.
+static BOOL S2ArmPathInside(NSString *path, NSString *root) {
+  if (!path.isAbsolutePath || !root.length) return NO;
+  NSString *resolved = path.stringByResolvingSymlinksInPath.stringByStandardizingPath;
+  NSString *base = root.stringByResolvingSymlinksInPath.stringByStandardizingPath;
+  return [resolved isEqualToString:base] || [resolved hasPrefix:[base stringByAppendingString:@"/"]];
+}
+
+// The engine reads the game's save from S2A_SAVE_FOLDER when the game starts and writes it back there when the game ends
+// (S2Arm services SaveFolder.cs; an explicit environment value wins over its default, <docs>/SaveData, which is private
+// here). RewindBox gives it Documents/S2Arm/Saves/<game>, visible in the Files app. A save the engine already wrote to the
+// old private folder is copied once into an empty new one (the old copy stays where it was). Without a valid folder, the engine keeps its default.
+static void S2ArmPrepareSaveFolder(NSString *folder, NSString *docs) {
+  NSString *documents = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
+  if (!folder.length || !S2ArmPathInside(folder, documents)) {
+    s2arm_journal("saveFolder", "default", NULL);
+    return;
+  }
+  NSFileManager *files = NSFileManager.defaultManager;
+  [files createDirectoryAtPath:folder withIntermediateDirectories:YES attributes:nil error:nil];
+  NSString *old = [docs stringByAppendingPathComponent:@"SaveData"];
+  NSArray<NSString *> *oldEntries = [files contentsOfDirectoryAtPath:old error:nil] ?: @[];
+  NSArray<NSString *> *newEntries = [files contentsOfDirectoryAtPath:folder error:nil] ?: @[];
+  NSPredicate *visible = [NSPredicate predicateWithFormat:@"NOT (SELF BEGINSWITH '.')"];
+  if ([oldEntries filteredArrayUsingPredicate:visible].count && ![newEntries filteredArrayUsingPredicate:visible].count) {
+    BOOL moved = YES;
+    for (NSString *name in [oldEntries filteredArrayUsingPredicate:visible]) {
+      moved = [files copyItemAtPath:[old stringByAppendingPathComponent:name] toPath:[folder stringByAppendingPathComponent:name]
+                              error:nil] && moved;
+    }
+    s2arm_journal("saveFolder", moved ? "migrated" : "migrationIncomplete", NULL);
+  }
+  setenv("S2A_SAVE_FOLDER", folder.fileSystemRepresentation, 1);
+  s2arm_journal("saveFolder", "documents", NULL);
 }
 
 static UIViewController *S2ArmTopViewController(void) {

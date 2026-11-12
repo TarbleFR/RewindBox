@@ -43,6 +43,13 @@ new=(ROOT/p).read_text()
 melonx_helpers="        expected_helpers = dict(EXPECTED_HELPERS)\n        if app + '/MeloNX-native-identity.json' in names:\n            expected_helpers['MeloNXJITHelper.appex'] = {\n                'bundleSuffix': '.melonxjithelper',\n                'principalClass': 'MeloNXJITRequestHandler',\n                'marker': 'NeoStationMeloNXJITHelper',\n            }\n            if 'ramDonorSource' in json.loads(z.read(app + '/MeloNX-native-identity.json')):\n                expected_helpers['MeloNXRamDonor.appex'] = {\n                    'bundleSuffix': '.melonxramdonor', 'principalClass': 'MLXRamDonorHandler',\n                    'marker': 'RewindBoxMeloNXRamDonor',\n                }\n            for component in ('MeloNXCore', 'MeloNXMoltenVK', 'MeloNXSDL3', 'MeloNXAvCodec', 'MeloNXAvUtil', 'MeloNXJitSupport'):\n                demand(app + f'/Frameworks/{component}.framework/{component}' in names,\n                       'MeloNX identity requires the complete private runtime: ' + component)\n"
 assert new.count(melonx_helpers)==1
 new=new.replace(melonx_helpers,'')
+# Normalize only the exact identity-engine closed-set addition (c0aae729: XeniOS
+# and S2Arm helpers expected only when their identity file is packaged).
+engine_helpers=("        engine_helpers, engine_problems = identity_engine_helpers(lambda relative: app + '/' + relative in names)\n"
+                "        demand(not engine_problems, '; '.join(engine_problems))\n"
+                "        expected_helpers.update(engine_helpers)\n")
+assert new.count(engine_helpers)==1
+new=new.replace(engine_helpers,'')
 assert new.count('expected_helpers')==4
 new=new.replace('expected_helpers','EXPECTED_HELPERS')
 # The shared IPA contains the NeoSwap donor and separate guest-page relay.
@@ -52,7 +59,7 @@ replacements = (
     ('import sys\n', ''),
     ("sys.path.insert(0, str(Path(__file__).resolve().parents[3] / 'build-utils'))\n"
      'from validate_single_ipa_distribution import (\n'
-     '    DONOR_CONTRACTS, RELAY_CONTRACTS, DONOR_EXTENSION_POINT, validate as validate_distribution,\n'
+     '    DONOR_CONTRACTS, RELAY_CONTRACTS, DONOR_EXTENSION_POINT, identity_engine_helpers, validate as validate_distribution,\n'
      ')\n\n', ''),
     ('    **DONOR_CONTRACTS,\n', ''),
     ('    **RELAY_CONTRACTS,\n', ''),

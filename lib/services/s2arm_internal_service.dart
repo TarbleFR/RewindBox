@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui' show Locale, PlatformDispatcher;
 
-import 'package:file_picker/file_picker.dart';
+import 'package:external_folder_access/external_folder_access.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as path;
@@ -11,6 +12,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:neostation/l10n/s2arm_engine_locale.dart';
 import 'package:neostation/l10n/switch2_settings_locale.dart';
 import 's2arm_settings.dart';
+import 'logger_service.dart';
 import 'storage/storage_import_activity.dart';
 import 'switch2_export_content.dart';
 import 'storage/storage_stat_ffi.dart';
@@ -37,10 +39,13 @@ class S2ArmRuntimeAvailability {
 
 /// Outcome of one game in a Switch 2 import. [reason] is an S2ArmEngineLocale key (or 'imported' / 'duplicate').
 class S2ArmImportItem {
-  const S2ArmImportItem(this.name, this.reason, {this.destination});
+  const S2ArmImportItem(this.name, this.reason, {this.destination, this.detail});
   final String name;
   final String reason;
   final String? destination;
+
+  /// The native diagnostic of a refusal (what the export check read), shown under the message.
+  final String? detail;
   bool get imported => reason == 'imported';
 }
 
@@ -50,6 +55,47 @@ class S2ArmImportResult {
   final bool cancelled;
   int get imported => items.where((item) => item.imported).length;
   Iterable<S2ArmImportItem> get rejected => items.where((item) => !item.imported && item.reason != 'duplicate');
+}
+
+/// A save put in a game's save folder by [S2ArmInternalService.importSave].
+class S2ArmSaveImportResult {
+  const S2ArmSaveImportResult({
+    required this.folder,
+    required this.files,
+    this.backup,
+    this.redirectedTo,
+    this.redirectedTitle,
+  });
+  final String folder;
+  final int files;
+  final String? backup;
+
+  /// The title id the save names when it is not the selected game's, or when no game was selected: it went to that game's
+  /// folder.
+  final String? redirectedTo;
+
+  /// That game's title when it is in the library (Documents/S2Arm/Games), else null.
+  final String? redirectedTitle;
+}
+
+/// A Switch 2 game of Documents/S2Arm/Games that a save can be put in: [S2ArmInternalService.importSave] asks for one
+/// when no game is selected and the save does not name its game.
+class S2ArmSaveGame {
+  const S2ArmSaveGame({required this.title, required this.exportFolder, required this.gid, this.programId});
+  final String title;
+  final String exportFolder;
+
+  /// The title id, 16 lower-case hex digits.
+  final String gid;
+  final String? programId;
+}
+
+/// Why a save import was refused; [code] is a Switch2LibraryLocale key.
+class S2ArmSaveException implements Exception {
+  const S2ArmSaveException(this.code);
+  final String code;
+  @override
+  String toString() => 'S2ArmSaveException($code)';
 }
 
 class S2ArmImportProgress {
@@ -113,6 +159,13 @@ abstract final class S2ArmInternalService {
   static Future<Directory> gamesDirectory() => _child('Games');
   static Future<Directory> stagingDirectory() => _child('.importing');
 
+  /// Bookmark slots of the two folder picks (game import, save import): each keeps the last folder picked for it.
+  static const String importBookmark = 's2arm-import';
+  static const String saveImportBookmark = 's2arm-save-import';
+  /// Documents/S2Arm/Saves: one folder per game, visible in the Files app, that the engine reads its save from at the start
+  /// and writes it back to when the game ends (S2A_SAVE_FOLDER; docs/s2arm-engine-bridge.md, Saves).
+  static Future<Directory> savesDirectory() => _child('Saves');
+
   static Future<void> ensureLayout() async {
     await (await gamesDirectory()).create(recursive: true);
   }
@@ -159,6 +212,8 @@ abstract final class S2ArmInternalService {
         return 'restartRequired';
       case 'notExportFolder':
         return 'notExportFolder';
+      case 'notDownloaded':
+        return 'notDownloaded';
       case 'exportInvalid':
       case 'gameIdMismatch':
         return 'exportInvalid';
@@ -216,16 +271,29 @@ abstract final class S2ArmInternalService {
       return const S2ArmRuntimeAvailability(S2ArmRuntimeState.unsupportedPlatform);
     }
     final report = await status();
-    if (report['enginePresent'] != true) return const S2ArmRuntimeAvailability(S2ArmRuntimeState.engineMissing);
-    if (report['systemDataPresent'] != true) return const S2ArmRuntimeAvailability(S2ArmRuntimeState.systemDataMissing);
-    if (report['helperPresent'] != true) return const S2ArmRuntimeAvailability(S2ArmRuntimeState.jitHelperMissing);
+    // One line per app run in app.log: which part of the engine the native side found (IPA 727 report: the Consoles
+    // switch stayed off and the row's reason was not known).
+    LoggerService.instance.i('S2Arm status: ${{
+      for (final key in const ['enginePresent', 'systemDataPresent', 'helperPresent', 'iosMajor', 'universalHandshake',
+          'available', 'ns2proPresent', 'directChain', 'melonxCoreLoaded', 'engineLoaded'])
+        key: report[key],
+    }}');
+    if (!flag(report['enginePresent'])) return const S2ArmRuntimeAvailability(S2ArmRuntimeState.engineMissing);
+    if (!flag(report['systemDataPresent'])) return const S2ArmRuntimeAvailability(S2ArmRuntimeState.systemDataMissing);
+    if (!flag(report['helperPresent'])) return const S2ArmRuntimeAvailability(S2ArmRuntimeState.jitHelperMissing);
     final major = (report['iosMajor'] as num?)?.toInt() ?? 0;
-    if (report['universalHandshake'] != true && major < 26) {
+    if (!flag(report['universalHandshake']) && major < 26) {
       return const S2ArmRuntimeAvailability(S2ArmRuntimeState.requiresIOS26);
     }
-    if (report['available'] == true) return const S2ArmRuntimeAvailability(S2ArmRuntimeState.ready);
+    if (flag(report['available'])) return const S2ArmRuntimeAvailability(S2ArmRuntimeState.ready);
     return const S2ArmRuntimeAvailability(S2ArmRuntimeState.unknown);
   }
+
+  /// A native yes / no value: true, or a non-zero number. IPA 727: a comparison boxed in the bridge's Objective-C (not
+  /// C++) file is a C int, Flutter's codec sent it as 1, and `!= true` read systemDataPresent as missing, so the Consoles
+  /// switch stayed off. The bridge now boxes BOOLs; this keeps a stray int from turning the engine off again.
+  @visibleForTesting
+  static bool flag(Object? value) => value == true || (value is num && value != 0);
 
   static Future<Map<String, dynamic>> status() async {
     _installHandler();
@@ -280,7 +348,15 @@ abstract final class S2ArmInternalService {
     S2ArmImportControl? control,
   }) => StorageImportActivity.run(() async {
     await ensureLayout();
-    final folder = await FilePicker.getDirectoryPath(dialogTitle: dialogTitle, lockParentWindow: true);
+    // The folder is read where it is (often another app's or the iPhone's own folder): pickAndActivateFolder keeps iOS's
+    // security-scoped access open for this session. file_picker's directory pick returns a bare path without it, so the
+    // export check could read nothing and refused every game picked outside RewindBox (IPA 727 report).
+    final String? folder;
+    try {
+      folder = await ExternalFolderAccess.pickAndActivateFolder(key: importBookmark);
+    } on ExternalFolderAccessException catch (error) {
+      return S2ArmImportResult(<S2ArmImportItem>[S2ArmImportItem('', 'storageError', detail: error.toString())]);
+    }
     if (folder == null) return null;
     return importFolderAt(folder, onProgress: onProgress, control: control);
   });
@@ -298,36 +374,115 @@ abstract final class S2ArmInternalService {
     await _removeStaging(staging);
 
     final detected = await detectExport(picked);
-    if (detected['success'] != true) {
-      return S2ArmImportResult(<S2ArmImportItem>[S2ArmImportItem(path.basename(picked), (detected['code'] ?? 'notExportFolder').toString())]);
+    final exports = detected['success'] == true
+        ? <Map<String, dynamic>>[detected]
+        : await _exportsBelow(picked);
+    if (exports.isEmpty) {
+      // Files that iCloud has not downloaded to the iPhone are only placeholders (".<name>.icloud"): say so.
+      final reason = await _hasICloudPlaceholder(picked) ? 'notDownloaded' : (detected['code'] ?? 'notExportFolder').toString();
+      final detail = detected['diagnostic']?.toString();
+      return S2ArmImportResult(<S2ArmImportItem>[
+        S2ArmImportItem(path.basename(picked), reason, detail: detail == null || detail.isEmpty ? null : detail),
+      ]);
     }
-    final exportDir = (detected['exportDir'] ?? picked).toString();
+    final items = <S2ArmImportItem>[];
+    try {
+      for (var index = 0; index < exports.length; index++) {
+        final item = await _importOne(exports[index], games, staging,
+            index: index + 1, count: exports.length, onProgress: onProgress, control: control);
+        if (item == null) return S2ArmImportResult(items, cancelled: true);
+        items.add(item);
+      }
+    } finally {
+      await _removeStaging(staging);
+    }
+    return S2ArmImportResult(items);
+  }
+
+  /// The Switch 2 exports inside [picked] when it is not one itself: a folder that holds the game folder (for example
+  /// "<game> + Emulator/<game>/base/exefs/main.npdm") or several games. Looks up to three levels down, never inside an
+  /// export's own base / exefs / romfs, and asks detectExport about each candidate that has base/exefs/main.npdm.
+  static Future<List<Map<String, dynamic>>> _exportsBelow(String picked) async {
+    final found = <Map<String, dynamic>>[];
+    var level = <Directory>[Directory(picked)];
+    for (var depth = 0; depth < 3 && level.isNotEmpty && found.length < 200; depth++) {
+      final next = <Directory>[];
+      for (final folder in level) {
+        final List<FileSystemEntity> children;
+        try {
+          children = await folder.list(followLinks: false).toList();
+        } on FileSystemException {
+          continue;
+        }
+        children.sort((a, b) => a.path.compareTo(b.path));
+        for (final child in children) {
+          final name = path.basename(child.path);
+          if (child is! Directory || name.startsWith('.') || const {'base', 'exefs', 'romfs'}.contains(name)) continue;
+          if (await File(path.join(child.path, 'base', 'exefs', 'main.npdm')).exists()) {
+            final detected = await detectExport(child.path);
+            if (detected['success'] == true) {
+              found.add(detected['exportDir'] == null ? {...detected, 'exportDir': child.path} : detected);
+              continue;
+            }
+          }
+          next.add(child);
+        }
+      }
+      level = next;
+    }
+    return found;
+  }
+
+  /// Whether [picked] holds, up to four levels down, a file iCloud has not downloaded yet (".<name>.icloud").
+  static Future<bool> _hasICloudPlaceholder(String picked) async {
+    try {
+      var seen = 0;
+      await for (final entry in Directory(picked).list(recursive: true, followLinks: false)) {
+        if (++seen > 20000) break;
+        if (path.split(path.relative(entry.path, from: picked)).length > 5) continue;
+        final name = path.basename(entry.path);
+        if (entry is File && name.startsWith('.') && name.endsWith('.icloud')) return true;
+      }
+    } on FileSystemException {
+      return false;
+    }
+    return false;
+  }
+
+  /// Copies one detected export into Games/<title> through staging. Null when the player cancelled.
+  static Future<S2ArmImportItem?> _importOne(
+    Map<String, dynamic> detected,
+    Directory games,
+    Directory staging, {
+    required int index,
+    required int count,
+    void Function(S2ArmImportProgress progress)? onProgress,
+    S2ArmImportControl? control,
+  }) async {
+    final exportDir = detected['exportDir'].toString();
     final info = await gameInfo(exportDir);
     final title = _safeName((info['title'] ?? path.basename(exportDir)).toString(), detected['gid']?.toString());
 
     final source = Directory(exportDir);
     final total = await _directorySize(source);
     final free = freeBytes(games.path);
-    if (free != null && free < total + spaceMargin) {
-      return S2ArmImportResult(<S2ArmImportItem>[S2ArmImportItem(title, 'notEnoughSpace')]);
-    }
-    final stage = Directory(path.join(staging.path, '0'));
+    if (free != null && free < total + spaceMargin) return S2ArmImportItem(title, 'notEnoughSpace');
+    final stage = Directory(path.join(staging.path, '$index'));
     try {
       var done = 0;
       await _copyDirectory(source, stage, control: control, progress: (copied) {
-        onProgress?.call(S2ArmImportProgress(name: title, index: 1, count: 1, done: done + copied, total: total));
+        onProgress?.call(S2ArmImportProgress(name: title, index: index, count: count, done: done + copied, total: total));
       }, onFileDone: (bytes) => done += bytes);
       final target = await _freeDirectory(games, title);
       await stage.rename(target.path);
-      return S2ArmImportResult(<S2ArmImportItem>[S2ArmImportItem(title, 'imported', destination: target.path)]);
+      return S2ArmImportItem(title, 'imported', destination: target.path);
     } on _Cancelled {
-      return const S2ArmImportResult(<S2ArmImportItem>[], cancelled: true);
+      return null;
     } on FileSystemException catch (error) {
       final osCode = error.osError?.errorCode;
-      return S2ArmImportResult(<S2ArmImportItem>[S2ArmImportItem(title, osCode == 28 ? 'notEnoughSpace' : 'copyFailed')]);
+      return S2ArmImportItem(title, osCode == 28 ? 'notEnoughSpace' : 'copyFailed');
     } finally {
       await _removeStaging(stage);
-      await _removeStaging(staging);
     }
   }
 
@@ -522,6 +677,7 @@ abstract final class S2ArmInternalService {
       if (prepared['success'] != true) {
         return S2ArmLaunchOutcome.failure((prepared['code'] ?? 'prepareFailed').toString(), prepared['diagnostic']?.toString());
       }
+      final saveFolder = await saveFolderFor((detected['exportDir'] ?? exportFolder).toString());
       final report = await channel.invokeMapMethod<String, dynamic>('launchGame', {
         'gid': prepared['gid'],
         'imagesPath': prepared['imagesPath'],
@@ -531,6 +687,7 @@ abstract final class S2ArmInternalService {
         'pairingFilePath': pairingFilePath,
         'uiLocale': uiLocale,
         'menuStrings': Switch2SettingsLocale.menuStrings(uiLocale),
+        if (saveFolder != null) 'saveFolder': saveFolder.path,
       });
       if (report?['success'] == true) {
         _sessionRunning = true;
@@ -543,6 +700,222 @@ abstract final class S2ArmInternalService {
       return S2ArmLaunchOutcome.failure(error.code, error.message);
     } finally {
       _launching = false;
+    }
+  }
+
+  // ---------------- saves ----------------
+
+  /// The save folder of the game whose export is [exportFolder]: Documents/S2Arm/Saves/<title> [<TITLE ID>], found again by
+  /// its title id (a renamed folder keeps working). Created when missing. Null when the folder is not a Switch 2 export.
+  static Future<Directory?> saveFolderFor(String exportFolder) async {
+    final detected = await detectExport(exportFolder);
+    final gid = detected['gid']?.toString();
+    if (detected['success'] != true || gid == null || !_gidPattern.hasMatch(gid)) return null;
+    return _saveFolderForId(gid, () async {
+      final info = await gameInfo((detected['exportDir'] ?? exportFolder).toString());
+      return (info['title'] ?? '').toString();
+    });
+  }
+
+  /// The save folder tagged with title id [gid], created with the name [title] gives when there is none yet.
+  static Future<Directory> _saveFolderForId(String gid, Future<String> Function() title) async {
+    final saves = await savesDirectory();
+    await saves.create(recursive: true);
+    final tag = '[${gid.toUpperCase()}]';
+    await for (final entry in saves.list(followLinks: false)) {
+      if (entry is Directory && path.basename(entry.path).toUpperCase().endsWith(tag)) return entry;
+    }
+    final folder = Directory(path.join(saves.path, '${_safeName(await title(), 'Switch 2')} $tag'));
+    await folder.create(recursive: true);
+    return folder;
+  }
+
+  static final RegExp _hex16 = RegExp(r'^[0-9A-Fa-f]{16}$');
+  static final RegExp _hex32 = RegExp(r'^[0-9A-Fa-f]{32}$');
+  static final RegExp _checkpointName = RegExp(r'^0x([0-9A-Fa-f]{16})(?: .*)?$');
+
+  /// The game a picked save names, as 16 lower-case hex digits, read the way the engine recognizes saves (S2Arm services
+  /// SaveFolder.cs Detect): a Ryujinx export (<16 hex>/0 beside ExtraData0, whose first 8 bytes are the program id), a
+  /// yuzu tree (0000000000000000/<32 hex user>/<16 hex program>) or a Checkpoint folder ("0x<16 hex> <name>"). Null when
+  /// the format names no game (JKSV, plain files, save / save_device) or names several. Visible for tests.
+  static Future<String?> saveProgramId(String picked) async {
+    final ids = <String>{};
+    final root = Directory(picked);
+    final checkpoint = _checkpointName.firstMatch(path.basename(path.normalize(root.path)));
+    if (checkpoint != null) ids.add(checkpoint.group(1)!.toLowerCase());
+    var visited = 0;
+    await for (final entry in root.list(recursive: true, followLinks: false)) {
+      if (entry is! Directory || ++visited > 4000) continue;
+      final name = path.basename(entry.path);
+      final match = _checkpointName.firstMatch(name);
+      if (match != null) ids.add(match.group(1)!.toLowerCase());
+      if (!_hex16.hasMatch(name)) continue;
+      // yuzu: …/0000000000000000/<user>/<program>/
+      final user = path.basename(path.dirname(entry.path));
+      final zero = path.basename(path.dirname(path.dirname(entry.path)));
+      if (_hex32.hasMatch(user) && zero == '0000000000000000') ids.add(name.toLowerCase());
+      // Ryujinx: …/<16 hex>/0 with ExtraData0 (program id u64, static save id u64 at 0x18 = 0, type 1 or 3 at 0x20).
+      final meta = File(path.join(entry.path, 'ExtraData0'));
+      if (await Directory(path.join(entry.path, '0')).exists() && await meta.exists() && await meta.length() >= 0x40) {
+        final bytes = await meta.openRead(0, 0x40).fold<List<int>>(<int>[], (all, chunk) => all..addAll(chunk));
+        final data = ByteData.sublistView(Uint8List.fromList(bytes));
+        final program = data.getUint64(0, Endian.little);
+        if (program != 0 && data.getUint64(0x18, Endian.little) == 0 && (bytes[0x20] == 1 || bytes[0x20] == 3)) {
+          ids.add(program.toRadixString(16).padLeft(16, '0'));
+        }
+      }
+    }
+    return ids.length == 1 ? ids.single : null;
+  }
+
+  /// The Switch 2 games in Documents/S2Arm/Games, sorted by title: the games a save can be put in when none is selected.
+  static Future<List<S2ArmSaveGame>> libraryGames() async {
+    final games = await gamesDirectory();
+    if (!await games.exists()) return const <S2ArmSaveGame>[];
+    final found = <S2ArmSaveGame>[];
+    await for (final entry in games.list(followLinks: false)) {
+      if (entry is! Directory) continue;
+      final detected = await detectExport(entry.path);
+      final gid = detected['gid']?.toString().toLowerCase();
+      if (detected['success'] != true || gid == null || !_gidPattern.hasMatch(gid)) continue;
+      final exportDir = (detected['exportDir'] ?? entry.path).toString();
+      final info = await gameInfo(exportDir);
+      found.add(S2ArmSaveGame(
+        title: (info['title'] ?? path.basename(entry.path)).toString(),
+        exportFolder: exportDir,
+        gid: gid,
+        programId: detected['programId']?.toString().toLowerCase(),
+      ));
+    }
+    found.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+    return found;
+  }
+
+  /// The title of the library game in Documents/S2Arm/Games whose title id is [gid], or null when none is there.
+  static Future<String?> _libraryTitleFor(String gid) async {
+    for (final game in await libraryGames()) {
+      if (game.gid == gid || game.programId == gid) return game.title;
+    }
+    return null;
+  }
+
+  /// Picks a save folder in Files (exported from a console with JKSV or Checkpoint, or copied from Ryujinx / yuzu) and puts
+  /// it in the save folder of the game at [exportFolder]. The engine reads it the next time the game starts.
+  ///
+  /// With no game selected ([exportFolder] null), the save goes to the game it names. A save that names no game (JKSV,
+  /// plain files) goes to the library game [chooseGame] returns; it is refused with saveNoGame when the library has no
+  /// game or no [chooseGame] is given. Returns null when the picker or the choice was dismissed.
+  static Future<S2ArmSaveImportResult?> importSave(String? exportFolder, {String? dialogTitle,
+      Future<S2ArmSaveGame?> Function(List<S2ArmSaveGame> games)? chooseGame}) =>
+      StorageImportActivity.run(() async {
+    if (_sessionRunning) throw const S2ArmSaveException('saveGameRunning');
+    final String? picked;
+    try {
+      picked = await ExternalFolderAccess.pickAndActivateFolder(key: saveImportBookmark);
+    } on ExternalFolderAccessException {
+      throw const S2ArmSaveException('saveFailed');
+    }
+    if (picked == null) return null;
+    var game = exportFolder;
+    if (game == null && await saveProgramId(picked) == null) {
+      final games = await libraryGames();
+      if (games.isEmpty || chooseGame == null) throw const S2ArmSaveException('saveNoGame');
+      final chosen = await chooseGame(games);
+      if (chosen == null) return null;
+      game = chosen.exportFolder;
+    }
+    return importSaveAt(game, picked);
+  });
+
+  /// Copies the folder [picked] into the game's save folder, as one sub-folder, so the engine's own recognition (JKSV,
+  /// Checkpoint, Ryujinx, yuzu, NX2Apple, plain files) sees it as picked. What the save folder held before is kept beside
+  /// it as "<name> (backup)" (one backup, replaced by the next import). With [exportFolder] null, the save must name its
+  /// game (saveNoGame otherwise). Visible for tests.
+  static Future<S2ArmSaveImportResult> importSaveAt(String? exportFolder, String picked) async {
+    var own = const <String?>{};
+    if (exportFolder != null) {
+      final selected = await detectExport(exportFolder);
+      final selectedGid = selected['gid']?.toString();
+      if (selected['success'] != true || selectedGid == null || !_gidPattern.hasMatch(selectedGid)) {
+        throw const S2ArmSaveException('saveNotExport');
+      }
+      own = {selectedGid.toLowerCase(), selected['programId']?.toString().toLowerCase()};
+    }
+    final source = Directory(picked);
+    if (!await source.exists()) throw const S2ArmSaveException('saveEmpty');
+    // A save that names another game goes to that game's folder: the player picked the wrong game in the list, or none.
+    final saveId = await saveProgramId(picked);
+    String? redirectedTo;
+    String? redirectedTitle;
+    final Directory target;
+    if (saveId != null && !own.contains(saveId)) {
+      redirectedTo = saveId.toUpperCase();
+      redirectedTitle = await _libraryTitleFor(saveId);
+      target = await _saveFolderForId(saveId, () async => redirectedTitle ?? '');
+    } else if (exportFolder == null) {
+      throw const S2ArmSaveException('saveNoGame');
+    } else {
+      final folder = await saveFolderFor(exportFolder);
+      if (folder == null) throw const S2ArmSaveException('saveNotExport');
+      target = folder;
+    }
+    final normalizedSource = path.normalize(source.absolute.path);
+    final normalizedTarget = path.normalize(target.absolute.path);
+    final saves = path.normalize((await savesDirectory()).absolute.path);
+    if (normalizedSource == normalizedTarget || path.isWithin(normalizedTarget, normalizedSource) ||
+        path.isWithin(normalizedSource, normalizedTarget) || normalizedSource == saves) {
+      throw const S2ArmSaveException('saveSameFolder');
+    }
+    final files = await source.list(recursive: true, followLinks: false).where((entry) => entry is File).length;
+    if (files == 0) throw const S2ArmSaveException('saveEmpty');
+    // Keep what the folder held (the progress the engine last wrote back) before replacing it.
+    final backup = Directory('${target.path} (backup)');
+    if (!await target.list().isEmpty) {
+      if (await backup.exists()) await backup.delete(recursive: true);
+      await target.rename(backup.path);
+      await target.create(recursive: true);
+    }
+    final name = path.basename(normalizedSource);
+    await _copyTree(source, Directory(path.join(target.path, name.isEmpty ? 'save' : name)));
+    return S2ArmSaveImportResult(
+      folder: target.path,
+      files: files,
+      backup: await backup.exists() ? backup.path : null,
+      redirectedTo: redirectedTo,
+      redirectedTitle: redirectedTitle,
+    );
+  }
+
+  /// Opens the game's save folder in the Files app (creating it first), or Documents/S2Arm/Saves itself when no game is
+  /// selected ([exportFolder] null). False when Files could not be opened.
+  static Future<bool> openSaveFolder(String? exportFolder) async {
+    final Directory? folder;
+    if (exportFolder == null) {
+      final saves = await savesDirectory();
+      await saves.create(recursive: true);
+      folder = saves;
+    } else {
+      folder = await saveFolderFor(exportFolder);
+    }
+    if (folder == null) return false;
+    try {
+      return await channel.invokeMethod<bool>('openFolder', {'path': folder.path}) ?? false;
+    } on MissingPluginException {
+      return false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
+  static Future<void> _copyTree(Directory from, Directory to) async {
+    await to.create(recursive: true);
+    await for (final entry in from.list(followLinks: false)) {
+      final destination = path.join(to.path, path.basename(entry.path));
+      if (entry is Directory) {
+        await _copyTree(entry, Directory(destination));
+      } else if (entry is File) {
+        await entry.copy(destination);
+      }
     }
   }
 
