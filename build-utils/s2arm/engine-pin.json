@@ -30,7 +30,7 @@
       "headSha": "2175b72e8b818e036fa6dd48edb55620eeb3ebfa",
       "expiresAt": "2026-12-12T20:55:15Z",
       "members": {
-        "S2ArmPrepare.xcframework.zip": "584cd429f8fd6eb8a138b72cf747bde1145c23a732dd88df263f91cf7287634f"
+        "S2ArmPrepare.xcframework.zip": "cb8473932b8c27276f2ceb42292a49a905311c0c2a6279394784e53989e56924"
       },
       "subdir": "prepare"
     },
@@ -57,7 +57,7 @@
   },
   "zips": {
     "engine": "07916e3986bbf7a6dadfe97691a17ecd0f4a6969e21f07cedb1d553efff8d2a0",
-    "prepare": "9d234741156b70ba67cef91fd788c59571957650778985635d2038ea4830359c",
+    "prepare": "aef8aafb38aa456defbdf16b3194716c32b2051b76a38bc68640d91f098fc87f",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
   "binaries": {
@@ -108,8 +108,8 @@
       "bytes": 30925
     },
     "prepare/S2ArmPrepare.xcframework.zip": {
-      "sha256": "584cd429f8fd6eb8a138b72cf747bde1145c23a732dd88df263f91cf7287634f",
-      "bytes": 460361
+      "sha256": "cb8473932b8c27276f2ceb42292a49a905311c0c2a6279394784e53989e56924",
+      "bytes": 462594
     },
     "sysdata/SHA256SUMS": {
       "sha256": "d69cee225120276ede73c2a7710a2f40df0fc85443f498254538b24f557ace29",
