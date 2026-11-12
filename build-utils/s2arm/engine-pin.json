@@ -1,5 +1,5 @@
 {
-  "status": "verified",
+  "status": "draft",
   "packagedFingerprint": "550d32685354d1d58cc4e544c03e4e80e95e4779c7a551f3446a7aff98541191",
   "producers": {
     "engine": {
@@ -21,14 +21,14 @@
       ]
     },
     "prepare": {
-      "run": 43061107011,
+      "run": 43184657390,
       "attempt": 1,
-      "artifact": 13873527906,
-      "name": "S2ArmPrepare-b43922e226d46caba6e7eb72d73d1196c0dc94c0",
-      "bytes": 444637,
-      "sha256": "dc042fe1c9f757324de8cce886054d5a99ebdcd49596cd5225722f6f96bc0e1e",
-      "headSha": "b43922e226d46caba6e7eb72d73d1196c0dc94c0",
-      "expiresAt": "2026-12-11T16:45:11Z",
+      "artifact": 13927947756,
+      "name": "S2ArmPrepare-97df7333411cbdbba54ced74e1fad754a8644815",
+      "bytes": 447409,
+      "sha256": "19b3635f83369bf911205f32674f19030d39a225c0bc9fb94c7250e5e1c8e307",
+      "headSha": "97df7333411cbdbba54ced74e1fad754a8644815",
+      "expiresAt": "2026-12-12T08:41:06Z",
       "members": {
         "S2ArmPrepare.xcframework.zip": "99f02a40bde12ecacd034f85b239f5ab3ea8b0100457c9266b8f0f3520e2d533"
       },
