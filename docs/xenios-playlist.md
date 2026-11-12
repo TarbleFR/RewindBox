@@ -60,8 +60,13 @@ copies are discarded only after a verified copy (storage contract § 4).
 ## Folder import (XEX/GOD)
 
 Import menu → "Import a game folder (XEX/GOD)" → Files folder picker
-(`FilePicker.getDirectoryPath`, read in place, no picker copy) →
-`XeniaFolderContent.scan` → staged copy → targeted `xbox360` rescan.
+(`ExternalFolderAccess.pickAndActivateFolder`, bookmark `xenia-import`, read
+in place, no picker copy) → `XeniaFolderContent.scan` → staged copy →
+targeted `xbox360` rescan. The pick opens iOS's security-scoped access for the
+session: file_picker 12.0.0-beta.3's `getDirectoryPath` returns a bare path
+without it (`IOSFilePickerHandler.swift`), so a folder outside RewindBox's
+container read as empty (found on Switch 2 with IPA 727, same call here). A
+folder iOS does not open is refused as `folderAccessFailed` (12 locales).
 
 What the engine consumes (XeniOS cf7c7ee45, `emulator.cc` LaunchPath picks
 the device from the file's magic, never its extension; a directory path is

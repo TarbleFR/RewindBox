@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:ui' show Locale, PlatformDispatcher;
 
+import 'package:external_folder_access/external_folder_access.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as path;
@@ -128,6 +129,9 @@ abstract final class XeniaInternalService {
   /// Staging of folder imports, beside `Games` so that the final move is a
   /// rename on the same volume and the scan never sees a partial game.
   static Future<Directory> stagingDirectory() => _child('.importing');
+
+  /// Bookmark slot of the folder import: the last folder picked for it.
+  static const String importBookmark = 'xenia-import';
   static Future<Directory> cacheDirectory() async =>
       Directory(path.join((await cachesDirectory()).path, 'XeniOS'));
 
@@ -293,17 +297,30 @@ abstract final class XeniaInternalService {
   /// folders with `default.xex`, Games on Demand packages (header plus
   /// `.data`) and single-file STFS packages (docs/xenios-playlist.md §
   /// Folder import). Returns null when the picker was dismissed. The folder
-  /// is read in place; nothing is left in the picker's inbox.
+  /// is read in place; nothing is left in the picker's inbox. [dialogTitle]
+  /// is unused: the iOS folder picker shows no title.
   static Future<XeniaImportResult?> importFolder({
     String? dialogTitle,
     void Function(XeniaImportProgress progress)? onProgress,
     XeniaImportControl? control,
   }) => StorageImportActivity.run(() async {
     await ensureLayout();
-    final folder = await FilePicker.getDirectoryPath(
-      dialogTitle: dialogTitle,
-      lockParentWindow: true,
-    );
+    // The folder is read where it is (often another app's or the device's own
+    // folder): pickAndActivateFolder keeps iOS's security-scoped access open
+    // for this session. file_picker 12.0.0-beta.3's directory pick returns a
+    // bare path without it (IOSFilePickerHandler.swift), so a folder outside
+    // RewindBox's container read as empty (IPA 727, found on Switch 2).
+    final String? folder;
+    try {
+      folder = await ExternalFolderAccess.pickAndActivateFolder(
+        key: importBookmark,
+      );
+    } on ExternalFolderAccessException catch (error) {
+      _log.w('XeniOS import: the picked folder could not be opened: $error');
+      return XeniaImportResult(<XeniaImportItem>[
+        XeniaImportItem(error.code, 'folderAccessFailed'),
+      ]);
+    }
     if (folder == null) return null;
     return importFolderAt(
       Directory(folder),
