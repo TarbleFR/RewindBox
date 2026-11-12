@@ -5045,8 +5045,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   converter codesign requirements passed (the script compiles only after them), XeniaCore compiled and linked
   (1357/1358, 27 min), then verify_core.py refused an absolute `/Users/runner/` path. Causes in our target: CMake's
   build-tree LC_RPATH to the converter's runner directory, and the -g debug map (N_OSO object paths). Fixed in
-  79f3409f0 (`SKIP_BUILD_RPATH`, `-Wl,-S`; the check stays and now lists every leaked string with its place), rebuild
-  running. Pin route: ubuntu `pin` job (9ceefdcd4), `[xenia-pin run=<id>]`, downloads the zip by id via the API and
+  79f3409f0 (`SKIP_BUILD_RPATH`, `-Wl,-S`; the check stays and now lists every leaked string with its place). Run
+  43126203790 (79f3409f0) green: checks, plugin_app and core (compile + verify_core.py, no build path left; converter
+  kept out; XeniaCore-79f3409f0… uploaded through the protected action), 34 min. Pinned by the ubuntu pin job. Pin route: ubuntu `pin` job (9ceefdcd4), `[xenia-pin run=<id>]`, downloads the zip by id via the API and
   prints core-pin.json + base64 (this session cannot reach the artifact store). The producer runs on this branch:
   the delivery manifest names it (`producers.engine.branch`) or main rebuilds on Claude. Pending: green core job,
   core-pin.json + review, IPA closed-set validators after 00 integrates session 04's 13d34c25 (identity-file design
