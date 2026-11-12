@@ -1,6 +1,6 @@
 {
   "status": "verified",
-  "packagedFingerprint": "550d32685354d1d58cc4e544c03e4e80e95e4779c7a551f3446a7aff98541191",
+  "packagedFingerprint": "2f58c5476892b59e243c7d1f3877e5854048212f90b7a2dbb7a48c3704e82554",
   "producers": {
     "engine": {
       "run": 43204364693,
@@ -12,8 +12,8 @@
       "headSha": "779d9a7f812b6c3aba878495a2037041f7659ce0",
       "expiresAt": "2026-12-12T11:07:23Z",
       "members": {
-        "S2ArmEngine.framework.zip": "57e81f9529b68b61414e231aa82efad3b99313a03ba9b8161515b2abf326560a",
-        "NS2Pro.framework.zip": "1cf9b41e88f1b8136fa255fdb7c9cc8546f3701e7687a410b940475f24cac027"
+        "S2ArmEngine.framework.zip": "ba593e5ecaa013a04c1ecd51d8e100698ae00ca1d35aa4ec268248639c07dad9",
+        "NS2Pro.framework.zip": "8dd8188e7c5c34a31dd7cb637fedb5c18c2f39e1111fe859935439167a35882f"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -56,7 +56,7 @@
     }
   },
   "zips": {
-    "engine": "edfee048ba442602255b42b2c354a0ff48697cacbe134ac32bf5e5c169821563",
+    "engine": "733b3d201ea516e5e2635b18deabbb7095026219b6d2a02d8d253eab37f89a07",
     "prepare": "581a2416021ec38478d16f349ef18f82e44f8dd248399b61f5d9b77c268b0e22",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -75,8 +75,8 @@
       "fingerprint": "8a3320df120185bf7f88c4b46ee9ca6293fb1c10a869f38485bf02ed7ee88654"
     },
     "S2ArmEngine.framework/Headers/rb_guest.h": {
-      "sha256": "b6289b9fffbdb77edb974efc60d593c8704ede0c7bba1ad372e3fbf2b4e2f40f",
-      "bytes": 5886
+      "sha256": "8405853c1d2db2e74c4ea905015112b382f532b79a9f5dc2ba14b5f9d4a6cc0e",
+      "bytes": 7662
     },
     "S2ArmEngine.framework/Info.plist": {
       "sha256": "fff7a6d26519626cd7ef3d92e1bc3b3c53bfc22cd6002559a3c2673914f0028e",
@@ -87,9 +87,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "05a00739ab09cc50200d51760335b2b541573c12a1ae6490505a1de7dc8c3f27",
-      "bytes": 107453104,
-      "fingerprint": "550d32685354d1d58cc4e544c03e4e80e95e4779c7a551f3446a7aff98541191"
+      "sha256": "68bdfde2ba170ec4b7e5df5069d8973c1766233ea61a655ea06911391bb012ab",
+      "bytes": 107453752,
+      "fingerprint": "2f58c5476892b59e243c7d1f3877e5854048212f90b7a2dbb7a48c3704e82554"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -118,9 +118,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 43125597914,
+      "run": 43204364693,
       "attempt": 1,
-      "head_sha": "601e716b3468455ce8fc5ffcec6b2a15d80a4edd",
+      "head_sha": "779d9a7f812b6c3aba878495a2037041f7659ce0",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -159,23 +159,33 @@
         {
           "name": "0009-guest-log-in-docs-pad-recording-off-engine-resources.patch",
           "sha256": "c26733325ff7f2591ef15ee8395c9012a4343ce85fcc0b6e584bf14fe8b92789"
+        },
+        {
+          "name": "0010-guest-park-and-resume-the-same-game.patch",
+          "sha256": "7d6892ca6f8cfc2b0dac2fcdd038b7091ab0f43ea51630922eb8383e20928c63"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "57e81f9529b68b61414e231aa82efad3b99313a03ba9b8161515b2abf326560a",
-        "NS2Pro.framework.zip": "1cf9b41e88f1b8136fa255fdb7c9cc8546f3701e7687a410b940475f24cac027"
+        "S2ArmEngine.framework.zip": "ba593e5ecaa013a04c1ecd51d8e100698ae00ca1d35aa4ec268248639c07dad9",
+        "NS2Pro.framework.zip": "8dd8188e7c5c34a31dd7cb637fedb5c18c2f39e1111fe859935439167a35882f"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
-        "sha256": "480b3b28d536c9f8f6258dc98dbfc3d50c86bf276ae3b3a502e1e011e9ec9042",
+        "sha256": "ce9c85d926b057af012de1f6b6eebf93dd2f08303ace0b9c43909f76c9185e90",
         "files": 36
       }
     },
     "licenses": {
       "path": "Legal/S2Arm",
       "manifest": "license-sources.json",
-      "sha256": "480b3b28d536c9f8f6258dc98dbfc3d50c86bf276ae3b3a502e1e011e9ec9042",
+      "sha256": "ce9c85d926b057af012de1f6b6eebf93dd2f08303ace0b9c43909f76c9185e90",
       "files": 36
-    }
+    },
+    "preparePatches": [
+      {
+        "name": "0001-rewriter-progress-report.patch",
+        "sha256": "748cae616d3e35e6fe657bf7cf86ac238c22df4057796fa3b8f737472ab63a91"
+      }
+    ]
   }
 }
