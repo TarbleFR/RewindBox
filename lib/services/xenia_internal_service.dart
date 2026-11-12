@@ -779,6 +779,7 @@ abstract final class XeniaInternalService {
     required Locale uiLocale,
   }) async {
     await takePreviousFatal();
+    await takePreviousLaunchJournal();
     final runtime = await availability();
     if (!runtime.ready) return _refused(runtime.state.name, runtime.detail);
     // Every cheap refusal comes before the JIT helper: a transaction opened
@@ -836,6 +837,38 @@ abstract final class XeniaInternalService {
       return reason;
     } on FileSystemException catch (error) {
       _log.w('XeniOS: the previous fatal error record is unreadable: $error');
+      return null;
+    }
+  }
+
+  /// The stages of the previous launch, which the bridge appends and syncs to
+  /// `Engine/launch-journal.txt` as they happen (`<uptime> <stage>` lines):
+  /// after a crash the last line is the last stage reached, where Xenia's own
+  /// log may have lost its tail. Logged once, then removed.
+  @visibleForTesting
+  static Future<List<String>?> takePreviousLaunchJournal() async {
+    final journal = File(
+      path.join((await engineDirectory()).path, 'launch-journal.txt'),
+    );
+    try {
+      if (!await journal.exists()) return null;
+      final stages = (await journal.readAsLines())
+          .map((line) => line.trim())
+          .where((line) => line.isNotEmpty)
+          .toList();
+      await journal.delete();
+      if (stages.isEmpty) return null;
+      final last = stages.last;
+      final stage = last.substring(last.indexOf(' ') + 1);
+      final summary = 'XeniOS: previous launch stages: ${stages.join(' | ')}';
+      if (stage == 'launched' || stage.startsWith('failed: ')) {
+        _log.i(summary);
+      } else {
+        _log.e('$summary (RewindBox ended during the last stage)');
+      }
+      return stages;
+    } on FileSystemException catch (error) {
+      _log.w('XeniOS: the previous launch journal is unreadable: $error');
       return null;
     }
   }

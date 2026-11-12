@@ -4861,6 +4861,25 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       new files; melonx_adapter_control_order_test.py reads the `adapted += adapt_X(source)` form too (it had failed
       unseen since Core 735, when that form joined; it detects a swapped pair). No rendering, sync, flush or pipeline
       change: no FPS claim. Rollback: remove the two adapters (Core 741).
+    - **P0 IPA 728, the Consoles page loaded MeloNXCore (bridge and Dart; independent of the Core 743 pin):** found by
+      session 04 in the maintainer's app.log (pid 57620, 07:07Z): libretro_consoles_screen.dart initState calls
+      MelonxInternalService.runtimeAvailable(), which invoked the bridge's "diagnostics"; that runs ensureRuntime(), marks
+      the process and loads MeloNXCore and its NativeAOT runtime, so S2Arm read melonxCoreLoaded=true and refused every
+      Switch 2 launch until RewindBox restarted. Fix 051a3691: a bridge method "availability" answers without opening
+      MeloNXCore or marking the process (the engine's framework in the bundle, the library recovery marker, the Switch 2
+      engine's flag rb_s2arm_engine_loaded, rb_melonx_core_loaded, the memory entitlements read only);
+      runtimeAvailable() asks it; "diagnostics" keeps loading the engine for the launch path (unchanged). Tests:
+      melonx_core_loaded_test.py 8 checks (fails on the previous plugin); melonx_embedded_route_test.dart (probes ask
+      "availability" only, never "diagnostics"); melonx_presentation (real plugin in UIKit on the simulator: availability
+      before any load constructs no runtime and marks nothing; after the launch path's single load it reports the engine
+      loaded). Local: Flutter 45 tests passed. macOS on 051a3691: melonx-host 43176758764 green (the registered
+      plugin in UIKit: 28 checks, the four availability checks among them; old control reproduced); stall watch
+      43176746291 green; melonx-integration 43176762671: analysis and the console scenarios (these tests) green, then
+      red at retroarch_baseline_scope_test.py (7 failures on scanning.dart, config_service.dart and Store.cpp, files
+      this fix does not touch, changed by the Switch 2 and XeniOS work 3712b522 and 74f668c2; reproduced locally on
+      Claude 3d2645ea's bytes). Pre-existing, unrelated failures seen on this head:
+      melonx_hogwarts_graphics_test.py expects 11 translations and finds 12 since zh_Hant joined (only the historical
+      rewind599-601 workflows run it); rewind604_delivery_contract_test.py and melonx_capture_journal_test.py (historical).
     - **Device protocol for the next private IPA (Core 743, or 741 without the split):** Hogwarts Legacy, same save, 3-5
       min including a zone change and the place of the 05:46:17 freeze, then home, then close from the menu; then a
       Switch close and a PS3 launch in the same session (P0 726); Smash 1 min of play (SetProgram bursts, Core 739). Read:
@@ -4871,8 +4890,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       maintainer in the UI.
     - **Next action:** from the next Hogwarts run with Core 743: reduce the dominant submission cause with its own gate
       (a strict-sync site, or the fast flush mode's 1.5 ms draw auto-flush), the reference passes and submissions following
-      the command buffer count; no sync semantics change before that measurement. Main: Core 739 CI and pin, then Core
-      741 or Core 743 (743 includes 741).
+      the command buffer count; no sync semantics change before that measurement. Main (12 Nov 07:17): IPA 728 shipped
+      with Core 737 (maintainer); Core 743 merged on Claude as 3d2645ea (--no-ff, recipe byte for byte d4b7f9d7, contract
+      b95bb282); its Core build is push run 43174115676, the pin follows when it is green, for the next IPA (the 739 build
+      43165030959 is green and kept). This work branch was fast-forwarded to 3d2645ea.
   - **IPA 726 device run read (12 Nov): Hogwarts Legacy on Core 735, pid 54035, 23:43:42-23:46:20 (the session
     of the P0 726 close); journals private (scratchpad), aggregates only. Not a like-for-like comparison with 725:
     the phone was in the "serious" thermal state for 99 of the 100 warm seconds (725, pid 51986: "fair").**
@@ -5865,8 +5886,17 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   storage contract and Dart suites 59/59 OK. The 727 manifest and evidence keep pin 7e13268b (delivered); the next
   manifest must name c00755f6. macOS run 43166070527 on ea373c3a7 green (checks incl. the review gate,
   plugin_app); delivery contract: 5 errors, the same set as Claude c192962e alone (none Xenia; Xenia schema tests
-  pass). Handed off to 00 (12 Nov). Shared layer: xenia-core.yml pin selection only. Next: the device run on the
-  next IPA: `codeRegion=host` or `own` in the `XeniOS JIT:` line, then boot.
+  pass). Handed off to 00 (12 Nov). Shared layer: xenia-core.yml pin selection only.
+  Second device run (IPA 728 = Claude with all of the above; app.log 40838 lines, container 66D0D7FC): first
+  Xbox 360 launch of a process `codeRegion: none` -> refused `jitMemoryUnavailable` as designed (registration did
+  not reserve; flag not yet set, games check or no room: not visible in app.log). After a restart `codeRegion:
+  host, codeRegionHeld: true`, attach, launch, then RewindBox closed; Engine/xenia.log ends at `Loaded config`
+  (config.cc:329), no `x>` line: a real crash, not a FatalError (no last-fatal record expected). Xenia logs from
+  a background thread, so the tail can be lost; next upstream steps are SaveConfig, xe_ios_microphone_start,
+  xe_ios_party_voice_start (xenia_main_ios.mm:738-751). Diagnostics 1fdfeebb2 (bridge/Dart only, pin unchanged):
+  `registration` + `freeBelow8GBMiB` in the JIT line; synced Engine/launch-journal.txt replayed into app.log by
+  the next launch. Run 43176261471 green; suites 60/60. Waiting for the maintainer's .ips of this crash.
+  Next: read the .ips (exception, crashing thread), fix, then a device run with the journal.
 - **Validation (Flutter 3.47.2 host):** 11 Nov: XeniOS + catalog/Consoles/touch suites
   91/91, scanner suites 41/41 (1 skip), storage contract 24/24, patch/validator/touch/C++
   checks OK, analyzer 111 = baseline. Earlier: new XeniOS + catalog/Consoles tests 65/65;
