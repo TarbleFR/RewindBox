@@ -196,8 +196,6 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'remap-sweep-range': 'delivered',
             # Core 737: the controller manager's own copy of the input configuration.
             'npad-config-snapshot': 'delivered',
-            # Core 739: the play-time warm-up for every title.
-            'playtime-warmup-all-titles': 'delivered',
             # Core 661: the native display fixture declares EmbeddedMemory.cs (adapt_safe_point_compaction): rerun.
             'display-native': 'delivered',
             # Core 654: its receipt declares the collector (postimage), so the single-virtual-dependency fixture is rerun.
@@ -582,8 +580,7 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_cold_buffer_trim.py',
                                                      'build-utils/melonx/adapt_host_thread_class.py',
                                                      'build-utils/melonx/adapt_remap_sweep_range.py',
-                                                     'build-utils/melonx/adapt_npad_config_snapshot.py',
-                                                     'build-utils/melonx/adapt_playtime_warmup_all_titles.py'} and
+                                                     'build-utils/melonx/adapt_npad_config_snapshot.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -618,8 +615,7 @@ if not args.helpers_only:
     # Core 733: adapt_host_thread_class.py joins them; four files join the prepared members (211).
     # Core 735: adapt_remap_sweep_range.py joins them; the same 211 prepared members.
     # Core 737: adapt_npad_config_snapshot.py joins them; NpadManager.cs joins the prepared members (212).
-    # Core 739: adapt_playtime_warmup_all_titles.py joins them; the same 212 prepared members (Library.cs already one).
-    check(len(frozen['preparationInputs']) == 209 and len(frozen['preparedMembers']) == 212, 'Wrong final composition')
+    check(len(frozen['preparationInputs']) == 208 and len(frozen['preparedMembers']) == 212, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
