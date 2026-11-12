@@ -5035,6 +5035,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       Claude 3d2645ea's bytes). Pre-existing, unrelated failures seen on this head:
       melonx_hogwarts_graphics_test.py expects 11 translations and finds 12 since zh_Hant joined (only the historical
       rewind599-601 workflows run it); rewind604_delivery_contract_test.py and melonx_capture_journal_test.py (historical).
+    - **Main's residual risks after delivery run 43312487102 (12 Nov 23:24), fixed in c5541fe0:** melonx_perf_journal_test.py
+      keeps its lower bounds (stages, scripted sleeps) and checks relations of the run instead of the fixed upper bounds
+      600/1600/1900/900 ms (records in order while the first call is in flight, each at most its measured duration; each
+      0.5 s stall shorter than the 1.6 s one); main's spinner check 31fd341d is kept. package_standalone_moltenvk.py
+      download_artifact() tries a failed request again after 5, 10 and 20 s into an emptied file (the digest is still
+      checked; exercised with a fake gh). melonx-host 43329316902 on c5541fe0: the performance journal step passed on macOS.
     - **Native heap lot handed by MeloNX lot 10 (docs/evidence/melonx-lot10/handoff.md; analysis only, no change yet):**
       the four largest live stacks of the IPA 729 [MeloNX:heap] record, symbolicated with `nm -n` of the pinned MoltenVK
       1.4.2 rebuild (artifact 13822530542, binary 99605a2b; the packaged MeloNXMoltenVKStandalone `1bdc5159` is taken to be
