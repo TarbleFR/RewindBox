@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' show Locale, PlatformDispatcher;
 
-import 'package:file_picker/file_picker.dart';
+import 'package:external_folder_access/external_folder_access.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as path;
@@ -12,6 +12,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:neostation/l10n/s2arm_engine_locale.dart';
 import 'package:neostation/l10n/switch2_settings_locale.dart';
 import 's2arm_settings.dart';
+import 'logger_service.dart';
 import 'storage/storage_import_activity.dart';
 import 'switch2_export_content.dart';
 import 'storage/storage_stat_ffi.dart';
@@ -144,6 +145,10 @@ abstract final class S2ArmInternalService {
   static Future<Directory> _child(String name) async => Directory(path.join((await rootDirectory()).path, name));
   static Future<Directory> gamesDirectory() => _child('Games');
   static Future<Directory> stagingDirectory() => _child('.importing');
+
+  /// Bookmark slots of the two folder picks (game import, save import): each keeps the last folder picked for it.
+  static const String importBookmark = 's2arm-import';
+  static const String saveImportBookmark = 's2arm-save-import';
   /// Documents/S2Arm/Saves: one folder per game, visible in the Files app, that the engine reads its save from at the start
   /// and writes it back to when the game ends (S2A_SAVE_FOLDER; docs/s2arm-engine-bridge.md, Saves).
   static Future<Directory> savesDirectory() => _child('Saves');
@@ -253,6 +258,13 @@ abstract final class S2ArmInternalService {
       return const S2ArmRuntimeAvailability(S2ArmRuntimeState.unsupportedPlatform);
     }
     final report = await status();
+    // One line per app run in app.log: which part of the engine the native side found (IPA 727 report: the Consoles
+    // switch stayed off and the row's reason was not known).
+    LoggerService.instance.i('S2Arm status: ${{
+      for (final key in const ['enginePresent', 'systemDataPresent', 'helperPresent', 'iosMajor', 'universalHandshake',
+          'available', 'ns2proPresent', 'directChain', 'melonxCoreLoaded', 'engineLoaded'])
+        key: report[key],
+    }}');
     if (report['enginePresent'] != true) return const S2ArmRuntimeAvailability(S2ArmRuntimeState.engineMissing);
     if (report['systemDataPresent'] != true) return const S2ArmRuntimeAvailability(S2ArmRuntimeState.systemDataMissing);
     if (report['helperPresent'] != true) return const S2ArmRuntimeAvailability(S2ArmRuntimeState.jitHelperMissing);
@@ -317,7 +329,15 @@ abstract final class S2ArmInternalService {
     S2ArmImportControl? control,
   }) => StorageImportActivity.run(() async {
     await ensureLayout();
-    final folder = await FilePicker.getDirectoryPath(dialogTitle: dialogTitle, lockParentWindow: true);
+    // The folder is read where it is (often another app's or the iPhone's own folder): pickAndActivateFolder keeps iOS's
+    // security-scoped access open for this session. file_picker's directory pick returns a bare path without it, so the
+    // export check could read nothing and refused every game picked outside RewindBox (IPA 727 report).
+    final String? folder;
+    try {
+      folder = await ExternalFolderAccess.pickAndActivateFolder(key: importBookmark);
+    } on ExternalFolderAccessException catch (error) {
+      return S2ArmImportResult(<S2ArmImportItem>[S2ArmImportItem('', 'storageError', detail: error.toString())]);
+    }
     if (folder == null) return null;
     return importFolderAt(folder, onProgress: onProgress, control: control);
   });
@@ -752,7 +772,12 @@ abstract final class S2ArmInternalService {
   static Future<S2ArmSaveImportResult?> importSave(String exportFolder, {String? dialogTitle}) =>
       StorageImportActivity.run(() async {
     if (_sessionRunning) throw const S2ArmSaveException('saveGameRunning');
-    final picked = await FilePicker.getDirectoryPath(dialogTitle: dialogTitle, lockParentWindow: true);
+    final String? picked;
+    try {
+      picked = await ExternalFolderAccess.pickAndActivateFolder(key: saveImportBookmark);
+    } on ExternalFolderAccessException {
+      throw const S2ArmSaveException('saveFailed');
+    }
     if (picked == null) return null;
     return importSaveAt(exportFolder, picked);
   });
