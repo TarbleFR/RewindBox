@@ -707,7 +707,8 @@ IMPORT_SITES = {
     # picker of the S2Arm service. lib/widgets/s2arm_internal_playlist_actions.dart
     # also wraps the call in StorageImportActivity.run.
     'lib/services/s2arm_internal_service.dart': (
-        'static Future<S2ArmImportResult?> importFolder(',),
+        'static Future<S2ArmImportResult?> importFolder(',
+        'static Future<S2ArmSaveImportResult?> importSave(',),
     'lib/services/rpcs3_internal_service.dart': (
         'static Future<bool> importFirmware(',
         'static Future<Rpcs3ImportResult> importGames(',

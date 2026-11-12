@@ -29,6 +29,17 @@ void main() {
     expect(menu, isNot(contains("value: 'firmware'")));
   });
 
+  test('the menu imports a save and opens the saves folder for the selected game', () {
+    expect(menu, contains("ValueKey('s2arm-import-save')"));
+    expect(menu, contains("value: 'importSave'"));
+    expect(menu, contains('S2ArmInternalService.importSave('));
+    expect(menu, contains("ValueKey('s2arm-open-saves')"));
+    expect(menu, contains("value: 'openSaves'"));
+    expect(menu, contains('S2ArmInternalService.openSaveFolder('));
+    expect(menu, contains("_t('importSaveHint')"));
+    expect(menu, contains("_t('openSavesHint')"));
+  });
+
   test('the Emulators tab shows the settings panel for switch2 only', () {
     final tabs = File('lib/widgets/system_emulator_settings_dialog/tabs.dart').readAsStringSync();
     expect(tabs, contains("if (console == 'switch2') const Switch2EngineSettingsPanel()"));

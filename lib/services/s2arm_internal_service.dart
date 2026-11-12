@@ -52,6 +52,22 @@ class S2ArmImportResult {
   Iterable<S2ArmImportItem> get rejected => items.where((item) => !item.imported && item.reason != 'duplicate');
 }
 
+/// A save put in a game's save folder by [S2ArmInternalService.importSave].
+class S2ArmSaveImportResult {
+  const S2ArmSaveImportResult({required this.folder, required this.files, this.backup});
+  final String folder;
+  final int files;
+  final String? backup;
+}
+
+/// Why a save import was refused; [code] is a Switch2LibraryLocale key.
+class S2ArmSaveException implements Exception {
+  const S2ArmSaveException(this.code);
+  final String code;
+  @override
+  String toString() => 'S2ArmSaveException($code)';
+}
+
 class S2ArmImportProgress {
   const S2ArmImportProgress({required this.name, required this.index, required this.count, required this.done, required this.total});
   final String name;
@@ -112,6 +128,9 @@ abstract final class S2ArmInternalService {
   static Future<Directory> _child(String name) async => Directory(path.join((await rootDirectory()).path, name));
   static Future<Directory> gamesDirectory() => _child('Games');
   static Future<Directory> stagingDirectory() => _child('.importing');
+  /// Documents/S2Arm/Saves: one folder per game, visible in the Files app, that the engine reads its save from at the start
+  /// and writes it back to when the game ends (S2A_SAVE_FOLDER; docs/s2arm-engine-bridge.md, Saves).
+  static Future<Directory> savesDirectory() => _child('Saves');
 
   static Future<void> ensureLayout() async {
     await (await gamesDirectory()).create(recursive: true);
@@ -522,6 +541,7 @@ abstract final class S2ArmInternalService {
       if (prepared['success'] != true) {
         return S2ArmLaunchOutcome.failure((prepared['code'] ?? 'prepareFailed').toString(), prepared['diagnostic']?.toString());
       }
+      final saveFolder = await saveFolderFor((detected['exportDir'] ?? exportFolder).toString());
       final report = await channel.invokeMapMethod<String, dynamic>('launchGame', {
         'gid': prepared['gid'],
         'imagesPath': prepared['imagesPath'],
@@ -531,6 +551,7 @@ abstract final class S2ArmInternalService {
         'pairingFilePath': pairingFilePath,
         'uiLocale': uiLocale,
         'menuStrings': Switch2SettingsLocale.menuStrings(uiLocale),
+        if (saveFolder != null) 'saveFolder': saveFolder.path,
       });
       if (report?['success'] == true) {
         _sessionRunning = true;
@@ -543,6 +564,92 @@ abstract final class S2ArmInternalService {
       return S2ArmLaunchOutcome.failure(error.code, error.message);
     } finally {
       _launching = false;
+    }
+  }
+
+  // ---------------- saves ----------------
+
+  /// The save folder of the game whose export is [exportFolder]: Documents/S2Arm/Saves/<title> [<TITLE ID>], found again by
+  /// its title id (a renamed folder keeps working). Created when missing. Null when the folder is not a Switch 2 export.
+  static Future<Directory?> saveFolderFor(String exportFolder) async {
+    final detected = await detectExport(exportFolder);
+    final gid = detected['gid']?.toString();
+    if (detected['success'] != true || gid == null || !_gidPattern.hasMatch(gid)) return null;
+    final saves = await savesDirectory();
+    await saves.create(recursive: true);
+    final tag = '[${gid.toUpperCase()}]';
+    await for (final entry in saves.list(followLinks: false)) {
+      if (entry is Directory && path.basename(entry.path).toUpperCase().endsWith(tag)) return entry;
+    }
+    final info = await gameInfo((detected['exportDir'] ?? exportFolder).toString());
+    final title = _safeName((info['title'] ?? '').toString(), 'Switch 2');
+    final folder = Directory(path.join(saves.path, '$title $tag'));
+    await folder.create(recursive: true);
+    return folder;
+  }
+
+  /// Picks a save folder in Files (exported from a console with JKSV or Checkpoint, or copied from Ryujinx / yuzu) and puts
+  /// it in the save folder of the game at [exportFolder]. The engine reads it the next time the game starts. Returns null
+  /// when the picker was dismissed.
+  static Future<S2ArmSaveImportResult?> importSave(String exportFolder, {String? dialogTitle}) =>
+      StorageImportActivity.run(() async {
+    if (_sessionRunning) throw const S2ArmSaveException('saveGameRunning');
+    final picked = await FilePicker.getDirectoryPath(dialogTitle: dialogTitle, lockParentWindow: true);
+    if (picked == null) return null;
+    return importSaveAt(exportFolder, picked);
+  });
+
+  /// Copies the folder [picked] into the game's save folder, as one sub-folder, so the engine's own recognition (JKSV,
+  /// Checkpoint, Ryujinx, yuzu, NX2Apple, plain files) sees it as picked. What the save folder held before is kept beside
+  /// it as "<name> (backup)" (one backup, replaced by the next import). Visible for tests.
+  static Future<S2ArmSaveImportResult> importSaveAt(String exportFolder, String picked) async {
+    final target = await saveFolderFor(exportFolder);
+    if (target == null) throw const S2ArmSaveException('saveNotExport');
+    final source = Directory(picked);
+    if (!await source.exists()) throw const S2ArmSaveException('saveEmpty');
+    final normalizedSource = path.normalize(source.absolute.path);
+    final normalizedTarget = path.normalize(target.absolute.path);
+    final saves = path.normalize((await savesDirectory()).absolute.path);
+    if (normalizedSource == normalizedTarget || path.isWithin(normalizedTarget, normalizedSource) ||
+        path.isWithin(normalizedSource, normalizedTarget) || normalizedSource == saves) {
+      throw const S2ArmSaveException('saveSameFolder');
+    }
+    final files = await source.list(recursive: true, followLinks: false).where((entry) => entry is File).length;
+    if (files == 0) throw const S2ArmSaveException('saveEmpty');
+    // Keep what the folder held (the progress the engine last wrote back) before replacing it.
+    final backup = Directory('${target.path} (backup)');
+    if (!await target.list().isEmpty) {
+      if (await backup.exists()) await backup.delete(recursive: true);
+      await target.rename(backup.path);
+      await target.create(recursive: true);
+    }
+    final name = path.basename(normalizedSource);
+    await _copyTree(source, Directory(path.join(target.path, name.isEmpty ? 'save' : name)));
+    return S2ArmSaveImportResult(folder: target.path, files: files, backup: await backup.exists() ? backup.path : null);
+  }
+
+  /// Opens the game's save folder in the Files app (creating it first). False when Files could not be opened.
+  static Future<bool> openSaveFolder(String exportFolder) async {
+    final folder = await saveFolderFor(exportFolder);
+    if (folder == null) return false;
+    try {
+      return await channel.invokeMethod<bool>('openFolder', {'path': folder.path}) ?? false;
+    } on MissingPluginException {
+      return false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
+  static Future<void> _copyTree(Directory from, Directory to) async {
+    await to.create(recursive: true);
+    await for (final entry in from.list(followLinks: false)) {
+      final destination = path.join(to.path, path.basename(entry.path));
+      if (entry is Directory) {
+        await _copyTree(entry, Directory(destination));
+      } else if (entry is File) {
+        await entry.copy(destination);
+      }
     }
   }
 
