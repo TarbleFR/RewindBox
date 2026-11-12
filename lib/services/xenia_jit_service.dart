@@ -32,6 +32,13 @@ enum XeniaJitPlan {
 
   /// Not debugged and no tool needed afterwards: classic attach, then detach.
   attachClassic,
+
+  /// A tool is needed, but no address space below 8 GB is held for the code
+  /// region its one-time prepare maps (`codeRegionHeld` false): that prepare
+  /// would be a XeniOS fatal error that closes RewindBox. Refused with
+  /// `jitMemoryUnavailable` before any helper attaches; the next RewindBox
+  /// launch reserves the region (docs/xenios-playlist.md § Code region).
+  noCodeRegion,
 }
 
 class XeniaJitOutcome {
@@ -86,6 +93,7 @@ abstract final class XeniaJitService {
     final debugged = state['debugged'] == true;
     final handshake = state['handshakeActive'] == true;
     if (needsTool) {
+      if (state['codeRegionHeld'] != true) return XeniaJitPlan.noCodeRegion;
       if (!attached) return XeniaJitPlan.attachForCoreHandshake;
       return handshake
           ? XeniaJitPlan.reuseAttachedTool
@@ -106,6 +114,12 @@ abstract final class XeniaJitService {
       return const XeniaJitOutcome.failure(
         'restartRequired',
         'a debugger is attached without a live XeniOS helper handshake',
+      );
+    }
+    if (plan == XeniaJitPlan.noCodeRegion) {
+      return const XeniaJitOutcome.failure(
+        'jitMemoryUnavailable',
+        'no address space below 8 GB is held for the XeniOS code region',
       );
     }
     if (plan == XeniaJitPlan.ready || plan == XeniaJitPlan.reuseAttachedTool) {

@@ -54,6 +54,47 @@ SWAP_HOOK_ALLOWED = {
 }
 
 
+# ABI 4: the host's code-region reservation (docs/xenios-playlist.md § Code
+# region). XeniOS takes the 512 MB below 8 GB while its process loads; the
+# embedded Core is dlopened late, so the host reserves it and this one function,
+# after the anonymous namespace of jit_memory_ios.cc, hands it over. Nothing
+# upstream changes: the function is unused outside XeniaCore.
+JIT_REGION_FILES = ['src/xenia/cpu/backend/jit_memory_ios.cc']
+JIT_REGION_ADDED = [
+    '// RewindBox embedded Core (build-utils/xenia): the host app holds the code',
+    '// region from its own launch and hands it over after its late dlopen of this',
+    '// Core, when the reservation above found no room. Returns 2 when the Core',
+    '// already holds one, 1 when it takes the host\'s, 0 when none is held.',
+    'extern "C" int NeoXeniaAdoptExecuteRegion(void* reservation, size_t size) {',
+    '  if (execute_region_reservation) {',
+    '    return 2;',
+    '  }',
+    '  const uintptr_t base = reinterpret_cast<uintptr_t>(reservation);',
+    '  if (!base || size != kExecuteRegionReserveSize ||',
+    '      base + size > kExecuteRegionLimit) {',
+    '    return 0;',
+    '  }',
+    '  execute_region_reservation = static_cast<uint8_t*>(reservation);',
+    '  return 1;',
+    '}',
+    '',
+]
+
+
+def check_code_region_hook(patch: str) -> None:
+    for name in JIT_REGION_FILES:
+        hunk = patch.split(f'diff --git a/{name} ', 1)[1].split('\ndiff --git ', 1)[0]
+        body = hunk.splitlines()[4:]
+        if any(line.startswith('-') for line in body):
+            fail(f'{name}: the code-region hook removes upstream lines')
+        added = [line[1:] for line in body if line.startswith('+')]
+        if added != JIT_REGION_ADDED:
+            fail(f'{name}: not exactly the code-region adoption function: {added}')
+        before = hunk.split('\n+' + JIT_REGION_ADDED[0], 1)[0]
+        if not before.rstrip().endswith('}  // namespace'):
+            fail(f'{name}: the adoption function must follow the anonymous namespace')
+
+
 def check_swap_hook(patch: str) -> None:
     for name in SWAP_HOOK_FILES:
         hunk = patch.split(f'diff --git a/{name} ', 1)[1].split('\ndiff --git ', 1)[0]
@@ -84,10 +125,12 @@ def check_sdk_hunks(patch: str) -> None:
 def check_patch() -> None:
     patch = (XENIA / 'rewindbox-core.patch').read_text()
     files = re.findall(r'^diff --git a/(\S+) ', patch, re.M)
-    if files != ['cmake/ios/App.cmake', 'src/xenia/app/xenia_main_ios.mm'] + SDK_FILES + SWAP_HOOK_FILES:
+    if files != ['cmake/ios/App.cmake', 'src/xenia/app/xenia_main_ios.mm'] + SDK_FILES + SWAP_HOOK_FILES + \
+            JIT_REGION_FILES:
         fail(f'unexpected patched files {files}')
     check_sdk_hunks(patch)
     check_swap_hook(patch)
+    check_code_region_hook(patch)
     removed = [line for line in patch.splitlines() if line.startswith('-') and not line.startswith('---')]
     if removed:
         fail(f'the patch must only add guarded lines, it removes {removed[:3]}')
@@ -113,6 +156,8 @@ def check_patch() -> None:
             fail(f'{symbol} not declared in neo_xenia_core_hooks.h')
     if 'extern "C" void NeoXeniaNotifyGuestSwap(void);' not in hooks:
         fail('NeoXeniaNotifyGuestSwap is not declared extern "C" in neo_xenia_core_hooks.h')
+    if 'extern "C" int NeoXeniaAdoptExecuteRegion(void* reservation, size_t size);' not in hooks:
+        fail('NeoXeniaAdoptExecuteRegion is not declared extern "C" in neo_xenia_core_hooks.h')
     for symbol in ('void NeoXeniaApplyLaunchOverrides()', 'void NeoXeniaNotifyTitleLaunched()',
                    'NeoXeniaCreateInputDriver(xe::ui::Window* window',
                    'extern "C" void NeoXeniaNotifyGuestSwap(void) {', 'int GetStats(NeoXeniaStats* out) {'):
@@ -134,13 +179,25 @@ def check_patch() -> None:
     # ABI 2: the JIT decision comes from the Core (IOSJitMemory).
     abi = (ROOT / 'packages/xenia_internal_bridge/ios/Classes/XeniaCoreABI.h').read_text()
     for needed in ('NEO_XENIA_JIT_NEEDS_TOOL', 'NEO_XENIA_JIT_TOOL_ATTACHED', 'uint32_t (*jit_state)(void);',
-                   '#define NEO_XENIA_ABI_VERSION 3u', 'int (*get_stats)(NeoXeniaStats* out);'):
+                   '#define NEO_XENIA_ABI_VERSION 4u', 'int (*get_stats)(NeoXeniaStats* out);',
+                   'int (*adopt_code_region)(void* reservation, size_t size);',
+                   '#define NEO_XENIA_JIT_CODE_REGION_HELD (1u << 4)',
+                   '#define NEO_XENIA_CODE_REGION_SIZE ((size_t)1 << 29)',
+                   '#define NEO_XENIA_CODE_REGION_LIMIT ((uintptr_t)1 << 33)'):
         if needed not in abi:
             fail(f'XeniaCoreABI.h lacks {needed}')
     for needed in ('IOSJitMemory::NeedsAttachedTool()', 'IOSJitMemory::ToolAttached()', 'JitState,',
-                   '    GetStats,\n};', 'g_guest_frames.store(0, std::memory_order_relaxed);'):
+                   '    GetStats,\n    AdoptCodeRegion,\n};', 'g_guest_frames.store(0, std::memory_order_relaxed);',
+                   'NeoXeniaAdoptExecuteRegion(reservation, size)', 'IOSJitMemory::kExecuteRegionReserveSize',
+                   'state |= NEO_XENIA_JIT_CODE_REGION_HELD;', 'hooks.note_fatal_error = NoteFatalError;',
+                   'xe::SetIOSSystemHooks(hooks);', '"/last-fatal.txt"'):
         if needed not in facade:
             fail(f'XeniaCore.mm lacks {needed}')
+    # The refusal comes before boot: a broker-path title without a held code
+    # region would end in a FatalError that closes RewindBox.
+    validate = facade.split('int ValidateJit(', 1)[1].split('\nint Boot(', 1)[0]
+    if '!(state & NEO_XENIA_JIT_CODE_REGION_HELD)' not in validate:
+        fail('ValidateJit does not refuse a title without a held code region')
     # Dedicated helper: derived from the ARMSX2 reference, no drift.
     subprocess.run([sys.executable, str(ROOT / 'tools/xenia/derive_jit_helper.py'), '--check'], check=True)
     # Bridge order: nonce probe before the Core runs, Core-issued detach
@@ -153,7 +210,7 @@ def check_patch() -> None:
     if '[XeniaJitBridgePlugin registerWithRegistrar:registrar];' not in plugin:
         fail('the dedicated JIT channel is not registered')
     pin = json.loads((XENIA / 'source.json').read_text())
-    if pin['abi_version'] != 3 or not re.fullmatch('[0-9a-f]{40}', pin['revision']):
+    if pin['abi_version'] != 4 or not re.fullmatch('[0-9a-f]{40}', pin['revision']):
         fail('source.json pin is malformed')
 
 

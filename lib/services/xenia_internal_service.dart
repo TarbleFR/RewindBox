@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:ui' show Locale, PlatformDispatcher;
 
+import 'package:external_folder_access/external_folder_access.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as path;
@@ -128,6 +129,9 @@ abstract final class XeniaInternalService {
   /// Staging of folder imports, beside `Games` so that the final move is a
   /// rename on the same volume and the scan never sees a partial game.
   static Future<Directory> stagingDirectory() => _child('.importing');
+
+  /// Bookmark slot of the folder import: the last folder picked for it.
+  static const String importBookmark = 'xenia-import';
   static Future<Directory> cacheDirectory() async =>
       Directory(path.join((await cachesDirectory()).path, 'XeniOS'));
 
@@ -293,17 +297,30 @@ abstract final class XeniaInternalService {
   /// folders with `default.xex`, Games on Demand packages (header plus
   /// `.data`) and single-file STFS packages (docs/xenios-playlist.md §
   /// Folder import). Returns null when the picker was dismissed. The folder
-  /// is read in place; nothing is left in the picker's inbox.
+  /// is read in place; nothing is left in the picker's inbox. [dialogTitle]
+  /// is unused: the iOS folder picker shows no title.
   static Future<XeniaImportResult?> importFolder({
     String? dialogTitle,
     void Function(XeniaImportProgress progress)? onProgress,
     XeniaImportControl? control,
   }) => StorageImportActivity.run(() async {
     await ensureLayout();
-    final folder = await FilePicker.getDirectoryPath(
-      dialogTitle: dialogTitle,
-      lockParentWindow: true,
-    );
+    // The folder is read where it is (often another app's or the device's own
+    // folder): pickAndActivateFolder keeps iOS's security-scoped access open
+    // for this session. file_picker 12.0.0-beta.3's directory pick returns a
+    // bare path without it (IOSFilePickerHandler.swift), so a folder outside
+    // RewindBox's container read as empty (IPA 727, found on Switch 2).
+    final String? folder;
+    try {
+      folder = await ExternalFolderAccess.pickAndActivateFolder(
+        key: importBookmark,
+      );
+    } on ExternalFolderAccessException catch (error) {
+      _log.w('XeniOS import: the picked folder could not be opened: $error');
+      return XeniaImportResult(<XeniaImportItem>[
+        XeniaImportItem(error.code, 'folderAccessFailed'),
+      ]);
+    }
     if (folder == null) return null;
     return importFolderAt(
       Directory(folder),
@@ -761,22 +778,19 @@ abstract final class XeniaInternalService {
     required String title,
     required Locale uiLocale,
   }) async {
+    await takePreviousFatal();
     final runtime = await availability();
-    if (!runtime.ready) {
-      return XeniaLaunchOutcome.failure(runtime.state.name, runtime.detail);
-    }
+    if (!runtime.ready) return _refused(runtime.state.name, runtime.detail);
     // Every cheap refusal comes before the JIT helper: a transaction opened
     // for a launch that never reaches the bridge would refuse every later
     // prepareJit until RewindBox restarts.
     final kind = contentKindFor(romPath);
-    if (kind == null) return const XeniaLaunchOutcome.failure('unsupported');
-    if (!await File(romPath).exists()) {
-      return const XeniaLaunchOutcome.failure('gameUnreadable');
-    }
+    if (kind == null) return _refused('unsupported');
+    if (!await File(romPath).exists()) return _refused('gameUnreadable');
     // The dedicated XeniOS JIT helper, only when the Core needs it
     // (docs/xenios-playlist.md § JIT helper).
     final jit = await XeniaJitService.ensure();
-    if (!jit.success) return XeniaLaunchOutcome.failure(jit.error, jit.detail);
+    if (!jit.success) return _refused(jit.error ?? 'launchFailed', jit.detail);
     final Map<String, dynamic> report;
     try {
       report = await _bridgeLaunch(romPath, kind, title, uiLocale);
@@ -791,6 +805,39 @@ abstract final class XeniaInternalService {
     final error = report['error']?.toString() ?? 'launchFailed';
     _log.e('XeniOS launch failed: $error ${report['detail'] ?? ''}');
     return XeniaLaunchOutcome.failure(error, report['detail']?.toString());
+  }
+
+  /// A refusal before the bridge, with its reason in app.log (the caller
+  /// only logs that the launch failed).
+  static XeniaLaunchOutcome _refused(String error, [String? detail]) {
+    final suffix = detail == null || detail.isEmpty ? '' : ' $detail';
+    _log.w('XeniOS launch refused: $error$suffix');
+    return XeniaLaunchOutcome.failure(error, detail);
+  }
+
+  /// The reason of a XeniOS fatal error that closed RewindBox in an earlier
+  /// session: XeniOS ends the process after its fatal-error hook, which the
+  /// Core points at `Engine/last-fatal.txt` (docs/xenios-playlist.md § Code
+  /// region). Logged once, then removed.
+  @visibleForTesting
+  static Future<String?> takePreviousFatal() async {
+    final record = File(
+      path.join((await engineDirectory()).path, 'last-fatal.txt'),
+    );
+    try {
+      if (!await record.exists()) return null;
+      final reason = (await record.readAsString()).trim();
+      await record.delete();
+      if (reason.isEmpty) return null;
+      _log.e(
+        'XeniOS: an engine fatal error closed RewindBox in an earlier '
+        'session: $reason',
+      );
+      return reason;
+    } on FileSystemException catch (error) {
+      _log.w('XeniOS: the previous fatal error record is unreadable: $error');
+      return null;
+    }
   }
 
   @visibleForTesting

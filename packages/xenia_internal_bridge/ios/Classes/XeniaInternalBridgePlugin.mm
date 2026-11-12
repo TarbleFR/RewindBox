@@ -21,6 +21,7 @@
 #import <QuartzCore/QuartzCore.h>
 #import <UIKit/UIKit.h>
 #import <dlfcn.h>
+#include <sys/mman.h>
 #include <atomic>
 #include <string>
 #include <vector>
@@ -70,6 +71,44 @@ static BOOL XeniaSupportedOS(void) {
   return [NSProcessInfo.processInfo isOperatingSystemAtLeastVersion:minimum];
 }
 
+// The code region (docs/xenios-playlist.md § Code region). The JIT tool only
+// prepares it below 8 GB, and XeniOS takes that room while its own process
+// loads; this Core is dlopened at the first Xbox 360 launch, when the app may
+// have filled the low address space (first device run: "no room for the code
+// region below 8 GB", a FatalError that closed RewindBox). Once a launch has
+// loaded the Core on the TXM broker path, every later RewindBox launch reserves
+// the region at plugin registration and hands it to the Core; so does a launch
+// with Xbox 360 games already imported, before any launch set the flag.
+static NSString* const kXeniaReserveCodeRegionKey = @"RBXeniaReserveCodeRegion";
+// From registration until loadCore hands it over or unmaps it; main only.
+static void* gXeniaHostCodeRegion = nullptr;
+
+// XeniOS's own search (jit_memory_ios.cc MapBelowExecuteRegionLimit): hints
+// only, so nothing already mapped is replaced. PROT_NONE: no memory is used.
+static void* XeniaReserveCodeRegion(void) {
+  const size_t size = NEO_XENIA_CODE_REGION_SIZE;
+  const uintptr_t step = (uintptr_t)1 << 28;
+  for (uintptr_t hint = (uintptr_t)1 << 32; hint + size <= NEO_XENIA_CODE_REGION_LIMIT; hint += step) {
+    void* mapping = mmap((void*)hint, size, PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0);
+    if (mapping == MAP_FAILED) continue;
+    if ((uintptr_t)mapping + size <= NEO_XENIA_CODE_REGION_LIMIT) return mapping;
+    munmap(mapping, size);
+  }
+  return nullptr;
+}
+
+// Documents/XeniOS/Games (XeniaInternalService.gamesDirectory) holds a game.
+static BOOL XeniaHasImportedGames(void) {
+  NSURL* documents = [NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory
+                                                          inDomains:NSUserDomainMask].firstObject;
+  NSString* games = [documents URLByAppendingPathComponent:@"XeniOS/Games" isDirectory:YES].path;
+  if (!games) return NO;
+  for (NSString* name in [NSFileManager.defaultManager contentsOfDirectoryAtPath:games error:nil]) {
+    if (![name hasPrefix:@"."]) return YES;
+  }
+  return NO;
+}
+
 static UIViewController* XeniaTopViewController(void) {
   UIWindow* keyWindow = nil;
   for (UIScene* scene in UIApplication.sharedApplication.connectedScenes) {
@@ -93,6 +132,9 @@ static UIViewController* XeniaTopViewController(void) {
 @property(nonatomic, strong) RBXeniaSessionController* session;
 @property(nonatomic, assign) const NeoXeniaAPI* api;
 @property(nonatomic, copy) NSString* loadDetail;
+// Who holds the code region for the one-time prepare: host, own (the Core's
+// own reservation) or none. Diagnostics only (jitState).
+@property(nonatomic, copy) NSString* codeRegion;
 - (void)deliverEvent:(NSString*)event transaction:(uint64_t)transaction message:(NSString*)message;
 - (void)requestStopFromMenu;
 - (void)setUserPaused:(BOOL)paused;
@@ -493,6 +535,12 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
 }
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
+  // First, before the app fills the address space below 8 GB.
+  if (XeniaSupportedOS() && [NSFileManager.defaultManager fileExistsAtPath:XeniaFrameworkPath()] &&
+      ([NSUserDefaults.standardUserDefaults boolForKey:kXeniaReserveCodeRegionKey] || XeniaHasImportedGames())) {
+    gXeniaHostCodeRegion = XeniaReserveCodeRegion();
+    NSLog(@"[Xenia] code region: %@", gXeniaHostCodeRegion ? @"reserved below 8 GB" : @"no room below 8 GB");
+  }
   XeniaInternalBridgePlugin* plugin = [[XeniaInternalBridgePlugin alloc] init];
   plugin.channel = [FlutterMethodChannel methodChannelWithName:kXeniaChannel
                                                binaryMessenger:registrar.messenger];
@@ -559,6 +607,8 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
     @"toolAttached" : @((state & NEO_XENIA_JIT_TOOL_ATTACHED) != 0),
     @"debugged" : @((state & NEO_XENIA_JIT_CS_DEBUGGED) != 0),
     @"brokerPath" : @((state & NEO_XENIA_JIT_BROKER_PATH) != 0),
+    @"codeRegionHeld" : @((state & NEO_XENIA_JIT_CODE_REGION_HELD) != 0),
+    @"codeRegion" : self.codeRegion ?: @"none",
     @"handshakeActive" : @(XeniaJitHasActiveCoreHandshake()),
   };
 }
@@ -594,6 +644,18 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
     return _loadFailure;
   }
   self.api = api;
+  // ABI 4, once: the Core keeps the reservation its static initializers just
+  // made, or takes the host's (its own found no room below 8 GB).
+  void* reservation = gXeniaHostCodeRegion;
+  gXeniaHostCodeRegion = nullptr;
+  const int region = api->adopt_code_region(reservation, reservation ? NEO_XENIA_CODE_REGION_SIZE : 0);
+  if (reservation && region != NEO_XENIA_CODE_REGION_ADOPTED) munmap(reservation, NEO_XENIA_CODE_REGION_SIZE);
+  self.codeRegion = region == NEO_XENIA_CODE_REGION_ADOPTED ? @"host"
+                    : region == NEO_XENIA_CODE_REGION_OWN   ? @"own"
+                                                             : @"none";
+  // Only the TXM broker path needs the region below 8 GB.
+  [NSUserDefaults.standardUserDefaults setBool:(api->jit_state() & NEO_XENIA_JIT_BROKER_PATH) != 0
+                                        forKey:kXeniaReserveCodeRegionKey];
   return nil;
 }
 

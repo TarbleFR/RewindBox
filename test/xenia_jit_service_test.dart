@@ -55,19 +55,28 @@ void main() {
 
   test('the Core decides the plan', () {
     expect(
-      XeniaJitService.planFor({'needsTool': true, 'toolAttached': false}),
+      XeniaJitService.planFor({
+        'needsTool': true,
+        'codeRegionHeld': true,
+        'toolAttached': false,
+      }),
       XeniaJitPlan.attachForCoreHandshake,
     );
     expect(
       XeniaJitService.planFor({
         'needsTool': true,
+        'codeRegionHeld': true,
         'toolAttached': true,
         'handshakeActive': true,
       }),
       XeniaJitPlan.reuseAttachedTool,
     );
     expect(
-      XeniaJitService.planFor({'needsTool': true, 'toolAttached': true}),
+      XeniaJitService.planFor({
+        'needsTool': true,
+        'codeRegionHeld': true,
+        'toolAttached': true,
+      }),
       XeniaJitPlan.staleTool,
       reason: 'an attached debugger proves nothing about a live helper',
     );
@@ -79,6 +88,42 @@ void main() {
       XeniaJitService.planFor({'needsTool': false, 'debugged': false}),
       XeniaJitPlan.attachClassic,
     );
+  });
+
+  test('without a code region below 8 GB nothing attaches: the prepare would close RewindBox', () async {
+    for (final state in <Map<String, dynamic>>[
+      {'needsTool': true, 'toolAttached': false, 'codeRegionHeld': false},
+      {'needsTool': true, 'toolAttached': false},
+      {
+        'needsTool': true,
+        'toolAttached': true,
+        'handshakeActive': true,
+        'codeRegionHeld': false,
+      },
+    ]) {
+      expect(XeniaJitService.planFor(state), XeniaJitPlan.noCodeRegion);
+      wire(state);
+      final outcome = await XeniaJitService.ensure();
+      expect(outcome.success, isFalse);
+      expect(outcome.error, 'jitMemoryUnavailable');
+      expect(calls, isEmpty, reason: 'no pairing, route or helper');
+    }
+    // A prepared region (or no TXM) needs no room: the flag is not read.
+    expect(
+      XeniaJitService.planFor({
+        'needsTool': false,
+        'debugged': true,
+        'codeRegionHeld': false,
+      }),
+      XeniaJitPlan.ready,
+    );
+    expect(
+      XeniaLocale.launchErrorKey('jitMemoryUnavailable'),
+      'jitMemoryUnavailable',
+    );
+    for (final code in XeniaLocale.values.keys) {
+      expect(XeniaLocale.values[code]!['jitMemoryUnavailable'], isNotEmpty);
+    }
   });
 
   test(
@@ -101,6 +146,7 @@ void main() {
     () async {
       wire({
         'needsTool': true,
+        'codeRegionHeld': true,
         'toolAttached': true,
         'debugged': true,
         'handshakeActive': true,
@@ -116,6 +162,7 @@ void main() {
     () async {
       wire({
         'needsTool': true,
+        'codeRegionHeld': true,
         'toolAttached': true,
         'debugged': true,
         'handshakeActive': false,
@@ -138,7 +185,12 @@ void main() {
   test(
     'TXM on iOS 26: the helper stays attached for the Core handshake, no completion here',
     () async {
-      wire({'needsTool': true, 'toolAttached': false, 'debugged': false});
+      wire({
+        'needsTool': true,
+        'codeRegionHeld': true,
+        'toolAttached': false,
+        'debugged': false,
+      });
       final outcome = await XeniaJitService.ensure();
       expect(outcome.success, isTrue);
       expect(
@@ -166,11 +218,19 @@ void main() {
   );
 
   test('failures are distinct facts with their own message', () async {
-    wire({'needsTool': true, 'toolAttached': false}, pairing: false);
+    wire({
+      'needsTool': true,
+      'codeRegionHeld': true,
+      'toolAttached': false,
+    }, pairing: false);
     expect((await XeniaJitService.ensure()).error, 'pairingRequired');
     expect(calls, ['pairing']);
 
-    wire({'needsTool': true, 'toolAttached': false}, route: false);
+    wire({
+      'needsTool': true,
+      'codeRegionHeld': true,
+      'toolAttached': false,
+    }, route: false);
     final route = await XeniaJitService.ensure();
     expect(route.error, 'jitAttachFailed');
     expect(calls, [
@@ -184,7 +244,11 @@ void main() {
       'pidAttached',
       'debugged',
     ]) {
-      wire({'needsTool': true, 'toolAttached': false});
+      wire({
+        'needsTool': true,
+        'codeRegionHeld': true,
+        'toolAttached': false,
+      });
       prepareResult = <String, dynamic>{
         'success': true,
         'helperConnected': true,
