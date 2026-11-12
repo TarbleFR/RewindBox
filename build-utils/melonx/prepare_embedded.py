@@ -176,6 +176,7 @@ from adapt_cold_buffer_trim import apply as adapt_cold_buffer_trim
 from adapt_host_thread_class import apply as adapt_host_thread_class
 from adapt_remap_sweep_range import apply as adapt_remap_sweep_range
 from adapt_npad_config_snapshot import apply as adapt_npad_config_snapshot
+from adapt_playtime_warmup_all_titles import apply as adapt_playtime_warmup_all_titles
 
 
 def replace_once(path, old, new):
@@ -514,6 +515,10 @@ def main():
     # proven and every later launch of every engine was refused): the controller manager keeps its own copy of the
     # input configuration, which the library changes under another lock while a frame enumerates it.
     adapted += adapt_npad_config_snapshot(source)
+    # Core 739 (IPA 727 Super Smash Bros. Ultimate: SetProgram up to 1.4 s per 5 s waiting for warm-up pipelines, the
+    # session's longest gaps in the pipeline bursts): programs translated during play bind once their shader modules exist
+    # in every title, as they did for Hogwarts Legacy; no draw is skipped.
+    adapted += adapt_playtime_warmup_all_titles(source)
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -653,7 +658,8 @@ def main():
                  'adapt_cold_buffer_trim.py',
                  'adapt_host_thread_class.py',
                  'adapt_remap_sweep_range.py',
-                 'adapt_npad_config_snapshot.py']:
+                 'adapt_npad_config_snapshot.py',
+                 'adapt_playtime_warmup_all_titles.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'
