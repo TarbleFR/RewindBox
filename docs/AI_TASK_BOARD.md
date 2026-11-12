@@ -6166,7 +6166,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   every pad merged (was GCController.current), losing the last pad opens the menu; edge swipes deferred; background
   task until the pause settles and audio-session restore. test/xenia_embedding_test.py (--upstream): every app-layer
   IOSWindowedAppContext callback installed or listed with its reason. Core run 43241572889 (2bbc9daf7) green: checks,
-  plugin_app, core (compiled, verify_core.py); pinned next. Licence audit (maintainer, 12 Nov) c1dddbdaa: see
+  plugin_app, core (compiled, verify_core.py). Pin job 131289253511 (run 43248970284): core-pin.json c7d6a5c4…40e9
+  byte-identical (job 131265441453, artifact 13957752125, 9,542,933 B, 2e29104f…, expires 26 Nov; binary 8c59ad09…c891,
+  37,751,320 B, SDK 26.5, minos 26.0; fingerprint 9cbc5520…1700; replaces 2d176a7f with its reason); review rebound (10
+  recipe digests equal at 2bbc9daf7), gate OK; the app's legal check passes in full. Licence audit (maintainer, 12 Nov) c1dddbdaa: see
   docs/LICENSE_AUDIT_2026-11-12.md (libchdr/zstd/LZMA notices and review for the libretro podspec unreviewed since
   b06888a9, date in XeniOS, CoreHaptics review, RewindBox-MODIFICATIONS.md required, 25 package LICENSE files,
   12-locale disclaimer and missing credits, MeloNX texts offline, legal tests repaired after 11 days red, open items).
