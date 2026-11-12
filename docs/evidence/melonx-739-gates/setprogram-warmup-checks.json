@@ -1,0 +1,816 @@
+{
+  "result": "passed",
+  "checks": 103,
+  "finalPreparationBound": true,
+  "sourceKind": "finalPreparationWithReversedControl",
+  "postimages": {
+    "src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs": "27f89c04260ce82bf3ff8468eda36785516b081567e260e534a7074bbf2eb2d8",
+    "src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs": "c721da2bbaa47c6b37d0dcfd46dc3fab890f7e5cc41f4d0cd935ab464a67b1de",
+    "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs": "a801fc74c66fb54de5ffc1902069476b9ffcad0f025720e01c7af40820e250a4",
+    "src/Ryujinx.Library/Library.cs": "d601923afc7d31e844d6eb2ea6f28516475da259c9449b9a2001df9f65e4ea97",
+    "src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs": "e96c9513aeb152b4be29e09a189173736f704eec23999b96a4c94cb66af9bb43"
+  },
+  "sdk": "10.0.100",
+  "physicalDeviceTested": false,
+  "productionVulkanAssemblyBuilt": true,
+  "productionLibraryAssemblyBuilt": true,
+  "productionVulkanAssemblies": {
+    "control": "4e2cb7e8473a4ebc230246cab3564da5893cca496056776f057a73b4c89852c9",
+    "candidate": "da031e36250e4d58706a75f6847ab2afec363d0a7e26cad7a018a41c877c5d16"
+  },
+  "pipelineCompileDoubleMs": 400,
+  "timings": {
+    "control": {
+      "mismatch": {
+        "bindMs": 415.5,
+        "setProgramMs": 1.6,
+        "toFirstDrawMs": 821.5
+      },
+      "match": {
+        "bindMs": 409.5,
+        "setProgramMs": 408.3,
+        "toFirstDrawMs": 409.5
+      },
+      "burstMatch": {
+        "setProgramMs": 1571.5,
+        "toFirstDrawMs": 1603.4
+      },
+      "burstMismatch": {
+        "setProgramMs": 1585.9,
+        "toFirstDrawMs": 2016.1
+      },
+      "compute": {
+        "bindMs": 403.7,
+        "setProgramMs": 403.4,
+        "toFirstDispatchMs": 404.1
+      }
+    },
+    "candidate": {
+      "mismatch": {
+        "bindMs": 23.8,
+        "setProgramMs": 8.5,
+        "toFirstDrawMs": 435.8
+      },
+      "match": {
+        "bindMs": 5.2,
+        "setProgramMs": 5,
+        "toFirstDrawMs": 405.8
+      },
+      "burstMatch": {
+        "setProgramMs": 1.4,
+        "toFirstDrawMs": 443.8
+      },
+      "burstMismatch": {
+        "setProgramMs": 2.1,
+        "toFirstDrawMs": 432.5
+      },
+      "compute": {
+        "bindMs": 3.9,
+        "setProgramMs": 2.4,
+        "toFirstDispatchMs": 409
+      }
+    }
+  },
+  "reports": {
+    "control": {
+      "variant": "control",
+      "pipelineMs": 400,
+      "pipelineWorkers": 1,
+      "processors": 6,
+      "hasPolicyProperty": false,
+      "mismatch": {
+        "compilesInBackground": false,
+        "canBindWhileIncomplete": false,
+        "setProgramMs": 1.6,
+        "bindMs": 415.5,
+        "drawMs": 406,
+        "toFirstDrawMs": 821.5,
+        "setProgramReturnedBeforeWarmUpEnd": false,
+        "drawBuildStartedBeforeWarmUpEnd": false,
+        "drawn": true,
+        "boundOwnPipeline": true,
+        "secondDrawn": true,
+        "secondBoundWarmUp": true,
+        "compiles": 2,
+        "renderThreadWarmUps": 1,
+        "warmUp": {
+          "key": "graphics topology 0",
+          "cache": "main",
+          "thread": "render",
+          "start": 9.6,
+          "end": 411.9,
+          "failed": false
+        },
+        "drawBuild": {
+          "key": "graphics topology 1 restart",
+          "cache": "main",
+          "thread": "render",
+          "start": 421.2,
+          "end": 821.3,
+          "failed": false
+        },
+        "missLines": [
+          "Background pipeline compile missed on draw - incorrect pipeline state? Differs from warm-up: Topology warm-up=0 draw=1; PrimitiveRestartEnable warm-up=False draw=True (pipelines already built for this program: 1)"
+        ]
+      },
+      "match": {
+        "compilesInBackground": false,
+        "canBindWhileIncomplete": false,
+        "setProgramMs": 408.3,
+        "bindMs": 409.5,
+        "drawMs": 0,
+        "toFirstDrawMs": 409.5,
+        "setProgramReturnedBeforeWarmUpEnd": false,
+        "drawEndedAfterWarmUpEnd": true,
+        "drawAfterWarmUpEndMs": 0.2,
+        "drawn": true,
+        "boundWarmUp": true,
+        "skipped": false,
+        "compiles": 1,
+        "renderThreadWarmUps": 0,
+        "warmUp": {
+          "key": "graphics topology 0",
+          "cache": "main",
+          "thread": ".NET TP Worker",
+          "start": 9.3,
+          "end": 409.4,
+          "failed": false
+        },
+        "missLines": 0
+      },
+      "matchCheckpoint": {
+        "compilesInBackground": false,
+        "canBindWhileIncomplete": false,
+        "setProgramMs": 401.3,
+        "bindMs": 401.3,
+        "drawMs": 0,
+        "toFirstDrawMs": 401.3,
+        "setProgramReturnedBeforeWarmUpEnd": false,
+        "drawEndedAfterWarmUpEnd": true,
+        "drawAfterWarmUpEndMs": 0.1,
+        "drawn": true,
+        "boundWarmUp": true,
+        "skipped": false,
+        "compiles": 1,
+        "renderThreadWarmUps": 0,
+        "warmUp": {
+          "key": "graphics topology 0",
+          "cache": "main",
+          "thread": ".NET TP Worker",
+          "start": 1.2,
+          "end": 401.2,
+          "failed": false
+        },
+        "missLines": 0,
+        "checkpoints": 0,
+        "checkpointMs": 300
+      },
+      "burstMatch": {
+        "setProgramMs": 1571.5,
+        "toFirstDrawMs": 1603.4,
+        "drawn": true,
+        "boundNeeded": true,
+        "neededServedBeforeQueuedWarmUps": 3,
+        "compiles": 4,
+        "mainCacheWarmUps": 3,
+        "renderThreadWarmUps": 0,
+        "records": [
+          {
+            "key": "graphics topology 11",
+            "cache": "main",
+            "thread": ".NET TP Worker",
+            "start": 3.1,
+            "end": 403.1,
+            "failed": false
+          },
+          {
+            "key": "graphics topology 12",
+            "cache": "main",
+            "thread": ".NET TP Worker",
+            "start": 403.2,
+            "end": 803.2,
+            "failed": false
+          },
+          {
+            "key": "graphics topology 10",
+            "cache": "main",
+            "thread": ".NET TP Worker",
+            "start": 803.2,
+            "end": 1203.2,
+            "failed": false
+          },
+          {
+            "key": "graphics topology 13",
+            "cache": "main",
+            "thread": ".NET TP Worker",
+            "start": 1203.3,
+            "end": 1603.3,
+            "failed": false
+          }
+        ]
+      },
+      "burstMismatch": {
+        "setProgramMs": 1585.9,
+        "toFirstDrawMs": 2016.1,
+        "drawn": true,
+        "boundNeeded": true,
+        "neededServedBeforeQueuedWarmUps": 3,
+        "compiles": 5,
+        "mainCacheWarmUps": 4,
+        "renderThreadWarmUps": 0,
+        "records": [
+          {
+            "key": "graphics topology 10",
+            "cache": "main",
+            "thread": ".NET TP Worker",
+            "start": 8,
+            "end": 408,
+            "failed": false
+          },
+          {
+            "key": "graphics topology 11",
+            "cache": "main",
+            "thread": ".NET TP Worker",
+            "start": 408,
+            "end": 812,
+            "failed": false
+          },
+          {
+            "key": "graphics topology 12",
+            "cache": "main",
+            "thread": ".NET TP Worker",
+            "start": 812,
+            "end": 1212,
+            "failed": false
+          },
+          {
+            "key": "graphics topology 13",
+            "cache": "main",
+            "thread": ".NET TP Worker",
+            "start": 1212,
+            "end": 1616,
+            "failed": false
+          },
+          {
+            "key": "graphics topology 14 restart",
+            "cache": "main",
+            "thread": "render",
+            "start": 1616.1,
+            "end": 2016.1,
+            "failed": false
+          }
+        ]
+      },
+      "compute": {
+        "compilesInBackground": false,
+        "setProgramMs": 403.4,
+        "bindMs": 403.7,
+        "toFirstDispatchMs": 404.1,
+        "setProgramReturnedBeforeWarmUpEnd": false,
+        "dispatched": true,
+        "boundCompiled": true,
+        "compiles": 1,
+        "renderThreadWarmUps": 0,
+        "records": [
+          {
+            "key": "compute spec 0",
+            "cache": "main",
+            "thread": ".NET TP Worker",
+            "start": 2.6,
+            "end": 402.6,
+            "failed": false
+          }
+        ]
+      },
+      "savePoll": {
+        "duringWarmUp": "Incomplete",
+        "after": "Success"
+      },
+      "cancel": {
+        "warmUpCompiled": 1,
+        "failureLines": 0
+      },
+      "failures": {
+        "warmUpFailedDrawn": true,
+        "warmUpFailedBoundSecondBuild": true,
+        "warmUpFailedCompiles": 2,
+        "moduleFailedLink": "Failure",
+        "moduleFailedDrawn": false,
+        "moduleFailedCompiles": 0
+      },
+      "mismatchPolicyOff": {
+        "compilesInBackground": false,
+        "canBindWhileIncomplete": false,
+        "setProgramMs": 401.6,
+        "bindMs": 401.7,
+        "drawMs": 400,
+        "toFirstDrawMs": 801.7,
+        "setProgramReturnedBeforeWarmUpEnd": false,
+        "drawBuildStartedBeforeWarmUpEnd": false,
+        "drawn": true,
+        "boundOwnPipeline": true,
+        "secondDrawn": true,
+        "secondBoundWarmUp": true,
+        "compiles": 2,
+        "renderThreadWarmUps": 0,
+        "warmUp": {
+          "key": "graphics topology 0",
+          "cache": "main",
+          "thread": ".NET TP Worker",
+          "start": 1.5,
+          "end": 401.5,
+          "failed": false
+        },
+        "drawBuild": {
+          "key": "graphics topology 1 restart",
+          "cache": "main",
+          "thread": "render",
+          "start": 401.7,
+          "end": 801.7,
+          "failed": false
+        },
+        "missLines": [
+          "Background pipeline compile missed on draw - incorrect pipeline state? Differs from warm-up: Topology warm-up=0 draw=1; PrimitiveRestartEnable warm-up=False draw=True (pipelines already built for this program: 1)"
+        ]
+      },
+      "computePolicyOff": {
+        "compilesInBackground": false,
+        "setProgramMs": 409.9,
+        "bindMs": 410,
+        "toFirstDispatchMs": 410,
+        "setProgramReturnedBeforeWarmUpEnd": false,
+        "dispatched": true,
+        "boundCompiled": true,
+        "compiles": 1,
+        "renderThreadWarmUps": 0,
+        "records": [
+          {
+            "key": "compute spec 0",
+            "cache": "main",
+            "thread": ".NET TP Worker",
+            "start": 2.7,
+            "end": 409.9,
+            "failed": false
+          }
+        ]
+      },
+      "cachedMatch": {
+        "compilesInBackground": true,
+        "canBindWhileIncomplete": false,
+        "setProgramMs": 1.4,
+        "bindMs": 3.7,
+        "drawMs": 403.1,
+        "toFirstDrawMs": 406.8,
+        "setProgramReturnedBeforeWarmUpEnd": true,
+        "drawEndedAfterWarmUpEnd": true,
+        "drawAfterWarmUpEndMs": 0.9,
+        "drawn": true,
+        "boundWarmUp": true,
+        "skipped": false,
+        "compiles": 1,
+        "renderThreadWarmUps": 0,
+        "warmUp": {
+          "key": "graphics topology 0",
+          "cache": "worker1",
+          "thread": "Vulkan Pipeline Demand Compile",
+          "start": 5.9,
+          "end": 405.9,
+          "failed": false
+        },
+        "missLines": 0
+      },
+      "cachedCompute": {
+        "compilesInBackground": true,
+        "setProgramMs": 0.9,
+        "bindMs": 1.1,
+        "toFirstDispatchMs": 403.9,
+        "setProgramReturnedBeforeWarmUpEnd": true,
+        "dispatched": true,
+        "boundCompiled": true,
+        "compiles": 2,
+        "renderThreadWarmUps": 0,
+        "records": [
+          {
+            "key": "compute spec 0",
+            "cache": "worker0",
+            "thread": "Vulkan Pipeline Compile 0",
+            "start": 1.3,
+            "end": 401.3,
+            "failed": false
+          },
+          {
+            "key": "compute spec 0",
+            "cache": "main",
+            "thread": "render",
+            "start": 1.1,
+            "end": 403.8,
+            "failed": false
+          }
+        ]
+      },
+      "asyncMatch": {
+        "compilesInBackground": true,
+        "canBindWhileIncomplete": false,
+        "setProgramMs": 404,
+        "bindMs": 404.1,
+        "drawMs": 0,
+        "toFirstDrawMs": 404.1,
+        "setProgramReturnedBeforeWarmUpEnd": false,
+        "drawEndedAfterWarmUpEnd": true,
+        "drawAfterWarmUpEndMs": 0.1,
+        "drawn": true,
+        "boundWarmUp": true,
+        "skipped": false,
+        "compiles": 1,
+        "renderThreadWarmUps": 0,
+        "warmUp": {
+          "key": "graphics topology 0",
+          "cache": "worker0",
+          "thread": "Vulkan Pipeline Compile 0",
+          "start": 4,
+          "end": 404,
+          "failed": false
+        },
+        "missLines": 0
+      }
+    },
+    "candidate": {
+      "variant": "candidate",
+      "pipelineMs": 400,
+      "pipelineWorkers": 1,
+      "processors": 6,
+      "hasPolicyProperty": true,
+      "mismatch": {
+        "compilesInBackground": true,
+        "canBindWhileIncomplete": false,
+        "setProgramMs": 8.5,
+        "bindMs": 23.8,
+        "drawMs": 412,
+        "toFirstDrawMs": 435.8,
+        "setProgramReturnedBeforeWarmUpEnd": true,
+        "drawBuildStartedBeforeWarmUpEnd": true,
+        "drawn": true,
+        "boundOwnPipeline": true,
+        "secondDrawn": true,
+        "secondBoundWarmUp": true,
+        "compiles": 2,
+        "renderThreadWarmUps": 0,
+        "warmUp": {
+          "key": "graphics topology 0",
+          "cache": "worker0",
+          "thread": "Vulkan Pipeline Compile 0",
+          "start": 34.5,
+          "end": 434.6,
+          "failed": false
+        },
+        "drawBuild": {
+          "key": "graphics topology 1 restart",
+          "cache": "main",
+          "thread": "render",
+          "start": 34.8,
+          "end": 434.8,
+          "failed": false
+        },
+        "missLines": [
+          "Background pipeline compile missed on draw - incorrect pipeline state? Differs from warm-up: Topology warm-up=0 draw=1; PrimitiveRestartEnable warm-up=False draw=True (pipelines already built for this program: 0)"
+        ]
+      },
+      "match": {
+        "compilesInBackground": true,
+        "canBindWhileIncomplete": false,
+        "setProgramMs": 5,
+        "bindMs": 5.2,
+        "drawMs": 400.6,
+        "toFirstDrawMs": 405.8,
+        "setProgramReturnedBeforeWarmUpEnd": true,
+        "drawEndedAfterWarmUpEnd": true,
+        "drawAfterWarmUpEndMs": 0.2,
+        "drawn": true,
+        "boundWarmUp": true,
+        "skipped": false,
+        "compiles": 1,
+        "renderThreadWarmUps": 0,
+        "warmUp": {
+          "key": "graphics topology 0",
+          "cache": "worker0",
+          "thread": "Vulkan Pipeline Compile 0",
+          "start": 5.6,
+          "end": 405.6,
+          "failed": false
+        },
+        "missLines": 0
+      },
+      "matchCheckpoint": {
+        "compilesInBackground": true,
+        "canBindWhileIncomplete": false,
+        "setProgramMs": 3.4,
+        "bindMs": 3.5,
+        "drawMs": 400.3,
+        "toFirstDrawMs": 403.8,
+        "setProgramReturnedBeforeWarmUpEnd": true,
+        "drawEndedAfterWarmUpEnd": true,
+        "drawAfterWarmUpEndMs": 0.2,
+        "drawn": true,
+        "boundWarmUp": true,
+        "skipped": false,
+        "compiles": 1,
+        "renderThreadWarmUps": 0,
+        "warmUp": {
+          "key": "graphics topology 0",
+          "cache": "worker0",
+          "thread": "Vulkan Pipeline Compile 0",
+          "start": 3.6,
+          "end": 403.6,
+          "failed": false
+        },
+        "missLines": 0,
+        "checkpoints": 1,
+        "checkpointMs": 300
+      },
+      "burstMatch": {
+        "setProgramMs": 1.4,
+        "toFirstDrawMs": 443.8,
+        "drawn": true,
+        "boundNeeded": true,
+        "neededServedBeforeQueuedWarmUps": 0,
+        "compiles": 4,
+        "mainCacheWarmUps": 0,
+        "renderThreadWarmUps": 0,
+        "records": [
+          {
+            "key": "graphics topology 10",
+            "cache": "worker0",
+            "thread": "Vulkan Pipeline Compile 0",
+            "start": 7.9,
+            "end": 407.9,
+            "failed": false
+          },
+          {
+            "key": "graphics topology 13",
+            "cache": "worker1",
+            "thread": "Vulkan Pipeline Demand Compile",
+            "start": 32,
+            "end": 435.8,
+            "failed": false
+          },
+          {
+            "key": "graphics topology 11",
+            "cache": "worker0",
+            "thread": "Vulkan Pipeline Compile 0",
+            "start": 408.1,
+            "end": 808.1,
+            "failed": false
+          },
+          {
+            "key": "graphics topology 12",
+            "cache": "worker0",
+            "thread": "Vulkan Pipeline Compile 0",
+            "start": 808.2,
+            "end": 1211.8,
+            "failed": false
+          }
+        ]
+      },
+      "burstMismatch": {
+        "setProgramMs": 2.1,
+        "toFirstDrawMs": 432.5,
+        "drawn": true,
+        "boundNeeded": true,
+        "neededServedBeforeQueuedWarmUps": 0,
+        "compiles": 5,
+        "mainCacheWarmUps": 0,
+        "renderThreadWarmUps": 0,
+        "records": [
+          {
+            "key": "graphics topology 10",
+            "cache": "worker0",
+            "thread": "Vulkan Pipeline Compile 0",
+            "start": 9.2,
+            "end": 413,
+            "failed": false
+          },
+          {
+            "key": "graphics topology 14 restart",
+            "cache": "main",
+            "thread": "render",
+            "start": 32.4,
+            "end": 432.5,
+            "failed": false
+          },
+          {
+            "key": "graphics topology 11",
+            "cache": "worker0",
+            "thread": "Vulkan Pipeline Compile 0",
+            "start": 413.1,
+            "end": 813.1,
+            "failed": false
+          },
+          {
+            "key": "graphics topology 12",
+            "cache": "worker0",
+            "thread": "Vulkan Pipeline Compile 0",
+            "start": 813.7,
+            "end": 1213.8,
+            "failed": false
+          },
+          {
+            "key": "graphics topology 13",
+            "cache": "worker0",
+            "thread": "Vulkan Pipeline Compile 0",
+            "start": 1213.9,
+            "end": 1613.9,
+            "failed": false
+          }
+        ]
+      },
+      "compute": {
+        "compilesInBackground": true,
+        "setProgramMs": 2.4,
+        "bindMs": 3.9,
+        "toFirstDispatchMs": 409,
+        "setProgramReturnedBeforeWarmUpEnd": true,
+        "dispatched": true,
+        "boundCompiled": true,
+        "compiles": 1,
+        "renderThreadWarmUps": 0,
+        "records": [
+          {
+            "key": "compute spec 0",
+            "cache": "worker1",
+            "thread": "Vulkan Pipeline Demand Compile",
+            "start": 5.4,
+            "end": 407.8,
+            "failed": false
+          }
+        ]
+      },
+      "savePoll": {
+        "duringWarmUp": "Success",
+        "after": "Success"
+      },
+      "cancel": {
+        "warmUpCompiled": 0,
+        "failureLines": 0
+      },
+      "failures": {
+        "warmUpFailedDrawn": true,
+        "warmUpFailedBoundSecondBuild": true,
+        "warmUpFailedCompiles": 2,
+        "moduleFailedLink": "Failure",
+        "moduleFailedDrawn": false,
+        "moduleFailedCompiles": 0
+      },
+      "mismatchPolicyOff": {
+        "compilesInBackground": false,
+        "canBindWhileIncomplete": false,
+        "setProgramMs": 404.4,
+        "bindMs": 404.8,
+        "drawMs": 400.4,
+        "toFirstDrawMs": 805.1,
+        "setProgramReturnedBeforeWarmUpEnd": false,
+        "drawBuildStartedBeforeWarmUpEnd": false,
+        "drawn": true,
+        "boundOwnPipeline": true,
+        "secondDrawn": true,
+        "secondBoundWarmUp": true,
+        "compiles": 2,
+        "renderThreadWarmUps": 0,
+        "warmUp": {
+          "key": "graphics topology 0",
+          "cache": "main",
+          "thread": ".NET TP Worker",
+          "start": 4.2,
+          "end": 404.2,
+          "failed": false
+        },
+        "drawBuild": {
+          "key": "graphics topology 1 restart",
+          "cache": "main",
+          "thread": "render",
+          "start": 405.1,
+          "end": 805.1,
+          "failed": false
+        },
+        "missLines": [
+          "Background pipeline compile missed on draw - incorrect pipeline state? Differs from warm-up: Topology warm-up=0 draw=1; PrimitiveRestartEnable warm-up=False draw=True (pipelines already built for this program: 1)"
+        ]
+      },
+      "computePolicyOff": {
+        "compilesInBackground": false,
+        "setProgramMs": 403.9,
+        "bindMs": 404,
+        "toFirstDispatchMs": 404,
+        "setProgramReturnedBeforeWarmUpEnd": false,
+        "dispatched": true,
+        "boundCompiled": true,
+        "compiles": 1,
+        "renderThreadWarmUps": 0,
+        "records": [
+          {
+            "key": "compute spec 0",
+            "cache": "main",
+            "thread": ".NET TP Worker",
+            "start": 3.9,
+            "end": 403.9,
+            "failed": false
+          }
+        ]
+      },
+      "cachedMatch": {
+        "compilesInBackground": true,
+        "canBindWhileIncomplete": false,
+        "setProgramMs": 2.1,
+        "bindMs": 4.5,
+        "drawMs": 400.4,
+        "toFirstDrawMs": 404.9,
+        "setProgramReturnedBeforeWarmUpEnd": true,
+        "drawEndedAfterWarmUpEnd": true,
+        "drawAfterWarmUpEndMs": 0.1,
+        "drawn": true,
+        "boundWarmUp": true,
+        "skipped": false,
+        "compiles": 1,
+        "renderThreadWarmUps": 0,
+        "warmUp": {
+          "key": "graphics topology 0",
+          "cache": "worker0",
+          "thread": "Vulkan Pipeline Compile 0",
+          "start": 4.7,
+          "end": 404.8,
+          "failed": false
+        },
+        "missLines": 0
+      },
+      "cachedCompute": {
+        "compilesInBackground": true,
+        "setProgramMs": 1,
+        "bindMs": 1.1,
+        "toFirstDispatchMs": 401.2,
+        "setProgramReturnedBeforeWarmUpEnd": true,
+        "dispatched": true,
+        "boundCompiled": true,
+        "compiles": 2,
+        "renderThreadWarmUps": 0,
+        "records": [
+          {
+            "key": "compute spec 0",
+            "cache": "main",
+            "thread": "render",
+            "start": 1.1,
+            "end": 401.1,
+            "failed": false
+          },
+          {
+            "key": "compute spec 0",
+            "cache": "worker0",
+            "thread": "Vulkan Pipeline Compile 0",
+            "start": 1.2,
+            "end": 401.2,
+            "failed": false
+          }
+        ]
+      },
+      "asyncMatch": {
+        "compilesInBackground": true,
+        "canBindWhileIncomplete": false,
+        "setProgramMs": 405.1,
+        "bindMs": 405.3,
+        "drawMs": 0,
+        "toFirstDrawMs": 405.3,
+        "setProgramReturnedBeforeWarmUpEnd": false,
+        "drawEndedAfterWarmUpEnd": true,
+        "drawAfterWarmUpEndMs": 1.6,
+        "drawn": true,
+        "boundWarmUp": true,
+        "skipped": false,
+        "compiles": 1,
+        "renderThreadWarmUps": 0,
+        "warmUp": {
+          "key": "graphics topology 0",
+          "cache": "worker0",
+          "thread": "Vulkan Pipeline Compile 0",
+          "start": 2.4,
+          "end": 403.7,
+          "failed": false
+        },
+        "missLines": 0
+      }
+    }
+  },
+  "sourceBaseline": {
+    "src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs": "1c94d13b6b10c011699283982408dbb4bfc9bd4ee9fdacf7354dc8dae216212f",
+    "src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs": "05a7151352f049d7c2f7b65803ae8d45581c96989fa02056446dc28de9000da0",
+    "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs": "efdd73f640552e80d0a7802e41c7997d33a96f175aea7b7146acd94943314a74",
+    "src/Ryujinx.Library/Library.cs": "a85914786f6895097b16c6a1f1cc4d8bfcb03ca461593b7a5b567d0f4dcdc201",
+    "src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs": "3b5c768c1350b918e0c9912e50fb06819f005db67f6c1ebaca3e8c14c888a966"
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_setprogram_warmup.py": "7a1a9aa0f13b15a320685be83aae40f2c9263bf9e121758b62118cfb95aaec9f",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "test/melonx_setprogram_warmup_test.py": "44485e052c1973bf068bdcdc0058791e275a205fdae56421bf07a9f025d8ba49",
+    "test/melonx_setprogram_warmup/Double.cs": "8023046ba09b251ef27abb91b188686408b6f9bddb51c0b44ddb4f770c0ef199",
+    "test/melonx_setprogram_warmup/Program.cs": "7c9c8e4064a283a74307ab3a80f027eb7c296531ca67273af9aa6c02e9110846",
+    "test/melonx_adapter_control.py": "81d38f2ca29849024b3dc039af5207fc75511856b0b80b7efe6aed511e8981a6"
+  },
+  "limitation": "Host execution of the real members with a timed compile double (no Vulkan, no MoltenVK, no Metal compiler). It proves where the render thread waits, not how long Metal compiles take on the iPhone, whether MTLCompilerService runs concurrent compiles in parallel, nor the memory of the worker caches; those need a device run (render-stage SetProgram ms, syncpoint timeouts, pipeline build lines)."
+}

@@ -188,6 +188,8 @@ LOT_FILES = {
     'adapt_remap_sweep_range': ['src/Ryujinx.Graphics.Gpu/Image/TextureCache.cs'],
     # Core 737: the controller manager's own copy of the input configuration (NpadManager.cs is outside this composition).
     'adapt_npad_config_snapshot': [],
+    # Core 739: the play-time warm-up for every title (one assignment in Library.cs).
+    'adapt_playtime_warmup_all_titles': ['src/Ryujinx.Library/Library.cs'],
 }
 
 checks = 0

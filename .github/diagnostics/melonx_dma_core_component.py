@@ -72,8 +72,9 @@ CONTROL_PREPARED = {
 # threads a frame or the sound waits for in the user-interactive class; the diagnostics snapshot keeps its bytes; the
 # kernel timer proof run again on the final timer manager, whose worker asks the class); 92 with Core 735 (lot 14: a
 # Map or Unmap re-queues the partially mapped textures it can concern, not all of them); 93 with Core 737 (the
-# controller manager keeps its own copy of the input configuration).
-FRESH_GATES = 93
+# controller manager keeps its own copy of the input configuration); 94 with Core 739 (programs translated during play
+# bind once their shader modules exist, in every title).
+FRESH_GATES = 94
 HISTORICAL_RECEIPTS = 61
 GPU_WORK_ROWS = 13
 READ_COUNTERS = 4
