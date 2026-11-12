@@ -156,4 +156,65 @@ void main() {
     expect(XeniaLocale.launchErrorKey('bootFailed'), 'launchFailed');
     expect(XeniaLocale.launchErrorKey('requiresIOS26'), 'requiresIOS26');
   });
+
+  test('widescreen and the reported resolution are managed cvars with their engine defaults', () {
+    final wide = XeniaSettingsService.option('widescreen')!;
+    expect(wide.kind, XeniaOptionKind.toggle);
+    expect(wide.engineDefault, 'true');
+    expect(wide.section, XeniaOptionSection.console);
+    final resolution = XeniaSettingsService.option('internal_display_resolution')!;
+    expect(resolution.kind, XeniaOptionKind.choice);
+    expect(resolution.engineDefault, '8');
+    expect(resolution.section, XeniaOptionSection.graphics);
+    expect(resolution.values, [for (var id = 0; id <= 16; id++) '$id']);
+    expect(resolution.accepts('17'), isFalse, reason: 'custom is not offered');
+    expect(XeniaSettingsService.displayResolutions['8'], '1280×720');
+    expect(XeniaSettingsService.displayResolutions.keys, resolution.values);
+    expect(XeniaSettingsService.managedKeys, containsAll(<String>['widescreen', 'internal_display_resolution']));
+    expect(XeniaSettingsService.managedKeys, isNot(contains('performance_overlay')));
+    expect(XeniaSettingsService.option('draw_resolution_scale'), isNull);
+    // The engine consumers are recorded beside the options.
+    final source = File('lib/services/xenia_settings_service.dart').readAsStringSync();
+    expect(source, contains('xboxkrnl_video.cc:59,214,219'));
+    expect(source, contains('graphics_system.cc:571-577'));
+  });
+
+  test('the performance overlay defaults to off, survives a restart and rejects unknown levels', () async {
+    final first = service();
+    await first.load();
+    expect(first.performanceOverlay, 'off');
+    await first.setPerformanceOverlay('detailed');
+    expect(() => first.setPerformanceOverlay('verbose'), throwsArgumentError);
+    expect(first.performanceOverlay, 'detailed');
+    await first.setGlobal('framerate_limit', '60');
+    final json = jsonDecode(await File(path.join(frontend.path, XeniaSettingsService.fileName)).readAsString()) as Map;
+    expect(json['version'], 1);
+    expect(json['frontend'], {'performance_overlay': 'detailed'});
+    expect((json['global'] as Map).containsKey('performance_overlay'), isFalse);
+
+    final restarted = service();
+    await restarted.load();
+    expect(restarted.performanceOverlay, 'detailed');
+    expect(restarted.globalValue('framerate_limit'), '60');
+    await restarted.resetGlobal();
+    expect(restarted.performanceOverlay, 'detailed', reason: 'not a cvar');
+    final launch = await restarted.launchSettings(gameKey: 'title:4D5307E6', uiLocale: const Locale('en'));
+    expect(launch.containsKey('performance_overlay'), isFalse);
+  });
+
+  test('a missing or invalid frontend object falls back to off', () async {
+    await frontend.create(recursive: true);
+    final file = File(path.join(frontend.path, XeniaSettingsService.fileName));
+    for (final frontendValue in <Object?>[null, 'x', 3, {'performance_overlay': 'loud'}, {'performance_overlay': 4}, <String, Object?>{}]) {
+      await file.writeAsString(jsonEncode({
+        'version': 1,
+        'global': {'mount_cache': 'false'},
+        'frontend': ?frontendValue,
+      }));
+      final settings = service();
+      await settings.load();
+      expect(settings.performanceOverlay, 'off', reason: '$frontendValue');
+      expect(settings.globalValue('mount_cache'), 'false');
+    }
+  });
 }

@@ -68,6 +68,7 @@ void main() {
           String? touchGameKey,
           String locale = 'en',
           Map<String, String> texts = const <String, String>{},
+          String overlay = 'off',
         }) async {
           calls.add('launch:$contentKind');
           return <String, dynamic>{'success': true};
@@ -118,6 +119,7 @@ void main() {
             String? touchGameKey,
             String locale = 'en',
             Map<String, String> texts = const <String, String>{},
+            String overlay = 'off',
           }) async {
             throw PlatformException(code: 'channel-error');
           };
@@ -137,6 +139,7 @@ void main() {
             String? touchGameKey,
             String locale = 'en',
             Map<String, String> texts = const <String, String>{},
+            String overlay = 'off',
           }) async {
             calls.add('launch:$contentKind');
             return <String, dynamic>{'success': true};
@@ -160,6 +163,7 @@ void main() {
             String? touchGameKey,
             String locale = 'en',
             Map<String, String> texts = const <String, String>{},
+            String overlay = 'off',
           }) async {
             calls.add('launch:$contentKind');
             return <String, dynamic>{
@@ -173,4 +177,101 @@ void main() {
       expect(calls, <String>['prepareJit', 'launch:2']);
     },
   );
+
+  test('the launch sends the overlay level and the in-game menu texts', () async {
+    await XeniaInternalService.settings.setPerformanceOverlay('detailed');
+    String? sentOverlay;
+    Map<String, String>? sentTexts;
+    Map<String, String>? sentSettings;
+    XeniaInternalService.bridgeLaunch =
+        ({
+          required String gamePath,
+          required int contentKind,
+          required String title,
+          required Map<String, String> settings,
+          required Map<String, String> directories,
+          String? touchGameKey,
+          String locale = 'en',
+          Map<String, String> texts = const <String, String>{},
+          String overlay = 'off',
+        }) async {
+          sentOverlay = overlay;
+          sentTexts = texts;
+          sentSettings = settings;
+          return <String, dynamic>{'success': true};
+        };
+    expect((await launch(game.path)).success, isTrue);
+    expect(sentOverlay, 'detailed');
+    expect(sentSettings!.keys, containsAll(<String>['widescreen', 'internal_display_resolution']));
+    expect(sentSettings!['widescreen'], 'true');
+    expect(sentSettings!['internal_display_resolution'], '8');
+    expect(sentTexts!.keys.toSet(), <String>{'menu', 'resume', 'quit', ...XeniaInternalService.sessionTextKeys});
+    expect(sentTexts!.length, 28);
+    expect(sentTexts!['display'], 'Affichage');
+    expect(sentTexts!['overlay'], 'Surimpression de performances');
+    expect(sentTexts!['aspectWide'], '16:9 (grand écran)');
+    expect(sentTexts!['aspectStandard'], '4:3');
+    expect(sentTexts!['saveFailed'], 'Réglage non enregistré.');
+    expect(sentTexts!['fps'], 'FPS');
+    for (final entry in sentTexts!.entries) {
+      expect(entry.value.trim(), isNotEmpty, reason: entry.key);
+    }
+  });
+
+  test('the overlay defaults to off at launch', () async {
+    String? sentOverlay;
+    XeniaInternalService.bridgeLaunch =
+        ({
+          required String gamePath,
+          required int contentKind,
+          required String title,
+          required Map<String, String> settings,
+          required Map<String, String> directories,
+          String? touchGameKey,
+          String locale = 'en',
+          Map<String, String> texts = const <String, String>{},
+          String overlay = 'off',
+        }) async {
+          sentOverlay = overlay;
+          return <String, dynamic>{'success': true};
+        };
+    await launch(game.path);
+    expect(sentOverlay, 'off');
+  });
+
+  test('in-game changes are persisted for the running game only when accepted', () async {
+    await launch(game.path);
+    final key = await XeniaSettingsService.gameKeyForFile(game.path);
+    final settings = XeniaInternalService.settings;
+    await XeniaInternalService.onSettingChanged('widescreen', 'false');
+    await XeniaInternalService.onSettingChanged('internal_display_resolution', '16');
+    await XeniaInternalService.onSettingChanged('present_letterbox', 'false');
+    expect(settings.gameValue(key, 'widescreen'), 'false');
+    expect(settings.gameValue(key, 'internal_display_resolution'), '16');
+    expect(settings.gameValue(key, 'present_letterbox'), 'false');
+    expect(settings.globalValue('widescreen'), isNull);
+    // Unknown key, value outside the list, 17 (custom): ignored, no throw.
+    await XeniaInternalService.onSettingChanged('draw_resolution_scale', '2');
+    await XeniaInternalService.onSettingChanged('internal_display_resolution', '17');
+    await XeniaInternalService.onSettingChanged('widescreen', 'maybe');
+    await XeniaInternalService.onSettingChanged(null, 'x');
+    expect(settings.gameValue(key, 'internal_display_resolution'), '16');
+    expect(settings.gameValue(key, 'widescreen'), 'false');
+
+    await XeniaInternalService.onOverlayChanged('simple');
+    expect(settings.performanceOverlay, 'simple');
+    await XeniaInternalService.onOverlayChanged('bogus');
+    expect(settings.performanceOverlay, 'simple');
+  });
+
+  test('an unwritable settings file does not crash the in-game handlers', () async {
+    await launch(game.path);
+    final frontend = Directory(path.join(temp.path, 'Documents', 'XeniOS', 'Frontend'));
+    await frontend.create(recursive: true);
+    // A directory where the temporary file must go: the save fails.
+    await Directory(path.join(frontend.path, '${XeniaSettingsService.fileName}.tmp')).create();
+    await XeniaInternalService.onSettingChanged('widescreen', 'false');
+    await XeniaInternalService.onOverlayChanged('detailed');
+    expect(XeniaInternalService.settings.performanceOverlay, 'off');
+  });
 }
