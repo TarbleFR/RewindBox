@@ -4,7 +4,7 @@
  "name": "RewindBox Glacier",
  "version": "1.0.0",
  "catalogueCommit": "0ec7450d2e0c6ea03189303563cad82b1fb10ca8",
- "contentDigest": "2866ecc6951eb9d98c2ab69fa67620ebe98043c962d1a989f31726ad58eca44a",
+ "contentDigest": "2b7957f5c13ca0e733fb0462022b497413ccd67d44530ced06f43b8cc075d194",
  "files": [
   {
    "path": "theme.json",
@@ -538,8 +538,8 @@
   },
   {
    "path": "backgrounds/switch2.webp",
-   "size": 11182,
-   "sha256": "46e2fb681760a6cc6f2369e985a321dc054310d256cca76a41cece251a83ea2d"
+   "size": 9066,
+   "sha256": "bd4d4cb9e2a248417155e05b246420ed468a12b9afaac79267f5afe80f1d5268"
   },
   {
    "path": "backgrounds/tg16.webp",

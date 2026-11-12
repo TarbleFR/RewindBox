@@ -1,14 +1,18 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:path/path.dart' as path;
 
 import '../l10n/melonx_transfer_locale.dart';
 import '../l10n/switch2_library_locale.dart';
+import '../l10n/switch2_settings_locale.dart';
 import '../repositories/game_repository.dart';
 import '../services/melonx_embedded_library_service.dart';
 import '../services/s2arm_internal_service.dart';
 import '../services/storage/storage_import_activity.dart';
+import '../services/switch2_export_content.dart';
 import 'delete_game_dialog.dart';
+import 'switch2_engine_settings_panel.dart';
 
 /// Menu of the Switch 2 playlist, modelled on MeloNX's: import games (an export
 /// folder from Files, docs/s2arm-switch2-library.md § Import), import prod.keys
@@ -105,7 +109,8 @@ class _S2ArmInternalPlaylistActionsState
     if (duplicates > 0) _notice(_tf('duplicates', {'count': duplicates}));
     for (final item in result.rejected.take(3)) {
       _notice(
-        '${item.name}: ${S2ArmInternalService.localizedError(locale, item.reason)}',
+        '${item.name}: ${S2ArmInternalService.localizedError(locale, item.reason)}'
+        '${item.detail == null ? '' : '\n(${item.detail})'}',
       );
     }
   }
@@ -185,6 +190,99 @@ class _S2ArmInternalPlaylistActionsState
     if (mounted) _notice(_tf('deleted', {'name': name}));
   }
 
+  /// Always offered, like MeloNX's save import. Without a selected game the save goes to the game it names, or to the
+  /// library game the player chooses when it names none.
+  Future<void> _importSave() async {
+    final romPath = widget.romPath;
+    var name = widget.gameName ?? widget.romName ?? '';
+    final S2ArmSaveImportResult? result;
+    try {
+      result = await S2ArmInternalService.importSave(
+        romPath == null ? null : Switch2ExportContent.exportFolder(romPath),
+        dialogTitle: _t('importSave'),
+        chooseGame: (games) async {
+          final chosen = await _chooseGame(games);
+          if (chosen != null) name = chosen.title;
+          return chosen;
+        },
+      );
+    } on S2ArmSaveException catch (error) {
+      _notice(_t(error.code));
+      return;
+    } catch (error) {
+      _notice('${_t('saveFailed')}\n$error');
+      return;
+    }
+    if (result == null || !mounted) return;
+    final redirected = result.redirectedTo;
+    final title = result.redirectedTitle;
+    final lines = [
+      if (redirected == null) _tf('saveImported', {'name': name, 'count': '${result.files}'}),
+      // No game selected: the save named its game.
+      if (redirected != null && romPath == null && title != null)
+        _tf('saveImported', {'name': title, 'count': '${result.files}'}),
+      if (redirected != null && romPath == null && title == null) _tf('saveImportedForId', {'id': redirected}),
+      // The selected game was not the one the save names.
+      if (redirected != null && romPath != null && title != null) _tf('saveRedirected', {'name': title, 'id': redirected}),
+      if (redirected != null && romPath != null && title == null) _tf('saveRedirectedMissing', {'id': redirected}),
+      if (result.backup != null) _tf('saveImportedBackup', {'backup': path.basename(result.backup!)}),
+    ];
+    _notice(lines.join('\n'));
+  }
+
+  /// Which library game a save that names no game is for; null when the player cancels.
+  Future<S2ArmSaveGame?> _chooseGame(List<S2ArmSaveGame> games) async {
+    if (!mounted) return null;
+    return showDialog<S2ArmSaveGame>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        key: const ValueKey('s2arm-save-choose-game'),
+        title: Text(_t('saveChooseGame')),
+        children: [
+          for (final game in games)
+            SimpleDialogOption(
+              onPressed: () => Navigator.of(ctx).pop(game),
+              child: Text('${game.title} [${game.gid.toUpperCase()}]'),
+            ),
+          SimpleDialogOption(
+            key: const ValueKey('s2arm-save-choose-cancel'),
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(_t('cancel')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// The selected game's save folder, or the Saves folder itself when no game is selected.
+  Future<void> _openSaves() async {
+    final romPath = widget.romPath;
+    final opened = await S2ArmInternalService.openSaveFolder(
+      romPath == null ? null : Switch2ExportContent.exportFolder(romPath),
+    );
+    if (!opened) _notice(_t('openSavesFailed'));
+  }
+
+  Future<void> _openSettings() async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(Switch2SettingsLocale.text(ctx, 'title')),
+        contentPadding: EdgeInsets.zero,
+        content: const SizedBox(
+          width: 420,
+          child: SingleChildScrollView(child: Switch2EngineSettingsPanel()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(_t('done')),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _selected(String action) async {
     if (_busy) return;
     setState(() => _busy = true);
@@ -193,6 +291,9 @@ class _S2ArmInternalPlaylistActionsState
       if (action == 'folder') await _import();
       if (action == 'keys') await _importKeys();
       if (action == 'delete') await _delete();
+      if (action == 'settings') await _openSettings();
+      if (action == 'importSave') await _importSave();
+      if (action == 'openSaves') await _openSaves();
     } finally {
       if (mounted) {
         setState(() => _busy = false);
@@ -246,10 +347,26 @@ class _S2ArmInternalPlaylistActionsState
             value: 'folder',
             child: _item(_t('importGames'), _t('importGamesHint')),
           ),
+          // Saves come second, as in MeloNX's menu, with or without a selected game.
+          PopupMenuItem(
+            key: const ValueKey('s2arm-import-save'),
+            value: 'importSave',
+            child: _item(_t('importSave'), _t('importSaveHint')),
+          ),
+          PopupMenuItem(
+            key: const ValueKey('s2arm-open-saves'),
+            value: 'openSaves',
+            child: _item(_t('openSaves'), _t('openSavesHint')),
+          ),
           PopupMenuItem(
             key: const ValueKey('s2arm-import-keys'),
             value: 'keys',
             child: _item(_t('importKeys'), _t('importKeysHint')),
+          ),
+          PopupMenuItem(
+            key: const ValueKey('s2arm-settings'),
+            value: 'settings',
+            child: Text(Switch2SettingsLocale.text(context, 'title')),
           ),
           if (widget.romPath != null && widget.appSystemId != null)
             PopupMenuItem(

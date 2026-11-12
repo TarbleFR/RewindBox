@@ -1,7 +1,7 @@
 {
  "schema": 1,
  "review_date": "2026-11-11",
- "scope": "RewindBox Glacier System Art pack: one tile added, backgrounds/switch2.webp (Nintendo Switch 2), the official Nintendo Switch 2 logo on red, supplied by the RewindBox maintainer to identify the system. aliases.json (canonical id switch2, keys 'switch2' and 'nintendo switch 2'), theme.json (systems) and CREDITS.md declare it; assets/legal/RewindBox-Glacier-ATTRIBUTION.md names it. Not a BAXY-guided illustration and not CC BY 4.0 content; Nintendo trademark, covered by assets/images/logos/TRADEMARKS.md, used for identification only. No package, dependency, framework, engine or native source change.",
+ "scope": "RewindBox Glacier System Art pack: one tile added, backgrounds/switch2.webp (Nintendo Switch 2), the official Nintendo Switch 2 logo on red, supplied by the RewindBox maintainer to identify the system. On 12 Nov 2026 the maintainer asked for the logo smaller and centred: it was recomposed on the same red background (the logo at 72% of its width, centred), from assets/images/logos/switch2.webp. aliases.json (canonical id switch2, keys 'switch2' and 'nintendo switch 2'), theme.json (systems) and CREDITS.md declare it; assets/legal/RewindBox-Glacier-ATTRIBUTION.md names it. Not a BAXY-guided illustration and not CC BY 4.0 content; Nintendo trademark, covered by assets/images/logos/TRADEMARKS.md, used for identification only. No package, dependency, framework, engine or native source change.",
  "baseline_inventory": "docs/evidence/rewindbox-glacier-declarations-2026-11-02.json",
  "baseline_inventory_sha256": "3c391df6cfc68f6ee4aa3691f8c4e8e2fcd37fc9d596060fbb7946ab7810c924",
  "pubspec_lock_sha256": "6ceb0c3787c1c35c844950338e99e408ff548dbc4aacfff0270c5b1ddd285a8e",
@@ -15,13 +15,13 @@
  "bundled_assets": {
   "index": "assets/system_art/rewindbox-glacier/bundle-index.json",
   "previous_index_sha256": "bd1bc92b1470dabfc106617df15d71da23a2dc963f9cabe27786ae110e45c0c0",
-  "index_sha256": "cc50e3944af7cc96b4ff7ce320a70d7d2de4ad29893492502f3b0ac03c3e66c4",
-  "content_digest": "2866ecc6951eb9d98c2ab69fa67620ebe98043c962d1a989f31726ad58eca44a",
+  "index_sha256": "c85886c8222a61ad52f2259acd70458aa20ae59c9397c0866ca500d2cc3bf37d",
+  "content_digest": "2b7957f5c13ca0e733fb0462022b497413ccd67d44530ced06f43b8cc075d194",
   "files": 129,
   "added_files": {
    "backgrounds/switch2.webp": {
-    "size": 11182,
-    "sha256": "46e2fb681760a6cc6f2369e985a321dc054310d256cca76a41cece251a83ea2d"
+    "size": 9066,
+    "sha256": "bd4d4cb9e2a248417155e05b246420ed468a12b9afaac79267f5afe80f1d5268"
    }
   },
   "changed_files": {

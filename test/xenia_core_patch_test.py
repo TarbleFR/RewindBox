@@ -40,6 +40,34 @@ SDK_ALLOWED = re.compile(
     r'endif\(\))$')
 
 
+# The guest frame counter of the host's performance overlay (ABI 3): one weak
+# declaration and one guarded call in MetalCommandProcessor::IssueSwap. The
+# library is not compiled with XE_NEO_EMBEDDED_CORE, so the weak reference is
+# the guard: undefined, it is a no-op outside XeniaCore.
+SWAP_HOOK_FILES = ['src/xenia/gpu/metal/metal_command_processor.cc']
+SWAP_HOOK_ALLOWED = {
+    '// RewindBox embedded Core (build-utils/xenia): counts guest frames for the',
+    "// host's performance overlay. Weak: undefined, so a no-op, outside XeniaCore.",
+    'extern "C" __attribute__((weak)) void NeoXeniaNotifyGuestSwap(void);',
+    '',
+    '  if (NeoXeniaNotifyGuestSwap) NeoXeniaNotifyGuestSwap();',
+}
+
+
+def check_swap_hook(patch: str) -> None:
+    for name in SWAP_HOOK_FILES:
+        hunk = patch.split(f'diff --git a/{name} ', 1)[1].split('\ndiff --git ', 1)[0]
+        added = [line[1:] for line in hunk.splitlines()[4:] if line.startswith('+')]
+        if any(line.startswith('-') for line in hunk.splitlines()[4:]):
+            fail(f'{name}: the swap hook removes upstream lines')
+        if set(added) - SWAP_HOOK_ALLOWED or added.count('  if (NeoXeniaNotifyGuestSwap) NeoXeniaNotifyGuestSwap();') != 1:
+            fail(f'{name}: not exactly the weak guest-swap hook: {added}')
+        context = hunk.split('\n+  if (NeoXeniaNotifyGuestSwap) NeoXeniaNotifyGuestSwap();', 1)[0]
+        if not context.rstrip().endswith('SCOPE_profile_cpu_f("gpu");') or \
+                'void MetalCommandProcessor::IssueSwap(uint32_t frontbuffer_ptr,' not in context:
+            fail(f'{name}: the hook is not the first statement of MetalCommandProcessor::IssueSwap')
+
+
 def check_sdk_hunks(patch: str) -> None:
     for name in SDK_FILES:
         hunk = patch.split(f'diff --git a/{name} ', 1)[1].split('\ndiff --git ', 1)[0]
@@ -56,9 +84,10 @@ def check_sdk_hunks(patch: str) -> None:
 def check_patch() -> None:
     patch = (XENIA / 'rewindbox-core.patch').read_text()
     files = re.findall(r'^diff --git a/(\S+) ', patch, re.M)
-    if files != ['cmake/ios/App.cmake', 'src/xenia/app/xenia_main_ios.mm'] + SDK_FILES:
+    if files != ['cmake/ios/App.cmake', 'src/xenia/app/xenia_main_ios.mm'] + SDK_FILES + SWAP_HOOK_FILES:
         fail(f'unexpected patched files {files}')
     check_sdk_hunks(patch)
+    check_swap_hook(patch)
     removed = [line for line in patch.splitlines() if line.startswith('-') and not line.startswith('---')]
     if removed:
         fail(f'the patch must only add guarded lines, it removes {removed[:3]}')
@@ -82,8 +111,11 @@ def check_patch() -> None:
                    'NeoXeniaCreateInputDriver', 'NeoXeniaCreateEmulatorApp'):
         if symbol not in hooks:
             fail(f'{symbol} not declared in neo_xenia_core_hooks.h')
+    if 'extern "C" void NeoXeniaNotifyGuestSwap(void);' not in hooks:
+        fail('NeoXeniaNotifyGuestSwap is not declared extern "C" in neo_xenia_core_hooks.h')
     for symbol in ('void NeoXeniaApplyLaunchOverrides()', 'void NeoXeniaNotifyTitleLaunched()',
-                   'NeoXeniaCreateInputDriver(xe::ui::Window* window'):
+                   'NeoXeniaCreateInputDriver(xe::ui::Window* window',
+                   'extern "C" void NeoXeniaNotifyGuestSwap(void) {', 'int GetStats(NeoXeniaStats* out) {'):
         if symbol not in facade:
             fail(f'{symbol} not defined by XeniaCore.mm')
     if (CORE / 'exports.txt').read_text().split() != ['_NeoXenia_GetAPI']:
@@ -101,10 +133,12 @@ def check_patch() -> None:
             fail(f'target.cmake lacks {needed}')
     # ABI 2: the JIT decision comes from the Core (IOSJitMemory).
     abi = (ROOT / 'packages/xenia_internal_bridge/ios/Classes/XeniaCoreABI.h').read_text()
-    for needed in ('NEO_XENIA_JIT_NEEDS_TOOL', 'NEO_XENIA_JIT_TOOL_ATTACHED', 'uint32_t (*jit_state)(void);'):
+    for needed in ('NEO_XENIA_JIT_NEEDS_TOOL', 'NEO_XENIA_JIT_TOOL_ATTACHED', 'uint32_t (*jit_state)(void);',
+                   '#define NEO_XENIA_ABI_VERSION 3u', 'int (*get_stats)(NeoXeniaStats* out);'):
         if needed not in abi:
             fail(f'XeniaCoreABI.h lacks {needed}')
-    for needed in ('IOSJitMemory::NeedsAttachedTool()', 'IOSJitMemory::ToolAttached()', 'JitState,'):
+    for needed in ('IOSJitMemory::NeedsAttachedTool()', 'IOSJitMemory::ToolAttached()', 'JitState,',
+                   '    GetStats,\n};', 'g_guest_frames.store(0, std::memory_order_relaxed);'):
         if needed not in facade:
             fail(f'XeniaCore.mm lacks {needed}')
     # Dedicated helper: derived from the ARMSX2 reference, no drift.
@@ -119,7 +153,7 @@ def check_patch() -> None:
     if '[XeniaJitBridgePlugin registerWithRegistrar:registrar];' not in plugin:
         fail('the dedicated JIT channel is not registered')
     pin = json.loads((XENIA / 'source.json').read_text())
-    if pin['abi_version'] != 2 or not re.fullmatch('[0-9a-f]{40}', pin['revision']):
+    if pin['abi_version'] != 3 or not re.fullmatch('[0-9a-f]{40}', pin['revision']):
         fail('source.json pin is malformed')
 
 

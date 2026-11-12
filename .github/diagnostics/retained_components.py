@@ -235,6 +235,34 @@ def fetch_native(kind, spec, api=None, download=None):
     return value, safe_extract(path, CACHE / kind)
 
 
+def git_blob_id(data):
+    return hashlib.sha1(b'blob %d\0' % len(data) + data).hexdigest()
+
+
+def declared_native_changes(kind, spec, original_inputs, recipes, root=None, read_blob=None):
+    """{path} of the manifest's components.<kind>.changedInputs, each proven byte-exact.
+
+    The freeze already checks the entry against the reviewed first-parent commit. Here the declared path must be a
+    retained608 input (not a recipe file), the current bytes must be newBlob, and baseBlob must be exactly the bytes
+    the retained608 Core recorded at compile time. Every other input keeps the unchanged-byte rule."""
+    root = Path(root or ROOT)
+    if read_blob is None:
+        def read_blob(blob):
+            return subprocess.run(['git', '-C', str(root), 'cat-file', 'blob', blob],
+                                  capture_output=True, check=True).stdout
+    declared = set()
+    for entry in spec.get('changedInputs') or ():
+        path = entry['path']
+        label = f'Declared changed input {path} of retained608 {kind}: '
+        require(path in original_inputs and path not in recipes, label + 'not a retained608 compiled input')
+        require(git_blob_id((root / path).read_bytes()) == entry['newBlob'],
+                label + 'the current bytes are not newBlob ' + entry['newBlob'])
+        require(sha(read_blob(entry['baseBlob'])) == original_inputs[path],
+                label + 'baseBlob is not the bytes the retained608 Core was compiled with')
+        declared.add(path)
+    return declared
+
+
 def install_native(kind, spec, install=True):
     """Install a retained 608 Dolphin/ARMSX2 Core exactly as IPA609 and IPA610 did (same producer, same checks)."""
     import rewind608_producers as producers608
@@ -249,8 +277,10 @@ def install_native(kind, spec, install=True):
             'Retained608 native compiled inputs differ')
     current = producers608.input_hashes(kind)
     recipes = {producers608.WORKFLOW, '.github/diagnostics/rewind608_producers.py'}
+    declared = declared_native_changes(kind, spec, original_inputs, recipes)
     require(set(current) == set(original_inputs) and
-            all(current[path] == digest for path, digest in original_inputs.items() if path not in recipes),
+            all(current[path] == digest for path, digest in original_inputs.items()
+                if path not in recipes and path not in declared),
             'A native ' + kind + ' source input changed since the retained608 Core was compiled')
     require(record['files'] == producers608.member_hashes(directory, ('producer608.json',)),
             'Retained608 native artifact member changed, missing or added')

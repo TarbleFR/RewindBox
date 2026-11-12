@@ -249,7 +249,8 @@ communication evidence, not another implementation queue.
 Main `012mUAShv9k6pSCnpW7oAF63` ·
 MeloNX `012mUASkkFGHaPcEUx9dsp8q` ·
 Skins `012mUASjgVWk8DKKjVbwTD2n` ·
-Playlists/XeniOS `012mUASiVyxdnhNTUKesGGm7`.
+Playlists/XeniOS `012mUASiVyxdnhNTUKesGGm7` ·
+Playlists/S2Arm `012mUASj3EQnvC86WC56AePw`.
 
 Current records below are snapshots. Consult exact pins/manifests/receipts before
 acting. [Detailed current handoff evidence](https://github.com/TarbleFR/RewindBox/blob/8d05234f211c03bbc94cf5faac2dd48e419d294b/docs/AI_TASK_BOARD.md#active-requirements)
@@ -257,6 +258,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### Common IPA — main Claude Code
 
+- **Maintainer, 12 Nov: no IPA before sessions 03 (XeniOS) and 04 (Switch 2) finish their new instructions and send
+  their changes; then main integrates both and compiles the next IPA.** MeloNX Core 737 pinned (`277ea289`); Core 934
+  request 2 compiling (run `43136576356`), local driver green.
 - **Next common IPA, in progress (12 Nov, main).** RPCS3 Core 934 compile run `43129466421` (request `affc2a3b`,
   source `4f160c8b`). MeloNX P0 726 handoff merged `36ed5e93` ([melonx-display]: display/lease run `43131937219`);
   MeloNX Core 737 compile dispatched, run `43131998605` (duplicate push run `43131937165` cancelled). Still to come:
@@ -355,6 +359,81 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     `Claude-Session` line.
   - **Next:** download, verify offline, receipts, record, delete the key, send the file; give session 04 the freeze
     commit for 803 (sibling of 726).
+- **IPA 727 device findings relayed by session 04 (12 Nov 05:02Z).** Fixes are on session 04's branch, not on Claude yet.
+  - **Switch 2 import refused every Files export.** file_picker getDirectoryPath returns a bare path without
+    security-scoped access. Fixed by 04 in `7a33d9f3`, plus `89eb15aa` and `471c763e`.
+  - **Switch 2 Consoles switch stays off.** `_s2arm.ready` is false; `7a33d9f3` logs the status line.
+  - **Switch 2 covers.** Main approved 04 changing `game_box_profile`, `game_box_art_fit` and `game_box_spine_design`
+    from the Switch 1 values, with a test.
+  - **RPCS3 checked by main.** Its folder import uses `Rpcs3DocumentPickerPlugin` `pickGameFolder`, which starts
+    security-scoped access. The `FilePicker` variant `Rpcs3InternalService.importExtractedGameFolder` has no caller.
+    Not affected.
+  - **XeniOS `importFolder`.** Session 03 confirmed it uses `FilePicker.getDirectoryPath` (package source, directory
+    path only). Fixed in `7de68c77d` with `pickAndActivateFolder` (bookmark `xenia-import`) and `folderAccessFailed`
+    in 12 locales. Xbox 360 Dart 59/59, storage 25/25. Not seen on a device.
+  - **First Xbox 360 launch on 727 closed RewindBox.** Shown by `Engine/xenia.log`: "iOS JIT: no room for the code
+    region below 8 GB", then a XeniOS FatalError (quick_exit, no .ips). The 512 MiB JIT region must be reserved at
+    process load; the lazy dlopen of the Core comes too late. Session 03's fix (on its branch, not on Claude):
+    - `c579a0e7b` (Core ABI 4): the bridge reserves the region at plugin registration and hands it to the Core;
+    - `71c828f5d`: Dart refuses `jitMemoryUnavailable` before any attach, and `Engine/last-fatal.txt` records the
+      reason.
+    - Core run `43158794942` was in progress; pin, review and handoff to follow.
+- **IPA 727 delivered and verified (12 Nov 04:25Z, main).**
+  - Run `43151344182` attempt 1, trigger `bd80b2b9`, frozen on `7d90218f`, effective digest `28dc0833`. All 5 jobs
+    succeeded.
+  - IPA `RewindBox-727.ipa`: 329470998 B, SHA-256 `982f9f93d091d149ac427a51f027632ae820309490d9bfe1f655d0d9f2cf828d`.
+  - Offline verification `passed-offline-checks`:
+    - the 4 parts match their API digests;
+    - SHA256SUMS and the signer receipt match;
+    - 97 images; 44 retained fingerprints verified;
+    - 2 identity engines (XeniaCore, S2Arm);
+    - validators melonx, neoplay, shaders, legal, no-kartpad and no-dusklight all exit 0.
+  - Undeclared image changes, reported and not fatal:
+    - `armsx2_internal_bridge` (as in 726) and `dolphin_internal_bridge`, both rebuilt from source;
+    - the only Dolphin bridge diff since 726 is the CI file `verify_ipa.py`, which is not compiled;
+    - both retained Cores' fingerprints equal the base;
+    - cause not yet explained.
+  - Legal folders: every file matches its `license-sources.json` digest, none empty.
+    - `Legal/XeniOS`: 4/4.
+    - `Legal/MetalShaderConverter`: 3/3.
+    - `Legal/S2Arm`: 35/35.
+  - Extension set: ARMSX2, Dolphin, MeloNX (JIT + RAM donor), NeoSwap (donor + relay), RPCS3, S2Arm and Xenia
+    helpers.
+  - Receipt `docs/evidence/rewind727/delivery.json`: 14 proof files, plus the two engine embedded receipts. Private
+    key shredded after the verified delivery. File sent to the maintainer.
+  - Not run on an iPhone; no FPS, memory, heat or stability claim.
+  - Next: the ON HOLD RPCS3 heat/performance lot (#123) can open against IPA 727.
+- **IPA 727 requested (12 Nov 03:33Z, main).** Both handoffs the maintainer required are in: session 04's Switch 2
+  save import (merge `1b32dd7f` of `22997cd2`; s2arm_session_menu, storage_contract, s2arm_engine_bridge 66 checks,
+  s2arm_legal_review green locally) and session 03's Xbox 360 display lot (merge of `c22262d7`, XeniaCore ABI 3, pin
+  `7e13268b`, producer `06a580d41` an ancestor; xenia_core_patch, xenia_touch_controls, shader_converter_validator green
+  locally; session 03's macOS run `43147427878` was on its own merged tree, without session 04's lot: the two lots touch
+  disjoint files). Manifest frozen on `53579c72` (effective digest `05d3c856`, 7901 product files, 38 reviewed
+  first-parent commits; first try listed the side-branch commits and the replay refused them as missing). Offline
+  contract 108 OK on draft and frozen manifest; trigger-paths accepted (no other workflow runs). Trigger `2088c712`,
+  run `43149001356`. Private key outside Git. Not run on an iPhone. Next: download, verify, receipt, delete the key,
+  send the file; then the ON HOLD RPCS3 thermal lot.
+  - **Run `43149001356` red (3 failures, one root cause for two):**
+    - republish: retained608 Dolphin input check refused `verify_ipa.py`;
+    - application: StikJIT `stikjit_scoped_host_test` (expected_helpers count);
+    - flutter: 1/1332 `armsx2_embedded_library_contract_test`, switch2 added by `6d492d75`.
+
+    `c0aae729` changed `verify_ipa.py`. Only the freeze and the source contract read `changedInputs`.
+
+    Fix `d68da380`:
+    - `declared_native_changes` checks that the path is a 608 input and not a recipe file, that the current bytes
+      are newBlob, and that baseBlob equals the recorded 608 bytes; nothing else is relaxed;
+    - the StikJIT test normalizes the exact 3-line engine block;
+    - the ARMSX2 contract now expects switch2.
+
+    Validation:
+    - new `test/retained608_declared_changes_test.py` 7/7, run locally: it imports the recipe, so it is kept out of
+      the groups;
+    - on real data only `verify_ipa.py` differs, and it is the declared path;
+    - offline contract 108 OK.
+
+    Second request: frozen on `7d90218f` (digest `28dc0833`), trigger `bd80b2b9`, queued behind run 1, whose native
+    job was still running.
 - **Integration queue for the next common IPA (11 Nov evening, main).** No IPA before the other sessions are ready.
   - **RPCS3:** Cores 932 (`fa94f636`) and 933 (`b055869b`) pinned; nothing of 931-933 observed on an iPhone yet.
   - **PR #172 integrated (`945bec13`, session 03, Xbox 360 / XeniOS, head `7be66a89`):** the review findings were
@@ -5074,6 +5153,335 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   (Switch geometry/hit test/orientation; the menu change done under it); loaded earlier in
   the 10 Nov session, not invoked again after its context compaction.
 
+### Switch 2 playlist (S2Arm) feasibility prototype — session 04
+
+- **Owner/branch:** session `012mUASj3EQnvC86WC56AePw`, `work/s2arm-switch2-prototype-20261110`
+  (merged with `Claude` `9c9817e8`). Own paths: `packages/s2arm_engine_bridge/`, `native/s2arm/`,
+  `build-utils/s2arm/`, `tools/s2arm_prototype/`, `.github/workflows/s2arm-*.yml`, `docs/s2arm-*.md`.
+- **Goal:** a Switch 2 playlist on S2Arm, games prepared on the phone. The device probe ships in
+  a common IPA by maintainer decision (below); the rest stays on this branch.
+- **Handoff to main (12 Nov), published on this branch, not yet merged:**
+  - Verified pin `8772b6be` (`build-utils/s2arm/engine-pin.json`, SHA-256 `02feeda2…96f0`). Its bytes
+    are the ones the pin job of `s2arm-engine.yml` printed in run 43134938018. The engine is run
+    43125597914 (artifact 13902059765, expires 2026-12-12 00:25 UTC). Prepare is run 43061107011
+    (13873527906, expires 2026-12-11 16:45). Sysdata is run 43038032448 (13863124984, expires
+    2026-12-11 14:28). The first pin run, 43134513394, failed: urllib sent the token to the
+    artifact storage redirect (HTTP 401). Fixed in `6b4a4ee2`.
+  - Ship-clean `5c95eb99`. The probe is removed with its pubspec lines and its review. The engine
+    review now chains after the XeniOS playlist review. Records 801/802 and the 801–803 keys are
+    retired. Before that, `current_manifest()` read 802, so 4 contract checks failed on this branch
+    only. The legal review test moved to `test/`.
+  - Validation: on the 726 effective tree the legal gate accepts, and `s2arm_legal_review_test`
+    passes 10/10. `test/s2arm_*.py` and `test/switch2_*.py` pass. `standard_delivery_contract_test`
+    has the same 4 shallow-clone errors as `Claude` 9c9817e8.
+  - Closed sets, `f7280619` + `a5976aed`: the branch merges Claude b4ef45fc and follows session 03's
+    `IDENTITY_ENGINES` design. S2Arm adds three constants, one table entry and one `ENGINE_HELPERS` entry.
+    The three other validators are byte-identical to Claude. The 5 closed-set tests are adapted; an S2Arm
+    image packaged without its identity file is now refused.
+  - Switch 2 settings and in-game menu (maintainer request, 12 Nov, for the next IPA). Commits `20904b71`,
+    `ea3f4f5d`…`75402573`, `101db627` and `531e565f`. There is no engine change and the pin is unchanged.
+    - Settings in the Switch 2 Emulators tab and the playlist menu: resolution 0.5/0.75/1, AA, filter, FPS limit,
+      docked, image format, performance overlay, game language. They are stored under the engine's own
+      NSUserDefaults keys and `S2A_SYSTEM_LANGUAGE`.
+    - Native in-game menu: a ☰ button, or − and + on a controller. Live overlay toggle, settings, and Quit through
+      `s2a_rb_guest_stop`. Strings come from Dart in 12 languages and follow the app's language.
+    - The game view is dismissed on `session_ended`.
+    - Found by the new iOS compile: `S2ArmGamePreparation.m` lacked the `S2ArmCodePages.h` import, so the call was an
+      implicit declaration that would have stopped the IPA build. Fixed in `531e565f`.
+    - Green on `531e565f`: iOS compile 43141364074 and `flutter analyze` + tests 43141364019. New manifest tests:
+      `test/s2arm_session_menu_test.py` and `test/switch2_settings_locale_test.dart`.
+    - Limits: changes apply to the next game, after RewindBox restarts (one game per process). There is no pause
+      (the engine exports none). Not observed on a device.
+  - Switch 2 saves (maintainer request, 12 Nov), new handoff on top of Claude `19b99762`: `f382409b` and `2ab99d6b`.
+    There is no engine change.
+    - Each game has a save folder that the Files app shows: `Documents/S2Arm/Saves/<title> [<TITLE ID>]`. The bridge
+      passes it as `S2A_SAVE_FOLDER`, and the engine reads and writes native saves there.
+    - Playlist menu: "Import a save" and "Open the saves folder".
+    - A save that names another game (Ryujinx, yuzu or Checkpoint) goes to that game's folder.
+    - The previous content is kept as `(backup)`.
+    - Green: `flutter analyze` and tests 43146548370 on `2ab99d6b`; iOS compile 43146259805 on `f382409b`.
+    - Not observed on a device.
+  - **IPA 727 device report (maintainer, 12 Nov) and its fixes.** New handoff on top of Claude `725522b1`, head
+    `fa578446`: `89eb15aa`, `471c763e`, `7a33d9f3`, `5a76ee06`, `bc43c4ed`, `839c0465`, `fa578446`.
+    - **Consoles switch could not be turned on. Cause found: `bc43c4ed`.** The bridge is Objective-C (`.m`), so
+      `@(x != nil)` and `@(a && b)` are C ints. Flutter sends them as `1`, and Dart's `!= true` read `systemDataPresent`
+      as missing, with `helperPresent` and `available` failing the same way. The analysis came forwarded by the
+      maintainer and matches the code.
+      - Fix: the native flags are BOOL locals before boxing, and Dart's `flag()` takes true or a non-zero number.
+      - `test/s2arm_engine_bridge_test.py` refuses any boxed comparison; on the 727 code it reports the six faulty ones.
+      - Green: iOS compile 43161141434, `flutter analyze` and tests 43161141609.
+    - **Import refused for every export picked in Files.** file_picker gives a picked folder's path without
+      security-scoped access. Fixed in `7a33d9f3` with `ExternalFolderAccess.pickAndActivateFolder`, for games and saves.
+      Also `89eb15aa` (export found up to 3 levels below the pick) and `471c763e` (iCloud placeholder message and the
+      native diagnostic). Green: 43156862326, 43157362011, 43158702303.
+    - **No save import button.** It showed only with a game selected. Since `5a76ee06` it is always in the menu, second
+      as in MeloNX's. Without a selection, the save goes to the game it names; otherwise the player picks a game in a list.
+      Green: 43160214636.
+    - **Main-menu logo too big, not centred.** `839c0465` recomposes the Glacier tile: the logo is at 72 %, centred.
+      The index, `contentDigest` and tile review follow, and `switch2_glacier_tile_review_test` passes. Green: 43161834531.
+    - **Game boxes like Switch 1 (main approved, `725522b1`).** `fa578446` adds the `switch2` profile, wrap layout and
+      spine design, with `test/switch2_game_box_test.dart`. Run 43162148615.
+    - Told main: the XeniOS `importFolder` uses `FilePicker.getDirectoryPath` (main passed it to session 03).
+    - Nothing observed on a device. The next IPA's app.log has an `S2Arm status: {…}` line with the native flags.
+  - Main withdrew the launcher deletion (12 Nov): it stays as is. Formerly open: delete the launcher (`.github/diagnostics/s2arm/`, `s2arm-delivery.yml`,
+    `set_probe_key.py`) together with its test `s2arm_delivery_test.py`, which no longer works
+    since 9c9817e8 (40 errors)? Main also has to choose the S2Arm test groups of the next
+    manifest. Then: green run on the merged tree, device test.
+- **State (11 Nov), host only, nothing run on an iPhone:**
+  - Prototype: rewriter output loaded and run to its gates on macOS arm64; device probe written
+    (three code placements; the process-mapped one is what RPCS3 already does on device, iOS 27
+    beta, per main); bridge hook `d32738b5` in `Claude`, inert without `RewindBoxS2ArmProbe`.
+  - Preparation without bash/Python (batch 4): code stage ported to C and byte-compared with
+    S2Arm `6b6a5715` in CI (rewrite; address need 86 cases; GPU drivers/NRO 32 cases; chained
+    stage 5 cases); `S2ArmPrepare.xcframework` built for iOS arm64. Not linked into an app.
+  - Batches 5–6: owners' inputs collected; shared playlist files wait for PR #172; notices drafted.
+- **Evidence:** [prototype and probe](s2arm-prototype-2026-11-10.md),
+  [studies, batches, owners' inputs](s2arm-study-2026-11-11.md),
+  [notices](s2arm-legal-notices.md); last green runs on `831c0c2`: `42948708967` (host proof and
+  probe), `42948709020` (preparation), `42948709021` (iOS Core).
+- **Open or limit:** device questions D, E, F and iOS 26 unobserved; rewriting a converted NRO
+  not shown end to end; NROs hidden in other files and ZBIC modules refused; unpack, system
+  data, RomFS index, package layout not ported.
+- **Who builds (11 Nov, per the authorization section):** main compiled A (725, delivered); this
+  session compiles B (801) from this branch. The maintainer can correct this reading.
+- **IPA B = 801 delivered to the maintainer (11 Nov), not yet observed on a device.** Source
+  `5f6af31a`, run 42990584090 attempt 1 (`s2arm-delivery.yml`): all five jobs success; tests
+  flutter and native fresh (incl. legal-review negative controls). IPA 272237184 bytes, SHA-256
+  `0b277b25…a6ab`, 90 images, `com.neogamelab.neostation`, version 0.0.8 (801),
+  `RewindBoxS2ArmProbe` = true, `RewindBoxS2ArmProbeMapped` absent. Verified offline after
+  download (`docs/evidence/s2arm/rewind801/`); private key deleted. First request (run 42985983425)
+  stopped on the common StikJIT cold-cache test; main's fix `24a8246f` is a reviewed change.
+- **Content:** base 724 with the classification of the frozen 725 manifest; effective tree =
+  725's plus the probe files, `pubspec.yaml`, the source declaration review and that test fix.
+  Signed inventory against 725: App and 87 other images identical; Runner differs (probe
+  linked, symbols and class found); `dolphin_internal_bridge` differs with no Dolphin source
+  change (the linker-stub variation seen in 720 and 725; not compared section by section here).
+- **801 on device (observed, 11 Nov 09:27 UTC, maintainer's journal, not committed):** phase 1
+  under the attached helper: process-mapped placement (RPCS3 path) and arena placement executed
+  correctly; fixed placement (helper pages `vm_remap`-ed to the chosen address) hung at its first
+  execution, so the launch hung and phase 2 never ran. Details: prototype doc, "first device run".
+- **802 delivered to the maintainer (11 Nov), not yet observed on a device.** Probe fix `7195731`
+  (fixed placement executed only on an opt-in flag; host proof run 42996359351 green). Source
+  `281e0737`, run 42997316389 attempt 1, all jobs success, tests fresh. IPA 272236941 bytes,
+  SHA-256 `fb9f07cd…c351`, version 0.0.8 (802), probe key true. Verified offline; receipt
+  `docs/evidence/s2arm/rewind802/`; private key deleted. Against 801: App identical; Runner
+  changed (probe); melonx/armsx2/rpcs3 bridges differ only in `__stubs`/`__objc_stubs` (same
+  sizes; linker stubs, compared section by section between the two IPAs).
+- **802 on device (observed, 11 Nov 11:58 UTC): step 3 passed.** After the helper detached, the
+  rewritten synthetic module ran with `checks=16/16 brk=1 svc=1 cntpct=1` in the mapped and arena
+  placements; a writable alias made after detach let new code be written and executed; the game
+  then launched normally. One device, one launch, synthetic module only. Prototype doc, "second
+  device run".
+- **Unpack route proposed to the maintainer (11 Nov), awaiting his choice:** at the S2Arm pin,
+  Switch 2 games come as a decrypted console export folder or a `.nup` container (public format,
+  no keys); Switch 1 NSP/XCI need LibHac (C#) and the player's keys. Proposed: port to C, like
+  batch 4, the Switch 2 path only (`pack/ns2_dump.py`, `pack/ns2_nup.py`, ZBIC decoder and NSO
+  normalisation of `pack/nx_unpack`, ~1,350 lines), ExeFS first, each stage byte-compared in CI
+  with S2Arm; RomFS read in place later; Switch 1 left to the MeloNX playlist.
+- **Maintainer's choice (11 Nov):** export folder, Switch 2 only, games on the iPhone. **P0 done
+  in CI** (`92180d1`, run 43023002891, Linux + macOS): ZBIC decoder + NSO normalisation and
+  `ns2_dump` port byte-identical to S2Arm (11 921 frames, 2 323 NSOs, 31 export folders, 9
+  code-stage cases incl. ZBIC); memory-safety review running; nothing on a device yet. **P1
+  (pack assembly) started** (delegated).
+- **Maintainer (11 Nov): go as far as the engine** — read as: continue past preparation to running a
+  game with the S2Arm engine inside RewindBox. Mapping the engine (runtime ~44k lines C, services
+  ~30k C# NativeAOT, graphics ~264k, Ryujinx tree ~525k) before any code; main asked how a new
+  engine component enters the test line's recipe. The MeloNX probe leaves the next test IPA.
+- **Maintainer (11 Nov): finish the whole chantier; final test = import of a game and its launch with
+  a controller or touch.** Scope: on-device import (export folder), engine as a guest, graphics,
+  input (controller, touch), playlist entry; each milestone proved on device before the next.
+- **Engine plan written** (study doc § 6): engine = one dynamic framework loaded by `dlopen`
+  only when MeloNX's Core is not loaded; game code through the device-proved JIT placement;
+  S2Arm changed by a patch series. Milestones P0, E0, P1, E1–E5. **E0 passed** (run 43028338889,
+  `s2arm-engine.yml`): S2Arm's whole iOS engine builds on GitHub's macOS images (Xcode 26.3 and
+  26.6, .NET 10.0.404, NativeAOT ios-arm64 runtime pack 10.0.15) with one patch
+  (`build-utils/s2arm/engine/patches/0001…`: iOS 27-only external display API guarded). S2Arm.app
+  103 MB, executable 107.5 MB, NativeAOT library 223 MB before link. Toolchain fixes: ripgrep,
+  GNU timeout shim, meson/ninja, prefetched codec sources. Session 01 agreed: it removes the probe
+  hook and adds `rb_melonx_core_loaded()`; S2Arm side exports `rb_s2arm_engine_loaded()`.
+- **E1 started:** `S2ArmEngine.framework` links (run 43033827604, patch 0002: own image header
+  instead of `_mh_execute_header`); opened `RTLD_GLOBAL` (85 internal `dlsym(RTLD_DEFAULT)`).
+  Session 01 delivered `rb_melonx_core_loaded()` + probe-hook removal (`a18490cb`, its branch).
+  **P1 integrated** (`76e7a14`: image pack, module dir, caps, resource pack writers, system-data
+  bundle, review F1 fix). **P1 passed in CI** (run 43038032448, `78df9bf`, Ubuntu + macOS): per-game
+  files identical to S2Arm's chain in 19 cases (copy and in-place views), all earlier harnesses
+  green, iOS arm64 compile; system-data bundle 731 files, 20 MB, identical on both OSes.
+  Not ported: `romfs.s2aidx` (C#, services) — to call from the engine after preparation.
+- **Scope (maintainer, 11 Nov):** Switch 2 only until the final test; Switch 1 games through S2Arm
+  (player-provided `prod.keys`, as for MeloNX) are deferred, not started. E1 guest patches delegated.
+- **Main's answers (11 Nov 14:43):** engine component = producer workflow on this branch,
+  authenticated by its run in the launcher (no change to `retained_components.py` or common
+  producers). Extensions are a closed set (`validate_single_ipa_distribution.py:28-46`): follow the
+  MeloNX conditional model (:156-168) with an identity file present only in the test IPA that adds
+  `S2ArmJITHelper.appex` and requires the engine frameworks; diff written here, handed to main for
+  review. 5th JIT extension agreed (copy of `rpcs3_jit_helper`); script has no limits of its own;
+  16 MiB per command 1 is RPCS3's choice; core handshake from iOS 26.0.
+- **Parallel coding authorized by the maintainer (11 Nov, this session):** two coding agents on
+  disjoint paths. Agent A: engine guest patches (`build-utils/s2arm/engine/**`, `s2arm-engine.yml`).
+  Agent B: `packages/s2arm_jit_helper`, `build-utils/s2arm/configure_s2arm_ios.py`, the validator
+  diff (handoff to main), the test line's delivery wiring (`.github/diagnostics/s2arm/**`).
+- **E1 guest patches 0003–0008 compile** (run 43049632316, `2e14cae`, Xcode 26.3 and 26.6): guest
+  configure/start/stop/view controller, launch context setter, window reserved at configure (constructor
+  deferral when hosted), code blocks through the host's `prepare_code` hook, chained signal handlers,
+  session end parks threads instead of `_exit`, strings and game files from the framework/module dir.
+  Nothing run on a device. Follow-up 0009 (no pad recording, logs to the host's docs dir, other screens'
+  resources) and the framework producer upload requested.
+- **Maintainer (11 Nov): the Switch 2 library comes first; one real trial "as if the work were
+  finished"** (library entry, game import, preparation, launch from the library, play with a
+  controller or touch), no intermediate device trial. Switch 2 exports need no keys; `prod.keys`
+  only for the deferred Switch 1; optional system-files import proposed. Library mapping started
+  (MeloNX Switch and PR #172 XeniOS as models); sessions 03/02 to be consulted before shared files.
+- **Agent B integrated** (`009b2d9`): `packages/s2arm_jit_helper`, `configure_s2arm_ios.py`,
+  validator conditional (handoff to main, `a14f67c`), test-line engine download/embed/checks. Four
+  other closed extension sets (Dolphin `verify_ipa.py`, `validate_rpcs3_ipa.py`, two `== 8` counts)
+  are extended in memory by the launcher for now; main asked to choose native conditionals instead.
+- **Maintainer (11 Nov): Switch 2 off by default in the Consoles tab**, where players enable the
+  engine and the library (PR #172's model). Session 03 asked how to split the shared playlist files;
+  main asked about the base of the test line (needs PR #172's Consoles tab). Host bridge delegated
+  (new files only: `packages/s2arm_engine_bridge`, `lib/services/s2arm_internal_service.dart`).
+- **Library branch authorized by the maintainer (11 Nov):** `work/s2arm-switch2-library-20261111`
+  from PR #172's head `db277ee0e` (session 03's branch is never pushed to), for the shared-layer
+  Switch 2 hook points (study § 6.5), handed to main after #172. At the maintainer's request main
+  was asked to prioritise #172, on which the complete trial depends.
+- **Engine follow-up and host bridge integrated (11 Nov, pushed `b43922e`):** patch 0009 (engine log in `docs`
+  without redirecting the host's stderr, touch-pad recording off in a guest, the engine's own bundle resources,
+  `S2ACommit` in the framework's Info.plist), producer upload `s2arm-engine-framework-<sha>` (macos-26), and
+  `S2ArmDirectChain.txt` (`DMSH_CHAIN` `0be3f28548fd` of the pin) written by `guest.mk` and checked by the workflow.
+  Host bridge: `packages/s2arm_engine_bridge` (preparation chain into `Library/S2Arm/<gid>`, JIT transaction on the
+  RPCS3 model, guest launch, exclusion with MeloNX's Core, launch journal) and `S2ArmInternalService` (Dart, shaped
+  like Xenia's; answers engineMissing without the plugin). Local: bridge test 61 checks green, delivery tests 48
+  green; Dart and Objective-C only in CI. Runs on `b43922e`: engine `43061106903`, preparation Core `43061107011`.
+  Bridge assumptions to prove on device: helper detach once the image pack's boot blocks are served and the hook is
+  idle 2 s; `S2ArmSystemData/` in the app bundle (open fonts, tz data, synthesised empty system data: no Nintendo
+  data); save identity = SHA-256 of `unpack.tsv`. C# `Console.Error` and raw `fprintf(stderr)` stay on the host's stderr.
+- **Library branch (local, not pushed):** `1731fd6` (the same Dart service file as the prototype line), `a9d1478`
+  (logo `assets/images/logos/switch2.webp`, white, made from the official logo the maintainer supplied). Shared-layer
+  hooks delegated: catalog entry, off by default, Consoles tab row, scan of `Documents/S2Arm/Games` export folders
+  (NACP title, title id, icon as box art), launch route, session end, import button, scraping by NACP title.
+- **Maintainer (11 Nov): menu art = his red image** (white official logo on red). The white logo is committed; the red
+  tile needs `backgrounds/switch2.webp` in the Glacier pack, whose index the legal gate binds
+  (`collect_build_source_evidence.py:196`): main asked which route.
+- **Maintainer (11 Nov): scrape Switch 2 games by name or id (covers, descriptions).** Plan: ScreenScraper system 296
+  (from the site's system page, not confirmed through the API) with the NACP title as `romnom` (an export folder has
+  no ROM to hash; no evidence the title id is a ScreenScraper key), the export's own icon as box art before scraping.
+- **E1 compiled (11 Nov):** run `43061106903` on `b43922e`, both jobs success (Xcode 26.3 and 26.6): patches
+  0001–0009 apply and link, guest entry points and `S2ACommit` checked, `S2ArmDirectChain.txt` = `DMSH_CHAIN`;
+  `s2arm-engine-framework-b43922e…` uploaded (macos-26). Preparation Core run `43061107011` green
+  (`S2ArmPrepare-b43922e…`). Nothing run on a device.
+- **Library branch pushed (`work/s2arm-switch2-library-20261111`):** the shared-layer hooks (10 commits from the
+  delegated agent, on PR #172's model) plus coordinator fixes: one stored file name per game (`<title id>.npdm`;
+  scraped metadata is `UNIQUE(app_system_id, filename)` and media are named after the filename, so `main.npdm` for
+  every row would have merged the games; the same holds for #172's `default.xex` rows, reported to session 03), the
+  folder import inside `StorageImportActivity.run` (storage contract 24/24), the service test's `Locale` import (first
+  CI run `43063255550`: `flutter analyze` stopped on it). `libretro_frontend_ui_contract_test.py` fails at `db277ee` and
+  at `Claude` `41c7640` alike (`lib/widgets/header.dart`), so this branch's workflow runs it for information only.
+- **Library CI green (11 Nov):** run `43067412005` on `e7c199d`: `flutter analyze` (no error or warning), 71 Dart tests
+  (service, export reader, library strings, console catalog/policy incl. "Switch 2 starts off", Consoles tab), storage
+  contract. Second run `43065635632` had stopped on the truncated-NPDM case: its test helper threw while building the
+  input; the case now cuts a whole NPDM and still expects null. Nothing run on a device.
+- **Delivery wiring for the bridge integrated (11 Nov, `f434284d`..`7bbe25af`):** root `pubspec.yaml` gains the bridge
+  (second chained review `docs/evidence/s2arm-engine-declarations-2026-11-11.json`, after the probe review; two probe
+  controls now run in the tree as that review left it, `EngineReview` holds the new chain end), the bridge pod vendors
+  `S2ArmPrepare.xcframework` supplied by `prepare-download/install`, `sysdata-download/embed` put the open system data
+  tree in `Runner.app/S2ArmSystemData`, app/IPA checks extended (registrant, exported `rb_s2arm_engine_loaded`, no
+  undefined `rb_s2arm_*`, system data against `SHA256SUMS`, `S2ArmDirectChain.txt`). Fixes: the engine gets
+  `S2ArmSystemData/systemdata`; prepared games copy the system data (~20 MB each) instead of linking the app bundle,
+  whose path changes with each app update. Local: delivery tests 62, legal controls 17/17 on an effective tree,
+  bridge 61 checks, `make_workflow --check` green. The next manifest must declare `s2arm.prepare` and `s2arm.sysdata`.
+- **Trial base blocked (11 Nov):** dry-run merge of prototype + library: textual conflicts only, but #172 changes
+  `pubspec.yaml` (`xenia_internal_bridge`) with no chained review, and both S2Arm reviews bind `pubspec.yaml`. Proposed
+  to main: #172 lands in `Claude` with its review, then this session merges `Claude`, re-chains its two reviews and
+  builds 803. Notices for the engine binaries (Apache-2.0 §4 LICENSE/NOTICE, .NET, codecs) still main's decision.
+- **Main's answers (11 Nov 19:01):** 803 base as proposed (#172 into `Claude` with its own chained review, then this session
+  merges `Claude`, re-chains probe + engine reviews after the XeniOS review — `before` = `5112922c…` per session 03 — and
+  builds 803, test line only). Four closed sets: native identity-gated conditionals in the files (Dolphin `verify_ipa.py`
+  as a handoff diff), no launcher in-memory extension. Notices: identity-gated, full texts in the test line (S2Arm
+  LICENSE/NOTICE/THIRD_PARTY_LICENSES, .NET ThirdPartyNotices, exact MIT/BSD texts), `embed_legal_bundle.py
+  --validate-only` requires them with the identity file, "no Nintendo data" explicit. Both delegated (prototype branch).
+- **Glacier red tile ready for main's review (library branch):** `fd82c323` (tile, aliases, theme, credits, attribution,
+  index 129 files) and `eba96103` (`docs/evidence/switch2-glacier-tile-declarations-2026-11-11.json` chained after the
+  Glacier review, `check_switch2_glacier_tile()`, 8 negative controls). CI green: runs 43084472956 and, after merging
+  #172's head `cf1b9425` (session 03's `<folder>.xex` names and XeniOS review; one conflict in `_batchInsertRoms`, both
+  kept), 43085017781.
+- **Base merged (11 Nov, after main integrated #172 as `945bec13`):** library branch `3c8fb875` (Claude `cd6ba174`
+  merged; `main.dart`: Claude's XeniOS startup rule kept, Switch 2 layout on the same rule). Prototype branch `bb11f418`
+  (Claude merged; S2Arm reviews re-chained after the XeniOS review: `pubspec.yaml` `5112922c` → probe `a0add018` →
+  engine `1abdf6eb`; XeniOS block lets the probe review move `pubspec.yaml` on) and `4803137b` (library branch merged in
+  for 803). With the libretro podspec at its reviewed bytes (`d7992b1f`): `repository_inputs` passes (232 inputs),
+  S2Arm legal controls 17/17, tile controls 8/8, storage contract OK, delivery tests 61/62. The 62nd fails on `Claude`
+  itself: `check_workflows.py` flags `xenia-core.yml`'s two direct `actions/upload-artifact` uploads (reported to main
+  and session 03; not run by the test-line manifest).
+- **803 manifest question to main (11 Nov):** sibling of the next common build once the library branch is in `Claude`
+  (proposed), or sibling with the library as an extra declared delta.
+- **Library layer integrated into `Claude` (11 Nov, main's merge `99e527c5` of `a13a0db8`, option A):** main checked
+  inertness in the code (no plugin → unavailable; the Consoles tab disables the engine switch of an unavailable console;
+  startup only creates the empty `S2Arm/Games`; scan on the `xbox360` rule) and the merged tree (flutter test 197/197,
+  contracts, workflow guard, tile controls, legal chain with the RA podspec at its reviewed bytes: 227 inputs). Main
+  prepares common build 726 (RPCS3 932/933, MeloNX 735, #172, #176/#177, this library) and will give its frozen commit;
+  803 = its sibling + the S2Arm delta. The libretro UI contract passes on `Claude` since `1a10d4a8`: required again in
+  `s2arm-library.yml` (`018da606`). Note for 803 (not a blocker): the launch route checks the pairing file before
+  availability.
+- **Identity-gated validators and engine notices integrated (11 Nov, `ff8ca164`..`0c864039`, pushed; handoff to main):**
+  native conditionals on `S2Arm-native-identity.json` in Dolphin `verify_ipa.py`, `validate_rpcs3_ipa.py`
+  (`validate_helper_bundles`), the `standard-delivery.yml` bundle count and `verify_downloaded_delivery.py` (common
+  behaviour pinned to the `41c76404` blobs, identical to today's `Claude`); launcher in-memory extensions removed, no
+  step edit left. Notices: `embed_legal_bundle.py --validate-only` requires `Legal/S2Arm` (26 texts listed with digests,
+  incl. S2Arm LICENSE/NOTICE/THIRD_PARTY_LICENSES, .NET notices, codec/glslang/Ryujinx/SPIRV-Cross texts and the
+  no-Nintendo-data notice) when the identity is present; the engine producer collects them from pinned sources; the
+  launcher places and re-checks them. Local: delivery 69, conditional tests, legal bundle 8, licences 5/5 on the pinned
+  tree, single-IPA 26, validators, storage, bridge 61, guard OK, S2Arm legal chain 17/17 (RA podspec at reviewed bytes).
+  Engine run with licences `43097515562` started. Open for main: texts not located (deko3d zlib, Ryujinx NuGet refs,
+  ZstdSharp.Port, LibHac), glslang kept as required, `RTLD_GLOBAL` interposition risk with DolphinCore's weak glslang
+  symbols (803: launch the Switch 2 game from a fresh app start).
+- **Maintainer (11 Nov, 23:15 UTC): no separate Switch 2 IPA any more.** This session hands its work to main like the
+  others; main builds every IPA. 803 is cancelled: no freeze, no trigger, scratch draft discarded, its private key
+  deleted (never used; the public key `build-utils/delivery-803-recipient.pem` stays unless main removes it).
+  - Handoffs waiting for main:
+    - `13d34c25`: declared retained-input changes in the recipe.
+    - `ff8ca164..0c864039` and `a14f67c`: identity-gated conditionals and engine notices. Session 03 reuses the design
+      for Xenia.
+    - `6d492d75`: Switch 2 menus from the 726 report (import, shared prod.keys, delete with saves kept, emulator
+      screen, "not included" wording). Library CI run `43117992014`.
+  - Engine with restricted exports: run `43115636852` (`c0717c44`), `nm -gU` = 102 symbols (5328 before, 807 glslang
+    hidden, 0 glslang exported). `S2ArmEngine.framework.zip` `f302baa7…56d7`, `NS2Pro.framework.zip` `e662a255…cb64`.
+  - Tile art: session 02's PR #178 (Glacier fallback for systems missing from a downloaded pack).
+  - Open: licence texts by kept-symbol inventory; the empty-state hint once session 03's `hint` is on Claude; how the
+    engine enters the common recipe (main to decide).
+- **Licence texts settled (12 Nov, run `43125597914` on `601e716b`, green):**
+  - Method: the kept-code inventory (NativeAOT symbols per package assembly, link map) is now a blocking step.
+  - Texts now shipped:
+    - 8 packages with kept code: LibHac, Humanizer.Core, MsgPack.Cli, Open.Nat.V2, RecyclableMemoryStream,
+      NetCoreServer, Gommon, System.IO.Hashing. Texts come from the nupkg or the nuspec's source commit, hash-checked.
+    - The deko3d port, which is linked (`libnvn.a(nvn_tex.c.o)`), from devkitPro/deko3d `373bfd43`.
+  - Absent: 62 packages with no kept code; ZstdSharp.Port and SkiaSharp are not in the restore; no ICU.
+  - Commits for main: `91afd9f0`, `26d94dac` (handoff to main, legal gate), `601e716b`. The gate accepts the result
+    (35 texts). Engine zips: `S2ArmEngine` `57e81f95…560a`, `NS2Pro` `1cf9b41e…c027`.
+  - Next: the S2Arm instance of session 03's generic `pinned-engine` kind.
+- **803 preparation (11 Nov, evening):**
+  - GitHub Actions incident (20:48–21:21 UTC). Every run of the repo created 20:41–20:52 stays "queued" with no jobs,
+    and cancelling one answers 409 "not been queued yet". This includes engine run `43097515562` and main's 726 runs;
+    main and session 03 were told. Engine dispatched again: run `43104715134` on `b7b03844`; its engine sources equal
+    `0c864039`'s. Preparation (`43061107011`) and system data (`43038032448`) runs still match their sources.
+  - `b7b03844`: `make_manifest.py` refused a model that adds an image. 726 is the first such model: it adds the XeniOS
+    bridge over 725. A sibling now carries the model's added and removed images; a successor starts with empty lists.
+    Two tests fail on the previous tool and pass now; delivery tests 71 OK.
+  - Freeze dry run of the 803 draft: sibling of 726, placeholder engine digests, pending `[]`. Legal check passed
+    (7856 product files), no unclassified commit, no conflict. **Blocker:** `packages/dolphin_internal_bridge/ci/verify_ipa.py`
+    is an input of the retained Dolphin component, and `retained_inputs_unchanged()` refuses its change (`ff8ca164`,
+    blob `60324580` → `99ef551e`). The conditional is still needed: `build_support.py package` calls
+    `verify_ipa.validate`, whose closed set refuses the S2Arm helper. Main asked to choose (its files): a declared input
+    change, a verifier-only set, or a Dolphin rebuild. The common line meets the same rule when it integrates `ff8ca164`.
+  - Shallow clone: the freeze needs the five blobs of 725's `restore` records. They were fetched by id
+    (`git fetch origin <blob>`).
+  - Main re-requested 726: freeze `8fb2ee39`, same effective digest, trigger `bd99e8b7`, run `43106533461`. This line
+    follows it with line merge `8b51a5cb` (first parent Claude `52885af4`, second parent `c1d7554c`), whose S2Arm delta
+    equals `5945d9aa`'s.
+  - Engine run `43104715134` succeeded (dispatch on `b7b03844`, both macOS jobs, Xcode 26.6). `S2ArmEngine.framework.zip`
+    `87ea777b…bc75`, `NS2Pro.framework.zip` `dabaa231…b2cc`, 26 licence texts (manifest `cf6e0471…`); re-hashed
+    after download.
+  - 803 draft (sibling of 726, reviewed `8b51a5cb`) is ready with pending `[]`, kept outside Git. The dry run on
+    `8b51a5cb` gives the same single blocker: verify_ipa.py, waiting for main's choice.
+
 ### Playlists/XeniOS (Xbox 360) — session 03 `012mUASiVyxdnhNTUKesGGm7`
 
 - **Owner/branch:** session 03, `work/playlists-xenios-20261110` (fast-forwarded to
@@ -5208,7 +5616,22 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   test/ipa_identity_engines_test.py 12/12 (synthetic IPAs, the real heredoc); single_ipa_distribution OK; donor and
   deployment suites same pre-existing failures; delivery contract: the 14 history errors plus main's MeloNX Core 737
   pin error, present on Claude without this change. Commit 8a076372d, macOS run 43135024285 green; handed to 00
-  (changedInputs data given) and the table to extend sent to 04 (12 Nov). Pin route: ubuntu `pin` job (9ceefdcd4), `[xenia-pin run=<id>]`, downloads the zip by id via the API and
+  (changedInputs data given) and the table to extend sent to 04 (12 Nov). Merged into Claude as c0aae7294; main
+  records the Dolphin changedInputs for the manifest. Session 03 handoff complete; next: the first TXM-iPhone session
+  once the common IPA (waiting on Core 934, Core 737, S2Arm) is delivered.
+  Maintainer's display lot (12 Nov): Xbox 360 in-game menu as the other playlists (Resume; Display > performance
+  overlay Off/Simple/Detailed, live, all games; This game > aspect 16:9/4:3 `widescreen`, resolution reported to the
+  game `internal_display_resolution` 0-16, letterbox, next launch, saved per game; touch controls; Quit), overlay
+  RBXeniaPerformanceOverlay (guest FPS; detailed: frame time, footprint, thermal). Core ABI 3 `get_stats` fed by a weak
+  IssueSwap hook (patch test allows exactly those lines); Dart side 595368885 (catalogue, settings screen, channel
+  settingChanged/overlayChanged persisted, 12 locales). Fixes found by CI: ARC case scopes (43141211632), ABI asserts
+  (43142260645). Run 43143255347 (06a580d41) green: checks, plugin_app, core. Internal resolution scaling absent on
+  the XeniOS Metal backend (texture cache 1x1): not offered. No device run. Pinned (pin job 43147109105):
+  core-pin.json 7e13268b…a4f2 byte-identical, artifact 13911882257 (expires 26 Nov), binary 86b26e13…, fingerprint
+  d386ae41…, 'replaces' 8b850d7b with its reason; delivery review regenerated (3e13eb8e0, 9/9). Merged with Claude
+  19b99762 (f7151ab52): macOS run 43147427878 green; Xenia Python/Dart (55) OK; legal failure sets unchanged;
+  delivery contract: 13 history errors + main's MeloNX manifest pinSha256 failure, present on Claude alone.
+  Handed to 00 (12 Nov). Pin route: ubuntu `pin` job (9ceefdcd4), `[xenia-pin run=<id>]`, downloads the zip by id via the API and
   prints core-pin.json + base64 (this session cannot reach the artifact store). The producer runs on this branch:
   the delivery manifest names it (`producers.engine.branch`) or main rebuilds on Claude. Pending: handoff to 00;
   IPA closed-set validators after 00 integrates session 04's 13d34c25 (identity-file design

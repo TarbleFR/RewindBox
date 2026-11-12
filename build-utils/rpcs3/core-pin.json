@@ -2,8 +2,8 @@
  "schema": 1,
  "status": "verified",
  "component": "rpcs3",
- "build": 933,
- "note": "RPCS3 Core 933 = Core 932 plus the local profile of a game and its first learned decision (maintainer audit of 11 Nov 2026, priority 3; docs/rpcs3-core933-profil-local.md): config/local_profiles/<serial>.txt keyed by serial and game version, bounded and written atomically when a decision is learned, withdrawn or validated (first three times), read before the title policy, ignored and replaced for another version or an unreadable file (REWINDBOX_LOCAL_PROFILE_933); in Automatic only, a title outside the Core 616/634 list runs the SPU object prefetch from its next boot once a window of play spent at least 500 ms reading at least 200 cached SPU objects, mostly for compiles of play, validated by 500 objects served from memory, withdrawn after two minutes of play below 1 % of the planned objects; the first window of a report session is not used (REWINDBOX_LEARNED_PREFETCH_933). The user's setting always wins. Core 932 unchanged otherwise. Replaces the Core 932 pin directly (Core 929 kept as the fallback in docs/evidence/rpcs3-core929). No codegen input changes: PPU and SPU codegen identities unchanged. MoltenVK dependency of run 42998604606 (libMoltenVK.a d19d3a42). Built by the RPCS3 Core route (run 43077626247, attempt 1, source bbef3768; Apple host harnesses run 43077626247 on bbef3768). Verified offline on the downloaded artifacts with the repository verifier (pin_errors and bundle); the packaged library holds the 933 boot and report lines and the profile format. Not measured on the iPhone; no energy, temperature or FPS claim.",
+ "build": 934,
+ "note": "RPCS3 Core 934 = Core 933 plus the per-game settings of the in-game menu saved where the boot reads them (maintainer, 12 Nov 2026: God of War III no longer stretched): since Core 922 the boot ignores a legacy full custom_configs file, but the settings API still read it and saved every per-game change into it; the API now loads global < RPCS3 database < the user's sparse overrides like the boot and saves a sparse override, reset removes the overrides and a preset apply is refused instead of succeeding with no effect (REWINDBOX_SETTINGS_API_RULE_934); the native Metal 4 present honours Stretch To Display Area like the Vulkan present (REWINDBOX_METAL_STRETCH_934; request 1, run 43129466421, stopped on the cfg::_bool conversion, fixed with get()). Core 933 unchanged otherwise. Replaces the Core 933 pin directly (Core 929 kept as the fallback in docs/evidence/rpcs3-core929). No codegen input changes: PPU and SPU codegen identities unchanged. MoltenVK dependency of run 42998604606 (libMoltenVK.a d19d3a42). Built by the RPCS3 Core route (run 43136576356, attempt 1, source 72c2ffd4; Apple host harnesses run 43136576356 on 72c2ffd4). Verified offline on the downloaded artifacts with the repository verifier (pin_errors and bundle); the packaged library holds the 934 reset and preset messages. Not measured on the iPhone; no energy, temperature or FPS claim.",
  "producer": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "core": {
@@ -14,25 +14,25 @@
     "Read the declared Core build",
     "Select the retained Core toolchain",
     "Restore compiler objects of the same frozen recipe",
-    "Authenticate the Core 933 source closure and the native dependency",
+    "Authenticate the Core 934 source closure and the native dependency",
     "Preserve the authenticated preflight",
-    "Compile and link the actual iPhone Core 933",
-    "Verify the actual binary and write its Core 933 identity",
+    "Compile and link the actual iPhone Core 934",
+    "Verify the actual binary and write its Core 934 identity",
     "Preserve an unverified binary and actual inputs after metadata failure",
     "Record observed compiler-cache counters and compile duration",
-    "Upload the verified Core 933 without an application delivery",
+    "Upload the verified Core 934 without an application delivery",
     "Preserve compiler objects for the same recipe",
     "Preserve real diagnostics including partial failures"
    ],
-   "source": "bbef37686e0b52040b3861ac447c93ddac181c31",
-   "run": 43077626247,
+   "source": "72c2ffd4abb0d24d975160bef25317a06fb8c474",
+   "run": 43136576356,
    "attempt": 1,
-   "job": 130721505728,
-   "artifact": 13884331357,
-   "name": "RPCS3Core-933-bbef37686e0b52040b3861ac447c93ddac181c31",
-   "bytes": 30567592,
-   "sha256": "98a5f3a8510e82637f4256cca1dfe737f30a68de44fab560a43cfdb4d0e4e504",
-   "expiresAt": "2026-12-11T18:44:26Z"
+   "job": 130913256649,
+   "artifact": 13908867453,
+   "name": "RPCS3Core-934-72c2ffd4abb0d24d975160bef25317a06fb8c474",
+   "bytes": 30565657,
+   "sha256": "9438c5ac9d6c35a39abc15f343bd29cd969383082911c48aac23a23f7b5c96db",
+   "expiresAt": "2026-12-12T02:09:22Z"
   },
   "hostTests": {
    "jobName": "Core host harnesses on Apple ARM64 (changed, new and reused)",
@@ -40,9 +40,9 @@
     "Checkout immutable candidate and the delivered Core history",
     "Read the declared Core build",
     "Select the retained Core toolchain",
-    "Materialize the Core 933 sources and the delivered a4ae86d0 sources",
+    "Materialize the Core 934 sources and the delivered a4ae86d0 sources",
     "Authenticate the reused Core 610 Apple harness evidence",
-    "Run the affected and new Core 933 harnesses with Apple clang",
+    "Run the affected and new Core 934 harnesses with Apple clang",
     "Preserve the Apple host harness reports"
    ],
    "names": [
@@ -59,18 +59,18 @@
     "spu-object-hit-admission-613",
     "spu-object-hit-admission-613-asan-ubsan",
     "codegen-audit",
-    "core933",
+    "core934",
     "lr-full-queue"
    ],
-   "source": "bbef37686e0b52040b3861ac447c93ddac181c31",
-   "run": 43077626247,
+   "source": "72c2ffd4abb0d24d975160bef25317a06fb8c474",
+   "run": 43136576356,
    "attempt": 1,
-   "job": 130721506390,
-   "artifact": 13883758959,
-   "name": "RPCS3Core-933-apple-host-tests-bbef37686e0b52040b3861ac447c93ddac181c31",
-   "bytes": 66084,
-   "sha256": "eb6f5d2981da2bccbeec44f8c41d6e6681f213fdb5a60cc32a51ca329216ee10",
-   "expiresAt": "2026-12-11T18:56:54Z",
+   "job": 130913256365,
+   "artifact": 13908733138,
+   "name": "RPCS3Core-934-apple-host-tests-72c2ffd4abb0d24d975160bef25317a06fb8c474",
+   "bytes": 66151,
+   "sha256": "41636f7c1581f95299cfdb9876a9048848518a70779c6a0dabeacece3feb6390",
+   "expiresAt": "2026-12-12T02:16:34Z",
    "reused": {
     "names": [
      "reuse-audit"
@@ -98,16 +98,16 @@
   }
  },
  "core": {
-  "type": "rpcs3-ios-core933",
-  "dylibBytes": 81096000,
-  "dylibSha256": "fb1d3f0fc107a7fe60fced0412bb957160d29daf053e0d9518a740265b714390",
-  "identitySha256": "f5d7b80c812e8edf1c34c7a258ddaa178be70fa20c0a0d9baf50e500599a4152",
+  "type": "rpcs3-ios-core934",
+  "dylibBytes": 81096024,
+  "dylibSha256": "613c7adf1bbe2e70c0a5e8e89a771404f13d03ee048c768a664e5a1e5a899a92",
+  "identitySha256": "76fde2483bbe2e91cb8782c61e94035e69047890a96daac3b07778a47ac52921",
   "proofMember": "core610-proof.json",
-  "proofSha256": "6668b52e7622ac2db21fba05a5433d1b8d0f372b07f5d7dbcea950de484002d8",
-  "payloadFingerprint": "9d5fb7e5f5a704286aaface58825f0d514bcf36ccd7ad2cc328d83a3ea97bb31"
+  "proofSha256": "e8ffb78b8b6eb7d4f7e06ad987c1a1b0d4ca9d42082158a6126f8fb30b9fce26",
+  "payloadFingerprint": "505684bef15affe9aec78e9a171bbce5b7339f78d3a6a06ead082239bd51c48b"
  },
  "canonical": {
-  "patchSha256": "03b63d88b37f44a7600b830d20071ef1aab2f3ee79a9f2be77e315e734d7a78a",
+  "patchSha256": "746a878e7e10d5a8c3b96e13a5ba8c12cc3705fa046ff2e24c27c412669a62e1",
   "postimages": 474,
   "upstreamCommit": "22f1152783cef1f7e04af7b1c895173e28fd5b03"
  },
@@ -324,9 +324,9 @@
  ],
  "cachePath": "build/rpcs3-core-component",
  "replaces": {
-  "source": "24f0944634ebedea7814aaec10974a847cdadb03",
-  "run": 43068680664,
-  "artifact": 13877983017,
-  "payloadFingerprint": "d405ca4d55e87ed8052b83cf144a7750a96d9377f0feb174c1fad0a57af3e37d"
+  "source": "bbef37686e0b52040b3861ac447c93ddac181c31",
+  "run": 43077626247,
+  "artifact": 13884331357,
+  "payloadFingerprint": "9d5fb7e5f5a704286aaface58825f0d514bcf36ccd7ad2cc328d83a3ea97bb31"
  }
 }

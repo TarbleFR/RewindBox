@@ -449,6 +449,15 @@ jobs:
     - name: Verify the pinned XeniaCore engine and its shader converter
       if: ${{ steps.engines.outputs.xenia == 'true' }}
       run: python3 -B .github/diagnostics/standard_delivery.py verify-engine xenia
+    - name: Download and authenticate the pinned S2Arm engine, preparation library and system data
+      if: ${{ steps.engines.outputs.s2arm == 'true' }}
+      run: python3 -B .github/diagnostics/standard_delivery.py download-engine s2arm
+    - name: Verify the pinned S2Arm engine, preparation library and system data
+      if: ${{ steps.engines.outputs.s2arm == 'true' }}
+      run: python3 -B .github/diagnostics/standard_delivery.py verify-engine s2arm
+    - name: Install the pinned S2Arm preparation library where the engine bridge podspec vendors it
+      if: ${{ steps.engines.outputs.s2arm == 'true' }}
+      run: python3 -B build-utils/s2arm/engine_pin.py install-prepare
     - name: Prepare emulator build definitions
       shell: bash
       run: |
@@ -550,6 +559,14 @@ jobs:
         assert not missing, 'rpcs3_internal_bridge lacks pod dependencies: ' + ', '.join(sorted(missing))
         assert 'retro_achievements_session' in Path('ios/Podfile.lock').read_text()
         PY
+    - name: Add the S2Arm JIT helper extension to the generated host
+      if: ${{ steps.engines.outputs.s2arm == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        python3 build-utils/s2arm/configure_s2arm_ios.py
+        python3 build-utils/delivery_metrics.py s2arm_cocoa_pods env -u BUNDLE_GEMFILE -u BUNDLE_PATH pod install --project-directory=ios
+        python3 build-utils/s2arm/configure_s2arm_ios.py check-pods
     - name: Align application and extension versions to the pubspec version
       run: python3 build-utils/stamp_host_version.py
     - name: Verify the reviewed NeoSwap host source is the source CocoaPods will compile
@@ -643,6 +660,21 @@ jobs:
         ditto dist/xenia/XeniaCore.framework "$APP/Frameworks/XeniaCore.framework"
         cp dist/xenia-side/libmetalirconverter.dylib "$APP/Frameworks/libmetalirconverter.dylib"
         python3 -B .github/diagnostics/standard_delivery.py embed-engine xenia "$APP"
+    - name: Embed the pinned S2Arm engine, system data and notices, then check the app
+      if: ${{ steps.engines.outputs.s2arm == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        APP="build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app"
+        test -d "$APP"
+        mkdir -p "$APP/Frameworks" "$APP/Legal/S2Arm"
+        rm -rf "$APP/Frameworks/S2ArmEngine.framework" "$APP/Frameworks/NS2Pro.framework" "$APP/S2ArmSystemData"
+        ditto dist/s2arm/S2ArmEngine.framework "$APP/Frameworks/S2ArmEngine.framework"
+        ditto dist/s2arm/NS2Pro.framework "$APP/Frameworks/NS2Pro.framework"
+        ditto dist/s2arm/sysdata "$APP/S2ArmSystemData"
+        ditto dist/s2arm/licenses "$APP/Legal/S2Arm"
+        python3 -B .github/diagnostics/standard_delivery.py embed-engine s2arm "$APP"
+        python3 build-utils/embed_legal_bundle.py --validate-only --app "$APP" --dolphin-sha "$DOLPHIN_SHA"
     - name: Wait for and authenticate the test jobs and the fresh delivery contract
       run: python3 -B .github/diagnostics/standard_delivery.py await-tests
     - name: Embed the build identity, the replaced Core proofs and exact retained provenance
@@ -721,7 +753,7 @@ jobs:
         from pathlib import Path
         # Identity file -> the JIT helpers it adds; equal to IDENTITY_ENGINES of
         # build-utils/validate_single_ipa_distribution.py (test/ipa_identity_engines_test.py).
-        ENGINE_HELPERS = {'Xenia-native-identity.json': ['XeniaJITHelper.appex']}
+        ENGINE_HELPERS = {'Xenia-native-identity.json': ['XeniaJITHelper.appex'], 'S2Arm-native-identity.json': ['S2ArmJITHelper.appex']}
         version = next(line.partition(':')[2].strip().strip('"' + chr(39)).split('+')[0]
                        for line in Path('pubspec.yaml').read_text().splitlines() if line.startswith('version:'))
         with zipfile.ZipFile('dist/' + os.environ['IPA_NAME'] + '.ipa') as archive:

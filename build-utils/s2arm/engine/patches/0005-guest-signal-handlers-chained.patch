@@ -1,0 +1,66 @@
+diff --git a/runtime/src/crash.c b/runtime/src/crash.c
+--- a/runtime/src/crash.c
++++ b/runtime/src/crash.c
+@@ -192,12 +192,38 @@
+     for (int i = 0; i < 200; i++) nanosleep(&t, NULL);
+     _exit(128 + sig);
+ }
++// RewindBox guest (runtime/src/rb_guest.c, engine loaded by another app): the action each signal had before s2a_crash_install, kept only
++//   in a guest. A fault that is not the engine's goes to it (rb_chain), and the crash report re-raises through it instead of SIG_DFL.
++//   In S2Arm.app nothing is kept: both paths below behave as before. The weak default is that case (rb_guest.c not linked)
++__attribute__((weak)) int s2a_rb_guest_on(void) { return 0; }
++static const int g_rb_sigs[] = {SIGSEGV, SIGBUS, SIGILL, SIGTRAP, SIGFPE, SIGABRT};   // same set as s2a_crash_install
++static struct sigaction g_rb_prev[sizeof g_rb_sigs / sizeof *g_rb_sigs]; static volatile sig_atomic_t g_rb_prev_ok[sizeof g_rb_sigs / sizeof *g_rb_sigs];
++static const struct sigaction *rb_prev(int sig) {   // signal-safe
++    for (size_t i = 0; i < sizeof g_rb_sigs / sizeof *g_rb_sigs; i++) if (g_rb_sigs[i] == sig) return g_rb_prev_ok[i] ? &g_rb_prev[i] : NULL;
++    return NULL;
++}
++// Not claimed by the engine's own paths above it in on_crash, and pc neither in the game's modules nor in the engine's own code: the host's
++//   fault (or another engine's). Called as the kernel would call it (its mask, plus this signal unless SA_NODEFER); 1 = it returned, so the
++//   faulting instruction runs again as after any handler. 0 = no previous handler: the engine's crash report, as in S2Arm
++static int rb_chain(int sig, siginfo_t *si, void *ctx) {
++    const struct sigaction *old = rb_prev(sig);
++    if (!old || old->sa_handler == SIG_DFL || old->sa_handler == SIG_IGN) return 0;
++    uint64_t pc = ((ucontext_t *)ctx)->uc_mcontext->__ss.__pc;
++    if (module_of((void *)(uintptr_t)pc) || sw_is_host_code(pc)) return 0;
++    sigset_t block = old->sa_mask, saved;
++    if (!(old->sa_flags & SA_NODEFER)) sigaddset(&block, sig);
++    pthread_sigmask(SIG_BLOCK, &block, &saved);
++    if (old->sa_flags & SA_SIGINFO) old->sa_sigaction(sig, si, ctx); else old->sa_handler(sig);
++    pthread_sigmask(SIG_SETMASK, &saved, NULL);
++    return 1;
++}
+ // 现场写完后按默认处置重新抛一次同一信号（#141 玩家提议）：进程以「被信号结束」收场，macOS 的 ReportCrash 生成带完整回溯的 .ips
+ //   （控制台「崩溃报告」/ ~/Library/Logs/DiagnosticReports），iOS 进系统崩溃日志——原先 _exit(128 + sig) 是正常退出，系统不出报告。
+ //   处理函数里本信号是屏蔽的，先放开再抛；万一没结束（不该发生）照旧 _exit(128 + sig)。
+ //   读退出码的地方：shell 里被信号结束的 $? 仍是 128 + sig；作业层 Context.run 把 Python 的负返回码折回 128 + sig（pack/jobs/core.py）
+ static void crash_reraise(int sig) {
+-    signal(sig, SIG_DFL);
++    const struct sigaction *old = rb_prev(sig);   // RewindBox guest: back to the action that was there before the engine's
++    if (old) sigaction(sig, old, NULL); else signal(sig, SIG_DFL);
+     sigset_t m; sigemptyset(&m); sigaddset(&m, sig); pthread_sigmask(SIG_UNBLOCK, &m, NULL);
+     raise(sig);
+     _exit(128 + sig);
+@@ -255,6 +281,7 @@
+         { int s2a_det_watch_fault(uint64_t, uint64_t, uint64_t, uint64_t); ucontext_t *u = ctx;   // 确定性诊断写监视（S2A_DET_WATCH）
+           if ((esr >> 6 & 1) && s2a_det_watch_fault((uint64_t)si->si_addr, u->uc_mcontext->__ss.__pc, u->uc_mcontext->__ss.__lr, u->uc_mcontext->__ss.__fp)) return; }
+     }
++    if (rb_chain(sig, si, ctx)) return;   // RewindBox guest: not the engine's fault, the host's handler took it (no-op in S2Arm.app)
+     ucontext_t *uc = ctx; pthread_t self = pthread_self(), none = NULL;
+     if (!atomic_compare_exchange_strong(&g_crash_owner, &none, self)) {
+         if (pthread_equal(none, self)) _exit(128 + sig);   // 先崩的线程在写报告时自己又崩
+@@ -296,7 +323,14 @@
+ void s2a_crash_install(void) {
+     int sigs[] = {SIGSEGV, SIGBUS, SIGILL, SIGTRAP, SIGFPE, SIGABRT};   // SIGABRT：die() 与 C# FailFast 都走 abort，要现场
+     g_dsh_crash_dump = (void (*)(void))dlsym(RTLD_DEFAULT, "s2a_dsh_crash_dump");
++    int guest = s2a_rb_guest_on();
++    if (guest) (void)sw_is_host_code(0);   // RewindBox guest: its __TEXT range is looked up here once, never first inside a handler (rb_chain)
+     for (size_t i = 0; i < sizeof sigs / sizeof *sigs; i++) {
++        // RewindBox guest: keep the action installed before the engine's (the host's crash reporter, another engine's handler)
++        for (size_t k = 0; guest && k < sizeof g_rb_sigs / sizeof *g_rb_sigs; k++) {
++            struct sigaction old;
++            if (g_rb_sigs[k] == sigs[i] && !g_rb_prev_ok[k] && !sigaction(sigs[i], NULL, &old) && old.sa_sigaction != on_crash) { g_rb_prev[k] = old; g_rb_prev_ok[k] = 1; }
++        }
+         int e = plat_fault_install(sigs[i], on_crash, PLAT_FAULT_ONSTACK);
+         if (e) LOG("【红】崩溃：安装信号 %d 失败 errno=%d", sigs[i], e);
+     }

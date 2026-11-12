@@ -77,10 +77,16 @@ def main() -> None:
                    '_touch.userInteractionEnabled = NO;', '[self.owner setUserPaused:YES];',
                    'XeniaTouchControlsRegisterPreview();', 'NeoTouchControllerPreferenceDidChangeNotification',
                    "NeoTouchLayoutText(@\"editTouchControls\", self.locale)",
-                   '[self text:@"resume" fallback:', '[self text:@"quit" fallback:'):
+                   'initWithTitle:self.gameTitle', 'host:self];'):
         if needed not in PLUGIN:
             fail(f'session lacks: {needed}')
-    if 'accessibilityLabel = @"Resume"' in PLUGIN or 'actionWithTitle:@"▶︎"' in PLUGIN:
+    # The in-game menu (XeniaSessionMenu.mm, opened by the session): labels from Dart's texts.
+    menu = (CLASSES / 'XeniaSessionMenu.mm').read_text()
+    for needed in ('[self text:@"resume" fallback:', '[self text:@"quit" fallback:',
+                   '[self text:@"touchControls" fallback:', 'sessionMenuEditTouchControls'):
+        if needed not in menu:
+            fail(f'in-game menu lacks: {needed}')
+    if 'accessibilityLabel = @"Resume"' in PLUGIN + menu or 'actionWithTitle:@"▶︎"' in PLUGIN + menu:
         fail('the in-game menu must use localized labels')
     if "s.dependency 'neo_touch_layout'" not in (ROOT / 'packages/xenia_internal_bridge/ios/xenia_internal_bridge.podspec').read_text():
         fail('the bridge pod does not depend on neo_touch_layout')

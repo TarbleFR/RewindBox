@@ -55,7 +55,8 @@ void main() {
     ).readAsStringSync();
 
     expect(dialog, contains('_showsRecursiveScan'));
-    expect(dialog, contains("{'gc', 'wii', 'ps2', 'ps3'}"));
+    // Switch 2 joined the embedded libraries without a recursive scan (6d492d75).
+    expect(dialog, contains("{'gc', 'wii', 'ps2', 'ps3', 'switch2'}"));
     expect(tabs, contains('if (_showsRecursiveScan)'));
     expect(list, contains('Armsx2MultiDeleteDialog.show'));
     expect(deletion, contains('linkedArmsx2GameFolderPath'));

@@ -68,20 +68,52 @@ abstract final class XeniaInternalBridge {
 
   static final StreamController<Map<String, dynamic>> _sessionEvents =
       StreamController<Map<String, dynamic>>.broadcast();
+  static final StreamController<Map<String, String>> _settingChanges =
+      StreamController<Map<String, String>>.broadcast();
+  static final StreamController<String> _overlayChanges =
+      StreamController<String>.broadcast();
   static bool _handlerInstalled = false;
 
   static void _ensureHandler() {
     if (_handlerInstalled) return;
     _handlerInstalled = true;
     _channel.setMethodCallHandler((call) async {
-      if (call.method != 'sessionEvent') return;
       final arguments = call.arguments;
-      _sessionEvents.add(
-        arguments is Map
-            ? Map<String, dynamic>.from(arguments)
-            : const <String, dynamic>{'event': 'unknown'},
-      );
+      switch (call.method) {
+        case 'sessionEvent':
+          _sessionEvents.add(
+            arguments is Map
+                ? Map<String, dynamic>.from(arguments)
+                : const <String, dynamic>{'event': 'unknown'},
+          );
+        case 'settingChanged':
+          if (arguments is Map &&
+              arguments['key'] is String &&
+              arguments['value'] is String) {
+            _settingChanges.add(<String, String>{
+              'key': arguments['key'] as String,
+              'value': arguments['value'] as String,
+            });
+          }
+        case 'overlayChanged':
+          if (arguments is Map && arguments['level'] is String) {
+            _overlayChanges.add(arguments['level'] as String);
+          }
+      }
+      return null;
     });
+  }
+
+  /// `{key, value}` of a per-game cvar the player changed in the in-game menu.
+  static Stream<Map<String, String>> get settingChanges {
+    _ensureHandler();
+    return _settingChanges.stream;
+  }
+
+  /// Performance overlay level (`off`, `simple`, `detailed`) chosen in game.
+  static Stream<String> get overlayChanges {
+    _ensureHandler();
+    return _overlayChanges.stream;
   }
 
   /// `event`: launched, firstFrame, paused, resumed, ended (with `reason`),
@@ -125,6 +157,7 @@ abstract final class XeniaInternalBridge {
     String? touchGameKey,
     String locale = 'en',
     Map<String, String> texts = const <String, String>{},
+    String overlay = 'off',
   }) async {
     _ensureHandler();
     try {
@@ -137,6 +170,7 @@ abstract final class XeniaInternalBridge {
             'touchGameKey': touchGameKey,
             'locale': locale,
             'texts': texts,
+            'overlay': overlay,
             ...directories,
           });
       return Map<String, dynamic>.from(result ?? const {});
