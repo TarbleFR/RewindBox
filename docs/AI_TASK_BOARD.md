@@ -6391,6 +6391,14 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   record: no delivered IPA compiled libchdr without its notice; the defect was the deferred, unreviewed path that the
   raw tree's legal check refused. Merged Claude 4f5a3045 (d56ece4aa): legal check, build_source_evidence,
   legal_bundle_preflight, s2arm legal bundle and modifications notice OK.
+  IPA 732 delivered (run 43289133482, IPA 97952e98, Xenia identity c7d6a5c4, Legal XeniOS 6/6). Its first request
+  failed on two S2Arm tests this lot broke and had not run (s2arm_jit_helper: the helper's copy record lacked the new
+  LICENSE; s2arm_legal_review: the engine review was no longer the last pubspec review); main fixed both (67645447).
+  Merged Claude 85ca8948 (1ebe3498a). Every test/*_test.py (863) run on this head and on Claude d5cf7fcc (before the
+  lot): no test that passed before fails; 7 differ, all fixes or new tests (build_source_evidence, legal_bundle_
+  preflight, ambient_music_loop, melonx_moltenvk_drawable_ownership, and the new legal_modifications_notice,
+  xenia_embedding, s2arm_store_bench). Rule kept: a shared-layer change runs the whole Python suite against Claude
+  before its handoff.
 - **Validation (Flutter 3.47.2 host):** 11 Nov: XeniOS + catalog/Consoles/touch suites
   91/91, scanner suites 41/41 (1 skip), storage contract 24/24, patch/validator/touch/C++
   checks OK, analyzer 111 = baseline. Earlier: new XeniOS + catalog/Consoles tests 65/65;
