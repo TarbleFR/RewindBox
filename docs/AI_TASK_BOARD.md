@@ -6141,6 +6141,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   built Cores or the macOS toolchain here); the 58 RPCS3/MeloNX/StikJIT/Switch Dart files, 507 tests, the same
   4 pre-existing failures (RPCS3 Build 231 x2, rpcs3_saves_locale export report, French lead sentence); delivery
   contract the same 2 errors; storage contract OK on both.
+  Run 43217888486 (d7ad7e834): checks, plugin_app and core green (compiled, verify_core.py passed, artifact
+  uploaded through the protected action, 12:33-13:03); pinned next.
 - **Validation (Flutter 3.47.2 host):** 11 Nov: XeniOS + catalog/Consoles/touch suites
   91/91, scanner suites 41/41 (1 skip), storage contract 24/24, patch/validator/touch/C++
   checks OK, analyzer 111 = baseline. Earlier: new XeniOS + catalog/Consoles tests 65/65;
