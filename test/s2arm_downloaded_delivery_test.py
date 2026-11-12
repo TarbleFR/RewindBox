@@ -1,24 +1,26 @@
 #!/usr/bin/env python3
-"""The S2Arm conditional of build-utils/verify_downloaded_delivery.py, run through verify() on synthetic deliveries.
+"""build-utils/verify_downloaded_delivery.py with the S2Arm entry of IDENTITY_ENGINES, run through verify().
 
     python3 -B test/s2arm_downloaded_delivery_test.py
 
-The offline verifier of a downloaded delivery counts the application and its extensions (a closed count: eight
-bundles) before it checks their versions. verify() runs here end to end on a synthetic decrypted delivery, with only
-what needs the network, the private key, openssl, a git history or a macOS runner replaced (the saved API binding,
-the transport parts, the key match, the decryption, the base and image checks of the recipe, the effective checkout,
-the six offline validators): every check of the IPA itself runs.
-Without S2Arm-native-identity.json: the same report bytes, or the same refusal, as the common line's verifier (git blob
-below, when this clone has it) and as the current file with its S2Arm statements removed from the syntax tree (the
-import and the branch, replaced by its else statement, which must be that blob's program), on common deliveries (eight
-bundles, seven, nine, a stray S2Arm helper, an identity file elsewhere, wrong versions, a changed packaged identity).
-With it: nine bundles with S2ArmJITHelper.appex pass (reported with their versions); eight, or nine without the helper,
-and a helper of another build are refused.
+The offline verifier of a downloaded delivery counts the application and its extensions (eight bundles, plus the
+helper of each engine whose identity file is packaged: session 03's design, Claude c0aae729) before it checks their
+versions, and requires the packaged identity files to be exactly those of the manifest's pinned-engine components,
+each naming its pin and carrying its pinned payload. verify() runs here end to end on a synthetic decrypted delivery,
+with only what needs the network, the private key, openssl, a git history or a macOS runner replaced (the saved API
+binding, the transport parts, the key match, the decryption, the base and image checks of the recipe, the effective
+checkout, the six offline validators): every check of the IPA itself runs.
+The file is the common line's (git blob below): S2Arm enters only through its entry of IDENTITY_ENGINES. Without
+S2Arm-native-identity.json: the same report bytes, or the same refusal, as the same verifier without that entry, on
+common deliveries (eight bundles, seven, nine, a stray S2Arm helper, an identity file elsewhere, wrong versions, a
+changed packaged identity).
+With it and the manifest's s2arm pinned engine: nine bundles with S2ArmJITHelper.appex pass (reported with their
+versions); eight, or nine without the helper, and a helper of another build are refused, as are an identity without
+the component, the component without the identity and an engine image that is not the pinned payload.
 """
 from __future__ import annotations
 
 import argparse
-import ast
 import hashlib
 import json
 import plistlib
@@ -41,11 +43,11 @@ import validate_single_ipa_distribution as distribution  # noqa: E402
 import single_ipa_distribution_test as fixtures  # noqa: E402
 import verify_downloaded_delivery as verifier  # noqa: E402
 from rewind607_delivery import zip_payloads  # noqa: E402
+from delivery_benchmark import payload_fingerprint  # noqa: E402
 
 PATH = 'build-utils/verify_downloaded_delivery.py'
-# The verifier of the common line before the S2Arm statements (origin/Claude at 41c76404; same blob on this branch's
-# base ba04c914).
-PRE_CHANGE_BLOB = '292a92ad329c5b5e206f91c8b42c603741afd794'
+# The verifier of the common line with the identity table (origin/Claude at b4ef45fc): this branch keeps its bytes.
+COMMON_BLOB = 'fd2f06a574e346e41b91b6d97e3e48e83cb4a491'
 APP = recipe.APP_ROOT
 BUILD, VERSION, SOURCE = 803, '0.0.8', 'a' * 40
 HELPER = 'PlugIns/S2ArmJITHelper.appex/Info.plist'
@@ -56,6 +58,12 @@ MELONX_PIN = dict(source='b' * 40, binaries={'ios-arm64': dict(sha256='c' * 64)}
 RPCS3_PIN = dict(exports=dict(added=['rpcs3_ios_fixture_export']))
 SCRIPT = b'// melonx-universal.js fixture\n'
 RECIPIENT = b'-----BEGIN PUBLIC KEY-----\nfixture\n-----END PUBLIC KEY-----\n'
+S2ARM_PIN_PATH = 'build-utils/s2arm/engine-pin.json'
+S2ARM_ENGINE = 'Frameworks/S2ArmEngine.framework/S2ArmEngine'
+S2ARM_IMAGE = fixtures.packaging_image({}, filetype=6, symbols={'_s2a_rb_guest_start'})
+S2ARM_PIN = dict(status='verified', packagedFingerprint=payload_fingerprint(S2ARM_IMAGE))
+S2ARM_COMPONENT = dict(mode='pinned-engine', pin=S2ARM_PIN_PATH, identityFile=distribution.S2ARM_IDENTITY,
+                       image=S2ARM_ENGINE)
 # One date for every IPA entry: the report holds the IPA's SHA-256, so two builds of the same members must give the
 # same bytes (ZipFile.writestr would date each entry with the clock, two seconds per step).
 ENTRY_TIME = (2026, 11, 11, 0, 0, 0)
@@ -65,44 +73,8 @@ def sha(data):
     return hashlib.sha256(data).hexdigest()
 
 
-def module_from(source, name):
-    module = types.ModuleType(name)
-    module.__file__ = str(ROOT / PATH)
-    exec(compile(source, str(ROOT / PATH), 'exec'), module.__dict__)
-    return module
-
-
-def pre_change_source():
-    result = subprocess.run(['git', 'cat-file', 'blob', PRE_CHANGE_BLOB], cwd=ROOT, capture_output=True)
-    return result.stdout.decode() if result.returncode == 0 else None
-
-
-def is_s2arm(node):
-    return any(isinstance(child, ast.Name) and child.id.startswith('S2ARM_') for child in ast.walk(node))
-
-
-def stripped_tree():
-    """The verifier's syntax tree without its S2Arm import, and with its S2Arm branch replaced by the else statement."""
-    tree = ast.parse((ROOT / PATH).read_text())
-    imports = [node for node in tree.body if isinstance(node, ast.ImportFrom) and
-               all(alias.name.startswith('S2ARM_') for alias in node.names)]
-    tree.body = [node for node in tree.body if node not in imports]
-    replaced = 0
-    for holder in ast.walk(tree):
-        body = getattr(holder, 'body', None)
-        if not isinstance(body, list):
-            continue
-        new = []
-        for node in body:
-            if isinstance(node, ast.If) and is_s2arm(node.test):
-                new += node.orelse
-                replaced += 1
-            else:
-                new.append(node)
-        holder.body = new
-    if len(imports) != 1 or replaced != 1 or is_s2arm(tree):
-        raise AssertionError(f'unexpected S2Arm statements: {len(imports)} imports, {replaced} branches')
-    return tree
+def file_blob():
+    return subprocess.run(['git', 'hash-object', str(ROOT / PATH)], capture_output=True, text=True, check=True).stdout.strip()
 
 
 def bundle(version=str(BUILD), marketing=VERSION):
@@ -145,8 +117,12 @@ def with_helper(members, **versions):
     return changed(members, **{APP + HELPER: bundle(**versions)})
 
 
-def with_identity(members, path=APP + distribution.S2ARM_IDENTITY):
-    return changed(members, **{path: json.dumps({'schema': 1, 'engine': 'S2Arm'}).encode()})
+def with_identity(members, path=APP + distribution.S2ARM_IDENTITY, image=S2ARM_IMAGE):
+    """The identity the pinned-engine embed step writes, and the engine images it packages."""
+    record = {'component': 's2arm', 'pinSha256': sha(json.dumps(S2ARM_PIN).encode()),
+              'packagedFingerprint': S2ARM_PIN['packagedFingerprint']}
+    return changed(members, **{path: json.dumps(record).encode(), APP + S2ARM_ENGINE: image,
+                               APP + 'Frameworks/NS2Pro.framework/NS2Pro': fixtures.packaging_image({}, filetype=6)})
 
 
 def s2arm_delivery():
@@ -158,7 +134,8 @@ class FakeRepo:
         self.files = {recipe.manifest_path(BUILD): json.dumps(manifest).encode(), manifest['recipient']['path']: RECIPIENT,
                       'pubspec.yaml': f'name: rewindbox\nversion: {VERSION}+{BUILD}\n'.encode(),
                       'build-utils/melonx/core-pin.json': json.dumps(MELONX_PIN).encode(),
-                      'build-utils/rpcs3/core-pin.json': json.dumps(RPCS3_PIN).encode()}
+                      'build-utils/rpcs3/core-pin.json': json.dumps(RPCS3_PIN).encode(),
+                      S2ARM_PIN_PATH: json.dumps(S2ARM_PIN).encode()}
 
     def show(self, ref, path):
         assert ref == SOURCE, ref
@@ -168,18 +145,26 @@ class FakeRepo:
         return 'e' * 40
 
 
-def manifest():
-    return dict(status='frozen', build=BUILD, recipient=dict(path=f'build-utils/delivery-{BUILD}-recipient.pem',
+def manifest(s2arm=False):
+    value = dict(status='frozen', build=BUILD, recipient=dict(path=f'build-utils/delivery-{BUILD}-recipient.pem',
                                                              sha256=sha(RECIPIENT)),
                 tests={group: dict(mode='fresh') for group in recipe.TEST_GROUPS},
                 components=dict(dolphin=dict(image=COMPONENTS['dolphin']), armsx2=dict(image=COMPONENTS['armsx2']),
                                 rpcs3=dict(image=COMPONENTS['rpcs3'], pin='build-utils/rpcs3/core-pin.json'),
                                 melonx=dict(pin='build-utils/melonx/core-pin.json')),
                 images=dict(replacedFingerprints={}), product=dict(restore={}))
+    if s2arm:
+        value['components']['s2arm'] = dict(S2ARM_COMPONENT)
+    return value
 
 
-def outcome(module, members, receipt=None):
-    """verify() of `module` on one decrypted delivery holding these IPA members: the report bytes, or the refusal."""
+def outcome(module, members, receipt=None, s2arm=False, entry=True):
+    """verify() of `module` on one decrypted delivery holding these IPA members: the report bytes, or the refusal.
+    `s2arm`: the manifest declares the s2arm pinned engine; `entry`: IDENTITY_ENGINES keeps the S2Arm entry."""
+    if not entry:
+        with mock.patch.dict(distribution.IDENTITY_ENGINES):
+            del distribution.IDENTITY_ENGINES[distribution.S2ARM_IDENTITY]
+            return outcome(module, members, receipt, s2arm)
     with tempfile.TemporaryDirectory(prefix='s2arm-downloaded-delivery-') as directory:
         root = Path(directory)
         ipa_name = f'RewindBox-Build{BUILD}-{SOURCE}-cold.ipa'
@@ -196,7 +181,7 @@ def outcome(module, members, receipt=None):
         validation = dict(result='passed', ipaSHA256=sha(raw), ipaBytes=len(raw), identity=receipt or identity())
         work, report = root / 'work', root / 'report.json'
         work.mkdir()
-        value = manifest()
+        value = manifest(s2arm)
         jobs = {name: dict(id=index + 1, conclusion='success') for index, name in enumerate(recipe.JOB_NAMES)}
 
         def decrypt(payload, envelope, key, target):
@@ -219,7 +204,7 @@ def outcome(module, members, receipt=None):
             TEST_GROUPS=recipe.TEST_GROUPS, artifact_name=recipe.artifact_name, sha_file=recipe.sha_file,
             verify_base=lambda item, read: dict(images),
             check_images=lambda actual, base, item: dict(changedFromBase=[], undeclaredChanges=[], retainedVerified=len(actual)),
-            APP_ROOT=recipe.APP_ROOT, IDENTITY=recipe.IDENTITY)
+            APP_ROOT=recipe.APP_ROOT, IDENTITY=recipe.IDENTITY, engine_components=recipe.engine_components)
         replaced = dict(
             sd=proxy,
             api_binding=lambda api, build, repo: (dict(head_sha=SOURCE, id=4310, run_attempt=1, conclusion='success'), jobs,
@@ -256,61 +241,60 @@ def common_cases():
 
 
 class WithoutTheIdentityFile(unittest.TestCase):
-    def test_the_change_is_one_import_and_one_branch_whose_else_is_the_common_statement(self):
-        source = pre_change_source()
-        if source is None:
-            self.skipTest('the common line blob is not in this clone')
-        self.assertEqual(ast.dump(stripped_tree()), ast.dump(ast.parse(source)))
+    def test_the_file_is_the_common_line_file(self):
+        self.assertEqual(file_blob(), COMMON_BLOB)
+        self.assertNotIn('S2ARM', (ROOT / PATH).read_text())
+        self.assertIs(verifier.IDENTITY_ENGINES, distribution.IDENTITY_ENGINES)
 
-    def test_same_report_or_refusal_as_the_common_line_verifier(self):
-        references = {'stripped': module_from(stripped_tree(), 'verify_downloaded_delivery_stripped')}
-        source = pre_change_source()
-        if source is not None:
-            references['common line blob'] = module_from(source, 'verify_downloaded_delivery_common')
+    def test_same_report_or_refusal_as_without_the_s2arm_entry(self):
         for name, (members, kind) in common_cases().items():
             actual = outcome(verifier, members)
             self.assertEqual(actual[0], kind, name + ': ' + actual[1][:300])
-            for label, reference in references.items():
-                with self.subTest(case=name, reference=label):
-                    self.assertEqual(actual, outcome(reference, members))
+            with self.subTest(case=name):
+                self.assertEqual(actual, outcome(verifier, members, entry=False))
         self.assertEqual(outcome(verifier, common_cases()['one extension missing'][0]),
                          ('refused', 'VERIFICATION FAILED: Wrong bundle versions'))
         report = json.loads(outcome(verifier, common_delivery())[1])
         self.assertEqual((report['result'], report['binaryValidation']['bundleCount']), ('passed-offline-checks', 8))
-        self.assertEqual(len(references), 1 + (source is not None))
 
 
 class WithTheIdentityFile(unittest.TestCase):
     def test_the_s2arm_delivery_passes_with_its_eighth_extension(self):
-        kind, text = outcome(verifier, s2arm_delivery())
+        kind, text = outcome(verifier, s2arm_delivery(), s2arm=True)
         self.assertEqual(kind, 'report', text)
         validation = json.loads(text)['binaryValidation']
         self.assertEqual(validation['bundleCount'], 9)
         self.assertEqual(validation['versions'][HELPER], dict(CFBundleIdentifier='com.neogamelab.neostation',
                                                               CFBundleVersion=str(BUILD), CFBundleShortVersionString=VERSION,
                                                               MinimumOSVersion=None))
-        refused = ('refused', 'VERIFICATION FAILED: Wrong bundle versions')
-        self.assertEqual(outcome(module_from(stripped_tree(), 'verify_downloaded_delivery_stripped'), s2arm_delivery()),
-                         refused)
-        source = pre_change_source()
-        if source is not None:
-            self.assertEqual(outcome(module_from(source, 'verify_downloaded_delivery_common'), s2arm_delivery()), refused)
+        self.assertEqual(outcome(verifier, s2arm_delivery(), s2arm=True, entry=False), (
+            'refused', 'VERIFICATION FAILED: The packaged engine identities differ from the pinned engines of the manifest'))
 
     def test_the_count_the_helper_and_its_versions_are_required(self):
-        refused = ('refused', 'VERIFICATION FAILED: Wrong bundle versions (S2Arm identity: the application and its eight '
-                              'extensions, S2ArmJITHelper.appex included)')
+        missing = ('refused', 'VERIFICATION FAILED: Missing engine helper')
+        wrong = ('refused', 'VERIFICATION FAILED: Wrong bundle versions')
         common = with_identity(common_delivery())
         cases = {
-            'eight bundles, no S2Arm helper': common,
-            'nine bundles, another extension instead of the helper': changed(
-                common, **{APP + 'PlugIns/Other.appex/Info.plist': bundle()}),
-            'ten bundles': changed(s2arm_delivery(), **{APP + 'PlugIns/Other.appex/Info.plist': bundle()}),
-            'the helper of another build': with_identity(with_helper(common_delivery(), version='802')),
-            'the helper of another version': with_identity(with_helper(common_delivery(), marketing='0.0.7')),
+            'eight bundles, no S2Arm helper': (common, missing),
+            'nine bundles, another extension instead of the helper': (changed(
+                common, **{APP + 'PlugIns/Other.appex/Info.plist': bundle()}), missing),
+            'ten bundles': (changed(s2arm_delivery(), **{APP + 'PlugIns/Other.appex/Info.plist': bundle()}), wrong),
+            'the helper of another build': (with_identity(with_helper(common_delivery(), version='802')), wrong),
+            'the helper of another version': (with_identity(with_helper(common_delivery(), marketing='0.0.7')), wrong),
         }
-        for name, members in cases.items():
+        for name, (members, refused) in cases.items():
             with self.subTest(case=name):
-                self.assertEqual(outcome(verifier, members), refused)
+                self.assertEqual(outcome(verifier, members, s2arm=True), refused)
+
+    def test_the_identity_is_the_pinned_engine_of_the_manifest(self):
+        differ = ('refused', 'VERIFICATION FAILED: The packaged engine identities differ from the pinned engines of the '
+                             'manifest')
+        self.assertEqual(outcome(verifier, s2arm_delivery()), differ, 'an identity without the component')
+        self.assertEqual(outcome(verifier, with_helper(common_delivery()), s2arm=True), differ,
+                         'the component without the identity')
+        other = fixtures.packaging_image({}, filetype=6, symbols={'_other'})
+        self.assertEqual(outcome(verifier, with_identity(with_helper(common_delivery()), image=other), s2arm=True),
+                         ('refused', 'VERIFICATION FAILED: The packaged s2arm engine is not its pinned payload'))
 
 
 if __name__ == '__main__':

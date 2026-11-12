@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
-"""The S2Arm conditional of the version check of .github/workflows/standard-delivery.yml, executed.
+"""The S2Arm entry of ENGINE_HELPERS in the version check of .github/workflows/standard-delivery.yml, executed.
 
     python3 -B test/s2arm_version_check_test.py
 
 The step "Verify final signed legal bundle and application and extension versions" counts the application and its
-extensions in the signed IPA (a closed count: the application and its seven extensions) and checks their versions. Its
-Python (the PYVERSION here-document) is taken from the workflow as the recipe's YAML parser reads it and run on synthetic
-IPAs the way the step runs it: python3 reading it on stdin, in a directory holding pubspec.yaml, dist/<IPA_NAME>.ipa and
-build/delivery, with BUILD_NUMBER and IPA_NAME set.
-Without S2Arm-native-identity.json: same exit status, same assertion and the same version-validation.json bytes as the
-common line's step (the workflow blob below, when this clone has it) and as the current step with its S2Arm branch
-replaced by its else branch in the syntax tree (which must be that blob's program), on common IPAs (the eight bundles,
+extensions in the signed IPA (the application, its seven extensions and the helper of each engine whose identity file
+is packaged: session 03's design, Claude c0aae729) and checks their versions. Its Python (the PYVERSION here-document)
+is taken from the workflow as the recipe's YAML parser reads it and run on synthetic IPAs the way the step runs it:
+python3 reading it on stdin, in a directory holding pubspec.yaml, dist/<IPA_NAME>.ipa and build/delivery, with
+BUILD_NUMBER and IPA_NAME set.
+S2Arm adds one entry to the step's literal table. Without S2Arm-native-identity.json: same exit status, same assertion
+and the same version-validation.json bytes as the common line's step (the workflow blob below, when this clone has it)
+and as the current step without that entry (which must be that blob's program), on common IPAs (the eight bundles,
 seven, nine, a stray S2Arm helper, an identity file elsewhere, wrong versions, two applications).
 With it: the application and eight extensions, S2ArmJITHelper.appex among them, pass; eight bundles, or nine without that
 helper, or ten, are refused; every bundle's versions are still checked.
@@ -37,8 +38,9 @@ import validate_single_ipa_distribution as distribution  # noqa: E402
 import standard_delivery as recipe  # noqa: E402
 
 WORKFLOW = '.github/workflows/standard-delivery.yml'
-# The common workflow before the S2Arm branch (origin/Claude at 41c76404; same blob on this branch's base ba04c914).
-PRE_CHANGE_BLOB = 'a38fa3ccb69e4a0088e012eb340e76767089a84a'
+# The common workflow with the identity table, before the S2Arm entry (origin/Claude at b4ef45fc).
+PRE_CHANGE_BLOB = '83a6da3d9915995eff1e8f78088e4f94da8f9525'
+ENTRY = ", 'S2Arm-native-identity.json': ['S2ArmJITHelper.appex']"
 STEP = 'Verify final signed legal bundle and application and extension versions'
 OPEN, CLOSE = "python3 - <<'PYVERSION'\n", '\nPYVERSION\n'
 APP = 'Payload/NeoStation.app/'
@@ -46,8 +48,9 @@ HELPER = 'PlugIns/S2ArmJITHelper.appex/Info.plist'
 # The seven extensions of the common IPA: the closed set of the distribution validator and MeloNX's two.
 COMMON_EXTENSIONS = sorted(distribution.EXPECTED_EXTENSIONS) + ['MeloNXJITHelper.appex', 'MeloNXRamDonor.appex']
 BUILD, VERSION = '803', '0.0.8'
-SEVEN = 'AssertionError: Expected the application and its seven extensions'
-EIGHT = 'AssertionError: Expected the application and its eight extensions (S2ArmJITHelper included)'
+SEVEN = 'AssertionError: Expected the application, its seven extensions and []'
+EIGHT = "AssertionError: Expected the application, its seven extensions and ['S2ArmJITHelper.appex']"
+MISSING = 'AssertionError: Missing engine helper S2ArmJITHelper.appex'
 
 
 def step_script(text):
@@ -63,29 +66,11 @@ def pre_change_text():
     return result.stdout.decode() if result.returncode == 0 else None
 
 
-def mentions_identity(node):
-    return any(isinstance(child, ast.Constant) and child.value == distribution.S2ARM_IDENTITY for child in ast.walk(node))
-
-
-def stripped_tree(script):
-    """The step's syntax tree with its S2Arm branch replaced by the else branch (the common statement)."""
-    tree = ast.parse(script)
-    replaced = 0
-    for holder in ast.walk(tree):
-        body = getattr(holder, 'body', None)
-        if not isinstance(body, list):
-            continue
-        new = []
-        for node in body:
-            if isinstance(node, ast.If) and mentions_identity(node.test):
-                new += node.orelse
-                replaced += 1
-            else:
-                new.append(node)
-        holder.body = new
-    if replaced != 1 or any(mentions_identity(node) for node in ast.walk(tree)):
-        raise AssertionError(f'unexpected S2Arm statements in the step: {replaced} branches')
-    return tree
+def stripped_script(script):
+    """The step without the S2Arm entry of its ENGINE_HELPERS table."""
+    if script.count(ENTRY) != 1:
+        raise AssertionError('the step does not carry the S2Arm entry exactly once')
+    return script.replace(ENTRY, '')
 
 
 def bundle(version=BUILD, marketing=VERSION, identifier='com.neogamelab.neostation'):
@@ -164,14 +149,14 @@ class WithoutTheIdentityFile(unittest.TestCase):
         text = pre_change_text()
         cls.common_script = step_script(text) if text is not None else None
 
-    def test_the_change_is_one_branch_whose_else_is_the_common_statement(self):
+    def test_the_change_is_one_table_entry(self):
         if self.common_script is None:
             self.skipTest('the common line blob is not in this clone')
-        self.assertEqual(ast.dump(stripped_tree(self.script)), ast.dump(ast.parse(self.common_script)))
-        self.assertIn('assert len(bundles) == 8, "Expected the application and its seven extensions"', self.script)
+        self.assertEqual(ast.dump(ast.parse(stripped_script(self.script))), ast.dump(ast.parse(self.common_script)))
+        self.assertIn('assert len(bundles) == 8 + len(helpers)', self.script)
 
     def test_same_outcome_as_the_common_line_step(self):
-        references = {'stripped': ast.unparse(stripped_tree(self.script))}
+        references = {'stripped': stripped_script(self.script)}
         if self.common_script is not None:
             references['common line blob'] = self.common_script
         for name, (members, status, line) in common_cases().items():
@@ -206,23 +191,24 @@ class WithTheIdentityFile(unittest.TestCase):
         report = json.loads(raw)
         self.assertEqual(len(report['bundles']), 9)
         self.assertIn(APP + HELPER, report['bundles'])
+        self.assertEqual(run_step(stripped_script(self.script), s2arm_ipa())[:2], (1, SEVEN))
         if self.common_script is not None:
             self.assertEqual(run_step(self.common_script, s2arm_ipa())[:2], (1, SEVEN))
 
     def test_the_count_and_the_helper_are_required(self):
         common = with_identity(common_ipa())
         cases = {
-            'eight bundles, no S2Arm helper': common,
-            'nine bundles, another extension instead of the helper': changed(
-                common, **{APP + 'PlugIns/Other.appex/Info.plist': bundle()}),
-            'ten bundles, the helper and another extension': changed(
-                s2arm_ipa(), **{APP + 'PlugIns/Other.appex/Info.plist': bundle()}),
-            'the helper without one common extension': changed(
-                s2arm_ipa(), **{APP + f'PlugIns/{COMMON_EXTENSIONS[-1]}/Info.plist': None}),
+            'eight bundles, no S2Arm helper': (common, MISSING),
+            'nine bundles, another extension instead of the helper': (changed(
+                common, **{APP + 'PlugIns/Other.appex/Info.plist': bundle()}), MISSING),
+            'ten bundles, the helper and another extension': (changed(
+                s2arm_ipa(), **{APP + 'PlugIns/Other.appex/Info.plist': bundle()}), EIGHT),
+            'the helper without one common extension': (changed(
+                s2arm_ipa(), **{APP + f'PlugIns/{COMMON_EXTENSIONS[-1]}/Info.plist': None}), EIGHT),
         }
-        for name, members in cases.items():
+        for name, (members, line) in cases.items():
             with self.subTest(case=name):
-                self.assertEqual(run_step(self.script, members), (1, EIGHT, None))
+                self.assertEqual(run_step(self.script, members), (1, line, None))
 
     def test_the_versions_of_the_helper_are_checked(self):
         for versions in (dict(version='802'), dict(marketing='0.0.7')):

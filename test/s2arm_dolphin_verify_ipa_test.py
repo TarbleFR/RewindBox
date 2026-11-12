@@ -1,30 +1,29 @@
 #!/usr/bin/env python3
-"""The S2Arm conditional of packages/dolphin_internal_bridge/ci/verify_ipa.py, on synthetic IPAs.
+"""packages/dolphin_internal_bridge/ci/verify_ipa.py with the S2Arm entry of IDENTITY_ENGINES, on synthetic IPAs.
 
     python3 -B test/s2arm_dolphin_verify_ipa_test.py
 
 verify_ipa.validate is the closed extension set of the Dolphin packager (build_support.py package) and of the seal
-(delivery_benchmark.py). Without S2Arm-native-identity.json it behaves byte for byte as the common line's: same report
-bytes, same refusal messages, on a matrix of common IPAs (the Dolphin packaging fixture, a stray S2Arm helper, stray
-engine frameworks, an identity file elsewhere, MeloNX's own conditional, a missing helper, an empty file). Two
-references are used: the common line's file itself (git blob below, when this clone has it) and the current file with
-its S2Arm statements removed from the syntax tree (the three names it imports and the one conditional), which must be
-the same program as that blob: the diff only adds statements, and they run only behind the identity file.
+(delivery_benchmark.py). The file is the common line's (session 03's design, Claude c0aae729: git blob below): S2Arm
+enters only through its entry of validate_single_ipa_distribution.IDENTITY_ENGINES, which verify_ipa reads through
+identity_engine_helpers. The reference is the same validator with that entry removed from the table. Without
+S2Arm-native-identity.json at the app root it gives the same report bytes and refusal messages as the reference on a
+matrix of common IPAs (the Dolphin packaging fixture, a stray S2Arm helper, an identity file elsewhere, MeloNX's own
+conditional, a missing helper, an empty file), except that an S2Arm engine image packaged without the identity is
+refused, with that reason.
 With the identity file: S2ArmJITHelper.appex joins the closed set with the contract of the distribution validator
 (bundle suffix, share-services point, principal class, marker), its executable is checked like the other helpers'
-(arm64 iOS image, executable mode, the host's StikJIT resolved), and both engine frameworks are required, by the
-distribution validator that validate() calls first and by validate()'s own conditional (shown with the first one
+(arm64 iOS image, executable mode, the host's StikJIT resolved), and both engine images are required, by the
+distribution validator that validate() calls first and by validate()'s own check (shown with the first one
 stubbed out). Synthetic Mach-O only: no signature trust, no device.
 """
 from __future__ import annotations
 
-import ast
 import json
 import plistlib
 import subprocess
 import sys
 import tempfile
-import types
 import unittest
 from unittest import mock
 import zipfile
@@ -40,52 +39,38 @@ import single_ipa_distribution_test as fixtures  # noqa: E402
 import verify_ipa as validator  # noqa: E402
 
 PATH = 'packages/dolphin_internal_bridge/ci/verify_ipa.py'
-# verify_ipa.py of the common line before the S2Arm statements (origin/Claude at 41c76404; same blob on this branch's
-# base ba04c914).
-PRE_CHANGE_BLOB = '6032458096236bcf75fc007d208d4ba177dd3216'
+# verify_ipa.py of the common line with the identity table (origin/Claude at b4ef45fc): this branch keeps its bytes.
+COMMON_BLOB = '613eed254edce2cbaf54460a020be34a6a82136c'
+FRAMEWORKS = ('S2ArmEngine', 'NS2Pro')
 APP = fixtures.APP
 HELPER = APP + 'PlugIns/S2ArmJITHelper.appex/'
 DOLPHIN_HELPER = APP + 'PlugIns/DolphinJITHelper.appex/'
 MELONX_FRAMEWORKS = ('MeloNXCore', 'MeloNXMoltenVK', 'MeloNXSDL3', 'MeloNXAvCodec', 'MeloNXAvUtil', 'MeloNXJitSupport')
 
 
-def module_from(source, name):
-    """A module made from validator source text or syntax tree, under its own name (the shared one is untouched)."""
-    module = types.ModuleType(name)
-    module.__file__ = str(ROOT / PATH)
-    exec(compile(source, str(ROOT / PATH), 'exec'), module.__dict__)
-    return module
+def file_blob():
+    return subprocess.run(['git', 'hash-object', str(ROOT / PATH)], capture_output=True, text=True, check=True).stdout.strip()
 
 
-def pre_change_source():
-    result = subprocess.run(['git', 'cat-file', 'blob', PRE_CHANGE_BLOB], cwd=ROOT, capture_output=True)
-    return result.stdout.decode() if result.returncode == 0 else None
+def without_s2arm_entry():
+    """The closed-set table without the S2Arm entry, for every validator that reads it (one shared dict)."""
+    patch = mock.patch.dict(distribution.IDENTITY_ENGINES)
+    patch.start()
+    del distribution.IDENTITY_ENGINES[distribution.S2ARM_IDENTITY]
+    return patch
 
 
-def is_s2arm(node):
-    return any(isinstance(child, ast.Name) and child.id.startswith('S2ARM_') for child in ast.walk(node))
+def reference(members, plain=()):
+    patch = without_s2arm_entry()
+    try:
+        return outcome(validator, members, plain)
+    finally:
+        patch.stop()
 
 
-def stripped_tree():
-    """The current validator's syntax tree without its S2Arm statements: the imported names and the conditional."""
-    tree = ast.parse((ROOT / PATH).read_text())
-    names = 0
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom) and node.module == 'validate_single_ipa_distribution':
-            kept = [alias for alias in node.names if not alias.name.startswith('S2ARM_')]
-            names += len(node.names) - len(kept)
-            node.names = kept
-    conditionals = 0
-    for holder in ast.walk(tree):
-        body = getattr(holder, 'body', None)
-        if isinstance(body, list):
-            kept = [node for node in body if not (isinstance(node, ast.If) and is_s2arm(node.test))]
-            conditionals += len(body) - len(kept)
-            holder.body = kept
-    leftover = [node.id for node in ast.walk(tree) if isinstance(node, ast.Name) and node.id.startswith('S2ARM_')]
-    if names != 3 or conditionals != 1 or leftover:
-        raise AssertionError(f'unexpected S2Arm statements: {names} names, {conditionals} conditionals, {leftover}')
-    return tree
+def images_without_identity():
+    return 'DistributionError: ' + '; '.join(f'{image} is packaged without {distribution.S2ARM_IDENTITY}'
+                                             for image in distribution.S2ARM_IMAGES)
 
 
 def info(members, prefix):
@@ -108,7 +93,7 @@ def with_helper(members, change=None):
     return members
 
 
-def with_frameworks(members, names=distribution.S2ARM_FRAMEWORKS):
+def with_frameworks(members, names=FRAMEWORKS):
     """The engine frameworks as arm64 iOS dylibs; the engine links the other one through the host's rpath."""
     members = dict(members)
     for name in names:
@@ -183,39 +168,41 @@ def common_cases():
 
 
 EXPECTED_COMMON = {'Dolphin packaging IPA': 'report', 'stray S2Arm helper without identity': 'refused',
-                   'stray engine frameworks without identity': 'report', 'helper and frameworks without identity': 'refused',
+                   'stray engine frameworks without identity': 'refused', 'helper and frameworks without identity': 'refused',
                    'identity file outside the application root': 'refused', 'MeloNX conditional': 'report',
                    'MeloNX conditional and a stray S2Arm helper': 'refused', 'missing ARMSX2 helper': 'refused',
                    'empty file': 'refused'}
 
 
-class WithoutTheIdentityFile(unittest.TestCase):
-    def test_the_diff_only_adds_statements_behind_the_identity_file(self):
-        source = pre_change_source()
-        if source is None:
-            self.skipTest('the common line blob is not in this clone')
-        self.assertEqual(ast.dump(stripped_tree()), ast.dump(ast.parse(source)))
+IMAGES_WITHOUT_IDENTITY = {'stray engine frameworks without identity', 'helper and frameworks without identity',
+                           'identity file outside the application root'}
 
-    def test_same_bytes_as_the_common_line_validator(self):
-        references = {'stripped': module_from(stripped_tree(), 'verify_ipa_stripped')}
-        source = pre_change_source()
-        if source is not None:
-            references['common line blob'] = module_from(source, 'verify_ipa_common')
+
+class WithoutTheIdentityFile(unittest.TestCase):
+    def test_the_file_is_the_common_line_file(self):
+        self.assertEqual(file_blob(), COMMON_BLOB)
+        self.assertNotIn('S2ARM', (ROOT / PATH).read_text())
+        self.assertIs(validator.identity_engine_helpers, distribution.identity_engine_helpers)
+
+    def test_same_bytes_as_without_the_s2arm_entry(self):
         for name, members in common_cases().items():
             actual = outcome(validator, members)
             self.assertEqual(actual[0], EXPECTED_COMMON[name], name + ': ' + actual[1][:300])
-            for label, reference in references.items():
-                with self.subTest(case=name, reference=label):
-                    self.assertEqual(actual, outcome(reference, members))
+            if name in IMAGES_WITHOUT_IDENTITY:
+                self.assertEqual(actual[1], images_without_identity(), name)
+                continue
+            with self.subTest(case=name):
+                self.assertEqual(actual, reference(members))
         self.assertIn('S2ArmJITHelper.appex', outcome(validator, common_cases()['stray S2Arm helper without identity'])[1])
-        self.assertEqual(len(references), 1 + (source is not None))
+        self.assertEqual(reference(common_cases()['stray engine frameworks without identity'])[0], 'report',
+                         'without the entry stray frameworks were accepted')
 
     def test_the_common_constants_are_unchanged(self):
         self.assertEqual(validator.EXPECTED_HELPERS, distribution.EXPECTED_EXTENSIONS)
         self.assertNotIn('S2ArmJITHelper.appex', validator.EXPECTED_HELPERS)
-        self.assertIs(validator.S2ARM_EXTENSIONS, distribution.S2ARM_EXTENSIONS)
-        self.assertEqual((validator.S2ARM_IDENTITY, validator.S2ARM_FRAMEWORKS),
-                         ('S2Arm-native-identity.json', ('S2ArmEngine', 'NS2Pro')))
+        self.assertEqual(distribution.IDENTITY_ENGINES[distribution.S2ARM_IDENTITY],
+                         (distribution.S2ARM_EXTENSIONS, tuple(f'Frameworks/{name}.framework/{name}' for name in FRAMEWORKS)))
+        self.assertEqual(distribution.S2ARM_IDENTITY, 'S2Arm-native-identity.json')
 
 
 class WithTheIdentityFile(unittest.TestCase):
@@ -237,19 +224,17 @@ class WithTheIdentityFile(unittest.TestCase):
         kind, text = outcome(validator, with_melonx(s2arm_ipa()))
         self.assertEqual(kind, 'report', 'both conditionals at once: ' + text[:300])
         self.assertLessEqual({'S2ArmJITHelper.appex', 'MeloNXJITHelper.appex'}, set(json.loads(text)['embeddedExtensions']))
-        source = pre_change_source()
-        if source is not None:
-            refused = outcome(module_from(source, 'verify_ipa_common'), s2arm_ipa())
-            self.assertEqual(refused[0], 'refused')
-            self.assertIn('Unexpected app-extension set', refused[1])
+        refused = reference(s2arm_ipa())
+        self.assertEqual(refused[0], 'refused')
+        self.assertIn('Unexpected app-extension set', refused[1])
 
     def test_the_engine_frameworks_and_the_helper_are_required(self):
-        for name in distribution.S2ARM_FRAMEWORKS:
+        for name in FRAMEWORKS:
             with self.subTest(framework=name):
                 members = s2arm_ipa()
                 del members[APP + f'Frameworks/{name}.framework/{name}']
-                self.assertEqual(outcome(validator, members),
-                                 ('refused', 'DistributionError: S2Arm identity requires the engine frameworks: ' + name))
+                self.assertEqual(outcome(validator, members), ('refused', 'DistributionError: '
+                                 f'S2Arm-native-identity.json requires Frameworks/{name}.framework/{name}'))
         members = {path: data for path, data in s2arm_ipa().items() if not path.startswith(HELPER)}
         kind, text = outcome(validator, members)
         self.assertEqual(kind, 'refused')
@@ -258,21 +243,23 @@ class WithTheIdentityFile(unittest.TestCase):
     def test_its_own_conditional_with_the_distribution_validator_stubbed(self):
         """validate()'s own checks, not only the distribution validator's: the identity admits the helper, requires
         both frameworks, and the helper meets the contract and is a real executable of the application."""
-        stripped = module_from(stripped_tree(), 'verify_ipa_stripped')
-
         def own(module, members, plain=()):
             with mock.patch.object(module, 'validate_distribution', lambda ipa: None):
                 return outcome(module, members, plain)
         self.assertEqual(own(validator, s2arm_ipa())[0], 'report')
-        refused = own(stripped, s2arm_ipa())
+        patch = without_s2arm_entry()
+        try:
+            refused = own(validator, s2arm_ipa())
+        finally:
+            patch.stop()
         self.assertEqual(refused[0], 'refused')
-        self.assertIn('Unexpected app-extension set', refused[1], 'without the conditional the helper is refused')
-        for name in distribution.S2ARM_FRAMEWORKS:
+        self.assertIn('Unexpected app-extension set', refused[1], 'without the entry the helper is refused')
+        for name in FRAMEWORKS:
             with self.subTest(framework=name):
                 members = s2arm_ipa()
                 del members[APP + f'Frameworks/{name}.framework/{name}']
-                self.assertEqual(own(validator, members),
-                                 ('refused', 'ValueError: S2Arm identity requires the engine frameworks: ' + name))
+                self.assertEqual(own(validator, members), ('refused', 'ValueError: '
+                                 f'S2Arm-native-identity.json requires Frameworks/{name}.framework/{name}'))
         contract = distribution.S2ARM_EXTENSIONS['S2ArmJITHelper.appex']
         changes = (
             (lambda value: value.update(CFBundleIdentifier='com.neogamelab.neostation.rpcs3jithelper'), 'ID is inconsistent'),
