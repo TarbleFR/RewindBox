@@ -374,6 +374,18 @@ Boost.Context (BSL-1.0, text in the acknowledgements) reaches the Core through
 `make_`, `jump_` and `ontop_arm64_aapcs_macho_gas.S` of boostorg/context at
 d2142b69 (Edward Nevill and Oliver Kowalke, 2015).
 
+FFmpeg (libavutil, libavcodec, libavformat; LGPL version 2.1 or later, as
+its build configuration states) and libmspack (LGPL version 2.1) are linked
+statically into XeniaCore; their licence texts are in
+`xenios/XeniOS-Acknowledgements.json`. Their exact sources, at the XeniOS
+revision above: FFmpeg from https://github.com/has207/FFmpeg (branch
+`xmaframes`) at `dfc5a3993b405f3a8b382756828cdfae06380c8b`, configured by
+XeniOS's `third_party/ffmpeg-xenia`; libmspack in XeniOS's
+`third_party/mspack`. With them, the XeniOS sources and RewindBox's build
+recipe (`build-utils/xenia/` and `packages/xenia_internal_bridge/core/` in
+this app's source archive), XeniaCore.framework can be rebuilt with a
+modified FFmpeg or libmspack and put back in the app.
+
 XeniaCore uses Apple's Metal Shader Converter runtime
 (`Frameworks/libmetalirconverter.dylib`) only to convert Xbox 360 shaders.
 It is Apple software under Apple's « Software License Agreement for Metal
