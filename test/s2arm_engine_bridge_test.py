@@ -199,6 +199,31 @@ for flag in ('available', 'enginePresent', 'helperPresent', 'systemDataPresent',
 for local in ('available', 'helperPresent', 'systemDataPresent', 'engineLoaded', 'floorMet'):
     check(f'BOOL {local} = ' in status, f'status declares BOOL {local}')
 
+# IPA 728 on device: the preparation sat on "code · 0%" for minutes and every launch prepared again from scratch.
+prep = read('S2ArmGamePreparation.m')
+check('prep_code_progress, prep_cancelled, (__bridge void *)self}' in prep, 'the code stage reports its steps (not NULL)')
+check('prep_pack_progress, prep_cancelled, (__bridge void *)self}' in prep, 'the resource pack reports its bytes')
+run = prep[prep.index('- (NSDictionary *)run {'):]
+check(run.index('reusablePreparation(stampPath, fingerprint, gid)') < run.index('[files removeItemAtPath:stampPath error:nil];')
+      < run.index('for (NSString *path in @[ root, moduleDir, packDir ]) [files removeItemAtPath:path error:nil];'),
+      'a finished preparation is reused first; otherwise its stamp goes before the outputs are rebuilt')
+check(run.index('rb_s2arm_resource_pack(&resource') < run.index('[stamp writeToFile:stampPath atomically:YES]'),
+      'the stamp is written only after the last step succeeded')
+fingerprint = prep[prep.index('static NSString *preparationFingerprint('):]
+fingerprint = fingerprint[:fingerprint.index('\n}\n')]
+for part in ('CFBundleVersion', 'chain', 'exportDir', '@"exefs"', '@"romfs"', 'SHA256SUMS'):
+    check(part in fingerprint, f'the preparation fingerprint covers {part}')
+reuse = prep[prep.index('static NSDictionary *_Nullable reusablePreparation('):]
+reuse = reuse[:reuse.index('\n}\n')]
+check('@".applied"' in reuse and '@"imagesPath"' in reuse, 'a reused preparation still has its image pack and .applied')
+plugin = read('S2ArmEngineBridgePlugin.m')
+check('NSURLVolumeAvailableCapacityForImportantUsageKey' in plugin and '@"importantFreeBytes"' in plugin,
+      'storageInfo gives the capacity for user-requested work (it counts purgeable space)')
+clone = plugin[plugin.index('isEqualToString:@"cloneTree"'):plugin.index('isEqualToString:@"prepareGame"')]
+check('S2ArmPathInside(to, documents)' in clone and 'fileExistsAtPath:to' in clone and 'clonefile(' in clone and
+      'CLONE_NOFOLLOW' in clone, 'cloneTree clones only into Documents, onto a free path, without following links')
+check('@"detail" : detail ?: @""' in plugin, 'the progress event carries the code-stage module')
+
 
 # ---------------- executed ----------------
 def synth_pack(entries):

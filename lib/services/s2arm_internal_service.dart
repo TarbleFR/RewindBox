@@ -154,6 +154,46 @@ abstract final class S2ArmInternalService {
   static int? Function(String path) freeBytes = _statFreeBytes;
   static int? _statFreeBytes(String location) => StorageStatFfi.tryLoad()?.statvfs(location)?.freeBytes;
 
+  /// The space an import may use at [location]. On iOS it is the capacity the system gives a task the user asked for:
+  /// it counts what iOS can purge (caches), as the Settings app does. [freeBytes] (statvfs) counts none of it, and IPA 728
+  /// refused Mario Kart World as "not enough space" while Settings showed about 68 GB available. Falls back to
+  /// [freeBytes] when the native side does not answer. Visible for tests.
+  @visibleForTesting
+  static Future<int?> Function(String path) availableBytes = _availableBytes;
+  static Future<int?> _availableBytes(String location) async {
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      try {
+        final info = await channel.invokeMapMethod<String, dynamic>('storageInfo', {'path': location});
+        final important = (info?['importantFreeBytes'] as num?)?.toInt();
+        if (important != null && important > 0) return important;
+      } on MissingPluginException {
+        // No native side: statvfs below.
+      } on PlatformException {
+        // statvfs below.
+      }
+    }
+    return freeBytes(location);
+  }
+
+  /// Clones the folder [from] to [to] (APFS copy-on-write, clonefile(2)): instant, and no space is taken until a file
+  /// changes; game files are only read. False when it cannot (another volume or file system, not iOS): the import then
+  /// copies. Visible for tests.
+  @visibleForTesting
+  static Future<bool> Function(String from, String to) cloneTree = _cloneTree;
+  static Future<bool> _cloneTree(String from, String to) async {
+    if (defaultTargetPlatform != TargetPlatform.iOS) return false;
+    try {
+      final report = await channel.invokeMapMethod<String, dynamic>('cloneTree', {'from': from, 'to': to});
+      if (report?['success'] == true) return true;
+      LoggerService.instance.i('S2Arm import: no clone (errno ${report?['errno']}), copying instead');
+    } on MissingPluginException {
+      // Not iOS.
+    } on PlatformException catch (error) {
+      LoggerService.instance.i('S2Arm import: no clone (${error.code}), copying instead');
+    }
+    return false;
+  }
+
   static Future<Directory> rootDirectory() async => Directory(path.join((await documentsDirectory()).path, 'S2Arm'));
   static Future<Directory> _child(String name) async => Directory(path.join((await rootDirectory()).path, name));
   static Future<Directory> gamesDirectory() => _child('Games');
@@ -185,10 +225,14 @@ abstract final class S2ArmInternalService {
       if (call.arguments is! Map) return null;
       final arguments = Map<String, dynamic>.from(call.arguments as Map);
       if (call.method == 'prepareProgress') {
+        final step = arguments['step']?.toString() ?? '';
+        final detail = arguments['detail']?.toString() ?? '';
+        _logPrepareStep(step, detail);
         final progress = _activePrepareProgress;
         if (progress != null) {
           progress(S2ArmImportProgress(
-            name: arguments['step']?.toString() ?? '',
+            // "code · main": the module the code stage is on, so a long stage visibly moves.
+            name: detail.isEmpty ? step : '$step · $detail',
             index: (arguments['index'] as num?)?.toInt() ?? 0,
             count: (arguments['count'] as num?)?.toInt() ?? 0,
             done: (((arguments['fraction'] as num?)?.toDouble() ?? 0) * 1000).round(),
@@ -210,6 +254,8 @@ abstract final class S2ArmInternalService {
     switch (code) {
       case 'engineRestartRequired':
         return 'restartRequired';
+      case 'melonxCoreLoaded':
+        return 'melonxLoaded';
       case 'notExportFolder':
         return 'notExportFolder';
       case 'notDownloaded':
@@ -465,9 +511,30 @@ abstract final class S2ArmInternalService {
 
     final source = Directory(exportDir);
     final total = await _directorySize(source);
-    final free = freeBytes(games.path);
-    if (free != null && free < total + spaceMargin) return S2ArmImportItem(title, 'notEnoughSpace');
     final stage = Directory(path.join(staging.path, '$index'));
+    // A game on the same volume (the Files app's "On My iPhone", RewindBox's own folders) is cloned: instant, and it needs
+    // no free space. Otherwise the copy below, which does.
+    await staging.create(recursive: true);
+    await _removeStaging(stage);
+    if (await cloneTree(source.path, stage.path)) {
+      try {
+        onProgress?.call(S2ArmImportProgress(name: title, index: index, count: count, done: total, total: total));
+        final target = await _freeDirectory(games, title);
+        await stage.rename(target.path);
+        LoggerService.instance.i('S2Arm import: $title cloned (${total ~/ (1024 * 1024)} MB, no copy)');
+        return S2ArmImportItem(title, 'imported', destination: target.path);
+      } on FileSystemException {
+        return S2ArmImportItem(title, 'copyFailed');
+      } finally {
+        await _removeStaging(stage);
+      }
+    }
+    await _removeStaging(stage);
+    final free = await availableBytes(games.path);
+    if (free != null && free < total + spaceMargin) {
+      LoggerService.instance.i('S2Arm import: $title refused, ${total ~/ (1024 * 1024)} MB to copy, ${free ~/ (1024 * 1024)} MB available');
+      return S2ArmImportItem(title, 'notEnoughSpace');
+    }
     try {
       var done = 0;
       await _copyDirectory(source, stage, control: control, progress: (copied) {
@@ -575,9 +642,41 @@ abstract final class S2ArmInternalService {
   // ---------------- prepare ----------------
 
   static bool _preparing = false;
+  static final Stopwatch _prepareClock = Stopwatch();
+  static String? _lastLoggedStep;
+
+  /// One app.log line per preparation step and code-stage module, with the time since the start. IPA 728 sat on
+  /// "code · 0%" for minutes and app.log said nothing of the preparation.
+  static void _logPrepareStep(String step, String detail) {
+    final label = detail.isEmpty ? step : '$step $detail';
+    if (label == _lastLoggedStep) return;
+    _lastLoggedStep = label;
+    LoggerService.instance.i('S2Arm prepare: $label at ${_prepareClock.elapsed.inSeconds} s');
+  }
+
+  static bool _journalConfigured = false;
+
+  /// The native launch journal (one JSON line per preparation and launch step), in Documents/Diagnostics/S2Arm where
+  /// the Files app reaches it. It was never opened before, so a failed preparation left no trace. Once per process.
+  static Future<void> _configureJournal() async {
+    if (_journalConfigured || defaultTargetPlatform != TargetPlatform.iOS) return;
+    _journalConfigured = true;
+    try {
+      final folder = Directory(path.join((await documentsDirectory()).path, 'Diagnostics', 'S2Arm'));
+      await folder.create(recursive: true);
+      await channel.invokeMethod<Object?>('configureLaunchJournal', {'path': path.join(folder.path, 's2arm-journal.jsonl')});
+    } on MissingPluginException {
+      // Not iOS.
+    } on PlatformException {
+      // The journal is a diagnostic only.
+    } on FileSystemException {
+      // Same.
+    }
+  }
 
   /// Prepares an imported game for the engine. Returns the native map (gid, imagesPath, moduleDir, gameData, docs, sizes,
-  /// durationsMs) or {success:false, code}.
+  /// durationsMs, reused) or {success:false, code}. A finished preparation of the same inputs is reused by the native
+  /// side (prepared.json), so only the first launch of a game prepares it.
   static Future<Map<String, dynamic>> prepare({
     required String exportFolder,
     String? directChain,
@@ -588,21 +687,37 @@ abstract final class S2ArmInternalService {
     if (_preparing) return {'success': false, 'code': 'prepareBusy'};
     _preparing = true;
     _activePrepareProgress = onProgress;
+    await _configureJournal();
+    _lastLoggedStep = null;
+    _prepareClock
+      ..reset()
+      ..start();
+    Map<String, dynamic> outcome;
     try {
       final report = await channel.invokeMapMethod<String, dynamic>('prepareGame', {
         'exportFolder': exportFolder,
         if (directChain != null) 'directChain': directChain,
         if (systemDataFolder != null) 'systemDataFolder': systemDataFolder,
       });
-      return report == null ? {'success': false, 'code': 'prepareFailed'} : Map<String, dynamic>.from(report);
+      outcome = report == null ? {'success': false, 'code': 'prepareFailed'} : Map<String, dynamic>.from(report);
     } on MissingPluginException {
-      return {'success': false, 'code': 'unavailable'};
+      outcome = {'success': false, 'code': 'unavailable'};
     } on PlatformException catch (error) {
-      return {'success': false, 'code': error.code, 'diagnostic': error.message};
+      outcome = {'success': false, 'code': error.code, 'diagnostic': error.message};
     } finally {
       _activePrepareProgress = null;
       _preparing = false;
+      _prepareClock.stop();
     }
+    final seconds = _prepareClock.elapsed.inSeconds;
+    if (outcome['success'] == true) {
+      LoggerService.instance.i('S2Arm prepare: ${outcome['reused'] == true ? 'reused' : 'passed'} in $seconds s, '
+          'steps ${outcome['durationsMs'] ?? {}} ms, sizes ${outcome['sizes'] ?? {}}');
+    } else {
+      LoggerService.instance.w('S2Arm prepare: failed after $seconds s at ${outcome['stage'] ?? '?'}: ${outcome['code']} '
+          '${outcome['diagnostic'] ?? ''}');
+    }
+    return outcome;
   }
 
   static Future<void> cancelPrepare() async {
@@ -671,6 +786,15 @@ abstract final class S2ArmInternalService {
     // The in-game menu speaks RewindBox's language (the app's locale when the caller has it, else the system one).
     final uiLocale = Switch2SettingsLocale.codeFor(locale ?? PlatformDispatcher.instance.locale);
     try {
+      // MeloNX's core and the S2Arm engine cannot share a process (two NativeAOT runtimes), and the native launch refuses
+      // once MeloNX is loaded. The Consoles tab loads MeloNX to read its state (IPA 728), so say it now, before a long
+      // preparation, rather than after it.
+      final now = await status();
+      if (flag(now['melonxCoreLoaded'])) {
+        LoggerService.instance.w('S2Arm launch: refused before preparing, MeloNX is loaded in this process');
+        return const S2ArmLaunchOutcome.failure('melonxCoreLoaded');
+      }
+      if (flag(now['engineLoaded'])) return const S2ArmLaunchOutcome.failure('engineRestartRequired');
       final detected = await detectExport(exportFolder);
       if (detected['success'] != true) return S2ArmLaunchOutcome.failure((detected['code'] ?? 'notExportFolder').toString());
       final prepared = await prepare(exportFolder: (detected['exportDir'] ?? exportFolder).toString(), onProgress: onPrepareProgress);
@@ -691,8 +815,11 @@ abstract final class S2ArmInternalService {
       });
       if (report?['success'] == true) {
         _sessionRunning = true;
+        LoggerService.instance.i('S2Arm launch: engine started');
         return const S2ArmLaunchOutcome.success();
       }
+      LoggerService.instance.w('S2Arm launch: ${report?['error'] ?? 'launchFailed'} at ${report?['stage'] ?? '?'}: '
+          '${report?['diagnostic'] ?? ''}');
       return S2ArmLaunchOutcome.failure((report?['error'] ?? 'launchFailed').toString(), report?['diagnostic']?.toString());
     } on MissingPluginException {
       return const S2ArmLaunchOutcome.failure('unavailable');

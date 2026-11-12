@@ -40,7 +40,10 @@ NSDictionary *S2ArmDetectExport(NSString *folder);
 /// {success: NO, code}. No game content is read beyond these display fields.
 NSDictionary *S2ArmGameInfo(NSString *folder, NSString *_Nullable localePref);
 
-typedef void (^S2ArmPrepareProgress)(NSString *step, NSInteger stepIndex, NSInteger stepCount, double fraction);
+/// [fraction] is the share of [step] done (0–1). [detail] names the part of the step running (the code stage's module, e.g.
+/// "main"), or "reused" when a finished preparation of the same inputs is reused; nil otherwise.
+typedef void (^S2ArmPrepareProgress)(NSString *step, NSInteger stepIndex, NSInteger stepCount, double fraction,
+                                     NSString *_Nullable detail);
 
 @interface S2ArmGamePreparation : NSObject
 @property(nonatomic, copy) NSString *exportFolder;                // absolute, inside Documents/S2Arm/Games
