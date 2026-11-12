@@ -5715,8 +5715,16 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   uploaded (05:13-05:43). Folder pick (main's report from 04's Switch 2 finding, confirmed in file_picker
   12.0.0-beta.3 IOSFilePickerHandler.swift:193-197, no security-scoped access for a directory): 7de68c77d,
   importFolder uses ExternalFolderAccess.pickAndActivateFolder (bookmark xenia-import), `folderAccessFailed`
-  (12 locales); suites 59/59, storage contract 25/25. Next: pin job, review rebind, merge Claude, macOS run,
-  handoff to 00; device check = `codeRegion=host` or `own` in the JIT log line, then boot.
+  (12 locales); suites 59/59, storage contract 25/25. Pin: the pin job first refused run 43158794942 (attempt 1's
+  diagnostics artifact shared attempt 2's name); 5fc845f94 keeps only artifacts created after the core job of the
+  latest attempt started. Pin job 43165275261 green: core-pin.json c00755f6…e537 rebuilt byte-identical (run
+  43158794942 attempt 2, job 130987235752, artifact 13918817166, 9,533,042 B, cc266472…, expires 26 Nov; binary
+  8da52f76…ee70, 37,719,960 B, SDK 26.5, minos 26.0; fingerprint d5fe8a7c…f2c2; replaces the ABI 3 pin with its
+  reason); review regenerated (62375c11f: pin, producer, binary, fingerprint, 5 recipe files; recipe commit
+  c579a0e7b), review gate test OK. Merged with Claude c192962e (ea373c3a7, no conflict): Xbox 360 Python checks,
+  storage contract and Dart suites 59/59 OK. The 727 manifest and evidence keep pin 7e13268b (delivered); the next
+  manifest must name c00755f6. Next: macOS run of ea373c3a7, handoff to 00; device check = `codeRegion=host` or
+  `own` in the `XeniOS JIT:` line, then boot.
 - **Validation (Flutter 3.47.2 host):** 11 Nov: XeniOS + catalog/Consoles/touch suites
   91/91, scanner suites 41/41 (1 skip), storage contract 24/24, patch/validator/touch/C++
   checks OK, analyzer 111 = baseline. Earlier: new XeniOS + catalog/Consoles tests 65/65;
