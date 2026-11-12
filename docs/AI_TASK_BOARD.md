@@ -359,6 +359,18 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     `Claude-Session` line.
   - **Next:** download, verify offline, receipts, record, delete the key, send the file; give session 04 the freeze
     commit for 803 (sibling of 726).
+- **Next IPA (733) queue (main, 12 Nov 21:0xZ).**
+  - Session 04 preparation speed lot merged on Claude as 43654249 (head b6537c09).
+    - S2Arm pin 58ca7025: only the prepare producer changes (s2arm-core 43304794526 on 2175b72e); the engine
+      (0001-0011) and sysdata are unchanged.
+    - The fix targets the 731 Mario Kart World preparation (427 s): parallel pack hashing with CommonCrypto, no mkdir
+      per path component, fewer RomFS walks, the previous root deleted in the background. Outputs are byte-identical.
+      Not measured on the phone yet.
+  - Main's local checks on the merge: all test/s2arm_*_test.py, legal modifications notice, build source evidence and
+    legal bundle preflight pass.
+  - IPA 732 on device (session 04, from the journal): the boot asked for its code at once (57 MB served in 0.2 s), the
+    helper detached, and there was no crash for 3 minutes. A fix for what comes after the boot may follow.
+  - Waits for the maintainer's go.
 - **IPA 732 delivered and verified (12 Nov 19:5xZ, main; maintainer: build once Switch 2 has finished, with XeniOS).**
   - Second request: run `43289133482` attempt 1, trigger `77af35c2`, frozen on `474862f5`, effective digest `662f421f`,
     7956 product files. All 5 jobs succeeded.
