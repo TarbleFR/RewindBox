@@ -359,6 +359,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     `Claude-Session` line.
   - **Next:** download, verify offline, receipts, record, delete the key, send the file; give session 04 the freeze
     commit for 803 (sibling of 726).
+- **IPA 728 gating (maintainer, 12 Nov).**
+  - Compile once session 04 (Switch 2) and session 03 (XeniOS) have finished and sent their handoffs.
+  - MeloNX keeps working and does not gate this IPA.
+  - Already on Claude: session 04's lot `766ce43b`.
+  - Awaited:
+    - session 04: the pack-margin fix for fallback tiles;
+    - session 03: XeniaCore ABI 4, which reserves the JIT region at load, and the folder access fix.
 - **IPA 727 device findings relayed by session 04 (12 Nov 05:02Z).** Fixes are on session 04's branch, not on Claude yet.
   - **Switch 2 import refused every Files export.** file_picker getDirectoryPath returns a bare path without
     security-scoped access. Fixed by 04 in `7a33d9f3`, plus `89eb15aa` and `471c763e`.
