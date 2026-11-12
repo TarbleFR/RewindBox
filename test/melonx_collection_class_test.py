@@ -239,6 +239,8 @@ for request in r['background']['requests']:
           'a requested background collection: raised once; an override is left only if no end was reported, and the poll ends it: %s' % request)
 check(all(word in r['describe'] for word in ('utility ', 'default ', 'background ', 'user-interactive ', 'wall ', 'CPU ', '(adapt_collection_class).')),
       'the journal line names each class with its wall and CPU time')
+check(r['surviving']['collections'] >= 5 and r['surviving']['cpuMsEach'] >= 5,
+      'the collections the macOS measurement uses have work to do (CPU per collection): %s' % r['surviving'])
 m = r['marked']
 check(m['starts'] == m['raised'] == m['utility'] == 0 and 'raised 0 times' in m['describe'], 'a session mark restarts the totals: %s' % m)
 

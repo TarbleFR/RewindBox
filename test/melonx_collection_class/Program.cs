@@ -112,6 +112,21 @@ static unsafe class Program
         }
     }
 
+    // Collections with work to do, as in a game's heap: an old array of references whose slots keep receiving new
+    // objects, so each collection of the young generation scans it and promotes what it now holds.
+    static object[] _old;
+
+    static void SurviveUntil(int collections)
+    {
+        _old ??= new object[3_000_000];
+        int target = GC.CollectionCount(0) + collections;
+        Random random = new(11);
+        while (GC.CollectionCount(0) < target)
+        {
+            for (int i = 0; i < 256; i++) _old[random.Next(_old.Length)] = new byte[random.Next(64, 1024)];
+        }
+    }
+
     static T On<T>(Func<T> body)
     {
         T result = default;
@@ -267,13 +282,26 @@ static unsafe class Program
             return new JsonObject { ["requests"] = requests };
         });
 
+        // 7. The collections the macOS measurement uses (an old array that keeps receiving new objects): their cost here.
+        var surviving = On(() =>
+        {
+            Host.SetClass(CollectionClass.Utility);
+            var before = CollectionClass.Of(CollectionClass.Utility);
+            SurviveUntil(12);
+            var after = CollectionClass.Of(CollectionClass.Utility);
+            long count = after.Count - before.Count;
+            return new JsonObject { ["collections"] = count, ["cpuMsEach"] = count == 0 ? 0 : (after.CpuNs - before.CpuNs) / 1e6 / count,
+                ["wallMsEach"] = count == 0 ? 0 : (after.WallNs - before.WallNs) / 1e6 / count };
+        });
+        _old = null;
+
         string describe = CollectionClass.Describe();
         long raisedInAll = CollectionClass.Raised;
         CollectionClass.MarkSession();
         JsonObject marked = new JsonObject { ["starts"] = CollectionClass.Starts, ["raised"] = CollectionClass.Raised,
             ["utility"] = CollectionClass.Of(CollectionClass.Utility).Count, ["describe"] = CollectionClass.Describe() };
         return new JsonObject {
-            ["mode"] = "host", ["registered"] = first, ["registeredAgain"] = second, ["utility"] = utility, ["interactive"] = interactive, ["unspecified"] = unspecified, ["allocation"] = allocation, ["off"] = off, ["stress"] = stress, ["polled"] = polled, ["background"] = background,
+            ["mode"] = "host", ["registered"] = first, ["registeredAgain"] = second, ["utility"] = utility, ["interactive"] = interactive, ["unspecified"] = unspecified, ["allocation"] = allocation, ["off"] = off, ["stress"] = stress, ["polled"] = polled, ["background"] = background, ["surviving"] = surviving,
             ["platform"] = new JsonObject { ["raises"] = Host.Raises, ["lowers"] = Host.Lowers, ["alive"] = Host.Alive, ["mostAlive"] = Host.MostAlive, ["unknownThread"] = Host.UnknownThread },
             ["raised"] = raisedInAll, ["describe"] = describe, ["marked"] = marked
         };
@@ -304,7 +332,7 @@ static unsafe class Program
             int status = Apple.SetClass(CollectionClass.Utility, 0);
             var before = CollectionClass.Of(CollectionClass.Utility);
             long raised = CollectionClass.Raised;
-            AllocateUntil(collections, keepEvery: 3);
+            SurviveUntil(collections);
             var after = CollectionClass.Of(CollectionClass.Utility);
             return new JsonObject {
                 ["raise"] = raise, ["setClassStatus"] = status, ["classIsUtility"] = Apple.ClassOfSelf() == CollectionClass.Utility,
@@ -326,8 +354,8 @@ static unsafe class Program
         JsonArray rounds = new();
         for (int i = 0; i < 3; i++)
         {
-            rounds.Add((JsonNode)AppleRound(raise: false, 30, cores + 2));
-            rounds.Add((JsonNode)AppleRound(raise: true, 30, cores + 2));
+            rounds.Add((JsonNode)AppleRound(raise: false, 12, cores + 2));
+            rounds.Add((JsonNode)AppleRound(raise: true, 12, cores + 2));
         }
         return new JsonObject { ["mode"] = "apple", ["registered"] = registered, ["cores"] = cores, ["busyUserInteractiveThreads"] = cores + 2, ["rounds"] = rounds, ["describe"] = CollectionClass.Describe() };
     }

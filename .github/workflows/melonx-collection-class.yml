@@ -63,8 +63,9 @@ jobs:
         DOTNET_NOLOGO: '1'
       run: |
         # The class text of adapt_collection_class.py, unchanged, compiled ahead of time for this machine (the Core's
-        # runtime kind and architecture). Mode "apple": collections a utility thread triggers while cores + 2
-        # user-interactive threads run native code, with the raising off and on, three rounds each.
+        # runtime kind and architecture). Mode "apple": collections a utility thread triggers (an old array that keeps
+        # receiving new objects: tens of milliseconds each) while cores + 2 user-interactive threads run native code, with
+        # the raising off and on, three rounds each.
         python3 -I test/melonx_collection_class_test.py --emit-fixture "$RUNNER_TEMP/fixture"
         dotnet publish "$RUNNER_TEMP/fixture/Fixture.csproj" -r osx-arm64 -c Release -nologo -o "$RUNNER_TEMP/fixture/aot"
         cat > "$RUNNER_TEMP/class.plist" <<PLIST
@@ -95,7 +96,7 @@ jobs:
         off = [r for r in report['rounds'] if not r['raise']]
         on = [r for r in report['rounds'] if r['raise']]
         for r in report['rounds']:
-            assert r['setClassStatus'] == 0 and r['classIsUtility'] and r['collections'] >= 30 and not r['inForceAfter'], r
+            assert r['setClassStatus'] == 0 and r['classIsUtility'] and r['collections'] >= 8 and not r['inForceAfter'], r
         assert all(r['raised'] == 0 for r in off) and all(r['raised'] >= r['collections'] for r in on), 'raised only when asked'
         wall_off, cpu_off = sum(r['wallMs'] for r in off), sum(r['cpuMs'] for r in off)
         wall_on, cpu_on = sum(r['wallMs'] for r in on), sum(r['cpuMs'] for r in on)
