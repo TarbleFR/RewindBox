@@ -5563,7 +5563,7 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 ### Switch 2 playlist (S2Arm) feasibility prototype — session 04
 
 - **Owner/branch:** session `012mUASj3EQnvC86WC56AePw`, `work/s2arm-switch2-prototype-20261110`
-  (merged with `Claude` `5fe7b3c7` in `d7e8f671`). Own paths: `packages/s2arm_engine_bridge/`, `native/s2arm/`,
+  (level with `Claude` `85ca8948`, fast-forward after main's 732 receipt). Own paths: `packages/s2arm_engine_bridge/`, `native/s2arm/`,
   `build-utils/s2arm/`, `tools/s2arm_prototype/`, `.github/workflows/s2arm-*.yml`, `docs/s2arm-*.md`.
 - **Goal:** a Switch 2 playlist on S2Arm, games prepared on the phone. The device probe ships in
   a common IPA by maintainer decision (below); the rest stays on this branch.
@@ -5697,7 +5697,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       `a6f958fd`.
     - Not observed on a device. The pass shares are estimates until a journal gives the durations.
   - **IPA 731 device report (maintainer, 12 Nov, S2Arm journal): the engine starts, then waits 10 minutes before asking
-    for code. Fix: verified pin `eb8f20bf` with engine patch 0011, for IPA 732.**
+    for code. Fix: verified pin `eb8f20bf` with engine patch 0011, merged on Claude by main as `1f301991`, delivered in
+    IPA 732 (run 43289133482, 329956970 B, IPA SHA-256 `97952e98…de52`, S2Arm identity `9560e56f`, receipt
+    `85ca8948`). Device check pending: Mario Kart World re-prepares (new build number), then boots.**
+    - Main's first 732 request (run 43283225614) failed on two S2Arm tests after session 03's licence audit; main fixed
+      them on Claude in `67645447` (helper LICENSE in `copy-of-rpcs3.json`, legal review test on the new chain). On the
+      fast-forwarded tree `85ca8948`, `test/s2arm_*_test.py`, `legal_modifications_notice_test`,
+      `legal_bundle_preflight_test` and `build_source_evidence_test` pass (local).
     - Observed:
       - prepared (image pack 85 MB);
       - launch: imagePack read (6 boot blocks, 57 MB), helper attached, jitProbe, pool 16 MB, dlopen, configure, view,
