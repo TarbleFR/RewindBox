@@ -5702,8 +5702,15 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       - each is logged once.
     - Tests: new `test/s2arm_sparse_layout_test.py` (13 checks, run by s2arm-bridge-ios.yml); `s2arm_store_bench_test.py`
       now checks 0011 as the 11th patch. Legal notices: 0012 row, series 0001–0012.
+    - Green: engine 43308161284 (macOS 15 and 26, guest entry points); bridge iOS 43308161296 (with the new test).
+      Independent review (rb-core-review): no actionable defect. Its notes are not blocking: the old Chinese stub comment
+      is stale; four rare pre-existing mismatches between nvn_tex_sparse_layout and level_walk (compressed non-power-of-two
+      sizes, packaged block height, 16x MSAA, sparse with linear); no positive engine test of the texture query.
+    - Verified pin: SHA-256 `9ddb304e…99d5`, pin job 43311510026. Engine 43308161284 (`6aaba2bd`, series 0001-0012),
+      prepare 43304794526 (speed lot), sysdata unchanged.
     - Next:
-      - engine build, then pin (prepare 43304794526 and sysdata stay), then handoff for IPA 733 with the speed lot;
+      - handoff to main for IPA 733 with the speed lot, then the maintainer's device run (journal + host.log after an app
+        restart);
       - later, the 65 s RomFS directory table: S2Arm reads a prebuilt `romfs.s2aidx` (services/romfs_index) when the
         preparation provides one.
   - **IPA 732 device report (maintainer, 12 Nov 20:09Z: S2Arm journal and three engine logs): the boot now asks for its
