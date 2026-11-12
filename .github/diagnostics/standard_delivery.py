@@ -473,6 +473,23 @@ def manifest_errors(value):
             if ok:
                 check(entry['path'] not in seen, f'changed input listed twice: {entry["path"]}')
                 seen.add(entry['path'])
+    for key, spec in value['components'].items():
+        if 'inheritedChangedInputs' not in spec:
+            continue
+        entries = spec['inheritedChangedInputs']
+        check(spec.get('mode') in RETAINED_RULE_MODES and spec.get('inputs'),
+              f'components.{key}.inheritedChangedInputs only on a component with checked inputs')
+        check(isinstance(entries, list), f'components.{key}.inheritedChangedInputs must be a list')
+        for entry in entries if isinstance(entries, list) else ():
+            ok = (isinstance(entry, dict) and set(entry) == CHANGED_INPUT_KEYS | {'build'} and
+                  isinstance(entry['path'], str) and entry['path'] and isinstance(entry['build'], int) and
+                  all(HEX40.fullmatch(str(entry[name])) for name in ('baseBlob', 'newBlob', 'commit')) and
+                  entry['baseBlob'] != entry['newBlob'])
+            check(ok, f'components.{key}.inheritedChangedInputs entries need exactly path, baseBlob, newBlob '
+                      '(different, lowercase hex), commit and the integer build that declared it')
+            if ok:
+                check(entry['path'] not in seen, f'changed input listed twice: {entry["path"]}')
+                seen.add(entry['path'])
     product = value['product']
     check(isinstance(product.get('reviewedCommits'), list) and isinstance(product.get('sourceOnly'), list),
           'product.reviewedCommits and product.sourceOnly lists')
@@ -1927,6 +1944,28 @@ def retained_inputs_unchanged(manifest, repo, listing, read):
         held = repo.entries(commit).get(path)
         require(held is not None and held[1] == entry['newBlob'],
                 label + f'commit {commit} does not hold newBlob at that path')
+    # An input change a delivered base already declared stays declared for the checks that compare with the Core's
+    # compile-time inputs (retained608): the path is unchanged since the base (the rule above), it holds newBlob, and
+    # the base delivery's own manifest lists the same entry, declared by that build or inherited by it.
+    inherited = [(kind, entry) for kind, spec in manifest['components'].items()
+                 for entry in spec.get('inheritedChangedInputs') or ()]
+    base_manifest = base_manifest_at(repo, manifest['base']) if inherited else None
+    for kind, entry in inherited:
+        path = entry['path']
+        label = f'Inherited changed input {path} of {kind}: '
+        spec = manifest['components'][kind]
+        require(spec['mode'] in RETAINED_RULE_MODES and spec.get('inputs') and
+                path in retained.input_paths(kind, spec, listing), label + 'not an input of that component')
+        new = current.get(path)
+        require(new is not None and git_blob_id(new) == entry['newBlob'],
+                label + 'the current bytes are not newBlob ' + entry['newBlob'])
+        require(base_manifest is not None, label + 'the base delivery has no standard manifest')
+        base_spec = base_manifest['components'].get(kind, {})
+        core = {name: entry[name] for name in CHANGED_INPUT_KEYS}
+        declared_there = entry['build'] == base_manifest['build'] and core in (base_spec.get('changedInputs') or [])
+        inherited_there = entry in (base_spec.get('inheritedChangedInputs') or [])
+        require(declared_there or inherited_there,
+                label + f'the base delivery {base_manifest["build"]} does not declare this entry')
     return len(current)
 
 

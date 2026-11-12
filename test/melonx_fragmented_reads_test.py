@@ -107,7 +107,10 @@ CORE667 = ('adapt_buffer_array_barriers', 'adapt_hogwarts_precise_math', 'adapt_
            # Core 715: extra array sets kept bound (DescriptorSetUpdater.cs); array references by delta (TextureArray.cs).
            'adapt_extra_set_binds', 'adapt_array_reference_deltas',
            # Core 717: a worker's libraries published to main (PipelineCacheManager.cs, PipelineState.cs).
-           'adapt_worker_library_share')
+           'adapt_worker_library_share',
+           # Core 743: submissions by cause and host syncs by site (SyncManager.cs, AutoFlushCounter.cs, StagingBuffer.cs and
+           # HelperShader.cs join the composition); the build journal without the main load wait (PipelineState.cs).
+           'adapt_submit_causes', 'adapt_build_journal_load_wait')
 COMPOSED = sorted(set(COMPOSED) | {name for module in CORE667 for name in __import__(module).BASELINE
                                    if name.startswith('src/Ryujinx.Graphics.')})
 # Production files the candidate build compiles and this receipt binds (the region type is unchanged). Library.cs

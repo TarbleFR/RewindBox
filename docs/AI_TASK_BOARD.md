@@ -359,6 +359,42 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     `Claude-Session` line.
   - **Next:** download, verify offline, receipts, record, delete the key, send the file; give session 04 the freeze
     commit for 803 (sibling of 726).
+- **IPA 728 device finding (session 04, maintainer app.log pid 57620, 07:07Z).**
+  - Confirmed: the S2Arm status reads available=true, and the Switch 2 Consoles switch turns on (bc43c4ed).
+  - P0 found: opening the Consoles page loads MeloNXCore. `libretro_consoles_screen.dart:151` calls
+    `MelonxInternalService.runtimeAvailable()` → native `diagnostics` → `ensureRuntime()`
+    (`MeloNXInternalBridgePlugin.swift:228`). S2Arm then reports melonxCoreLoaded=true, and every Switch 2 launch is
+    refused (two NativeAOT runtimes in one process) until RewindBox restarts.
+  - Owners:
+    - MeloNX owner: a probe that does not load the core, used by runtimeAvailable, with a test. Main approved the Dart
+      line in the Consoles screen.
+    - Session 04: an up-front refusal with a restart message, the important-usage capacity for the space check, and
+      the preparation progress and re-prepare fixes.
+  - For the next IPA.
+- **IPA 728 delivered and verified (12 Nov 06:58Z, main).** Only the Switch 2 (session 04) and XeniOS (session 03) work.
+  - RPCS3 Core 934 and MeloNX Core 737 are kept from 727. The maintainer moved MeloNX 739/741/743 to a later IPA, so the
+    739 recipe paths merged in 18c8c905 were restored to their 93809b12 bytes on Claude. History was not rewritten.
+  - Run `43168854436` attempt 1, trigger `e2a1cef4`, frozen on `0c9237f6`, effective digest `5c1f91f9`. All 5 jobs
+    succeeded on the first request.
+  - IPA `RewindBox-728.ipa`: 329481290 B, SHA-256 `7ff6360ed0a77e5544a9f91d0cfcbd04e5df3c692d284eb04c04eec885b09ee1`.
+  - Offline verification `passed-offline-checks`:
+    - the 4 parts equal their API digests; SHA256SUMS and the signer receipt match;
+    - 97 images, 47 retained fingerprints; the RPCS3 and MeloNX Cores equal 727;
+    - validators melonx, neoplay, shaders, legal, no-kartpad and no-dusklight all exit 0;
+    - the packaged Xenia identity names pin `c00755f6` (run 43158794942).
+  - Undeclared image changes, reported and not fatal:
+    - XeniaCore, the new pinned payload, checked by the engine rule;
+    - the armsx2, dolphin, libretro, melonx and rpcs3 bridges, rebuilt from sources unchanged since 727 (727 showed 2
+      of them). The cause is not explained yet.
+  - Legal folders: XeniOS 4/4, MetalShaderConverter 3/3 and S2Arm 35/35 files match their digests. The 9 extensions are
+    as expected.
+  - Recipe changes for this build:
+    - `inheritedChangedInputs` (73325bfd);
+    - merge 1c1d5760 (first parent c192962e) put the delivered line back after Claude was fast-forwarded off it.
+      Handoffs are merged with --no-ff from now on.
+  - Receipt `docs/evidence/rewind728/delivery.json`, with 14 proof files and the 2 engine receipts. Key shredded.
+  - The session disk filled after the receipt; old delivery work folders were removed. Not run on an iPhone.
+  - Next: merge, build and pin MeloNX 739/741 for a later IPA; then the ON HOLD RPCS3 thermal lot.
 - **IPA 728 gating (maintainer, 12 Nov).**
   - Compile once session 04 (Switch 2) and session 03 (XeniOS) have finished and sent their handoffs.
   - MeloNX keeps working and does not gate this IPA.
@@ -4742,9 +4778,101 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       of 1 748 variants replayed, 82 late variants in 37 ms, 2 programs made in play. The session ran with the user's
       per-game "Async shaders" on: "not ready by cause: async skips 110" (then 12) draws in two windows: skipped draws
       the default (off) never makes.
-    - **Next action:** Hogwarts lot (own Core, Hogwarts policy): the render-thread descriptor write cost first (named
-      calls, a host profile on the real DescriptorSetUpdater), then the memory attribution of the uncounted Vulkan
-      images. Main: Core 739 CI and pin when the integration order allows.
+    - **Core 741 (Hogwarts lot 1, frozen here: contract `a5c080af…`, 95 fresh gates; not delivered, not run on an
+      iPhone) = Core 739 + `adapt_array_storage_counts`** (TextureArray.cs only, under
+      EncodingPolicy.IncrementalArrayDescriptors: Hogwarts Legacy only). Cost: texture array barrier passes 240-290 ms
+      per 5 s on the render thread (433.5 ms in the window the maintainer's audit cites), "sets rebuilt 806-1 125 over
+      61-64 million elements": a storage change in an element empties the array's barrier set and the next pass walks
+      every element. Fix: a count per storage, built by the existing walk; a change of at most LargeChange elements
+      moves the counts and keeps the set; anything else falls back to the walk; a changed set is never skipped by the
+      epoch check. Measured before wiring (`tools/melonx/array_storage_counts_bench.py`, production members of Core
+      739 and Core 741, Linux host): a pass after a 40-element change 656-760 us -> 0.8-1.2 us at 54 000 elements
+      (the device's average walk), 4.9-10.2 ms -> 1.0-1.4 us at 524 288; the counts add 3-7 us per element change.
+      Gate `array-storage-counts` (95th, 165 checks): policy off byte for byte; policy on the same barriers per
+      operation, the set exact after every pass, elements walked 123.1 M -> 3.7 M; three wrong variants caught. Rerun
+      and passed on the Core 741 preparation: fragmented-reads, hogwarts-dma-copies, single-resource-bindings,
+      bounded-binding-snapshots, artifact-counters, bindless-retention, array-reference-deltas, array-barrier-epoch,
+      core667-fixes (its TextureArray check now undoes this adapter's replacements, each required once, before the
+      same byte comparison with the Core 663 method); contract test 492 checks (428 without the archive).
+      Falsifiable device expectation: texture array barrier passes about 10-30 ms per 5 s instead of 240-290 ms
+      (about 2.2-2.5 ms of render thread per frame); refuted if they stay above 100 ms. Rollback: remove the adapter.
+    - **Hogwarts pid 56836, further readings (no change made):** (a) the multiplier of the permanent descriptor work:
+      about 3 261 command buffers per 5 s window (2 818-3 466 submits; about 25-30 per frame) against fewer than 3 per
+      frame in Smash; the texture array reference passes (33 348 per window, 1.7 M references, 288-364 ms) and barrier
+      passes (33 597) run once per array per command buffer, so their count follows the command buffers. CreateSync
+      2 116-2 526 calls per window on the render thread; SyncManager.Create flushes (a submit, a new command buffer)
+      for a strict sync, and strict syncs come from GPFifoClass (two sites), ThreedClass, GpuContext (two) and a DMA
+      site: which ones dominate is not journaled. (b) The memory-warning hypothesis "pressure -> invalidations" is not
+      supported: no trim or eviction line at 05:45:48; the 50 963 changed pool elements of the three arrayDelta calls
+      (1 572 864 examined, 145 396 KiB allocated, 539 ms) coincide with the zone load (footprint 3 775 -> 4 428 MiB
+      between t=45 and t=48); the 303.6 ms gen0 pause promotes 34.6 MiB of live objects (new textures); the iOS warning
+      follows the same load. (c) Audio: t=51-109, 184 queue starvations and 767 ms of silence; the seconds with a
+      starvation average 19.7 FPS (largest gap 134 ms) against 24.0 FPS (76 ms) without: audio starves with the CPU
+      contention, it is not an audio-path defect.
+    - **Hogwarts lot 3, pipeline freezes (pid 56836; private journals, aggregates only; no behaviour change):** (a) the
+      1 216.8 ms gap at 05:46:17 UTC (t=76) is the render thread in a compute dispatch, "compute prepare ... pipelines
+      5 292 calls 1 073.9 ms": the dispatch joined the play-time warm-up of a compute program translated in play
+      (TryWaitForBackgroundComputePipeline) while a worker built it (computePipelineBuild [1, 1 072.158 ms] in the
+      05:46:18 sample; journal "workers 2 in 2 370 ms"). The pipeline is new: its key is not among the 1 543 the journal
+      holds from 19 sessions (compute keys journaled since Core 687, each written at once). MoltenVK's statistics of the
+      same block: SPIR-V to MSL max 37.8 ms, MSL to MTLLibrary 812.3 ms and 692.8 ms (two new libraries; the other 4 787
+      take 0.009-5.5 ms, the Metal compiler's cache), pipeline state 220.6 ms; a new graphics pipeline (945 ms, worker) at
+      the same moment. A compute dispatch is never skipped (ShaderInfoBuilder: async compilation needs a pipeline state,
+      graphics programs only), so the wait is the first compilation itself. The worker merged it into main
+      (adapt_worker_library_share) and the close saved main 93.32 -> 93.47 MiB in 276 ms. Expected at the same place in
+      the next session: no compute wait; refuted if "compute prepare ... pipelines" passes 100 ms there or the journal
+      counts it compiled again. (b) "compiled again 1 in 1 299 ms" (56836; 1 346 ms in 55836, 1 308 ms in 54035) is no
+      lost pipeline: the first worker creation of each launch waits for the main cache's background load (1 307 and
+      1 350 ms) and is then served by main ("Worker pipelines found in the main cache: 1 (not in it: 0)", 20 ms after
+      the load); the journal timed the wait as a compilation (fixed by Core 743, below). (c) The 142 skipped draws are
+      async skips ("not ready" 110 at 05:45:54, 12, 6, 14 at 05:46:19) of the maintainer's async shader setting
+      (graphics programs without shader writes); variants: 1 041 ready before their first draw, 75 late creations in
+      21 ms (36 new, 5 planned not built yet, 34 built but missed: a key mismatch the replay expects at 0, open). The
+      async on/off comparison needs the device: same save and path, two sessions, the setting changed by the maintainer
+      in the UI (not by a build), compare "not ready by cause", the pipelineVariants summary and the gaps over 100 ms.
+    - **Hogwarts lot 4, zone-load allocations (no change made):** the 145 396 KiB of the three arrayDelta calls at
+      05:45:48 are nested in compute (151 573 KiB) and bindings (154 951 KiB) and hold the texture synchronisations
+      (texSync 4 687 calls, 132.3 ms, 167 748 KiB, about 36 KiB each): Texture.SynchronizeFull converts each new
+      texture's guest data into a pooled MemoryOwner (ArrayPool) that the render thread uploads; the 303.6 ms gen0
+      pause copies 34.6 MiB of survivors. The copy is required by the threaded renderer (guest memory may change before
+      the upload); which objects survive is not journaled (no allocation-by-type source on the device): no safe
+      reduction identified, open.
+    - **Core 743 frozen (12 Nov, contract b95bb282; 98 gates, 212 preparation inputs, 213 prepared members; Core 741 +
+      diagnostics only, every title; local commits on work/melonx-fps-stability-20261103, pushed):** (1)
+      adapt_submit_causes (ten files): each of the 16 submission sites of the Vulkan backend names its cause just before
+      FlushAllCommands / FlushCommandsImpl; the render stages line ends, after its unchanged text, with "; submits by
+      cause: strict sync, sync wait, draw auto-flush, attachment auto-flush, query, disposed resources, buffer read, texture
+      read, staging buffer full, helper, present, other; syncs created submitting N, waiting for the command buffer N; fast
+      flush mode N of M frames, sync waits N ms"; GpuContext.CreateHostSyncIfNeeded takes its caller's name
+      ([CallerMemberName], no call site changed) and the GPU thread writes every 5 s "Host syncs created over N ms: strict T
+      (GPFifo syncpoint, 3D syncpoint, SetReference, counter reports, queued syncpoints, DMA read-back, DMA buffer read-back,
+      texture unbind, WaitForIdle, other); not strict ...". Gate submit-causes, 128 checks: additive edits only, every
+      submission site named, every CreateHostSyncIfNeeded call in a mapped method, production Vulkan and Gpu assemblies
+      built, the production RenderStageTimer of both trees run under a fake clock (the control's line is a byte-identical
+      prefix of the candidate's and both parse with frame_report.py; scripted causes exact, reset each window). (2)
+      adapt_build_journal_load_wait (PipelineState.cs): the build journal takes a worker creation's time without its wait
+      for the main cache's background load and nothing for a creation main served; the first long wait is recorded once
+      ("pipelineBuilds mainLoadWait"). Gate build-journal-load-wait, 46 checks (the IPA 727 case: control 1 305 ms, a
+      "compilation"; candidate 0; a wait then a 900 ms compile: 900). Rerun on the Core 743 preparation: the 34 gates
+      binding the eleven files, all passed; sync-allocations joins as a fresh gate (its core87 receipt declares
+      SyncManager.cs): delivered and final sync managers give the same functional digest, 120 566 checks, 219 scenarios and
+      allocations. Tests taught the later adapter without loosening them: vulkan-memory-journal undoes adapt_submit_causes's
+      PipelineBase.cs replacements (each once) before its exact comparison; fragmented-reads composes and binds the four
+      new files; melonx_adapter_control_order_test.py reads the `adapted += adapt_X(source)` form too (it had failed
+      unseen since Core 735, when that form joined; it detects a swapped pair). No rendering, sync, flush or pipeline
+      change: no FPS claim. Rollback: remove the two adapters (Core 741).
+    - **Device protocol for the next private IPA (Core 743, or 741 without the split):** Hogwarts Legacy, same save, 3-5
+      min including a zone change and the place of the 05:46:17 freeze, then home, then close from the menu; then a
+      Switch close and a PS3 launch in the same session (P0 726); Smash 1 min of play (SetProgram bursts, Core 739). Read:
+      texture array barrier passes (Core 741: about 10-30 ms per 5 s expected, refuted above 100 ms); the submit causes
+      and the host sync sites (which strict site or auto-flush mode dominates the about 25 command buffers per frame);
+      "pipelineBuilds" (no launch-time "compiled again"; mainLoadWait served); "compute prepare ... pipelines" at the
+      freeze place (below 100 ms expected). Async on/off: two Hogwarts sessions on the same path, the setting changed by the
+      maintainer in the UI.
+    - **Next action:** from the next Hogwarts run with Core 743: reduce the dominant submission cause with its own gate
+      (a strict-sync site, or the fast flush mode's 1.5 ms draw auto-flush), the reference passes and submissions following
+      the command buffer count; no sync semantics change before that measurement. Main: Core 739 CI and pin, then Core
+      741 or Core 743 (743 includes 741).
   - **IPA 726 device run read (12 Nov): Hogwarts Legacy on Core 735, pid 54035, 23:43:42-23:46:20 (the session
     of the P0 726 close); journals private (scratchpad), aggregates only. Not a like-for-like comparison with 725:
     the phone was in the "serious" thermal state for 99 of the 100 warm seconds (725, pid 51986: "fair").**

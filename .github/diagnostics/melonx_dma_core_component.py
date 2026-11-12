@@ -73,8 +73,10 @@ CONTROL_PREPARED = {
 # kernel timer proof run again on the final timer manager, whose worker asks the class); 92 with Core 735 (lot 14: a
 # Map or Unmap re-queues the partially mapped textures it can concern, not all of them); 93 with Core 737 (the
 # controller manager keeps its own copy of the input configuration); 94 with Core 739 (programs translated during play
-# bind once their shader modules exist, in every title).
-FRESH_GATES = 94
+# bind once their shader modules exist, in every title); 95 with Core 741 (a texture array keeps its storage set from small
+# element changes, Hogwarts Legacy policy); 97 with Core 743 (submissions by cause and host syncs by site; the build
+# journal without the main cache load wait; diagnostics only; sync-allocations run again on the final sync manager).
+FRESH_GATES = 98
 HISTORICAL_RECEIPTS = 61
 GPU_WORK_ROWS = 13
 READ_COUNTERS = 4

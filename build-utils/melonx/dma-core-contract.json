@@ -321,47 +321,48 @@
     "src/Ryujinx.Library/EmbeddedWindowLifetime.cs": "c2a4e8b87af11aadb158d3ef03298306676f62efe804479cde5dc4c18c321650"
   },
   "baselineUnadaptedMembers": {
-    "src/Ryujinx.Graphics.Vulkan/TextureStorage.cs": "f6d2b9a584624e9af5ef8e54025ba1257870c8471ae53c7fc0475e8f7acae5b2",
-    "src/Ryujinx.HLE/HOS/Services/SurfaceFlinger/SurfaceFlinger.cs": "bb8e2a892da1ce7ef72e874b91d8dc83b38bdc33eb739698c7c7c4a17ffa15d2",
-    "src/Ryujinx.Graphics.GAL/IProgram.cs": "1213108b8dfe8a766174e3821d2a8109284bde7ff2a746cc6b0f2b275a6ddba3",
-    "src/Ryujinx.Graphics.Vulkan/ResourceArray.cs": "b0cf3ed2cb662369493d4fda562dcd79763bb2f3f0e1c1916305a0f97f1310d7",
-    "src/Ryujinx.Graphics.Gpu/GraphicsConfig.cs": "60eb6588a6706dff805956cc5cbb261faf89189e4af1b3056fc976e04cfe66de",
-    "src/Ryujinx.Graphics.Gpu/Synchronization/SynchronizationManager.cs": "16993b4ce936012a516d29a2e2c73c319d2cb6ab523669e1cfa345328d95af0a",
-    "src/Ryujinx.HLE/HOS/Services/Time/Clock/StandardUserSystemClockCore.cs": "d677e6620b71fe85c4100a00692820790c226d7857b25376680e455587eea50d",
-    "src/Ryujinx.Graphics.Vulkan/PipelineLayoutCacheEntry.cs": "30ea8d391e06ad71251f7ba83e69ef9b0c6f3c20ca3f168dae1c9e6d8e410948",
-    "src/Ryujinx.HLE/HOS/Services/Bluetooth/BluetoothDriver/BluetoothEventManager.cs": "2935b090f6bf4fd45371408888f29b8ac6b34a266257d4b3515f8d0ad04611d2",
-    "src/Ryujinx.Graphics.GAL/ITextureArray.cs": "5dd236e731089d04967d4c6ba7551a7b69450154e4800d925dc022c01883f3db",
-    "src/Ryujinx.Graphics.Gpu/Image/TextureBindingsManager.cs": "450aedf92e0d8ca4d5699ab370d40d9589b7f58f2326c77490879b258bce24c2",
-    "src/Ryujinx.Audio/AudioManager.cs": "980c75966c94e6e34cda5acf6b7a995cb345c2fe6179138f4e6699fbf79ad11b",
-    "src/Ryujinx.Graphics.GAL/IRenderer.cs": "7435fb2578c74f645a5d44c269b55afa70ba267dd6c50ce40eb9ad4fe613898a",
-    "src/Ryujinx.Input/HLE/NpadManager.cs": "0e54f0fad2439e189ad401160228a99da4aedfc2df8a0610e6175daa02409dd5",
     "src/Ryujinx.HLE/HOS/Services/Time/TimeSharedMemory.cs": "26e5d5464ca071bc09b3891a18ab6eb1c093f5eb525b593a163c8516386f6b66",
-    "src/Ryujinx.HLE/HOS/Kernel/Process/KProcess.cs": "eb053785918e3f2967e914ea4a946dbb556ca1796425cb8772be7a62b7661709",
-    "src/Ryujinx.HLE/HOS/Services/Nv/NvDrvServices/NvHostCtrl/Types/NvHostEvent.cs": "9ff868b0dc69d43111bec66e8555d6db52166f6465ef62225208a6a2478c3540",
-    "src/Ryujinx.Audio/Renderer/Server/AudioRendererManager.cs": "7bb129025f1964e227df42fe99cd8b7b67c8a5723013c7f76d0eb6f0e2b1b96c",
-    "src/Ryujinx.Common/PreciseSleep/NanosleepPool.cs": "8129273336c9254952b981dcd98a77bb8e8ed8f107ccadd7d3d2b225ff964dbf",
-    "src/Ryujinx.HLE/PerformanceStatistics.cs": "843280c9bbc5d7fe206aaf486615894784512164ee2654328b8c714265897c89",
+    "src/Ryujinx.HLE/HOS/Services/SurfaceFlinger/SurfaceFlinger.cs": "bb8e2a892da1ce7ef72e874b91d8dc83b38bdc33eb739698c7c7c4a17ffa15d2",
+    "src/Ryujinx.HLE/HOS/Services/Time/TimeManager.cs": "c6d686e8837ab2badd5655551f521bfcf140be474d5ca3b9b22a89959c3e8a7a",
     "src/Ryujinx.Graphics.Shader/CodeGen/Spirv/SpirvGenerator.cs": "44886a62e980a4193b9801c995a899e068979cc06b04ae866e2ce239d0d7964b",
-    "src/Ryujinx.HLE/HOS/Services/Time/Clock/SystemClockContextUpdateCallback.cs": "513f096c60eaa84ef3a8263671cc11c6a835bb100676f54ba4ac39adbfa08e11",
-    "src/Ryujinx.Graphics.GAL/ProgramPipelineState.cs": "36c60c35eef0a26949b6da4ad42364e6c614dac22c4e3e4e37ebbec56ab16f68",
-    "src/Ryujinx.Graphics.Shader/CodeGen/Spirv/Instructions.cs": "22f5bdf4b72a2bc2b3a7c80bca5ab9e4db5222cfd956754086b0cbe410fdda06",
-    "src/Ryujinx.HLE/HOS/Kernel/Threading/KWritableEvent.cs": "6d4224070cae2dc2a5ff6a833c80369c6f67bfb61f5b9733504835d3137d78f5",
-    "src/Ryujinx.HLE/HOS/Services/SurfaceFlinger/HOSBinderDriverServer.cs": "837826419182425ed24d1ddbbb5f0e599b1ac95fd9680c49b5f294e9f1af4d3e",
-    "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedProgram.cs": "300d40dd5b67ed36a7fcc6d2bbf9e1a8b74f34717ac9d4c0e537ab7eba1afaee",
-    "src/Ryujinx.Graphics.Gpu/Window.cs": "794edf455bb2945a77c23e971757f552fbe81fe26293dc3ea053360dde17cd39",
-    "src/Ryujinx.Graphics.Vulkan/PersistentFlushBuffer.cs": "1906acde917876bdbd0ec4f929834b57567a98352b5920fd8cf532b4e66b6f65",
-    "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/BinarySerializer.cs": "c02c198f832af9c5a6109f7e08cf9864041363590557dfad013e85281b97f083",
+    "src/Ryujinx.Graphics.Vulkan/TextureStorage.cs": "f6d2b9a584624e9af5ef8e54025ba1257870c8471ae53c7fc0475e8f7acae5b2",
     "src/Ryujinx.Graphics.Gpu/Shader/ShaderInfoBuilder.cs": "31eaf8d65202313dc976ab308f962ae93f8d6d3683b741836d0e35df2d93a2da",
-    "src/Ryujinx.Graphics.GAL/Multithreading/Commands/Program/ProgramCheckLinkCommand.cs": "537127abb5949be9c10e51c2511dc215b922b37c30d184eaffab0adf6afff767",
-    "src/Ryujinx.HLE/HOS/Kernel/KernelStatic.cs": "9fe7ff30e550816e44f8429edf5488767698165a30febe0c598955b7ba8e0471",
+    "src/Ryujinx.Graphics.GAL/IProgram.cs": "1213108b8dfe8a766174e3821d2a8109284bde7ff2a746cc6b0f2b275a6ddba3",
+    "src/Ryujinx.HLE/PerformanceStatistics.cs": "843280c9bbc5d7fe206aaf486615894784512164ee2654328b8c714265897c89",
+    "src/Ryujinx.Graphics.GAL/ProgramPipelineState.cs": "36c60c35eef0a26949b6da4ad42364e6c614dac22c4e3e4e37ebbec56ab16f68",
+    "src/Ryujinx.Audio/AudioManager.cs": "980c75966c94e6e34cda5acf6b7a995cb345c2fe6179138f4e6699fbf79ad11b",
+    "src/Ryujinx.Graphics.Gpu/Engine/Threed/StateUpdater.cs": "93e2c01d9158167d286bb8c98924818caae9a94f9b2c7c801d17ea6e12728653",
+    "src/Ryujinx.Graphics.Gpu/Synchronization/SynchronizationManager.cs": "16993b4ce936012a516d29a2e2c73c319d2cb6ab523669e1cfa345328d95af0a",
+    "src/Ryujinx.Common/PreciseSleep/NanosleepPool.cs": "8129273336c9254952b981dcd98a77bb8e8ed8f107ccadd7d3d2b225ff964dbf",
     "src/Ryujinx.Graphics.GAL/ITexture.cs": "bebb69971eaf9f1f3947e94e30115a0e6c477e4fed95a188b18aa325fa38369b",
     "src/Ryujinx.Graphics.Vulkan/Window.cs": "7b49d8aa4fec8adf3562ab2b0bcb0d6f13ce0cd9d306543e667658092e27dfa0",
-    "src/Ryujinx.HLE/HOS/Services/Time/TimeManager.cs": "c6d686e8837ab2badd5655551f521bfcf140be474d5ca3b9b22a89959c3e8a7a",
-    "src/Ryujinx.Graphics.Gpu/Engine/Threed/ComputeDraw/VtgAsComputeState.cs": "e6a66e1a7189dfaeccbaab1039470e3c5d7c4f090594adf362af78f53f368d5c",
-    "src/Ryujinx.Graphics.Gpu/Engine/Threed/StateUpdater.cs": "93e2c01d9158167d286bb8c98924818caae9a94f9b2c7c801d17ea6e12728653",
+    "src/Ryujinx.HLE/HOS/Kernel/KernelContext.cs": "282e985a72b9d4c47e3152900d61936193884ad8b5af32d82807788f183654fc",
+    "src/Ryujinx.Graphics.Gpu/Image/TextureBindingsManager.cs": "450aedf92e0d8ca4d5699ab370d40d9589b7f58f2326c77490879b258bce24c2",
     "src/Ryujinx.Graphics.Vulkan/MemoryAllocator.cs": "15833c21c16b3698de4f872d547f0d2b050cde28843695d972c366777512f9b3",
+    "src/Ryujinx.Graphics.Vulkan/PipelineLayoutCacheEntry.cs": "30ea8d391e06ad71251f7ba83e69ef9b0c6f3c20ca3f168dae1c9e6d8e410948",
     "src/Ryujinx.Graphics.Gpu/Shader/ShaderSpecializationState.cs": "c7bd068b306f2db2bf18ad430b9e62a0146c7769505dfc4181d9fc78dd46f142",
-    "src/Ryujinx.HLE/HOS/Kernel/KernelContext.cs": "282e985a72b9d4c47e3152900d61936193884ad8b5af32d82807788f183654fc"
+    "src/Ryujinx.Graphics.GAL/Multithreading/Commands/Program/ProgramCheckLinkCommand.cs": "537127abb5949be9c10e51c2511dc215b922b37c30d184eaffab0adf6afff767",
+    "src/Ryujinx.Graphics.Vulkan/PersistentFlushBuffer.cs": "1906acde917876bdbd0ec4f929834b57567a98352b5920fd8cf532b4e66b6f65",
+    "src/Ryujinx.Graphics.Vulkan/HelperShader.cs": "127af8755f1146b7dfce42df84adcd61bd066d141bab4280687c534bcc9ada35",
+    "src/Ryujinx.HLE/HOS/Services/Bluetooth/BluetoothDriver/BluetoothEventManager.cs": "2935b090f6bf4fd45371408888f29b8ac6b34a266257d4b3515f8d0ad04611d2",
+    "src/Ryujinx.Graphics.Gpu/Engine/Threed/ComputeDraw/VtgAsComputeState.cs": "e6a66e1a7189dfaeccbaab1039470e3c5d7c4f090594adf362af78f53f368d5c",
+    "src/Ryujinx.HLE/HOS/Services/Time/Clock/StandardUserSystemClockCore.cs": "d677e6620b71fe85c4100a00692820790c226d7857b25376680e455587eea50d",
+    "src/Ryujinx.Input/HLE/NpadManager.cs": "0e54f0fad2439e189ad401160228a99da4aedfc2df8a0610e6175daa02409dd5",
+    "src/Ryujinx.HLE/HOS/Services/SurfaceFlinger/HOSBinderDriverServer.cs": "837826419182425ed24d1ddbbb5f0e599b1ac95fd9680c49b5f294e9f1af4d3e",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedProgram.cs": "300d40dd5b67ed36a7fcc6d2bbf9e1a8b74f34717ac9d4c0e537ab7eba1afaee",
+    "src/Ryujinx.HLE/HOS/Kernel/Process/KProcess.cs": "eb053785918e3f2967e914ea4a946dbb556ca1796425cb8772be7a62b7661709",
+    "src/Ryujinx.Audio/Renderer/Server/AudioRendererManager.cs": "7bb129025f1964e227df42fe99cd8b7b67c8a5723013c7f76d0eb6f0e2b1b96c",
+    "src/Ryujinx.Graphics.GAL/ITextureArray.cs": "5dd236e731089d04967d4c6ba7551a7b69450154e4800d925dc022c01883f3db",
+    "src/Ryujinx.Graphics.Vulkan/ResourceArray.cs": "b0cf3ed2cb662369493d4fda562dcd79763bb2f3f0e1c1916305a0f97f1310d7",
+    "src/Ryujinx.Graphics.GAL/IRenderer.cs": "7435fb2578c74f645a5d44c269b55afa70ba267dd6c50ce40eb9ad4fe613898a",
+    "src/Ryujinx.HLE/HOS/Kernel/KernelStatic.cs": "9fe7ff30e550816e44f8429edf5488767698165a30febe0c598955b7ba8e0471",
+    "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/BinarySerializer.cs": "c02c198f832af9c5a6109f7e08cf9864041363590557dfad013e85281b97f083",
+    "src/Ryujinx.Graphics.Gpu/GraphicsConfig.cs": "60eb6588a6706dff805956cc5cbb261faf89189e4af1b3056fc976e04cfe66de",
+    "src/Ryujinx.Graphics.Shader/CodeGen/Spirv/Instructions.cs": "22f5bdf4b72a2bc2b3a7c80bca5ab9e4db5222cfd956754086b0cbe410fdda06",
+    "src/Ryujinx.HLE/HOS/Services/Nv/NvDrvServices/NvHostCtrl/Types/NvHostEvent.cs": "9ff868b0dc69d43111bec66e8555d6db52166f6465ef62225208a6a2478c3540",
+    "src/Ryujinx.HLE/HOS/Services/Time/Clock/SystemClockContextUpdateCallback.cs": "513f096c60eaa84ef3a8263671cc11c6a835bb100676f54ba4ac39adbfa08e11",
+    "src/Ryujinx.Graphics.Gpu/Window.cs": "794edf455bb2945a77c23e971757f552fbe81fe26293dc3ea053360dde17cd39",
+    "src/Ryujinx.HLE/HOS/Kernel/Threading/KWritableEvent.cs": "6d4224070cae2dc2a5ff6a833c80369c6f67bfb61f5b9733504835d3137d78f5"
   },
   "readsControlMembers": {
     "src/Ryujinx.Library/Library.cs": "d2cfc8e3d7aaeb11515116791dc62eae79d64729bd62f7f07a859b835f5a338d",
@@ -1026,7 +1027,7 @@
     "native/melonx/EmbeddedUnrealContent.cs": "57444c034af4b530318562179d9f4889ae7e1b8a386fde5f545cdcc76a7fe8e7",
     "native/melonx/EmbeddedUnrealProjectProbe.cs": "acb035903fa7be136e5a4063d40954a258867028d673a5da3bc7d35b3bc3c797",
     "native/melonx/EmbeddedWindowLifetime.cs": "c2a4e8b87af11aadb158d3ef03298306676f62efe804479cde5dc4c18c321650",
-    "build-utils/melonx/prepare_embedded.py": "1108ebf4196b98e04440472fe97b5172ff2c5801fabda120bfb5363f818c2f6b",
+    "build-utils/melonx/prepare_embedded.py": "3752553fc7cf7bcc3f3974ad49cfb44c32866c5f80db4e5e22ba4f325584fb65",
     "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
     "build-utils/melonx/adapt_input.py": "3be49cf1b8a657e40d82fc72c069e60643877249edd977a05a053e60caf5c568",
     "build-utils/melonx/adapt_runtime.py": "4ce4c0889498a030c6a767b5a0ca9190e91f6623f4987614ab0c44b8395fed84",
@@ -1202,7 +1203,10 @@
     "build-utils/melonx/adapt_host_thread_class.py": "4f84ae4a735033504c39ca2e8c50c136a9972d0e4da4aa4adead5b896d523ead",
     "build-utils/melonx/adapt_remap_sweep_range.py": "ecca08e93fa473603134d6ab560107580bdcbc9287a771bad0af1b7a3fc3b658",
     "build-utils/melonx/adapt_npad_config_snapshot.py": "bf0f72017123ffdfc94e0ae79bd1912afc3be2a98a52fb3dc90b2f7a187f1b41",
-    "build-utils/melonx/adapt_playtime_warmup_all_titles.py": "79cbaed42f37d66b573640f4edef9fdfce532c7e43e757ef2c7a2d01fae6346c"
+    "build-utils/melonx/adapt_playtime_warmup_all_titles.py": "79cbaed42f37d66b573640f4edef9fdfce532c7e43e757ef2c7a2d01fae6346c",
+    "build-utils/melonx/adapt_array_storage_counts.py": "c46eab72660cddeb13c29f3d8fae077b0cac90a57fc704da9a1b557e2e1e41d8",
+    "build-utils/melonx/adapt_submit_causes.py": "57a67c120575f3d8bda81d90e25e357163981fe5faca7c4d7c108c59f2e3fe7c",
+    "build-utils/melonx/adapt_build_journal_load_wait.py": "031d42d81be5a4f67b5fdb06ec2c1b65db7e366e7b249cd1d37480cbe938fddf"
   },
   "preparedMembers": {
     "src/Ryujinx.Library/Library.cs": "ecb8f4ff1a27479498dc849d6a47a610b7e857c8b19f76c9886f2a05dcf980a1",
@@ -1232,13 +1236,13 @@
     "src/Ryujinx.Memory/DonatedMemory.cs": "7f4764cd515429b5981ec35d6f901b55aa8ff3915eee81a1c21e1736f339bce8",
     "src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs": "c721da2bbaa47c6b37d0dcfd46dc3fab890f7e5cc41f4d0cd935ab464a67b1de",
     "src/Ryujinx.Graphics.Vulkan/VulkanException.cs": "6a889a31001fa3973eebcaafe9eb82615a840a791edb823ef0379c5db1120294",
-    "src/Ryujinx.Graphics.Vulkan/PipelineState.cs": "21d559841f0a72c73cf2e48b0425a855159889e65aef811af889390dd0534fe0",
+    "src/Ryujinx.Graphics.Vulkan/PipelineState.cs": "48da13bf57871582be963bc2c1386d2d5e0a241e9d2a9c2eb080d00831006d2c",
     "src/Ryujinx.Graphics.Gpu/Image/AutoDeleteCache.cs": "5174d523fcd420db9a8cd50275f4ed7feb94115f5cffff80af08f0f42fcf1caa",
     "src/Ryujinx.Graphics.Gpu/Image/Texture.cs": "8b17f16bcd0fbf363cd9a8c5074a52e97aabe0ec687ea5f2d5751bad2a20cde1",
     "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs": "29a97b9d6cba365ad0eaa9e031aedff0fc6003d9424e4e29ad972950d4269616",
     "src/Ryujinx.Graphics.Gpu/Image/TextureCache.cs": "3397541504f81dadfbe35204a1da53df7ff16d1498ce8fcb42048cef41d8b6c0",
     "src/Ryujinx.Graphics.Gpu/Memory/PhysicalMemory.cs": "f8187ac7a6c3cce1a93105fa27b84b66e8b5e26fbe7cbe1b1e1e1cc449dbfd66",
-    "src/Ryujinx.Graphics.Gpu/GpuContext.cs": "0a480f36de42cfda0a750fd93aafc17229b23e5de9ed58aa7a8517aefdf51253",
+    "src/Ryujinx.Graphics.Gpu/GpuContext.cs": "82e42e448addccaa8be3602de2d19e711eac822909cd06ae09da3cda709342e0",
     "src/Ryujinx.Audio/Renderer/Dsp/AudioProcessor.cs": "508ae3106a3c746d51ea850e737f4428fa170893985ac08f274481055fa5f6b8",
     "src/Ryujinx.HLE/HOS/Horizon.cs": "37ba952f0a41912345713dd22ca3e1349e81f2dc3b126f04fd28d235935c8857",
     "src/Ryujinx.Graphics.Gpu/Image/TexturePool.cs": "50a61fbe658928195d9ce835b6892cac953d0efc7a90de2deadc936c7ed027ae",
@@ -1246,7 +1250,7 @@
     "src/Ryujinx.Cpu/LightningJit/Arm64/Target/Arm64/Decoder.cs": "7992fab438db8defc8df32d89e76ec8a76696324713afe21d7855e3abb7e7780",
     "src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs": "e96c9513aeb152b4be29e09a189173736f704eec23999b96a4c94cb66af9bb43",
     "src/Ryujinx.Graphics.Vulkan/FramebufferParams.cs": "072fa1e241d1e52ddea28610aa19f44d45f596ec3148800bdf4e283ecd28c42c",
-    "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs": "a801fc74c66fb54de5ffc1902069476b9ffcad0f025720e01c7af40820e250a4",
+    "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs": "a4660b4d61585fd740d619f40f42d8ec5be181f49a425fc0b906b93b42a2271a",
     "src/Ryujinx.HLE/HOS/Kernel/Threading/KThread.cs": "78579fcf0e2af1e9e00d4e517a8c995a73e6eacda9b867e14eb39bcc88f71ac9",
     "src/Ryujinx.HLE/HOS/Kernel/Threading/KAddressArbiter.cs": "422500db44b1e3f88ea8171d7f47f92ccd979766eb5faad0740dbd804a80eab3",
     "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "45ee8376556d63c9f026f12e9ce75d5f69658242b2f5f225a82222dd394415af",
@@ -1266,8 +1270,8 @@
     "src/Ryujinx.Graphics.Vulkan/TextureBuffer.cs": "d9605cd8ed55f0bb749dc0390445ccd13540935d10fa5068175ef35a2c043fc5",
     "src/Ryujinx.Graphics.Vulkan/BufferManager.cs": "54482c170c881114719f3fdcacd06fa8fa4223c6f9c96834d812f4ff7dce8d92",
     "src/Ryujinx.Cpu/LightningJit/Graph/DataFlow.cs": "513b41a8decfcde9b87c414acedf56ee13ac7097bb7658e8d53b6ec41c2a4f22",
-    "src/Ryujinx.Graphics.Vulkan/TextureView.cs": "a639dc480573123265307e260441a51f21e42a53131e2cb99af738707d0ec51d",
-    "src/Ryujinx.Graphics.Vulkan/StagingBuffer.cs": "6701eadf10f1645afeb5a6c122b57282047cff978aaae346a81c87e1f403e08d",
+    "src/Ryujinx.Graphics.Vulkan/TextureView.cs": "58282a28b7b03d32fa936f32fe1f57525e5de70c853efa54d0cecdc6e9196baf",
+    "src/Ryujinx.Graphics.Vulkan/StagingBuffer.cs": "9df664492142b5347b431b402ec0866300d8da68829ab716a929a54148798e0a",
     "src/Ryujinx.Graphics.Gpu/Memory/ReadOnlyRegion.cs": "6e795f339912d5e0c83a017fad23f2109bd937ae242b616722a1e90deba8a88a",
     "src/Ryujinx.Graphics.GAL/Multithreading/Commands/TextureArray/TextureArraySetTexturesCommand.cs": "b2be1fafb698eb603eb4d540815abdac646c7ef387a48073c1d6bb5dad69e9c8",
     "src/Ryujinx.Graphics.GAL/Multithreading/Commands/TextureArray/TextureArraySetSamplersCommand.cs": "1d84607a4098f775bcb912353c825263af938d6f35485d3447f9d3d5fa965903",
@@ -1275,7 +1279,7 @@
     "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedTextureArray.cs": "a3a116c083ce487b981d4481527be72708fc32d50b2185f072204e8057ec31e6",
     "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedImageArray.cs": "15f70d0656ff7fcf3d0281a3259de39e861d18ba0d8e8b375e56d3b05394eba4",
     "src/Ryujinx.Graphics.Gpu/Image/TextureBindingsArrayCache.cs": "c64415fc5128087b8c4371b16a9aa0d51b4367a51844961abd0a30438b1aaf04",
-    "src/Ryujinx.Graphics.Vulkan/TextureArray.cs": "e62eb2f3e25cbccc3f7ce6dfd77c8c5ab29de9561ee429742506067748d19b57",
+    "src/Ryujinx.Graphics.Vulkan/TextureArray.cs": "54d8a585078eb2bc98008d497dcf0f82d8f2bf85fe17f8e6cf39fffb73892b51",
     "src/Ryujinx.Graphics.Vulkan/ImageArray.cs": "831986501847bc7d8bc98bada795e7a9d9f55b9399bd64f48303f334cc74b4b1",
     "src/Ryujinx.Graphics.Vulkan/HashTableSlim.cs": "e9fb1db8eac79c9aa8d16eafd4ff6b09f0b555197fad197d71c7adc1140fe624",
     "src/Ryujinx.Graphics.Vulkan/PipelineUid.cs": "de89c818038ec0eb5e31afed7face4f2652ca7123be92bf8485fec2572f3efc9",
@@ -1293,7 +1297,7 @@
     "src/Ryujinx.HLE/HOS/Kernel/Ipc/KSessionRequest.cs": "09a13c5739521d82cc119e5138636c734a27d04dfcfffe225cf2bbe93e01a565",
     "src/Ryujinx.HLE/HOS/Kernel/Ipc/KServerSession.cs": "3ef04768f15101df8e025f70bbffbe236aa8f097c3a6ee9db618ba9185317000",
     "src/Ryujinx.HLE/HOS/Kernel/Common/KTimeManager.cs": "8639138cb478fe9ed976f4049e08f04203c42fe128e629af0da6d65cd3a89394",
-    "src/Ryujinx.Graphics.Vulkan/SyncManager.cs": "b55b9c3c1fb941198d0240172dc205d8c916c6d38be82649c9e703c1c79bd6b3",
+    "src/Ryujinx.Graphics.Vulkan/SyncManager.cs": "4927c3c53aab2d89f108aa1c60dc7854734080e92a4d91997e1882b9a9989fb1",
     "src/Ryujinx.Graphics.Vulkan/BufferUsageBitmap.cs": "a9d8acbb38e4bdc23fc3ee39c9635159b08197e3857955798e9a1917694bba44",
     "src/Ryujinx.Graphics.Vulkan/MemoryAllocatorBlockList.cs": "bdd8e37aa7b337afd7c3f99974c9a80d9b98d6e01b07759a94f231251d64315b",
     "src/Ryujinx.Graphics.Gpu/Image/TextureGroupHandle.cs": "f09f38507f6db569cd657459c8e6ab402076b4463f5030057f72925a6865bf5a",
@@ -1321,12 +1325,12 @@
     "src/Ryujinx.Graphics.Vulkan/Queries/BufferedQuery.cs": "91054f656d99c9439d0a4209b827696c20dba20a03a1fe5445a6f4db7f4ab676",
     "src/Ryujinx.Graphics.Vulkan/Queries/CounterQueueEvent.cs": "ac92c02419acbeaa497fcba89d9e1a8b3a0195af12fd4a55a1f4512560863ef8",
     "src/Ryujinx.Graphics.Vulkan/Queries/CounterQueue.cs": "f6334bdfc647399e6d4e5709cf8f00cdc9084a9253fc1dd26ef410c9a7e97bdf",
-    "src/Ryujinx.Graphics.Vulkan/PipelineFull.cs": "359e31758ce45482abd64688b74e38bb65a4f2997086f8d6b995247580381a83",
+    "src/Ryujinx.Graphics.Vulkan/PipelineFull.cs": "0a9361a026e77f6e03599590168b84eb9b642f74a88bc58fbd3fdcb15765e8ba",
     "src/Ryujinx.Graphics.Gpu/Memory/DeferredCounterReport.cs": "8ff7b8fd73e9660e6e1f98acc69bc3db206e2fdbfda77d17504794abfa1cb2c3",
     "src/Ryujinx.Graphics.Gpu/Engine/Threed/ThreedClass.cs": "21d6288eea430e45b1fe6f4fef5440ffddd2105284d89e7870b958750946a499",
     "src/Ryujinx.Graphics.GAL/Multithreading/ThreadedPipeline.cs": "0a0d717b34a646dd744e110c1a08f05b65e5ba2ccbbd15b5f7f613103f1caf07",
     "src/Ryujinx.Graphics.GAL/Multithreading/Commands/TryHostConditionalRenderingCommand.cs": "0677dd4012a9f915b7af4c579c87c4d0724acd851e285d644de8158417406e01",
-    "src/Ryujinx.Graphics.Vulkan/AutoFlushCounter.cs": "d7c0ec0ce5014d76244a703d7645fcc6587d3bd94f0101532455f3aa63581a7d",
+    "src/Ryujinx.Graphics.Vulkan/AutoFlushCounter.cs": "8ce14d4a0a7e8826f4ae0087da4edd993f92b4d5f70d88f528380d383457990f",
     "src/Ryujinx.Graphics.Vulkan/TextureCopy.cs": "029c828de5928117fa6c422017088c19f4a13d8ec50882918e441aecf56811ff",
     "src/Ryujinx.Cpu/LightningJit/Arm64/Target/Arm64/InstEmitMemory.cs": "baec1f26f42e46272587c23c6c727762e369ec03daa42f75e5c0f35e98668fee",
     "src/Ryujinx.Cpu/Jit/HostTracked/NativePageTable.cs": "790d1af6e7b2cb3f83a510b9370b591bd4c87c1841a2ef80b06201e5453d99f0",
@@ -1334,7 +1338,7 @@
     "src/Ryujinx.Cpu/LightningJit/Arm64/Target/Arm64/InstTable.cs": "5514038a1d441ad387498fabffdde73c741dd2a06ae13c73a5b7172a54730d4b",
     "src/Ryujinx.Cpu/LightningJit/NativeInterface.cs": "1202cee894cdd8b746dd46aae2600a03c387637bfd8b3cfd79ee183b4c59bbc4",
     "src/Ryujinx.Graphics.GAL/Multithreading/Model/CircularSpanPool.cs": "c167894bb19e2b431d2f611838e64a2ecd7b0d55a65dc2fb112765231cafeb81",
-    "src/Ryujinx.Graphics.Vulkan/BufferHolder.cs": "4de2cceb304550b192f2c37d89d84aea109012aadefddf2fe1527a5e942a778d",
+    "src/Ryujinx.Graphics.Vulkan/BufferHolder.cs": "9b5e77bef55cb51b9942b4d24a5f3d544512036dd7384c71b8d98e821c0402e1",
     "src/Ryujinx.Memory/IVirtualMemoryManager.cs": "e5780e075bb2f8c03e3f3ec7196e567a7d8956e3feabf9902781a0c7e554f16a",
     "src/Ryujinx.Cpu/Jit/MemoryManagerHostTracked.cs": "ffd48399d30caa34fec2088122ec6eb78c39c8d4e8305b55ca7e0f5c263bdea6",
     "src/Ryujinx.Graphics.Gpu/Engine/Threed/DrawManager.cs": "86d90a713bd0f5c6b510110382e1c35b17195c9da9f551993c7326adb2b79e7f",
@@ -1345,7 +1349,7 @@
     "src/Ryujinx.Graphics.Gpu/Image/TextureManager.cs": "ad928cf3f4da86d89f39c76c829b03d716b049a50b47b59a11b743c3e2151f38",
     "src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs": "cb4d8df1db93dfb663c2c384a73fa77416ba5de0afcfcd972c28890084b65882",
     "src/Ryujinx.Graphics.Gpu/GraphicsConfig.cs": "bd948d062548762c35025918817f1929ced0feefd347e56f4c2175e76c52677f",
-    "src/Ryujinx.Graphics.Vulkan/Window.cs": "89ca8a5dd885bd886f08f2d5093ad64222f0bc2b50c928a121799faaa0cbc87b",
+    "src/Ryujinx.Graphics.Vulkan/Window.cs": "bafe13acdb6496143e0c37d59e7dfa7758fd3d6c59914ba9af7485a7eeca5f26",
     "src/Ryujinx.Graphics.Vulkan/TextureStorage.cs": "ea5c4e4671bc97f0cdd94196f0add66b97f9e8d0e77b0e07cfb7845756fed2f0",
     "src/Ryujinx.Graphics.Vulkan/ResourceArray.cs": "d5fd75895705a92f8b839ee39b646b2a491e21a5fcf9c16e7c73970090fbcb63",
     "src/Ryujinx.Graphics.Vulkan/PipelineLayoutCacheEntry.cs": "bd8711d8fe405b87940c920b3f9ded8ab7f67610d1056e0704ff9ebd69a98413",
@@ -1387,6 +1391,7 @@
     "src/Ryujinx.Audio/Renderer/Server/AudioRendererManager.cs": "06e8994070cfff8f2c71c3ef219b55704c029e95c79560047d6e4d164ca2434e",
     "src/Ryujinx.Audio/AudioManager.cs": "60ecc83abd50ebaaf90a2d69894947a6257381ac1fdd733ab513be3ad7fcc2c4",
     "src/Ryujinx.Input/HLE/NpadManager.cs": "fe93a6eac75cdaed6db0eea1703f6436e810a3b3e99ce60c15246f1f92dbce93",
+    "src/Ryujinx.Graphics.Vulkan/HelperShader.cs": "2e884257a07b03bb2a50a28892ddf7c537839b8faaa352db8e83606d32cb13e5",
     "src/Ryujinx.Common/Configuration/AppDataManager.cs": "1c1016fea5c0a1edaa2a3b1eb7fd7550466ee597b2eeb97eb49936bc05a92fca",
     "src/Ryujinx.Library/EmbeddedAddonSelection.cs": "5a37e4e21596141896598eeaefcbe68a208ee9be0df459473102c9609c27bad6",
     "src/Ryujinx.Library/EmbeddedAddons.cs": "bb159cfec55c92ffc14fc5ac52a342e3112c4d95b7c1350b571f8cab29fd754f",
@@ -1499,6 +1504,7 @@
       "src/Ryujinx.Graphics.Gpu/Window.cs": "794edf455bb2945a77c23e971757f552fbe81fe26293dc3ea053360dde17cd39",
       "src/Ryujinx.Graphics.Shader/CodeGen/Spirv/Instructions.cs": "22f5bdf4b72a2bc2b3a7c80bca5ab9e4db5222cfd956754086b0cbe410fdda06",
       "src/Ryujinx.Graphics.Shader/CodeGen/Spirv/SpirvGenerator.cs": "44886a62e980a4193b9801c995a899e068979cc06b04ae866e2ce239d0d7964b",
+      "src/Ryujinx.Graphics.Vulkan/HelperShader.cs": "127af8755f1146b7dfce42df84adcd61bd066d141bab4280687c534bcc9ada35",
       "src/Ryujinx.Graphics.Vulkan/PersistentFlushBuffer.cs": "1906acde917876bdbd0ec4f929834b57567a98352b5920fd8cf532b4e66b6f65",
       "src/Ryujinx.Graphics.Vulkan/PipelineLayoutCacheEntry.cs": "30ea8d391e06ad71251f7ba83e69ef9b0c6f3c20ca3f168dae1c9e6d8e410948",
       "src/Ryujinx.Graphics.Vulkan/ResourceArray.cs": "b0cf3ed2cb662369493d4fda562dcd79763bb2f3f0e1c1916305a0f97f1310d7",
@@ -1524,6 +1530,7 @@
     "build-utils/melonx/adapt_array_delta_invalidated.py",
     "build-utils/melonx/adapt_array_rebuild_allocations.py",
     "build-utils/melonx/adapt_array_reference_deltas.py",
+    "build-utils/melonx/adapt_array_storage_counts.py",
     "build-utils/melonx/adapt_artifact_counters.py",
     "build-utils/melonx/adapt_async_regenerated_targets.py",
     "build-utils/melonx/adapt_audio_start_deferred.py",
@@ -1532,6 +1539,7 @@
     "build-utils/melonx/adapt_binder_teardown.py",
     "build-utils/melonx/adapt_bindless_retention.py",
     "build-utils/melonx/adapt_buffer_array_barriers.py",
+    "build-utils/melonx/adapt_build_journal_load_wait.py",
     "build-utils/melonx/adapt_checkpoint_side_cache.py",
     "build-utils/melonx/adapt_cold_buffer_trim.py",
     "build-utils/melonx/adapt_cold_texture_release.py",
@@ -1590,6 +1598,7 @@
     "build-utils/melonx/adapt_shader_save_journal.py",
     "build-utils/melonx/adapt_shader_save_poll.py",
     "build-utils/melonx/adapt_short_cache_reuse.py",
+    "build-utils/melonx/adapt_submit_causes.py",
     "build-utils/melonx/adapt_sync_wait_attribution.py",
     "build-utils/melonx/adapt_synced_buffer_reads.py",
     "build-utils/melonx/adapt_teardown_cache.py",
@@ -1649,11 +1658,13 @@
     "src/Ryujinx.Graphics.Gpu/Window.cs",
     "src/Ryujinx.Graphics.Shader/CodeGen/Spirv/Instructions.cs",
     "src/Ryujinx.Graphics.Shader/CodeGen/Spirv/SpirvGenerator.cs",
+    "src/Ryujinx.Graphics.Vulkan/AutoFlushCounter.cs",
     "src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs",
     "src/Ryujinx.Graphics.Vulkan/BarrierBatch.cs",
     "src/Ryujinx.Graphics.Vulkan/BufferHolder.cs",
     "src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs",
     "src/Ryujinx.Graphics.Vulkan/FramebufferParams.cs",
+    "src/Ryujinx.Graphics.Vulkan/HelperShader.cs",
     "src/Ryujinx.Graphics.Vulkan/ImageArray.cs",
     "src/Ryujinx.Graphics.Vulkan/MemoryAllocator.cs",
     "src/Ryujinx.Graphics.Vulkan/MemoryAllocatorBlockList.cs",
@@ -1667,6 +1678,8 @@
     "src/Ryujinx.Graphics.Vulkan/PipelineState.cs",
     "src/Ryujinx.Graphics.Vulkan/ResourceArray.cs",
     "src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs",
+    "src/Ryujinx.Graphics.Vulkan/StagingBuffer.cs",
+    "src/Ryujinx.Graphics.Vulkan/SyncManager.cs",
     "src/Ryujinx.Graphics.Vulkan/TextureArray.cs",
     "src/Ryujinx.Graphics.Vulkan/TextureStorage.cs",
     "src/Ryujinx.Graphics.Vulkan/TextureView.cs",
@@ -1811,11 +1824,13 @@
         "src/Ryujinx.Graphics.Gpu/Window.cs",
         "src/Ryujinx.Graphics.Shader/CodeGen/Spirv/Instructions.cs",
         "src/Ryujinx.Graphics.Shader/CodeGen/Spirv/SpirvGenerator.cs",
+        "src/Ryujinx.Graphics.Vulkan/AutoFlushCounter.cs",
         "src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs",
         "src/Ryujinx.Graphics.Vulkan/BarrierBatch.cs",
         "src/Ryujinx.Graphics.Vulkan/BufferHolder.cs",
         "src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs",
         "src/Ryujinx.Graphics.Vulkan/FramebufferParams.cs",
+        "src/Ryujinx.Graphics.Vulkan/HelperShader.cs",
         "src/Ryujinx.Graphics.Vulkan/ImageArray.cs",
         "src/Ryujinx.Graphics.Vulkan/MoltenVK/MVKInitialization.cs",
         "src/Ryujinx.Graphics.Vulkan/PersistentFlushBuffer.cs",
@@ -1827,6 +1842,8 @@
         "src/Ryujinx.Graphics.Vulkan/PipelineState.cs",
         "src/Ryujinx.Graphics.Vulkan/ResourceArray.cs",
         "src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs",
+        "src/Ryujinx.Graphics.Vulkan/StagingBuffer.cs",
+        "src/Ryujinx.Graphics.Vulkan/SyncManager.cs",
         "src/Ryujinx.Graphics.Vulkan/TextureArray.cs",
         "src/Ryujinx.Graphics.Vulkan/TextureStorage.cs",
         "src/Ryujinx.Graphics.Vulkan/TextureView.cs",
@@ -2274,6 +2291,15 @@
           "reportPath": [
             "compiledSourceInputs",
             "candidate",
+            "src/Ryujinx.Graphics.Vulkan/AutoFlushCounter.cs"
+          ],
+          "productionPath": "src/Ryujinx.Graphics.Vulkan/AutoFlushCounter.cs"
+        },
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
             "src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs"
           ],
           "productionPath": "src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs"
@@ -2313,6 +2339,15 @@
             "src/Ryujinx.Graphics.Vulkan/FramebufferParams.cs"
           ],
           "productionPath": "src/Ryujinx.Graphics.Vulkan/FramebufferParams.cs"
+        },
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "src/Ryujinx.Graphics.Vulkan/HelperShader.cs"
+          ],
+          "productionPath": "src/Ryujinx.Graphics.Vulkan/HelperShader.cs"
         },
         {
           "variant": "candidate",
@@ -2412,6 +2447,24 @@
             "src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs"
           ],
           "productionPath": "src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs"
+        },
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "src/Ryujinx.Graphics.Vulkan/StagingBuffer.cs"
+          ],
+          "productionPath": "src/Ryujinx.Graphics.Vulkan/StagingBuffer.cs"
+        },
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "src/Ryujinx.Graphics.Vulkan/SyncManager.cs"
+          ],
+          "productionPath": "src/Ryujinx.Graphics.Vulkan/SyncManager.cs"
         },
         {
           "variant": "candidate",
@@ -5538,6 +5591,110 @@
       "requiredPostimages": [
         "src/Ryujinx.Library/Library.cs"
       ]
+    },
+    {
+      "name": "array-storage-counts",
+      "script": "test/melonx_array_storage_counts_test.py",
+      "report": "array-storage-counts-checks.json",
+      "control": "delivered",
+      "arguments": [
+        "{baseline}",
+        "--candidate-source",
+        "{candidate}"
+      ],
+      "timeoutSeconds": 3600,
+      "assertions": {
+        "result": "passed",
+        "finalPreparationBound": true,
+        "sourceKind": "finalPreparationWithReversedControl",
+        "physicalDeviceTested": false,
+        "comparison.policyOffByteIdentical": true,
+        "comparison.policyOnSameBarriersPerOperation": true,
+        "comparison.setAlwaysExact": true,
+        "comparison.sensitivityVariantsFailed": 3
+      },
+      "requiredPostimages": [
+        "src/Ryujinx.Graphics.Vulkan/TextureArray.cs"
+      ]
+    },
+    {
+      "name": "submit-causes",
+      "script": "test/melonx_submit_causes_test.py",
+      "report": "submit-causes-checks.json",
+      "control": "delivered",
+      "arguments": [
+        "{baseline}",
+        "--candidate-source",
+        "{candidate}"
+      ],
+      "timeoutSeconds": 3600,
+      "assertions": {
+        "result": "passed",
+        "finalPreparationBound": true,
+        "sourceKind": "finalPreparationWithReversedControl",
+        "physicalDeviceTested": false,
+        "productionVulkanAssemblyBuilt": true,
+        "productionGpuAssemblyBuilt": true,
+        "submissionSites": 16
+      },
+      "requiredPostimages": [
+        "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs",
+        "src/Ryujinx.Graphics.Vulkan/PipelineFull.cs",
+        "src/Ryujinx.Graphics.Vulkan/SyncManager.cs",
+        "src/Ryujinx.Graphics.Vulkan/AutoFlushCounter.cs",
+        "src/Ryujinx.Graphics.Vulkan/BufferHolder.cs",
+        "src/Ryujinx.Graphics.Vulkan/StagingBuffer.cs",
+        "src/Ryujinx.Graphics.Vulkan/TextureView.cs",
+        "src/Ryujinx.Graphics.Vulkan/HelperShader.cs",
+        "src/Ryujinx.Graphics.Vulkan/Window.cs",
+        "src/Ryujinx.Graphics.Gpu/GpuContext.cs"
+      ]
+    },
+    {
+      "name": "build-journal-load-wait",
+      "script": "test/melonx_build_journal_load_wait_test.py",
+      "report": "build-journal-load-wait-checks.json",
+      "control": "delivered",
+      "arguments": [
+        "{baseline}",
+        "--candidate-source",
+        "{candidate}"
+      ],
+      "timeoutSeconds": 3600,
+      "assertions": {
+        "result": "passed",
+        "finalPreparationBound": true,
+        "sourceKind": "finalPreparationWithReversedControl",
+        "physicalDeviceTested": false,
+        "productionVulkanAssemblyBuilt": true,
+        "report.servedAfterLoadWait.candidate": 0
+      },
+      "requiredPostimages": [
+        "src/Ryujinx.Graphics.Vulkan/PipelineState.cs"
+      ]
+    },
+    {
+      "name": "sync-allocations",
+      "script": "test/melonx_sync_allocations_test.py",
+      "report": "sync-allocation-checks.json",
+      "control": "delivered",
+      "arguments": [
+        "{baseline}",
+        "--candidate-source",
+        "{candidate}"
+      ],
+      "timeoutSeconds": 1800,
+      "assertions": {
+        "result": "passed",
+        "finalPreparationBound": true,
+        "sourceKind": "deliveredPreparedWithFinalCandidate",
+        "physicalDeviceTested": false,
+        "sameFunctionalDigest": true,
+        "sameAllocations": true
+      },
+      "requiredPostimages": [
+        "src/Ryujinx.Graphics.Vulkan/SyncManager.cs"
+      ]
     }
   ],
   "inputs": {
@@ -5564,7 +5721,7 @@
     "build-utils/melonx/build_libhac.py": "68519a96e5a2c3e94285bfb65d42ae7c053a3b2a1893fd6509acf1d8080ce9e5",
     "build-utils/melonx/core-baseline.json": "3c9d1b86b88ce5d37a704820bcd9a2fd03c541dc30a3cefc9938db3213ce015d",
     "build-utils/melonx/core733_native.py": "48e4f9be8505fb1b15965b484a3a95ed5bdf91c448471906bb6caf7a83bf94e3",
-    "build-utils/melonx/dma-core-plan.json": "146c8c442bc876f5ee61faad84d3f04c5bd67b52aefaf3467dc995fdb4469ab8",
+    "build-utils/melonx/dma-core-plan.json": "0a31dc85620b2085d66b395c5c9af0df57266ca976699756c1b740b0675cffa3",
     "build-utils/melonx/freeze_dma_core.py": "72b920544e15b62c77be673935bc5215bf75ae24e07faa8ff0403d883ca6a40b",
     "build-utils/melonx/freeze_performance_core.py": "0d686230908524abb8f56b086b070b8ac0f3c876cbf2ba99c048828d45d43703",
     "build-utils/melonx/liveness-core-contract.json": "4e899e791d30ebd8e9f6a7183093aa5d51c6a7414f2b53642c5726c47ed55006",
@@ -5576,7 +5733,7 @@
     "build-utils/melonx/validate_runtime_reuse.py": "a910628dd92e237121e92ff91765e3e69cab84a2806788359c46fb6db969641a",
     "build-utils/melonx/verify_arrays_core.py": "260e2fb76da7803bc64c14ec120324292970eb7681b556ece42e5be202bace4f",
     "build-utils/melonx/verify_core_candidate.py": "ef88b181ad7073e0de8eec59bbb649c22058a7204aa1338c67ab049c00e2b0b9",
-    "build-utils/melonx/verify_dma_core.py": "89051612ebbbb02d514cc020b1b3a6b85627c0eff91ef9cde7aa34eda6db1c8e",
+    "build-utils/melonx/verify_dma_core.py": "42ccc0e1a733cdc473b186eafd5621b859df2270251df339685dbfe6fe4b2604",
     "build-utils/melonx/verify_liveness_core.py": "5ba00fc30bec90b5265e7e3d40d6fe5736da8a1e3d90e05142f45f912eefd83c",
     "build-utils/melonx/verify_reads_core.py": "e65a8e0b210333fc09741b12e538809bcc0f68008a7b46a7706ff505632dc0f4",
     "docs/evidence/melonx-739-gates/setprogram-warmup-checks.json": "d3711f983163e9ec4744aee8a67c4c7e483ea2f21bcdb1c5e87fb8ad5cd90dcc",
@@ -5585,8 +5742,8 @@
     "native/melonx/EmbeddedSession.cs": "5b882aff47f53242bb25c2c8fd1906163db92231a460105e79ffd55a2b93fdba",
     "packages/melonx_internal_bridge/ios/Classes/MeloNXRuntimeAPI.swift": "9fc81e7adb5b8532f620041d6356ba2ae134cbe5ea3fe1ad2716cf10f4241a9b",
     "packages/melonx_internal_bridge/ios/Classes/MeloNXSessionHost.swift": "27d788feb503ada71009405c0162b643ca7bd15272a40be831c5787de1c456ec",
-    "test/melonx_adapter_control.py": "8605366d70771bb4e3ca72f9e69a0013fc2b841198ec0e05b9ca4182cbb0462a",
-    "test/melonx_adapter_control_order_test.py": "dbf0dd6748807c790c581500a6009509aff064e52e13a56bc98a56a290f9a397",
+    "test/melonx_adapter_control.py": "03c88650f6db42cb91df95e7533e84f938b9ff9f95761505beccbeb218bed4d3",
+    "test/melonx_adapter_control_order_test.py": "92fc03f908022d22deb62065769497d0e890447ec412140cfe65e05b7a3f2085",
     "test/melonx_allocator_blocks/Boundaries.cs": "7b00ad236e58e5335ee51a0abf68d63cf9c896ac56bfc86f456fe79458f01836",
     "test/melonx_allocator_blocks/Program.cs": "951d99a5a0245199d8b6c1c4f571ea7a279787e2a659dfa5b24cbee182b20c5e",
     "test/melonx_allocator_blocks_test.py": "b7dd6e2d8454d4b2209a61a8eb17c26cb2ea336a9eb3a665cc2c340c015af658",
@@ -5601,6 +5758,8 @@
     "test/melonx_array_rebuild_allocations/Program.cs": "a00f99ed1c3b83bdda7ac942bcfe4aa74039226bf59d2f39cd9bd14d5dc9326c",
     "test/melonx_array_rebuild_allocations_test.py": "632f23dd58098172d02705ee302ff914c3197d23cc19fb7dd4043f537d32419f",
     "test/melonx_array_reference_deltas_test.py": "a0e2ce376c71368781843b610d24f0b8e6d082f209164a56cb44054ae3f0f78b",
+    "test/melonx_array_storage_counts/Program.cs": "05a9b7d02c1f3d24a83142b62a718967b55d2b8d5cd11cd92dcc810d65e91563",
+    "test/melonx_array_storage_counts_test.py": "3a9e89bc54e3bd15fd09fc5c72110b77db43d7f7ab54fa7549815799091cf1c0",
     "test/melonx_artifact_counters/Program.cs": "8faebbcfc320e462132687d8b80d3a2a5c40f40c6ae4d080758151356ca0b7c2",
     "test/melonx_artifact_counters/barrier/Boundaries.cs": "effb7022fa1f38a358fd633279db8334fceefd1aa21f52b00ebcd00b1920746f",
     "test/melonx_artifact_counters/barrier/Program.cs": "2a8d5bdaa7bd4185060a84e686934f764971656296e5701f7e8a6491786fb50a",
@@ -5626,6 +5785,8 @@
     "test/melonx_bindless_retention/VulkanProbe.cs": "99d007975c2f69e46b3ed6ba47873341fbb8be1fc0a81b45e1ef17e47d80b8be",
     "test/melonx_bindless_retention_test.py": "1a7b143a90104b46bb272f5807af2705edead8a30e2d5ac2c55b6b36097d48f6",
     "test/melonx_bounded_binding_snapshots_test.py": "61712ed5b1102c021171fdd8db93d483418b5883209423eb9f08d1fee670cd75",
+    "test/melonx_build_journal_load_wait/Program.cs": "116101850229845bfda8dadb2850c8d5f347ef1cab4453cee88d28f8dc1c4db9",
+    "test/melonx_build_journal_load_wait_test.py": "1360e350529ef9d1fa3b358b2eb11deb172170ccf59394895798928248e04dbb",
     "test/melonx_checkpoint_side_cache_test.py": "a56d983927af74181362a2e976849d4295928892450bb1fe89f2f053ba0b3ed0",
     "test/melonx_cold_buffer_trim/Program.cs": "b8d9b808eaf89d55afbaaa399111800a00b7aff6a3366382b807c18dbed1b9c7",
     "test/melonx_cold_buffer_trim_test.py": "4340d7abde27fab9776d7f422008dcafd9dc5e4a9f6c38ab881124e975010531",
@@ -5633,7 +5794,7 @@
     "test/melonx_cold_texture_release_test.py": "a571c8da48aa42776f5108b093e0777687ae19192f3539d607b4632f7106fc25",
     "test/melonx_compute_switch_bindings/Program.cs": "0c37e585ea665db2101599b3b9cb8d40de77a452abee79de34e05a43f8be2dce",
     "test/melonx_compute_switch_bindings_test.py": "4e0a1d46fe219acf006b4bc62268387517c3a4043c948bb5a323b8c92f367804",
-    "test/melonx_core667_fixes_test.py": "116a22251ea2522054c2afeb9912fcc6b94f25a807b1f3833779022700b25d7a",
+    "test/melonx_core667_fixes_test.py": "d44c334a3802c125ba51acedcab70b0a21e0e57e73d7868b88b92a1238a0b23e",
     "test/melonx_counter_report_compaction_test.py": "ddd9a54dd649add8821768ab274ba54733f1a6f50cc47a3c518c83bd643055aa",
     "test/melonx_descriptor_encoding_final.py": "b48fcc30bcaf48645bbf05de45f11e93d5caffca28696a6163a99c10582e91d9",
     "test/melonx_descriptor_scratch_all_titles_test.py": "c8b3293f54d9ee934bf525388a1f7d2d1a9ec0719d4f9a29fc1073ad56d6dff0",
@@ -5642,7 +5803,7 @@
     "test/melonx_diagnostics_snapshot_reuse/Program.cs": "18e422db3a0f6f617f33c5007b9241802c49e2d37b576aabb032887149309fce",
     "test/melonx_diagnostics_snapshot_reuse_test.py": "545915e2ae1329c7b25efbac9368bdd61e9d71cb884e73b9449835485cd10c37",
     "test/melonx_display_native_test.py": "5353b3ff451859e096675ee2c6163dddd9f9a038bf5ef427b7a6b8c7cf0de2d9",
-    "test/melonx_dma_core_contract_test.py": "2f642274d22c949e967cd512a301f7bbd503f1dfb1d3b4a14717354a85d3f029",
+    "test/melonx_dma_core_contract_test.py": "dbefac7369e366fc65b3b99b32363228bbfc3f7f2610a637bd7628759743db87",
     "test/melonx_evicted_buffer_recreate_test.py": "9afb619330824818decb00e83f2af5e58ebf5873ae7ab7303ca784f835015dce",
     "test/melonx_extra_array_dirty/Boundaries.cs": "4f82d7854d28d53cf3a15542b285823958c8c45573aa937ceaa02d92a70fe749",
     "test/melonx_extra_array_dirty/Program.cs": "2f38644def69e4f8ae34cd0f473c2393a3359a4e3952cb5438556c7cfadacb80",
@@ -5654,7 +5815,7 @@
     "test/melonx_forced_syncpoint_wait/Program.cs": "b08edc47cecb5de272d83f08e2ca9444ceff4049bdc4dd1f965ef5b6e107efa9",
     "test/melonx_forced_syncpoint_wait_test.py": "2fec0fd31e0a1c204202bf4c27b33ba54e04b7057b7ce766c3b5fe88bb9dbb97",
     "test/melonx_fragmented_reads/FragmentedReadsProbe.cs": "5f7905baae8da92fef9f7496bb285bd4ad399e19c992141e85bb4c9394027616",
-    "test/melonx_fragmented_reads_test.py": "331f7b823608318138ad9b993b8431b232681b49bd1728e2cb62dbd293560606",
+    "test/melonx_fragmented_reads_test.py": "bcdd1d84d334fd5bdafc98e424773d7410ea978013e7c769e2f7961e28544db1",
     "test/melonx_gc_events_test.py": "9f7c748544d5ca286f102d96373d943ed3e6fad2020b38296b998d90a41b4f61",
     "test/melonx_gc_fallback/Program.cs": "1a1b564da1c4155f8865cea6adfb2e235059d027cdd1e818e79afb8f1c312a23",
     "test/melonx_gc_fallback_test.py": "0462002b43fa807a859c3b0d2584436f22410aeac9a5cf8cb4e08348df80d575",
@@ -5664,7 +5825,7 @@
     "test/melonx_gc_pause_journal_test.py": "44a1277377b55da92aedeb97703db9d13a8d51b0103e66bdda6f6702b27a0703",
     "test/melonx_guest_fault_context/Program.cs": "a2be14475835e289c1f713141cb7e039662111ecb279075dfc5f2d2fca3e4dd5",
     "test/melonx_guest_fault_context_test.py": "d379dd4bc9ef3ca15c7b76df1765bba9d9d81cd4e1cee8c273d7f86da017c341",
-    "test/melonx_hogwarts_dma_copies_test.py": "dcc6d172dbe0691389b662a3691ded7cd435b95061d4fde2d8cfe06087491d1c",
+    "test/melonx_hogwarts_dma_copies_test.py": "5befedb0a17821db44ae7a9837c244f96a22586658a385f3d1b7e5b98db9a390",
     "test/melonx_host_thread_class/Program.cs": "4dd08f754965a6761632f04344b4a920b44c9e15dd58fcd8fd87117c9d9ea137",
     "test/melonx_host_thread_class_system/Program.cs": "86b3f9cf64caf70111ecde4c3e680b4aa9e355d157fea30454d707d6516ab518",
     "test/melonx_host_thread_class_system_test.py": "266d66ff92cb465bb4654cc817cfbbbf791838a8cdd632389050cc03cee5a4f8",
@@ -5758,6 +5919,9 @@
     "test/melonx_shader_save_poll_test.py": "a36a66c2e3dec8aed0c6c678bbb78e5bf0aab8a0325518372b136ea0aa8ac345",
     "test/melonx_single_resource_bindings_test.py": "e5ceb07d29588152f659316430f2531f886ab885807232f85e715cefcef27b28",
     "test/melonx_single_virtual_dependency_test.py": "87a6f1c71cd666f2edc78074bd629ff8351b2f45b0dea8aca7d69b8d087e87e5",
+    "test/melonx_submit_causes/Program.cs": "16e0dc724fec312b26ab69030dc3a2df5dfbccc0944dc30266e59e48e974d555",
+    "test/melonx_submit_causes_test.py": "a589b94bb88a5b368bb8bc67277ff6fc13690df03d121f4973dbb70bbadbe66d",
+    "test/melonx_sync_allocations_test.py": "5170f9643f13b325abb9084f27fc0b1fe96621506049297e61a5423da69f04ef",
     "test/melonx_sync_wait_attribution/Backend.cs": "1e5fa64be10e36239ed5010515fa14cfede9edee7a6e39b12cf282203ab44102",
     "test/melonx_sync_wait_attribution/Program.cs": "cac4bfe196534724c3ac1272cff69cf9ae7ae4086a5885c1e9b64abec1ee5133",
     "test/melonx_sync_wait_attribution_test.py": "6795d0d4334e093228f78cfc4bebd40a2f64c47078c15060a7b6ce4498c1161a",
@@ -5774,7 +5938,7 @@
     "test/melonx_texture_pool_allocations/Program.cs": "71086bfa75b0cdf9a40cc01340572766894dd802fdb072ab70896b930d5493d9",
     "test/melonx_texture_pool_allocations_test.py": "de72021d32a9b0d228e3d4b1e323eb489fb234c57c3ee1a9c169663cd935dcd7",
     "test/melonx_variant_replay_all_test.py": "3141507c8442744a079e7420b7c67c6faf439d56a825a286dcdbb56b0b2d3d6b",
-    "test/melonx_vulkan_memory_journal_test.py": "bc2f0b4bdf47dbdc2dc7ee0d566f35e9cd68b79a723cd201cca85d8d66bd9c83",
+    "test/melonx_vulkan_memory_journal_test.py": "cd7add2eee7cfc85f07ba4f06cdbcb5e7e084ad65a6c624fb7db4d527ff0d326",
     "test/melonx_warmup_key_parity/gpu/Program.cs": "ddcf8372d4eb82d3ff4aaecdcbee91a796a446b854d3ee4c5ab0442963721679",
     "test/melonx_warmup_key_parity/vulkan/Program.cs": "0f387cda83ac0cb016fa86d67a0975dfb5d82891342834c0a11ff6ca80060c7e",
     "test/melonx_warmup_key_parity_test.py": "2de23e63ad4ca7c8c03d29cdd812bf2354df7f01a95d74cd1ec21e7d5bffe2c6",
@@ -5782,8 +5946,8 @@
     "test/melonx_worker_main_cache_lookup/Program.cs": "a63ce3e3169d83a4312bb62b62afb61c0054c46166b22e56df095570443ae7c2",
     "test/melonx_worker_main_cache_lookup_test.py": "0af71719002fb26137cdbf4087c8d70a8a71137e640b7db03adee735ba265b77"
   },
-  "freshAppleGates": 94,
-  "reusedAppleGates": 17,
+  "freshAppleGates": 98,
+  "reusedAppleGates": 16,
   "historicalAppleReceipts": 61,
   "retainedDisposition": {
     "historical-b181cbe1/bindless-array-delta-checks.json": "historical-only-changed-declared-dependency",
@@ -5845,7 +6009,7 @@
     "historical-b181cbe1/historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/indirect-cache-key-checks.json": "historical-only-inherited:historical-only-inherited:historical-only-inherited:historical-only-inherited:historical-only-changed-declared-dependency",
     "historical-b181cbe1/historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/texture-handle-dependencies-checks.json": "historical-only-inherited:historical-only-inherited:historical-only-changed-declared-dependency",
     "historical-b181cbe1/historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/fragmented-upload-slice-checks.json": "historical-only-inherited:historical-only-inherited:historical-only-changed-declared-dependency",
-    "historical-b181cbe1/historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/sync-allocation-checks.json": "unchanged-scoped-proof-not-reexecuted",
+    "historical-b181cbe1/historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/sync-allocation-checks.json": "historical-only-changed-declared-dependency",
     "historical-b181cbe1/historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/reused-literal/literal-memory-checks.json": "unchanged-scoped-proof-not-reexecuted"
   },
   "retainedChangedDependencies": {
@@ -6116,7 +6280,9 @@
       "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs",
       "src/Ryujinx.Graphics.Gpu/Memory/PhysicalMemory.cs"
     ],
-    "historical-b181cbe1/historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/sync-allocation-checks.json": [],
+    "historical-b181cbe1/historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/sync-allocation-checks.json": [
+      "src/Ryujinx.Graphics.Vulkan/SyncManager.cs"
+    ],
     "historical-b181cbe1/historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/reused-literal/literal-memory-checks.json": []
   },
   "scope": "Fresh exact-source affected fixtures and two actual new NativeAOT simulator sessions; unchanged declared historical evidence is authenticated without replay. No physical gameplay, allocation-on-device or FPS claim."

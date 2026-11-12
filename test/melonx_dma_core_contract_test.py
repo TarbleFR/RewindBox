@@ -68,6 +68,8 @@ from adapt_compute_switch_bindings import BASELINE as C693_COMPUTE_SWITCH_BINDIN
 from adapt_bgc_keepalive import BASELINE as C693_BGC_KEEPALIVE  # noqa: E402
 from adapt_host_thread_class import BASELINE as C733_HOST_THREAD_CLASS  # noqa: E402
 from adapt_npad_config_snapshot import BASELINE as C737_NPAD_CONFIG_SNAPSHOT  # noqa: E402
+from adapt_submit_causes import BASELINE as C743_SUBMIT_CAUSES  # noqa: E402
+from adapt_build_journal_load_wait import BASELINE as C743_BUILD_JOURNAL_LOAD_WAIT  # noqa: E402
 from adapt_array_delta_invalidated import BASELINE as C697_ARRAY_DELTA_INVALIDATED  # noqa: E402
 from adapt_pipeline_cache_background import BASELINE as C697_PIPELINE_CACHE_BACKGROUND  # noqa: E402
 from adapt_sync_wait_attribution import BASELINE as C699_SYNC_WAIT_ATTRIBUTION  # noqa: E402
@@ -198,6 +200,13 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'npad-config-snapshot': 'delivered',
             # Core 739: the play-time warm-up for every title.
             'playtime-warmup-all-titles': 'delivered',
+            # Core 741: the texture array's storage counts (Hogwarts policy).
+            'array-storage-counts': 'delivered',
+            # Core 743: submissions by cause and host syncs by site; the build journal without the main load wait.
+            'submit-causes': 'delivered',
+            'build-journal-load-wait': 'delivered',
+            # Core 743: its receipt declares SyncManager.cs, which adapt_submit_causes changes: run again on the final one.
+            'sync-allocations': 'delivered',
             # Core 661: the native display fixture declares EmbeddedMemory.cs (adapt_safe_point_compaction): rerun.
             'display-native': 'delivered',
             # Core 654: its receipt declares the collector (postimage), so the single-virtual-dependency fixture is rerun.
@@ -258,7 +267,10 @@ CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES
            # KTimeManager.cs and AudioProcessor.cs prepared members changed for the first time; four files new).
            set(C733_HOST_THREAD_CLASS) |
            # Core 737: NpadManager.cs (new).
-           set(C737_NPAD_CONFIG_SNAPSHOT))
+           set(C737_NPAD_CONFIG_SNAPSHOT) |
+           # Core 743: the submission sites' ten files (SyncManager.cs, AutoFlushCounter.cs, StagingBuffer.cs changed for the
+           # first time in this plan; HelperShader.cs new) and PipelineState.cs (already changed).
+           set(C743_SUBMIT_CAUSES) | set(C743_BUILD_JOURNAL_LOAD_WAIT))
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
@@ -278,7 +290,10 @@ RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'pe
          CORE87 + 'allocator-range-update-checks.json', CORE87 + 'allocator-blocks-checks.json',
          # Core 733: adapt_host_thread_class adds the class request to KTimeManager.cs, which this core87 receipt
          # declares; it is run again on the final timer manager against the delivered one.
-         CORE87 + 'kernel-timer-allocations-checks.json'}
+         CORE87 + 'kernel-timer-allocations-checks.json',
+         # Core 743: adapt_submit_causes adds counters to SyncManager.Create and names the interrupt flush's cause in
+         # SyncManager.cs, which this core87 receipt declares; it is run again on the final sync manager against the delivered one.
+         CORE87 + 'sync-allocation-checks.json'}
 # Production files that joined the prepared source with this increment (unadapted in the delivered Core).
 JOINED = {CONFIG, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY,
           # Core 639 (adapt_pipeline_warmup_parity): pinned upstream members that join the prepared source.
@@ -331,6 +346,8 @@ C733_JOINED = {'src/Ryujinx.Common/PreciseSleep/NanosleepPool.cs', 'src/Ryujinx.
 JOINED = JOINED | C733_JOINED
 # Core 737 (adapt_npad_config_snapshot): the controller manager joins the prepared source.
 JOINED = JOINED | {'src/Ryujinx.Input/HLE/NpadManager.cs'}
+# Core 743 (adapt_submit_causes): the helper shader's three submissions name their cause; HelperShader.cs joins.
+JOINED = JOINED | {'src/Ryujinx.Graphics.Vulkan/HelperShader.cs'}
 REUSED_FRESH = set()
 
 
@@ -503,7 +520,8 @@ if not args.helpers_only:
     # Core 703: 84 changed production files (ShaderInfoBuilder.cs joins). Core 725: 85 (the engine journal joins). Core 727: 87.
     # Core 733: 94 (seven of the eight files of the host thread class; SurfaceFlinger.cs was already changed).
     # Core 737: 95 (NpadManager.cs).
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 95 and not frozen["productionAdditions"], "Unexpected production scope")
+    # Core 743: 99 (SyncManager.cs, AutoFlushCounter.cs, StagingBuffer.cs, HelperShader.cs).
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 99 and not frozen["productionAdditions"], "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
                                                      'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
                                                      'build-utils/melonx/adapt_queued_syncpoints.py',
@@ -583,7 +601,10 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_host_thread_class.py',
                                                      'build-utils/melonx/adapt_remap_sweep_range.py',
                                                      'build-utils/melonx/adapt_npad_config_snapshot.py',
-                                                     'build-utils/melonx/adapt_playtime_warmup_all_titles.py'} and
+                                                     'build-utils/melonx/adapt_playtime_warmup_all_titles.py',
+                                                     'build-utils/melonx/adapt_array_storage_counts.py',
+                                                     'build-utils/melonx/adapt_submit_causes.py',
+                                                     'build-utils/melonx/adapt_build_journal_load_wait.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -619,7 +640,10 @@ if not args.helpers_only:
     # Core 735: adapt_remap_sweep_range.py joins them; the same 211 prepared members.
     # Core 737: adapt_npad_config_snapshot.py joins them; NpadManager.cs joins the prepared members (212).
     # Core 739: adapt_playtime_warmup_all_titles.py joins them; the same 212 prepared members (Library.cs already one).
-    check(len(frozen['preparationInputs']) == 209 and len(frozen['preparedMembers']) == 212, 'Wrong final composition')
+    # Core 741: adapt_array_storage_counts.py joins them; the same 212 prepared members (TextureArray.cs already one).
+    # Core 743: adapt_submit_causes.py and adapt_build_journal_load_wait.py join them; HelperShader.cs joins the prepared
+    # members (213).
+    check(len(frozen['preparationInputs']) == 212 and len(frozen['preparedMembers']) == 213, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
