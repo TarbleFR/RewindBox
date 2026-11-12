@@ -107,3 +107,48 @@ declares `engine_binaries_bundled=[]`. CI run `43121527685` was still in progres
 
 Still open: points 1–3. A signature check gives neither the Apple package nor its contract, and does not settle
 clause 2.E. The Apple download needs a login; Codex will ask the maintainer for that access to compare the package itself.
+
+## Apple package check of 12 Nov 2026 (`Verification_Paquet_Apple_XeniOS_2026-11-12.txt`, 25,203 B, SHA-256 `cd5e43d0…b121`)
+
+Run by Codex after the maintainer gave Apple Developer access. The package was extracted without installing it. No
+script or binary was run or re-signed, no third party was contacted and no agreement was accepted. Main archived the
+report; it did not re-run these commands.
+
+**Official package:** `Metal Shader Converter 4.0 beta 3.pkg` (catalog entry 20 Oct 2026; link under
+`Developer_Tools/Metal_Shader_Converter_3.1_beta_1/`, now seen in Apple's own catalog).
+- 48,239,331 B, SHA-256 `449833211e4ef0d46bfaa94848e801acff49e226d3c348bba0673f13716be622`;
+- `com.apple.metal` 1.0.1.1792438795, 30 payload files;
+- XAR signature valid; chain Software Update → Apple Software Update CA → Apple Root CA (root fetched separately)
+  verifies with OpenSSL's normal time check. This is not a macOS pkgutil/codesign result, and revocation (OCSP/CRL)
+  was not checked. This signer is not the dylib's (Software Signing), so it says nothing about that leaf's expiry.
+
+**Contract:** `Resources/English.lproj/License.rtf` from this signed package is 77,453 B, SHA-256 `20108dfe…d0c3`,
+byte-identical to the EA1844 copy already on file. Its Apple origin and its presence in a package that ships an iOS
+library are now established. No amendment and no explicit wording on re-signing was found in License.rtf,
+Read Me.rtf, Welcome.html or Distribution.
+
+**The package's iOS dylib is NOT the pinned mirror file:**
+
+| | Apple package | Mirror `ios-4.0.3` (pinned) |
+|---|---|---|
+| SHA-256 | `3040a91e…5518` | `bd6b729d…37aa` |
+| Size | 30,189,152 B | 30,189,152 B |
+| LC_SOURCE_VERSION | 33.40 | 33.39 |
+| LC_UUID | `d1744d8b…e81d` | `c9d2d4d5…b8f9` |
+| Signature-free digest (project validator) | `e456a88e…40ac` | `b5263652…fa1e` |
+
+- 430 bytes differ: 52 in LC_UUID, LC_SOURCE_VERSION and LC_RPATH (an internal build path), and 378 inside the
+  signature.
+- Every byte from offset 3128 up to 29,936,976 (code and data, up to the signature) is identical.
+- `ir_version.h` says 4.0.3. That is the API version, not the build, so it does not identify the pinned build.
+
+Status after this check:
+1. **Package and contract of the pinned binary: partly answered.** We hold an authenticated official 4.0 beta 3
+   package and its original contract, but it is not the exact installer of `bd6b…37aa`.
+2. **Direct link between the mirror's bytes and an Apple package: open.** The code and data match, but the build
+   identity does not. That is evidence that the two are related, not proof of where the mirror came from.
+3. **Re-signing under clause 2.E: open.** The original contract adds no explicit clause on it.
+
+Unchanged: the pin, the binary and every check. Do not swap the library or the pin to get a match, and do not weaken
+the validator. The strict macOS codesign result and the LGPL source review of the actual delivery are still due. The
+maintainer's delivery decision stands. It does not settle these points legally.

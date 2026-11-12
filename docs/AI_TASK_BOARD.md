@@ -257,6 +257,15 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### Common IPA — main Claude Code
 
+- **GOW3 stretch mode no longer applies (maintainer, 12 Nov, IPA 726; Metal 4 off, so Vulkan).** Cause (code, Core 933):
+  since Core 922 the boot ignores a legacy full custom_configs file (CONFIG_DB922), but the settings API still read it and
+  `rpcs3_ios_set_game_setting` saved every per-game change into it (has_custom_config), so Stretch to fill screen (and
+  any per-game choice of God of War III) never reached the boot. Core 934 (engine `core934-settings-rule` 524e068):
+  REWINDBOX_SETTINGS_API_RULE_934 (API = global < database < sparse overrides, change saved as an override; reset
+  removes the overrides; preset apply refused instead of a silent no-op, independent review) and
+  REWINDBOX_METAL_STRETCH_934 (the Metal 4 present honoured no stretch either). Local: test 934 passes, fails on 933,
+  six controls caught; full host checks running. Not compiled for iOS yet; nothing on iPhone. After the IPA the user
+  selects Stretch once more (the old choice sits in the ignored file).
 - **Device report on 726 (11 Nov): after a Switch game, a PS3 launch (BO2) is refused with the MeloNX 'quarantined'
   message.** Main's code reading, not yet confirmed by a journal. Two triggers reach the same block:
   - engine state 4: `Load()` threw, possibly during teardown after Stop;
@@ -282,7 +291,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   7309/7309 page hashes, validator `028a0fdf2` exit 0, signature-free digest = pin, CMS chain reaches the separately
   downloaded Apple Root CA. New limit: leaf and intermediate expired 2026-10-24, no CMS timestamp; OpenSSL fails with
   its time check (passes only as a no-time diagnostic, never in delivery). Keep strict codesign; record its real macOS
-  result. LGPL delivery review still incomplete at `028a0fdf2`. Points 1-3 stay open; Apple access is being requested.
+  result. LGPL delivery review still incomplete at `028a0fdf2`.
+  Apple package check (12 Nov, Codex, Verification_Paquet_Apple_XeniOS_2026-11-12.txt `cd5e43d0…b121`), replacing the
+  "Apple access needed" blocker: official 4.0 beta 3 pkg `44983321…e622` (XAR chain verified, OpenSSL only) carries
+  EA1844 byte-identical (`20108dfe…`). Its iOS dylib `3040a91e…` (33.40) is NOT the pin `bd6b…` (33.39): same size,
+  code/data bytes identical, 430 bytes differ (UUID, source version, rpath, signature). Point 1 partly answered (contract
+  provenance for this package), points 2-3 open. Pin, binary and checks unchanged.
 - **Common IPA 726 delivered and verified (11 Nov 22:37 UTC, main).** Run `43106533461` attempt 2 (trigger `bd99e8b7`,
   frozen on `8fb2ee39`), five jobs green. Four parts of 68,467,054 B = API digests; offline verification passed (six
   validators 0); IPA 272,927,734 B, SHA-256 `ac9612b4…d618`, 91 images (90 + `xenia_internal_bridge`), changed as
