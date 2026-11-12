@@ -359,6 +359,30 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     `Claude-Session` line.
   - **Next:** download, verify offline, receipts, record, delete the key, send the file; give session 04 the freeze
     commit for 803 (sibling of 726).
+- **IPA 730 delivered and verified (12 Nov 13:5xZ, main).**
+  - Built on session 03's green light (code head fecc05ad, merged on Claude with --no-ff as 1732871f).
+  - Run `43226062701` attempt 1, trigger `3cea0357`, frozen on `4c5763ca`, effective digest `94378cd1`, 7922 product
+    files. All 5 jobs succeeded on the first request.
+  - IPA `RewindBox-730.ipa`: 329525542 B, SHA-256 `7674ec257012739678cee567c535fd5899577e4060e9cd86d55e346bf957009c`.
+  - Contents:
+    - XeniaCore pin 2d176a7f (d7ad7e834): 8 GB code-region limit lifted for the full-width StikJIT, no host
+      reservation; attach refused before prepare without the full-width transport; host pad enumerated for slot 0;
+    - S2Arm engine pin 175018a2 (fde6f47d): spin pass off on the phone, guest park and resume (patch 0010),
+      preparation diagnostics;
+    - RPCS3 Core 934 and MeloNX Core 743 kept.
+  - Offline verification `passed-offline-checks`:
+    - 97 images; 46 retained fingerprints;
+    - all 6 validators exit 0;
+    - packaged identities name Xenia pin 2d176a7f and S2Arm pin fde6f47d; StikJIT carries the full-width marker.
+  - Changed images: App, Runner, xenia_internal_bridge (declared mustChange), XeniaCore and S2ArmEngine (declared
+    engine images in images.added; the verifier lists them as undeclared because it only reads mustChange). No MeloNX,
+    RPCS3 or libretro image changed this time.
+  - Legal folders: XeniOS 4/4, MetalShaderConverter 3/3 and S2Arm 35/35 match their digests; 9 extensions.
+  - Receipt `docs/evidence/rewind730/delivery.json` (14 proof files + 2 engine receipts). Key shredded; file sent.
+  - Not run on an iPhone. Device checks asked by session 03:
+    - two Xbox 360 launches in a row without restarting the app;
+    - touch and controller input;
+    - app.log `XeniOS JIT:` line with transportFullWidth true and codeRegion own.
 - **Next IPA (730) queue (main, 12 Nov 12:05Z).** Maintainer (12:4xZ): build it as soon as XeniOS (session 03) sends
   its green light and fixes. Also on Claude: S2Arm pin 175018a2 (spin pass off, MKW stuck fix, cc3af454).
   - On Claude: session 04 S2Arm pin 930a84b0. It carries the prepare patches in the notice, plus relaunch-in-session
