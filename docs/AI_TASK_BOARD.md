@@ -4600,10 +4600,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       run: `heap_report.py` on the `[MeloNX:heap]` lines, the `zones=` values over time, `lohAfterBytes` and
       `lohFreeAfterBytes`; then the correction of the largest owner. The sampler is to be removed once the owner is
       known.
-  - **P0 726 (12 Nov): after a Switch game every launch (PS3 included) was refused "quarantined" — fix in the host
-    and Dart layers, not run on an iPhone; the trigger in the device's journal is still to read.**
-    - **Input identity:** main's report of the maintainer's attempt on IPA 726 (Core 735); the attempt's
-      MeloNX-launch.log is requested, not received. Reference: IPA 725's journal (pid 51986) ends its Switch session
+  - **P0 726 (12 Nov): after a Switch game every launch (PS3 included) was refused "quarantined" — trigger read in
+    the attempt's journal: an engine quarantine from a race in the Core's controller manager at close. Fixed at its
+    cause in Core 737 (adapt_npad_config_snapshot, frozen here, not delivered) plus the host/Dart retry of `71765f2f`;
+    neither run on an iPhone.**
+    - **Input identity:** main's report of the maintainer's attempt on IPA 726 (Core 735); the maintainer's uploaded
+      MeloNX-launch.log, core, performance and stderr journals (build 726, Switch session pid 54035; private, kept
+      in the scratchpad only, not in Git). Reference: IPA 725's journal (pid 51986) ends its Switch session
       with `memory released` then `close passed` (08:02:58): the release worked there.
     - **Mechanism (code, both triggers):** a `memory retained` record (sent to Dart by every `MeloNXLaunchJournal.record`)
       or a refused launch with `requiresRestart` set `MelonxInternalService.nativeQuarantined`, which nothing ever
@@ -4639,9 +4642,45 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       melonx-host run 43125000475). That run's step 7 of launch checks (`game_audio_handoff_test.py`) fails without
       this change too: its harness lacks the `XeniaInternalBridge` and `S2ArmInternalService` stubs of PR #172 and
       the Switch 2 layer (not in this lane).
-    - **Next action:** the attempt's MeloNX-launch.log decides the trigger: `close quarantined` with the exception of
-      `sessionResult failed` (then the Core is fixed at that cause), or `memory retained … live allocations N` after
-      `close passed` (then which shared blocks outlive the teardown).
+    - **Trigger (journal, pid 54035, 11 Nov 23:46):** `close begin` at :19; at :20.96 the core journal records `gpu
+      failed` with `System.InvalidOperationException: Collection was modified; enumeration operation may not execute.`
+      at `Ryujinx.Input.HLE.NpadManager.Update` <- `WindowBase.UpdateFrame` <- `MainLoop` (stderr stack), then
+      `Session termination is unproven; restart RewindBox.` (state 4), `close quarantined` and `memory retained`
+      (4 GiB, a consequence: the engine refuses to withdraw while state is 4). Not the donor alone, not the S2Arm
+      hook (absent from 726). An older, separate quarantine in the same log (5 Nov, pid 15186: a
+      NullReferenceException in `TextureArray.QueueWriteToReadBarriers` during `GpuContext.Dispose`) is not this one.
+    - **Cause (code):** `Library._inputConfiguration` is one `List<InputConfig>` handed by reference to the window's
+      NpadManager (`WindowBase.Initialize`, then `ReloadConfiguration` at every attach and detach), which stores it as
+      `_inputConfig` and enumerates it under its own `_lock` on every frame. `AttachGamepadCore`/`DetachGamepadCore`
+      change it (RemoveAll, Add) under `inputConfigurationLock` before calling `ReloadConfiguration`; at close the
+      host detaches its pads (`MeloNXInputRouter.close`, `MeloNXInputRouter.swift:153`) while the main loop still
+      runs: List's version check throws in Update. Upstream MeloNX code, a few microseconds per frame: rare and
+      independent of the game, which is why earlier closes passed.
+    - **Core 737 (`adapt_npad_config_snapshot`, NpadManager.cs only, every title):** ReloadConfiguration copies the
+      list it is given under the manager's lock, reads that copy and keeps it; nothing else can change the manager's
+      list. No exception is caught or reclassified; the library, its lock and its call order are unchanged. Gate
+      `npad-config-snapshot` (93rd; `test/melonx_npad_config_snapshot_test.py`, real NpadManager/NpadController over
+      driver doubles, production Ryujinx.Input built from both sides): forced interleaving (the library's change made
+      on a second thread while the manager enumerates under its lock) for detach, attach, last-pad detach with the
+      keyboard fallback and the session's Clear: the control throws the device's exception in all four, the candidate
+      never, and ends as in the sequential order; a seeded 400-step script (attach, absent pads, detach, driver
+      connect/disconnect, unblock, detach all) gives equal digests at every step (controllers, configuration per
+      player, entries, flag, every driver call); the control's manager holds the library's list at 393 steps, the
+      candidate's at 0; two wrong variants caught (copy not kept: the exception again; valid entries kept: sequence
+      differs at step 15). Limitation: Update itself needs a running Switch device and is not executed; it reads the
+      same field under the same lock, unchanged.
+    - **Validation (local, Linux x64, SDK 10.0.100):** the Core 737 preparation differs from Core 735 by NpadManager.cs
+      only; `npad-config-snapshot` on it, bound to the final preparation: 104 checks passed (101 on the Core 735
+      tree first); rerun on it and passed: `retention-chain`, `session-retention`, `gc-pause-journal` (they build
+      Ryujinx.Library, which compiles Ryujinx.Input) and `hogwarts-dma-copies` (its lot list); freeze contract
+      `09ac5655…` (93 fresh gates); contract test 488 checks with the arrays archive, 424 without;
+      `verify_dma_core.py preflight` needs Apple ARM64 (not run here). Not delivered, no IPA, not run on an iPhone.
+    - **Host run of `71765f2f` (melonx-host 43125000475, failed):** the UIKit presentation step did not compile
+      the plugin: its doubles lacked `MeloNXEngineCallClass` (lot 12) and `MeloNXMemoryLease.isRetained` /
+      `retire(runtime:reason:)` (71765f2f); fixed in `61106a6e`. The donor lease test runs in that workflow only on a
+      push whose head commit carries `[melonx-display]` (a dispatched run skips it): its retry cases are not run yet.
+    - **Next action:** main: Core 737 CI, pin and an IPA together with `71765f2f`; on the device, several Switch
+      closes (pads attached) then a PS3 launch: no `close quarantined`, no `Collection was modified`.
   - **Lot 14 (11 Nov; maintainer: "une vraie mise à jour pour sentir du changement" on RAM, heat, shaders): GPU thread
     work per frame. Core 735 frozen here (contract `47b596a9…`), not delivered, not run on an iPhone.**
     - **Input identity:** the IPA 725 `performance` samples of lot 13 (pid 51986) and two host profiles on copies of
