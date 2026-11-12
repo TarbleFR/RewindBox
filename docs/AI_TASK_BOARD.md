@@ -5405,6 +5405,18 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       Claude `18c8c905` in `675f79a4`.
     - Told main: the XeniOS `importFolder` uses `FilePicker.getDirectoryPath` (main passed it to session 03).
     - Nothing observed on a device. The next IPA's app.log has an `S2Arm status: {…}` line with the native flags.
+  - **IPA 728 device report (maintainer, 12 Nov, app.log pid 57620).** On device: `available: true` and the Switch 2
+    Consoles switch turns on, so `bc43c4ed` is confirmed. Three fixes in `4454bf54`, merged with Claude `fb996f15` in
+    `fba17375`. Green: iOS compile 43176880195, `flutter analyze` and tests 43176880157.
+    - **Import refused for space with about 68 GB available.** statvfs counts no purgeable space. The import now checks
+      `importantFreeBytes` (`NSURLVolumeAvailableCapacityForImportantUsageKey`). It first tries the new `cloneTree`
+      (`clonefile(2)`, Documents only, onto a free path): instant and space-free on the same volume. Otherwise it copies.
+    - **"code · 0%" for minutes.** The code stage now reports each module and the pack its bytes. `<game>/prepared.json`
+      lets a launch with the same inputs reuse a finished preparation. Before, every launch prepared from scratch.
+      The journal is in `Documents/Diagnostics/S2Arm/s2arm-journal.jsonl`, and app.log has the steps.
+    - **The Consoles tab loads MeloNXCore** (`runtimeAvailable` → `diagnostics` → `ensureRuntime`), which blocks an S2Arm
+      launch until a restart. `launch()` now refuses before preparing (`melonxCoreLoaded`, message `melonxLoaded`). Main
+      gave the probe fix to the MeloNX owner.
   - Main withdrew the launcher deletion (12 Nov): it stays as is. Formerly open: delete the launcher (`.github/diagnostics/s2arm/`, `s2arm-delivery.yml`,
     `set_probe_key.py`) together with its test `s2arm_delivery_test.py`, which no longer works
     since 9c9817e8 (40 errors)? Main also has to choose the S2Arm test groups of the next
