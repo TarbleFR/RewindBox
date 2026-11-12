@@ -5481,7 +5481,7 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 ### Switch 2 playlist (S2Arm) feasibility prototype — session 04
 
 - **Owner/branch:** session `012mUASj3EQnvC86WC56AePw`, `work/s2arm-switch2-prototype-20261110`
-  (merged with `Claude` `2404da58` in `e839da74`). Own paths: `packages/s2arm_engine_bridge/`, `native/s2arm/`,
+  (level with `Claude` `9661d929`). Own paths: `packages/s2arm_engine_bridge/`, `native/s2arm/`,
   `build-utils/s2arm/`, `tools/s2arm_prototype/`, `.github/workflows/s2arm-*.yml`, `docs/s2arm-*.md`.
 - **Goal:** a Switch 2 playlist on S2Arm, games prepared on the phone. The device probe ships in
   a common IPA by maintainer decision (below); the rest stays on this branch.
@@ -5615,7 +5615,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       `a6f958fd`.
     - Not observed on a device. The pass shares are estimates until a journal gives the durations.
   - **IPA 730 device report (maintainer, 12 Nov, journal + app.log + screenshot): the preparation finishes, the launch
-    failed on a missing image pack. Fix `b3c2fe6a` (bridge only, no pin), for the next IPA.**
+    failed on a missing image pack. Fix `b3c2fe6a` (bridge only, no pin), merged on Claude by main as `9661d929`,
+    queued for IPA 731 (built on the maintainer's request).**
     - Observed, pin 175018a2:
       - Mario Kart World prepared in 439 s. Unpack took 119 s and code 66 s: main 2 s with the spin pass at 0 ms, the
         NRO and table walks about 30 s each. Caps took 31 s and pack 207 s.
