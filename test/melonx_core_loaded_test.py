@@ -42,6 +42,32 @@ check('#import "MeloNXCoreLoaded.h"' in (CLASSES / 'MeloNXJitBridgePlugin.h').re
       not (CLASSES / 'MeloNXS2ArmProbeHook.m').exists() and not (CLASSES / 'MeloNXS2ArmProbeHook.h').exists() and
       'S2ArmProbe' not in plugin and 's2armProbe' not in plugin, 'the flag is in the plugin\'s header; the S2Arm diagnostic hook is gone')
 
+# IPA 728 (12 Nov): the Consoles page asked "diagnostics" on every visit, which loaded MeloNXCore and marked the process,
+# so the Switch 2 engine refused every launch until RewindBox restarted. The page's probe is now "availability": it reads
+# the bundle, the recovery marker, the other engine's flag, this flag and the memory entitlements, and never reaches
+# ensureRuntime; "diagnostics" keeps loading the engine for the launch path.
+probe = plugin[plugin.index('private func runtimeAvailability() -> [String:Any] {'):plugin.index('public func handle(_ call: FlutterMethodCall')]
+handle = plugin[plugin.index('public func handle(_ call: FlutterMethodCall'):]
+case = handle[handle.index('case "availability":'):]
+case = case[:case.index('\n')]
+check(case.strip() == 'case "availability": result(runtimeAvailability())', 'the availability case answers from the probe only')
+check(all(token not in probe for token in ('ensureRuntime', 'MeloNXRuntimeAPI', 'rb_melonx_core_mark_loading', 'dlopen',
+                                           'libraryQueue', 'runtime?', 'self.runtime', '.content(')) and
+      'rb_melonx_core_loaded() != 0' in probe and 'privateFrameworksURL' in probe and '"MeloNXCore.framework/MeloNXCore"' in probe and
+      '"rb_s2arm_engine_loaded"' in probe and '.rewindbox-transfer.json' in probe and 'MeloNXMemoryEntitlements()' in probe,
+      'the probe reads the bundle, the recovery marker and both engine flags, and loads nothing')
+# The four loading paths: the launch journal's configuration, diagnostics, the content operations and the launch.
+check(plugin.count('try ensureRuntime()') == 4 and handle.count('case "availability"') == 1 and
+      handle[handle.index('case "diagnostics":'):handle.index('case "metadata"')].count('try ensureRuntime()') == 1,
+      '"diagnostics" still loads the engine; no new path reaches ensureRuntime')
+service = (ROOT / 'lib/services/melonx_internal_service.dart').read_text()
+available = service[service.index('static Future<bool> runtimeAvailable() async {'):]
+available = available[:available.index('\n  }\n') + 4]
+code = '\n'.join(line for line in service.splitlines() if not line.strip().startswith('//'))  # comments left out
+check("invokeMethod<Object?>('availability')" in available and "'diagnostics'" not in available and
+      code.count("'diagnostics'") == 1 and "invokeMapMethod<String, dynamic>(\n        'diagnostics'," in code,
+      'runtimeAvailable asks "availability"; the launch path alone asks "diagnostics"')
+
 if platform.system() != 'Darwin':
     print(json.dumps(dict(result='passed', checks=checks, staticOnly=True)))
     raise SystemExit(0)
