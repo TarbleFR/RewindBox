@@ -73,8 +73,10 @@ void main() {
           builder:(context,show,child) => show ? MelonxInternalPlaylistActions(onLibraryChanged:() async {
             refreshed=true;visible.value=false;await resumed.future;
           }) : const Text('Refreshed playlist')))))));
+    // Each round lets the import's real file operations advance by one step: the bound counts steps, not time.
+    // The key import needs about 104 of them since 11 Nov (it passed or failed by a few rounds against 100).
     Future<void> until(bool Function() condition) async {
-      for(var i=0;i<100 && !condition();i++) {
+      for(var i=0;i<1000 && !condition();i++) {
         await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds:10)));
         await tester.pump(const Duration(milliseconds:20));
       }
