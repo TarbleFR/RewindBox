@@ -2,7 +2,7 @@ name: Private IPA artifact protection
 
 on:
   push:
-    branches: [Claude, main, work/private-ipa-protection-20261111]
+    branches: [Claude, main]
     paths:
       - .github/actions/upload-protected-artifact/**
       - .github/ipa-protection/**

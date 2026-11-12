@@ -14,8 +14,9 @@ name: S2Arm preparation Core (iOS)
 permissions:
   contents: read
 concurrency:
-  group: s2arm-core-${{ github.ref }}
-  cancel-in-progress: true
+  # Keep each producer's source intact when a later push or dispatch starts another build.
+  group: s2arm-core-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
 jobs:
   prepare-core:
     runs-on: macos-15

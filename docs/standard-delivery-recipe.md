@@ -40,6 +40,33 @@ vérifiée. Elle n'ajoute que ce qui a changé depuis cette base.
     parallèle, dans le pilote, les tests d'incréments indépendants (hors tests sensibles au temps) ; à
     mesurer sur un Core avant d'en faire la règle.
 
+## Coordination et relances après incident (12–13 novembre 2026)
+
+Le [tableau commun](AI_TASK_BOARD.md#cross-account-coordination) définit les propriétaires.
+Les deux comptes échangent leurs lots par PR vers `Claude`, avec le SHA complet et un
+accusé `ACK <SHA>` du destinataire. Une nouvelle tête invalide la relecture précédente.
+Avant de demander un moteur, `python3 tools/coordination/status.py --source <SHA>`
+affiche les runs déjà associés à cette source : suivre le producteur existant plutôt
+que doubler sa demande. Les compilations XeniOS/S2Arm sont isolées des vérifications
+annulables et ne sont plus annulées par une nouvelle vérification.
+
+Après un échec, distinguer compilation, test, contrat et téléchargement. Le run
+`43312487102` a d'abord échoué sur un HTTP 503, puis sur un seuil de CPU dépendant de
+la charge du runner, tandis que la compilation de l'application avait abouti.
+`43322868775` a rencontré le cache Flutter puis son calcul `hashFiles`. Le correctif
+préexistant `b12dc220` couvre les téléchargements transitoires et désactive ce cache.
+Le fichier de test complet de `c5541fe0`, validé par le run hôte `43329316902`, doit
+inclure le contrôle spinner relatif : fusionner seulement ses derniers hunks laisse
+le vieux seuil de 200 ms présent et reproduit l'échec.
+
+Les reçus de livraison sont liés au **run et à sa tentative exacte** : « relancer les
+jobs échoués » ne dispense pas du preflight et des autres preuves de cette tentative.
+Préparer une nouvelle demande avec `tests.<groupe>.mode=reuse` uniquement si
+`reuse_guard` authentifie l'arbre effectif, les commandes, les entrées lues et les
+artefacts identiques. Un changement de test invalide sa preuve antérieure.
+Une compilation Release réussie avant `await-tests` ne constitue ni une IPA livrée
+ni un artefact de reprise exploitable par la recette actuelle.
+
 ## 2. Ce qui est en place (première cible : 611)
 
 | Élément | Fichier |

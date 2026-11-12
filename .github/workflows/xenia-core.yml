@@ -23,9 +23,10 @@ on:
 permissions:
   contents: read
 concurrency:
-  # A Core build or a pin has its own group: a later checks-only push never cancels it.
-  group: xenia-native-core-${{ github.ref }}-${{ (contains(github.event.head_commit.message, '[xenia-core]') || contains(github.event.head_commit.message, '[xenia-pin run=')) && github.sha || 'checks' }}
-  cancel-in-progress: true
+  # Push and dispatched Core producers and pins keep their source identity and cannot be cancelled
+  # by later checks. Checks-only runs still replace older checks on the same branch.
+  group: xenia-native-core-${{ github.ref }}-${{ ((github.event_name == 'workflow_dispatch' && inputs.build_core) || contains(github.event.head_commit.message, '[xenia-core]') || contains(github.event.head_commit.message, '[xenia-pin run=')) && github.sha || 'checks' }}
+  cancel-in-progress: ${{ !((github.event_name == 'workflow_dispatch' && inputs.build_core) || contains(github.event.head_commit.message, '[xenia-core]') || contains(github.event.head_commit.message, '[xenia-pin run=')) }}
 jobs:
   checks:
     name: Patch, shader converter, facade C++ and host plugin

@@ -20,9 +20,9 @@ name: S2Arm engine (iOS) build check
 permissions:
   contents: read
 concurrency:
-  # A pin has its own group: a later push never cancels a build, and a pin never cancels one.
-  group: s2arm-engine-${{ github.ref }}-${{ contains(github.event.head_commit.message, '[s2arm-pin ') && github.sha || 'build' }}
-  cancel-in-progress: true
+  # Builds and pins retain their own source identity; neither cancels an in-progress producer.
+  group: s2arm-engine-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
 jobs:
   engine:
     if: ${{ !contains(github.event.head_commit.message, '[s2arm-pin ') }}
