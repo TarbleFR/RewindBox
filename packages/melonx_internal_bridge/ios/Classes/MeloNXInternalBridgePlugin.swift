@@ -194,6 +194,24 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
         // frontend's closing route waiting forever; it still blocks relaunch.
         case "isSessionActive": result(starting || (host?.isSessionActive == true && !sessionQuarantined))
         case "isSessionQuarantined": result(sessionQuarantined)
+        // Before any launch, of any engine: a donor the last session could not give back (its allocations were still
+        // live when the run returned, or the engine had not reached state 0) is retired again now. The answer is the
+        // native proof Dart clears its restriction on: engineQuarantined (a run whose host stayed active: guest
+        // resources may still be in use; never cleared before process exit) and donorState after this attempt.
+        case "releaseRetainedSession":
+            let engineQuarantined = sessionQuarantined || host?.isSessionActive == true
+            guard !engineQuarantined, !starting else {
+                result(["engineQuarantined":engineQuarantined,"busy":starting,"donorState":MeloNXMemoryLease.shared.snapshot()["donorState"] ?? "off"]); return
+            }
+            libraryQueue.async { [self] in
+                if let runtime, MeloNXMemoryLease.shared.isRetained { _ = MeloNXMemoryLease.shared.retire(runtime:runtime, reason:"retry before a launch") }
+                let donor = MeloNXMemoryLease.shared.snapshot()
+                DispatchQueue.main.async { [self] in
+                    let quarantined = sessionQuarantined || host?.isSessionActive == true
+                    result(["engineQuarantined":quarantined,"busy":starting,"donorState":donor["donorState"] ?? "off",
+                            "donorMappedBytes":donor["donorMappedBytes"] ?? 0])
+                }
+            }
         case "stop":
             if starting, sessionView == nil {
                 if !cancelling {

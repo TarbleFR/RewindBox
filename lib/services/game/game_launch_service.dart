@@ -118,8 +118,22 @@ class GameLaunchService {
     GameModel game,
   ) async {
     if (Platform.isIOS && MelonxInternalService.nativeQuarantined) {
-      GameLaunchManager().markInitializationFailed(nativeStillActive: true);
-      return GameLaunchResult.failure(MelonxLaunchFailureLocale.text(Localizations.localeOf(context), 'quarantined'));
+      // Before any launch, of any engine: what the last Switch session kept is
+      // given back now if it can be, and only its native proof clears it.
+      await MelonxInternalService.refreshSessionQuarantine();
+      if (!context.mounted) return GameLaunchResult.failure('', '');
+      final switchSystem = system.folderName.toLowerCase() == 'switch';
+      if (MelonxInternalService.blocksLaunch(switchSystem: switchSystem)) {
+        GameLaunchManager().markInitializationFailed(nativeStillActive: true);
+        return GameLaunchResult.failure(MelonxLaunchFailureLocale.text(
+            Localizations.localeOf(context), switchSystem ? 'quarantined' : 'switchRestartRequired'));
+      }
+      if (MelonxInternalService.donorRetained) {
+        MelonxLaunchDiagnostics.record('memory', 'retainedOtherEngine', {
+          'system': system.folderName,
+          'diagnostic': 'MeloNX donated memory is still retained; this engine does not use it.',
+        });
+      }
     }
     final mediaOwner = Object();
     final stopMedia = FrontendMediaGate.instance.hold(mediaOwner);

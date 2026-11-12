@@ -186,6 +186,8 @@ LOT_FILES = {
     'adapt_host_thread_class': [],
     # Core 735 (lot 14): the remap sweep of the partially mapped textures.
     'adapt_remap_sweep_range': ['src/Ryujinx.Graphics.Gpu/Image/TextureCache.cs'],
+    # Core 737: the controller manager's own copy of the input configuration (NpadManager.cs is outside this composition).
+    'adapt_npad_config_snapshot': [],
 }
 
 checks = 0

@@ -7,12 +7,13 @@ with tempfile.TemporaryDirectory(prefix='melonx-lease-') as d:
  w=Path(d)
  (w/'Doubles.swift').write_text('''import Foundation
 class MeloNXRuntimeAPI {
- var offer=true, withdraw=true, offers=0, withdrawals=0
+ var offer=true, withdraw=true, offers=0, withdrawals=0, live:UInt64=0
  func offerMemory(_ p:UnsafeMutableRawPointer,bytes:UInt64)->Bool {offers += 1;return offer}
  func withdrawMemory()->Bool {withdrawals += 1;return withdraw}
+ func memorySnapshot()->[String:Any] {["donorOfferedBytes":UInt64(256*1024*1024),"donorUsedBytes":live*65536,"donorAllocations":live]}
 }
 enum MeloNXHostError:Error {case load(String)}
-enum MeloNXLaunchJournal {static func record(_ a:String,_ b:String,detail:String){}}
+enum MeloNXLaunchJournal {static var lines:[String]=[];static func record(_ a:String,_ b:String,detail:String){lines.append(a+" "+b+" "+detail)}}
 class MLXRamDonor {
  static let shared=MLXRamDonor()
  var maxDonors=0,killDonorsAfterMapping=true,hasOutstandingRegions=false
@@ -66,6 +67,25 @@ check(lease.retire(runtime:core))
 d.supply=false;d.leak=true
 do {try lease.prepare(runtime:core,enabled:true,isCurrent:{true});fatalError("lost reservation")} catch {cases += 1}
 check(state()=="retained" && !lease.retire(runtime:core))
+// Lot 14 (IPA 726): a donor the session could not give back is retried later, and released once the engine lets go.
+core.withdraw=true;d.release=true;d.supply=true;d.leak=false;d.hasOutstandingRegions=false
+try lease.prepare(runtime:core,enabled:true,isCurrent:{true});check(state()=="offered" && !lease.isRetained)
+core.withdraw=false;core.live=3
+check(!lease.retire(runtime:core) && lease.isRetained)
+check(MeloNXLaunchJournal.lines.last!.contains("the engine refused to withdraw (donated bytes used 196608, live allocations 3)"))
+check(!lease.retire(runtime:core,reason:"retry before a launch") && lease.isRetained && MeloNXLaunchJournal.lines.last!.hasPrefix("memory retained") &&
+      MeloNXLaunchJournal.lines.last!.contains("retry before a launch: the engine refused"))
+core.withdraw=true;core.live=0
+check(lease.retire(runtime:core,reason:"retry before a launch") && !lease.isRetained && state()=="released" &&
+      MeloNXLaunchJournal.lines.last!.hasPrefix("memory released") && MeloNXLaunchJournal.lines.last!.contains("retry before a launch."))
+check(lease.retire(runtime:core) && state()=="released")
+// A lost reservation the donor gives back later: the retained state ends on the next retire.
+d.supply=false;d.leak=true
+do {try lease.prepare(runtime:core,enabled:true,isCurrent:{true});fatalError("lost reservation")} catch {cases += 1}
+check(lease.isRetained && !lease.retire(runtime:core,reason:"retry before a launch"))
+d.hasOutstandingRegions=false
+check(lease.retire(runtime:core,reason:"retry before a launch") && !lease.isRetained && state()=="released" &&
+      MeloNXLaunchJournal.lines.last!.contains("the donor's reservation was given back"))
 print("PASS \\(cases) production lease cases; Core and donor IPC doubles, no physical loan claim.")
 ''')
  subprocess.run(['xcrun','swiftc','-swift-version','5',str(source),str(w/'Doubles.swift'),str(w/'main.swift'),'-o',str(w/'lease')],check=True)
