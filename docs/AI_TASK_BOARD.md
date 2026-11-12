@@ -371,7 +371,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - legal suites (modifications notice, build source evidence, preflight, s2arm legal bundle) OK; stikjit host OK.
     - Delivery contract: only the 2 PocketSkinRevisionReview errors that clear when the 732 manifest freezes c7d6a5c4.
   - RPCS3/MeloNX packages get only LICENSE files; no Core input or pin changed.
-  - Waits for the maintainer's go.
+  - Maintainer (12 Nov 18:2xZ): build 732 as soon as session 04 (Switch 2) has finished and handed over its fixes,
+    together with this XeniOS lot. Session 04 is on 496e1d8f (engine patch 0011, needs a new engine pin).
 - **IPA 731 delivered and verified (12 Nov 15:0xZ, main; maintainer asked for it with session 04's fix).**
   - Run `43238363574` attempt 1, trigger `5e4eb9c7`, frozen on `8667a630`, effective digest `fd4c9ec6`, 7922 product
     files. All 5 jobs succeeded on the first request.
