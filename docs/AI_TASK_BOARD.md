@@ -359,6 +359,22 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     `Claude-Session` line.
   - **Next:** download, verify offline, receipts, record, delete the key, send the file; give session 04 the freeze
     commit for 803 (sibling of 726).
+- **Next IPA (730) queue (main, 12 Nov 12:05Z).** Build only when the maintainer asks.
+  - On Claude: session 04 S2Arm pin 930a84b0. It carries the prepare patches in the notice, plus relaunch-in-session
+    step 1 (de72efdd).
+  - Waiting: the session 03 XeniaCore pin, now d7ad7e834. It supersedes dc7c7f4b0 and keeps the EnumerateDevices input
+    fix.
+    - Change: the JIT code region is no longer limited to below 8 GB. A weak NeoXeniaExecuteRegionLimit hook returns
+      2^47, and the bridge's 512 MiB host reservation is removed.
+    - Premise checked by main: the embedded StikJIT is patched for full-width addresses (patch_stikjit_rpcs3.py).
+    - Merge conditions sent to 03:
+      - every Xbox 360 attach path goes through that patched transport, or the launch refuses before attach, with a test;
+      - no RPCS3/MeloNX regression from removing the reservation.
+  - Also on Claude: session 04 preparation diagnostics cb0f27e6 (16 MB-stack code stage, memory journal; MKW ended
+    during main's rewrite on 729).
+    - IPA 729 on device: XeniOS boots, and Fable ran about 2170 frames.
+    - No input reached the game: the input driver enumerated no device.
+    - The second launch was refused: noRoom, 442 MiB below 8 GB. The reservation moves to an image constructor.
 - **IPA 729 delivered and verified (12 Nov 10:2xZ, main).**
   - Run `43195224577` attempt 1, trigger `8e502a40`, frozen on `7e9a352a`, effective digest `c4380012`, 7919 product
     files. All 5 jobs succeeded on the first request.
