@@ -359,6 +359,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     `Claude-Session` line.
   - **Next:** download, verify offline, receipts, record, delete the key, send the file; give session 04 the freeze
     commit for 803 (sibling of 726).
+- **Next IPA (730) queue (main, 12 Nov 12:05Z).** Build only when the maintainer asks.
+  - On Claude: session 04 S2Arm pin 930a84b0. It carries the prepare patches in the notice, plus relaunch-in-session
+    step 1 (de72efdd).
+  - Waiting: the session 03 XeniaCore pin for dc7c7f4b0.
+    - IPA 729 on device: XeniOS boots, and Fable ran about 2170 frames.
+    - No input reached the game: the input driver enumerated no device.
+    - The second launch was refused: noRoom, 442 MiB below 8 GB. The reservation moves to an image constructor.
 - **IPA 729 delivered and verified (12 Nov 10:2xZ, main).**
   - Run `43195224577` attempt 1, trigger `8e502a40`, frozen on `7e9a352a`, effective digest `c4380012`, 7919 product
     files. All 5 jobs succeeded on the first request.
