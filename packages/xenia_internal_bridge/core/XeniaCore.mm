@@ -279,7 +279,8 @@ bool PromptKeyboard(const std::string& title, const std::string& description,
 // ProfileManager then keeps it signed in for the next launches
 // (logged_profile_slot_N_xuid). Without it the first booted titles stayed on
 // their title screen: no profile existed and the sign-in prompt was answered
-// as cancelled. Main thread, as XeniOS's own profile picker.
+// as cancelled. Main thread, as XeniOS's own profile picker, or the emulator
+// thread before any title runs (NeoXeniaNotifyKernelReady).
 bool SignInProfileOnMain(uint32_t user_index) {
   if (!g_context) return false;
   const uint32_t slot = user_index < 4 ? user_index : 0;
@@ -749,8 +750,16 @@ void NeoXeniaApplyLaunchOverrides() {
   XELOGI("RewindBox: {} launch override(s) applied", overrides.size());
 }
 
+void NeoXeniaNotifyKernelReady() {
+  // On the emulator thread, before any guest thread: XeniOS's profile calls
+  // only reach the ProfileManager here (the picture cache is synchronized),
+  // and a later title start in this process signs in again below.
+  SignInProfileOnMain(0);
+}
+
 void NeoXeniaNotifyTitleLaunched() {
-  // Kernel up, title not yet running: player 1 has a profile from the start.
+  // A title of a later launch in this process (the kernel is kept): player 1
+  // is signed in again if a title signed them out.
   neo_xenia::g_vibration.store(0, std::memory_order_relaxed);
   dispatch_async(dispatch_get_main_queue(), ^{
     SignInProfileOnMain(0);

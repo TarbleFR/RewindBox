@@ -521,8 +521,11 @@ does for a running game, now held by `test/xenia_embedding_test.py` (with `--ups
 
 - Sign-in: the facade answers the title's sign-in itself, without a screen: a profile already in the asking
   player's slot, else the first one signed in nowhere, else a new one named `RewindBox` (then `RewindBox 2`…).
-  Player 1 is also signed in when each title starts. XeniOS's ProfileManager keeps the login for the next
-  launches (`logged_profile_slot_0_xuid`).
+  Player 1 is also signed in as soon as the emulated kernel exists, before the title runs
+  (`NeoXeniaNotifyKernelReady`, one guarded patch line after `iOS: Emulator setup complete`), and again at
+  each later title start: XeniOS derives the console identity some titles encrypt saves with from the
+  signed-in profile (`XConfig::ResolveOwner`; without one it was random each run: `XConfig: No machine id`).
+  XeniOS's ProfileManager keeps the login for the next launches (`logged_profile_slot_0_xuid`).
 - Guest message boxes and the guest keyboard (XamShowMessageBoxUI, XamShowKeyboardUI) were presented on the
   facade's host controller, which is in no window, so they were answered as cancelled too. They are now shown
   on the window of the render view (on top of the session), with XeniOS's rules (cancel style, preferred

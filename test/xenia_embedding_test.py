@@ -75,6 +75,8 @@ class FacadeTests(unittest.TestCase):
         for step in ('g_context->ListProfiles()', 'g_context->CreateProfile(gamertag)',
                      'g_context->SignInProfile(xuid, slot)', 'std::string("RewindBox")'):
             self.assertIn(step, sign_in)
+        kernel = self.core[self.core.index('void NeoXeniaNotifyKernelReady() {'):]
+        self.assertIn('SignInProfileOnMain(0);', kernel[:kernel.index('\n}\n')])
         launched = self.core[self.core.index('void NeoXeniaNotifyTitleLaunched() {'):]
         launched = launched[:launched.index('\n}\n')]
         self.assertIn('SignInProfileOnMain(0);', launched)
