@@ -87,6 +87,13 @@ std::atomic<bool> g_code_region_held{false};
 // by the first prepare before the hooks are installed.
 std::string g_fatal_record_path;
 
+// The roots the first prepare passed (Documents/XeniOS/Engine and Content,
+// Library/Caches/XeniOS), set again after config::SetupConfig
+// (NeoXeniaApplyHostRoots). Written once, before OnInitialize.
+std::string g_host_storage_root;
+std::string g_host_content_root;
+std::string g_host_cache_root;
+
 uint64_t g_transaction = 0;
 NeoXeniaEvent g_event = nullptr;
 void* g_event_context = nullptr;
@@ -257,6 +264,9 @@ int Prepare(const NeoXeniaConfiguration* configuration, uint32_t /*timeout_ms*/,
     xe::IOSSystemHooks hooks = {};
     hooks.note_fatal_error = NoteFatalError;
     xe::SetIOSSystemHooks(hooks);
+    g_host_storage_root = configuration->storage_root;
+    g_host_content_root = configuration->content_root;
+    g_host_cache_root = configuration->cache_root;
     // Read by EmulatorAppIOS::OnInitialize before config::SetupConfig.
     SetCvar("storage_root", configuration->storage_root);
     SetCvar("content_root", configuration->content_root);
@@ -460,6 +470,15 @@ const NeoXeniaAPI kAPI = {
 }  // namespace
 
 // ---------------------------------------------------------- upstream hooks
+
+void NeoXeniaApplyHostRoots() {
+  // IPA 728: the config saved under IPA 727 named the previous container's
+  // Content folder; create_directories on it threw and RewindBox aborted.
+  SetCvar("storage_root", g_host_storage_root);
+  SetCvar("content_root", g_host_content_root);
+  SetCvar("cache_root", g_host_cache_root);
+  SetCvar("log_file", g_host_storage_root + "/xenia.log");
+}
 
 void NeoXeniaApplyLaunchOverrides() {
   std::vector<std::pair<std::string, std::string>> overrides;

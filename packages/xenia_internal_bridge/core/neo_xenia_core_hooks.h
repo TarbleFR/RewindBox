@@ -18,6 +18,12 @@ class WindowedAppContext;
 }  // namespace ui
 }  // namespace xe
 
+// Main thread, in EmulatorAppIOS::OnInitialize right after
+// config::SetupConfig: sets the host's storage, content and cache roots and log
+// path again over the saved config, whose absolute paths name the container
+// that wrote it (iOS gives the app a new container on every update).
+void NeoXeniaApplyHostRoots();
+
 // Emulator thread, right after config::LoadGameConfigForFile: applies the
 // effective RewindBox settings of the title being booted.
 void NeoXeniaApplyLaunchOverrides();

@@ -1,0 +1,106 @@
+{
+  "component": "s2arm",
+  "identityFile": "S2Arm-native-identity.json",
+  "identity": {
+    "component": "s2arm",
+    "pin": "build-utils/s2arm/engine-pin.json",
+    "pinSha256": "6afbd2c96d28e5a97a6c3c967b21fb6177f6d1a6ae67c442ea239155b1263635",
+    "producers": {
+      "engine": {
+        "run": 43125597914,
+        "attempt": 1,
+        "artifact": 13902059765
+      },
+      "prepare": {
+        "run": 43185893094,
+        "attempt": 1,
+        "artifact": 13928561427
+      },
+      "sysdata": {
+        "run": 43038032448,
+        "attempt": 1,
+        "artifact": 13863124984
+      }
+    },
+    "binaries": {
+      "NS2Pro.framework/Info.plist": "44dac793ca3bc49870f56c528aefebb7cb2b7b9b44cb0c8d7f27472e0020856f",
+      "NS2Pro.framework/LICENSE": "fabdc0b5765c50ec6cd12f2c64900946fd2bc990a5a9d1575400400086175c24",
+      "NS2Pro.framework/NS2Pro": "08a4abe87c8f4c940f9a81c30b85d86ac1b1c923a54c2b0622f632973629e4a4",
+      "S2ArmEngine.framework/Headers/rb_guest.h": "b6289b9fffbdb77edb974efc60d593c8704ede0c7bba1ad372e3fbf2b4e2f40f",
+      "S2ArmEngine.framework/Info.plist": "fff7a6d26519626cd7ef3d92e1bc3b3c53bfc22cd6002559a3c2673914f0028e",
+      "S2ArmEngine.framework/S2ArmDirectChain.txt": "f7d62a4cfac858ef5ec9a66a0c3fde00ac282d07e647bc7bd9e7b894e13c1c65",
+      "S2ArmEngine.framework/S2ArmEngine": "05a00739ab09cc50200d51760335b2b541573c12a1ae6490505a1de7dc8c3f27",
+      "S2ArmEngine.framework/en.lproj/InfoPlist.strings": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
+      "S2ArmEngine.framework/en.lproj/S2ArmHost.strings": "48aea29c8fed82eea8e3d6b461ca9633a7dacc42e63f58fbc05ec408613bb5c0",
+      "S2ArmEngine.framework/zh-Hans.lproj/InfoPlist.strings": "78c7f16614b9144af93c0ea52a182587046abd4fcade2d941e16f26c983d1b1d",
+      "S2ArmEngine.framework/zh-Hans.lproj/S2ArmHost.strings": "8138478b19530a6c85094075f2d82aac50e8ab7ca84c85a449dae1a2b21a891a",
+      "prepare/S2ArmPrepare.xcframework.zip": "c7a41f4b1d4efe93f3a9107bb693cd9dcfacadc0382f5ca810daa6ad66ac704c",
+      "sysdata/SHA256SUMS": "d69cee225120276ede73c2a7710a2f40df0fc85443f498254538b24f557ace29"
+    },
+    "packagedFingerprint": "550d32685354d1d58cc4e544c03e4e80e95e4779c7a551f3446a7aff98541191",
+    "sideImages": [],
+    "sourceIdentity": {
+      "run": 43125597914,
+      "attempt": 1,
+      "head_sha": "601e716b3468455ce8fc5ffcec6b2a15d80a4edd",
+      "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
+      "xcode": "Xcode 26.6",
+      "patches": [
+        {
+          "name": "0001-ios-sdk-older-than-27-without-scene-accessory.patch",
+          "sha256": "ee8470ec5b0d22c294ad3e390ce884b9129f5b505dc4a7f1aeea17b77fec9744"
+        },
+        {
+          "name": "0002-engine-image-header-without-mh-execute-header.patch",
+          "sha256": "3547e279bca0e9362e08bb7d35b7f83e0ed76979cf3e88af0a95a36ca3b7d020"
+        },
+        {
+          "name": "0003-guest-configure-launch-context-and-window.patch",
+          "sha256": "4355329eaa2b97b31b67086a7066eb66a2bfd55d39e989aa5ce89c7d307fb3c1"
+        },
+        {
+          "name": "0004-guest-code-pages-through-host-hook.patch",
+          "sha256": "c7b31fdca6f07c203d1157284d652ffb9c6a8fc0f00c56aa69e04c0b6507ff1c"
+        },
+        {
+          "name": "0005-guest-signal-handlers-chained.patch",
+          "sha256": "987609474f1d77b6c501cca7f0792997b16ce03d9b12487c94dd8c7b544bb31c"
+        },
+        {
+          "name": "0006-guest-session-end-instead-of-exit.patch",
+          "sha256": "953110ac9645a35981adc09c7c241da5ad0e935ee84f0020b18eb4b87a1716a4"
+        },
+        {
+          "name": "0007-guest-view-controller-and-start.patch",
+          "sha256": "d9af77f14bd58141eafe93fe2eeda5236389d967a4b3491ad1ff2374aad13458"
+        },
+        {
+          "name": "0008-guest-strings-and-game-files-from-engine-bundle.patch",
+          "sha256": "658711e4e7715810de23629aae5f093ff3d0b88d088362758dd67da30c38d229"
+        },
+        {
+          "name": "0009-guest-log-in-docs-pad-recording-off-engine-resources.patch",
+          "sha256": "c26733325ff7f2591ef15ee8395c9012a4343ce85fcc0b6e584bf14fe8b92789"
+        }
+      ],
+      "files": {
+        "S2ArmEngine.framework.zip": "57e81f9529b68b61414e231aa82efad3b99313a03ba9b8161515b2abf326560a",
+        "NS2Pro.framework.zip": "1cf9b41e88f1b8136fa255fdb7c9cc8546f3701e7687a410b940475f24cac027"
+      },
+      "licenses": {
+        "manifest": "licenses/license-sources.json",
+        "sha256": "480b3b28d536c9f8f6258dc98dbfc3d50c86bf276ae3b3a502e1e011e9ec9042",
+        "files": 36
+      }
+    },
+    "licenses": {
+      "path": "Legal/S2Arm",
+      "manifest": "license-sources.json",
+      "sha256": "480b3b28d536c9f8f6258dc98dbfc3d50c86bf276ae3b3a502e1e011e9ec9042",
+      "files": 36
+    }
+  },
+  "checks": {
+    "build-utils/s2arm/check_app.py": "S2Arm app OK: helper, frameworks, 731 system data files, 36 notices, Runner bridge"
+  }
+}
