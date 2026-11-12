@@ -257,6 +257,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### Common IPA — main Claude Code
 
+- **Next common IPA, in progress (12 Nov, main).** RPCS3 Core 934 compile run `43129466421` (request `affc2a3b`,
+  source `4f160c8b`). MeloNX P0 726 handoff merged `36ed5e93` ([melonx-display]: display/lease run `43131937219`);
+  MeloNX Core 737 compile dispatched, run `43131998605` (duplicate push run `43131937165` cancelled). Still to come:
+  XeniOS (03) and S2Arm (04) pinned-engine handoffs, pins, freeze, delivery. The RPCS3 heat lot stays ON HOLD.
 - **GOW3 stretch mode no longer applies (maintainer, 12 Nov, IPA 726; Metal 4 off, so Vulkan).** Cause (code, Core 933):
   since Core 922 the boot ignores a legacy full custom_configs file (CONFIG_DB922), but the settings API still read it and
   `rpcs3_ios_set_game_setting` saved every per-game change into it (has_custom_config), so Stretch to fill screen (and
