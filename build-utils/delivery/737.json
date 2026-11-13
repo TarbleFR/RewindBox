@@ -374,6 +374,11 @@
         "commit": "cd0841344a75c5103970d6a263e7fe0ec915a88b",
         "targetBuild": 738,
         "note": "Another session's S2Arm product work, classified by neither 735 nor 736 and not reviewed by the executing session; left out of 737 (the S2Arm engine pin of the base is kept) until the maintainer decides. fix(s2arm): corrections after the review of the 13 Nov lot (texture read, RomFS index, host room, preparation identity) [s2arm-engine]."
+      },
+      {
+        "commit": "643800b58b90a1f8bd56c6e0c232898f9500421e",
+        "targetBuild": 738,
+        "note": "Another session's S2Arm pin request [s2arm-pin]: build-utils/s2arm/engine-pin.json (a product path) now names the engine run 43499689256 built at cd084134 with patches 0016-0019, which needs the two deferred S2Arm commits; its zips entry is not updated yet (not usable until the verified pin follows). 737 keeps the S2Arm engine of the base; left out until the maintainer decides."
       }
     ],
     "promotedCommits": []
