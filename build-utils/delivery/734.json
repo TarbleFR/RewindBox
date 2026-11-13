@@ -62,8 +62,7 @@
       "packaging": "build-utils/melonx/package_runtime.py",
       "image": "Frameworks/MeloNXCore.framework/MeloNXCore",
       "producerRoute": ".github/workflows/melonx-core.yml",
-      "pinSha256": "ae2937fd28c981cc702c69ed5bb2b6f4483cf2acbae3e625c8be4e63d4c1ccc4",
-      "unchangedFromBase": true
+      "pinSha256": "be7cf5b9ddce873140acbc8b4f38682b50fcc9193e9c975189274a381af679ea"
     },
     "dolphin": {
       "mode": "retain",
@@ -423,6 +422,14 @@
       {
         "commit": "7aa8d15124364830866603d5a760a6b070aab856",
         "note": "Include reviewed current work: fix(melonx): keep compilation scope separate from historical receipts [melonx-dma-core]"
+      },
+      {
+        "commit": "70ae7438f17b57a033861f037aba84ef94b19010",
+        "note": "Reviewed compilation-only recipe and accurate evidence labeling: ci(delivery): support explicit build-only private IPA delivery"
+      },
+      {
+        "commit": "c0fa940520c3bb8b910fe752ec00c1d1000ce82e",
+        "note": "Reviewed compilation-only recipe and accurate evidence labeling: docs: make build-only Core and IPA delivery the permanent default"
       }
     ],
     "sourceOnly": [],
@@ -436,7 +443,9 @@
       "Frameworks/S2ArmEngine.framework/S2ArmEngine"
     ],
     "removed": [],
-    "replaced": {},
+    "replaced": {
+      "melonx": "Frameworks/MeloNXCore.framework/MeloNXCore"
+    },
     "retained": {
       "dolphin": [
         "Frameworks/DolphinCore.framework/DolphinCore"
@@ -464,9 +473,6 @@
       "xenia": [
         "Frameworks/XeniaCore.framework/XeniaCore",
         "Frameworks/libmetalirconverter.dylib"
-      ],
-      "melonx": [
-        "Frameworks/MeloNXCore.framework/MeloNXCore"
       ]
     }
   },

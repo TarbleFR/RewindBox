@@ -15,7 +15,7 @@ Aller jusqu’au résultat demandé, sans élargir la mission.
 
 - Lire uniquement les sources, [contraintes](docs/PROJECT_RULES.md) et [preuves](docs/AI_TASK_BOARD.md) pertinentes.
 - Corriger la cause par le changement le plus simple, sans refonte hors sujet.
-- Cores et IPA : compiler les derniers ajouts ; suites approfondies uniquement sur demande explicite.
+- Cores et IPA : aucun nouveau test ni suite approfondie automatique ; compiler les derniers ajouts.
 - Conserver les contrôles indispensables ; marquer les tests non exécutés, sans masquer erreurs ni limites.
 - Signaler une limite réelle sans la contourner ; poursuivre ce qui reste réalisable.
 - Ne pas redemander une autorisation acquise ni imposer de procédure de suivi.

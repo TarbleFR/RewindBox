@@ -22,7 +22,8 @@ vérifiée. Elle n'ajoute que ce qui a changé depuis cette base.
   `commands: []` et une raison ; aucune preuve réussie ou réutilisée n’est inventée.
 - **Contrôles indispensables** : sources et composants authentifiés, compilation réelle, ABI,
   signatures, structure de l’IPA finale et transport privé chiffré. Le contrat de livraison reste actif.
-- **Tests approfondis** : seulement sur demande explicite ; `fresh` les exécute, `reuse` exige les
+- **Aucun nouveau test** ne doit être ajouté. Les suites approfondies restent hors du parcours normal.
+  Les modes historiques `fresh` et `reuse` restent lisibles ; `reuse` exige les
   mêmes entrées et des preuves authentifiées. Les anciens résultats gardent leur portée historique.
 - **Recette** : un seul workflow, les paramètres de chaque livraison dans son manifeste.
 - **Enchaînement** : préparer le manifeste pendant la compilation du Core, puis déclencher l’IPA

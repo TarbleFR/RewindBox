@@ -59,9 +59,10 @@ jobs:
       - name: Restore compiler objects of the same frozen recipe
         id: candidate-objects
         uses: actions/cache/restore@v4
+        continue-on-error: true
         with:
           path: ~/Library/Caches/ccache
-          key: rpcs3-mvk-cache-arm64-xcode26.3-llvm22-${{ hashFiles('build-utils/build_rpcs3_embedded_core.sh','build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch') }}-${{ github.sha }}
+          key: rpcs3-mvk-cache-arm64-xcode26.3-llvm22-${{ hashFiles('build-utils/build_rpcs3_embedded_core.sh','build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch') }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: rpcs3-mvk-cache-arm64-xcode26.3-llvm22-${{ hashFiles('build-utils/build_rpcs3_embedded_core.sh','build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch') }}-
       - name: Authenticate the Core ${{ steps.core-build.outputs.build }} source closure and the native dependency
         shell: bash
@@ -211,9 +212,10 @@ jobs:
       - name: Preserve compiler objects for the same recipe
         if: always()
         uses: actions/cache/save@v4
+        continue-on-error: true
         with:
           path: ~/Library/Caches/ccache
-          key: rpcs3-mvk-cache-arm64-xcode26.3-llvm22-${{ hashFiles('build-utils/build_rpcs3_embedded_core.sh','build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch') }}-${{ github.sha }}
+          key: rpcs3-mvk-cache-arm64-xcode26.3-llvm22-${{ hashFiles('build-utils/build_rpcs3_embedded_core.sh','build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch') }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Preserve real diagnostics including partial failures
         if: always()
         uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb

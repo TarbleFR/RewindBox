@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "ced57c6de8e99a241610b5c1756d962fb9d0067f",
-  "run": 43344184896,
-  "job": 131619413611,
+  "source": "7aa8d15124364830866603d5a760a6b070aab856",
+  "run": 43441783035,
+  "job": 131940942967,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 14004910211,
-  "name": "MeloNX-engine-ced57c6de8e99a241610b5c1756d962fb9d0067f",
-  "bytes": 100703496,
-  "sha256": "f0d5a52957a9f58652a2ae21829fffa00ecaa95455bd18f984eeb23a9f6c1608",
-  "expiresAt": "2027-02-11T01:20:33Z",
+  "artifact": 14047726964,
+  "name": "MeloNX-engine-7aa8d15124364830866603d5a760a6b070aab856",
+  "bytes": 100465951,
+  "sha256": "89d1d7aba02c8c3900caa199d52613c6cd1b86fc5dd60aba38c813f9b1abdcf1",
+  "expiresAt": "2027-02-11T14:20:26Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "2943e06425bee44bf01926cf80144b3010983c0491acfab17b465ddb664f0f96",
-      "bytes": 38538648
+      "sha256": "2fefe20f846ab7e12d66658b3707198666429eea7439c656f10942353ed76a32",
+      "bytes": 38555040
     },
     "iossimulator-arm64": {
-      "sha256": "c4a99198dcb4fae01c089944a271427084d44a3ba0d6c2170037fa9c57cc6479",
+      "sha256": "2022c685e8c1ea0cac350fb39893c253361a1f76ffdb36a7d430a3823f29e2a4",
       "bytes": 38856344
     }
   },
   "identities": {
-    "ios-arm64": "278510d4129745ceebdeef0671c493c7b9f1680e6cddb841d5e08d0acfae9aac",
-    "iossimulator-arm64": "d041b20f89f7fc14727954ccd0420291a9943a9cb0e50ddfae44ca60e1dfeb50"
+    "ios-arm64": "3b6f6ae282b33b1f0d338c01ec3fdb515081c3180aeb5e90bf82425a90b634ec",
+    "iossimulator-arm64": "a8795b41bff0f7d2803cb094abbd2c78d72a84c82ebf7923a7906f6f2ca0ff0b"
   },
-  "contractSha256": "08e254a388efdde0caecdfd3304627a5674022c494f8be257f7d380ec2eeef66",
-  "resultSha256": "bee9a3ad5759a4b91d43206d303b3f41db2f61ed1cb6feacf2c7b81d1c217808",
-  "packagedFingerprint": "b580983dfbf9d7434881ed6b6b9112c50f525447d588eef8cc07f774d66b4a39",
+  "contractSha256": "32c3fb84b0d8fda3c2c78d8fa61afb3d9c451ebf08ba4199d7d8f5e09e3ca24c",
+  "resultSha256": "ff4f14ad1b8521716cd42755a6cf836d55b6dc0e4b83f0d4210a280076a11c60",
+  "packagedFingerprint": "3c3f8db620b5377d1e3e54ec14c72fdb7978300bcbc47ae5f4c01f19914c0818",
   "replaces": {
-    "source": "3d2645ea030e0f1a3da39c99f0a55a6d03300eab",
-    "run": 43174115676,
-    "artifact": 13926697149,
-    "packagedFingerprint": "d5d1ef622e6ef36e8725595eaa04bf1a3e8e18a48324772b0e3d723c36297c6e",
-    "reason": "Core 745: reviewed lot10 and live-capture source, authenticated dependency recovery and producer cache recipe. Replaces delivered Core 743. 104 fresh Apple gates and two simulator sessions are verified by the existing component verifier. No iPhone gameplay, FPS or memory gain is claimed."
+    "source": "ced57c6de8e99a241610b5c1756d962fb9d0067f",
+    "run": 43344184896,
+    "artifact": 14004910211,
+    "packagedFingerprint": "b580983dfbf9d7434881ed6b6b9112c50f525447d588eef8cc07f774d66b4a39",
+    "reason": "Core 747 heat lot with unchanged engine adaptations; compiled via build-smoke route, 0 fresh exhaustive fixtures, 105 deferred fixtures, two actual simulator sessions. Earlier long100 spin-budget assertion remains unverified. No iPhone gameplay or thermal gain is claimed."
   }
 }

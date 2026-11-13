@@ -340,16 +340,16 @@ jobs:
         continue-on-error: true
         with:
           path: ${{ runner.temp }}/xenia-ccache
-          key: ${{ steps.ccache.outputs.prefix }}${{ steps.source.outputs.revision }}-${{ github.sha }}
+          key: ${{ steps.ccache.outputs.prefix }}${{ steps.source.outputs.revision }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: ${{ steps.ccache.outputs.prefix }}
       - name: Compile and verify XeniaCore.framework
         run: bash build-utils/xenia/build_core.sh .native-sources/XeniOS "$MSC_IOS_LIBRARY"
       - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
-        if: success() && steps.ccache.outputs.enabled == 'true' && steps.ccache-restore.outputs.cache-hit != 'true'
+        if: always() && steps.ccache.outputs.enabled == 'true' && steps.ccache-restore.outputs.cache-hit != 'true'
         continue-on-error: true
         with:
           path: ${{ runner.temp }}/xenia-ccache
-          key: ${{ steps.ccache.outputs.prefix }}${{ steps.source.outputs.revision }}-${{ github.sha }}
+          key: ${{ steps.ccache.outputs.prefix }}${{ steps.source.outputs.revision }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Keep the converter out of the artifact
         run: test ! -e dist/xenia/libmetalirconverter.dylib && ! find dist/xenia -name 'libmetalirconverter*' | grep -q .
       - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
