@@ -1,7 +1,7 @@
 {
   "version": 1,
   "repository": "TarbleFR/RewindBox",
-  "created_at": "2026-11-13T00:52:10.436Z",
+  "created_at": "2026-11-13T00:53:49.272Z",
   "purpose": "Archival reachability only. No archived change is thereby integrated or approved. Never merge Backup into a product branch.",
   "retainedBranches": [
     "main",
@@ -200,11 +200,32 @@
       "pullRequests": []
     }
   ],
-  "previousArchive": "4e2ec7580e619e4c16c7e54182b912ef18ee4421",
+  "previousArchive": "c1499c9e29d551bbebde0673a958212eec5e6815",
   "handoffs": [
     {
       "name": "melonx-dependency-recovery-20261113",
       "sha": "a3400a03385980685d78428b61de0c1181386821",
+      "base": "32d71b22695e4895e1d9cca6b6ffc81159a41bd7",
+      "owner": "Codex — maintainer-authorized recipe recovery; main integrates",
+      "status": "superseded-by-d31c07d6-with-90-day-retention",
+      "issue": "https://github.com/TarbleFR/RewindBox/issues/179",
+      "tests": "108 recovery checks on real archives;515 DMA contract checks; independent review",
+      "paths": [
+        ".github/workflows/melonx-core.yml",
+        "build-utils/melonx/core-baseline.json",
+        "build-utils/melonx/dma-core-contract.json",
+        "build-utils/melonx/freeze_dma_core.py",
+        "build-utils/melonx/recover_core_archive.py",
+        "build-utils/melonx/reuse_core_baseline.py",
+        "build-utils/melonx/verify_dma_core.py",
+        "docs/AI_TASK_BOARD.md",
+        "docs/melonx-dependency-recovery-2026-11-13.md",
+        "test/melonx_dependency_recovery_test.py"
+      ]
+    },
+    {
+      "name": "melonx-dependency-recovery-final-20261113",
+      "sha": "d31c07d6ccf06f17c7ed1ca87ef94e6774fd0151",
       "base": "32d71b22695e4895e1d9cca6b6ffc81159a41bd7",
       "owner": "Codex — maintainer-authorized recipe recovery; main integrates",
       "status": "reviewed-and-tested-candidate-not-compiled",
@@ -221,7 +242,9 @@
         "docs/AI_TASK_BOARD.md",
         "docs/melonx-dependency-recovery-2026-11-13.md",
         "test/melonx_dependency_recovery_test.py"
-      ]
+      ],
+      "contractSHA256": "0d6fb08ff83196ea9a4b1e7e8d910164fe452551170fa294eef26125f7d66fa3",
+      "supersedes": "a3400a03385980685d78428b61de0c1181386821"
     }
   ]
 }
