@@ -1,7 +1,7 @@
 {
   "version": 1,
   "repository": "TarbleFR/RewindBox",
-  "created_at": "2026-11-13T00:03:00Z",
+  "created_at": "2026-11-13T00:10:14.018Z",
   "purpose": "Archival reachability only. No archived change is thereby integrated or approved. Never merge Backup into a product branch.",
   "retainedBranches": [
     "main",
@@ -11,7 +11,7 @@
   "branches": [
     {
       "branch": "Claude",
-      "sha": "d7123113d36bc6b00ce02467ad96b66641042ad6",
+      "sha": "608181b2bf62ba7e4f661bd2cb8299e6f54a352e",
       "protected": false,
       "pullRequests": []
     },
@@ -75,7 +75,7 @@
     },
     {
       "branch": "work/melonx-fps-stability-20261103",
-      "sha": "d5c88541f22d2e032ae60c86838cf6fee67d2331",
+      "sha": "f5abc0ac1cc7c93882f08c4742c239679d046f21",
       "protected": false,
       "pullRequests": []
     },
@@ -199,5 +199,6 @@
       "protected": false,
       "pullRequests": []
     }
-  ]
+  ],
+  "previousArchive": "d6374597dc2d209fe4bb55febd16bb89c44f2594"
 }
