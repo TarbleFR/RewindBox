@@ -3,6 +3,7 @@
 # Deep Apple regression suites are not part of the normal compilation route.
 # The private IPA consumes the authenticated Core artifact without recompiling it.
 # Core compile request: Core 935 (core-build.json build 935, canonical patch 05c365a4), request 1 (heat and energy lot of the IPA 726 device logs, Black Ops II flip done replay, ARMSX3 iOS 0.0.2 (3) canary patches, RPCS3 upstream fixes; codegen identities unchanged; compile only).
+# Core compile request: Core 936 (core-build.json build 936, canonical patch 7327095e), request 1 (Core 935, compiled by run 43490423702, plus the second part of the heat and energy lot: texture pre-hash pause, wake census and PPU wait-site probes; codegen identities unchanged; compile only).
 name: RPCS3 Core
 # run-name is evaluated before any job and cannot read the spec; the build
 # number is in the step names, the artifact names and the identity type.
