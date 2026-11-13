@@ -3,7 +3,7 @@
 Règle du maintainer, 1er novembre 2026 : « améliore la recette pour la prochaine compilation et
 enregistre qu'il faut la même recette à chaque fois, qui ne rajoute que ce qui a été modifié ».
 La règle permanente et l'autorisation courante figurent dans le
-[contrat commun](AI_TASK_BOARD.md#standing-ipa-compilation-authorization).
+[consignes uniques](../AGENTS.md).
 
 ## 1. La règle
 
@@ -43,15 +43,13 @@ vérifiée. Elle n'ajoute que ce qui a changé depuis cette base.
 
 ## Coordination et relances après incident (12–13 novembre 2026)
 
-Le [tableau commun](AI_TASK_BOARD.md#cross-account-coordination) définit les propriétaires.
-Les deux comptes échangent leurs lots dans la discussion GitHub #179, avec le SHA
-complet sauvegardé dans Backup et un accusé `ACK <SHA>` du destinataire. Seules
-main, Claude et Backup restent des branches distantes durables ; les autres travaux
-restent isolés localement ([protocole](branch-archive.md)). Une nouvelle tête invalide la relecture précédente.
-Avant de demander un moteur, `python3 tools/coordination/status.py --source <SHA>`
-affiche les runs déjà associés à cette source : suivre le producteur existant plutôt
-que doubler sa demande. Les compilations XeniOS/S2Arm sont isolées des vérifications
-annulables et ne sont plus annulées par une nouvelle vérification.
+Suivre [AGENTS.md](../AGENTS.md) : travailler directement sur `Claude`, préserver
+les changements concurrents et garder un seul responsable par livraison.
+Une courte mise à jour de la tâche suffit ; aucune issue, archive Backup, branche
+supplémentaire ou réponse ACK n'est requise. Avant de demander un moteur, consulter
+les runs de la source exacte et suivre le producteur existant plutôt que doubler
+sa demande. Les compilations XeniOS/S2Arm restent isolées des vérifications
+annulables. Les contrôles techniques et de provenance ci-dessous restent requis.
 
 Après un échec, distinguer compilation, test, contrat et téléchargement. Le run
 `43312487102` a d'abord échoué sur un HTTP 503, puis sur un seuil de CPU dépendant de

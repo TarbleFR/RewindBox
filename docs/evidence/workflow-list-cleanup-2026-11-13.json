@@ -1,7 +1,9 @@
 {
+  "schema": 1,
+  "date": "2026-11-13",
   "repository": "TarbleFR/RewindBox",
-  "source": "1d9d879881e0d767da7974ccb42dc6ae9dc69d59",
-  "operation": "disable only; preserve source, runs, logs and artifacts",
+  "request": "Simplify instructions and disable obsolete workflow launchers without deleting runs or artifacts",
+  "reviewed_source": "1d9d879881e0d767da7974ccb42dc6ae9dc69d59",
   "selected": [
     {
       "id": 402797963,
@@ -822,5 +824,627 @@
       "state": "active",
       "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
     }
-  ]
+  ],
+  "attempts": [
+    {
+      "run": 43430366890,
+      "source": "faf8beda76f3275c9d5643a863e80439da63275c",
+      "result": "stopped after successful PUT returned briefly stale GET state; 18 workflow disables independently confirmed"
+    },
+    {
+      "run": 43430594148,
+      "source": "1a734455b8162ed70c7cf8e7a7fc76f85e5af69e",
+      "result": "success",
+      "summary": {
+        "selected": 117,
+        "disabled": 96,
+        "already_disabled": 18,
+        "kept_active_run": 3,
+        "before_active": 232,
+        "after_active": 136,
+        "unselected_state_changes": [],
+        "run_or_artifact_deletions": 0
+      }
+    }
+  ],
+  "results": [
+    {
+      "id": 402797963,
+      "path": ".github/workflows/achievement-translation-ipa.yml",
+      "result": "already_disabled_manually"
+    },
+    {
+      "id": 391637257,
+      "path": ".github/workflows/actions-history-cleanup.yml",
+      "result": "already_disabled_manually"
+    },
+    {
+      "id": 395595382,
+      "path": ".github/workflows/audit-claude-main-merge.yml",
+      "result": "already_disabled_manually"
+    },
+    {
+      "id": 394603981,
+      "path": ".github/workflows/delivery517-transfer.yml",
+      "result": "already_disabled_manually"
+    },
+    {
+      "id": 396385798,
+      "path": ".github/workflows/liquid-glass-ui-delivery.yml",
+      "result": "already_disabled_manually"
+    },
+    {
+      "id": 394240471,
+      "path": ".github/workflows/melonx-delivery514-recover.yml",
+      "result": "already_disabled_manually"
+    },
+    {
+      "id": 399290820,
+      "path": ".github/workflows/melonx-entry582-delivery.yml",
+      "result": "already_disabled_manually"
+    },
+    {
+      "id": 398112557,
+      "path": ".github/workflows/melonx-input562-delivery.yml",
+      "result": "already_disabled_manually"
+    },
+    {
+      "id": 398465592,
+      "path": ".github/workflows/melonx-jit566-delivery.yml",
+      "result": "already_disabled_manually"
+    },
+    {
+      "id": 398663133,
+      "path": ".github/workflows/melonx-jit572-delivery.yml",
+      "result": "already_disabled_manually"
+    },
+    {
+      "id": 397097287,
+      "path": ".github/workflows/melonx-parity552-delivery.yml",
+      "result": "already_disabled_manually"
+    },
+    {
+      "id": 397133691,
+      "path": ".github/workflows/melonx-parity553-delivery.yml",
+      "result": "already_disabled_manually"
+    },
+    {
+      "id": 397509174,
+      "path": ".github/workflows/melonx-perf558-delivery.yml",
+      "result": "already_disabled_manually"
+    },
+    {
+      "id": 398884909,
+      "path": ".github/workflows/melonx-sync577-delivery.yml",
+      "result": "already_disabled_manually"
+    },
+    {
+      "id": 398264406,
+      "path": ".github/workflows/melonx-texture564-delivery.yml",
+      "result": "already_disabled_manually"
+    },
+    {
+      "id": 398780631,
+      "path": ".github/workflows/melonx-warm576-delivery.yml",
+      "result": "already_disabled_manually"
+    },
+    {
+      "id": 370513638,
+      "path": ".github/workflows/neoswap-ipa.yml",
+      "result": "already_disabled_manually"
+    },
+    {
+      "id": 395598987,
+      "path": ".github/workflows/publish-fix-009.yml",
+      "result": "already_disabled_manually"
+    },
+    {
+      "id": 395596063,
+      "path": ".github/workflows/reconcile-claude-main-fix009.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 379835574,
+      "path": ".github/workflows/release-003.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 388491585,
+      "path": ".github/workflows/release-008.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 395607273,
+      "path": ".github/workflows/rename-fix-009-ipa.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 416718137,
+      "path": ".github/workflows/repository-actions-retire.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 416716910,
+      "path": ".github/workflows/repository-branches-finalize.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 416729426,
+      "path": ".github/workflows/repository-orphans-finalize.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 416708358,
+      "path": ".github/workflows/repository-tidy.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 378977842,
+      "path": ".github/workflows/retroarch-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 399912330,
+      "path": ".github/workflows/rewind586-baseline-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 399751024,
+      "path": ".github/workflows/rewind586-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 400023774,
+      "path": ".github/workflows/rewind587-baseline-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 400931708,
+      "path": ".github/workflows/rewind595-baseline-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 401175525,
+      "path": ".github/workflows/rewind596-baseline-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 401269537,
+      "path": ".github/workflows/rewind597-baseline-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 401417114,
+      "path": ".github/workflows/rewind598-baseline-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 401508436,
+      "path": ".github/workflows/rewind599-baseline-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 401551598,
+      "path": ".github/workflows/rewind600-baseline-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 401901180,
+      "path": ".github/workflows/rewind601-dual-core-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 401965789,
+      "path": ".github/workflows/rewind602-jit-helper-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 402065357,
+      "path": ".github/workflows/rewind603-hogwarts-core-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 402203354,
+      "path": ".github/workflows/rewind604-hogwarts-core-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 403054554,
+      "path": ".github/workflows/rewind606-hogwarts-performance-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 403093324,
+      "path": ".github/workflows/rewind607-rpcs3-core-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 403403448,
+      "path": ".github/workflows/rewind608-retro-achievements-delivery.yml",
+      "result": "kept_active_run"
+    },
+    {
+      "id": 403691689,
+      "path": ".github/workflows/rewind609-hogwarts-liveness-delivery.yml",
+      "result": "kept_active_run"
+    },
+    {
+      "id": 403754755,
+      "path": ".github/workflows/rewind610-delivery.yml",
+      "result": "kept_active_run"
+    },
+    {
+      "id": 403808701,
+      "path": ".github/workflows/rewind611-melonx-reads-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 395351227,
+      "path": ".github/workflows/rpcs3-arm526-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 395402182,
+      "path": ".github/workflows/rpcs3-arm526-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 395080471,
+      "path": ".github/workflows/rpcs3-cell521-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 395083398,
+      "path": ".github/workflows/rpcs3-cell521-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 395096570,
+      "path": ".github/workflows/rpcs3-cell522-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 395098064,
+      "path": ".github/workflows/rpcs3-cell522-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 395160311,
+      "path": ".github/workflows/rpcs3-cell523-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 395180602,
+      "path": ".github/workflows/rpcs3-cell523-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 395238409,
+      "path": ".github/workflows/rpcs3-cell524-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 395250479,
+      "path": ".github/workflows/rpcs3-cell524-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 395311711,
+      "path": ".github/workflows/rpcs3-cell525-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 395325460,
+      "path": ".github/workflows/rpcs3-cell525-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 395420140,
+      "path": ".github/workflows/rpcs3-cell527-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 395420139,
+      "path": ".github/workflows/rpcs3-cell527-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 395494253,
+      "path": ".github/workflows/rpcs3-cell528-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 395827691,
+      "path": ".github/workflows/rpcs3-cell534-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 395828745,
+      "path": ".github/workflows/rpcs3-cell534-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 395872755,
+      "path": ".github/workflows/rpcs3-cell536-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 395874088,
+      "path": ".github/workflows/rpcs3-cell536-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 395931913,
+      "path": ".github/workflows/rpcs3-cell538-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 395934437,
+      "path": ".github/workflows/rpcs3-cell538-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 395988861,
+      "path": ".github/workflows/rpcs3-cell539-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 395990898,
+      "path": ".github/workflows/rpcs3-cell539-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 395999123,
+      "path": ".github/workflows/rpcs3-cell541-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 396053117,
+      "path": ".github/workflows/rpcs3-cell542-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 396054344,
+      "path": ".github/workflows/rpcs3-cell542-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 396150944,
+      "path": ".github/workflows/rpcs3-cell543-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 396173026,
+      "path": ".github/workflows/rpcs3-cell543-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 396287302,
+      "path": ".github/workflows/rpcs3-cell545-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 396289928,
+      "path": ".github/workflows/rpcs3-cell545-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 396361585,
+      "path": ".github/workflows/rpcs3-cell546-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 396371256,
+      "path": ".github/workflows/rpcs3-cell546-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 396381721,
+      "path": ".github/workflows/rpcs3-cell547-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 396389626,
+      "path": ".github/workflows/rpcs3-cell547-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 396495184,
+      "path": ".github/workflows/rpcs3-cell551-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 396501339,
+      "path": ".github/workflows/rpcs3-cell551-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 397307709,
+      "path": ".github/workflows/rpcs3-cell555-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 397566719,
+      "path": ".github/workflows/rpcs3-cell559-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 397590722,
+      "path": ".github/workflows/rpcs3-cell559-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 397656098,
+      "path": ".github/workflows/rpcs3-cell560-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 397666320,
+      "path": ".github/workflows/rpcs3-cell560-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 398096353,
+      "path": ".github/workflows/rpcs3-cell561-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 398103302,
+      "path": ".github/workflows/rpcs3-cell561-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 398197254,
+      "path": ".github/workflows/rpcs3-cell563-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 398204157,
+      "path": ".github/workflows/rpcs3-cell563-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 398416825,
+      "path": ".github/workflows/rpcs3-cell565-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 398445617,
+      "path": ".github/workflows/rpcs3-cell565-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 398510884,
+      "path": ".github/workflows/rpcs3-cell567-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 398525511,
+      "path": ".github/workflows/rpcs3-cell567-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 398622971,
+      "path": ".github/workflows/rpcs3-cell569-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 398637815,
+      "path": ".github/workflows/rpcs3-cell571-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 398696506,
+      "path": ".github/workflows/rpcs3-cell573-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 398711795,
+      "path": ".github/workflows/rpcs3-cell573-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 398756675,
+      "path": ".github/workflows/rpcs3-cell575-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 398758227,
+      "path": ".github/workflows/rpcs3-cell575-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 398920777,
+      "path": ".github/workflows/rpcs3-cell579-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 398949808,
+      "path": ".github/workflows/rpcs3-cell579-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 398999037,
+      "path": ".github/workflows/rpcs3-cell581-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 399017041,
+      "path": ".github/workflows/rpcs3-cell581-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 399347153,
+      "path": ".github/workflows/rpcs3-cell583-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 399371355,
+      "path": ".github/workflows/rpcs3-cell583-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 399467979,
+      "path": ".github/workflows/rpcs3-cell585-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 399488132,
+      "path": ".github/workflows/rpcs3-cell585-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 399586888,
+      "path": ".github/workflows/rpcs3-cell587-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 399964365,
+      "path": ".github/workflows/rpcs3-cell589-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 399985127,
+      "path": ".github/workflows/rpcs3-cell591-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 397125545,
+      "path": ".github/workflows/rpcs3-fix552-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 397296842,
+      "path": ".github/workflows/rpcs3-import554-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 397396993,
+      "path": ".github/workflows/rpcs3-library-files557-delivery.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 400085548,
+      "path": ".github/workflows/rpcs3-runtime592-core.yml",
+      "result": "disabled"
+    },
+    {
+      "id": 394672916,
+      "path": ".github/workflows/rpcs3-v012-delivery.yml",
+      "result": "disabled"
+    }
+  ],
+  "verification": {
+    "workflow_count_before": 253,
+    "workflow_count_after": 254,
+    "active_before": 249,
+    "active_after": 135,
+    "selected_all_disabled": 117,
+    "newly_disabled": 114,
+    "unselected_state_changes": 0,
+    "original_workflows_deleted": 0,
+    "temporary_cleanup_disabled": true
+  },
+  "run_or_artifact_deletions": 0,
+  "notes": "The three kept_active_run entries were already disabled before maintenance; historical queued runs were left intact. Temporary maintenance workflow disabled itself and its launcher was removed after completion."
 }

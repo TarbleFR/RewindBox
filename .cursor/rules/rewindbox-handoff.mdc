@@ -1,9 +1,0 @@
----
-description: RewindBox direct Claude workflow
-alwaysApply: true
----
-
-Follow AGENTS.md and read only the relevant task in docs/AI_TASK_BOARD.md.
-Work directly on Claude; no automatic branch, worktree, issue or PR.
-Inspect HEAD and local changes, preserve others' work and serialize shared edits.
-Run relevant checks and update task state only when useful for continuation.

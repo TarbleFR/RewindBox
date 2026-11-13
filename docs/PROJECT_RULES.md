@@ -79,8 +79,8 @@ Historical background: [guard crash and completed source work](melonx-build603-g
 [steady-state work](melonx-steady-state-2026-10-29.md),
 [owned-session design](melonx-native-session-2026-10-20.md).
 The older design's “not packaged yet” status is historical, not current readiness.
-Use the [active MeloNX task](AI_TASK_BOARD.md#melonx-fps-memory-black-launch-and-artifacts--existing-owner)
-for current Core, delivery and validation status.
+Consult the [preserved MeloNX findings](https://github.com/TarbleFR/RewindBox/blob/1a734455b8162ed70c7cf8e7a7fc76f85e5af69e/docs/AI_TASK_BOARD.md#melonx-fps-memory-black-launch-and-artifacts--existing-owner)
+for prior reasoning, then verify the current Core and delivery status.
 
 ## RPCS3
 
@@ -142,8 +142,8 @@ Read [historical Core verification](rpcs3-device601-core-2026-10-30.md),
 [prior runtime log analysis](rpcs3-runtime-log-followup-2026-10-29.md) and
 [title-lever background](rpcs3-cell575.md). BO2/GOW3/AC physical recovery must
 be established from device evidence, not the source or compilation alone.
-The [active RPCS3 task](AI_TASK_BOARD.md#rpcs3-fps-stability-and-audio--main-claude-code)
-identifies the current Core and next work; the dated documents above are background.
+The [preserved RPCS3 task](https://github.com/TarbleFR/RewindBox/blob/1a734455b8162ed70c7cf8e7a7fc76f85e5af69e/docs/AI_TASK_BOARD.md#rpcs3-fps-stability-and-audio--main-claude-code)
+records its then-current Core and next work; the dated documents above are background.
 
 ## Dolphin, NeoSwap and retired ports
 

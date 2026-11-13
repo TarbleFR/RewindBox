@@ -1,35 +1,39 @@
-# RewindBox — simple working rules
+# RewindBox — consignes uniques
 
-These rules replace older orchestration instructions. Follow the user's current
-request first. Read only the relevant task and technical requirements in
-[docs/AI_TASK_BOARD.md](docs/AI_TASK_BOARD.md), then the needed source/evidence.
+Ce fichier remplace toutes les anciennes consignes d’orchestration.
+La demande actuelle de l’utilisateur prime ; répondre en français.
 
-1. **Work directly on `Claude` (exact case).** Inspect branch, HEAD and local changes,
-   then synchronize safely. Ordinary fast-forward commits/pushes to `origin/Claude`
-   are authorized; use `[skip ci]` for documentation-only changes.
-2. **No automatic branches, worktrees, issues or PRs.** Create them only when the
-   user explicitly requests them. Never recreate deleted issues/branches.
-   `main` stays the reference branch; `Backup` preserves existing archives.
-   Neither is a routine handoff route. Never merge Backup into a product branch.
-3. **Preserve work.** No force-push, destructive reset/clean or unreviewed deletion.
-   Stage only owned changes. Before pushing, reconcile newer remote commits.
-   Serialize edits to shared paths; use sequential work when ownership conflicts.
-4. **Keep coordination light.** The current session executes the requested work.
-   Use a helper only for a useful bounded question or explicitly assigned paths;
-   no automatic team or isolation. One active executor per Core/IPA delivery:
-   follow the existing run instead of launching a duplicate.
-5. **Correct → verify → deliver within the approved scope.** Use existing evidence,
-   fix the cause, run relevant checks and report the result in French. Preserve
-   component requirements, data, signatures and source/artifact validation.
-   Existing build authorizations remain valid; use the standard delivery recipe.
-   A documentation change alone is not a request to build an IPA.
-6. **Record only what helps continuation.** Update the relevant board entry after
-   a material result/blocker, preferably with the work's commit. A short state,
-   evidence and next action suffice. No mandatory issue, ACK, session lookup,
-   model/effort ceremony or standalone bookkeeping commit for routine progress.
+## Travail
+Travailler, corriger, tester et compiler directement sur `Claude` (casse exacte).
+Ne créer ni branche, worktree, issue, PR, équipe d’agents ou procédure de passation.
+Ne pas recréer automatiquement les éléments supprimés.
+Lire l’état de Git et préserver les modifications locales et concurrentes.
+Commits et push ordinaires sur `Claude` autorisés ; jamais de force-push ni de reset destructif.
+En cas de conflit, conserver les deux travaux et résoudre avant de pousser.
+Corriger la cause, exécuter les contrôles utiles puis poursuivre la livraison autorisée.
+Ne pas redemander une autorisation déjà donnée.
+Si l’environnement bloque une action, décrire la limite réelle sans la contourner.
+## Compilation et IPA de test
+Réutiliser les workflows existants et la recette standard ; aucun workflow copié par build.
+Suivre la compilation existante ; ne pas lancer de doublon.
+Recompiler les composants modifiés et vérifier l’identité de ceux réutilisés.
+Conserver les contrôles de sources, dépendances, ABI, signatures et empreintes.
+Une compilation réussie ne prouve pas que le jeu fonctionne sur iPhone.
+Les IPA de test restent privées : aucune release publique ni artefact IPA en clair sur GitHub.
+Conserver le chiffrement du transport, les contrôles finaux et l’envoi privé du fichier vérifié.
+Ne jamais enregistrer de clé privée, secret ou journal privé brut dans Git.
 
-If the environment itself forces a session branch or refuses a direct push,
-state that exact restriction; do not bypass it or repeatedly ask for an already
-granted authorization. Do not publish a `claude/...` branch: its first component
-collides with `Claude` on case-insensitive macOS checkouts. Preserve existing work
-and use direct `Claude` access only where the environment permits it.
+## Releases et sauvegardes
+`main` reçoit uniquement l’état validé destiné à une release publique ; aucun développement dessus.
+À chaque release, sauvegarder l’état exact livré sur `Backup`, avec sa version et son SHA.
+Conserver les sauvegardes précédentes ; ne jamais fusionner `Backup` dans `Claude` ou `main`.
+Vérifier la sauvegarde avant de publier la release et conserver ses preuves.
+Publier uniquement dans le périmètre autorisé par l’utilisateur.
+
+## Raisonnements et vérifications
+Relire seulement les preuves pertinentes : causes établies, pistes réfutées et limites connues.
+Conserver les résultats utiles dans leurs documents techniques et dans l’historique Git.
+Ne pas refaire une enquête ou un test inchangé sans raison nouvelle.
+Préserver données utilisateur, rendu, synchronisation, compatibilité, crédits et licences.
+Distinguer corrigé, testé, compilé, livré et observé sur appareil ; aucun gain inventé.
+Terminer par un bilan court : changement, vérification, résultat et éventuel blocage.
