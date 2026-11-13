@@ -418,7 +418,7 @@ footprint up to 4,882 MiB. No post-correction iPhone gain yet.
 threads' samples spin before a wait (44 % of all samples in the spin's yield: guest scheduler and threaded-renderer
 events). `adapt_wait_spin_bound` (every title) keeps the spin only for events whose waits end inside it; gate 42
 checks, macOS arm64 run `43367431612`: -48 to -54 % CPU per handoff on long waits, short handoffs kept. Branch
-`work/melonx-heat-20261113` `a0fea59e`, wiring for Core 747; no iPhone result.
+`work/melonx-heat-20261113`; **Core 747 frozen** at `344666e5` for the S2Arm 734 delivery (its request, #179): 105/105 gates on the final preparation (Linux, .NET 10.0.100), contract `b89a8124`, contract test 517 checks; build request left to that session. No iPhone result.
 [Heat handoff and protocol](evidence/melonx-heat/handoff.md).
 **Native heap:** original owner has named the large MoltenVK stacks (SPIR-V copies,
 Metal libraries, descriptor pools, pipeline states); release/compression changes
