@@ -230,6 +230,10 @@ static void RPCS3WriteAdmissionLines(const std::string& text) {
   unsigned long long _diagnosticLength;
   NSFileHandle* _restoreTraceFile;
   unsigned long long _restoreTraceLength;
+  // REWINDBOX_LOG_APPEND_HANDLES_936: the bounded appends (performance, causes,
+  // timeline) keep their file open, like the diagnostic journal above. Owned by
+  // the serial diagnostic queue; indexed by RPCS3LogFile.
+  NSFileHandle* _appendFiles[kRPCS3LogFileCount];
   // CELL546 compact timeline, owned by the diagnostic queue.
   NSMutableDictionary* _timelineRow;
   NSMutableDictionary<NSString*, NSNumber*>* _timelineStallStages;
@@ -420,8 +424,27 @@ static void RPCS3WriteAdmissionLines(const std::string& text) {
                monotonicEnd:now];
 }
 
+- (void)closeAppendFile:(RPCS3LogFile)index {
+  @try {
+    [_appendFiles[index] closeFile];
+  } @catch (__unused NSException* exception) {
+  }
+  _appendFiles[index] = nil;
+}
+
 // Bounded append with one previous generation. No extra RAM cache, allocation
 // reserve or synchronous flush.
+// REWINDBOX_LOG_APPEND_HANDLES_936 (iPhone logs of IPA 726, COREPROF ENERGY931):
+// this method used to open, write and close the file for every line. About 90
+// lines per 5 s window cost 1.5 to 1.9 MiB of disk writes for about 67 KiB of
+// text (18.6 KiB per line, R2 0.99 over 55 windows; a window of 468 lines cost
+// 9.5 MiB): the same 16 KiB tail page was written to the flash once per line.
+// The file now stays open, as RPCS3-diagnostic.log always did. Each line is
+// still one write(2) at the end of the file, so it is in the kernel before the
+// next line and survives the end of the process; the system writes the page
+// when it flushes, not once per line. The handle is dropped when it is no
+// longer the file at `path` (rotation, deletion, a test directory) and after
+// a failed call; the next line then opens the file again, as before.
 - (void)appendLine:(NSData*)line
               name:(NSString*)name
              limit:(unsigned long long)limit
@@ -431,26 +454,39 @@ static void RPCS3WriteAdmissionLines(const std::string& text) {
   if (!directory.length) return;
   NSString* path = [directory stringByAppendingPathComponent:name];
   NSFileManager* files = NSFileManager.defaultManager;
-  unsigned long long size = [[files attributesOfItemAtPath:path error:nil] fileSize];
-  NSData* marker = nil;
-  if (size + line.length > limit) {
-    const BOOL rotated = RPCS3RotateLog(path);
-    if (!rotated) {
-      // Rotation failure retains a bounded current file, as the main writer.
-      NSFileHandle* old = [NSFileHandle fileHandleForWritingAtPath:path];
-      [old truncateFileAtOffset:0]; [old closeFile];
+  if (_appendFiles[index] && !RPCS3HandleOwnsPath(_appendFiles[index], path)) [self closeAppendFile:index];
+  @try {
+    unsigned long long size = _appendFiles[index]
+        ? [_appendFiles[index] seekToEndOfFile]
+        : [[files attributesOfItemAtPath:path error:nil] fileSize];
+    NSData* marker = nil;
+    if (size + line.length > limit) {
+      [self closeAppendFile:index];
+      const BOOL rotated = RPCS3RotateLog(path);
+      if (!rotated) {
+        // Rotation failure retains a bounded current file, as the main writer.
+        NSFileHandle* old = [NSFileHandle fileHandleForWritingAtPath:path];
+        [old truncateFileAtOffset:0]; [old closeFile];
+      }
+      gRPCS3Rotations[index].fetch_add(1, std::memory_order_relaxed);
+      if (index == kRPCS3TimelineFile || index == kRPCS3CauseFile)
+        marker = [self rotationLineForFile:path rotated:rotated index:index];
     }
-    gRPCS3Rotations[index].fetch_add(1, std::memory_order_relaxed);
-    if (index == kRPCS3TimelineFile || index == kRPCS3CauseFile)
-      marker = [self rotationLineForFile:path rotated:rotated index:index];
+    if (!_appendFiles[index]) {
+      if (![files fileExistsAtPath:path]) [files createFileAtPath:path contents:nil attributes:nil];
+      _appendFiles[index] = [NSFileHandle fileHandleForWritingAtPath:path];
+      [_appendFiles[index] seekToEndOfFile];
+    }
+    NSFileHandle* file = _appendFiles[index];
+    // An unusually large complete record wins over the optional marker, so
+    // adding a rotation header can never exceed the file's byte limit.
+    if (marker && marker.length + line.length <= limit) [file writeData:marker];
+    [file writeData:line];
+  } @catch (NSException* exception) {
+    // Same outcome for the caller as before, without keeping a failed handle.
+    [self closeAppendFile:index];
+    @throw exception;
   }
-  if (![files fileExistsAtPath:path]) [files createFileAtPath:path contents:nil attributes:nil];
-  NSFileHandle* file = [NSFileHandle fileHandleForWritingAtPath:path];
-  [file seekToEndOfFile];
-  // An unusually large complete record wins over the optional marker, so
-  // adding a rotation header can never exceed the file's byte limit.
-  if (marker && marker.length + line.length <= limit) [file writeData:marker];
-  [file writeData:line]; [file closeFile];
 }
 
 - (void)writeRuntimeHistory:(NSData*)line {
@@ -1259,6 +1295,7 @@ static void RPCS3WriteAdmissionLines(const std::string& text) {
   NSString* directoryCopy = [directory copy];
   dispatch_sync(_diagnosticQueue, ^{
     [self closeDiagnosticFile];
+    for (size_t index = 0; index < kRPCS3LogFileCount; ++index) [self closeAppendFile:(RPCS3LogFile)index];
     self->_testDirectory = directoryCopy;
     self->_diagnosticPath = nil;
     self->_causeTitle = self->_causeSession = self->_causeBootKind = nil;
