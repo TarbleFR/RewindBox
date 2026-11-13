@@ -15,6 +15,9 @@ name: S2Arm engine bridge (iOS compile)
       - test/s2arm_park_resume_test.py
       - test/s2arm_store_bench_test.py
       - test/s2arm_sparse_layout_test.py
+      - test/s2arm_vp_arena_test.py
+      - test/s2arm_vp_arena_harness.c
+      - test/s2arm_romfs_index_test.py
       - test/s2arm_session_menu_test.py
 permissions:
   contents: read
@@ -63,3 +66,5 @@ jobs:
           python3 -B test/s2arm_park_resume_test.py
           python3 -B test/s2arm_store_bench_test.py
           python3 -B test/s2arm_sparse_layout_test.py
+          python3 -B test/s2arm_vp_arena_test.py
+          python3 -B test/s2arm_romfs_index_test.py
