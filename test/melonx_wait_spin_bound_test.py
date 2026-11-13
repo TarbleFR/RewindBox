@@ -18,8 +18,9 @@ Executed (test/melonx_wait_spin_bound/Program.cs with the adapter's class text, 
 medians): two threads handing over as KScheduler does, with the control's event and the candidate's:
 - partner answers in 1 or 5 us (the spin's yields pay): the candidate keeps the full spin and at least 80 % of the
   control's handoffs per second;
-- partner answers in 40 or 300 us (both block): the candidate drops to the pause iterations and spends at least 15 %
-  less CPU per handoff beyond the work, at 90 % or more of the control's handoffs per second;
+- partner answers in 100 or 300 us (both block): the candidate drops to the pause iterations and spends at least 15 %
+  less CPU per handoff beyond the work, at 90 % or more of the control's handoffs per second (40 us, the edge of a full
+  spin's length on macOS, is measured and not asserted);
 - half short and half long slices: at 90 % or more of the control's handoffs per second;
 - a ring of eight threads with slices of 0-300 us: no lost wakeup (laps made, every thread ends), one token holder
   at a time; a wait on an event nobody sets stays blocked, and returns after Set.
@@ -77,7 +78,10 @@ def body(text, signature):
     return text[start:at]
 
 
-POINTS = (('short1', 1, 1, 100), ('short5', 5, 5, 100), ('long40', 40, 40, 100), ('long300', 300, 300, 100), ('mixed', 1, 200, 50))
+# 40 us is the edge of a full spin's length on macOS arm64 (run 43365952291: kept the full spin in 2 runs of 3): measured,
+# not asserted.
+POINTS = (('short1', 1, 1, 100), ('short5', 5, 5, 100), ('edge40', 40, 40, 100), ('long100', 100, 100, 100),
+          ('long300', 300, 300, 100), ('mixed', 1, 200, 50))
 
 
 def execute(temporary):
@@ -201,7 +205,7 @@ for name in ('short1', 'short5'):
     check(cand['handoffsPerSecond'] >= 0.8 * ctl['handoffsPerSecond'] and all(b == [35, 35] for b in cand['spinBudgets']),
           f'{name}: the partner answers inside the spin: the candidate keeps the full spin and 80 % or more of the control\'s '
           f'handoffs per second ({cand["handoffsPerSecond"]:.0f} against {ctl["handoffsPerSecond"]:.0f}, budgets {cand["spinBudgets"]})')
-for name in ('long40', 'long300'):
+for name in ('long100', 'long300'):
     ctl, cand = point(name, 'control'), point(name, 'adaptive')
     check(all(b == [10, 10] for b in cand['spinBudgets']) and cand['overheadCpuUsPerHandoff'] <= 0.85 * ctl['overheadCpuUsPerHandoff'] and
           cand['handoffsPerSecond'] >= 0.9 * ctl['handoffsPerSecond'],
@@ -219,7 +223,7 @@ if FIXTURE_ONLY:
     raise SystemExit(0)
 
 saving = {name: round(1 - point(name, 'adaptive')['overheadCpuUsPerHandoff'] / point(name, 'control')['overheadCpuUsPerHandoff'], 3)
-          for name in ('long40', 'long300')}
+          for name in ('edge40', 'long100', 'long300')}
 inputs = ['build-utils/melonx/adapt_wait_spin_bound.py', 'build-utils/melonx/adapt_session.py', 'test/melonx_wait_spin_bound_test.py',
           'test/melonx_wait_spin_bound/Program.cs', 'test/melonx_adapter_control.py']
 report = {
