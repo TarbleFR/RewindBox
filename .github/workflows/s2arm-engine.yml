@@ -93,25 +93,17 @@ jobs:
             echo "$RUNNER_TEMP/shim" >> "$GITHUB_PATH"
           fi
           "$RUNNER_TEMP/shim/timeout" --version 2>/dev/null | head -1 | tee -a proof/inputs.txt || timeout --version | head -1 | tee -a proof/inputs.txt
-      - name: Prefetch the codec sources hosted outside GitHub, with retries
-        # Run 43024225545: downloads.xiph.org reset the connection on both runners. The archives go
-        # where S2Arm's fetch_source.sh looks first (<cache>/sources/<sha256>/<file>), checked by SHA-256.
-        working-directory: ${{ runner.temp }}/s2arm
+      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        id: sources-cache
+        continue-on-error: true
+        with:
+          path: ${{ runner.temp }}/s2arm-build-cache/sources
+          key: s2arm-sources-v1-${{ hashFiles('tools/s2arm_prototype/pin.json') }}
+      - name: Prefetch and rehash the pinned codec source archives
         run: |
           set -euo pipefail
-          cache="$RUNNER_TEMP/s2arm-build-cache/sources"
-          fetch() {  # <build script> <file pattern> <url pattern>, $VER substituted
-            line=$(grep -m1 -E '^VER=[^;]+; SHA=[0-9a-f]{64}' "$1")
-            ver=$(printf '%s' "$line" | sed -E 's/^VER=([^;]+);.*/\1/'); sha=$(printf '%s' "$line" | sed -E 's/.*SHA=([0-9a-f]{64}).*/\1/')
-            file=${2//\$VER/$ver}; url=${3//\$VER/$ver}
-            mkdir -p "$cache/$sha"
-            curl -fsSL --retry 8 --retry-all-errors --retry-delay 10 --connect-timeout 30 -o "$cache/$sha/$file.part" "$url"
-            echo "$sha  $cache/$sha/$file.part" | shasum -a 256 -c -
-            mv "$cache/$sha/$file.part" "$cache/$sha/$file"
-            echo "prefetched $file $sha" | tee -a "$GITHUB_WORKSPACE/proof/inputs.txt"
-          }
-          fetch services/opus/build.sh 'opus-$VER.tar.gz' 'https://downloads.xiph.org/releases/opus/opus-$VER.tar.gz'
-          fetch services/dav1d/build.sh 'dav1d-$VER.tar.xz' 'https://downloads.videolan.org/pub/videolan/dav1d/$VER/dav1d-$VER.tar.xz'
+          python3 build-utils/s2arm/engine/prefetch_sources.py "$RUNNER_TEMP/s2arm" \
+            "$RUNNER_TEMP/s2arm-build-cache/sources" | tee -a proof/inputs.txt
       - name: Build S2Arm's iOS engine with no game (make ios)
         working-directory: ${{ runner.temp }}/s2arm
         env:
@@ -269,6 +261,12 @@ jobs:
             python3 -c "import json,sys;d=json.load(open(sys.argv[1]));[print(('KEPT  ' if v['kept'] else 'none  ')+k+' '+v['version']+' '+str(sum(a['symbols'] for a in v['assemblies'].values()))) for k,v in sorted(d['managed'].items())]" "$out/kept-code-inventory.json" | tee -a "$out/kept-code-inventory.txt"
           fi
           exit $status
+      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        if: success() && steps.sources-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        with:
+          path: ${{ runner.temp }}/s2arm-build-cache/sources
+          key: s2arm-sources-v1-${{ hashFiles('tools/s2arm_prototype/pin.json') }}
       - name: Collect the engine's licence and notice texts from its pinned sources
         # For the legal bundle of the test IPA (Legal/S2Arm, docs/s2arm-legal-notices.md): S2Arm's LICENSE, NOTICE and
         # THIRD_PARTY_LICENSES.md and the licence texts of the third parties that reach the iPhone, read from the pinned

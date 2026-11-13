@@ -301,9 +301,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   core:
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[melonx-dma-core]') || contains(github.event.head_commit.message, '[melonx-arrays-core]') || contains(github.event.head_commit.message, '[melonx-reads-core]') || contains(github.event.head_commit.message, '[melonx-liveness-core]') || contains(github.event.head_commit.message, '[hogwarts606-checks]') || contains(github.event.head_commit.message, '[melonx-launch-only]') || (!contains(github.event.head_commit.message, '[melonx-host-only]')
-      && !contains(github.event.head_commit.message, '[retroarch-delivery]') && !contains(github.event.head_commit.message,
-      '[melonx-validated-integration]')) }}
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[melonx-dma-core]') || contains(github.event.head_commit.message, '[melonx-arrays-core]') || contains(github.event.head_commit.message, '[melonx-reads-core]') || contains(github.event.head_commit.message, '[melonx-liveness-core]') || contains(github.event.head_commit.message, '[hogwarts606-checks]') || contains(github.event.head_commit.message, '[melonx-launch-only]') }}
     runs-on: macos-26
     timeout-minutes: 90
     steps:
@@ -311,6 +309,27 @@ jobs:
       with:
         fetch-depth: 0
         persist-credentials: false
+    - name: Restore exact authenticated core743 envelope
+      id: cache-core743
+      continue-on-error: true
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+      with:
+        path: .native-sources/melonx-core743-recovery.zip.republished.zip
+        key: melonx-envelope-v1-5657daf09a4b18c4d2e26b3179fd43f8a8809dad2430d9cd9633a4dbf9a419ef
+    - name: Restore exact authenticated core614 envelope
+      id: cache-core614
+      continue-on-error: true
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+      with:
+        path: .native-sources/melonx-b181cbe1-arrays.zip.republished.zip
+        key: melonx-envelope-v1-b36553a3bbaab8ebc7e4b8211a51a1eec5cda617f7dee8316cd98f48f4e67446
+    - name: Restore exact authenticated native envelope
+      id: cache-native
+      continue-on-error: true
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+      with:
+        path: build/components-retained/retained-melonx-dependencies.zip.republished.zip
+        key: melonx-envelope-v1-f70032b3b4cccebeb213eefb122e806d0fd3da18581c6677561b825bceffb4b5
     - name: Reject tampered dependency recovery archives
       run: python3 test/melonx_dependency_recovery_test.py
     - uses: actions/setup-dotnet@v4
@@ -396,6 +415,27 @@ jobs:
         PY_SMOKE
     - name: Verify fresh guest execution, teardown and backing release
       run: python3 build-utils/melonx/verify_dma_core.py finalize
+    - name: Save verified core743 envelope
+      if: ${{ success() && steps.cache-core743.outputs.cache-hit != 'true' }}
+      continue-on-error: true
+      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+      with:
+        path: .native-sources/melonx-core743-recovery.zip.republished.zip
+        key: melonx-envelope-v1-5657daf09a4b18c4d2e26b3179fd43f8a8809dad2430d9cd9633a4dbf9a419ef
+    - name: Save verified core614 envelope
+      if: ${{ success() && steps.cache-core614.outputs.cache-hit != 'true' }}
+      continue-on-error: true
+      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+      with:
+        path: .native-sources/melonx-b181cbe1-arrays.zip.republished.zip
+        key: melonx-envelope-v1-b36553a3bbaab8ebc7e4b8211a51a1eec5cda617f7dee8316cd98f48f4e67446
+    - name: Save verified native envelope
+      if: ${{ success() && steps.cache-native.outputs.cache-hit != 'true' }}
+      continue-on-error: true
+      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+      with:
+        path: build/components-retained/retained-melonx-dependencies.zip.republished.zip
+        key: melonx-envelope-v1-f70032b3b4cccebeb213eefb122e806d0fd3da18581c6677561b825bceffb4b5
     - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       if: ${{ always() }}
       with:

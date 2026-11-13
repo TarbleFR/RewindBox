@@ -82,13 +82,33 @@ def synthetic():
         if mutation == 'job': metadata['actions/jobs/6']['steps'] = []
         if mutation == 'digest': pin['sha256'] = '0' * 64
         if mutation == 'size': pin['bytes'] += 1
+        downloads = []
         def download(artifact, path):
+            downloads.append(artifact)
             check(artifact == 7, 'Requested an original artifact')
             path.write_bytes(bundle)
         with tempfile.TemporaryDirectory() as temporary:
             target = Path(temporary) / 'original.zip'
             with patch.object(recovery, 'configuration', return_value={'743': dict(origin=origin, republished=pin)}):
                 recovery.recover(743, target, metadata.__getitem__, download)
+                if mutation is None:
+                    downloads.clear()
+                    # Every warm read still authenticates all three API records.
+                    requests = []
+                    def api(endpoint):
+                        requests.append(endpoint)
+                        return metadata[endpoint]
+                    recovery.recover(743, target, api, download)
+                    check(not downloads and len(requests) == 3, 'Warm envelope downloaded or skipped provenance')
+                    metadata['actions/artifacts/7']['expired'] = True
+                    rejects(lambda: recovery.recover(743, target, api, download), 'Warm cache bypassed expired API provenance')
+                    metadata['actions/artifacts/7']['expired'] = False
+                    envelope = target.with_name(target.name + '.republished.zip')
+                    # Same-size corruption must be detected by hash, not just length.
+                    raw = envelope.read_bytes()
+                    envelope.write_bytes(bytes([raw[0] ^ 1]) + raw[1:])
+                    recovery.recover(743, target, api, download)
+                    check(downloads == [7], 'Corrupt cached envelope was not downloaded again')
             check(target.read_bytes() == content, 'Recovered bytes differ')
     exercise()
     for mutation in ('original', 'publisher', 'content', 'extra', 'traversal', 'duplicate', 'symlink',
