@@ -17,29 +17,19 @@ vérifiée. Elle n'ajoute que ce qui a changé depuis cette base.
     empreinte de charge utile.
 - **Sources produit** : seul le delta revu depuis la base entre dans la build ; le travail concurrent
   est déclaré « source seulement » et n'est jamais compilé en silence.
-- **Tests** : un groupe n'est rejoué que si l'une de ses entrées a changé ; sinon sa preuve épinglée
-  est authentifiée et réutilisée, avec le libellé « réutilisée ». Le contrat de livraison est
-  toujours rejoué.
-- **Recette** : plus de copie par build (`rewindNNN_*.py`, `rewindNNN-*.yml`) ; les changements de la
-  build sont déclarés dans son manifeste.
-- **Échec** : une livraison échouée est relancée en ne modifiant que la recette, et ses jobs de test
-  réussis sont réutilisés.
-- **Enchaînement Core puis IPA** (ajout du 10 novembre 2026, demande du mainteneur : livrer plus vite sans
-  retirer de contrôle ; durées mesurées sur les Cores 921 à 923 et l'IPA 723) :
-  - **un seul Core par livraison** : les corrections prêtes avant une livraison sont regroupées dans le même
-    Core ; un Core intermédiaire compilé n'est ni épinglé ni livré (le 922, remplacé par le 923) ;
-  - **la demande de compilation part dès que les contrôles ciblés passent** (clôture des sources, tests
-    nouveaux ou modifiés, audit des identités de code généré, chaîne de repli, route, gardes : environ
-    1 min) ; le pilote historique complet (environ 23 min) tourne en parallèle, en local et dans le job
-    Apple du run ; un pilote rouge interdit l'épinglage, il ne retarde plus la demande ;
-  - **l'IPA n'est demandée qu'une fois tous ses Cores épinglés** ; pendant leur compilation, la clé de
-    destinataire, la spécification et le brouillon sont préparés, jamais déclenchés ;
-  - **une seule compilation à la fois** par route ; une demande n'est pas doublée pour « rattraper » une
-    file d'attente de runners ;
-  - **ce qui reste incompressible** : compilation du Core (19 min) et tests hôte Apple (28 min) en
-    parallèle, livraison (environ 25 min), files d'attente macOS. Piste non appliquée : exécuter en
-    parallèle, dans le pilote, les tests d'incréments indépendants (hors tests sensibles au temps) ; à
-    mesurer sur un Core avant d'en faire la règle.
+- **Compilation courante (13 novembre 2026)** : comme les Cores, l’IPA compile les derniers ajouts
+  sans suites approfondies automatiques. Déclarer les groupes Flutter et natifs `mode: not-run`,
+  `commands: []` et une raison ; aucune preuve réussie ou réutilisée n’est inventée.
+- **Contrôles indispensables** : sources et composants authentifiés, compilation réelle, ABI,
+  signatures, structure de l’IPA finale et transport privé chiffré. Le contrat de livraison reste actif.
+- **Tests approfondis** : seulement sur demande explicite ; `fresh` les exécute, `reuse` exige les
+  mêmes entrées et des preuves authentifiées. Les anciens résultats gardent leur portée historique.
+- **Recette** : un seul workflow, les paramètres de chaque livraison dans son manifeste.
+- **Enchaînement** : préparer le manifeste pendant la compilation du Core, puis déclencher l’IPA
+  dès que le nouveau moteur est compilé et authentifié. Réutiliser les moteurs inchangés.
+- **Relance** : GitHub rejoue un job, pas une étape isolée. Les caches compatibles évitent certains
+  recalculs ; la reprise d’un binaire après un échec ultérieur exige un artefact authentifié.
+  La recette actuelle ne restaure pas automatiquement un Core partiellement validé.
 
 ## Coordination et relances après incident (12–13 novembre 2026)
 

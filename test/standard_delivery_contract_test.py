@@ -2238,6 +2238,10 @@ class Groups(unittest.TestCase):
         for group in sd.TEST_GROUPS:
             commands = sd.expand_commands(group, manifest['tests'][group], reader.listing)
             reads = sd.recipe_reads(REPO, 'HEAD', commands)
+            if manifest['tests'][group]['mode'] == 'not-run':
+                self.assertEqual(commands, [])
+                self.assertEqual(reads, [])
+                continue
             self.assertEqual(reads, sorted(set(reads)))
             self.assertTrue(all(sd.is_recipe(path) for path in reads))
             for excluded in ('test/standard_delivery_contract_test.py', '.github/diagnostics/standard_delivery.py',
