@@ -1,0 +1,85 @@
+diff --git a/ios/diag.m b/ios/diag.m
+index 286ad0548..93ae442e7 100644
+--- a/ios/diag.m
++++ b/ios/diag.m
+@@ -327,6 +327,13 @@ static NSString *mk_dir(void) {
+     }
+     mk_trim(dir, NO);
+     LOG("诊断包：MetricKit 交来 %lu 份诊断（新的崩溃 / 卡顿 %d）", (unsigned long)payloads.count, bad);
++    // RewindBox (patch 0018): in a RewindBox guest MetricKit reports the whole host app, its other engines and its interface included: a crash or
++    //   a hang of any of them was put to the player, at the next Switch 2 start, as "S2Arm crashed or froze last time" (iPhone17,2, 13 Nov: one
++    //   payload held this engine's abort of 04:43, process 61801, and the disk-write and CPU reports of process 1236, which never started this
++    //   engine: it is absent from the Switch 2 launch journal). The payloads are kept for the bundle as before; whether the last Switch 2
++    //   session ended normally is this engine's own session marker (s2a_diag_attach), which asks.
++    int (*guest)(void) = (int (*)(void))dlsym(RTLD_DEFAULT, "s2a_rb_guest_on");
++    if (bad && guest && guest()) { LOG("RewindBox guest: the question is not asked from MetricKit (it reports the whole host app); the session marker decides"); return; }
+     if (bad) dispatch_async(dispatch_get_main_queue(), ^{ void s2a_diag_prompt(NSString *why); s2a_diag_prompt(S2AL(@"diag.prompt.crash")); });
+ }
+ // 退出原因计数（系统约每天交一次：前台 / 后台各类退出的累计次数）：被看门狗杀、超内存上限被杀不产生崩溃诊断，只在这里看得见——0 崩率要它
+diff --git a/ios/l10n/en.lproj/S2ArmHost.strings b/ios/l10n/en.lproj/S2ArmHost.strings
+index 6abf00e3a..6a6893b66 100644
+--- a/ios/l10n/en.lproj/S2ArmHost.strings
++++ b/ios/l10n/en.lproj/S2ArmHost.strings
+@@ -291,8 +291,8 @@
+ "diag.prompt.crash" = "The system reported that S2Arm crashed or froze last time";
+ "diag.prompt.message" = "%@. The diagnostics bundle contains only run logs — no saves, keys or game files.";
+ "diag.prompt.no" = "No thanks";
+-"diag.prompt.send" = "Send diagnostics";
+-"diag.prompt.title" = "Send us diagnostics from last time?";
++"diag.prompt.send" = "Export diagnostics";
++"diag.prompt.title" = "Export diagnostics from last time?";
+ "dprompt.expiry.body" = "Time left: %@. After it expires the game won’t open, but your saves are safe: connect the phone and click “Install on iPhone” again, or refresh in AltStore.";
+ "dprompt.expiry.hours" = "about %d hours";
+ "dprompt.expiry.lessThanHour" = "less than 1 hour";
+diff --git a/ios/l10n/fr.lproj/S2ArmHost.strings b/ios/l10n/fr.lproj/S2ArmHost.strings
+new file mode 100644
+index 000000000..fe7874eef
+--- /dev/null
++++ b/ios/l10n/fr.lproj/S2ArmHost.strings
+@@ -0,0 +1,8 @@
++/* RewindBox (patch 0018): the diagnostics question in French. A partial table: every other key is read from en.lproj (ios/s2a_l10n.h s2a_l10n). */
++"diag.export" = "Exporter le diagnostic";
++"diag.prompt.abnormalExit" = "La dernière session S2Arm ne s’est pas terminée normalement (plantage, blocage ou fermeture par le système)";
++"diag.prompt.crash" = "Le système a signalé un plantage ou un blocage de S2Arm lors de la dernière session";
++"diag.prompt.message" = "%@. Le fichier de diagnostic ne contient que des journaux d’exécution : ni sauvegardes, ni clés, ni fichiers de jeu. Il n’est transmis à personne : vous choisissez où l’enregistrer.";
++"diag.prompt.no" = "Non merci";
++"diag.prompt.send" = "Exporter le diagnostic";
++"diag.prompt.title" = "Exporter le diagnostic de la dernière session ?";
+diff --git a/ios/l10n/zh-Hans.lproj/S2ArmHost.strings b/ios/l10n/zh-Hans.lproj/S2ArmHost.strings
+index 0b06ab1a1..8c5d26259 100644
+--- a/ios/l10n/zh-Hans.lproj/S2ArmHost.strings
++++ b/ios/l10n/zh-Hans.lproj/S2ArmHost.strings
+@@ -291,8 +291,8 @@
+ "diag.prompt.crash" = "系统报告上次 S2Arm 崩溃或卡住了";
+ "diag.prompt.message" = "%@。诊断包里只有运行日志，不含存档、密钥和游戏文件。";
+ "diag.prompt.no" = "不用了";
+-"diag.prompt.send" = "发送诊断";
+-"diag.prompt.title" = "把上次的诊断发给我们？";
++"diag.prompt.send" = "导出诊断包";
++"diag.prompt.title" = "导出上次的诊断包？";
+ "dprompt.expiry.body" = "还剩%@。到期后游戏打不开，存档不会丢：连上手机再点一次「装到 iPhone」，或在 AltStore 里刷新。";
+ "dprompt.expiry.hours" = "约 %d 小时";
+ "dprompt.expiry.lessThanHour" = "不到 1 小时";
+diff --git a/ios/s2a_l10n.h b/ios/s2a_l10n.h
+index e0a1b8c77..d657bbd17 100644
+--- a/ios/s2a_l10n.h
++++ b/ios/s2a_l10n.h
+@@ -17,7 +17,17 @@ static inline NSBundle *s2a_l10n_bundle(void) {
+     });
+     return bundle;
+ }
+-#define S2AL(key) [s2a_l10n_bundle() localizedStringForKey:(key) value:nil table:@"S2ArmHost"]
++// RewindBox (patch 0018): a language's table may hold only some of the keys (fr.lproj: the diagnostics question). A key it does not hold is read
++//   from the English table, not shown as its raw id. Tables that hold every key (en, zh-Hans) are read as before.
++static inline NSString *s2a_l10n(NSString *key) {
++    NSBundle *bundle = s2a_l10n_bundle();
++    NSString *text = [bundle localizedStringForKey:key value:@"\x01" table:@"S2ArmHost"];
++    if (![text isEqualToString:@"\x01"]) return text;
++    static NSBundle *english; static dispatch_once_t once;
++    dispatch_once(&once, ^{ NSString *path = [bundle pathForResource:@"en" ofType:@"lproj"]; english = path ? [NSBundle bundleWithPath:path] : nil; });
++    return [(english ?: bundle) localizedStringForKey:key value:nil table:@"S2ArmHost"];
++}
++#define S2AL(key) s2a_l10n(key)
+ // RewindBox: the same bundle for the engine's other own resources and Info.plist keys (load page, HUD, diagnostics, community patch
+ //   list, NS2Pro.framework next to it): the main bundle in S2Arm.app, S2ArmEngine.framework in a RewindBox guest
+ static inline NSBundle *s2a_engine_bundle(void) { return s2a_l10n_bundle(); }

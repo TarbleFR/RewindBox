@@ -1,0 +1,85 @@
+diff --git a/runtime/src/rb_hostroom.c b/runtime/src/rb_hostroom.c
+new file mode 100644
+index 000000000..b0a96cec3
+--- /dev/null
++++ b/runtime/src/rb_hostroom.c
+@@ -0,0 +1,27 @@
++// RewindBox (patch 0019): what the host app's own images take from the low region is left to the host below the window.
++//   When the window cannot hold a game's standard layout, S2Arm leaves the host HOST_BELOW (3 GiB) below the window, and its sizing counts on the
++//   low region as well (vawin.c, HOST_BELOW's note: the host's addresses on iOS = about 1.8 GB of low region + that range; a Switch 2 game's host
++//   peak is 1.7-2.1 GB). In S2Arm's own app the low region [4 GiB, 6 GiB) is mostly free. In RewindBox the app's own binary and frameworks fill it:
++//   184 MB free there when the window is reserved (Mario Kart World, iPhone17,2, 13 Nov). The .NET GC then reserves 2688 MB of the 3 GiB (gclimit.c),
++//   which left the host 1187 MB of addresses for Metal, malloc and the runtime: 166 MB at the lowest (second 90, the first 3D frames, with the
++//   ledger's warning "below the reserve"), 510 MB when the run stopped.
++//   So the host gets, below the window, what its low region lacks of what the layout counts on, in whole GiB, at most `most`, and only as much as
++//   leaves the tail allocator's range and the virtual pool arena their size (patch 0013). The window keeps what the layout needs in front of the
++//   alias region and one application pool of it (s2a_rb_host_arenas' own rule): the room comes from the part of the alias region that fits in the
++//   window, of which the game had touched 0.7 of 29.7 GiB. A pure function, so that the rule is run on a computer (test/s2arm_host_room_test.py).
++#include <stdint.h>
++
++#define RBH_GIB (1ull << 30)
++
++// low_free: free addresses in the low region; counted: what the layout counts on there; host_below: S2Arm's own share below the window;
++// arenas(host_below, ctx): what the window gives up for the two ranges of patch 0013 when the host's share is host_below (0: none).
++// Returns how much more than host_below the host gets (0: nothing, the window is as S2Arm and patch 0013 size it)
++uint64_t s2a_rb_host_more(uint64_t low_free, uint64_t counted, uint64_t most, uint64_t host_below, uint64_t (*arenas)(uint64_t host_below, void *ctx), void *ctx) {
++    if (!arenas || low_free >= counted) return 0;
++    uint64_t given = arenas(host_below, ctx);
++    if (!given) return 0;
++    uint64_t more = (counted - low_free + RBH_GIB - 1) & ~(RBH_GIB - 1);
++    if (more > most) more = most & ~(RBH_GIB - 1);
++    while (more && arenas(host_below + more, ctx) != given) more -= RBH_GIB;
++    return more;
++}
+diff --git a/runtime/src/vawin.c b/runtime/src/vawin.c
+index dfaa7a322..ce0c53877 100644
+--- a/runtime/src/vawin.c
++++ b/runtime/src/vawin.c
+@@ -550,12 +550,25 @@ static int rb_alias_first(void) {
+     while (fgets(line, sizeof line, f)) if (!strncmp(line, k, strlen(k)) && strtoull(line + strlen(k), NULL, 10)) hint = 1;
+     fclose(f); return hint;
+ }
+-static uint64_t rb_arenas(uint64_t fit, uint64_t *tail, uint64_t *vp) {
++static uint64_t rb_arenas_at(uint64_t fit, uint64_t host_below, uint64_t *tail, uint64_t *vp) {   // RewindBox (patch 0019): the host's share is an argument
+     *tail = *vp = 0;
+     rb_arenas_fn sizes = (rb_arenas_fn)dlsym(RTLD_DEFAULT, "s2a_rb_host_arenas"); uint64_t (*poolf)(void) = (uint64_t (*)(void))dlsym(RTLD_DEFAULT, "s2a_app_pool");
+     if (!sizes || !poolf || !dlsym(RTLD_DEFAULT, "s2a_rb_vp_init")) return 0;
+     const char *e = getenv("S2A_VP_ARENA_MB"); uint64_t want = e && *e ? strtoull(e, NULL, 10) << 20 : RB_VP_ARENA;
+-    return sizes(fit, HOST_BELOW, g_need, RB_VAMM_ALIAS, S2A_FAR_SLACK + (1ull << 30), poolf(), rb_alias_first(), tail_on() ? TL_TAKE : 0, want, tail, vp);
++    return sizes(fit, host_below, g_need, RB_VAMM_ALIAS, S2A_FAR_SLACK + (1ull << 30), poolf(), rb_alias_first(), tail_on() ? TL_TAKE : 0, want, tail, vp);
++}
++static uint64_t rb_arenas(uint64_t fit, uint64_t *tail, uint64_t *vp) { return rb_arenas_at(fit, HOST_BELOW, tail, vp); }
++// RewindBox (patch 0019): what the low region lacks of what HOST_BELOW's sizing counts on there goes to the host below the window (rb_hostroom.c, taken
++//   by name as the arenas are). S2A_HOST_MORE_MB: its most, in MB (0 = none)
++#define RB_LOW_COUNTED (1843ull << 20)   // about 1.8 GB (HOST_BELOW's note)
++#define RB_HOST_MORE (2ull << 30)        // with it the host's hole stays far below what would make gclimit.c reserve 10 GB for the GC
++static uint64_t rb_arenas_cb(uint64_t host_below, void *ctx) { uint64_t t, v; return rb_arenas_at(*(const uint64_t *)ctx, host_below, &t, &v); }
++static uint64_t rb_host_more(uint64_t fit, uint64_t *low_free) {
++    uint64_t (*more)(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t (*)(uint64_t, void *), void *) =
++        (uint64_t (*)(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t (*)(uint64_t, void *), void *))dlsym(RTLD_DEFAULT, "s2a_rb_host_more");
++    uint64_t largest = 0; *low_free = 0; holes_in(0x100000000ull, 0x180000000ull, low_free, &largest);
++    const char *e = getenv("S2A_HOST_MORE_MB"); uint64_t most = e && *e ? strtoull(e, NULL, 10) << 20 : RB_HOST_MORE;
++    return more ? more(*low_free, RB_LOW_COUNTED, most, HOST_BELOW, rb_arenas_cb, &fit) : 0;
+ }
+ static void cmd_arena_reserve(void);
+ static void vawin_reserve(void) {
+@@ -592,12 +605,16 @@ static void vawin_reserve(void) {
+     // 放不下标准布局不再起不了局（docs/方案_地址空间根修.md）：占最大一块、下方留 HOST_BELOW（3 GiB）给宿主（Metal / GC），布局小区在前、别名区伸出窗口（layout.c 乙）。
+     //   宿主保留段不能放窗口上方：别名区伸出段覆盖那里，宿主放进去的东西会被游戏的远端访问静默读写
+     uint64_t rb_tl = 0, rb_vp = 0, rb_extra = 0;   // RewindBox (patch 0013): [at - rb_extra, at) = tail allocator range, then virtual pool arena
+-    if (!sz && g_fit >= MIN_WIN + HOST_BELOW) { rb_extra = rb_arenas(g_fit, &rb_tl, &rb_vp); at = fat + HOST_BELOW + rb_extra; want = g_fit - HOST_BELOW - rb_extra; g_keep_lo = fat;
++    uint64_t rb_host = 0, rb_low = 0;              // RewindBox (patch 0019): the host's share below them is HOST_BELOW + rb_host
++    if (!sz && g_fit >= MIN_WIN + HOST_BELOW) { rb_extra = rb_arenas(g_fit, &rb_tl, &rb_vp); rb_host = rb_extra ? rb_host_more(g_fit, &rb_low) : 0;
++        at = fat + HOST_BELOW + rb_host + rb_extra; want = g_fit - HOST_BELOW - rb_host - rb_extra; g_keep_lo = fat;
+         if (rb_extra) LOG("RewindBox: the window gives up %llu MB below its base: %llu MB for host stacks and the tail allocator, %llu MB for NVN virtual pools (S2A_VP_ARENA_MB); "
+                           "it keeps %llu MB, the host's %llu MB below stay free", (unsigned long long)(rb_extra >> 20), (unsigned long long)(rb_tl >> 20), (unsigned long long)(rb_vp >> 20),
+-                          (unsigned long long)(want >> 20), (unsigned long long)(HOST_BELOW >> 20));
++                          (unsigned long long)(want >> 20), (unsigned long long)((HOST_BELOW + rb_host) >> 20));
++        if (rb_host) LOG("RewindBox: the low region [4 GB, 6 GB) has %llu MB free where the layout counts on about %llu MB: %llu MB more are left to the host below the window (S2A_HOST_MORE_MB)",
++                         (unsigned long long)(rb_low >> 20), (unsigned long long)(RB_LOW_COUNTED >> 20), (unsigned long long)(rb_host >> 20));
+         LOG("地址窗口按需：本款标准布局要 %llu MB，本机 %s 以下最大一块 %llu MB（%#llx 起，地址上限 %#llx）——照样起局，下方 %llu MB 留宿主、其余作窗口",
+-            (unsigned long long)(g_need >> 20), hb, (unsigned long long)(g_fit >> 20), (unsigned long long)fat, (unsigned long long)top, (unsigned long long)(HOST_BELOW >> 20)); }
++            (unsigned long long)(g_need >> 20), hb, (unsigned long long)(g_fit >> 20), (unsigned long long)fat, (unsigned long long)top, (unsigned long long)((HOST_BELOW + rb_host) >> 20)); }
+     else if (!sz) { vaguard_release();
+         LOG("【红】地址窗口不足：本机 %s 以下最大能放的一块 %llu MB，连模块与小区都放不下（本款标准布局要 %llu MB，地址上限 %#llx），起不了局", hb, (unsigned long long)(g_fit >> 20), (unsigned long long)(g_need >> 20), (unsigned long long)top);
+         s2a_window_probe("窗口放不下"); return; }

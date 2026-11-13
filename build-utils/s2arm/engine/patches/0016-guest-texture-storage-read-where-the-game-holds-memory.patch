@@ -1,0 +1,217 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 96e129fe0..3121b9d1f 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -3121,11 +3121,95 @@ static uint64_t span_hash(const uint8_t *m, size_t n) {   // 8 bytes at a time (
+     for (; i < n; i++) h = (h ^ m[i]) * 0x100000001b3ull;
+     return h;
+ }
++// RewindBox (patch 0016): a texture's storage is read where the game holds readable memory, and only there.
++//   Mario Kart World, iPhone17,2, 13 Nov (IPA 734, the first run past the first frame): at frame 308 the first upload of a texture bound by a draw
++//   (encode_args_ -> tex_by_id -> tex_mtl -> pkg_upload) hashed its storage page by page and stopped the process with SIGBUS on host page 87 of its 89, at
++//   0x78e7afc000 in the game's alias region: pages 0-86 were readable, that one was not (the game maps and unmaps physical memory there, svc 0x2c x410 and
++//   0x2d x430 by then; an unmapped host page is PROT_NONE). The storage read is the layout's whole size from the texture's address, whatever memory the game
++//   holds behind it: a texture whose pool was finalized and its memory unmapped while its ID stays registered, or one whose computed size runs past its pool,
++//   is read into memory that is not there (S2Arm's own #819, an iPad after 20-40 minutes, the same function; its #934 for the pool-table walk).
++//   Now the read asks first (rb_span_readable: Mach's regions, no memory touched). All readable, the usual case: nothing changes. Otherwise the host reads
++//   a private copy in which what cannot be read is zeros (rb_span_copy, through Mach as the crash handler's own reads: an error, not a fault), says so in red
++//   with the texture and where its storage lies among the live pools (rb_pkg_note), and uploads from that copy on the CPU. The layout and its size are not
++//   changed. Far alias storage (s2a_far_g2h) has no host pages of its own and is read as before.
++static int rb_span_readable(uintptr_t a, uint64_t n) {
++    if (!n) return 1;
++    if (s2a_far_g2h((uint64_t)a) || s2a_far_g2h((uint64_t)a + n - 1)) return 1;
++    vm_address_t r = (vm_address_t)a, end = (vm_address_t)(a + n);
++    while (r < end) {
++        vm_address_t ra = r; vm_size_t rs = 0; vm_region_basic_info_data_64_t vi; mach_msg_type_number_t cnt = VM_REGION_BASIC_INFO_COUNT_64; mach_port_t obj = MACH_PORT_NULL;
++        if (vm_region_64(mach_task_self(), &ra, &rs, VM_REGION_BASIC_INFO_64, (vm_region_info_t)&vi, &cnt, &obj) != KERN_SUCCESS) return 0;   // nothing is mapped from r on
++        if (ra > r || !rs || !(vi.protection & VM_PROT_READ)) return 0;   // a hole before the next region, or a region that cannot be read
++        r = ra + rs;
++    }
++    return 1;
++}
++// dst = [a, a + n) as the host may read it, host page by host page: a page that cannot be read is zeros. Returns the bytes not read; *first = the offset of the first of them
++static uint64_t rb_span_copy(uint8_t *dst, uintptr_t a, uint64_t n, uint64_t *first) {
++    uintptr_t pg = (uintptr_t)getpagesize(); uint64_t bad = 0; vm_size_t got = 0;
++    if (first) *first = 0;
++    if (!n) return 0;
++    if (vm_read_overwrite(mach_task_self(), (vm_address_t)a, (vm_size_t)n, (vm_address_t)dst, &got) == KERN_SUCCESS && got == n) return 0;   // readable after all
++    for (uint64_t o = 0; o < n;) {
++        uint64_t k = MIN(n - o, (uint64_t)(pg - ((a + o) & (pg - 1))));   // up to the end of this host page
++        got = 0;
++        if (vm_read_overwrite(mach_task_self(), (vm_address_t)(a + o), (vm_size_t)k, (vm_address_t)(dst + o), &got) != KERN_SUCCESS || got != k) {
++            memset(dst + o, 0, k); if (!bad && first) *first = o; bad += k; }
++        o += k;
++    }
++    return bad;
++}
++// Where a texture's storage lies among the live memory pools, for the log (the host's own table, no guest object is read): 0 = whole in one pool; 1 = it runs
++//   *over bytes past the end of the pool that holds its first byte; 2 = no live pool holds its first byte (the pool it was made in was finalized)
++static int rb_pool_case(const tex_t *t, uint64_t *plo, uint64_t *psz, uint64_t *over) {
++    *plo = *psz = *over = 0;
++    pthread_mutex_lock(&g_mu);
++    int i = pool_find((uint64_t)(uintptr_t)t->mem, t->L.size ? t->L.size : 1), c = 0;
++    if (i < 0) { c = 2; i = pool_find((uint64_t)(uintptr_t)t->mem, 1); if (i >= 0) { c = 1; *over = (uint64_t)((uintptr_t)t->mem + t->L.size - g_pools[i].hi); } }
++    if (i >= 0) { *plo = (uint64_t)g_pools[i].lo; *psz = (uint64_t)(g_pools[i].hi - g_pools[i].lo); }
++    pthread_mutex_unlock(&g_mu);
++    return c;
++}
++static void rb_pool_text(const tex_t *t, char *o, size_t cap) {
++    uint64_t plo, psz, over; int c = rb_pool_case(t, &plo, &psz, &over);
++    if (c == 0) snprintf(o, cap, "its storage is inside the live memory pool %#llx+%#llx", (unsigned long long)plo, (unsigned long long)psz);
++    else if (c == 1) snprintf(o, cap, "its storage runs %llu bytes past the end of the memory pool %#llx+%#llx that holds its first byte", (unsigned long long)over, (unsigned long long)plo, (unsigned long long)psz);
++    else snprintf(o, cap, "no live memory pool holds its first byte (the pool it was made in was finalized)");
++}
++static uint64_t g_rb_unread_n, g_rb_unread_bytes, g_rb_same_n;   // uploads that met unreadable storage and their bytes; re-uploads saved by comparing bytes (submit thread)
++static void rb_pkg_note(const tex_t *t, uint64_t bad, uint64_t first) {
++    uint64_t k = ++g_rb_unread_n; g_rb_unread_bytes += bad;
++    if (k > 8 && (k & (k - 1))) return;   // the first 8, then at powers of two
++    char where[224]; rb_pool_text(t, where, sizeof where);
++    MLOG("【红】 RewindBox: texture ser=%llu %ux%ux%u format %#x target %d levels %u flags %#x layout %d: %llu of the %llu bytes of its storage at %p cannot be read (the first at +%#llx): the game holds no readable memory there, they are read as 0; %s (%llu such reads, %llu KB so far)",
++         (unsigned long long)t->serial, t->d.width, t->d.height, t->d.depth, t->d.format, (int)t->d.target, t->d.levels, t->d.flags, t->has_layout, (unsigned long long)bad, (unsigned long long)t->L.size, (void *)t->mem,
++         (unsigned long long)first, where, (unsigned long long)k, (unsigned long long)(g_rb_unread_bytes >> 10));
++}
++// NULL: every byte of the texture's storage can be read (nothing is copied). Otherwise a malloc'd copy of it, what cannot be read as zeros (the caller frees it)
++static uint8_t *rb_pkg_bytes(const tex_t *t, int note) {
++    if (!t->mem || !t->L.size || rb_span_readable((uintptr_t)t->mem, t->L.size)) return NULL;
++    uint8_t *c = malloc(t->L.size);
++    if (!c) MDIE("copy of %llu bytes of texture storage failed", (unsigned long long)t->L.size);
++    uint64_t first = 0, bad = rb_span_copy(c, (uintptr_t)t->mem, t->L.size, &first);
++    if (note && bad) rb_pkg_note(t, bad, first);
++    return c;
++}
+ static void page_span(const tex_t *t, size_t k, const uint8_t **lo, size_t *n) {   // the texture's bytes in host page k of its storage (pages counted from the one holding t->mem)
+     uintptr_t pg = nvn_dirty_page_size(), a = (uintptr_t)t->mem, e = a + t->L.size, p0 = a & ~(pg - 1);
+     uintptr_t b = MAX(a, p0 + k * pg), c = MIN(e, p0 + (k + 1) * pg); *lo = (const uint8_t *)b; *n = c > b ? c - b : 0;
+ }
+ static uint32_t page_count(const tex_t *t) { uintptr_t pg = nvn_dirty_page_size(), a = (uintptr_t)t->mem; return t->L.size ? (uint32_t)(((a + t->L.size - 1) & ~(pg - 1)) - (a & ~(pg - 1))) / (uint32_t)pg + 1 : 0; }
++// RewindBox (patch 0016): whether a texture's storage holds, page for page, the bytes of its last upload (ph, as pkg_upload_ took them). For a texture no
++//   tracked pool holds whole (its pool was finalized, or its storage runs past it): the write tracking cannot say whether it changed, so it was uploaded
++//   again at every use; its bytes can
++static int rb_pkg_same(const tex_t *t, const uint64_t *ph, uint32_t nph) {
++    uint32_t n = page_count(t);
++    if (!ph || n != nph) return 0;
++    uint8_t *c = rb_pkg_bytes(t, 0); const uint8_t *rd = c ? c : t->mem; int same = 1;
++    for (uint32_t k = 0; k < n && same; k++) { const uint8_t *lo; size_t m; page_span(t, k, &lo, &m); same = span_hash(rd + (lo - t->mem), m) == ph[k]; }
++    free(c);
++    return same;
++}
+ static unsigned tex_layers(const tex_t *t) { return (t->d.target == 4 || t->d.target == 9) ? t->d.depth : t->d.target == 8 ? 6 : t->d.target == 3 ? t->d.height : 1; }   // as pkg_upload_ (a cube array's depth counts layer-faces)
+ // Block-linear storage (Tegra X1): each layer holds its levels one after another; a level is rows of blocks, a block 2^tileH GOBs tall and one GOB (64 bytes x 8 rows of format blocks) wide,
+ // laid out GOB column after GOB column. So a byte range of one block row is a run of GOB columns: a texel rectangle. fn gets (level, layer, x, y, w, h) in texels for every rectangle [lo, hi)
+@@ -3236,12 +3320,15 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
+     if (g_allocprof > 0) { static int n; if (n++ < 30 || n % 500 == 0) MLOG("new texture (%s) #%d ser=%llu %ux%ux%u format %#x target %d levels %u storage %p", __func__, n, (unsigned long long)t->serial, t->d.width, t->d.height, t->d.depth, t->d.format, t->d.target, t->d.levels, (void *)t->mem); }
+     res_add(mt);   // Both first upload and re-upload register residency here (Metal 4 does not make resources resident automatically; a missed registration = GPU address page fault)
+     int sparse = t->pool && nvn_sparse_pool(t->pool);
++    uint8_t *rb = NULL;   // RewindBox (patch 0016): the storage as the host may read it, when not all of it can be read (rb_pkg_bytes)
+     if (stamp) {   // no stamp: a one-time upload of content the CPU will not change (tex_init_fill), with no write tracking
+         if (sparse) nvn_sparse_protect(t->pool, (uint64_t)(uintptr_t)t->mem, t->L.size); else nvn_dirty_protect(t->mem, t->L.size);
+         *stamp = nvn_dirty_now();
+-        if (ph && !sparse) {   // after the stamp, before the read: a write in between is after the stamp too, so the next check sees its page (and the hash may hold it, the upload does)
+-            uint32_t n = page_count(t); uint64_t *h = realloc(*ph, (size_t)MAX(n, 1u) * sizeof *h);
+-            if (h) { for (uint32_t k = 0; k < n; k++) { const uint8_t *lo; size_t m; page_span(t, k, &lo, &m); h[k] = span_hash(lo, m); } *ph = h; *nph = n; } else { free(*ph); *ph = NULL; *nph = 0; } } }
++    }
++    if (!sparse) rb = rb_pkg_bytes(t, 1);   // after the protection (it only ever adds read access) and the stamp, before any read
++    if (stamp && ph && !sparse) {   // after the stamp, before the read: a write in between is after the stamp too, so the next check sees its page (and the hash may hold it, the upload does)
++        uint32_t n = page_count(t); uint64_t *h = realloc(*ph, (size_t)MAX(n, 1u) * sizeof *h); const uint8_t *rd = rb ? rb : t->mem;
++        if (h) { for (uint32_t k = 0; k < n; k++) { const uint8_t *lo; size_t m; page_span(t, k, &lo, &m); h[k] = span_hash(rd + (lo - t->mem), m); } *ph = h; *nph = n; } else { free(*ph); *ph = NULL; *nph = 0; } }
+     int bw, bh, bpb = nvn_fmt_bpb(t->d.format, &bw, &bh);
+     unsigned layers = (t->d.target == 4 || t->d.target == 9) ? t->d.depth : t->d.target == 8 ? 6 : t->d.target == 3 ? t->d.height : 1;   // a cube array's depth counts layer-faces (tex_desc)
+     uint32_t upf; int ubpp = 0, unp = fmt_unpack(t->d.format, &upf, &ubpp);   // stored in another format (fmt_unpack: BC on a GPU without BC, or expanded): deswizzle, then convert on the CPU; the staging area is sized for the converted data
+@@ -3254,10 +3341,10 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
+     }
+     g_bp_up_bytes += total;
+     void *mb; uint64_t mo; id<MTLBuffer> upsrc = nil;
+-    if ((!unp || gdec) && !sparse && g_nvn_deswz_gpu) { up_begin(); upsrc = up_tex_src((uint64_t)t->mem, t->L.size, &mo); if (upsrc) mb = (__bridge void *)upsrc; }   // a pool that holds only textures stays out of the residency set (up_tex_src)
++    if ((!unp || gdec) && !sparse && !rb && g_nvn_deswz_gpu) { up_begin(); upsrc = up_tex_src((uint64_t)t->mem, t->L.size, &mo); if (upsrc) mb = (__bridge void *)upsrc; }   // a pool that holds only textures stays out of the residency set (up_tex_src)
+     int lin = (t->d.flags & (NVN_TEXTURE_FLAGS_LINEAR | NVN_TEXTURE_FLAGS_LINEAR_RENDER_TARGET)) != 0;   // 线性排布（tex_linear_needs_upload）只有 CPU 逐行拷，GPU 去混排不认
+-    int use_gpu = (!unp || gdec) && !sparse && g_nvn_deswz_gpu && !lin && (upsrc || nvn_be_addr((uint64_t)t->mem, t->L.size, &mb, &mo));   // 线性排布（tex_linear_needs_upload）只有 CPU 逐行拷，GPU 去混排不认   // a sparse pool's texture is gathered through its page table on the CPU
+-    if (g_nvn_deswz_gpu && !use_gpu && !sparse && !lin && (!unp || gdec)) RED_ONCE(40, "swizzled texture storage is not in a memory pool; falling back to the CPU");
++    int use_gpu = (!unp || gdec) && !sparse && !rb && g_nvn_deswz_gpu && !lin && (upsrc || nvn_be_addr((uint64_t)t->mem, t->L.size, &mb, &mo));   // 线性排布（tex_linear_needs_upload）只有 CPU 逐行拷，GPU 去混排不认   // a sparse pool's texture is gathered through its page table on the CPU
++    if (g_nvn_deswz_gpu && !use_gpu && !sparse && !rb && !lin && (!unp || gdec)) RED_ONCE(40, "swizzled texture storage is not in a memory pool; falling back to the CPU");   // rb: said by rb_pkg_note, and the GPU would read the pool's pages themselves
+     if (use_gpu) {
+         // The GPU reads the memory pool at execution time, which is closer to a real Switch than a snapshot at CPU upload time; the dirty-page stamp is still taken before encoding, and later writes still trigger a re-upload.
+         // The batch was opened above (up_begin): opening it again here could flush it at UP_KEEP_CAP and retire upsrc before the copies that read it
+@@ -3305,6 +3392,7 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
+         if (!(part = malloc(t->L.size ? t->L.size : 1))) MDIE("sparse texture copy of %llu bytes failed", (unsigned long long)t->L.size);
+         nvn_sparse_copy(t->pool, part, (uint64_t)(uintptr_t)t->mem, t->L.size); src = part;
+     }
++    if (rb) src = rb;   // RewindBox (patch 0016): what the game does not hold reads 0, as a sparse pool's unmapped pages do
+     up_begin();
+     id<MTLBuffer> stg = [g_dev newBufferWithLength:total ? total : 16 options:MTLResourceStorageModeShared];
+     res_add(stg); up_keep_add(stg);
+@@ -3333,7 +3421,7 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
+             off += pitch * rows * z;
+         }
+     }
+-    free(part);
++    free(part); free(rb);
+     up_flush();
+     return mt;
+ }
+@@ -3418,6 +3506,8 @@ static int mem_any(const uint8_t *p, uint64_t n) {   // whether any byte is non-
+ static uint64_t g_fill_untouched_bytes, g_fill_untouched_n;   // 判全 0 时没读的未触碰页（诊断行，首 4 次后按 2 的幂）
+ __attribute__((weak)) int s2a_guest_fd(void) { return -1; }   // native vawin.c (S2A_GUEST_FILE); graphics unit tests have no guest window
+ static int mem_any_touched(const uint8_t *p, uint64_t n) {
++    // RewindBox (patch 0016): storage the game does not wholly hold as readable memory is judged on a copy (what it does not hold is untouched: zeros); see rb_span_readable
++    if (n && !rb_span_readable((uintptr_t)p, n)) { uint8_t *c = malloc(n); if (!c) return 0; rb_span_copy(c, (uintptr_t)p, n, NULL); int any = mem_any(c, n); free(c); return any; }
+     // 客体内存文件后备时：被内核写回文件、又从内存里丢掉的页，mincore 两位也都是 0，但内容在文件里，不能当 0；而文件页读一下不计实占，直接整段读
+     if (s2a_guest_fd() >= 0) return mem_any(p, n);
+     uint64_t pg = (uint64_t)getpagesize(), a0 = (uint64_t)(uintptr_t)p & ~(pg - 1), a1 = ((uint64_t)(uintptr_t)p + n + pg - 1) & ~(pg - 1), skipped = 0;
+@@ -3628,12 +3718,15 @@ static void gpw_mark(const tex_t *t, unsigned level, unsigned layer0, unsigned n
+     if (level >= nl || layer0 >= layers) return; if (layer0 + nlayers > layers) nlayers = layers - layer0;
+     uint32_t lw = MAX(t->d.width >> level, 1u), lh = MAX(t->d.height >> level, 1u); int whole = !w || !h || (x == 0 && y == 0 && w >= lw && h >= lh);
+     pthread_mutex_lock(&g_gpw_mu); gpw_own_note(t, t->L.size);
++    int rb_ok = -1;
+     gpw_dd *dd = whole ? nvn_hm_get(&g_gpw_ser, &t->serial) : NULL;
+     if (whole && !dd && (dd = calloc(1, sizeof *dd + ((size_t)nl * layers + 63) / 64 * 8))) { dd->n = nl * layers; nvn_hm_put(&g_gpw_ser, &t->serial, dd); }
+     if (dd && dd->gen != g_gpw_gen) { memset(dd->bits, 0, (dd->n + 63) / 64 * 8); dd->gen = g_gpw_gen; }
+     for (unsigned k = layer0; k < layer0 + nlayers; k++) {
+         unsigned bi = level * layers + k;
+         if (dd && bi < dd->n && (dd->bits[bi >> 6] >> (bi & 63) & 1)) continue;
++        if (rb_ok < 0) rb_ok = rb_span_readable((uintptr_t)t->mem, t->L.size);   // RewindBox (patch 0016): gpw_add hashes the guest bytes it marks
++        if (!rb_ok) break;   // as a virtual pool's unmapped pages above: nothing is marked in storage that cannot all be read
+         tex_rect_gobs(t, level, k, x, y, w, h, gpw_add, (void *)t->mem);
+         if (dd && bi < dd->n) dd->bits[bi >> 6] |= 1ull << (bi & 63);
+     }
+@@ -3652,12 +3745,14 @@ static void gpw_forget(uint64_t serial) {   // the texture is gone: its bytes st
+ }
+ // The stale runs of [mem, mem + size) as offsets (malloc'd pairs, the caller frees), after dropping GOBs whose bytes changed since they were marked (current again); returns the run count, *bytes their total
+ static int gpw_stale(const uint8_t *mem, uint64_t size, uint64_t **runs, uint64_t *bytes) {
+-    uint64_t a = (uint64_t)(uintptr_t)mem, e = a + size, *r = NULL; int n = 0, cap = 0; *runs = NULL; *bytes = 0;
++    uint64_t a = (uint64_t)(uintptr_t)mem, e = a + size, *r = NULL; int n = 0, cap = 0, rb_ok = -1; *runs = NULL; *bytes = 0;
+     if (!atomic_load_explicit(&g_gpw_nblk, memory_order_relaxed)) return 0;
+     pthread_mutex_lock(&g_gpw_mu);
+     for (uint64_t g = a >> 9, ge = (e + 511) >> 9; g < ge; g++) {
+         uint64_t k = g >> 9; gpw_blk *b = nvn_hm_get(&g_gpw, &k); if (!b) { g = (k << 9) + 511; continue; }
+         unsigned i = (unsigned)(g & 511); if (!(b->bits[i >> 6] >> (i & 63) & 1)) continue;
++        if (rb_ok < 0) rb_ok = rb_span_readable((uintptr_t)mem, size);   // RewindBox (patch 0016): asked once, at the first marked GOB (none in most ranges)
++        if (!rb_ok) break;   // storage the game no longer holds whole: no stale run is claimed from bytes that cannot be read
+         if (span_hash((const uint8_t *)(uintptr_t)(g << 9), 512) != b->h[i]) { gpw_unmark(g); continue; }   // rewritten since (by the CPU or anything else that writes guest memory)
+         uint64_t lo = MAX(g << 9, a) - a, hi = MIN((g + 1) << 9, e) - a;
+         if (n && r[2 * n - 1] == lo) r[2 * n - 1] = hi;
+@@ -3722,9 +3817,11 @@ static int tex_init_fill(const tex_t *t, id<MTLTexture> mt) {
+             (unsigned long long)t->serial, t->d.width, t->d.height, t->d.depth, t->d.format, (unsigned long long)sb, (unsigned long long)t->L.size, nr, can ? "zero there" : "zero instead (all of it, or a format the zeroing cannot copy into)", (unsigned long long)k);
+         if (!can) { free(runs); return 0; }
+         if (!(masked = malloc(t->L.size))) MDIE("initial content check copy of %llu bytes failed", (unsigned long long)t->L.size);
+-        memcpy(masked, t->mem, t->L.size); for (int i = 0; i < nr; i++) memset(masked + runs[2 * i], 0, runs[2 * i + 1] - runs[2 * i]);
++        if (rb_span_readable((uintptr_t)t->mem, t->L.size)) memcpy(masked, t->mem, t->L.size); else rb_span_copy(masked, (uintptr_t)t->mem, t->L.size, NULL);   // RewindBox (patch 0016): what cannot be read is zeros
++        for (int i = 0; i < nr; i++) memset(masked + runs[2 * i], 0, runs[2 * i + 1] - runs[2 * i]);
+         src = masked;
+     }
++    if (!masked && (masked = rb_pkg_bytes(t, 0))) src = masked;   // RewindBox (patch 0016): the checks below read the storage; the fill itself says what it could not read (pkg_upload_)
+     if (!(masked ? mem_any(src, t->L.size) : mem_any_touched(src, t->L.size))) { free(masked); free(runs); return 0; }   // 游戏内存直接判：不读未触碰页（mem_any_touched）
+     // CPU_NO_ACCESS only: the game cannot have written such a pool's bytes as data, so an Inf / NaN there is leftover (Splatoon 3). A CPU-writable pool's bytes may be the
+     //   game's own initial data, NaN included (a sentinel in a data texture): taken as they are, only the ledger's stale runs above are dropped
+@@ -4213,6 +4310,12 @@ static id<MTLTexture> tex_mtl_(const tex_t *ct) {
+                     }
+                 }
+             }
++            // RewindBox (patch 0016): storage no tracked pool holds whole is compared by its bytes instead of uploaded again at every use (rb_pkg_same)
++            if (!clean && !pk->sparse && pk->ph && !nvn_dirty_tracked(t->mem, t->L.size) && rb_pkg_same(t, pk->ph, pk->nph)) {
++                clean = 1; pk->seen = nvn_dirty_now();
++                if (!g_rb_same_n++) { char where[224]; rb_pool_text(t, where, sizeof where);
++                    MLOG("RewindBox: texture ser=%llu %ux%u format %#x is in no write-tracked memory pool (%s): compared by its bytes at each use, uploaded again only when they change (first case)",
++                         (unsigned long long)t->serial, t->d.width, t->d.height, t->d.format, where); } }
+             if (clean && atomic_load_explicit(&g_up_lost_n, memory_order_relaxed) && up_lost_take(pk->tex)) { clean = 0; uint64_t k = atomic_load(&g_up_lost_redo); if (k <= 3 || !atomic_load(&g_up_lost_n)) MLOG("re-uploading a texture whose upload was dropped ser=%llu (%llu in total, %d left in the record)", (unsigned long long)t->serial, (unsigned long long)k, atomic_load(&g_up_lost_n)); }
+             if (clean) {
+                 if (dirtycheck() && !pk->sparse && full_hash(t->mem, t->L.size) != pk->hash && !g_pkg_miss++)

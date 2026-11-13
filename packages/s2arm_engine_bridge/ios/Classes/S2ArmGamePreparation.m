@@ -4,8 +4,10 @@
 #import "S2ArmPrepareABI.h"
 #import "S2ArmLaunchJournal.h"
 #import "S2ArmCodePages.h"   // s2arm_code_now_ns
+#import "S2ArmCodeIdentity.h"
 
 #import <CommonCrypto/CommonDigest.h>
+#import <dlfcn.h>
 #import <mach/mach.h>
 #import <os/proc.h>
 #import <pthread.h>
@@ -396,17 +398,33 @@ static NSString *_Nullable contentIdentity(NSString *root) {
   return sha256Hex(data);
 }
 
+// The compiled code a preparation depends on: the image that holds the preparation library (it is linked into the app's
+// binary with this plugin) and the engine framework's binary, each by the UUID its linker gave it (S2ArmCodeIdentity.h).
+// Before, the app's build number stood for both, and it changes with every delivery whatever the delivery contains:
+// Mario Kart World was prepared again after each one, 92 s on an iPhone17,2 (journal of 13 Nov, IPA 734), and the engine's
+// RomFS index with it. A delivery whose preparation code and engine are byte for byte the same now keeps the preparation.
+// When either UUID cannot be read the build number is used, as before. *kind says which, for the journal.
+static NSString *preparationCodeIdentity(const char **kind) {
+  char code[S2ARM_UUID_TEXT] = "", engine[S2ARM_UUID_TEXT] = "";
+  Dl_info image;
+  int haveCode = dladdr((const void *)&rb_s2arm_prepare_code, &image) && image.dli_fbase && s2arm_macho_uuid_loaded(image.dli_fbase, code);
+  NSString *enginePath = [NSBundle.mainBundle.privateFrameworksPath stringByAppendingPathComponent:@"S2ArmEngine.framework/S2ArmEngine"];
+  int haveEngine = enginePath.length && s2arm_macho_uuid_file(enginePath.fileSystemRepresentation, engine);
+  *kind = haveCode && haveEngine ? "code" : "build";
+  if (haveCode && haveEngine) return [NSString stringWithFormat:@"code %s engine %s", code, engine];
+  return [NSString stringWithFormat:@"build %@", NSBundle.mainBundle.infoDictionary[@"CFBundleVersion"] ?: @"-"];
+}
+
 // What a finished preparation depends on, kept in <game>/prepared.json:
-// - this app build (engine and preparation code);
+// - the compiled code that prepares and runs the game (preparationCodeIdentity: engine and preparation code);
 // - the direct library chain and the system data list;
 // - the export as found: its folder, each top-level part (base, update, DLC) with its date, every ExeFS file by size and
 //   date, and each RomFS root.
 // Any change prepares again. The folder is part of it because the RomFS is read in place through links into the export.
-static NSString *preparationFingerprint(NSString *exportDir, NSString *chain, NSString *systemData) {
+static NSString *preparationFingerprint(NSString *exportDir, NSString *chain, NSString *systemData, const char **identityKind) {
   NSFileManager *files = NSFileManager.defaultManager;
   NSMutableString *text = [NSMutableString stringWithString:@"s2arm-prepared 1\n"];
-  [text appendFormat:@"build %@\nchain %@\nexport %@\n", NSBundle.mainBundle.infoDictionary[@"CFBundleVersion"] ?: @"-", chain,
-                     exportDir];
+  [text appendFormat:@"%@\nchain %@\nexport %@\n", preparationCodeIdentity(identityKind), chain, exportDir];
   for (NSString *part in [[files contentsOfDirectoryAtPath:exportDir error:nil] sortedArrayUsingSelector:@selector(compare:)]) {
     if ([part hasPrefix:@"."]) continue;
     NSString *partPath = [exportDir stringByAppendingPathComponent:part];
@@ -512,14 +530,15 @@ static NSString *mapPrepareCode(int rc) {
   NSString *packDir = [gameDir stringByAppendingPathComponent:@"pack"];
   NSString *docsDir = [gameDir stringByAppendingPathComponent:@"docs"];   // kept across preparations (saves)
   NSString *stampPath = [gameDir stringByAppendingPathComponent:@"prepared.json"];
-  NSString *fingerprint = preparationFingerprint(exportDir, chain, systemData);
+  const char *identityKind = "build";
+  NSString *fingerprint = preparationFingerprint(exportDir, chain, systemData, &identityKind);
   NSDictionary *reused = reusablePreparation(stampPath, fingerprint, gid);
   if (reused) {
-    s2arm_journal("prepare", "reused", "\"gid\":\"%s\"", gid.UTF8String);
+    s2arm_journal("prepare", "reused", "\"gid\":\"%s\",\"identity\":\"%s\"", gid.UTF8String, identityKind);
     [self emit:@"done" index:kPrepareSteps count:kPrepareSteps fraction:1 detail:@"reused"];
     return reused;
   }
-  s2arm_journal("prepare", "begin", "\"gid\":\"%s\"", gid.UTF8String);
+  s2arm_journal("prepare", "begin", "\"gid\":\"%s\",\"identity\":\"%s\"", gid.UTF8String, identityKind);
 
   // The root, module, image pack and pack are rebuilt from scratch; docs is preserved. The stamp goes first, so an
   // interrupted preparation is never reused. The previous root is moved aside (one rename) and deleted in the background

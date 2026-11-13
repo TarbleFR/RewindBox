@@ -18,7 +18,13 @@ that runs in direct mode on Metal 4, which is how Mario Kart World runs on iPhon
 Not taken: 85da99de (a pause page instead of the stop: new UI in ios/app.m and string tables) and 3fbde57c (command
 recordings shared by content, S2Arm #783: host addresses over 10-40 minutes of play), both larger than a start needs.
 
-The patch must be exactly those four commits' changes to engine sources. This test compares it with them when an S2Arm
+Patch 0017 is one more S2Arm commit taken the same way, after the first run that drew (13 Nov 16:15) ended on a SIGBUS
+whose log had the address only:
+
+  0532b481  a SIGBUS / SIGSEGV report adds one line: read or write (from the ESR), the mapping that holds the address or
+            the next one, its bounds, current and maximum protection, tag and share mode (runtime/src/crash.c).
+
+Each patch must be exactly its commits' changes to engine sources. This test compares it with them when an S2Arm
 checkout that has the commits is given (S2ARM_UPSTREAM=<path>, as on the machine that wrote the patch) and always checks
 the patch's own content. Compiled by s2arm-engine.yml; whether the game needs any of them is only known from a device log.
 
@@ -100,13 +106,33 @@ if upstream and Path(upstream, '.git').exists():
           f'patch 0015 is exactly the four commits (changed lines differ: {len(set(changed(patch)) ^ set(want))})')
     compared = True
 
+# ---- patch 0017: 0532b481, the crash report names the faulting memory ----
+CRASH_PATCH = PATCHES / '0017-upstream-crash-names-the-faulting-memory.patch'
+CRASH_COMMIT, CRASH_SOURCE = '0532b481', 'runtime/src/crash.c'
+crash = CRASH_PATCH.read_text(encoding='utf-8') if CRASH_PATCH.is_file() else ''
+check(bool(crash), 'patch 0017 exists')
+check(re.findall(r'^diff --git a/(\S+) b/', crash, re.M) == [CRASH_SOURCE], 'patch 0017 touches runtime/src/crash.c only (the commit\'s own test is not taken)')
+crash_added = '\n'.join(line[1:] for line in crash.splitlines() if line.startswith('+') and not line.startswith('+++'))
+check('static void fault_region_note(int sig, siginfo_t *si, ucontext_t *uc) {' in crash_added and 'if (sig != SIGBUS && sig != SIGSEGV) return;' in crash_added
+      and 'vm_region_recurse_64(mach_task_self(), &r, &sz, &depth, (vm_region_recurse_info_t)&info, &cnt)' in crash_added
+      and 'fault_region_note(sig, si, uc);' in crash_added,
+      'a SIGBUS / SIGSEGV report asks Mach for the mapping at the faulting address and logs it')
+check(not [line for line in crash.splitlines() if line.startswith('-') and not line.startswith('---')], 'patch 0017 removes nothing from the crash report')
+check('RewindBox' not in crash_added, 'patch 0017 adds no RewindBox code: the commit as S2Arm wrote it')
+if upstream and Path(upstream, '.git').exists():
+    shown = subprocess.run(['git', '-C', upstream, 'show', '--format=', CRASH_COMMIT, '--', CRASH_SOURCE], capture_output=True, text=True)
+    check(shown.returncode == 0 and shown.stdout.strip(), f'S2Arm commit {CRASH_COMMIT} is in the checkout given by S2ARM_UPSTREAM')
+    check(changed(crash) == changed(shown.stdout), 'patch 0017 is exactly the commit\'s change to runtime/src/crash.c')
+
 series = sorted(p.name for p in PATCHES.glob('*.patch'))
-check(len(series) >= 15 and series[14] == PATCH.name, f'0015 is the 15th engine patch: {series[13:16]}')
+check(len(series) >= 17 and series[14] == PATCH.name and series[16] == CRASH_PATCH.name, f'0015 and 0017 are the 15th and 17th engine patches: {series[13:17]}')
 notices = (ROOT / 'docs/s2arm-legal-notices.md').read_text(encoding='utf-8')
-check(PATCH.name in notices and 'RewindBox patches 0001–0015' in notices and all(c[:8] in notices for c in COMMITS),
-      'the legal notices list patch 0015, its four S2Arm commits and the series 0001–0015')
+check(PATCH.name in notices and 'RewindBox patches 0001–0019' in notices and all(c[:8] in notices for c in COMMITS),
+      'the legal notices list patch 0015, its four S2Arm commits and the series 0001–0019')
+check(CRASH_PATCH.name in notices and CRASH_COMMIT in notices, 'the legal notices list patch 0017 and its S2Arm commit')
 readme = (ROOT / 'build-utils/s2arm/engine/README.md').read_text(encoding='utf-8')
 check(PATCH.name in readme and all(c[:8] in readme for c in COMMITS), 'the engine README explains patch 0015 with its four commits')
+check(CRASH_PATCH.name in readme and CRASH_COMMIT in readme, 'the engine README explains patch 0017 with its commit')
 bridge_yml = (ROOT / '.github/workflows/s2arm-bridge-ios.yml').read_text(encoding='utf-8')
 check('python3 -B test/s2arm_upstream_switch2_fixes_test.py' in bridge_yml and 'test/s2arm_upstream_switch2_fixes_test.py' in bridge_yml.split('jobs:')[0],
       's2arm-bridge-ios.yml runs this test and is triggered by it')
