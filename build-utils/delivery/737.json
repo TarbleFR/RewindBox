@@ -2,7 +2,7 @@
   "schema": 1,
   "build": 737,
   "status": "draft",
-  "note": "Private test IPA 737 (maintainer order of 13 November 2026, the IPA with the probes): the verified IPA 735 product with the RPCS3 Core replaced by Core 936 (heat and energy lot with measurement probes; replaces Core 934) and the RPCS3 diagnostics journal change e5ecdfac. MeloNX Core 747 (c4a25b94), XeniOS, S2Arm and the retained components are those of the base. Build-only delivery: Flutter/native groups are not run. iPhone gameplay, heat and energy gains remain unverified.",
+  "note": "Private test IPA 737 (maintainer order of 13 November 2026, one IPA with both lots): the verified IPA 735 product with the RPCS3 Core replaced by Core 936 (heat and energy lot with measurement probes; replaces Core 934), the RPCS3 diagnostics journal change e5ecdfac, and the S2Arm lot of the S2Arm session (engine with patches 0016-0019 from run 43499689256, bridge preparation changes). MeloNX Core 747 (c4a25b94), XeniOS and the retained components are those of the base. Build-only delivery: Flutter/native groups are not run. iPhone gameplay, heat and energy gains remain unverified.",
   "base": {
     "build": 735,
     "source": "f3e9cb1de3b789cba654193276c5680a8d2e55a3",
@@ -341,12 +341,15 @@
           "binary": "sysdata/SHA256SUMS"
         }
       ],
-      "pinSha256": "8da9c21b80af90df3849e6bae1adeb51c6f3b9c00aefa9083033111adc202840",
-      "unchangedFromBase": true
+      "pinSha256": "2e3b0256df2b204dc17337eccd0f1888904a303b4bad065c2ca55257e6d95af3"
     }
   },
   "product": {
     "reviewedCommits": [
+      {
+        "commit": "28ab1711e977cc6a020ff5a2a6ccbad9842187ab",
+        "note": "Reviewed and compiled by the S2Arm session, included by the maintainer's decision of 13 November 2026 (\"une seule 737\", one IPA with the RPCS3 Core 936 and the S2Arm lot); not reviewed by the executing session. fix(s2arm): engine patches 0014 and 0016-0019 (texture storage read where the game holds memory, host room, RomFS index in one walk, diagnostics question), bridge S2ArmGamePreparation.m, S2ArmCodeIdentity.c/.h added, tests [s2arm-engine]."
+      },
       {
         "commit": "36ef68823eebeb95778a689a36e5da65f69ce971",
         "note": "Reviewed by the executing session: RPCS3 Core 935 source, packaging and record (heat and energy lot, Black Ops II freeze, ARMSX3 0.0.2-3 and upstream fixes); first half of the Core 936 delta that replaces Core 934."
@@ -360,36 +363,35 @@
         "note": "Reviewed by the executing session: RPCS3 Core 936 source, packaging and record (second part of the heat and energy lot: pre-hash pause, wake census, PPU wait sites, measurement probes)."
       },
       {
-        "commit": "be2f51ffa346ebb88f7639b8b9f56429ba72aa0f",
-        "note": "Reviewed by the executing session: request of the Core 936 compile (one line of .github/workflows/rpcs3-core610.yml, recipe path, no product path)."
-      }
-    ],
-    "sourceOnly": [
-      {
-        "commit": "28ab1711e977cc6a020ff5a2a6ccbad9842187ab",
-        "targetBuild": 738,
-        "note": "Another session's S2Arm product work, classified by neither 735 nor 736 and not reviewed by the executing session; left out of 737 (the S2Arm engine pin of the base is kept) until the maintainer decides. fix(s2arm): texture storage read where the game holds memory, host room, RomFS index in one walk, diagnostics question [s2arm-engine]."
+        "commit": "cd0841344a75c5103970d6a263e7fe0ec915a88b",
+        "note": "Reviewed and compiled by the S2Arm session, included by the maintainer's decision of 13 November 2026 (\"une seule 737\", one IPA with the RPCS3 Core 936 and the S2Arm lot); not reviewed by the executing session. fix(s2arm): corrections after the review of the 13 Nov lot (texture read, RomFS index, host room, preparation identity), S2ArmCodeIdentity.c/.h removed, tests [s2arm-engine]. The iOS bridge was compiled with Apple clang -Wall -Werror by .github/workflows/s2arm-bridge-ios.yml run 43499703301 (success) on cd084134."
       },
       {
-        "commit": "cd0841344a75c5103970d6a263e7fe0ec915a88b",
-        "targetBuild": 738,
-        "note": "Another session's S2Arm product work, classified by neither 735 nor 736 and not reviewed by the executing session; left out of 737 (the S2Arm engine pin of the base is kept) until the maintainer decides. fix(s2arm): corrections after the review of the 13 Nov lot (texture read, RomFS index, host room, preparation identity) [s2arm-engine]."
+        "commit": "be2f51ffa346ebb88f7639b8b9f56429ba72aa0f",
+        "note": "Reviewed by the executing session: request of the Core 936 compile (one line of .github/workflows/rpcs3-core610.yml, recipe path, no product path)."
       },
       {
         "commit": "643800b58b90a1f8bd56c6e0c232898f9500421e",
-        "targetBuild": 738,
-        "note": "Another session's S2Arm pin request [s2arm-pin]: build-utils/s2arm/engine-pin.json (a product path) now names the engine run 43499689256 built at cd084134 with patches 0016-0019, which needs the two deferred S2Arm commits; its zips entry is not updated yet (not usable until the verified pin follows). 737 keeps the S2Arm engine of the base; left out until the maintainer decides."
+        "note": "S2Arm session, pin handled by its own verifier (build-utils/s2arm/engine_pin.py): pin request [s2arm-pin] for the engine run 43499689256 built at cd084134 with patches 0016-0019; an intermediate state, replaced by 8777204c."
+      },
+      {
+        "commit": "8777204c8df2b4611b1a59f89ee762e97a90178b",
+        "note": "S2Arm session, pin handled by its own verifier (build-utils/s2arm/engine_pin.py): the verified pin of the engine with patches 0016-0019 (run 43499689256, artifact 14074156982, built at cd084134); these are the bytes bound by components.s2arm.pinSha256."
       }
     ],
+    "sourceOnly": [],
     "promotedCommits": []
   },
   "images": {
     "mustChange": [
+      "Frameworks/S2ArmEngine.framework/S2ArmEngine",
       "Frameworks/libRPCS3Core.dylib",
       "Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge",
       "Runner"
     ],
-    "added": [],
+    "added": [
+      "Frameworks/S2ArmEngine.framework/S2ArmEngine"
+    ],
     "removed": [],
     "replaced": {
       "rpcs3": "Frameworks/libRPCS3Core.dylib"
@@ -421,9 +423,6 @@
       ],
       "melonx": [
         "Frameworks/MeloNXCore.framework/MeloNXCore"
-      ],
-      "s2arm": [
-        "Frameworks/S2ArmEngine.framework/S2ArmEngine"
       ]
     }
   },
