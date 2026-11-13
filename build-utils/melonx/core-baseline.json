@@ -50,5 +50,57 @@
     "layoutRun": 39504259828,
     "layoutJob": 118909098038,
     "layoutTestsPassed": 5
+  },
+  "recovery": {
+    "743": {
+      "origin": {
+        "workflow": ".github/workflows/melonx-core.yml",
+        "source": "3d2645ea030e0f1a3da39c99f0a55a6d03300eab",
+        "run": 43174115676,
+        "attempt": 1,
+        "job": 131034109192,
+        "artifact": 13926697149,
+        "name": "MeloNX-engine-3d2645ea030e0f1a3da39c99f0a55a6d03300eab",
+        "bytes": 100586761,
+        "sha256": "a5848a399d6736286b0371a023ce2d2aa32e025c86e3d5d48a86d893b0e69f52"
+      },
+      "republished": {
+        "build": 732,
+        "source": "77af35c2097a418c73a12eeb8997690493ed68d8",
+        "run": 43289133482,
+        "attempt": 1,
+        "job": 131431743578,
+        "artifact": 13976632507,
+        "name": "RewindBox-Build732-77af35c2097a418c73a12eeb8997690493ed68d8-attempt1-component-melonx-core",
+        "bytes": 100587963,
+        "sha256": "5657daf09a4b18c4d2e26b3179fd43f8a8809dad2430d9cd9633a4dbf9a419ef"
+      }
+    },
+    "614": {
+      "origin": {
+        "workflow": ".github/workflows/melonx-core.yml",
+        "source": "b181cbe19164b5c10da4d0412209d2067f97ea3e",
+        "run": 41442795323,
+        "attempt": 1,
+        "job": 125268533213,
+        "artifact": 13141611354,
+        "name": "MeloNX-engine-b181cbe19164b5c10da4d0412209d2067f97ea3e",
+        "bytes": 89436359,
+        "sha256": "05009abfcfa45a5e5644491a52da2b08abeef8337451eb688c72a9f346f0abd5"
+      },
+      "republished": {
+        "build": 615,
+        "source": "eaca0d8afc1eb7948d4e02586b00b037ded39697",
+        "run": 41464449025,
+        "attempt": 1,
+        "job": 125342211500,
+        "artifact": 13150348411,
+        "name": "RewindBox-Build615-eaca0d8afc1eb7948d4e02586b00b037ded39697-attempt1-component-melonx-core",
+        "bytes": 89437559,
+        "sha256": "b36553a3bbaab8ebc7e4b8211a51a1eec5cda617f7dee8316cd98f48f4e67446"
+      }
+    },
+    "historyAuthenticationSha256": "118de0eb8acf3fe7b1a606e76d7c04cc7375f9ed27ecc6e1c7d341326a0c1d5e",
+    "retentionDays": 90
   }
 }

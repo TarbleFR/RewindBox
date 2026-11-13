@@ -12,17 +12,18 @@ import json
 import os
 from pathlib import Path
 import shutil
-import subprocess
 import tarfile
 import tempfile
 import zipfile
+
+import recover_core_archive as recovery
 
 from validate_runtime_reuse import child, digest, extract_verified, require
 
 
 ROOT = Path(__file__).resolve().parents[2]
 RECIPE = 'build-utils/melonx/prepare_embedded.py'
-ARCHIVE = '.native-sources/melonx-engine82.zip'
+ARCHIVE = '.native-sources/melonx-core743-recovery.zip'
 LIBHAC_SOURCE = '.native-sources/LibHac'
 OUTPUT = 'dist/melonx'
 
@@ -48,39 +49,44 @@ def configuration():
     return pin
 
 
-def api(pin, endpoint):
-    return json.loads(subprocess.check_output(
-        ['gh', 'api', f"repos/{pin['repository']}/{endpoint}"], text=True, timeout=60))
-
-
-def authenticate_metadata(pin, run, job, artifact):
-    require(run['id'] == pin['run'] and run['head_sha'] == pin['source'] and
-            run['head_branch'] == pin['branch'] and run['event'] == 'push' and
-            run['path'] == pin['workflow'] and run['run_attempt'] == pin['runAttempt'] and
-            run['status'] == 'completed' and run['conclusion'] == 'success' and
-            run['repository']['id'] == pin['repositoryId'], 'Unexpected baseline validation run')
-    require(job['id'] == pin['job'] and job['run_id'] == pin['run'] and
-            job['head_sha'] == pin['source'] and job['run_attempt'] == pin['runAttempt'] and
-            job['name'] == pin['jobName'] and job['status'] == 'completed' and
-            job['conclusion'] == 'success', 'Unexpected baseline validation job')
-    for name in pin['requiredSuccessfulSteps']:
-        found = [s for s in job['steps'] if s['name'] == name]
-        require(len(found) == 1 and found[0]['status'] == 'completed' and
-                found[0]['conclusion'] == 'success', 'Missing baseline validation step: ' + name)
-    origin = artifact['workflow_run']
-    require(artifact['id'] == pin['artifact'] and artifact['name'] == pin['artifactName'] and
-            artifact['expired'] is False and artifact['size_in_bytes'] == pin['archiveBytes'] and
-            artifact['digest'] == 'sha256:' + pin['archiveSha256'] and
-            origin['id'] == pin['run'] and origin['head_sha'] == pin['source'] and
-            origin['head_branch'] == pin['branch'] and origin['repository_id'] == pin['repositoryId'],
-            'Unexpected baseline artifact')
-
-
 def verified_zip(pin):
     path = child(ROOT, ARCHIVE)
-    require(path.stat().st_size == pin['archiveBytes'] and digest(path) == pin['archiveSha256'],
-            'Baseline ZIP size/digest mismatch')
-    return zipfile.ZipFile(path)
+    origin = pin['recovery']['743']['origin']
+    require(path.stat().st_size == origin['bytes'] and digest(path) == origin['sha256'],
+            'Recovered Core 743 ZIP size/digest mismatch')
+    archive = zipfile.ZipFile(path)
+    try:
+        verify_recovered_inventory(archive, pin)
+    except Exception:
+        archive.close()
+        raise
+    return archive
+
+
+def verify_recovered_inventory(archive, pin):
+    # Validate all paths and types before reading/copying any selected member.
+    from rewind606_engine import safe_members
+    safe_members(archive)
+    prefix = 'baseline-engine82/'
+    raw = archive.read(prefix + 'authentication/result.json')
+    require(sha(raw) == pin['recovery']['historyAuthenticationSha256'],
+            'Changed historical authentication receipt')
+    receipt = json.loads(raw)
+    require(receipt['result'] == 'authenticated' and receipt['repository'] == pin['repository'] and
+            receipt['run'] == pin['run'] and receipt['job'] == pin['job'] and
+            receipt['artifact'] == pin['artifact'] and receipt['archiveSha256'] == pin['archiveSha256'] and
+            receipt['engineSource'] == pin['engineSource'] and
+            receipt['historicalTestsReexecuted'] is False and receipt['historicalResultsCoverNewBodies'] is False,
+            'Changed engine82 historical scope')
+    expected = receipt['historicalReports']
+    require(len(expected) == 71, 'Changed retained history inventory')
+    actual = {name[len(prefix):] for name in archive.namelist()
+              if name.startswith(prefix) and not name.endswith('/')}
+    require(actual == set(expected) | {'authentication/' + name + '.json'
+            for name in ('run', 'job', 'artifact', 'result')}, 'Unexpected retained history members')
+    for name, value in expected.items():
+        require(sha(archive.read(prefix + name)) == value, 'Changed retained historical byte: ' + name)
+    return receipt
 
 
 def verify_inputs(old, pin):
@@ -102,7 +108,8 @@ def verify_inputs(old, pin):
     return expected
 
 
-def verify_history(stage, pin):
+def verify_retained_history(stage, pin):
+    """Check retained identities/proofs; original engine binaries are unavailable."""
     old = read(stage / 'embedded-inputs.json')
     expected = verify_inputs(old, pin)
     proof = read(stage / 'runtime-validation/result.json')
@@ -114,11 +121,10 @@ def verify_history(stage, pin):
     for runtime, expected_binary in pin['binarySha256'].items():
         identity_path = stage / runtime / 'identity.json'
         identity = read(identity_path)
-        binary = stage / runtime / 'Ryujinx.Library.dylib'
         require(identity['host'] == pin['engineSource'] and identity['runtimeIdentifier'] == runtime and
                 identity['source'] == read(ROOT / 'build-utils/melonx/source.json') and
-                identity['adaptations'] == old and digest(binary) == expected_binary == identity['sha256'] and
-                binary.stat().st_size == identity['size'] and
+                identity['adaptations'] == old and expected_binary == identity['sha256'] and
+                proof['engine']['binarySha256'][runtime] == expected_binary and
                 digest(identity_path) == proof['engine']['identitySha256'][runtime],
                 'Original compiled identity mismatch: ' + runtime)
     smoke = stage / 'runtime-smoke/actual-runtime.json'
@@ -132,7 +138,7 @@ def verify_history(stage, pin):
 def libhac_members(archive, pin):
     lock = read(ROOT / 'build-utils/melonx/source.json')['libHac']
     identity = json.loads(archive.read('libhac-identity.json'))
-    previous = json.loads(archive.read('libhac-reuse.json'))
+    previous = json.loads(archive.read('baseline-engine82/libhac-reuse.json'))
     package = 'libhac-feed/' + lock['package'] + '.' + lock['version'] + '.nupkg'
     require(identity['source'] == lock and identity['reconstructed'] is True and
             identity['originalPackageRecovered'] is False and
@@ -187,23 +193,6 @@ def libhac_source(tar_path, target, extract=False):
             'Unexpected extracted LibHac source files')
 
 
-def retain_history(stage, destination):
-    retained = {}
-    for path in sorted(stage.rglob('*')):
-        if not path.is_file():
-            continue
-        relative = path.relative_to(stage).as_posix()
-        top = '/' not in relative and path.suffix in ('.json', '.log', '.txt')
-        reports = relative.startswith(('runtime-validation/', 'runtime-smoke/', 'runtime-smoke-engine82-original-failure/'))
-        identity = relative.startswith(('ios-arm64/', 'iossimulator-arm64/')) and path.suffix in ('.json', '.txt')
-        if top or reports or identity or relative == 'embedded-adapted-source.zip':
-            target = child(destination, relative)
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(path, target)
-            retained[relative] = digest(target)
-    return retained
-
-
 def prepare():
     pin = configuration()
     output = child(ROOT, OUTPUT)
@@ -213,25 +202,18 @@ def prepare():
             'Refusing an existing baseline, LibHac source or smoke output')
     for name in ('ios-arm64', 'iossimulator-arm64', 'identity.json', 'Ryujinx.Library.dylib', 'runtime-smoke', 'runtime-validation'):
         require(not (output / name).exists(), 'Refusing stale native output: ' + name)
-    run = api(pin, f"actions/runs/{pin['run']}")
-    job = api(pin, f"actions/jobs/{pin['job']}")
-    artifact = api(pin, f"actions/artifacts/{pin['artifact']}")
-    authenticate_metadata(pin, run, job, artifact)
     archive_path = child(ROOT, ARCHIVE)
     archive_path.parent.mkdir(parents=True, exist_ok=True)
-    if not archive_path.exists():
-        with tempfile.NamedTemporaryFile(dir=archive_path.parent, suffix='.download') as temporary:
-            subprocess.run(['gh', 'api', f"repos/{pin['repository']}/actions/artifacts/{pin['artifact']}/zip"],
-                           stdout=temporary, check=True, timeout=300)
-            temporary.flush()
-            candidate = Path(temporary.name)
-            require(candidate.stat().st_size == pin['archiveBytes'] and digest(candidate) == pin['archiveSha256'],
-                    'Downloaded baseline ZIP failed authentication')
-            shutil.copyfile(candidate, archive_path)
+    recovered = recovery.recover(743, archive_path)
     with tempfile.TemporaryDirectory(prefix='melonx-core-baseline-') as temporary:
-        stage = Path(temporary).resolve() / 'engine82'
-        extract_verified(archive_path, stage, pin)
-        expected = verify_history(stage, pin)
+        stage = Path(temporary).resolve() / 'core743'
+        origin = pin['recovery']['743']['origin']
+        # This extracts the authenticated Core743 ZIP, never a reconstructed engine82 ZIP.
+        with verified_zip(pin):
+            pass
+        extract_verified(archive_path, stage, dict(archiveBytes=origin['bytes'], archiveSha256=origin['sha256']))
+        history = stage / 'baseline-engine82'
+        expected = verify_retained_history(history, pin)
         with verified_zip(pin) as archive:
             copied, _ = libhac_members(archive, pin)
             for relative in copied:
@@ -242,17 +224,15 @@ def prepare():
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes(archive.read(relative))
         libhac_source(output / 'libhac-upstream-source.tar', source, extract=True)
-        retained = retain_history(stage, baseline)
-    for name, document in [('run', run), ('job', job), ('artifact', artifact)]:
-        write(baseline / 'authentication' / (name + '.json'), document)
-    write(baseline / 'authentication/result.json', dict(result='authenticated', repository=pin['repository'],
-        run=pin['run'], job=pin['job'], artifact=pin['artifact'], archiveSha256=pin['archiveSha256'],
-        engineSource=pin['engineSource'], historicalReports=retained, copiedLibHacFiles=list(copied),
-        unchangedPreparationInputs=73, expectedCandidateInputs=expected,
-        oldPreparationInputs=74, candidatePreparationInputs=87, newAdapters=pin['newAdapters'],
-        historicalTestsReexecuted=False, historicalResultsCoverNewBodies=False,
-        scope='Authenticated history only; new gates, composition, NativeAOT and smoke require separate proof.'))
-    print('Authenticated engine82 history, 73 retained inputs, 87 candidate inputs and the original LibHac package.')
+        shutil.copytree(history, baseline)
+    write(output / 'baseline-recovery.json', dict(result='authenticated', recovery=recovered,
+        historicalBaselineArtifact=pin['artifact'], historicalBaselineArchiveSha256=pin['archiveSha256'],
+        recoveredCoreArchiveSha256=origin['sha256'], copiedLibHacFiles=list(copied),
+        expectedCandidateInputs=expected, originalEngine82ArchiveRecovered=False,
+        originalEngine82BinariesRecovered=False, historicalTestsReexecuted=False,
+        historicalResultsCoverNewBodies=False, republicationRetentionDays=90,
+        scope='Retained engine82 history and exact LibHac inputs recovered from Core743; new Core proof is separate.'))
+    print('Recovered authenticated engine82 history and exact LibHac inputs from Core743; no historical tests rerun.')
 
 
 def reuse_libhac(engine, source):
@@ -268,10 +248,11 @@ def reuse_libhac(engine, source):
         for relative in members:
             require(digest(child(output, relative)) == sha(archive.read(relative)),
                     'Copied LibHac input changed: ' + relative)
-        previous = json.loads(archive.read('libhac-reuse.json'))
+        previous = json.loads(archive.read('baseline-engine82/libhac-reuse.json'))
     libhac_source(output / 'libhac-upstream-source.tar', Path(source).resolve())
     write(output / 'libhac-authenticated-reuse.json', dict(result='authenticated',
-        baselineArtifact=pin['artifact'], baselineRun=pin['run'], archiveSha256=pin['archiveSha256'],
+        baselineArtifact=pin['artifact'], baselineRun=pin['run'], historicalArchiveSha256=pin['archiveSha256'],
+        recoveredCoreArchiveSha256=pin['recovery']['743']['origin']['sha256'],
         source=lock, packageSha256=pin['libHac']['packageSha256'], originalLayoutProof=previous,
         testsReexecuted=False, dependencyRecompiled=False, originalPackageRecovered=False))
     return output / 'libhac-feed', lock['package']
@@ -280,7 +261,7 @@ def reuse_libhac(engine, source):
 def dependencies():
     pin = configuration()
     with verified_zip(pin) as archive:
-        expected = json.loads(archive.read('runtime-validation/result.json'))['nativeDependencies']
+        expected = json.loads(archive.read('baseline-engine82/runtime-validation/result.json'))['nativeDependencies']
     directory = ROOT / 'dist/melonx-native'
     identity_path = directory / 'identity.json'
     require(digest(identity_path) == expected['identitySha256'], 'Native dependency identity changed')
@@ -298,7 +279,8 @@ def dependencies():
     for relative, value in binaries.items():
         require(digest(child(directory, relative)) == value, 'Native dependency bytes changed: ' + relative)
     write(ROOT / OUTPUT / 'native-dependencies-reused.json', dict(result='authenticated',
-        baselineArtifact=pin['artifact'], archiveSha256=pin['archiveSha256'],
+        baselineArtifact=pin['artifact'], historicalArchiveSha256=pin['archiveSha256'],
+        recoveredCoreArchiveSha256=pin['recovery']['743']['origin']['sha256'],
         nativeDependencies=expected, nativeDependenciesRecompiled=False))
     print('Authenticated all ten original iOS and simulator framework binaries; no rebuild.')
 

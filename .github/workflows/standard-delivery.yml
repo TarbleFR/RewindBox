@@ -45,6 +45,9 @@ jobs:
     - name: Materialize the frozen effective product tree
       id: manifest
       run: python3 -B .github/diagnostics/standard_delivery.py materialize
+    - name: Verify optional host cache and unchanged recipe guards
+      if: ${{ steps.manifest.outputs.build != '' }}
+      run: python3 test/ipa_build_cache_test.py
     - name: Run the delivery contract
       if: ${{ steps.manifest.outputs.build != '' }}
       env:
@@ -586,6 +589,24 @@ jobs:
       run: python3 build-utils/stamp_host_version.py
     - name: Verify the reviewed NeoSwap host source is the source CocoaPods will compile
       run: python3 -B .github/diagnostics/standard_delivery.py neoswap-host
+    - name: Determine exact optional host cache identity
+      id: host-cache
+      env:
+        REWINDBOX_BUILD_CACHE_KEY: ${{ secrets.REWINDBOX_BUILD_CACHE_KEY }}
+      run: python3 build-utils/ipa_build_cache.py prepare
+    - name: Restore encrypted host intermediates by exact identity
+      id: host-cache-restore
+      if: ${{ steps.host-cache.outputs.enabled == 'true' }}
+      continue-on-error: true
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+      with:
+        path: .ci-host-cache/state.enc
+        key: ${{ steps.host-cache.outputs.key }}
+    - name: Authenticate optional cache or use a clean build
+      if: ${{ steps.host-cache.outputs.enabled == 'true' }}
+      env:
+        REWINDBOX_BUILD_CACHE_KEY: ${{ secrets.REWINDBOX_BUILD_CACHE_KEY }}
+      run: python3 build-utils/ipa_build_cache.py restore
     - name: Compile Release device binary with measured AOT and Xcode phases
       shell: bash
       run: |
@@ -600,6 +621,12 @@ jobs:
           PERFORMANCE_MEASUREMENT_FILE="$RUNNER_TEMP/flutter-aot-timings.json" \
           -jobs "$(python3 -c 'import os; print(os.cpu_count())')" -showBuildTimingSummary build \
           2>&1 | tee "$RUNNER_TEMP/neostation-fast-xcodebuild.log"
+    - name: Snapshot encrypted host state before any runtime embedding
+      id: host-cache-snapshot
+      if: ${{ steps.host-cache.outputs.enabled == 'true' }}
+      env:
+        REWINDBOX_BUILD_CACHE_KEY: ${{ secrets.REWINDBOX_BUILD_CACHE_KEY }}
+      run: python3 build-utils/ipa_build_cache.py snapshot
     - name: Embed NeoPlay source identity and dependency acknowledgements
       shell: bash
       run: |
@@ -793,6 +820,13 @@ jobs:
             dict(result='passed', build=int(os.environ['BUILD_NUMBER']), version=version, bundles=bundles), indent=2) + chr(10))
         PYVERSION
         shasum -a 256 "dist/$IPA_NAME.ipa" > "dist/$IPA_NAME.sha256"
+    - name: Save only the encrypted pre-embed host state after final validation
+      if: ${{ success() && steps.host-cache-snapshot.outputs.ready == 'true' && steps.host-cache-restore.outputs.cache-hit != 'true' }}
+      continue-on-error: true
+      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+      with:
+        path: .ci-host-cache/state.enc
+        key: ${{ steps.host-cache.outputs.key }}
     - name: Finalize observed timings and artifact identity
       if: always()
       run: |
