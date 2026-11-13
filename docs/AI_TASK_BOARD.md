@@ -451,9 +451,12 @@ Checks executed: series 0001–0015 applies on the pin; arena compiled from the 
 gcc/clang/ASan+UBSan; `s2arm_vp_arena_test` 34, `s2arm_romfs_index_test` 20, `s2arm_upstream_switch2_fixes_test` 17
 checks (0015 equals the four commits line for line), 7/7 mutations detected; 13 other S2Arm tests and
 `delivery_contract_memo_test` green; independent `rb-core-review` of 0013 found no definite bug (its release-length
-hardening applied). iOS compilation: `s2arm-engine.yml` runs `43364611467` (0013/0014, source `7f81e84f`) and the
-later run on source `2a37382b` (0013–0015); `s2arm-bridge-ios.yml` `43364614804` green. Read their live result, not
-this line. Device: nothing observed.
+hardening applied). **Compiled for iOS:** `s2arm-engine.yml` run `43365543093` attempt 1 on source `2a37382b`
+(patches 0001–0015) succeeded on macos-26 and macos-15 with its entry-point and blocking licence-inventory checks;
+framework artifact `14010462973` (`s2arm-engine-framework-2a373820…`, 23,931,392 bytes, digest `f076cd9f…`, expires
+13 Dec). Earlier run `43364611467` (0013/0014, `7f81e84f`) also green; `s2arm-bridge-ios.yml` `43365546359` green on
+the final source (the three new tests run on macOS). **Device: nothing observed; a green build does not show that the
+game starts.**
 Examined, no change: 16 GB written in 50 s = guest memory file backing (auto on, pool 9216 MB > 6128 MB room); the
 rate (about 3.3 GB per 10 s) is constant from nnMain to the end in both sessions, the engine issues no sync and no
 write at SetHeapSize (mprotect only), anonymous memory would exceed the process limit; whether it continues after
@@ -464,7 +467,7 @@ safety net's failure count carries over engine updates (2 now, prompt page at 3)
 threads alive in the process, an 8 GiB smaller hole and about 800 MB more footprint — only MeloNX is refused before a
 Switch 2 launch. Rejected: upstream #783 learned-span window alone (span recorded only after 300 presents); `85da99de`
 and `3fbde57c` (larger than a start needs).
-Next: green engine build of the final source → maintainer authorizes a test delivery → from a cold app start the device
+Next: maintainer authorizes a test delivery of artifact `14010462973` (pin + IPA are main's) → from a cold app start the device
 log must show `the window gives up 18432 MB`, `in the virtual pool arena`, no `errno 12`, frames > 0, and at the second
 start `RewindBox: RomFS index read`.
 [Full evidence](https://github.com/TarbleFR/RewindBox/blob/30ee5beb204a9c972f85c5e9cd249aa341887283/docs/AI_TASK_BOARD.md#switch-2-playlist-s2arm-feasibility-prototype--session-04).
