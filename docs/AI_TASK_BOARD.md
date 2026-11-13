@@ -341,8 +341,14 @@ exact authenticated envelope caches and hashed S2Arm source reuse. Contract
 are unchanged.451 contract checks,24 recovery checks and3 focused cache tests passed on the integrated tree;
 independent review passed. Also rerun:9 encrypted-host-cache and15 standard-workflow tests, all passed.
 [Verification receipt](evidence/engine-build-caches-2026-11-13.json). No new Core/IPA success or macOS speed gain is claimed.
-**Next / Codex:** trigger Core745 once, follow its actual result, authenticate and pin it, regenerate/freeze733,
-then run the unchanged standard route and verify the downloaded private IPA.733 still waits for the new Core.
+**Core745 execution:** run `43344184896`, attempt1, job`131619413611`, source
+`ced57c6de8e99a241610b5c1756d962fb9d0067f` is active. Recovery authentication and Apple preflight passed;
+the final-source gates are running. The Xenia/S2Arm producer jobs were skipped as intended.
+Private-IPA upload-boundary CI passed on Linux/macOS/Windows (`43344184848`).
+**Next / Codex:** follow this run to completion, authenticate and pin its output, then freeze733 and use the
+same standard route. The draft now classifies all product commits (no replay conflicts/unclassified paths,
+43 retained inputs verified), defers only the future Xenia producer recipe, and has a fresh recipient key.
+It is not frozen or dispatched;733 still waits for Core745.
 [Manifest](../build-utils/delivery/733.json) · [recipe](standard-delivery-recipe.md).
 
 ### RPCS3 FPS, stability and audio — main Claude Code
@@ -378,8 +384,9 @@ footprint up to 4,882 MiB. No post-correction iPhone gain yet.
 Metal libraries, descriptor pools, pipeline states); release/compression changes
 remain owned there. Graphics-memory savings and thermal gains are not established.
 **Next:** main froze it as Core 745 in `f4fb22fd` (contract `807edc42`, 104/104 planned gates on
-the final preparation); Core CI `43336528859` stopped on the expired engine82 baseline (owner fix requested on
-#179); then pin, include the live-capture bridge in IPA 733,
+the final preparation); Core CI `43336528859` stopped on the expired engine82 baseline. Reviewed recovery is integrated;
+replacement run`43344184896` from`ced57c6d` has passed dependency authentication and Apple preflight.
+Await its gates/compile/simulator result, then pin and include the live-capture bridge in IPA733,
 then compare Hogwarts/Smash closes and 20-minute Hogwarts. Preserve 1x/full draws,
 all useful syncs, caches and player data. Further instrumentation is justified only
 for a missing deciding measurement; confirmed defects need fixes and executed checks.
@@ -462,8 +469,9 @@ envelope path and the Bash nounset cold path; root reran451 DMA checks,24 recove
 and Bash syntax successfully.104 Core gates and runtime/preparation contracts remain unchanged.
 **Next / owner:** Codex executes the maintainer's new private delivery request, coordinated on issue179,
 without a duplicate producer. Classify the host-cache helper/test integration reviewed and the Xenia-only
-producer commit source-only before733's materialization/freeze. Build745, authenticate its pin and resume733.
-No new Apple build, warm-cache speed measurement or IPA delivery is claimed. The permanent single-recipe
+producer commit source-only before733's materialization/freeze. Core745 is running as`43344184896` from`ced57c6d`; its dependency authentication and Apple preflight
+passed. Authenticate the finished output and resume733.
+No completed new Apple build, warm-cache speed measurement or IPA delivery is claimed. The permanent single-recipe
 rule remains active in ca8fa34d.
 Dedicated `REWINDBOX_BUILD_CACHE_KEY` is required for optional acceleration; Codex
 could not provision it (GitHub connector has no secret-write operation; PC connector

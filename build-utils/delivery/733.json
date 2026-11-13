@@ -2,7 +2,7 @@
   "schema": 1,
   "build": 733,
   "status": "draft",
-  "note": "Private common IPA 733 = the delivered 732 with session 04's two Switch 2 lots: S2Arm engine pin 9ddb304e with engine patch 0012 (the sparse tile layout query answered and a 0-byte virtual pool mapping succeeds: Mario Kart World crashed 30 s after nnMain on 732), and the preparation speed lot (parallel CommonCrypto pack hashing, no mkdir per path component, fewer RomFS walks, previous root deleted in the background; byte-identical outputs). XeniaCore c7d6a5c4, RPCS3 Core 934 and MeloNX Core 743 kept. Nothing of this build was run on an iPhone; no FPS, memory, heat or stability claim.",
+  "note": "Draft for the authorized common IPA 733: delivered 732 plus reviewed S2Arm patch0012 and preparation speed lot, MeloNX lot10/live-capture bridge. Core745 producer43344184896 is pending authentication and pinning; do not freeze or dispatch until its successful result is verified. RPCS3 934 and XeniaCore c7d6a5c4 retained. Same standard recipe with reviewed recovery and optional caches; no device speed claim.",
   "base": {
     "build": 732,
     "source": "77af35c2097a418c73a12eeb8997690493ed68d8",
@@ -362,7 +362,7 @@
       },
       {
         "commit": "d266f57b1fe3a65ce80d65a8d53928ed4b4fcd0f",
-        "note": "Reviewed by main: docs(board): MeloNX lot 10 \u2014 four correction adapters with host gates and proposed wiring, per-lot state, handoffs to main and to the MeloNX owner [skip ci]"
+        "note": "Reviewed by main: docs(board): MeloNX lot 10 — four correction adapters with host gates and proposed wiring, per-lot state, handoffs to main and to the MeloNX owner [skip ci]"
       },
       {
         "commit": "9069b18287622f68e48a5d4588a1d6cfef1d9317",
@@ -399,9 +399,67 @@
       {
         "commit": "7dea157f2ff0c0e97acf3c543c7e981b7873e580",
         "note": "Reviewed by main: revert(test): MeloNX's journal test as the MeloNX team left it (maintainer: MeloNX is not touched) [skip ci]"
+      },
+      {
+        "commit": "f733bbf9e1bc0d599ac3b67fcaf4074c4cb1ee57",
+        "note": "Reviewed integration and existing owner evidence: Merge MeloNX lot 10 (work/melonx-lot10-20261112 7040c3e1, session 01JA5QgKeoGVH5oVjNyhcj3D) for Core 745: six adapters, gates, proposed wiring, live capture bridge [skip ci]"
+      },
+      {
+        "commit": "e5f7d70d197d3d82d51989c2e196813d7f6403a1",
+        "note": "Reviewed integration and existing owner evidence: Merge the MeloNX owner's robustness fix c5541fe0 for IPA 733: relational timing bounds in the performance journal test, retried MoltenVK artifact download [skip ci]"
+      },
+      {
+        "commit": "30ee5beb204a9c972f85c5e9cd249aa341887283",
+        "note": "Reviewed integration and existing owner evidence: Merge MeloNX lot 10 test fixes up to d17a29f2 before the Core 745 freeze: collection-class and stall-compaction gates run on the Core CI's macOS arm64 host [skip ci]"
+      },
+      {
+        "commit": "d7123113d36bc6b00ce02467ad96b66641042ad6",
+        "note": "Reviewed integration and existing owner evidence: [repository-tidy-2026-11-13] Restore shared coordination, preserve producer builds and clean reviewed obsolete refs"
+      },
+      {
+        "commit": "608181b2bf62ba7e4f661bd2cb8299e6f54a352e",
+        "note": "Reviewed integration and existing owner evidence: [repository-consolidation-2026-11-13] Preserve all work in Backup and retain main, Claude, Backup only"
+      },
+      {
+        "commit": "e0a0cefb528c67d1e16db5add72b1e86773497a5",
+        "note": "Reviewed integration and existing owner evidence: [branches-finalize-2026-11-13] Resume archived branch cleanup after preserving concurrent MeloNX commit"
+      },
+      {
+        "commit": "f61b2bdea4a8bb10943953e5ffb5686086dc05f6",
+        "note": "Reviewed integration and existing owner evidence: Merge the MeloNX owner's spinner check d5c88541 (melonx-host 43332392305 green) for IPA 733 [skip ci]"
+      },
+      {
+        "commit": "cb99791bfdb22df54fb1d2c2b5a2d346b879808c",
+        "note": "Reviewed integration and existing owner evidence: [actions-retire-final-2026-11-13] Keep engine producers usable from Claude after branch archival"
+      },
+      {
+        "commit": "f4fb22fd3bc705ce302a6a9cb58ec5f8cff1fece",
+        "note": "Reviewed integration and existing owner evidence: build(melonx): freeze Core 745 (104 gates, contract 807edc42): MeloNX lot 10's six adapters"
+      },
+      {
+        "commit": "a513fb2f26416aeb24ee73c045ecba59198fb262",
+        "note": "Reviewed integration and existing owner evidence: chore(actions): confirm obsolete launcher retirement [actions-disable-confirm-2026-11-13]"
+      },
+      {
+        "commit": "df9d0528198c5196a5a5fa4fdc48fe117c40a461",
+        "note": "Reviewed integration and existing owner evidence: chore(actions): finalize nine reviewed empty orphan records [actions-orphans-final-2026-11-13]"
+      },
+      {
+        "commit": "871258fb200adb2d4723c183700f83b49838b9e7",
+        "note": "Reviewed integration and existing owner evidence: build(delivery): integrate reviewed dependency recovery and optional encrypted host cache [skip ci]"
+      },
+      {
+        "commit": "5451dbb200b1517c13a3be479be55de6c679bf89",
+        "note": "Reviewed integration and existing owner evidence: build(engines): cache authenticated dependencies and require explicit MeloNX requests [skip ci]"
       }
     ],
-    "sourceOnly": [],
+    "sourceOnly": [
+      {
+        "commit": "ab0a69c7addcf7357f83f2a0c1632264c002c6b5",
+        "targetBuild": 734,
+        "note": "Future Xenia producer compiler cache; excluded from IPA 733 to preserve the retained Xenia binary's authenticated original build recipe. Target build denotes deferral only, not approval or a request to rebuild it."
+      }
+    ],
     "promotedCommits": []
   },
   "images": {
@@ -1902,7 +1960,7 @@
   },
   "recipient": {
     "path": "build-utils/delivery-733-recipient.pem",
-    "sha256": "7979e1cffca1df46bb93a59d695a058d31415514f8c09c2a5d78152e8d60c726"
+    "sha256": "66fcbe6a9825c9fa6ba221a04faa20c641399f5e4b6d9516730d239a0cc212a2"
   },
   "republish": [
     "rpcs3-core",

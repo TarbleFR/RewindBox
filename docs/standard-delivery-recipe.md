@@ -67,6 +67,7 @@ porte le marqueur et touche un chemin couvert par le workflow correspondant :
 
 | Route | Marqueur de demande |
 | --- | --- |
+| Core MeloNX courant | `[melonx-dma-core]` |
 | Vérifications XeniOS | `[xenia-checks]` |
 | XeniaCore | `[xenia-core]` |
 | Contrôle du pin XeniOS | `[xenia-pin run=…]` |
@@ -78,6 +79,9 @@ porte le marqueur et touche un chemin couvert par le workflow correspondant :
 Le dispatch existant reste disponible lorsqu'il est enregistré sur la branche par
 défaut ; le push marqué sur Claude est la route de repli sans branche de composant.
 Ne pas mettre ces marqueurs dans le message d'un commit de documentation ordinaire.
+MeloNX applique aussi cette demande explicite : une modification ordinaire ou une
+demande d'IPA ne recompile pas le moteur. Ses autres marqueurs historiques restent
+reconnus par le workflow existant.
 Les nouvelles métadonnées S2Arm enregistrent `headBranch` depuis le run authentifié ;
 les pins historiques gardent leur provenance et peuvent être conservés dans une
 livraison mêlant un producteur récent et des composants historiques.
@@ -89,6 +93,19 @@ Préparer une nouvelle demande avec `tests.<groupe>.mode=reuse` uniquement si
 artefacts identiques. Un changement de test invalide sa preuve antérieure.
 Une compilation Release réussie avant `await-tests` ne constitue ni une IPA livrée
 ni un artefact de reprise exploitable par la recette actuelle.
+
+Les [caches des producteurs](engine-build-caches.md) réutilisent les archives de
+dépendances authentifiées de MeloNX, les objets C/C++ de XeniOS compatibles avec
+la chaîne d'outils et les sources de codecs S2Arm dont l'empreinte est vérifiée.
+RPCS3 conserve son chemin Ninja/ccache. Les sorties finales et leurs preuves sont
+toujours reconstruites ou authentifiées par les contrôles existants.
+
+Le [cache chiffré de l'hôte](ipa-incremental-build.md) est une accélération
+facultative de cette même recette. Son activation nécessite le secret dédié
+`REWINDBOX_BUILD_CACHE_KEY`. Sans clé, sans cache compatible ou après un refus de
+validation, la compilation complète reste disponible. Xcode, l'intégration des
+Cores courants, la signature et tous les validateurs finaux restent obligatoires.
+Les gains de durée doivent être mesurés sur les producteurs macOS.
 
 ## 2. Ce qui est en place (première cible : 611)
 
