@@ -1,0 +1,56 @@
+name: Finalize orphaned Actions records
+run-name: Remove reviewed old empty orphan records after cancellation attempts
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - build-utils/maintenance/orphaned-runs-2026-11-13.json
+permissions:
+  contents: read
+concurrency:
+  group: rewindbox-remove-empty-orphaned-runs
+  cancel-in-progress: false
+jobs:
+  retire:
+    if: >-
+      github.repository == 'TarbleFR/RewindBox' &&
+      github.ref == 'refs/heads/Claude' &&
+      github.event_name == 'push' &&
+      github.event.before == 'a513fb2f26416aeb24ee73c045ecba59198fb262' &&
+      contains(github.event.head_commit.message, '[actions-orphans-final-2026-11-13]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Read exact maintenance sources only
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /build-utils/maintenance/
+            /tools/coordination/
+            /test/obsolete_actions_retirement_test.py
+            /test/orphaned_runs_cleanup_test.py
+      - name: Check mutation guards
+        run: |
+          python3 -m unittest discover -s test -p obsolete_actions_retirement_test.py -v
+          python3 -m unittest discover -s test -p orphaned_runs_cleanup_test.py -v
+      - name: Apply reviewed retire plan
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          python3 -u build-utils/maintenance/remove_orphaned_runs.py
+          --plan build-utils/maintenance/orphaned-runs-2026-11-13.json
+          --expected-plan-sha256 ec5f098b377152a50f7585d8e3c4241db5180987f585713e328a35745a11c448
+      - name: Preserve receipts
+        if: always()
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
+        with:
+          name: Repository-orphans-${{ github.run_id }}
+          path: cleanup-output/
+          if-no-files-found: error
+          retention-days: 90
