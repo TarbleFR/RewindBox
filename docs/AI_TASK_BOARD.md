@@ -136,7 +136,7 @@ project text. No paid service permission is implied. Personal routing points her
 ## Standing IPA compilation authorization
 
 **Historical numbered examples below are not new build requests.** The current
-common delivered baseline is 732, including XeniOS and S2Arm by the later
+common delivered baseline is 733, including XeniOS and S2Arm by the later
 maintainer decisions. Use the active task and its current manifest, not 725/803.
 
 **Already approved:** main may review/integrate approved changes, run/recover
@@ -302,8 +302,8 @@ Do not restart a historical task from that archive.
 ### Common IPA — main Claude Code / Codex execution authorized 13 Nov
 
 **Goal:** deliver the authorized, reviewed common IPA with exact component identities.
-**Delivered:** 732, run `43289133482`, source `77af35c2`, receipt below. RPCS3 934,
-MeloNX 743, Xenia c7d6a5c4, S2Arm 9560e56f. Gameplay validation stays separate.
+**Delivered:** 733, run `43353788677`, source `b1955be5`, receipt below. RPCS3 934,
+MeloNX 745, Xenia c7d6a5c4, S2Arm 9ddb304e. Gameplay validation stays separate.
 **733 (13 Nov):** S2Arm engine 9ddb304e (patch 0012) + preparation speed lot + MeloNX Core 745
 (lot 10) with its live-capture bridge; XeniaCore c7d6a5c4 and RPCS3 934 retained. Earlier requests:
 `43312487102` (HTTP 503 downloads, then the fixed 200 ms spinner floor), `43322868775` (flutter-action
@@ -340,14 +340,17 @@ Measured steps:54min29 gates,4min NativeAOT compilation. No device/gameplay gain
 [Producer origin and full verification](evidence/melonx-core745/verification.json).
 The Xenia/S2Arm producer jobs were skipped as intended.
 Private-IPA upload-boundary CI passed on Linux/macOS/Windows (`43344184848`).
-**IPA733 launched:** standard delivery run `43353788677`, attempt1, source
+**IPA733 delivered and verified:** standard delivery run `43353788677`, attempt1, source
 `b1955be5f6b80733ab6808a3bf875bad8eb459d0`, after local contract and freeze passed.
 The frozen composition includes MeloNX745 and S2Arm patch0012 plus the preparation speed lot;
 effective digest `e2b4db5fd0de832fcbdea640d449fd969dc8814c449d9d910baaa71ef7ad5309`.
-**Next / Codex:** follow this run, then authenticate and privately deliver the downloaded IPA.
+All five jobs succeeded. Downloaded plaintext IPA passed all six offline validators,97 image
+identities and10 bundle versions. The eight decrypted receipts were retained before key deletion.
+**Next / Codex:** resume the isolated test-reuse improvements for a later delivery; no new IPA requested.
 The manifest classifies all product commits (no replay conflicts/unclassified paths,
 43 retained inputs verified), defers the future Xenia producer recipe and repository-only
-Actions maintenance, and has a fresh recipient key. Maintenance058 is reviewed but source-only:
+Actions maintenance. The private recipient key was deleted after verification and delivery.
+Maintenance058 is reviewed but source-only:
 732 had already deferred its parent script/test versions; no unrelated promotion is needed.
 The maintainer explicitly requests733 now; new test-reuse/optimization work comes after733.
 That new work remains isolated and is not added to this delivery. The104 Core gates are authenticated
@@ -369,8 +372,8 @@ pipeline compilation, validated per-game/behaviour profiles and shared iOS rules
 
 ### MeloNX FPS, memory, black launch and artifacts — existing owner
 
-**Delivered baseline:** Core 743 in IPA729–732. Core745 is compiled, simulator-validated
-and independently authenticated; the733 draft now selects its verified pin.
+**Delivered baseline:** Core745 in IPA733, compiled, simulator-validated and independently
+authenticated in the downloaded IPA. Gameplay measurements remain pending.
 **Lot 10:** six integrated adapters: Nifm static-event retention,
 paced strict syncs (Hogwarts), texture-array dirty epochs, shared sibling pipelines,
 collection-thread QoS and stall compaction. Main merged the first six-adapter source
@@ -409,7 +412,7 @@ questions stay in [the archived task](https://github.com/TarbleFR/RewindBox/blob
 
 ### Switch 2 playlist (S2Arm) feasibility prototype — session 04
 
-Common 732 contains engine patch0011. The 733 candidate includes verified engine
+Common732 contained engine patch0011. Delivered733 includes verified engine
 pin `9ddb304e`, producer `43308161284` (patch0012: sparse tile layout and valid
 zero-byte mappings), plus prepare producer `43304794526` (CommonCrypto parallel
 hashing/fewer filesystem walks). Outputs match; preparation speed not measured on
@@ -539,13 +542,14 @@ are recipe-only and do not require rebuilding the active Core.
 
 ## Delivered baseline
 
-**Last verified common IPA: RewindBox 732**, run `43289133482` attempt1,
-source `77af35c2097a418c73a12eeb8997690493ed68d8`, frozen `474862f5`, effective `662f421f`.
-329,956,970 bytes, SHA-256 `97952e981eea2eff72bb93f35627a831221aa4bf0ed9abaeb67d48dbb93ade52`.
-RPCS3 934, MeloNX 743, XeniaCore c7d6a5c4, S2Arm 9560e56f; 97 images,
-46 retained fingerprints, six validators passed offline. Key deleted, privately
-sent. No new device performance/thermal claim. Public release remains separate.
-[Manifest](../build-utils/delivery/732.json) · [receipt](evidence/rewind732/delivery.json).
+**Last verified common IPA: RewindBox733**, run `43353788677` attempt1,
+source `b1955be5f6b80733ab6808a3bf875bad8eb459d0`, frozen `a4de734b`, effective `e2b4db5f`.
+330,032,921 bytes, SHA-256 `e8e387fe5af258fbcbb44dfb21820ebcfaf697fa4694aa91e50c99ec20d66211`.
+RPCS3 934, MeloNX745, XeniaCore c7d6a5c4, S2Arm9ddb304e;97 images,10 bundles,
+six validators passed offline. Contract,Flutter and native host tests fresh;Core proofs reused.
+Recipient key deleted after preserving12 proof files; private file delivered.
+No new device performance/thermal claim. Public release remains separate.
+[Manifest](../build-utils/delivery/733.json) · [receipt](evidence/rewind733/delivery.json).
 
 ## Findings to carry forward
 
