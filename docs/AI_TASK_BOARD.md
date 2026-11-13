@@ -166,6 +166,14 @@ already integrated are accepted; preserve shared history, source/component/packa
 signature checks and the ban on post-freeze merges. Do not reopen that approval.
 Product changes after freeze belong to the next manifest.
 
+**Permanent single recipe (maintainer,13 November2026):** every common private
+IPA uses the same versioned standard recipe. Improve this recipe in place only;
+never create a build-specific bypass or remove security/identity/compatibility
+checks for speed. An improvement requires relevant executed non-regression tests,
+review, preserved final validators and an explicit return to the last validated
+recipe if a regression appears. Unknown device behavior is not a passing result.
+Optional acceleration must preserve the full-build path when unavailable or invalid.
+
 Use [the standard recipe](standard-delivery-recipe.md), last verified IPA and
 declared reviewed delta. Rebuild changed components; authenticate retained ones.
 Rerun affected tests and always delivery contracts; reuse only equivalent relevant
