@@ -68,7 +68,9 @@ class FakeAPI:
         if '/artifacts?' in path:
             return {'total_count': 0, 'artifacts': []}
         if '/jobs?' in path:
-            return {'total_count': 1, 'jobs': [{'status': 'completed', 'conclusion': 'skipped', 'steps': []}]}
+            run_id = int(path.split('/runs/')[1].split('/')[0])
+            return {'total_count': 1, 'jobs': [{'id': run_id * 10, 'run_id': run_id,
+                    'status': 'completed', 'conclusion': 'skipped', 'steps': []}]}
         if path == cleanup.PREFIX + "/git/ref/heads/Claude":
             return {"object": {"sha": self.claude_sha}}
         if path == cleanup.PREFIX + "/git/ref/heads/main":
@@ -94,6 +96,196 @@ class FakeAPI:
 
 
 class CleanupSafetyTest(unittest.TestCase):
+    def completed_plan(self, count=301, **changes):
+        runs = records(count)
+        for run in runs:
+            run['conclusion'] = 'success'
+        return runs, plan_for(runs, preserve_artifacts=True, **changes)
+
+    def test_preserve_artifacts_allows_old_completed_executed_job_without_data(self):
+        runs, plan = self.completed_plan()
+        api = FakeAPI(runs)
+        original = api.get_json
+        def completed_job(path):
+            response = original(path)
+            if '/jobs?' in path:
+                response['jobs'][0].update(conclusion='success', steps=[{'status': 'completed'}])
+            return response
+        api.get_json = completed_job
+        result = self.run_cleanup(api, plan)
+        self.assertEqual(result['deleted_run_ids'], [runs[-1]['id']])
+        self.assertEqual(len([p for m, p in api.requests if m == 'GET' and p.endswith('/100001')]), 2)
+        self.assertTrue(all(run['id'] in api.runs for run in runs[:300]))
+
+    def test_preserve_artifacts_keeps_expired_and_metadata_only_artifacts(self):
+        for response in ({'total_count': 1, 'artifacts': [{'id': 1, 'expired': True}]},
+                         {'total_count': 0, 'artifacts': [{'name': 'metadata'}]},
+                         {'total_count': 101, 'artifacts': []}):
+            with self.subTest(response=response):
+                runs, plan = self.completed_plan()
+                api = FakeAPI(runs)
+                original = api.get_json
+                api.get_json = lambda path: deepcopy(response) if '/artifacts?' in path else original(path)
+                result = self.run_cleanup(api, plan)
+                self.assertEqual(api.deleted, [])
+                self.assertIn(runs[-1]['id'], result['protected_run_ids'])
+
+    def test_preserve_artifacts_keeps_each_individual_run_identity_change(self):
+        mutations = {'id': 7654, 'created_at': '2026-01-02T00:00:00Z', 'head_sha': 'e'*40,
+                     'path': '.github/workflows/other.yml', 'status': 'in_progress',
+                     'conclusion': 'failure', 'run_attempt': 2, 'updated_at': '2026-01-02T00:00:00Z'}
+        for field, value in mutations.items():
+            with self.subTest(field=field):
+                runs, plan = self.completed_plan()
+                api = FakeAPI(runs)
+                original = api.get_json
+                def changed(path):
+                    response = original(path)
+                    if path == cleanup.PREFIX + '/actions/runs/100001':
+                        response[field] = value
+                    return response
+                api.get_json = changed
+                self.run_cleanup(api, plan)
+                self.assertEqual(api.deleted, [])
+
+    def test_preserve_artifacts_keeps_changes_during_evidence_reads(self):
+        runs, plan = self.completed_plan()
+        api = FakeAPI(runs)
+        original = api.get_json
+        def changed(path):
+            response = original(path)
+            if '/jobs?' in path:
+                api.runs[100001]['run_attempt'] = 2
+            return response
+        api.get_json = changed
+        self.run_cleanup(api, plan)
+        self.assertEqual(api.deleted, [])
+
+    def test_preserve_artifacts_paginates_all_attempts_and_preserves_active_jobs(self):
+        for active in (False, True):
+            with self.subTest(active=active):
+                runs, plan = self.completed_plan()
+                runs[-1]['run_attempt'] = plan['snapshot_runs'][-1]['run_attempt'] = 2
+                api = FakeAPI(runs)
+                original = api.get_json
+                jobs = [{'id': i, 'run_id': 100001, 'run_attempt': 1,
+                         'status': 'completed', 'conclusion': 'success'} for i in range(1, 102)]
+                if active:
+                    jobs[-1].update(status='in_progress', conclusion=None)
+                def paginated(path):
+                    if '/jobs?' in path:
+                        api.requests.append(('GET', path))
+                        page = int(path.rsplit('=', 1)[1])
+                        return {'total_count': len(jobs), 'jobs': deepcopy(jobs[(page-1)*100:page*100])}
+                    return original(path)
+                api.get_json = paginated
+                self.run_cleanup(api, plan)
+                self.assertEqual(api.deleted, [] if active else [100001])
+                self.assertTrue(any('filter=all&per_page=100&page=2' in p for m, p in api.requests if m == 'GET'))
+
+    def test_preserve_artifacts_malformed_evidence_fails_closed(self):
+        cases = [('artifacts', None), ('artifacts', {}),
+                 ('artifacts', {'total_count': False, 'artifacts': []}),
+                 ('jobs', []), ('jobs', {'total_count': 1, 'jobs': []}),
+                 ('jobs', {'total_count': 1, 'jobs': [None]}),
+                 ('jobs', {'total_count': 1, 'jobs': [{'id': 1, 'run_id': 100001, 'status': 'completed', 'conclusion': []}]}),
+                 ('jobs', {'total_count': 1, 'jobs': [{'id': 1, 'run_id': 2, 'status': 'completed', 'conclusion': 'success'}]}),
+                 ('jobs', {'total_count': 0, 'jobs': [{'id': 1}]}),
+                 ('jobs', {'total_count': 1001, 'jobs': []})]
+        for endpoint, response in cases:
+            with self.subTest(endpoint=endpoint, response=response):
+                runs, plan = self.completed_plan()
+                api = FakeAPI(runs)
+                original = api.get_json
+                api.get_json = lambda path: deepcopy(response) if f'/{endpoint}?' in path else original(path)
+                self.run_cleanup(api, plan)
+                self.assertEqual(api.deleted, [])
+
+    def test_preserve_artifacts_rejects_shifted_or_duplicate_job_pagination(self):
+        for mutation in ('count', 'duplicate', 'first_page'):
+            with self.subTest(mutation=mutation):
+                api = FakeAPI([])
+                calls = []
+                jobs = [{'id': i, 'run_id': 100001, 'status': 'completed', 'conclusion': 'success'} for i in range(101)]
+                def get(path):
+                    if '/artifacts?' in path:
+                        return {'total_count': 0, 'artifacts': []}
+                    page = int(path.rsplit('=', 1)[1])
+                    calls.append(page)
+                    rows = deepcopy(jobs[(page-1)*100:page*100])
+                    count = len(jobs)
+                    if mutation == 'count' and page == 2:
+                        count += 1
+                    if mutation == 'duplicate' and page == 2:
+                        rows[0] = deepcopy(jobs[0])
+                    if mutation == 'first_page' and len(calls) == 3:
+                        rows.reverse()
+                    return {'total_count': count, 'jobs': rows}
+                api.get_json = get
+                self.assertTrue(cleanup.has_artifact_or_active_job(api, 100001))
+
+    def test_preserve_artifacts_protects_new_runs_and_explicit_dependencies(self):
+        runs, plan = self.completed_plan(304, protected_runs=[{'id': 100002, 'reasons': ['retained producer']}])
+        current = deepcopy(runs)
+        new = dict(current[0], id=999998, created_at='2027-01-01T00:00:00Z')
+        current.insert(0, new)
+        api = FakeAPI(current)
+        result = self.run_cleanup(api, plan)
+        self.assertEqual(api.deleted, [100001, 100003, 100004, 100005])
+        self.assertIn(new['id'], result['protected_run_ids'])
+        self.assertIn(100002, api.runs)
+        self.assertTrue(all(run['id'] in api.runs for run in current[:300]))
+
+    def test_preserve_artifacts_malformed_individual_run_is_kept(self):
+        for response in (None, [], {}, {'id': 100001},
+                         dict(records(1)[0], conclusion=[])):
+            with self.subTest(response=response):
+                runs, plan = self.completed_plan()
+                api = FakeAPI(runs)
+                original = api.get_json
+                api.get_json = lambda path: deepcopy(response) if path.endswith('/runs/100001') else original(path)
+                self.run_cleanup(api, plan)
+                self.assertEqual(api.deleted, [])
+
+    def test_preserve_artifacts_requires_opt_in_complete_snapshot_and_branch_lease(self):
+        runs, plan = self.completed_plan()
+        for changes in ({'preserve_artifacts': 'true'}, {'skipped_only': True}):
+            with self.subTest(changes=changes), self.assertRaises(cleanup.SafetyError):
+                cleanup.validate_plan(dict(plan, **changes))
+        for field in cleanup.RUN_IDENTITY_FIELDS:
+            incomplete = deepcopy(plan)
+            incomplete['snapshot_runs'][-1].pop(field)
+            with self.subTest(field=field), self.assertRaises(cleanup.SafetyError):
+                cleanup.validate_plan(incomplete)
+        api = FakeAPI(runs)
+        api.claude_sha = 'e'*40
+        with self.assertRaisesRegex(cleanup.SafetyError, 'Claude SHA changed'):
+            self.run_cleanup(api, plan)
+        self.assertEqual(api.deleted, [])
+
+    def test_preserve_artifacts_rechecks_artifacts_after_delete_quota_pause(self):
+        runs, plan = self.completed_plan()
+        backing = FakeAPI(runs)
+        delete_requests = []
+        class Server:
+            def open(inner, request, timeout):
+                path = request.full_url.removeprefix(cleanup.API_URL)
+                if request.method == 'DELETE':
+                    delete_requests.append(path)
+                    raise urllib.error.HTTPError(request.full_url, 429, 'test', {'Retry-After': '1'}, io.BytesIO(b''))
+                response = backing.get_json(path)
+                if '/artifacts?' in path and delete_requests:
+                    response = {'total_count': 1, 'artifacts': [{'id': 1, 'expired': True}]}
+                stream = io.BytesIO(json.dumps(response).encode())
+                stream.status, stream.headers = 200, {}
+                return stream
+        api = cleanup.GitHubAPI('unit-test-placeholder', opener=Server(), sleep=lambda _: None,
+                                progress=lambda *a, **k: None)
+        with self.assertRaisesRegex(cleanup.SafetyError, 'preservation evidence after the quota pause'):
+            self.run_cleanup(api, plan)
+        self.assertEqual(len(delete_requests), 1)
+        self.assertEqual(backing.deleted, [])
+
     def test_skipped_evidence_checks_pass_through_real_request_boundary(self):
         runs = records(301)
         for run in runs:

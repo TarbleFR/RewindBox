@@ -34,6 +34,10 @@ CHECK_REFS_EVERY = 50
 MAX_WAIT_SECONDS = 150 * 60
 MAX_RUNTIME_SECONDS = 170 * 60  # Leave ten minutes for the workflow's evidence upload.
 SHA_RE = re.compile(r"[0-9a-f]{40}\Z")
+RUN_IDENTITY_FIELDS = ('id', 'created_at', 'head_sha', 'path', 'status', 'conclusion',
+                       'run_attempt', 'updated_at')
+COMPLETED_CONCLUSIONS = {'action_required', 'cancelled', 'failure', 'neutral', 'skipped',
+                         'stale', 'startup_failure', 'success', 'timed_out'}
 
 
 class SafetyError(RuntimeError):
@@ -129,6 +133,17 @@ def validate_plan(plan: object, now: datetime | None = None) -> dict:
         ids.append(positive_id(item.get("id")))
     if len(ids) != len(set(ids)):
         raise SafetyError("Duplicate explicit protected run IDs")
+    if 'preserve_artifacts' in plan and type(plan['preserve_artifacts']) is not bool:
+        raise SafetyError('preserve_artifacts must be an explicit boolean')
+    if plan.get('preserve_artifacts') is True:
+        if plan.get('skipped_only') is True:
+            raise SafetyError('Choose preserve_artifacts or skipped_only, not both')
+        for run in runs:
+            if any(field not in run for field in RUN_IDENTITY_FIELDS):
+                raise SafetyError('Artifact-preserving snapshots require every run identity field')
+            if run['status'] == 'completed' and (not isinstance(run['conclusion'], str)
+                                                or run['conclusion'] not in COMPLETED_CONCLUSIONS):
+                raise SafetyError('Artifact-preserving snapshots require a known completed conclusion')
     if plan.get('skipped_only') is True:
         protected_ids = set(ids)
         if any(r.get('conclusion') != 'skipped' and r['id'] not in protected_ids for r in runs):
@@ -241,7 +256,7 @@ class GitHubAPI:
         allowed_get = (re.fullmatch(re.escape(PREFIX) + r"/actions/runs\?per_page=100&page=[1-9][0-9]*", path)
                        or re.fullmatch(re.escape(PREFIX) + r"/actions/runs/[1-9][0-9]*", path)
                        or re.fullmatch(re.escape(PREFIX) + r"/actions/runs/[1-9][0-9]*/artifacts\?per_page=100", path)
-                       or re.fullmatch(re.escape(PREFIX) + r"/actions/runs/[1-9][0-9]*/jobs\?filter=all&per_page=100", path)
+                       or re.fullmatch(re.escape(PREFIX) + r"/actions/runs/[1-9][0-9]*/jobs\?filter=all&per_page=100(?:&page=[1-9][0-9]*)?", path)
                        or path in (PREFIX + "/git/ref/heads/Claude", PREFIX + "/git/ref/heads/main"))
         allowed_delete = re.fullmatch(re.escape(PREFIX) + r"/actions/runs/[1-9][0-9]*", path)
         if not ((method == "GET" and allowed_get) or (method == "DELETE" and allowed_delete)):
@@ -380,6 +395,9 @@ def refresh_selection(plan: dict, current: list[dict], sticky: dict[int, set[str
         if prior is None:
             sticky.setdefault(rid, set()).add("not_in_reviewed_snapshot")
             continue
+        if plan.get('preserve_artifacts') is True and not same_completed_run(run, prior):
+            sticky.setdefault(rid, set()).add('changed_or_incomplete_since_snapshot')
+            continue
         if any(run[field] != prior[field] for field in ("created_at", "head_sha", "path")):
             raise SafetyError(f"Snapshot identity changed for run {rid}")
         if run["status"] != "completed":
@@ -409,6 +427,70 @@ def has_execution_or_artifact(api, run_id: int) -> bool:
         return True
     return any(job.get('status') != 'completed' or job.get('conclusion') != 'skipped'
                or job.get('steps') not in (None, []) for job in rows)
+
+
+def same_completed_run(live: object, snapshot: dict) -> bool:
+    """Exact immutable selection identity, including fields absent in older plans."""
+    try:
+        validate_run(live)
+    except (SafetyError, KeyError, TypeError, ValueError):
+        return False
+    return (live['status'] == 'completed'
+            and isinstance(live.get('conclusion'), str) and live['conclusion'] in COMPLETED_CONCLUSIONS
+            and all(field in live and field in snapshot and live[field] == snapshot[field]
+                    for field in RUN_IDENTITY_FIELDS))
+
+
+def has_artifact_or_active_job(api, run_id: int) -> bool:
+    """Only a proven empty artifact list and complete, completed job history qualify.
+
+    filter=all includes earlier attempts. Any artifact metadata, including expired
+    artifacts, is preserved. Unknown or moving pagination is preservation evidence.
+    HTTP/JSON failures stop execution through the existing API boundary.
+    """
+    artifacts = api.get_json(PREFIX + f'/actions/runs/{run_id}/artifacts?per_page=100')
+    if (not isinstance(artifacts, dict) or type(artifacts.get('total_count')) is not int
+            or artifacts['total_count'] != 0 or artifacts.get('artifacts') != []):
+        return True
+    path = PREFIX + f'/actions/runs/{run_id}/jobs?filter=all&per_page=100'
+    first = api.get_json(path + '&page=1')
+    if not isinstance(first, dict) or type(first.get('total_count')) is not int:
+        return True
+    total = first['total_count']
+    # Bound unusual histories; preserving uncertainty is safer than unbounded reads.
+    if not 0 <= total <= 1000:
+        return True
+    seen = set()
+    for page in range(1, max(1, (total + 99) // 100) + 1):
+        response = first if page == 1 else api.get_json(path + f'&page={page}')
+        if not isinstance(response, dict) or type(response.get('total_count')) is not int:
+            return True
+        rows = response.get('jobs')
+        if (response['total_count'] != total or not isinstance(rows, list)
+                or len(rows) != min(100, max(0, total - len(seen)))):
+            return True
+        for job in rows:
+            if (not isinstance(job, dict) or type(job.get('id')) is not int or job['id'] <= 0
+                    or job['id'] in seen or type(job.get('run_id')) is not int or job['run_id'] != run_id
+                    or job.get('status') != 'completed' or not isinstance(job.get('conclusion'), str)
+                    or job['conclusion'] not in COMPLETED_CONCLUSIONS):
+                return True
+            seen.add(job['id'])
+    if total > 100:
+        check = api.get_json(path + '&page=1')
+        if check != first:
+            return True
+    return len(seen) != total
+
+
+def artifact_preserving_target(api, snapshot: dict) -> bool:
+    """Recheck individual identity around evidence reads, including after quota waits."""
+    path = PREFIX + f"/actions/runs/{snapshot['id']}"
+    if not same_completed_run(api.get_json(path), snapshot):
+        return False
+    if has_artifact_or_active_job(api, snapshot['id']):
+        return False
+    return same_completed_run(api.get_json(path), snapshot)
 
 
 class Journal:
@@ -499,6 +581,11 @@ def run_cleanup(api, plan: dict, journal: Journal, *, execute: bool = False,
         journal.event("quota_resume_revalidated", total=len(fresh), candidate_count=len(eligible))
         if run_id not in {run["id"] for run in eligible}:
             raise SafetyError(f"Run {run_id} is no longer eligible after the quota pause")
+        if plan.get('preserve_artifacts') is True:
+            snapshot = next(run for run in plan['snapshot_runs'] if run['id'] == run_id)
+            if not artifact_preserving_target(api, snapshot):
+                sticky.setdefault(run_id, set()).add('evidence_or_change_after_quota_pause')
+                raise SafetyError(f'Run {run_id} has changed or has preservation evidence after the quota pause')
 
     if isinstance(api, GitHubAPI):
         api.on_delete_resume = revalidate_after_quota_pause
@@ -530,6 +617,12 @@ def run_cleanup(api, plan: dict, journal: Journal, *, execute: bool = False,
                 if has_execution_or_artifact(api, rid):
                     sticky.setdefault(rid, set()).add('execution_or_artifact_evidence')
                     journal.event('preserved_evidence', run_id=rid)
+                    continue
+            elif plan.get('preserve_artifacts') is True:
+                snapshot = next(item for item in plan['snapshot_runs'] if item['id'] == rid)
+                if not artifact_preserving_target(api, snapshot):
+                    sticky.setdefault(rid, set()).add('artifact_active_job_or_changed_run')
+                    journal.event('preserved_evidence_or_changed_run', run_id=rid)
                     continue
             journal.state["delete_attempts"] += 1
             attempted.add(rid)

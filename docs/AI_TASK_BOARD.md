@@ -489,6 +489,14 @@ recipient checks for speed. [Evidence](evidence/private-ipa-protection-2026-11-1
 
 ### Actions history cleanup — Codex
 
+**New maintainer request (13 Nov):** broadly triage the remaining1,607 Actions runs while Core745 builds.
+A reviewed fixed plan selects360 unreferenced completed runs without artifacts (177 failed,101 successful,
+42 cancelled,40 skipped). Protect newest300, all666 artifact-bearing runs,720 source/evidence references,
+main/Backup runs and latest success/failure per present workflow. The nine prior403 orphans stay excluded.
+New explicit artifact-preserving mode passed37 safety tests and independent review.
+[Plan and limits](actions-history-triage-2026-11-13.md). Not yet counted as deleted; record the actual receipt.
+Do not advance Claude during this strict-lease cleanup; Core745 runs on its existing immutable source.
+
 The four explicitly obsolete 606/608/609/610 launchers are confirmed
 disabled_manually; source YAML remains for historical recipe verification.
 History job 131586909223 (run43334427815) completed: 532 reviewed skipped runs
