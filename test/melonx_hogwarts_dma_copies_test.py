@@ -210,6 +210,8 @@ LOT_FILES = {
     'adapt_collection_class': [],
     # Core 745: the heap's free space given back in a presentation gap (no file of this lot).
     'adapt_stall_compaction': [],
+    # Core 747: the renderer's work and invoke events spin only as long as it pays (ThreadedRenderer.cs in this composition).
+    'adapt_wait_spin_bound': ['src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs'],
 }
 
 checks = 0
