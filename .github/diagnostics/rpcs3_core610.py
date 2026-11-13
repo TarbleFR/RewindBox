@@ -354,7 +354,8 @@ def compiler():
 
 def apple_host_test_plan():
     apple = SPEC["apple_host_tests"]
-    return {"baseline": apple["baseline"], "rerun": {item["name"]: item["reason"] for item in apple["rerun"]},
+    return {"baseline": apple["baseline"], "deferred": {item["name"]: item["reason"] for item in apple["rerun"]},
+            "validation_mode": "build-only", "full_regression_suite_executed": False,
             "reused_from_reference": {"build": REFERENCE_BUILD, "run": REFERENCE["run"], "job": REFERENCE["apple_host_test_job"],
                                       "artifact": REFERENCE["apple_host_tests_artifact"],
                                       "commands": sorted(name for name, item in apple["reused"]["reused_commands"].items()
@@ -403,7 +404,7 @@ def prepare(source, dependency_run, dependency_source):
              "core_compiler": core_compiler, "delivered_core_compiler": original["core_compiler"],
              "core_compiler_equals_delivered": core_compiler == original["core_compiler"],
              "physical_device_tested": False, "gameplay_measured": False, "public_release": False,
-             "new_ipa": False, "host_application_built": False}
+             "new_ipa": False, "host_application_built": False, "validation_mode": "build-only"}
     save(PROOF, proof)
     verify_package(PROOF)
     print(f"PASS: Core {BUILD} source closure (Core {REFERENCE_BUILD} + {SPEC['delta']['record']}), "
@@ -420,6 +421,8 @@ def verify_package(path):
     require(proof["native_modes_executed_in_core_job"] == 0
             and len(proof["reused_native_modes"]) == SPEC["native_modes"]["reused_count"],
             "native mode accounting changed")
+    require(proof['validation_mode'] == 'build-only' and proof['apple_host_tests'] == apple_host_test_plan(),
+            'Core compilation was mislabeled as a regression-suite run')
     dep = proof["dependency"]
     require(set(dep["metadata_paths"]) == set(dep["metadata_sha256"]), "dependency metadata scope changed")
     for name, metadata in dep["metadata_paths"].items():
@@ -455,7 +458,7 @@ def verify_reuse(path, source, *, post_build=False):
         proof["generated_build_inputs"] = generated
         save(path, proof)
     print(f"PASS: exact canonical Core {BUILD} source; {len(proof['reused_native_modes'])} delivered modes reused, "
-          "affected harnesses on Apple")
+          "affected harnesses not executed in this compilation")
     return proof
 
 
@@ -506,7 +509,7 @@ def identity(directory):
             "delivered_reference": {"build": REFERENCE_BUILD, "source": DELIVERED_SOURCE,
                                     "identity_sha256": DELIVERED_IDENTITY_SHA, "proof_sha256": DELIVERED_PROOF_SHA},
             "reused_native_modes": proof["reused_native_modes"], "affected_native_modes": proof["affected_native_modes"],
-            "apple_host_tests": proof["apple_host_tests"],
+            "apple_host_tests": proof["apple_host_tests"], "validation_mode": proof['validation_mode'],
             "native_modes_executed_in_core_job": 0, "core_compiler": proof["core_compiler"],
             "delivered_core_compiler": proof["delivered_core_compiler"],
             "core_compiler_equals_delivered": proof["core_compiler_equals_delivered"],

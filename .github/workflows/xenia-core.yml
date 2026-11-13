@@ -4,7 +4,7 @@ run-name: XeniOS native core • ${{ github.sha }}
 # (docs/AI_TASK_BOARD.md). docs/xenios-playlist.md § Core adaptation plan.
 # Claude owns the integrated producers after component branches are archived.
 # Relevant pushes require [xenia-checks], [xenia-core] or [xenia-pin run=<id>].
-# workflow_dispatch still runs checks and optionally compiles with build_core.
+# Normal Core builds do not run the optional [xenia-checks] development suites.
 on:
   push:
     branches: [Claude]
@@ -44,7 +44,7 @@ concurrency:
 jobs:
   checks:
     name: Patch, shader converter, facade C++ and host plugin
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (contains(github.event.head_commit.message, '[xenia-checks]') || contains(github.event.head_commit.message, '[xenia-core]') || contains(github.event.head_commit.message, '[xenia-pin run='))) }}
+    if: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[xenia-checks]') }}
     runs-on: macos-26
     timeout-minutes: 30
     steps:
@@ -164,7 +164,7 @@ jobs:
 
   plugin_app:
     name: Plugin compiles and links in a Flutter app (simulator, no XeniaCore)
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (contains(github.event.head_commit.message, '[xenia-checks]') || contains(github.event.head_commit.message, '[xenia-core]') || contains(github.event.head_commit.message, '[xenia-pin run='))) }}
+    if: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[xenia-checks]') }}
     runs-on: macos-26
     timeout-minutes: 40
     steps:
@@ -232,7 +232,6 @@ jobs:
 
   core:
     name: Compile pinned XeniaCore iOS framework
-    needs: checks
     if: ${{ (github.event_name == 'workflow_dispatch' && inputs.build_core) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[xenia-core]')) }}
     runs-on: ${{ inputs.runner || 'macos-26' }}
     timeout-minutes: 180

@@ -69,3 +69,18 @@ sample selected the asserted [10, 10] spin budget. The ring completed without a
 lost wakeup. This is not a passed benchmark or proof of iPhone behavior. Its
 engine code and assertions are preserved; changing the compilation path does
 not repair or erase this result.
+
+RPCS3 now runs only its Core construction job: canonical-source and dependency
+authentication, the frozen compiler recipe/cache, actual target/link/ABI checks
+and protected artifacts remain. The separate Apple harness job and the two
+test-of-validator invocations are outside the build route. New producer metadata
+declares `build-only` and deferred harnesses. The delivery verifier accepts that
+scope only when both the pin and actual producer identity say so; old tested pins
+still require their complete original evidence. No engine implementation changes.
+
+XeniOS Core builds no longer depend on the broad checks job or launch the
+throwaway Flutter app. Those developer suites require the explicit existing
+`[xenia-checks]` marker. The Core still prepares the pinned sources, validates
+Apple's shader-converter signature, builds and verifies its framework, and uses
+the compiler cache. The existing RPCS3 934 and XeniOS binaries remain suitable
+for the next IPA when their actual compiled product inputs are unchanged.

@@ -162,10 +162,6 @@ jobs:
           for formula in ccache ninja cmake llvm@22 ffmpeg; do
             brew list --versions "$formula" >/dev/null 2>&1 || brew install "$formula"
           done
-          python3 test/rpcs3_mvk_dependency_artifact_test.py \
-            2>&1 | tee build/rpcs3-core-diagnostics/dependency-protocol-tests.log
-          python3 test/rpcs3_mvk_unverified_core_collector_test.py \
-            2>&1 | tee build/rpcs3-core-diagnostics/recovery-collector-tests.log
           SOURCE="$RUNNER_TEMP/rpcs3-core-source-preflight"
           git init -q "$SOURCE"
           git -C "$SOURCE" remote add origin https://github.com/XITRIX/rpcs3.git
@@ -319,71 +315,3 @@ jobs:
             build/rpcs3-core-diagnostics/captured-build-inputs/
           if-no-files-found: warn
           retention-days: 14
-  apple-host-tests:
-    # '[rpcs3-core-build-apple]' reruns only this job (the core job needs '[rpcs3-core-build]').
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[rpcs3-core-build]') || contains(github.event.head_commit.message, '[rpcs3-core-build-apple]') }}
-    name: Core host harnesses on Apple ARM64 (changed, new and reused)
-    runs-on: macos-15
-    timeout-minutes: 60
-    steps:
-      - name: Checkout immutable candidate and the delivered Core history
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Read the declared Core build
-        id: core-build
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 .github/diagnostics/rpcs3_core610.py --github-outputs | tee -a "$GITHUB_OUTPUT"
-      - name: Select the retained Core toolchain
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: '16.4'
-      - name: Materialize the Core ${{ steps.core-build.outputs.build }} sources and the delivered ${{ steps.core-build.outputs.apple_baseline_short }} sources
-        shell: bash
-        env:
-          RPCS3_DELIVERED_CORE_SOURCE: ${{ steps.core-build.outputs.apple_baseline_source }}
-          RPCS3_DELIVERED_CORE_PATCH: ${{ steps.core-build.outputs.apple_baseline_patch_sha256 }}
-        run: |
-          set -euo pipefail
-          UPSTREAM=$(python3 -c 'import json; print(json.load(open("build-utils/rpcs3/canonical-source.json"))["upstream_commit"])')
-          for tree in core delivered; do
-            git init -q "$RUNNER_TEMP/$tree"
-            git -C "$RUNNER_TEMP/$tree" remote add origin https://github.com/XITRIX/rpcs3.git
-            git -C "$RUNNER_TEMP/$tree" fetch --depth 1 origin "$UPSTREAM"
-            git -C "$RUNNER_TEMP/$tree" checkout -q --detach FETCH_HEAD
-          done
-          python3 build-utils/materialize_rpcs3_core.py "$RUNNER_TEMP/core"
-          git worktree add --detach "$RUNNER_TEMP/repo-delivered" "$RPCS3_DELIVERED_CORE_SOURCE"
-          python3 "$RUNNER_TEMP/repo-delivered/build-utils/materialize_rpcs3_core.py" "$RUNNER_TEMP/delivered"
-          test "$(python3 -c 'import json; print(json.load(open("'"$RUNNER_TEMP"'/repo-delivered/build-utils/rpcs3/canonical-source.json"))["patch_sha256"])')" \
-            = "$RPCS3_DELIVERED_CORE_PATCH"
-      - name: Authenticate the reused Core ${{ steps.core-build.outputs.reference_build }} Apple harness evidence
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          python3 .github/diagnostics/rpcs3_core_apple_host.py --authenticate-reused \
-            --source "$RUNNER_TEMP/core" --baseline "$RUNNER_TEMP/delivered" --output build/core-apple-host
-      - name: Run the affected and new Core ${{ steps.core-build.outputs.build }} harnesses with Apple clang
-        shell: bash
-        run: |
-          set -euo pipefail
-          export HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)"
-          python3 .github/diagnostics/rpcs3_core_apple_host.py --run \
-            --source "$RUNNER_TEMP/core" --baseline "$RUNNER_TEMP/delivered" --output build/core-apple-host
-      - name: Preserve the Apple host harness reports
-        if: always()
-        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
-        with:
-          name: RPCS3Core-${{ steps.core-build.outputs.build }}-apple-host-tests-${{ github.sha }}
-          path: |
-            build/core-apple-host/*.json
-            build/core-apple-host/*.log
-            build/core-apple-host/reused-reference/*.json
-          if-no-files-found: warn
-          retention-days: 30

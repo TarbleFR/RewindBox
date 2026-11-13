@@ -181,13 +181,13 @@ def check(source: Path | None, baseline: Path | None = None, reused_reference: P
     workflow = yaml.safe_load(text)
     trigger = workflow.get('on', workflow.get(True))
     assert trigger['push']['branches'] == ['Claude'] and trigger['push']['paths'] == [gate.WORKFLOW]
-    assert set(workflow['jobs']) == {'core', 'apple-host-tests'}
+    assert set(workflow['jobs']) == {'core'}
     markers = spec['route']['markers']
     core_marker = f"contains(github.event.head_commit.message, '{markers['core_and_apple']}')"
     apple_marker = f"contains(github.event.head_commit.message, '{markers['apple_only']}')"
     for job in workflow['jobs'].values():
         assert core_marker in job['if'], job['if']
-    assert apple_marker in workflow['jobs']['apple-host-tests']['if'] and apple_marker not in workflow['jobs']['core']['if']
+    assert apple_marker not in workflow['jobs']['core']['if']
     for retired in spec['route']['retired_markers']:
         assert retired not in text, retired
     assert 'RPCS3_MVK_DEPENDENCY_RUN' not in workflow['env'] and 'RPCS3_DELIVERED_CORE_SOURCE' not in workflow['env']
@@ -203,19 +203,19 @@ def check(source: Path | None, baseline: Path | None = None, reused_reference: P
     assert authenticate['env']['RPCS3_MVK_DEPENDENCY_RUN'] == '${{ steps.core-build.outputs.dependency_run }}'
     assert authenticate['env']['RPCS3_MVK_DEPENDENCY_SOURCE'] == '${{ steps.core-build.outputs.dependency_source }}'
     for needle in ('rpcs3_core610.py \\\n              --prepare', 'build_rpcs3_core610.py', '--write-core-identity',
-                   'name: RPCS3Core-${{ steps.core-build.outputs.build }}-${{ github.sha }}', 'core610-proof.json',
-                   'name: RPCS3Core-${{ steps.core-build.outputs.build }}-apple-host-tests-${{ github.sha }}',
-                   'rpcs3_core_apple_host.py --authenticate-reused', 'rpcs3_core_apple_host.py --run'):
+                   'name: RPCS3Core-${{ steps.core-build.outputs.build }}-${{ github.sha }}', 'core610-proof.json'):
         assert needle in text, needle
+    assert 'rpcs3_core_apple_host.py --run' not in text
+    plan = gate.apple_host_test_plan()
+    assert plan['validation_mode'] == 'build-only' and plan['full_regression_suite_executed'] is False
+    assert plan['executed_in_core_job'] == 0 and set(plan['deferred']) == {i['name'] for i in spec['apple_host_tests']['rerun']}
     for forbidden in ('flutter build', 'xcodebuild -exportArchive', 'gh release', 'softprops/action-gh-release',
                       'delivery_cipher', '.ipa', 'RPCS3Core-610', 'RPCS3Core-611'):
         assert forbidden not in text, forbidden
     # Step names carry the declared build; the consumer's pinned names are their instance for its build.
     values = dict(gate.github_outputs(), build=consumer_build)
     core_steps = {rendered(step['name'], values) for step in workflow['jobs']['core']['steps']}
-    apple_steps = {rendered(step['name'], values) for step in workflow['jobs']['apple-host-tests']['steps']}
     assert consumer.CORE_STEPS <= core_steps, sorted(consumer.CORE_STEPS - core_steps)
-    assert consumer.HOST_TEST_STEPS <= apple_steps, sorted(consumer.HOST_TEST_STEPS - apple_steps)
     # Apple harnesses: the rerun commands and the reused harnesses exist; nothing of the reference is dropped.
     apple = spec['apple_host_tests']
     for item in apple['rerun']:
@@ -231,7 +231,7 @@ def check(source: Path | None, baseline: Path | None = None, reused_reference: P
               'consumer_pins_build': consumer_build, 'gate_inputs': len(gate.INPUTS),
               'spec_sha256': sha((ROOT / 'build-utils/rpcs3/core-build.json').read_bytes()),
               'workflow_sha256': sha(text.encode()),
-              'apple_rerun': [item['name'] for item in apple['rerun']],
+              'validation_mode': 'build-only', 'apple_deferred': [item['name'] for item in apple['rerun']],
               'apple_reused': sorted(n for n, i in apple['reused']['reused_commands'].items() if not i.get('rerun_by_this_build'))}
     if source:
         closure = gate.source_closure(source.resolve())

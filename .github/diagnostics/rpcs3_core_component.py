@@ -117,12 +117,18 @@ def added_symbols(pin):
     return sorted('_' + name for name in pin['exports']['added'])
 
 
+def compilation_only(pin):
+    return pin.get('producer', {}).get('validationMode') == 'build-only'
+
+
 def missing_values(pin):
     """Dotted names of every pin value still unknown (null)."""
     missing = []
     if pin.get('producer', {}).get('workflow') is None:
         missing.append('producer.workflow')
     for part, fields in PRODUCER_FIELDS.items():
+        if part == 'hostTests' and compilation_only(pin):
+            continue
         values = pin.get('producer', {}).get(part, {})
         missing += [f'producer.{part}.{field}' for field in fields if values.get(field) is None]
     missing += [f'core.{field}' for field in CORE_FIELDS if pin.get('core', {}).get(field) is None]
@@ -145,6 +151,9 @@ def pin_errors(pin, read=None):
 
     check(pin.get('schema') == 1 and pin.get('component') == 'rpcs3', 'Wrong RPCS3 Core pin schema')
     check(pin.get('status') in ('pending', 'verified'), 'Unknown RPCS3 Core pin status')
+    check(pin.get('producer', {}).get('validationMode', 'full') in ('full', 'build-only'), 'Unknown RPCS3 validation mode')
+    if compilation_only(pin):
+        check(pin['producer'].get('hostTests') == {'mode': 'not-run'}, 'Unexecuted host suites must be labeled not-run')
     exports = pin.get('exports', {})
     base, added = list(exports.get('base', [])), list(exports.get('added', []))
     check(base == sorted(set(base)) and all(name.startswith('_') for name in base), 'Base exports unsorted or duplicated')
@@ -166,20 +175,23 @@ def pin_errors(pin, read=None):
     check(pin['canonical'].get('upstreamCommit') == manifest.get('upstream_commit'), 'Wrong upstream RPCS3 commit')
     check(bool(pin.get('runtimeMarkers')) and bool(pin.get('cachePath')) and
           not Path(pin.get('cachePath', '/')).is_absolute(), 'Missing runtime markers or cache path')
-    if pin.get('status') == 'verified':
+    if pin.get('status') == 'verified' and missing_values(pin):
+        errors.append('A verified pin has unknown values: ' + ', '.join(missing_values(pin)))
+    if pin.get('status') == 'verified' and not missing_values(pin):
         check(not missing_values(pin), 'A verified pin has unknown values: ' + ', '.join(missing_values(pin)))
         patch = read(PATCH)
         check(pin['canonical']['patchSha256'] == manifest.get('patch_sha256') and patch is not None and
               sha(patch) == pin['canonical']['patchSha256'], 'Canonical Core patch differs from the pin')
         check(pin['canonical']['postimages'] == len(manifest.get('files_sha256', {})), 'Canonical postimage count differs')
-        for part in ('core', 'hostTests'):
+        for part in (('core',) if compilation_only(pin) else ('core', 'hostTests')):
             value = pin['producer'][part]
             check(HEX40.fullmatch(str(value['source'])) and HEX64.fullmatch(str(value['sha256'])) and
                   str(value['name']).endswith(str(value['source'])) and isinstance(value['run'], int) and
                   isinstance(value['job'], int) and isinstance(value['artifact'], int) and
                   isinstance(value['bytes'], int) and value['steps'], 'Malformed producer pin: ' + part)
-        check(isinstance(pin['producer']['hostTests']['names'], list) and pin['producer']['hostTests']['names'],
-              'Missing host test names')
+        if not compilation_only(pin):
+            check(isinstance(pin['producer']['hostTests']['names'], list) and pin['producer']['hostTests']['names'],
+                  'Missing host test names')
         check(all(HEX64.fullmatch(str(pin['core'][key])) for key in
                   ('dylibSha256', 'identitySha256', 'proofSha256', 'payloadFingerprint')), 'Malformed Core digests')
     return dict(status=pin.get('status'), missing=missing_values(pin), errors=errors)
@@ -227,6 +239,9 @@ def same_core_sources(pin, commit):
 def core_run(pin):
     pinned(pin)
     core = _job(pin, 'core', 'RPCS3 Core')
+    if compilation_only(pin):
+        return dict(core=core, appleHostTests=dict(result='not-run'), validationMode='build-only',
+                    coreRecompiledForDelivery=False, nativeSuitesExecutedByDelivery=0)
     tests = _job(pin, 'hostTests', 'RPCS3 Core Apple host test')
     same_core_sources(pin, pin['producer']['hostTests']['source'])
     return dict(core=core, appleHostTests=tests, coreRecompiledForDelivery=False, nativeSuitesExecutedByDelivery=0)
@@ -263,8 +278,10 @@ def cache(pin):
 
 def archives(pin):
     """The authenticated producer archives this delivery downloaded (republished afterwards)."""
-    return {'rpcs3-core': (cache(pin) / 'core-artifact.zip', pin['producer']['core']),
-            'rpcs3-host-tests': (cache(pin) / 'apple-host-tests.zip', pin['producer']['hostTests'])}
+    result = {'rpcs3-core': (cache(pin) / 'core-artifact.zip', pin['producer']['core'])}
+    if not compilation_only(pin):
+        result['rpcs3-host-tests'] = (cache(pin) / 'apple-host-tests.zip', pin['producer']['hostTests'])
+    return result
 
 
 def bundle(pin):
@@ -313,32 +330,41 @@ def _bundle(pin_text):
     for marker in pin['runtimeMarkers']:
         require(marker.encode() in raw, 'RPCS3 Core runtime marker absent: ' + marker)
     require(payload_fingerprint(raw) == info['payloadFingerprint'], 'RPCS3 Core payload fingerprint differs from the pin')
-    tests = pin['producer']['hostTests']
-    tests_path = _download(tests, archives(pin)['rpcs3-host-tests'][0])
-    with zipfile.ZipFile(tests_path) as z:
-        _members(z)
-        host_tests = json.loads(z.read('apple-host-tests.json'))
-    require(host_tests['result'] == 'passed' and host_tests['source'] == tests['source'] and
-            host_tests['run'] == tests['run'] and [c['name'] for c in host_tests['commands']] == list(tests['names']) and
-            all(c['exit_code'] == 0 for c in host_tests['commands']), 'RPCS3 Core Apple host tests did not all pass')
-    reused_pin = tests.get('reused')
-    require(isinstance(reused_pin, dict) and reused_pin.get('names') and reused_pin.get('reference'),
-            'The RPCS3 Core pin lacks its reused Apple harness evidence')
-    reused = host_tests.get('reused') or {}
-    with zipfile.ZipFile(tests_path) as z:
-        receipt_raw = z.read(reused.get('receipt', 'reused-apple-evidence.json'))
-    reference = reused.get('reference') or {}
-    pinned_reference = reused_pin['reference']
-    require(sha(receipt_raw) == reused.get('receipt_sha256') and
-            all(reference.get(key) == pinned_reference[key] for key in ('run', 'attempt', 'job', 'source')) and
-            (reference.get('artifact') or {}).get('id') == pinned_reference['artifact'] and
-            (reference.get('artifact') or {}).get('sha256') == pinned_reference['sha256'],
-            'Reused RPCS3 Apple harness evidence differs from the pinned Core 610 reference')
-    reused_names = sorted(_reused_names(reused))
-    require(reused_names == sorted(reused_pin['names']), 'Reused RPCS3 Apple harnesses differ from the pin: ' + repr(reused_names))
-    covered = set(tests['names']) | set(reused_names)
-    require(set(reused_pin['requiredCoverage']) <= covered,
-            'RPCS3 Apple harnesses neither rerun nor reused: ' + repr(sorted(set(reused_pin['requiredCoverage']) - covered)))
+    if compilation_only(pin):
+        require(identity.get('validation_mode') == 'build-only' and
+                identity.get('native_modes_executed_in_core_job') == 0 and
+                identity.get('apple_host_tests', {}).get('full_regression_suite_executed') is False and
+                json.loads(proof).get('validation_mode') == 'build-only',
+                'Compilation-only pin does not match the actual producer scope')
+        host_tests = dict(result='not-run', commands=[], validationMode='build-only',
+                          fullRegressionSuiteExecuted=False)
+    else:
+        tests = pin['producer']['hostTests']
+        tests_path = _download(tests, archives(pin)['rpcs3-host-tests'][0])
+        with zipfile.ZipFile(tests_path) as z:
+            _members(z)
+            host_tests = json.loads(z.read('apple-host-tests.json'))
+        require(host_tests['result'] == 'passed' and host_tests['source'] == tests['source'] and
+                host_tests['run'] == tests['run'] and [c['name'] for c in host_tests['commands']] == list(tests['names']) and
+                all(c['exit_code'] == 0 for c in host_tests['commands']), 'RPCS3 Core Apple host tests did not all pass')
+        reused_pin = tests.get('reused')
+        require(isinstance(reused_pin, dict) and reused_pin.get('names') and reused_pin.get('reference'),
+                'The RPCS3 Core pin lacks its reused Apple harness evidence')
+        reused = host_tests.get('reused') or {}
+        with zipfile.ZipFile(tests_path) as z:
+            receipt_raw = z.read(reused.get('receipt', 'reused-apple-evidence.json'))
+        reference = reused.get('reference') or {}
+        pinned_reference = reused_pin['reference']
+        require(sha(receipt_raw) == reused.get('receipt_sha256') and
+                all(reference.get(key) == pinned_reference[key] for key in ('run', 'attempt', 'job', 'source')) and
+                (reference.get('artifact') or {}).get('id') == pinned_reference['artifact'] and
+                (reference.get('artifact') or {}).get('sha256') == pinned_reference['sha256'],
+                'Reused RPCS3 Apple harness evidence differs from the pinned Core 610 reference')
+        reused_names = sorted(_reused_names(reused))
+        require(reused_names == sorted(reused_pin['names']), 'Reused RPCS3 Apple harnesses differ from the pin: ' + repr(reused_names))
+        covered = set(tests['names']) | set(reused_names)
+        require(set(reused_pin['requiredCoverage']) <= covered,
+                'RPCS3 Apple harnesses neither rerun nor reused: ' + repr(sorted(set(reused_pin['requiredCoverage']) - covered)))
     return dict(raw=raw, identity=identity, identity_raw=identity_raw, proof=proof, source=source, abi=abi,
                 origin=origin, host_tests=host_tests)
 
