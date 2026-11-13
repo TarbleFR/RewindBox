@@ -24,11 +24,11 @@ Aller jusqu’au résultat demandé, sans élargir la mission.
 
 - Utiliser la [recette standard](docs/standard-delivery-recipe.md) et le manifeste courant ; aucun workflow copié par build.
 - Vérifier source et runs existants ; suivre la compilation correspondante sans doublon.
-- Recompiler si sources, dépendances, outils ou configuration changent ; authentifier les entrées de tout composant réutilisé.
+- Recompiler uniquement si sources, dépendances, outils ou configuration changent ; réutiliser les autres moteurs avec leurs empreintes vérifiées. MeloNX : `build-smoke` ; IPA : groupes Flutter/natifs `not-run`.
 - Conserver les contrôles de configuration, outils, ABI, signatures et empreintes.
 - Documentation seule : `[skip ci]`, sans compilation.
 - Garder les IPA de test privées, avec transport chiffré et protections existantes.
-- Vérifier l’IPA finale avant livraison privée ; ne jamais publier une IPA de test.
+- Vérifier l’IPA finale avant livraison privée, puis la remettre aussitôt à l’utilisateur ; analyses et optimisations ensuite. Ne jamais publier une IPA de test.
 - Aucun secret, clé privée, journal privé brut ni artefact IPA de test en clair dans GitHub.
 
 ## 4. Publier et sauvegarder
