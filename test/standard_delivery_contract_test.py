@@ -425,6 +425,11 @@ class Components(unittest.TestCase):
         source = 'a' * 40
         pin['status'] = 'verified'
         pin['producer']['workflow'] = '.github/workflows/rpcs3-core611.yml'
+        # The synthetic pin is a complete full-mode pin whatever the real one is: a compilation-only pin (Core 936)
+        # labels its host suites {'mode': 'not-run'} and has no host test producer to fill in.
+        pin['producer']['validationMode'] = 'full'
+        if pin['producer'].get('hostTests') == {'mode': 'not-run'}:
+            pin['producer']['hostTests'] = {}
         for part in ('core', 'hostTests'):
             pin['producer'][part].update(jobName=part, steps=['step'], source=source, run=1, attempt=1, job=2,
                                          artifact=3, name='RPCS3Core-611-' + source, bytes=10, sha256='b' * 64,
