@@ -591,9 +591,10 @@ exit(0)
         wait0, wait1 = row('#1.0', 'Stall_Waiter'), row('#1.1', 'Stall_Waiter')
         check(re.search(r' Stall_Spinner R s0 p\d+/\d+ c[\d.]+ pc=\S+\+0x[0-9a-f]+ lr=', spin0), spin0)
         # The spinner ran between the two records and the waiter did not. The spinner's CPU time over the ~1 s between
-        # them depends on the shared runner's load (64.3 ms in delivery run 43312487102 attempt 4, where the same
-        # sources had passed in attempt 1), so no fixed 200 ms floor is asked: the spinner is above the waiter's
-        # ceiling (20 ms) and above the waiter's own measured time, which stays under that ceiling.
+        # them depends on the shared runner's load (64.3 ms in delivery run 43312487102 attempt 4, the same sources having
+        # passed in attempt 1), so no fixed 200 ms floor is asked: the spinner is at or above the waiter's ceiling (20 ms)
+        # and above the waiter's own measured time, which stays under that ceiling (main's 31fd341d, which main reverted in
+        # 7dea157f as MeloNX files are this team's; taken here by the file's owner).
         spin_cpu = float(re.search(r' c\+([\d.]+) ', spin1).group(1))
         wait_cpu = float(re.search(r' c\+([\d.]+) ', wait1).group(1))
         check(spin_cpu >= 20 and spin_cpu > wait_cpu, 'the spinner ran between the two records: ' + spin1)

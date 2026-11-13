@@ -344,6 +344,9 @@ without compiling/pinning it. The four later macOS test fixes through `d17a29f2`
 by main in `30ee5beb`; executed fixture run `43331900586` is green. Full
 preparation gates/composition are still required before freezing/pinning.
 [Detailed handoff and device acceptance](evidence/melonx-lot10/handoff.md).
+**Performance journal test (owner, d5c88541):** the stall spinner is checked against the waiter (at least the
+waiter's 20 ms ceiling and above its measured time), not a fixed 200 ms floor that failed delivery run 43312487102
+attempt 4; melonx-host 43332392305 passed on macOS. Merged for IPA 733.
 **Device baseline:** IPA729 Hogwarts 17.7 presented FPS, p50/p95/p99 50/117/200 ms,
 footprint up to 4,882 MiB. No post-correction iPhone gain yet.
 **Native heap:** original owner has named the large MoltenVK stacks (SPIR-V copies,
