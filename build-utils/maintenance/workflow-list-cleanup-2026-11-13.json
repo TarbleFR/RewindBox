@@ -1,0 +1,826 @@
+{
+  "repository": "TarbleFR/RewindBox",
+  "source": "1d9d879881e0d767da7974ccb42dc6ae9dc69d59",
+  "operation": "disable only; preserve source, runs, logs and artifacts",
+  "selected": [
+    {
+      "id": 402797963,
+      "path": ".github/workflows/achievement-translation-ipa.yml",
+      "name": "RewindBox private IPA 605 - achievement translation",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA/transfer launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 391637257,
+      "path": ".github/workflows/actions-history-cleanup.yml",
+      "name": "Actions history cleanup (old skipped runs only; preserve latest 300)",
+      "state": "active",
+      "reason": "Historical maintenance launcher removed from current Claude"
+    },
+    {
+      "id": 395595382,
+      "path": ".github/workflows/audit-claude-main-merge.yml",
+      "name": "Audit Claude-main merge for fix 0.0.9",
+      "state": "active",
+      "reason": "One-off task for an old release already superseded"
+    },
+    {
+      "id": 394603981,
+      "path": ".github/workflows/delivery517-transfer.yml",
+      "name": "Transfer the verified private Build 517 in bounded pieces",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA/transfer launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 396385798,
+      "path": ".github/workflows/liquid-glass-ui-delivery.yml",
+      "name": "RewindBox private IPA 548 — Liquid Glass interface on the complete Claude host (546 host, RPCS3 546 Core, MeloNX close teardown)",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA/transfer launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 394240471,
+      "path": ".github/workflows/melonx-delivery514-recover.yml",
+      "name": "Recover the exact verified MeloNX Build 514 delivery",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA/transfer launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 399290820,
+      "path": ".github/workflows/melonx-entry582-delivery.yml",
+      "name": "RewindBox private IPA 582 — MeloNX engine e55ca25 (LightningJit units end where another translation starts, guest code read a page at a time) and the Switch discovery fix of 32a0da6/63fdb7e on the delivered 581 tree (the 579 product with the RPCS3 Core 581)",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 398112557,
+      "path": ".github/workflows/melonx-input562-delivery.yml",
+      "name": "RewindBox private IPA 562 — MeloNX Switch keyboard and L3/R3 touch buttons on the delivered 561 tree (RPCS3 Core 561, MeloNX 558 engine)",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 398465592,
+      "path": ".github/workflows/melonx-jit566-delivery.yml",
+      "name": "RewindBox private IPA 566 — MeloNX engine 86c2b4d (JIT translation units, GC gen2 budget) on the delivered 565 tree (RPCS3 Core 565, God of War III without the 30 fps limiter, MeloNX keyboard and L3/R3)",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 398663133,
+      "path": ".github/workflows/melonx-jit572-delivery.yml",
+      "name": "RewindBox private IPA 572 — MeloNX engine 8cc2348 (JIT unit ends at a jump past the other cases of a switch) on the delivered 567 tree (RPCS3 Core 567, God of War III without the 30 fps limiter, MeloNX keyboard and L3/R3)",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 397097287,
+      "path": ".github/workflows/melonx-parity552-delivery.yml",
+      "name": "RewindBox private IPA 552 — MeloNX standalone parity (selectable MoltenVK, stderr journal, Game Mode, present target) on the 551 tree",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 397133691,
+      "path": ".github/workflows/melonx-parity553-delivery.yml",
+      "name": "RewindBox private IPA 553 — MeloNX standalone parity (selectable MoltenVK, stderr journal, Game Mode, present target) on the 552 tree",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 397509174,
+      "path": ".github/workflows/melonx-perf558-delivery.yml",
+      "name": "RewindBox private IPA 558 — MeloNX measurement (per-second journal, audio counters, priority A/B) and log fixes on the delivered 557 tree",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 398884909,
+      "path": ".github/workflows/melonx-sync577-delivery.yml",
+      "name": "RewindBox private IPA 577 — MeloNX engine cfa5116 (kernel wakeups of condition variables and address arbiters, GC memory-load threshold, 1 GiB code arena for Hogwarts Legacy with its update, per-title pipeline cache; FFT boot trace removed) and the controller relay of d1f7b8d on the delivered 576 tree (MeloNX engine 301e0f8, StikDebug removal, interface fixes of 48b9865, RPCS3 Core 575, God of War III without the 30 fps limiter, MeloNX keyboard and L3/R3)",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 398264406,
+      "path": ".github/workflows/melonx-texture564-delivery.yml",
+      "name": "RewindBox private IPA 564 — MeloNX engine 876a087 (texture pool, bounded engine journal, crash record) on the delivered 563 tree (RPCS3 Core 563, MeloNX keyboard and L3/R3)",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 398780631,
+      "path": ".github/workflows/melonx-warm576-delivery.yml",
+      "name": "RewindBox private IPA 576 — MeloNX engine 301e0f8 (shader-cache warm-ups off the game's start, attachment-less framebuffers, temporary FFT boot trace) the StikDebug fallback removal (504f9c0) and the interface fixes of 48b9865 on the delivered 575 tree (RPCS3 Core 575, MeloNX engine 8cc2348, God of War III without the 30 fps limiter, MeloNX keyboard and L3/R3)",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 370513638,
+      "path": ".github/workflows/neoswap-ipa.yml",
+      "name": "RewindBox NeoSwap + NeoPlay private • Build 421",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA/transfer launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 395598987,
+      "path": ".github/workflows/publish-fix-009.yml",
+      "name": "RewindBox fix 0.0.9 release — Build 530",
+      "state": "active",
+      "reason": "One-off task for an old release already superseded"
+    },
+    {
+      "id": 395596063,
+      "path": ".github/workflows/reconcile-claude-main-fix009.yml",
+      "name": "Integrate main branding into Claude for RewindBox fix 0.0.9",
+      "state": "active",
+      "reason": "One-off task for an old release already superseded"
+    },
+    {
+      "id": 379835574,
+      "path": ".github/workflows/release-003.yml",
+      "name": "Package RewindBox 0.0.3 from verified Build 427",
+      "state": "active",
+      "reason": "One-off task for an old release already superseded"
+    },
+    {
+      "id": 388491585,
+      "path": ".github/workflows/release-008.yml",
+      "name": "Package RewindBox 0.0.8 from verified Build 480",
+      "state": "active",
+      "reason": "One-off task for an old release already superseded"
+    },
+    {
+      "id": 395607273,
+      "path": ".github/workflows/rename-fix-009-ipa.yml",
+      "name": "Rename fix 0.0.9 IPA release asset",
+      "state": "active",
+      "reason": "One-off task for an old release already superseded"
+    },
+    {
+      "id": 416718137,
+      "path": ".github/workflows/repository-actions-retire.yml",
+      "name": "Retire obsolete delivery launchers",
+      "state": "active",
+      "reason": "Historical maintenance launcher removed from current Claude"
+    },
+    {
+      "id": 416716910,
+      "path": ".github/workflows/repository-branches-finalize.yml",
+      "name": "Finish archived branch consolidation",
+      "state": "active",
+      "reason": "Historical maintenance launcher removed from current Claude"
+    },
+    {
+      "id": 416729426,
+      "path": ".github/workflows/repository-orphans-finalize.yml",
+      "name": "Finalize orphaned Actions records",
+      "state": "active",
+      "reason": "Historical maintenance launcher removed from current Claude"
+    },
+    {
+      "id": 416708358,
+      "path": ".github/workflows/repository-tidy.yml",
+      "name": "Repository tidy — reviewed merged branches and skipped history",
+      "state": "active",
+      "reason": "Historical maintenance launcher removed from current Claude"
+    },
+    {
+      "id": 378977842,
+      "path": ".github/workflows/retroarch-delivery.yml",
+      "name": "RewindBox private IPA 529 — MeloNX launch",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA/transfer launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 399912330,
+      "path": ".github/workflows/rewind586-baseline-delivery.yml",
+      "name": "RewindBox private IPA 586 from the 585 baseline — MeloNX engine 75a13f7, RPCS3 Core 587 and the Cheats & Enhancements page",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 399751024,
+      "path": ".github/workflows/rewind586-delivery.yml",
+      "name": "RewindBox private IPA 586 — MeloNX engine 75a13f7 (GPU-thread allocations, blocking program waits, depth-only warm-up key, misaligned JIT units guarded, queued texture write-backs to unmapped memory skipped, bindless handles through SHFL bound), RPCS3 Core 587 (MoltenVK asynchronous submits) and the Cheats & Enhancements page on the delivered 585 tree",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 400023774,
+      "path": ".github/workflows/rewind587-baseline-delivery.yml",
+      "name": "RewindBox private IPA 587 from the 586 baseline — MeloNX engine (device memory, bindless sources), RPCS3 Core 591 and the per-game graphics fix",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 400931708,
+      "path": ".github/workflows/rewind595-baseline-delivery.yml",
+      "name": "RewindBox private IPA 595 from delivered 594 — verified RPCS3 Core and MeloNX Core85",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 401175525,
+      "path": ".github/workflows/rewind596-baseline-delivery.yml",
+      "name": "RewindBox private IPA 596 from delivered 595 — latest verified RPCS3 and MeloNX cores",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 401269537,
+      "path": ".github/workflows/rewind597-baseline-delivery.yml",
+      "name": "RewindBox private IPA 597 from delivered 596 — new verified RPCS3 core and retained MeloNX Core87",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 401417114,
+      "path": ".github/workflows/rewind598-baseline-delivery.yml",
+      "name": "RewindBox private IPA 598 from delivered 597 — new verified MeloNX core",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 401508436,
+      "path": ".github/workflows/rewind599-baseline-delivery.yml",
+      "name": "RewindBox private IPA 599 from delivered 598 — Hogwarts GPU activation",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 401551598,
+      "path": ".github/workflows/rewind600-baseline-delivery.yml",
+      "name": "RewindBox private IPA 600 from delivered 599 — remaining Hogwarts lots",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 401901180,
+      "path": ".github/workflows/rewind601-dual-core-delivery.yml",
+      "name": "RewindBox private IPA 601 - verified RPCS3 and MeloNX",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 401965789,
+      "path": ".github/workflows/rewind602-jit-helper-delivery.yml",
+      "name": "RewindBox private IPA 602 - corrected MeloNX JIT helper with retained cores",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 402065357,
+      "path": ".github/workflows/rewind603-hogwarts-core-delivery.yml",
+      "name": "RewindBox private IPA 603 - Hogwarts ARM64 literal corrections and retained RPCS3",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 402203354,
+      "path": ".github/workflows/rewind604-hogwarts-core-delivery.yml",
+      "name": "RewindBox private IPA 604 - Hogwarts ARM64 vector masks and guard diagnostics and latest validated RPCS3",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 403054554,
+      "path": ".github/workflows/rewind606-hogwarts-performance-delivery.yml",
+      "name": "RewindBox private IPA 606 - Hogwarts performance",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 403093324,
+      "path": ".github/workflows/rewind607-rpcs3-core-delivery.yml",
+      "name": "RewindBox private IPA 607 - RPCS3 deferred MoltenVK cache",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; replaced by standard-delivery.yml"
+    },
+    {
+      "id": 403403448,
+      "path": ".github/workflows/rewind608-retro-achievements-delivery.yml",
+      "name": "RewindBox private IPA608 - central RetroAchievements session",
+      "state": "disabled_manually",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 403691689,
+      "path": ".github/workflows/rewind609-hogwarts-liveness-delivery.yml",
+      "name": "RewindBox private IPA609 - liveness MeloNX Core",
+      "state": "disabled_manually",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 403754755,
+      "path": ".github/workflows/rewind610-delivery.yml",
+      "name": "RewindBox private IPA610 - RA credentials fix and RPCS3 Core 610",
+      "state": "disabled_manually",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 403808701,
+      "path": ".github/workflows/rewind611-melonx-reads-delivery.yml",
+      "name": "RewindBox private IPA611 - fragmented-read MeloNX Core",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 395351227,
+      "path": ".github/workflows/rpcs3-arm526-core.yml",
+      "name": "RPCS3 ARM526 ARM64 NEON migration and native diagnostics",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 395402182,
+      "path": ".github/workflows/rpcs3-arm526-delivery.yml",
+      "name": "RPCS3 ARM526 private native-only IPA",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 395080471,
+      "path": ".github/workflows/rpcs3-cell521-core.yml",
+      "name": "RPCS3 CELL521 native video and bounded memory",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 395083398,
+      "path": ".github/workflows/rpcs3-cell521-delivery.yml",
+      "name": "RewindBox RPCS3 CELL521 • Build 521 • SideStore",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 395096570,
+      "path": ".github/workflows/rpcs3-cell522-core.yml",
+      "name": "RPCS3 CELL522 native video and bounded memory",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 395098064,
+      "path": ".github/workflows/rpcs3-cell522-delivery.yml",
+      "name": "RewindBox RPCS3 CELL522 • Build 522 • SideStore",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 395160311,
+      "path": ".github/workflows/rpcs3-cell523-core.yml",
+      "name": "RPCS3 CELL523 restore lifetime and VM serialization",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 395180602,
+      "path": ".github/workflows/rpcs3-cell523-delivery.yml",
+      "name": "RewindBox RPCS3 CELL523 • Build 523 • SideStore",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 395238409,
+      "path": ".github/workflows/rpcs3-cell524-core.yml",
+      "name": "RPCS3 CELL524 HLE cancellation wake",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 395250479,
+      "path": ".github/workflows/rpcs3-cell524-delivery.yml",
+      "name": "RPCS3 CELL524 private native-only IPA",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 395311711,
+      "path": ".github/workflows/rpcs3-cell525-core.yml",
+      "name": "RPCS3 CELL525 restore, object cache and GPU diagnostics",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 395325460,
+      "path": ".github/workflows/rpcs3-cell525-delivery.yml",
+      "name": "RPCS3 CELL525 private native-only IPA",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 395420140,
+      "path": ".github/workflows/rpcs3-cell527-core.yml",
+      "name": "RPCS3 CELL527 incremental JIT and measured native paths",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 395420139,
+      "path": ".github/workflows/rpcs3-cell527-delivery.yml",
+      "name": "RPCS3 CELL527 private native-only IPA",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 395494253,
+      "path": ".github/workflows/rpcs3-cell528-core.yml",
+      "name": "RPCS3 CELL528 NeoSwap, shader policy, recoverable restore",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 395827691,
+      "path": ".github/workflows/rpcs3-cell534-core.yml",
+      "name": "RPCS3 CELL534 temporary I/O, shader timing and ISO mount repair",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 395828745,
+      "path": ".github/workflows/rpcs3-cell534-delivery.yml",
+      "name": "RewindBox private IPA 534 — RPCS3 temporary I/O and ISO restore",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 395872755,
+      "path": ".github/workflows/rpcs3-cell536-core.yml",
+      "name": "RPCS3 CELL536 reservation release ordering and shader configuration",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 395874088,
+      "path": ".github/workflows/rpcs3-cell536-delivery.yml",
+      "name": "RewindBox private IPA 536 — RPCS3 reservation ordering",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 395931913,
+      "path": ".github/workflows/rpcs3-cell538-core.yml",
+      "name": "RPCS3 CELL538 validated cache reuse and bounded shader timestamps",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 395934437,
+      "path": ".github/workflows/rpcs3-cell538-delivery.yml",
+      "name": "RewindBox private IPA 538 — RPCS3 cache reuse and shader stalls",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 395988861,
+      "path": ".github/workflows/rpcs3-cell539-core.yml",
+      "name": "RPCS3 CELL539 pipeline cache correctness and lower writer instrumentation cost",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 395990898,
+      "path": ".github/workflows/rpcs3-cell539-delivery.yml",
+      "name": "RewindBox private IPA 539 — RPCS3 pipeline caches and SPU instrumentation",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 395999123,
+      "path": ".github/workflows/rpcs3-cell541-delivery.yml",
+      "name": "RewindBox private IPA 541 — RPCS3 pipelines and writer counters",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 396053117,
+      "path": ".github/workflows/rpcs3-cell542-core.yml",
+      "name": "RPCS3 CELL542 compatible render passes and effective blending keys",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 396054344,
+      "path": ".github/workflows/rpcs3-cell542-delivery.yml",
+      "name": "RewindBox private IPA 542 — RPCS3 compatible pipelines and effective blending",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 396150944,
+      "path": ".github/workflows/rpcs3-cell543-core.yml",
+      "name": "RPCS3 CELL543 deferred shader publication, single-flight lookup and cache attribution",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 396173026,
+      "path": ".github/workflows/rpcs3-cell543-delivery.yml",
+      "name": "RewindBox private IPA 543 — RPCS3 deferred shader publication on the validated 542 host",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 396287302,
+      "path": ".github/workflows/rpcs3-cell545-core.yml",
+      "name": "RPCS3 CELL545 public ARMSX3 22528 fixes (SPU warmup, PKG paths, debug SELF, savestate files)",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 396289928,
+      "path": ".github/workflows/rpcs3-cell545-delivery.yml",
+      "name": "RewindBox private IPA 545 — RPCS3 545 public ARMSX3 fixes and MeloNX close teardown on the validated 542 host",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 396361585,
+      "path": ".github/workflows/rpcs3-cell546-core.yml",
+      "name": "RPCS3 CELL546 JIT object compression level and restore trace scope",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 396371256,
+      "path": ".github/workflows/rpcs3-cell546-delivery.yml",
+      "name": "RewindBox private IPA 546 — RPCS3 546 JIT object compression and bounded restore diagnostics on the 545 host",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 396381721,
+      "path": ".github/workflows/rpcs3-cell547-core.yml",
+      "name": "RPCS3 CELL547 bounded-spin GPU fence wait and SPU compile pressure",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 396389626,
+      "path": ".github/workflows/rpcs3-cell547-delivery.yml",
+      "name": "RewindBox private IPA 547 — RPCS3 547 fence wait and SPU compile pressure on the 546 host",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 396495184,
+      "path": ".github/workflows/rpcs3-cell551-core.yml",
+      "name": "RPCS3 CELL551 legacy-config inheritance, MoltenVK async submits and compile QoS, RSX/SPU wait profiles",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 396501339,
+      "path": ".github/workflows/rpcs3-cell551-delivery.yml",
+      "name": "RewindBox private IPA 551 — RPCS3 551 Core (God of War III profile, MoltenVK async submits and compile QoS, wait profiles) on the 550 tree",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 397307709,
+      "path": ".github/workflows/rpcs3-cell555-core.yml",
+      "name": "RPCS3 CELL555 bounded texture and shader costs",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 397566719,
+      "path": ".github/workflows/rpcs3-cell559-core.yml",
+      "name": "RPCS3 CELL559 SPU cache-hit, texture, shader and GPU copy costs",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 397590722,
+      "path": ".github/workflows/rpcs3-cell559-delivery.yml",
+      "name": "RewindBox private IPA 559 — RPCS3 Core 559 (SPU cache-hit passes, texture validation, shader copies, overwritten GPU read-backs) on the delivered 558 tree",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 397656098,
+      "path": ".github/workflows/rpcs3-cell560-core.yml",
+      "name": "RPCS3 CELL560 deferred framebuffer write-back",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 397666320,
+      "path": ".github/workflows/rpcs3-cell560-delivery.yml",
+      "name": "RewindBox private IPA 560 — RPCS3 Core 560 (deferred framebuffer write-back, readback origins) on the delivered 559 tree",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 398096353,
+      "path": ".github/workflows/rpcs3-cell561-core.yml",
+      "name": "RPCS3 CELL561 early command buffer submission",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 398103302,
+      "path": ".github/workflows/rpcs3-cell561-delivery.yml",
+      "name": "RewindBox private IPA 561 — RPCS3 Core 561 (early command buffer submission) on the delivered 560 tree — Core swap on the published 0.0.10 application (build 559)",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 398197254,
+      "path": ".github/workflows/rpcs3-cell563-core.yml",
+      "name": "RPCS3 CELL563 early-submit in-session A/B",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 398204157,
+      "path": ".github/workflows/rpcs3-cell563-delivery.yml",
+      "name": "RewindBox private IPA 563 — RPCS3 Core 563 (early submission A/B per window on DBZ) on the delivered 562 tree (MeloNX keyboard and L3/R3, MeloNX 558 engine)",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 398416825,
+      "path": ".github/workflows/rpcs3-cell565-core.yml",
+      "name": "RPCS3 CELL565 no-op PUTLLC and RSX idle park",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 398445617,
+      "path": ".github/workflows/rpcs3-cell565-delivery.yml",
+      "name": "RewindBox private IPA 565 — RPCS3 Core 565 (early submission kept on for DBZ, no-op PUTLLC, RSX idle park) and God of War III without the 30 fps limiter on the delivered 564 tree (MeloNX engine 876a087, keyboard and L3/R3)",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 398510884,
+      "path": ".github/workflows/rpcs3-cell567-core.yml",
+      "name": "RPCS3 CELL567 RSX thread priority",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 398525511,
+      "path": ".github/workflows/rpcs3-cell567-delivery.yml",
+      "name": "RewindBox private IPA 567 — RPCS3 Core 567 (RSX thread priority, pooled-worker QoS reset) on the delivered 566 tree (MeloNX engine 86c2b4d, God of War III without the 30 fps limiter, MeloNX keyboard and L3/R3)",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 398622971,
+      "path": ".github/workflows/rpcs3-cell569-core.yml",
+      "name": "RPCS3 CELL569 iOS threads keep their QoS",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 398637815,
+      "path": ".github/workflows/rpcs3-cell571-core.yml",
+      "name": "RPCS3 CELL571 passive-lock fairness",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 398696506,
+      "path": ".github/workflows/rpcs3-cell573-core.yml",
+      "name": "RPCS3 CELL573 texture residency and scoped revalidation",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 398711795,
+      "path": ".github/workflows/rpcs3-cell573-delivery.yml",
+      "name": "RewindBox private IPA 573 — RPCS3 Core 573 (QoS kept, passive-lock fairness, texture residency cap, scoped texture revalidation) on the delivered 572 tree (MeloNX engine 8cc2348, God of War III without the 30 fps limiter, MeloNX keyboard and L3/R3)",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 398756675,
+      "path": ".github/workflows/rpcs3-cell575-core.yml",
+      "name": "RPCS3 CELL575 title levers (Black Ops II, Bladestorm)",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 398758227,
+      "path": ".github/workflows/rpcs3-cell575-delivery.yml",
+      "name": "RewindBox private IPA 575 — RPCS3 Core 575 (Black Ops II and Bladestorm in the Automatic mode of four levers) on the delivered 573 tree (RPCS3 Core 573, MeloNX engine 8cc2348, God of War III without the 30 fps limiter, MeloNX keyboard and L3/R3)",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 398920777,
+      "path": ".github/workflows/rpcs3-cell579-core.yml",
+      "name": "RPCS3 CELL579 SPURS wait, sleeping writer deferral, PPU spin timing",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 398949808,
+      "path": ".github/workflows/rpcs3-cell579-delivery.yml",
+      "name": "RewindBox private IPA 579 — RPCS3 Core 579 (SPURS reservation_op wait, sleeping writer deferral, PPU spin timing on the real counter, RSX idle park for every title) on the delivered 577 tree (MeloNX engine cfa5116 and the controller relay of d1f7b8d on the 576 product)",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 398999037,
+      "path": ".github/workflows/rpcs3-cell581-core.yml",
+      "name": "RPCS3 CELL581 texture pre-validation",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 399017041,
+      "path": ".github/workflows/rpcs3-cell581-delivery.yml",
+      "name": "RewindBox private IPA 581 — RPCS3 Core 581 (texture pre-validation by a worker thread) on the delivered 579 tree (the 577 product with the RPCS3 Core 579)",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 399347153,
+      "path": ".github/workflows/rpcs3-cell583-core.yml",
+      "name": "RPCS3 CELL583 texture pre-validation pacing",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 399371355,
+      "path": ".github/workflows/rpcs3-cell583-delivery.yml",
+      "name": "RewindBox private IPA 583 — RPCS3 Core 583 (texture pre-validation paced by the RSX thread, God of War III only) on the delivered 582 tree (the 581 product with the MeloNX engine e55ca25 and the Switch discovery fix)",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 399467979,
+      "path": ".github/workflows/rpcs3-cell585-core.yml",
+      "name": "RPCS3 CELL585 early submission for God of War III",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 399488132,
+      "path": ".github/workflows/rpcs3-cell585-delivery.yml",
+      "name": "RewindBox private IPA 585 — RPCS3 Core 585 (early command buffer submission for God of War III) on the delivered 583 tree (the 582 product with the RPCS3 Core 583)",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 399586888,
+      "path": ".github/workflows/rpcs3-cell587-core.yml",
+      "name": "RPCS3 CELL587 MoltenVK asynchronous submits made safe",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 399964365,
+      "path": ".github/workflows/rpcs3-cell589-core.yml",
+      "name": "RPCS3 CELL589 Assassin's Creed texture validation levers",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 399985127,
+      "path": ".github/workflows/rpcs3-cell591-core.yml",
+      "name": "RPCS3 CELL591 transient compiler and shader memory",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 397125545,
+      "path": ".github/workflows/rpcs3-fix552-delivery.yml",
+      "name": "RewindBox private IPA 552 — fix of the 551 launch crash (synchronous MoltenVK submits, Dragon Ball Z global profile, durable fatal log lines) on the 551 tree",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 397296842,
+      "path": ".github/workflows/rpcs3-import554-delivery.yml",
+      "name": "RewindBox private IPA 554 — RPCS3 import of the library-folder PS3 discs on the delivered 553 tree",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 397396993,
+      "path": ".github/workflows/rpcs3-library-files557-delivery.yml",
+      "name": "RewindBox private IPA 557 — library-folder PS3 disc lifecycle and queued ROM folder saves on the delivered 554 tree",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    },
+    {
+      "id": 400085548,
+      "path": ".github/workflows/rpcs3-runtime592-core.yml",
+      "name": "RPCS3 runtime source candidate",
+      "state": "active",
+      "reason": "Superseded fixed-candidate RPCS3 producer; current route is rpcs3-core610.yml"
+    },
+    {
+      "id": 394672916,
+      "path": ".github/workflows/rpcs3-v012-delivery.yml",
+      "name": "RewindBox RPCS3 v0.12 • Build 520 • SideStore",
+      "state": "active",
+      "reason": "Historical fixed-build private IPA launcher; current route is standard-delivery.yml"
+    }
+  ]
+}

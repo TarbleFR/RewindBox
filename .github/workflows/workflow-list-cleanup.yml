@@ -1,0 +1,27 @@
+name: One-time legacy workflow cleanup
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - .github/workflows/workflow-list-cleanup.yml
+permissions:
+  contents: read
+  actions: write
+concurrency:
+  group: workflow-list-cleanup-2026-11-13
+  cancel-in-progress: false
+jobs:
+  cleanup:
+    if: ${{ github.repository == 'TarbleFR/RewindBox' && startsWith(github.event.head_commit.message, '[workflow-list-cleanup]') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Disable only the reviewed obsolete workflows
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 -u .github/diagnostics/workflow_list_cleanup.py
