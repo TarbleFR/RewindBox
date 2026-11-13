@@ -166,6 +166,14 @@ already integrated are accepted; preserve shared history, source/component/packa
 signature checks and the ban on post-freeze merges. Do not reopen that approval.
 Product changes after freeze belong to the next manifest.
 
+**Permanent single recipe (maintainer,13 November2026):** every common private
+IPA uses the same versioned standard recipe. Improve this recipe in place only;
+never create a build-specific bypass or remove security/identity/compatibility
+checks for speed. An improvement requires relevant executed non-regression tests,
+review, preserved final validators and an explicit return to the last validated
+recipe if a regression appears. Unknown device behavior is not a passing result.
+Optional acceleration must preserve the full-build path when unavailable or invalid.
+
 Use [the standard recipe](standard-delivery-recipe.md), last verified IPA and
 declared reviewed delta. Rebuild changed components; authenticate retained ones.
 Rerun affected tests and always delivery contracts; reuse only equivalent relevant
@@ -420,12 +428,20 @@ remains archived and is not a valid Claude dispatch route.
 **Evidence:** [maintenance report](coordination-cleanup-2026-11-13.md),
 [branch receipts](evidence/coordination-cleanup-2026-11-13/branch-results.json),
 [handoffs](https://github.com/TarbleFR/RewindBox/issues/179).
-**Open:** main Core745 run 43336528859 failed before compilation on expired
-baseline artifact 12883480724 (404, recorded expiry 12 Nov08:25Z). Exact identity
-and required authenticated recovery were relayed in issue179 comment6840025797.
-Main acknowledged the failure in 6716babd and handed authenticated dependency
-recovery to the MeloNX owner (issue179 comment6840099916). Do not bypass hashes
-or attribute device gains to this maintenance.
+**Dependency recovery (maintainer-authorized):** reviewed candidate now replaces
+expired engine82 transport with authenticated Core743/732 history and LibHac,
+and original614 transport with its exact615 republication.108 recovery checks on
+real archives/captured API metadata and515 DMA contract checks passed; independent
+review found no blocker. Only current contract verification inputs change; runtime,
+preparation and104 gates remain identical. [Evidence and limits](melonx-dependency-recovery-2026-11-13.md).
+The original engine82 ZIP/binaries are NOT recovered. Main must integrate the
+exact handoff SHA from issue179, validate/refreeze, run Core745 CI, pin and deliver733;
+no Apple build or new IPA is claimed by this candidate.
+**Incremental recipe (authorized):** prepare one optional encrypted compilation
+cache with exact input/toolchain compatibility, Xcode always run, full-build fallback,
+and unchanged final signing/validation/encryption. Current733 changes host bridges
+and requires rebuilding. Dedicated CI cache key required; no private recipient key
+or application-embedded credential reused for cache encryption.
 Earlier S2Arm content/provenance audits remain archived; this cleanup adds no
 ownership or legality conclusion.
 

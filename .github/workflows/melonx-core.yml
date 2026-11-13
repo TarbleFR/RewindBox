@@ -73,6 +73,12 @@ run-name: MeloNX engine • ${{ github.sha }}
     - build-utils/melonx/build_libhac.py
     - build-utils/melonx/libhac-reuse.json
     - build-utils/melonx/reuse_core_baseline.py
+    - build-utils/melonx/recover_core_archive.py
+    - .github/diagnostics/retained_components.py
+    - .github/diagnostics/rewind606_engine.py
+    - .github/diagnostics/rewind606_baseline.py
+    - .github/diagnostics/rewind596_engine.py
+    - test/melonx_dependency_recovery_test.py
     - build-utils/melonx/core-baseline.json
     - build-utils/melonx/verify_core_candidate.py
     - build-utils/melonx/verify_gpu_core.py
@@ -305,6 +311,8 @@ jobs:
       with:
         fetch-depth: 0
         persist-credentials: false
+    - name: Reject tampered dependency recovery archives
+      run: python3 test/melonx_dependency_recovery_test.py
     - uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 10.0.100
@@ -353,7 +361,7 @@ jobs:
     - name: Compile NativeAOT library and verify exported ABI
       env:
         GH_TOKEN: ${{ github.token }}
-        MELONX_AUTHENTICATED_BASELINE: ${{ github.workspace }}/.native-sources/melonx-engine82.zip
+        MELONX_AUTHENTICATED_BASELINE: ${{ github.workspace }}/.native-sources/melonx-core743-recovery.zip
         MELONX_BUILD_SIMULATOR: '1'
       run: bash build-utils/melonx/build_core.sh .native-sources/MeloNX .native-sources/LibHac
     - name: Bind both new libraries to reviewed sources and gate receipts
@@ -394,4 +402,4 @@ jobs:
         name: MeloNX-engine-${{ github.sha }}
         path: dist/melonx
         if-no-files-found: error
-        retention-days: 14
+        retention-days: 90
