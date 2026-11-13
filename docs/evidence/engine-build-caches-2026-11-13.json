@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "testedTree": "374442671ef05df0960cf6fdf7ce13dabb7e0c3d",
+  "publishedEngineSource": "5451dbb200b1517c13a3be479be55de6c679bf89",
+  "base": "4bc5ae7daf2c14ab5ff565d9343e3f1bc6c82785",
+  "checks": [
+    {
+      "command": [
+        "python3",
+        "test/engine_build_cache_test.py"
+      ],
+      "started_utc": "2026-11-13T01:18:46.010307+00:00",
+      "duration_seconds": 0.203,
+      "return_code": 0,
+      "bytes": 100,
+      "sha256": "de1e4dc395dd332191f4ae068c290036f41ed19925cd4f3442e0901c2bdad22e"
+    },
+    {
+      "command": [
+        "python3",
+        "test/melonx_dma_core_contract_test.py"
+      ],
+      "started_utc": "2026-11-13T01:19:10.204611+00:00",
+      "duration_seconds": 0.39,
+      "return_code": 0,
+      "bytes": 199,
+      "sha256": "7ee54fe3d9acbf3951c8669e375bf41ee23e8b730023588619d8eadae2c7feeb"
+    },
+    {
+      "command": [
+        "python3",
+        "test/melonx_dependency_recovery_test.py"
+      ],
+      "started_utc": "2026-11-13T01:19:10.657004+00:00",
+      "duration_seconds": 0.274,
+      "return_code": 0,
+      "bytes": 329,
+      "sha256": "0cb30b953b3be2d8f2b4eb282960abf6a276d3941df2f542be68dccd9d991de9"
+    },
+    {
+      "command": [
+        "python3",
+        "test/xenia_build_cache_test.py"
+      ],
+      "started_utc": "2026-11-13T01:19:15.209942+00:00",
+      "duration_seconds": 0.167,
+      "return_code": 0,
+      "bytes": 98,
+      "sha256": "353239c6a391a5fe2e900b988e30c68aa3a27170e16d3a962ba3592c634b44fa"
+    },
+    {
+      "command": [
+        "python3",
+        "test/ipa_build_cache_test.py"
+      ],
+      "started_utc": "2026-11-13T01:19:15.452538+00:00",
+      "duration_seconds": 0.706,
+      "return_code": 0,
+      "bytes": 514,
+      "sha256": "39e057262e8560023c4b9258e7765e77d5b38eaf99a138be4bb66f42dcc94add"
+    },
+    {
+      "command": [
+        "python3",
+        "test/standard_delivery_contract_test.py",
+        "Workflow"
+      ],
+      "started_utc": "2026-11-13T01:19:16.247169+00:00",
+      "duration_seconds": 1.23,
+      "return_code": 0,
+      "bytes": 2112,
+      "sha256": "28b0d96d2d33f2abfc07bd157819b1a613f8e3f49cc4bd16276f7b1df8907a74"
+    }
+  ],
+  "independentReview": "No blocking defect; cache paths, exact identities, cold fallback, workflow routing, shell syntax and updated input digests checked.",
+  "limitations": [
+    "No macOS engine compilation or warm-cache performance measure in these checks.",
+    "No device performance validation.",
+    "Dedicated REWINDBOX_BUILD_CACHE_KEY provisioning unavailable; host cache safely disabled without it."
+  ],
+  "coordinationRead": "CLI lacks gh login; live state read through the connected GitHub service instead."
+}

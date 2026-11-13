@@ -308,7 +308,7 @@ Do not restart a historical task from that archive.
 | Skins `012mUASjgVWk8DKKjVbwTD2n` | Local worktree from Claude for any new lot | Preserve reviewed packs/controls; merged branches are not active task queues. |
 | Codex coordination | Integration on `Claude`, former work branch archived | Completed branch/archive consolidation, shared handoff, common producer routing and guarded Actions cleanup; see maintenance report and nine refused orphan deletions. |
 
-### Common IPA — main Claude Code
+### Common IPA — main Claude Code / Codex execution authorized 13 Nov
 
 **Goal:** deliver the authorized, reviewed common IPA with exact component identities.
 **Delivered:** 732, run `43289133482`, source `77af35c2`, receipt below. RPCS3 934,
@@ -331,8 +331,18 @@ Checked on `f4fb22fd`: delivery contract and its test pass except the expected p
 Core 745 is pinned; engine concurrency, tidy, consolidation, retirement, S2Arm pinned-engine/legal and XeniOS
 review tests OK. Known red outside the recipe: `.github/diagnostics/s2arm/s2arm_delivery_test.py` (old S2Arm
 test-IPA launcher, line constants drifted since `fc0c18dd`; it refuses that line until reviewed, not used by 733).
-**Next:** integrate the owner's exact fix SHA, refreeze if contract inputs change, rerun Core CI, pin Core 745,
-regenerate the 733 draft, freeze, trigger once, verify, record coreSHA256. 733 waits for Core 745.
+**Current execution (maintainer,13 Nov):** Codex was explicitly asked to launch the next common IPA,
+then to apply engine compilation improvements first. Issue179 comment6840690330 records this execution
+ownership; do not dispatch a competing Core/IPA. Reviewed recovery and optional host cache are integrated
+as `871258fb`; future Xenia compiler cache is `ab0a69c7` (source-only for733, retained engine unchanged).
+Engine cache changes are `5451dbb200b1517c13a3be479be55de6c679bf89`: explicit MeloNX request routing,
+exact authenticated envelope caches and hashed S2Arm source reuse. Contract
+`08e254a3` changes only recipe/test input hashes; all104 gate definitions and runtime/preparation fields
+are unchanged.451 contract checks,24 recovery checks and3 focused cache tests passed on the integrated tree;
+independent review passed. Also rerun:9 encrypted-host-cache and15 standard-workflow tests, all passed.
+[Verification receipt](evidence/engine-build-caches-2026-11-13.json). No new Core/IPA success or macOS speed gain is claimed.
+**Next / Codex:** trigger Core745 once, follow its actual result, authenticate and pin it, regenerate/freeze733,
+then run the unchanged standard route and verify the downloaded private IPA.733 still waits for the new Core.
 [Manifest](../build-utils/delivery/733.json) · [recipe](standard-delivery-recipe.md).
 
 ### RPCS3 FPS, stability and audio — main Claude Code
@@ -441,10 +451,20 @@ mandatory.9 cache and15 existing Workflow tests pass; two guard mutations detect
 Full standard suite interrupted; its pending DMA pin error reproduced on unchanged
 32d71b22. No full-suite success, Apple build or speed gain claimed.
 [Implementation, activation and rollback](https://github.com/TarbleFR/RewindBox/blob/4c90eb746c14b1455735df9013abd80c8c9001d0/docs/ipa-incremental-build.md).
-**Next / owner:** main integrates the exact candidates (never Backup), keeps these
-current coordination notes, classifies the cache helper/test commit reviewed before
-materialization/freeze, runs Core745 CI, pins and resumes733. Candidates are not yet
-integrated or compiled. The permanent single-recipe rule is active in ca8fa34d.
+**Applied on maintainer request (13 Nov):** reviewed recovery and host-cache candidates are integrated
+as `871258fb200adb2d4723c183700f83b49838b9e7`. Xenia compiler cache is the separate
+`ab0a69c7addcf7357f83f2a0c1632264c002c6b5`, deferred from733's effective product tree so the
+retained Xenia payload keeps its original reviewed recipe. Engine cache source is `5451dbb200b1517c13a3be479be55de6c679bf89`. MeloNX now requires an explicit producer request
+and reuses only three exact, reauthenticated dependency envelopes. S2Arm reuses and rehashes its pinned
+codec sources. RPCS3 already uses Ninja/ccache; its frozen producer is unchanged.
+[Implementation and measured limits](engine-build-caches.md). Independent review corrected the native
+envelope path and the Bash nounset cold path; root reran451 DMA checks,24 recovery checks,3 cache tests
+and Bash syntax successfully.104 Core gates and runtime/preparation contracts remain unchanged.
+**Next / owner:** Codex executes the maintainer's new private delivery request, coordinated on issue179,
+without a duplicate producer. Classify the host-cache helper/test integration reviewed and the Xenia-only
+producer commit source-only before733's materialization/freeze. Build745, authenticate its pin and resume733.
+No new Apple build, warm-cache speed measurement or IPA delivery is claimed. The permanent single-recipe
+rule remains active in ca8fa34d.
 Dedicated `REWINDBOX_BUILD_CACHE_KEY` is required for optional acceleration; Codex
 could not provision it (GitHub connector has no secret-write operation; PC connector
 unavailable twice with429). Without a key the normal build remains operational.
