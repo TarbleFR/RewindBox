@@ -1,7 +1,7 @@
 {
   "version": 1,
   "repository": "TarbleFR/RewindBox",
-  "created_at": "2026-11-13T00:53:49.272Z",
+  "created_at": "2026-11-13T01:03:48.468Z",
   "purpose": "Archival reachability only. No archived change is thereby integrated or approved. Never merge Backup into a product branch.",
   "retainedBranches": [
     "main",
@@ -200,7 +200,7 @@
       "pullRequests": []
     }
   ],
-  "previousArchive": "c1499c9e29d551bbebde0673a958212eec5e6815",
+  "previousArchive": "3f723e0e7aeea25bbe06f50e7eb04b012cc033ce",
   "handoffs": [
     {
       "name": "melonx-dependency-recovery-20261113",
@@ -245,6 +245,22 @@
       ],
       "contractSHA256": "0d6fb08ff83196ea9a4b1e7e8d910164fe452551170fa294eef26125f7d66fa3",
       "supersedes": "a3400a03385980685d78428b61de0c1181386821"
+    },
+    {
+      "name": "ipa-incremental-recipe-20261113",
+      "sha": "4c90eb746c14b1455735df9013abd80c8c9001d0",
+      "base": "ca8fa34d0dafca91e4452c63c5781e7996a8370a",
+      "owner": "Codex — maintainer-authorized IPA recipe improvement; main integrates",
+      "status": "reviewed-and-tested-candidate-not-enabled",
+      "issue": "https://github.com/TarbleFR/RewindBox/issues/179",
+      "tests": "9 cache tests;15 Workflow tests;2 guard mutants detected; full suite interrupted with baseline pin mismatch",
+      "paths": [
+        "build-utils/ipa_build_cache.py",
+        "test/ipa_build_cache_test.py",
+        ".github/workflows/standard-delivery.yml",
+        "docs/ipa-incremental-build.md",
+        "docs/evidence/ipa-incremental-recipe-2026-11-13/verification.json"
+      ]
     }
   ]
 }
