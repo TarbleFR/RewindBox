@@ -1,4 +1,5 @@
 name: One-time legacy workflow cleanup
+# Verify the eventual workflow state after a successful disable.
 on:
   push:
     branches: [Claude]

@@ -2,6 +2,7 @@
 """One-time reversible disable of the exact reviewed legacy workflow list."""
 import json
 import os
+import time
 import urllib.request
 from pathlib import Path
 
@@ -31,6 +32,17 @@ def pages(path, key):
     raise RuntimeError('Incomplete inventory')
 
 
+def verify_disabled(workflow_id):
+    # GitHub may return the previous state briefly after a successful PUT.
+    observed = None
+    for attempt in range(8):
+        observed = api('/actions/workflows/' + str(workflow_id))['state']
+        if observed == 'disabled_manually':
+            return
+        time.sleep(1)
+    raise RuntimeError(f'Workflow {workflow_id}: disable not confirmed, state={observed}')
+
+
 def run(plan):
     selected = plan['selected']
     assert plan['repository'] == REPO
@@ -58,7 +70,7 @@ def run(plan):
                     item['result'] = 'kept_active_run'
                 else:
                     api('/actions/workflows/' + str(w['id']) + '/disable', 'PUT')
-                    assert api('/actions/workflows/' + str(w['id']))['state'] == 'disabled_manually'
+                    verify_disabled(w['id'])
                     item['result'] = 'disabled'
             else:
                 item['result'] = 'already_' + current['state']
@@ -89,5 +101,5 @@ if __name__ == '__main__':
            if w['path'] == '.github/workflows/workflow-list-cleanup.yml']
     assert len(own) == 1
     api('/actions/workflows/' + str(own[0]['id']) + '/disable', 'PUT')
-    assert api('/actions/workflows/' + str(own[0]['id']))['state'] == 'disabled_manually'
+    verify_disabled(own[0]['id'])
     print('SELF_DISABLED ' + str(own[0]['id']), flush=True)
