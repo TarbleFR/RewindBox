@@ -1,0 +1,53 @@
+{
+  "artifact": 13995228495,
+  "artifactSHA256": "a5ea3da6397807c766d1489f8aa9c46a568ea829bbd98bf1bdc58f6ec3c11333",
+  "receipt": {
+    "planSHA256": "04d961766feaf4da4fa266931c798b57732aa7557b440f21982c9801efe29ac9",
+    "operations": [
+      {
+        "kind": "branch",
+        "branch": "work/app-fluidity-thermal-20261111",
+        "sha": "3b261b99450be259a21a638ba26208ad67cdae66",
+        "result": "deleted"
+      },
+      {
+        "kind": "branch",
+        "branch": "work/private-ipa-protection-20261111",
+        "sha": "3428687efa74e9e90ff2356684b119bed147400c",
+        "result": "deleted"
+      },
+      {
+        "kind": "branch",
+        "branch": "work/skins-pocket-press-20261110",
+        "sha": "66a0f0fa37ce9d45dacd96189a79902b76b3a310",
+        "result": "deleted"
+      },
+      {
+        "kind": "branch",
+        "branch": "work/skins-switch-press-20261110",
+        "sha": "bc1f111e103ee328f7f68dbe411f2248014d2009",
+        "result": "deleted"
+      },
+      {
+        "kind": "branch",
+        "branch": "work/skins-wii-portrait-input-20261111",
+        "sha": "5972a17f75d83733611487e4ce7fe63bdf35822f",
+        "result": "deleted"
+      },
+      {
+        "kind": "branch",
+        "branch": "work/system-art-default-fallback-20261111",
+        "sha": "9a8a689eaf3a2af0ddea482622e55c301f4a84b3",
+        "result": "deleted"
+      },
+      {
+        "kind": "branch",
+        "branch": "work/system-art-update-notice-20261111",
+        "sha": "2ec0bbe830215ea0a7b525cbbddcb3ddcc2c239f",
+        "result": "deleted"
+      }
+    ],
+    "result": "stopped",
+    "error": "Workflow has an active run"
+  }
+}

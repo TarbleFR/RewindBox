@@ -297,8 +297,8 @@ Do not restart a historical task from that archive.
 | MeloNX lot 10 `01JA5QgKeoGVH5oVjNyhcj3D` | `work/melonx-lot10-20261112` | Six adapters and macOS fixture fixes through d17a29f2 integrated by main as 30ee5beb; main composes/freezes the Core. |
 | XeniOS `012mUASiVyxdnhNTUKesGGm7` | `work/playlists-xenios-20261110` | Xbox 360 engine/bridge, legal chain and device follow-ups. |
 | S2Arm `012mUASj3EQnvC86WC56AePw` | `work/s2arm-switch2-prototype-20261110` | Switch 2 engine, preparation, playlist and device follow-ups. |
-| Skins `012mUASjgVWk8DKKjVbwTD2n` | Fresh branch from Claude for any new lot | Preserve reviewed packs/controls; merged branches are not active task queues. |
-| Codex coordination | `work/coordination-ci-cleanup-20261113` | This maintainer-authorized maintenance: shared handoff, producer concurrency and bounded cleanup; no game-engine logic/pin change. |
+| Skins `012mUASjgVWk8DKKjVbwTD2n` | Local worktree from Claude for any new lot | Preserve reviewed packs/controls; merged branches are not active task queues. |
+| Codex coordination | Integration on `Claude`, former work branch archived | Completed branch/archive consolidation, shared handoff, common producer routing and guarded Actions cleanup; see maintenance report and nine refused orphan deletions. |
 
 ### Common IPA — main Claude Code
 
@@ -405,14 +405,29 @@ keep strict actual signature/bytes checks and notices.
 
 ### Codex orchestration — Codex
 
-13 Nov maintainer request: fix coordination and build reliability, remove verified
-unused branches/actions, report actual outcomes. New shared status reader and PR
-handoff template; immutable-source producer concurrency corrections. Bounded cleanup
-plan preserves all executed runs/artifacts and latest300; only seven fully merged
-branch heads and four superseded delivery launchers are eligible. Results are
-recorded in the maintenance receipt; plan presence is not execution.
-Earlier S2Arm content audit and missing-file routing evidence remain archived;
-no game ownership/provenance or legality claim is added by this cleanup.
+**Goal:** maintainer-authorized coordination/build-recipe cleanup, retaining only
+main, Claude and Backup without losing work.
+**State:** 35 remote branch refs removed after preservation (7 already integrated,
+28 archived); Backup `4e2ec758` includes concurrent MeloNX head `f5abc0ac`.
+Fresh-repository retrieval of that deleted-branch commit passed. Backup must never
+be merged into product history. AGENTS and archive protocol govern future local
+worktrees and exact-source publication. Shared issue #179 carries cross-account
+handoffs; the board remains the task contract.
+**Recipe:** common XeniOS/S2Arm producers route from Claude with explicit requests
+and source-specific concurrency; old pin provenance remains authenticated.
+67 scoped tests and 70 rewrite checks passed. The experimental S2Arm 801+ lane
+remains archived and is not a valid Claude dispatch route.
+**Evidence:** [maintenance report](coordination-cleanup-2026-11-13.md),
+[branch receipts](evidence/coordination-cleanup-2026-11-13/branch-results.json),
+[handoffs](https://github.com/TarbleFR/RewindBox/issues/179).
+**Open:** main Core745 run 43336528859 failed before compilation on expired
+baseline artifact 12883480724 (404, recorded expiry 12 Nov08:25Z). Exact identity
+and required authenticated recovery were relayed in issue179 comment6840025797.
+Main acknowledged the failure in 6716babd and handed authenticated dependency
+recovery to the MeloNX owner (issue179 comment6840099916). Do not bypass hashes
+or attribute device gains to this maintenance.
+Earlier S2Arm content/provenance audits remain archived; this cleanup adds no
+ownership or legality conclusion.
 
 ### Private test IPA protection — Codex
 
@@ -423,12 +438,21 @@ recipient checks for speed. [Evidence](evidence/private-ipa-protection-2026-11-1
 
 ### Actions history cleanup — Codex
 
-Prior cleanups: [1,311 skipped runs](evidence/github-cleanup-2026-11-10.json) and
-[383 skipped runs](evidence/github-cleanup-2026-11-10-followup.json). Current cleanup
-uses the same executed-job/artifact/attempt guards and newest300 protection.
-Do not delete historical producers, failed diagnostics or proofs just by age/name.
-Disable only the four explicit obsolete delivery launchers; their workflow source
-remains for historical recipe verification. Active component branches remain.
+The four explicitly obsolete 606/608/609/610 launchers are confirmed
+disabled_manually; source YAML remains for historical recipe verification.
+History job 131586909223 (run43334427815) completed: 532 reviewed skipped runs
+removed, no conflicts, zero remaining planned candidates. Empty jobs/artifacts,
+exact run identity and newest300 protections were checked. Receipt and final
+absence inventory are archived in the maintenance evidence.
+Nine reviewed old empty queued records remain: cancellation was unconfirmed,
+and final deletion requests all returned HTTP403 (run43337757433). They are
+not counted as deleted; no repeated refused mutation was attempted.
+Retain executed jobs, artifacts, historical producers and failure evidence.
+The one-off maintenance launchers are removed after completion; plans and receipts
+remain in [the maintenance report](coordination-cleanup-2026-11-13.md).
+Only main, Claude and Backup remain as remote branches at final verification.
+Prior cleanups: [1,311 skipped runs](evidence/github-cleanup-2026-11-10.json)
+and [383 skipped runs](evidence/github-cleanup-2026-11-10-followup.json).
 
 ## Delivered baseline
 
@@ -463,3 +487,4 @@ never destroy prior evidence. This file is a contract, not an automatic schedule
 | Skins | [Pocket](pocket-originals-2026-11-03.md), [framing](skins-screen-framing-2026-11-10.md) |
 | Rights | [LEGAL](LEGAL_AND_CREDITS.md), [Xenia converter](evidence/xenia-metal-shader-converter/) |
 | Historical exact inputs/results | [immutable full contract](https://github.com/TarbleFR/RewindBox/blob/30ee5beb204a9c972f85c5e9cd249aa341887283/docs/AI_TASK_BOARD.md) |
+

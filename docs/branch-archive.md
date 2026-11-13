@@ -9,8 +9,14 @@ Le mainteneur a demandé le 13 novembre 2026 de conserver uniquement `main`,
   complets conservés par les parents du commit d'archive. Ce n'est pas une fusion
   fonctionnelle et cela ne signifie pas que les lots sont approuvés ou livrés.
 
-[Archive vérifiée](https://github.com/TarbleFR/RewindBox/blob/d6374597dc2d209fe4bb55febd16bb89c44f2594/branch-archive.json)
+[Archive vérifiée](https://github.com/TarbleFR/RewindBox/blob/4e2ec7580e619e4c16c7e54182b912ef18ee4421/branch-archive.json)
 · [Passations entre comptes](https://github.com/TarbleFR/RewindBox/issues/179)
+
+Le nettoyage a retiré 35 anciennes branches. Les sept premières étaient déjà
+intégrées ; les 28 autres ont été archivées avant suppression. Le manifeste de
+Backup couvre aussi les références conservées lors des instantanés. Une avancée
+MeloNX concurrente a interrompu le premier passage ; sa nouvelle tête `f5abc0ac`
+a été ajoutée à Backup avant de reprendre. [Bilan et reçus](coordination-cleanup-2026-11-13.md).
 
 ## Reprendre une branche supprimée
 

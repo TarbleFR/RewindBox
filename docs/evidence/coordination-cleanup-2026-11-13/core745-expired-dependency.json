@@ -1,0 +1,16 @@
+{
+  "run": 43336528859,
+  "job": 131593993742,
+  "source": "f4fb22fd3bc705ce302a6a9cb58ec5f8cff1fece",
+  "step": "Authenticate engine82 evidence and reuse unchanged LibHac",
+  "failure": "GET actions/artifacts/12883480724 returned HTTP 404 before compilation",
+  "historicalExpiry": "2026-11-12T08:25:19Z",
+  "expectedArchiveBytes": 102750721,
+  "expectedArchiveSHA256": "be55d705ea93ae27c1756c29c3ec7a16ec51c60b9ace10556dcc751a00f5af45",
+  "expiryEvidence": "docs/evidence/melonx-startup-20261029/apple-runtime-validation.json",
+  "handoffComment": 6840025797,
+  "runtimeChangedByMaintenance": false,
+  "resolved": false,
+  "mainAcknowledgmentCommit": "6716babd267552f2d86c408516459e8d4d111891",
+  "ownerHandoffComment": 6840099916
+}

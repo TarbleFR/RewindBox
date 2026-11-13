@@ -1,0 +1,25 @@
+{
+  "checkedAt": "2026-11-13T00:26:27.890286+00:00",
+  "workflows": [
+    {
+      "id": 403045822,
+      "path": ".github/workflows/hogwarts606-host-recovery.yml",
+      "state": "disabled_manually"
+    },
+    {
+      "id": 403403448,
+      "path": ".github/workflows/rewind608-retro-achievements-delivery.yml",
+      "state": "disabled_manually"
+    },
+    {
+      "id": 403691689,
+      "path": ".github/workflows/rewind609-hogwarts-liveness-delivery.yml",
+      "state": "disabled_manually"
+    },
+    {
+      "id": 403754755,
+      "path": ".github/workflows/rewind610-delivery.yml",
+      "state": "disabled_manually"
+    }
+  ]
+}

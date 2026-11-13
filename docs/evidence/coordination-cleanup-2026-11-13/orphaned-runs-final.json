@@ -1,0 +1,75 @@
+{
+  "run": 43337757433,
+  "job": 131598165770,
+  "artifact": 13998531460,
+  "artifactSHA256": "84a70f08b83623c44bbb0e2a46bc937d9cabb3840df5f7febc0ccc6aa0f94764",
+  "receipt": {
+    "planSHA256": "ec5f098b377152a50f7585d8e3c4241db5180987f585713e328a35745a11c448",
+    "operations": [
+      {
+        "id": 43098367042,
+        "sha": "0fbb5ac85e848cd5ec06300ab04dbed824b0b652",
+        "path": ".github/workflows/rewind610-delivery.yml",
+        "created_at": "2026-11-11T20:50:19Z",
+        "result": "delete_refused_403"
+      },
+      {
+        "id": 43098367089,
+        "sha": "0fbb5ac85e848cd5ec06300ab04dbed824b0b652",
+        "path": ".github/workflows/hogwarts606-host-recovery.yml",
+        "created_at": "2026-11-11T20:50:19Z",
+        "result": "delete_refused_403"
+      },
+      {
+        "id": 43098367127,
+        "sha": "0fbb5ac85e848cd5ec06300ab04dbed824b0b652",
+        "path": ".github/workflows/rewind608-retro-achievements-delivery.yml",
+        "created_at": "2026-11-11T20:50:19Z",
+        "result": "delete_refused_403"
+      },
+      {
+        "id": 43098367113,
+        "sha": "0fbb5ac85e848cd5ec06300ab04dbed824b0b652",
+        "path": ".github/workflows/rewind609-hogwarts-liveness-delivery.yml",
+        "created_at": "2026-11-11T20:50:19Z",
+        "result": "delete_refused_403"
+      },
+      {
+        "id": 43098367088,
+        "sha": "0fbb5ac85e848cd5ec06300ab04dbed824b0b652",
+        "path": ".github/workflows/standard-delivery.yml",
+        "created_at": "2026-11-11T20:50:19Z",
+        "result": "delete_refused_403"
+      },
+      {
+        "id": 43098589560,
+        "sha": "ec8a25def5130cb5236fba6b768f8a66ae99de6e",
+        "path": ".github/workflows/xenia-core.yml",
+        "created_at": "2026-11-11T20:52:45Z",
+        "result": "delete_refused_403"
+      },
+      {
+        "id": 43097515563,
+        "sha": "0c864039307d63b1e3c0f63de8e06501070a5b94",
+        "path": ".github/workflows/s2arm-core.yml",
+        "created_at": "2026-11-11T20:41:16Z",
+        "result": "delete_refused_403"
+      },
+      {
+        "id": 43097515562,
+        "sha": "0c864039307d63b1e3c0f63de8e06501070a5b94",
+        "path": ".github/workflows/s2arm-engine.yml",
+        "created_at": "2026-11-11T20:41:16Z",
+        "result": "delete_refused_403"
+      },
+      {
+        "id": 43097515549,
+        "sha": "0c864039307d63b1e3c0f63de8e06501070a5b94",
+        "path": ".github/workflows/s2arm-delivery.yml",
+        "created_at": "2026-11-11T20:41:16Z",
+        "result": "delete_refused_403"
+      }
+    ],
+    "status": "completed"
+  }
+}

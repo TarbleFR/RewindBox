@@ -1,0 +1,60 @@
+{
+  "artifact": 13996287654,
+  "artifactSHA256": "aef7bff2a38d6bd32deba2a20d37542b821f64407c3a8a3891ce835d05ebae2f",
+  "receipt": {
+    "operations": [
+      {
+        "kind": "branch",
+        "branch": "dependabot/pub/pub-dependencies-b574849521",
+        "sha": "4b53f459ac274f46de0664e414272991d97ebdc7",
+        "backup_sha": "d6374597dc2d209fe4bb55febd16bb89c44f2594",
+        "result": "deleted"
+      },
+      {
+        "kind": "branch",
+        "branch": "work/melonx-blackscreen-artifacts-20261104",
+        "sha": "92e8e0de2b198e02d653b1f04b20b25adc06a8bb",
+        "backup_sha": "d6374597dc2d209fe4bb55febd16bb89c44f2594",
+        "result": "deleted"
+      },
+      {
+        "kind": "branch",
+        "branch": "work/melonx-core661-integration",
+        "sha": "9305809d78a9250e00692f9f744554601963f9f4",
+        "backup_sha": "d6374597dc2d209fe4bb55febd16bb89c44f2594",
+        "result": "deleted"
+      },
+      {
+        "kind": "branch",
+        "branch": "work/melonx-core661",
+        "sha": "d025c35447d1fb07e12be21e7ac0fdcef5ea4fc8",
+        "backup_sha": "d6374597dc2d209fe4bb55febd16bb89c44f2594",
+        "result": "deleted"
+      },
+      {
+        "kind": "branch",
+        "branch": "work/melonx-core673",
+        "sha": "367899afa060ea1076268622ce4db0d56708b7e1",
+        "backup_sha": "d6374597dc2d209fe4bb55febd16bb89c44f2594",
+        "result": "deleted"
+      },
+      {
+        "kind": "branch",
+        "branch": "work/melonx-core677",
+        "sha": "840f38d8fb38dfe7ce22b4a54a77b7018cd9b7c9",
+        "backup_sha": "d6374597dc2d209fe4bb55febd16bb89c44f2594",
+        "result": "deleted"
+      },
+      {
+        "kind": "branch",
+        "branch": "work/melonx-crash-journal-663",
+        "sha": "5d3361e985fe41049cb13abd61748c14a79aea5a",
+        "backup_sha": "d6374597dc2d209fe4bb55febd16bb89c44f2594",
+        "result": "deleted"
+      }
+    ],
+    "result": "stopped",
+    "planSHA256": "7a80bd0f33cf84d59fb9bde5eca16e8d9e0a6fc0961a23d4aa53eb67bf338697",
+    "error": "Branch changed/protected: work/melonx-fps-stability-20261103"
+  }
+}

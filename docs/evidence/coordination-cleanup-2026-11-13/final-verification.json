@@ -1,0 +1,53 @@
+{
+  "checkedAt": "2026-11-13T00:34:06.049Z",
+  "branches": [
+    {
+      "name": "Backup",
+      "sha": "4e2ec7580e619e4c16c7e54182b912ef18ee4421"
+    },
+    {
+      "name": "Claude",
+      "sha": "6716babd267552f2d86c408516459e8d4d111891"
+    },
+    {
+      "name": "main",
+      "sha": "c60bcb5cad02626a85487f6577782784458d2fb9"
+    }
+  ],
+  "mainUnchanged": true,
+  "backupCommit": "4e2ec7580e619e4c16c7e54182b912ef18ee4421",
+  "protectionRun": 43337757465,
+  "protectionJobs": [
+    {
+      "id": 131598164623,
+      "name": "upload-boundary (windows-latest)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 131598164953,
+      "name": "upload-boundary (macos-15)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 131598165055,
+      "name": "upload-boundary (ubuntu-24.04)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 131598166399,
+      "name": "inspect-retained-artifacts",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 131598224987,
+      "name": "inventory",
+      "status": "completed",
+      "conclusion": "skipped"
+    }
+  ],
+  "concurrentBoardSectionsPreserved": true
+}

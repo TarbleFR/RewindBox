@@ -1,0 +1,107 @@
+{
+  "run": 43336814980,
+  "artifact": 13998580081,
+  "artifactSHA256": "83d1fc4ee953a5ee7b0e6a9eb4964559e0d51592d710a06ebdeb641bb2c938fa",
+  "receipt": {
+    "plan_sha256": "92138ebcd3f565b5f2fa25ab194929dea1999bbc67e0e23259a0239873a6124c",
+    "operations": [
+      {
+        "kind": "run",
+        "id": 43098367042,
+        "sha": "0fbb5ac85e848cd5ec06300ab04dbed824b0b652",
+        "path": ".github/workflows/rewind610-delivery.yml",
+        "created_at": "2026-11-11T20:50:19Z",
+        "result": "previous_cancellation_not_retried"
+      },
+      {
+        "kind": "run",
+        "id": 43098367089,
+        "sha": "0fbb5ac85e848cd5ec06300ab04dbed824b0b652",
+        "path": ".github/workflows/hogwarts606-host-recovery.yml",
+        "created_at": "2026-11-11T20:50:19Z",
+        "result": "previous_cancellation_not_retried"
+      },
+      {
+        "kind": "run",
+        "id": 43098367127,
+        "sha": "0fbb5ac85e848cd5ec06300ab04dbed824b0b652",
+        "path": ".github/workflows/rewind608-retro-achievements-delivery.yml",
+        "created_at": "2026-11-11T20:50:19Z",
+        "result": "previous_cancellation_not_retried"
+      },
+      {
+        "kind": "run",
+        "id": 43098367113,
+        "sha": "0fbb5ac85e848cd5ec06300ab04dbed824b0b652",
+        "path": ".github/workflows/rewind609-hogwarts-liveness-delivery.yml",
+        "created_at": "2026-11-11T20:50:19Z",
+        "result": "previous_cancellation_not_retried"
+      },
+      {
+        "kind": "run",
+        "id": 43098367088,
+        "sha": "0fbb5ac85e848cd5ec06300ab04dbed824b0b652",
+        "path": ".github/workflows/standard-delivery.yml",
+        "created_at": "2026-11-11T20:50:19Z",
+        "result": "previous_cancellation_not_retried"
+      },
+      {
+        "kind": "run",
+        "id": 43098589560,
+        "sha": "ec8a25def5130cb5236fba6b768f8a66ae99de6e",
+        "path": ".github/workflows/xenia-core.yml",
+        "created_at": "2026-11-11T20:52:45Z",
+        "result": "previous_cancellation_not_retried"
+      },
+      {
+        "kind": "run",
+        "id": 43097515563,
+        "sha": "0c864039307d63b1e3c0f63de8e06501070a5b94",
+        "path": ".github/workflows/s2arm-core.yml",
+        "created_at": "2026-11-11T20:41:16Z",
+        "result": "previous_cancellation_not_retried"
+      },
+      {
+        "kind": "run",
+        "id": 43097515562,
+        "sha": "0c864039307d63b1e3c0f63de8e06501070a5b94",
+        "path": ".github/workflows/s2arm-engine.yml",
+        "created_at": "2026-11-11T20:41:16Z",
+        "result": "previous_cancellation_not_retried"
+      },
+      {
+        "kind": "run",
+        "id": 43097515549,
+        "sha": "0c864039307d63b1e3c0f63de8e06501070a5b94",
+        "path": ".github/workflows/s2arm-delivery.yml",
+        "created_at": "2026-11-11T20:41:16Z",
+        "result": "previous_cancellation_not_retried"
+      },
+      {
+        "kind": "workflow",
+        "id": 403045822,
+        "path": ".github/workflows/hogwarts606-host-recovery.yml",
+        "result": "already_disabled"
+      },
+      {
+        "kind": "workflow",
+        "id": 403403448,
+        "path": ".github/workflows/rewind608-retro-achievements-delivery.yml",
+        "result": "already_disabled"
+      },
+      {
+        "kind": "workflow",
+        "id": 403691689,
+        "path": ".github/workflows/rewind609-hogwarts-liveness-delivery.yml",
+        "result": "disabled"
+      },
+      {
+        "kind": "workflow",
+        "id": 403754755,
+        "path": ".github/workflows/rewind610-delivery.yml",
+        "result": "disabled"
+      }
+    ],
+    "status": "completed"
+  }
+}
