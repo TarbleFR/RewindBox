@@ -1,0 +1,147 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 52c6fe0d..cc11a186 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -369,7 +369,9 @@ NVN(nvnMemoryPoolInitialize, NVNboolean, NVNmemoryPool *p, const NVNmemoryPoolBu
+     if (!o->mem && (o->flags & 0x200)) o->mem = vpool_reserve(o);   // every virtual pool: its own address range, a page table over physical pools (see MapVirtual)
+     else if (o->mem) { nvn_be_pool_add(o->mem, o->size); nvn_dirty_add_range(o->mem, o->size); }
+     if (!o->mem && !(o->flags & 0x200)) LOG("【红】 MemoryPoolInitialize: non-virtual pool has no storage flags=%#x size=%#llx", o->flags, o->size);
+-    o->gva = o->mem || (o->flags & 0x200) ? gva_alloc((uint64_t)(uintptr_t)o->mem, o->size) : 0;   // 虚拟池的 CPU 侧是它自己的预留段（预留失败时没有，GPU 地址照给：真机初始化即有）
++    // Switch 2（NVN2）：池建在 gsv GPU 可访问内存上，那段内存的 GPU 虚拟地址就是它的 CPU 虚拟地址，缓冲区地址 = 存储的 CPU 地址；游戏会拿 GetBufferAddress 的结果加偏移直接用 CPU 读写
++    //   （#351：给窗口地址时 CPU 读 0xC086D00000 一带非法地址崩）。所以 NVN2 不另分窗口地址，pool_ga 回存储地址，nvn_ga2ca 对它原样过。窗口只给 Switch 1（大页对齐语义，见上）
++    o->gva = !nvn2_on() && (o->mem || (o->flags & 0x200)) ? gva_alloc((uint64_t)(uintptr_t)o->mem, o->size) : 0;   // 虚拟池的 CPU 侧是它自己的预留段（预留失败时没有，GPU 地址照给：真机初始化即有）
+     if (getenv("DM_NVN_VLOG")) { LOG("[nvn] MemoryPool %p mem=%p size=%#llx flags=%#x", (void *)p, (void *)o->mem, (unsigned long long)o->size, o->flags); void dm_backtrace(uint64_t fp); dm_backtrace((uint64_t)__builtin_frame_address(0)); }
+     OLOG("MemoryPool %p mem=%p size=%#llx flags=%#x", (void *)p, (void *)o->mem, o->size, o->flags);
+     return 1;
+diff --git a/graphics/nvn/gfx/nvn/nvn2_codec.c b/graphics/nvn/gfx/nvn/nvn2_codec.c
+index ca80dd65..6c879b0a 100644
+--- a/graphics/nvn/gfx/nvn/nvn2_codec.c
++++ b/graphics/nvn/gfx/nvn/nvn2_codec.c
+@@ -239,6 +239,11 @@ static void gs_alloc_shutdown(void) { nvn2_gs_set_allocator(NULL, NULL, NULL, NU
+ // 帧节奏模式（oe::SetGraphicsTargetFrameRate 经它告诉 gs 服务）：宿主按窗口的交换间隔定节奏，GPU 时间片 / 重启模式无处可设——记下
+ static void gs_frame_mode(int mode) { static _Atomic int last = -1; if (atomic_exchange(&last, mode) != mode) LOG("gs：帧长模式 %d（0 自动、1 30 帧、2 60 帧、3 120 帧）：宿主按 NVN 交换间隔定节奏，只记下", mode); }
+ static void gs_frame_knob(int mode) { (void)mode; }
++// nn::oe::SetGraphicsTargetFrameRate（新版 sdk，#679）：sdk 里它在模块内直接调 gs::sdk::SetGraphicsFrameLengthMode，不经导入表，上面那个接管碰不到；
++//   原版去用 gsv 会话，直连档 gs 不启动、会话不存在，首帧后中止。主程序经导入调它，在这一层接住：同帧长模式，宿主按 NVN 交换间隔定节奏，只记、回成功。
++//   参数是目标帧率的枚举 / 数值（各 sdk 的改编名后缀不一定相同，按名字前缀认），只用来打日志
++#define OE_TARGET_RATE "_ZN2nn2oe26SetGraphicsTargetFrameRateE"
++static Result oe_target_rate(int rate) { static _Atomic int last = -1; if (atomic_exchange(&last, rate) != rate) LOG("oe：目标帧率设置 %d：宿主按 NVN 交换间隔定节奏，只记（直连档不启动 gs，不转给 gs 服务）", rate); return RES_OK; }
+ 
+ // ---------- 图像池与原生图像句柄 ----------
+ enum { IMG_NONE, IMG_NV12, IMG_RGBA, IMG_HDR };
+@@ -1284,6 +1289,7 @@ void *s2a_codec_entry(const char *name) {
+     if (!name || !nvn2_on()) return NULL;
+     for (unsigned i = 0; i < sizeof g_cv_names / sizeof *g_cv_names; i++)
+         if (!strcmp(name, g_cv_names[i].n)) return g_cv_names[i].f ? g_cv_names[i].f : (void *)cv_lib_ok;
++    if (!strncmp(name, OE_TARGET_RATE, sizeof OE_TARGET_RATE - 1)) return (void *)oe_target_rate;
+     for (unsigned i = 0; i < sizeof g_ni_names / sizeof *g_ni_names; i++) if (!strcmp(name, g_ni_names[i].n)) return g_ni_names[i].f;
+     int fam = cv_video(name) || !strncmp(name, "_ZN2nn6syncpt", 13) || !strncmp(name, "_ZNK2nn6syncpt", 14) || !strncmp(name, "_ZN2nn2gs", 9) || !strncmp(name, "_ZNK2nn2gs", 10)
+         || (!strncmp(name, "_Z", 2) && (strstr(name, "nvnNativeImage") || strstr(name, "FromNativeImage") || strstr(name, "3nvn11NativeImage") || strstr(name, "3nvn18NativeImageBuilder")
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index ea5e117c..96e129fe 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -2139,17 +2139,47 @@ static int ub_skip(const char *key) {   // Whether this phase should drop draws
+ void nvn_be_set_frame(uint64_t f) { atomic_store(&g_cur_frame, f); if (g_ub_n) ub_frame(f); }
+ // GPU timing registration: gpu_tag_begin(frame) before commit, gpu_tag_done(frame, GPU start, GPU end) on completion (seconds on the CACurrentMediaTime base).
+ // Old-queue command buffers go through gpu_tag_f; the Metal 4 main submission backfills in the feedback of nvn_be_sub_commit (when switching to Metal 4 all the call sites were lost and the GPU column of the timing line became empty)
+-static void gpu_tag_begin(uint64_t f) {
++static double gpu_tag_begin(uint64_t f) {   // 返回提交时刻（CACurrentMediaTime）：调用方原样交给 gpu_tag_done，GPU 不可能早于它开始
+     unsigned k = f % GRING;
+     if (atomic_load(&g_gpu[k].frame) != f) { atomic_store(&g_gpu[k].frame, f); atomic_store(&g_gpu[k].ns, 0); atomic_store(&g_gpu[k].pending, 0); atomic_store(&g_gpu[k].t0, UINT64_MAX); atomic_store(&g_gpu[k].t1, 0); }
+     atomic_fetch_add(&g_gpu[k].pending, 1);
++    return CACurrentMediaTime();
+ }
+ // A frame whose command buffers keep the GPU busy longer than this in all is no longer usable: the run stops (mtl_gpu_halt: GPU safe stop) before the driver's timeout recovery takes over
+ //   (10-31: the Mac's kernel panicked in the GPU driver's event machine after runs whose frames took 1.5-3.3 s of GPU)
+ #define S2A_GPU_FRAME_MAX_MS 1000
+-static void gpu_tag_done(uint64_t f, double g0, double g1) {
++// 一帧过门只记黄行、不停（11-13 iPad14,8 iOS 26.6：一帧 1020 ms 就把玩家的局冻结了；单帧偶发超时的代价是一次卡顿，不是整机卡死）。
++//   要停的是持续形态：GPU 时间线上 10 秒内有 3 帧各过 1 秒（10-31 内核恐慌前就是一帧接一帧 1.5–3.3 秒）。驱动报的 Hang / PageFault 不经这里，照旧当场停
++#define S2A_GPU_OVER_N 3
++#define S2A_GPU_OVER_WINDOW_S 10.0
++static os_unfair_lock g_gpu_over_lk = OS_UNFAIR_LOCK_INIT; static double g_gpu_over_t[S2A_GPU_OVER_N]; static unsigned g_gpu_over_n;
++static void gpu_frame_over(uint64_t f, uint64_t busy, double at) {   // at = 这一份的 GPU 结束（与 CACurrentMediaTime 同一时基）
++    os_unfair_lock_lock(&g_gpu_over_lk);
++    unsigned n = ++g_gpu_over_n; g_gpu_over_t[(n - 1) % S2A_GPU_OVER_N] = at;
++    double first = g_gpu_over_t[n % S2A_GPU_OVER_N];   // 连这一帧在内最近 S2A_GPU_OVER_N 帧里最早那一帧
++    int stop = n >= S2A_GPU_OVER_N && at - first <= S2A_GPU_OVER_WINDOW_S;
++    os_unfair_lock_unlock(&g_gpu_over_lk);
++    if (stop) { char w[160]; snprintf(w, sizeof w, "frame %llu kept the GPU busy %.0f ms (limit %d ms), %d frames over the limit within %.1f s", (unsigned long long)f, busy / 1e6, S2A_GPU_FRAME_MAX_MS, S2A_GPU_OVER_N, at - first); mtl_gpu_halt(w); }
++    else MLOG("【黄】 帧 %llu GPU 忙 %.0f ms（过 %d ms 门，第 %u 次）：照常继续；10 秒内 %d 帧都过门才安全停", (unsigned long long)f, busy / 1e6, S2A_GPU_FRAME_MAX_MS, n, S2A_GPU_OVER_N);
++}
++// 开始时间早于提交时刻（11-11 #647：Mac mini M4 / macOS 27.2.1，Metal 4，23 局都以本门收局，停前每帧整帧 16–24 ms 照常出帧，记到的帧 GPU
++//   每帧线性涨约一帧时长、涨过 1 秒——某个提交回报的 GPUStartTime 停在过去，跨度被一路拉长；驱动没报任何命令缓冲错误）：GPU 不可能在提交之前开始干这份活，
++//   早于提交时刻 sub 的开始按 sub 算，计数并打黄行（时间戳原样写出；本机 macOS 26.4 / 门禁机 27.0.1 的探针 900 次提交 0 次，是防线不是已证根因）。
++//   主因：同一队列上的提交按序执行，回报的跨度里含排队等前面几份的时间——一帧切成多段提交（每 64 笔一段）时各段跨度层层包含，相加就重复计；
++//   GPU 跟不上 CPU（作者 M4：帧 GPU 中位 21.8 ms，屏上约 20 帧/秒）时积压越深跨度越长。帧 GPU 时间改记每份的独占时间：
++//   结束 − max(开始, 本队列上一份结束)，每个时刻在一条队列上只算一次。真挂死（GPU 真跑满 1 秒以上）独占时间同样过门，照停、不更慢
++static _Atomic uint64_t g_gpu_start_early;
++static _Atomic uint64_t g_gpu_qend[2];   // 各队列已回报的最晚 GPU 结束（ns）：0 = 主回放 / 分段提交（g_q4 / g_q3），1 = 旧队列（gpu_tag_f）
++uint64_t mtl_gpu_start_early(void) { return atomic_load(&g_gpu_start_early); }
++static void gpu_tag_done(uint64_t f, int qi, double sub, double g0, double g1) {
+     unsigned k = f % GRING;
+     if (atomic_load(&g_gpu[k].frame) != f) return;
++    if (g0 > 0 && sub > 0 && g0 < sub - 0.001) {
++        uint64_t n = atomic_fetch_add(&g_gpu_start_early, 1);
++        if (n < 4 || !(n & (n - 1))) MLOG("【黄】 GPU 开始时间早于提交 %.1f ms：帧 %llu 提交 %.3f，GPU %.3f→%.3f；按提交时刻算（第 %llu 次）",
++            (sub - g0) * 1e3, (unsigned long long)f, sub, g0, g1, (unsigned long long)n + 1);
++        g0 = sub;
++    }
+     double d = g1 - g0;
+     // 结束时间不可能晚于现在（GPUStart / GPUEnd 与 CACurrentMediaTime 同一时基）。11-09 M1 Pro 时之笛 S2：切出窗口再切回后，一个命令缓冲回报的跨度算出 6147890790964 ms（约 195 年），
+     //   这道 1 秒门把它当成 GPU 挂死、安全停收局。这样的时间戳只打红行、不计进本帧 GPU 时间；真挂死的跨度结束在过去，照判
+@@ -2160,15 +2190,18 @@ static void gpu_tag_done(uint64_t f, double g0, double g1) {
+         d = 0;
+     }
+     if (d > 0 && g0 > 0) {   // a command buffer can complete with no start time (0, while a movie's frames upload each frame in Big Brain Academy: Brain vs. Brain), and its span would be the whole clock
+-        uint64_t busy = atomic_fetch_add(&g_gpu[k].ns, (uint64_t)(d * 1e9)) + (uint64_t)(d * 1e9);
+-        if (busy > S2A_GPU_FRAME_MAX_MS * 1000000ull) { char w[120]; snprintf(w, sizeof w, "frame %llu kept the GPU busy %.0f ms (limit %d ms)", (unsigned long long)f, busy / 1e6, S2A_GPU_FRAME_MAX_MS); mtl_gpu_halt(w); }
+         uint64_t s0 = (uint64_t)(g0 * 1e9), s1 = (uint64_t)(g1 * 1e9), v;
++        _Atomic uint64_t *qe = &g_gpu_qend[qi & 1]; uint64_t prev = atomic_load(qe);
++        while (s1 > prev && !atomic_compare_exchange_weak(qe, &prev, s1)) {}
++        uint64_t from = s0 > prev ? s0 : prev, excl = s1 > from ? s1 - from : 0;   // 本队列上一份结束之前的那段是排队，不算
++        uint64_t busy = atomic_fetch_add(&g_gpu[k].ns, excl) + excl;
+         for (v = atomic_load(&g_gpu[k].t0); s0 < v && !atomic_compare_exchange_weak(&g_gpu[k].t0, &v, s0);) {}
+         for (v = atomic_load(&g_gpu[k].t1); s1 > v && !atomic_compare_exchange_weak(&g_gpu[k].t1, &v, s1);) {}
++        if (busy > S2A_GPU_FRAME_MAX_MS * 1000000ull && busy - excl <= S2A_GPU_FRAME_MAX_MS * 1000000ull) gpu_frame_over(f, busy, g1);   // 这一份让本帧过门（每帧只算一次）
+     }
+     atomic_fetch_sub(&g_gpu[k].pending, 1);
+ }
+-static void gpu_tag_f(id<MTLCommandBuffer> cb, uint64_t f) { gpu_tag_begin(f); [cb addCompletedHandler:^(id<MTLCommandBuffer> c) { gpu_tag_done(f, c.GPUStartTime, c.GPUEndTime); }]; }
++static void gpu_tag_f(id<MTLCommandBuffer> cb, uint64_t f) { double sub = gpu_tag_begin(f); [cb addCompletedHandler:^(id<MTLCommandBuffer> c) { gpu_tag_done(f, 1, sub, c.GPUStartTime, c.GPUEndTime); }]; }
+ void gpu_tag(id<MTLCommandBuffer> cb) { gpu_tag_f(cb, atomic_load(&g_cur_frame)); }
+ double nvn_be_gpu_ms(uint64_t f) {
+     unsigned k = f % GRING;
+@@ -2231,11 +2264,11 @@ uint64_t nvn_be_sub_commit(void) {
+     id o = fb_new();
+     atomic_fetch_add(&g_seg_inflight, 1);
+     fb_add(o, ^(id f) { (void)f; atomic_fetch_sub(&g_seg_inflight, 1); for (dispatch_block_t block in commit_blocks) block(); });
+-    uint64_t gpu_f = atomic_load(&g_cur_frame); gpu_tag_begin(gpu_f);
++    uint64_t gpu_f = atomic_load(&g_cur_frame); double gpu_sub = gpu_tag_begin(gpu_f);
+     NSString *cctx = @(cctx_snap());
+     seg_clk *sc = g_sclk; uint32_t seg_last = g_seg; g_sclk = NULL;
+     fb_add(o, ^(id<MTL4CommitFeedback> cb) {
+-        gpu_tag_done(gpu_f, cb.GPUStartTime, cb.GPUEndTime);
++        gpu_tag_done(gpu_f, 0, gpu_sub, cb.GPUStartTime, cb.GPUEndTime);
+         uint64_t c0 = 0, c1 = 0; if (seg_ts()) { c0 = gpu_s_guest_ns(cb.GPUStartTime); c1 = gpu_s_guest_ns(cb.GPUEndTime); }
+         if (cb.error) { atomic_store(&g_last_commit_error, 1); atomic_fetch_add(&g_commit_error_n, 1); if (mtl_gpu_halted()) mtl_gpu_cb_error(cb.error, "main replay", fence); else { static int n, nv; int victim = [cb.error.description containsString:@"InnocentVictim"]; if (!victim) quar_fault(qsus, cb.error); if (victim ? nv++ < 1 : n++ < 8) MLOG("【红】 command buffer error details fence=%llu: %s | GPU %.3f→%.3f", (unsigned long long)fence, cb.error.description.UTF8String, cb.GPUStartTime, cb.GPUEndTime); if (!victim) MLOG("【红】 state of the failed submission fence=%llu: %s", (unsigned long long)fence, cctx.UTF8String); MLOG("【红】 command buffer execution error: %s", cb.error.localizedDescription.UTF8String); mtl_gpu_cb_error(cb.error, "main replay", fence); s2a_direct_gpu_error(cb.error.localizedDescription.UTF8String); } }
+         for (int i = 0; i < n; i++) {
+@@ -14234,7 +14267,7 @@ static void sub_cut(void) {
+     g_cut_copy = 0;
+     if (g_blit) { enc_b_end(g_blit); g_blit = nil; }
+     up_flush();
+-    uint64_t f = atomic_load(&g_cur_frame); gpu_tag_begin(f);
++    uint64_t f = atomic_load(&g_cur_frame); double gpu_sub = gpu_tag_begin(f);
+     uint32_t k = g_seg++; seg_clk *sc = NULL;   // reports encoded so far keep this segment's GPU times (seg_ts)
+     NSArray<NSString *> *qsus = quar_take();
+     uint64_t sf = arena_cut();
+@@ -14243,7 +14276,7 @@ static void sub_cut(void) {
+     atomic_fetch_add(&g_seg_inflight, 1);
+     fb_add(o, ^(id<MTL4CommitFeedback> cb) {
+         atomic_fetch_sub(&g_seg_inflight, 1);
+-        gpu_tag_done(f, cb.GPUStartTime, cb.GPUEndTime);
++        gpu_tag_done(f, 0, gpu_sub, cb.GPUStartTime, cb.GPUEndTime);
+         arena_seg_done(sf);
+         if (sc) { if (k < SEG_CLK_N) { atomic_store(&sc->t[k][0], gpu_s_guest_ns(cb.GPUStartTime)); atomic_store(&sc->t[k][1], gpu_s_guest_ns(cb.GPUEndTime)); } seg_clk_put(sc); }
+         if (cb.error) { atomic_store(&g_last_commit_error, 1); atomic_fetch_add(&g_commit_error_n, 1); if (mtl_gpu_halted()) mtl_gpu_cb_error(cb.error, "segment", f); else { static int k; if (![cb.error.description containsString:@"InnocentVictim"]) quar_fault(qsus, cb.error); if (k++ < 8) MLOG("【红】 segment command buffer execution error: %s", cb.error.description.UTF8String); mtl_gpu_cb_error(cb.error, "segment", f); s2a_direct_gpu_error(cb.error.localizedDescription.UTF8String); } }
