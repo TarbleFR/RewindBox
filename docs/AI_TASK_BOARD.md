@@ -334,6 +334,14 @@ Checked on `f4fb22fd`: delivery contract and its test pass except the expected p
 Core 745 is pinned; engine concurrency, tidy, consolidation, retirement, S2Arm pinned-engine/legal and XeniOS
 review tests OK. Known red outside the recipe: `.github/diagnostics/s2arm/s2arm_delivery_test.py` (old S2Arm
 test-IPA launcher, line constants drifted since `fc0c18dd`; it refuses that line until reviewed, not used by 733).
+**Test delivery 734 (maintainer, 13 Nov, later):** authorized in session `01JA5QgNKffXiA5ZjCm4JEun` with the S2Arm
+Mario Kart World lot (engine patches 0013–0015) and the MeloNX heat lot (`work/melonx-heat-20261113` `a0fea59e`,
+Core 747). The maintainer chose that session as executor, with fast-forward pushes to `Claude`; ownership is on issue
+179, comment 6851399483. **Do not dispatch a competing Core 747 or IPA 734.** That session has no .NET 10.0.100 SDK
+(its installation was refused there), so the Core 747 freeze (105 local gates) was asked of the lot's owner session
+`01JA5QgKeoGVH5oVjNyhcj3D` on its branch; a 734 without Core 747 is only sent if that freeze cannot be produced, and
+says so. Order: S2Arm lot merged and engine requested on `Claude` → engine pin → Core 747 freeze, request, verification,
+pin → manifest 734 → `[ipa-delivery:734]` → offline verification and private delivery. Read the live runs, not this line.
 **Current execution (maintainer,13 Nov):** Codex was explicitly asked to launch the next common IPA,
 then to apply engine compilation improvements first. Issue179 comment6840690330 records this execution
 ownership; do not dispatch a competing Core/IPA. Reviewed recovery and optional host cache are integrated
@@ -439,6 +447,43 @@ phone. Earlier 732 boot served 57 MB in 0.2 s, then crashed after nnMain; patch0
 is the next device candidate. Preserve saves/import/settings/menu/locales and
 existing JIT/helper/NativeAOT isolation rules. No game or key distributed.
 Session owns all s2arm paths; common integration/pin/delivery remains main.
+**Mario Kart World launch lot (maintainer request 13 Nov, session `01JA5QgNKffXiA5ZjCm4JEun`, lot branch
+`claude/youthful-goldberg-4aphwq` `50924021`, merged into `Claude` for test delivery 734; see the Common IPA task).**
+Input: IPA733 engine log of iPhone17,2 (`host.log` SHA-256 `ed432b17…`, diagnostics ZIP `d1eee787…`, preparation
+journal `4c50a97a…`; private, not in Git). Finding: the window cannot hold the standard layout (75958 MB asked, hole
+64512 MB), so 3 GiB stay to the host and every NVN virtual pool (`vpool_reserve` → `mmap(NULL)`) and every host stack
+of a game thread (tail allocator has no range in that layout) is taken there: host hole 1717 → 5 MB, reservations
+halved then refused (errno 12), 219 MapVirtual refusals, `pthread_create` rc=35, code 134, 0 frames.
+Changes (engine patches, S2Arm pin `6b6a5715` unchanged): **0013** window gives up 2 GiB for the tail allocator and a
+16 GiB virtual-pool arena below its base (`runtime/src/rb_vparena.c`; host 3 GiB, per-pool reservation and failure
+paths unchanged); **0014** RomFS index written at first start with S2Arm's writer and a tree stamp (the 69 s directory
+build of 205,058 files was paid at every launch); **0015** four later S2Arm commits taken unmodified after an audit of
+its history up to `6bd0f402`: `240603b6` Switch 2 pool buffer address = storage CPU address (#351 crash before first
+frame), `09e80022` host answers `nn::oe::SetGraphicsTargetFrameRate` (#679 abort after first frame), `81f8e8bd` +
+`26465c45` GPU-time gate counts exclusive time and stops only on 3 frames over 1 s within 10 s (#647).
+Checks executed: series 0001–0015 applies on the pin; arena compiled from the patch and run, 38 checks under
+gcc/clang/ASan+UBSan; `s2arm_vp_arena_test` 34, `s2arm_romfs_index_test` 20, `s2arm_upstream_switch2_fixes_test` 17
+checks (0015 equals the four commits line for line), 7/7 mutations detected; 13 other S2Arm tests and
+`delivery_contract_memo_test` green; independent `rb-core-review` of 0013 found no definite bug (its release-length
+hardening applied). **Compiled for iOS:** `s2arm-engine.yml` run `43365543093` attempt 1 on source `2a37382b`
+(patches 0001–0015) succeeded on macos-26 and macos-15 with its entry-point and blocking licence-inventory checks;
+framework artifact `14010462973` (`s2arm-engine-framework-2a373820…`, 23,931,392 bytes, digest `f076cd9f…`, expires
+13 Dec). Earlier run `43364611467` (0013/0014, `7f81e84f`) also green; `s2arm-bridge-ios.yml` `43365546359` green on
+the final source (the three new tests run on macOS). **Device: nothing observed; a green build does not show that the
+game starts.**
+Examined, no change: 16 GB written in 50 s = guest memory file backing (auto on, pool 9216 MB > 6128 MB room); the
+rate (about 3.3 GB per 10 s) is constant from nnMain to the end in both sessions, the engine issues no sync and no
+write at SetHeapSize (mprotect only), anonymous memory would exceed the process limit; whether it continues after
+loading needs a device log. Nine `nn::codec` video decoder imports are not intercepted (only relevant if a movie
+blocks after the first frame). Findings left to their owners: the engine reports the pin commit as build identity for
+every patch level (`S2ACommit`, checked by `s2arm-engine.yml`), so logs do not name the patch level and the direct-mode
+safety net's failure count carries over engine updates (2 now, prompt page at 3); the 12 Nov 21:06 session had XeniOS
+threads alive in the process, an 8 GiB smaller hole and about 800 MB more footprint — only MeloNX is refused before a
+Switch 2 launch. Rejected: upstream #783 learned-span window alone (span recorded only after 300 presents); `85da99de`
+and `3fbde57c` (larger than a start needs).
+Next: engine rebuilt and pinned from `Claude` (the pin tool only accepts producers on `Claude`), test delivery 734 → from a cold app start the device
+log must show `the window gives up 18432 MB`, `in the virtual pool arena`, no `errno 12`, frames > 0, and at the second
+start `RewindBox: RomFS index read`.
 [Full evidence](https://github.com/TarbleFR/RewindBox/blob/30ee5beb204a9c972f85c5e9cd249aa341887283/docs/AI_TASK_BOARD.md#switch-2-playlist-s2arm-feasibility-prototype--session-04).
 
 ### Playlists/XeniOS (Xbox 360) — session 03 `012mUASiVyxdnhNTUKesGGm7`
