@@ -1,3 +1,0 @@
-Upstream source: https://github.com/RetroAchievements/rcheevos
-Pinned revision/tag: v12.5.0
-License: MIT (see LICENSE)

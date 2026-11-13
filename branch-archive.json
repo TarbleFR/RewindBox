@@ -1,0 +1,203 @@
+{
+  "version": 1,
+  "repository": "TarbleFR/RewindBox",
+  "created_at": "2026-11-13T00:03:00Z",
+  "purpose": "Archival reachability only. No archived change is thereby integrated or approved. Never merge Backup into a product branch.",
+  "retainedBranches": [
+    "main",
+    "Claude",
+    "Backup"
+  ],
+  "branches": [
+    {
+      "branch": "Claude",
+      "sha": "d7123113d36bc6b00ce02467ad96b66641042ad6",
+      "protected": false,
+      "pullRequests": []
+    },
+    {
+      "branch": "dependabot/pub/pub-dependencies-b574849521",
+      "sha": "4b53f459ac274f46de0664e414272991d97ebdc7",
+      "protected": false,
+      "pullRequests": [
+        {
+          "number": 163,
+          "url": "https://github.com/TarbleFR/RewindBox/pull/163",
+          "title": "build(deps): bump the pub-dependencies group across 1 directory with 14 updates",
+          "base": "main",
+          "head": "4b53f459ac274f46de0664e414272991d97ebdc7",
+          "state": "open",
+          "draft": false
+        }
+      ]
+    },
+    {
+      "branch": "main",
+      "sha": "c60bcb5cad02626a85487f6577782784458d2fb9",
+      "protected": true,
+      "pullRequests": []
+    },
+    {
+      "branch": "work/melonx-blackscreen-artifacts-20261104",
+      "sha": "92e8e0de2b198e02d653b1f04b20b25adc06a8bb",
+      "protected": false,
+      "pullRequests": []
+    },
+    {
+      "branch": "work/melonx-core661-integration",
+      "sha": "9305809d78a9250e00692f9f744554601963f9f4",
+      "protected": false,
+      "pullRequests": []
+    },
+    {
+      "branch": "work/melonx-core661",
+      "sha": "d025c35447d1fb07e12be21e7ac0fdcef5ea4fc8",
+      "protected": false,
+      "pullRequests": []
+    },
+    {
+      "branch": "work/melonx-core673",
+      "sha": "367899afa060ea1076268622ce4db0d56708b7e1",
+      "protected": false,
+      "pullRequests": []
+    },
+    {
+      "branch": "work/melonx-core677",
+      "sha": "840f38d8fb38dfe7ce22b4a54a77b7018cd9b7c9",
+      "protected": false,
+      "pullRequests": []
+    },
+    {
+      "branch": "work/melonx-crash-journal-663",
+      "sha": "5d3361e985fe41049cb13abd61748c14a79aea5a",
+      "protected": false,
+      "pullRequests": []
+    },
+    {
+      "branch": "work/melonx-fps-stability-20261103",
+      "sha": "d5c88541f22d2e032ae60c86838cf6fee67d2331",
+      "protected": false,
+      "pullRequests": []
+    },
+    {
+      "branch": "work/melonx-lot5-core711",
+      "sha": "94141f6fc29c2b883ec47db1d490ccb27fa5365a",
+      "protected": false,
+      "pullRequests": []
+    },
+    {
+      "branch": "work/melonx-lot5",
+      "sha": "85ec49bca5e60f700bec1135f3659722414b7d59",
+      "protected": false,
+      "pullRequests": []
+    },
+    {
+      "branch": "work/melonx-lot7-metal-archive",
+      "sha": "af40d42c0d515a414083ff77e929a59330b832d0",
+      "protected": false,
+      "pullRequests": []
+    },
+    {
+      "branch": "work/melonx-lot10-20261112",
+      "sha": "d17a29f2b27a105f162ec3ec72f8b2234c71591c",
+      "protected": false,
+      "pullRequests": []
+    },
+    {
+      "branch": "work/playlists-xenios-20261110",
+      "sha": "c0b6c22fbe191963a1ba47b3fe8bf0d17450c3c7",
+      "protected": false,
+      "pullRequests": []
+    },
+    {
+      "branch": "work/private-ipa-protection-main-20261111",
+      "sha": "f155bd2d249ac49f7d5a3c8d022e87278ce27bab",
+      "protected": false,
+      "pullRequests": []
+    },
+    {
+      "branch": "work/rpcs3-core668-no-orchestrator-20261105",
+      "sha": "0197102ef5d70e5bbed2d74c6b4790a625767bd1",
+      "protected": false,
+      "pullRequests": []
+    },
+    {
+      "branch": "work/rpcs3-metal-native-20261105",
+      "sha": "734406264ff2b0f3947d51d70229aa5d754218a1",
+      "protected": false,
+      "pullRequests": []
+    },
+    {
+      "branch": "work/s2arm-switch2-library-20261111",
+      "sha": "018da606586f403801a2fb5f2daec105af44daf8",
+      "protected": false,
+      "pullRequests": []
+    },
+    {
+      "branch": "work/s2arm-switch2-prototype-20261110",
+      "sha": "96477152c1b60f24085796270bfa1a575fb2428b",
+      "protected": false,
+      "pullRequests": []
+    },
+    {
+      "branch": "work/skins-board-originals-20261104",
+      "sha": "b8948da27877d37e99ea3bbc376f32dae1d56145",
+      "protected": false,
+      "pullRequests": []
+    },
+    {
+      "branch": "work/skins-bundled-refresh-20261104",
+      "sha": "0e3fd224991418e2a5d29a9225e1fe64ef17d369",
+      "protected": false,
+      "pullRequests": []
+    },
+    {
+      "branch": "work/skins-device-653-check-20261104",
+      "sha": "4eb0ab3982efe83d1b677c64a4c4406c2a93acae",
+      "protected": false,
+      "pullRequests": []
+    },
+    {
+      "branch": "work/skins-original-touch-20261104",
+      "sha": "5c25e9c4c9db10c2852472a3852cf1fc2a17a20d",
+      "protected": false,
+      "pullRequests": []
+    },
+    {
+      "branch": "work/skins-portrait-lock-20261103",
+      "sha": "7dbb704ecba6d1b5e3207a75c7b7042f6d56f802",
+      "protected": false,
+      "pullRequests": []
+    },
+    {
+      "branch": "work/skins-ps2-original-20261104",
+      "sha": "4b371ec1beafd9510a75ac2714c348d56c7b6c67",
+      "protected": false,
+      "pullRequests": []
+    },
+    {
+      "branch": "work/skins-stick-circle-20261105",
+      "sha": "5131e3b294558ff911d722474bede295a8ee9f56",
+      "protected": false,
+      "pullRequests": []
+    },
+    {
+      "branch": "work/skins-stick-silhouette-20261105",
+      "sha": "36899a0132f94646d865f8f6b44326d76623e895",
+      "protected": false,
+      "pullRequests": []
+    },
+    {
+      "branch": "work/skins-stick-top-20261104",
+      "sha": "a1a714fca74a892b5b01322f545938044dc0e050",
+      "protected": false,
+      "pullRequests": []
+    },
+    {
+      "branch": "work/skins-switch-pocket-20261104",
+      "sha": "7c75bd2be1b27641128e4491516eb0fbc57cfeb1",
+      "protected": false,
+      "pullRequests": []
+    }
+  ]
+}
