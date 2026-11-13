@@ -330,17 +330,23 @@ exact authenticated envelope caches and hashed S2Arm source reuse. Contract
 `08e254a3` changes only recipe/test input hashes; all104 gate definitions and runtime/preparation fields
 are unchanged.451 contract checks,24 recovery checks and3 focused cache tests passed on the integrated tree;
 independent review passed. Also rerun:9 encrypted-host-cache and15 standard-workflow tests, all passed.
-[Verification receipt](evidence/engine-build-caches-2026-11-13.json). No new Core/IPA success or macOS speed gain is claimed.
+[Verification receipt](evidence/engine-build-caches-2026-11-13.json). No macOS speed gain is claimed.
 **Core745 execution:** run `43344184896`, attempt1, job`131619413611`, source
-`ced57c6de8e99a241610b5c1756d962fb9d0067f` is active. Recovery authentication and Apple preflight passed;
-the final-source gates are running. The Xenia/S2Arm producer jobs were skipped as intended.
+`ced57c6de8e99a241610b5c1756d962fb9d0067f` completed successfully. Downloaded artifact
+`14004910211` (100703496 bytes, SHA256 `f0d5a52957a9f58652a2ae21829fffa00ecaa95455bd18f984eeb23a9f6c1608`)
+passed the unchanged component verifier:104 fresh gates,61 historical scopes and two simulator sessions.
+Device binary `2943e064…`, payload fingerprint `b580983d…`; the verified745 pin now replaces743 in the draft.
+Measured steps:54min29 gates,4min NativeAOT compilation. No device/gameplay gain is claimed.
+[Producer origin and full verification](evidence/melonx-core745/verification.json).
+The Xenia/S2Arm producer jobs were skipped as intended.
 Private-IPA upload-boundary CI passed on Linux/macOS/Windows (`43344184848`).
-**Next / Codex:** follow this run to completion, authenticate and pin its output, then freeze733 and use the
-same standard route. The draft now classifies all product commits (no replay conflicts/unclassified paths,
+**Next / Codex:** freeze733 and launch the same standard route. The draft classifies all product commits (no replay conflicts/unclassified paths,
 43 retained inputs verified), defers the future Xenia producer recipe and repository-only
 Actions maintenance, and has a fresh recipient key. Maintenance058 is reviewed but source-only:
 732 had already deferred its parent script/test versions; no unrelated promotion is needed.
-It is not frozen or dispatched;733 still waits for Core745.
+The maintainer explicitly requests733 now; new test-reuse/optimization work comes after733.
+That new work remains isolated and is not added to this delivery. The104 Core gates are authenticated
+by IPA assembly, not reexecuted; the host integration and final delivery checks remain mandatory.
 [Manifest](../build-utils/delivery/733.json) · [recipe](standard-delivery-recipe.md).
 
 ### RPCS3 FPS, stability and audio — main Claude Code
@@ -358,14 +364,14 @@ pipeline compilation, validated per-game/behaviour profiles and shared iOS rules
 
 ### MeloNX FPS, memory, black launch and artifacts — existing owner
 
-**Delivered baseline:** Core 743 in IPA729–732. Core 745 is the candidate for733;
-the draft keeps the verified743 pin until745 succeeds and is authenticated.
+**Delivered baseline:** Core 743 in IPA729–732. Core745 is compiled, simulator-validated
+and independently authenticated; the733 draft now selects its verified pin.
 **Lot 10:** six integrated adapters: Nifm static-event retention,
 paced strict syncs (Hogwarts), texture-array dirty epochs, shared sibling pipelines,
 collection-thread QoS and stall compaction. Main merged the first six-adapter source
 `7040c3e1` as `f733bbf9` and the four later macOS test fixes through `d17a29f2` in
 `30ee5beb`; executed fixture run `43331900586` is green. The frozen745 contract
-contains104 fresh gates; producer `43344184896` is active, not yet a verified pin.
+contains104 fresh gates; producer `43344184896` passed and its output is now pinned.
 [Detailed handoff and device acceptance](evidence/melonx-lot10/handoff.md).
 **Performance journal test (owner, d5c88541):** the stall spinner is checked against the waiter (at least the
 waiter's 20 ms ceiling and above its measured time), not a fixed 200 ms floor that failed delivery run 43312487102
@@ -378,8 +384,8 @@ remain owned there. Graphics-memory savings and thermal gains are not establishe
 **Next:** main initially froze745 in `f4fb22fd`; reviewed recipe recovery/cache inputs
 now bind contract `08e254a3`, preserving all104 gate definitions and the final preparation.
 Core CI `43336528859` stopped on the expired engine82 baseline. Reviewed recovery is integrated;
-replacement run`43344184896` from`ced57c6d` has passed dependency authentication and Apple preflight.
-Await its gates/compile/simulator result, then pin and include the live-capture bridge in IPA733,
+replacement run`43344184896` from`ced57c6d` passed the gates, compilation and two simulator sessions.
+Its authenticated pin is selected; include the live-capture bridge in IPA733,
 then compare Hogwarts/Smash closes and 20-minute Hogwarts. Preserve 1x/full draws,
 all useful syncs, caches and player data. Further instrumentation is justified only
 for a missing deciding measurement; confirmed defects need fixes and executed checks.
@@ -463,9 +469,9 @@ and Bash syntax successfully.104 Core gates and runtime/preparation contracts re
 **Next / owner:** Codex executes the maintainer's new private delivery request, coordinated on issue179,
 without a duplicate producer. Draft `dceb3344` already classifies the reviewed host-cache
 integration and defers the Xenia-only producer commit. Reconcile subsequent maintenance
-commits before733's materialization/freeze. Core745 is running as`43344184896` from`ced57c6d`; its dependency authentication and Apple preflight
-passed. Authenticate the finished output and resume733.
-No completed new Apple build, warm-cache speed measurement or IPA delivery is claimed. The permanent single-recipe
+commits before733's materialization/freeze. Core745 run`43344184896` from`ced57c6d` is successful,
+downloaded and authenticated; freeze and deliver733 before integrating further test-reuse work.
+No warm-cache speed measurement or new IPA delivery is claimed. The permanent single-recipe
 rule remains active in ca8fa34d.
 Dedicated `REWINDBOX_BUILD_CACHE_KEY` is required for optional acceleration; Codex
 could not provision it (GitHub connector has no secret-write operation; PC connector

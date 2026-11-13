@@ -1,0 +1,248 @@
+{
+  "run": {
+    "id": 43344184896,
+    "run_attempt": 1,
+    "head_sha": "ced57c6de8e99a241610b5c1756d962fb9d0067f",
+    "head_branch": "Claude",
+    "path": ".github/workflows/melonx-core.yml",
+    "status": "completed",
+    "conclusion": "success"
+  },
+  "job": {
+    "id": 131619413611,
+    "run_id": 43344184896,
+    "run_attempt": 1,
+    "head_sha": "ced57c6de8e99a241610b5c1756d962fb9d0067f",
+    "status": "completed",
+    "conclusion": "success",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-11-13T01:20:37Z",
+        "completed_at": "2026-11-13T01:21:27Z"
+      },
+      {
+        "name": "Run actions/checkout@v4",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-11-13T01:21:27Z",
+        "completed_at": "2026-11-13T01:22:02Z"
+      },
+      {
+        "name": "Restore exact authenticated core743 envelope",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-11-13T01:22:02Z",
+        "completed_at": "2026-11-13T01:22:02Z"
+      },
+      {
+        "name": "Restore exact authenticated core614 envelope",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4,
+        "started_at": "2026-11-13T01:22:02Z",
+        "completed_at": "2026-11-13T01:22:03Z"
+      },
+      {
+        "name": "Restore exact authenticated native envelope",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 5,
+        "started_at": "2026-11-13T01:22:03Z",
+        "completed_at": "2026-11-13T01:22:03Z"
+      },
+      {
+        "name": "Reject tampered dependency recovery archives",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 6,
+        "started_at": "2026-11-13T01:22:03Z",
+        "completed_at": "2026-11-13T01:22:04Z"
+      },
+      {
+        "name": "Run actions/setup-dotnet@v4",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 7,
+        "started_at": "2026-11-13T01:22:04Z",
+        "completed_at": "2026-11-13T01:22:17Z"
+      },
+      {
+        "name": "Pin the selected SDK for all new Apple gates",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 8,
+        "started_at": "2026-11-13T01:22:17Z",
+        "completed_at": "2026-11-13T01:22:17Z"
+      },
+      {
+        "name": "Authenticate engine82 evidence and reuse unchanged LibHac",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 9,
+        "started_at": "2026-11-13T01:22:17Z",
+        "completed_at": "2026-11-13T01:22:26Z"
+      },
+      {
+        "name": "Fetch exact MeloNX source",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 10,
+        "started_at": "2026-11-13T01:22:26Z",
+        "completed_at": "2026-11-13T01:22:31Z"
+      },
+      {
+        "name": "Verify Apple ARM64, exact SDK and reviewed Hogwarts DMA-copy Core inputs",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 11,
+        "started_at": "2026-11-13T01:22:31Z",
+        "completed_at": "2026-11-13T01:22:31Z"
+      },
+      {
+        "name": "Run five affected final-source gates and authenticate the delivered 614 Core evidence",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 12,
+        "started_at": "2026-11-13T01:22:31Z",
+        "completed_at": "2026-11-13T02:17:00Z"
+      },
+      {
+        "name": "Compile NativeAOT library and verify exported ABI",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 13,
+        "started_at": "2026-11-13T02:17:00Z",
+        "completed_at": "2026-11-13T02:21:00Z"
+      },
+      {
+        "name": "Bind both new libraries to reviewed sources and gate receipts",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 14,
+        "started_at": "2026-11-13T02:21:00Z",
+        "completed_at": "2026-11-13T02:21:02Z"
+      },
+      {
+        "name": "Fetch the unchanged native frameworks through their pinned republication",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 15,
+        "started_at": "2026-11-13T02:21:02Z",
+        "completed_at": "2026-11-13T02:21:07Z"
+      },
+      {
+        "name": "Authenticate unchanged native frameworks",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 16,
+        "started_at": "2026-11-13T02:21:07Z",
+        "completed_at": "2026-11-13T02:21:08Z"
+      },
+      {
+        "name": "Exercise this exact rebuilt engine in an ARM64 iOS app",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 17,
+        "started_at": "2026-11-13T02:21:08Z",
+        "completed_at": "2026-11-13T02:25:38Z"
+      },
+      {
+        "name": "Preserve the current runtime result including failures",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 18,
+        "started_at": "2026-11-13T02:25:38Z",
+        "completed_at": "2026-11-13T02:25:38Z"
+      },
+      {
+        "name": "Verify fresh guest execution, teardown and backing release",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 19,
+        "started_at": "2026-11-13T02:25:39Z",
+        "completed_at": "2026-11-13T02:25:39Z"
+      },
+      {
+        "name": "Save verified core743 envelope",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 20,
+        "started_at": "2026-11-13T02:25:39Z",
+        "completed_at": "2026-11-13T02:25:42Z"
+      },
+      {
+        "name": "Save verified core614 envelope",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 21,
+        "started_at": "2026-11-13T02:25:42Z",
+        "completed_at": "2026-11-13T02:25:45Z"
+      },
+      {
+        "name": "Save verified native envelope",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 22,
+        "started_at": "2026-11-13T02:25:45Z",
+        "completed_at": "2026-11-13T02:25:47Z"
+      },
+      {
+        "name": "Run TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 23,
+        "started_at": "2026-11-13T02:25:47Z",
+        "completed_at": "2026-11-13T02:25:55Z"
+      },
+      {
+        "name": "Post Run actions/setup-dotnet@v4",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 45,
+        "started_at": "2026-11-13T02:25:55Z",
+        "completed_at": "2026-11-13T02:25:55Z"
+      },
+      {
+        "name": "Post Run actions/checkout@v4",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 46,
+        "started_at": "2026-11-13T02:25:55Z",
+        "completed_at": "2026-11-13T02:25:56Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 47,
+        "started_at": "2026-11-13T02:25:56Z",
+        "completed_at": "2026-11-13T02:26:00Z"
+      }
+    ]
+  },
+  "artifact": {
+    "id": 14004910211,
+    "name": "MeloNX-engine-ced57c6de8e99a241610b5c1756d962fb9d0067f",
+    "size_in_bytes": 100703496,
+    "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14004910211",
+    "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14004910211/zip",
+    "expired": false,
+    "created_at": "2026-11-13T02:25:55Z",
+    "expires_at": "2027-02-11T01:20:33Z",
+    "updated_at": "2026-11-13T02:25:55Z",
+    "digest": "sha256:f0d5a52957a9f58652a2ae21829fffa00ecaa95455bd18f984eeb23a9f6c1608",
+    "workflow_run": {
+      "id": 43344184896,
+      "repository_id": 1329032710,
+      "head_repository_id": 1329032710,
+      "head_branch": "Claude",
+      "head_sha": "ced57c6de8e99a241610b5c1756d962fb9d0067f"
+    }
+  }
+}

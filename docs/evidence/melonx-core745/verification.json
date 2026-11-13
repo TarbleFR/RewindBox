@@ -1,0 +1,57 @@
+{
+  "method": "unchanged repository verifier with captured GitHub API responses",
+  "metadataSha256": "06af92d91b8fc54edd347ed07a81a789fee6328dde7d814822a0a6a69d61925c",
+  "archiveSha256": "f0d5a52957a9f58652a2ae21829fffa00ecaa95455bd18f984eeb23a9f6c1608",
+  "origin": {
+    "result": "authenticated",
+    "source": "ced57c6de8e99a241610b5c1756d962fb9d0067f",
+    "run": 43344184896,
+    "job": 131619413611,
+    "attempt": 1,
+    "artifact": 14004910211,
+    "archiveSHA256": "f0d5a52957a9f58652a2ae21829fffa00ecaa95455bd18f984eeb23a9f6c1608",
+    "testsExecutedByDelivery": 0
+  },
+  "evidence": {
+    "result": "passed",
+    "component": "melonx-hogwarts-dma-copy-core",
+    "origin": {
+      "result": "authenticated",
+      "source": "ced57c6de8e99a241610b5c1756d962fb9d0067f",
+      "run": 43344184896,
+      "job": 131619413611,
+      "attempt": 1,
+      "artifact": 14004910211,
+      "archiveSHA256": "f0d5a52957a9f58652a2ae21829fffa00ecaa95455bd18f984eeb23a9f6c1608",
+      "testsExecutedByDelivery": 0
+    },
+    "source": "ced57c6de8e99a241610b5c1756d962fb9d0067f",
+    "binaries": {
+      "ios-arm64": {
+        "sha256": "2943e06425bee44bf01926cf80144b3010983c0491acfab17b465ddb664f0f96",
+        "bytes": 38538648
+      },
+      "iossimulator-arm64": {
+        "sha256": "c4a99198dcb4fae01c089944a271427084d44a3ba0d6c2170037fa9c57cc6479",
+        "bytes": 38856344
+      }
+    },
+    "identities": {
+      "ios-arm64": "278510d4129745ceebdeef0671c493c7b9f1680e6cddb841d5e08d0acfae9aac",
+      "iossimulator-arm64": "d041b20f89f7fc14727954ccd0420291a9943a9cb0e50ddfae44ca60e1dfeb50"
+    },
+    "payloadFingerprint": "b580983dfbf9d7434881ed6b6b9112c50f525447d588eef8cc07f774d66b4a39",
+    "replacedCoreSource": "b181cbe19164b5c10da4d0412209d2067f97ea3e",
+    "replacedCorePackagedFingerprint": "bf7de0ddaa36aefe29f1ae6cdbc9d2c543c13aedc6ba501a96c54fa53b104e5b",
+    "freshAppleGatesInProducer": 104,
+    "reusedScopedAppleGatesInProducer": 16,
+    "historicalAppleReceiptsInProducer": 61,
+    "producerSimulatorSessions": 2,
+    "engineRecompiledForDelivery": false,
+    "priorGatesReexecuted": false,
+    "physicalDeviceTested": false,
+    "gameTested": false,
+    "fpsGainProven": false,
+    "deviceAllocationReductionProven": false
+  }
+}

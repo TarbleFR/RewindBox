@@ -2,7 +2,7 @@
   "schema": 1,
   "build": 733,
   "status": "draft",
-  "note": "Draft for the authorized common IPA 733: delivered 732 plus reviewed S2Arm patch0012 and preparation speed lot, MeloNX lot10/live-capture bridge. Core745 producer43344184896 is pending authentication and pinning; do not freeze or dispatch until its successful result is verified. RPCS3 934 and XeniaCore c7d6a5c4 retained. Same standard recipe with reviewed recovery and optional caches; no device speed claim.",
+  "note": "Authorized private IPA 733: delivered732 plus reviewed S2Arm patch0012 and preparation speed lot, verified MeloNX Core745 lot10/live-capture bridge (run43344184896,104 fresh Apple gates,two simulator sessions). RPCS3 934 and XeniaCore c7d6a5c4 retained. Same standard recipe with reviewed dependency recovery and optional caches. New test-reuse work is deferred until after733; no device speed gain is claimed.",
   "base": {
     "build": 732,
     "source": "77af35c2097a418c73a12eeb8997690493ed68d8",
@@ -62,16 +62,7 @@
       "packaging": "build-utils/melonx/package_runtime.py",
       "image": "Frameworks/MeloNXCore.framework/MeloNXCore",
       "producerRoute": ".github/workflows/melonx-core.yml",
-      "pinSha256": "a429f212422379e2106f5ee61a45c5aebe2d672a89d1a5ba79436c1344f99ece",
-      "unchangedFromBase": true,
-      "keeps": {
-        "build": 743,
-        "source": "3d2645ea030e0f1a3da39c99f0a55a6d03300eab",
-        "run": 43174115676,
-        "job": 131034109192,
-        "artifact": 13926697149,
-        "packagedFingerprint": "d5d1ef622e6ef36e8725595eaa04bf1a3e8e18a48324772b0e3d723c36297c6e"
-      }
+      "pinSha256": "ae2937fd28c981cc702c69ed5bb2b6f4483cf2acbae3e625c8be4e63d4c1ccc4"
     },
     "dolphin": {
       "mode": "retain",
@@ -362,7 +353,7 @@
       },
       {
         "commit": "d266f57b1fe3a65ce80d65a8d53928ed4b4fcd0f",
-        "note": "Reviewed by main: docs(board): MeloNX lot 10 — four correction adapters with host gates and proposed wiring, per-lot state, handoffs to main and to the MeloNX owner [skip ci]"
+        "note": "Reviewed by main: docs(board): MeloNX lot 10 \u2014 four correction adapters with host gates and proposed wiring, per-lot state, handoffs to main and to the MeloNX owner [skip ci]"
       },
       {
         "commit": "9069b18287622f68e48a5d4588a1d6cfef1d9317",
@@ -469,13 +460,17 @@
   },
   "images": {
     "mustChange": [
-      "Runner"
+      "Runner",
+      "Frameworks/MeloNXCore.framework/MeloNXCore",
+      "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge"
     ],
     "added": [
       "Frameworks/S2ArmEngine.framework/S2ArmEngine"
     ],
     "removed": [],
-    "replaced": {},
+    "replaced": {
+      "melonx": "Frameworks/MeloNXCore.framework/MeloNXCore"
+    },
     "retained": {
       "dolphin": [
         "Frameworks/DolphinCore.framework/DolphinCore"
@@ -499,9 +494,6 @@
       ],
       "rpcs3": [
         "Frameworks/libRPCS3Core.dylib"
-      ],
-      "melonx": [
-        "Frameworks/MeloNXCore.framework/MeloNXCore"
       ],
       "xenia": [
         "Frameworks/XeniaCore.framework/XeniaCore",
@@ -612,7 +604,6 @@
       "Frameworks/DolphinCore.framework/DolphinCore": "640e4389559c800087b3d4b2a2748b4c11307ae6a79bc72f59d55430ccddd6fc",
       "Frameworks/MeloNXAvCodec.framework/MeloNXAvCodec": "cad556ba3651eece2068166f1fb61671d33d56ff68444475865a0055d316c01d",
       "Frameworks/MeloNXAvUtil.framework/MeloNXAvUtil": "15acad8827f4dc80c453647c5196c91e393c8eb52e3f6367d1838454f7dee1c9",
-      "Frameworks/MeloNXCore.framework/MeloNXCore": "d5d1ef622e6ef36e8725595eaa04bf1a3e8e18a48324772b0e3d723c36297c6e",
       "Frameworks/MeloNXJitSupport.framework/MeloNXJitSupport": "b85104bbc6e7464cd949b1cbf51989b6c3d6af16bddc10c33728cacca043700e",
       "Frameworks/MeloNXMoltenVK.framework/MeloNXMoltenVK": "ea81c0e4728457b9e2fa6faf6360232467bda505f5f2c3927376fe7535083aac",
       "Frameworks/MeloNXMoltenVKStandalone.framework/MeloNXMoltenVKStandalone": "fe0cf9caffedc0fb05dd25ebe54f6c288337afc9798ae07eaaa1b0f0e01e8343",
@@ -654,6 +645,9 @@
       "Frameworks/stella_libretro.framework/stella_libretro": "a44e78a4e58dc481233737681fa3547ecebdfef0178219de8213aa067e8cf368",
       "Frameworks/uzem_libretro.framework/uzem_libretro": "ae053a29eff0b1490f7cedd6af8a79d0df45950ef71fd604a93703ceaa039d93",
       "Frameworks/wasm4_libretro.framework/wasm4_libretro": "41dec5ccf2fdb0153db049f027424f42993ae0c83df61e4bd1db24b0cf9a4dde"
+    },
+    "replacedFingerprints": {
+      "Frameworks/MeloNXCore.framework/MeloNXCore": "b580983dfbf9d7434881ed6b6b9112c50f525447d588eef8cc07f774d66b4a39"
     }
   },
   "tests": {
