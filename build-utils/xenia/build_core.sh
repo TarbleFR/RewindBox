@@ -14,6 +14,7 @@ BUILD="$ROOT/build/xenia-core"
 DIST="$ROOT/dist/xenia"
 REVISION="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["revision"])' "$ROOT/build-utils/xenia/source.json")"
 mkdir -p "$BUILD" "$DIST"
+source "$ROOT/build-utils/xenia/ccache.sh"
 
 # The converter: structure, exports and one of the two pinned digests, then
 # Apple's own signature (the mirror) or an ad-hoc/third-party one (refused).
@@ -34,13 +35,14 @@ codesign --verify --strict \
 python3 "$ROOT/build-utils/xenia/prepare_source.py" "$SOURCE"
 
 # Host shader compiler of this revision (the iOS configure runs it).
-cmake -S "$SOURCE" -B "$BUILD/host" -G Ninja -DCMAKE_BUILD_TYPE=Release 2>&1 | tee "$BUILD/host-configure.log"
+cmake -S "$SOURCE" -B "$BUILD/host" -G Ninja -DCMAKE_BUILD_TYPE=Release ${XENIA_CMAKE_CACHE_ARGS[@]+"${XENIA_CMAKE_CACHE_ARGS[@]}"} 2>&1 | tee "$BUILD/host-configure.log"
 cmake --build "$BUILD/host" --target xenia-shader-cc 2>&1 | tee "$BUILD/host-build.log"
 SHADER_CC="$(find "$BUILD/host" -type f -name xenia-shader-cc -perm -u+x -print -quit)"
 [ -n "$SHADER_CC" ] || { echo "xenia-shader-cc was not built"; exit 1; }
 
 PREFIX_MAP="-ffile-prefix-map=$ROOT=/rewindbox -ffile-prefix-map=$SOURCE=/xenios -ffile-prefix-map=$BUILD=/build"
 cmake -S "$SOURCE" -B "$BUILD/ios" -G "Ninja Multi-Config" \
+  ${XENIA_CMAKE_CACHE_ARGS[@]+"${XENIA_CMAKE_CACHE_ARGS[@]}"} \
   -DCMAKE_SYSTEM_NAME=iOS \
   -DCMAKE_OSX_SYSROOT=iphoneos \
   -DCMAKE_OSX_ARCHITECTURES=arm64 \

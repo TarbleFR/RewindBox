@@ -313,8 +313,44 @@ jobs:
             --pattern libmetalirconverter.dylib --dir "$dir" --clobber
           echo "${{ steps.source.outputs.msc_sha256 }}  $dir/libmetalirconverter.dylib" | shasum -a 256 -c -
           echo "MSC_IOS_LIBRARY=$dir/libmetalirconverter.dylib" >> "$GITHUB_ENV"
+      - name: Configure optional C/C++ compiler cache
+        id: ccache
+        run: |
+          set -euo pipefail
+          command -v ccache >/dev/null || brew install ccache || true
+          if ! command -v ccache >/dev/null; then
+            echo '::warning::ccache unavailable; building cold'
+            exit 0
+          fi
+          # Toolchain/recipe prefix permits reuse across upstream revisions only.
+          identity=$( { uname -s; uname -m; xcodebuild -version;
+            xcrun --sdk iphoneos --show-sdk-version; xcrun --sdk iphoneos --show-sdk-build-version;
+            xcrun --sdk macosx --show-sdk-version; xcrun --sdk macosx --show-sdk-build-version;
+            xcrun clang --version; xcrun --sdk iphoneos clang --version; ccache --version;
+            shasum -a 256 "$(xcrun --find clang)" "$(xcrun --sdk iphoneos --find clang)";
+            shasum -a 256 build-utils/xenia/build_core.sh build-utils/xenia/ccache.sh \
+              build-utils/xenia/rewindbox-core.patch packages/xenia_internal_bridge/core/target.cmake;
+          } | shasum -a 256 | cut -d' ' -f1)
+          echo "prefix=xenia-ccache-v1-$identity-" >> "$GITHUB_OUTPUT"
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+          echo 'XENIA_CCACHE=1' >> "$GITHUB_ENV"
+          echo "CCACHE_DIR=$RUNNER_TEMP/xenia-ccache" >> "$GITHUB_ENV"
+      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        id: ccache-restore
+        if: steps.ccache.outputs.enabled == 'true'
+        continue-on-error: true
+        with:
+          path: ${{ runner.temp }}/xenia-ccache
+          key: ${{ steps.ccache.outputs.prefix }}${{ steps.source.outputs.revision }}-${{ github.sha }}
+          restore-keys: ${{ steps.ccache.outputs.prefix }}
       - name: Compile and verify XeniaCore.framework
         run: bash build-utils/xenia/build_core.sh .native-sources/XeniOS "$MSC_IOS_LIBRARY"
+      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        if: success() && steps.ccache.outputs.enabled == 'true' && steps.ccache-restore.outputs.cache-hit != 'true'
+        continue-on-error: true
+        with:
+          path: ${{ runner.temp }}/xenia-ccache
+          key: ${{ steps.ccache.outputs.prefix }}${{ steps.source.outputs.revision }}-${{ github.sha }}
       - name: Keep the converter out of the artifact
         run: test ! -e dist/xenia/libmetalirconverter.dylib && ! find dist/xenia -name 'libmetalirconverter*' | grep -q .
       - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
