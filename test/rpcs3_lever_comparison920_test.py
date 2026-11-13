@@ -41,7 +41,7 @@ INCREMENT = ROOT / 'build-utils/rpcs3/core920-from-919.patch'
 # Later increments over the same files, newest first: reversed before this one when they apply in reverse.
 # Newest first: Core 925 inserts next to the Core 921 policy lines, so 921 only reverses once 925 has; Core 931 inserts next
 # to the Core 920 setting lines (Event Waits When Hot), so 920 only reverses once 931 has.
-LATER = (ROOT / 'build-utils/rpcs3/core934-from-933.patch', ROOT / 'build-utils/rpcs3/core933-from-932.patch', ROOT / 'build-utils/rpcs3/core932-from-931.patch', ROOT / 'build-utils/rpcs3/core931-from-930.patch', ROOT / 'build-utils/rpcs3/core925-from-924.patch', ROOT / 'build-utils/rpcs3/core921-from-920.patch')
+LATER = (ROOT / 'build-utils/rpcs3/core935-from-934.patch', ROOT / 'build-utils/rpcs3/core934-from-933.patch', ROOT / 'build-utils/rpcs3/core933-from-932.patch', ROOT / 'build-utils/rpcs3/core932-from-931.patch', ROOT / 'build-utils/rpcs3/core931-from-930.patch', ROOT / 'build-utils/rpcs3/core925-from-924.patch', ROOT / 'build-utils/rpcs3/core921-from-920.patch')
 HEADER = 'rpcs3/ios/IOSWriterParkSpin917.h'
 REPORT = 'rpcs3/ios/RPCS3IOSPerformance.cpp'
 POLICY = 'rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp'
