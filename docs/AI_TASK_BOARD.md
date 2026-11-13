@@ -342,6 +342,13 @@ Core 747). The maintainer chose that session as executor, with fast-forward push
 `01JA5QgKeoGVH5oVjNyhcj3D` on its branch; a 734 without Core 747 is only sent if that freeze cannot be produced, and
 says so. Order: S2Arm lot merged and engine requested on `Claude` → engine pin → Core 747 freeze, request, verification,
 pin → manifest 734 → `[ipa-delivery:734]` → offline verification and private delivery. Read the live runs, not this line.
+**Done so far:** S2Arm lot merged as `2b37878f`; engine from `Claude` by `s2arm-engine.yml` run `43416941344` attempt 1
+(both macOS jobs green), artifact `14033191665` (23,931,435 bytes, `6fceef1d…`); pin job run `43418945255` (job
+`131863796870`); verified pin `8da9c21b…` committed as `46cd382d` (series 0001–0015, packaged fingerprint `6698e435…`),
+artifact downloaded by id and checked with `engine_pin.py verify`. Recipient public key `delivery-734-recipient.pem`
+(`8dcc4f87…`). The owner session reported the Core 747 freeze running (105 gates, Linux, .NET 10.0.100, about two
+hours). Environment: artifact storage hosts had to be allowed for this session (new personal cloud environment
+`rewindbox`, approved by the maintainer) before any artifact could be downloaded and verified.
 **Current execution (maintainer,13 Nov):** Codex was explicitly asked to launch the next common IPA,
 then to apply engine compilation improvements first. Issue179 comment6840690330 records this execution
 ownership; do not dispatch a competing Core/IPA. Reviewed recovery and optional host cache are integrated
@@ -481,7 +488,7 @@ safety net's failure count carries over engine updates (2 now, prompt page at 3)
 threads alive in the process, an 8 GiB smaller hole and about 800 MB more footprint — only MeloNX is refused before a
 Switch 2 launch. Rejected: upstream #783 learned-span window alone (span recorded only after 300 presents); `85da99de`
 and `3fbde57c` (larger than a start needs).
-Next: engine rebuilt and pinned from `Claude` (the pin tool only accepts producers on `Claude`), test delivery 734 → from a cold app start the device
+Next: test delivery 734 with the pinned engine `8da9c21b…` (run `43416941344`) → from a cold app start the device
 log must show `the window gives up 18432 MB`, `in the virtual pool arena`, no `errno 12`, frames > 0, and at the second
 start `RewindBox: RomFS index read`.
 [Full evidence](https://github.com/TarbleFR/RewindBox/blob/30ee5beb204a9c972f85c5e9cd249aa341887283/docs/AI_TASK_BOARD.md#switch-2-playlist-s2arm-feasibility-prototype--session-04).
