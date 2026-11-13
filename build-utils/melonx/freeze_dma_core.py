@@ -110,6 +110,12 @@ def main():
             assert Path(name).name in fresh_reports, 'Changed production dependency without a rerun gate: ' + name
     reuse_count = sum(value == 'unchanged-scoped-proof-not-reexecuted' for value in dispositions.values())
     fixed = ['.github/workflows/melonx-core.yml',
+             'build-utils/melonx/recover_core_archive.py',
+             'test/melonx_dependency_recovery_test.py',
+             '.github/diagnostics/retained_components.py',
+             '.github/diagnostics/rewind606_engine.py',
+             '.github/diagnostics/rewind606_baseline.py',
+             '.github/diagnostics/rewind596_engine.py',
              'build-utils/melonx/verify_dma_core.py',
              'build-utils/melonx/freeze_dma_core.py',
              'test/melonx_dma_core_contract_test.py',

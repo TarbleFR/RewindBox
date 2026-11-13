@@ -23,6 +23,7 @@ import subprocess
 import sys
 import zipfile
 
+import recover_core_archive as recovery
 import reuse_core_baseline as dependencies
 import verify_core_candidate as common
 import verify_liveness_core as liveness
@@ -269,11 +270,14 @@ def authenticate_archive(path, frozen=None):
 
 def prior_archive():
     frozen = contract()
-    run, job, artifact = reads.metadata(BASELINE['run'], BASELINE['job'], BASELINE['artifact'], BASELINE['source'],
-                                        BASELINE['workflow'], BASELINE['artifactName'], BASELINE['bytes'], BASELINE['sha256'])
-    reads.download(ARCHIVE, BASELINE['artifact'])
+    spec = recovery.configuration()['614']['origin']
+    require(all(spec[key] == BASELINE[target] for key, target in
+                [('source', 'source'), ('run', 'run'), ('job', 'job'), ('artifact', 'artifact'),
+                 ('workflow', 'workflow'), ('name', 'artifactName'), ('bytes', 'bytes'), ('sha256', 'sha256')]),
+            '614 recovery differs from the frozen baseline')
+    recovered = recovery.recover(614, ARCHIVE)
     authenticate_archive(ARCHIVE, frozen)
-    write(EVIDENCE / 'baseline-origin.json', dict(result='authenticated', baseline=BASELINE, run=run, job=job, artifact=artifact,
+    write(EVIDENCE / 'baseline-origin.json', dict(result='authenticated', baseline=BASELINE, recovery=recovered,
         controlSources=CONTROL_MEMBERS, historicalGatesReexecuted=False))
     return ARCHIVE
 
@@ -421,6 +425,10 @@ def finalize():
     final_sessions = verify_diagnostics_smoke(read(OUT / 'runtime-smoke/actual-runtime.json'))
     common.finalize()
     path = EVIDENCE / 'result.json'; result = read(path)
+    # Bind the new recovery attestations separately from unchanged historical receipts.
+    for relative in ('baseline-recovery.json', 'core-validation/baseline-origin.json'):
+        require(read(OUT / relative)['result'] == 'authenticated', 'Missing recovery attestation: ' + relative)
+        result['reusedEvidenceSha256'][relative] = digest(OUT / relative)
     result.update(dmaCoreContractSha256=digest(CONTRACT), freshAppleGates=frozen['freshAppleGates'],
                   reusedAppleGates=frozen['reusedAppleGates'], historicalAppleReceipts=HISTORICAL_RECEIPTS, deliveredBaseline=BASELINE,
                   performanceDiagnosticsFinalSessions=final_sessions, gpuWorkRows=len(GPU_WORK), readCounters=len(READ_COUNTERS),
