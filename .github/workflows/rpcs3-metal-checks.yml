@@ -1,7 +1,7 @@
 # REWINDBOX_METAL_NATIVE: fast checks of the native Metal 4 renderer on the Metal branch (no IPA, no Core artifact).
-# The renderer sources come from the canonical Core delta (Core 935: M1-M4, M5 part 1, the M3 gaps, the parity items, the timed report, the AC GPU levers, the 908 memo/profiler/freeze-dump levers, the 909 God of War III levers, the 910 PUT horizon, prehash budget and pass shape census the 911 SPU polling wait, the 912 captures, the 916 corrections, the 917 writer park spin, the 918 busy wait duration, the 919 ZCULL watched flush of Black Ops II, the 920 lever comparison on request, the 921 release of stale idle textures, the 922 savestate MLAA bypass, the 923 SPU region profile, the 924 deferral before the line lock, the 925 GPU memory packing, the 926 Black Ops II FPS levers, the 927 asynchronous MoltenVK submits, the 928 GPU gate closed at the deactivation, the 929 savestate memory left as saved, the 930 SPU wait sites, the 931 thermal chantier, the 932 lot, the 933 local profile, the 934 settings rule and the 935 heat and energy lot folded), materialized
+# The renderer sources come from the canonical Core delta (Core 936: M1-M4, M5 part 1, the M3 gaps, the parity items, the timed report, the AC GPU levers, the 908 memo/profiler/freeze-dump levers, the 909 God of War III levers, the 910 PUT horizon, prehash budget and pass shape census the 911 SPU polling wait, the 912 captures, the 916 corrections, the 917 writer park spin, the 918 busy wait duration, the 919 ZCULL watched flush of Black Ops II, the 920 lever comparison on request, the 921 release of stale idle textures, the 922 savestate MLAA bypass, the 923 SPU region profile, the 924 deferral before the line lock, the 925 GPU memory packing, the 926 Black Ops II FPS levers, the 927 asynchronous MoltenVK submits, the 928 GPU gate closed at the deactivation, the 929 savestate memory left as saved, the 930 SPU wait sites, the 931 thermal chantier, the 932 lot, the 933 local profile, the 934 settings rule, the 935 heat and energy lot and the 936 second part of that lot folded), materialized
 # on the pinned upstream commit, plus the work in progress of a next stage when the branch carries it
-# (build-utils/rpcs3/metal-wip-from-935.patch; not a Core: the next Core folds it with its records).
+# (build-utils/rpcs3/metal-wip-from-936.patch; not a Core: the next Core folds it with its records).
 name: RPCS3 Metal renderer checks
 run-name: "RPCS3 Metal renderer checks • ${{ github.sha }}"
 'on':
@@ -43,6 +43,7 @@ run-name: "RPCS3 Metal renderer checks • ${{ github.sha }}"
       - 'build-utils/rpcs3/metal-wip-from-933.patch'
       - 'build-utils/rpcs3/metal-wip-from-934.patch'
       - 'build-utils/rpcs3/metal-wip-from-935.patch'
+      - 'build-utils/rpcs3/metal-wip-from-936.patch'
       - 'test/native/rpcs3_metal_*'
       - 'test/native/build_rpcs3_metal_shader_stack.sh'
       - '.github/workflows/rpcs3-metal-checks.yml'
@@ -78,7 +79,7 @@ jobs:
           git -C "$SOURCE" checkout -q --detach FETCH_HEAD
           python3 build-utils/materialize_rpcs3_core.py "$SOURCE"
           echo "RPCS3_SOURCE=$SOURCE" >> "$GITHUB_ENV"
-      - name: Check the folded Metal M2 to M5 sources (Core 935)
+      - name: Check the folded Metal M2 to M5 sources (Core 936)
         shell: bash
         run: |
           set -euo pipefail
@@ -94,6 +95,9 @@ jobs:
           # Core 903 folds the M3 and M4 work (metal-wip-from-902.patch, identical to core903-from-902.patch) over Core 902,
           # which folded the M2 work (metal-wip-from-901.patch): reverse the M3/M4 work, check that the M2 work reverses
           # from that Core 902 state, then apply the M3/M4 work again (the source is unchanged afterwards).
+          # Core 936 folds metal-wip-from-935.patch (identical to core936-from-935.patch) over Core 935.
+          cmp "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-935.patch" "$GITHUB_WORKSPACE/build-utils/rpcs3/core936-from-935.patch"
+          git -C "$S" apply --reverse --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-935.patch"
           # Core 935 folds metal-wip-from-934.patch (identical to core935-from-934.patch) over Core 934.
           cmp "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-934.patch" "$GITHUB_WORKSPACE/build-utils/rpcs3/core935-from-934.patch"
           git -C "$S" apply --reverse --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-934.patch"
@@ -218,14 +222,15 @@ jobs:
           git -C "$S" apply --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-932.patch"
           git -C "$S" apply --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-933.patch"
           git -C "$S" apply --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-934.patch"
+          git -C "$S" apply --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-935.patch"
           echo "PASS: the M2 to M5 work and the vendored SPIRV-Cross are part of the canonical source"
-      - name: Apply the work in progress of a next stage (metal-wip-from-935.patch)
+      - name: Apply the work in progress of a next stage (metal-wip-from-936.patch)
         shell: bash
         run: |
           set -euo pipefail
-          WIP="$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-935.patch"
+          WIP="$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-936.patch"
           if [ ! -f "$WIP" ]; then
-            echo "No work in progress over Core 935 on this commit"
+            echo "No work in progress over Core 936 on this commit"
             exit 0
           fi
           git -C "$RPCS3_SOURCE" apply --whitespace=nowarn "$WIP"

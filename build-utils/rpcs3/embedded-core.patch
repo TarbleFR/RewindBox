@@ -81955,6 +81955,57 @@ index 0000000..eb97f59
 +	}
 +};
 +}
+diff --git a/rpcs3/Emu/Cell/lv2/lv2.cpp b/rpcs3/Emu/Cell/lv2/lv2.cpp
+index 676df5a..c0f5721 100644
+--- a/rpcs3/Emu/Cell/lv2/lv2.cpp
++++ b/rpcs3/Emu/Cell/lv2/lv2.cpp
+@@ -60,6 +60,10 @@
+ #include "util/sysinfo.hpp"
+ #include "util/init_mutex.hpp"
+ 
++#ifdef RPCS3_IOS
++#include "ios/IOSWakeCensus936.h" // REWINDBOX_WAKE_CENSUS_936
++#endif
++
+ #if defined(ARCH_X64)
+ #ifdef _MSC_VER
+ #include <intrin.h>
+@@ -2149,8 +2153,15 @@ bool lv2_obj::wait_timeout(u64 usec, ppu_thread* cpu, bool scale, bool is_usleep
+ 	const auto& state = cpu ? cpu->state : dummy;
+ 	auto old_state = +state;
+ 
++#ifdef RPCS3_IOS
++	u64 ios_census_request = 0; // REWINDBOX_WAKE_CENSUS_936: the host wait of this turn, in microseconds (0: none)
++#endif
++
+ 	auto wait_for = [&](u64 timeout)
+ 	{
++#ifdef RPCS3_IOS
++		ios_census_request = timeout;
++#endif
+ 		thread_ctrl::wait_on(state, old_state, timeout);
+ 	};
+ 
+@@ -2227,7 +2238,19 @@ bool lv2_obj::wait_timeout(u64 usec, ppu_thread* cpu, bool scale, bool is_usleep
+ 			}
+ 		}
+ 
++#ifdef RPCS3_IOS
++		const u64 ios_census_before = passed;
++#endif
+ 		passed = get_system_time() - start_time;
++#ifdef RPCS3_IOS
++		// REWINDBOX_WAKE_CENSUS_936 (ios/IOSWakeCensus936.h): one host timed wait of a guest thread, by its length,
++		// and whether it ran to its bound (a timer woke the thread) or was ended early. Counted, not changed.
++		if (ios_census_request)
++		{
++			rpcs3::ios::wake_census::lv2_wait(ios_census_request, passed > ios_census_before ? passed - ios_census_before : 0);
++			ios_census_request = 0;
++		}
++#endif
+ 	}
+ 
+ 	return true;
 diff --git a/rpcs3/Emu/Cell/lv2/sys_cond.cpp b/rpcs3/Emu/Cell/lv2/sys_cond.cpp
 index fcfd682..5139399 100644
 --- a/rpcs3/Emu/Cell/lv2/sys_cond.cpp
@@ -84488,7 +84539,7 @@ index 8171927..ceb4bce 100644
  
  	protected:
 diff --git a/rpcs3/Emu/RSX/Common/texture_cache.cpp b/rpcs3/Emu/RSX/Common/texture_cache.cpp
-index 6b30665..7a0b3c0 100644
+index 6b30665..dbe9f12 100644
 --- a/rpcs3/Emu/RSX/Common/texture_cache.cpp
 +++ b/rpcs3/Emu/RSX/Common/texture_cache.cpp
 @@ -9,7 +9,22 @@
@@ -84514,7 +84565,7 @@ index 6b30665..7a0b3c0 100644
  #define XXH_INLINE_ALL
  #pragma clang diagnostic push
  #pragma clang diagnostic ignored "-Wold-style-cast"
-@@ -33,6 +48,399 @@ namespace
+@@ -33,6 +48,446 @@ namespace
  	// once when the core is loaded and reuse it without changing hash results.
  	const ios_xxh3_seeded_secret g_ios_xxh3_seeded_secret;
  }
@@ -84578,6 +84629,9 @@ index 6b30665..7a0b3c0 100644
 +		// REWINDBOX_PREHASH_BUDGET_910: the look-ahead depth and the totals at the last frame end.
 +		usz g_lookahead = lookahead;
 +		u64 g_frame_hits = 0, g_frame_worker_hashes = 0;
++		// REWINDBOX_PREHASH_IDLE_936: the worker is paused while g_lookahead is 0 (ios/IOSTexturePrehash.h).
++		idle_gate g_idle;
++		u64 g_frame_worker_discards = 0;
 +		// Never destroyed: a process that exits with the worker running does not terminate.
 +		std::thread* g_worker = nullptr;
 +
@@ -84670,7 +84724,15 @@ index 6b30665..7a0b3c0 100644
 +
 +			while (!g_stop)
 +			{
-+				g_wakeup.wait_for(lock, std::chrono::milliseconds(4), [&] { return g_stop || g_signal != seen; });
++				if (g_lookahead == 0)
++				{
++					// REWINDBOX_PREHASH_IDLE_936: paused. Nothing signals until the frame end that resumes, or stop().
++					g_wakeup.wait(lock, [&] { return g_stop || g_signal != seen; });
++				}
++				else
++				{
++					g_wakeup.wait_for(lock, std::chrono::milliseconds(4), [&] { return g_stop || g_signal != seen; });
++				}
 +
 +				if (g_stop)
 +				{
@@ -84760,6 +84822,11 @@ index 6b30665..7a0b3c0 100644
 +					if (!complete)
 +					{
 +						worker_skips.fetch_add(1, std::memory_order_relaxed);
++						if (processed)
++						{
++							// REWINDBOX_PREHASH_IDLE_936: bytes were hashed for a result nobody can use.
++							total_worker_discards.fetch_add(1, std::memory_order_relaxed);
++						}
 +						continue;
 +					}
 +
@@ -84843,15 +84910,44 @@ index 6b30665..7a0b3c0 100644
 +			const std::size_t depth_before = g_lookahead; // REWINDBOX_PREHASH_THERMAL_932
 +			const u64 hits_now = total_hits.load(std::memory_order_relaxed);
 +			const u64 hashes_now = total_worker_hashes.load(std::memory_order_relaxed);
-+			g_lookahead = next_lookahead(g_lookahead, hashes_now - g_frame_worker_hashes, hits_now - g_frame_hits);
-+			// REWINDBOX_PREHASH_THERMAL_932 (ios/IOSTexturePrehash.h): less speculative hashing when the device heats up.
-+			g_lookahead = thermal_lookahead(g_lookahead, depth_before, hashes_now - g_frame_worker_hashes, hits_now - g_frame_hits,
-+				rpcs3::ios::thermal::state.load(std::memory_order_relaxed));
++			// REWINDBOX_PREHASH_IDLE_936 (ios/IOSTexturePrehash.h): the worker's hashes of this frame, published or
++			// discarded, against its results that were used.
++			const u64 discards_now = total_worker_discards.load(std::memory_order_relaxed);
++			const bool was_paused = depth_before == 0;
++			// g_previous now holds the validations this frame made.
++			const bool pause = g_idle.frame((hashes_now - g_frame_worker_hashes) + (discards_now - g_frame_worker_discards),
++				hits_now - g_frame_hits, g_previous.size());
++
++			if (pause)
++			{
++				g_lookahead = 0;
++			}
++			else if (was_paused)
++			{
++				// The pause is over: judged again from the minimum depth.
++				g_lookahead = min_lookahead;
++			}
++			else
++			{
++				g_lookahead = next_lookahead(g_lookahead, hashes_now - g_frame_worker_hashes, hits_now - g_frame_hits);
++				// REWINDBOX_PREHASH_THERMAL_932 (ios/IOSTexturePrehash.h): less speculative hashing when the device heats up.
++				g_lookahead = thermal_lookahead(g_lookahead, depth_before, hashes_now - g_frame_worker_hashes, hits_now - g_frame_hits,
++					rpcs3::ios::thermal::state.load(std::memory_order_relaxed));
++			}
++
 +			current_lookahead.store(static_cast<u32>(g_lookahead), std::memory_order_relaxed);
 +			g_frame_hits = hits_now;
 +			g_frame_worker_hashes = hashes_now;
++			g_frame_worker_discards = discards_now;
 +			g_frame_epoch = validation::current_epoch();
 +			g_frame++;
++
++			if (pause)
++			{
++				// REWINDBOX_PREHASH_IDLE_936: nothing to hash ahead, the worker is not woken.
++				return;
++			}
++
 +			g_signal++;
 +		}
 +
@@ -84863,7 +84959,7 @@ index 6b30665..7a0b3c0 100644
 +		{
 +			std::lock_guard lock(g_mutex);
 +
-+			if (!g_started)
++			if (!g_started || g_lookahead == 0) // REWINDBOX_PREHASH_IDLE_936: a paused worker is not woken
 +			{
 +				return;
 +			}
@@ -84908,13 +85004,15 @@ index 6b30665..7a0b3c0 100644
 +		g_lookahead = lookahead;
 +		g_frame_hits = total_hits.load(std::memory_order_relaxed);
 +		g_frame_worker_hashes = total_worker_hashes.load(std::memory_order_relaxed);
++		g_idle = {}; // REWINDBOX_PREHASH_IDLE_936
++		g_frame_worker_discards = total_worker_discards.load(std::memory_order_relaxed);
 +		current_lookahead.store(static_cast<u32>(lookahead), std::memory_order_relaxed);
 +	}
 +}
  #endif
  
  namespace rsx
-@@ -64,6 +472,10 @@ namespace rsx
+@@ -64,6 +519,10 @@ namespace rsx
  		{
  			mem_hash = 0;
  		}
@@ -84925,22 +85023,22 @@ index 6b30665..7a0b3c0 100644
  	}
  
  	void buffered_section::invalidate_range()
-@@ -102,7 +514,14 @@ namespace rsx
+@@ -102,7 +561,14 @@ namespace rsx
  		}
  		else if (new_prot != utils::protection::rw)
  		{
 +#ifdef RPCS3_IOS
 +			// CELL559_TEXTURE_EPOCH: read the epoch before the bytes it covers.
 +			const u64 epoch = rpcs3::ios::texture_validation::current_epoch();
- 			mem_hash = fast_hash_internal();
++			mem_hash = fast_hash_internal();
 +			validated_epoch = epoch;
 +#else
-+			mem_hash = fast_hash_internal();
+ 			mem_hash = fast_hash_internal();
 +#endif
  		}
  
  		protection = new_prot;
-@@ -165,6 +584,9 @@ namespace rsx
+@@ -165,6 +631,9 @@ namespace rsx
  		protection = utils::protection::rw;
  		confirmed_range.invalidate();
  		locked = false;
@@ -84950,7 +85048,7 @@ index 6b30665..7a0b3c0 100644
  	}
  
  	const address_range32& buffered_section::get_bounds(section_bounds bounds) const
-@@ -189,27 +611,8 @@ namespace rsx
+@@ -189,27 +658,8 @@ namespace rsx
  		auto src = get_ptr<const char>(hash_range.start);
  
  #ifdef RPCS3_IOS
@@ -84980,7 +85078,7 @@ index 6b30665..7a0b3c0 100644
  #else
  		const auto cycles = hash_length / 8;
  		auto rem = hash_length % 8;
-@@ -230,12 +633,14 @@ namespace rsx
+@@ -230,12 +680,14 @@ namespace rsx
  			{
  				hash = rpcs3::hash64(hash, *reinterpret_cast<const u32*>(src));
  				src += 4;
@@ -84995,7 +85093,7 @@ index 6b30665..7a0b3c0 100644
  			}
  
  			while (rem--)
-@@ -259,6 +664,29 @@ namespace rsx
+@@ -259,6 +711,29 @@ namespace rsx
  		return (protection_strat == section_protection_strategy::lock);
  	}
  
@@ -85025,7 +85123,7 @@ index 6b30665..7a0b3c0 100644
  	bool buffered_section::sync() const
  	{
  		if (protection_strat == section_protection_strategy::lock || !locked)
-@@ -266,7 +694,69 @@ namespace rsx
+@@ -266,7 +741,69 @@ namespace rsx
  			return true;
  		}
  
@@ -111259,7 +111357,7 @@ index fefbfb9..2fe0711 100644
  
  	inline thread* get_current_renderer()
 diff --git a/rpcs3/Emu/RSX/RSXZCULL.cpp b/rpcs3/Emu/RSX/RSXZCULL.cpp
-index 4db3766..75b822f 100644
+index 4db3766..0196fa1 100644
 --- a/rpcs3/Emu/RSX/RSXZCULL.cpp
 +++ b/rpcs3/Emu/RSX/RSXZCULL.cpp
 @@ -3,6 +3,14 @@
@@ -111674,7 +111772,7 @@ index 4db3766..75b822f 100644
  				return true;
  			}
  
-@@ -963,6 +1185,596 @@ namespace rsx
+@@ -963,6 +1185,597 @@ namespace rsx
  		}
  
  
@@ -112257,6 +112355,7 @@ index 4db3766..75b822f 100644
 +							break;
 +						}
 +
++						rpcs3::ios::wake_census::add(rpcs3::ios::wake_census::zcull_slot_pauses); // REWINDBOX_WAKE_CENSUS_936
 +						od::slot_releases().wait(seen, pause_end - now);
 +					}
 +
@@ -112271,7 +112370,7 @@ index 4db3766..75b822f 100644
  		// Conditional rendering helpers
  		void conditional_render_eval::reset()
  		{
-@@ -1029,6 +1841,15 @@ namespace rsx
+@@ -1029,6 +1842,15 @@ namespace rsx
  
  		void conditional_render_eval::eval_result(::rsx::thread* pthr)
  		{
@@ -131879,10 +131978,10 @@ index 0000000..8c8be8d
 +}
 diff --git a/rpcs3/ios/IOSRsxIdlePark.h b/rpcs3/ios/IOSRsxIdlePark.h
 new file mode 100644
-index 0000000..b344283
+index 0000000..be384ac
 --- /dev/null
 +++ b/rpcs3/ios/IOSRsxIdlePark.h
-@@ -0,0 +1,58 @@
+@@ -0,0 +1,78 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -131891,6 +131990,8 @@ index 0000000..b344283
 +#include <condition_variable>
 +#include <cstdint>
 +#include <mutex>
++
++#include "IOSWakeCensus936.h" // REWINDBOX_WAKE_CENSUS_936
 +
 +// CELL565_RSX_IDLE_PARK: with an empty FIFO the RSX thread yields in a loop, so
 +// it keeps a whole core while it waits for the next guest commands (Dragon Ball
@@ -131914,16 +132015,34 @@ index 0000000..b344283
 +inline std::uint64_t generation = 0;
 +inline std::atomic<std::uint32_t> parked{0};
 +
++// REWINDBOX_WAKE_CENSUS_936: steady-clock nanoseconds at the end of the last slice (RSX thread only).
++inline std::int64_t census_last_end_ns = 0;
++
 +// RSX thread only: sleep one slice unless woken.
 +inline void park() noexcept
 +{
++	// REWINDBOX_WAKE_CENSUS_936 (ios/IOSWakeCensus936.h): counted, not changed.
++	const std::int64_t census_begin_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
++	bool census_woken = false;
++
 +	parked.fetch_add(1, std::memory_order_seq_cst);
 +	{
 +		std::unique_lock lock(gate_mutex);
 +		const std::uint64_t seen = generation;
-+		gate.wait_for(lock, std::chrono::microseconds(slice_us), [&] { return generation != seen; });
++		census_woken = gate.wait_for(lock, std::chrono::microseconds(slice_us), [&] { return generation != seen; });
 +	}
 +	parked.fetch_sub(1, std::memory_order_relaxed);
++
++	const std::int64_t census_end_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
++
++	if (census_begin_ns - census_last_end_ns > wake_census::period_gap_ns)
++	{
++		wake_census::add(wake_census::rsx_park_periods);
++	}
++
++	census_last_end_ns = census_end_ns;
++	wake_census::add(census_woken ? wake_census::rsx_park_woken : wake_census::rsx_park_bound);
++	wake_census::add(wake_census::rsx_park_ns, census_end_ns > census_begin_ns ? static_cast<std::uint64_t>(census_end_ns - census_begin_ns) : 0);
 +}
 +
 +// Any thread, after posting work the RSX thread must service.
@@ -135914,10 +136033,10 @@ index 0000000..9c7e4d7
 +}
 diff --git a/rpcs3/ios/IOSTexturePrehash.h b/rpcs3/ios/IOSTexturePrehash.h
 new file mode 100644
-index 0000000..2a2eead
+index 0000000..c1bcd3e
 --- /dev/null
 +++ b/rpcs3/ios/IOSTexturePrehash.h
-@@ -0,0 +1,237 @@
+@@ -0,0 +1,305 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -136016,8 +136135,76 @@ index 0000000..2a2eead
 +static_assert(thermal_lookahead(4, 4, 100, 10, 3) == 4);      // floor
 +static_assert(thermal_lookahead(16, 16, 7, 0, 1) == 16);      // too little to judge
 +
++// REWINDBOX_PREHASH_IDLE_936: the worker stops hashing ahead while almost none of its hashes are used.
++// IPA 725/726 device logs, God of War III (the only Automatic title). In its 60 fps scenes a frame validates one
++// range of about 3.6 MB right after an epoch starts: the worker and the RSX thread hash it at the same time and the
++// worker's hash is thrown away. PID 52633 windows 21-24: OPT581 worker_ms 52-62 and worker_bytes 0.87-0.96 GB per
++// 5 s for worker_hashes 0-1, worker_skips 238-263, hits 0. Such a discarded hash was in no budget (next_lookahead
++// counts published hashes only, and needs 8 of them in one frame), and the depth never went below 4.
++// The gate counts the worker's hashes, published or discarded, against its results that were used, over as many
++// frames as it takes to reach idle_judge_min hashes. After idle_low_periods such periods in a row with less than one
++// hash in eight used, the worker hashes nothing for idle_pause_frames frames, then is judged again at the minimum
++// depth. It only acts on frames with at most idle_max_validations validations (those scenes make 1 to 4 per frame):
++// a frame with more ends a pause at once and is left to next_lookahead alone, because there the worker does serve
++// the RSX thread (PID 54406 session 3 windows 11-17: 112 to 177 validations per frame, 58 to 96 ms of RSX hashing
++// served per 5 s) and no device run says the RSX thread could take that back without lengthening a frame.
++// Only speculation changes: with the worker paused the RSX thread hashes every range itself, with the same function,
++// as it does for every title without this lever.
++constexpr std::uint64_t idle_judge_min = 8;
++constexpr std::uint32_t idle_low_periods = 3;
++constexpr std::uint32_t idle_pause_frames = 120;
++constexpr std::size_t idle_max_validations = 16;
++
++struct idle_gate
++{
++	std::uint64_t work = 0, used = 0; // since the last judgement
++	std::uint32_t low = 0;            // judgements in a row with less than 1/8 used
++	std::uint32_t paused = 0;         // frames left without speculation
++
++	// Frame end. frame_work: hashes the worker completed in the frame (published or discarded); frame_used: its
++	// results a validation took; frame_validations: validations of 64 KiB or more the frame made.
++	// True: the worker hashes nothing during the next frame.
++	constexpr bool frame(std::uint64_t frame_work, std::uint64_t frame_used, std::size_t frame_validations) noexcept
++	{
++		if (frame_validations > idle_max_validations)
++		{
++			*this = {};
++			return false;
++		}
++
++		if (paused)
++		{
++			return --paused != 0;
++		}
++
++		work += frame_work;
++		used += frame_used;
++
++		if (work < idle_judge_min)
++		{
++			return false;
++		}
++
++		low = used * 8 < work ? low + 1 : 0;
++		work = 0;
++		used = 0;
++
++		if (low < idle_low_periods)
++		{
++			return false;
++		}
++
++		low = 0;
++		paused = idle_pause_frames;
++		return true;
++	}
++};
++
 +// Totals since boot (the window counters below are taken by the profiler) and the current depth.
 +inline std::atomic<std::uint64_t> total_hits{0}, total_worker_hashes{0};
++// REWINDBOX_PREHASH_IDLE_936: hashes the worker completed and could not publish (the RSX thread got there first, or
++// the epoch ended).
++inline std::atomic<std::uint64_t> total_worker_discards{0};
 +inline std::atomic<std::uint32_t> current_lookahead{static_cast<std::uint32_t>(lookahead)};
 +// Results kept (direct mapped, power of two).
 +constexpr std::size_t table_size = 4096;
@@ -137145,6 +137332,110 @@ index 0000000..ecf9024
 +	return then_us && now_us >= then_us ? static_cast<double>(now_us - then_us) / 1000.0 : -1.0;
 +}
 +}
+diff --git a/rpcs3/ios/IOSWakeCensus936.h b/rpcs3/ios/IOSWakeCensus936.h
+new file mode 100644
+index 0000000..fb228de
+--- /dev/null
++++ b/rpcs3/ios/IOSWakeCensus936.h
+@@ -0,0 +1,98 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <cstdint>
++#include <cstdio>
++#include <string>
++
++// REWINDBOX_WAKE_CENSUS_936: measurement only, nothing in the execution changes.
++//
++// iPhone logs of IPA 726 (COREPROF ENERGY931): Black Ops II in game takes 22,000 to 25,000 timer wakeups of less
++// than 2 ms per second while its SPU threads almost never sleep (SPUWAIT551: 80 to 1,000 GETLLAR sleeps and about
++// 90 event waits per second); the frozen game takes as many with no SPU sleep at all; God of War III menus take
++// 80,000, which six SPU threads on a 100 us bound cannot reach alone (60,000 at most). The logs count the SPU
++// sleeps and the passive-lock waits, nothing else: the rest can only be bounded, not attributed.
++//
++// This file counts the three other sites that sleep on a short bound in a loop, each one only when it sleeps:
++// - lv2_obj::wait_timeout: every timed wait of a guest PPU thread (sys_timer_usleep, and semaphore, mutex, cond,
++//   event queue and event flag waits with a timeout), by the length of the host wait, and whether it ran to its
++//   bound (a timer woke the thread) or was ended early (a notification did);
++// - the RSX idle park (ios/IOSRsxIdlePark.h): slices that ran to their 50 us bound, slices ended by wake(), the
++//   time parked, and the number of parks (each one follows 1 ms of the yield loop, grace_us);
++// - the ZCULL on-demand read of a guest thread: its 50 us polls and its 50 to 400 us pauses.
++//
++// One report line per window: COREPROF WAKE936. Every counter is written by the thread that just slept or is
++// about to sleep, a few thousand times a second at most, each on its own cache line.
++namespace rpcs3::ios::wake_census
++{
++enum counter : unsigned
++{
++	// Host waits of lv2_obj::wait_timeout by requested length: ran to the bound, ended early.
++	lv2_under_200us_bound,
++	lv2_under_200us_early,
++	lv2_under_2ms_bound,
++	lv2_under_2ms_early,
++	lv2_under_5ms_bound,
++	lv2_under_5ms_early,
++	lv2_longer_bound,
++	lv2_longer_early,
++	// RSX idle park.
++	rsx_park_bound,   // slices that ran to their bound
++	rsx_park_woken,   // slices ended by rsx_idle_park::wake()
++	rsx_park_ns,      // time inside the slices
++	rsx_park_periods, // runs of slices more than period_gap_ns apart: about one per parked idle period
++	// ZCULL on-demand read (ios/IOSZcullOnDemand.h, RSXZCULL.cpp).
++	zcull_poll_sleeps, // 50 us sleeps while the RSX thread has not served the request
++	zcull_slot_pauses, // waits between two requests for the same slot (50 to 400 us, ended early by a release)
++	counter_count
++};
++
++// Two slices of one idle period are a few microseconds apart; two idle periods are at least grace_us (1 ms) apart.
++inline constexpr std::int64_t period_gap_ns = 500'000;
++
++struct alignas(128) cell
++{
++	std::atomic<std::uint64_t> value{0};
++};
++
++inline cell cells[counter_count];
++
++inline void add(counter c, std::uint64_t n = 1) noexcept
++{
++	cells[c].value.fetch_add(n, std::memory_order_relaxed);
++}
++
++// One host wait of lv2_obj::wait_timeout. It ran to its bound when it lasted at least 3/4 of the request (the rule
++// REWINDBOX_SPU_IDLE_BACKOFF_935 uses for its own waits).
++inline void lv2_wait(std::uint64_t requested_us, std::uint64_t slept_us) noexcept
++{
++	const unsigned first = requested_us < 200 ? lv2_under_200us_bound : requested_us < 2000 ? lv2_under_2ms_bound :
++		requested_us < 5000 ? lv2_under_5ms_bound : lv2_longer_bound;
++	add(static_cast<counter>(first + (slept_us >= requested_us - requested_us / 4 ? 0u : 1u)));
++}
++
++// Report thread: the line of this window. Reads and resets the counters.
++inline std::string take_line(std::uint64_t session, std::uint64_t window)
++{
++	unsigned long long v[counter_count];
++
++	for (unsigned i = 0; i < counter_count; i++)
++	{
++		v[i] = cells[i].value.exchange(0, std::memory_order_relaxed);
++	}
++
++	char line[640];
++	std::snprintf(line, sizeof(line),
++		"COREPROF WAKE936 session=%llu window=%llu tuple=ran_to_bound:ended_early "
++		"lv2_under_200us=%llu:%llu lv2_under_2ms=%llu:%llu lv2_under_5ms=%llu:%llu lv2_longer=%llu:%llu "
++		"rsx_park=%llu:%llu rsx_park_ms=%llu.%03llu rsx_park_periods=%llu rsx_park_slice_us=50 rsx_grace_us=1000 "
++		"zcull_poll_sleeps=%llu zcull_slot_pauses=%llu scope=process_window",
++		static_cast<unsigned long long>(session), static_cast<unsigned long long>(window),
++		v[lv2_under_200us_bound], v[lv2_under_200us_early], v[lv2_under_2ms_bound], v[lv2_under_2ms_early],
++		v[lv2_under_5ms_bound], v[lv2_under_5ms_early], v[lv2_longer_bound], v[lv2_longer_early],
++		v[rsx_park_bound], v[rsx_park_woken], v[rsx_park_ns] / 1'000'000, v[rsx_park_ns] / 1000 % 1000, v[rsx_park_periods],
++		v[zcull_poll_sleeps], v[zcull_slot_pauses]);
++	return line;
++}
++}
 diff --git a/rpcs3/ios/IOSWriterLockPhases.h b/rpcs3/ios/IOSWriterLockPhases.h
 new file mode 100644
 index 0000000..f9df30e
@@ -137666,10 +137957,10 @@ index 0000000..0d8ecea
 +}
 diff --git a/rpcs3/ios/IOSZcullOnDemand.h b/rpcs3/ios/IOSZcullOnDemand.h
 new file mode 100644
-index 0000000..aeb21c1
+index 0000000..17e617c
 --- /dev/null
 +++ b/rpcs3/ios/IOSZcullOnDemand.h
-@@ -0,0 +1,725 @@
+@@ -0,0 +1,728 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -137679,6 +137970,8 @@ index 0000000..aeb21c1
 +#include <cstdint>
 +#include <mutex>
 +#include <thread>
++
++#include "IOSWakeCensus936.h" // REWINDBOX_WAKE_CENSUS_936
 +
 +// REWINDBOX_ZCULL_ON_DEMAND_619: Assassin's Creed (BLES00158, BLUS30089), Build
 +// 617 iPhone logs (PID 65755, session 1, windows 17-28): 2,203-2,911 waits per
@@ -138390,6 +138683,7 @@ index 0000000..aeb21c1
 +		}
 +		else
 +		{
++			rpcs3::ios::wake_census::add(rpcs3::ios::wake_census::zcull_poll_sleeps); // REWINDBOX_WAKE_CENSUS_936
 +			std::this_thread::sleep_for(std::chrono::microseconds(50));
 +		}
 +	}
@@ -143948,10 +144242,10 @@ index 8fba197..8688925 100644
  // function pointer from resolve_experimental_policy().
 diff --git a/rpcs3/ios/RPCS3IOSFreezeDump.cpp b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
 new file mode 100644
-index 0000000..93560a1
+index 0000000..a6810d2
 --- /dev/null
 +++ b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
-@@ -0,0 +1,1132 @@
+@@ -0,0 +1,1213 @@
 +#include "stdafx.h"
 +#include "RPCS3IOSFreezeDump.h"
 +#include "RPCS3IOSProfilerHelpers.h"
@@ -144694,6 +144988,16 @@ index 0000000..93560a1
 +	std::vector<stx::shared_ptr<named_thread<ppu_thread>>> threads;
 +	std::array<capture::ppu_profile::histogram, capture::ppu_profile::max_threads> tracked{};
 +	std::array<std::array<std::pair<const char*, u32>, 8>, capture::ppu_profile::max_threads> wait_calls{};
++	// REWINDBOX_PPU_WAIT_SITE_936: what a PPU thread seen waiting outside any named call ("guest_code") waits on.
++	// IPA 726, God of War III at 60 FPS (pid 54559, session 1): the main thread is billed 0.90 to 0.93 core, the
++	// process runs at 1.0 instruction per cycle, and 89 % of its samples are such waits. Per thread: the flags that
++	// hold it (first match of unnamed_wait_names below), the last named call made before the wait, and the guest pc
++	// (the function whose entry check trapped, or the last indirect transfer). Read like the state and the pc already
++	// are (racy reads of the sampled thread; nothing is written there). Only while a capture samples.
++	static constexpr std::array<const char*, 7> unnamed_wait_names{"pause", "suspend", "memory", "yield", "temp", "signal", "wait_only"};
++	std::array<std::array<u32, 7>, capture::ppu_profile::max_threads> unnamed_wait_flags{};
++	std::array<std::array<std::pair<const char*, u32>, 6>, capture::ppu_profile::max_threads> unnamed_wait_after{};
++	std::array<std::array<std::pair<u32, u32>, 8>, capture::ppu_profile::max_threads> unnamed_wait_pcs{};
 +	u32 tracked_count = 0;
 +	// REWINDBOX_SPU_PROFILE_923: the SPU threads listed when the capture started, one histogram each.
 +	std::vector<stx::shared_ptr<named_thread<spu_thread>>> spu_threads;
@@ -144764,6 +145068,38 @@ index 0000000..93560a1
 +						name = call;
 +						count++;
 +						break;
++					}
++				}
++
++				if (!call)
++				{
++					// REWINDBOX_PPU_WAIT_SITE_936: a wait outside any named call.
++					const auto flags = +ppu.state;
++					const u32 kind = flags & cpu_flag::pause ? 0 : flags & cpu_flag::suspend ? 1 : flags & cpu_flag::memory ? 2 :
++						flags & (cpu_flag::yield + cpu_flag::preempt) ? 3 : flags & cpu_flag::temp ? 4 : flags & cpu_flag::signal ? 5 : 6;
++					unnamed_wait_flags[slot][kind]++;
++					const char* after = ppu.last_function;
++
++					for (auto& [name, count] : unnamed_wait_after[slot])
++					{
++						if (count == 0 || name == after)
++						{
++							name = after;
++							count++;
++							break;
++						}
++					}
++
++					const u32 pc = ppu.cia;
++
++					for (auto& [seen, count] : unnamed_wait_pcs[slot])
++					{
++						if (count == 0 || seen == pc)
++						{
++							seen = pc;
++							count++;
++							break;
++						}
 +					}
 +				}
 +			}
@@ -144869,6 +145205,45 @@ index 0000000..93560a1
 +		std::string line = fmt::format("COREPROF PPUPROF912 session=%llu capture=%u part=thread id=0x%x name=%s running=%llu "
 +			"waiting=%llu same_pc=%llu distinct=%u overflow=%llu wait_calls=%s top=%s", session, s_ppu_captures, h.thread_id, name, h.running,
 +			h.waiting, h.same_pc, h.distinct, h.overflow, calls.empty() ? std::string("-") : calls, h.top(24));
++		ios_freeze_dump.notice("%s", bound_line(line));
++
++		// REWINDBOX_PPU_WAIT_SITE_936: the waits counted as guest_code above, by flag, by last named call and by pc, on a
++		// line of their own (the thread line keeps its length and its fields).
++		std::string unnamed_flags, unnamed_after, unnamed_pcs;
++
++		for (usz k = 0; k < run.unnamed_wait_flags[i].size(); k++)
++		{
++			if (const u32 count = run.unnamed_wait_flags[i][k])
++			{
++				fmt::append(unnamed_flags, "%s%s:%u", unnamed_flags.empty() ? "" : ",", ppu_sampling::unnamed_wait_names[k], count);
++			}
++		}
++
++		for (const auto& [call, count] : run.unnamed_wait_after[i])
++		{
++			if (count)
++			{
++				fmt::append(unnamed_after, "%s%s:%u", unnamed_after.empty() ? "" : ",", sanitize_token(call ? call : "none"), count);
++			}
++		}
++
++		for (const auto& [pc, count] : run.unnamed_wait_pcs[i])
++		{
++			if (count)
++			{
++				fmt::append(unnamed_pcs, "%s%x:%u", unnamed_pcs.empty() ? "" : ",", pc, count);
++			}
++		}
++
++		if (unnamed_flags.empty())
++		{
++			continue;
++		}
++
++		line = fmt::format("COREPROF PPUPROF912 session=%llu capture=%u part=unnamed_waits id=0x%x flags=%s after=%s pcs=%s "
++			"flags_scope=first_match_pause_suspend_memory_yield_temp_signal after_scope=last_named_call_before_the_wait "
++			"pcs_scope=first_8_distinct_entry_check_or_last_indirect_transfer", session, s_ppu_captures, h.thread_id, unnamed_flags,
++			unnamed_after.empty() ? std::string("-") : unnamed_after, unnamed_pcs.empty() ? std::string("-") : unnamed_pcs);
 +		ios_freeze_dump.notice("%s", bound_line(line));
 +	}
 +
@@ -145770,10 +146145,10 @@ index 0000000..cee4f58
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d800542..d668791 100644
+index d800542..a972a67 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
-@@ -1,26 +1,322 @@
+@@ -1,26 +1,323 @@
  #include "stdafx.h"
 +#include "ios/NeoSwapStorage/FrameClient.h"
 +#include "RPCS3IOSWriterCounters.h"
@@ -145829,6 +146204,7 @@ index d800542..d668791 100644
 +#include "IOSThermalPolicy931.h" // REWINDBOX_THERMAL_POLICY_931
 +#include "IOSEventWait931.h" // REWINDBOX_EVENT_WAIT_LATENCY_932
 +#include "IOSSpuIdleBackoff935.h" // REWINDBOX_SPU_IDLE_BACKOFF_935
++#include "IOSWakeCensus936.h" // REWINDBOX_WAKE_CENSUS_936
 +#include "IOSLocalProfileStore933.h" // REWINDBOX_LOCAL_PROFILE_933
 +#include "IOSEnergy931.h" // REWINDBOX_ENERGY_931
 +#include "IOSBackgroundPause931.h" // REWINDBOX_BACKGROUND_PAUSE_931
@@ -146096,7 +146472,7 @@ index d800542..d668791 100644
  
  u64 process_memory_footprint()
  {
-@@ -38,31 +334,564 @@ u64 process_memory_footprint()
+@@ -38,31 +335,564 @@ u64 process_memory_footprint()
  #endif
  }
  
@@ -146428,8 +146804,8 @@ index d800542..d668791 100644
 +			m_frame_intervals[frame_index % frame_ring_size].store(now - previous, std::memory_order_relaxed);
 +		}
 +		m_presented_frames.store(frame_index + 1, std::memory_order_release);
- 	}
- 
++	}
++
 +	void record_pipeline_job_queued(u32 pending_jobs) noexcept
 +	{
 +		rpcs3::ios::pipeline_queue::on_queued(pending_jobs); // REWINDBOX_PIPELINE_QUEUE_621
@@ -146650,8 +147026,8 @@ index d800542..d668791 100644
 +	{
 +		m_rsx_window_elapsed_us.fetch_add(elapsed_us, std::memory_order_relaxed);
 +		m_rsx_window_idle_us.fetch_add(std::min(idle_us, elapsed_us), std::memory_order_relaxed);
-+	}
-+
+ 	}
+ 
 +	// NEOSTATION_BUILD487_DIAGNOSTICS_V1: the Build 258 prefix (48 bytes, up to
 +	// memory_total_bytes) is what an older host passes and receives unchanged;
 +	// the Build 487 host passes the 72-byte struct and also receives the guest
@@ -146671,7 +147047,7 @@ index d800542..d668791 100644
  		{
  			return RPCS3_IOS_INVALID_ARGUMENT;
  		}
-@@ -72,10 +901,10 @@ public:
+@@ -72,10 +902,10 @@ public:
  
  		std::lock_guard lock(m_sample_mutex);
  		const auto now = sample_clock::now();
@@ -146684,7 +147060,7 @@ index d800542..d668791 100644
  		result.cpu_usage_percent = std::clamp(m_cpu_stats.get_usage(), 0.0, 100.0);
  		result.valid_fields |= RPCS3_IOS_PERFORMANCE_CPU_VALID;
  
-@@ -108,12 +937,1833 @@ public:
+@@ -108,12 +938,1836 @@ public:
  			result.valid_fields |= RPCS3_IOS_PERFORMANCE_MEMORY_VALID;
  		}
  
@@ -148423,6 +148799,9 @@ index d800542..d668791 100644
 +				static_cast<unsigned long long>(rpcs3::ios::spu_idle_backoff::lengthened_waits.exchange(0, std::memory_order_relaxed)),
 +				static_cast<unsigned long long>(rpcs3::ios::spu_idle_backoff::late_finds.exchange(0, std::memory_order_relaxed)));
 +
++			// REWINDBOX_WAKE_CENSUS_936 (ios/IOSWakeCensus936.h): the timed waits of this window, by site.
++			ios_core_profiler.notice("%s", rpcs3::ios::wake_census::take_line(profile_session, profile_window).c_str());
++
 +			// REWINDBOX_BACKGROUND_PAUSE_931 (ios/IOSBackgroundPause931.h): a game still booting when the application left
 +			// was not running then, so that pause was refused, and it runs in the background now: asked again, once per
 +			// window while it runs there. The main thread decides (only while the application is in the background).
@@ -148520,7 +148899,7 @@ index d800542..d668791 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +2771,93 @@ private:
+@@ -121,6 +2775,93 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -148614,7 +148993,7 @@ index d800542..d668791 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +2865,93 @@ performance_registry g_performance_registry;
+@@ -128,6 +2869,93 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -148708,7 +149087,7 @@ index d800542..d668791 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +2962,131 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +2966,131 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -148840,7 +149219,7 @@ index d800542..d668791 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +3096,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +3100,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  

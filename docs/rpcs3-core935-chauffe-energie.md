@@ -1,4 +1,4 @@
-# RPCS3 Core 935 — chauffe et consommation, correctifs issus des journaux de l'IPA 726 et d'ARMSX3
+# RPCS3 Core 935 et 936 — chauffe et consommation, correctifs issus des journaux de l'IPA 726 et d'ARMSX3
 
 Demandes du mainteneur, 13 novembre 2026 : reprendre de l'IPA ARMSX3 0.0.2 (3) ce qui aide nos jeux, corriger à partir
 des journaux iPhone (`PS3.zip`, IPA 723 à 726), puis mission unique : **réduire la chauffe et la consommation de RPCS3 sur
@@ -25,7 +25,8 @@ l'appareil, les chiffres « après » sont des attentes à confirmer avec le pro
 
 Autres relevés des mêmes fenêtres : 42 000 à 89 000 changements de contexte et 42 000 à 90 000 appels système par
 seconde ; 3 800 à 36 000 passages P ↔ E par seconde ; images de Black Ops II en jeu : médiane 25 à 29 ms, p95 36 à 38 ms,
-p99 46 à 50 ms ; écritures disque régulières de 1,2 à 2 Mio par fenêtre (les compilations de caches montent à 120-350 Mio).
+p99 46 à 50 ms ; écritures disque régulières de 1,2 à 2 Mio par fenêtre (des rafales de 60 à 350 Mio existent aussi : lecture et
+écriture y sont à peu près égales, ce ne sont pas des compilations de caches ; voir §8).
 
 Ce que disent ces chiffres :
 
@@ -109,8 +110,7 @@ joueurs sont conservés. ABI 30 et 92 exports inchangés.
 - Compilations Metal de nouveaux shaders en jeu (350 à 985 ms) : premières rencontres, hors caches ; le mode asynchrone
   reste coupé (règle du projet).
 - Attentes audio, tranches du parcage RSX, passages P ↔ E (20 000/s) : pas de mesure qui isole leur coût.
-- Écritures disque régulières de 1,2 à 2 Mio par fenêtre : origine non identifiée (ce ne sont pas les journaux exportés) ;
-  énergie attendue négligeable devant 2,5 W.
+- Écritures disque régulières de 1,2 à 2 Mio par fenêtre : origine trouvée et corrigée ensuite, voir §8.
 - ARMSX3 non repris : FNMADD/FNMSUB exacts (ralentit le PPU, recompile tous les caches), repli de profondeur pour tous les
   titres (recompile tous les shaders), plafond des tampons Vulkan et gestion de VRAM pleine (à faire à part), liste
   blanche PUTLLC16, shaders asynchrones (interdit), « Preferred SPU Threads 2 » pour Black Ops II, garde MGS4, PSF plus
@@ -145,3 +145,33 @@ réglages de jeu, caches de shaders déjà remplis (faire le parcours une fois a
   allongées (ASan/UBSan) : 0 échec.
 - Identités de génération de code recalculées : inchangées. Contrôle de fermeture des sources de la route Core.
 - Tests non exécutés : suites hôtes historiques du Core (règle du dépôt : compilation seule), aucun essai sur iPhone.
+
+## 8. Second lot (Core 936 et pont iOS) : les points restants de la mission, un par un
+
+Ordre du mainteneur, 13 novembre : finir tous les points restants avant toute IPA RPCS3. Cinq enquêtes sur les mêmes
+journaux et sur le code du Core 935. Chaque point a maintenant un verdict : corrigé, non évitable (avec la preuve), ou à
+mesurer sur l'appareil (avec la sonde ajoutée pour cela).
+
+| Point | Ce que les journaux mesurent | Verdict |
+|---|---|---|
+| Écritures disque | 1,2 à 1,9 Mio écrits par fenêtre pour ~67 Kio de texte de journal ; écritures = 18,6 Kio × lignes + 221 Kio (R² 0,99 sur 55 fenêtres), ~1,15 Gio par heure | **Corrigé** (pont iOS, `REWINDBOX_LOG_APPEND_HANDLES_936`, commit e5ecdfac0) : `appendLine:` ouvrait, écrivait et fermait le fichier à chaque ligne de trois journaux ; ils restent ouverts. Effet attendu sur la chauffe : faible ; non mesuré |
+| Pré-hachage de textures, God of War III à 60 FPS | L'ouvrier hache 0,87 à 0,96 Go par fenêtre pour 0 résultat servi (52 à 62 ms de CPU) | **Corrigé** (`REWINDBOX_PREHASH_IDLE_936`) : pause de 120 images après trois périodes sans usage ; scènes lourdes inchangées. Gain attendu 17 à 94 ms de CPU par fenêtre |
+| Pré-hachage en scènes lourdes | 277 à 624 ms d'ouvrier par fenêtre pour 23 à 116 ms épargnés au RSX | À mesurer : le couper peut allonger une image de 0,2 à 1,6 ms. A/B « Texture pre-hash » sur la même scène |
+| Hachage des textures par le RSX (God of War III lourd) | 9 à 27 ms par image, ~la moitié du CPU RSX ; 88 à 99 % confirment des octets inchangés | Non évitable : pas de protection de pages sur iOS, les points de synchronisation sont de vraies publications du jeu |
+| Soumissions, attentes CPU-GPU, cadencement | 5 à 10,5 soumissions par image à 10 µs ; aucune attente active ; présentations = flips du jeu, jamais plus de 60,2/s | Rien d'évitable |
+| Shaders recompilés d'une session à l'autre | Trois caches concordent, `repeated_builds` = 0 sur 11 sessions ; cache pilote inchangé sur 15 démarrages | Non : premières rencontres. Coût en énergie non démontré (fenêtre des 8 compilations : 10,1 J contre 11,8 à 13,0 J) : c'est une saccade |
+| Recompilation PPU/SPU | 36 démarrages sur 37 sans module compilé ; chaque bloc SPU compilé une fois | Rien à corriger |
+| Démarrage de Black Ops II (12 à 14 s, 2 cœurs) | Relecture de 22 856 objets SPU, cœurs efficacité, 8 à 9 J | Travail réel, hors jeu ; non retenu |
+| Réveils restants | Parcage RSX estimé à 4 900-8 200/s en jeu et 14 000-17 000/s en écran léger (aucun compteur) ; 27 à 54 % des 23 500 minuteries/s de Black Ops II sans site | À mesurer : `COREPROF WAKE936` (`REWINDBOX_WAKE_CENSUS_936`) compte les attentes minutées des PPU invités, les tranches du parcage RSX et les sondages ZCULL. Allonger la tranche de 50 µs retarderait chaque début d'image (PUT jamais notifié) |
+| Audio, manette | 187 attentes/s (une par bloc) ; 880/s | Non touchés (son et entrées) |
+| Passages P ↔ E | 2 700 à 3 800/s à 80 000 réveils/s, 18 500 à 21 100 en jeu : ils suivent la surcharge des deux cœurs P | Rien de possible proprement sur iOS (ni affinité ni choix de grappe ; QoS déjà réglée) |
+| Verrou d'écriture des réservations exactes (Black Ops II) | 427 ns par prise, 321 000/s ; coût hôte imputable ≈ 0,24 cœur sur 4,81 (4,9 %) ; God of War III lourd 0,07 cœur | Rien de supprimable dans le chemin (aucune dépense au-dessus de 0,25 %) |
+| Mode exact de Black Ops II | Le mode relâché supprimerait par fenêtre 1,64 M prises, 768 000 parcages PPU, 3 180 reports ; la raison d'origine (gel lu comme mise à jour perdue) ne tient plus | À mesurer, sans build : flip corrigé en mode exact d'abord, puis la même carte en relâché par le réglage par jeu |
+| Thread principal de God of War III à 60 FPS | Facturé 0,6 à 0,9 cœur performance, « en exécution » dans 4,4 à 4,8 % des échantillons ; 89 % en attente hors appel nommé ; IPC ≤ 0,4 | Dépense démontrée, lieu inconnu. À mesurer : `REWINDBOX_PPU_WAIT_SITE_936` ajoute drapeaux, dernier appel et pc de ces attentes au profil PPU |
+| Mémoire, allocations, copies | Compression 4 à 5,6 Mio/s (< 1,1 % d'un cœur, estimé), marge ≥ 3 071 Mio, aucun tampon par draw | Rien d'évitable. Allocations GPU de God of War III lourd (13 à 46 Mio par image) : coût non démontré |
+| Assassin's Creed, AC IV, Bladestorm | Aucune sonde d'énergie dans les journaux (IPA 718 et incidents) ; Assassin's Creed : GPU occupé 75 à 83 % | Énergie jamais mesurée : menu 2 min puis jeu 5 min avec un Core ≥ 931 |
+| Limiteur d'images (thread RSX) | Lecture du code : sur iOS le reste d'attente sous 500 µs est fait en `yield` puis en attente active (≈ 2 % d'un cœur à 60 FPS, estimé) | Non touché : le remplacer par un sommeil risque une image en retard ; gain trop petit pour ce risque |
+
+Ce qui reste donc ouvert ne peut se fermer qu'avec une session sur l'iPhone : le thread principal de God of War III à
+60 FPS, le parcage RSX, le mode de réservation de Black Ops II, le pré-hachage en scènes lourdes, et l'énergie des trois
+autres jeux. Les sondes nécessaires sont dans le Core 936 ; elles ne changent aucune attente.
