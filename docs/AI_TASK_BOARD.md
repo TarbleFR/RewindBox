@@ -306,7 +306,7 @@ Do not restart a historical task from that archive.
 | --- | --- | --- |
 | Main `012mUAShv9k6pSCnpW7oAF63` | `Claude` | Integration, common Cores, pins, recipe and private delivery; reconcile current handoffs and 733 retries. |
 | MeloNX `012mUASkkFGHaPcEUx9dsp8q` | `work/melonx-fps-stability-20261103` | Native/MoltenVK heap, bridge and timing-test owner; review lot 10's native-heap request and hand over exact CI fix. |
-| MeloNX lot 10 `01JA5QgKeoGVH5oVjNyhcj3D` | `work/melonx-lot10-20261112` | Six adapters and macOS fixture fixes through d17a29f2 integrated by main as 30ee5beb; main composes/freezes the Core. |
+| MeloNX lot 10 / heat `01JA5QgKeoGVH5oVjNyhcj3D` | `work/melonx-heat-20261113` (lot 10 integrated as 30ee5beb) | Heat lot `adapt_wait_spin_bound` with gate and Core 747 wiring for main to freeze, build and pin; then the 20-minute before/after protocol. |
 | XeniOS `012mUASiVyxdnhNTUKesGGm7` | `work/playlists-xenios-20261110` | Xbox 360 engine/bridge, legal chain and device follow-ups. |
 | S2Arm `012mUASj3EQnvC86WC56AePw` | `work/s2arm-switch2-prototype-20261110` | Switch 2 engine, preparation, playlist and device follow-ups. |
 | Skins `012mUASjgVWk8DKKjVbwTD2n` | Local worktree from Claude for any new lot | Preserve reviewed packs/controls; merged branches are not active task queues. |
@@ -399,6 +399,12 @@ waiter's 20 ms ceiling and above its measured time), not a fixed 200 ms floor th
 attempt 4; melonx-host 43332392305 passed on macOS. Merged for IPA 733.
 **Device baseline:** IPA729 Hogwarts 17.7 presented FPS, p50/p95/p99 50/117/200 ms,
 footprint up to 4,882 MiB. No post-correction iPhone gain yet.
+**Heat (13 Nov, IPA 733 journals):** Hogwarts CPU 2.06 W, 150,000 system calls/s; 46-48 % of the busiest
+threads' samples spin before a wait (44 % of all samples in the spin's yield: guest scheduler and threaded-renderer
+events). `adapt_wait_spin_bound` (every title) keeps the spin only for events whose waits end inside it; gate 42
+checks, macOS arm64 run `43367431612`: -48 to -54 % CPU per handoff on long waits, short handoffs kept. Branch
+`work/melonx-heat-20261113` `a0fea59e`, wiring for Core 747; no iPhone result.
+[Heat handoff and protocol](evidence/melonx-heat/handoff.md).
 **Native heap:** original owner has named the large MoltenVK stacks (SPIR-V copies,
 Metal libraries, descriptor pools, pipeline states); release/compression changes
 remain owned there. Graphics-memory savings and thermal gains are not established.
