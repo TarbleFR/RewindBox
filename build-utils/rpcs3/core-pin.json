@@ -2,10 +2,11 @@
  "schema": 1,
  "status": "verified",
  "component": "rpcs3",
- "build": 934,
- "note": "RPCS3 Core 934 = Core 933 plus the per-game settings of the in-game menu saved where the boot reads them (maintainer, 12 Nov 2026: God of War III no longer stretched): since Core 922 the boot ignores a legacy full custom_configs file, but the settings API still read it and saved every per-game change into it; the API now loads global < RPCS3 database < the user's sparse overrides like the boot and saves a sparse override, reset removes the overrides and a preset apply is refused instead of succeeding with no effect (REWINDBOX_SETTINGS_API_RULE_934); the native Metal 4 present honours Stretch To Display Area like the Vulkan present (REWINDBOX_METAL_STRETCH_934; request 1, run 43129466421, stopped on the cfg::_bool conversion, fixed with get()). Core 933 unchanged otherwise. Replaces the Core 933 pin directly (Core 929 kept as the fallback in docs/evidence/rpcs3-core929). No codegen input changes: PPU and SPU codegen identities unchanged. MoltenVK dependency of run 42998604606 (libMoltenVK.a d19d3a42). Built by the RPCS3 Core route (run 43136576356, attempt 1, source 72c2ffd4; Apple host harnesses run 43136576356 on 72c2ffd4). Verified offline on the downloaded artifacts with the repository verifier (pin_errors and bundle); the packaged library holds the 934 reset and preset messages. Not measured on the iPhone; no energy, temperature or FPS claim.",
+ "build": 936,
+ "note": "RPCS3 Core 936 = Core 935 + the second part of the heat and energy lot (maintainer, 13 Nov 2026). Core 935: Black Ops II flip done replay (REWINDBOX_FLIP_DONE_REPLAY_935), idle SPU wait backoff (REWINDBOX_SPU_IDLE_BACKOFF_935), no GDB server and camera idle wait on iOS, WFE counter read, CASPAL/LSE2 16-byte atomics, ARMSX3 iOS 0.0.2 (3) canary patches, whole-line atomic DMA (scoped) and 27 RPCS3 upstream fixes; compiled and verified by run 43490423702, never pinned. Core 936: texture pre-hash pause (REWINDBOX_PREHASH_IDLE_936), COREPROF WAKE936 (REWINDBOX_WAKE_CENSUS_936) and the PPU wait-site probe (REWINDBOX_PPU_WAIT_SITE_936). Compilation-only route: the Apple host harnesses were not run. Codegen identities unchanged. Not run on an iPhone; no heat, energy or FPS claim. Replaces Core 934.",
  "producer": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
+  "validationMode": "build-only",
   "core": {
    "jobName": "RPCS3 iPhone Core with authenticated source-built MoltenVK",
    "steps": [
@@ -14,101 +15,42 @@
     "Read the declared Core build",
     "Select the retained Core toolchain",
     "Restore compiler objects of the same frozen recipe",
-    "Authenticate the Core 934 source closure and the native dependency",
+    "Authenticate the Core 936 source closure and the native dependency",
     "Preserve the authenticated preflight",
-    "Compile and link the actual iPhone Core 934",
-    "Verify the actual binary and write its Core 934 identity",
+    "Compile and link the actual iPhone Core 936",
+    "Verify the actual binary and write its Core 936 identity",
     "Preserve an unverified binary and actual inputs after metadata failure",
     "Record observed compiler-cache counters and compile duration",
-    "Upload the verified Core 934 without an application delivery",
+    "Upload the verified Core 936 without an application delivery",
     "Preserve compiler objects for the same recipe",
     "Preserve real diagnostics including partial failures"
    ],
-   "source": "72c2ffd4abb0d24d975160bef25317a06fb8c474",
-   "run": 43136576356,
+   "source": "be2f51ffa346ebb88f7639b8b9f56429ba72aa0f",
+   "run": 43526948724,
    "attempt": 1,
-   "job": 130913256649,
-   "artifact": 13908867453,
-   "name": "RPCS3Core-934-72c2ffd4abb0d24d975160bef25317a06fb8c474",
-   "bytes": 30565657,
-   "sha256": "9438c5ac9d6c35a39abc15f343bd29cd969383082911c48aac23a23f7b5c96db",
-   "expiresAt": "2026-12-12T02:09:22Z"
+   "job": 132234949145,
+   "artifact": 14086776643,
+   "name": "RPCS3Core-936-be2f51ffa346ebb88f7639b8b9f56429ba72aa0f",
+   "bytes": 30570287,
+   "sha256": "13b9a8f5f39238e701069b0885dcb158e51190fb4b2c38a4eda5185e2e7eb54f",
+   "expiresAt": "2026-12-13T23:46:03Z"
   },
   "hostTests": {
-   "jobName": "Core host harnesses on Apple ARM64 (changed, new and reused)",
-   "steps": [
-    "Checkout immutable candidate and the delivered Core history",
-    "Read the declared Core build",
-    "Select the retained Core toolchain",
-    "Materialize the Core 934 sources and the delivered a4ae86d0 sources",
-    "Authenticate the reused Core 610 Apple harness evidence",
-    "Run the affected and new Core 934 harnesses with Apple clang",
-    "Preserve the Apple host harness reports"
-   ],
-   "names": [
-    "ra-core-hooks",
-    "ra-core-hooks-asan-ubsan",
-    "exitspawn-worker-plain",
-    "exitspawn-worker-asan-ubsan",
-    "transition-phases",
-    "feedback-census",
-    "position-invariance-contract",
-    "graphics-tests-612",
-    "graphics-tests-612-asan-ubsan",
-    "reuse-audit",
-    "spu-object-hit-admission-613",
-    "spu-object-hit-admission-613-asan-ubsan",
-    "codegen-audit",
-    "core934",
-    "lr-full-queue"
-   ],
-   "source": "72c2ffd4abb0d24d975160bef25317a06fb8c474",
-   "run": 43136576356,
-   "attempt": 1,
-   "job": 130913256365,
-   "artifact": 13908733138,
-   "name": "RPCS3Core-934-apple-host-tests-72c2ffd4abb0d24d975160bef25317a06fb8c474",
-   "bytes": 66151,
-   "sha256": "41636f7c1581f95299cfdb9876a9048848518a70779c6a0dabeacece3feb6390",
-   "expiresAt": "2026-12-12T02:16:34Z",
-   "reused": {
-    "names": [
-     "reuse-audit"
-    ],
-    "reference": {
-     "run": 41333351872,
-     "attempt": 1,
-     "job": 124927901813,
-     "source": "fefad81dbfc6890294def9b529f6e0d915fcfcbe",
-     "artifact": 13094565494,
-     "sha256": "33857562f708eeec933528ecf0dc8ca6a4056ebfbecef22dca0725cb04c4815a"
-    },
-    "requiredCoverage": [
-     "lr-full-queue",
-     "exitspawn-worker-plain",
-     "exitspawn-worker-asan-ubsan",
-     "feedback-census",
-     "transition-phases",
-     "codegen-audit",
-     "reuse-audit",
-     "position-invariance-contract"
-    ],
-    "note": "Core 610 Apple results reused because their inputs are unchanged (authenticated by the producer step 'Authenticate the reused Core 610 Apple harness evidence'); with the 14 reruns they cover the 8 Core 610 harnesses."
-   }
+   "mode": "not-run"
   }
  },
  "core": {
-  "type": "rpcs3-ios-core934",
-  "dylibBytes": 81096024,
-  "dylibSha256": "613c7adf1bbe2e70c0a5e8e89a771404f13d03ee048c768a664e5a1e5a899a92",
-  "identitySha256": "76fde2483bbe2e91cb8782c61e94035e69047890a96daac3b07778a47ac52921",
+  "type": "rpcs3-ios-core936",
+  "dylibBytes": 81096272,
+  "dylibSha256": "ae10d2e6a7d0d0b4fcf5529e0d09b6f6bc37e4b2c8131876ae45dd0ff8dc15d2",
+  "identitySha256": "3b57e04f147bfbd5ed7c65e532d1fc5a749da737777a56b609aa778af22f8b7f",
   "proofMember": "core610-proof.json",
-  "proofSha256": "e8ffb78b8b6eb7d4f7e06ad987c1a1b0d4ca9d42082158a6126f8fb30b9fce26",
-  "payloadFingerprint": "505684bef15affe9aec78e9a171bbce5b7339f78d3a6a06ead082239bd51c48b"
+  "proofSha256": "80869c4b806538ab83e00fe169b461a134a78c4c2cea651bade6db6474893228",
+  "payloadFingerprint": "fbaf644ed34e99d79eefff85c350309df9ef92bbd93300a904d3e2c063a76cf5"
  },
  "canonical": {
-  "patchSha256": "746a878e7e10d5a8c3b96e13a5ba8c12cc3705fa046ff2e24c27c412669a62e1",
-  "postimages": 474,
+  "patchSha256": "7327095e128bb3ae44b07707434b6399fcb1ef854261174d6912a173a06e7452",
+  "postimages": 496,
   "upstreamCommit": "22f1152783cef1f7e04af7b1c895173e28fd5b03"
  },
  "abi": 30,
@@ -320,13 +262,18 @@
   "Resolved title policy 927",
   "boot_record=none",
   "fence_encode_waits=",
-  "COREPROF GPUGATE928"
+  "COREPROF GPUGATE928",
+  "Resolved title policy 935",
+  "COREPROF WAKE936",
+  "spu_idle_backoff=",
+  "flip_flags=",
+  "part=unnamed_waits"
  ],
  "cachePath": "build/rpcs3-core-component",
  "replaces": {
-  "source": "bbef37686e0b52040b3861ac447c93ddac181c31",
-  "run": 43077626247,
-  "artifact": 13884331357,
-  "payloadFingerprint": "9d5fb7e5f5a704286aaface58825f0d514bcf36ccd7ad2cc328d83a3ea97bb31"
+  "source": "72c2ffd4abb0d24d975160bef25317a06fb8c474",
+  "run": 43136576356,
+  "artifact": 13908867453,
+  "payloadFingerprint": "505684bef15affe9aec78e9a171bbce5b7339f78d3a6a06ead082239bd51c48b"
  }
 }
