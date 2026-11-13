@@ -340,7 +340,12 @@ Measured steps:54min29 gates,4min NativeAOT compilation. No device/gameplay gain
 [Producer origin and full verification](evidence/melonx-core745/verification.json).
 The Xenia/S2Arm producer jobs were skipped as intended.
 Private-IPA upload-boundary CI passed on Linux/macOS/Windows (`43344184848`).
-**Next / Codex:** freeze733 and launch the same standard route. The draft classifies all product commits (no replay conflicts/unclassified paths,
+**IPA733 launched:** standard delivery run `43353788677`, attempt1, source
+`b1955be5f6b80733ab6808a3bf875bad8eb459d0`, after local contract and freeze passed.
+The frozen composition includes MeloNX745 and S2Arm patch0012 plus the preparation speed lot;
+effective digest `e2b4db5fd0de832fcbdea640d449fd969dc8814c449d9d910baaa71ef7ad5309`.
+**Next / Codex:** follow this run, then authenticate and privately deliver the downloaded IPA.
+The manifest classifies all product commits (no replay conflicts/unclassified paths,
 43 retained inputs verified), defers the future Xenia producer recipe and repository-only
 Actions maintenance, and has a fresh recipient key. Maintenance058 is reviewed but source-only:
 732 had already deferred its parent script/test versions; no unrelated promotion is needed.
