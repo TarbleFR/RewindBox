@@ -1,0 +1,273 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index f31ce78d..52c6fe0d 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -3858,7 +3858,14 @@ static void vpool_unpublish(struct vpool *v) {   // caller holds g_vp_mu
+ // 弱链接[nvntest]：s2a_vp_arena_map（虚拟池区，runtime/src/vawin.c；NVN 单测不链原生层，链接行按这行放行未定义，runtime/build.mk 自动收）
+ // 弱链接[nvntest]：s2a_vp_arena_has（同上）
+ void *s2a_vp_arena_map(uint64_t len) __attribute__((weak)); int s2a_vp_arena_has(const void *p, uint64_t n) __attribute__((weak));
++// RewindBox (patch 0013): the virtual pool arena below the window (runtime/src/rb_vparena.c, reserved by vawin.c when the window cannot hold the
++//   standard layout). A pool's range is cut from it instead of the host's last 3 GiB, and given back to it when the pool is finalized.
++// 弱链接[nvntest]：s2a_rb_vp_map（RewindBox 虚拟池区，runtime/src/rb_vparena.c；NVN 单测不链原生层）
++// 弱链接[nvntest]：s2a_rb_vp_unmap（同上）
++// 弱链接[nvntest]：s2a_rb_vp_size（同上）
++void *s2a_rb_vp_map(uint64_t len) __attribute__((weak)); int s2a_rb_vp_unmap(void *p, uint64_t len) __attribute__((weak)); uint64_t s2a_rb_vp_size(void) __attribute__((weak));
+ static void vpool_unmap_range(uint8_t *base, uint64_t len) {   // 虚拟池区里的盖回不可访问（区不还系统），其余照常 munmap
++    if (s2a_rb_vp_unmap && s2a_rb_vp_unmap(base, len)) return;   // RewindBox (patch 0013): covered with an inaccessible mapping again (its aliases are gone) and free for the next pool
+     if (s2a_vp_arena_has && s2a_vp_arena_has(base, len)) mmap(base, len, PROT_NONE, MAP_ANON | MAP_PRIVATE | MAP_FIXED, -1, 0); else munmap(base, len);
+ }
+ static struct vpool *vpool_new(const pool_t *o, uint8_t *a, uint64_t len) {   // 建页表、登记（录时 vpool_reserve、回放 s2a_hle_vpool_load 共用）
+@@ -3887,16 +3894,27 @@ static uint8_t *vpool_reserve(const pool_t *o) {   // → the reserved range of
+ #endif
+     uint64_t len = o->size < cap ? o->size : cap;
+     void *a = s2a_vp_arena_map ? s2a_vp_arena_map(len) : NULL;   // 帧录进程：从虚拟池区取，回放进程同址放得回（runtime/src/vawin.c）
++    // RewindBox (patch 0013): from the arena below the window when there is one, at the full length asked. Only when the arena cannot hold it (said in
++    //   red, with the pool's size) does the kernel choose, in the host's own addresses, as before
++    int rb = 0;
++    if (!a && s2a_rb_vp_map) { a = s2a_rb_vp_map(len); rb = a != NULL;
++        if (!a && s2a_rb_vp_size && s2a_rb_vp_size())
++            LOG("【红】 virtual pool %p (%#llx bytes): the virtual pool arena (%llu MB) has no free range of %#llx bytes; the kernel chooses in the host's addresses (S2A_VP_ARENA_MB sets the arena)",
++                (const void *)o, (unsigned long long)o->size, (unsigned long long)(s2a_rb_vp_size() >> 20), (unsigned long long)len); }
++    if (o->size > len) { static _Atomic uint64_t capped; if (atomic_fetch_add(&capped, 1) < 8)   // RewindBox (patch 0013): the size the game asked, for the next device log
++        LOG("RewindBox: virtual pool %p is %#llx bytes; %#llx are reserved (the engine's limit per pool), mappings past it are kept in the page table (first 8 such pools are logged)",
++            (const void *)o, (unsigned long long)o->size, (unsigned long long)len); }
+     if (!a) a = vpool_mmap(len);
+     // 占不到就逐次减半（按 2 MB 页表粒度取整）再占，直到 16 MB：超出预留的映射走「超出预留、只进页表」那支，预留内的地址照常换得回宿主地址
+     //   （11-06 FC26 真机：宿主低区被切碎、最大空洞 511 MB，512 MB 的池原先整池放弃，GPU 地址换不回宿主地址，开赛 SIGSEGV；原先只有大于 1 GB 的退一档到 1 GB）
+     if (a == MAP_FAILED) { int er = errno; uint64_t want = len;
+         while (a == MAP_FAILED && len > (16ull << 20)) { len = (len >> 1) & ~((2ull << 20) - 1); a = vpool_mmap(len); }
+-        if (a != MAP_FAILED) LOG("[nvn] virtual pool %p: %#llx bytes of address space not available (errno %d), reserving %#llx instead", (const void *)o, (unsigned long long)want, er, (unsigned long long)len); }
+-    if (a == MAP_FAILED) { LOG("【红】 virtual pool %p: cannot reserve %#llx bytes of address space (errno %d)", (const void *)o, (unsigned long long)len, errno); return NULL; }
++        // RewindBox (patch 0013): red, with the pool's size: a smaller reservation than asked leaves buffers past it without a host address
++        if (a != MAP_FAILED) LOG("【红】 [nvn] virtual pool %p (%#llx bytes): %#llx bytes of address space not available (errno %d), reserving %#llx instead", (const void *)o, (unsigned long long)o->size, (unsigned long long)want, er, (unsigned long long)len); }
++    if (a == MAP_FAILED) { LOG("【红】 virtual pool %p (%#llx bytes): cannot reserve %#llx bytes of address space (errno %d)", (const void *)o, (unsigned long long)o->size, (unsigned long long)len, errno); return NULL; }
+     vpool_new(o, a, len); vp_lock(); size_t live = g_nvpa; vp_unlock();
+     static _Atomic uint64_t n; uint64_t k = atomic_fetch_add(&n, 1) + 1;   // a UE4 game makes one per streamed texture: the first ones and every 1000th
+-    if (k <= 8 || k % 1000 == 0) LOG("[nvn] virtual pool %p (%#llx bytes, flags %#x): own address range %p+%#llx, physical pages are remapped into it (%llu so far, %zu alive)", (const void *)o, (unsigned long long)o->size, o->flags, a, (unsigned long long)len, (unsigned long long)k, live);
++    if (k <= 8 || k % 1000 == 0) LOG("[nvn] virtual pool %p (%#llx bytes, flags %#x): own address range %p+%#llx%s, physical pages are remapped into it (%llu so far, %zu alive)", (const void *)o, (unsigned long long)o->size, o->flags, a, (unsigned long long)len, rb ? " in the virtual pool arena" : "", (unsigned long long)k, live);
+     return a;
+ }
+ static void vpool_release(const pool_t *o) {
+diff --git a/runtime/src/rb_vparena.c b/runtime/src/rb_vparena.c
+new file mode 100644
+index 00000000..650549fc
+--- /dev/null
++++ b/runtime/src/rb_vparena.c
+@@ -0,0 +1,134 @@
++// RewindBox (patch 0013): the address arena of the NVN virtual pools.
++//
++// A virtual pool (graphics/nvn/gfx/nvn/hle_nvn.c vpool_reserve) needs an inaccessible host address range of its own: its
++// buffer and texture addresses are pool base + offset, and MapVirtual aliases physical pool pages into it. That range
++// used to come from mmap(NULL). When the window cannot hold the game's standard layout (runtime/src/vawin.c: the window
++// takes the largest hole below 2^39 and leaves 3 GiB below it to the host) every virtual pool then came out of those
++// 3 GiB, which Metal, malloc, the .NET GC and the host stacks of the game's threads also live in.
++// Mario Kart World (0400C3F00006E000, iPhone17,2, IPA 733, 13 Nov): 8 pools took 1016 MB, further ones asked for 1 GiB
++// each; the host hole went from 1717 MB to 5 MB, the reservations were halved (512 MB, 32 MB, 16 MB) and then refused
++// (errno 12), MapVirtual failed 219 times and pthread_create returned EAGAIN for the game's thread 162.
++//
++// vawin.c now reserves this arena below the window at the same moment as the window, and the pools are cut from it:
++// first fit by address, free ranges kept sorted and merged, one inaccessible host page after each range (two pools are
++// never adjacent, as two kernel mappings need not be), at most RBVP_MAXSEG pools at a time (a further one is refused). A released range is covered with a fresh inaccessible mapping
++// before it is reused, so no alias of the pool that held it survives. Nothing here commits memory: the arena is address
++// space only, and it is not counted in the host hole the low-address ledger reports.
++//
++// No engine header: this file is also compiled alone by RewindBox's test (test/s2arm_vp_arena_test.py).
++#include <pthread.h>
++#include <stdint.h>
++#include <stdio.h>
++#include <string.h>
++#include <sys/mman.h>
++
++enum { RBVP_MAXSEG = 4096 };
++#define RBVP_PAGE 16384ull   // the host page of Apple systems: a pool base must be on it for MapVirtual to alias
++typedef struct { uint64_t a, n; } rbvp_seg;
++static pthread_mutex_t g_mu = PTHREAD_MUTEX_INITIALIZER;
++static rbvp_seg g_free[RBVP_MAXSEG]; static int g_nfree;
++static rbvp_seg g_held[RBVP_MAXSEG]; static int g_nheld;   // the ranges handed out, sorted by address: a release is checked against it, never against the caller's length
++static uint64_t g_base, g_size, g_used, g_peak, g_maps, g_refused, g_refused_max, g_lost, g_badlen;
++static int held_at(uint64_t a) {   // index of the first held range at or above a (caller holds g_mu)
++    int lo = 0, hi = g_nheld; while (lo < hi) { int m = (lo + hi) / 2; if (g_held[m].a < a) lo = m + 1; else hi = m; } return lo;
++}
++
++static uint64_t span_of(uint64_t len) { return ((len + RBVP_PAGE - 1) & ~(RBVP_PAGE - 1)) + RBVP_PAGE; }   // the range and its guard page
++
++// Takes [base, base + size): the caller's own inaccessible reservation. Once.
++void s2a_rb_vp_init(uint64_t base, uint64_t size) {
++    pthread_mutex_lock(&g_mu);
++    uint64_t a = (base + RBVP_PAGE - 1) & ~(RBVP_PAGE - 1), e = (base + size) & ~(RBVP_PAGE - 1);
++    if (!g_size && e > a) { g_base = a; g_size = e - a; g_free[0] = (rbvp_seg){a, e - a}; g_nfree = 1; }
++    pthread_mutex_unlock(&g_mu);
++}
++int s2a_rb_vp_has(const void *p) { uint64_t a = (uint64_t)(uintptr_t)p; return g_size && a >= g_base && a < g_base + g_size; }
++uint64_t s2a_rb_vp_size(void) { return g_size; }
++
++// An inaccessible range of len bytes on a host page; NULL when there is no arena or no free range holds it (counted: the
++// caller says so in the log and falls back to the kernel's choice).
++void *s2a_rb_vp_map(uint64_t len) {
++    if (!g_size || !len || len > g_size) { if (g_size && len) { pthread_mutex_lock(&g_mu); g_refused++; if (len > g_refused_max) g_refused_max = len; pthread_mutex_unlock(&g_mu); } return NULL; }
++    uint64_t n = span_of(len); void *r = NULL;
++    pthread_mutex_lock(&g_mu);
++    for (int i = 0; g_nheld < RBVP_MAXSEG && i < g_nfree; i++) if (g_free[i].n >= n) {
++        uint64_t a = g_free[i].a; r = (void *)(uintptr_t)a;
++        if (g_free[i].n == n) { memmove(&g_free[i], &g_free[i + 1], (size_t)(g_nfree - i - 1) * sizeof *g_free); g_nfree--; }
++        else { g_free[i].a += n; g_free[i].n -= n; }
++        int h = held_at(a); memmove(&g_held[h + 1], &g_held[h], (size_t)(g_nheld - h) * sizeof *g_held); g_held[h] = (rbvp_seg){a, n}; g_nheld++;
++        g_used += n; if (g_used > g_peak) g_peak = g_used;
++        g_maps++; break;
++    }
++    if (!r) { g_refused++; if (len > g_refused_max) g_refused_max = len; }
++    pthread_mutex_unlock(&g_mu);
++    return r;
++}
++
++// Gives back a range s2a_rb_vp_map returned. 1 = it was the arena's: covered with an inaccessible mapping again (whatever
++// was aliased into it is gone) and free for the next pool; 0 = not the arena's, the caller unmaps it. The span covered
++// and freed is the one recorded when the range was handed out: a len that differs is counted, never trusted, and an
++// address inside the arena that is not the start of a held range is left alone (counted too; still 1, so that the caller
++// does not munmap a piece of the arena). A range that cannot be covered or recorded is not reused (counted as lost):
++// address space only, never memory.
++int s2a_rb_vp_unmap(void *p, uint64_t len) {
++    if (!p || !len || !s2a_rb_vp_has(p)) return 0;
++    uint64_t a = (uint64_t)(uintptr_t)p;
++    pthread_mutex_lock(&g_mu);
++    int h = held_at(a);
++    if (h >= g_nheld || g_held[h].a != a) { g_badlen++; pthread_mutex_unlock(&g_mu); return 1; }
++    uint64_t n = g_held[h].n; if (len > g_size || span_of(len) != n) g_badlen++;
++    memmove(&g_held[h], &g_held[h + 1], (size_t)(g_nheld - h - 1) * sizeof *g_held); g_nheld--;
++    int covered = mmap(p, n, PROT_NONE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0) == p;
++    int i = 0; while (i < g_nfree && g_free[i].a < a) i++;
++    int ml = i > 0 && g_free[i - 1].a + g_free[i - 1].n == a, mr = i < g_nfree && a + n == g_free[i].a;
++    if (!covered) g_lost += n;
++    else if (ml && mr) { g_free[i - 1].n += n + g_free[i].n; memmove(&g_free[i], &g_free[i + 1], (size_t)(g_nfree - i - 1) * sizeof *g_free); g_nfree--; }
++    else if (ml) g_free[i - 1].n += n;
++    else if (mr) { g_free[i].a = a; g_free[i].n += n; }
++    else if (g_nfree < RBVP_MAXSEG) { memmove(&g_free[i + 1], &g_free[i], (size_t)(g_nfree - i) * sizeof *g_free); g_free[i] = (rbvp_seg){a, n}; g_nfree++; }
++    else g_lost += n;
++    g_used = g_used >= n ? g_used - n : 0;
++    pthread_mutex_unlock(&g_mu);
++    return 1;
++}
++
++// One line for the log: what the arena holds, what it refused. Empty when there is no arena. The crash report calls it too, possibly
++// on the thread that holds the lock: it then reads without it (numbers of that instant, nothing is written).
++void s2a_rb_vp_note(char *o, size_t cap) {
++    if (!cap) return;
++    o[0] = 0; if (!g_size) return;
++    int locked = !pthread_mutex_trylock(&g_mu);
++    uint64_t big = 0; int nf = g_nfree; if (nf > RBVP_MAXSEG) nf = RBVP_MAXSEG;
++    for (int i = 0; i < nf; i++) if (g_free[i].n > big) big = g_free[i].n;
++    snprintf(o, cap, "RewindBox: virtual pool arena %#llx +%llu MB: %llu pools alive in %.1f MB (peak %.1f MB, %llu reserved so far), largest free range %.1f MB in %d; "
++                     "refused %llu (largest %.1f MB), address lost %.1f MB, releases that did not match a held range %llu",
++             (unsigned long long)g_base, (unsigned long long)(g_size >> 20), (unsigned long long)g_nheld, g_used / 1048576.0, g_peak / 1048576.0, (unsigned long long)g_maps,
++             big / 1048576.0, g_nfree, (unsigned long long)g_refused, g_refused_max / 1048576.0, g_lost / 1048576.0, (unsigned long long)g_badlen);
++    if (locked) pthread_mutex_unlock(&g_mu);
++}
++
++// How much address space the window gives up below itself when it cannot hold the standard layout: *tail for the unified
++// allocator of vawin.c (host stacks of the game's threads, signal stacks, Ryujinx memory blocks, Metal shared buffers,
++// write-tracking tables; it has no range in that layout otherwise, so all of them took the host's 3 GiB), *vp for the
++// virtual pool arena above. Pure, so the test compiles it as is.
++//   fit        the hole the window is taken from (largest below 2^39)        host_below  what stays free for the host under the arenas
++//   need       the standard layout's span (s2a_layout_need)                  alias       the alias region's commitment in that span
++//   pool       the application pool (all the memory the game can map)        slack       what the layout adds in front of the alias region
++//   alias_first / unknown: the layout sizes the alias region from the window (layout.c: static hint in addr_need.tsv), or the game is
++//              not known yet: nothing is taken, the window is what it was
++// The window keeps the regions in front of the alias region (need - alias + slack) and one application pool of alias
++// region inside it: whatever the game maps there is backed by that pool, so everything it can map at once still has host
++// addresses when it is laid out from the region's base. What it maps higher goes to the far region, as before.
++uint64_t s2a_rb_host_arenas(uint64_t fit, uint64_t host_below, uint64_t need, uint64_t alias, uint64_t slack, uint64_t pool,
++                            int alias_first, uint64_t tail_want, uint64_t vp_want, uint64_t *tail, uint64_t *vp) {
++    const uint64_t G = 1ull << 30;
++    *tail = *vp = 0;
++    if (alias_first || !pool || need <= alias) return 0;
++    uint64_t keep = need - alias + slack + pool;
++    if (fit < host_below + keep + G) return 0;
++    uint64_t room = (fit - host_below - keep) & ~(G - 1);   // whole GiB: the window base stays GiB-aligned (layout.c)
++    if (tail_want && (tail_want & (G - 1)) == 0 && room >= tail_want) { *tail = tail_want; room -= tail_want; }
++    vp_want &= ~(G - 1);
++    *vp = room < vp_want ? room : vp_want;
++    return *tail + *vp;
++}
+diff --git a/runtime/src/vawin.c b/runtime/src/vawin.c
+index ed036067..dfaa7a32 100644
+--- a/runtime/src/vawin.c
++++ b/runtime/src/vawin.c
+@@ -526,6 +526,37 @@ static void pick_hole(uint64_t hi, uint64_t want, uint64_t *at, uint64_t *sz, ui
+         a += rs;
+     }
+ }
++// RewindBox (patch 0013): the host arenas below the window (runtime/src/rb_vparena.c). When the window cannot hold the standard layout the
++//   host kept 3 GiB below it and nothing else: the unified tail allocator had no range (the window's end is the alias region's far part),
++//   so the host stacks of the game's threads, the virtual pools of NVN and everything Metal, malloc and the GC map shared those 3 GiB.
++//   The window now gives up a range for the tail allocator (its own TL_TAKE) and one for the virtual pools right below its base, both
++//   reserved with it; the host's 3 GiB stay as they were, so the GC limit and the low-address ledger read the same hole as before.
++//   S2A_VP_ARENA_MB sets the virtual pool arena (default 16384, the size S2Arm gives its own iOS virtual pool area; 0 = none).
++#define RB_VP_ARENA (16ull << 30)
++#define RB_VAMM_ALIAS (63ull << 30)   // the alias region's commitment in the standard layout (layout.c VAMM_ALIAS)
++// rb_vparena.c's functions and layout.c's pool are taken by name, as this file takes s2a_app_pool and s2a_npdm_window_need: S2Arm's tests that
++//   link vawin.c alone have neither file, and then nothing is given up (the window is what it was)
++typedef uint64_t (*rb_arenas_fn)(uint64_t fit, uint64_t host_below, uint64_t need, uint64_t alias, uint64_t slack, uint64_t pool,
++                                 int alias_first, uint64_t tail_want, uint64_t vp_want, uint64_t *tail, uint64_t *vp);
++// 1 = the layout will size the alias region from the window for this game (svc_mem.c alias_first_hint: a static alias size in the
++//   addr_need.tsv next to main.npdm), or the game is not known here (several games in one container, no NPDM): the window is left alone
++static int tail_on(void);
++static int rb_alias_first(void) {
++    if (g_ctr || !g_npdm[0]) return 1;
++    char p[1100]; snprintf(p, sizeof p, "%s", g_npdm); char *sl = strrchr(p, '/'); if (!sl) return 1;
++    snprintf(sl + 1, sizeof p - (size_t)(sl + 1 - p), "addr_need.tsv");
++    FILE *f = fopen(p, "r"); if (!f) return 0;
++    char line[1024]; int hint = 0; const char *k = "别名区GB\t";
++    while (fgets(line, sizeof line, f)) if (!strncmp(line, k, strlen(k)) && strtoull(line + strlen(k), NULL, 10)) hint = 1;
++    fclose(f); return hint;
++}
++static uint64_t rb_arenas(uint64_t fit, uint64_t *tail, uint64_t *vp) {
++    *tail = *vp = 0;
++    rb_arenas_fn sizes = (rb_arenas_fn)dlsym(RTLD_DEFAULT, "s2a_rb_host_arenas"); uint64_t (*poolf)(void) = (uint64_t (*)(void))dlsym(RTLD_DEFAULT, "s2a_app_pool");
++    if (!sizes || !poolf || !dlsym(RTLD_DEFAULT, "s2a_rb_vp_init")) return 0;
++    const char *e = getenv("S2A_VP_ARENA_MB"); uint64_t want = e && *e ? strtoull(e, NULL, 10) << 20 : RB_VP_ARENA;
++    return sizes(fit, HOST_BELOW, g_need, RB_VAMM_ALIAS, S2A_FAR_SLACK + (1ull << 30), poolf(), rb_alias_first(), tail_on() ? TL_TAKE : 0, want, tail, vp);
++}
+ static void cmd_arena_reserve(void);
+ static void vawin_reserve(void) {
+     const char *e = getenv("S2A_VAWIN_NORESERVE"); g_noreserve = e && *e == '1';
+@@ -560,20 +591,27 @@ static void vawin_reserve(void) {
+         LOG("模拟 iOS 26 大地址档（S2A_VA_IOS26）：空洞放在 %#llx（%s）+%llu MB", (unsigned long long)fat, low ? "同 iOS 26 位置" : "macOS 27 / iOS 27 低区被共享缓存占满，改用 0x70 空洞开头", (unsigned long long)(n >> 20)); } }
+     // 放不下标准布局不再起不了局（docs/方案_地址空间根修.md）：占最大一块、下方留 HOST_BELOW（3 GiB）给宿主（Metal / GC），布局小区在前、别名区伸出窗口（layout.c 乙）。
+     //   宿主保留段不能放窗口上方：别名区伸出段覆盖那里，宿主放进去的东西会被游戏的远端访问静默读写
+-    if (!sz && g_fit >= MIN_WIN + HOST_BELOW) { at = fat + HOST_BELOW; want = g_fit - HOST_BELOW; g_keep_lo = fat;
++    uint64_t rb_tl = 0, rb_vp = 0, rb_extra = 0;   // RewindBox (patch 0013): [at - rb_extra, at) = tail allocator range, then virtual pool arena
++    if (!sz && g_fit >= MIN_WIN + HOST_BELOW) { rb_extra = rb_arenas(g_fit, &rb_tl, &rb_vp); at = fat + HOST_BELOW + rb_extra; want = g_fit - HOST_BELOW - rb_extra; g_keep_lo = fat;
++        if (rb_extra) LOG("RewindBox: the window gives up %llu MB below its base: %llu MB for host stacks and the tail allocator, %llu MB for NVN virtual pools (S2A_VP_ARENA_MB); "
++                          "it keeps %llu MB, the host's %llu MB below stay free", (unsigned long long)(rb_extra >> 20), (unsigned long long)(rb_tl >> 20), (unsigned long long)(rb_vp >> 20),
++                          (unsigned long long)(want >> 20), (unsigned long long)(HOST_BELOW >> 20));
+         LOG("地址窗口按需：本款标准布局要 %llu MB，本机 %s 以下最大一块 %llu MB（%#llx 起，地址上限 %#llx）——照样起局，下方 %llu MB 留宿主、其余作窗口",
+             (unsigned long long)(g_need >> 20), hb, (unsigned long long)(g_fit >> 20), (unsigned long long)fat, (unsigned long long)top, (unsigned long long)(HOST_BELOW >> 20)); }
+     else if (!sz) { vaguard_release();
+         LOG("【红】地址窗口不足：本机 %s 以下最大能放的一块 %llu MB，连模块与小区都放不下（本款标准布局要 %llu MB，地址上限 %#llx），起不了局", hb, (unsigned long long)(g_fit >> 20), (unsigned long long)(g_need >> 20), (unsigned long long)top);
+         s2a_window_probe("窗口放不下"); return; }
+     else want = g_need + TL_TAKE <= sz ? g_need + TL_TAKE : sz;   // 尾部统一分配最多 2 GB，空洞里剩多少给多少（63.25 GB 的款在 64 GB 空洞里只剩 766 MB）
+-    void *p = mmap((void *)at, want, PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0);   // 不带 MAP_FIXED：核对落点，不盖别人
++    // RewindBox (patch 0013): one reservation for the arenas and the window, so that either all of it lands where asked or none does
++    void *p = mmap((void *)(at - rb_extra), want + rb_extra, PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0);   // 不带 MAP_FIXED：核对落点，不盖别人
+     // errno 紧接 mmap 取：后面的 dlsym / 打日志会改它（10-24 #100 作者指出）；映射成功但落在别处时 errno 是旧值，不报
+     int er = p == MAP_FAILED ? errno : 0;
+     vaguard_release();   // 占过了（成或不成）才放行护栏（Mac：占之前它拒掉 macOS 27 malloc 落进窗口的大块保留）
+-    if (p != (void *)at) { if (p != MAP_FAILED) munmap(p, want);
+-        LOG("【红】地址窗口：空洞 %#llx +%llu MB 占不到（%s errno=%d）", (unsigned long long)at, (unsigned long long)(want >> 20), p == MAP_FAILED ? "失败" : "落在别处", er); s2a_window_probe("窗口没占到"); return; }
++    if (p != (void *)(at - rb_extra)) { if (p != MAP_FAILED) munmap(p, want + rb_extra);
++        LOG("【红】地址窗口：空洞 %#llx +%llu MB 占不到（%s errno=%d）", (unsigned long long)(at - rb_extra), (unsigned long long)((want + rb_extra) >> 20), p == MAP_FAILED ? "失败" : "落在别处", er); s2a_window_probe("窗口没占到"); return; }
+     g_ok = 1; g_base = at; g_size = g_res = want;
++    if (rb_tl) s2a_tail_init(at - rb_extra, rb_tl);
++    if (rb_vp) { void (*init)(uint64_t, uint64_t) = (void (*)(uint64_t, uint64_t))dlsym(RTLD_DEFAULT, "s2a_rb_vp_init"); if (init) init(at - rb_vp, rb_vp); }
+     guest_file_attach();
+     LOG("窗口已占 %#llx +%llu MB（本款要 %llu MB + 尾部统一分配 %llu MB；所在空洞 %llu MB、%s 以下最大一块 %llu MB、地址上限 %#llx）", (unsigned long long)at, (unsigned long long)(want >> 20),
+         (unsigned long long)(g_need >> 20), (unsigned long long)((want > g_need ? want - g_need : 0) >> 20), (unsigned long long)(sz >> 20), hb, (unsigned long long)(g_fit >> 20), (unsigned long long)top);
+@@ -975,6 +1013,8 @@ void s2a_vm_low(const char *when) {
+         LOG("窗口尾部 [%s]：%#llx +%llu MB，已映射 %llu MB、空 %llu MB（最大一块 %llu MB）", when, (unsigned long long)tlo, (unsigned long long)((thi - tlo) >> 20),
+             (unsigned long long)((thi - tlo - th) >> 20), (unsigned long long)(th >> 20), (unsigned long long)(tl >> 20)); }
+     { char tb[900]; s2a_tail_note(tb, sizeof tb); LOG("%s [%s]", tb, when); }
++    { void (*vn)(char *, size_t) = (void (*)(char *, size_t))dlsym(RTLD_DEFAULT, "s2a_rb_vp_note"); char vb[400] = "";   // RewindBox (patch 0013): the virtual pool arena's line
++      if (vn) vn(vb, sizeof vb); if (vb[0]) LOG("%s [%s]", vb, when); }
+     s2a_vm_low_files(when, lo, hi, tlo, thi);
+     { void (*mn)(const char *) = (void (*)(const char *))dlsym(RTLD_DEFAULT, "s2a_msample_note"); if (mn) mn(when); }   // malloc 按调用点采样（S2A_MALLOC_SAMPLE=1 才有，见 msample.c）
+     LOG("低区全列 [%s] 完：止于 %#llx，已映射 %llu MB（逐块列 %d 块；<1 MB 的 %d 块合计 %llu MB 未列）、空 %llu MB", when, (unsigned long long)prev, (unsigned long long)(used >> 20), nb, ns, (unsigned long long)(small >> 20), (unsigned long long)(hole >> 20));
