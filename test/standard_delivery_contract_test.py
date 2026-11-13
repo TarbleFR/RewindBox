@@ -2137,6 +2137,25 @@ class PocketSkinRevisionReview(unittest.TestCase):
 
 
 class Groups(unittest.TestCase):
+
+    def test_unexecuted_suites_cannot_claim_success_or_reused_evidence(self):
+        current = dict(source='a' * 40, run=11, attempt=1)
+        job = dict(name='native', head_sha=current['source'], run_id=11, run_attempt=1,
+                   status='completed', conclusion='skipped', id=22)
+        spec = dict(mode='not-run', reason='Maintainer requested build only', commands=[])
+        manifest = dict(tests={'native': spec})
+        receipt = sd.unexecuted_evidence('native', manifest, current, job)
+        self.assertEqual(receipt['result'], 'not-run')
+        self.assertFalse(receipt['fullRegressionSuiteExecuted'])
+        self.assertNotIn('artifact', receipt)
+        self.assertEqual(sd.expand_commands('native', spec, lambda _: []), [])
+        for changed in (dict(job, conclusion='success'), dict(job, head_sha='b' * 40)):
+            with self.assertRaises(ValueError):
+                sd.unexecuted_evidence('native', manifest, current, changed)
+        with self.assertRaises(ValueError):
+            sd.expand_commands('native', dict(spec, reuse={'run': 11}), lambda _: [])
+
+
     def test_base_commands_are_the_610_groups(self):
         import rewind610_checks as checks610
         groups = sd.base_groups()

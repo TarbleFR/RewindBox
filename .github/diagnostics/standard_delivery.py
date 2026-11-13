@@ -548,7 +548,10 @@ def manifest_errors(value):
         check(key in images, 'images.' + key)
     for group in TEST_GROUPS:
         spec = value['tests'].get(group, {})
-        check(spec.get('mode') in ('fresh', 'reuse'), f'tests.{group}.mode')
+        check(spec.get('mode') in ('fresh', 'reuse', 'not-run'), f'tests.{group}.mode')
+        if spec.get('mode') == 'not-run':
+            check(bool(spec.get('reason')) and spec.get('commands') == [] and not spec.get('reuse') and
+                  not spec.get('additions'), f'tests.{group}: unexecuted suites need a reason and no evidence claim')
         if spec.get('mode') == 'reuse':
             check(set(spec.get('reuse', {})) >= {'source', 'run', 'attempt', 'job', 'artifact', 'artifactName',
                                                   'sha256', 'bytes', 'manifest'}, f'tests.{group}.reuse pins')
@@ -1554,6 +1557,10 @@ def base_groups():
 
 def expand_commands(group, spec, listing):
     """Frozen command list of one group: the base commands plus the manifest additions."""
+    if spec.get('mode') == 'not-run':
+        require(spec.get('reason') and spec.get('commands') == [] and not spec.get('reuse') and
+                not spec.get('additions'), 'Unexecuted suites cannot claim commands or reused evidence')
+        return []
     commands = [[name, list(argv)] for name, argv in base_groups()[group]]
     additions = spec.get('additions', {})
     tests = list(additions.get('flutterTests', []))
@@ -1867,6 +1874,19 @@ def contract_evidence(current, manifest, jobs, get=None):
                 execution=current)
 
 
+def unexecuted_evidence(group, manifest, current, job):
+    """Record an intentionally skipped suite without presenting it as passed or reused."""
+    spec = manifest['tests'][group]
+    require(spec['mode'] == 'not-run' and spec.get('reason') and spec.get('commands') == [],
+            'Missing explicit unexecuted suite declaration: ' + group)
+    require(job['name'] == group and job['head_sha'] == current['source'] and
+            job['run_id'] == current['run'] and job['run_attempt'] == current['attempt'] and
+            job['status'] == 'completed' and job['conclusion'] == 'skipped',
+            'Unexecuted suite must match the skipped job of this delivery: ' + group)
+    return dict(result='not-run', evidenceMode='not-run', kind=group, execution=current,
+                job=job['id'], commands=[], reason=spec['reason'], fullRegressionSuiteExecuted=False)
+
+
 def tests_summary(result, manifest):
     executed = [group for group in TEST_GROUPS if manifest['tests'][group]['mode'] == 'fresh'] + ['delivery-contract']
     run = {group: dict(mode=result[group]['evidenceMode'], run=result[group]['execution']['run'],
@@ -1885,6 +1905,10 @@ def reauthenticate_tests(tests, manifest, get=None):
     jobs = run_jobs(current, get)
     for group in TEST_GROUPS:
         value = tests[group]
+        if manifest['tests'][group]['mode'] == 'not-run':
+            require(value == unexecuted_evidence(group, manifest, current, jobs[group]),
+                    'Unexecuted suite evidence was altered: ' + group)
+            continue
         if value['evidenceMode'] == 'fresh':
             check_job(jobs[group], current, group)
             require(jobs[group]['id'] == value['job'], 'Fresh test evidence names another job: ' + group)
@@ -1921,14 +1945,15 @@ def await_tests(poll=True):
             if mode == 'fresh':
                 require(job['conclusion'] == 'success', f"The {group} test job ended with {job['conclusion']}")
             else:
-                require(job['conclusion'] == 'skipped', f'Reused {group} evidence needs a skipped {group} job')
+                require(job['conclusion'] == 'skipped', f'The {group} suite declared {mode} needs a skipped job')
         if not pending:
             break
         require(poll and time.monotonic() < deadline, 'Timed out waiting for the test jobs: ' + ', '.join(pending))
         print('Waiting for test jobs: ' + ', '.join(pending), flush=True)
         time.sleep(30)
     result = {group: fresh_evidence(group, jobs[group], current, manifest) if mode == 'fresh' else
-              reused_evidence(group, manifest) for group, mode in modes.items()}
+              reused_evidence(group, manifest) if mode == 'reuse' else
+              unexecuted_evidence(group, manifest, current, jobs[group]) for group, mode in modes.items()}
     result['deliveryContract'] = contract_evidence(current, manifest, jobs)
     executed, run = tests_summary(result, manifest)
     return save('standard-tests.json', dict(result, testsExecutedInThisRun=executed, testsRun=run))

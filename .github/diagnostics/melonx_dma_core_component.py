@@ -336,8 +336,8 @@ def engine_evidence():
     require(gates['auxiliaryHistoricalReceipts'] == auxiliary, 'Historical auxiliary scopes differ')
     for name, expected in {**historical, **result.get('reusedEvidenceSha256', {})}.items():
         require(sha((NEW / name).read_bytes()) == expected, 'Changed retained evidence: ' + name)
-    for name, scope in auxiliary.items():
-        require(sha((NEW / name).read_bytes()) == scope['sha256'] and scope['currentFullFixtureProof'] is False,
+    for name, auxiliary_scope in auxiliary.items():
+        require(sha((NEW / name).read_bytes()) == auxiliary_scope['sha256'] and auxiliary_scope['currentFullFixtureProof'] is False,
                 'Auxiliary historical evidence promoted to a current test')
     inputs_match(preflight['smokeInputs'], core['source'])
     smoke_raw = (NEW / 'runtime-smoke/actual-runtime.json').read_bytes()

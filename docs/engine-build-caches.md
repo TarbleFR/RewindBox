@@ -84,3 +84,5 @@ throwaway Flutter app. Those developer suites require the explicit existing
 Apple's shader-converter signature, builds and verifies its framework, and uses
 the compiler cache. The existing RPCS3 934 and XeniOS binaries remain suitable
 for the next IPA when their actual compiled product inputs are unchanged.
+
+Private test delivery 734 also declares its optional Flutter/native regression groups `not-run`, with no passed or reused evidence. The normal recipe still compiles the actual host and authenticates each engine, validates the final signed IPA and encrypts private artifacts. The delivery contract remains mandatory.
