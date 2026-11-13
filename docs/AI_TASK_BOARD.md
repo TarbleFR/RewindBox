@@ -305,19 +305,26 @@ Do not restart a historical task from that archive.
 **Goal:** deliver the authorized, reviewed common IPA with exact component identities.
 **Delivered:** 732, run `43289133482`, source `77af35c2`, receipt below. RPCS3 934,
 MeloNX 743, Xenia c7d6a5c4, S2Arm 9560e56f. Gameplay validation stays separate.
-**733:** draft `71529c1f` at this snapshot; S2Arm patch 0012 and preparation speed
-lot, other engines retained. First request `43312487102`: download HTTP503,
-then attempt 4 diagnostic spinner timing failure despite successful app compile.
-Second `43322868775`: Flutter cache/hashFiles timeout; app compiled but cancelled.
-Recipe `b12dc220` already adds bounded transient retries and pins Flutter with
-pub-cache disabled. Main reverted its timing-test change `31fd341d` in `7dea157f`
-to respect component ownership; Owner fix `c5541fe0` passed macOS host run `43329316902`. Merge `e5f7d70d`
-brought its timing/download changes but retained the reverted 200 ms spinner
-assertion. This maintenance restores the exact tested owner file (20 ms floor,
-spinner > waiter, waiter <20 ms); no runtime source is changed. Main must freeze the next reviewed recipe and report
-its actual run; no new 733 success is implied by this maintenance.
-**Next:** acknowledge exact-SHA handoffs in issue #179, use the complete owner CI fix, then existing
-standard recipe. Do not add unrelated unfinished engine lots after freeze.
+**733 (13 Nov):** S2Arm engine 9ddb304e (patch 0012) + preparation speed lot + MeloNX Core 745
+(lot 10) with its live-capture bridge; XeniaCore c7d6a5c4 and RPCS3 934 retained. Earlier requests:
+`43312487102` (HTTP 503 downloads, then the fixed 200 ms spinner floor), `43322868775` (flutter-action
+hashFiles timeout, cancelled). Recipe `b12dc220`: bounded retries of transient GitHub reads and downloads,
+Flutter action pinned by SHA with pub-cache off; contract 119 OK. Owner test files restored/merged
+(`d7123113`, `f61b2bde`). Lot 10 `d17a29f2` and `f5abc0ac` acknowledged on #179. Core 745 frozen in
+`f4fb22fd` (contract `807edc42`, 104/104 planned gates passed locally on the final preparation, receipts
+bound to this tree). **Core CI run `43336528859` failed before compiling:** its first dependency step reads
+the engine82 baseline (artifact `12883480724`, `be55d705`), which had 14-day retention and expired on 12 Nov
+about 08:20 UTC (HTTP 404; no copy of its bytes exists). Same class: the 614 archive `13141611354` expires
+16 Nov, the Core 743 artifact 26 Nov; durable byte copies: 614 in delivery artifacts `13150348411`/`13156638305`,
+Core 743 (holding the authenticated engine82 history and LibHac inputs) in `13976632507`. The fix is in
+MeloNX-owned recipe files (`reuse_core_baseline.py`, `verify_dma_core.py`, `core-baseline.json`,
+`melonx-core.yml`): handed to the MeloNX owner on #179 (comment 6840099916); main does not edit them.
+Checked on `f4fb22fd`: delivery contract and its test pass except the expected pin/contract binding until
+Core 745 is pinned; engine concurrency, tidy, consolidation, retirement, S2Arm pinned-engine/legal and XeniOS
+review tests OK. Known red outside the recipe: `.github/diagnostics/s2arm/s2arm_delivery_test.py` (old S2Arm
+test-IPA launcher, line constants drifted since `fc0c18dd`; it refuses that line until reviewed, not used by 733).
+**Next:** integrate the owner's exact fix SHA, refreeze if contract inputs change, rerun Core CI, pin Core 745,
+regenerate the 733 draft, freeze, trigger once, verify, record coreSHA256. 733 waits for Core 745.
 [Manifest](../build-utils/delivery/733.json) · [recipe](standard-delivery-recipe.md).
 
 ### RPCS3 FPS, stability and audio — main Claude Code
@@ -352,8 +359,9 @@ footprint up to 4,882 MiB. No post-correction iPhone gain yet.
 **Native heap:** original owner has named the large MoltenVK stacks (SPIR-V copies,
 Metal libraries, descriptor pools, pipeline states); release/compression changes
 remain owned there. Graphics-memory savings and thermal gains are not established.
-**Next:** main composes the integrated six-adapter source including its fixture fixes; run required composition
-and Core checks, pin, include the live-capture bridge in an authorized later IPA,
+**Next:** main froze it as Core 745 in `f4fb22fd` (contract `807edc42`, 104/104 planned gates on
+the final preparation); Core CI `43336528859` stopped on the expired engine82 baseline (owner fix requested on
+#179); then pin, include the live-capture bridge in IPA 733,
 then compare Hogwarts/Smash closes and 20-minute Hogwarts. Preserve 1x/full draws,
 all useful syncs, caches and player data. Further instrumentation is justified only
 for a missing deciding measurement; confirmed defects need fixes and executed checks.
