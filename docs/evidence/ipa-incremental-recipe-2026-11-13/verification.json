@@ -1,0 +1,26 @@
+{
+  "base": "32d71b22695e4895e1d9cca6b6ffc81159a41bd7",
+  "codeSha256": {
+    "build-utils/ipa_build_cache.py": "21549e886da08699aaa86bf0210d86da685e3a2ed12ccb9d465bd8c2ebe6280b",
+    "test/ipa_build_cache_test.py": "45b50ea574eaeb15cb38889b38294b2e6e5219556003c42ab29db278dbed11ee",
+    ".github/workflows/standard-delivery.yml": "1c6e64f3bf080a79119c274dd2565bf40475082a883de7d32466a24fd9c47208",
+    "docs/ipa-incremental-build.md": "98a1f433b9df090a90c7f8221a1f28855fcac9a827b2ab07005fe1ab4ce17e0f"
+  },
+  "checks": {
+    "unit-tests": ".........\n----------------------------------------------------------------------\nRan 9 tests in 0.616s\n\nOK\n{\"hostCachePhase\": \"prepare\", \"status\": \"disabled\"}\n{\"hostCachePhase\": \"prepare\", \"status\": \"disabled\"}\n{\"hostCachePhase\": \"prepare\", \"status\": \"disabled\"}\n{\"hostCachePhase\": \"prepare\", \"status\": \"disabled\"}\n{\"hostCachePhase\": \"prepare\", \"status\": \"disabled\"}\n{\"hostCachePhase\": \"prepare\", \"status\": \"enabled\"}\n{\"hostCachePhase\": \"restore\", \"status\": \"miss\"}\n{\"hostCachePhase\": \"restore\", \"status\": \"miss\"}\n",
+    "guard-mutations": "archive path: mutant killed; failures=1 errors=0\narchive type: mutant killed; failures=0 errors=1\n",
+    "workflow-tests": "test_application_builds_in_parallel_and_awaits_the_tests (__main__.Workflow.test_application_builds_in_parallel_and_awaits_the_tests) ... ok\ntest_checkout_then_materialize_in_every_job (__main__.Workflow.test_checkout_then_materialize_in_every_job) ... ok\ntest_delivered_application_steps_are_unchanged (__main__.Workflow.test_delivered_application_steps_are_unchanged) ... ok\ntest_no_build_number_literal (__main__.Workflow.test_no_build_number_literal) ... ok\ntest_no_fresh_native_command_imports_pil_without_its_pillow (__main__.Workflow.test_no_fresh_native_command_imports_pil_without_its_pillow)\n718 run 42741950414 attempt 1: the native job failed only on test/pocket_skin_input_chain_test.py, ... ok\ntest_numbers_come_from_preflight_outputs (__main__.Workflow.test_numbers_come_from_preflight_outputs) ... ok\ntest_only_standard_delivery_operations (__main__.Workflow.test_only_standard_delivery_operations) ... ok\ntest_republication_steps (__main__.Workflow.test_republication_steps) ... ok\ntest_required_steps_exist (__main__.Workflow.test_required_steps_exist) ... ok\ntest_subset_parser_agrees_with_pyyaml (__main__.Workflow.test_subset_parser_agrees_with_pyyaml) ... ok\ntest_test_jobs_come_from_the_fresh_610_jobs (__main__.Workflow.test_test_jobs_come_from_the_fresh_610_jobs) ... ok\ntest_the_flutter_job_provides_the_pillow_its_python_tests_import (__main__.Workflow.test_the_flutter_job_provides_the_pillow_its_python_tests_import)\n650 run 41861290919: test/pocket_skin_input_chain_test.py failed on \"No module named 'PIL'\" (the ... ok\ntest_the_native_job_boots_its_simulator_once_before_the_group (__main__.Workflow.test_the_native_job_boots_its_simulator_once_before_the_group)\n694 run 42506743712 and 718 run 42741950414: the translation XCTest let xcodebuild boot the ... ok\ntest_trigger_concurrency_and_constant_job_names (__main__.Workflow.test_trigger_concurrency_and_constant_job_names) ... ok\ntest_validators_pods_and_retention (__main__.Workflow.test_validators_pods_and_retention) ... ok\n\n----------------------------------------------------------------------\nRan 15 tests in 8.970s\n\nOK\n",
+    "base-pin-test": "test_melonx_pin_is_verified_and_bound_to_its_contract (__main__.Components.test_melonx_pin_is_verified_and_bound_to_its_contract) ... ERROR\n\n======================================================================\nERROR: test_melonx_pin_is_verified_and_bound_to_its_contract (__main__.Components.test_melonx_pin_is_verified_and_bound_to_its_contract)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/workspace/scratch/9960148a81e3/ipa-cache-contract-baseline/test/standard_delivery_contract_test.py\", line 389, in test_melonx_pin_is_verified_and_bound_to_its_contract\n    pin = melonx.pin()\n          ^^^^^^^^^^^^\n  File \"/workspace/scratch/9960148a81e3/ipa-cache-contract-baseline/.github/diagnostics/melonx_dma_core_component.py\", line 104, in pin\n    require(value['workflow'] == WORKFLOW and value['name'] == 'MeloNX-engine-' + value['source'] and\n  File \"/workspace/scratch/9960148a81e3/ipa-cache-contract-baseline/.github/diagnostics/melonx_reads_core_component.py\", line 46, in require\n    raise ValueError(message)\nValueError: Wrong DMA-copy Core pin\n\n----------------------------------------------------------------------\nRan 1 test in 0.063s\n\nFAILED (errors=1)\n"
+  },
+  "fullStandardSuite": {
+    "status": "interrupted",
+    "lastTest": "Components.test_retained_inputs_unchanged_since_the_base",
+    "completedBeforeInterruption": 5,
+    "knownError": "Wrong DMA-copy Core pin",
+    "sameErrorReproducedOnUnchangedBase": true
+  },
+  "review": "independent security review; negative-archive fixture finding corrected and reviewed",
+  "appleCompilationExecuted": false,
+  "cacheSecretCreated": false,
+  "gainMeasured": false
+}
