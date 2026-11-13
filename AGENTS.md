@@ -1,39 +1,47 @@
-# RewindBox — consignes uniques
+# RewindBox — travailler simplement
 
-Ce fichier remplace toutes les anciennes consignes d’orchestration.
-La demande actuelle de l’utilisateur prime ; répondre en français.
+La demande actuelle prime sur les anciennes consignes. Répondre en français.
+Aller jusqu’au résultat demandé, sans élargir la mission.
 
-## Travail
-Travailler, corriger, tester et compiler directement sur `Claude` (casse exacte).
-Ne créer ni branche, worktree, issue, PR, équipe d’agents ou procédure de passation.
-Ne pas recréer automatiquement les éléments supprimés.
-Lire l’état de Git et préserver les modifications locales et concurrentes.
-Commits et push ordinaires sur `Claude` autorisés ; jamais de force-push ni de reset destructif.
-En cas de conflit, conserver les deux travaux et résoudre avant de pousser.
-Corriger la cause, exécuter les contrôles utiles puis poursuivre la livraison autorisée.
-Ne pas redemander une autorisation déjà donnée.
-Si l’environnement bloque une action, décrire la limite réelle sans la contourner.
-## Compilation et IPA de test
-Réutiliser les workflows existants et la recette standard ; aucun workflow copié par build.
-Suivre la compilation existante ; ne pas lancer de doublon.
-Recompiler les composants modifiés et vérifier l’identité de ceux réutilisés.
-Conserver les contrôles de sources, dépendances, ABI, signatures et empreintes.
-Une compilation réussie ne prouve pas que le jeu fonctionne sur iPhone.
-Les IPA de test restent privées : aucune release publique ni artefact IPA en clair sur GitHub.
-Conserver le chiffrement du transport, les contrôles finaux et l’envoi privé du fichier vérifié.
-Ne jamais enregistrer de clé privée, secret ou journal privé brut dans Git.
+## 1. Travailler sur Claude
 
-## Releases et sauvegardes
-`main` reçoit uniquement l’état validé destiné à une release publique ; aucun développement dessus.
-À chaque release, sauvegarder l’état exact livré sur `Backup`, avec sa version et son SHA.
-Conserver les sauvegardes précédentes ; ne jamais fusionner `Backup` dans `Claude` ou `main`.
-Vérifier la sauvegarde avant de publier la release et conserver ses preuves.
-Publier uniquement dans le périmètre autorisé par l’utilisateur.
+- Développer, corriger, tester et compiler sur `Claude` (casse exacte).
+- Ne créer ni branche, worktree, issue, PR ou équipe ; ne rien recréer automatiquement.
+- Avant modification : vérifier branche, HEAD et changements locaux ; préserver le travail existant.
+- Avant chaque push : relire la tête distante et résoudre les conflits sans perdre de travail.
+- Commits et push ordinaires sur `Claude` autorisés ; aucun force-push, reset ou nettoyage destructif.
 
-## Raisonnements et vérifications
-Relire seulement les preuves pertinentes : causes établies, pistes réfutées et limites connues.
-Conserver les résultats utiles dans leurs documents techniques et dans l’historique Git.
-Ne pas refaire une enquête ou un test inchangé sans raison nouvelle.
-Préserver données utilisateur, rendu, synchronisation, compatibilité, crédits et licences.
-Distinguer corrigé, testé, compilé, livré et observé sur appareil ; aucun gain inventé.
-Terminer par un bilan court : changement, vérification, résultat et éventuel blocage.
+## 2. Corriger sans détour
+
+- Lire uniquement les sources, [contraintes](docs/PROJECT_RULES.md) et [preuves](docs/AI_TASK_BOARD.md) pertinentes.
+- Corriger la cause par le changement le plus simple, sans refonte hors sujet.
+- Tester ce qui est affecté ; rejouer seulement si les entrées changent ou qu’un doute subsiste.
+- Ne pas affaiblir les tests, masquer les erreurs ou inventer des résultats.
+- Signaler une limite réelle sans la contourner ; poursuivre ce qui reste réalisable.
+- Ne pas redemander une autorisation acquise ni imposer de procédure de suivi.
+
+## 3. Compiler et livrer les tests
+
+- Utiliser la [recette standard](docs/standard-delivery-recipe.md) et le manifeste courant ; aucun workflow copié par build.
+- Vérifier source et runs existants ; suivre la compilation correspondante sans doublon.
+- Recompiler si sources, dépendances, outils ou configuration changent ; authentifier les entrées de tout composant réutilisé.
+- Conserver les contrôles de configuration, outils, ABI, signatures et empreintes.
+- Documentation seule : `[skip ci]`, sans compilation.
+- Garder les IPA de test privées, avec transport chiffré et protections existantes.
+- Vérifier l’IPA finale avant livraison privée ; ne jamais publier une IPA de test.
+- Aucun secret, clé privée, journal privé brut ni artefact IPA de test en clair dans GitHub.
+
+## 4. Publier et sauvegarder
+
+- `main` reçoit uniquement les releases publiques validées et autorisées ; aucun développement dessus.
+- Avant chaque release : sauvegarder l’état validé sur `Backup` (version + SHA), puis vérifier.
+- Préserver toutes les sauvegardes ; ne jamais fusionner `Backup` dans `Claude` ou `main`.
+
+## 5. Garder les preuves utiles
+
+- Conserver causes, pistes réfutées, résultats et limites dans les preuves techniques et l’historique.
+- Consulter les archives au besoin ; vérifier leurs statuts sans réactiver leurs procédures.
+- Préserver données utilisateur, rendu, synchronisation, compatibilité, crédits et licences.
+- Distinguer corrigé, testé, compilé, livré et observé sur appareil ; aucun gain non mesuré.
+- Une compilation réussie ne prouve pas que le jeu fonctionne sur iPhone.
+- Bilan court : changement, vérification, résultat et éventuel blocage.

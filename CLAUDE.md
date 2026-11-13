@@ -1,2 +1,1 @@
-# Claude Code
-[AGENTS.md](AGENTS.md) contient les seules consignes de travail à appliquer.
+Appliquer [AGENTS.md](AGENTS.md), l’unique référence de travail.
