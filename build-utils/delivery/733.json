@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "build": 733,
-  "status": "draft",
+  "status": "frozen",
   "note": "Authorized private IPA 733: delivered732 plus reviewed S2Arm patch0012 and preparation speed lot, verified MeloNX Core745 lot10/live-capture bridge (run43344184896,104 fresh Apple gates,two simulator sessions). RPCS3 934 and XeniaCore c7d6a5c4 retained. Same standard recipe with reviewed dependency recovery and optional caches. New test-reuse work is deferred until after733; no device speed gain is claimed.",
   "base": {
     "build": 732,
@@ -456,13 +456,1019 @@
         "note": "Reviewed repository maintenance only (37 safety tests passed); excluded from the IPA 733 product tree, preserving the maintenance paths already deferred by 732. Target build denotes deferral only, not approval or a future inclusion request."
       }
     ],
-    "promotedCommits": []
+    "promotedCommits": [],
+    "freezeCommit": "a4de734bf57b507cd1e3ebf48b80af021f5c9809",
+    "freezeTree": "de7f47e5445430a4009192af1db5b92cb29a13e0",
+    "baseEffectiveDigest": "662f421fbccf226e33cff10abb8eeac270368942e1b6867ef9b986ce1a088d55",
+    "inheritedDeferredPaths": [
+      "build-utils/maintenance/actions-cleanup-2026-11-10-followup.json",
+      "build-utils/maintenance/actions-cleanup-2026-11-10.json",
+      "build-utils/maintenance/cleanup_actions.py",
+      "build-utils/melonx/metal-archive/README.md",
+      "build-utils/melonx/metal-archive/moltenvk-v1.4.2-binary-archives.patch",
+      "lib/models/retro_achievements_session.dart",
+      "lib/screens/game_screen/game_details_card/dialogs/game_achievements_dialog.dart",
+      "lib/screens/game_screen/game_details_card/game_details_card_list.dart",
+      "lib/screens/game_screen/game_details_card/tabs/game_details_achievements_tab.dart",
+      "lib/screens/game_screen/game_details_card/tabs/ra_identity_note.dart",
+      "lib/services/libretro_internal_service.dart",
+      "lib/services/retro_achievements_helper.dart",
+      "lib/services/retro_achievements_identity.dart",
+      "lib/services/retro_achievements_resolver.dart",
+      "lib/services/retro_achievements_session_service.dart",
+      "lib/services/retroachievements_hash_service.dart",
+      "lib/services/rpcs3_internal_service.dart",
+      "lib/services/rpcs3_launch_service.dart",
+      "lib/services/stikjit_armsx2_service.dart",
+      "lib/utils/optimized_md5_utils.dart",
+      "packages/libretro_internal_bridge/ios/Classes/LibretroAchievements.m",
+      "packages/libretro_internal_bridge/ios/Classes/LibretroInternalBridgePlugin.m",
+      "packages/libretro_internal_bridge/ios/Classes/RBDiscHashReader.c",
+      "packages/libretro_internal_bridge/ios/Classes/RBDiscHashReader.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/LICENSE.txt",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/NEOSTATION_NOTICE.md",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/README.md",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/LICENSE",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/LzmaDec.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/real/7zTypes.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/real/LzmaDec.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/src/LzmaDec.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/src/real/LzmaDec.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstd.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstd_errors.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstddeclib.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/dr_libs/dr_flac.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/bitstream.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/cdrom.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/chd.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/chdconfig.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/coretypes.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/flac.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/huffman.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/macros.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_avhuff.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdfl.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdlz.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdzl.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdzs.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_flac.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_huff.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_lzma.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_zlib.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_zstd.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_bitstream.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_cdrom.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_chd.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_avhuff.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdfl.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdlz.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdzl.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdzs.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_flac.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_huff.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_lzma.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_zlib.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_zstd.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_flac.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_huffman.c",
+      "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec",
+      "source.json",
+      "test/actions_cleanup_test.py",
+      "test/libretro_ios_syntax_test.py",
+      "test/melonx_metal_binary_archive/generate_shaders.py",
+      "test/melonx_metal_binary_archive/metal_probe.mm",
+      "test/melonx_metal_binary_archive/mvk_archive_test.cpp",
+      "test/melonx_metal_binary_archive/run_mvk.py",
+      "test/melonx_metal_binary_archive/run_probe.py",
+      "test/melonx_metal_binary_archive/shaders.spvz",
+      "test/ra_disc_hash_reader_test.py",
+      "test/retro_achievements_identification_test.dart"
+    ],
+    "recipeDefinitionSHA256": "bb612f4a43186a801232ffa15ad61fcd22e4df60e31a7392b69cd7ab094f2b2a",
+    "recipeDefinition": {
+      "prefixes": [
+        ".github/",
+        "docs/",
+        ".claude/",
+        "build-utils/delivery/"
+      ],
+      "files": [
+        "build-utils/rpcs3/core-pin.json",
+        "build-utils/melonx/reads-core-pin.json",
+        "build-utils/melonx/arrays-core-pin.json",
+        "build-utils/melonx/dma-core-pin.json",
+        "test/standard_delivery_contract_test.py",
+        "build-utils/verify_downloaded_delivery.py"
+      ],
+      "globs": [
+        "build-utils/delivery-*-recipient.pem"
+      ],
+      "rootMarkdown": true
+    },
+    "commits": [
+      {
+        "commit": "85ca894892c46542005d973cfdf5996396b9beb6",
+        "subject": "docs(delivery): IPA 732 receipt (run 43289133482, IPA 97952e98, 329956970 B, verified offline) [skip ci]",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "43654249a51a521f61df0ebe8bc160afe1006cf8",
+        "subject": "Merge session 04 Switch 2 preparation speed lot (74951ac7 + 2175b72e, pin 58ca7025: prepare producer only, engine and sysdata unchanged) for the next IPA [skip ci]",
+        "role": "reviewed",
+        "productPaths": 11,
+        "merge": true
+      },
+      {
+        "commit": "6d685219b72bf88fb13d94cb250c9ec2b40b6803",
+        "subject": "docs(board): next IPA (733) queue: S2Arm preparation speed lot merged (43654249) [skip ci]",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "d266f57b1fe3a65ce80d65a8d53928ed4b4fcd0f",
+        "subject": "docs(board): MeloNX lot 10 \u2014 four correction adapters with host gates and proposed wiring, per-lot state, handoffs to main and to the MeloNX owner [skip ci]",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "9069b18287622f68e48a5d4588a1d6cfef1d9317",
+        "subject": "Merge session 04 engine patch 0012 for IPA 733: sparse tile layout answered, 0-byte virtual pool mapping succeeds (Mario Kart World crash 30 s after nnMain on 732), pin 9ddb304e [skip ci]",
+        "role": "reviewed",
+        "productPaths": 4,
+        "merge": true
+      },
+      {
+        "commit": "24d1aa43120e728b8e7f7af58b39fe186e61aa07",
+        "subject": "delivery: IPA 733 draft (base 732: S2Arm engine 9ddb304e with patch 0012 and the preparation speed lot; XeniaCore, RPCS3 934 and MeloNX 743 kept) [skip ci]",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "087380fbc835181e96fd97ce0dad3234558a9990",
+        "subject": "[ipa-delivery:733] build(delivery): private IPA 733 = the delivered 732 with S2Arm engine patch 0012 and the preparation speed lot",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "31fd341dcac9e49f4b711c2c8812f56051d2d8d5",
+        "subject": "test(melonx): the stall spinner is checked by a measured share against the waiter, not a fixed 200 ms floor (IPA 733 run 43312487102 attempt 4) [skip ci]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "e755a36f93f5becc5828ed9a8a552787ab24d15e",
+        "subject": "delivery: IPA 733 draft again after run 43312487102 (test fix 31fd341d) [skip ci]",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "14272228c3af2daed1d8691f771c16d90908acd3",
+        "subject": "[ipa-delivery:733] build(delivery): private IPA 733 = the delivered 732 with S2Arm engine patch 0012 and the preparation speed lot",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "b904814cf9f26de5c6ff17265bb6c33d9fcdf981",
+        "subject": "docs(board): MeloNX lot 10: the GC freezes and the managed heap now have their lots (collection class, stall compaction) [skip ci]",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "b12dc220ea497d26ab9ed20bd1010a23f2392ee6",
+        "subject": "fix(delivery): the recipe survives tonight's GitHub failures: pinned Flutter action without the workspace-wide hashFiles, bounded retries of transient reads [skip ci]",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "7dea157f2ff0c0e97acf3c543c7e981b7873e580",
+        "subject": "revert(test): MeloNX's journal test as the MeloNX team left it (maintainer: MeloNX is not touched) [skip ci]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "71529c1f23121bfbff858e4e2a2b0079e026293e",
+        "subject": "delivery: IPA 733 draft, third request (recipe b12dc220, MeloNX test restored 7dea157f; product = the S2Arm lot only) [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "bfdbb2add4773787e267b782aea8c3f508e76e61",
+        "subject": "docs(board): handoff of MeloNX lot 10 recorded in main's task (the maintainer asked for immediate transmission) [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "f733bbf9e1bc0d599ac3b67fcaf4074c4cb1ee57",
+        "subject": "Merge MeloNX lot 10 (work/melonx-lot10-20261112 7040c3e1, session 01JA5QgKeoGVH5oVjNyhcj3D) for Core 745: six adapters, gates, proposed wiring, live capture bridge [skip ci]",
+        "role": "reviewed",
+        "productPaths": 41,
+        "merge": true
+      },
+      {
+        "commit": "e5f7d70d197d3d82d51989c2e196813d7f6403a1",
+        "subject": "Merge the MeloNX owner's robustness fix c5541fe0 for IPA 733: relational timing bounds in the performance journal test, retried MoltenVK artifact download [skip ci]",
+        "role": "reviewed",
+        "productPaths": 2,
+        "merge": true
+      },
+      {
+        "commit": "b6131169004f4dcfdbe30b241ea30ff987dee546",
+        "subject": "docs(board): MeloNX lot 10 head is d17a29f2: test-only fixes so the two new gates pass on the Core CI's macOS host [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "30ee5beb204a9c972f85c5e9cd249aa341887283",
+        "subject": "Merge MeloNX lot 10 test fixes up to d17a29f2 before the Core 745 freeze: collection-class and stall-compaction gates run on the Core CI's macOS arm64 host [skip ci]",
+        "role": "reviewed",
+        "productPaths": 4,
+        "merge": true
+      },
+      {
+        "commit": "d7123113d36bc6b00ce02467ad96b66641042ad6",
+        "subject": "[repository-tidy-2026-11-13] Restore shared coordination, preserve producer builds and clean reviewed obsolete refs",
+        "role": "reviewed",
+        "productPaths": 8
+      },
+      {
+        "commit": "608181b2bf62ba7e4f661bd2cb8299e6f54a352e",
+        "subject": "[repository-consolidation-2026-11-13] Preserve all work in Backup and retain main, Claude, Backup only",
+        "role": "reviewed",
+        "productPaths": 9
+      },
+      {
+        "commit": "e0a0cefb528c67d1e16db5add72b1e86773497a5",
+        "subject": "[branches-finalize-2026-11-13] Resume archived branch cleanup after preserving concurrent MeloNX commit",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "f61b2bdea4a8bb10943953e5ffb5686086dc05f6",
+        "subject": "Merge the MeloNX owner's spinner check d5c88541 (melonx-host 43332392305 green) for IPA 733 [skip ci]",
+        "role": "reviewed",
+        "productPaths": 1,
+        "merge": true
+      },
+      {
+        "commit": "cb99791bfdb22df54fb1d2c2b5a2d346b879808c",
+        "subject": "[actions-retire-final-2026-11-13] Keep engine producers usable from Claude after branch archival",
+        "role": "reviewed",
+        "productPaths": 6
+      },
+      {
+        "commit": "f4fb22fd3bc705ce302a6a9cb58ec5f8cff1fece",
+        "subject": "build(melonx): freeze Core 745 (104 gates, contract 807edc42): MeloNX lot 10's six adapters",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "a513fb2f26416aeb24ee73c045ecba59198fb262",
+        "subject": "chore(actions): confirm obsolete launcher retirement [actions-disable-confirm-2026-11-13]",
+        "role": "reviewed",
+        "productPaths": 3
+      },
+      {
+        "commit": "df9d0528198c5196a5a5fa4fdc48fe117c40a461",
+        "subject": "chore(actions): finalize nine reviewed empty orphan records [actions-orphans-final-2026-11-13]",
+        "role": "reviewed",
+        "productPaths": 3
+      },
+      {
+        "commit": "6716babd267552f2d86c408516459e8d4d111891",
+        "subject": "docs(board): Core 745 frozen (f4fb22fd, 807edc42); its Core CI stopped on the expired engine82 baseline, fix handed to the MeloNX owner on #179 [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "32d71b22695e4895e1d9cca6b6ffc81159a41bd7",
+        "subject": "docs(maintenance): record three-branch consolidation and verified cleanup [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "ca8fa34d0dafca91e4452c63c5781e7996a8370a",
+        "subject": "docs: require one permanent IPA recipe with verified improvements [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "4bc5ae7daf2c14ab5ff565d9343e3f1bc6c82785",
+        "subject": "docs(coordination): record verified recovery and incremental recipe handoffs [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "871258fb200adb2d4723c183700f83b49838b9e7",
+        "subject": "build(delivery): integrate reviewed dependency recovery and optional encrypted host cache [skip ci]",
+        "role": "reviewed",
+        "productPaths": 9,
+        "merge": true
+      },
+      {
+        "commit": "ab0a69c7addcf7357f83f2a0c1632264c002c6b5",
+        "subject": "build(xenia): reuse C and C++ compiler objects in future Core builds [skip ci]",
+        "role": "sourceOnly",
+        "productPaths": 3
+      },
+      {
+        "commit": "5451dbb200b1517c13a3be479be55de6c679bf89",
+        "subject": "build(engines): cache authenticated dependencies and require explicit MeloNX requests [skip ci]",
+        "role": "reviewed",
+        "productPaths": 4
+      },
+      {
+        "commit": "ced57c6de8e99a241610b5c1756d962fb9d0067f",
+        "subject": "[melonx-dma-core] Build Core 745 with reviewed recovery and engine cache improvements",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "dceb33441abf43eb7f2208cc6103c4c77d4485e5",
+        "subject": "build(delivery): prepare 733 classification while the single Core 745 producer runs [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "058c6fc33a53a13667579b9d4636524f9a644207",
+        "subject": "[actions-cleanup-2026-11-13-bulk] Remove 360 reviewed obsolete runs while preserving artifacts and dependencies",
+        "role": "sourceOnly",
+        "productPaths": 3
+      },
+      {
+        "commit": "0f8a27721d006b3d2b80011a05bdc9aa2eaaa628",
+        "subject": "docs: reconcile active guidance and record 360 verified Actions deletions [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "a4de734bf57b507cd1e3ebf48b80af021f5c9809",
+        "subject": "build(melonx): pin verified Core 745 and reconcile IPA 733 draft [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      }
+    ],
+    "deferred": {
+      "ab0a69c7addcf7357f83f2a0c1632264c002c6b5": [
+        "build-utils/xenia/build_core.sh",
+        "build-utils/xenia/ccache.sh",
+        "test/xenia_build_cache_test.py"
+      ],
+      "058c6fc33a53a13667579b9d4636524f9a644207": [
+        "build-utils/maintenance/actions-cleanup-2026-11-13-bulk.json",
+        "build-utils/maintenance/cleanup_actions.py",
+        "test/actions_cleanup_test.py"
+      ]
+    },
+    "effective": {
+      "build-utils/ipa_build_cache.py": {
+        "mode": "100644",
+        "gitBlob": "202933b2b57eaa81111dafd1a41eb78892b8c0ab",
+        "sha256": "21549e886da08699aaa86bf0210d86da685e3a2ed12ccb9d465bd8c2ebe6280b"
+      },
+      "build-utils/maintenance/actions-cleanup-2026-11-13.json": {
+        "mode": "100644",
+        "gitBlob": "e00cd811a359cb72f87f607a99e3636a6016ddc0",
+        "sha256": "7e3711bf8232abd930f7eb138a425a0bd83d84b649b4c139fdb0c4faf75543cb"
+      },
+      "build-utils/maintenance/branch-consolidation-2026-11-13-final.json": {
+        "mode": "100644",
+        "gitBlob": "bba4bcbfb25641fbe9b527ce3f16fcc71745e613",
+        "sha256": "f74d15477df5981d4be83910f7d84f121d039c5775a0349d83a769c1a7a60947"
+      },
+      "build-utils/maintenance/branch-consolidation-2026-11-13.json": {
+        "mode": "100644",
+        "gitBlob": "19d0178c88abf0efc90b931d3319a263e070e3f9",
+        "sha256": "7a80bd0f33cf84d59fb9bde5eca16e8d9e0a6fc0961a23d4aa53eb67bf338697"
+      },
+      "build-utils/maintenance/consolidate_branches.py": {
+        "mode": "100644",
+        "gitBlob": "4ff74202d7624d6ced7882b015e8c53aa48d4416",
+        "sha256": "cb2a1e668a734605d28c44e012eceef6e57f3732b8da60f200a323414b0cb284"
+      },
+      "build-utils/maintenance/obsolete-actions-2026-11-13-final.json": {
+        "mode": "100644",
+        "gitBlob": "7502a3e81a460b2073fa53b5292d7ded7b91fc4e",
+        "sha256": "92138ebcd3f565b5f2fa25ab194929dea1999bbc67e0e23259a0239873a6124c"
+      },
+      "build-utils/maintenance/obsolete-actions-2026-11-13.json": {
+        "mode": "100644",
+        "gitBlob": "6b6f0cab43ee245ee729d7d2c2574d944d81ecf0",
+        "sha256": "1d4f3f69b0441a37605e4b014c33db87b6d7224d7353f3a27c6818fcd8efc077"
+      },
+      "build-utils/maintenance/orphaned-runs-2026-11-13.json": {
+        "mode": "100644",
+        "gitBlob": "34ff04a04dbddd39fc795fe6c07edb8d84117699",
+        "sha256": "ec5f098b377152a50f7585d8e3c4241db5180987f585713e328a35745a11c448"
+      },
+      "build-utils/maintenance/remove_orphaned_runs.py": {
+        "mode": "100644",
+        "gitBlob": "584ecef12599d4e4662d143d16f5b1fee5d01d44",
+        "sha256": "aef140c78e36175aa21439549ce97ee128c3304b9067a94bace5549459d78093"
+      },
+      "build-utils/maintenance/repository-tidy-2026-11-13.json": {
+        "mode": "100644",
+        "gitBlob": "96ffa339ea081d18dd3b1e041aeedd0223783496",
+        "sha256": "04d961766feaf4da4fa266931c798b57732aa7557b440f21982c9801efe29ac9"
+      },
+      "build-utils/maintenance/retire_obsolete_actions.py": {
+        "mode": "100644",
+        "gitBlob": "6761de603a65a94ad747582de1ab092931863a88",
+        "sha256": "6e47c7680886f376e362d0e091416c2b3e5899a796fc700117f41b3b602dea3d"
+      },
+      "build-utils/maintenance/tidy_repository.py": {
+        "mode": "100644",
+        "gitBlob": "c2b5c67fb933ff7ee4068f69a870df70f7f87969",
+        "sha256": "2ecbc49fb6606056b5ff0bb43be9a6cfbc3e0f36fa151d5fb358429f50dfbdda"
+      },
+      "build-utils/melonx/adapt_array_sync_epochs.py": {
+        "mode": "100644",
+        "gitBlob": "4d0aba25403383e7798dadcd83856c577b98c6b9",
+        "sha256": "daf9f5e5d99aeec94acee24e30e4b0b6653585e966b88f2b1ebd31151ce434ff"
+      },
+      "build-utils/melonx/adapt_collection_class.py": {
+        "mode": "100644",
+        "gitBlob": "96fcf9c2ac7979d419249aa2a5034c5bfafff8bb",
+        "sha256": "36a02fe2fb92489ab46e6ecc527d286a113f70a77f7365560276f63a48867e7d"
+      },
+      "build-utils/melonx/adapt_nifm_network_watch.py": {
+        "mode": "100644",
+        "gitBlob": "9587bcfe8b5b07b2d7e937c1a0ae9a5935aeb821",
+        "sha256": "59aab3b247743766eeaa1b9fcaf93e4be985e4ca5fe03b22f33d9dbe1baa343d"
+      },
+      "build-utils/melonx/adapt_paced_strict_syncs.py": {
+        "mode": "100644",
+        "gitBlob": "2200c52ce3b9f261b083820c304292fb20b2cf74",
+        "sha256": "e47b173dbec2ab5472afcaf3dfc7524c12ddc193f7083ef0762f991906dfc609"
+      },
+      "build-utils/melonx/adapt_sibling_pipelines.py": {
+        "mode": "100644",
+        "gitBlob": "6222ecd90dce6c669c309572d329ad168a738db4",
+        "sha256": "7fffb3ad5e2ec87b4301c54ba5a87a7dc641909aa8c6e8d17b0915b408367232"
+      },
+      "build-utils/melonx/adapt_stall_compaction.py": {
+        "mode": "100644",
+        "gitBlob": "216f5b7cb842b09595dff20445224b652be6c1e3",
+        "sha256": "3fec8094ab6a13d32a5a563fc2b4ff12b28857b7be169d1821350b276ed91906"
+      },
+      "build-utils/melonx/core-baseline.json": {
+        "mode": "100644",
+        "gitBlob": "779cc397e3236ad9aa35628c827e03c3a431b4e7",
+        "sha256": "d96aac312ddc17a63a7c80739753ed0079beca284ffe4e82615d4144cf6a1271"
+      },
+      "build-utils/melonx/dma-core-contract.json": {
+        "mode": "100644",
+        "gitBlob": "a698af21f02dd687903e59f5084ea095b475887b",
+        "sha256": "08e254a388efdde0caecdfd3304627a5674022c494f8be257f7d380ec2eeef66"
+      },
+      "build-utils/melonx/dma-core-plan.json": {
+        "mode": "100644",
+        "gitBlob": "1c0afdbe675e5fa910406a9b3249c159aaa3894e",
+        "sha256": "0ccaee49c38197df8a58fcfdcfbc97612757aec937e36d26ba3af870aa94bf87"
+      },
+      "build-utils/melonx/freeze_dma_core.py": {
+        "mode": "100644",
+        "gitBlob": "56dbe95a1cbed9a752ab7179f1c1ef8112bf66f5",
+        "sha256": "29c91a0f7f050f2e7208e8d98029bad38e93b30cb976677b7431afa30465e1e9"
+      },
+      "build-utils/melonx/package_standalone_moltenvk.py": {
+        "mode": "100644",
+        "gitBlob": "e46a9636ca2689427309fec036746ded67f40524",
+        "sha256": "9a01e413a83f5fcb5ae4654112ed9e116e791bbf29527451ceef1b2bb799dfba"
+      },
+      "build-utils/melonx/prepare_embedded.py": {
+        "mode": "100644",
+        "gitBlob": "2b005c179972199163c1092d61cf355bfae305cf",
+        "sha256": "f7b4937d0f8d9dd3e718c6f3ed6e474133f25884eb89a4841a520e9c81d06e96"
+      },
+      "build-utils/melonx/recover_core_archive.py": {
+        "mode": "100644",
+        "gitBlob": "020fd99c928accb695c899b2dd261a4a6258b6ab",
+        "sha256": "19f605bd3c6136b277ec63a337e10135d51a36908514581e57ef09e7e89c885f"
+      },
+      "build-utils/melonx/reuse_core_baseline.py": {
+        "mode": "100644",
+        "gitBlob": "314094c24f227c2b9836640ac0267833741cc3f9",
+        "sha256": "95f8cfd96073da5e4752ebde8d5bd051f8d991a89908cb126a87caa4ded9c224"
+      },
+      "build-utils/melonx/ui-strings.json": {
+        "mode": "100644",
+        "gitBlob": "88f92964315d051c143ec120512ff75924f20bed",
+        "sha256": "95f308d140e58aba64ff20272f57742e43e1a75186857fb947e2eef2077127cc"
+      },
+      "build-utils/melonx/verify_dma_core.py": {
+        "mode": "100644",
+        "gitBlob": "03f14289f181d6a76cc7e84db4a6e4195ee2413f",
+        "sha256": "145c7825e9e3219ad5fc01c74024c1dfa5608bf77cef3b8e8f314563482781f3"
+      },
+      "build-utils/s2arm/engine-pin.json": {
+        "mode": "100644",
+        "gitBlob": "4c900cee4365ebe5afe53dd94398f760de25d932",
+        "sha256": "9ddb304eeff085bcceb31d6cada2c1988516b2930ff6929ab2f893bc8cec99d5"
+      },
+      "build-utils/s2arm/engine/patches/0012-guest-sparse-texture-layout-and-empty-mappings.patch": {
+        "mode": "100644",
+        "gitBlob": "266bdd9bd757e42c43b081533b146f419a724d5c",
+        "sha256": "b00224e7b5dd6c56c95471f940bb2e982da2ff4264ec6db354c062b7d8c99c26"
+      },
+      "build-utils/s2arm/engine/prefetch_sources.py": {
+        "mode": "100644",
+        "gitBlob": "04259d775993720c7c7379909e2e672b115e8e6c",
+        "sha256": "dad2f3d7b01a19e3c0d7f5e0d4491daa7bacfe1e8edda35621e649cd0124e93c"
+      },
+      "build-utils/s2arm/engine_pin.py": {
+        "mode": "100644",
+        "gitBlob": "208fc79fc1e088ff92f834fc98846606038eeb5e",
+        "sha256": "0ad8237bdf0f11ad81efe841c0aa5aba6826a881c40d8fa114e4d18db5efb6f7"
+      },
+      "native/s2arm/prepare/s2arm_caps.c": {
+        "mode": "100644",
+        "gitBlob": "1688f28f91cb17c827fd4143dbe3a66557295db9",
+        "sha256": "0fa69bb7809c07e2a46f48b0a8ebe2c739e0f2bc54911b89b1bdb403b124d727"
+      },
+      "native/s2arm/prepare/s2arm_dirent.h": {
+        "mode": "100644",
+        "gitBlob": "9cda0c83a3e0cd75acf634a22e15e235260fdc4d",
+        "sha256": "9ed4ea4a149660e18054c2cbc9449d426da1d0721d99fe8a7895bd470172a820"
+      },
+      "native/s2arm/prepare/s2arm_nro.c": {
+        "mode": "100644",
+        "gitBlob": "22f3817b9d69ad92bbb9e2e6ee54a100d777f355",
+        "sha256": "68c197fa5c0830c024b160c50c6876834b5c413a2f88903d80aa87eb60105847"
+      },
+      "native/s2arm/prepare/s2arm_ns2_dump.c": {
+        "mode": "100644",
+        "gitBlob": "2976c38972f0f1c1972da97fd0c7b02f8b0f9ddf",
+        "sha256": "eeb3d5c775981ab0c272a0a4271ecd14c417d42bb40b53932a4ee74c798d7d04"
+      },
+      "native/s2arm/prepare/s2arm_pack.c": {
+        "mode": "100644",
+        "gitBlob": "cc8b1e63c57feb497b5cfa96494c1a9001097ccd",
+        "sha256": "e18aea73b7cfd356c7aedf5566ac0259e3543bdf19d75082afd6f550afa45b48"
+      },
+      "native/s2arm/prepare/s2arm_sha256.c": {
+        "mode": "100644",
+        "gitBlob": "6cc2d7b88a767db9d66f3675bb4332a1a8f28d7e",
+        "sha256": "0c4a48bf5d9ce5ce315350e8296be5a071dca7b0e362e66c66200e7495a01bd6"
+      },
+      "native/s2arm/prepare/s2arm_sha256.h": {
+        "mode": "100644",
+        "gitBlob": "e4036213d56fb015c8dcf6e176cfc9e78cfa97d5",
+        "sha256": "9c99539e8d45f0ef0613858e1f44620b31e3f608892051b7665c35d2c0fe9ee3"
+      },
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXInternalBridgePlugin.swift": {
+        "mode": "100644",
+        "gitBlob": "3cb398d3505995eef0bb857feb3cad69c9b7b5ed",
+        "sha256": "eda8a45a4924c5cdcdd65a7d069b42247911c5592c9aefc3083243fd1c4bc0ae"
+      },
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXLiveCapture.swift": {
+        "mode": "100644",
+        "gitBlob": "cd575b94d508a9276487b4d17f9d5fbb1a20b457",
+        "sha256": "95b949ebb42c5278fde21256bb1135f8b94b31c6d0986c63657f2b3ef99060dd"
+      },
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXMetalSessionViewController.swift": {
+        "mode": "100644",
+        "gitBlob": "59ec2f494ec701fc4290faabf1a030084e27a697",
+        "sha256": "8e1e3f9d221d0ff431533b3cf138993c894cf096c1c7f1d47f553c0be8c0e40d"
+      },
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXStandaloneParity.swift": {
+        "mode": "100644",
+        "gitBlob": "10ad9c8feefd5bfc4f6cab9c4e2f0f7f44fccde5",
+        "sha256": "0b2e073a27d7340638eddbe75d02b13056a16dd020427e4969a5b130379ef72a"
+      },
+      "packages/s2arm_engine_bridge/ios/Classes/S2ArmGamePreparation.m": {
+        "mode": "100644",
+        "gitBlob": "12ac1040329c5b969d8506ca241128f85b73207c",
+        "sha256": "a899e4a4150ff0ca9696e969a0cb5e0d0fe44456895ec9e4257a708f18214fed"
+      },
+      "test/branch_consolidation_test.py": {
+        "mode": "100644",
+        "gitBlob": "2f56cc69f216b847f455e277d432a2b90558b9dc",
+        "sha256": "04fe14a54ed9853c0b17baeb240eb5a43ee861c2e529b61c1221201a251cd0f2"
+      },
+      "test/coordination_status_test.py": {
+        "mode": "100644",
+        "gitBlob": "09e460d616b7dc5786ca183d16a60295bff6a084",
+        "sha256": "abda2e09e40447f7a032e15abdda7d217879d26073b9380891c9adde32a3b129"
+      },
+      "test/engine_build_cache_test.py": {
+        "mode": "100644",
+        "gitBlob": "841ad32f4d17a51a5a7594da36a8249b4bc74ae0",
+        "sha256": "15f0a3037b4b8f3d71001ab644c41e8b19d2a541eceb30e8dc2d9d984075fbe5"
+      },
+      "test/engine_workflow_concurrency_test.py": {
+        "mode": "100644",
+        "gitBlob": "32cd25625311002449c86af8924cb385afec3b4f",
+        "sha256": "4f42bea791b449bda75a45dc986138c81f313032e84b6bcee4ae88420dcda591"
+      },
+      "test/ipa_build_cache_test.py": {
+        "mode": "100644",
+        "gitBlob": "3d7ae524a97ea0c80c23439c2d7b5626356c5283",
+        "sha256": "45b50ea574eaeb15cb38889b38294b2e6e5219556003c42ab29db278dbed11ee"
+      },
+      "test/melonx_adapter_control.py": {
+        "mode": "100644",
+        "gitBlob": "ac743419b17d457c0eb108eeaa03e100395f480e",
+        "sha256": "02f3e9e2226f1f600835afe88447b8fd5eee9435a98a30c528023a50b25e7539"
+      },
+      "test/melonx_array_rebuild_allocations/Program.cs": {
+        "mode": "100644",
+        "gitBlob": "94163827197c422345606b3a1bb5790683c46333",
+        "sha256": "315359b9443bc480998860762f0c9f792413a8b6da8cfb75f8e6c78a0d7c5621"
+      },
+      "test/melonx_array_sync_epochs/Program.cs": {
+        "mode": "100644",
+        "gitBlob": "5dec8d3e423d8ddf13d8100fa1f8640170af1141",
+        "sha256": "487dbf46cf88c6932c136d6b24735cc181b178e798da8d9b1fc8bd073377d8c4"
+      },
+      "test/melonx_array_sync_epochs_test.py": {
+        "mode": "100644",
+        "gitBlob": "abb006e9f3287f20da58afcbd9825e7d213a634c",
+        "sha256": "be51c82697dac229cdf74d4e9aecccf4df9cc4e376684f6c4318a787e8837a6d"
+      },
+      "test/melonx_bindless_allocations/Program.cs": {
+        "mode": "100644",
+        "gitBlob": "6be6a3f38dd15a2db96f12b8fc8665c02cd9e9fc",
+        "sha256": "f48a289d2a17eab84a0a4f6c0321b27c8a2a0e2bf004c06e71aa9145bda1a12f"
+      },
+      "test/melonx_bindless_array_deltas/Program.cs": {
+        "mode": "100644",
+        "gitBlob": "3b88ec93c166ecef051b1656287019d414282d6d",
+        "sha256": "57ccbc8a3d2d7ca03141a800b6118525f46e2dd8fb3b956acb41a5fbe14f46a1"
+      },
+      "test/melonx_collection_class/Program.cs": {
+        "mode": "100644",
+        "gitBlob": "adb2d05f17968d93909ea562cb7de4302b2db993",
+        "sha256": "bd9c5ea8538cdc1410ef77e1e1eda204132b8bf30ccdea079a24f783d1d5133d"
+      },
+      "test/melonx_collection_class/qos_probe.c": {
+        "mode": "100644",
+        "gitBlob": "42468e8a97c3f63ac5a5365a9115669099262d37",
+        "sha256": "c0da4b6f164fdaacd270bf8de955c78c32d184f915bb22c6b0f207d6db989bc1"
+      },
+      "test/melonx_collection_class_test.py": {
+        "mode": "100644",
+        "gitBlob": "72733e915ea5c746d9caac848c4a3a5746b63f48",
+        "sha256": "f76271b66de54ee53abf70c0488af6a97135166fcae850512dc9a102b6c4a753"
+      },
+      "test/melonx_dependency_recovery_test.py": {
+        "mode": "100644",
+        "gitBlob": "a90dc3849bb92356c41728da5f52af972f28cdc3",
+        "sha256": "3e52c7c81ad24f5564974ea75f600d62d0a1a3e0cac81ff5b958bdf5f6950ac0"
+      },
+      "test/melonx_display_native_test.py": {
+        "mode": "100644",
+        "gitBlob": "43a0c6e25a838f72533963f94bc884bd34cbcb25",
+        "sha256": "29058a881617ed8a3ffc9a07585ed5e98c76f252ec56f288e8a93d26d9bde028"
+      },
+      "test/melonx_dma_core_contract_test.py": {
+        "mode": "100644",
+        "gitBlob": "5cdf616dc6bf0fa5f4e4fb99fccbcfafef5f1d95",
+        "sha256": "c39a5935132ad02a76f16f190382a1aa25e6aa900f0dee687da9303c8048cae9"
+      },
+      "test/melonx_fragmented_reads_test.py": {
+        "mode": "100644",
+        "gitBlob": "8732f1563e60eba38fa616fd1d7d6e717437734b",
+        "sha256": "3a1673fa2d31be67f6b8d0219c68ae4ddea9cc573a26f66f5558d0107a778bed"
+      },
+      "test/melonx_hogwarts_dma_copies_test.py": {
+        "mode": "100644",
+        "gitBlob": "264d47fd3285f9d55bcbcb98b4be2989823f4ec5",
+        "sha256": "839bd06a3c89d368131675884830e716b9bb1eedaf522fac9c4027aa275759f2"
+      },
+      "test/melonx_live_capture_test.py": {
+        "mode": "100644",
+        "gitBlob": "806c1373063efdac683502313bd867aa5a05fb44",
+        "sha256": "7dae3e18be4bdd125e4b63aea603c0d1d275e6074bdff17f7032d0d4fa980594"
+      },
+      "test/melonx_nifm_network_watch/Program.cs": {
+        "mode": "100644",
+        "gitBlob": "21f8479a1543def7429b348f4fe1dbae7db0e6c6",
+        "sha256": "e56613858850df533186e72d0c220a33785f13362a01707fc2e252e8c5c480da"
+      },
+      "test/melonx_nifm_network_watch_test.py": {
+        "mode": "100644",
+        "gitBlob": "d50ba84d0d3469dc3437b64f8f64bc58ac18c401",
+        "sha256": "865bb8e651fbcded2ba26011f9d4d58c78d5ed94c3cf58c9fc8fa94940e0b58b"
+      },
+      "test/melonx_paced_strict_syncs/Program.cs": {
+        "mode": "100644",
+        "gitBlob": "10bbb8ea42c50515aad154888419edd1b8a7a3a3",
+        "sha256": "a2e0d69f2ad9de0bd440f576bae0dde9ae8d35914b63b4bebec99387369f5389"
+      },
+      "test/melonx_paced_strict_syncs_test.py": {
+        "mode": "100644",
+        "gitBlob": "c718d2f6eea845ed2f1a1582d74923930ff7dee6",
+        "sha256": "7118b38c12dd0f35df87dabef793a2a433a018d6761468f2f71e35cf66ce39f8"
+      },
+      "test/melonx_perf_journal_test.py": {
+        "mode": "100644",
+        "gitBlob": "6a1bf49243c6a40d703d80eb0bcf48fd0571b903",
+        "sha256": "2cf112db4af5180cec47e5e82b676424206791a388a1a030cbc9dba318c5b6a7"
+      },
+      "test/melonx_performance_diagnostics_test.py": {
+        "mode": "100644",
+        "gitBlob": "b6558703e3e7d4d44267dafb0a05583496dedac7",
+        "sha256": "d1bd2e7106c9ebb8d6ff3d398a3faa19251c26b1ebf76dafa40b8bb593342664"
+      },
+      "test/melonx_playtime_warmup_all_titles_test.py": {
+        "mode": "100644",
+        "gitBlob": "8c255e803111f35d1c9cad33bd29c16a1c8e69c9",
+        "sha256": "c9c92529852b93f4b77b68e7755afc677a0945a945962c08612d953f37fbd53d"
+      },
+      "test/melonx_remap_sweep_range_test.py": {
+        "mode": "100644",
+        "gitBlob": "d0de68ccddfd74b2da8019e185f34eeafc8e36e0",
+        "sha256": "3a7a8363d80a0adf12526bcaaa89fa3b50730542e30f646f70beb5eec29a322c"
+      },
+      "test/melonx_sibling_pipelines/Program.cs": {
+        "mode": "100644",
+        "gitBlob": "9a29d8c88a3612585e72f141437acc289e02d313",
+        "sha256": "1e7a91455319b073451b0c2ba9a2deb66387082a319da41707c8ba42a2d906fb"
+      },
+      "test/melonx_sibling_pipelines_test.py": {
+        "mode": "100644",
+        "gitBlob": "b107992616452f3cab4cd6c25b830dc7e9279689",
+        "sha256": "098e4f521b186b93d701a1725fc7713f6c85ac354c79f137fd1c731bc0bb2046"
+      },
+      "test/melonx_stall_compaction/Program.cs": {
+        "mode": "100644",
+        "gitBlob": "a4c797cbf7dea6b83dc4d67b52bc10cb8e18e931",
+        "sha256": "bda39c6295be0b6184e0afa2faad253c8d453d453fb8bac76c14e11d2b6aacf1"
+      },
+      "test/melonx_stall_compaction_test.py": {
+        "mode": "100644",
+        "gitBlob": "04b397f4a2e97de0bcd3f6198a62cab05c92c50c",
+        "sha256": "d068d562aeab7af056d1c168f580f3f15fee1d05dd08cf4ab49df0be621ceda0"
+      },
+      "test/melonx_submit_causes_test.py": {
+        "mode": "100644",
+        "gitBlob": "73e182a521b285c0a02c6afaa94a65fe5555f0e4",
+        "sha256": "057ef688c190b382ae64f51e1acfcd96043a289f781f4d8e3bbfefc2ca0d690a"
+      },
+      "test/obsolete_actions_retirement_test.py": {
+        "mode": "100644",
+        "gitBlob": "376aa5a8934c2413479312167ee98d7d2d5888f6",
+        "sha256": "54b723355dec9af93523c0a3ba54f52128d85066cfb0389dd5bb3576e1851ada"
+      },
+      "test/orphaned_runs_cleanup_test.py": {
+        "mode": "100644",
+        "gitBlob": "16b6aa8e727a13a3617785ba65e6ab0ae5c4ba73",
+        "sha256": "58d8e85b921208955ad40099dee2225d34182fb9b7e8d3c8c0eed479b615163c"
+      },
+      "test/repository_tidy_test.py": {
+        "mode": "100644",
+        "gitBlob": "ac5b790004772985a151183319ee72a772970cbb",
+        "sha256": "bafd2c0cccb5f099c4ceeaab3d7496899728d9aa3162929dde287d7908459131"
+      },
+      "test/s2arm_engine_bridge_test.py": {
+        "mode": "100644",
+        "gitBlob": "442696151a1658955c136722579f616688be5d92",
+        "sha256": "004f911192c98f3740f6084aba80a1d88a3ffc4c49d4f26014e0ff85816fe4ba"
+      },
+      "test/s2arm_pinned_engine_test.py": {
+        "mode": "100644",
+        "gitBlob": "b00d4b2710d85f1da92ce5bb55a3f24e1727d07c",
+        "sha256": "d84493d4e8b1aa89118b6d6636f19eaff7479e0131c6d043f6218855496237a9"
+      },
+      "test/s2arm_prepare_speed_test.py": {
+        "mode": "100755",
+        "gitBlob": "d705cf003c96520bafe3c98c6d379ae24917944d",
+        "sha256": "d72eaff60791b0df5bad83c7a9001b58a9d185aadd6c6b4e00aea49466099c5a"
+      },
+      "test/s2arm_sparse_layout_test.py": {
+        "mode": "100644",
+        "gitBlob": "efc81a7a333cdddc015cc093f7a328d83ff6b278",
+        "sha256": "ada95f0b4ec159b84fc800562b54d79642113071ac11b1dc8c97732553905b9d"
+      },
+      "test/s2arm_store_bench_test.py": {
+        "mode": "100644",
+        "gitBlob": "554c95d84847ddceae32a850dc68c8e41b9acaf1",
+        "sha256": "91aa2d79a7c271958e4cc7d3baa75c6baa5c14fe1c35d3a90f87f6d7126ee72f"
+      },
+      "tools/coordination/status.py": {
+        "mode": "100644",
+        "gitBlob": "12bef9e9846b5f508c5015a7b0ab76b1024a3985",
+        "sha256": "b6785524242b1f81b60f005ceff12cc701b54156d76401da5780f90be9ebdbb9"
+      },
+      "tools/melonx/live_capture.py": {
+        "mode": "100644",
+        "gitBlob": "e74b69a2bca46378292d955fa50c3b04c2d14fd5",
+        "sha256": "d705f7ff635eb03f1617373b9bd60144c8ea4fbbea9d4a5b0f0d77f6023ffebd"
+      }
+    },
+    "restore": {
+      "build-utils/maintenance/actions-cleanup-2026-11-10-followup.json": null,
+      "build-utils/maintenance/actions-cleanup-2026-11-10.json": null,
+      "build-utils/maintenance/actions-cleanup-2026-11-13-bulk.json": null,
+      "build-utils/maintenance/cleanup_actions.py": {
+        "mode": "100644",
+        "gitBlob": "d9d9eebd0b5f280598442a336aaf958cc9d033b6",
+        "sha256": "9e491611b6146032815aac0b8934e6edbdbc14e2f817350c006e7e8541773b97"
+      },
+      "build-utils/melonx/metal-archive/README.md": null,
+      "build-utils/melonx/metal-archive/moltenvk-v1.4.2-binary-archives.patch": null,
+      "build-utils/xenia/build_core.sh": {
+        "mode": "100755",
+        "gitBlob": "7c0fd519f3b2dce29cadb995db4bd03f914d6437",
+        "sha256": "d214d6b3e7918365ca786156fc31ba30908cb99785f56c28577041e5c48b21db"
+      },
+      "build-utils/xenia/ccache.sh": null,
+      "lib/models/retro_achievements_session.dart": {
+        "mode": "100644",
+        "gitBlob": "4269f11a7461d639b925e07b30a8762a6abd3a44",
+        "sha256": "d1bd88333f43aaac85528c6754c47f6355e1aa223c95fac3fe1ee5f7961dbf29"
+      },
+      "lib/screens/game_screen/game_details_card/dialogs/game_achievements_dialog.dart": {
+        "mode": "100644",
+        "gitBlob": "518801de96b6a6980b3746e1b1d3dbf78165618c",
+        "sha256": "74806efe99a906107c401d637e6b4749f7031009611b891a2d2b4e1d0bc410db"
+      },
+      "lib/screens/game_screen/game_details_card/game_details_card_list.dart": {
+        "mode": "100644",
+        "gitBlob": "ab802e4ebeda9f2de2e33a3ffd806d3e7f4dad92",
+        "sha256": "5a1575c2be152382723931124434d798745d2d8ddea713e81ceaa3b96f1f622e"
+      },
+      "lib/screens/game_screen/game_details_card/tabs/game_details_achievements_tab.dart": {
+        "mode": "100644",
+        "gitBlob": "5194d28fc3916f841378d2b5ecb4870045f05d56",
+        "sha256": "9faed5aceffdf27b0a43fd1e8cb922e6cfd1453459086a593b8a90ddef544613"
+      },
+      "lib/screens/game_screen/game_details_card/tabs/ra_identity_note.dart": null,
+      "lib/services/libretro_internal_service.dart": {
+        "mode": "100644",
+        "gitBlob": "75913a836bfed1a10345632bcfa864c305943234",
+        "sha256": "ef0e41f08fdbfaf5def6020cf496a903161841774b37b5bab5ae8996ea0d6d5b"
+      },
+      "lib/services/retro_achievements_helper.dart": {
+        "mode": "100644",
+        "gitBlob": "5b0cf3f335ef80c08b95cfd809958e2023e0d14e",
+        "sha256": "8e99f5d77973dcada8083a33e16ca59c4df68c9d4e58d7de9b21c6233d2d61be"
+      },
+      "lib/services/retro_achievements_identity.dart": null,
+      "lib/services/retro_achievements_resolver.dart": {
+        "mode": "100644",
+        "gitBlob": "d4cdca0d130c7e89cd8cc0e0929a6a95475de254",
+        "sha256": "4291d240b7c8850adcc76f2f671d86aef1102bdfbb01a519545519be7f32033e"
+      },
+      "lib/services/retro_achievements_session_service.dart": {
+        "mode": "100644",
+        "gitBlob": "db22f94ae742da793b7cf55c9d8f2e244f2ab58d",
+        "sha256": "e026ebb8df3847ef38e007eac3a1e1b3eade55fe5c74f279cc3b6f0493495274"
+      },
+      "lib/services/retroachievements_hash_service.dart": {
+        "mode": "100644",
+        "gitBlob": "4592a53d11781c891d2bec1aeca61e86fcda787a",
+        "sha256": "4fe80a501277cca81fe5e290cc4775943b9835d62c6b4bda1b30d15ad82a7f97"
+      },
+      "lib/services/rpcs3_internal_service.dart": {
+        "mode": "100644",
+        "gitBlob": "31c0652fa26ec1362c21b3abca6d67c0fdc06090",
+        "sha256": "960bb99aed121ad939b965e66a97416b61c9af033fcb77d74b1b6e01a3567c8a"
+      },
+      "lib/services/rpcs3_launch_service.dart": {
+        "mode": "100644",
+        "gitBlob": "3af5b85efcbdec7b936e4975959be067f0d23f41",
+        "sha256": "b6fbbea5b094defba390f654a0664a7c121ee0c0d961fda600348a0f36e8d5f3"
+      },
+      "lib/services/stikjit_armsx2_service.dart": {
+        "mode": "100644",
+        "gitBlob": "04f465441c161b014439b3853357ea3c314d90d1",
+        "sha256": "9b734542053e2f4e45104f786e6365bc3e6073fa0efafd25fb7f269da6b758ec"
+      },
+      "lib/utils/optimized_md5_utils.dart": {
+        "mode": "100644",
+        "gitBlob": "c06f875587f6de81e3e4cdc78b0fe4be45cff371",
+        "sha256": "43b4a5b529110f5329a5eda322b5362aaa6e9d81426f4289141a1a5ca080739d"
+      },
+      "packages/libretro_internal_bridge/ios/Classes/LibretroAchievements.m": {
+        "mode": "100644",
+        "gitBlob": "b8307182d8117c9f06b8afb835039cae7399d831",
+        "sha256": "020d56ac77755233604186c1e9f4ea5496702cc2b16645d1e434f8c3f8e9a8b9"
+      },
+      "packages/libretro_internal_bridge/ios/Classes/LibretroInternalBridgePlugin.m": {
+        "mode": "100644",
+        "gitBlob": "274f077aa0cddc73a019e86c7b66fdca80f3817f",
+        "sha256": "d9b01e574caf28cfbad008d2bbd082d1de038c560286e6f24b8a4bbf2def6e94"
+      },
+      "packages/libretro_internal_bridge/ios/Classes/RBDiscHashReader.c": null,
+      "packages/libretro_internal_bridge/ios/Classes/RBDiscHashReader.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/LICENSE.txt": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/NEOSTATION_NOTICE.md": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/README.md": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/LICENSE": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/LzmaDec.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/real/7zTypes.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/real/LzmaDec.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/src/LzmaDec.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/src/real/LzmaDec.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstd.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstd_errors.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstddeclib.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/dr_libs/dr_flac.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/bitstream.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/cdrom.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/chd.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/chdconfig.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/coretypes.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/flac.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/huffman.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/macros.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_avhuff.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdfl.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdlz.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdzl.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdzs.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_flac.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_huff.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_lzma.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_zlib.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_zstd.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_bitstream.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_cdrom.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_chd.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_avhuff.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdfl.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdlz.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdzl.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdzs.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_flac.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_huff.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_lzma.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_zlib.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_zstd.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_flac.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_huffman.c": null,
+      "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec": {
+        "mode": "100644",
+        "gitBlob": "1c4589fea4ca0e3b002bfec28d65d9cf2f82e157",
+        "sha256": "2da2d0822c0488e5367db85a6eb696df8cd6b27e6cef30fd4ff9a55bea29bdab"
+      },
+      "source.json": null,
+      "test/actions_cleanup_test.py": {
+        "mode": "100644",
+        "gitBlob": "b45856faaeaea9078ae6f1fab4f4dc420b3c2704",
+        "sha256": "3436f073837177c60de87fa823bcd4c46a3f06e78e06636713ac7daa2d4b78b0"
+      },
+      "test/libretro_ios_syntax_test.py": {
+        "mode": "100644",
+        "gitBlob": "d6353e5e3934400e7ce98196c6e0c44cfef2d5c4",
+        "sha256": "b3819844aade9966315ce11cb8f85c7f7f01851aedd9d09736022af1e96b702d"
+      },
+      "test/melonx_metal_binary_archive/generate_shaders.py": null,
+      "test/melonx_metal_binary_archive/metal_probe.mm": null,
+      "test/melonx_metal_binary_archive/mvk_archive_test.cpp": null,
+      "test/melonx_metal_binary_archive/run_mvk.py": null,
+      "test/melonx_metal_binary_archive/run_probe.py": null,
+      "test/melonx_metal_binary_archive/shaders.spvz": null,
+      "test/ra_disc_hash_reader_test.py": null,
+      "test/retro_achievements_identification_test.dart": null,
+      "test/xenia_build_cache_test.py": null
+    },
+    "effectiveDigest": "e2b4db5fd0de832fcbdea640d449fd969dc8814c449d9d910baaa71ef7ad5309",
+    "productFiles": 8006,
+    "embeddedRecipeInputs": {
+      "LICENSE.md": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "NOTICE.md": "1cdba3c0ff6f62c5ec031cd39a019d04482726dba66daf5082f9d7d6d574b2a4",
+      "docs/CHEAT_CATALOG_SOURCES.md": "b99792de4c9e917758628869bfc948ca8f653f47cb926378f3d8ad61d9c755f1",
+      "docs/ENGINE_CORRESPONDING_SOURCES.md": "01e8c82fb8c60768a7ab5171b39ca9c663e32ca9f7a3e3a6436892eaa4b80709",
+      "docs/HD_TEXTURE_CATALOG_SOURCES.md": "59b84b5f460db12bd43290877345e1e69be24ad4f899d0cfb8de0112857ff3d0",
+      "docs/HD_TEXTURE_SOURCES_AND_CREDITS.md": "a6f34bd3136405a7060afb3ec021e7459e6a3b61e705ff8ef2f2bfb504ff123f",
+      "docs/LEGAL_AND_CREDITS.md": "8ecb7375df5e246946bb136c65bb6d2b8401288eb0666f6d99701fede41acb10",
+      "docs/OVERLAY_SOURCES_AND_CREDITS.md": "463aeaf75b5f39f058e7bc1fbb80fefddc9a977cc5ba3a0bdfe70b565d70ef20",
+      "docs/PACKAGE_SOURCES_AND_LICENSES.md": "2fdae2151390207cab5953651448e181912e9270347f7fe5129a211f2056e21c",
+      "docs/PPSSPP_SOURCE_AND_LICENSE_AUDIT.md": "fbeced8b72541b2ba8aac27334f749c6f870aff7506b1efde8de6958ff600e2e",
+      "docs/SOURCE_CODE_ACCESS.md": "2a844592c1e03ee40ad075f0f6ae47f3732df10dd68791ac084d798382fce41d",
+      "docs/evidence/achievement-translation-declarations-2026-10-31.json": "c8edd7472b7944348e39499ef1d2a59cd4e8a9e91338c3d7da46c8baf582df6b",
+      "docs/evidence/engine-source-license-audit-2026-10-21.json": "866e0a743ddaa4881fd8428dbce235c252e0773fb58ddefaaf1cef364d7607fd",
+      "docs/evidence/modified-sources-since-0.0.8-2026-10-21.json": "18a2c562d9271554e54644aeea3c66e7b498c8e5761f3532f04e8f5be2d4e9e7",
+      "docs/evidence/package-sources-license-audit-2026-10-21.json": "348c5c7840a9262e095519b46aca8d632341ba82483c386a96653108f4a8b72c",
+      "docs/evidence/pocket-originals-declarations-2026-11-03.json": "37388cacfd4623de2d580476e6d5f48a50daf8af449c42aed75fb4a4164e5641",
+      "docs/evidence/ppsspp-source-license-audit-2026-10-21.json": "34d4df4576cac7a5c2a6b1e89bed95e98870165146e11b058fd624cf009946ce",
+      "docs/evidence/retro-achievements-session-declarations-2026-11-01.json": "7d341d4f57dfdfc4abe32a6b8f6845ba4d6236f32615fc0eed848c9b9679ad1e",
+      "docs/evidence/rewindbox-glacier-declarations-2026-11-02.json": "3c391df6cfc68f6ee4aa3691f8c4e8e2fcd37fc9d596060fbb7946ab7810c924",
+      "docs/evidence/rpcs3-retroachievements-declarations-2026-11-02.json": "12abf0d5396a77c8457da822d328bcee5d68338058afc848df51fc73ea15b876",
+      "docs/licenses/cheats/Admentus-Enhancement-Codes-Credits.txt": "ea9f46181d8a6eed2c318a2795f73ff1dfa2a838f8992d6b07be74ed0d9fb93b",
+      "docs/licenses/cheats/Admentus-Enhancement-Codes-LICENSE.txt": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "docs/licenses/cheats/Mupen64Plus-GPL-2.0.txt": "6774e66e59957ebf1da6c9e22be4e7b97fb169a534ab37e085e92831ff414fdd",
+      "docs/licenses/cheats/Mupen64Plus-mupencheat-header.txt": "39023c3dc42e1f1ea6085d79d44bdf9b59adf5846137496f9d73268f6ae7ecd5",
+      "docs/licenses/cheats/README.md": "191a16de4712ffb71f9604f0ed480b5ef1105e6f139575e77cff4b1b4d0dc340",
+      "docs/licenses/cheats/TAbdiukov-PPSSPP-patches-LICENCE.txt": "47a7bfd6b3e12546207665bcd53558b4087ac04fbcfc2592966968a3adab7987",
+      "docs/licenses/cheats/artemis-LICENSE.txt": "6a3e4ba999067b1c412f1740282bc077f8edf5f7178ea085acb5f5cca6fecb46",
+      "docs/licenses/cheats/provenance.json": "6a1ed0158a9f2c2c4f4ebed42b1c5e963baeac0c7c56fddfc4e84bf3c98ee843",
+      "docs/licenses/cheats/szTheory-NDS-Cheat-Databases-LICENSE.txt": "20b067f86de375aae6db0f283ab2e65de24d537733b89bd58432c101259d84cf",
+      "docs/licenses/cheats/tyler-EMERALD-NOTICE.txt": "868b4e7215a9a5835be022dc4d3c469ea18ce71598b20280d02b7b4c83f8621e",
+      "docs/licenses/cheats/tyler-GPL-3.0-LICENSE.txt": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "docs/licenses/rpcs3-wiki-2026-10-28.json": "e844cbcf720d9f8af0f6dc38bb1dd9fed67bd2c83e17299db21cff95e2a54628",
+      "docs/licenses/rpcs3-wiki-2026-10-28.md": "6ae6c89711313c17a0f4585b02760688b75114dd76e6e994a40d9acdaadaf075",
+      "docs/retroarch-rollback-2026-10-08.md": "0d76d77ba6e51bfeda4c84388cf0fa8eb25af3c221943a4d41999a6692eeea0c"
+    }
   },
   "images": {
     "mustChange": [
-      "Runner",
       "Frameworks/MeloNXCore.framework/MeloNXCore",
-      "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge"
+      "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge",
+      "Runner"
     ],
     "added": [
       "Frameworks/S2ArmEngine.framework/S2ArmEngine"
@@ -609,6 +1615,7 @@
       "Frameworks/MeloNXMoltenVKStandalone.framework/MeloNXMoltenVKStandalone": "fe0cf9caffedc0fb05dd25ebe54f6c288337afc9798ae07eaaa1b0f0e01e8343",
       "Frameworks/MeloNXSDL3.framework/MeloNXSDL3": "cfd1e95b4fe64309b8f16efd2b2d3134cef3390cd6d5172bb13c4b8520aba942",
       "Frameworks/MoltenVK.framework/MoltenVK": "7cbd35be66c78e741768528c7b0fbf3cf20f5b468dc5361893033d4924741520",
+      "Frameworks/XeniaCore.framework/XeniaCore": "9cbc552026cc34e7d23ce4f24463a96c370bde56705f3d5fba32d54bbbd61700",
       "Frameworks/a5200_libretro.framework/a5200_libretro": "cfa6fedeb2b2ae954565491f0e103c67d62c0168edf3480fc08a301a9ca1a19b",
       "Frameworks/ardens_libretro.framework/ardens_libretro": "5b1b62c69036580263c57d482cb8be16faa793a42614b556b5a32c7ff08ababc",
       "Frameworks/azahar_libretro.framework/azahar_libretro": "65545169819d1c1270bf3d54a9f4dbabfb445affb54ccab8b27fbc615c7845fc",
@@ -623,6 +1630,7 @@
       "Frameworks/gw_libretro.framework/gw_libretro": "1561851ab719f3c1063bce1059d93982bd6fd0ad7ed8fa99144961ccd8fbd7c0",
       "Frameworks/handy_libretro.framework/handy_libretro": "7a46ec1712e3e0f95db8a2c04c6626cc0882c374d904c4e1673d9e7781fcad31",
       "Frameworks/libRPCS3Core.dylib": "505684bef15affe9aec78e9a171bbce5b7339f78d3a6a06ead082239bd51c48b",
+      "Frameworks/libmetalirconverter.dylib": "c7f9161b2bb302c77f2ecc07d7f440a883c1a5016da947ab997d2e24fe1cf8db",
       "Frameworks/mednafen_ngp_libretro.framework/mednafen_ngp_libretro": "7a22292d47f0d92c7fcc75c9b4b72b71172edd0f11132d5edc20afc11ae36c3f",
       "Frameworks/mednafen_pce_fast_libretro.framework/mednafen_pce_fast_libretro": "e9f0abcb0f5b71111a6631e4e29f3ee0387325af3804e20a2a7a2717ec51a354",
       "Frameworks/mednafen_pcfx_libretro.framework/mednafen_pcfx_libretro": "ad5aa730fb7862d5185da7b4c66fea236bbbdeb981d83f1be856800e5d675887",
@@ -648,7 +1656,10 @@
     },
     "replacedFingerprints": {
       "Frameworks/MeloNXCore.framework/MeloNXCore": "b580983dfbf9d7434881ed6b6b9112c50f525447d588eef8cc07f774d66b4a39"
-    }
+    },
+    "derivedMustChange": [
+      "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge"
+    ]
   },
   "tests": {
     "flutter": {
@@ -1969,5 +2980,11 @@
     "armsx2",
     "libretro",
     "melonx-dependencies"
-  ]
+  ],
+  "frozen": {
+    "at": "2026-11-13T02:39:53Z",
+    "commit": "a4de734bf57b507cd1e3ebf48b80af021f5c9809",
+    "tool": "standard_delivery.py freeze",
+    "inCI": false
+  }
 }
