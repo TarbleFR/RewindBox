@@ -1,5 +1,10 @@
 # Recette privée 606 — dernière application livrée 605
 
+> Archive de la livraison606. Les états et commandes ci-dessous appartiennent à
+> cette source historique. Pour une nouvelle IPA commune, utiliser uniquement la
+> [recette standard](standard-delivery-recipe.md) et la tâche active ; ne pas
+> relancer l'ancien workflow606.
+
 Cette recette reste fermée tant que `build-utils/rewind606-delivery.json` porte `status: pending`. Un succès de compilation seul, un ancien Core ou une ancienne suite ne peuvent remplacer les producteurs attendus. Le delta RPCS3 concurrent revu ci-dessous est inclus dans la source du produit ; aucun nouveau Core RPCS3 n’est sélectionné.
 
 ## Baseline conservée

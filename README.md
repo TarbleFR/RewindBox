@@ -290,7 +290,12 @@ The recorded toolchain uses **Flutter 3.47.2** and **Xcode 26.3**.
 [Delivery receipt](docs/evidence/rewind721/delivery.json) ·
 [Public download verification](docs/evidence/release-0.0.11-public-download.json) ·
 [Standard recipe](docs/standard-delivery-recipe.md) ·
-[Source access and attribution](docs/SOURCE_CODE_ACCESS.md).
+[Historical source-access notes](docs/SOURCE_CODE_ACCESS.md) ·
+[Documentation index](docs/README.md).
+
+Version labels in dated source/legal notes apply to the release recorded there.
+Use the exact manifest and receipt above for this public release, and the shared
+task board linked from the documentation index for current private development.
 
 Keep signing material, credentials and private user content out of Git.
 

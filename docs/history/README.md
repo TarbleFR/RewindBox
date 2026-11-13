@@ -3,6 +3,9 @@
 The active entry point is [AGENTS.md](../../AGENTS.md); component constraints
 are in [PROJECT_RULES.md](../PROJECT_RULES.md). Current delivery identities
 remain in their original `docs/evidence/` receipts.
+The [documentation index](../README.md) distinguishes active guides from dated
+build/source records. Historical “current” or “next” statements do not override
+the [active shared task](../AI_TASK_BOARD.md).
 
 ## Exact pre-cleanup snapshot
 

@@ -1,0 +1,25 @@
+{
+  "result": "passed",
+  "run": 43346257896,
+  "source": "058c6fc33a53a13667579b9d4636524f9a644207",
+  "planSha256": "84be313b06ed8b445f614080282e6d69a2884490e159783ef639e47359ec6ca5",
+  "receiptSha256": "18ba0182bcd5205c4c8192b6936e8b3e2a0e29ae3cc18c9ce636c2fc1ae8bd14",
+  "remainingInventorySha256": "5a618e76d9d7ed771e087db926565c1380a17b420e86c840b98120c97efcd4e6",
+  "liveInventorySha256": "3bfe3789e403b03eedaf5d0edb4d10ee2cff544c2f9aacf6af179012fca5dc30",
+  "snapshotRuns": 1607,
+  "reviewedCandidates": 360,
+  "deleted": 360,
+  "deletedByConclusion": {
+    "success": 101,
+    "failure": 177,
+    "cancelled": 42,
+    "skipped": 40
+  },
+  "alreadyAbsent": 0,
+  "conflicts": 0,
+  "protectedSnapshotRunsPresent": 1247,
+  "finalTotal": 1251,
+  "liveTotal": 1251,
+  "remainingCandidates": 0,
+  "allReviewedCandidatesDeleted": true
+}

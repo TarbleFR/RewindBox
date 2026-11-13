@@ -1,5 +1,10 @@
 # NeoPlay — first integration candidate
 
+> Historical prototype record. The branch and validation status below describe
+> this candidate, not a current branch or build request. Use the
+> [shared task board](../AI_TASK_BOARD.md) and [branch protocol](../branch-archive.md)
+> before resuming work; do not recreate the former remote branch automatically.
+
 Branch: `feature/neoplay`. Base: release 0.0.2 / `f4583c6a3083b8aed358da28b2f8f849256e0e8b`.
 This is not Apple's AirPlay protocol. It is NeoStation's opt-in local streaming feature.
 No changes to `experimental`, NeoSwap, JIT, emulator cores, saves or libraries are required.

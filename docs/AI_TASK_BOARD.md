@@ -30,20 +30,23 @@ They are evidence to consult selectively, not old instructions to resume.
    technical evidence with existing logs/source and a bounded executable check.
    Ask only for a necessary new decision, access or physical observation unavailable
    in the environment. Respect actual tool/platform refusals; never bypass them.
-3. **Preserve ownership and work.** Main Claude owns integration, Cores, pins, CI,
-   freeze and delivery; existing component sessions own their changes. Codex
-   coordinates/reviews or makes delegated edits. Inspect branch, HEAD, remote and
+3. **Preserve ownership and work.** Main is the coordination role, normally the
+   principal Claude session. The active task may explicitly delegate its execution
+   to Codex. That coordinator owns integration, Cores, pins, CI, freeze and delivery;
+   component sessions own their changes. Inspect branch, HEAD, remote and
    dirty paths first. One writer per path; preserve concurrent/local-only work,
    `main`, `backup`, tags, baselines and history. No force-push/reset/clean,
    silent conflict resolution, duplicate diagnosis/build or unrelated feature.
 4. **Use safe branches.** Component follow-ups after squash/integration/closed PR
-   start a fresh named branch from current `Claude`, preserve local work, replay
-   only the intended delta and open a new PR. Reuse an active branch only if its
-   remote head is an ancestor and the reviewed diff is correct. No forced reuse
-   or synthetic `ours` merge around a refusal. Separate commit from push.
-   Main integrates both product delta and reconciled current evidence.
+   start a fresh local branch/worktree from current `Claude`, preserve local work
+   and replay only the intended delta. Publish an unfinished lot through the
+   [Backup archive and exact-SHA handoff](branch-archive.md), not by recreating
+   archived remote branches. A new PR/remote branch requires an explicit current
+   integration decision. No forced reuse or synthetic `ours` merge around a refusal.
+   Separate commit from push. The coordinator integrates the reviewed delta and evidence.
 5. **Keep this contract current and small.** After meaningful results and before
-   ending/compaction/handoff, replace only your task's current state; correct
+   ending/compaction/handoff, replace only your task's current state; delegated agents
+   submit that update to its coordinator unless explicitly assigned the board entry. Correct
    permanent instructions in place. Fetch latest first: never overwrite the board
    from a stale branch. Link detailed evidence; do not append a chronological diary.
    Distinguish dirty/local/published/tested/compiled/delivered/device-observed.
@@ -142,24 +145,12 @@ again (3 Nov; reconfirmed 4 Nov). Its ordinary fast-forward commits to
 `origin/Claude` are authorized, with `[skip ci]` unless CI is intended. Reconcile
 only owned unpushed commits after inspecting remote advances/conflicts.
 
-**Switch 2 (S2Arm) test IPA (B): compiled by session 04 (maintainer, 11 Nov, principal session, latest message).**
-Messages, in order: "Autorise la session Switch 2 à compiler sa propre IPA"; "Fini les correctifs et créé deux fois
-l'IPA, une avec les correctifs et une autre avec le test pour la Switch 2"; "Il y a un malentendu je veux que ça soit toi
-qui compile une deuxième IPA …"; then, latest: "Autorise l'autre session à compiler" (read by main as session 04,
-012mUASj3EQnvC86WC56AePw; the maintainer can correct this reading).
-- **Main compiles (A)**, the common IPA 725 with every fix (Core 928, MeloNX 731 + five-part MoltenVK, imports, launch
-  prerequisites, skins PR 171/173), with the standard recipe on `Claude`.
-- **Session 04 compiles (B)** = the same content plus its probe (`packages/s2arm_probe`, the root `pubspec.yaml` workspace
-  and dependency lines, Info.plist `RewindBoxS2ArmProbe` = true, never `RewindBoxS2ArmProbeMapped`, the legal line of its
-  handoff `1ce1b5d9`), from its branch `work/s2arm-switch2-prototype-20261110` with `origin/Claude` merged at the 725
-  source commit once 725 is delivered (so B is A plus the probe, nothing else). It builds, follows the run to its end,
-  verifies the downloaded IPA (bytes, SHA-256, component and signing identities, receipt) before giving it, keeps
-  recipient keys out of Git and deletes private keys after the verified delivery, uploads only through the protected
-  action (#174); no public release, tag or post, no raw private log in Git.
-- It triggers on its own branch only; it does not push to `Claude` or `main` and changes no pin, contract or manifest
-  of the common line. Build numbers of its line from 801, never a number of the shared sequence.
-- The common line stays without a Switch 2 engine: (A) carries only the inert bridge hook `d32738b5`; what (B) adds is
-  not kept in the common line.
+**Historical separate S2Arm trial (11 Nov):** the 725/801 split, former component
+branch and then-current probe restrictions are preserved in the
+[immutable prior contract](https://github.com/TarbleFR/RewindBox/blob/058c6fc33a53a13667579b9d4636524f9a644207/docs/AI_TASK_BOARD.md#standing-ipa-compilation-authorization).
+They do not request another trial or remove the S2Arm engine from the later delivered
+732 baseline. Use the active common-IPA and S2Arm tasks, their manifests and current
+ownership. A new separate experiment needs its own explicit current scope.
 
 **Recipe approval `49e4f2e` remains valid:** explicitly reviewed/classified merges
 already integrated are accepted; preserve shared history, source/component/package/
@@ -324,9 +315,8 @@ bound to this tree). **Core CI run `43336528859` failed before compiling:** its 
 the engine82 baseline (artifact `12883480724`, `be55d705`), which had 14-day retention and expired on 12 Nov
 about 08:20 UTC (HTTP 404; no copy of its bytes exists). Same class: the 614 archive `13141611354` expires
 16 Nov, the Core 743 artifact 26 Nov; durable byte copies: 614 in delivery artifacts `13150348411`/`13156638305`,
-Core 743 (holding the authenticated engine82 history and LibHac inputs) in `13976632507`. The fix is in
-MeloNX-owned recipe files (`reuse_core_baseline.py`, `verify_dma_core.py`, `core-baseline.json`,
-`melonx-core.yml`): handed to the MeloNX owner on #179 (comment 6840099916); main does not edit them.
+Core 743 (holding the authenticated engine82 history and LibHac inputs) in `13976632507`.
+The reviewed recovery is integrated as `871258fb`; its active replacement run is recorded below.
 Checked on `f4fb22fd`: delivery contract and its test pass except the expected pin/contract binding until
 Core 745 is pinned; engine concurrency, tidy, consolidation, retirement, S2Arm pinned-engine/legal and XeniOS
 review tests OK. Known red outside the recipe: `.github/diagnostics/s2arm/s2arm_delivery_test.py` (old S2Arm
@@ -347,7 +337,9 @@ the final-source gates are running. The Xenia/S2Arm producer jobs were skipped a
 Private-IPA upload-boundary CI passed on Linux/macOS/Windows (`43344184848`).
 **Next / Codex:** follow this run to completion, authenticate and pin its output, then freeze733 and use the
 same standard route. The draft now classifies all product commits (no replay conflicts/unclassified paths,
-43 retained inputs verified), defers only the future Xenia producer recipe, and has a fresh recipient key.
+43 retained inputs verified), defers the future Xenia producer recipe and repository-only
+Actions maintenance, and has a fresh recipient key. Maintenance058 is reviewed but source-only:
+732 had already deferred its parent script/test versions; no unrelated promotion is needed.
 It is not frozen or dispatched;733 still waits for Core745.
 [Manifest](../build-utils/delivery/733.json) · [recipe](standard-delivery-recipe.md).
 
@@ -366,14 +358,14 @@ pipeline compilation, validated per-game/behaviour profiles and shared iOS rules
 
 ### MeloNX FPS, memory, black launch and artifacts — existing owner
 
-**Delivered baseline:** Core 743 in IPA729–732; 733 draft retains it.
-**Lot 10:** six adapters on its separate branch: Nifm static-event retention,
+**Delivered baseline:** Core 743 in IPA729–732. Core 745 is the candidate for733;
+the draft keeps the verified743 pin until745 succeeds and is authenticated.
+**Lot 10:** six integrated adapters: Nifm static-event retention,
 paced strict syncs (Hogwarts), texture-array dirty epochs, shared sibling pipelines,
-collection-thread QoS and stall compaction. Proposed Core number 745 is not an
-allocation, frozen contract or compiled/pinned Core. Main merged the first six-adapter source `7040c3e1` as `f733bbf9`,
-without compiling/pinning it. The four later macOS test fixes through `d17a29f2` are now integrated
-by main in `30ee5beb`; executed fixture run `43331900586` is green. Full
-preparation gates/composition are still required before freezing/pinning.
+collection-thread QoS and stall compaction. Main merged the first six-adapter source
+`7040c3e1` as `f733bbf9` and the four later macOS test fixes through `d17a29f2` in
+`30ee5beb`; executed fixture run `43331900586` is green. The frozen745 contract
+contains104 fresh gates; producer `43344184896` is active, not yet a verified pin.
 [Detailed handoff and device acceptance](evidence/melonx-lot10/handoff.md).
 **Performance journal test (owner, d5c88541):** the stall spinner is checked against the waiter (at least the
 waiter's 20 ms ceiling and above its measured time), not a fixed 200 ms floor that failed delivery run 43312487102
@@ -383,8 +375,9 @@ footprint up to 4,882 MiB. No post-correction iPhone gain yet.
 **Native heap:** original owner has named the large MoltenVK stacks (SPIR-V copies,
 Metal libraries, descriptor pools, pipeline states); release/compression changes
 remain owned there. Graphics-memory savings and thermal gains are not established.
-**Next:** main froze it as Core 745 in `f4fb22fd` (contract `807edc42`, 104/104 planned gates on
-the final preparation); Core CI `43336528859` stopped on the expired engine82 baseline. Reviewed recovery is integrated;
+**Next:** main initially froze745 in `f4fb22fd`; reviewed recipe recovery/cache inputs
+now bind contract `08e254a3`, preserving all104 gate definitions and the final preparation.
+Core CI `43336528859` stopped on the expired engine82 baseline. Reviewed recovery is integrated;
 replacement run`43344184896` from`ced57c6d` has passed dependency authentication and Apple preflight.
 Await its gates/compile/simulator result, then pin and include the live-capture bridge in IPA733,
 then compare Hogwarts/Smash closes and 20-minute Hogwarts. Preserve 1x/full draws,
@@ -468,8 +461,9 @@ codec sources. RPCS3 already uses Ninja/ccache; its frozen producer is unchanged
 envelope path and the Bash nounset cold path; root reran451 DMA checks,24 recovery checks,3 cache tests
 and Bash syntax successfully.104 Core gates and runtime/preparation contracts remain unchanged.
 **Next / owner:** Codex executes the maintainer's new private delivery request, coordinated on issue179,
-without a duplicate producer. Classify the host-cache helper/test integration reviewed and the Xenia-only
-producer commit source-only before733's materialization/freeze. Core745 is running as`43344184896` from`ced57c6d`; its dependency authentication and Apple preflight
+without a duplicate producer. Draft `dceb3344` already classifies the reviewed host-cache
+integration and defers the Xenia-only producer commit. Reconcile subsequent maintenance
+commits before733's materialization/freeze. Core745 is running as`43344184896` from`ced57c6d`; its dependency authentication and Apple preflight
 passed. Authenticate the finished output and resume733.
 No completed new Apple build, warm-cache speed measurement or IPA delivery is claimed. The permanent single-recipe
 rule remains active in ca8fa34d.
@@ -489,13 +483,16 @@ recipient checks for speed. [Evidence](evidence/private-ipa-protection-2026-11-1
 
 ### Actions history cleanup — Codex
 
-**New maintainer request (13 Nov):** broadly triage the remaining1,607 Actions runs while Core745 builds.
-A reviewed fixed plan selects360 unreferenced completed runs without artifacts (177 failed,101 successful,
-42 cancelled,40 skipped). Protect newest300, all666 artifact-bearing runs,720 source/evidence references,
-main/Backup runs and latest success/failure per present workflow. The nine prior403 orphans stay excluded.
-New explicit artifact-preserving mode passed37 safety tests and independent review.
-[Plan and limits](actions-history-triage-2026-11-13.md). Not yet counted as deleted; record the actual receipt.
-Do not advance Claude during this strict-lease cleanup; Core745 runs on its existing immutable source.
+**Completed (maintainer request, 13 Nov):** run `43346257896`, source `058c6fc3`,
+deleted exactly 360 reviewed runs: 177 failed, 101 successful, 42 cancelled, 40 skipped.
+No conflict or already-absent result; zero planned candidates remain. The 1,607-run
+snapshot plus four new runs became 1,251. All 1,247 protected snapshot IDs remain,
+including Core745, all artifact-bearing/referenced runs and the nine prior403 orphans.
+The exact plan, live identity/job checks and newest300 protections were preserved.
+Code:37 safety tests passed. Downloaded receipt/API digest verified; independent
+postflight passed17 checks against the plan, journal and two matching final inventories.
+[Result and receipts](actions-history-triage-2026-11-13.md).
+The strict branch lease has ended; the one-off launcher is removed with this record.
 
 The four explicitly obsolete 606/608/609/610 launchers are confirmed
 disabled_manually; source YAML remains for historical recipe verification.
@@ -506,12 +503,28 @@ absence inventory are archived in the maintenance evidence.
 Nine reviewed old empty queued records remain: cancellation was unconfirmed,
 and final deletion requests all returned HTTP403 (run43337757433). They are
 not counted as deleted; no repeated refused mutation was attempted.
-Retain executed jobs, artifacts, historical producers and failure evidence.
+Retain active jobs, artifacts, referenced/protected producers and failure evidence.
+Only the explicitly reviewed plan may remove completed, unreferenced runs without
+artifacts after its live identity and job checks pass.
 The one-off maintenance launchers are removed after completion; plans and receipts
 remain in [the maintenance report](coordination-cleanup-2026-11-13.md).
 Only main, Claude and Backup remain as remote branches at final verification.
 Prior cleanups: [1,311 skipped runs](evidence/github-cleanup-2026-11-10.json)
 and [383 skipped runs](evidence/github-cleanup-2026-11-10-followup.json).
+
+### Markdown maintenance — Codex
+
+**Goal (maintainer,13 Nov):** remove obsolete or conflicting active Markdown guidance.
+Inventory:588 Markdown files at the reviewed source. Independent reviews identified branch/ownership,
+board-writing,745 status and Actions-preservation contradictions. Corrections
+consolidate those rules, shorten the obsolete725/801 trial instructions to an immutable
+history link, and distinguish current instructions from old release/build notes through
+the [documentation index](README.md). Legal notices and historical evidence remain intact.
+**Validation:**14 Markdown files corrected, including the final cleanup result; relative
+file links and diff checked, independent instruction/navigation reviews passed
+(52 anchors also checked). Source/legal notices and evidence were not rewritten.
+**Next:** reconcile later producer status before freezing733. Documentation changes
+are recipe-only and do not require rebuilding the active Core.
 
 ## Delivered baseline
 

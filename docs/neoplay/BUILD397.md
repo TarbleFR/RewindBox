@@ -1,5 +1,9 @@
 # Build 397 — NeoSwap + NeoPlay private integration candidate
 
+> Historical Build397 record. Its integration authorization, branches and
+> retained engine list apply to that build only. Current work follows the
+> [shared task board](../AI_TASK_BOARD.md) and [standard recipe](../standard-delivery-recipe.md).
+
 Owner-authorized integration into `experimental`, after the exact Build396 finishes successfully.
 Preserved runtime baseline: `d3d5681cc8b10af1cd503ea72a4886c82faaa3ef`.
 Imported NeoPlay candidate: `f4b65f09d5a71ad2e0c72ab347b3df285c98b0f7` (tested native implementation `9de76e5b662d7c915bff1485fe02dfc2b90c9961`).

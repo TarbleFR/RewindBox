@@ -58,7 +58,13 @@ For changes that affect the iOS release path, test on iOS/iPadOS 18+ whenever pr
 - landscape/gamepad navigation;
 - unsigned release builds and generated Xcode configuration.
 
-The `ios/` scaffold is generated locally rather than stored in this repository. See `README.md` for the bootstrap/build sequence.
+The `ios/` scaffold is generated locally rather than stored in this repository.
+Use the [standard delivery recipe](docs/standard-delivery-recipe.md) for the
+authenticated iOS preparation/build sequence, and the
+[documentation index](docs/README.md) to distinguish active instructions from
+historical build records. Internal coordinated work follows
+[AGENTS.md](AGENTS.md) and its local-branch/Backup handoff rules; the fork workflow
+above is for external contributions.
 
 ## Code conventions
 

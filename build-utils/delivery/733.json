@@ -458,6 +458,11 @@
         "commit": "ab0a69c7addcf7357f83f2a0c1632264c002c6b5",
         "targetBuild": 734,
         "note": "Future Xenia producer compiler cache; excluded from IPA 733 to preserve the retained Xenia binary's authenticated original build recipe. Target build denotes deferral only, not approval or a request to rebuild it."
+      },
+      {
+        "commit": "058c6fc33a53a13667579b9d4636524f9a644207",
+        "targetBuild": 734,
+        "note": "Reviewed repository maintenance only (37 safety tests passed); excluded from the IPA 733 product tree, preserving the maintenance paths already deferred by 732. Target build denotes deferral only, not approval or a future inclusion request."
       }
     ],
     "promotedCommits": []

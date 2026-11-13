@@ -74,11 +74,13 @@ pre-cleanup record is preserved in [history](history/README.md).
   negative hot-path timings. Read the
   [descriptor/cache investigation](melonx-descriptor-cache-2026-10-29.md).
 
-Current evidence: [guard crash and completed source work](melonx-build603-guard-crash-2026-10-30.md),
+Historical background: [guard crash and completed source work](melonx-build603-guard-crash-2026-10-30.md),
 [launch investigation](melonx-hogwarts-launch-2026-10-30.md),
 [steady-state work](melonx-steady-state-2026-10-29.md),
 [owned-session design](melonx-native-session-2026-10-20.md).
 The older design's “not packaged yet” status is historical, not current readiness.
+Use the [active MeloNX task](AI_TASK_BOARD.md#melonx-fps-memory-black-launch-and-artifacts--existing-owner)
+for current Core, delivery and validation status.
 
 ## RPCS3
 
@@ -134,12 +136,14 @@ its matching Core record. Enabled/Disabled remain unchanged. First-use SPU/PPU
 compilation and Metal pipeline bursts are not automatically lever failures:
 compare a second launch of the same mode using cache-hit and stall counters.
 
-Read [latest Core verification](rpcs3-device601-core-2026-10-30.md),
+Read [historical Core verification](rpcs3-device601-core-2026-10-30.md),
 [open issues](rpcs3-open-issues-2026-10-30.md),
 [device601 source follow-up](rpcs3-device601-followup-2026-10-30.md),
 [prior runtime log analysis](rpcs3-runtime-log-followup-2026-10-29.md) and
 [title-lever background](rpcs3-cell575.md). BO2/GOW3/AC physical recovery must
 be established from device evidence, not the source or compilation alone.
+The [active RPCS3 task](AI_TASK_BOARD.md#rpcs3-fps-stability-and-audio--main-claude-code)
+identifies the current Core and next work; the dated documents above are background.
 
 ## Dolphin, NeoSwap and retired ports
 

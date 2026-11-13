@@ -2,7 +2,8 @@
 
 Règle du maintainer, 1er novembre 2026 : « améliore la recette pour la prochaine compilation et
 enregistre qu'il faut la même recette à chaque fois, qui ne rajoute que ce qui a été modifié ».
-La règle est inscrite dans [AGENTS.md](../AGENTS.md) (« Same recipe for every build »).
+La règle permanente et l'autorisation courante figurent dans le
+[contrat commun](AI_TASK_BOARD.md#standing-ipa-compilation-authorization).
 
 ## 1. La règle
 
@@ -114,7 +115,7 @@ Les gains de durée doivent être mesurés sur les producteurs macOS.
 | Workflow unique, sans constante de build | `.github/workflows/standard-delivery.yml` |
 | Script unique d'opérations (fusion des 610 `rewind610_delivery`, `_baseline`, `_checks`) | `.github/diagnostics/standard_delivery.py` |
 | Core RPCS3 remplacé (constantes dans le pin) | `.github/diagnostics/rpcs3_core_component.py`, `build-utils/rpcs3/core-pin.json` |
-| Core MeloNX remplacé | `.github/diagnostics/melonx_reads_core_component.py`, `build-utils/melonx/reads-core-pin.json` |
+| Core MeloNX actuel | `.github/diagnostics/melonx_dma_core_component.py`, `build-utils/melonx/dma-core-pin.json` ; les anciens manifestes conservent leur vérificateur épinglé |
 | Composants conservés (Dolphin/ARMSX2 608, archives libretro et dépendances MeloNX) et republication | `.github/diagnostics/retained_components.py` |
 | Manifeste de build (brouillon, puis gelé localement) | `build-utils/delivery/<N>.json` |
 | Contrat hors ligne (Linux) | `test/standard_delivery_contract_test.py` |
@@ -147,8 +148,9 @@ Les gains de durée doivent être mesurés sur les producteurs macOS.
   Exemple 614 : les 13 fichiers de traduction de `b06888a9` (sur lesquels `35afb4c9` a été écrit), puis
   `35afb4c9`, `d7f069b8` et les commits MeloNX que 613 avait différés.
 - **Vérificateur MeloNX nommé par le manifeste** (614) : `components.melonx.verifier` choisit, dans une
-  liste fermée, `melonx_reads_core_component.py` ou `melonx_arrays_core_component.py`, dont le pin
-  doit être celui du manifeste.
+  liste fermée ; la route courante utilise `melonx_dma_core_component.py` et
+  `dma-core-pin.json`. Les anciennes routes reads/arrays restent liées à leurs
+  manifestes historiques. Dans tous les cas, le pin doit être celui du manifeste.
 - **Composant épinglé inchangé** : une build qui garde le Core RPCS3 ou MeloNX de sa base déclare
   `components.<rpcs3|melonx>.unchangedFromBase: true` avec le même pin que la base. Le Core est
   réinstallé depuis son pin. Son image est déclarée sous `images.retained.<clé>` et non sous
