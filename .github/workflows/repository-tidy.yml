@@ -1,73 +1,158 @@
-name: Repository tidy — reviewed merged branches and skipped history
-run-name: Repository tidy — 7 merged branches, 4 obsolete launchers, old skipped runs
+name: Repository consolidation and obsolete Actions cleanup
+run-name: Preserve all branch histories in Backup and retain only main, Claude, Backup
 on:
   push:
     branches: [Claude]
     paths:
-      - build-utils/maintenance/repository-tidy-2026-11-13.json
+      - build-utils/maintenance/branch-consolidation-2026-11-13.json
+      - build-utils/maintenance/obsolete-actions-2026-11-13.json
       - build-utils/maintenance/actions-cleanup-2026-11-13.json
 permissions:
-  contents: write
-  actions: write
+  contents: read
+  actions: read
 concurrency:
   group: rewindbox-repository-tidy
   cancel-in-progress: false
 jobs:
-  tidy:
+  consolidate:
     if: >-
       github.repository == 'TarbleFR/RewindBox' &&
       github.ref == 'refs/heads/Claude' &&
       github.event_name == 'push' &&
-      github.event.before == '30ee5beb204a9c972f85c5e9cd249aa341887283' &&
-      contains(github.event.head_commit.message, '[repository-tidy-2026-11-13]')
+      github.event.before == 'd7123113d36bc6b00ce02467ad96b66641042ad6' &&
+      contains(github.event.head_commit.message, '[repository-consolidation-2026-11-13]')
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      actions: read
+      issues: read
+      pull-requests: read
     steps:
-      - name: Read the exact maintenance commit
+      - name: Read exact maintenance sources only
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - name: Check cleanup and coordination guards
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /build-utils/maintenance/
+            /tools/coordination/
+            /test/branch_consolidation_test.py
+            /test/repository_tidy_test.py
+            /test/coordination_status_test.py
+      - name: Check mutation guards
         run: |
+          python3 -m unittest discover -s test -p branch_consolidation_test.py -v
           python3 -m unittest discover -s test -p repository_tidy_test.py -v
-          python3 -m unittest discover -s test -p actions_cleanup_test.py -v
           python3 -m unittest discover -s test -p coordination_status_test.py -v
-      - name: Remove reviewed merged branches and disable obsolete delivery launchers
+      - name: Apply reviewed consolidate plan
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: >-
-          python3 -u build-utils/maintenance/tidy_repository.py
-          --plan build-utils/maintenance/repository-tidy-2026-11-13.json
-          --expected-plan-sha256 04d961766feaf4da4fa266931c798b57732aa7557b440f21982c9801efe29ac9 --execute
-      - name: Remove old skipped runs without executed jobs or artifacts
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: >-
-          python3 -u build-utils/maintenance/cleanup_actions.py
-          --plan build-utils/maintenance/actions-cleanup-2026-11-13.json
-          --expected-plan-sha256 ec98e0afab2e32b8ed2ca312560d604f7c6871c9c66ffb2f647e7fbbe0879773 --execute
-      - name: Snapshot shared handoffs and active producers
+          python3 -u build-utils/maintenance/consolidate_branches.py
+          --plan build-utils/maintenance/branch-consolidation-2026-11-13.json
+          --expected-plan-sha256 7a80bd0f33cf84d59fb9bde5eca16e8d9e0a6fc0961a23d4aa53eb67bf338697 --execute
+      - name: Publish common cross-account status
         if: always()
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           mkdir -p cleanup-output
           python3 tools/coordination/status.py > cleanup-output/shared-status.json
-      - name: Preserve maintenance receipts
+      - name: Preserve receipts
         if: always()
         uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
-          name: Repository-tidy-${{ github.run_id }}
+          name: Repository-consolidate-${{ github.run_id }}
           path: cleanup-output/
           if-no-files-found: error
           retention-days: 90
-      - name: Publish execution summary
+  retire:
+    if: >-
+      github.repository == 'TarbleFR/RewindBox' &&
+      github.ref == 'refs/heads/Claude' &&
+      github.event_name == 'push' &&
+      github.event.before == 'd7123113d36bc6b00ce02467ad96b66641042ad6' &&
+      contains(github.event.head_commit.message, '[repository-consolidation-2026-11-13]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Read exact maintenance sources only
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /build-utils/maintenance/
+            /tools/coordination/
+            /test/obsolete_actions_retirement_test.py
+      - name: Check mutation guards
+        run: |
+          python3 -m unittest discover -s test -p obsolete_actions_retirement_test.py -v
+      - name: Apply reviewed retire plan
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          python3 -u build-utils/maintenance/retire_obsolete_actions.py
+          --plan build-utils/maintenance/obsolete-actions-2026-11-13.json
+          --expected-plan-sha256 1d4f3f69b0441a37605e4b014c33db87b6d7224d7353f3a27c6818fcd8efc077 --execute
+      - name: Preserve receipts
+        if: always()
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
+        with:
+          name: Repository-retire-${{ github.run_id }}
+          path: cleanup-output/
+          if-no-files-found: error
+          retention-days: 90
+  history:
+    if: >-
+      github.repository == 'TarbleFR/RewindBox' &&
+      github.ref == 'refs/heads/Claude' &&
+      github.event_name == 'push' &&
+      github.event.before == 'd7123113d36bc6b00ce02467ad96b66641042ad6' &&
+      contains(github.event.head_commit.message, '[repository-consolidation-2026-11-13]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Read exact maintenance sources only
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /build-utils/maintenance/
+            /tools/coordination/
+            /test/actions_cleanup_test.py
+      - name: Check mutation guards
+        run: |
+          python3 -m unittest discover -s test -p actions_cleanup_test.py -v
+      - name: Apply reviewed history plan
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          python3 -u build-utils/maintenance/cleanup_actions.py
+          --plan build-utils/maintenance/actions-cleanup-2026-11-13.json
+          --expected-plan-sha256 7e3711bf8232abd930f7eb138a425a0bd83d84b649b4c139fdb0c4faf75543cb --execute
+      - name: Preserve receipts
+        if: always()
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
+        with:
+          name: Repository-history-${{ github.run_id }}
+          path: cleanup-output/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Publish history summary
         if: always()
         run: |
           if [ -f cleanup-output/summary.md ]; then
             cat cleanup-output/summary.md >> "$GITHUB_STEP_SUMMARY"
-          fi
-          if [ -f cleanup-output/repository-tidy.json ]; then
-            python3 -c 'import json; d=json.load(open("cleanup-output/repository-tidy.json")); print("Repository tidy: " + d["result"]); [print("- " + x["result"] + ": " + x.get("branch", x.get("path", ""))) for x in d["operations"]]' >> "$GITHUB_STEP_SUMMARY"
           fi

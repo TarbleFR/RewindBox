@@ -257,12 +257,16 @@ an indefinite wait. This board remains the sole task/ownership contract.
 1. At start/resume and before handing over, fetch `origin/Claude`, inspect local
    work, read the relevant task and run `python3 tools/coordination/status.py`.
    Use the existing official `gh` sign-in or `GH_TOKEN`; never put a token in Git.
-2. Publish each reviewable lot in a PR **to Claude** using the engine-handoff
-   template. Name its exact source SHA, owner, reviewer, dependencies, checks and
-   existing producer run. A draft transports unfinished work without claiming ready.
-3. The receiving owner records `ACK <full source SHA>` on that PR, then reviewed,
-   integrated, Core/pin and delivered evidence separately. A source advance requires
-   a fresh acknowledgement/review. Do not substitute a board note for receipt.
+2. Only `main`, `Claude`, `Backup` are durable remote branches (maintainer, 13 Nov).
+   Archived task branches below are historical names, not push targets. Keep local
+   worktrees; do not recreate those remote branches automatically. Preserve local
+   uncommitted work. Follow [the archive protocol](branch-archive.md) to publish
+   an unfinished source under Backup with previous Backup + lot SHA as parents.
+3. Use [shared handoff issue #179](https://github.com/TarbleFR/RewindBox/issues/179)
+   for exact source/owner/reviewer/dependencies/checks/producer receipts. The receiver
+   records `ACK <full SHA>`, then review/integration/Core/pin/IPA evidence separately.
+   A source advance requires a fresh review. Backup is archival ancestry only;
+   NEVER merge it into Claude/main. Main selects reviewed source commits.
 4. One writer per path. Main handles common Core numbering, composition, freeze,
    pin and IPA. Resolve shared test/recipe edits with the component owner before
    changing them; do not revert and reintroduce each other's corrections silently.
@@ -275,18 +279,18 @@ an indefinite wait. This board remains the sole task/ownership contract.
    substitute. For a new delivery request use existing `tests.<group>.mode=reuse`
    only when `reuse_guard` authenticates identical effective tree, commands, recipe
    reads and artifacts. Preflight remains fresh. No compiled-app reuse is claimed.
-7. A blocked recipient is handled through its PR and this task's exact next action;
+7. A blocked recipient is handled through issue #179 and this task's exact next action;
    continue independent work. Do not create another competing implementation.
 
 ## Active requirements
 
-Snapshot below is an index, not a live CI result. Current branch HEADs, PRs,
+Snapshot below is an index, not a live CI result. Current Claude/Backup HEADs, issue #179 receipts,
 artifacts and receipts take precedence over old statuses. All removed detail,
 negative findings and prior decisions remain in the
 [immutable pre-cleanup contract](https://github.com/TarbleFR/RewindBox/blob/30ee5beb204a9c972f85c5e9cd249aa341887283/docs/AI_TASK_BOARD.md).
 Do not restart a historical task from that archive.
 
-| Owner | Working branch | Responsibility / next action |
+| Owner | Local work / archived branch name | Responsibility / next action |
 | --- | --- | --- |
 | Main `012mUAShv9k6pSCnpW7oAF63` | `Claude` | Integration, common Cores, pins, recipe and private delivery; reconcile current handoffs and 733 retries. |
 | MeloNX `012mUASkkFGHaPcEUx9dsp8q` | `work/melonx-fps-stability-20261103` | Native/MoltenVK heap, bridge and timing-test owner; review lot 10's native-heap request and hand over exact CI fix. |
@@ -312,7 +316,7 @@ brought its timing/download changes but retained the reverted 200 ms spinner
 assertion. This maintenance restores the exact tested owner file (20 ms floor,
 spinner > waiter, waiter <20 ms); no runtime source is changed. Main must freeze the next reviewed recipe and report
 its actual run; no new 733 success is implied by this maintenance.
-**Next:** acknowledge PR handoffs, use the complete owner CI fix, then existing
+**Next:** acknowledge exact-SHA handoffs in issue #179, use the complete owner CI fix, then existing
 standard recipe. Do not add unrelated unfinished engine lots after freeze.
 [Manifest](../build-utils/delivery/733.json) · [recipe](standard-delivery-recipe.md).
 

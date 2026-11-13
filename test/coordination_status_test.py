@@ -1,4 +1,5 @@
 import importlib.util
+import base64
 from pathlib import Path
 import unittest
 
@@ -34,12 +35,22 @@ class CoordinationTests(unittest.TestCase):
         def get(path):
             if path.endswith("/branches/Claude"):
                 return {"commit": {"sha": "a"*40}}
+            if path.endswith("/branches/Backup"):
+                return {"commit": {"sha": "b"*40}}
+            if "/contents/branch-archive.json?" in path:
+                return {"encoding": "base64", "content": base64.b64encode(b'{"branches":[]}').decode()}
+            if "/issues/179/comments?" in path:
+                return []
+            if "/branches?" in path:
+                return [{"name": x} for x in ("main", "Claude", "Backup", "work/recreated")]
             if "/pulls?" in path:
                 return [self.pr("")]
             return {"workflow_runs": [{"id": 12, "head_sha": "a"*40, "status": "queued"}]}
         value = status.snapshot(get, "a"*40)
         self.assertEqual(len(value["activeRuns"]), 1)
         self.assertEqual(len(value["sourceRuns"]), 1)
+        self.assertEqual(value["remoteBranchesOutsidePolicy"], ["work/recreated"])
+        self.assertEqual(value["archive"]["source"], "b"*40)
         with self.assertRaises(ValueError):
             status.snapshot(get, "short")
 

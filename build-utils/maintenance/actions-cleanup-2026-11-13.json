@@ -2,7 +2,7 @@
   "schema_version": 1,
   "repository": "TarbleFR/RewindBox",
   "branch": "Claude",
-  "base_sha": "30ee5beb204a9c972f85c5e9cd249aa341887283",
+  "base_sha": "d7123113d36bc6b00ce02467ad96b66641042ad6",
   "main_sha": "c60bcb5cad02626a85487f6577782784458d2fb9",
   "expires_at": "2026-11-14T23:59:00Z",
   "keep_recent": 300,

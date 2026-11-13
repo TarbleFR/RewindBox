@@ -5,6 +5,7 @@ Both Claude accounts use the same command. PRs carry reviewable diffs, while
 docs/AI_TASK_BOARD.md remains the single task/ownership contract.
 """
 import argparse
+import base64
 import json
 import os
 import re
@@ -74,6 +75,18 @@ def snapshot(reader=get, source=None):
     report = {"repository": REPO, "integrationSource": branch["commit"]["sha"],
               "handoffs": [handoff(pr) for pr in pulls], "activeRuns": list(active.values()),
               "notice": "A current handoff is not approval, a green CI is not an IPA, and a board note is not an acknowledgement."}
+    backup = reader(root + "/branches/Backup")["commit"]["sha"]
+    envelope = reader(root + "/contents/branch-archive.json?ref=" + backup)
+    if envelope.get("encoding") != "base64":
+        raise RuntimeError("Unexpected archive encoding")
+    archive = json.loads(base64.b64decode(envelope["content"]))
+    report["archive"] = {"source": backup, "url": "https://github.com/" + REPO + "/blob/" + backup + "/branch-archive.json",
+                         "branches": archive["branches"], "notice": "Archived ancestry is not product integration; never merge Backup."}
+    branches = pages(root + "/branches", reader=reader)
+    report["remoteBranchesOutsidePolicy"] = [b["name"] for b in branches if b["name"] not in {"main", "Claude", "Backup"}]
+    comments = pages(root + "/issues/179/comments", reader=reader)
+    report["sharedDiscussion"] = {"url": "https://github.com/" + REPO + "/issues/179",
+        "recentComments": [{k: c.get(k) for k in ("id", "html_url", "body", "updated_at")} for c in comments[-20:]]}
     if source:
         if not re.fullmatch(r"[0-9a-f]{40}", source):
             raise ValueError("--source requires the full commit SHA")

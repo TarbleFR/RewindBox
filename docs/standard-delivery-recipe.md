@@ -43,8 +43,10 @@ vérifiée. Elle n'ajoute que ce qui a changé depuis cette base.
 ## Coordination et relances après incident (12–13 novembre 2026)
 
 Le [tableau commun](AI_TASK_BOARD.md#cross-account-coordination) définit les propriétaires.
-Les deux comptes échangent leurs lots par PR vers `Claude`, avec le SHA complet et un
-accusé `ACK <SHA>` du destinataire. Une nouvelle tête invalide la relecture précédente.
+Les deux comptes échangent leurs lots dans la discussion GitHub #179, avec le SHA
+complet sauvegardé dans Backup et un accusé `ACK <SHA>` du destinataire. Seules
+main, Claude et Backup restent des branches distantes durables ; les autres travaux
+restent isolés localement ([protocole](branch-archive.md)). Une nouvelle tête invalide la relecture précédente.
 Avant de demander un moteur, `python3 tools/coordination/status.py --source <SHA>`
 affiche les runs déjà associés à cette source : suivre le producteur existant plutôt
 que doubler sa demande. Les compilations XeniOS/S2Arm sont isolées des vérifications
