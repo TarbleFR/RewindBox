@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "build": 736,
-  "status": "draft",
+  "status": "frozen",
   "note": "Private re-delivery of the verified IPA735 product with a recipient key retained in this ChatGPT session; no engine or gameplay changes.",
   "base": {
     "build": 733,
@@ -446,8 +446,8 @@
     ],
     "sourceOnly": [],
     "promotedCommits": [],
-    "freezeCommit": "89cdde162db1cd616fe2e96a01fd01450fea6343",
-    "freezeTree": "f538ff1e2155310f671074088024e44d47055578",
+    "freezeCommit": "f2675e215a490957297fe578d20899baba5482b3",
+    "freezeTree": "536b6061df876571fad823a9c2269745f85ee3fb",
     "baseEffectiveDigest": "e2b4db5fd0de832fcbdea640d449fd969dc8814c449d9d910baaa71ef7ad5309",
     "inheritedDeferredPaths": [
       "build-utils/maintenance/actions-cleanup-2026-11-10-followup.json",
@@ -744,6 +744,24 @@
       {
         "commit": "89cdde162db1cd616fe2e96a01fd01450fea6343",
         "subject": "build(melonx): pin MeloNX Core c4a25b94 (run 43450861032, artifact 14050961721, iPhone e5d87741 38538680 B, fingerprint 7c7e24d4, contract 5c22b283) [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "f3e9cb1de3b789cba654193276c5680a8d2e55a3",
+        "subject": "[ipa-delivery:735] build private IPA with the MeloNX heat Core c4a25b94; compilation-only recipe",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "aa7bfe10f1c8f26df65e5e18e50438daf39b786c",
+        "subject": "docs(delivery): record verified private IPA 735 (run 43454088313, IPA b353de8b) and its receipts; recipient key deleted [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "f2675e215a490957297fe578d20899baba5482b3",
+        "subject": "build(delivery): prepare private IPA736 with a recipient key held for direct delivery [skip ci]",
         "role": "recipe",
         "productPaths": 0
       }
@@ -1315,8 +1333,8 @@
     "melonx-dependencies"
   ],
   "frozen": {
-    "at": "2026-11-13T15:34:56Z",
-    "commit": "89cdde162db1cd616fe2e96a01fd01450fea6343",
+    "at": "2026-11-13T17:40:28Z",
+    "commit": "f2675e215a490957297fe578d20899baba5482b3",
     "tool": "standard_delivery.py freeze",
     "inCI": false
   }
