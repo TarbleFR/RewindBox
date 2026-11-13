@@ -154,3 +154,12 @@ delivered 614 archive: 220 inputs, 216 members, 102 changed files, 106 gates, co
 5c22b28358f3885452255de5ef63a49ec174f52544f65e33eec3ad8cc4040f8a; contract test with the archive: 533 checks passed.
 Open: the Apple timing of both fixtures on macOS arm64 (the Core route no longer runs them; the Core's two simulator
 sessions execute the Apple path); the Core pin and an IPA; the iPhone comparison.
+
+## Delivered: private IPA 735 (13 Nov)
+
+Core c4a25b94 (run 43450861032, both heat lots, build-smoke: NativeAOT and ABI verified, two simulator sessions) pinned
+in 89cdde162; IPA 735 (run 43454088313, base 733 like 734, MeloNX replaced, every other engine reused with its verified
+fingerprint, Flutter/native groups not-run) downloaded, decrypted and verified offline (IPA SHA-256 b353de8b, 330 025 005
+bytes), handed to the user, receipts in `docs/evidence/rewind735/`, recipient key deleted. Not yet run on an iPhone:
+the 20-minute comparison above (734 or 733 before, 735 after) is what tells whether the heat fell.
+
