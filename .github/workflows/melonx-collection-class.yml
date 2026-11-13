@@ -16,6 +16,9 @@ run-name: Collection class on macOS • ${{ github.sha }}
     - test/melonx_stall_compaction/**
     - test/melonx_stall_compaction_test.py
     - build-utils/melonx/adapt_stall_compaction.py
+    - test/melonx_wait_spin_bound/**
+    - test/melonx_wait_spin_bound_test.py
+    - build-utils/melonx/adapt_wait_spin_bound.py
 permissions:
   contents: read
 concurrency:
@@ -74,6 +77,11 @@ jobs:
         DOTNET_CLI_TELEMETRY_OPTOUT: '1'
         DOTNET_NOLOGO: '1'
       run: python3 -I test/melonx_stall_compaction_test.py --fixture-only
+    - name: The wait-spin-bound gate's executed part on this host (handoffs as the guest scheduler makes them)
+      env:
+        DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+        DOTNET_NOLOGO: '1'
+      run: python3 -I test/melonx_wait_spin_bound_test.py --fixture-only
     - name: The adapter's class with the runtime's collection callouts and the system's QoS calls (ahead of time, macOS arm64)
       env:
         DOTNET_CLI_TELEMETRY_OPTOUT: '1'

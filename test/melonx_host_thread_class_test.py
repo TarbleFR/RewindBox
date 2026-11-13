@@ -88,9 +88,21 @@ def member(source, signature):
 
 # --- Static: the exact scope ---
 check(FINAL_PREPARATION, 'the source given is a final preparation containing the adapter')
-check(not files_edited_later('adapt_host_thread_class'), 'no later adapter edits these files')
+# Core 747: adapt_wait_spin_bound changes the scheduler event's type in KThread.cs (and the renderer's two events) after
+# this adapter; its gate (wait-spin-bound) binds those replacements, which are undone here before the comparisons.
+import adapt_wait_spin_bound as _spin  # noqa: E402
+check(files_edited_later('adapt_host_thread_class') == {_spin.THREAD}, 'the only later edit of these files is adapt_wait_spin_bound\'s, in KThread.cs')
+
+
+def without_later(name, source):
+    for old, new in reversed(_spin.FILE_PAIRS.get(name, ())):
+        check(source.count(new) == 1, 'the later adapter\'s replacement, once: ' + new.strip().splitlines()[0][:60])
+        source = source.replace(new, old)
+    return source
+
+
 control = {name: text(CONTROL_SOURCE, name) for name in adapter.BASELINE}
-final = {name: text(FINAL_SOURCE, name) for name in adapter.BASELINE}
+final = {name: without_later(name, text(FINAL_SOURCE, name)) for name in adapter.BASELINE}
 for name, expected in adapter.BASELINE.items():
     check(sha(CONTROL_SOURCE / name) == expected, 'control is the Core 731 preparation: ' + name)
     rebuilt = control[name]
@@ -112,7 +124,7 @@ calls = sum(path.read_text(encoding='utf-8-sig', errors='replace').count('HostTh
 declared = sum(path.read_text(encoding='utf-8-sig', errors='replace').count('class HostThreadClass') for path in sources)
 check(calls == 8 and declared == 1, 'the tree calls the helper from these eight bodies only and declares it once')
 block = final[adapter.SLEEP][final[adapter.SLEEP].index(adapter.HELPER_BEGIN):final[adapter.SLEEP].index(adapter.HELPER_END)]
-renderer = text(FINAL_SOURCE, RENDERER)
+renderer = without_later(RENDERER, text(FINAL_SOURCE, RENDERER))
 check('public const uint UserInteractive = 0x21;' in block and 'private const uint UserInteractive = 0x21;' in renderer and
       'EntryPoint = "pthread_set_qos_class_self_np"' in block and 'EntryPoint = "pthread_set_qos_class_self_np"' in renderer and
       'result = SetClass(UserInteractive, 0);' in block,

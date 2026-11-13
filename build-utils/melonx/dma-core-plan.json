@@ -98,7 +98,8 @@
   "build-utils/melonx/adapt_sibling_pipelines.py",
   "build-utils/melonx/adapt_array_sync_epochs.py",
   "build-utils/melonx/adapt_collection_class.py",
-  "build-utils/melonx/adapt_stall_compaction.py"
+  "build-utils/melonx/adapt_stall_compaction.py",
+  "build-utils/melonx/adapt_wait_spin_bound.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -340,7 +341,8 @@
   "test/melonx_sibling_pipelines/Program.cs",
   "test/melonx_array_sync_epochs/Program.cs",
   "test/melonx_collection_class/Program.cs",
-  "test/melonx_stall_compaction/Program.cs"
+  "test/melonx_stall_compaction/Program.cs",
+  "test/melonx_wait_spin_bound/Program.cs"
  ],
  "fixtureProductionInputs": [
   "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs",
@@ -4572,6 +4574,32 @@
     "src/Ryujinx.Library/EmbeddedMemory.cs",
     "src/Ryujinx.Library/EmbeddedSession.cs",
     "src/Ryujinx.Library/Window/WindowBase.cs"
+   ]
+  },
+  {
+   "name": "wait-spin-bound",
+   "script": "test/melonx_wait_spin_bound_test.py",
+   "report": "wait-spin-bound-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 3600,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false,
+    "productionAssembliesBuilt": true,
+    "shortHandoffsKeptFullSpin": true,
+    "ringNoLostWakeup": true
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Common/AsyncWorkQueue.cs",
+    "src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs",
+    "src/Ryujinx.HLE/HOS/Kernel/Threading/KThread.cs"
    ]
   }
  ]
