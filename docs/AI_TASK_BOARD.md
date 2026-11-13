@@ -428,12 +428,27 @@ remains archived and is not a valid Claude dispatch route.
 **Evidence:** [maintenance report](coordination-cleanup-2026-11-13.md),
 [branch receipts](evidence/coordination-cleanup-2026-11-13/branch-results.json),
 [handoffs](https://github.com/TarbleFR/RewindBox/issues/179).
-**Open:** main Core745 run 43336528859 failed before compilation on expired
-baseline artifact 12883480724 (404, recorded expiry 12 Nov08:25Z). Exact identity
-and required authenticated recovery were relayed in issue179 comment6840025797.
-Main acknowledged the failure in 6716babd and handed authenticated dependency
-recovery to the MeloNX owner (issue179 comment6840099916). Do not bypass hashes
-or attribute device gains to this maintenance.
+**Reviewed dependency recovery:** candidate `d31c07d6ccf06f17c7ed1ca87ef94e6774fd0151` is
+preserved in Backup and handed to main in issue179 comment6840460119. It recovers
+authenticated Core743/732 history and LibHac plus exact614/615, preserving runtime,
+preparation and104 gates.108 real-archive recovery checks and515 DMA contract checks
+passed; independent review complete. New Core retention90days; original engine82
+ZIP/binaries remain unavailable. [Evidence](https://github.com/TarbleFR/RewindBox/blob/d31c07d6ccf06f17c7ed1ca87ef94e6774fd0151/docs/melonx-dependency-recovery-2026-11-13.md).
+**Reviewed incremental recipe:** candidate `4c90eb746c14b1455735df9013abd80c8c9001d0`, also archived
+in Backup, adds optional encrypted exact-input DerivedData reuse to the permanent
+standard workflow. Xcode, current Core embedding and every final validator remain
+mandatory.9 cache and15 existing Workflow tests pass; two guard mutations detected.
+Full standard suite interrupted; its pending DMA pin error reproduced on unchanged
+32d71b22. No full-suite success, Apple build or speed gain claimed.
+[Implementation, activation and rollback](https://github.com/TarbleFR/RewindBox/blob/4c90eb746c14b1455735df9013abd80c8c9001d0/docs/ipa-incremental-build.md).
+**Next / owner:** main integrates the exact candidates (never Backup), keeps these
+current coordination notes, classifies the cache helper/test commit reviewed before
+materialization/freeze, runs Core745 CI, pins and resumes733. Candidates are not yet
+integrated or compiled. The permanent single-recipe rule is active in ca8fa34d.
+Dedicated `REWINDBOX_BUILD_CACHE_KEY` is required for optional acceleration; Codex
+could not provision it (GitHub connector has no secret-write operation; PC connector
+unavailable twice with429). Without a key the normal build remains operational.
+No recipient private key or app-embedded credential is reused for this cache.
 Earlier S2Arm content/provenance audits remain archived; this cleanup adds no
 ownership or legality conclusion.
 
