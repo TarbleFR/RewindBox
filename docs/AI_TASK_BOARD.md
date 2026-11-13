@@ -349,6 +349,16 @@ artifact downloaded by id and checked with `engine_pin.py verify`. Recipient pub
 (`8dcc4f87…`). The owner session reported the Core 747 freeze running (105 gates, Linux, .NET 10.0.100, about two
 hours). Environment: artifact storage hosts had to be allowed for this session (new personal cloud environment
 `rewindbox`, approved by the maintainer) before any artifact could be downloaded and verified.
+**Core 747:** the owner froze it at `344666e5` (contract `b89a8124…`, 105/105 local gates, .NET 10.0.100); checked here
+(same contract digest, contract test 453 checks, recovery test 24, independent review of the adapter: no definite bug)
+and merged with the single request as `16a7a638`. **Core CI run `43423803238` attempt 1 failed in `actions/checkout`,
+before any gate or compilation** (job `131880036769`): with `fetch-depth: 0` the macOS runner (case-insensitive file
+system) cannot hold `refs/remotes/origin/Claude` next to `refs/remotes/origin/claude/youthful-goldberg-4aphwq`
+(“unable to update local ref”, three tries). Class: repository state, not product. That session branch has no commit
+of its own (its head `50924021` is in `Claude`); its remote deletion was refused to the executing session by its
+environment's protection, the maintainer deletes it. **Rule to keep: no remote branch may differ from `Claude` only by
+case in its first path component (`claude/…`), or every full-history macOS checkout fails, the five of
+`standard-delivery.yml` included.** Next: the same run is rerun once the branch is gone, then verification and pin.
 **Current execution (maintainer,13 Nov):** Codex was explicitly asked to launch the next common IPA,
 then to apply engine compilation improvements first. Issue179 comment6840690330 records this execution
 ownership; do not dispatch a competing Core/IPA. Reviewed recovery and optional host cache are integrated
