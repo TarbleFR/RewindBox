@@ -368,9 +368,9 @@ def retain_evidence():
         for name, expected in frozen['baselineReceipts'].items():
             require(copy_member(archive, name, HISTORICAL + name) == expected, 'Changed retained receipt: ' + name)
             historical[HISTORICAL + name] = expected
-        for name, scope in frozen['baselineAuxiliaryReceipts'].items():
-            require(copy_member(archive, name, HISTORICAL + name) == scope['sha256'], 'Changed auxiliary receipt: ' + name)
-            auxiliary[HISTORICAL + name] = scope
+        for name, auxiliary_scope in frozen['baselineAuxiliaryReceipts'].items():
+            require(copy_member(archive, name, HISTORICAL + name) == auxiliary_scope['sha256'], 'Changed auxiliary receipt: ' + name)
+            auxiliary[HISTORICAL + name] = auxiliary_scope
         for name in BASELINE_EVIDENCE:
             baseline_evidence[EVIDENCE_PREFIX + name] = copy_member(archive, name, EVIDENCE_PREFIX + name)
     for gate in frozen['gates']:
@@ -395,8 +395,8 @@ def compiled():
         require(all(archive.read(name) == child(SOURCE, name).read_bytes() for name in archive.namelist()), 'Archive differs from compiled source')
     for name, expected in {**gates['receipts'], **gates['retainedReceipts'], **gates['baselineEvidenceSha256']}.items():
         require(digest(child(OUT, name)) == expected, 'Gate/provenance receipt changed: ' + name)
-    for name, scope in gates['auxiliaryHistoricalReceipts'].items():
-        require(digest(child(OUT, name)) == scope['sha256'], 'Changed auxiliary historical proof')
+    for name, auxiliary_scope in gates['auxiliaryHistoricalReceipts'].items():
+        require(digest(child(OUT, name)) == auxiliary_scope['sha256'], 'Changed auxiliary historical proof')
     identities, binaries = {}, {}
     for runtime in ('ios-arm64', 'iossimulator-arm64'):
         directory = OUT / runtime

@@ -514,6 +514,30 @@ for key, bad in (('validationMode', 'full'), ('freshAppleGates', 3), ('deferredA
 check(verify.verify_validation_scope({'freshAppleGates': 3}, {'gates': [{}, {}, {}]})['fullRegressionSuiteExecuted'],
       'Original full-suite evidence must stay readable with its original scope')
 rejects(lambda: verify.validation_scope({'gates': [], 'validationMode': 'unknown'}), 'Unknown validation mode accepted')
+
+# Exercise the real receipt writer: historical auxiliary metadata must not
+# overwrite the current build's validation scope.
+from unittest.mock import patch
+import tempfile
+with tempfile.TemporaryDirectory() as tmp:
+    archive = Path(tmp) / 'history.zip'
+    with zipfile.ZipFile(archive, 'w') as z:
+        z.writestr('auxiliary.json', b'{}')
+    fixture = dict(scope_fixture, gates=[], baselineReceipts={},
+                   baselineAuxiliaryReceipts={'auxiliary.json': {'sha256': verify.sha(b'{}')}},
+                   reusedAppleGates=0, retainedDisposition={}, retainedChangedDependencies={})
+    written = {}
+    with patch.object(verify, 'contract', return_value=fixture), \
+         patch.object(verify, 'prior_archive', return_value=archive), \
+         patch.object(verify.common, 'execution', return_value={'source': 'fixture'}), \
+         patch.object(verify, 'read', return_value={'execution': {'source': 'fixture'}}), \
+         patch.object(verify, 'copy_member', return_value=verify.sha(b'{}')), \
+         patch.object(verify, 'BASELINE_EVIDENCE', ()), \
+         patch.object(verify, 'write', side_effect=lambda path, value: written.update(value)):
+        verify.retain_evidence()
+    check(verify.verify_validation_scope(written, fixture)['freshAppleGates'] == 0,
+          'Historical auxiliary evidence overwrote the fresh compilation scope')
+
 workflow = (ROOT / '.github/workflows/melonx-core.yml').read_text()
 check('verify_dma_core.py run_gates' not in workflow and 'fetch-depth: 1' in workflow,
       'Exhaustive fixtures or all-branch checkout remain in the compilation route')
