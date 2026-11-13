@@ -1,7 +1,7 @@
 {
   "version": 1,
   "repository": "TarbleFR/RewindBox",
-  "base_sha": "f61b2bdea4a8bb10943953e5ffb5686086dc05f6",
+  "base_sha": "f4fb22fd3bc705ce302a6a9cb58ec5f8cff1fece",
   "expires_at": "2026-11-14T23:59:00Z",
   "runs": [
     {
@@ -76,5 +76,6 @@
       "id": 403754755,
       "path": ".github/workflows/rewind610-delivery.yml"
     }
-  ]
+  ],
+  "skip_cancellation_requests": true
 }

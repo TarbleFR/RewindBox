@@ -87,6 +87,25 @@ def check_disable(api, workflow, plan):
         eligible(api, pending[run["id"]])
 
 
+def disable_workflow(api, item, plan, sleep=time.sleep):
+    path = PREFIX + f'/actions/workflows/{item["id"]}'
+    current = api.request(path)
+    require(current["path"] == item["path"], "Workflow identity mismatch")
+    if current["state"] == "disabled_manually":
+        return "already_disabled"
+    check_disable(api, item, plan)
+    api.request(path + "/disable", "PUT")
+    # GitHub's read endpoint can lag a successful mutation. Poll confirmation;
+    # never repeat the mutation or declare success from the HTTP response alone.
+    for _ in range(12):
+        current = api.request(path)
+        require(current["path"] == item["path"], "Workflow identity mismatch")
+        if current["state"] == "disabled_manually":
+            return "disabled"
+        sleep(5)
+    return "disable_requested_unconfirmed"
+
+
 def validate(plan):
     require(plan.get("version") == 1 and plan.get("repository") == REPO, "Wrong plan")
     require(SHA.fullmatch(plan.get("base_sha", "")), "Bad base")
@@ -119,16 +138,19 @@ def main():
         tmp = path.with_suffix(".tmp"); tmp.write_text(json.dumps(receipt, indent=2)+"\n"); tmp.replace(path)
     try:
         for entry in plan["runs"]:
-            result = cancel(api, entry) if args.execute else ("eligible" if eligible(api, entry) else "completed")
+            if plan.get("skip_cancellation_requests") is True:
+                result = "previous_cancellation_not_retried" if eligible(api, entry) else "completed"
+            else:
+                result = cancel(api, entry) if args.execute else ("eligible" if eligible(api, entry) else "completed")
             receipt["operations"].append({"kind": "run", **entry, "result": result}); save()
         for item in plan["workflows"]:
-            current = api.request(PREFIX + f'/actions/workflows/{item["id"]}')
-            require(current["path"] == item["path"], "Workflow identity mismatch")
-            check_disable(api, item, plan)
             if args.execute:
-                api.request(PREFIX + f'/actions/workflows/{item["id"]}/disable', "PUT")
-                require(api.request(PREFIX + f'/actions/workflows/{item["id"]}')["state"] == "disabled_manually", "Disable not confirmed")
-            receipt["operations"].append({"kind": "workflow", **item, "result": "disabled" if args.execute else "eligible"}); save()
+                result = disable_workflow(api, item, plan)
+            else:
+                current = api.request(PREFIX + f'/actions/workflows/{item["id"]}')
+                require(current["path"] == item["path"], "Workflow identity mismatch")
+                check_disable(api, item, plan); result = "eligible"
+            receipt["operations"].append({"kind": "workflow", **item, "result": result}); save()
         receipt["status"] = "completed" if args.execute else "dry_run"
     except Exception as error:
         receipt.update(status="stopped", error=str(error)); raise

@@ -16,8 +16,8 @@ jobs:
       github.repository == 'TarbleFR/RewindBox' &&
       github.ref == 'refs/heads/Claude' &&
       github.event_name == 'push' &&
-      github.event.before == 'f61b2bdea4a8bb10943953e5ffb5686086dc05f6' &&
-      contains(github.event.head_commit.message, '[actions-retire-final-2026-11-13]')
+      github.event.before == 'f4fb22fd3bc705ce302a6a9cb58ec5f8cff1fece' &&
+      contains(github.event.head_commit.message, '[actions-disable-confirm-2026-11-13]')
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -43,7 +43,7 @@ jobs:
         run: >-
           python3 -u build-utils/maintenance/retire_obsolete_actions.py
           --plan build-utils/maintenance/obsolete-actions-2026-11-13-final.json
-          --expected-plan-sha256 d2ddbb369d432924c000260767bacc61aae34a6f3472f3b03ca8a1114fd2640e --execute
+          --expected-plan-sha256 92138ebcd3f565b5f2fa25ab194929dea1999bbc67e0e23259a0239873a6124c --execute
       - name: Preserve receipts
         if: always()
         uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb

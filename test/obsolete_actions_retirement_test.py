@@ -95,4 +95,12 @@ class Retirement(unittest.TestCase):
             with self.assertRaises(RuntimeError):m.check_disable(a,workflow,plan)
         with patch.object(m,'live',return_value=[{**a.run,'id':2}]):
             with self.assertRaises(RuntimeError):m.check_disable(a,workflow,plan)
+    def test_eventually_visible_disable_only_mutates_once(self):
+        with patch.object(m,'API') as api,patch.object(m,'check_disable'):
+            item={'id':1,'path':'.github/workflows/rewind610-delivery.yml'}
+            api.request.side_effect=[{'path':item['path'],'state':'active'},None,
+                                     {'path':item['path'],'state':'active'},
+                                     {'path':item['path'],'state':'disabled_manually'}]
+            self.assertEqual(m.disable_workflow(api,item,{},lambda _:None),'disabled')
+            self.assertEqual(len([c for c in api.request.call_args_list if len(c.args)>1 and c.args[1]=='PUT']),1)
 if __name__=='__main__':unittest.main()
