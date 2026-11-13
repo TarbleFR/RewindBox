@@ -184,6 +184,19 @@ private keys after verified delivery. SideStore supplies Apple provisioning.
 State unavailable file/device verification explicitly. No public release/tag/post
 or paid-service authorization is implied.
 
+**Delivery priority (maintainer,13 November2026):** waiting thirty minutes after a green
+IPA and receiving unusable links is unacceptable. Keep following the authorized run
+through private file delivery; do not end at launch and wait for the maintainer to
+ask again. While CI runs, prepare the recipient, empty verification directory and
+current transfer helpers. On success, retrieve the four final parts concurrently,
+authenticate/decrypt them and execute the mandatory final checks once on the exact
+file. Preserve the required receipts before deleting the recipient key. Save and
+present the verified downloadable file immediately; optional reviews, reports,
+repository housekeeping and future optimizations follow delivery. Use the confirmed
+native file link; if the user reports it unusable, provide a fresh ZIP attachment
+and the exact filename to locate directly. Never claim a client download was tested
+unless it was observed. Never trade integrity/signature/source checks for speed.
+
 ## Diagnose, correct and verify
 
 - Resume existing evidence; reopen only for changed input, contradiction or untested
