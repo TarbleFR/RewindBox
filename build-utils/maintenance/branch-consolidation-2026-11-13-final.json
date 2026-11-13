@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "repository": "TarbleFR/RewindBox",
+  "base_sha": "608181b2bf62ba7e4f661bd2cb8299e6f54a352e",
+  "main_sha": "c60bcb5cad02626a85487f6577782784458d2fb9",
+  "backup_sha": "4e2ec7580e619e4c16c7e54182b912ef18ee4421",
+  "expires_at": "2026-11-14T23:59:00Z",
+  "branches": [
+    {
+      "branch": "work/melonx-fps-stability-20261103",
+      "sha": "f5abc0ac1cc7c93882f08c4742c239679d046f21"
+    },
+    {
+      "branch": "work/melonx-lot5-core711",
+      "sha": "94141f6fc29c2b883ec47db1d490ccb27fa5365a"
+    },
+    {
+      "branch": "work/melonx-lot5",
+      "sha": "85ec49bca5e60f700bec1135f3659722414b7d59"
+    },
+    {
+      "branch": "work/melonx-lot7-metal-archive",
+      "sha": "af40d42c0d515a414083ff77e929a59330b832d0"
+    },
+    {
+      "branch": "work/melonx-lot10-20261112",
+      "sha": "d17a29f2b27a105f162ec3ec72f8b2234c71591c"
+    },
+    {
+      "branch": "work/playlists-xenios-20261110",
+      "sha": "c0b6c22fbe191963a1ba47b3fe8bf0d17450c3c7"
+    },
+    {
+      "branch": "work/private-ipa-protection-main-20261111",
+      "sha": "f155bd2d249ac49f7d5a3c8d022e87278ce27bab"
+    },
+    {
+      "branch": "work/rpcs3-core668-no-orchestrator-20261105",
+      "sha": "0197102ef5d70e5bbed2d74c6b4790a625767bd1"
+    },
+    {
+      "branch": "work/rpcs3-metal-native-20261105",
+      "sha": "734406264ff2b0f3947d51d70229aa5d754218a1"
+    },
+    {
+      "branch": "work/s2arm-switch2-library-20261111",
+      "sha": "018da606586f403801a2fb5f2daec105af44daf8"
+    },
+    {
+      "branch": "work/s2arm-switch2-prototype-20261110",
+      "sha": "96477152c1b60f24085796270bfa1a575fb2428b"
+    },
+    {
+      "branch": "work/skins-board-originals-20261104",
+      "sha": "b8948da27877d37e99ea3bbc376f32dae1d56145"
+    },
+    {
+      "branch": "work/skins-bundled-refresh-20261104",
+      "sha": "0e3fd224991418e2a5d29a9225e1fe64ef17d369"
+    },
+    {
+      "branch": "work/skins-device-653-check-20261104",
+      "sha": "4eb0ab3982efe83d1b677c64a4c4406c2a93acae"
+    },
+    {
+      "branch": "work/skins-original-touch-20261104",
+      "sha": "5c25e9c4c9db10c2852472a3852cf1fc2a17a20d"
+    },
+    {
+      "branch": "work/skins-portrait-lock-20261103",
+      "sha": "7dbb704ecba6d1b5e3207a75c7b7042f6d56f802"
+    },
+    {
+      "branch": "work/skins-ps2-original-20261104",
+      "sha": "4b371ec1beafd9510a75ac2714c348d56c7b6c67"
+    },
+    {
+      "branch": "work/skins-stick-circle-20261105",
+      "sha": "5131e3b294558ff911d722474bede295a8ee9f56"
+    },
+    {
+      "branch": "work/skins-stick-silhouette-20261105",
+      "sha": "36899a0132f94646d865f8f6b44326d76623e895"
+    },
+    {
+      "branch": "work/skins-stick-top-20261104",
+      "sha": "a1a714fca74a892b5b01322f545938044dc0e050"
+    },
+    {
+      "branch": "work/skins-switch-pocket-20261104",
+      "sha": "7c75bd2be1b27641128e4491516eb0fbc57cfeb1"
+    }
+  ]
+}

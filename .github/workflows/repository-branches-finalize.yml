@@ -1,0 +1,67 @@
+name: Finish archived branch consolidation
+run-name: Finish branch consolidation after preserving concurrent MeloNX work
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - build-utils/maintenance/branch-consolidation-2026-11-13-final.json
+permissions:
+  contents: read
+concurrency:
+  group: rewindbox-branch-consolidation
+  cancel-in-progress: false
+jobs:
+  consolidate:
+    if: >-
+      github.repository == 'TarbleFR/RewindBox' &&
+      github.ref == 'refs/heads/Claude' &&
+      github.event_name == 'push' &&
+      github.event.before == '608181b2bf62ba7e4f661bd2cb8299e6f54a352e' &&
+      contains(github.event.head_commit.message, '[branches-finalize-2026-11-13]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      actions: read
+      issues: read
+      pull-requests: read
+    steps:
+      - name: Read exact maintenance sources only
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /build-utils/maintenance/
+            /tools/coordination/
+            /test/branch_consolidation_test.py
+            /test/repository_tidy_test.py
+            /test/coordination_status_test.py
+      - name: Check mutation guards
+        run: |
+          python3 -m unittest discover -s test -p branch_consolidation_test.py -v
+          python3 -m unittest discover -s test -p repository_tidy_test.py -v
+          python3 -m unittest discover -s test -p coordination_status_test.py -v
+      - name: Apply reviewed consolidate plan
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          python3 -u build-utils/maintenance/consolidate_branches.py
+          --plan build-utils/maintenance/branch-consolidation-2026-11-13-final.json
+          --expected-plan-sha256 f74d15477df5981d4be83910f7d84f121d039c5775a0349d83a769c1a7a60947 --execute
+      - name: Publish common cross-account status
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p cleanup-output
+          python3 tools/coordination/status.py > cleanup-output/shared-status.json
+      - name: Preserve receipts
+        if: always()
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
+        with:
+          name: Repository-consolidate-${{ github.run_id }}
+          path: cleanup-output/
+          if-no-files-found: error
+          retention-days: 90
