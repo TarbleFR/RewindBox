@@ -33,12 +33,11 @@ index 6abf00e3a..6a6893b66 100644
  "dprompt.expiry.lessThanHour" = "less than 1 hour";
 diff --git a/ios/l10n/fr.lproj/S2ArmHost.strings b/ios/l10n/fr.lproj/S2ArmHost.strings
 new file mode 100644
-index 000000000..fe7874eef
+index 000000000..e697c2954
 --- /dev/null
 +++ b/ios/l10n/fr.lproj/S2ArmHost.strings
-@@ -0,0 +1,8 @@
+@@ -0,0 +1,7 @@
 +/* RewindBox (patch 0018): the diagnostics question in French. A partial table: every other key is read from en.lproj (ios/s2a_l10n.h s2a_l10n). */
-+"diag.export" = "Exporter le diagnostic";
 +"diag.prompt.abnormalExit" = "La dernière session S2Arm ne s’est pas terminée normalement (plantage, blocage ou fermeture par le système)";
 +"diag.prompt.crash" = "Le système a signalé un plantage ou un blocage de S2Arm lors de la dernière session";
 +"diag.prompt.message" = "%@. Le fichier de diagnostic ne contient que des journaux d’exécution : ni sauvegardes, ni clés, ni fichiers de jeu. Il n’est transmis à personne : vous choisissez où l’enregistrer.";
@@ -83,3 +82,119 @@ index e0a1b8c77..d657bbd17 100644
  // RewindBox: the same bundle for the engine's other own resources and Info.plist keys (load page, HUD, diagnostics, community patch
  //   list, NS2Pro.framework next to it): the main bundle in S2Arm.app, S2ArmEngine.framework in a RewindBox guest
  static inline NSBundle *s2a_engine_bundle(void) { return s2a_l10n_bundle(); }
+diff --git a/runtime/include/s2a_sesdiag.h b/runtime/include/s2a_sesdiag.h
+index 8a639ff4e..e93aaf772 100644
+--- a/runtime/include/s2a_sesdiag.h
++++ b/runtime/include/s2a_sesdiag.h
+@@ -10,6 +10,9 @@ enum { S2A_SUM_END_UNKNOWN = 0, S2A_SUM_END_EXIT = 1, S2A_SUM_END_CRASH = 2 };
+ int s2a_sesmark_prev(const char *docs);
+ void s2a_sesmark_set(const char *docs, int state);
+ void s2a_sesmark_clear_home(void);
++// RewindBox (patch 0018): a parked session is at rest: its marker is deleted and not written until it resumes (sesdiag.c)
++void s2a_sesmark_rest(const char *docs, int rest);
++void s2a_sesmark_rest_home(int rest);
+ typedef struct {
+     long long frames, thermal, peak_mb;   // -1 = 没见到
+     int mark, end, last_state, truncated;  // last_state：S2A_SESMARK_FG / BG / 3 = 前台失焦，0 = 没有心跳
+diff --git a/runtime/src/rb_guest.c b/runtime/src/rb_guest.c
+index 91f4270a8..5227411cb 100644
+--- a/runtime/src/rb_guest.c
++++ b/runtime/src/rb_guest.c
+@@ -7,6 +7,7 @@
+ #include "s2a_session.h"
+ #include "imgpack.h"
+ #include "s2a_launch_ctx.h"
++#include "s2a_sesdiag.h"   // patch 0018: s2a_sesmark_rest_home
+ #include <dispatch/dispatch.h>
+ #include <errno.h>
+ #include <pthread.h>
+@@ -130,6 +131,7 @@ static void park_result(int result, const char *detail, void *context) {
+     const char *why = context;
+     if (!result) {
+         LOG("RewindBox guest: session parked (%s); the same game can resume in this process", why);
++        s2a_sesmark_rest_home(1);   // patch 0018: at rest, as after an orderly end: the diagnostics question is not asked for a game the player quit
+         s2a_logcon_flush();
+         if (g_cfg.session_parked) g_cfg.session_parked(why, g_cfg.parked_context);   // the host copies the reason
+         free((void *)why);
+@@ -185,6 +187,7 @@ int s2a_rb_guest_resume_session(char *error, size_t error_size) {   // ios/app.m
+     if (!s2a_rb_guest_parked()) return refuse(error, error_size, "the session is not parked");
+     int rc = s2a_host_resume(resume_result, NULL);
+     if (rc) return refuse(error, error_size, "the parked session could not resume now (%d)", rc);
++    s2a_sesmark_rest_home(0);   // patch 0018: no longer at rest from here on: a resume that fails, or a crash of the resumed game, is asked about at the next start
+     LOG("RewindBox guest: resume requested");
+     return 0;
+ }
+diff --git a/runtime/src/sesdiag.c b/runtime/src/sesdiag.c
+index 23d948576..0fc27c494 100644
+--- a/runtime/src/sesdiag.c
++++ b/runtime/src/sesdiag.c
+@@ -7,6 +7,7 @@
+ #include "native.h"
+ #include <errno.h>
+ #include <fcntl.h>
++#include <pthread.h>
+ #include <stdlib.h>
+ #include <string.h>
+ #include <sys/stat.h>
+@@ -25,24 +26,56 @@ int s2a_sesmark_prev(const char *docs) {
+     char b[8] = {0}; ssize_t r = read(fd, b, sizeof b - 1); close(fd);
+     return r >= 2 && !memcmp(b, "bg", 2) ? S2A_SESMARK_BG : S2A_SESMARK_FG;   // 读不全按 fg：宁可多问一次
+ }
+-void s2a_sesmark_set(const char *docs, int state) {
++// RewindBox (patch 0018): a session at rest. The in-game Quit of a RewindBox guest parks the session (patch 0010) instead of shutting the engine down, so the
++//   orderly shutdown that deletes the marker never runs: the marker stayed "fg" while the host app went on, and an end of that app in the foreground read, at
++//   the game's next start, as a Switch 2 session that did not end normally. A parked session is at rest: its marker is deleted, as at an orderly end, and not
++//   written while it rests. The app's foreground / background changes still come in (ios/app.m): the last one is kept and written when the session resumes.
++//   One lock over the state and the file, so that a change arriving while the session parks is not written after the deletion. S2Arm.app never rests
++static pthread_mutex_t g_mark_mu = PTHREAD_MUTEX_INITIALIZER;
++static int g_mark_rest, g_mark_last = S2A_SESMARK_FG;   // under g_mark_mu
++static void mark_write(const char *docs, int state) {
+     char p[1100]; if (!mark_path(docs, p, sizeof p)) return;
+     if (state == S2A_SESMARK_NONE) { if (unlink(p) && errno != ENOENT) LOG("【红】会话标记删除失败 errno=%d", errno); return; }
+     int fd = open(p, O_WRONLY | O_CREAT | O_TRUNC, 0644); if (fd < 0) { LOG("【红】会话标记写入失败 errno=%d", errno); return; }
+     ssize_t w = write(fd, state == S2A_SESMARK_BG ? "bg\n" : "fg\n", 3); (void)w; close(fd);
+ }
++void s2a_sesmark_set(const char *docs, int state) {
++    pthread_mutex_lock(&g_mark_mu);
++    if (state != S2A_SESMARK_NONE) g_mark_last = state;
++    if (state == S2A_SESMARK_NONE || !g_mark_rest) mark_write(docs, state);
++    pthread_mutex_unlock(&g_mark_mu);
++}
++void s2a_sesmark_rest(const char *docs, int rest) {   // 1 = the session is parked, 0 = it resumed
++    pthread_mutex_lock(&g_mark_mu);
++    g_mark_rest = rest != 0;
++    mark_write(docs, rest ? S2A_SESMARK_NONE : g_mark_last);
++    pthread_mutex_unlock(&g_mark_mu);
++}
+ #if defined(__APPLE__) && TARGET_OS_IPHONE
+ // RewindBox guest (runtime/src/rb_guest.c): the marker sits next to the engine's log, in the host's docs (ios/diag.m docs()).
+ //   Weak default for builds without rb_guest.c: not a guest
+ __attribute__((weak)) int s2a_rb_guest_on(void) { return 0; }
+ #endif
++#if defined(__APPLE__) && TARGET_OS_IPHONE
++// The folder ios/diag.m writes the marker in (1 = d holds it): 进程级容器 Documents（s2a_docs.h）；RewindBox guest: the engine's log directory (launch context)
++static int mark_home(char *d, size_t n) {
++    int r = s2a_container_docs(d, n); if (r <= 0 || (size_t)r >= n) return 0;
++    if (s2a_rb_guest_on()) { const s2a_launch_ctx *lc = s2a_launch_ctx_get(); if (!lc || (size_t)snprintf(d, n, "%s", lc->log_dir) >= n) return 0; }
++    return 1;
++}
++#endif
+ // 优雅退出时删标记（lifecycle.c 收局最后调）。只在 iOS：Mac 的 HOME/Documents 是开发者的文稿目录，不往里写
+ void s2a_sesmark_clear_home(void) {
+ #if defined(__APPLE__) && TARGET_OS_IPHONE
+-    char d[1030]; int r = s2a_container_docs(d, sizeof d); if (r <= 0 || (size_t)r >= sizeof d) return;
+-    // RewindBox guest: the engine's log directory (launch context), where ios/diag.m writes the marker
+-    if (s2a_rb_guest_on()) { const s2a_launch_ctx *lc = s2a_launch_ctx_get(); if (!lc || (size_t)snprintf(d, sizeof d, "%s", lc->log_dir) >= sizeof d) return; }
+-    s2a_sesmark_set(d, S2A_SESMARK_NONE);   // 进程级容器 Documents（s2a_docs.h），与 diag.m 写标记的位置一致
++    char d[1030]; if (mark_home(d, sizeof d)) s2a_sesmark_set(d, S2A_SESMARK_NONE);   // 与 diag.m 写标记的位置一致
++#endif
++}
++// RewindBox (patch 0018): the guest's session parked (1) or resumed (0), from runtime/src/rb_guest.c; see s2a_sesmark_rest
++void s2a_sesmark_rest_home(int rest) {
++#if defined(__APPLE__) && TARGET_OS_IPHONE
++    char d[1030]; if (mark_home(d, sizeof d)) s2a_sesmark_rest(d, rest);
++#else
++    (void)rest;
+ #endif
+ }
+ 

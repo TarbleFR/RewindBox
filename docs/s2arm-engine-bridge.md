@@ -208,7 +208,8 @@ remained.
   from scratch.
   - The code stage now reports each step: addr_need, nro, each module, tables. The resource pack reports bytes. Events
     are throttled to 1 % or 250 ms, and each carries `detail` (the module), shown as "code · main".
-  - `<game>/prepared.json` keeps the result and a fingerprint of the inputs. The fingerprint covers the app build, the
+  - `<game>/prepared.json` keeps the result and a fingerprint of the inputs. The fingerprint covers the app build
+    (since 13 Nov: what the preparation depends on instead, see "Preparation kept across deliveries" below), the
     direct chain, the system data list, the export folder, its parts, every ExeFS file by size and date, and the
     RomFS roots. A later launch with the same inputs and its outputs still present (image pack, `.applied`) reuses the
     result (`reused: true`). The stamp is removed before a new preparation and written after its last step.
@@ -325,3 +326,47 @@ tree with a warm cache: unpack 1.42 → 0.85 s, caps 0.25 → 0.00 s, NRO walk 0
 The phone's times are not measured yet. Its `stat` costs about 140 µs per RomFS entry in a walk, far more than on
 this machine. The progress bar's step weights (unpack 4 %, code 80 %, pack 6 %...) still follow the old guesses, to
 be set from the next journal.
+
+## Preparation kept across deliveries (IPA 734 journal, 13 Nov 2026)
+
+Journal of an iPhone17,2, first launch of Mario Kart World after IPA 734 was installed: the preparation ran again from
+scratch, 92 s (RomFS view 25.2 s, code 3.1 s, pack walk 19.9 s, pack hashing 43.4 s). The pack folder went with it, so
+the engine also wrote its RomFS index again and translated its shaders again at their first use. The fingerprint held
+the app's build number, which changes with every delivery, whatever the delivery contains.
+
+The fingerprint now holds what a preparation depends on (`preparationCodeIdentity` in `S2ArmGamePreparation.m`):
+
+| Part | Value | Where it comes from |
+|---|---|---|
+| the preparation library | SHA-256 of its pinned archive (`prepare/S2ArmPrepare.xcframework.zip`) | `binaries` of `S2Arm-native-identity.json` |
+| the bridge's own steps | `kPreparedSteps`, a number | `S2ArmGamePreparation.m` |
+| the engine's formats | the S2Arm commit the engine is built from | `sourceIdentity.s2arm_commit` of the same record |
+
+`S2Arm-native-identity.json` sits at the app root. The delivery writes it once it has proved the embedded pieces are the
+pinned bytes (`engine_identity` in `standard_delivery.py`; `install-prepare` links the preparation archive only when it
+is the pinned one). An app without that record, or with one that lacks either value, uses the build number as before.
+
+What this changes: a delivery that brings only engine patches keeps the preparation, and with it the RomFS index and
+the translated shaders. That is sound because what the engine itself writes into a prepared game carries its own key:
+the shader library its chain (`b-<chain>`, and the chain is in the fingerprint), the RomFS index its stamp (engine patch
+0014). A new preparation library, another S2Arm commit, another chain or system data list, a changed export, or a
+raised `kPreparedSteps` prepares again.
+
+The system data list was not part of the fingerprint in practice: it was looked for inside `systemdata/`, and the
+shipped tree has it one level above (`S2ArmSystemData/SHA256SUMS`), so the line always read `systemdata -`. The build
+number hid that. The list is now read where the delivery puts it, so a delivery that changes the system data prepares
+again (each pack holds a copy of them).
+
+A first form of this change took the identity from the linker UUID of the app's binary and of the engine's. The review
+of 13 Nov showed it gave nothing: the app's binary gets a new UUID at every delivery (`docs/core-swap-delivery.md`: the
+build number is compiled into it and the linker's order is not stable), and the recipe itself requires it to change.
+
+`kPreparedSteps` is raised by hand when a change to the bridge's steps makes a game prepared before unfit to be reused.
+`test/s2arm_prepare_identity_test.py` records the SHA-256 of `runSteps` and fails when `runSteps` changes, until the
+digest is recorded again: that is the moment to decide.
+
+The journal's `prepare begin` and `prepare reused` lines carry `identity` (`pin` or `build`) and `engineRun` (the CI run
+of the engine in the app, 0 when unknown).
+
+Not observed on a device. The first launch after the delivery that brings this prepares once more (the fingerprint's
+form changed); `prepare reused` after the delivery that follows it is the gain to look for.

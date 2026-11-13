@@ -4,10 +4,8 @@
 #import "S2ArmPrepareABI.h"
 #import "S2ArmLaunchJournal.h"
 #import "S2ArmCodePages.h"   // s2arm_code_now_ns
-#import "S2ArmCodeIdentity.h"
 
 #import <CommonCrypto/CommonDigest.h>
-#import <dlfcn.h>
 #import <mach/mach.h>
 #import <os/proc.h>
 #import <pthread.h>
@@ -398,33 +396,58 @@ static NSString *_Nullable contentIdentity(NSString *root) {
   return sha256Hex(data);
 }
 
-// The compiled code a preparation depends on: the image that holds the preparation library (it is linked into the app's
-// binary with this plugin) and the engine framework's binary, each by the UUID its linker gave it (S2ArmCodeIdentity.h).
+// What this file's steps leave on disk for a given export, as a number: part of every preparation's fingerprint. Raise it
+// with any change here that makes a game prepared before the change unfit to be reused (another layout of root, module,
+// images or pack, other arguments to the preparation library): games are then prepared again once. A change that leaves
+// finished preparations valid keeps it. test/s2arm_prepare_identity_test.py holds the digest of runSteps and fails when
+// runSteps changes without that digest being recorded again, so the question is asked each time.
+static NSString *const kPreparedSteps = @"1";
+
+static BOOL isLowerHex(id value, NSUInteger length) {
+  if (![value isKindOfClass:NSString.class]) return NO;
+  NSString *text = value;
+  NSCharacterSet *other = [NSCharacterSet characterSetWithCharactersInString:@"0123456789abcdef"].invertedSet;
+  return text.length == length && [text rangeOfCharacterFromSet:other].location == NSNotFound;
+}
+
+// The pinned pieces a preparation depends on, read from <app>/S2Arm-native-identity.json. The delivery writes that record
+// once it has proved the embedded pieces are the pinned bytes (standard_delivery.py engine_identity; check_app.py reads it
+// too): binaries gives the SHA-256 of the preparation library's archive, the one linked into this app, and sourceIdentity
+// the S2Arm commit the engine is built from, whose formats the prepared files are in.
 // Before, the app's build number stood for both, and it changes with every delivery whatever the delivery contains:
 // Mario Kart World was prepared again after each one, 92 s on an iPhone17,2 (journal of 13 Nov, IPA 734), and the engine's
-// RomFS index with it. A delivery whose preparation code and engine are byte for byte the same now keeps the preparation.
-// When either UUID cannot be read the build number is used, as before. *kind says which, for the journal.
-static NSString *preparationCodeIdentity(const char **kind) {
-  char code[S2ARM_UUID_TEXT] = "", engine[S2ARM_UUID_TEXT] = "";
-  Dl_info image;
-  int haveCode = dladdr((const void *)&rb_s2arm_prepare_code, &image) && image.dli_fbase && s2arm_macho_uuid_loaded(image.dli_fbase, code);
-  NSString *enginePath = [NSBundle.mainBundle.privateFrameworksPath stringByAppendingPathComponent:@"S2ArmEngine.framework/S2ArmEngine"];
-  int haveEngine = enginePath.length && s2arm_macho_uuid_file(enginePath.fileSystemRepresentation, engine);
-  *kind = haveCode && haveEngine ? "code" : "build";
-  if (haveCode && haveEngine) return [NSString stringWithFormat:@"code %s engine %s", code, engine];
+// RomFS index and translated shaders went with it. A delivery that changes neither piece nor kPreparedSteps now keeps the
+// preparation: one that only brings engine patches does, since what the engine itself writes into a prepared game carries
+// its own key (shader library: the chain, in the fingerprint below; RomFS index: its stamp, engine patch 0014).
+// Without the record, or with one that lacks either value (a build outside the delivery), the build number is used, as
+// before. *kind says which, for the journal; *engineRun is the engine's CI run (0: unknown), for the journal too.
+static NSString *preparationCodeIdentity(const char **kind, long long *engineRun) {
+  NSData *data = [NSData dataWithContentsOfFile:[NSBundle.mainBundle.bundlePath stringByAppendingPathComponent:@"S2Arm-native-identity.json"]];
+  id record = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
+  id binaries = [record isKindOfClass:NSDictionary.class] ? record[@"binaries"] : nil;
+  id source = [record isKindOfClass:NSDictionary.class] ? record[@"sourceIdentity"] : nil;
+  id library = [binaries isKindOfClass:NSDictionary.class] ? binaries[@"prepare/S2ArmPrepare.xcframework.zip"] : nil;
+  id commit = [source isKindOfClass:NSDictionary.class] ? source[@"s2arm_commit"] : nil;
+  id run = [source isKindOfClass:NSDictionary.class] ? source[@"run"] : nil;
+  *engineRun = [run isKindOfClass:NSNumber.class] ? ((NSNumber *)run).longLongValue : 0;
+  if (isLowerHex(library, 64) && isLowerHex(commit, 40)) {
+    *kind = "pin";
+    return [NSString stringWithFormat:@"prepare %@ steps %@ s2arm %@", library, kPreparedSteps, commit];
+  }
+  *kind = "build";
   return [NSString stringWithFormat:@"build %@", NSBundle.mainBundle.infoDictionary[@"CFBundleVersion"] ?: @"-"];
 }
 
 // What a finished preparation depends on, kept in <game>/prepared.json:
-// - the compiled code that prepares and runs the game (preparationCodeIdentity: engine and preparation code);
-// - the direct library chain and the system data list;
+// - the pinned preparation library, this file's steps and the engine's S2Arm commit (preparationCodeIdentity);
+// - the direct library chain and the system data list (the pack holds a copy of the system data);
 // - the export as found: its folder, each top-level part (base, update, DLC) with its date, every ExeFS file by size and
 //   date, and each RomFS root.
 // Any change prepares again. The folder is part of it because the RomFS is read in place through links into the export.
-static NSString *preparationFingerprint(NSString *exportDir, NSString *chain, NSString *systemData, const char **identityKind) {
+static NSString *preparationFingerprint(NSString *exportDir, NSString *chain, NSString *systemData, const char **identityKind, long long *engineRun) {
   NSFileManager *files = NSFileManager.defaultManager;
   NSMutableString *text = [NSMutableString stringWithString:@"s2arm-prepared 1\n"];
-  [text appendFormat:@"%@\nchain %@\nexport %@\n", preparationCodeIdentity(identityKind), chain, exportDir];
+  [text appendFormat:@"%@\nchain %@\nexport %@\n", preparationCodeIdentity(identityKind, engineRun), chain, exportDir];
   for (NSString *part in [[files contentsOfDirectoryAtPath:exportDir error:nil] sortedArrayUsingSelector:@selector(compare:)]) {
     if ([part hasPrefix:@"."]) continue;
     NSString *partPath = [exportDir stringByAppendingPathComponent:part];
@@ -441,7 +464,13 @@ static NSString *preparationFingerprint(NSString *exportDir, NSString *chain, NS
                          (unsigned long)[files contentsOfDirectoryAtPath:romfs error:nil].count];
     }
   }
+  // The list of the system data tree. The shipped tree has it beside the systemdata/ folder the pack takes
+  // (<app>/S2ArmSystemData/SHA256SUMS); a folder given by the caller may hold its own. It was looked for in the folder
+  // only, where the shipped tree has none: the line was always "systemdata -", which the build number hid until 13 Nov.
   NSData *sums = [NSData dataWithContentsOfFile:[systemData stringByAppendingPathComponent:@"SHA256SUMS"]];
+  if (sums.length == 0) {
+    sums = [NSData dataWithContentsOfFile:[systemData.stringByDeletingLastPathComponent stringByAppendingPathComponent:@"SHA256SUMS"]];
+  }
   [text appendFormat:@"systemdata %@\n", sums.length ? sha256Hex(sums) : @"-"];
   return sha256Hex([text dataUsingEncoding:NSUTF8StringEncoding]);
 }
@@ -531,14 +560,15 @@ static NSString *mapPrepareCode(int rc) {
   NSString *docsDir = [gameDir stringByAppendingPathComponent:@"docs"];   // kept across preparations (saves)
   NSString *stampPath = [gameDir stringByAppendingPathComponent:@"prepared.json"];
   const char *identityKind = "build";
-  NSString *fingerprint = preparationFingerprint(exportDir, chain, systemData, &identityKind);
+  long long engineRun = 0;
+  NSString *fingerprint = preparationFingerprint(exportDir, chain, systemData, &identityKind, &engineRun);
   NSDictionary *reused = reusablePreparation(stampPath, fingerprint, gid);
   if (reused) {
-    s2arm_journal("prepare", "reused", "\"gid\":\"%s\",\"identity\":\"%s\"", gid.UTF8String, identityKind);
+    s2arm_journal("prepare", "reused", "\"gid\":\"%s\",\"identity\":\"%s\",\"engineRun\":%lld", gid.UTF8String, identityKind, engineRun);
     [self emit:@"done" index:kPrepareSteps count:kPrepareSteps fraction:1 detail:@"reused"];
     return reused;
   }
-  s2arm_journal("prepare", "begin", "\"gid\":\"%s\",\"identity\":\"%s\"", gid.UTF8String, identityKind);
+  s2arm_journal("prepare", "begin", "\"gid\":\"%s\",\"identity\":\"%s\",\"engineRun\":%lld", gid.UTF8String, identityKind, engineRun);
 
   // The root, module, image pack and pack are rebuilt from scratch; docs is preserved. The stamp goes first, so an
   // interrupted preparation is never reused. The previous root is moved aside (one rename) and deleted in the background

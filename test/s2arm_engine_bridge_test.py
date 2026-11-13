@@ -290,18 +290,19 @@ check(run.index('rb_s2arm_resource_pack(&resource') < run.index('[stamp writeToF
       'the stamp is written only after the last step succeeded')
 fingerprint = prep[prep.index('static NSString *preparationFingerprint('):]
 fingerprint = fingerprint[:fingerprint.index('\n}\n')]
-for part in ('preparationCodeIdentity(identityKind)', 'chain', 'exportDir', '@"exefs"', '@"romfs"', 'SHA256SUMS'):
+for part in ('preparationCodeIdentity(identityKind, engineRun)', 'chain', 'exportDir', '@"exefs"', '@"romfs"', 'SHA256SUMS'):
     check(part in fingerprint, f'the preparation fingerprint covers {part}')
-# The compiled code, not the build number: a delivery that changes neither the preparation code nor the engine keeps the
-# preparation (test/s2arm_prepare_identity_test.py). The build number stays the identity when a UUID cannot be read.
+# The pinned preparation library, the bridge's steps and the engine's S2Arm commit, not the build number: a delivery that
+# changes none of them keeps the preparation (test/s2arm_prepare_identity_test.py). The build number stays the identity
+# of an app without the delivery's record.
 identity = prep[prep.index('static NSString *preparationCodeIdentity('):]
 identity = identity[:identity.index('\n}\n')]
-check('dladdr((const void *)&rb_s2arm_prepare_code, &image)' in identity and 's2arm_macho_uuid_loaded(image.dli_fbase, code)' in identity
-      and '@"S2ArmEngine.framework/S2ArmEngine"' in identity and 's2arm_macho_uuid_file(enginePath.fileSystemRepresentation, engine)' in identity,
-      "the identity is the UUID of the image holding the preparation library and of the engine framework's binary")
-check('if (haveCode && haveEngine) return [NSString stringWithFormat:@"code %s engine %s", code, engine];' in identity
+check('stringByAppendingPathComponent:@"S2Arm-native-identity.json"]' in identity and 'binaries[@"prepare/S2ArmPrepare.xcframework.zip"]' in identity
+      and 'source[@"s2arm_commit"]' in identity,
+      "the identity is the pinned preparation library and the engine's S2Arm commit, from the record the delivery writes in the app")
+check('return [NSString stringWithFormat:@"prepare %@ steps %@ s2arm %@", library, kPreparedSteps, commit];' in identity
       and 'return [NSString stringWithFormat:@"build %@", NSBundle.mainBundle.infoDictionary[@"CFBundleVersion"] ?: @"-"];' in identity,
-      'both UUIDs or the build number, never one UUID alone')
+      'both pinned values with the steps number, or the build number: never one pinned value alone')
 reuse = prep[prep.index('static NSDictionary *_Nullable reusablePreparation('):]
 reuse = reuse[:reuse.index('\n}\n')]
 check('@".applied"' in reuse and '@"imagesPath"' in reuse, 'a reused preparation still has its image pack and .applied')

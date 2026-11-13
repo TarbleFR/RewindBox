@@ -22,6 +22,7 @@ name: S2Arm engine bridge (iOS compile)
       - test/s2arm_texture_storage_read_test.py
       - test/s2arm_texture_storage_read_harness.c
       - test/s2arm_diag_prompt_test.py
+      - test/s2arm_session_marker_harness.c
       - test/s2arm_prepare_identity_test.py
       - test/s2arm_host_room_test.py
       - test/s2arm_host_room_harness.c

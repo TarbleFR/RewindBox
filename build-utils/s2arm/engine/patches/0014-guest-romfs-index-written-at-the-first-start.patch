@@ -1,24 +1,22 @@
 diff --git a/services/S2A.Services/Application.cs b/services/S2A.Services/Application.cs
-index f7d6ebf96..3548184b8 100644
+index f7d6ebf96..bee6532ba 100644
 --- a/services/S2A.Services/Application.cs
 +++ b/services/S2A.Services/Application.cs
-@@ -121,14 +121,34 @@ namespace S2A.Services
+@@ -119,16 +119,29 @@ namespace S2A.Services
+                 // 出包时预建的索引（RomFsIndex）优先：免去起局枚举十几万文件；没有就按目录现建（慢，打一行提示）
+                 string index = Path.Combine(programDir, RomFsIndex.FileName);
                  string overlay = Path.Combine(programDir, "ui_overlay", "romfs");   // 界面布局覆盖层（RomFsIndex.OverlayFiles）：同路径读覆盖层那份
-                 IStorage image;
+-                IStorage image;
  
-+                // RewindBox (patch 0014): an index written at an earlier start (RomFsIndex.RbWriteAndOpen) is reused while the tree is the one
-+                //   it was written for; otherwise it is dropped and written again. The three outcomes have their own start mark.
-+                int rbDirectories = 0;
+-                if (File.Exists(index))
++                // RewindBox (patch 0014): S2Arm's pack-time index is read as before. An index written at an earlier start
++                //   (RomFsIndex.RbWriteAndOpen) is read while the tree is the one it was written for and the index reads; otherwise it is
++                //   dropped and written again (RomFsIndex.RbOpen). The three outcomes have their own start mark.
++                IStorage image = RomFsIndex.RbOpen(romfs, index, overlay, out int rbDirectories);
 +
-+                if (File.Exists(index) && RomFsIndex.RbStale(romfs, index, out rbDirectories))
-+                {
-+                    Red.Note("RewindBox: RomFS tree changed since its index was written, the index is written again", index);
-+                    RomFsIndex.RbForget(index);
-+                }
-+
-                 if (File.Exists(index))
++                if (image != null)
                  {
-                     image = RomFsIndex.Open(romfs, index, overlay);
+-                    image = RomFsIndex.Open(romfs, index, overlay);
 +                    Native.Mark(System.Text.Encoding.UTF8.GetBytes($"RewindBox: RomFS index read ({rbDirectories} directories checked)\0"));
                  }
                  else
@@ -38,11 +36,19 @@ index f7d6ebf96..3548184b8 100644
                  }
  
                  device.Configuration.VirtualFileSystem.SetRomFs(pid, image);   // 镜像本身按偏移读：各数据存储会话互不共享读位置（#883），大读也不租中间数组
+@@ -300,6 +313,7 @@ namespace S2A.Services
+                 if (opened.Length != _size)
+                 {
+                     Red.Report("RomFS 文件长度与索引不符（romfs.s2aidx 过期？），本次读回失败", $"{_path}：索引 {_size}，实际 {opened.Length}");
++                    RomFsIndex.RbMismatch(_path);   // RewindBox (patch 0014): an index written on this device is dropped, the next start writes it again
+                     opened.Dispose();
+                     bytesRead = 0;
+                     return ResultFs.HostFileDataCorrupted.Value;
 diff --git a/services/S2A.Services/RomFsIndex.cs b/services/S2A.Services/RomFsIndex.cs
-index 2b9e0abed..cba0271f4 100644
+index 2b9e0abed..1e65eaecb 100644
 --- a/services/S2A.Services/RomFsIndex.cs
 +++ b/services/S2A.Services/RomFsIndex.cs
-@@ -180,6 +180,189 @@ namespace S2A.Services
+@@ -180,6 +180,330 @@ namespace S2A.Services
          public static IStorage Open(string romfsDir, string indexPath, string overlayDir = null) =>
              new IndexedStorage(Path.GetFullPath(romfsDir), File.ReadAllBytes(indexPath), indexPath, OverlayFiles(overlayDir), null, null);
  
@@ -51,21 +57,40 @@ index 2b9e0abed..cba0271f4 100644
 +        //   (Application.RomFsFromDirectory). Mario Kart World (0400C3F00006E000, 205,058 files, iPhone17,2): 69.2 s of every start (13 Nov,
 +        //   IPA 733). The first start now writes the index and reads the image through it; later starts read the index.
 +        //   One walk of the tree gives what the index needs: each file with its length, as S2Arm's own list mode takes them (Write with a
-+        //   list: the same LibHac build, no file opened), and each directory with its modification time, which is the tree's stamp
-+        //   (romfs.s2aidx.rbtree). A length is the file's own (one lstat, with the entry); only a link is opened for its target's length, as
-+        //   S2Arm's writer does for every file. The first version of this patch (IPA 734) walked the tree three times and opened every
-+        //   file: 126.9 s for that start, against 69.2 s before it; a walk of this tree alone costs the phone 29.4 s cold (preparation
-+        //   journal, 12 Nov) and opening a file about three times a stat.
++        //   list: the same LibHac build, no file opened again), and each directory with its modification time, which is the tree's stamp
++        //   (romfs.s2aidx.rbtree). A length is the file's own (one lstat, with the entry); a link is opened for its target's length, as
++        //   S2Arm's writer does for every file. When every file is a link (the view of a game with an update: one link per file, this
++        //   game's case), the start that writes still opens each of them once, as a start did before; the gain is at the starts after it.
++        //   The first version of this patch (IPA 734) walked the tree three times and opened every file: 126.9 s for that start.
 +        //   An index written here is only as good as the tree it was written for. Adding, removing, renaming or replacing an entry changes
 +        //   the modification time of its directory, so the stamp lists every directory of the tree (the link's target when romfs/ is a
 +        //   link) with that time, and a start reads those times again: no walk, one stat per directory. Any difference drops the index,
-+        //   which is then written again. A file rewritten in place with another length is not seen by the stamp, but never read wrongly:
-+        //   the reader compares each file's length with the index when it opens it and fails that read in red (Application.cs
-+        //   LazyHostFile, HostFileDataCorrupted), as for any index. An index without a stamp is S2Arm's pack-time one, trusted as before.
++        //   which is then written again. What the stamp does not see: a file rewritten in place with another length, and a file replaced
++        //   behind a link (the directory that changes is the export's, not the tree's). Neither is read wrongly: the reader compares each
++        //   file's length with the index when it opens it and fails that read in red (Application.cs LazyHostFile, HostFileDataCorrupted),
++        //   as for any index; for an index written here it is then dropped (RbMismatch), so the next start writes it from the tree as it is.
++        //   The stamp also holds the index's length, written once the index is on disk: an index cut short by a stop of the device is not
++        //   read. An index without a stamp is S2Arm's pack-time one, trusted as before.
 +        public const string RbStampSuffix = ".rbtree";
 +        public const string RbListSuffix = ".rblist";
-+        private const string RbStampHead = "rb-romfs-tree 1";
++        public const string RbRefusedSuffix = ".rbno";
++        private const string RbStampHead = "rb-romfs-tree 2";
++        private const string RbStampPending = "index -";   // the stamp of an index that is being written: never current
 +        private static readonly char[] RbLineBreaks = { '\n', '\r' };
++        private static readonly List<(string Root, string Index)> _rbOpened = new();   // the indexes written here that are in use, each with its romfs/ folder (RbMismatch); locked on itself
++
++        private static void RbInUse(string romfsDir, string indexPath, bool inUse)
++        {
++            lock (_rbOpened)
++            {
++                _rbOpened.RemoveAll(entry => entry.Index == indexPath);
++
++                if (inUse)
++                {
++                    _rbOpened.Add((Path.TrimEndingDirectorySeparator(Path.GetFullPath(romfsDir)) + Path.DirectorySeparatorChar, indexPath));
++                }
++            }
++        }
 +
 +        // The directory whose entries are the tree: romfs/ itself, or what it links to (a game without an update is one link to the export)
 +        private static string RbRoot(string romfsDir)
@@ -75,8 +100,8 @@ index 2b9e0abed..cba0271f4 100644
 +            return target != null ? target.FullName : root;
 +        }
 +
-+        // true = the index next to the tree was written here (it has a stamp) and the tree is no longer the one it was written for.
-+        //   directories = how many were looked at
++        // true = the index next to the tree was written here (it has a stamp) and is not to be read: the tree is no longer the one it was
++        //   written for, or the index is not the whole file the stamp was written after. directories = how many were looked at
 +        internal static bool RbStale(string romfsDir, string indexPath, out int directories)
 +        {
 +            directories = 0;
@@ -92,13 +117,14 @@ index 2b9e0abed..cba0271f4 100644
 +                string root = RbRoot(romfsDir);
 +                string[] lines = File.ReadAllLines(stamp, Encoding.UTF8);
 +
-+                if (lines.Length < 2 || lines[0] != RbStampHead || !long.TryParse(lines[1], out long rootTicks) ||
-+                    Directory.GetLastWriteTimeUtc(root).Ticks != rootTicks)
++                if (lines.Length < 3 || lines[0] != RbStampHead || !lines[1].StartsWith("index ", StringComparison.Ordinal) ||
++                    !long.TryParse(lines[1].AsSpan(6), out long indexLength) || new System.IO.FileInfo(indexPath).Length != indexLength ||
++                    !long.TryParse(lines[2], out long rootTicks) || Directory.GetLastWriteTimeUtc(root).Ticks != rootTicks)
 +                {
 +                    return true;
 +                }
 +
-+                for (int i = 2; i < lines.Length; i++)
++                for (int i = 3; i < lines.Length; i++)
 +                {
 +                    int tab = lines[i].LastIndexOf('\t');
 +                    directories++;
@@ -112,42 +138,124 @@ index 2b9e0abed..cba0271f4 100644
 +
 +                return false;
 +            }
-+            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
++            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException || e is ArgumentException)   // ArgumentException: a damaged stamp (a NUL in a path)
 +            {
 +                return true;
 +            }
 +        }
 +
++        // The index first, its stamp last: an interruption never leaves an index without a stamp, which would be taken for S2Arm's own
++        //   and read unchecked. When the index cannot be deleted its stamp stays, and the next start finds it stale again
 +        internal static void RbForget(string indexPath)
 +        {
 +            try
 +            {
-+                File.Delete(indexPath + RbStampSuffix);
 +                File.Delete(indexPath);
 +                File.Delete(indexPath + ".tmp");
 +                File.Delete(indexPath + RbListSuffix);
++                File.Delete(indexPath + RbStampSuffix + ".tmp");
++                File.Delete(indexPath + RbStampSuffix);
 +            }
 +            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
 +            {
 +            }
 +        }
 +
-+        // Writes the index of romfsDir (stamp first: an interrupted write leaves a stamp without an index, never an index without a stamp) and
-+        //   opens the image through it. null = not written (an overlay is present, whose lengths only the pack-time writer knows; a directory
-+        //   of the tree is a link, or a name holds a line break, which the stamp and the list cannot hold; the tree changed meanwhile; the
-+        //   folder cannot be written): the caller builds the image from the directory, as before. mark: the start mark of the walk (may be null)
-+        internal static IStorage RbWriteAndOpen(string romfsDir, string indexPath, string overlayDir, Action<string> mark = null)
++        // The index next to the tree when it is to be read, else null (there is none, or the one written here was dropped: the caller writes
++        //   one). S2Arm's pack-time index (no stamp) is opened as before, and its failures are S2Arm's. One written here is opened only while
++        //   the tree is the one it was written for (RbStale), and one that does not read is dropped instead of stopping every start
++        internal static IStorage RbOpen(string romfsDir, string indexPath, string overlayDir, out int directories)
 +        {
-+            if (OverlayFiles(overlayDir) != null)
++            directories = 0;
++            RbInUse(romfsDir, indexPath, false);
++
++            if (!File.Exists(indexPath))
 +            {
 +                return null;
 +            }
 +
++            if (!File.Exists(indexPath + RbStampSuffix))
++            {
++                return Open(romfsDir, indexPath, overlayDir);
++            }
++
++            string why;
++
++            if (RbStale(romfsDir, indexPath, out directories))
++            {
++                why = "RewindBox: the RomFS tree changed since its index was written (or the index is not whole), the index is written again";
++            }
++            else
++            {
++                try
++                {
++                    IStorage image = Open(romfsDir, indexPath, overlayDir);
++                    RbInUse(romfsDir, indexPath, true);
++                    return image;
++                }
++                catch (Exception e) when (e is InvalidDataException || e is ArgumentException || e is IOException || e is UnauthorizedAccessException)
++                {
++                    why = "RewindBox: the RomFS index written on this device does not read (" + e.GetType().Name + "), it is written again";
++                }
++            }
++
++            Red.Note(why, indexPath);
++            RbForget(indexPath);
++            return null;
++        }
++
++        // A file's length is not the index's (Application.cs LazyHostFile, which fails that read; path: the file as the image names it,
++        //   under its romfs/ folder): when the index of that folder is one written here, it is dropped, once, so that the next start writes
++        //   it again from the tree as it is. S2Arm's pack-time index is left as it is, and so is a folder read without an index
++        internal static void RbMismatch(string path)
++        {
++            string index = null;
++
++            lock (_rbOpened)
++            {
++                int at = _rbOpened.FindIndex(entry => path.StartsWith(entry.Root, StringComparison.Ordinal));
++
++                if (at >= 0)
++                {
++                    index = _rbOpened[at].Index;
++                    _rbOpened.RemoveAt(at);
++                }
++            }
++
++            if (index != null)
++            {
++                RbForget(index);
++                Red.Note("RewindBox: a RomFS file is not the length its index has; the index written on this device is dropped, the next start writes it again", index);
++            }
++        }
++
++        // Writes the index of romfsDir and opens the image through it. null = not written: the caller builds the image from the directory,
++        //   as before. That is when an overlay is present (its lengths are the pack-time writer's to know), when the folder cannot be
++        //   written, when the tree changed meanwhile, when this start's managed heap limit does not hold the writer (gclimit.c picks it
++        //   start by start; the directory build below then runs as it did before this patch), and when the tree cannot have an index
++        //   written here: a directory of it is a link, or a name holds a line break or a backslash, which the stamp and the list cannot
++        //   hold. That last refusal is the tree's own, so it is kept (romfs.s2aidx.rbno) and later starts do not walk the tree to find it
++        //   again.
++        //   The order on disk: the stamp first, as pending, so that the folder is known to be writable before the walk and an index always
++        //   has a stamp; then the list and the index; the index flushed to the disk; then the stamp with the index's length, flushed and
++        //   renamed over the pending one. mark: the start mark of the walk (may be null)
++        internal static IStorage RbWriteAndOpen(string romfsDir, string indexPath, string overlayDir, Action<string> mark = null)
++        {
++            RbInUse(romfsDir, indexPath, false);
++
++            if (OverlayFiles(overlayDir) != null || File.Exists(indexPath + RbRefusedSuffix))
++            {
++                return null;
++            }
++
++            string stampPath = indexPath + RbStampSuffix;
++            UTF8Encoding utf8 = new(false);
++
 +            try
 +            {
++                File.WriteAllText(stampPath, RbStampHead + "\n" + RbStampPending + "\n", utf8);
 +                string root = RbRoot(romfsDir);
-+                StringBuilder stamp = new();
-+                stamp.Append(RbStampHead).Append('\n').Append(Directory.GetLastWriteTimeUtc(root).Ticks).Append('\n');   // the root's time, then the walk
++                long rootTicks = Directory.GetLastWriteTimeUtc(root).Ticks;   // the root's time, then the walk
 +                List<string> dirs = new();
 +                List<(string Rel, long Size)> files = new();
 +
@@ -155,7 +263,16 @@ index 2b9e0abed..cba0271f4 100644
 +                foreach (System.IO.FileSystemInfo entry in new System.IO.DirectoryInfo(root).EnumerateFileSystemInfos("*", SearchOption.AllDirectories))
 +                {
 +                    bool link = (entry.Attributes & System.IO.FileAttributes.ReparsePoint) != 0;
-+                    string rel = Path.GetRelativePath(root, entry.FullName).Replace('\\', '/');
++                    string rel = Path.GetRelativePath(root, entry.FullName);
++
++                    if (Path.DirectorySeparatorChar == '\\')
++                    {
++                        rel = rel.Replace('\\', '/');   // a Windows host: its separator. Elsewhere a backslash is a character of a name
++                    }
++                    else if (rel.Contains('\\'))
++                    {
++                        throw new InvalidDataException("a name of the RomFS tree holds a backslash");
++                    }
 +
 +                    if (link && entry is System.IO.DirectoryInfo)
 +                    {
@@ -192,14 +309,7 @@ index 2b9e0abed..cba0271f4 100644
 +
 +                dirs.Sort(StringComparer.Ordinal);
 +
-+                foreach (string dir in dirs)
-+                {
-+                    stamp.Append(dir).Append('\n');
-+                }
-+
-+                File.WriteAllText(indexPath + RbStampSuffix, stamp.ToString(), new UTF8Encoding(false));
-+
-+                using (StreamWriter list = new(indexPath + RbListSuffix, false, new UTF8Encoding(false)))
++                using (StreamWriter list = new(indexPath + RbListSuffix, false, utf8))
 +                {
 +                    foreach ((string rel, long size) in files)
 +                    {
@@ -213,17 +323,54 @@ index 2b9e0abed..cba0271f4 100644
 +                mark?.Invoke($"RewindBox: RomFS tree walked ({files.Count} files, {dirs.Count} directories)");
 +                Write(romfsDir, indexPath, indexPath + RbListSuffix);
 +                File.Delete(indexPath + RbListSuffix);
++                long indexLength;
++
++                using (FileStream written = new(indexPath, FileMode.Open, FileAccess.ReadWrite, FileShare.Read))
++                {
++                    written.Flush(true);   // on the disk before the stamp says how long it is
++                    indexLength = written.Length;
++                }
++
++                StringBuilder stamp = new();
++                stamp.Append(RbStampHead).Append("\nindex ").Append(indexLength).Append('\n').Append(rootTicks).Append('\n');
++
++                foreach (string dir in dirs)
++                {
++                    stamp.Append(dir).Append('\n');
++                }
++
++                using (FileStream final = new(stampPath + ".tmp", FileMode.Create, FileAccess.Write, FileShare.None))
++                {
++                    final.Write(utf8.GetBytes(stamp.ToString()));
++                    final.Flush(true);
++                }
++
++                File.Move(stampPath + ".tmp", stampPath, overwrite: true);
 +
 +                if (RbStale(romfsDir, indexPath, out _))
 +                {
 +                    throw new IOException("the RomFS tree changed while its index was written");
 +                }
 +
-+                return Open(romfsDir, indexPath, null);
++                IStorage image = Open(romfsDir, indexPath, null);
++                RbInUse(romfsDir, indexPath, true);
++                return image;
 +            }
-+            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException || e is InvalidDataException)
++            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException || e is InvalidDataException || e is OutOfMemoryException)
 +            {
 +                RbForget(indexPath);
++
++                if (e is InvalidDataException)
++                {
++                    try
++                    {
++                        File.WriteAllText(indexPath + RbRefusedSuffix, e.Message + "\n", utf8);
++                    }
++                    catch (Exception again) when (again is IOException || again is UnauthorizedAccessException)
++                    {
++                    }
++                }
++
 +                Red.Note("RewindBox: RomFS index not written, the image is built from the directory at this start", e.GetType().Name + ": " + e.Message);
 +                return null;
 +            }

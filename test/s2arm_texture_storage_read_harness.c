@@ -1,8 +1,11 @@
 // Runs rb_span_readable and rb_span_copy of engine patch 0016, as written in the patch (the test extracts them into
-// rb_span.inc), over real pages of this process. The two Mach calls they use are stood in for by this host's own
-// means: vm_region_64 by /proc/self/maps (the mapping that holds an address, or the next one), vm_read_overwrite by a
-// pipe (the kernel copies from the address and refuses what the process cannot read: an error, not a fault, which is
-// what the engine relies on). What the game does with the result is only known from a device log.
+// rb_span.inc), over real pages of this process.
+// On macOS (the runner of s2arm-bridge-ios.yml) the two Mach calls they use are Mach's own, the ones the engine makes
+// on the phone. Elsewhere they are stood in for by the host's own means: vm_region_64 by /proc/self/maps (the mapping
+// that holds an address, or the next one), vm_read_overwrite by a pipe (the kernel copies from the address and
+// refuses what the process cannot read: an error, not a fault, which is what the engine relies on). Either way the
+// calls go through a counter here, so that the checks can say when nothing was asked or read.
+// What the game does with the result is only known from a device log.
 #include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>
@@ -12,6 +15,11 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#ifdef __APPLE__
+#include <mach/mach.h>
+#include <mach/vm_map.h>
+typedef vm_region_flavor_t host_flavor;
+#else
 typedef uintptr_t vm_address_t;
 typedef uintptr_t vm_size_t;
 typedef int kern_return_t;
@@ -19,16 +27,30 @@ typedef unsigned mach_port_t;
 typedef unsigned mach_msg_type_number_t;
 typedef struct { int protection, max_protection; } vm_region_basic_info_data_64_t;
 typedef int *vm_region_info_t;
+typedef int host_flavor;
 #define KERN_SUCCESS 0
 #define VM_PROT_READ 1
 #define VM_REGION_BASIC_INFO_64 9
 #define VM_REGION_BASIC_INFO_COUNT_64 ((mach_msg_type_number_t)(sizeof(vm_region_basic_info_data_64_t) / sizeof(int)))
 #define MACH_PORT_NULL 0
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
 static mach_port_t mach_task_self(void) { return 1; }
+#endif
+#ifndef MIN
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#endif
 
 static unsigned long g_region_calls, g_read_calls;
-static kern_return_t vm_region_64(mach_port_t task, vm_address_t *address, vm_size_t *size, int flavor, vm_region_info_t info, mach_msg_type_number_t *count, mach_port_t *object) {
+#ifdef __APPLE__
+static kern_return_t counted_region(mach_port_t task, vm_address_t *address, vm_size_t *size, host_flavor flavor, vm_region_info_t info, mach_msg_type_number_t *count, mach_port_t *object) {
+    g_region_calls++;
+    return vm_region_64(task, address, size, flavor, info, count, object);
+}
+static kern_return_t counted_read(mach_port_t task, vm_address_t address, vm_size_t size, vm_address_t data, vm_size_t *got) {
+    g_read_calls++;
+    return vm_read_overwrite(task, address, size, data, got);
+}
+#else
+static kern_return_t counted_region(mach_port_t task, vm_address_t *address, vm_size_t *size, host_flavor flavor, vm_region_info_t info, mach_msg_type_number_t *count, mach_port_t *object) {
     (void)task; (void)flavor; (void)count; (void)object;
     g_region_calls++;
     FILE *maps = fopen("/proc/self/maps", "r");
@@ -50,7 +72,7 @@ static kern_return_t vm_region_64(mach_port_t task, vm_address_t *address, vm_si
 }
 
 static int g_pipe[2];
-static kern_return_t vm_read_overwrite(mach_port_t task, vm_address_t address, vm_size_t size, vm_address_t data, vm_size_t *got) {
+static kern_return_t counted_read(mach_port_t task, vm_address_t address, vm_size_t size, vm_address_t data, vm_size_t *got) {
     (void)task;
     g_read_calls++;
     *got = 0;
@@ -65,6 +87,9 @@ static kern_return_t vm_read_overwrite(mach_port_t task, vm_address_t address, v
     *got = size;
     return KERN_SUCCESS;
 }
+#endif
+#define vm_region_64 counted_region
+#define vm_read_overwrite counted_read
 
 static uintptr_t g_far_lo, g_far_hi;
 static uint8_t *s2a_far_g2h(uint64_t a) { return a >= g_far_lo && a < g_far_hi ? (uint8_t *)1 : NULL; }
@@ -87,7 +112,9 @@ static int same(const uint8_t *dst, const uint8_t *shadow, uintptr_t base, uintp
 int main(void) {
     uintptr_t pg = (uintptr_t)getpagesize();
     enum { PAGES = 12 };
+#ifndef __APPLE__
     if (pipe(g_pipe)) { perror("pipe"); return 2; }
+#endif
     // A reservation with a guard page on each side, so that neighbours of this process never make the block's ends readable
     uint8_t *reservation = mmap(NULL, (PAGES + 2) * pg, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (reservation == MAP_FAILED) { perror("mmap"); return 2; }
@@ -166,6 +193,15 @@ int main(void) {
     unsigned long reads = g_read_calls;
     CHECK(rb_span_readable(base + 6 * pg, 2 * pg) && g_read_calls == reads, "asking does not read");
 
+    // 8. the copy reads each host page once: its callers know the range cannot all be read, so it is not tried in one piece first
+    reads = g_read_calls;
+    CHECK(rb_span_copy(dst, base + 6 * pg, 2 * pg, &first) == 0 && g_read_calls == reads + 2 && !memcmp(dst, shadow + 6 * pg, 2 * pg), "two readable pages: two reads (got %lu)", g_read_calls - reads);
+    reads = g_read_calls;
+    CHECK(rb_span_copy(dst, base + 6 * pg + 100, 2 * pg, &first) == 0 && g_read_calls == reads + 3, "an unaligned range over three pages: three reads (got %lu)", g_read_calls - reads);
+    reads = g_read_calls;
+    CHECK(rb_span_copy(dst, base + 4 * pg, 3 * pg, &first) == pg && first == pg && g_read_calls == reads + 3, "a page that cannot be read in the middle: still one read per page (got %lu)", g_read_calls - reads);
+
+    free(shadow); free(dst);
     printf("%s %d checks, %d failed (page %lu bytes)\n", g_failures ? "FAILED" : "PASSED", g_checks, g_failures, (unsigned long)pg);
     return g_failures ? 1 : 0;
 }

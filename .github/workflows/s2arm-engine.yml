@@ -221,7 +221,7 @@ jobs:
           undefined=$(nm -u "$fw/S2ArmEngine" | grep '_s2a_rb_' | tr '\n' ' ')
           if [ -n "$undefined" ]; then note "FAIL undefined guest symbols: $undefined"; status=1; else note "ok   no undefined _s2a_rb_ symbol"; fi
           if cmp -s "$fw/Headers/rb_guest.h" runtime/src/rb_guest.h; then note "ok   Headers/rb_guest.h"; else note "FAIL Headers/rb_guest.h missing or not the patched runtime/src/rb_guest.h"; status=1; fi
-          for lang in en zh-Hans; do
+          for lang in en zh-Hans fr; do   # fr: the diagnostics question only (engine patch 0018); guest.mk copies every table of ios/l10n
             if [ -f "$fw/$lang.lproj/S2ArmHost.strings" ]; then note "ok   $lang.lproj/S2ArmHost.strings"; else note "FAIL $lang.lproj/S2ArmHost.strings missing"; status=1; fi
           done
           pin=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['s2arm']['commit'])" "$GITHUB_WORKSPACE/tools/s2arm_prototype/pin.json")

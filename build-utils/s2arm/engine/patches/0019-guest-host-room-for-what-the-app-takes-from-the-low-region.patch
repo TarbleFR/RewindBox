@@ -1,20 +1,46 @@
+diff --git a/runtime/src/gclimit.c b/runtime/src/gclimit.c
+index eb2661633..9c7881898 100644
+--- a/runtime/src/gclimit.c
++++ b/runtime/src/gclimit.c
+@@ -34,6 +34,16 @@ void s2a_gc_limit_apply(void) {
+     for (unsigned i = 0; i < sizeof vars / sizeof *vars; i++)
+         if (getenv(vars[i])) { LOG("GC 上限：外部指定（%s=%s），照用", vars[i], getenv(vars[i])); return; }
+     uint64_t total = 0, largest = 0; s2a_low_holes(&total, &largest);
++    // RewindBox (patch 0019): the limit is picked by the hole the host would have without the room it got below the window for what its low region lacks
++    //   (vawin.c s2a_rb_low_holes_less, taken by name: S2Arm's test links this file alone). The tiers below are thresholds on the largest hole: counted, a
++    //   room of 1 or 2 GiB lifts a hole of 3072-3711 MB over the 3712 MB of the per-heap tier, whose reservation (2688 MB where the on-demand tier
++    //   reserves 870 MB at most) takes most of the room back, or more than the room. Without it the limit is the one S2Arm picks for this start, as before
++    {   void (*less)(uint64_t *, uint64_t *, uint64_t *) = (void (*)(uint64_t *, uint64_t *, uint64_t *))dlsym(RTLD_DEFAULT, "s2a_rb_low_holes_less");
++        uint64_t lt = 0, ll = 0, more = 0; if (less) less(&lt, &ll, &more);
++        if (more) { LOG("RewindBox: the GC limit is picked without the %llu MB the host got below the window for its low region: by a largest hole of %llu MB "
++                        "(of %llu MB in all), where the host's largest hole is %llu MB (of %llu MB)", (unsigned long long)(more / MB), (unsigned long long)(ll / MB),
++                        (unsigned long long)(lt / MB), (unsigned long long)(largest / MB), (unsigned long long)(total / MB));
++            total = lt; largest = ll; } }
+     switch (s2a_gc_limit_pick(largest)) {
+     case GC_LIMIT_TOTAL:
+         setenv("DOTNET_GCHeapHardLimit", "80000000", 1);   // DOTNET_ 数值按十六进制
 diff --git a/runtime/src/rb_hostroom.c b/runtime/src/rb_hostroom.c
 new file mode 100644
-index 000000000..b0a96cec3
+index 000000000..c69e23d21
 --- /dev/null
 +++ b/runtime/src/rb_hostroom.c
-@@ -0,0 +1,27 @@
+@@ -0,0 +1,32 @@
 +// RewindBox (patch 0019): what the host app's own images take from the low region is left to the host below the window.
 +//   When the window cannot hold a game's standard layout, S2Arm leaves the host HOST_BELOW (3 GiB) below the window, and its sizing counts on the
 +//   low region as well (vawin.c, HOST_BELOW's note: the host's addresses on iOS = about 1.8 GB of low region + that range; a Switch 2 game's host
 +//   peak is 1.7-2.1 GB). In S2Arm's own app the low region [4 GiB, 6 GiB) is mostly free. In RewindBox the app's own binary and frameworks fill it:
-+//   184 MB free there when the window is reserved (Mario Kart World, iPhone17,2, 13 Nov). The .NET GC then reserves 2688 MB of the 3 GiB (gclimit.c),
-+//   which left the host 1187 MB of addresses for Metal, malloc and the runtime: 166 MB at the lowest (second 90, the first 3D frames, with the
-+//   ledger's warning "below the reserve"), 510 MB when the run stopped.
++//   184 MB free there when the window is reserved (Mario Kart World, iPhone17,2, 13 Nov). The .NET GC then reserves its limit from the host's hole
++//   (gclimit.c): 870 MB at most when that hole is under 3712 MB, 2688 MB from there on. The hole is the 3 GiB and the 0-1023 MB in front of them
++//   that the window's 1 GiB alignment leaves, so which of the two it is changes from start to start: 2688 MB of 4094 MB that day (the same phone took
++//   the smaller one on five of its seven logged starts, holes of 3140-3304 MB). That left the host 1187 MB of addresses for Metal, malloc and the
++//   runtime: 166 MB at the lowest (second 90, the first 3D frames, with the ledger's warning "below the reserve"), 510 MB when the run stopped.
 +//   So the host gets, below the window, what its low region lacks of what the layout counts on, in whole GiB, at most `most`, and only as much as
 +//   leaves the tail allocator's range and the virtual pool arena their size (patch 0013). The window keeps what the layout needs in front of the
 +//   alias region and one application pool of it (s2a_rb_host_arenas' own rule): the room comes from the part of the alias region that fits in the
-+//   window, of which the game had touched 0.7 of 29.7 GiB. A pure function, so that the rule is run on a computer (test/s2arm_host_room_test.py).
++//   window, of which the game had touched 0.7 of 29.7 GiB. The GC limit is picked as if the room were not there (vawin.c s2a_rb_low_holes_less):
++//   it is the one S2Arm picks for that start, and every GiB given is the host's (counted, the room put every start over 3712 MB: with 2 GiB the
++//   starts that had the smaller limit gained 230 MB at most, and with one GiB they lost 794 MB or more).
++//   A pure function, so that the rule is run on a computer (test/s2arm_host_room_test.py).
 +#include <stdint.h>
 +
 +#define RBH_GIB (1ull << 30)
@@ -32,10 +58,20 @@ index 000000000..b0a96cec3
 +    return more;
 +}
 diff --git a/runtime/src/vawin.c b/runtime/src/vawin.c
-index dfaa7a322..ce0c53877 100644
+index dfaa7a322..5b0a6c04e 100644
 --- a/runtime/src/vawin.c
 +++ b/runtime/src/vawin.c
-@@ -550,12 +550,25 @@ static int rb_alias_first(void) {
+@@ -530,7 +530,8 @@ static void pick_hole(uint64_t hi, uint64_t want, uint64_t *at, uint64_t *sz, ui
+ //   host kept 3 GiB below it and nothing else: the unified tail allocator had no range (the window's end is the alias region's far part),
+ //   so the host stacks of the game's threads, the virtual pools of NVN and everything Metal, malloc and the GC map shared those 3 GiB.
+ //   The window now gives up a range for the tail allocator (its own TL_TAKE) and one for the virtual pools right below its base, both
+-//   reserved with it; the host's 3 GiB stay as they were, so the GC limit and the low-address ledger read the same hole as before.
++//   reserved with it; the host's 3 GiB stay as they were, so the GC limit and the low-address ledger read the same hole as before
++//   (patch 0019 then leaves the host more below them where its low region lacks it: the ledger reads that too, the GC limit does not).
+ //   S2A_VP_ARENA_MB sets the virtual pool arena (default 16384, the size S2Arm gives its own iOS virtual pool area; 0 = none).
+ #define RB_VP_ARENA (16ull << 30)
+ #define RB_VAMM_ALIAS (63ull << 30)   // the alias region's commitment in the standard layout (layout.c VAMM_ALIAS)
+@@ -550,12 +551,28 @@ static int rb_alias_first(void) {
      while (fgets(line, sizeof line, f)) if (!strncmp(line, k, strlen(k)) && strtoull(line + strlen(k), NULL, 10)) hint = 1;
      fclose(f); return hint;
  }
@@ -52,7 +88,10 @@ index dfaa7a322..ce0c53877 100644
 +// RewindBox (patch 0019): what the low region lacks of what HOST_BELOW's sizing counts on there goes to the host below the window (rb_hostroom.c, taken
 +//   by name as the arenas are). S2A_HOST_MORE_MB: its most, in MB (0 = none)
 +#define RB_LOW_COUNTED (1843ull << 20)   // about 1.8 GB (HOST_BELOW's note)
-+#define RB_HOST_MORE (2ull << 30)        // with it the host's hole stays far below what would make gclimit.c reserve 10 GB for the GC
++#define RB_HOST_MORE (2ull << 30)        // what a low region can lack of RB_LOW_COUNTED at most, in whole GiB
++// The room given, once the window is reserved: the top of the host's range, [g_rb_more_lo, g_rb_more_lo + g_rb_more), which ends where the ranges of
++//   patch 0013 start (0 = none). The .NET GC limit is picked without it (s2a_rb_low_holes_less)
++static uint64_t g_rb_more_lo, g_rb_more;
 +static uint64_t rb_arenas_cb(uint64_t host_below, void *ctx) { uint64_t t, v; return rb_arenas_at(*(const uint64_t *)ctx, host_below, &t, &v); }
 +static uint64_t rb_host_more(uint64_t fit, uint64_t *low_free) {
 +    uint64_t (*more)(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t (*)(uint64_t, void *), void *) =
@@ -63,7 +102,7 @@ index dfaa7a322..ce0c53877 100644
  }
  static void cmd_arena_reserve(void);
  static void vawin_reserve(void) {
-@@ -592,12 +605,16 @@ static void vawin_reserve(void) {
+@@ -592,12 +609,16 @@ static void vawin_reserve(void) {
      // 放不下标准布局不再起不了局（docs/方案_地址空间根修.md）：占最大一块、下方留 HOST_BELOW（3 GiB）给宿主（Metal / GC），布局小区在前、别名区伸出窗口（layout.c 乙）。
      //   宿主保留段不能放窗口上方：别名区伸出段覆盖那里，宿主放进去的东西会被游戏的远端访问静默读写
      uint64_t rb_tl = 0, rb_vp = 0, rb_extra = 0;   // RewindBox (patch 0013): [at - rb_extra, at) = tail allocator range, then virtual pool arena
@@ -83,3 +122,29 @@ index dfaa7a322..ce0c53877 100644
      else if (!sz) { vaguard_release();
          LOG("【红】地址窗口不足：本机 %s 以下最大能放的一块 %llu MB，连模块与小区都放不下（本款标准布局要 %llu MB，地址上限 %#llx），起不了局", hb, (unsigned long long)(g_fit >> 20), (unsigned long long)(g_need >> 20), (unsigned long long)top);
          s2a_window_probe("窗口放不下"); return; }
+@@ -610,6 +631,7 @@ static void vawin_reserve(void) {
+     if (p != (void *)(at - rb_extra)) { if (p != MAP_FAILED) munmap(p, want + rb_extra);
+         LOG("【红】地址窗口：空洞 %#llx +%llu MB 占不到（%s errno=%d）", (unsigned long long)(at - rb_extra), (unsigned long long)((want + rb_extra) >> 20), p == MAP_FAILED ? "失败" : "落在别处", er); s2a_window_probe("窗口没占到"); return; }
+     g_ok = 1; g_base = at; g_size = g_res = want;
++    if (rb_host) { g_rb_more = rb_host; g_rb_more_lo = at - rb_extra - rb_host; }   // RewindBox (patch 0019)
+     if (rb_tl) s2a_tail_init(at - rb_extra, rb_tl);
+     if (rb_vp) { void (*init)(uint64_t, uint64_t) = (void (*)(uint64_t, uint64_t))dlsym(RTLD_DEFAULT, "s2a_rb_vp_init"); if (init) init(at - rb_vp, rb_vp); }
+     guest_file_attach();
+@@ -870,6 +892,17 @@ void s2a_low_holes(uint64_t *total, uint64_t *largest) {
+     holes_in(0x100000000ull, g_ok ? g_base : 1ull << 39, total, largest);
+     if (g_ok) holes_in(g_base + g_size, 1ull << 39, total, largest);   // 窗口之上到 2^39：收尾还回的那段 + 所在空洞的其余部分（Metal 大缓冲落这里）
+ }
++// RewindBox (patch 0019): s2a_low_holes as it would read had the host not been given more below the window: the same ranges, the room given counted as
++//   taken. *more = that room; 0 = none was given, and the result is s2a_low_holes' own. The .NET GC limit is picked by this (gclimit.c): its tiers are
++//   thresholds on the largest hole, and the room is the host's, for what the app's images took from its low region
++void s2a_rb_low_holes_less(uint64_t *total, uint64_t *largest, uint64_t *more) {
++    *more = g_ok ? g_rb_more : 0;
++    if (!*more) { s2a_low_holes(total, largest); return; }
++    *total = *largest = 0;
++    holes_in(0x100000000ull, g_rb_more_lo, total, largest);
++    holes_in(g_rb_more_lo + g_rb_more, g_base, total, largest);   // the ranges of patch 0013: reserved, so nothing in the usual case
++    holes_in(g_base + g_size, 1ull << 39, total, largest);
++}
+ // 宿主高位区：窗口外、GC 新段用不上的宿主地址（GC 段模式的新段要和已有段连成一个跨度，落到这里簿记表要几 GB 连续地址、必然 OOM，见坑记录 10-24 异度神剑3）。
+ //   乙（窗口放不下标准布局，g_keep_lo）：窗口下方留给宿主的 [g_keep_lo, g_base)；窗口之上是别名区伸出段（远端），不给。
+ //   甲：收尾后的窗口之上到 2^39 / 地址上限；尾部统一分配占着的那段已映射，带提示的 mmap 自然跳过。
