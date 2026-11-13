@@ -146,6 +146,11 @@ threads about 3 % of a core); the 30 fps pacing of Hogwarts (median engine rate 
 filesystem's SHA-256 (about 1 %: it verifies data); the bridge diagnostics (9-13 %, unattributed, MeloNX owner's
 domain).
 
-Before a push: refreeze the contract (106 gates: plan, `FRESH_GATES`, 220 inputs / 216 members, 102 changed files),
-with fresh receipts for `wait-spin-bound`, `darwin-timed-waits` and the gates that iterate the adapter order, and run
-both fixtures on macOS arm64.
+Freeze (both lots, build-smoke route of 32d035149): one prepare_embedded pass on a copy of pristine upstream 13700519
+(tree 82a29e6f), identical to the tested candidate preparation and differing from Core 747's only in AsyncWorkQueue.cs
+and PreciseSleepHelper.cs. Receipts: Core 747's for the unchanged gates; fresh on the final preparation for
+`wait-spin-bound`, `darwin-timed-waits` and the nine gates that iterate the adapter order. freeze_dma_core.py with the
+delivered 614 archive: 220 inputs, 216 members, 102 changed files, 106 gates, contract SHA-256
+5c22b28358f3885452255de5ef63a49ec174f52544f65e33eec3ad8cc4040f8a; contract test with the archive: 533 checks passed.
+Open: the Apple timing of both fixtures on macOS arm64 (the Core route no longer runs them; the Core's two simulator
+sessions execute the Apple path); the Core pin and an IPA; the iPhone comparison.
