@@ -201,7 +201,8 @@
   "src/Ryujinx.Graphics.Vulkan/AutoFlushCounter.cs",
   "src/Ryujinx.Graphics.Vulkan/StagingBuffer.cs",
   "src/Ryujinx.Graphics.Vulkan/HelperShader.cs",
-  "src/Ryujinx.HLE/HOS/Services/Nifm/StaticService/IGeneralService.cs"
+  "src/Ryujinx.HLE/HOS/Services/Nifm/StaticService/IGeneralService.cs",
+  "src/Ryujinx.Common/AsyncWorkQueue.cs"
  ],
  "productionAdditions": [],
  "fixtureInputs": [

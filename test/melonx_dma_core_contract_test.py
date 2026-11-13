@@ -295,7 +295,9 @@ CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES
            # (already changed); ShaderCollection.cs (already changed).
            # Texture.cs and TextureBindingsArrayCache.cs (already changed).
            set(C745_NIFM_NETWORK_WATCH) | set(C745_PACED_STRICT_SYNCS) | set(C745_SIBLING_PIPELINES) |
-           set(C745_ARRAY_SYNC_EPOCHS))
+           set(C745_ARRAY_SYNC_EPOCHS) |
+           # Core 747: AsyncWorkQueue.cs (new: the adaptive spin event), KThread.cs and ThreadedRenderer.cs (already changed).
+           set(C747_WAIT_SPIN_BOUND))
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
@@ -376,6 +378,9 @@ JOINED = JOINED | {'src/Ryujinx.Graphics.Vulkan/HelperShader.cs'}
 # Core 745 (adapt_nifm_network_watch): nifm's general service no longer subscribes to the runtime's network address
 # event; IGeneralService.cs joins.
 JOINED = JOINED | {C745_NIFM_SERVICE}
+# Core 747 (adapt_wait_spin_bound): Ryujinx.Common's AsyncWorkQueue.cs (the adaptive spin event) joins the prepared source.
+C747_SPIN_EVENT = 'src/Ryujinx.Common/AsyncWorkQueue.cs'
+JOINED = JOINED | {C747_SPIN_EVENT}
 REUSED_FRESH = set()
 
 
@@ -549,8 +554,8 @@ if not args.helpers_only:
     # Core 733: 94 (seven of the eight files of the host thread class; SurfaceFlinger.cs was already changed).
     # Core 737: 95 (NpadManager.cs).
     # Core 743: 99 (SyncManager.cs, AutoFlushCounter.cs, StagingBuffer.cs, HelperShader.cs).
-    # Core 745: 100 (IGeneralService.cs).
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 100 and not frozen["productionAdditions"], "Unexpected production scope")
+    # Core 745: 100 (IGeneralService.cs). Core 747: 101 (AsyncWorkQueue.cs).
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 101 and not frozen["productionAdditions"], "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
                                                      'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
                                                      'build-utils/melonx/adapt_queued_syncpoints.py',
@@ -764,6 +769,8 @@ if not args.helpers_only:
           gate['wait-spin-bound']['assertions'].get('ringNoLostWakeup') is True,
           'The Core 745 changes are not bound by their gates')
     OUTSIDE_GPU |= {C745_NIFM_SERVICE}
+    # Core 747: Ryujinx.Common's AsyncWorkQueue.cs is outside the GPU closure; its gate (wait-spin-bound) builds it.
+    OUTSIDE_GPU |= {C747_SPIN_EVENT}
     check(CHANGES - OUTSIDE_GPU <= set(gate['fragmented-reads']['requiredPostimages']) and
           # Library.cs and the two HLE files (Core 647) are outside the GPU/Vulkan closure; their own gates bind them.
           CHANGES - {LIBRARY} - OUTSIDE_GPU <= {b['productionPath'] for b in gate['fragmented-reads']['compiledBindings']},
@@ -818,7 +825,9 @@ if not args.helpers_only:
                                             # Core 737: NpadManager.cs likewise (its gate rebuilds its control).
                                             path not in C737_NPAD_CONFIG_SNAPSHOT and
                                             # Core 745: IGeneralService.cs likewise (its gate rebuilds its control).
-                                            path != C745_NIFM_SERVICE}},
+                                            path != C745_NIFM_SERVICE and
+                                            # Core 747: AsyncWorkQueue.cs likewise (its gate rebuilds its control).
+                                            path != C747_SPIN_EVENT}},
                         'ada': arrays_frozen['controlUnadaptedMembers']['ada']},
           'Control-only upstream inventories differ from the arrays contract plus the files joining the prepared source')
     rejects(lambda: verify.check_control_inventories({**frozen, 'controlUnadaptedMembers': {k: v for k, v in unadapted.items() if k != 'ada'}}),
