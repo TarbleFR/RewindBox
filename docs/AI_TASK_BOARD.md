@@ -5051,6 +5051,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       0.5 s stall shorter than the 1.6 s one); main's spinner check 31fd341d is kept. package_standalone_moltenvk.py
       download_artifact() tries a failed request again after 5, 10 and 20 s into an emptied file (the digest is still
       checked; exercised with a fake gh). melonx-host 43329316902 on c5541fe0: the performance journal step passed on macOS.
+      Merged for IPA 733 as e5f7d70d. Main then reverted its own spinner check 31fd341d (7dea157f: main does not touch
+      MeloNX files), which brought back the fixed 200 ms floor that failed attempt 4; the file's owner took the same
+      relation in d5c88541 (spinner at least the waiter's 20 ms ceiling and above the waiter's measured time; waiter
+      check unchanged): melonx-host 43332392305, the performance journal step passed on macOS.
     - **Native heap lot handed by MeloNX lot 10 (docs/evidence/melonx-lot10/handoff.md; analysis only, no change yet):**
       the four largest live stacks of the IPA 729 [MeloNX:heap] record, symbolicated with `nm -n` of the pinned MoltenVK
       1.4.2 rebuild (artifact 13822530542, binary 99605a2b; the packaged MeloNXMoltenVKStandalone `1bdc5159` is taken to be
