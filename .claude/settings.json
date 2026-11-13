@@ -1,6 +1,3 @@
 {
-  "worktree": {
-    "baseRef": "head"
-  },
   "effortLevel": "medium"
 }

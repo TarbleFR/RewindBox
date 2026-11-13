@@ -1,137 +1,39 @@
-# RewindBox — shared requirements and results
+# RewindBox — task state and technical requirements
 
-**Single contract · 13 November 2026.** Current maintainer instructions override
-older records. Read the rules, your routing and **one relevant task**; open only
-its needed evidence. A recorded status is not a live CI result.
+**Simplified workflow · 13 November 2026.** [AGENTS.md](../AGENTS.md) defines how
+agents work: directly on `Claude`, without automatic issues, PRs, branches or
+worktrees. Read only the relevant task and technical requirements below.
+Historical issue/session/branch references are evidence, never prerequisites
+to continue, recreate a deleted item, or start another delivery.
 
-[Rules](#shared-working-rules) · [Claude routing](#adaptive-delegation) ·
-[Codex routing](#codex-model-and-effort-routing) · [IPA authorization](#standing-ipa-compilation-authorization) ·
+[IPA authorization](#standing-ipa-compilation-authorization) ·
 [Tasks](#active-requirements) · [Delivered baseline](#delivered-baseline) ·
 [Evidence](#evidence-by-component)
 
-Detailed inputs, hashes, attempts and rejected hypotheses are preserved in
-[the immutable prior record](https://github.com/TarbleFR/RewindBox/blob/30ee5beb204a9c972f85c5e9cd249aa341887283/docs/AI_TASK_BOARD.md) and linked component evidence.
-They are evidence to consult selectively, not old instructions to resume.
-
 ## Shared working rules
 
-1. **PRIORITY / STRICT — turn constraints into improvements.** Every in-scope
-   performance/stability/rendering/audio/input constraint requires concrete
-   modification work, executed before/after verification and reviewed handoff.
-   “GPU-bound”, “first-use compilation” or “real constraint” alone never closes it.
-   Record symptom → source/lever → change → executed check → outcome.
-   Diagnostics and unexecuted tests are intermediate. If a hypothesis fails,
-   change the approach; keep actionable work open. A demonstrated irreducible
-   limit or unavailable device/access needs evidence and an exact next action.
-   Continue independent improvements. Never fabricate a patch/gain or weaken
-   rendering, synchronization, data or tests.
-2. **Finish approved work without repeated approval.** Continue through correction,
-   verification, integration and authorized private delivery. Resolve missing
-   technical evidence with existing logs/source and a bounded executable check.
-   Ask only for a necessary new decision, access or physical observation unavailable
-   in the environment. Respect actual tool/platform refusals; never bypass them.
-3. **Preserve ownership and work.** Main is the coordination role, normally the
-   principal Claude session. The active task may explicitly delegate its execution
-   to Codex. That coordinator owns integration, Cores, pins, CI, freeze and delivery;
-   component sessions own their changes. Inspect branch, HEAD, remote and
-   dirty paths first. One writer per path; preserve concurrent/local-only work,
-   `main`, `backup`, tags, baselines and history. No force-push/reset/clean,
-   silent conflict resolution, duplicate diagnosis/build or unrelated feature.
-4. **Use safe branches.** Component follow-ups after squash/integration/closed PR
-   start a fresh local branch/worktree from current `Claude`, preserve local work
-   and replay only the intended delta. Publish an unfinished lot through the
-   [Backup archive and exact-SHA handoff](branch-archive.md), not by recreating
-   archived remote branches. A new PR/remote branch requires an explicit current
-   integration decision. No forced reuse or synthetic `ours` merge around a refusal.
-   Separate commit from push. The coordinator integrates the reviewed delta and evidence.
-5. **Keep this contract current and small.** After meaningful results and before
-   ending/compaction/handoff, replace only your task's current state; delegated agents
-   submit that update to its coordinator unless explicitly assigned the board entry. Correct
-   permanent instructions in place. Fetch latest first: never overwrite the board
-   from a stale branch. Link detailed evidence; do not append a chronological diary.
-   Distinguish dirty/local/published/tested/compiled/delivered/device-observed.
-6. **Use included services.** Official subscription sign-ins only; no paid API,
-   outside agent launcher, quota polling, billing/subscription changes or auto-top-up.
-   No new worker merely for another badge; delegation limits below still apply.
-   Quota loss transfers neither ownership nor history. Public posting and unrelated
-   destructive actions require separate authorization. This file is not a scheduler.
-7. **Communicate meaningful outcomes in French.** Report required attempt outcomes,
-   significant results and real blockers; avoid repetitive updates, identical
-   relaunches and requests for already-published logs. “Done” without checks is not proof.
-
-**Misaddressed files:** main routes the exact batch from source session to owner
-using real native file sharing, or authorized Codex download/re-attachment.
-Text/session metadata access is not file access. Verify sizes/SHA-256 and destination
-receipt; distinguish queued/sent/received. No substitution with older namesakes,
-raw private logs in Git, public links or extra worker. State the exact access
-limitation if originals cannot be retrieved; continue independent work.
+Follow AGENTS.md. Preserve existing product, data and delivery safeguards.
+Fix demonstrated defects and run meaningful checks; do not invent gains or
+weaken tests. Reuse prior findings and investigate changed inputs or unresolved
+questions. Ask only for genuinely missing access, evidence or a new decision.
+Use included services; no paid API, billing changes or unauthorized public posts.
+Transfer private files only through authorized channels; never put secrets or
+raw private logs in Git. A short useful task update is sufficient.
 
 ## Adaptive delegation
 
-Prefer direct work for tiny tasks and **one coding agent total**. Authorized
-parallel coding uses separate branches/checkouts and disjoint paths; at most two
-useful independent read-only reviewers, no nested teams or duplicate reviews.
-
-| Work | Native agent | Model / effort |
-| --- | --- | --- |
-| Exact file/symbol/result lookup | `rb-lookup` | Haiku / low |
-| Bounded source/upstream investigation | `rb-research` | Sonnet / medium |
-| Understood isolated correction | `rb-code` | Sonnet / medium |
-| Difficult Core/JIT/GPU/memory/ABI/native lifecycle review | `rb-core-review` | Opus / high |
-
-Pass BOTH model and effort when supported, exact base/diff/owned paths, prior
-findings, one question, acceptance and stopping condition. Return decisive evidence
-and next action (normally 200–400 words). `worktree.baseRef: head` omits dirty work;
-only main integrates. If unavailable, owner continues and reports the limitation.
-
-**Main-turn effort:** invoke native Skill `rb-effort-low`, `rb-effort-medium` or
-`rb-effort-high`; a prose claim does not change it.
-
-| Remaining work | Effort |
-| --- | --- |
-| Facts/status only | low |
-| Understood bounded correction or routine handoff | medium |
-| Unresolved Core/GPU/JIT/memory/concurrency/ABI, UIKit, skin hit/stick/orientation or risky review | high |
-| Named exceptional hard ambiguity | Extra/Max, then exit after resolution |
-
-Reassess each user turn and genuine phase boundary, not each command. A status
-interruption does not lower effort before resuming risky code. Keep the principal
-model stable within a task; model changes are separate native operations. If an
-exceptional level lacks a selector/self-control, report the exact limitation for
-the coordinator's already-authorized UI adjustment, without a new worker/approval.
-
-**Verify per session:** sync only relevant config, preserve dirty work and
-`/reload-skills` when needed; record actual Skill return/expanded
-`${CLAUDE_EFFORT}`, requested level and displayed session setting separately.
-Manual Max persists; project medium does not clear it. A loaded skill overrides
-session effort for its turn, requiring invocation next turn.
-`CLAUDE_CODE_EFFORT_LEVEL` or an organization cap can prevail: inspect only relevant
-non-secret effort settings on mismatch. UI alone does not prove an in-flight
-request's effort; permissions Auto is not effort automation. No unverified routing
-or savings claim. Config: `.claude/agents/`, `.claude/skills/rb-effort-*/SKILL.md`,
-`.claude/settings.json`; activation evidence stays in the task, not permanent rules.
-
-**Failure escalation:** classify exact run/job/assertion as product, harness,
-baseline or infrastructure. Fix simple causes directly; after two equivalent
-inconclusive checks change method. Escalate once for a named complex ambiguity,
-with exact attempts and required tests. Do not model-switch or rerun full workflows
-to solve a missing artifact, network error or attributed baseline failure.
-[Native behavior reference](https://code.claude.com/docs/en/model-config).
+Work directly by default. A helper may answer one useful independent question
+or edit explicitly assigned non-overlapping paths; never create a branch or
+worktree for it automatically. Serialize conflicting edits and keep one delivery
+executor. Return concise findings, changes, checks and any real blocker.
+The existing agent definitions and effort selectors are optional tools, not a
+required step on each turn. No repeated effort-setting checks or claimed savings.
 
 ## Codex model and effort routing
 
-Delegate only when useful/authorized; verify exposed native availability, set BOTH
-parameters with `fork_turns: none`, provide minimum context and keep one writer.
-
-| Independent work | Model alias | Effort |
-| --- | --- | --- |
-| Exact lookup/receipt | `gpt-6-luna` | low |
-| Bounded research, understood change/check | `gpt-6.1-sol` | medium |
-| Difficult Core/GPU/JIT/memory/concurrency/ABI review | `gpt-6-astra` | high |
-
-These are Work Mode aliases, not API IDs. Escalate once for a named ambiguity.
-The app controls Codex's primary model/effort; never claim to switch them through
-project text. No paid service permission is implied. Personal routing points here.
+If delegation is useful, use an available native model/effort suited to the
+question. No mandatory routing table or model switching. The application controls
+the primary model; repository text does not change it.
 
 ## Standing IPA compilation authorization
 
@@ -262,54 +164,30 @@ communication evidence, not another implementation queue.
 
 ## Cross-account coordination
 
-GitHub is the durable transport shared by both accounts. Private Claude session
-messages are optional: a `not found` response is not a handoff and must not create
-an indefinite wait. This board remains the sole task/ownership contract.
-
-1. At start/resume and before handing over, fetch `origin/Claude`, inspect local
-   work, read the relevant task and run `python3 tools/coordination/status.py`.
-   Use the existing official `gh` sign-in or `GH_TOKEN`; never put a token in Git.
-2. Only `main`, `Claude`, `Backup` are durable remote branches (maintainer, 13 Nov).
-   Archived task branches below are historical names, not push targets. Keep local
-   worktrees; do not recreate those remote branches automatically. Preserve local
-   uncommitted work. Follow [the archive protocol](branch-archive.md) to publish
-   an unfinished source under Backup with previous Backup + lot SHA as parents.
-3. Use [shared handoff issue #179](https://github.com/TarbleFR/RewindBox/issues/179)
-   for exact source/owner/reviewer/dependencies/checks/producer receipts. The receiver
-   records `ACK <full SHA>`, then review/integration/Core/pin/IPA evidence separately.
-   A source advance requires a fresh review. Backup is archival ancestry only;
-   NEVER merge it into Claude/main. Main selects reviewed source commits.
-4. One writer per path. Main handles common Core numbering, composition, freeze,
-   pin and IPA. Resolve shared test/recipe edits with the component owner before
-   changing them; do not revert and reintroduce each other's corrections silently.
-5. Before a producer dispatch run `python3 tools/coordination/status.py --source
-   <full SHA>`: follow an existing active run, reuse a valid pinned result, or state
-   the changed input that needs another run. No push-plus-dispatch duplicate.
-6. Classify red results as compile/product, test harness, source/contract or network.
-   Preserve source/run/attempt/job identities. Current delivery requires evidence
-   from its exact attempt; blindly rerunning failed jobs alone is not a supported
-   substitute. For a new delivery request use existing `tests.<group>.mode=reuse`
-   only when `reuse_guard` authenticates identical effective tree, commands, recipe
-   reads and artifacts. Preflight remains fresh. No compiled-app reuse is claimed.
-7. A blocked recipient is handled through issue #179 and this task's exact next action;
-   continue independent work. Do not create another competing implementation.
+Both accounts work on `Claude` under AGENTS.md. Read the relevant task, inspect
+current source and existing CI runs, and avoid concurrent writes to shared paths.
+A short board update or the current conversation provides continuity. No issue,
+ACK, private session lookup, Backup publication or status script is mandatory.
+Before a build, verify the exact source and follow any existing matching run.
+Retain the standard recipe's checks and reuse guards. Classify a failure from
+its actual job/attempt and correct the cause before retrying.
 
 ## Active requirements
 
-Snapshot below is an index, not a live CI result. Current Claude/Backup HEADs, issue #179 receipts,
-artifacts and receipts take precedence over old statuses. All removed detail,
+Snapshot below is an index, not a live CI result. Current Claude source, live runs,
+artifacts and verified receipts take precedence over old statuses. All removed detail,
 negative findings and prior decisions remain in the
 [immutable pre-cleanup contract](https://github.com/TarbleFR/RewindBox/blob/30ee5beb204a9c972f85c5e9cd249aa341887283/docs/AI_TASK_BOARD.md).
 Do not restart a historical task from that archive.
 
-| Owner | Local work / archived branch name | Responsibility / next action |
+| Owner | Historical work reference (new work uses Claude) | Responsibility / next action |
 | --- | --- | --- |
 | Main `012mUAShv9k6pSCnpW7oAF63` | `Claude` | Integration, common Cores, pins, recipe and private delivery; reconcile current handoffs and 733 retries. |
 | MeloNX `012mUASkkFGHaPcEUx9dsp8q` | `work/melonx-fps-stability-20261103` | Native/MoltenVK heap, bridge and timing-test owner; review lot 10's native-heap request and hand over exact CI fix. |
 | MeloNX lot 10 / heat `01JA5QgKeoGVH5oVjNyhcj3D` | `work/melonx-heat-20261113` (lot 10 integrated as 30ee5beb) | Heat lot `adapt_wait_spin_bound` with gate and Core 747 wiring for main to freeze, build and pin; then the 20-minute before/after protocol. |
 | XeniOS `012mUASiVyxdnhNTUKesGGm7` | `work/playlists-xenios-20261110` | Xbox 360 engine/bridge, legal chain and device follow-ups. |
 | S2Arm `012mUASj3EQnvC86WC56AePw` | `work/s2arm-switch2-prototype-20261110` | Switch 2 engine, preparation, playlist and device follow-ups. |
-| Skins `012mUASjgVWk8DKKjVbwTD2n` | Local worktree from Claude for any new lot | Preserve reviewed packs/controls; merged branches are not active task queues. |
+| Skins `012mUASjgVWk8DKKjVbwTD2n` | Direct work on Claude | Preserve reviewed packs/controls; merged branches are not active task queues. |
 | Codex coordination | Integration on `Claude`, former work branch archived | Completed branch/archive consolidation, shared handoff, common producer routing and guarded Actions cleanup; see maintenance report and nine refused orphan deletions. |
 
 ### Common IPA — main Claude Code / Codex execution authorized 13 Nov
@@ -450,7 +328,7 @@ integrated; keep installed-pack IDs, imports, hit targets, rotation, input relea
 and all player preferences. PR170/171/173, fallback PR178 and update notice PR176
 are merged. Decorations/preview decoding PR177 is integrated. No fresh device
 result is inferred. Continue only the current maintainer's device report or new
-scoped instruction on a fresh branch. Earlier unresolved Delta safe-area/cutout
+scoped instruction directly on Claude. Earlier unresolved Delta safe-area/cutout
 questions stay in [the archived task](https://github.com/TarbleFR/RewindBox/blob/30ee5beb204a9c972f85c5e9cd249aa341887283/docs/AI_TASK_BOARD.md#skinsorientation-ps2switch-pocket-and-main-menu-bar--existing-owner).
 [Pack record](pocket-originals-2026-11-03.md) · [framing](skins-screen-framing-2026-11-10.md).
 
@@ -524,8 +402,8 @@ main, Claude and Backup without losing work.
 28 archived); Backup `4e2ec758` includes concurrent MeloNX head `f5abc0ac`.
 Fresh-repository retrieval of that deleted-branch commit passed. Backup must never
 be merged into product history. AGENTS and archive protocol govern future local
-worktrees and exact-source publication. Shared issue #179 carries cross-account
-handoffs; the board remains the task contract.
+worktrees and exact-source publication at that time. The former issue #179
+handoff protocol is superseded by AGENTS.md; its old references are evidence only.
 **Recipe:** common XeniOS/S2Arm producers route from Claude with explicit requests
 and source-specific concurrency; old pin provenance remains authenticated.
 67 scoped tests and 70 rewrite checks passed. The experimental S2Arm 801+ lane
@@ -555,7 +433,7 @@ codec sources. RPCS3 already uses Ninja/ccache; its frozen producer is unchanged
 [Implementation and measured limits](engine-build-caches.md). Independent review corrected the native
 envelope path and the Bash nounset cold path; root reran451 DMA checks,24 recovery checks,3 cache tests
 and Bash syntax successfully.104 Core gates and runtime/preparation contracts remain unchanged.
-**Next / owner:** Codex executes the maintainer's new private delivery request, coordinated on issue179,
+**Next / owner:** Codex executes the maintainer's new private delivery request, directly on Claude,
 without a duplicate producer. Draft `dceb3344` already classifies the reviewed host-cache
 integration and defers the Xenia-only producer commit. Reconcile subsequent maintenance
 commits before733's materialization/freeze. Core745 run`43344184896` from`ced57c6d` is successful,
@@ -609,6 +487,12 @@ and [383 skipped runs](evidence/github-cleanup-2026-11-10-followup.json).
 
 ### Markdown maintenance — Codex
 
+**Current maintainer request (13 Nov, later):** workflow simplified in AGENTS.md:
+direct Claude work, no automatic issues/PRs/branches/worktrees, optional helpers,
+short useful state updates. Removed mandatory issue179/ACK/Backup handoffs and
+rb-code worktree isolation. Technical safeguards and existing delivery ownership
+remain. Prior cleanup below is historical evidence, not an active procedure.
+
 **Goal (maintainer,13 Nov):** remove obsolete or conflicting active Markdown guidance.
 Inventory:588 Markdown files at the reviewed source. Independent reviews identified branch/ownership,
 board-writing,745 status and Actions-preservation contradictions. Corrections
@@ -639,10 +523,10 @@ and direct component evidence. Preserve rejected hypotheses and baseline attribu
 
 ## Update a task in place
 
-Use Goal / State / Evidence / Open or limit / Next. Keep owner, exact source, run,
-Core/pin/IPA/device distinctions. Replace stale status, do not append a diary.
-Fetch first; reconcile concurrent changes. Archive detail by immutable commit,
-never destroy prior evidence. This file is a contract, not an automatic scheduler.
+After a material result or blocker, keep a brief current state, evidence and next
+action in the relevant entry. Preserve exact build/source identities when needed.
+Read the latest version before writing and preserve others' updates. Do not append
+a diary or require an issue/ACK. Historical evidence stays available in Git.
 
 ## Evidence by component
 

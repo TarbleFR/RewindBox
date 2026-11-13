@@ -12,7 +12,7 @@ evidence and are not additional instructions to build, publish or restore a feat
 | Current public release and its exact source | [Public README](../README.md#build-from-source), then its linked manifest and receipt |
 | Common private IPA preparation, freeze and delivery | [Standard delivery recipe](standard-delivery-recipe.md) |
 | Component behavior and constraints | [Component rules](PROJECT_RULES.md), then the active task's direct evidence |
-| Three remote branches and cross-account handoff | [Branch archive protocol](branch-archive.md) |
+| Three branches and recovery of historical work | [Branch archive reference](branch-archive.md) |
 | Engine build acceleration | [Producer caches](engine-build-caches.md) |
 | Optional app build acceleration | [Encrypted host cache](ipa-incremental-build.md) |
 | Current Actions history triage | [Reviewed cleanup scope](actions-history-triage-2026-11-13.md) |
@@ -25,7 +25,7 @@ existing verification boundaries and final delivery checks.
 
 | Record | How to use it |
 | --- | --- |
-| [Instruction snapshots and index](history/README.md) | Read the dated decision and its exact source; current instructions remain in the shared board. |
+| [Instruction snapshots and index](history/README.md) | Read the dated decision and its exact source; current workflow remains in AGENTS.md; technical requirements and task state remain in the board. |
 | `build*.md`, `rpcs3-core*.md`, `melonx-*.md` and delivery receipts under `evidence/` | Treat build numbers, “pending”, “current” and next actions as statements at that source/date. Follow them only when the active task explicitly selects that work. |
 | [606 delivery recipe](rewind606-delivery-recipe.md) | Historical producer verification; do not trigger an old launcher for a new common IPA. |
 | [NeoPlay prototype](neoplay/README.md) and [Build397](neoplay/BUILD397.md) | Historical prototype/branch instructions, not a current remote-branch or build request. |

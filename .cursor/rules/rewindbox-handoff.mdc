@@ -1,13 +1,9 @@
 ---
-description: RewindBox shared contract and task ownership
+description: RewindBox direct Claude workflow
 alwaysApply: true
 ---
 
-# RewindBox
-
-Read AGENTS.md and the applicable rules/task in docs/AI_TASK_BOARD.md.
-Claude Code owns substantive implementation and integration. Cursor handles
-explicitly authorized, non-overlapping work using its included allowance.
-Verify branch, HEAD and working diff. Preserve ownership and concurrent changes.
-Update the shared contract after meaningful results and before ending or handoff.
-Use its evidence links and reuse only checks whose relevant inputs still match.
+Follow AGENTS.md and read only the relevant task in docs/AI_TASK_BOARD.md.
+Work directly on Claude; no automatic branch, worktree, issue or PR.
+Inspect HEAD and local changes, preserve others' work and serialize shared edits.
+Run relevant checks and update task state only when useful for continuation.

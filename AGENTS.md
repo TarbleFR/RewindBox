@@ -1,31 +1,35 @@
-# RewindBox — agent entry point
+# RewindBox — simple working rules
 
-Read the [shared requirements and results](docs/AI_TASK_BOARD.md) before work.
-It is the sole working contract for Claude Code, Codex and Cursor, including
-permanent rules, current tasks, positive and negative results, input identities,
-evidence references and the verified delivered baseline.
+These rules replace older orchestration instructions. Follow the user's current
+request first. Read only the relevant task and technical requirements in
+[docs/AI_TASK_BOARD.md](docs/AI_TASK_BOARD.md), then the needed source/evidence.
 
-Inspect actual branch, HEAD and working diff. Read only the applicable shared
-rules and task, then its direct evidence and source. Preserve concurrent work.
-The coordinator updates the shared contract after meaningful results and before
-ending, compacting or handing off. A delegated agent supplies a ready-to-integrate
-task update unless explicitly assigned ownership of that entry. Correct a permanent
-instruction when its meaning changes. Maintain one record in place and use the
-existing detailed proofs.
+1. **Work directly on `Claude` (exact case).** Inspect branch, HEAD and local changes,
+   then synchronize safely. Ordinary fast-forward commits/pushes to `origin/Claude`
+   are authorized; use `[skip ci]` for documentation-only changes.
+2. **No automatic branches, worktrees, issues or PRs.** Create them only when the
+   user explicitly requests them. Never recreate deleted issues/branches.
+   `main` stays the reference branch; `Backup` preserves existing archives.
+   Neither is a routine handoff route. Never merge Backup into a product branch.
+3. **Preserve work.** No force-push, destructive reset/clean or unreviewed deletion.
+   Stage only owned changes. Before pushing, reconcile newer remote commits.
+   Serialize edits to shared paths; use sequential work when ownership conflicts.
+4. **Keep coordination light.** The current session executes the requested work.
+   Use a helper only for a useful bounded question or explicitly assigned paths;
+   no automatic team or isolation. One active executor per Core/IPA delivery:
+   follow the existing run instead of launching a duplicate.
+5. **Correct → verify → deliver within the approved scope.** Use existing evidence,
+   fix the cause, run relevant checks and report the result in French. Preserve
+   component requirements, data, signatures and source/artifact validation.
+   Existing build authorizations remain valid; use the standard delivery recipe.
+   A documentation change alone is not a request to build an IPA.
+6. **Record only what helps continuation.** Update the relevant board entry after
+   a material result/blocker, preferably with the work's commit. A short state,
+   evidence and next action suffice. No mandatory issue, ACK, session lookup,
+   model/effort ceremony or standalone bookkeeping commit for routine progress.
 
-## Branches and cross-account handoff (maintainer, 13 November 2026)
-
-Only `main`, `Claude` and `Backup` are durable remote branches. Do not recreate
-archived work branches automatically. Keep uncommitted/local work intact and use
-local worktrees for isolation. Before publishing an unfinished lot, preserve its
-commit as a parent of a new fast-forward Backup archive commit and record its
-owner/source in the archive index and the shared handoff issue #179. Preserve the
-previous Backup HEAD as a parent. Never merge Backup into a product branch.
-
-Read `docs/branch-archive.md` and issue #179 before resuming an archived task.
-Main is the coordination role; the active task may explicitly name its delegated
-executor, including Codex. That coordinator owns reviewed integration into Claude.
-Use exact-SHA handoffs and ACKs on
-issue #179; never wait indefinitely for a private session ID unavailable to the
-other account. The board remains the task/ownership contract. Deleting a remote
-branch never licenses removal of local uncommitted work or a new unarchived head.
+If the environment itself forces a session branch or refuses a direct push,
+state that exact restriction; do not bypass it or repeatedly ask for an already
+granted authorization. Do not publish a `claude/...` branch: its first component
+collides with `Claude` on case-insensitive macOS checkouts. Preserve existing work
+and use direct `Claude` access only where the environment permits it.

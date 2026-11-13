@@ -11,8 +11,7 @@ paths:
 
 # RewindBox diagnostics
 
-Follow the active task and diagnostic rules in `docs/AI_TASK_BOARD.md`.
-Read its direct component evidence before changing behavior. The coordinator updates
-the owned entry with meaningful findings and validation, including failures and input
-identity. Delegated agents provide that update to the coordinator unless explicitly
-assigned ownership of the board entry.
+Follow AGENTS.md and the relevant component requirements/evidence.
+Distinguish observed defects, hypotheses and unverified device behavior.
+Fix the cause, run relevant checks and keep a brief record of material results.
+Helpers return findings to the requesting session; no separate handoff ritual.
