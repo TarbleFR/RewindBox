@@ -18,12 +18,14 @@ Executed (test/melonx_wait_spin_bound/Program.cs with the adapter's class text, 
 medians of five): two threads handing over as KScheduler does, with the control's event and the candidate's:
 - partner answers in 1 or 5 us (the spin's yields pay): the candidate keeps the full spin and at least 80 % of the
   control's handoffs per second (75 % at 5 us, the noisiest point on a shared host);
-- partner answers in 100 or 300 us (both block): the candidate drops to the pause iterations and spends at least 15 %
-  less CPU per handoff beyond the work, at 90 % or more of the control's handoffs per second (40 us, the edge of a full
-  spin's length on macOS, is measured and not asserted);
+- partner answers in 100 or 300 us (both block): the candidate spends at least 15 % less CPU per handoff beyond the
+  work, at 90 % or more of the control's handoffs per second; it ends with the pause iterations on both events in every
+  run at 300 us and in one run or more at 100 us (a host whose yields other threads stretch keeps the full spin in some
+  runs there, by design: Core 747 run 43423803238); the spin lengths the class measured are reported (40 us, the edge of
+  a full spin's length on macOS, is measured and not asserted);
 - half short and half long slices: at 90 % or more of the control's handoffs per second;
-- a ring of eight threads with slices of 0-300 us: no lost wakeup (laps made, every thread ends), one token holder
-  at a time; a wait on an event nobody sets stays blocked, and returns after Set.
+- a ring of eight threads with slices of 0-300 us: no lost wakeup (the ring advances in every 250 ms window, every
+  thread ends once the stop is signalled), one token holder at a time; a wait on an event nobody sets stays blocked, and returns after Set.
 This measures the mechanism on the host's scheduler; what it saves on the iPhone is read from the next IPA's sw=,
 en=, cpu= and [MeloNX:hot] lines.
 """
@@ -106,6 +108,8 @@ def execute(temporary):
                 'wakeUsP50': statistics.median(r['wakeUsP50'] for r in runs),
                 'wakeUsP99': statistics.median(r['wakeUsP99'] for r in runs),
                 'spinBudgets': [r.get('spinBudgets') for r in runs],
+                'fullSpinUs': [r.get('fullSpinUs') for r in runs],
+                'overheadCpuUsPerRun': [r['overheadCpuUsPerHandoff'] for r in runs],
             }
     ring = json.loads(run(probe + ['ring', '1500'], fixture).strip().splitlines()[-1])
     return results, ring
@@ -207,18 +211,28 @@ for name, floor in (('short1', 0.8), ('short5', 0.75)):
     check(cand['handoffsPerSecond'] >= floor * ctl['handoffsPerSecond'] and all(b == [35, 35] for b in cand['spinBudgets']),
           f'{name}: the partner answers inside the spin: the candidate keeps the full spin and {floor:.0%} or more of the control\'s '
           f'handoffs per second ({cand["handoffsPerSecond"]:.0f} against {ctl["handoffsPerSecond"]:.0f}, budgets {cand["spinBudgets"]})')
-for name in ('long100', 'long300'):
+# Long handoffs: both threads block. The energy criteria hold at both points: 15 % or more less CPU per handoff beyond
+# the work, at 90 % or more of the handoffs. The final budgets: at 300 us every run reduced both events; at 100 us one run
+# or more. A wait that ends inside a spin whose yields the host stretched (another thread held the core) counts as short,
+# by design: such a spin gave the core away rather than burning it. On a shared host that happens often enough at 100 us to
+# keep the full spin in some runs: Core 747 run 43423803238 (macOS arm64): budgets [10,10] [35,35] [35,10] [35,35] [10,10],
+# CPU 30.41 against 46.80 us at 7718 against 8000 handoffs/s; reproduced on Linux x86_64 with three busy processes on four
+# cores, the measured spin lengths normal (8-16 us), so not an inflated calibration. The measured lengths are reported.
+for name, reduced in (('long100', 1), ('long300', 5)):
     ctl, cand = point(name, 'control'), point(name, 'adaptive')
-    check(all(b == [10, 10] for b in cand['spinBudgets']) and cand['overheadCpuUsPerHandoff'] <= 0.85 * ctl['overheadCpuUsPerHandoff'] and
-          cand['handoffsPerSecond'] >= 0.9 * ctl['handoffsPerSecond'],
-          f'{name}: both block: the candidate keeps the pause iterations and spends 15 % or more less CPU per handoff beyond the work '
-          f'({cand["overheadCpuUsPerHandoff"]:.2f} against {ctl["overheadCpuUsPerHandoff"]:.2f} us) at 90 % or more of the handoffs '
-          f'({cand["handoffsPerSecond"]:.0f} against {ctl["handoffsPerSecond"]:.0f})')
+    check(sum(b == [10, 10] for b in cand['spinBudgets']) >= reduced and
+          cand['overheadCpuUsPerHandoff'] <= 0.85 * ctl['overheadCpuUsPerHandoff'] and cand['handoffsPerSecond'] >= 0.9 * ctl['handoffsPerSecond'],
+          f'{name}: both block: {reduced} or more of the 5 runs end with the pause iterations on both events, and the candidate '
+          f'spends 15 % or more less CPU per handoff beyond the work ({cand["overheadCpuUsPerHandoff"]:.2f} against '
+          f'{ctl["overheadCpuUsPerHandoff"]:.2f} us) at 90 % or more of the handoffs ({cand["handoffsPerSecond"]:.0f} against '
+          f'{ctl["handoffsPerSecond"]:.0f}); budgets {cand["spinBudgets"]}, measured full spins {cand["fullSpinUs"]} us')
 ctl, cand = point('mixed', 'control'), point('mixed', 'adaptive')
 check(cand['handoffsPerSecond'] >= 0.9 * ctl['handoffsPerSecond'],
       f'mixed slices: 90 % or more of the control\'s handoffs ({cand["handoffsPerSecond"]:.0f} against {ctl["handoffsPerSecond"]:.0f})')
-check(ring['joined'] and ring['laps'] >= 50 and ring['maxHolders'] == 1 and ring['unsetStayedBlocked'] and ring['returnedAfterSet'],
-      'ring of eight threads: no lost wakeup, one holder at a time; a wait on an unset event stays blocked and returns at Set: %s' % ring)
+check(ring['joined'] and ring['laps'] >= 50 and ring['stalls'] == 0 and ring['windows'] >= 6 and ring['maxHolders'] == 1 and
+      ring['unsetStayedBlocked'] and ring['returnedAfterSet'],
+      'ring of eight threads: no lost wakeup (the ring advances in every 250 ms window; every thread ends once the stop is '
+      'signalled), one holder at a time; a wait on an unset event stays blocked and returns at Set: %s' % ring)
 
 if FIXTURE_ONLY:
     print(f'PASS {checks} wait spin bound fixture checks on {platform.system()} {platform.machine()}')

@@ -3,7 +3,8 @@
 // threads, with the event of the control (ManualResetEventSlim at the runtime's default spin) and of the candidate
 // (the adapter's AdaptiveSpinEvent, its text unchanged, compiled next to this file).
 // Per run: handoffs completed per second, process CPU time per handoff beyond the work itself, voluntary context
-// switches per handoff, and the wake latency (from Set to the waiter's return) percentiles. The time a thread runs
+// switches per handoff, the wake latency (from Set to the waiter's return) percentiles, and for the candidate its two
+// events' final spin budgets and the spin lengths it measured on this host. The time a thread runs
 // before handing over is fixed, or mixed (a share of short slices among long ones).
 // Usage: fixture <control|bound|adaptive> <shortUs> <longUs> <shortPercent> <milliseconds>
 //        fixture ring <milliseconds>   (correctness: a ring of eight threads, then a wait on an unset event)
@@ -45,7 +46,8 @@ static unsafe class Program
     }
 
     // Correctness: eight threads hand a token round a ring as the guest scheduler does (reset own, set next, wait own),
-    // with random slices from 0 to 300 us, then a wait on an event nobody sets must stay blocked, and return at Set.
+    // with random slices from 0 to 300 us (the ring advances in every 250 ms window: a lost wakeup would stop it), then
+    // a wait on an event nobody sets must stay blocked, and return at Set.
     static int Ring(int ms)
     {
         const int N = 8;
@@ -77,11 +79,25 @@ static unsafe class Program
             }) { IsBackground = true };
             threads[i].Start();
         }
-        Thread.Sleep(ms);
+        // A lost wakeup stops the ring for good (one token): the laps are read every 250 ms and each window must advance.
+        int windows = Math.Max(1, ms / 250), stalls = 0;
+        for (int w = 0, last = -1; w < windows; w++)
+        {
+            Thread.Sleep(250);
+            int now = (int)Volatile.Read(ref laps);
+            if (now == last) stalls++;
+            last = now;
+        }
         Volatile.Write(ref stop, true);
-        foreach (Adaptive e in events) e.Set();
-        bool joined = true;
-        foreach (Thread t in threads) joined &= t.Join(3000);
+        // The stop is signalled until every thread ends: the token holder's own Reset can erase one Set (made by this
+        // thread or by its predecessor on the way out) before it waits again.
+        bool joined = false;
+        for (long end = Stopwatch.GetTimestamp() + 3 * Stopwatch.Frequency; !joined && Stopwatch.GetTimestamp() < end;)
+        {
+            foreach (Adaptive e in events) e.Set();
+            joined = true;
+            foreach (Thread t in threads) joined &= t.Join(10);
+        }
         int[] budgets = new int[N];
         for (int i = 0; i < N; i++) budgets[i] = events[i].E.SpinBudget;
 
@@ -95,7 +111,7 @@ static unsafe class Program
         unset.Set();
         bool returned = waiter.Join(2000) && Volatile.Read(ref returnedAt) >= setAt;
         Console.WriteLine(string.Create(System.Globalization.CultureInfo.InvariantCulture,
-            $"{{\"kind\":\"ring\",\"threads\":{N},\"laps\":{laps},\"joined\":{(joined ? "true" : "false")},\"maxHolders\":{maxHolders}," +
+            $"{{\"kind\":\"ring\",\"threads\":{N},\"laps\":{laps},\"windows\":{windows},\"stalls\":{stalls},\"joined\":{(joined ? "true" : "false")},\"maxHolders\":{maxHolders}," +
             $"\"unsetStayedBlocked\":{(stayedBlocked ? "true" : "false")},\"returnedAfterSet\":{(returned ? "true" : "false")},\"budgets\":[{string.Join(",", budgets)}]}}"));
         return 0;
     }
@@ -159,6 +175,14 @@ static unsafe class Program
         double Us(long ticks) => ticks * 1_000_000.0 / Stopwatch.Frequency;
         double P(double q) => window.Length == 0 ? 0 : Us(window[Math.Min(window.Length - 1, (int)(q * window.Length))]);
         string budget = kind == "adaptive" ? $",\"spinBudgets\":[{((Adaptive)events[0]).E.SpinBudget},{((Adaptive)events[1]).E.SpinBudget}]" : "";
+        if (kind == "adaptive")
+        {
+            // The process's measured spin lengths (the class's private calibration, read, not changed): the host's own.
+            static double Calibrated(string name) => (long)typeof(AdaptiveSpinEvent).GetField(name,
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static).GetValue(null) * 1_000_000.0 / Stopwatch.Frequency;
+            budget += string.Create(System.Globalization.CultureInfo.InvariantCulture,
+                $",\"fullSpinUs\":{Calibrated("s_fullSpinTicks"):F1},\"pauseSpinUs\":{Calibrated("s_pauseSpinTicks"):F1}");
+        }
         Console.WriteLine(string.Create(System.Globalization.CultureInfo.InvariantCulture,
             $"{{\"kind\":\"{kind}\",\"shortUs\":{shortUs},\"longUs\":{longUs},\"shortPercent\":{shortPercent},\"seconds\":{seconds:F3},\"handoffs\":{count}," +
             $"\"handoffsPerSecond\":{count / seconds:F0},\"cpuMs\":{cpu:F1},\"overheadCpuUsPerHandoff\":{(cpu - workMs) * 1000 / Math.Max(count, 1):F2}," +

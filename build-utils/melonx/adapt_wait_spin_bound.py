@@ -22,7 +22,8 @@ Change: AdaptiveSpinEvent (appended to Ryujinx.Common's AsyncWorkQueue.cs) repla
 default spin for an event whose waits end inside it and keeps only the ten pause iterations for an event whose waits
 mostly outlast it; the decision is made by a waiter that blocked, from the time the event was set (stamped by the
 setter only while a waiter blocks), less the setter's own wake delay when it was woken during that wait, against the
-length of a full spin measured once. A wait still returns only once its event is set; Set, Reset and Dispose are the
+length of a full spin measured once (the shortest of three samples: a stretched yield only lengthens one; Core 747's
+single sample, in the fixture on a loaded Linux x86_64 host, measured 387 us against 8-23 us in one process of thirty). A wait still returns only once its event is set; Set, Reset and Dispose are the
 event's. Nothing else changes: no thread, priority, timeout or frame pacing.
 
 Expected on the device (same save, route and conditions as the IPA 733 capture): system calls per second (sw=) and
@@ -72,8 +73,8 @@ CLASS = '''    // RewindBox (adapt_wait_spin_bound): a ManualResetEventSlim whos
         [System.ThreadStatic] private static long t_wokeTicks;
         [System.ThreadStatic] private static long t_wakeDelay;
 
-        // The length of a full spin and of the pause iterations alone (Stopwatch ticks), measured once per process on
-        // the first thread that blocks: they depend on the machine, not on the event.
+        // The length of a full spin and of the pause iterations alone (Stopwatch ticks), measured once per process (the
+        // shortest of three samples) on the first thread that blocks: they depend on the machine, not on the event.
         private static long s_fullSpinTicks, s_pauseSpinTicks;
 
         public AdaptiveSpinEvent(bool initialState = false)
@@ -162,23 +163,31 @@ CLASS = '''    // RewindBox (adapt_wait_spin_bound): a ManualResetEventSlim whos
             t_wakeDelay = System.Math.Max(0, woke - setTicks);
         }
 
-        // Times the two spins once, on the first thread that blocks (it was about to wait anyway).
+        // Times the two spins once, on the first thread that blocks (it was about to wait anyway): the shortest of three
+        // samples. A yield that another thread stretches (it held the core) lengthens a sample, never shortens it, and a
+        // stretched length would count the waits shorter than it as short for the whole process (one process in thirty
+        // on a loaded Linux x86_64 host measured 387 us against 8-23 us).
         private static void Calibrate()
         {
-            long start = System.Diagnostics.Stopwatch.GetTimestamp();
-            System.Threading.SpinWait spinner = default;
-            while (spinner.Count < PauseIterations)
+            long pause = long.MaxValue, full = long.MaxValue;
+            for (int sample = 0; sample < 3; sample++)
             {
-                spinner.SpinOnce(sleep1Threshold: -1);
+                long start = System.Diagnostics.Stopwatch.GetTimestamp();
+                System.Threading.SpinWait spinner = default;
+                while (spinner.Count < PauseIterations)
+                {
+                    spinner.SpinOnce(sleep1Threshold: -1);
+                }
+
+                pause = System.Math.Min(pause, System.Diagnostics.Stopwatch.GetTimestamp() - start);
+                while (spinner.Count < FullIterations)
+                {
+                    spinner.SpinOnce(sleep1Threshold: -1);
+                }
+
+                full = System.Math.Min(full, System.Diagnostics.Stopwatch.GetTimestamp() - start);
             }
 
-            long pause = System.Diagnostics.Stopwatch.GetTimestamp() - start;
-            while (spinner.Count < FullIterations)
-            {
-                spinner.SpinOnce(sleep1Threshold: -1);
-            }
-
-            long full = System.Diagnostics.Stopwatch.GetTimestamp() - start;
             System.Threading.Volatile.Write(ref s_pauseSpinTicks, System.Math.Max(1, pause));
             System.Threading.Volatile.Write(ref s_fullSpinTicks, System.Math.Max(2, full));
         }
