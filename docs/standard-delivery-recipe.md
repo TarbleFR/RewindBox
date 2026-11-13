@@ -61,6 +61,27 @@ Le fichier de test complet de `c5541fe0`, validé par le run hôte `43329316902`
 inclure le contrôle spinner relatif : fusionner seulement ses derniers hunks laisse
 le vieux seuil de 200 ms présent et reproduit l'échec.
 
+Après consolidation des branches, les producteurs XeniOS et S2Arm utilisent `Claude`.
+Un push ordinaire ne lance aucun job de ces quatre workflows. Le commit de demande
+porte le marqueur et touche un chemin couvert par le workflow correspondant :
+
+| Route | Marqueur de demande |
+| --- | --- |
+| Vérifications XeniOS | `[xenia-checks]` |
+| XeniaCore | `[xenia-core]` |
+| Contrôle du pin XeniOS | `[xenia-pin run=…]` |
+| S2Arm bibliothèque de préparation | `[s2arm-core]` |
+| S2Arm moteur | `[s2arm-engine]` |
+| S2Arm données système et tests de préparation | `[s2arm-prepare]` |
+| Contrôle du pin S2Arm | `[s2arm-pin …]` |
+
+Le dispatch existant reste disponible lorsqu'il est enregistré sur la branche par
+défaut ; le push marqué sur Claude est la route de repli sans branche de composant.
+Ne pas mettre ces marqueurs dans le message d'un commit de documentation ordinaire.
+Les nouvelles métadonnées S2Arm enregistrent `headBranch` depuis le run authentifié ;
+les pins historiques gardent leur provenance et peuvent être conservés dans une
+livraison mêlant un producteur récent et des composants historiques.
+
 Les reçus de livraison sont liés au **run et à sa tentative exacte** : « relancer les
 jobs échoués » ne dispense pas du preflight et des autres preuves de cette tentative.
 Préparer une nouvelle demande avec `tests.<groupe>.mode=reuse` uniquement si

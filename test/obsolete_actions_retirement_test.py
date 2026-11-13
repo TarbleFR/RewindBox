@@ -2,6 +2,7 @@ import importlib.util
 from pathlib import Path
 import sys
 import unittest
+from unittest.mock import patch
 from datetime import datetime, timezone, timedelta
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'build-utils/maintenance'))
 import retire_obsolete_actions as m
@@ -78,4 +79,20 @@ class Retirement(unittest.TestCase):
         a.request=read
         with self.assertRaises(RuntimeError):m.cancel(a,a.entry,lambda _:None)
         self.assertEqual(a.posts,[])
+    def test_orphaned_queue_is_reported_not_claimed_cancelled(self):
+        a=Fake();old=a.request
+        def read(path,method='GET'):
+            if method=='POST':a.posts.append(path);return None
+            return old(path,method)
+        a.request=read
+        self.assertEqual(m.cancel(a,a.entry,lambda _:None),'cancellation_requested_unconfirmed')
+        self.assertEqual(len(a.posts),2)
+    def test_disable_only_reviewed_empty_old_queues_not_new_or_running_work(self):
+        a=Fake();workflow={'path':a.entry['path']};plan={'runs':[a.entry]}
+        with patch.object(m,'live',return_value=[{**a.run,'id':1}]):
+            m.check_disable(a,workflow,plan)
+            a.run['status']='in_progress'
+            with self.assertRaises(RuntimeError):m.check_disable(a,workflow,plan)
+        with patch.object(m,'live',return_value=[{**a.run,'id':2}]):
+            with self.assertRaises(RuntimeError):m.check_disable(a,workflow,plan)
 if __name__=='__main__':unittest.main()

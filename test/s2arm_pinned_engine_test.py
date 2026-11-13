@@ -112,7 +112,7 @@ def sysdata_artifact(tree=None, sums=None, extra=None):
 
 def meta_for(archives):
     return {name: dict(run=RUNS[name], attempt=1, artifact=ARTIFACT_IDS[name], name=NAMES[name].format(HEADS[name]),
-                       bytes=len(raw), sha256=sha(raw), headSha=HEADS[name], expiresAt='2026-12-12T00:00:00Z')
+                       bytes=len(raw), sha256=sha(raw), headSha=HEADS[name], headBranch=BRANCH, expiresAt='2026-12-12T00:00:00Z')
             for name, raw in archives.items()}
 
 
@@ -288,7 +288,8 @@ class Fixture(unittest.TestCase):
         def get(endpoint):
             for name, run in RUNS.items():
                 if endpoint == f'actions/runs/{run}':
-                    return {'id': run, 'path': component()['producers'][name]['workflow'], 'head_branch': branch,
+                    return {'id': run, 'path': component()['producers'][name]['workflow'],
+                            'head_branch': branch[name] if isinstance(branch, dict) else branch,
                             'status': 'completed', 'conclusion': 'success', 'run_attempt': 1, 'head_sha': HEADS[name]}
                 if endpoint == f'actions/runs/{run}/artifacts':
                     raw = self.archives[name]
@@ -526,6 +527,51 @@ class Refused(Fixture):
     def test_the_producer_must_be_a_run_of_the_named_branch(self):
         with self.assertRaisesRegex(ValueError, 'not the successful pinned run'):
             self.download(get=self.api(branch='Claude'))
+
+    def test_new_pin_keeps_each_actual_producer_branch_and_binds_its_download(self):
+        branches = {'engine': 'Claude', 'prepare': 'Claude', 'sysdata': BRANCH}
+        meta = meta_for(self.archives)
+        for name, branch in branches.items():
+            meta[name]['headBranch'] = branch
+        self.pin = pin_tool.build_pin(meta, self.archives)
+        self.write_pin(self.pin)
+        path = self.root / 'build-utils/s2arm/engine-pin.json'
+        spec = pin_tool.snippet(path)['s2arm']
+        self.assertEqual({name: entry['headBranch'] for name, entry in self.pin['producers'].items()}, branches)
+        self.assertEqual({name: entry['branch'] for name, entry in spec['producers'].items()}, branches)
+        self.manifest = {'components': {'s2arm': spec}}
+        self.download(get=self.api(branch=branches))
+        for wrong in ('Claude', BRANCH, 'unreviewed'):
+            with self.subTest(branch=wrong), self.assertRaisesRegex(ValueError, 'not the successful pinned run'):
+                self.download(get=self.api(branch=wrong))
+
+    def test_new_metadata_requires_an_explicit_reviewed_branch(self):
+        for branch in (None, '', 'main', 'Backup', 'work/unreviewed'):
+            meta = meta_for(self.archives)
+            if branch is None:
+                del meta['engine']['headBranch']
+            else:
+                meta['engine']['headBranch'] = branch
+            with self.subTest(branch=branch), self.assertRaisesRegex(SystemExit, 'headBranch'):
+                pin_tool.build_pin(meta, self.archives)
+
+    def test_legacy_pin_without_branch_keeps_its_original_identity(self):
+        legacy = copy.deepcopy(self.pin)
+        for entry in legacy['producers'].values():
+            del entry['headBranch']
+        self.write_pin(legacy)
+        path = self.root / 'build-utils/s2arm/engine-pin.json'
+        before = path.read_bytes()
+        value = pin_tool.snippet(path)['s2arm']
+        self.assertTrue(all(entry['branch'] == BRANCH for entry in value['producers'].values()))
+        self.assertEqual(path.read_bytes(), before)
+        self.download()
+
+    def test_a_pin_with_an_unreviewed_explicit_branch_is_refused(self):
+        self.pin['producers']['engine']['headBranch'] = 'unreviewed'
+        self.write_pin(self.pin)
+        with self.assertRaisesRegex(SystemExit, 'headBranch'):
+            pin_tool.snippet(self.root / 'build-utils/s2arm/engine-pin.json')
 
     def test_a_draft_pin_is_refused(self):
         # The committed pin is the one the pin job of s2arm-engine.yml verified (run 43134938018); the same pin

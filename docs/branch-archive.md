@@ -14,8 +14,9 @@ Le mainteneur a demandé le 13 novembre 2026 de conserver uniquement `main`,
 
 ## Reprendre une branche supprimée
 
-`git fetch origin Backup` récupère l'archive. Lire le SHA de l'ancien nom dans
-`branch-archive.json`, puis créer une branche **locale** avec
+`git fetch origin Backup` récupère l'archive. Afficher son index avec
+`git show origin/Backup:branch-archive.json`, lire le SHA de l'ancien nom,
+puis créer une branche **locale** avec
 `git switch -c reprise-locale <SHA>`. Le code, les commits antérieurs et les fichiers
 restent accessibles. Conserver les modifications locales déjà présentes ; ne pas
 faire de reset ou de nettoyage de leur espace de travail.

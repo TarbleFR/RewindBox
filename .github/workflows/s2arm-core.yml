@@ -1,10 +1,11 @@
 name: S2Arm preparation Core (iOS)
 # Builds the on-device preparation library for iOS arm64 as an xcframework.
-# Switch 2 test IPAs only; nothing here is part of the common IPA.
+# The common IPA consumes the authenticated pin. Build from Claude with [s2arm-core]
+# on a relevant push, or by workflow_dispatch; ordinary pushes do not compile.
 'on':
   workflow_dispatch:
   push:
-    branches: [work/s2arm-switch2-prototype-20261110]
+    branches: [Claude]
     paths:
       - .github/workflows/s2arm-core.yml
       - build-utils/s2arm/**
@@ -19,6 +20,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   prepare-core:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[s2arm-core]')) }}
     runs-on: macos-15
     timeout-minutes: 20
     steps:

@@ -19,7 +19,7 @@ Three producer artifacts, one pin (schema of standard_delivery.py, `engine_pin_e
   engine_pin.py install-prepare [--root DIR]
         unzips the verified S2ArmPrepare.xcframework where the engine bridge podspec vendors it, before pod install
 
-META = {producer: {run, attempt, artifact, name, bytes, sha256, headSha, expiresAt}} for engine, prepare, sysdata
+META = {producer: {run, attempt, artifact, name, bytes, sha256, headSha, headBranch, expiresAt}} for engine, prepare, sysdata
 (the pin job of s2arm-engine.yml writes it from the API; sha256 is the artifact digest GitHub reports).
 Pin fields beyond the common ones: producers.<name>.members {archive member: sha256} (what the artifact holds),
 producers.<name>.unpack (archives the recipe unpacks), identity (what other validators read from the identity file:
@@ -67,6 +67,7 @@ PRODUCERS = {
     'sysdata': ('.github/workflows/s2arm-prepare.yml', 'sysdata'),
 }
 BRANCH = 'work/s2arm-switch2-prototype-20261110'
+PRODUCER_BRANCHES = (BRANCH, 'Claude')
 
 
 class PinError(SystemExit):
@@ -76,6 +77,17 @@ class PinError(SystemExit):
 def require(condition, message):
     if not condition:
         raise PinError('S2Arm engine pin: ' + message)
+
+
+def producer_branch(entry, *, legacy=False):
+    """New API metadata must name its actual branch; old committed pins predate this field.
+
+    A retained producer can still be from the archived component branch. Never replace
+    that historical identity with Claude, or silently default a new producer's metadata.
+    """
+    branch = entry.get('headBranch', BRANCH if legacy else None)
+    require(branch in PRODUCER_BRANCHES, 'missing or unreviewed producer headBranch')
+    return branch
 
 
 def sha(data):
@@ -320,9 +332,10 @@ def build_pin(meta, archives):
         require(kind == name, f'the {name} archive is the {kind} artifact')
         facts = FACTS[kind](files)
         described = dict(meta[name])
+        branch = producer_branch(described)
         require(described['sha256'] == sha(raw) and described['bytes'] == len(raw), f'{name}: the archive is not the one META describes')
         entry = dict(run=described['run'], attempt=described['attempt'], artifact=described['artifact'],
-                     name=described['name'], bytes=len(raw), sha256=sha(raw), headSha=described['headSha'],
+                     name=described['name'], bytes=len(raw), sha256=sha(raw), headSha=described['headSha'], headBranch=branch,
                      expiresAt=described.get('expiresAt'), members=facts['members'])
         if kind == 'engine':
             entry['unpack'] = list(ENGINE_ZIPS)
@@ -358,6 +371,7 @@ def verify(archive, pin_path):
     if pin.get('status') != 'verified':
         failures.append('the pin is not verified')
     entry = (pin.get('producers') or {}).get(kind) or {}
+    producer_branch(entry, legacy=True)
     if sha(raw) != entry.get('sha256') or len(raw) != entry.get('bytes'):
         failures.append(f"the {kind} artifact is not the pinned one ({sha(raw)} against {entry.get('sha256')})")
     try:
@@ -405,6 +419,7 @@ def snippet(pin_path):
     """components.s2arm for the next common draft (a helper: the manifest is the main session's to write). Add
     `exportsList` from `engine_pin.py exports <engine artifact>` if the delivery should pin the exported symbols."""
     subdirs = {'engine': None, 'prepare': 'prepare', 'sysdata': 'sysdata'}
+    pin = json.loads(Path(pin_path).read_bytes())
     return {'s2arm': {
         'mode': 'pinned-engine', 'pin': 'build-utils/s2arm/engine-pin.json', 'verifier': 'build-utils/s2arm/engine_pin.py',
         'identityFile': 'S2Arm-native-identity.json',
@@ -412,7 +427,8 @@ def snippet(pin_path):
         'image': 'Frameworks/S2ArmEngine.framework/S2ArmEngine', 'sideImages': [],
         'extensions': ['S2ArmJITHelper.appex'], 'legalFolders': ['Legal/S2Arm'],
         'checks': ['build-utils/s2arm/check_app.py'],
-        'producers': {name: dict({'workflow': PRODUCERS[name][0], 'branch': BRANCH},
+        'producers': {name: dict({'workflow': PRODUCERS[name][0],
+                                 'branch': producer_branch(pin['producers'][name], legacy=True)},
                                  **({'subdir': subdirs[name]} if subdirs[name] else {})) for name in PRODUCERS},
         'podLibraries': ['s2arm_engine_bridge'],
         'appResources': [{'path': 'S2ArmSystemData/SHA256SUMS', 'binary': f'sysdata/{SYSDATA_SUMS}'}],

@@ -1,10 +1,12 @@
 name: S2Arm on-device preparation checks
 # Batch 4 of docs/s2arm-study-2026-11-11.md: each packing stage ported off
 # bash/Python is compared with S2Arm at the pinned commit. Synthetic input only.
+# The authenticated system data producer runs on Claude only for [s2arm-prepare],
+# or by workflow_dispatch; ordinary source pushes do not start the producer.
 'on':
   workflow_dispatch:
   push:
-    branches: [work/s2arm-switch2-prototype-20261110]
+    branches: [Claude]
     paths:
       - .github/workflows/s2arm-prepare.yml
       - build-utils/s2arm/prepare/**
@@ -15,10 +17,11 @@ name: S2Arm on-device preparation checks
 permissions:
   contents: read
 concurrency:
-  group: s2arm-prepare-${{ github.ref }}
-  cancel-in-progress: true
+  group: s2arm-prepare-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
 jobs:
   prepare:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[s2arm-prepare]')) }}
     strategy:
       fail-fast: false
       matrix:

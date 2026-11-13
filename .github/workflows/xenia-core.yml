@@ -2,14 +2,27 @@ name: XeniOS native core
 run-name: XeniOS native core • ${{ github.sha }}
 # The main session owns Core builds, pins and IPA delivery
 # (docs/AI_TASK_BOARD.md). docs/xenios-playlist.md § Core adaptation plan.
-# A push to the playlist's own branch runs the host checks (asked by the main
-# session before #172 merged; to be revisited before it is removed). Compiling
-# XeniaCore is a dispatch with build_core, or, since a workflow absent from
-# main cannot be dispatched, a push to that branch whose commit message
-# contains [xenia-core] (asked by the main session for the Core pin).
+# Claude owns the integrated producers after component branches are archived.
+# Relevant pushes require [xenia-checks], [xenia-core] or [xenia-pin run=<id>].
+# workflow_dispatch still runs checks and optionally compiles with build_core.
 on:
   push:
-    branches: [work/playlists-xenios-20261110]
+    branches: [Claude]
+    paths:
+      - .github/workflows/xenia-core.yml
+      - build-utils/xenia/**
+      - packages/xenia_internal_bridge/**
+      - packages/xenia_jit_helper/**
+      - lib/services/xenia*.dart
+      - lib/screens/xenia/**
+      - lib/widgets/xenia*.dart
+      - lib/l10n/xenia_locale.dart
+      - test/xenia*.py
+      - test/xenia*.sh
+      - test/xenia*.dart
+      - test/xenios*.py
+      - tools/xenia/**
+      - docs/evidence/xenios-core-delivery-declarations-*.json
   workflow_dispatch:
     inputs:
       build_core:
@@ -24,12 +37,14 @@ permissions:
   contents: read
 concurrency:
   # Push and dispatched Core producers and pins keep their source identity and cannot be cancelled
-  # by later checks. Checks-only runs still replace older checks on the same branch.
-  group: xenia-native-core-${{ github.ref }}-${{ ((github.event_name == 'workflow_dispatch' && inputs.build_core) || contains(github.event.head_commit.message, '[xenia-core]') || contains(github.event.head_commit.message, '[xenia-pin run=')) && github.sha || 'checks' }}
-  cancel-in-progress: ${{ !((github.event_name == 'workflow_dispatch' && inputs.build_core) || contains(github.event.head_commit.message, '[xenia-core]') || contains(github.event.head_commit.message, '[xenia-pin run=')) }}
+  # by later checks. Explicit checks-only runs replace older checks on the same branch;
+  # an ordinary push whose jobs are skipped must not displace an authorized check.
+  group: xenia-native-core-${{ github.ref }}-${{ (!inputs.build_core && !contains(github.event.head_commit.message, '[xenia-core]') && !contains(github.event.head_commit.message, '[xenia-pin run=') && (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[xenia-checks]'))) && 'checks' || github.sha }}
+  cancel-in-progress: ${{ !inputs.build_core && !contains(github.event.head_commit.message, '[xenia-core]') && !contains(github.event.head_commit.message, '[xenia-pin run=') && (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[xenia-checks]')) }}
 jobs:
   checks:
     name: Patch, shader converter, facade C++ and host plugin
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (contains(github.event.head_commit.message, '[xenia-checks]') || contains(github.event.head_commit.message, '[xenia-core]') || contains(github.event.head_commit.message, '[xenia-pin run='))) }}
     runs-on: macos-26
     timeout-minutes: 30
     steps:
@@ -80,7 +95,7 @@ jobs:
       # A Core rebuild changes the recipe the delivery review binds, by design:
       # its new pin and review come with the pin commit, where this runs again.
       - name: The delivery review gate binds the pinned Core and its recipe
-        if: ${{ !contains(github.event.head_commit.message, '[xenia-core]') }}
+        if: ${{ !((github.event_name == 'workflow_dispatch' && inputs.build_core) || contains(github.event.head_commit.message, '[xenia-core]')) }}
         run: python3 -B test/xenios_core_delivery_review_test.py
       - name: IPA closed sets for an engine packaged with its identity file
         run: |
@@ -149,6 +164,7 @@ jobs:
 
   plugin_app:
     name: Plugin compiles and links in a Flutter app (simulator, no XeniaCore)
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (contains(github.event.head_commit.message, '[xenia-checks]') || contains(github.event.head_commit.message, '[xenia-core]') || contains(github.event.head_commit.message, '[xenia-pin run='))) }}
     runs-on: macos-26
     timeout-minutes: 40
     steps:

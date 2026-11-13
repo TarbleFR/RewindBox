@@ -66,12 +66,25 @@ def cancel(api, entry, sleep=time.sleep):
         except urllib.error.HTTPError as error:
             if error.code != 409:
                 raise
-        for _ in range(12):
+        for _ in range(3):
             run = api.request(path)
             if run["status"] == "completed":
                 return "cancelled" if run["conclusion"] == "cancelled" else "completed"
             sleep(5)
-    raise RuntimeError("Cancellation not confirmed; preserve and inspect run " + str(entry["id"]))
+    # GitHub can retain an orphaned queued record even after both cancellation
+    # endpoints. Keep that record and report uncertainty; do not claim success.
+    return "cancellation_requested_unconfirmed"
+
+
+def check_disable(api, workflow, plan):
+    pending = {r["id"]: r for r in plan["runs"] if r["path"] == workflow["path"]}
+    for run in live(api):
+        if run["path"] != workflow["path"] or run["status"] == "completed":
+            continue
+        require(run["id"] in pending, "Unreviewed active run: preserve workflow")
+        # Disabling the obsolete launcher prevents NEW runs. Existing orphaned
+        # queued records are retained, with their unconfirmed cancellation state.
+        eligible(api, pending[run["id"]])
 
 
 def validate(plan):
@@ -111,7 +124,7 @@ def main():
         for item in plan["workflows"]:
             current = api.request(PREFIX + f'/actions/workflows/{item["id"]}')
             require(current["path"] == item["path"], "Workflow identity mismatch")
-            require(not any(r["path"] == item["path"] and r["status"] != "completed" for r in live(api)), "Workflow still has active run")
+            check_disable(api, item, plan)
             if args.execute:
                 api.request(PREFIX + f'/actions/workflows/{item["id"]}/disable', "PUT")
                 require(api.request(PREFIX + f'/actions/workflows/{item["id"]}')["state"] == "disabled_manually", "Disable not confirmed")

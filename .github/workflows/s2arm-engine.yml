@@ -4,12 +4,13 @@ name: S2Arm engine (iOS) build check
 # build-utils/s2arm/engine/patches applied (first one: build with an SDK older than iOS 27).
 # It proves the toolchain on GitHub's macOS
 # runners and records what the engine is made of (images, sizes, exported and undefined symbols),
-# before any change that would host it inside RewindBox. Switch 2 test line only; nothing here is
-# part of the common IPA and no game, key or Nintendo file is used.
+# for the common IPA's authenticated engine pin. No game, key or Nintendo file is used.
+# Claude pushes require [s2arm-engine] to compile or [s2arm-pin ...] to pin;
+# workflow_dispatch remains available when GitHub exposes it from the default branch.
 'on':
   workflow_dispatch:
   push:
-    branches: [work/s2arm-switch2-prototype-20261110]
+    branches: [Claude]
     paths:
       - .github/workflows/s2arm-engine.yml
       - build-utils/s2arm/engine/**
@@ -25,7 +26,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   engine:
-    if: ${{ !contains(github.event.head_commit.message, '[s2arm-pin ') }}
+    if: ${{ (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[s2arm-engine]'))) && !contains(github.event.head_commit.message, '[s2arm-pin ') }}
     strategy:
       fail-fast: false
       matrix:
@@ -386,6 +387,8 @@ jobs:
           mkdir -p "$RUNNER_TEMP/pin"
           python3 - "$RUNNER_TEMP/pin" <<'PY'
           import json, os, re, subprocess, sys, urllib.error, urllib.request
+          sys.path.insert(0, 'build-utils/s2arm')
+          from engine_pin import producer_branch
           folder = sys.argv[1]
           workflows = {'engine': '.github/workflows/s2arm-engine.yml', 'prepare': '.github/workflows/s2arm-core.yml',
                        'sysdata': '.github/workflows/s2arm-prepare.yml'}
@@ -402,9 +405,9 @@ jobs:
           meta = {}
           for name, run_id in zip(('engine', 'prepare', 'sysdata'), found.groups()):
               run = api('actions/runs/' + run_id)
-              if (run['path'] != workflows[name] or run['status'] != 'completed' or run['conclusion'] != 'success' or
-                      run['head_branch'] != 'work/s2arm-switch2-prototype-20261110'):
-                  sys.exit(f'run {run_id} is not a successful {workflows[name]} run of the S2Arm branch')
+              if run['path'] != workflows[name] or run['status'] != 'completed' or run['conclusion'] != 'success':
+                  sys.exit(f'run {run_id} is not a successful {workflows[name]} run')
+              branch = producer_branch({'headBranch': run['head_branch']})
               head, wanted = run['head_sha'], names[name].format(run['head_sha'])
               listing = [item for item in api(f'actions/runs/{run_id}/artifacts?per_page=100')['artifacts'] if item['name'] == wanted]
               if len(listing) != 1 or listing[0]['expired'] or not str(listing[0].get('digest', '')).startswith('sha256:'):
@@ -431,7 +434,7 @@ jobs:
                   sys.exit(f'the downloaded {name} artifact differs from the API digest or size')
               open(f'{folder}/{name}.zip', 'wb').write(data)
               meta[name] = dict(run=run['id'], attempt=run['run_attempt'], artifact=item['id'], name=wanted,
-                                bytes=item['size_in_bytes'], sha256=item['digest'][7:], headSha=head,
+                                bytes=item['size_in_bytes'], sha256=item['digest'][7:], headSha=head, headBranch=branch,
                                 expiresAt=item['expires_at'])
           json.dump(meta, open(folder + '/meta.json', 'w'), indent=2)
           print(json.dumps(meta, indent=2))
