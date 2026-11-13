@@ -8,6 +8,7 @@ run-name: Collection class on macOS • ${{ github.sha }}
   push:
     branches:
     - work/melonx-lot10-20261112
+    - work/melonx-heat-20261113
     paths:
     - .github/workflows/melonx-collection-class.yml
     - test/melonx_collection_class/**
