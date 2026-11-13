@@ -139,7 +139,7 @@ def main():
              'test/melonx_runtime_smoke.py']
     fixture_inputs = set(plan['fixtureInputs']) | {gate['script'] for gate in plan['gates']}
     inputs = {path: sha((ROOT / path).read_bytes()) for path in sorted(set(fixed) | fixture_inputs)}
-    contract = dict(schemaVersion=1, baseline=BASELINE, baselinePreparationInputs=before,
+    contract = dict(schemaVersion=1, validationMode='build-smoke', baseline=BASELINE, baselinePreparationInputs=before,
         baselinePreparedMembers=before_members, baselineUnadaptedMembers=unadapted,
         readsControlMembers=overlays['delivered611'], livenessControlMembers=overlays['delivered609'],
         adaControlMembers=overlays['ada'],

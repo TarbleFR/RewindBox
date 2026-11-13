@@ -42,3 +42,30 @@ second download, corruption redownload and live provenance refusal;
 fallback under nounset. Existing DMA, Xenia patch/pin/shader/verifier and S2Arm
 export/bridge/pin/license checks also pass. Actual Apple compilation, cache hit
 rates and Bash 3.2 execution require the macOS producer; no CI was launched here.
+
+## Normal MeloNX compilation path (13 November follow-up)
+
+The owner requested compilation with the latest engine additions, without the
+exhaustive regression suite. The normal producer now authenticates retained
+history, compiles the exact prepared sources for device and simulator, checks
+both binaries and the 47-export ABI, and exercises the two actual NativeAOT
+simulator sessions, including teardown, released backing and diagnostics.
+The 105 source fixtures are no longer launched by this workflow. Their source,
+assertions and existing evidence remain available; none are reported as freshly
+passed. Producer and delivery receipts explicitly say `build-smoke`, zero fresh
+source fixtures, and 105 deferred fixtures. Historical full-suite artifacts keep
+their original scope. Exact source/dependency hashes and protected upload remain.
+Checkout fetches only the requested commit, avoiding the all-branch fetch.
+
+Measured reference: Core 745 run 43344184896 took 54m29s for source fixtures,
+4m for NativeAOT compilation and 4m30s for the simulator step (65m23s total).
+Removing the fixture loop targets about ten minutes; runner/transfer variation
+and a cold toolchain can exceed that target. The new duration must be measured.
+
+Known unresolved qualification: Core 747 run 43423803238 attempt 2 stopped at
+`melonx_wait_spin_bound_test.py` before NativeAOT. The long100 CPU/throughput
+thresholds passed (30.41 vs 46.80 us; 7718 vs 8000 handoffs/s), but not every
+sample selected the asserted [10, 10] spin budget. The ring completed without a
+lost wakeup. This is not a passed benchmark or proof of iPhone behavior. Its
+engine code and assertions are preserved; changing the compilation path does
+not repair or erase this result.

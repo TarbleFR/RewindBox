@@ -18,9 +18,6 @@ import io
 import json
 from pathlib import Path
 import platform
-import shutil
-import subprocess
-import sys
 import zipfile
 
 import recover_core_archive as recovery
@@ -335,16 +332,39 @@ def copy_member(archive, name, relative):
     return digest(path)
 
 
-def run_gates():
+def validation_scope(frozen):
+    """Keep legacy full-suite artifacts readable; new builds declare their smaller scope."""
+    mode = frozen.get('validationMode', 'full')
+    require(mode in ('full', 'build-smoke'), 'Unknown Core validation mode')
+    total = len(frozen['gates'])
+    return dict(validationMode=mode, freshAppleGates=total if mode == 'full' else 0,
+                deferredAppleGates=0 if mode == 'full' else total,
+                fullRegressionSuiteExecuted=mode == 'full')
+
+
+def verify_validation_scope(record, frozen):
+    expected = validation_scope(frozen)
+    for name, value in expected.items():
+        # Historical full-suite receipts predate these labels. They still must
+        # contain their actual fresh count; new build-smoke receipts need every label.
+        fallback = value if expected['validationMode'] == 'full' and name != 'freshAppleGates' else None
+        require(record.get(name, fallback) == value, 'Wrong Core validation scope: ' + name)
+    return expected
+
+
+def retain_evidence():
+    """Retain authenticated history; NativeAOT and the actual simulator are checked next.
+
+    The exhaustive source fixtures remain developer tools, outside the normal
+    compilation path. Their old receipts never count as execution in this build.
+    """
     frozen = contract()
+    scope = validation_scope(frozen)
+    require(scope['validationMode'] == 'build-smoke', 'Compilation scope must be explicit in the contract')
     require(read(EVIDENCE / 'preflight.json')['execution'] == common.execution(), 'Wrong preflight execution')
     archive_path = prior_archive()
-    require(not any(path.exists() for path in (*CONTROLS.values(), CANDIDATE)), 'Stale DMA gate sources')
-    shutil.copytree(SOURCE, CANDIDATE, ignore=shutil.ignore_patterns('.git'))
     historical, auxiliary, baseline_evidence = {}, {}, {}
     with zipfile.ZipFile(archive_path) as archive:
-        for name, member in CONTROL_MEMBERS.items():
-            liveness.materialize(CONTROLS[name], archive.read(member))
         for name, expected in frozen['baselineReceipts'].items():
             require(copy_member(archive, name, HISTORICAL + name) == expected, 'Changed retained receipt: ' + name)
             historical[HISTORICAL + name] = expected
@@ -353,38 +373,21 @@ def run_gates():
             auxiliary[HISTORICAL + name] = scope
         for name in BASELINE_EVIDENCE:
             baseline_evidence[EVIDENCE_PREFIX + name] = copy_member(archive, name, EVIDENCE_PREFIX + name)
-    for name, members in control_overlays(frozen).items():
-        for path, expected in members.items():
-            require(digest(child(CONTROLS[name], path)) == expected, 'Control source differs (' + name + '): ' + path)
-    for name, members in frozen['controlUnadaptedMembers'].items():
-        for path, expected in members.items():
-            require(digest(child(CONTROLS[name], path)) == expected, 'Control upstream file differs (' + name + '): ' + path)
-    subprocess.run([sys.executable, str(ROOT / 'build-utils/melonx/prepare_embedded.py'), str(CANDIDATE)], check=True, timeout=300)
-    require(read(OUT / 'embedded-inputs.json') == frozen['preparationInputs'], 'Gate preparation drift')
-    with zipfile.ZipFile(OUT / 'embedded-adapted-source.zip') as archive:
-        require(liveness.inventory(archive) == frozen['preparedMembers'], 'Gate final source composition drift')
-    for name, expected in frozen['untouchedFixtureMembers'].items():
-        require(digest(child(CONTROL, name)) == digest(child(CANDIDATE, name)) == expected, 'Changed unadapted production dependency: ' + name)
-    receipts = {}
     for gate in frozen['gates']:
-        target = child(OUT, gate['report'])
-        require(not target.exists(), 'Stale affected receipt: ' + gate['report'])
-        control = CONTROLS[gate['control']]
-        argv = [arg.replace('{baseline}', str(control)).replace('{candidate}', str(CANDIDATE)) for arg in gate['arguments']]
-        subprocess.run([sys.executable, str(ROOT / gate['script']), *argv], check=True, timeout=gate['timeoutSeconds'])
-        validate_gate(read(target), gate, frozen)
-        receipts[gate['report']] = digest(target)
-    require(all(digest(child(CANDIDATE, path)) == expected for path, expected in frozen['preparedMembers'].items()), 'Fixture modified final candidate')
-    write(EVIDENCE / 'gates.json', dict(result='passed', execution=common.execution(), receipts=receipts, freshAppleGates=len(receipts),
+        require(not child(OUT, gate['report']).exists(), 'Stale fixture receipt in compilation-only build: ' + gate['report'])
+    write(EVIDENCE / 'gates.json', dict(result='passed', execution=common.execution(), receipts={}, **scope,
         reusedAppleGates=frozen['reusedAppleGates'], historicalAppleReceipts=HISTORICAL_RECEIPTS, historicalGatesReexecuted=False,
         retainedReceipts=historical, retainedDisposition=frozen['retainedDisposition'],
         retainedChangedDependencies=frozen['retainedChangedDependencies'], auxiliaryHistoricalReceipts=auxiliary,
         baselineEvidenceSha256=baseline_evidence, physicalDeviceTested=False,
-        retainedScope='Authentic delivered 614 Core evidence. Changed declared production/preparation dependencies remain historical-only; fresh affected fixtures bind the exact new prepared source.'))
+        retainedScope='Authentic delivered 614 Core evidence, with its original scope. No exhaustive source fixtures executed in this build; exact compiled sources, ABI and actual NativeAOT simulator sessions are checked separately.'))
+    print('Compilation path: no exhaustive fixtures; exact-source compilation, ABI and two simulator sessions remain required.', flush=True)
 
 
 def compiled():
     frozen = contract(); gates = read(EVIDENCE / 'gates.json')
+    scope = verify_validation_scope(gates, frozen)
+    require(scope['validationMode'] == 'build-smoke' and gates['receipts'] == {}, 'Unexpected compilation gate receipts')
     require(gates['execution'] == common.execution(), 'Gate execution changed')
     require(read(OUT / 'embedded-inputs.json') == frozen['preparationInputs'], 'Compiled preparation changed')
     with zipfile.ZipFile(OUT / 'embedded-adapted-source.zip') as archive:
@@ -411,7 +414,7 @@ def compiled():
         binaries[runtime] = dict(sha256=digest(binary), bytes=binary.stat().st_size)
     write(EVIDENCE / 'compiled.json', dict(result='passed', execution=common.execution(), identities=identities, binaries=binaries,
         adaptationCount=len(frozen['preparationInputs']), preparedMembers=len(frozen['preparedMembers']),
-        freshAppleGates=frozen['freshAppleGates'], reusedAppleGates=frozen['reusedAppleGates'], historicalAppleReceipts=HISTORICAL_RECEIPTS,
+        **scope, reusedAppleGates=frozen['reusedAppleGates'], historicalAppleReceipts=HISTORICAL_RECEIPTS,
         embeddedArchiveSha256=digest(OUT / 'embedded-adapted-source.zip'), physicalDeviceTested=False, gameplayTested=False))
 
 
@@ -429,7 +432,7 @@ def finalize():
     for relative in ('baseline-recovery.json', 'core-validation/baseline-origin.json'):
         require(read(OUT / relative)['result'] == 'authenticated', 'Missing recovery attestation: ' + relative)
         result['reusedEvidenceSha256'][relative] = digest(OUT / relative)
-    result.update(dmaCoreContractSha256=digest(CONTRACT), freshAppleGates=frozen['freshAppleGates'],
+    result.update(dmaCoreContractSha256=digest(CONTRACT), **validation_scope(frozen),
                   reusedAppleGates=frozen['reusedAppleGates'], historicalAppleReceipts=HISTORICAL_RECEIPTS, deliveredBaseline=BASELINE,
                   performanceDiagnosticsFinalSessions=final_sessions, gpuWorkRows=len(GPU_WORK), readCounters=len(READ_COUNTERS),
                   arrayCounters=len(ARRAY_COUNTERS), fpsGainProven=False, deviceAllocationReductionProven=False)
@@ -443,11 +446,11 @@ def finalize():
     write(path, result)
     (OUT / 'CORE_DELIVERY.md').write_text('# RewindBox Hogwarts DMA-copy MeloNX Core\n\n' + json.dumps(dict(
         execution=common.execution(), binaries=result['binaries'], deliveredBaseline=BASELINE['source'],
-        freshAppleGates=frozen['freshAppleGates'], reusedScopedAppleReceipts=frozen['reusedAppleGates'],
+        **validation_scope(frozen), reusedScopedAppleReceipts=frozen['reusedAppleGates'],
         historicalAppleReceipts=HISTORICAL_RECEIPTS, physicalDeviceTested=False, fpsGainProven=False), indent=2) + '\n')
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('phase', choices=('prepare_dependencies', 'preflight', 'run_gates', 'compiled', 'finalize'))
+    parser.add_argument('phase', choices=('prepare_dependencies', 'preflight', 'retain_evidence', 'compiled', 'finalize'))
     globals()[parser.parse_args().phase]()

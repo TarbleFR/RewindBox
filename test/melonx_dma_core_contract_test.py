@@ -500,10 +500,26 @@ check('bool querySync = EmbeddedGraphics.OcclusionQuerySync && EmbeddedIsHogwart
       LIBRARY in DMA_NAMES and DMA in DMA_NAMES and CONFIG in DMA_NAMES, 'Hogwarts DMA anchor is not the query-policy line')
 
 # The Core route runs this increment's verifier only, under its marker (older markers kept), with a build-agnostic artifact name.
+scope_fixture = {'gates': [{}, {}, {}], 'validationMode': 'build-smoke'}
+scope = verify.validation_scope(scope_fixture)
+check(scope == dict(validationMode='build-smoke', freshAppleGates=0, deferredAppleGates=3,
+                    fullRegressionSuiteExecuted=False), 'Compilation scope overstates fixture execution')
+check(verify.verify_validation_scope(scope, scope_fixture) == scope, 'Explicit compilation scope rejected')
+for key, bad in (('validationMode', 'full'), ('freshAppleGates', 3), ('deferredAppleGates', 0),
+                 ('fullRegressionSuiteExecuted', True)):
+    rejects(lambda key=key, bad=bad: verify.verify_validation_scope({**scope, key: bad}, scope_fixture),
+            'Misleading compilation scope accepted: ' + key)
+    rejects(lambda key=key: verify.verify_validation_scope({k: v for k, v in scope.items() if k != key}, scope_fixture),
+            'Missing compilation scope accepted: ' + key)
+check(verify.verify_validation_scope({'freshAppleGates': 3}, {'gates': [{}, {}, {}]})['fullRegressionSuiteExecuted'],
+      'Original full-suite evidence must stay readable with its original scope')
+rejects(lambda: verify.validation_scope({'gates': [], 'validationMode': 'unknown'}), 'Unknown validation mode accepted')
 workflow = (ROOT / '.github/workflows/melonx-core.yml').read_text()
+check('verify_dma_core.py run_gates' not in workflow and 'fetch-depth: 1' in workflow,
+      'Exhaustive fixtures or all-branch checkout remain in the compilation route')
 for marker in ('[melonx-dma-core]', '[melonx-arrays-core]', '[melonx-reads-core]', '[melonx-liveness-core]'):
     check("contains(github.event.head_commit.message, '" + marker + "')" in workflow, 'Missing Core marker: ' + marker)
-for phase in ('prepare_dependencies', 'preflight', 'run_gates', 'compiled', 'finalize'):
+for phase in ('prepare_dependencies', 'preflight', 'retain_evidence', 'compiled', 'finalize'):
     check(workflow.count('python3 build-utils/melonx/verify_dma_core.py ' + phase + '\n') == 1, 'DMA Core phase not routed: ' + phase)
 check(workflow.count('python3 test/melonx_dma_core_contract_test.py\n') == 1, 'Contract test not routed')
 check(not re.search(r'python3 build-utils/melonx/verify_(arrays|reads|liveness|performance|guard)_core\.py', workflow),

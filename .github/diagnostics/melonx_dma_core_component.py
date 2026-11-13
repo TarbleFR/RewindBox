@@ -112,7 +112,16 @@ def validate_origin(core, run, job, artifact):
             run['run_attempt'] == core['attempt'], 'Wrong successful DMA-copy Core producer')
     require(job['id'] == core['job'] and job['run_id'] == core['run'] and job['head_sha'] == core['source'] and
             job['conclusion'] == 'success' and job['run_attempt'] == core['attempt'], 'Wrong DMA-copy Core producer job')
-    require(CORE_STEPS <= {s['name'] for s in job['steps'] if s['conclusion'] == 'success'},
+    required_steps = CORE_STEPS
+    if read(ROOT / CONTRACT).get('validationMode') == 'build-smoke':
+        required_steps = (CORE_STEPS - {
+            'Run five affected final-source gates and authenticate the delivered 614 Core evidence',
+            'Bind both new libraries to reviewed sources and gate receipts',
+        }) | {
+            'Authenticate retained history without rerunning source fixtures',
+            'Verify both new libraries against exact sources and ABI',
+        }
+    require(required_steps <= {s['name'] for s in job['steps'] if s['conclusion'] == 'success'},
             'Missing successful DMA-copy Core producer steps')
     require(artifact['id'] == core['artifact'] and artifact['name'] == core['name'] and
             artifact['size_in_bytes'] == core['bytes'] and artifact['digest'] == 'sha256:' + core['sha256'] and
@@ -260,6 +269,8 @@ def replaced_core(frozen, gates):
 
 
 def engine_evidence():
+    sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
+    from verify_dma_core import verify_validation_scope
     core = pin()
     origin = producer('core')
     frozen = read(ROOT / CONTRACT)
@@ -279,7 +290,8 @@ def engine_evidence():
     inputs_match(result['inputs'], core['source'])
     require(result['binaries'] == core['binaries'] and result['identities'] == core['identities'],
             'Successful Core result uses other binaries')
-    require(result['freshAppleGates'] == FRESH_GATES and result['reusedAppleGates'] == frozen['reusedAppleGates'] and
+    scope = verify_validation_scope(result, frozen)
+    require(result['reusedAppleGates'] == frozen['reusedAppleGates'] and
             result['historicalAppleReceipts'] == HISTORICAL_RECEIPTS, 'Core gate scope changed')
     require(result['homebrewSimulatorSessions'] == result['releasedBackingSessions'] == 2 and
             result['performanceDiagnosticsFinalSessions'] == 2 and
@@ -303,11 +315,14 @@ def engine_evidence():
     prepared_raw = (NEW / 'embedded-adapted-source.zip').read_bytes()
     require(sha(prepared_raw) == result['embeddedArchiveSha256'], 'Changed compiled source archive')
     require(prepared_inventory(prepared_raw) == frozen['preparedMembers'], 'Compiled prepared sources differ from final fixture sources')
-    require(set(gates['receipts']) == {gate['report'] for gate in frozen['gates']}, 'Wrong fresh gate paths')
-    require(gates['freshAppleGates'] == FRESH_GATES and gates['historicalAppleReceipts'] == HISTORICAL_RECEIPTS and
+    require(verify_validation_scope(compiled, frozen) == verify_validation_scope(gates, frozen) == scope,
+            'Validation mode changed between producer phases')
+    executed_gates = frozen['gates'] if scope['fullRegressionSuiteExecuted'] else []
+    require(set(gates['receipts']) == {gate['report'] for gate in executed_gates}, 'Wrong executed gate paths')
+    require(gates['historicalAppleReceipts'] == HISTORICAL_RECEIPTS and
             gates['reusedAppleGates'] == frozen['reusedAppleGates'], 'Gate index scope changed')
     replaced = replaced_core(frozen, gates)
-    for gate in frozen['gates']:
+    for gate in executed_gates:
         raw = (NEW / gate['report']).read_bytes()
         require(sha(raw) == gates['receipts'][gate['report']], 'Changed fresh gate receipt')
         verify_gate(json.loads(raw), gate, frozen, core['source'])
@@ -344,7 +359,9 @@ def engine_evidence():
     return dict(result='passed', component='melonx-hogwarts-dma-copy-core', origin=origin, source=core['source'],
         binaries=core['binaries'], identities=core['identities'], payloadFingerprint=fingerprint,
         replacedCoreSource=replaced['source'], replacedCorePackagedFingerprint=replaced['packagedFingerprint'],
-        freshAppleGatesInProducer=FRESH_GATES, reusedScopedAppleGatesInProducer=frozen['reusedAppleGates'],
+        validationMode=scope['validationMode'], fullRegressionSuiteExecuted=scope['fullRegressionSuiteExecuted'],
+        deferredAppleGatesInProducer=scope['deferredAppleGates'],
+        freshAppleGatesInProducer=scope['freshAppleGates'], reusedScopedAppleGatesInProducer=frozen['reusedAppleGates'],
         historicalAppleReceiptsInProducer=HISTORICAL_RECEIPTS, producerSimulatorSessions=2,
         engineRecompiledForDelivery=False, priorGatesReexecuted=False, physicalDeviceTested=False, gameTested=False,
         fpsGainProven=False, deviceAllocationReductionProven=False)
