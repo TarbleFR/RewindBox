@@ -79,7 +79,7 @@ CONTROL_PREPARED = {
 # 102 with Core 745 (a closed session is not kept by nifm's network address subscription; Hogwarts Legacy paces its
 # strict host syncs and voluntary submissions; programs of one code share the pipelines they hold; a bound texture
 # array walks its textures when one of them needs it).
-FRESH_GATES = 105
+FRESH_GATES = 106
 HISTORICAL_RECEIPTS = 61
 GPU_WORK_ROWS = 13
 READ_COUNTERS = 4

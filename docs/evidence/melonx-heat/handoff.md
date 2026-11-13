@@ -83,3 +83,69 @@ fps and frame-time p95 unchanged. Removed if presented fps fall, frame-time p95 
 Take the branch (wiring in `prepare_embedded.py`, `ORDER`, plan gate 105, contract 219 inputs / 215 members,
 `FRESH_GATES` 105), number the Core (the branch says 747), freeze, Core CI, pin, IPA. Rollback: drop the adapter from
 the preparation, `ORDER` and the plan.
+
+## Core 747 CI (run 43423803238, macOS arm64): `wait-spin-bound` long100 failed; follow-up (local, not pushed)
+
+Failure: at 100 us the candidate ended with the full spin in three runs of five (budgets [10,10] [35,35] [35,10] [35,35]
+[10,10]) while the energy criteria held (CPU beyond the work 30.41 against 46.80 us, 7718 against 8000 handoffs/s).
+The maintainer's 32d035149 / 7aa8d1512 then compiled the Core without fixture replay (build-smoke) and kept the
+failure as unverified evidence.
+
+Cause (reproduced on Linux x86_64 with three busy processes on four cores): not an inflated calibration (the class's
+measured full spin stayed 8-16 us), but host contention. A wait that ends inside a spin whose yields another thread
+stretched (it held the core) counts as short, by design: such a spin gave the core away rather than burning it. On a
+saturated host the budgets move both ways (short handoffs reduce too) and the candidate's CPU equals the control's.
+Refuted: timing the spin's yield phase to count stretched spins as long (it also reduced 5 us handoffs under load,
+-20 % rate in one run); not kept.
+
+Found on the way: the single calibration sample measured 387 us against 8-23 us in one loaded process of thirty; on
+the iPhone that would count every wait shorter than it as short for the whole session. Product change: the shortest
+of three samples (a stretched yield only lengthens one).
+
+Fixture defect found on the way: the ring's stop was racy (the token holder's own Reset could erase the stop's single
+Set and its predecessor's, then wait for ever: `joined` false once, independent of the class). The stop is now
+signalled until every thread ends, and the ring must advance in every 250 ms window (a lost wakeup stops it for good).
+
+Gate change: long100 asserts the energy criteria (CPU at most 85 %, rate at least 90 %) and one run or more ending
+with the pause iterations on both events; long300 keeps five of five; the measured spin lengths are reported. Linux
+x86_64, final preparation (Core 747 preparation with the three-sample calibration): 42 checks passed; CPU beyond the
+work -25 % (40 us), -33 % (100 us), -23 % (300 us); rate 106 % (1 us), 92 % (5 us), 101 % (100 us); ring 2325 laps,
+no stalled window, every thread ended. macOS: not run after the change.
+
+## Heat lot 2: `adapt_darwin_timed_waits` (general MeloNX, Apple platforms; local, not pushed)
+
+Evidence (IPA 733, Hogwarts, 44 s of play, `[MeloNX:stall]` per-thread CPU): HLE.TimeManager 3.0 % of a core, the
+eight nanosleep helper threads 2.5 %, SurfaceFlinger.Composer 0.6 %, all user-interactive. On iOS a guest deadline
+under a millisecond away is served by a helper thread that nanosleeps then signals the timer thread (two threads and
+four kernel wakeups per deadline); the compositor wakes 150-300 us early and spins to each 60 Hz interval.
+
+Change (PreciseSleepHelper.cs only): on Apple platforms the timer thread's event is one `dispatch_semaphore_wait` with
+the deadline as timeout (Signal posts it), and the compositor's final approach is `mach_wait_until` on the same clock
+before the unchanged spin loop. Same deadlines, same rate and cadence, no thread class changed; the helper threads
+are no longer started there. Other platforms take the previous path.
+
+Defect found in review and fixed before any build: the first version cleared the signal mark before draining the
+semaphore; a Signal between the two left the mark set without a count, so later signals posted nothing and the timer
+thread could sleep to its deadline or for ever. Now the waiter drains, then clears. A Signal after Dispose (KTimeManager
+signals at shutdown while the timer thread may dispose the event) does nothing; the semaphore is released once by the
+last holder.
+
+Gate `darwin-timed-waits` (28 checks on Linux x86_64): static checks; production Ryujinx.Common and HLE built; the
+event's protocol on every host with a stand-in semaphore (3 x 1 000 000 signals from two producers, none lost; the
+first version lost one within 2 000-6 000 and its waiter never woke again; 5 000 signal/Dispose races: no exception,
+no use after release, one release each; deadline, prior signal and coalescing semantics); the timer and compositor
+loops against the control: on Linux the same path (NanosleepEvent with its helper threads). The Apple timing (lateness
+within 100 us of the control's, lower CPU per deadline and per frame, no helper thread) runs only on macOS: not run.
+
+Expected on the iPhone (same protocol as above): HLE.TimeManager plus Common.Nanosleep.* from 5.5 % of a core to under
+2.5 %, SurfaceFlinger.Composer under 0.3 %; presented fps, frame times and audio lateness (`dsp=`) unchanged. Removed
+if frame times or audio lateness worsen, or the timer threads' CPU does not fall.
+
+Examined and not changed: guest thread priorities mapped to QoS classes (risky for synchronization, background
+threads about 3 % of a core); the 30 fps pacing of Hogwarts (median engine rate 22 fps: no slack to remove); the
+filesystem's SHA-256 (about 1 %: it verifies data); the bridge diagnostics (9-13 %, unattributed, MeloNX owner's
+domain).
+
+Before a push: refreeze the contract (106 gates: plan, `FRESH_GATES`, 220 inputs / 216 members, 102 changed files),
+with fresh receipts for `wait-spin-bound`, `darwin-timed-waits` and the gates that iterate the adapter order, and run
+both fixtures on macOS arm64.

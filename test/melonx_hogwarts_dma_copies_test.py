@@ -212,6 +212,8 @@ LOT_FILES = {
     'adapt_stall_compaction': [],
     # Core 747: the renderer's work and invoke events spin only as long as it pays (ThreadedRenderer.cs in this composition).
     'adapt_wait_spin_bound': ['src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs'],
+    # Core 749 candidate: Apple timed waits in PreciseSleepHelper.cs (no file of this lot).
+    'adapt_darwin_timed_waits': [],
 }
 
 checks = 0

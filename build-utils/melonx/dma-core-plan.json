@@ -99,7 +99,8 @@
   "build-utils/melonx/adapt_array_sync_epochs.py",
   "build-utils/melonx/adapt_collection_class.py",
   "build-utils/melonx/adapt_stall_compaction.py",
-  "build-utils/melonx/adapt_wait_spin_bound.py"
+  "build-utils/melonx/adapt_wait_spin_bound.py",
+  "build-utils/melonx/adapt_darwin_timed_waits.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -202,7 +203,8 @@
   "src/Ryujinx.Graphics.Vulkan/StagingBuffer.cs",
   "src/Ryujinx.Graphics.Vulkan/HelperShader.cs",
   "src/Ryujinx.HLE/HOS/Services/Nifm/StaticService/IGeneralService.cs",
-  "src/Ryujinx.Common/AsyncWorkQueue.cs"
+  "src/Ryujinx.Common/AsyncWorkQueue.cs",
+  "src/Ryujinx.Common/PreciseSleep/PreciseSleepHelper.cs"
  ],
  "productionAdditions": [],
  "fixtureInputs": [
@@ -343,7 +345,9 @@
   "test/melonx_array_sync_epochs/Program.cs",
   "test/melonx_collection_class/Program.cs",
   "test/melonx_stall_compaction/Program.cs",
-  "test/melonx_wait_spin_bound/Program.cs"
+  "test/melonx_wait_spin_bound/Program.cs",
+  "test/melonx_darwin_timed_waits/Program.cs",
+  "test/melonx_darwin_timed_waits/protocol/Program.cs"
  ],
  "fixtureProductionInputs": [
   "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs",
@@ -4601,6 +4605,30 @@
     "src/Ryujinx.Common/AsyncWorkQueue.cs",
     "src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs",
     "src/Ryujinx.HLE/HOS/Kernel/Threading/KThread.cs"
+   ]
+  },
+  {
+   "name": "darwin-timed-waits",
+   "script": "test/melonx_darwin_timed_waits_test.py",
+   "report": "darwin-timed-waits-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 3600,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false,
+    "productionAssembliesBuilt": true,
+    "noLostSignal": true,
+    "signalAfterDisposeSafe": true
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Common/PreciseSleep/PreciseSleepHelper.cs"
    ]
   }
  ]

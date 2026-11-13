@@ -187,6 +187,7 @@ from adapt_array_sync_epochs import apply as adapt_array_sync_epochs
 from adapt_collection_class import apply as adapt_collection_class
 from adapt_stall_compaction import apply as adapt_stall_compaction
 from adapt_wait_spin_bound import apply as adapt_wait_spin_bound
+from adapt_darwin_timed_waits import apply as adapt_darwin_timed_waits
 
 
 def replace_once(path, old, new):
@@ -563,6 +564,10 @@ def main():
     # guest scheduler's and the threaded renderer's events spin before blocking only as long as it pays
     # (AsyncWorkQueue.cs, KThread.cs, ThreadedRenderer.cs).
     adapted += adapt_wait_spin_bound(source)
+    # Heat lot 2 (IPA 733 Hogwarts: the guest timer thread 3.0 % of a core, eight nanosleep helper threads 2.5 %, the
+    # compositor 0.6 %): on Apple platforms a wait until a host time is one kernel timed wait, no helper thread
+    # (PreciseSleepHelper.cs).
+    adapted += adapt_darwin_timed_waits(source)
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -708,7 +713,7 @@ def main():
                  'adapt_submit_causes.py', 'adapt_build_journal_load_wait.py',
                  'adapt_nifm_network_watch.py', 'adapt_paced_strict_syncs.py', 'adapt_sibling_pipelines.py',
                  'adapt_array_sync_epochs.py', 'adapt_collection_class.py',
-                 'adapt_stall_compaction.py', 'adapt_wait_spin_bound.py']:
+                 'adapt_stall_compaction.py', 'adapt_wait_spin_bound.py', 'adapt_darwin_timed_waits.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

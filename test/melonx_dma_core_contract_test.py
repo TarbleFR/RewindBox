@@ -77,6 +77,7 @@ from adapt_array_sync_epochs import BASELINE as C745_ARRAY_SYNC_EPOCHS  # noqa: 
 from adapt_collection_class import BASELINE as C745_COLLECTION_CLASS  # noqa: E402
 from adapt_stall_compaction import BASELINE as C745_STALL_COMPACTION  # noqa: E402
 from adapt_wait_spin_bound import BASELINE as C747_WAIT_SPIN_BOUND  # noqa: E402
+from adapt_darwin_timed_waits import BASELINE as C749_DARWIN_TIMED_WAITS  # noqa: E402
 from adapt_array_delta_invalidated import BASELINE as C697_ARRAY_DELTA_INVALIDATED  # noqa: E402
 from adapt_pipeline_cache_background import BASELINE as C697_PIPELINE_CACHE_BACKGROUND  # noqa: E402
 from adapt_sync_wait_attribution import BASELINE as C699_SYNC_WAIT_ATTRIBUTION  # noqa: E402
@@ -225,6 +226,8 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'stall-compaction': 'delivered',
             # Core 747: waits spin before blocking only as long as it pays (heat).
             'wait-spin-bound': 'delivered',
+            # Core 749 candidate: on Apple platforms a wait until a host time is one kernel timed wait (heat lot 2).
+            'darwin-timed-waits': 'delivered',
             # Core 743: its receipt declares SyncManager.cs, which adapt_submit_causes changes: run again on the final one.
             'sync-allocations': 'delivered',
             # Core 661: the native display fixture declares EmbeddedMemory.cs (adapt_safe_point_compaction): rerun.
@@ -297,7 +300,9 @@ CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES
            set(C745_NIFM_NETWORK_WATCH) | set(C745_PACED_STRICT_SYNCS) | set(C745_SIBLING_PIPELINES) |
            set(C745_ARRAY_SYNC_EPOCHS) |
            # Core 747: AsyncWorkQueue.cs (new: the adaptive spin event), KThread.cs and ThreadedRenderer.cs (already changed).
-           set(C747_WAIT_SPIN_BOUND))
+           set(C747_WAIT_SPIN_BOUND) |
+           # Core 749 candidate: PreciseSleepHelper.cs (new: the Darwin timed waits).
+           set(C749_DARWIN_TIMED_WAITS))
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
@@ -381,6 +386,9 @@ JOINED = JOINED | {C745_NIFM_SERVICE}
 # Core 747 (adapt_wait_spin_bound): Ryujinx.Common's AsyncWorkQueue.cs (the adaptive spin event) joins the prepared source.
 C747_SPIN_EVENT = 'src/Ryujinx.Common/AsyncWorkQueue.cs'
 JOINED = JOINED | {C747_SPIN_EVENT}
+# Core 749 candidate (adapt_darwin_timed_waits): Ryujinx.Common's PreciseSleepHelper.cs joins the prepared source.
+C749_TIMED_WAITS = 'src/Ryujinx.Common/PreciseSleep/PreciseSleepHelper.cs'
+JOINED = JOINED | {C749_TIMED_WAITS}
 REUSED_FRESH = set()
 
 
@@ -594,8 +602,8 @@ if not args.helpers_only:
     # Core 733: 94 (seven of the eight files of the host thread class; SurfaceFlinger.cs was already changed).
     # Core 737: 95 (NpadManager.cs).
     # Core 743: 99 (SyncManager.cs, AutoFlushCounter.cs, StagingBuffer.cs, HelperShader.cs).
-    # Core 745: 100 (IGeneralService.cs). Core 747: 101 (AsyncWorkQueue.cs).
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 101 and not frozen["productionAdditions"], "Unexpected production scope")
+    # Core 745: 100 (IGeneralService.cs). Core 747: 101 (AsyncWorkQueue.cs). Core 749 candidate: 102 (PreciseSleepHelper.cs).
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 102 and not frozen["productionAdditions"], "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
                                                      'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
                                                      'build-utils/melonx/adapt_queued_syncpoints.py',
@@ -685,7 +693,8 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_array_sync_epochs.py',
                                                      'build-utils/melonx/adapt_collection_class.py',
                                                      'build-utils/melonx/adapt_stall_compaction.py',
-                                                     'build-utils/melonx/adapt_wait_spin_bound.py'} and
+                                                     'build-utils/melonx/adapt_wait_spin_bound.py',
+                                                     'build-utils/melonx/adapt_darwin_timed_waits.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -728,7 +737,8 @@ if not args.helpers_only:
     # adapt_array_sync_epochs.py join them; IGeneralService.cs joins the prepared members (214). adapt_collection_class.py
     # and adapt_stall_compaction.py join them too (their files are members already).
     # Core 747: adapt_wait_spin_bound.py joins them; AsyncWorkQueue.cs joins the prepared members (215).
-    check(len(frozen['preparationInputs']) == 219 and len(frozen['preparedMembers']) == 215, 'Wrong final composition')
+    # Core 749 candidate: adapt_darwin_timed_waits.py joins them; PreciseSleepHelper.cs joins the prepared members (216).
+    check(len(frozen['preparationInputs']) == 220 and len(frozen['preparedMembers']) == 216, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
@@ -806,11 +816,17 @@ if not args.helpers_only:
           gate['stall-compaction']['assertions'].get('replay729FiredInPlay') == 0 and
           set(C747_WAIT_SPIN_BOUND) == set(gate['wait-spin-bound']['requiredPostimages']) and
           gate['wait-spin-bound']['assertions'].get('productionAssembliesBuilt') is True and
-          gate['wait-spin-bound']['assertions'].get('ringNoLostWakeup') is True,
+          gate['wait-spin-bound']['assertions'].get('ringNoLostWakeup') is True and
+          set(C749_DARWIN_TIMED_WAITS) == set(gate['darwin-timed-waits']['requiredPostimages']) and
+          gate['darwin-timed-waits']['assertions'].get('productionAssembliesBuilt') is True and
+          gate['darwin-timed-waits']['assertions'].get('noLostSignal') is True and
+          gate['darwin-timed-waits']['assertions'].get('signalAfterDisposeSafe') is True,
           'The Core 745 changes are not bound by their gates')
     OUTSIDE_GPU |= {C745_NIFM_SERVICE}
     # Core 747: Ryujinx.Common's AsyncWorkQueue.cs is outside the GPU closure; its gate (wait-spin-bound) builds it.
     OUTSIDE_GPU |= {C747_SPIN_EVENT}
+    # Core 749 candidate: PreciseSleepHelper.cs likewise; its gate (darwin-timed-waits) builds Ryujinx.Common and HLE.
+    OUTSIDE_GPU |= {C749_TIMED_WAITS}
     check(CHANGES - OUTSIDE_GPU <= set(gate['fragmented-reads']['requiredPostimages']) and
           # Library.cs and the two HLE files (Core 647) are outside the GPU/Vulkan closure; their own gates bind them.
           CHANGES - {LIBRARY} - OUTSIDE_GPU <= {b['productionPath'] for b in gate['fragmented-reads']['compiledBindings']},
@@ -867,7 +883,9 @@ if not args.helpers_only:
                                             # Core 745: IGeneralService.cs likewise (its gate rebuilds its control).
                                             path != C745_NIFM_SERVICE and
                                             # Core 747: AsyncWorkQueue.cs likewise (its gate rebuilds its control).
-                                            path != C747_SPIN_EVENT}},
+                                            path != C747_SPIN_EVENT and
+                                            # Core 749 candidate: PreciseSleepHelper.cs likewise.
+                                            path != C749_TIMED_WAITS}},
                         'ada': arrays_frozen['controlUnadaptedMembers']['ada']},
           'Control-only upstream inventories differ from the arrays contract plus the files joining the prepared source')
     rejects(lambda: verify.check_control_inventories({**frozen, 'controlUnadaptedMembers': {k: v for k, v in unadapted.items() if k != 'ada'}}),
