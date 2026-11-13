@@ -37,7 +37,7 @@ index f7d6ebf9..b1a7aca7 100644
  
                  device.Configuration.VirtualFileSystem.SetRomFs(pid, image);   // 镜像本身按偏移读：各数据存储会话互不共享读位置（#883），大读也不租中间数组
 diff --git a/services/S2A.Services/RomFsIndex.cs b/services/S2A.Services/RomFsIndex.cs
-index 2b9e0abe..8022b2e6 100644
+index 2b9e0abe..d48422f8 100644
 --- a/services/S2A.Services/RomFsIndex.cs
 +++ b/services/S2A.Services/RomFsIndex.cs
 @@ -180,6 +180,106 @@ namespace S2A.Services
@@ -52,9 +52,9 @@ index 2b9e0abe..8022b2e6 100644
 +        //   An index written here is only as good as the tree it was written for, so it carries a stamp of that tree (romfs.s2aidx.rbtree):
 +        //   every directory of romfs/ (the link's target when romfs/ is a link) with its modification time. Adding, removing, renaming or
 +        //   replacing a file changes the time of its directory: the stamp no longer matches, the index is dropped and written again. A file
-+        //   rewritten in place with another length is not seen by the stamp; reading it through the index then fails when it became shorter
-+        //   (HostFileDataCorrupted, as for any index) and stops at the old length when it became longer. An index without a stamp is S2Arm's
-+        //   pack-time one and is trusted as before.
++        //   rewritten in place with another length is not seen by the stamp, but never read wrongly: the reader compares each file's length
++        //   with the index when it opens it and fails that read in red (Application.cs LazyHostFile, HostFileDataCorrupted), as for any
++        //   index. An index without a stamp is S2Arm's pack-time one and is trusted as before.
 +        public const string RbStampSuffix = ".rbtree";
 +
 +        internal static string RbTreeStamp(string romfsDir)
