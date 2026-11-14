@@ -411,3 +411,7 @@ path, or the game's own behaviour: both episodes start as the camera rises towar
 without that rise showed none. Device protocol for the next IPA: start the screen recording before entering the game (no
 resume at its start); play 60 s or more without leaving the app; 10 fast camera lifts toward the sky or canopy at one
 place, then 5 slow ones; then Home, back, and the same lifts within 10 s; export core, performance and stderr logs.
+
+Core of the IPA 740 lot: bacdcacd (run 43591507649, build-smoke: NativeAOT and ABI verified, two simulator
+sessions; artifact 14113430033, SHA-256 558d929a, iPhone binary 387bb024, packaged fingerprint 7d9b0ad0, contract
+2ff62c92), verified locally with melonx_dma_core_component and pinned, for delivery 745 (this session).
