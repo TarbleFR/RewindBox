@@ -9,10 +9,10 @@ board keeps only its current state.
 
 | Input | Identity |
 | --- | --- |
-| Owner IPA (reference only, never committed or installed) | `xenios_ios_iphone_ipad.ipa`, 49156698 B, SHA-256 `8ba4c18b17d7b6f8a8d1ff70eaaf22e18c391891a9e546ced572baad8def600b`, every ZIP CRC valid |
-| IPA identity | `Payload/XeniOS.app`, `com.xenios.jp`, 2.3.1 (11662), Mach-O arm64 `MH_EXECUTE`, `LC_BUILD_VERSION` minos 26.0 / SDK 27.2, `MinimumOSVersion` 26.0, iPhone + iPad |
-| IPA dependencies | `@rpath/libmetalirconverter.dylib` (30171152 B, Apple Metal Shader Converter runtime), system frameworks incl. MetalFX, PHASE, weak StateReporting/CoreHaptics; no separate XeniOS framework |
-| Upstream source | `xenios-jp/XeniOS` `cf7c7ee452314913124d205e41e325b33891aacb` (= `commitShort=cf7c7ee45` of the IPA's `XeniOSBuildAttestationPayload`, and the upstream HEAD on 10 Nov 2026) |
+| Owner IPA (reference only, never committed or installed) | 2.3.2 (14 Nov 2026): `xenios_ios_iphone_ipad.ipa` (uploaded in 5 parts), 49641629 B, SHA-256 `3f80bb1506cb1876d85cf714bd24080325821a3b8c279a9e87d47e98c9fa415a`, every ZIP CRC valid; before it 2.3.1: 49156698 B, SHA-256 `8ba4c18b17d7b6f8a8d1ff70eaaf22e18c391891a9e546ced572baad8def600b` |
+| IPA identity | `Payload/XeniOS.app`, `com.xenios.jp`, 2.3.2 (11934) (previously 2.3.1 (11662)), Mach-O arm64 `MH_EXECUTE`, `LC_BUILD_VERSION` minos 26.0 / SDK 27.2, `MinimumOSVersion` 26.0, iPhone + iPad |
+| IPA dependencies | `@rpath/libmetalirconverter.dylib` (30171152 B, Apple Metal Shader Converter runtime, the same bytes in 2.3.1 and 2.3.2: SHA-256 `923caf5d…90ff`), system frameworks incl. MetalFX, PHASE, Network (new in 2.3.2), weak StateReporting/CoreHaptics; no separate XeniOS framework |
+| Upstream source | `xenios-jp/XeniOS` `5533fbfd19d45f32b40283de2382e7f54248bea9` (= `commitShort=5533fbfd1` of the 2.3.2 IPA's `XeniOSBuildAttestationPayload`, and the HEAD of the upstream `xenios` branch on 14 Nov 2026); before it `cf7c7ee452314913124d205e41e325b33891aacb` (2.3.1), no longer on that branch since upstream rewrote its history on 12 Nov 2026 (§ XeniOS 2.3.2) |
 | License | Xenia BSD 3-clause (`LICENSE`, copied as `LICENSE.txt` in the IPA); Metal Shader Converter headers Apache 2.0 in `third_party/metal-shader-converter`; the dylib itself is not in the source tree |
 
 ## User flow
