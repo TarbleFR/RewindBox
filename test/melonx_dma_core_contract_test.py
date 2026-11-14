@@ -415,9 +415,10 @@ JOINED = JOINED | set(C751_PARTITION_SNAPSHOT)
 # IPA 736, third lot (adapt_fence_status): FenceHolder.cs and MultiFenceHolder.cs join; fragmented-reads composes, builds
 # and binds them (read from its control, delivered609, as upstream).
 JOINED = JOINED | set(C752_FENCE_STATUS)
-# IPA 740 lot (adapt_command_buffer_ownership): Auto.cs and CommandBufferPool.cs join; fragmented-reads composes,
-# builds and binds them (read from its control, delivered609, as upstream).
-JOINED = JOINED | set(C753_COMMAND_BUFFER_OWNERSHIP)
+# IPA 740 lot (adapt_command_buffer_ownership): CommandBufferPool.cs joins (Auto.cs is a member since adapt_auto_ownership);
+# fragmented-reads composes, builds and binds both (read from its control, delivered609, as upstream).
+C753_POOL = 'src/Ryujinx.Graphics.Vulkan/CommandBufferPool.cs'
+JOINED = JOINED | {C753_POOL}
 REUSED_FRESH = set()
 
 
@@ -788,8 +789,8 @@ if not args.helpers_only:
     # IPA 736, second lot: adapt_partition_snapshot.py joins them; AddressSpacePartitioned.cs joins the prepared members (217).
     # adapt_array_dirty_log.py joins them too (Texture.cs and TextureBindingsArrayCache.cs are members already).
     # IPA 736, third lot: adapt_fence_status.py joins them; FenceHolder.cs and MultiFenceHolder.cs join the members (219).
-    # IPA 740 lot: eight adapters join them; Auto.cs and CommandBufferPool.cs join the members (221).
-    check(len(frozen['preparationInputs']) == 234 and len(frozen['preparedMembers']) == 221, 'Wrong final composition')
+    # IPA 740 lot: eight adapters join them; CommandBufferPool.cs joins the members (220; Auto.cs is one already).
+    check(len(frozen['preparationInputs']) == 234 and len(frozen['preparedMembers']) == 220, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
@@ -916,6 +917,9 @@ if not args.helpers_only:
     c661_hle = {path for path in C661_JOINED if not path.startswith('src/Ryujinx.Graphics.')}
     delivered_graphics = {path: digest for path, digest in graphics.items() if path not in warmup_members and path not in C661_JOINED and path not in C671_JOINED}
     delivered_graphics[TEXTURE_ARRAY_GAL] = graphics[TEXTURE_ARRAY_GAL]
+    # IPA 740 lot: CommandBufferPool.cs is also read from the delivered control, by auto-ownership (the core87 proof run
+    # again on the final command-buffer ownership); fragmented-reads reads it from delivered609.
+    delivered_graphics[C753_POOL] = graphics[C753_POOL]
     # Core 727: the allocator gates, run again on the final allocator against the delivered one, also read the upstream
     # MemoryAllocation.cs from the delivered control (unchanged upstream file, its pinned digest).
     ALLOCATION = 'src/Ryujinx.Graphics.Vulkan/MemoryAllocation.cs'
