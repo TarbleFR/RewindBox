@@ -117,10 +117,7 @@ check(drift_refused, 'a drifted BufferCache.cs is refused')
 # --- Static: the exact scope ---
 final, control, shipped = read(POST, CACHE), read(CONTROL, CACHE), read(FINAL_SOURCE, CACHE)
 for new in (adapter.MULTI_NEW, adapter.LOOKUP_NEW, adapter.SPARSE_NEW):
-    # IPA 740 lot: adapt_buffer_hit_sets edits GetOrCreateBuffer's first lookup after this adapter; its postimage holds the
-    # replacement and the forward check above proves the later adapters give the final preparation.
-    check((final if new == adapter.LOOKUP_NEW and 'adapt_buffer_hit_sets' in LATER else shipped).count(new) == 1,
-          'the final preparation holds this adapter\'s replacement')
+    check(shipped.count(new) == 1, 'the final preparation holds this adapter\'s replacement')
 check(control.count('GraphicsConfig.EnableHostMemoryBudgetTracking') == 5 and final.count('GraphicsConfig.EnableHostMemoryBudgetTracking') == 2,
       'only the three lookup/suppression conditions are removed')
 check('EnableHostMemoryBudgetTracking' in member(final, 'public ulong Trim(MemoryPressureLevel level)') and

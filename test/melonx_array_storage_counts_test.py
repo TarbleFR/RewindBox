@@ -94,8 +94,15 @@ check(method(candidate_array, '        public void SetSamplers(int index, ISampl
       method(control_array, '        public void SetSamplers(int index, ISampler[] samplers)'), 'SetSamplers is unchanged')
 storage_text = read(SOURCE, STORAGE)
 if FINAL_PREPARATION:
-    check(not files_edited_later('adapt_array_storage_counts'), 'no later adapter edits TextureArray.cs')
-    check(read(FINAL_SOURCE, A) == candidate_array, 'the final preparation is the control plus the adapter\'s replacements')
+    # IPA 740 lot: adapt_pool_slot_copy edits TextureArray.cs after this adapter (a large array's slot copied from its
+    # latest slot; nothing of the storage counts): its replacements are undone from the final text before the comparison.
+    import adapt_pool_slot_copy as slot_copy  # noqa: E402
+    check(files_edited_later('adapt_array_storage_counts') == {A}, 'the only later edit of TextureArray.cs is adapt_pool_slot_copy\'s')
+    final_array = read(FINAL_SOURCE, A)
+    for old, new in reversed(slot_copy.PAIRS):
+        check(final_array.count(new) == 1, 'the later adapter\'s replacement, once')
+        final_array = final_array.replace(new, old)
+    check(final_array == candidate_array, 'the final preparation is the control plus the adapter\'s replacements')
     check(read(FINAL_SOURCE, STORAGE) == storage_text, 'TextureStorage.cs is untouched')
 
 # Wrong variants of the candidate's text.

@@ -163,8 +163,11 @@ else:
                 # IPA 736 lot: adapt_keepalive_memory_hold then adds its class, the keep-alive's decision and a summary
                 # line to this file (nothing of the collection class either): undone first.
                 import adapt_keepalive_memory_hold as hold  # noqa: E402
+                # IPA 740 lot: adapt_keepalive_hold_off then replaces the hold's decision line: undone before it.
+                import adapt_keepalive_hold_off as hold_off  # noqa: E402
                 check(files_edited_later('adapt_collection_class') == {name}, 'the later adapters edit this file only')
-                for old, new in reversed(tuple(stall.FILE_PAIRS[stall.SESSION]) + tuple(hold.PAIRS)):
+                for old, new in reversed(tuple(stall.FILE_PAIRS[stall.SESSION]) + tuple(hold.PAIRS) +
+                                         ((hold_off.LOOP_OLD, hold_off.LOOP_NEW),)):
                     check(without_later.count(new) == 1, 'the later adapter\'s replacement, once: ' + new.strip().splitlines()[-1][:70])
                     without_later = without_later.replace(new, old)
             for _, new in adapter.PAIRS:

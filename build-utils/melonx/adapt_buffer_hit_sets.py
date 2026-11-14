@@ -15,9 +15,13 @@ Change (BufferCache.cs only):
 - A buffer leaving the list (RemoveBufferTracking, the only way out of _buffers) clears only its own entries: the
   list's buffers do not overlap and their bounds never change (Buffer.Address read-only, Size set in the constructor),
   so the other entries stay true.
-- CreateBufferAligned asks the list for one overlapping buffer first (FindOverlapFast): when it contains the whole
-  range it is the only overlap, the one the existing branch touched and remembered. GetOrCreateBuffer's first lookup
-  does the same; its result is used only when it contains the range.
+- CreateBufferAligned asks the list for its leftmost overlapping buffer first (FindOverlap, one O(log n) search): when
+  it contains the whole range it is the overlaps[0] the existing branch touched and remembered, without building the
+  overlap span. Not FindOverlapFast: the list can hold two overlapping buffers once a merge recreates a multi-range
+  buffer before the merged buffer is added (CreateBufferAligned, RecreateMultiRangeBuffers), and FindOverlapFast may
+  then answer the other one (adversarial review of the lot). GetOrCreateBuffer's lookups are unchanged. In that state
+  the table could keep an entry of the sub-buffer remembered before the merged buffer was added: AddBuffer drops the
+  entries the new buffer overlaps (adapt_buffer_last_hit's table only lost them at the next removal of any buffer).
 
 The same buffers are returned as before for every lookup; the answers come from the table more often. Expected on the
 device: OverlapsWith, CreateBufferAligned and GetOrCreateBuffer lower in GPU.MainThread's profile. Not measured on an
@@ -143,9 +147,9 @@ CREATE_NEW = '''            Buffer known = FindBufferHit(address, size);
                 return;
             }
 
-            // RewindBox (adapt_buffer_hit_sets): one overlapping buffer that contains the whole range is the only overlap,
-            // the one the branch below touches and remembers.
-            Buffer single = _buffers.FindOverlapFast(address, size);
+            // RewindBox (adapt_buffer_hit_sets): the leftmost overlapping buffer, when it contains the whole range, is the
+            // overlaps[0] the branch below touches and remembers (one O(log n) search instead of the overlap span).
+            Buffer single = _buffers.FindOverlap(address, size);
 
             if (single != null && single.FullyContains(address, size))
             {
@@ -158,17 +162,27 @@ CREATE_NEW = '''            Buffer known = FindBufferHit(address, size);
             ReadOnlySpan<Buffer> overlaps = _buffers.FindOverlapsAsSpan(address, size);
 '''
 
-LOOKUP_OLD = '''            Buffer buffer = size != 0
-                ? _buffers.FindOverlap(address, size)
-                : _buffers.FindOverlapFast(address, 1);
+ADD_OLD = '''        private void AddBuffer(Buffer buffer)
+        {
+            _buffers.Add(buffer);
+'''
+ADD_NEW = '''        private void AddBuffer(Buffer buffer)
+        {
+            // RewindBox (adapt_buffer_hit_sets): entries of buffers the new one overlaps go (a merge can leave a recreated
+            // multi-range buffer's sub-buffer in the list under the merged one; the lookups take the leftmost).
+            for (int i = 0; i < _bufferHits.Length; i++)
+            {
+                if (_bufferHits[i].Buffer != null && _bufferHits[i].Address < buffer.EndAddress && buffer.Address < _bufferHits[i].EndAddress)
+                {
+                    _bufferHits[i] = default;
+                }
+            }
 
-            // RewindBox (adapt_evicted_buffer_recreate)'''
-LOOKUP_NEW = '''            // RewindBox (adapt_buffer_hit_sets): any overlap, used only when it contains the range (then it is the only one).
-            Buffer buffer = size != 0
-                ? _buffers.FindOverlapFast(address, size)
-                : _buffers.FindOverlapFast(address, 1);
+            _buffers.Add(buffer);
+'''
 
-            // RewindBox (adapt_evicted_buffer_recreate)'''
+
+PAIRS = ((TABLE_OLD, TABLE_NEW), (CLEAR_OLD, CLEAR_NEW), (CREATE_OLD, CREATE_NEW), (ADD_OLD, ADD_NEW))
 
 
 def apply(source):
@@ -179,6 +193,6 @@ def apply(source):
     # The table is read and written by these methods only.
     text = path.read_text(encoding='utf-8-sig')
     assert not digests or (text.count('_bufferHits') == 4 and text.count('BufferHitSlots') == 4), CACHE
-    for old, new in ((TABLE_OLD, TABLE_NEW), (CLEAR_OLD, CLEAR_NEW), (CREATE_OLD, CREATE_NEW), (LOOKUP_OLD, LOOKUP_NEW)):
+    for old, new in PAIRS:
         once(path, old, new)
     return [path]

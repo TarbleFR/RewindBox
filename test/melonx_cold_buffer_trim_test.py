@@ -87,7 +87,14 @@ import adapt_buffer_last_hit as _hit  # noqa: E402
 check(files_edited_later('adapt_cold_buffer_trim') == {CACHE}, 'the only later edit of these files is adapt_buffer_last_hit\'s, in BufferCache.cs')
 
 
+# IPA 740 lot: adapt_buffer_hit_sets then turns that memo into two-way sets (its replacements undone before the memo's).
+import adapt_buffer_hit_sets as _sets  # noqa: E402
+
+
 def without_later(source):
+    for old, new in reversed(_sets.PAIRS):
+        check(source.count(new) == 1, 'the later adapter\'s replacement, once: ' + new.strip().splitlines()[0][:60])
+        source = source.replace(new, old)
     for old, new in reversed(_hit.PAIRS):
         check(source.count(new) == 1, 'the later adapter\'s replacement, once: ' + new.strip().splitlines()[0][:60])
         source = source.replace(new, old)
