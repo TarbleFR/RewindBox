@@ -76,8 +76,13 @@ LATER = control_tools.postimage('adapt_evicted_buffer_recreate', FINAL_SOURCE, P
 # IPA 736 lot: adapt_buffer_last_hit edits it after that (a memo of the last buffers returned, read by GetOrCreateBuffer
 # and emptied by RemoveBufferTracking): the executed candidate takes the members it adds with the real ones.
 import adapt_buffer_last_hit as _hit  # noqa: E402
-check(LATER in ([], ['adapt_cold_buffer_trim'], ['adapt_cold_buffer_trim', 'adapt_buffer_last_hit']),
+# IPA 740 lot: adapt_buffer_hit_sets then turns that memo into two-way sets emptied per removed buffer.
+import adapt_buffer_hit_sets as _sets  # noqa: E402
+check(LATER in ([], ['adapt_cold_buffer_trim'], ['adapt_cold_buffer_trim', 'adapt_buffer_last_hit'],
+                ['adapt_cold_buffer_trim', 'adapt_buffer_last_hit', 'adapt_buffer_hit_sets']),
       'the later adapters sharing the file are known: %s' % LATER)
+_ADDED = _hit.ADDED.replace(_sets.TABLE_OLD, _sets.TABLE_NEW) if 'adapt_buffer_hit_sets' in LATER else _hit.ADDED
+check(_sets.TABLE_OLD in _hit.ADDED, 'the two-way sets replace the last-hit members')
 for name in adapter.BASELINE:
     (CONTROL / name).parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(POST / name, CONTROL / name)
@@ -112,7 +117,10 @@ check(drift_refused, 'a drifted BufferCache.cs is refused')
 # --- Static: the exact scope ---
 final, control, shipped = read(POST, CACHE), read(CONTROL, CACHE), read(FINAL_SOURCE, CACHE)
 for new in (adapter.MULTI_NEW, adapter.LOOKUP_NEW, adapter.SPARSE_NEW):
-    check(shipped.count(new) == 1, 'the final preparation holds this adapter\'s replacement')
+    # IPA 740 lot: adapt_buffer_hit_sets edits GetOrCreateBuffer's first lookup after this adapter; its postimage holds the
+    # replacement and the forward check above proves the later adapters give the final preparation.
+    check((final if new == adapter.LOOKUP_NEW and 'adapt_buffer_hit_sets' in LATER else shipped).count(new) == 1,
+          'the final preparation holds this adapter\'s replacement')
 check(control.count('GraphicsConfig.EnableHostMemoryBudgetTracking') == 5 and final.count('GraphicsConfig.EnableHostMemoryBudgetTracking') == 2,
       'only the three lookup/suppression conditions are removed')
 check('EnableHostMemoryBudgetTracking' in member(final, 'public ulong Trim(MemoryPressureLevel level)') and
@@ -136,8 +144,8 @@ for variant in ('control', 'candidate'):
     fixture.mkdir()
     members = '\n\n'.join(member(text, signature) for signature in MEMBERS)
     if variant == 'candidate' and 'adapt_buffer_last_hit' in LATER:
-        check(shipped.count(_hit.ADDED) == 1, 'the final preparation holds the last-hit members once')
-        members += '\n' + _hit.ADDED
+        check(shipped.count(_ADDED) == 1, 'the final preparation holds the last-hit members once')
+        members += '\n' + _ADDED
     (fixture / 'Members.cs').write_text(
         'using Ryujinx.Memory.Range;\nusing System;\nusing System.Collections.Generic;\n\n'
         'namespace Ryujinx.Graphics.Gpu.Memory\n{\n    public partial class BufferCache\n    {\n' + members + '\n    }\n}\n')

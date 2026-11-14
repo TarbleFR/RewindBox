@@ -172,11 +172,19 @@ check(re.search(r'if \(_cbOwnership\.Set\(cbs\.CommandBufferIndex\)\)\s*\{\s*if 
 proof['commandBufferHoldsReference'] = where(SOURCE, VK + 'Auto.cs', '                cbs.AddDependant(this);')
 proof['destroyedAtLastReference'] = where(SOURCE, VK + 'Auto.cs', '            if (Interlocked.Decrement(ref _referenceCount) == 0)')
 pool_vk = read(SOURCE, VK + 'CommandBufferPool.cs')
-completion = member(pool_vk, 'private void WaitAndDecrementRef(int cbIndex, bool refreshFence = true)')
-check(completion.index('entry.Fence.Wait();') < completion.index('dependant.DecrementReferenceCount(cbIndex);') and
+# IPA 740 lot: adapt_signalled_fence_release skips the wait for a fence its caller just read signalled, and
+# adapt_command_buffer_ownership stores the dependants as a struct (dependant.Value) and gives the objects an Auto
+# references (image, memory) only their command-buffer bit: the Auto's constructor reference keeps them (checked below).
+completion = member(pool_vk, 'private void WaitAndDecrementRef(int cbIndex, bool refreshFence = true, bool signaled = false)')
+check(re.search(r'if \(entry\.InConsumption\)\s*\{\s*if \(!signaled\)\s*\{\s*entry\.Fence\.Wait\(\);', completion) is not None and
+      completion.index('entry.Fence.Wait();') < completion.index('dependant.Value.DecrementReferenceCount(cbIndex);') and
+      '(signaled = entry.Fence.IsSignaled())' in member(pool_vk, 'private int FreeConsumed(bool wait)') and
       'dependant.IncrementReferenceCount();' in member(pool_vk, 'public void AddDependant(int cbIndex, IAuto dependant)'),
-      'the command buffer releases its references only after its fence signalled')
-proof['releasedAfterFence'] = where(SOURCE, VK + 'CommandBufferPool.cs', '                dependant.DecrementReferenceCount(cbIndex);')
+      'the command buffer releases its references only after its fence signalled (waited for, or just read signalled)')
+check(re.search(r'for \(int i = 0; i < referencedObjs\.Length; i\+\+\)\s*\{\s*referencedObjs\[i\]\.IncrementReferenceCount\(\);', auto) is not None and
+      re.search(r'_value\.Dispose\(\);[\s\S]*?_referencedObjs\[i\]\.DecrementReferenceCount\(\);', auto) is not None,
+      'an Auto keeps the objects it references until it is destroyed (the image its memory, a view its image)')
+proof['releasedAfterFence'] = where(SOURCE, VK + 'CommandBufferPool.cs', '                dependant.Value.DecrementReferenceCount(cbIndex);')
 blocks = read(SOURCE, VK + 'MemoryAllocatorBlockList.cs')
 check('block.Destroy(_api, _device);' in member(blocks, 'public void Free(Block block, ulong offset, ulong size)'),
       'a totally free block is destroyed (vkFreeMemory)')
