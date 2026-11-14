@@ -163,3 +163,74 @@ fingerprint, Flutter/native groups not-run) downloaded, decrypted and verified o
 bytes), handed to the user, receipts in `docs/evidence/rewind735/`, recipient key deleted. Not yet run on an iPhone:
 the 20-minute comparison above (734 or 733 before, 735 after) is what tells whether the heat fell.
 
+
+## IPA 736 on the iPhone (13 Nov): what the journals show, and the lot that follows (no probe added)
+
+Private journals, read with `tools/melonx/live_capture.py` and the per-second, freeze, hot and core lines. Hogwarts
+Legacy: IPA 733 (pid 61839, 97 s) against IPA 736 (pid 2349, 186 s; same Core as 735). Smash: IPA 732 against 736.
+
+| | 733 | 736 |
+|---|---|---|
+| Hogwarts, presented frames per second (whole session) | 23.7 | 26.4 |
+| frame interval p50 / p95 / p99 | 33 / 100 / 183 ms | 33 / 83 / 133 ms |
+| thermal state | nominal 57 s, then fair | nominal for the 186 s |
+| before the world loads: CPU power, context switches, system calls per second | 1.71 W, 37 976, 139 406 | 1.57 W, 23 312, 86 258 |
+| in the world, at the same decompression (92-94 MiB/s): the same three, and fps | 1.60 W, 57 686, 102 710, 20.0 | 1.31 W, 36 674, 79 656, 22.8 |
+| Smash in play (nominal in both): CPU power, system calls per second | 0.68 W, 78-79 k | 0.64 W, 45.7 k |
+
+Both sessions are too short for a heat verdict (the 20-minute protocol above stays open); what is measured is the CPU
+power and the kernel traffic. Against the lots' own expectations: system calls fell by 22-38 %, not by half (lot 1);
+the timer threads went from 5.6 % to 3.7 % of a core, not under 2.5 % (lot 2: the nanosleep helpers are gone, the timer
+thread itself stayed).
+
+Why the frame rate swings (both IPAs): when the world loads (t = 47 s) the footprint goes from 3.6 to 4.4 GiB in one
+second and the device has 4-8 % of its memory available from then on (127 of 140 s; 9-11 % in the others); iOS
+compresses and decompresses the process's memory without pause (30-500 MiB per second). Frames per second by
+decompression in the same second, IPA 736: 29.9 under 5 MiB/s, 24.6 at 20-60, 21.9 at 60-150, 18.8 above 150. At
+t = 210 s: 1.19 GiB resident, 5.5 GiB (logical) compressed; graphics 1.41 GiB, malloc 1.0 GiB, managed 0.67-0.8 GiB (650 MiB
+live), guest lease up to 4.0 GiB. The memory itself is the cause; what follows are the aggravators the journals show.
+
+The lot (four changes, each general; expectations are for the same save and route as the 736 capture):
+
+1. *`adapt_wait_spin_bound`, the yields bounded in time (AsyncWorkQueue.cs).* 40 % of the running samples of the
+   busiest threads are still inside the spin's yield (11-13 % at the start, 42-61 % in the slow phases; RHIThread 75-86 %,
+   AK::EventManager 79-88 %), and `hw=` counts 210 % of a core's time waiting for a core in the world (27 % before): on a
+   device whose cores are taken a yield returns late, the event is often set meanwhile, the wait counts as short and
+   the full spin stays. Now the yields of one spin stop once they have lasted twice a whole spin on a free core, and
+   the wait's length is counted from its real start. Expected: the yield's share of running samples in the slow phases
+   under 20 %, `sw=` system calls lower; refuted if frame gaps or audio lateness rise. Host, for information (Linux
+   x86_64, 4 cores taken by 4 busy processes, 8 interleaved runs, median handoffs per second before and with the bound):
+   partner answering in 1 us 3 400 and 79 000, in 5 us 64 300 and 91 600, in 1 or 200 us 3 000 and 7 500; on a free host
+   the gate's figures are unchanged.
+2. *`adapt_timer_earliest_wake` (KTimeManager.cs).* The guest timer thread (3.7 % of a core, mostly in the kernel) was
+   signalled at every new deadline; it is now signalled only by a deadline earlier than the one it sleeps for. Deadlines
+   and their order are unchanged. Expected: HLE.TimeManager's CPU and context switches lower; refuted if a guest wait
+   with a limit ends late.
+3. *`adapt_keepalive_memory_hold` (EmbeddedSession.cs).* All 17 gen2 collections of the play were the keep-alive's
+   requests (one per 13 s). The samples with the background collector running decompress 26.2 MiB per 100 ms against
+   10.1 and are inside a frame gap over 100 ms in 17 % of cases against 5 % (733: 21.5 against 10.4, 21 % against 8 %).
+   With 8 % or less of the device's memory available no request is made (a held window stays held under 12 %); Smash
+   plays at 9-15 % and keeps its requests. Cost, stated: the runtime's own gen2s are one to three minutes apart, 22 %
+   of those after an idle exit of the collector's thread ran blocking (100-950 ms, docs/melonx-bgc-fallback-2026-11-05.md),
+   and between them the heap keeps what a request would have freed (the LOH's free space fell by 5-65 MiB between two
+   requests). Expected: `vm=` decompression and gaps over 100 ms per minute lower in the world; refuted and removed if
+   gaps over 250 ms per minute exceed the 736 figures (1.14-8.66) or the footprint in the world rises by more than
+   150 MiB.
+4. *`adapt_buffer_last_hit` (BufferCache.cs).* Buffer.OverlapsWith is the largest single place of GPU.MainThread
+   (7.4 % of its running samples): three binary searches of the buffer list per use of a range. Sixteen slots remember
+   the last buffers returned; a range one of them contains is answered without a search; every removal from the list
+   empties them. Expected: that share under 2 %; the same buffer is returned for every range.
+
+Seen and not changed in this lot: the ephemeral collections (131 gen0 and 95 gen1 in 250 s, gen0 about 23 ms and gen1
+about 60 ms each, 30-70 ms of pause per collection in the world; 12-19 MiB allocated per second, 2-8 of them on the GPU
+thread, 1-7 on the render thread, the rest on threads the windows do not attribute; gen1's budget is fixed at 6 MiB by
+the concurrent collector); the stall compaction that ran 436 ms inside a 1.9 s gap (three at most per session, it gave
+150 MiB back); the occlusion query readback (77-220 ms per second, a user setting); MoltenVK's descriptor pools and
+shader modules (330 MiB of malloc, cold: about a third would be physical gain); the shared array pool, emptied at every
+gen2 because the memory load (94 %) is above 90 % of the configured threshold (change 3 lowers the number of gen2s).
+
+Gates: no new one. The existing gates that bind the four files were run again on the final preparation and adapted to
+the new composition where they name the later adapters of a file (cold-buffer-trim, evicted-buffer-recreate, which now
+executes the last-hit members with its evictions, host-thread-class, collection-class, performance-diagnostics,
+hogwarts-dma-copies, kernel-timer-allocations: the final timer manager gives the delivered one's functional digest
+over its 195 scenarios). Not measured on an iPhone: every expectation above is for the next capture.
