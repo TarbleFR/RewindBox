@@ -56,24 +56,36 @@ them from those builds:
 
 ## What the maintainer must obtain
 
-1. **A client identifier.** Sign in on <https://nextendo.network/developers>
-   (the account needs a verified e-mail address and a linked Discord account),
-   create a *public* application (PKCE, no secret), and register the redirect
-   address `rewindbox-auth://nextendo/callback`. Scopes used: `identity` and
-   `game.matchmaking`. The application's name may not contain "nextendo",
-   "nintendo" or "ryujinx".
+1. **A client identifier.** Done on 14 November 2026: RewindBox's public
+   application on <https://nextendo.network/developers> is `nxc_Qs2TRpZuxz1X`
+   (public by design: a PKCE client has no secret and the identifier travels in
+   every sign-in address). It is the default of every build
+   (`NextendoConfig.registeredClientId`); the build define
+   `NEXTENDO_CLIENT_ID` or the on-device field can still override it.
+   - Its registered redirect is a loopback address
+     (`http://127.0.0.1:47823/callback`). Nextendo then accepts any loopback
+     port and path and refuses every other redirect, a custom scheme included
+     (checked against the live authorization endpoint). RewindBox therefore
+     receives the answer on `127.0.0.1`, on a free port, for the duration of the
+     sign-in only, inside the system sign-in sheet; the local page then sends
+     the sheet to `rewindbox-auth://nextendo/done`, which closes it. No Swift
+     change: the sheet plugin compiled for 739 is unchanged.
+   - Scopes requested: the ones registered for the application, `identity
+     friends presence game.matchmaking profil history mods.favorites` (the
+     authorization endpoint accepts the list). RewindBox reads `identity` and
+     uses `game.matchmaking` for the game token; the others are not read yet.
+   - The portal's bot token (`Authorization: Bot …`) is a server-side secret.
+     RewindBox does not use it and must never ship it.
 2. **The two server addresses** (IPv4), asked from Nextendo's team for this
    registered application.
 3. Optionally, Nextendo's position on the `id_token` signing key for a
    third-party emulator, which decides whether titles such as Splatoon 2 can
    ever work.
 
-Where the values go: build defines `NEXTENDO_CLIENT_ID`, `NEXTENDO_SERVER_IP`
-and `NEXTENDO_NAT_IP` (`.env.example`). The standard delivery workflow does not
-pass them yet; that is a small recipe change to make once the values exist. A
-build without them shows three fields at the bottom of the Nextendo screen
-("Application registration"), so the maintainer can enter the values on the
-device and test without a new build. A build with them hides those fields.
+Where the server addresses go: build defines `NEXTENDO_SERVER_IP` and
+`NEXTENDO_NAT_IP` (`.env.example`); the standard delivery workflow does not pass
+them yet. Until then, the "Application registration" fields at the bottom of
+the Nextendo screen keep them on the device.
 
 ## Switch profiles (application side, no engine change)
 

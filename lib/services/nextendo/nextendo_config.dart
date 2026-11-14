@@ -5,14 +5,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// What RewindBox needs to reach Nextendo Network as a registered third-party
 /// application (https://nextendo.network/developers, public client with PKCE).
 ///
-/// - The client identifier (`nxc_…`) is issued to RewindBox's maintainer by the
-///   Nextendo Developers portal. It is public: a PKCE client has no secret.
+/// - The client identifier (`nxc_…`) was issued to RewindBox's maintainer by the
+///   Nextendo Developers portal (14 November 2026). It is public: a PKCE client
+///   has no secret, and the identifier travels in every sign-in address.
 /// - The two game-server addresses are what Nextendo's own builds receive at
 ///   build time; Nextendo keeps them out of its public source, so RewindBox
 ///   keeps them out of its repository too and takes them from build defines.
 ///
-/// A build without the defines can still be configured on the device (the
-/// maintainer's test path); a build with them ignores the on-device values.
+/// A build without the defines uses the registered identifier and can still be
+/// configured on the device (the maintainer's test path); a build with them
+/// ignores the on-device values.
 class NextendoConfig {
   const NextendoConfig({required this.clientId, required this.serverAddress, required this.natAddress, required this.fromBuild});
 
@@ -26,13 +28,28 @@ class NextendoConfig {
   /// The account API. Tokens are only ever sent to this origin.
   static const apiBase = 'https://nextendo.network';
 
-  /// Registered on the Nextendo Developers portal as the application's redirect.
-  static const callbackScheme = 'rewindbox-auth';
-  static const redirectUri = '$callbackScheme://nextendo/callback';
+  /// RewindBox's public application on the Nextendo Developers portal.
+  static const registeredClientId = 'nxc_Qs2TRpZuxz1X';
 
-  /// `identity` is required; `game.matchmaking` opens the game token. Nothing
-  /// else is requested: RewindBox reads no friend list and edits no profile.
-  static const scopes = 'identity game.matchmaking';
+  /// The redirect the application registers: a loopback address. Nextendo then
+  /// accepts any loopback port and path at sign-in and refuses any other
+  /// redirect (a custom scheme included), so RewindBox receives the answer on
+  /// 127.0.0.1, on a free port, for the duration of the sign-in only.
+  static const registeredRedirect = 'http://127.0.0.1/callback';
+  static const loopbackPath = '/callback';
+
+  /// Closes the system sign-in sheet once the loopback answer has arrived: the
+  /// local page redirects there, and the sheet ends on this scheme. Nothing is
+  /// carried by it.
+  static const callbackScheme = 'rewindbox-auth';
+  static const sheetDone = '$callbackScheme://nextendo/done';
+
+  /// The scopes registered for RewindBox's application on the portal (the
+  /// maintainer's list of 14 November 2026). `identity` names the player and
+  /// `game.matchmaking` opens the game token; the others (friends, presence,
+  /// profile, history, favourite mods) are granted for features to come and
+  /// are not read by RewindBox yet.
+  static const scopes = 'identity friends presence game.matchmaking profil history mods.favorites';
 
   static const _buildClientId = String.fromEnvironment('NEXTENDO_CLIENT_ID');
   static const _buildServer = String.fromEnvironment('NEXTENDO_SERVER_IP');
@@ -66,8 +83,9 @@ class NextendoConfig {
       return const NextendoConfig(clientId: _buildClientId, serverAddress: _buildServer, natAddress: _buildNat, fromBuild: true);
     }
     final prefs = preferences ?? await SharedPreferences.getInstance();
+    final localClientId = prefs.getString(_clientIdKey) ?? '';
     return NextendoConfig(
-      clientId: prefs.getString(_clientIdKey) ?? '',
+      clientId: localClientId.isEmpty ? registeredClientId : localClientId,
       serverAddress: prefs.getString(_serverKey) ?? '',
       natAddress: prefs.getString(_natKey) ?? '',
       fromBuild: false,

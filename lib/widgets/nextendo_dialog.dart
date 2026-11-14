@@ -191,7 +191,7 @@ class _NextendoDialogState extends State<NextendoDialog> {
     tilePadding: EdgeInsets.zero,
     title: Text(_text('nextendoRegistration')),
     children: [
-      Text(_text('nextendoRegistrationHint', {'redirect': NextendoConfig.redirectUri})),
+      Text(_text('nextendoRegistrationHint', {'redirect': NextendoConfig.registeredRedirect})),
       for (final field in [(_clientId, 'nextendoClientId'), (_server, 'nextendoServer'), (_nat, 'nextendoNat')])
         TextField(
           controller: field.$1,

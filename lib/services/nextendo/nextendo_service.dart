@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:crypto/crypto.dart';
@@ -73,8 +74,14 @@ class NextendoException implements Exception {
   String toString() => detail.isEmpty ? code : '$code:$detail';
 }
 
-/// Opens the system sign-in sheet on [url] and returns the redirect it ends on.
-typedef NextendoAuthorizer = Future<Uri> Function(Uri url, String callbackScheme);
+/// One sign-in on Nextendo's page: the redirect address the page was opened
+/// with, and the address it sent the player back to (with code and state, or
+/// an error). The token exchange repeats [redirectUri] exactly.
+typedef NextendoAuthorization = ({String redirectUri, Uri answer});
+
+/// Opens the sign-in page that [authorizationUrl] builds for a redirect address
+/// and returns where it ended.
+typedef NextendoAuthorizer = Future<NextendoAuthorization> Function(Uri Function(String redirectUri) authorizationUrl);
 
 /// Where the session is kept. The default is the platform keychain.
 abstract interface class NextendoStore {
@@ -131,22 +138,69 @@ class NextendoService {
   bool _restored = false;
   Future<String>? _refreshing;
 
-  static Future<Uri> _systemAuthorizer(Uri url, String callbackScheme) async {
-    final String? redirect;
+  /// Nextendo accepts only loopback redirects for RewindBox's application
+  /// (custom schemes are refused once one is registered, 14 November 2026), so
+  /// the answer is received on 127.0.0.1, on a free port, while the system
+  /// sign-in sheet is open. The local page then sends the sheet to
+  /// [NextendoConfig.sheetDone], which ends it. Nothing but the one expected
+  /// path is answered, and the receiver closes with the sign-in.
+  static Future<NextendoAuthorization> _systemAuthorizer(Uri Function(String redirectUri) authorizationUrl) async {
+    final HttpServer server;
     try {
-      redirect = await _channel.invokeMethod<String>('authenticate', {'url': url.toString(), 'callbackScheme': callbackScheme});
-    } on PlatformException catch (error) {
-      throw NextendoException(switch (error.code) {
-        'cancelled' => 'signInCancelled',
-        'failed' => 'signInFailed',
-        _ => 'signInUnavailable',
-      }, error.message ?? '');
-    } on MissingPluginException {
-      throw const NextendoException('signInUnavailable');
+      server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    } on SocketException catch (error) {
+      throw NextendoException('signInUnavailable', error.message);
     }
-    final parsed = redirect == null ? null : Uri.tryParse(redirect);
-    if (parsed == null) throw const NextendoException('signInFailed', 'redirect');
-    return parsed;
+    final redirectUri = 'http://${InternetAddress.loopbackIPv4.address}:${server.port}${NextendoConfig.loopbackPath}';
+    final answer = Completer<Uri>();
+    server.listen((request) async {
+      final response = request.response;
+      try {
+        if (request.method == 'GET' && request.uri.path == NextendoConfig.loopbackPath && !answer.isCompleted) {
+          answer.complete(Uri.parse(redirectUri).replace(query: request.uri.query));
+          response
+            ..statusCode = HttpStatus.found
+            ..headers.set(HttpHeaders.locationHeader, NextendoConfig.sheetDone)
+            ..headers.set(HttpHeaders.cacheControlHeader, 'no-store')
+            ..headers.contentType = ContentType.html
+            ..write('<!doctype html><meta charset="utf-8"><title>RewindBox</title>'
+                '<p><a href="${NextendoConfig.sheetDone}">RewindBox</a></p>');
+        } else {
+          response.statusCode = HttpStatus.notFound;
+        }
+        await response.close();
+      } on Object {
+        // A probe or a dropped connection: the sign-in waits for its answer.
+      }
+    }, onError: (Object _) {}, cancelOnError: false);
+    try {
+      // The sheet's outcome, a value or an error, never an unhandled failure.
+      final sheet = _channel
+          .invokeMethod<String>('authenticate', {
+            'url': authorizationUrl(redirectUri).toString(),
+            'callbackScheme': NextendoConfig.callbackScheme,
+          })
+          .then<Object?>((value) => value, onError: (Object error) => error);
+      Object? outcome = await Future.any<Object?>([sheet, answer.future]);
+      // The answer came first: the sheet then ends on the local page's redirect.
+      if (answer.isCompleted) outcome = await sheet.timeout(const Duration(seconds: 10), onTimeout: () => null);
+      // Closed by the player or the system before any answer. An answer
+      // already received counts, however the sheet ended.
+      if (!answer.isCompleted) {
+        if (outcome is PlatformException) {
+          throw NextendoException(switch (outcome.code) {
+            'cancelled' => 'signInCancelled',
+            'failed' => 'signInFailed',
+            _ => 'signInUnavailable',
+          }, outcome.message ?? '');
+        }
+        if (outcome is MissingPluginException) throw const NextendoException('signInUnavailable');
+        throw const NextendoException('signInFailed', 'redirect');
+      }
+      return (redirectUri: redirectUri, answer: await answer.future);
+    } finally {
+      await server.close(force: true);
+    }
   }
 
   /// Loads the stored session once. A session kept for another client
@@ -177,17 +231,24 @@ class NextendoService {
     final verifier = _randomToken(32);
     final state = _randomToken(16);
     final challenge = base64Url.encode(sha256.convert(ascii.encode(verifier)).bytes).replaceAll('=', '');
-    final authorize = Uri.parse('${NextendoConfig.apiBase}/api/oauth/authorize').replace(queryParameters: {
+    Uri authorize(String redirectUri) => Uri.parse('${NextendoConfig.apiBase}/api/oauth/authorize').replace(queryParameters: {
       'client_id': config.clientId,
       'response_type': 'code',
-      'redirect_uri': NextendoConfig.redirectUri,
+      'redirect_uri': redirectUri,
       'code_challenge': challenge,
       'code_challenge_method': 'S256',
       'scope': NextendoConfig.scopes,
       'state': state,
     });
-    final redirect = await _authorizer(authorize, NextendoConfig.callbackScheme);
-    if (redirect.scheme != NextendoConfig.callbackScheme) throw const NextendoException('signInFailed', 'redirect');
+    final authorization = await _authorizer(authorize);
+    final expected = Uri.parse(authorization.redirectUri);
+    final redirect = authorization.answer;
+    // Only RewindBox's own loopback address carries the answer.
+    if (expected.scheme != 'http' || expected.host != InternetAddress.loopbackIPv4.address ||
+        redirect.scheme != expected.scheme || redirect.host != expected.host || redirect.port != expected.port ||
+        redirect.path != expected.path) {
+      throw const NextendoException('signInFailed', 'redirect');
+    }
     final parameters = redirect.queryParameters;
     // The state comes back unchanged; anything else is not this sign-in's answer.
     if (parameters['state'] != state) throw const NextendoException('signInFailed', 'state');
@@ -201,7 +262,7 @@ class NextendoService {
       'client_id': config.clientId,
       'code': code,
       'code_verifier': verifier,
-      'redirect_uri': NextendoConfig.redirectUri,
+      'redirect_uri': authorization.redirectUri,
     });
     final identity = NextendoAccount.fromJson(await _get('/api/oauth/userinfo', tokens['access_token'] as String));
     if (identity == null) throw const NextendoException('signInFailed', 'identity');
