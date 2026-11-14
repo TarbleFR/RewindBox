@@ -1,0 +1,194 @@
+diff --git a/rpcs3/Emu/RSX/RSXFIFO.cpp b/rpcs3/Emu/RSX/RSXFIFO.cpp
+index c4513d8..72d2864 100644
+--- a/rpcs3/Emu/RSX/RSXFIFO.cpp
++++ b/rpcs3/Emu/RSX/RSXFIFO.cpp
+@@ -87,7 +87,8 @@ namespace rsx
+ 				}
+ 				else if (now - m_idle_since >= rpcs3::ios::rsx_idle_park::grace_us)
+ 				{
+-					rpcs3::ios::rsx_idle_park::park();
++					// REWINDBOX_RSX_LONG_IDLE_938: the slice follows how long the FIFO has been empty.
++					rpcs3::ios::rsx_idle_park::park(now - m_idle_since);
+ 					return;
+ 				}
+ 			}
+diff --git a/rpcs3/ios/IOSRsxIdlePark.h b/rpcs3/ios/IOSRsxIdlePark.h
+index be384ac..0333056 100644
+--- a/rpcs3/ios/IOSRsxIdlePark.h
++++ b/rpcs3/ios/IOSRsxIdlePark.h
+@@ -26,6 +26,22 @@ inline std::atomic<bool> enabled{false};
+ constexpr std::uint64_t grace_us = 1000;
+ constexpr std::uint64_t slice_us = 50;
+ 
++// REWINDBOX_RSX_LONG_IDLE_938: IPA 737 logs (COREPROF WAKE936, 14 Nov 2026). While the FIFO stays empty for seconds
++// the 50 us slices wake the RSX thread 16,600 times a second for nothing: Black Ops II frozen, 95 s, rsx_park=83,348
++// slices per 5 s window in one park period (park_ms 5,018); God of War III loading, 48,068 slices in 2.9 s. Once the
++// FIFO has been empty for long_idle_us without a break, the slice is long_slice_us. No game renders with its RSX idle
++// that long between two command bursts (it would show fewer than 4 images a second); a FIFO that idle is a loading
++// screen, a static or frozen screen or a pause. The first guest PUT after it is seen at most long_slice_us later (a
++// PUT is a plain store, never notified); a flush, flip or ZCULL request posted by another thread still wakes the
++// thread at once, as before. Frames, pacing and synchronisation are unchanged.
++constexpr std::uint64_t long_idle_us = 250'000;
++constexpr std::uint64_t long_slice_us = 1'000;
++
++constexpr std::uint64_t slice_for(std::uint64_t idle_us) noexcept
++{
++	return idle_us >= long_idle_us ? long_slice_us : slice_us;
++}
++
+ inline std::mutex gate_mutex;
+ inline std::condition_variable gate;
+ inline std::uint64_t generation = 0;
+@@ -34,8 +50,9 @@ inline std::atomic<std::uint32_t> parked{0};
+ // REWINDBOX_WAKE_CENSUS_936: steady-clock nanoseconds at the end of the last slice (RSX thread only).
+ inline std::int64_t census_last_end_ns = 0;
+ 
+-// RSX thread only: sleep one slice unless woken.
+-inline void park() noexcept
++// RSX thread only: sleep one slice unless woken. `idle_us`: how long the FIFO has been empty without a break
++// (REWINDBOX_RSX_LONG_IDLE_938; 0 keeps the 50 us slice).
++inline void park(std::uint64_t idle_us = 0) noexcept
+ {
+ 	// REWINDBOX_WAKE_CENSUS_936 (ios/IOSWakeCensus936.h): counted, not changed.
+ 	const std::int64_t census_begin_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+@@ -45,7 +62,7 @@ inline void park() noexcept
+ 	{
+ 		std::unique_lock lock(gate_mutex);
+ 		const std::uint64_t seen = generation;
+-		census_woken = gate.wait_for(lock, std::chrono::microseconds(slice_us), [&] { return generation != seen; });
++		census_woken = gate.wait_for(lock, std::chrono::microseconds(slice_for(idle_us)), [&] { return generation != seen; });
+ 	}
+ 	parked.fetch_sub(1, std::memory_order_relaxed);
+ 
+diff --git a/rpcs3/ios/RPCS3IOSFreezeDump.cpp b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
+index a6810d2..0fbf079 100644
+--- a/rpcs3/ios/RPCS3IOSFreezeDump.cpp
++++ b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
+@@ -711,6 +711,87 @@ bool neostation_freeze_dump(const char* reason, double seconds_without_frames, d
+ 	return true;
+ }
+ 
++// REWINDBOX_FREEZE_SPU_MEMORY_938: see RPCS3IOSFreezeDump.h.
++bool neostation_freeze_spu_memory(unsigned long long episode, double episode_seconds)
++{
++	static std::mutex s_memory_mutex;
++	static bool s_written = false; // once per process: the first long busy freeze of the boot
++
++	std::unique_lock lock(s_memory_mutex, std::try_to_lock);
++	if (!lock.owns_lock() || s_written || Emu.GetStatus(false) != system_state::running)
++	{
++		return false;
++	}
++
++	std::vector<stx::shared_ptr<named_thread<spu_thread>>> spus;
++	{
++		std::shared_lock idm_reader(id_manager::g_mutex, std::try_to_lock);
++		if (!idm_reader.owns_lock())
++		{
++			return false;
++		}
++
++		if (g_fxo->is_init<id_manager::id_map<named_thread<spu_thread>>>())
++		{
++			idm::select<named_thread<spu_thread>>([&](u32 id, named_thread<spu_thread>&)
++			{
++				if (spus.size() < 16)
++				{
++					if (auto ptr = idm::get_unlocked<named_thread<spu_thread>>(id))
++					{
++						spus.emplace_back(std::move(ptr));
++					}
++				}
++			}, idm::unlocked);
++		}
++	}
++
++	const char* home = std::getenv("HOME");
++	if (spus.empty() || !home || Emu.GetStatus(false) != system_state::running)
++	{
++		return false;
++	}
++
++	// Next to the RPCS3 journals the host writes (Rpcs3Diagnostics.mm: Documents/Diagnostics/PS3).
++	const std::string name = "RPCS3-freeze-spu.bin";
++	const std::string path = std::string(home) + "/Documents/Diagnostics/PS3/" + name;
++	fs::file file(path, fs::rewrite);
++	if (!file)
++	{
++		ios_freeze_dump.error("FREEZE_DUMP spu_memory episode=%llu file=%s error=open", episode, name);
++		s_written = true;
++		return false;
++	}
++
++	// Per SPU thread: a 4 KiB header (magic, ids, pc, reservation, last GETLLAR, pending MFC command, the 128 GPRs),
++	// then its 256 KiB local store. Plain reads of a running thread, as the dump lines: the bytes are those of the
++	// moment, possibly mid-update; nothing is written to the emulated threads.
++	u64 bytes = 0;
++	for (const auto& spu : spus)
++	{
++		std::array<u8, 4096> header{};
++		const spu_mfc_cmd pending = spu->ch_mfc_cmd;
++		const u32 fields[] = {spu->id, spu->lv2_id, spu->pc, spu->raddr, spu->last_getllar, spu->last_getllar_addr,
++			static_cast<u32>(pending.cmd), pending.lsa, pending.eal, static_cast<u32>(pending.size), spu->spurs_addr,
++			static_cast<u32>(SPU_LS_SIZE)};
++		std::memcpy(header.data(), "RBSPULS1", 8);
++		std::memcpy(header.data() + 8, fields, sizeof(fields));
++		const u64 rtime = spu->rtime;
++		std::memcpy(header.data() + 64, &rtime, sizeof(rtime));
++		const std::string thread_name = spu->get_name();
++		std::memcpy(header.data() + 128, thread_name.data(), std::min<usz>(thread_name.size(), 63));
++		std::memcpy(header.data() + 2048, spu->gpr.data(), sizeof(spu->gpr));
++		bytes += file.write(header.data(), header.size());
++		bytes += file.write(spu->ls, SPU_LS_SIZE);
++	}
++
++	file.close();
++	s_written = true;
++	ios_freeze_dump.notice("FREEZE_DUMP spu_memory episode=%llu episode_s=%.3f file=%s spus=%u bytes=%llu format=RBSPULS1",
++		episode, episode_seconds, name, static_cast<u32>(spus.size()), static_cast<unsigned long long>(bytes));
++	return true;
++}
++
+ // REWINDBOX_CAPTURE_912 (ios/IOSCapture912.h): the diagnostic-thread side of the two captures. Called by the
+ // profiler sampler every 500 ms; nothing here runs on an emulated thread except the PPU sampler's own reads.
+ // REWINDBOX_SPU_WAIT_SITE_930: the classifier's channel numbers are the engine's.
+diff --git a/rpcs3/ios/RPCS3IOSFreezeDump.h b/rpcs3/ios/RPCS3IOSFreezeDump.h
+index 411dec0..f65b594 100644
+--- a/rpcs3/ios/RPCS3IOSFreezeDump.h
++++ b/rpcs3/ios/RPCS3IOSFreezeDump.h
+@@ -24,6 +24,16 @@
+ bool neostation_freeze_dump(const char* reason, double seconds_without_frames, double busiest_group_cores,
+ 	unsigned long long episode = 0);
+ 
++// REWINDBOX_FREEZE_SPU_MEMORY_938: IPA 737 logs, Black Ops II. Every freeze of this title since build 624 has the same
++// dump: the RSX on a jump to itself before the next flip, one PPU thread spinning and the six SPURS kernels requeuing
++// the same jobs (1.9 million PUTLLC a second), as Black Ops III did before ARMSX3 patched the dependency check of its
++// job manager in the game's own SPU code. That check can only be read in the jobs' code, which is in the SPUs' local
++// stores during the freeze. Called by the profiler sampler once a busy no-frame episode has lasted 20 s: writes, once
++// per process, every SPU thread's local store and registers to Documents/Diagnostics/PS3/RPCS3-freeze-spu.bin (beside
++// the journals; about 260 KiB per SPU) and logs one FREEZE_DUMP spu_memory line. Same rules as the dump: only tried
++// locks, a running emulator, reads only. Measurement only: nothing changes in the emulation.
++bool neostation_freeze_spu_memory(unsigned long long episode, double episode_seconds);
++
+ // REWINDBOX_CAPTURE_912 (ios/IOSCapture912.h): called by the profiler sampler every sample (500 ms). Starts an armed
+ // capture when the emulation leaves a pause, stops it by itself, and logs its bounded "COREPROF PUTLLCTRACE912" /
+ // "COREPROF PPUPROF912" lines. Does nothing when neither capture is armed (their boot settings are off).
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index a972a67..860b003 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -1107,6 +1107,14 @@ private:
+ 		{
+ 			m_freeze_episode.dump_taken(now_us);
+ 		}
++		// REWINDBOX_FREEZE_SPU_MEMORY_938 (RPCS3IOSFreezeDump.h): a busy freeze that has lasted 20 s gives, once per
++		// process, the SPUs' local stores (the jobs' code a game patch must read). Tried again at the next update
++		// (10 s later) when a lock was busy.
++		if (result.what == episode::event::update && result.reason && std::string_view(result.reason) == "no_frames_busy" &&
++			result.episode_s >= 20.0 && !rpcs3::ios::get_experimental_policy().light_measurement)
++		{
++			static_cast<void>(neostation_freeze_spu_memory(result.episode, result.episode_s));
++		}
+ 	}
+ 
+ 	void report_profile_window()
