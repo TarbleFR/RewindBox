@@ -10,6 +10,7 @@ import 'package:neostation/l10n/pairing_file_locale.dart';
 import 'config_service.dart';
 import 'pairing_file_service.dart';
 import 'melonx_launch_diagnostics.dart';
+import 'nextendo/nextendo_online_play.dart';
 import 'package:neostation/services/enhancements/adapters/melonx_enhancement_adapter.dart';
 import 'package:neostation/services/enhancements/enhancement_service.dart';
 
@@ -141,6 +142,17 @@ abstract final class MelonxInternalService {
     final root = Directory(path.join(documents.path, 'MeloNX'));
     await root.create(recursive: true);
     return root;
+  }
+
+  /// Tells an engine already loaded in this process that the Switch profile
+  /// file changed. It never loads the engine and never fails: an engine
+  /// without the operation, or none loaded, reads the file at the next launch.
+  static Future<void> refreshProfiles() async {
+    try {
+      await channel.invokeMethod<Object?>('refreshProfiles');
+    } on Object {
+      // The next launch reads the file.
+    }
   }
 
   static Future<Map<String, dynamic>> content(
@@ -566,11 +578,24 @@ abstract final class MelonxInternalService {
           };
         }
       }
+      // Online play on Nextendo Network: this launch's game token, when a
+      // player is signed in and this build knows Nextendo's servers. Anything
+      // else (signed out, switched off, no network, a refusal) leaves the game
+      // starting offline exactly as before; the launch is never refused for it.
+      final online = await NextendoOnlinePlay.forLaunch(
+        onSkipped: (reason) => MelonxLaunchDiagnostics.record('online', 'skipped', {'diagnostic': reason}),
+      ).timeout(const Duration(seconds: 8), onTimeout: () {
+        MelonxLaunchDiagnostics.record('online', 'skipped', {'diagnostic': 'timeout'});
+        return null;
+      });
+      if (online != null) MelonxLaunchDiagnostics.record('online', 'requested');
       final response = await channel.invokeMethod<Object?>('launch', {
         'gamePath': gamePath,
         'locale': locale,
         'jitBackend': 'builtin',
         'graphics': await graphicsForGame(gamePath),
+        // The game token stays in memory: never a file, never a journal.
+        if (online != null) 'online': online.toEngine(),
       });
       final result = response is Map
           ? Map<String, dynamic>.from(response)

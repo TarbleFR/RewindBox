@@ -4,6 +4,8 @@ import 'melonx_transfer_dialog.dart';
 import 'playlist_import_button.dart';
 import 'melonx_hogwarts_graphics_options.dart';
 import 'melonx_unreal_profile_dialog.dart';
+import 'melonx_profiles_dialog.dart';
+import 'nextendo_dialog.dart';
 
 import 'dart:io';
 import 'dart:async';
@@ -17,6 +19,7 @@ import 'package:provider/provider.dart';
 import '../l10n/library_link_locale.dart';
 import '../l10n/libretro_locale.dart';
 import '../l10n/melonx_library_locale.dart';
+import '../l10n/switch_online_locale.dart';
 import '../providers/sqlite_config_provider.dart';
 import '../screens/libretro/libretro_skin_manager_screen.dart';
 import '../services/frontend_media_gate.dart';
@@ -218,6 +221,20 @@ class _MelonxInternalPlaylistActionsState
     if (_busy) return;
     if (action == 'skins') {
       await _openSkins();
+      return;
+    }
+    // Switch profiles and the Nextendo account are their own dialogs: each
+    // takes the launch gate itself for the writes it makes.
+    if (action == 'profiles' || action == 'nextendo') {
+      _interaction(true);
+      try {
+        await showDialog<void>(
+          context: context,
+          builder: (_) => action == 'profiles' ? const MelonxProfilesDialog() : const NextendoDialog(),
+        );
+      } finally {
+        if (mounted) _interaction(false);
+      }
       return;
     }
     setState(() => _busy = true);
@@ -501,6 +518,17 @@ class _MelonxInternalPlaylistActionsState
           child: Text(LibretroLocale.text(context, 'skins')),
         ),
         PopupMenuItem(value: 'status', child: Text(_text('Engine status'))),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          key: const ValueKey('melonx-profiles'),
+          value: 'profiles',
+          child: Text(SwitchOnlineLocale.text(context, 'profilesTitle')),
+        ),
+        const PopupMenuItem(
+          key: ValueKey('melonx-nextendo'),
+          value: 'nextendo',
+          child: Text('Nextendo Network'),
+        ),
       ],
     );
   }

@@ -12,7 +12,7 @@ Pod::Spec.new do |s|
   s.dependency 'neo_touch_layout'
   s.platform = :ios, '18.0'
   s.swift_version = '5.0'
-  s.frameworks = 'Foundation', 'UIKit', 'Metal', 'QuartzCore', 'SwiftUI', 'GameController', 'CoreMotion', 'UniformTypeIdentifiers', 'AVFoundation', 'Security'
+  s.frameworks = 'Foundation', 'UIKit', 'Metal', 'QuartzCore', 'SwiftUI', 'GameController', 'CoreMotion', 'UniformTypeIdentifiers', 'AVFoundation', 'Security', 'AuthenticationServices'
   s.libraries = 'c++'
   s.preserve_paths = 'Frameworks/*.framework', 'Controller/**', 'Memory/**'
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'CLANG_CXX_LANGUAGE_STANDARD' => 'c++20', 'CLANG_ENABLE_MODULES' => 'YES', 'OTHER_CPLUSPLUSFLAGS' => '$(inherited) -fmodules -fcxx-modules' }

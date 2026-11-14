@@ -59,6 +59,32 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
         MeloNXLaunchJournal.sink = { [weak instance] event in instance?.diagnosticsChannel?.invokeMethod("launchDiagnostic",arguments:event) }
         registrar.addMethodCallDelegate(instance,channel:channel)
         MeloNXJitBridgePlugin.register(with:registrar)
+        MeloNXWebAuthPlugin.register(with:registrar)
+    }
+
+    /// Online play of one launch (EmbeddedOnline.cs, content operation 11): the Nextendo game token and the two server
+    /// addresses Dart resolved, or an empty request that clears what an earlier launch set. The token goes to the engine
+    /// in memory and is never journaled. An engine without the operation, or a refused request, leaves the game offline.
+    private func configureOnline(_ runtime: MeloNXRuntimeAPI, online: [String:Any]?) {
+        var request = "{}"
+        if let online {
+            guard let token = online["nexToken"] as? String, token.hasPrefix("nx2."), token.utf8.count <= 1024,
+                  let server = online["serverAddress"] as? String, let nat = online["natAddress"] as? String,
+                  let data = try? JSONSerialization.data(withJSONObject:["nexToken":token,"serverAddress":server,"natAddress":nat]),
+                  let text = String(data:data,encoding:.utf8) else {
+                MeloNXLaunchJournal.record("online","skipped",detail:"The online request of this launch is malformed; the game starts offline.")
+                _ = try? runtime.content(path:"{}",operation:11)
+                return
+            }
+            request = text
+        }
+        let response = try? runtime.content(path:request,operation:11)
+        guard online != nil else { return }
+        if response?["success"] as? Bool == true {
+            MeloNXLaunchJournal.record("online","passed",detail:"Online play configured for this launch.")
+        } else {
+            MeloNXLaunchJournal.record("online","skipped",detail:"This engine does not accept an online configuration (" + (response?["error"] as? String ?? "no answer") + "); the game starts offline.")
+        }
     }
 
     private func startDiagnostics(_ runtime: MeloNXRuntimeAPI) {
@@ -280,6 +306,14 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
                 do { let response = try ensureRuntime().content(path:requestPath,operation:operation); DispatchQueue.main.async { result(response) } }
                 catch { DispatchQueue.main.async { result(FlutterError(code:"contentFailed",message:String(describing:error),details:nil)) } }
             }
+        // After a profile change made from Dart: an engine already loaded reads the profile file again (operation 12).
+        // Never loads the engine; false when none is loaded, a game runs, or the engine has no such operation.
+        case "refreshProfiles":
+            guard let runtime, !starting, host?.isSessionActive != true else { result(false); return }
+            libraryQueue.async {
+                let refreshed = (try? runtime.content(path:"",operation:12))?["success"] as? Bool == true
+                DispatchQueue.main.async { result(refreshed) }
+            }
         case "launch": launch(arguments,result:result)
         default: result(FlutterMethodNotImplemented)
         }
@@ -340,6 +374,7 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
         }
         let locale = arguments["locale"] as? String ?? "en"
         let requestedSettings = arguments["graphics"] as? [String:Any] ?? [:]
+        let requestedOnline = arguments["online"] as? [String:Any]
         let reuseArena = arenaReady
         let token = replaceToken()
         // The integrated helper is the only JIT method. The removed StikDebug
@@ -369,6 +404,7 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
                 guard isCurrent(token) else { return }
                 let settings = MeloNXHogwartsGraphics.resolve(requestedSettings,title:titleID)
                 try runtime.prepareGraphics(settings,universalJit:universal)
+                configureOnline(runtime,online:requestedOnline)
                 MeloNXLaunchJournal.record("configuration","hogwartsPolicy",detail:MeloNXHogwartsGraphics.diagnostic(settings,title:titleID))
                 var identity: [String:Any] = [:]
                 if let identityURL = Bundle.main.url(forResource:"MeloNX-native-identity",withExtension:"json"),
