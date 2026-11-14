@@ -315,3 +315,19 @@ Core of the second lot: f5827bba (run 43543359505, build-smoke: NativeAOT and AB
 artifact 14092773030, SHA-256 90e625a8, iPhone binary 362b9852 38 555 096 B, packaged fingerprint f3e5270f, contract
 10f16690), verified locally with melonx_dma_core_component and pinned. Delivery 739 (Nextendo session) keeps Core
 b83935f0; this Core is for 740. Open: the IPA and the iPhone capture.
+
+## IPA 736, third lot: `adapt_fence_status` (render thread; FenceHolder.cs, MultiFenceHolder.cs)
+
+The render thread's five profiles in the world (1 080 running samples): CommandBufferPool.FreeConsumed 61 (5.6 %), of
+which 8 in WaitAndDecrementRef; libsystem_pthread 49 (4.5 %). FreeConsumed runs at every command buffer rented (296 per
+second) and asks whether the oldest submitted one has completed through FenceHolder.IsSignaled, a vkWaitForFences with
+a timeout of 0. In the MoltenVK the app embeds (MVKSync.mm, mvkWaitForFences, read in its source) that builds a fence
+sitter, inserts it into the fence's set (a heap node), registers its semaphore in the device-wide list under the
+device's `_sem4Lock`, takes the sitter's lock, then removes both again: five mutex acquisitions, one shared by every
+thread waiting on any fence of the device, and an allocation, to read one flag that vkGetFenceStatus reads under the
+fence's lock alone. Change: IsSignaled (inside the same spin lock as before where concurrent waits are unsupported) and
+MultiFenceHolder's zero-timeout checks read each fence with vkGetFenceStatus; waits with a timeout and indefinite waits
+are unchanged; VK_SUCCESS is signalled, VK_NOT_READY is not, an error throws as before. Gates: fragmented-reads now
+composes, builds and binds both files with the final Vulkan assembly; the gates that iterate the adapter order pass.
+Expected on the device: FreeConsumed and libsystem_pthread's share of the render thread lower. Not measured on an
+iPhone.
