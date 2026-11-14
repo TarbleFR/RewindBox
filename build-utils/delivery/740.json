@@ -358,6 +358,10 @@
       {
         "commit": "e04ae0ea08bf2c9e77788f39a027f5a3a5be1b5b",
         "note": "Reviewed by the executing session: the XeniaCore pin of b6d006dd9 (core-pin.json byte-identical to pin job 132295366167), its delivery review and docs."
+      },
+      {
+        "commit": "bdeb637d1159570055311089350591f255ee0a6e",
+        "note": "Reviewed, compiled and pinned by the MeloNX session (IPA 736 second and third lots for Hogwarts' frame rate), included in 740 by agreement with that session (one IPA, one owner); not reviewed by the executing session. Pin of the final Core da2525a1 (lots 2 and 3, contract e49e1185)."
       }
     ],
     "sourceOnly": [],
