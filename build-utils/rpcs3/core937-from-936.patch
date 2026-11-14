@@ -1,0 +1,194 @@
+diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+index 90359c4..cfbc6fd 100644
+--- a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
++++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+@@ -189,6 +189,15 @@ function(neostation_codegen_compatible_hash source actual output)
+     elseif(source STREQUAL "Cell/SPUThread.cpp" AND
+            actual STREQUAL "6db74fa87bbe926e69b646f995636d400ab25337b24fd4b63570c9f657a63185")
+         set(${output} "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4" PARENT_SCOPE)
++    # Core 937, SPUThread.cpp, host bodies only: REWINDBOX_SPU_IDLE_BACKOFF_937 (the MFC watchdog constructor and
++    # destructor count the command being processed; register_cache_line_waiter() and deregister_cache_line_waiter()
++    # choose and account the bound of the existing wait of a polling GETLLAR through ios/IOSSpuIdleBackoff935.h and
++    # ios/IOSAtomicWaitBound937.h; two thread_locals and one include). process_mfc_cmd() keeps its bytes. No emitter,
++    # helper signature, SPU layout (SPUThread.h unchanged) or relocation target changes. Preserve the delivered
++    # effective hash for this exact reviewed snapshot only.
++    elseif(source STREQUAL "Cell/SPUThread.cpp" AND
++           actual STREQUAL "41105be6520c490d5fcafc3b2143f489315ca6d9c3b255f251c002345fa3d844")
++        set(${output} "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4" PARENT_SCOPE)
+     # Core 935, SPULLVMRecompiler.cpp (RPCS3 965f4f58): compile() clears the list of function names the ARM64 frame
+     # pass has visited before each program, as the constructor already did once. A function compiled for the first
+     # time by its compiler gets the same passes on the same IR; only a second compilation of the same name by the
+diff --git a/rpcs3/Emu/Cell/SPUThread.cpp b/rpcs3/Emu/Cell/SPUThread.cpp
+index bee5ea7..3795eac 100644
+--- a/rpcs3/Emu/Cell/SPUThread.cpp
++++ b/rpcs3/Emu/Cell/SPUThread.cpp
+@@ -38,6 +38,7 @@
+ #include "ios/IOSSignalTrace.h"
+ #include "ios/IOSSpuNoopSpin.h"
+ #include "ios/IOSSpuIdleBackoff935.h"
++#include "ios/IOSAtomicWaitBound937.h" // REWINDBOX_SPU_IDLE_BACKOFF_937
+ #include "ios/IOSThermalPolicy931.h"
+ #include "ios/IOSCapture912.h"
+ #include "ios/IOSSpursRelaxedStore.h" // REWINDBOX_SPURS_RELAXED_STORE_916
+@@ -618,6 +619,23 @@ static u64 ios_idle_backoff_window_ticks()
+ 	static const u64 s_ticks = utils::get_tsc_freq() * rpcs3::ios::spu_idle_backoff::late_find_window_ns / 1'000'000'000;
+ 	return s_ticks;
+ }
++
++// REWINDBOX_SPU_IDLE_BACKOFF_937 (ios/IOSAtomicWaitBound937.h): the wait of a polling GETLLAR in process_mfc_cmd(), whose
++// body keeps its Core 610 bytes (a reused harness extracts it), follows the same rule as the Core 935 waits, from around
++// it. The MFC watchdog that process_mfc_cmd() builds before its switch marks the command being processed; inside it, a
++// GETLLAR registers a cache-line waiter right before that wait and deregisters it right after.
++static thread_local u32 t_ios_mfc_depth = 0;
++
++struct ios_getllar_wait_t
++{
++	bool pending = false;
++	u64 bound_ns = 0;
++	u64 begin_ticks = 0;
++	u32 addr = 0;
++	u64 rtime = 0;
++};
++
++static thread_local ios_getllar_wait_t t_ios_getllar_wait;
+ #endif
+ 
+ const extern spu_decoder<spu_itype> g_spu_itype;
+@@ -724,12 +742,20 @@ namespace spu
+ 					acquire_pc_address(spu, pc, g_cfg.core.spu_delay_penalty, max_concurrent_instructions);
+ 					active = true;
+ 				}
++#ifdef RPCS3_IOS
++				// REWINDBOX_SPU_IDLE_BACKOFF_937: process_mfc_cmd() is processing a command (counted once the object
++				// exists, so the destructor always undoes it).
++				t_ios_mfc_depth++;
++#endif
+ 			}
+ 
+ 			~concurrent_execution_watchdog()
+ 			{
+ 				if (active)
+ 					release_pc_address(pc);
++#ifdef RPCS3_IOS
++				t_ios_mfc_depth--;
++#endif
+ 			}
+ 		};
+ 	}
+@@ -5937,6 +5963,19 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
+ 
+ usz spu_thread::register_cache_line_waiter(u32 addr)
+ {
++#ifdef RPCS3_IOS
++	// REWINDBOX_SPU_IDLE_BACKOFF_937 (ios/IOSAtomicWaitBound937.h): inside process_mfc_cmd() a GETLLAR registers only right
++	// before the 100 us wait of a polling GETLLAR (35,000 to 38,000 a second in the Black Ops II menus, IPA 737). Its
++	// bound follows the Core 935 rule (100, 200, 400 us while it keeps being reached with nothing to find).
++	if (t_ios_mfc_depth && ch_mfc_cmd.cmd == MFC_GETLLAR_CMD)
++	{
++		const u64 ios_bound_ns = t_ios_idle_backoff.bound_ns(rpcs3::ios::atomic_wait_bound::reference_ns,
++			rpcs3::ios::spu_idle_backoff::poll_max_shift, rpcs3::ios::thermal::idle_backoff());
++		t_ios_getllar_wait = {true, ios_bound_ns, utils::get_tsc(), addr, rtime};
++		rpcs3::ios::atomic_wait_bound::set(ios_bound_ns);
++	}
++#endif
++
+ 	const u64 value = u64{compute_rdata_hash32(rdata)} << 32 | addr;
+ 
+ 	for (usz attempts = 0; attempts < 2; attempts++)
+@@ -5988,6 +6027,28 @@ usz spu_thread::register_cache_line_waiter(u32 addr)
+ 
+ void spu_thread::deregister_cache_line_waiter(usz index)
+ {
++#ifdef RPCS3_IOS
++	// REWINDBOX_SPU_IDLE_BACKOFF_937: right after the wait of a polling GETLLAR. A bound not taken never reaches another
++	// wait. A line that changed while a lengthened wait ran to its bound was found by the look that follows, not by a
++	// notification: found() then holds the 100 us bound (late find), as for the Core 935 waits.
++	if (t_ios_getllar_wait.pending)
++	{
++		const ios_getllar_wait_t wait = t_ios_getllar_wait;
++		t_ios_getllar_wait.pending = false;
++		static_cast<void>(rpcs3::ios::atomic_wait_bound::take());
++
++		const u64 now = utils::get_tsc();
++		const u64 slept_ns = (now - wait.begin_ticks) * 1'000'000'000 / utils::get_tsc_freq();
++		t_ios_idle_backoff.waited(now, slept_ns >= wait.bound_ns - wait.bound_ns / 4,
++			wait.bound_ns > rpcs3::ios::atomic_wait_bound::reference_ns);
++
++		if (vm::reservation_acquire(wait.addr) != wait.rtime && t_ios_idle_backoff.idle())
++		{
++			t_ios_idle_backoff.found(now, ios_idle_backoff_window_ticks());
++		}
++	}
++#endif
++
+ 	if (index == umax)
+ 	{
+ 		return;
+diff --git a/rpcs3/ios/IOSAtomicWaitBound937.h b/rpcs3/ios/IOSAtomicWaitBound937.h
+new file mode 100644
+index 0000000..077fb68
+--- /dev/null
++++ b/rpcs3/ios/IOSAtomicWaitBound937.h
+@@ -0,0 +1,32 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <cstdint>
++
++// REWINDBOX_SPU_IDLE_BACKOFF_937: a one-shot bound for the next atomic wait of this thread.
++//
++// IPA 737 logs (14 Nov 2026), Black Ops II menus at 60 FPS: 35,000 to 38,000 of the 48,000 timer wakeups a second
++// are the 100 us wait of a polling GETLLAR (SPUWAIT551 getllar_sleep, 149 us each on average). That wait is written
++// in spu_thread::process_mfc_cmd(), whose body is an extracted input of a reused host harness and must keep its
++// Core 610 bytes. So the bound is chosen around it: spu_thread::register_cache_line_waiter(), called right before the
++// wait, sets it here; atomic_wait_engine::wait() takes it at entry and uses it in place of the requested timeout only
++// when that timeout is exactly the 100 us of this wait; spu_thread::deregister_cache_line_waiter(), called right
++// after, clears whatever was not taken. No wait of any other thread, and no other timeout, can see it.
++namespace rpcs3::ios::atomic_wait_bound
++{
++inline constexpr std::uint64_t reference_ns = 100'000;
++
++inline thread_local std::uint64_t next_ns = 0;
++
++inline void set(std::uint64_t ns) noexcept
++{
++	next_ns = ns == reference_ns ? 0 : ns;
++}
++
++inline std::uint64_t take() noexcept
++{
++	const std::uint64_t value = next_ns;
++	next_ns = 0;
++	return value;
++}
++}
+diff --git a/rpcs3/util/atomic.cpp b/rpcs3/util/atomic.cpp
+index 6a8ae01..8ea00e0 100644
+--- a/rpcs3/util/atomic.cpp
++++ b/rpcs3/util/atomic.cpp
+@@ -28,6 +28,10 @@ namespace utils
+ #include "Utilities/sync.h"
+ #include "Utilities/StrFmt.h"
+ 
++#ifdef RPCS3_IOS
++#include "ios/IOSAtomicWaitBound937.h" // REWINDBOX_SPU_IDLE_BACKOFF_937
++#endif
++
+ #ifdef __linux__
+ static bool has_waitv()
+ {
+@@ -890,6 +894,14 @@ atomic_wait_engine::wait(const void* data, u32 old_value, u64 timeout, atomic_wa
+ {
+ 	uint ext_size = 0;
+ 
++#ifdef RPCS3_IOS
++	// REWINDBOX_SPU_IDLE_BACKOFF_937 (ios/IOSAtomicWaitBound937.h): the bound a polling GETLLAR chose for this wait.
++	if (const u64 ios_bound = rpcs3::ios::atomic_wait_bound::take(); ios_bound && timeout == rpcs3::ios::atomic_wait_bound::reference_ns)
++	{
++		timeout = ios_bound;
++	}
++#endif
++
+ #ifdef __linux__
+ 	::timespec ts{};
+ 	if (timeout + 1)

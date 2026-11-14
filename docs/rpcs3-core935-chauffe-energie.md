@@ -175,3 +175,68 @@ mesurer sur l'appareil (avec la sonde ajoutée pour cela).
 Ce qui reste donc ouvert ne peut se fermer qu'avec une session sur l'iPhone : le thread principal de God of War III à
 60 FPS, le parcage RSX, le mode de réservation de Black Ops II, le pré-hachage en scènes lourdes, et l'énergie des trois
 autres jeux. Les sondes nécessaires sont dans le Core 936 ; elles ne changent aucune attente.
+
+## 9. Journaux de l'IPA 737 (14 novembre) : avant / après, et Core 937
+
+Journaux privés hors Git, IPA 737 = Core 936. Sessions : Black Ops II (PID 4302, session 2 : environ 80 s de jeu, puis
+gel de 95 s, puis arrêt ; deux sessions plus courtes, PID 3973 et 4302 session 1) ; God of War III (PID 4076, session 2 :
+2 min 30 de jeu lourd, **reprise d'une sauvegarde d'état**). État thermique « fair » puis « serious ». Comparaison avec
+l'IPA 726 phase par phase (fenêtres de 5 s, `COREPROF ENERGY931`, `SPUWAIT551`, `COREPROF WAKE936`).
+
+| Mesure | IPA 726 | IPA 737 | Lecture |
+|---|---|---|---|
+| Écritures disque, Black Ops II, menus | 1,45 à 1,64 Mio par fenêtre | 0,13 à 0,18 Mio | **−89 %, mesuré** (journaux gardés ouverts, e5ecdfac0). Les rafales au démarrage du jeu restent |
+| Réveils de minuterie < 2 ms, Black Ops II, menus | 44 000 à 49 000/s | 45 700 à 48 000/s (session 1 : 53 600 à 64 500) | **Inchangé** |
+| dont attentes GETLLAR de 100 µs | 35 000 à 36 300/s | 35 000 à 38 000/s | Site **non couvert** par le Core 935 : c'est l'objet du Core 937 |
+| dont parcage RSX (nouvelle sonde) | — | 7 000 à 9 400/s | Tranches de 50 µs ; non touché (allonger retarde chaque début d'image) |
+| dont attentes minutées des PPU invités | — | 3 000 à 3 400/s | Demandées par le jeu ; non touchées |
+| Black Ops II en jeu | 2,54 W, 4,72 cœurs, 100 mJ/image à 35 FPS | 2,23 à 2,94 W, 4,4 cœurs, 86 à 95 mJ/image à 26 à 34 FPS | Pas de différence démontrable (scènes différentes) |
+| Black Ops II, menus : puissance CPU | 0,46 à 0,60 W pour ~1 cœur | 0,83 à 2,68 W pour 0,5 à 1,8 cœur | **Plus haut pour le même temps CPU** (fréquence plus haute). Cause non établie : GPU occupé 6 à 11 % contre 23 à 46 % (écran de menu peut-être différent), état thermique différent. À vérifier par A/B dans la même session (§6) |
+| Black Ops II, gel | 2,65 W, 5,4 cœurs, 0 image | 2,2 à 2,6 W, 5,0 cœurs, 0 image, 95 s | **Le gel reste** (voir plus bas) |
+| God of War III lourd | 2,42 W, 120 mJ/image, 70 000 à 96 000 PUTLLC/s | 2,38 W, 158 à 168 mJ/image, 0,7 à 1,7 million de PUTLLC/s dont 330 000 échecs/s | Session reprise d'une sauvegarde d'état faite sans la dérivation MLAA (`GOW3MLAA909 ppu=savestate_memory savestate_patched=0`) : le MLAA tourne sur les SPU. Voir plus bas |
+
+**Gel de Black Ops II : la cause proposée au §2.1 est réfutée.** Le relevé de la 737 montre `flip_flags=0x40000003`
+(bit « flip fait » absent), `flip_absorbed=0` et `flip_replays=0` : aucun flip n'a été absorbé pendant les 2 935 images de
+la session, le correctif `REWINDBOX_FLIP_DONE_REPLAY_935` n'a jamais eu à agir. Le RSX est arrêté sur un saut sur
+lui-même dans une liste de commandes en flux (`get=0x83fa5a0`, `last_cmd=0x283fa5a0`) et n'a donc jamais atteint le flip
+suivant ; le thread `Backend` attend ce flip. Ce qui tourne : le thread PPU `Secondary` (0,96 cœur, boucle CAS sur la tête
+d'une file de travaux, `pc=0x73ccdc`) et les six SPU de SPURS dans le code de la file de travaux (GETLLAR/PUTLLC sur
+0x2e20880, 0x2e20c00, 0x2e20500 ; 1,9 million de PUTLLC/s). Même signature que les gels des builds 624, 657, 723, 724,
+726 et 736. Lecture : un interblocage dans le gestionnaire de travaux du jeu, du même genre que celui de Black Ops III
+documenté par ARMSX3 (deux types de travaux qui se renvoient en file l'un l'autre ; correctif ARMSX3 = patch du code du
+jeu). Le code du jeu n'est pas disponible ici : pas de correctif possible sans lui. Le correctif 935 est gardé (inoffensif,
+limité à Black Ops II) mais ne corrige pas ce gel. ARMSX3 livre pour BLES01717 le réglage « Preferred SPU Threads: 2 »
+sans explication publique ; ARMSX3 a aussi constaté sur Killzone 3 qu'une telle limite peut faire apparaître d'autres
+courses : c'est un essai par jeu, pas un correctif.
+
+**God of War III.** Le §929 a choisi de ne pas écrire la dérivation MLAA dans la mémoire d'une sauvegarde d'état faite sans
+elle (image cassée sinon). Une sauvegarde d'état faite après un démarrage normal la contient (`savestate_patched=1`). Les
+10 à 20 fois plus de PUTLLC et les 330 000 échecs par seconde de la 737 n'ont été vus que dans cette session reprise ; le
+lien avec le MLAA est probable mais non démontré (une seule session).
+
+**Thread principal de God of War III** (sonde `REWINDBOX_PPU_WAIT_SITE_936`) : 55 % des échantillons en exécution, 22 %
+dans `sys_timer_usleep` (demandé par le jeu), 19 % suspendus par les opérations mémoire exclusives des réservations
+exactes (`suspend` 348, `memory` 592 échantillons) ; les parcages mesurés ne font que ~3 % du temps (courts). Ce n'est pas
+une attente active coûteuse : rien à corriger.
+
+### Core 937 : `REWINDBOX_SPU_IDLE_BACKOFF_937`
+
+L'attente de 100 µs d'un GETLLAR qui sonde une ligne inchangée suit la même règle auto-vérifiée que les attentes du
+Core 935 : 100, 200 puis 400 µs tant qu'elle va au bout sans rien trouver ; une écriture qui notifie la ligne la termine
+toujours aussitôt ; un changement trouvé juste après une attente allongée ramène 100 µs pour un nombre d'attentes qui
+double à chaque fois. Désactivée avec « Event Waits When Hot » = Disabled, comme la règle 935. Le corps de
+`process_mfc_cmd()` est une entrée figée d'un banc de test réutilisé (porte de la route Core) : il garde ses octets du
+Core 610. La borne est donc choisie autour de lui : le chien de garde MFC compte la commande en cours,
+`register_cache_line_waiter()` (appelée juste avant cette attente) pose une borne à usage unique que
+`atomic_wait_engine::wait()` ne prend que pour un délai d'exactement 100 µs (`ios/IOSAtomicWaitBound937.h`),
+`deregister_cache_line_waiter()` (juste après) comptabilise l'attente et signale une ligne changée.
+
+Effet attendu dans les menus de Black Ops II : de 35 000-38 000 à environ 9 000-12 000 attentes GETLLAR par seconde, soit
+de ~48 000 à ~20 000 réveils de minuterie par seconde. Effet sur la puissance et la température : **inconnu tant que ce
+n'est pas mesuré sur l'iPhone**. En jeu, ces attentes sont rares (400 à 2 200/s) : pas d'effet attendu.
+
+Vérifié sur PC : syntaxe ARM64 des deux fichiers C++, contrôle hôte jetable de la séquence (borne 100 → 200 → 400 µs,
+remise à zéro sur notification, maintien à 100 µs après une trouvaille tardive, aucune fuite vers une autre attente ;
+ASan/UBSan), identités de génération de code recalculées (PPU a987639e9f838d1c, SPU 477a3fa442d27917, par un alias
+exact), porte de la route Core (code 0), correctif canonique re-matérialisé octet pour octet (498 fichiers), étape Metal
+du workflow. Non exécutés : bancs historiques, compilation iOS de ce lot (demandée à la route Core), appareil.
