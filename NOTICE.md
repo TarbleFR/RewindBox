@@ -62,13 +62,11 @@ Build 530 publication workflow/target:
 Successful complete GitHub Actions release run:
 https://github.com/TarbleFR/RewindBox/actions/runs/40156236364
 
-Embedded MeloNX Core source (iOS Vulkan host-memory import workaround):
+Embedded engine Core source:
 ab6d87ebb8b33d0151953b1b9ea7cefaab7a4b12
 https://github.com/TarbleFR/RewindBox/actions/runs/40152134234
 Pinned upstream engine source and reconstructed dependencies:
 build-utils/melonx/source.json
-The iOS GPU fallback avoids VK_EXT_external_memory_host direct imported buffers;
-the original Android/macOS/other platform code path is not reclassified as fixed.
 
 Retained RPCS3 source-built Core 528:
 17ee65469c39e560c91fdb6d55604ab590992f59
@@ -88,7 +86,7 @@ Engine and package audits: docs/ENGINE_CORRESPONDING_SOURCES.md,
 docs/PACKAGE_SOURCES_AND_LICENSES.md and docs/LEGAL_AND_CREDITS.md.
 
 Automated iOS simulator, engine and signing/package validations passed;
-long-session real-iPhone Nintendo Switch gameplay is not attested.
+long-session real-iPhone gameplay is not attested for every engine.
 This documentation does not relabel any upstream license or claim complete
 redistribution clearance. Proprietary game keys/firmware are not bundled.
 
@@ -184,20 +182,12 @@ https://github.com/TarbleFR/RewindBox/issues; entries are removed promptly.
 - Admentus64/Enhancement-Codes f8e9ad12d90460e316b552fdf73052eb308e9ab9:
   GPL-3.0 (GameCube disc files only).
 
-Downloaded from the source, not hosted (same day): HamletDuFromage/switch-
-cheats-db 109766ab21c784150287c83ff85c02ab9512dccb. RewindBox lists names,
-categories and credits; the app downloads each title's original file from
-raw.githubusercontent.com at that revision and checks its SHA-256. The codes
-belong to the authors credited in each title. Titles whose authors restrict
-distribution are left out.
-
 Removed on 28 October 2026 because they grant no licence to redistribute
-their codes: HamletDuFromage/switch-cheats-db, exefer/gbatemp-matias3ds-cheats
-("All rights belong to the original cheat authors"), blawar/titledb
-cheats.json (uncredited codes), KeatonTheBot/switch-pchtxt-mods,
-Fl4sh9174/Switch-Ultrawide-Mods, the pcsx2_patches bodies (only names of the
-copy ARMSX2 ships are referenced), Gabominated/PCSX2 and PeterDelta/PCSX2.
-The Switch (MeloNX) catalogue is therefore empty.
+their codes: exefer/gbatemp-matias3ds-cheats ("All rights belong to the
+original cheat authors"), blawar/titledb cheats.json (uncredited codes), the
+pcsx2_patches bodies (only names of the copy ARMSX2 ships are referenced),
+Gabominated/PCSX2, PeterDelta/PCSX2 and three other cheat and mod
+collections. None of their codes is distributed.
 
 UNIFIED CHEAT CATALOGUE (native/cheats/) — 28 OCTOBER 2026 WITHDRAWAL
 
@@ -216,11 +206,9 @@ PSX Datacenter, Mighty Mo and the PS2 pnach collections) are downloaded by
 the app from those sources at pinned revisions. RewindBox lists only their
 names, credits and positions (docs/CHEAT_ORIGIN_PUBLICATION.md).
 
-Researched and not integrated: StevensND/switch-port-mods and
-ue4-emuswitch-60fps (author forbids reuploads), theboy181/switch-ptchtxt-mods
-and UltraCam (CC BY-NC), masagrator/FPSLocker-Warehouse (needs its own
-runtime), Dolphin Wiki codes (game ID only inferred), codes.rc24.xyz (same
-content as GeckoArchive).
+Researched and not integrated: Dolphin Wiki codes (game ID only inferred),
+codes.rc24.xyz (same content as GeckoArchive) and several mod collections
+whose terms forbid reuploads or limit them to non-commercial use.
 
 RGPAD 1.5 overlay: DJM; Libretro common-overlays collection, CC BY 4.0.
 Original input:
@@ -437,27 +425,22 @@ commercial game content.
 
 ---
 
-MELONX / RYUJINX — EMBEDDED INTEGRATION IN DEVELOPMENT
+MELONX / RYUJINX — EMBEDDED ENGINE
 
-Current pinned source:
+Pinned source:
 https://starforgejo.dev/projects/MeloNX/src/commit/13700519f3abc4e6d7ed8a065b118b2cc59bcd67
-
-The old external launcher, library synchronization and external JIT handoff
-have been retired on Claude. The embedded engine and session work is not yet
-a packaged, playable Nintendo Switch integration in a NeoStation IPA.
 
 Credit MeloNX contributors, stossy11, Ryujinx/Ryubing contributors, LibHac
 contributors and the separately maintained Melo-Controller authors. The exact
 source pins are in build-utils/melonx/source.json. Preserved upstream notices
-are staged in assets/legal/melonx/ for this development work.
+are in assets/legal/melonx/ (Legal/MeloNX/ in the IPA).
 
 MeloNX's pinned root LICENSE.txt is the Ryujinx MIT notice, while its README
 states GPLv3; Melo-Controller is separately GPLv3. This record preserves that
 conflict rather than assigning a blanket license. The native dependencies'
 binary/source and license correspondence remains incomplete. Staged notices
 do not authorize or claim delivery of these binaries. See
-docs/melonx-embedded-integration-2026-10-20.md and
-docs/RELEASE_NEXT_LICENSE_REVIEW.md.
+docs/ENGINE_CORRESPONDING_SOURCES.md and docs/RELEASE_NEXT_LICENSE_REVIEW.md.
 
 ---
 
@@ -609,7 +592,7 @@ TRADEMARK NOTICE
 
 All trademarks, service marks, trade names, product names and logos appearing
 in this project — including Nintendo, Sony PlayStation, Microsoft Xbox, SEGA,
-RetroArch, Dolphin, DolphiniOS, RPCS3, ARMSX2, MeloNX, Dusklight, KartPad,
+RetroArch, Dolphin, DolphiniOS, RPCS3, ARMSX2, Dusklight, KartPad,
 StikJIT and other referenced projects — are the property of their respective
 owners where applicable.
 

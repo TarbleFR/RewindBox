@@ -13,7 +13,7 @@ The release-publishing workflow is attached to
 [`97d68263ed64a7a7e38a715627a3851d40c679d9`](https://github.com/TarbleFR/RewindBox/commit/97d68263ed64a7a7e38a715627a3851d40c679d9)
 and intentionally checks out that earlier exact application revision.
 
-Build 530 includes the **embedded MeloNX** runtime using RewindBox engine
+Build 530 includes an **embedded engine** runtime built from RewindBox engine
 source `ab6d87ebb8b33d0151953b1b9ea7cefaab7a4b12` and the successful
 [NativeAOT / iOS simulator run](https://github.com/TarbleFR/RewindBox/actions/runs/40152134234).
 The retained RPCS3 core comes from source revision
@@ -163,8 +163,9 @@ Primary texts: [GPLv2 section 3](https://www.gnu.org/licenses/old-licenses/gpl-2
 Known source and license boundaries remain explicit in the component audits:
 unattested buildbot cores; prebuilt native dependencies whose exact build
 inputs remain unproven; the RPCS3/host license-compatibility question; the
-FFmpeg license label/configuration mismatch; and the unfinished MeloNX
-integration's declarations and dependency inventory. Artwork, datasets and
+FFmpeg license label/configuration mismatch; and one embedded
+engine's declarations and dependency inventory
+([ENGINE_CORRESPONDING_SOURCES.md](ENGINE_CORRESPONDING_SOURCES.md)). Artwork, datasets and
 commercial SDK terms retain their own restrictions. The presence of full
 notices is not a permission grant for material whose terms remain unknown.
 
