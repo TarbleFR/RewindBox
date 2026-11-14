@@ -310,3 +310,8 @@ first lot. This second lot is its own Core, for the next delivery.
 Not in this lot: the render thread's array descriptor sets (TextureArray.GetDescriptorSets 9.7 %, BindExtraSets 8.3 %,
 AddReferences 6.2 % of its running samples) and the 10-15 command buffers per presented frame. Not measured on an
 iPhone.
+
+Core of the second lot: f5827bba (run 43543359505, build-smoke: NativeAOT and ABI verified, two simulator sessions;
+artifact 14092773030, SHA-256 90e625a8, iPhone binary 362b9852 38 555 096 B, packaged fingerprint f3e5270f, contract
+10f16690), verified locally with melonx_dma_core_component and pinned. Delivery 739 (Nextendo session) keeps Core
+b83935f0; this Core is for 740. Open: the IPA and the iPhone capture.
