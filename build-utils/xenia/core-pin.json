@@ -1,23 +1,23 @@
 {
   "status": "verified",
-  "source": "cf7c7ee452314913124d205e41e325b33891aacb",
-  "run": 43241572889,
-  "job": 131265441453,
+  "source": "5533fbfd19d45f32b40283de2382e7f54248bea9",
+  "run": 43533984227,
+  "job": 132258370615,
   "attempt": 1,
   "workflow": ".github/workflows/xenia-core.yml",
-  "artifact": 13957752125,
-  "name": "XeniaCore-2bbc9daf76881aff89170b052895c49cd04b1638",
-  "bytes": 9542933,
-  "sha256": "2e29104fc026480a4989fbed7f6d1757249c1371a3bdeae36b15e83180932018",
-  "expiresAt": "2026-11-26T15:31:05Z",
+  "artifact": 14089907731,
+  "name": "XeniaCore-3e796a216efc2b94b22a64d67df8ada8281d46c0",
+  "bytes": 9877022,
+  "sha256": "ac02b2f996279645003cacd68490084436c435da8c264d233aaa1edbb1e523e3",
+  "expiresAt": "2026-11-28T00:56:16Z",
   "image": "Frameworks/XeniaCore.framework/XeniaCore",
   "binaries": {
     "ios-arm64": {
-      "sha256": "8c59ad09cd1bf729082e7f105a6d776ecd4d8d4d766b9da45cecadd235bdc891",
-      "bytes": 37751320
+      "sha256": "da54ddd924db1047c398bc359e549f766c893b3d3511f292c1b6e3965bbc38cd",
+      "bytes": 38462592
     }
   },
-  "packagedFingerprint": "9cbc552026cc34e7d23ce4f24463a96c370bde56705f3d5fba32d54bbbd61700",
+  "packagedFingerprint": "eca849a5e11d781d39449ac8c1832154abd361120cb3723ccdf3abfc956ffea2",
   "minimumOS": "26.0.0",
   "sdk": "26.5.0",
   "dependencies": [
@@ -45,6 +45,7 @@
     "/System/Library/Frameworks/CoreBluetooth.framework/CoreBluetooth",
     "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
     "/usr/lib/libiconv.2.dylib",
+    "/System/Library/Frameworks/Network.framework/Network",
     "/System/Library/Frameworks/BackgroundTasks.framework/BackgroundTasks",
     "/System/Library/Frameworks/CoreImage.framework/CoreImage",
     "/System/Library/Frameworks/ImageIO.framework/ImageIO",
@@ -63,7 +64,7 @@
     "asset": "libmetalirconverter.dylib",
     "bytes": 30189152,
     "sha256": "bd6b729dcbde133a511d95130eb4d287a1e18b4170453f8b350e78a20bfc37aa",
-    "pinned_by": "XeniOS .github/workflows/apple-publish.yml:93-95 at cf7c7ee45 (MSC_IOS_REPO, MSC_IOS_RELEASE_TAG, MSC_IOS_SHA256)",
+    "pinned_by": "XeniOS .github/workflows/apple-publish.yml:93-95 at 5533fbfd1, unchanged since cf7c7ee45 (MSC_IOS_REPO, MSC_IOS_RELEASE_TAG, MSC_IOS_SHA256)",
     "upstream_license_statement": "Apple software under \u00ab Software License Agreement for Metal Shader Converter \u00bb EA1844 (assets/legal/metal-shader-converter/, maintainer's dossier docs/evidence/xenia-metal-shader-converter/); the headers alone are Apache-2.0. Redistribution allowed by the maintainer (12 Nov 2026); open points (1) EA1844 vs this ios-4.0.3 runtime, (2) provenance, (3) re-signing under 2.E are not resolved.",
     "relation_to_reference": "Downloaded and compared on 2026-11-10: identical bytes from offset 4096 to LC_CODE_SIGNATURE dataoff 29936976 (same Apple build, source version 33.39); only the Mach-O header page and the code signature differ (Apple's signature here, XeniOS's re-signing in the IPA).",
     "signature_free_sha256": "b52636527c1e3f68876d9ffc079e19c298350d8631eb2f284632aff4b879fa1e",
@@ -153,9 +154,9 @@
   },
   "replaces": {
     "source": "cf7c7ee452314913124d205e41e325b33891aacb",
-    "run": 43217888486,
-    "artifact": 13946139906,
-    "packagedFingerprint": "bd6351c04a98c1aceed55d340bb295842e8c1670e774b4546463245e0819e662",
-    "reason": "a profile is signed in before the title runs and the title's sign-in, message box and keyboard prompts are answered (Fable Anniversary stayed on its title screen); rumble forwarded"
+    "run": 43241572889,
+    "artifact": 13957752125,
+    "packagedFingerprint": "9cbc552026cc34e7d23ce4f24463a96c370bde56705f3d5fba32d54bbbd61700",
+    "reason": "XeniOS 2.3.2 (11934, upstream 5533fbfd1), the owner's update of XeniOS; replaces the 2.3.1 Core (cf7c7ee45)"
   }
 }

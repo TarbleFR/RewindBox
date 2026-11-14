@@ -744,6 +744,54 @@ Shader Converter notices ship in every build. `test/ipa_identity_engines_test.py
 (11 tests) runs each place on synthetic IPAs, the version step from the real
 workflow heredoc.
 
+## XeniOS 2.3.2 (14 Nov 2026)
+
+The owner's update: XeniOS 2.3.2 (11934), attestation `commitShort=5533fbfd1`,
+the HEAD of the upstream `xenios` branch. Upstream rewrote that branch's
+history on 12 Nov 2026: `cf7c7ee45` (2.3.1) is no longer on it (`0cb39b7`
+there has its author date and subject, not its tree). Both revisions were
+fetched by SHA and compared directly (346 files, +49,465/−4,698 lines).
+
+- **Patch.** Rebased with a three-way apply: the same 47 added lines, nothing
+  removed. One conflict: XeniOS now calls `ApplyDashboardSystemVersion` right
+  after `config::LoadGameConfigForFile`; RewindBox's launch overrides follow it
+  (it sets only `system_files_path` and `kernel_build_version`, which
+  RewindBox does not manage). The voice/diagnostics guard still ends after the
+  diagnostics listener, which now also notes the game version.
+- **API files.** 10 of the 21 pinned files changed; all additive for the
+  facade: profile-delete and title-open callbacks of `IOSWindowedAppContext`,
+  `IOSJitMemory::UsesTXMPreparation`, the default cache root helpers
+  (`Library/Application Support/xenia/cache`, used only when `cache_root` is
+  empty; RewindBox sets it), a log size cap (`log_file_max_mb`), XMP settings
+  (`xmp_default_volume`, `enable_xmp` removed; RewindBox sets neither). The 12
+  managed cvars and the 2 policy cvars still exist.
+- **Not taken from XeniaAppDelegate:** `xe_ios_network_status_start` and
+  `xe_ios_storage_launch_maintenance` (XeniOS's own Documents layout and
+  cache cleanup), as before for its launcher and crash log.
+- **Build.** `xenia-apu` links FFmpeg's `libswresample` (13 files, LGPL 2.1
+  or later at the same has207 gitlink; the XMP player resamples with it);
+  `xenia-net` links Network and Security (Live account). No new iOS 27 or
+  26.x SDK API. The converter pin is unchanged: XeniOS's `apple-publish.yml`
+  is the same blob, and the 2.3.2 IPA ships the same converter bytes.
+- **Upstream features that need XeniOS's own screens** (Dashboard system
+  versions, original Xbox games through the Xbox 360's Xbox emulator files,
+  the Storage page, the StikDebug auto-open switch) are not exposed by
+  RewindBox's embedding.
+- **Checked here (Linux):** patch test `--upstream`, Objective-C namespace
+  `--upstream` (198 XeniOS declarations, no shared name), embedding
+  `--upstream`, facade C++ (clang 18, `-Werror`), modifications notice and
+  shader converter validator tests.
+- **Core:** run 43533984227 (commit 3e796a216, macos-26, newest Xcode 26.x, iOS SDK 26.5; cold, the patch
+  having changed: 32 min) compiled it and `verify_core.py` passed. The pin run 43538339989
+  (`[xenia-pin run=43533984227]`) downloaded artifact 14089907731 (9,877,022 B, `ac02b2f9…23e3`,
+  expires 28 Nov) by id and pinned it: binary 38,462,592 B (37,751,320 before), `da54ddd9…38cd`,
+  packaged fingerprint `eca849a5…fea2`, minos 26.0, the same converter signature report;
+  `core-pin.json` (`5e81f59e…30a5`) is byte-identical to the job's output. One new load command:
+  `Network.framework` (36 dependencies). The delivery review binds this pin and the recipe that
+  built it, including `build_core.sh` with the compiler cache (ab0a69c7, source-only since 733
+  until this Core); the FFmpeg entry names `libswresample`.
+- Nothing of this Core has run on an iPhone.
+
 ## State and limits (10 Nov 2026)
 
 - Implemented and host-tested: catalog, policy, Consoles tab, playlist import
