@@ -21,9 +21,9 @@ For help with this app, use [RewindBox Issues](https://github.com/TarbleFR/Rewin
 or the [RewindBox community](https://discord.gg/G48u46ppX).
 
 RewindBox brings your game library and **embedded emulators** into one
-sideloaded app: Libretro, **MeloNX for Nintendo Switch**, Dolphin, ARMSX2
-and RPCS3. Compatible games run inside RewindBox with its menus and controls;
-a separate RetroArch or MeloNX installation is not required.
+sideloaded app: Libretro, Dolphin, ARMSX2, RPCS3 and more. Compatible games run
+inside RewindBox with its menus and controls; a separate emulator installation
+is not required.
 
 ## What's new in 0.0.11
 
@@ -32,12 +32,9 @@ a separate RetroArch or MeloNX installation is not required.
 - **🎮 PlayStation 3:** Assassin’s Creed audio and exit corrections, Black Ops II
   synchronization and occlusion-wait improvements, corrected active-wait timing,
   texture/cache work and updated game profiles.
-- **🕹️ Nintendo Switch:** first-frame and graphics-ordering fixes, persistent
-  shader/pipeline caches, fewer repeated allocations, a MoltenVK presentation
-  ownership correction and a guard against blocking memory cleanup.
-- **🎨 Pocket skins:** GameCube, Wii, PS2 and Switch designs, Original variants
+- **🎨 Pocket skins:** GameCube, Wii and PS2 designs, Original variants
   alongside existing skins, corrected touch areas and sticks, improved screen
-  framing and pressed buttons, and restored skin input after the MeloNX menu.
+  framing and pressed buttons, and restored skin input after in-game menus.
 - **🏆 RetroAchievements & enhancements:** centralized sign-in and Hardcore
   settings, improved game recognition, and unified per-game cheat and patch controls.
 - **📚 Library & interface:** improved 3D cases, covers and French manuals,
@@ -48,14 +45,12 @@ a separate RetroArch or MeloNX installation is not required.
 | Public release | **0.0.11** |
 | IPA | **Build 721**, internal app version **0.0.8** |
 | RPCS3 | **Core 919** |
-| MeloNX | **Core 719** |
 | Minimum iOS | **18.0** |
 
 The optional native Metal 4 renderer remains experimental; Vulkan/MoltenVK stays
 available. Automated package, source/component identity, Flutter and native checks
 passed. These checks do not establish iPhone FPS, audio or gameplay gains.
-Long Hogwarts Legacy pauses and residual Black Ops II performance issues remain
-under investigation. This exact build retains automatic BO2/God of War III
+Residual Black Ops II performance issues remain under investigation. This exact build retains automatic BO2/God of War III
 comparison windows; their removal is in a later private build.
 
 **[Full changelog and known limits](docs/releases/0.0.11.md)** ·
@@ -94,7 +89,7 @@ The historical **0.0.8 catalogue audit** recorded:
 **50 active contributing source entries**, **2,395,541 programs and edition variants**,
 and **1,926 source-backed 60 FPS selections** for supported native adapters.
 One common installation serves the embedded engines. Matching uses the detected
-game identity, region and revision; compatible codes appear as named switches.
+game identity, region and revision; compatible codes appear as named toggles.
 Codes start disabled. Coverage and native support depend on the exact game edition.
 
 Source profiles can share an upstream project, and their contributions overlap;
@@ -171,7 +166,6 @@ RewindBox’s frontend license does not relicense third-party codes.
 | **Dolphin / DolphiniOS** | GameCube and Wii |
 | **ARMSX2 / PCSX2** | PlayStation 2 |
 | **RPCS3 / XITRIX iOS fork** | PlayStation 3 |
-| **MeloNX — embedded** | Nintendo Switch; requires compatible user-supplied games, firmware, keys and the appropriate iOS JIT capabilities |
 
 RewindBox no longer includes native game ports, nor the Ports playlist.
 KartPad (Mario Kart Wii) and Dusklight (Twilight Princess) were embedded in
@@ -221,10 +215,6 @@ Keep the expected filenames and subfolders; **System** uses a capital S.
 - **Settings → Tools → BIOS checker** identifies required and optional files.
 - Use the **Nintendo 3DS system-file importer** for supported BIOS and NAND data.
 - PS2 BIOS and PS3 firmware use their respective emulator settings.
-- **Nintendo Switch / MeloNX:** import your own legally obtained keys and
-  compatible firmware in the embedded Switch settings, then add your local
-  games. The Switch playlist opens directly; an external MeloNX installation
-  and its old game paths are not required.
 - The PS3 library supports game-save import/export and user-supplied RAP licenses.
   Game saves and emulator save states are different formats.
 - **Settings → Tools** also provides storage analysis and cleanup. Review the
@@ -257,7 +247,7 @@ Results depend on the game, device and allocation paths actually used.
 - **iOS 18 or later**, and a compatible IPA signing/sideloading method such as
   [SideStore](https://sidestore.io/).
 - Your own compatible games and any required system files.
-- For embedded Dolphin, ARMSX2, RPCS3 and MeloNX: a valid pairing file, Developer Mode,
+- For the embedded Dolphin, ARMSX2 and RPCS3 engines: a valid pairing file, Developer Mode,
   suitable signing/provisioning and the supported StikJIT route. The current
   bridge checks a separately installed and activated **LocalDevVPN** route;
   RewindBox does not bundle or activate that VPN.
