@@ -338,9 +338,47 @@
     }
   },
   "product": {
-    "reviewedCommits": [],
-    "sourceOnly": [],
-    "promotedCommits": []
+    "reviewedCommits": [
+      {
+        "commit": "3e796a216efc2b94b22a64d67df8ada8281d46c0",
+        "note": "Reviewed by the executing session: XeniOS 2.3.2 (5533fbfd1) recipe of the XeniaCore it delivers: rewindbox-core.patch rebased (same added lines), source.json, upstream-files.json (10 API files reviewed), XeniOS legal notices naming the new revision and libswresample, the validator test's revision [xenia-core]."
+      },
+      {
+        "commit": "29413a922c79938904c9ee44257c359732445890",
+        "note": "Reviewed, compiled and pinned by the MeloNX session (Core b83935f0, run 43535900995, pin 85bdb1e9), included in 738 at that session's offer of 14 November 2026 (its pin commit names 738); not reviewed by the executing session. MeloNX lot sources: bounded yields, timer earliest wake, keep-alive memory hold, buffer last hit (prepare_embedded.py and the gates that bind those files)."
+      },
+      {
+        "commit": "b83935f0b278a162e0f481e0852e0ada7a1ee209",
+        "note": "Reviewed, compiled and pinned by the MeloNX session (Core b83935f0, run 43535900995, pin 85bdb1e9), included in 738 at that session's offer of 14 November 2026 (its pin commit names 738); not reviewed by the executing session. Freeze of that lot (dma-core-contract.json, plan) and its compile request [melonx-dma-core]."
+      },
+      {
+        "commit": "c50db9a501b4b3ca57fe004dbc4169862bcd2471",
+        "note": "Reviewed by the executing session: the XeniaCore 2.3.2 pin (core-pin.json byte-identical to the output of pin job 132272712251), its delivery review and docs."
+      }
+    ],
+    "sourceOnly": [
+      {
+        "commit": "25f66cccb76a518438485ea3ac61cdf66a5c897c",
+        "targetBuild": 739,
+        "note": "Nextendo session's work (Switch profiles screen and Nextendo Network account, application side), source only by its own message; not reviewed here, left for a delivery that takes it."
+      },
+      {
+        "commit": "35329f71dd90b57a851c6aa64f24b3061a504214",
+        "targetBuild": 739,
+        "note": "Nextendo session's online lot for MeloNX, source only and outside every Core by its own message; not reviewed here."
+      },
+      {
+        "commit": "0b548b24209073722b0c7d8d861d721a4a5b5a12",
+        "targetBuild": 739,
+        "note": "Nextendo session: the MeloNX presentation test double for its sign-in sheet plugin (follows 25f66cccb, source only here); not reviewed here."
+      }
+    ],
+    "promotedCommits": [
+      {
+        "commit": "ab0a69c7addcf7357f83f2a0c1632264c002c6b5",
+        "note": "XeniOS compiler-cache recipe (build_core.sh, ccache.sh and its test), kept source-only since 733 so that the retained XeniaCore kept its source declaration; the XeniaCore 2.3.2 of this delivery is built with it (run 43533984227) and its delivery review binds this build_core.sh."
+      }
+    ]
   },
   "images": {
     "mustChange": [
