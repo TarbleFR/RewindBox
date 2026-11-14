@@ -160,8 +160,11 @@ else:
                 # Core 745: adapt_stall_compaction adds two lines to this file after this adapter (the poll and the stop
                 # request; nothing of the class): the final text is compared with them undone.
                 import adapt_stall_compaction as stall  # noqa: E402
-                check(files_edited_later('adapt_collection_class') == {name}, 'the only later adapter on this file is adapt_stall_compaction')
-                for old, new in reversed(stall.FILE_PAIRS[stall.SESSION]):
+                # IPA 736 lot: adapt_keepalive_memory_hold then adds its class, the keep-alive's decision and a summary
+                # line to this file (nothing of the collection class either): undone first.
+                import adapt_keepalive_memory_hold as hold  # noqa: E402
+                check(files_edited_later('adapt_collection_class') == {name}, 'the later adapters edit this file only')
+                for old, new in reversed(tuple(stall.FILE_PAIRS[stall.SESSION]) + tuple(hold.PAIRS)):
                     check(without_later.count(new) == 1, 'the later adapter\'s replacement, once: ' + new.strip().splitlines()[-1][:70])
                     without_later = without_later.replace(new, old)
             for _, new in adapter.PAIRS:

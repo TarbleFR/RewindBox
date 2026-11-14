@@ -214,6 +214,11 @@ LOT_FILES = {
     'adapt_wait_spin_bound': ['src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs'],
     # Core 749 candidate: Apple timed waits in PreciseSleepHelper.cs (no file of this lot).
     'adapt_darwin_timed_waits': [],
+    # IPA 736 lot: the timer thread's wake and the keep-alive's hold (no file of this lot); the buffer cache's last hit
+    # (BufferCache.cs in this composition).
+    'adapt_timer_earliest_wake': [],
+    'adapt_keepalive_memory_hold': [],
+    'adapt_buffer_last_hit': ['src/Ryujinx.Graphics.Gpu/Memory/BufferCache.cs'],
 }
 
 checks = 0

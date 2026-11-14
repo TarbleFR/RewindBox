@@ -142,6 +142,12 @@ with tempfile.TemporaryDirectory(prefix='melonx-performance-diagnostics-') as te
     import adapt_collection_class as _collection
     # Core 745: then adapt_stall_compaction's two lines in this file (the poll and the stop request), applied after it.
     import adapt_stall_compaction as _stall
+    # IPA 736 lot: then adapt_keepalive_memory_hold's replacements (its class, the keep-alive's decision and summary
+    # line), applied after it and undone first.
+    import adapt_keepalive_memory_hold as _hold
+    for _old, _new in reversed(_hold.PAIRS):
+        assert session_core.count(_new) <= 1
+        session_core = session_core.replace(_new, _old)
     for _old, _new in reversed(_stall.FILE_PAIRS[_stall.SESSION]):
         assert session_core.count(_new) <= 1
         session_core = session_core.replace(_new, _old)

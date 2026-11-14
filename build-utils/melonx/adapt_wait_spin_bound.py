@@ -26,6 +26,20 @@ length of a full spin measured once (the shortest of three samples: a stretched 
 single sample, in the fixture on a loaded Linux x86_64 host, measured 387 us against 8-23 us in one process of thirty). A wait still returns only once its event is set; Set, Reset and Dispose are the
 event's. Nothing else changes: no thread, priority, timeout or frame pacing.
 
+IPA 736 / Core c4a25b94 (private journal, pid 2349, session 7E68DFD7, six [MeloNX:hot] profiles): the yield still
+holds 40 % of the running samples of the listed threads (48 % in IPA 733): 11-13 % at t = 42-65 s, then 42-61 % in the
+slow phases (RHIThread 75-86 %, AK__EventManager 79-88 %, RenderThread_1 51-73 %, the game's main thread 36-50 %, the
+render thread 36-47 %), while the process's threads wait for a core two to four times as long as they run (hw=, 210 %
+median in the world against 27 % before it loads). With every core taken a yield returns late, the event is set
+meanwhile, the wait counts as short and the full spin stays. The spin's yields are now bounded in time: once they have
+lasted twice a whole spin's length on a free core (the calibrated length), the thread blocks. Expected on the device:
+the yield's share of the running samples in the slow phases falls below 20 %, sw= context switches and system calls
+fall further, hw= wait for a core falls; presented fps not lower. Refuted if the slow phases keep that share.
+Host, for information (Linux x86_64, 4 cores all taken by 4 busy processes, the fixture's two threads, 8 interleaved
+runs of 1.2 s each, handoffs per second, median and range): partner answers in 1 us, 3 400 (890-233 648) before and
+79 000 (1 009-232 263) with the bound; in 5 us, 64 300 (496-119 126) and 91 600 (555-117 271); 1 or 200 us, 3 000
+(311-9 395) and 7 500 (5 556-8 499); CPU per handoff equal or lower. On a free host the gate's figures are unchanged.
+
 Expected on the device (same save, route and conditions as the IPA 733 capture): system calls per second (sw=) and
 the share of [MeloNX:hot] samples in the yield fall by half or more, CPU power (en=) and process CPU (cpu=) fall,
 presented frames per second and frame times unchanged. Refuted and removed if presented fps fall or the frame time
@@ -53,8 +67,13 @@ CLASS = '''    // RewindBox (adapt_wait_spin_bound): a ManualResetEventSlim whos
     // The decision, made only by a waiter that blocked: the thread that sets the event stamps the time, and how late it
     // was itself woken if that happened during this wait (its own block in the kernel, which a spinning partner does
     // not pay); the waiter compares the time its wait needed, less that delay, with the length of a full spin.
-    // Nothing is read from the clock by a wait that ends inside its spin, nor by a Set while no waiter blocks. Waits still
-    // return only once the event is set, as before.
+    // The yields of a spin are bounded in time as well: on a device whose cores are all taken a yield hands the core to
+    // another thread and returns late, the event is often set meanwhile and the wait counts as short, so the full spin
+    // stayed (IPA 736, Hogwarts Legacy, six profiles: 40 % of the running samples of the busiest threads still in that
+    // yield, 42-61 % in the slow phases, 11-13 % at the start). A spin whose yields have lasted twice a whole spin's
+    // length on a free core stops and the thread blocks: at most a yield or two per wait there, thirteen before.
+    // Nothing is read from the clock by a wait that ends inside its pause iterations, nor by a Set while no waiter
+    // blocks. Waits still return only once the event is set, as before.
     public sealed class AdaptiveSpinEvent : System.IDisposable
     {
         // SpinWait's iterations before its first yield, and ManualResetEventSlim's default spin on a multi-core host.
@@ -62,6 +81,8 @@ CLASS = '''    // RewindBox (adapt_wait_spin_bound): a ManualResetEventSlim whos
         public const int FullIterations = 35;
         // A saturating score per event: a short wait adds 2, a long one takes 1; the full spin while it is not negative.
         public const int ScoreLimit = 4;
+        // The yields of one spin stop once they have lasted this many times a whole spin's length on a free core.
+        public const int StretchFactor = 2;
 
         private readonly System.Threading.ManualResetEventSlim _event;
         private long _setTicks, _setterWokeTicks, _setterWakeDelay;
@@ -109,10 +130,18 @@ CLASS = '''    // RewindBox (adapt_wait_spin_bound): a ManualResetEventSlim whos
             }
 
             int budget = SpinBudget;
+            long yields = 0;
+            long bound = System.Threading.Volatile.Read(ref s_fullSpinTicks) * StretchFactor;
             System.Threading.SpinWait spinner = default;
 
             while (spinner.Count < budget)
             {
+                if (spinner.Count == PauseIterations)
+                {
+                    // The pause iterations are over: the iterations that yield start now.
+                    yields = System.Diagnostics.Stopwatch.GetTimestamp();
+                }
+
                 spinner.SpinOnce(sleep1Threshold: -1);
 
                 if (_event.IsSet)
@@ -126,6 +155,13 @@ CLASS = '''    // RewindBox (adapt_wait_spin_bound): a ManualResetEventSlim whos
                     }
 
                     return;
+                }
+
+                if (yields != 0 && bound != 0 && System.Diagnostics.Stopwatch.GetTimestamp() - yields > bound)
+                {
+                    // The yields have already lasted longer than a whole spin does on a free core: other threads hold
+                    // the cores, and each further yield would only keep this thread in their queue. It blocks now.
+                    break;
                 }
             }
 
@@ -143,9 +179,9 @@ CLASS = '''    // RewindBox (adapt_wait_spin_bound): a ManualResetEventSlim whos
             // When the event was set, from the start of this wait (the spin's length before the block), less the setter's
             // own wake delay when it was woken during this wait: inside a full spin's length or not.
             long spin = budget == FullIterations ? s_fullSpinTicks : s_pauseSpinTicks;
-            long start = blocked - spin;
+            long start = yields != 0 ? yields - s_pauseSpinTicks : blocked - spin;
             long setTicks = System.Threading.Volatile.Read(ref _setTicks);
-            if (setTicks < blocked - spin)
+            if (setTicks < start)
             {
                 // Set before this wait blocked (no stamp for it): it ended at once, short.
                 setTicks = blocked;

@@ -73,7 +73,11 @@ CONTROL = WORK / 'control'
 # it; the executed candidate is the final preparation, which must still hold this adapter's three replacements.
 POST = WORK / 'post'
 LATER = control_tools.postimage('adapt_evicted_buffer_recreate', FINAL_SOURCE, POST)
-check(LATER in ([], ['adapt_cold_buffer_trim']), 'the later adapters sharing the file are known: %s' % LATER)
+# IPA 736 lot: adapt_buffer_last_hit edits it after that (a memo of the last buffers returned, read by GetOrCreateBuffer
+# and emptied by RemoveBufferTracking): the executed candidate takes the members it adds with the real ones.
+import adapt_buffer_last_hit as _hit  # noqa: E402
+check(LATER in ([], ['adapt_cold_buffer_trim'], ['adapt_cold_buffer_trim', 'adapt_buffer_last_hit']),
+      'the later adapters sharing the file are known: %s' % LATER)
 for name in adapter.BASELINE:
     (CONTROL / name).parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(POST / name, CONTROL / name)
@@ -131,6 +135,9 @@ for variant in ('control', 'candidate'):
     fixture = WORK / ('fixture-' + variant)
     fixture.mkdir()
     members = '\n\n'.join(member(text, signature) for signature in MEMBERS)
+    if variant == 'candidate' and 'adapt_buffer_last_hit' in LATER:
+        check(shipped.count(_hit.ADDED) == 1, 'the final preparation holds the last-hit members once')
+        members += '\n' + _hit.ADDED
     (fixture / 'Members.cs').write_text(
         'using Ryujinx.Memory.Range;\nusing System;\nusing System.Collections.Generic;\n\n'
         'namespace Ryujinx.Graphics.Gpu.Memory\n{\n    public partial class BufferCache\n    {\n' + members + '\n    }\n}\n')

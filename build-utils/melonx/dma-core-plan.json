@@ -100,7 +100,10 @@
   "build-utils/melonx/adapt_collection_class.py",
   "build-utils/melonx/adapt_stall_compaction.py",
   "build-utils/melonx/adapt_wait_spin_bound.py",
-  "build-utils/melonx/adapt_darwin_timed_waits.py"
+  "build-utils/melonx/adapt_darwin_timed_waits.py",
+  "build-utils/melonx/adapt_timer_earliest_wake.py",
+  "build-utils/melonx/adapt_keepalive_memory_hold.py",
+  "build-utils/melonx/adapt_buffer_last_hit.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",

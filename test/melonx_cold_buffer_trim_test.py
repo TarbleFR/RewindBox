@@ -80,10 +80,23 @@ def member(source, signature):
 
 # --- Static: the exact scope ---
 check(FINAL_PREPARATION, 'the source given is a final preparation containing the adapter')
-check(not files_edited_later('adapt_cold_buffer_trim'), 'no later adapter edits these files')
+# IPA 736 lot: adapt_buffer_last_hit edits BufferCache.cs after this adapter (a memo of the last buffers returned: its
+# members, one line in RemoveBufferTracking, the two lookups). Its replacements are undone here before the comparisons
+# and the fixtures, which read this adapter's own composition; evicted-buffer-recreate executes the memo with evictions.
+import adapt_buffer_last_hit as _hit  # noqa: E402
+check(files_edited_later('adapt_cold_buffer_trim') == {CACHE}, 'the only later edit of these files is adapt_buffer_last_hit\'s, in BufferCache.cs')
+
+
+def without_later(source):
+    for old, new in reversed(_hit.PAIRS):
+        check(source.count(new) == 1, 'the later adapter\'s replacement, once: ' + new.strip().splitlines()[0][:60])
+        source = source.replace(new, old)
+    return source
+
+
 for name, expected in adapter.BASELINE.items():
     check(sha(CONTROL_SOURCE / name) == expected, 'control is the Core 729 preparation: ' + name)
-control_cache, final_cache = text(CONTROL_SOURCE, CACHE), text(FINAL_SOURCE, CACHE)
+control_cache, final_cache = text(CONTROL_SOURCE, CACHE), without_later(text(FINAL_SOURCE, CACHE))
 control_buffer, final_buffer = text(CONTROL_SOURCE, BUFFER), text(FINAL_SOURCE, BUFFER)
 rebuilt = control_cache
 for name, old, new in adapter.PAIRS:

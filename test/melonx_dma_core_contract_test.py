@@ -694,7 +694,10 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_collection_class.py',
                                                      'build-utils/melonx/adapt_stall_compaction.py',
                                                      'build-utils/melonx/adapt_wait_spin_bound.py',
-                                                     'build-utils/melonx/adapt_darwin_timed_waits.py'} and
+                                                     'build-utils/melonx/adapt_darwin_timed_waits.py',
+                                                     'build-utils/melonx/adapt_timer_earliest_wake.py',
+                                                     'build-utils/melonx/adapt_keepalive_memory_hold.py',
+                                                     'build-utils/melonx/adapt_buffer_last_hit.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -738,7 +741,9 @@ if not args.helpers_only:
     # and adapt_stall_compaction.py join them too (their files are members already).
     # Core 747: adapt_wait_spin_bound.py joins them; AsyncWorkQueue.cs joins the prepared members (215).
     # Core 749 candidate: adapt_darwin_timed_waits.py joins them; PreciseSleepHelper.cs joins the prepared members (216).
-    check(len(frozen['preparationInputs']) == 220 and len(frozen['preparedMembers']) == 216, 'Wrong final composition')
+    # IPA 736 lot: adapt_timer_earliest_wake.py, adapt_keepalive_memory_hold.py and adapt_buffer_last_hit.py join them
+    # (their files are members already).
+    check(len(frozen['preparationInputs']) == 223 and len(frozen['preparedMembers']) == 216, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and

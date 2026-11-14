@@ -91,11 +91,15 @@ check(FINAL_PREPARATION, 'the source given is a final preparation containing the
 # Core 747: adapt_wait_spin_bound changes the scheduler event's type in KThread.cs (and the renderer's two events) after
 # this adapter; its gate (wait-spin-bound) binds those replacements, which are undone here before the comparisons.
 import adapt_wait_spin_bound as _spin  # noqa: E402
-check(files_edited_later('adapt_host_thread_class') == {_spin.THREAD}, 'the only later edit of these files is adapt_wait_spin_bound\'s, in KThread.cs')
+# IPA 736 lot: adapt_timer_earliest_wake edits KTimeManager.cs after this adapter (when the timer thread is signalled);
+# its replacements are undone here too.
+import adapt_timer_earliest_wake as _timer  # noqa: E402
+check(files_edited_later('adapt_host_thread_class') == {_spin.THREAD, _timer.MANAGER},
+      'the only later edits of these files are adapt_wait_spin_bound\'s, in KThread.cs, and adapt_timer_earliest_wake\'s, in KTimeManager.cs')
 
 
 def without_later(name, source):
-    for old, new in reversed(_spin.FILE_PAIRS.get(name, ())):
+    for old, new in reversed(tuple(_spin.FILE_PAIRS.get(name, ())) + (tuple(_timer.PAIRS) if name == _timer.MANAGER else ())):
         check(source.count(new) == 1, 'the later adapter\'s replacement, once: ' + new.strip().splitlines()[0][:60])
         source = source.replace(new, old)
     return source

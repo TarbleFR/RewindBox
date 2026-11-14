@@ -61,8 +61,15 @@ if '--candidate-source' in sys.argv:
     FINAL = Path(sys.argv[sys.argv.index('--candidate-source') + 1]).resolve()
     delivered, final = (SOURCE / FILE).read_text(encoding='utf-8-sig'), (FINAL / FILE).read_text(encoding='utf-8-sig')
     pairs = [(old, new) for name, old, new in thread_class.PAIRS if name == FILE]
-    assert len(pairs) == 1 and delivered.count(pairs[0][0]) == 1 and delivered.replace(*pairs[0]) == final, \
-        'the final timer manager is the delivered one plus the class request'
+    # IPA 736 lot: adapt_timer_earliest_wake then changes when the timer thread is signalled (only by a deadline earlier
+    # than the one it sleeps for); the scenarios below run the final file and must give the delivered one's digest.
+    import adapt_timer_earliest_wake as earliest_wake
+    assert len(pairs) == 1 and delivered.count(pairs[0][0]) == 1
+    expected = delivered.replace(*pairs[0])
+    for old, new in earliest_wake.PAIRS:
+        assert expected.count(old) == 1, 'one site for the earliest-wake replacement'
+        expected = expected.replace(old, new)
+    assert expected == final, 'the final timer manager is the delivered one plus the class request and the earliest-wake signal'
     assert final.count(thread_class.CALL) == 1 and 'HostThreadClass' not in delivered
     for path in SUPPORT:
         assert digest(SOURCE / path) == digest(FINAL / path), 'support file differs: ' + path
@@ -92,7 +99,8 @@ if '--candidate-source' in sys.argv:
                   preimages={FILE: digest(SOURCE / FILE)}, postimages={FILE: digest(FINAL / FILE)},
                   supportInputs={path: digest(FINAL / path) for path in SUPPORT},
                   inputs={str(path.relative_to(ROOT)): digest(path) for path in [
-                      ROOT / 'build-utils/melonx/adapt_host_thread_class.py', Path(__file__),
+                      ROOT / 'build-utils/melonx/adapt_host_thread_class.py',
+                      ROOT / 'build-utils/melonx/adapt_timer_earliest_wake.py', Path(__file__),
                       ROOT / 'test/melonx_kernel_timer_allocations/Program.cs']})
     output = ROOT / 'dist/melonx/kernel-timer-allocations-checks.json'
     output.parent.mkdir(parents=True, exist_ok=True)
