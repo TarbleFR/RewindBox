@@ -134,6 +134,12 @@ with tempfile.TemporaryDirectory(prefix='melonx-array-sync-epochs-') as temporar
         own = {}
         for name, pairs in adapter.FILE_PAIRS.items():
             final_text = (FINAL_SOURCE / name).read_text(encoding='utf-8-sig')
+            # IPA 740 lot: adapt_array_log_membership then adds the membership flag to both files: undone first.
+            import adapt_array_log_membership as _membership  # noqa: E402
+            for file, old, new in reversed(_membership.PAIRS):
+                if file == name:
+                    check(final_text.count(new) == 1, 'the later adapter\'s replacement, once: ' + new.strip().splitlines()[0][:70])
+                    final_text = final_text.replace(new, old)
             for old, new in reversed(_log.FILE_PAIRS[name]):
                 check(final_text.count(new) == 1, 'the later adapter\'s replacement, once: ' + new.strip().splitlines()[0][:70])
                 final_text = final_text.replace(new, old)
