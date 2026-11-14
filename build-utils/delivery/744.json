@@ -370,6 +370,11 @@
         "commit": "cc6aae092e15163e3f9eafa2b18e404817ea5965",
         "targetBuild": 745,
         "note": "S2Arm session's engine README (build-utils/s2arm/engine/README.md), on top of its patch 0022 (d1df8270c), which is not pinned and stays deferred; this delivery keeps the base's S2Arm engine; not written or reviewed by this session."
+      },
+      {
+        "commit": "35f00df2196fba5aa0e2e9c01330c9b5d4904865",
+        "targetBuild": 745,
+        "note": "Another session's grid card fix (the art of a card keeps four alike corners); not written or reviewed by this session, kept deferred."
       }
     ],
     "promotedCommits": []
