@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "03a889f631bd517c6126e0850c006d3a1754eed9",
-  "run": 43622519313,
-  "job": 132531124957,
+  "source": "030cc14fd24fb016c4493ecd10dcb9e55dc448d0",
+  "run": 43641508569,
+  "job": 132589878687,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 14125675167,
-  "name": "MeloNX-engine-03a889f631bd517c6126e0850c006d3a1754eed9",
-  "bytes": 100502360,
-  "sha256": "e02677e6cc10b93c814973980cb91145b6203e4469ceaf90ec3fd430f4c6ec48",
-  "expiresAt": "2027-02-12T17:42:01Z",
+  "artifact": 14131839888,
+  "name": "MeloNX-engine-030cc14fd24fb016c4493ecd10dcb9e55dc448d0",
+  "bytes": 100533476,
+  "sha256": "3015d78505a6f8aa9879e6aabf5e7fe1104e98aa48b1c67144f5382d369583a1",
+  "expiresAt": "2027-02-12T21:11:44Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "094cbf526721850e892036499034d698b8baf8e811b41b9fcffcadd320efb4d0",
-      "bytes": 38571592
+      "sha256": "4c783cc4de11f2b68d3419ecf11c21b040874b9440408d939ed286052f0306f8",
+      "bytes": 38588056
     },
     "iossimulator-arm64": {
-      "sha256": "db2132f9fab5d64ef8bfc20e11f7df64b47bfb0191dcb8ee8b6ba45587ae7a16",
-      "bytes": 38889544
+      "sha256": "dcecebe6d23813ebb33f8be47e4cc4da40b3b40f766e0500a9c4683309d4f635",
+      "bytes": 38906136
     }
   },
   "identities": {
-    "ios-arm64": "8dd45a2cae0ba3e3f95e90b061f43c0bf94d0ff1baf995833812ac7f0ecf6837",
-    "iossimulator-arm64": "0d2f52b5e576c0361a1ac0e1a4ba51c32dd239b6c79b6cf0833cf1cd3e9915ad"
+    "ios-arm64": "d1cd9b522a0d36e6554d2944d577ff200131738f25c4328d4432da6931db47db",
+    "iossimulator-arm64": "8ebfe0ddbc690d36121833398b6537511e425bf85349cef5da1ce1c73fe25b11"
   },
-  "contractSha256": "c3835954b1905f64f90167c81335ca335ae56afd441d675e7b8a97b2baec57be",
-  "resultSha256": "5fcb06a074b7c4c0ce4755b791daf4e33c7a4dcb2bb93e057380875447b6a63a",
-  "packagedFingerprint": "071137144e4683a79705a0e92a0f68bc9825495c04249a2a90cc74dcf2a7173a",
+  "contractSha256": "1362352a466d41c0c57c46352501899f57132dfa9aca26899428a1a897ad7f2a",
+  "resultSha256": "71293cede78dde96b8dc1680988a7566418a3cd37680302c06ef8acfc2cd0f06",
+  "packagedFingerprint": "f5d6aac2cd65e342e5f347b66aa76d667c8b46c0a8a4c7dab267dff1c1618407",
   "replaces": {
-    "source": "bacdcacd0daed37aaa5bd5ae21fdd995b8b404a9",
-    "run": 43591507649,
-    "artifact": 14113430033,
-    "packagedFingerprint": "7d9b0ad0855d435cdbb35eb04dfde4d298e955aa5137c385eb2f98fbb6e2f133",
-    "reason": "Lot after IPA 745 (no probe added): the cold-texture age in seconds of play, private mappings read from a published snapshot, pre-reset occlusion queries kept across a submission, the merged buffer added before multi-range buffers are recreated, and (Hogwarts policy) the 3D engine syncpoint increment queued behind its occlusion reports; 109 gates run on the final preparation (Linux x86_64), build-smoke route. No iPhone gameplay, frame rate or thermal gain is claimed."
+    "source": "03a889f631bd517c6126e0850c006d3a1754eed9",
+    "run": 43622519313,
+    "artifact": 14125675167,
+    "packagedFingerprint": "071137144e4683a79705a0e92a0f68bc9825495c04249a2a90cc74dcf2a7173a",
+    "reason": "Lot after IPA 747 (no probe added): a compute program translated in play promoted to the demand thread and workers taking demanded compiles first; the full variant journal evicting a lower-ranked record for a new state (4 MiB with compaction, replays bounded by 2 048 and the 8 % memory hold); states compiled for skipped draws recorded with their own counter; 109 gates run on the final preparation (Linux x86_64), build-smoke route. No iPhone gameplay, frame rate or thermal gain is claimed."
   }
 }

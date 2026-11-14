@@ -460,3 +460,7 @@ promotion now executed on the final source), pipeline-cache-compact and submit-c
 array-rebuild-allocations failed four times while other work ran (a one-off 3-7 KiB allocation on the measured thread,
 in files the lot does not touch) and passed alone on a quiet host; cause not identified. Contract 1362352a.
 Not measured on an iPhone.
+
+Core of the lot after IPA 747: 030cc14f (run 43641508569, build-smoke: NativeAOT and ABI verified, two simulator
+sessions; artifact 14131839888, SHA-256 3015d785, iPhone binary 4c783cc4, packaged fingerprint f5d6aac2, contract
+1362352a), verified locally with melonx_dma_core_component and pinned, for the next MeloNX delivery (this session).
