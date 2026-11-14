@@ -396,7 +396,10 @@
   },
   "images": {
     "mustChange": [
-      "Frameworks/S2ArmEngine.framework/S2ArmEngine"
+      "Frameworks/App.framework/App",
+      "Frameworks/S2ArmEngine.framework/S2ArmEngine",
+      "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge",
+      "Runner"
     ],
     "added": [
       "Frameworks/S2ArmEngine.framework/S2ArmEngine"
