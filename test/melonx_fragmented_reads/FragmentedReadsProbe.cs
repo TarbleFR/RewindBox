@@ -273,6 +273,290 @@ namespace Ryujinx.Graphics.Gpu.Memory
             };
         }
 
+        // 6b. Next lot (adapt_private_span_snapshot): private mappings mapped, unmapped and mapped again across the
+        //     partition boundary at 0x6000_0000 (32 MiB partitions). Each build must read back the bytes written at each
+        //     page's last mapping (a model of the mapped pages) and give the same private-allocation lookups; the
+        //     candidate's lookups through its published spans must equal its unchanged locked walk (spans withdrawn).
+        private const ulong RemapVa = 0x6000_0000 - 0x40_0000, RemapPa = 0x180_0000, RemapSize = 0x80_0000;
+        private const BindingFlags AnyInstance = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
+
+        private static byte RemapByte(int tag, int page, int index) => (byte)(tag * 131 + page * 31 + index * 7 + 0x3C);
+
+        private static object FieldOf(object target, string name) => target.GetType().GetField(name, AnyInstance).GetValue(target);
+
+        // A PrivateRange as text: its block numbered by first appearance, its offset and size.
+        private static string RangeText(object range, Dictionary<object, int> ids)
+        {
+            Type type = range.GetType();
+            object memory = type.GetField("Memory").GetValue(range);
+            string id = "null";
+
+            if (memory != null)
+            {
+                if (!ids.TryGetValue(memory, out int number))
+                {
+                    ids[memory] = number = ids.Count + 1;
+                }
+
+                id = "m" + number;
+            }
+
+            return id + ":" + type.GetField("Offset").GetValue(range) + ":" + type.GetField("Size").GetValue(range);
+        }
+
+        // A lookup's result and its out/ref arguments as text (or the exception it throws).
+        private static string Lookup(object target, MethodInfo method, object[] arguments, Dictionary<object, int> ids)
+        {
+            try
+            {
+                object result = method.Invoke(target, arguments);
+                StringBuilder text = new(result is bool found ? found.ToString() : RangeText(result, ids));
+                ParameterInfo[] parameters = method.GetParameters();
+
+                for (int i = 0; i < parameters.Length; i++)
+                {
+                    if (parameters[i].ParameterType.IsByRef)
+                    {
+                        text.Append('|').Append(arguments[i] is ulong value ? value.ToString("x") : RangeText(arguments[i], ids));
+                    }
+                }
+
+                return text.ToString();
+            }
+            catch (TargetInvocationException exception)
+            {
+                return "throws " + exception.InnerException.GetType().Name;
+            }
+        }
+
+        private static object PrivateRemapScenario(MemoryManagerHostTracked cpu)
+        {
+            try
+            {
+                cpu.Map(RemapVa, RemapPa, RemapSize, MemoryMapFlags.Private);
+            }
+            catch (Exception exception) when (exception is PlatformNotSupportedException or NotSupportedException)
+            {
+                return new { supported = false, reason = exception.GetType().Name };
+            }
+
+            int pages = (int)(RemapSize / Page);
+            int[] tags = new int[pages];                    // per page: -1 unmapped, else the tag written at its last mapping
+            byte[] pageBytes = new byte[Page];
+
+            void Fill(int firstPage, int count, int tag)
+            {
+                for (int page = firstPage; page < firstPage + count; page++)
+                {
+                    for (int b = 0; b < pageBytes.Length; b++)
+                    {
+                        pageBytes[b] = RemapByte(tag, page, b);
+                    }
+
+                    cpu.Write(RemapVa + (ulong)page * Page, pageBytes);
+                    tags[page] = tag;
+                }
+            }
+
+            object space = FieldOf(cpu, "_addressSpace");
+            MethodInfo hasAny = space.GetType().GetMethod("HasAnyPrivateAllocation", AnyInstance);
+            MethodInfo getFirst = space.GetType().GetMethod("GetFirstPrivateAllocation", AnyInstance);
+            var ids = new Dictionary<object, int>(ReferenceEqualityComparer.Instance);
+            var results = new Dictionary<string, object>();
+            ulong lookupHash = 1469598103934665603UL, bytesHash = 1469598103934665603UL;
+            int lookups = 0, readRanges = 0, crossingReads = 0, updates = 0;
+            var offsets = new List<ulong>
+            {
+                0, RemapSize / 2 - 0x18000, RemapSize / 2 - Page, RemapSize / 2 - 0x10, RemapSize / 2, RemapSize / 2 + 0x800,
+                RemapSize - 0x30000,
+            };
+
+            for (ulong offset = 0x123; offset < RemapSize; offset += 0x1F000)
+            {
+                offsets.Add(offset);
+            }
+
+            void Checkpoint()
+            {
+                foreach (ulong offset in offsets)
+                {
+                    foreach (ulong size in new ulong[] { 0x10, Page, 0x6000, 0x30000 })
+                    {
+                        if (offset + size > RemapSize)
+                        {
+                            continue;
+                        }
+
+                        ulong va = RemapVa + offset;
+                        string text = Lookup(space, hasAny, new object[] { va, size, null }, ids) + "/" +
+                                      Lookup(space, getFirst, new object[] { va, size, 0UL }, ids) + ";";
+                        lookupHash = Hash(Encoding.UTF8.GetBytes(text), lookupHash);
+                        lookups++;
+                        int firstPage = (int)(offset / Page), lastPage = (int)((offset + size - 1) / Page);
+                        bool mapped = true;
+
+                        for (int page = firstPage; page <= lastPage; page++)
+                        {
+                            mapped &= tags[page] >= 0;
+                        }
+
+                        if (!mapped)
+                        {
+                            continue;
+                        }
+
+                        ulong expected = 1469598103934665603UL;
+
+                        for (int page = firstPage; page <= lastPage; page++)
+                        {
+                            for (int b = 0; b < pageBytes.Length; b++)
+                            {
+                                pageBytes[b] = RemapByte(tags[page], page, b);
+                            }
+
+                            int start = page == firstPage ? (int)(offset % Page) : 0;
+                            int end = page == lastPage ? (int)((offset + size - 1) % Page) + 1 : (int)Page;
+                            expected = Hash(pageBytes.AsSpan(start, end - start), expected);
+                        }
+
+                        byte[] read = new byte[size];
+                        cpu.Read(va, read);
+                        Check(Hash(cpu.GetSpan(va, (int)size)) == expected && Hash(read) == expected,
+                              $"private remap bytes differ from the written pages at {va:x}+{size:x}");
+                        bytesHash = Hash(BitConverter.GetBytes(expected), bytesHash);
+                        readRanges++;
+
+                        if (offset < RemapSize / 2 && offset + size > RemapSize / 2)
+                        {
+                            crossingReads++;
+                        }
+                    }
+                }
+#if FRAGMENTED_READS_CANDIDATE
+                CompareSpans(space, results);
+#endif
+            }
+
+            Fill(0, pages, 0);
+            Checkpoint();
+            var random = new Random(746);
+
+            for (int round = 1; round <= 64; round++)
+            {
+                int count = random.Next(1, 300);
+                int page = random.Next(0, pages - count);
+                ulong va = RemapVa + (ulong)page * Page;
+                cpu.Unmap(va, (ulong)count * Page);
+                tags.AsSpan(page, count).Fill(-1);
+
+                if (random.Next(3) != 0)
+                {
+                    cpu.Map(va, RemapPa + (ulong)random.Next(0, pages - count) * Page, (ulong)count * Page, MemoryMapFlags.Private);
+                    Fill(page, count, round);
+                }
+
+                updates++;
+
+                if (round % 8 == 0)
+                {
+                    Checkpoint();
+                }
+            }
+
+            results["supported"] = true;
+            results["updates"] = updates;
+            results["lookups"] = lookups;
+            results["lookupHash"] = lookupHash.ToString("x16");
+            results["readRanges"] = readRanges;
+            results["crossingReads"] = crossingReads;
+            results["bytesHash"] = bytesHash.ToString("x16");
+            results["modelMatches"] = true;
+
+            return results;
+        }
+
+#if FRAGMENTED_READS_CANDIDATE
+        // Every partition's published spans tile it, and each of its three lookups gives through them exactly what the
+        // unchanged locked walk gives once the spans are withdrawn (its own block numbering: the shared one stays the
+        // control's).
+        private static void CompareSpans(object space, Dictionary<string, object> results)
+        {
+            var ids = new Dictionary<object, int>(ReferenceEqualityComparer.Instance);
+            int comparisons = results.TryGetValue("snapshotComparisons", out object done) ? (int)done : 0;
+            int maxSpans = results.TryGetValue("maxSpans", out object most) ? (int)most : 0;
+            int partitions = results.TryGetValue("partitionsCompared", out object seen) ? (int)seen : 0;
+
+            foreach (object partition in (System.Collections.IList)FieldOf(space, "_partitions"))
+            {
+                Type type = partition.GetType();
+                FieldInfo spansField = type.GetField("_privateSpans", AnyInstance);
+                object spans = spansField.GetValue(partition);
+                ulong address = (ulong)type.GetProperty("Address").GetValue(partition);
+                ulong end = (ulong)type.GetProperty("EndAddress").GetValue(partition);
+                Check(spans != null, "a partition's private spans are published after every update");
+                ulong next = address;
+
+                foreach (object span in (Array)spans)
+                {
+                    ulong spanAddress = (ulong)span.GetType().GetField("Address", AnyInstance).GetValue(span);
+                    ulong spanSize = (ulong)span.GetType().GetField("Size", AnyInstance).GetValue(span);
+                    Check(spanAddress == next && spanSize > 0, "the private spans tile the partition");
+                    next = spanAddress + spanSize;
+                }
+
+                Check(next == end, "the private spans end at the partition end");
+                maxSpans = Math.Max(maxSpans, ((Array)spans).Length);
+                partitions++;
+                MethodInfo get = type.GetMethod("GetPrivateAllocation", AnyInstance);
+                MethodInfo getFirst = type.GetMethod("GetFirstPrivateAllocation", AnyInstance);
+                MethodInfo has = type.GetMethod("HasPrivateAllocation", AnyInstance);
+                object empty = has.GetParameters()[4].ParameterType.GetElementType().GetProperty("Empty").GetValue(null);
+                var vas = new List<ulong> { address, address + 1, address + Page - 1, end - Page, end - 1 };
+
+                for (ulong va = address; va < end; va += Page * 29)
+                {
+                    vas.Add(va);                            // page-aligned: lookups that end exactly where a span starts
+                    vas.Add(va + 0x3FF);
+                }
+
+                foreach (ulong va in vas)
+                {
+                    void Both(MethodInfo method, Func<object[]> arguments)
+                    {
+                        string snapshot = Lookup(partition, method, arguments(), ids);
+                        spansField.SetValue(partition, null);
+                        string locked;
+
+                        try
+                        {
+                            locked = Lookup(partition, method, arguments(), ids);
+                        }
+                        finally
+                        {
+                            spansField.SetValue(partition, spans);
+                        }
+
+                        Check(snapshot == locked, $"private lookup {method.Name} at {va:x}: snapshot {snapshot}, locked walk {locked}");
+                        comparisons++;
+                    }
+
+                    Both(get, () => new object[] { va });
+
+                    foreach (ulong size in new ulong[] { 8, 0x6000, 0x30000 })
+                    {
+                        ulong clamped = Math.Min(va + size, end) - va;
+                        Both(getFirst, () => new object[] { va, size, 0UL });
+                        Both(has, () => new object[] { va, clamped, va, size, empty });
+                    }
+                }
+            }
+
+            results["snapshotComparisons"] = comparisons;
+            results["maxSpans"] = maxSpans;
+            results["partitionsCompared"] = partitions;
+        }
+#endif
+
         private static PhysicalMemory NewPhysical(IVirtualMemoryManagerTracked cpu)
         {
             PhysicalMemory physical = (PhysicalMemory)RuntimeHelpers.GetUninitializedObject(typeof(PhysicalMemory));
@@ -469,6 +753,9 @@ namespace Ryujinx.Graphics.Gpu.Memory
             {
                 Results["privatePartitions"] = new { supported = false, reason = exception.GetType().Name };
             }
+
+            // 6b. Private mappings mapped, unmapped and mapped again across a partition boundary (see PrivateRemapScenario).
+            Results["privateRemaps"] = PrivateRemapScenario(cpu);
 
             // 7. The software page table keeps its previous behaviour through the default path.
             using MemoryBlock softwareBacking = new(4 * 1024 * 1024, MemoryAllocationFlags.None);

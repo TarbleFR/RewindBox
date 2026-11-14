@@ -202,6 +202,11 @@ from adapt_partition_dispose_order import apply as adapt_partition_dispose_order
 from adapt_keepalive_hold_off import apply as adapt_keepalive_hold_off
 from adapt_darwin_spin_yield import apply as adapt_darwin_spin_yield
 from adapt_pool_slot_copy import apply as adapt_pool_slot_copy
+from adapt_texture_play_clock import apply as adapt_texture_play_clock
+from adapt_private_span_snapshot import apply as adapt_private_span_snapshot
+from adapt_query_prereset import apply as adapt_query_prereset
+from adapt_merged_buffer_order import apply as adapt_merged_buffer_order
+from adapt_queued_3d_syncpoints import apply as adapt_queued_3d_syncpoints
 
 
 def replace_once(path, old, new):
@@ -619,6 +624,23 @@ def main():
     # IPA 740 lot (Hogwarts Legacy, render thread): a large texture array's slot that would be written whole is copied
     # from the array's latest slot, then only the changes since it are written (TextureArray.cs).
     adapted += adapt_pool_slot_copy(source)
+    # IPA 740 lot 2c (every title where host memory is tracked, iOS): the texture use clock of the cold texture release
+    # counts play time, at most two check intervals per check, so a pause or a background ages no texture (GpuContext.cs).
+    adapted += adapt_texture_play_clock(source)
+    # IPA 740 lot 2a (every title, GPU thread and readers of guest memory): a partition's private mappings are looked up
+    # in a snapshot published by each Update, not under the tree's reader lock (AddressSpacePartition.cs).
+    adapted += adapt_private_span_snapshot(source)
+    # IPA 740 lot 2b (every title with occlusion queries, render thread): the queries reset ahead stay reset across a
+    # submission, so the next query does not end the render pass again (PipelineFull.cs).
+    adapted += adapt_query_prereset(source)
+    # IPA 740 follow-up (GPU thread, every title): a merged buffer joins the buffer list before the multi-range buffers
+    # over its range are recreated, so the list never holds a duplicate of it (BufferCache.cs; after adapt_buffer_hit_sets).
+    adapted += adapt_merged_buffer_order(source)
+    # IPA 740 lot 1 (Hogwarts Legacy policy, GPU thread): the 3D engine's syncpoint increment is queued behind its
+    # occlusion reports instead of waiting for them; the queue is processed after each GPFIFO entry (ThreedClass.cs,
+    # GpuContext.cs after adapt_texture_play_clock, GPFifoDevice.cs, DeferredCounterReport.cs, CounterCache.cs,
+    # SemaphoreUpdater.cs).
+    adapted += adapt_queued_3d_syncpoints(source)
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -769,7 +791,9 @@ def main():
                  'adapt_partition_snapshot.py', 'adapt_array_dirty_log.py', 'adapt_fence_status.py',
                  'adapt_command_buffer_ownership.py', 'adapt_signalled_fence_release.py', 'adapt_buffer_hit_sets.py',
                  'adapt_array_log_membership.py', 'adapt_partition_dispose_order.py', 'adapt_keepalive_hold_off.py',
-                 'adapt_darwin_spin_yield.py', 'adapt_pool_slot_copy.py']:
+                 'adapt_darwin_spin_yield.py', 'adapt_pool_slot_copy.py', 'adapt_texture_play_clock.py',
+                 'adapt_private_span_snapshot.py', 'adapt_query_prereset.py', 'adapt_merged_buffer_order.py',
+                 'adapt_queued_3d_syncpoints.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

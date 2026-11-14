@@ -54,7 +54,9 @@ ORDER = ('adapt_pipeline_warmup_parity', 'adapt_device_short_trim', 'adapt_molte
          'adapt_partition_snapshot', 'adapt_array_dirty_log', 'adapt_fence_status',
          'adapt_command_buffer_ownership', 'adapt_signalled_fence_release', 'adapt_buffer_hit_sets',
          'adapt_array_log_membership', 'adapt_partition_dispose_order', 'adapt_keepalive_hold_off',
-         'adapt_darwin_spin_yield', 'adapt_pool_slot_copy')
+         'adapt_darwin_spin_yield', 'adapt_pool_slot_copy', 'adapt_texture_play_clock',
+         'adapt_private_span_snapshot', 'adapt_query_prereset', 'adapt_merged_buffer_order',
+         'adapt_queued_3d_syncpoints')
 
 
 def sha(path: Path) -> str:

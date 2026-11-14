@@ -20,11 +20,18 @@ CANDIDATE = args.candidate_source.resolve() if args.candidate_source else None
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 from adapt_counter_report_compaction import apply, RELATIVE, BEFORE
 import adapt_queued_syncpoints as queued  # noqa: E402
+import adapt_queued_3d_syncpoints as queued_3d  # noqa: E402
 
 
 def without_queue(text, relative):
     """The final text without the declared hunks of the queued syncpoint adapter (Core 631: CounterCache.TakePendingReports,
     DeferredCounterReport.IsReady), whose behaviour test/melonx_queued_syncpoints_fixture_test.py runs."""
+    # adapt_queued_3d_syncpoints (applied later: CounterCache.HasQueuedReportAt, DeferredCounterReport.AwaitsPublication),
+    # whose behaviour the same fixture runs, is undone first.
+    for path, old, new in reversed(queued_3d.PAIRS):
+        if path == relative:
+            assert text.count(new) == 1, 'queued 3D syncpoint replacement missing: ' + relative
+            text = text.replace(new, old)
     for old, new in reversed(queued.HUNKS.get(relative, [])):
         assert text.count(new) == 1, 'queued syncpoint hunk missing: ' + relative
         text = text.replace(new, old)
@@ -102,6 +109,7 @@ with tempfile.TemporaryDirectory(prefix='melonx-report-compaction-') as temporar
         else: raise AssertionError('source drift accepted')
         assert sha(path) == before, 'source mutated before rejected drift'
 local = ['build-utils/melonx/adapt_counter_report_compaction.py', 'build-utils/melonx/adapt_queued_syncpoints.py',
+         'build-utils/melonx/adapt_queued_3d_syncpoints.py',
          'test/melonx_counter_report_compaction_test.py',
          'test/melonx_counter_report_compaction/Program.cs', 'test/melonx_counter_report_compaction/JournalBoundary.cs']
 for value in reports.values():

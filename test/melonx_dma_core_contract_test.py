@@ -82,6 +82,13 @@ from adapt_partition_snapshot import BASELINE as C751_PARTITION_SNAPSHOT  # noqa
 from adapt_fence_status import BASELINE as C752_FENCE_STATUS  # noqa: E402
 from adapt_command_buffer_ownership import BASELINE as C753_COMMAND_BUFFER_OWNERSHIP  # noqa: E402
 from adapt_darwin_spin_yield import BASELINE as C753_DARWIN_SPIN_YIELD  # noqa: E402
+# Next lot: the five adapters after adapt_pool_slot_copy (adapt_texture_play_clock, adapt_private_span_snapshot,
+# adapt_query_prereset, adapt_merged_buffer_order, adapt_queued_3d_syncpoints).
+from adapt_texture_play_clock import BASELINE as C766_TEXTURE_PLAY_CLOCK  # noqa: E402
+from adapt_private_span_snapshot import BASELINE as C766_PRIVATE_SPAN_SNAPSHOT  # noqa: E402
+from adapt_query_prereset import BASELINE as C766_QUERY_PRERESET  # noqa: E402
+from adapt_merged_buffer_order import BASELINE as C766_MERGED_BUFFER_ORDER  # noqa: E402
+from adapt_queued_3d_syncpoints import BASELINE as C766_QUEUED_3D_SYNCPOINTS  # noqa: E402
 from adapt_array_delta_invalidated import BASELINE as C697_ARRAY_DELTA_INVALIDATED  # noqa: E402
 from adapt_pipeline_cache_background import BASELINE as C697_PIPELINE_CACHE_BACKGROUND  # noqa: E402
 from adapt_sync_wait_attribution import BASELINE as C699_SYNC_WAIT_ATTRIBUTION  # noqa: E402
@@ -237,6 +244,9 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             # IPA 740 lot: the core87 auto-ownership receipt declares Auto.cs and CommandBufferPool.cs, which
             # adapt_command_buffer_ownership changes: run again on the final source against the delivered one.
             'auto-ownership': 'delivered',
+            # Next lot: adapt_queued_3d_syncpoints changes guest-visible syncpoint ordering (ThreedClass.cs,
+            # SemaphoreUpdater.cs, GPFifoDevice.cs, ...): the queued syncpoints fixture is run on the final source.
+            'queued-3d-syncpoints': 'delivered',
             # Core 743: its receipt declares SyncManager.cs, which adapt_submit_causes changes: run again on the final one.
             'sync-allocations': 'delivered',
             # Core 661: the native display fixture declares EmbeddedMemory.cs (adapt_safe_point_compaction): rerun.
@@ -319,7 +329,12 @@ CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES
            # IPA 740 lot: Auto.cs and CommandBufferPool.cs (new: a command buffer's own references); the lot's other
            # files (BufferCache.cs, Texture.cs, TextureBindingsArrayCache.cs, AddressSpacePartitioned.cs, EmbeddedSession.cs,
            # AsyncWorkQueue.cs, TextureArray.cs) are changed already.
-           set(C753_COMMAND_BUFFER_OWNERSHIP))
+           set(C753_COMMAND_BUFFER_OWNERSHIP) |
+           # Next lot: AddressSpacePartition.cs (new: a partition's private spans published) and SemaphoreUpdater.cs
+           # (changed for the first time: the report guard of the queued 3D increments); GpuContext.cs, PipelineFull.cs,
+           # BufferCache.cs, ThreedClass.cs, GPFifoDevice.cs, DeferredCounterReport.cs and CounterCache.cs are changed already.
+           set(C766_TEXTURE_PLAY_CLOCK) | set(C766_PRIVATE_SPAN_SNAPSHOT) | set(C766_QUERY_PRERESET) |
+           set(C766_MERGED_BUFFER_ORDER) | set(C766_QUEUED_3D_SYNCPOINTS))
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
@@ -419,6 +434,9 @@ JOINED = JOINED | set(C752_FENCE_STATUS)
 # fragmented-reads composes, builds and binds both (read from its control, delivered609, as upstream).
 C753_POOL = 'src/Ryujinx.Graphics.Vulkan/CommandBufferPool.cs'
 JOINED = JOINED | {C753_POOL}
+# Next lot (adapt_private_span_snapshot): Ryujinx.Cpu's AddressSpacePartition.cs joins the prepared source; fragmented-reads
+# composes, builds and binds it (read from its control, delivered609, as upstream). SemaphoreUpdater.cs is a member already.
+JOINED = JOINED | set(C766_PRIVATE_SPAN_SNAPSHOT)
 REUSED_FRESH = set()
 
 
@@ -634,8 +652,8 @@ if not args.helpers_only:
     # Core 743: 99 (SyncManager.cs, AutoFlushCounter.cs, StagingBuffer.cs, HelperShader.cs).
     # Core 745: 100 (IGeneralService.cs). Core 747: 101 (AsyncWorkQueue.cs). Core 749 candidate: 102 (PreciseSleepHelper.cs).
     # IPA 736 lots: 105 (AddressSpacePartitioned.cs, FenceHolder.cs, MultiFenceHolder.cs). IPA 740 lot: 107 (Auto.cs,
-    # CommandBufferPool.cs).
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 107 and not frozen["productionAdditions"], "Unexpected production scope")
+    # CommandBufferPool.cs). Next lot: 109 (AddressSpacePartition.cs, SemaphoreUpdater.cs).
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 109 and not frozen["productionAdditions"], "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
                                                      'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
                                                      'build-utils/melonx/adapt_queued_syncpoints.py',
@@ -740,7 +758,13 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_partition_dispose_order.py',
                                                      'build-utils/melonx/adapt_keepalive_hold_off.py',
                                                      'build-utils/melonx/adapt_darwin_spin_yield.py',
-                                                     'build-utils/melonx/adapt_pool_slot_copy.py'} and
+                                                     'build-utils/melonx/adapt_pool_slot_copy.py',
+                                                     # Next lot.
+                                                     'build-utils/melonx/adapt_texture_play_clock.py',
+                                                     'build-utils/melonx/adapt_private_span_snapshot.py',
+                                                     'build-utils/melonx/adapt_query_prereset.py',
+                                                     'build-utils/melonx/adapt_merged_buffer_order.py',
+                                                     'build-utils/melonx/adapt_queued_3d_syncpoints.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -790,7 +814,9 @@ if not args.helpers_only:
     # adapt_array_dirty_log.py joins them too (Texture.cs and TextureBindingsArrayCache.cs are members already).
     # IPA 736, third lot: adapt_fence_status.py joins them; FenceHolder.cs and MultiFenceHolder.cs join the members (219).
     # IPA 740 lot: eight adapters join them; CommandBufferPool.cs joins the members (220; Auto.cs is one already).
-    check(len(frozen['preparationInputs']) == 234 and len(frozen['preparedMembers']) == 220, 'Wrong final composition')
+    # Next lot: five adapters join them (239); AddressSpacePartition.cs joins the members (221; the other eight files of
+    # the lot are members already).
+    check(len(frozen['preparationInputs']) == 239 and len(frozen['preparedMembers']) == 221, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
@@ -878,6 +904,15 @@ if not args.helpers_only:
           gate['darwin-spin-yield']['assertions'].get('ringNoLostWakeup') is True and
           gate['darwin-spin-yield']['assertions'].get('unboundExportFallsBack') is True,
           'The Core 745 changes are not bound by their gates')
+    # Next lot: the queued 3D increments are executed on the final source (not only compiled by fragmented-reads), and
+    # the private spans of AddressSpacePartition.cs are compared with the locked walk in the receipt that is frozen.
+    check(set(C766_QUEUED_3D_SYNCPOINTS) <= set(gate['queued-3d-syncpoints']['requiredPostimages']) and
+          gate['queued-3d-syncpoints']['assertions'].get('inputMode') == 'preparedSource' and
+          gate['queued-3d-syncpoints']['assertions'].get('finalPreparationBound') is True and
+          gate['queued-3d-syncpoints']['assertions'].get('scenarios') == 38 and
+          gate['fragmented-reads']['assertions'].get('privateRemapsChecked') is True and
+          set(C766_PRIVATE_SPAN_SNAPSHOT) <= set(gate['fragmented-reads']['requiredPostimages']),
+          'The next lot\'s changes are not bound by their gates')
     OUTSIDE_GPU |= {C745_NIFM_SERVICE}
     # Core 747: Ryujinx.Common's AsyncWorkQueue.cs is outside the GPU closure; its gate (wait-spin-bound) builds it.
     OUTSIDE_GPU |= {C747_SPIN_EVENT}

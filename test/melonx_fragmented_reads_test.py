@@ -130,6 +130,15 @@ COMPOSED = sorted(set(COMPOSED) | set(FENCE_STATUS))
 # so the final Vulkan build binds them.
 from adapt_command_buffer_ownership import BASELINE as COMMAND_BUFFER_OWNERSHIP  # noqa: E402
 COMPOSED = sorted(set(COMPOSED) | set(COMMAND_BUFFER_OWNERSHIP))
+# Next lot: adapt_private_span_snapshot changes how the host-tracked memory manager this probe drives finds a private
+# mapping inside a partition (AddressSpacePartition.cs, Ryujinx.Cpu, new to the production scope): the file joins the
+# composition, the build and the receipt, and section 6b of the probe drives it across partitions.
+from adapt_private_span_snapshot import BASELINE as PRIVATE_SPANS  # noqa: E402
+COMPOSED = sorted(set(COMPOSED) | set(PRIVATE_SPANS))
+# Next lot: adapt_queued_3d_syncpoints' files (SemaphoreUpdater.cs is new to the production scope) join the composition,
+# so the final GPU build binds them.
+from adapt_queued_3d_syncpoints import BASELINE as QUEUED_3D  # noqa: E402
+COMPOSED = sorted(set(COMPOSED) | set(QUEUED_3D))
 # Production files the candidate build compiles and this receipt binds (the region type is unchanged). Library.cs
 # (Ryujinx.Library) is outside the GPU assembly closure: it is composed and bound here, compiled by NativeAOT.
 COMPILED = sorted((set(COMPOSED) - {DMA_LIBRARY}) | {'src/Ryujinx.Graphics.Gpu/Memory/ReadOnlyRegion.cs'})
@@ -163,6 +172,11 @@ INPUTS = ['test/melonx_fragmented_reads_test.py', 'test/melonx_fragmented_reads/
           'build-utils/melonx/adapt_shader_save_journal.py', 'build-utils/melonx/adapt_nan_scrub.py', 'build-utils/melonx/adapt_main_cache_checkpoint.py', 'build-utils/melonx/adapt_checkpoint_side_cache.py', 'build-utils/melonx/adapt_evicted_buffer_recreate.py', 'build-utils/melonx/adapt_audio_start_deferred.py', 'build-utils/melonx/adapt_pipeline_cache_room.py', 'build-utils/melonx/adapt_pipeline_cache_persist.py', 'build-utils/melonx/adapt_pipeline_build_journal.py', 'build-utils/melonx/adapt_pipeline_cache_growth.py', 'build-utils/melonx/adapt_occupied_readback_buffers.py', 'build-utils/melonx/adapt_async_regenerated_targets.py', 'build-utils/melonx/adapt_released_texture_flush.py', 'build-utils/melonx/adapt_pipeline_failure_identity.py', 'build-utils/melonx/adapt_worker_main_cache_lookup.py', 'build-utils/melonx/adapt_compute_switch_bindings.py', 'build-utils/melonx/adapt_bgc_keepalive.py', 'build-utils/melonx/adapt_array_delta_invalidated.py', 'build-utils/melonx/adapt_pipeline_cache_background.py', 'build-utils/melonx/adapt_sync_wait_attribution.py', 'build-utils/melonx/adapt_synced_buffer_reads.py', 'build-utils/melonx/adapt_layout_used_types.py', 'build-utils/melonx/adapt_same_program_descriptors.py', 'build-utils/melonx/adapt_retention_chain.py', 'build-utils/melonx/adapt_short_cache_reuse.py', 'build-utils/melonx/adapt_pipeline_variant_replay.py', 'build-utils/melonx/adapt_pipeline_snapshot_retire.py', 'build-utils/melonx/adapt_extra_set_binds.py', 'build-utils/melonx/adapt_array_reference_deltas.py', 'build-utils/melonx/adapt_worker_library_share.py',
           'build-utils/melonx/adapt_partition_snapshot.py', 'build-utils/melonx/adapt_fence_status.py',
           'build-utils/melonx/adapt_command_buffer_ownership.py',
+          # Next lot: applied last, in ORDER, on the composed GpuContext.cs, AddressSpacePartition.cs, PipelineFull.cs,
+          # BufferCache.cs and the queued 3D syncpoint files.
+          'build-utils/melonx/adapt_texture_play_clock.py', 'build-utils/melonx/adapt_private_span_snapshot.py',
+          'build-utils/melonx/adapt_query_prereset.py', 'build-utils/melonx/adapt_merged_buffer_order.py',
+          'build-utils/melonx/adapt_queued_3d_syncpoints.py',
           'test/melonx_adapter_control.py', 'native/melonx/EmbeddedPerformanceDiagnostics.cs']
 # One fragment of a real anchor per adapted file; altering it must stop the whole adapter.
 DRIFT = {
@@ -370,6 +384,18 @@ if private['supported']:
         check(after['privatePartitions']['crossingUploadAllocated'] < 1024, 'partition-crossing upload copy not removed')
     check(after['privatePartitions']['crossingSnapshotAllocated'] <= private['crossingSnapshotAllocated'] + 64,
           'partition-crossing snapshot got more expensive')
+# Next lot (adapt_private_span_snapshot): private mappings mapped, unmapped and mapped again across a partition boundary
+# (probe section 6b). Both builds read back the bytes written at each page's last mapping and give the same lookups; the
+# candidate's lookups through its published spans equal its locked walk (checked inside the probe, counted here).
+remaps = before['privateRemaps']
+check(remaps['supported'] == after['privateRemaps']['supported'], 'private remap support differs')
+if remaps['supported']:
+    shared = {key: after['privateRemaps'][key] for key in remaps}
+    check(remaps == shared, 'private remap bytes or lookups changed: ' + json.dumps(dict(control=remaps, candidate=shared)))
+    check(remaps['updates'] == 64 and remaps['lookups'] > 0 and remaps['readRanges'] > 0 and remaps['crossingReads'] > 0 and
+          remaps['modelMatches'] is True, 'private remap scenario not exercised: ' + json.dumps(remaps))
+    check(after['privateRemaps']['snapshotComparisons'] > 0 and after['privateRemaps']['partitionsCompared'] > 0,
+          'the candidate did not compare its published private spans with the locked walk')
 page = os.sysconf('SC_PAGESIZE')
 reproduced = before['privatePartitions'].get('crossingUploadAllocated', 0) >= 0x30000
 limits = ['managed Release build of the GPU and Vulkan assembly closures, not the NativeAOT library; no Apple timing, device memory or FPS claim']
@@ -377,12 +403,15 @@ if not reproduced:
     limits.append('the partition-crossing range was borrowed by both builds on this host (no copy in the control)')
 if not host_mapped['supported']:
     limits.append('MemoryManagerHostMapped not exercised: ' + host_mapped['reason'])
+if not remaps['supported']:
+    limits.append('private remaps not exercised: ' + remaps['reason'])
 report = dict(result='passed', checks=checks + before['checks'] + after['checks'], probeChecks=dict(control=before['checks'], candidate=after['checks']),
               compiledProjects=projects, preimages=preimages, postimages=postimages, compiledSourceInputs=compiled,
               finalPreparedSourceBound=bool(CANDIDATE), sourceKind='deliveredPreparedWithFinalCandidate' if CANDIDATE else 'deliveredPreparedComposed',
               control=before, candidate=after, inputs={name: sha(ROOT / name) for name in INPUTS},
               host=platform.system() + ' ' + platform.machine() + ' Release managed build', pageSize=page,
               privatePartitionCopyReproducedOnHost=reproduced, hostMappedChecked=host_mapped['supported'],
+              privateRemapsChecked=remaps['supported'],
               physicalDeviceTested=False, fpsGainProven=False, limits=limits)
 args.report.parent.mkdir(parents=True, exist_ok=True)
 args.report.write_text(json.dumps(report, indent=2) + '\n')

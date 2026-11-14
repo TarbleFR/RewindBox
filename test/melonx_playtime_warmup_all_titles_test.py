@@ -88,7 +88,10 @@ if FINAL_PREPARATION:
     # Core 745: adapt_nifm_network_watch (one more text in the sessionRetention journal line) and adapt_paced_strict_syncs
     # (two Hogwarts assignments) edit Library.cs after this adapter. Each of their replacements is undone, once, from
     # the final preparation before the exact comparison; no other later adapter edits the file.
-    later = later_sharing('adapt_playtime_warmup_all_titles')
+    # Next lot: adapt_texture_play_clock and adapt_queued_3d_syncpoints share GpuContext.cs with adapt_paced_strict_syncs
+    # and join the chain (as any adapter sharing a file with it would) without editing Library.cs: only the adapters whose
+    # files include Library.cs are undone here.
+    later = [name for name in later_sharing('adapt_playtime_warmup_all_titles') if L in __import__(name).BASELINE]
     check(later == ['adapt_nifm_network_watch', 'adapt_paced_strict_syncs'] and files_edited_later('adapt_playtime_warmup_all_titles') == {L},
           'the later adapters editing Library.cs are the two reviewed ones: %s' % later)
     final_text = (FINAL_SOURCE / L).read_text(encoding='utf-8-sig')

@@ -415,3 +415,25 @@ place, then 5 slow ones; then Home, back, and the same lifts within 10 s; export
 Core of the IPA 740 lot: bacdcacd (run 43591507649, build-smoke: NativeAOT and ABI verified, two simulator
 sessions; artifact 14113430033, SHA-256 558d929a, iPhone binary 387bb024, packaged fingerprint 7d9b0ad0, contract
 2ff62c92), verified locally with melonx_dma_core_component and pinned, for delivery 745 (this session).
+
+### Lot after IPA 745 (next MeloNX Core): five adapters, gate 109
+
+From the IPA 740 logs (Hogwarts Legacy, pid 5954) and plan lots 1-2, each adapter written, compiled (Linux, Release),
+adversarially reviewed and repaired before wiring:
+- adapt_texture_play_clock (all titles, iOS): the cold-texture age counts seconds of play, not host uptime (hygiene
+  after a pause or background; not presented as the grey-frame fix).
+- adapt_private_span_snapshot (every title): private mappings looked up in a published snapshot instead of under the
+  partition tree's reader lock (GPU thread 18-21 of 544 samples in the 740 profiles).
+- adapt_query_prereset (titles with occlusion queries): the pre-reset queries are no longer thrown away at each
+  submission, so the first query after it does not end the render pass again.
+- adapt_merged_buffer_order (every title): a merged buffer joins the list before the multi-range buffers over its range
+  are recreated (the duplicate found by the IPA 740 lot review disappears).
+- adapt_queued_3d_syncpoints (Hogwarts policy): the 3D engine's syncpoint increment is queued behind its occlusion
+  reports like Syncpointb, with the address-rewrite guard; bound from the logs: counterReports + syncInvoke 27.0 s of
+  GPU-thread blocking over the session. Gate 109 runs the queued-syncpoints fixture on the final source.
+109 gates on the final preparation (Linux x86_64), all passed (array-rebuild-allocations rerun alone on a quiet host);
+contract c3835954. Investigations of the same round: no crash, device loss or pipeline failure in the 740 session; the
+"pipeline builds" counter adds wall time of every thread (the render thread spent 157-242 ms there, not 1-5 s); the
+largest render-thread freeze is one first build of a new compute program (about 980 ms, mostly Metal compilation); the
+variant journal is full (at least 163 new states unrecorded in Hogwarts, 107 and 251 in two SSBU sessions). Fixes for
+these two are staged for the next lot. Not measured on an iPhone.

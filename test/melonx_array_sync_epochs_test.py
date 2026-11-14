@@ -164,7 +164,15 @@ with tempfile.TemporaryDirectory(prefix='melonx-array-sync-epochs-') as temporar
           sync == member(old_texture, 'public void SynchronizeMemory()'),
           'the synchronisation of a texture that is not dirty only stamps its last use; unchanged by the adapter')
     context = (candidate / 'src/Ryujinx.Graphics.Gpu/GpuContext.cs').read_text(encoding='utf-8-sig')
-    check('TextureUseEpoch = (int)(now / 1000);' in context and context.count('TextureUseEpoch =') == 1, 'the use clock counts seconds, set at one place')
+    # IPA 740 lot 2c: in the final preparation adapt_texture_play_clock sets the clock from the play time (whole seconds,
+    # each CheckHostMemory adds 1 000 to 2 000 ms): it still moves at every check, by 1 or 2.
+    clock = ('TextureUseEpoch = (int)(_texturePlayMilliseconds / 1000);' if FINAL_PREPARATION else
+             'TextureUseEpoch = (int)(now / 1000);')
+    check(clock in context and context.count('TextureUseEpoch =') == 1, 'the use clock counts seconds, set at one place')
+    check(not FINAL_PREPARATION or
+          ('_texturePlayMilliseconds += Math.Min(now - _lastHostMemoryCheck, 2 * HostMemoryCheckIntervalMs);' in context and
+           context.count('_texturePlayMilliseconds +=') == 1 and 'if (now - _lastHostMemoryCheck < HostMemoryCheckIntervalMs)' in context),
+          'the play clock adds one to two check intervals per check, at one place')
     # A scale mode is written by the two constructors (a new texture), by BlacklistScale (into the blacklist) and by
     # SetScale, which gives a view its storage's mode and a storage its view's: those four assignments go through
     # AssignScaleMode, which signals a texture that leaves the blacklist. No other file writes a scale mode.
@@ -304,7 +312,7 @@ for cv, kv in zip(c['visits'], k['visits']):
 print(json.dumps(visits, indent=1), flush=True)
 
 inputs = ['build-utils/melonx/adapt_array_sync_epochs.py', 'build-utils/melonx/adapt_session.py', 'test/melonx_array_sync_epochs_test.py',
-          'test/melonx_array_sync_epochs/Program.cs', 'test/melonx_adapter_control.py']
+          'test/melonx_array_sync_epochs/Program.cs', 'test/melonx_adapter_control.py', 'build-utils/melonx/adapt_texture_play_clock.py']
 report = {
     'result': 'passed', 'checks': checks, 'fixtureChecks': k['checks'], 'finalPreparationBound': FINAL_PREPARATION,
     'sourceKind': 'finalPreparationWithReversedControl' if FINAL_PREPARATION else 'pinnedPreparationPlusAdapter',

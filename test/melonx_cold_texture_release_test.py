@@ -401,7 +401,9 @@ check([p['released'] for p in f['passes']] == [256, 44, 0, 0] and f['remainingIn
 
 inputs = ['build-utils/melonx/adapt_cold_texture_release.py', 'build-utils/melonx/adapt_session.py',
           'test/melonx_cold_texture_release_test.py', 'test/melonx_cold_texture_release/Program.cs',
-          'test/melonx_gpu_teardown/Fakes.cs', 'test/melonx_adapter_control.py']
+          'test/melonx_gpu_teardown/Fakes.cs', 'test/melonx_adapter_control.py',
+          # IPA 740 lot 2c: reversed for the control and re-applied in the forward check (GpuContext.cs).
+          'build-utils/melonx/adapt_texture_play_clock.py']
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
 receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPARATION,
                sourceKind='finalPreparationWithReversedControl' if FINAL_PREPARATION else 'core658Preparation',

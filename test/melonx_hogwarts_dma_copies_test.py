@@ -237,6 +237,16 @@ LOT_FILES = {
     'adapt_darwin_spin_yield': [],
     # IPA 740 lot: a large array's slot copied from its latest slot (TextureArray.cs in this composition).
     'adapt_pool_slot_copy': ['src/Ryujinx.Graphics.Vulkan/TextureArray.cs'],
+    # Next lot, in preparation order: the texture use clock counts play time (GpuContext.cs, outside this composition);
+    # a partition's private mappings looked up in a published snapshot (AddressSpacePartition.cs, outside it); the
+    # queries reset ahead kept across a submission (PipelineFull.cs in this composition); the merged buffer joins the list
+    # before the multi-range recreation (BufferCache.cs in this composition); the 3D engine's increments queued behind
+    # their reports (no file of this composition).
+    'adapt_texture_play_clock': [],
+    'adapt_private_span_snapshot': [],
+    'adapt_query_prereset': ['src/Ryujinx.Graphics.Vulkan/PipelineFull.cs'],
+    'adapt_merged_buffer_order': ['src/Ryujinx.Graphics.Gpu/Memory/BufferCache.cs'],
+    'adapt_queued_3d_syncpoints': [],
 }
 
 checks = 0

@@ -79,7 +79,9 @@ import adapt_buffer_last_hit as _hit  # noqa: E402
 # IPA 740 lot: adapt_buffer_hit_sets then turns that memo into two-way sets emptied per removed buffer.
 import adapt_buffer_hit_sets as _sets  # noqa: E402
 check(LATER in ([], ['adapt_cold_buffer_trim'], ['adapt_cold_buffer_trim', 'adapt_buffer_last_hit'],
-                ['adapt_cold_buffer_trim', 'adapt_buffer_last_hit', 'adapt_buffer_hit_sets']),
+                ['adapt_cold_buffer_trim', 'adapt_buffer_last_hit', 'adapt_buffer_hit_sets'],
+                # Next lot: adapt_merged_buffer_order (the merge overload adds the merged buffer; no member compiled here).
+                ['adapt_cold_buffer_trim', 'adapt_buffer_last_hit', 'adapt_buffer_hit_sets', 'adapt_merged_buffer_order']),
       'the later adapters sharing the file are known: %s' % LATER)
 _ADDED = _hit.ADDED.replace(_sets.TABLE_OLD, _sets.TABLE_NEW) if 'adapt_buffer_hit_sets' in LATER else _hit.ADDED
 check(_sets.TABLE_OLD in _hit.ADDED, 'the two-way sets replace the last-hit members')

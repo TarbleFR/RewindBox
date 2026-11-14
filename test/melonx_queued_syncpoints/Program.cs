@@ -254,19 +254,117 @@ static class Program
                       "disposal logs the queue counters");
             });
 
-            Scenario("3D engine increment: never ahead of the queued increments" + mode, () =>
+            Scenario("3D engine increment: queued behind the queued increments, in command order" + mode, () =>
             {
                 using var s = new Session(policy: true, threaded: threaded);
                 var a = s.Add(600);
                 s.Fifo.Increment(60);
                 var r = s.Add(601);
                 s.Threed.Increment(61);
-                Check(InOrder("publish:600", "inc:60", "publish:601", "inc:61"),
-                      "the 3D increment follows the queued one and every earlier report");
+                Check(QueueLength(s.Context) == 2 && Count("inc:") == 0 && s.Context.Renderer.Drains == 0, "queued, no barrier, no wait");
+                Check(s.Context.HostSyncs.Last() == (HostSyncFlags.StrictSyncpoint | HostSyncFlags.Force) &&
+                      s.Context.HostSyncCallers.Last() == "QueueSyncpointBehindReports", "forced with its reports, counted as queued");
+                Check(s.Context.Renderer.Updates == 1, "counters polled");
+                r.Complete();
+                s.Device.WaitForCommands();
+                Check(Count("inc:") == 0, "the 3D increment does not overtake the GPFIFO one");
+                a.Complete();
+                s.Device.WaitForCommands();
+                Check(InOrder("publish:600", "inc:60", "publish:601", "inc:61"), "the 3D increment follows the queued one and every earlier report");
                 Check(Increments().SequenceEqual(new uint[] { 60, 61 }) && QueueLength(s.Context) == 0, "each once, queue empty");
-                Check(Counter(s.Context, "_syncpointsByIncrement") == 1, "counted: drained by a 3D increment");
+                Check(Counter(s.Context, "_syncpointsByIncrement") == 0, "never drained by a 3D increment");
                 Check(a.Released && r.Released && s.Leases == 0, "leases returned");
             });
+
+            Scenario("3D engine increment, nothing pending, queue not empty: paced site" + mode, () =>
+            {
+                using var s = new Session(policy: true, threaded: threaded);
+                var a = s.Add(620);
+                s.Threed.Increment(62);
+                s.Threed.Increment(63);
+                Check(QueueLength(s.Context) == 2 && Count("inc:") == 0, "both queued");
+                Check(s.Context.HostSyncs.Last() == HostSyncFlags.StrictSyncpoint && s.Context.HostSyncCallers.Last() == "IncrementSyncpoint",
+                      "the site's own strict sync (the pacer sees IncrementSyncpoint)");
+                s.Fifo.Increment(64);
+                Check(s.Context.HostSyncCallers.Last() == "Syncpointb", "the GPFIFO site's own sync");
+                a.Complete();
+#if PREPARED_SOURCE
+                new EntryProbe(s.Context).AfterEntry();
+                Check(InOrder("publish:620", "inc:62", "inc:63", "inc:64") && QueueLength(s.Context) == 0, "processed after a GPFIFO entry, in order");
+#else
+                s.Device.WaitForCommands();
+                Check(InOrder("publish:620", "inc:62", "inc:63", "inc:64") && QueueLength(s.Context) == 0, "processed in order");
+#endif
+            });
+
+            Scenario("3D engine increment, nothing pending, queue empty: the delivered path" + mode, () =>
+            {
+                using var s = new Session(policy: true, threaded: threaded);
+                s.Threed.Increment(65);
+                Check(Increments().SequenceEqual(new uint[] { 65 }) && QueueLength(s.Context) == 0, "incremented at once");
+                Check(s.Context.HostSyncs.SequenceEqual(new[] { HostSyncFlags.StrictSyncpoint }) &&
+                      s.Context.HostSyncCallers.Last() == "IncrementSyncpoint" && s.Context.Renderer.Drains == 0, "strict sync, no barrier");
+            });
+
+#if PREPARED_SOURCE
+            Scenario("address rewrite: a later report never hides a queued one" + mode, () =>
+            {
+                using var s = new Session(policy: true, threaded: threaded);
+                var probe = new ReportProbe(s.Context, s.Cache);
+                var r1 = s.Detached(900);
+                probe.ReportCounter(0x1000, r1.Deferred);
+                var other = s.Detached(901);
+                probe.ReportCounter(0x2000, other.Deferred);
+                s.Threed.Increment(90);
+                Check(QueueLength(s.Context) == 1 && Count("inc:") == 0, "K queued with R1 and the other report");
+                Check(s.Cache.HasQueuedReportAt(0x1000) && !s.Cache.HasQueuedReportAt(0x3000), "R1 is a queued report at A");
+                var unrelated = s.Detached(903);
+                probe.ReportCounter(0x3000, unrelated.Deferred);
+                Check(QueueLength(s.Context) == 1 && Count("inc:") == 0, "a report to another address does not drain");
+                var r2 = s.Detached(902);
+                probe.ReportCounter(0x1000, r2.Deferred);
+                Check(InOrder("publish:900", "inc:90") && r1.Publishes == 1 && QueueLength(s.Context) == 0,
+                      "R1 published and K incremented before R2 replaces R1 at A");
+                Check(Counter(s.Context, "_syncpointsByWait") == 1, "counted as drained by a wait");
+                Check(!r2.Deferred.Invalid && s.Cache.PendingReportCount == 2, "R2 and the unrelated report pending");
+                s.Threed.Increment(91);
+                r2.Complete();
+                unrelated.Complete();
+                s.Device.WaitForCommands();
+                Check(InOrder("publish:900", "inc:90", "publish:902", "inc:91") && Increments().SequenceEqual(new uint[] { 90, 91 }),
+                      "R2 published before K+1");
+                Check(r1.Released && r2.Released && other.Released && unrelated.Released && s.Leases == 0, "leases returned");
+            });
+
+            Scenario("address rewrite of a pending (not queued) report: replaced, as before" + mode, () =>
+            {
+                using var s = new Session(policy: true, threaded: threaded);
+                var probe = new ReportProbe(s.Context, s.Cache);
+                var r1 = s.Detached(910);
+                probe.ReportCounter(0x1000, r1.Deferred);
+                var r2 = s.Detached(911);
+                probe.ReportCounter(0x1000, r2.Deferred);
+                Check(r1.Deferred.Invalid && r1.Publishes == 0 && Count("inc:") == 0 && s.Context.Renderer.Drains == 0,
+                      "no queue: R1 superseded, no drain");
+                s.Threed.Increment(92);
+                r2.Complete();
+                s.Device.WaitForCommands();
+                Check(InOrder("publish:911", "inc:92") && r1.Publishes == 0, "only R2 published, then K");
+            });
+
+            Scenario("address rewrite, policy off: no guard" + mode, () =>
+            {
+                using var s = new Session(policy: false, threaded: threaded);
+                var probe = new ReportProbe(s.Context, s.Cache);
+                var r1 = s.Detached(920);
+                probe.ReportCounter(0x1000, r1.Deferred);
+                s.Threed.Increment(93);
+                Check(InOrder("publish:920", "inc:93"), "delivered blocking path");
+                var r2 = s.Detached(921);
+                probe.ReportCounter(0x1000, r2.Deferred);
+                Check(!s.Context.HasQueuedSyncpoints && s.Cache.PendingReportCount == 1, "R2 pending, nothing queued");
+            });
+#endif
 
             Scenario("3D engine increment, policy off: the delivered path" + mode, () =>
             {
@@ -455,6 +553,26 @@ static class Program
             report.Deferred.Attach(report.Counter);
             cache.AddReport(report.Deferred);
             Context.TrackCounterReports(cache);
+            return report;
+        }
+
+        // A report not yet in the cache: ReportProbe adds it through CounterCache.AddOrUpdate, as ReportCounter does.
+        public Report Detached(ulong value, bool never = false)
+        {
+            var report = new Report { Value = value };
+            Interlocked.Increment(ref Leases);
+            report.Deferred = new DeferredCounterReport(published =>
+            {
+                Program.Check(published == value, "published value " + value);
+                report.Publishes++;
+                FixtureTrace.Add("publish:" + value);
+            }, () => { report.Released = true; Interlocked.Decrement(ref Leases); });
+            report.Counter = new TestCounter
+            {
+                Target = report.Deferred, Renderer = Context.Renderer, Value = value, Never = never,
+                RequiredSubmit = Context.Renderer.SubmitsQueued + 1,
+            };
+            report.Deferred.Attach(report.Counter);
             return report;
         }
 

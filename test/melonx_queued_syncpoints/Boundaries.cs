@@ -62,6 +62,13 @@ namespace Ryujinx.Common.Logging
 
 namespace Ryujinx.Graphics.Gpu.Memory
 {
+    public class UnmapEventArgs
+    {
+        public ulong Address { get; }
+        public ulong Size { get; }
+        public UnmapEventArgs(ulong address, ulong size) { Address = address; Size = size; }
+    }
+
     partial class CounterCache
     {
         // Boundary for CounterCache.AddOrUpdate as adapt_occlusion_reports writes it: a deferred report joins the
@@ -169,9 +176,12 @@ namespace Ryujinx.Graphics.Gpu
 
         public GpuContext(bool threaded) { Renderer = new RendererBoundary(threaded); }
 
-        public void CreateHostSyncIfNeeded(HostSyncFlags flags)
+        public readonly List<string> HostSyncCallers = new();
+
+        public void CreateHostSyncIfNeeded(HostSyncFlags flags, [System.Runtime.CompilerServices.CallerMemberName] string caller = "")
         {
             HostSyncs.Add(flags);
+            HostSyncCallers.Add(caller);
             FixtureTrace.Add("sync:" + flags);
             Renderer.Submit();
         }
@@ -246,6 +256,37 @@ namespace Ryujinx.Graphics.Gpu
         public readonly EventBoundary _event = new();
 
         public FifoDeviceProbe(GpuContext context) { _context = context; }
+    }
+
+    internal sealed class MemoryManagerBoundary
+    {
+        public readonly Ryujinx.Graphics.Gpu.Memory.CounterCache CounterCache;
+        public MemoryManagerBoundary(Ryujinx.Graphics.Gpu.Memory.CounterCache cache) { CounterCache = cache; }
+    }
+
+    internal sealed class ReportChannelBoundary
+    {
+        public MemoryManagerBoundary MemoryManager;
+    }
+
+    // SemaphoreUpdater.ReportCounter's guard (adapt_queued_3d_syncpoints), then CounterCache.AddOrUpdate as it follows
+    // (compiled from a prepared tree only).
+    partial class ReportProbe
+    {
+        private readonly GpuContext _context;
+        private readonly ReportChannelBoundary _channel = new();
+        public ReportProbe(GpuContext context, Ryujinx.Graphics.Gpu.Memory.CounterCache cache)
+        {
+            _context = context;
+            _channel.MemoryManager = new MemoryManagerBoundary(cache);
+        }
+    }
+
+    // GPFifoDevice.DispatchCallsCore's block after each GPFIFO entry (adapt_queued_3d_syncpoints).
+    partial class EntryProbe
+    {
+        private readonly GpuContext _context;
+        public EntryProbe(GpuContext context) { _context = context; }
     }
 
     // ThreedClass.IncrementSyncpoint (the 3D engine's syncpoint method), compiled from the adapted source.

@@ -18,6 +18,13 @@ Two input modes, the same regions and scenarios:
   adapters applied (adapt_counter_report_compaction, adapt_queued_syncpoints);
 - --source <prepared tree>: the regions extracted from the prepared files (upstream's own frames, every adapter applied).
 
+DMA Core plan gate queued-3d-syncpoints: <control> --candidate-source <final preparation> runs the --source mode on the
+final preparation, after melonx_adapter_control.control_source proved it is the pinned preparation plus
+adapt_queued_3d_syncpoints exactly (its replacements reversed give its BASELINE, re-applied give the final bytes). The
+control argument is the plan's common one and is not read: the delivered tree has neither queue (adapt_queued_syncpoints
+is later), so the scenarios have nothing to run on it. The receipt binds the final post-images of the compiled files
+(dist/melonx/queued-3d-syncpoints-checks.json).
+
 No Vulkan, GPU, iPhone or FPS claim.
 """
 import argparse
@@ -38,15 +45,17 @@ sys.path.insert(0, str(ADAPTERS))
 sys.dont_write_bytecode = True
 import adapt_counter_report_compaction as compaction  # noqa: E402
 import adapt_queued_syncpoints as queued  # noqa: E402
+import adapt_queued_3d_syncpoints as queued_3d  # noqa: E402
 from adapt_occlusion_reports import REPORT  # noqa: E402
 
 THREED = queued.THREED_CLASS
 FILES = [queued.GPU_CONTEXT, queued.COUNTER_CACHE, queued.DEFERRED_REPORT, queued.GPFIFO_CLASS, queued.GPFIFO_DEVICE,
-         THREED, queued.LIBRARY]
+         THREED, queued.LIBRARY, queued_3d.SEMAPHORE]
 INPUTS = ['test/melonx_queued_syncpoints_fixture_test.py', 'test/melonx_queued_syncpoints/Program.cs',
           'test/melonx_queued_syncpoints/Boundaries.cs', 'build-utils/melonx/adapt_queued_syncpoints.py',
           'build-utils/melonx/adapt_occlusion_reports.py', 'build-utils/melonx/adapt_occlusion_completion.py',
-          'build-utils/melonx/adapt_counter_report_compaction.py', 'build-utils/melonx/adapt_performance_diagnostics.py']
+          'build-utils/melonx/adapt_counter_report_compaction.py', 'build-utils/melonx/adapt_performance_diagnostics.py',
+          'build-utils/melonx/adapt_queued_3d_syncpoints.py', 'test/melonx_adapter_control.py']
 
 # Upstream frames around the anchors (adapter-text mode only). The anchors inside them are the adapters' own texts.
 UPSTREAM_SYNCPOINTB = '''        public void Syncpointb(int argument)
@@ -172,6 +181,11 @@ namespace Ryujinx.Graphics.Gpu
           '            Ryujinx.Graphics.Vulkan.EncodingPolicy.IncrementalArrayDescriptors = hogwarts;\n        }\n    }\n}\n')
     compaction.apply(tree)
     queued.apply(tree)
+    # adapt_queued_3d_syncpoints on the shells that hold its anchors (the 3D increment, the queue, the report); its
+    # CounterCache, GPFifoDevice and SemaphoreUpdater parts are compiled from a prepared tree only (--source).
+    for relative, old, new in queued_3d.PAIRS:
+        if relative in (queued_3d.THREED, queued_3d.CONTEXT, queued_3d.REPORT):
+            write(tree / relative, once(read(tree / relative), old, new))
 
 
 def method(text, signature):
@@ -192,13 +206,13 @@ def hunk(relative, index):
     return queued.HUNKS[relative][index][1]
 
 
-def regions(tree):
+def regions(tree, prepared=False):
     """The compiled regions, extracted the same way from shells or from a prepared tree."""
     context = read(tree / queued.GPU_CONTEXT)
     start = context.index('        public bool SynchronizeOcclusionReports { get; set; }')
     end_marker = 'oldest {_oldestQueuedSyncpointMs:F1} ms");\n'
     members = context[start:context.index(end_marker, start) + len(end_marker)]
-    for required in ('internal bool FlushCounterReports()', 'internal bool QueueSyncpointBehindReports(uint syncpoint)'):
+    for required in ('internal bool FlushCounterReports()', 'internal bool QueueSyncpointBehindReports(uint syncpoint, '):
         if members.count(required) != 1:
             raise SystemExit('fixture: GpuContext region lacks ' + required)
     dispose = hunk(queued.GPU_CONTEXT, 1)
@@ -211,7 +225,7 @@ def regions(tree):
     library = hunk(queued.LIBRARY, 0)
     if read(tree / queued.LIBRARY).count(library) != 1:
         raise SystemExit('fixture: Library assignment not found exactly once')
-    return {
+    sources = {
         'Context.cs': 'using System;\nusing System.Collections.Generic;\nusing Ryujinx.Graphics.Gpu.Memory;\n\n'
                       'namespace Ryujinx.Graphics.Gpu\n{\n    public partial class GpuContext\n    {\n' + members +
                       '\n        public void Dispose()\n        {\n' + dispose + '\n        }\n    }\n}\n',
@@ -228,13 +242,52 @@ def regions(tree):
         'Library.cs': 'namespace Ryujinx.Graphics.Gpu\n{\n    static class LibraryProbe\n    {\n'
                       '        public static void Assign(bool hogwarts)\n        {\n' + library + '\n        }\n    }\n}\n',
     }
+    if prepared:
+        # The whole CounterCache (AddOrUpdate, BinarySearch, HasQueuedReportAt), the report guard of
+        # SemaphoreUpdater.ReportCounter and the block GPFifoDevice runs after each GPFIFO entry (adapt_queued_3d_syncpoints).
+        sources['Cache.cs'] = once(cache, '    class CounterCache\n', '    partial class CounterCache\n')
+        sources['Guard.cs'] = guard_region(tree)
+    return sources
+
+
+def guard_region(tree):
+    """adapt_queued_3d_syncpoints' report guard and per-entry block, from the prepared files, in two probes."""
+    semaphore = read(tree / queued_3d.SEMAPHORE)
+    start = semaphore.index('            if (_context.HasQueuedSyncpoints && _channel.MemoryManager.CounterCache.HasQueuedReportAt(gpuVa))')
+    end = semaphore.index('            if (_context.SynchronizeOcclusionReports && type == ReportCounterType.SamplesPassed)', start)
+    device = read(tree / queued.GPFIFO_DEVICE)
+    block = device.index('                    if (_context.HasQueuedSyncpoints)\n')
+    block_end = device.index('                }\n                finally', block)
+    return ('using System;\nusing Ryujinx.Graphics.Gpu.Memory;\n\nnamespace Ryujinx.Graphics.Gpu\n{\n    partial class ReportProbe\n    {\n'
+            '        public void ReportCounter(ulong gpuVa, DeferredCounterReport report)\n        {\n' + semaphore[start:end] +
+            '            _channel.MemoryManager.CounterCache.AddOrUpdate(gpuVa, report);\n'
+            '            _context.TrackCounterReports(_channel.MemoryManager.CounterCache);\n        }\n    }\n\n'
+            '    partial class EntryProbe\n    {\n        public void AfterEntry()\n        {\n' + device[block:block_end] +
+            '        }\n    }\n}\n')
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('control', type=Path, nargs='?', help='plan gate: the control tree (not read)')
     parser.add_argument('--source', type=Path, help='prepared MeloNX tree (default: adapter-text shells)')
-    parser.add_argument('--report', type=Path, default=ROOT / 'dist/melonx/queued-syncpoints-fixture-checks.json')
+    parser.add_argument('--candidate-source', type=Path, help='plan gate: the final preparation (adapt_queued_3d_syncpoints applied)')
+    parser.add_argument('--report', type=Path)
     args = parser.parse_args()
+    gate = args.candidate_source is not None
+    if gate:
+        if args.source:
+            raise SystemExit('fixture: --source and --candidate-source are exclusive')
+        sys.path.insert(0, str(ROOT / 'test'))
+        from melonx_adapter_control import control_source
+        holder = []
+        args.source = args.candidate_source.resolve()
+        _, bound = control_source(args.source, 'adapt_queued_3d_syncpoints', holder)
+        for temporary in holder:
+            temporary.cleanup()
+        if not bound:
+            raise SystemExit('fixture: the candidate is not a final preparation containing adapt_queued_3d_syncpoints')
+    if args.report is None:
+        args.report = ROOT / ('dist/melonx/queued-3d-syncpoints-checks.json' if gate else 'dist/melonx/queued-syncpoints-fixture-checks.json')
     dotnet = os.environ.get('DOTNET', 'dotnet')
     environment = dict(os.environ, DOTNET_CLI_TELEMETRY_OPTOUT='1', DOTNET_NOLOGO='1', DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1')
     with tempfile.TemporaryDirectory(prefix='melonx-queued-syncpoints-') as temporary:
@@ -247,7 +300,7 @@ def main():
             shells(tree)
             prepared = None
         project = work / 'probe'
-        sources = regions(tree)
+        sources = regions(tree, prepared=bool(args.source))
         for name, text in sources.items():
             write(project / name, text)
         for name in ('Boundaries.cs', 'Program.cs'):
@@ -255,7 +308,8 @@ def main():
         write(project / 'Probe.csproj', '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType>'
               '<TargetFramework>net10.0</TargetFramework><Nullable>disable</Nullable><ImplicitUsings>disable</ImplicitUsings>'
               '<EnableDefaultCompileItems>false</EnableDefaultCompileItems><TreatWarningsAsErrors>false</TreatWarningsAsErrors>'
-              '<NoWarn>CS0169;CS0414;CS0649</NoWarn><NuGetAudit>false</NuGetAudit></PropertyGroup>'
+              '<NoWarn>CS0169;CS0414;CS0649</NoWarn><NuGetAudit>false</NuGetAudit>'
+              + ('<DefineConstants>PREPARED_SOURCE</DefineConstants>' if args.source else '') + '</PropertyGroup>'
               '<ItemGroup><Compile Include="*.cs" /></ItemGroup></Project>')
         # The gates' SDK is 10.0.100; a later patch of the same band is accepted and recorded.
         write(project / 'global.json', json.dumps({'sdk': {'version': '10.0.100', 'rollForward': 'latestPatch'}}))
@@ -280,6 +334,14 @@ def main():
                   checks=outcome['checks'], scenarios=outcome['scenarios'], passed=outcome['passed'], failed=outcome['failed'],
                   compiledSourceInputs=compiled, preparedFiles=prepared,
                   inputs={path: sha((ROOT / path).read_bytes()) for path in INPUTS})
+    if gate:
+        # Plan gate: the compiled files are the final preparation's (control_source reproduced them from the pinned
+        # preparation plus adapt_queued_3d_syncpoints); the guarantee is executed on them, not only compiled.
+        report.update(finalPreparationBound=True, sourceKind='finalPreparationWithReversedControl', postimages=prepared,
+                      limitation='Compiled regions of the final preparation with doubles for the host sync, the renderer, '
+                                 'the syncpoint manager and the counter events; no Vulkan, GPU thread of a real title or '
+                                 'device. Whether Hogwarts Legacy waits less on its occlusion reports is known only from a '
+                                 'device run.')
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, indent=2) + '\n')
     for name in outcome['failed']:

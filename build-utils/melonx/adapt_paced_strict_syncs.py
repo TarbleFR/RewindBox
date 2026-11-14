@@ -19,8 +19,10 @@ Change, set per session for Hogwarts Legacy only (GpuContext.PaceStrictHostSyncs
 title keeps the engine's behaviour, and both off give back the control's decisions):
 - GpuContext.cs: a strict sync asked by ThreedClass.IncrementSyncpoint or GPFifoClass.SetReference without Force
   stays strict at most once per 4 ms of the GPU thread (StrictSyncPacer); the others are created not strict. Forced
-  syncs (counter reports, syncpoints queued behind reports) and every other site are untouched. The existing
-  "Host syncs created" line shows them under "not strict", by site.
+  syncs (counter reports, syncpoints queued behind pending reports) and every other site are untouched. The existing
+  "Host syncs created" line shows them under "not strict", by site. Since adapt_queued_3d_syncpoints (IPA 740
+  follow-up), an increment queued only because the FIFO is not empty (no report pending) gets its call site's own
+  strict sync (IncrementSyncpoint or Syncpointb), so a queued 3D increment is paced like an unqueued one.
 - AutoFlushCounter.cs: the two voluntary submissions (attachment change after 1 ms, draw in fast flush mode after
   1.5 ms) wait 4 ms and 8 ms: otherwise they would replace the syncs removed, one for one.
 4 ms: a command buffer costs the render thread about 0.34 ms (submits 295 ms + auto-flush 93 ms + array reference

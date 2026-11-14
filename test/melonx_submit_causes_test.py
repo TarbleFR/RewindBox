@@ -7,7 +7,8 @@ Diagnostics only: every submission is counted under the cause its caller names, 
 that created it. Required:
  1. additive: each replacement adds counter or text lines only (removing them gives the control's text back); the
     signature of GpuContext.CreateHostSyncIfNeeded gains an optional [CallerMemberName] parameter and no call site passes
-    it; the render stages line gains a suffix after its unchanged text;
+    it (in the control: adapt_queued_3d_syncpoints, a later adapter, passes the queue's call site from
+    QueueSyncpointBehindReports); the render stages line gains a suffix after its unchanged text;
  2. complete: every FlushAllCommands / FlushCommandsImpl call of the Vulkan backend names its cause on the line before (the
     forwarding inside VulkanRenderer.FlushAllCommands excepted); every CreateHostSyncIfNeeded call of the Gpu project sits
     in a method the site table names, in the file it names;
@@ -146,15 +147,29 @@ if FINAL_PREPARATION:
     later = files_edited_later('adapt_submit_causes')
     # Core 745: adapt_paced_strict_syncs, a later adapter, paces the strict host syncs in GpuContext.cs and the voluntary
     # submissions in AutoFlushCounter.cs. Its replacements are undone from the final text (each required once) before the
-    # same exact comparison; no other later adapter may edit these files.
+    # same exact comparison; no other later adapter may edit these files but the next lot's three below.
+    # Next lot (after adapt_paced_strict_syncs, in this order): adapt_texture_play_clock sets the texture use clock from the
+    # play time in GpuContext.cs (CheckHostMemory); adapt_query_prereset removes the ResetCounterPool call of
+    # PipelineFull.cs's submission; adapt_queued_3d_syncpoints passes the queue's call site to CreateHostSyncIfNeeded in
+    # GpuContext.cs. Their replacements are undone too, latest adapter first (each required once).
     import adapt_paced_strict_syncs as paced  # noqa: E402
-    check(later <= {paced.GPU_CONTEXT, paced.AUTO_FLUSH},
-          'no later adapter edits these files but adapt_paced_strict_syncs: ' + str(sorted(later)))
+    import adapt_texture_play_clock as play_clock  # noqa: E402
+    import adapt_query_prereset as prereset  # noqa: E402
+    import adapt_queued_3d_syncpoints as queued_3d  # noqa: E402
+    check(later <= {paced.GPU_CONTEXT, paced.AUTO_FLUSH, prereset.FULL},
+          'no later adapter edits these files but adapt_paced_strict_syncs, adapt_texture_play_clock, adapt_query_prereset '
+          'and adapt_queued_3d_syncpoints: ' + str(sorted(later)))
+    undo = (('adapt_queued_3d_syncpoints', {queued_3d.CONTEXT: [(old, new) for path, old, new in queued_3d.PAIRS
+                                                                if path == queued_3d.CONTEXT]}),
+            ('adapt_query_prereset', {prereset.FULL: list(prereset.PAIRS)}),
+            ('adapt_texture_play_clock', {play_clock.CONTEXT: list(play_clock.PAIRS)}),
+            ('adapt_paced_strict_syncs', paced.FILE_PAIRS))
     for name in adapter.BASELINE:
         final = read(FINAL_SOURCE, name)
-        for old, new in reversed(paced.FILE_PAIRS.get(name, ())):
-            check(final.count(new) == 1, 'adapt_paced_strict_syncs: each replacement once in ' + name)
-            final = final.replace(new, old)
+        for label, pairs in undo:
+            for old, new in reversed(pairs.get(name, ())):
+                check(final.count(new) == 1, label + ': each replacement once in ' + name)
+                final = final.replace(new, old)
         check(final == candidate[name], 'the final preparation is the control plus the adapter: ' + name)
 
 environment = dict(os.environ, DOTNET_CLI_TELEMETRY_OPTOUT='1', DOTNET_NOLOGO='1')
@@ -273,7 +288,9 @@ check(k['sites'] == {'Syncpointb': 0, 'IncrementSyncpoint': 1, 'SetReference': 2
                      'CreatePendingSyncs': 8, 'Dispatch': 9, '': 9}, 'site table')
 
 inputs = ['build-utils/melonx/adapt_submit_causes.py', 'build-utils/melonx/adapt_session.py', 'test/melonx_submit_causes_test.py',
-          'test/melonx_submit_causes/Program.cs', 'test/melonx_adapter_control.py', 'tools/melonx/frame_report.py']
+          'test/melonx_submit_causes/Program.cs', 'test/melonx_adapter_control.py', 'tools/melonx/frame_report.py',
+          'build-utils/melonx/adapt_texture_play_clock.py', 'build-utils/melonx/adapt_query_prereset.py',
+          'build-utils/melonx/adapt_queued_3d_syncpoints.py']
 receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPARATION,
                sourceKind='finalPreparationWithReversedControl' if FINAL_PREPARATION else 'core741Preparation',
                postimages={name: sha(FINAL_SOURCE / name) for name in adapter.BASELINE} if FINAL_PREPARATION else {},

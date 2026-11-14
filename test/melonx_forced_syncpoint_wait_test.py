@@ -24,9 +24,10 @@ policy on):
   journaled once; a value reached without the callback is Reached at the slice end with its true value;
 - already reached: no wait; policy off: the control's behaviour; a GPU-side WaitOnSyncpoint keeps the 1 s cap and its
   error line; the counters line is bounded (64 notable lines a session, then every 256 forced waits).
-Static: the candidate's files are the preparation once the adapter's replacements are undone, WaitOnSyncpoint and the
-GPU-side callers (GPFifoClass, Host1xClass) are unchanged, the flag is off by default and the Library assigns it once from
-the launched title. No device. Writes dist/melonx/forced-syncpoint-wait-checks.json.
+Static: the candidate's files are the preparation once the adapter's replacements are undone, the final preparation's
+GPFifoDevice.cs is the candidate's once adapt_queued_3d_syncpoints' replacements are undone (each once), WaitOnSyncpoint
+and the GPU-side callers (GPFifoClass, Host1xClass) are unchanged, the flag is off by default and the Library assigns it
+once from the launched title. No device. Writes dist/melonx/forced-syncpoint-wait-checks.json.
 """
 from pathlib import Path
 import hashlib, json, os, shutil, subprocess, sys, tempfile
@@ -35,7 +36,9 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate-source' in sys.argv else sys.argv[1]).resolve()
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import control_source, files_edited_later, use_authenticated_libhac_feed  # noqa: E402
+from melonx_adapter_control import control_source, files_edited_later, later_sharing, use_authenticated_libhac_feed  # noqa: E402
+import importlib  # noqa: E402
+import adapt_queued_3d_syncpoints as queued_3d  # noqa: E402
 _HOLD = []
 FINAL_SOURCE = SOURCE
 SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_forced_syncpoint_wait', _HOLD)
@@ -98,6 +101,19 @@ with tempfile.TemporaryDirectory(prefix='melonx-forced-syncpoint-wait-') as temp
                 for name in BASELINE:
                     if name not in later:
                         check((work / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
+                # Next lot: adapt_queued_3d_syncpoints, the only later adapter that edits GPFifoDevice.cs, processes the
+                # queued syncpoints after each GPFIFO entry. Its replacements in that file are undone from the final text
+                # (each required once): what is left is exactly this candidate's GPFifoDevice.cs.
+                device = adapt_forced_syncpoint_wait.GPFIFO_DEVICE
+                check([m for m in later_sharing('adapt_forced_syncpoint_wait') if device in importlib.import_module(m).BASELINE] ==
+                      ['adapt_queued_3d_syncpoints'], 'no later adapter edits GPFifoDevice.cs but adapt_queued_3d_syncpoints')
+                final = (FINAL_SOURCE / device).read_text(encoding='utf-8-sig')
+                for path, old, new in reversed(queued_3d.PAIRS):
+                    if path == device:
+                        check(final.count(new) == 1, 'adapt_queued_3d_syncpoints: each replacement once in ' + device)
+                        final = final.replace(new, old)
+                check(final == (work / device).read_text(encoding='utf-8-sig'),
+                      'final preparation is the adapter, adapt_queued_3d_syncpoints undone: ' + device)
             for name in BASELINE:
                 undone = (work / name).read_text(encoding='utf-8-sig')
                 for path, old, new in reversed(replacements):
@@ -237,7 +253,8 @@ check(dispatch.index('_context.NoteDispatching(true);') < dispatch.index('try') 
       device.count('NoteDispatching(true)') == 1, 'GPFifoDevice: the dispatch mark is cleared in a finally')
 
 inputs = ['build-utils/melonx/adapt_forced_syncpoint_wait.py', 'build-utils/melonx/adapt_session.py',
-          'test/melonx_forced_syncpoint_wait_test.py', 'test/melonx_forced_syncpoint_wait/Program.cs']
+          'test/melonx_forced_syncpoint_wait_test.py', 'test/melonx_forced_syncpoint_wait/Program.cs',
+          'build-utils/melonx/adapt_queued_3d_syncpoints.py']
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
 receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPARATION,
                sourceKind='finalPreparationWithReversedControl' if FINAL_PREPARATION else 'core658Preparation',

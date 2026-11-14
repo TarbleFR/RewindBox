@@ -18,6 +18,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 import adapt_queued_syncpoints as queued  # noqa: E402
+import adapt_queued_3d_syncpoints as queued_3d  # noqa: E402
 
 CHECKS = 0
 
@@ -44,7 +45,14 @@ def main():
         work = Path(temporary)
         originals = {}
         for relative, hunks in queued.HUNKS.items():
-            text = before_adapter((source / relative).read_text(encoding='utf-8-sig'), hunks)
+            text = (source / relative).read_text(encoding='utf-8-sig')
+            # adapt_queued_3d_syncpoints runs later on four of these files: undone first when the tree has it, so the
+            # checks below read this adapter's own postimage.
+            for path, old, new in reversed(queued_3d.PAIRS):
+                if path == relative and new in text:
+                    check(text.count(new) == 1, f'{relative}: adapt_queued_3d_syncpoints replacement once')
+                    text = text.replace(new, old)
+            text = before_adapter(text, hunks)
             originals[relative] = text
             (work / relative).parent.mkdir(parents=True, exist_ok=True)
             (work / relative).write_text(text, encoding='utf-8')
@@ -129,6 +137,13 @@ def main():
           '3D increment drains the FIFO before its own flush')
     check(before_adapter(threed, queued.HUNKS[queued.THREED_CLASS]) == originals[queued.THREED_CLASS], '3D path otherwise delivered')
     check('{_syncpointsByIncrement} by a 3D increment' in context, '3D drains counted apart')
+    # The final tree (adapt_queued_3d_syncpoints): the 3D increment is queued first, the drain stays as the guard.
+    final_threed = (source / queued.THREED_CLASS).read_text(encoding='utf-8-sig')
+    if queued_3d.INCREMENT_NEW in final_threed:
+        check(final_threed.index('if (_context.QueueSyncpointBehindReports(syncpointId))') <
+              final_threed.index('_context.DrainQueuedSyncpoints(byIncrement: true);') <
+              final_threed.index('if (!_context.SynchronizeOcclusionReports || !_context.FlushCounterReports())'),
+              'final: the 3D increment queued behind its reports first, the delivered path after the drain guard')
     print(f'PASS {CHECKS} queued syncpoint checks (source; the FIFO behaviour: test/melonx_queued_syncpoints_fixture_test.py)')
 
 

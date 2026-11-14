@@ -18,7 +18,9 @@ After the compiled fixture (test/melonx_queued_syncpoints_fixture_test.py, 3 Nov
 - an increment leaves the FIFO once published, so a report that cannot complete keeps it at the head (withheld, the
   error raised as by the blocking path) and disposal still releases it;
 - the 3D engine's increment (ThreedClass.IncrementSyncpoint, made blocking by adapt_occlusion_completion) drains the
-  FIFO first, so it never becomes visible before the increments queued ahead of it (counted apart).
+  FIFO first, so it never becomes visible before the increments queued ahead of it (counted apart). That is this
+  adapter's own postimage: adapt_queued_3d_syncpoints (IPA 740 follow-up) now queues the 3D increment behind its
+  reports first, and this drain stays as the guard of the path left unqueued ("by a 3D increment" expected at 0).
 """
 from pathlib import Path
 

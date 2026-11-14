@@ -89,9 +89,14 @@ check(files_edited_later('adapt_cold_buffer_trim') == {CACHE}, 'the only later e
 
 # IPA 740 lot: adapt_buffer_hit_sets then turns that memo into two-way sets (its replacements undone before the memo's).
 import adapt_buffer_hit_sets as _sets  # noqa: E402
+# Next lot: adapt_merged_buffer_order moves the merged buffer's AddBuffer into the merge overload (undone first).
+import adapt_merged_buffer_order as _order  # noqa: E402
 
 
 def without_later(source):
+    for old, new in reversed(_order.PAIRS):
+        check(source.count(new) == 1, 'the later adapter\'s replacement, once: ' + new.strip().splitlines()[0][:60])
+        source = source.replace(new, old)
     for old, new in reversed(_sets.PAIRS):
         check(source.count(new) == 1, 'the later adapter\'s replacement, once: ' + new.strip().splitlines()[0][:60])
         source = source.replace(new, old)

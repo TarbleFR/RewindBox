@@ -8,7 +8,9 @@ IPA 729 Hogwarts Legacy: 24-31 command buffers per frame, 1 314-1 335 of 2 014-2
 sync (3D syncpoint 913-1 041, SetReference 213-276), 0-2 syncs per window waited for before their command buffer was
 submitted. The adapter paces those two sites and the two voluntary submissions to one per 4 ms, for Hogwarts Legacy only.
 
-Static: only the three files change, each replacement present once and reversing to the control; the sync is created at
+Static: only the three files change, each replacement present once and reversing to the control; on the final preparation,
+GpuContext.cs is the candidate's once adapt_queued_3d_syncpoints' and adapt_texture_play_clock's replacements are undone
+(latest first, each once), the two other files are the candidate's bytes; the sync is created at
 the same place with the same number, only its strict flag changes, and only when it is not forced; no other caller is
 paced; SyncManager.cs is not touched and still submits on demand a sync that is waited for before its command buffer was
 submitted (the non-strict path the pacing relies on); the Library sets both flags from the Hogwarts test only.
@@ -35,8 +37,11 @@ SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import control_source, files_edited_later  # noqa: E402
+from melonx_adapter_control import control_source, files_edited_later, later_sharing  # noqa: E402
+import importlib  # noqa: E402
 import adapt_paced_strict_syncs as adapter  # noqa: E402
+import adapt_texture_play_clock as play_clock  # noqa: E402
+import adapt_queued_3d_syncpoints as queued_3d  # noqa: E402
 _HOLD = []
 FINAL_SOURCE = SOURCE
 SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_paced_strict_syncs', _HOLD)
@@ -91,6 +96,22 @@ with tempfile.TemporaryDirectory(prefix='melonx-paced-strict-syncs-') as tempora
         for name in adapter.BASELINE:
             if name not in files_edited_later('adapt_paced_strict_syncs'):
                 check((candidate / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
+        # Next lot: adapt_texture_play_clock (CheckHostMemory's texture use clock), then adapt_queued_3d_syncpoints (the
+        # queue's call site passed to CreateHostSyncIfNeeded) edit GpuContext.cs after this adapter, and no other later
+        # adapter edits its files. Their GpuContext.cs replacements are undone from the final text, latest adapter first
+        # (each required once): what is left is exactly this candidate's GpuContext.cs.
+        check([m for m in later_sharing('adapt_paced_strict_syncs') if set(importlib.import_module(m).BASELINE) & set(adapter.BASELINE)] ==
+              ['adapt_texture_play_clock', 'adapt_queued_3d_syncpoints'] and
+              set(play_clock.BASELINE) == {adapter.GPU_CONTEXT} and set(queued_3d.BASELINE) & set(adapter.BASELINE) == {adapter.GPU_CONTEXT},
+              'no later adapter edits these files but adapt_texture_play_clock and adapt_queued_3d_syncpoints, in GpuContext.cs')
+        final = (FINAL_SOURCE / adapter.GPU_CONTEXT).read_text(encoding='utf-8-sig')
+        for label, pairs in (('adapt_queued_3d_syncpoints', [(old, new) for path, old, new in queued_3d.PAIRS if path == queued_3d.CONTEXT]),
+                             ('adapt_texture_play_clock', list(play_clock.PAIRS))):
+            for old, new in reversed(pairs):
+                check(final.count(new) == 1, label + ': each replacement once in ' + adapter.GPU_CONTEXT)
+                final = final.replace(new, old)
+        check(final == after[adapter.GPU_CONTEXT],
+              'final preparation is the adapter, adapt_queued_3d_syncpoints and adapt_texture_play_clock undone: ' + adapter.GPU_CONTEXT)
     for name, pairs in adapter.FILE_PAIRS.items():
         restored = after[name]
         for old, new in reversed(pairs):
@@ -197,7 +218,8 @@ report = {
     'postimages': postimages, 'sourceBaseline': adapter.BASELINE,
     'inputs': {path: hashlib.sha256((ROOT / path).read_bytes()).hexdigest() for path in (
         'build-utils/melonx/adapt_paced_strict_syncs.py', 'build-utils/melonx/adapt_session.py',
-        'test/melonx_paced_strict_syncs_test.py', 'test/melonx_paced_strict_syncs/Program.cs', 'test/melonx_adapter_control.py')},
+        'test/melonx_paced_strict_syncs_test.py', 'test/melonx_paced_strict_syncs/Program.cs', 'test/melonx_adapter_control.py',
+        'build-utils/melonx/adapt_texture_play_clock.py', 'build-utils/melonx/adapt_queued_3d_syncpoints.py')},
     'limitation': 'A replay of one frame on the production auto-flush counter with a fake clock; no MoltenVK, no device.',
 }
 out = ROOT / 'dist/melonx/paced-strict-syncs-checks.json'

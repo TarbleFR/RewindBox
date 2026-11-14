@@ -118,7 +118,9 @@ ARRAY_COUNTERS = arrays.ARRAY_COUNTERS
 # array walks its textures when one of them needs it).
 # 108 with the IPA 740 lot (on Apple platforms the adaptive spin yields without the depression to priority 0;
 # the core87 auto-ownership proof run again on the final command-buffer ownership).
-FRESH_GATES = 108
+# 109 with the next lot (the queued syncpoints fixture run on the final source: the 3D engine's increment queued behind
+# its occlusion reports, the report guard and the per-entry processing executed, not only compiled).
+FRESH_GATES = 109
 HISTORICAL_RECEIPTS = 61
 
 
