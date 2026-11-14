@@ -272,6 +272,19 @@ workflow line and `melonx_hogwarts_graphics_test.py` on a locale count.
 ## Delivery
 
 Delivery 738 (another session) declared this lot's commits source only with
-`targetBuild` 739. Delivery 739 takes them: base 738, every engine kept, the
-application-side commits promoted, Flutter and native groups not-run. Its state
-is recorded under `docs/evidence/rewind739/` once delivered.
+`targetBuild` 739. Delivery 739 takes them on base 738: the application-side
+commits are promoted, the Flutter and native groups are not-run. It also takes
+the S2Arm engine with patch 0020, which the S2Arm session pinned and offered to
+the next delivery. MeloNX Core `b83935f0`, XeniaCore 2.3.2 and RPCS3 Core 936
+are those of the base, and the XeniOS session's online features (`efaae7818`)
+stay source only until their Core is pinned.
+
+An early dry run of the 739 freeze found one defect of this lot. `25f66ccc` had
+added `AuthenticationServices` to the bridge podspec, which is a source and
+licence declaration bound by digest. The podspec is back to its reviewed bytes
+(`370a7bf6`): the Swift import links Apple's framework, as the same bridge
+already does for CryptoKit and Combine. The application job of the delivery is
+the first build that links it.
+
+The state of the delivery is recorded under `docs/evidence/rewind739/` once
+delivered.
