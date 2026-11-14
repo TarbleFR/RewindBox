@@ -274,3 +274,39 @@ Core of this lot: b83935f0 (run 43535900995, build-smoke: NativeAOT and ABI veri
 14090181583, SHA-256 2613274b, iPhone binary a67f7309 38 555 080 B, packaged fingerprint 704b51c4, contract 4396d7b0),
 verified locally with melonx_dma_core_component and pinned. The delivery number 738 belongs to the XeniOS session: this
 Core goes into its IPA if that session takes the pin, into 739 otherwise. Open: the IPA and the iPhone capture.
+
+## IPA 736, second lot: the two GPU-thread items above (written 14 Nov, after the lot of Core b83935f0)
+
+IPA 738 (XeniOS session, delivery trigger 4e8778619, building when this was written) carries Core b83935f0, the
+first lot. This second lot is its own Core, for the next delivery.
+
+1. *`adapt_partition_snapshot` (AddressSpacePartitioned.cs).* FindPartition took `lock (_partitions)` at every guest
+   memory read of the GPU thread; Map, Unmap and Reprotect hold that lock while they change host mappings, and the
+   partitions' allocations take it in their fault handler (4.0 % of GPU.MainThread's running samples in the lock's
+   contended path, 5.0 % under HasAnyPrivateAllocation). The partitions are now also published as an array after every
+   change of the list, and the lookup reads it without the lock; a partition's bounds never change and what is then
+   asked of a partition is under its own lock, as before. The fragmented-reads gate now composes, builds and binds the
+   file: its probe drives the real MemoryManagerHostTracked (mappings, contiguous and fragmented reads) and reads the
+   same bytes. Expected: Lock.TryEnterSlow gone from the GPU thread's profile under TryGetVirtualContiguous.
+2. *`adapt_array_dirty_log` (Texture.cs, TextureBindingsArrayCache.cs).* The epochs of adapt_array_sync_epochs are
+   process-wide: in a world that streams textures one of them moves at nearly every update and the array of several
+   thousand textures is walked again (CacheEntry.SynchronizeMemory 5.2 %, ValidateTextures 3.7 %, their dictionary
+   enumerators 6.5 % of the GPU thread's running samples; arrayDelta 585 ms per 5 s window against the 200 ms that
+   adapter expected). The three writers of that protocol now also append the texture to a ring of 1 024 weak
+   references (after the flag or sequence, before the epoch, counted in flight); an array that finds an epoch moved
+   synchronises, or compares the sequence of, the logged textures it holds, and takes its state as complete only if no
+   writer is in flight and the epoch is where it was read before the ring; an overrun ring, a writer in flight or
+   three rounds fall back to the walk. Store accesses and ticks of the use clock still walk.
+   Existing fixtures put to the protocol (their texture doubles append to the rings; no new gate): array-sync-epochs,
+   128 checks: over its 72 random scenarios, the shared-entry, texture buffer, removal, failure, overflow, invalidation
+   and quiet scenarios, control and final cache leave the same backend contents, store sets, uploads and texture
+   states at every step; its 24 cascades (a synchronisation that signals another texture) settle in the same state, in
+   4 updates instead of 5 for 8 of them; with 3 200 bound textures, 3 changes per update, a CPU write every 10 updates
+   and a tick every 25, synchronisations per update: 3 220.7 (upstream), 434.8 (Core b83935f0), 113.3 (this lot: the
+   two ticks). bindless-array-deltas, array-rebuild-allocations, bindless-retention and binding-data-snapshots pass
+   with the same doubles. Expected on the device: those three places under 2 % together, arrayDelta under 300 ms per
+   5 s window; refuted and removed if a texture shows stale content.
+
+Not in this lot: the render thread's array descriptor sets (TextureArray.GetDescriptorSets 9.7 %, BindExtraSets 8.3 %,
+AddReferences 6.2 % of its running samples) and the 10-15 command buffers per presented frame. Not measured on an
+iPhone.
