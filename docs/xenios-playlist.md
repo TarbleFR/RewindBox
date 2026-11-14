@@ -800,6 +800,13 @@ The owner's request: XeniOS's multiplayer and its gamertags made accessible.
   XLink Kai, cross-platform System Link), System Link status in game (NAT type,
   players in the room) and the notice XeniOS shows when a title asks for System
   Link while online features are off.
+- **Core:** run 43541935099 (commit b6d006dd9, iOS SDK 26.5, cold: the patch
+  changed) compiled it, `verify_core.py` passed (`NeoXenia_GetAPI` still the only
+  export: the relay hook resolves inside the framework); pin run 43545380800
+  (`[xenia-pin run=43541935099]`): artifact 14093641913 (9,883,816 B, `baa41bf4…`),
+  binary 38,482,640 B `e21881c7…`, packaged fingerprint `5adfe13d…`; `core-pin.json`
+  `efe5d6e1…`, byte-identical to the job's output. The build of efaae7818 (run
+  43540666842, without the relay hook) also passed and is not pinned.
 - Checked here: the patch, Objective-C namespace, embedding and facade C++
   checks; the facade's new C++ syntax-checked against the XeniOS 2.3.2 headers
   (clang 18); the Dart service and page parse (Dart 3.14 formatter). Not run:
