@@ -150,7 +150,7 @@ class ShaderConverterValidator(unittest.TestCase):
                   'XeniaInternalBridgePlugin.mm').read_text()
         self.assertIn('libmetalirconverter.dylib', plugin)
         self.assertEqual(PIN['shader_converter']['package_path'], 'Frameworks/libmetalirconverter.dylib')
-        self.assertEqual(PIN['revision'], 'cf7c7ee452314913124d205e41e325b33891aacb')
+        self.assertEqual(PIN['revision'], '5533fbfd19d45f32b40283de2382e7f54248bea9')
         # ABI 3 (get_stats, the performance overlay): the pin and the header agree.
         self.assertEqual(PIN['abi_version'], 4)
         header = (ROOT / 'packages' / 'xenia_internal_bridge' / 'ios' / 'Classes' / 'XeniaCoreABI.h').read_text()

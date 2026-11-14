@@ -3,7 +3,7 @@ Howard Hinnant's date library in XeniOS (XeniaCore)
 XeniaCore compiles XeniOS's src/xenia/base/chrono.h, which includes
 third_party/date (https://github.com/HowardHinnant/date, submodule commit
 f94b8f36c6180be0021876c4a397a054fe50c6f2 at XeniOS
-cf7c7ee452314913124d205e41e325b33891aacb): include/date/date.h and
+5533fbfd19d45f32b40283de2382e7f54248bea9): include/date/date.h and
 include/date/tz.h. XeniOS's Acknowledgements.json does not list it. Each file
 carries its own MIT notice (the project's LICENSE.txt, shipped beside this
 file as date-LICENSE.txt, says so); the two notices are reproduced below as

@@ -378,7 +378,7 @@ native dependency. See the next-release review before binary distribution.
 ## XeniOS (Xbox 360) and Apple Metal Shader Converter
 
 The Xbox 360 playlist embeds XeniaCore, built from XeniOS (Xenia for iOS,
-https://github.com/xenios-jp/XeniOS) at `cf7c7ee452314913124d205e41e325b33891aacb`
+https://github.com/xenios-jp/XeniOS) at `5533fbfd19d45f32b40283de2382e7f54248bea9`
 with RewindBox's guarded adaptation patch (`build-utils/xenia/`). XeniOS is
 BSD-3-Clause (`XeniOS-BSD-3-Clause.txt`); its third-party notices are in
 `xenios/XeniOS-Acknowledgements.json` and inside `XeniaCore.framework`. Its
@@ -396,9 +396,9 @@ acknowledgements: `xenios/date-LICENSE.txt` and `xenios/date-notices.txt`
 complete them. miniaudio (public domain or MIT-0) and microprofile
 (unlicense.org), also compiled, need no notice.
 
-FFmpeg (libavutil, libavcodec, libavformat; LGPL version 2.1 or later, as
-its build configuration states) and libmspack (LGPL version 2.1) are linked
-statically into XeniaCore; their licence texts are in
+FFmpeg (libavutil, libavcodec, libavformat, libswresample; LGPL version 2.1
+or later, as its build configuration states) and libmspack (LGPL version
+2.1) are linked statically into XeniaCore; their licence texts are in
 `xenios/XeniOS-Acknowledgements.json`. Their exact sources, at the XeniOS
 revision above: FFmpeg from https://github.com/has207/FFmpeg (branch
 `xmaframes`) at `dfc5a3993b405f3a8b382756828cdfae06380c8b`, configured by

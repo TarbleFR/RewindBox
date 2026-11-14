@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "review_date": "2026-11-12",
+  "review_date": "2026-11-14",
   "scope": "XeniOS (Xenia for iOS) notices for XeniaCore.framework, RewindBox's embedded Xbox 360 engine built from the pinned revision (build-utils/xenia/source.json). The framework also carries LICENSE.txt and Acknowledgements.json.",
   "components": [
     {
       "component": "XeniOS",
       "repository": "https://github.com/xenios-jp/XeniOS",
-      "revision": "cf7c7ee452314913124d205e41e325b33891aacb",
+      "revision": "5533fbfd19d45f32b40283de2382e7f54248bea9",
       "files": [
         {
           "path": "XeniOS-LICENSE.txt",
@@ -14,7 +14,7 @@
           "bytes": 1481,
           "upstream_path": "LICENSE",
           "source_blob_sha": "bc759869a1975823a4e1b1c78cb4e5356cadb7bf",
-          "source_url": "https://github.com/xenios-jp/XeniOS/blob/cf7c7ee452314913124d205e41e325b33891aacb/LICENSE",
+          "source_url": "https://github.com/xenios-jp/XeniOS/blob/5533fbfd19d45f32b40283de2382e7f54248bea9/LICENSE",
           "content": "BSD-3-Clause",
           "exact_copy": true
         },
@@ -24,7 +24,7 @@
           "bytes": 225235,
           "upstream_path": "assets/apple/Acknowledgements.json",
           "source_blob_sha": "e02596832fa470c33c7d46834f174970d4278676",
-          "source_url": "https://github.com/xenios-jp/XeniOS/blob/cf7c7ee452314913124d205e41e325b33891aacb/assets/apple/Acknowledgements.json",
+          "source_url": "https://github.com/xenios-jp/XeniOS/blob/5533fbfd19d45f32b40283de2382e7f54248bea9/assets/apple/Acknowledgements.json",
           "content": "XeniOS's third-party notices, as its app shows them",
           "exact_copy": true
         }
@@ -52,11 +52,11 @@
           "sha256": "f4397560fee8256bd0e675c653cfc80ecaff0305977bb71dd8e1b038f2b44b30",
           "bytes": 1854,
           "repository": "https://github.com/xenios-jp/XeniOS",
-          "revision": "cf7c7ee452314913124d205e41e325b33891aacb",
+          "revision": "5533fbfd19d45f32b40283de2382e7f54248bea9",
           "upstream_path": "third_party/dxbc/DXBCChecksum.cpp",
           "source_blob_sha": "635fc9cff0f05cdd43c18a08b49b7a4c2fe237e4",
           "lines": "1-9 and 50-72",
-          "source_url": "https://github.com/xenios-jp/XeniOS/blob/cf7c7ee452314913124d205e41e325b33891aacb/third_party/dxbc/DXBCChecksum.cpp",
+          "source_url": "https://github.com/xenios-jp/XeniOS/blob/5533fbfd19d45f32b40283de2382e7f54248bea9/third_party/dxbc/DXBCChecksum.cpp",
           "content": "AMD copyright 2008-2016 header and the RSA Data Security, Inc. 1990 MD5 notice, verbatim",
           "exact_copy": false,
           "extract": "lines 1-9, a blank line, lines 50-72 of the source file, unchanged"
@@ -82,7 +82,7 @@
         },
         {
           "path": "date-notices.txt",
-          "sha256": "0356d8c4cbadef7e6d3d7c05fe9ae588ee50d3f6fea68751f40a736b075a2015",
+          "sha256": "bf5e547964593d0150f50491ad5c6516087d1ba167be51acea806e58609f1c79",
           "bytes": 4412,
           "repository": "https://github.com/HowardHinnant/date",
           "revision": "f94b8f36c6180be0021876c4a397a054fe50c6f2",

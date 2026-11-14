@@ -13,7 +13,7 @@ index 1dc7b36..795b39a 100644
 +  include("${NEO_XENIA_ADAPTER_DIR}/core/target.cmake")
 +endif()
 diff --git a/src/xenia/app/xenia_main_ios.mm b/src/xenia/app/xenia_main_ios.mm
-index 4228f01..a225206 100644
+index 1336ded..102e6c6 100644
 --- a/src/xenia/app/xenia_main_ios.mm
 +++ b/src/xenia/app/xenia_main_ios.mm
 @@ -62,6 +62,11 @@
@@ -28,7 +28,7 @@ index 4228f01..a225206 100644
  
  // Graphics system.
  #include "xenia/gpu/metal/metal_graphics_system.h"
-@@ -736,9 +741,17 @@ bool EmulatorAppIOS::OnInitialize() {
+@@ -803,9 +808,17 @@ bool EmulatorAppIOS::OnInitialize() {
    XELOGI("iOS: Storage root: {}", xe::strip_pii(xe::path_to_utf8(storage_root)));
  
    config::SetupConfig(storage_root);
@@ -46,7 +46,7 @@ index 4228f01..a225206 100644
  
    std::filesystem::path content_root = cvars::content_root;
    if (content_root.empty()) {
-@@ -906,6 +919,7 @@ bool EmulatorAppIOS::OnInitialize() {
+@@ -973,6 +986,7 @@ bool EmulatorAppIOS::OnInitialize() {
        [value release];
      }
    });
@@ -54,15 +54,15 @@ index 4228f01..a225206 100644
    // Microphone access is asked when a game with voice chat first starts, not at launch.
    emulator_->on_launch.AddListener([this](uint32_t, const std::string_view) {
      uint32_t system_flags = 0;
-@@ -931,6 +945,7 @@ bool EmulatorAppIOS::OnInitialize() {
-     }
-     xe_ios_diagnostics_note_title(title_id, jit_base, jit_size);
+@@ -1003,6 +1017,7 @@ bool EmulatorAppIOS::OnInitialize() {
+                                   length:version.size()
+                                 encoding:NSUTF8StringEncoding] autorelease]);
    });
 +#endif  // !XE_NEO_EMBEDDED_CORE
  
    // Create the display window from the Metal view in the app context.
    window_ = ui::Window::Create(app_context(), "Xenia", 1280, 720);
-@@ -1528,7 +1543,11 @@ bool EmulatorAppIOS::OnInitialize() {
+@@ -1616,7 +1631,11 @@ bool EmulatorAppIOS::OnInitialize() {
        profiles->Login(xuid, 0, true);
        return profiles->GetProfile(xuid) ? xuid : 0;
      };
@@ -74,10 +74,10 @@ index 4228f01..a225206 100644
    }
  
    // Profile files (.xeniosprofile) for the account screens: export, and import of one
-@@ -2259,6 +2278,11 @@ void EmulatorAppIOS::EmulatorThread(const std::filesystem::path& game_path,
-     launch_status.open = true;
+@@ -2351,6 +2370,11 @@ void EmulatorAppIOS::EmulatorThread(const std::filesystem::path& game_path,
      XELOGI("iOS: Loading game config for: {}", xe::strip_pii(xe::path_to_utf8(game_path)));
      config::LoadGameConfigForFile(game_path);
+     ApplyDashboardSystemVersion(game_path);
 +#if XE_NEO_EMBEDDED_CORE
 +    // RewindBox's effective settings for this title, after the engine's own
 +    // per-game file, for this session only.
@@ -86,7 +86,7 @@ index 4228f01..a225206 100644
      app_context().CallInUIThread([this]() {
        ApplyGuestDisplayRefreshCapToWindowFromUIThread(cvars::guest_display_refresh_cap);
      });
-@@ -2372,6 +2396,10 @@ void EmulatorAppIOS::EmulatorThread(const std::filesystem::path& game_path,
+@@ -2464,6 +2488,10 @@ void EmulatorAppIOS::EmulatorThread(const std::filesystem::path& game_path,
      emulator_cpu_initialized_.store(require_cpu_backend, std::memory_order_release);
      static_cast<ui::IOSWindowedAppContext&>(app_context()).SetProfileServicesReady(true);
      XELOGI("iOS: Emulator setup complete");
@@ -97,7 +97,7 @@ index 4228f01..a225206 100644
  
      if (!launched_with_game) {
        app_context().CallInUIThread([this]() {
-@@ -2515,6 +2543,9 @@ void EmulatorAppIOS::EmulatorThread(const std::filesystem::path& game_path,
+@@ -2612,6 +2640,9 @@ void EmulatorAppIOS::EmulatorThread(const std::filesystem::path& game_path,
      }
  
      XELOGI("iOS: Game launched successfully");
@@ -107,7 +107,7 @@ index 4228f01..a225206 100644
      // A shader wait that began before the GPU existed.
      ApplyCompileThreadBoost();
      if (g_graphics_is_metal.load(std::memory_order_acquire)) {
-@@ -2542,9 +2573,11 @@ void EmulatorAppIOS::EmulatorThread(const std::filesystem::path& game_path,
+@@ -2639,9 +2670,11 @@ void EmulatorAppIOS::EmulatorThread(const std::filesystem::path& game_path,
  }
  
  std::unique_ptr<apu::AudioSystem> EmulatorAppIOS::CreateAudioSystem(cpu::Processor* processor) {
@@ -119,7 +119,7 @@ index 4228f01..a225206 100644
    const std::string apu_name = cvars::apu;
    if (apu_name == "phase") {
      XELOGI("Audio backend: PHASE (spatial) selected via --apu/apu cvar");
-@@ -2581,6 +2614,11 @@ std::vector<std::unique_ptr<hid::InputDriver>> EmulatorAppIOS::CreateInputDriver
+@@ -2678,6 +2711,11 @@ std::vector<std::unique_ptr<hid::InputDriver>> EmulatorAppIOS::CreateInputDriver
      ui::Window* window) {
    std::vector<std::unique_ptr<hid::InputDriver>> drivers;
  
@@ -131,7 +131,7 @@ index 4228f01..a225206 100644
    auto touch_driver = xe::hid::touch::Create(window, kZOrderHidInput);
    if (touch_driver && XSUCCEEDED(touch_driver->Setup())) {
      drivers.emplace_back(std::move(touch_driver));
-@@ -2591,10 +2629,19 @@ std::vector<std::unique_ptr<hid::InputDriver>> EmulatorAppIOS::CreateInputDriver
+@@ -2688,10 +2726,19 @@ std::vector<std::unique_ptr<hid::InputDriver>> EmulatorAppIOS::CreateInputDriver
    if (drivers.empty()) {
      drivers.emplace_back(xe::hid::nop::Create(window, kZOrderHidInput));
    }
@@ -152,10 +152,10 @@ index 4228f01..a225206 100644
  XE_DEFINE_WINDOWED_APP(xenia, xe::app::EmulatorAppIOS::Create);
 +#endif
 diff --git a/src/xenia/ui/ios/CMakeLists.txt b/src/xenia/ui/ios/CMakeLists.txt
-index 86c4105..92ed037 100644
+index c912a78..8702c31 100644
 --- a/src/xenia/ui/ios/CMakeLists.txt
 +++ b/src/xenia/ui/ios/CMakeLists.txt
-@@ -250,9 +250,15 @@ target_compile_options(xenia-ui-ios PRIVATE
+@@ -260,9 +260,15 @@ target_compile_options(xenia-ui-ios PRIVATE
  )
  
  # StateReporting (ios_state_reporting.mm) is new in iOS 27; the app runs on 26.
@@ -222,10 +222,10 @@ index 7c4ee63..d15d0bf 100644
 +#endif
  }
 diff --git a/src/xenia/gpu/metal/metal_command_processor.cc b/src/xenia/gpu/metal/metal_command_processor.cc
-index ae55503..6ba7ba9 100644
+index 70d512d..05690c9 100644
 --- a/src/xenia/gpu/metal/metal_command_processor.cc
 +++ b/src/xenia/gpu/metal/metal_command_processor.cc
-@@ -3308,10 +3308,15 @@ void MetalCommandProcessor::InitializeShaderStorage(
+@@ -4405,10 +4405,15 @@ void MetalCommandProcessor::InitializeShaderStorage(
    }
  }
  
@@ -242,7 +242,7 @@ index ae55503..6ba7ba9 100644
    ProcessCompletedSubmissions();
    LogFrameGpuWaits();
 diff --git a/src/xenia/cpu/backend/jit_memory_ios.cc b/src/xenia/cpu/backend/jit_memory_ios.cc
-index 5067c76..afb84ca 100644
+index 92beb10..ba94884 100644
 --- a/src/xenia/cpu/backend/jit_memory_ios.cc
 +++ b/src/xenia/cpu/backend/jit_memory_ios.cc
 @@ -40,6 +40,18 @@ namespace {

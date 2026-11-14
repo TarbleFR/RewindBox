@@ -3,7 +3,7 @@ DXBC checksum in XeniOS (XeniaCore)
 XeniaCore links XeniOS's third_party/dxbc (DXBCChecksum.cpp), an adaptation
 by Xenia of AMD's DXBC checksum from GPUOpen-Archive/common-src-ShaderUtils
 (DX10/DXBCChecksum.cpp). The two files are not identical: XeniOS's copy
-(cf7c7ee452314913124d205e41e325b33891aacb, 16,615 bytes, SHA-256
+(5533fbfd19d45f32b40283de2382e7f54248bea9, 16,615 bytes, SHA-256
 73279b79725ea61ec1a04a059a9d954e0573a630491c475bf9b2aecd002cb29b) differs from
 AMD's (545195d74ff0758f74ebf9a8b4c541f9390a1df7, 16,502 bytes, SHA-256
 b643a548a60966b28bce280a3a9acf5961d2ae63dd28a68a72288dbe18085462).
@@ -42,7 +42,7 @@ THE SOFTWARE.
 
 ----------------------------------------------------------------------
 Notices of XeniOS third_party/dxbc/DXBCChecksum.cpp at
-cf7c7ee452314913124d205e41e325b33891aacb (lines 1-9 and 50-72)
+5533fbfd19d45f32b40283de2382e7f54248bea9 (lines 1-9 and 50-72)
 ----------------------------------------------------------------------
 
 // Xenia: removed Windows.h dependency.
