@@ -229,8 +229,48 @@ the concurrent collector); the stall compaction that ran 436 ms inside a 1.9 s g
 shader modules (330 MiB of malloc, cold: about a third would be physical gain); the shared array pool, emptied at every
 gen2 because the memory load (94 %) is above 90 % of the configured threshold (change 3 lowers the number of gen2s).
 
+### What the launch and stderr journals of the same session add (read after the lot was frozen)
+
+Launch journal (pid 2349): the Hogwarts GPU policy is `occlusionQuerySync=true; relaxQueryFlushing=true`; iOS sent six
+memory warnings (18:22:44 as the world loads, footprint 4 426 MiB, device 7 %; then 18:24:08, 18:24:25, 18:25:21,
+18:25:54, 18:26:03); in the stderr journal the engine's cache trims ran thirteen times on "Warning" and once on
+"Critical".
+
+Stderr journal with `tools/melonx/frame_report.py --stderr`, seconds 50-250 (in the world, 4 186 presented frames,
+3 568 game frames): per game frame the GPU thread dispatches for 36.7 ms (the 30 FPS budget is 33.3 ms) and waits
+13.2 ms for the guest; the render thread works 24.8 ms; the GPU thread waits 4.6 ms for the render thread. The iPhone's
+GPU is not the limit: busy 30-41 % of the time ("GPU busy 15.0-17.2 ms per frame"), in 10-15 Metal command buffers per
+presented frame (296 per second).
+
+The GPU thread's dispatch, per second of wall time in the world (median of 34 core windows, 729 ms busy): texture and
+buffer bindings 234 ms (32 %), of which the pool array's delta update 117 ms (16 %, 85 calls of 1.4 ms); compute
+dispatches 168 ms (1 083 per second); waiting for occlusion query results 133 ms (18 %, the policy the user chose;
+once per game frame, 6.3 ms); waiting for the render thread on synchronous invokes 79 ms (11 %); buffer loads 65 ms.
+Its five [MeloNX:hot] profiles in the world (774 running samples): compute bindings commit 19.3 %, the pool array
+update 17.2 % (delta path 11.0 %); inside it the walks of every texture of the array, CacheEntry.SynchronizeMemory 5.2 %
+and ValidateTextures 3.7 %, with 6.5 % of all samples in the dictionary enumerators those walks run (adapt_array_sync_epochs
+expected arrayDelta under 200 ms per 5 s window: it is 585 ms, median; its skip needs that no texture of the whole
+process was signalled dirty since the last walk, which a world that streams textures does not give); Buffer.OverlapsWith
+7.4 % (change 4 of the lot); the guest memory manager's HasAnyPrivateAllocation 5.0 %, of which 4.0 % in the contended
+path of its lock (Lock.TryEnterSlow); yields 7.6 %.
+
+The render thread (1 080 running samples): 33.4 % inside the yield of its wait for work (change 1 of the lot bounds
+it); descriptor updates 10.6 ms of its 17.7 ms per presented frame (6.6 for draws, 4.0 for compute dispatches);
+TextureArray.GetDescriptorSets 9.7 %, BindExtraSets 8.3 %, AddReferences 6.2 %, command buffer submission 6.0 %.
+
+Next lot, by GPU-thread share and in this order (nothing of it is in the Core of this lot): the walks of the pool
+array driven by the textures actually signalled dirty instead of by a process-wide epoch (up to 9 % of the GPU
+thread); a lock-free answer of HasAnyPrivateAllocation when the address space holds no private allocation in the
+range (up to 5 %); then the render thread's array descriptor sets. Not proposed: changing the occlusion query policy
+(the user's setting; it costs 18 % of the GPU thread).
+
 Gates: no new one. The existing gates that bind the four files were run again on the final preparation and adapted to
 the new composition where they name the later adapters of a file (cold-buffer-trim, evicted-buffer-recreate, which now
 executes the last-hit members with its evictions, host-thread-class, collection-class, performance-diagnostics,
 hogwarts-dma-copies, kernel-timer-allocations: the final timer manager gives the delivered one's functional digest
 over its 195 scenarios). Not measured on an iPhone: every expectation above is for the next capture.
+
+Core of this lot: b83935f0 (run 43535900995, build-smoke: NativeAOT and ABI verified, two simulator sessions; artifact
+14090181583, SHA-256 2613274b, iPhone binary a67f7309 38 555 080 B, packaged fingerprint 704b51c4, contract 4396d7b0),
+verified locally with melonx_dma_core_component and pinned. The delivery number 738 belongs to the XeniOS session: this
+Core goes into its IPA if that session takes the pin, into 739 otherwise. Open: the IPA and the iPhone capture.

@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "c4a25b945631e41ca75805518d997b9bdd5e4df6",
-  "run": 43450861032,
-  "job": 131972326165,
+  "source": "b83935f0b278a162e0f481e0852e0ada7a1ee209",
+  "run": 43535900995,
+  "job": 132264702665,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 14050961721,
-  "name": "MeloNX-engine-c4a25b945631e41ca75805518d997b9bdd5e4df6",
-  "bytes": 100466565,
-  "sha256": "828ffced2d8671a00b40436cc0ec9f7bd98f281def3b4e85bbdb804dca04d401",
-  "expiresAt": "2027-02-11T15:16:01Z",
+  "artifact": 14090181583,
+  "name": "MeloNX-engine-b83935f0b278a162e0f481e0852e0ada7a1ee209",
+  "bytes": 100470097,
+  "sha256": "2613274b677c3c8987344cf6f3564ee860bffb76c48a850917f4b0a7092564fc",
+  "expiresAt": "2027-02-12T00:41:42Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "e5d87741b8381c58fda29796d6513a64b6356c9b85a2caa11a8f1745aaa84020",
-      "bytes": 38538680
+      "sha256": "a67f7309e9b2ebaf1066cfd043466d824172d8940b40032354c32da94216aded",
+      "bytes": 38555080
     },
     "iossimulator-arm64": {
-      "sha256": "acfd97f9a5e9c92df86c99ce86d4c0dae04ba491e6ed99c502a908c2a187d9a3",
-      "bytes": 38856376
+      "sha256": "682e486d48f1905a16667212a038e26ec6241c7fb33801805b18eaebb1ab571d",
+      "bytes": 38872904
     }
   },
   "identities": {
-    "ios-arm64": "c21c8573f32c82c402207939641a3c77ce20daee84e815c0430e1eb3ae872a89",
-    "iossimulator-arm64": "240963cb5087f34a0382ff0ff09a38c6ff953c91b808efb0112de3a21eafac86"
+    "ios-arm64": "5633f8e71e15cb4a408339e370e3164e6b5b7958601799520d8386a04f7431ec",
+    "iossimulator-arm64": "f3174f3b2bf787598b0980f88b9b0b140e5de269029d8e326b7676b562c27fe9"
   },
-  "contractSha256": "5c22b28358f3885452255de5ef63a49ec174f52544f65e33eec3ad8cc4040f8a",
-  "resultSha256": "3f83d7db0e0c9f3faf8f7a1d1374ec552b9ac613d624194ca5451b2d493fb0a6",
-  "packagedFingerprint": "7c7e24d45e9e40ec14f49fc843a6eea7cf47e474eaace3c815252344af87bac3",
+  "contractSha256": "4396d7b00c032bd05265d9909876a7811d70f5f9b36114cf90a9aa03deddebdd",
+  "resultSha256": "8eb07d9c5cf2687c4474d52bf175fdf5979af2a54d8588dc882825c851e8e319",
+  "packagedFingerprint": "704b51c4abee74cca52cc7c1972d29284f00c7f782d2b394ac208a8e4374cb2e",
   "replaces": {
-    "source": "7aa8d15124364830866603d5a760a6b070aab856",
-    "run": 43441783035,
-    "artifact": 14047726964,
-    "packagedFingerprint": "3c3f8db620b5377d1e3e54ec14c72fdb7978300bcbc47ae5f4c01f19914c0818",
-    "reason": "Heat lots: three-sample spin calibration (lot 1 follow-up) and one kernel timed wait per deadline on Apple platforms (lot 2, PreciseSleepHelper.cs); build-smoke route, 0 fresh exhaustive fixtures, 106 deferred, two actual simulator sessions. No iPhone gameplay or thermal gain is claimed."
+    "source": "c4a25b945631e41ca75805518d997b9bdd5e4df6",
+    "run": 43450861032,
+    "artifact": 14050961721,
+    "packagedFingerprint": "7c7e24d45e9e40ec14f49fc843a6eea7cf47e474eaace3c815252344af87bac3",
+    "reason": "IPA 736 lot for Hogwarts Legacy (no probe added): the yields of a spin bounded in time, the guest timer thread signalled only by an earlier deadline, no keep-alive gen2 request while the device is short of memory, a buffer lookup memo; build-smoke route, 0 fresh exhaustive fixtures, 106 deferred, two actual simulator sessions. No iPhone gameplay, frame rate or thermal gain is claimed."
   }
 }
