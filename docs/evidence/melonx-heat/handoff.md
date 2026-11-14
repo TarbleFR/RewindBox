@@ -349,7 +349,8 @@ numbers, mechanism and rollback.
    command-buffer bit and waitable only, cleared before the user's release; dependants stored as a struct (no covariant
    array-store check: StelemRef_Helper 39 own samples of the render thread, all under that chain).
 2. `adapt_signalled_fence_release` (every title; CommandBufferPool.cs): a command buffer whose fence FreeConsumed just
-   read signalled is released without the infinite vkWaitForFences that followed (adapt_fence_status left it).
+   read signalled is released without the vkWaitForFences that followed (adapt_fence_status left it). For a signalled
+   fence MoltenVK returns early from addSitter: a few microseconds per frame, kept because it is exact.
 3. `adapt_buffer_hit_sets` (every title; BufferCache.cs): the last-hit table of adapt_buffer_last_hit in 256 two-way sets,
    emptied per removed buffer instead of entirely; one overlapping buffer containing the range answers CreateBufferAligned
    and GetOrCreateBuffer (OverlapsWith 34, CreateBufferAligned 14 of 544 running samples of GPU.MainThread, every
@@ -358,7 +359,8 @@ numbers, mechanism and rollback.
    without a dictionary lookup, textures never put into a texture array (Dictionary FindValue up to 5.1 % of
    GPU.MainThread since adapt_array_dirty_log).
 5. `adapt_partition_dispose_order` (every title; AddressSpacePartitioned.cs): the empty partition list is published
-   before the partitions are disposed, as Unmap orders it (session end only).
+   before the partitions are disposed, as Unmap orders it (session end only; the review found no legitimate reader left
+   at that point: hygiene, no effect in play).
 6. `adapt_keepalive_hold_off` (every title; EmbeddedSession.cs): the keep-alive acts on its own decision again: holding
    its request short of memory let the BGC thread leave after its 20 s idle wait and the runtime's next gen2 ran
    blocking (518.3 ms in play on 740, 334.5 ms on 739; 736 without the hold: 17 requests, no fallback).

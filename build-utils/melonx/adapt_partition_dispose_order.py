@@ -7,7 +7,10 @@ guest or GPU thread still reading the previous snapshot could be handed a dispos
 (the window existed before the snapshot, since Dispose takes no lock, but the snapshot made it reachable without one).
 
 Change (AddressSpacePartitioned.cs, Dispose(bool)): the list is emptied and published first, then the partitions taken
-out of it are disposed, then the allocator, as Unmap orders it. No change while a session runs.
+out of it are disposed, then the allocator, as Unmap orders it. No change while a session runs. The adversarial review of
+the 740 investigation found no legitimate reader left at that point (MemoryManagerHostTracked.Destroy runs when its last
+reference goes, after every guest thread and the GPU channel released theirs): this narrows a window that only a
+use-after-free reader could hit; it changes neither frame rate nor stability in play.
 
 Not measured on an iPhone. Applied after adapt_partition_snapshot (its post-image). Rollback: drop this adapter from
 prepare_embedded.py and ORDER. Fail closed on drift.
