@@ -1,8 +1,12 @@
+import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:file_picker/file_picker.dart';
+
 import '../utils/baseline_jpeg.dart';
 import 'melonx_profiles_service.dart';
+import 'storage/storage_import_activity.dart';
 
 /// Profile pictures in the form the Switch engine stores: a 256 x 256 JPEG of
 /// at most 128 KiB.
@@ -32,6 +36,24 @@ abstract final class MelonxProfileAvatar {
     canvas.drawOval(const ui.Rect.fromLTWH(40, 164, 176, 168), figure);
     return _encode(await _rasterize(recorder));
   }
+
+  /// The player chooses an image file; it comes back as a profile picture, or
+  /// null when the picker is cancelled. One import from the pick to the encoded
+  /// picture: the picker's copy under `tmp/` is this import's own meanwhile.
+  static Future<Uint8List?> pickImage() => StorageImportActivity.run(() async {
+    final selection = await FilePicker.pickFiles(
+      allowMultiple: false,
+      type: FileType.custom,
+      allowedExtensions: const ['jpg', 'jpeg', 'png', 'heic', 'webp', 'gif', 'bmp'],
+      withData: false,
+      lockParentWindow: true,
+    );
+    final path = selection?.files.single.path;
+    if (path == null) return null;
+    final file = File(path);
+    if (await file.length() > 32 * 1024 * 1024) throw const MelonxProfilesException('profileImageInvalid');
+    return fromImage(await file.readAsBytes());
+  });
 
   /// [encoded] (any format the platform decodes) cropped to its centred square.
   static Future<Uint8List> fromImage(Uint8List encoded) async {

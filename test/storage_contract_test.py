@@ -730,6 +730,10 @@ IMPORT_SITES = {
         'Future<bool> _pickAndStoreMusic(',),
     'lib/services/library_local_library_service.dart': (
         'Future<List<LibraryImportOutcome>?> pickAndImport(',),
+    # Switch profile picture (docs/melonx-switch-profiles-nextendo-2026-11-14.md):
+    # the chosen image is read from the picker's copy and encoded.
+    'lib/services/melonx_profile_avatar.dart': (
+        'static Future<Uint8List?> pickImage(',),
     'lib/screens/libretro/libretro_3ds_system_screen.dart': (
         'Future<void> _import(',),
     'lib/screens/libretro/libretro_library_actions.dart': (

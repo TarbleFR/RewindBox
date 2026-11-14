@@ -10,7 +10,7 @@ import 'package:neostation/l10n/pairing_file_locale.dart';
 import 'config_service.dart';
 import 'pairing_file_service.dart';
 import 'melonx_launch_diagnostics.dart';
-import 'nextendo/nextendo_online_play.dart';
+import 'package:neostation/services/nextendo/nextendo_online_play.dart';
 import 'package:neostation/services/enhancements/adapters/melonx_enhancement_adapter.dart';
 import 'package:neostation/services/enhancements/enhancement_service.dart';
 

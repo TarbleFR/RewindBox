@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -9,7 +8,6 @@ import '../services/logger_service.dart';
 import '../services/melonx_internal_service.dart';
 import '../services/melonx_profile_avatar.dart';
 import '../services/melonx_profiles_service.dart';
-import '../services/storage/storage_import_activity.dart';
 
 /// The Switch user profiles of the embedded engine: create, rename, picture,
 /// delete, and the profile games open. Changes apply at the next game launch.
@@ -130,21 +128,7 @@ class _MelonxProfilesDialogState extends State<MelonxProfilesDialog> {
       ),
     );
     if (choice is int) return MelonxProfileAvatar.generated(choice);
-    if (choice != 'file') return null;
-    return StorageImportActivity.run(() async {
-      final selection = await FilePicker.pickFiles(
-        allowMultiple: false,
-        type: FileType.custom,
-        allowedExtensions: const ['jpg', 'jpeg', 'png', 'heic', 'webp', 'gif', 'bmp'],
-        withData: false,
-        lockParentWindow: true,
-      );
-      final path = selection?.files.single.path;
-      if (path == null) return null;
-      final file = File(path);
-      if (await file.length() > 32 * 1024 * 1024) throw const MelonxProfilesException('profileImageInvalid');
-      return MelonxProfileAvatar.fromImage(await file.readAsBytes());
-    });
+    return choice == 'file' ? MelonxProfileAvatar.pickImage() : null;
   }
 
   Future<void> _create() async {
