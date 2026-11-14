@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' show Random;
 import 'dart:ui' show Locale;
 
 import 'package:path/path.dart' as path;
@@ -7,14 +8,17 @@ import 'package:path/path.dart' as path;
 import 'logger_service.dart';
 import 'xenia_content.dart';
 
-/// Kind of control for a [XeniaOption].
-enum XeniaOptionKind { toggle, choice }
+/// Kind of control for a [XeniaOption]: a [text] value is free text the
+/// service validates ([XeniaSettingsService.normalizeText]).
+enum XeniaOptionKind { toggle, choice, text }
 
-/// One XeniOS cvar RewindBox exposes. Only cvars the XeniOS iOS build shows
+/// One XeniOS setting RewindBox exposes. Only cvars the XeniOS iOS build shows
 /// AND its core reads at XeniOS cf7c7ee45 are listed (consumers recorded in
-/// docs/xenios-playlist.md § Settings). All of them apply when a game boots
-/// (the bridge passes them after `config::LoadGameConfigForFile`), hence
-/// "applies at next launch" for every one of them.
+/// docs/xenios-playlist.md § Settings), plus the online settings of
+/// docs/xenios-playlist.md § Online: `online_features` and `gamertag` are read
+/// by RewindBox's facade of the Core, not cvars; `systemlink_room` is XeniOS's
+/// cvar. All of them apply when a game boots (the bridge passes them after
+/// `config::LoadGameConfigForFile`), hence "applies at next launch".
 class XeniaOption {
   const XeniaOption({
     required this.key,
@@ -22,6 +26,7 @@ class XeniaOption {
     required this.engineDefault,
     this.values = const <String>[],
     this.section = XeniaOptionSection.graphics,
+    this.globalOnly = false,
   });
 
   /// The cvar name, sent as is to the Core.
@@ -35,13 +40,19 @@ class XeniaOption {
   final List<String> values;
   final XeniaOptionSection section;
 
+  /// Set for every Xbox 360 game only, never per game (player 1's gamertag).
+  final bool globalOnly;
+
   List<String> get allowedValues =>
       kind == XeniaOptionKind.toggle ? const <String>['true', 'false'] : values;
 
-  bool accepts(String value) => allowedValues.contains(value);
+  /// A [XeniaOptionKind.text] value is accepted in its normalized form only.
+  bool accepts(String value) => kind == XeniaOptionKind.text
+      ? XeniaSettingsService.normalizeText(key, value) == value
+      : allowedValues.contains(value);
 }
 
-enum XeniaOptionSection { console, graphics, audio, system }
+enum XeniaOptionSection { console, graphics, audio, system, online }
 
 /// Where a stored value comes from, for the inherited/override display.
 enum XeniaValueSource { engine, global, game }
@@ -284,8 +295,97 @@ class XeniaSettingsService {
         engineDefault: 'true',
         section: XeniaOptionSection.system,
       ),
+      // System Link over the internet through XeniOS's lobby (the relay), off
+      // until the player turns it on, as XeniOS's own Online Features: the
+      // facade installs the engine's relay policy from it.
+      const XeniaOption(
+        key: 'online_features',
+        kind: XeniaOptionKind.toggle,
+        engineDefault: 'false',
+        section: XeniaOptionSection.online,
+      ),
+      // Player 1's gamertag: the facade signs in the profile of that name,
+      // created when none exists; empty is RewindBox's own profile.
+      const XeniaOption(
+        key: 'gamertag',
+        kind: XeniaOptionKind.text,
+        engineDefault: '',
+        section: XeniaOptionSection.online,
+        globalOnly: true,
+      ),
+      // XeniOS's cvar: empty is the game's public lobby, else a private room.
+      const XeniaOption(
+        key: 'systemlink_room',
+        kind: XeniaOptionKind.text,
+        engineDefault: '',
+        section: XeniaOptionSection.online,
+      ),
     ],
   );
+
+  /// The facade's own profile name, used when no gamertag is set.
+  static const String defaultGamertag = 'RewindBox';
+
+  /// XeniOS's room codes (net/relay_protocol.cc kCodeAlphabet, kRoomCodeLength).
+  static const String roomCodeAlphabet = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+  static const int roomCodeLength = 6;
+
+  /// XeniOS's ProfileManager::IsGamertagValid: 1 to 15 characters, a letter
+  /// first, letters and digits, one space between words.
+  static final RegExp _gamertagPattern = RegExp(
+    r'^[A-Za-z][A-Za-z0-9]*( [A-Za-z0-9]+)*$',
+  );
+
+  /// The stored form of [text] for a [XeniaOptionKind.text] option, or null
+  /// when it is not a valid value. Empty is the default of both.
+  static String? normalizeText(String key, String text) => switch (key) {
+    'gamertag' => normalizeGamertag(text),
+    'systemlink_room' => normalizeRoomCode(text),
+    _ => null,
+  };
+
+  /// [text] trimmed, its spaces collapsed; null when XeniOS would refuse it.
+  static String? normalizeGamertag(String text) {
+    final collapsed = text.trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (collapsed.isEmpty) return '';
+    if (collapsed.length > 15 || !_gamertagPattern.hasMatch(collapsed)) {
+      return null;
+    }
+    return collapsed;
+  }
+
+  /// A room code read as XeniOS reads one (relay::NormalizeRoomCode): spaces
+  /// and dashes ignored, upper case, O read as 0, I and L as 1.
+  static String? normalizeRoomCode(String text) {
+    final code = StringBuffer();
+    for (final rune in text.runes) {
+      var c = String.fromCharCode(rune);
+      if (c == ' ' || c == '-') continue;
+      c = c.toUpperCase();
+      if (c == 'O') c = '0';
+      if (c == 'I' || c == 'L') c = '1';
+      if (c.length != 1 ||
+          !roomCodeAlphabet.contains(c) ||
+          code.length == roomCodeLength) {
+        return null;
+      }
+      code.write(c);
+    }
+    if (code.isEmpty) return '';
+    return code.length == roomCodeLength ? code.toString() : null;
+  }
+
+  /// A new private room code (XeniOS's relay::NewRoomCode).
+  static String newRoomCode([Random? random]) {
+    final source = random ?? Random.secure();
+    return String.fromCharCodes(
+      List<int>.generate(
+        roomCodeLength,
+        (_) =>
+            roomCodeAlphabet.codeUnitAt(source.nextInt(roomCodeAlphabet.length)),
+      ),
+    );
+  }
 
   /// `internal_display_resolution` IDs offered (17 = custom is not).
   static const Map<String, String> displayResolutions = <String, String>{
@@ -457,7 +557,9 @@ class XeniaSettingsService {
   XeniaResolvedValue resolve(String key, {String? gameKey}) {
     final option = _byKey[key];
     if (option == null) throw ArgumentError.value(key, 'key');
-    final game = gameKey == null ? null : _games[gameKey]?[key];
+    final game = gameKey == null || option.globalOnly
+        ? null
+        : _games[gameKey]?[key];
     if (game != null) return XeniaResolvedValue(game, XeniaValueSource.game);
     final global = _global[key];
     if (global != null) {
@@ -489,6 +591,9 @@ class XeniaSettingsService {
   Future<void> setGame(String gameKey, String key, String? value) async {
     await load();
     _check(key, value);
+    if (_byKey[key]!.globalOnly) {
+      throw ArgumentError.value(key, 'key', 'set for every game only');
+    }
     final current = Map<String, String>.of(_games[gameKey] ?? const {});
     value == null ? current.remove(key) : current[key] = value;
     final previous = _games;

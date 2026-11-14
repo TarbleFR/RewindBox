@@ -151,6 +151,9 @@ All of them apply at the next launch (stated in the UI).
 | `apu_max_queued_frames` | 8, 16, 32, 48, 64 | `apu/audio_system.cc:61` |
 | `xma_decoder` | new, old, master | `apu/xma_decoder.cc:161-167` |
 | `mount_cache` | on/off | `emulator.cc:1974` |
+| `systemlink_room` (XeniOS 2.3.2, § Online) | empty (the game's public lobby) or a 6-character private room code | `kernel/xam/xam_system_link.cc` `RelayRoom` |
+| `online_features` (RewindBox, read by the facade, § Online) | off (default) / on | the relay policy (`SetSystemLinkRelayPolicy`) |
+| `gamertag` (RewindBox, read by the facade, § Online; all games only) | empty (RewindBox) or a gamertag | `SignInPlayerOneOnMain` |
 
 `widescreen` is the aspect ratio the console reports; games read it when they
 set their video mode. `internal_display_resolution` is the resolution reported
@@ -743,6 +746,48 @@ image carries). `embed_legal_bundle.py` is unchanged: the XeniOS and Metal
 Shader Converter notices ship in every build. `test/ipa_identity_engines_test.py`
 (11 tests) runs each place on synthetic IPAs, the version step from the real
 workflow heredoc.
+
+## Online: System Link over the internet and the gamertag (14 Nov 2026)
+
+The owner's request: XeniOS's multiplayer and its gamertags made accessible.
+
+- **What already happened.** XeniOS's iOS build plays System Link through its
+  relay (`systemlink_transport` defaults to `relay` on iOS: broadcasts need an
+  entitlement a sideloaded build cannot carry), to the lobby
+  `wss://live.xenios.jp`, in each title's public lobby. Its app installs a
+  relay policy that asks Online Features first; the embedded Core had none, and
+  without a policy the engine allows the relay (`relay_allowed = !allowed ||
+  allowed()`), so every earlier RewindBox Core joined the public lobby of a
+  System Link title without asking, every player named "RewindBox". Not a
+  regression of 2.3.2: 2.3.1 behaves the same.
+- **Online features** (`online_features`, off by default): the facade installs
+  the relay policy on the first prepare, `allowed` reading this setting; turning
+  it on in RewindBox asks once more with what it means (players in the room see
+  the IP address and a profile ID, as XeniOS says). Changed at a launch, the
+  engine is told (`SystemLinkAllowedChanged`).
+- **Room** (`systemlink_room`, the XeniOS cvar, per game or for all games):
+  empty for the game's public lobby, else a private room's code (6 characters of
+  `0123456789ABCDEFGHJKMNPQRSTVWXYZ`, read as XeniOS reads one: spaces and dashes
+  ignored, O as 0, I and L as 1). The settings page makes a new code
+  (`newRoomCode`); friends enter the same code. Loaded as a string (a code of
+  digits only would be read as an integer by the generic cvar path).
+- **Gamertag** (`gamertag`, all games only): player 1 signs in as the profile of
+  that name, the first of that name or a new one (XeniOS's
+  `ProfileManager::IsGamertagValid`: 1 to 15 characters, a letter first, letters
+  and digits, one space between words); empty is the RewindBox profile every
+  earlier build used, with its saves. Saves stay with each profile. Players 2 to
+  4 keep the previous rule.
+- **Not in this lot:** XeniOS's online account (unique gamertags on the lobby,
+  friends, invites, parties, device linking: `xe_ios_live_social_install` stays
+  out of the embedded Core with its UIKit screens), voice chat (no microphone
+  usage description in RewindBox), the Local Network transports (`tunnel`,
+  XLink Kai, cross-platform System Link), System Link status in game (NAT type,
+  players in the room) and the notice XeniOS shows when a title asks for System
+  Link while online features are off.
+- Checked here: the patch, Objective-C namespace, embedding and facade C++
+  checks; the facade's new C++ syntax-checked against the XeniOS 2.3.2 headers
+  (clang 18); the Dart service and page parse (Dart 3.14 formatter). Not run:
+  Flutter tests, any device. Nothing of this has run on an iPhone.
 
 ## XeniOS 2.3.2 (14 Nov 2026)
 

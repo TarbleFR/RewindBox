@@ -47,7 +47,10 @@ static NSSet<NSString*>* XeniaManagedKeys(void) {
       @"framerate_limit", @"guest_display_refresh_cap", @"present_letterbox",
       @"use_50Hz_mode", @"async_shader_compilation", @"apu_max_queued_frames",
       @"xma_decoder", @"mount_cache", @"user_language", @"user_country",
-      @"widescreen", @"internal_display_resolution"
+      @"widescreen", @"internal_display_resolution",
+      // RewindBox's online settings (docs/xenios-playlist.md § Online): the
+      // first and last are read by the Core's facade, the room is a cvar.
+      @"online_features", @"systemlink_room", @"gamertag"
     ]];
   });
   return keys;

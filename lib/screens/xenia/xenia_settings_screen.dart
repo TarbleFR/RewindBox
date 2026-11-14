@@ -58,6 +58,12 @@ class _XeniaSettingsScreenState extends State<XeniaSettingsScreen>
   }
 
   String _valueLabel(XeniaOption option, String value) {
+    if (option.key == 'gamertag') {
+      return value.isEmpty ? _t('gamertagDefault') : value;
+    }
+    if (option.key == 'systemlink_room') {
+      return value.isEmpty ? _t('roomPublic') : value;
+    }
     if (value == XeniaSettingsService.automatic) return _t('automatic');
     if (option.key == 'widescreen') {
       return _t(value == 'true' ? 'widescreenOn' : 'widescreenOff');
@@ -109,13 +115,68 @@ class _XeniaSettingsScreenState extends State<XeniaSettingsScreen>
     if (mounted) setState(() {});
   }
 
+  /// Online features send System Link over the internet: asked once more
+  /// before they turn on, as XeniOS asks before its own Online Features.
+  Future<bool> _confirmOnline() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(_t('onlineConfirmTitle')),
+        content: Text(_t('onlineHelp')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(_t('cancel')),
+          ),
+          FilledButton(
+            key: const ValueKey('xenia-online-confirm'),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(_t('turnOn')),
+          ),
+        ],
+      ),
+    );
+    return confirmed ?? false;
+  }
+
+  Future<void> _editText(XeniaOption option) async {
+    final current = _service.resolve(option.key, gameKey: widget.gameKey);
+    final ownValue = _isGame
+        ? _service.gameValue(widget.gameKey!, option.key)
+        : _service.globalValue(option.key);
+    final picked = await showDialog<String>(
+      context: context,
+      builder: (context) => _XeniaTextDialog(
+        option: option,
+        initial: current.value,
+        canInherit: _isGame && ownValue != null,
+        text: _t,
+      ),
+    );
+    if (picked == null) return;
+    await _write(
+      option.key,
+      picked == _XeniaTextDialog.inherit ? null : picked,
+    );
+  }
+
   Future<void> _edit(XeniaOption option) async {
+    if (option.kind == XeniaOptionKind.text) {
+      await _editText(option);
+      return;
+    }
     final current = _service.resolve(option.key, gameKey: widget.gameKey);
     final ownValue = _isGame
         ? _service.gameValue(widget.gameKey!, option.key)
         : _service.globalValue(option.key);
     if (option.kind == XeniaOptionKind.toggle && !_isGame) {
-      await _write(option.key, current.value == 'true' ? 'false' : 'true');
+      final next = current.value == 'true' ? 'false' : 'true';
+      if (option.key == 'online_features' &&
+          next == 'true' &&
+          !await _confirmOnline()) {
+        return;
+      }
+      await _write(option.key, next);
       return;
     }
     final inherit = '\u0000inherit';
@@ -149,6 +210,12 @@ class _XeniaSettingsScreenState extends State<XeniaSettingsScreen>
       ),
     );
     if (picked == null) return;
+    if (option.key == 'online_features' &&
+        picked == 'true' &&
+        current.value != 'true' &&
+        !await _confirmOnline()) {
+      return;
+    }
     await _write(option.key, picked == inherit ? null : picked);
   }
 
@@ -225,6 +292,9 @@ class _XeniaSettingsScreenState extends State<XeniaSettingsScreen>
       'user_country' => _t('countryHelp'),
       'widescreen' => _t('widescreenHelp'),
       'internal_display_resolution' => _t('resolutionHelp'),
+      'online_features' => _t('onlineHelp'),
+      'gamertag' => _t('gamertagHelp'),
+      'systemlink_room' => _t('roomHelp'),
       _ => null,
     };
     final subtitle = <String>[
@@ -300,7 +370,7 @@ class _XeniaSettingsScreenState extends State<XeniaSettingsScreen>
     ];
     for (final section in XeniaOptionSection.values) {
       final rows = XeniaSettingsService.options.where(
-        (o) => o.section == section,
+        (o) => o.section == section && !(_isGame && o.globalOnly),
       );
       if (rows.isEmpty) continue;
       children.add(
@@ -312,6 +382,7 @@ class _XeniaSettingsScreenState extends State<XeniaSettingsScreen>
               XeniaOptionSection.graphics => 'sectionGraphics',
               XeniaOptionSection.audio => 'sectionAudio',
               XeniaOptionSection.system => 'sectionSystem',
+              XeniaOptionSection.online => 'sectionOnline',
             }),
             style: theme.textTheme.labelLarge?.copyWith(
               color: theme.colorScheme.primary,
@@ -346,6 +417,136 @@ class _XeniaSettingsScreenState extends State<XeniaSettingsScreen>
               : ListView(children: children),
         ),
       ),
+    );
+  }
+}
+
+/// A [XeniaOptionKind.text] value: player 1's gamertag or the System Link
+/// room. Pops the normalized value, '' for the default (RewindBox's profile,
+/// the public lobby), [inherit] to drop this game's value, or null.
+class _XeniaTextDialog extends StatefulWidget {
+  const _XeniaTextDialog({
+    required this.option,
+    required this.initial,
+    required this.canInherit,
+    required this.text,
+  });
+
+  static const String inherit = '\u0000inherit';
+
+  final XeniaOption option;
+  final String initial;
+  final bool canInherit;
+  final String Function(String key) text;
+
+  @override
+  State<_XeniaTextDialog> createState() => _XeniaTextDialogState();
+}
+
+class _XeniaTextDialogState extends State<_XeniaTextDialog> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initial,
+  );
+  String? _error;
+
+  bool get _isRoom => widget.option.key == 'systemlink_room';
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final value = XeniaSettingsService.normalizeText(
+      widget.option.key,
+      _controller.text,
+    );
+    if (value == null) {
+      setState(
+        () => _error = widget.text(_isRoom ? 'roomInvalid' : 'gamertagInvalid'),
+      );
+      return;
+    }
+    Navigator.pop(context, value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = widget.text;
+    return AlertDialog(
+      title: Text(t(widget.option.key)),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              key: ValueKey('xenia-setting-field-${widget.option.key}'),
+              controller: _controller,
+              autofocus: true,
+              autocorrect: false,
+              enableSuggestions: false,
+              maxLength: _isRoom ? null : 15,
+              textCapitalization: _isRoom
+                  ? TextCapitalization.characters
+                  : TextCapitalization.none,
+              decoration: InputDecoration(
+                hintText: _isRoom
+                    ? t('roomPublic')
+                    : XeniaSettingsService.defaultGamertag,
+                errorText: _error,
+                errorMaxLines: 3,
+              ),
+              onChanged: (_) {
+                if (_error != null) setState(() => _error = null);
+              },
+              onSubmitted: (_) => _submit(),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              t(_isRoom ? 'roomHelp' : 'gamertagHelp'),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: [
+                if (_isRoom)
+                  OutlinedButton(
+                    key: const ValueKey('xenia-room-new'),
+                    onPressed: () => setState(() {
+                      _controller.text = XeniaSettingsService.newRoomCode();
+                      _error = null;
+                    }),
+                    child: Text(t('roomNew')),
+                  ),
+                OutlinedButton(
+                  key: ValueKey('xenia-setting-default-${widget.option.key}'),
+                  onPressed: () => Navigator.pop(context, ''),
+                  child: Text(t(_isRoom ? 'roomPublic' : 'gamertagDefault')),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        if (widget.canInherit)
+          TextButton(
+            onPressed: () => Navigator.pop(context, _XeniaTextDialog.inherit),
+            child: Text(t('resetGame')),
+          ),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(t('cancel')),
+        ),
+        FilledButton(
+          key: ValueKey('xenia-setting-save-${widget.option.key}'),
+          onPressed: _submit,
+          child: Text(t('save')),
+        ),
+      ],
     );
   }
 }

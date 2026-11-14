@@ -37,6 +37,9 @@
 #include "xenia/base/system_ios.h"
 #include "xenia/hid/input.h"
 #include "xenia/hid/input_driver.h"
+#include "xenia/kernel/xam/profile_manager.h"
+#include "xenia/kernel/xam/xam_system_link.h"
+#include "xenia/net/relay_protocol.h"
 #include "xenia/ui/ios/app/ios_lifecycle_audio_session.h"
 #include "xenia/ui/ios/app/windowed_app_context_ios.h"
 #import "xenia/ui/ios/game/ios_metal_view.h"
@@ -60,7 +63,14 @@ const char* const kManagedKeys[] = {
     "framerate_limit", "guest_display_refresh_cap", "present_letterbox",
     "use_50Hz_mode", "async_shader_compilation", "apu_max_queued_frames",
     "xma_decoder", "mount_cache", "user_language", "user_country",
-    "widescreen", "internal_display_resolution"};
+    "widescreen", "internal_display_resolution",
+    // RewindBox's online settings (docs/xenios-playlist.md § Online):
+    // online_features and gamertag are this facade's, systemlink_room the cvar.
+    "online_features", "systemlink_room", "gamertag"};
+
+// Player 1's profile when RewindBox sets no gamertag (the profile every
+// earlier RewindBox build signed in, with its saves).
+constexpr char kDefaultGamertag[] = "RewindBox";
 
 // Forced for every RewindBox session: the host has no microphone usage
 // description, no head-pose entitlement and no XeniOS account services.
@@ -80,6 +90,15 @@ std::vector<std::pair<std::string, std::string>> g_overrides;
 
 // Guest swaps of the running title (NeoXeniaNotifyGuestSwap), for get_stats.
 std::atomic<uint64_t> g_guest_frames{0};
+
+// System Link over the internet (XeniOS's relay to its lobby, the default
+// transport of its iOS build) only while the player turned RewindBox's online
+// features on: the relay policy installed by the first prepare reads it.
+// Without a policy the engine allows the relay; XeniOS's app asks first.
+std::atomic<bool> g_online_features{false};
+// Player 1's gamertag from RewindBox's settings ("" for kDefaultGamertag),
+// guarded by g_mutex.
+std::string g_gamertag;
 
 // A code region below 8 GB is held for the one-time JIT prepare (set once by
 // adopt_code_region, which the bridge calls right after loading the Core).
@@ -272,10 +291,57 @@ bool PromptKeyboard(const std::string& title, const std::string& description,
   return true;
 }
 
+// Player 1's gamertag: RewindBox's setting when XeniOS accepts it as a
+// profile name (ProfileManager::IsGamertagValid), else kDefaultGamertag.
+std::string PlayerOneGamertag() {
+  std::string gamertag;
+  {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    gamertag = g_gamertag;
+  }
+  if (gamertag.empty()) return kDefaultGamertag;
+  if (!xe::kernel::xam::ProfileManager::IsGamertagValid(gamertag)) {
+    XELOGW("RewindBox: gamertag {} is not a valid profile name; {} is used", gamertag,
+           kDefaultGamertag);
+    return kDefaultGamertag;
+  }
+  return gamertag;
+}
+
+// Player 1 plays as the profile of the gamertag RewindBox's settings name:
+// the one signed in to slot 0 already, else the first profile of that name,
+// else a new one. Another gamertag signs in its own profile (saves stay with
+// each profile); XeniOS's Login frees the slot first.
+bool SignInPlayerOneOnMain() {
+  const std::string wanted = PlayerOneGamertag();
+  const auto profiles = g_context->ListProfiles();
+  for (const auto& profile : profiles) {
+    if (profile.signed_in && profile.signed_in_slot == 0 && profile.gamertag == wanted) {
+      return true;
+    }
+  }
+  uint64_t xuid = 0;
+  for (const auto& profile : profiles) {
+    if (profile.gamertag == wanted) {
+      xuid = profile.xuid;
+      break;
+    }
+  }
+  if (!xuid) {
+    xuid = g_context->CreateProfile(wanted);
+    if (!xuid) XELOGW("RewindBox: the profile {} could not be created", wanted);
+  }
+  const bool signed_in = xuid && g_context->SignInProfile(xuid, 0);
+  XELOGI("RewindBox: player 1 signed in as {}: {}", wanted, signed_in ? "done" : "failed");
+  return signed_in;
+}
+
 // A title's sign-in (XamShowSigninUI) and the start of every title: RewindBox
 // has no profile screen, so a profile is signed in to the asking player's slot
-// without a prompt: one already there, else the first profile signed in
-// nowhere, else a new one ("RewindBox", then "RewindBox 2"...). XeniOS's
+// without a prompt: for player 1 the profile of RewindBox's gamertag setting
+// (SignInPlayerOneOnMain); for the others one already there, else the first
+// profile signed in nowhere, else a new one (the first free of "RewindBox",
+// "RewindBox 2"...). XeniOS's
 // ProfileManager then keeps it signed in for the next launches
 // (logged_profile_slot_N_xuid). Without it the first booted titles stayed on
 // their title screen: no profile existed and the sign-in prompt was answered
@@ -284,6 +350,7 @@ bool PromptKeyboard(const std::string& title, const std::string& description,
 bool SignInProfileOnMain(uint32_t user_index) {
   if (!g_context) return false;
   const uint32_t slot = user_index < 4 ? user_index : 0;
+  if (slot == 0) return SignInPlayerOneOnMain();
   const auto profiles = g_context->ListProfiles();
   for (const auto& profile : profiles) {
     if (profile.signed_in && uint32_t(profile.signed_in_slot) == slot) return true;
@@ -365,6 +432,51 @@ void InstallLifecycleObservers() {
 bool IsManaged(const std::string& key) {
   for (const char* managed : kManagedKeys) {
     if (key == managed) return true;
+  }
+  return false;
+}
+
+// A string cvar from any text: SetCvar would load a room code of digits only
+// ("042318") as an integer.
+bool SetStringCvar(const char* key, const std::string& value) {
+  if (!cvar::ConfigVars) return false;
+  auto it = cvar::ConfigVars->find(key);
+  if (it == cvar::ConfigVars->end()) return false;
+  toml::value<std::string> node(value);
+  it->second->LoadConfigValue(&node);
+  return true;
+}
+
+// RewindBox's online settings among the managed keys; false for a cvar of the
+// generic path. Idempotent: the first prepare and every launch apply them.
+bool ApplyOnlineSetting(const std::string& key, const std::string& value) {
+  if (key == "online_features") {
+    const bool on = value == "true";
+    if (g_online_features.exchange(on, std::memory_order_acq_rel) != on) {
+      // Running games hear of it as of a network cable plugged in or pulled out.
+      xe::kernel::xam::SystemLinkAllowedChanged();
+    }
+    return true;
+  }
+  if (key == "gamertag") {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    g_gamertag = value;
+    return true;
+  }
+  if (key == "systemlink_room") {
+    // Empty: the game's public lobby; else a private room's code, read as
+    // XeniOS reads one, or the public lobby when it is not a code.
+    std::string room;
+    if (!value.empty()) {
+      if (const auto code = xe::net::relay::NormalizeRoomCode(value)) {
+        room = *code;
+      } else {
+        XELOGW("RewindBox: {} is not a System Link room code; the public lobby is used", value);
+      }
+    }
+    SetStringCvar("systemlink_room", room);
+    xe::kernel::xam::SystemLinkRoomChanged();
+    return true;
   }
   return false;
 }
@@ -490,7 +602,12 @@ int Prepare(const NeoXeniaConfiguration* configuration, uint32_t /*timeout_ms*/,
     g_transaction = configuration->transaction;
     g_event = configuration->event;
     g_event_context = configuration->context;
-    g_overrides = std::move(overrides);
+    g_overrides = overrides;
+  }
+  // Player 1's gamertag and the online switch, before the kernel signs player 1
+  // in (NeoXeniaNotifyKernelReady); the room follows the game's own config.
+  for (const auto& entry : overrides) {
+    if (entry.first != "systemlink_room") ApplyOnlineSetting(entry.first, entry.second);
   }
   if (!g_initialized) {
     if ([NSThread isMainThread]) {
@@ -508,6 +625,11 @@ int Prepare(const NeoXeniaConfiguration* configuration, uint32_t /*timeout_ms*/,
     xe::IOSSystemHooks hooks = {};
     hooks.note_fatal_error = NoteFatalError;
     xe::SetIOSSystemHooks(hooks);
+    // System Link through XeniOS's relay only with RewindBox's online features
+    // on (docs/xenios-playlist.md § Online); the room is the cvar.
+    xe::kernel::xam::SystemLinkRelayPolicy relay_policy;
+    relay_policy.allowed = [] { return g_online_features.load(std::memory_order_acquire); };
+    xe::kernel::xam::SetSystemLinkRelayPolicy(std::move(relay_policy));
     g_host_storage_root = configuration->storage_root;
     g_host_content_root = configuration->content_root;
     g_host_cache_root = configuration->cache_root;
@@ -742,6 +864,7 @@ void NeoXeniaApplyLaunchOverrides() {
     overrides = g_overrides;
   }
   for (const auto& entry : overrides) {
+    if (ApplyOnlineSetting(entry.first, entry.second)) continue;
     if (!SetCvar(entry.first, entry.second)) {
       XELOGW("RewindBox: cvar {} is not registered in this Core", entry.first);
     }
