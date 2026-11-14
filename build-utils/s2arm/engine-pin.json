@@ -1,6 +1,6 @@
 {
   "status": "verified",
-  "packagedFingerprint": "64765930ab0fa59411299b804da744ec7a583edce8ad88f60c1f3d1f454e0722",
+  "packagedFingerprint": "82d35d071c3c4892658e558c80dd55e282bfba42f31b7487128f5d28b3c7f488",
   "producers": {
     "engine": {
       "run": 43557031529,
@@ -13,8 +13,8 @@
       "headBranch": "Claude",
       "expiresAt": "2026-12-14T04:43:31Z",
       "members": {
-        "S2ArmEngine.framework.zip": "5e1e51b3e086bb0d8aaeb31fb33faf9d6c37ded103fcd10465d9a98627b9bb31",
-        "NS2Pro.framework.zip": "97e884a888951669b5d7ed47a60f948dd356a7e22f3e692533ea8950f691ebb3"
+        "S2ArmEngine.framework.zip": "83ac81734b93486a49d52b74b51ddaa591183fa01438276136e5b774f82ad393",
+        "NS2Pro.framework.zip": "b5de5c8f4ea732f8b4846a3b3a1c9b7db46068c64ac93ead3b1584523bd1ccb7"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "d877a35c7e61f4463c3f46fa1cef98150f294ca8478c3b4d96ae97efaedc9ed7",
+    "engine": "230488f86d7838625c914bb3a237fb16667e5f2b54ea09c409efac9e61ce650f",
     "prepare": "aef8aafb38aa456defbdf16b3194716c32b2051b76a38bc68640d91f098fc87f",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -90,9 +90,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "f6f2347c887d15b65ed37798ca7cc6b562de59cd3d2fcd62371639a1f71a286d",
-      "bytes": 107460808,
-      "fingerprint": "64765930ab0fa59411299b804da744ec7a583edce8ad88f60c1f3d1f454e0722"
+      "sha256": "922a04652c545ccf87cf9d834ffae1589ce7ae60dd223bc35d24fc49db826116",
+      "bytes": 107460872,
+      "fingerprint": "82d35d071c3c4892658e558c80dd55e282bfba42f31b7487128f5d28b3c7f488"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -125,9 +125,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 43539088851,
+      "run": 43557031529,
       "attempt": 1,
-      "head_sha": "17086c037480ff2f413ade58b160562b8e2206df",
+      "head_sha": "60c4e590eec424b5a6aaf360321b1e51601f887e",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -210,11 +210,15 @@
         {
           "name": "0020-guest-large-cpu-texture-uploads-staged-in-pieces.patch",
           "sha256": "e6a2f3f2ee5d5a6746d5e6e44d3fcc11c265551f03919a36ed9d2960dc4b1485"
+        },
+        {
+          "name": "0021-guest-sparse-cpu-uploads-read-layer-by-layer-and-bounded-staging.patch",
+          "sha256": "b0b84adb24cd7fb2b048976ef420a05d64fe10fc9528104745357271c02ca48e"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "5e1e51b3e086bb0d8aaeb31fb33faf9d6c37ded103fcd10465d9a98627b9bb31",
-        "NS2Pro.framework.zip": "97e884a888951669b5d7ed47a60f948dd356a7e22f3e692533ea8950f691ebb3"
+        "S2ArmEngine.framework.zip": "83ac81734b93486a49d52b74b51ddaa591183fa01438276136e5b774f82ad393",
+        "NS2Pro.framework.zip": "b5de5c8f4ea732f8b4846a3b3a1c9b7db46068c64ac93ead3b1584523bd1ccb7"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
