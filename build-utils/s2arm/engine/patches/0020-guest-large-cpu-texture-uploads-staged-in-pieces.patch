@@ -1,0 +1,98 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 1ce8abf5b..cea5608c2 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -3317,6 +3317,71 @@ static id<MTLBuffer> up_tex_src(uint64_t addr, uint64_t len, uint64_t *off) {
+     g_up_src_n++; g_up_src_bytes += b - a;
+     return buf;
+ }
++// RewindBox (patch 0020): a texture uploaded on the CPU is staged in pieces when it is large, and a staging buffer Metal refuses is said in red.
++//   Mario Kart World, iPhone17,2, IPA 737 (14 Nov, two runs, the same place both times): at the first 3D frame a texture-to-texture copy (copy_t2t_) made the
++//   first upload of its source or destination texture on the CPU path of pkg_upload_ (a sparse virtual pool's texture, a format converted on the CPU, linear
++//   storage, or storage that cannot all be read), which asks Metal for one shared staging buffer of the whole texture. Metal answered nil, up_keep_add put
++//   nil in an NSMutableArray and the process stopped on that uncaught exception: MetricKit EXC_CRASH SIGABRT, CoreFoundation <- up_keep_add <- pkg_upload
++//   <- tex_mtl <- copy_t2t_ <- nvn_be_exec <- h_nvnQueueSubmitCommands, and no line in host.log. The game's virtual pools there are 1.5 and 5.7 GB.
++//   A CPU upload whose staging is larger than RB_UP_PIECE, or that Metal refuses in one piece, is now staged level by level and layer by layer, and a level
++//   and layer larger than RB_UP_PIECE in bands of rows taken from a temporary copy; the upload batch is flushed every UP_KEEP_CAP, as it is between two
++//   textures (up_begin). The reads, deswizzles and conversions are the ones of the single buffer. A piece Metal refuses is not uploaded, and is said in red
++//   with the texture, the sizes and what Metal holds. The texture, its layout and its size are not changed; the GPU path is not touched.
++//   Not covered: a level larger than RB_UP_PIECE of storage that is not 2D (3D, 1D, multisample) is one piece, and the DM_NVN_ZBLOCK diagnostic does not count
++//   the textures staged in pieces.
++#define RB_UP_PIECE ((size_t)64 << 20)
++static uint64_t g_rb_up_split_n, g_rb_up_refused_n, g_rb_up_refused_bytes;   // submit thread (up_owner_check)
++static void rb_up_refused(const tex_t *t, unsigned level, unsigned layer, size_t n, size_t total) {
++    uint64_t k = ++g_rb_up_refused_n; g_rb_up_refused_bytes += n;
++    if (k > 8 && (k & (k - 1))) return;   // the first 8, then at 16, 32...
++    MLOG("【红】 RewindBox: Metal refused a texture upload staging buffer of %zu bytes: texture ser=%llu %ux%ux%u format %#x target %d levels %u, level %u layer %u "
++         "(%zu bytes for the whole texture); that part is not uploaded and keeps what the texture held; Metal holds %llu MB, its largest buffer is %llu MB; "
++         "%llu such parts and %llu MB so far", n, (unsigned long long)t->serial, t->d.width, t->d.height, t->d.depth, t->d.format, (int)t->d.target, t->d.levels,
++         level, layer, total, (unsigned long long)(g_dev.currentAllocatedSize >> 20), (unsigned long long)(g_dev.maxBufferLength >> 20), (unsigned long long)k,
++         (unsigned long long)(g_rb_up_refused_bytes >> 20));
++}
++static id<MTLBuffer> rb_up_staging(size_t n) {   // a shared staging piece of the open upload batch; nil: refused (the caller says so)
++    up_begin();   // flushes the batch once it holds UP_KEEP_CAP: between two pieces, whose copies are recorded whole
++    id<MTLBuffer> b = [g_dev newBufferWithLength:n ? n : 16 options:MTLResourceStorageModeShared];
++    if (b) { res_add(b); up_keep_add(b); }
++    return b;
++}
++// The CPU path of pkg_upload_ in pieces: the same deswizzles and conversions as its single buffer, level by level and layer by layer
++static void rb_up_pieces(const tex_t *t, id<MTLTexture> mt, const uint8_t *src, unsigned levels, unsigned layers, int unp, int ubpp, int bw, int bh, int bpb, size_t total) {
++    for (unsigned l = 0; l < levels; l++) {
++        uint32_t w = MAX(t->d.width >> l, 1u), h = MAX(t->d.height >> l, 1u), z = t->d.target == 2 ? MAX(t->d.depth >> l, 1u) : 1;
++        size_t pitch = (size_t)((w + bw - 1) / bw) * bpb, rows = (h + bh - 1) / bh;
++        // A staging row: a converted texel row, or a row of blocks (rh texel rows); piece: this level of one layer
++        size_t rowb = unp ? (size_t)w * ubpp : pitch, nrows = unp ? h : rows, rh = unp ? 1 : (size_t)bh, piece = rowb * nrows * z;
++        uint8_t *cb = NULL;
++        if (unp) { cb = malloc(pitch * rows * z ? pitch * rows * z : 1); bc_note(t->d.format, "upload"); if (!cb) MDIE("BC decode scratch of %zu bytes failed", pitch * rows * z); }
++        for (unsigned y = 0; y < layers; y++) {
++            // Bands only for 2D storage (2D, 2D array, rectangle, cube, cube array): their rows are texel rows of one slice
++            int flat = t->d.target == 1 || t->d.target == 4 || t->d.target == 7 || t->d.target == 8 || t->d.target == 9;
++            int whole = piece <= RB_UP_PIECE || z > 1 || !flat;
++            id<MTLBuffer> stg = whole ? rb_up_staging(piece) : nil;
++            uint8_t *lin = whole ? (stg ? (uint8_t *)stg.contents : NULL) : malloc(piece);
++            if (!lin) { if (!whole) MDIE("texture upload copy of %zu bytes failed", piece); rb_up_refused(t, l, y, piece, total); continue; }
++            if (nvn_deswizzle(&t->d, l, y, src, unp ? cb : lin, pitch)) { RED_ONCE(9, "deswizzle failed format %#x target %d", t->d.format, t->d.target); if (!whole) free(lin); break; }
++            if (unp) for (uint32_t zi = 0; zi < z; zi++) fmt_decode(t->d.format, cb + zi * pitch * rows, pitch, w, h, lin + zi * rowb * nrows, rowb);
++            if (whole) { up_blit_add(stg, 0, rowb, rowb * nrows, MTLSizeMake(w, h, z), mt, y, l); continue; }
++            size_t band = RB_UP_PIECE / rowb ? RB_UP_PIECE / rowb : 1;   // rows per band (a row larger than RB_UP_PIECE is a band of its own)
++            for (size_t r0 = 0; r0 < nrows;) {   // bands of rows, each its own staging piece
++                size_t nr = MIN(nrows - r0, band);
++                id<MTLBuffer> b = rb_up_staging(nr * rowb);
++                if (!b) rb_up_refused(t, l, y, nr * rowb, total);
++                else {
++                    memcpy(b.contents, lin + r0 * rowb, nr * rowb);
++                    uint32_t y0 = (uint32_t)(r0 * rh), hh = (uint32_t)MIN((size_t)h - y0, nr * rh);
++                    up_blit_add_at(b, 0, rowb, rowb * nr, MTLSizeMake(w, hh, 1), mt, y, l, 0, y0);
++                }
++                r0 += nr;
++            }
++            free(lin);
++        }
++        free(cb);
++    }
++}
+ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture> reuse, uint64_t **ph, uint32_t *nph) {
+     MTLTextureDescriptor *d = tex_desc(t, 1);
+     if (!d) return nil;
+@@ -3400,7 +3465,20 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
+     }
+     if (rb) src = rb;   // RewindBox (patch 0016): what the game does not hold reads 0, as a sparse pool's unmapped pages do
+     up_begin();
+-    id<MTLBuffer> stg = [g_dev newBufferWithLength:total ? total : 16 options:MTLResourceStorageModeShared];
++    // RewindBox (patch 0020): one staging buffer up to RB_UP_PIECE, as before; a larger one, or one Metal refuses, goes in pieces (rb_up_pieces)
++    id<MTLBuffer> stg = total <= RB_UP_PIECE ? [g_dev newBufferWithLength:total ? total : 16 options:MTLResourceStorageModeShared] : nil;
++    if (!stg) {
++        uint64_t k = ++g_rb_up_split_n;
++        if (k <= 8 || !(k & (k - 1)))
++            MLOG("RewindBox: texture ser=%llu %ux%ux%u format %#x target %d levels %u layers %u uploaded on the CPU (%s) in pieces of at most %zu MB: %zu MB of staging in all, %s; "
++                 "%llu such textures so far", (unsigned long long)t->serial, t->d.width, t->d.height, t->d.depth, t->d.format, (int)t->d.target, t->d.levels, layers,
++                 sparse ? "a sparse virtual pool's" : rb ? "storage that cannot all be read" : unp ? "a format converted on the CPU" : lin ? "linear storage" : "no GPU deswizzle",
++                 RB_UP_PIECE >> 20, total >> 20, total <= RB_UP_PIECE ? "Metal refused it in one piece" : "more than one piece holds", (unsigned long long)k);
++        rb_up_pieces(t, mt, src, (unsigned)d.mipmapLevelCount, layers, unp, ubpp, bw, bh, bpb, total);
++        free(part); free(rb);
++        up_flush();
++        return mt;
++    }
+     res_add(stg); up_keep_add(stg);
+     size_t off = 0;
+     int zb = zblock_on() && t->d.format >= 0x79 && t->d.format <= 0x94; if (zb) { g_zb_ser = t->serial; g_zb_n = (int)MIN(d.mipmapLevelCount, 16u); memset(g_zb, 0, sizeof g_zb); memset(g_zb_tot, 0, sizeof g_zb_tot); }
