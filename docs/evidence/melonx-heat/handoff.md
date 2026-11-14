@@ -383,3 +383,31 @@ blocked 15.65 s + 11.36 s of 85 s of dispatch, gain bounded, report rewrite orde
 (visual exposure), a lock-free private mapping snapshot (unmap race), dispatch-semaphore waits for the WaitSubsystem
 (new primitive, macOS gate first). The grey frames are investigated separately; DMA paths are excluded (idle on those
 frames). Not measured on an iPhone.
+
+### IPA 740 lot: adversarial review, and the grey frames
+
+Review (one reviewer per adapter, each claimed defect verified by a skeptic): adapt_command_buffer_ownership,
+adapt_signalled_fence_release, adapt_array_log_membership, adapt_partition_dispose_order, adapt_darwin_spin_yield and
+adapt_pool_slot_copy without defect. Two confirmed and fixed before any build:
+- adapt_buffer_hit_sets: a merge recreates a multi-range buffer before the merged buffer is added (pre-existing order
+  in BufferCache.CreateBufferAligned), which can leave two overlapping buffers in the list; FindOverlapFast could then
+  answer the other one. The shortcut takes the leftmost overlap (FindOverlap), GetOrCreateBuffer keeps its lookups, and
+  AddBuffer drops the table entries the new buffer overlaps. Candidate for a later lot: add the merged buffer before
+  RecreateMultiRangeBuffers, as Ryujinx did, so that the list never holds the duplicate.
+- the collection-class gate undoes adapt_keepalive_hold_off's line before the hold's.
+array-descriptor-ranges models descriptor copies (applied after the writes; a copy into a pending set is a violation):
+its history makes 9 copies of 32 768 elements with every bound set holding the array's elements.
+array-rebuild-allocations and wait-spin-bound are load-sensitive here: the delivered Core da2525a1's cache shows the
+same spikes over 256 bytes per rebuild under load (511 and 273 bytes in 4 runs), so both are rerun on a quiet host.
+
+Grey frames (separate investigation, five mechanism families, each verified): no emulator mechanism is proven. Frame by
+frame, the current frame's depth and lit scene are intact (silhouettes aligned to the pixel, flats ordered by depth, no
+double edge during the turns); only the fog term is wrong, its extinction two to three orders of magnitude too high,
+recomputed every game frame (3 to 4 frames per episode, HDR, before the exposure adaptation). Refuted with numbers: the
+Hogwarts DMA paths (idle on those frames apart from a 16-byte exposure read-back), texture identity and resizes, pause
+and timing, GPU hazards and descriptors (349 of 349 compute-to-render switches with a recorded barrier, nothing skipped),
+TBDR buffer mirrors. Open: a wrong per-frame fog input (volumetric fog volume or view constants) by an unidentified
+path, or the game's own behaviour: both episodes start as the camera rises toward the sky or the canopy; fast turns
+without that rise showed none. Device protocol for the next IPA: start the screen recording before entering the game (no
+resume at its start); play 60 s or more without leaving the app; 10 fast camera lifts toward the sky or canopy at one
+place, then 5 slow ones; then Home, back, and the same lifts within 10 s; export core, performance and stderr logs.
