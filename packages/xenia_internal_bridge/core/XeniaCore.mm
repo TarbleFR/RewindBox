@@ -66,7 +66,7 @@ const char* const kManagedKeys[] = {
     "widescreen", "internal_display_resolution",
     // RewindBox's online settings (docs/xenios-playlist.md § Online):
     // online_features and gamertag are this facade's, systemlink_room the cvar.
-    "online_features", "systemlink_room", "gamertag"};
+    "online_features", "systemlink_room", "gamertag", "hide_ip_address"};
 
 // Player 1's profile when RewindBox sets no gamertag (the profile every
 // earlier RewindBox build signed in, with its saves).
@@ -99,6 +99,10 @@ std::atomic<bool> g_online_features{false};
 // Player 1's gamertag from RewindBox's settings ("" for kDefaultGamertag),
 // guarded by g_mutex.
 std::string g_gamertag;
+// RewindBox's "hide my IP address": System Link relay clients made while it is
+// on list no address in the lobby and send through the TURN relay only
+// (NeoXeniaRelayOnly, read by the patch in net/relay_client.cc).
+std::atomic<bool> g_hide_address{false};
 
 // A code region below 8 GB is held for the one-time JIT prepare (set once by
 // adopt_code_region, which the bridge calls right after loading the Core).
@@ -461,6 +465,10 @@ bool ApplyOnlineSetting(const std::string& key, const std::string& value) {
   if (key == "gamertag") {
     std::lock_guard<std::mutex> lock(g_mutex);
     g_gamertag = value;
+    return true;
+  }
+  if (key == "hide_ip_address") {
+    g_hide_address.store(value == "true", std::memory_order_release);
     return true;
   }
   if (key == "systemlink_room") {
@@ -847,6 +855,16 @@ const NeoXeniaAPI kAPI = {
 // shows. With the 8 GB limit the region often found no room (device runs:
 // 36 to 687 MiB free below 8 GB). Called from static initializers: no state.
 extern "C" uintptr_t NeoXeniaExecuteRegionLimit(void) { return uintptr_t(1) << 47; }
+
+// XeniOS's lobby lists every address a player's relay client finds (its public
+// one included) to the players of its room, which probe them for a direct
+// path. With RewindBox's "hide my IP address" on, the client made for a title
+// lists none and takes no direct path: players see the TURN relay's address
+// only; the lobby and the relay still see the player's (docs/xenios-playlist.md
+// § Online). Read when the client is made, at a title's System Link start.
+extern "C" bool NeoXeniaRelayOnly(void) {
+  return g_hide_address.load(std::memory_order_acquire);
+}
 
 void NeoXeniaApplyHostRoots() {
   // IPA 728: the config saved under IPA 727 named the previous container's

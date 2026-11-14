@@ -288,3 +288,43 @@ index 92beb10..ba94884 100644
  // Device detection and the external JIT preparation protocol originate in
  // XeniOS preview 2f888db75. Keep the platform policy in this translation unit.
  struct IOSJitMemory::Impl {
+diff --git a/src/xenia/net/relay_client.cc b/src/xenia/net/relay_client.cc
+index d80d1f6..9484212 100644
+--- a/src/xenia/net/relay_client.cc
++++ b/src/xenia/net/relay_client.cc
+@@ -18,6 +18,12 @@
+ #include "third_party/rapidjson/include/rapidjson/writer.h"
+ #include "xenia/base/logging.h"
+ 
++// RewindBox embedded Core (build-utils/xenia): true while the player keeps
++// their address from the other players (RewindBox's "hide my IP address"):
++// the lobby lists no address of this client, which sends every frame through
++// its TURN allocation. Weak: undefined, so false, outside XeniaCore.
++extern "C" __attribute__((weak)) bool NeoXeniaRelayOnly(void);
++
+ namespace xe::net::relay {
+ namespace {
+ 
+@@ -218,6 +224,10 @@ bool IsPublicServer(const Endpoint& endpoint) {
+ 
+ RelayClient::RelayClient(const Mac& mac, const RelayConfig& config)
+     : mac_(mac), config_(config) {
++  // RewindBox embedded Core: no direct path, so no probe from this address.
++  if (NeoXeniaRelayOnly && NeoXeniaRelayOnly()) {
++    config_.direct_paths = false;
++  }
+   UpdateStatus(0);
+ }
+ 
+@@ -541,6 +551,11 @@ void RelayClient::OnNetworkChanged(uint64_t now_ms, Outbox& out) {
+ 
+ std::vector<Endpoint> RelayClient::Candidates() const {
+   std::vector<Endpoint> candidates;
++  // RewindBox embedded Core: no address in the lobby; players reach this one
++  // through its TURN allocation, which the lobby lists apart ("relay").
++  if (!config_.direct_paths && NeoXeniaRelayOnly && NeoXeniaRelayOnly()) {
++    return candidates;
++  }
+   auto add = [&](const Endpoint& endpoint) {
+     if (Usable(endpoint) && candidates.size() < kMaxCandidates &&
+         std::find(candidates.begin(), candidates.end(), endpoint) ==

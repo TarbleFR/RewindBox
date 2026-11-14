@@ -95,6 +95,51 @@ JIT_REGION_ADDED = [
 ]
 
 
+# RewindBox's "hide my IP address" (docs/xenios-playlist.md § Online): one weak
+# declaration and two guarded blocks in relay::RelayClient. The library is not
+# compiled with XE_NEO_EMBEDDED_CORE, so the weak reference is the guard:
+# undefined, nothing changes outside XeniaCore. Defined, the client takes no
+# direct path (no probe from the player's address) and lists no address in the
+# lobby; players reach it through its TURN allocation.
+RELAY_HOOK_FILES = ['src/xenia/net/relay_client.cc']
+RELAY_HOOK_ADDED = [
+    '// RewindBox embedded Core (build-utils/xenia): true while the player keeps',
+    '// their address from the other players (RewindBox\'s "hide my IP address"):',
+    '// the lobby lists no address of this client, which sends every frame through',
+    '// its TURN allocation. Weak: undefined, so false, outside XeniaCore.',
+    'extern "C" __attribute__((weak)) bool NeoXeniaRelayOnly(void);',
+    '',
+    '  // RewindBox embedded Core: no direct path, so no probe from this address.',
+    '  if (NeoXeniaRelayOnly && NeoXeniaRelayOnly()) {',
+    '    config_.direct_paths = false;',
+    '  }',
+    '  // RewindBox embedded Core: no address in the lobby; players reach this one',
+    '  // through its TURN allocation, which the lobby lists apart ("relay").',
+    '  if (!config_.direct_paths && NeoXeniaRelayOnly && NeoXeniaRelayOnly()) {',
+    '    return candidates;',
+    '  }',
+]
+
+
+def check_relay_hook(patch: str) -> None:
+    for name in RELAY_HOOK_FILES:
+        hunk = patch.split(f'diff --git a/{name} ', 1)[1].split('\ndiff --git ', 1)[0]
+        body = hunk.splitlines()[4:]
+        if any(line.startswith('-') for line in body):
+            fail(f'{name}: the relay hook removes upstream lines')
+        added = [line[1:] for line in body if line.startswith('+')]
+        if added != RELAY_HOOK_ADDED:
+            fail(f'{name}: not exactly the relay-only hook: {added}')
+        # The direct-path switch is the constructor's first statement; the
+        # empty list returns before any candidate is added.
+        if 'RelayClient::RelayClient(const Mac& mac, const RelayConfig& config)\n     : mac_(mac), config_(config) {\n+' \
+                not in hunk:
+            fail(f'{name}: the direct-path switch is not the first statement of the constructor')
+        if 'std::vector<Endpoint> RelayClient::Candidates() const {\n   std::vector<Endpoint> candidates;\n+' \
+                not in hunk:
+            fail(f'{name}: the empty list does not open RelayClient::Candidates')
+
+
 def check_code_region_hook(patch: str) -> None:
     for name in JIT_REGION_FILES:
         hunk = patch.split(f'diff --git a/{name} ', 1)[1].split('\ndiff --git ', 1)[0]
@@ -145,11 +190,12 @@ def check_patch() -> None:
     patch = (XENIA / 'rewindbox-core.patch').read_text()
     files = re.findall(r'^diff --git a/(\S+) ', patch, re.M)
     if files != ['cmake/ios/App.cmake', 'src/xenia/app/xenia_main_ios.mm'] + SDK_FILES + SWAP_HOOK_FILES + \
-            JIT_REGION_FILES:
+            JIT_REGION_FILES + RELAY_HOOK_FILES:
         fail(f'unexpected patched files {files}')
     check_sdk_hunks(patch)
     check_swap_hook(patch)
     check_code_region_hook(patch)
+    check_relay_hook(patch)
     removed = [line for line in patch.splitlines() if line.startswith('-') and not line.startswith('---')]
     if removed:
         fail(f'the patch must only add guarded lines, it removes {removed[:3]}')
@@ -192,6 +238,9 @@ def check_patch() -> None:
         fail('the code-region limit hook is not declared and defined by the facade')
     if 'extern "C" int NeoXeniaAdoptExecuteRegion(void* reservation, size_t size);' not in hooks:
         fail('NeoXeniaAdoptExecuteRegion is not declared extern "C" in neo_xenia_core_hooks.h')
+    if 'extern "C" bool NeoXeniaRelayOnly(void);' not in hooks or \
+            'extern "C" bool NeoXeniaRelayOnly(void) {' not in facade:
+        fail('the relay-only hook is not declared and defined by the facade')
     for symbol in ('void NeoXeniaApplyHostRoots() {', 'void NeoXeniaApplyLaunchOverrides()', 'void NeoXeniaNotifyTitleLaunched()',
                    'void NeoXeniaNotifyKernelReady() {',
                    'NeoXeniaCreateInputDriver(xe::ui::Window* window',

@@ -15,9 +15,9 @@ enum XeniaOptionKind { toggle, choice, text }
 /// One XeniOS setting RewindBox exposes. Only cvars the XeniOS iOS build shows
 /// AND its core reads at XeniOS cf7c7ee45 are listed (consumers recorded in
 /// docs/xenios-playlist.md § Settings), plus the online settings of
-/// docs/xenios-playlist.md § Online: `online_features` and `gamertag` are read
-/// by RewindBox's facade of the Core, not cvars; `systemlink_room` is XeniOS's
-/// cvar. All of them apply when a game boots (the bridge passes them after
+/// docs/xenios-playlist.md § Online: `online_features`, `hide_ip_address` and
+/// `gamertag` are read by RewindBox's facade of the Core, not cvars;
+/// `systemlink_room` is XeniOS's cvar. All of them apply when a game boots (the bridge passes them after
 /// `config::LoadGameConfigForFile`), hence "applies at next launch".
 class XeniaOption {
   const XeniaOption({
@@ -300,6 +300,15 @@ class XeniaSettingsService {
       // facade installs the engine's relay policy from it.
       const XeniaOption(
         key: 'online_features',
+        kind: XeniaOptionKind.toggle,
+        engineDefault: 'false',
+        section: XeniaOptionSection.online,
+      ),
+      // RewindBox's "hide my IP address": the Core's System Link relay client
+      // lists no address in the lobby and goes through the TURN relay only
+      // (read by the facade, not a cvar).
+      const XeniaOption(
+        key: 'hide_ip_address',
         kind: XeniaOptionKind.toggle,
         engineDefault: 'false',
         section: XeniaOptionSection.online,

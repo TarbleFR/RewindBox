@@ -139,6 +139,8 @@ abstract final class XeniaLocale {
       'roomNew': "New private room",
       'roomInvalid': "A room code has 6 letters and digits.",
       'save': "Save",
+      'hide_ip_address': "Hide my IP address (relay only)",
+      'hideIpHelp': "Other players don't receive your IP address: everything goes through XeniOS's relay. More latency, and no connection when the lobby offers no relay. XeniOS's servers still see it. Experimental.",
     },
     'es': <String, String>{
       'importMenu': "XeniOS / Importar",
@@ -275,6 +277,8 @@ abstract final class XeniaLocale {
       'roomNew': "Nueva sala privada",
       'roomInvalid': "Un código de sala tiene 6 letras y números.",
       'save': "Guardar",
+      'hide_ip_address': "Ocultar mi dirección IP (solo relé)",
+      'hideIpHelp': "Los demás jugadores no reciben tu dirección IP: todo pasa por el relé de XeniOS. Más latencia, y sin conexión cuando el lobby no ofrece relé. Los servidores de XeniOS la siguen viendo. Experimental.",
     },
     'ru': <String, String>{
       'importMenu': "XeniOS / Импорт",
@@ -411,6 +415,8 @@ abstract final class XeniaLocale {
       'roomNew': "Новая приватная комната",
       'roomInvalid': "Код комнаты состоит из 6 букв и цифр.",
       'save': "Сохранить",
+      'hide_ip_address': "Скрыть мой IP-адрес (только ретранслятор)",
+      'hideIpHelp': "Другие игроки не получают ваш IP-адрес: всё идёт через ретранслятор XeniOS. Больше задержка, и нет соединения, если лобби не предлагает ретранслятор. Серверы XeniOS по-прежнему его видят. Экспериментально.",
     },
     'zh': <String, String>{
       'importMenu': "XeniOS / 导入",
@@ -547,6 +553,8 @@ abstract final class XeniaLocale {
       'roomNew': "新的私人房间",
       'roomInvalid': "房间代码由 6 个字母和数字组成。",
       'save': "保存",
+      'hide_ip_address': "隐藏我的 IP 地址（仅中继）",
+      'hideIpHelp': "其他玩家不会收到你的 IP 地址：所有数据都经由 XeniOS 的中继服务器。延迟会增加；大厅不提供中继时无法连接。XeniOS 的服务器仍能看到它。实验性功能。",
     },
     'zh_Hant': <String, String>{
       'importMenu': "XeniOS / 匯入",
@@ -683,6 +691,8 @@ abstract final class XeniaLocale {
       'roomNew': "新的私人房間",
       'roomInvalid': "房間代碼由 6 個字母和數字組成。",
       'save': "儲存",
+      'hide_ip_address': "隱藏我的 IP 位址（僅中繼）",
+      'hideIpHelp': "其他玩家不會收到你的 IP 位址：所有資料都經由 XeniOS 的中繼伺服器。延遲會增加；大廳不提供中繼時無法連線。XeniOS 的伺服器仍能看到它。實驗性功能。",
     },
     'pt': <String, String>{
       'importMenu': "XeniOS / Importar",
@@ -819,6 +829,8 @@ abstract final class XeniaLocale {
       'roomNew': "Nova sala privada",
       'roomInvalid': "Um código de sala tem 6 letras e números.",
       'save': "Salvar",
+      'hide_ip_address': "Ocultar meu endereço IP (somente relay)",
+      'hideIpHelp': "Os outros jogadores não recebem seu endereço IP: tudo passa pelo relay do XeniOS. Mais latência, e sem conexão quando o lobby não oferece relay. Os servidores do XeniOS continuam vendo-o. Experimental.",
     },
     'fr': <String, String>{
       'importMenu': "XeniOS / Importer",
@@ -955,6 +967,8 @@ abstract final class XeniaLocale {
       'roomNew': "Nouveau salon privé",
       'roomInvalid': "Un code de salon compte 6 lettres et chiffres.",
       'save': "Enregistrer",
+      'hide_ip_address': "Masquer mon adresse IP (relais uniquement)",
+      'hideIpHelp': "Les autres joueurs ne reçoivent pas votre adresse IP : tout passe par le relais de XeniOS. Plus de latence, et pas de connexion quand le lobby ne propose pas de relais. Les serveurs de XeniOS la voient toujours. Expérimental.",
     },
     'de': <String, String>{
       'importMenu': "XeniOS / Import",
@@ -1091,6 +1105,8 @@ abstract final class XeniaLocale {
       'roomNew': "Neuer privater Raum",
       'roomInvalid': "Ein Raumcode hat 6 Buchstaben und Ziffern.",
       'save': "Speichern",
+      'hide_ip_address': "Meine IP-Adresse verbergen (nur Relay)",
+      'hideIpHelp': "Andere Spieler erhalten deine IP-Adresse nicht: Alles läuft über das Relay von XeniOS. Mehr Latenz, und keine Verbindung, wenn die Lobby kein Relay anbietet. Die Server von XeniOS sehen sie weiterhin. Experimentell.",
     },
     'it': <String, String>{
       'importMenu': "XeniOS / Importa",
@@ -1227,6 +1243,8 @@ abstract final class XeniaLocale {
       'roomNew': "Nuova stanza privata",
       'roomInvalid': "Un codice stanza ha 6 lettere e cifre.",
       'save': "Salva",
+      'hide_ip_address': "Nascondi il mio indirizzo IP (solo relay)",
+      'hideIpHelp': "Gli altri giocatori non ricevono il tuo indirizzo IP: tutto passa per il relay di XeniOS. Più latenza, e nessuna connessione quando la lobby non offre un relay. I server di XeniOS lo vedono comunque. Sperimentale.",
     },
     'id': <String, String>{
       'importMenu': "XeniOS / Impor",
@@ -1363,6 +1381,8 @@ abstract final class XeniaLocale {
       'roomNew': "Ruang privat baru",
       'roomInvalid': "Kode ruang terdiri dari 6 huruf dan angka.",
       'save': "Simpan",
+      'hide_ip_address': "Sembunyikan alamat IP saya (hanya relay)",
+      'hideIpHelp': "Pemain lain tidak menerima alamat IP Anda: semuanya melewati relay XeniOS. Latensi lebih tinggi, dan tidak terhubung saat lobi tidak menyediakan relay. Server XeniOS tetap melihatnya. Eksperimental.",
     },
     'ja': <String, String>{
       'importMenu': "XeniOS / 読み込み",
@@ -1499,6 +1519,8 @@ abstract final class XeniaLocale {
       'roomNew': "新しいプライベートルーム",
       'roomInvalid': "ルームコードは英字と数字の 6 文字です。",
       'save': "保存",
+      'hide_ip_address': "IP アドレスを隠す（リレーのみ）",
+      'hideIpHelp': "他のプレイヤーにはあなたの IP アドレスが届きません。すべて XeniOS のリレーを経由します。遅延が増え、ロビーがリレーを提供しないときは接続できません。XeniOS のサーバーからは引き続き見えます。試験的な機能です。",
     },
     'ko': <String, String>{
       'importMenu': "XeniOS / 가져오기",
@@ -1635,6 +1657,8 @@ abstract final class XeniaLocale {
       'roomNew': "새 비공개 방",
       'roomInvalid': "방 코드는 영문자와 숫자 6자입니다.",
       'save': "저장",
+      'hide_ip_address': "내 IP 주소 숨기기 (릴레이만)",
+      'hideIpHelp': "다른 플레이어는 내 IP 주소를 받지 않습니다. 모든 통신이 XeniOS 릴레이를 거칩니다. 지연이 늘고, 로비가 릴레이를 제공하지 않으면 연결되지 않습니다. XeniOS 서버는 계속 볼 수 있습니다. 실험적 기능입니다.",
     },
   };
 

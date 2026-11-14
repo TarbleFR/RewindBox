@@ -46,6 +46,11 @@ extern "C" void NeoXeniaNotifyGuestSwap(void);
 // 8 GB limit (StikDebug 3.1.x) does not apply.
 extern "C" uintptr_t NeoXeniaExecuteRegionLimit(void);
 
+// Read by the patch in net/relay_client.cc (a weak reference) when a System
+// Link relay client is made: true while RewindBox's "hide my IP address" is on,
+// so the client takes no direct path and lists no address in the lobby.
+extern "C" bool NeoXeniaRelayOnly(void);
+
 // Defined by the patch in jit_memory_ios.cc: hands the host's code-region
 // reservation to IOSJitMemory when its own found no room below 8 GB.
 // Returns a NEO_XENIA_CODE_REGION_* value (XeniaCoreABI.h).

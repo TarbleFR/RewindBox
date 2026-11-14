@@ -50,7 +50,7 @@ static NSSet<NSString*>* XeniaManagedKeys(void) {
       @"widescreen", @"internal_display_resolution",
       // RewindBox's online settings (docs/xenios-playlist.md § Online): the
       // first and last are read by the Core's facade, the room is a cvar.
-      @"online_features", @"systemlink_room", @"gamertag"
+      @"online_features", @"systemlink_room", @"gamertag", @"hide_ip_address"
     ]];
   });
   return keys;

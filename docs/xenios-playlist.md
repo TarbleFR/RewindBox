@@ -153,6 +153,7 @@ All of them apply at the next launch (stated in the UI).
 | `mount_cache` | on/off | `emulator.cc:1974` |
 | `systemlink_room` (XeniOS 2.3.2, § Online) | empty (the game's public lobby) or a 6-character private room code | `kernel/xam/xam_system_link.cc` `RelayRoom` |
 | `online_features` (RewindBox, read by the facade, § Online) | off (default) / on | the relay policy (`SetSystemLinkRelayPolicy`) |
+| `hide_ip_address` (RewindBox, read by the facade, § Online) | off (default) / on | `NeoXeniaRelayOnly`, read by the patch in `net/relay_client.cc` |
 | `gamertag` (RewindBox, read by the facade, § Online; all games only) | empty (RewindBox) or a gamertag | `SignInPlayerOneOnMain` |
 
 `widescreen` is the aspect ratio the console reports; games read it when they
@@ -771,6 +772,21 @@ The owner's request: XeniOS's multiplayer and its gamertags made accessible.
   ignored, O as 0, I and L as 1). The settings page makes a new code
   (`newRoomCode`); friends enter the same code. Loaded as a string (a code of
   digits only would be read as an integer by the generic cvar path).
+- **Hide my IP address** (`hide_ip_address`, off by default; the owner's
+  request): XeniOS's lobby lists every address a player's relay client finds
+  (its public one from the TURN/STUN mapping, its local ones) to the players of
+  the room, which probe them for a direct path; XeniOS's own relay-only switch
+  (`RelayConfig::direct_paths` off) still lists them. The patch adds one weak hook
+  to `relay::RelayClient` (added lines only): with it on, the client made at a
+  title's System Link start takes no direct path (no probe leaves the player's
+  address) and lists no candidate; players reach it through its TURN allocation,
+  which the lobby lists apart (`relay`), relay to relay as XeniOS already does
+  for unreachable peers (`PermitRelays`, `SendTo`). Other players then see the
+  relay's address, the System Link MAC (the profile ID) and an opaque network
+  ID of the lobby's; the lobby, the TURN and STUN servers still see the
+  player's address. Costs: every frame through the relay (latency, XeniOS's
+  bandwidth), no connection when the lobby names no TURN server. Unmodified
+  XeniOS and Xenia peers need no change. Not tested in a game here.
 - **Gamertag** (`gamertag`, all games only): player 1 signs in as the profile of
   that name, the first of that name or a new one (XeniOS's
   `ProfileManager::IsGamertagValid`: 1 to 15 characters, a letter first, letters

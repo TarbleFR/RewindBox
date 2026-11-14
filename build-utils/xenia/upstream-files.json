@@ -19,5 +19,7 @@
   "src/xenia/ui/ios/CMakeLists.txt": "a032d59ab4ee455e2750854e80500e3fb516721ff777029778438d02069235cd",
   "src/xenia/ui/ios/app/ios_external_display.mm": "5f862f17103417cb12ff7be76f1c50bdd8184c18d73c0632ecb29152be1281ab",
   "src/xenia/ui/ios/shared/ios_state_reporting.mm": "ee2535e35c5dcef49a35eabe429dcaa98b53fba6a2c9a6837203c6e6d8d109f1",
-  "src/xenia/base/system_ios.h": "29b2ea2e364ad71a8eb57ddfab2406a9ad84aa75bc47745ad968222b22f68ab9"
+  "src/xenia/base/system_ios.h": "29b2ea2e364ad71a8eb57ddfab2406a9ad84aa75bc47745ad968222b22f68ab9",
+  "src/xenia/net/relay_client.h": "046e5b7dcab4bd4734ebd2bcabbb5d381e53a78e9b17d6a8ee337e54fd43bd0c",
+  "src/xenia/net/relay_client.cc": "96ea71247979bf306312b6dcab558b1dda8b394de0b71c9aa4a5483cee943e62"
 }

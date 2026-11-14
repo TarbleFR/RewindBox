@@ -293,6 +293,7 @@ class _XeniaSettingsScreenState extends State<XeniaSettingsScreen>
       'widescreen' => _t('widescreenHelp'),
       'internal_display_resolution' => _t('resolutionHelp'),
       'online_features' => _t('onlineHelp'),
+      'hide_ip_address' => _t('hideIpHelp'),
       'gamertag' => _t('gamertagHelp'),
       'systemlink_room' => _t('roomHelp'),
       _ => null,

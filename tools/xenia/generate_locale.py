@@ -227,6 +227,28 @@ for _code, _values in ONLINE.items():
     assert len(_values) == len(ONLINE_KEYS), (_code, len(_values))
     T[_code] = T[_code] + _values
 
+# RewindBox's "hide my IP address" for System Link (docs/xenios-playlist.md § Online).
+HIDE_KEYS = ['hide_ip_address','hideIpHelp']
+
+HIDE = {
+'en': ['Hide my IP address (relay only)',"Other players don't receive your IP address: everything goes through XeniOS's relay. More latency, and no connection when the lobby offers no relay. XeniOS's servers still see it. Experimental."],
+'fr': ['Masquer mon adresse IP (relais uniquement)','Les autres joueurs ne reçoivent pas votre adresse IP : tout passe par le relais de XeniOS. Plus de latence, et pas de connexion quand le lobby ne propose pas de relais. Les serveurs de XeniOS la voient toujours. Expérimental.'],
+'de': ['Meine IP-Adresse verbergen (nur Relay)','Andere Spieler erhalten deine IP-Adresse nicht: Alles läuft über das Relay von XeniOS. Mehr Latenz, und keine Verbindung, wenn die Lobby kein Relay anbietet. Die Server von XeniOS sehen sie weiterhin. Experimentell.'],
+'es': ['Ocultar mi dirección IP (solo relé)','Los demás jugadores no reciben tu dirección IP: todo pasa por el relé de XeniOS. Más latencia, y sin conexión cuando el lobby no ofrece relé. Los servidores de XeniOS la siguen viendo. Experimental.'],
+'it': ['Nascondi il mio indirizzo IP (solo relay)','Gli altri giocatori non ricevono il tuo indirizzo IP: tutto passa per il relay di XeniOS. Più latenza, e nessuna connessione quando la lobby non offre un relay. I server di XeniOS lo vedono comunque. Sperimentale.'],
+'pt': ['Ocultar meu endereço IP (somente relay)','Os outros jogadores não recebem seu endereço IP: tudo passa pelo relay do XeniOS. Mais latência, e sem conexão quando o lobby não oferece relay. Os servidores do XeniOS continuam vendo-o. Experimental.'],
+'ru': ['Скрыть мой IP-адрес (только ретранслятор)','Другие игроки не получают ваш IP-адрес: всё идёт через ретранслятор XeniOS. Больше задержка, и нет соединения, если лобби не предлагает ретранслятор. Серверы XeniOS по-прежнему его видят. Экспериментально.'],
+'zh': ['隐藏我的 IP 地址（仅中继）','其他玩家不会收到你的 IP 地址：所有数据都经由 XeniOS 的中继服务器。延迟会增加；大厅不提供中继时无法连接。XeniOS 的服务器仍能看到它。实验性功能。'],
+'zh_Hant': ['隱藏我的 IP 位址（僅中繼）','其他玩家不會收到你的 IP 位址：所有資料都經由 XeniOS 的中繼伺服器。延遲會增加；大廳不提供中繼時無法連線。XeniOS 的伺服器仍能看到它。實驗性功能。'],
+'ja': ['IP アドレスを隠す（リレーのみ）','他のプレイヤーにはあなたの IP アドレスが届きません。すべて XeniOS のリレーを経由します。遅延が増え、ロビーがリレーを提供しないときは接続できません。XeniOS のサーバーからは引き続き見えます。試験的な機能です。'],
+'ko': ['내 IP 주소 숨기기 (릴레이만)','다른 플레이어는 내 IP 주소를 받지 않습니다. 모든 통신이 XeniOS 릴레이를 거칩니다. 지연이 늘고, 로비가 릴레이를 제공하지 않으면 연결되지 않습니다. XeniOS 서버는 계속 볼 수 있습니다. 실험적 기능입니다.'],
+'id': ['Sembunyikan alamat IP saya (hanya relay)','Pemain lain tidak menerima alamat IP Anda: semuanya melewati relay XeniOS. Latensi lebih tinggi, dan tidak terhubung saat lobi tidak menyediakan relay. Server XeniOS tetap melihatnya. Eksperimental.'],
+}
+KEYS = KEYS + HIDE_KEYS
+for _code, _values in HIDE.items():
+    assert len(_values) == len(HIDE_KEYS), (_code, len(_values))
+    T[_code] = T[_code] + _values
+
 order = ['en','es','ru','zh','zh_Hant','pt','fr','de','it','id','ja','ko']
 for code in order:
     assert len(T[code]) == len(KEYS), (code, len(T[code]), len(KEYS))
