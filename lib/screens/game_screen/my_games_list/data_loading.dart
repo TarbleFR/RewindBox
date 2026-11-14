@@ -11,7 +11,8 @@ part of '../my_games_list.dart';
 extension _DataLoading on _SystemGamesListState {
   /// Retrieves localized game descriptions directly from the SQLite database.
   void _loadLocalizedDescription() async {
-    if (_selectedGame == null) return;
+    final game = _selectedGame;
+    if (game == null) return;
 
     try {
       String? systemId;
@@ -19,9 +20,9 @@ extension _DataLoading on _SystemGamesListState {
       // In 'Global Library' mode, resolve the game's native hardware system ID.
       if ((widget.system.folderName == 'all' ||
               widget.system.folderName == SystemFolderNames.favorites) &&
-          _selectedGame!.systemFolderName != null) {
+          game.systemFolderName != null) {
         final originalSystem = await SystemRepository.getSystemByFolderName(
-          _selectedGame!.systemFolderName!,
+          game.systemFolderName!,
         );
         systemId = originalSystem?.id;
       } else {
@@ -38,13 +39,12 @@ extension _DataLoading on _SystemGamesListState {
       }
 
       final description = await GameRepository.getLocalizedDescription(
-        _selectedGame!.romname,
+        game.romname,
         systemId,
       );
 
-      if (mounted &&
-          _selectedGame != null &&
-          _selectedGame!.romname == _selectedGame!.romname) {
+      // A description arriving after the selection moved on is dropped.
+      if (mounted && _selectedGame == game) {
         rebuild(() {
           _localizedDescription = description;
         });

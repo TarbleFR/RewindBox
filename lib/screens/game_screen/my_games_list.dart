@@ -196,6 +196,19 @@ class _SystemGamesListState extends State<SystemGamesList> {
   // Rapid navigation state.
   bool _isNavigatingFast = false;
 
+  // False from a move of the selection until it rests for _fastNavEndDelay.
+  // While it moves, only the light work runs (highlight, scroll, the
+  // details panel's screenshot); the background art, the description, the
+  // RetroAchievements lookup, the TV and the preview come once it rests, so
+  // their decoding and I/O never fall in the middle of a scroll (maintainer
+  // video of the DS playlist, 14 November 2026: 0.1-0.9 s freezes at each
+  // game shown for the first time).
+  bool _selectionSettled = true;
+
+  // The game whose art is behind the panels: the one left until the
+  // selection rests.
+  GameModel? _backgroundGame;
+
   // True only while a held direction is skipping letter-to-letter. The letter
   // overlay is tied to this rather than to _isNavigatingFast: an ordinary fast
   // scroll shows the game names themselves, so throwing a big letter over them
@@ -516,8 +529,12 @@ class _SystemGamesListState extends State<SystemGamesList> {
     final letter = LetterJump.letterFor(game);
 
     setState(() {
+      // The art shown so far stays until the selection rests.
+      if (_selectionSettled) _backgroundGame = _selectedGame;
+      _selectionSettled = false;
       _selectedGameIndex = newIndex;
       _selectedGame = game;
+      _localizedDescription = null;
       _isNavigatingFast = isFast;
       _isLetterJumping = forceFast;
       _currentLetter = letter;
@@ -535,6 +552,8 @@ class _SystemGamesListState extends State<SystemGamesList> {
           setState(() {
             _isNavigatingFast = false;
             _isLetterJumping = false;
+            _selectionSettled = true;
+            _backgroundGame = _selectedGame;
           });
           _performBackgroundOperationsForSelectedGame(force: true);
 
@@ -1681,7 +1700,9 @@ class _SystemGamesListState extends State<SystemGamesList> {
                 fit: StackFit.expand,
                 children: [
                   _buildGameFanartBackground(
-                    _selectedGame!,
+                    _selectionSettled
+                        ? _selectedGame!
+                        : (_backgroundGame ?? _selectedGame!),
                     artworkVersion: _artworkVersion,
                   ),
                   Container(
@@ -2027,7 +2048,8 @@ class _SystemGamesListState extends State<SystemGamesList> {
       ),
       externalScrapeProgress: _scrapeProgress[_selectedGame!.romname],
       externalScrapeStatus: _selectedScrapeStatus,
-      isNavigatingFast: _isNavigatingFast,
+      // RetroAchievements are looked up once the selection rests.
+      isNavigatingFast: _isNavigatingFast || !_selectionSettled,
       isSecondaryScreenActive:
           _secondaryDisplayState?.value?.isSecondaryActive ?? false,
       onDeactivateNavigation: () => _gamepadNav.deactivate(),

@@ -730,6 +730,9 @@ class GameBoxImageSize {
   /// come before its frame header).
   static const int headerLimit = 1024 * 1024;
 
+  /// Bytes read first; [headerLimit] only when the size is not in them.
+  static const int headerStart = 64 * 1024;
+
   static void evict(String path) => _cache.remove(path);
 
   static Size? of(String path) {
@@ -748,10 +751,21 @@ class GameBoxImageSize {
     try {
       final raf = File(path).openSync();
       try {
-        final len = raf.lengthSync().clamp(0, headerLimit).toInt();
-        final buf = Uint8List(len);
+        // Read on the UI thread as rows appear: the first [headerStart]
+        // bytes hold the size of nearly every picture; only a JPEG whose
+        // EXIF or ICC block is larger needs more.
+        final total = raf.lengthSync();
+        var len = total.clamp(0, headerStart).toInt();
+        var buf = Uint8List(len);
         raf.readIntoSync(buf);
         result = fromBytes(buf);
+        if (result == null && total > len) {
+          len = total.clamp(0, headerLimit).toInt();
+          buf = Uint8List(len);
+          raf.setPositionSync(0);
+          raf.readIntoSync(buf);
+          result = fromBytes(buf);
+        }
       } finally {
         raf.closeSync();
       }

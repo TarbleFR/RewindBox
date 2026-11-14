@@ -200,7 +200,47 @@ class GamepadNavigation {
   /// letter and release on it, short enough to cross the alphabet quickly.
   static const Duration _letterJumpInterval = Duration(milliseconds: 360);
 
+  /// Steps a held direction must also have taken before letter jumping
+  /// (about what [_letterJumpAfter] gives at each cadence). A hold spent
+  /// behind a frozen screen moved few items and must not start skipping
+  /// whole letters (maintainer video, 14 November 2026).
+  static const int _letterJumpMinSteps = 10;
+  static const int _letterJumpMinMenuSteps = 3;
+
+  /// A repeat that runs this much later than it was due found the event
+  /// loop blocked: the release of the button may still be queued behind it.
+  static const Duration _staleRepeatLateness = Duration(milliseconds: 100);
+
+  /// How long such a late repeat waits for that release before moving.
+  static const Duration _staleRepeatGrace = Duration(milliseconds: 120);
+
   final Map<dynamic, Timer?> _repeatTimers = {};
+
+  /// The hold each repeat belongs to: a callback left over from a released
+  /// hold never moves the selection of the next one.
+  final Map<dynamic, int> _repeatSessions = {};
+  int _repeatSessionCount = 0;
+
+  /// Whether the frame showing the last directional step has been drawn.
+  /// Repeats wait for it, so a held direction is never more than one step
+  /// ahead of the screen: during a long frame the selection no longer runs
+  /// on, unseen, and lands past the game the player let go on.
+  bool _stepShown = true;
+  int _stepCount = 0;
+
+  /// Debug view of [_stepShown], for tests.
+  @visibleForTesting
+  bool get debugStepShown => _stepShown;
+
+  void _stepTaken() {
+    final step = ++_stepCount;
+    _stepShown = false;
+    final binding = WidgetsBinding.instance;
+    binding.addPostFrameCallback((_) {
+      if (step == _stepCount) _stepShown = true;
+    });
+    binding.ensureVisualUpdate();
+  }
 
   DateTime? _lastEventTime;
   static const int _throttleDelayMs = 128;
@@ -536,6 +576,7 @@ class GamepadNavigation {
       timer?.cancel();
     }
     _repeatTimers.clear();
+    _repeatSessions.clear();
   }
 
   /// Indicates if this navigator is currently processing events.
@@ -1190,6 +1231,7 @@ class GamepadNavigation {
     final moved = _runNavAction(action, false);
     if (moved) {
       SfxService().playNavSound();
+      _stepTaken();
     }
 
     // Don't auto-repeat while a text field is focused. Repeating would keep
@@ -1235,34 +1277,66 @@ class GamepadNavigation {
   /// for [_letterJumpInterval] each.
   void _startRepeatTimer(dynamic key, Function action) {
     _repeatTimers[key]?.cancel();
+    final session = ++_repeatSessionCount;
+    _repeatSessions[key] = session;
+    // Guard: the key was removed (by _stopRepeatTimer or
+    // cancelAllRepeatTimers), or a new hold of it began.
+    bool live() =>
+        _repeatTimers.containsKey(key) && _repeatSessions[key] == session;
 
     final heldSince = DateTime.now();
     final bool canLetterJump =
         onLetterJump != null && _isLetterJumpKey(key) != null;
     final bool forward = _isLetterJumpKey(key) ?? false;
     var repeats = 0;
+    var waitedForRelease = false;
 
     void schedule(Duration delay) {
+      final due = DateTime.now().add(delay);
       _repeatTimers[key] = Timer(delay, () {
-        // Guard: if the key was removed (by _stopRepeatTimer or
-        // cancelAllRepeatTimers) before this callback ran, stop here.
-        if (!_repeatTimers.containsKey(key)) return;
+        if (!live()) return;
         if (!_isActive) {
           _repeatTimers.remove(key);
+          return;
+        }
+
+        // Late: the release may be queued behind this repeat. Look again
+        // once it had the time to arrive.
+        if (!waitedForRelease &&
+            DateTime.now().difference(due) > _staleRepeatLateness) {
+          waitedForRelease = true;
+          schedule(_staleRepeatGrace);
+          return;
+        }
+        waitedForRelease = false;
+
+        // The last step is not on screen yet: move again after its frame.
+        if (!_stepShown) {
+          final binding = WidgetsBinding.instance;
+          binding.addPostFrameCallback((_) {
+            if (live()) schedule(Duration.zero);
+          });
+          binding.ensureVisualUpdate();
           return;
         }
 
         final held = DateTime.now().difference(heldSince);
         if (canLetterJump &&
             held >= _letterJumpAfter &&
+            repeats >=
+                (accelerateRepeats
+                    ? _letterJumpMinSteps
+                    : _letterJumpMinMenuSteps) &&
             onLetterJump!(forward)) {
           SfxService().playNavSound();
+          _stepTaken();
           schedule(_letterJumpInterval);
           return;
         }
 
         if (_runNavAction(action, true)) {
           SfxService().playNavSound();
+          _stepTaken();
         }
         repeats++;
         schedule(
@@ -1322,6 +1396,7 @@ class GamepadNavigation {
   void _stopRepeatTimer(dynamic key) {
     _repeatTimers[key]?.cancel();
     _repeatTimers.remove(key);
+    _repeatSessions.remove(key);
   }
 }
 

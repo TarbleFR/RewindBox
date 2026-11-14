@@ -289,11 +289,42 @@ class UiRefreshRateService extends ChangeNotifier with WidgetsBindingObserver {
     _postGameDeadline = _clock().add(postGameWindow);
   }
 
+  /// A frame of the interface this long is written to the log, with where
+  /// its time went: waiting for the UI thread (vsync overhead: event
+  /// handlers, timers, synchronous I/O), building, or rasterizing. Freezes
+  /// seen on the device (DS playlist, 14 November 2026) can then be placed.
+  static const Duration longFrame = Duration(milliseconds: 250);
+  DateTime? _lastLongFrameLog;
+  int _longFramesUnlogged = 0;
+
+  void _logLongFrame(FrameTiming timing) {
+    if (timing.totalSpan < longFrame) return;
+    final now = _clock();
+    final last = _lastLongFrameLog;
+    if (last != null && now.difference(last) < const Duration(seconds: 1)) {
+      _longFramesUnlogged++;
+      return;
+    }
+    _lastLongFrameLog = now;
+    int ms(Duration d) => d.inMilliseconds;
+    final more = _longFramesUnlogged == 0
+        ? ''
+        : ' (+$_longFramesUnlogged long frames in the last second)';
+    _longFramesUnlogged = 0;
+    _log.w(
+      'UI long frame: total ${ms(timing.totalSpan)} ms, '
+      'waiting ${ms(timing.vsyncOverhead)} ms, '
+      'build ${ms(timing.buildDuration)} ms, '
+      'raster ${ms(timing.rasterDuration)} ms$more',
+    );
+  }
+
   void _onTimings(List<FrameTiming> timings) {
     if (_gateBlocked) {
       _framesDuringGame += timings.length;
     } else {
       for (final timing in timings) {
+        _logLongFrame(timing);
         _estimator.add(
           vsyncStartMicros: timing.timestampInMicroseconds(
             FramePhase.vsyncStart,

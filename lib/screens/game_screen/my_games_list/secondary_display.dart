@@ -116,12 +116,9 @@ extension _SecondaryDisplay on _SystemGamesListState {
   void _performBackgroundOperationsForSelectedGame({bool force = false}) {
     if (_selectedGame == null || !mounted || _previewIsSuppressed) return;
 
-    // Suppress expensive operations (video, isolates) during rapid scrolling.
-    if (_isNavigatingFast && !force) {
-      _updateBackground(_selectedGame!);
-      _updateSecondaryDisplay(_selectedGame!);
-      return;
-    }
+    // Nothing heavy while the selection moves: it all runs once it rests
+    // (the _fastNavEndTimer of the host calls back with force).
+    if (!_selectionSettled && !force) return;
 
     _loadLocalizedDescription();
     _startVideoTimer();
