@@ -370,3 +370,34 @@ of the engine in the app, 0 when unknown).
 
 Not observed on a device. The first launch after the delivery that brings this prepares once more (the fingerprint's
 form changed); `prepare reused` after the delivery that follows it is the gain to look for.
+
+## Open findings of the second review (14 Nov 2026)
+
+The corrections of `cd0841344` (patches 0014, 0016, 0018, 0019 and the preparation identity, delivered in IPA 737)
+were read by five independent reviewers, each finding then checked against the code by a second agent; the checker of
+patch 0014 did not run (usage limit), its reviewer reproduced each point on .NET 10.0.15. No compile error was found.
+None of these is corrected yet; they wait for the device log of IPA 739 (engine with patch 0020). Device facts so
+far: IPA 737 read five textures of the 0016 case from a copy instead of stopping, its second start read the RomFS index
+in 41 ms and reused the preparation (`identity: pin`), first frame 62 s after the tap.
+
+- **0016, texture read.** A write-tracked texture whose storage cannot all be read is uploaded whole at every page
+  write, from a copy, and a GPU-written content (`pgpu`) is then replaced by guest bytes without a log line (judge on
+  the copy instead). ReadTexels, the GPU-write ledger and the zero check fall back without a log line, and the zero
+  check answers "all zero" when its malloc fails. After 8 red lines per case the running totals are no longer
+  written. A GPU write made while the storage is unreadable marks no block for the ledger's other readers.
+- **0014, RomFS index.** An index written on the device with the right length but damaged counts (negative or huge)
+  throws `OverflowException` / `OutOfMemoryException`, outside `RbOpen`'s filter: every start would fail. The stamp
+  holds only the index's length, and `Flush(true)` is `fsync`, not `F_FULLFSYNC`, on iOS: add a checksum of the index.
+  Under a small-object heap limit of 80–88 MB the writer can run for minutes without an exception (the engine sets
+  384 MB or more: not reached). The drop of an index by `RbMismatch` goes through `Red.Note`, silent after 256 notes
+  and not a red line. An index written before a `ui_overlay` appears keeps being read.
+- **0018, diagnostics marker.** A resume accepted between the end of a park and `park_result` leaves the marker at
+  rest, so a crash of that resumed session would not be asked about; `s2a_sesmark_rest_home` does nothing, without a
+  log line, when the marker's folder cannot be found.
+- **0019, host room.** If `gclimit.c` does not find `s2a_rb_low_holes_less` by name while a room was given, the room is
+  counted again without a log line (the symbol is exported: 110 exports in runs 43499689256 and 43539088851).
+- **Bridge, preparation identity.** `kPreparedSteps` is guarded by the digest of `runSteps` only, not of the functions
+  it depends on (`contentIdentity`, `S2ArmShippedSystemData`, `S2ArmPrepareABI.h`, …). `test/s2arm_prepare_identity_test.py`
+  reads `engine_pin.py snippet`, not the delivery manifest. Files the engine writes into a prepared game (translated
+  shaders, RomFS index) now survive engine patches; their keys (shader chain, `rb-romfs-tree 2`) must be raised by any
+  patch that changes their format.
