@@ -1,6 +1,6 @@
 {
   "status": "verified",
-  "packagedFingerprint": "82d35d071c3c4892658e558c80dd55e282bfba42f31b7487128f5d28b3c7f488",
+  "packagedFingerprint": "86f54cc0b480954e1e80d3807ee023b845124b3c5eeba64ef7ec7153be8a1b11",
   "producers": {
     "engine": {
       "run": 43617092018,
@@ -13,8 +13,8 @@
       "headBranch": "Claude",
       "expiresAt": "2026-12-14T16:54:08Z",
       "members": {
-        "S2ArmEngine.framework.zip": "83ac81734b93486a49d52b74b51ddaa591183fa01438276136e5b774f82ad393",
-        "NS2Pro.framework.zip": "b5de5c8f4ea732f8b4846a3b3a1c9b7db46068c64ac93ead3b1584523bd1ccb7"
+        "S2ArmEngine.framework.zip": "52bfd3888eb93548958207ace6d8a7a6130c058705e1927dedbb2a95c17a89ae",
+        "NS2Pro.framework.zip": "ee7db58c354304b68f08a793bf7664b2099744f74c4e4bd76b4678e1e86323ac"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "230488f86d7838625c914bb3a237fb16667e5f2b54ea09c409efac9e61ce650f",
+    "engine": "d4febe6cc245a3debe05783344abed65b3b38ac4d5218f739f10d5ef53dae99d",
     "prepare": "aef8aafb38aa456defbdf16b3194716c32b2051b76a38bc68640d91f098fc87f",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -90,9 +90,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "922a04652c545ccf87cf9d834ffae1589ce7ae60dd223bc35d24fc49db826116",
-      "bytes": 107460872,
-      "fingerprint": "82d35d071c3c4892658e558c80dd55e282bfba42f31b7487128f5d28b3c7f488"
+      "sha256": "d06c302ed927cfba926346733a133ca3436e59127e1f2dc7bdc3c02ae3f6051c",
+      "bytes": 107499528,
+      "fingerprint": "86f54cc0b480954e1e80d3807ee023b845124b3c5eeba64ef7ec7153be8a1b11"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -125,9 +125,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 43557031529,
+      "run": 43617092018,
       "attempt": 1,
-      "head_sha": "60c4e590eec424b5a6aaf360321b1e51601f887e",
+      "head_sha": "b24ece99a1f3cae556b12217a52ba566f91111c9",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -214,11 +214,55 @@
         {
           "name": "0021-guest-sparse-cpu-uploads-read-layer-by-layer-and-bounded-staging.patch",
           "sha256": "b0b84adb24cd7fb2b048976ef420a05d64fe10fc9528104745357271c02ca48e"
+        },
+        {
+          "name": "0022-guest-staging-given-back-layer-by-layer-and-one-layer-window.patch",
+          "sha256": "189dc8d0c4b9c953891fc9421dcba2e4a8b277f71f1d8a4538351ed794a3221d"
+        },
+        {
+          "name": "0023-guest-placement-sparse-device-line-and-resident-top.patch",
+          "sha256": "47f92a1d8f6a40bed3196bc786ecfa6bd428506b19a7a1d013110153ebb23007"
+        },
+        {
+          "name": "0024-guest-sparse-tile-deswizzle-and-tile-shape.patch",
+          "sha256": "58fc0427bd3c300a81eef54ff0661a5005b75527548702b21c080e18896d76b6"
+        },
+        {
+          "name": "0025-guest-write-tracking-sparse-marks.patch",
+          "sha256": "94e7258ba1937291f37fa67f534cf4e93cfca334e50a7806476512cd6345f989"
+        },
+        {
+          "name": "0026-guest-virtual-pool-mapping-log-and-tile-queries.patch",
+          "sha256": "a497fc7efc522811c758946a4aca061fbf1711a225b901b0a8adc5edb0ebfa7e"
+        },
+        {
+          "name": "0027-guest-queue-block-in-the-recording-stream.patch",
+          "sha256": "a75401a9ad17fa92ddd92effeb6e0f084d2268d68efa3a91c0627b813177d33c"
+        },
+        {
+          "name": "0028-guest-placement-sparse-textures-for-packaged-arrays.patch",
+          "sha256": "a3e9e5a6767418d5d58aeedcfbe1ca02d9b506b6b48d6c62e55f83936e60e181"
+        },
+        {
+          "name": "0029-guest-placement-tiles-shared-by-physical-memory.patch",
+          "sha256": "5561c015584348bbc41592677073fad4bac64a269246f86734f38436b1ff2b08"
+        },
+        {
+          "name": "0030-guest-gpu-written-placement-sparse-textures.patch",
+          "sha256": "cb755089d777184526f7ec32bfbbfafe92cabc2631d29e56a396ca06b77c429f"
+        },
+        {
+          "name": "0031-guest-id-view-cache-follows-sparse-mappings.patch",
+          "sha256": "48579e9ad45ea01a9a48b5902e8772a820151eca1a5f4074773871e42e518da7"
+        },
+        {
+          "name": "0032-guest-placement-sparse-review-fixes-across-the-series.patch",
+          "sha256": "2eeb0fd1596e7fdfa37b6422ace269fa60aef77b3cc8aec3e832acead7fec13b"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "83ac81734b93486a49d52b74b51ddaa591183fa01438276136e5b774f82ad393",
-        "NS2Pro.framework.zip": "b5de5c8f4ea732f8b4846a3b3a1c9b7db46068c64ac93ead3b1584523bd1ccb7"
+        "S2ArmEngine.framework.zip": "52bfd3888eb93548958207ace6d8a7a6130c058705e1927dedbb2a95c17a89ae",
+        "NS2Pro.framework.zip": "ee7db58c354304b68f08a793bf7664b2099744f74c4e4bd76b4678e1e86323ac"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
