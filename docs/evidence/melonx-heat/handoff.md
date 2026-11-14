@@ -335,3 +335,49 @@ iPhone.
 Core of the third lot (with the second): da2525a1 (run 43544952386, build-smoke: NativeAOT and ABI verified, two
 simulator sessions; artifact 14094186931, SHA-256 530a2ade, iPhone binary 0dc51125, packaged fingerprint b7945f96,
 contract e49e1185), verified locally with melonx_dma_core_component and pinned, for delivery 740 (XeniOS session).
+
+## IPA 740 lot: eight adapters from the 740 investigation (Hogwarts Legacy, Core da2525a1, pid 5954)
+
+Read from the private journals of IPA 740 (2 min 20 s of play and a 4.9 s screen recording; counts and times only).
+Game frame rate mean 20.9 / median 22.9 FPS, presented 26.4, p99 interval 200 ms, 156 intervals over 100 ms. A
+seven-axis investigation (grey frames, descriptors, submissions, GPU thread, GC and memory, stalls, regressions of the
+736 lots), each finding checked by an adversarial verifier, kept the following; each adapter's docstring holds its
+numbers, mechanism and rollback.
+
+1. `adapt_command_buffer_ownership` (every title; Auto.cs, CommandBufferPool.cs): a command buffer holds one reference
+   per object it uses, not one per object of its reference chain (view, image, memory); the referenced objects get their
+   command-buffer bit and waitable only, cleared before the user's release; dependants stored as a struct (no covariant
+   array-store check: StelemRef_Helper 39 own samples of the render thread, all under that chain).
+2. `adapt_signalled_fence_release` (every title; CommandBufferPool.cs): a command buffer whose fence FreeConsumed just
+   read signalled is released without the infinite vkWaitForFences that followed (adapt_fence_status left it).
+3. `adapt_buffer_hit_sets` (every title; BufferCache.cs): the last-hit table of adapt_buffer_last_hit in 256 two-way sets,
+   emptied per removed buffer instead of entirely; one overlapping buffer containing the range answers CreateBufferAligned
+   and GetOrCreateBuffer (OverlapsWith 34, CreateBufferAligned 14 of 544 running samples of GPU.MainThread, every
+   CreateBufferAligned sample a table miss).
+4. `adapt_array_log_membership` (every title; Texture.cs, TextureBindingsArrayCache.cs): the change rings' walks skip,
+   without a dictionary lookup, textures never put into a texture array (Dictionary FindValue up to 5.1 % of
+   GPU.MainThread since adapt_array_dirty_log).
+5. `adapt_partition_dispose_order` (every title; AddressSpacePartitioned.cs): the empty partition list is published
+   before the partitions are disposed, as Unmap orders it (session end only).
+6. `adapt_keepalive_hold_off` (every title; EmbeddedSession.cs): the keep-alive acts on its own decision again: holding
+   its request short of memory let the BGC thread leave after its 20 s idle wait and the runtime's next gen2 ran
+   blocking (518.3 ms in play on 740, 334.5 ms on 739; 736 without the hold: 17 requests, no fallback).
+7. `adapt_darwin_spin_yield` (every title, Apple platforms; AsyncWorkQueue.cs): past the pause iterations the adaptive
+   spin yields with thread_switch(MACH_PORT_NULL, SWITCH_OPTION_NONE, 0) instead of sched_yield, which XNU implements as
+   swtch_pri(0) (855 of 3 258 running samples of the slow threads in that yield; [MeloNX:stall] samples there at
+   pth_curpri 0). New gate darwin-spin-yield: the wait-spin-bound fixture with the final class (Linux: flag off, same
+   criteria) and a probe of the fallback (forced on where thread_switch does not bind: cleared at the first yield,
+   2 000 handoffs complete). wait-spin-bound checks its own postimage where the later adapter edits the file.
+8. `adapt_pool_slot_copy` (Hogwarts Legacy policy; TextureArray.cs): a slot of a texture array over 4 096 elements that
+   would be written whole is copied from the array's latest slot (one vkCopyDescriptorSet, a memcpy of the descriptor
+   buffers in the embedded MoltenVK with Metal 3 argument buffers), then only the changes since it are written (64 whole
+   writes of 524 288 elements in the session, 11-17 ms each).
+
+Refuted or left out by the verifiers: an attachment-only barrier kept in the Metal pass as cause of the grey frames
+(Metal tracks the restarted encoder's attachments); the texture cold-release clock (frees no GPU-written texture); a
+larger gen0 budget (the segments collector would grow every pause); Vulkan dedicated allocations; the BGC thread's class.
+Deferred with their designs: queuing the 3D engine's syncpoint increments behind their occlusion reports (the GPU thread
+blocked 15.65 s + 11.36 s of 85 s of dispatch, gain bounded, report rewrite order to protect), the extra-set dirty split
+(visual exposure), a lock-free private mapping snapshot (unmap race), dispatch-semaphore waits for the WaitSubsystem
+(new primitive, macOS gate first). The grey frames are investigated separately; DMA paths are excluded (idle on those
+frames). Not measured on an iPhone.
