@@ -32,6 +32,8 @@ func MeloNXJitWaitForDetach(_ timeout: Double, _ message: inout NSString?) -> Bo
 }
 func MeloNXJitAbortTransaction() {}
 enum MeloNXJitBridgePlugin { static func register(with registrar: FlutterPluginRegistrar) {} }
+// The plugin also registers the system sign-in sheet's channel (MeloNXWebAuth.swift); nothing here opens it.
+enum MeloNXWebAuthPlugin { static func register(with registrar: FlutterPluginRegistrar) {} }
 enum MeloNXStrings { static var locale="en" }
 // MeloNXCoreLoaded.h: the plugin marks the process before it loads MeloNXCore. Declared here as the bridging header of
 // this test is the registrar's.
