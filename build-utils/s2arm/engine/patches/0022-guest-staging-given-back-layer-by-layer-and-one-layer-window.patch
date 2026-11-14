@@ -1,0 +1,97 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 88e70e996..ccba9e9ef 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -409,7 +409,9 @@ static void res_check(id r, const char *what, int reg) {
+ }
+ static void res_commit(void) {
+     pthread_mutex_lock(&g_res_mu);
+-    if (g_res_dirty) { uint64_t t0 = clock_gettime_nsec_np(CLOCK_UPTIME_RAW); [g_res commit]; g_res_dirty = 0; g_rs_commits++; g_rs_commit_ns += clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - t0; }
++    // RewindBox (patch 0022): the commit in its own pool. It applies the removals of retired staging; on the submit thread, outside a local pool, what it
++    //   autoreleases stayed alive until the submission ended (IPA 741: ~1.3 GB of retired staging, see rb_up_pieces)
++    if (g_res_dirty) { uint64_t t0 = clock_gettime_nsec_np(CLOCK_UPTIME_RAW); @autoreleasepool { [g_res commit]; } g_res_dirty = 0; g_rs_commits++; g_rs_commit_ns += clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - t0; }
+     pthread_mutex_unlock(&g_res_mu);
+ }
+ // Since the last call: residency commits (count, time), additions by source line (count, MB; the four largest by bytes) and removals
+@@ -3363,20 +3365,23 @@ static id<MTLBuffer> rb_up_staging(size_t n) {   // a shared staging piece of th
+     if (b) { res_add(b); up_keep_add(b); }
+     return b;
+ }
+-// RewindBox (patch 0021): the whole host pages of [p, p + n) of a range reserved by rb_up_pieces go back to the system, replaced by fresh zero pages
+-static void rb_up_release(uint8_t *p, uint64_t n) {
+-    uintptr_t pg = (uintptr_t)getpagesize(), a = ((uintptr_t)p + pg - 1) & ~(pg - 1), e = ((uintptr_t)p + n) & ~(pg - 1);
+-    if (e > a) (void)mmap((void *)a, e - a, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
+-}
+ // The CPU path of pkg_upload_ in pieces: the same deswizzles and conversions as its single buffer, layer by layer and level by level.
+ //   src NULL (patch 0021): a sparse pool's storage, which pkg_upload_ no longer copies whole first (a whole copy of the 1.5 GB pool, held with the array
+-//   and its staging, IPA 739). It is read here one layer at a time (a layer holds its levels one after another: nvn_deswizzle_geom's base) into a range
+-//   reserved for the whole storage, whose pages go back after each layer, so at most one layer of the copy is held
++//   and its staging, IPA 739). It is read here one layer at a time (a layer holds its levels one after another: nvn_deswizzle_geom's base) into a
++//   window of one layer (patch 0022), so at most one layer of the copy is held
++//   RewindBox (patch 0022), Mario Kart World, IPA 741: while an 8192x8192x68 array was staged, Metal's count rose 1266 MB by layer 62 (about the
++//   21.3 MB of staging each layer takes) and the process the same plus the array itself, though at most 128 MB of staging is in flight
++//   (rb_up_staging): the retired staging stayed alive until the submission ended (Metal -1423 MB and the process -1460 MB together, at the next
++//   heartbeat), most likely objects autoreleased into the submission's pool by the calls of this loop and of up_flush (res_commit). Each layer now
++//   runs in its own autorelease pool, and res_commit commits in one. The sparse pool's copy no longer reserves the whole storage (1453.5 MiB of
++//   addresses, where the largest free range was 1453 MB): it is one window of one layer, reused, read with layer index 0 (a layer's levels are at the
++//   same offsets in every layer: nvn_deswizzle_geom's base = layer x layer_size + level offset) and copied to slice y
+ static void rb_up_pieces(const tex_t *t, id<MTLTexture> mt, const uint8_t *src, unsigned levels, unsigned layers, int unp, int ubpp, int bw, int bh, int bpb, size_t total) {
+-    uint8_t *gath = NULL; uint64_t lsz = t->L.layer_size ? t->L.layer_size : t->L.size;
+-    if (!src) {
+-        void *r = mmap(NULL, t->L.size ? t->L.size : 1, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+-        if (r == MAP_FAILED) MDIE("address range of %llu bytes for a sparse texture's layers failed (errno %d)", (unsigned long long)t->L.size, errno);
++    uint8_t *gath = NULL; uint64_t lsz = t->L.layer_size ? t->L.layer_size : t->L.size, gsz = 0;
++    if (!src) {   // RewindBox (patch 0022): a window of one layer
++        uintptr_t pg = (uintptr_t)getpagesize(); gsz = ((lsz ? lsz : 1) + pg - 1) & ~(uint64_t)(pg - 1);
++        void *r = mmap(NULL, gsz, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
++        if (r == MAP_FAILED) MDIE("window of %llu bytes for a sparse texture's layers failed (errno %d)", (unsigned long long)gsz, errno);
+         src = gath = r;
+     }
+     uint8_t *cb = NULL;   // converted formats: the blocks of one level and layer before decoding, sized for level 0
+@@ -3385,9 +3390,10 @@ static void rb_up_pieces(const tex_t *t, id<MTLTexture> mt, const uint8_t *src,
+         size_t c0 = (size_t)((w0 + bw - 1) / bw) * bpb * ((h0 + bh - 1) / bh) * z0;
+         cb = malloc(c0 ? c0 : 1); bc_note(t->d.format, "upload"); if (!cb) MDIE("BC decode scratch of %zu bytes failed", c0);
+     }
+-    for (unsigned y = 0; y < layers; y++) {
++    for (unsigned y = 0; y < layers; y++) @autoreleasepool {   // RewindBox (patch 0022): what this layer's calls autorelease goes with it
+         uint64_t lo = (uint64_t)y * lsz, ln = lo < t->L.size ? MIN(lsz, t->L.size - lo) : 0;
+-        if (gath && ln) nvn_sparse_copy(t->pool, gath + lo, (uint64_t)(uintptr_t)t->mem + lo, ln);   // RewindBox (patch 0021): this layer only
++        if (gath && ln) nvn_sparse_copy(t->pool, gath, (uint64_t)(uintptr_t)t->mem + lo, ln);   // RewindBox (patch 0021/0022): this layer only, into the window
++        unsigned sy = gath ? 0 : y;   // the layer index in src: 0 in the window
+         for (unsigned l = 0; l < levels; l++) {
+             uint32_t w = MAX(t->d.width >> l, 1u), h = MAX(t->d.height >> l, 1u), z = t->d.target == 2 ? MAX(t->d.depth >> l, 1u) : 1;
+             size_t pitch = (size_t)((w + bw - 1) / bw) * bpb, rows = (h + bh - 1) / bh;
+@@ -3399,7 +3405,7 @@ static void rb_up_pieces(const tex_t *t, id<MTLTexture> mt, const uint8_t *src,
+             id<MTLBuffer> stg = whole ? rb_up_staging(piece) : nil;
+             uint8_t *lin = whole ? (stg ? (uint8_t *)stg.contents : NULL) : malloc(piece);
+             if (!lin) { if (!whole) MDIE("texture upload copy of %zu bytes failed", piece); rb_up_refused(t, l, y, piece, total); continue; }
+-            if (nvn_deswizzle(&t->d, l, y, src, unp ? cb : lin, pitch)) { RED_ONCE(9, "deswizzle failed format %#x target %d", t->d.format, t->d.target); if (!whole) free(lin); break; }
++            if (nvn_deswizzle(&t->d, l, sy, src, unp ? cb : lin, pitch)) { RED_ONCE(9, "deswizzle failed format %#x target %d", t->d.format, t->d.target); if (!whole) free(lin); break; }
+             if (unp) for (uint32_t zi = 0; zi < z; zi++) fmt_decode(t->d.format, cb + zi * pitch * rows, pitch, w, h, lin + zi * rowb * nrows, rowb);
+             if (whole) { up_blit_add(stg, 0, rowb, rowb * nrows, MTLSizeMake(w, h, z), mt, y, l); continue; }
+             size_t band = RB_UP_PIECE / rowb ? RB_UP_PIECE / rowb : 1;   // rows per band (a row larger than RB_UP_PIECE is a band of its own)
+@@ -3416,10 +3422,9 @@ static void rb_up_pieces(const tex_t *t, id<MTLTexture> mt, const uint8_t *src,
+             }
+             free(lin);
+         }
+-        if (gath && ln) rb_up_release(gath + lo, ln);   // RewindBox (patch 0021): this layer's copy goes back
+     }
+     free(cb);
+-    if (gath) munmap(gath, t->L.size ? t->L.size : 1);
++    if (gath) munmap(gath, gsz);
+ }
+ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture> reuse, uint64_t **ph, uint32_t *nph) {
+     MTLTextureDescriptor *d = tex_desc(t, 1);
+@@ -3523,6 +3528,12 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
+         rb_up_pieces(t, mt, src, (unsigned)d.mipmapLevelCount, layers, unp, ubpp, bw, bh, bpb, total);
+         free(part); free(rb);
+         up_flush();
++        if (k <= 8 || !(k & (k - 1))) {   // RewindBox (patch 0022): once the texture's staging is retired, what is left
++            rec_drain(); up_wait_zero(&g_up_pending);
++            uint64_t fp, av; rb_up_mem(&fp, &av);
++            MLOG("RewindBox: texture ser=%llu staged; with its staging retired Metal holds %llu MB, the process %llu MB and it may take %llu MB more",
++                 (unsigned long long)t->serial, (unsigned long long)(g_dev.currentAllocatedSize >> 20), (unsigned long long)(fp >> 20), (unsigned long long)(av >> 20));
++        }
+         return mt;
+     }
+     res_add(stg); up_keep_add(stg);
