@@ -1,6 +1,6 @@
 {
   "status": "verified",
-  "packagedFingerprint": "8db08fedff1bcbbd8dcd3f24df7f99cf6bf424df4f0f7d8074a171c12de001b5",
+  "packagedFingerprint": "64765930ab0fa59411299b804da744ec7a583edce8ad88f60c1f3d1f454e0722",
   "producers": {
     "engine": {
       "run": 43539088851,
@@ -13,8 +13,8 @@
       "headBranch": "Claude",
       "expiresAt": "2026-12-14T01:22:08Z",
       "members": {
-        "S2ArmEngine.framework.zip": "4793ab955ada196f9c683f14c72304295b1cc128f111a0c5becc9b171b55a91d",
-        "NS2Pro.framework.zip": "b21ec08e152461bf74d991f83b99c0feead983dc64fa037bfbc7a810dd2a2ed7"
+        "S2ArmEngine.framework.zip": "5e1e51b3e086bb0d8aaeb31fb33faf9d6c37ded103fcd10465d9a98627b9bb31",
+        "NS2Pro.framework.zip": "97e884a888951669b5d7ed47a60f948dd356a7e22f3e692533ea8950f691ebb3"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "644bf1d7b5bbbef73a15a33d4b14e665a8758d435b8b3f35a85ec54e6edeb351",
+    "engine": "d877a35c7e61f4463c3f46fa1cef98150f294ca8478c3b4d96ae97efaedc9ed7",
     "prepare": "aef8aafb38aa456defbdf16b3194716c32b2051b76a38bc68640d91f098fc87f",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -90,9 +90,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "ee248dccd88d6ac37da971213514d9126ec8ebeb9923c583db39c06251e1a84e",
-      "bytes": 107444256,
-      "fingerprint": "8db08fedff1bcbbd8dcd3f24df7f99cf6bf424df4f0f7d8074a171c12de001b5"
+      "sha256": "f6f2347c887d15b65ed37798ca7cc6b562de59cd3d2fcd62371639a1f71a286d",
+      "bytes": 107460808,
+      "fingerprint": "64765930ab0fa59411299b804da744ec7a583edce8ad88f60c1f3d1f454e0722"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -125,9 +125,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 43499689256,
+      "run": 43539088851,
       "attempt": 1,
-      "head_sha": "cd0841344a75c5103970d6a263e7fe0ec915a88b",
+      "head_sha": "17086c037480ff2f413ade58b160562b8e2206df",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -206,11 +206,15 @@
         {
           "name": "0019-guest-host-room-for-what-the-app-takes-from-the-low-region.patch",
           "sha256": "a05e802deb181d266e7bca200c63fce097331c61df2ec6fff30ff3f95bb3830b"
+        },
+        {
+          "name": "0020-guest-large-cpu-texture-uploads-staged-in-pieces.patch",
+          "sha256": "e6a2f3f2ee5d5a6746d5e6e44d3fcc11c265551f03919a36ed9d2960dc4b1485"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "4793ab955ada196f9c683f14c72304295b1cc128f111a0c5becc9b171b55a91d",
-        "NS2Pro.framework.zip": "b21ec08e152461bf74d991f83b99c0feead983dc64fa037bfbc7a810dd2a2ed7"
+        "S2ArmEngine.framework.zip": "5e1e51b3e086bb0d8aaeb31fb33faf9d6c37ded103fcd10465d9a98627b9bb31",
+        "NS2Pro.framework.zip": "97e884a888951669b5d7ed47a60f948dd356a7e22f3e692533ea8950f691ebb3"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
