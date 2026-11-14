@@ -19,7 +19,9 @@ that created it. Required:
     render stages line is a prefix of the candidate's, byte for byte, and both parse with tools/melonx/frame_report.py; the
     suffix gives the scripted causes exactly and starts again from zero in the next window; a submission without a named
     cause is "other" and the cause returns to "other" after each submission; the host sync line gives every scripted site
-    (method names as the compiler passes them) and no line before 5 s.
+    (method names as the compiler passes them) and no line before 5 s. On a final preparation the same probe runs the final
+    RenderStageTimer and host sync members too (the bytes the receipt binds): the same results, its render stages line being
+    the candidate's with adapt_queued_variant_record's split of the async skips and nothing else.
 Nothing depends on time or scheduling. No device, no MoltenVK. Writes dist/melonx/submit-causes-checks.json.
 """
 from pathlib import Path
@@ -156,10 +158,15 @@ if FINAL_PREPARATION:
     import adapt_texture_play_clock as play_clock  # noqa: E402
     import adapt_query_prereset as prereset  # noqa: E402
     import adapt_queued_3d_syncpoints as queued_3d  # noqa: E402
-    check(later <= {paced.GPU_CONTEXT, paced.AUTO_FLUSH, prereset.FULL},
-          'no later adapter edits these files but adapt_paced_strict_syncs, adapt_texture_play_clock, adapt_query_prereset '
-          'and adapt_queued_3d_syncpoints: ' + str(sorted(later)))
-    undo = (('adapt_queued_3d_syncpoints', {queued_3d.CONTEXT: [(old, new) for path, old, new in queued_3d.PAIRS
+    # Variant journal lot (after adapt_queued_3d_syncpoints): adapt_queued_variant_record splits the async skips of
+    # PipelineBase.cs's RenderStageTimer (pipeline state queued, shader modules not ready) and hands the framebuffer of a
+    # draw that skips to the queued compile. Its PipelineBase.cs replacements are undone first (each required once).
+    import adapt_queued_variant_record as variant_record  # noqa: E402
+    check(later <= {paced.GPU_CONTEXT, paced.AUTO_FLUSH, prereset.FULL, variant_record.DRAWS},
+          'no later adapter edits these files but adapt_paced_strict_syncs, adapt_texture_play_clock, adapt_query_prereset, '
+          'adapt_queued_3d_syncpoints and adapt_queued_variant_record: ' + str(sorted(later)))
+    undo = (('adapt_queued_variant_record', {variant_record.DRAWS: list(variant_record.EDITS[variant_record.DRAWS])}),
+            ('adapt_queued_3d_syncpoints', {queued_3d.CONTEXT: [(old, new) for path, old, new in queued_3d.PAIRS
                                                                 if path == queued_3d.CONTEXT]}),
             ('adapt_query_prereset', {prereset.FULL: list(prereset.PAIRS)}),
             ('adapt_texture_play_clock', {play_clock.CONTEXT: list(play_clock.PAIRS)}),
@@ -244,7 +251,11 @@ with tempfile.TemporaryDirectory(prefix='melonx-submit-causes-') as temporary:
 
     program = (FIXTURE / 'Program.cs').read_text()
     reports = {}
-    for label, texts, candidate_build in (('control', control, False), ('candidate', candidate, True)):
+    # The final preparation's RenderStageTimer (PipelineBase.cs, also edited by adapt_queued_variant_record) and host sync
+    # members (GpuContext.cs) are run as well: the receipt binds those files (postimages).
+    final_texts = {name: read(FINAL_SOURCE, name) for name in (adapter.BASE, adapter.CONTEXT)} if FINAL_PREPARATION else None
+    for label, texts, candidate_build in (('control', control, False), ('candidate', candidate, True)) + \
+            ((('final', final_texts, True),) if FINAL_PREPARATION else ()):
         text = program.replace('//__RENDER_STAGE_TIMER__\n', timer_text(texts[adapter.BASE]))
         if candidate_build:
             text = text.replace('//__HOST_SYNC_MEMBERS__\n', host_sync_text(texts[adapter.CONTEXT]))
@@ -287,16 +298,34 @@ check(k['sites'] == {'Syncpointb': 0, 'IncrementSyncpoint': 1, 'SetReference': 2
                      'QueueSyncpointBehindReports': 4, 'TryReadBackGpuRegion': 5, 'TryReadBackIntoBuffer': 6, 'SignalModifying': 7,
                      'CreatePendingSyncs': 8, 'Dispatch': 9, '': 9}, 'site table')
 
+final_split = None
+if FINAL_PREPARATION:
+    # The final RenderStageTimer: adapt_queued_variant_record splits "async skips N" by cause (no queued skip is scripted
+    # here: pipeline state queued 0, shader modules not ready N); every other byte of both windows is the candidate's.
+    f = reports['final']
+    split = re.compile(r' \(pipeline state queued (\d+), shader modules not ready (-?\d+)\)')
+    final_split = {}
+    for window in ('first', 'second'):
+        found = split.findall(f[window])
+        asynchronous = re.search(r'; not ready by cause: async skips (\d+)', k[window])
+        check(len(found) == 1 and asynchronous is not None and found[0] == ('0', asynchronous.group(1)) and split.sub('', f[window]) == k[window],
+              'final: the ' + window + ' window\'s line is the candidate\'s with the async skips split by cause, and nothing else: ' + f[window][-400:])
+        final_split[window] = dict(asyncSkips=int(asynchronous.group(1)), pipelineStateQueued=int(found[0][0]), shaderModulesNotReady=int(found[0][1]))
+    check({key: value for key, value in f.items() if key not in ('first', 'second')} ==
+          {key: value for key, value in k.items() if key not in ('first', 'second')},
+          'final: the cause after a submission, the host sync lines and the site table are the candidate\'s')
+
 inputs = ['build-utils/melonx/adapt_submit_causes.py', 'build-utils/melonx/adapt_session.py', 'test/melonx_submit_causes_test.py',
           'test/melonx_submit_causes/Program.cs', 'test/melonx_adapter_control.py', 'tools/melonx/frame_report.py',
           'build-utils/melonx/adapt_texture_play_clock.py', 'build-utils/melonx/adapt_query_prereset.py',
-          'build-utils/melonx/adapt_queued_3d_syncpoints.py']
+          'build-utils/melonx/adapt_queued_3d_syncpoints.py', 'build-utils/melonx/adapt_queued_variant_record.py']
 receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPARATION,
                sourceKind='finalPreparationWithReversedControl' if FINAL_PREPARATION else 'core741Preparation',
                postimages={name: sha(FINAL_SOURCE / name) for name in adapter.BASELINE} if FINAL_PREPARATION else {},
                physicalDeviceTested=False, productionVulkanAssemblyBuilt=True, productionGpuAssemblyBuilt=True,
                sourceBaseline=adapter.BASELINE, submissionSites=calls, hostSyncSites=sorted(adapter.SITES),
-               lines=dict(control=c['first'], candidate=k['first'], hostSyncs=k['hostSyncs']),
+               lines=dict(control=c['first'], candidate=k['first'], hostSyncs=k['hostSyncs'], **({'final': reports['final']['first']} if FINAL_PREPARATION else {})),
+               finalPreparationExecuted=bool(FINAL_PREPARATION), finalStageLineSplit=final_split,
                inputs={p: sha(ROOT / p) for p in inputs},
                limitation='Counters and log text only; which causes and sites dominate on Hogwarts Legacy is read in the next '
                           'device session (render stages suffix, "Host syncs created over" lines).')

@@ -89,6 +89,13 @@ from adapt_private_span_snapshot import BASELINE as C766_PRIVATE_SPAN_SNAPSHOT  
 from adapt_query_prereset import BASELINE as C766_QUERY_PRERESET  # noqa: E402
 from adapt_merged_buffer_order import BASELINE as C766_MERGED_BUFFER_ORDER  # noqa: E402
 from adapt_queued_3d_syncpoints import BASELINE as C766_QUEUED_3D_SYNCPOINTS  # noqa: E402
+# IPA 740 compute freeze: a play-time compute program's warm-up demanded at once, demanded compiles to the idle demand thread.
+from adapt_compute_warmup_demand import BASELINE as C766_COMPUTE_WARMUP_DEMAND  # noqa: E402
+# Variant journal lot: a full journal gives up the first state of its eviction order not met in the session (would be
+# dropped at the next load, then fewest sessions, longest ago, lowest ranked), a full file is compacted; a state a
+# skipped draw queued is recorded once built, the draws that wait for its compile counted, the async skips split by cause.
+from adapt_variant_journal_room import BASELINE as C766_VARIANT_JOURNAL_ROOM  # noqa: E402
+from adapt_queued_variant_record import BASELINE as C766_QUEUED_VARIANT_RECORD  # noqa: E402
 from adapt_array_delta_invalidated import BASELINE as C697_ARRAY_DELTA_INVALIDATED  # noqa: E402
 from adapt_pipeline_cache_background import BASELINE as C697_PIPELINE_CACHE_BACKGROUND  # noqa: E402
 from adapt_sync_wait_attribution import BASELINE as C699_SYNC_WAIT_ATTRIBUTION  # noqa: E402
@@ -334,7 +341,11 @@ CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES
            # (changed for the first time: the report guard of the queued 3D increments); GpuContext.cs, PipelineFull.cs,
            # BufferCache.cs, ThreedClass.cs, GPFifoDevice.cs, DeferredCounterReport.cs and CounterCache.cs are changed already.
            set(C766_TEXTURE_PLAY_CLOCK) | set(C766_PRIVATE_SPAN_SNAPSHOT) | set(C766_QUERY_PRERESET) |
-           set(C766_MERGED_BUFFER_ORDER) | set(C766_QUEUED_3D_SYNCPOINTS))
+           set(C766_MERGED_BUFFER_ORDER) | set(C766_QUEUED_3D_SYNCPOINTS) |
+           # IPA 740 compute freeze: ShaderCollection.cs and BackgroundCompilationScheduler.cs are changed already.
+           set(C766_COMPUTE_WARMUP_DEMAND) |
+           # Variant journal lot: PipelineCacheManager.cs, ShaderCollection.cs and PipelineBase.cs are changed already.
+           set(C766_VARIANT_JOURNAL_ROOM) | set(C766_QUEUED_VARIANT_RECORD))
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
@@ -764,7 +775,12 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_private_span_snapshot.py',
                                                      'build-utils/melonx/adapt_query_prereset.py',
                                                      'build-utils/melonx/adapt_merged_buffer_order.py',
-                                                     'build-utils/melonx/adapt_queued_3d_syncpoints.py'} and
+                                                     'build-utils/melonx/adapt_queued_3d_syncpoints.py',
+                                                     # IPA 740 compute freeze.
+                                                     'build-utils/melonx/adapt_compute_warmup_demand.py',
+                                                     # Variant journal lot.
+                                                     'build-utils/melonx/adapt_variant_journal_room.py',
+                                                     'build-utils/melonx/adapt_queued_variant_record.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -816,7 +832,9 @@ if not args.helpers_only:
     # IPA 740 lot: eight adapters join them; CommandBufferPool.cs joins the members (220; Auto.cs is one already).
     # Next lot: five adapters join them (239); AddressSpacePartition.cs joins the members (221; the other eight files of
     # the lot are members already).
-    check(len(frozen['preparationInputs']) == 239 and len(frozen['preparedMembers']) == 221, 'Wrong final composition')
+    # IPA 740 compute freeze and variant journal lot: their three adapters join them (242); their four files are members
+    # already (221).
+    check(len(frozen['preparationInputs']) == 242 and len(frozen['preparedMembers']) == 221, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
@@ -913,6 +931,30 @@ if not args.helpers_only:
           gate['fragmented-reads']['assertions'].get('privateRemapsChecked') is True and
           set(C766_PRIVATE_SPAN_SNAPSHOT) <= set(gate['fragmented-reads']['requiredPostimages']),
           'The next lot\'s changes are not bound by their gates')
+    # Lot after IPA 747: pipeline-variant-replay runs the three adapters' behaviour on the final source (Lot.cs): the
+    # journal's eviction order, load trim and compaction, the states built for skipped draws and their counters, and the
+    # demand-queue rule of the final scheduler, whose file it now binds.
+    replay = gate['pipeline-variant-replay']
+    check(set(C766_COMPUTE_WARMUP_DEMAND) | set(C766_VARIANT_JOURNAL_ROOM) | set(C766_QUEUED_VARIANT_RECORD) <=
+          set(replay['requiredPostimages']) and
+          all(replay['assertions'].get(name) is True for name in ('journalRoomExecuted', 'queuedVariantRecordExecuted',
+                                                                  'demandQueueRuleExecuted', 'laterLot.queuedRecord.stageLineSplit')) and
+          replay['assertions'].get('laterLot.journalRoom.givenUpAtLoad') == 300 and
+          replay['assertions'].get('laterLot.journalRoom.compactionLinesNotWritten') == 0 and
+          replay['assertions'].get('laterLot.queuedRecord.builtForSkipped') == 2 and
+          replay['assertions'].get('laterLot.demandQueue.idleOnDemandThread') == 30 and
+          replay['assertions'].get('laterLot.demandQueue.highBeforeSecondDemanded') == 0,
+          'The lot after IPA 747 is not executed by its gate')
+    # Lot after IPA 747 (review): setprogram-warmup builds and runs its fixture on the final source too; a compute program
+    # translated during play has its warm-up demanded by its constructor, built on the demand thread and bound, once.
+    warm = gate['setprogram-warmup']
+    check(set(C766_COMPUTE_WARMUP_DEMAND) <= set(warm['requiredPostimages']) and
+          warm['assertions'].get('finalPreparationExecuted') is True and
+          warm['assertions'].get('finalCompute.demandedAtCreation') is True and
+          warm['assertions'].get('finalCompute.warmUpThread') == 'Vulkan Pipeline Demand Compile' and
+          warm['assertions'].get('finalCompute.dispatchBoundWarmUp') is True and
+          warm['assertions'].get('finalCompute.compiles') == 1,
+          'The compute warm-up demanded at creation is not executed on the final source by its gate')
     OUTSIDE_GPU |= {C745_NIFM_SERVICE}
     # Core 747: Ryujinx.Common's AsyncWorkQueue.cs is outside the GPU closure; its gate (wait-spin-bound) builds it.
     OUTSIDE_GPU |= {C747_SPIN_EVENT}

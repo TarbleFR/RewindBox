@@ -1,9 +1,12 @@
 // Executed scenarios of melonx_setprogram_warmup_test.py, run once per variant on the real members compiled with
-// Double.cs. One "render thread" (this thread) runs CreateProgramCommand, SetProgramCommand and the draws/dispatches,
-// as the threaded renderer does; compiles are timed sleeps recorded with their cache and thread (Native.Records).
+// Double.cs (and Final.cs for the final preparation). One "render thread" (this thread) runs CreateProgramCommand,
+// SetProgramCommand and the draws/dispatches, as the threaded renderer does; compiles are timed sleeps recorded with their
+// cache and thread (Native.Records).
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using System.Text.Json;
 using System.Threading;
 using Ryujinx.Graphics.GAL;
@@ -181,13 +184,42 @@ Dictionary<string, object> Burst(bool policy, bool match)
     };
 }
 
+// The pipeline queue's demand thread waiting for work, as during play (adapt_compute_warmup_demand's flag, read under the
+// queue's lock, bounded at 3 s): true once it waits, false if it never did, null for a scheduler without that flag
+// (control, candidate), used as it is.
+bool? WaitForIdleDemandThread(Session s)
+{
+    const BindingFlags Instance = BindingFlags.Instance | BindingFlags.NonPublic;
+    object queue = typeof(BackgroundCompilationScheduler).GetField("_pipelineQueue", Instance).GetValue(s.Gd.BackgroundCompilationScheduler);
+    FieldInfo waiting = queue.GetType().GetField("_demandThreadWaiting", Instance);
+    if (waiting == null) return null;
+    object queueLock = queue.GetType().GetField("_queueLock", Instance).GetValue(queue);
+    var watch = Stopwatch.StartNew();
+    while (watch.ElapsedMilliseconds < 3000)
+    {
+        lock (queueLock)
+        {
+            if ((bool)waiting.GetValue(queue)) return true;
+        }
+        Thread.Sleep(1);
+    }
+    return false;
+}
+
+// Whether the program's warm-up is demanded (ShaderCollection._backgroundCompilationDemanded), read on the render thread
+// right after CreateProgramCommand, before SetProgram and the dispatch.
+bool Demanded(ThreadedProgram program) =>
+    (int)typeof(ShaderCollection).GetField("_backgroundCompilationDemanded", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(program.Base) != 0;
+
 // 4. A compute program translated during play, and its first dispatch (SpecData.Empty, the warm-up's key).
 Dictionary<string, object> ComputeDispatch(bool policy, bool fromCache = false)
 {
     Native.Reset(); ClearLogs();
     var s = new Session(policy);
+    bool? demandThreadIdle = WaitForIdleDemandThread(s);
     double origin = Native.Now;
     ThreadedProgram program = s.Create(Compute(), ComputeInfo(fromCache));
+    bool demandedAtCreation = Demanded(program);
     double setStart = Native.Now;
     s.SetProgram(program);
     double setEnd = Native.Now;
@@ -207,6 +239,7 @@ Dictionary<string, object> ComputeDispatch(bool policy, bool fromCache = false)
         ["dispatched"] = dispatched, ["boundCompiled"] = records.Any(r => r.Handle == bound),
         ["compiles"] = records.Length, ["renderThreadWarmUps"] = fromCache ? 0 : RenderThreadWarmUps(records, "compute spec 0"),
         ["records"] = records.Select(r => Describe(r, origin)).ToArray(),
+        ["demandThreadIdleBeforeCreate"] = demandThreadIdle, ["demandedAtCreation"] = demandedAtCreation,
     };
 }
 

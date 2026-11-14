@@ -441,3 +441,22 @@ these two are staged for the next lot. Not measured on an iPhone.
 Core of the lot after IPA 745: 03a889f6 (run 43622519313, build-smoke: NativeAOT and ABI verified, two simulator
 sessions; artifact 14125675167, SHA-256 e02677e6, iPhone binary 094cbf52, packaged fingerprint 07113714, contract
 c3835954), verified locally with melonx_dma_core_component and pinned, for the next MeloNX delivery (this session).
+
+### Lot after IPA 747 (next MeloNX Core): compute compilation priority and the variant journal
+
+From the IPA 740 investigations (counts only), designed, compiled, adversarially reviewed and repaired before wiring,
+appended after adapt_queued_3d_syncpoints:
+- adapt_compute_warmup_demand (every title): a compute program translated in play is promoted to the demand thread at
+  construction, and a worker takes demanded compiles first. The 740 freeze of about 980 ms is one first build of a new
+  compute program, about 956 ms of it Metal compilation (Apple's cache missed); a dispatch cannot be skipped and the
+  program exists only when the guest dispatches it, so the wait is shortened at best, not removed.
+- adapt_variant_journal_room (every title): the full journal (2 048 records) evicts by rank a lower-value record for a
+  new state instead of dropping it (at least 163 lost in the Hogwarts session, 107 and 251 in two SSBU sessions), the
+  file limit rises to 4 MiB with compaction, the replay count stays bounded by 2 048 and the 8 % memory hold.
+- adapt_queued_variant_record (every title): a state compiled for a skipped draw is recorded, with its own counter, and
+  the render-stage line separates queued states from shader modules not ready.
+109 gates on the final preparation (Linux x86_64); pipeline-variant-replay, setprogram-warmup (the constructor
+promotion now executed on the final source), pipeline-cache-compact and submit-causes extended, no check removed.
+array-rebuild-allocations failed four times while other work ran (a one-off 3-7 KiB allocation on the measured thread,
+in files the lot does not touch) and passed alone on a quiet host; cause not identified. Contract 1362352a.
+Not measured on an iPhone.

@@ -1,5 +1,6 @@
 // Doubles for melonx_setprogram_warmup_test.py. Compiled with the REAL members of each variant (control: Core 658
-// preparation, candidate: plus adapt_setprogram_warmup): BackgroundCompilationScheduler, HashTableSlim and SpecData;
+// preparation, candidate: plus adapt_setprogram_warmup, final: the final preparation, with Final.cs for the members later
+// adapters add around them): BackgroundCompilationScheduler, HashTableSlim and SpecData;
 // ShaderCollection's constructors (the base one without its descriptor-layout part) and every compile, link, warm-up and
 // pipeline-table member; Shader's constructors and waits; VulkanRenderer.CreateProgram and its failure members;
 // PipelineBase.SetProgram, CreatePipeline, CanSkipForBackgroundCompile and UpdateProgramStagesIfReady; the GAL
@@ -63,6 +64,8 @@ namespace Ryujinx.Graphics.GAL
     class ShaderSource
     {
         public Ryujinx.Graphics.Shader.ShaderStage Stage;
+        public byte[] BinaryCode; // read by the final preparation's code identities (adapt_pipeline_build_journal, adapt_sibling_pipelines)
+        public string Code;
         public bool FailModule;
     }
     // The fields of the warm-up key this fixture varies (the 658 misses: topology and primitive restart).
@@ -186,7 +189,7 @@ namespace Ryujinx.Graphics.Vulkan
         public void DecrementReferenceCount() { }
     }
 
-    struct DisposablePipeline { public Pipeline Value; public DisposablePipeline(ulong handle) { Value = new Pipeline { Handle = handle }; } }
+    struct DisposablePipeline : IDisposable { public Pipeline Value; public DisposablePipeline(ulong handle) { Value = new Pipeline { Handle = handle }; } public void Dispose() { } }
     struct DisposableRenderPass { public RenderPass Value; public DisposableRenderPass(RenderPass value) { Value = value; } public void Dispose() { } }
     struct CommandBufferScoped { }
     class PipelineLayoutCacheEntry { public PipelineLayout PipelineLayout; }
@@ -314,7 +317,7 @@ namespace Ryujinx.Graphics.Vulkan
         public static DisposableRenderPass ToRenderPass(this ProgramPipelineState state, VulkanRenderer gd, Device device) => new(new RenderPass { Handle = 1 });
     }
 
-    class PipelineCacheManager
+    partial class PipelineCacheManager
     {
         public PipelineCache MainCache => new() { Id = 0 };
         public bool SupportsNonBlockingPipelineCreation => true;

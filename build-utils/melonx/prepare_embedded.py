@@ -207,6 +207,9 @@ from adapt_private_span_snapshot import apply as adapt_private_span_snapshot
 from adapt_query_prereset import apply as adapt_query_prereset
 from adapt_merged_buffer_order import apply as adapt_merged_buffer_order
 from adapt_queued_3d_syncpoints import apply as adapt_queued_3d_syncpoints
+from adapt_compute_warmup_demand import apply as adapt_compute_warmup_demand
+from adapt_variant_journal_room import apply as adapt_variant_journal_room
+from adapt_queued_variant_record import apply as adapt_queued_variant_record
 
 
 def replace_once(path, old, new):
@@ -641,6 +644,19 @@ def main():
     # GpuContext.cs after adapt_texture_play_clock, GPFifoDevice.cs, DeferredCounterReport.cs, CounterCache.cs,
     # SemaphoreUpdater.cs).
     adapted += adapt_queued_3d_syncpoints(source)
+    # IPA 740 (every title, render thread): a compute program translated during play has its warm-up demanded at once,
+    # and a demanded compile goes to the demand thread while it waits (ShaderCollection.cs, BackgroundCompilationScheduler.cs).
+    adapted += adapt_compute_warmup_demand(source)
+    # IPA 740 variant journal (every title, journal of recorded pipeline states): a full journal gives up, for a new state,
+    # the first state of its eviction order not met in the session (would be dropped at the next load, then fewest
+    # sessions, longest ago, lowest ranked), the load trims in that session's order, a full file is compacted from memory
+    # (PipelineCacheManager.cs; 2048 states, 4 MiB).
+    adapted += adapt_variant_journal_room(source)
+    # IPA 740 variant journal (every title, render thread and compile threads): a state a skipped draw queued for a
+    # background compile is recorded once built, counted apart with its compile time (without the main cache's load
+    # wait), and so are the draws that wait for such a compile; the async skips are split by cause (PipelineBase.cs,
+    # ShaderCollection.cs after adapt_compute_warmup_demand, PipelineCacheManager.cs after adapt_variant_journal_room).
+    adapted += adapt_queued_variant_record(source)
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -793,7 +809,8 @@ def main():
                  'adapt_array_log_membership.py', 'adapt_partition_dispose_order.py', 'adapt_keepalive_hold_off.py',
                  'adapt_darwin_spin_yield.py', 'adapt_pool_slot_copy.py', 'adapt_texture_play_clock.py',
                  'adapt_private_span_snapshot.py', 'adapt_query_prereset.py', 'adapt_merged_buffer_order.py',
-                 'adapt_queued_3d_syncpoints.py']:
+                 'adapt_queued_3d_syncpoints.py', 'adapt_compute_warmup_demand.py', 'adapt_variant_journal_room.py',
+                 'adapt_queued_variant_record.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

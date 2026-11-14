@@ -14,7 +14,17 @@ same key, hash, colour slots and tessellation flag read back; malformed variants
 (file, torn tail, schema, stale and failed variants, bounds, load off the startup path) and replays on the real
 BackgroundCompilationScheduler: relaunch ranking and the two-in-flight bound, a demanded state behind 20 queued warm-ups
 with 8 simultaneous waiters, close during compilation, a failed state, device memory admission, costly replays, the
-per-session cap. Writes dist/melonx/pipeline-variant-replay-checks.json. No device: host times, no Vulkan creation.
+per-session cap. The adapters ORDER runs after this one on its files are run too, on the final source, by the same probe
+(test/melonx_pipeline_variant_replay/Lot.cs, compiled with one symbol per adapter present): adapt_variant_journal_room
+(a full journal gives up the first states of its eviction order not met in the session, a given-up state met again comes
+back, the next load keeps the session's journal, a journal full of the session's states counts what it cannot record, a
+full file of the largest variants is compacted with every refresh kept, the order is total), adapt_queued_variant_record
+(states built for skipped draws counted once with their compile time, the draws that waited for them apart, one line per
+state, a worker's main-load wait summed on its own thread, the render stages line split by cause and reset), and, in a
+second process with one pipeline worker as on a six-core iPhone, adapt_compute_warmup_demand (a demanded compile goes to
+the idle demand thread; with two demanded queued at a worker's end the worker takes the second before a non-demanded
+one; while the demand thread is busy the worker takes demanded compiles first; a non-demanded compile stays the
+worker's). Writes dist/melonx/pipeline-variant-replay-checks.json. No device: host times, no Vulkan creation.
 """
 from pathlib import Path
 import hashlib, json, os, platform, re, shutil, subprocess, sys, tempfile
@@ -81,6 +91,14 @@ for later in LATER:
     __import__(later).apply(replay)
 for name in adapter.BASELINE:
     check((replay / name).read_bytes() == (PREPARED / name).read_bytes(), 'the later adapters reproduce the final preparation: ' + name)
+# The lot after IPA 747 (after adapt_queued_3d_syncpoints): each of its adapters in ORDER shares a file with this one, so it
+# is a later adapter here, and the probe runs its behaviour on the final source (Lot.cs, one symbol each).
+LOT = {'adapt_compute_warmup_demand': 'COMPUTE_WARMUP_DEMAND', 'adapt_variant_journal_room': 'VARIANT_JOURNAL_ROOM',
+       'adapt_queued_variant_record': 'QUEUED_VARIANT_RECORD'}
+LOT_PRESENT = [name for name in LOT if name in control_tools.ORDER]
+check(LOT_PRESENT == [name for name in LOT if name in LATER], 'every adapter of the lot in ORDER is a later adapter here: %s' % LATER)
+DEFINES = [LOT[name] for name in LOT_PRESENT]
+SCHEDULER = VULKAN + 'BackgroundCompilationScheduler.cs'
 CONTROL = WORK / 'control'
 for name in adapter.BASELINE:
     (CONTROL / name).parent.mkdir(parents=True, exist_ok=True)
@@ -187,6 +205,34 @@ written = re.findall(r'Put\(buffer, ref offset, (?:BitConverter\.SingleToUInt32B
 written = [next(x for x in w if x) for w in written][:len(schema)]
 check(written == schema, 'WriteVariant writes the key fields in the schema\'s order')
 
+# --- Static, the lot on the final source: where each executed change sits ---
+final_program, final_draws = read(PREPARED, adapter.PROGRAM), read(PREPARED, adapter.DRAWS)
+if 'adapt_compute_warmup_demand' in LOT_PRESENT:
+    import adapt_compute_warmup_demand as compute_demand  # noqa: E402
+    state_ctor = member(final_program, 'bool playTimeWarmUp = false) : this(')
+    promote = '            if (IsCompute && playTimeWarmUp && compileInBackground)\n            {\n                PromoteBackgroundCompilation();\n            }\n'
+    check(final_program.count(promote) == 1 and state_ctor.count(promote) == 1 and
+          state_ctor.index('_state = state;') < state_ctor.index(promote) < state_ctor.index('_compileTask = BackgroundCompilation();') and
+          state_ctor.index(promote) < state_ctor.index('? BackgroundCompilation()'),
+          'compute warm-up demand: a play-time compute program is promoted in its constructor, before its warm-up starts')
+    final_scheduler = read(PREPARED, SCHEDULER)
+    check(final_scheduler.count(compute_demand.TAKE_NEW) == 1 and final_scheduler.count(compute_demand.FIELD_NEW) == 1 and
+          final_scheduler.count('_demandThreadWaiting') == (compute_demand.FIELD_NEW + compute_demand.TAKE_NEW).count('_demandThreadWaiting'),
+          'compute warm-up demand: the demand-queue rule is the final scheduler\'s TryTake (the flag is read and set there only)')
+if 'adapt_queued_variant_record' in LOT_PRESENT:
+    check(final_draws.count('RenderStageTimer.AsyncQueuedSkips++;') == 1 and final_draws.count('RenderStageTimer.AsyncSkips++;') == 3 and
+          ('RenderStageTimer.AsyncSkips++; // RewindBox (adapt_pipeline_failure_identity)\n'
+           '                                RenderStageTimer.AsyncQueuedSkips++;') in final_draws,
+          'queued record: the queued-state skip is counted with its async skip, the two other skips are shader modules not ready')
+    compile_queued = member(final_program, 'private async Task CompileQueuedGraphicsPipeline(')
+    check(compile_queued.count('NoteQueuedVariant(ref state, pipeline, colorSlots, compileTicks);') == 1 and
+          compile_queued.index('AddBackgroundGraphicsPipelineFailure(ref key);') < compile_queued.index('else if (colorSlots != null)') <
+          compile_queued.index('NoteQueuedVariant(') < compile_queued.index('finally'),
+          'queued record: only a built pipeline of a skipped draw is recorded, before the compile leaves the queue')
+    check(member(final_program, 'private void NoteQueuedVariant(').count('builtForSkipped: true') == 1 and
+          member(final_program, 'internal void NoteLateVariant(').count('waitedForSkipped: waitedForSkipped') == 1,
+          'queued record: the compile notes builtForSkipped, a draw notes waitedForSkipped')
+
 # --- Executed: the production Vulkan assembly of the candidate, then the probe on it ---
 work = WORK / 'tree'
 shutil.copytree(FINAL_SOURCE, work, ignore=shutil.ignore_patterns('.git', 'bin', 'obj'), symlinks=True)
@@ -201,11 +247,13 @@ project.write_text(project.read_text(encoding='utf-8-sig').replace(
 probe = WORK / 'probe'
 probe.mkdir()
 shutil.copyfile(HARNESS / 'Program.cs', probe / 'Program.cs')
+shutil.copyfile(HARNESS / 'Lot.cs', probe / 'Lot.cs')
 (probe / 'MeloNXVariantProbe.csproj').write_text(f'''<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><Nullable>disable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks><NoWarn>CA1416;CS8632</NoWarn><NuGetAudit>false</NuGetAudit>
     <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+    <DefineConstants>$(DefineConstants){''.join(';' + symbol for symbol in DEFINES)}</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="{work}/src/Ryujinx.Graphics.Vulkan/Ryujinx.Graphics.Vulkan.csproj" />
@@ -284,17 +332,86 @@ cap = 600 if 'adapt_variant_replay_all' in LATER else 512
 check(r['cap']['planned'] == 600 and r['cap']['replayed'] == cap and r['cap']['executed'] == cap,
       'at most %d replays of 600 planned per session, each run once: %s' % (cap, r['cap']))
 
+# --- Executed, the lot after IPA 747 on the final source (Lot.cs) ---
+lot = {}
+if 'adapt_variant_journal_room' in LOT_PRESENT:
+    j = r['journalRoom']
+    e = j['evict']
+    check(e['loaded'] == 2048 and e['givenUpForNew'] == 300 and e['noneMetGivenUp'] and e['firstInEvictionOrder'],
+          'journal room: 300 new states into a full journal give up 300 states not met this session, first in eviction order: %s' % e)
+    check(e['backWithHistory'] and e['usedReplayBack'] and e['evicted'] == 311 and e['held'] == 2048,
+          'journal room: a given-up state met again or bound comes back with its history, the bound kept: %s' % e)
+    check(e['loadedNext'] == 2048 and e['givenUpAtLoad'] == 300 and e['nextLoadKeepsSessionJournal'],
+          'journal room: the next load gives up exactly the session\'s 300 and keeps its journal: %s' % e)
+    check('Journal: 2048 of 2048 states, given up for newer states 311 (at the load 0), not recorded 0, compactions 0, '
+          'lines not written 0 (adapt_pipeline_variant_replay, adapt_variant_journal_room)' in e['summary'], 'journal room: summary line')
+    check(j['full'] == dict(held=2048, notRecorded=52, evicted=0), 'journal room: a journal full of the session\'s states counts 52 not recorded')
+    c = j['compact']
+    check(c['compactions'] >= 1 and c['linesNotWritten'] == 0 and c['bytesAfterSession2'] <= 4 * 1024 * 1024 and
+          c['bytesAfterSession1'] > 2 * 1024 * 1024 and c['loadedNext'] == 2048 and c['refreshed'] == 2048,
+          'journal room: 2048 largest variants (past the old 2 MiB) and their refreshes fit, compacted, nothing lost: %s' % c)
+    check(j['order']['strictTotal'] and j['order']['states'] > 100, 'journal room: the eviction order is total')
+    lot['journalRoom'] = dict(evicted=e['evicted'], givenUpAtLoad=e['givenUpAtLoad'], notRecordedWhenAllMet=j['full']['notRecorded'],
+                              compactionLinesNotWritten=c['linesNotWritten'], refreshedAfterCompaction=c['refreshed'])
+if 'adapt_queued_variant_record' in LOT_PRESENT:
+    q = r['queuedRecord']
+    n = q['counts']
+    check(n['builtForSkipped'] == 2 and n['builtForSkippedMs'] == 420 and n['waitedForSkipped'] == 2 and n['waitedForSkippedMs'] == 42,
+          'queued record: two states built for skipped draws (420 ms), two draws that waited (42 ms): %s' % n)
+    check(n['lateNew'] == 1 and n['joinedOther'] == 0 and n['notRecorded'] == 0 and n['oneLinePerState'] and n['loadedNext'] == 3 and
+          n['costOfFirstNote'] == 120, 'queued record: neither is a late creation, one line per state, the compile\'s cost: %s' % n)
+    check('built for skipped draws 2 (compile 420 ms, without the main cache\'s load wait), draws that waited for them 2 (42 ms)' in n['summary'],
+          'queued record: summary labels')
+    w = q['loadWait']
+    check(200 <= w['waitedMs'] <= w['elapsedMs'] + 5 and w['otherThreadTicks'] == 0 and w['nothingOnceLoaded'],
+          'queued record: a worker\'s main-load wait is summed on its own thread only: %s' % w)
+    s = q['stageLine']
+    check(s['split'] and s['reset'] and s['queued'] == 3, 'queued record: the stages line splits the async skips by cause: %s' % s)
+    lot['queuedRecord'] = dict(builtForSkipped=n['builtForSkipped'], waitedForSkipped=n['waitedForSkipped'], stageLineSplit=s['split'])
+demand = None
+if 'adapt_compute_warmup_demand' in LOT_PRESENT:
+    # One pipeline worker, as on a six-core iPhone (cores / 4); the demand thread is the scheduler's own.
+    run2 = subprocess.run([DOTNET, str(probe / 'bin/Release/net10.0/MeloNXVariantProbe.dll'), 'demand'], capture_output=True, text=True,
+                          timeout=600, env=dict(environment, DOTNET_PROCESSOR_COUNT='6'), cwd=probe)
+    if run2.returncode or run2.stderr.strip():
+        print(run2.stdout[-4000:], run2.stderr[-4000:], flush=True)
+    check(run2.returncode == 0, 'demand-queue probe runs')
+    demand = json.loads(next(line for line in reversed(run2.stdout.splitlines()) if line.startswith('{')))
+    print(json.dumps(demand, indent=1), flush=True)
+    check(demand['requireFailures'] == 0, 'demand-queue probe requirements')
+    d = demand['demandQueue']
+    check(d['workers'] == 1 and d['roundsWithoutIdleDemandThread'] == 0, 'one pipeline worker; each round starts with the demand thread waiting')
+    check(d['idle'] == dict(rounds=30, onDemandThread=30, completed=30), 'compute warm-up demand: a demanded compile goes to the idle demand thread: %s' % d['idle'])
+    check(d['twoDemanded'] == dict(rounds=20, firstOnDemandThread=20, secondOnWorker=20, highBeforeSecond=0, completed=20),
+          'compute warm-up demand: two demanded at a worker\'s end: the first to the demand thread, the second to the worker before '
+          'any non-demanded compile: %s' % d['twoDemanded'])
+    check(d['demandThreadBusy'] == dict(rounds=10, busyOnDemandThread=10, demandedOnWorker=10, demandedBeforeHigh=10, completed=10),
+          'compute warm-up demand: the demand thread busy, the worker takes the demanded compile first: %s' % d['demandThreadBusy'])
+    check(d['undemanded'] == dict(rounds=10, onWorker=10, completed=10), 'a non-demanded compile stays the worker\'s: %s' % d['undemanded'])
+    lot['demandQueue'] = dict(idleOnDemandThread=d['idle']['onDemandThread'], highBeforeSecondDemanded=d['twoDemanded']['highBeforeSecond'],
+                              demandedFirstWhileBusy=d['demandThreadBusy']['demandedBeforeHigh'])
+
 inputs = ['build-utils/melonx/adapt_pipeline_variant_replay.py', 'build-utils/melonx/adapt_session.py',
-          'test/melonx_pipeline_variant_replay_test.py', 'test/melonx_pipeline_variant_replay/Program.cs', 'test/melonx_adapter_control.py']
+          'test/melonx_pipeline_variant_replay_test.py', 'test/melonx_pipeline_variant_replay/Program.cs', 'test/melonx_adapter_control.py',
+          'test/melonx_pipeline_variant_replay/Lot.cs'] + ['build-utils/melonx/' + name + '.py' for name in LOT_PRESENT]
+# The final files the probe runs (the adapter's own, and the scheduler whose demand-queue rule the lot changed).
+EXECUTED = sorted(set(adapter.BASELINE) | ({SCHEDULER} if 'adapt_compute_warmup_demand' in LOT_PRESENT else set()))
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
 receipt = dict(result='passed', checks=checks, finalPreparationBound=True, sourceKind='finalPreparationWithReversedControl',
                productionVulkanAssemblyBuilt=True, editedFileWarnings=warnings,
-               postimages={n: sha(PREPARED / n) for n in adapter.BASELINE}, testedPostimages={n: sha(POST / n) for n in adapter.BASELINE},
-               report=r, sdk=sdk, host=platform.system(), physicalDeviceTested=False, gameTested=False,
+               postimages={n: sha(PREPARED / n) for n in EXECUTED}, testedPostimages={n: sha(POST / n) for n in adapter.BASELINE},
+               report=r, demandReport=demand, laterLot=lot, laterLotDefines=DEFINES,
+               journalRoomExecuted='journalRoom' in lot, queuedVariantRecordExecuted='queuedRecord' in lot,
+               demandQueueRuleExecuted='demandQueue' in lot, sdk=sdk, host=platform.system(), physicalDeviceTested=False, gameTested=False,
                inputs={n: sha(ROOT / n) for n in inputs},
                limitation='Host run of the production codec, journal and scheduler; no Vulkan device, so a replay creates nothing '
                           'and its cost is simulated. Whether replayed states are the ones a later draw asks for (built but missed '
-                          'stays 0), the late creations saved, and launch time and memory on an iPhone are shown only by a device run.')
+                          'stays 0), the late creations saved, and launch time and memory on an iPhone are shown only by a device run. '
+                          'The lot after IPA 747: its journal, load-wait, render-stage and scheduler code runs here on the final source; '
+                          'the compute constructor\'s promotion runs on the final source in setprogram-warmup (its final variant: '
+                          'demanded at creation, built on the demand thread, bound by the dispatch, compiled once). A skipped draw\'s '
+                          'queued compile noting the state it built (ShaderCollection) and the PipelineBase increment of a draw that '
+                          'skips are built and read only: no host fixture drives a draw that skips (async compile skip).')
 out = ROOT / 'dist/melonx/pipeline-variant-replay-checks.json'
 out.parent.mkdir(parents=True, exist_ok=True)
 out.write_text(json.dumps(receipt, indent=2) + '\n')

@@ -119,7 +119,10 @@
   "build-utils/melonx/adapt_private_span_snapshot.py",
   "build-utils/melonx/adapt_query_prereset.py",
   "build-utils/melonx/adapt_merged_buffer_order.py",
-  "build-utils/melonx/adapt_queued_3d_syncpoints.py"
+  "build-utils/melonx/adapt_queued_3d_syncpoints.py",
+  "build-utils/melonx/adapt_compute_warmup_demand.py",
+  "build-utils/melonx/adapt_variant_journal_room.py",
+  "build-utils/melonx/adapt_queued_variant_record.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -307,6 +310,7 @@
   "test/melonx_session_retention/Program.cs",
   "test/melonx_setprogram_warmup/Double.cs",
   "test/melonx_setprogram_warmup/Program.cs",
+  "test/melonx_setprogram_warmup/Final.cs",
   "test/melonx_shader_save_poll/Backend.cs",
   "test/melonx_shader_save_poll/Program.cs",
   "test/melonx_shader_save_poll/SaveQueue.cs",
@@ -377,7 +381,9 @@
   "test/melonx_auto_ownership_final/Program.cs",
   "test/melonx_auto_ownership_final/Boundaries.cs",
   "test/melonx_queued_syncpoints/Program.cs",
-  "test/melonx_queued_syncpoints/Boundaries.cs"
+  "test/melonx_queued_syncpoints/Boundaries.cs",
+  "test/melonx_pipeline_variant_replay/Program.cs",
+  "test/melonx_pipeline_variant_replay/Lot.cs"
  ],
  "fixtureProductionInputs": [
   "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs",
@@ -2934,7 +2940,14 @@
     "result": "passed",
     "finalPreparationBound": true,
     "sourceKind": "finalPreparationWithReversedControl",
-    "physicalDeviceTested": false
+    "physicalDeviceTested": false,
+    "finalPreparationExecuted": true,
+    "finalCompute.demandThreadIdleBeforeCreate": true,
+    "finalCompute.demandedAtCreation": true,
+    "finalCompute.warmUpThread": "Vulkan Pipeline Demand Compile",
+    "finalCompute.dispatched": true,
+    "finalCompute.dispatchBoundWarmUp": true,
+    "finalCompute.compiles": 1
    },
    "requiredPostimages": [
     "src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs",
@@ -3807,13 +3820,28 @@
     "finalPreparationBound": true,
     "sourceKind": "finalPreparationWithReversedControl",
     "physicalDeviceTested": false,
-    "productionVulkanAssemblyBuilt": true
+    "productionVulkanAssemblyBuilt": true,
+    "journalRoomExecuted": true,
+    "queuedVariantRecordExecuted": true,
+    "demandQueueRuleExecuted": true,
+    "laterLot.journalRoom.evicted": 311,
+    "laterLot.journalRoom.givenUpAtLoad": 300,
+    "laterLot.journalRoom.notRecordedWhenAllMet": 52,
+    "laterLot.journalRoom.compactionLinesNotWritten": 0,
+    "laterLot.journalRoom.refreshedAfterCompaction": 2048,
+    "laterLot.queuedRecord.builtForSkipped": 2,
+    "laterLot.queuedRecord.waitedForSkipped": 2,
+    "laterLot.queuedRecord.stageLineSplit": true,
+    "laterLot.demandQueue.idleOnDemandThread": 30,
+    "laterLot.demandQueue.highBeforeSecondDemanded": 0,
+    "laterLot.demandQueue.demandedFirstWhileBusy": 10
    },
    "requiredPostimages": [
     "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs",
     "src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs",
     "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs",
-    "src/Ryujinx.Graphics.Vulkan/PipelineState.cs"
+    "src/Ryujinx.Graphics.Vulkan/PipelineState.cs",
+    "src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs"
    ]
   },
   {
@@ -4225,7 +4253,9 @@
     "physicalDeviceTested": false,
     "productionVulkanSourceExecuted": true,
     "comparison.writtenAtLoadControl": 0,
-    "comparison.sensitivityVariantsFailed": 2
+    "comparison.sensitivityVariantsFailed": 2,
+    "finalPreparationExecuted": true,
+    "finalReportEqualsCandidate": true
    },
    "requiredPostimages": [
     "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs"
@@ -4460,7 +4490,9 @@
     "physicalDeviceTested": false,
     "productionVulkanAssemblyBuilt": true,
     "productionGpuAssemblyBuilt": true,
-    "submissionSites": 16
+    "submissionSites": 16,
+    "finalPreparationExecuted": true,
+    "finalStageLineSplit.first.pipelineStateQueued": 0
    },
    "requiredPostimages": [
     "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs",

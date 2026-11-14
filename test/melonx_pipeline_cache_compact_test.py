@@ -14,6 +14,9 @@ keeps a library under its cache key). Scenarios (Program.cs): the decision by it
 killed after the load; the same through play, a pause and the close, with a worker snapshot; a file already holding
 keys; a small whole file and the growth rule after it; a write that fails at the load; the close overtaking the load.
 Sensitivity: the candidate without the call, and with a decision that always writes, must each fail.
+Final preparation: when a later adapter edits PipelineCacheManager.cs (adapt_variant_journal_room and
+adapt_queued_variant_record, lot after IPA 747), the final file itself, the postimage this receipt binds, is compiled and
+run by the same fixture too, and must give the candidate's report exactly in every scenario.
 The sizes and the memory on the real MoltenVK are the melonx-cache-keys run (macOS, not an iPhone). Isolated
 directories, never a player's cache. Writes dist/melonx/pipeline-cache-compact-checks.json.
 """
@@ -25,7 +28,7 @@ FINAL_SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--can
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import control_source, files_edited_later, use_authenticated_libhac_feed  # noqa: E402
+from melonx_adapter_control import control_source, files_edited_later, postimage, use_authenticated_libhac_feed  # noqa: E402
 _HOLD = []
 CONTROL_SOURCE, FINAL_PREPARATION = control_source(FINAL_SOURCE, 'adapt_pipeline_cache_compact', _HOLD)
 import adapt_pipeline_cache_compact as adapter  # noqa: E402
@@ -84,9 +87,18 @@ except AssertionError:
 check(refused, 'fail closed: an adapted tree is refused')
 if FINAL_PREPARATION:
     later = files_edited_later('adapt_pipeline_cache_compact')
+    # Lot after IPA 747: adapt_variant_journal_room and adapt_queued_variant_record edit PipelineCacheManager.cs after this
+    # adapter. The final file with the later adapters reversed, latest first, each replacement required once
+    # (melonx_adapter_control.postimage), must be this candidate's file exactly: the composition is learned, not skipped.
+    own = WORK / 'own-postimage'
+    postimage('adapt_pipeline_cache_compact', FINAL_SOURCE, own)
     for name in adapter.BASELINE:
         if name not in later:
             check((CANDIDATE / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
+        else:
+            check((CANDIDATE / name).read_bytes() == (own / name).read_bytes(), 'final preparation is the adapter, then the later adapters: ' + name)
+# The candidate then runs the file as it was before the later adapters; the final file itself is run too (variant 'final').
+FINAL_RUN = FINAL_PREPARATION and MANAGER in files_edited_later('adapt_pipeline_cache_compact')
 
 # --- Static: the exact scope ---
 manager_k, manager_c = text(CANDIDATE, MANAGER), text(CONTROL_SOURCE, MANAGER)
@@ -137,8 +149,8 @@ SENSITIVITY = {
     'alwaysCompact': manager_k.replace(ALWAYS_OLD, '            return dataBytes > 0;\n'),
 }
 reports = {}
-for variant in ('control', 'candidate', *SENSITIVITY):
-    tree = CONTROL_SOURCE if variant == 'control' else CANDIDATE
+for variant in ('control', 'candidate', *SENSITIVITY) + (('final',) if FINAL_RUN else ()):
+    tree = CONTROL_SOURCE if variant == 'control' else FINAL_SOURCE if variant == 'final' else CANDIDATE
     fixture = WORK / ('fixture-' + variant)
     fixture.mkdir()
     shutil.copyfile(tree / MANAGER, fixture / 'PipelineCacheManager.cs')
@@ -215,11 +227,22 @@ check(reports['alwaysCompact']['alreadyKeys']['writtenAtLoad'] > 0 and not repor
       'sensitivity: a decision that always writes rewrites a file already holding keys')
 unexpected = [w for w in k['warnings'] if 'Unable to read Vulkan pipeline cache for persistence' not in w]
 check(not unexpected, 'candidate: no warning but the failed write of its scenario: ' + str(unexpected))
+executed = {variant: sha(WORK / ('fixture-' + variant) / 'PipelineCacheManager.cs') for variant in reports}
+final_equal = None
+if FINAL_RUN:
+    # The delivered file: what the receipt binds (postimages) is what this fixture compiled and ran.
+    check(executed['final'] == sha(FINAL_SOURCE / MANAGER) != executed['candidate'],
+          'final: the fixture compiled and ran the final PipelineCacheManager.cs (the later adapters\' edits included)')
+    final_equal = {key: value for key, value in reports['final'].items() if key != 'variant'} == \
+        {key: value for key, value in k.items() if key != 'variant'}
+    check(final_equal, 'final: the final PipelineCacheManager.cs gives the candidate\'s report in every scenario (decisions, sizes, '
+          'records, next launches, warnings): ' + json.dumps({key: value for key, value in reports['final'].items() if value != k.get(key)})[:1500])
 
 inputs = ['build-utils/melonx/adapt_pipeline_cache_compact.py', 'build-utils/melonx/adapt_session.py',
           'build-utils/melonx/moltenvk/rewindbox-moltenvk.patch',
           'test/melonx_pipeline_cache_compact_test.py', 'test/melonx_pipeline_cache_compact/Program.cs',
-          'test/melonx_pipeline_cache_compact/Double.cs', 'test/melonx_adapter_control.py']
+          'test/melonx_pipeline_cache_compact/Double.cs', 'test/melonx_adapter_control.py',
+          'build-utils/melonx/adapt_variant_journal_room.py', 'build-utils/melonx/adapt_queued_variant_record.py']
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
 receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPARATION,
                sourceKind='finalPreparationWithReversedControl' if FINAL_PREPARATION else 'core727Preparation',
@@ -228,6 +251,7 @@ receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPA
                                writtenAtLoadControl=cm['writtenAtLoad'], nextLaunchReadsCandidate=km['nextLaunchReadBytes'],
                                nextLaunchReadsControl=cm['nextLaunchReadBytes'], sensitivityVariantsFailed=2),
                reports=reports, sdk=sdk, host=platform.system(), physicalDeviceTested=False, productionVulkanSourceExecuted=True,
+               finalPreparationExecuted=bool(FINAL_RUN), finalReportEqualsCandidate=final_equal, executedManagers=executed,
                driverModel='a cache created from data keeps each whole entry at a sixteenth of its length (the cache key of the '
                            'recipe patch\'s fifth part); the real sizes and memory are the melonx-cache-keys run',
                inputs={name: sha(ROOT / name) for name in inputs},

@@ -177,6 +177,11 @@ INPUTS = ['test/melonx_fragmented_reads_test.py', 'test/melonx_fragmented_reads/
           'build-utils/melonx/adapt_texture_play_clock.py', 'build-utils/melonx/adapt_private_span_snapshot.py',
           'build-utils/melonx/adapt_query_prereset.py', 'build-utils/melonx/adapt_merged_buffer_order.py',
           'build-utils/melonx/adapt_queued_3d_syncpoints.py',
+          # IPA 740 compute freeze: applied in ORDER, on the composed ShaderCollection.cs and BackgroundCompilationScheduler.cs.
+          'build-utils/melonx/adapt_compute_warmup_demand.py',
+          # Variant journal lot: applied last, in ORDER, on the composed PipelineCacheManager.cs, ShaderCollection.cs and
+          # PipelineBase.cs (composed already through adapt_pipeline_variant_replay).
+          'build-utils/melonx/adapt_variant_journal_room.py', 'build-utils/melonx/adapt_queued_variant_record.py',
           'test/melonx_adapter_control.py', 'native/melonx/EmbeddedPerformanceDiagnostics.cs']
 # One fragment of a real anchor per adapted file; altering it must stop the whole adapter.
 DRIFT = {

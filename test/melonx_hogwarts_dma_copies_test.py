@@ -247,6 +247,18 @@ LOT_FILES = {
     'adapt_query_prereset': ['src/Ryujinx.Graphics.Vulkan/PipelineFull.cs'],
     'adapt_merged_buffer_order': ['src/Ryujinx.Graphics.Gpu/Memory/BufferCache.cs'],
     'adapt_queued_3d_syncpoints': [],
+    # IPA 740 compute freeze, first of the lot after adapt_queued_3d_syncpoints: a play-time compute program's warm-up
+    # demanded at once, demanded compiles to the idle demand thread (both files in this composition).
+    'adapt_compute_warmup_demand': ['src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs',
+                                    'src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs'],
+    # Variant journal lot, last in preparation order: a full variant journal gives up the first state of its eviction
+    # order not met in the session (would be dropped at the next load, then fewest sessions, longest ago, lowest ranked)
+    # and compacts a full file (PipelineCacheManager.cs in this composition); a state a skipped draw queued is recorded
+    # once built, the draws that wait for its compile are counted and the async skips are split by cause (the three
+    # files in this composition).
+    'adapt_variant_journal_room': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
+    'adapt_queued_variant_record': ['src/Ryujinx.Graphics.Vulkan/PipelineBase.cs', 'src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs',
+                                    'src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
 }
 
 checks = 0

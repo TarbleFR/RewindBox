@@ -34,7 +34,7 @@ SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import control_source, files_edited_later  # noqa: E402
+from melonx_adapter_control import control_source, files_edited_later, postimage  # noqa: E402
 import adapt_sibling_pipelines as adapter  # noqa: E402
 _HOLD = []
 FINAL_SOURCE = SOURCE
@@ -111,6 +111,13 @@ with tempfile.TemporaryDirectory(prefix='melonx-sibling-pipelines-') as temporar
             check(final_text.count(new) == 1, 'replacement in the final preparation: ' + new.strip().splitlines()[0][:70])
         if name not in files_edited_later('adapt_sibling_pipelines'):
             check((candidate / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
+        else:
+            # Lot after IPA 747: adapt_compute_warmup_demand and adapt_queued_variant_record edit ShaderCollection.cs after
+            # this adapter. The final file with the later adapters reversed, latest first, each replacement required once
+            # (melonx_adapter_control.postimage), must be this candidate's file exactly: the composition is learned.
+            postimage('adapt_sibling_pipelines', FINAL_SOURCE, base / 'own-postimage')
+            check((candidate / name).read_bytes() == (base / 'own-postimage' / name).read_bytes(),
+                  'final preparation is the adapter, then the later adapters: ' + name)
         shutil.rmtree(candidate)
         shutil.copytree(FINAL_SOURCE, candidate, ignore=ignore, symlinks=True)
         after = final_text
@@ -244,7 +251,8 @@ check(all(value is True for key, value in r['identity'].items() if key != 'disti
 check(r['reportCounts'] == [1, 8, 64, 512], 'the journal line is written at the 1st, 8th, 64th, 512th pipeline taken: %s' % r['reportCounts'])
 
 inputs = ['build-utils/melonx/adapt_sibling_pipelines.py', 'build-utils/melonx/adapt_session.py', 'test/melonx_sibling_pipelines_test.py',
-          'test/melonx_sibling_pipelines/Program.cs', 'test/melonx_adapter_control.py']
+          'test/melonx_sibling_pipelines/Program.cs', 'test/melonx_adapter_control.py',
+          'build-utils/melonx/adapt_compute_warmup_demand.py', 'build-utils/melonx/adapt_queued_variant_record.py']
 report = {
     'result': 'passed', 'checks': checks, 'finalPreparationBound': FINAL_PREPARATION,
     'sourceKind': 'finalPreparationWithReversedControl' if FINAL_PREPARATION else 'pinnedPreparationPlusAdapter',

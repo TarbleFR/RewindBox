@@ -33,6 +33,19 @@ void Require(bool condition, string what)
     }
 }
 
+#if COMPUTE_WARMUP_DEMAND
+// adapt_compute_warmup_demand in the final preparation (the gate defines the symbol from ORDER): the demand-queue rule of
+// the real scheduler, run alone in a process of its own that the gate starts with one pipeline worker (Lot.cs).
+if (args.Length == 1 && args[0] == "demand")
+{
+    report["demandQueue"] = LotScenarios.DemandQueue(NewScheduler, Require);
+    report["requireFailures"] = failures;
+    Directory.Delete(root, true);
+    Console.WriteLine(JsonSerializer.Serialize(report));
+    return;
+}
+#endif
+
 // ---------------------------------------------------------------- A. the semantic codec, on the real PipelineState
 PropertyInfo[] scalars = typeof(PipelineState).GetProperties(BindingFlags.Public | BindingFlags.Instance)
     .Where(p => p.CanRead && p.CanWrite && p.GetIndexParameters().Length == 0).ToArray();
@@ -717,6 +730,16 @@ bool WaitUntil(Func<bool> condition, int timeoutMs)
     };
     scheduler.Dispose();
 }
+
+#if VARIANT_JOURNAL_ROOM
+// adapt_variant_journal_room in the final preparation: eviction order, the load's trim and the file's compaction (Lot.cs).
+report["journalRoom"] = LotScenarios.JournalRoom(root, Require);
+#endif
+#if QUEUED_VARIANT_RECORD
+// adapt_queued_variant_record in the final preparation: states built for skipped draws, the draws that waited for them, a
+// worker's wait for the main cache's load and the render stages' split of the async skips (Lot.cs).
+report["queuedRecord"] = LotScenarios.QueuedRecord(root, Require);
+#endif
 
 report["requireFailures"] = failures;
 Directory.Delete(root, true);
