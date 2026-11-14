@@ -24,8 +24,8 @@
   "core_pin_sha256": "c7d6a5c4756e4441c2686d99c5889913e5bf56dcb3f19c8338758c36c09540e9",
   "producer": {
    "workflow": ".github/workflows/xenia-core.yml",
-   "run": 43241572889,
-   "artifact": 13957752125
+   "run": 43533984227,
+   "artifact": 14089907731
   },
   "binary_sha256": "8c59ad09cd1bf729082e7f105a6d776ecd4d8d4d766b9da45cecadd235bdc891",
   "packaged_fingerprint": "9cbc552026cc34e7d23ce4f24463a96c370bde56705f3d5fba32d54bbbd61700",
