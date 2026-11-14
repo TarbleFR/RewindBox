@@ -89,37 +89,27 @@ See [RELEASE_0.0.1_SOURCE_MANIFEST.md](RELEASE_0.0.1_SOURCE_MANIFEST.md). That
 file records the exact RewindBox packaging commit, workflow artifact identity
 and pinned upstream revisions used for the published Build 350 IPA.
 
-## MeloNX / Ryujinx — embedded engine in Build 530
+## MeloNX / Ryujinx — embedded engine
 
-**MeloNX is now embedded** in the
-[fix 0.0.9 / Build 530](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.9-fix.1)
-IPA. The old external MeloNX handoff is not part of this distribution.
-The pinned upstream source is
-[MeloNX at `13700519f3`](https://starforgejo.dev/projects/MeloNX/src/commit/13700519f3abc4e6d7ed8a065b118b2cc59bcd67);
-the reconstructed LibHac revision and Melo-Controller reference are recorded
-in [source.json](../build-utils/melonx/source.json).
-The corrected embedded NativeAOT Core is identified by RewindBox source
-[`ab6d87ebb8b33d0151953b1b9ea7cefaab7a4b12`](https://github.com/TarbleFR/RewindBox/tree/ab6d87ebb8b33d0151953b1b9ea7cefaab7a4b12)
-and its [successful engine run](https://github.com/TarbleFR/RewindBox/actions/runs/40152134234).
-The iOS-only Vulkan adaptation disables direct host-memory import after the
-reported `ErrorFeatureNotPresent` failure and retains the fallback GPU
-readback path. Automated simulator tests passed; physical iPhone gameplay
-stability remains unverified.
-
-Credit MeloNX authors, stossy11, Ryujinx/Ryubing contributors, LibHac
-contributors and the separate Melo-Controller authors. Original licenses,
+Credit MeloNX contributors, stossy11, Ryujinx/Ryubing contributors, LibHac
+contributors and the separate Melo-Controller authors. Their original licenses,
 controller notice and dependency references are preserved under
 [assets/legal/melonx](../assets/legal/melonx/) and inside the distributed
 IPA's `Legal/MeloNX/` folder.
 
-**Open source/rights boundary:** the upstream project contains a mixture of
-MIT/GPL declarations, and the reconstructed LibHac package is not asserted to
-be byte-equivalent to the historical unavailable NuGet package. The complete
-native dependency/source and combined-work license evidence remains subject
-to the [corresponding-source audit](ENGINE_CORRESPONDING_SOURCES.md) and
+Pinned upstream source:
+[`13700519f3`](https://starforgejo.dev/projects/MeloNX/src/commit/13700519f3abc4e6d7ed8a065b118b2cc59bcd67);
+reconstructed dependency revisions:
+[source.json](../build-utils/melonx/source.json); RewindBox's own Core source:
+[`ab6d87eb`](https://github.com/TarbleFR/RewindBox/tree/ab6d87ebb8b33d0151953b1b9ea7cefaab7a4b12).
+
+**License boundary:** the upstream project contains a mixture of MIT/GPL
+declarations, and the reconstructed LibHac package is not asserted to be
+byte-equivalent to the historical unavailable NuGet package. The complete
+native dependency/source and combined-work license evidence remains subject to
+the [corresponding-source audit](ENGINE_CORRESPONDING_SOURCES.md) and the
 [historical Build 530 release manifest](RELEASE_0.0.9_FIX_1_SOURCE_MANIFEST.md).
-An embedded runtime and copied notices are **not** a blanket grant of
-redistribution rights.
+Copied notices are **not** a blanket grant of redistribution rights.
 
 ## External integrations
 
@@ -127,7 +117,7 @@ The following applications/services are **not claimed as RewindBox-owned
 software** merely because RewindBox interoperates with them:
 
 - **ScreenScraper** — https://www.screenscraper.fr/
-- **GameTDB** — https://www.gametdb.com/ — box scans of PS3, Switch, Wii,
+- **GameTDB** — https://www.gametdb.com/ — box scans of PS3, Wii,
   GameCube, Wii U, DS and 3DS games, looked up by the game's product code
   (docs/game-box-3d.md § 14, § 25).
 - **MobyGames** — https://www.mobygames.com/ — box scans, only with the
@@ -257,7 +247,7 @@ claim the private revision of the inspected ARMSX3 IPA is public source.
 ## Trademarks and commercial game content
 
 Nintendo, PlayStation, Sony, Microsoft, Xbox, SEGA, Dolphin, RPCS3, PCSX2,
-ARMSX2, RetroArch, MeloNX, KartPad, StikJIT and all other referenced product
+ARMSX2, RetroArch, KartPad, StikJIT and all other referenced product
 names, logos and trademarks remain the property of their respective owners.
 
 RewindBox is an independent project and is not affiliated with, sponsored
@@ -285,8 +275,7 @@ under `Legal/Textures/`, the rebuilt PSP dependency notices under
 `Legal/PPSSPP/`, the preserved supplementary cheat notices under
 `Legal/Cheats/`, and the current texture, overlay and cheat attribution registers
 under `Legal/Catalogs/`. Notice hashes are checked before packaging and against
-the resulting archive. Staged MeloNX references are not included as a delivered
-runtime's notice set. No existing IPA is rewritten by these changes.
+the resulting archive. No existing IPA is rewritten by these changes.
 
 The continued source review adds `Legal/Packages/` for native package notices,
 `Legal/Engines/` for identified engine dependency notices and `Legal/Sources/`
@@ -360,7 +349,7 @@ unverified archives and unsupported formats retain the manual/unavailable path.
 
 The reviewed catalogue has 424 installable families / 509 profiles among 1,124
 references. Its 38 PS1 references comprise eight verified downloads and 30
-author pages. Switch entries are research-only. Counts and verification do not
+author pages. Counts and verification do not
 establish a pack's completeness, on-device rendering or rights clearance.
 
 Every pack keeps its authors, version, credits and stated terms in the
@@ -517,7 +506,7 @@ package (MIT), and EPUB/XHTML parsing uses the Dart
 | **ARMSX2 / PCSX2** | [ARMSX2](https://github.com/ARMSX2/ARMSX2) team and contributors; ARMSX2 is based on the long-running [PCSX2](https://github.com/PCSX2/pcsx2) project. |
 | **Dusklight** (earlier builds only) | [TwilitRealm/Dusklight](https://github.com/TwilitRealm/dusklight) contributors; upstream also credits the Twilight Princess decompilation community and Aurora developers. No longer included in RewindBox since 20 October 2026. |
 | **KartPad / WiiCompiled** (earlier builds only) | [KartPad](https://github.com/chrissotraidis/kartpad) by [@chrissotraidis](https://github.com/chrissotraidis), built on [WiiCompiled](https://github.com/patchzyy/Wiicompiled) created by [@patchzyy](https://github.com/patchzyy). No longer included in RewindBox since 19 October 2026. |
-| **MeloNX / Ryujinx** (embedded in Build 530) | [MeloNX](https://starforgejo.dev/projects/MeloNX) contributors, stossy11 and Ryujinx/Ryubing contributors; LibHac and Melo-Controller retain separate notices. The old external integration is retired. The current iOS engine uses a Vulkan host-import fallback; gameplay stability and complete native-source/license coverage are not guaranteed. |
+| **MeloNX / Ryujinx** | MeloNX contributors, stossy11 and Ryujinx/Ryubing contributors; LibHac and Melo-Controller retain separate notices ([assets/legal/melonx](../assets/legal/melonx/)). |
 | **RetroArch / Libretro** | [RetroArch](https://github.com/libretro/RetroArch) and Libretro contributors, for the API, core ecosystem and buildbot distributions used by **Embedded RetroArch** inside RewindBox. Individual emulator authors are credited below. |
 | **Provenance Skin Catalog** | [Provenance-Emu/skins](https://github.com/Provenance-Emu/skins), maintained by the Provenance team and community contributors; one of the sources used to discover controller skins. |
 | **DeltaStyles / Delta Skins** | [DeltaStyles](https://deltastyles.com/), [Delta Skins](https://delta-skins.github.io/) and their individual skin creators, for compatible catalog entries and community layouts. |
@@ -525,7 +514,7 @@ package (MIT), and EPUB/XHTML parsing uses the Dart
 | **Delta / DeltaCore** | [Riley Testut and DeltaCore contributors](https://github.com/rileytestut/DeltaCore), for the controller-skin format referenced by compatible imports. |
 | **Community skin creators** | The original authors of each skin's artwork and layout. Available author and source credits are preserved; each creator's terms apply. |
 | **StikJIT** | [StikDebug/StikJIT](https://github.com/StikDebug/StikJIT) and its contributors. |
-| **NeoSwap memory research** | Stossy/MeloNX for the allocation ideas [studied and adapted](neoswap-melonx-2026-10-11.md), and Guest Page Relay contributors for the [MIT-licensed relay prototype](../assets/legal/Guest-Page-Relay-MIT.txt). |
+| **NeoSwap memory research** | stossy11 for the allocation ideas [studied and adapted](neoswap-melonx-2026-10-11.md), and Guest Page Relay contributors for the [MIT-licensed relay prototype](../assets/legal/Guest-Page-Relay-MIT.txt). |
 | **ScreenScraper** | [ScreenScraper.fr](https://www.screenscraper.fr/) metadata and media service. |
 | **RetroAchievements** | [RetroAchievements](https://retroachievements.org/) project, API and community. |
 | **GameDB / GameDB-PS3** | **Niema / [@niemasd](https://github.com/niemasd)**, creator of [GameDB](https://github.com/niemasd/GameDB) and [GameDB-PS3](https://github.com/niemasd/GameDB-PS3). RewindBox uses `PS3.titles.json` as a fallback title catalog. GameDB asks downstream projects to credit GameDB and its source datasets; GameDB-PS3 lists **MiSTer Addons** and **Redump** as sources. |

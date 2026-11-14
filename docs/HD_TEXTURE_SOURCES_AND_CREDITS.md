@@ -212,9 +212,9 @@ the verified archive identity and texture install plans intact. This review
 does not change an installer or claim that an on-device retention fix has
 already been made.
 
-## Switch references are research only
+## Research-only references
 
-[`future-switch.json`](../tools/textures/research/future-switch.json) is not
+A [research file](../tools/textures/research/future-switch.json) is not
 consumed by `build_catalogue.py`. Its five references all have
 `runtime_enabled: false` and `engine_validated: false`:
 
@@ -224,9 +224,9 @@ consumed by `build_catalogue.py`. Its five references all have
 | MegaMagikarp (3096); Raytwo | [Fire Emblem: Three Houses outline removal](https://gbatemp.net/threads/fire-emblem-three-houses-outline-removal-mod.548930/) | Executable patch, not an HD texture pack |
 | Henriko Magnifico | [Skyward Sword HD 4K](https://www.henrikomagnifico.com/zelda-skyward-sword-4k) | Requires the creator's specialized desktop texture-injection fork |
 | HDPacks.com | [Fire Emblem Engage 4K](https://www.hdpacks.com/news/fire-emblem-engage-4k-texture-pack) | Paid-access reference; no archive acquired or validated |
-| Monkbreh; Luckyguess; Kuriimu2 developers | [MHGU HD Project](https://github.com/Monkbreh/MHGU-HD-Project) | Switch RomFS mod; not an Azahar texture pack |
+| Monkbreh; Luckyguess; Kuriimu2 developers | [MHGU HD Project](https://github.com/Monkbreh/MHGU-HD-Project) | RomFS mod; not an Azahar texture pack |
 
-These five references add no downloadable pack, validated Switch engine or
+These five references add no downloadable pack, validated engine or
 redistribution grant to this release preparation.
 
 ## Related skins, scans and 3D covers
