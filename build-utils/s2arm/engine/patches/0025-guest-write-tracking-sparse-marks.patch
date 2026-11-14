@@ -1,0 +1,248 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_dirty.c b/graphics/nvn/gfx/nvn/nvn_dirty.c
+index 147e003fd..dd3be6296 100644
+--- a/graphics/nvn/gfx/nvn/nvn_dirty.c
++++ b/graphics/nvn/gfx/nvn/nvn_dirty.c
+@@ -51,7 +51,9 @@ enum { BLK_SHIFT = 10, BLK = 1 << BLK_SHIFT, NBLK = 256, MAX_RANGE = BLK * NBLK
+ // Ranges are rounded to host pages (16 KB) but guest memory pools are only 4 KB aligned: adjacent pools share their first / last pages, so one address can fall in several registered ranges.
+ // So: "is this texture tracked" looks for a range that holds its whole span; a fault / host pre-write unprotects and stamps every range covering that page; pool destruction identifies its range by the pool's exact start mem.
+ // (Previously the first range containing the address was always taken: two SMBW ASTC 6x5 textures whose pool's first page is shared with a small preceding pool were judged untracked and re-uploaded on every use, about 6 MB per frame)
+-typedef struct { uintptr_t base, end, mem; _Atomic uint8_t *state; _Atomic uint64_t *gen; size_t cap; _Atomic int live; } range_t;
++// RewindBox (patch 0025): sparse: per page, protected for a placement sparse tile (nvn_dirty_protect_sparse; seedds/nxnative 1d4b8e82, dm/gfx/nvn/nvn_dirty.c:31 at 0c078130, MIT,
++//   Copyright (c) 2026 seedds). ovl (S2Arm adaptation): the pool overlaps another live one past the host page adjacent pools share, so find_span never answers it from its cache
++typedef struct { uintptr_t base, end, mem; _Atomic uint8_t *state; _Atomic uint64_t *gen; _Atomic(_Atomic uint8_t *) sparse; size_t cap; _Atomic int live; _Atomic uint8_t ovl; } range_t;
+ static _Atomic(range_t *) g_blk[NBLK];
+ static inline range_t *rg(int i) { return &atomic_load_explicit(&g_blk[i >> BLK_SHIFT], memory_order_acquire)[i & (BLK - 1)]; }
+ static _Atomic int g_nr;
+@@ -74,6 +76,7 @@ static _Thread_local prep_miss g_prep_miss[64];
+ typedef struct retired_arrays {
+     _Atomic uint8_t *state;
+     _Atomic uint64_t *gen;
++    _Atomic uint8_t *sparse;   // RewindBox (patch 0025): the range's placement sparse marks (range_t.sparse), sized with the arrays they retire with
+     struct retired_arrays *next;
+ } retired_arrays;
+ static retired_arrays *g_retired_arrays;   // g_slot_mu; never read by the signal path
+@@ -122,6 +125,7 @@ static uint64_t g_tb_num, g_tb_den;   // obtained when the first pool is registe
+ //   (11-02 BotW restart on an iPhone: SIGBUS on the first guest write to a pool page, main+0xd87c80)
+ static _Atomic int g_hooks_on;
+ static _Atomic int g_busy_red;
++static _Atomic int g_sparse_untracked_logged, g_span_ovl_logged;   // RewindBox (patch 0025): one line a session each (nvn_dirty_protect_sparse)
+ // All guest fault handlers and graphics callbacks have been joined before this
+ // entry. Old protections belong to the native window that is remapped next.
+ void nvn_dirty_reset_session(void) {
+@@ -130,15 +134,16 @@ void nvn_dirty_reset_session(void) {
+     for (int b = 0; b < NBLK; b++) {
+         range_t *r = atomic_exchange(&g_blk[b], NULL);
+         if (!r) continue;
+-        for (int i = 0; i < BLK; i++) { free(r[i].state); free(r[i].gen); }
++        for (int i = 0; i < BLK; i++) { free(r[i].state); free(r[i].gen); free((void *)atomic_load(&r[i].sparse)); }   // RewindBox (patch 0025): and the placement sparse marks
+         free(r);
+     }
+     while (g_retired_arrays) {
+         retired_arrays *r = g_retired_arrays; g_retired_arrays = r->next;
+-        free(r->state); free(r->gen); free(r);
++        free(r->state); free(r->gen); free(r->sparse); free(r);
+     }
+     atomic_store(&g_nr, 0); atomic_store(&g_live, 0); atomic_store(&g_live_peak, 0);
+     atomic_store(&g_now, 1); atomic_store(&g_overflow_logged, 0); atomic_store(&g_busy_red, 0); atomic_store(&g_hooks_on, 0);
++    atomic_store(&g_sparse_untracked_logged, 0); atomic_store(&g_span_ovl_logged, 0);   // RewindBox (patch 0025). g_sparse_writes is not reset: callers only compare it with a value they kept
+     atomic_fetch_add(&g_table_epoch, 1);
+     pthread_mutex_unlock(&g_slot_mu);
+ }
+@@ -158,9 +163,20 @@ static int busy_wait(range_t *r, uintptr_t p) {
+ }
+ static int live_at(int i) { return atomic_load_explicit(&rg(i)->live, memory_order_acquire); }
+ // The registered range that holds all of [a, a+len) (used for a texture's tracking / protection / dirty check)
++// RewindBox (patch 0025): the last range found is tried first. Ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 1d4b8e82 (dm/gfx/nvn/nvn_dirty.c:66-71 at 0c078130):
++//   looks come in runs over one pool, and a scan of Mario Kart World's 5,000 pools per look took a quarter of its submit thread's time (S2Arm's scan is as linear, and the
++//   placement sparse tiles of later patches ask once per physical run of a tile). S2Arm adaptation: the answer stays the linear scan's, the lowest live slot holding the span, because
++//   nvn_dirty_protect and a span handle kept from nvn_dirty_span must name the same range (its page states and generations); upstream may answer another range holding the span.
++//   Two live ranges hold one span only when it lies in the one host page adjacent pools share (the first or last page of each), or when their pools overlap past that page
++//   (range_t.ovl, set by nvn_dirty_add_range): the cached range is used outside those cases only. g_span_last needs no reset, as a slot index is checked before it is used
++static _Atomic int g_span_last;
+ static range_t *find_span(uintptr_t a, size_t len) {
+-    int n = atomic_load(&g_nr);
+-    for (int i = 0; i < n; i++) { range_t *r = rg(i); if (live_at(i) && a >= r->base && a + len <= r->end) return r; }
++    int n = atomic_load(&g_nr), k = atomic_load_explicit(&g_span_last, memory_order_relaxed);
++    if (k < n && len) {
++        range_t *r = rg(k);
++        if (live_at(k) && !atomic_load_explicit(&r->ovl, memory_order_relaxed) && a >= r->base && a + len <= r->end && a + len > r->base + g_pg && a + g_pg < r->end) return r;
++    }
++    for (int i = 0; i < n; i++) { range_t *r = rg(i); if (live_at(i) && a >= r->base && a + len <= r->end) { atomic_store_explicit(&g_span_last, i, memory_order_relaxed); return r; } }
+     return NULL;
+ }
+ // 分块边界：以所属映射（r->base）为基准，块内页号 c*CP..c*CP+CP-1，末块按映射长度截断。
+@@ -184,6 +200,12 @@ static uintptr_t chunk_last_page(range_t *r, uintptr_t p) {
+ // 先逐页认领（PROT→BUSY、NONE→BUSY_WRITABLE），挡住并发的加保护，再整段 mprotect：
+ // 不能 mprotect 完再无条件写状态——另一线程刚把某页 NONE→BUSY→mprotect(READ)，本线程再写 NONE
+ // 就留下“状态可写、内存只读”的漏检（维护方审 11-04 第 7 条）。
++// RewindBox (patch 0025): placement sparse marks. Ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 1d4b8e82 (dm/gfx/nvn/nvn_dirty.c:85-91, 125 at 0c078130).
++//   A page protected for a placement sparse tile (nvn_dirty_protect_sparse) carries a mark; the write that unprotects it takes the mark and moves g_sparse_writes, which nothing else
++//   moves. S2Arm adaptation: S2Arm unprotects at this single point (fault, host pre-write, a whole chunk, pool removal), so the mark is taken here, with the page's generation,
++//   and in nvn_dirty_replace_range, which counts every page as rewritten. A failed mprotect keeps the mark (see nvn_dirty_sparse_writes). Atomics only: the fault path calls it
++static _Atomic uint64_t g_sparse_writes;   // writes to pages protected for a placement sparse tile (nvn_dirty_sparse_writes)
++static void sparse_note(range_t *r, uintptr_t p) { _Atomic uint8_t *sp = atomic_load(&r->sparse); if (sp && atomic_exchange(&sp[p], 0)) atomic_fetch_add(&g_sparse_writes, 1); }
+ static int unprotect_span_pages(range_t *r, uintptr_t first, uintptr_t last) {
+     for (uintptr_t k = first; k <= last; ) {
+         uint8_t st = atomic_load(&r->state[k]);
+@@ -210,7 +232,7 @@ static int unprotect_span_pages(range_t *r, uintptr_t first, uintptr_t last) {
+         return 0;
+     }
+     const uint64_t g = atomic_fetch_add(&g_now, 1) + 1;
+-    for (uintptr_t k = first; k <= last; k++) { atomic_store(&r->gen[k], g); atomic_store(&r->state[k], PG_NONE); }
++    for (uintptr_t k = first; k <= last; k++) { atomic_store(&r->gen[k], g); sparse_note(r, k); atomic_store(&r->state[k], PG_NONE); }   // RewindBox (patch 0025): sparse_note
+     return 1;
+ }
+ // 解除 p 所在的整块。块边界以所属映射为基准（chunk_first/last_page），不越界保护相邻内存。
+@@ -318,7 +340,8 @@ int nvn_dirty_replace_range(const void *mem, size_t size) {
+     // 换底后内容可能整体变了：把整段标记为“在新代际上写过”，这样任何换底前取的 stamp
+     // 比较都会得到“脏”，缓存必须重新上传。归零会让人误判成“从没写过”（测试抓到的正是这点）。
+     const uint64_t newg = atomic_fetch_add(&g_now, 1) + 1;
+-    for (uintptr_t k = 0; k < np; k++) { atomic_store(&r->state[k], PG_NONE); atomic_store(&r->gen[k], newg); }
++    // RewindBox (patch 0025): a placement sparse tile's page counts as rewritten too (sparse_note); it is protected again below without its mark, which the tile's next look sets
++    for (uintptr_t k = 0; k < np; k++) { atomic_store(&r->state[k], PG_NONE); atomic_store(&r->gen[k], newg); sparse_note(r, k); }
+     atomic_fetch_add(&g_mapping_gen, 1);
+     for (uintptr_t k = 0; k < np; ) {
+         uintptr_t first = chunk_first_page(r, k), last = chunk_last_page(r, k);
+@@ -379,14 +402,28 @@ void nvn_dirty_add_range(const void *mem, size_t size) {
+         if (r->cap) {
+             retired_arrays *old = malloc(sizeof *old);
+             if (!old) die("dirty-page retirement record allocation failed");
+-            *old = (retired_arrays){r->state, r->gen, g_retired_arrays};
++            // RewindBox (patch 0025): the placement sparse marks, sized for the old cap, retire with the arrays (a fault reader may still hold them; nvn_dirty_protect_sparse makes new ones).
++            //   Upstream (1d4b8e82, nvn_dirty.c:174 at 0c078130) leaks them as it leaks the arrays
++            *old = (retired_arrays){r->state, r->gen, atomic_exchange(&r->sparse, NULL), g_retired_arrays};
+             g_retired_arrays = old;
+         }
+         r->cap = cap;
+     } else {
+         memset((void *)state, 0, np); memset((void *)gen, 0, np * sizeof *gen);
++        _Atomic uint8_t *sp = atomic_load(&r->sparse); if (sp) memset((void *)sp, 0, np);   // RewindBox (patch 0025): no mark of the slot's last pool (1d4b8e82, nvn_dirty.c:178)
+     }
+     r->base = base; r->end = end; r->mem = (uintptr_t)mem; r->state = state; r->gen = gen;
++    // RewindBox (patch 0025): find_span answers from its cache only what its linear scan would (see there). A pool overlapping another live one past the host page adjacent pools share
++    //   marks both ranges, which find_span then always scans for; a mark stays until its slot is registered again (conservative: a scan, never a different answer). No line here, as
++    //   every game registers its pools here (a pool registered twice at one address overlaps its other slot): nvn_dirty_protect_sparse says it for a placement sparse tile's pool
++    uint8_t ovl = 0;
++    for (int i = 0; i < n; i++) {
++        range_t *o = rg(i); if (i == slot || !live_at(i)) continue;
++        uintptr_t lo = base > o->base ? base : o->base, hi = end < o->end ? end : o->end;
++        if (lo >= hi || (hi - lo == g_pg && ((lo == base && hi == o->end) || (lo == o->base && hi == end)))) continue;   // apart, or one shared edge page
++        ovl = 1; atomic_store(&o->ovl, 1);
++    }
++    atomic_store(&r->ovl, ovl);
+     if (slot == n) atomic_store(&g_nr, n + 1);
+     atomic_store_explicit(&r->live, 1, memory_order_release);
+     atomic_fetch_add(&g_table_epoch, 1);
+@@ -432,17 +469,85 @@ void nvn_dirty_protect(const void *addr, size_t len) {
+         }
+     }
+ }
++// RewindBox (patch 0025): as nvn_dirty_protect, for the pages behind a placement sparse tile: a write to one of them moves nvn_dirty_sparse_writes, which nothing else moves, so its
++//   textures need no look at their tiles until one is written (nvn_mtl.m sparse_look, later patches). Ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 1d4b8e82
++//   (dm/gfx/nvn/nvn_dirty.c:293-306 at 0c078130). S2Arm adaptations, so that no write goes unseen:
++//   - one hold of g_slot_mu over the protection and the marks (S2Arm's nvn_dirty_protect takes no lock), so the range is not retired or replaced in between;
++//   - S2Arm's nvn_dirty_protect skips a page another thread holds busy, where upstream's waits and takes it again (nvn_dirty.c:281-289 at 0c078130, MacNativeGames a166602):
++//     an unprotect in progress leaves it writable with a generation the caller's stamp may cover, another thread's protect leaves it protected, and either way, its mark
++//     taken, its later writes never moved the count. So every page of the span is waited out here, those found writable are protected again, and the marks go on only then.
++//     Once is enough: a page writable after that was written after the caller's stamp (taken before this call, as upstream's sp_tile does), so its look protects it again.
++//     busy_wait takes no lock, and no thread holding a page busy waits for g_slot_mu;
++//   - a page still not protected once marked (written meanwhile, its mprotect failed, or its wait ran past BUSY_WAIT_MS, red) counts as written now and keeps no mark;
++//   - memory that no single tracked range holds (nvn_dirty_since answers "written" for it) counts as written each time it is protected, with one line a session;
++//   - a tile's pool that overlaps another (range_t.ovl, find_span's cache off for it) gets one line a session here, as nvn_dirty_add_range is every game's path;
++//   - the mark table's allocation failing stops, as the page tables' does (upstream left the pages unmarked).
++//   Lock order: a caller holds g_vp_mu (hle_nvn.c nvn_sparse_protect_tile), then g_slot_mu is taken here; nothing here takes g_vp_mu
++void nvn_dirty_protect_sparse(const void *addr, size_t len) {
++    if (!len) return;
++    pthread_mutex_lock(&g_slot_mu);
++    nvn_dirty_protect(addr, len);
++    range_t *r = find_span((uintptr_t)addr, len);   // the range nvn_dirty_protect found: the table does not change under g_slot_mu
++    if (!r) {
++        atomic_fetch_add(&g_sparse_writes, 1);
++        if (!atomic_exchange(&g_sparse_untracked_logged, 1))
++            LOG("RewindBox: dirty-page tracking: placement sparse tile memory %p (%#zx bytes) lies in no single tracked pool; it counts as written each time it is protected", addr, len);
++    } else {
++        _Atomic uint8_t *sp = atomic_load(&r->sparse);
++        if (!sp) {
++            if (!(sp = calloc(r->cap, sizeof *sp))) die("dirty-page tracking: placement sparse mark table allocation failed (%zu pages)", r->cap);
++            atomic_store(&r->sparse, sp);
++        }
++        if (atomic_load(&r->ovl) && !atomic_exchange(&g_span_ovl_logged, 1))
++            LOG("RewindBox: dirty-page tracking: placement sparse tile memory %p lies in pool %p, which overlaps another live pool past a shared edge page; looks in it scan every pool (find_span's cache is off for it)", addr, (void *)r->mem);
++        uintptr_t p = ((uintptr_t)addr - r->base) >> g_shift, q = ((uintptr_t)addr + len - 1 - r->base) >> g_shift;
++        for (int pass = 0; pass < 2; pass++) {   // S2Arm adaptation (above): wait out busy pages, protect again those left writable, wait again
++            int writable = 0;
++            for (uintptr_t i = p; i <= q; i++) {
++                uint8_t st;
++                while (((st = atomic_load(&r->state[i])) == PG_BUSY || st == PG_BUSY_WRITABLE) && busy_wait(r, i)) {}
++                writable |= st == PG_NONE;
++            }
++            if (!writable || pass) break;
++            nvn_dirty_protect(addr, len);
++        }
++        for (uintptr_t i = p; i <= q; i++) atomic_store(&sp[i], 1);
++        for (uintptr_t i = p; i <= q; i++) if (atomic_load(&r->state[i]) != PG_PROT && atomic_exchange(&sp[i], 0)) atomic_fetch_add(&g_sparse_writes, 1);
++    }
++    pthread_mutex_unlock(&g_slot_mu);
++}
++// RewindBox (patch 0025): writes so far to pages protected by nvn_dirty_protect_sparse (1d4b8e82, nvn_dirty.c:306). S2Arm adaptation: once an mprotect has failed (g_track_unreliable,
++//   logged red by mp), a mark can sit on a page left writable, so the count moves at every call and a caller looks at its tiles again, as nvn_dirty_since answers "written" from then on
++uint64_t nvn_dirty_sparse_writes(void) {
++    if (atomic_load(&g_track_unreliable)) return atomic_fetch_add(&g_sparse_writes, 1) + 1;
++    return atomic_load(&g_sparse_writes);
++}
+ uint64_t nvn_dirty_now(void) { return atomic_load(&g_now); }
+-int nvn_dirty_since_span(const void *span, const void *addr, size_t len, uint64_t stamp) {
++// RewindBox (patch 0025): as nvn_dirty_since, with the caller's last range kept in *span (rechecked, scanned again only if it no longer holds the span; a slot reused by another pool
++//   over the same memory is as good). Ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 229fc22c (dm/gfx/nvn/nvn_dirty.c:309-322 at 0c078130): a sparse texture's
++//   page-table walk (hle_nvn.c vpt_walk) asks once per run of physical pages, which mostly lie in one pool, where find_span scans every registered range (about 4,300 in a Mario
++//   Kart World race). nvn_dirty_since_span is it with the caller's handle, as upstream. S2Arm adaptations: the "tracking unreliable" answer (written) stays; and a kept handle is
++//   used only while it is a slot of the current range table (span_slot), as nvn_dirty_reset_session frees the table and a handle kept in a thread-local (229fc22c's
++//   hle_nvn.c t_rw_span) can outlive it. A handle nvn_dirty_span gave in this session always passes, so nvn_dirty_since_span answers as before
++static range_t *span_slot(const void *h) {
++    int n = atomic_load(&g_nr);
++    for (int b = 0; h && b < NBLK && (b << BLK_SHIFT) < n; b++) {
++        range_t *blk = atomic_load_explicit(&g_blk[b], memory_order_acquire); uintptr_t o = (uintptr_t)h - (uintptr_t)blk;
++        if (blk && (uintptr_t)h >= (uintptr_t)blk && o < BLK * sizeof *blk && o % sizeof *blk == 0) return (range_t *)h;
++    }
++    return NULL;
++}
++int nvn_dirty_since_cached(const void **span, const void *addr, size_t len, uint64_t stamp) {
+     if (!len) return 0;
+-    range_t *r = (range_t *)span; uintptr_t a0 = (uintptr_t)addr;   // the kept handle still holds the span (a slot reused by another pool over the same memory is as good): no scan
+-    if (!r || !atomic_load_explicit(&r->live, memory_order_acquire) || a0 < r->base || a0 + len > r->end) r = find_span(a0, len);
++    range_t *r = span_slot(*span); uintptr_t a = (uintptr_t)addr;
++    if (!r || !atomic_load_explicit(&r->live, memory_order_acquire) || a < r->base || a + len > r->end) { r = find_span(a, len); *span = r; }
+     if (!r) return 1;   // When untracked, conservatively treat as dirty: better to upload more than to show stale content
+     if (atomic_load(&g_track_unreliable)) return 1;   // 有保护失败过：一律视为脏，不靠旧代际比较
+-    uintptr_t a = (uintptr_t)addr, p = (a - r->base) >> g_shift, q = (a + len - 1 - r->base) >> g_shift;
++    uintptr_t p = (a - r->base) >> g_shift, q = (a + len - 1 - r->base) >> g_shift;
+     for (uintptr_t i = p; i <= q; i++) if (atomic_load(&r->gen[i]) > stamp) return 1;   // The generation of the last write before upload is <= the stamp; any later write must be > the stamp
+     return 0;
+ }
++int nvn_dirty_since_span(const void *span, const void *addr, size_t len, uint64_t stamp) { return nvn_dirty_since_cached(&span, addr, len, stamp); }
+ int nvn_dirty_since(const void *addr, size_t len, uint64_t stamp) { return nvn_dirty_since_span(NULL, addr, len, stamp); }
+ // The write generation of each page of [addr, addr+len) (gens[k] = page k counted from the one holding addr; 0 = not written since tracking began); returns the page count, -1 = untracked / over n
+ long nvn_dirty_page_gens(const void *span, const void *addr, size_t len, uint64_t *gens, size_t n) {
+diff --git a/graphics/nvn/gfx/nvn/nvn_dirty.h b/graphics/nvn/gfx/nvn/nvn_dirty.h
+index c6c29e6b3..97e21953a 100644
+--- a/graphics/nvn/gfx/nvn/nvn_dirty.h
++++ b/graphics/nvn/gfx/nvn/nvn_dirty.h
+@@ -8,6 +8,9 @@ void nvn_dirty_stat(int *live, int *peak, int *cap);                // number of
+ void nvn_dirty_remove_range(const void *mem);                     // Pool destruction: restore protected pages to writable and mark invalid
+ int nvn_dirty_tracked(const void *addr, size_t len);
+ void nvn_dirty_protect(const void *addr, size_t len);              // Set the covered pages read-only
++// RewindBox (patch 0025): ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 1d4b8e82 (dm/gfx/nvn/nvn_dirty.h:14-15 at 0c078130)
++void nvn_dirty_protect_sparse(const void *addr, size_t len);       // The same, for the pages behind a placement sparse tile: a later write to one moves nvn_dirty_sparse_writes
++uint64_t nvn_dirty_sparse_writes(void);                            // Writes so far to pages protected that way (moves at every call once tracking is unreliable)
+ // 保护分块（页数，相对所属映射起点对齐）。0 = 逐页（共享默认，与 main 一致；Apple 路径也编本文件）。
+ // 安卓直连在第一次纹理上传前设 1 MiB（debug.s2a.chunk_kb 可调），避免逐页 mprotect 切碎 AHB 映射。
+ // 换底（AHB 换页）后重建跟踪：原地重置状态、发布新映射代际、按分块重新加保护。
+@@ -22,6 +25,8 @@ int nvn_dirty_tracking_unreliable(void);
+ uint64_t nvn_dirty_now(void);                                      // Current generation: taken before upload, as the stamp of that content
+ int nvn_dirty_since(const void *addr, size_t len, uint64_t stamp); // Covered pages were written after the stamp -> 1
+ const void *nvn_dirty_span(const void *addr, size_t len);          // The tracked range holding the span (a handle to keep; NULL = untracked)
++// RewindBox (patch 0025): ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 229fc22c (dm/gfx/nvn/nvn_dirty.h:22 at 0c078130); *span may outlive the session (it is rechecked)
++int nvn_dirty_since_cached(const void **span, const void *addr, size_t len, uint64_t stamp);   // nvn_dirty_since keeping the last range found in *span
+ int nvn_dirty_since_span(const void *span, const void *addr, size_t len, uint64_t stamp);   // nvn_dirty_since through a kept handle (rechecked, scanned again only if it no longer holds the span)
+ long nvn_dirty_page_gens(const void *span, const void *addr, size_t len, uint64_t *gens, size_t n);   // write generation of each page of the span (0 = never written); page count, -1 = untracked / over n
+ size_t nvn_dirty_page_size(void);                                  // Host page size the tracking works in (16 KB on Apple systems: one page can hold several 4 KB-aligned NVN resources)

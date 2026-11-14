@@ -1,0 +1,51 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_rec.h b/graphics/nvn/gfx/nvn/nvn_rec.h
+index 1283ec9a7..11a636493 100644
+--- a/graphics/nvn/gfx/nvn/nvn_rec.h
++++ b/graphics/nvn/gfx/nvn/nvn_rec.h
+@@ -83,6 +83,9 @@ enum {
+     RO_R_DRAW_IND_B, RO_R_DRAW_IDX_B, RO_R_DRAW_IDX_IND_B, RO_C_DISPATCH_IND_B,
+     RO_FX,   // NVN2 EvaluateDlss: a MetalFX temporal scaler encoded into the command buffer itself, its textures and parameters set right before (nvn_dlss.inc dlss_fx_run)
+     RO_R_MESH, RO_R_MESH_IND, RO_R_MESH_IND_B,   // NVN2 task / mesh draws (nvn_mtl.m enc_r_mesh / enc_r_mesh_indirect): direct; indirect by GPU address (Metal 4) / buffer + offset (Metal 3)
++    // RewindBox (patch 0027): a queue operation, a[0] the block (rec_queue_block). Ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 1d4b8e82 (dm/gfx/nvn/nvn_rec.h:87 at 0c078130).
++    //   S2Arm: last, not after RO_SIGNAL as upstream, so no record above changes its number
++    RO_Q_BLOCK,
+ };
+ typedef struct { uint32_t op, nobj; uint64_t a[15]; } rec_t;   // the first nobj slots hold retained objects (0 for nil), released once the call is made
+ enum { REC_BLK = 256 };
+@@ -140,6 +143,9 @@ static void rec_exec(const rec_t *r) {
+         if (r->op == RO_COMMIT) g_rx_cb = nil;
+         break; }
+     case RO_SIGNAL: if (!mtl_gpu_halted()) [g_q4 signalEvent:rec_id(a[0]) value:a[1]]; break;
++    // RewindBox (patch 0027): a queue operation (rec_queue_block) in its place among the commits. Ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 1d4b8e82
++    //   (dm/gfx/nvn/nvn_rec.h:149 at 0c078130). S2Arm: not run after a GPU safe stop, as RO_SIGNAL (the block is still released below)
++    case RO_Q_BLOCK: if (!mtl_gpu_halted()) ((void (^)(void))rec_id(a[0]))(); break;
+     case RO_FX: dlss_fx_run(g_rx_cb, a); break;
+     case RO_RE_BEGIN: g_rx_enc = [(id<MTL4CommandBuffer>)g_rx_cb renderCommandEncoderWithDescriptor:rec_id(a[0])]; break;
+     case RO_CE_BEGIN: g_rx_enc = [(id<MTL4CommandBuffer>)g_rx_cb computeCommandEncoder]; break;
+@@ -466,4 +472,26 @@ static void rec_commit_upload(id cb, MTL4CommitOptions *o) {
+     if (!gpu_go()) return;   // GPU 安全停后不交
+     if (o) [g_q4 commit:buffers count:1 options:o]; else [g_q4 commit:buffers count:1];
+ }
++// RewindBox (patch 0027): a queue operation (a placement sparse texture's mapping update, patch 0028): on the encode thread in its place among the recorded commits, so it reaches the
++//   queue after the command buffers committed before it and before the upload batch committed after it (on iOS, where the encode thread is on by default, the batch that fills the
++//   tiles it maps); without the encode thread, right here. Submit thread only, as every rec_* call. Ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 1d4b8e82
++//   (dm/gfx/nvn/nvn_rec.h:380-383 at 0c078130). S2Arm:
++//   - the submit-thread rule is checked on every path, as up_begin / up_flush check theirs (up_owner_check: a red line naming rec_queue_block, then abort): a GPU-written texture's
++//     tile sync (patch 0030) reaches no up_begin, so a call from another thread would race the submit thread on the open record block (rec_put) with no red line on iOS, and on Mac,
++//     where the encode thread is off by default, would run the block on the wrong thread unseen. Nothing before the first submission, and only a load and a compare on the submit thread;
++//   - inside a recording lane too it goes into the main stream, as rec_commit_upload: lanes are spliced after the main stream (rec_lane_splice), so a mapping held in one would reach
++//     the queue after the upload batch that writes its tiles, and those copies would land on tiles not mapped yet;
++//   - not run after a GPU safe stop (mtl_gpu_halt), as rec_signal and queue_wait_event: a queue operation, not a command buffer, so mtl_gpu_halted() and not gpu_go(), which counts
++//     commits. The block is then only released: what it alone would free stays, as with the feedback handlers of the commits skipped after the stop;
++//   - on the encode thread the block runs with no lock held, as upstream's at 1d4b8e82 (commits take g_res_mu there as here; upstream's g_res_commit_mu only since 0c078130; signals
++//     and this take none; g_res_mu is not recursive, so a block holding it could not res_add / res_remove) and is released there with what it captures: neither the block nor a
++//     dealloc that release brings may record (rec_* is the submit thread's) or take a lock the submit thread may hold while it waits for the encode thread (rec_drain, rb_up_staging's
++//     included). What it captures may own more: a GPU-written placement sparse texture holds its NvSparse (associated object, sparse_gpu_make, patch 0030), so the block's last release
++//     can run -[NvSparse dealloc], which takes g_sp_mu: the submit thread must never hold g_sp_mu across a rec_drain
++static void up_owner_check(const char *where);   // nvn_mtl.m: the submit thread's ownership check (red line and abort on another thread)
++static void rec_queue_block(void (^block)(void)) {
++    up_owner_check("rec_queue_block");
++    if (rec_on() && g_rb_started) { int lane = g_rlane; g_rlane = 0; rec_put(RO_Q_BLOCK, 1)->a[0] = rec_obj([block copy]); g_rlane = lane; return; }
++    if (!mtl_gpu_halted()) block();
++}
+ static void rec_signal(id ev, uint64_t v) { geo_run_flush(); if (rec_on() && g_rb_started) { rec_t *r = rec_put(RO_SIGNAL, 1); r->a[0] = rec_obj(ev); r->a[1] = v; } else if (!mtl_gpu_halted()) [g_q4 signalEvent:ev value:v]; }

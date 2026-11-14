@@ -1,0 +1,269 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index ccba9e9ef..934657e0d 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -211,9 +211,11 @@ void mtl_gpu_halt(const char *why) {
+          (unsigned long long)atomic_load(&g_cur_frame), (unsigned long long)g_fence, (unsigned long long)atomic_load(&g_gpu_commits));
+     if (g_gpu_halt_notify) g_gpu_halt_notify(why);
+ }
++static void rb_sp_device_line(void), rb_res_top_tick(void), rb_res_top_check(const char *why, int force), rb_res_top_refused(const char *why), rb_res_top_oom(NSError *e);   // RewindBox (patch 0023): diagnostics, defined with rb_up_mem
+ // 所有命令缓冲报错的入口（where = 哪条队列 / 哪类提交，seq = 栅栏号或批号，0 = 没有）。返回 1 = 已在安全停（调用方别再刷红行）
+ int mtl_gpu_cb_error(NSError *e, const char *where, uint64_t seq) {
+     if (!e) return mtl_gpu_halted();
++    rb_res_top_oom(e);   // RewindBox (patch 0023): at the first GPU out-of-memory error, what the residency set holds (a log line only)
+     if (mtl_gpu_halted()) { atomic_fetch_add_explicit(&g_gpu_err_after, 1, memory_order_relaxed); return 1; }
+     if (!mtl_gpu_err_fatal(e)) return 0;
+     char w[1600]; snprintf(w, sizeof w, "%s 命令缓冲（序号 %llu）报 GPU 挂死 / 超时 / 缺页：%s", where ? where : "-", (unsigned long long)seq, e.description.UTF8String);
+@@ -662,6 +664,7 @@ void mtl_init(void) {
+     MLOG("Metal device %s", g_dev.name.UTF8String);
+     udc_selftest();
+     warm_announce();
++    rb_sp_device_line();   // RewindBox (patch 0023): what this GPU answers for placement sparse textures (a log line only)
+ }
+ 
+ 
+@@ -1211,6 +1214,7 @@ void nvn_be_sub_begin(void) {
+     if (!g_vis_ring[pick].buf) { g_vis_ring[pick].buf = [g_dev newBufferWithLength:VIS_SLOTS * 8 options:MTLResourceStorageModeShared]; res_add(g_vis_ring[pick].buf); }
+     g_vis = g_vis_ring[pick].buf;
+     void arena_begin(void); arena_begin();
++    rb_res_top_tick();   // RewindBox (patch 0023): the resident top when the process has grown (a log line only)
+ }
+ 
+ static void rp_end(void);
+@@ -3343,6 +3347,7 @@ static void rb_up_refused(const tex_t *t, unsigned level, unsigned layer, size_t
+          "%llu such parts and %llu MB so far; the process holds %llu MB and may take %llu MB more", n, (unsigned long long)t->serial, t->d.width, t->d.height, t->d.depth,
+          t->d.format, (int)t->d.target, t->d.levels, level, layer, total, (unsigned long long)(g_dev.currentAllocatedSize >> 20), (unsigned long long)(g_dev.maxBufferLength >> 20),
+          (unsigned long long)k, (unsigned long long)(g_rb_up_refused_bytes >> 20), (unsigned long long)(fp >> 20), (unsigned long long)(av >> 20));
++    rb_res_top_refused("Metal refused a staging buffer for a piece");   // RewindBox (patch 0023): at Metal's first refusal of a staging buffer (a piece, or one piece in pkg_upload_), what the residency set holds, whatever the growth
+ }
+ // RewindBox (patch 0021): what the process holds and how far it is from being stopped for memory (iOS: os_proc_available_memory; 0 elsewhere)
+ static void rb_up_mem(uint64_t *footprint, uint64_t *available) {
+@@ -3352,6 +3357,211 @@ static void rb_up_mem(uint64_t *footprint, uint64_t *available) {
+     *available = os_proc_available_memory();
+ #endif
+ }
++// RewindBox (patch 0023): diagnostics for the port of seedds/nxnative's placement sparse textures (patches 0028 on). Two kinds of log line; nothing here changes what is made,
++//   uploaded or kept resident, and nothing is created on the GPU.
++// (a) rb_sp_device_line, once at the end of mtl_init: what this GPU answers for Metal placement sparse textures. Upstream makes a sparse texture placement sparse only where
++//   Metal's 64 KB tile is NVN's, and measured Metal's tiles on an M6 only (seedds/nxnative 1d4b8e82: dm/gfx/nvn/nvn_mtl.m:3406-3414, and sparse_make's query :3536-3537,
++//   at 0c078130; MIT, Copyright (c) 2026 seedds). The line gives that query's answer (a 2D array, 64 KB pages) for the pixel formats S2Arm makes for Mario Kart World's terrain
++//   arrays (ASTC 8x8 sRGB for 0x8e, BC6H UFLOAT for 0x50 where S2Arm keeps BC native, RGBA8 SNORM for 0x26), for ASTC 8x8 LDR and for the other texel sizes (R8, R16, RG16,
++//   RGBA16F), beside NVN's public answer for the same texture (nvn_tex_sparse_layout, by which the game lays out and maps its tiles; patch 0012). Each format's pixel format is
++//   taken as tex_desc takes it (nvn_fmt_to_mtl, then fmt_unpack: BC decoded where no_bc says so, DM_TEST_NO_BC included, and the expanded formats); one S2Arm stores in another
++//   format is not asked. supportsPlacementSparse (iOS / macOS 26.4) is read by name, -1 when this OS has no such property, so the line does not depend on the SDK it is built
++//   with. Metal has no device-wide sparse tier: MTLTexture.sparseTextureTier needs a texture, which this line does not make
++// (b) res_top, through rb_res_top_check: the residency set by kind and its largest allocations, in one line, when the process's footprint has risen by RB_TOP_STEP since the last
++//   such line (the first time: since the device line), or since the footprint last fell more than a step below that (a texture's staging retired, a session parked or ended:
++//   patch 0010). Asked at the start of a submission (at most every RB_TOP_EVERY_NS) and after the lines of patches 0020-0022; and, whatever the growth, at Metal's first refusal
++//   of a staging buffer (in one piece, pkg_upload_, or a piece, rb_up_refused) and at the first command buffer error that says OutOfMemory (mtl_gpu_cb_error, every queue);
++//   at most RB_TOP_LINES lines, and those two forced ones even past that. Mario Kart World, IPA 741: the footprint went from 4793 MB at frame 584 to 5773 MB at frame 588 (two heartbeat lines 10 s apart) and no line said
++//   what took it; the memory line of nvn_be_mem_stat comes every 300 frames, too late for that.
++//   Ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 1d4b8e82 res_top and res_top_once (dm/gfx/nvn/nvn_mtl.m:470-497 at 0c078130). Upstream logs it at the first GPU
++//   out-of-memory error (res_top_once, here rb_res_top_oom) and for DM_CTL "restop" (hle_hid.c; S2Arm has no such control). S2Arm adaptations: the footprint and the first
++//   staging refusal trigger it too; res_top_once's stop after 32 out-of-memory failures within a minute (MDIE) is not ported: what S2Arm does on GPU errors stays
++//   mtl_gpu_cb_error's; res_top is given what its line says beside the residency set (upstream res_top(why); here res_top(why, footprint, last mark, memory left, line number));
++//   one line with the 8 largest (upstream: a line each for 24); texture views are left out, their memory being their parent's; each object is named as S2Arm knows it:
++//   a texture by its serial (g_by_serial, finalized serials, through a packaged texture's NvPkg on the submit thread only, as nvn_mem_detail), a pool's zero-copy buffer by the
++//   pool's guest address (g_pools), the open upload batch's buffers (submit thread only) as staging or as a zero-copy view of a pool's pages (up_tex_src: guest memory, not
++//   staging), told apart by where their bytes are, a heap by its kind and size. The residency set is read under g_res_mu, then the pools under g_mu, then the serials under
++//   g_smu, one lock at a time
++#define RB_TOP_STEP ((uint64_t)256 << 20)
++#define RB_TOP_EVERY_NS 250000000ull
++enum { RB_TOP_N = 8, RB_TOP_LINES = 24, RB_TOP_FORCED = 2 };   // 24: more than the 256 MB steps from launch to the iPhone17,2's limit (about 6.6 GB); RB_TOP_FORCED: the
++//   once-only forced lines (Metal's first staging refusal, the first GPU out-of-memory error), logged even when the footprint's lines have taken RB_TOP_LINES
++static _Atomic uint64_t g_rb_top_fp;   // the mark: phys_footprint at the last resident-top line (at first the device line's), or the low it fell to more than a step below that (0: none read)
++static _Atomic int g_rb_top_lines;
++static const struct { int f; const char *name; } k_rb_sp_fmt[] = {
++    {NVN_FORMAT_RGBA_ASTC_8x8_SRGB, "ASTC 8x8 sRGB"}, {NVN_FORMAT_RGBA_ASTC_8x8, "ASTC 8x8"}, {NVN_FORMAT_BPTC_UFLOAT, "BC6H UFLOAT"}, {NVN_FORMAT_RGBA8SN, "RGBA8 SNORM"},
++    {NVN_FORMAT_R8, "R8"}, {NVN_FORMAT_R16, "R16"}, {NVN_FORMAT_RG16, "RG16"}, {NVN_FORMAT_RGBA16F, "RGBA16F"},
++};
++static void rb_sp_device_line(void) { @autoreleasepool {
++    long sps = -1;
++    if ([g_dev respondsToSelector:NSSelectorFromString(@"supportsPlacementSparse")]) sps = [[(id)g_dev valueForKey:@"supportsPlacementSparse"] boolValue];
++    int fam = 0; const MTLGPUFamily fams[] = {MTLGPUFamilyApple6, MTLGPUFamilyApple7, MTLGPUFamilyApple8, MTLGPUFamilyApple9};   // sparse textures: Apple6 on; placement sparse: Apple8 on, some Apple7
++    for (int i = 0; i < 4; i++) if ([g_dev supportsFamily:fams[i]]) fam = 6 + i;
++    if (@available(macOS 26.0, iOS 26.0, *)) { if ([g_dev supportsFamily:MTLGPUFamilyApple10]) fam = 10; }
++    int bc = !no_bc(), same = 0, asked = 0, o = 0; char tl[768]; tl[0] = 0;   // bc: S2Arm keeps BC textures native (no_bc: not on a GPU without BC, nor under DM_TEST_NO_BC)
++    for (size_t i = 0; fam && i < sizeof k_rb_sp_fmt / sizeof *k_rb_sp_fmt; i++) {
++        int f = k_rb_sp_fmt[i].f, ubpp = 0; uint32_t pf = 0, upf = 0, nt[4];
++        if (!nvn_fmt_to_mtl(f, &pf, NULL) || !pf) o += snprintf(tl + o, sizeof tl - (size_t)o, "%s%s not asked (no Metal format)", o ? "; " : "", k_rb_sp_fmt[i].name);
++        else if (fmt_unpack((uint32_t)f, &upf, &ubpp))   // as tex_desc: S2Arm makes the texture in another format and converts it on upload
++            o += snprintf(tl + o, sizeof tl - (size_t)o, "%s%s not asked (made as Metal format %u, converted on upload)", o ? "; " : "", k_rb_sp_fmt[i].name, upf);
++        else {
++            nvn_texdesc nd = {.target = NVN_TEXTURE_TARGET_2D_ARRAY, .format = f, .flags = NVN_TEXTURE_FLAGS_SPARSE, .width = 8192, .height = 8192, .depth = 2, .levels = 1};
++            nvn_tex_sparse_layout(&nd, nt);
++            MTLSize ms = [g_dev sparseTileSizeWithTextureType:MTLTextureType2DArray pixelFormat:(MTLPixelFormat)pf sampleCount:1 sparsePageSize:MTLSparsePageSize64];
++            int eq = nt[0] && ms.width == nt[1] && ms.height == nt[2] && ms.depth == 1; same += eq; asked++;
++            o += snprintf(tl + o, sizeof tl - (size_t)o, "%s%s (Metal format %u) %lux%lux%lu, NVN %ux%u%s", o ? "; " : "", k_rb_sp_fmt[i].name, pf,
++                          (unsigned long)ms.width, (unsigned long)ms.height, (unsigned long)ms.depth, nt[1], nt[2], eq ? "" : " (not the same)");
++        }
++        if (o > (int)sizeof tl - 1) o = (int)sizeof tl - 1;
++    }
++    char fb[64]; if (fam) snprintf(fb, sizeof fb, "Apple%d", fam); else snprintf(fb, sizeof fb, "below Apple6 (no sparse textures, no tile asked)");
++    uint64_t fp, av; rb_up_mem(&fp, &av); atomic_store(&g_rb_top_fp, fp);   // the resident top's first mark
++    MLOG("RewindBox: placement sparse on this device: %s, Metal %d backend%s; supportsPlacementSparse %ld (-1: no such property on this OS); GPU family %s; BC textures %s; "
++         "a 64 KB sparse tile is %lu bytes; 64 KB tiles of a sparse 2D array, Metal's and NVN's public answer: %s (%d of %d the same); "
++         "Metal holds %llu MB (recommended working set %llu MB, largest buffer %llu MB); the process holds %llu MB and may take %llu MB more",
++         g_dev.name.UTF8String, g_m3 ? 3 : 4, g_m3 ? " (it makes no placement sparse texture: their tiles are mapped by an MTL4CommandQueue)" : "", sps, fb,
++         bc ? "native" : g_dev.supportsBCTextureCompression ? "decoded on upload (test switch DM_TEST_NO_BC; this GPU has them)" : "decoded on upload",
++         (unsigned long)(fam ? [g_dev sparseTileSizeInBytesForSparsePageSize:MTLSparsePageSize64] : 0), tl[0] ? tl : "none asked", same, asked,
++         (unsigned long long)(g_dev.currentAllocatedSize >> 20), (unsigned long long)(g_dev.recommendedMaxWorkingSetSize >> 20), (unsigned long long)(g_dev.maxBufferLength >> 20),
++         (unsigned long long)(fp >> 20), (unsigned long long)(av >> 20));
++} }
++static const char *rb_tex_type(MTLTextureType y) {
++    switch (y) {
++        case MTLTextureType2D: return "2D"; case MTLTextureType2DArray: return "2D array"; case MTLTextureType3D: return "3D"; case MTLTextureTypeCube: return "cube";
++        case MTLTextureTypeCubeArray: return "cube array"; case MTLTextureType2DMultisample: return "2D multisample"; case MTLTextureType2DMultisampleArray: return "2D multisample array";
++        default: return "other";
++    }
++}
++typedef struct { const void *p; uint64_t z; } rb_top_buf;
++// A buffer of the open upload batch (g_up_keep): h where its bytes start; v 1 a zero-copy view of a pool's pages (up_tex_src; ga: their guest address), 2 of a finalized pool's, 0 staging
++typedef struct { const void *p; uintptr_t h; uint64_t ga; int v; } rb_top_keep;
++static int rb_top_keep_cmp(const void *a, const void *b) { uintptr_t x = ((const rb_top_keep *)a)->h, y = ((const rb_top_keep *)b)->h; return x < y ? -1 : x > y; }
++static void rb_top_keep_mark(rb_top_keep *kp, size_t nk, uintptr_t h0, uintptr_t h1, uint64_t g0, int v) {   // kp sorted by h: those whose bytes start in [h0, h1), the host bytes of a pool at guest g0
++    size_t lo = 0, hi = nk; while (lo < hi) { size_t m = (lo + hi) / 2; if (kp[m].h < h0) lo = m + 1; else hi = m; }
++    for (; lo < nk && kp[lo].h < h1; lo++) if (!kp[lo].v) { kp[lo].v = v; kp[lo].ga = g0 + (kp[lo].h - h0); }
++}
++static void res_top(const char *why, uint64_t fp, uint64_t was, uint64_t av, int nline) { @autoreleasepool {
++    int sub = on_sub_thread();   // NvPkg fields and the open upload batch belong to the submit thread
++    pthread_mutex_lock(&g_res_mu); NSArray *all = g_res_objects ? g_res_objects.allObjects : @[]; pthread_mutex_unlock(&g_res_mu);   // strong references, held until this pool drains
++    enum { K_TEX, K_HEAP, K_POOL, K_STAGE, K_PVIEW, K_SHARED, K_PRIV, K_OTHER, K_N };
++    uint64_t kb[K_N] = {0}, kn[K_N] = {0}, total = 0, views = 0, tz[RB_TOP_N] = {0}; id top[RB_TOP_N] = {nil};
++    size_t nsh = 0; rb_top_buf *sh = malloc((all.count ? all.count : 1) * sizeof *sh);   // the shared buffers, told apart below (pool / staging / other)
++    for (id o in all) {
++        int k; uint64_t z;
++        if ([o conformsToProtocol:@protocol(MTLTexture)]) { id<MTLTexture> t = o; if (t.parentTexture || t.buffer) { views++; continue; } k = K_TEX; z = t.allocatedSize; }
++        else if ([o conformsToProtocol:@protocol(MTLHeap)]) { k = K_HEAP; z = ((id<MTLAllocation>)o).allocatedSize; }
++        else if ([o conformsToProtocol:@protocol(MTLBuffer)]) { id<MTLBuffer> b = o; z = b.allocatedSize; k = b.storageMode == MTLStorageModePrivate ? K_PRIV : K_SHARED;
++            if (k == K_SHARED && sh) { sh[nsh].p = (__bridge const void *)b; sh[nsh++].z = z; } }
++        else { k = K_OTHER; z = [o conformsToProtocol:@protocol(MTLAllocation)] ? ((id<MTLAllocation>)o).allocatedSize : 0; }
++        kb[k] += z; kn[k]++; total += z;
++        for (int q = 0; z && q < RB_TOP_N; q++) if (!top[q] || z > tz[q]) { for (int j = RB_TOP_N - 1; j > q; j--) { top[j] = top[j - 1]; tz[j] = tz[j - 1]; } top[q] = o; tz[q] = z; break; }
++    }
++    // The open upload batch's buffers (submit thread only), sorted by where their bytes are: a view of a pool's pages (up_tex_src) is told from staging under g_mu below
++    size_t nk = 0, nkeep = sub ? g_up_keep.count : 0; rb_top_keep *kp = nkeep ? malloc(nkeep * sizeof *kp) : NULL;
++    if (kp) { for (id<MTLBuffer> b in g_up_keep) kp[nk++] = (rb_top_keep){(__bridge const void *)b, (uintptr_t)b.contents, 0, 0}; qsort(kp, nk, sizeof *kp, rb_top_keep_cmp); }
++    // The pools' buffers (a live entry's buffer is held by g_keep under g_mu, and every object of the snapshot is alive: equal pointers are the same object)
++    struct { uint64_t lo, len; int st; } tp[RB_TOP_N]; memset(tp, 0, sizeof tp);   // st: 1 a pool's buffer, 2 a finalized pool's
++    CFMutableSetRef ps = CFSetCreateMutable(NULL, 0, NULL); CFMutableDictionaryRef kd = CFDictionaryCreateMutable(NULL, 0, NULL, NULL);   // kd: a batch's buffer -> its index in kp + 1
++    pthread_mutex_lock(&g_mu);
++    for (int i = 0; i < g_npool; i++) { const void *p = (__bridge const void *)g_pools[i].buf; if (!p) continue; CFSetAddValue(ps, p);
++        for (int q = 0; q < RB_TOP_N; q++) if (p == (__bridge const void *)top[q]) { tp[q].lo = g_pools[i].lo; tp[q].len = g_pools[i].hi - g_pools[i].lo; tp[q].st = 1; }
++        if (nk) rb_top_keep_mark(kp, nk, g_pools[i].host, g_pools[i].host + (pool_buf_end(g_pools[i].hi) - g_pools[i].base), g_pools[i].base, 1); }   // its buffer's bytes (nvn_be_pool_add_body)
++    for (id<MTLBuffer> b in g_dead_pools) { const void *p = (__bridge const void *)b; CFSetAddValue(ps, p); for (int q = 0; q < RB_TOP_N; q++) if (p == (__bridge const void *)top[q] && !tp[q].st) tp[q].st = 2;
++        if (nk) { uintptr_t h = (uintptr_t)b.contents; if (h) rb_top_keep_mark(kp, nk, h, h + b.length, 0, 2); } }
++    pthread_mutex_unlock(&g_mu);
++    for (size_t j = 0; j < nk; j++) CFDictionarySetValue(kd, kp[j].p, (const void *)(uintptr_t)(j + 1));
++    for (size_t i = 0; i < nsh; i++) { size_t j = (size_t)(uintptr_t)CFDictionaryGetValue(kd, sh[i].p);
++        int k = CFSetContainsValue(ps, sh[i].p) ? K_POOL : j ? (kp[j - 1].v ? K_PVIEW : K_STAGE) : K_SHARED;
++        if (k != K_SHARED) { kb[K_SHARED] -= sh[i].z; kn[K_SHARED]--; kb[k] += sh[i].z; kn[k]++; } }
++    int tstg[RB_TOP_N]; uint64_t tga[RB_TOP_N];   // tstg: 1 staging of the open upload batch, 2 a view in it of a pool's pages (tga: their guest address), 3 of a finalized pool's (tga: the offset)
++    for (int q = 0; q < RB_TOP_N; q++) { size_t j = top[q] ? (size_t)(uintptr_t)CFDictionaryGetValue(kd, (__bridge const void *)top[q]) : 0; tstg[q] = j ? 1 + kp[j - 1].v : 0; tga[q] = j ? kp[j - 1].ga : 0; }
++    const char *kq = !sub ? " (not told apart off the submit thread)" : nkeep && !kp ? " (not told apart: no memory for the list)" : "";
++    CFRelease(ps); CFRelease(kd); int told = sh != NULL; free(sh); free(kp);
++    // The textures' serials. how: 1 live, 2 a live packaged texture's spare copy, 3 finalized, 4 a finalized one's spare copy, 5 a shared texture (by storage) no serial names
++    uint64_t ser[RB_TOP_N] = {0}; int how[RB_TOP_N] = {0};
++    pthread_mutex_lock(&g_smu);
++    nvn_hmap *maps[] = {&g_by_serial, &g_ghost, &g_ghost_active, &g_alias};
++    for (int m = 0; m < 4; m++) for (uint32_t i = 0; i < maps[m]->cap; i++) { void *v = maps[m]->vals[i]; if (!v) continue;
++        const void *a = v, *s = NULL;
++        if (sub && [(__bridge id)v isKindOfClass:[NvPkg class]]) { __unsafe_unretained NvPkg *p = (__bridge NvPkg *)v; a = (__bridge const void *)p->tex; s = (__bridge const void *)p->spare; }
++        for (int q = 0; q < RB_TOP_N; q++) if (top[q] && !how[q] && (a == (__bridge const void *)top[q] || (s && s == (__bridge const void *)top[q]))) {
++            if (m == 3) { how[q] = 5; continue; }
++            memcpy(&ser[q], maps[m]->keys + (size_t)i * maps[m]->klen, sizeof ser[q]); how[q] = (m ? 3 : 1) + (a != (__bridge const void *)top[q]); }
++    }
++    pthread_mutex_unlock(&g_smu);
++    char e[1536]; int o = 0; e[0] = 0;
++    for (int q = 0; q < RB_TOP_N && top[q]; q++) {
++        id x = top[q]; char d[256], nm[80];
++        if ([x conformsToProtocol:@protocol(MTLTexture)]) { id<MTLTexture> t = x;
++            if (how[q] >= 1 && how[q] <= 4) snprintf(nm, sizeof nm, "ser=%llu%s", (unsigned long long)ser[q], how[q] == 2 ? " (its spare copy)" : how[q] == 3 ? " (finalized)" : how[q] == 4 ? " (finalized, its spare copy)" : "");
++            else snprintf(nm, sizeof nm, "%s", how[q] == 5 ? "shared by storage, no serial" : sub ? "no serial found" : "no serial found off the submit thread");
++            snprintf(d, sizeof d, "texture %s %lux%lux%lu %s, Metal format %lu, %lu levels%s%s", nm, (unsigned long)t.width, (unsigned long)t.height, (unsigned long)MAX(t.depth, t.arrayLength),
++                     rb_tex_type(t.textureType), (unsigned long)t.pixelFormat, (unsigned long)t.mipmapLevelCount, t.isSparse ? ", sparse" : "",
++                     t.storageMode == MTLStorageModePrivate ? "" : t.storageMode == MTLStorageModeShared ? ", shared storage" : ", other storage");
++        } else if ([x conformsToProtocol:@protocol(MTLHeap)]) { id<MTLHeap> h = x;
++            snprintf(d, sizeof d, "%s heap of %llu MB, %llu MB used", h.type == MTLHeapTypePlacement ? "placement" : h.type == MTLHeapTypeSparse ? "sparse" : "automatic",
++                     (unsigned long long)(h.size >> 20), (unsigned long long)(h.usedSize >> 20));
++        } else if ([x conformsToProtocol:@protocol(MTLBuffer)]) { id<MTLBuffer> b = x;
++            if (tp[q].st == 1) snprintf(d, sizeof d, "the zero-copy buffer of the pool at %#llx+%#llx", (unsigned long long)tp[q].lo, (unsigned long long)tp[q].len);
++            else if (tp[q].st == 2) snprintf(d, sizeof d, "the zero-copy buffer of a finalized pool, %#lx bytes", (unsigned long)b.length);
++            else if (tstg[q] == 2) snprintf(d, sizeof d, "a zero-copy view of a pool's pages at %#llx+%#lx, held by the open upload batch (guest memory, not staging)", (unsigned long long)tga[q], (unsigned long)b.length);
++            else if (tstg[q] == 3) snprintf(d, sizeof d, "a zero-copy view of a finalized pool's pages, +%#llx in its buffer, %#lx bytes, held by the open upload batch", (unsigned long long)tga[q], (unsigned long)b.length);
++            else snprintf(d, sizeof d, "%s buffer of %#lx bytes%s", b.storageMode == MTLStorageModePrivate ? "private" : "shared", (unsigned long)b.length,
++                          tstg[q] ? ", staging of the open upload batch" : b.storageMode == MTLStorageModePrivate ? "" : ", no pool");
++        } else snprintf(d, sizeof d, "an allocation of another kind");
++        o += snprintf(e + o, sizeof e - (size_t)o, "%s%d) %s: %llu MB", q ? "; " : "", q + 1, d, (unsigned long long)(tz[q] >> 20));
++        if (o > (int)sizeof e - 1) o = (int)sizeof e - 1;
++    }
++    char since[64]; if (was) snprintf(since, sizeof since, "%+lld MB since the last mark", (long long)(fp >> 20) - (long long)(was >> 20)); else snprintf(since, sizeof since, "no earlier mark");
++    MLOG("RewindBox: resident top %d of at most %d (%s, frame %llu): the process holds %llu MB (%s) and may take %llu MB more; Metal holds %llu MB (recommended working set %llu MB); "
++         "the residency set holds %lu objects, %llu MB: textures %llu, %llu MB (and %llu views, not counted); heaps %llu, %llu MB; pool buffers %llu, %llu MB; "
++         "staging of the open upload batch %llu, %llu MB and zero-copy views of pools' pages it holds %llu, %llu MB%s; other shared buffers %llu, %llu MB%s; private buffers %llu, %llu MB; "
++         "other allocations %llu, %llu MB; the largest: %s",
++         nline, (int)(RB_TOP_LINES + RB_TOP_FORCED), why, (unsigned long long)atomic_load(&g_cur_frame), (unsigned long long)(fp >> 20), since, (unsigned long long)(av >> 20),
++         (unsigned long long)(g_dev.currentAllocatedSize >> 20), (unsigned long long)(g_dev.recommendedMaxWorkingSetSize >> 20), (unsigned long)all.count, (unsigned long long)(total >> 20),
++         (unsigned long long)kn[K_TEX], (unsigned long long)(kb[K_TEX] >> 20), (unsigned long long)views, (unsigned long long)kn[K_HEAP], (unsigned long long)(kb[K_HEAP] >> 20),
++         (unsigned long long)kn[K_POOL], (unsigned long long)(kb[K_POOL] >> 20), (unsigned long long)kn[K_STAGE], (unsigned long long)(kb[K_STAGE] >> 20),
++         (unsigned long long)kn[K_PVIEW], (unsigned long long)(kb[K_PVIEW] >> 20), kq,
++         (unsigned long long)kn[K_SHARED], (unsigned long long)(kb[K_SHARED] >> 20), told ? "" : " (pool buffers not told apart: no memory for the list)",
++         (unsigned long long)kn[K_PRIV], (unsigned long long)(kb[K_PRIV] >> 20), (unsigned long long)kn[K_OTHER], (unsigned long long)(kb[K_OTHER] >> 20), o ? e : "none");
++} }
++// When to log it: the footprint risen by RB_TOP_STEP since the mark (at most RB_TOP_LINES lines), or force: a once-only event (RB_TOP_FORCED of them), logged whatever the growth
++//   and the count. Any thread holding none of g_res_mu, g_mu, g_smu
++static void rb_res_top_check(const char *why, int force) {
++    if (!force && atomic_load_explicit(&g_rb_top_lines, memory_order_relaxed) >= RB_TOP_LINES) return;
++    uint64_t fp, av; rb_up_mem(&fp, &av);
++    if (!fp) { static _Atomic int said; if (!atomic_exchange(&said, 1)) MLOG("RewindBox: resident top: the process's footprint could not be read (task_info), so no such line is logged"); return; }
++    uint64_t was = atomic_load(&g_rb_top_fp);
++    if (!force && !was) { atomic_compare_exchange_strong(&g_rb_top_fp, &was, fp); return; }   // no mark yet (the device line could not read one): this is the first
++    if (!force && fp + RB_TOP_STEP < was) { atomic_compare_exchange_strong(&g_rb_top_fp, &was, fp); return; }   // fallen more than a step below the mark: it follows, with no line
++    if (!force && fp < was + RB_TOP_STEP) return;
++    if (force) atomic_store(&g_rb_top_fp, fp);
++    else if (!atomic_compare_exchange_strong(&g_rb_top_fp, &was, fp)) return;   // another thread took this step
++    int n = atomic_fetch_add(&g_rb_top_lines, 1);
++    if (force || n < RB_TOP_LINES) res_top(why, fp, was, av, n + 1);
++}
++// Metal refused a staging buffer: forced at the first refusal, in one piece (pkg_upload_) or a piece (rb_up_refused), whichever comes first; a later one as any other call
++static void rb_res_top_refused(const char *why) { static _Atomic int once; rb_res_top_check(why, !atomic_exchange(&once, 1)); }
++// Upstream's res_top_once (seedds/nxnative 1d4b8e82, dm/gfx/nvn/nvn_mtl.m:491-497 at 0c078130): the first command buffer error that says OutOfMemory, forced. Called by
++//   mtl_gpu_cb_error, S2Arm's one entry for command buffer errors (main replay, segments, uploads, display, screenshots, the Vulkan and GL front ends), from Metal's completion
++//   handlers, which hold no lock at that call (those that take g_mu, g_smu or g_res_mu take it before and release it, or take it after), and no thread waits for a command
++//   buffer while holding one of the three (fence waits release g_mu in pthread_cond_timedwait). Off the submit thread res_top names no packaged texture and no staging.
++//   S2Arm adaptations: through rb_res_top_check, forced (one of RB_TOP_FORCED); Metal 3's MTLCommandBufferErrorOutOfMemory code counts too; no stop after 32 such failures
++//   within a minute (upstream's MDIE)
++static void rb_res_top_oom(NSError *e) {
++    static _Atomic int done;
++    if (!e || atomic_load_explicit(&done, memory_order_relaxed)) return;   // after the first, nothing more is read from an error
++    if (!([e.description containsString:@"OutOfMemory"] || ([e.domain isEqualToString:MTLCommandBufferErrorDomain] && e.code == MTLCommandBufferErrorOutOfMemory))) return;
++    if (!atomic_exchange(&done, 1)) rb_res_top_check("the first GPU out-of-memory error", 1);
++}
++static void rb_res_top_tick(void) {   // the start of a submission (submit thread): at most every RB_TOP_EVERY_NS
++    static _Atomic uint64_t last;
++    if (atomic_load_explicit(&g_rb_top_lines, memory_order_relaxed) >= RB_TOP_LINES) return;
++    uint64_t now = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
++    if (now - atomic_load_explicit(&last, memory_order_relaxed) < RB_TOP_EVERY_NS) return;
++    atomic_store_explicit(&last, now, memory_order_relaxed);
++    rb_res_top_check("at the start of a submission", 0);
++}
+ // RewindBox (patch 0021): the staging of a texture staged in pieces is bounded in flight. Mario Kart World, IPA 739: the pieces of an 8192x8192x68 ASTC 8x8
+ //   array (1450 MB of staging) went out in batches of UP_KEEP_CAP, up to three of them in flight, while the array itself and a whole copy of its sparse pool
+ //   were held: Metal refused every allocation from 9459 MB on, down to 16 bytes, and the process stopped with no line during the next such array. Before a
+@@ -3525,6 +3735,8 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
+                  RB_UP_PIECE >> 20, total >> 20, total <= RB_UP_PIECE ? "Metal refused it in one piece" : "more than one piece holds", (unsigned long long)k,
+                  (unsigned long long)(g_dev.currentAllocatedSize >> 20), (unsigned long long)(fp >> 20), (unsigned long long)(av >> 20));
+         }
++        // RewindBox (patch 0023): the resident top, at Metal's first refusal of a staging buffer whatever the growth and the count above (rb_res_top_refused), else with the line above
++        if (total <= RB_UP_PIECE) rb_res_top_refused("Metal refused a staging buffer in one piece"); else if (k <= 8 || !(k & (k - 1))) rb_res_top_check("a texture to be staged in pieces", 0);
+         rb_up_pieces(t, mt, src, (unsigned)d.mipmapLevelCount, layers, unp, ubpp, bw, bh, bpb, total);
+         free(part); free(rb);
+         up_flush();
+@@ -3533,6 +3745,7 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
+             uint64_t fp, av; rb_up_mem(&fp, &av);
+             MLOG("RewindBox: texture ser=%llu staged; with its staging retired Metal holds %llu MB, the process %llu MB and it may take %llu MB more",
+                  (unsigned long long)t->serial, (unsigned long long)(g_dev.currentAllocatedSize >> 20), (unsigned long long)(fp >> 20), (unsigned long long)(av >> 20));
++            rb_res_top_check("a texture staged in pieces", 0);   // RewindBox (patch 0023)
+         }
+         return mt;
+     }

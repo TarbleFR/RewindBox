@@ -1,0 +1,136 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_tex.c b/graphics/nvn/gfx/nvn/nvn_tex.c
+index e8d90d117..a00c2bd8c 100644
+--- a/graphics/nvn/gfx/nvn/nvn_tex.c
++++ b/graphics/nvn/gfx/nvn/nvn_tex.c
+@@ -193,6 +193,37 @@ void nvn_tex_sparse_layout(const nvn_texdesc *d, uint32_t tile[4]) {
+     if (levels) { tile[0] = levels; tile[1] = tw; tile[2] = th; tile[3] = td; }
+ }
+ 
++// RewindBox (patch 0024): the tiles of a sparse texture as this file lays it out (level_walk), for nvn_mtl.m's placement sparse textures (later patches), which map and
++//   decode each tile as 64 KB of storage of its own (nvn_deswizzle_tile) and the levels from the first untiled one as the mip tail.
++//   Ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 933b6759 and f24e6b80 (dm/gfx/nvn/nvn_tex.c:207-223 at 0c078130), over this file's layout: upstream's
++//   nvn_tex.c is not taken (its packaged layout, MINIMAL_LAYOUT and LINEAR_RENDER_TARGET rules would change storage sizes in other games).
++//   S2Arm adaptations: level_walk shapes the tile with the layout's own block height (it has no tile_shape_h), and tiles nothing when the public query above has no
++//   tiled level (sparse_levels); and the answer is 0, with no tile, when the layout's tiles are not that query's, which the game reads (nvnTextureGetSparseTileLayout,
++//   patch 0012) and maps its tiles by. A size check cannot see a 64 KB tile of another shape (a packaged block height other than the query's page height) or a level the
++//   two count differently (the query halves texels, the layout counts blocks): the game's mapped pages would not be the layout's tiles. Such a texture stays whole; a
++//   caller that sees nvn_tex_sparse_layout's tile[0] != 0 and 0 here for a texture without LINEAR_RENDER_TARGET (0x40) logs the disagreement. With 0x40 it is no
++//   disagreement: the query (sparse_page tests 0x32 only, patch 0012, unchanged) reports tiles for SPARSE | LINEAR_RENDER_TARGET, which this file lays out linear (sparse_of)
++int nvn_tex_sparse_tiles(const nvn_texdesc *d, uint32_t *tw, uint32_t *th, uint32_t *td) {
++    fmt_t t = fmt_of(d->format);
++    unsigned dpl; int layered; uint32_t w, h, z;
++    shape(d, &dpl, &layered, &w, &h, &z);
++    *tw = *th = *td = 0;
++    uint32_t q[4]; nvn_tex_sparse_layout(d, q);   // S2Arm: the public query's answer
++    if (!sparse_of(d) || !t.bpb || !q[0]) return 0;   // S2Arm: laid out linear (0x40 too, which the query tiles), or no tiled level in the query, so none in level_walk (sparse_levels)
++    uint32_t sx, sy; samples_xy(d->samples, &sx, &sy);
++    nvn_texlayout L; nvn_tex_layout(d, &L);
++    uint32_t gw = 128u >> (L.tileH + L.tileD); if (!gw) gw = 1;   // GOB columns of a tile, as level_walk (S2Arm: the layout's block height)
++    uint32_t lw = gw * 64 / t.bpb * t.bw / sx, lh = dpl >= 2 ? (8u << L.tileH) * t.bh / sy : 1, ld = dpl >= 3 ? 1u << L.tileD : 1;
++    unsigned levels = d->levels ? d->levels : 1, n = 0;
++    for (; n < levels; n++) {   // the same test as level_walk's: a level at least one tile wide, high and deep
++        uint32_t lwb = blk(mip(w * sx, n), t.bw) * t.bpb, nh = dpl >= 2 ? blk(mip(h * sy, n), t.bh) : 1, nd = dpl >= 3 ? mip(z, n) : 1;
++        if (lwb < gw * 64 || nh < 8u << L.tileH || nd < 1u << L.tileD) break;
++    }
++    if (n != q[0] || lw != q[1] || lh != q[2] || ld != q[3]) return 0;   // S2Arm (check C13): not the tiles the game maps
++    *tw = lw; *th = lh; *td = ld;
++    return (int)n;
++}
++
+ int nvn_tbuf_rows_exact(uint64_t n, uint32_t bpb, uint32_t align, uint32_t *w, uint32_t *h, uint32_t *row) {
+     if (!n || !bpb) return 0;
+     if (!align) align = 1;
+diff --git a/graphics/nvn/gfx/nvn/nvn_tex.h b/graphics/nvn/gfx/nvn/nvn_tex.h
+index eab10cb0d..ad308e353 100644
+--- a/graphics/nvn/gfx/nvn/nvn_tex.h
++++ b/graphics/nvn/gfx/nvn/nvn_tex.h
+@@ -23,6 +23,11 @@ void nvn_tex_level_tiles(const nvn_texdesc *d, unsigned level, unsigned *tileH,
+ // Public sparse query: number of tiled levels, then tile width / height / depth in texels.
+ // The rest of the mip chain is a packed tail. Unsupported sparse targets return four zeros.
+ void nvn_tex_sparse_layout(const nvn_texdesc *d, uint32_t tile[4]);
++// RewindBox (patch 0024): a sparse texture's tiled levels (the levels before its mip tail) and one 64 KB tile in texels (*tw, *th, *td), as this file lays them out; 0 and no tile
++//   for a texture that is not sparse or has no tiled level, and also when that layout is not the public query's answer above, by which the game maps its tiles (see nvn_tex.c).
++//   The query reports tiles for SPARSE | LINEAR_RENDER_TARGET (0x40), which is laid out linear and answers 0 here: only the query's tile[0] != 0, 0 here and no 0x40 is a disagreement
++//   Ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 933b6759 and f24e6b80 (dm/gfx/nvn/nvn_tex.h:23-24 at 0c078130)
++int nvn_tex_sparse_tiles(const nvn_texdesc *d, uint32_t *tw, uint32_t *th, uint32_t *td);
+ // A texture buffer of n elements of bpb bytes read as 2D rows of NVN_TBUF_ROW texels (the translator's wrapped 1D fetch, x & 0x3FFF / x >> 14): width, height and bytes per row of the
+ // linear 2D texture over the same memory. One row is n texels, its byte length rounded up to align (the linear-texture row alignment); more rows are full 16384-texel rows. 0 when n or bpb is 0
+ #define NVN_TBUF_ROW 16384u
+diff --git a/graphics/nvn/gfx/tex/nvn_deswizzle.c b/graphics/nvn/gfx/tex/nvn_deswizzle.c
+index 52914465d..50080b24e 100644
+--- a/graphics/nvn/gfx/tex/nvn_deswizzle.c
++++ b/graphics/nvn/gfx/tex/nvn_deswizzle.c
+@@ -59,12 +59,15 @@ static int move_linear(const nvn_texdesc *d, unsigned level, unsigned layer, uin
+     for (uint32_t y = 0; y < rows; y++) { if (to_linear) memcpy(lin + (size_t)y * pitch, mem + y * sp, row_bytes); else memcpy(mem + y * sp, lin + (size_t)y * pitch, row_bytes); }
+     return 0;
+ }
+-static int move(const nvn_texdesc *d, unsigned level, unsigned layer, uint8_t *bl, uint8_t *lin, size_t pitch, int to_linear) {
+-    if ((d->flags & (0x10 | 0x40)) && d->target != 10) return move_linear(d, level, layer, bl, lin, pitch, to_linear);
++// RewindBox (patch 0024): bl is the storage from byte bl_at on (0: the whole texture's; nvn_deswizzle_from gives a sparse texture's mip tail on its own).
++//   Ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 1d4b8e82 (dm/gfx/tex/nvn_deswizzle.c:48-52 at 0c078130).
++//   S2Arm adaptation: upstream's move has no linear branch. A linear texture has no tiles and no tail, so storage given from a later byte is refused there (-1), never read as from 0
++static int move(const nvn_texdesc *d, unsigned level, unsigned layer, uint8_t *bl, uint64_t bl_at, uint8_t *lin, size_t pitch, int to_linear) {
++    if ((d->flags & (0x10 | 0x40)) && d->target != 10) return bl_at ? -1 : move_linear(d, level, layer, bl, lin, pitch, to_linear);
+     uint32_t row_bytes, rows, slices, bpb; uint64_t base; unsigned th, td;
+     if (nvn_deswizzle_geom(d, level, layer, &row_bytes, &rows, &slices, &base, &th, &td, &bpb)) return -1;
+-    if (pitch < row_bytes) return -1;
+-    bl += base; uint32_t lb = nvn_tex_level_gobs(d, level) * 64;   // the row as laid out (padded in a sparse texture's tiled levels)
++    if (pitch < row_bytes || base < bl_at) return -1;
++    bl += base - bl_at; uint32_t lb = nvn_tex_level_gobs(d, level) * 64;   // the row as laid out (padded in a sparse texture's tiled levels)
+     if (lb < row_bytes) lb = row_bytes;
+     for (uint32_t z = 0; z < slices; z++)
+         for (uint32_t y = 0; y < rows; y++) {
+@@ -79,8 +82,34 @@ static int move(const nvn_texdesc *d, unsigned level, unsigned layer, uint8_t *b
+ }
+ 
+ int nvn_deswizzle(const nvn_texdesc *d, unsigned level, unsigned layer, const void *src, void *dst, size_t dst_pitch) {
+-    return move(d, level, layer, (uint8_t *)src, (uint8_t *)dst, dst_pitch, 1);
++    return move(d, level, layer, (uint8_t *)src, 0, (uint8_t *)dst, dst_pitch, 1);
+ }
+ int nvn_swizzle(const nvn_texdesc *d, unsigned level, unsigned layer, const void *src, size_t src_pitch, void *dst) {
+-    return move(d, level, layer, (uint8_t *)dst, (uint8_t *)src, src_pitch, 0);
++    return move(d, level, layer, (uint8_t *)dst, 0, (uint8_t *)src, src_pitch, 0);
++}
++
++// RewindBox (patch 0024): one tile and the mip tail of a sparse texture, decoded on their own, for nvn_mtl.m's placement sparse textures (later patches).
++//   Ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 1d4b8e82 (dm/gfx/tex/nvn_deswizzle.c:107-127 at 0c078130).
++// One 64 KB tile of a sparse texture's tiled level (2D, one slice). Such a level is laid out with its width padded to whole tiles (nvn_tex.c level_walk), and a tile is one block row of
++// 128 / block height GOB columns: 64 KB of its own, at the level's start + (ty × tiles across + tx) × 64 KB. So it decodes as a block-linear surface of that size; the part inside the level
++// goes to dst (block rows of pitch bytes). *wb and *rows: the bytes and block rows written (0 for a tile past the level)
++//   S2Arm adaptation: this file's nvn_deswizzle_geom refuses LINEAR (0x10) but not LINEAR_RENDER_TARGET (0x40), which move routes to move_linear; upstream's refuses both (0x50).
++//   A linear texture has no tiles, so both are refused here (-1)
++int nvn_deswizzle_tile(const nvn_texdesc *d, unsigned level, uint32_t tx, uint32_t ty, const void *tile, void *dst, size_t pitch, uint32_t *wb, uint32_t *nrows) {
++    uint32_t row_bytes, rows, slices, bpb; uint64_t base; unsigned th, td;
++    *wb = *nrows = 0;
++    if ((d->flags & (0x10 | 0x40)) || nvn_deswizzle_geom(d, level, 0, &row_bytes, &rows, &slices, &base, &th, &td, &bpb) || td || slices != 1 || th > 7) return -1;
++    uint32_t trb = (128u >> th) * 64, trows = 8u << th, x0 = tx * trb, y0 = ty * trows;
++    if (x0 >= row_bytes || y0 >= rows) return 0;
++    uint32_t w = row_bytes - x0 < trb ? row_bytes - x0 : trb, h = rows - y0 < trows ? rows - y0 : trows;
++    if (pitch < w) return -1;
++    const uint8_t *s = tile; uint8_t *o = dst;
++    for (uint32_t y = 0; y < h; y++)
++        for (uint32_t x = 0; x < w; x += 16) memcpy(o + (size_t)y * pitch + x, s + nvn_bl_offset(x, y, 0, trb, trows, th, 0), w - x < 16 ? w - x : 16);
++    *wb = w; *nrows = h;
++    return 0;
++}
++// nvn_deswizzle with the storage given from byte src_at on (a sparse texture's mip tail gathered on its own): the level must lie at or after it
++int nvn_deswizzle_from(const nvn_texdesc *d, unsigned level, unsigned layer, const void *src, uint64_t src_at, void *dst, size_t dst_pitch) {
++    return move(d, level, layer, (uint8_t *)src, src_at, (uint8_t *)dst, dst_pitch, 1);
+ }
+diff --git a/graphics/nvn/gfx/tex/nvn_deswizzle.h b/graphics/nvn/gfx/tex/nvn_deswizzle.h
+index 06c00d227..b6adcfe4e 100644
+--- a/graphics/nvn/gfx/tex/nvn_deswizzle.h
++++ b/graphics/nvn/gfx/tex/nvn_deswizzle.h
+@@ -11,6 +11,12 @@
+ int nvn_deswizzle(const nvn_texdesc *d, unsigned level, unsigned layer, const void *src_storage, void *dst_linear, size_t dst_pitch);
+ // Reverse (for unit test round trips): linear src_linear → written into the corresponding level / layer of the whole-texture storage dst_storage
+ int nvn_swizzle(const nvn_texdesc *d, unsigned level, unsigned layer, const void *src_linear, size_t src_pitch, void *dst_storage);
++// RewindBox (patch 0024): a sparse texture decoded one 64 KB tile at a time, and its mip tail from its own bytes, for nvn_mtl.m's placement sparse textures (later patches).
++//   Ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 1d4b8e82 (dm/gfx/tex/nvn_deswizzle.h:17-20 at 0c078130).
++// One 64 KB tile (tx, ty) of a sparse texture's tiled level, given as its own 64 KB, into dst (block rows of dst_pitch bytes): *wb bytes of *rows block rows, the part inside the level
++int nvn_deswizzle_tile(const nvn_texdesc *d, unsigned level, uint32_t tx, uint32_t ty, const void *tile, void *dst_linear, size_t dst_pitch, uint32_t *wb, uint32_t *rows);
++// nvn_deswizzle from storage given from byte src_at of the whole texture's on (src points at that byte); the level and layer must lie at or after it
++int nvn_deswizzle_from(const nvn_texdesc *d, unsigned level, unsigned layer, const void *src, uint64_t src_at, void *dst_linear, size_t dst_pitch);
+ // Single-point address: within this level and layer, linear (x byte, y block row, z slice) → block-linear byte offset relative to the start of this level and layer (unit tests verify against hand calculation).
+ // row_bytes: the row as laid out, which a sparse texture's tiled levels pad to whole tiles (nvn_tex_level_gobs × 64)
+ uint64_t nvn_bl_offset(uint32_t x, uint32_t y, uint32_t z, uint32_t row_bytes, uint32_t rows, unsigned tileH, unsigned tileD);

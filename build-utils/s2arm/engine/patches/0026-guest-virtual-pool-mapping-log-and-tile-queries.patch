@@ -1,0 +1,119 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index cc11a1860..03d3c7ae4 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -3811,10 +3811,17 @@ typedef struct { const uint8_t *phys; uint64_t gen; } vpte;
+ // One per virtual pool, allocated at Initialize and freed at Finalize. run: the mapped runs, grown as needed (a texture's pool usually has 1–3; Monster Hunter Rise's heap hundreds)
+ struct vpool { const pool_t *pool; uint8_t *base; uint64_t len, size, top; int nrun; struct vrun { uint64_t lo, hi; } *run; vpte **pt;
+     int nsh, csh; struct vshp { uint64_t off, stamp; } *sh;   // copied host pages (see vsh_*): offset in the pool, dirty stamp of the last copy
++    struct vlog_ent *log; _Atomic uint64_t nlog;   // RewindBox (patch 0026): the pool's change log and how many requests it has had (see vlog_ent)
+ #if defined(__ANDROID__)
+     s2a_vp_alias_table alias;   // dst -> 背板源；vpool_map / vpool_release 维护（#1217 §2.8）
+ #endif
+ };   // len: reserved; size: the pool's; top: highest mapped end so far (logged per 128 MB)
++// RewindBox (patch 0026): a sparse pool's log of its mapping requests, read by the placement sparse textures of later patches (nvn_sparse_log_seq / nvn_sparse_log_read below)
++//   instead of a page-table walk per texture look. Ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 1d4b8e82 (dm/gfx/nvn/hle_nvn.c:2658-2660 at 0c078130).
++//   A ring of VLOG_N requests; nlog counts them all (a reader that fell more than VLOG_N behind scans its texture whole). S2Arm adaptation: log is written (allocated) under
++//   g_vp_mu and g_vph_lk for writing, and freed only after the pool left the hash table (vpool_release), so nvn_sparse_log_seq reads it under g_vph_lk alone, as nvn_sparse_pool does
++struct vlog_ent { uint64_t off, len; };   // a mapping request: the pool's change log (nvn_sparse_log_read), kept once a placement sparse texture asks for it
++enum { VLOG_N = 4096 };
+ // Where the virtual pools are found: by pool pointer in a hash table (texture lookups ask per texture whether its pool is one: nvn_sparse_pool), by address in an array sorted by base
+ //   (nvn_host_readable). A UE4 game keeps a pool per streamed texture: Torchlight III created 1140 in one run, hundreds alive at once; the old table had 4 slots.
+ //   Both change only under g_vp_mu (Initialize / Finalize); the hash table also under g_vph_lk for writing, so nvn_sparse_pool reads it under g_vph_lk alone. Whoever holds g_vp_mu reads both freely
+@@ -3929,6 +3936,7 @@ static void vpool_release(const pool_t *o) {
+ #endif
+         for (uint64_t l = 0; l < (v->size + (2u << 20) - 1) >> 21; l++) free(v->pt[l]);
+         atomic_fetch_sub(&g_vsh_pages, (uint64_t)v->nsh);
++        free(v->log);   // RewindBox (patch 0026): the change log goes with its pool (upstream 1d4b8e82 vpool_drop, dm/gfx/nvn/hle_nvn.c:2692 at 0c078130); after vpool_unpublish, so no reader holds it
+         free(v->pt); free(v->run); free(v->sh); free(v); }
+     vp_unlock();
+ }
+@@ -3952,6 +3960,10 @@ static void vrun_set(struct vpool *v, uint64_t lo, uint64_t hi, int mapped) {
+ static const vpte *vpt_get(const struct vpool *v, uint64_t o) { const vpte *l = v->pt[o >> 21]; return l ? &l[(o >> 12) & (VPT_LEAF - 1)] : NULL; }
+ static void vpt_set(struct vpool *v, uint64_t voff, uint64_t size, const uint8_t *phys) {
+     uint64_t gen = atomic_fetch_add(&g_vp_gen, 1) + 1;
++    // RewindBox (patch 0026): every request that changes the page table goes to the change log once there is one, map or unmap, aliased or kept in the page table only.
++    //   Ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 1d4b8e82 (dm/gfx/nvn/hle_nvn.c:2742 at 0c078130). Here also the frame replay's rebuild (s2a_hle_vpool_load);
++    //   a 0-byte request never gets here (patch 0012 accepts it in vpool_map before vpt_set), so it leaves no entry
++    if (v->log) { v->log[atomic_load_explicit(&v->nlog, memory_order_relaxed) % VLOG_N] = (struct vlog_ent){voff, size}; atomic_fetch_add_explicit(&v->nlog, 1, memory_order_release); }
+     for (uint64_t o = 0; o < size; o += 0x1000) {
+         vpte **l = &v->pt[(voff + o) >> 21];
+         if (!*l && !phys) continue;   // never mapped: stays unmapped
+@@ -4808,6 +4820,9 @@ static int vpt_walk(const void *pool, uint64_t a, uint64_t n, uint64_t gen, int
+     if (!r && rs) r = fn(rs, (uint64_t)(re - rs), arg);
+     vp_unlock(); return r;
+ }
++// RewindBox (patch 0026): run_written keeps nvn_dirty_since, not seedds/nxnative 229fc22c's thread-local handle (nvn_dirty_since_cached(&t_rw_span, …)): a handle kept from another
++//   run can name a range other than the one nvn_dirty_protect used (a host page two pools share), whose generation a write does not move, so the write would be missed.
++//   nvn_dirty_since's find_span already answers runs over one pool from its cache (patch 0025)
+ static int run_written(const uint8_t *p, uint64_t n, uint64_t stamp) { return nvn_dirty_since(p, n, stamp); }
+ static int run_protect(const uint8_t *p, uint64_t n, uint64_t unused) { (void)unused; nvn_dirty_protect(p, n); return 0; }
+ int nvn_sparse_since(const void *pool, uint64_t a, uint64_t n, uint64_t gen, uint64_t stamp) { return vpt_walk(pool, a, n, gen, run_written, stamp); }
+@@ -4817,6 +4832,67 @@ int nvn_sparse_mapped(const void *pool, uint64_t a, uint64_t n) {   // every pag
+     vp_unlock(); return ok;
+ }
+ void nvn_sparse_protect(const void *pool, uint64_t a, uint64_t n) { vpt_walk(pool, a, n, ~0ull, run_protect, 0); }
++// RewindBox (patch 0026): the queries the placement sparse textures of later patches make of a sparse pool, tile by tile (64 KB), and the pool's change log.
++//   Ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 1d4b8e82 (nvn_sparse_protect_tile, nvn_sparse_log_seq / nvn_sparse_log_read, nvn_sparse_tile_state:
++//   dm/gfx/nvn/hle_nvn.c:3341-3342, 3356-3386 at 0c078130) and 1110473c (nvn_sparse_tile_phys: :3344-3352). Upstream's logic and names; nothing calls them yet.
++//   S2Arm adaptation: the pool is found under S2Arm's locks, vp_lock and vpool_at / vpool_of (its hash table g_vph), where upstream reads pool->vp.
++//   Lock order: g_sp_mu (nvn_mtl.m, later patches) → g_vp_mu → {g_vph_lk, g_slot_mu (nvn_dirty.c), nvn_mtl.m's g_mu (nvn_be_pool_add / nvn_be_pool_del run under g_vp_mu), svc_mem's g_mu
++//   on Android (see vp_lock)}. All five take g_vp_mu (nvn_sparse_log_seq only the first time): never call one holding g_vp_mu, g_vph_lk, g_slot_mu or nvn_mtl.m's g_mu, nor from
++//   nvn_be_pool_add / nvn_be_pool_del; and never take g_sp_mu under nvn_mtl.m's g_mu
++void nvn_dirty_protect_sparse(const void *addr, size_t len);   // defined by patch 0025 (nvn_dirty.c; declared in its nvn_dirty.h as well), so this patch needs 0025 to link: nvn_dirty_protect, and a later write moves nvn_dirty_sparse_writes
++static int run_protect_tile(const uint8_t *p, uint64_t n, uint64_t unused) { (void)unused; nvn_dirty_protect_sparse(p, n); return 0; }
++void nvn_sparse_protect_tile(const void *pool, uint64_t a, uint64_t n) { vpt_walk(pool, a, n, ~0ull, run_protect_tile, 0); }
++// The physical memory behind the 64 KB tile at a: its first page when all 16 are mapped and consecutive, NULL otherwise (nvn_mtl.m keys shared sparse tiles by it, sp_share)
++const uint8_t *nvn_sparse_tile_phys(const void *pool, uint64_t a) {
++    vp_lock(); struct vpool *v = vpool_at(pool, a); const uint8_t *p = NULL;
++    uint64_t o = v ? a - (uint64_t)(uintptr_t)v->base : 0;
++    if (v && !(o & 0xFFFF) && o + 65536 <= v->size) {
++        const vpte *e = vpt_get(v, o); p = e ? e->phys : NULL;
++        for (uint64_t k = 1; p && k < 16; k++) { const vpte *f = vpt_get(v, o + (k << 12)); if (!f || f->phys != p + (k << 12)) p = NULL; }
++    }
++    vp_unlock(); return p;
++}
++// A sparse pool's mapping requests, for a placement sparse texture (nvn_mtl.m sparse_look): walking a texture's pages at each look took half of the submit thread's time in Mario Kart World, held
++// g_vp_mu against the game's own mapping calls, and the dirty-page generation it was gated on moves with any guest write. The log starts at the first call. How many requests the pool has had
++// (called at each look of a texture). S2Arm adaptation: g_vph_lk for reading only, as nvn_sparse_pool, once the log exists; the first call makes it under g_vp_mu (g_vp_mu → g_vph_lk, never
++// the reverse, so g_vph_lk is let go first), looking the pool up again there since it may have been finalized between the two
++uint64_t nvn_sparse_log_seq(const void *pool) {
++    const pool_t *o = pool; if (!o) return 0;
++    pthread_rwlock_rdlock(&g_vph_lk); struct vpool *v = vpool_of(o); int have = v && v->log; uint64_t n = have ? atomic_load_explicit(&v->nlog, memory_order_acquire) : 0;
++    pthread_rwlock_unlock(&g_vph_lk);
++    if (have || !v) return n;
++    vp_lock(); v = vpool_of(o);
++    if (v && !v->log) { struct vlog_ent *l = calloc(VLOG_N, sizeof *l); if (!l) die("sparse pool change log allocation failed");
++        pthread_rwlock_wrlock(&g_vph_lk); v->log = l; pthread_rwlock_unlock(&g_vph_lk); }
++    n = v ? atomic_load_explicit(&v->nlog, memory_order_acquire) : 0;
++    vp_unlock(); return n;
++}
++// The requests from number *seq on as guest address ranges (lo, hi pairs, at most max); *seq moves past them. -1 when the log no longer holds them or there are more than max: scan the texture
++int nvn_sparse_log_read(const void *pool, uint64_t *seq, uint64_t (*out)[2], int max) {
++    vp_lock(); struct vpool *v = pool ? vpool_of((const pool_t *)pool) : NULL; int n = 0;
++    uint64_t end = v ? atomic_load_explicit(&v->nlog, memory_order_relaxed) : 0;
++    if (!v || !v->log || end - *seq > VLOG_N || end - *seq > (uint64_t)max) n = -1;
++    else for (uint64_t k = *seq; k < end; k++, n++) { const struct vlog_ent *e = &v->log[k % VLOG_N]; out[n][0] = (uint64_t)(uintptr_t)v->base + e->off; out[n][1] = out[n][0] + e->len; }
++    *seq = end;
++    vp_unlock(); return n;
++}
++// One tile of a placement sparse texture (nvn_mtl.m sparse_sync) in one walk: bit 0 every page of [a, a+n) has memory behind it, bit 1 a mapping in it is newer than gen or a physical
++// page behind it was written after the dirty-page stamp. -1 outside a sparse pool
++int nvn_sparse_tile_state(const void *pool, uint64_t a, uint64_t n, uint64_t gen, uint64_t stamp) {
++    vp_lock(); struct vpool *v = vpool_at(pool, a);
++    if (!v) { vp_unlock(); return -1; }
++    int all = 1, chg = 0; const uint8_t *rs = NULL, *re = NULL;
++    for (uint64_t o = (a - (uint64_t)(uintptr_t)v->base) & ~0xFFFull, end = a - (uint64_t)(uintptr_t)v->base + n; o < end; o += 0x1000) {
++        const vpte *e = o < v->size ? vpt_get(v, o) : NULL;
++        if (e && e->gen > gen) chg = 1;
++        if (!e || !e->phys) { all = 0; continue; }
++        if (rs && e->phys == re) { re += 0x1000; continue; }
++        if (rs && !chg) chg = nvn_dirty_since(rs, (uint64_t)(re - rs), stamp);
++        rs = e->phys; re = rs + 0x1000;
++    }
++    if (rs && !chg) chg = nvn_dirty_since(rs, (uint64_t)(re - rs), stamp);
++    vp_unlock(); return all | chg << 1;
++}
+ NVN(nvnCommandBufferDrawElementsIndirect, void, NVNcommandBuffer *c, NVNdrawPrimitive pr, NVNindexType it, NVNbufferAddress ib, NVNbufferAddress ind) {
+     rec_draw_idx(c, (p_draw_idx){pr, it, 0, 0, 0, 1, GA(ib), GA(ind)});
+ }
