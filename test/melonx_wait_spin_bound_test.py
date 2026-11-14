@@ -147,14 +147,20 @@ else:
         if FINAL_PREPARATION:
             later = files_edited_later('adapt_wait_spin_bound')
             for name, pairs in adapter.FILE_PAIRS.items():
-                final_text = (FINAL_SOURCE / name).read_text(encoding='utf-8-sig')
+                # A file a later adapter edits: this adapter's own postimage (control_source reproduced the final bytes).
+                final_text = after[name] if name in later else (FINAL_SOURCE / name).read_text(encoding='utf-8-sig')
                 for _, new in pairs:
                     check(final_text.count(new) == 1, 'replacement in the final preparation: ' + new.strip().splitlines()[0][:70])
                 if name not in later:
                     check((candidate / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
+            own = after
             shutil.rmtree(candidate)
             shutil.copytree(FINAL_SOURCE, candidate, ignore=ignore, symlinks=True)
-            after = {name: (candidate / name).read_text(encoding='utf-8-sig') for name in adapter.BASELINE}
+            # A file a later adapter also edits (IPA 740: adapt_darwin_spin_yield in AsyncWorkQueue.cs) is checked as this
+            # adapter left it (control_source proved that the later ones reproduce the final bytes); the build below is
+            # the final preparation's.
+            after = {name: own[name] if name in later else (candidate / name).read_text(encoding='utf-8-sig')
+                     for name in adapter.BASELINE}
             postimages = {name: sha(candidate / name) for name in adapter.BASELINE}
 
         # --- static ---

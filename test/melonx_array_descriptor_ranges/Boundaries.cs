@@ -21,13 +21,25 @@ namespace Silk.NET.Vulkan
     public enum AccessFlags { ShaderReadBit = 32 }
     public enum ImageLayout { Undefined = 0, General = 1 }
     public enum DescriptorType { Sampler = 0, CombinedImageSampler = 1, SampledImage = 2, StorageImage = 3, UniformTexelBuffer = 4, StorageTexelBuffer = 5 }
-    public enum StructureType { WriteDescriptorSet = 35 }
+    public enum StructureType { WriteDescriptorSet = 35, CopyDescriptorSet = 36 }
     public struct ImageView { public ulong Handle; public ImageView(ulong handle) { Handle = handle; } }
     public struct Sampler { public ulong Handle; public Sampler(ulong handle) { Handle = handle; } }
     public struct BufferView { public ulong Handle; public BufferView(ulong handle) { Handle = handle; } }
     public struct DescriptorSet { public ulong Handle; public DescriptorSet(ulong handle) { Handle = handle; } }
     public struct Device { }
-    public struct CopyDescriptorSet { }
+    // IPA 740 lot (adapt_pool_slot_copy): a large array's slot is copied from another slot.
+    public unsafe struct CopyDescriptorSet
+    {
+        public StructureType SType;
+        public void* PNext;
+        public DescriptorSet SrcSet;
+        public uint SrcBinding;
+        public uint SrcArrayElement;
+        public DescriptorSet DstSet;
+        public uint DstBinding;
+        public uint DstArrayElement;
+        public uint DescriptorCount;
+    }
     public struct DescriptorImageInfo
     {
         public Sampler Sampler;
@@ -218,7 +230,7 @@ namespace Ryujinx.Graphics.Vulkan
     {
         public unsafe void UpdateDescriptorSets(Device device, uint count, WriteDescriptorSet* writes, uint copyCount, CopyDescriptorSet* copies)
         {
-            if (copyCount != 0 || copies != null)
+            if ((copyCount != 0) != (copies != null))
             {
                 throw new InvalidOperationException("unexpected descriptor copies");
             }
@@ -236,6 +248,20 @@ namespace Ryujinx.Graphics.Vulkan
 
                 World.Write(write.DstSet.Handle, (int)write.DstBinding, write.DescriptorType, (int)write.DstArrayElement,
                     new ReadOnlySpan<DescriptorImageInfo>(write.PImageInfo, (int)write.DescriptorCount));
+            }
+
+            // Within one call the writes are applied before the copies.
+            for (uint index = 0; index < copyCount; index++)
+            {
+                CopyDescriptorSet copy = copies[index];
+
+                if (copy.SType != StructureType.CopyDescriptorSet || copy.PNext != null)
+                {
+                    throw new InvalidOperationException("unexpected descriptor copy");
+                }
+
+                World.Copy(copy.SrcSet.Handle, (int)copy.SrcBinding, (int)copy.SrcArrayElement, copy.DstSet.Handle,
+                    (int)copy.DstBinding, (int)copy.DstArrayElement, (int)copy.DescriptorCount);
             }
         }
     }
@@ -462,6 +488,44 @@ namespace Ryujinx.Graphics.Vulkan
             }
 
             values.CopyTo(storage.AsSpan(first));
+        }
+
+        // IPA 740 lot (adapt_pool_slot_copy): a copy of a set's elements into another set (the source may be pending: it is
+        // only read; the destination may not).
+        public static long Copies, CopiedDescriptors;
+
+        public static void Copy(ulong source, int sourceBinding, int sourceFirst, ulong set, int binding, int first, int count)
+        {
+            Copies++;
+            CopiedDescriptors += count;
+            Record(source);
+            Record((ulong)sourceBinding);
+            Record((ulong)sourceFirst);
+            Record(set);
+            Record((ulong)binding);
+            Record((ulong)first);
+            Record((ulong)count);
+
+            if (IsBound(set))
+            {
+                Violate("a set copied into while a pending command buffer uses it");
+            }
+
+            if (source == set || sourceBinding != binding)
+            {
+                Violate("a copy within one set or between bindings");
+            }
+
+            DescriptorImageInfo[] from = Sets[source], storage = Sets[set];
+
+            if (sourceFirst < 0 || first < 0 || sourceFirst + count > from.Length || first + count > storage.Length)
+            {
+                Violate("a copy outside the sets");
+
+                return;
+            }
+
+            Array.Copy(from, sourceFirst, storage, first, count);
         }
 
         public static void Bind(ulong set, int commandBuffer)

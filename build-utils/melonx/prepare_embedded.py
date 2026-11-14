@@ -194,6 +194,14 @@ from adapt_buffer_last_hit import apply as adapt_buffer_last_hit
 from adapt_partition_snapshot import apply as adapt_partition_snapshot
 from adapt_array_dirty_log import apply as adapt_array_dirty_log
 from adapt_fence_status import apply as adapt_fence_status
+from adapt_command_buffer_ownership import apply as adapt_command_buffer_ownership
+from adapt_signalled_fence_release import apply as adapt_signalled_fence_release
+from adapt_buffer_hit_sets import apply as adapt_buffer_hit_sets
+from adapt_array_log_membership import apply as adapt_array_log_membership
+from adapt_partition_dispose_order import apply as adapt_partition_dispose_order
+from adapt_keepalive_hold_off import apply as adapt_keepalive_hold_off
+from adapt_darwin_spin_yield import apply as adapt_darwin_spin_yield
+from adapt_pool_slot_copy import apply as adapt_pool_slot_copy
 
 
 def replace_once(path, old, new):
@@ -592,6 +600,25 @@ def main():
     # IPA 736, third lot (render thread): a fence's state is read with vkGetFenceStatus, not with a zero-timeout
     # vkWaitForFences that MoltenVK turns into a device-wide registration (FenceHolder.cs, MultiFenceHolder.cs).
     adapted += adapt_fence_status(source)
+    # IPA 740 lot (render thread): a command buffer references the objects it uses, not their reference chain, in a
+    # struct list (Auto.cs, CommandBufferPool.cs); a fence just read signalled is not waited for again.
+    adapted += adapt_command_buffer_ownership(source)
+    adapted += adapt_signalled_fence_release(source)
+    # IPA 740 lot (GPU thread): the buffer cache's last-hit table in two-way sets, emptied per buffer (BufferCache.cs);
+    # the texture arrays' change rings skip textures never put in an array (Texture.cs, TextureBindingsArrayCache.cs).
+    adapted += adapt_buffer_hit_sets(source)
+    adapted += adapt_array_log_membership(source)
+    # IPA 740 lot (session end): the partitioned address space publishes its empty list before disposing its partitions.
+    adapted += adapt_partition_dispose_order(source)
+    # IPA 740 lot (GC): the keep-alive requests its windows short of memory again (IPA 736's behaviour): holding them let
+    # the BGC thread leave and the runtime's next gen2 ran blocking (518 ms in play on IPA 740).
+    adapted += adapt_keepalive_hold_off(source)
+    # IPA 740 lot (every thread that hands over through AdaptiveSpinEvent): on Apple platforms the spin yields with
+    # thread_switch, without sched_yield's depression to priority 0 (AsyncWorkQueue.cs).
+    adapted += adapt_darwin_spin_yield(source)
+    # IPA 740 lot (Hogwarts Legacy, render thread): a large texture array's slot that would be written whole is copied
+    # from the array's latest slot, then only the changes since it are written (TextureArray.cs).
+    adapted += adapt_pool_slot_copy(source)
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -739,7 +766,10 @@ def main():
                  'adapt_array_sync_epochs.py', 'adapt_collection_class.py',
                  'adapt_stall_compaction.py', 'adapt_wait_spin_bound.py', 'adapt_darwin_timed_waits.py',
                  'adapt_timer_earliest_wake.py', 'adapt_keepalive_memory_hold.py', 'adapt_buffer_last_hit.py',
-                 'adapt_partition_snapshot.py', 'adapt_array_dirty_log.py', 'adapt_fence_status.py']:
+                 'adapt_partition_snapshot.py', 'adapt_array_dirty_log.py', 'adapt_fence_status.py',
+                 'adapt_command_buffer_ownership.py', 'adapt_signalled_fence_release.py', 'adapt_buffer_hit_sets.py',
+                 'adapt_array_log_membership.py', 'adapt_partition_dispose_order.py', 'adapt_keepalive_hold_off.py',
+                 'adapt_darwin_spin_yield.py', 'adapt_pool_slot_copy.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

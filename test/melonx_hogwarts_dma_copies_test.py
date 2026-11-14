@@ -225,6 +225,18 @@ LOT_FILES = {
     'adapt_array_dirty_log': [],
     # IPA 736, third lot: the fence state read by vkGetFenceStatus (no file of this lot).
     'adapt_fence_status': [],
+    # IPA 740 lot: a command buffer's own references and a signalled fence's release (no file of this lot); the buffer
+    # cache's last-hit table in two-way sets (BufferCache.cs in this composition); the texture arrays' membership flag,
+    # the partitions' dispose order, the keep-alive's own decision and the Apple spin yield (no file of this lot).
+    'adapt_command_buffer_ownership': [],
+    'adapt_signalled_fence_release': [],
+    'adapt_buffer_hit_sets': ['src/Ryujinx.Graphics.Gpu/Memory/BufferCache.cs'],
+    'adapt_array_log_membership': [],
+    'adapt_partition_dispose_order': [],
+    'adapt_keepalive_hold_off': [],
+    'adapt_darwin_spin_yield': [],
+    # IPA 740 lot: a large array's slot copied from its latest slot (TextureArray.cs in this composition).
+    'adapt_pool_slot_copy': ['src/Ryujinx.Graphics.Vulkan/TextureArray.cs'],
 }
 
 checks = 0

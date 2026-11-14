@@ -937,6 +937,8 @@ namespace Ryujinx.Graphics.Gpu.Image
         internal static void LogInvalidation(Texture texture) { long i = System.Threading.Interlocked.Increment(ref InvalidationLogCount) - 1; InvalidationRing[i & (ChangeLogSize - 1)] = texture; }
         internal static bool TryReadDirtyLog(long index, out Texture texture) { texture = DirtyRing[index & (ChangeLogSize - 1)]; return texture != null; }
         internal static bool TryReadInvalidationLog(long index, out Texture texture) { texture = InvalidationRing[index & (ChangeLogSize - 1)]; return texture != null; }
+        // IPA 740 lot (adapt_array_log_membership): set by the final cache when it puts the texture into an array.
+        internal bool InBindlessArray;
         internal int ContextUseEpoch => 0; // no use clock in this fixture
         public void SignalGroupDirty()
         {

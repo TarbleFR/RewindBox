@@ -145,6 +145,11 @@ with tempfile.TemporaryDirectory(prefix='melonx-performance-diagnostics-') as te
     # IPA 736 lot: then adapt_keepalive_memory_hold's replacements (its class, the keep-alive's decision and summary
     # line), applied after it and undone first.
     import adapt_keepalive_memory_hold as _hold
+    # IPA 740 lot: adapt_keepalive_hold_off's line (the keep-alive's own decision again), applied after the hold and
+    # undone before it.
+    import adapt_keepalive_hold_off as _hold_off
+    assert session_core.count(_hold_off.LOOP_NEW) <= 1
+    session_core = session_core.replace(_hold_off.LOOP_NEW, _hold_off.LOOP_OLD)
     for _old, _new in reversed(_hold.PAIRS):
         assert session_core.count(_new) <= 1
         session_core = session_core.replace(_new, _old)

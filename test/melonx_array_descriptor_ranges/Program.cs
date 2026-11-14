@@ -214,6 +214,8 @@ Console.WriteLine(JsonSerializer.Serialize(new
     violations = World.Violations,
     trace = World.Trace.ToString("x16"),
     descriptors = World.Descriptors,
+    copies = World.Copies, // IPA 740 lot (adapt_pool_slot_copy)
+    copiedDescriptors = World.CopiedDescriptors,
     writeCalls = World.Calls,
     templateCommits = World.TemplateCommits,
     setsAllocated = World.Caches.Sum(c => c.Allocated),

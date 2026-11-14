@@ -106,7 +106,15 @@
   "build-utils/melonx/adapt_buffer_last_hit.py",
   "build-utils/melonx/adapt_partition_snapshot.py",
   "build-utils/melonx/adapt_array_dirty_log.py",
-  "build-utils/melonx/adapt_fence_status.py"
+  "build-utils/melonx/adapt_fence_status.py",
+  "build-utils/melonx/adapt_command_buffer_ownership.py",
+  "build-utils/melonx/adapt_signalled_fence_release.py",
+  "build-utils/melonx/adapt_buffer_hit_sets.py",
+  "build-utils/melonx/adapt_array_log_membership.py",
+  "build-utils/melonx/adapt_partition_dispose_order.py",
+  "build-utils/melonx/adapt_keepalive_hold_off.py",
+  "build-utils/melonx/adapt_darwin_spin_yield.py",
+  "build-utils/melonx/adapt_pool_slot_copy.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -213,7 +221,9 @@
   "src/Ryujinx.Common/PreciseSleep/PreciseSleepHelper.cs",
   "src/Ryujinx.Cpu/Jit/HostTracked/AddressSpacePartitioned.cs",
   "src/Ryujinx.Graphics.Vulkan/FenceHolder.cs",
-  "src/Ryujinx.Graphics.Vulkan/MultiFenceHolder.cs"
+  "src/Ryujinx.Graphics.Vulkan/MultiFenceHolder.cs",
+  "src/Ryujinx.Graphics.Vulkan/Auto.cs",
+  "src/Ryujinx.Graphics.Vulkan/CommandBufferPool.cs"
  ],
  "productionAdditions": [],
  "fixtureInputs": [
@@ -587,7 +597,9 @@
     "src/Ryujinx.Memory/IVirtualMemoryManager.cs",
     "src/Ryujinx.Cpu/Jit/HostTracked/AddressSpacePartitioned.cs",
     "src/Ryujinx.Graphics.Vulkan/FenceHolder.cs",
-    "src/Ryujinx.Graphics.Vulkan/MultiFenceHolder.cs"
+    "src/Ryujinx.Graphics.Vulkan/MultiFenceHolder.cs",
+    "src/Ryujinx.Graphics.Vulkan/Auto.cs",
+    "src/Ryujinx.Graphics.Vulkan/CommandBufferPool.cs"
    ],
    "compiledBindings": [
     {
@@ -1291,6 +1303,24 @@
       "src/Ryujinx.Graphics.Vulkan/MultiFenceHolder.cs"
      ],
      "productionPath": "src/Ryujinx.Graphics.Vulkan/MultiFenceHolder.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Vulkan/Auto.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Vulkan/Auto.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Vulkan/CommandBufferPool.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Vulkan/CommandBufferPool.cs"
     }
    ]
   },
@@ -4668,6 +4698,31 @@
    },
    "requiredPostimages": [
     "src/Ryujinx.Common/PreciseSleep/PreciseSleepHelper.cs"
+   ]
+  },
+  {
+   "name": "darwin-spin-yield",
+   "script": "test/melonx_darwin_spin_yield_test.py",
+   "report": "darwin-spin-yield-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 3600,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false,
+    "productionAssembliesBuilt": true,
+    "shortHandoffsKeptFullSpin": true,
+    "ringNoLostWakeup": true,
+    "unboundExportFallsBack": true
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Common/AsyncWorkQueue.cs"
    ]
   }
  ]

@@ -80,6 +80,8 @@ from adapt_wait_spin_bound import BASELINE as C747_WAIT_SPIN_BOUND  # noqa: E402
 from adapt_darwin_timed_waits import BASELINE as C749_DARWIN_TIMED_WAITS  # noqa: E402
 from adapt_partition_snapshot import BASELINE as C751_PARTITION_SNAPSHOT  # noqa: E402
 from adapt_fence_status import BASELINE as C752_FENCE_STATUS  # noqa: E402
+from adapt_command_buffer_ownership import BASELINE as C753_COMMAND_BUFFER_OWNERSHIP  # noqa: E402
+from adapt_darwin_spin_yield import BASELINE as C753_DARWIN_SPIN_YIELD  # noqa: E402
 from adapt_array_delta_invalidated import BASELINE as C697_ARRAY_DELTA_INVALIDATED  # noqa: E402
 from adapt_pipeline_cache_background import BASELINE as C697_PIPELINE_CACHE_BACKGROUND  # noqa: E402
 from adapt_sync_wait_attribution import BASELINE as C699_SYNC_WAIT_ATTRIBUTION  # noqa: E402
@@ -230,6 +232,8 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'wait-spin-bound': 'delivered',
             # Core 749 candidate: on Apple platforms a wait until a host time is one kernel timed wait (heat lot 2).
             'darwin-timed-waits': 'delivered',
+            # IPA 740 lot: on Apple platforms the adaptive spin yields without the depression to priority 0.
+            'darwin-spin-yield': 'delivered',
             # Core 743: its receipt declares SyncManager.cs, which adapt_submit_causes changes: run again on the final one.
             'sync-allocations': 'delivered',
             # Core 661: the native display fixture declares EmbeddedMemory.cs (adapt_safe_point_compaction): rerun.
@@ -308,7 +312,11 @@ CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES
            # IPA 736, second lot: AddressSpacePartitioned.cs (new: the partition lookup without the lock).
            set(C751_PARTITION_SNAPSHOT) |
            # IPA 736, third lot: FenceHolder.cs and MultiFenceHolder.cs (new: the fence state by vkGetFenceStatus).
-           set(C752_FENCE_STATUS))
+           set(C752_FENCE_STATUS) |
+           # IPA 740 lot: Auto.cs and CommandBufferPool.cs (new: a command buffer's own references); the lot's other
+           # files (BufferCache.cs, Texture.cs, TextureBindingsArrayCache.cs, AddressSpacePartitioned.cs, EmbeddedSession.cs,
+           # AsyncWorkQueue.cs, TextureArray.cs) are changed already.
+           set(C753_COMMAND_BUFFER_OWNERSHIP))
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
@@ -401,6 +409,9 @@ JOINED = JOINED | set(C751_PARTITION_SNAPSHOT)
 # IPA 736, third lot (adapt_fence_status): FenceHolder.cs and MultiFenceHolder.cs join; fragmented-reads composes, builds
 # and binds them (read from its control, delivered609, as upstream).
 JOINED = JOINED | set(C752_FENCE_STATUS)
+# IPA 740 lot (adapt_command_buffer_ownership): Auto.cs and CommandBufferPool.cs join; fragmented-reads composes,
+# builds and binds them (read from its control, delivered609, as upstream).
+JOINED = JOINED | set(C753_COMMAND_BUFFER_OWNERSHIP)
 REUSED_FRESH = set()
 
 
@@ -615,7 +626,9 @@ if not args.helpers_only:
     # Core 737: 95 (NpadManager.cs).
     # Core 743: 99 (SyncManager.cs, AutoFlushCounter.cs, StagingBuffer.cs, HelperShader.cs).
     # Core 745: 100 (IGeneralService.cs). Core 747: 101 (AsyncWorkQueue.cs). Core 749 candidate: 102 (PreciseSleepHelper.cs).
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 105 and not frozen["productionAdditions"], "Unexpected production scope")
+    # IPA 736 lots: 105 (AddressSpacePartitioned.cs, FenceHolder.cs, MultiFenceHolder.cs). IPA 740 lot: 107 (Auto.cs,
+    # CommandBufferPool.cs).
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 107 and not frozen["productionAdditions"], "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
                                                      'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
                                                      'build-utils/melonx/adapt_queued_syncpoints.py',
@@ -712,7 +725,15 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_buffer_last_hit.py',
                                                      'build-utils/melonx/adapt_partition_snapshot.py',
                                                      'build-utils/melonx/adapt_array_dirty_log.py',
-                                                     'build-utils/melonx/adapt_fence_status.py'} and
+                                                     'build-utils/melonx/adapt_fence_status.py',
+                                                     'build-utils/melonx/adapt_command_buffer_ownership.py',
+                                                     'build-utils/melonx/adapt_signalled_fence_release.py',
+                                                     'build-utils/melonx/adapt_buffer_hit_sets.py',
+                                                     'build-utils/melonx/adapt_array_log_membership.py',
+                                                     'build-utils/melonx/adapt_partition_dispose_order.py',
+                                                     'build-utils/melonx/adapt_keepalive_hold_off.py',
+                                                     'build-utils/melonx/adapt_darwin_spin_yield.py',
+                                                     'build-utils/melonx/adapt_pool_slot_copy.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -761,7 +782,8 @@ if not args.helpers_only:
     # IPA 736, second lot: adapt_partition_snapshot.py joins them; AddressSpacePartitioned.cs joins the prepared members (217).
     # adapt_array_dirty_log.py joins them too (Texture.cs and TextureBindingsArrayCache.cs are members already).
     # IPA 736, third lot: adapt_fence_status.py joins them; FenceHolder.cs and MultiFenceHolder.cs join the members (219).
-    check(len(frozen['preparationInputs']) == 226 and len(frozen['preparedMembers']) == 219, 'Wrong final composition')
+    # IPA 740 lot: eight adapters join them; Auto.cs and CommandBufferPool.cs join the members (221).
+    check(len(frozen['preparationInputs']) == 234 and len(frozen['preparedMembers']) == 221, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
@@ -843,7 +865,11 @@ if not args.helpers_only:
           set(C749_DARWIN_TIMED_WAITS) == set(gate['darwin-timed-waits']['requiredPostimages']) and
           gate['darwin-timed-waits']['assertions'].get('productionAssembliesBuilt') is True and
           gate['darwin-timed-waits']['assertions'].get('noLostSignal') is True and
-          gate['darwin-timed-waits']['assertions'].get('signalAfterDisposeSafe') is True,
+          gate['darwin-timed-waits']['assertions'].get('signalAfterDisposeSafe') is True and
+          set(C753_DARWIN_SPIN_YIELD) == set(gate['darwin-spin-yield']['requiredPostimages']) and
+          gate['darwin-spin-yield']['assertions'].get('productionAssembliesBuilt') is True and
+          gate['darwin-spin-yield']['assertions'].get('ringNoLostWakeup') is True and
+          gate['darwin-spin-yield']['assertions'].get('unboundExportFallsBack') is True,
           'The Core 745 changes are not bound by their gates')
     OUTSIDE_GPU |= {C745_NIFM_SERVICE}
     # Core 747: Ryujinx.Common's AsyncWorkQueue.cs is outside the GPU closure; its gate (wait-spin-bound) builds it.
