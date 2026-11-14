@@ -928,11 +928,21 @@ namespace Ryujinx.Graphics.Gpu.Image
         // final cache reads. StepSynced records a synchronisation that had something to do.
         public bool Dirty = true;
         internal static int DirtyEpoch, DirtyWriters, InvalidationWriters;
+        // IPA 736, second lot (adapt_array_dirty_log): the rings the final cache reads when an epoch moved; the double
+        // keeps the textures themselves. A writer appends after its flag (or sequence) and before its epoch.
+        internal const int ChangeLogSize = 1024;
+        internal static long DirtyLogCount, InvalidationLogCount;
+        static readonly Texture[] DirtyRing = new Texture[ChangeLogSize], InvalidationRing = new Texture[ChangeLogSize];
+        internal static void LogDirty(Texture texture) { long i = System.Threading.Interlocked.Increment(ref DirtyLogCount) - 1; DirtyRing[i & (ChangeLogSize - 1)] = texture; }
+        internal static void LogInvalidation(Texture texture) { long i = System.Threading.Interlocked.Increment(ref InvalidationLogCount) - 1; InvalidationRing[i & (ChangeLogSize - 1)] = texture; }
+        internal static bool TryReadDirtyLog(long index, out Texture texture) { texture = DirtyRing[index & (ChangeLogSize - 1)]; return texture != null; }
+        internal static bool TryReadInvalidationLog(long index, out Texture texture) { texture = InvalidationRing[index & (ChangeLogSize - 1)]; return texture != null; }
         internal int ContextUseEpoch => 0; // no use clock in this fixture
         public void SignalGroupDirty()
         {
             System.Threading.Interlocked.Increment(ref DirtyWriters);
             Dirty = true;
+            LogDirty(this);
             System.Threading.Interlocked.Increment(ref DirtyEpoch);
             System.Threading.Interlocked.Decrement(ref DirtyWriters);
         }
@@ -945,7 +955,7 @@ namespace Ryujinx.Graphics.Gpu.Image
         }
         void Use() { if (Disposed) _world.Violations++; }
         internal static int InvalidationEpoch;
-        public void Invalidate() { InvalidatedSequence++; System.Threading.Interlocked.Increment(ref InvalidationEpoch); }
+        public void Invalidate() { InvalidatedSequence++; LogInvalidation(this); System.Threading.Interlocked.Increment(ref InvalidationEpoch); }
         public ITexture GetTargetTexture(Target target) { Use(); return Host; }
         public void SynchronizeMemory()
         {

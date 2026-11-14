@@ -738,6 +738,7 @@ static class Program
         w.Update(binding, Kind.Texture);
         bool synchronisedWhileInFlight = !bound.Dirty;
         long inFlightSyncCalls = Texture.SyncCalls - calls;
+        Texture.LogDirty(bound); // IPA 736, second lot: the writer appends to the ring before its epoch
         System.Threading.Interlocked.Increment(ref Texture.DirtyEpoch);
         System.Threading.Interlocked.Decrement(ref Texture.DirtyWriters);
         calls = Texture.SyncCalls;
@@ -1019,6 +1020,15 @@ namespace Ryujinx.Graphics.Gpu.Image
         public bool Dirty = true;
         public int LastUseEpoch = -1, Uploads;
         internal static int DirtyEpoch, DirtyWriters, InvalidationWriters;
+        // IPA 736, second lot (adapt_array_dirty_log): the rings the final cache reads when an epoch moved; the double
+        // keeps the textures themselves. A writer appends after its flag (or sequence) and before its epoch.
+        internal const int ChangeLogSize = 1024;
+        internal static long DirtyLogCount, InvalidationLogCount;
+        static readonly Texture[] DirtyRing = new Texture[ChangeLogSize], InvalidationRing = new Texture[ChangeLogSize];
+        internal static void LogDirty(Texture texture) { long i = System.Threading.Interlocked.Increment(ref DirtyLogCount) - 1; DirtyRing[i & (ChangeLogSize - 1)] = texture; }
+        internal static void LogInvalidation(Texture texture) { long i = System.Threading.Interlocked.Increment(ref InvalidationLogCount) - 1; InvalidationRing[i & (ChangeLogSize - 1)] = texture; }
+        internal static bool TryReadDirtyLog(long index, out Texture texture) { texture = DirtyRing[index & (ChangeLogSize - 1)]; return texture != null; }
+        internal static bool TryReadInvalidationLog(long index, out Texture texture) { texture = InvalidationRing[index & (ChangeLogSize - 1)]; return texture != null; }
         public static long SyncCalls, SequenceReads;
         internal int ContextUseEpoch => _world.UseEpoch;
         // Texture.SignalGroupDirty of the candidate (the control's sets the flag only; nothing reads the epoch there).
@@ -1026,6 +1036,7 @@ namespace Ryujinx.Graphics.Gpu.Image
         {
             System.Threading.Interlocked.Increment(ref DirtyWriters);
             Dirty = true;
+            LogDirty(this);
             System.Threading.Interlocked.Increment(ref DirtyEpoch);
             System.Threading.Interlocked.Decrement(ref DirtyWriters);
         }
@@ -1040,6 +1051,7 @@ namespace Ryujinx.Graphics.Gpu.Image
 #endif
             ScaleMode = TextureScaleMode.Eligible;
 #if !NO_SCALE_SIGNAL
+            LogDirty(this);
             System.Threading.Interlocked.Increment(ref DirtyEpoch);
             System.Threading.Interlocked.Decrement(ref DirtyWriters);
 #endif
@@ -1060,6 +1072,7 @@ namespace Ryujinx.Graphics.Gpu.Image
         {
             System.Threading.Interlocked.Increment(ref InvalidationWriters);
             _sequence++;
+            LogInvalidation(this);
             System.Threading.Interlocked.Increment(ref InvalidationEpoch);
             System.Threading.Interlocked.Decrement(ref InvalidationWriters);
         }

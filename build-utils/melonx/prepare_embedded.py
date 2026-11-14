@@ -191,6 +191,8 @@ from adapt_darwin_timed_waits import apply as adapt_darwin_timed_waits
 from adapt_timer_earliest_wake import apply as adapt_timer_earliest_wake
 from adapt_keepalive_memory_hold import apply as adapt_keepalive_memory_hold
 from adapt_buffer_last_hit import apply as adapt_buffer_last_hit
+from adapt_partition_snapshot import apply as adapt_partition_snapshot
+from adapt_array_dirty_log import apply as adapt_array_dirty_log
 
 
 def replace_once(path, old, new):
@@ -579,6 +581,13 @@ def main():
     adapted += adapt_keepalive_memory_hold(source)
     # A range inside a buffer the cache just returned is answered without a search of the list (BufferCache.cs).
     adapted += adapt_buffer_last_hit(source)
+    # IPA 736, second lot (the launch and stderr journals: the GPU thread dispatches 36.7 ms per game frame). Guest
+    # memory accesses find their partition in a published array, without the lock the mappings, protections and fault
+    # handlers hold (AddressSpacePartitioned.cs).
+    adapted += adapt_partition_snapshot(source)
+    # A bound texture array synchronises and validates the textures that were signalled since its last complete state
+    # (two rings in Texture.cs), not every texture each time an epoch moved (TextureBindingsArrayCache.cs).
+    adapted += adapt_array_dirty_log(source)
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -725,7 +734,8 @@ def main():
                  'adapt_nifm_network_watch.py', 'adapt_paced_strict_syncs.py', 'adapt_sibling_pipelines.py',
                  'adapt_array_sync_epochs.py', 'adapt_collection_class.py',
                  'adapt_stall_compaction.py', 'adapt_wait_spin_bound.py', 'adapt_darwin_timed_waits.py',
-                 'adapt_timer_earliest_wake.py', 'adapt_keepalive_memory_hold.py', 'adapt_buffer_last_hit.py']:
+                 'adapt_timer_earliest_wake.py', 'adapt_keepalive_memory_hold.py', 'adapt_buffer_last_hit.py',
+                 'adapt_partition_snapshot.py', 'adapt_array_dirty_log.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

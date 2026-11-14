@@ -628,6 +628,15 @@ namespace Ryujinx.Graphics.Gpu.Image
         public void SynchronizeMemory() { }
         // Core 745 (adapt_array_sync_epochs): the members the final cache reads; nothing signals a texture here.
         internal static int DirtyEpoch, DirtyWriters, InvalidationWriters;
+        // IPA 736, second lot (adapt_array_dirty_log): the rings the final cache reads when an epoch moved; the double
+        // keeps the textures themselves. A writer appends after its flag (or sequence) and before its epoch.
+        internal const int ChangeLogSize = 1024;
+        internal static long DirtyLogCount, InvalidationLogCount;
+        static readonly Texture[] DirtyRing = new Texture[ChangeLogSize], InvalidationRing = new Texture[ChangeLogSize];
+        internal static void LogDirty(Texture texture) { long i = System.Threading.Interlocked.Increment(ref DirtyLogCount) - 1; DirtyRing[i & (ChangeLogSize - 1)] = texture; }
+        internal static void LogInvalidation(Texture texture) { long i = System.Threading.Interlocked.Increment(ref InvalidationLogCount) - 1; InvalidationRing[i & (ChangeLogSize - 1)] = texture; }
+        internal static bool TryReadDirtyLog(long index, out Texture texture) { texture = DirtyRing[index & (ChangeLogSize - 1)]; return texture != null; }
+        internal static bool TryReadInvalidationLog(long index, out Texture texture) { texture = InvalidationRing[index & (ChangeLogSize - 1)]; return texture != null; }
         internal int ContextUseEpoch => 0;
         public void SignalModified() { }
         public void BlacklistScale() => ScaleMode = TextureScaleMode.Blacklisted;

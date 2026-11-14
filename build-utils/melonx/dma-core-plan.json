@@ -103,7 +103,9 @@
   "build-utils/melonx/adapt_darwin_timed_waits.py",
   "build-utils/melonx/adapt_timer_earliest_wake.py",
   "build-utils/melonx/adapt_keepalive_memory_hold.py",
-  "build-utils/melonx/adapt_buffer_last_hit.py"
+  "build-utils/melonx/adapt_buffer_last_hit.py",
+  "build-utils/melonx/adapt_partition_snapshot.py",
+  "build-utils/melonx/adapt_array_dirty_log.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -207,7 +209,8 @@
   "src/Ryujinx.Graphics.Vulkan/HelperShader.cs",
   "src/Ryujinx.HLE/HOS/Services/Nifm/StaticService/IGeneralService.cs",
   "src/Ryujinx.Common/AsyncWorkQueue.cs",
-  "src/Ryujinx.Common/PreciseSleep/PreciseSleepHelper.cs"
+  "src/Ryujinx.Common/PreciseSleep/PreciseSleepHelper.cs",
+  "src/Ryujinx.Cpu/Jit/HostTracked/AddressSpacePartitioned.cs"
  ],
  "productionAdditions": [],
  "fixtureInputs": [
@@ -578,7 +581,8 @@
     "src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs",
     "src/Ryujinx.Graphics.Vulkan/Window.cs",
     "src/Ryujinx.Library/Library.cs",
-    "src/Ryujinx.Memory/IVirtualMemoryManager.cs"
+    "src/Ryujinx.Memory/IVirtualMemoryManager.cs",
+    "src/Ryujinx.Cpu/Jit/HostTracked/AddressSpacePartitioned.cs"
    ],
    "compiledBindings": [
     {
@@ -1255,6 +1259,15 @@
       "src/Ryujinx.Memory/IVirtualMemoryManager.cs"
      ],
      "productionPath": "src/Ryujinx.Memory/IVirtualMemoryManager.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Cpu/Jit/HostTracked/AddressSpacePartitioned.cs"
+     ],
+     "productionPath": "src/Ryujinx.Cpu/Jit/HostTracked/AddressSpacePartitioned.cs"
     }
    ]
   },

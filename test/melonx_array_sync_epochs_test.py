@@ -126,15 +126,24 @@ with tempfile.TemporaryDirectory(prefix='melonx-array-sync-epochs-') as temporar
     postimages = {}
     if FINAL_PREPARATION:
         # The tree built and executed as the candidate is the final preparation itself (later adapters included).
+        # IPA 736, second lot: adapt_array_dirty_log edits both files after this adapter (the rings in Texture.cs, the
+        # walks' fast paths in the cache). Its replacements are undone for the static reading of this adapter's own
+        # text; the fixture below compiles and executes the final cache, rings included.
+        import adapt_array_dirty_log as _log  # noqa: E402
+        check(files_edited_later('adapt_array_sync_epochs') == set(adapter.BASELINE), 'the later adapter edits these two files')
+        own = {}
         for name, pairs in adapter.FILE_PAIRS.items():
             final_text = (FINAL_SOURCE / name).read_text(encoding='utf-8-sig')
+            for old, new in reversed(_log.FILE_PAIRS[name]):
+                check(final_text.count(new) == 1, 'the later adapter\'s replacement, once: ' + new.strip().splitlines()[0][:70])
+                final_text = final_text.replace(new, old)
             for _, new in pairs:
                 check(final_text.count(new) == 1, 'replacement in the final preparation: ' + new.strip().splitlines()[-1][:70])
-            if name not in files_edited_later('adapt_array_sync_epochs'):
-                check((candidate / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
+            check(final_text == after[name], 'final preparation is the adapter (later adapter undone): ' + name)
+            own[name] = final_text
         shutil.rmtree(candidate)
         shutil.copytree(FINAL_SOURCE, candidate, ignore=ignore, symlinks=True)
-        after = {name: (candidate / name).read_text(encoding='utf-8-sig') for name in adapter.BASELINE}
+        after = own
         postimages = {name: sha(candidate / name) for name in adapter.BASELINE}
 
     # --- what makes a skipped walk a no-op, read in the source ---
@@ -231,6 +240,8 @@ with tempfile.TemporaryDirectory(prefix='melonx-array-sync-epochs-') as temporar
         result = run([DOTNET, 'run', '--project', str(work / 'test.csproj'), '-c', 'Release'], work, 1800)
         check(result.returncode == 0, f'fixture built and ran on the {variant}')
         reports[variant] = json.loads(next(line for line in result.stdout.splitlines() if line.startswith('{')))
+    if os.environ.get('MELONX_TEST_REPORTS'):
+        Path(os.environ['MELONX_TEST_REPORTS']).write_text(json.dumps(reports))
     check(compiled['control'] == adapter.BASELINE[adapter.CACHE] and compiled['candidate'] == sha(candidate / adapter.CACHE) != compiled['control'],
           'the fixture compiled the control\'s cache and the candidate\'s')
     # The check has teeth: the candidate's cache with a texture double whose scale mode leaves the blacklist without the
@@ -244,21 +255,28 @@ with tempfile.TemporaryDirectory(prefix='melonx-array-sync-epochs-') as temporar
     check(silent_fails, 'a scale mode that leaves the blacklist unsignalled is caught by the fixture: rc %s %s' % (wrong.returncode, (wrong.stdout + wrong.stderr)[-300:]))
 
 c, k = reports['control'], reports['candidate']
-check(c['checks'] == k['checks'] > 1_000_000, 'the same checks ran on both: %s / %s' % (c['checks'], k['checks']))
+# IPA 736, second lot (adapt_array_dirty_log): a synchronisation that signals another texture is followed in the same
+# update by the candidate (it reads the ring again), so a cascade can settle in fewer updates and run fewer per-update
+# checks; every other group runs the same checks.
+check(c['checks'] >= k['checks'] > 1_000_000, 'the same checks ran on both, cascades apart: %s / %s' % (c['checks'], k['checks']))
 groups = ('scenarios', 'shared', 'buffers', 'removals', 'failures', 'syncs', 'overflows', 'invalidations', 'quiet')
 for group in groups:
     check(c[group] == k[group] and len(c[group]) >= 2, f'{group}: the same backend contents, stores, uploads and texture states at every step')
 check(len(c['scenarios']) == 72 and c['counters'] == k['counters'] and c['deltaPasses'] == k['deltaPasses'],
       '72 random scenarios; the same elements rebuilt, visited and changed, the same delta passes')
-check(c['cascades'] == k['cascades'] and len(c['cascades']) == 24 and max(s['mostUpdates'] for s in c['cascades']) > 1,
-      'a synchronisation that signals another texture: the same state once settled')
+settled = lambda cascades: [{key: value for key, value in s.items() if key != 'mostUpdates'} for s in cascades]
+check(settled(c['cascades']) == settled(k['cascades']) and len(c['cascades']) == 24 and max(s['mostUpdates'] for s in c['cascades']) > 1 and
+      all(ks['mostUpdates'] <= cs['mostUpdates'] for cs, ks in zip(c['cascades'], k['cascades'])),
+      'a synchronisation that signals another texture: the same state once settled, in no more updates')
 for cw, kw in zip(c['writers'], k['writers']):
     n = kw['boundTextures']
     check(cw['quietSyncCalls'] == n and cw['quietSequenceReads'] == 2 * n, 'control: every quiet update walks the textures three times: %s' % cw)
     check(kw['quietSyncCalls'] == 0 and kw['quietSequenceReads'] == 0 and kw['quietAgainSyncCalls'] == 0 and kw['quietAgainSequenceReads'] == 0,
           'candidate: a quiet update walks nothing: %s' % kw)
-    check(kw['synchronisedWhileInFlight'] is True and kw['inFlightSyncCalls'] == n and kw['afterEpochSyncCalls'] == n,
-          'candidate: a dirty writer in flight makes the update walk, and the update after its epoch moved walks again: %s' % kw)
+    # IPA 736, second lot (adapt_array_dirty_log): the update after the writer's epoch moved reads its ring entry (one
+    # synchronisation, of the texture it signalled) instead of walking again.
+    check(kw['synchronisedWhileInFlight'] is True and kw['inFlightSyncCalls'] == n and kw['afterEpochSyncCalls'] == 1,
+          'candidate: a dirty writer in flight makes the update walk, and the update after its epoch moved reads its entry: %s' % kw)
     check(kw['inFlightSequenceReads'] == 2 * n and kw['afterWriterSequenceReads'] == n,
           'candidate: a sequence writer in flight makes both validations walk, the next one re-establishes: %s' % kw)
 visits = []

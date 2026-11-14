@@ -114,12 +114,15 @@ if FINAL_PREPARATION:
     # of the remap check). Its replacements in that file are undone, each once, from the final preparation before the
     # exact comparison; no other later adapter edits these files.
     LATER = later_sharing('adapt_remap_sweep_range')
-    check(LATER == ['adapt_array_sync_epochs'] and files_edited_later('adapt_remap_sweep_range') == {adapter.TEXTURE},
-          'the only later adapter on these files is adapt_array_sync_epochs, on Texture.cs: %s' % LATER)
+    # IPA 736, second lot: adapt_array_dirty_log then adds the rings of signalled textures to Texture.cs (nothing of the
+    # remap check either): undone first.
+    check(LATER == ['adapt_array_sync_epochs', 'adapt_array_dirty_log'] and files_edited_later('adapt_remap_sweep_range') == {adapter.TEXTURE},
+          'the only later adapters on these files are adapt_array_sync_epochs and adapt_array_dirty_log, on Texture.cs: %s' % LATER)
     import adapt_array_sync_epochs as epochs  # noqa: E402
+    import adapt_array_dirty_log as dirty_log  # noqa: E402
     for name in adapter.BASELINE:
         final_text = text(FINAL_SOURCE, name)
-        for old, new in reversed(epochs.FILE_PAIRS.get(name, ())):
+        for old, new in reversed(tuple(epochs.FILE_PAIRS.get(name, ())) + tuple(dirty_log.FILE_PAIRS.get(name, ()))):
             check(final_text.count(new) == 1, name + ': later replacement present once')
             final_text = final_text.replace(new, old)
         check(candidate_text[name] == final_text, name + ': the final preparation is the control plus the adapter\'s replacements (and the later adapter\'s)')

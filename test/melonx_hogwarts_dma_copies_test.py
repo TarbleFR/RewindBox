@@ -219,6 +219,10 @@ LOT_FILES = {
     'adapt_timer_earliest_wake': [],
     'adapt_keepalive_memory_hold': [],
     'adapt_buffer_last_hit': ['src/Ryujinx.Graphics.Gpu/Memory/BufferCache.cs'],
+    # IPA 736, second lot: the partition lookup without the lock (no file of this lot).
+    'adapt_partition_snapshot': [],
+    # IPA 736, second lot: the rings of signalled textures (no file of this lot).
+    'adapt_array_dirty_log': [],
 }
 
 checks = 0
