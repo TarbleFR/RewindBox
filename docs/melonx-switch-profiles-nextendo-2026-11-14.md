@@ -10,8 +10,8 @@ below has run on an iPhone.
 
 | Part | State |
 | --- | --- |
-| Switch profiles screen | Written; Dart analysed and tested locally; not compiled into an IPA |
-| Nextendo sign-in and account screen | Written; Dart analysed and tested locally against a stand-in server; Swift sheet written, not compiled; needs RewindBox's registration on Nextendo's side |
+| Switch profiles screen | Written; Dart analysed and tested locally; waits for delivery 739 |
+| Nextendo sign-in and account screen | Written; Dart analysed and tested locally against a stand-in server; the Swift sign-in sheet type-checks against the iPhone SDK (macOS runner); needs RewindBox's registration on Nextendo's side |
 | Game token at launch (Dart → Swift → engine request) | Written; inert with the current Core, which has no such request |
 | Engine online lot | Source only, outside every Core; builds locally on the current preparation; behaviour checked locally |
 | Online play on Nextendo's servers | Not possible yet: needs the three items of "What the maintainer must obtain" and a Core that includes the engine lot |
@@ -197,8 +197,9 @@ servers.
 
 ## Verification
 
-Local, Linux x86_64. Flutter 3.47.2 (Dart 3.13.2), .NET SDK 10.0.100, MeloNX
-`13700519`, RewindBox `b83935f0`.
+Local is Linux x86_64 with Flutter 3.47.2 (Dart 3.13.2) and .NET SDK 10.0.100; MeloNX `13700519`.
+
+Application side:
 
 - `flutter analyze` on the new Dart files: no issue. The two edited files keep
   the 20 informational notes they had.
@@ -208,12 +209,48 @@ Local, Linux x86_64. Flutter 3.47.2 (Dart 3.13.2), .NET SDK 10.0.100, MeloNX
   refusals and preservation; the whole Nextendo flow against a stand-in HTTP
   client (PKCE challenge, state, refresh rotation shared by two callers, expiry,
   game token, refusals, sign-out); both screens driven through their buttons.
-- Existing Dart tests that open the Switch menu: 26 passed
-  (`melonx_playlist_skins`, `melonx_import_completion`, `navigation512_switch`,
-  `melonx_presentation_widgets`, `jit_backend_preference_service`).
-- Engine: one `prepare_embedded.py` pass on a copy of pristine upstream (216
-  prepared members), LibHac rebuilt by `build_libhac.py`. Control: `Ryujinx.HLE`
-  builds. Candidate (adapter applied, digests matched): `Ryujinx.HLE` and
+- Existing checks. The first commit (`25f66ccc`) broke two of them, repaired in
+  `193c8233` without changing an assertion: `melonx_launch_flow_test.py` compiles
+  a copy of the launch service and could not resolve a relative import of the
+  new directory (now a package import; 15 of 15), and `storage_contract_test.py`
+  requires every file pick to be a declared import site (the picture pick is
+  `MelonxProfileAvatar.pickImage` and one registry entry; 25 of 25). The fixture
+  of `melonx_presentation_test.py` got the one-line double of the new plugin
+  class, as it has for the JIT bridge (`0b548b24`). Passing locally afterwards:
+  the Switch menu tests (21), `melonx_display`, `melonx_embedded_route`,
+  `melonx_library`, `melonx_transfer`, `melonx_library_files` (52), the Dart
+  tests that scan every source file (127), `game_box_strings`, `texture_labels`,
+  `theme_importer_retirement`, `melonx_live_capture` (40), `melonx_perf_journal`
+  (63), `melonx_standalone_parity` (64), `melonx_core_loaded` (8).
+- GitHub Actions on `193c8233`: "MeloNX display and memory settings" passed
+  (run 43539497558). "MeloNX launch checks" (run 43539497456): analysis and the
+  launch-ordering check passed; its last step, `game_audio_handoff_test.py`,
+  fails on `GameLaunchManager` getters (`S2ArmInternalService`,
+  `XeniaInternalBridge`) that its fixture does not declare. "MeloNX external
+  retirement and embedded route" (run 43539497459): the analysis of the whole
+  application and its seven Dart test files passed; the next step stops at
+  `retroarch_baseline_scope_test.py`, which pins the bytes of seven files
+  (`lib/main.dart`, `lib/services/config_service.dart`,
+  `native/neoswap-storage/Store.cpp` and four more) that other work changed; the
+  workflow's previous run, on 12 November, failed as well. The four scripts
+  behind it in that step pass locally (`local_dev_vpn_route_contract`,
+  `embedded_engine_route_contract`, `stikjit_unified_build`,
+  `single_ipa_distribution`). None of the files those two failures name belongs
+  to this lot.
+- Swift, GitHub Actions `macos-26`, run 43538947597 on `0b548b24`, passed in
+  full. Two of its steps cover this lot: every Swift source of the bridge
+  type-checks against the iPhone SDK and the pinned Flutter framework
+  (`MeloNXWebAuth.swift` and the plugin's two new requests included), and the
+  real registered plugin, built into an application, answers its presentation
+  scenarios in UIKit on an iOS simulator. This is the compilation proof the
+  delivery recipe asks for before a request (§ 3.11). The sign-in sheet itself
+  was not opened there.
+
+Engine lot:
+
+- One `prepare_embedded.py` pass on a copy of pristine upstream (216 prepared
+  members), LibHac rebuilt by `build_libhac.py`. Control: `Ryujinx.HLE` builds.
+  Candidate (adapter applied, digests matched): `Ryujinx.HLE` and
   `Ryujinx.Library` build, 0 errors. A harness on the candidate's assembly
   passed 102 checks: offline by default with the blacklist and the token
   unchanged; refused requests leave the engine offline; the documented rules
@@ -221,6 +258,20 @@ Local, Linux x86_64. Flutter 3.47.2 (Dart 3.13.2), .NET SDK 10.0.100, MeloNX
   claims; a clear returns everything to the default. The harness is kept as
   [evidence](evidence/melonx-online/README.md).
 
-Not done: the Swift files were not compiled (no Apple toolchain here); no
-NativeAOT build, no Core, no IPA; no request was sent to Nextendo's servers; no
-TLS handshake was exercised; nothing was observed on a device.
+Not done: no NativeAOT build, no Core; no request was sent to Nextendo's
+servers; no TLS handshake was exercised; nothing was observed on a device.
+
+Existing checks that fail or cannot run here, for reasons outside this lot:
+`navigation512_scope`, the script of `melonx_import_completion` and the "old
+widget" half of the script of `melonx_presentation_widgets` compare today's
+tree with historical bytes of files that other work changed since (the Dart
+test of the last two passes); `melonx_capture_journal` reads a commit that is
+not in the history of `Claude`; `library_books_3d_contract` fails on a delivery
+workflow line and `melonx_hogwarts_graphics_test.py` on a locale count.
+
+## Delivery
+
+Delivery 738 (another session) declared this lot's commits source only with
+`targetBuild` 739. Delivery 739 takes them: base 738, every engine kept, the
+application-side commits promoted, Flutter and native groups not-run. Its state
+is recorded under `docs/evidence/rewind739/` once delivered.
