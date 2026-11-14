@@ -382,8 +382,8 @@
     ],
     "sourceOnly": [],
     "promotedCommits": [],
-    "freezeCommit": "f923d9bc02c631cb65a671e451d39b3e5e95b961",
-    "freezeTree": "3cff3e6a1d4d06a32e320e3ab860aa99553bfdea",
+    "freezeCommit": "c35c42c8a28632475b0593d08bdcba74f7a8b9df",
+    "freezeTree": "7d47ddcb6e35366ad4e75ce2a78b9b5e1a2d050d",
     "baseEffectiveDigest": "c1fb4d6d3ae11b4e289ecaf83a71809602ab1a275aa168f2e6ebe28d999999e4",
     "inheritedDeferredPaths": [
       "build-utils/maintenance/actions-cleanup-2026-11-10-followup.json",
@@ -594,6 +594,18 @@
       {
         "commit": "f923d9bc02c631cb65a671e451d39b3e5e95b961",
         "subject": "test(delivery): the synthetic full-mode Core pin no longer inherits the compilation-only label of the real pin [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "8e321967d199856c8b0f56d5023be917bbd33d4f",
+        "subject": "[ipa-delivery:737] build the private test IPA 737: RPCS3 Core 936 with the heat probes, journal append fix, S2Arm lot",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "c35c42c8a28632475b0593d08bdcba74f7a8b9df",
+        "subject": "build(delivery): 737 republishes no RPCS3 host test archive (compilation-only Core pin has none) [skip ci]",
         "role": "recipe",
         "productPaths": 0
       }
@@ -1227,8 +1239,8 @@
     "melonx-dependencies"
   ],
   "frozen": {
-    "at": "2026-11-13T23:57:03Z",
-    "commit": "f923d9bc02c631cb65a671e451d39b3e5e95b961",
+    "at": "2026-11-14T00:11:10Z",
+    "commit": "c35c42c8a28632475b0593d08bdcba74f7a8b9df",
     "tool": "standard_delivery.py freeze",
     "inCI": false
   }
