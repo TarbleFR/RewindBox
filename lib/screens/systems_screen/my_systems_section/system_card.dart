@@ -9,6 +9,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import '../../../l10n/glacier_locale.dart';
@@ -62,6 +63,32 @@ class SystemCard extends StatefulWidget {
 
   @override
   State<SystemCard> createState() => _SystemCardState();
+}
+
+/// Corners of a grid system card around its art.
+///
+/// The art sits [artInset] inside the card and is rounded with the theme's
+/// internal radius (the Corners setting). A card clip or bubble rounder than
+/// that radius plus the inset cuts across the art's top corners: a wide arc
+/// over a few pixels, which reads as a straight bevel, while the bottom
+/// corners, above the logo, keep their round. The card and its bubble are
+/// therefore never rounder than the art plus its inset, so the four corners
+/// of the art are alike.
+abstract final class SystemCardCorners {
+  /// Space between the card's edge and its art (top, left and right).
+  static double get artInset => 4.r;
+
+  /// Corner radius of the art, as the card draws it.
+  static double art(BuildContext context) =>
+      Theme.of(context).extension<CornerRadii>()?.radiusInternalRadius ?? 25.r;
+
+  /// Clip of the card.
+  static double clip(BuildContext context) =>
+      math.min(27.r, art(context) + artInset);
+
+  /// System bubble of the card, and the grid's focus bubble over it.
+  static double bubble(BuildContext context) =>
+      math.min(30.r, art(context) + artInset);
 }
 
 class _SystemCardState extends State<SystemCard> {
@@ -259,7 +286,7 @@ class _SystemCardState extends State<SystemCard> {
             borderRadius: widget.info.isGame
                 ? Theme.of(context).extension<CornerRadii>()?.radiusInternal ??
                       BorderRadius.circular(9.r)
-                : BorderRadius.circular(27.r),
+                : BorderRadius.circular(SystemCardCorners.clip(context)),
             child: InkWell(
               focusNode: _focusNode,
               onTap: () {
@@ -280,10 +307,10 @@ class _SystemCardState extends State<SystemCard> {
               splashColor: Colors.transparent,
               child: Padding(
                 padding: EdgeInsets.only(
-                  top: 4.r,
+                  top: SystemCardCorners.artInset,
                   bottom: 0.r,
-                  left: 4.r,
-                  right: 4.r,
+                  left: SystemCardCorners.artInset,
+                  right: SystemCardCorners.artInset,
                 ),
                 child: widget.info.isGame
                     ? Column(
@@ -607,7 +634,7 @@ class _SystemCardState extends State<SystemCard> {
     if (!LiquidGlassTheme.of(context).settings.showSystemBubbles) return child;
     return NeoGlassBubble(
       selected: widget.isSelected,
-      radius: 30.r,
+      radius: SystemCardCorners.bubble(context),
       child: child,
     );
   }

@@ -1174,7 +1174,7 @@ class _SystemCardGridViewState extends State<SystemCardGridView> {
                   child: LiquidGlassTheme.of(context).settings.showSystemBubbles
                       ? NeoGlassBubble(
                           selected: true,
-                          radius: 30.r,
+                          radius: SystemCardCorners.bubble(context),
                           child: const SizedBox.expand(),
                         )
                       : const SystemSelectionMarker(),
