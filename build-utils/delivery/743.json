@@ -352,9 +352,9 @@
     ],
     "sourceOnly": [
       {
-        "commit": "18d295c2079ab34e3045b1d6883b25a0846ab692",
+        "commit": "d1df8270c41f6b72cebb8d8d782c5a2bd79a806d",
         "targetBuild": 744,
-        "note": "Another session's lighter credits (NOTICE.md and legal docs, licences kept); NOTICE.md is embedded in the IPA; not written or reviewed by this session, kept deferred."
+        "note": "S2Arm session's engine patch 0022 (build-utils/s2arm/engine: patch and README), compiled by its own producer run and not pinned yet; this delivery keeps the base's S2Arm engine (unchangedFromBase), so the patch is not in this IPA; not written or reviewed by this session."
       }
     ],
     "promotedCommits": []
