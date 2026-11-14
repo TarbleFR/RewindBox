@@ -62,7 +62,7 @@
       "packaging": "build-utils/melonx/package_runtime.py",
       "image": "Frameworks/MeloNXCore.framework/MeloNXCore",
       "producerRoute": ".github/workflows/melonx-core.yml",
-      "pinSha256": "5363a5889415a3995ef31fff237f28ebdeb89520e83791f821c372b1d89d051a"
+      "pinSha256": "bf4c9d46d1ebe89d7b4ea3ef57c99f7105cf9f9174bc635d7f68820489b81cd5"
     },
     "dolphin": {
       "mode": "retain",
@@ -258,7 +258,7 @@
     "xenia": {
       "mode": "pinned-engine",
       "pin": "build-utils/xenia/core-pin.json",
-      "pinSha256": "c7d6a5c4756e4441c2686d99c5889913e5bf56dcb3f19c8338758c36c09540e9",
+      "pinSha256": "5e81f59ee2f89b7f99e516f5d41cd5ec2afa73296891a27b7a56d8ae004a30a5",
       "verifier": "build-utils/xenia/core_pin.py",
       "identityFile": "Xenia-native-identity.json",
       "frameworks": [
@@ -371,6 +371,11 @@
         "commit": "0b548b24209073722b0c7d8d861d721a4a5b5a12",
         "targetBuild": 739,
         "note": "Nextendo session: the MeloNX presentation test double for its sign-in sheet plugin (follows 25f66cccb, source only here); not reviewed here."
+      },
+      {
+        "commit": "17086c037480ff2f413ade58b160562b8e2206df",
+        "targetBuild": 739,
+        "note": "S2Arm session: engine patch 0020 (large CPU texture uploads staged in pieces) and its compile request [s2arm-engine]; the S2Arm engine of 738 is the base's pin, so the patch waits for its own engine pin."
       }
     ],
     "promotedCommits": [
