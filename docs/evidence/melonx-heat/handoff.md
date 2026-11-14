@@ -331,3 +331,7 @@ are unchanged; VK_SUCCESS is signalled, VK_NOT_READY is not, an error throws as 
 composes, builds and binds both files with the final Vulkan assembly; the gates that iterate the adapter order pass.
 Expected on the device: FreeConsumed and libsystem_pthread's share of the render thread lower. Not measured on an
 iPhone.
+
+Core of the third lot (with the second): da2525a1 (run 43544952386, build-smoke: NativeAOT and ABI verified, two
+simulator sessions; artifact 14094186931, SHA-256 530a2ade, iPhone binary 0dc51125, packaged fingerprint b7945f96,
+contract e49e1185), verified locally with melonx_dma_core_component and pinned, for delivery 740 (XeniOS session).

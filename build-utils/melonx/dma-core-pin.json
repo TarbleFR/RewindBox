@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "f5827bba1477ec7f24af7100005de30866408512",
-  "run": 43543359505,
-  "job": 132288776638,
+  "source": "da2525a1801c4b6c2774a3e90e41b97bfd1cb4db",
+  "run": 43544952386,
+  "job": 132293986863,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 14092773030,
-  "name": "MeloNX-engine-f5827bba1477ec7f24af7100005de30866408512",
-  "bytes": 100478996,
-  "sha256": "90e625a8e7d3f747e1465cf842568bfa33e7c3ecd95a9b4d5137b8b1b2fa51ae",
-  "expiresAt": "2027-02-12T01:55:00Z",
+  "artifact": 14094186931,
+  "name": "MeloNX-engine-da2525a1801c4b6c2774a3e90e41b97bfd1cb4db",
+  "bytes": 100483204,
+  "sha256": "530a2ade1743718abad9d8438c4de25a6f14dbf6cdddf27d87e1e7ae45704f9b",
+  "expiresAt": "2027-02-12T02:12:08Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "362b9852a70cc20511155f5911237daaabee920e5a5af071d7fcbfe4b414961c",
+      "sha256": "0dc511257f924a53cae62fe784a61fd7c8e6b7a0dd5a612ca53d0faecf327364",
       "bytes": 38555096
     },
     "iossimulator-arm64": {
-      "sha256": "252dda6fbaf1073f4e16c1832067144f2353f56f66382d2e1a3977395ec4af89",
+      "sha256": "ebe25ba90bebf2b6d6e1231d530f4cb6c6a409959fb0cc4fecbe0224026041e3",
       "bytes": 38872904
     }
   },
   "identities": {
-    "ios-arm64": "cbe43acac1a6c9bc21c8af51e786953c5a35aeffb79e587524c149eae8f48058",
-    "iossimulator-arm64": "e5c62f3ccc997435706f57bd343b6c3dd7b1550a1d3888c3521256f6261866d0"
+    "ios-arm64": "64d39281ab6de226c0bbfea3792994409f87a0acc008944dc9facaeebecbaae6",
+    "iossimulator-arm64": "3a1828d04e27cbd31b764000cdd038ef4a76928f2fc935ad875d7eca80695f25"
   },
-  "contractSha256": "10f1669043a2ae484759d2c36e01c3f1b5eedf7db2232d6043ddc92746a231bf",
-  "resultSha256": "f982d36d27935877d4e63c92b9a17293ad5052c4ac9a526a344e5552ca7a8b80",
-  "packagedFingerprint": "f3e5270fc56805b3b84217539b2f13a6e36bf1b1775352d7b4a815f610db5678",
+  "contractSha256": "e49e1185305b0ec1486e6c08ec1b43200c77657ff7cf715e3da89a7624486a82",
+  "resultSha256": "6911c56a136316c462a6e2c23ef9670c62e5b54141e5b755fa62d433ca927f9c",
+  "packagedFingerprint": "b7945f96cc9f6fd2a9e64411149851a789d4aea88ce2bf1cc40f5a86210561c5",
   "replaces": {
-    "source": "b83935f0b278a162e0f481e0852e0ada7a1ee209",
-    "run": 43535900995,
-    "artifact": 14090181583,
-    "packagedFingerprint": "704b51c4abee74cca52cc7c1972d29284f00c7f782d2b394ac208a8e4374cb2e",
-    "reason": "IPA 736 second lot for the GPU thread (no probe added): guest memory partition lookup without the partitions lock, bound texture arrays driven by rings of signalled textures; build-smoke route, 0 fresh exhaustive fixtures, 106 deferred, two actual simulator sessions. No iPhone gameplay, frame rate or thermal gain is claimed."
+    "source": "f5827bba1477ec7f24af7100005de30866408512",
+    "run": 43543359505,
+    "artifact": 14092773030,
+    "packagedFingerprint": "f3e5270fc56805b3b84217539b2f13a6e36bf1b1775352d7b4a815f610db5678",
+    "reason": "IPA 736 third lot for the render thread (no probe added): a fence's state read with vkGetFenceStatus instead of a zero-timeout vkWaitForFences, on the second lot (partition lookup without the lock, texture arrays driven by rings of signalled textures); build-smoke route, 0 fresh exhaustive fixtures, 106 deferred, two actual simulator sessions. No iPhone gameplay, frame rate or thermal gain is claimed."
   }
 }
