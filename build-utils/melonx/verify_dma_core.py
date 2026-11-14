@@ -116,7 +116,9 @@ ARRAY_COUNTERS = arrays.ARRAY_COUNTERS
 # 102 with Core 745 (a closed session is not kept by nifm's network address subscription; Hogwarts Legacy paces its
 # strict host syncs and voluntary submissions; programs of one code share the pipelines they hold; a bound texture
 # array walks its textures when one of them needs it).
-FRESH_GATES = 106
+# 108 with the IPA 740 lot (on Apple platforms the adaptive spin yields without the depression to priority 0;
+# the core87 auto-ownership proof run again on the final command-buffer ownership).
+FRESH_GATES = 108
 HISTORICAL_RECEIPTS = 61
 
 

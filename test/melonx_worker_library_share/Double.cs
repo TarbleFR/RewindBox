@@ -205,6 +205,20 @@ namespace Ryujinx.Common {
 namespace Ryujinx.Graphics.GAL.Multithreading { static class HostThreadQos { public static void RaiseCurrentThread() { } } }
 
 namespace Ryujinx.Graphics.Vulkan {
+    // The device memory PipelineVariantJournal.DeviceAvailablePercent reads (GC.GetGCMemoryInfo) for the share's low-memory
+    // refusal: an iPhone with room, at its last GC as build 609 measured it (docs/evidence/hogwarts609-device-20261101: 7 989 460 992
+    // bytes, load 5 592 622 694, DeviceAvailablePercent 31), not the host's. On a Linux container the GC gives the load against the
+    // cgroup limit and the total as 75 % of it (the default heap hard limit), with the page cache the container's builds
+    // left counted as used: 0 to 3 % after hours of builds, and every share was refused as memory low. Shadows System.GC
+    // for PipelineCacheManager.cs only (this namespace); a new GC use there fails to build here instead of reading the host.
+    readonly struct GCMemoryInfo {
+        public long TotalAvailableMemoryBytes { get; init; }
+        public long MemoryLoadBytes { get; init; }
+    }
+    static class GC {
+        public static GCMemoryInfo GetGCMemoryInfo() => new() { TotalAvailableMemoryBytes = 7_989_460_992, MemoryLoadBytes = 5_592_622_694 };
+    }
+
     class VulkanPhysicalDevice {
         public PhysicalDeviceProperties PhysicalDeviceProperties;
         public bool SupportsPipelineCreationCacheControl(Vk api) => true;

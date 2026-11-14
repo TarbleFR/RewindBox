@@ -234,6 +234,9 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'darwin-timed-waits': 'delivered',
             # IPA 740 lot: on Apple platforms the adaptive spin yields without the depression to priority 0.
             'darwin-spin-yield': 'delivered',
+            # IPA 740 lot: the core87 auto-ownership receipt declares Auto.cs and CommandBufferPool.cs, which
+            # adapt_command_buffer_ownership changes: run again on the final source against the delivered one.
+            'auto-ownership': 'delivered',
             # Core 743: its receipt declares SyncManager.cs, which adapt_submit_causes changes: run again on the final one.
             'sync-allocations': 'delivered',
             # Core 661: the native display fixture declares EmbeddedMemory.cs (adapt_safe_point_compaction): rerun.
@@ -325,6 +328,9 @@ RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'pe
          'counter-report-compaction-final-checks.json',
          # Core 642: the barrier ordering adapter changes BarrierBatch.cs, which this core87 receipt declares.
          CORE87 + 'barrier-compaction-checks.json',
+         # IPA 740 lot: adapt_command_buffer_ownership changes Auto.cs and CommandBufferPool.cs, which this core87 receipt
+         # declares; it is run again on the final source (auto-ownership).
+         CORE87 + 'auto-ownership-checks.json',
          # Core 654: the collector changes (gcEvent lines), which this receipt declares as a postimage.
          'single-virtual-dependency-final-checks.json',
          *(CORE87 + name for name in ('scalar-texture-descriptor-checks.json', 'fallback-descriptor-scratch-checks.json',
