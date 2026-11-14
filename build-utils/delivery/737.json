@@ -1220,7 +1220,6 @@
   },
   "republish": [
     "rpcs3-core",
-    "rpcs3-host-tests",
     "melonx-core",
     "dolphin",
     "armsx2",
