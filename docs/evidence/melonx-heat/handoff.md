@@ -437,3 +437,7 @@ contract c3835954. Investigations of the same round: no crash, device loss or pi
 largest render-thread freeze is one first build of a new compute program (about 980 ms, mostly Metal compilation); the
 variant journal is full (at least 163 new states unrecorded in Hogwarts, 107 and 251 in two SSBU sessions). Fixes for
 these two are staged for the next lot. Not measured on an iPhone.
+
+Core of the lot after IPA 745: 03a889f6 (run 43622519313, build-smoke: NativeAOT and ABI verified, two simulator
+sessions; artifact 14125675167, SHA-256 e02677e6, iPhone binary 094cbf52, packaged fingerprint 07113714, contract
+c3835954), verified locally with melonx_dma_core_component and pinned, for the next MeloNX delivery (this session).
