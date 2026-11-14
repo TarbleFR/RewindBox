@@ -1,0 +1,91 @@
+{
+  "date": "2026-11-14",
+  "scope": "Local verification of the Switch profiles and Nextendo Network lot. No Core, no IPA, no device, no request to Nextendo.",
+  "host": {
+    "os": "Linux x86_64",
+    "flutter": "3.47.2",
+    "dart": "3.13.2",
+    "dotnetSdk": "10.0.100",
+    "dotnetRuntimeForLibHacTools": "8.0.34"
+  },
+  "source": {
+    "rewindBox": "b83935f0b278a162e0f481e0852e0ada7a1ee209 plus this lot",
+    "meloNX": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+    "libHac": "23e402ebb6dedc517e34a98a033078dc0f6fd478"
+  },
+  "application": {
+    "analyze": {
+      "newFiles": "no issue",
+      "editedFiles": "20 informational notes before and after"
+    },
+    "localDartTests": {
+      "passed": 18,
+      "failed": 0,
+      "inRepository": false,
+      "files": {
+        "profiles, JPEG encoder, pictures": 7,
+        "Nextendo client and launch decision": 9,
+        "both screens": 2
+      }
+    },
+    "existingDartTests": {
+      "passed": 26,
+      "failed": 0,
+      "files": [
+        "test/melonx_playlist_skins_test.dart",
+        "test/melonx_import_completion_test.dart",
+        "test/navigation512_switch_test.dart",
+        "test/melonx_presentation_widgets_test.dart",
+        "test/jit_backend_preference_service_test.dart"
+      ]
+    },
+    "swift": "not compiled (no Apple toolchain on this host)"
+  },
+  "engine": {
+    "preparation": {
+      "script": "build-utils/melonx/prepare_embedded.py",
+      "preparedMembers": 216
+    },
+    "libHacPackageSha256": "b85f019651160aab9a077d748f0be7e5d4aa4cbfe591a328633eebeac52d2e1e",
+    "control": {
+      "project": "src/Ryujinx.HLE",
+      "errors": 0
+    },
+    "candidate": {
+      "adapter": "build-utils/melonx/online/adapt_nextendo_online.py",
+      "adapterSha256": "52d30c62f13ac0af243c8a255b2ac6a663b89d07e1a012a7dc6c4ab9a4ab932c",
+      "onlineSourceSha256": "065ff8127afa080e4cd2a8faa55e6cefc65b52c71b19622a260699764eb151de",
+      "projects": {
+        "src/Ryujinx.HLE": {
+          "errors": 0
+        },
+        "src/Ryujinx.Library": {
+          "errors": 0
+        }
+      },
+      "postimages": {
+        "src/Ryujinx.HLE/HOS/Services/Account/Acc/AccountService/ManagerServer.cs": "f59c4af76e42c6a137386f16c5a2830bacd1ec9bcdae8543abc52f16425a8d64",
+        "src/Ryujinx.HLE/HOS/Services/Sockets/Sfdnsres/Proxy/DnsMitmResolver.cs": "ac37f0b483a3fbda7589396ac0def2803761374eb61eddcf2d010cc5a21a9010",
+        "src/Ryujinx.HLE/HOS/Services/Sockets/Sfdnsres/Proxy/DnsBlacklist.cs": "0f78d1ae9b0b7579a1670365cdabe4d6c83aee6655792e34cef1c581530cc020",
+        "src/Ryujinx.HLE/HOS/Services/Ssl/SslService/SslManagedSocketConnection.cs": "777ef739eee9d53bf633ae847c3dc644b7fa8809c27588df2ff51a5d3ccc8d40",
+        "src/Ryujinx.Library/EmbeddedSession.cs": "81cddcb275c422400dedf4e36de134c698fa67e60dbb765e13efe274c76f35ff",
+        "src/Ryujinx.Library/EmbeddedContent.cs": "c6264dd297ebcf7fe194eeebb7e5a18c5896a80d85bf25eafc40ff78a4944d50",
+        "src/Ryujinx.HLE/EmbeddedOnline.cs": "065ff8127afa080e4cd2a8faa55e6cefc65b52c71b19622a260699764eb151de"
+      }
+    },
+    "harness": {
+      "source": "docs/evidence/melonx-online/harness-Program.cs.txt",
+      "sha256": "392deb7458bf6fe118a6d33924d9713e49b87b7c6a7f9a0a8a6e452aa1b4aa30",
+      "checks": 102,
+      "result": "passed",
+      "runtime": "JIT on Linux; NativeAOT for iOS not exercised"
+    },
+    "notRun": [
+      "NativeAOT publish for ios-arm64 and iossimulator-arm64",
+      "TLS handshake",
+      "any network request",
+      "the freeze of the Core contract",
+      "any iPhone"
+    ]
+  }
+}

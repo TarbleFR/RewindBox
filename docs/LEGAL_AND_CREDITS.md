@@ -137,6 +137,13 @@ software** merely because RewindBox interoperates with them:
 - **Nintendo Europe** — https://www.nintendo.com/eu/ — Nintendo's own French
   PDF manuals of DS games, when scraping in French (§ 26).
 - **RetroAchievements** — https://retroachievements.org/
+- **Nextendo Network** — https://nextendo.network/ — optional, community-run
+  online service for Switch games, independent of Nintendo. RewindBox reaches it
+  as a third-party application registered on the Nextendo Developers portal
+  (OAuth 2.0 PKCE; the player signs in on nextendo.network). RewindBox's client
+  is written from Nextendo's public developer documentation; Nextendo's own
+  client and server source (PolyForm Shield License 1.0.0) is neither copied nor
+  adapted. See [Switch profiles and Nextendo](melonx-switch-profiles-nextendo-2026-11-14.md).
 - **LocalDevVPN** — user-installed external application when that route is used.
 
 Their own terms, licenses, privacy policies and service rules apply.
@@ -528,6 +535,7 @@ package (MIT), and EPUB/XHTML parsing uses the Dart
 | **NeoSwap memory research** | Stossy/MeloNX for the allocation ideas [studied and adapted](neoswap-melonx-2026-10-11.md), and Guest Page Relay contributors for the [MIT-licensed relay prototype](../assets/legal/Guest-Page-Relay-MIT.txt). |
 | **ScreenScraper** | [ScreenScraper.fr](https://www.screenscraper.fr/) metadata and media service. |
 | **RetroAchievements** | [RetroAchievements](https://retroachievements.org/) project, API and community. |
+| **Nextendo Network** | [Nextendo Network](https://nextendo.network/) team and community, for the optional online service and its public developer documentation. Not affiliated with Nintendo; not affiliated with RewindBox. |
 | **GameDB / GameDB-PS3** | **Niema / [@niemasd](https://github.com/niemasd)**, creator of [GameDB](https://github.com/niemasd/GameDB) and [GameDB-PS3](https://github.com/niemasd/GameDB-PS3). RewindBox uses `PS3.titles.json` as a fallback title catalog. GameDB asks downstream projects to credit GameDB and its source datasets; GameDB-PS3 lists **MiSTer Addons** and **Redump** as sources. |
 | **NeoStation Assets** | Optional runtime-downloaded System Art from [misobadev/neostation-assets](https://github.com/misobadev/neostation-assets). Original creative assets are CC BY-NC-SA 4.0; trademarks remain with their owners. |
 | **RiiSU / iiSU** | [RiiSU](https://github.com/mult1v4c/RiiSU) credits [iiSU Interpreted for ES-DE](https://github.com/VictorUnlocked/iisu-interpreted-es-de) for system art icons and [iiSU Network](https://iisu.network/) for the original inspiration. RiiSU remains remotely hosted and is downloaded only when selected. |

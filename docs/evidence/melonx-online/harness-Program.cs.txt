@@ -1,0 +1,140 @@
+using System;
+using System.Collections.Generic;
+using System.Net;
+using System.Reflection;
+using System.Text;
+using System.Text.Json;
+using Ryujinx.HLE;
+
+static class Program
+{
+    static int checks;
+    static void Check(bool condition, string what)
+    {
+        checks++;
+        if (!condition) { Console.Error.WriteLine("FAIL: " + what); Environment.Exit(1); }
+    }
+    static bool Throws<T>(Action action) where T : Exception
+    {
+        try { action(); return false; } catch (T) { return true; }
+    }
+    static string B64(string part)
+    {
+        string padded = part.Replace('-', '+').Replace('_', '/');
+        padded += new string('=', (4 - padded.Length % 4) % 4);
+        return Encoding.UTF8.GetString(Convert.FromBase64String(padded));
+    }
+
+    static int Main()
+    {
+        Assembly hle = typeof(EmbeddedOnline).Assembly;
+        Type blacklist = hle.GetType("Ryujinx.HLE.HOS.Services.Sockets.Sfdnsres.Proxy.DnsBlacklist", true);
+        Type resolver = hle.GetType("Ryujinx.HLE.HOS.Services.Sockets.Sfdnsres.Proxy.DnsMitmResolver", true);
+        Type manager = hle.GetType("Ryujinx.HLE.HOS.Services.Account.Acc.AccountService.ManagerServer", true);
+        MethodInfo blocked = blacklist.GetMethod("IsHostBlocked", BindingFlags.Public | BindingFlags.Static);
+        object instance = resolver.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static).GetValue(null);
+        MethodInfo resolve = resolver.GetMethod("ResolveAddress");
+        MethodInfo token = manager.GetMethod("GenerateIdToken", BindingFlags.NonPublic | BindingFlags.Static);
+        const string mk8 = "g2b309e01-lp1.s.n.srv.nintendo.net";
+        const string smash = "g22306d00-lp1.s.n.srv.nintendo.net";
+
+        // Offline (the default): nothing is redirected, Nintendo's servers stay refused, the token has no game claim.
+        Check(!EmbeddedOnline.Enabled, "offline by default");
+        Check(EmbeddedOnline.Redirect(mk8) == null, "no redirect offline");
+        Check((bool)blocked.Invoke(null, [mk8]), "blacklist intact offline");
+        Check(!EmbeddedOnline.IsServer(IPAddress.Parse("203.0.113.7")), "no server offline");
+        string offline = (string)token.Invoke(null, ["4.0.1"]);
+        string[] offlineParts = offline.Split('.');
+        Check(offlineParts.Length == 3, "offline token shape");
+        using (JsonDocument payload = JsonDocument.Parse(B64(offlineParts[1])))
+        {
+            Check(!payload.RootElement.TryGetProperty("nnex", out _), "no nnex offline");
+            Check(!payload.RootElement.TryGetProperty("tv", out _), "no tv offline");
+            Check(payload.RootElement.GetProperty("iss").GetString() == "https://e0d67c509fb203858ebcb2fe3f88c2aa.baas.nintendo.com", "issuer kept");
+        }
+        using (JsonDocument header = JsonDocument.Parse(B64(offlineParts[0])))
+            Check(header.RootElement.GetProperty("kid").GetString() != "nextendo-baas-key-1", "upstream key id offline");
+
+        // Refused requests leave the engine offline.
+        foreach (string bad in new[] {
+            "[]", "{\"nexToken\":\"nx2.a.b\"}", "{\"nexToken\":\"abc\",\"serverAddress\":\"203.0.113.7\",\"natAddress\":\"203.0.113.8\"}",
+            "{\"nexToken\":\"nx2.a.b\",\"serverAddress\":\"example.org\",\"natAddress\":\"203.0.113.8\"}",
+            "{\"nexToken\":\"nx2.a.b\",\"serverAddress\":\"127.0.0.1\",\"natAddress\":\"203.0.113.8\"}",
+            "{\"nexToken\":\"nx2.a.b\",\"serverAddress\":\"2001:db8::1\",\"natAddress\":\"203.0.113.8\"}",
+            "{\"nexToken\":\"nx2.a b\",\"serverAddress\":\"203.0.113.7\",\"natAddress\":\"203.0.113.8\"}",
+            "{\"nexToken\":\"nx2." + new string('a', 1100) + "\",\"serverAddress\":\"203.0.113.7\",\"natAddress\":\"203.0.113.8\"}" })
+        {
+            Check(Throws<FormatException>(() => EmbeddedOnline.Configure(bad)), "refused: " + bad[..Math.Min(40, bad.Length)]);
+            Check(!EmbeddedOnline.Enabled, "offline after a refusal");
+        }
+        Check(Throws<JsonException>(() => EmbeddedOnline.Configure("{not json")), "invalid JSON refused");
+        EmbeddedOnline.Configure("{}");
+        Check(!EmbeddedOnline.Enabled, "empty request is offline");
+        EmbeddedOnline.Configure("");
+        Check(!EmbeddedOnline.Enabled, "blank request is offline");
+
+        // Online: the documented rules.
+        const string game = "nx2.MTgwMDAwMDA0Mi50YXJibGUuMTc5OTk5OTk5OQ.c2lnbmF0dXJl";
+        EmbeddedOnline.Configure("{\"nexToken\":\"" + game + "\",\"serverAddress\":\"203.0.113.7\",\"natAddress\":\"203.0.113.8\"}");
+        Check(EmbeddedOnline.Enabled, "online configured");
+        IPAddress server = IPAddress.Parse("203.0.113.7"), nat = IPAddress.Parse("203.0.113.8");
+        (string host, IPAddress to)[] rules =
+        [
+            ("nncs2-lp1.n.n.srv.nintendo.net", nat), ("NNCS2-LP1.N.N.SRV.NINTENDO.NET", nat), (mk8, nat),
+            ("g2df33d01-lp1.p.srv.nintendo.net", nat),
+            ("nncs1-lp1.n.n.srv.nintendo.net", server), (smash, server), ("dauth-lp1.ndas.srv.nintendo.net", server),
+            ("e0d67c509fb203858ebcb2fe3f88c2aa.baas.nintendo.com", server), ("conntest.nintendowifi.net", server),
+            ("www.nintendo.co.jp", server), ("demonware.net", server), ("mww3-switch.demonware.net", server),
+            ("pvzgw3prodapp-01.ea.com", server), ("public-ubiservices.ubi.com", server), ("eu.ultimatechickenhorseserver.com", server),
+        ];
+        foreach ((string host, IPAddress to) in rules)
+        {
+            Check(to.Equals(EmbeddedOnline.Redirect(host)), "rule " + host);
+            Check(!(bool)blocked.Invoke(null, [host]), "not refused when redirected: " + host);
+            IPHostEntry entry = (IPHostEntry)resolve.Invoke(instance, [host]);
+            Check(entry.AddressList.Length == 1 && entry.AddressList[0].Equals(to) && entry.HostName == host, "resolver " + host);
+        }
+        foreach (string other in new[] { "example.org", "nintendo.net", "evilnintendo.com", "nintendo.com.example.org", "ubi.com", "ea.com", "" })
+            Check(EmbeddedOnline.Redirect(other) == null, "not redirected: " + other);
+        Check(EmbeddedOnline.IsServer(server) && EmbeddedOnline.IsServer(nat), "both servers accepted for TLS");
+        Check(EmbeddedOnline.IsServer(server.MapToIPv6()), "IPv4-mapped peer recognised");
+        Check(!EmbeddedOnline.IsServer(IPAddress.Parse("203.0.113.9")) && !EmbeddedOnline.IsServer(null), "no other peer accepted");
+        Check(EmbeddedOnline.HostFor(server) == "eu.ultimatechickenhorseserver.com", "SNI is the name last redirected to the server");
+        Check(EmbeddedOnline.HostFor(nat) == "g2df33d01-lp1.p.srv.nintendo.net", "SNI for the NAT address");
+        Check(EmbeddedOnline.HostFor(IPAddress.Parse("198.51.100.1")) == null, "no SNI for an unknown peer");
+
+        // The id_token carries the documented claims, RS256, three hours.
+        string online = (string)token.Invoke(null, ["4.0.1"]);
+        string[] parts = online.Split('.');
+        Check(parts.Length == 3 && online.Length < 0xC00, "online token shape and size (" + online.Length + ")");
+        using (JsonDocument header = JsonDocument.Parse(B64(parts[0])))
+        {
+            Check(header.RootElement.GetProperty("alg").GetString() == "RS256", "RS256");
+            Check(header.RootElement.GetProperty("kid").GetString() == "nextendo-baas-key-1", "documented key id");
+        }
+        using (JsonDocument payload = JsonDocument.Parse(B64(parts[1])))
+        {
+            JsonElement p = payload.RootElement;
+            Check(p.GetProperty("nnex").GetString() == game, "nnex is the game token");
+            Check(p.GetProperty("tv").GetString() == "4.0.1", "tv is the installed version");
+            Check(p.GetProperty("hm").ValueKind == JsonValueKind.True, "hm true");
+            Check(Guid.TryParse(p.GetProperty("jti").GetString(), out _), "jti is a UUID");
+            Check(p.GetProperty("aud").GetString() == "ed9e2f05d286f7b8", "aud");
+            Check(p.GetProperty("jku").GetString() == "https://e0d67c509fb203858ebcb2fe3f88c2aa.baas.nintendo.com/1.0.0/certificates", "jku");
+            Check(p.GetProperty("sn").GetString() == "XAW10000000000", "sn");
+            Check(p.GetProperty("sub").GetString().Length == 32 && p.GetProperty("di").GetString().Length == 32 && p.GetProperty("bs:did").GetString().Length == 32, "sub, di, bs:did");
+            long lifetime = p.GetProperty("exp").GetInt64() - p.GetProperty("iat").GetInt64();
+            Check(lifetime == 3 * 3600, "three hours (" + lifetime + ")");
+        }
+        string blank = (string)token.Invoke(null, new object[] { null });
+        using (JsonDocument payload = JsonDocument.Parse(B64(blank.Split('.')[1])))
+            Check(!payload.RootElement.TryGetProperty("tv", out _) && payload.RootElement.TryGetProperty("nnex", out _), "no tv without a version");
+
+        // Cleared: back to the default.
+        EmbeddedOnline.Clear();
+        Check(!EmbeddedOnline.Enabled && EmbeddedOnline.Redirect(mk8) == null && (bool)blocked.Invoke(null, [mk8]), "cleared");
+        Check(EmbeddedOnline.HostFor(server) == null && !EmbeddedOnline.IsServer(server), "nothing kept after a clear");
+        Console.WriteLine("PASS: " + checks + " checks");
+        return 0;
+    }
+}
