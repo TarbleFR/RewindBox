@@ -109,3 +109,11 @@ Lower delays need another path: AirPlay to an Apple TV (system mirroring, see `A
 a wired HDMI adapter (expected to use the same external-screen path; not tested here), the Windows NeoPlay receiver
 (per-picture frames), or a custom Cast Web Receiver fed with those frames, which needs a Cast application ID
 registered by the owner in the Google Cast SDK Developer Console and an HTTPS-hosted receiver page (not done).
+
+Delivery: private test IPA 743 (run 43570281800, IPA `8150de8b…`, base 742), verified offline and handed over on
+14 November 2026; receipt `docs/evidence/rewind743/delivery.json`. The Release compilation on Xcode 26.3 with the
+GoogleCast 4.8.6 SDK compiled this Swift (the first real compilation of the change); `NPLiveLagTracker` and
+`cast.live.resync` are in the signed `Runner`. Images changed from the base: `Runner` (declared) and, undeclared,
+the armsx2, dolphin and rpcs3 bridge frameworks, whose sources are unchanged in the effective tree (only the three
+NeoPlay files differ); bridges changing without a source change also appear in 739–742. The base IPA can no longer
+be decrypted here, so no section-by-section comparison was made. Not yet observed on an iPhone or a TV.

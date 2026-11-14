@@ -1,0 +1,108 @@
+{
+  "mode": "cold",
+  "commit": "2b109ab53851f4b5d4ab16eda0c84aaf62f2a925",
+  "phases": [
+    {
+      "phase": "dart_dependencies",
+      "seconds": 23.926901957999917,
+      "exitCode": 0
+    },
+    {
+      "phase": "ruby_dependencies",
+      "seconds": 2.195826249999982,
+      "exitCode": 0
+    },
+    {
+      "phase": "host_scaffold_and_registrant",
+      "seconds": 2.3792110839999623,
+      "exitCode": 0
+    },
+    {
+      "phase": "flutter_configuration_and_first_pods",
+      "seconds": 46.98646462500005,
+      "exitCode": 0
+    },
+    {
+      "phase": "cocoa_pods",
+      "seconds": 5.852547166999898,
+      "exitCode": 0
+    },
+    {
+      "phase": "s2arm_cocoa_pods",
+      "seconds": 4.204230499999994,
+      "exitCode": 0
+    },
+    {
+      "phase": "xcode_build",
+      "seconds": 428.25970129199993,
+      "exitCode": 0
+    },
+    {
+      "phase": "signature_and_ipa_export",
+      "seconds": 66.91067229199984,
+      "exitCode": 0
+    }
+  ],
+  "flutterTargets": {
+    "targets": [
+      {
+        "name": "gen_localizations",
+        "skipped": true,
+        "succeeded": true,
+        "elapsedMilliseconds": 12
+      },
+      {
+        "name": "gen_dart_plugin_registrant",
+        "skipped": false,
+        "succeeded": true,
+        "elapsedMilliseconds": 620
+      },
+      {
+        "name": "release_unpack_ios",
+        "skipped": false,
+        "succeeded": true,
+        "elapsedMilliseconds": 3632
+      },
+      {
+        "name": "build_hooks",
+        "skipped": false,
+        "succeeded": true,
+        "elapsedMilliseconds": 16131
+      },
+      {
+        "name": "kernel_snapshot_program",
+        "skipped": false,
+        "succeeded": true,
+        "elapsedMilliseconds": 57194
+      },
+      {
+        "name": "link_hooks",
+        "skipped": false,
+        "succeeded": true,
+        "elapsedMilliseconds": 2323
+      },
+      {
+        "name": "install_code_assets",
+        "skipped": false,
+        "succeeded": true,
+        "elapsedMilliseconds": 6831
+      },
+      {
+        "name": "ios_aot",
+        "skipped": false,
+        "succeeded": true,
+        "elapsedMilliseconds": 33434
+      },
+      {
+        "name": "release_ios_bundle_flutter_assets",
+        "skipped": false,
+        "succeeded": true,
+        "elapsedMilliseconds": 5618
+      }
+    ]
+  },
+  "xcodeTaskTimingSummary": "\n\nCompileC (455 tasks) | 403.286 seconds\n\nPhaseScriptExecution (22 tasks) | 161.200 seconds\n\nSwiftCompile (28 tasks) | 147.857 seconds\n\nSwiftDriver (28 tasks) | 35.937 seconds\n\nScanDependencies (326 tasks) | 34.118 seconds\n\nLd (41 tasks) | 19.313 seconds\n\nCompileAssetCatalogVariant (1 task) | 14.654 seconds\n\nCompileStoryboard (2 tasks) | 13.588 seconds\n\nValidateEmbeddedBinary (9 tasks) | 12.711 seconds\n\nGenerateDSYMFile (41 tasks) | 11.964 seconds\n\nExtractAppIntentsMetadata (28 tasks) | 4.403 seconds\n\nGenerateAssetSymbols (1 task) | 3.875 seconds\n\nCopyPNGFile (63 tasks) | 3.022 seconds\n\nCpResource (82 tasks) | 1.109 seconds\n\nProcessInfoPlistFile (76 tasks) | 0.896 seconds\n\nAppIntentsSSUTraining (20 tasks) | 0.718 seconds\n\nCpHeader (318 tasks) | 0.638 seconds\n\nWriteAuxiliaryFile (1052 tasks) | 0.595 seconds\n\nCopySwiftLibs (1 task) | 0.555 seconds\n\nGenerateTAPI (31 tasks) | 0.524 seconds\n\nTouch (76 tasks) | 0.459 seconds\n\nRegisterExecutionPolicyException (76 tasks) | 0.343 seconds\n\nCopy (198 tasks) | 0.339 seconds\n\nLibtool (18 tasks) | 0.194 seconds\n\nSwiftGeneratePch (1 task) | 0.122 seconds\n\nLinkStoryboards (1 task) | 0.077 seconds\n\nCopyStringsFile (12 tasks) | 0.073 seconds\n\nValidate (1 task) | 0.054 seconds\n\nSwiftDriver Compilation Requirements (28 tasks) | 0.051 seconds\n\nSwiftDriver Compilation (28 tasks) | 0.036 seconds\n\nConcatenate (42 tasks) | 0.030 seconds\n\nSwiftMergeGeneratedHeaders (28 tasks) | 0.018 seconds\n\nLinkAssetCatalog (1 task) | 0.002 seconds\n\nCopyPlistFile (1 task) | 0.001 seconds\n\nnote: Run script build phase 'Run Script' will be run during every build because the option to run the script phase \"Based on dependency analysis\" is unchecked. (in target 'Runner' from project 'Runner')\nnote: Run script build phase 'Thin Binary' will be run during every build because the option to run the script phase \"Based on dependency analysis\" is unchecked. (in target 'Runner' from project 'Runner')\nwarning: Run script build phase '[CP-User] Prepare StikJIT framework' will be run during every build because it does not specify any outputs. To address this issue, either add output dependencies to the script phase, or configure it to run in every build by unchecking \"Based on dependency analysis\" in the script phase. (in target 'stikjit_bridge' from project 'Pods')\n** BUILD SUCCEEDED **\n\n",
+  "archive": "SideStore exports the one sealed Payload directly; no Apple exportArchive without profiles",
+  "deviceInstallationTested": false,
+  "retroArchGameplayTested": false
+}
