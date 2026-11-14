@@ -28,17 +28,23 @@ def utf16(text):
 
 class ExportList(unittest.TestCase):
     def test_kept_are_entry_points_and_names_looked_up_by_string(self):
+        # As the pinned NativeAOT engine stores them (IPA 746): the length, the characters, and the next record from the
+        # last character's high byte on (s2a_vpad_read_ex ended 78 | 69 13 e8 0d ...)
+        packed = len('s2a_vpad_read_ex').to_bytes(4, 'little') + 's2a_vpad_read_ex'.encode('utf-16-le')[:-1] + b'\x69\x13\xe8\x0d'
         data = (b'\x8b\x00S2A_InitSession\x00nxgal_out_size\x00log: s2a_hidden_fn failed\x00' +
-                utf16('s2a_pad_rumble_session') + b'\xff\xfe')
-        result = tool.compute(data, nm('_S2A_InitSession', '_nxgal_out_size', '_s2a_pad_rumble_session',
+                utf16('s2a_pad_rumble_session') + b'\xff\xfe' + packed)
+        result = tool.compute(data, nm('_S2A_InitSession', '_nxgal_out_size', '_s2a_pad_rumble_session', '_s2a_vpad_read_ex',
                                        '_s2a_hidden_fn', '__ZN7glslang8TProgramD1Ev', '_vpx_codec_decode',
                                        '_OBJC_CLASS_$_S2AViewController'))
-        self.assertEqual(result['keep'], sorted(['_S2A_InitSession', '_nxgal_out_size', '_s2a_pad_rumble_session'] +
+        self.assertEqual(result['keep'], sorted(['_S2A_InitSession', '_nxgal_out_size', '_s2a_pad_rumble_session', '_s2a_vpad_read_ex'] +
                                                 ['_' + name for name in tool.GUEST_ENTRY_POINTS]))
         # Only exact strings count: a name inside a log message is not a lookup.
         self.assertNotIn('_s2a_hidden_fn', result['keep'])
         self.assertEqual((result['exportsBefore'], result['dropped'], result['droppedGlslang'], result['droppedCxx'],
-                          result['droppedObjcClasses']), (7 + len(tool.GUEST_ENTRY_POINTS), 4, 1, 1, 1))
+                          result['droppedObjcClasses']), (8 + len(tool.GUEST_ENTRY_POINTS), 4, 1, 1, 1))
+        # A name only the sources look up (C# GetExport with a literal) is kept; a REQUIRED one never hidden
+        self.assertIn('_s2a_hidden_fn', tool.compute(data, nm('_s2a_hidden_fn'), {'s2a_hidden_fn'})['keep'])
+        self.assertEqual(tool.compute(b'', nm('_s2a_pad_wait'))['hiddenRequired'], ['s2a_pad_wait'])
         self.assertEqual((result['missingGuestEntryPoints'], result['refusedKept']), ([], []))
 
     def test_an_unexported_looked_up_name_is_not_added(self):

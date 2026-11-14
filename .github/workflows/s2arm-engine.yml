@@ -201,6 +201,13 @@ jobs:
                      _s2a_rb_guest_parked _s2a_rb_guest_view_controller _s2a_rb_guest_resume; do
             if grep -qx "$sym" "$RUNNER_TEMP/guest-exports.txt"; then note "ok   exported $sym"; else note "FAIL not exported: $sym"; status=1; fi
           done
+          # Looked up by name by the engine itself (export_list.py REQUIRED): the input pump (controller and touch), the C# clock and
+          # the window-tail allocator. Hidden, no input reached the game (IPA 746) and the C# clock ran at 19.2 MHz.
+          for sym in _s2a_vpad_read _s2a_vpad_read_ex _s2a_vpad_read_touch _s2a_vpad_touch_wanted _s2a_vpad_touch_configured \
+                     _s2a_pad_wait _s2a_pad_wake _s2a_pad_now_us _s2a_pad_record_commit _s2a_pad_get_latency \
+                     _s2a_guest_tick_hz _s2a_tail_map _s2a_tail_unmap _s2a_tail_has; do
+            if grep -qx "$sym" "$RUNNER_TEMP/guest-exports.txt"; then note "ok   exported $sym"; else note "FAIL not exported: $sym"; status=1; fi
+          done
           if grep -qx _rb_s2arm_engine_loaded "$RUNNER_TEMP/guest-exports.txt"; then note "FAIL _rb_s2arm_engine_loaded is exported (the host plugin owns it)"; status=1; else note "ok   _rb_s2arm_engine_loaded not exported"; fi
           # Restricted exports (guest.mk, build-utils/s2arm/engine/export_list.py): nm -gU of the framework is exactly the
           # list the final link was given, and no glslang symbol is exported (DolphinCore's weak glslang definitions).

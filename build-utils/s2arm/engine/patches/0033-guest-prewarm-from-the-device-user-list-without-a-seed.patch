@@ -1,0 +1,80 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 95e896ed0..77ff7fe8f 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -9231,6 +9231,11 @@ static int warm_prepare(NSArray<WarmTask *> *tasks, long lines) {
+     return 1;
+ }
+ // The prewarm lists: DM_PSO_MANIFEST (off = none), else the package's seed beside the shader map plus this device's user list when it exists. nil = none. say: log why
++// RewindBox (patch 0033): a package without a seed (one prepared on the device: its shader map empty, every library translated here) prewarms from this device's user list
++//   alone when that holds something. It used to prewarm nothing then, and since the pipeline archive takes only what the prewarm compiles (pso_archive.h), nothing was ever
++//   written there either: every start compiled everything again in play (IPA 746, Mario Kart World: "0 written this run"). The rows go through the same checks as with a seed
++//   (warm_parse / warm_stale: a key neither in the map nor current in the fallback directory is dropped); with a seed, or with an empty user list, nothing changes.
++//   Without a seed, what is first compiled in play is also noted for the archive in the same run (g_par_note_play, pso_archive.h: each pipeline compiled the fewest times)
+ static NSArray<NSString *> *warm_paths(int say) {
+     const char *e = getenv("DM_PSO_MANIFEST");
+     if (e && !strcmp(e, "off")) return nil;
+@@ -9238,9 +9243,18 @@ static NSArray<NSString *> *warm_paths(int say) {
+     NSString *seed = [shmap_path().stringByDeletingLastPathComponent stringByAppendingPathComponent:@"pso_manifest.tsv"];
+     NSMutableArray<NSString *> *all = [NSMutableArray arrayWithObject:seed];
+     NSString *user = pso_user_path();
+-    if (user && [NSFileManager.defaultManager fileExistsAtPath:user]) [all addObject:user];
++    int have_user = user && [NSFileManager.defaultManager fileExistsAtPath:user];   // RewindBox (patch 0033): kept for the case without a seed below
++    if (have_user) [all addObject:user];
+     else if (say) MLOG("pipeline prewarm: this device's user list %s%s", user ? "does not exist yet: " : "has no path (neither DM_PSO_USER nor DM_SAVE is set)", user ? user.UTF8String : "");
+-    if (![NSFileManager.defaultManager fileExistsAtPath:seed]) { if (say) MLOG("【红】 pipeline prewarm: seed list does not exist: %s", seed.UTF8String); return nil; }
++    int have_seed = [NSFileManager.defaultManager fileExistsAtPath:seed];
++    g_par_note_play = !have_seed;   // RewindBox (patch 0033): without a seed list, what is first compiled in play is noted for the archive too (pso_archive.h)
++    if (!have_seed) {
++        if (have_user && [[NSFileManager.defaultManager attributesOfItemAtPath:user error:nil] fileSize] > 0) {   // RewindBox (patch 0033): not an error, a plain line
++            if (say) MLOG("pipeline prewarm: the package has no seed list (%s): this device's user list alone (%s)", seed.UTF8String, user.UTF8String);
++            return @[user];
++        }
++        if (say) MLOG("【红】 pipeline prewarm: seed list does not exist: %s", seed.UTF8String); return nil;
++    }
+     return all;
+ }
+ // Tell the front end at once that the first frame will wait for the prewarm (10-30 device line, Monster Hunter Rise cold start mhrise_1030172905_1: the game's first present, 0.96 s, came
+diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archive.h
+index 4b478afab..c4b31e2d1 100644
+--- a/graphics/nvn/gfx/nvn/pso_archive.h
++++ b/graphics/nvn/gfx/nvn/pso_archive.h
+@@ -29,6 +29,13 @@ static int g_par_on;
+ static const char *g_par_harvest;                                        // S2A_PSO_HARVEST: the folder the harvest writes into (nvn_pso_harvest); writes at once instead of noting
+ static _Atomic uint64_t g_par_hits, g_par_misses, g_par_written, g_par_write_failed, g_par_stale, g_par_ga_removed;
+ static __thread int par_write_in_place;                                  // the prewarm's threads: what they compile is noted for writing (par_flush_bg)
++// RewindBox (patch 0033): on a package without a seed list (one prepared on the device, nvn_mtl.m warm_paths sets this), what is first compiled in play is noted too, for
++//   the same utility writer. There everything is first compiled in play: noted only by the next start's prewarm, each pipeline was compiled in play, again by that prewarm
++//   and once more by its write (IPA 746, Mario Kart World, iPhone17,2: about 800 pipelines, compiled by the system's compiler service outside this process, where the
++//   heat goes); noted in play, it is compiled in play and by its write, and the next start's prewarm takes it from the archive. Nothing waits on the writer: that run's
++//   pipelines were compiled beside the submit thread already (736 kicked, 732 taken by their draw) and its stalls were library compiles (the three 10 s output stalls had
++//   the submit thread in Metal under shader_build). With a seed list nothing changes; DM_PSO_ARCHIVE=0 turns it off with the archive
++static int g_par_note_play;                                              // set by nvn_mtl.m warm_paths: the package has no seed list
+ static NSMutableArray *g_par_todo;                                       // @[key, descriptor] noted by the prewarm, written beside it (par_writer)
+ 
+ static NSDictionary *par_identity(id<MTLDevice> dev) {
+@@ -264,6 +271,7 @@ static void par_writer(void) { @autoreleasepool {
+     }
+ } }
+ static void par_note(NSString *key, id desc) {
++    if (!par_write_in_place) { static _Atomic int said; if (!atomic_exchange(&said, 1)) MLOG("pipeline archive: the package has no seed list: what is first compiled in play is written too, beside it"); }   // RewindBox (patch 0033): g_par_note_play
+     pthread_mutex_lock(&g_par_mu);
+     if (!g_par_todo) g_par_todo = [NSMutableArray array];
+     [g_par_todo addObject:@[key, desc]];
+@@ -383,7 +391,7 @@ static id<MTLRenderPipelineState> par_render_(MTLRenderPipelineDescriptor *d, NS
+     }
+     if (key && g_par_on) par_count(0);
+     id<MTLRenderPipelineState> ps = [g_dev newRenderPipelineStateWithDescriptor:d error:e];
+-    if (ps && key && g_par_on && par_write_in_place) { if (g_par_harvest) par_write(key, d); else par_note(key, d); }
++    if (ps && key && g_par_on && (par_write_in_place || g_par_note_play)) { if (g_par_harvest) par_write(key, d); else par_note(key, d); }   // RewindBox (patch 0033): g_par_note_play
+     return ps;
+ }
+ static id<MTLComputePipelineState> par_compute_(id<MTLFunction> fn, NSString *key, NSError **e) {
+@@ -405,6 +413,6 @@ static id<MTLComputePipelineState> par_compute_(id<MTLFunction> fn, NSString *ke
+     }
+     if (key && g_par_on) par_count(0);
+     id<MTLComputePipelineState> ps = [g_dev newComputePipelineStateWithDescriptor:d options:MTLPipelineOptionNone reflection:nil error:e];
+-    if (ps && key && g_par_on && par_write_in_place) { if (g_par_harvest) par_write(key, d); else par_note(key, d); }
++    if (ps && key && g_par_on && (par_write_in_place || g_par_note_play)) { if (g_par_harvest) par_write(key, d); else par_note(key, d); }   // RewindBox (patch 0033): g_par_note_play
+     return ps;
+ }

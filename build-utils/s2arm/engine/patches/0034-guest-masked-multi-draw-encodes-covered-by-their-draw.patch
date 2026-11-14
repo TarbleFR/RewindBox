@@ -1,0 +1,16 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 77ff7fe8f..31badc835 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -13118,6 +13118,11 @@ static int mdx_next(const p_draw *dw, const p_draw_idx *di) {
+     uint64_t cnt = dw ? dw->mdi_cnt : di->mdi_cnt, out; int i = dw ? dw->mdi_i : di->mdi_i;
+     if (!g_mdxc.next || g_mdxc.next != g_exec_cur || !g_enc || g_mdxc.enc != (__bridge const void *)g_enc || g_mdxc.pass != g_stat_pass || g_mdxc.cnt != cnt || g_mdxc.i + 1 != i
+         || g_defer_replaying || passdump() || !mdx_find(dw ? dw->ind : di->ind, cnt, &out) || !out) return 0;
++    // RewindBox (patch 0034): this encode has the state, encoder and pass of the draw before it (the tests above), whose writes are already marked (its own udc_note_draw, or
++    //   udc_encode's every-attachment mark): it is covered like that draw's encode. Left uncovered, udc_encode marked every attachment of the pass written, so a color
++    //   attachment the lookahead had proven unwritten (opened DontCare, lskip) was stored at the pass end with undefined tile memory over its contents. IPA 746, Mario Kart
++    //   World: 128 to 255 "lookahead wrong" lines, all wwhy=6 imprecise encode on the 1920x1080 scene color ser=34202, the first right after the first masked multi-draw
++    g_udc_precise = 1;
+     if (dw) enc_r_draw_indirect(g_enc, g_mdxc.mp, out); else enc_r_draw_indexed_indirect(g_enc, g_mdxc.mp, g_mdxc.it, g_mdxc.ig, g_mdxc.il, out);
+     g_stat_draw++; g_mdx_fast++; g_mdxc.next = g_mdx_range ? g_exec_cur : g_exec_next; g_mdxc.i = i;
+     return 1;
