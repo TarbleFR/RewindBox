@@ -1,0 +1,270 @@
+diff --git a/ios/app.m b/ios/app.m
+index 85e832dd3..dbefdf135 100644
+--- a/ios/app.m
++++ b/ios/app.m
+@@ -111,6 +111,7 @@ static void *deferred_host_thread(void *arg) {
+ }
+ void s2a_host_shutdown(const char *why);
+ #include <mach/mach.h>
++#include <os/proc.h>   // RewindBox (patch 0036): os_proc_available_memory in the [写盘] line
+ uint64_t s2a_ap_frames(void);   // ap_host.c：上屏帧数
+ void s2a_guest_run_mark(int running);   // vawin.c：「本局在跑」标记（前台写、后台 / 将终止删；下一局见标记还在 = 上局在前台死掉，强制开客体内存文件后备）
+ static unsigned long long s2a_footprint_mb(void) { task_vm_info_data_t v; mach_msg_type_number_t n = TASK_VM_INFO_COUNT;
+@@ -589,10 +590,28 @@ id s2a_ios_ext_register(UIViewController *vc);   // extdisplay.m：登记外接
+             (int)[NSProcessInfo.processInfo hasPerformanceProfile:NSProcessPerformanceProfileSustained], (int)NSProcessInfo.processInfo.lowPowerModeEnabled, (unsigned long long)(lt >> 20), (unsigned long long)(ll >> 20), fn, (unsigned long long)fs, wins);
+         // 本款本机实测峰值（vawin.c s2a_guest_mem_note：进程实占 + 文件后备里已落块的客体字节）：下一局起局按它判文件后备开不开（11-07 卡顿线）
+         { void s2a_guest_mem_note(uint64_t footprint); s2a_guest_mem_note((uint64_t)s2a_footprint_mb() << 20); }
+-        int s2a_disk_written(uint64_t *bytes);   // energy.c（只此一处用，不进 native.h：那是出包抽取阶段的键）
++        int s2a_disk_io(uint64_t *written, uint64_t *read, uint64_t *pageins, uint64_t *logical);   // energy.c（只此一处用，不进 native.h：那是出包抽取阶段的键；RewindBox (patch 0036): s2a_disk_written and more）
++        uint64_t s2a_guest_file_alloc(int *files, int *bad);   // vawin.c (RewindBox patch 0036): what the guest's files hold on disk
+         // 写盘量（11-05 能耗线，客体内存文件后备的代价）：本进程累计与近 10 秒，内存紧张时内核把文件脏页写回闪存的量在这里看
+-        { static uint64_t last; static int have; uint64_t w;
+-          if (!s2a_disk_written(&w)) { LOG("[写盘] 进程累计 %llu MB，近 10 秒 %llu MB（客体内存文件后备 %s）", (unsigned long long)(w >> 20), (unsigned long long)(have && w >= last ? (w - last) >> 20 : 0), s2a_guest_fd() >= 0 ? "开" : "关"); last = w; have = 1; } }
++        // RewindBox (patch 0036): the same line goes on with the 10-s deltas of bytes read and page-ins, the logical writes, what the guest's files hold on disk (st_blocks),
++        //   the footprint's parts (TASK_VM_INFO internal = anonymous, external = file pages mapped, compressed) and os_proc_available_memory() (IPA 746: 40.7 GB written in
++        //   about 6.5 minutes with the guest in one file). No mincore sweep (nxnative's dirty-page count costs about 20 ms a gigabyte of address space)
++        { static uint64_t last, last_r, last_p, last_l; static int have; uint64_t w, r, pi, lw;
++          if (!s2a_disk_io(&w, &r, &pi, &lw)) {
++              int gn = 0, gbad = 0; uint64_t ga = s2a_guest_file_alloc(&gn, &gbad);
++              task_vm_info_data_t vi; mach_msg_type_number_t vn = TASK_VM_INFO_COUNT; kern_return_t kr = task_info(mach_task_self(), TASK_VM_INFO, (task_info_t)&vi, &vn);
++              char vm[200], gb[64] = "";
++              if (kr == KERN_SUCCESS) snprintf(vm, sizeof vm, "TASK_VM_INFO internal %llu MB、external %llu MB、compressed %llu MB",
++                                               (unsigned long long)(vi.internal >> 20), (unsigned long long)(vi.external >> 20), (unsigned long long)(vi.compressed >> 20));
++              else snprintf(vm, sizeof vm, "TASK_VM_INFO 取不到（kr=%d）", (int)kr);
++              if (gbad) snprintf(gb, sizeof gb, "，其中 %d 个 fstat 失败、没计进去", gbad);
++#define S2A_D10(x, l) (unsigned long long)(have && (x) >= (l) ? (x) - (l) : 0)
++              LOG("[写盘] 进程累计 %llu MB，近 10 秒 %llu MB（客体内存文件后备 %s）；近 10 秒读盘 %llu MB、调页 %llu 次（ri_diskio_bytesread / ri_pageins），逻辑写累计 %llu MB、近 10 秒 %llu MB（ri_logical_writes）；"
++                  "客体文件 %d 个已落块 %llu MB（st_blocks%s）；%s；os_proc_available_memory %llu MB",
++                  (unsigned long long)(w >> 20), S2A_D10(w, last) >> 20, s2a_guest_fd() >= 0 ? "开" : "关", S2A_D10(r, last_r) >> 20, S2A_D10(pi, last_p),
++                  (unsigned long long)(lw >> 20), S2A_D10(lw, last_l) >> 20, gn, (unsigned long long)(ga >> 20), gb, vm, (unsigned long long)(os_proc_available_memory() >> 20));
++#undef S2A_D10
++              last = w; last_r = r; last_p = pi; last_l = lw; have = 1; } }
+         // 客体内存分区账（S2A_MEM_SPLIT=1，缺省关）：心跳每 10 秒一行，另起 100 ms 采样线程抓跳变（mem_split_*）
+         if (mem_split_on()) { mem_split_line("内存分区", s2a_footprint_mb(), wr, wo, 0); mem_split_start(); }
+         s2a_energy_log();
+diff --git a/runtime/src/energy.c b/runtime/src/energy.c
+index 1064da033..025e1b531 100644
+--- a/runtime/src/energy.c
++++ b/runtime/src/energy.c
+@@ -40,6 +40,13 @@ int s2a_disk_written(uint64_t *bytes) {
+     struct rusage_info_v6 ri; if (proc_pid_rusage(getpid(), RUSAGE_INFO_V6, (rusage_info_t *)&ri) != 0) return -1;
+     *bytes = ri.ri_diskio_byteswritten; return 0;
+ }
++// RewindBox (patch 0036): the [写盘] line's counters from the same call: bytes written and read (ri_diskio_*), page-ins (ri_pageins, a count) and logical writes
++//   (ri_logical_writes, bytes), all since the process started. IPA 746 wrote 40.7 GB in about 6.5 minutes with the guest in one file: these say whether the kernel also reads
++//   the guest's pages back in. The fields of nxnative's [mem] guest file line (dm/host/hle_svc.c:190-195 at 0c078130). 0 = ok
++int s2a_disk_io(uint64_t *written, uint64_t *read, uint64_t *pageins, uint64_t *logical) {
++    struct rusage_info_v6 ri; if (proc_pid_rusage(getpid(), RUSAGE_INFO_V6, (rusage_info_t *)&ri) != 0) return -1;
++    *written = ri.ri_diskio_byteswritten; *read = ri.ri_diskio_bytesread; *pageins = ri.ri_pageins; *logical = ri.ri_logical_writes; return 0;
++}
+ int s2a_energy_snap(s2a_esnap *s) {
+     init_once(); memset(s, 0, sizeof *s);
+     s->wall = (uint64_t)(mach_absolute_time() * g_tb);
+diff --git a/runtime/src/vawin.c b/runtime/src/vawin.c
+index 5b0a6c04e..b0794fbc3 100644
+--- a/runtime/src/vawin.c
++++ b/runtime/src/vawin.c
+@@ -13,6 +13,7 @@
+ #include <dirent.h>
+ #include <dlfcn.h>
+ #include <pthread.h>
++#include <stdatomic.h>   // RewindBox (patch 0036): the guest file table's counts
+ #include <unistd.h>
+ #include <sys/mman.h>
+ #include <sys/mount.h>
+@@ -51,6 +52,61 @@ static uint64_t g_res;       // 起局时预留的大小（收尾部前的 g_siz
+ //   写保护缺页在文件映射上同样是 SIGBUS（同匿名，Mac 实测）。代价：内存紧张时内核把脏页写回闪存（写量 / 帧时待真机量）
+ static int g_gfd = -1;
+ int s2a_guest_fd(void) { return g_gfd; }
++// RewindBox (patch 0036): the window in files of S2A_GUEST_FILE_CHUNK_MB each (default 1024; 0 = one file, as before), the last one holding the rest. IPA 746 (iPhone17,2,
++//   Mario Kart World, 7,619 MB of RAM): one file of 39,936 MB, 40.7 GB written in about 6.5 minutes ([写盘], at least 74% of it bytes written again), in step with about 30 s
++//   of long frames outside NVN calls. nxnative measured the stall at the system's periodic flush growing with the file (a 16 GB M5 Mac with 1 GB touched: up to 148 ms with one
++//   20 GB file, 4 ms with twenty 1 GB files; on an iPhone, 7 min 33 s played with one file, 14 minutes without the 30-s stalls with 1 GB files).
++//   Same addresses and total size: window file k backs [g_base + k * chunk, + its size) from its offset 0, so an address's file and offset are arithmetic (gf_at); a range across
++//   two files is punched and mapped one file at a time, at contiguous addresses. s2a_guest_fd() stays the first file's descriptor: its callers only ask whether the window is
++//   in files (graphics/nvn nvn_mtl.m mem_any_touched, the [写盘] line, the unit tests); s2a_guest_file_at gives the file and offset of an address.
++//   Ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 0c078130 (dm/host/hle_svc.c:69-81 the chunk switch and the file table, :91-99 the offset to file arithmetic
++//   of guest_file_punch, :189 the st_blocks sum, :234-265 guest_files_map, :278-285 the chunk size rule); first in its commits 865cc35f and 8d5d4f1b
++#define GF_MAX 1024                 // nxnative's GF_MAX: the chunk is raised so that the window takes at most this many files
++#define GF_MIN_CHUNK (64ull << 20)  // nxnative's minimum chunk (DM_GUEST_FILE_CHUNK at least 64M)
++static int g_gf_fd[GF_MAX];         // the window's files, open for reading and writing (g_gf_fd[0] == g_gfd)
++static _Atomic int g_gf_n;          // how many (0 = the guest is not in files); stored with release once g_gf_fd, g_gf_chunk and g_gf_span are set
++static uint64_t g_gf_chunk;         // each window file's size, the last one's being the rest of g_gf_span (one file: g_gf_chunk == g_gf_span)
++static uint64_t g_gf_span;          // the window size mapped from the files (g_size then; s2a_window_trim may shrink g_size later, never the files)
++// Extra segments outside the window (s2a_guest_map_any / s2a_guest_map_fixed, far.c): one window file → past its end, as before; several → files of their own, each taking
++//   segments until the next one would take it past the chunk size (a segment larger than that has a file to itself), and once GX_MAX are open the last one goes on growing
++#define GX_MAX 64
++static int g_gx_fd[GX_MAX]; static _Atomic int g_gx_n; static uint64_t g_gx_len;   // g_gx_len: the last extra file's size; all under g_gextra_mu (g_gx_n stored with release)
++static char g_gf_dir[1024];         // the files' folder (TMPDIR at mapping time), for the extra files
++// Window offset → the file holding it, the offset in that file (*in) and the bytes from there to that file's end (*room). off < g_gf_span, files on
++static int gf_at(uint64_t off, uint64_t *in, uint64_t *room) {
++    int n = atomic_load_explicit(&g_gf_n, memory_order_acquire); if (n <= 0) { *in = *room = 0; return -1; }
++    uint64_t k = off / g_gf_chunk; if (k >= (uint64_t)n) k = (uint64_t)n - 1;
++    uint64_t fsz = (int)k == n - 1 ? g_gf_span - k * g_gf_chunk : g_gf_chunk;
++    *in = off - k * g_gf_chunk; *room = fsz - *in; return g_gf_fd[k];
++}
++// The file and offset behind window address a: the descriptor of the window file holding it (-1 = a is not in the file-backed window), *off = a's offset in that file,
++//   *room = the bytes from a to that file's end (a mapping of [a, a + n) takes one file when n <= *room)
++int s2a_guest_file_at(uint64_t a, uint64_t *off, uint64_t *room) {
++    if (g_gfd < 0 || a < g_base || a >= g_base + g_size) return -1;
++    uint64_t in, r; int fd = gf_at(a - g_base, &in, &r);
++    if (off) *off = in;
++    if (room) *room = r;
++    return fd;
++}
++// What the guest's files hold on disk (st_blocks * 512, window and extra files): *files = how many were asked, *bad = how many fstat refused (left out of the sum)
++uint64_t s2a_guest_file_alloc(int *files, int *bad) {
++    uint64_t sum = 0; int nf = 0, nb = 0; struct stat st;
++    int n = atomic_load_explicit(&g_gf_n, memory_order_acquire), nx = n > 1 ? atomic_load_explicit(&g_gx_n, memory_order_acquire) : 0;
++    for (int i = 0; i < n + nx; i++) { int fd = i < n ? g_gf_fd[i] : g_gx_fd[i - n]; nf++; if (fstat(fd, &st)) nb++; else sum += (uint64_t)st.st_blocks * 512ull; }
++    if (files) *files = nf;
++    if (bad) *bad = nb;
++    return sum;
++}
++// Each window file's size for a window of span bytes from S2A_GUEST_FILE_CHUNK_MB's value e (unset or empty: 1024): 0 = one file; at least GF_MIN_CHUNK, raised in whole MB so
++//   that at most GF_MAX files make the window; not under span = one file (the result is then span). *bad = 1 when e is not a whole number of MB (the default is taken)
++uint64_t s2a_guest_file_chunk(const char *e, uint64_t span, int *bad) {
++    uint64_t mb = 1024; *bad = 0;
++    if (e && *e) { char *end; errno = 0; unsigned long long v = strtoull(e, &end, 10); if (*end || errno || *e == '-') *bad = 1; else mb = v; }
++    if (!mb || !span || mb >= span >> 20) return span;
++    uint64_t c = mb << 20; if (c < GF_MIN_CHUNK) c = GF_MIN_CHUNK;
++    if ((span + c - 1) / c > GF_MAX) c = ((span + GF_MAX - 1) / GF_MAX + (1ull << 20) - 1) & ~((1ull << 20) - 1);
++    return c >= span ? span : c;
++}
+ // 开不开（纯函数，t_guest_file_auto 测）：e = S2A_GUEST_FILE；pool = 本款应用内存池；room = 起局时离系统给本进程的内存上限还剩多少（os_proc_available_memory，
+ //   0 = 不知道上限，Mac 恒传 0）；host = 宿主自身开销估计；margin = 余量。设了按设的（"0" 关、其余开）；没设 → 上限已知且「池 + 宿主开销 + 余量」装不下才开。
+ //   11-06 维护者：原先只比「池 > 剩余」，漏算宿主开销——DOOM Eternal 池 3285 MB、宿主约 2258 MB（Mac 同局足迹 5543 MB），足迹按池算装得下、实际已逼近上限。
+@@ -116,8 +172,7 @@ uint64_t s2a_guest_mem_seen(void) {
+ }
+ // 心跳调（每 10 秒，后台串行队列）：footprint = 进程实占字节；开着文件后备时加上文件里已落块的客体字节（脏页不计实占，换成匿名就都算）。比记录大才写（tmp + rename）
+ void s2a_guest_mem_note(uint64_t footprint) {
+-    uint64_t total = footprint; struct stat st;
+-    if (g_gfd >= 0 && !fstat(g_gfd, &st)) total += (uint64_t)st.st_blocks * 512ull;
++    uint64_t total = footprint + s2a_guest_file_alloc(NULL, NULL);   // RewindBox (patch 0036): every guest file (one fstat each; nothing when the guest is not in files)
+     static uint64_t rec; static int loaded; if (!loaded) { rec = s2a_guest_mem_seen(); if (rec == UINT64_MAX) rec = 0; loaded = 1; }   // 坏记录：本局的实测覆盖它
+     if (total <= rec) return;
+     char p[1024], t[1100]; if (!mem_peak_path(p, sizeof p)) return;
+@@ -216,7 +271,7 @@ static void guest_file_attach_(void) {
+ }
+ // 整段窗口换成临时文件的 MAP_SHARED 映射（判了开之后；iOS / Mac 共用）
+ static void guest_file_map(void) {
+-    const char *td = getenv("TMPDIR"); char path[1024]; snprintf(path, sizeof path, "%s/s2a_guest_%d.bin", td && *td ? td : "/tmp", (int)getpid());
++    const char *td = getenv("TMPDIR"); char path[1100];
+     // 起局前查闪存剩余空间（11-05 能耗线）：文件稀疏，只占内核写回的块，最坏涨到游戏弄脏的客体内存总量（Switch 2 是 12 GB）。
+     //   不够就不接文件、照旧用匿名内存（等于开关关），打一行黄；门槛 S2A_GUEST_FILE_MIN_FREE_MB（缺省 12288）
+     { const char *m = getenv("S2A_GUEST_FILE_MIN_FREE_MB"); uint64_t need = (m && *m ? strtoull(m, NULL, 10) : 12288ull) << 20; struct statfs sf;
+@@ -226,16 +281,45 @@ static void guest_file_map(void) {
+           g_gfile_pending = 1; g_gfile_need = need; g_gfile_avail = avail;
+           LOG("【黄】客体内存文件后备：临时目录剩余 %llu MB < 需要 %llu MB（S2A_GUEST_FILE_MIN_FREE_MB），先用匿名内存，装游戏前再查一次", (unsigned long long)(avail >> 20), (unsigned long long)(need >> 20)); return; }
+       g_gfile_pending = 0; }
+-    int fd = open(path, O_RDWR | O_CREAT | O_EXCL, 0600);
+-    if (fd < 0) { LOG("【红】客体内存文件后备：建不了临时文件（errno=%d），照旧用匿名内存", errno); return; }
+-    unlink(path);
+-    if (ftruncate(fd, (off_t)g_size)) { LOG("【红】客体内存文件后备：文件定长 %llu MB 失败（errno=%d），照旧用匿名内存", (unsigned long long)(g_size >> 20), errno); close(fd); return; }
+-    void *p = mmap((void *)g_base, g_size, PROT_NONE, MAP_FIXED | MAP_SHARED, fd, 0);
+-    if (p != (void *)g_base) {   // 失败时那段可能已被拆掉：盖回匿名占位
+-        int er = errno; mmap((void *)g_base, g_size, PROT_NONE, MAP_FIXED | MAP_PRIVATE | MAP_ANON, -1, 0); close(fd);
+-        LOG("【红】客体内存文件后备：窗口 %#llx +%llu MB 映射成文件失败（errno=%d），照旧用匿名内存", (unsigned long long)g_base, (unsigned long long)(g_size >> 20), er); return; }
+-    g_gfd = fd;
++    // RewindBox (patch 0036): n files of chunk bytes, the last one holding the rest (S2A_GUEST_FILE_CHUNK_MB, s2a_guest_file_chunk); one file keeps S2Arm's name.
++    //   Every file is made, unlinked and sized before any is mapped; any failure closes them all and leaves the window anonymous, as one file's did
++    //   (ported from nxnative guest_files_map, hle_svc.c:234-265)
++    const char *dir = td && *td ? td : "/tmp", *ce = getenv("S2A_GUEST_FILE_CHUNK_MB"); int cbad = 0, made = 0;
++    uint64_t chunk = s2a_guest_file_chunk(ce, g_size, &cbad); int n = chunk ? (int)((g_size + chunk - 1) / chunk) : 0;
++    if (!n) { LOG("【红】RewindBox: guest files for a window of %llu bytes: nothing to map, the guest stays anonymous", (unsigned long long)g_size); return; }
++    if (cbad) LOG("【红】RewindBox: S2A_GUEST_FILE_CHUNK_MB=%s is not a whole number of MB: the guest files take the default, 1024 MB each", ce);
++    char which[96] = "";
++    for (int k = 0; k < n; k++) {
++        uint64_t sz = k == n - 1 ? g_size - (uint64_t)k * chunk : chunk;
++        if (n == 1) snprintf(path, sizeof path, "%s/s2a_guest_%d.bin", dir, (int)getpid());
++        else { snprintf(path, sizeof path, "%s/s2a_guest_%d_%d.bin", dir, (int)getpid(), k); snprintf(which, sizeof which, "（RewindBox: file %d of %d, %llu MB）", k + 1, n, (unsigned long long)(sz >> 20)); }
++        int fd = open(path, O_RDWR | O_CREAT | O_EXCL, 0600);
++        if (fd < 0) { LOG("【红】客体内存文件后备：建不了临时文件（errno=%d），照旧用匿名内存%s", errno, which); goto undo; }
++        g_gf_fd[made++] = fd;
++        if (unlink(path)) LOG("【红】RewindBox: guest file %s could not be unlinked (errno=%d): it stays in the folder after the process", path, errno);   // S2Arm did not check it: going on as it did, but saying so
++        if (ftruncate(fd, (off_t)sz)) { LOG("【红】客体内存文件后备：文件定长 %llu MB 失败（errno=%d），照旧用匿名内存%s", (unsigned long long)(sz >> 20), errno, which); goto undo; }
++    }
++    for (int k = 0; k < n; k++) {
++        uint64_t at = g_base + (uint64_t)k * chunk, sz = k == n - 1 ? g_size - (uint64_t)k * chunk : chunk;
++        void *p = mmap((void *)(uintptr_t)at, sz, PROT_NONE, MAP_FIXED | MAP_SHARED, g_gf_fd[k], 0);
++        if (p != (void *)(uintptr_t)at) {   // 失败时那段可能已被拆掉：盖回匿名占位（RewindBox (patch 0036): the whole window, over the files already mapped）
++            int er = errno; void *q = mmap((void *)g_base, g_size, PROT_NONE, MAP_FIXED | MAP_PRIVATE | MAP_ANON, -1, 0); int eq = errno;
++            if (n > 1) snprintf(which, sizeof which, "（RewindBox: file %d of %d, at %#llx +%llu MB）", k + 1, n, (unsigned long long)at, (unsigned long long)(sz >> 20));
++            LOG("【红】客体内存文件后备：窗口 %#llx +%llu MB 映射成文件失败（errno=%d），照旧用匿名内存%s", (unsigned long long)g_base, (unsigned long long)(g_size >> 20), er, which);
++            if (q != (void *)g_base) LOG("【红】RewindBox: the window %#llx +%llu MB could not be covered again with its anonymous reservation (errno=%d)", (unsigned long long)g_base, (unsigned long long)(g_size >> 20), eq);
++            goto undo; }
++    }
++    snprintf(g_gf_dir, sizeof g_gf_dir, "%s", dir);
++    g_gf_chunk = chunk; g_gf_span = g_size; g_gx_len = 0; atomic_store_explicit(&g_gx_n, 0, memory_order_relaxed);
++    atomic_store_explicit(&g_gf_n, n, memory_order_release);
++    g_gfd = g_gf_fd[0];
+     LOG("客体内存文件后备：窗口 %#llx +%llu MB 映射到临时文件（已 unlink，稀疏），脏页不计进程实占（S2A_GUEST_FILE）", (unsigned long long)g_base, (unsigned long long)(g_size >> 20));
++    if (n > 1) LOG("RewindBox: guest memory in %d files of %llu MB (the last %llu MB) in %s, one mapping each at contiguous addresses; S2A_GUEST_FILE_CHUNK_MB=%s (0 = one file)",
++                   n, (unsigned long long)(chunk >> 20), (unsigned long long)((g_size - (uint64_t)(n - 1) * chunk) >> 20), dir, ce && *ce ? ce : "unset, 1024");
++    else LOG("RewindBox: guest memory in one file (S2A_GUEST_FILE_CHUNK_MB=%s)", ce && *ce ? ce : "unset, 1024: not under the window");
++    return;
++undo:
++    for (int k = 0; k < made; k++) close(g_gf_fd[k]);
+ }
+ // 开局装模块前（host_main.c load_session_modules）：起局时判了要接文件、但空间不够的，此刻（解包已完）再查一次、够了就接上。
+ //   只在窗口还原封不动（整段一块 PROT_NONE 的匿名保留）时才换：换成文件是整段 MAP_FIXED，窗口里已经有东西就会被抹掉，那种情形不换、照旧匿名。
+@@ -269,27 +353,50 @@ int s2a_guest_file_retry(void) {
+ // 窗口外也要文件后备的一段（远端影子区堆区余量用完、改从宿主任意空闲地址分时，far.c）：文件往后接长，按新偏移映射到内核挑的地址（同匿名的落点规则，不多占窗口外地址）。
+ //   没开文件后备返回 MAP_FAILED（调用方照旧匿名）。这些段还页时不打洞（s2a_guest_zero 只认窗口），换匿名占位：语义同样是零，只是那几页回到匿名记账
+ static pthread_mutex_t g_gextra_mu = PTHREAD_MUTEX_INITIALIZER; static uint64_t g_gextra;
++// RewindBox (patch 0036): the file and offset of a new segment of len bytes, sized in (under g_gextra_mu): one window file → past the window in it, as S2Arm did;
++//   several → the last extra file, or a new one when this segment would take it past the chunk size (see GX_MAX). -1 when a file cannot be made or sized
++static int gx_take_locked(uint64_t len, uint64_t *off) {
++    if (atomic_load_explicit(&g_gf_n, memory_order_relaxed) == 1) {
++        *off = g_size + g_gextra; if (ftruncate(g_gfd, (off_t)(*off + len))) return -1;
++        g_gextra += len; return g_gfd; }
++    int nx = atomic_load_explicit(&g_gx_n, memory_order_relaxed);
++    if (!nx || (nx < GX_MAX && g_gx_len && g_gx_len + len > g_gf_chunk)) {
++        char path[1100]; snprintf(path, sizeof path, "%s/s2a_guest_%d_x%d.bin", g_gf_dir, (int)getpid(), nx);
++        int fd = open(path, O_RDWR | O_CREAT | O_EXCL, 0600);
++        if (fd < 0) { static int nred; if (nred++ < 4) LOG("【红】RewindBox: guest file for segments outside the window: cannot create %s (errno=%d); this segment is not in a file", path, errno); return -1; }
++        if (unlink(path)) LOG("【红】RewindBox: guest file %s could not be unlinked (errno=%d): it stays in the folder after the process", path, errno);
++        g_gx_fd[nx] = fd; g_gx_len = 0; atomic_store_explicit(&g_gx_n, ++nx, memory_order_release);
++    }
++    *off = g_gx_len; if (ftruncate(g_gx_fd[nx - 1], (off_t)(*off + len))) return -1;
++    g_gx_len += len; g_gextra += len; return g_gx_fd[nx - 1];
++}
+ void *s2a_guest_map_any(uint64_t len) {
+     if (g_gfd < 0 || !len) return MAP_FAILED;
+-    pthread_mutex_lock(&g_gextra_mu); uint64_t off = g_size + g_gextra; int ok = !ftruncate(g_gfd, (off_t)(off + len)); if (ok) g_gextra += len; pthread_mutex_unlock(&g_gextra_mu);
+-    if (!ok) return MAP_FAILED;
+-    return mmap(NULL, len, PROT_NONE, MAP_SHARED, g_gfd, (off_t)off);
++    pthread_mutex_lock(&g_gextra_mu); uint64_t off = 0; int fd = gx_take_locked(len, &off); pthread_mutex_unlock(&g_gextra_mu);
++    if (fd < 0) return MAP_FAILED;
++    return mmap(NULL, len, PROT_NONE, MAP_SHARED, fd, (off_t)off);
+ }
+ // 线性远端影子（far.c，#419）的一块也要文件后备：文件往后接长，按新偏移映射到 far.c 自己预留的线性影子区里的固定地址（那段是 far.c 占的不可访问预留，
+ //   MAP_FIXED 只盖它自己的地址）。没开文件后备回 1（调用方用预留里的匿名页）；成功回 0，失败回 -1
+ int s2a_guest_map_fixed(uint64_t a, uint64_t len) {
+     if (g_gfd < 0) return 1;
+     if (!len) return 0;
+-    pthread_mutex_lock(&g_gextra_mu); uint64_t off = g_size + g_gextra; int ok = !ftruncate(g_gfd, (off_t)(off + len)); if (ok) g_gextra += len; pthread_mutex_unlock(&g_gextra_mu);
+-    if (!ok) return -1;
+-    return mmap((void *)(uintptr_t)a, len, PROT_NONE, MAP_FIXED | MAP_SHARED, g_gfd, (off_t)off) == (void *)(uintptr_t)a ? 0 : -1;
++    pthread_mutex_lock(&g_gextra_mu); uint64_t off = 0; int fd = gx_take_locked(len, &off); pthread_mutex_unlock(&g_gextra_mu);   // RewindBox (patch 0036)
++    if (fd < 0) return -1;
++    return mmap((void *)(uintptr_t)a, len, PROT_NONE, MAP_FIXED | MAP_SHARED, fd, (off_t)off) == (void *)(uintptr_t)a ? 0 : -1;
+ }
+ // [a, a + n) 在文件后备的窗口里：打洞（还文件块，再读是 0）并按原偏移重新映射成不可访问，返回 1；不在 / 没开文件后备返回 0（调用方照旧换匿名占位）
++//   RewindBox (patch 0036): one window file at a time (gf_at), at contiguous addresses; a failure part way returns 0 and the caller covers the whole range anonymous, as before
+ int s2a_guest_zero(uint64_t a, uint64_t n) {
+     if (g_gfd < 0 || a < g_base || a + n > g_base + g_size || !n) return 0;
+-    fpunchhole_t ph; memset(&ph, 0, sizeof ph); ph.fp_offset = (off_t)(a - g_base); ph.fp_length = (off_t)n;
+-    if (fcntl(g_gfd, F_PUNCHHOLE, &ph)) { static int once; if (!once++) LOG("【红】客体内存文件后备：打洞失败（errno=%d，%#llx +%#llx），这段改回匿名占位", errno, (unsigned long long)a, (unsigned long long)n); return 0; }
+-    if (mmap((void *)(uintptr_t)a, n, PROT_NONE, MAP_FIXED | MAP_SHARED, g_gfd, (off_t)(a - g_base)) != (void *)(uintptr_t)a) return 0;
++    for (uint64_t p = a, e = a + n; p < e; ) {
++        uint64_t in, room; int fd = gf_at(p - g_base, &in, &room); uint64_t len = e - p < room ? e - p : room;
++        if (fd < 0 || !len) return 0;
++        fpunchhole_t ph; memset(&ph, 0, sizeof ph); ph.fp_offset = (off_t)in; ph.fp_length = (off_t)len;
++        if (fcntl(fd, F_PUNCHHOLE, &ph)) { static int once; if (!once++) LOG("【红】客体内存文件后备：打洞失败（errno=%d，%#llx +%#llx），这段改回匿名占位（RewindBox: file offset %#llx +%#llx）", errno, (unsigned long long)a, (unsigned long long)n, (unsigned long long)in, (unsigned long long)len); return 0; }
++        if (mmap((void *)(uintptr_t)p, len, PROT_NONE, MAP_FIXED | MAP_SHARED, fd, (off_t)in) != (void *)(uintptr_t)p) return 0;
++        p += len;
++    }
+     return 1;
+ }
+ // [a, a + n) 全在文件后备的窗口里返回 1（没开 / 不在 / n 为 0 返回 0）。svc_mem.c 的懒清零（#258）按它判走不走
