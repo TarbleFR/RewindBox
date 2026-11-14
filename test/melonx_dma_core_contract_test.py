@@ -79,6 +79,7 @@ from adapt_stall_compaction import BASELINE as C745_STALL_COMPACTION  # noqa: E4
 from adapt_wait_spin_bound import BASELINE as C747_WAIT_SPIN_BOUND  # noqa: E402
 from adapt_darwin_timed_waits import BASELINE as C749_DARWIN_TIMED_WAITS  # noqa: E402
 from adapt_partition_snapshot import BASELINE as C751_PARTITION_SNAPSHOT  # noqa: E402
+from adapt_fence_status import BASELINE as C752_FENCE_STATUS  # noqa: E402
 from adapt_array_delta_invalidated import BASELINE as C697_ARRAY_DELTA_INVALIDATED  # noqa: E402
 from adapt_pipeline_cache_background import BASELINE as C697_PIPELINE_CACHE_BACKGROUND  # noqa: E402
 from adapt_sync_wait_attribution import BASELINE as C699_SYNC_WAIT_ATTRIBUTION  # noqa: E402
@@ -305,7 +306,9 @@ CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES
            # Core 749 candidate: PreciseSleepHelper.cs (new: the Darwin timed waits).
            set(C749_DARWIN_TIMED_WAITS) |
            # IPA 736, second lot: AddressSpacePartitioned.cs (new: the partition lookup without the lock).
-           set(C751_PARTITION_SNAPSHOT))
+           set(C751_PARTITION_SNAPSHOT) |
+           # IPA 736, third lot: FenceHolder.cs and MultiFenceHolder.cs (new: the fence state by vkGetFenceStatus).
+           set(C752_FENCE_STATUS))
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
@@ -395,6 +398,9 @@ JOINED = JOINED | {C749_TIMED_WAITS}
 # IPA 736, second lot (adapt_partition_snapshot): Ryujinx.Cpu's AddressSpacePartitioned.cs joins the prepared source;
 # fragmented-reads composes, builds and binds it (read from its control, delivered609, as upstream).
 JOINED = JOINED | set(C751_PARTITION_SNAPSHOT)
+# IPA 736, third lot (adapt_fence_status): FenceHolder.cs and MultiFenceHolder.cs join; fragmented-reads composes, builds
+# and binds them (read from its control, delivered609, as upstream).
+JOINED = JOINED | set(C752_FENCE_STATUS)
 REUSED_FRESH = set()
 
 
@@ -609,7 +615,7 @@ if not args.helpers_only:
     # Core 737: 95 (NpadManager.cs).
     # Core 743: 99 (SyncManager.cs, AutoFlushCounter.cs, StagingBuffer.cs, HelperShader.cs).
     # Core 745: 100 (IGeneralService.cs). Core 747: 101 (AsyncWorkQueue.cs). Core 749 candidate: 102 (PreciseSleepHelper.cs).
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 103 and not frozen["productionAdditions"], "Unexpected production scope")
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 105 and not frozen["productionAdditions"], "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
                                                      'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
                                                      'build-utils/melonx/adapt_queued_syncpoints.py',
@@ -705,7 +711,8 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_keepalive_memory_hold.py',
                                                      'build-utils/melonx/adapt_buffer_last_hit.py',
                                                      'build-utils/melonx/adapt_partition_snapshot.py',
-                                                     'build-utils/melonx/adapt_array_dirty_log.py'} and
+                                                     'build-utils/melonx/adapt_array_dirty_log.py',
+                                                     'build-utils/melonx/adapt_fence_status.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -753,7 +760,8 @@ if not args.helpers_only:
     # (their files are members already).
     # IPA 736, second lot: adapt_partition_snapshot.py joins them; AddressSpacePartitioned.cs joins the prepared members (217).
     # adapt_array_dirty_log.py joins them too (Texture.cs and TextureBindingsArrayCache.cs are members already).
-    check(len(frozen['preparationInputs']) == 225 and len(frozen['preparedMembers']) == 217, 'Wrong final composition')
+    # IPA 736, third lot: adapt_fence_status.py joins them; FenceHolder.cs and MultiFenceHolder.cs join the members (219).
+    check(len(frozen['preparationInputs']) == 226 and len(frozen['preparedMembers']) == 219, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and

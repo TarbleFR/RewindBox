@@ -105,7 +105,8 @@
   "build-utils/melonx/adapt_keepalive_memory_hold.py",
   "build-utils/melonx/adapt_buffer_last_hit.py",
   "build-utils/melonx/adapt_partition_snapshot.py",
-  "build-utils/melonx/adapt_array_dirty_log.py"
+  "build-utils/melonx/adapt_array_dirty_log.py",
+  "build-utils/melonx/adapt_fence_status.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -210,7 +211,9 @@
   "src/Ryujinx.HLE/HOS/Services/Nifm/StaticService/IGeneralService.cs",
   "src/Ryujinx.Common/AsyncWorkQueue.cs",
   "src/Ryujinx.Common/PreciseSleep/PreciseSleepHelper.cs",
-  "src/Ryujinx.Cpu/Jit/HostTracked/AddressSpacePartitioned.cs"
+  "src/Ryujinx.Cpu/Jit/HostTracked/AddressSpacePartitioned.cs",
+  "src/Ryujinx.Graphics.Vulkan/FenceHolder.cs",
+  "src/Ryujinx.Graphics.Vulkan/MultiFenceHolder.cs"
  ],
  "productionAdditions": [],
  "fixtureInputs": [
@@ -582,7 +585,9 @@
     "src/Ryujinx.Graphics.Vulkan/Window.cs",
     "src/Ryujinx.Library/Library.cs",
     "src/Ryujinx.Memory/IVirtualMemoryManager.cs",
-    "src/Ryujinx.Cpu/Jit/HostTracked/AddressSpacePartitioned.cs"
+    "src/Ryujinx.Cpu/Jit/HostTracked/AddressSpacePartitioned.cs",
+    "src/Ryujinx.Graphics.Vulkan/FenceHolder.cs",
+    "src/Ryujinx.Graphics.Vulkan/MultiFenceHolder.cs"
    ],
    "compiledBindings": [
     {
@@ -1268,6 +1273,24 @@
       "src/Ryujinx.Cpu/Jit/HostTracked/AddressSpacePartitioned.cs"
      ],
      "productionPath": "src/Ryujinx.Cpu/Jit/HostTracked/AddressSpacePartitioned.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Vulkan/FenceHolder.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Vulkan/FenceHolder.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Vulkan/MultiFenceHolder.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Vulkan/MultiFenceHolder.cs"
     }
    ]
   },

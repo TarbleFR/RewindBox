@@ -193,6 +193,7 @@ from adapt_keepalive_memory_hold import apply as adapt_keepalive_memory_hold
 from adapt_buffer_last_hit import apply as adapt_buffer_last_hit
 from adapt_partition_snapshot import apply as adapt_partition_snapshot
 from adapt_array_dirty_log import apply as adapt_array_dirty_log
+from adapt_fence_status import apply as adapt_fence_status
 
 
 def replace_once(path, old, new):
@@ -588,6 +589,9 @@ def main():
     # A bound texture array synchronises and validates the textures that were signalled since its last complete state
     # (two rings in Texture.cs), not every texture each time an epoch moved (TextureBindingsArrayCache.cs).
     adapted += adapt_array_dirty_log(source)
+    # IPA 736, third lot (render thread): a fence's state is read with vkGetFenceStatus, not with a zero-timeout
+    # vkWaitForFences that MoltenVK turns into a device-wide registration (FenceHolder.cs, MultiFenceHolder.cs).
+    adapted += adapt_fence_status(source)
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -735,7 +739,7 @@ def main():
                  'adapt_array_sync_epochs.py', 'adapt_collection_class.py',
                  'adapt_stall_compaction.py', 'adapt_wait_spin_bound.py', 'adapt_darwin_timed_waits.py',
                  'adapt_timer_earliest_wake.py', 'adapt_keepalive_memory_hold.py', 'adapt_buffer_last_hit.py',
-                 'adapt_partition_snapshot.py', 'adapt_array_dirty_log.py']:
+                 'adapt_partition_snapshot.py', 'adapt_array_dirty_log.py', 'adapt_fence_status.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

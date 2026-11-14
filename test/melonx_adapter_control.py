@@ -51,7 +51,7 @@ ORDER = ('adapt_pipeline_warmup_parity', 'adapt_device_short_trim', 'adapt_molte
          'adapt_collection_class', 'adapt_stall_compaction',
          'adapt_wait_spin_bound', 'adapt_darwin_timed_waits',
          'adapt_timer_earliest_wake', 'adapt_keepalive_memory_hold', 'adapt_buffer_last_hit',
-         'adapt_partition_snapshot', 'adapt_array_dirty_log')
+         'adapt_partition_snapshot', 'adapt_array_dirty_log', 'adapt_fence_status')
 
 
 def sha(path: Path) -> str:

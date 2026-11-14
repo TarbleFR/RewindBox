@@ -122,6 +122,10 @@ COMPOSED = sorted(set(COMPOSED) | {name for module in CORE667 for name in __impo
 # partition (AddressSpacePartitioned.cs, Ryujinx.Cpu): the file joins the composition, the build and the receipt.
 from adapt_partition_snapshot import SPACE as PARTITIONED  # noqa: E402
 COMPOSED = sorted(set(COMPOSED) | {PARTITIONED})
+# IPA 736, third lot: adapt_fence_status's two Vulkan files (FenceHolder.cs, MultiFenceHolder.cs) join the composition,
+# so the final Vulkan build binds them.
+from adapt_fence_status import BASELINE as FENCE_STATUS  # noqa: E402
+COMPOSED = sorted(set(COMPOSED) | set(FENCE_STATUS))
 # Production files the candidate build compiles and this receipt binds (the region type is unchanged). Library.cs
 # (Ryujinx.Library) is outside the GPU assembly closure: it is composed and bound here, compiled by NativeAOT.
 COMPILED = sorted((set(COMPOSED) - {DMA_LIBRARY}) | {'src/Ryujinx.Graphics.Gpu/Memory/ReadOnlyRegion.cs'})
@@ -153,7 +157,7 @@ INPUTS = ['test/melonx_fragmented_reads_test.py', 'test/melonx_fragmented_reads/
           'build-utils/melonx/adapt_moltenvk_stage_ordering.py',
           'build-utils/melonx/adapt_buffer_array_barriers.py', 'build-utils/melonx/adapt_hogwarts_precise_math.py',
           'build-utils/melonx/adapt_shader_save_journal.py', 'build-utils/melonx/adapt_nan_scrub.py', 'build-utils/melonx/adapt_main_cache_checkpoint.py', 'build-utils/melonx/adapt_checkpoint_side_cache.py', 'build-utils/melonx/adapt_evicted_buffer_recreate.py', 'build-utils/melonx/adapt_audio_start_deferred.py', 'build-utils/melonx/adapt_pipeline_cache_room.py', 'build-utils/melonx/adapt_pipeline_cache_persist.py', 'build-utils/melonx/adapt_pipeline_build_journal.py', 'build-utils/melonx/adapt_pipeline_cache_growth.py', 'build-utils/melonx/adapt_occupied_readback_buffers.py', 'build-utils/melonx/adapt_async_regenerated_targets.py', 'build-utils/melonx/adapt_released_texture_flush.py', 'build-utils/melonx/adapt_pipeline_failure_identity.py', 'build-utils/melonx/adapt_worker_main_cache_lookup.py', 'build-utils/melonx/adapt_compute_switch_bindings.py', 'build-utils/melonx/adapt_bgc_keepalive.py', 'build-utils/melonx/adapt_array_delta_invalidated.py', 'build-utils/melonx/adapt_pipeline_cache_background.py', 'build-utils/melonx/adapt_sync_wait_attribution.py', 'build-utils/melonx/adapt_synced_buffer_reads.py', 'build-utils/melonx/adapt_layout_used_types.py', 'build-utils/melonx/adapt_same_program_descriptors.py', 'build-utils/melonx/adapt_retention_chain.py', 'build-utils/melonx/adapt_short_cache_reuse.py', 'build-utils/melonx/adapt_pipeline_variant_replay.py', 'build-utils/melonx/adapt_pipeline_snapshot_retire.py', 'build-utils/melonx/adapt_extra_set_binds.py', 'build-utils/melonx/adapt_array_reference_deltas.py', 'build-utils/melonx/adapt_worker_library_share.py',
-          'build-utils/melonx/adapt_partition_snapshot.py',
+          'build-utils/melonx/adapt_partition_snapshot.py', 'build-utils/melonx/adapt_fence_status.py',
           'test/melonx_adapter_control.py', 'native/melonx/EmbeddedPerformanceDiagnostics.cs']
 # One fragment of a real anchor per adapted file; altering it must stop the whole adapter.
 DRIFT = {

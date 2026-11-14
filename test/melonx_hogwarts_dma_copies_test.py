@@ -223,6 +223,8 @@ LOT_FILES = {
     'adapt_partition_snapshot': [],
     # IPA 736, second lot: the rings of signalled textures (no file of this lot).
     'adapt_array_dirty_log': [],
+    # IPA 736, third lot: the fence state read by vkGetFenceStatus (no file of this lot).
+    'adapt_fence_status': [],
 }
 
 checks = 0
