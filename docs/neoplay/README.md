@@ -31,7 +31,7 @@ The HLS path has a higher buffering delay than the Windows path. No claim of com
 ## Capture and performance boundaries
 
 ReplayKit captures the NeoStation application screen (including its menus), and app audio, **never microphone audio**. The user explicitly opens discovery, selects a receiver, and authorizes capture. Nothing is captured or encoded at app startup.
-AVAssetWriter multiplexes H.264 and AAC using one source timestamp domain. Windows uses short fMP4 fragments over a bounded WebSocket; Chromecast uses an independently served HLS playlist. The first fragment targets are 250 ms (Windows) and 1 s (Cast), not measured end-to-end latencies.
+AVAssetWriter multiplexes H.264 and AAC using one source timestamp domain. Windows uses short fMP4 fragments over a bounded WebSocket; Chromecast uses an independently served HLS playlist. The first fragment targets are 250 ms (Windows) and 0.5 s (Cast; 1 s before 14 November 2026), not measured end-to-end latencies.
 Encoding dimensions fit inside the destination and codec budget without stretching; receiver display uses `object-fit: contain`. Native orientation changes create a new initialization segment; HLS marks discontinuities. Queues and encoded media retention are bounded. Congestion stops only NeoPlay rather than growing RAM without a bound.
 The visible NeoPlay × overlay disconnects without becoming the key window. Network/capture errors and late callbacks cannot call emulator stop/reset APIs. Existing AVAudioSession configuration is not changed.
 Transport data in this prototype is **not encrypted**. Pairing and per-session random URL capabilities restrict accidental access, but they do not protect against an observer on an untrusted Wi-Fi. Use only a trusted private LAN.
@@ -56,7 +56,7 @@ Windows viewport changes are reported back to iOS and debounced before restartin
 
 `Documents/NeoPlay.jsonl` records connection/stop events, encoder dimensions and underlying error domains/codes on a utility queue. It rotates at 512 KiB to `NeoPlay.jsonl.previous`. Pairing codes, receiver addresses, URL capabilities and game paths are not logged.
 
-For Chromecast HLS, the advertised window contains up to six one-second segments while the encoded ring retains up to 24 segments / 24 MiB, including recently unlisted payloads. Target duration stays fixed; unusually long fragments are rejected rather than silently changing the stream contract. This does not establish a real TV playback or latency result.
+For Chromecast HLS, the advertised window contains the newest segments, at least six of them and at least three seconds (three target durations), while the encoded ring retains up to 24 segments / 24 MiB, including recently unlisted payloads. Target duration stays fixed; unusually long fragments are rejected rather than silently changing the stream contract. This does not establish a real TV playback or latency result.
 
 A private manual IPA workflow is configured only on this branch. The isolated native harness compiles the native capture/Cast implementation, but it is **not a complete NeoStation IPA build**. Device acceptance additionally requires the full host/plugin build and manual tests on iPhone plus each destination.
 
@@ -75,3 +75,37 @@ These are **software and simulator results**, not an iPhone-to-TV acceptance res
 See `APPLE_TV_AND_CONTROLLER_BATTERY.md` for the native iOS screen-mirroring path, explicit audio/video status distinctions, and the independent GameController battery overlay beside existing native game menus. The iOS system, not an audio route picker or a private API, selects the Apple TV.
 
 `companion-validation-2026-10-02.json` records the dedicated companion checks and their exact source commit separately from the initial prototype report. Physical Apple TV/Chromecast playback and controller readings remain unvalidated; no full IPA or stable release is claimed.
+
+## Chromecast delay — 14 November 2026
+
+Report: about one second between an action on the iPhone and the TV picture through a Chromecast.
+The Cast route is HLS played by Google's default receiver, which the sender cannot configure. Two parts of the delay
+scale with the segment length: a segment is published only once complete (one whole segment late), and the
+receiver's player starts behind the newest segment (three segments for Shaka Player, the Web Receiver's HLS player
+since May 2026, when the playlist carries no HOLD-BACK; RFC 8216 6.3.3). A stall (Wi-Fi, decoder) also leaves the
+player that much further behind for the rest of the session: it does not catch up by itself.
+
+Change (`NPPolicy`, `NPMuxer`, `NPGoogleCast`):
+- Cast segments and key pictures every 0.5 s instead of 1 s (`NPPolicy.castSegmentSeconds`); the target duration
+  stays 1, the first load still waits for three segments (now 1.5 s instead of 3 s), the playlist keeps at least six
+  segments and three seconds.
+- While playing, the sender reads once a second how far the player is behind the end of the seekable range
+  (`approximateLiveSeekableRangeEnd` − `approximateStreamPosition`). The smallest lag of the session is the
+  reference; more than 1 s above it on two checks in a row asks for one seek to the live edge (`seekToInfinite`),
+  at most once per 15 s; the reference is learnt again 3 s after (`NPLiveLagTracker`). A failed seek is not a
+  session error.
+- `NeoPlay.jsonl` gains `cast.live.lag` (every 10 s: `behind`, `best`, seconds) and `cast.live.resync`
+  (`behind`, `count`). They measure the player's distance from its seekable end, not the end-to-end delay.
+
+Expected, not measured: the two segment-bound parts halved, and no accumulated delay after a stall. Checked here:
+`NPPolicy.swift` compiles with Swift 6.0.3 (Linux) and a local script (not committed) passed the existing native
+playlist expectations, the 0.5 s window and the tracker cases; `NPGoogleCast.swift` type-checks against stand-ins
+with the Swift names of the GoogleCast 4.8.6 headers. Neither is the real iOS compilation, nor a TV result. The
+historical Build397/421 integration gate (`test/neoplay_build397_integration_test.py`) already did not match this
+tree before the change (`NPController.swift` postimage); it is not run by the current recipe and was not updated.
+
+Limit: this route cannot be free of delay. Encoding, segment publication and the default receiver's buffer remain.
+Lower delays need another path: AirPlay to an Apple TV (system mirroring, see `APPLE_TV_AND_CONTROLLER_BATTERY.md`),
+a wired HDMI adapter (expected to use the same external-screen path; not tested here), the Windows NeoPlay receiver
+(per-picture frames), or a custom Cast Web Receiver fed with those frames, which needs a Cast application ID
+registered by the owner in the Google Cast SDK Developer Console and an HTTPS-hosted receiver page (not done).

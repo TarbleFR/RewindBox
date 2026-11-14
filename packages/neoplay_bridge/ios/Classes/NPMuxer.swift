@@ -41,7 +41,7 @@ final class NPMuxer: NSObject, AVAssetWriterDelegate {
     init(source: NPSize, display: NPSize, cast: Bool, cap: NPSize) throws {
         self.source = source
         output = NPPolicy.encodeSize(source: source, display: display, cap: cast ? NPSize(width: 1280, height: 720) : cap)
-        interval = cast ? 1 : 0.25
+        interval = cast ? NPPolicy.castSegmentSeconds : 0.25
         writer = AVAssetWriter(contentType: .mpeg4Movie)
         writer.outputFileTypeProfile = .mpeg4AppleHLS
         writer.preferredOutputSegmentInterval = CMTime(seconds: interval, preferredTimescale: 600)

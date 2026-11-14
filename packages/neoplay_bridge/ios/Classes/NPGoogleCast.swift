@@ -7,6 +7,9 @@ final class NPGoogleCast: NSObject, GCKDiscoveryManagerListener, GCKSessionManag
     private var selected: String?
     private var ownsSession = false
     private var cancelling = false
+    private var liveTimer: Timer?        // main thread, see NPLiveLagTracker
+    private var lag = NPLiveLagTracker()
+    private var lagChecks = 0
     var changed: (() -> Void)?
     var onReady: (() -> Void)?
     var onPlayback: (() -> Void)?
@@ -63,18 +66,38 @@ final class NPGoogleCast: NSObject, GCKDiscoveryManagerListener, GCKSessionManag
     }
     func remoteMediaClient(_ client: GCKRemoteMediaClient, didUpdate mediaStatus: GCKMediaStatus?) {
         guard ownsSession else { return }
-        if mediaStatus?.playerState == .playing { onPlayback?() }
+        if mediaStatus?.playerState == .playing { startLiveWatch(); onPlayback?() }
         if mediaStatus?.playerState == .idle && mediaStatus?.idleReason == .error { onError?(.cast) }
+    }
+    private func startLiveWatch() {
+        guard liveTimer == nil else { return }
+        lag = NPLiveLagTracker(); lagChecks = 0
+        liveTimer = Timer.scheduledTimer(withTimeInterval: NPLiveLagTracker.period, repeats: true) { [weak self] _ in self?.checkLive() }
+    }
+    private func stopLiveWatch() { liveTimer?.invalidate(); liveTimer = nil }
+    // A failed seek is not a session error: no delegate, the next lag lines show its effect.
+    private func checkLive() {
+        guard ownsSession, let session = context.sessionManager.currentCastSession, selected == session.device.uniqueID,
+              let client = session.remoteMediaClient, client.mediaStatus?.playerState == .playing else { return }
+        let end = client.approximateLiveSeekableRangeEnd(), position = client.approximateStreamPosition()
+        guard end != kGCKInvalidTimeInterval, end.isFinite, end > 0, position.isFinite else { return }
+        let behind = end - position, ms = { (value: TimeInterval) in (value * 1000).rounded() / 1000 }
+        lagChecks += 1
+        if lagChecks % 10 == 1 { NPLog.record("cast.live.lag", ["behind": ms(behind), "best": ms(lag.best ?? behind)]) }
+        guard lag.sample(behind: behind, at: Date().timeIntervalSinceReferenceDate) else { return }
+        NPLog.record("cast.live.resync", ["behind": ms(behind), "count": lag.resyncs])
+        let options = GCKMediaSeekOptions(); options.seekToInfinite = true; options.resumeState = .play
+        client.seek(with: options)
     }
     func request(_ request: GCKRequest, didFailWithError error: GCKError) { if ownsSession { NPLog.error("cast.request", error); onError?(.cast) } }
     func sessionManager(_ sessionManager: GCKSessionManager, didFailToStart session: GCKCastSession, withError error: Error) {
-        guard selected == session.device.uniqueID else { return }; NPLog.error("cast.session.start.failed", error); selected = nil; ownsSession = false; cancelling = false; onError?(.cast)
+        guard selected == session.device.uniqueID else { return }; NPLog.error("cast.session.start.failed", error); stopLiveWatch(); selected = nil; ownsSession = false; cancelling = false; onError?(.cast)
     }
     func sessionManager(_ sessionManager: GCKSessionManager, didEnd session: GCKCastSession, withError error: Error?) {
-        guard selected == session.device.uniqueID else { return }; NPLog.error("cast.session.ended", error); selected = nil; ownsSession = false; cancelling = false; onError?(.network)
+        guard selected == session.device.uniqueID else { return }; NPLog.error("cast.session.ended", error); stopLiveWatch(); selected = nil; ownsSession = false; cancelling = false; onError?(.network)
     }
     func stop() {
-        onReady = nil; onPlayback = nil; onError = nil
+        onReady = nil; onPlayback = nil; onError = nil; stopLiveWatch()
         guard initialized else { return }
         let matches = context.sessionManager.currentCastSession?.device.uniqueID == selected
         context.sessionManager.currentCastSession?.remoteMediaClient?.remove(self)

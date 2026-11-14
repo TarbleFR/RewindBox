@@ -40,6 +40,47 @@ enum NPPolicy {
     static func bitrate(for size: NPSize, cast: Bool = false) -> Int {
         min(cast ? 12_000_000 : 60_000_000, max(8_000_000, size.width * size.height * 12))
     }
+    // Chromecast (Google's default receiver, HLS). A segment is published only
+    // once complete, so the picture reaches the receiver one whole segment
+    // late; the receiver's player then starts a number of segments behind the
+    // newest one (three for Shaka Player without HOLD-BACK, RFC 8216 6.3.3).
+    // Both parts scale with the segment length: 0.5 s instead of 1 s halves
+    // them. Every segment starts on a key picture, so key pictures follow it.
+    static let castSegmentSeconds = 0.5
+    static let castStartSegments = 3   // the first load waits for three segments
+    static let castWindowSegments = 6  // the playlist advertises at least six segments
+    static let castWindowSeconds = 3.0 // and three target durations (RFC 8216 6.2.2)
+}
+
+// Live delay on a Chromecast. The receiver's player keeps the distance it
+// started with, so every stall (Wi-Fi, decoder) adds its length to the delay
+// for the rest of the session. Once a second, while playing, the sender reads
+// how far the player is behind the end of the seekable range. The smallest
+// lag of the session is the reference: a lag more than `excess` above it on
+// `checks` checks in a row asks for one seek to the live edge; the reference
+// is then learnt again after `settle`. At most one seek per `cooldown`: a seek
+// that does not bring the lag back only resets the reference, it cannot loop.
+// Pure state, like NPLinkAdapter.
+struct NPLiveLagTracker {
+    static let period: TimeInterval = 1
+    static let excess: TimeInterval = 1
+    static let checks = 2
+    static let settle: TimeInterval = 3
+    static let cooldown: TimeInterval = 15
+    private(set) var best: TimeInterval?
+    private(set) var resyncs = 0
+    private var late = 0
+    private var lastResync = -TimeInterval.infinity
+    mutating func sample(behind: TimeInterval, at now: TimeInterval) -> Bool {
+        guard behind.isFinite, behind > -1, now - lastResync >= Self.settle else { late = 0; return false }
+        let lag = max(0, behind)
+        let reference = min(best ?? lag, lag); best = reference
+        guard lag > reference + Self.excess else { late = 0; return false }
+        late += 1
+        guard late >= Self.checks, now - lastResync >= Self.cooldown else { return false }
+        late = 0; lastResync = now; best = nil; resyncs += 1
+        return true
+    }
 }
 
 // Link adaptation. The transport reports every packet it had to shed. Three
@@ -110,15 +151,23 @@ final class NPSegmentStore {
         }
         let needed = Set(segments.map(\.epoch) + [epoch]); initializations = initializations.filter { needed.contains($0.key) }
     }
-    var isReady: Bool { lock.lock(); defer { lock.unlock() }; let visible = segments.suffix(6); return visible.count >= 3 && visible.reduce(0, {$0 + $1.duration}) >= 3 }
+    // Newest segments: at least castWindowSegments of them and castWindowSeconds long. Caller holds the lock.
+    private var advertised: ArraySlice<Segment> {
+        var start = segments.endIndex, total = 0.0
+        while start > segments.startIndex, segments.endIndex - start < NPPolicy.castWindowSegments || total < NPPolicy.castWindowSeconds {
+            start -= 1; total += segments[start].duration
+        }
+        return segments[start...]
+    }
+    var isReady: Bool { lock.lock(); defer { lock.unlock() }; return advertised.count >= NPPolicy.castStartSegments }
     var count: Int { lock.lock(); defer { lock.unlock() }; return segments.count }
     var byteCount: Int { lock.lock(); defer { lock.unlock() }; return segments.reduce(0, {$0 + $1.bytes.count}) + initializations.values.reduce(0, {$0 + $1.count}) }
     func response(_ resource: String) -> (Int, String, Data) {
         lock.lock(); defer { lock.unlock() }
         if resource == "index.m3u8" {
             // RFC 8216: fixed target duration; retain older payloads after playlist eviction.
-            let advertised = Array(segments.suffix(6))
-            guard let first = advertised.first, advertised.count >= 3, advertised.reduce(0, {$0 + $1.duration}) >= 3 else { return (503, "text/plain", Data()) }
+            let advertised = Array(self.advertised)
+            guard let first = advertised.first, advertised.count >= NPPolicy.castStartSegments else { return (503, "text/plain", Data()) }
             var lines = ["#EXTM3U", "#EXT-X-VERSION:7", "#EXT-X-TARGETDURATION:1", "#EXT-X-MEDIA-SEQUENCE:\(first.sequence)", "#EXT-X-DISCONTINUITY-SEQUENCE:\(first.epoch)"]
             var previous: Int?
             for item in advertised {
