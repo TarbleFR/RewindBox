@@ -1,0 +1,184 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index e63b32186..9751c4fdf 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1167,6 +1167,8 @@ static float g_wd_push[4];
+ static int g_wd_inst, g_wd_vc;   // S2Arm widen: the current draw's instance / vertex (index) count for wd_draw (draw sets them; 0 = unknown, an indirect draw)
+ static uint64_t g_sub_serial;   // Submission index (used by the parallel precompile's 'predict only once per submission')
+ static uint64_t g_pkg_epoch;   // Packaged-texture check period: a new one at each submission and at each wait on another queue (OP_WAIT_SYNC); see tex_by_id view_ep
++uint64_t nvn_sparse_gen(void);   // RewindBox (patch 0031): hle_nvn.c (declared again with the sparse pool queries below)
++static uint64_t g_sub_vgen;   // RewindBox (patch 0031): nvn_sparse_gen when this submission began (pool_seen_scan compares it, so a mapping made during the submission is looked up again in the next one)
+ // Frame scratch generation: bumped when a submission starts (arena_begin) and when a segment of it is handed to the GPU (arena_cut). A cut segment's blocks are reused as soon as
+ //   the GPU is done with that segment, while the submission goes on (NvArena), so anything cached in the scratch is valid for one generation, not one submission: the uniform shadows
+ //   (ubp_get), the widen glue's rewritten copies and support copies, the internal-resolution support copies, the exact-size tables, the expanded buffer textures and vertex conversions,
+@@ -1177,7 +1179,7 @@ static void sub_cut_begin(void);   // the segment draw count starts with the sub
+ static void dsnap_stale(void);   // #387 (with fb_prepare)
+ void nvn_be_sub_begin(void) {
+     dsnap_stale();   // #387: depth may change between submissions (CPU writes, other queues)
+-    mtl_init(); g_sub_serial++; g_pkg_epoch++; wd_sub_begin(); g_seg = 0; seg_clk_put(g_sclk); g_sclk = NULL; rc_retire(); g_rc_npend = 0; g_rc_skip = 0;
++    mtl_init(); g_sub_serial++; g_pkg_epoch++; g_sub_vgen = nvn_sparse_gen(); wd_sub_begin(); g_seg = 0; seg_clk_put(g_sclk); g_sclk = NULL; rc_retire(); g_rc_npend = 0; g_rc_skip = 0;   // RewindBox (patch 0031): g_sub_vgen
+     defer_drain();
+     defer_reset();
+     void treg_sweep_gone(void); treg_sweep_gone();
+@@ -6675,6 +6677,7 @@ void nvn_be_prog_release(prog_t *p) { if (p->serial) serial_del(p->serial); }
+ // At registration the whole texture object is snapshotted (NVN semantics: the descriptor has been written into the pool); view: the MTLTexture for that ID (a view or the base texture, held via CFBridgingRetain) and the serial-table / guest-write generations at the time it was obtained
+ typedef struct { tex_t t; int ok; view_t v; int has_v; void *view; uint64_t view_id, view_rid, view_ser, view_dirty, view_ep; int view_pkg;   // view_pkg: CPU-written (packaged); only those depend on guest writes (view_dirty)
+                  uint32_t view_pf; uint8_t view_tt;                         // view's pixel format / texture type, read once when it is set (the P1-20 probe compares them per binding without a message send)
++                 uint64_t view_sp_seq, view_sp_ep, view_sp_frame; uint8_t view_sp;   // RewindBox (patch 0031): view_sp: the view's base is a placement sparse texture (treg_sp_note); view_sp_seq: its pool's mapping log count (nvn_sparse_log_seq) taken before the look that validated the view; view_sp_ep: the check period (g_pkg_epoch) it was last found current in; TREG_SP_UNSEEN: no look on record; view_sp_frame: g_cur_frame at that look (TREG_SP_RELOOK). Read only while view is set
+                  void *alt, *alt_of; uint64_t alt_rid; uint8_t alt_type;   // alt: compatible view used when the shader's declared type differs from view (tex_fit), alt_of = the view it was built from
+                  void *ar, *ar_of; uint64_t ar_rid;                         // ar: the alpha-from-red view for the profile's alpha_from_red shaders (tex_alpha_red), ar_of = the view it was built from
+                  void *im, *im_of; uint64_t im_rid;                         // im: the view an image slot reads in the shader's pixel class (img_fit), im_of = the view it was built from
+@@ -6709,7 +6712,7 @@ static void **g_sbview; static uint64_t *g_sbrid;   // 2 per sampler ID: the sam
+ static void treg_drop_ar(treg_t *r) { if (r->ar) { defer_obj_unref((__bridge id)r->ar); CFRelease(r->ar); r->ar = r->ar_of = NULL; r->ar_rid = 0; }
+                                      if (r->im) { defer_obj_unref((__bridge id)r->im); CFRelease(r->im); r->im = r->im_of = NULL; r->im_rid = 0; } }   // and the image class view (img_fit)
+ static void treg_drop_views(treg_t *r) {   // every view the ID caches (view, alt, ar, im): each retains its base texture
+-    if (r->view) { defer_obj_unref((__bridge id)r->view); CFRelease(r->view); r->view = NULL; r->view_id = r->view_rid = 0; }
++    if (r->view) { defer_obj_unref((__bridge id)r->view); CFRelease(r->view); r->view = NULL; r->view_id = r->view_rid = 0; r->view_sp = 0; }   // RewindBox (patch 0031): view_sp with it
+     if (r->alt) { defer_obj_unref((__bridge id)r->alt); CFRelease(r->alt); r->alt = r->alt_of = NULL; r->alt_rid = 0; }
+     treg_drop_ar(r);
+ }
+@@ -7048,6 +7051,62 @@ static _Atomic int g_origin_ll;
+ extern int s2a_nvn_rast_flip;   // hle_nvn.c nvnQueueInitialize: the submitting queue's front-face raster flip
+ void nvn_be_set_origin_lower_left(int on) { if (atomic_exchange(&g_origin_ll, on) != on) MLOG("window origin: %s", on ? "lower left (GL: viewport flipped, winding reversed, present flipped)" : "upper left"); }
+ void nvn_be_set_tex_pool_n(int n) { g_tpool_n = n; }
++// RewindBox (patch 0031): the texture ID view cache follows a sparse pool's mappings. After the idea of seedds/nxnative df9ca262 (MIT, Copyright (c) 2026 seedds; read at b16693b3; none of
++//   its code, which needs nvn_owner.m): a mapping request changes what a texture of a sparse pool reads (its page table) with no registration, serial change or guest write, so an ID's
++//   cached view (tex_by_id, tex_fast, tex_fast_rid) kept the tiles its placement sparse texture had mapped at its last look until something unrelated moved g_ser_gen and sent the ID down
++//   the slow path, where tex_mtl looks again (nvn_sparse_tiles.inc sparse_look, sparse_gpu_look). df9ca262 notes the serials a request overlaps (g_vnote, treg_sparse_notes → own_note);
++//   S2Arm has neither those notes nor ID epochs (any g_ser_gen move already sends every ID down the slow path), so here: a flag in the entry whose view's base is a placement sparse
++//   texture, and its pool's mapping log count (nvn_sparse_log_seq, patch 0026; declared in nvn_sparse_tiles.inc) taken before the look. Once a check period (g_pkg_epoch: a submission,
++//   split at waits on another queue, as for packaged textures' view_ep; df9ca262 notes at each submission's start) a flagged view is kept only while that count stands still; otherwise the
++//   ID takes the slow path and the look follows the mappings. An ID that is not flagged pays one byte load on the fast paths
++#define TREG_SP_UNSEEN (~0ull)   // no look on record (the view was made off the submit thread, or it was flagged just now): the next check period takes the slow path once
++// A flagged view also takes the slow path once this many frames have passed since its last look, mapping or not: a look that left tiles out of date (staging, a heap tile or host memory
++//   refused, nvn_sparse_tiles.inc sp_rescan) or a packaged texture's tiles written since (nvn_dirty_sparse_writes) is looked at again 60 frames on (sparse_look, check C4), and only
++//   when the texture is resolved; an ID that pool tables name is looked up again by pool_seen_scan at most this often, so its re-look can wait up to twice this
++#define TREG_SP_RELOOK 60
++static int g_treg_sp_any;   // an ID view was flagged this session: pool_seen_scan looks the IDs shaders read up again after a mapping (pool_session_reset starts it again)
++static uint64_t g_treg_sp_ids, g_treg_sp_moved, g_treg_sp_off, g_treg_sp_twin;   // views flagged, slow paths a moved log caused, flagged views made off the submit thread, twin views left unflagged (log lines; pool_session_reset)
++// A flagged view is current: found so in this check period, or its pool's log has not moved since the look and that look is less than TREG_SP_RELOOK frames old (then current for the
++//   rest of the period). Caller holds g_rmu.
++//   noinline: the inlined fast paths stay one byte load and one branch for an ID that is not flagged
++static __attribute__((noinline)) int treg_sp_fresh(treg_t *r) {
++    if (r->view_sp_ep == g_pkg_epoch) return 1;
++    if (atomic_load_explicit(&g_cur_frame, memory_order_relaxed) - r->view_sp_frame >= TREG_SP_RELOOK) return 0;   // the 60-frame re-look (sparse_look) runs on the slow path
++    if (nvn_sparse_log_seq(r->t.pool) != r->view_sp_seq) return 0;
++    r->view_sp_ep = g_pkg_epoch; return 1;
++}
++// After tex_by_id's slow path kept or made an ID's view: flag it when its base is a placement sparse texture, and on the submit thread record the log count taken before the look.
++//   base: what tex_mtl gave for the entry's texture; spq: nvn_sparse_log_seq taken before that tex_mtl (TREG_SP_UNSEEN when the entry was not flagged before). Caller holds g_rmu
++static void treg_sp_note(int tid, treg_t *rp, id<MTLTexture> base, uint64_t spq) {
++    const pool_t *p = rp->t.pool;
++    // S2Arm: no associated-object lookup to tell: Metal's isSparse (a placement sparse texture, as upstream's tex_upgrade tests it, 1d4b8e82 nvn_mtl.m:2889 at 0c078130), only for a
++    //   sparse virtual pool's texture and for that texture itself, not an sRGB / linear twin view (no look is made through one: its format would key the shared tiles, patch 0030).
++    //   pool->flags first, as tex_mtl_ reads it: only a virtual pool's texture pays nvn_sparse_pool (a read lock), only a sparse one the parentTexture / isSparse messages
++    int sp = base && p && (p->flags & NVN_MEMORY_POOL_FLAGS_VIRTUAL) && nvn_sparse_pool(p);
++    id<MTLTexture> par = sp ? base.parentTexture : nil;
++    // A twin view (tex_mtl_ made it of the other format's texture, srgb_twins) shows the parent's mappings, but nothing looks through it (patch 0030): its cached view has the tiles of
++    //   the parent's last look, which another ID or binding of the parent makes. Not flagged (a slow path would not look either); said, so that the gap is not silent (D3)
++    if (par && par.isSparse && srgb_twin_view(base) && g_treg_sp_twin++ < 4)
++        MLOG("RewindBox: texture ID %d ser=%llu format %#x: an sRGB / linear view of a placement sparse texture, not looked through: its cached view shows the tiles of the parent's last look, made when the parent itself is resolved (%llu so far)",
++             tid, (unsigned long long)rp->t.serial, rp->t.d.format, (unsigned long long)g_treg_sp_twin);
++    sp = sp && !par && base.isSparse;
++    if (!sp) { rp->view_sp = 0; return; }
++    // a9005a51: a look's mapping operations are the submit thread's (rec_queue_block). S2Arm: on_sub_thread only, as patch 0030's hooks (not before a session's first submission either)
++    int on = on_sub_thread();
++    // S2Arm: tex_mtl does not look on every path: a texture another serial made, taken from the sharing table (g_alias) at a serial's first resolution, or each time for a finalized
++    //   serial whose ID stays registered over live storage (tex_mtl_'s "shared" / "dead" returns). The entry's tex_t has that texture's sharing key (pool, storage, format, shape), so it
++    //   looks here; a second look with no new request reads one log count (sparse_look). A packaged one has no NvSparse on its texture (NvPkg ps): this finds none, its look is tex_mtl's (0028)
++    if (on && atomic_load_explicit(&g_sp_gpu_n, memory_order_relaxed)) sparse_gpu_look(&rp->t, base);
++    if (!rp->view_sp && g_treg_sp_ids++ < 16)
++        MLOG("RewindBox: texture ID %d ser=%llu %ux%ux%u format %#x: placement sparse, its cached view follows the pool's mappings (%llu IDs so far)",
++             tid, (unsigned long long)rp->t.serial, rp->t.d.width, rp->t.d.height, rp->t.d.depth, rp->t.d.format, (unsigned long long)g_treg_sp_ids);
++    rp->view_sp = 1; g_treg_sp_any = 1;
++    if (on) { rp->view_sp_seq = spq; rp->view_sp_ep = g_pkg_epoch; rp->view_sp_frame = atomic_load_explicit(&g_cur_frame, memory_order_relaxed); return; }   // spq TREG_SP_UNSEEN (just flagged): looked now, so current for this period; the next one takes the slow path once and records a count
++    rp->view_sp_seq = rp->view_sp_ep = TREG_SP_UNSEEN;   // off the submit thread nothing looked (tex_mtl_'s hooks skip it there): the submit thread's next use takes the slow path, which looks
++    if (g_treg_sp_off++ < 4)
++        MLOG("RewindBox: texture ID %d ser=%llu (placement sparse) resolved off the submit thread: no look there, its mappings are followed at its next use on the submit thread (%llu so far)",
++             tid, (unsigned long long)rp->t.serial, (unsigned long long)g_treg_sp_off);
++}
+ static id<MTLTexture> tex_by_id(int tid) {   // Caller holds g_rmu
+     if (g_tpool_n && tid >= g_tpool_n) { if (!g_stat_tex_oob++) MLOG("texture ID %d outside the pool (capacity %d) treated as an empty slot: reads 0", tid, g_tpool_n); return nil; }
+     if (tid == 0 && !g_tid0_reg) { if (!g_stat_tex_null++) MLOG("texture ID 0 read with nothing registered there (a slot left at the zero handle): the empty descriptor, reads 0 (frame %llu, first case)", (unsigned long long)atomic_load(&g_cur_frame)); return nil; }
+@@ -7058,14 +7117,21 @@ static id<MTLTexture> tex_by_id(int tid) {   // Caller holds g_rmu
+     //   after the submit and the replay runs inside the game's submit call, so one look at guest memory per period is what the GPU reads (11-02 Breath of the Wild outdoors: textures
+     //   sharing pages with data rewritten every frame were re-protected and re-hashed per draw, about 64 times a frame, each followed by a write fault on the game thread; 249k
+     //   checks, 0 changes). A write in the period leaves tex_mtl's own stamp behind, so the next period checks it
+-    if (rp->view && rp->view_ser == sg && (!rp->view_pkg || rp->view_dirty == dg || rp->view_ep == g_pkg_epoch)) return (__bridge id<MTLTexture>)rp->view;
++    // RewindBox (patch 0031): a placement sparse view also needs its pool's mappings unmoved (treg_sp_fresh)
++    if (rp->view && rp->view_ser == sg && (!rp->view_pkg || rp->view_dirty == dg || rp->view_ep == g_pkg_epoch) && (!rp->view_sp || treg_sp_fresh(rp))) return (__bridge id<MTLTexture>)rp->view;
++    // RewindBox (patch 0031): a placement sparse view's pool log count, taken before tex_mtl's look below as sg / dg are taken before the lookup (treg_sp_note records it). Counted here,
++    //   not in treg_sp_fresh, which a tex_fast / tex_fast_rid miss evaluates twice; a slow path g_ser_gen or a guest write caused, with the log unmoved, is not counted
++    uint64_t spq = rp->view && rp->view_sp ? nvn_sparse_log_seq(rp->t.pool) : TREG_SP_UNSEEN;
++    if (spq != TREG_SP_UNSEEN && rp->view_sp_seq != TREG_SP_UNSEEN && spq != rp->view_sp_seq && (g_treg_sp_moved++ < 8 || g_treg_sp_moved % 1000 == 0))
++        MLOG("RewindBox: texture ID %d ser=%llu (placement sparse): its pool's mappings moved (log %llu -> %llu), resolved again to follow them (%llu so far)",
++             tid, (unsigned long long)rp->t.serial, (unsigned long long)rp->view_sp_seq, (unsigned long long)spq, (unsigned long long)g_treg_sp_moved);
+     id<MTLTexture> v = (__bridge id<MTLTexture>)rp->view;
+     // Guest writes (nvn_dirty_now) matter only to CPU-written textures: a texture that becomes CPU-written later bumps g_ser_gen once (nvn_be_tex_cpu_written), which sends its ID through here again.
+     // Before, every guest write to any protected page sent every texture ID, render targets included, down this path
+     rp->view_pkg = (rp->t.has_layout || tex_cpu_written(rp->t.serial)) && rp->t.mem;
+     if (v) {   // The serial table or guest memory has changed: check whether the base texture was re-uploaded and replaced; if so the view is invalidated
+         id<MTLTexture> cur = tex_mtl(&rp->t);
+-        if (cur == v || v.parentTexture == cur) { rp->view_ser = sg; rp->view_dirty = dg; rp->view_ep = g_pkg_epoch; return v; }
++        if (cur == v || v.parentTexture == cur) { rp->view_ser = sg; rp->view_dirty = dg; rp->view_ep = g_pkg_epoch; treg_sp_note(tid, rp, cur, spq); return v; }   // RewindBox (patch 0031): treg_sp_note
+         defer_obj_unref(v); CFRelease(rp->view); rp->view = NULL; rp->view_rid = 0; v = nil;
+     }
+     treg_t r = *rp;
+@@ -7138,11 +7204,14 @@ static id<MTLTexture> tex_by_id(int tid) {   // Caller holds g_rmu
+         }
+     }
+     rp->view = (void *)CFBridgingRetain(v); rp->view_rid = v.gpuResourceID._impl; rp->view_pf = (uint32_t)v.pixelFormat; rp->view_tt = (uint8_t)v.textureType; rp->view_ser = sg; rp->view_dirty = dg; rp->view_ep = g_pkg_epoch;
++    treg_sp_note(tid, rp, base, spq);   // RewindBox (patch 0031): a placement sparse base follows its pool's mappings (treg_sp_fresh)
+     return v;
+ }
+ // Hot-path object fetch: if the table entry is valid, return the table-held pointer directly (without ARC retain / autorelease), otherwise take the slow path to build / validate. Caller holds g_rmu.
+ static inline __attribute__((always_inline)) void *tex_fast(int tid) {
+-    if (tid >= 0 && tid < g_ntreg && g_treg[tid].ok && g_treg[tid].view && g_treg[tid].view_ser == g_ser_gen && (!g_treg[tid].view_pkg || g_treg[tid].view_dirty == nvn_dirty_now() || g_treg[tid].view_ep == g_pkg_epoch)) return g_treg[tid].view;
++    // RewindBox (patch 0031): a placement sparse view also needs its pool's mappings unmoved (treg_sp_fresh)
++    if (tid >= 0 && tid < g_ntreg && g_treg[tid].ok && g_treg[tid].view && g_treg[tid].view_ser == g_ser_gen && (!g_treg[tid].view_pkg || g_treg[tid].view_dirty == nvn_dirty_now() || g_treg[tid].view_ep == g_pkg_epoch)
++        && (!g_treg[tid].view_sp || treg_sp_fresh(&g_treg[tid]))) return g_treg[tid].view;
+     return (__bridge void *)tex_by_id(tid);
+ }
+ // The texture type the shader declares differs from the one the descriptor gives: use a compatible view. Maxwell sample instructions carry their own dimension, and a non-array instruction reading a 2D array texture reads layer 0;
+@@ -7374,7 +7443,9 @@ static int img_atomic_prepare(NvShader *sh, int st) {
+     return ok;
+ }
+ static inline __attribute__((always_inline)) uint64_t tex_fast_rid(int tid, void **out) {
+-    if (tid >= 0 && tid < g_ntreg && g_treg[tid].ok && g_treg[tid].view && g_treg[tid].view_ser == g_ser_gen && (!g_treg[tid].view_pkg || g_treg[tid].view_dirty == nvn_dirty_now() || g_treg[tid].view_ep == g_pkg_epoch)) { if (out) *out = g_treg[tid].view; return g_treg[tid].view_rid; }
++    // RewindBox (patch 0031): a placement sparse view also needs its pool's mappings unmoved (treg_sp_fresh)
++    if (tid >= 0 && tid < g_ntreg && g_treg[tid].ok && g_treg[tid].view && g_treg[tid].view_ser == g_ser_gen && (!g_treg[tid].view_pkg || g_treg[tid].view_dirty == nvn_dirty_now() || g_treg[tid].view_ep == g_pkg_epoch)
++        && (!g_treg[tid].view_sp || treg_sp_fresh(&g_treg[tid]))) { if (out) *out = g_treg[tid].view; return g_treg[tid].view_rid; }
+     id<MTLTexture> t = tex_by_id(tid); if (out) *out = (__bridge void *)t; return t ? t.gpuResourceID._impl : 0;
+ }
+ // Buffer textures of a format the host expands (nvn_fmt_expanded: three-component RGB8 / 16 / 32, *_UI2F / *_I2F, RGB10A2 signed): Metal has no such texture buffer format,
+@@ -9501,12 +9572,22 @@ static void pool_dirty(int samp, int id_) { if (atomic_load_explicit(&g_ptab_any
+ // while its old one stays alive elsewhere, a target first written) or guest memory did (a CPU-written texture is checked against guest writes only when it is looked up, tex_by_id
+ // view_pkg): what nothing retires or registers still reaches what shaders read within a submission. Shaders read a few hundred of the tens of thousands of IDs
+ static uint64_t g_seen_dirty = ~0ull, g_seen_ser = ~0ull;
++static uint64_t g_seen_vgen, g_seen_spframe, g_seen_sp_rechecks;   // RewindBox (patch 0031): g_sub_vgen at the last scan that compared it; frame of the last TREG_SP_RELOOK recheck; scans a sparse mapping alone sent to the recheck (log line). Reset with the session
+ static void pool_seen_scan(void) {
+     if (!g_seen_buf || g_seen_sub == g_sub_serial) return;
+     g_seen_sub = g_sub_serial;
+     pool_walk_frame();
+     const uint32_t *w = (const uint32_t *)g_seen_buf.contents; unsigned words = MIN((unsigned)g_ntreg / 32 + 1, (unsigned)POOL_SEEN_WORDS);
+     uint64_t dg = nvn_dirty_now(), sg = g_ser_gen; int recheck = dg != g_seen_dirty || sg != g_seen_ser; g_seen_dirty = dg; g_seen_ser = sg;
++    // RewindBox (patch 0031): a sparse mapping (any pool, nvn_sparse_gen) also looks the IDs shaders read up again once an ID view holds a placement sparse texture: the IDs a pool table
++    //   names reach tex_fast_rid only here, and a mapping moves neither generation above (treg_sp_fresh then sends a flagged one down the slow path, which follows it). The generation is
++    //   the one this submission began with (g_sub_vgen), not the current one: an ID found current earlier in this check period is kept by treg_sp_fresh, so a mapping made since is
++    //   looked up again in the next submission's scan, when the period has changed. And once every TREG_SP_RELOOK frames, for the 60-frame re-look (treg_sp_fresh)
++    if (g_treg_sp_any) { uint64_t vg = g_sub_vgen, f = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
++        if (vg != g_seen_vgen) { g_seen_vgen = vg;
++            if (!recheck && g_seen_sp_rechecks++ < 4) MLOG("RewindBox: pool tables: the texture IDs shaders read are looked up again after a sparse mapping (%llu so far)", (unsigned long long)g_seen_sp_rechecks);
++            recheck = 1; }
++        if (f - g_seen_spframe >= TREG_SP_RELOOK) { g_seen_spframe = f; recheck = 1; } }
+     for (unsigned i = 0; i < words; i++) {
+         uint32_t fresh = w[i] & ~g_seen_done[i];
+         if (fresh) { g_seen_done[i] |= fresh; g_seen_todo[i] |= fresh; }
+@@ -9641,6 +9722,7 @@ static void pool_session_reset(void) {
+     for (int s = 0; s < 2; s++) pool_dset_clear(&g_pdirty[s]);
+     pool_dset_clear(&g_pleft);
+     memset(g_seen_done, 0, sizeof g_seen_done); memset(g_seen_todo, 0, sizeof g_seen_todo); g_seen_sub = ~0ull;
++    g_seen_vgen = g_seen_spframe = g_seen_sp_rechecks = 0; g_sub_vgen = 0; g_treg_sp_any = 0; g_treg_sp_ids = g_treg_sp_moved = g_treg_sp_off = g_treg_sp_twin = 0;   // RewindBox (patch 0031, check C6): with the session
+     if (g_seen_buf) memset(g_seen_buf.contents, 0, POOL_SEEN_WORDS * 4);
+     g_psnap_gen++;
+ }

@@ -1,0 +1,640 @@
+diff --git a/THIRD_PARTY_LICENSES.md b/THIRD_PARTY_LICENSES.md
+index 9b700c2a0..60e7ff7fb 100644
+--- a/THIRD_PARTY_LICENSES.md
++++ b/THIRD_PARTY_LICENSES.md
+@@ -8,7 +8,7 @@ S2Arm 本身以 Apache License 2.0 授权（仓库根目录 [LICENSE](LICENSE) 
+ | --- | --- | --- | --- | --- | --- |
+ | Ryujinx 树 | 目录 `compat/tree`（旧文档记 1.3.2） | MIT | https://github.com/Ryujinx/Ryujinx ，许可 `compat/tree/LICENSE.txt` | 是（编进 Mac 宿主 / 出包工具） | 是（编进 iOS 宿主） |
+ | Ryujinx WSI | 派生自 Ryujinx | MIT | `graphics/vulkan/wsi`，`LICENSE.Ryujinx.txt` | 安卓/Vulkan 构建用 | 否（不进 iOS IPA） |
+-| 直连图形层部分代码 | 提交 `86d9ba12` | MIT | 许可全文 `graphics/nvn/LICENSE`，版权 © 2026 seedds | 是 | 是 |
++| 直连图形层部分代码 | 提交 `86d9ba12`；RewindBox 补丁 0023 起另移植 seedds/nxnative `1d4b8e82`、`1110473c`、`229fc22c`、`933b6759`、`f24e6b80`、`a9005a51` | MIT | 许可全文 `graphics/nvn/LICENSE`，版权 © 2026 seedds | 是 | 是 |
+ | ns2pro-bridge | 基线 `4d7ce092` | MIT | https://github.com/DanielZhangyc/ns2pro-bridge ，`runtime/ns2pro/LICENSE` | 按需编进 framework 时是 | 按需编进 framework 时是 |
+ | Vulkan-Headers | 1.4.363 | Apache-2.0 OR MIT | https://github.com/KhronosGroup/Vulkan-Headers ，`graphics/nvn/third_party/vulkan-headers` | 否（只是编译用头） | 否 |
+ | SPIRV-Cross | vulkan-sdk-1.4.363.0 | Apache-2.0 | https://github.com/KhronosGroup/SPIRV-Cross ，源码在 `graphics/third_party/spirv_cross`（旧文档写「不进仓库」是错的）。命令行另从 Homebrew 打进 .app | 是（源码在引擎树；`spirv-cross` 在 Runtime/bin） | 是（`graphics/build.mk` 把源码编进 iOS 渲染器静态库 `libnxgal.a`，首遇着色器在机上现编用） |
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 934657e0d..b3386991a 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -287,7 +287,7 @@ enum { RS_SITES = 16 }; static struct { int line; uint64_t n, bytes; } g_rs_site
+ static int big_tex_on(void) { static int on = -1; if (on < 0) { const char *e = getenv("S2A_MEM_SPLIT"); on = e && *e && strcmp(e, "0"); } return on; }
+ static _Atomic uint64_t g_big_tex_n, g_big_tex_bytes;
+ static _Atomic uint64_t g_cur_frame;   // defined with the frame statistics below (tentative definition)
+-static void big_tex_res(id<MTLResource> r, int line) {
++static void big_tex_res(id<MTLAllocation> r, int line) {   // RewindBox (patch 0028): an MTLAllocation, as res_add_at below (a heap is no texture: left out)
+     if (![r conformsToProtocol:@protocol(MTLTexture)]) return;
+     id<MTLTexture> t = (id<MTLTexture>)r; if (t.parentTexture || t.buffer || t.storageMode != MTLStorageModePrivate) return;
+     uint64_t b = t.allocatedSize; if (b < (4u << 20)) return;
+@@ -300,9 +300,11 @@ static void big_tex_res(id<MTLResource> r, int line) {
+ //   驻留集增删等）就永远放不掉。11-06 DOOM Eternal（c1106_rj13）：游戏释放的内存池 34 个 2720 MB 的零拷贝缓冲一直活着（「freed but alive」），
+ //   GPU 已分配 4645 MB；删池时线程自动释放池里挂着 36–56 个缓冲对象。池生命周期上这四处入口（建池 / 删池 / 进驻留集 / 出驻留集）各自带池：
+ //   改后同局 freed but alive 0、GPU 已分配 1920 MB
+-static void res_add_at_body(id<MTLResource> r, int line);
+-static void res_add_at(id<MTLResource> r, int line) { @autoreleasepool { res_add_at_body(r, line); } }
+-static void res_add_at_body(id<MTLResource> r, int line) {
++// RewindBox (patch 0028): an MTLAllocation, so that a placement heap (not an MTLResource) goes in and out of the residency set too (nvn_sparse_tiles.inc), as upstream's res_add_at
++//   (seedds/nxnative 1d4b8e82, dm/gfx/nvn/nvn_mtl.m:294 at 0c078130, MIT, Copyright (c) 2026 seedds). The bodies are unchanged; every caller passes a texture or a buffer as before
++static void res_add_at_body(id<MTLAllocation> r, int line);
++static void res_add_at(id<MTLAllocation> r, int line) { @autoreleasepool { res_add_at_body(r, line); } }
++static void res_add_at_body(id<MTLAllocation> r, int line) {
+     if (!r) return;
+     pthread_mutex_lock(&g_res_mu);
+     if (!g_res_objects) g_res_objects = [NSHashTable weakObjectsHashTable];
+@@ -316,9 +318,9 @@ static void res_add_at_body(id<MTLResource> r, int line) {
+     pthread_mutex_unlock(&g_res_mu);
+ }
+ static int pool_pin_retire(void *r);   // a pool table names it (pool_ent_put): it stays resident until no entry does
+-static void res_remove_body(id<MTLResource> r);
+-static void res_remove(id<MTLResource> r) { @autoreleasepool { res_remove_body(r); } }
+-static void res_remove_body(id<MTLResource> r) {
++static void res_remove_body(id<MTLAllocation> r);   // RewindBox (patch 0028): an MTLAllocation, as res_add_at
++static void res_remove(id<MTLAllocation> r) { @autoreleasepool { res_remove_body(r); } }
++static void res_remove_body(id<MTLAllocation> r) {
+     if (!r) return;
+     pthread_mutex_lock(&g_res_mu);
+     if (![g_res_objects containsObject:r]) { pthread_mutex_unlock(&g_res_mu); return; }
+@@ -1242,10 +1244,16 @@ static inline void m3_wait(id e, int render, int relaxed) {
+     if (render) [(id<MTLRenderCommandEncoder>)e waitForFence:g_fence3 beforeStages:relaxed ? MTLRenderStageFragment : MTLRenderStageVertex];
+     else [(id<MTLBlitCommandEncoder>)e waitForFence:g_fence3];   // the compute encoder's selector is the same
+ }
++// RewindBox (patch 0028, check C10): placement heaps made (nvn_sparse_tiles.inc sp_slot; 0 again at a session's end). While there is one, the queue barrier an encoder begins with
++//   flushes aliased virtual addresses too (MTL4VisibilityOptionResourceAlias), as upstream's resource_vis does once its allocations alias (seedds/nxnative 1d4b8e82,
++//   dm/gfx/nvn/nvn_mtl.m:284 at 0c078130, MIT, Copyright (c) 2026 seedds): a heap tile unmapped from one texture is mapped into another once the GPU is past it. Begin barriers
++//   only, as upstream (its measure: about 100 KB of command allocator an encoder for the alias flush on the end barrier, nothing on the begin one). No heap: Device, as before
++static _Atomic unsigned g_sp_heap_n;
++static inline MTL4VisibilityOptions rb_res_vis(void) { return MTL4VisibilityOptionDevice | (atomic_load_explicit(&g_sp_heap_n, memory_order_relaxed) ? MTL4VisibilityOptionResourceAlias : 0); }
+ // Queue barriers without the main replay's profiling/fence state. Present
+ // encoders run on their own thread and must not change that state.
+ static inline void enc_full_barrier_begin(id e) {
+-    [(id<MTL4CommandEncoder>)e barrierAfterQueueStages:MTLStageAll beforeStages:MTLStageAll visibilityOptions:MTL4VisibilityOptionDevice];
++    [(id<MTL4CommandEncoder>)e barrierAfterQueueStages:MTLStageAll beforeStages:MTLStageAll visibilityOptions:rb_res_vis()];   // RewindBox (patch 0028): rb_res_vis, Device without a placement heap
+ }
+ static inline void enc_full_barrier_end(id e) {
+     [(id<MTL4CommandEncoder>)e barrierAfterStages:MTLStageAll beforeQueueStages:MTLStageAll visibilityOptions:MTL4VisibilityOptionDevice];
+@@ -1269,8 +1277,10 @@ static int main_barrier_begin(id e, int relaxed) {
+         covered = g_bar_main_cb == g_cb && g_bar_main_full;
+         g_bar_main_cb = g_cb; g_bar_main_encoder = e; g_bar_main_full = 0;
+     }
+-    if (relaxed) return 0;
+-    if (covered) { g_bar_covered++; return 0; }
++    if (relaxed) {   // RewindBox (patch 0028, check C10): a pass begun without the full barrier still flushes the aliases before its fragments while a placement heap exists (upstream enc_r_begin_pass, nvn_mtl.m:1657-1658 at 0c078130)
++        if (atomic_load_explicit(&g_sp_heap_n, memory_order_relaxed)) [(id<MTL4CommandEncoder>)e barrierAfterQueueStages:MTLStageAll beforeStages:MTLStageFragment visibilityOptions:rb_res_vis()];
++        return 0; }
++    if (covered && !atomic_load_explicit(&g_sp_heap_n, memory_order_relaxed)) { g_bar_covered++; return 0; }   // RewindBox (patch 0028): with a placement heap, the full barrier (DM_NVN_PRODUCER_COVER=1 only)
+     enc_full_barrier_begin(e); return 1;
+ }
+ static inline void m4_end(id e) {
+@@ -2384,7 +2394,7 @@ void nvn_be_drain(void) { if (mtl_gpu_halted()) { MLOG("GPU 安全停中：后
+ 
+ // ================= Render replay =================
+ #include "../../host/front.h"
+-static int g_red_once[183];   // RED_ONCE keys 0..182 (182: a block-compressed texture whose GPU writer resolved to its own Metal format, bcal_copy; 181: a texture view whose target and layer range Metal cannot express (#199), tex_by_id; 179 / 180: a pass's own depth attachment sampled in it could not be copied / viewed (#387); 178: a slot read on-chip by the first draw of a pass was not opened loaded; 177: a compute dispatch's binding ended the shared encoder again on the retry; 175 / 176: a block-compressed texture's GPU-written bytes not taken: no host texture of the uncompressed writer / no staging buffer, bcal_sync; 174: a converted vertex attribute stream address in no memory pool, vconv_bind; 172 / 173: a pool table for handles traced to no slot could not be allocated / grown, pool_tab_new / pool_tab_put_n; 171: a first-invocation store skipped, dispatch; 170: an sRGB / linear view not made again on its upgraded parent, tex_upgrade; 169: unused since 11-07 (a not-loaded color attachment written: g_noload_wrong, first 8 lines); 167 / 168: a storage buffer address the pools do not hold, slot / handle in a uniform buffer; 166: a texture turning packaged whose old host texture has another shape, its GPU-written texels not carried over, carry_gpu) (162: a vertex buffer address the pools do not hold, bind_vbufs) (160 / 161 / 163–165: tensor-core network stand-in, nvn_tensor.inc; 147–159 left for the NVN2 task / mesh branch) (143–146: NVN2 DLSS → MetalFX, nvn_dlss.inc) (139–142: folded linear textures: tex_linear, se_want, se_bind, copies / clears into one) (137 / 138: a GL texture an NVN texture is built from has no usable storage / no matching NVN format) (136: a draw's binding ended its pass twice) (134 / 135: alpha test / multisampling off the fragment shader cannot take); same-pass feedback snapshot too large 127, native image atomics use 128/129, same-pass feedback view narrowing 133
++static int g_red_once[191];   // RED_ONCE keys 0..190 (183–190: placement sparse textures, RewindBox patch 0028: a usage tex_upgrade would remake one whole for 183, nvn_sparse_tiles.inc 184–190: a heap, a texture, more than 64 heaps in a round, a tail level, a tile not decoded, staging refused, a tile list that could not grow; upstream's 149, 144–148) (182: a block-compressed texture whose GPU writer resolved to its own Metal format, bcal_copy; 181: a texture view whose target and layer range Metal cannot express (#199), tex_by_id; 179 / 180: a pass's own depth attachment sampled in it could not be copied / viewed (#387); 178: a slot read on-chip by the first draw of a pass was not opened loaded; 177: a compute dispatch's binding ended the shared encoder again on the retry; 175 / 176: a block-compressed texture's GPU-written bytes not taken: no host texture of the uncompressed writer / no staging buffer, bcal_sync; 174: a converted vertex attribute stream address in no memory pool, vconv_bind; 172 / 173: a pool table for handles traced to no slot could not be allocated / grown, pool_tab_new / pool_tab_put_n; 171: a first-invocation store skipped, dispatch; 170: an sRGB / linear view not made again on its upgraded parent, tex_upgrade; 169: unused since 11-07 (a not-loaded color attachment written: g_noload_wrong, first 8 lines); 167 / 168: a storage buffer address the pools do not hold, slot / handle in a uniform buffer; 166: a texture turning packaged whose old host texture has another shape, its GPU-written texels not carried over, carry_gpu) (162: a vertex buffer address the pools do not hold, bind_vbufs) (160 / 161 / 163–165: tensor-core network stand-in, nvn_tensor.inc; 147–159 left for the NVN2 task / mesh branch) (143–146: NVN2 DLSS → MetalFX, nvn_dlss.inc) (139–142: folded linear textures: tex_linear, se_want, se_bind, copies / clears into one) (137 / 138: a GL texture an NVN texture is built from has no usable storage / no matching NVN format) (136: a draw's binding ended its pass twice) (134 / 135: alpha test / multisampling off the fragment shader cannot take); same-pass feedback snapshot too large 127, native image atomics use 128/129, same-pass feedback view narrowing 133
+ // The key must be a constant inside the table: a key past the end wrote into the statics next to it (11-05: nvn_tensor.inc used 160 / 161 with 147 slots)
+ #define RED_ONCE(k, ...) do { _Static_assert((k) >= 0 && (k) < (int)(sizeof g_red_once / sizeof g_red_once[0]), "RED_ONCE key outside g_red_once"); if (!g_red_once[k]++) MLOG("【红】 " __VA_ARGS__); } while (0)
+ // NVN vertex streams 0–15 → Metal vertex buffer slots: 0–13 go to 16–29 (30 is the constant fallback buffer), 14 and 15 to 14 and 15. Metal has only the 31 slots 0–30; translated shaders use only buffer(0) (the argument buffer),
+@@ -2709,8 +2719,10 @@ int nvn_be_tex_from_gl(tex_t *t, uint32_t gl_name) { @autoreleasepool {
+ // Host record of a packaged texture: the current MTLTexture, the upload stamp, and the global write generation at the last check
+ // spare: the texture the last re-upload replaced, kept resident and written by the next re-upload once the GPU has passed spare_fence (a texture the CPU rewrites every frame, a movie frame,
+ // alternates between two textures instead of allocating one per frame: Link's Awakening's title movie made and freed an 8 MB texture a frame)
+-@interface NvPkg : NSObject { @public id<MTLTexture> tex, spare, view; uint64_t stamp, seen, hash, spare_fence, vgen, vseen; const void *span; int sparse, vbase; uint64_t *ph, *pgpu; uint32_t nph; } @end   // hash: full hash of the uploaded content under DM_NVN_DIRTYCHECK; span: its tracked range (nvn_dirty_span, NULL = untracked);
++@interface NvPkg : NSObject { @public id<MTLTexture> tex, spare, view; uint64_t stamp, seen, hash, spare_fence, vgen, vseen; const void *span; int sparse, vbase; uint64_t *ph, *pgpu; uint32_t nph; id ps; } @end   // hash: full hash of the uploaded content under DM_NVN_DIRTYCHECK; span: its tracked range (nvn_dirty_span, NULL = untracked);
+ // sparse: in a sparse virtual pool, read through its page table (hle_nvn.c nvn_sparse_*), vgen the page table's generation at the upload and vseen at the last look; view: what it is bound as (sparse_view)
++// ps (RewindBox patch 0028): its placement sparse texture (NvSparse, nvn_sparse_tiles.inc sparse_make), which tex is: mapped and uploaded tile by tile (sparse_sync), never uploaded whole;
++//   view stays nil. Ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 1d4b8e82 (dm/gfx/nvn/nvn_mtl.m:2696 / 2698 at 0c078130)
+ @implementation NvPkg
+ - (void)dealloc { res_remove(tex); if (spare) res_remove(spare); free(ph); free(pgpu); }
+ @end
+@@ -2849,6 +2861,11 @@ static id<MTLTexture> tex_upgrade(const tex_t *t, id<MTLTexture> asked, MTLTextu
+     //   view made again on it, so the pair keeps sharing its bytes
+     id<MTLTexture> view = srgb_twin_view(holder) && (holder == asked || ((id<MTLTexture>)holder).parentTexture == asked) ? holder : nil;
+     id<MTLTexture> base = view ? view.parentTexture : asked;
++    if (base.isSparse) {   // RewindBox (patch 0028): a copy remade whole would lose the tiles and take the memory they save. Ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 1d4b8e82 (dm/gfx/nvn/nvn_mtl.m:2889 at 0c078130); S2Arm: the later refusals counted, a line each up to 8, then at powers of 2
++        static uint64_t nref; uint64_t k = ++nref;
++        RED_ONCE(183, "a placement sparse texture needs usage %#lx it was not made with (ser=%llu format %#x): kept as it is, not remade whole", (unsigned long)add, (unsigned long long)t->serial, t->d.format);
++        if (k > 1 && (k <= 8 || !(k & (k - 1)))) MLOG("【红】 RewindBox: placement sparse texture ser=%llu needs usage %#lx: kept as it is (%llu such refusals)", (unsigned long long)t->serial, (unsigned long)add, (unsigned long long)k);
++        return base; }
+     MTLTextureDescriptor *d = [MTLTextureDescriptor new];
+     d.textureType = base.textureType; d.pixelFormat = base.pixelFormat; d.width = base.width; d.height = base.height; d.depth = base.depth;   // Keep the original format, only add the format-view usage
+     d.arrayLength = base.arrayLength; d.mipmapLevelCount = base.mipmapLevelCount; d.sampleCount = base.sampleCount;
+@@ -3371,7 +3388,7 @@ static void rb_up_mem(uint64_t *footprint, uint64_t *available) {
+ //   such line (the first time: since the device line), or since the footprint last fell more than a step below that (a texture's staging retired, a session parked or ended:
+ //   patch 0010). Asked at the start of a submission (at most every RB_TOP_EVERY_NS) and after the lines of patches 0020-0022; and, whatever the growth, at Metal's first refusal
+ //   of a staging buffer (in one piece, pkg_upload_, or a piece, rb_up_refused) and at the first command buffer error that says OutOfMemory (mtl_gpu_cb_error, every queue);
+-//   at most RB_TOP_LINES lines, and those two forced ones even past that. Mario Kart World, IPA 741: the footprint went from 4793 MB at frame 584 to 5773 MB at frame 588 (two heartbeat lines 10 s apart) and no line said
++//   at most RB_TOP_LINES lines, and those two forced ones even past that (patch 0028 adds a third: RB_TOP_FORCED). Mario Kart World, IPA 741: the footprint went from 4793 MB at frame 584 to 5773 MB at frame 588 (two heartbeat lines 10 s apart) and no line said
+ //   what took it; the memory line of nvn_be_mem_stat comes every 300 frames, too late for that.
+ //   Ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 1d4b8e82 res_top and res_top_once (dm/gfx/nvn/nvn_mtl.m:470-497 at 0c078130). Upstream logs it at the first GPU
+ //   out-of-memory error (res_top_once, here rb_res_top_oom) and for DM_CTL "restop" (hle_hid.c; S2Arm has no such control). S2Arm adaptations: the footprint and the first
+@@ -3384,8 +3401,9 @@ static void rb_up_mem(uint64_t *footprint, uint64_t *available) {
+ //   g_smu, one lock at a time
+ #define RB_TOP_STEP ((uint64_t)256 << 20)
+ #define RB_TOP_EVERY_NS 250000000ull
+-enum { RB_TOP_N = 8, RB_TOP_LINES = 24, RB_TOP_FORCED = 2 };   // 24: more than the 256 MB steps from launch to the iPhone17,2's limit (about 6.6 GB); RB_TOP_FORCED: the
+-//   once-only forced lines (Metal's first staging refusal, the first GPU out-of-memory error), logged even when the footprint's lines have taken RB_TOP_LINES
++enum { RB_TOP_N = 8, RB_TOP_LINES = 24, RB_TOP_FORCED = 3 };   // 24: more than the 256 MB steps from launch to the iPhone17,2's limit (about 6.6 GB); RB_TOP_FORCED: the
++//   once-only forced lines (Metal's first staging refusal, the first GPU out-of-memory error; RewindBox patch 0028: Metal's first refusal of a placement heap or placement sparse
++//   texture, nvn_sparse_tiles.inc sp_refused_top), logged even when the footprint's lines have taken RB_TOP_LINES
+ static _Atomic uint64_t g_rb_top_fp;   // the mark: phys_footprint at the last resident-top line (at first the device line's), or the low it fell to more than a step below that (0: none read)
+ static _Atomic int g_rb_top_lines;
+ static const struct { int f; const char *name; } k_rb_sp_fmt[] = {
+@@ -4590,6 +4608,7 @@ static void sparse_view(NvPkg *pk, const tex_t *t) {
+     if (r != (unsigned)pk->vbase) { static int nl; if (nl++ < 6) MLOG("sparse texture ser=%llu %ux%u: sampled from level %u of %u (finer levels not mapped)", (unsigned long long)t->serial, t->d.width, t->d.height, r, n); }
+     pk->vbase = (int)r;
+ }
++#include "nvn_sparse_tiles.inc"   // RewindBox (patch 0028): placement sparse textures for the packaged arrays of sparse pools (seedds/nxnative 1d4b8e82, MIT)
+ static uint64_t g_texinfo_ser[8]; static int g_texinfo_n;
+ static id<MTLTexture> tex_mtl_(const tex_t *ct) {
+     tex_t *t = (tex_t *)ct;
+@@ -4625,6 +4644,7 @@ static id<MTLTexture> tex_mtl_(const tex_t *ct) {
+         // S2Arm 10-25：上传批只归提交线程（up_owner_check），上屏线程等别的线程用到 CPU 写过的贴图时不上传：已传过的用现有那份（脏了留给提交线程下次用到时重传），
+         //   没传过的按 GPU 贴图走下面的路。马车8 初始化时 CPU 写过交换链贴图的池，tex_flush_upload 开时它算「随包」，上屏线程 present_now → pkg_upload → abort
+         NvPkg *pk0 = [have isKindOfClass:[NvPkg class]] ? have : nil;
++        if (!have && sparse_off_sub(t)) return nil;   // RewindBox (patch 0028, check C7; seedds/nxnative a9005a51): one that would be made placement sparse is not made whole here, nor kept: the submit thread makes it at its first use (a line says so)
+         static int once; if (!once++) MLOG("packaged texture ser=%llu first needed off the submit thread (%s): not uploaded there, %s", (unsigned long long)t->serial,
+                                            pk0 ? "already uploaded" : "never uploaded", pk0 ? "the current copy is used, a dirty one is re-uploaded on the submit thread" : "used as a GPU texture");
+         if (pk0) return pk0->view ? pk0->view : pk0->tex;
+@@ -4632,6 +4652,8 @@ static id<MTLTexture> tex_mtl_(const tex_t *ct) {
+     }
+     if (packaged) {
+         NvPkg *pk = [have isKindOfClass:[NvPkg class]] ? have : nil;   // resolved as GPU-only before the CPU wrote it: dropped and rebuilt as packaged
++        if (pk && pk->ps) { sparse_look(pk->ps, t); return pk->tex; }   // RewindBox (patch 0028): a placement sparse texture: its tiles follow the game's mappings (seedds/nxnative 1d4b8e82, nvn_mtl.m:4419 at 0c078130; MIT)
++        if (!pk && (pk = sparse_pkg(t))) return pk->tex;   // RewindBox (patch 0028): made placement sparse when it qualifies (nvn_sparse_tiles.inc), else as before (upstream :4420-4421)
+         if (pk) {   // Already uploaded: check the covered pages only if there has been a guest write since the last check
+             uint64_t now = nvn_dirty_now();
+             int tracked = pk->span != NULL;   // kept from the upload: a texture's pool stays registered while the texture lives
+@@ -4836,6 +4858,7 @@ void nvn_be_mem_kinds(uint64_t *priv_tex, uint64_t *priv_buf, uint64_t *pool_len
+             if ([o conformsToProtocol:@protocol(MTLTexture)]) { id<MTLTexture> t = o; if (t.buffer || t.parentTexture) continue; if (t.storageMode == MTLStorageModePrivate) *priv_tex += t.allocatedSize; else *shared_other += t.allocatedSize; }
+             else if ([o conformsToProtocol:@protocol(MTLBuffer)]) { id<MTLBuffer> b = o;
+                 if ([pools containsObject:b]) *pool_len += b.length; else if (b.storageMode == MTLStorageModePrivate) *priv_buf += b.allocatedSize; else *shared_other += b.allocatedSize; }
++            else if ([o conformsToProtocol:@protocol(MTLHeap)]) *priv_tex += ((id<MTLAllocation>)o).allocatedSize;   // RewindBox (patch 0028, check C8): the placement heaps that hold placement sparse textures' tiles (private), with the private textures
+         }
+         size_t pg = (size_t)getpagesize(); unsigned char vec[4096];
+         for (NSArray<NSNumber *> *r in ranges) {   // 驻留池里常驻 / 已压缩的页：驻留集会把没写过的页也钉进内存，这里一并算（mincore 分不出）
+@@ -5309,6 +5332,7 @@ static uint64_t g_wd_widened;   // storages widened (memory report)
+ static const char *tex_widen_why(const tex_t *t) {
+     id<MTLTexture> base = tex_mtl(t);
+     if (!base) return NULL;
++    if (base.isSparse) return "placement sparse";   // RewindBox (patch 0028): a wider storage would be a whole copy (tex_widen copies every level), without the tiles
+     // 打包贴图（CPU 写过的池）当渲染目标时可以放宽：tex_widen 换 NvPkg 自己的贴图（表里存的是 NvPkg，tex_swap_storage 换不到）；带层级视图的（稀疏池只挂了粗层级，sparse_view）不放宽。
+     //   11-02 饥荒：交换链所在池 CPU 开机写过一幅图，一律判「放不宽」→ 整局 16:9 居中留黑边。之后 CPU 再写：重传建原宽贴图，下一遍开遍按核心的宽重新放宽（wd_widen_rts）
+     //   稀疏池（经页表读）里没有视图的同样放宽：重传判据（页表代数 / 页写入）与换掉的是哪张贴图无关。11-05 旷野之息 Duo：场景缓冲 1280×720 等 25 张在稀疏池里，
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 2ca241235..4770337bb 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -239,6 +239,7 @@ int nvn_be_shutdown_session(void) {
+         if (!d->keep_resident && [d->object conformsToProtocol:@protocol(MTLResource)]) res_remove(d->object);
+         d->object = nil;
+     }
++    sp_session_end();   // RewindBox (patch 0028, check C6): the placement heaps and the tile lists, once every texture of the session has gone (above; nvn_sparse_tiles.inc)
+     [g_deferred removeAllObjects]; res_commit();
+     return 0;
+ }
+diff --git a/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc b/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
+new file mode 100644
+index 000000000..fe6a08708
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
+@@ -0,0 +1,442 @@
++// RewindBox (patch 0028): placement sparse textures for the packaged (CPU-uploaded) 2D textures and 2D arrays of a sparse virtual pool that would take at least SP_MIN made whole.
++//   Mario Kart World keeps its terrain in 8192x8192x68 arrays of 12 levels (four ASTC 8x8 of 1,451 MB and two BC6H of 5,803 MB made whole) in such pools and maps a small part of
++//   them: made whole they took the iPhone17,2 past what Metal would give (IPA 741: the staging of ser=31565 refused from 9,856 MB on, then "failed to create MTLTexture ser=31566
++//   8192x8192 format 0x50"). Such a texture is now a Metal placement sparse texture: only the 64 KB tiles the game has mapped get memory, from MTLHeapTypePlacement heaps; each tile
++//   is decoded on the CPU on its own (nvn_deswizzle_tile / nvn_deswizzle_from, patch 0024) and copied by the upload batch; the mappings go to g_q4 (updateTextureMappings) through
++//   the recording stream (rec_queue_block, patch 0027) ahead of the upload batch that fills the tiles. Every texture that does not qualify is made as before (patches 0020-0022),
++//   and one of at least SP_MIN in a sparse pool says why ("stays whole").
++//   Ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 1d4b8e82 (dm/gfx/nvn/nvn_mtl.m:3406-3453 and 3513-3696 at 0c078130), without 1110473c's tiles shared by
++//   physical memory (:3454-3511, patch 0029) and the GPU-written textures (:3697-3722, patch 0030); with 1110473c's order of the queued mappings (the unmaps first, :3678-3679)
++//   and a9005a51's rule (origin/main b16693b3: nothing is made off the submit thread). Upstream's names and logic; each S2Arm adaptation is marked "S2Arm" where it is:
++//   - Metal 4 only (the mappings are an MTL4CommandQueue's), and not where the GPU says it has no placement sparse textures (supportsPlacementSparse, read by name);
++//   - a format S2Arm stores in another format (fmt_unpack: BC on a GPU without BC, the expanded formats) stays whole: its tiles would not be the game's bytes (upstream: rb_packed_shift);
++//   - the tile shape is S2Arm's layout's (nvn_tex_sparse_tiles, patch 0024), which answers 0 when NVN's public answer is another (check C13);
++//   - a look goes in rounds (check C1): a round walks the tiles under g_sp_mu until its staging piece is used up, lets g_sp_mu go and puts its mappings into the recording stream;
++//     the next round's piece comes from rb_up_staging (patch 0021), which flushes the upload batch and waits once RB_UP_INFLIGHT is in flight. A round's copies reach the queue
++//     after its mappings, at most RB_UP_INFLIGHT of staging is alive, and nothing waits for the GPU or the encode thread holding g_sp_mu;
++//   - a tile is mapped only once its content is in the staging and its copies have room in the upload list (check C2): no Map points a tile at a heap tile whose content was not
++//     written for it. Staging Metal refuses is a red line, not an abort (upstream: MDIE): the tiles that need it stay unmapped (read 0) and every tile is looked at again 60 frames on;
++//   - g_done and g_fence are plain here (g_done under g_mu: rc_done); the lists grow with GROW, and a refused growth leaves the tile as it was (check C9);
++//   - heaps are made resident and logged with what Metal holds once g_sp_mu is let go (check M2); from the first one, the encoders' queue barriers flush aliased addresses
++//     (g_sp_heap_n, rb_res_vis in nvn_mtl.m: check C10); a heap Metal refuses is not asked for again in that look (its tiles wait for the next look, a red line says so);
++//   - a session's end gives the heaps back and starts the tables again (sp_session_end, nvn_session.inc: check C6);
++//   - heaps of DM_NVN_SPARSE_HEAP_MB (16 to 1024, default 256 as upstream); DM_NVN_SPARSE_TILES=0 turns the path off, as upstream.
++//   Lock order: g_rmu (tex_by_id) → g_sp_mu → g_vp_mu (hle_nvn.c) → {g_vph_lk, g_slot_mu, g_mu}; nothing here takes g_res_mu, g_mu or g_smu holding g_sp_mu
++// Upstream's description (seedds/nxnative, dm/gfx/nvn/nvn_mtl.m:3406-3414 at 0c078130):
++// ---------- Placement sparse textures ----------
++// A sparse texture in a sparse virtual pool holds what the game mapped into it, tile by tile: Mario Kart World's terrain keeps six 8192x8192x68 arrays of 12 levels (two BC6H, 5,803 MB
++// each made whole; four ASTC 8x8, 1,451 MB) in such pools and maps a small part of them. Made whole, the six took more than the 16 GB Mac had, and every command buffer failed with
++// kIOGPUCommandBufferCallbackErrorOutOfMemory, so no frame was presented. NVN lays such a texture out in 64 KB tiles (nvn_tex.c level_walk; a tile is 64 KB of storage of its own,
++// nvn_deswizzle_tile) of the same shape as Metal's 64 KB sparse tiles (256x256 texels of 16-byte blocks, 512x512 of ASTC 8x8, 128x128 of RGBA8, measured on an M6), and its mip tail starts at
++// the same level (the first smaller than a tile). So it is made a Metal placement sparse texture: no memory until the replay maps a tile from a placement heap, which it does for each
++// tile all of whose pages the game has mapped, uploading that tile's 64 KB; a tile the game unmaps is unmapped and its heap tile reused once the GPU is past it. Each layer's mip tail is
++// one Metal tile, mapped and uploaded when the game has mapped all of its storage. Only a texture that would take at least SP_MIN bytes made whole goes this way: smaller ones keep the
++// whole upload (pkg_upload_), which costs no mapping operations and keeps sparse_view's level clamp (Monster Hunter Rise's streamed clothes)
++#define SP_TILE 0x10000u
++#define SP_MIN (64ull << 20)
++#define SP_STG ((size_t)8 << 20)       // S2Arm: a round's staging piece (upstream sp_stg's 8 MB)
++int nvn_sparse_tile_state(const void *pool, uint64_t a, uint64_t n, uint64_t gen, uint64_t stamp);   // hle_nvn.c (patch 0026)
++uint64_t nvn_sparse_log_seq(const void *pool); int nvn_sparse_log_read(const void *pool, uint64_t *seq, uint64_t (*out)[2], int max); void nvn_sparse_protect_tile(const void *pool, uint64_t a, uint64_t n);
++static pthread_mutex_t g_sp_mu = PTHREAD_MUTEX_INITIALIZER;
++static NSMutableArray *g_sp_heaps;     // id<MTLHeap>, g_sp_ht tiles each; a slot is heap × g_sp_ht + tile. Added to on the submit thread only (sparse_sync), under g_sp_mu
++static uint32_t g_sp_ht;               // S2Arm: tiles a heap, fixed at the first one (DM_NVN_SPARSE_HEAP_MB; upstream SP_HEAP_TILES, 4096: 256 MB)
++static uint32_t *g_sp_free; static size_t g_sp_nfree, g_sp_freecap;
++static struct sp_late { uint32_t slot; uint64_t fence; } *g_sp_late; static size_t g_sp_nlate, g_sp_latecap;   // unmapped tiles, free once the GPU is past the fence
++static uint64_t g_sp_live, g_sp_peak;
++static uint64_t g_sp_sess = 1;         // S2Arm (check C6): the session whose tables the slots are in (sp_session_end); an NvSparse of another gives none back
++static int g_sp_nmade, g_sp_nwhole; static uint64_t g_sp_whole_ser[64], g_sp_looks, g_sp_nskip;   // S2Arm: this session's log lines (sp_session_end starts them again)
++static uint32_t sp_heap_tiles(void) {   // caller holds g_sp_mu
++    if (!g_sp_ht) {
++        const char *e = getenv("DM_NVN_SPARSE_HEAP_MB"); long mb = e && *e ? atol(e) : 256;
++        if (mb < 16 || mb > 1024) { MLOG("RewindBox: DM_NVN_SPARSE_HEAP_MB=%s is not 16 to 1024: placement heaps of 256 MB", e); mb = 256; }
++        g_sp_ht = (uint32_t)mb * (uint32_t)((1u << 20) / SP_TILE);
++    }
++    return g_sp_ht;
++}
++// A heap tile (upstream 1d4b8e82 sp_slot, nvn_mtl.m:3427-3449 at 0c078130). S2Arm: done is g_done as read before g_sp_mu (rc_done; upstream's is _Atomic, check C9); the lists grow with
++//   GROW, the free list before a heap is made; a heap made here is returned in *made, made resident and logged by the look once g_sp_mu is let go (check M2), and from the first one
++//   the queue barriers flush aliased addresses (g_sp_heap_n, check C10); made NULL: no heap is asked for (Metal refused one earlier in this look).
++//   → 1; 0 with no heap tile (made NULL, or a list that could not grow); -1 when Metal refused the heap (a red line)
++static int sp_slot(uint32_t *out, uint64_t done, __strong id<MTLHeap> *made) {   // caller holds g_sp_mu
++    size_t k = 0;
++    for (size_t i = 0; i < g_sp_nlate; i++) {
++        if (g_sp_late[i].fence > done) { g_sp_late[k++] = g_sp_late[i]; continue; }
++        if (g_sp_nfree == g_sp_freecap) { size_t c = g_sp_freecap ? 2 * g_sp_freecap : 4096;
++            if (!GROW(g_sp_free, c * sizeof *g_sp_free, "the sparse tile list")) { g_sp_late[k++] = g_sp_late[i]; continue; }   // S2Arm: it stays late, for a later call
++            g_sp_freecap = c; }
++        g_sp_free[g_sp_nfree++] = g_sp_late[i].slot;
++    }
++    g_sp_nlate = k;
++    if (!g_sp_nfree) {
++        if (!made) return 0;   // S2Arm: Metal refused a heap in this look
++        uint32_t ht = sp_heap_tiles();
++        if (g_sp_freecap < ht) { if (!GROW(g_sp_free, (size_t)ht * sizeof *g_sp_free, "the sparse tile list")) return 0; g_sp_freecap = ht; }   // S2Arm: before the heap no tile could then take
++        MTLHeapDescriptor *hd = [MTLHeapDescriptor new];
++        hd.type = MTLHeapTypePlacement; hd.storageMode = MTLStorageModePrivate; hd.size = (NSUInteger)ht * SP_TILE; hd.maxCompatiblePlacementSparsePageSize = MTLSparsePageSize64;
++        id<MTLHeap> h = [g_dev newHeapWithDescriptor:hd];
++        if (!h) { RED_ONCE(184, "cannot make a %u MB placement heap for sparse tiles (%llu tiles mapped in %lu heaps; Metal holds %llu MB): the tiles that need one stay unmapped (read 0)", ht / 16,
++                           (unsigned long long)g_sp_live, (unsigned long)g_sp_heaps.count, (unsigned long long)(g_dev.currentAllocatedSize >> 20)); return -1; }
++        if (!g_sp_heaps) g_sp_heaps = [NSMutableArray array];
++        uint32_t base = (uint32_t)g_sp_heaps.count * ht; [g_sp_heaps addObject:h]; atomic_fetch_add(&g_sp_heap_n, 1); *made = h;
++        for (uint32_t i = ht; i-- > 0;) g_sp_free[g_sp_nfree++] = base + i;   // taken from the front of the heap first
++    }
++    *out = g_sp_free[--g_sp_nfree]; if (++g_sp_live > g_sp_peak) g_sp_peak = g_sp_live;
++    return 1;
++}
++static void sp_slot_free(uint32_t slot) {   // caller holds g_sp_mu; the GPU may still read the tile through work committed so far and the submission being built
++    if (g_sp_nlate == g_sp_latecap) { size_t c = g_sp_latecap ? 2 * g_sp_latecap : 1024;
++        if (!GROW(g_sp_late, c * sizeof *g_sp_late, "the sparse tile list")) { g_sp_live--; RED_ONCE(190, "placement sparse tiles: a list could not grow (no host memory): a heap tile is not handed out again"); return; }   // S2Arm: GROW
++        g_sp_latecap = c; }
++    g_sp_late[g_sp_nlate++] = (struct sp_late){slot, g_fence + 1}; g_sp_live--;   // S2Arm: g_fence is plain, the submit thread's (read elsewhere as defer_obj_release_ex reads it)
++}
++
++@interface NvSparse : NSObject { @public
++    __weak id<MTLTexture> tex; uint32_t tw, th, ntiled, levels, layers, per_layer, tail_at;   // tiles of each layer: those of the tiled levels from loff_t[l], then its tail (at tail_at)
++    uint32_t tiles_x[16], tiles_y[16], loff_t[16]; uint64_t loff[16], tail_off, layer_size;
++    uint32_t *slot;                    // per tile: heap slot + 1, 0 = not mapped
++    uint64_t *nmap;                    // mapped tiles per level (the tail at ntiled)
++    uint64_t gen, stamp;               // the page table's generation and the dirty-page stamp at the last look
++    int gpu;                           // the GPU writes it (a render target or image): tiles are mapped and unmapped, nothing is uploaded (patch 0030)
++    uint64_t seq;                      // the pool's change log up to here has been handled (nvn_sparse_log_read)
++    uint64_t wseen, wframe;            // nvn_dirty_sparse_writes and the frame at the last look for rewritten tiles
++    uint64_t sess, ser;                // S2Arm: the session whose tables its slots are in (check C6); its serial, for the log
++    uint64_t rescan_frame; uint8_t rescan;   // S2Arm (check C2): a tile was left out of date for want of staging, a heap tile or host memory: every tile is looked at again 60 frames on
++} @end   // tex is weak: the NvPkg of a packaged texture owns it, a GPU texture owns its NvSparse (patch 0030)
++@implementation NvSparse
++- (void)dealloc { pthread_mutex_lock(&g_sp_mu); for (uint32_t i = 0; slot && sess == g_sp_sess && i < layers * per_layer; i++) if (slot[i]) sp_slot_free(slot[i] - 1); pthread_mutex_unlock(&g_sp_mu); free(slot); free(nmap); }
++@end
++
++// S2Arm: a texture's tiles as NVN lays them out and Metal makes them, found by sp_check and copied into its NvSparse by sparse_make
++typedef struct { uint32_t tw, th, ntiled, levels, layers, per_layer, tail_at, tiles_x[16], tiles_y[16], loff_t[16]; uint64_t loff[16], tail_off, layer_size, whole; MTLSize ms; } sp_geo;
++// Upstream sparse_make's checks (1d4b8e82, nvn_mtl.m:3531-3551 at 0c078130), making, keeping and logging nothing, so that another thread may ask (sparse_off_sub, check C7): the
++//   descriptor when t qualifies, else nil and why[] (why[0] == 0: not a texture of a sparse pool, nothing to say). S2Arm: Metal 4 only; a GPU that says it has no placement sparse
++//   textures does not try; a format stored otherwise (fmt_unpack) stays whole; NVN's tile is S2Arm's layout's, 0 when the public answer differs (nvn_tex_sparse_tiles, check C13)
++static MTLTextureDescriptor *sp_check(const tex_t *t, int gpu, sp_geo *g, char *why, size_t nwhy) {
++    memset(g, 0, sizeof *g); why[0] = 0;
++    if (!t->pool || !nvn_sparse_pool(t->pool) || !t->mem) return nil;
++    static int on = -1; if (on < 0) { const char *e = getenv("DM_NVN_SPARSE_TILES"); on = !e || atoi(e); }
++    static int sps = -2;   // S2Arm: supportsPlacementSparse (iOS / macOS 26.4) by name, as patch 0023's device line; -1 on an OS without it: Metal is asked all the same, as upstream does
++    if (sps == -2) sps = [g_dev respondsToSelector:NSSelectorFromString(@"supportsPlacementSparse")] ? [[(id)g_dev valueForKey:@"supportsPlacementSparse"] boolValue] : -1;
++    uint32_t upf = 0, tw = 0, th = 0, td = 0; int ubpp = 0;
++    if (!on) { snprintf(why, nwhy, "DM_NVN_SPARSE_TILES=0"); return nil; }
++    if (g_m3 || !g_q4) { snprintf(why, nwhy, "the Metal 3 backend (a placement sparse texture's tiles are mapped by a Metal 4 command queue)"); return nil; }
++    if (!sps) { snprintf(why, nwhy, "this GPU makes no placement sparse texture (supportsPlacementSparse 0)"); return nil; }
++    if (t->d.target != NVN_TEXTURE_TARGET_2D && t->d.target != NVN_TEXTURE_TARGET_2D_ARRAY) { snprintf(why, nwhy, "target %d (2D textures and 2D arrays only)", t->d.target); return nil; }
++    if (t->d.samples > 1) { snprintf(why, nwhy, "%d samples", t->d.samples); return nil; }
++    if (fmt_unpack((uint32_t)t->d.format, &upf, &ubpp)) { snprintf(why, nwhy, "stored as Metal format %u and converted on upload (fmt_unpack)", upf); return nil; }
++    int n = nvn_tex_sparse_tiles(&t->d, &tw, &th, &td);
++    if (n <= 0) {   // S2Arm: why, as patch 0024's notes tell the cases apart (only the public query's tiles, 0 here and no LINEAR_RENDER_TARGET is a disagreement)
++        uint32_t q[4]; nvn_tex_sparse_layout(&t->d, q);
++        if (!(t->d.flags & NVN_TEXTURE_FLAGS_SPARSE)) snprintf(why, nwhy, "not an NVN sparse texture (flags %#x): laid out whole, not in 64 KB tiles", t->d.flags);
++        else if (t->d.flags & (NVN_TEXTURE_FLAGS_LINEAR | NVN_TEXTURE_FLAGS_LINEAR_RENDER_TARGET)) snprintf(why, nwhy, "laid out linear (flags %#x)", t->d.flags);
++        else if (!q[0]) snprintf(why, nwhy, "no tiled level in NVN's sparse layout (flags %#x): all of it is mip tail", t->d.flags);
++        else snprintf(why, nwhy, "NVN's tile %ux%ux%u (%u tiled levels) is not its layout's (packaged layout %#x; check C13)", q[1], q[2], q[3], q[0], (unsigned)t->d.pkg_block_h);
++        return nil;
++    }
++    if (n > 15 || td != 1 || t->d.levels > 16) { snprintf(why, nwhy, "%d tiled levels, tile depth %u, %u levels", n, td, t->d.levels); return nil; }
++    MTLTextureDescriptor *d = tex_desc(t, !gpu);
++    if (!d) { snprintf(why, nwhy, "no Metal descriptor (the red line above)"); return nil; }
++    g->ms = [g_dev sparseTileSizeWithTextureType:d.textureType pixelFormat:d.pixelFormat sampleCount:1 sparsePageSize:MTLSparsePageSize64];
++    if (g->ms.width != tw || g->ms.height != th || g->ms.depth != 1) {
++        snprintf(why, nwhy, "Metal's tile %lux%lu is not NVN's %ux%u", (unsigned long)g->ms.width, (unsigned long)g->ms.height, tw, th); return nil; }
++    MTLSizeAndAlign sa = [g_dev heapTextureSizeAndAlignWithDescriptor:d]; g->whole = sa.size;
++    if (sa.size < SP_MIN) { if (t->L.size >= SP_MIN) snprintf(why, nwhy, "Metal makes it whole in %llu MB, under %llu MB", (unsigned long long)(sa.size >> 20), SP_MIN >> 20); return nil; }
++    g->tw = tw; g->th = th; g->ntiled = (uint32_t)n; g->levels = (uint32_t)d.mipmapLevelCount; g->layers = (uint32_t)MAX(d.arrayLength, (NSUInteger)1); g->layer_size = t->L.layer_size;
++    uint32_t k = 0;
++    for (uint32_t l = 0; l < g->ntiled; l++) {
++        uint32_t w = MAX(t->d.width >> l, 1u), h = MAX(t->d.height >> l, 1u);
++        g->tiles_x[l] = (w + tw - 1) / tw; g->tiles_y[l] = (h + th - 1) / th; g->loff_t[l] = k; k += g->tiles_x[l] * g->tiles_y[l];
++        g->loff[l] = nvn_tex_level_offset(&t->d, l);
++        uint64_t next = l + 1 < g->levels ? nvn_tex_level_offset(&t->d, l + 1) : g->layer_size;
++        if (next - g->loff[l] != (uint64_t)g->tiles_x[l] * g->tiles_y[l] * SP_TILE) { snprintf(why, nwhy, "level %u is not whole tiles (%#llx bytes)", l, (unsigned long long)(next - g->loff[l])); return nil; }
++    }
++    g->tail_at = k; g->per_layer = k + (g->ntiled < g->levels);
++    g->tail_off = g->ntiled < g->levels ? nvn_tex_level_offset(&t->d, g->ntiled) : g->layer_size;
++    return d;
++}
++// S2Arm: a texture of a sparse pool of at least SP_MIN (its storage, or Metal's whole size) that stays whole says why: once a serial, at most 64 lines a session (submit thread)
++static void sp_whole(const tex_t *t, int gpu, const sp_geo *g, const char *why, int red) {
++    if (!why[0] || MAX(t->L.size, g->whole) < SP_MIN || g_sp_nwhole >= 64) return;
++    for (int i = 0; i < g_sp_nwhole; i++) if (g_sp_whole_ser[i] == t->serial) return;
++    g_sp_whole_ser[g_sp_nwhole++] = t->serial;
++    char wz[48] = ""; if (g->whole) snprintf(wz, sizeof wz, ", %llu MB made whole", (unsigned long long)(g->whole >> 20));
++    MLOG("%sRewindBox: sparse texture ser=%llu %ux%ux%u format %#x levels %u (%s, %llu MB of storage%s): stays whole: %s (%d of at most 64 such lines this session)", red ? "【红】 " : "",
++         (unsigned long long)t->serial, t->d.width, t->d.height, t->d.depth, t->d.format, t->d.levels, gpu ? "GPU-written" : "packaged", (unsigned long long)(t->L.size >> 20), wz, why, g_sp_nwhole);
++}
++static void sp_refused_top(void) { static _Atomic int once; if (!atomic_exchange(&once, 1)) rb_res_top_check("Metal refused a placement heap or a placement sparse texture", 1); }   // S2Arm: patch 0023's resident top, forced once (one of RB_TOP_FORCED); not holding g_sp_mu
++// A placement sparse texture for t, or nil when it does not qualify: a 2D texture or 2D array in a sparse pool, laid out in tiles whose shape is Metal's, each tiled level whole tiles,
++// its tail one Metal tile, and at least SP_MIN made whole. gpu: one the GPU writes (tex_mtl_'s GPU texture path, tex_desc(t, 0)), whose tiles get no upload (patch 0030).
++// Upstream 1d4b8e82 (nvn_mtl.m:3528-3569 at 0c078130). S2Arm: the checks are sp_check's; one of a sparse pool of at least SP_MIN that stays whole says why (sp_whole); Metal refusing
++//   the texture is a red line and it is made whole as before (check M3); the line of one made also gives Metal's tile, sparse tier, tail and allocated size and what Metal holds (C15)
++static NvSparse *sparse_make(const tex_t *t, int gpu, __strong id<MTLTexture> *made) {
++    sp_geo g; char why[224]; MTLTextureDescriptor *d = sp_check(t, gpu, &g, why, sizeof why);
++    if (!d) { sp_whole(t, gpu, &g, why, 0); return nil; }
++    // Every usage a later view or clear would ask for from the start: an upgrade (tex_upgrade) would have to remake the texture whole. A sparse texture gets no lossless compression from them to lose,
++    // and without optimized contents no metadata for the whole texture either (184 MB for an 8192x8192x68 RGBA8 array on an M6)
++    d.placementSparsePageSize = MTLSparsePageSize64; d.allowGPUOptimizedContents = NO;
++    d.usage |= MTLTextureUsagePixelFormatView | (fmt_compressed(t->d.format) ? 0 : MTLTextureUsageRenderTarget);
++    id<MTLTexture> mt = [g_dev newTextureWithDescriptor:d];
++    if (!mt) {
++        RED_ONCE(185, "cannot make a placement sparse texture %ux%ux%u format %#x (ser=%llu, %llu MB made whole; Metal holds %llu MB): it is made whole", t->d.width, t->d.height, t->d.depth, t->d.format,
++                 (unsigned long long)t->serial, (unsigned long long)(g.whole >> 20), (unsigned long long)(g_dev.currentAllocatedSize >> 20));
++        sp_whole(t, gpu, &g, "Metal refused the placement sparse texture", 1); sp_refused_top(); return nil;
++    }
++    if (g.ntiled < g.levels && (mt.firstMipmapInTail != g.ntiled || mt.tailSizeInBytes != SP_TILE)) {   // with no tail (every level tiled) Metal's tail lies past the last level
++        snprintf(why, sizeof why, "Metal's tail starts at level %lu (%lu bytes), NVN's at %u", (unsigned long)mt.firstMipmapInTail, (unsigned long)mt.tailSizeInBytes, g.ntiled);
++        sp_whole(t, gpu, &g, why, 0); return nil;
++    }
++    NvSparse *s = [NvSparse new];
++    s->gpu = gpu; s->tw = g.tw; s->th = g.th; s->ntiled = g.ntiled; s->levels = g.levels; s->layers = g.layers; s->layer_size = g.layer_size;
++    memcpy(s->tiles_x, g.tiles_x, sizeof g.tiles_x); memcpy(s->tiles_y, g.tiles_y, sizeof g.tiles_y); memcpy(s->loff_t, g.loff_t, sizeof g.loff_t); memcpy(s->loff, g.loff, sizeof g.loff);
++    s->tail_at = g.tail_at; s->per_layer = g.per_layer; s->tail_off = g.tail_off; s->sess = g_sp_sess; s->ser = t->serial;
++    s->tex = mt; *made = mt; res_add(mt);
++    s->slot = calloc((size_t)s->layers * s->per_layer, sizeof *s->slot); s->nmap = calloc(s->ntiled + 1, sizeof *s->nmap);
++    if (!s->slot || !s->nmap) MDIE("sparse texture tile table");
++    s->gen = 0; s->stamp = 0;
++    long tier = -1; if (@available(macOS 26.0, iOS 26.0, *)) tier = (long)mt.sparseTextureTier;
++    if (g_sp_nmade++ < 20) MLOG("sparse texture ser=%llu %ux%ux%u format %#x levels %u: placement sparse%s, %u tiles a layer (%llu MB made whole); RewindBox: Metal's tile %lux%lu, sparse tier %ld, "
++                                "tail from level %lu (%lu bytes), the texture %llu KB allocated, Metal holds %llu MB", (unsigned long long)t->serial, t->d.width, t->d.height, s->layers, t->d.format, s->levels,
++                                gpu ? " (GPU-written)" : "", s->per_layer, (unsigned long long)(g.whole >> 20), (unsigned long)g.ms.width, (unsigned long)g.ms.height, tier,
++                                (unsigned long)mt.firstMipmapInTail, (unsigned long)mt.tailSizeInBytes, (unsigned long long)(mt.allocatedSize >> 10), (unsigned long long)(g_dev.currentAllocatedSize >> 20));
++    return s;
++}
++
++// S2Arm: heap __unsafe_unretained (g_sp_heaps holds the heaps; upstream's strong field in calloc'd memory is retained at each store and never released, which would keep a heap past sp_session_end)
++typedef struct { __unsafe_unretained id<MTLHeap> heap; MTL4UpdateSparseTextureMappingOperation *op; size_t n, cap; } sp_ops;
++static int sp_op(sp_ops *o, MTL4UpdateSparseTextureMappingOperation x) {   // S2Arm: GROW; 0: not recorded
++    if (o->n == o->cap) { size_t c = o->cap ? 2 * o->cap : 64; if (!GROW(o->op, c * sizeof *o->op, "the sparse mapping operations")) return 0; o->cap = c; }
++    o->op[o->n++] = x; return 1;
++}
++// One look at a texture's tiles: the mapping operations by heap (unmaps, with no heap, at nheaps) and the staging of what is uploaded. S2Arm (check C1): in rounds of one staging
++//   piece (stg). full: this round's piece is used up, or none taken yet (the tile goes in the next round); refused: Metal refused this look's staging; heapfail: Metal refused a heap
++//   in this look (none is asked for again); newh: heaps this round made; done: g_done at the round's start; the tiles left out of date for want of staging, a heap tile, a decode or
++//   host memory
++typedef struct { NvSparse *s; const tex_t *t; id<MTLTexture> tex; sp_ops *ops; uint32_t nheaps; uint8_t *tile, *tail; id<MTLBuffer> stg; size_t stg_off, tail_need; uint64_t up, unmapped; int bw, bh, bpb, force;
++                 int full, refused, heapfail; uint64_t done, round_up, rounds, staged, nostg, noheap, nodec, nomem; NSMutableArray *newh; } sp_look;
++static int sp_blit_room(int k) {   // S2Arm (check C2): room in the upload list for k copies before a tile is mapped (up_blit_add_at drops a copy it cannot record)
++    if (g_nup_blits + k <= g_up_blitcap) return 1;
++    size_t c = g_up_blitcap ? (size_t)g_up_blitcap * 2 : 256; while (c < (size_t)g_nup_blits + (size_t)k) c *= 2;
++    if (!GROW(g_up_blits, c * sizeof *g_up_blits, "texture upload list")) return 0;
++    g_up_blitcap = (int)c; return 1;
++}
++static void sp_rescan(NvSparse *s) { if (!s->rescan) { s->rescan = 1; s->rescan_frame = atomic_load(&g_cur_frame); } }
++// S2Arm (check C2): a tile whose content cannot be staged now is not mapped, and is unmapped if it was (its old content need no longer be the game's); every tile is looked at again
++//   60 frames on (sparse_look). Caller holds g_sp_mu
++static void sp_drop(sp_look *c, uint32_t *sl, MTLRegion rg, uint32_t lev, uint32_t y) {
++    NvSparse *s = c->s;
++    if (*sl) { if (sp_op(&c->ops[c->nheaps], (MTL4UpdateSparseTextureMappingOperation){MTLSparseTextureMappingModeUnmap, rg, lev, y, 0})) { sp_slot_free(*sl - 1); *sl = 0; s->nmap[lev]--; } else c->nomem++; }
++    sp_rescan(s);
++}
++// A heap tile and the Map for a tile not mapped: upstream sp_tile's `if (!*sl)` block (:3606-3613 at 0c078130; 1d4b8e82's, without 1110473c's shared slot: patch 0029), its GPU branch (:3615)
++//   being sp_tile's. S2Arm: called once the content is staged (check C2); no heap asked for after Metal refused one in this look (heapfail); GROW. Caller holds g_sp_mu; 0: not mapped (counted; looked at again)
++static int sp_map(sp_look *c, uint32_t *sl, MTLRegion rg, uint32_t lev, uint32_t y) {
++    NvSparse *s = c->s; uint32_t slot; __strong id<MTLHeap> made = nil;
++    int r = sp_slot(&slot, c->done, c->heapfail ? NULL : &made);
++    if (r <= 0) { if (r < 0) c->heapfail = 1; c->noheap++; sp_rescan(s); return 0; }
++    if (made) { if (!c->newh) c->newh = [NSMutableArray array]; [c->newh addObject:made]; }
++    uint32_t hi = slot / g_sp_ht;
++    if (hi >= c->nheaps) { RED_ONCE(186, "sparse tiles: more than 64 heaps made in one round of a look"); sp_slot_free(slot); c->noheap++; sp_rescan(s); return 0; }
++    c->ops[hi].heap = g_sp_heaps[hi];
++    if (!sp_op(&c->ops[hi], (MTL4UpdateSparseTextureMappingOperation){MTLSparseTextureMappingModeMap, rg, lev, y, slot % g_sp_ht})) { sp_slot_free(slot); c->nomem++; sp_rescan(s); return 0; }
++    *sl = slot + 1; s->nmap[lev]++;
++    return 1;
++}
++// Tile i of layer y (the tail at s->tail_at): the game has mapped all its pages or not, and the Metal tile follows; its content is uploaded when it is newly mapped or its pages were written.
++// Caller holds g_sp_mu. Upstream 1d4b8e82 (nvn_mtl.m:3583-3641 at 0c078130, without 1110473c's shared slots: patch 0029). S2Arm (checks C1, C2): the content comes first, into this
++//   round's staging, then a new tile is mapped and its copies recorded, in the same round, whose mappings reach the queue ahead of its copies (sparse_sync). With no staging piece yet
++//   or this one used up, the tile is left as it is for the next round (c->full); a content that does not decode is not mapped (a red line)
++static void sp_tile(sp_look *c, uint32_t y, uint32_t i) {
++    NvSparse *s = c->s; const tex_t *t = c->t;
++    int is_tail = i == s->tail_at; uint32_t l = 0, tx = 0, ty = 0;
++    if (!is_tail) { while (l + 1 < s->ntiled && i >= s->loff_t[l + 1]) l++; uint32_t j = i - s->loff_t[l]; tx = j % s->tiles_x[l]; ty = j / s->tiles_x[l]; }
++    uint64_t a = (uint64_t)(uintptr_t)t->mem + y * s->layer_size + (is_tail ? s->tail_off : s->loff[l] + (uint64_t)(i - s->loff_t[l]) * SP_TILE), n = is_tail ? s->layer_size - s->tail_off : SP_TILE;
++    uint32_t *sl = &s->slot[(size_t)y * s->per_layer + i], lev = is_tail ? s->ntiled : l; MTLRegion rg = is_tail ? MTLRegionMake3D(0, 0, 0, 1, 1, 1) : MTLRegionMake3D(tx, ty, 0, 1, 1, 1);
++    int st = nvn_sparse_tile_state(t->pool, a, n, s->gen, s->stamp); if (st < 0) st = 0;
++    if (!(st & 1)) {
++        if (*sl) {
++            if (!sp_op(&c->ops[c->nheaps], (MTL4UpdateSparseTextureMappingOperation){MTLSparseTextureMappingModeUnmap, rg, lev, y, 0})) { c->nomem++; sp_rescan(s); return; }   // S2Arm: GROW; it stays mapped for now
++            sp_slot_free(*sl - 1); *sl = 0; s->nmap[lev]--; c->unmapped++;
++        }
++        return;
++    }
++    if (*sl && (s->gpu || (!(st & 2) && !c->force))) return;   // the GPU's own writes are in the tile: a CPU write to its pages is not looked at
++    if (s->gpu) { if (sp_map(c, sl, rg, lev, y)) c->up++; return; }   // mapped, for the GPU to write (patch 0030)
++    size_t need = is_tail ? c->tail_need : SP_TILE; int nb = is_tail ? (int)(s->levels - s->ntiled) : 1;
++    if (!c->stg) { if (c->refused) { c->nostg++; sp_drop(c, sl, rg, lev, y); } else c->full = 1; return; }   // S2Arm: Metal refused this look's staging / none taken yet
++    if (c->stg_off + need > c->stg.length) { c->full = 1; return; }   // S2Arm: this round's piece is used up
++    if (!sp_blit_room(nb)) { c->nomem++; sp_drop(c, sl, rg, lev, y); return; }
++    // the content: protected before it is read, as any packaged texture's, so a later CPU write shows (nvn_dirty_sparse_writes, sparse_look)
++    nvn_sparse_protect_tile(t->pool, a, n);
++    int bw = c->bw, bh = c->bh, bpb = c->bpb; uint8_t *dst = (uint8_t *)c->stg.contents + c->stg_off; size_t used = 0; int k = 0;
++    struct { size_t off, pitch, image; MTLSize sz; uint32_t level, x0, y0; } bl[16];
++    if (is_tail) {
++        nvn_sparse_copy(t->pool, c->tail, a, n);
++        for (uint32_t tl = s->ntiled; tl < s->levels; tl++) {
++            uint32_t w = MAX(t->d.width >> tl, 1u), h = MAX(t->d.height >> tl, 1u); size_t pitch = (size_t)((w + bw - 1) / bw) * bpb, rows = (h + bh - 1) / bh;
++            if (nvn_deswizzle_from(&t->d, tl, y, c->tail, y * s->layer_size + s->tail_off, dst + used, pitch)) { RED_ONCE(187, "sparse tail level %u of format %#x not decoded: the tail is not mapped", tl, t->d.format); c->nodec++; return; }
++            bl[k].off = used; bl[k].pitch = pitch; bl[k].image = pitch * rows; bl[k].sz = MTLSizeMake(w, h, 1); bl[k].level = tl; bl[k].x0 = bl[k].y0 = 0; k++;
++            used += (pitch * rows + 255) & ~(size_t)255;
++        }
++    } else {
++        nvn_sparse_copy(t->pool, c->tile, a, SP_TILE);
++        uint32_t wb, rows; size_t tpitch = (size_t)(s->tw / bw) * bpb;   // a tile's row of blocks: 64 KB / its block rows
++        // S2Arm: a tile that decodes to nothing (none of its texels in the level; not expected for a level of whole tiles) is not decoded either: no Map without content (check C2)
++        if (nvn_deswizzle_tile(&t->d, l, tx, ty, c->tile, dst, tpitch, &wb, &rows) || !wb || !rows) { RED_ONCE(188, "sparse tile of format %#x not decoded (level %u, tile %u,%u): it is not mapped", t->d.format, l, tx, ty); c->nodec++; return; }
++        uint32_t lw = MAX(t->d.width >> l, 1u), lh = MAX(t->d.height >> l, 1u), x0 = tx * s->tw, y0 = ty * s->th;
++        bl[0].off = 0; bl[0].pitch = tpitch; bl[0].image = tpitch * rows; bl[0].sz = MTLSizeMake(MIN(s->tw, lw - x0), MIN(s->th, lh - y0), 1); bl[0].level = l; bl[0].x0 = x0; bl[0].y0 = y0; k = 1;
++        used = SP_TILE;
++    }
++    if (!*sl && !sp_map(c, sl, rg, lev, y)) return;   // S2Arm: a new tile is mapped once its content is staged; one mapped already keeps its heap tile
++    for (int q = 0; q < k; q++) up_blit_add_at(c->stg, c->stg_off + bl[q].off, bl[q].pitch, bl[q].image, bl[q].sz, c->tex, y, bl[q].level, bl[q].x0, bl[q].y0);   // S2Arm: (x0, y0), not an MTLOrigin
++    c->stg_off += used; c->round_up++;
++    c->up++;
++}
++// The tiles of the guest range [lo, hi) of the texture. S2Arm: → where to go on: hi when the range is done, else the tile this round stopped at (c->full)
++static uint64_t sp_range(sp_look *c, uint64_t lo, uint64_t hi) {
++    NvSparse *s = c->s; uint64_t base = (uint64_t)(uintptr_t)c->t->mem, end = base + (uint64_t)s->layers * s->layer_size;
++    if (lo < base) lo = base;
++    if (hi > end) hi = end;
++    for (uint64_t o = (lo - base) & ~(uint64_t)(SP_TILE - 1); lo < hi && base + o < hi;) {
++        uint32_t y = (uint32_t)(o / s->layer_size); uint64_t in = o % s->layer_size;
++        if (in >= s->tail_off) { sp_tile(c, y, s->tail_at); if (c->full) return base + o; o += s->layer_size - in; continue; }   // the tail once, whatever part of it the range touches
++        uint32_t l = 0; while (l + 1 < s->ntiled && in >= s->loff[l + 1]) l++;
++        sp_tile(c, y, s->loff_t[l] + (uint32_t)((in - s->loff[l]) / SP_TILE));
++        if (c->full) return base + o;
++        o += SP_TILE;
++    }
++    return hi;
++}
++static int sp_cmp(const void *a, const void *b) { uint64_t x = *(const uint64_t *)a, y = *(const uint64_t *)b; return x < y ? -1 : x > y; }
++static void sp_heap_made(id<MTLHeap> h, uint64_t live) {   // S2Arm (check M2): not holding g_sp_mu (res_add takes g_res_mu; patch 0023's resident top g_res_mu, g_mu and g_smu)
++    res_add(h);   // resident before a mapping onto it reaches the queue: sparse_sync queues the round's mappings after this
++    uint64_t fp, av; rb_up_mem(&fp, &av);
++    MLOG("sparse tiles: placement heap %lu (%lu MB), %llu tiles mapped; RewindBox: Metal holds %llu MB, this heap %llu MB of it; the process holds %llu MB and may take %llu MB more",
++         (unsigned long)[g_sp_heaps indexOfObject:h] + 1, (unsigned long)(h.size >> 20), (unsigned long long)live, (unsigned long long)(g_dev.currentAllocatedSize >> 20),
++         (unsigned long long)(((id<MTLAllocation>)h).allocatedSize >> 20), (unsigned long long)(fp >> 20), (unsigned long long)(av >> 20));
++    rb_res_top_check("a placement heap for sparse tiles made", 0);   // patch 0023: when the footprint has risen a step
++}
++// The round's mapping operations into the recording stream (rec_queue_block, patch 0027): on the encode thread in their place, ahead of the upload batch that writes the round's tiles,
++//   committed later (up_flush: at the next round's rb_up_staging, the look's end outside a submission, or the submission's end). Upstream sparse_sync's end (1d4b8e82 with 1110473c's
++//   unmaps first, nvn_mtl.m:3678-3685 at 0c078130). S2Arm: not holding g_sp_mu; the block captures the texture and the heap only, never an NvSparse (patch 0027)
++static void sp_queue(sp_look *c) {
++    id<MTLTexture> stex = c->tex;
++    for (uint32_t k = 0; k <= c->nheaps; k++) {   // the unmaps first: a tile moving to another heap tile (patch 0029) is unmapped, then mapped again
++        uint32_t h = k ? k - 1 : c->nheaps;
++        if (!c->ops[h].n) { free(c->ops[h].op); continue; }
++        id<MTLHeap> heap = c->ops[h].heap; MTL4UpdateSparseTextureMappingOperation *op = c->ops[h].op; size_t n = c->ops[h].n;
++        rec_queue_block(^{ [g_q4 updateTextureMappings:stex heap:heap operations:op count:n]; free(op); });
++    }
++}
++static void sp_stg_refused(const tex_t *t, size_t z) {   // S2Arm: Metal refused a round's staging piece (rb_up_staging gave nil); submit thread, not holding g_sp_mu
++    RED_ONCE(189, "Metal refused %zu bytes of staging for the tiles of placement sparse texture ser=%llu: the tiles that need content stay unmapped (read 0), every tile is looked at again 60 frames on", z, (unsigned long long)t->serial);
++    rb_res_top_refused("Metal refused a staging buffer for sparse tiles");   // patch 0023: forced at the first refusal of any staging
++}
++// The game's mappings into the texture since the last look: tiles mapped now get a heap tile and their content, tiles unmapped give theirs back. All the tiles at the first look or when the pool's
++// log has moved on past it, else those of the requests since (sorted and joined: a tile is handled once). The mapping operations go to the queue ahead of the upload batch that writes the tiles (rec_queue_block).
++// whole 2: only the tiles mapped now, for one a write to its pages has changed; 3: all of those again, an upload batch having been dropped (up_lost_take). Upstream 1d4b8e82 (nvn_mtl.m:3656-3689 at 0c078130).
++// S2Arm (check C1): in rounds. A round walks the tiles under g_sp_mu until its staging piece is used up, lets g_sp_mu go, makes the heaps it made resident and puts its mappings into
++//   the recording stream; the next takes its piece from rb_up_staging (patch 0021), which flushes the upload batch and waits for every batch once RB_UP_INFLIGHT is in flight. So each
++//   copy reaches the queue after its tile's mapping, at most RB_UP_INFLIGHT of staging lives, and no wait for the GPU or the encode thread holds g_sp_mu (there a block's release can free a
++//   texture whose NvSparse takes it, patch 0030). The requests are sorted and joined before the walk, so that a round can stop inside one; no staging is taken until a tile needs some.
++//   Submit thread (tex_mtl_ after its thread test), the only one that adds heaps: g_sp_heaps is read here without g_sp_mu
++static void sparse_sync(NvSparse *s, const tex_t *t, int whole) {
++    id<MTLTexture> stex = s->tex; if (!stex) return;
++    if (s->sess != g_sp_sess) return;   // S2Arm (check C6): a texture of an ended session
++    enum { RANGES = 4096 }; uint64_t (*ranges)[2] = NULL; int nr = -1, m = 0;
++    uint64_t gen = nvn_sparse_gen(), stamp = nvn_dirty_now();   // before any tile is protected (patch 0025)
++    if (whole == 1) s->seq = nvn_sparse_log_seq(t->pool);
++    else if (whole >= 2) { s->wseen = nvn_dirty_sparse_writes(); s->wframe = atomic_load(&g_cur_frame); }
++    else { if (!(ranges = malloc(RANGES * sizeof *ranges))) MDIE("sparse mapping ranges"); nr = nvn_sparse_log_read(t->pool, &s->seq, ranges, RANGES); if (!nr) { free(ranges); return; } }
++    if (nr < 0 && whole < 2) s->rescan = 0;   // S2Arm: this look goes over every tile
++    if (nr > 0) {   // S2Arm: sorted and joined before the walk (upstream joins them as it walks)
++        qsort(ranges, (size_t)nr, sizeof ranges[0], sp_cmp);
++        for (int k = 1; k < nr; k++) { if (ranges[k][0] <= ranges[m][1]) { if (ranges[k][1] > ranges[m][1]) ranges[m][1] = ranges[k][1]; } else { m++; ranges[m][0] = ranges[k][0]; ranges[m][1] = ranges[k][1]; } }
++        m++;
++    }
++    sp_look c = {.s = s, .t = t, .tex = stex, .force = whole == 3}; c.bpb = nvn_fmt_bpb(t->d.format, &c.bw, &c.bh);
++    if (!(c.tile = malloc(SP_TILE))) MDIE("sparse mapping operations");
++    if (s->tail_at < s->per_layer) {   // S2Arm: the tail's copy and the staging of its levels, once a look (upstream: realloc_or_die at each tail)
++        if (!(c.tail = malloc(s->layer_size - s->tail_off))) MDIE("the sparse tail copy");
++        for (uint32_t tl = s->ntiled; tl < s->levels; tl++) { uint32_t w = MAX(t->d.width >> tl, 1u), h = MAX(t->d.height >> tl, 1u);
++            c.tail_need += ((size_t)((w + c.bw - 1) / c.bw) * c.bpb * ((h + c.bh - 1) / c.bh) + 255) & ~(size_t)255; }
++    }
++    uint32_t cy = 0, ci = 0; int ck = 0, more = 1;
++    while (more) {
++        if (c.full && !c.refused) {   // S2Arm: the round's staging piece, g_sp_mu not held: rb_up_staging may flush the upload batch and wait (RB_UP_INFLIGHT, patch 0021)
++            size_t z = MAX(SP_STG, c.tail_need); c.stg = rb_up_staging(z); c.stg_off = 0;
++            if (c.stg) c.staged += z; else { c.refused = 1; sp_stg_refused(t, z); }
++        }
++        c.full = 0; c.round_up = 0; c.newh = nil; c.rounds++; c.done = rc_done();   // S2Arm: g_done under g_mu, read without g_sp_mu
++        c.nheaps = (uint32_t)g_sp_heaps.count + 64;
++        if (!(c.ops = calloc(c.nheaps + 1, sizeof *c.ops))) MDIE("sparse mapping operations");
++        pthread_mutex_lock(&g_sp_mu);
++        more = 0;
++        if (nr < 0) {
++            while (cy < s->layers && !more) {
++                for (; ci < s->per_layer; ci++) { if (whole >= 2 && !s->slot[(size_t)cy * s->per_layer + ci]) continue; sp_tile(&c, cy, ci); if (c.full) { more = 1; break; } }
++                if (!more) { cy++; ci = 0; }
++            }
++        } else for (; ck < m; ck++) { uint64_t at = sp_range(&c, ranges[ck][0], ranges[ck][1]); if (c.full) { ranges[ck][0] = at; more = 1; break; } }
++        uint64_t live = g_sp_live;
++        pthread_mutex_unlock(&g_sp_mu);
++        for (id<MTLHeap> h in c.newh) sp_heap_made(h, live);
++        sp_queue(&c); free(c.ops); c.ops = NULL;
++        if (c.round_up) [g_up_texs addObject:stex];   // held until the batch's copies are encoded (up_flush)
++    }
++    free(c.tile); free(c.tail); free(ranges);
++    s->gen = gen; s->stamp = stamp;
++    if (c.up && !s->gpu && !g_cb) up_flush();   // outside a submission the batch goes now
++    uint64_t live = g_sp_live, peak = g_sp_peak;
++    if (c.up || c.unmapped) { uint64_t lk = ++g_sp_looks; if (lk <= 20 || lk % 500 == 0) MLOG("sparse texture ser=%llu: %llu tiles uploaded, %llu unmapped; %llu tiles mapped in all, peak %llu (%llu MB); RewindBox: %llu rounds, %llu MB of staging",
++        (unsigned long long)t->serial, (unsigned long long)c.up, (unsigned long long)c.unmapped, (unsigned long long)live, (unsigned long long)peak, (unsigned long long)(peak * SP_TILE >> 20),
++        (unsigned long long)c.rounds, (unsigned long long)(c.staged >> 20)); }
++    uint64_t left = c.nostg + c.noheap + c.nodec + c.nomem;
++    if (left) { uint64_t k = ++g_sp_nskip; if (k <= 8 || !(k & (k - 1))) { uint64_t fp, av; rb_up_mem(&fp, &av);   // S2Arm: what a look left out of date, counted
++        MLOG("【红】 RewindBox: sparse texture ser=%llu: %llu tiles left out of date in this look (staging refused %llu, no heap tile %llu%s, not decoded %llu, no host memory %llu): one not mapped reads 0, "
++             "one whose decoding failed or whose unmap was not recorded keeps what it held%s; Metal holds %llu MB, the process holds %llu MB and may take %llu MB more (%llu such looks so far)",
++             (unsigned long long)t->serial, (unsigned long long)left, (unsigned long long)c.nostg, (unsigned long long)c.noheap, c.heapfail ? ", Metal refusing a heap" : "", (unsigned long long)c.nodec,
++             (unsigned long long)c.nomem, s->rescan ? "; every tile is looked at again 60 frames on" : "", (unsigned long long)(g_dev.currentAllocatedSize >> 20), (unsigned long long)(fp >> 20),
++             (unsigned long long)(av >> 20), (unsigned long long)k); } }
++    if (c.heapfail) sp_refused_top();
++}
++// A look when the texture is resolved: only a new mapping request in its pool costs anything, or a write to a page behind a tile, which no game seen does to a tile it keeps mapped (none of 42,072
++// in Mario Kart World's first race): at most once a second, as the look goes over every mapped tile, so a rewritten tile can show its old content for that long (check C4: kept so)
++static inline void sparse_look(NvSparse *s, const tex_t *t) {
++    if (nvn_sparse_log_seq(t->pool) != s->seq) sparse_sync(s, t, 0);
++    if (atomic_load_explicit(&g_up_lost_n, memory_order_relaxed) && !s->gpu && up_lost_take(s->tex)) { sparse_sync(s, t, 3); return; }
++    if (s->rescan && atomic_load(&g_cur_frame) - s->rescan_frame >= 60) sparse_sync(s, t, 1);   // S2Arm (check C2): tiles left out of date for want of staging, a heap tile or host memory
++    if (!s->gpu && nvn_dirty_sparse_writes() != s->wseen && atomic_load(&g_cur_frame) - s->wframe >= 60) sparse_sync(s, t, 2);
++}
++// tex_mtl_'s packaged path (upstream 1d4b8e82, nvn_mtl.m:4420-4421 at 0c078130): t made placement sparse with its NvPkg (submit thread), or nil: it is made as before
++static NvPkg *sparse_pkg(const tex_t *t) {
++    id<MTLTexture> made = nil; NvSparse *ps = sparse_make(t, 0, &made);
++    if (!ps) return nil;
++    NvPkg *pk = [NvPkg new]; pk->ps = ps; pk->tex = made; pk->sparse = 1;
++    sparse_sync(ps, t, 1); tex_put(t->serial, pk);
++    return pk;
++}
++// S2Arm (check C7, after seedds/nxnative a9005a51 at b16693b3): a texture another thread needs first that would be made placement sparse is not made there: made on the submit
++//   thread's first use instead, nil until then. Made here it would be whole (1,451 or 5,803 MB for Mario Kart World's terrain) and kept: tex_mtl_ turned such a texture into a GPU texture
++static int sparse_off_sub(const tex_t *t) {
++    sp_geo g; char why[8]; if (!sp_check(t, 0, &g, why, sizeof why)) return 0;
++    static _Atomic uint64_t n; uint64_t k = atomic_fetch_add(&n, 1) + 1;
++    if (k <= 8 || !(k & (k - 1))) { char name[64] = ""; pthread_getname_np(pthread_self(), name, sizeof name);
++        MLOG("RewindBox: sparse texture ser=%llu %ux%ux%u format %#x first needed off the submit thread ('%s'): it would be made placement sparse (%llu MB whole), so it is not made there; nil until "
++             "the submit thread makes it (%llu so far)", (unsigned long long)t->serial, t->d.width, t->d.height, t->d.depth, t->d.format, name, (unsigned long long)(g.whole >> 20), (unsigned long long)k); }
++    return 1;
++}
++// S2Arm (check C6): the session's end (nvn_be_shutdown_session, nvn_session.inc), the GPU done (session_wait_backend) and the session's textures gone (the serial tables and the
++//   deferred releases, whose NvSparse deallocs put their slots back first): the heaps leave the residency set and go, the lists start again, ResourceAlias goes off (g_sp_heap_n), and
++//   an NvSparse alive past this gives nothing back (sess). RewindBox ends a session and starts the next in this process (patches 0006, 0010); the tables hold heap slots
++static void sp_session_end(void) {
++    pthread_mutex_lock(&g_sp_mu);
++    NSArray *heaps = g_sp_heaps; g_sp_heaps = nil; uint64_t live = g_sp_live, peak = g_sp_peak;
++    free(g_sp_free); g_sp_free = NULL; g_sp_nfree = g_sp_freecap = 0;
++    free(g_sp_late); g_sp_late = NULL; g_sp_nlate = g_sp_latecap = 0;
++    g_sp_live = g_sp_peak = 0; g_sp_sess++; atomic_store(&g_sp_heap_n, 0);
++    g_sp_nmade = g_sp_nwhole = 0; g_sp_looks = g_sp_nskip = 0;
++    pthread_mutex_unlock(&g_sp_mu);
++    uint64_t mb = 0; for (id<MTLHeap> h in heaps) { mb += h.size >> 20; res_remove(h); }
++    if (heaps.count || peak) MLOG("RewindBox: placement sparse tiles at the session's end: %lu heaps (%llu MB) given back; %llu tiles still mapped by textures alive past it (none expected), peak %llu tiles (%llu MB)",
++                                  (unsigned long)heaps.count, (unsigned long long)mb, (unsigned long long)live, (unsigned long long)peak, (unsigned long long)(peak * SP_TILE >> 20));
++}

@@ -1,0 +1,45 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 9751c4fdf..95e896ed0 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -4660,8 +4660,13 @@ static id<MTLTexture> tex_mtl_(const tex_t *ct) {
+     }
+     if (packaged) {
+         NvPkg *pk = [have isKindOfClass:[NvPkg class]] ? have : nil;   // resolved as GPU-only before the CPU wrote it: dropped and rebuilt as packaged
+-        if (pk && pk->ps) { sparse_look(pk->ps, t); return pk->tex; }   // RewindBox (patch 0028): a placement sparse texture: its tiles follow the game's mappings (seedds/nxnative 1d4b8e82, nvn_mtl.m:4419 at 0c078130; MIT)
+-        if (!pk && (pk = sparse_pkg(t))) return pk->tex;   // RewindBox (patch 0028): made placement sparse when it qualifies (nvn_sparse_tiles.inc), else as before (upstream :4420-4421)
++        // RewindBox (patch 0032, from the review of patches 0028-0031), S2Arm: a placement sparse texture is made, and looked at, on the submit thread only (on_sub_thread). The guard above lets any thread through before a session's first submission
++        //   (g_sub_thread_set 0), when after an in-process restart (patches 0006, 0010) the encode thread still runs: there a look would record mapping blocks into the open record
++        //   block (rec_queue_block) while the render thread starts its first submission, and add heaps that sparse_sync reads without g_sp_mu. One that would qualify is then not
++        //   made, whole or sparse (sparse_off_sub: a bounded line), nil until the submit thread makes it, as a GPU-written one (patch 0030) and one first needed off the submit thread
++        if (pk && pk->ps) { if (on_sub_thread()) sparse_look(pk->ps, t); return pk->tex; }   // RewindBox (patch 0028): a placement sparse texture: its tiles follow the game's mappings (seedds/nxnative 1d4b8e82, nvn_mtl.m:4419 at 0c078130; MIT)
++        if (!pk && on_sub_thread() && (pk = sparse_pkg(t))) return pk->tex;   // RewindBox (patch 0028): made placement sparse when it qualifies (nvn_sparse_tiles.inc), else as before (upstream :4420-4421)
++        if (!pk && !on_sub_thread() && sparse_off_sub(t, 0)) return nil;   // RewindBox (patch 0032), S2Arm: before the session's first submission (see above)
+         if (pk) {   // Already uploaded: check the covered pages only if there has been a guest write since the last check
+             uint64_t now = nvn_dirty_now();
+             int tracked = pk->span != NULL;   // kept from the upload: a texture's pool stays registered while the texture lives
+diff --git a/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc b/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
+index 232e67e53..b2037e61f 100644
+--- a/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
++++ b/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
+@@ -574,8 +574,19 @@ static void sparse_sync(NvSparse *s, const tex_t *t, int whole) {
+         if (c.round_up) { [g_up_texs addObject:stex]; s->up_seq = g_up_seq; }   // held until the batch's copies are encoded (up_flush); RewindBox (patch 0029): the batch they are in (above)
+     }
+     free(c.tile); free(c.tail); free(ranges);
+-    s->gen = gen; s->stamp = stamp;
++    // RewindBox (patch 0032, from the review of patches 0028-0031), S2Arm correction of upstream 1d4b8e82 (nvn_mtl.m:3678 at 0c078130 moves both after any look): the write stamp moves only after a look that went over
++    //   every tile it could hold (nr < 0: whole 1 / 2 / 3, or a log the look fell behind). A look of the logged ranges visits only those, so a CPU write made before it to a tile
++    //   outside them (a layer's mip tail, a tile cut by its level's edge, one on scattered pages: no shared slot, tested with st & 2) would fall before the new stamp, and the write
++    //   look that follows (sparse_look, 60 frames on) would never re-upload it. Kept, the old stamp makes that look upload the ranges' tiles written since once more (a copy, correct).
++    //   The mapping generation moves after every look: each request that changes a page goes to the log under the vp lock with its generation (hle_nvn.c vpt_set), gen is read
++    //   before the log, so a tile outside the ranges has no change newer than gen that the next range look will not visit
++    s->gen = gen; if (nr < 0) s->stamp = stamp;
+     if ((s->gpu ? c.zeroed : c.up) && !g_cb) up_flush();   // outside a submission the batch goes now (RewindBox patch 0030, S2Arm: a GPU-written texture's zeroed tiles)
++    // RewindBox (patch 0032), S2Arm: outside a submission (on iOS the encode thread runs) the look's mapping blocks and upload commit sit in the open record block until the next
++    //   submission hands it over; handed over now, they run in their order as soon as the encode thread gets them. Else a session that ends first (nvn_be_shutdown_session frees
++    //   the open block without releasing its objects) would keep each block's texture and heap (up to 256 MB) for good, and an upload commit never made would hold g_up_pending
++    //   until session_wait_backend times out. Only what is recorded already is handed over (nothing in a lane: lanes live inside a submission)
++    if (!g_cb) rec_publish();
+     // RewindBox (patch 0029): upstream's line with the shared slots (1110473c, nvn_mtl.m:3687-3688 at 0c078130); S2Arm: the counts read under g_sp_mu, for a line only (a Finalize on a game
+     //   thread changes them, nvn_be_sparse_phys_gone)
+     if (c.up || c.unmapped) { uint64_t lk = ++g_sp_looks; if (lk <= 20 || lk % 500 == 0) {
