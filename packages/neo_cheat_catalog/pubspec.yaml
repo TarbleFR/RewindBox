@@ -10,7 +10,7 @@ environment:
 
 dependencies:
   archive: ^4.0.9
-  crypto: ^3.0.7
+  crypto: ^3.0.8
   flutter:
     sdk: flutter
 
