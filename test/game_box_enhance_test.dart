@@ -280,4 +280,14 @@ void main() {
       expect(small?.back, big?.back);
     });
   });
+
+  test('a corrected copy keeps its name when iOS moves the app container', () {
+    const before = '/var/mobile/Containers/Data/Application/F3AFD4A8-37C6-4E74-B4A4-4FD95179B5CE'
+        '/Documents/media/switch/box2d/Hogwarts Legacy.png';
+    const after = '/private/var/mobile/Containers/Data/Application/380C459E-7041-4902-9B6C-CD0C745F86CB'
+        '/Documents/media/switch/box2d/Hogwarts Legacy.png';
+    expect(GameBoxEnhance.cacheOwnerName(before), GameBoxEnhance.cacheOwnerName(after));
+    expect(GameBoxEnhance.cacheOwnerName(before), isNot(GameBoxEnhance.cacheOwnerName(before.replaceAll('Hogwarts', 'Other'))));
+    expect(GameBoxEnhance.cacheOwnerName('/tmp/front.png'), '/tmp/front.png');
+  });
 }

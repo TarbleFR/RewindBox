@@ -12,6 +12,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'package:neostation/services/game_box/game_box_media.dart';
 import 'package:neostation/services/game_box/game_box_sharp_scan.dart';
+import 'package:neostation/services/ios_library_root_relocation.dart';
 import 'package:neostation/services/logger_service.dart';
 
 /// A defect found in a picture by [GameBoxEnhance.diagnose].
@@ -238,6 +239,18 @@ class GameBoxEnhance {
     });
   }
 
+  /// The name a picture's corrected copy is filed under: its path inside
+  /// the app container. iOS gives the container a new UUID at each install,
+  /// so the absolute path changed with every IPA and each picture was
+  /// examined and enlarged again (about 20 MB per box face), the old copies
+  /// left behind.
+  @visibleForTesting
+  static String cacheOwnerName(String path) {
+    final parts = IosLibraryRootRelocation.split(path);
+    if (parts == null || parts.relative.isEmpty) return path;
+    return 'container:${parts.relative}';
+  }
+
   static Future<GameBoxEnhanced?> _prepare(String path) async {
     try {
       final size = GameBoxImageSize.of(path);
@@ -245,7 +258,7 @@ class GameBoxEnhance {
       final file = File(path);
       final stat = await file.stat();
       final dir = await _directory();
-      final owner = sha1.convert(utf8.encode(path)).toString().substring(0, 16);
+      final owner = sha1.convert(utf8.encode(cacheOwnerName(path))).toString().substring(0, 16);
       final key = sha1
           .convert(utf8.encode('${stat.size}|${stat.modified.millisecondsSinceEpoch}|v$version'))
           .toString()
