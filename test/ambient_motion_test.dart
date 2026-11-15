@@ -8,6 +8,10 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/services/frontend_media_gate.dart';
 import 'package:neostation/services/glass_performance_governor.dart';
+import 'package:neostation/services/user_activity_monitor.dart';
+import 'package:neostation/widgets/notification_bell.dart';
+import 'package:neostation/services/global_notification_service.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:neostation/widgets/rainbow_selection_border.dart';
 import 'package:neostation/widgets/shimmering_logo.dart';
 
@@ -32,6 +36,8 @@ void main() {
   tearDown(() {
     FrontendMediaGate.instance.release(owner);
     GlassPerformanceGovernor.instance.debugReset();
+    UserActivityMonitor.instance.debugReset();
+    GlobalNotificationService().dismiss();
   });
 
   testWidgets('the rainbow outline turns only while nothing forbids it', (
@@ -76,4 +82,56 @@ void main() {
     expect(_framesScheduled(tester), isTrue, reason: 'progress still moves');
     await tester.pumpAndSettle();
   });
+
+  testWidgets(
+    'an idle interface holds the outline still; an input brings it back',
+    (tester) async {
+      await tester.pumpWidget(_app(_border));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(_framesScheduled(tester), isTrue);
+
+      UserActivityMonitor.instance.debugGoIdle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(_framesScheduled(tester), isFalse, reason: 'idle menu: no frame');
+
+      await tester.tap(
+        find.byType(RainbowSelectionBorder),
+        warnIfMissed: false,
+      );
+      await tester.pump();
+      expect(UserActivityMonitor.instance.idle, isFalse);
+      expect(_framesScheduled(tester), isTrue, reason: 'a touch wakes it');
+    },
+  );
+
+  testWidgets(
+    'a lasting notification does not keep the bell pulsing when idle',
+    (tester) async {
+      GlobalNotificationService().show(id: 'probe', message: 'update');
+      await tester.pumpWidget(
+        ScreenUtilInit(
+          designSize: const Size(640, 480),
+          builder: (_, _) => _app(const NotificationBell()),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(_framesScheduled(tester), isTrue, reason: 'the bell pulses');
+
+      UserActivityMonitor.instance.debugGoIdle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(_framesScheduled(tester), isFalse, reason: 'idle: still bell');
+
+      unawaited(FrontendMediaGate.instance.hold(owner));
+      UserActivityMonitor.instance.noteActivity();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(
+        _framesScheduled(tester),
+        isFalse,
+        reason: 'under a game: still bell',
+      );
+    },
+  );
 }

@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import '../services/frontend_media_gate.dart';
 import '../services/glass_performance_governor.dart';
+import '../services/user_activity_monitor.dart';
 
 /// Decides whether a decorative, endlessly repeating animation may run.
 ///
@@ -12,7 +13,9 @@ import '../services/glass_performance_governor.dart';
 /// * the app is in the foreground;
 /// * no embedded game holds [FrontendMediaGate];
 /// * Low Power Mode is off ([GlassPerformanceGovernor.decorativeMotion]);
-/// * the system does not ask to reduce motion.
+/// * the system does not ask to reduce motion;
+/// * the player touched, pressed or moved something in the last minute
+///   ([UserActivityMonitor]): an idle menu renders nothing.
 ///
 /// [TickerMode] is already honoured by the ticker providers. The state calls
 /// [onAmbientMotionChanged] on every change and shows a still frame when
@@ -40,6 +43,9 @@ mixin AmbientMotion<T extends StatefulWidget> on State<T> {
     WidgetsBinding.instance.addObserver(_ambientLifecycle);
     FrontendMediaGate.instance.addListener(_syncAmbientMotion);
     GlassPerformanceGovernor.instance.addListener(_syncAmbientMotion);
+    UserActivityMonitor.instance
+      ..ensureStarted()
+      ..addListener(_syncAmbientMotion);
   }
 
   @override
@@ -55,6 +61,7 @@ mixin AmbientMotion<T extends StatefulWidget> on State<T> {
 
   @override
   void dispose() {
+    UserActivityMonitor.instance.removeListener(_syncAmbientMotion);
     GlassPerformanceGovernor.instance.removeListener(_syncAmbientMotion);
     FrontendMediaGate.instance.removeListener(_syncAmbientMotion);
     WidgetsBinding.instance.removeObserver(_ambientLifecycle);
@@ -74,6 +81,7 @@ mixin AmbientMotion<T extends StatefulWidget> on State<T> {
         _ambientForeground &&
         !_ambientReduced &&
         !FrontendMediaGate.instance.blocked &&
+        !UserActivityMonitor.instance.idle &&
         GlassPerformanceGovernor.instance.decorativeMotion;
     if (_ambientAllowed == allowed) return;
     _ambientAllowed = allowed;

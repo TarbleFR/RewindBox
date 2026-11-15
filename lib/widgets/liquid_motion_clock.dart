@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 
 import '../services/frontend_media_gate.dart';
 import '../services/glass_performance_governor.dart';
+import '../services/user_activity_monitor.dart';
 
 /// One paint-only clock for all visible liquid indicators. No idle timer,
 /// image decoding or widget rebuilds; native catalogue pages use their own
@@ -32,6 +33,9 @@ class LiquidMotionClock extends ChangeNotifier with WidgetsBindingObserver {
     if (_owners.isEmpty) {
       WidgetsBinding.instance.addObserver(this);
       FrontendMediaGate.instance.addListener(_sync);
+      UserActivityMonitor.instance
+        ..ensureStarted()
+        ..addListener(_sync);
       _foreground =
           WidgetsBinding.instance.lifecycleState == null ||
           WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
@@ -46,6 +50,7 @@ class LiquidMotionClock extends ChangeNotifier with WidgetsBindingObserver {
     if (_owners.isEmpty) {
       WidgetsBinding.instance.removeObserver(this);
       FrontendMediaGate.instance.removeListener(_sync);
+      UserActivityMonitor.instance.removeListener(_sync);
       _ticker?.dispose();
       _ticker = null;
     }
@@ -59,6 +64,8 @@ class LiquidMotionClock extends ChangeNotifier with WidgetsBindingObserver {
         _foreground &&
         !_lowPower &&
         !FrontendMediaGate.instance.blocked &&
+        // A charging battery or a long download, left alone: still liquid.
+        !UserActivityMonitor.instance.idle &&
         !features.reduceMotion &&
         !features.disableAnimations &&
         !features.accessibleNavigation;

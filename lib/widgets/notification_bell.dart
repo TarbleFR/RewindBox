@@ -7,6 +7,7 @@ import 'package:neostation/l10n/app_locale.dart';
 import 'package:neostation/services/global_notification_service.dart';
 import 'package:neostation/themes/app_themes.dart';
 import 'package:neostation/themes/corner_radii.dart';
+import 'ambient_motion.dart';
 import 'glass/glass_surface.dart';
 
 /// Notification bell icon that opens a dropdown with all active global
@@ -25,7 +26,7 @@ class NotificationBell extends StatefulWidget {
 }
 
 class _NotificationBellState extends State<NotificationBell>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, AmbientMotion {
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
   late final ValueNotifier<List<GlobalNotificationData>> _notifications;
@@ -50,19 +51,25 @@ class _NotificationBellState extends State<NotificationBell>
     // The pulse only runs while a notification exists. With none, the icon
     // is drawn at full opacity anyway, and a repeating controller would keep
     // the header rendering on every vsync (Build 440: no idle render loop).
+    // A notification can stay for hours (System Art updates): the pulse also
+    // stops under a game, in Low Power Mode and on an idle interface
+    // (AmbientMotion); the warning colour and the dot still show it.
     _notifications = GlobalNotificationService().notifier;
     _notifications.addListener(_syncPulse);
-    _syncPulse();
   }
 
+  @override
+  void onAmbientMotionChanged(bool allowed) => _syncPulse();
+
   void _syncPulse() {
-    if (_notifications.value.isNotEmpty) {
+    if (_notifications.value.isNotEmpty && ambientMotionAllowed) {
       if (!_pulseController.isAnimating) {
         _pulseController.repeat(reverse: true);
       }
-    } else if (_pulseController.isAnimating) {
-      // No reset needed: the builder shows full opacity without notifications.
+    } else if (_pulseController.isAnimating || _pulseController.value != 0) {
+      // Still at full opacity (the tween's start).
       _pulseController.stop();
+      _pulseController.value = 0;
     }
   }
 

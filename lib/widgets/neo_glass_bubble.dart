@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../services/frontend_media_gate.dart';
+import '../services/user_activity_monitor.dart';
 import '../themes/liquid_glass_theme.dart';
 
 /// Shared neutral glass. Theme accents never enter the selection material.
@@ -308,6 +309,11 @@ class _NeoBubbleMotionState extends State<NeoBubbleMotion>
     );
     WidgetsBinding.instance.addObserver(this);
     FrontendMediaGate.instance.addListener(_mediaChanged);
+    // The selected bubble floats only while the player is around: an idle
+    // menu holds it still instead of rendering every vsync.
+    UserActivityMonitor.instance
+      ..ensureStarted()
+      ..addListener(_syncMotion);
   }
 
   @override
@@ -346,13 +352,26 @@ class _NeoBubbleMotionState extends State<NeoBubbleMotion>
   }
 
   void _syncMotion() {
-    if (widget.float &&
+    final canFloat =
+        widget.float &&
         widget.selected &&
         !_reduced &&
         _foreground &&
         _tickerEnabled &&
-        !FrontendMediaGate.instance.blocked) {
+        !FrontendMediaGate.instance.blocked;
+    if (canFloat && !UserActivityMonitor.instance.idle) {
       if (!_float.isAnimating) _float.repeat(reverse: true);
+    } else if (canFloat) {
+      // Idle: settles softly at rest, then no more frames.
+      if (_float.value != 0) {
+        _float.animateTo(
+          0,
+          duration: const Duration(milliseconds: 600),
+          curve: Curves.easeOut,
+        );
+      } else {
+        _float.stop();
+      }
     } else {
       _float.stop();
       if (_float.value != 0) _float.value = 0;
@@ -361,6 +380,7 @@ class _NeoBubbleMotionState extends State<NeoBubbleMotion>
 
   @override
   void dispose() {
+    UserActivityMonitor.instance.removeListener(_syncMotion);
     FrontendMediaGate.instance.removeListener(_mediaChanged);
     WidgetsBinding.instance.removeObserver(this);
     _float.dispose();
