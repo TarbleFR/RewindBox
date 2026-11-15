@@ -83,6 +83,7 @@ import 'package:neostation/themes/chrome_surface.dart';
 
 import '../../themes/corner_radii.dart';
 import '../../widgets/glass/glass_surface.dart';
+import '../../services/user_activity_monitor.dart';
 
 part 'my_games_list/gamepad_nav.dart';
 part 'my_games_list/favorites_reorder.dart';
@@ -227,6 +228,17 @@ class _SystemGamesListState extends State<SystemGamesList> {
   // Media controllers.
   VideoPlayerController? _videoController;
 
+  /// Idle interface: the preview plays to its end instead of looping, then
+  /// gives the screen back to the artwork (no decoding or frames for nobody).
+  /// The next input starts it again.
+  VideoPlayerController? _idleWatchedPreview;
+  bool _previewEndedWhileIdle = false;
+
+  // Class methods (not the extension's): their tear-offs compare equal, so
+  // removeListener finds them again.
+  void _userActivityListener() => _onUserActivity();
+  void _idlePreviewListener() => _onIdlePreviewTick();
+
   // Scraping state.
   final Set<String> _scrapingGameRomnames = {};
   final Map<String, double> _scrapeProgress = {};
@@ -287,6 +299,9 @@ class _SystemGamesListState extends State<SystemGamesList> {
     MusicPlayerService().addListener(_onMusicPlayerStateChanged);
     FrontendMediaGate.instance.register(this, _stopVideoAndCleanup);
     FrontendMediaGate.instance.addListener(_onFrontendMediaGateChanged);
+    UserActivityMonitor.instance
+      ..ensureStarted()
+      ..addListener(_userActivityListener);
 
     if (Platform.isAndroid) {
       _secondaryDisplayState = SecondaryDisplayState.instance;
@@ -323,6 +338,9 @@ class _SystemGamesListState extends State<SystemGamesList> {
   void dispose() {
     FrontendMediaGate.instance.unregister(this);
     FrontendMediaGate.instance.removeListener(_onFrontendMediaGateChanged);
+    UserActivityMonitor.instance.removeListener(_userActivityListener);
+    _idleWatchedPreview?.removeListener(_idlePreviewListener);
+    _idleWatchedPreview = null;
     // Detach listeners before disposal.
     _configProvider.removeListener(_onConfigChanged);
     _databaseProvider.removeListener(_onDatabaseUpdated);

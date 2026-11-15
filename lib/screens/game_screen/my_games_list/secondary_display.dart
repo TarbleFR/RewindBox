@@ -18,6 +18,52 @@ extension _SecondaryDisplay on _SystemGamesListState {
     if (mounted && !_previewIsSuppressed) _startVideoTimer();
   }
 
+  /// An idle interface lets the preview finish its current pass, then shows
+  /// the artwork again (music back at full volume); an input restarts it.
+  void _onUserActivity() {
+    if (!mounted) return;
+    if (UserActivityMonitor.instance.idle) {
+      final controller = _videoController;
+      if (controller == null || _idleWatchedPreview == controller) return;
+      _idleWatchedPreview?.removeListener(_idlePreviewListener);
+      _idleWatchedPreview = controller;
+      unawaited(controller.setLooping(false).catchError((Object _) {}));
+      controller.addListener(_idlePreviewListener);
+      return;
+    }
+    final watched = _idleWatchedPreview;
+    _idleWatchedPreview = null;
+    if (watched != null) {
+      watched.removeListener(_idlePreviewListener);
+      if (watched == _videoController) {
+        unawaited(watched.setLooping(true).catchError((Object _) {}));
+      }
+    }
+    if (_previewEndedWhileIdle) {
+      _previewEndedWhileIdle = false;
+      if (_selectedGame != null &&
+          !_showVideo &&
+          _videoTimer == null &&
+          !_previewIsSuppressed) {
+        _startVideoTimer();
+      }
+    }
+  }
+
+  void _onIdlePreviewTick() {
+    final controller = _idleWatchedPreview;
+    if (controller == null || controller != _videoController) return;
+    final value = controller.value;
+    if (!value.isInitialized || value.isPlaying) return;
+    if (value.duration <= Duration.zero || value.position < value.duration) {
+      return;
+    }
+    controller.removeListener(_idlePreviewListener);
+    _idleWatchedPreview = null;
+    _previewEndedWhileIdle = true;
+    _invalidateVideoPreview(updateDucking: true);
+  }
+
   /// Grid cards never expose a video-audio control and their primary preview is
   /// not visible. Keep those previews silent even when the global list/carousel
   /// preview sound preference is enabled.
