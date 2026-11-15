@@ -381,7 +381,7 @@
         "note": "Reviewed by main: fix(delivery): the unchanged-recipe guard takes the workflow with the optional Nextendo server defines [skip ci]"
       },
       {
-        "commit": "2e9542ef7ca6201daefffd78d282311d3e186157",
+        "commit": "0fcbb08c2b1d345e0259d87f6e2781894360c39b",
         "note": "Reviewed by main: build(delivery): draft 752 again \u2014 the guard fix 4502c5c6d classified, same engine and base [skip ci]"
       }
     ],
