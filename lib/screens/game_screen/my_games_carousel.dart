@@ -715,9 +715,15 @@ class _GamesCarouselState extends State<GamesCarousel> {
       imageType,
       widget.fileProvider,
     );
-    if (File(path).existsSync()) return path;
+    if (_cachedExists(path)) return path;
     return '';
   }
+
+  /// Existence of an artwork file, asked once per path: the visible cards are
+  /// rebuilt on every selection move, each with a synchronous stat on the UI
+  /// thread. The cache is emptied when the artwork changes (artworkVersion).
+  bool _cachedExists(String path) =>
+      _fileExistsCache.putIfAbsent(path, () => File(path).existsSync());
 
   Widget _withRainbowSelection({
     required Widget child,
@@ -752,13 +758,13 @@ class _GamesCarouselState extends State<GamesCarousel> {
     final theme = Theme.of(context);
     final folder = _folderForGame(game);
     final screenshotPath = game.getScreenshotPath(folder, widget.fileProvider);
-    final hasScreenshot = File(screenshotPath).existsSync();
+    final hasScreenshot = _cachedExists(screenshotPath);
     final fanartPath = game.getImagePath(
       folder,
       'fanarts',
       widget.fileProvider,
     );
-    final hasFanart = File(fanartPath).existsSync();
+    final hasFanart = _cachedExists(fanartPath);
     final bgPath = hasFanart
         ? fanartPath
         : (hasScreenshot ? screenshotPath : '');
