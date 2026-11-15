@@ -1,0 +1,381 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_geometry.inc b/graphics/nvn/gfx/nvn/nvn_geometry.inc
+index ada04d826..ab7a34008 100644
+--- a/graphics/nvn/gfx/nvn/nvn_geometry.inc
++++ b/graphics/nvn/gfx/nvn/nvn_geometry.inc
+@@ -231,7 +231,8 @@ static id mtk_wait(const mtk_key *mk, const char *why) {
+     }
+     uint64_t dt = bp_now() - t0; g_mtk_wait_frame_ns += dt; g_mtk_waits++; g_mtk_wait_ns += dt; if (dt > g_mtk_wait_max) g_mtk_wait_max = dt;
+     if (!done) g_mtk_wait_over++;
+-    if (!(g_mtk_waits & (g_mtk_waits - 1)) || !done) MLOG("task / mesh draw that cannot be skipped (%s) waited for its background pipeline %.1f ms (%s); %llu waits so far, %.1f ms in all, longest %.1f ms, %llu past the %d ms frame budget (skipped)",
++    // RewindBox (patch 0044): a wait past the budget is logged at powers of two of their count as well; it was one line a draw, every frame, for as long as a pipeline took to build
++    if (!(g_mtk_waits & (g_mtk_waits - 1)) || (!done && !(g_mtk_wait_over & (g_mtk_wait_over - 1)))) MLOG("task / mesh draw that cannot be skipped (%s) waited for its background pipeline %.1f ms (%s); %llu waits so far, %.1f ms in all, longest %.1f ms, %llu past the %d ms frame budget (skipped)",
+         why, dt / 1e6, done ? "ready" : "not ready: skipped this frame", (unsigned long long)g_mtk_waits, g_mtk_wait_ns / 1e6, g_mtk_wait_max / 1e6, (unsigned long long)g_mtk_wait_over, mtk_budget_ms());
+     return done && p != NSNull.null ? p : nil;
+ }
+@@ -288,7 +289,11 @@ static id<MTLRenderPipelineState> mtk_pso(NvProg *raster) {
+         MTLMeshRenderPipelineDescriptor *m = mtk_desc(k, ts, ms, fs, pf, merged, g_pso_fsfn);
+         NSString *names = [NSString stringWithFormat:@"task %s mesh %s%s fragment %s", ts ? ts->key : "-", ms->key, pf ? " (padded)" : "", fs ? fs->key : "-"];
+         mtk_kick(m, names, &mk);
+-        mtk_record(&mk, ts, ms, fs, merged);   // 请求编译时就记：只在一小段画面里用到、又编得慢的管线（0400486024DEC000 一段事件里那条 2 秒的），等它编好那笔已不再画，「第一次画出」时记就永远进不了种子
++        // RewindBox (patch 0044): not recorded here, when the build is asked for (S2Arm d0719d44, so that a pipeline used for a moment and slow to build still reaches the seed): an M
++        //   row is then written whatever the build does, and the prewarm builds every M row again at each start, before the first picture. A pipeline Metal refuses was built and
++        //   reported red at every start, and one whose build takes the process down (Metal has aborted in builds before, see pso_desc's callers) would take it down at every start
++        //   instead of once in its scene: this device has no seed to fall back to, the list is its own (patch 0033). A row is written when its pipeline is first drawn, below and
++        //   above, as vertex pipelines record theirs once built. The pipeline of S2Arm's case is built again in the scene that uses it
+     }
+     if (!why) return nil;   // building in the background, and this draw may wait for it
+     __unsafe_unretained id p = mtk_wait(&mk, why);
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 258ab0ca5..894f70144 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -32,6 +32,7 @@
+ #include "nvn_dirty.h"
+ #include "nvn_refl.h"
+ #include "nvn_red.h"   // sampler reduction / LOD bias where the GPU has none: the variant's function constants and table entries (se_need / se_bind)
++#include "vp_prog_pick.h"   // #674: find the guest program that still holds a shader's code / control (vp_ask)
+ #include "../../../metal/gal_samp_caps.h"   // whether this GPU reduces / biases natively (#800; the generic path's same test)
+ #include "nvn_cover.h"
+ #include "dmsh_chain.h"   // DMSH_CHAIN: the translation chain version of the B shader library expected by this source tree, one for every game (beside this file, tools/dmsh_chain.py --header)
+@@ -5724,13 +5725,15 @@ static uint64_t g_rt_history_frame;
+ static int g_rt_history_valid;
+ // Only the serialized submit/replay thread touches these tables. Finalize is
+ // too early to retire a serial: recorded texture snapshots can be replayed later.
++static void first_skip_window(uint64_t frame);   // RewindBox (patch 0044), after nvn_geometry.inc
+ static uint32_t rt_history_frame(void) {
+     uint64_t frame = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
+     uint32_t f = (uint32_t)(frame + 1);
+     if (g_rt_history_valid && frame == g_rt_history_frame) return f;
+-    if (g_rt_history_valid && !(frame % 300))
++    if (g_rt_history_valid && !(frame % 300)) {
+         MLOG("first-use RT history before frame %llu: fresh %u entries / %u slots, seen %u entries / %u slots",
+              (unsigned long long)frame, g_rt_fresh.n, g_rt_fresh.cap, g_rt_seen.n, g_rt_seen.cap);
++        first_skip_window(frame); }
+     nvn_hm_clear(&g_rt_fresh, NULL);
+     if (!g_rt_history_valid || frame < g_rt_history_frame || ((frame + 1) >> 32) != ((g_rt_history_frame + 1) >> 32)) {
+         nvn_hm_clear(&g_rt_seen, NULL); nvn_hm_clear(&g_rt_seen_mem, NULL);   // reset / 32-bit tag wrap: rebuild the previous-frame evidence
+@@ -6326,17 +6329,24 @@ static FILE *pso_user_file(void) {
+     if (path) g_pso_user = fopen(path.fileSystemRepresentation, "a");
+     return g_pso_user;
+ }
++// The lines already recorded (the seed manifest beside the shader map, then this machine's pso_user.tsv): read once. warm_start reads them on a background queue,
++//   so the first pipeline the submit thread records no longer reads them there (1 MB / 2280 lines took 5 ms on an M5 Max, 10 MB 43 ms; 11-13). A record before
++//   that read is done waits for it in dispatch_once, as it read them itself before
++static dispatch_once_t g_pso_user_seen_once;
++static void pso_user_seen_load(void) {
++    dispatch_once(&g_pso_user_seen_once, ^{ @autoreleasepool {
++        NSMutableSet<NSString *> *seen = [NSMutableSet set];
++        NSString *seed = g_shmap_path ? [g_shmap_path.stringByDeletingLastPathComponent stringByAppendingPathComponent:@"pso_manifest.tsv"] : nil;
++        NSMutableArray<NSString *> *paths = [NSMutableArray array]; if (seed) [paths addObject:seed]; NSString *user = pso_user_path(); if (user) [paths addObject:user];
++        for (NSString *path in paths) { NSString *txt = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
++            for (NSString *old in [txt componentsSeparatedByString:@"\n"]) if (old.length && ![old hasPrefix:@"#"]) [seen addObject:old]; }
++        g_pso_user_seen = seen; } });
++}
+ static void pso_user_record(const char *fmt, ...) {
+     FILE *f = pso_user_file();
+     if (!f) return;
+     char line[8192]; va_list ap; va_start(ap, fmt); vsnprintf(line, sizeof line, fmt, ap); va_end(ap);
+-    if (!g_pso_user_seen) {
+-        g_pso_user_seen = [NSMutableSet set];
+-        NSString *seed = g_shmap_path ? [g_shmap_path.stringByDeletingLastPathComponent stringByAppendingPathComponent:@"pso_manifest.tsv"] : nil;
+-        NSMutableArray<NSString *> *paths = [NSMutableArray array]; if (seed) [paths addObject:seed]; NSString *user = pso_user_path(); if (user) [paths addObject:user];
+-        for (NSString *path in paths) { NSString *txt = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
+-            for (NSString *old in [txt componentsSeparatedByString:@"\n"]) if (old.length && ![old hasPrefix:@"#"]) [g_pso_user_seen addObject:old]; }
+-    }
++    pso_user_seen_load();
+     size_t ll = strlen(line); NSString *s = [[NSString alloc] initWithBytes:line length:ll && line[ll - 1] == '\n' ? ll - 1 : ll encoding:NSUTF8StringEncoding];   // Compared with the manifest file line by line (without the newline)
+     if (!s || [g_pso_user_seen containsObject:s]) return;
+     [g_pso_user_seen addObject:s]; fputs(line, f); fflush(f);
+@@ -8668,6 +8678,14 @@ static void vp_done(NvShader *vs, id<MTLFunction> f, uint32_t mask, const char *
+     fprintf(stderr, "[s2a] 顶点补齐变体：程序号 %s 顶点 %.16s 补 user(locn) 掩码 %#x %s%s %.1f ms%s%s\n", s2a_nvn_game_id(), vs->key, mask, how, f ? "完成" : "失败", (bp_now() - t0) / 1e6, f ? "" : "：", f ? "" : why);
+     if (!f) MLOG("【红】 vertex shader %s has no padded variant for user(locn) mask %#x: %s; draws pairing it with such a fragment shader stay skipped", vs->key, mask, why);
+ }
++// #674 (11-12): the program a draw passes to vp_ask is not always the one the shader to pad was bound from.
++//   bind_stages makes a host stand-in carrying only a serial (no stages); a mesh draw's S.prog is the fragment
++//   stage's program while its mesh shader was bound at stage 4. prog_stage_of then found nothing, vp_build saw
++//   code = 0 and reported "the game no longer holds its control section" — a misread: the stages were never in
++//   that program. vp_done pinned the variant to SE_FAIL and the caller put the pair on the failed list for the
++//   whole run. Fall back to the per-stage binds (vp_prog_pick.h, tested by t_vp_prog_pick.c).
++static int vp_stage_of_at(const void *prog, const char *key, uint8_t md[8], void *ctx) { (void)ctx; return prog_stage_of((const prog_t *)prog, key, md); }
++static const void *vp_bst_at(unsigned st, void *ctx) { (void)ctx; return st < 5 ? (const void *)S.bst[st] : NULL; }
+ // A pair needs outputs the vertex shader does not write (miss): ask for the variant (submit thread). 1 = being made or just made (the caller skips this draw, nothing is recorded as
+ //   failed), 0 = it cannot be made (the caller records the pair as failed, as before)
+ static int vp_ask(const prog_t *p, NvShader *vs, uint32_t miss) {
+@@ -8675,9 +8693,11 @@ static int vp_ask(const prog_t *p, NvShader *vs, uint32_t miss) {
+     int st = vs->vp_st; uint32_t want = (st == SE_READY ? vs->vp_mask : 0) | miss;
+     if (st == SE_BUSY || st == SE_FAIL || (st == SE_READY && (vs->vp_mask & miss) == miss)) { pthread_mutex_unlock(&g_vp_mu); return st != SE_FAIL; }
+     vs->vp_st = SE_BUSY; pthread_mutex_unlock(&g_vp_mu);
+-    uint8_t md[8] = {0}; int at = p ? prog_stage_of(p, vs->key, md) : -1; uint64_t t0 = bp_now();
+-    if (se_sync()) { char why[300] = ""; id<MTLFunction> f = vp_build(vs, md, at < 0 ? 0 : p->sd[at].data, at < 0 ? NULL : p->sd[at].control, want, why, sizeof why); vp_done(vs, f, want, why, t0, "同步现编"); return f != nil; }
+-    uint64_t code = 0; const void *ctl = NULL; void *snap = at < 0 ? NULL : dm_shader_snap(p->sd[at].data, p->sd[at].control, &code, &ctl); uint64_t key; memcpy(&key, md, 8);
++    uint8_t md[8] = {0}; int at = -1; uint64_t t0 = bp_now();
++    const prog_t *gp = (const prog_t *)vp_pick_prog(p, vp_bst_at, 5, vs->key, md, vp_stage_of_at, NULL, &at);
++    if (at < 0) { static unsigned n; if (!n++ || !(n & (n - 1))) MLOG("顶点补齐变体：%s 在绘制 program 与 5 个按阶段绑定的 program 里都没有有效控制段（%u 次）", vs->key, n); }
++    if (se_sync()) { char why[300] = ""; id<MTLFunction> f = vp_build(vs, md, at < 0 ? 0 : gp->sd[at].data, at < 0 ? NULL : gp->sd[at].control, want, why, sizeof why); vp_done(vs, f, want, why, t0, "同步现编"); return f != nil; }
++    uint64_t code = 0; const void *ctl = NULL; void *snap = at < 0 ? NULL : dm_shader_snap(gp->sd[at].data, gp->sd[at].control, &code, &ctl); uint64_t key; memcpy(&key, md, 8);
+     fprintf(stderr, "[s2a] 顶点补齐变体：程序号 %s 顶点 %.16s 首遇缺 user(locn) 掩码 %#x，后台编，编好前这对的绘制照旧跳过\n", s2a_nvn_game_id(), vs->key, want);
+     static dispatch_queue_t q; static dispatch_once_t once;
+     dispatch_once(&once, ^{ q = dispatch_queue_create("dm.nvn.vp", s2a_qos_queue_attr(DISPATCH_QUEUE_SERIAL, S2A_QOS_SHADER_VARIANT)); });
+@@ -8960,10 +8980,22 @@ static int prog_stage_of(const prog_t *p, const char *key, uint8_t md[8]) {
+ static int pso_fout_variant(NvProg *pr, NvShader *fs, const pso_key *k, int merged) {
+     uint32_t need = pso_fout_need(k, fs, merged);
+     if (!need || !pr->gp || fs_typed_fn(fs, need)) return 0;   // none needed, or the variant already there failed too (its red line is the pipeline's)
+-    pthread_mutex_lock(&g_fnt_mu); int tried = fs->fn_t[@(need | 1u << 31)] != nil; if (!tried) { if (!fs->fn_t) fs->fn_t = [NSMutableDictionary dictionary]; fs->fn_t[@(need | 1u << 31)] = NSNull.null; } pthread_mutex_unlock(&g_fnt_mu);
++    // RewindBox (patch 0044): the one attempt is spent only by a program that still holds the control section. It was spent before the section was looked for, and since patch 0041
++    //   a task / mesh pipeline asks first (nvn_geometry.inc mtk_pso): a fragment shader shared by a mesh program whose section the game has reused and a vertex program that still
++    //   holds it would have left the vertex pipeline, which got its variant after its refusal, refused for the run. A program found without the section is remembered by its
++    //   serial (bit 30: reported once per shader and mask, and not looked through again), and the attempt stays for another program that asks
++    pthread_mutex_lock(&g_fnt_mu); int tried = fs->fn_t[@(need | 1u << 31)] != nil; id dead = fs->fn_t[@(need | 1u << 30)]; pthread_mutex_unlock(&g_fnt_mu);
+     if (tried) return 0;   // one attempt per shader and mask
+-    const prog_t *p = pr->gp; char path[1200]; uint8_t md[8]; int at = prog_stage_of(p, fs->key, md);
+-    if (at < 0) { MLOG("【红】 fragment shader %s: its pipeline needs the output variant %#x (integer outputs / dual-source), but the game no longer holds its control section to translate a variant", fs->key, need); return 0; }
++    const prog_t *p = pr->gp;
++    if (dead && [dead unsignedLongLongValue] == p->serial) return 0;
++    char path[1200]; uint8_t md[8]; int at = prog_stage_of(p, fs->key, md), first;
++    pthread_mutex_lock(&g_fnt_mu);
++    if (!fs->fn_t) fs->fn_t = [NSMutableDictionary dictionary];
++    if (at < 0) { first = fs->fn_t[@(need | 1u << 30)] == nil; fs->fn_t[@(need | 1u << 30)] = @(p->serial); }
++    else { first = fs->fn_t[@(need | 1u << 31)] == nil; if (first) fs->fn_t[@(need | 1u << 31)] = NSNull.null; }
++    pthread_mutex_unlock(&g_fnt_mu);
++    if (at < 0) { if (first) MLOG("【红】 fragment shader %s: its pipeline needs the output variant %#x (integer outputs / dual-source), but the game no longer holds its control section to translate a variant", fs->key, need); return 0; }
++    if (!first) return 0;   // taken meanwhile
+     uint64_t t0 = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);   // built synchronously on the submit thread: the time is logged to judge whether it should move to the background
+     if (dm_shader_fout(md, p->sd[at].data, p->sd[at].control, need & 0xff, need >> 8, path, sizeof path) || !fs_typed_fn(fs, need)) return 0;
+     MLOG("fragment shader %s: typed-output variant %#x built in %.1f ms (%s)", fs->key, need, (clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - t0) / 1e6, path);
+@@ -9606,6 +9638,7 @@ static void warm_announce(void) {
+ }
+ static void warm_start(void) {
+     if (g_warm_started++) return;
++    dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ pso_user_seen_load(); });   // the record's dedupe set, off the submit thread (pso_user_seen_load)
+     NSArray<NSString *> *paths = warm_paths(1);
+     if (!paths) return;
+     if (!g_warm_items) g_warm_items = [NSMutableArray array];
+@@ -13620,6 +13653,18 @@ static void tf_draw(NvProg *pr, const p_draw *dw, const p_draw_idx *di) {
+ }
+ 
+ #include "nvn_geometry.inc"
++// RewindBox (patch 0044): what first uses cost the picture in each window of 300 frames. The lines above count over the whole session and are written at powers of two of
++//   their count, which cannot be laid beside a recording: the maintainer's recordings of 15 November show objects drawn all black for seconds, and their logs cannot say
++//   whether draws were being skipped at those moments. One line a window in which something was skipped or built on the submit thread (submit thread, rt_history_frame)
++static void first_skip_window(uint64_t frame) {
++    static uint64_t d0, f0, n0, e0, w0, o0, s0;
++    if (g_fsk_draws < d0 || g_fsk_frames < f0 || g_fsk_no_n < n0 || g_fsk_eq < e0 || g_mtk_wait < w0 || g_mtk_wait_over < o0 || g_mtk_skip < s0) d0 = f0 = n0 = e0 = w0 = o0 = s0 = 0;
++    uint64_t d = g_fsk_draws - d0, fr = g_fsk_frames - f0, n = g_fsk_no_n - n0, e = g_fsk_eq - e0, w = g_mtk_wait - w0, o = g_mtk_wait_over - o0, s = g_mtk_skip - s0;
++    d0 = g_fsk_draws; f0 = g_fsk_frames; n0 = g_fsk_no_n; e0 = g_fsk_eq; w0 = g_mtk_wait; o0 = g_mtk_wait_over; s0 = g_mtk_skip;
++    if (d || n || w || o || s) MLOG("RewindBox: first uses up to frame %llu, since the previous line of this kind (written every 300 frames when there is something to count): %llu draws skipped while their pipeline compiled in the background (in %llu frames; %llu of them tested depth EQUAL without writing it), "
++        "%llu first uses built on the submit thread instead; task / mesh draws: %llu skipped while their pipeline was built, %llu waits past the frame budget, %llu not drawable",
++        (unsigned long long)frame, (unsigned long long)d, (unsigned long long)fr, (unsigned long long)e, (unsigned long long)n, (unsigned long long)w, (unsigned long long)o, (unsigned long long)s);
++}
+ static void noload_witness(int i, int wwhy, int prec) {   // see g_nlw
+     if (i < 0 || i >= SD_MAX) return;
+     nl_wit *w = &g_nlw[i]; memset(w, 0, sizeof *w);
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 14d862002..1b909f476 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -130,7 +130,10 @@ int nvn_be_shutdown_session(void) {
+     // the compiled shader cache (its keys are content hashes).
+     nvn_hm_clear(&g_pso, hm_rel); nvn_hm_clear(&g_cps, hm_rel);
+     if (g_mtk_group) dispatch_group_wait(g_mtk_group, DISPATCH_TIME_FOREVER);   // task / mesh pipelines (nvn_geometry.inc mtk_pso): the background builds write the map
+-    os_unfair_lock_lock(&g_pso_mtk_lock); nvn_hm_clear(&g_pso_mtk, hm_rel); os_unfair_lock_unlock(&g_pso_mtk_lock);
++    os_unfair_lock_lock(&g_pso_mtk_lock); nvn_hm_clear(&g_pso_mtk, hm_rel);
++    [g_mtk_names removeAllObjects]; [g_mtk_ready removeAllObjects];   // RewindBox (patch 0044): the names table (pipelines as strong keys), the pace list and the first-draw set kept every
++    os_unfair_lock_unlock(&g_pso_mtk_lock);                             //   mesh pipeline of a closed session alive for the process; a RewindBox guest's process goes on to the next session
++    [g_mtk_drawn removeAllObjects];
+     nvn_hm_clear(&g_pso_fail, hm_rel); nvn_hm_clear(&g_pso_retry, hm_rel);
+     nvn_hm_clear(&g_ir, free); nvn_hm_clear(&g_rt_seen, NULL); nvn_hm_clear(&g_rt_seen_mem, NULL); nvn_hm_clear(&g_rt_fresh, NULL);
+     g_rt_history_frame = 0; g_rt_history_valid = 0;
+diff --git a/graphics/nvn/gfx/nvn/vp_prog_pick.h b/graphics/nvn/gfx/nvn/vp_prog_pick.h
+new file mode 100644
+index 000000000..329273cf7
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/vp_prog_pick.h
+@@ -0,0 +1,41 @@
++// SPDX-License-Identifier: Apache-2.0
++// Copyright 2026 S2Arm contributors
++// #674 (11-12): which guest program holds the code / control of the shader a padded variant is made from.
++//   prog_stage_of looks for the shader's key among the *live* control sections of one program. A draw's program
++//   is not always the one that shader was bound from: bind_stages makes a host stand-in (serial only, no stages),
++//   and a mesh draw's S.prog is the fragment stage's program while its mesh shader came from stage 4's bind.
++//   In both cases vp_ask used to take code = 0 and report "the game no longer holds its control section",
++//   vp_done pinned the variant to SE_FAIL and the caller put the pair on the failed list for the whole run.
++//   Pick the program from the per-stage binds when the primary has no such stage. Pure C, no Metal / ObjC here,
++//   so the choice can be tested offline (graphics/nvn/tests/t_vp_prog_pick.c, same pattern as host/mesh_pad.h).
++#ifndef S2A_VP_PROG_PICK_H
++#define S2A_VP_PROG_PICK_H
++#include <stdint.h>
++#include <string.h>
++
++// stage_of(prog, key, md) -> that program's stage index whose live key is key, or -1; md = the 8-byte key.
++// bst(st) -> the program bound for graphics stage st, or NULL (nvn_mtl.m S.bst, 5 stages).
++typedef int (*vp_stage_of_fn)(const void *prog, const char *key, uint8_t md[8], void *ctx);
++typedef const void *(*vp_bst_fn)(unsigned st, void *ctx);
++
++// -> the program whose sd[*at_out] supplies the code / control; NULL when none holds it (*at_out = -1, md = 0).
++//   The primary is tried first so the ordinary single-program case is unchanged; then the per-stage binds in
++//   order. A program already tried (NULL, or the primary itself) is skipped. Only a *live* key match counts:
++//   prog_stage_of itself refuses a control section the game has since reused.
++static inline const void *vp_pick_prog(const void *primary, vp_bst_fn bst, unsigned nbst, const char *key,
++                                       uint8_t md[8], vp_stage_of_fn stage_of, void *ctx, int *at_out) {
++    uint8_t m[8];
++    int at = primary ? stage_of(primary, key, m, ctx) : -1;
++    if (at >= 0) { memcpy(md, m, 8); *at_out = at; return primary; }
++    for (unsigned st = 0; st < nbst; st++) {
++        const void *q = bst ? bst(st, ctx) : NULL;
++        if (!q || q == primary) continue;
++        unsigned prior = 0; int seen = 0;
++        for (; prior < st; prior++) if (bst(prior, ctx) == q) { seen = 1; break; }
++        if (seen) continue;
++        at = stage_of(q, key, m, ctx);
++        if (at >= 0) { memcpy(md, m, 8); *at_out = at; return q; }
++    }
++    memset(md, 0, 8); *at_out = -1; return NULL;
++}
++#endif
+diff --git a/graphics/nvn/tests/t_nvn_mesh.m b/graphics/nvn/tests/t_nvn_mesh.m
+index eb12889ce..5988b1dda 100644
+--- a/graphics/nvn/tests/t_nvn_mesh.m
++++ b/graphics/nvn/tests/t_nvn_mesh.m
+@@ -213,9 +213,13 @@ int main(void) {
+           const struct { op_hdr set; p_set_rt_c rt; const tex_t *color0; uint8_t snap[sizeof(tex_t)]; op_hdr end; } c = {
+               .set = {OP_SET_RT, sizeof(op_hdr) + sizeof(p_set_rt_c) + 8 + sizeof(tex_t)}, .rt = {.n = 1, .cmask = 1}, .color0 = &rt2, .end = {OP_END, sizeof(op_hdr)} };
+           nvn_be_exec((const uint8_t *)&c);
++          // 后台编译先挂住（占满后台并发名额 g_mtk_sem）：这笔管线在检查时一定还没编好，期望不靠编译快慢。
++          //   原先不挂：门禁机编得快（0.1 ms 编好），检查时已能画、没走「跳过」，超预算 +0 / 跳过 +0（main c3708ffdb 已知红）
++          REQUIRE(g_mtk_sem); int held = mtk_width(); for (int i = 0; i < held; i++) dispatch_semaphore_wait(g_mtk_sem, DISPATCH_TIME_FOREVER);
+           int b0 = g_mtk_budget; g_mtk_budget = 0; S.prog = &gp4d; uint64_t ov0 = g_mtk_wait_over, w0 = g_mtk_wait;
+           o = capture(^{ draw(&d4, NULL); });
+-          g_mtk_budget = b0; dispatch_group_wait(g_mtk_group, DISPATCH_TIME_FOREVER);
++          g_mtk_budget = b0; for (int i = 0; i < held; i++) dispatch_semaphore_signal(g_mtk_sem);
++          dispatch_group_wait(g_mtk_group, DISPATCH_TIME_FOREVER);
+           rp_flush(); uint64_t fence = nvn_be_sub_commit(); REQUIRE(nvn_be_wait(fence, 10000000000ull));
+           VERIFY(g_mtk_wait_over == ov0 + 1 && g_mtk_wait == w0 + 1 && [o containsString:@"past the 0 ms frame budget"] && [o containsString:@"not ready: skipped this frame"] && red_lines(o, nil) == 0,
+                  "④d 预算 0：丢不起的那笔（新目标）不等、照旧跳过并计数、写明超预算（超预算 +%llu，跳过 +%llu；stderr：%s）", (unsigned long long)(g_mtk_wait_over - ov0), (unsigned long long)(g_mtk_wait - w0), o.UTF8String);
+diff --git a/graphics/nvn/tests/t_vp_prog_pick.c b/graphics/nvn/tests/t_vp_prog_pick.c
+new file mode 100644
+index 000000000..871dcc238
+--- /dev/null
++++ b/graphics/nvn/tests/t_vp_prog_pick.c
+@@ -0,0 +1,93 @@
++// SPDX-License-Identifier: Apache-2.0
++// Copyright 2026 S2Arm contributors
++// #674 (11-12): padded-variant program choice (graphics/nvn/gfx/nvn/vp_prog_pick.h).
++//   Expectations are worked out by hand, not by running the implementation under test: a program with the
++//   shader's live key is picked from the draw's primary program first, else from the programs each graphics
++//   stage was bound from. The mesh draw of run 88b7b382 (0.3.0) had a serial-only stand-in as S.prog and its
++//   mesh shader in stage 4's bind: the old single-program lookup returned -1, the variant was pinned to
++//   SE_FAIL and the pair's draws were skipped for the whole run.
++#include <stdio.h>
++#include <string.h>
++#include "vp_prog_pick.h"
++
++static int bad, checks;
++#define CHECK(c, ...) do { checks++; int ok_ = !!(c); bad += !ok_; printf("%s ", ok_ ? "PASS" : "FAIL"); printf(__VA_ARGS__); printf("\n"); } while (0)
++
++// A fake program: the keys of its stages. A serial-only stand-in has nstage = 0.
++typedef struct { const char *name; const char *keys[6]; unsigned nstage; int calls; } fake_prog;
++static int fake_stage_of(const void *prog, const char *key, uint8_t md[8], void *ctx) {
++    (void)ctx; fake_prog *p = (fake_prog *)prog; p->calls++;
++    for (unsigned i = 0; i < p->nstage; i++)
++        if (!strcmp(p->keys[i], key)) { for (int b = 0; b < 8; b++) md[b] = (uint8_t)(key[b] + i); return (int)i; }
++    memset(md, 0, 8); return -1;
++}
++static const void *fake_bst(unsigned st, void *ctx) {
++    fake_prog **tab = (fake_prog **)ctx; return st < 5 ? tab[st] : NULL;
++}
++static uint8_t expect_md(const char *key, int stage) { return (uint8_t)(key[0] + stage); }
++static void reset(fake_prog *p) { p->calls = 0; }
++
++int main(void) {
++    const char *VS  = "6d42a320e50657a3_b";   // #674: the mesh / vertex shader that failed in 88b7b382
++    const char *FS  = "5ee0857829bbb3fd_b";
++    fake_prog alone   = {"alone",   {VS, FS, "", "", "", ""}, 2, 0};
++    fake_prog standin = {"standin", {"", "", "", "", "", ""}, 0, 0};
++    fake_prog frag    = {"frag",    {FS, "", "", "", "", ""}, 1, 0};
++    fake_prog mesh    = {"mesh",    {"", "", "", "", VS, ""}, 5, 0};
++    fake_prog vertex  = {"vertex",  {VS, "", "", "", "", ""}, 1, 0};
++
++    // 1: the ordinary case is unchanged - primary holds the shader, the per-stage binds are not consulted.
++    {
++        fake_prog *tab[5] = {NULL, NULL, NULL, NULL, NULL};
++        uint8_t md[8]; int at = 99;
++        const void *got = vp_pick_prog(&alone, fake_bst, 5, VS, md, fake_stage_of, tab, &at);
++        CHECK(got == &alone && at == 0 && md[0] == expect_md(VS, 0), "1 primary holds the shader: picks primary at stage 0, md from its key");
++        CHECK(alone.calls == 1, "1 no per-stage programs looked up when primary already matched");
++        reset(&alone);
++    }
++    // 2: the #674 case - a combined program is a stand-in (no stages); the mesh shader is in stage 4's bind.
++    {
++        fake_prog *tab[5] = {NULL, &frag, NULL, NULL, &mesh};
++        uint8_t md[8]; int at = 99;
++        const void *got = vp_pick_prog(&standin, fake_bst, 5, VS, md, fake_stage_of, tab, &at);
++        CHECK(got == &mesh && at == 4 && md[0] == expect_md(VS, 4), "2 combined stand-in: falls back to stage 4's program, md from that stage");
++        CHECK(fake_stage_of(&standin, VS, (uint8_t[8]){0}, NULL) == -1, "2 old single-program lookup would have failed here (regression target)");
++        reset(&standin); reset(&frag); reset(&mesh);
++    }
++    // 3: a draw's program is the fragment one while the vertex shader came from stage 0's bind.
++    {
++        fake_prog *tab[5] = {&vertex, &frag, NULL, NULL, NULL};
++        uint8_t md[8]; int at = 99;
++        const void *got = vp_pick_prog(&frag, fake_bst, 5, VS, md, fake_stage_of, tab, &at);
++        CHECK(got == &vertex && at == 0, "3 fragment-stage program: falls back to the vertex stage's program");
++        reset(&frag); reset(&vertex);
++    }
++    // 4: NULL binds and a repeated program neither crash nor get looked up twice.
++    {
++        fake_prog *tab[5] = {NULL, &frag, &frag, NULL, &mesh};
++        uint8_t md[8]; int at = 99;
++        const void *got = vp_pick_prog(&standin, fake_bst, 5, VS, md, fake_stage_of, tab, &at);
++        CHECK(got == &mesh && at == 4, "4 NULL / duplicate binds skipped, still finds the mesh program");
++        CHECK(frag.calls == 1, "4 a repeated program is looked up only once");
++        reset(&standin); reset(&frag); reset(&mesh);
++    }
++    // 5: nobody holds a live key -> no program, stage -1, zero md. vp_build then reports the real reason.
++    {
++        fake_prog *tab[5] = {NULL, &frag, NULL, NULL, NULL};
++        uint8_t md[8]; memset(md, 0xaa, 8); int at = 99;
++        const void *got = vp_pick_prog(&standin, fake_bst, 5, "deadbeefdeadbeef_b", md, fake_stage_of, tab, &at);
++        int zero = 1; for (int i = 0; i < 8; i++) zero &= md[i] == 0;
++        CHECK(got == NULL && at == -1 && zero, "5 no live control anywhere: NULL, at -1, md zeroed");
++        reset(&standin); reset(&frag);
++    }
++    // 6: no primary at all (frame replay / a program finalized since its bind) -> per-stage binds still work.
++    {
++        fake_prog *tab[5] = {NULL, &vertex, NULL, NULL, NULL};
++        uint8_t md[8]; int at = 99;
++        const void *got = vp_pick_prog(NULL, fake_bst, 5, VS, md, fake_stage_of, tab, &at);
++        CHECK(got == &vertex && at == 0, "6 NULL primary: still picks the per-stage program");
++        reset(&vertex);
++    }
++    printf("%d checks, %d failed\n", checks, bad);
++    return bad != 0;
++}
+diff --git a/graphics/tools/direct/run_knowledge.py b/graphics/tools/direct/run_knowledge.py
+index 64044708a..ac3fcba5e 100644
+--- a/graphics/tools/direct/run_knowledge.py
++++ b/graphics/tools/direct/run_knowledge.py
+@@ -91,7 +91,6 @@ def main(out, tid, srcs):
+             if c[0] == 'S': good = len(c) >= 3   # = pso_seed.py 的格式规则（库键过滤留给 pso_seed.py）
+             elif c[0] == 'C': good = len(c) >= 2
+             elif c[0] == 'R': good = len(c) >= 2 and len(c[1]) == 2 * skey and set(c[1]) <= HEX
+-            elif c[0] == 'M': good = len(c) >= 4 and len(c[1]) == 2 * skey and set(c[1]) <= HEX   # 任务 / 网格管线（nvn_geometry.inc mtk_record）
+             else: good = False
+             if good and l not in seen: seen.add(l); rows.append(l)
+     write(os.path.join(out, 'pairs.tsv'), '# 跑局配对：P<TAB>顶点键<TAB>片元键（graphics/tools/direct/run_knowledge.py，去重排序）\n'
+diff --git a/runtime/tests/mk/vp_prog_pick.mk b/runtime/tests/mk/vp_prog_pick.mk
+new file mode 100644
+index 000000000..df6f9a201
+--- /dev/null
++++ b/runtime/tests/mk/vp_prog_pick.mk
+@@ -0,0 +1,11 @@
++# SPDX-License-Identifier: Apache-2.0
++# Copyright 2026 S2Arm contributors
++# native-test-vp_prog_pick：#674 补齐变体选 program 的纯 C 逻辑（graphics/nvn/gfx/nvn/vp_prog_pick.h）
++#   runtime/build.mk 末尾按 runtime/tests/mk/*.mk 收进来；新单测只新增一个分片，不改 build.mk
++NATIVE_TEST_OWN += vp_prog_pick
++.PHONY: native-test-vp_prog_pick
++native-test-vp_prog_pick:
++	@mkdir -p $(BUILD)/tests
++	$(CC) $(CFLAGS) -std=gnu11 -Igraphics/nvn/gfx/nvn -o $(BUILD)/tests/t_vp_prog_pick graphics/nvn/tests/t_vp_prog_pick.c
++	timeout 30 $(BUILD)/tests/t_vp_prog_pick
++TEST_TARGETS += native-test-vp_prog_pick
