@@ -1,6 +1,6 @@
 {
   "status": "verified",
-  "packagedFingerprint": "86f54cc0b480954e1e80d3807ee023b845124b3c5eeba64ef7ec7153be8a1b11",
+  "packagedFingerprint": "eedea16a2874639612ef45a3307446643724ea406b5f47f1b8361d7944d2b1ef",
   "producers": {
     "engine": {
       "run": 43646892889,
@@ -13,8 +13,8 @@
       "headBranch": "Claude",
       "expiresAt": "2026-12-14T22:26:33Z",
       "members": {
-        "S2ArmEngine.framework.zip": "52bfd3888eb93548958207ace6d8a7a6130c058705e1927dedbb2a95c17a89ae",
-        "NS2Pro.framework.zip": "ee7db58c354304b68f08a793bf7664b2099744f74c4e4bd76b4678e1e86323ac"
+        "S2ArmEngine.framework.zip": "83a701c844990b084c4f7a1f4f0c15d875dbdc82f9dca3e25ddfd036c33f00bf",
+        "NS2Pro.framework.zip": "bc8adac13d74b0cdf9959c1387159bdd5ffee8226a7ade5293bfefb59aee89f5"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "d4febe6cc245a3debe05783344abed65b3b38ac4d5218f739f10d5ef53dae99d",
+    "engine": "c7f275deafe5f6ad20252a720034839bb417fdb2371bfc09d6e0d5ad20c5ced8",
     "prepare": "aef8aafb38aa456defbdf16b3194716c32b2051b76a38bc68640d91f098fc87f",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -90,9 +90,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "d06c302ed927cfba926346733a133ca3436e59127e1f2dc7bdc3c02ae3f6051c",
-      "bytes": 107499528,
-      "fingerprint": "86f54cc0b480954e1e80d3807ee023b845124b3c5eeba64ef7ec7153be8a1b11"
+      "sha256": "3fb6b6cd85e4d11f1af5ab24e4a4c4a912eed4f31fda03626b8f5ea37c59b4fb",
+      "bytes": 107517504,
+      "fingerprint": "eedea16a2874639612ef45a3307446643724ea406b5f47f1b8361d7944d2b1ef"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -125,9 +125,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 43617092018,
+      "run": 43646892889,
       "attempt": 1,
-      "head_sha": "b24ece99a1f3cae556b12217a52ba566f91111c9",
+      "head_sha": "2fa331f696c9d81bf1b76292d85a3eb7d3713779",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -258,11 +258,27 @@
         {
           "name": "0032-guest-placement-sparse-review-fixes-across-the-series.patch",
           "sha256": "2eeb0fd1596e7fdfa37b6422ace269fa60aef77b3cc8aec3e832acead7fec13b"
+        },
+        {
+          "name": "0033-guest-prewarm-from-the-device-user-list-without-a-seed.patch",
+          "sha256": "4f562ae965fa6694f3b524d8c6497c8268bd973bcd55bf7dc026a917c330212c"
+        },
+        {
+          "name": "0034-guest-masked-multi-draw-encodes-covered-by-their-draw.patch",
+          "sha256": "dfd41e9d15b464cfd30e50fd6b906da0c2509307a8555b43cc0c9c8b5f920886"
+        },
+        {
+          "name": "0035-guest-gpu-written-storage-by-range-not-by-pool.patch",
+          "sha256": "cf045363484fc2062e4b7efa22c9fab2a27651ca78c6425159e2ea56ccfee6d5"
+        },
+        {
+          "name": "0036-guest-memory-in-1-gb-files-and-disk-lines.patch",
+          "sha256": "8b276cf4d19a8af4b47147d218bf57d9b33a67a4955e02982e1437a31ce2cfd0"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "52bfd3888eb93548958207ace6d8a7a6130c058705e1927dedbb2a95c17a89ae",
-        "NS2Pro.framework.zip": "ee7db58c354304b68f08a793bf7664b2099744f74c4e4bd76b4678e1e86323ac"
+        "S2ArmEngine.framework.zip": "83a701c844990b084c4f7a1f4f0c15d875dbdc82f9dca3e25ddfd036c33f00bf",
+        "NS2Pro.framework.zip": "bc8adac13d74b0cdf9959c1387159bdd5ffee8226a7ade5293bfefb59aee89f5"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
