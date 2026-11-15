@@ -1623,6 +1623,19 @@ class _SystemGamesListState extends State<SystemGamesList> {
     );
   }
 
+  /// The list panel's glass. A BackdropFilter reads and filters the whole
+  /// backdrop on every frame the list scrolls, even at sigma 0 (the blur
+  /// budget is 0 under a game or a memory warning): like GlassSurface, no
+  /// filter at all then.
+  Widget _listPanelBackdrop(Widget child) {
+    final sigma = ChromeSurface.glassBlur(context, GlassSurfaceRole.panel);
+    if (sigma <= 0) return child;
+    return BackdropFilter(
+      filter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+      child: child,
+    );
+  }
+
   /// Builds the game carousel view with letter-based navigation.
   Widget _buildGamesCarousel() {
     return GamesCarousel(
@@ -1759,18 +1772,8 @@ class _SystemGamesListState extends State<SystemGamesList> {
                       context,
                     ).extension<CornerRadii>()?.radiusInternal ??
                     BorderRadius.circular(9.r),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(
-                    sigmaX: ChromeSurface.glassBlur(
-                      context,
-                      GlassSurfaceRole.panel,
-                    ),
-                    sigmaY: ChromeSurface.glassBlur(
-                      context,
-                      GlassSurfaceRole.panel,
-                    ),
-                  ),
-                  child: SizedBox(
+                child: _listPanelBackdrop(
+                  SizedBox(
                     width: 200.r,
                     height: availableHeight,
                     child: _buildGamesListPanel(),
