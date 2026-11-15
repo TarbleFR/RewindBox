@@ -1,30 +1,43 @@
+using Ryujinx.Common.Logging;
 using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Net.Security;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 
 namespace Ryujinx.HLE
 {
     /// <summary>
-    /// Online play of one session on Nextendo Network (https://nextendo.network), as its developer documentation
-    /// describes the client side (https://wiki.nextendo.network/developers, "Connecting an emulator" and
-    /// "Authentication end to end"). RewindBox's own code: no Nextendo source is used.
+    /// Online play of one session on Nextendo Network (https://nextendo.network), as its integration guide for emulators
+    /// and client apps describes the client side (https://wiki.nextendo.network/developers/integration, 15 November
+    /// 2026). RewindBox's own code: no Nextendo source is used.
     ///
-    /// The host signs the player in (OAuth 2.0 PKCE) and hands this class, before a session is prepared, the game
-    /// token of that launch (nx2.…, 24 hours, valid in games only) and the two server addresses. While a
-    /// configuration is set:
-    ///   - the session has guest network access;
-    ///   - the game's online host names resolve to the two addresses (the documented built-in rules);
-    ///   - the account id_token carries the game token (claim nnex) and the installed game version (claim tv);
-    ///   - a TLS connection to one of the two addresses accepts that service's certificate.
-    /// Without a configuration (the default) nothing above applies: the engine behaves exactly as before.
-    /// The game token is kept in memory only; it is never logged and never written to a file.
+    /// The host signs the player in (OAuth 2.0 PKCE), asks Nextendo for the game token of the launch (nx2, 24 hours,
+    /// scope game.matchmaking) and hands this class, before the session is prepared (content operation 11), that token,
+    /// the account's PID and the two server addresses. While a configuration is set:
+    ///   - the guest is told it has Internet access (DNS, nifm requests);
+    ///   - the documented Nintendo and third-party host names resolve to the two addresses;
+    ///   - the account id the game reads is the PID, and the BAAS id_token carries jti, hm, tv (installed version) and
+    ///     nnex (the game token);
+    ///   - TLS to one of the two addresses offers ALPN http/1.1 (h2 on NPLN hosts), sends the last host name redirected
+    ///     there as SNI when the game gave none, and accepts only a chain to one of Nextendo's published roots that
+    ///     names the host.
+    /// Without a configuration (the default) nothing above applies. The game token is kept in memory only: it is never
+    /// logged and never written to a file.
     /// </summary>
     public static class EmbeddedOnline
     {
+        /// <summary>Answered by the content request; the host also finds this text in the engine binary.</summary>
+        public const string Protocol = "rewindbox-nextendo-online-1";
+
+        public const int MaxTokenLength = 1024;
+
         private sealed class Settings
         {
             public string NexToken;
+            public long Pid;
             public IPAddress Server;
             public IPAddress Nat;
         }
@@ -34,9 +47,7 @@ namespace Ryujinx.HLE
         // The host name last redirected to each server address: the SNI of a TLS connection the game opens by address.
         private static readonly Dictionary<IPAddress, string> _resolved = new();
 
-        public const int MaxTokenLength = 1024;
-
-        // Nextendo's documented redirect rules, in their order: the entries of the second (NAT check) address first.
+        // The documented built-in rules, in their order: the names of the second (NAT test) address first.
         private static readonly string[] _natHosts =
         [
             "nncs2-*.n.n.srv.nintendo.net",
@@ -66,6 +77,115 @@ namespace Ryujinx.HLE
             "ap.ultimatechickenhorseserver.com",
         ];
 
+        private sealed record Root(string Sha256, string Pem);
+
+        // The roots Nextendo publishes for redirected hosts (integration guide, "TLS trust and certificates"), with the
+        // SHA-256 fingerprints the guide lists. Public certificates; a chain to one of them is the only one accepted
+        // from the two configured servers.
+        private static readonly Root[] _roots =
+        [
+            // nextendo-network-ca.pem (accounts, both BAAS hosts, eShop, NSO and the other Nintendo services, third-party services)
+            new("a654c0eff8aa20a72280ea0ef2b5c2a17392922dd78ffbb113862e1ad2c66d49", """
+-----BEGIN CERTIFICATE-----
+MIIDUzCCAjugAwIBAgIUe2MLLv0r9SUfUu/Y3QCzveSq6eswDQYJKoZIhvcNAQEL
+BQAwMTEcMBoGA1UEAwwTTmV4dGVuZG8gTmV0d29yayBDQTERMA8GA1UECgwITmV4
+dGVuZG8wHhcNMjYwNjMwMTk0OTM0WhcNMzYwNjI3MTk0OTM0WjAxMRwwGgYDVQQD
+DBNOZXh0ZW5kbyBOZXR3b3JrIENBMREwDwYDVQQKDAhOZXh0ZW5kbzCCASIwDQYJ
+KoZIhvcNAQEBBQADggEPADCCAQoCggEBAMJWnrQ4xsG7V+y0vmzqT9NVLf8yJhbQ
+gpCEYleo2rV6IwCB499spgdzet7pOV64TSa67maF+wqBSfBJ2k0Vy3ceQCTJAFs3
+orpWE6GcCIGoj18CSYQgeCm8ih4rNRECTYo/cKlDKeeZ+jL+JKSYc1HngZ78ORie
+YZMJ0L2liWrbvoKvvYJ0tbOm7Cth9GWcS3IKGv1IB0Kc+qDAa2mVZ6fv7N2DJEGh
+OMgqTebxrkI04VQk5E35fgO83dgrH/nj1Wt4oYRTOJtj5bQCLpKztggmUxYiTNUo
+aawGWRKH4nmeBwR7sVM8SVkk77j/FSYFC5ZJRsjgHAmiAAv0lpCBM0sCAwEAAaNj
+MGEwHQYDVR0OBBYEFAzPy4p77XJCgBJkQXYZ1WQy63FHMB8GA1UdIwQYMBaAFAzP
+y4p77XJCgBJkQXYZ1WQy63FHMA8GA1UdEwEB/wQFMAMBAf8wDgYDVR0PAQH/BAQD
+AgEGMA0GCSqGSIb3DQEBCwUAA4IBAQCKt6g4McjcBCEGysAGf0kREMdA/mpPaaId
+NGACL82AnPP7yeS6lFpAhYTB0nYik2etVGyzSym3WumPNCedIcT/9HmvzBdoXXIi
+lIzzg3kndbkCrYQgoM6yeV6pPoJY5Xe0iISEUsMZdSJo2CTpL2pnoD4DVmmtz/iK
+j/x/8+UbhQmAiVEEgfZAqgiwZ79E1639QKtpeWiX7iDopC+mZJtcmDIak/SX4i3k
+xiEuumNCYO+o9cKzFLUqsbxMHdAE6FIBrurc8grhOawAqpRG/gJgc1uZkmkg4tez
+ERdWDQSMRaS1/hySxRaKZxh2scmfDlpexIo0hgO5FTxb5tDylvMt
+-----END CERTIFICATE-----
+"""),
+            // nextendo-npln-class2-ca-g3.pem (NPLN games, device authentication, friends)
+            new("d76bf8d0d7a1cd81874b20314171de9ecb64864837d684ab689831a72b6c0a01", """
+-----BEGIN CERTIFICATE-----
+MIIDTTCCAjWgAwIBAgIUE3VUzsBqRzJr4mmR57zFDNFE8QkwDQYJKoZIhvcNAQEL
+BQAwNjEhMB8GA1UEAwwYTmludGVuZG8gQ2xhc3MgMiBDQSAtIEczMREwDwYDVQQK
+DAhOaW50ZW5kbzAeFw0yNjA2MjgxNDMyNTZaFw0zNjA2MjUxNDMyNTZaMDYxITAf
+BgNVBAMMGE5pbnRlbmRvIENsYXNzIDIgQ0EgLSBHMzERMA8GA1UECgwITmludGVu
+ZG8wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDX9qd+gMkWxSW6swys
+IoKYpstpveisbdpRo/t8VMcC/Jp2kJtMo7kbYZkNxPQ6i8rnQe+vajWm9eXH7iac
+YrRwwKkcxhlRUgHbIxhprOiBKORNv4BMvBPQP2kBeyMVbM4jq15Ym0IdJ/CzvqW2
+n0Piievi+060MabftCHph5CRynmh/WUdRYG84z+fVTKqoQlUjbTZVLpWpSFPfQY7
+31KEeIlPmm/RsFp8z52hxvmMqZ9PkH3ygc9GghsLFmVjfW041npchn08YvFz7Bcj
+tcPLypnjal7q0DR6R0UZeN7A2/OvfhtJxbHC948cEnkzm7XQu0EUKCYuidlO37CU
+9xZTAgMBAAGjUzBRMB0GA1UdDgQWBBSDzEjsXmuITcjV0HYchd3/9odp1TAfBgNV
+HSMEGDAWgBSDzEjsXmuITcjV0HYchd3/9odp1TAPBgNVHRMBAf8EBTADAQH/MA0G
+CSqGSIb3DQEBCwUAA4IBAQBFZeIZGGVae0Q7szj1wB1pgi8cevmMNRQPqt1hAu6W
+6IpJobU5Hvt0o046J+3Mcw2ML5ZTbgy9ad0k0dOXmJoahQxQ5pcOzTYV1ljSRBPF
+SVwm35fGNFnd3GMW3768VVzTO/VBSUyik2KSTveAfTJv/e6D6GM5Vm+1zbYqUJ08
+hzH4wHw3ZWkNAAR5lfRjmQeouIyKzkOZxEvO/874QdSNRu9Hw4KM+5SCTWMo6SPo
+sbr0bZDNwV3KaGV1ECxwz7yL5020yfGF0HUOr8PKwoqDSIzV/JOMHjh+bh5CxjlD
+Brs/F2G+Pi5J7ye5ZSJ/r3dISgTau1Ig810gPki1OFIF
+-----END CERTIFICATE-----
+"""),
+            // nextendo-jd2022-service-ca.pem (Just Dance 2022)
+            new("817d4a822fbbcdcf0a721563f83cec25be9ae8b2ba435d18bc10dfc2135bf064", """
+-----BEGIN CERTIFICATE-----
+MIIDOzCCAiOgAwIBAgIUNlcViDpZqmfHUngm9Z5y9/Pot/EwDQYJKoZIhvcNAQEL
+BQAwJTEjMCEGA1UEAwwaTmV4dGVuZG8gSkQyMDIyIHNlcnZpY2UgQ0EwHhcNMjYx
+MDIzMDIwNDIzWhcNMjcxMDMwMDIwNDIzWjAlMSMwIQYDVQQDDBpOZXh0ZW5kbyBK
+RDIwMjIgc2VydmljZSBDQTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEB
+AKtLa20mfvxoqIKc/XQc2+tiwbdOAWQzEyAPtf19SoP8/3rGQoNHDeOJKK0Zg9k7
+3A5r1E34AH9tTvTZeAYBbzLEdX6sibZIcInmZtoiepAuu8CgDeGnDzd2QUflsGhn
+JUa+Ev32h2cpYVlZ6EAExMRmsUgR2I4rvtH/T0kBf1P2qSmSg7msjL630l58wcg/
+dykt/ZT/fDqvIBBSWIVfZBlCsJ/ihtiNJ+NMNhmuyt71Rql7HQRt3mIZdAFEB4KS
+V1gk0FQwx2JtOl98GI3mT/F5Mf4gn0c3uvhj+7XctpYiQCB1PJxrwnqeS9TnDFE/
+8WeRwNjX42/mnQFVwotzYwECAwEAAaNjMGEwHQYDVR0OBBYEFCsx7n0bpdpA2Bat
+YtGdtHW9oJcxMB8GA1UdIwQYMBaAFCsx7n0bpdpA2BatYtGdtHW9oJcxMA8GA1Ud
+EwEB/wQFMAMBAf8wDgYDVR0PAQH/BAQDAgEGMA0GCSqGSIb3DQEBCwUAA4IBAQAE
+bgItdWKmrx1lMJ9F9n3nXDj1iveDIoNb+3d4cEyy4xT2i1l/CwNWycogh9cT0ON9
+y/BHgyi5ac6+fkDgC8mzII8z+zrZYedxl7qXJJglKRQrdJJVFd3Df+ZsWCJwmF9A
+IzDfZ/HxNAhhULfOCSKUd9wltcNa97Lxd8xMtD7pvcvpguEYZ0oNAVjvuqc5UCGD
+8yQeLtztjeOG0GxwY314Vtmlb/0XMepBp3qKNsl7lxnomZax6Ys5r/WetxUgQD+/
+2Ny7nt5UqRZWEC2+KwZ9+bDOQks4NCzYAFuYvJhgyi2tALEI7fyHIxkv2zGUsoBA
+q4YNbp50n9pjxlEfUic3
+-----END CERTIFICATE-----
+"""),
+            // nextendo-overcooked2-ca.pem (Overcooked! 2)
+            new("8edcf2c39bb5264b905646569d23cdf265bfbf7c993d30accc3d66c6a953bf9d", """
+-----BEGIN CERTIFICATE-----
+MIIBrDCCAVGgAwIBAgIUDiduHhggWk9Sm4EvgAzuWwDAgCUwCgYIKoZIzj0EAwIw
+IzEhMB8GA1UEAwwYTmV4dGVuZG8gT3ZlcmNvb2tlZCAyIENBMB4XDTI2MDkyMzA4
+MDMzMVoXDTM2MDkyMDA4MDMzMVowIzEhMB8GA1UEAwwYTmV4dGVuZG8gT3ZlcmNv
+b2tlZCAyIENBMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEZlGY+45tHGHAaBs7
+hC9q2FJN9awfYCGOifU/fOYNuPcmytLIZ/E+x4GvFWeJatRO4/0cqLzI5jAmhZdy
+R7g3aaNjMGEwHQYDVR0OBBYEFF074IFG9PLpJdowZYdG8yfXMGZ+MB8GA1UdIwQY
+MBaAFF074IFG9PLpJdowZYdG8yfXMGZ+MA8GA1UdEwEB/wQFMAMBAf8wDgYDVR0P
+AQH/BAQDAgEGMAoGCCqGSM49BAMCA0kAMEYCIQDuX2SXmEG3EfaB1mcbekLIgHSv
+ow1nTUV/vU36rfsfCAIhAK1ZwoLX0GwDQh+Nm3836VNDDviWQ3dUN7zO5WMHl9Cz
+-----END CERTIFICATE-----
+"""),
+            // nextendo-pokemon-legends-za-ca.pem (Pokemon Legends: Z-A)
+            new("6391c69d6d01c3bcc39c30b261e16eab20242de4c14cfd80a4445dd304ad0722", """
+-----BEGIN CERTIFICATE-----
+MIIBuTCCAV+gAwIBAgIUb0S9q7d+vniIxKaaZlp1ycdDQiswCgYIKoZIzj0EAwIw
+KjEoMCYGA1UEAwwfTmV4dGVuZG8gUG9rZW1vbiBMZWdlbmRzIFotQSBDQTAeFw0y
+NjA5MjgyMjA1MzJaFw0zNjA5MjUyMjA1MzJaMCoxKDAmBgNVBAMMH05leHRlbmRv
+IFBva2Vtb24gTGVnZW5kcyBaLUEgQ0EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNC
+AARR0I4orZbvRFBI63PQwsvidiLlBc3tcPCGULkCqx9U0SiwWKYxmivCO//NZGsO
+6cEwuNETv/cLZeyScft3qButo2MwYTAdBgNVHQ4EFgQUxl7nJ0vIzGKprujoG/8I
+X0O7QFMwHwYDVR0jBBgwFoAUxl7nJ0vIzGKprujoG/8IX0O7QFMwDwYDVR0TAQH/
+BAUwAwEB/zAOBgNVHQ8BAf8EBAMCAgQwCgYIKoZIzj0EAwIDSAAwRQIgTPEXrEA2
+nuXm+mlLWlcBXRXhedNj7tB44Fo6ELb/GCACIQCgp5ckM4fRArnvE8Bwx+m7QJGw
+zdAq1CTeFUrJ6r/siw==
+-----END CERTIFICATE-----
+"""),
+        ];
+
+        private static X509Certificate2Collection _trusted;
+
         /// <summary>Whether the next (or current) session plays online.</summary>
         public static bool Enabled => _settings != null;
 
@@ -77,8 +197,9 @@ namespace Ryujinx.HLE
         }
 
         /// <summary>
-        /// Applies the host's request: an empty object clears the configuration; otherwise nexToken, serverAddress and
-        /// natAddress are all required. A refused request leaves the engine offline.
+        /// Applies the host's request: an empty object clears the configuration; otherwise nexToken, pid, serverAddress
+        /// and natAddress are all required and the two addresses must differ (the NAT test compares two vantage points).
+        /// A refused request leaves the engine offline.
         /// </summary>
         public static void Configure(string request)
         {
@@ -95,12 +216,13 @@ namespace Ryujinx.HLE
                 throw new FormatException("Online configuration: the game token is missing or malformed.");
             foreach (char c in token)
                 if (c <= ' ' || c > '~' || c == '"' || c == '\\') throw new FormatException("Online configuration: the game token is malformed.");
-            _settings = new Settings
-            {
-                NexToken = token,
-                Server = Address(Text(root, "serverAddress"), "serverAddress"),
-                Nat = Address(Text(root, "natAddress"), "natAddress"),
-            };
+            if (!root.TryGetProperty("pid", out JsonElement pidValue) || pidValue.ValueKind != JsonValueKind.Number ||
+                !pidValue.TryGetInt64(out long pid) || pid <= 0)
+                throw new FormatException("Online configuration: the account PID is missing or malformed.");
+            IPAddress server = Address(Text(root, "serverAddress"), "serverAddress");
+            IPAddress nat = Address(Text(root, "natAddress"), "natAddress");
+            if (server.Equals(nat)) throw new FormatException("Online configuration: the server and NAT test addresses must differ.");
+            _settings = new Settings { NexToken = token, Pid = pid, Server = server, Nat = nat };
         }
 
         private static string Text(JsonElement root, string name) =>
@@ -153,9 +275,16 @@ namespace Ryujinx.HLE
             lock (_resolvedGate) return _resolved.TryGetValue(address, out string host) ? host : null;
         }
 
+        /// <summary>The network service account id the game reads: the PID online, the engine's own value otherwise.</summary>
+        public static long AccountId(long offline)
+        {
+            Settings settings = _settings;
+            return settings == null ? offline : settings.Pid;
+        }
+
         /// <summary>
-        /// Adds what Nextendo's game servers read from the account id_token: jti, hm (online membership), tv (the
-        /// installed game version) and nnex (the game token). Nothing is added offline.
+        /// Adds what Nextendo's game servers read from the account id_token: jti, hm, tv (the installed game version) and
+        /// nnex (the game token). Nothing is added offline.
         /// </summary>
         public static void AddClaims(IDictionary<string, object> claims, string titleVersion)
         {
@@ -167,7 +296,73 @@ namespace Ryujinx.HLE
             claims["nnex"] = settings.NexToken;
         }
 
-        /// <summary>One leading or inner '*' stands for any run of characters; names compare without case.</summary>
+        /// <summary>ALPN for a configured server: h2 on NPLN hosts (gRPC), http/1.1 otherwise (NEX over WebSocket).</summary>
+        public static List<SslApplicationProtocol> ApplicationProtocols(string host)
+        {
+            string name = host ?? string.Empty;
+            bool npln = name.Contains("npln", StringComparison.OrdinalIgnoreCase) ||
+                        name.Contains("gs.nintendo.net", StringComparison.OrdinalIgnoreCase);
+            return [npln ? SslApplicationProtocol.Http2 : SslApplicationProtocol.Http11];
+        }
+
+        /// <summary>The TLS validation of a connection to a configured server (RemoteCertificateValidationCallback).</summary>
+        public static bool ValidateServerCertificate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors errors)
+        {
+            string host = (sender as SslStream)?.TargetHostName;
+            bool valid = certificate != null && Validate(certificate, chain, host, TrustedRoots());
+            if (!valid)
+            {
+                Logger.Warning?.Print(LogClass.ServiceSsl,
+                    $"Online play: certificate refused for '{host}' (subject '{certificate?.Subject}', issuer '{certificate?.Issuer}').");
+            }
+
+            return valid;
+        }
+
+        /// <summary>A chain from the certificate to one of the roots, with the host named by the leaf.</summary>
+        internal static bool Validate(X509Certificate certificate, X509Chain presented, string host, X509Certificate2Collection roots)
+        {
+            if (string.IsNullOrEmpty(host) || roots == null || roots.Count == 0) return false;
+            try
+            {
+                using X509Certificate2 leaf = new(certificate);
+                if (!leaf.MatchesHostname(host, allowWildcards: true, allowCommonName: false)) return false;
+                using X509Chain chain = new();
+                chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
+                chain.ChainPolicy.CustomTrustStore.AddRange(roots);
+                chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+                if (presented != null)
+                {
+                    foreach (X509ChainElement element in presented.ChainElements)
+                        if (!element.Certificate.RawData.AsSpan().SequenceEqual(leaf.RawData)) chain.ChainPolicy.ExtraStore.Add(element.Certificate);
+                }
+
+                return chain.Build(leaf);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>The published roots, each checked against its fingerprint once.</summary>
+        internal static X509Certificate2Collection TrustedRoots()
+        {
+            X509Certificate2Collection trusted = _trusted;
+            if (trusted != null) return trusted;
+            trusted = [];
+            foreach (Root root in _roots)
+            {
+                X509Certificate2 certificate = X509Certificate2.CreateFromPem(root.Pem);
+                if (Convert.ToHexString(SHA256.HashData(certificate.RawData)).ToLowerInvariant() != root.Sha256)
+                    throw new InvalidOperationException("A Nextendo root differs from its published fingerprint.");
+                trusted.Add(certificate);
+            }
+
+            return _trusted = trusted;
+        }
+
+        /// <summary>One '*' stands for any run of characters (several labels included); names compare without case.</summary>
         internal static bool Matches(string pattern, string host)
         {
             int star = pattern.IndexOf('*');

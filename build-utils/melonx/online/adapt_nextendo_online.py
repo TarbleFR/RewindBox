@@ -1,73 +1,74 @@
-"""Online play on Nextendo Network for the embedded Switch engine (source only: not part of any Core yet).
+"""Online play on Nextendo Network for the embedded Switch engine.
 
 Nextendo Network (https://nextendo.network) is a community-run replacement for the Switch online services. Its
-developer documentation (https://wiki.nextendo.network/developers) describes what a registered third-party emulator
-does on the client side; this adapter implements those documented points on the pinned engine, in RewindBox's own
-code. Nextendo's client and servers are published under the PolyForm Shield License 1.0.0: none of that code is
-copied or adapted here.
+integration guide for emulators and client apps (https://wiki.nextendo.network/developers/integration, 15 November
+2026) describes what a registered third-party client does; this adapter implements the engine's part on the pinned
+engine, in RewindBox's own code. Nextendo's client and servers are published under the PolyForm Shield License 1.0.0:
+none of that code is copied or adapted here.
 
 The host (Dart, then Swift) signs the player in with OAuth 2.0 PKCE, asks Nextendo for the game token of the launch
-(GET /api/nex-token, scope game.matchmaking) and sends the engine one request before the session is prepared
-(content operation 11, EmbeddedOnline.Configure): the game token and the two server addresses. With no request, or an
-empty one, every edit below is inert and the engine behaves as it does today.
+(GET /api/nex-token, scope game.matchmaking) and sends the engine one request before the session is prepared (content
+operation 11, EmbeddedOnline.Configure): the game token, the account's PID and the two server addresses. With no
+request, or an empty one, every edit below is inert and the engine behaves as before.
 
 Edits, each guarded by EmbeddedOnline.Enabled:
 
-  EmbeddedSession.cs (prepared copy)   the session has guest network access (EnableInternetAccess) when online play is
-                                       configured; it stays off otherwise, as today.
-  EmbeddedContent.cs (prepared copy)   operation 11 applies the host's request; operation 12 makes a loaded engine read
-                                       the profile file again after RewindBox's profile screen changed it.
+  HleConfiguration.cs                  the guest is told it has Internet access (DNS answers, nifm requests and the
+                                       network clock task read EnableInternetAccess) while online play is configured;
+                                       RewindBox's sessions set it off, as before, otherwise.
+  EmbeddedContent.cs (prepared copy)   operation 11 applies the host's request and answers the protocol name;
+                                       operation 12 makes a loaded engine read the profile file again after
+                                       RewindBox's profile screen changed it.
   DnsBlacklist.cs                      a host name online play redirects is no longer refused as a Nintendo server.
   DnsMitmResolver.cs                   documented resolution order: an exact hosts-file entry, then the built-in rules
                                        (EmbeddedOnline.Redirect), then the hosts file's wildcards and the real DNS.
-  ManagerServer.cs                     the account id_token carries Nextendo's key identifier and the claims jti, hm,
-                                       tv (installed game version) and nnex (the game token), as documented. It is
-                                       signed with this process's throwaway key: Nextendo gives its signing key to its
-                                       own builds only, so a game that checks the signature itself (Splatoon 2) refuses
-                                       it; games whose server reads nnex do not.
-  SslManagedSocketConnection.cs        a TLS connection to one of the two configured addresses accepts that service's
-                                       certificate (it is presented for Nintendo host names); when the game gave no
-                                       host name, the name last redirected to that address is the SNI. Every other
-                                       connection keeps the system's validation.
+                                       nsd's FQDN rewrite (accounts.nintendo.com to the BAAS host) is upstream's.
+  ManagerServer.cs                     the network service account id the game reads is the PID (the guide's NSA);
+                                       the id_token carries jti, hm, tv (installed game version) and nnex (the game
+                                       token). It is signed with this process's throwaway key: Nextendo gives its own
+                                       key to its builds only, so a title that checks the signature itself (Splatoon 2)
+                                       refuses it, as the guide says of third-party builds.
+  SslManagedSocketConnection.cs        TLS to one of the two configured addresses: ALPN http/1.1 (h2 on NPLN hosts),
+                                       the name last redirected there as SNI when the game gave none, and a chain to
+                                       one of Nextendo's published roots naming the host; any other connection keeps
+                                       the system's validation.
 
-Not done, known limits: no ALPN is offered (NEX over WebSocket works without it; NPLN titles need h2 and stay out of
-reach); nothing keeps the UDP NAT mapping alive during peer-to-peer set-up; nifm's interface queries have never run on
-an iPhone with network access on. Nothing here has been compiled into a Core or run on a device.
+Known limits: Animal Crossing's BAAS user id, signed NPLN patches, BCAT data, the signed game catalog and the
+/api/nex-session heartbeat are not handled; nothing keeps a UDP NAT mapping alive during peer-to-peer set-up. Not
+run on an iPhone.
 
-Wiring, when a Core takes this lot: move this file to build-utils/melonx/ and EmbeddedOnline.cs to native/melonx/
-(prepare_embedded.py then copies it; map it to the Ryujinx.HLE project and drop the copy made in apply() below), call
-the adapter last in prepare_embedded.py, add it to ORDER, the plan and the contract, and freeze. Rollback: remove it.
-Fail closed on drift: every file is pinned to the preparation bytes it was written against.
+Wiring (for the Core that takes it): this file goes to build-utils/melonx/, EmbeddedOnline.cs to native/melonx/ (mapped
+to Ryujinx.HLE); the adapter runs last in prepare_embedded.py and ORDER (build-utils/melonx/online/wiring.patch).
+Fail closed on drift: every file is pinned to the bytes the earlier steps of the 030cc14f preparation leave.
 """
 import hashlib
 from pathlib import Path
-import shutil
 
+CONFIGURATION = 'src/Ryujinx.HLE/HleConfiguration.cs'
 MANAGER = 'src/Ryujinx.HLE/HOS/Services/Account/Acc/AccountService/ManagerServer.cs'
 RESOLVER = 'src/Ryujinx.HLE/HOS/Services/Sockets/Sfdnsres/Proxy/DnsMitmResolver.cs'
 BLACKLIST = 'src/Ryujinx.HLE/HOS/Services/Sockets/Sfdnsres/Proxy/DnsBlacklist.cs'
 TLS = 'src/Ryujinx.HLE/HOS/Services/Ssl/SslService/SslManagedSocketConnection.cs'
-SESSION = 'src/Ryujinx.Library/EmbeddedSession.cs'
 CONTENT = 'src/Ryujinx.Library/EmbeddedContent.cs'
 ONLINE = 'src/Ryujinx.HLE/EmbeddedOnline.cs'
-ONLINE_SOURCE = Path(__file__).resolve().parents[3] / 'native/melonx/online/EmbeddedOnline.cs'
 
-# The preparation of Claude b83935f0 (Core contract 4396d7b0): pristine upstream 13700519 for the four engine files,
-# the prepared copies of the two RewindBox files.
+# The preparation of Core 030cc14f (contract 1362352a): pristine upstream 13700519 for the five engine files, the
+# prepared copy of EmbeddedContent.cs.
 BASELINE = {
+    CONFIGURATION: '070d81f5d3edff00882bf21c9f8871efc191ca121b483a6508a7ea8fc2d81dc8',
     MANAGER: 'c6f291615bb4405f32830d7e10b4e2cb2c7c80f4c5e6c552950b466ea9a7e5e8',
     RESOLVER: '2c1067fc1f4c3b2201da2f197837e725cb9df3755b1de75c13dc62533b41b181',
     BLACKLIST: '6fab29932fc6cb23c2877ea7acff6267239564d76ad09682755bca3c5c223a68',
     TLS: '77d196aead689c16cd1d1c91b425db07ac5454fe9d2f4845f1d13cae358743f6',
-    SESSION: '80f67552d100c78398ceeaf8a22861e9672347a9b081f08a67c5a67d2430963f',
     CONTENT: '496cdc23b439d3c46b3f5ccac1b658b7360573cd3a5a000ca8d99f0fffc414bc',
 }
 
-SESSION_OLD = '''            UseHypervisor = false, EnableInternetAccess = false,
+CONFIGURATION_OLD = '''        public bool EnableInternetAccess { internal get; set; }
 '''
-SESSION_NEW = '''            // RewindBox (adapt_nextendo_online): guest network access only for a launch the host configured for
-            // online play (content operation 11); off otherwise, as before.
-            UseHypervisor = false, EnableInternetAccess = Ryujinx.HLE.EmbeddedOnline.Enabled,
+CONFIGURATION_NEW = '''        // RewindBox (adapt_nextendo_online): also on while the host configured this launch for online play.
+        public bool EnableInternetAccess { internal get => _enableInternetAccess || EmbeddedOnline.Enabled; set => _enableInternetAccess = value; }
+
+        private bool _enableInternetAccess;
 '''
 
 CONTENT_NOTE_OLD = '''    // 8 launch preflight; 9 configure the application-owned diagnostic path.
@@ -83,6 +84,7 @@ CONTENT_CASE_NEW = '''                            case 11:
                                 try { Ryujinx.HLE.EmbeddedOnline.Configure(path); }
                                 catch (JsonException) { throw new FormatException("Online configuration is not valid JSON."); }
                                 json.WriteBoolean("online", Ryujinx.HLE.EmbeddedOnline.Enabled);
+                                json.WriteString("protocol", Ryujinx.HLE.EmbeddedOnline.Protocol);
                                 break;
                             case 12:
                                 _accountManager.Refresh();
@@ -130,16 +132,16 @@ RESOLVER_NEW = '''        public IPHostEntry ResolveAddress(string host)
 
 '''
 
+MANAGER_ID_OLD = '''        private long NetworkServiceAccountId => _userId == default ? DefaultNetworkServiceAccountId : DefaultNetworkServiceAccountId + _userId.High;
+'''
+MANAGER_ID_NEW = '''        // RewindBox (adapt_nextendo_online): online, the account id the game reads is the Nextendo PID.
+        private long NetworkServiceAccountId => Ryujinx.HLE.EmbeddedOnline.AccountId(_userId == default ? DefaultNetworkServiceAccountId : DefaultNetworkServiceAccountId + _userId.High);
+'''
 MANAGER_SIGNATURE_OLD = '''        private static string GenerateIdToken()
         {
 '''
 MANAGER_SIGNATURE_NEW = '''        private static string GenerateIdToken(string titleVersion)
         {
-'''
-MANAGER_KEY_OLD = '''            credentials.Key.KeyId = parameters.ToString();
-'''
-MANAGER_KEY_NEW = '''            // RewindBox (adapt_nextendo_online): the key identifier Nextendo documents, when online play is configured.
-            credentials.Key.KeyId = Ryujinx.HLE.EmbeddedOnline.Enabled ? "nextendo-baas-key-1" : parameters.ToString();
 '''
 MANAGER_CLAIMS_OLD = '''            return new JsonWebTokenHandler().CreateToken(descriptor);
 '''
@@ -151,34 +153,49 @@ MANAGER_CLAIMS_NEW = '''            // RewindBox (adapt_nextendo_online): jti, h
 '''
 MANAGER_CALL_OLD = '''                _cachedTokenData = Encoding.ASCII.GetBytes(GenerateIdToken());
 '''
-MANAGER_CALL_NEW = '''                _cachedTokenData = Encoding.ASCII.GetBytes(GenerateIdToken(context.Device.Processes.ActiveApplication.DisplayVersion));
+MANAGER_CALL_NEW = '''                _cachedTokenData = Encoding.ASCII.GetBytes(GenerateIdToken(context.Device.Processes.ActiveApplication?.DisplayVersion));
 '''
 
-TLS_OLD = '''            _stream = new SslStream(new NetworkStream(((DefaultSocket)((ManagedSocket)Socket).Socket).BaseSocket, false), false, null, null);
-            hostName = RetrieveHostName(hostName);
+TLS_OLD = '''            StartSslOperation();
+            _stream = new SslStream(new NetworkStream(((DefaultSocket)((ManagedSocket)Socket).Socket).BaseSocket, false), false, null, null);
 '''
-TLS_NEW = '''            // RewindBox (adapt_nextendo_online): one of the two servers online play is configured with presents that
-            // service's own certificate for the game's host name. It is accepted for those two addresses only; every
-            // other connection keeps the system's validation. Without a host name from the game, the name last
-            // redirected to that address is the SNI (a reverse lookup would name the server, not the game's host).
+TLS_NEW = '''            StartSslOperation();
+
+            // RewindBox (adapt_nextendo_online): one of the two servers online play is configured with. ALPN http/1.1
+            // (NEX over WebSocket; h2 on NPLN hosts), the name last redirected to that address as SNI when the game gave
+            // none (a reverse lookup would name the server, not the game's host), and only a chain to one of
+            // Nextendo's published roots that names the host. Every other connection is unchanged.
             IPAddress onlinePeer = Socket.RemoteEndPoint?.Address;
-            bool onlineServer = Ryujinx.HLE.EmbeddedOnline.IsServer(onlinePeer);
 
-            _stream = new SslStream(new NetworkStream(((DefaultSocket)((ManagedSocket)Socket).Socket).BaseSocket, false), false,
-                onlineServer ? static (_, _, _, _) => true : null, null);
-            hostName = onlineServer && string.IsNullOrEmpty(hostName)
-                ? Ryujinx.HLE.EmbeddedOnline.HostFor(onlinePeer) ?? hostName
-                : RetrieveHostName(hostName);
+            if (Ryujinx.HLE.EmbeddedOnline.IsServer(onlinePeer))
+            {
+                string onlineHost = string.IsNullOrEmpty(hostName) ? Ryujinx.HLE.EmbeddedOnline.HostFor(onlinePeer) ?? RetrieveHostName(hostName) : hostName;
+                SslClientAuthenticationOptions onlineOptions = new()
+                {
+                    TargetHost = onlineHost,
+                    EnabledSslProtocols = TranslateSslVersion(_sslVersion),
+                    ApplicationProtocols = Ryujinx.HLE.EmbeddedOnline.ApplicationProtocols(onlineHost),
+                    CertificateRevocationCheckMode = System.Security.Cryptography.X509Certificates.X509RevocationMode.NoCheck,
+                    RemoteCertificateValidationCallback = Ryujinx.HLE.EmbeddedOnline.ValidateServerCertificate,
+                };
+                _stream = new SslStream(new NetworkStream(((DefaultSocket)((ManagedSocket)Socket).Socket).BaseSocket, false), false);
+                _stream.AuthenticateAsClient(onlineOptions);
+                EndSslOperation();
+
+                return ResultCode.Success;
+            }
+
+            _stream = new SslStream(new NetworkStream(((DefaultSocket)((ManagedSocket)Socket).Socket).BaseSocket, false), false, null, null);
 '''
 
 EDITS = (
-    (SESSION, SESSION_OLD, SESSION_NEW),
+    (CONFIGURATION, CONFIGURATION_OLD, CONFIGURATION_NEW),
     (CONTENT, CONTENT_NOTE_OLD, CONTENT_NOTE_NEW),
     (CONTENT, CONTENT_CASE_OLD, CONTENT_CASE_NEW),
     (BLACKLIST, BLACKLIST_OLD, BLACKLIST_NEW),
     (RESOLVER, RESOLVER_OLD, RESOLVER_NEW),
+    (MANAGER, MANAGER_ID_OLD, MANAGER_ID_NEW),
     (MANAGER, MANAGER_SIGNATURE_OLD, MANAGER_SIGNATURE_NEW),
-    (MANAGER, MANAGER_KEY_OLD, MANAGER_KEY_NEW),
     (MANAGER, MANAGER_CLAIMS_OLD, MANAGER_CLAIMS_NEW),
     (MANAGER, MANAGER_CALL_OLD, MANAGER_CALL_NEW),
     (TLS, TLS_OLD, TLS_NEW),
@@ -192,15 +209,14 @@ def once(path: Path, old: str, new: str):
 
 
 def apply(source):
+    """Edits the prepared tree; EmbeddedOnline.cs is copied there with the native files (prepare_embedded)."""
     source = Path(source)
     for name, expected in BASELINE.items():
         actual = hashlib.sha256((source / name).read_bytes()).hexdigest()
         assert actual == expected, 'Preparation drift, refusing to adapt: ' + name
-    assert not (source / ONLINE).exists(), 'EmbeddedOnline.cs is already in the tree'
     for name, old, new in EDITS:
         once(source / name, old, new)
-    shutil.copyfile(ONLINE_SOURCE, source / ONLINE)
-    return [source / name for name in (*BASELINE, ONLINE)]
+    return [source / name for name in BASELINE]
 
 
 if __name__ == '__main__':
