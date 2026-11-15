@@ -1,0 +1,348 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index b608dbe..1915770 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -1636,10 +1636,14 @@ static snode *g_sh_bkt[SH_NBKT];
+ static srec g_sh_all = { .prev = &g_sh_all, .next = &g_sh_all };
+ static srec *g_sh_qhead, *g_sh_qtail; static uint64_t g_sh_qbytes;
+ static uint64_t g_sh_nlive, g_sh_live_bytes, g_sh_unanchored;
++typedef struct { uint64_t h; uint32_t len; struct sblk *b; } sintern;
++static sintern *g_sh_it; static size_t g_sh_itcap, g_sh_itn; static uint64_t g_sh_shared_n;   // interned recordings (sh_intern)
+ static uint32_t sh_hash(uintptr_t page) { return (uint32_t)((page * 0x9E3779B97F4A7C15ull) >> 48) & (SH_NBKT - 1); }
+ static void sh_live(uint64_t *recs, uint64_t *bytes) { pthread_mutex_lock(&g_sh_mu); *recs = g_sh_nlive; *bytes = g_sh_live_bytes; pthread_mutex_unlock(&g_sh_mu); }
+ // Live recordings (begun and not released), for diagnostics and the unit tests
+ uint64_t s2a_hle_cmdshadow_live(void) { uint64_t r, b; sh_live(&r, &b); return r; }
++uint64_t s2a_hle_cmdshadow_live_bytes(void) { uint64_t r, b; sh_live(&r, &b); return b; }
++uint64_t s2a_hle_cmdshadow_shared(void) { pthread_mutex_lock(&g_sh_mu); uint64_t n = g_sh_shared_n; pthread_mutex_unlock(&g_sh_mu); return n; }   // 单测：按内容共用了几次
+ // 帧录（nvn_frame_rec.inc）：命令记录都在宿主块里（游戏窗口外），录像按原地址另存，回放映射回原地址
+ int s2a_hle_cmdshadow_list(void (*cb)(void *ctx, const void *mem, size_t size), void *ctx) {
+     pthread_mutex_lock(&g_sh_mu); int n = 0; size_t pg = (size_t)getpagesize();
+@@ -1743,7 +1747,7 @@ static void sh_shutdown(void) {   // session end: every recording and chunk goes
+     for (int i = 0; i < g_sh_nchunk; i++) sh_chunk_unmap(g_sh_chunk[i].mem);
+     free(g_sh_chunk); g_sh_chunk = NULL; g_sh_nchunk = g_sh_cchunk = 0;
+     memset(g_sh_carving, 0, sizeof g_sh_carving); memset(g_sh_free, 0, sizeof g_sh_free); memset(g_sh_bkt, 0, sizeof g_sh_bkt);
+-    g_sh_all.next = g_sh_all.prev = &g_sh_all; g_sh_qhead = g_sh_qtail = NULL; g_sh_qbytes = g_sh_nlive = g_sh_live_bytes = g_sh_unanchored = 0;
++    g_sh_all.next = g_sh_all.prev = &g_sh_all; g_sh_qhead = g_sh_qtail = NULL; g_sh_qbytes = g_sh_nlive = g_sh_live_bytes = g_sh_unanchored = 0; free(g_sh_it); g_sh_it = NULL; g_sh_itcap = g_sh_itn = 0; g_sh_shared_n = 0;
+     pthread_mutex_unlock(&g_sh_mu);
+ }
+ // The open recording leaves the command buffer's current window: note the device bytes it took there. In a host-lent window it took none of the game's memory; it hangs off
+@@ -1842,9 +1846,49 @@ static void sh_anchor_empty(cmd_t *o, srec *r) {
+     uintptr_t a = o->gvirt ? o->vanc : o->gcur > o->gstart ? o->gcur - 1 : o->gend ? o->gend - 1 : 0;
+     if (a) { r->iv[0] = (siv){a, a + 1}; r->niv = 1; }
+ }
++// Recordings that take none of the game's command memory and hold only control-memory records (texture / sampler pool binds) and their END are interned by content
++//   (#783). Nothing the device cursor writes ever covers them, so they hung off a 1-byte anchor; one first in a fresh segment anchored at the segment's last byte, a tail
++//   the game never writes, and none was ever released: Ocarina of Time on Switch 2 ends ~10 such lists a frame (9 of them empty), thousands piled on one byte, ~10 MB of
++//   host blocks a minute. These records carry only the pool pointer and are fixed once ended, so every recording with the same bytes replays the same from one permanent
++//   copy, and the copies are as many as the distinct contents. Empty recordings (only END) share one copy in every mode. Other records are not interned: some keep host
++//   addresses inside their own recording, which a copy would leave pointing at the old block
++#define SH_INTERN_MAX 256
++static uint64_t sh_fnv(const uint8_t *p, size_t n) { uint64_t h = 0xcbf29ce484222325ull; while (n--) { h ^= *p++; h *= 0x100000001b3ull; } return h; }
++static int sh_intern(cmd_t *o, srec *r) {   // g_sh_mu held: 1 = r dropped, handle now the shared copy
++    sblk *b = r->blk; if (!b || b != r->last || o->begin != (uint8_t *)(b + 1) || o->cur < o->begin) return 0;
++    size_t len = (size_t)(o->cur - o->begin); if (!len || len > SH_INTERN_MAX) return 0;
++    if (r->niv && len != 8) return 0;   // takes device bytes and is not empty: released by overwrite as before
++    for (const uint8_t *p = o->begin; p < o->cur; ) {   // only pool binds and END
++        op_hdr h; memcpy(&h, p, sizeof h);
++        if (h.size < sizeof h || p + h.size > o->cur || (h.op != OP_END && h.op != OP_SET_TEX_POOL && h.op != OP_SET_SAMP_POOL) || (r->niv && h.op != OP_END)) return 0;
++        p += h.size;
++    }
++    uint64_t hv = sh_fnv(o->begin, len); size_t i; sblk *copy = NULL;
++    if (g_sh_itcap) for (i = hv & (g_sh_itcap - 1); g_sh_it[i].b; i = (i + 1) & (g_sh_itcap - 1))
++        if (g_sh_it[i].h == hv && g_sh_it[i].len == len && !memcmp(g_sh_it[i].b + 1, o->begin, len)) { copy = g_sh_it[i].b; break; }
++    if (!copy) {
++        if ((g_sh_itn + 1) * 2 > g_sh_itcap) {   // grow (load <= 1/2) and rehash
++            size_t nc = g_sh_itcap ? g_sh_itcap * 2 : 64; sintern *t = calloc(nc, sizeof *t); if (!t) return 0;
++            for (size_t k = 0; k < g_sh_itcap; k++) if (g_sh_it[k].b) { size_t j = g_sh_it[k].h & (nc - 1); while (t[j].b) j = (j + 1) & (nc - 1); t[j] = g_sh_it[k]; }
++            free(g_sh_it); g_sh_it = t; g_sh_itcap = nc;
++        }
++        copy = sh_blk_get(sizeof(sblk) + len, sizeof(sblk) + len); copy->next = NULL; memcpy(copy + 1, o->begin, len);
++        for (i = hv & (g_sh_itcap - 1); g_sh_it[i].b; i = (i + 1) & (g_sh_itcap - 1)) {}
++        g_sh_it[i] = (sintern){hv, (uint32_t)len, copy}; g_sh_itn++;
++    }
++    r->prev->next = r->next; r->next->prev = r->prev; g_sh_nlive--; g_sh_live_bytes -= r->bytes;
++    b->next = g_sh_free[b->cls]; g_sh_free[b->cls] = b;   // nothing points into it yet: the handle is handed out below
++    if (r->iv != r->ivs) free(r->iv);
++    free(r);
++    o->begin = (uint8_t *)(copy + 1); o->cur = o->end = NULL; g_sh_shared_n++;
++    return 1;
++}
+ static void sh_end(cmd_t *o) {
+-    srec *r = o->rec; sh_piece(o); sh_anchor_empty(o, r);
++    srec *r = o->rec; sh_piece(o);
+     uint64_t h = r->rbytes + OP_RESERVE + sizeof(sblk); o->hint = (uint32_t)(h < 256 ? 256 : h > (1u << 20) ? (1u << 20) : h);
++    pthread_mutex_lock(&g_sh_mu); int shared = sh_intern(o, r); pthread_mutex_unlock(&g_sh_mu);
++    if (shared) { o->rec = NULL; return; }
++    sh_anchor_empty(o, r);
+     pthread_mutex_lock(&g_sh_mu); r->open = 0;
+     uint64_t un = 0; if (r->niv) sh_index(r); else un = ++g_sh_unanchored;
+     pthread_mutex_unlock(&g_sh_mu);
+diff --git a/graphics/nvn/tests/t_nvn_cmdshadow.c b/graphics/nvn/tests/t_nvn_cmdshadow.c
+index 6f8c669..e5a173a 100644
+--- a/graphics/nvn/tests/t_nvn_cmdshadow.c
++++ b/graphics/nvn/tests/t_nvn_cmdshadow.c
+@@ -17,7 +17,7 @@
+ 
+ extern void *h_nvnBootstrapLoader(const char *name);
+ extern int mtl_last_commit_error(void);
+-extern uint64_t s2a_hle_cmdshadow_live(void);
++extern uint64_t s2a_hle_cmdshadow_live(void), s2a_hle_cmdshadow_live_bytes(void), s2a_hle_cmdshadow_shared(void);
+ static const char *phase = "准备";
+ static unsigned checks;
+ #define CHECK(expr) do { checks++; if (!(expr)) { \
+@@ -210,7 +210,7 @@ static void release(void) {
+     memset(datamem, 0, 4096); run(hz); CHECK(slot_is(2, 520)); CHECK(slot_is(3, 530));
+     NVNcommandBuffer u; new_cmd(&u, R + 175, 8);
+     API(nvnCommandBufferBeginRecording)(&u); CHECK(API(nvnCommandBufferEndRecording)(&u) != 0);
+-    CHECK(s2a_hle_cmdshadow_live() == live0 + 4);   // b 释放、空录制 +1
++    CHECK(s2a_hle_cmdshadow_live() == live0 + 3);   // b 释放；空录制共用一份常驻 END，不算活录制（#783）
+     // 另一个内存池里的录制：池销毁即释放
+     NVNmemoryPool p2; uint8_t *m2; new_pool(&p2, &m2, 65536);
+     NVNcommandBuffer w; memset(&w, 0, sizeof w); CHECK(API(nvnCommandBufferInitialize)(&w, &device));
+@@ -225,6 +225,32 @@ static void release(void) {
+ }
+ 
+ // ⑥ CopyCommands 复制记录：之后源内存被游戏重用（重录 + 清零），副本照样回放拷贝时的内容；目标已用 = 源已用（END 不拷、目标自己的 END 补上）
++// ⑫ 不占命令内存、只含池绑定 / END 的录制按内容共用（#783：某款每帧约 10 个这种录制，各挂 1 字节锚点、落在游戏从不写的段尾，永远不释放）。
++//   期望按规则手写：连录 1000 个空录制 → 活录制数与宿主字节都不变、共用 +1000、句柄全相同；回放空表什么都不做，别的录制 CALL 它照常往下跑；
++//   只绑池、不占命令内存的录制（没给内存也没回调的宿主借窗口里录）：同内容同句柄、不同内容不同句柄，连录 500 轮活录制数不变、共用 +1000
++static void interned(void) {
++    phase = "⑫ 不占命令内存的录制按内容共用";
++    NVNcommandBuffer x; new_cmd(&x, 0xC0000, 0x10000);   // 前面各组没用过的一段：空录制的设备字节不盖到别的录制
++    uint64_t n0 = s2a_hle_cmdshadow_live(), b0 = s2a_hle_cmdshadow_live_bytes(), e0 = s2a_hle_cmdshadow_shared();
++    NVNcommandHandle first = 0; int same = 1;
++    for (int i = 0; i < 1000; i++) { API(nvnCommandBufferBeginRecording)(&x); NVNcommandHandle h = API(nvnCommandBufferEndRecording)(&x); if (!first) first = h; same &= h == first; }
++    CHECK(first && same && s2a_hle_cmdshadow_live() == n0 && s2a_hle_cmdshadow_live_bytes() == b0 && s2a_hle_cmdshadow_shared() == e0 + 1000);
++    memset(datamem, 0, 4096); run(first); CHECK(!slot_is(30, 900));
++    API(nvnCommandBufferBeginRecording)(&x); API(nvnCommandBufferCallCommands)(&x, 1, &first); ub(&x, 30, 900); NVNcommandHandle c = API(nvnCommandBufferEndRecording)(&x);
++    memset(datamem, 0, 4096); run(c); CHECK(slot_is(30, 900));
++    NVNtexturePool tp1, tp2; memset(&tp1, 0, sizeof tp1); memset(&tp2, 0, sizeof tp2);
++    NVNcommandBuffer y; new_cmd(&y, 0, 0);
++    uint64_t n1 = s2a_hle_cmdshadow_live(), e1 = s2a_hle_cmdshadow_shared();
++    NVNcommandHandle p1 = 0, p2 = 0; int same1 = 1, same2 = 1;
++    for (int i = 0; i < 500; i++) {
++        API(nvnCommandBufferBeginRecording)(&y); API(nvnCommandBufferSetTexturePool)(&y, &tp1); NVNcommandHandle a1 = API(nvnCommandBufferEndRecording)(&y);
++        API(nvnCommandBufferBeginRecording)(&y); API(nvnCommandBufferSetTexturePool)(&y, &tp2); NVNcommandHandle a2 = API(nvnCommandBufferEndRecording)(&y);
++        if (!p1) { p1 = a1; p2 = a2; } same1 &= a1 == p1; same2 &= a2 == p2;
++    }
++    CHECK(p1 && p2 && p1 != p2 && same1 && same2 && s2a_hle_cmdshadow_live() == n1 && s2a_hle_cmdshadow_shared() == e1 + 1000);
++    API(nvnCommandBufferFinalize)(&x); API(nvnCommandBufferFinalize)(&y);
++    printf("%s：通过\n", phase); fflush(stdout);
++}
+ static void copy_then_reuse(void) {
+     phase = "⑥ 复制后源内存被重用不影响副本";
+     const size_t R2 = 0x60000;
+@@ -274,7 +300,7 @@ static void spanning(void) {
+     // 只写第 3 段（0x71000 + 64 × 2 起）的一字节范围：跨段的录制 h 释放
+     NVNcommandBuffer o; new_cmd(&o, 0x71000 + 64 * 2 + 16, 64);
+     API(nvnCommandBufferBeginRecording)(&o); CHECK(API(nvnCommandBufferEndRecording)(&o) != 0);
+-    CHECK(s2a_hle_cmdshadow_live() == live0 + 2);   // h 释放、空录制 +1
++    CHECK(s2a_hle_cmdshadow_live() == live0 + 1);   // h 释放；空录制共用常驻 END，不算活录制（#783）
+     API(nvnCommandBufferFinalize)(&c); API(nvnCommandBufferFinalize)(&b); API(nvnCommandBufferFinalize)(&o);
+     printf("%s：通过\n", phase); fflush(stdout);
+ }
+@@ -378,7 +404,7 @@ int main(int argc, char **argv) {
+     NVNqueueBuilder qb = {{0}}; API(nvnQueueBuilderSetDefaults)(&qb); API(nvnQueueBuilderSetDevice)(&qb, &device); CHECK(API(nvnQueueInitialize)(&queue, &qb));
+     new_pool(&cmdpool, &cmdmem, CMD_BYTES); new_pool(&datapool, &datamem, DATA_BYTES);
+     data_ga = API(nvnMemoryPoolGetBufferAddress)(&datapool);
+-    guest_untouched(); used_by_device(); callback_timing(); totk_slots(); release(); copy_then_reuse(); spanning(); lm3_patch(); pool_binds_no_cmd_memory(); replayable(argv[0]);
++    guest_untouched(); used_by_device(); callback_timing(); totk_slots(); release(); copy_then_reuse(); spanning(); lm3_patch(); pool_binds_no_cmd_memory(); interned(); replayable(argv[0]);
+     API(nvnQueueFinish)(&queue);
+     API(nvnMemoryPoolFinalize)(&cmdpool); API(nvnMemoryPoolFinalize)(&datapool); API(nvnQueueFinalize)(&queue); API(nvnDeviceFinalize)(&device);
+     printf("✓ t_nvn_cmdshadow：%u 条断言（10 组：游戏内存不动、设备口径已用、回调时机、王国之泪排槽、覆盖释放、复制后重用、跨段跨块、录后改写句柄、池绑定不占命令内存、回放放回影子块）\n", checks);
+diff --git a/runtime/src/svc_mem.c b/runtime/src/svc_mem.c
+index 278fa4c..8923a0e 100644
+--- a/runtime/src/svc_mem.c
++++ b/runtime/src/svc_mem.c
+@@ -2,6 +2,7 @@
+ // vawin.c + layout.c 持有宿主地址窗口；Apple 可用远端影子，Android 暂沿用窗口内布局。
+ // 4 KB 游戏页按 16 KB 分组记账；Android 映射原语使用实际宿主页，Apple 共享内存保留 16 KB 对齐。
+ // 随包表：addr_need.tsv（出包组装 pack/ship_ext.py 从产物根拷进 App，runtime/build.mk 按这行自动收清单）
++#include <dlfcn.h>
+ #include "s2a_init_fail.h"
+ #include "native.h"
+ #include "as_type.h"
+@@ -440,6 +441,9 @@ uint64_t s2a_mem_init(const char *npdm) {
+     if (g_npdm_ounce) { void s2a_guest_tick_hz_set(uint64_t); s2a_guest_tick_hz_set(31250000); LOG("NPDM 是 Switch 2 布局：系统计数器按 31.25 MHz"); }
+     LOG("布局：程序号 %016llx 类型 %u SystemResourceSize %#llx｜别名 %#llx+%#llx 堆 %#llx+%#llx 栈 %#llx+%#llx TLS/IO %#llx+%#llx 可随机 %#llx+%#llx",
+         (unsigned long long)g_program_id, t, (unsigned long long)sr, (unsigned long long)L.alias_base, (unsigned long long)L.alias_size, (unsigned long long)L.heap_base, (unsigned long long)L.heap_size, (unsigned long long)L.stack_base, (unsigned long long)L.stack_size, (unsigned long long)L.tlsio_base, (unsigned long long)L.tlsio_size, (unsigned long long)L.aslr_base, (unsigned long long)L.aslr_size);
++#if !defined(__ANDROID__)
++    { void (*carve)(uint64_t, uint64_t) = (void (*)(uint64_t, uint64_t))dlsym(RTLD_DEFAULT, "s2a_guest_file_carve"); if (carve) carve(L.alias_base, L.alias_size); }   // RewindBox (patch 0038, from S2Arm c1d9fd9c): the mapped region stays anonymous under file backing (vawin.c); by name: unit tests linking this file alone have no vawin.c
++#endif
+     if (!ms) die("NPDM MainThreadStackSize 为 0");
+     uint64_t len = ((uint64_t)ms + HPG - 1) & ~(HPG - 1), base = L.stack_base + L.stack_size - len;
+     if (mprotect((void *)base, len, PROT_READ | PROT_WRITE)) die("主线程栈 mprotect errno=%d", errno);
+diff --git a/runtime/src/vawin.c b/runtime/src/vawin.c
+index b0794fb..d01300a 100644
+--- a/runtime/src/vawin.c
++++ b/runtime/src/vawin.c
+@@ -79,10 +79,22 @@ static int gf_at(uint64_t off, uint64_t *in, uint64_t *room) {
+     uint64_t fsz = (int)k == n - 1 ? g_gf_span - k * g_gf_chunk : g_gf_chunk;
+     *in = off - k * g_gf_chunk; *room = fsz - *in; return g_gf_fd[k];
+ }
++// RewindBox (patch 0038): the mapped region (MapPhysicalMemory's alias region, where the game's NVN memory pools and the GPU's per-frame zero-copy buffers live) kept anonymous
++//   inside the file-backed window, so that only the game heap is in the files. IPA 750 (iPhone17,2, 7,619 MB of RAM, Mario Kart World, window in 1 GB files): on average
++//   401 MB read back from the files and 27,886 page-ins per 10 s (peak 821 MB), in step with the stutters; at the session's end 1,171 MB of the alias region was mapped.
++//   S2Arm measured the same: nearly all file writes come from this region, mostly pages the game had already released (Duo: 9.4 GB written uncarved, 33 MB carved).
++//   The cost is this region's resident pages counted in the footprint. Ported (MIT) from S2Arm c1d9fd9c, d8b0f8fd, 0b2d2d26, 07314902 and f83bd54a, adapted to the
++//   window files of patch 0036: the fallback mapping back to the files goes one file at a time (gf_at), as s2a_guest_zero does
++static int g_low_tier;           // this session's device cannot hold the pool and the host estimate in physical memory (S2Arm's 「物理内存也装不下」 tier): carve
++static uint64_t g_gfile_room;    // the room left under the per-process limit when file backing was decided (0 = unknown)
++static uint64_t g_anon_lo, g_anon_hi;
++static uint64_t g_carve_a, g_carve_n;   // the alias region asked for while the window was not yet in files (s2a_guest_file_retry carves it once the files are mapped)
++static int in_anon(uint64_t a, uint64_t n) { return g_anon_hi > g_anon_lo && a < g_anon_hi && a + n > g_anon_lo; }
++void s2a_guest_file_carve(uint64_t a, uint64_t n);   // below; s2a_guest_file_retry calls it too
+ // The file and offset behind window address a: the descriptor of the window file holding it (-1 = a is not in the file-backed window), *off = a's offset in that file,
+ //   *room = the bytes from a to that file's end (a mapping of [a, a + n) takes one file when n <= *room)
+ int s2a_guest_file_at(uint64_t a, uint64_t *off, uint64_t *room) {
+-    if (g_gfd < 0 || a < g_base || a >= g_base + g_size) return -1;
++    if (g_gfd < 0 || a < g_base || a >= g_base + g_size || in_anon(a, 1)) return -1;   // RewindBox (patch 0038): not in the files where carved
+     uint64_t in, r; int fd = gf_at(a - g_base, &in, &r);
+     if (off) *off = in;
+     if (room) *room = r;
+@@ -248,6 +260,11 @@ static void guest_file_attach_(void) {
+                     : (on ? "自动：没有本款实测，池 + 宿主开销估计 + 余量大于剩余，装不下" : "自动：没有本款实测，池 + 宿主开销估计 + 余量不大于剩余，装得下、保持匿名内存");
+     LOG("客体内存文件后备：%s——%s；本款应用内存池 %llu MB、离单进程内存上限还剩 %llu MB%s、本机本款实测峰值 %llu MB（0 = 没有）、宿主开销估计 %llu MB%s", on ? "开" : "关", why,
+         (unsigned long long)(pool >> 20), (unsigned long long)(room >> 20), room ? "" : "（0 = 未知）", (unsigned long long)(seen == UINT64_MAX ? 0 : seen >> 20), (unsigned long long)(host >> 20), s2a_process_prewarmed() ? "；预热进程" : "");
++    // RewindBox (patch 0038): the tier for s2a_guest_file_carve, S2Arm's rule (physical memory below the pool and the host estimate; unknown physical memory = not that tier)
++    { uint64_t phys = 0; size_t pn = sizeof phys; if (sysctlbyname("hw.memsize", &phys, &pn, NULL, 0)) phys = 0;
++      g_gfile_room = room; g_low_tier = phys && pool && phys < pool + host;
++      if (on) LOG("RewindBox: guest file backing tier: physical memory %llu MB %s the pool and the host estimate (%llu MB); room under the process limit %llu MB",
++                  (unsigned long long)(phys >> 20), g_low_tier ? "cannot hold" : phys ? "holds" : "(unknown) is taken to hold", (unsigned long long)((pool + host) >> 20), (unsigned long long)(room >> 20)); }
+     if (!on) return;
+     guest_file_map();
+ #else
+@@ -336,7 +353,9 @@ int s2a_guest_file_retry(void) {
+         a = ra + sz;
+     }
+     guest_file_map();
+-    if (g_gfd >= 0) { LOG("客体内存文件后备：装游戏前补接上了（起局时剩余 %llu MB 不够，此刻够了）", (unsigned long long)(g_gfile_avail >> 20)); return 1; }
++    if (g_gfd >= 0) { LOG("客体内存文件后备：装游戏前补接上了（起局时剩余 %llu MB 不够，此刻够了）", (unsigned long long)(g_gfile_avail >> 20));
++        if (g_carve_n) s2a_guest_file_carve(g_carve_a, g_carve_n);   // RewindBox (patch 0038): the alias region the layout set before the files came
++        return 1; }
+     if (g_gfile_pending) {
+         g_gfile_pending = 0;
+         unsigned long long gb_need = (g_gfile_need + (1ull << 30) - 1) >> 30, gb_have = g_gfile_avail >> 30;
+@@ -385,10 +404,58 @@ int s2a_guest_map_fixed(uint64_t a, uint64_t len) {
+     if (fd < 0) return -1;
+     return mmap((void *)(uintptr_t)a, len, PROT_NONE, MAP_FIXED | MAP_SHARED, fd, (off_t)off) == (void *)(uintptr_t)a ? 0 : -1;
+ }
+-// [a, a + n) 在文件后备的窗口里：打洞（还文件块，再读是 0）并按原偏移重新映射成不可访问，返回 1；不在 / 没开文件后备返回 0（调用方照旧换匿名占位）
++// RewindBox (patch 0038): whether to carve (a pure function, unit tested): S2A_GUEST_FILE_CARVE=0 / 1 as set; the low tier carves; otherwise when the room under the per-process
++//   limit is at least room_min (S2A_GUEST_FILE_CARVE_ROOM_MB, default 7168: S2Arm's threshold, a carved session's footprint peak being an absolute amount). Unknown room (0) does not
++int s2a_guest_carve_wanted(const char *e, int low, uint64_t room, uint64_t room_min) {
++    if (e && *e) return *e != '0';
++    if (low) return 1;
++    return room && room >= room_min;
++}
++// The window files again over [lo, hi), one file at a time (the carve's fallback): 1 when every piece is mapped
++static int gf_remap(uint64_t lo, uint64_t hi) {
++    for (uint64_t p = lo; p < hi; ) {
++        uint64_t in, room; int fd = gf_at(p - g_base, &in, &room); uint64_t len = hi - p < room ? hi - p : room;
++        if (fd < 0 || !len || mmap((void *)(uintptr_t)p, len, PROT_NONE, MAP_FIXED | MAP_SHARED, fd, (off_t)in) != (void *)(uintptr_t)p) return 0;
++        p += len;
++    }
++    return 1;
++}
++// Called once the layout has set the alias region (svc_mem.c s2a_mem_init, before any of it is mapped): its intersection with the window, rounded inward to host pages, is
++//   checked to be still an inaccessible reservation and then replaced by an anonymous one. A region already mapped is not carved
++void s2a_guest_file_carve(uint64_t a, uint64_t n) {
++    if (!n) return;
++    if (g_gfd < 0) { g_carve_a = a; g_carve_n = n; return; }   // the files may still come (s2a_guest_file_retry)
++    if (g_anon_hi > g_anon_lo) return;
++    const char *e = getenv("S2A_GUEST_FILE_CARVE");
++    uint64_t room_min = env_mb("S2A_GUEST_FILE_CARVE_ROOM_MB", 7168);
++    if (!s2a_guest_carve_wanted(e, g_low_tier, g_gfile_room, room_min)) {
++        LOG("RewindBox: guest file backing: the mapped region stays in the files (%s; room under the process limit %llu MB, threshold %llu MB)",
++            e && *e ? "S2A_GUEST_FILE_CARVE=0" : "not the low-memory tier", (unsigned long long)(g_gfile_room >> 20), (unsigned long long)(room_min >> 20)); return; }
++    const uint64_t pg = 0x4000;
++    uint64_t lo = a > g_base ? a : g_base, hi = a + n < g_base + g_size ? a + n : g_base + g_size;
++    lo = (lo + pg - 1) & ~(pg - 1); hi &= ~(pg - 1);
++    if (lo >= hi) { LOG("RewindBox: guest file backing: the mapped region %#llx +%llu MB is not in the window, nothing to carve", (unsigned long long)a, (unsigned long long)(n >> 20)); return; }
++    for (vm_address_t r = (vm_address_t)lo; r < hi; ) {
++        vm_address_t ra = r; vm_size_t sz = 0; vm_region_basic_info_data_64_t bi; mach_msg_type_number_t cnt = VM_REGION_BASIC_INFO_COUNT_64; mach_port_t obj = MACH_PORT_NULL;
++        if (vm_region_64(mach_task_self(), &ra, &sz, VM_REGION_BASIC_INFO_64, (vm_region_info_t)&bi, &cnt, &obj) != KERN_SUCCESS || ra >= hi) break;
++        if (bi.protection != VM_PROT_NONE) { LOG("【黄】RewindBox: guest file backing: the mapped region has a mapping already opened at %#llx (protection %d); not carved, it all stays in the files", (unsigned long long)ra, bi.protection); return; }
++        r = ra + sz;
++    }
++    if (mmap((void *)(uintptr_t)lo, hi - lo, PROT_NONE, MAP_FIXED | MAP_PRIVATE | MAP_ANON, -1, 0) != (void *)(uintptr_t)lo) {
++        int er = errno;
++        LOG("【红】RewindBox: guest file backing: the mapped region could not be made anonymous (errno=%d); it stays in the files", er);
++        if (!gf_remap(lo, hi)) die("物理映射区换回文件映射也失败 errno=%d", errno);
++        return;
++    }
++    g_anon_lo = lo; g_anon_hi = hi;
++    LOG("RewindBox: guest file backing: the mapped region %#llx +%llu MB kept anonymous (%s), out of the files: the game maps and releases it all the time; the game heap stays in the files",
++        (unsigned long long)lo, (unsigned long long)((hi - lo) >> 20), e && *e ? "S2A_GUEST_FILE_CARVE=1" : g_low_tier ? "low-memory tier" : "room under the process limit");
++    if (!(e && *e) && !g_low_tier) LOG("RewindBox: guest file backing: carved as room under the process limit %llu MB >= %llu MB", (unsigned long long)(g_gfile_room >> 20), (unsigned long long)(room_min >> 20));
++}
++// [a, a + n) 在文件后备的窗口里：打洞（还文件块，再读是 0）并按原偏移重新映射成不可访问，返回 1；不在 / 没开文件后备 / 落在挖回匿名的那段（RewindBox patch 0038）返回 0（调用方照旧换匿名占位）
+ //   RewindBox (patch 0036): one window file at a time (gf_at), at contiguous addresses; a failure part way returns 0 and the caller covers the whole range anonymous, as before
+ int s2a_guest_zero(uint64_t a, uint64_t n) {
+-    if (g_gfd < 0 || a < g_base || a + n > g_base + g_size || !n) return 0;
++    if (g_gfd < 0 || a < g_base || a + n > g_base + g_size || !n || in_anon(a, n)) return 0;
+     for (uint64_t p = a, e = a + n; p < e; ) {
+         uint64_t in, room; int fd = gf_at(p - g_base, &in, &room); uint64_t len = e - p < room ? e - p : room;
+         if (fd < 0 || !len) return 0;
+@@ -400,7 +467,7 @@ int s2a_guest_zero(uint64_t a, uint64_t n) {
+     return 1;
+ }
+ // [a, a + n) 全在文件后备的窗口里返回 1（没开 / 不在 / n 为 0 返回 0）。svc_mem.c 的懒清零（#258）按它判走不走
+-int s2a_guest_in_file(uint64_t a, uint64_t n) { return g_gfd >= 0 && n && a >= g_base && a + n <= g_base + g_size; }
++int s2a_guest_in_file(uint64_t a, uint64_t n) { return g_gfd >= 0 && n && a >= g_base && a + n <= g_base + g_size && !in_anon(a, n); }   // RewindBox (patch 0038): in_anon
+ int s2a_window_ok(void) { return g_ok; }
+ void s2a_window_get(uint64_t *base, uint64_t *size) { *base = g_base; *size = g_size; }
+ // RewindBox guest (runtime/src/rb_guest.c): game code sits in pages the host made executable (imgpack.c prepare_code), which a whole-window
+@@ -410,6 +477,8 @@ __attribute__((weak)) int s2a_rb_guest_on(void) { return 0; }
+ int s2a_window_session_reset(void) {
+     if (!g_ok || !g_size) return -1;
+     int guest = s2a_rb_guest_on();
++    // RewindBox (patch 0038): the carved region goes back to the files with the rest (s2a_guest_zero maps the files over it); the next session's layout carves its own
++    g_anon_lo = g_anon_hi = 0; g_carve_a = g_carve_n = 0;
+     // 只换客体区；尾部分配器中仍可能有宿主/运行时拥有的映射，不能清空。
+     if (!guest && s2a_guest_zero(g_base, g_size)) return 0;   // 文件后备：整段打洞并重新映射成不可访问
+     void *p = guest ? MAP_FAILED : mmap((void *)g_base, g_size, PROT_NONE, MAP_FIXED | MAP_PRIVATE | MAP_ANON, -1, 0);
+diff --git a/runtime/tests/t_guest_file.c b/runtime/tests/t_guest_file.c
+index 312ca60..9b8eb47 100644
+--- a/runtime/tests/t_guest_file.c
++++ b/runtime/tests/t_guest_file.c
+@@ -39,6 +39,39 @@ int main(void) {
+         if (x != MAP_FAILED) { long long g0 = fp(); for (size_t i = 0; i < (64u << 20); i += 64) x[i] = 3; long long dg = fp() - g0;
+             CHECK(dg < (8ll << 20) && x[12345 * 64] == 3, "⑤ 写满 64 MB：实占 +%lld KB（期望 < 8192 KB）", dg >> 10); }
+     }
++    {   // ⑥' RewindBox (patch 0038, from S2Arm 0b2d2d26 / f83bd54a): whether to carve (s2a_guest_carve_wanted), expectations written from the rule
++        int s2a_guest_carve_wanted(const char *, int, uint64_t, uint64_t); const uint64_t G = 1ull << 30, MIN = 7 * G;
++        CHECK(s2a_guest_carve_wanted("0", 1, 8 * G, MIN) == 0, "⑥' S2A_GUEST_FILE_CARVE=0: not carved (even in the low tier with room)");
++        CHECK(s2a_guest_carve_wanted("1", 0, 0, MIN) == 1, "⑥' S2A_GUEST_FILE_CARVE=1: carved (even with unknown room)");
++        CHECK(s2a_guest_carve_wanted(NULL, 1, 1 * G, MIN) == 1, "⑥' low tier (iPhone17,2, 7,619 MB < pool 9,216 + host 2,048): carved");
++        CHECK(s2a_guest_carve_wanted(NULL, 0, 8189ull << 20, MIN) == 1, "⑥' room 8,189 MB >= 7,168: carved");
++        CHECK(s2a_guest_carve_wanted(NULL, 0, 6141ull << 20, MIN) == 0, "⑥' room 6,141 MB < 7,168: not carved");
++        CHECK(s2a_guest_carve_wanted(NULL, 0, 0, MIN) == 0, "⑥' unknown room (0, Mac): not carved");
++    }
++    {   // ⑥ RewindBox (patch 0038, from S2Arm c1d9fd9c / d8b0f8fd): the mapped region carved anonymous out of the window files (1 GB each here, patch 0036). A range already
++        //   opened (① 256 MB) is refused; by default (not the low tier, room unknown) nothing is carved; S2A_GUEST_FILE_CARVE=1 carves: the range and its ends are not in the
++        //   files, its neighbours are, its release does not punch, what is written there counts in the footprint and does not reach the file; a session reset gives it back
++        void s2a_guest_file_carve(uint64_t, uint64_t); int s2a_guest_file_at(uint64_t, uint64_t *, uint64_t *); int s2a_window_session_reset(void);
++        const uint64_t C = b + (8ull << 30) + (512ull << 20), CN = 1ull << 30;   // across two window files
++        uint64_t coff = 0; int cfd = s2a_guest_file_at(C + (64u << 10), &coff, NULL);
++        s2a_guest_file_carve((uint64_t)(uintptr_t)q, 16u << 20);
++        CHECK(s2a_guest_in_file((uint64_t)(uintptr_t)q, 0x4000) == 1, "⑥ a range already opened is refused: still in the files");
++        unsetenv("S2A_GUEST_FILE_CARVE"); s2a_guest_file_carve(C, CN);
++        CHECK(s2a_guest_in_file(C, 0x4000) == 1, "⑥ by default (not the low tier, unknown room) nothing is carved");
++        setenv("S2A_GUEST_FILE_CARVE", "1", 1); s2a_guest_file_carve(C, CN);
++        CHECK(s2a_guest_in_file(C, 0x4000) == 0 && s2a_guest_in_file(C + CN - 0x4000, 0x4000) == 0 && s2a_guest_in_file(b + (9ull << 30), 0x4000) == 0, "⑥ S2A_GUEST_FILE_CARVE=1: both ends and the file boundary are out of the files");
++        CHECK(s2a_guest_in_file(C - 0x4000, 0x4000) == 1 && s2a_guest_in_file(C + CN, 0x4000) == 1, "⑥ the neighbours stay in the files");
++        CHECK(s2a_guest_file_at(C, NULL, NULL) == -1 && s2a_guest_file_at(C - 0x4000, NULL, NULL) >= 0, "⑥ s2a_guest_file_at: no file behind the carved range, one beside it");
++        CHECK(s2a_guest_zero(C, 0x4000) == 0, "⑥ releasing in the carved range does not punch (0: the caller maps anonymous)");
++        uint8_t *c = (uint8_t *)(uintptr_t)C; size_t M = 64u << 20;
++        if (mprotect(c, M, PROT_READ | PROT_WRITE)) CHECK(0, "⑥ opening the carved range failed");
++        else { long long g0 = fp(); for (size_t i = 0; i < M; i += 64) c[i] = 7; long long dg = fp() - g0;
++            uint8_t buf[4096]; ssize_t r = cfd >= 0 ? pread(cfd, buf, sizeof buf, (off_t)(coff - (64u << 10))) : -1; size_t nz = 0; for (ssize_t i = 0; i < r; i++) nz += buf[i] != 0;
++            CHECK(dg > (48ll << 20), "⑥ 64 MB written in the carved range: footprint +%lld KB (anonymous, expected > 49152 KB)", dg >> 10);
++            CHECK(r == (ssize_t)sizeof buf && nz == 0 && c[64] == 7, "⑥ the window file at the same offset reads back zeros (non-zero %zu, read %zd bytes)", nz, r); }
++        unsetenv("S2A_GUEST_FILE_CARVE");
++        CHECK(s2a_window_session_reset() == 0 && s2a_guest_in_file(C, 0x4000) == 1 && s2a_guest_file_at(C, NULL, NULL) >= 0, "⑥ a session reset gives the carved range back to the files");
++    }
+     printf("%s t_guest_file：%d 项不符\n", bad ? "✗" : "✓", bad);
+     return bad != 0;
+ }
