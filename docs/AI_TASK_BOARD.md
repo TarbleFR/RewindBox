@@ -5728,7 +5728,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
         updateVisibility → vpad setInputEnabled.
       - On purpose in the engine: touching the screen shows the pad again until the controller is used, and the
         touch-only layout keeps its touch layer.
-      - Patches 0001-0012 do not change this.
+      - Patches 0001-0036 do not change this (rechecked on Claude fa88b7f5, IPA 749). Only 0007 (menu presenter) and
+        0009 (NS2Pro.framework path, pad recording off) touch ios/controller.m and ios/vpad.m.
+      - Before Claude 49e7c50a, the pad already hid, but controller input never reached the game: export_list.py hid
+        s2a_vpad_read* / s2a_pad_*. IPA 749 is the first IPA with that fix. Neither the hiding nor the input has been
+        observed on a device.
       - RewindBox's ☰ menu button stays visible (− and + also open the menu), because some pads report no
         buttonOptions; hiding it is the maintainer's call.
   - **IPA 732 device report (maintainer, 12 Nov 20:09Z: S2Arm journal and three engine logs): the boot now asks for its
