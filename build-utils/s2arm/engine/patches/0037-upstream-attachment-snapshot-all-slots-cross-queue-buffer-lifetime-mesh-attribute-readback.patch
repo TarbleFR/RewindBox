@@ -1,0 +1,435 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 4e0f657..21baa0d 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -508,6 +508,36 @@ static int g_pidx_ok, g_plast = -1;   // whether the address→pool index is val
+ static NSMutableArray *g_keep;                  // Holds the buffer references (pool_ent has non-owning pointers)
+ static uint64_t g_pool_adds;
+ static int g_pool_res_n;   // registered pools already in the residency set (for the memory readout; under g_mu)
++// A queue piece parked after it was submitted may still name a pool after the guest Finalizes it. Keep the buffer alive and resident until that piece is replayed or dropped.
++// The pool's normal deferred release is not merely allowed to run early: it also removes residency at its original fence, which can be before the later replay completes.
++typedef struct { void *buf; uint32_t refs; int retired; } xq_buf_hold;
++static xq_buf_hold *g_xq_bhold; static int g_xq_nbhold, g_xq_cbhold; static pthread_mutex_t g_xq_bhold_mu = PTHREAD_MUTEX_INITIALIZER;
++static void xq_buf_hold_add(void *buf) {
++    if (!buf) return; CFRetain(buf);
++    pthread_mutex_lock(&g_xq_bhold_mu);
++    int i = 0; while (i < g_xq_nbhold && g_xq_bhold[i].buf != buf) i++;
++    if (i == g_xq_nbhold) {
++        if (g_xq_nbhold == g_xq_cbhold) { int c = g_xq_cbhold ? g_xq_cbhold * 2 : 16; xq_buf_hold *p = realloc(g_xq_bhold, (size_t)c * sizeof *p); if (!p) MDIE("cross-queue buffer holds: out of memory"); g_xq_bhold = p; g_xq_cbhold = c; }
++        g_xq_bhold[g_xq_nbhold++] = (xq_buf_hold){buf, 0, 0};
++    }
++    g_xq_bhold[i].refs++; pthread_mutex_unlock(&g_xq_bhold_mu);
++}
++static int xq_buf_hold_retire(void *buf) {
++    int held = 0; pthread_mutex_lock(&g_xq_bhold_mu);
++    for (int i = 0; i < g_xq_nbhold; i++) if (g_xq_bhold[i].buf == buf) { g_xq_bhold[i].retired = held = 1; break; }
++    pthread_mutex_unlock(&g_xq_bhold_mu); return held;
++}
++static void xq_buf_hold_del(void *buf) {
++    if (!buf) return; int retired = 0;
++    pthread_mutex_lock(&g_xq_bhold_mu);
++    for (int i = 0; i < g_xq_nbhold; i++) if (g_xq_bhold[i].buf == buf) {
++        if (!--g_xq_bhold[i].refs) { retired = g_xq_bhold[i].retired; g_xq_bhold[i] = g_xq_bhold[--g_xq_nbhold]; }
++        break;
++    }
++    pthread_mutex_unlock(&g_xq_bhold_mu);
++    if (retired) defer_obj_release((__bridge id)buf);   // re-time residency removal behind the last replay that owned this hold
++    CFRelease(buf);
++}
+ // Access bits of the raw pool table (gmem_map / gmem_scan): a pool the table lists but the host has not made resident, or made resident only for the table, gets a bit, which a raw
+ // access sets when it chooses the pool's entry. Bits belong to pools, not entries, so a rebuilt table loses none set by submissions still running. Under g_mu
+ enum { GSLOT_MAX = 65536 };
+@@ -804,7 +834,7 @@ static void nvn_be_pool_del_body(const void *mem) {
+     // The no-copy buffer goes through deferred release (out of the residency set and unreferenced after submitted commands complete). It used to be removed only from g_keep while the residency set still held a strong reference: after the pool was freed the buffer stayed alive wrapping that guest memory,
+     // and a new pool at the same address wrapped it again. Engage's title demo cycles scenes; GPU allocated grew to 5.4 GB and resident memory to 3.6 GB in 850 s
+     for (int i = 0; i < g_npool; i++)
+-        if (g_pools[i].key == mem) { id<MTLBuffer> b = g_pools[i].buf; [g_keep removeObject:b]; defer_obj_release(b); if (g_pools[i].res) g_pool_res_n--;
++        if (g_pools[i].key == mem) { id<MTLBuffer> b = g_pools[i].buf; [g_keep removeObject:b]; if (!xq_buf_hold_retire((__bridge void *)b)) defer_obj_release(b); if (g_pools[i].res) g_pool_res_n--;
+             if (!g_dead_pools) g_dead_pools = [NSHashTable weakObjectsHashTable];
+             gslot_put(i);
+             [g_dead_pools addObject:b]; g_pools[i] = g_pools[--g_npool]; if (i < g_npool && g_pools[i].gslot) g_gslot_pool[g_pools[i].gslot - 1] = i;   // the moved pool's bit follows it
+@@ -866,6 +896,7 @@ static inline const uint8_t *addr_cpu(uint64_t addr, uint64_t len) {
+ }
+ // *avail: bytes the GPU pointer has behind it up to the end of the pool's zero-copy buffer (mtl_add_pool rounds the pool's end up to a page). Audit #1534 P1-65 probe (encode_args)
+ static inline uint64_t pool_buf_end(uintptr_t hi) { static uintptr_t pg; if (!pg) pg = (uintptr_t)getpagesize(); return (hi + pg - 1) & ~(pg - 1); }
++static int xq_addr_want(uint64_t addr, uint64_t len, void **buf, uint64_t *off, uint64_t *gpu, uint64_t *avail);   // nvn_xqueue.inc: only the state of the parked piece currently being replayed
+ static inline int gpu_addr_want(uint64_t addr, uint64_t len, uint64_t want, void **buf, uint64_t *off, uint64_t *gpu, uint64_t *avail) {
+     addr = nvn_ga2ca(addr);   // 同 nvn_be_addr
+     const pc_ent *c = pc_get(addr, len);
+@@ -879,6 +910,7 @@ static inline int gpu_addr_want(uint64_t addr, uint64_t len, uint64_t want, void
+         pthread_mutex_lock(&g_mu); i = pool_find(addr, len);
+         if (i >= 0) { pool_res(i); pc_put(i, addr); *buf = (__bridge void *)g_pools[i].buf; *off = addr - g_pools[i].base; *gpu = g_pools[i].gpu + *off; *avail = pool_buf_end(g_pools[i].hi) - addr; ok = 1; }
+         pthread_mutex_unlock(&g_mu); }
++    if (!ok) ok = xq_addr_want(addr, len, buf, off, gpu, avail);
+     return ok;
+ }
+ static inline int gpu_addr_avail(uint64_t addr, uint64_t len, void **buf, uint64_t *off, uint64_t *gpu, uint64_t *avail) { return gpu_addr_want(addr, len, len, buf, off, gpu, avail); }
+@@ -12847,7 +12879,9 @@ static void fb_prepare(NvProg *pr) {
+     if (!pr || !pr->sh[1] || !R.rt.n || g_fz.active || g_defer_replaying) return;
+     NvShader *fs = pr->sh[1]; int listed = fb_want(fs->key); if (g_fb_off) return;
+     id<MTLTexture> cbase[4] = {nil}, csnap[4] = {nil}; NSUInteger ckey[4][4]; int ncopy = 0, settled = 0;   // ④ copies of this draw by real subresource (base, levels, slices); clears landed
+-    for (int i = 0; i < fs->rf.nb && g_fb_n < 4; i++) { const nvn_rbind *b = &fs->rf.b[i]; if (b->kind != NVN_RB_TEX || b->reg >= 128) continue;
++    // 贴图槽表是 0..NTEX-1（256）：原先只查 128 号以下，从 128 号以上读自己附件的绘制（#839：一款动作游戏的 FXAA 从 128 号槽读正在写的场景图）不换快照、原地边读边写，
++    //   Metal 下读到写到一半的块，NaN / Inf 进场景，经泛光扩散、色调映射查表后整屏发绿带黑块
++    for (int i = 0; i < fs->rf.nb && g_fb_n < 4; i++) { const nvn_rbind *b = &fs->rf.b[i]; if (b->kind != NVN_RB_TEX || b->reg >= NTEX) continue;
+         int tid = (int)(tex_slot_h(S.tex[1], S.img[1], b->reg) & 0xfffff);
+         pthread_mutex_lock(&g_rmu); uint64_t ser = tid < g_ntreg && g_treg[tid].ok ? g_treg[tid].t.serial : 0; pthread_mutex_unlock(&g_rmu);
+         if (!ser) continue;
+diff --git a/graphics/nvn/gfx/nvn/nvn_xqueue.inc b/graphics/nvn/gfx/nvn/nvn_xqueue.inc
+index c75eaa1..133af21 100644
+--- a/graphics/nvn/gfx/nvn/nvn_xqueue.inc
++++ b/graphics/nvn/gfx/nvn/nvn_xqueue.inc
+@@ -31,9 +31,10 @@ static pthread_mutex_t g_xq_mu = PTHREAD_MUTEX_INITIALIZER; static pthread_cond_
+ __attribute__((weak)) void nvn_hle_queue_enter(void *q) { (void)q; }   // hle_nvn.c: per-queue device, raster flip, virtual pool copies before each replayed piece (before sub_begin)
+ __attribute__((weak)) void nvn_hle_piece_begun(void) {}   // hle_nvn.c: texture write polling (after sub_begin)
+ 
++static void xq_state_free(void *p);
+ static xq_t *xq_find(void *q) { for (int i = 0; i < g_nxq; i++) if (g_xq[i].q == q) return &g_xq[i]; return NULL; }
+ static int xq_busy_q(void *q) { xq_t *e = xq_find(q); return e && e->ncont; }
+-static void xq_drop(xq_t *e) { pthread_mutex_lock(&g_xq_mu); free(e->cont); free(e->state); free(e->owed); *e = g_xq[--g_nxq]; pthread_mutex_unlock(&g_xq_mu); }   // g_xq_mu: owed lookups from other threads
++static void xq_drop(xq_t *e) { pthread_mutex_lock(&g_xq_mu); free(e->cont); xq_state_free(e->state); free(e->owed); *e = g_xq[--g_nxq]; pthread_mutex_unlock(&g_xq_mu); }   // g_xq_mu: owed lookups from other threads
+ // Does the command stream from p (to its END, through CALLs and JUMPs) signal val from the GPU?
+ static int xq_signals(const uint8_t *p, volatile uint32_t *val, int depth) {
+     for (int steps = 0; p && steps < 1000000; steps++) {
+@@ -67,20 +68,66 @@ static void xq_push(xq_t *e, uint64_t h) {
+     if (e->ncont == e->ccap) { e->ccap = e->ccap ? e->ccap * 2 : 16; e->cont = realloc(e->cont, sizeof *e->cont * e->ccap); if (!e->cont) MDIE("no memory for parked command streams"); }
+     e->cont[e->ncont++] = h; xq_sig_walk(e, (const uint8_t *)(uintptr_t)h, 0);
+ }
+-// Replay state carried across a park: what the commands after the wait read from the commands before it
+-typedef struct { size_t nrc; uint64_t rc[]; } xq_rc;
++// Replay state carried across a park: what the commands after the wait read from the commands before it. A bound vertex range is also a dependency of the already-submitted piece:
++// NVN lets the guest Finalize its pool while the queue is waiting, but this host has not encoded the commands after the wait yet. Keep only those 16 bound ranges and expose them only
++// while this exact parked state is replayed; the finalized pool does not return to the global pool table. buf has one xq_buf_hold_add per non-empty entry.
++typedef struct { uint64_t lo, hi, base, gpu; void *buf; } xq_vbuf;
++typedef struct {
++    typeof(S) s; typeof(R) r; int rc_skip; size_t nrc;
++    xq_vbuf vb[16];
++    uint64_t rc[];
++} xq_state;
++static _Thread_local const xq_state *g_xq_state_active;   // only the submit thread replaying this piece may see the finalized ranges
++
++static int xq_range_end(uint64_t lo, uint64_t n, uint64_t *hi) { if (!n || lo > UINT64_MAX - n) return 0; *hi = lo + n; return 1; }
++static const xq_vbuf *xq_vbuf_find(const xq_state *x, uint64_t lo, uint64_t hi) {
++    if (!x) return NULL;
++    for (int i = 0; i < 16; i++) if (x->vb[i].buf && lo >= x->vb[i].lo && hi <= x->vb[i].hi) return &x->vb[i];
++    return NULL;
++}
++static void xq_vbuf_save(xq_state *x, int slot) {
++    NVNbufferRange v = S.vbuf[slot]; uint64_t lo = nvn_ga2ca(v.address), hi;
++    if (!v.address || !xq_range_end(lo, v.size, &hi)) return;
++    pthread_mutex_lock(&g_mu);
++    int i = pool_find(lo, 1);
++    if (i >= 0) {
++        pool_res(i);
++        uint64_t end = MIN(hi, (uint64_t)g_pools[i].hi);
++        if (end > lo) {
++            x->vb[slot] = (xq_vbuf){lo, end, g_pools[i].base, g_pools[i].gpu, (__bridge void *)g_pools[i].buf};
++            xq_buf_hold_add(x->vb[slot].buf);
++        }
++    }
++    pthread_mutex_unlock(&g_mu);
++    if (x->vb[slot].buf) return;
++    const xq_vbuf *old = xq_vbuf_find(g_xq_state_active, lo, hi);   // the pool was finalized after the preceding park; transfer its held dependency if this piece parks again
++    if (old) { x->vb[slot] = (xq_vbuf){lo, hi, old->base, old->gpu, old->buf}; xq_buf_hold_add(old->buf); }
++}
+ static void *xq_state_save(void) {
+-    size_t n = sizeof S + sizeof R + sizeof(int) + sizeof(size_t) + (size_t)g_rc_npend * 8; uint8_t *b = malloc(n); if (!b) MDIE("no memory for a parked queue's state");
+-    memcpy(b, &S, sizeof S); memcpy(b + sizeof S, &R, sizeof R); memcpy(b + sizeof S + sizeof R, &g_rc_skip, sizeof(int));
+-    size_t k = g_rc_npend; memcpy(b + sizeof S + sizeof R + sizeof(int), &k, sizeof k); if (k) memcpy(b + sizeof S + sizeof R + sizeof(int) + sizeof k, g_rc_pend, k * 8);
+-    return b;
++    size_t k = g_rc_npend, n = sizeof(xq_state) + k * sizeof(uint64_t); xq_state *x = calloc(1, n); if (!x) MDIE("no memory for a parked queue's state");
++    memcpy(&x->s, &S, sizeof S); memcpy(&x->r, &R, sizeof R); x->rc_skip = g_rc_skip; x->nrc = k; if (k) memcpy(x->rc, g_rc_pend, k * sizeof(uint64_t));
++    for (int i = 0; i < 16; i++) xq_vbuf_save(x, i);
++    return x;
+ }
+ static void xq_state_load(const void *p) {
+-    const uint8_t *b = p; memcpy(&S, b, sizeof S); memcpy(&R, b + sizeof S, sizeof R); memcpy(&g_rc_skip, b + sizeof S + sizeof R, sizeof(int));
+-    size_t k; memcpy(&k, b + sizeof S + sizeof R + sizeof(int), sizeof k);
+-    for (size_t i = 0; i < k; i++) { uint64_t a; memcpy(&a, b + sizeof S + sizeof R + sizeof(int) + sizeof k + i * 8, 8); rc_note(a, 1); }
++    const xq_state *x = p; memcpy(&S, &x->s, sizeof S); memcpy(&R, &x->r, sizeof R); g_rc_skip = x->rc_skip;
++    for (size_t i = 0; i < x->nrc; i++) rc_note(x->rc[i], 1);
++    for (int i = 0; i < 16; i++) if (x->vb[i].buf) res_add((__bridge id<MTLBuffer>)x->vb[i].buf);
++    res_commit(); g_xq_state_active = x;
+     g_pso_dirty = g_dss_dirty = 1; args_dirty_all();
+ }
++static void xq_state_deactivate(void) { g_xq_state_active = NULL; }
++static void xq_state_free(void *p) {
++    xq_state *x = p; if (!x) return;
++    if (g_xq_state_active == x) g_xq_state_active = NULL;
++    for (int i = 0; i < 16; i++) if (x->vb[i].buf) xq_buf_hold_del(x->vb[i].buf);
++    free(x);
++}
++static int xq_addr_want(uint64_t addr, uint64_t len, void **buf, uint64_t *off, uint64_t *gpu, uint64_t *avail) {
++    uint64_t hi; if (!xq_range_end(addr, len, &hi)) return 0;
++    const xq_vbuf *v = xq_vbuf_find(g_xq_state_active, addr, hi); if (!v) return 0;
++    *buf = v->buf; *off = addr - v->base; *gpu = v->gpu + *off; *avail = v->hi - addr; return 1;
++}
+ // ev_wait ④: may this unmet wait park the queue being replayed? p = the operation after the wait
+ static int xq_may_park_(const uint8_t *p, volatile uint32_t *val, uint32_t mode, uint32_t v);
+ static int xq_may_park(const uint8_t *p, volatile uint32_t *val, uint32_t mode, uint32_t v) {
+@@ -105,7 +152,7 @@ static void xq_publish_owed(xq_t *e, uint64_t fence) {
+ // One piece: replay streams h[0..n) of queue q as a submission; returns 1 if it parked (the rest is in q's entry)
+ static int xq_piece(void *q, const uint64_t *h, int n, const void *state) {
+     nvn_hle_queue_enter(q);
+-    nvn_be_sub_begin(); nvn_hle_piece_begun(); if (state) xq_state_load(state);
++    nvn_be_sub_begin(); nvn_hle_piece_begun(); xq_state_deactivate(); if (state) xq_state_load(state);
+     nvn_be_sub_index(h, n);
+     g_xq_cur = q; g_xq_unwind = 0; g_xq_nuc = 0; g_xq_ucover = 0;
+     int i = 0;
+@@ -113,6 +160,7 @@ static int xq_piece(void *q, const uint64_t *h, int n, const void *state) {
+     nvn_be_exec_rest(NULL, 0); g_xq_cur = NULL;
+     void *st = g_xq_unwind ? xq_state_save() : NULL;
+     uint64_t fence = nvn_be_sub_commit();
++    xq_state_deactivate();
+     xq_t *e = xq_find(q);
+     if (!g_xq_unwind) { if (e) { xq_publish_owed(e, fence); if (!e->ncont && !e->parked) xq_drop(e); } return 0; }
+     g_xq_unwind = 0;
+@@ -122,7 +170,7 @@ static int xq_piece(void *q, const uint64_t *h, int n, const void *state) {
+     for (int k = 0; k < g_xq_nuc; k++) xq_push(e, (uint64_t)(uintptr_t)g_xq_uc[k]);
+     for (int k = i + 1; k < n; k++) xq_push(e, h[k]);
+     for (int k = 0; k < nrest; k++) xq_push(e, rest[k]);
+-    free(rest); free(e->state); e->state = st;
++    free(rest); xq_state_free(e->state); e->state = st;
+     e->parked = 1; e->val = g_xq_pval; e->mode = g_xq_pmode; e->v = g_xq_pv; e->since = g_xq_subs; g_xq_parks++;
+     { static int n_; if (!n_++) MLOG("cross-queue event waits: queue %p parked at a wait on %p (mode %u, value %u, now %u) until another queue's signal is replayed (first case)", q, g_xq_pval, g_xq_pmode, g_xq_pv, ev_now(g_xq_pval)); }
+     return 1;
+@@ -139,7 +187,7 @@ static void xq_run(xq_t *e, int force) {
+     if (force) { g_xq_forced++; } else g_xq_resumes++;
+     if (nc) { uint64_t t0 = clock_gettime_nsec_np(CLOCK_UPTIME_RAW); g_xq_pieces++; xq_piece(q, c, nc, st); g_xq_piece_ns += clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - t0; }
+     else if ((e = xq_find(q)) && !e->parked) { xq_publish_owed(e, nvn_be_last_fence()); xq_drop(e); }
+-    free(c); free(st);
++    free(c); xq_state_free(st);
+ }
+ static void xq_drain_ready(void) {
+     for (int again = 1; again;) { again = 0;
+diff --git a/graphics/nvn/tests/t_nvn_fb_pin.m b/graphics/nvn/tests/t_nvn_fb_pin.m
+index 7e44535..95bfe09 100644
+--- a/graphics/nvn/tests/t_nvn_fb_pin.m
++++ b/graphics/nvn/tests/t_nvn_fb_pin.m
+@@ -9,6 +9,7 @@
+ //   ④ 画第 1 级、LOD 2..2 但没有 mip 过滤（minf 1）→ 同 ③
+ //   ⑤ 画第 0 级、钉第 1 级 → 一个视图，只含第 1 级
+ //   ⑥ 画第 0 级、不钉 → 不换视图
++//   ⑦ 同 ⑤，但贴图绑在 128 号槽（槽表 0–255 都是贴图；#839 一款动作游戏的 FXAA 从 128 号槽读自己正在写的场景图）→ 同样换成只含第 1 级的视图（修前 128 号以上不查，原地边读边写）
+ #ifndef NVN_PIN_SOURCE
+ #define NVN_PIN_SOURCE "../gfx/nvn/nvn_mtl.m"
+ #endif
+@@ -58,6 +59,17 @@ int main(void) {
+                   "%s（换了 %d 个视图，第 %lu 级起 %lu 级）", c[i].label, g_fb_n, (unsigned long)use.parentRelativeLevel, (unsigned long)use.mipmapLevelCount);
+             if (g_enc) rp_end();
+         }
++        {   // ⑦ 128 号槽
++            fs->rf.b[0].reg = 128; fs->rf.b[1].reg = 128; state_reset(); S.tex[1][128] = TID | (uint64_t)SID << 20;
++            samp_par sp = {.minf = 5, .magf = 1, .ws = 2, .wt = 2, .wr = 2, .lod_min = 1, .lod_max = 1, .aniso = 1}; nvn_be_reg_samp(SID, &sp);
++            memset(&R.rt, 0, sizeof R.rt); R.has_rt = 1; R.rt.n = 1; R.rt.color[0] = &chain; R.rt.has_cview[0] = 1;
++            R.rt.cview[0] = (view_t){.set_levels = 1, .base_level = 0, .nlevels = 1};
++            fb_prepare(pr);
++            id<MTLTexture> use = g_fb_n ? g_fb_use[0] : nil;
++            CHECK(g_fb_n == 1 && use.parentTexture == original && (int)use.parentRelativeLevel == 1 && (int)use.mipmapLevelCount == 1,
++                  "⑦ 贴图在 128 号槽、画第 0 级、钉第 1 级：只含第 1 级（换了 %d 个视图）", g_fb_n);
++            if (g_enc) rp_end();
++        }
+         uint64_t f = nvn_be_sub_commit(); REQUIRE(nvn_be_wait(f, 10000000000ull));
+         printf("%s t_nvn_fb_pin: %u checks %u failures; backend Metal%d\n", failures ? "✗" : "✓", checks, failures, g_m3 ? 3 : 4);
+         return failures != 0;
+diff --git a/graphics/nvn/tests/t_nvn_xqueue.m b/graphics/nvn/tests/t_nvn_xqueue.m
+index 3381433..f1f0aed 100644
+--- a/graphics/nvn/tests/t_nvn_xqueue.m
++++ b/graphics/nvn/tests/t_nvn_xqueue.m
+@@ -8,6 +8,14 @@
+ //   ⑤ 互等（负对照）：A「等 X → 发 Y」、B「等 Y → 发 X」：B 停住会成环 → B 不停、照旧立即放行并记一次成环（报红），两边都在 2 秒内完成，X = Y = 1，不死锁
+ //   ⑥ 保险：等一个永远没人发的信号 → 别的队列再提交 256 次后强制放行，停住的拷贝落地
+ //   ⑦ 停住时的回放状态带到接着回放的那段：等待之前 BindProgram / SetRenderTargets 记下的 S / R 在接着回放时原样恢复（不被中间别的队列的提交改掉）
++//   ⑧ 状态里的顶点缓冲是已提交但停住的命令依赖：停住期间来宾 Finalize 内存池，接着回放仍能解析当时的缓冲；没在快照里的地址仍取不到
++#include <stddef.h>
++#include <stdint.h>
++// 本夹具直接包含 nvn_mtl.m，不链宿主 dsh_miss.inc；#871 的网格源码缓存不在这些场景里，给可被真实现覆盖的弱桩。
++__attribute__((weak)) int dm_shader_vpad_cached_mesh(const uint8_t key[8], uint32_t mask, char *path, size_t n) {
++    (void)key; (void)mask; (void)path; (void)n;
++    return -1;
++}
+ #include "../gfx/nvn/nvn_mtl.m"
+ static unsigned checks, failures;
+ #define REQUIRE(c) do { if (!(c)) { fprintf(stderr, "FAIL setup %s:%d: %s\n", __FILE__, __LINE__, #c); exit(1); } } while (0)
+@@ -95,7 +103,30 @@ int main(void) { @autoreleasepool {
+     // 接着回放的那段在 A 的流末尾（END）读不到状态：用 B 发信号之后、A 接着回放完之后的全局状态看（A 那段是最后回放的）
+     submit(&QB, vb7, 1); seen_ref = S.alpha_ref; seen_patch = S.patch_size; seen_sc = R.has_sc ? (int)R.sc.x : -1; settle();
+     VERIFY(seen_ref == 0.25f && seen_patch == 7 && seen_sc == 11, "⑦ 接着回放时恢复停住时的状态：alpha_ref %.2f（期望 0.25）、patch %d（期望 7）、剪裁 x %d（期望 11）", seen_ref, seen_patch, seen_sc);
++    // ⑧ 直接核 xq_state_save / load 的资源寿命：真队列路径也只通过这两个函数携带停住点。
++    uint8_t *vp = NULL; REQUIRE(!posix_memalign((void **)&vp, 65536, 65536)); memset(vp, 0x5a, 65536); nvn_be_pool_add(vp, 65536);
++    state_reset(); S.vbuf[5] = (NVNbufferRange){(uint64_t)(uintptr_t)(vp + 4096), 34720};
++    NSUInteger deferred0 = g_deferred.count;
++    void *saved = xq_state_save(); nvn_be_pool_del(vp); state_reset(); xq_state_load(saved);
++    void *mb = NULL; uint64_t mo = 0, gpu = 0, avail = 0;
++    int held = gpu_addr_want(S.vbuf[5].address, 1, S.vbuf[5].size, &mb, &mo, &gpu, &avail);
++    VERIFY(held && mb && mo == 4096 && avail >= S.vbuf[5].size,
++           "⑧ 停住状态持有顶点缓冲：内存池 Finalize 后恢复 slot 5 仍可解析 %d、偏移 %llu（期望 4096）、可用 %llu 字节",
++           held, (unsigned long long)mo, (unsigned long long)avail);
++    void *saved2 = xq_state_save(); xq_state_deactivate(); xq_state_free(saved); state_reset(); xq_state_load(saved2);
++    mb = NULL; mo = gpu = avail = 0;
++    int transferred = gpu_addr_want(S.vbuf[5].address, 1, S.vbuf[5].size, &mb, &mo, &gpu, &avail);
++    VERIFY(transferred && mb && mo == 4096 && avail >= S.vbuf[5].size,
++           "⑧ 再次停住：已 Finalize 池的持有从旧快照转给新快照 %d（期望 1），旧快照释放后仍可解析", transferred);
++    void *other = NULL; uint64_t oo = 0, og = 0, oa = 0;
++    int leaked = gpu_addr_want((uint64_t)(uintptr_t)vp + 60000, 1, 1, &other, &oo, &og, &oa);
++    VERIFY(!leaked, "⑧ 负对照：同一已 Finalize 池里没被 slot 5 快照覆盖的地址仍不可解析 %d（期望 0）", leaked);
++    xq_state_deactivate(); xq_state_free(saved2);
++    pthread_mutex_lock(&g_xq_bhold_mu); int holds_left = g_xq_nbhold; pthread_mutex_unlock(&g_xq_bhold_mu);
++    VERIFY(!holds_left && g_deferred.count == deferred0 + 1,
++           "⑧ 生命周期收尾：暂停持有剩 %d（期望 0），池缓冲在最后一次回放之后进入延后释放 %ld 次（期望 1）",
++           holds_left, (long)(g_deferred.count - deferred0));
+     if (failures) { printf("✗ t_nvn_xqueue：%u 项里 %u 项不符\n", checks, failures); return 1; }
+-    printf("✓ t_nvn_xqueue：%u 项全过（跨队列事件顺序：等待之后的命令排在满足它的信号之后；同队列后续提交排队；子列表 / 多句柄接着回放；欠着的栅栏；互等报红不死锁；保险放行；状态带过停住点）\n", checks);
++    printf("✓ t_nvn_xqueue：%u 项全过（跨队列事件顺序：等待之后的命令排在满足它的信号之后；同队列后续提交排队；子列表 / 多句柄接着回放；欠着的栅栏；互等报红不死锁；保险放行；状态带过停住点及顶点缓冲寿命）\n", checks);
+     return 0;
+ } }
+diff --git a/graphics/tools/direct/dsh/MeshStage.cs b/graphics/tools/direct/dsh/MeshStage.cs
+index 87cd2e1..9ceea89 100644
+--- a/graphics/tools/direct/dsh/MeshStage.cs
++++ b/graphics/tools/direct/dsh/MeshStage.cs
+@@ -5,7 +5,7 @@
+ //   字 0       本组工作组号（ISBERD 模式 0x78）：任务 = 本次绘制起始工作组号 + 线程组号；无任务的网格同
+ //   INPUT      网格着色器读的、它的任务写的载荷（ISBERD 模式 0x38）。字 0 = 本组在其任务派生里的序号（硬件放的，包装填）
+ //   输出       任务的载荷（0xb8）：字 1 = 要派生的网格工作组数，记录从 +0x10 起；
+-//              或网格的属性（0xf8）：每 32 个顶点 / 32 个图元一块，每个分量 0x80 字节（一顶点或一图元一字），先 SPH OMAP 开的顶点分量、再逐图元 SPH 的
++//              或网格的属性（0xf8）：先全部顶点块（每 32 个顶点一块，SPH OMAP 开的顶点分量各 0x80 字节，一顶点一字），再全部图元块（每 32 个图元一块，逐图元 SPH 的分量各 0x80 字节）；大小按两者交错算的上界留（Memory），够放
+ //   图元       网格的图元字节：+3 图元数（0x88），+4 起每三角形三个索引字节（0x80）
+ // 接口约定：side-session-notes 22_网格着色接口约定.md（入口名、缓冲槽 29、反射字段）
+ using System;
+@@ -170,18 +170,24 @@ namespace S2A.Dsh
+                     + $"    for (uint i = {lid}; i < {pay}u; i += {thr}u) dm_payload.w[i] = {mem}[{outw}u + i];\n"
+                     + $"    if ({lid} == 0u) dm_grid.set_threadgroups_per_grid(uint3(min({mem}[{outw + 1}], {METAL_MAX_GRID}u), 1u, 1u));\n}}\n";
+             if (i.MaxV > METAL_MAX_VERTICES || i.MaxP > METAL_MAX_PRIMITIVES) throw new DshError("mesh stage failed", $"ms: {i.MaxV} 顶点 / {i.MaxP} 图元超 Metal 网格上限（{METAL_MAX_VERTICES} / {METAL_MAX_PRIMITIVES}）");
+-            int nv = i.Vertex.Count;
+-            int stride = Math.Max(nv + i.Primitive.Count, 1) * BLOCK;   // 一块属性的字数
++            // 属性区（硬件排法，着色器本体自己按它算地址）：先全部顶点块（每 32 个顶点一块、只含顶点分量，块长 nv × 0x80），紧接全部图元块（每 32 个图元一块、
++            //   只含逐图元分量，块长 np × 0x80）。两者不交错：网格 192226654c410372（04008E001F098000 岛上植被，19 个顶点分量、3 个图元分量、160 顶点）本体写
++            //   顶点 (v >> 5) × 2432、图元 12160 + (p >> 5) × 384（12160 = 5 块 × 2432）。原先按「每块顶点 + 图元分量交错、块长 (nv + np) × 0x80」读回，
++            //   第 32 个起的顶点和全部图元属性都读错位置（植被出 NaN 成黑块）；没有逐图元分量时两种排法相同
++            int nv = i.Vertex.Count, np = i.Primitive.Count;
++            int vstride = Math.Max(nv, 1) * BLOCK, pstride = Math.Max(np, 1) * BLOCK;   // 一块的字数
++            int pbase = (Math.Max(i.MaxV, 1) + BLOCK - 1) / BLOCK * vstride;              // 图元块从全部顶点块之后起
+             string[] Word(int?[] comps) => Enumerable.Range(0, 4).Select(k => comps[k] is int c ? $"{mem}[b + {c * BLOCK}u]" : null).ToArray();
+             var vm = Members(i.Vertex);
+-            var pm = Members(i.Primitive).Select(x => (x.N, x.Idx.Select(c => c is int ci ? (int?)(ci + nv) : null).ToArray())).ToList();
++            var pm = Members(i.Primitive);
+             if (!vm.Any(x => x.N == null)) throw new DshError("mesh stage failed", "ms: SPH 没开位置分量");
+             head += "struct dm_vertex_t {\n    float4 position [[position]];\n" + string.Concat(vm.Where(x => x.N != null).Select(x => $"    float4 a{x.N} [[user(locn{x.N})]];\n")) + "};\n"
+                   + (pm.Count > 0 ? "struct dm_prim_t {\n" + string.Concat(pm.Select(x => $"    float4 p{x.N} [[user(locn{x.N})]];\n")) + "};\n" : "")
+                   + $"using dm_mesh_t = metal::mesh<dm_vertex_t, {(pm.Count > 0 ? "dm_prim_t" : "void")}, {i.MaxV}, {i.MaxP}, metal::topology::triangle>;\n";
+-            string Block(string v) => $"{outw}u + ({v} / {BLOCK}u) * {stride}u + {v} % {BLOCK}u";
++            string Block(string v) => $"{outw}u + ({v} / {BLOCK}u) * {vstride}u + {v} % {BLOCK}u";
++            string PBlock(string p) => $"{outw + pbase}u + ({p} / {BLOCK}u) * {pstride}u + {p} % {BLOCK}u";
+             string sets = string.Concat(vm.Select(x => $"        v.{(x.N == null ? "position" : $"a{x.N}")} = {Component(Word(x.Idx))};\n"));
+-            string psets = string.Concat(pm.Select(x => $"        p.p{x.N} = {Component(Word(x.Item2))};\n"));
++            string psets = string.Concat(pm.Select(x => $"        p.p{x.N} = {Component(Word(x.Idx))};\n"));
+             string Entry(string name, bool gl)
+             {
+                 // 有任务时输入是载荷，字 0 = 本组在其任务派生里的序号（硬件放的；任务从 +4 起写，+0 不是它写的字）
+@@ -197,7 +203,7 @@ namespace S2A.Dsh
+                     + $"    for (uint n = {lid}; n < {i.MaxV}u; n += {thr}u)\n    {{\n        uint b = {Block("n")};\n        dm_vertex_t v;\n{sets}"
+                     + (gl ? "        v.position.z = fma(v.position.z, 0.5, v.position.w * 0.5);\n" : "")
+                     + "        dm_out.set_vertex(n, v);\n    }\n"
+-                    + (pm.Count > 0 ? $"    for (uint n = {lid}; n < np; n += {thr}u)\n    {{\n        uint b = {Block("n")};\n        dm_prim_t p;\n{psets}        dm_out.set_primitive(n, p);\n    }}\n" : "")
++                    + (pm.Count > 0 ? $"    for (uint n = {lid}; n < np; n += {thr}u)\n    {{\n        uint b = {PBlock("n")};\n        dm_prim_t p;\n{psets}        dm_out.set_primitive(n, p);\n    }}\n" : "")
+                     + $"    for (uint n = {lid}; n < np * 3u; n += {thr}u)\n    {{\n        uint at = {prim + 4}u + n;\n        dm_out.set_index(n, ({mem}[at >> 2] >> ((at & 3u) * 8u)) & 0xffu);\n    }}\n}}\n";
+             }
+             return src + "\n" + head + Entry("main0", true) + "\n" + Entry("main0_z", false);
+diff --git a/graphics/tools/direct/tests/t_meshstage.py b/graphics/tools/direct/tests/t_meshstage.py
+index d6d61cf..1f411aa 100755
+--- a/graphics/tools/direct/tests/t_meshstage.py
++++ b/graphics/tools/direct/tests/t_meshstage.py
+@@ -94,8 +94,11 @@ ck('③ A：图元数在字 1348 高字节、索引字节从 5396 起', 'uint np
+ z = A.split('[[mesh]] void main0_z(')
+ ck('③ A：近平面换算只在 main0（GL -w），main0_z 不换', len(z) == 2 and 'v.position.z = fma(v.position.z, 0.5, v.position.w * 0.5);' in z[0] and 'fma(' not in z[1])
+ ck('③ B：无任务读槽 29 的起始组号', 'constant uint* dm_first [[buffer(29)]]' in B and 'if (dm_lid == 0u) _35[0] = dm_first[0] + dm_tg;' in B and 'object_data' not in B)
+-ck('③ B：逐图元属性 2 = 分量 4、按图元写', 'float4 p2 [[user(locn2)]];' in B and 'p.p2 = float4(as_type<float>(_35[b + 128u]), 0.0, 0.0, 1.0);' in B and 'metal::mesh<dm_vertex_t, dm_prim_t, 32, 32' in B)
+-ck('③ B：块地址 4 + (n/32)·160、图元数字 164、索引从 660', 'uint b = 4u + (n / 32u) * 160u + n % 32u;' in B and 'min(_35[164] >> 24, 32u)' in B and 'uint at = 660u + n;' in B)
++# 属性区按硬件排法（顶点块与图元块不交错，见 MeshStage.ToStage 注释：网格 192226654c410372 本体写顶点 (v >> 5) × 2432、图元 12160 + (p >> 5) × 384）：
++#   B 有 4 个顶点分量、1 个图元分量、32 顶点 / 32 图元 → 顶点块长 4 × 32 = 128 字，图元区从 1 块顶点之后起（4 + 128 = 132），块长 1 × 32 字、属性 2 是图元区第 0 个分量
++ck('③ B：逐图元属性 2 = 图元区分量 0、按图元写', 'float4 p2 [[user(locn2)]];' in B and 'p.p2 = float4(as_type<float>(_35[b + 0u]), 0.0, 0.0, 1.0);' in B and 'metal::mesh<dm_vertex_t, dm_prim_t, 32, 32' in B)
++ck('③ B：顶点块 4 + (n/32)·128、图元块 132 + (n/32)·32、图元数字 164、索引从 660', 'uint b = 4u + (n / 32u) * 128u + n % 32u;' in B and 'uint b = 132u + (n / 32u) * 32u + n % 32u;' in B
++   and 'min(_35[164] >> 24, 32u)' in B and 'uint at = 660u + n;' in B)
+ ck('③ C：对象入口、载荷 800 字从字 804 拷出、网格组数 = 字 805 封顶 1024', '[[object]] void main0(' in C and 'struct dm_payload_t { uint w[800]; };' in C
+    and 'dm_payload.w[i] = _35[804u + i];' in C and 'dm_grid.set_threadgroups_per_grid(uint3(min(_35[805], 1024u), 1u, 1u));' in C and 'constant uint* dm_first [[buffer(29)]]' in C
+    and '_35[0] = dm_first[0] + dm_tg;' in C)
+diff --git a/translator/dmsh_chain.lock b/translator/dmsh_chain.lock
+index 1daf1b4..0d89f8a 100644
+--- a/translator/dmsh_chain.lock
++++ b/translator/dmsh_chain.lock
+@@ -1,5 +1,5 @@
+ # Translation chain tool fingerprints (written by dmsh_chain.py --update-lock; regenerate after changing tools and commit it)
+-dmsh_xlate.dll	bcca58282a59301f
++dmsh_xlate.dll	15313178bb4aa203
+ Ryujinx.Graphics.Shader.dll	26339d460fcec298
+ Ryujinx.Common.dll	52df7d2f2cfe9a53
+ S2Arm.Gfx.Widen.Shader.dll	6fce0faf92e3843d
+diff --git a/translator/dmsh_xlate_bin/dmsh_xlate.dll b/translator/dmsh_xlate_bin/dmsh_xlate.dll
+index e52e0e17941167cc1edd862a4ffb8da2fa285920..4e57aefc9c51f85ebf5a0e4b7a96e537975bd477 100644
+GIT binary patch
+delta 459
+zcmZozz}~QceL@F|YlFtei9IrmS`$}>^Id<;$l%Wa0!$1MtP>T5c@&r!cz|3MphU>@
+z#AA#)lOq|`84V^k0?CNUD;dKXxhFF+3G<$DVqjndDg-KKbJ?uOv|W`kWb;jRZ+>1^
+z9(9If1`wIe;5FIM+)>q)=K(`C!$$7M49!4sW=0UH3?>(VNfqX92G`Bg%{|ow{ET8*
+zIy|+VmOkigS*i0TVe^OBW!#)xj0~)XdIow1lTTzWY0l2to}I;bG|DilMP(raqi+Bc
+z&>ayV40LqFQIM-30K^goVs#+i0F>J>J@F``veeuh`E%bpwS8I@mn?X@F253_OuyJD
+zu_$-?tfP#MMo{@PFnN$QzAfMPxzEsU*>NE@=0DIV7?6AdWGhTm6l3Jxu5yg=731`R
+zV~i@(`A#tAiKQ?zFiZdj>=lsvpx_GA^hqZe=P{a0H$2Ix%qXxu^d#eQMrH#Bw(0**
+oF=|h*JI!dtSh9WRX+{qwkWnF=4;aA_qGPgM@EqfN#)$^(02_&dD*ylh
+
+delta 552
+zcmZozz}~QceL@GzdN-L56MJMB{U)vq=llJbk-?t<1eh4suufDI=22i`-~n=VfD$3o
+z4UaMEOpat!XAGI#2qf1`Udb5Fs6UyJNtpMG69WSyP$5t;Th3-hrtPYXHJfj$d-L<=
+z@u)K-Gl0l!hT_SF=8md)JP#PE8E$buW@rYAGc$rnWiYt_OsX(<GvsZaZtkfjFe&oS
+zMS(pUE?d_K6u#!->EHYzb{V&kF(ZSXp`L-BfwsAkSyGCbsbPv~no*KzQd+X5VOo-@
+zWwMc>kzrDDs$sIFiK(H5sm0{^nM;~ovbMWqF&>E$y?)Z=Cj+Bz029!`Awb*!^j*Vr
+z*`ti&tXF`{E7L8HGAfHLl~$Odzp&9|YQyxLeR=;LfxM?5KfUZIqoWa2uH`CJ4rF5J
+zyf5v68T(cR#~fR%`~;*L0&GESg^7w{jQZP-F}`A)&Ub<_PizM>1H%MhFlzv57|>vz
+zKIsJGJjRach9?=78B?~0o@89k$lS!BKmGqHM(tp226F}@1~Y~vh7=%a%3uhjO&QXF
+zVo5+c3CK!jump;xf%%p|o)M4-!bw1ODv$=rn}Bs%07(l5hUuE88Lb&lY)?JS=)uJK
+UfDs(q0Vdl8&oRDdoM^xf0DP~RdH?_b
+
+diff --git a/translator/dmsh_xlate_bin/dmsh_xlate.pdb b/translator/dmsh_xlate_bin/dmsh_xlate.pdb
+index 9060db108a2efae974764f77fa954ed568684d9d..46862807e9da50d15fff3131b4d27dd044659ec6 100644
+GIT binary patch
+delta 754
+zcmYk(TSydP6bJBgW_H&_U8_aRhc+{}Y+J8uso6tf)|x0RiQuiwMN?tDt&(J*D`+Z8
+z7$a$!XegC~<<>rQK}>uI(~4A(?7_k(i7a|CNxS?f3p()o&N*{FhMDi{XyK_w?mU!d
+z^Ck+ZCyMtWs$tX_HO|uV;%Y*S_!6m*LozeSjoPNv*347M%1}o%6@xy>QDH~h=LmZJ
+zt<9X)96U6zdcWdgPLuK0)y}2{4Q2<3DUt-LMy^ACkGzU(Vx~A2(9M{bCJ!>bfMwVK
+z!ORp6mGB%shcQKjGo66zkpkU@y-~`iD8b~4VrqdaFblsx(-6(11Aj1s1&%{1<boYa
+zp%QAL9-3hh$}OnjDNMpN%)vWYhD}h#F!_Q%>;faWpcOh{e-D-cxQnye3MTh|^<&JQ
+z#dzX{DQ)Z^{yH#9#5U#B)euS|WpOC_d2yZ9v>28pDC_#4HBeM)PpZ!imQ=cEjk?-W
+z;4G8kbo)dvy+O*?rHHodd`Z@odVA?zy{>-O9oML2@C%l-+k(vh9yR*yF<MM-;-spF
+z<|4hmEa7a<w5>Zb_j0RItWC6bZQT3h*}Y>(6}YlAvPl!TuADXdt3hqbwey7oPqNb&
+zrO_ihgCYtY4%|ZT+pqnUsG@Tv&e*!1TI-|swf3W{FUO?q0fywm^KIiaL3Da-DSQ0O
+zg0)eT?><wK)Ra+qA;MZzUgRvOsc`;%(ZbBlKKg*0*ZfF-;Qi6sJ!|SJ{+VX?R0Vtw
+sF$~Y~@CwVsvXNyo%O_d3v7E>9C6+rptqECb?bgKY>sdKABnm{o0Z9+TQ2+n{
+
+delta 1451
+zcmY+@3rtg27y#gN+5%c>Q_w^T%DRdOqP=aQJgOLNI#dJ}C<qFQeO#dQ#oAjCn6?-*
+zd=0^?U^KjZFr|etOIU_sLnRaUaL$N4ro$1@X=EmwOhM=NBXQYI^8NpRa?U;X+>>+r
+zEAXL8Tpg98V<WU=H$qAC5TY>DD$1%i=i3mpUSEV*ke6hrP#@GqGxhq6jY`N-9E7r>
+zp|3DnG|)dABsfYmS16A;>x^HTUylu5Q%==X?{&<Du@Hn&1Y#fy<YLG_L4E}JDaPn8
+z%z)mu6&R(j#3&n3;A3zUd<7UHjIw}}z^E4tf(R)C#ez;LEdQoq<R6I<9|(XJ)PUm-
+z2#ufx^ngAv0PcVZ@C>{Jj3|ue0v=ch3;@ZX21y_t<NzHo0t!@tTF?MmKs)FH{?Ql(
+z0wD-p4nYd!a8_@3s`yWx2xF<yo>)fzoJ1LXZL5?C(`HWH3oL``1LiWQA4Bv;q<1l5
+zA~vpt7|eKqeUO33V$8%BZ(;y*rbfsUJ?{h-1Z5uJhU(1;ooxp?68t7#Z}#&0uBItA
+zx$((T*9lo*A$`MF!oaz-4`(Tp$>q}oX9F`SBbzSc=-EuJv(9<adD`isCphmqoc%MK
+zCkVl6wVkr$lV;MYrbwNDSi`p4;Jye{r8bH*t@>Y2lt$(mNiC(fm{+m0)ixVx(iltS
+zf_%6#YNK2}`-~{fZl?4mQnZ=0+F&ZICQ4UZ^GPbfsy2}&7OP<$n}S=Zu~TH2knZ5{
+z!-OjY{|+kkwj!gtGzI1g;sruc%6sVoiC82ShHqojT<$xLx1UmROW^14t}o6FZOdL*
+zcCPb61<SA_+qmFr<uhlq;(JAS3a=t{2#&vvPTh1x%)2`JGQ282{K9Rn>txX7MM)p>
+zbV1VsVcq=^@0-daF3;%pR<qHU?6@00{`%Te$D+EBN5QgFAr*eNpLBa|`Mv*)d1PzQ
+z!8C_Yb&B5#N$*yl9}#0!{#e+?&2`I`j_hG{FwLXmBfRt>XP=x`5K;d;gwHzmqPgCu
+zlU+L!z+-*w<z4^jj+~o^KjYrhPu!Wl6gF&n-XFRDagz!E5h~8O(xzH{`cAcO;)(dc
+zb}_4UufDxxeCI1ya?WH`7eBImWnl|l)v9nz{i&}$Z=3EW`W|$ji|-oX+&bi|9%_sn
+z_^6@3(v%q3`1uzx<3B&Ro;ljnG{r0_9=N#Rv2;^L?Q><QHEx5ghNB}U&MMND`z+it
+z^22ob#WiK06ke<3Seu7$sP{P@4z~Y#_d%w<WJ<j|+i?2cu%TtYDrzz-UB^Fji8mHD
+z?O^OI7wRlpyNNVYHle&+NaPaBg>qp5MHSiP1YuQ|i1PJRfn8&_kyfq6Ou<Bv)?y+G
+z3)K3u0*ig6rN~C8r0c9EB1Rgm(M8K7I$54nBh%z*<0N?+S)5iXkxDdLQlgEEl1XA^
+zvG9gnyY`e8lUC0*ZX+uowdb3|sF#6ukJFC^MZO7L$;2;~HKZ4fV*-M8Mk7Kv+1}oW
+z*0Rub*ZmN3fxq(Xep;P)JjFvN&R?v&)wJmf>P6^P#Jq2hW(K~0P)zSRuejKtDk>JO
+zpZy&yR?+N2os;~1=pIJrRNe7w7e7om#rQk7(2z6iam}Azve>P|?lSB?g56!%-Gkjj
+e*gb~bzu`6xZVUEYj>+<xGdpsj!6S@6!~6$7p5l7|
+
