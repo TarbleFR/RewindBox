@@ -16,7 +16,9 @@ namespace Ryujinx.HLE
     ///
     /// The host signs the player in (OAuth 2.0 PKCE), asks Nextendo for the game token of the launch (nx2, 24 hours,
     /// scope game.matchmaking) and hands this class, before the session is prepared (content operation 11), that token,
-    /// the account's PID and the two server addresses. While a configuration is set:
+    /// the account's PID and the two server addresses. The request belongs to the next session only: the session's
+    /// configuration takes it when it is created (BeginSession), and a later session without a request is offline.
+    /// While a session has it:
     ///   - the guest is told it has Internet access (DNS, nifm requests);
     ///   - the documented Nintendo and third-party host names resolve to the two addresses;
     ///   - the account id the game reads is the PID, and the BAAS id_token carries jti, hm, tv (installed version) and
@@ -42,7 +44,8 @@ namespace Ryujinx.HLE
             public IPAddress Nat;
         }
 
-        private static volatile Settings _settings;
+        private static volatile Settings _settings; // the running session's
+        private static volatile Settings _pending; // the host's last request, for the next session
         private static readonly object _resolvedGate = new();
         // The host name last redirected to each server address: the SNI of a TLS connection the game opens by address.
         private static readonly Dictionary<IPAddress, string> _resolved = new();
@@ -189,28 +192,43 @@ zdAq1CTeFUrJ6r/siw==
         /// <summary>Whether the next (or current) session plays online.</summary>
         public static bool Enabled => _settings != null;
 
+        // Tests only (the gate's fixture sets it by reflection): roots standing in for Nextendo's, whose keys are theirs.
+        internal static X509Certificate2Collection RootsForTests;
+
         /// <summary>Back to offline: what a launch without online play asks for.</summary>
         public static void Clear()
         {
             _settings = null;
+            _pending = null;
+            lock (_resolvedGate) _resolved.Clear();
+        }
+
+        /// <summary>
+        /// Called when a session's configuration is created: the host's last request becomes this session's, and is
+        /// consumed, so a session that follows without a new request is offline whatever the host does.
+        /// </summary>
+        public static void BeginSession()
+        {
+            _settings = _pending;
+            _pending = null;
             lock (_resolvedGate) _resolved.Clear();
         }
 
         /// <summary>
         /// Applies the host's request: an empty object clears the configuration; otherwise nexToken, pid, serverAddress
         /// and natAddress are all required and the two addresses must differ (the NAT test compares two vantage points).
-        /// A refused request leaves the engine offline.
+        /// A refused request leaves the engine offline. Returns whether the next session plays online.
         /// </summary>
-        public static void Configure(string request)
+        public static bool Configure(string request)
         {
             Clear();
-            if (string.IsNullOrWhiteSpace(request)) return;
+            if (string.IsNullOrWhiteSpace(request)) return false;
             using JsonDocument document = JsonDocument.Parse(request);
             JsonElement root = document.RootElement;
             if (root.ValueKind != JsonValueKind.Object) throw new FormatException("Online configuration must be an object.");
             bool any = false;
             foreach (JsonProperty _ in root.EnumerateObject()) { any = true; break; }
-            if (!any) return;
+            if (!any) return false;
             string token = Text(root, "nexToken");
             if (token == null || token.Length > MaxTokenLength || !token.StartsWith("nx2.", StringComparison.Ordinal))
                 throw new FormatException("Online configuration: the game token is missing or malformed.");
@@ -222,7 +240,8 @@ zdAq1CTeFUrJ6r/siw==
             IPAddress server = Address(Text(root, "serverAddress"), "serverAddress");
             IPAddress nat = Address(Text(root, "natAddress"), "natAddress");
             if (server.Equals(nat)) throw new FormatException("Online configuration: the server and NAT test addresses must differ.");
-            _settings = new Settings { NexToken = token, Pid = pid, Server = server, Nat = nat };
+            _pending = new Settings { NexToken = token, Pid = pid, Server = server, Nat = nat };
+            return true;
         }
 
         private static string Text(JsonElement root, string name) =>
@@ -309,7 +328,7 @@ zdAq1CTeFUrJ6r/siw==
         public static bool ValidateServerCertificate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors errors)
         {
             string host = (sender as SslStream)?.TargetHostName;
-            bool valid = certificate != null && Validate(certificate, chain, host, TrustedRoots());
+            bool valid = certificate != null && Validate(certificate, chain, host, RootsForTests ?? TrustedRoots());
             if (!valid)
             {
                 Logger.Warning?.Print(LogClass.ServiceSsl,
@@ -331,6 +350,7 @@ zdAq1CTeFUrJ6r/siw==
                 chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
                 chain.ChainPolicy.CustomTrustStore.AddRange(roots);
                 chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+                chain.ChainPolicy.ApplicationPolicy.Add(new Oid("1.3.6.1.5.5.7.3.1")); // serverAuth
                 if (presented != null)
                 {
                     foreach (X509ChainElement element in presented.ChainElements)

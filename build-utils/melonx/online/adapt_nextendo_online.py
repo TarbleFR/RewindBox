@@ -70,6 +70,12 @@ CONFIGURATION_NEW = '''        // RewindBox (adapt_nextendo_online): also on whi
 
         private bool _enableInternetAccess;
 '''
+CONFIGURATION_SESSION_OLD = '''            EnableInternetAccess = enableInternetAccess;
+'''
+CONFIGURATION_SESSION_NEW = '''            EnableInternetAccess = enableInternetAccess;
+            // RewindBox (adapt_nextendo_online): the host's last online request belongs to this session only.
+            EmbeddedOnline.BeginSession();
+'''
 
 CONTENT_NOTE_OLD = '''    // 8 launch preflight; 9 configure the application-owned diagnostic path.
 '''
@@ -81,9 +87,10 @@ CONTENT_CASE_OLD = '''                            default: throw new ArgumentOut
 '''
 CONTENT_CASE_NEW = '''                            case 11:
                                 // The request holds the game token: nothing of it is echoed or journaled.
-                                try { Ryujinx.HLE.EmbeddedOnline.Configure(path); }
+                                bool online;
+                                try { online = Ryujinx.HLE.EmbeddedOnline.Configure(path); }
                                 catch (JsonException) { throw new FormatException("Online configuration is not valid JSON."); }
-                                json.WriteBoolean("online", Ryujinx.HLE.EmbeddedOnline.Enabled);
+                                json.WriteBoolean("online", online);
                                 json.WriteString("protocol", Ryujinx.HLE.EmbeddedOnline.Protocol);
                                 break;
                             case 12:
@@ -112,8 +119,18 @@ RESOLVER_OLD = '''        public IPHostEntry ResolveAddress(string host)
 RESOLVER_NEW = '''        public IPHostEntry ResolveAddress(string host)
         {
             // RewindBox (adapt_nextendo_online): with online play configured, an exact hosts-file entry still comes
-            // first, then the built-in rules; the hosts file's wildcards and the real DNS follow as before.
-            if (Ryujinx.HLE.EmbeddedOnline.Enabled && !_mitmHostEntries.ContainsKey(host))
+            // first (compared without case, as the loop below does), then the built-in rules; the hosts file's wildcards
+            // and the real DNS follow as before.
+            bool exactHostsEntry = false;
+            foreach (string entry in _mitmHostEntries.Keys)
+            {
+                if (entry.IndexOfAny(['*', '?']) < 0 && string.Equals(entry, host, StringComparison.OrdinalIgnoreCase))
+                {
+                    exactHostsEntry = true;
+                }
+            }
+
+            if (Ryujinx.HLE.EmbeddedOnline.Enabled && !exactHostsEntry)
             {
                 IPAddress redirected = Ryujinx.HLE.EmbeddedOnline.Redirect(host);
 
@@ -153,7 +170,7 @@ MANAGER_CLAIMS_NEW = '''            // RewindBox (adapt_nextendo_online): jti, h
 '''
 MANAGER_CALL_OLD = '''                _cachedTokenData = Encoding.ASCII.GetBytes(GenerateIdToken());
 '''
-MANAGER_CALL_NEW = '''                _cachedTokenData = Encoding.ASCII.GetBytes(GenerateIdToken(context.Device.Processes.ActiveApplication?.DisplayVersion));
+MANAGER_CALL_NEW = '''                _cachedTokenData = Encoding.ASCII.GetBytes(GenerateIdToken(Ryujinx.HLE.EmbeddedOnline.Enabled ? context.Device.Processes.ActiveApplication.DisplayVersion : null));
 '''
 
 TLS_OLD = '''            StartSslOperation();
@@ -164,25 +181,49 @@ TLS_NEW = '''            StartSslOperation();
             // RewindBox (adapt_nextendo_online): one of the two servers online play is configured with. ALPN http/1.1
             // (NEX over WebSocket; h2 on NPLN hosts), the name last redirected to that address as SNI when the game gave
             // none (a reverse lookup would name the server, not the game's host), and only a chain to one of
-            // Nextendo's published roots that names the host. Every other connection is unchanged.
+            // Nextendo's published roots that names the host. A refused or failed handshake is the game's connection
+            // error, never an exception through the service (only the host name is logged). Every other connection is
+            // unchanged.
             IPAddress onlinePeer = Socket.RemoteEndPoint?.Address;
 
             if (Ryujinx.HLE.EmbeddedOnline.IsServer(onlinePeer))
             {
-                string onlineHost = string.IsNullOrEmpty(hostName) ? Ryujinx.HLE.EmbeddedOnline.HostFor(onlinePeer) ?? RetrieveHostName(hostName) : hostName;
-                SslClientAuthenticationOptions onlineOptions = new()
-                {
-                    TargetHost = onlineHost,
-                    EnabledSslProtocols = TranslateSslVersion(_sslVersion),
-                    ApplicationProtocols = Ryujinx.HLE.EmbeddedOnline.ApplicationProtocols(onlineHost),
-                    CertificateRevocationCheckMode = System.Security.Cryptography.X509Certificates.X509RevocationMode.NoCheck,
-                    RemoteCertificateValidationCallback = Ryujinx.HLE.EmbeddedOnline.ValidateServerCertificate,
-                };
-                _stream = new SslStream(new NetworkStream(((DefaultSocket)((ManagedSocket)Socket).Socket).BaseSocket, false), false);
-                _stream.AuthenticateAsClient(onlineOptions);
-                EndSslOperation();
+                string onlineHost = string.IsNullOrEmpty(hostName) ? Ryujinx.HLE.EmbeddedOnline.HostFor(onlinePeer) : hostName;
 
-                return ResultCode.Success;
+                try
+                {
+                    if (string.IsNullOrEmpty(onlineHost))
+                    {
+                        Ryujinx.Common.Logging.Logger.Warning?.Print(Ryujinx.Common.Logging.LogClass.ServiceSsl, "Online play: no host name for a TLS connection to a configured server.");
+
+                        return ResultCode.ConnectionAbort;
+                    }
+
+                    SslClientAuthenticationOptions onlineOptions = new()
+                    {
+                        TargetHost = onlineHost,
+                        EnabledSslProtocols = TranslateSslVersion(_sslVersion),
+                        ApplicationProtocols = Ryujinx.HLE.EmbeddedOnline.ApplicationProtocols(onlineHost),
+                        CertificateRevocationCheckMode = System.Security.Cryptography.X509Certificates.X509RevocationMode.NoCheck,
+                        RemoteCertificateValidationCallback = Ryujinx.HLE.EmbeddedOnline.ValidateServerCertificate,
+                    };
+                    _stream = new SslStream(new NetworkStream(((DefaultSocket)((ManagedSocket)Socket).Socket).BaseSocket, false), false);
+                    _stream.AuthenticateAsClient(onlineOptions);
+
+                    return ResultCode.Success;
+                }
+                catch (Exception error) when (error is AuthenticationException or IOException or ObjectDisposedException)
+                {
+                    Ryujinx.Common.Logging.Logger.Warning?.Print(Ryujinx.Common.Logging.LogClass.ServiceSsl, $"Online play: TLS to '{onlineHost}' failed ({error.GetType().Name}).");
+                    _stream?.Dispose();
+                    _stream = null;
+
+                    return ResultCode.ConnectionAbort;
+                }
+                finally
+                {
+                    EndSslOperation();
+                }
             }
 
             _stream = new SslStream(new NetworkStream(((DefaultSocket)((ManagedSocket)Socket).Socket).BaseSocket, false), false, null, null);
@@ -190,6 +231,7 @@ TLS_NEW = '''            StartSslOperation();
 
 EDITS = (
     (CONFIGURATION, CONFIGURATION_OLD, CONFIGURATION_NEW),
+    (CONFIGURATION, CONFIGURATION_SESSION_OLD, CONFIGURATION_SESSION_NEW),
     (CONTENT, CONTENT_NOTE_OLD, CONTENT_NOTE_NEW),
     (CONTENT, CONTENT_CASE_OLD, CONTENT_CASE_NEW),
     (BLACKLIST, BLACKLIST_OLD, BLACKLIST_NEW),

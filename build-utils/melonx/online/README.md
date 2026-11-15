@@ -1,5 +1,19 @@
 # Nextendo online lot — handoff for the next MeloNX Core
 
+Version 2 (15 November, after the MeloNX session's adversarial review of version 1): `wiring.patch` now installs
+v2; `v1-to-v2.patch` turns an applied version 1 (adapter, `EmbeddedOnline.cs`, fixture) into v2 for a freeze that
+already took v1. Same files, same BASELINE, same plan entries. Changes: a refused or failed TLS handshake to a
+configured server is the game's connection error (`ConnectionAbort`) instead of an exception through the service;
+no reverse lookup for a missing SNI (refused); the host's request belongs to the next session only
+(`EmbeddedOnline.BeginSession` from the session's `HleConfiguration`); serverAuth is required of the leaf; the game
+version is read only online; the exact hosts-file entry is compared without case. The fixture adds the one-shot
+session, the largest token (id_token under 0xC00) and four real handshakes through `SslManagedSocketConnection`
+against a local TLS server (accepted with ALPN http/1.1 and SNI from the redirected name; refused for another host,
+another root, no host name). Extended nifm-network-watch gate on the v2 final preparation: passed (54 + 146
+checks, 9 post-images). Not taken here (documented limits): roots bound per host (the guide does not say which root
+signs the NEX hosts), DNS limited to redirected names while online. A homebrew launch never receives the token (app
+side, 1d1572027).
+
 Source only until a Core freeze takes it. Owner of the freeze: the MeloNX session (single freeze, all gates run
 there). Nothing here is read by `prepare_embedded.py` or the Core contract as committed.
 
