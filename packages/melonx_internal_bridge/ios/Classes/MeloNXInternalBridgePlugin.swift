@@ -68,9 +68,11 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
     private func configureOnline(_ runtime: MeloNXRuntimeAPI, online: [String:Any]?) {
         var request = "{}"
         if let online {
+            // The PID is the account id the game reads (Nextendo's integration guide); the engine refuses a request without it.
             guard let token = online["nexToken"] as? String, token.hasPrefix("nx2."), token.utf8.count <= 1024,
+                  let pid = (online["pid"] as? NSNumber)?.int64Value, pid > 0,
                   let server = online["serverAddress"] as? String, let nat = online["natAddress"] as? String,
-                  let data = try? JSONSerialization.data(withJSONObject:["nexToken":token,"serverAddress":server,"natAddress":nat]),
+                  let data = try? JSONSerialization.data(withJSONObject:["nexToken":token,"pid":NSNumber(value:pid),"serverAddress":server,"natAddress":nat]),
                   let text = String(data:data,encoding:.utf8) else {
                 MeloNXLaunchJournal.record("online","skipped",detail:"The online request of this launch is malformed; the game starts offline.")
                 _ = try? runtime.content(path:"{}",operation:11)

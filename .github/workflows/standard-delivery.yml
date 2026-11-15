@@ -320,6 +320,8 @@ jobs:
       BUNDLE_GEMFILE: ${{ github.workspace }}/build-utils/Gemfile.dolphin
       SCREENSCRAPER_DEV_ID: ${{ secrets.SCREENSCRAPER_DEV_ID }}
       SCREENSCRAPER_DEV_PASSWORD: ${{ secrets.SCREENSCRAPER_DEV_PASSWORD }}
+      NEXTENDO_SERVER_IP: ${{ secrets.NEXTENDO_SERVER_IP }}
+      NEXTENDO_NAT_IP: ${{ secrets.NEXTENDO_NAT_IP }}
       DELIVERY_METRICS: ${{ github.workspace }}/build/delivery/timings.jsonl
       CACHE_NAMESPACE: normal
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -492,6 +494,16 @@ jobs:
             'NEOSTATION_EXPERIMENTAL_STIKJIT_MELONX':'true',
             'NEOSTATION_MELONX_BUNDLE_ID':'com.nur.nx',
         })
+        # Nextendo Network game servers (optional): repository secrets set once Nextendo issued the two addresses.
+        # A missing or malformed one is left out (the app then reads it from the device); values are never printed.
+        import ipaddress
+        for key in ('NEXTENDO_SERVER_IP','NEXTENDO_NAT_IP'):
+            value=os.environ.get(key,'').strip()
+            try:
+                if value: values[key]=str(ipaddress.IPv4Address(value))
+            except ValueError:
+                print('::warning::'+key+' is not an IPv4 address; left out of the build')
+        print('Nextendo server defines:',' '.join(k for k in ('NEXTENDO_SERVER_IP','NEXTENDO_NAT_IP') if k in values) or 'none')
         Path('.dart-defines.json').write_text(json.dumps(values))
         PY
 

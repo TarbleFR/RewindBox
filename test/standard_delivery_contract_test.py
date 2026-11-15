@@ -73,6 +73,19 @@ UNCHANGED_610_STEPS = (
     'Upload encrypted transport piece 3 of 4', 'Upload encrypted transport piece 4 of 4',
     'Collect diagnostic evidence', 'Upload diagnostics', 'Remove temporary secrets',
 )
+# The optional Nextendo Network server defines (15 November 2026) are the only addition to the delivered
+# 'Prepare emulator build definitions' step: two repository secrets, IPv4 only, never printed.
+NEXTENDO_DEFINES = (
+    "# Nextendo Network game servers (optional): repository secrets set once Nextendo issued the two addresses.\n"
+    "# A missing or malformed one is left out (the app then reads it from the device); values are never printed.\n"
+    "import ipaddress\n"
+    "for key in ('NEXTENDO_SERVER_IP','NEXTENDO_NAT_IP'):\n"
+    "    value=os.environ.get(key,'').strip()\n"
+    "    try:\n"
+    "        if value: values[key]=str(ipaddress.IPv4Address(value))\n"
+    "    except ValueError:\n"
+    "        print('::warning::'+key+' is not an IPv4 address; left out of the build')\n"
+    "print('Nextendo server defines:',' '.join(k for k in ('NEXTENDO_SERVER_IP','NEXTENDO_NAT_IP') if k in values) or 'none')\n")
 # Test-job steps of the fresh 610 jobs (git object 6d17e6d) kept identical.
 UNCHANGED_TEST_STEPS = ('Set up Flutter3.47.2', 'Resolve exact workspace lock', 'Select targeted Xcode16.4 and Swift6',
                         'Prepare real Flutter iOS headers and simulator project tool')
@@ -946,8 +959,15 @@ class Workflow(unittest.TestCase):
                 # Only the pinned-engine guard (PinnedEngineWorkflow) differs from the delivered step.
                 self.assertEqual(dict(new[name], run=new[name]['run'].replace(ENGINE_GUARD, '')), old[name], name)
                 continue
+            if name == 'Prepare emulator build definitions':
+                # Only the optional Nextendo server defines differ from the delivered step.
+                self.assertEqual(new[name]['run'].count(NEXTENDO_DEFINES), 1, name)
+                self.assertEqual(flutter_step_as_delivered(dict(new[name], run=new[name]['run'].replace(NEXTENDO_DEFINES, ''))), old[name], name)
+                continue
             self.assertEqual(flutter_step_as_delivered(new[name]), old[name], name)
         environment = workflow()['jobs']['application']['env']
+        self.assertEqual(environment['NEXTENDO_SERVER_IP'], '${{ secrets.NEXTENDO_SERVER_IP }}')
+        self.assertEqual(environment['NEXTENDO_NAT_IP'], '${{ secrets.NEXTENDO_NAT_IP }}')
         old_environment = sd.load_yaml_subset(WORKFLOW610.read_text())['jobs']['application']['env']
         for key in ('IPA_NAME', 'HOMEBREW_NO_AUTO_UPDATE', 'BUNDLE_GEMFILE', 'SCREENSCRAPER_DEV_ID',
                     'SCREENSCRAPER_DEV_PASSWORD', 'DELIVERY_METRICS', 'CACHE_NAMESPACE', 'GH_TOKEN', 'BUNDLE_PATH',

@@ -1,19 +1,26 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/switch_online_locale.dart';
 import '../services/logger_service.dart';
 import '../services/nextendo/nextendo_config.dart';
+import '../services/nextendo/nextendo_engine_support.dart';
 import '../services/nextendo/nextendo_online_play.dart';
 import '../services/nextendo/nextendo_service.dart';
 
 /// The player's Nextendo Network account in RewindBox: sign-in on
-/// nextendo.network, the linked identity, the online-play switch and why
-/// Nextendo may refuse online play. A build without Nextendo's registration
-/// values shows the maintainer's fields instead of the sign-in button.
+/// nextendo.network, the linked identity, and the three conditions of online
+/// play shown apart (account, game servers, engine) with the action each
+/// missing one needs. The online switch only turns on when all three hold. A
+/// build without the server addresses shows the maintainer's fields.
 class NextendoDialog extends StatefulWidget {
-  const NextendoDialog({super.key, this.service});
+  const NextendoDialog({super.key, this.service, this.engineSupported});
   final NextendoService? service;
+
+  /// Whether the shipped engine takes online play; [NextendoEngineSupport] by default.
+  final Future<bool> Function()? engineSupported;
   @override
   State<NextendoDialog> createState() => _NextendoDialogState();
 }
@@ -22,6 +29,7 @@ class _NextendoDialogState extends State<NextendoDialog> {
   NextendoConfig? _config;
   NextendoAccount? _account;
   bool _online = true;
+  bool? _engine; // null while the engine binary is checked
   bool _busy = false;
   String? _message;
   bool _messageIsError = false;
@@ -51,6 +59,11 @@ class _NextendoDialogState extends State<NextendoDialog> {
       final config = await NextendoConfig.load();
       final account = config.canSignIn ? await _service.restore(config) : null;
       final online = await NextendoOnlinePlay.enabled();
+      unawaited((widget.engineSupported ?? NextendoEngineSupport.supported)().then((supported) {
+        if (mounted) setState(() => _engine = supported);
+      }, onError: (Object _) {
+        if (mounted) setState(() => _engine = false);
+      }));
       if (!mounted) return;
       setState(() {
         _config = config;
@@ -69,7 +82,7 @@ class _NextendoDialogState extends State<NextendoDialog> {
     final String text;
     if (error is NextendoException) {
       text = _text(error.code, {'detail': error.detail});
-    } else if (error is FormatException && const {'clientId', 'serverAddress', 'natAddress'}.contains(error.message)) {
+    } else if (error is FormatException && const {'clientId', 'serverAddress', 'natAddress', 'sameAddresses'}.contains(error.message)) {
       text = _text('nextendoInvalid_${error.message}');
     } else {
       LoggerService.instance.w('Nextendo action failed: ${error.runtimeType}');
@@ -106,18 +119,48 @@ class _NextendoDialogState extends State<NextendoDialog> {
     if (mounted) setState(() => _account = null);
   });
 
+  /// The first missing condition of online play, as the action it needs; null
+  /// when the servers and the engine are ready (the account is signed in here).
+  String? _missing(NextendoConfig config) {
+    if (!config.serversConfigured) {
+      return _text(config.serversIssue == 'same' ? 'nextendoActionServersSame' : 'nextendoActionServers');
+    }
+    if (_engine == false) return _text('nextendoActionEngine');
+    if (_engine == null) return _text('nextendoStatusEngineChecking');
+    return null;
+  }
+
+  /// Nextendo's answer for the account, then what this build still lacks. An
+  /// accepted account is never presented as a working match.
   Future<void> _check() => _run(() async {
     final config = _config!;
     final status = await _service.onlineStatus(await _service.gameToken(config));
     if (!mounted) return;
     final known = const {'unknown', 'disabled', 'suspended', 'unverified', 'discord_unlinked', 'elsewhere'}.contains(status.reason);
+    final missing = _missing(config);
     setState(() {
-      _messageIsError = !status.allowed;
-      _message = status.allowed
-          ? _text(config.canPlayOnline ? 'nextendoAllowed' : 'nextendoServersMissing')
-          : _text(known ? 'nextendoReason_${status.reason}' : 'nextendoReason_other', {'detail': status.reason});
+      _messageIsError = !status.allowed || missing != null;
+      _message = !status.allowed
+          ? _text(known ? 'nextendoReason_${status.reason}' : 'nextendoReason_other', {'detail': status.reason})
+          : missing == null
+          ? _text('nextendoAllowedReady')
+          : _text('nextendoAllowedNotReady', {'cause': missing});
     });
   });
+
+  Widget _status(bool? ok, String text, [String? action]) {
+    final colors = Theme.of(context).colorScheme;
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      dense: true,
+      leading: Icon(
+        ok == null ? Icons.hourglass_empty : (ok ? Icons.check_circle : Icons.cancel),
+        color: ok == null ? null : (ok ? colors.primary : colors.error),
+      ),
+      title: Text(text),
+      subtitle: action == null ? null : Text(action),
+    );
+  }
 
   Future<void> _saveLocal() => _run(() async {
     final previous = _config!;
@@ -163,18 +206,36 @@ class _NextendoDialogState extends State<NextendoDialog> {
           if (account.friendCode.isNotEmpty) '${_text('nextendoFriendCode')}: ${account.friendCode}',
         ].join('\n')),
       ),
-      SwitchListTile(
-        contentPadding: EdgeInsets.zero,
-        title: Text(_text('nextendoOnlinePlay')),
-        subtitle: Text(_text(config.canPlayOnline ? 'nextendoOnlinePlayHint' : 'nextendoServersMissing')),
-        value: _online && config.canPlayOnline,
-        onChanged: _busy || !config.canPlayOnline
-            ? null
-            : (value) async {
-                await NextendoOnlinePlay.setEnabled(value);
-                if (mounted) setState(() => _online = value);
-              },
-      ),
+      Text(_text('nextendoStatusTitle'), style: Theme.of(context).textTheme.titleSmall),
+      _status(true, _text('nextendoStatusAccount')),
+      if (config.serversConfigured)
+        _status(true, _text('nextendoStatusServersOk'))
+      else if (config.serversIssue == 'same')
+        _status(false, _text('nextendoStatusServersSame'), _text('nextendoActionServersSame'))
+      else
+        _status(false, _text('nextendoStatusServersMissing'), _text('nextendoActionServers')),
+      if (_engine == null)
+        _status(null, _text('nextendoStatusEngineChecking'))
+      else if (_engine!)
+        _status(true, _text('nextendoStatusEngineOk'))
+      else
+        _status(false, _text('nextendoStatusEngineMissing'), _text('nextendoActionEngine')),
+      Builder(builder: (context) {
+        final missing = _missing(config);
+        return SwitchListTile(
+          key: const ValueKey('nextendo-online-play'),
+          contentPadding: EdgeInsets.zero,
+          title: Text(_text('nextendoOnlinePlay')),
+          subtitle: Text(missing ?? _text('nextendoOnlinePlayHint')),
+          value: _online && missing == null,
+          onChanged: _busy || missing != null
+              ? null
+              : (value) async {
+                  await NextendoOnlinePlay.setEnabled(value);
+                  if (mounted) setState(() => _online = value);
+                },
+        );
+      }),
       Wrap(
         spacing: 8,
         children: [
@@ -185,18 +246,25 @@ class _NextendoDialogState extends State<NextendoDialog> {
     ];
   }
 
-  /// Only in a build without Nextendo's values: the maintainer enters what the
-  /// Nextendo Developers portal and Nextendo's team issued for RewindBox.
-  Widget _registration() => ExpansionTile(
+  /// Only in a build without the server addresses: the maintainer enters what
+  /// the Nextendo Developers portal and Nextendo's team issued for RewindBox.
+  /// A value the build carries is shown and cannot be changed here.
+  Widget _registration(NextendoConfig config) => ExpansionTile(
     tilePadding: EdgeInsets.zero,
     title: Text(_text('nextendoRegistration')),
     children: [
       Text(_text('nextendoRegistrationHint', {'redirect': NextendoConfig.registeredRedirect})),
-      for (final field in [(_clientId, 'nextendoClientId'), (_server, 'nextendoServer'), (_nat, 'nextendoNat')])
+      for (final field in [
+        (_clientId, 'nextendoClientId', config.clientIdFromBuild),
+        (_server, 'nextendoServer', config.serverFromBuild),
+        (_nat, 'nextendoNat', config.natFromBuild),
+      ])
         TextField(
           controller: field.$1,
+          enabled: !field.$3,
           autocorrect: false,
           enableSuggestions: false,
+          keyboardType: field.$2 == 'nextendoClientId' ? TextInputType.text : const TextInputType.numberWithOptions(decimal: true),
           decoration: InputDecoration(labelText: _text(field.$2)),
         ),
       Align(
@@ -228,8 +296,10 @@ class _NextendoDialogState extends State<NextendoDialog> {
                 child: Text(_message!, style: _messageIsError ? TextStyle(color: Theme.of(context).colorScheme.error) : null),
               ),
               const SizedBox(height: 8),
+              Text(_text('nextendoGames'), style: Theme.of(context).textTheme.bodySmall),
+              const SizedBox(height: 4),
               Text(_text('nextendoLimits'), style: Theme.of(context).textTheme.bodySmall),
-              if (config != null && !config.fromBuild) _registration(),
+              if (config != null && !config.fromBuild) _registration(config),
             ],
           ),
         ),

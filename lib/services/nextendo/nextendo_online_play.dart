@@ -1,6 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'nextendo_config.dart';
+import 'nextendo_engine_support.dart';
 import 'nextendo_service.dart';
 
 /// What one Switch launch gives the engine to play on Nextendo Network.
@@ -11,9 +12,11 @@ class NextendoLaunchOnline {
   final String natAddress;
 
   /// The engine's request (`configureOnline`). The game token goes to the
-  /// engine in memory only; it is never written to a file or a journal.
+  /// engine in memory only; it is never written to a file or a journal. The
+  /// PID is the account id the game reads (Nextendo's integration guide).
   Map<String, dynamic> toEngine() => {
     'nexToken': token.token,
+    'pid': token.pid,
     'serverAddress': serverAddress,
     'natAddress': natAddress,
   };
@@ -38,6 +41,7 @@ abstract final class NextendoOnlinePlay {
     NextendoService? service,
     NextendoConfig? config,
     SharedPreferences? preferences,
+    Future<bool> Function()? engineSupported,
     void Function(String reason)? onSkipped,
   }) async {
     final nextendo = service ?? NextendoService.instance;
@@ -49,11 +53,19 @@ abstract final class NextendoOnlinePlay {
         onSkipped?.call('disabled');
         return null;
       }
-      if (!settings.canPlayOnline) {
-        onSkipped?.call('serversNotConfigured');
+      if (!settings.serversConfigured) {
+        onSkipped?.call(settings.serversIssue == 'same' ? 'serversSame' : 'serversNotConfigured');
+        return null;
+      }
+      if (!await (engineSupported ?? NextendoEngineSupport.supported)()) {
+        onSkipped?.call('engineUnsupported');
         return null;
       }
       final token = await nextendo.gameToken(settings);
+      if (token.pid <= 0) {
+        onSkipped?.call('pidMissing');
+        return null;
+      }
       return NextendoLaunchOnline(token: token, serverAddress: settings.serverAddress, natAddress: settings.natAddress);
     } on NextendoException catch (error) {
       onSkipped?.call(error.code);

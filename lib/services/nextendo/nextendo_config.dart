@@ -9,21 +9,34 @@ import 'package:shared_preferences/shared_preferences.dart';
 ///   Nextendo Developers portal (14 November 2026). It is public: a PKCE client
 ///   has no secret, and the identifier travels in every sign-in address.
 /// - The two game-server addresses are what Nextendo's own builds receive at
-///   build time; Nextendo keeps them out of its public source, so RewindBox
-///   keeps them out of its repository too and takes them from build defines.
+///   build time. Nextendo does not publish them: a third-party client asks its
+///   team, and keeps them in configuration rather than in source (integration
+///   guide, "Network redirection"). RewindBox takes them from the build
+///   (`NEXTENDO_SERVER_IP`, `NEXTENDO_NAT_IP`), so players never type them.
 ///
-/// A build without the defines uses the registered identifier and can still be
-/// configured on the device (the maintainer's test path); a build with them
-/// ignores the on-device values.
+/// Each value comes from the build when the build has a valid one, otherwise
+/// from the maintainer's on-device field, otherwise (client identifier only)
+/// from the registered application. A partial build therefore keeps what it
+/// has and leaves only the missing values to the device.
 class NextendoConfig {
-  const NextendoConfig({required this.clientId, required this.serverAddress, required this.natAddress, required this.fromBuild});
+  const NextendoConfig({
+    required this.clientId,
+    required this.serverAddress,
+    required this.natAddress,
+    this.clientIdFromBuild = false,
+    this.serverFromBuild = false,
+    this.natFromBuild = false,
+  });
 
   final String clientId;
   final String serverAddress;
   final String natAddress;
+  final bool clientIdFromBuild;
+  final bool serverFromBuild;
+  final bool natFromBuild;
 
-  /// Whether the values come from the build (players cannot change them).
-  final bool fromBuild;
+  /// Both server addresses come from the build: players see no technical field.
+  bool get fromBuild => serverFromBuild && natFromBuild;
 
   /// The account API. Tokens are only ever sent to this origin.
   static const apiBase = 'https://nextendo.network';
@@ -61,9 +74,16 @@ class NextendoConfig {
   /// Sign-in needs the client identifier only.
   bool get canSignIn => isClientId(clientId);
 
-  /// Online play also needs both server addresses (the NAT check compares two
-  /// vantage points, so one address is not enough).
-  bool get canPlayOnline => canSignIn && isAddress(serverAddress) && isAddress(natAddress);
+  /// Online play also needs both server addresses, and two different ones: the
+  /// NAT test compares two vantage points and fails silently on one (2618-0201).
+  bool get serversConfigured => isAddress(serverAddress) && isAddress(natAddress) && serverAddress != natAddress;
+
+  /// Why [serversConfigured] is false: `missing` or `same`; null when configured.
+  String? get serversIssue => serversConfigured
+      ? null
+      : (isAddress(serverAddress) && isAddress(natAddress) ? 'same' : 'missing');
+
+  bool get canPlayOnline => canSignIn && serversConfigured;
 
   static bool isClientId(String value) => RegExp(r'^nxc_[A-Za-z0-9_-]{4,128}$').hasMatch(value);
 
@@ -78,17 +98,29 @@ class NextendoConfig {
         parsed.address != '0.0.0.0';
   }
 
-  static Future<NextendoConfig> load([SharedPreferences? preferences]) async {
-    if (_buildClientId.isNotEmpty) {
-      return const NextendoConfig(clientId: _buildClientId, serverAddress: _buildServer, natAddress: _buildNat, fromBuild: true);
-    }
+  static Future<NextendoConfig> load([SharedPreferences? preferences]) =>
+      resolve(buildClientId: _buildClientId, buildServer: _buildServer, buildNat: _buildNat, preferences: preferences);
+
+  /// [load] with explicit build values (a build define that is empty or
+  /// invalid counts as absent).
+  static Future<NextendoConfig> resolve({
+    required String buildClientId,
+    required String buildServer,
+    required String buildNat,
+    SharedPreferences? preferences,
+  }) async {
     final prefs = preferences ?? await SharedPreferences.getInstance();
+    final clientFromBuild = isClientId(buildClientId.trim());
+    final serverFromBuild = isAddress(buildServer.trim());
+    final natFromBuild = isAddress(buildNat.trim());
     final localClientId = prefs.getString(_clientIdKey) ?? '';
     return NextendoConfig(
-      clientId: localClientId.isEmpty ? registeredClientId : localClientId,
-      serverAddress: prefs.getString(_serverKey) ?? '',
-      natAddress: prefs.getString(_natKey) ?? '',
-      fromBuild: false,
+      clientId: clientFromBuild ? buildClientId.trim() : (localClientId.isEmpty ? registeredClientId : localClientId),
+      serverAddress: serverFromBuild ? buildServer.trim() : prefs.getString(_serverKey) ?? '',
+      natAddress: natFromBuild ? buildNat.trim() : prefs.getString(_natKey) ?? '',
+      clientIdFromBuild: clientFromBuild,
+      serverFromBuild: serverFromBuild,
+      natFromBuild: natFromBuild,
     );
   }
 
@@ -104,6 +136,7 @@ class NextendoConfig {
     if (values[_clientIdKey]!.isNotEmpty && !isClientId(values[_clientIdKey]!)) throw const FormatException('clientId');
     if (values[_serverKey]!.isNotEmpty && !isAddress(values[_serverKey]!)) throw const FormatException('serverAddress');
     if (values[_natKey]!.isNotEmpty && !isAddress(values[_natKey]!)) throw const FormatException('natAddress');
+    if (values[_serverKey]!.isNotEmpty && values[_serverKey] == values[_natKey]) throw const FormatException('sameAddresses');
     final prefs = preferences ?? await SharedPreferences.getInstance();
     for (final entry in values.entries) {
       final stored = entry.value.isEmpty ? await prefs.remove(entry.key) : await prefs.setString(entry.key, entry.value);
