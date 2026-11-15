@@ -361,10 +361,21 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
   LibretroSkinRepresentation *representation = nil;
   LibretroSkinLayoutResult *layout = nil;
   if (source != nil) {
-    representation = [source representationForOrientation:_currentOrientation
-                                                  viewSize:viewSize
-                                                safeInsets:safeInsets
-                                                      iPad:iPad];
+    // Controls hidden (a controller drives the game, or touch controls off):
+    // the skin goes as on the other engines and the game takes the screen.
+    if ([self controlsShouldHide] &&
+        [source respondsToSelector:@selector(gameOnlyRepresentationForOrientation:viewSize:safeInsets:iPad:)]) {
+      representation = [source gameOnlyRepresentationForOrientation:_currentOrientation
+                                                           viewSize:viewSize
+                                                         safeInsets:safeInsets
+                                                               iPad:iPad];
+    }
+    if (representation == nil) {
+      representation = [source representationForOrientation:_currentOrientation
+                                                    viewSize:viewSize
+                                                  safeInsets:safeInsets
+                                                        iPad:iPad];
+    }
     NSDictionary<NSString *, NSDictionary *> *overrides =
         _editing ? [_editOverrides copy] : [source layoutOverridesForRepresentation:representation];
     layout = [LibretroSkinLayout layoutRepresentation:representation
@@ -467,9 +478,9 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
   if (_overlay.controlsDisabled != hidden) _overlay.controlsDisabled = hidden;
   if (hidden == _controlsHidden) return;
   _controlsHidden = hidden;
-  // The layout source may choose another skin for this orientation when a
-  // controller comes or goes (a skin not playable by touch stays in use
-  // with a controller): lay out again, which also redraws the skin.
+  // A controller coming or going (or the touch controls switch) swaps the
+  // skin and the game alone (gameOnlyRepresentation...): lay out again,
+  // which also redraws the skin.
   if (self.isViewLoaded && self.view.window != nil && !_inLayoutPass) {
     [self setNeedsSkinLayout];
     return;

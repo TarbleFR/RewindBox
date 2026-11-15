@@ -982,4 +982,87 @@ static double DefaultInset(double value) {
   return representation;
 }
 
++ (LibretroSkinRepresentation *)gameOnlyRepresentationForConsole:(NSString *)console
+                                                     orientation:(LibretroSkinOrientation)orientation
+                                                        viewSize:(LibretroSize)viewSize
+                                                      safeInsets:(LibretroInsets)safeInsets
+                                                            iPad:(BOOL)iPad
+                                                     arrangement:(NSString *)arrangement
+                                                         swapped:(BOOL)swapped
+                                                         regions:(NSDictionary<NSString *, NSArray<NSNumber *> *> *)regions {
+  LibretroInputMap *map = [LibretroInputMap mapForConsole:console];
+  double viewWidth = isfinite(viewSize.w) && viewSize.w > 1 ? viewSize.w : 1;
+  double viewHeight = isfinite(viewSize.h) && viewSize.h > 1 ? viewSize.h : 1;
+  double safeTop = DefaultInset(safeInsets.top), safeLeft = DefaultInset(safeInsets.left);
+  double safeBottom = DefaultInset(safeInsets.bottom), safeRight = DefaultInset(safeInsets.right);
+  if (safeLeft + safeRight > viewWidth / 2) safeLeft = safeRight = 0;
+  if (safeTop + safeBottom > viewHeight / 2) safeTop = safeBottom = 0;
+  LibretroRect safeArea = LibretroRectMake(safeLeft, safeTop, MAX(viewWidth - safeLeft - safeRight, 1),
+                                           MAX(viewHeight - safeTop - safeBottom, 1));
+
+  BOOL dual = [self isDualScreenConsole:console];
+  NSArray<NSString *> *roles = @[ @"full" ];
+  LibretroSize screenSizes[2] = {{1, 1}, {1, 1}};
+  LibretroRect slots[2] = {{0, 0, 0, 0}, {0, 0, 0, 0}};
+  NSUInteger slotCount = 1;
+  slots[0] = safeArea;
+  if (dual) {
+    NSArray<NSString *> *known = @[ LibretroArrangementStacked, LibretroArrangementSideBySide, LibretroArrangementLargeTop,
+                                    LibretroArrangementTopOnly, LibretroArrangementBottomOnly ];
+    if (arrangement == nil || ![known containsObject:arrangement]) {
+      arrangement = [self defaultArrangementForConsole:console orientation:orientation];
+    }
+    if ([arrangement isEqualToString:LibretroArrangementTopOnly]) {
+      roles = @[ swapped ? @"bottom" : @"top" ];
+    } else if ([arrangement isEqualToString:LibretroArrangementBottomOnly]) {
+      roles = @[ swapped ? @"top" : @"bottom" ];
+    } else {
+      roles = swapped ? @[ @"bottom", @"top" ] : @[ @"top", @"bottom" ];
+    }
+    LibretroSize nominal = [console isEqualToString:@"3ds"] ? (LibretroSize){400, 480} : (LibretroSize){256, 384};
+    for (NSUInteger index = 0; index < roles.count; index++) {
+      LibretroRect region = DefaultRegion(console, roles[index], regions);
+      screenSizes[index] = (LibretroSize){region.w * nominal.w, region.h * nominal.h};
+    }
+    slotCount = DefaultArrange(safeArea, arrangement, screenSizes, roles.count, NO, 4, slots);
+  }
+
+  NSMutableArray<LibretroSkinScreen *> *screens = [NSMutableArray array];
+  NSMutableArray<LibretroSkinItem *> *items = [NSMutableArray array];
+  for (NSUInteger index = 0; index < slotCount && index < roles.count; index++) {
+    LibretroSkinScreen *screen = [LibretroSkinScreen new];
+    NSString *role = roles[index];
+    screen.role = role;
+    screen.source = dual ? DefaultRegion(console, role, regions) : LibretroRectMake(0, 0, 1, 1);
+    screen.outputFrame = slots[index];
+    screen.hasOutputFrame = YES;
+    screen.touchScreen = [role isEqualToString:@"bottom"] && map.hasTouchScreen;
+    [screens addObject:screen];
+    if (screen.touchScreen) {
+      LibretroSkinItem *touch = [LibretroSkinItem new];
+      touch.identifier = @"touchScreen";
+      touch.kind = LibretroSkinItemKindTouchScreen;
+      touch.shape = LibretroSkinItemShapeNone;
+      touch.inputs = @[ @"touchScreen" ];
+      touch.frame = slots[index];
+      touch.hitFrame = slots[index];
+      touch.assetFrame = slots[index];
+      touch.movable = NO;
+      [items addObject:touch];
+    }
+  }
+
+  LibretroSkinRepresentation *representation = [LibretroSkinRepresentation new];
+  representation.orientation = orientation;
+  representation.device = iPad ? @"ipad" : @"iphone";
+  representation.displayType = !iPad && safeBottom > 0 ? @"edgeToEdge" : @"standard";
+  representation.mappingSize = (LibretroSize){viewWidth, viewHeight};
+  representation.items = items;
+  representation.screens = screens;
+  representation.translucent = YES;
+  representation.generated = YES;
+  representation.extendedEdges = (LibretroInsets){0, 0, 0, 0};
+  return representation;
+}
+
 @end

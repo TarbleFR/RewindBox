@@ -22,6 +22,15 @@ NS_ASSUME_NONNULL_BEGIN
                                                     viewSize:(LibretroSize)size
                                                   safeInsets:(LibretroInsets)insets
                                                         iPad:(BOOL)iPad;
+@optional
+/// The game alone (no skin art, no control), shown instead of the selected
+/// skin while the controls are hidden outside the editor: a physical
+/// controller drives the game or the touch controls are off.
+- (LibretroSkinRepresentation *)gameOnlyRepresentationForOrientation:(LibretroSkinOrientation)orientation
+                                                            viewSize:(LibretroSize)size
+                                                          safeInsets:(LibretroInsets)insets
+                                                                iPad:(BOOL)iPad;
+@required
 /// User layout overrides for the shown representation.
 - (nullable NSDictionary<NSString *, NSDictionary *> *)layoutOverridesForRepresentation:
     (LibretroSkinRepresentation *)representation;

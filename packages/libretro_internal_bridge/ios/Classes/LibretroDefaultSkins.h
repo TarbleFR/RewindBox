@@ -78,6 +78,20 @@ FOUNDATION_EXPORT NSString *const LibretroArrangementBottomOnly;  // "bottomOnly
                                                  regions:(nullable NSDictionary<NSString *, NSArray<NSNumber *> *> *)regions
                                               coreAspect:(double)coreAspect;
 
+/// The game alone, for a game a physical controller drives or with the touch
+/// controls off (as the other engines hide their skin then): the screens over
+/// the whole safe area (DS / 3DS: the chosen arrangement, centred; the touch
+/// screen still follows the bottom screen), no control, no panel and no
+/// artwork. `generated` = YES, like the default skin.
++ (LibretroSkinRepresentation *)gameOnlyRepresentationForConsole:(NSString *)console
+                                                     orientation:(LibretroSkinOrientation)orientation
+                                                        viewSize:(LibretroSize)viewSize
+                                                      safeInsets:(LibretroInsets)safeInsets
+                                                            iPad:(BOOL)iPad
+                                                     arrangement:(nullable NSString *)arrangement
+                                                         swapped:(BOOL)swapped
+                                                         regions:(nullable NSDictionary<NSString *, NSArray<NSNumber *> *> *)regions;
+
 @end
 
 NS_ASSUME_NONNULL_END

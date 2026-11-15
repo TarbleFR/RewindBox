@@ -1819,6 +1819,41 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   return representation;
 }
 
+/// The game alone while the controls are hidden (LibretroGameViewController):
+/// the selected skin stays the current one (menu, editor, readiness), only
+/// its art and controls leave the screen.
+- (LibretroSkinRepresentation *)gameOnlyRepresentationForOrientation:(LibretroSkinOrientation)orientation
+                                                            viewSize:(LibretroSize)size
+                                                          safeInsets:(LibretroInsets)insets
+                                                                iPad:(BOOL)iPad {
+  _currentOrientation = orientation;
+  _viewSize = size;
+  _safeInsets = insets;
+  _iPad = iPad;
+  _laidOutPictureAspect = [self pictureLayoutAspect];
+  NSString *arrangement = nil;
+  if ([LibretroDefaultSkins isDualScreenConsole:_console]) {
+    NSString *key = orientation == LibretroSkinOrientationPortrait ? LibretroSettingArrangementPortrait
+                                                                    : LibretroSettingArrangementLandscape;
+    NSString *stored = SettingString([self settingValue:key]);
+    if (stored != nil &&
+        [[LibretroDefaultSkins arrangementsForConsole:_console orientation:orientation] containsObject:stored]) {
+      arrangement = stored;
+    }
+  }
+  LibretroSkinRepresentation *representation =
+      [LibretroDefaultSkins gameOnlyRepresentationForConsole:_console
+                                                 orientation:orientation
+                                                    viewSize:size
+                                                  safeInsets:insets
+                                                        iPad:iPad
+                                                 arrangement:arrangement
+                                                     swapped:[self screensSwapped]
+                                                     regions:[self consoleRegions]];
+  if (!_screensAndShadersAvailable) [self adaptToLegacyPicture:representation viewSize:size];
+  return representation;
+}
+
 /// NO when the chosen skin's iPhone layout for `orientation` exists but is
 /// not playable by touch while touch controls are needed (announced once
 /// per skin). iPad: the creator's layout is kept as before.
