@@ -1,0 +1,763 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_geometry.inc b/graphics/nvn/gfx/nvn/nvn_geometry.inc
+index 4279f979b..ada04d826 100644
+--- a/graphics/nvn/gfx/nvn/nvn_geometry.inc
++++ b/graphics/nvn/gfx/nvn/nvn_geometry.inc
+@@ -104,15 +104,147 @@ static id<MTLRenderPipelineState> geo_capture_pso(NvShader *vs) {
+ // The mesh stage shares the vertex stage's argument table (it has no vertex fetch: vertex-table slot 29 is vertex stream 13's, VB_SLOT, rebound through the enc_r_vbuf cache by the
+ // next vertex draw), a task shader has the object table g_ot; both read the draw's first workgroup at buffer MESH_FIRST_SLOT (interface contract item 3). Indirect: the GPU-written
+ // {count, first} become MTLDispatchThreadgroupsIndirectArguments {count, 1, 1} with first at word 4 on the GPU (ixc_run), so neither is read on the CPU.
+-// A pipeline is built in the background (g_mtk_q); until it is ready the draw is skipped and counted (g_mtk_wait), a refused one is reported red once and its draws skipped.
++// A pipeline is built in the background (g_mtk_q, mtk_kick); until it is ready the draw is skipped and counted (g_mtk_wait) when skip_safe's rules allow it, otherwise the draw waits
++//   for the build within a per-frame budget (mtk_sync_why, mtk_wait); a refused one is reported red once and its draws skipped.
+ // After the upstream reference (MIT) 1d4b8e82b / #1312 (MIT): mesh_tasks_draw / mtk_pso / mtk_encode, written for this host's two backends, recording and binding state
+ enum { MESH_FIRST_SLOT = 29 };
+ _Static_assert(VB_SLOT(13) == MESH_FIRST_SLOT, "slot 29 of the vertex table is vertex stream 13's: a mesh draw writes it through enc_r_vbuf so the next vertex draw rebinds the stream (see above)");
+ static struct { int on, miss; NvShader *ts, *ms; uint32_t first, count; uint64_t ind; } g_mtk;   // the draw being encoded (on: draw() is drawing it)
+-typedef struct { pso_key k; const void *ts; } mtk_key;   // pso_key with the mesh shader in its vertex place, and the task shader (the pipeline's third function)
++typedef struct { pso_key k; const void *ts; uint32_t pad; } mtk_key;   // pso_key with the mesh shader in its vertex place, the task shader (the pipeline's third function), and the user(locn) mask of the padded mesh variant used (0 = none)
+ static nvn_hmap g_pso_mtk = {.klen = sizeof(mtk_key)}; static os_unfair_lock g_pso_mtk_lock = OS_UNFAIR_LOCK_INIT;
+ static NSObject *g_pso_mtk_building; static dispatch_queue_t g_mtk_q; static dispatch_group_t g_mtk_group;
+ static uint64_t g_mtk_n, g_mtk_ind_n, g_mtk_wait, g_mtk_skip;   // drawn (of them indirect), skipped while the pipeline was built, skipped as not drawable (red)
++// #770 实验开关 S2A_MESH_PACE（缺省 0 = 关，照旧建好即交付）：M1 Max（没有硬件网格着色，驱动走软件网格）换图时 GPU 挂死，都紧跟某条网格管线交付、
++//   且发生在多条网格管线排队待交付时；跳过网格绘制不挂；清掉系统缓存全部现编照样挂（作者 11-12 反例，所以不是缓存）。两档各验一个假设：
++//   1 = 建好的先攒着，后台一条都不在编了才一起交付（假设：新管线首次上 GPU 时编译服务还在编下一条软件网格管线 → 挂）；
++//   2 = 每帧最多交付一条（假设：同一帧里几条新管线首次上 GPU → 挂）。交付和每条管线第一次被画都记帧号与还在编的条数，挂死前最后几行能对上是哪种
++static int mtk_pace(void) {
++    static int v = -1; if (v >= 0) return v;
++    const char *e = getenv("S2A_MESH_PACE"); v = e && (*e == '1' || *e == '2') && !e[1] ? *e - '0' : 0;
++    if (v) MLOG("task / mesh pipelines: pace %d (S2A_MESH_PACE: %s)", v, v == 1 ? "deliver only when no mesh pipeline is still building" : "deliver at most one per frame");
++    return v;
++}
++static _Atomic int g_mtk_inflight;   // mesh pipelines queued or building in the background
++static NSMutableArray *g_mtk_ready;   // pace on: built, not delivered yet (each @[NSData key, pipeline or NSNull]); under g_pso_mtk_lock
++static uint64_t g_mtk_pub_frame = UINT64_MAX;
++static NSMutableSet *g_mtk_drawn;   // pipelines already drawn once (first-draw log)
++static NSMapTable *g_mtk_names;   // pipeline → "task … mesh … fragment …" for the #770 logs (not the pipeline's label: -label is also a Metal 4 encoder selector, t_nvn_rec_cover); under g_pso_mtk_lock
++static const char *mtk_name(id p) { if (!p || p == NSNull.null) return "(refused)"; os_unfair_lock_lock(&g_pso_mtk_lock); NSString *n = [g_mtk_names objectForKey:p]; os_unfair_lock_unlock(&g_pso_mtk_lock); return n ? n.UTF8String : "?"; }
++static void mtk_publish(void) {   // pace on, submit thread, before a mesh draw looks its pipeline up
++    int pace = mtk_pace(); if (!pace || !g_mtk_ready.count) return;
++    uint64_t f = atomic_load_explicit(&g_cur_frame, memory_order_relaxed); int fly = atomic_load(&g_mtk_inflight);
++    if (pace == 1 && fly) return;
++    if (pace == 2 && f == g_mtk_pub_frame) return;
++    os_unfair_lock_lock(&g_pso_mtk_lock);
++    NSUInteger n = pace == 2 ? 1 : g_mtk_ready.count;
++    for (NSUInteger i = 0; i < n; i++) { NSArray *r = g_mtk_ready[i]; mtk_key kk; [(NSData *)r[0] getBytes:&kk length:sizeof kk]; hm_put_id(&g_pso_mtk, &kk, r[1]); }
++    NSArray *done = [g_mtk_ready subarrayWithRange:NSMakeRange(0, n)]; [g_mtk_ready removeObjectsInRange:NSMakeRange(0, n)]; NSUInteger left = g_mtk_ready.count;
++    os_unfair_lock_unlock(&g_pso_mtk_lock);
++    g_mtk_pub_frame = f;
++    for (NSArray *r in done) MLOG("task / mesh pipeline delivered (pace %d) at frame %llu: %s; still building %d, built and held %lu", pace, (unsigned long long)f,
++                                  mtk_name(r[1]), fly, (unsigned long)left);
++}
++// The pipeline descriptor of a task / mesh draw: the fragment function variant and the attachments as a vertex draw's (pso_desc, no vertex stage); pf: the padded mesh variant (#674) or nil.
++//   Shared by the draw (mtk_pso) and the prewarm (mtk_warm), so a pipeline the prewarm built is the one the draw would build
++static MTLMeshRenderPipelineDescriptor *mtk_desc(pso_key *k, NvShader *ts, NvShader *ms, NvShader *fs, id<MTLFunction> pf, int merged, id<MTLFunction> fsfn) {
++    MTLRenderPipelineDescriptor *d = pso_desc(k, nil, fs, fsfn, merged);
++    MTLMeshRenderPipelineDescriptor *m = [MTLMeshRenderPipelineDescriptor new];
++    m.meshFunction = pf ?: ms->fn; m.fragmentFunction = d.fragmentFunction; m.maxTotalThreadsPerMeshThreadgroup = ms->mesh_threads;
++    if (ts) { m.objectFunction = ts->fn; m.payloadMemoryLength = ((NSUInteger)ts->mesh_payload + 15) & ~(NSUInteger)15; m.maxTotalThreadsPerObjectThreadgroup = ts->mesh_threads; }   // RewindBox (patch 0041): S2Arm 06e2e8e9 (a payload over 16 KB relayed through device memory, a translator change) is not taken: the payload length as at the pin
++    m.rasterSampleCount = d.rasterSampleCount; m.alphaToCoverageEnabled = d.alphaToCoverageEnabled;
++    for (int i = 0; i < 8; i++) m.colorAttachments[i] = d.colorAttachments[i];
++    m.depthAttachmentPixelFormat = d.depthAttachmentPixelFormat; m.stencilAttachmentPixelFormat = d.stencilAttachmentPixelFormat;
++    return m;
++}
++// A task / mesh pipeline goes into pso_user.tsv as an M row: M<TAB>pso_skey hex (the mesh shader in the vertex place)<TAB>task shader key ("-": none)<TAB>padded variant mask (hex), so the next start's
++//   prewarm (warm_parse / mtk_warm) builds it before the scene, and the next package's seed (pso_seed.py) carries it. A merged pass's pipeline (a specialized fragment) is not recorded,
++//   as R rows of one are not (pso_record). Submit thread
++static void mtk_record(const mtk_key *mk, NvShader *ts, NvShader *ms, NvShader *fs, int merged) {
++    if (merged || mk->k.fsfn) return;
++    pso_skey sk; pso_skey_from(&mk->k, ms, fs, 0, NULL, &sk); char hx[sizeof sk * 2 + 1]; pso_skey_hex(&sk, hx);
++    pso_user_record("M\t%s\t%s\t%x\n", hx, ts ? ts->key : "-", mk->pad);
++}
++// The key a draw of these shaders looks its pipeline up with, from an M row (the shader pointers are the shared objects, shader_load)
++static void mtk_warm_key(const pso_skey *sk, NvShader *ts, NvShader *ms, NvShader *fs, uint32_t pad, mtk_key *mk) {
++    memset(mk, 0, sizeof *mk); mk->k = sk->k; mk->k.vs = (__bridge void *)ms; mk->k.fs = (__bridge void *)fs; mk->k.fsfn = NULL; mk->ts = (__bridge void *)ts; mk->pad = pad;
++}
++// The prewarm's build of an M row (a background worker): the shared shader objects (warm_shader → shader_load), the key the draw looks up with, the pipeline; nil when it cannot be built
++static id mtk_warm(const pso_skey *sk, NSString *mkey, NSString *fkey, NSString *tkey, uint32_t pad, NSData **key) {
++    if (!g_mesh_ok) return nil;
++    NvShader *ms = warm_shader(mkey, sk->vs_stage), *fs = fkey.length ? warm_shader(fkey, sk->fs_stage) : nil, *ts = tkey.length ? warm_shader(tkey, 3) : nil;
++    if (!ms || ms->mesh_kind != 2 || (fkey.length && !fs) || (tkey.length && !ts)) return nil;
++    id<MTLFunction> pf = nil;
++    if (pad && !(pf = vp_fn(ms, pad))) return nil;   // the padded variant is made at its first use on this device (vp_ask); not yet: the draw builds it then
++    mtk_key mk; mtk_warm_key(sk, ts, ms, fs, pad, &mk);
++    if (mk.k.fc && fs && !se_warm(fs, mk.k.fc)) return nil;   // a sampler-emulation variant this device has not made yet (as R rows)
++    NSError *e = nil; uint64_t t0 = bp_now();
++    id<MTLRenderPipelineState> p = [g_dev newRenderPipelineStateWithMeshDescriptor:mtk_desc(&mk.k, ts, ms, fs, pf, 0, nil) options:MTLPipelineOptionNone reflection:nil error:&e];
++    if (!p) { MLOG("【红】 prewarm: task / mesh pipeline refused (task %s mesh %s fragment %s): %s", ts ? ts->key : "-", ms->key, fs ? fs->key : "-", e.localizedDescription.UTF8String); return nil; }
++    NSString *names = [NSString stringWithFormat:@"task %s mesh %s%s fragment %s", ts ? ts->key : "-", ms->key, pf ? " (padded)" : "", fs ? fs->key : "-"];
++    os_unfair_lock_lock(&g_pso_mtk_lock); if (!g_mtk_names) g_mtk_names = [NSMapTable strongToStrongObjectsMapTable]; [g_mtk_names setObject:names forKey:p]; os_unfair_lock_unlock(&g_pso_mtk_lock);
++    (void)t0; *key = [NSData dataWithBytes:&mk length:sizeof mk]; return p;
++}
++static uint64_t g_mtk_warm_claimed;
++static void mtk_warm_claim(NSData *key, id ps) {   // submit thread (warm_claim): a pipeline the prewarm built goes where the draw looks, unless the draw already has one
++    mtk_key mk; if (key.length != sizeof mk) return; [key getBytes:&mk length:sizeof mk];
++    os_unfair_lock_lock(&g_pso_mtk_lock); __unsafe_unretained id cur = hm_get_id(&g_pso_mtk, &mk); int put = !cur || cur == g_pso_mtk_building;
++    if (put) hm_put_id(&g_pso_mtk, &mk, ps); os_unfair_lock_unlock(&g_pso_mtk_lock);
++    if (put) { uint64_t n = ++g_mtk_warm_claimed; if (!(n & (n - 1))) MLOG("task / mesh pipelines from the prewarm taken by the draws' table: %llu so far", (unsigned long long)n); }
++}
++// The background build of a mesh pipeline: a concurrent queue, at most mtk_width() at a time (the system compiler service builds them in parallel; one serial queue left a draw that
++//   could not wait behind every other pipeline queued before it)
++static int mtk_width(void) { static int w; if (!w) { const char *e = getenv("DM_NVN_MESH_PAR"); int n = (int)NSProcessInfo.processInfo.activeProcessorCount; w = e && atoi(e) > 0 ? atoi(e) : n > 4 ? n - 2 : 2; MLOG("task / mesh pipelines: built in the background %d at a time (DM_NVN_MESH_PAR)", w); } return w; }
++static dispatch_semaphore_t g_mtk_sem;
++static void mtk_kick(MTLMeshRenderPipelineDescriptor *m, NSString *names, const mtk_key *key) {
++    mtk_key kk = *key;
++    atomic_fetch_add(&g_mtk_inflight, 1);
++    if (!g_mtk_q) { g_mtk_q = dispatch_queue_create("dm.nvn.mesh", s2a_qos_queue_attr(DISPATCH_QUEUE_CONCURRENT, S2A_QOS_SHADER_VARIANT)); g_mtk_group = dispatch_group_create(); g_mtk_sem = dispatch_semaphore_create(mtk_width()); }
++    dispatch_group_async(g_mtk_group, g_mtk_q, ^{ @autoreleasepool {
++        dispatch_semaphore_wait(g_mtk_sem, DISPATCH_TIME_FOREVER);
++        NSError *e = nil; uint64_t t0 = bp_now();
++        id<MTLRenderPipelineState> p = [g_dev newRenderPipelineStateWithMeshDescriptor:m options:MTLPipelineOptionNone reflection:nil error:&e];
++        dispatch_semaphore_signal(g_mtk_sem);
++        int left = atomic_fetch_sub(&g_mtk_inflight, 1) - 1;
++        if (p) MLOG("task / mesh pipeline: %s, %.1f ms in the background (frame %llu, still building %d)", names.UTF8String, (bp_now() - t0) / 1e6,
++                    (unsigned long long)atomic_load_explicit(&g_cur_frame, memory_order_relaxed), left);
++        else MLOG("【红】 task / mesh pipeline refused (%s): %s; its draws are skipped", names.UTF8String, e.localizedDescription.UTF8String);
++        os_unfair_lock_lock(&g_pso_mtk_lock);
++        if (p) { if (!g_mtk_names) g_mtk_names = [NSMapTable strongToStrongObjectsMapTable]; [g_mtk_names setObject:names forKey:p]; }
++        if (mtk_pace()) { if (!g_mtk_ready) g_mtk_ready = [NSMutableArray array]; [g_mtk_ready addObject:@[[NSData dataWithBytes:&kk length:sizeof kk], p ? (id)p : NSNull.null]]; }   // held: mtk_publish delivers
++        else if (hm_get_id(&g_pso_mtk, &kk) == g_pso_mtk_building) hm_put_id(&g_pso_mtk, &kk, p ?: NSNull.null);   // the prewarm may have handed one over meanwhile: keep that one
++        os_unfair_lock_unlock(&g_pso_mtk_lock);
++    } });
++}
++// A draw that cannot be skipped waits on the submit thread for its pipeline's background build, at most mtk_budget_ms() a frame in all (DM_NVN_MESH_WAIT_MS); past the budget the draw is
++//   skipped as before and waits again the next frame. → the pipeline, nil (skipped)
++static uint64_t g_mtk_waits, g_mtk_wait_ns, g_mtk_wait_max, g_mtk_wait_over, g_mtk_wait_frame = UINT64_MAX, g_mtk_wait_frame_ns;
++static int g_mtk_budget = -1;   // ms; -1: not read yet (t_nvn_mesh ④d sets it)
++static int mtk_budget_ms(void) { if (g_mtk_budget < 0) { const char *e = getenv("DM_NVN_MESH_WAIT_MS"); g_mtk_budget = e ? atoi(e) : 250; } return g_mtk_budget; }
++static id mtk_wait(const mtk_key *mk, const char *why) {
++    uint64_t f = atomic_load_explicit(&g_cur_frame, memory_order_relaxed); if (f != g_mtk_wait_frame) { g_mtk_wait_frame = f; g_mtk_wait_frame_ns = 0; }
++    uint64_t budget = (uint64_t)mtk_budget_ms() * 1000000ull, t0 = bp_now(); __unsafe_unretained id p = nil; int done = 0;
++    while (!mtk_pace()) {
++        os_unfair_lock_lock(&g_pso_mtk_lock); p = hm_get_id(&g_pso_mtk, mk); os_unfair_lock_unlock(&g_pso_mtk_lock);
++        if (p != g_pso_mtk_building) { done = 1; break; }
++        if (g_mtk_wait_frame_ns + (bp_now() - t0) >= budget) break;
++        usleep(200);
++    }
++    uint64_t dt = bp_now() - t0; g_mtk_wait_frame_ns += dt; g_mtk_waits++; g_mtk_wait_ns += dt; if (dt > g_mtk_wait_max) g_mtk_wait_max = dt;
++    if (!done) g_mtk_wait_over++;
++    if (!(g_mtk_waits & (g_mtk_waits - 1)) || !done) MLOG("task / mesh draw that cannot be skipped (%s) waited for its background pipeline %.1f ms (%s); %llu waits so far, %.1f ms in all, longest %.1f ms, %llu past the %d ms frame budget (skipped)",
++        why, dt / 1e6, done ? "ready" : "not ready: skipped this frame", (unsigned long long)g_mtk_waits, g_mtk_wait_ns / 1e6, g_mtk_wait_max / 1e6, (unsigned long long)g_mtk_wait_over, mtk_budget_ms());
++    return done && p != NSNull.null ? p : nil;
++}
++// Why a mesh draw whose pipeline is not built yet may not be skipped (nil: it may, its pipeline builds in the background); the same rules as skip_safe / first_skip_ok
++static const char *mtk_sync_why(NvShader *ts, NvShader *ms, NvShader *fs) {
++    if (!first_skip_on()) return "first-use skip off (DM_NVN_FIRST_SKIP=0)";
++    if (shader_writes(ts) || shader_writes(ms) || shader_writes(fs)) return "a stage writes storage";
++    for (int i = 0; i < R.rt.n; i++) if (R.rt.color[i] && !rt_fresh_now(R.rt.color[i])) return "a target not started fresh this frame";
++    if (R.rt.depth && !rt_fresh_now(R.rt.depth)) return "a target not started fresh this frame";
++    for (int i = 0; i < R.rt.n; i++) if (R.rt.color[i] && !rt_seen_steady(R.rt.color[i])) return "a target not drawn in the last two frames";
++    if (R.rt.depth && !rt_seen_steady(R.rt.depth)) return "a target not drawn in the last two frames";
++    return NULL;
++}
+ static id<MTLRenderPipelineState> mtk_pso(NvProg *raster) {
+     NvShader *ts = g_mtk.ts, *ms = g_mtk.ms, *fs = raster->sh[1]; int merged = g_pso_lmap != NULL;
+     mtk_key mk; memset(&mk, 0, sizeof mk); pso_key *k = &mk.k;
+@@ -122,27 +254,47 @@ static id<MTLRenderPipelineState> mtk_pso(NvProg *raster) {
+     if (g_pso_fc && !merged && !g_pso_fsfn && fs && !pso_fout_need(k, fs, 0)) k->fc = (uint8_t)g_pso_fc;
+     g_pso_color_round = pso_color_round_mask(k, fs, merged);
+     mk.ts = (__bridge void *)ts;
++    // #674: a fragment shader the game pairs at run time with a mesh shader that does not write a user(locn) it reads (Metal refuses the pipeline). Mesh shaders carry no user_out in
++    //   their json, so the miss is known from the refusal: then the padded mesh variant for every location the fragment reads is asked for (vp_ask, dm_shader_vpad → dm_mesh_pad_src:
++    //   only the locations the mesh does not write get (0,0,0,1)); until it is ready the pair's draws are skipped as before, then the pipeline is built with it (its own cache entry)
++    uint32_t want = fs && (fs->rf.has_user & 2) ? fs->rf.user_in : 0; id<MTLFunction> pf = want ? vp_fn(ms, want) : nil;
++    if (pf) mk.pad = want;
+     os_unfair_lock_lock(&g_pso_mtk_lock); __unsafe_unretained id ps = hm_get_id(&g_pso_mtk, &mk);
+     if (!ps) { if (!g_pso_mtk_building) g_pso_mtk_building = [NSObject new]; hm_put_id(&g_pso_mtk, &mk, g_pso_mtk_building); }
+     os_unfair_lock_unlock(&g_pso_mtk_lock);
+-    if (ps) return ps == NSNull.null || ps == g_pso_mtk_building ? nil : ps;
+-    MTLRenderPipelineDescriptor *d = pso_desc(k, ms, fs, g_pso_fsfn, merged);   // the fragment function variant and the attachments, as a vertex draw's
+-    MTLMeshRenderPipelineDescriptor *m = [MTLMeshRenderPipelineDescriptor new];
+-    m.meshFunction = ms->fn; m.fragmentFunction = d.fragmentFunction; m.maxTotalThreadsPerMeshThreadgroup = ms->mesh_threads;
+-    if (ts) { m.objectFunction = ts->fn; m.payloadMemoryLength = ((NSUInteger)ts->mesh_payload + 15) & ~(NSUInteger)15; m.maxTotalThreadsPerObjectThreadgroup = ts->mesh_threads; }
+-    m.rasterSampleCount = d.rasterSampleCount; m.alphaToCoverageEnabled = d.alphaToCoverageEnabled;
+-    for (int i = 0; i < 8; i++) m.colorAttachments[i] = d.colorAttachments[i];
+-    m.depthAttachmentPixelFormat = d.depthAttachmentPixelFormat; m.stencilAttachmentPixelFormat = d.stencilAttachmentPixelFormat;
+-    NSString *names = [NSString stringWithFormat:@"task %s mesh %s fragment %s", ts ? ts->key : "-", ms->key, fs ? fs->key : "-"]; mtk_key kk = mk;
+-    if (!g_mtk_q) { g_mtk_q = dispatch_queue_create("dm.nvn.mesh", s2a_qos_queue_attr(DISPATCH_QUEUE_SERIAL, S2A_QOS_SHADER_VARIANT)); g_mtk_group = dispatch_group_create(); }
+-    dispatch_group_async(g_mtk_group, g_mtk_q, ^{ @autoreleasepool {
+-        NSError *e = nil; uint64_t t0 = bp_now();
+-        id<MTLRenderPipelineState> p = [g_dev newRenderPipelineStateWithMeshDescriptor:m options:MTLPipelineOptionNone reflection:nil error:&e];
+-        if (p) MLOG("task / mesh pipeline: %s, %.1f ms in the background", names.UTF8String, (bp_now() - t0) / 1e6);
+-        else MLOG("【红】 task / mesh pipeline refused (%s): %s; its draws are skipped", names.UTF8String, e.localizedDescription.UTF8String);
+-        os_unfair_lock_lock(&g_pso_mtk_lock); hm_put_id(&g_pso_mtk, &kk, p ?: NSNull.null); os_unfair_lock_unlock(&g_pso_mtk_lock);
+-    } });
+-    return nil;
++    if (ps == NSNull.null && !mk.pad && want) vp_ask(S.prog, ms, want);   // refused unpadded: ask for the padded variant (once; a variant that cannot be made stays failed)
++    if (ps && ps != NSNull.null && ps != g_pso_mtk_building) {   // #770: the first draw of each pipeline, with the frame and how many are still building
++        if (!g_mtk_drawn) g_mtk_drawn = [NSMutableSet set];
++        if (![g_mtk_drawn containsObject:ps]) { [g_mtk_drawn addObject:ps]; mtk_record(&mk, ts, ms, fs, merged);
++            MLOG("task / mesh pipeline first drawn at frame %llu: %s; still building %d", (unsigned long long)atomic_load_explicit(&g_cur_frame, memory_order_relaxed),
++                 mtk_name(ps), atomic_load(&g_mtk_inflight)); }
++    }
++    if (ps == NSNull.null) return nil;
++    if (ps && ps != g_pso_mtk_building) return ps;
++    // Not built yet: skipping this draw is only allowed under the rules every other first use goes by (skip_safe, first_skip_ok): no stage writes storage, every target is started
++    //   fresh this frame and was drawn in the last two. 11-13 0400486024DEC000 on Duo: the mesh draws of the opening scene were skipped for 10–20 s while 54 mesh pipelines built one
++    //   after another in the background, and the scene came out washed white until the last of them was ready. A draw that cannot be skipped waits for its background build, within
++    //   a per-frame budget (mtk_wait). Building it here instead held the submit thread 19 s in all (one pipeline 3.1 s) and a cross-queue GPU event wait timed out into a GPU hang
++    const char *why = mtk_sync_why(ts, ms, fs);
++    if (!ps) {
++        // RewindBox (patch 0041): the fragment shader's typed-output variant, made before the pipeline is asked for. A vertex draw's pipeline that Metal refuses over an integer
++        //   attachment is built again with it (pso_get_ → pso_fout_variant); a task / mesh pipeline was only ever given the library's entry point, and a refusal is final for the
++        //   run. Mario Kart World on IPA 746 (iPhone17,2, 14 November, 366 s in, a race): "task / mesh pipeline refused (task - mesh b6d76b6fc9dc926f_b fragment
++        //   dcb0504c844f1ecc_b): output of type float4 is not compatible with a MTLPixelFormatR8Uint color attachment.; its draws are skipped". pso_fout_variant does nothing when the
++        //   attachments need no variant (pso_fout_need) or it is there already, tries once per shader and mask, and mtk_desc's pso_desc then takes it (fs_typed_fn), as the prewarm's
++        //   build of the M row does in a later run from the file it leaves in the fallback directory. Not asked for when the library's main0_u already is the entry these attachments
++        //   take (pso_desc picks it first). S2Arm's main (678247bc) has the same gap
++        if (fs && !g_pso_fsfn) { uint32_t need = pso_fout_need(k, fs, merged); if (need && !(fs->fn_u && need == fs->u_mask)) pso_fout_variant(raster, fs, k, merged); }
++        MTLMeshRenderPipelineDescriptor *m = mtk_desc(k, ts, ms, fs, pf, merged, g_pso_fsfn);
++        NSString *names = [NSString stringWithFormat:@"task %s mesh %s%s fragment %s", ts ? ts->key : "-", ms->key, pf ? " (padded)" : "", fs ? fs->key : "-"];
++        mtk_kick(m, names, &mk);
++        mtk_record(&mk, ts, ms, fs, merged);   // 请求编译时就记：只在一小段画面里用到、又编得慢的管线（0400486024DEC000 一段事件里那条 2 秒的），等它编好那笔已不再画，「第一次画出」时记就永远进不了种子
++    }
++    if (!why) return nil;   // building in the background, and this draw may wait for it
++    __unsafe_unretained id p = mtk_wait(&mk, why);
++    if (p) { if (!g_mtk_drawn) g_mtk_drawn = [NSMutableSet set];
++        if (![g_mtk_drawn containsObject:p]) { [g_mtk_drawn addObject:p]; mtk_record(&mk, ts, ms, fs, merged); } }
++    return p;
+ }
+ static void mtk_encode(id en_) {
+     id en = en_; NvShader *ts = g_mtk.ts, *ms = g_mtk.ms;
+@@ -177,6 +329,7 @@ static void mesh_tasks_draw(const p_draw *dw) {
+     }
+     NvProg *raster = pr->geo_raster;   // the pixel stage alone (geo_draw keeps its reader program here; a mesh program has no geometry stage)
+     if (!raster || raster->sh[0] || raster->sh[1] != pr->sh[1]) { raster = [NvProg new]; raster->sh[1] = pr->sh[1]; raster->gp = pr->gp; pr->geo_raster = raster; }
++    mtk_publish();   // #770 S2A_MESH_PACE: deliver held pipelines first
+     g_mtk.on = 1; g_mtk.miss = 0; g_mtk.ts = ts; g_mtk.ms = ms; g_mtk.first = (uint32_t)dw->first; g_mtk.count = (uint32_t)dw->count; g_mtk.ind = ind;
+     g_geo_program = raster;
+     p_draw triangle = {.prim = 4, .count = 3, .instances = 1};
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 8f13c4bf3..b1d2033ab 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -6172,7 +6172,7 @@ static void shmap_load_once(void) {
+ } @end   // gp (S2Arm): the guest program, for its fragment shader's code / control at a typed-output variant (pso_fout_variant)   // geo_raster: GS output reader paired with this program's fragment stage
+ @implementation NvProg @end
+ // Warm-up entry: built in the background, waiting to be taken by the submit thread. vs / fs retain the actual shared shader objects (pso holds only raw pointers).
+-@interface WarmItem : NSObject { @public int kind, fc; NSString *key, *vs_key, *fs_key; NvShader *shader, *vs, *fs; pso_key pso; id<MTLFunction> fsfn; id object; } @end   // fc: a compute pipeline of the sampler-emulation variant (#800)
++@interface WarmItem : NSObject { @public int kind, fc; NSString *key, *vs_key, *fs_key; NvShader *shader, *vs, *fs; pso_key pso; id<MTLFunction> fsfn; id object; NSData *mkey; } @end   // fc: a compute pipeline of the sampler-emulation variant (#800); mkey: a task / mesh pipeline's key (kind 4, nvn_geometry.inc mtk_warm)
+ @implementation WarmItem @end
+ static NSMutableDictionary<NSString *, NvShader *> *g_shcache;
+ #define NVN_SHADER_FLIGHT_IMPL 1
+@@ -8707,7 +8707,9 @@ static id<MTLFunction> fs_atms_fn(NvShader *fs, int u, int at, int msoff) {
+ }
+ static MTLRenderPipelineDescriptor *pso_desc(const pso_key *k, NvShader *vs, NvShader *fs, id<MTLFunction> fsfn, int merged) {
+     MTLRenderPipelineDescriptor *d = [MTLRenderPipelineDescriptor new];
+-    { uint32_t pm = pso_pair_miss(vs, fs); id<MTLFunction> vf = pm ? vp_fn(vs, pm) : nil; d.vertexFunction = vf ? vf : vs->fn; }   // a pair the vertex shader needs padding for (vp_ask)
++    // vs nil: no vertex stage, the fragment half of a task / mesh pipeline (mtk_pso copies it into its mesh descriptor). Setting the mesh function as vertexFunction is what Metal's
++    //   validation layer (MTL_DEBUG_LAYER=1) aborts on (#376: the tool that checks the M1 Metal 4 hang could not be turned on)
++    if (vs) { uint32_t pm = pso_pair_miss(vs, fs); id<MTLFunction> vf = pm ? vp_fn(vs, pm) : nil; d.vertexFunction = vf ? vf : vs->fn; }   // a pair the vertex shader needs padding for (vp_ask)
+     d.fragmentFunction = fsfn ? fsfn : fs ? fs->fn : nil;
+     // Diagnostic DM_NVN_HILITE=fragment shader key,...: these draws use a solid-color fragment instead (keys 1–6 in order magenta / green / cyan / yellow / blue / white), to see where the geometry lands
+     // Pipelines are built on several threads at once: the keys and the library are set up once (a lazy setup raced, and a thread used a library another had just replaced: Hades II, 6 keys)
+@@ -8731,8 +8733,8 @@ static MTLRenderPipelineDescriptor *pso_desc(const pso_key *k, NvShader *vs, NvS
+     if (fs && (k->at || k->msoff) && (d.fragmentFunction == fs->fn || (fs->fn_u && d.fragmentFunction == fs->fn_u))) {   // gap families 34 / 37: main0 / main0_u with the alpha test / full sample mask
+         id<MTLFunction> f = fs_atms_fn(fs, d.fragmentFunction == fs->fn_u, k->at, k->msoff); if (f) d.fragmentFunction = f; }
+     else if (fs && (k->at || k->msoff)) RED_ONCE(135, "fragment shader %s: alpha test %d / multisampling off %d on a variant entry point without the constants (typed / sampler-emulation / merged): drawn without them", fs->key, k->at, k->msoff);
+-    if (vs->layer_out && k->fsfn != GEO_MARK) d.inputPrimitiveTopology = vs->geo_output == 1 ? MTLPrimitiveTopologyClassPoint : vs->geo_output == 6 ? MTLPrimitiveTopologyClassLine : MTLPrimitiveTopologyClassTriangle;
+-    if (k->fsfn == TF_MARK || k->fsfn == GEO_MARK) { d.vertexFunction = k->fsfn == GEO_MARK ? vs->geo_fn : vs->tf_fn; d.fragmentFunction = nil; d.rasterizationEnabled = NO; }   // transform feedback capture (tf_draw)
++    if (vs && vs->layer_out && k->fsfn != GEO_MARK) d.inputPrimitiveTopology = vs->geo_output == 1 ? MTLPrimitiveTopologyClassPoint : vs->geo_output == 6 ? MTLPrimitiveTopologyClassLine : MTLPrimitiveTopologyClassTriangle;
++    if (vs && (k->fsfn == TF_MARK || k->fsfn == GEO_MARK)) { d.vertexFunction = k->fsfn == GEO_MARK ? vs->geo_fn : vs->tf_fn; d.fragmentFunction = nil; d.rasterizationEnabled = NO; }   // transform feedback capture (tf_draw)
+     d.rasterSampleCount = k->samples ? k->samples : 1;
+     d.alphaToCoverageEnabled = k->a2c;
+     for (int i = 0; i < 8; i++) {
+@@ -8756,6 +8758,7 @@ static MTLRenderPipelineDescriptor *pso_desc(const pso_key *k, NvShader *vs, NvS
+         }
+     }
+     d.depthAttachmentPixelFormat = (MTLPixelFormat)k->dfmt; d.stencilAttachmentPixelFormat = (MTLPixelFormat)k->sfmt;
++    if (!vs) return d;   // no vertex fetch
+     MTLVertexDescriptor *vd = [MTLVertexDescriptor vertexDescriptor];
+     const nvn_refl *rf = &vs->rf; int nconv = 0, on = vin_on(vs, k, k->fsfn == TF_MARK || k->fsfn == GEO_MARK);
+     if (on) { d.vertexFunction = vs->vfn; g_vin_psos++; }   // the shadow-input entry point (see vin_on)
+@@ -9140,7 +9143,7 @@ static NSString *warm_key(const char *s, size_t n) {
+ // The prewarm runs the lines of its lists as tasks: a shader (S), a compute pipeline (C), or every render pipeline (R) of one shader pair (the pipelines of a pair share their
+ // shaders, so one worker builds them one after the other). The tasks keep the lists' order (a pair at its first line). shader_load shares successful objects and in-flight loads
+ // with prefetch and runtime, without negatively caching failures. After the upstream reference implementation (MIT) warm_parse / warm_task
+-@interface WarmTask : NSObject { @public int kind, stage, fc; NSString *key, *vkey, *fkey; NSMutableArray<NSData *> *rs; } @end   // fc: a C line's sampler-emulation bits this GPU runs (#800, warm_parse)
++@interface WarmTask : NSObject { @public int kind, stage, fc; uint32_t pad; NSString *key, *vkey, *fkey, *tkey; NSMutableArray<NSData *> *rs; } @end   // fc: a C line's sampler-emulation bits this GPU runs (#800, warm_parse)
+ @implementation WarmTask @end
+ static _Atomic long g_warm_done;   // lines done (the prepare step's progress)
+ static _Atomic int g_wp_phase, g_wp_why, g_wp_play; static _Atomic long g_wp_total; static _Atomic uint64_t g_wp_t0;
+@@ -9328,6 +9331,12 @@ static NSArray<WarmTask *> *warm_parse(NSArray<NSString *> *paths, long *lines)
+                 //   worker; its list has a pair with 73 lines, so the prepare step's last lines ran on one core while the rest idled and the first frame waited the whole 15 s cap with
+                 //   12497 of 12523 lines done. The shaders' loads are shared anyway (shader_load_depth: one load per key, waiters join the one in flight), so the pair bought nothing
+                 t = [WarmTask new]; t->kind = 1; t->vkey = vkey; t->fkey = fkey; t->rs = [NSMutableArray arrayWithObject:[NSData dataWithBytes:&sk length:sizeof sk]]; [tasks addObject:t];
++            } else if ([c[0] isEqualToString:@"M"] && c.count >= 4) {   // a task / mesh pipeline (nvn_geometry.inc mtk_record): the mesh shader in the vertex place, then the task shader key ("-": none) and the padded variant's mask
++                pso_skey sk; if (pso_skey_parse(c[1].UTF8String, &sk)) continue;
++                NSString *mkey = warm_key(sk.vs, sizeof sk.vs), *fkey = warm_key(sk.fs, sizeof sk.fs), *tkey = [c[2] isEqualToString:@"-"] ? @"" : c[2];
++                if (!mkey.length || warm_stale(mkey, stale) || (fkey.length && warm_stale(fkey, stale)) || (tkey.length && warm_stale(tkey, stale))) continue;
++                t = [WarmTask new]; t->kind = 4; t->vkey = mkey; t->fkey = fkey; t->tkey = tkey; t->pad = (uint32_t)strtoul(c[3].UTF8String, NULL, 16);
++                t->rs = [NSMutableArray arrayWithObject:[NSData dataWithBytes:&sk length:sizeof sk]]; [tasks addObject:t];
+             } else continue;
+             n++;
+         }
+@@ -9378,6 +9387,9 @@ static void warm_bump(const char *vk, const char *fk) {
+         if (!((n - added) & (n - added - 1)) || n == added) MLOG("pipeline prewarm: the game registered a program whose pipelines were still queued: %llu lines moved to the front so far (%llu taken from the front)", (unsigned long long)n, (unsigned long long)atomic_load(&g_wu_taken)); }
+ }
+ static void warm_task_(WarmTask *t);
++static uint64_t g_warm_mps;   // task / mesh pipelines the prewarm built (M lines)
++static id mtk_warm(const pso_skey *sk, NSString *mkey, NSString *fkey, NSString *tkey, uint32_t pad, NSData **key);   // nvn_geometry.inc
++static void mtk_warm_claim(NSData *key, id ps);
+ static void warm_task(WarmTask *t) { atomic_fetch_add(&g_warm_busy, 1); par_write_in_place = 1; warm_task_(t); par_write_in_place = 0; atomic_fetch_sub(&g_warm_busy, 1); }   // the prewarm writes what it compiles into the archive (pso_archive.h)
+ static void warm_task_(WarmTask *t) {
+     @autoreleasepool {
+@@ -9396,6 +9408,12 @@ static void warm_task_(WarmTask *t) {
+             if (ps) { WarmItem *item = [WarmItem new]; item->kind = 2; item->fc = t->fc; item->key = t->key; item->shader = cs; item->object = ps; warm_enqueue(item); g_warm_cps++; }
+             g_warm_done++; return;
+         }
++        if (t->kind == 4) {   // a task / mesh pipeline: built here and handed to the mesh draws' table (nvn_geometry.inc), so the scene's first mesh draw neither waits nor is skipped
++            pso_skey sk; [t->rs[0] getBytes:&sk length:sizeof sk]; NSData *mk = nil;
++            id ps = mtk_warm(&sk, t->vkey, t->fkey, t->tkey, t->pad, &mk);
++            if (ps) { WarmItem *item = [WarmItem new]; item->kind = 4; item->object = ps; item->mkey = mk; warm_enqueue(item); g_warm_mps++; }
++            g_warm_done++; return;
++        }
+         pso_skey sk; [t->rs[0] getBytes:&sk length:sizeof sk];
+         NvShader *vs = warm_shader(t->vkey, sk.vs_stage), *fs = t->fkey.length ? warm_shader(t->fkey, sk.fs_stage) : nil;
+         for (NSData *row in t->rs) {
+@@ -9421,6 +9439,7 @@ static void warm_task_(WarmTask *t) {
+ }
+ static void warm_finish(void) {
+     shader_load_stats();
++    if (g_warm_mps) MLOG("pipeline prewarm: %llu task / mesh pipelines built (M lines)", (unsigned long long)g_warm_mps);
+     MLOG("pipeline prewarm done: shaders %llu / render pipelines %llu (specialized fragment skipped %llu) / compute pipelines %llu, background time %.1f ms; shader keys not in the shader map (another game version) %llu; not in the library yet (compiled at their first use) %llu",
+          (unsigned long long)g_warm_shaders, (unsigned long long)g_warm_rps, (unsigned long long)g_warm_skip_fz, (unsigned long long)g_warm_cps, (bp_now() - g_warm_t0) / 1e6, (unsigned long long)g_warm_skip_stale, (unsigned long long)atomic_load(&g_cold_skips));
+     if (g_par_on) MLOG("pipeline archive after the prewarm: %llu builds from the archive, %llu compiled (written beside it, in the background), %llu stale files dropped",
+@@ -14442,6 +14461,8 @@ static void warm_claim(void) {
+             if (!item->shader->warm_claimed) { item->shader->warm_claimed = 1; g_warm_claim_shaders++; }
+         } else if (item->kind == 3) {   // S2Arm: prefetched at ProgramSetShaders; its S line waits for its first use (shader_used)
+             // Already published by shader_load, including its complete identity.
++        } else if (item->kind == 4) {
++            mtk_warm_claim(item->mkey, item->object);
+         } else if (item->kind == 1) {
+             if (!hm_get_id(&g_pso, &item->pso)) { hm_put_id(&g_pso, &item->pso, item->object); g_warm_claim_rps++; }
+         } else {
+diff --git a/graphics/nvn/gfx/nvn/nvn_tensor.inc b/graphics/nvn/gfx/nvn/nvn_tensor.inc
+index 81a711ba3..83c7434d6 100644
+--- a/graphics/nvn/gfx/nvn/nvn_tensor.inc
++++ b/graphics/nvn/gfx/nvn/nvn_tensor.inc
+@@ -16,7 +16,17 @@
+ //   输入有效宽 = c[6].x × c[6].z × 输入图宽。整张输入图交 MetalFX 时有效画面只落在输出左上、其余是输入图里没画的区域。
+ //   规则：带平方的出口层、绑定恰好 1 张贴图 + 1 张图 + 1 个推常量槽 → 按本次派发的推常量给 MetalFX 设输入内容宽高；输出区域不是整张图时先放大进同尺寸临时图，
+ //   再拷到输出图的起点。参数不成立（宽高 ≤ 0、步长非正 / 非有限、越出图）报红一次、照整张图做
+-static uint64_t g_tensor_skip, g_tensor_up, g_tensor_red;
++static uint64_t g_tensor_skip, g_tensor_up, g_tensor_red, g_tensor_off;
++// 诊断开关 DM_NVN_TENSOR_STANDIN=0（11-11 #376 / #464：M1 主机模式 Metal 4 进场景后 GPU 挂死，顶替用的 Metal 4 版 MetalFX 空间放大是头号嫌疑）：网络照旧不派发，
++//   出口层也不做顶替（不平方、不调 MetalFX、不拷），输出图这一遍不写——画面不对，只为判挂死是不是顶替引起的。缺省（不设 / 其他值）照旧顶替，零变化
++static int g_tensor_standin_on = -1;
++static int tensor_standin_decide(const char *e) { return !(e && *e == '0'); }   // =0：关；不设或其他值：开（同 DM_NVN_GMEM）
++static int tensor_standin_enabled(void) {
++    if (g_tensor_standin_on < 0) { const char *e = getenv("DM_NVN_TENSOR_STANDIN");
++        g_tensor_standin_on = tensor_standin_decide(e);
++        MLOG("张量核网络顶替：%s（DM_NVN_TENSOR_STANDIN %s）", g_tensor_standin_on ? "开，出口层用 MetalFX 空间放大写输出图" : "关（诊断）：出口层不顶替，输出图不写", e && *e ? e : "未设"); }
++    return g_tensor_standin_on;
++}
+ static NvDlss *g_tensor_fx[4];
+ static id<MTLTexture> g_tensor_sq_tex[4]; static unsigned g_tensor_sq_n;
+ static uint64_t g_tensor_sq_runs, g_tensor_rect_runs;
+@@ -124,6 +134,7 @@ static id<MTLTexture> tensor_write_view(id<MTLTexture> v) {
+ }
+ // 派发一个带 HMMA 的计算程序时调（dispatch）：不派发它；它写图就把读到的低分辨率画面放大进去
+ static void tensor_standin(NvShader *cs) {
++    if (!tensor_standin_enabled()) { g_tensor_off++; return; }   // 诊断关（见 g_tensor_standin_on）
+     pthread_mutex_lock(&g_rmu);
+     int otid = -1;
+     for (int i = 0; i < cs->rf.nb && otid < 0; i++) { const nvn_rbind *b = &cs->rf.b[i]; if (b->kind == NVN_RB_IMG && b->reg < 32) { int tid = (int)(S.img[5][b->reg] & 0xfffff); if (tid > 0 && tid < g_ntreg && g_treg[tid].ok) otid = tid; } }
+diff --git a/graphics/nvn/host/dsh_miss.inc b/graphics/nvn/host/dsh_miss.inc
+index c32b9031a..8fb9a5855 100644
+--- a/graphics/nvn/host/dsh_miss.inc
++++ b/graphics/nvn/host/dsh_miss.inc
+@@ -419,23 +419,33 @@ int dm_shader_se(const uint8_t key[8], uint64_t code, const void *control, char
+ //   出包时的配对表覆盖不全（游戏按阶段拼程序），以前只能这局跳过这笔绘制、记进 pso_user.tsv 等下次出包补（vs_pad），玩家拿到的包永远补不上。
+ //   现在首遇时在设备上出：兜底目录里先要有这个键的 <键>_b.metal（库里的着色器此时才现编一份源码，同 dm_shader_se），再出 <键>_vp<掩码>.metal（S2A.Dsh VsPadMask，
+ //   补 (0,0,0,1)，同离线 vs_pad；比源码旧就重出）。成功 0、path = 变体源码；没什么可补 3；做不了 1
++#include "mesh_pad.h"   // dm_mesh_pad_src：网格着色器补齐（#674）
++static int mesh_pad_file(const char *base, uint32_t mask, const char *path) {
++    FILE *f = fopen(base, "rb"); if (!f) return 1;
++    fseek(f, 0, SEEK_END); long sz = ftell(f); fseek(f, 0, SEEK_SET); char *src = sz > 0 ? malloc((size_t)sz + 1) : NULL;
++    if (!src || fread(src, 1, (size_t)sz, f) != (size_t)sz) { fclose(f); free(src); return 1; } fclose(f); src[sz] = 0;
++    char *o = NULL; int rc = dm_mesh_pad_src(src, mask, &o); free(src); if (rc) return rc;
++    char tmp[1300]; snprintf(tmp, sizeof tmp, "%s.tmp", path); f = fopen(tmp, "wb");   // 先写临时文件再改名：别的线程 / 下一局只会看到完整的
++    size_t len = strlen(o); int ok = f && fwrite(o, 1, len, f) == len; if (f) ok = !fclose(f) && ok; free(o);
++    return ok && !rename(tmp, path) ? 0 : 1;
++}
+ int dm_shader_vpad(const uint8_t key[8], uint64_t code, const void *control, uint32_t mask, char *path, size_t n) {
+     char k[17]; for (int i = 0; i < 8; i++) snprintf(k + 2 * i, 3, "%02x", key[i]);
+     static int (*fv)(const char *, uint32_t, const char *); static dispatch_once_t once;
+     dispatch_once(&once, ^{ fv = (int (*)(const char *, uint32_t, const char *))dlsym(RTLD_DEFAULT, "s2a_dsh_vs_pad"); });
+     dsh_comp_fn comp = dsh_comp(); const char *out = getenv("DM_MSL_FALLBACK"); uint32_t ncode = 0, nctl = 0;
+     int st = control && code ? dsh_stage((const uint8_t *)(uintptr_t)code, control, &ncode, &nctl) : -1;
+-    if (!comp || !fv || !out || !*out || st != 0) { LOG("【红】直连：顶点 %s 要补齐变体 %#x，做不了（%s）", k, mask, !comp || !fv ? "S2A.Aot 没链进来" : !out || !*out ? "没设 DM_MSL_FALLBACK" : "不是顶点着色器或认不出"); return 1; }
++    if (!comp || (st == 0 && !fv) || !out || !*out || (st != 0 && st != 5)) { LOG("【红】直连：%s %s 要补齐变体 %#x，做不了（%s）", st == 5 ? "网格" : "顶点", k, mask, !comp || !fv ? "S2A.Aot 没链进来" : !out || !*out ? "没设 DM_MSL_FALLBACK" : "不是顶点 / 网格着色器或认不出"); return 1; }   // 5 = 网格（dsh_stage），宿主侧改文本补（dm_mesh_pad_src）
+     mkdir(out, 0755);
+     char base[1200]; snprintf(base, sizeof base, "%s/%s_b.metal", out, k);
+     int fresh = !dsh_have(out, k);
+     if (fresh && dsh_comp_src_locked(comp, k, st, (const void *)(uintptr_t)code, ncode, control, nctl, out)) { atomic_fetch_add_explicit(&g_dsh_failed, 1, memory_order_relaxed); LOG("【红】直连：顶点 %s 现编源码失败，出不了补齐变体", k); return 1; }
+     snprintf(path, n, "%s/%s_vp%x.metal", out, k, mask);
+     if (!fresh && dsh_variant_newer(path, base)) return 0;
+-    int rc = fv(base, mask, path);
++    int rc = st == 5 ? mesh_pad_file(base, mask, path) : fv(base, mask, path);
+     if (rc == 3) return 3;
+     if (rc) { atomic_fetch_add_explicit(&g_dsh_failed, 1, memory_order_relaxed); return 1; }
+-    LOG("直连顶点补齐变体：%s 补 user(locn) 掩码 %#x", k, mask);
++    LOG("直连%s补齐变体：%s 补 user(locn) 掩码 %#x", st == 5 ? "网格" : "顶点", k, mask);
+     return 0;
+ }
+ // 后台出归约变体用的拷贝（nvn_mtl.m se_kick）：控制段只在 SetShaders 里保证有效、代码区游戏也可能另用，提交线程上先整份拷下（控制段在前、代码区在后），
+diff --git a/graphics/nvn/host/mesh_pad.h b/graphics/nvn/host/mesh_pad.h
+new file mode 100644
+index 000000000..0aa4efe20
+--- /dev/null
++++ b/graphics/nvn/host/mesh_pad.h
+@@ -0,0 +1,33 @@
++// 网格着色器补齐变体的源码改写（dsh_miss.inc dm_shader_vpad 用；单测 graphics/nvn/tests/t_nvn_mesh_pad.m 直接包含本文件）
++#pragma once
++#include <stdint.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++// 网格着色器的补齐（#674，11-11：一款游戏的植被网格 6d42a320e50657a3 与另一个档案里的片元 5ee0857829bbb3fd 运行期配成一对，片元读 user(locn5)、
++//   网格不写，Metal 拒建：「Fragment input(s) `user(locn5)` mismatching mesh shader output type(s) or not written by mesh shader」，这对的绘制一直跳过，几何体忽隐忽现）。
++//   Mac 上实验：网格不写该位置才报这句；网格按逐图元写、片元按插值或 flat 读都建得成。所以同顶点补齐（VsPadMask）的规则，按 graphics/tools/direct/dsh/MeshStage.cs
++//   的写法改源码：逐顶点输出 dm_vertex_t 里加 float4 dm_pad<n> [[user(locn<n>)]]，每处 `dm_vertex_t v;` 后给它 (0,0,0,1)（硬件在那里读到的）。
++//   只补逐顶点与逐图元（dm_prim_t）都没有的位置。在宿主侧改文本，不动翻译器（翻译器一改全部款的直连库要重出）。成功 0；没什么可补 3；源码不是这种写法 1
++static int dm_mesh_pad_src(const char *src, uint32_t mask, char **out) {
++    static const char vt[] = "struct dm_vertex_t {\n", pt[] = "struct dm_prim_t {\n", vdecl[] = "        dm_vertex_t v;\n";
++    const char *v0 = strstr(src, vt), *v1 = v0 ? strstr(v0, "};\n") : NULL; if (!v0 || !v1 || !strstr(src, vdecl)) return 1;
++    const char *p0 = strstr(src, pt), *p1 = p0 ? strstr(p0, "};\n") : NULL;
++    uint32_t have = 0;
++    for (int w = 0; w < 2; w++) {
++        const char *a = w ? p0 : v0, *e = w ? p1 : v1;
++        for (const char *q = a; a && e && (q = strstr(q, "[[user(locn")) && q < e; q += 11) { int l = atoi(q + 11); if (l >= 0 && l < 32) have |= 1u << l; }
++    }
++    uint32_t miss = mask & ~have; if (!miss) return 3;
++    int nd = 0; for (const char *q = src; (q = strstr(q, vdecl)); q += sizeof vdecl - 1) nd++;
++    size_t cap = strlen(src) + 64 + 48u * 32u + (size_t)nd * 64u * 32u + 1; char *o = malloc(cap), *w = o; if (!o) return 1;
++    w += sprintf(w, "// s2a:vs-pad 1 %x\n", mask);
++    memcpy(w, src, (size_t)(v1 - src)); w += v1 - src;
++    for (int l = 0; l < 32; l++) if (miss >> l & 1) w += sprintf(w, "    float4 dm_pad%d [[user(locn%d)]];\n", l, l);
++    for (const char *s = v1, *d; ; s = d + sizeof vdecl - 1) {
++        if (!(d = strstr(s, vdecl))) { strcpy(w, s); break; }
++        size_t len = (size_t)(d - s) + sizeof vdecl - 1; memcpy(w, s, len); w += len;
++        for (int l = 0; l < 32; l++) if (miss >> l & 1) w += sprintf(w, "        v.dm_pad%d = float4(0.0, 0.0, 0.0, 1.0);\n", l);
++    }
++    *out = o; return 0;
++}
+diff --git a/graphics/nvn/tests/t_nvn_mesh.m b/graphics/nvn/tests/t_nvn_mesh.m
+index a748e7143..eb12889ce 100644
+--- a/graphics/nvn/tests/t_nvn_mesh.m
++++ b/graphics/nvn/tests/t_nvn_mesh.m
+@@ -13,6 +13,7 @@
+ //   ⑨ 着色器映射表的阶段名（翻译侧 shader_map.tsv 第 3 列写 task / mesh）经 prog_get 的 stage_of 落到宿主阶段 3 / 4（nvn2_stage_host：NVN 阶段 6 / 7 放曲面两阶段的位置），
+ //      shader_get 按该阶段载入的是 object / mesh 着色器（11-06 时之笛日志每局 20–30 行「shader … (task|mesh) failed to load」：stage_of 不认这两个名字回 -1，库里明明有）
+ //   ⑩ GPU 没有对象 / 网格管线（g_mesh_ok = 0，MTLGPUFamilyMetal3 以下）：跳过并计数、报红 1 行、不画（不当普通绘制画）
++// 校验层（mk 另跑 MTL_DEBUG_LAYER=1 两套后端）：全部项照过、不中止。负对照（11-11 手工）：改前 pso_desc 给网格管线设 vertexFunction = 网格函数，校验层两套后端都 abort rc=134（setVertexFunction 断言）
+ // 负对照（11-05 手工做，见坑记录）：把 mtk_encode 写进 29 号槽的起始号换成 0 → ④ 0x07、⑤ 0x0f、⑥ 0x07，三项红
+ #include "../gfx/nvn/nvn_mtl.m"
+ 
+@@ -74,6 +75,7 @@ int main(void) {
+     @autoreleasepool {
+         const char *libdir = getenv("T_MESH_LIB"); REQUIRE(libdir);   // mk 编好的 <键>_b.metallib 所在目录；json 由本测写
+         setenv("DM_PRESENT_LINK", "0", 1);
++        char pso_user[] = "/tmp/t_nvn_mesh_pso_user_XXXXXX"; int pfd = mkstemp(pso_user); REQUIRE(pfd >= 0); close(pfd); setenv("DM_PSO_USER", pso_user, 1);   // ④c：本测记下的网格管线行
+         mtl_init(); g_msl_dir = @(libdir);
+         printf("后端 Metal %d，录制 %s\n", g_m3 ? 3 : 4, rec_on() ? "开" : "关");
+         NSString *dir = @(libdir);
+@@ -121,7 +123,10 @@ int main(void) {
+         p_draw d4 = {.prim = DM_PRIM_MESH_TASKS, .first = 2, .count = 3, .instances = 1};
+         o = capture(^{ mesh_draw(&d4, &waited); });
+         int cols = frame_columns();
+-        VERIFY(waited && red_lines(o, nil) == 0, "④ 首笔管线后台建：本笔先跳过并计数、不报红（跳过过 %d；stderr：%s）", waited, o.UTF8String);
++        // 11-13 0400486024DEC000 开局发白：网格管线没编好时一律跳过，不按 skip_safe 的规则。期望（按规则手写）：这是目标第一次被画（近两帧没画过），这笔不能跳过 →
++        //   在每帧预算（缺省 250 ms）内等后台那条编好、本笔照画，日志写明原因与「ready」；反证：修前同一处先跳过（waited = 1）、不打这一行
++        VERIFY(!waited && [o containsString:@"waited for its background pipeline"] && [o containsString:@"(ready)"] && [o containsString:@"a target not drawn in the last two frames"] && red_lines(o, nil) == 0,
++               "④ 首笔管线、目标近两帧没画过：不跳过，等后台编好照画、写明原因、不报红（跳过过 %d；stderr：%s）", waited, o.UTF8String);
+         VERIFY(cols == 0x1c && g_mtk_n == n0 + 1, "④ 无任务 first 2 count 3：列 2、3、4 白（列掩码 %#x，期望 0x1c；画出 +%llu）", cols, (unsigned long long)(g_mtk_n - n0));
+ 
+         // ⑤
+@@ -152,6 +157,74 @@ int main(void) {
+         cols = frame_columns();
+         VERIFY(cols == 0 && g_mtk_ind_n == i0 + 1 && red_lines(o, nil) == 0, "⑦ 间接零工作量：GPU 写 {0, 1} → 一列不画（列掩码 %#x，期望 0）、照记一笔、不报红（stderr：%s）", cols, o.UTF8String);
+ 
++        // ④b 目标已连续几帧画过（④–⑦）、这帧开头清过：丢一笔最多影响一帧，新管线照旧后台编、本笔先跳过。期望：跳过过、不打「built on the submit thread」、
++        //   等编好再画出列 2、3、4。换一个片元着色器（新键）让管线是第一次遇到
++        { NvShader *fs2 = [NvShader new]; fs2->stage = 1; strlcpy(fs2->key, "eeeeeeeeeeeeeeee_b", sizeof fs2->key); fs2->ventry = @"main0";
++          NSError *e = nil; id<MTLLibrary> l = [g_dev newLibraryWithSource:@"#include <metal_stdlib>\nusing namespace metal;\nfragment float4 main0() { return float4(1, 1, 1, 0.5); }\n" options:nil error:&e]; REQUIRE(l); fs2->fn = [l newFunctionWithName:@"main0"]; REQUIRE(fs2->fn);
++          NvProg *direct2 = [NvProg new]; direct2->sh[1] = fs2; direct2->sh[4] = md;
++          static prog_t gp4b; memset(&gp4b, 0, sizeof gp4b); gp4b.magic = MAGIC('P', 'R', 'O', 'G'); gp4b.serial = nvn_new_serial(); serial_put(gp4b.serial, direct2);
++          frame_begin(); S.prog = &gp4b; __block int w4b = 0;
++          o = capture(^{ mesh_draw(&d4, &w4b); });
++          cols = frame_columns();
++          VERIFY(w4b && ![o containsString:@"built on the submit thread"] && red_lines(o, nil) == 0 && cols == 0x1c,
++                 "④b 目标稳定且这帧清过：新网格管线后台编、本笔先跳过，编好后画出列 2、3、4（跳过过 %d，列掩码 %#x；stderr：%s）", w4b, cols, o.UTF8String); }
++
++        // ④c 网格管线进本机记录（pso_user.tsv 的 M 行）→ 下一局预热按这行拼回绘制查表用的键、把管线交给表 → 首笔网格绘制直接画（11-13 开局发白根修②）。
++        //   期望（按格式手写）：④ 当场编、⑤ 带任务、④b 后台编的三条各记一行 M（⑥ ⑦ 与 ④ 同一条），无任务的第 2 列是「-」、⑤ 那行是任务键 1111…，第 3 列补齐掩码 0；用 ④ 那行（片元 ffff…）解析出的键与
++        //   绘制时的键逐字节相同（表里查得到 ④ 的管线）；把表里这条删掉（新开局）后经交接函数放回，同一笔绘制不跳过、不当场编、画出列 2、3、4
++        { NSString *txt = [NSString stringWithContentsOfFile:@(pso_user) encoding:NSUTF8StringEncoding error:nil]; NSMutableArray<NSString *> *mrows = [NSMutableArray array];
++          for (NSString *l in [txt componentsSeparatedByString:@"\n"]) if ([l hasPrefix:@"M\t"]) [mrows addObject:l];
++          NSString *row4 = nil, *row5 = nil;
++          for (NSString *l in mrows) { NSArray *c = [l componentsSeparatedByString:@"\t"]; pso_skey sk; if (c.count != 4 || pso_skey_parse([c[1] UTF8String], &sk) || strcmp(sk.fs, "ffffffffffffffff_b")) continue;
++              if (!strcmp(sk.vs, "3333333333333333_b")) row4 = l; else if (!strcmp(sk.vs, "2222222222222222_b")) row5 = l; }
++          VERIFY(mrows.count == 3 && row4 && [[row4 componentsSeparatedByString:@"\t"][2] isEqual:@"-"] && [[row4 componentsSeparatedByString:@"\t"][3] isEqual:@"0"] &&
++                 row5 && [[row5 componentsSeparatedByString:@"\t"][2] isEqual:@"1111111111111111_b"],
++                 "④c ④ / ⑤ / ④b 的网格管线各记一行 M（实得 %lu 行），无任务记「-」、⑤ 记任务键、补齐掩码 0（④ 那行第 2、3 列：%s）", (unsigned long)mrows.count,
++                 row4 ? [[row4 componentsSeparatedByString:@"\t"] subarrayWithRange:NSMakeRange(2, 2)].description.UTF8String : "无");
++          REQUIRE(row4);
++          if (!g_shmap) g_shmap = [NSMutableDictionary dictionary];   // 本测没有映射表：把夹具的键登记成本款的（warm_stale 才不当别的游戏版本丢掉）
++          for (NSString *k in @[@"1111111111111111", @"2222222222222222", @"3333333333333333", @"ffffffffffffffff", @"eeeeeeeeeeeeeeee"]) g_shmap[k] = @"x";
++          long lines = 0; NSArray<WarmTask *> *tasks = warm_parse(@[@(pso_user)], &lines); WarmTask *t4 = nil;
++          for (WarmTask *t in tasks) if (t->kind == 4 && [t->fkey isEqual:@"ffffffffffffffff_b"] && [t->vkey isEqual:@"3333333333333333_b"]) t4 = t;
++          VERIFY(t4 && [t4->vkey isEqual:@"3333333333333333_b"] && !t4->tkey.length && t4->pad == 0, "④c 预热解析 M 行：网格键 3333…、片元键 ffff…、无任务、掩码 0（实得 %s / %s / %s / %#x）",
++                 t4 ? t4->vkey.UTF8String : "-", t4 ? t4->fkey.UTF8String : "-", t4 ? t4->tkey.UTF8String : "-", t4 ? t4->pad : 0);
++          REQUIRE(t4);
++          pso_skey sk; [t4->rs[0] getBytes:&sk length:sizeof sk]; mtk_key mk; mtk_warm_key(&sk, NULL, md, fs, 0, &mk);
++          os_unfair_lock_lock(&g_pso_mtk_lock); id had = hm_get_id(&g_pso_mtk, &mk); os_unfair_lock_unlock(&g_pso_mtk_lock);
++          VERIFY(had && had != NSNull.null && had != g_pso_mtk_building, "④c 按 M 行拼回的键在网格管线表里查得到 ④ 编好的那条（%p）", (__bridge void *)had);
++          REQUIRE(had);
++          os_unfair_lock_lock(&g_pso_mtk_lock); hm_del_id(&g_pso_mtk, &mk); os_unfair_lock_unlock(&g_pso_mtk_lock);
++          uint64_t wc0 = g_mtk_warm_claimed; mtk_warm_claim([NSData dataWithBytes:&mk length:sizeof mk], had);
++          VERIFY(g_mtk_warm_claimed == wc0 + 1, "④c 交接：表里没有这条时，预热交来的管线放进表（交接 +%llu）", (unsigned long long)(g_mtk_warm_claimed - wc0));
++          frame_begin(); S.prog = &gp[0]; uint64_t sn0 = g_mtk_waits; __block int w4c = 0;
++          o = capture(^{ mesh_draw(&d4, &w4c); });
++          cols = frame_columns();
++          VERIFY(!w4c && g_mtk_waits == sn0 && cols == 0x1c && red_lines(o, nil) == 0,
++                 "④c 预热交来的管线：同一笔不跳过、不用等、画出列 2、3、4（跳过过 %d，等待 +%llu，列掩码 %#x；stderr：%s）", w4c, (unsigned long long)(g_mtk_waits - sn0), cols, o.UTF8String); }
++        unlink(pso_user);
++
++        // ④d 每帧等待预算用完：丢不起的那笔照旧跳过、打「past the … frame budget」、不卡提交线程（预算 0 → 一次都不等）。新目标（近两帧没画过）+ 新片元（管线没编过）
++        { tex_t rt2; memset(&rt2, 0, sizeof rt2); rt2.magic = MAGIC('T', 'E', 'X', 0); rt2.serial = nvn_new_serial(); rt2.d = g_rt.d; nvn_tex_layout(&rt2.d, &rt2.L); nvn_be_tex_init(&rt2); REQUIRE(tex_mtl(&rt2));
++          NvShader *fs3 = [NvShader new]; fs3->stage = 1; strlcpy(fs3->key, "dddddddddddddddd_b", sizeof fs3->key); fs3->ventry = @"main0";
++          NSError *e = nil; id<MTLLibrary> l = [g_dev newLibraryWithSource:@"#include <metal_stdlib>\nusing namespace metal;\nfragment float4 main0() { return float4(1, 1, 1, 0.25); }\n" options:nil error:&e]; REQUIRE(l); fs3->fn = [l newFunctionWithName:@"main0"]; REQUIRE(fs3->fn);
++          NvProg *direct3 = [NvProg new]; direct3->sh[1] = fs3; direct3->sh[4] = md;
++          static prog_t gp4d; memset(&gp4d, 0, sizeof gp4d); gp4d.magic = MAGIC('P', 'R', 'O', 'G'); gp4d.serial = nvn_new_serial(); serial_put(gp4d.serial, direct3);
++          nvn_be_set_frame(++g_frame); nvn_be_sub_begin(); state_reset();
++          const struct { op_hdr set; p_set_rt_c rt; const tex_t *color0; uint8_t snap[sizeof(tex_t)]; op_hdr end; } c = {
++              .set = {OP_SET_RT, sizeof(op_hdr) + sizeof(p_set_rt_c) + 8 + sizeof(tex_t)}, .rt = {.n = 1, .cmask = 1}, .color0 = &rt2, .end = {OP_END, sizeof(op_hdr)} };
++          nvn_be_exec((const uint8_t *)&c);
++          int b0 = g_mtk_budget; g_mtk_budget = 0; S.prog = &gp4d; uint64_t ov0 = g_mtk_wait_over, w0 = g_mtk_wait;
++          o = capture(^{ draw(&d4, NULL); });
++          g_mtk_budget = b0; dispatch_group_wait(g_mtk_group, DISPATCH_TIME_FOREVER);
++          rp_flush(); uint64_t fence = nvn_be_sub_commit(); REQUIRE(nvn_be_wait(fence, 10000000000ull));
++          VERIFY(g_mtk_wait_over == ov0 + 1 && g_mtk_wait == w0 + 1 && [o containsString:@"past the 0 ms frame budget"] && [o containsString:@"not ready: skipped this frame"] && red_lines(o, nil) == 0,
++                 "④d 预算 0：丢不起的那笔（新目标）不等、照旧跳过并计数、写明超预算（超预算 +%llu，跳过 +%llu；stderr：%s）", (unsigned long long)(g_mtk_wait_over - ov0), (unsigned long long)(g_mtk_wait - w0), o.UTF8String);
++          // 这笔从没画出来过，它的管线在请求编译时就进了本机记录（M 行，片元键 dddd…）。反证：只在第一次画出时记，这里就没有
++          int rec4d = 0; pso_user_seen_load();
++          for (NSString *l in g_pso_user_seen) { if (![l hasPrefix:@"M\t"]) continue; pso_skey sk; NSArray *c = [l componentsSeparatedByString:@"\t"];
++              if (c.count >= 2 && !pso_skey_parse([c[1] UTF8String], &sk) && !strcmp(sk.fs, "dddddddddddddddd_b")) rec4d++; }
++          VERIFY(rec4d == 1, "④d 没画出来过的网格管线在请求编译时就记了一行 M（实得 %d 行）", rec4d); }
++
+         // ⑧
+         frame_begin(); S.prog = &gp[2]; uint64_t s0 = g_mtk_skip;
+         p_draw d8 = {.prim = DM_PRIM_MESH_TASKS, .first = 0, .count = 4, .instances = 1};
+diff --git a/graphics/nvn/tests/t_nvn_mesh_pad.m b/graphics/nvn/tests/t_nvn_mesh_pad.m
+new file mode 100644
+index 000000000..cb1084d56
+--- /dev/null
++++ b/graphics/nvn/tests/t_nvn_mesh_pad.m
+@@ -0,0 +1,68 @@
++// 网格着色器补齐变体（#674）：graphics/nvn/host/mesh_pad.h dm_mesh_pad_src 的源码改写 + Metal 真建管线。
++// 期望（按规则手算，不跑被测实现）：
++//   ① 掩码只有 locn5：dm_vertex_t 里加 1 行 dm_pad5、两处「dm_vertex_t v;」后各 1 行 (0,0,0,1) 赋值、文件头「// s2a:vs-pad 1 20」
++//   ② 掩码 locn3 + locn7（3 是逐顶点、7 是逐图元，都已写）：没什么可补，回 3
++//   ③ 掩码 3 + 5 + 7：只补 5
++//   ④ 源码里没有 dm_vertex_t：回 1
++//   ⑤ Metal：未补的网格配读 locn5 的片元 → 拒建，原话同作者日志「user(locn5) mismatching mesh shader output …」；补齐后 → 建成（负对照与正结果）
++#import <Metal/Metal.h>
++#include "mesh_pad.h"
++static int bad, checks;
++#define CHECK(c, ...) do { checks++; int ok_ = !!(c); bad += !ok_; printf("%s ", ok_ ? "✓" : "✗"); printf(__VA_ARGS__); printf("\n"); } while (0)
++static int count(const char *s, const char *needle) { int n = 0; for (const char *q = s; (q = strstr(q, needle)); q += strlen(needle)) n++; return n; }
++// 翻译器（graphics/tools/direct/dsh/MeshStage.cs）的网格写法：逐顶点 dm_vertex_t、逐图元 dm_prim_t、两个入口各一处 dm_vertex_t v;
++static const char MESH[] =
++    "#include <metal_stdlib>\nusing namespace metal;\n"
++    "struct dm_vertex_t {\n    float4 position [[position]];\n    float4 a3 [[user(locn3)]];\n};\n"
++    "struct dm_prim_t {\n    float4 p7 [[user(locn7)]];\n};\n"
++    "using dm_mesh_t = metal::mesh<dm_vertex_t, dm_prim_t, 3, 1, metal::topology::triangle>;\n"
++    "[[mesh]] void main0(dm_mesh_t dm_out, uint lid [[thread_index_in_threadgroup]])\n{\n"
++    "    if (lid == 0u) dm_out.set_primitive_count(1);\n"
++    "    for (uint n = lid; n < 3u; n += 1u)\n    {\n        dm_vertex_t v;\n        v.position = float4(float(n), 0.0, 0.0, 1.0);\n        v.a3 = float4(0.25);\n        dm_out.set_vertex(n, v);\n    }\n"
++    "    for (uint n = lid; n < 1u; n += 1u)\n    {\n        dm_prim_t p;\n        p.p7 = float4(0.5);\n        dm_out.set_primitive(n, p);\n    }\n"
++    "    for (uint n = lid; n < 3u; n += 1u) dm_out.set_index(n, n);\n}\n"
++    "[[mesh]] void main0_z(dm_mesh_t dm_out, uint lid [[thread_index_in_threadgroup]])\n{\n"
++    "    if (lid == 0u) dm_out.set_primitive_count(1);\n"
++    "    for (uint n = lid; n < 3u; n += 1u)\n    {\n        dm_vertex_t v;\n        v.position = float4(float(n), 0.0, 0.5, 1.0);\n        v.a3 = float4(0.25);\n        dm_out.set_vertex(n, v);\n    }\n"
++    "    for (uint n = lid; n < 3u; n += 1u) dm_out.set_index(n, n);\n}\n";
++// 另一个档案里的片元：只读 user(locn5)（同作者日志的 5ee0857829bbb3fd，ps_inputs.tsv「5」）
++static const char FRAG[] = "#include <metal_stdlib>\nusing namespace metal;\nstruct main0_in { float4 m_5 [[user(locn5)]]; };\n"
++                           "fragment float4 main0(main0_in in [[stage_in]]) { return in.m_5; }\n";
++static id<MTLRenderPipelineState> build(id<MTLDevice> d, const char *mesh, NSString **why) {
++    NSError *e = nil; id<MTLLibrary> ml = [d newLibraryWithSource:@(mesh) options:nil error:&e], fl = [d newLibraryWithSource:@(FRAG) options:nil error:&e];
++    if (!ml || !fl) { *why = e.localizedDescription; return nil; }
++    MTLMeshRenderPipelineDescriptor *m = [MTLMeshRenderPipelineDescriptor new];
++    m.meshFunction = [ml newFunctionWithName:@"main0"]; m.fragmentFunction = [fl newFunctionWithName:@"main0"]; m.colorAttachments[0].pixelFormat = MTLPixelFormatRGBA8Unorm;
++    id<MTLRenderPipelineState> p = [d newRenderPipelineStateWithMeshDescriptor:m options:MTLPipelineOptionNone reflection:nil error:&e];
++    *why = p ? @"" : e.localizedDescription; return p;
++}
++int main(void) { @autoreleasepool {
++    char *o = NULL;
++    int rc = dm_mesh_pad_src(MESH, 1u << 5, &o);
++    CHECK(rc == 0 && o, "① 掩码 locn5：改写成功（rc %d）", rc);
++    if (o) {
++        const char *v0 = strstr(o, "struct dm_vertex_t {\n"), *v1 = v0 ? strstr(v0, "};\n") : NULL, *pad = strstr(o, "    float4 dm_pad5 [[user(locn5)]];\n");
++        CHECK(!strncmp(o, "// s2a:vs-pad 1 20\n", 19), "① 文件头「// s2a:vs-pad 1 20」");
++        CHECK(pad && v0 && pad > v0 && pad < v1 && count(o, "dm_pad5 [[user(locn5)]]") == 1, "① dm_vertex_t 里恰好加 1 行 dm_pad5");
++        CHECK(count(o, "        dm_vertex_t v;\n        v.dm_pad5 = float4(0.0, 0.0, 0.0, 1.0);\n") == 2, "① 两处 dm_vertex_t v; 后各一行 (0,0,0,1)");
++        size_t want = strlen(MESH) + strlen("// s2a:vs-pad 1 20\n") + strlen("    float4 dm_pad5 [[user(locn5)]];\n") + 2 * strlen("        v.dm_pad5 = float4(0.0, 0.0, 0.0, 1.0);\n");
++        CHECK(count(o, "dm_pad") == 3 && strlen(o) == want, "① 别处一字不动（长度 %zu = 原文 + 头 + 1 行声明 + 2 行赋值 = %zu）", strlen(o), want);
++    }
++    char *o2 = NULL; rc = dm_mesh_pad_src(MESH, (1u << 3) | (1u << 7), &o2);
++    CHECK(rc == 3 && !o2, "② 掩码 locn3 + locn7（逐顶点、逐图元都已写）：没什么可补，回 3（实得 %d）", rc);
++    char *o3 = NULL; rc = dm_mesh_pad_src(MESH, (1u << 3) | (1u << 5) | (1u << 7), &o3);
++    CHECK(rc == 0 && o3 && count(o3, "dm_pad5") == 3 && count(o3, "dm_pad3") == 0 && count(o3, "dm_pad7") == 0 && !strncmp(o3, "// s2a:vs-pad 1 a8\n", 19), "③ 掩码 3 + 5 + 7：只补 5、头里掩码 a8");
++    char *o4 = NULL; rc = dm_mesh_pad_src("[[mesh]] void main0() {}\n", 1u << 5, &o4);
++    CHECK(rc == 1 && !o4, "④ 没有 dm_vertex_t 的源码：回 1（实得 %d）", rc);
++    id<MTLDevice> d = MTLCreateSystemDefaultDevice();
++    if (![d supportsFamily:MTLGPUFamilyApple7] && ![d supportsFamily:MTLGPUFamilyMac2]) printf("－ 这台 GPU 没有网格管线，⑤ 不跑\n");
++    else {
++        NSString *why = nil; id p0 = build(d, MESH, &why);
++        CHECK(!p0 && [why containsString:@"user(locn5)"] && [why containsString:@"not written by mesh shader"], "⑤ 未补：拒建，原话「%s」", why.UTF8String);
++        id p1 = o ? build(d, o, &why) : nil;
++        CHECK(p1 != nil, "⑤ 补齐后：建成%s%s", p1 ? "" : "失败：", p1 ? "" : why.UTF8String);
++    }
++    free(o); free(o3);
++    printf("%s t_nvn_mesh_pad：%d 项，%d 项不过\n", bad ? "✗" : "✓", checks, bad);
++    return bad ? 1 : 0;
++} }
+diff --git a/graphics/nvn/tests/t_nvn_tensor_sq.m b/graphics/nvn/tests/t_nvn_tensor_sq.m
+index 201b47e0b..1f05558b1 100644
+--- a/graphics/nvn/tests/t_nvn_tensor_sq.m
++++ b/graphics/nvn/tests/t_nvn_tensor_sq.m
+@@ -13,6 +13,7 @@
+ //   ④ 输出起点 (64,64)、宽高 64x64、步长 1/64 → 输入有效 64x64（整张）放大进输出右下 64x64：(80,80) 对到输入 16.5 → A²（R ≈ 0.25）；
+ //      (120,120) 对到 56.5 → B²（R ≈ 4）；(32,32) 不在区域里，保持 ③ 的 A²（R ≈ 0.25）。不按输出区域（整张输出）时 (80,80) 对到输入 40 → B²（R ≈ 4）
+ //   ⑤ 推常量不成立（宽 0）→ 照整张图，计数不加
++// ⑥ 诊断开关 DM_NVN_TENSOR_STANDIN=0：出口层不顶替、输出图逐位不变；撤掉恢复。负对照（11-11 手工）：去掉 tensor_standin 开头的开关判断 → ⑥ 放大 1 次、关计数 0，两项红
+ // 每种情形顶替两次、读第二次的输出：新建的 MetalFX 空间放大器（Metal 4）头一次编码约 1/10 写出全 0（11-05 改前代码同样复现：同格式第二个提交里新建放大器 40 次 4 次全 0，
+ //   是既有现象、不归本单测管，记在 docs/坑记录.md），第二次起稳定
+ // 负对照（11-05 手工做过，写进报告）：把 tensor_standin 里 in 的取法改回恒为 c（= 改前）→ ① 红（实测输出 0.484 / 0.244 / 1.94、①/② = 1 / 1 / 1）
+@@ -118,6 +119,21 @@ int main(void) { @autoreleasepool {
+     VERIFY(g_tensor_rect_runs == rc0 && g_tensor_up == up1 + 1 && (cr->tensor_log & 4), "⑤ 推常量宽 0：不按有效区域（实 %llu 次）、照整张放大 1 次（实 %llu）、报红 %d",
+            (unsigned long long)(g_tensor_rect_runs - rc0), (unsigned long long)(g_tensor_up - up1), (cr->tensor_log & 4) != 0);
+     #undef PUSH
+-    printf("%s t_nvn_tensor_sq：%u 项，%u 项不过（张量核网络顶替：平方域出口层先平方输入、同域照原样；按推常量取输入有效区域与输出区域）\n", fails ? "✗" : "✓", checks, fails);
++    // ⑥ 诊断开关 DM_NVN_TENSOR_STANDIN（11-11 #376）：取值表手写（=0 关，不设 / 空 / 其他值开，同 DM_NVN_GMEM）；①–⑤ 都在不设时跑 = 缺省照旧顶替
++    VERIFY(tensor_standin_decide(NULL) == 1 && tensor_standin_decide("") == 1 && tensor_standin_decide("1") == 1 && tensor_standin_decide("0") == 0,
++           "⑥ 取值：不设 %d、空 %d、1 %d、0 %d（期望 1 1 1 0）", tensor_standin_decide(NULL), tensor_standin_decide(""), tensor_standin_decide("1"), tensor_standin_decide("0"));
++    {   // 经真 getenv 关掉：出口层不顶替（不放大、不平方、记一次关），输出图逐位不变；撤掉后回到顶替
++        float b0[3], b1[3]; read_at(tex_mtl(&to), 32, 32, b0);
++        setenv("DM_NVN_TENSOR_STANDIN", "0", 1); g_tensor_standin_on = -1;
++        uint64_t up2 = g_tensor_up, sq2 = g_tensor_sq_runs, off2 = g_tensor_off; cs->tensor_sq = 0;   // 不平方：真顶替会把 (32,32) 写成 A ≈ 0.5（≠ 现值 A² ≈ 0.25），逐位比才有判别力
++        standin(cs); read_at(tex_mtl(&to), 32, 32, b1);
++        VERIFY(g_tensor_up == up2 && g_tensor_sq_runs == sq2 && g_tensor_off == off2 + 1, "⑥ =0：放大 %llu 次、平方 %llu 次、关计数 +%llu（期望 0 / 0 / 1）",
++               (unsigned long long)(g_tensor_up - up2), (unsigned long long)(g_tensor_sq_runs - sq2), (unsigned long long)(g_tensor_off - off2));
++        VERIFY(!memcmp(b0, b1, sizeof b0), "⑥ =0：输出图 (32,32) 前 (%g, %g, %g) 后 (%g, %g, %g)（期望逐位相同）", b0[0], b0[1], b0[2], b1[0], b1[1], b1[2]);
++        unsetenv("DM_NVN_TENSOR_STANDIN"); g_tensor_standin_on = -1; up2 = g_tensor_up;
++        standin(cs);
++        VERIFY(g_tensor_up == up2 + 1, "⑥ 撤掉后照旧顶替：放大 %llu 次（期望 1）", (unsigned long long)(g_tensor_up - up2));
++    }
++    printf("%s t_nvn_tensor_sq：%u 项，%u 项不过（张量核网络顶替：平方域出口层先平方输入、同域照原样；按推常量取输入有效区域与输出区域；诊断开关关掉不顶替）\n", fails ? "✗" : "✓", checks, fails);
+     return fails ? 1 : 0;
+ } }
+diff --git a/graphics/tools/direct/pso_seed.py b/graphics/tools/direct/pso_seed.py
+index 6a9308007..aad8843b9 100644
+--- a/graphics/tools/direct/pso_seed.py
++++ b/graphics/tools/direct/pso_seed.py
+@@ -39,21 +39,24 @@ def main(out, keys_tsv, shmap, skey_bytes, srcs):   # shmap 留在参数里（di
+             elif c[0] == 'C' and len(c) >= 2: good = ok_key(c[1])
+             elif c[0] == 'R' and len(c) >= 2 and len(c[1]) == 2 * skey_bytes and all(ch in '0123456789abcdef' for ch in c[1]):
+                 vs, fs = r_keys(c[1]); good = ok_key(vs) and (not fs or ok_key(fs))
++            elif c[0] == 'M' and len(c) >= 4 and len(c[1]) == 2 * skey_bytes and all(ch in '0123456789abcdef' for ch in c[1]):
++                # 任务 / 网格管线（nvn_geometry.inc mtk_record，11-13 0400486024DEC000 开局发白根修）：顶点位置是网格键、第 2 列任务键（「-」= 无）、第 3 列补齐掩码；三个键都要是本包库的
++                ms, fs = r_keys(c[1]); good = ok_key(ms) and (not fs or ok_key(fs)) and (c[2] == '-' or ok_key(c[2]))
+             else: good = False
+             if good and l not in seen: seen.add(l); rows.append(l); kept += 1
+         stat.append((f, n, kept))
+     # 只装库的行挪到末尾（11-07 卡顿线，异度3 冷装读档）：顶点 / 片元的 S 行只装载着色器库、不建管线；键不在任何 R 行里的（Mac 累积来源 4874 行，多为 10-27 前
+     #   「预取即记」的老行），加载页 30 秒里占掉约四成工时（S 约 11 ms / 行、R 约 47 ms / 行，按两段吞吐联立估），把进场景要等的 R 行挤到放行之后。
+     #   不删：挪到所有别的行之后，照样在后台装。几何等别的阶段的 S 行（几何管线不记 R 行，只能靠 S 行预装）与 C 行不动
+-    used = {k for r in rows if r.startswith('R\t') for k in r_keys(r.split('\t')[1]) if k}
++    used = {k for r in rows if r.startswith(('R\t', 'M\t')) for k in r_keys(r.split('\t')[1]) if k}
+     lib_only = lambda r: r.startswith('S\t') and r.split('\t')[2] in ('0', '1') and r.split('\t')[1] not in used
+     deferred = [r for r in rows if lib_only(r)]
+     rows = [r for r in rows if not lib_only(r)] + deferred
+     tmp = out + '.tmp'
+     with open(tmp, 'w', encoding='utf-8', newline='\n') as fh: fh.write(HEAD + ''.join(r + '\n' for r in rows))
+     os.replace(tmp, out)
+-    cnt = {k: sum(1 for r in rows if r.startswith(k + '\t')) for k in 'SRC'}
+-    print(f'管线种子表：S {cnt["S"]} / R {cnt["R"]} / C {cnt["C"]}（只收真跑见过的；只装库的 S 行 {len(deferred)} 挪到末尾）；来源 {len(stat)} 份：'
++    cnt = {k: sum(1 for r in rows if r.startswith(k + '\t')) for k in 'SRCM'}
++    print(f'管线种子表：S {cnt["S"]} / R {cnt["R"]} / C {cnt["C"]} / M {cnt["M"]}（只收真跑见过的；只装库的 S 行 {len(deferred)} 挪到末尾）；来源 {len(stat)} 份：'
+           + '；'.join(f'{f} {k}/{n} 行可用' for f, n, k in stat) if rows else
+           '管线种子表：空（没有真跑来源：首帧不等，用到再编）')
+ 
+diff --git a/graphics/tools/direct/run_knowledge.py b/graphics/tools/direct/run_knowledge.py
+index ac3fcba5e..64044708a 100644
+--- a/graphics/tools/direct/run_knowledge.py
++++ b/graphics/tools/direct/run_knowledge.py
+@@ -91,6 +91,7 @@ def main(out, tid, srcs):
+             if c[0] == 'S': good = len(c) >= 3   # = pso_seed.py 的格式规则（库键过滤留给 pso_seed.py）
+             elif c[0] == 'C': good = len(c) >= 2
+             elif c[0] == 'R': good = len(c) >= 2 and len(c[1]) == 2 * skey and set(c[1]) <= HEX
++            elif c[0] == 'M': good = len(c) >= 4 and len(c[1]) == 2 * skey and set(c[1]) <= HEX   # 任务 / 网格管线（nvn_geometry.inc mtk_record）
+             else: good = False
+             if good and l not in seen: seen.add(l); rows.append(l)
+     write(os.path.join(out, 'pairs.tsv'), '# 跑局配对：P<TAB>顶点键<TAB>片元键（graphics/tools/direct/run_knowledge.py，去重排序）\n'
+diff --git a/graphics/tools/direct/tests/t_pso_seed.py b/graphics/tools/direct/tests/t_pso_seed.py
+index 08f5bfffc..dc757dd2f 100644
+--- a/graphics/tools/direct/tests/t_pso_seed.py
++++ b/graphics/tools/direct/tests/t_pso_seed.py
+@@ -45,5 +45,12 @@ with tempfile.TemporaryDirectory() as t:
+     r = run(p('lib.tsv'))
+     ck(f'只装库的 S d / S f 挪到末尾、保持原相对顺序；S a、几何 S d_bg3、R、C 原序（得 {rows()}；{r.stdout.strip()[:80]}）',
+        r.returncode == 0 and rows() == [f'S\t{A}_b\t0', f'S\t{D}_bg3\t2', f'R\t{RAB}', f'C\t{C}_b', f'S\t{D}_b\t0', f'S\t{F}_b\t1'] and '只装库的 S 行 2 挪到末尾' in r.stdout)
++    # 网格管线 M 行（11-13 开局发白根修②）：顶点位置是网格键，第 2 列任务键（「-」= 无），第 3 列补齐掩码。期望（按规则手写）：M(a 网格, b 片元, 无任务) 与 M(d, b, 任务 f) 收；
++    #   任务键 x 不在库里的、网格键 x 不在库里的、长度不对的不收；收下的 M 行用到的键 a、d、b 算「建管线用到」，S a 不挪到末尾；统计行带 M 2
++    MAB, MDB = rkey(A, B), rkey(D, B, tag=3)
++    open(p('mesh.tsv'), 'w').write(f'S\t{A}_b\t0\nM\t{MAB}\t-\t0\nM\t{MDB}\t{F}_b\t0\nM\t{MAB}\t{X}_b\t0\nM\t{rkey(X, B)}\t-\t0\nM\t{MAB}00\t-\t0\n')
++    r = run(p('mesh.tsv'))
++    ck(f'M 行：键都在库里的两行收、S a 不挪到末尾；任务键 / 网格键不在库里、长度不对的不收（得 {rows()}；{r.stdout.strip()[:80]}）',
++       r.returncode == 0 and rows() == [f'S\t{A}_b\t0', f'M\t{MAB}\t-\t0', f'M\t{MDB}\t{F}_b\t0'] and '/ M 2' in r.stdout)
+ print(f't_pso_seed：{n} 项，失败 {bad}')
+ sys.exit(1 if bad else 0)
+diff --git a/runtime/tests/mk/nvn_mesh.mk b/runtime/tests/mk/nvn_mesh.mk
+index f26792434..0fbf681dc 100644
+--- a/runtime/tests/mk/nvn_mesh.mk
++++ b/runtime/tests/mk/nvn_mesh.mk
+@@ -2,7 +2,8 @@
+ NATIVE_TEST_OWN += nvn_mesh
+ ifeq ($(shell uname -s),Darwin)
+ # NVN2 任务 / 网格绘制（DrawMeshTasks / DrawMeshTasksIndirect，11-05 时之笛）：夹具库按 KIND 编三份（任务 / 有任务的网格 / 无任务的网格），经产品的 draw() 画到离屏目标读回列掩码。
+-#   两套后端（Metal 4、NXGAL_BE=mtl3 强制 Metal 3）× 编码线程（录制回放）关 / 开 各跑一遍
++#   两套后端（Metal 4、NXGAL_BE=mtl3 强制 Metal 3）× 编码线程（录制回放）关 / 开 各跑一遍；另开 Metal 校验层（MTL_DEBUG_LAYER=1）两套后端各一遍：
++#   网格管线不得把网格函数设成顶点函数（11-11 #376：校验层在 setVertexFunction 断言中止 rc=134，挡住玩家开校验层查挂死）
+ NVN_MESH_LIB := $(BUILD)/tests/mesh
+ $(NVN_MESH_LIB)/1111111111111111_b.metallib: graphics/nvn/tests/t_nvn_mesh.metal
+ 	@mkdir -p $(dir $@)
+@@ -28,5 +29,7 @@ native-test-nvn_mesh: $(BUILD)/tests/t_nvn_mesh $(NVN_MESH_LIBS)
+ 	DM_NVN_ENC_THREAD=1 T_MESH_LIB=$(abspath $(NVN_MESH_LIB)) timeout 120 $(BUILD)/tests/t_nvn_mesh
+ 	NXGAL_BE=mtl3 DM_NVN_ENC_THREAD=0 T_MESH_LIB=$(abspath $(NVN_MESH_LIB)) timeout 120 $(BUILD)/tests/t_nvn_mesh
+ 	NXGAL_BE=mtl3 DM_NVN_ENC_THREAD=1 T_MESH_LIB=$(abspath $(NVN_MESH_LIB)) timeout 120 $(BUILD)/tests/t_nvn_mesh
++	MTL_DEBUG_LAYER=1 DM_NVN_ENC_THREAD=0 T_MESH_LIB=$(abspath $(NVN_MESH_LIB)) timeout 120 $(BUILD)/tests/t_nvn_mesh
++	MTL_DEBUG_LAYER=1 NXGAL_BE=mtl3 DM_NVN_ENC_THREAD=0 T_MESH_LIB=$(abspath $(NVN_MESH_LIB)) timeout 120 $(BUILD)/tests/t_nvn_mesh
+ TEST_TARGETS += native-test-nvn_mesh
+ endif
+diff --git a/runtime/tests/mk/nvn_mesh_pad.mk b/runtime/tests/mk/nvn_mesh_pad.mk
+new file mode 100644
+index 000000000..faf8bfc20
+--- /dev/null
++++ b/runtime/tests/mk/nvn_mesh_pad.mk
+@@ -0,0 +1,14 @@
++# native-test-nvn_mesh_pad：网格着色器补齐变体（#674）的源码改写（graphics/nvn/host/mesh_pad.h）与 Metal 真建管线（runtime/build.mk 末尾按 runtime/tests/mk/*.mk 收进来）
++NATIVE_TEST_OWN += nvn_mesh_pad
++ifeq ($(shell uname -s),Darwin)
++$(BUILD)/tests/t_nvn_mesh_pad: graphics/nvn/tests/t_nvn_mesh_pad.m graphics/nvn/host/mesh_pad.h
++	@mkdir -p $(dir $@)
++	$(CC) $(CFLAGS) -std=gnu11 -fobjc-arc -Wno-unused-function -Igraphics/nvn/host -o $@ graphics/nvn/tests/t_nvn_mesh_pad.m -framework Metal -framework Foundation
++.PHONY: native-test-nvn_mesh_pad
++native-test-nvn_mesh_pad: $(BUILD)/tests/t_nvn_mesh_pad
++	timeout 60 $(BUILD)/tests/t_nvn_mesh_pad
++else
++.PHONY: native-test-nvn_mesh_pad
++native-test-nvn_mesh_pad:
++	@echo "✓ t_nvn_mesh_pad：非 macOS 跳过（要 Metal 网格管线）"
++endif
