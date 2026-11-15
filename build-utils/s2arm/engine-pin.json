@@ -1,6 +1,6 @@
 {
   "status": "verified",
-  "packagedFingerprint": "7f0b43d987c85e0bb8fe5ea0de75389adced0f78a4ab7a507e9e8c2cdb6e29a4",
+  "packagedFingerprint": "507121b41934f6f40c8b663f33533688c0cb833c2f538a8f4db73e94c84e0d06",
   "producers": {
     "engine": {
       "run": 43729049277,
@@ -13,8 +13,8 @@
       "headBranch": "Claude",
       "expiresAt": "2026-12-15T15:28:54Z",
       "members": {
-        "S2ArmEngine.framework.zip": "d907dca14bcfe3694c374ffe999884682bb9945ff0a069c662a8ad8f52f15c3d",
-        "NS2Pro.framework.zip": "02af17186fb67cd125d8b3865b708293a78edd4433ccfcfa59ff4e238290d0a1"
+        "S2ArmEngine.framework.zip": "c2580ab7757206b08ea1049e2cccc9bea6d09f9cbefd5661accffcdab4704c96",
+        "NS2Pro.framework.zip": "ccae6eb7bf784b8bba651ec3a398b46df3fd093db12b75abe15470bc08f3c851"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "5347f8b4881597344aa476c02e637ecd93c2cb7879c6d445ce822103a63fb153",
+    "engine": "e83b6b49af8d982ae622dfafb65447975efe015c5f9432356c9ffa27b22b780b",
     "prepare": "aef8aafb38aa456defbdf16b3194716c32b2051b76a38bc68640d91f098fc87f",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -90,9 +90,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "77555879c5b7e29f8bf5cac351e83e5f256f12fa49a3a6599d42312f2c7f959d",
-      "bytes": 107492208,
-      "fingerprint": "7f0b43d987c85e0bb8fe5ea0de75389adced0f78a4ab7a507e9e8c2cdb6e29a4"
+      "sha256": "caad9e96659b84d68ee9ef452f379aada6f3661169dd60fb04a95aab8f0683f0",
+      "bytes": 107492984,
+      "fingerprint": "507121b41934f6f40c8b663f33533688c0cb833c2f538a8f4db73e94c84e0d06"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -125,9 +125,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 43686191268,
+      "run": 43729049277,
       "attempt": 1,
-      "head_sha": "8e137a622b4b3bbfc5f06935137c03d4b3b9fcfa",
+      "head_sha": "340e93818ba56fddb711b4cc88cd95d1d90fd12b",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -282,11 +282,15 @@
         {
           "name": "0038-guest-mapped-region-anonymous-under-file-backing-and-upstream-recording-interning.patch",
           "sha256": "a1b676b3aecf06c711c85b7c0febb1d4240cca7625058977e020ebb197110022"
+        },
+        {
+          "name": "0039-upstream-switch2-video-sdk19-decoder-forms-and-h264.patch",
+          "sha256": "8229f305f31602c36a742742b863d83950870e26c0745bb2eb7d40852df62814"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "d907dca14bcfe3694c374ffe999884682bb9945ff0a069c662a8ad8f52f15c3d",
-        "NS2Pro.framework.zip": "02af17186fb67cd125d8b3865b708293a78edd4433ccfcfa59ff4e238290d0a1"
+        "S2ArmEngine.framework.zip": "c2580ab7757206b08ea1049e2cccc9bea6d09f9cbefd5661accffcdab4704c96",
+        "NS2Pro.framework.zip": "ccae6eb7bf784b8bba651ec3a398b46df3fd093db12b75abe15470bc08f3c851"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
