@@ -5721,6 +5721,16 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
           65 s.
         - Waiting for the IPA 733 report before choosing.
     - IPA 733 (main, 21:40Z): merged as `9069b182`, trigger 087380fb, run 43312487102. Holds patch 0012 and the speed lot.
+    - Controller and touch controls (maintainer request relayed by session 02, 15 Nov). Read from the engine source; not
+      observed on a device; reported to main and session 02.
+      - The engine's virtual pad already hides while a GCController with extendedGamepad is active, and shows again on
+        disconnect, mid-game included: ios/controller.m connect / disconnect notifications → selectSystem →
+        updateVisibility → vpad setInputEnabled.
+      - On purpose in the engine: touching the screen shows the pad again until the controller is used, and the
+        touch-only layout keeps its touch layer.
+      - Patches 0001-0012 do not change this.
+      - RewindBox's ☰ menu button stays visible (− and + also open the menu), because some pads report no
+        buttonOptions; hiding it is the maintainer's call.
   - **IPA 732 device report (maintainer, 12 Nov 20:09Z: S2Arm journal and three engine logs): the boot now asks for its
     code at once; the engine runs after the helper detaches. What it does next is not known yet.**
     - Journal, pid 60681: preparation passed in 432 s (unchanged library). Launch: `start` passed, then the 6 boot blocks
