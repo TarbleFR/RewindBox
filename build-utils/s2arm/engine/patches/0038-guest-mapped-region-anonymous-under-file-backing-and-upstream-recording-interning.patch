@@ -77,6 +77,25 @@ index b608dbe..1915770 100644
      pthread_mutex_lock(&g_sh_mu); r->open = 0;
      uint64_t un = 0; if (r->niv) sh_index(r); else un = ++g_sh_unanchored;
      pthread_mutex_unlock(&g_sh_mu);
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 21baa0d..756db1c 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -3914,11 +3914,13 @@ static int mem_any(const uint8_t *p, uint64_t n) {   // whether any byte is non-
+ //   只读在内存 / 已压缩的页；mincore 失败时退回整段读（同原来）
+ static uint64_t g_fill_untouched_bytes, g_fill_untouched_n;   // 判全 0 时没读的未触碰页（诊断行，首 4 次后按 2 的幂）
+ __attribute__((weak)) int s2a_guest_fd(void) { return -1; }   // native vawin.c (S2A_GUEST_FILE); graphics unit tests have no guest window
++__attribute__((weak)) int s2a_guest_carved(uint64_t a, uint64_t n) { (void)a; (void)n; return 0; }   // RewindBox (patch 0038): vawin.c, the mapped region kept anonymous under file backing
+ static int mem_any_touched(const uint8_t *p, uint64_t n) {
+     // RewindBox (patch 0016): storage the game does not wholly hold as readable memory is judged on a copy (what it does not hold is untouched: zeros); see rb_span_readable
+     if (n && !rb_span_readable((uintptr_t)p, n)) { uint8_t *c = malloc(n); if (!c) return 0; rb_span_copy(c, (uintptr_t)p, n, NULL); int any = mem_any(c, n); free(c); return any; }
+     // 客体内存文件后备时：被内核写回文件、又从内存里丢掉的页，mincore 两位也都是 0，但内容在文件里，不能当 0；而文件页读一下不计实占，直接整段读
+-    if (s2a_guest_fd() >= 0) return mem_any(p, n);
++    //   RewindBox (patch 0038): not where the mapped region is carved out of the files: those pages are anonymous, and reading the untouched ones would count them in the footprint
++    if (s2a_guest_fd() >= 0 && !s2a_guest_carved((uint64_t)(uintptr_t)p, n)) return mem_any(p, n);
+     uint64_t pg = (uint64_t)getpagesize(), a0 = (uint64_t)(uintptr_t)p & ~(pg - 1), a1 = ((uint64_t)(uintptr_t)p + n + pg - 1) & ~(pg - 1), skipped = 0;
+     unsigned char vec[256];
+     for (uint64_t a = a0; a < a1; a += sizeof vec * pg) {
 diff --git a/graphics/nvn/tests/t_nvn_cmdshadow.c b/graphics/nvn/tests/t_nvn_cmdshadow.c
 index 6f8c669..e5a173a 100644
 --- a/graphics/nvn/tests/t_nvn_cmdshadow.c
@@ -173,10 +192,10 @@ index 278fa4c..8923a0e 100644
      uint64_t len = ((uint64_t)ms + HPG - 1) & ~(HPG - 1), base = L.stack_base + L.stack_size - len;
      if (mprotect((void *)base, len, PROT_READ | PROT_WRITE)) die("主线程栈 mprotect errno=%d", errno);
 diff --git a/runtime/src/vawin.c b/runtime/src/vawin.c
-index b0794fb..d01300a 100644
+index b0794fb..c59d252 100644
 --- a/runtime/src/vawin.c
 +++ b/runtime/src/vawin.c
-@@ -79,10 +79,22 @@ static int gf_at(uint64_t off, uint64_t *in, uint64_t *room) {
+@@ -79,10 +79,25 @@ static int gf_at(uint64_t off, uint64_t *in, uint64_t *room) {
      uint64_t fsz = (int)k == n - 1 ? g_gf_span - k * g_gf_chunk : g_gf_chunk;
      *in = off - k * g_gf_chunk; *room = fsz - *in; return g_gf_fd[k];
  }
@@ -185,13 +204,16 @@ index b0794fb..d01300a 100644
 +//   401 MB read back from the files and 27,886 page-ins per 10 s (peak 821 MB), in step with the stutters; at the session's end 1,171 MB of the alias region was mapped.
 +//   S2Arm measured the same: nearly all file writes come from this region, mostly pages the game had already released (Duo: 9.4 GB written uncarved, 33 MB carved).
 +//   The cost is this region's resident pages counted in the footprint. Ported (MIT) from S2Arm c1d9fd9c, d8b0f8fd, 0b2d2d26, 07314902 and f83bd54a, adapted to the
-+//   window files of patch 0036: the fallback mapping back to the files goes one file at a time (gf_at), as s2a_guest_zero does
-+static int g_low_tier;           // this session's device cannot hold the pool and the host estimate in physical memory (S2Arm's 「物理内存也装不下」 tier): carve
++//   window files of patch 0036: the fallback mapping back to the files goes one file at a time (gf_at), as s2a_guest_zero does; a session reset gives the region back
++static int g_low_tier;           // this session's device cannot hold the pool and the host estimate in physical memory, and the previous session did not die: carve.
++                                 //   Wider than S2Arm's tier on purpose (S2Arm's s2a_guest_file_wanted6 sets it only with no measured peak): on IPA 750's phone the measured peak
++                                 //   (8,340 MB, from sessions without file backing) would have kept the region in the files for good. A session that dies in the foreground
++                                 //   (killed at the memory limit, crash) turns it off for the next one (s2a_guest_run_died), so a carve that does not fit is not repeated
 +static uint64_t g_gfile_room;    // the room left under the per-process limit when file backing was decided (0 = unknown)
 +static uint64_t g_anon_lo, g_anon_hi;
-+static uint64_t g_carve_a, g_carve_n;   // the alias region asked for while the window was not yet in files (s2a_guest_file_retry carves it once the files are mapped)
 +static int in_anon(uint64_t a, uint64_t n) { return g_anon_hi > g_anon_lo && a < g_anon_hi && a + n > g_anon_lo; }
-+void s2a_guest_file_carve(uint64_t a, uint64_t n);   // below; s2a_guest_file_retry calls it too
++// [a, a + n) wholly inside the carved range (graphics/nvn nvn_mtl.m mem_any_touched: anonymous pages there are judged with mincore, not read whole)
++int s2a_guest_carved(uint64_t a, uint64_t n) { return n && g_anon_hi > g_anon_lo && a >= g_anon_lo && a + n <= g_anon_hi; }
  // The file and offset behind window address a: the descriptor of the window file holding it (-1 = a is not in the file-backed window), *off = a's offset in that file,
  //   *room = the bytes from a to that file's end (a mapping of [a, a + n) takes one file when n <= *room)
  int s2a_guest_file_at(uint64_t a, uint64_t *off, uint64_t *room) {
@@ -200,30 +222,20 @@ index b0794fb..d01300a 100644
      uint64_t in, r; int fd = gf_at(a - g_base, &in, &r);
      if (off) *off = in;
      if (room) *room = r;
-@@ -248,6 +260,11 @@ static void guest_file_attach_(void) {
+@@ -248,6 +263,12 @@ static void guest_file_attach_(void) {
                      : (on ? "自动：没有本款实测，池 + 宿主开销估计 + 余量大于剩余，装不下" : "自动：没有本款实测，池 + 宿主开销估计 + 余量不大于剩余，装得下、保持匿名内存");
      LOG("客体内存文件后备：%s——%s；本款应用内存池 %llu MB、离单进程内存上限还剩 %llu MB%s、本机本款实测峰值 %llu MB（0 = 没有）、宿主开销估计 %llu MB%s", on ? "开" : "关", why,
          (unsigned long long)(pool >> 20), (unsigned long long)(room >> 20), room ? "" : "（0 = 未知）", (unsigned long long)(seen == UINT64_MAX ? 0 : seen >> 20), (unsigned long long)(host >> 20), s2a_process_prewarmed() ? "；预热进程" : "");
 +    // RewindBox (patch 0038): the tier for s2a_guest_file_carve, S2Arm's rule (physical memory below the pool and the host estimate; unknown physical memory = not that tier)
 +    { uint64_t phys = 0; size_t pn = sizeof phys; if (sysctlbyname("hw.memsize", &phys, &pn, NULL, 0)) phys = 0;
-+      g_gfile_room = room; g_low_tier = phys && pool && phys < pool + host;
-+      if (on) LOG("RewindBox: guest file backing tier: physical memory %llu MB %s the pool and the host estimate (%llu MB); room under the process limit %llu MB",
-+                  (unsigned long long)(phys >> 20), g_low_tier ? "cannot hold" : phys ? "holds" : "(unknown) is taken to hold", (unsigned long long)((pool + host) >> 20), (unsigned long long)(room >> 20)); }
++      g_gfile_room = room; g_low_tier = phys && pool && phys < pool + host && !died;
++      if (on) LOG("RewindBox: guest file backing tier: physical memory %llu MB %s the pool and the host estimate (%llu MB)%s; room under the process limit %llu MB",
++                  (unsigned long long)(phys >> 20), phys && pool && phys < pool + host ? "cannot hold" : phys ? "holds" : "(unknown) is taken to hold", (unsigned long long)((pool + host) >> 20),
++                  died && phys && pool && phys < pool + host ? ", but the previous session died in the foreground: the mapped region is not carved this time" : "", (unsigned long long)(room >> 20)); }
      if (!on) return;
      guest_file_map();
  #else
-@@ -336,7 +353,9 @@ int s2a_guest_file_retry(void) {
-         a = ra + sz;
-     }
-     guest_file_map();
--    if (g_gfd >= 0) { LOG("客体内存文件后备：装游戏前补接上了（起局时剩余 %llu MB 不够，此刻够了）", (unsigned long long)(g_gfile_avail >> 20)); return 1; }
-+    if (g_gfd >= 0) { LOG("客体内存文件后备：装游戏前补接上了（起局时剩余 %llu MB 不够，此刻够了）", (unsigned long long)(g_gfile_avail >> 20));
-+        if (g_carve_n) s2a_guest_file_carve(g_carve_a, g_carve_n);   // RewindBox (patch 0038): the alias region the layout set before the files came
-+        return 1; }
-     if (g_gfile_pending) {
-         g_gfile_pending = 0;
-         unsigned long long gb_need = (g_gfile_need + (1ull << 30) - 1) >> 30, gb_have = g_gfile_avail >> 30;
-@@ -385,10 +404,58 @@ int s2a_guest_map_fixed(uint64_t a, uint64_t len) {
+@@ -385,10 +406,58 @@ int s2a_guest_map_fixed(uint64_t a, uint64_t len) {
      if (fd < 0) return -1;
      return mmap((void *)(uintptr_t)a, len, PROT_NONE, MAP_FIXED | MAP_SHARED, fd, (off_t)off) == (void *)(uintptr_t)a ? 0 : -1;
  }
@@ -248,7 +260,7 @@ index b0794fb..d01300a 100644
 +//   checked to be still an inaccessible reservation and then replaced by an anonymous one. A region already mapped is not carved
 +void s2a_guest_file_carve(uint64_t a, uint64_t n) {
 +    if (!n) return;
-+    if (g_gfd < 0) { g_carve_a = a; g_carve_n = n; return; }   // the files may still come (s2a_guest_file_retry)
++    if (g_gfd < 0) return;   // not in files (s2a_guest_file_retry runs before the layout: a late attach is already there)
 +    if (g_anon_hi > g_anon_lo) return;
 +    const char *e = getenv("S2A_GUEST_FILE_CARVE");
 +    uint64_t room_min = env_mb("S2A_GUEST_FILE_CARVE_ROOM_MB", 7168);
@@ -284,7 +296,7 @@ index b0794fb..d01300a 100644
      for (uint64_t p = a, e = a + n; p < e; ) {
          uint64_t in, room; int fd = gf_at(p - g_base, &in, &room); uint64_t len = e - p < room ? e - p : room;
          if (fd < 0 || !len) return 0;
-@@ -400,7 +467,7 @@ int s2a_guest_zero(uint64_t a, uint64_t n) {
+@@ -400,7 +469,7 @@ int s2a_guest_zero(uint64_t a, uint64_t n) {
      return 1;
  }
  // [a, a + n) 全在文件后备的窗口里返回 1（没开 / 不在 / n 为 0 返回 0）。svc_mem.c 的懒清零（#258）按它判走不走
@@ -293,20 +305,20 @@ index b0794fb..d01300a 100644
  int s2a_window_ok(void) { return g_ok; }
  void s2a_window_get(uint64_t *base, uint64_t *size) { *base = g_base; *size = g_size; }
  // RewindBox guest (runtime/src/rb_guest.c): game code sits in pages the host made executable (imgpack.c prepare_code), which a whole-window
-@@ -410,6 +477,8 @@ __attribute__((weak)) int s2a_rb_guest_on(void) { return 0; }
+@@ -410,6 +479,8 @@ __attribute__((weak)) int s2a_rb_guest_on(void) { return 0; }
  int s2a_window_session_reset(void) {
      if (!g_ok || !g_size) return -1;
      int guest = s2a_rb_guest_on();
 +    // RewindBox (patch 0038): the carved region goes back to the files with the rest (s2a_guest_zero maps the files over it); the next session's layout carves its own
-+    g_anon_lo = g_anon_hi = 0; g_carve_a = g_carve_n = 0;
++    g_anon_lo = g_anon_hi = 0;
      // 只换客体区；尾部分配器中仍可能有宿主/运行时拥有的映射，不能清空。
      if (!guest && s2a_guest_zero(g_base, g_size)) return 0;   // 文件后备：整段打洞并重新映射成不可访问
      void *p = guest ? MAP_FAILED : mmap((void *)g_base, g_size, PROT_NONE, MAP_FIXED | MAP_PRIVATE | MAP_ANON, -1, 0);
 diff --git a/runtime/tests/t_guest_file.c b/runtime/tests/t_guest_file.c
-index 312ca60..9b8eb47 100644
+index 312ca60..b20b9d1 100644
 --- a/runtime/tests/t_guest_file.c
 +++ b/runtime/tests/t_guest_file.c
-@@ -39,6 +39,39 @@ int main(void) {
+@@ -39,6 +39,40 @@ int main(void) {
          if (x != MAP_FAILED) { long long g0 = fp(); for (size_t i = 0; i < (64u << 20); i += 64) x[i] = 3; long long dg = fp() - g0;
              CHECK(dg < (8ll << 20) && x[12345 * 64] == 3, "⑤ 写满 64 MB：实占 +%lld KB（期望 < 8192 KB）", dg >> 10); }
      }
@@ -322,17 +334,18 @@ index 312ca60..9b8eb47 100644
 +    {   // ⑥ RewindBox (patch 0038, from S2Arm c1d9fd9c / d8b0f8fd): the mapped region carved anonymous out of the window files (1 GB each here, patch 0036). A range already
 +        //   opened (① 256 MB) is refused; by default (not the low tier, room unknown) nothing is carved; S2A_GUEST_FILE_CARVE=1 carves: the range and its ends are not in the
 +        //   files, its neighbours are, its release does not punch, what is written there counts in the footprint and does not reach the file; a session reset gives it back
-+        void s2a_guest_file_carve(uint64_t, uint64_t); int s2a_guest_file_at(uint64_t, uint64_t *, uint64_t *); int s2a_window_session_reset(void);
++        void s2a_guest_file_carve(uint64_t, uint64_t); int s2a_guest_carved(uint64_t, uint64_t); int s2a_guest_file_at(uint64_t, uint64_t *, uint64_t *); int s2a_window_session_reset(void);
 +        const uint64_t C = b + (8ull << 30) + (512ull << 20), CN = 1ull << 30;   // across two window files
 +        uint64_t coff = 0; int cfd = s2a_guest_file_at(C + (64u << 10), &coff, NULL);
-+        s2a_guest_file_carve((uint64_t)(uintptr_t)q, 16u << 20);
-+        CHECK(s2a_guest_in_file((uint64_t)(uintptr_t)q, 0x4000) == 1, "⑥ a range already opened is refused: still in the files");
++        setenv("S2A_GUEST_FILE_CARVE", "1", 1); s2a_guest_file_carve((uint64_t)(uintptr_t)q, 16u << 20);   // forced, so that the refusal is the protection check's
++        CHECK(s2a_guest_in_file((uint64_t)(uintptr_t)q, 0x4000) == 1 && !s2a_guest_carved((uint64_t)(uintptr_t)q, 0x4000), "⑥ a range already opened is refused even when forced: still in the files");
 +        unsetenv("S2A_GUEST_FILE_CARVE"); s2a_guest_file_carve(C, CN);
 +        CHECK(s2a_guest_in_file(C, 0x4000) == 1, "⑥ by default (not the low tier, unknown room) nothing is carved");
 +        setenv("S2A_GUEST_FILE_CARVE", "1", 1); s2a_guest_file_carve(C, CN);
 +        CHECK(s2a_guest_in_file(C, 0x4000) == 0 && s2a_guest_in_file(C + CN - 0x4000, 0x4000) == 0 && s2a_guest_in_file(b + (9ull << 30), 0x4000) == 0, "⑥ S2A_GUEST_FILE_CARVE=1: both ends and the file boundary are out of the files");
 +        CHECK(s2a_guest_in_file(C - 0x4000, 0x4000) == 1 && s2a_guest_in_file(C + CN, 0x4000) == 1, "⑥ the neighbours stay in the files");
 +        CHECK(s2a_guest_file_at(C, NULL, NULL) == -1 && s2a_guest_file_at(C - 0x4000, NULL, NULL) >= 0, "⑥ s2a_guest_file_at: no file behind the carved range, one beside it");
++        CHECK(s2a_guest_carved(C, CN) == 1 && s2a_guest_carved(C - 0x4000, 0x8000) == 0, "⑥ s2a_guest_carved: the whole range yes, a range straddling its start no");
 +        CHECK(s2a_guest_zero(C, 0x4000) == 0, "⑥ releasing in the carved range does not punch (0: the caller maps anonymous)");
 +        uint8_t *c = (uint8_t *)(uintptr_t)C; size_t M = 64u << 20;
 +        if (mprotect(c, M, PROT_READ | PROT_WRITE)) CHECK(0, "⑥ opening the carved range failed");
@@ -341,7 +354,7 @@ index 312ca60..9b8eb47 100644
 +            CHECK(dg > (48ll << 20), "⑥ 64 MB written in the carved range: footprint +%lld KB (anonymous, expected > 49152 KB)", dg >> 10);
 +            CHECK(r == (ssize_t)sizeof buf && nz == 0 && c[64] == 7, "⑥ the window file at the same offset reads back zeros (non-zero %zu, read %zd bytes)", nz, r); }
 +        unsetenv("S2A_GUEST_FILE_CARVE");
-+        CHECK(s2a_window_session_reset() == 0 && s2a_guest_in_file(C, 0x4000) == 1 && s2a_guest_file_at(C, NULL, NULL) >= 0, "⑥ a session reset gives the carved range back to the files");
++        CHECK(s2a_window_session_reset() == 0 && s2a_guest_in_file(C, 0x4000) == 1 && s2a_guest_file_at(C, NULL, NULL) >= 0 && !s2a_guest_carved(C, 0x4000), "⑥ a session reset gives the carved range back to the files");
 +    }
      printf("%s t_guest_file：%d 项不符\n", bad ? "✗" : "✓", bad);
      return bad != 0;
