@@ -47,6 +47,8 @@ SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_nifm_network_watch', _
 
 DOTNET = os.environ.get('DOTNET', 'dotnet')
 checks = 0
+# Checks of test/melonx_nifm_network_watch/Online.cs, pinned: a fixture that skips a part does not pass.
+ONLINE_CHECKS = 154
 
 
 def check(condition, message):
@@ -173,7 +175,9 @@ with tempfile.TemporaryDirectory(prefix='melonx-nifm-network-watch-') as tempora
         result = run([DOTNET, str(online_fixture / 'bin/Release/net10.0/Online.dll')], online_fixture, 600)
         check(result.returncode == 0, 'online fixture passed: ' + result.stdout[-300:] + result.stderr[-300:])
         online_report = json.loads(next(line for line in reversed(result.stdout.splitlines()) if line.startswith('{')))
-        check(online_report['result'] == 'passed' and online_report['protocol'] == 'rewindbox-nextendo-online-1' and online_report['roots'] == 5,
+        # Every check ran, the six real handshakes included (a runner without a local IPv4 address fails here).
+        check(online_report['result'] == 'passed' and online_report['protocol'] == 'rewindbox-nextendo-online-1' and online_report['roots'] == 5
+              and online_report['handshakes'] == '6 handshakes' and online_report['checks'] == ONLINE_CHECKS,
               'online fixture report: ' + str(online_report))
         online_checks = online_report['checks']
         postimages.update({name: hashlib.sha256((candidate / name).read_bytes()).hexdigest() for name in [*online.BASELINE, online.ONLINE]})

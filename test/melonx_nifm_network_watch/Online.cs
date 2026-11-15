@@ -1,7 +1,8 @@
 // The Nextendo online lot (adapt_nextendo_online) on the production Ryujinx.HLE assembly the nifm-network-watch gate builds
 // from the final preparation: request refusals, guest Internet only while configured, the documented redirect rules
 // through the real resolver and blacklist, the PID as the account id, the id_token claims of the real generator, ALPN,
-// Nextendo's published roots and chain plus host validation (a test root stands in for Nextendo's private keys).
+// Nextendo's published roots and chain plus host validation (a test root stands in for Nextendo's private keys), the
+// session kept by programs the game starts, and six real handshakes of the emulated SSL service.
 // Host .NET runtime, not an iPhone: TLS on iOS goes through Apple's stack.
 using System;
 using System.Collections.Generic;
@@ -13,11 +14,14 @@ using System.Net;
 using System.Net.Security;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Security.Authentication;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json;
 using Ryujinx.HLE;
+using Ryujinx.HLE.HOS;
+using Ryujinx.HLE.HOS.Services.Am.AppletOE.ApplicationProxyService.ApplicationProxy.Types;
 
 static class Program
 {
@@ -41,7 +45,7 @@ static class Program
         const BindingFlags any = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
         const int connectionAbort = (210 << 9) | 123;
 
-        (int code, SslApplicationProtocol alpn, string sni) Run(X509Certificate2 presented, string hostName)
+        (int code, SslApplicationProtocol alpn, string sni) Run(X509Certificate2 presented, string hostName, out object connection)
         {
             using TcpListener listener = new(local, 0);
             listener.Start();
@@ -68,32 +72,51 @@ static class Program
             client.Connect(new IPEndPoint(local, ((IPEndPoint)listener.LocalEndpoint).Port));
             object impl = Activator.CreateInstance(defaultSocket, any, null, [client, null], null);
             object managed = Activator.CreateInstance(managedSocket, any, null, [impl], null);
-            object connection = Activator.CreateInstance(connectionType, any, null, [null, Enum.ToObject(versionType, 1u << 5), 0, managed], null);
-            int code = Convert.ToInt32(connectionType.GetMethod("Handshake").Invoke(connection, [hostName]));
+            connection = Activator.CreateInstance(connectionType, any, null, [null, Enum.ToObject(versionType, 1u << 5), 0, managed], null);
+            int code;
+            try { code = Convert.ToInt32(connectionType.GetMethod("Handshake").Invoke(connection, [hostName])); }
+            catch (TargetInvocationException error) when (error.InnerException is AuthenticationException) { code = -1; }
             client.Dispose();
             (SslApplicationProtocol alpn, string sni) = server.Wait(15000) ? server.Result : (default, null);
             return (code, alpn, sni);
         }
 
         EmbeddedOnline.Configure(Request(game, 1800000042L, local.ToString(), "203.0.113.8"));
-        EmbeddedOnline.BeginSession();
+        EmbeddedOnline.BeginSession(true);
         testRoots.SetValue(null, new X509Certificate2Collection(root));
         Check(local.Equals(EmbeddedOnline.Redirect(Smash)), "the server rule points at the local server");
-        (int code, SslApplicationProtocol alpn, string sni) = Run(named, "");
+        (int code, SslApplicationProtocol alpn, string sni) = Run(named, "", out _);
         Check(code == 0 && alpn == SslApplicationProtocol.Http11 && sni == Smash,
               $"handshake accepted: chain and host, ALPN http/1.1, SNI from the redirected name ({code}, {alpn}, {sni})");
-        (code, _, _) = Run(other, Smash);
+        (code, _, _) = Run(other, Smash, out _);
         Check(code == connectionAbort, "a certificate naming another host is the game's connection error, no exception");
         testRoots.SetValue(null, null);
-        (code, _, _) = Run(named, Smash);
+        (code, _, _) = Run(named, Smash, out _);
         Check(code == connectionAbort, "a chain to another root than Nextendo's is the game's connection error, no exception");
         testRoots.SetValue(null, new X509Certificate2Collection(root));
         EmbeddedOnline.Configure(Request(game, 1800000042L, local.ToString(), "203.0.113.8"));
-        EmbeddedOnline.BeginSession();
-        (code, _, sni) = Run(named, "");
+        EmbeddedOnline.BeginSession(true);
+        (code, _, sni) = Run(named, "", out _);
         Check(code == connectionAbort && sni == null, "no host name and none redirected: refused without a reverse lookup");
         testRoots.SetValue(null, null);
-        return "4 handshakes";
+
+        // Online, a host other than the two servers (the guest's DNS is open): the default handshake, whose refusal is
+        // the game's connection error too; the connection then has no stream to read or write.
+        EmbeddedOnline.Configure(Request(game, 1800000042L, "203.0.113.7", "203.0.113.8"));
+        EmbeddedOnline.BeginSession(true);
+        (code, _, _) = Run(named, Smash, out object refused);
+        Check(code == connectionAbort, "online, another host's chain to an unknown root: the game's connection error, no exception");
+        object[] readArguments = [0, new Memory<byte>(new byte[16])];
+        Check(Convert.ToInt32(connectionType.GetMethod("Read").Invoke(refused, readArguments)) == connectionAbort && (int)readArguments[0] == -1,
+              "no read after a refused handshake");
+        object[] writeArguments = [7, new ReadOnlyMemory<byte>(new byte[4])];
+        Check(Convert.ToInt32(connectionType.GetMethod("Write").Invoke(refused, writeArguments)) == connectionAbort && (int)writeArguments[0] == 0,
+              "no write after a refused handshake");
+        // Offline: the default handshake exactly as before (the exception goes through the service).
+        EmbeddedOnline.Clear();
+        (code, _, _) = Run(named, Smash, out _);
+        Check(code == -1, "offline: the default handshake is unchanged");
+        return "6 handshakes";
     }
     static void Check(bool condition, string what)
     {
@@ -208,21 +231,36 @@ static class Program
         }
         Check(Throws<JsonException>(() => EmbeddedOnline.Configure("{not json")), "invalid JSON refused");
         Check(!EmbeddedOnline.Configure("{}"), "empty request is offline");
-        EmbeddedOnline.BeginSession();
+        EmbeddedOnline.BeginSession(true);
         Check(!EmbeddedOnline.Enabled, "empty request: offline session");
         Check(!EmbeddedOnline.Configure(""), "blank request is offline");
 
-        // A request belongs to the next session only.
+        // A request belongs to the next session only; a program the game starts within the session (ExecuteProgram,
+        // RestartProgram: the host's load loop makes a new configuration) keeps it. Through the real Configure.
+        MethodInfo configure = configuration.GetMethod("Configure");
+        void StartProgram(UserChannelPersistence channel) => configure.Invoke(hleConfig, [null, null, null, null, channel, null, null, null]);
         Check(EmbeddedOnline.Configure(Request(game, 1800000042L, "203.0.113.7", "203.0.113.8")), "request accepted");
         Check(!EmbeddedOnline.Enabled, "not online before the session takes it");
-        EmbeddedOnline.BeginSession();
-        Check(EmbeddedOnline.Enabled, "the session takes it");
-        EmbeddedOnline.BeginSession();
+        UserChannelPersistence session = new();
+        StartProgram(session);
+        Check(EmbeddedOnline.Enabled, "the session's first program takes it");
+        session.ExecuteProgram(ProgramSpecifyKind.RestartProgram, 0);
+        StartProgram(session);
+        Check(EmbeddedOnline.Enabled && InternetOn(), "a restart within the session stays online");
+        session.ExecuteProgram(ProgramSpecifyKind.ExecuteProgram, 1);
+        StartProgram(session);
+        Check(EmbeddedOnline.Enabled && InternetOn(), "another program of the session stays online");
+        StartProgram(new UserChannelPersistence());
         Check(!EmbeddedOnline.Enabled && !InternetOn(), "a later session without a request is offline");
+        EmbeddedOnline.Configure(Request(game, 1800000042L, "203.0.113.7", "203.0.113.8"));
+        StartProgram(null);
+        Check(EmbeddedOnline.Enabled, "a configuration without a channel starts a session");
+        EmbeddedOnline.BeginSession(true);
+        Check(!EmbeddedOnline.Enabled, "and the next one is offline");
 
         // Online: Internet for the guest, the documented rules, the PID as the account id.
         EmbeddedOnline.Configure(Request(game, 1800000042L, "203.0.113.7", "203.0.113.8"));
-        EmbeddedOnline.BeginSession();
+        EmbeddedOnline.BeginSession(true);
         Check(EmbeddedOnline.Enabled && InternetOn(), "online configured, guest Internet on");
         Check((long)accountId.GetValue(server0) == 1800000042L, "the account id the game reads is the PID");
         IPAddress server = IPAddress.Parse("203.0.113.7"), nat = IPAddress.Parse("203.0.113.8");
@@ -325,7 +363,7 @@ static class Program
         // The largest game token the request accepts still fits the id_token buffer (0xC00).
         string longest = "nx2." + new string('A', EmbeddedOnline.MaxTokenLength - 4);
         EmbeddedOnline.Configure(Request(longest, 9_999_999_999L, "203.0.113.7", "203.0.113.8"));
-        EmbeddedOnline.BeginSession();
+        EmbeddedOnline.BeginSession(true);
         string large = (string)token.Invoke(null, ["4.0.1.0"]);
         Check(large.Length < 0xC00, "largest id_token fits its buffer (" + large.Length + " bytes)");
 
