@@ -15,6 +15,11 @@ Version 3 (15 November, after the MeloNX session's review of version 2): `wiring
 - an aborted launch cannot leave a request for a later one: the bridge sends operation 11 before every launch (`{}`
   offline), which replaces any armed request; documented in `EmbeddedOnline.cs`.
 
+Review of v3 by the MeloNX session (15 November): freeze, no defect; the v2 probes pass. Known limits kept, shared
+with upstream: an unsupported SSL version (`TranslateSslVersion`, NotImplementedException) or an ArgumentException
+still leaves the handshake as an exception, so "never an exception" means the TLS and I/O failures listed above; the
+handshake blocks without a timeout, and while online (DNS open) a silent host can hold the SSL thread.
+
 Version 2 (after the review of version 1): a refused or failed TLS handshake to a configured server is the game's
 connection error (`ConnectionAbort`); no reverse lookup for a missing SNI (refused); serverAuth is required of the
 leaf; the game version is read only online; the exact hosts-file entry is compared without case. Not taken (documented
