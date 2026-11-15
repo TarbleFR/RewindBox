@@ -1,0 +1,102 @@
+diff --git a/runtime/include/s2a_qos.h b/runtime/include/s2a_qos.h
+index 82220f5c1..4fedec0d7 100644
+--- a/runtime/include/s2a_qos.h
++++ b/runtime/include/s2a_qos.h
+@@ -20,7 +20,7 @@ typedef enum {
+     S2A_QOS_GAME_MAIN,         // 游戏主线程（runtime/src/thread.c）：USER_INTERACTIVE（S2A_GAME_MAIN_QOS 可改，能耗对照用）
+     S2A_QOS_GAME_OTHER,        // 其余游戏线程：性能核 ≥ 4（Mac）USER_INTERACTIVE；< 4（iPhone）USER_INITIATED，排在渲染关键线程之后（S2A_GUEST_QOS 可改）。
+                                //   其中提交 NVN 的那一个按 S2A_QOS_SUBMIT 另提
+-    S2A_QOS_GAME_SYSCORE,      // 核掩码只给 Switch 系统核（3 号）的游戏线程：UTILITY（Horizon 留给系统 / 后台）
++    S2A_QOS_GAME_SYSCORE,      // 核掩码只给 3 号核的游戏线程：性能核不足 4 个（或 S2A_SYSCORE_QOS=utility）时 UTILITY，性能核 ≥ 4 与其余游戏线程同档（见 thread.c syscore_utility）
+     S2A_QOS_SUBMIT,            // NVN 提交线程（hle_nvn.c nvnQueueSubmitCommands）：USER_INTERACTIVE（依据 ①）
+     S2A_QOS_ENCODE,            // Metal 编码线程 dm-encode（nvn_rec.h）：USER_INTERACTIVE，提交线程每次提交末尾等它
+     S2A_QOS_UB_COPY,           // 统一缓冲影子拷贝线程 dm-ub-copy（nvn_rec.h）：USER_INTERACTIVE，提交前等它
+diff --git a/runtime/src/thread.c b/runtime/src/thread.c
+index b4c008c45..edc8b84e5 100644
+--- a/runtime/src/thread.c
++++ b/runtime/src/thread.c
+@@ -632,12 +632,37 @@ static qos_class_t other_qos(void) {
+     else if (v && *v) LOG("【红】S2A_GUEST_QOS=%s 不认（只认 interactive / initiated / utility），按缺省", v);
+     done = 1; return q;
+ }
++// 核掩码只给 3 号核的游戏线程降 UTILITY：v0.3.1 起缺省关（S2A_SYSCORE_QOS=utility 才开旧行为）。
++//   11-12 一款 Switch 2 游戏 0400486024DEC000（M5 Max）：游戏把工作线程挪到 3 号核再挪回，宿主跟着在 USER_INTERACTIVE / UTILITY 之间切，
++//   UTILITY 那条被排到能效核、低优先级，等这组工作线程的游戏主逻辑被拖住，>100 ms 长帧全在宿主外、GPU 只忙四成。
++//   「3 号核 = Horizon 系统核」只是 Switch 1 的约定，Switch 2 不成立，Switch 1 游戏放在 3 号核的也常是要按帧做完的活。
++//   每次现读环境（不缓存）：线程起 / 改核掩码时才调，A/B 与单测同进程切换
++//   按性能核数分（11-12 手机 A/B：Duo 上同档后帧率、p99 持平、能耗约 +5%，没有 Mac 的改善）：性能核 ≥ 4（Mac、M 系列 iPad，同 S2A_QOS_GAME_OTHER 的判法）同档，
++//   不足 4 个（iPhone）维持 UTILITY——性能核少时多一条 USER_INTERACTIVE 线程只是多抢那两个性能核。S2A_SYSCORE_QOS=utility / same 强制旧 / 新行为（A/B 用）
++// RewindBox (patch 0042): with the guest's memory in files (vawin.c, s2a_guest_fd() >= 0) a thread of core 3 alone keeps the tier of the other game threads whatever the number of
++//   performance cores. UTILITY is not only efficiency cores and a low priority: the kernel gives it the second I/O tier, and a fault on a page of the guest files is disk I/O issued by
++//   the faulting thread, held back while first-tier I/O goes on (the other game threads' own page-ins, a screen recording being written). Mario Kart World 0400C3F00006E000 (NPDM core
++//   mask 0x3f: core 3 is an ordinary game core) runs one worker of each of its six-thread pools on core 3. IPA 751 on iPhone17,2, 15 November 2026, a screen recording starting: the
++//   picture stopped for more than 10 s at a race start (stall dump, frame 2067) with every game thread waiting but one, thread 176 (core mask 0x8, QoS UTILITY, priority 20), blocked in
++//   a fault at a guest address (main+0x3693690), which woke the others once every half second; the process held 54 MB resident and 2,257 MB compressed, and its page-ins fell from
++//   27,434 to 6,698 in 10 s while the game needed them. S2Arm measured the same tier on a phone at the same frame rate and p99 and about 5 % more CPU energy a frame (66a2523e), in
++//   sessions whose guest memory was not in files. S2A_SYSCORE_QOS=utility / same still force either. Weak: the standalone tests link thread.c without vawin.c
++extern int s2a_guest_fd(void) __attribute__((weak));
++static int syscore_in_files(void) { return s2a_guest_fd && s2a_guest_fd() >= 0; }
++static int syscore_utility(void) {
++    const char *v = getenv("S2A_SYSCORE_QOS");
++    if (v && !strcmp(v, "utility")) return 1;
++    if (v && !strcmp(v, "same")) return 0;
++    if (syscore_in_files()) return 0;
++    return perf_cores() < 4;
++}
+ static qos_class_t guest_qos(int main_thread, uint64_t mask) {
+     if (main_thread) return main_qos();
+-    if (mask == 1ull << 3) return s2a_qos(S2A_QOS_GAME_SYSCORE);
++    if (mask == 1ull << 3 && syscore_utility()) return s2a_qos(S2A_QOS_GAME_SYSCORE);
+     if (other_qos() != QOS_CLASS_UNSPECIFIED) return other_qos();
+     return s2a_qos(S2A_QOS_GAME_OTHER);   // 性能核 ≥ 4 USER_INTERACTIVE、< 4 USER_INITIATED（表内同一判法）
+ }
++qos_class_t s2a_test_guest_qos(int main_thread, uint64_t mask) { return guest_qos(main_thread, mask); }   // 单测入口（t_thread.c）
+ // 设 QoS 并读回核对：设不上（如 .NET 建的线程 EPERM）或读回不符就报红一次
+ static void set_qos(qos_class_t want) {
+     int rc = pthread_set_qos_class_self_np(want, 0); qos_class_t got = QOS_CLASS_UNSPECIFIED; int rp = 0;
+@@ -933,7 +958,9 @@ uint32_t s2a_thread_main_init(void) {
+ #if defined(__APPLE__)
+     atomic_store(&g_join_verified, 0);
+     atomic_fetch_add(&g_live_threads, 1);
+-    LOG("线程调度档：性能核 %d 个 → 游戏主线程 %s，其余游戏线程 %s", perf_cores(), main_qos() == QOS_CLASS_USER_INTERACTIVE ? "USER_INTERACTIVE" : main_qos() == QOS_CLASS_USER_INITIATED ? "USER_INITIATED" : "UTILITY", guest_qos(0, 7) == QOS_CLASS_USER_INTERACTIVE ? "USER_INTERACTIVE" : guest_qos(0, 7) == QOS_CLASS_USER_INITIATED ? "USER_INITIATED（核掩码只含 3 号核的为 UTILITY）" : "UTILITY");
++    LOG("线程调度档：性能核 %d 个 → 游戏主线程 %s，其余游戏线程 %s", perf_cores(), main_qos() == QOS_CLASS_USER_INTERACTIVE ? "USER_INTERACTIVE" : main_qos() == QOS_CLASS_USER_INITIATED ? "USER_INITIATED" : "UTILITY", guest_qos(0, 7) == QOS_CLASS_USER_INTERACTIVE ? "USER_INTERACTIVE" : guest_qos(0, 7) == QOS_CLASS_USER_INITIATED ? "USER_INITIATED" : "UTILITY");
++    { const char *v = getenv("S2A_SYSCORE_QOS"); LOG("线程调度档：核掩码只含 3 号核的游戏线程 %s（%s）", syscore_utility() ? "UTILITY" : "与其余游戏线程同档", v && (!strcmp(v, "utility") || !strcmp(v, "same")) ? "S2A_SYSCORE_QOS 强制" : syscore_in_files() ? "RewindBox: guest memory in files" : perf_cores() >= 4 ? "性能核 ≥ 4 缺省" : "性能核不足 4 个缺省");
++      if (!(v && (!strcmp(v, "utility") || !strcmp(v, "same"))) && syscore_in_files() && perf_cores() < 4) LOG("RewindBox: game threads of core 3 alone keep the other game threads' tier: the guest's memory is in files and a UTILITY thread's page-ins are second-tier I/O (S2A_SYSCORE_QOS=utility for S2Arm's rule on %d performance cores)", perf_cores()); }
+ #endif
+     return t->handle;
+ }
+diff --git a/runtime/tests/t_thread.c b/runtime/tests/t_thread.c
+index 73d255832..760d2e265 100644
+--- a/runtime/tests/t_thread.c
++++ b/runtime/tests/t_thread.c
+@@ -19,6 +19,7 @@
+ #include <errno.h>
+ #if defined(__APPLE__)
+ #include <mach/mach.h>
++#include <sys/sysctl.h>
+ #endif
+ #ifdef S2A_THREAD_PLAT_VARIANT
+ #define main t_thread_main
+@@ -1598,6 +1599,22 @@ int main(void) {
+         CHECK(nt == 128 && rc == 0x10801, "传输内存上限：应同时存在 128 个后回 0x10801；实 %d 个、回 %#llx", nt, (unsigned long long)rc);
+         #undef SV
+     }
++    {   // 3 号核游戏线程的 QoS（11-12 一款 Switch 2 游戏 0400486024DEC000 长帧）：性能核 ≥ 4 缺省与其余游戏线程同档、不足 4 个缺省 UTILITY；
++        //   S2A_SYSCORE_QOS=same / utility 两头强制。期望按「本机性能核数」手写分支（hw.perflevel0.physicalcpu）
++        g_case = "3 号核线程 QoS";
++        qos_class_t s2a_test_guest_qos(int, uint64_t);
++        unsetenv("S2A_SYSCORE_QOS"); unsetenv("S2A_GUEST_QOS");
++        int pc = 0; size_t pcs = sizeof pc; if (sysctlbyname("hw.perflevel0.physicalcpu", &pc, &pcs, NULL, 0) || pc <= 0) { pcs = sizeof pc; if (sysctlbyname("hw.physicalcpu", &pc, &pcs, NULL, 0) || pc <= 0) pc = 8; }
++        qos_class_t other = s2a_test_guest_qos(0, 0x7), core3 = s2a_test_guest_qos(0, 1ull << 3);
++        if (pc >= 4) CHECK(core3 == other && core3 != QOS_CLASS_UTILITY, "缺省（性能核 %d ≥ 4）：3 号核线程应与其余游戏线程同档（%#x），实 %#x", pc, other, core3);
++        else CHECK(core3 == QOS_CLASS_UTILITY, "缺省（性能核 %d < 4）：3 号核线程应为 UTILITY，实 %#x", pc, core3);
++        setenv("S2A_SYSCORE_QOS", "same", 1);
++        CHECK(s2a_test_guest_qos(0, 1ull << 3) == other, "S2A_SYSCORE_QOS=same：3 号核线程应与其余游戏线程同档（%#x），实 %#x", other, s2a_test_guest_qos(0, 1ull << 3));
++        setenv("S2A_SYSCORE_QOS", "utility", 1);
++        CHECK(s2a_test_guest_qos(0, 1ull << 3) == QOS_CLASS_UTILITY, "S2A_SYSCORE_QOS=utility：3 号核线程应为 UTILITY，实 %#x", s2a_test_guest_qos(0, 1ull << 3));
++        CHECK(s2a_test_guest_qos(0, 0x7) == other, "S2A_SYSCORE_QOS=utility 不该动别的核掩码（%#x），实 %#x", other, s2a_test_guest_qos(0, 0x7));
++        unsetenv("S2A_SYSCORE_QOS");
++    }
+     {   // SleepThread 按时醒（10-25 数码宝贝断续：utility QoS 下 nanosleep 睡 31 ms 平均多睡 103 ms）：本线程降 utility，睡 30 ms，
+         //   判挂的定时器（见 timer_ok）；实测多睡只报数。放最后：本线程 QoS 改了不影响前面各例
+         g_case = "SleepThread 按时醒";

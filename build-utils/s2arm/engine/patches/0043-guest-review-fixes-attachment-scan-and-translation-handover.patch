@@ -1,0 +1,140 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index b1d2033ab..258ab0ca5 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -11668,6 +11668,7 @@ static int noload_writes(NvProg *pr, uint32_t want, uint32_t *need) {   // → 1
+ }
+ // DM_NVN_NOLOAD=0：关免加载（恒返回 0，照常读入），真机 A/B 判因果用（11-07 金刚 hang、鬼灭黑地面）；缺省开。第一次开遍时打一行当前状态
+ static int g_noload_on = -1;
++static uint64_t g_noload_stop;   // RewindBox (patch 0043): scans stopped at the bind of a program with a stage still to load (pass_color_unwritten)
+ static int noload_on(void) {
+     if (g_noload_on < 0) { const char *e = getenv("DM_NVN_NOLOAD"); g_noload_on = !(e && !strcmp(e, "0"));
+         MLOG("color attachments proven unwritten to the pass end not loaded: %s (DM_NVN_NOLOAD%s)", g_noload_on ? "on" : "off, every attachment loaded", g_noload_on ? "=0 turns it off" : "=0"); }
+@@ -11706,6 +11707,18 @@ static uint32_t pass_color_unwritten(NvProg *pr0) {
+                 if (S.rast_discard) break;   // rasterizes nothing: no attachment written
+                 if (noload_writes(pr, want, &need)) stop = 1;
+                 break; }
++            // RewindBox (patch 0043): this scan does not load either. A bind it replays went state_op → bind_stages → prog_get like the precompile lookahead's (patch 0040), with the
++            //   pass's first draw waiting: every program bound later in the pass was translated and loaded here, on the submit thread, before the lookahead of its submission had
++            //   handed anything to the lanes. A program with a stage still to load stops the scan: nothing is proven past it and the attachments are loaded, the answer this scan
++            //   already gives at a draw of such a program (prog_peek above); prog_peek starts its shaders beside the submit thread. The lookahead's stage-mask guess (g_look) is
++            //   not used here: this scan decides what is loaded into the pass, and a guessed mask could leave a combination of stages the real replay never has
++            case OP_BIND_PROGRAM: {
++                p_bind_program bpt_; const p_bind_program *bp_ = bind_program_rec(aq, hq.size, &bpt_);
++                if ((bp_->stages & 0x1f) && look_noload_on()) { const prog_t *bpp = prog_live(bp_); if (bpp && !prog_peek(bpp)) { stop = 1;
++                    g_noload_stop++;
++                    if (!(g_noload_stop & (g_noload_stop - 1))) MLOG("RewindBox: attachment scans stopped at the bind of a program whose shaders are not loaded yet: %llu so far (those passes load their attachments; the scan loads no shader on the submit thread)", (unsigned long long)g_noload_stop);
++                    break; } }
++                state_op(hq.op, aq, hq.size); break; }
+             default: state_op(hq.op, aq, hq.size); break;
+         }
+         if (stop) break;
+diff --git a/graphics/nvn/host/dsh_miss.inc b/graphics/nvn/host/dsh_miss.inc
+index 8fb9a5855..d9a55e963 100644
+--- a/graphics/nvn/host/dsh_miss.inc
++++ b/graphics/nvn/host/dsh_miss.inc
+@@ -107,7 +107,14 @@ static _Atomic int g_dsh_bad;
+ typedef struct dsh_job { struct dsh_job *next; uint8_t key[8]; int st; uint32_t nctl, ncode; _Atomic int ref, state; dispatch_semaphore_t done; uint64_t ns; uint8_t *code; uint8_t ctl[]; } dsh_job;
+ enum { DSH_JOB_QUEUED, DSH_JOB_RUNNING, DSH_JOB_OK, DSH_JOB_FAILED, DSH_JOB_CANCELLED };
+ static dsh_job *g_dsh_job[DSH_PEND_BUCKETS]; static pthread_mutex_t g_dsh_job_mu = PTHREAD_MUTEX_INITIALIZER, g_dsh_comp_mu = PTHREAD_MUTEX_INITIALIZER;
+-static void dsh_job_put(dsh_job *j) { if (atomic_fetch_sub(&j->ref, 1) == 1) { free(j->code); free(j); } }
++// RewindBox (patch 0043): the job's semaphore goes with it. It is an object field of a calloc'ed struct, which free() does not release; one stayed behind for every job (bounded
++//   by S2A_DSH_EAGER_MAX until the lookahead's translations of patch 0040, which have no such bound)
++#if defined(__OBJC__) && __has_feature(objc_arc)
++static void dsh_job_done_release(dsh_job *j) { j->done = nil; }
++#else
++static void dsh_job_done_release(dsh_job *j) { if (j->done) { dispatch_release(j->done); j->done = NULL; } }
++#endif
++static void dsh_job_put(dsh_job *j) { if (atomic_fetch_sub(&j->ref, 1) == 1) { dsh_job_done_release(j); free(j->code); free(j); } }
+ static int dsh_eager_max(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_DSH_EAGER_MAX"); v = e && *e ? atoi(e) : 256; if (v < 0) v = 0; } return v; }
+ // 在编的输入（#467 植物大战僵尸 和睦小镇：手机上现编时翻译器在某支着色器上 SIGSEGV，整个 App 闪退，崩的是哪支、输入是什么都没留下）：
+ //   开编前只在内存里记下这支的控制段 / 代码区指针和两个落盘路径（两次 snprintf，不碰盘），翻译器返回后清掉。进程崩了时崩溃处理
+@@ -177,7 +184,7 @@ static dsh_job *dsh_job_take(const uint8_t key[8]) {   // 从表里取走这个
+ //   translates it itself, waits for one in flight, and reuses the fallback directory once it is done. Vertex and pixel stages only: compute stages keep their first-use path (the
+ //   tensor-core networks are built from their reflection alone there, nvn_mtl.m prog_get). No limit like S2A_DSH_EAGER_MAX: these are stages of programs bound in the submission
+ //   at hand, not every program the game creates. S2A_DSH_AHEAD=0 turns it off
+-extern void mtl_shader_ahead_load(const char *k16, const char *stage) __attribute__((weak));   // nvn_mtl.m (absent from the host tests of this file)
++void mtl_shader_ahead_load(const char *k16, const char *stage);   // nvn_mtl.m; RewindBox (patch 0043): no longer a weak reference, which a Mach-O link of this file's host test (t_dsh_stats.c, no nvn_mtl.m) refuses without -U: the test has a stand-in like for every other mtl_ function
+ static int dsh_ahead_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_DSH_AHEAD"); v = !(e && !strcmp(e, "0")); } return v; }
+ static int dsh_ahead_first(const uint8_t key[8]) {   // each key is handed over once (the lookahead meets the same bind at every miss of its submission)
+     static pthread_mutex_t mu = PTHREAD_MUTEX_INITIALIZER; static uint64_t *seen; static size_t nseen, cap;
+@@ -189,21 +196,37 @@ static int dsh_ahead_first(const uint8_t key[8]) {   // each key is handed over
+     pthread_mutex_unlock(&mu);
+     return first;
+ }
++// The stage name (as in the map) of a key an earlier run translated on this device, from its json in the fallback directory, as dm_shader_reuse reads it; 0 = none usable. Nothing is registered here
++static int dsh_reuse_stage(const char *k, char *stage, size_t n) {
++    static const char *const js[6] = {"vs", "ps", "cs", "gs", "ts", "ms"};
++    const char *out = getenv("DM_MSL_FALLBACK"); char p[1200], b[8192];
++    if (!out || !*out || !dsh_have(out, k)) return 0;
++    snprintf(p, sizeof p, "%s/%s_b.json", out, k); FILE *f = fopen(p, "r"); if (!f) return 0;
++    size_t m = fread(b, 1, sizeof b - 1, f); fclose(f); b[m] = 0;
++    for (int st = 0; st < 6; st++) if (dsh_json_eq(b, "stage", js[st])) { snprintf(stage, n, "%s", dsh_nm[st]); return 1; }
++    return 0;
++}
+ void dm_shader_ahead(const char *k16, uint64_t code, const void *control) {
+-    if (!dsh_ahead_on() || !control || !code || (uint64_t)(uintptr_t)control >= (1ull << 47) || !nvn2_on() || !nvn2_ctl(control)) return;
++    if (!dsh_ahead_on() || !nvn2_on()) return;
+     uint8_t key[8]; for (int i = 0; i < 8; i++) { unsigned v; if (sscanf(k16 + 2 * i, "%2x", &v) != 1) return; key[i] = (uint8_t)v; }
+     char k[17]; snprintf(k, sizeof k, "%.16s", k16);
+     if (!dsh_ahead_first(key)) return;
+     const char *out = getenv("DM_MSL_FALLBACK"); if (!out || !*out || !strcmp(out, "/dev/null")) return;
++    // RewindBox (patch 0043): a stage an earlier run translated is taken from the fallback directory before the control section is looked at, as the first use does
++    //   (dm_shader_miss_late: a frame replay's control pointer is the recording process's, 11-04 0100f6000… SIGBUS). Its stage comes from the translation's own json and is
++    //   registered whatever it is, as the first use registers it (dm_shader_reuse, which also counts it as reused: not counted twice here), so the lookahead's stage mask
++    //   (nvn_mtl.m prog_look_mask) no longer reads the control section either; only a vertex or pixel library is loaded ahead, as below
++    { char sn[16];
++      if (dsh_reuse_stage(k, sn, sizeof sn)) {
++          mtl_shmap_rt_add(k, sn); atomic_fetch_add(&g_dsh_ahead_had, 1);
++          if (!strcmp(sn, dsh_nm[0]) || !strcmp(sn, dsh_nm[1])) mtl_shader_ahead_load(k, sn);
++          return; } }
++    if (!control || !code || (uint64_t)(uintptr_t)control >= (1ull << 47) || !nvn2_ctl(control)) return;
+     const uint8_t *ctl = control, *cd = (const uint8_t *)(uintptr_t)code; uint32_t ncode = 0, nctl = 0;
+     int st = dsh_stage(cd, ctl, &ncode, &nctl);
+     if ((st != 0 && st != 1) || !dsh_comp()) return;   // not a vertex or pixel stage, or no translator: left to the first use, which reports what it cannot do
+     mkdir(out, 0755);
+-    if (dsh_have(out, k)) {   // translated by an earlier run: registered as dm_shader_miss does at ProgramSetShaders for a Switch 1 key, and its library loaded on the lanes
+-        mtl_shmap_rt_add(k, dsh_nm[st]); atomic_fetch_add_explicit(&g_dsh_reused, 1, memory_order_relaxed); atomic_fetch_add(&g_dsh_ahead_had, 1);
+-        if (mtl_shader_ahead_load) mtl_shader_ahead_load(k, dsh_nm[st]);
+-        return;
+-    }
++    dsh_dump(k, ctl, nctl, code, ncode);   // DM_NVN_SHDUMP: as the first use saves a stage it translates (dsh_nvn2_pend), which this one no longer reaches once translated here
+     dsh_job *j = calloc(1, sizeof *j + nctl); uint8_t *copy = j ? malloc(ncode) : NULL;
+     if (!j || !copy) { free(j); free(copy); return; }
+     memcpy(j->key, key, 8); j->st = st; j->nctl = nctl; j->ncode = ncode; memcpy(j->ctl, ctl, nctl); memcpy(copy, cd, ncode); j->code = copy;
+@@ -227,7 +250,7 @@ void dm_shader_ahead(const char *k16, uint64_t code, const void *control) {
+             else {
+                 uint64_t m = atomic_fetch_add(&g_dsh_ahead_ok, 1) + 1;
+                 LOG("RewindBox: lookahead translation %llu: %s (%s, %.1f ms)", (unsigned long long)m, kk, dsh_nm[j->st], j->ns / 1e6);
+-                if (mtl_shader_ahead_load) mtl_shader_ahead_load(kk, dsh_nm[j->st]);
++                mtl_shader_ahead_load(kk, dsh_nm[j->st]);
+             }
+         } else { int idle = DSH_JOB_QUEUED; atomic_compare_exchange_strong(&j->state, &idle, DSH_JOB_CANCELLED); }   // no copy of the directory name: left to the first use
+         dispatch_semaphore_signal(j->done); free(o); dsh_job_put(j);
+@@ -304,11 +327,14 @@ int dm_shader_miss_late(const char *k16, uint64_t code, const void *control) {
+         // RewindBox (patch 0040): the lookahead may have handed this key to dm_shader_ahead. Its job is taken before the fallback directory is read: one that has not started is
+         //   cancelled (the key is translated here, below, as before), one in flight is waited for, so its files are never read half written. A job that is done leaves its
+         //   translation in the fallback directory, which the reuse below finds; one that failed is translated again below and reported there
++        int ahead_ok = 0;   // RewindBox (patch 0043): translated in this run by the lookahead's queue: counted below as a translation of this run, not as one reused from an earlier run
+         { dsh_job *ja = dsh_job_take(key);
+           if (ja) { int want = DSH_JOB_QUEUED;
+               if (atomic_compare_exchange_strong(&ja->state, &want, DSH_JOB_CANCELLED)) atomic_fetch_add(&g_dsh_ahead_taken, 1);
+               else if (atomic_load(&ja->state) == DSH_JOB_RUNNING) { dispatch_semaphore_wait(ja->done, DISPATCH_TIME_FOREVER); atomic_fetch_add(&g_dsh_ahead_waited, 1); }
++              ahead_ok = atomic_load(&ja->state) == DSH_JOB_OK;
+               dsh_job_put(ja); } }
++        if (ahead_ok && dm_shader_reuse(k)) { atomic_fetch_sub_explicit(&g_dsh_reused, 1, memory_order_relaxed); atomic_fetch_add_explicit(&g_dsh_ok, 1, memory_order_relaxed); return 1; }
+         // 兜底目录里已有同链同翻译器指纹的产物：直接复用，不碰控制段。帧回放放回的程序不经 ProgramSetShaders，control 是录时的宿主指针（已失效），
+         //   原先先读它（nvn2_ctl）再看兜底目录，Switch 2 录像一放就 SIGBUS（11-04 Pokopia f6000：dm_shader_miss_late+0x158）；现场局里同样先复用，结果不变（dsh_nvn2_pend 也是先查 dsh_have）
+         if (dm_shader_reuse(k)) return 1;
+diff --git a/graphics/nvn/tests/t_dsh_stats.c b/graphics/nvn/tests/t_dsh_stats.c
+index 14bdccd68..72aee0215 100644
+--- a/graphics/nvn/tests/t_dsh_stats.c
++++ b/graphics/nvn/tests/t_dsh_stats.c
+@@ -29,6 +29,7 @@ static char rt_stage[16];   // 最近一次 mtl_shmap_rt_add 的阶段名（32 /
+ void mtl_shmap_rt_add(const char *key, const char *stage) { (void)key; snprintf(rt_stage, sizeof rt_stage, "%s", stage); }
+ void mtl_se_stats(uint64_t out[2]) { out[0] = out[1] = 0; }   // 采样器模拟变体计数（nvn_mtl.m）：本测不建变体
+ void mtl_vp_stats(uint64_t out[2]) { out[0] = out[1] = 0; }   // 顶点补齐变体计数（nvn_mtl.m）：本测不建变体
++void mtl_shader_ahead_load(const char *k16, const char *stage) { (void)k16; (void)stage; }   // RewindBox (patch 0043): the lookahead's library load (nvn_mtl.m): this test loads no library
+ static uint64_t now_ns(void) { struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t); return (uint64_t)t.tv_sec * 1000000000 + t.tv_nsec; }
+ static int compiled_stage = -1;   // 最近一次交给 S2A.Dsh 的阶段号（34–36 核 NVN2 任务 / 网格 = 4 / 5）
+ static const char *chain_name(void);   // DMSH_CHAIN（dmsh_chain.h 随 dsh_miss.inc 在下面才包含）
