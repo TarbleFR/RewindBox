@@ -210,6 +210,7 @@ from adapt_queued_3d_syncpoints import apply as adapt_queued_3d_syncpoints
 from adapt_compute_warmup_demand import apply as adapt_compute_warmup_demand
 from adapt_variant_journal_room import apply as adapt_variant_journal_room
 from adapt_queued_variant_record import apply as adapt_queued_variant_record
+from adapt_nextendo_online import apply as adapt_nextendo_online
 
 
 def replace_once(path, old, new):
@@ -339,7 +340,8 @@ def main():
                    'EmbeddedStartupTrace.cs': 'Ryujinx.Common',
                    'EmbeddedAudioPacing.cs': 'Ryujinx.Common',
                    'EmbeddedFirmwareStore.cs': 'Ryujinx.HLE',
-                   'EmbeddedFirmwareArchive.cs': 'Ryujinx.HLE'}.get(path.name, 'Ryujinx.Library')
+                   'EmbeddedFirmwareArchive.cs': 'Ryujinx.HLE',
+                   'EmbeddedOnline.cs': 'Ryujinx.HLE'}.get(path.name, 'Ryujinx.Library')
         target = source / 'src' / project / path.name
         shutil.copyfile(path, target)
         copied.append(target)
@@ -657,6 +659,9 @@ def main():
     # wait), and so are the draws that wait for such a compile; the async skips are split by cause (PipelineBase.cs,
     # ShaderCollection.cs after adapt_compute_warmup_demand, PipelineCacheManager.cs after adapt_variant_journal_room).
     adapted += adapt_queued_variant_record(source)
+    # Last: online play on Nextendo Network (HleConfiguration, EmbeddedContent, the DNS proxy, ManagerServer, the SSL
+    # connection); no other adapter edits these files, and EmbeddedOnline.cs is copied above with the native files.
+    adapted += adapt_nextendo_online(source)
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -810,7 +815,7 @@ def main():
                  'adapt_darwin_spin_yield.py', 'adapt_pool_slot_copy.py', 'adapt_texture_play_clock.py',
                  'adapt_private_span_snapshot.py', 'adapt_query_prereset.py', 'adapt_merged_buffer_order.py',
                  'adapt_queued_3d_syncpoints.py', 'adapt_compute_warmup_demand.py', 'adapt_variant_journal_room.py',
-                 'adapt_queued_variant_record.py']:
+                 'adapt_queued_variant_record.py', 'adapt_nextendo_online.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

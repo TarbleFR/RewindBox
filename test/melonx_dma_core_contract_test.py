@@ -96,6 +96,11 @@ from adapt_compute_warmup_demand import BASELINE as C766_COMPUTE_WARMUP_DEMAND  
 # skipped draw queued is recorded once built, the draws that wait for its compile counted, the async skips split by cause.
 from adapt_variant_journal_room import BASELINE as C766_VARIANT_JOURNAL_ROOM  # noqa: E402
 from adapt_queued_variant_record import BASELINE as C766_QUEUED_VARIANT_RECORD  # noqa: E402
+# Nextendo online lot (adapt_nextendo_online, last in ORDER, inert unless the host configures online play): five engine
+# files (HleConfiguration.cs, ManagerServer.cs, DnsMitmResolver.cs, DnsBlacklist.cs, SslManagedSocketConnection.cs) and the
+# prepared EmbeddedContent.cs change; src/Ryujinx.HLE/EmbeddedOnline.cs is added (native/melonx/EmbeddedOnline.cs).
+from adapt_nextendo_online import BASELINE as C768_NEXTENDO_ONLINE  # noqa: E402
+C768_ONLINE_ADDITION = 'src/Ryujinx.HLE/EmbeddedOnline.cs'
 from adapt_array_delta_invalidated import BASELINE as C697_ARRAY_DELTA_INVALIDATED  # noqa: E402
 from adapt_pipeline_cache_background import BASELINE as C697_PIPELINE_CACHE_BACKGROUND  # noqa: E402
 from adapt_sync_wait_attribution import BASELINE as C699_SYNC_WAIT_ATTRIBUTION  # noqa: E402
@@ -345,7 +350,9 @@ CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES
            # IPA 740 compute freeze: ShaderCollection.cs and BackgroundCompilationScheduler.cs are changed already.
            set(C766_COMPUTE_WARMUP_DEMAND) |
            # Variant journal lot: PipelineCacheManager.cs, ShaderCollection.cs and PipelineBase.cs are changed already.
-           set(C766_VARIANT_JOURNAL_ROOM) | set(C766_QUEUED_VARIANT_RECORD))
+           set(C766_VARIANT_JOURNAL_ROOM) | set(C766_QUEUED_VARIANT_RECORD) |
+           # Nextendo online lot: its six files.
+           set(C768_NEXTENDO_ONLINE))
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
@@ -448,6 +455,9 @@ JOINED = JOINED | {C753_POOL}
 # Next lot (adapt_private_span_snapshot): Ryujinx.Cpu's AddressSpacePartition.cs joins the prepared source; fragmented-reads
 # composes, builds and binds it (read from its control, delivered609, as upstream). SemaphoreUpdater.cs is a member already.
 JOINED = JOINED | set(C766_PRIVATE_SPAN_SNAPSHOT)
+# Nextendo online lot: its five engine files join the prepared source (EmbeddedContent.cs is a member already);
+# nifm-network-watch composes, builds and binds them.
+JOINED = JOINED | (set(C768_NEXTENDO_ONLINE) - {'src/Ryujinx.Library/EmbeddedContent.cs'})
 REUSED_FRESH = set()
 
 
@@ -664,7 +674,9 @@ if not args.helpers_only:
     # Core 745: 100 (IGeneralService.cs). Core 747: 101 (AsyncWorkQueue.cs). Core 749 candidate: 102 (PreciseSleepHelper.cs).
     # IPA 736 lots: 105 (AddressSpacePartitioned.cs, FenceHolder.cs, MultiFenceHolder.cs). IPA 740 lot: 107 (Auto.cs,
     # CommandBufferPool.cs). Next lot: 109 (AddressSpacePartition.cs, SemaphoreUpdater.cs).
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 109 and not frozen["productionAdditions"], "Unexpected production scope")
+    # Nextendo online lot: 115 (its six files) and one production addition, src/Ryujinx.HLE/EmbeddedOnline.cs.
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 115 and
+          set(frozen["productionAdditions"]) == {C768_ONLINE_ADDITION}, "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
                                                      'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
                                                      'build-utils/melonx/adapt_queued_syncpoints.py',
@@ -780,7 +792,10 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_compute_warmup_demand.py',
                                                      # Variant journal lot.
                                                      'build-utils/melonx/adapt_variant_journal_room.py',
-                                                     'build-utils/melonx/adapt_queued_variant_record.py'} and
+                                                     'build-utils/melonx/adapt_queued_variant_record.py',
+                                                     # Nextendo online lot: its adapter and the engine class it adds.
+                                                     'build-utils/melonx/adapt_nextendo_online.py',
+                                                     'native/melonx/EmbeddedOnline.cs'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -834,7 +849,9 @@ if not args.helpers_only:
     # the lot are members already).
     # IPA 740 compute freeze and variant journal lot: their three adapters join them (242); their four files are members
     # already (221).
-    check(len(frozen['preparationInputs']) == 242 and len(frozen['preparedMembers']) == 221, 'Wrong final composition')
+    # Nextendo online lot: its adapter and native/melonx/EmbeddedOnline.cs join them (244); five engine files and the added
+    # EmbeddedOnline.cs join the members (227).
+    check(len(frozen['preparationInputs']) == 244 and len(frozen['preparedMembers']) == 227, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and

@@ -259,6 +259,8 @@ LOT_FILES = {
     'adapt_variant_journal_room': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
     'adapt_queued_variant_record': ['src/Ryujinx.Graphics.Vulkan/PipelineBase.cs', 'src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs',
                                     'src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
+    # Nextendo online lot (adapt_nextendo_online): its HLE files and EmbeddedContent.cs are outside this composition.
+    'adapt_nextendo_online': [],
 }
 
 checks = 0

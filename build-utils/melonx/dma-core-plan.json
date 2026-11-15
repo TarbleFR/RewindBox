@@ -122,7 +122,9 @@
   "build-utils/melonx/adapt_queued_3d_syncpoints.py",
   "build-utils/melonx/adapt_compute_warmup_demand.py",
   "build-utils/melonx/adapt_variant_journal_room.py",
-  "build-utils/melonx/adapt_queued_variant_record.py"
+  "build-utils/melonx/adapt_queued_variant_record.py",
+  "build-utils/melonx/adapt_nextendo_online.py",
+  "native/melonx/EmbeddedOnline.cs"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -233,9 +235,17 @@
   "src/Ryujinx.Graphics.Vulkan/Auto.cs",
   "src/Ryujinx.Graphics.Vulkan/CommandBufferPool.cs",
   "src/Ryujinx.Cpu/Jit/HostTracked/AddressSpacePartition.cs",
-  "src/Ryujinx.Graphics.Gpu/Engine/Threed/SemaphoreUpdater.cs"
+  "src/Ryujinx.Graphics.Gpu/Engine/Threed/SemaphoreUpdater.cs",
+  "src/Ryujinx.HLE/HleConfiguration.cs",
+  "src/Ryujinx.HLE/HOS/Services/Account/Acc/AccountService/ManagerServer.cs",
+  "src/Ryujinx.HLE/HOS/Services/Sockets/Sfdnsres/Proxy/DnsMitmResolver.cs",
+  "src/Ryujinx.HLE/HOS/Services/Sockets/Sfdnsres/Proxy/DnsBlacklist.cs",
+  "src/Ryujinx.HLE/HOS/Services/Ssl/SslService/SslManagedSocketConnection.cs",
+  "src/Ryujinx.Library/EmbeddedContent.cs"
  ],
- "productionAdditions": [],
+ "productionAdditions": [
+  "src/Ryujinx.HLE/EmbeddedOnline.cs"
+ ],
  "fixtureInputs": [
   "build-utils/melonx/adapt_binding_data_snapshots.py",
   "build-utils/melonx/adapt_bindless_array_deltas.py",
@@ -383,7 +393,8 @@
   "test/melonx_queued_syncpoints/Program.cs",
   "test/melonx_queued_syncpoints/Boundaries.cs",
   "test/melonx_pipeline_variant_replay/Program.cs",
-  "test/melonx_pipeline_variant_replay/Lot.cs"
+  "test/melonx_pipeline_variant_replay/Lot.cs",
+  "test/melonx_nifm_network_watch/Online.cs"
  ],
  "fixtureProductionInputs": [
   "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs",
@@ -4573,11 +4584,19 @@
     "productionLibraryAssemblyBuilt": true,
     "controlSwitchesKeptOfEleven": 11,
     "candidateSwitchesKeptOfEleven": 0,
-    "subscriptions": 1
+    "subscriptions": 1,
+    "onlineFixturePassed": true
    },
    "requiredPostimages": [
     "src/Ryujinx.HLE/HOS/Services/Nifm/StaticService/IGeneralService.cs",
-    "src/Ryujinx.Library/Library.cs"
+    "src/Ryujinx.Library/Library.cs",
+    "src/Ryujinx.HLE/HleConfiguration.cs",
+    "src/Ryujinx.HLE/HOS/Services/Account/Acc/AccountService/ManagerServer.cs",
+    "src/Ryujinx.HLE/HOS/Services/Sockets/Sfdnsres/Proxy/DnsMitmResolver.cs",
+    "src/Ryujinx.HLE/HOS/Services/Sockets/Sfdnsres/Proxy/DnsBlacklist.cs",
+    "src/Ryujinx.HLE/HOS/Services/Ssl/SslService/SslManagedSocketConnection.cs",
+    "src/Ryujinx.Library/EmbeddedContent.cs",
+    "src/Ryujinx.HLE/EmbeddedOnline.cs"
    ]
   },
   {
