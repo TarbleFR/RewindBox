@@ -16,8 +16,10 @@ namespace Ryujinx.HLE
     ///
     /// The host signs the player in (OAuth 2.0 PKCE), asks Nextendo for the game token of the launch (nx2, 24 hours,
     /// scope game.matchmaking) and hands this class, before the session is prepared (content operation 11), that token,
-    /// the account's PID and the two server addresses. The request belongs to the next session only: the session's
-    /// configuration takes it when it is created (BeginSession), and a later session without a request is offline.
+    /// the account's PID and the two server addresses. The request belongs to the next session only: the configuration
+    /// of the session's first program takes it (BeginSession), programs the game starts in the same session keep it,
+    /// and a later session without a request is offline. RewindBox sends a request before every launch (an empty one
+    /// offline), so a request left by a launch that never started is replaced before the next session takes it.
     /// While a session has it:
     ///   - the guest is told it has Internet access (DNS, nifm requests);
     ///   - the documented Nintendo and third-party host names resolve to the two addresses;
@@ -25,7 +27,9 @@ namespace Ryujinx.HLE
     ///     nnex (the game token);
     ///   - TLS to one of the two addresses offers ALPN http/1.1 (h2 on NPLN hosts), sends the last host name redirected
     ///     there as SNI when the game gave none, and accepts only a chain to one of Nextendo's published roots that
-    ///     names the host.
+    ///     names the host;
+    ///   - a refused or failed TLS handshake, to those addresses or any other host, is the game's connection error
+    ///     (ConnectionAbort, also for a later read or write), never an exception through the service.
     /// Without a configuration (the default) nothing above applies. The game token is kept in memory only: it is never
     /// logged and never written to a file.
     /// </summary>
@@ -204,11 +208,13 @@ zdAq1CTeFUrJ6r/siw==
         }
 
         /// <summary>
-        /// Called when a session's configuration is created: the host's last request becomes this session's, and is
-        /// consumed, so a session that follows without a new request is offline whatever the host does.
+        /// Called when a program's configuration is made. The first program of a host session takes the host's last
+        /// request, which is consumed, so a session that follows without a new request is offline whatever the host
+        /// does; a program the game starts in the same session (ExecuteProgram, a restart) keeps the session's.
         /// </summary>
-        public static void BeginSession()
+        public static void BeginSession(bool firstProgram)
         {
+            if (!firstProgram) return;
             _settings = _pending;
             _pending = null;
             lock (_resolvedGate) _resolved.Clear();

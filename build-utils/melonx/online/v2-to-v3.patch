@@ -1,0 +1,346 @@
+diff --git a/build-utils/melonx/adapt_nextendo_online.py b/build-utils/melonx/adapt_nextendo_online.py
+index f0f0a1e73..c9ebbd0b5 100644
+--- a/build-utils/melonx/adapt_nextendo_online.py
++++ b/build-utils/melonx/adapt_nextendo_online.py
+@@ -70,11 +70,12 @@ CONFIGURATION_NEW = '''        // RewindBox (adapt_nextendo_online): also on whi
+ 
+         private bool _enableInternetAccess;
+ '''
+-CONFIGURATION_SESSION_OLD = '''            EnableInternetAccess = enableInternetAccess;
++CONFIGURATION_SESSION_OLD = '''            UserChannelPersistence = userChannelPersistence;
+ '''
+-CONFIGURATION_SESSION_NEW = '''            EnableInternetAccess = enableInternetAccess;
+-            // RewindBox (adapt_nextendo_online): the host's last online request belongs to this session only.
+-            EmbeddedOnline.BeginSession();
++CONFIGURATION_SESSION_NEW = '''            UserChannelPersistence = userChannelPersistence;
++            // RewindBox (adapt_nextendo_online): the first program of a host session takes the host's last online request;
++            // a program the game starts in the same session (ExecuteProgram, a restart) keeps the session's.
++            EmbeddedOnline.BeginSession(userChannelPersistence == null || userChannelPersistence.PreviousIndex == -1);
+ '''
+ 
+ CONTENT_NOTE_OLD = '''    // 8 launch preflight; 9 configure the application-owned diagnostic path.
+@@ -175,6 +176,11 @@ MANAGER_CALL_NEW = '''                _cachedTokenData = Encoding.ASCII.GetBytes
+ 
+ TLS_OLD = '''            StartSslOperation();
+             _stream = new SslStream(new NetworkStream(((DefaultSocket)((ManagedSocket)Socket).Socket).BaseSocket, false), false, null, null);
++            hostName = RetrieveHostName(hostName);
++            _stream.AuthenticateAsClient(hostName, null, TranslateSslVersion(_sslVersion), false);
++            EndSslOperation();
++
++            return ResultCode.Success;
+ '''
+ TLS_NEW = '''            StartSslOperation();
+ 
+@@ -182,8 +188,8 @@ TLS_NEW = '''            StartSslOperation();
+             // (NEX over WebSocket; h2 on NPLN hosts), the name last redirected to that address as SNI when the game gave
+             // none (a reverse lookup would name the server, not the game's host), and only a chain to one of
+             // Nextendo's published roots that names the host. A refused or failed handshake is the game's connection
+-            // error, never an exception through the service (only the host name is logged). Every other connection is
+-            // unchanged.
++            // error, never an exception through the service (only the host name is logged). Every other connection
++            // takes the original handshake below.
+             IPAddress onlinePeer = Socket.RemoteEndPoint?.Address;
+ 
+             if (Ryujinx.HLE.EmbeddedOnline.IsServer(onlinePeer))
+@@ -226,9 +232,72 @@ TLS_NEW = '''            StartSslOperation();
+                 }
+             }
+ 
+-            _stream = new SslStream(new NetworkStream(((DefaultSocket)((ManagedSocket)Socket).Socket).BaseSocket, false), false, null, null);
++            try
++            {
++                _stream = new SslStream(new NetworkStream(((DefaultSocket)((ManagedSocket)Socket).Socket).BaseSocket, false), false, null, null);
++                hostName = RetrieveHostName(hostName);
++                _stream.AuthenticateAsClient(hostName, null, TranslateSslVersion(_sslVersion), false);
++            }
++            catch (Exception error) when (Ryujinx.HLE.EmbeddedOnline.Enabled && error is AuthenticationException or IOException or ObjectDisposedException)
++            {
++                // RewindBox (adapt_nextendo_online): while online play opens the guest's DNS, a failed handshake to any
++                // other host is the game's connection error too; offline, the exception goes through as before.
++                Ryujinx.Common.Logging.Logger.Warning?.Print(Ryujinx.Common.Logging.LogClass.ServiceSsl, $"Online play: TLS to '{hostName}' failed ({error.GetType().Name}).");
++                _stream?.Dispose();
++                _stream = null;
++                EndSslOperation();
++
++                return ResultCode.ConnectionAbort;
++            }
++
++            EndSslOperation();
++
++            return ResultCode.Success;
+ '''
+ 
++STREAM_GUARDS = (
++    ('''        public ResultCode Read(out int readCount, Memory<byte> buffer)
++        {
++''', '''        public ResultCode Read(out int readCount, Memory<byte> buffer)
++        {
++            // RewindBox (adapt_nextendo_online): no stream after a refused handshake while online.
++            if (_stream == null && Ryujinx.HLE.EmbeddedOnline.Enabled)
++            {
++                readCount = -1;
++
++                return ResultCode.ConnectionAbort;
++            }
++
++'''),
++    ('''        public ResultCode Write(out int writtenCount, ReadOnlyMemory<byte> buffer)
++        {
++''', '''        public ResultCode Write(out int writtenCount, ReadOnlyMemory<byte> buffer)
++        {
++            // RewindBox (adapt_nextendo_online): no stream after a refused handshake while online.
++            if (_stream == null && Ryujinx.HLE.EmbeddedOnline.Enabled)
++            {
++                writtenCount = 0;
++
++                return ResultCode.ConnectionAbort;
++            }
++
++'''),
++    ('''        public ResultCode GetServerCertificate(string hostname, Span<byte> certificates, out uint storageSize, out uint certificateCount)
++        {
++''', '''        public ResultCode GetServerCertificate(string hostname, Span<byte> certificates, out uint storageSize, out uint certificateCount)
++        {
++            // RewindBox (adapt_nextendo_online): no stream after a refused handshake while online.
++            if (_stream == null && Ryujinx.HLE.EmbeddedOnline.Enabled)
++            {
++                storageSize = 0;
++                certificateCount = 0;
++
++                return ResultCode.ConnectionAbort;
++            }
++
++'''),
++)
++
+ EDITS = (
+     (CONFIGURATION, CONFIGURATION_OLD, CONFIGURATION_NEW),
+     (CONFIGURATION, CONFIGURATION_SESSION_OLD, CONFIGURATION_SESSION_NEW),
+@@ -241,6 +310,7 @@ EDITS = (
+     (MANAGER, MANAGER_CLAIMS_OLD, MANAGER_CLAIMS_NEW),
+     (MANAGER, MANAGER_CALL_OLD, MANAGER_CALL_NEW),
+     (TLS, TLS_OLD, TLS_NEW),
++    *((TLS, old, new) for old, new in STREAM_GUARDS),
+ )
+ 
+ 
+diff --git a/native/melonx/EmbeddedOnline.cs b/native/melonx/EmbeddedOnline.cs
+index b07fa9f2b..ee31a9e9e 100644
+--- a/native/melonx/EmbeddedOnline.cs
++++ b/native/melonx/EmbeddedOnline.cs
+@@ -16,8 +16,10 @@ namespace Ryujinx.HLE
+     ///
+     /// The host signs the player in (OAuth 2.0 PKCE), asks Nextendo for the game token of the launch (nx2, 24 hours,
+     /// scope game.matchmaking) and hands this class, before the session is prepared (content operation 11), that token,
+-    /// the account's PID and the two server addresses. The request belongs to the next session only: the session's
+-    /// configuration takes it when it is created (BeginSession), and a later session without a request is offline.
++    /// the account's PID and the two server addresses. The request belongs to the next session only: the configuration
++    /// of the session's first program takes it (BeginSession), programs the game starts in the same session keep it,
++    /// and a later session without a request is offline. RewindBox sends a request before every launch (an empty one
++    /// offline), so a request left by a launch that never started is replaced before the next session takes it.
+     /// While a session has it:
+     ///   - the guest is told it has Internet access (DNS, nifm requests);
+     ///   - the documented Nintendo and third-party host names resolve to the two addresses;
+@@ -25,7 +27,9 @@ namespace Ryujinx.HLE
+     ///     nnex (the game token);
+     ///   - TLS to one of the two addresses offers ALPN http/1.1 (h2 on NPLN hosts), sends the last host name redirected
+     ///     there as SNI when the game gave none, and accepts only a chain to one of Nextendo's published roots that
+-    ///     names the host.
++    ///     names the host;
++    ///   - a refused or failed TLS handshake, to those addresses or any other host, is the game's connection error
++    ///     (ConnectionAbort, also for a later read or write), never an exception through the service.
+     /// Without a configuration (the default) nothing above applies. The game token is kept in memory only: it is never
+     /// logged and never written to a file.
+     /// </summary>
+@@ -204,11 +208,13 @@ zdAq1CTeFUrJ6r/siw==
+         }
+ 
+         /// <summary>
+-        /// Called when a session's configuration is created: the host's last request becomes this session's, and is
+-        /// consumed, so a session that follows without a new request is offline whatever the host does.
++        /// Called when a program's configuration is made. The first program of a host session takes the host's last
++        /// request, which is consumed, so a session that follows without a new request is offline whatever the host
++        /// does; a program the game starts in the same session (ExecuteProgram, a restart) keeps the session's.
+         /// </summary>
+-        public static void BeginSession()
++        public static void BeginSession(bool firstProgram)
+         {
++            if (!firstProgram) return;
+             _settings = _pending;
+             _pending = null;
+             lock (_resolvedGate) _resolved.Clear();
+diff --git a/test/melonx_nifm_network_watch/Online.cs b/test/melonx_nifm_network_watch/Online.cs
+index aaa9fddb3..e7132d9e3 100644
+--- a/test/melonx_nifm_network_watch/Online.cs
++++ b/test/melonx_nifm_network_watch/Online.cs
+@@ -1,7 +1,8 @@
+ // The Nextendo online lot (adapt_nextendo_online) on the production Ryujinx.HLE assembly the nifm-network-watch gate builds
+ // from the final preparation: request refusals, guest Internet only while configured, the documented redirect rules
+ // through the real resolver and blacklist, the PID as the account id, the id_token claims of the real generator, ALPN,
+-// Nextendo's published roots and chain plus host validation (a test root stands in for Nextendo's private keys).
++// Nextendo's published roots and chain plus host validation (a test root stands in for Nextendo's private keys), the
++// session kept by programs the game starts, and six real handshakes of the emulated SSL service.
+ // Host .NET runtime, not an iPhone: TLS on iOS goes through Apple's stack.
+ using System;
+ using System.Collections.Generic;
+@@ -13,11 +14,14 @@ using System.Net;
+ using System.Net.Security;
+ using System.Reflection;
+ using System.Runtime.CompilerServices;
++using System.Security.Authentication;
+ using System.Security.Cryptography;
+ using System.Security.Cryptography.X509Certificates;
+ using System.Text;
+ using System.Text.Json;
+ using Ryujinx.HLE;
++using Ryujinx.HLE.HOS;
++using Ryujinx.HLE.HOS.Services.Am.AppletOE.ApplicationProxyService.ApplicationProxy.Types;
+ 
+ static class Program
+ {
+@@ -41,7 +45,7 @@ static class Program
+         const BindingFlags any = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+         const int connectionAbort = (210 << 9) | 123;
+ 
+-        (int code, SslApplicationProtocol alpn, string sni) Run(X509Certificate2 presented, string hostName)
++        (int code, SslApplicationProtocol alpn, string sni) Run(X509Certificate2 presented, string hostName, out object connection)
+         {
+             using TcpListener listener = new(local, 0);
+             listener.Start();
+@@ -68,32 +72,51 @@ static class Program
+             client.Connect(new IPEndPoint(local, ((IPEndPoint)listener.LocalEndpoint).Port));
+             object impl = Activator.CreateInstance(defaultSocket, any, null, [client, null], null);
+             object managed = Activator.CreateInstance(managedSocket, any, null, [impl], null);
+-            object connection = Activator.CreateInstance(connectionType, any, null, [null, Enum.ToObject(versionType, 1u << 5), 0, managed], null);
+-            int code = Convert.ToInt32(connectionType.GetMethod("Handshake").Invoke(connection, [hostName]));
++            connection = Activator.CreateInstance(connectionType, any, null, [null, Enum.ToObject(versionType, 1u << 5), 0, managed], null);
++            int code;
++            try { code = Convert.ToInt32(connectionType.GetMethod("Handshake").Invoke(connection, [hostName])); }
++            catch (TargetInvocationException error) when (error.InnerException is AuthenticationException) { code = -1; }
+             client.Dispose();
+             (SslApplicationProtocol alpn, string sni) = server.Wait(15000) ? server.Result : (default, null);
+             return (code, alpn, sni);
+         }
+ 
+         EmbeddedOnline.Configure(Request(game, 1800000042L, local.ToString(), "203.0.113.8"));
+-        EmbeddedOnline.BeginSession();
++        EmbeddedOnline.BeginSession(true);
+         testRoots.SetValue(null, new X509Certificate2Collection(root));
+         Check(local.Equals(EmbeddedOnline.Redirect(Smash)), "the server rule points at the local server");
+-        (int code, SslApplicationProtocol alpn, string sni) = Run(named, "");
++        (int code, SslApplicationProtocol alpn, string sni) = Run(named, "", out _);
+         Check(code == 0 && alpn == SslApplicationProtocol.Http11 && sni == Smash,
+               $"handshake accepted: chain and host, ALPN http/1.1, SNI from the redirected name ({code}, {alpn}, {sni})");
+-        (code, _, _) = Run(other, Smash);
++        (code, _, _) = Run(other, Smash, out _);
+         Check(code == connectionAbort, "a certificate naming another host is the game's connection error, no exception");
+         testRoots.SetValue(null, null);
+-        (code, _, _) = Run(named, Smash);
++        (code, _, _) = Run(named, Smash, out _);
+         Check(code == connectionAbort, "a chain to another root than Nextendo's is the game's connection error, no exception");
+         testRoots.SetValue(null, new X509Certificate2Collection(root));
+         EmbeddedOnline.Configure(Request(game, 1800000042L, local.ToString(), "203.0.113.8"));
+-        EmbeddedOnline.BeginSession();
+-        (code, _, sni) = Run(named, "");
++        EmbeddedOnline.BeginSession(true);
++        (code, _, sni) = Run(named, "", out _);
+         Check(code == connectionAbort && sni == null, "no host name and none redirected: refused without a reverse lookup");
+         testRoots.SetValue(null, null);
+-        return "4 handshakes";
++
++        // Online, a host other than the two servers (the guest's DNS is open): the default handshake, whose refusal is
++        // the game's connection error too; the connection then has no stream to read or write.
++        EmbeddedOnline.Configure(Request(game, 1800000042L, "203.0.113.7", "203.0.113.8"));
++        EmbeddedOnline.BeginSession(true);
++        (code, _, _) = Run(named, Smash, out object refused);
++        Check(code == connectionAbort, "online, another host's chain to an unknown root: the game's connection error, no exception");
++        object[] readArguments = [0, new Memory<byte>(new byte[16])];
++        Check(Convert.ToInt32(connectionType.GetMethod("Read").Invoke(refused, readArguments)) == connectionAbort && (int)readArguments[0] == -1,
++              "no read after a refused handshake");
++        object[] writeArguments = [7, new ReadOnlyMemory<byte>(new byte[4])];
++        Check(Convert.ToInt32(connectionType.GetMethod("Write").Invoke(refused, writeArguments)) == connectionAbort && (int)writeArguments[0] == 0,
++              "no write after a refused handshake");
++        // Offline: the default handshake exactly as before (the exception goes through the service).
++        EmbeddedOnline.Clear();
++        (code, _, _) = Run(named, Smash, out _);
++        Check(code == -1, "offline: the default handshake is unchanged");
++        return "6 handshakes";
+     }
+     static void Check(bool condition, string what)
+     {
+@@ -208,21 +231,36 @@ static class Program
+         }
+         Check(Throws<JsonException>(() => EmbeddedOnline.Configure("{not json")), "invalid JSON refused");
+         Check(!EmbeddedOnline.Configure("{}"), "empty request is offline");
+-        EmbeddedOnline.BeginSession();
++        EmbeddedOnline.BeginSession(true);
+         Check(!EmbeddedOnline.Enabled, "empty request: offline session");
+         Check(!EmbeddedOnline.Configure(""), "blank request is offline");
+ 
+-        // A request belongs to the next session only.
++        // A request belongs to the next session only; a program the game starts within the session (ExecuteProgram,
++        // RestartProgram: the host's load loop makes a new configuration) keeps it. Through the real Configure.
++        MethodInfo configure = configuration.GetMethod("Configure");
++        void StartProgram(UserChannelPersistence channel) => configure.Invoke(hleConfig, [null, null, null, null, channel, null, null, null]);
+         Check(EmbeddedOnline.Configure(Request(game, 1800000042L, "203.0.113.7", "203.0.113.8")), "request accepted");
+         Check(!EmbeddedOnline.Enabled, "not online before the session takes it");
+-        EmbeddedOnline.BeginSession();
+-        Check(EmbeddedOnline.Enabled, "the session takes it");
+-        EmbeddedOnline.BeginSession();
++        UserChannelPersistence session = new();
++        StartProgram(session);
++        Check(EmbeddedOnline.Enabled, "the session's first program takes it");
++        session.ExecuteProgram(ProgramSpecifyKind.RestartProgram, 0);
++        StartProgram(session);
++        Check(EmbeddedOnline.Enabled && InternetOn(), "a restart within the session stays online");
++        session.ExecuteProgram(ProgramSpecifyKind.ExecuteProgram, 1);
++        StartProgram(session);
++        Check(EmbeddedOnline.Enabled && InternetOn(), "another program of the session stays online");
++        StartProgram(new UserChannelPersistence());
+         Check(!EmbeddedOnline.Enabled && !InternetOn(), "a later session without a request is offline");
++        EmbeddedOnline.Configure(Request(game, 1800000042L, "203.0.113.7", "203.0.113.8"));
++        StartProgram(null);
++        Check(EmbeddedOnline.Enabled, "a configuration without a channel starts a session");
++        EmbeddedOnline.BeginSession(true);
++        Check(!EmbeddedOnline.Enabled, "and the next one is offline");
+ 
+         // Online: Internet for the guest, the documented rules, the PID as the account id.
+         EmbeddedOnline.Configure(Request(game, 1800000042L, "203.0.113.7", "203.0.113.8"));
+-        EmbeddedOnline.BeginSession();
++        EmbeddedOnline.BeginSession(true);
+         Check(EmbeddedOnline.Enabled && InternetOn(), "online configured, guest Internet on");
+         Check((long)accountId.GetValue(server0) == 1800000042L, "the account id the game reads is the PID");
+         IPAddress server = IPAddress.Parse("203.0.113.7"), nat = IPAddress.Parse("203.0.113.8");
+@@ -325,7 +363,7 @@ static class Program
+         // The largest game token the request accepts still fits the id_token buffer (0xC00).
+         string longest = "nx2." + new string('A', EmbeddedOnline.MaxTokenLength - 4);
+         EmbeddedOnline.Configure(Request(longest, 9_999_999_999L, "203.0.113.7", "203.0.113.8"));
+-        EmbeddedOnline.BeginSession();
++        EmbeddedOnline.BeginSession(true);
+         string large = (string)token.Invoke(null, ["4.0.1.0"]);
+         Check(large.Length < 0xC00, "largest id_token fits its buffer (" + large.Length + " bytes)");
+ 
+diff --git a/test/melonx_nifm_network_watch_test.py b/test/melonx_nifm_network_watch_test.py
+index dfe4c0b91..5ecd036a4 100644
+--- a/test/melonx_nifm_network_watch_test.py
++++ b/test/melonx_nifm_network_watch_test.py
+@@ -47,6 +47,8 @@ SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_nifm_network_watch', _
+ 
+ DOTNET = os.environ.get('DOTNET', 'dotnet')
+ checks = 0
++# Checks of test/melonx_nifm_network_watch/Online.cs, pinned: a fixture that skips a part does not pass.
++ONLINE_CHECKS = 154
+ 
+ 
+ def check(condition, message):
+@@ -173,7 +175,9 @@ with tempfile.TemporaryDirectory(prefix='melonx-nifm-network-watch-') as tempora
+         result = run([DOTNET, str(online_fixture / 'bin/Release/net10.0/Online.dll')], online_fixture, 600)
+         check(result.returncode == 0, 'online fixture passed: ' + result.stdout[-300:] + result.stderr[-300:])
+         online_report = json.loads(next(line for line in reversed(result.stdout.splitlines()) if line.startswith('{')))
+-        check(online_report['result'] == 'passed' and online_report['protocol'] == 'rewindbox-nextendo-online-1' and online_report['roots'] == 5,
++        # Every check ran, the six real handshakes included (a runner without a local IPv4 address fails here).
++        check(online_report['result'] == 'passed' and online_report['protocol'] == 'rewindbox-nextendo-online-1' and online_report['roots'] == 5
++              and online_report['handshakes'] == '6 handshakes' and online_report['checks'] == ONLINE_CHECKS,
+               'online fixture report: ' + str(online_report))
+         online_checks = online_report['checks']
+         postimages.update({name: hashlib.sha256((candidate / name).read_bytes()).hexdigest() for name in [*online.BASELINE, online.ONLINE]})

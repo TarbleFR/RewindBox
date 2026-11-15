@@ -70,11 +70,12 @@ CONFIGURATION_NEW = '''        // RewindBox (adapt_nextendo_online): also on whi
 
         private bool _enableInternetAccess;
 '''
-CONFIGURATION_SESSION_OLD = '''            EnableInternetAccess = enableInternetAccess;
+CONFIGURATION_SESSION_OLD = '''            UserChannelPersistence = userChannelPersistence;
 '''
-CONFIGURATION_SESSION_NEW = '''            EnableInternetAccess = enableInternetAccess;
-            // RewindBox (adapt_nextendo_online): the host's last online request belongs to this session only.
-            EmbeddedOnline.BeginSession();
+CONFIGURATION_SESSION_NEW = '''            UserChannelPersistence = userChannelPersistence;
+            // RewindBox (adapt_nextendo_online): the first program of a host session takes the host's last online request;
+            // a program the game starts in the same session (ExecuteProgram, a restart) keeps the session's.
+            EmbeddedOnline.BeginSession(userChannelPersistence == null || userChannelPersistence.PreviousIndex == -1);
 '''
 
 CONTENT_NOTE_OLD = '''    // 8 launch preflight; 9 configure the application-owned diagnostic path.
@@ -175,6 +176,11 @@ MANAGER_CALL_NEW = '''                _cachedTokenData = Encoding.ASCII.GetBytes
 
 TLS_OLD = '''            StartSslOperation();
             _stream = new SslStream(new NetworkStream(((DefaultSocket)((ManagedSocket)Socket).Socket).BaseSocket, false), false, null, null);
+            hostName = RetrieveHostName(hostName);
+            _stream.AuthenticateAsClient(hostName, null, TranslateSslVersion(_sslVersion), false);
+            EndSslOperation();
+
+            return ResultCode.Success;
 '''
 TLS_NEW = '''            StartSslOperation();
 
@@ -182,8 +188,8 @@ TLS_NEW = '''            StartSslOperation();
             // (NEX over WebSocket; h2 on NPLN hosts), the name last redirected to that address as SNI when the game gave
             // none (a reverse lookup would name the server, not the game's host), and only a chain to one of
             // Nextendo's published roots that names the host. A refused or failed handshake is the game's connection
-            // error, never an exception through the service (only the host name is logged). Every other connection is
-            // unchanged.
+            // error, never an exception through the service (only the host name is logged). Every other connection
+            // takes the original handshake below.
             IPAddress onlinePeer = Socket.RemoteEndPoint?.Address;
 
             if (Ryujinx.HLE.EmbeddedOnline.IsServer(onlinePeer))
@@ -226,8 +232,71 @@ TLS_NEW = '''            StartSslOperation();
                 }
             }
 
-            _stream = new SslStream(new NetworkStream(((DefaultSocket)((ManagedSocket)Socket).Socket).BaseSocket, false), false, null, null);
+            try
+            {
+                _stream = new SslStream(new NetworkStream(((DefaultSocket)((ManagedSocket)Socket).Socket).BaseSocket, false), false, null, null);
+                hostName = RetrieveHostName(hostName);
+                _stream.AuthenticateAsClient(hostName, null, TranslateSslVersion(_sslVersion), false);
+            }
+            catch (Exception error) when (Ryujinx.HLE.EmbeddedOnline.Enabled && error is AuthenticationException or IOException or ObjectDisposedException)
+            {
+                // RewindBox (adapt_nextendo_online): while online play opens the guest's DNS, a failed handshake to any
+                // other host is the game's connection error too; offline, the exception goes through as before.
+                Ryujinx.Common.Logging.Logger.Warning?.Print(Ryujinx.Common.Logging.LogClass.ServiceSsl, $"Online play: TLS to '{hostName}' failed ({error.GetType().Name}).");
+                _stream?.Dispose();
+                _stream = null;
+                EndSslOperation();
+
+                return ResultCode.ConnectionAbort;
+            }
+
+            EndSslOperation();
+
+            return ResultCode.Success;
 '''
+
+STREAM_GUARDS = (
+    ('''        public ResultCode Read(out int readCount, Memory<byte> buffer)
+        {
+''', '''        public ResultCode Read(out int readCount, Memory<byte> buffer)
+        {
+            // RewindBox (adapt_nextendo_online): no stream after a refused handshake while online.
+            if (_stream == null && Ryujinx.HLE.EmbeddedOnline.Enabled)
+            {
+                readCount = -1;
+
+                return ResultCode.ConnectionAbort;
+            }
+
+'''),
+    ('''        public ResultCode Write(out int writtenCount, ReadOnlyMemory<byte> buffer)
+        {
+''', '''        public ResultCode Write(out int writtenCount, ReadOnlyMemory<byte> buffer)
+        {
+            // RewindBox (adapt_nextendo_online): no stream after a refused handshake while online.
+            if (_stream == null && Ryujinx.HLE.EmbeddedOnline.Enabled)
+            {
+                writtenCount = 0;
+
+                return ResultCode.ConnectionAbort;
+            }
+
+'''),
+    ('''        public ResultCode GetServerCertificate(string hostname, Span<byte> certificates, out uint storageSize, out uint certificateCount)
+        {
+''', '''        public ResultCode GetServerCertificate(string hostname, Span<byte> certificates, out uint storageSize, out uint certificateCount)
+        {
+            // RewindBox (adapt_nextendo_online): no stream after a refused handshake while online.
+            if (_stream == null && Ryujinx.HLE.EmbeddedOnline.Enabled)
+            {
+                storageSize = 0;
+                certificateCount = 0;
+
+                return ResultCode.ConnectionAbort;
+            }
+
+'''),
+)
 
 EDITS = (
     (CONFIGURATION, CONFIGURATION_OLD, CONFIGURATION_NEW),
@@ -241,6 +310,7 @@ EDITS = (
     (MANAGER, MANAGER_CLAIMS_OLD, MANAGER_CLAIMS_NEW),
     (MANAGER, MANAGER_CALL_OLD, MANAGER_CALL_NEW),
     (TLS, TLS_OLD, TLS_NEW),
+    *((TLS, old, new) for old, new in STREAM_GUARDS),
 )
 
 
