@@ -237,12 +237,23 @@ def native_origin(kind, spec, api=None):
             job['conclusion'] == 'success' and job['name'] == origin['jobName'], 'Original producer job changed: ' + kind)
     require(set(origin['steps']) <= {s['name'] for s in job['steps'] if s['conclusion'] == 'success'},
             'Original producer omitted a required step: ' + kind)
-    artifact = api('actions/artifacts/' + str(origin['artifact']))
     republished = spec.get('republished')
-    require(artifact['id'] == origin['artifact'] and artifact['name'] == origin['name'] and
+    try:
+        artifact = api('actions/artifacts/' + str(origin['artifact']))
+    except subprocess.CalledProcessError:
+        # GitHub purges an artifact some time after it expires (Not Found), as archive_origin() reads it for the
+        # retained archives. The Dolphin and ARMSX2 archives of 608 expired on 15 November 2026 (09:41Z, 09:57Z)
+        # and delivery 752's contract met that 404 here. A pinned republication then stands for the original:
+        # fetch_native() takes the archive through republished_archive(), which requires the republication record
+        # to bind exactly this original (id, name, bytes, sha256) and its content to have that digest. Without a
+        # republication a purged original is refused.
+        require(republished is not None, 'Original producer archive purged without a republication: ' + kind)
+        artifact = None
+    require(artifact is None or (
+            artifact['id'] == origin['artifact'] and artifact['name'] == origin['name'] and
             artifact['size_in_bytes'] == origin['bytes'] and artifact['digest'] == 'sha256:' + origin['sha256'] and
             (republished is not None or not artifact['expired']) and
-            artifact['workflow_run']['id'] == origin['run'] and artifact['workflow_run']['head_sha'] == origin['source'],
+            artifact['workflow_run']['id'] == origin['run'] and artifact['workflow_run']['head_sha'] == origin['source']),
             'Original producer archive changed or expired: ' + kind)
     consumer = spec['consumedBy']
     raw = (ROOT / consumer['receipt']).read_bytes()
@@ -254,10 +265,14 @@ def native_origin(kind, spec, api=None):
             original['archiveSHA256'] == origin['sha256'] and original['originalJobConclusion'] == 'success' and
             delivered['reusedEvidence']['execution'] == execution,
             f"Delivered{consumer['build']} did not consume this exact archive: {kind}")
-    return dict(result='authenticated', evidenceMode='reused', retainedFrom=spec['retainedSince'], kind=kind,
-                execution=execution, job=origin['job'], artifact=origin['artifact'], artifactName=origin['name'],
-                archiveSHA256=origin['sha256'], archiveBytes=origin['bytes'], expiresAt=artifact['expires_at'],
-                republished=republished)
+    value = dict(result='authenticated', evidenceMode='reused', retainedFrom=spec['retainedSince'], kind=kind,
+                 execution=execution, job=origin['job'], artifact=origin['artifact'], artifactName=origin['name'],
+                 archiveSHA256=origin['sha256'], archiveBytes=origin['bytes'],
+                 expiresAt=artifact['expires_at'] if artifact is not None else origin.get('expiresAt'),
+                 republished=republished)
+    if artifact is None:
+        value['originPurged'] = True
+    return value
 
 
 def native_archive(kind):
