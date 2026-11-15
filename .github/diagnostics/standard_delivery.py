@@ -187,6 +187,58 @@ def write_environment(**values):
                 print(f'{key}={value}', file=output)
 
 
+def purged_native_originals():
+    """retained_components.native_origin() reads the original archive of a retained native Core as its manifest pins
+    it when GitHub no longer serves that record and a republication is pinned.
+
+    GitHub purges an artifact some time after it expires (Not Found). archive_origin() already reads a purged original
+    of a retained archive that way; native_origin() reads the record unguarded. The Dolphin and ARMSX2 archives of 608
+    expired on 15 November 2026 (09:41Z, 09:57Z) and delivery 752's contract stopped on that 404. The reading belongs
+    in retained_components.py, but that file is a frozen producer input of the pinned MeloNX Core
+    (build-utils/melonx/dma-core-contract.json, inputs_match): its bytes cannot change until that Core is produced
+    again, so the reading is installed from here until then, once, for every caller (the contract, fetch_native and
+    the sealed inventory read native_origin through the module).
+
+    What stands in for the record is exactly what native_origin() compares it with (the manifest's id, name, size,
+    digest, run and source), so it proves nothing by itself: the bytes are authenticated by republished_archive(),
+    which fetch_native() runs whenever a republication is pinned and which binds the republication record to this
+    original's id, name, size and SHA-256. Without a republication a purged original is refused. The result is marked
+    originPurged, as archive_origin() marks its own."""
+    import retained_components as retained
+    if getattr(retained.native_origin, 'purgedOriginals', False):
+        return retained
+    original = retained.native_origin
+
+    def native_origin(kind, spec, api=None):
+        api = api or retained.gh_api
+        origin, republished, purged = spec['origin'], spec.get('republished'), []
+
+        def reading(endpoint):
+            if endpoint != 'actions/artifacts/' + str(origin['artifact']):
+                return api(endpoint)
+            try:
+                return api(endpoint)
+            except subprocess.CalledProcessError:
+                retained.require(republished is not None,
+                                 'Original producer archive purged without a republication: ' + kind)
+                purged.append(endpoint)
+                return dict(id=origin['artifact'], name=origin['name'], size_in_bytes=origin['bytes'],
+                            digest='sha256:' + origin['sha256'], expired=True, expires_at=origin.get('expiresAt'),
+                            workflow_run=dict(id=origin['run'], head_sha=origin['source']))
+
+        value = original(kind, spec, reading)
+        if purged:
+            value['originPurged'] = True
+        return value
+
+    native_origin.purgedOriginals = True
+    retained.native_origin = native_origin
+    return retained
+
+
+purged_native_originals()
+
+
 GH_ATTEMPTS = 5
 
 
