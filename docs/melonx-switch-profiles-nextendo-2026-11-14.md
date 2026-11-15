@@ -12,9 +12,11 @@ below has run on an iPhone.
 | --- | --- |
 | Switch profiles screen | Written; Dart analysed and tested locally; waits for delivery 739 |
 | Nextendo sign-in and account screen | Written; Dart analysed and tested locally against a stand-in server; the Swift sign-in sheet type-checks against the iPhone SDK (macOS runner); needs RewindBox's registration on Nextendo's side |
-| Game token at launch (Dart → Swift → engine request) | Written; inert with the current Core, which has no such request |
-| Engine online lot | Source only, outside every Core; builds locally on the current preparation; behaviour checked locally |
-| Online play on Nextendo's servers | Not possible yet: needs the three items of "What the maintainer must obtain" and a Core that includes the engine lot |
+| Game token and PID at launch (Dart → Swift → engine request) | Written; Swift type-checked by the MeloNX host workflow; inert with Core 030cc14f, which has no online request |
+| Account / servers / engine status on the Nextendo screen | Written (15 Nov); Dart analysed and tested locally; not yet delivered |
+| Server addresses from the build (repository secrets) | Recipe written (15 Nov); delivery contract passes; the secrets do not exist yet |
+| Engine online lot | Aligned with Nextendo's guide (15 Nov); builds locally; 135 checks and the extended nifm gate pass locally; handed to the next Core freeze (MeloNX session) |
+| Online play on Nextendo's servers | Not possible yet: needs the two server addresses from Nextendo and a Core that includes the engine lot; never observed on an iPhone |
 | Original HOME menu | Not possible with the pinned engine (see below) |
 | Mii Maker applet | Present upstream, not exposed by RewindBox's launch path; not done |
 
@@ -76,8 +78,14 @@ them from those builds:
      uses `game.matchmaking` for the game token; the others are not read yet.
    - The portal's bot token (`Authorization: Bot …`) is a server-side secret.
      RewindBox does not use it and must never ship it.
-2. **The two server addresses** (IPv4), asked from Nextendo's team for this
-   registered application.
+2. **The two server addresses** (IPv4), asked from Nextendo's team on its
+   Discord (the guide's contact) for this registered application: the game
+   server address (`NEXTENDO_SERVER_IP`) and the second NAT test address
+   (`NEXTENDO_NAT_IP`, `nncs2-*` and the two Pia names), with how changes are
+   announced. Once received: repository secrets `NEXTENDO_SERVER_IP` and
+   `NEXTENDO_NAT_IP` (GitHub, Settings, Secrets and variables, Actions); the
+   next IPA carries them. For a test before that, the two fields of
+   "Application registration" on the device.
 3. Optionally, Nextendo's position on the `id_token` signing key for a
    third-party emulator, which decides whether titles such as Splatoon 2 can
    ever work.
@@ -155,43 +163,65 @@ With the Core in place today the engine has no request 11: the bridge journals
 "this engine does not accept an online configuration" and the game starts
 offline.
 
-## Engine online lot (source only)
+## Engine online lot (15 November: aligned with Nextendo's integration guide, handed to the next Core)
 
-Another session freezes and compiles MeloNX Cores on this branch, so this lot is
-kept out of the preparation: `prepare_embedded.py` does not import it, and its
-C# file is in a subdirectory that the preparation does not copy.
-
-- `native/melonx/online/EmbeddedOnline.cs` (project `Ryujinx.HLE`): the
-  configuration of one session and the documented rules.
-- `build-utils/melonx/online/adapt_nextendo_online.py`: fail-closed edits pinned
-  to the preparation of Claude `b83935f0` (Core contract `4396d7b0`):
+Nextendo published an integration guide for emulators and client apps on
+15 November 2026 (`https://wiki.nextendo.network/developers/integration`). The
+lot was rebased on the Core `030cc14f` preparation and changed to follow it.
+It is still outside every Core: the MeloNX session takes it in its next freeze
+with all gates (`build-utils/melonx/online/wiring.patch`, `README.md`).
 
 | File | Edit |
 | --- | --- |
-| `EmbeddedSession.cs` (prepared copy) | Guest network access only for a launch configured for online play |
-| `EmbeddedContent.cs` (prepared copy) | Request 11 (online configuration), request 12 (read the profile file again) |
+| `HleConfiguration.cs` | `EnableInternetAccess` is also on while online play is configured (DNS answers, nifm requests); RewindBox's sessions keep it off otherwise |
+| `EmbeddedContent.cs` (prepared copy) | Request 11 (online configuration, answers the protocol name `rewindbox-nextendo-online-1`), request 12 (read the profile file again) |
 | `DnsBlacklist.cs` | A redirected host name is no longer refused as a Nintendo server |
 | `DnsMitmResolver.cs` | Exact hosts-file entry, then the documented built-in rules, then wildcards and real DNS |
-| `ManagerServer.cs` | The `id_token` gets Nextendo's key identifier and the claims `jti`, `hm`, `tv`, `nnex` |
-| `SslManagedSocketConnection.cs` | The certificate of the two configured servers is accepted, for those two addresses only; SNI is the name last redirected there |
+| `ManagerServer.cs` | The account id the game reads is the PID; the `id_token` gets `jti`, `hm`, `tv` (installed version), `nnex` (game token) |
+| `SslManagedSocketConnection.cs` | To the two configured servers: ALPN `http/1.1` (`h2` on NPLN hosts), SNI = last name redirected there, and only a chain to one of Nextendo's five published roots naming the host |
+| `EmbeddedOnline.cs` (added, `Ryujinx.HLE`) | The configuration (token, PID, two different IPv4 addresses), the rules, the roots with their published fingerprints |
 
-Everything is guarded by `EmbeddedOnline.Enabled`; without a configuration the
-engine behaves as today.
+Changes from the 14 November version: `EmbeddedSession.cs` is no longer edited
+(none of the seven gates that bind it changes); the PID is required and is the
+account id (the guide's NSA); the `id_token` no longer claims Nextendo's key id
+(a third-party build signs with its own key, so Splatoon 2, which checks it,
+stays offline as the guide says); the "accept any certificate" rule is replaced
+by verification against Nextendo's published roots; ALPN is offered.
 
-Known limits of the lot: no ALPN is offered (enough for NEX over WebSocket;
-NPLN titles need HTTP/2 and stay out of reach); nothing keeps the UDP NAT
-mapping alive during peer-to-peer set-up, which Nextendo's own emulator does;
-`nifm`'s network-interface queries have never run on an iPhone with guest
-network access on; the token is built by the same JSON Web Token library as
-today, whose behaviour under NativeAOT with the added claims is unobserved.
-Online play also needs the exact game version Nextendo supports for each title.
+nsd's rewrite of `accounts.nintendo.com` to the BAAS host is upstream's
+(`FqdnResolver`). Known limits: Animal Crossing's BAAS user id, signed NPLN
+patches, BCAT data, the signed game catalog and the `/api/nex-session`
+heartbeat are not handled; nothing keeps a UDP NAT mapping alive during
+peer-to-peer set-up; TLS was exercised on Linux's stack only (iOS uses
+Apple's); nifm's interface queries have never run on an iPhone with guest
+network access on.
 
-To take the lot into a Core: move the adapter to `build-utils/melonx/` and the
-C# file to `native/melonx/` mapped to `Ryujinx.HLE`, call the adapter last in
-`prepare_embedded.py`, add it to `ORDER`, the plan and the contract, add its
-gate, and freeze. That belongs to the Core's owner and is worth doing once the
-maintainer has Nextendo's values, so the result can be tried against the real
-servers.
+First game to try: Mario Kart 8 Deluxe (`0100152000022000`) at version 4.0.1,
+for which the guide asks nothing beyond the exact version. Other titles of the
+guide's table need their exact version too; Splatoon 2 is not supported for
+third-party builds; NPLN titles (Splatoon 3, Mario Wonder, Pokémon) also need
+signed patches and BCAT data that RewindBox does not apply.
+
+## Server addresses and the application side (15 November)
+
+- Nextendo does not publish the two game-server addresses: "Official builds
+  carry them; for a third-party client, ask the team on Discord, and keep them
+  in your configuration rather than hard-coded". Players of Ryujinx-Nextendo
+  never type them because they are compiled into the official builds. RewindBox
+  does the same: the delivery recipe passes the repository secrets
+  `NEXTENDO_SERVER_IP` and `NEXTENDO_NAT_IP` as build defines when they exist
+  (IPv4 only, never printed; a missing or malformed one is left out). Each
+  value comes from the build when valid, otherwise from the maintainer's
+  on-device field; the two must differ.
+- The Nextendo screen shows three conditions apart (account, game servers,
+  engine) with the action each missing one needs; the online switch turns on
+  only when all three hold. The engine condition is read from the shipped
+  `MeloNXCore` binary (the protocol name, UTF-16), without loading the engine.
+  "Check online access" gives Nextendo's answer and then what the build still
+  lacks; an accepted account is never presented as a working match.
+- At launch the game token and the PID go to the engine (the Swift bridge
+  forwards the PID); online play is skipped with a journal reason when the
+  servers or the engine are missing.
 
 ## Original Switch menus
 
