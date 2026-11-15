@@ -583,6 +583,7 @@ abstract final class MelonxInternalService {
       // else (signed out, switched off, no network, a refusal) leaves the game
       // starting offline exactly as before; the launch is never refused for it.
       final online = await NextendoOnlinePlay.forLaunch(
+        gamePath: gamePath,
         onSkipped: (reason) => MelonxLaunchDiagnostics.record('online', 'skipped', {'diagnostic': reason}),
       ).timeout(const Duration(seconds: 8), onTimeout: () {
         MelonxLaunchDiagnostics.record('online', 'skipped', {'diagnostic': 'timeout'});

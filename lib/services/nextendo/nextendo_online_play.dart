@@ -25,6 +25,7 @@ class NextendoLaunchOnline {
 /// Decides, at each Switch launch, whether the game starts with online play.
 abstract final class NextendoOnlinePlay {
   static const _enabledKey = 'rewindbox.nextendo.onlinePlay';
+  static const _retail = ['.nsp', '.xci'];
 
   /// On by default: signing in is the player's request to play online.
   static Future<bool> enabled([SharedPreferences? preferences]) async =>
@@ -41,6 +42,7 @@ abstract final class NextendoOnlinePlay {
     NextendoService? service,
     NextendoConfig? config,
     SharedPreferences? preferences,
+    String? gamePath,
     Future<bool> Function()? engineSupported,
     void Function(String reason)? onSkipped,
   }) async {
@@ -51,6 +53,12 @@ abstract final class NextendoOnlinePlay {
       if (await nextendo.restore(settings) == null) return null; // signed out
       if (!await enabled(preferences)) {
         onSkipped?.call('disabled');
+        return null;
+      }
+      // Only a game dump goes online: a homebrew (.nro, .nso) could read the
+      // game token from the account service, so it never receives one.
+      if (gamePath != null && !_retail.any(gamePath.toLowerCase().endsWith)) {
+        onSkipped?.call('homebrew');
         return null;
       }
       if (!settings.serversConfigured) {
