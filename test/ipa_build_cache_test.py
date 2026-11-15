@@ -197,7 +197,10 @@ class Recipe(unittest.TestCase):
             self.assertEqual(count, 1, name)
         # Exact pre-change workflow: every compile, proof, embed, sign, validate,
         # encrypt and upload step is unchanged. Update only after reviewed edits.
-        self.assertEqual(hashlib.sha256(reduced.encode()).hexdigest(), '4a77e2d5ab5bb17b0ce70ed2c763f90cff7911aef5452b8a7e48256032ade80f')
+        # 15 November 2026: 1f53f7013 added the optional Nextendo server defines to the application job (two
+        # secrets in its environment and ten lines in 'Prepare emulator build definitions', the block the delivery
+        # contract pins as NEXTENDO_DEFINES); nothing else differs from the workflow of delivery 751 (4a77e2d5...).
+        self.assertEqual(hashlib.sha256(reduced.encode()).hexdigest(), '24d1e8240ed7ddb4f88c2aa6319ef20ba26d6de412ce8872864911ae85f0faa9')
         self.assertLess(workflow.index(names[3]), workflow.index('    - name: Compile Release device binary'))
         self.assertLess(workflow.index('neostation-fast-xcodebuild.log"\n', workflow.index('    - name: Compile Release device binary')),
                         workflow.index(names[4]))
