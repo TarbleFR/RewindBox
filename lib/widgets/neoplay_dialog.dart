@@ -126,14 +126,17 @@ class _NeoPlayDialogState extends State<NeoPlayDialog>
     );
   }
 
-  /// Chromecast: the route in use and, on the direct route, how far behind the
-  /// newest picture the TV's player is (decoding and display come on top).
+  /// Chromecast: the route in use and its delay. On the direct route, how far
+  /// behind the newest picture the TV's player is (decoding and display come on
+  /// top); on the RewindBox receiver, the measured capture-to-screen delay.
   String castLine(BuildContext context, Map info) {
     String text(String key) => NeoPlayStreamLocale.get(context, key);
+    final receiver = info['receiver'] == 'rewindbox';
     final direct = info['route'] == 'direct';
-    final route = text(direct ? 'routeDirect' : 'routeSegments');
+    final route = text(receiver ? 'routeReceiver' : (direct ? 'routeDirect' : 'routeSegments'));
     final lag = info['lagMs'];
-    if (!direct || info['started'] != true || lag is! num) return route;
+    if (!(receiver || direct) || info['started'] != true || lag is! num || lag < 0) return route;
+    if (receiver) return '$route · ${text('screenDelay').replaceAll('{ms}', '${lag.round()}')}';
     final seconds = (lag / 1000).toStringAsFixed(1);
     return '$route · ${text('delay').replaceAll('{s}', seconds)}';
   }

@@ -1,0 +1,49 @@
+name: RewindBox Cast receiver page
+
+# Publishes the RewindBox Google Cast receiver (tools/neoplay-cast-receiver) on
+# GitHub Pages: https://tarblefr.github.io/RewindBox/cast/ is the Receiver
+# Application URL registered in the Cast SDK Developer Console. Static files
+# only, no secret. Requires Settings > Pages > Source: GitHub Actions, and the
+# branch in the deployment rules of the github-pages environment.
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - tools/neoplay-cast-receiver/**
+      - tools/neoplay-receiver/protocol.mjs
+      - tools/neoplay-receiver/h264-sps.mjs
+      - tools/neoplay-receiver/audio-ring.mjs
+      - tools/neoplay-receiver/audio-worklet.mjs
+      - .github/workflows/cast-receiver-pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: cast-receiver-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}cast/
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check the receiver modules
+        run: for module in tools/neoplay-cast-receiver/*.mjs; do node --check "$module"; done
+      - name: Assemble the site
+        run: node tools/neoplay-cast-receiver/site.mjs "$RUNNER_TEMP/site"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ runner.temp }}/site
+      - id: deployment
+        uses: actions/deploy-pages@v4

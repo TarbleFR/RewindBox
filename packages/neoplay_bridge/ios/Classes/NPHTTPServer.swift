@@ -7,15 +7,20 @@ final class NPHTTPServer {
     private var listener: NWListener?
     private var connections: [ObjectIdentifier: NWConnection] = [:]
     private let store: NPSegmentStore?
-    private let live: NPDirectStream?
+    private let live: NPLiveSource?
+    private let resource: String              // name of the live resource: live.mp4 (NPDirectStream) or frames (NPFramesStream)
+    private let liveType: String
     private var liveKey: ObjectIdentifier? // the one connection that reads the endless stream
     private let secret = UUID().uuidString.replacingOccurrences(of: "-", with: "")
     var onLiveClosed: (() -> Void)?            // the receiver's connection to the endless stream ended (server queue)
     var onReceiverAgent: ((String) -> Void)?   // User-Agent of the receiver's request for the stream (server queue)
-    // HLS: a segment store, resource index.m3u8. Direct route: an endless fragmented MP4, resource live.mp4.
-    init(store: NPSegmentStore?, live: NPDirectStream? = nil) { self.store = store; self.live = live }
+    // HLS: a segment store, resource index.m3u8. Direct route: an endless fragmented MP4, resource live.mp4. RewindBox
+    // receiver: the same fragmented MP4 (its MediaSource engine), or the encoder's packets, resource frames.
+    init(store: NPSegmentStore?, live: NPLiveSource? = nil, resource: String = "live.mp4", contentType: String = "video/mp4") {
+        self.store = store; self.live = live; self.resource = live == nil ? "index.m3u8" : resource; liveType = contentType
+    }
     func start(_ completion: @escaping (Result<URL, NPError>) -> Void) {
-        let resource = live == nil ? "index.m3u8" : "live.mp4"
+        let resource = self.resource
         guard let ip = Self.wifiAddress() else { completion(.failure(.wifiRequired)); return }
         do {
             // No Nagle delay: a fragment is one picture and must leave at once, not wait for the next one.
@@ -61,7 +66,7 @@ final class NPHTTPServer {
             let first = text.components(separatedBy: "\r\n")[0].split(separator: " ")
             guard first.count == 3, ["GET", "HEAD", "OPTIONS"].contains(String(first[0])) else { connection.cancel(); return }
             let prefix = "/s/\(self.secret)/", target = String(first[1])
-            if first[0] == "GET", target == prefix + "live.mp4", let live = self.live, live.isReady {
+            if first[0] == "GET", target == prefix + self.resource, let live = self.live, live.isReady {
                 // A request that resumes at a byte offset is the player retrying a broken connection: the stream has no such
                 // offset. Refusing it makes the player give up, and the sender loads the stream again from the live picture.
                 if let range = Self.header("range", in: text), range.hasPrefix("bytes="), !range.hasPrefix("bytes=0-") { connection.cancel(); return }
@@ -71,31 +76,31 @@ final class NPHTTPServer {
             if !target.hasPrefix(prefix) { result = (403, "text/plain", Data()) }
             else if first[0] == "OPTIONS" { result = (204, "text/plain", Data()) }
             else if let store = self.store { result = store.response(String(target.dropFirst(prefix.count))) }
-            else { result = (target == prefix + "live.mp4" ? 503 : 404, "text/plain", Data()) }
+            else { result = (target == prefix + self.resource ? 503 : 404, "text/plain", Data()) }
             let status = result.0, body = result.2
             let reasons = [200:"OK", 204:"No Content", 403:"Forbidden", 404:"Not Found", 503:"Service Unavailable"]
-            var response = Data("HTTP/1.1 \(status) \(reasons[status] ?? "Error")\r\nContent-Type: \(result.1)\r\nContent-Length: \(body.count)\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET, HEAD, OPTIONS\r\nAccess-Control-Allow-Headers: Range\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n".utf8)
+            var response = Data("HTTP/1.1 \(status) \(reasons[status] ?? "Error")\r\nContent-Type: \(result.1)\r\nContent-Length: \(body.count)\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET, HEAD, OPTIONS\r\nAccess-Control-Allow-Headers: Range\r\nAccess-Control-Allow-Private-Network: true\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n".utf8)
             if first[0] != "HEAD" { response.append(body) }
             connection.send(content: response, completion: .contentProcessed { _ in connection.cancel() })
         }
     }
     // One endless chunked response. The stream starts it on the next key picture and reports how many bytes
     // wait in the connection, which is how it knows that the link cannot follow.
-    private func serveLive(_ connection: NWConnection, stream: NPDirectStream, agent: String?) {
+    private func serveLive(_ connection: NWConnection, stream: NPLiveSource, agent: String?) {
         let key = ObjectIdentifier(connection)
         let previous = liveKey.flatMap { connections[$0] }
         liveKey = key
         previous?.cancel() // one receiver at a time: a new request (a reload) replaces the previous connection
         if let agent { onReceiverAgent?(agent) }
         let waiting = NPPendingBytes()
-        let head = "HTTP/1.1 200 OK\r\nContent-Type: video/mp4\r\nTransfer-Encoding: chunked\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n"
+        let head = "HTTP/1.1 200 OK\r\nContent-Type: \(liveType)\r\nTransfer-Encoding: chunked\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Private-Network: true\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n"
         connection.send(content: Data(head.utf8), completion: .contentProcessed { error in if error != nil { connection.cancel() } })
         let accepted = stream.attach(send: { [weak connection] data in
             guard let connection else { return }
             var chunk = Data(String(data.count, radix: 16).utf8); chunk.append(contentsOf: [13, 10]); chunk.append(data); chunk.append(contentsOf: [13, 10])
             let size = chunk.count; waiting.add(size)
             connection.send(content: chunk, completion: .contentProcessed { error in waiting.add(-size); if error != nil { connection.cancel() } })
-        }, pending: { waiting.value })
+        }, pending: { waiting.value }, at: ProcessInfo.processInfo.systemUptime)
         if !accepted { connection.cancel() }
     }
     private func closed(_ key: ObjectIdentifier) {

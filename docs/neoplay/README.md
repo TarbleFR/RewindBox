@@ -254,3 +254,71 @@ compiled the change (first real compilation of the new Swift files and of the Da
 5. Send `Documents/Diagnostics/System/NeoPlay/NeoPlay.jsonl` (Files app → On My iPhone → RewindBox): `cast.receiver.agent`
    (the receiver's model and Chrome version), `cast.direct.started`, `cast.direct.lag` every 10 s, `cast.stats`
    (pictures received from ReplayKit and sent), `cast.direct.trouble` / `fallback` say what happened.
+
+## Chromecast stage 2: RewindBox Cast receiver — 16 November 2026
+
+Google's Default Media Receiver plays every route through the TV's media element. Its media pipeline refills a full
+second after any underrun (Cast `media_pipeline_impl.cc`: media-source thresholds 0 / 1000 ms), so the direct route
+(stage 1) can only be steered back from the phone, four times a second. Stage 2 replaces it with our own Cast receiver
+application. It is registered in the Cast SDK Developer Console as a Custom Receiver whose URL is
+`https://tarblefr.github.io/RewindBox/cast/`. The page is `tools/neoplay-cast-receiver`, published by
+`.github/workflows/cast-receiver-pages.yml` from branch `Claude`.
+
+**Path.** The phone launches the application through the GoogleCast 4.8.6 session option `gck_applicationID`. This is
+`kGCKSessionOptionsKeyApplicationID`, which the framework exports but does not declare in its headers;
+`+[GCKCastSession selectApplicationIDFromCastOptions:sessionOptions:]` reads it before the discovery criteria. Discovery
+and `Info.plist` therefore stay on Google's receiver (`CC1AD845`). The sequence is then:
+1. The phone sends `hello` on `urn:x-cast:com.rewindbox.neoplay`, and the page answers with its capabilities.
+2. The phone serves the stream on its existing HTTP server, and the page reads it there itself. The media never goes
+   through Google.
+3. The page's player depends on the engine it chose:
+   - `frames`, the lowest delay: `NPFramesStream` sends NPFrameEncoder's packets, each preceded by its length, as one
+     endless response (resource `frames`). WebCodecs decodes them, the newest picture is drawn at each display
+     refresh, and PCM goes through the Windows receiver's AudioWorklet ring. The TV's media pipeline is not used.
+   - `mp4`, for a device whose WebCodecs cannot decode H.264: the direct route's fragmented MP4 (`live.mp4`). It is
+     played through MediaSource, and the play head is kept at the live edge on the TV, ten times a second.
+4. The page reports stats every second. Pings over the Cast connection give the clock offset, so the phone computes the
+   **capture-to-screen delay** of the picture shown (`cast.receiver.stats`, panel line "RewindBox receiver"). Neither
+   figure includes the TV's own picture processing.
+
+**Fallback.** The fallback takes place in the same user action, and automatic mode then keeps Google's receiver for an
+hour on that model (`NPCastMode.receiverFailed`). It happens when:
+- the launch fails (application not published, page unreachable);
+- the page never answers (15 s), closes before answering, or nothing is shown 15 s after `play`;
+- neither engine can decode.
+
+In those cases the session ends and starts again on Google's receiver, where stage 1 applies (direct route, then
+segments). When `frames` cannot keep up, the page asks for `mp4` (`switch`), and the phone restarts the capture on that
+stream in the same session.
+
+**Lab (Chromium 1243 headless, loopback, software decoding, 16 November).** `docs/neoplay/lab-2026-11-16/cast-receiver-bench`
+contains a stand-in phone (`phone.mjs`: ffmpeg in real time, picture number as a bar code) and `run.mjs`.
+
+| Engine | Measure | Median | 95th percentile | Notes |
+|---|---|---|---|---|
+| `frames` | encoder output → drawn | 3.1 ms | 10.3 ms | 60/60 pictures a second; bar code right 15/15; decode 2.3 ms |
+| `mp4` | sent → displayed | 415 ms | 416 ms | the app's own NPDirectStream output (Swift check); 691 pictures, 0 dropped; target 0.4 s after one stall |
+| Stage 1 for comparison | Google's receiver page, direct route | 650 ms | — | 15 November lab |
+
+Two findings from the bench:
+- ffmpeg's live per-picture fMP4 carries a picture duration of 0. MediaSource then keeps only key pictures, so the `mp4`
+  bench replays the app's own stream instead.
+- Chromium's audio renderer holds about 0.2 s before it plays MediaSource, which is why the `mp4` engine starts with a
+  0.3 s target.
+
+`frames` with hardware decoding on a Chromecast is **not measured**. The Chromecast's WebCodecs support is not known
+until the first session: its `cast.receiver.caps` row tells.
+
+**Checks.**
+- Swift: `NPFramesStream` and `NPReceiverLink` pass scenario checks on Linux: start on a key picture, overflow and
+  resume, configuration in band, stall, hello/caps, clock offset, time limits.
+- Swift: the changed files type-check against the GoogleCast 4.8.6 stand-ins, except the unchanged `sa_len` line.
+- Receiver modules: `node --check` in the Pages workflow.
+- Not run: the Flutter/native suites, an iOS compilation, any device.
+
+**Setting up (once).**
+1. GitHub, Settings → Pages: Source "GitHub Actions". Settings → Environments → github-pages: allow branch `Claude`.
+2. Cast SDK Developer Console: Add new application → Custom Receiver → URL above → Publish. A published application
+   needs no device serial and works on every Chromecast.
+3. Set the 8-character application ID in `NPReceiverApp.applicationID`. While it is empty, the feature is off and the
+   app behaves exactly as delivery 754.

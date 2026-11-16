@@ -106,6 +106,16 @@ enum NPCastMode: String {
     static func directFailed(model: String?) -> Bool { UserDefaults.standard.bool(forKey: failedKey(model)) }
     static func rememberDirectFailed(model: String?) { UserDefaults.standard.set(true, forKey: failedKey(model)) }
     static func clearDirectFailed(model: String?) { if directFailed(model: model) { UserDefaults.standard.removeObject(forKey: failedKey(model)) } }
+    // The RewindBox receiver could not be launched or did not play on this model: automatic mode uses Google's receiver for
+    // an hour (a page that cannot be reached, an application not yet published), then tries again.
+    static let receiverRetry: TimeInterval = 3_600
+    private static func receiverKey(_ model: String?) -> String { "neoplay.cast.receiver.failed." + (model ?? "unknown") }
+    static func receiverFailed(model: String?, now: Date = Date()) -> Bool {
+        let at = UserDefaults.standard.double(forKey: receiverKey(model))
+        return at > 0 && now.timeIntervalSince1970 - at < receiverRetry
+    }
+    static func rememberReceiverFailed(model: String?) { UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: receiverKey(model)) }
+    static func clearReceiverFailed(model: String?) { UserDefaults.standard.removeObject(forKey: receiverKey(model)) }
 }
 
 // Link adaptation. The transport reports every packet it had to shed. Three

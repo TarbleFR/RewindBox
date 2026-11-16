@@ -2,7 +2,7 @@ import Foundation
 import GoogleCast
 
 // Google Cast is a separate receiver protocol; never call a Chromecast an AirPlay receiver.
-final class NPGoogleCast: NSObject, GCKDiscoveryManagerListener, GCKSessionManagerListener, GCKRemoteMediaClientListener, GCKRequestDelegate {
+final class NPGoogleCast: NSObject, GCKDiscoveryManagerListener, GCKSessionManagerListener, GCKRemoteMediaClientListener, GCKRequestDelegate, GCKGenericChannelDelegate {
     private var initialized = false
     private var selected: String?
     private var ownsSession = false
@@ -14,6 +14,13 @@ final class NPGoogleCast: NSObject, GCKDiscoveryManagerListener, GCKSessionManag
     var onReady: (() -> Void)?
     var onPlayback: (() -> Void)?
     var onError: ((NPError) -> Void)?
+    // RewindBox receiver (NPReceiverApp): the application this session launched, its channel and its protocol.
+    let link = NPReceiverLink()
+    var onReceiverEvent: ((NPReceiverLink.Event) -> Void)?
+    private(set) var receiverApplication: String?
+    private var channel: GCKGenericChannel?
+    private var selectedDevice: GCKDevice?
+    private var relaunching = false               // the session ends to start again on Google's receiver
     private var context: GCKCastContext { GCKCastContext.sharedInstance() }
     func startDiscovery() {
         if !initialized {
@@ -44,22 +51,69 @@ final class NPGoogleCast: NSObject, GCKDiscoveryManagerListener, GCKSessionManag
     // Model name of the receiver of this session, as the device announces it ("Chromecast", "Chromecast Ultra", "Google TV Streamer" ...).
     var deviceModel: String? { ownsSession ? context.sessionManager.currentCastSession?.device.modelName : nil }
     var receivers: [[String: Any]] { devices.map { ["id": "cast:\($0.uniqueID)", "name": $0.friendlyName ?? "Chromecast", "kind": "cast"] } }
-    func connect(_ id: String) {
+    // useReceiver: launch the RewindBox receiver when it is configured and has not just failed on this model.
+    func connect(_ id: String, useReceiver: Bool = false) {
         guard let device = devices.first(where: { "cast:\($0.uniqueID)" == id }) else { onError?(.receiverGone); return }
         // Do not take over a session started by another integration.
         guard context.sessionManager.currentCastSession == nil, selected == nil else { onError?(.busy); return }
-        selected = device.uniqueID
-        if !context.sessionManager.startSession(with: device) { selected = nil; onError?(.cast) }
+        selected = device.uniqueID; selectedDevice = device
+        let application = useReceiver && NPReceiverApp.enabled && !NPCastMode.receiverFailed(model: device.modelName) ? NPReceiverApp.applicationID : nil
+        if !launch(device, application: application) { selected = nil; selectedDevice = nil; receiverApplication = nil; onError?(.cast) }
+    }
+    private func launch(_ device: GCKDevice, application: String?) -> Bool {
+        receiverApplication = application
+        NPLog.record("cast.launch", ["application": application ?? kGCKDefaultMediaReceiverApplicationID, "model": device.modelName ?? ""])
+        guard let application else { return context.sessionManager.startSession(with: device) }
+        return context.sessionManager.startSession(with: device, sessionOptions: [NPReceiverApp.sessionOptionKey: application as NSString])
+    }
+    // The RewindBox receiver did not answer or cannot play here: end its session and start one on Google's receiver, same
+    // device; onReady follows as for a first start.
+    func relaunchDefault(_ reason: String) {
+        guard receiverApplication != nil, ownsSession else { return }
+        NPLog.record("cast.receiver.relaunch", ["reason": reason, "model": selectedDevice?.modelName ?? ""])
+        NPCastMode.rememberReceiverFailed(model: selectedDevice?.modelName)
+        closeReceiver(); relaunching = true
+        context.sessionManager.endSessionAndStopCasting(true)
     }
     func sessionManager(_ sessionManager: GCKSessionManager, didStart session: GCKCastSession) {
         guard selected == session.device.uniqueID else { return }
         ownsSession = true
         if cancelling { sessionManager.endSessionAndStopCasting(true); return }
-        session.remoteMediaClient?.add(self); onReady?(); onReady = nil
+        if receiverApplication != nil { openReceiver(session) } else { session.remoteMediaClient?.add(self) }
+        onReady?() // kept: a session started again on Google's receiver is ready again
     }
+    private func openReceiver(_ session: GCKCastSession) {
+        let channel = GCKGenericChannel(namespace: NPReceiverLink.namespace)
+        channel.delegate = self; session.add(channel); self.channel = channel
+        route = .frames
+        link.send = { [weak self] message in self?.sendReceiver(message) }
+        link.log = { event, row in NPLog.record(event, row) }
+        link.onEvent = { [weak self] event in
+            guard let self else { return }
+            // A picture on the TV: the session is streaming, and this model can use the receiver again.
+            if case .playing = event { NPCastMode.clearReceiverFailed(model: self.selectedDevice?.modelName); self.onPlayback?() }
+            self.onReceiverEvent?(event)
+        }
+        link.start(); startLiveWatch()
+    }
+    private func closeReceiver() {
+        if let channel { _ = context.sessionManager.currentCastSession?.remove(channel); channel.delegate = nil }
+        channel = nil; link.reset(); link.send = nil; link.onEvent = nil; stopLiveWatch()
+    }
+    func sendReceiver(_ message: [String: Any]) {
+        guard let channel, channel.isConnected, let data = try? JSONSerialization.data(withJSONObject: message), let text = String(data: data, encoding: .utf8) else { return }
+        _ = channel.sendTextMessage(text, error: nil)
+    }
+    func castChannel(_ channel: GCKGenericChannel, didReceiveTextMessage message: String, withNamespace protocolNamespace: String) {
+        guard channel === self.channel, let data = message.data(using: .utf8), let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
+        link.receive(object)
+    }
+    // The receiver plays the stream itself: the route is the engine it plays with.
+    func receiverEngine(_ engine: Route) { route = engine }
     // Two ways to give the default receiver a live picture. `direct`: one endless fragmented MP4 that its media
     // element plays as it arrives. `segments`: HLS, played by the receiver's HLS player with its own buffer.
-    enum Route: String { case direct, segments }
+    // RewindBox receiver: `frames` (WebCodecs) or `mp4` (its MediaSource player on the direct route's stream).
+    enum Route: String { case direct, segments, frames, mp4 }
     static let startTimeout: TimeInterval = 8 // direct route: no moving picture this long after a load is a failed start
     private(set) var route = Route.segments
     private var loadedURL: URL?
@@ -85,11 +139,15 @@ final class NPGoogleCast: NSObject, GCKDiscoveryManagerListener, GCKSessionManag
     var onDirectTrouble: ((String) -> Void)?    // direct route: "start", "load", "error", "ended" or "reload"
     private var uptime: TimeInterval { ProcessInfo.processInfo.systemUptime }
     var diagnostics: [String: Any] {
-        ["route": route.rawValue, "started": started, "lagMs": Int(lastLag * 1000), "targetMs": Int(control.target * 1000), "rate": Double(control.rate),
-         "stalls": control.stalls, "loads": loads]
+        if receiverApplication != nil {
+            // Capture-to-screen delay measured by the receiver, decoding included (Google's receiver can only give the player's).
+            return ["route": route.rawValue, "receiver": "rewindbox", "started": link.playing, "lagMs": link.latencyMs ?? -1, "rttMs": link.bestRoundTripMs ?? -1]
+        }
+        return ["route": route.rawValue, "started": started, "lagMs": Int(lastLag * 1000), "targetMs": Int(control.target * 1000), "rate": Double(control.rate),
+                "stalls": control.stalls, "loads": loads]
     }
     func load(_ url: URL, route: Route) {
-        guard ownsSession, let session = context.sessionManager.currentCastSession, selected == session.device.uniqueID else { onError?(.cast); return }
+        guard route == .direct || route == .segments, receiverApplication == nil, ownsSession, let session = context.sessionManager.currentCastSession, selected == session.device.uniqueID else { onError?(.cast); return }
         let media = GCKMediaInformationBuilder(contentURL: url)
         media.streamType = .live
         switch route {
@@ -98,6 +156,7 @@ final class NPGoogleCast: NSObject, GCKDiscoveryManagerListener, GCKSessionManag
             // hlsVideoSegmentFormat only. With hlsSegmentFormat (the audio format) also set to fMP4, Google's older HLS player,
             // still used on receivers opted out of Shaka, refuses this muxed stream at once (error 104 on the receiver page).
             media.contentType = "application/vnd.apple.mpegurl"; media.hlsVideoSegmentFormat = .FMP4
+        case .frames, .mp4: return // the RewindBox receiver is never sent a load, see the guard
         }
         let metadata = GCKMediaMetadata(metadataType: .generic); metadata.setString("NeoPlay", forKey: kGCKMetadataKeyTitle); media.metadata = metadata
         let request = GCKMediaLoadRequestDataBuilder(); request.mediaInformation = media.build(); request.autoplay = true
@@ -124,6 +183,7 @@ final class NPGoogleCast: NSObject, GCKDiscoveryManagerListener, GCKSessionManag
         if state == .playing { startLiveWatch(); if !playbackReported { playbackReported = true; onPlayback?() } }
         guard state == .idle, status.mediaSessionID != replacedSession else { return }
         switch route {
+        case .frames, .mp4: break
         case .segments: if status.idleReason == .error { onError?(.cast) }
         case .direct:
             // An idle status that follows a new load belongs to the stream it replaced.
@@ -144,11 +204,13 @@ final class NPGoogleCast: NSObject, GCKDiscoveryManagerListener, GCKSessionManag
     }
     private func stopLiveWatch() { liveTimer?.invalidate(); liveTimer = nil }
     private func tick() {
+        if receiverApplication != nil { link.tick(); return }
         guard ownsSession, let session = context.sessionManager.currentCastSession, selected == session.device.uniqueID, let client = session.remoteMediaClient else { return }
         ticks += 1
         switch route {
         case .segments: if ticks % 4 == 0 { checkLive(client) }
         case .direct: checkDirect(client)
+        case .frames, .mp4: break
         }
     }
     // Direct route, four times a second: is the picture moving, how far behind the newest picture is it, and what to ask for.
@@ -221,20 +283,42 @@ final class NPGoogleCast: NSObject, GCKDiscoveryManagerListener, GCKSessionManag
         if route == .direct { trouble("load") } else { onError?(.cast) }
     }
     func sessionManager(_ sessionManager: GCKSessionManager, didFailToStart session: GCKCastSession, withError error: Error) {
-        guard selected == session.device.uniqueID else { return }; NPLog.error("cast.session.start.failed", error); stopLiveWatch(); selected = nil; ownsSession = false; cancelling = false; onError?(.cast)
+        guard selected == session.device.uniqueID else { return }; NPLog.error("cast.session.start.failed", error); stopLiveWatch()
+        // The RewindBox receiver could not be launched (not published, not registered for this device, no network): the
+        // same device, at once, with Google's receiver.
+        if receiverApplication != nil, !cancelling, let device = selectedDevice {
+            NPLog.record("cast.receiver.unavailable", ["model": device.modelName ?? ""])
+            NPCastMode.rememberReceiverFailed(model: device.modelName)
+            closeReceiver()
+            if launch(device, application: nil) { return }
+        }
+        selected = nil; selectedDevice = nil; receiverApplication = nil; ownsSession = false; cancelling = false; onError?(.cast)
     }
     func sessionManager(_ sessionManager: GCKSessionManager, didEnd session: GCKCastSession, withError error: Error?) {
-        guard selected == session.device.uniqueID else { return }; NPLog.error("cast.session.ended", error); stopLiveWatch(); selected = nil; ownsSession = false; cancelling = false; onError?(.network)
+        guard selected == session.device.uniqueID else { return }; NPLog.error("cast.session.ended", error); stopLiveWatch()
+        // Ended to start again on Google's receiver, or the RewindBox receiver closed before it ever answered (its page could
+        // not be loaded): Google's receiver, same device.
+        let neverAnswered = receiverApplication != nil && link.caps == nil
+        if relaunching || neverAnswered, !cancelling, let device = selectedDevice {
+            if !relaunching { NPLog.record("cast.receiver.unavailable", ["reason": "ended", "model": device.modelName ?? ""]); NPCastMode.rememberReceiverFailed(model: device.modelName) }
+            closeReceiver(); relaunching = false; ownsSession = false
+            if launch(device, application: nil) { return }
+        }
+        closeReceiver(); relaunching = false
+        selected = nil; selectedDevice = nil; receiverApplication = nil; ownsSession = false; cancelling = false; onError?(.network)
     }
     func stop() {
-        onReady = nil; onPlayback = nil; onError = nil; onDirectTrouble = nil; newestPicture = nil; stopLiveWatch()
+        onReady = nil; onPlayback = nil; onError = nil; onDirectTrouble = nil; newestPicture = nil; onReceiverEvent = nil
+        if receiverApplication != nil, channel != nil { sendReceiver(["type": "stop"]) }
+        closeReceiver(); relaunching = false
+        stopLiveWatch()
         control = NPLagController(); window = (0, 0, .infinity, 0); lastTrouble = -.infinity; replacedSession = Int.min; everStarted = false; route = .segments
         loadedURL = nil; loads = 0; orderedSession = Int.min; started = false; lastLag = 0
         guard initialized else { return }
         let matches = context.sessionManager.currentCastSession?.device.uniqueID == selected
         context.sessionManager.currentCastSession?.remoteMediaClient?.remove(self)
         if matches && ownsSession { context.sessionManager.endSessionAndStopCasting(true) }
-        if ownsSession { selected = nil; ownsSession = false; cancelling = false }
+        if ownsSession { selected = nil; selectedDevice = nil; receiverApplication = nil; ownsSession = false; cancelling = false }
         else if selected != nil { cancelling = true }
     }
 }

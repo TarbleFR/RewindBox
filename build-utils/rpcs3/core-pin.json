@@ -3,7 +3,7 @@
  "status": "verified",
  "component": "rpcs3",
  "build": 939,
- "note": "RPCS3 Core 939 = Core 938 + the IPA 745 lot (maintainer, 15-16 Nov 2026): asynchronous shader compilation by default (REWINDBOX_ASYNC_SHADERS_939, maintainer decision of 15 Nov; the global value migrates once), the 256 MiB pipeline cache limit, the glslang prewarm, the guest memory of the Black Ops II job-queue freeze at 3 s (REWINDBOX_FREEZE_GUEST_939, measurement only), and the heat part for menus and play: idle SPU pollers wait longer and sleep in the utility class (REWINDBOX_SPU_POLL_IDLE_939, REWINDBOX_SPU_IDLE_EFFICIENCY_939), the God of War III pre-validation worker leaves the PPU class (REWINDBOX_PREHASH_QOS_939), WFE and other-thread probes. Compilation-only route: the Apple host harnesses were not run. Codegen identities unchanged (exact SPUThread.cpp alias). Not run on an iPhone; no heat, energy or FPS claim. Replaces Core 938.",
+ "note": "RPCS3 Core 939 request 2 = Core 938 + the IPA 745 lot (maintainer, 15-16 Nov 2026) + the fixes of the adversarial review of request 1 (run 43788845920). The lot: asynchronous shader compilation by default (REWINDBOX_ASYNC_SHADERS_939; the global value migrates once), the 256 MiB pipeline cache limit, the glslang prewarm, the guest memory of the Black Ops II job-queue freeze at 3 s (REWINDBOX_FREEZE_GUEST_939, measurement only, numbered files), and the heat part (REWINDBOX_SPU_POLL_IDLE_939, REWINDBOX_SPU_IDLE_EFFICIENCY_939 under a light load with a self-check, REWINDBOX_PREHASH_QOS_939, WFE and other-thread probes). The review fixes: no yield for a skipped draw on iOS, the shader worker stops between builds at teardown, deferred builds keep their origin, the capture limited to Black Ops II with a free-space check and fault-free copies. Compilation-only route: the Apple host harnesses were not run. Codegen identities unchanged (exact SPUThread.cpp alias). Not run on an iPhone; no heat, energy or FPS claim. Replaces Core 939 request 1 (pinned, never delivered); the delivered Core before it is Core 938.",
  "producer": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "validationMode": "build-only",
@@ -25,15 +25,15 @@
     "Preserve compiler objects for the same recipe",
     "Preserve real diagnostics including partial failures"
    ],
-   "source": "b762bfa4e8100846abb2d3c4f3277da78c4aaf4b",
-   "run": 43788845920,
+   "source": "13d33a25e32d7ca0ab436bc72614521884488e29",
+   "run": 43794178205,
    "attempt": 1,
-   "job": 133042459966,
-   "artifact": 14192148974,
-   "name": "RPCS3Core-939-b762bfa4e8100846abb2d3c4f3277da78c4aaf4b",
-   "bytes": 30585286,
-   "sha256": "b10b9f22701f0fc107f1b65dcc53d6e45f2ab4dbb53cf16a9a4932e3c94bac29",
-   "expiresAt": "2026-12-16T02:20:40Z"
+   "job": 133059107792,
+   "artifact": 14194606236,
+   "name": "RPCS3Core-939-13d33a25e32d7ca0ab436bc72614521884488e29",
+   "bytes": 30585895,
+   "sha256": "bf0f4ad1f40a9f687641e156d9f2e22fc4225e62163c73cfd69796ff8eb99f94",
+   "expiresAt": "2026-12-16T03:05:21Z"
   },
   "hostTests": {
    "mode": "not-run"
@@ -41,16 +41,16 @@
  },
  "core": {
   "type": "rpcs3-ios-core939",
-  "dylibBytes": 81116408,
-  "dylibSha256": "d0875514436f9e4b8f62fd292ee75fc2858457f19608a73c452810bbc967d626",
-  "identitySha256": "00b882b0953dd5a65d3358469ae22b9660d12aa202193c695dc6bc6b21d80573",
+  "dylibBytes": 81117000,
+  "dylibSha256": "8de14bf476239434097eed2c7ec2ca35aef550e2a46d6f4ef1d66e8136e05d65",
+  "identitySha256": "55db176a424a31f28a309f669d70e1d634593c6bcb588be14e6a6c74325c25cf",
   "proofMember": "core610-proof.json",
-  "proofSha256": "9ade4af7cdfc80f5c204cc9f9d003775f02d70edd2b6f9c4b16b5d9484377b84",
-  "payloadFingerprint": "8acb98fa028c63ae2907825803a62d79cafc9a780080013319dae98dc5151c09"
+  "proofSha256": "eec7babb6fb6300c037b0d882fbcaaa7edb1c9c31fe5f5cd9583832e39b032b7",
+  "payloadFingerprint": "e6e8e273f979d877aa7870ba7a401ddd589173820a5facf1ef8e09051f4e215c"
  },
  "canonical": {
-  "patchSha256": "4922a89d54aa77e9376b9c8086883d79abcf54ced9183fc4ce7e373c00237651",
-  "postimages": 506,
+  "patchSha256": "537905837315e44cf4a59a7f60652d9b20a70499c6f4726a284ff43dba6221e3",
+  "postimages": 507,
   "upstreamCommit": "22f1152783cef1f7e04af7b1c895173e28fd5b03"
  },
  "abi": 30,
@@ -272,16 +272,18 @@
   "RPCS3-freeze-spu.bin",
   "REWINDBOX_ASYNC_SHADERS_939",
   "FREEZE_DUMP guest_memory",
-  "RPCS3-freeze-guest.bin",
+  "RPCS3-freeze-guest-%u.bin",
   "COREPROF WFEPROBE939",
   "spu_efficient_sleeps=",
-  "other_top="
+  "other_top=",
+  "spu_efficient_late=",
+  "spu_light_load="
  ],
  "cachePath": "build/rpcs3-core-component",
  "replaces": {
-  "source": "83d05f905dbce81220cabc5e79791bc68e7b7375",
-  "run": 43574977307,
-  "artifact": 14106546136,
-  "payloadFingerprint": "60c29e19cb4245810ff23b010e8858e130255517ae5fec720940a96eb750f132"
+  "source": "b762bfa4e8100846abb2d3c4f3277da78c4aaf4b",
+  "run": 43788845920,
+  "artifact": 14192148974,
+  "payloadFingerprint": "8acb98fa028c63ae2907825803a62d79cafc9a780080013319dae98dc5151c09"
  }
 }
