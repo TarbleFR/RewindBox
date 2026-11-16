@@ -615,3 +615,30 @@ Menus de Black Ops II, 2 minutes, téléphone débranché : `THERMAL931 light_cl
 fenêtre, `ENERGY931 p_share` en baisse nette (0,73 aujourd'hui) et `cpu_energy_mj` sous 3 000 par fenêtre ; images à 60.
 Si `light_leaves` compte des sorties « imputées » à répétition, la classe « utility » coûte des images sur ce jeu : le
 dire avec les journaux.
+
+## 13. Journaux de l'IPA 761 (16 novembre, Core 941) : première mesure sur l'iPhone
+
+Journaux privés hors Git, IPA 761 : Black Ops II (PID 27082, deux démarrages, 183 s mesurées, 37 fenêtres de 5 s) et
+un démarrage bref de BLES00113. Pas de session God of War III. Aucune erreur fatale, aucun gel, aucune image de plus
+de 116 ms pendant la partie (la plus longue image est celle d'un chargement, 2,3 s).
+
+| Mesure | IPA 760 (Core 940) | IPA 761 (Core 941) | Lecture |
+|---|---|---|---|
+| Tranches de parcage du fil RSX, menus | 11 300 par seconde | 2 470 par seconde | **mesuré** : 4,6 fois moins |
+| Tranches de parcage du fil RSX, partie | environ 5 400 par seconde | environ 2 800 par seconde | **mesuré** : moitié moins |
+| Attentes « au repos » du délai de grâce RSX | 0 (coupées hors « serious ») | 129 000 par fenêtre en menu, 17 000 à 30 000 en partie ; 98,9 % durent moins de 2 µs, la plus longue 156 µs | **mesuré** : actives dans tous les états |
+| Réveils de minuterie, menus | 42 000 par seconde | 29 900 par seconde | **mesuré** |
+| Menu à 60 images/s | 0,60 à 2,12 W, 73 % du temps CPU sur les cœurs P | 0,85 W, 38 % sur les cœurs P (une seule fenêtre de menu stable) | encourageant, **insuffisant pour conclure** : le menu n'a duré que 15 s |
+| Classe « légère » | — | 2 entrées, 4,5 s au total ; une sortie pour cadence, une sortie « imputée » au moment où le chargement de la partie commence (cadence 55, charge 1,3 cœur) ; 41 changements de classe, 0 échec | le mécanisme entre et sort comme prévu ; il n'a presque pas servi dans cette session |
+| Partie, état « nominal » | 15 s, 40 à 47 images/s, 2,8 à 3,4 W | 25 s, 34 à 43 images/s, 2,55 à 3,36 W | pas de différence attribuable (téléphone déjà chaud au départ dans les deux cas : `from_state=serious`) |
+| Partie, état « fair » | 20 à 30 images/s, 1,9 à 2,0 W | 21 à 30 images/s, 1,85 à 2,0 W | **inchangé**, comme annoncé au § 12 |
+| Énergie CPU par image, partie | 76 à 78 mJ | 64 à 92 mJ (moyenne 76) | **inchangée** |
+
+Ce que cela confirme : le lot 941 fait ce pour quoi il est écrit (moins de réveils, le fil RSX repose le cœur), et il ne
+change pas la partie, où l'énergie par image est la même et où iOS ramène la cadence à ce que le téléphone évacue.
+Ce qui reste à mesurer : deux minutes dans les menus, téléphone débranché, pour lire `light_ms`, `p_share` et
+`cpu_energy_mj` sur une dizaine de fenêtres.
+
+Compilations de pipelines en partie : 13 de 0,49 à 0,94 s (compilation de la bibliothèque de fragments par Metal),
+toutes hors du fil RSX depuis le Core 939 : la partie ne se fige plus (avant le Core 939, 51 compilations figeaient
+23,9 s d'un match) ; un objet peut apparaître avec ce retard à sa première rencontre.

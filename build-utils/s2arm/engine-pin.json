@@ -1,6 +1,6 @@
 {
   "status": "verified",
-  "packagedFingerprint": "d1748fd630f7b640d2c32654af1c5717d750a1fdd39c6d203135f065e5be3735",
+  "packagedFingerprint": "7404879b11776fd47d36c782ceb2f9913009785cabaf9b9736302c6756dd5c9c",
   "producers": {
     "engine": {
       "run": 43944027989,
@@ -13,8 +13,8 @@
       "headBranch": "Claude",
       "expiresAt": "2026-12-16T20:05:18Z",
       "members": {
-        "S2ArmEngine.framework.zip": "f673af97f0ea603cb180af58f787b2bd717323d1c228385dba00b0bc4dba0eea",
-        "NS2Pro.framework.zip": "f246e0bb3d7f293af650ad8976c21171e37fcd6a12ae19bf3a7cf633bd42a6f2"
+        "S2ArmEngine.framework.zip": "8ccde81f5c6d6f65e018cfd4074a064fd749e53c55163711e18da481b22ea505",
+        "NS2Pro.framework.zip": "a843eac78f8dbdcb3e41a18032b0dd4da7710b35656acc5881a91ab83a89cb6a"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "3324fb9c281c73af5e2113fbc4b98247ceb755670a29ba54547d0ac261ef0fd3",
+    "engine": "2c0fe3031fb939d104617a3bb84353c46f93f430530cc02f340d5f3e5ec89f03",
     "prepare": "aef8aafb38aa456defbdf16b3194716c32b2051b76a38bc68640d91f098fc87f",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -90,9 +90,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "37237a684a86e8adecaa75b3071e46b278aff58420c90f968ea2cd86a61aaff8",
-      "bytes": 107530232,
-      "fingerprint": "d1748fd630f7b640d2c32654af1c5717d750a1fdd39c6d203135f065e5be3735"
+      "sha256": "169cfdd1b652ea7bfdef9b75a8dcc0499618636f65c00818e949c774aa79e1a2",
+      "bytes": 107530568,
+      "fingerprint": "7404879b11776fd47d36c782ceb2f9913009785cabaf9b9736302c6756dd5c9c"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -125,9 +125,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 43825107808,
+      "run": 43944027989,
       "attempt": 1,
-      "head_sha": "1804bdba50ad2ad61ab0fcf6d57724c57cc42f75",
+      "head_sha": "e2e93c4b93c908270548259df2a03abd8203ec7b",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -330,11 +330,31 @@
         {
           "name": "0050-guest-sparse-mip-tails-shared-by-memory-and-storage-textures-made-renderable.patch",
           "sha256": "a6201daf97f728c501c2e89603b9c89068f33ca9079b385304fe98d78aaee884"
+        },
+        {
+          "name": "0051-guest-fragment-depth-register-with-partial-colour-masks-and-capture-shader-sources.patch",
+          "sha256": "e05f0d66dfea4c06895b98add4fa5c3b050296c9e28e7370c62e151f0d797f7e"
+        },
+        {
+          "name": "0052-guest-mapped-region-stays-in-the-window-files-on-the-low-memory-tier.patch",
+          "sha256": "13ca49a1cedc28738a898155791448eeef3130b5319d448ad760cec10a1089f6"
+        },
+        {
+          "name": "0053-guest-cross-queue-event-waits-park-on-events-the-game-only-sets-back.patch",
+          "sha256": "b0150dc4e002b7e5e32f40351fcc9bbbe47255f384df60277382781812dbfbde"
+        },
+        {
+          "name": "0054-guest-frame-capture-takes-a-cpu-profile-and-per-encoder-gpu-times.patch",
+          "sha256": "3eb51de0c597db7954ec993f22cdefa7df1fdcde7ff76f1f36e0a63a5be020b9"
+        },
+        {
+          "name": "0055-guest-frame-capture-leaves-out-levels-over-16-m-pixels.patch",
+          "sha256": "71ca917071b912ddde178af71d2e8f52f6f8038b8dfd0879af034c593ac0667b"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "f673af97f0ea603cb180af58f787b2bd717323d1c228385dba00b0bc4dba0eea",
-        "NS2Pro.framework.zip": "f246e0bb3d7f293af650ad8976c21171e37fcd6a12ae19bf3a7cf633bd42a6f2"
+        "S2ArmEngine.framework.zip": "8ccde81f5c6d6f65e018cfd4074a064fd749e53c55163711e18da481b22ea505",
+        "NS2Pro.framework.zip": "a843eac78f8dbdcb3e41a18032b0dd4da7710b35656acc5881a91ab83a89cb6a"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
