@@ -167,9 +167,12 @@ if FINAL_PREPARATION:
     # rules in Window.cs (PresentPacer only). Its replacements are undone first when it is wired (each required once).
     from melonx_adapter_control import ORDER  # noqa: E402
     margin_decay = __import__('adapt_pacer_margin_decay') if 'adapt_pacer_margin_decay' in ORDER else None
-    check(later <= {paced.GPU_CONTEXT, paced.AUTO_FLUSH, prereset.FULL, variant_record.DRAWS} | ({margin_decay.WINDOW} if margin_decay else set()),
+    # After IPA 760: adapt_mirror_copy_journal (journal only) counts the managed whole-buffer copies in BufferHolder.cs.
+    mirror_journal = __import__('adapt_mirror_copy_journal') if 'adapt_mirror_copy_journal' in ORDER else None
+    check(later <= {paced.GPU_CONTEXT, paced.AUTO_FLUSH, prereset.FULL, variant_record.DRAWS} | ({margin_decay.WINDOW} if margin_decay else set())
+          | ({mirror_journal.HOLDER} if mirror_journal else set()),
           'no later adapter edits these files but adapt_paced_strict_syncs, adapt_texture_play_clock, adapt_query_prereset, '
-          'adapt_queued_3d_syncpoints, adapt_queued_variant_record and adapt_pacer_margin_decay: ' + str(sorted(later)))
+          'adapt_queued_3d_syncpoints, adapt_queued_variant_record, adapt_pacer_margin_decay and adapt_mirror_copy_journal: ' + str(sorted(later)))
     # Plan 748 rank 11: adapt_device_critical_trim edits GpuContext.cs last (TrimCaches and the periodic trim's escalation);
     # its replacements there are undone first, then adapt_pacer_margin_decay's in Window.cs.
     critical_undo = ()
@@ -177,7 +180,17 @@ if FINAL_PREPARATION:
         import adapt_device_critical_trim as critical_trim  # noqa: E402
         critical_undo = (('adapt_device_critical_trim', {critical_trim.CONTEXT: list(critical_trim.EDITS[critical_trim.CONTEXT])}),)
     pacer_undo = (('adapt_pacer_margin_decay', {margin_decay.WINDOW: list(margin_decay.PAIRS)}),) if margin_decay else ()
-    undo = critical_undo + pacer_undo + (('adapt_queued_variant_record', {variant_record.DRAWS: list(variant_record.EDITS[variant_record.DRAWS])}),
+    # After IPA 760: adapt_draw_wait_lanes, last in ORDER, appends its clause to the render-stage line of PipelineBase.cs
+    # (after SubmitCausesText); its replacement there is undone first (required once).
+    lanes_undo = ()
+    if 'adapt_draw_wait_lanes' in ORDER:
+        import adapt_draw_wait_lanes as draw_wait  # noqa: E402
+        lanes_undo = (('adapt_draw_wait_lanes', {draw_wait.PIPELINE: [(old, new) for path, old, new in draw_wait.PAIRS
+                                                                        if path == draw_wait.PIPELINE]}),)
+    # adapt_mirror_copy_journal is the last adapter of ORDER: its BufferHolder.cs replacements are undone first of all.
+    mirror_undo = (('adapt_mirror_copy_journal', {mirror_journal.HOLDER: [(old, new) for path, old, new in mirror_journal.PAIRS]}),) \
+        if mirror_journal else ()
+    undo = mirror_undo + lanes_undo + critical_undo + pacer_undo + (('adapt_queued_variant_record', {variant_record.DRAWS: list(variant_record.EDITS[variant_record.DRAWS])}),
             ('adapt_queued_3d_syncpoints', {queued_3d.CONTEXT: [(old, new) for path, old, new in queued_3d.PAIRS
                                                                 if path == queued_3d.CONTEXT]}),
             ('adapt_query_prereset', {prereset.FULL: list(prereset.PAIRS)}),
@@ -269,6 +282,16 @@ with tempfile.TemporaryDirectory(prefix='melonx-submit-causes-') as temporary:
     for label, texts, candidate_build in (('control', control, False), ('candidate', candidate, True)) + \
             ((('final', final_texts, True),) if FINAL_PREPARATION else ()):
         text = program.replace('//__RENDER_STAGE_TIMER__\n', timer_text(texts[adapter.BASE]))
+        if label == 'final' and lanes_undo:
+            # After IPA 760: the final render-stage line ends with adapt_draw_wait_lanes' clause, read from the counters
+            # that adapter declares in BackgroundCompilationScheduler.cs: the real class is compiled with the timer.
+            scheduler = read(FINAL_SOURCE, draw_wait.SCHEDULER)
+            first = scheduler.index('    static class DrawWaitCounters\n')
+            counters = scheduler[first:scheduler.index('\n    }\n', first) + len('\n    }\n')]
+            check(scheduler.count('    static class DrawWaitCounters\n') == 1 and 'public static string TakeText()' in counters,
+                  'final: the draw-wait counters are one class of the final scheduler')
+            text = text.replace('//__RENDER_STAGE_TIMER__\n', '').replace(
+                timer_text(texts[adapter.BASE]), timer_text(texts[adapter.BASE]) + '\n' + counters.replace('Interlocked.', 'System.Threading.Interlocked.'))
         if candidate_build:
             text = text.replace('//__HOST_SYNC_MEMBERS__\n', host_sync_text(texts[adapter.CONTEXT]))
         reports[label] = run_probe(temporary / ('probe-' + label), label, text, candidate_build)
@@ -317,7 +340,13 @@ if FINAL_PREPARATION:
     f = reports['final']
     split = re.compile(r' \(pipeline state queued (\d+), shader modules not ready (-?\d+)\)')
     final_split = {}
+    # After IPA 760: the final line ends with adapt_draw_wait_lanes' clause; no draw waits for a compile in this probe, so
+    # it reads zero in both windows. It is required once, at the end, and taken off before the comparison.
+    lanes_clause = '; draws that waited for a compile 0 (0.0 ms; programs created meanwhile 0, compiles started ahead 0)' if lanes_undo else ''
     for window in ('first', 'second'):
+        check(f[window].endswith(lanes_clause) and (not lanes_clause or f[window].count('; draws that waited for a compile ') == 1),
+              'final: the ' + window + ' window\'s line ends with the draw-wait clause, once: ' + f[window][-200:])
+        f[window] = f[window][:len(f[window]) - len(lanes_clause)]
         found = split.findall(f[window])
         asynchronous = re.search(r'; not ready by cause: async skips (\d+)', k[window])
         check(len(found) == 1 and asynchronous is not None and found[0] == ('0', asynchronous.group(1)) and split.sub('', f[window]) == k[window],
@@ -333,6 +362,10 @@ inputs = ['build-utils/melonx/adapt_submit_causes.py', 'build-utils/melonx/adapt
           'build-utils/melonx/adapt_queued_3d_syncpoints.py', 'build-utils/melonx/adapt_queued_variant_record.py']
 if FINAL_PREPARATION and margin_decay:
     inputs.append('build-utils/melonx/adapt_pacer_margin_decay.py')
+if FINAL_PREPARATION and lanes_undo:
+    inputs.append('build-utils/melonx/adapt_draw_wait_lanes.py')
+if FINAL_PREPARATION and mirror_undo:
+    inputs.append('build-utils/melonx/adapt_mirror_copy_journal.py')
 receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPARATION,
                sourceKind='finalPreparationWithReversedControl' if FINAL_PREPARATION else 'core741Preparation',
                postimages={name: sha(FINAL_SOURCE / name) for name in adapter.BASELINE} if FINAL_PREPARATION else {},

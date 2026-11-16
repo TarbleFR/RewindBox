@@ -116,6 +116,15 @@ C768_ONLINE_ADDITION = 'src/Ryujinx.HLE/EmbeddedOnline.cs'
 # and links the Core's own sched_yield, and the C file is a production addition. Neither is in the GPU closure; the
 # runtime-yield gate runs the target, builds the objects and links a stand-in.
 from adapt_runtime_yield import BASELINE as C770_RUNTIME_YIELD, C_FILE as C770_RUNTIME_YIELD_ADDITION  # noqa: E402
+# After IPA 760 (adapt_draw_wait_lanes, last in ORDER, every title): while a draw waits for a pipeline compile, the programs
+# queued behind it are created and the demand thread starts the next compile. Its five files (ProgramQueue.cs,
+# ThreadedRenderer.cs, ShaderCollection.cs, BackgroundCompilationScheduler.cs, PipelineBase.cs) are changed already; the
+# draw-wait-lanes gate runs the final scheduler and program queue whole.
+from adapt_draw_wait_lanes import BASELINE as C772_DRAW_WAIT_LANES  # noqa: E402
+# After IPA 760 (adapt_mirror_copy_journal, last in ORDER, every title, journal only): the bytes held by the managed
+# whole-buffer copies of mirror data are counted in BufferHolder.cs, a file changed already; no gate of its own (the
+# final GPU build of fragmented-reads binds it, as it does every changed GPU file).
+from adapt_mirror_copy_journal import BASELINE as C772_MIRROR_COPY_JOURNAL  # noqa: E402
 from adapt_array_delta_invalidated import BASELINE as C697_ARRAY_DELTA_INVALIDATED  # noqa: E402
 from adapt_pipeline_cache_background import BASELINE as C697_PIPELINE_CACHE_BACKGROUND  # noqa: E402
 from adapt_sync_wait_attribution import BASELINE as C699_SYNC_WAIT_ATTRIBUTION  # noqa: E402
@@ -276,6 +285,8 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'queued-3d-syncpoints': 'delivered',
             # After IPA 759: the Core's own sched_yield (project target and C file).
             'runtime-yield': 'delivered',
+            # After IPA 760: the draw's wait for a compile (program queue and compile scheduler).
+            'draw-wait-lanes': 'delivered',
             # Core 743: its receipt declares SyncManager.cs, which adapt_submit_causes changes: run again on the final one.
             'sync-allocations': 'delivered',
             # Core 661: the native display fixture declares EmbeddedMemory.cs (adapt_safe_point_compaction): rerun.
@@ -377,7 +388,11 @@ CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES
            # Nextendo online lot: its six files.
            set(C768_NEXTENDO_ONLINE) |
            # After IPA 759: Ryujinx.Library.csproj.
-           set(C770_RUNTIME_YIELD))
+           set(C770_RUNTIME_YIELD) |
+           # After IPA 760: its five GAL and Vulkan files are changed already.
+           set(C772_DRAW_WAIT_LANES) |
+           # After IPA 760, journal only: BufferHolder.cs is changed already.
+           set(C772_MIRROR_COPY_JOURNAL))
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
@@ -842,7 +857,10 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_nextendo_online.py',
                                                      'native/melonx/EmbeddedOnline.cs',
                                                      # After IPA 759: the Core's own sched_yield.
-                                                     'build-utils/melonx/adapt_runtime_yield.py'} and
+                                                     'build-utils/melonx/adapt_runtime_yield.py',
+                                                     # After IPA 760: the draw's wait for a compile, and the mirror copy journal.
+                                                     'build-utils/melonx/adapt_draw_wait_lanes.py',
+                                                     'build-utils/melonx/adapt_mirror_copy_journal.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -904,7 +922,9 @@ if not args.helpers_only:
     # edit is a member already.
     # After IPA 759: adapt_runtime_yield.py joins them (254); its C file is a prepared member (228) and
     # Ryujinx.Library.csproj is a member already.
-    check(len(frozen['preparationInputs']) == 254 and len(frozen['preparedMembers']) == 228, 'Wrong final composition')
+    # After IPA 760: adapt_draw_wait_lanes.py and adapt_mirror_copy_journal.py join them (256); their six files are members
+    # already.
+    check(len(frozen['preparationInputs']) == 256 and len(frozen['preparedMembers']) == 228, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and

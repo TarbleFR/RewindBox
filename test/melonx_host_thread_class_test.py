@@ -98,12 +98,16 @@ import adapt_timer_earliest_wake as _timer  # noqa: E402
 # renderer read below (the queue's allocation, the render loop's clock reads; nothing of HostThreadQos): undone first.
 import adapt_pinned_command_queue as _pinned  # noqa: E402
 import adapt_render_command_clock as _clock  # noqa: E402
+# After IPA 760: adapt_draw_wait_lanes binds the program queue to the render thread in RunLoop, right after the
+# HostThreadQos call it leaves as it is, and unbinds it when the loop ends: its two replacements there are undone first.
+import adapt_draw_wait_lanes as _lanes  # noqa: E402
 check(files_edited_later('adapt_host_thread_class') == {_spin.THREAD, _timer.MANAGER},
       'the only later edits of these files are adapt_wait_spin_bound\'s, in KThread.cs, and adapt_timer_earliest_wake\'s, in KTimeManager.cs')
 
 
 def without_later(name, source):
-    renderer_later = tuple(_pinned.PAIRS) + tuple(_clock.PAIRS) if name == RENDERER else ()
+    renderer_later = (tuple(_pinned.PAIRS) + tuple(_clock.PAIRS) +
+                      tuple((old, new) for path, old, new in _lanes.PAIRS if path == _lanes.THREADED)) if name == RENDERER else ()
     for old, new in reversed(tuple(_spin.FILE_PAIRS.get(name, ())) + (tuple(_timer.PAIRS) if name == _timer.MANAGER else ()) +
                              renderer_later):
         check(source.count(new) == 1, 'the later adapter\'s replacement, once: ' + new.strip().splitlines()[0][:60])
@@ -275,7 +279,8 @@ check(len(kernel) == 4 and all(mixed['sites'][thread]['requests'] == ([] if thre
 
 inputs = ['build-utils/melonx/adapt_host_thread_class.py', 'build-utils/melonx/adapt_session.py',
           'test/melonx_host_thread_class_test.py', 'test/melonx_host_thread_class/Program.cs', 'test/melonx_adapter_control.py',
-          'test/melonx_host_thread_class_system_test.py', 'test/melonx_host_thread_class_system/Program.cs']
+          'test/melonx_host_thread_class_system_test.py', 'test/melonx_host_thread_class_system/Program.cs',
+          'build-utils/melonx/adapt_draw_wait_lanes.py']
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
 receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPARATION,
                sourceKind='finalPreparationWithReversedControl' if FINAL_PREPARATION else 'core731Preparation',

@@ -58,9 +58,11 @@ check(FINAL_PREPARATION, 'the source given is a final preparation containing the
 # cause (its stage line replaces the line adapt_submit_causes wrote) and hands a skipping draw's framebuffer to the
 # queued compile, in PipelineBase.cs. Its replacements are undone first (latest adapter first, each required once, none
 # left), then adapt_submit_causes'.
-LATER = {'src/Ryujinx.Graphics.Vulkan/PipelineBase.cs': ['adapt_queued_variant_record', 'adapt_submit_causes']}
+# After IPA 760: adapt_draw_wait_lanes, last, appends its clause to the render-stage line of PipelineBase.cs (after
+# adapt_submit_causes' text); its replacement there is undone first of all (required once).
+LATER = {'src/Ryujinx.Graphics.Vulkan/PipelineBase.cs': ['adapt_draw_wait_lanes', 'adapt_queued_variant_record', 'adapt_submit_causes']}
 check(files_edited_later('adapt_vulkan_memory_journal') <= set(LATER),
-      'no later adapter edits its files but adapt_submit_causes and adapt_queued_variant_record')
+      'no later adapter edits its files but adapt_submit_causes, adapt_queued_variant_record and adapt_draw_wait_lanes')
 
 
 def without_later(name, text):
@@ -72,6 +74,13 @@ def without_later(name, text):
                 check(text.count(new) == 1, later_name + ': each replacement once in ' + name)
                 text = text.replace(new, old)
             check('RewindBox (adapt_queued_variant_record)' not in text, later_name + ': no edit left in ' + name)
+            continue
+        if later_name == 'adapt_draw_wait_lanes':
+            for path, old, new in reversed(later.PAIRS):
+                if path == name:
+                    check(text.count(new) == 1, later_name + ': each replacement once in ' + name)
+                    text = text.replace(new, old)
+            check('RewindBox (adapt_draw_wait_lanes)' not in text, later_name + ': no edit left in ' + name)
             continue
         if later.TAG not in text:
             continue
@@ -183,7 +192,8 @@ check('; type 3 buffers: 3 blocks 16 MiB (dedicated 8 MiB, mapped 4 MiB, pooled 
 check(report['after13'] == 3 and report['afterBound'] == 3, 'every sixth window (1, 7, 13), nothing past the bound: %s' % report)
 
 inputs = ['build-utils/melonx/adapt_vulkan_memory_journal.py', 'build-utils/melonx/adapt_session.py', 'test/melonx_vulkan_memory_journal_test.py',
-          'test/melonx_adapter_control.py', 'build-utils/melonx/adapt_queued_variant_record.py']
+          'test/melonx_adapter_control.py', 'build-utils/melonx/adapt_queued_variant_record.py',
+          'build-utils/melonx/adapt_draw_wait_lanes.py']
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
 receipt = dict(result='passed', checks=checks, finalPreparationBound=True, sourceKind='finalPreparationWithReversedControl',
                productionVulkanAssemblyBuilt=True, postimages={name: sha(SOURCE / name) for name in adapter.BASELINE},

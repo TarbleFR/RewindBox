@@ -440,6 +440,15 @@ if FINAL_RUN:
           'final: every code line adapt_compute_warmup_demand adds to ShaderCollection.cs is compiled and executed by the fixture: '
           + str([line for line in demand_lines if line not in final_lines][:3]))
     scheduler_text = (FINAL_SOURCE / SCHEDULER).read_text(encoding='utf-8-sig')
+    # After IPA 760: adapt_draw_wait_lanes (later in ORDER) declares fields after the flag's and adds one block to TryTake
+    # and one to Promote. Its replacements in this file are undone first (each required once): the rule compared is the
+    # compute lot's. The fixture's render thread is not a bound render thread, so its draws wait as before.
+    if 'adapt_draw_wait_lanes' in ORDER:
+        import adapt_draw_wait_lanes as draw_wait  # noqa: E402
+        for path, old, new in reversed(draw_wait.PAIRS):
+            if path == SCHEDULER:
+                check(scheduler_text.count(new) == 1, 'final: adapt_draw_wait_lanes: each replacement once in ' + SCHEDULER)
+                scheduler_text = scheduler_text.replace(new, old)
     check(executed_whole.get(SCHEDULER) == hashlib.sha256((FINAL_SOURCE / SCHEDULER).read_bytes()).hexdigest()
           and all(scheduler_text.count(new) == 1 for path, old, new in demand.PAIRS if path == demand.SCHEDULER),
           'final: the fixture runs the final BackgroundCompilationScheduler.cs whole, with the demand-queue rule')
@@ -471,6 +480,8 @@ if FINAL_RUN:
 inputs = ['build-utils/melonx/adapt_setprogram_warmup.py', 'build-utils/melonx/adapt_session.py', 'test/melonx_setprogram_warmup_test.py',
           'test/melonx_setprogram_warmup/Double.cs', 'test/melonx_setprogram_warmup/Program.cs', 'test/melonx_adapter_control.py',
           'build-utils/melonx/adapt_compute_warmup_demand.py', 'test/melonx_setprogram_warmup/Final.cs']
+if 'adapt_draw_wait_lanes' in ORDER:
+    inputs.append('build-utils/melonx/adapt_draw_wait_lanes.py')
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
 summary = {v: {s: {f: reports[v][s][f] for f in ('bindMs', 'setProgramMs', 'toFirstDrawMs', 'toFirstDispatchMs') if f in reports[v][s]}
                for s in ('mismatch', 'match', 'burstMatch', 'burstMismatch', 'compute')} for v in reports}

@@ -97,3 +97,27 @@ Nothing in these journals reports a rendering fault in the session (no engine er
 dummy texture substituted, no draw skipped, no pipeline unavailable). There is no screen capture with the journals,
 so what the picture looked like is not known from them. A report of a visual defect needs a capture or a
 description of the place and the moment.
+
+## 4. What the lot after IPA 760 holds, and the leads that wait for a measurement
+
+Applied (Core after IPA 760, see [the SSBU note](melonx-ssbu-stutter-2026-11-16.md)): while a draw waits for the first
+compile of a new shader, the programs queued behind it are created and a second thread compiles them. It is a change for
+every title; in this Hogwarts session no pipeline was compiled during play, so nothing is expected from it here.
+
+Also in that Core, a measure only (`adapt_mirror_copy_journal`): the bytes held by the managed whole-buffer copies of
+mirror data, written to the journal each time they reach a new 16 MiB step (stage `bufferMirrors`). It is the figure
+the first lead below waits for; nothing else changes.
+
+Three readings of the code, one per busy path (render thread, GPU thread, managed allocations), gave the leads below.
+None is applied as a fix: each is either a change of some size to code every title runs, to be proven on its own, or
+rests on an estimate where the journal can give a measure first.
+
+| Lead | Where | What the journals say | What is missing |
+| --- | --- | --- | --- |
+| A managed copy of a whole host buffer (`_pendingData = new byte[Size]`) is allocated the first time a buffer in use is updated, and kept for the buffer's life | `BufferHolder.cs` | The large object heap holds 275 to 277 MiB of live data after a collection; the mapped Vulkan buffers are 246 MiB in 6 513 blocks | How many of those bytes are these copies: measured from the next IPA on (`bufferMirrors` lines). The fix exists, parked on that figure since 10 November (`adapt_mirror_pending_pages`: pages instead of the whole copy; it still needs its step that settles pending ranges) |
+| Who allocates the 70 % of managed memory the GPU scopes do not explain | Guest threads (translator), service threads, audio | 70 to 200 MiB per 5 s window in play, a collection every 1.6 to 2 s | Bytes allocated per thread (`GC.GetAllocatedBytesForCurrentThread` at system call exit, in the translator, in the service loops) |
+| The buffer cache relinks its use list at every lookup (seven reference writes, one or two lookups per bound buffer and draw) | `BufferCache.Touch` | 5 samples in `Touch` and 11 in the reference write barrier in the GPU thread's profile | A use counter instead of the relink, proven to evict in the same order |
+| Reprotection takes the tracking lock once per dirty page while guest threads fault on tracked pages under the same lock | `MultiRegionHandle`, `RegionHandle.Reprotect` | 30 of the 71 lock samples of the slowest profile are on this lock | Holding the lock over a run of pages changes how long a guest fault can wait (up to 64 reprotections) |
+| Blit and clear helpers submit the main command buffer and use a second one | `HelperShader.cs` | Up to 165 "helper" submissions per 5 s outdoors (none in half of the windows), each with its reference passes | Running them on the open command buffer changes the order of queries and barriers; to be proven on a software Vulkan |
+| A texture read-back submits the main command buffer even when it holds no command on that texture | `TextureView.cs` | Up to 123 "texture read" submissions per 5 s (under 40 in all windows but two) | The dependency test `SetData` already relies on, applied to reads |
+| The barrier pass of a texture array visits every storage when any attachment was written | `TextureArray.cs` | 126 to 146 ms per 5 s window | A ring of the last storages written, proven to queue the same barriers |

@@ -134,7 +134,9 @@
   "build-utils/melonx/adapt_array_membership_filter.py",
   "build-utils/melonx/adapt_render_command_clock.py",
   "build-utils/melonx/adapt_replay_integer_mask.py",
-  "build-utils/melonx/adapt_runtime_yield.py"
+  "build-utils/melonx/adapt_runtime_yield.py",
+  "build-utils/melonx/adapt_draw_wait_lanes.py",
+  "build-utils/melonx/adapt_mirror_copy_journal.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -409,7 +411,9 @@
   "test/melonx_queued_syncpoints/Boundaries.cs",
   "test/melonx_pipeline_variant_replay/Program.cs",
   "test/melonx_pipeline_variant_replay/Lot.cs",
-  "test/melonx_nifm_network_watch/Online.cs"
+  "test/melonx_nifm_network_watch/Online.cs",
+  "test/melonx_draw_wait_lanes/Double.cs",
+  "test/melonx_draw_wait_lanes/Program.cs"
  ],
  "fixtureProductionInputs": [
   "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs",
@@ -4959,6 +4963,41 @@
    "requiredPostimages": [
     "src/Ryujinx.Library/Ryujinx.Library.csproj",
     "src/Ryujinx.Library/RewindBoxRuntimeYield.c"
+   ]
+  },
+  {
+   "name": "draw-wait-lanes",
+   "script": "test/melonx_draw_wait_lanes_test.py",
+   "report": "draw-wait-lanes-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 3600,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false,
+    "productionVulkanAssemblyBuilt": true,
+    "queuedProgramsCreatedDuringTheWait": true,
+    "compilesOverlapDuringTheWait": true,
+    "noDrawBeforeItsPipeline": true,
+    "everyPipelineCompiledOnce": true,
+    "demandedCompilesKeepPrecedence": true,
+    "demandThreadReservedWithoutDrawWait": true,
+    "singleCompileWaitUnchanged": true,
+    "awaitedCompileNotQueuedLeavesDemandThreadFree": true,
+    "plainWaitOffTheRenderThread": true
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ProgramQueue.cs",
+    "src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs",
+    "src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs",
+    "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs",
+    "src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs"
    ]
   }
  ]

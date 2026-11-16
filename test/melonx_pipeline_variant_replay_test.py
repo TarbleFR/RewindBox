@@ -221,7 +221,17 @@ if 'adapt_compute_warmup_demand' in LOT_PRESENT:
           state_ctor.index(promote) < state_ctor.index('? BackgroundCompilation()'),
           'compute warm-up demand: a play-time compute program is promoted in its constructor, before its warm-up starts')
     final_scheduler = read(PREPARED, SCHEDULER)
-    check(final_scheduler.count(compute_demand.TAKE_NEW) == 1 and final_scheduler.count(compute_demand.FIELD_NEW) == 1 and
+    # After IPA 760: adapt_draw_wait_lanes (later in ORDER) declares a field after the flag's and adds one block to TryTake,
+    # for the demand thread while a draw waits. Its replacements in this file are undone first (each required once): the
+    # rule compared is the compute lot's; the flag is counted in the final file itself.
+    demand_scheduler = final_scheduler
+    if 'adapt_draw_wait_lanes' in control_tools.ORDER:
+        import adapt_draw_wait_lanes as draw_wait  # noqa: E402
+        for path, old, new in reversed(draw_wait.PAIRS):
+            if path == SCHEDULER:
+                check(demand_scheduler.count(new) == 1, 'adapt_draw_wait_lanes: each replacement once in ' + SCHEDULER)
+                demand_scheduler = demand_scheduler.replace(new, old)
+    check(demand_scheduler.count(compute_demand.TAKE_NEW) == 1 and demand_scheduler.count(compute_demand.FIELD_NEW) == 1 and
           final_scheduler.count('_demandThreadWaiting') == (compute_demand.FIELD_NEW + compute_demand.TAKE_NEW).count('_demandThreadWaiting'),
           'compute warm-up demand: the demand-queue rule is the final scheduler\'s TryTake (the flag is read and set there only)')
 if 'adapt_queued_variant_record' in LOT_PRESENT:
@@ -461,6 +471,8 @@ if 'adapt_compute_warmup_demand' in LOT_PRESENT:
 inputs = ['build-utils/melonx/adapt_pipeline_variant_replay.py', 'build-utils/melonx/adapt_session.py',
           'test/melonx_pipeline_variant_replay_test.py', 'test/melonx_pipeline_variant_replay/Program.cs', 'test/melonx_adapter_control.py',
           'test/melonx_pipeline_variant_replay/Lot.cs'] + ['build-utils/melonx/' + name + '.py' for name in LOT_PRESENT]
+if 'adapt_draw_wait_lanes' in control_tools.ORDER:
+    inputs.append('build-utils/melonx/adapt_draw_wait_lanes.py')
 # The final files the probe runs (the adapter's own, and the scheduler whose demand-queue rule the lot changed).
 EXECUTED = sorted(set(adapter.BASELINE) | ({SCHEDULER} if 'adapt_compute_warmup_demand' in LOT_PRESENT else set()))
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()

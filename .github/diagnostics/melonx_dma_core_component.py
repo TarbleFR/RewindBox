@@ -85,7 +85,7 @@ CONTROL_PREPARED = {
 # its occlusion reports, the report guard and the per-entry processing executed, not only compiled).
 # 110 after IPA 759 (the Core's own sched_yield: no priority depression in the runtime's contended locks, the system
 # library's yield kept during thread suspension and background collection).
-FRESH_GATES = 110
+FRESH_GATES = 111
 HISTORICAL_RECEIPTS = 61
 GPU_WORK_ROWS = 13
 READ_COUNTERS = 4

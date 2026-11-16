@@ -287,6 +287,11 @@ LOT_FILES = {
     'adapt_nextendo_online': [],
     # After IPA 759 (adapt_runtime_yield): Ryujinx.Library.csproj and its C file are outside this composition.
     'adapt_runtime_yield': [],
+    # After IPA 760 (adapt_draw_wait_lanes): the draw's wait for a compile; ProgramQueue.cs is outside this composition.
+    'adapt_draw_wait_lanes': ['src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs', 'src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs',
+                              'src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs', 'src/Ryujinx.Graphics.Vulkan/PipelineBase.cs'],
+    # After IPA 760 (adapt_mirror_copy_journal, journal only): the managed whole-buffer copies of mirror data, counted.
+    'adapt_mirror_copy_journal': ['src/Ryujinx.Graphics.Vulkan/BufferHolder.cs'],
 }
 
 checks = 0

@@ -221,6 +221,8 @@ from adapt_render_command_clock import apply as adapt_render_command_clock
 from adapt_replay_integer_mask import apply as adapt_replay_integer_mask
 from adapt_nextendo_online import apply as adapt_nextendo_online
 from adapt_runtime_yield import apply as adapt_runtime_yield
+from adapt_draw_wait_lanes import apply as adapt_draw_wait_lanes
+from adapt_mirror_copy_journal import apply as adapt_mirror_copy_journal
 
 
 def replace_once(path, old, new):
@@ -713,6 +715,13 @@ def main():
     # After IPA 759 (every title): the Core's own sched_yield, a yield that keeps the thread's priority, for the
     # runtime's contended locks (Ryujinx.Library.csproj as the preparation leaves it, and one new C file).
     adapted += adapt_runtime_yield(source)
+    # After IPA 760 (every title): while a draw waits for a pipeline compile, the programs queued behind it are created
+    # and the demand thread starts the next compile (the final ProgramQueue.cs, ThreadedRenderer.cs, ShaderCollection.cs,
+    # BackgroundCompilationScheduler.cs and PipelineBase.cs).
+    adapted += adapt_draw_wait_lanes(source)
+    # After IPA 760 (every title, journal only): the bytes held by the managed whole-buffer copies of mirror data
+    # (BufferHolder.cs), the figure adapt_mirror_pending_pages was parked on.
+    adapted += adapt_mirror_copy_journal(source)
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -870,7 +879,8 @@ def main():
                  'adapt_stall_compaction_drain_guard.py', 'adapt_pacer_margin_decay.py',
                  'adapt_device_critical_trim.py', 'adapt_private_span_lazy.py', 'adapt_pinned_command_queue.py',
                  'adapt_array_membership_filter.py', 'adapt_render_command_clock.py', 'adapt_replay_integer_mask.py',
-                 'adapt_nextendo_online.py', 'adapt_runtime_yield.py']:
+                 'adapt_nextendo_online.py', 'adapt_runtime_yield.py',
+                 'adapt_draw_wait_lanes.py', 'adapt_mirror_copy_journal.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'
