@@ -1,0 +1,73 @@
+{
+  "flutter": {
+    "result": "not-run",
+    "evidenceMode": "not-run",
+    "kind": "flutter",
+    "execution": {
+      "source": "7f5e1ac67523584401140e064c5b231f43323977",
+      "tree": "240a2ef96c9142d2e7ce1d6147d2b4cc5a5c7571",
+      "run": 43972478592,
+      "attempt": 1
+    },
+    "job": 133668996942,
+    "commands": [],
+    "reason": "Maintainer requested compilation of the latest additions without deep regression suites. Actual host compilation, source/binary/ABI integrity, signing, private encryption and final IPA validation remain mandatory.",
+    "fullRegressionSuiteExecuted": false
+  },
+  "native": {
+    "result": "not-run",
+    "evidenceMode": "not-run",
+    "kind": "native",
+    "execution": {
+      "source": "7f5e1ac67523584401140e064c5b231f43323977",
+      "tree": "240a2ef96c9142d2e7ce1d6147d2b4cc5a5c7571",
+      "run": 43972478592,
+      "attempt": 1
+    },
+    "job": 133668997613,
+    "commands": [],
+    "reason": "Maintainer requested compilation of the latest additions without deep regression suites. Actual host compilation, source/binary/ABI integrity, signing, private encryption and final IPA validation remain mandatory.",
+    "fullRegressionSuiteExecuted": false
+  },
+  "deliveryContract": {
+    "result": "authenticated",
+    "evidenceMode": "fresh",
+    "command": "python3 -B test/standard_delivery_contract_test.py",
+    "rerunInThisRun": true,
+    "job": 133667930127,
+    "artifact": 14279051671,
+    "archiveSHA256": "94b83262c0eb4a832b4b1506b137ce87e3fd8e70edbd76503bd4836952bae533",
+    "logSHA256": "3b818a9ffe88d8b9a3c4f73d0370f789a798622526543e4eb92b5e259ae5a2e9",
+    "execution": {
+      "source": "7f5e1ac67523584401140e064c5b231f43323977",
+      "tree": "240a2ef96c9142d2e7ce1d6147d2b4cc5a5c7571",
+      "run": 43972478592,
+      "attempt": 1
+    }
+  },
+  "testsExecutedInThisRun": [
+    "delivery-contract"
+  ],
+  "testsRun": {
+    "flutter": {
+      "mode": "not-run",
+      "run": 43972478592,
+      "attempt": 1,
+      "job": 133668996942,
+      "source": "7f5e1ac67523584401140e064c5b231f43323977"
+    },
+    "native": {
+      "mode": "not-run",
+      "run": 43972478592,
+      "attempt": 1,
+      "job": 133668997613,
+      "source": "7f5e1ac67523584401140e064c5b231f43323977"
+    },
+    "delivery-contract": {
+      "mode": "fresh",
+      "run": 43972478592,
+      "attempt": 1,
+      "job": 133667930127
+    }
+  }
+}

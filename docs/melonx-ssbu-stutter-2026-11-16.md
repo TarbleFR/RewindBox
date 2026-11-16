@@ -91,7 +91,7 @@ Read in the source of the prepared engine:
 | Implemented | Yes: adapter, wiring, journal clause |
 | Tested | On Linux, the real scheduler and the real program queue with a timed compile of 200 ms in place of Metal (gate `draw-wait-lanes`, 128 checks): a frame with five new programs goes from 1007 ms to 604 ms, with two from 402 ms to 209 ms, with one it stays 201 ms; every pipeline is compiled once, by the worker or the demand thread; no draw precedes its pipeline; a demanded compile keeps its precedence; without a draw waiting, or for a draw whose compile is not queued yet, the demand thread takes nothing else; off the render thread the wait is the plain one; a failed compile is thrown as before. The 111 gates of the Core pass on the final preparation and the contract is frozen (`9563a0bc`) |
 | Compiled | Yes: Core `a80b212f` (run 43968706324, build-smoke: NativeAOT compile for the iPhone and the simulator, exported ABI, two simulator sessions). The iPhone binary holds `WaitForPipelineAtDraw`, `RenderThreadPrograms.CreateQueued`, the queue's `BeginDrawWait`/`EndDrawWait` and the journal clause. Pinned (artifact 14278297391, iPhone binary `368895c6`, packaged fingerprint `f74a9313`, contract `9563a0bc`, 111 gates) |
-| Delivered | No |
+| Delivered | Yes, privately: IPA 764 = IPA 763 + this Core (run 43972478592, IPA `0b235a9f`, 331 357 290 bytes; verified offline after download: 97 native images, the MeloNX Core's packaged fingerprint `f74a9313`, 48 retained fingerprints). Flutter and native test groups not run |
 | Observed on a device | No |
 
 Expected on the iPhone, in a session that meets new shaders: the render-stage lines show programs created during the
@@ -113,3 +113,16 @@ length. Whether Metal's compiler serves two requests at once as fast as one is n
   It is the player's setting; nothing here changes it.
 - The variant journal holds 2 048 states and gave up 700 for newer ones in this session. Those states are rebuilt in
   2 ms each when met again; raising the bound costs memory and launch time for 1.4 s per session.
+
+## 6. Delivery 764: the images that changed without being declared
+
+The verification of IPA 764 lists four bridge images whose fingerprints differ from the base's while their sources
+are the base's (the 17 effective differences from IPA 763 are this lot's engine preparation, test and note files):
+`dolphin_internal_bridge` (`35db8bc4`, base `f3614b8f`), `libretro_internal_bridge` (`0cb53f3e`, base `da21cb1c`),
+`melonx_internal_bridge` (`c029bdcf`, base `e8a0bf4e`) and `rpcs3_internal_bridge` (`f852400e`, base `5cfa0b5b`).
+Each of the four values is one an earlier delivery already carried with the same sources: 759 and 757 for the first,
+758 and 757 for the second, 761 and 756 for the third, 761 and 760 for the fourth. The receipts show each bridge
+alternating between two fingerprints from build to build. For the MeloNX and RPCS3 bridges the two files were
+compared section by section on IPA 761 and 763 (RPCS3 session, 16 November): one byte of `__stubs` and one byte per
+stub of `__objc_stubs`, two neighbouring import slots bound to the same symbol in one order or the other. No clear
+copy of IPA 763 exists here (its recipient key is deleted), so the comparison was not made again; nothing to classify.
