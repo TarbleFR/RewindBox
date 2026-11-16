@@ -25,6 +25,15 @@ sideloaded app: Libretro, Dolphin, ARMSX2, RPCS3 and more. Compatible games run
 inside RewindBox with its menus and controls; a separate emulator installation
 is not required.
 
+**RSwitch**, RewindBox's Nintendo Switch engine, is in development (private test
+builds; not part of release 0.0.11). It started from MeloNX 2.7, itself based on
+Ryujinx, and now differs from it substantially: reviewed changes to the GPU
+thread, memory, pipeline cache and thread waits, and Nextendo Network online play
+in progress. RSwitch is not MeloNX and is not endorsed by the MeloNX project;
+MeloNX, stossy11, the Ryujinx/Ryubing and LibHac contributors and the
+Melo-Controller authors keep their credits and licences
+([RSwitch credits](docs/LEGAL_AND_CREDITS.md#rswitch-modified-melonx--ryujinx--embedded-engine)).
+
 ## What's new in 0.0.11
 
 **Public release · Build 721 · Changes since 0.0.10 (Build 559)**

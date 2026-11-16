@@ -166,7 +166,7 @@ class GameBoxMediaSheetState extends State<GameBoxMediaSheet> {
         'gametdb' => 'GameTDB',
         'mobygames' => 'MobyGames',
         'rpcs3' => 'RPCS3',
-        'melonx' => 'MeloNX',
+        'melonx' => 'RSwitch',
         final other => other,
       };
 

@@ -159,7 +159,7 @@ void main() {
           applications.add(entry.application);
         }
       }
-      expect(applications, <String>['RetroArch', 'Dolphin', 'ARMSX2', 'RPCS3', 'MeloNX', 'XeniOS', 'S2Arm']);
+      expect(applications, <String>['RetroArch', 'Dolphin', 'ARMSX2', 'RPCS3', 'RSwitch', 'XeniOS', 'S2Arm']);
       // A missing engine is not listed, except Xbox 360 and Switch 2, whose
       // rows say why.
       final missing = ConsoleCatalog.listed(

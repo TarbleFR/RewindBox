@@ -425,7 +425,11 @@ commercial game content.
 
 ---
 
-MELONX / RYUJINX — EMBEDDED ENGINE
+RSWITCH (MODIFIED MELONX / RYUJINX) — EMBEDDED ENGINE
+
+RSwitch is the name RewindBox uses, since 16 November 2026, for its modified
+version of MeloNX 2.7 (itself based on Ryujinx). It is not MeloNX and is not
+affiliated with or endorsed by the MeloNX, Ryujinx or Ryubing projects.
 
 Pinned source:
 https://starforgejo.dev/projects/MeloNX/src/commit/13700519f3abc4e6d7ed8a065b118b2cc59bcd67

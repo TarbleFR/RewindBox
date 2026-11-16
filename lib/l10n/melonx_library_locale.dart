@@ -10,7 +10,7 @@ abstract final class MelonxLibraryLocale {
 
       "Use RamDonor": "Use RamDonor",
       "Donor in use": "Donor in use",
-      "RamDonor lends memory through the bundled extension. If unavailable, MeloNX uses normal memory.": "RamDonor lends memory through the bundled extension. If unavailable, MeloNX uses normal memory.",
+      "RamDonor lends memory through the bundled extension. If unavailable, RSwitch uses normal memory.": "RamDonor lends memory through the bundled extension. If unavailable, RSwitch uses normal memory.",
       "Donor off": "Disabled",
       "Donor preparing": "Preparing donor",
       "Donor mapped": "Region mapped",
@@ -97,7 +97,7 @@ abstract final class MelonxLibraryLocale {
 
       "Use RamDonor": "Utiliser RamDonor",
       "Donor in use": "Prêt utilisé",
-      "RamDonor lends memory through the bundled extension. If unavailable, MeloNX uses normal memory.": "RamDonor prête de la mémoire via l’extension intégrée. Si le prêt est indisponible, MeloNX utilise la mémoire habituelle.",
+      "RamDonor lends memory through the bundled extension. If unavailable, RSwitch uses normal memory.": "RamDonor prête de la mémoire via l’extension intégrée. Si le prêt est indisponible, RSwitch utilise la mémoire habituelle.",
       "Donor off": "Désactivé",
       "Donor preparing": "Préparation du donneur",
       "Donor mapped": "Région mappée",
@@ -185,7 +185,7 @@ abstract final class MelonxLibraryLocale {
 
       "Use RamDonor": "RamDonor verwenden",
       "Donor in use": "Genutzte Leihregion",
-      "RamDonor lends memory through the bundled extension. If unavailable, MeloNX uses normal memory.": "RamDonor stellt Speicher über die integrierte Erweiterung bereit. Ist dies nicht verfügbar, nutzt MeloNX normalen Speicher.",
+      "RamDonor lends memory through the bundled extension. If unavailable, RSwitch uses normal memory.": "RamDonor stellt Speicher über die integrierte Erweiterung bereit. Ist dies nicht verfügbar, nutzt RSwitch normalen Speicher.",
       "Donor off": "Deaktiviert",
       "Donor preparing": "Speicherspender wird vorbereitet",
       "Donor mapped": "Region eingeblendet",
@@ -273,7 +273,7 @@ abstract final class MelonxLibraryLocale {
 
       "Use RamDonor": "Usar RamDonor",
       "Donor in use": "Préstamo en uso",
-      "RamDonor lends memory through the bundled extension. If unavailable, MeloNX uses normal memory.": "RamDonor presta memoria mediante la extensión integrada. Si no está disponible, MeloNX usa la memoria habitual.",
+      "RamDonor lends memory through the bundled extension. If unavailable, RSwitch uses normal memory.": "RamDonor presta memoria mediante la extensión integrada. Si no está disponible, RSwitch usa la memoria habitual.",
       "Donor off": "Desactivado",
       "Donor preparing": "Preparando donante",
       "Donor mapped": "Región mapeada",
@@ -361,7 +361,7 @@ abstract final class MelonxLibraryLocale {
 
       "Use RamDonor": "Usa RamDonor",
       "Donor in use": "Prestito in uso",
-      "RamDonor lends memory through the bundled extension. If unavailable, MeloNX uses normal memory.": "RamDonor presta memoria tramite l’estensione integrata. Se non è disponibile, MeloNX usa la memoria normale.",
+      "RamDonor lends memory through the bundled extension. If unavailable, RSwitch uses normal memory.": "RamDonor presta memoria tramite l’estensione integrata. Se non è disponibile, RSwitch usa la memoria normale.",
       "Donor off": "Disattivato",
       "Donor preparing": "Preparazione donatore",
       "Donor mapped": "Regione mappata",
@@ -449,7 +449,7 @@ abstract final class MelonxLibraryLocale {
 
       "Use RamDonor": "Usar RamDonor",
       "Donor in use": "Empréstimo em uso",
-      "RamDonor lends memory through the bundled extension. If unavailable, MeloNX uses normal memory.": "RamDonor empresta memória pela extensão integrada. Se não estiver disponível, MeloNX usa a memória normal.",
+      "RamDonor lends memory through the bundled extension. If unavailable, RSwitch uses normal memory.": "RamDonor empresta memória pela extensão integrada. Se não estiver disponível, RSwitch usa a memória normal.",
       "Donor off": "Desativado",
       "Donor preparing": "Preparando doador",
       "Donor mapped": "Região mapeada",
@@ -537,7 +537,7 @@ abstract final class MelonxLibraryLocale {
 
       "Use RamDonor": "Использовать RamDonor",
       "Donor in use": "Используется из займа",
-      "RamDonor lends memory through the bundled extension. If unavailable, MeloNX uses normal memory.": "RamDonor предоставляет память через встроенное расширение. Если она недоступна, MeloNX использует обычную память.",
+      "RamDonor lends memory through the bundled extension. If unavailable, RSwitch uses normal memory.": "RamDonor предоставляет память через встроенное расширение. Если она недоступна, RSwitch использует обычную память.",
       "Donor off": "Отключено",
       "Donor preparing": "Подготовка донора",
       "Donor mapped": "Область отображена",
@@ -625,7 +625,7 @@ abstract final class MelonxLibraryLocale {
 
       "Use RamDonor": "Gunakan RamDonor",
       "Donor in use": "Pinjaman terpakai",
-      "RamDonor lends memory through the bundled extension. If unavailable, MeloNX uses normal memory.": "RamDonor meminjamkan memori melalui ekstensi bawaan. Jika tidak tersedia, MeloNX memakai memori biasa.",
+      "RamDonor lends memory through the bundled extension. If unavailable, RSwitch uses normal memory.": "RamDonor meminjamkan memori melalui ekstensi bawaan. Jika tidak tersedia, RSwitch memakai memori biasa.",
       "Donor off": "Nonaktif",
       "Donor preparing": "Menyiapkan donor",
       "Donor mapped": "Wilayah dipetakan",
@@ -713,7 +713,7 @@ abstract final class MelonxLibraryLocale {
 
       "Use RamDonor": "RamDonorを使用",
       "Donor in use": "使用中の貸与領域",
-      "RamDonor lends memory through the bundled extension. If unavailable, MeloNX uses normal memory.": "RamDonorは内蔵拡張機能を通じてメモリを貸与します。利用できない場合、MeloNXは通常のメモリを使用します。",
+      "RamDonor lends memory through the bundled extension. If unavailable, RSwitch uses normal memory.": "RamDonorは内蔵拡張機能を通じてメモリを貸与します。利用できない場合、RSwitchは通常のメモリを使用します。",
       "Donor off": "無効",
       "Donor preparing": "ドナー準備中",
       "Donor mapped": "領域マッピング済み",
@@ -800,7 +800,7 @@ abstract final class MelonxLibraryLocale {
 
       "Use RamDonor": "RamDonor 사용",
       "Donor in use": "사용 중인 대여 영역",
-      "RamDonor lends memory through the bundled extension. If unavailable, MeloNX uses normal memory.": "RamDonor는 내장 확장을 통해 메모리를 대여합니다. 사용할 수 없으면 MeloNX는 일반 메모리를 사용합니다.",
+      "RamDonor lends memory through the bundled extension. If unavailable, RSwitch uses normal memory.": "RamDonor는 내장 확장을 통해 메모리를 대여합니다. 사용할 수 없으면 RSwitch는 일반 메모리를 사용합니다.",
       "Donor off": "비활성화",
       "Donor preparing": "기증 프로세스 준비 중",
       "Donor mapped": "영역 매핑됨",
@@ -887,7 +887,7 @@ abstract final class MelonxLibraryLocale {
 
       "Use RamDonor": "使用 RamDonor",
       "Donor in use": "已用借入内存",
-      "RamDonor lends memory through the bundled extension. If unavailable, MeloNX uses normal memory.": "RamDonor 通过内置扩展借出内存。若不可用，MeloNX 会使用常规内存。",
+      "RamDonor lends memory through the bundled extension. If unavailable, RSwitch uses normal memory.": "RamDonor 通过内置扩展借出内存。若不可用，RSwitch 会使用常规内存。",
       "Donor off": "已关闭",
       "Donor preparing": "正在准备供体",
       "Donor mapped": "区域已映射",
@@ -974,7 +974,7 @@ abstract final class MelonxLibraryLocale {
 
       "Use RamDonor": "使用 RamDonor",
       "Donor in use": "已用借入記憶體",
-      "RamDonor lends memory through the bundled extension. If unavailable, MeloNX uses normal memory.": "RamDonor 透過內建擴充功能借出記憶體。若無法使用，MeloNX 會使用一般記憶體。",
+      "RamDonor lends memory through the bundled extension. If unavailable, RSwitch uses normal memory.": "RamDonor 透過內建擴充功能借出記憶體。若無法使用，RSwitch 會使用一般記憶體。",
       "Donor off": "已關閉",
       "Donor preparing": "正在準備供體",
       "Donor mapped": "區域已映射",

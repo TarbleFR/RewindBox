@@ -169,7 +169,7 @@ abstract final class ConsoleCatalog {
     ConsoleEngine.dolphin => 'Dolphin',
     ConsoleEngine.armsx2 => 'ARMSX2',
     ConsoleEngine.rpcs3 => 'RPCS3',
-    ConsoleEngine.melonx => 'MeloNX',
+    ConsoleEngine.melonx => 'RSwitch',
     ConsoleEngine.xenia => 'XeniOS',
     ConsoleEngine.s2arm => 'S2Arm',
     ConsoleEngine.retroarch => 'RetroArch',

@@ -89,7 +89,12 @@ See [RELEASE_0.0.1_SOURCE_MANIFEST.md](RELEASE_0.0.1_SOURCE_MANIFEST.md). That
 file records the exact RewindBox packaging commit, workflow artifact identity
 and pinned upstream revisions used for the published Build 350 IPA.
 
-## MeloNX / Ryujinx — embedded engine
+## RSwitch (modified MeloNX / Ryujinx) — embedded engine
+
+**RSwitch** is the name RewindBox uses, since 16 November 2026, for its embedded Nintendo Switch engine: a
+modified version of MeloNX 2.7 (itself based on Ryujinx), changed by RewindBox's own reviewed source adapters. It
+is not MeloNX, and it is not affiliated with or endorsed by the MeloNX, Ryujinx or Ryubing projects. The upstream
+copyright and licence notices below are kept unchanged; internal file, folder and module names still say MeloNX.
 
 Credit MeloNX contributors, stossy11, Ryujinx/Ryubing contributors, LibHac
 contributors and the separate Melo-Controller authors. Their original licenses,
@@ -513,7 +518,7 @@ package (MIT), and EPUB/XHTML parsing uses the Dart
 | **ARMSX2 / PCSX2** | [ARMSX2](https://github.com/ARMSX2/ARMSX2) team and contributors; ARMSX2 is based on the long-running [PCSX2](https://github.com/PCSX2/pcsx2) project. |
 | **Dusklight** (earlier builds only) | [TwilitRealm/Dusklight](https://github.com/TwilitRealm/dusklight) contributors; upstream also credits the Twilight Princess decompilation community and Aurora developers. No longer included in RewindBox since 20 October 2026. |
 | **KartPad / WiiCompiled** (earlier builds only) | [KartPad](https://github.com/chrissotraidis/kartpad) by [@chrissotraidis](https://github.com/chrissotraidis), built on [WiiCompiled](https://github.com/patchzyy/Wiicompiled) created by [@patchzyy](https://github.com/patchzyy). No longer included in RewindBox since 19 October 2026. |
-| **MeloNX / Ryujinx** | MeloNX contributors, stossy11 and Ryujinx/Ryubing contributors; LibHac and Melo-Controller retain separate notices ([assets/legal/melonx](../assets/legal/melonx/)). |
+| **RSwitch (modified MeloNX / Ryujinx)** | MeloNX contributors, stossy11 and Ryujinx/Ryubing contributors; LibHac and Melo-Controller retain separate notices ([assets/legal/melonx](../assets/legal/melonx/)). |
 | **RetroArch / Libretro** | [RetroArch](https://github.com/libretro/RetroArch) and Libretro contributors, for the API, core ecosystem and buildbot distributions used by **Embedded RetroArch** inside RewindBox. Individual emulator authors are credited below. |
 | **Provenance Skin Catalog** | [Provenance-Emu/skins](https://github.com/Provenance-Emu/skins), maintained by the Provenance team and community contributors; one of the sources used to discover controller skins. |
 | **DeltaStyles / Delta Skins** | [DeltaStyles](https://deltastyles.com/), [Delta Skins](https://delta-skins.github.io/) and their individual skin creators, for compatible catalog entries and community layouts. |

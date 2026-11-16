@@ -933,7 +933,7 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
       case ConsoleEngine.rpcs3:
         return _cf(ConsoleManagerLocale.engineBuiltIn, {'engine': 'RPCS3'});
       case ConsoleEngine.melonx:
-        return _cf(ConsoleManagerLocale.engineBuiltIn, {'engine': 'MeloNX'});
+        return _cf(ConsoleManagerLocale.engineBuiltIn, {'engine': 'RSwitch'});
       case ConsoleEngine.xenia:
         return _cf(ConsoleManagerLocale.engineBuiltIn, {'engine': 'XeniOS'});
       case ConsoleEngine.s2arm:

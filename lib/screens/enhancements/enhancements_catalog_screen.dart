@@ -170,7 +170,7 @@ class _EnhancementsCatalogScreenState extends State<EnhancementsCatalogScreen> {
   }
 
   static String _engineName(String engine) => switch (engine) {
-    'melonx' => 'MeloNX (Switch)',
+    'melonx' => 'RSwitch (Switch)',
     'rpcs3' => 'RPCS3 (PS3)',
     'armsx2' => 'ARMSX2 (PS2)',
     'dolphin' => 'Dolphin (GameCube / Wii)',

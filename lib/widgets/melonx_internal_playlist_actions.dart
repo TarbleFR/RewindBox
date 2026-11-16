@@ -613,7 +613,7 @@ class _MelonxGraphicsDialogState extends State<_MelonxGraphicsDialog> {
                         value: settings[item.$1] as bool? ?? true,
                         onChanged: (value) => setState(() => settings[item.$1] = value),
                       ),
-                    Text(_text('RamDonor lends memory through the bundled extension. If unavailable, MeloNX uses normal memory.')),
+                    Text(_text('RamDonor lends memory through the bundled extension. If unavailable, RSwitch uses normal memory.')),
                     if (_failure != null) Text(_text('Settings could not be saved.')),
                     DropdownButtonFormField<double>(
                       initialValue: (settings['resolution'] as num? ?? 1)

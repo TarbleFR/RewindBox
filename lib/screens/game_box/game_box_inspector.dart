@@ -1910,7 +1910,7 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
       'gametdb' => 'GameTDB',
       'mobygames' => 'MobyGames',
       'rpcs3' => 'RPCS3',
-      'melonx' => 'MeloNX',
+      'melonx' => 'RSwitch',
       final other => other,
     };
     final parts = <String>[provider];

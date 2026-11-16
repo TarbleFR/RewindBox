@@ -84,7 +84,7 @@ final class MeloNXMemoryGraph: UIView {
         memoryFormat.numberStyle = .decimal; memoryFormat.usesGroupingSeparator = false
         memoryFormat.minimumFractionDigits = 2; memoryFormat.maximumFractionDigits = 2
         for format in [fpsFormat,percentFormat,memoryFormat] { format.locale = numberLocale }
-        accessibilityLabel = MeloNXText("MeloNX Performance")
+        accessibilityLabel = MeloNXText("RSwitch Performance")
         updateAccessibility()
     }
     required init?(coder:NSCoder) { fatalError("init(coder:) is unavailable") }
