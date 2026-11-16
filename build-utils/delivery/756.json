@@ -1,531 +1,1410 @@
 {
- "schema": 1,
- "build": 756,
- "status": "draft",
- "note": "Private test IPA 756, for the maintainer's requests of 15-16 November 2026 (after the IPA 745 logs: instability first, then FPS regularity; « Le Mode asynchrone pour tous les jeux le nécessitant » ; the phone must stay cool, in menus and in play, and an IPA only once thermal fixes are applied; a minimal FPS / CPU / RAM / NeoSwap performance bar): the verified IPA 754 (run 43787137375, IPA 6b2c7b3e) with RPCS3 Core 939 request 2 in place of Core 938 and the new performance bar. Core 939: asynchronous shader compilation by default (the global value migrates once; database and per-game values still apply), the 256 MiB pipeline cache limit, the glslang prewarm, the guest memory of the Black Ops II job-queue freeze at 3 s (RPCS3-freeze-guest-<n>.bin, measurement only), and the heat part: idle SPU pollers wait longer and, in a light game only, sleep on the efficiency cores under a self-check; the God of War III pre-validation worker leaves the PPU class; WFE and other-thread probes. Request 2 carries the fixes of the adversarial review of request 1 (no yield for a skipped draw on iOS, the shader worker stops between builds at teardown, the capture limited to Black Ops II with a free-space check and fault-free copies). The S2Arm engine of patches 0001-0047 (verified pin e1ffb7e5) replaces the 754 one, as § 3.12 of the recipe requires for an engine pin changed after the base: the S2Arm session's work, also drafted as its IPA 755 (754 with this engine and Core 938). The NeoPlay Cast receiver stage 2 stays source only for IPA 757. Nothing has run on an iPhone; no heat, energy or FPS claim.",
- "base": {
-  "build": 754,
-  "source": "c99dc56389c5ff79f1584a4c33c7a428aae5d01d",
-  "tree": "13e74983ac3134eeb99c05a57ef5230811dd1081",
-  "run": 43787137375,
-  "attempt": 1,
-  "workflow": ".github/workflows/standard-delivery.yml",
-  "jobs": {
-   "preflight": {
-    "name": "preflight",
-    "id": 133037193492
-   },
-   "application": {
-    "name": "application",
-    "id": 133037841730
-   }
-  },
-  "receipt": {
-   "path": "docs/evidence/rewind754/delivery.json",
-   "sha256": "d268990164167c376e9c8d7403c77609a8b4cd74eab707649e56a2740bdf892b",
-   "proofFiles": 12
-  },
-  "identity": {
-   "path": "docs/evidence/rewind754/signed-payload-identity.json",
-   "sha256": "f6724c43edc5fdbff61bbe26211532b330273eccc9adbc2ac0a8a6851777568f",
-   "images": 97
-  },
-  "ipa": {
-   "name": "RewindBox-754.ipa",
-   "producerName": "RewindBox-Build754-c99dc56389c5ff79f1584a4c33c7a428aae5d01d-cold.ipa",
-   "bytes": 330913018,
-   "sha256": "6b2c7b3e3b09e7e43f3758c619676e94f2a2fcbc0b377d5a7e970d0fdbe9f6cd"
-  }
- },
- "components": {
-  "rpcs3": {
-   "mode": "replace",
-   "verifier": ".github/diagnostics/rpcs3_core_component.py",
-   "pin": "build-utils/rpcs3/core-pin.json",
-   "image": "Frameworks/libRPCS3Core.dylib",
-   "producerRoute": "RPCS3 Core route (.github/workflows/rpcs3-core610.yml driven by build-utils/rpcs3/core-build.json, build 939)",
-   "replaces": {
-    "build": 938,
-    "source": "83d05f905dbce81220cabc5e79791bc68e7b7375",
-    "run": 43574977307,
-    "job": 132387146157,
-    "artifact": 14106546136,
-    "payloadFingerprint": "60c29e19cb4245810ff23b010e8858e130255517ae5fec720940a96eb750f132"
-   },
-   "pinSha256": "113455a3d67bb6a8619e3b49ee0650eeabaae8da772cf1a6a6eaa556c9f24c2f"
-  },
-  "melonx": {
-   "mode": "replace",
-   "verifier": ".github/diagnostics/melonx_dma_core_component.py",
-   "pin": "build-utils/melonx/dma-core-pin.json",
-   "packaging": "build-utils/melonx/package_runtime.py",
-   "image": "Frameworks/MeloNXCore.framework/MeloNXCore",
-   "producerRoute": ".github/workflows/melonx-core.yml",
-   "replaces": {
-    "build": 747,
-    "source": "03a889f631bd517c6126e0850c006d3a1754eed9",
-    "run": 43622519313,
-    "job": 132531124957,
-    "artifact": 14125675167,
-    "packagedFingerprint": "071137144e4683a79705a0e92a0f68bc9825495c04249a2a90cc74dcf2a7173a"
-   },
-   "pinSha256": "6c4a878f23163f7f6d40dd0d277a40cf9dcb583becf7ca8fcadab6083bc538d6",
-   "unchangedFromBase": true
-  },
-  "dolphin": {
-   "mode": "retain",
-   "retainedSince": 608,
-   "image": "Frameworks/DolphinCore.framework/DolphinCore",
-   "payloadFingerprint": "640e4389559c800087b3d4b2a2748b4c11307ae6a79bc72f59d55430ccddd6fc",
-   "upstreamRevision": "7cac54161659421ed95c2cd1c0b0746539a4cd38",
-   "legalFolder": "Dolphin-session608",
-   "inputs": "rewind608_producers.input_paths",
-   "origin": {
-    "workflow": ".github/workflows/rewind608-retro-achievements-delivery.yml",
-    "source": "0279198b1c33d869550cae3cf35f155b9d3a4f79",
-    "tree": "67f9f0c891d86b09d04c4f273931eeb0d33f602e",
-    "run": 41293321826,
+  "schema": 1,
+  "build": 756,
+  "status": "frozen",
+  "note": "Private test IPA 756, for the maintainer's requests of 15-16 November 2026 (after the IPA 745 logs: instability first, then FPS regularity; \u00ab Le Mode asynchrone pour tous les jeux le n\u00e9cessitant \u00bb ; the phone must stay cool, in menus and in play, and an IPA only once thermal fixes are applied; a minimal FPS / CPU / RAM / NeoSwap performance bar): the verified IPA 754 (run 43787137375, IPA 6b2c7b3e) with RPCS3 Core 939 request 2 in place of Core 938 and the new performance bar. Core 939: asynchronous shader compilation by default (the global value migrates once; database and per-game values still apply), the 256 MiB pipeline cache limit, the glslang prewarm, the guest memory of the Black Ops II job-queue freeze at 3 s (RPCS3-freeze-guest-<n>.bin, measurement only), and the heat part: idle SPU pollers wait longer and, in a light game only, sleep on the efficiency cores under a self-check; the God of War III pre-validation worker leaves the PPU class; WFE and other-thread probes. Request 2 carries the fixes of the adversarial review of request 1 (no yield for a skipped draw on iOS, the shader worker stops between builds at teardown, the capture limited to Black Ops II with a free-space check and fault-free copies). The S2Arm engine of patches 0001-0047 (verified pin e1ffb7e5) replaces the 754 one, as \u00a7 3.12 of the recipe requires for an engine pin changed after the base: the S2Arm session's work, also drafted as its IPA 755 (754 with this engine and Core 938). The NeoPlay Cast receiver stage 2 stays source only for IPA 757. Nothing has run on an iPhone; no heat, energy or FPS claim.",
+  "base": {
+    "build": 754,
+    "source": "c99dc56389c5ff79f1584a4c33c7a428aae5d01d",
+    "tree": "13e74983ac3134eeb99c05a57ef5230811dd1081",
+    "run": 43787137375,
     "attempt": 1,
-    "runConclusion": "failure",
-    "job": 124810929735,
-    "jobName": "Build608 Dolphin arm64",
-    "steps": [
-     "Patch and compile Dolphin Core",
-     "Materialize and validate Dolphin framework",
-     "Bind608 native inputs and compiled payload"
-    ],
-    "artifact": 13078193437,
-    "name": "RewindBox608-dolphin-0279198b1c33d869550cae3cf35f155b9d3a4f79-attempt1",
-    "bytes": 11191038,
-    "sha256": "9d32c236c79c43cd57053b000dfaba94c4e0d6f627bd04a657f74b36dd58c064",
-    "expiresAt": "2026-11-15T09:41:57Z"
-   },
-   "consumedBy": {
-    "build": 608,
-    "receipt": "docs/evidence/rewind608/delivery.json",
-    "sha256": "2930e4d30eb26b9de343283b3fbab9f723dc9dd63399317833b4bef572d1ae9b"
-   },
-   "republished": {
-    "build": 662,
-    "source": "73d9f856a17a1a22099676280a4e87f9ecc0c457",
-    "run": 42020264926,
-    "attempt": 1,
-    "job": 127221343382,
-    "artifact": 13410284965,
-    "name": "RewindBox-Build662-73d9f856a17a1a22099676280a4e87f9ecc0c457-attempt1-component-dolphin",
-    "bytes": 11192276,
-    "sha256": "82cbdac055d32bd2041f61064cc041607885f4991c6f6690a58e593d8f76af71"
-   },
-   "inheritedChangedInputs": [
-    {
-     "path": "packages/dolphin_internal_bridge/ci/verify_ipa.py",
-     "baseBlob": "6032458096236bcf75fc007d208d4ba177dd3216",
-     "newBlob": "613eed254edce2cbaf54460a020be34a6a82136c",
-     "commit": "c0aae7294abe2deca32af68e1438e4f6bfa465cb",
-     "build": 727
-    }
-   ]
-  },
-  "armsx2": {
-   "mode": "retain",
-   "retainedSince": 608,
-   "image": "Frameworks/ARMSX2Core.framework/ARMSX2Core",
-   "payloadFingerprint": "fab55193e509583b03c0e5b33ae8d8812745b5410d138a53e3779b6257f370d4",
-   "upstreamRevision": "9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe",
-   "legalFolder": "ARMSX2-session608",
-   "inputs": "rewind608_producers.input_paths",
-   "origin": {
-    "workflow": ".github/workflows/rewind608-retro-achievements-delivery.yml",
-    "source": "0279198b1c33d869550cae3cf35f155b9d3a4f79",
-    "tree": "67f9f0c891d86b09d04c4f273931eeb0d33f602e",
-    "run": 41293321826,
-    "attempt": 1,
-    "runConclusion": "failure",
-    "job": 124810929747,
-    "jobName": "Build608 ARMSX2 ABI9 arm64",
-    "steps": [
-     "Compile native core and verify binary ABI",
-     "Bind608 native inputs and compiled payload"
-    ],
-    "artifact": 13078023872,
-    "name": "RewindBox608-armsx2-0279198b1c33d869550cae3cf35f155b9d3a4f79-attempt1",
-    "bytes": 14042625,
-    "sha256": "e4354b47eee93d5dc8d53be070a88cc83ceb8b31ff4f7ccdca2eb2c2067b8763",
-    "expiresAt": "2026-11-15T09:57:51Z"
-   },
-   "consumedBy": {
-    "build": 608,
-    "receipt": "docs/evidence/rewind608/delivery.json",
-    "sha256": "2930e4d30eb26b9de343283b3fbab9f723dc9dd63399317833b4bef572d1ae9b"
-   },
-   "republished": {
-    "build": 662,
-    "source": "73d9f856a17a1a22099676280a4e87f9ecc0c457",
-    "run": 42020264926,
-    "attempt": 1,
-    "job": 127221343382,
-    "artifact": 13411546417,
-    "name": "RewindBox-Build662-73d9f856a17a1a22099676280a4e87f9ecc0c457-attempt1-component-armsx2",
-    "bytes": 14043861,
-    "sha256": "c5fdcd92bc7f5276987310ffaa4bc5be463a4a0587b4a836e669d62cc202c4b4"
-   }
-  },
-  "libretro": {
-   "mode": "retain-archive",
-   "destination": "dist/libretro",
-   "inputs": [
-    "build-utils/libretro/"
-   ],
-   "origin": {
-    "workflow": ".github/workflows/build497-checks.yml",
-    "branch": "Claude",
-    "source": "ab9361c29f7c9ab769c4263dd8b7427fc4f4c036",
-    "run": 39455712245,
-    "attempt": 1,
-    "runConclusion": "success",
-    "artifact": 12280822192,
-    "name": "LibretroCores-ab9361c29f7c9ab769c4263dd8b7427fc4f4c036",
-    "bytes": 55566830,
-    "sha256": "e06f641dd10409c815787fe1cf4ac6746920360a1023c83b23631b2bd693ba47",
-    "expiresAt": "2026-11-03T16:19:42Z"
-   },
-   "republished": {
-    "build": 662,
-    "source": "73d9f856a17a1a22099676280a4e87f9ecc0c457",
-    "run": 42020264926,
-    "attempt": 1,
-    "job": 127221343382,
-    "artifact": 13410529404,
-    "name": "RewindBox-Build662-73d9f856a17a1a22099676280a4e87f9ecc0c457-attempt1-component-libretro",
-    "bytes": 55568023,
-    "sha256": "d1338a9d0c7b7ef5557a6ef8e910df147b4b092741782275eef0daf34d05a170"
-   }
-  },
-  "melonx-dependencies": {
-   "mode": "retain-archive",
-   "destination": "dist/melonx-native",
-   "inputs": [
-    "build-utils/melonx/native-dependencies.json"
-   ],
-   "origin": {
-    "workflow": ".github/workflows/melonx-native-dependencies.yml",
-    "branch": "work/melonx-embedded-20261022",
-    "source": "66737aa9c959eb5915264bf178f179bda8643314",
-    "run": 39854858591,
-    "attempt": 1,
-    "runConclusion": "success",
-    "artifact": 12458409441,
-    "name": "MeloNX-native-dependencies-66737aa9c959eb5915264bf178f179bda8643314",
-    "bytes": 49178074,
-    "sha256": "12a1e4c7bf1c970c218ebddead965a51c3aa57af4d0e1fb5c0523ca8b1340261",
-    "expiresAt": "2026-11-05T21:09:37Z"
-   },
-   "republished": {
-    "build": 662,
-    "source": "73d9f856a17a1a22099676280a4e87f9ecc0c457",
-    "run": 42020264926,
-    "attempt": 1,
-    "job": 127221343382,
-    "artifact": 13411123524,
-    "name": "RewindBox-Build662-73d9f856a17a1a22099676280a4e87f9ecc0c457-attempt1-component-melonx-dependencies",
-    "bytes": 49179302,
-    "sha256": "f70032b3b4cccebeb213eefb122e806d0fd3da18581c6677561b825bceffb4b5"
-   }
-  },
-  "melonx-upstream": {
-   "mode": "pinned-source",
-   "inputs": [
-    "build-utils/melonx/source.json",
-    "build-utils/melonx/vendor_controller.py"
-   ],
-   "tree": "82a29e6f593f6244869481e9a489b8d5154175fe",
-   "controller": "c049ce88a5635bddcd88e1965c42aa8fc92fe961"
-  },
-  "stikjit": {
-   "mode": "pinned-source",
-   "inputs": [
-    "build-utils/stikjit/",
-    "build-utils/patch_stikjit_rpcs3.py",
-    "build-utils/patch_stikjit_compat.py",
-    "build-utils/install_patched_stikjit.py",
-    "build-utils/build_patched_stikjit.py"
-   ],
-   "cacheKeySuffix": "37844950677"
-  },
-  "donor": {
-   "mode": "pinned-release",
-   "build": 527,
-   "release": "0.0.9",
-   "asset": "RewindBox-Build527.ipa",
-   "assetId": 673430199,
-   "url": "https://github.com/TarbleFR/RewindBox/releases/download/0.0.9/RewindBox-Build527.ipa",
-   "bytes": 186673707,
-   "sha256": "884a44dea6e627fc9cd774d296dc2abf1ef683ca01572651d5c0e3425bd9756e",
-   "preparer": "build-utils/prepare_release527_native_runtime.py"
-  },
-  "xenia": {
-   "mode": "pinned-engine",
-   "pin": "build-utils/xenia/core-pin.json",
-   "verifier": "build-utils/xenia/core_pin.py",
-   "identityFile": "Xenia-native-identity.json",
-   "frameworks": [
-    "Frameworks/XeniaCore.framework"
-   ],
-   "image": "Frameworks/XeniaCore.framework/XeniaCore",
-   "sideImages": [
-    {
-     "path": "Frameworks/libmetalirconverter.dylib",
-     "source": "build-utils/xenia/source.json#shader_converter.upstream_mirror"
-    }
-   ],
-   "extensions": [
-    "XeniaJITHelper.appex"
-   ],
-   "legalFolders": [
-    "Legal/XeniOS",
-    "Legal/MetalShaderConverter"
-   ],
-   "checks": [
-    "build-utils/xenia/check_app_shader_converter.py"
-   ],
-   "producers": {
-    "engine": {
-     "workflow": ".github/workflows/xenia-core.yml",
-     "branch": "Claude"
-    }
-   },
-   "pinSha256": "efe5d6e1a0afa5a6b7346725de20e534c4247caa892f58583df5d1d0e7479300",
-   "unchangedFromBase": true
-  },
-  "s2arm": {
-   "mode": "pinned-engine",
-   "pin": "build-utils/s2arm/engine-pin.json",
-   "verifier": "build-utils/s2arm/engine_pin.py",
-   "identityFile": "S2Arm-native-identity.json",
-   "frameworks": [
-    "Frameworks/S2ArmEngine.framework",
-    "Frameworks/NS2Pro.framework"
-   ],
-   "image": "Frameworks/S2ArmEngine.framework/S2ArmEngine",
-   "sideImages": [],
-   "extensions": [
-    "S2ArmJITHelper.appex"
-   ],
-   "legalFolders": [
-    "Legal/S2Arm"
-   ],
-   "checks": [
-    "build-utils/s2arm/check_app.py"
-   ],
-   "producers": {
-    "engine": {
-     "workflow": ".github/workflows/s2arm-engine.yml",
-     "branch": "Claude"
+    "workflow": ".github/workflows/standard-delivery.yml",
+    "jobs": {
+      "preflight": {
+        "name": "preflight",
+        "id": 133037193492
+      },
+      "application": {
+        "name": "application",
+        "id": 133037841730
+      }
     },
-    "prepare": {
-     "workflow": ".github/workflows/s2arm-core.yml",
-     "branch": "work/s2arm-switch2-prototype-20261110",
-     "subdir": "prepare"
+    "receipt": {
+      "path": "docs/evidence/rewind754/delivery.json",
+      "sha256": "d268990164167c376e9c8d7403c77609a8b4cd74eab707649e56a2740bdf892b",
+      "proofFiles": 12
     },
-    "sysdata": {
-     "workflow": ".github/workflows/s2arm-prepare.yml",
-     "branch": "work/s2arm-switch2-prototype-20261110",
-     "subdir": "sysdata"
+    "identity": {
+      "path": "docs/evidence/rewind754/signed-payload-identity.json",
+      "sha256": "f6724c43edc5fdbff61bbe26211532b330273eccc9adbc2ac0a8a6851777568f",
+      "images": 97
+    },
+    "ipa": {
+      "name": "RewindBox-754.ipa",
+      "producerName": "RewindBox-Build754-c99dc56389c5ff79f1584a4c33c7a428aae5d01d-cold.ipa",
+      "bytes": 330913018,
+      "sha256": "6b2c7b3e3b09e7e43f3758c619676e94f2a2fcbc0b377d5a7e970d0fdbe9f6cd"
     }
-   },
-   "podLibraries": [
-    "s2arm_engine_bridge"
-   ],
-   "appResources": [
-    {
-     "path": "S2ArmSystemData/SHA256SUMS",
-     "binary": "sysdata/SHA256SUMS"
+  },
+  "components": {
+    "rpcs3": {
+      "mode": "replace",
+      "verifier": ".github/diagnostics/rpcs3_core_component.py",
+      "pin": "build-utils/rpcs3/core-pin.json",
+      "image": "Frameworks/libRPCS3Core.dylib",
+      "producerRoute": "RPCS3 Core route (.github/workflows/rpcs3-core610.yml driven by build-utils/rpcs3/core-build.json, build 939)",
+      "replaces": {
+        "build": 938,
+        "source": "83d05f905dbce81220cabc5e79791bc68e7b7375",
+        "run": 43574977307,
+        "job": 132387146157,
+        "artifact": 14106546136,
+        "payloadFingerprint": "60c29e19cb4245810ff23b010e8858e130255517ae5fec720940a96eb750f132"
+      },
+      "pinSha256": "113455a3d67bb6a8619e3b49ee0650eeabaae8da772cf1a6a6eaa556c9f24c2f"
+    },
+    "melonx": {
+      "mode": "replace",
+      "verifier": ".github/diagnostics/melonx_dma_core_component.py",
+      "pin": "build-utils/melonx/dma-core-pin.json",
+      "packaging": "build-utils/melonx/package_runtime.py",
+      "image": "Frameworks/MeloNXCore.framework/MeloNXCore",
+      "producerRoute": ".github/workflows/melonx-core.yml",
+      "replaces": {
+        "build": 747,
+        "source": "03a889f631bd517c6126e0850c006d3a1754eed9",
+        "run": 43622519313,
+        "job": 132531124957,
+        "artifact": 14125675167,
+        "packagedFingerprint": "071137144e4683a79705a0e92a0f68bc9825495c04249a2a90cc74dcf2a7173a"
+      },
+      "pinSha256": "6c4a878f23163f7f6d40dd0d277a40cf9dcb583becf7ca8fcadab6083bc538d6",
+      "unchangedFromBase": true
+    },
+    "dolphin": {
+      "mode": "retain",
+      "retainedSince": 608,
+      "image": "Frameworks/DolphinCore.framework/DolphinCore",
+      "payloadFingerprint": "640e4389559c800087b3d4b2a2748b4c11307ae6a79bc72f59d55430ccddd6fc",
+      "upstreamRevision": "7cac54161659421ed95c2cd1c0b0746539a4cd38",
+      "legalFolder": "Dolphin-session608",
+      "inputs": "rewind608_producers.input_paths",
+      "origin": {
+        "workflow": ".github/workflows/rewind608-retro-achievements-delivery.yml",
+        "source": "0279198b1c33d869550cae3cf35f155b9d3a4f79",
+        "tree": "67f9f0c891d86b09d04c4f273931eeb0d33f602e",
+        "run": 41293321826,
+        "attempt": 1,
+        "runConclusion": "failure",
+        "job": 124810929735,
+        "jobName": "Build608 Dolphin arm64",
+        "steps": [
+          "Patch and compile Dolphin Core",
+          "Materialize and validate Dolphin framework",
+          "Bind608 native inputs and compiled payload"
+        ],
+        "artifact": 13078193437,
+        "name": "RewindBox608-dolphin-0279198b1c33d869550cae3cf35f155b9d3a4f79-attempt1",
+        "bytes": 11191038,
+        "sha256": "9d32c236c79c43cd57053b000dfaba94c4e0d6f627bd04a657f74b36dd58c064",
+        "expiresAt": "2026-11-15T09:41:57Z"
+      },
+      "consumedBy": {
+        "build": 608,
+        "receipt": "docs/evidence/rewind608/delivery.json",
+        "sha256": "2930e4d30eb26b9de343283b3fbab9f723dc9dd63399317833b4bef572d1ae9b"
+      },
+      "republished": {
+        "build": 662,
+        "source": "73d9f856a17a1a22099676280a4e87f9ecc0c457",
+        "run": 42020264926,
+        "attempt": 1,
+        "job": 127221343382,
+        "artifact": 13410284965,
+        "name": "RewindBox-Build662-73d9f856a17a1a22099676280a4e87f9ecc0c457-attempt1-component-dolphin",
+        "bytes": 11192276,
+        "sha256": "82cbdac055d32bd2041f61064cc041607885f4991c6f6690a58e593d8f76af71"
+      },
+      "inheritedChangedInputs": [
+        {
+          "path": "packages/dolphin_internal_bridge/ci/verify_ipa.py",
+          "baseBlob": "6032458096236bcf75fc007d208d4ba177dd3216",
+          "newBlob": "613eed254edce2cbaf54460a020be34a6a82136c",
+          "commit": "c0aae7294abe2deca32af68e1438e4f6bfa465cb",
+          "build": 727
+        }
+      ]
+    },
+    "armsx2": {
+      "mode": "retain",
+      "retainedSince": 608,
+      "image": "Frameworks/ARMSX2Core.framework/ARMSX2Core",
+      "payloadFingerprint": "fab55193e509583b03c0e5b33ae8d8812745b5410d138a53e3779b6257f370d4",
+      "upstreamRevision": "9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe",
+      "legalFolder": "ARMSX2-session608",
+      "inputs": "rewind608_producers.input_paths",
+      "origin": {
+        "workflow": ".github/workflows/rewind608-retro-achievements-delivery.yml",
+        "source": "0279198b1c33d869550cae3cf35f155b9d3a4f79",
+        "tree": "67f9f0c891d86b09d04c4f273931eeb0d33f602e",
+        "run": 41293321826,
+        "attempt": 1,
+        "runConclusion": "failure",
+        "job": 124810929747,
+        "jobName": "Build608 ARMSX2 ABI9 arm64",
+        "steps": [
+          "Compile native core and verify binary ABI",
+          "Bind608 native inputs and compiled payload"
+        ],
+        "artifact": 13078023872,
+        "name": "RewindBox608-armsx2-0279198b1c33d869550cae3cf35f155b9d3a4f79-attempt1",
+        "bytes": 14042625,
+        "sha256": "e4354b47eee93d5dc8d53be070a88cc83ceb8b31ff4f7ccdca2eb2c2067b8763",
+        "expiresAt": "2026-11-15T09:57:51Z"
+      },
+      "consumedBy": {
+        "build": 608,
+        "receipt": "docs/evidence/rewind608/delivery.json",
+        "sha256": "2930e4d30eb26b9de343283b3fbab9f723dc9dd63399317833b4bef572d1ae9b"
+      },
+      "republished": {
+        "build": 662,
+        "source": "73d9f856a17a1a22099676280a4e87f9ecc0c457",
+        "run": 42020264926,
+        "attempt": 1,
+        "job": 127221343382,
+        "artifact": 13411546417,
+        "name": "RewindBox-Build662-73d9f856a17a1a22099676280a4e87f9ecc0c457-attempt1-component-armsx2",
+        "bytes": 14043861,
+        "sha256": "c5fdcd92bc7f5276987310ffaa4bc5be463a4a0587b4a836e669d62cc202c4b4"
+      }
+    },
+    "libretro": {
+      "mode": "retain-archive",
+      "destination": "dist/libretro",
+      "inputs": [
+        "build-utils/libretro/"
+      ],
+      "origin": {
+        "workflow": ".github/workflows/build497-checks.yml",
+        "branch": "Claude",
+        "source": "ab9361c29f7c9ab769c4263dd8b7427fc4f4c036",
+        "run": 39455712245,
+        "attempt": 1,
+        "runConclusion": "success",
+        "artifact": 12280822192,
+        "name": "LibretroCores-ab9361c29f7c9ab769c4263dd8b7427fc4f4c036",
+        "bytes": 55566830,
+        "sha256": "e06f641dd10409c815787fe1cf4ac6746920360a1023c83b23631b2bd693ba47",
+        "expiresAt": "2026-11-03T16:19:42Z"
+      },
+      "republished": {
+        "build": 662,
+        "source": "73d9f856a17a1a22099676280a4e87f9ecc0c457",
+        "run": 42020264926,
+        "attempt": 1,
+        "job": 127221343382,
+        "artifact": 13410529404,
+        "name": "RewindBox-Build662-73d9f856a17a1a22099676280a4e87f9ecc0c457-attempt1-component-libretro",
+        "bytes": 55568023,
+        "sha256": "d1338a9d0c7b7ef5557a6ef8e910df147b4b092741782275eef0daf34d05a170"
+      }
+    },
+    "melonx-dependencies": {
+      "mode": "retain-archive",
+      "destination": "dist/melonx-native",
+      "inputs": [
+        "build-utils/melonx/native-dependencies.json"
+      ],
+      "origin": {
+        "workflow": ".github/workflows/melonx-native-dependencies.yml",
+        "branch": "work/melonx-embedded-20261022",
+        "source": "66737aa9c959eb5915264bf178f179bda8643314",
+        "run": 39854858591,
+        "attempt": 1,
+        "runConclusion": "success",
+        "artifact": 12458409441,
+        "name": "MeloNX-native-dependencies-66737aa9c959eb5915264bf178f179bda8643314",
+        "bytes": 49178074,
+        "sha256": "12a1e4c7bf1c970c218ebddead965a51c3aa57af4d0e1fb5c0523ca8b1340261",
+        "expiresAt": "2026-11-05T21:09:37Z"
+      },
+      "republished": {
+        "build": 662,
+        "source": "73d9f856a17a1a22099676280a4e87f9ecc0c457",
+        "run": 42020264926,
+        "attempt": 1,
+        "job": 127221343382,
+        "artifact": 13411123524,
+        "name": "RewindBox-Build662-73d9f856a17a1a22099676280a4e87f9ecc0c457-attempt1-component-melonx-dependencies",
+        "bytes": 49179302,
+        "sha256": "f70032b3b4cccebeb213eefb122e806d0fd3da18581c6677561b825bceffb4b5"
+      }
+    },
+    "melonx-upstream": {
+      "mode": "pinned-source",
+      "inputs": [
+        "build-utils/melonx/source.json",
+        "build-utils/melonx/vendor_controller.py"
+      ],
+      "tree": "82a29e6f593f6244869481e9a489b8d5154175fe",
+      "controller": "c049ce88a5635bddcd88e1965c42aa8fc92fe961"
+    },
+    "stikjit": {
+      "mode": "pinned-source",
+      "inputs": [
+        "build-utils/stikjit/",
+        "build-utils/patch_stikjit_rpcs3.py",
+        "build-utils/patch_stikjit_compat.py",
+        "build-utils/install_patched_stikjit.py",
+        "build-utils/build_patched_stikjit.py"
+      ],
+      "cacheKeySuffix": "37844950677"
+    },
+    "donor": {
+      "mode": "pinned-release",
+      "build": 527,
+      "release": "0.0.9",
+      "asset": "RewindBox-Build527.ipa",
+      "assetId": 673430199,
+      "url": "https://github.com/TarbleFR/RewindBox/releases/download/0.0.9/RewindBox-Build527.ipa",
+      "bytes": 186673707,
+      "sha256": "884a44dea6e627fc9cd774d296dc2abf1ef683ca01572651d5c0e3425bd9756e",
+      "preparer": "build-utils/prepare_release527_native_runtime.py"
+    },
+    "xenia": {
+      "mode": "pinned-engine",
+      "pin": "build-utils/xenia/core-pin.json",
+      "verifier": "build-utils/xenia/core_pin.py",
+      "identityFile": "Xenia-native-identity.json",
+      "frameworks": [
+        "Frameworks/XeniaCore.framework"
+      ],
+      "image": "Frameworks/XeniaCore.framework/XeniaCore",
+      "sideImages": [
+        {
+          "path": "Frameworks/libmetalirconverter.dylib",
+          "source": "build-utils/xenia/source.json#shader_converter.upstream_mirror"
+        }
+      ],
+      "extensions": [
+        "XeniaJITHelper.appex"
+      ],
+      "legalFolders": [
+        "Legal/XeniOS",
+        "Legal/MetalShaderConverter"
+      ],
+      "checks": [
+        "build-utils/xenia/check_app_shader_converter.py"
+      ],
+      "producers": {
+        "engine": {
+          "workflow": ".github/workflows/xenia-core.yml",
+          "branch": "Claude"
+        }
+      },
+      "pinSha256": "efe5d6e1a0afa5a6b7346725de20e534c4247caa892f58583df5d1d0e7479300",
+      "unchangedFromBase": true
+    },
+    "s2arm": {
+      "mode": "pinned-engine",
+      "pin": "build-utils/s2arm/engine-pin.json",
+      "verifier": "build-utils/s2arm/engine_pin.py",
+      "identityFile": "S2Arm-native-identity.json",
+      "frameworks": [
+        "Frameworks/S2ArmEngine.framework",
+        "Frameworks/NS2Pro.framework"
+      ],
+      "image": "Frameworks/S2ArmEngine.framework/S2ArmEngine",
+      "sideImages": [],
+      "extensions": [
+        "S2ArmJITHelper.appex"
+      ],
+      "legalFolders": [
+        "Legal/S2Arm"
+      ],
+      "checks": [
+        "build-utils/s2arm/check_app.py"
+      ],
+      "producers": {
+        "engine": {
+          "workflow": ".github/workflows/s2arm-engine.yml",
+          "branch": "Claude"
+        },
+        "prepare": {
+          "workflow": ".github/workflows/s2arm-core.yml",
+          "branch": "work/s2arm-switch2-prototype-20261110",
+          "subdir": "prepare"
+        },
+        "sysdata": {
+          "workflow": ".github/workflows/s2arm-prepare.yml",
+          "branch": "work/s2arm-switch2-prototype-20261110",
+          "subdir": "sysdata"
+        }
+      },
+      "podLibraries": [
+        "s2arm_engine_bridge"
+      ],
+      "appResources": [
+        {
+          "path": "S2ArmSystemData/SHA256SUMS",
+          "binary": "sysdata/SHA256SUMS"
+        }
+      ],
+      "pinSha256": "e1ffb7e59e2b329b2d9e870b8d756ada8e139bea92765f9728a8569211e80d5c"
     }
-   ],
-   "pinSha256": "e1ffb7e59e2b329b2d9e870b8d756ada8e139bea92765f9728a8569211e80d5c"
+  },
+  "product": {
+    "reviewedCommits": [
+      {
+        "commit": "d2fd2d50e2df5476a28ccb5aa257fa34c5d2fd9e",
+        "note": "Reviewed by the executing session, which wrote it: docs(rpcs3): record the maintainer's asynchronous shader decision and correct the menu-wakeup attribution [skip ci]"
+      },
+      {
+        "commit": "3525b7c7158b62f95df5a6cec9535cb60412efc3",
+        "note": "Reviewed by the executing session, which wrote it: rpcs3(core939): the IPA 745 lot \u2014 asynchronous shaders by default, pipeline cache limit, glslang prewarm, guest memory of the Black Ops II freeze, and the heat part for menus and play; source, packaging, record [skip ci]"
+      },
+      {
+        "commit": "b762bfa4e8100846abb2d3c4f3277da78c4aaf4b",
+        "note": "Reviewed by the executing session, which wrote it: [rpcs3-core-build] build(rpcs3): request the Core 939 compile (IPA 745 lot: asynchronous shaders, freeze capture, heat)"
+      },
+      {
+        "commit": "2a71a05d4858a3270eda860ecd65b9a10b189b78",
+        "note": "The S2Arm session's engine work, taken into 756 as the recipe requires for an engine pin changed after the base (docs/standard-delivery-recipe.md \u00a7 3.12): written and verified by that session (verified pin e1ffb7e5, engine run 43794475005, artifact 14194660405); reviewed by the executing session for its paths (only the S2Arm engine patches 0045-0047, their README and legal rows, and the verified pin): feat(s2arm): patch 0045, a screenshot captures the next frame's render targets and pass lines (black objects, colour bands, pink trunks of Mario Kart World) [s2arm-engine]"
+      },
+      {
+        "commit": "2d6cfef5cccf50df0e47fdbd250ac1c01d39f0c1",
+        "note": "The S2Arm session's engine work, taken into 756 as the recipe requires for an engine pin changed after the base (docs/standard-delivery-recipe.md \u00a7 3.12): written and verified by that session (verified pin e1ffb7e5, engine run 43794475005, artifact 14194660405); reviewed by the executing session for its paths (only the S2Arm engine patches 0045-0047, their README and legal rows, and the verified pin): fix(s2arm): patch 0046, draws over a depth prepass wait for their pipeline instead of being skipped while it compiles (black objects of Mario Kart World) [s2arm-engine]"
+      },
+      {
+        "commit": "10f4a64e6b00968edd6a8571ac2b1e0751984d5a",
+        "note": "The S2Arm session's engine work, taken into 756 as the recipe requires for an engine pin changed after the base (docs/standard-delivery-recipe.md \u00a7 3.12): written and verified by that session (verified pin e1ffb7e5, engine run 43794475005, artifact 14194660405); reviewed by the executing session for its paths (only the S2Arm engine patches 0045-0047, their README and legal rows, and the verified pin): docs(s2arm): README and legal rows of patch 0046 (left out of 2d6cfef5c) [skip ci]"
+      },
+      {
+        "commit": "de298373cf76a7428f8ac22db1667bcd763f8f02",
+        "note": "Reviewed by the executing session, which wrote it: build(rpcs3): pin RPCS3 Core 939 (run 43788845920, artifact 14192148974, dylib d0875514 81116408 B, fingerprint 8acb98fa) [skip ci]"
+      },
+      {
+        "commit": "c496f35b4b21e6362ae5a9fad43a6a233d45580d",
+        "note": "Reviewed by the executing session, which wrote it: docs(rpcs3): Core 939 request 2 in preparation \u2014 what the adversarial review found and what it fixes [skip ci]"
+      },
+      {
+        "commit": "e33e4a34343809701a3091d36bf39e6aca2c2e03",
+        "note": "The S2Arm session's engine work, taken into 756 as the recipe requires for an engine pin changed after the base (docs/standard-delivery-recipe.md \u00a7 3.12): written and verified by that session (verified pin e1ffb7e5, engine run 43794475005, artifact 14194660405); reviewed by the executing session for its paths (only the S2Arm engine patches 0045-0047, their README and legal rows, and the verified pin): build(s2arm): pin the engine with patches 0045-0046 (screenshot frame capture; draws over a depth prepass wait for their pipeline) [s2arm-pin engine=43791231517 prepare=43304794526 sysdata=43038032448]"
+      },
+      {
+        "commit": "d90cffd39bf8956e178bc50eb0cc0d027e37f6c2",
+        "note": "The S2Arm session's engine work, taken into 756 as the recipe requires for an engine pin changed after the base (docs/standard-delivery-recipe.md \u00a7 3.12): written and verified by that session (verified pin e1ffb7e5, engine run 43794475005, artifact 14194660405); reviewed by the executing session for its paths (only the S2Arm engine patches 0045-0047, their README and legal rows, and the verified pin): build(s2arm): verified engine pin 3b2e4f80 \u2014 patches 0001-0046 (run 43791231517, artifact 14192484178) [skip ci]"
+      },
+      {
+        "commit": "fa5978f384d05d90e44d03971793eed3f8ff0bd5",
+        "note": "Reviewed by the executing session: the S2Arm session's merge that brought this session's b05170ce2 (the minimal FPS / CPU / RAM / NeoSwap performance bar), pushed during the 755 request; its diff against its first parent is that commit's change only: merge: the RPCS3 session's b05170ce2 (performance bar), pushed during the 755 request; source only for 755 [skip ci]"
+      },
+      {
+        "commit": "ce26b04211750920cfdbd36aa9211fcd9c889349",
+        "note": "Reviewed by the executing session, which wrote it: rpcs3(core939): request 2 \u2014 the fixes of the adversarial review before the IPA; source, packaging, record [skip ci]"
+      },
+      {
+        "commit": "13d33a25e32d7ca0ab436bc72614521884488e29",
+        "note": "Reviewed by the executing session, which wrote it: [rpcs3-core-build] build(rpcs3): request the Core 939 compile, request 2 (fixes of the adversarial review)"
+      },
+      {
+        "commit": "41c88fe1a545e63b8ffc864e43f094d873b9d554",
+        "note": "Reviewed by the executing session, which wrote it: build(delivery): recipient public key of the private test IPA 756 \u2014 the RPCS3 session takes the number [skip ci]"
+      },
+      {
+        "commit": "8b1ddaa6822e603461d06a781add9fd3ac4a8337",
+        "note": "The S2Arm session's engine work, taken into 756 as the recipe requires for an engine pin changed after the base (docs/standard-delivery-recipe.md \u00a7 3.12): written and verified by that session (verified pin e1ffb7e5, engine run 43794475005, artifact 14194660405); reviewed by the executing session for its paths (only the S2Arm engine patches 0045-0047, their README and legal rows, and the verified pin): fix(s2arm): patch 0047, MINIMAL_LAYOUT textures read in the driver's layout (Mario Kart World's CPU-written terrain maps; the vertical colour bands) [s2arm-engine]"
+      },
+      {
+        "commit": "e39db10244144ed80bed140831a2bdbe188b1474",
+        "note": "Reviewed by the executing session, which wrote it: fix(rpcs3): the minimal performance bar keeps a readable width; the NeoSwap contract test follows the bar [skip ci]"
+      },
+      {
+        "commit": "688348844a2813e7bca69319246ad67717d0fb92",
+        "note": "The S2Arm session's engine work, taken into 756 as the recipe requires for an engine pin changed after the base (docs/standard-delivery-recipe.md \u00a7 3.12): written and verified by that session (verified pin e1ffb7e5, engine run 43794475005, artifact 14194660405); reviewed by the executing session for its paths (only the S2Arm engine patches 0045-0047, their README and legal rows, and the verified pin): build(s2arm): pin the engine with patch 0047 (MINIMAL_LAYOUT textures in the driver's layout) [s2arm-pin engine=43794475005 prepare=43304794526 sysdata=43038032448]"
+      },
+      {
+        "commit": "28eb876c3c93b606ccaad8e6ff1811ed4f1cee3d",
+        "note": "The S2Arm session's engine work, taken into 756 as the recipe requires for an engine pin changed after the base (docs/standard-delivery-recipe.md \u00a7 3.12): written and verified by that session (verified pin e1ffb7e5, engine run 43794475005, artifact 14194660405); reviewed by the executing session for its paths (only the S2Arm engine patches 0045-0047, their README and legal rows, and the verified pin): build(s2arm): verified engine pin e1ffb7e5 \u2014 patches 0001-0047 (run 43794475005, artifact 14194660405) [skip ci]"
+      }
+    ],
+    "sourceOnly": [
+      {
+        "commit": "0ca565657554b343ddb087404df1c4b574d68f83",
+        "targetBuild": 754,
+        "note": "NeoPlay session's record of its delivered IPA 754 (evidence and documentation): docs(delivery): record verified private IPA 754 (run 43787137375, IPA 6b2c7b3e) and its receipts; recipient key deleted [skip ci]"
+      },
+      {
+        "commit": "8a495531641904187ae66050ec74f805011de1f6",
+        "targetBuild": 755,
+        "note": "S2Arm session's concurrent work for its private IPA 755 (engine patches 0045-0047, their pins, the 755 drafts, key and requests): build(delivery): recipient public key of the private test IPA 755 \u2014 the S2Arm session takes the number [skip ci]"
+      },
+      {
+        "commit": "16ab4a551eae355646b9e5a273c8dfc5319fa91c",
+        "targetBuild": 755,
+        "note": "S2Arm session's concurrent work for its private IPA 755 (engine patches 0045-0047, their pins, the 755 drafts, key and requests): build(delivery): draft 755 \u2014 the S2Arm engine of patches 0045-0046 on base 754, the base's RPCS3 Core kept [skip ci]"
+      },
+      {
+        "commit": "adcf597745f8c1115d9da9b6ca6ed907810942d9",
+        "targetBuild": 755,
+        "note": "S2Arm session's concurrent work for its private IPA 755 (engine patches 0045-0047, their pins, the 755 drafts, key and requests): [ipa-delivery:755] build the private test IPA 755: the S2Arm engine of patches 0045-0046 on base 754 (draws over a depth prepass wait for their pipeline; screenshot frame capture)"
+      },
+      {
+        "commit": "8d3165509ea30197a35badd6aa73f644f00f0f4e",
+        "targetBuild": 755,
+        "note": "S2Arm session's concurrent work for its private IPA 755 (engine patches 0045-0047, their pins, the 755 drafts, key and requests): build(delivery): draft 755 again \u2014 after the merge of the RPCS3 session's b05170ce2 [skip ci]"
+      },
+      {
+        "commit": "da6c195bf3460cc5180b23e49c9b07fc17ea2b97",
+        "targetBuild": 755,
+        "note": "S2Arm session's concurrent work for its private IPA 755 (engine patches 0045-0047, their pins, the 755 drafts, key and requests): [ipa-delivery:755] build the private test IPA 755: the S2Arm engine of patches 0045-0046 on base 754 (draws over a depth prepass wait for their pipeline; screenshot frame capture)"
+      },
+      {
+        "commit": "5e8517bb4ec5548fc26bced8de70ab18a4f2c9e4",
+        "targetBuild": 757,
+        "note": "NeoPlay Chromecast session's merge (first-parent line): it brings that session's e660b652d, the RewindBox Cast receiver stage 2 (NeoPlay bridge, dialog and locale, the receiver page) for its private IPA 757, together with this session's 5a7f0cd64 (the Core 939 request 2 pin, no product path; the rpcs3 component reads it)."
+      }
+    ],
+    "promotedCommits": [],
+    "freezeCommit": "f946cf4d5cc75d239be97f6aa168fae32e458bae",
+    "freezeTree": "5088809a735ae1509bbbce442b744800ff8cb5eb",
+    "baseEffectiveDigest": "eea6ee2b9ccf4c67ba76fe3e829c29cc976e3913d80605850c296a4d21c2f3e7",
+    "inheritedDeferredPaths": [
+      "build-utils/maintenance/actions-cleanup-2026-11-10-followup.json",
+      "build-utils/maintenance/actions-cleanup-2026-11-10.json",
+      "build-utils/maintenance/actions-cleanup-2026-11-13-bulk.json",
+      "build-utils/maintenance/cleanup_actions.py",
+      "build-utils/melonx/metal-archive/README.md",
+      "build-utils/melonx/metal-archive/moltenvk-v1.4.2-binary-archives.patch",
+      "build-utils/melonx/online/README.md",
+      "build-utils/melonx/online/adapt_nextendo_online.py",
+      "build-utils/melonx/online/v1-to-v2.patch",
+      "build-utils/melonx/online/v2-to-v3.patch",
+      "build-utils/melonx/online/wiring.patch",
+      "lib/l10n/switch_online_locale.dart",
+      "lib/models/retro_achievements_session.dart",
+      "lib/screens/game_screen/game_details_card/dialogs/game_achievements_dialog.dart",
+      "lib/screens/game_screen/game_details_card/game_details_card_list.dart",
+      "lib/screens/game_screen/game_details_card/tabs/game_details_achievements_tab.dart",
+      "lib/screens/game_screen/game_details_card/tabs/ra_identity_note.dart",
+      "lib/services/libretro_internal_service.dart",
+      "lib/services/melonx_internal_service.dart",
+      "lib/services/nextendo/nextendo_config.dart",
+      "lib/services/nextendo/nextendo_engine_support.dart",
+      "lib/services/nextendo/nextendo_online_play.dart",
+      "lib/services/retro_achievements_helper.dart",
+      "lib/services/retro_achievements_identity.dart",
+      "lib/services/retro_achievements_resolver.dart",
+      "lib/services/retro_achievements_session_service.dart",
+      "lib/services/retroachievements_hash_service.dart",
+      "lib/services/rpcs3_internal_service.dart",
+      "lib/services/rpcs3_launch_service.dart",
+      "lib/services/stikjit_armsx2_service.dart",
+      "lib/utils/optimized_md5_utils.dart",
+      "lib/widgets/nextendo_dialog.dart",
+      "native/melonx/online/EmbeddedOnline.cs",
+      "packages/libretro_internal_bridge/ios/Classes/LibretroAchievements.m",
+      "packages/libretro_internal_bridge/ios/Classes/LibretroInternalBridgePlugin.m",
+      "packages/libretro_internal_bridge/ios/Classes/RBDiscHashReader.c",
+      "packages/libretro_internal_bridge/ios/Classes/RBDiscHashReader.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/LICENSE.txt",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/NEOSTATION_NOTICE.md",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/README.md",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/LICENSE",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/LzmaDec.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/real/7zTypes.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/real/LzmaDec.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/src/LzmaDec.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/src/real/LzmaDec.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstd.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstd_errors.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstddeclib.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/dr_libs/dr_flac.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/bitstream.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/cdrom.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/chd.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/chdconfig.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/coretypes.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/flac.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/huffman.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/macros.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_avhuff.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdfl.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdlz.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdzl.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdzs.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_flac.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_huff.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_lzma.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_zlib.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_zstd.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_bitstream.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_cdrom.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_chd.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_avhuff.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdfl.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdlz.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdzl.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdzs.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_flac.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_huff.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_lzma.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_zlib.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_zstd.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_flac.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_huffman.c",
+      "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXInternalBridgePlugin.swift",
+      "source.json",
+      "test/actions_cleanup_test.py",
+      "test/libretro_ios_syntax_test.py",
+      "test/melonx_metal_binary_archive/generate_shaders.py",
+      "test/melonx_metal_binary_archive/metal_probe.mm",
+      "test/melonx_metal_binary_archive/mvk_archive_test.cpp",
+      "test/melonx_metal_binary_archive/run_mvk.py",
+      "test/melonx_metal_binary_archive/run_probe.py",
+      "test/melonx_metal_binary_archive/shaders.spvz",
+      "test/ra_disc_hash_reader_test.py",
+      "test/retro_achievements_identification_test.dart"
+    ],
+    "recipeDefinitionSHA256": "bb612f4a43186a801232ffa15ad61fcd22e4df60e31a7392b69cd7ab094f2b2a",
+    "recipeDefinition": {
+      "prefixes": [
+        ".github/",
+        "docs/",
+        ".claude/",
+        "build-utils/delivery/"
+      ],
+      "files": [
+        "build-utils/rpcs3/core-pin.json",
+        "build-utils/melonx/reads-core-pin.json",
+        "build-utils/melonx/arrays-core-pin.json",
+        "build-utils/melonx/dma-core-pin.json",
+        "test/standard_delivery_contract_test.py",
+        "build-utils/verify_downloaded_delivery.py"
+      ],
+      "globs": [
+        "build-utils/delivery-*-recipient.pem"
+      ],
+      "rootMarkdown": true
+    },
+    "commits": [
+      {
+        "commit": "d2fd2d50e2df5476a28ccb5aa257fa34c5d2fd9e",
+        "subject": "docs(rpcs3): record the maintainer's asynchronous shader decision and correct the menu-wakeup attribution [skip ci]",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "3525b7c7158b62f95df5a6cec9535cb60412efc3",
+        "subject": "rpcs3(core939): the IPA 745 lot \u2014 asynchronous shaders by default, pipeline cache limit, glslang prewarm, guest memory of the Black Ops II freeze, and the heat part for menus and play; source, packaging, record [skip ci]",
+        "role": "reviewed",
+        "productPaths": 10
+      },
+      {
+        "commit": "b762bfa4e8100846abb2d3c4f3277da78c4aaf4b",
+        "subject": "[rpcs3-core-build] build(rpcs3): request the Core 939 compile (IPA 745 lot: asynchronous shaders, freeze capture, heat)",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "2a71a05d4858a3270eda860ecd65b9a10b189b78",
+        "subject": "feat(s2arm): patch 0045, a screenshot captures the next frame's render targets and pass lines (black objects, colour bands, pink trunks of Mario Kart World) [s2arm-engine]",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "0ca565657554b343ddb087404df1c4b574d68f83",
+        "subject": "docs(delivery): record verified private IPA 754 (run 43787137375, IPA 6b2c7b3e) and its receipts; recipient key deleted [skip ci]",
+        "role": "sourceOnly",
+        "productPaths": 0
+      },
+      {
+        "commit": "2d6cfef5cccf50df0e47fdbd250ac1c01d39f0c1",
+        "subject": "fix(s2arm): patch 0046, draws over a depth prepass wait for their pipeline instead of being skipped while it compiles (black objects of Mario Kart World) [s2arm-engine]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "10f4a64e6b00968edd6a8571ac2b1e0751984d5a",
+        "subject": "docs(s2arm): README and legal rows of patch 0046 (left out of 2d6cfef5c) [skip ci]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "8a495531641904187ae66050ec74f805011de1f6",
+        "subject": "build(delivery): recipient public key of the private test IPA 755 \u2014 the S2Arm session takes the number [skip ci]",
+        "role": "sourceOnly",
+        "productPaths": 0
+      },
+      {
+        "commit": "de298373cf76a7428f8ac22db1667bcd763f8f02",
+        "subject": "build(rpcs3): pin RPCS3 Core 939 (run 43788845920, artifact 14192148974, dylib d0875514 81116408 B, fingerprint 8acb98fa) [skip ci]",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "c496f35b4b21e6362ae5a9fad43a6a233d45580d",
+        "subject": "docs(rpcs3): Core 939 request 2 in preparation \u2014 what the adversarial review found and what it fixes [skip ci]",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "e33e4a34343809701a3091d36bf39e6aca2c2e03",
+        "subject": "build(s2arm): pin the engine with patches 0045-0046 (screenshot frame capture; draws over a depth prepass wait for their pipeline) [s2arm-pin engine=43791231517 prepare=43304794526 sysdata=43038032448]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "d90cffd39bf8956e178bc50eb0cc0d027e37f6c2",
+        "subject": "build(s2arm): verified engine pin 3b2e4f80 \u2014 patches 0001-0046 (run 43791231517, artifact 14192484178) [skip ci]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "16ab4a551eae355646b9e5a273c8dfc5319fa91c",
+        "subject": "build(delivery): draft 755 \u2014 the S2Arm engine of patches 0045-0046 on base 754, the base's RPCS3 Core kept [skip ci]",
+        "role": "sourceOnly",
+        "productPaths": 0
+      },
+      {
+        "commit": "adcf597745f8c1115d9da9b6ca6ed907810942d9",
+        "subject": "[ipa-delivery:755] build the private test IPA 755: the S2Arm engine of patches 0045-0046 on base 754 (draws over a depth prepass wait for their pipeline; screenshot frame capture)",
+        "role": "sourceOnly",
+        "productPaths": 0
+      },
+      {
+        "commit": "fa5978f384d05d90e44d03971793eed3f8ff0bd5",
+        "subject": "merge: the RPCS3 session's b05170ce2 (performance bar), pushed during the 755 request; source only for 755 [skip ci]",
+        "role": "reviewed",
+        "productPaths": 5,
+        "merge": true
+      },
+      {
+        "commit": "8d3165509ea30197a35badd6aa73f644f00f0f4e",
+        "subject": "build(delivery): draft 755 again \u2014 after the merge of the RPCS3 session's b05170ce2 [skip ci]",
+        "role": "sourceOnly",
+        "productPaths": 0
+      },
+      {
+        "commit": "da6c195bf3460cc5180b23e49c9b07fc17ea2b97",
+        "subject": "[ipa-delivery:755] build the private test IPA 755: the S2Arm engine of patches 0045-0046 on base 754 (draws over a depth prepass wait for their pipeline; screenshot frame capture)",
+        "role": "sourceOnly",
+        "productPaths": 0
+      },
+      {
+        "commit": "ce26b04211750920cfdbd36aa9211fcd9c889349",
+        "subject": "rpcs3(core939): request 2 \u2014 the fixes of the adversarial review before the IPA; source, packaging, record [skip ci]",
+        "role": "reviewed",
+        "productPaths": 8
+      },
+      {
+        "commit": "13d33a25e32d7ca0ab436bc72614521884488e29",
+        "subject": "[rpcs3-core-build] build(rpcs3): request the Core 939 compile, request 2 (fixes of the adversarial review)",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "41c88fe1a545e63b8ffc864e43f094d873b9d554",
+        "subject": "build(delivery): recipient public key of the private test IPA 756 \u2014 the RPCS3 session takes the number [skip ci]",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "8b1ddaa6822e603461d06a781add9fd3ac4a8337",
+        "subject": "fix(s2arm): patch 0047, MINIMAL_LAYOUT textures read in the driver's layout (Mario Kart World's CPU-written terrain maps; the vertical colour bands) [s2arm-engine]",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "e39db10244144ed80bed140831a2bdbe188b1474",
+        "subject": "fix(rpcs3): the minimal performance bar keeps a readable width; the NeoSwap contract test follows the bar [skip ci]",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "688348844a2813e7bca69319246ad67717d0fb92",
+        "subject": "build(s2arm): pin the engine with patch 0047 (MINIMAL_LAYOUT textures in the driver's layout) [s2arm-pin engine=43794475005 prepare=43304794526 sysdata=43038032448]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "28eb876c3c93b606ccaad8e6ff1811ed4f1cee3d",
+        "subject": "build(s2arm): verified engine pin e1ffb7e5 \u2014 patches 0001-0047 (run 43794475005, artifact 14194660405) [skip ci]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "3d9ccfdcad9cd0741cf0106906715c84e223b75a",
+        "subject": "build(delivery): draft 755, second request \u2014 the engine of patches 0001-0047 on base 754 [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "5e8517bb4ec5548fc26bced8de70ab18a4f2c9e4",
+        "subject": "merge: the RPCS3 session's 5a7f0cd64 (Core 939 request 2 pin) \u2014 this session's 755 second-request draft (3d9ccfdca, never triggered) goes out with it [skip ci]",
+        "role": "sourceOnly",
+        "productPaths": 16,
+        "merge": true
+      },
+      {
+        "commit": "9bc07a433011927c252fee7d28f8cc4a5106c1a8",
+        "subject": "build(delivery): recipient public key of the private test IPA 757 \u2014 the NeoPlay Chromecast session takes the number; README: the receiver page checked with Google's CAF framework [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "f946cf4d5cc75d239be97f6aa168fae32e458bae",
+        "subject": "build(delivery): draft 756 \u2014 RPCS3 Core 939 request 2 and the minimal performance bar on base 754, with the S2Arm engine of patches 0001-0047 (recipe \u00a7 3.12) [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      }
+    ],
+    "deferred": {
+      "0ca565657554b343ddb087404df1c4b574d68f83": [],
+      "8a495531641904187ae66050ec74f805011de1f6": [],
+      "16ab4a551eae355646b9e5a273c8dfc5319fa91c": [],
+      "adcf597745f8c1115d9da9b6ca6ed907810942d9": [],
+      "8d3165509ea30197a35badd6aa73f644f00f0f4e": [],
+      "da6c195bf3460cc5180b23e49c9b07fc17ea2b97": [],
+      "5e8517bb4ec5548fc26bced8de70ab18a4f2c9e4": [
+        "lib/l10n/neoplay_stream_locale.dart",
+        "lib/widgets/neoplay_dialog.dart",
+        "packages/neoplay_bridge/ios/Classes/NPCapture.swift",
+        "packages/neoplay_bridge/ios/Classes/NPController.swift",
+        "packages/neoplay_bridge/ios/Classes/NPDirectStream.swift",
+        "packages/neoplay_bridge/ios/Classes/NPFramesStream.swift",
+        "packages/neoplay_bridge/ios/Classes/NPGoogleCast.swift",
+        "packages/neoplay_bridge/ios/Classes/NPHTTPServer.swift",
+        "packages/neoplay_bridge/ios/Classes/NPPolicy.swift",
+        "packages/neoplay_bridge/ios/Classes/NPReceiverLink.swift",
+        "tools/neoplay-cast-receiver/frames-engine.mjs",
+        "tools/neoplay-cast-receiver/index.html",
+        "tools/neoplay-cast-receiver/mp4-engine.mjs",
+        "tools/neoplay-cast-receiver/receiver.mjs",
+        "tools/neoplay-cast-receiver/site.mjs",
+        "tools/neoplay-cast-receiver/stream-packets.mjs"
+      ]
+    },
+    "effective": {
+      "build-utils/rpcs3/canonical-source.json": {
+        "mode": "100644",
+        "gitBlob": "8778979101dc06fd4a21b42bf50812ec860b5d9d",
+        "sha256": "3b74120ba7e8993767c904cf58d166ebfb2325fb575fdd22750f25b2bd78ffd5"
+      },
+      "build-utils/rpcs3/core-build.json": {
+        "mode": "100644",
+        "gitBlob": "70da3056e7b55b51a75a008c28ddd743e75b792b",
+        "sha256": "4c0ed74ef3182c4415f81b7602a1792a56b19131262828836cce3bf18337f0ca"
+      },
+      "build-utils/rpcs3/core939-delta.json": {
+        "mode": "100644",
+        "gitBlob": "eadd5876694ffb2169cc9dbcd90eacc767a3a0c4",
+        "sha256": "4ec15cf7135f8f0ee560c6f1bdd5ffce19472856e5c55975ac62cdc3bfe2c3d7"
+      },
+      "build-utils/rpcs3/core939-delta.patch": {
+        "mode": "100644",
+        "gitBlob": "97c633f7e4723d5655b0ec132a61dc67c00d3a9b",
+        "sha256": "b4db525d1fbedd7a093743168d5e27b4e98f8e6070c9d28646cb103b7db0a8d4"
+      },
+      "build-utils/rpcs3/core939-from-938.patch": {
+        "mode": "100644",
+        "gitBlob": "7c4c14d427fdde921fcc96c2574c15e2ba7022b9",
+        "sha256": "90c1904d7171f09a6e2335620659857a29d98987ff90527a3c937064c1a883c4"
+      },
+      "build-utils/rpcs3/embedded-core.patch": {
+        "mode": "100644",
+        "gitBlob": "d5441a7a8247fb9ce8f6ce1bfc1757ad412b8e50",
+        "sha256": "537905837315e44cf4a59a7f60652d9b20a70499c6f4726a284ff43dba6221e3"
+      },
+      "build-utils/rpcs3/metal-wip-from-938.patch": {
+        "mode": "100644",
+        "gitBlob": "7c4c14d427fdde921fcc96c2574c15e2ba7022b9",
+        "sha256": "90c1904d7171f09a6e2335620659857a29d98987ff90527a3c937064c1a883c4"
+      },
+      "build-utils/s2arm/engine-pin.json": {
+        "mode": "100644",
+        "gitBlob": "13f8c68a8fb824b1c2ff7f69fad3e7ed464359aa",
+        "sha256": "e1ffb7e59e2b329b2d9e870b8d756ada8e139bea92765f9728a8569211e80d5c"
+      },
+      "build-utils/s2arm/engine/README.md": {
+        "mode": "100644",
+        "gitBlob": "e949aecd904d58bff9e3d2426698d126dd1420c6",
+        "sha256": "f2825b2f32ec03b8c4b6a5e45caf64cc019d52ada2ba9d04a5b2b3aa95bdc9d1"
+      },
+      "build-utils/s2arm/engine/patches/0045-upstream-target-dump-by-class-and-guest-screenshot-frame-capture.patch": {
+        "mode": "100644",
+        "gitBlob": "39d66626aa62a6c0dfc314ff20e8642a5d6af8c9",
+        "sha256": "3ab099427fa5292fd3a6c8fa2266e29a982f58f52290327331ef49e8c8a0ea9f"
+      },
+      "build-utils/s2arm/engine/patches/0046-guest-draws-over-a-depth-prepass-wait-for-their-pipeline.patch": {
+        "mode": "100644",
+        "gitBlob": "cafbdc0a891e360ff67200704251d3b423ac37c0",
+        "sha256": "2d233235d8b4b1068a007e1c4e3a55cbd9aec45f061c701ef30b9cecfb07e8cd"
+      },
+      "build-utils/s2arm/engine/patches/0047-upstream-packaged-layout-nibbles-and-minimal-layout.patch": {
+        "mode": "100644",
+        "gitBlob": "f768ce03ae7c22d82083a78d07c2e558ac249c10",
+        "sha256": "c60de838e46a38c6321f47517a7364b4c7088f36ffe63c20495ff20f8a5e4e40"
+      },
+      "packages/rpcs3_internal_bridge/ios/Classes/RPCS3OverlayButtonLayout.h": {
+        "mode": "100644",
+        "gitBlob": "b70010606b7b5e4dfab9b3f8d480064bbfbe2280",
+        "sha256": "456bdcf8466a7bafa36a48f4b0237b8f8a1e5db9d1443a86c4c62e23c2705d05"
+      },
+      "packages/rpcs3_internal_bridge/ios/Classes/RPCS3PerformanceOverlay.h": {
+        "mode": "100644",
+        "gitBlob": "a42be6ed0730c309d1ae1623aec72d8d8f8e344b",
+        "sha256": "0fe02625d7e86dc876c91c7cecd763111610a638182d2133a6810fe9ad6f5b22"
+      },
+      "packages/rpcs3_internal_bridge/ios/Classes/RPCS3PerformanceOverlay.mm": {
+        "mode": "100644",
+        "gitBlob": "930e59eae158ef2bb3a70b9009b8311f6ef0ff5a",
+        "sha256": "89d8b187588d6e099f112ab8aed2c02f136ee0db5051125ca2f649ae09ebba24"
+      },
+      "test/neo_swap_core_pin_test.py": {
+        "mode": "100644",
+        "gitBlob": "f24fc43e08eeb8d4e6e3e7d2af73171a42190979",
+        "sha256": "009e2759e12a9dde1239be47e4d516473cf63c6ba9d321eb19f0ba3dfebc5e8e"
+      },
+      "test/neoswap_donor_contract_test.py": {
+        "mode": "100644",
+        "gitBlob": "effc1ac87cefea845efc953e94d9d2bafe4177c2",
+        "sha256": "a9f202f260aa8de59ada9e97f89a631a9957f45841fdd492fb3ee9f01fc81e6e"
+      },
+      "test/rpcs3_lever_comparison920_test.py": {
+        "mode": "100644",
+        "gitBlob": "acaaf5330ce7557f80d93e0ec4ad26022f4f43b0",
+        "sha256": "b424fa511f3257b43a5468b8dea2f0ffc3841fe52fa123bb6c40cdfacc81a281"
+      },
+      "test/rpcs3_neoswap_localizations_test.py": {
+        "mode": "100644",
+        "gitBlob": "134e5e248049a8cdaf30aefef121b2c89aae7e18",
+        "sha256": "ac470d9e1614024997e0eab16c76f05549044b280874da7c89d3071bfdd94aac"
+      },
+      "test/rpcs3_overlay_button_layout_test.py": {
+        "mode": "100644",
+        "gitBlob": "1f0c83efd26482c1ba80b1a0aaa02fc19d75688a",
+        "sha256": "c724ffb362a0a98029eead2e173b5682162ed938008b309c7563cae638ca536d"
+      },
+      "test/rpcs3_zcull_watched919_test.py": {
+        "mode": "100644",
+        "gitBlob": "84ae1e76eb1441b1e18acb39c07b0d0b78e52aa6",
+        "sha256": "d781ed04e8ec420e6704c8d2086d300450661bc0b8217ab2b63173465ce65c7e"
+      }
+    },
+    "restore": {
+      "build-utils/maintenance/actions-cleanup-2026-11-10-followup.json": null,
+      "build-utils/maintenance/actions-cleanup-2026-11-10.json": null,
+      "build-utils/maintenance/actions-cleanup-2026-11-13-bulk.json": null,
+      "build-utils/maintenance/cleanup_actions.py": {
+        "mode": "100644",
+        "gitBlob": "d9d9eebd0b5f280598442a336aaf958cc9d033b6",
+        "sha256": "9e491611b6146032815aac0b8934e6edbdbc14e2f817350c006e7e8541773b97"
+      },
+      "build-utils/melonx/metal-archive/README.md": null,
+      "build-utils/melonx/metal-archive/moltenvk-v1.4.2-binary-archives.patch": null,
+      "build-utils/melonx/online/README.md": null,
+      "build-utils/melonx/online/adapt_nextendo_online.py": {
+        "mode": "100644",
+        "gitBlob": "37e1208228bb245cebc3b09c3bc603c0d011f842",
+        "sha256": "52d30c62f13ac0af243c8a255b2ac6a663b89d07e1a012a7dc6c4ab9a4ab932c"
+      },
+      "build-utils/melonx/online/v1-to-v2.patch": null,
+      "build-utils/melonx/online/v2-to-v3.patch": null,
+      "build-utils/melonx/online/wiring.patch": null,
+      "lib/l10n/neoplay_stream_locale.dart": {
+        "mode": "100644",
+        "gitBlob": "c20fbd3e39393e2fa98768f802d2a22e7e92685a",
+        "sha256": "13de850c2719f88728be6084e8ea63b273f8e450c20317cc168c119ebb9e418e"
+      },
+      "lib/l10n/switch_online_locale.dart": {
+        "mode": "100644",
+        "gitBlob": "64362e86d328c4de8f4224b12979c21900e8ea60",
+        "sha256": "3acfae8a9686d12a62967bd5590571e81e4e6d327f4bba3c5c6a9cab6706ece2"
+      },
+      "lib/models/retro_achievements_session.dart": {
+        "mode": "100644",
+        "gitBlob": "4269f11a7461d639b925e07b30a8762a6abd3a44",
+        "sha256": "d1bd88333f43aaac85528c6754c47f6355e1aa223c95fac3fe1ee5f7961dbf29"
+      },
+      "lib/screens/game_screen/game_details_card/dialogs/game_achievements_dialog.dart": {
+        "mode": "100644",
+        "gitBlob": "518801de96b6a6980b3746e1b1d3dbf78165618c",
+        "sha256": "74806efe99a906107c401d637e6b4749f7031009611b891a2d2b4e1d0bc410db"
+      },
+      "lib/screens/game_screen/game_details_card/game_details_card_list.dart": {
+        "mode": "100644",
+        "gitBlob": "ab802e4ebeda9f2de2e33a3ffd806d3e7f4dad92",
+        "sha256": "5a1575c2be152382723931124434d798745d2d8ddea713e81ceaa3b96f1f622e"
+      },
+      "lib/screens/game_screen/game_details_card/tabs/game_details_achievements_tab.dart": {
+        "mode": "100644",
+        "gitBlob": "5194d28fc3916f841378d2b5ecb4870045f05d56",
+        "sha256": "9faed5aceffdf27b0a43fd1e8cb922e6cfd1453459086a593b8a90ddef544613"
+      },
+      "lib/screens/game_screen/game_details_card/tabs/ra_identity_note.dart": null,
+      "lib/services/libretro_internal_service.dart": {
+        "mode": "100644",
+        "gitBlob": "75913a836bfed1a10345632bcfa864c305943234",
+        "sha256": "ef0e41f08fdbfaf5def6020cf496a903161841774b37b5bab5ae8996ea0d6d5b"
+      },
+      "lib/services/melonx_internal_service.dart": {
+        "mode": "100644",
+        "gitBlob": "a174324112d66fe124ae8471cb7fc6fe34255f8f",
+        "sha256": "be36d635f35d5b6a64a7decb70b7e8d0ff2884df7d78331d6d0365035ec29748"
+      },
+      "lib/services/nextendo/nextendo_config.dart": {
+        "mode": "100644",
+        "gitBlob": "55fb591750563d9eccd19b31ccca2ca047cd0500",
+        "sha256": "2064fdb69fd3a2e7ed858de5f6db19a9f936fdcdf3f64f95283e1fa848107b60"
+      },
+      "lib/services/nextendo/nextendo_engine_support.dart": null,
+      "lib/services/nextendo/nextendo_online_play.dart": {
+        "mode": "100644",
+        "gitBlob": "409944904c13e05f0eb5e77fad6a6bb6aec694ce",
+        "sha256": "4a83ae38fde439665e0f23873d85e122c3e491c3d55695548eff665e0d99d6f8"
+      },
+      "lib/services/retro_achievements_helper.dart": {
+        "mode": "100644",
+        "gitBlob": "5b0cf3f335ef80c08b95cfd809958e2023e0d14e",
+        "sha256": "8e99f5d77973dcada8083a33e16ca59c4df68c9d4e58d7de9b21c6233d2d61be"
+      },
+      "lib/services/retro_achievements_identity.dart": null,
+      "lib/services/retro_achievements_resolver.dart": {
+        "mode": "100644",
+        "gitBlob": "d4cdca0d130c7e89cd8cc0e0929a6a95475de254",
+        "sha256": "4291d240b7c8850adcc76f2f671d86aef1102bdfbb01a519545519be7f32033e"
+      },
+      "lib/services/retro_achievements_session_service.dart": {
+        "mode": "100644",
+        "gitBlob": "db22f94ae742da793b7cf55c9d8f2e244f2ab58d",
+        "sha256": "e026ebb8df3847ef38e007eac3a1e1b3eade55fe5c74f279cc3b6f0493495274"
+      },
+      "lib/services/retroachievements_hash_service.dart": {
+        "mode": "100644",
+        "gitBlob": "4592a53d11781c891d2bec1aeca61e86fcda787a",
+        "sha256": "4fe80a501277cca81fe5e290cc4775943b9835d62c6b4bda1b30d15ad82a7f97"
+      },
+      "lib/services/rpcs3_internal_service.dart": {
+        "mode": "100644",
+        "gitBlob": "31c0652fa26ec1362c21b3abca6d67c0fdc06090",
+        "sha256": "960bb99aed121ad939b965e66a97416b61c9af033fcb77d74b1b6e01a3567c8a"
+      },
+      "lib/services/rpcs3_launch_service.dart": {
+        "mode": "100644",
+        "gitBlob": "3af5b85efcbdec7b936e4975959be067f0d23f41",
+        "sha256": "b6fbbea5b094defba390f654a0664a7c121ee0c0d961fda600348a0f36e8d5f3"
+      },
+      "lib/services/stikjit_armsx2_service.dart": {
+        "mode": "100644",
+        "gitBlob": "04f465441c161b014439b3853357ea3c314d90d1",
+        "sha256": "9b734542053e2f4e45104f786e6365bc3e6073fa0efafd25fb7f269da6b758ec"
+      },
+      "lib/utils/optimized_md5_utils.dart": {
+        "mode": "100644",
+        "gitBlob": "c06f875587f6de81e3e4cdc78b0fe4be45cff371",
+        "sha256": "43b4a5b529110f5329a5eda322b5362aaa6e9d81426f4289141a1a5ca080739d"
+      },
+      "lib/widgets/neoplay_dialog.dart": {
+        "mode": "100644",
+        "gitBlob": "33d3fed04a5b9875de236faf5ad3f78c111b519c",
+        "sha256": "db0a70bfd340828b67c7fd29de2683169c0d3592ae915087c8c7f525e62f527f"
+      },
+      "lib/widgets/nextendo_dialog.dart": {
+        "mode": "100644",
+        "gitBlob": "8f13753a09b4889e75c7c231427bfa7e8b8594ee",
+        "sha256": "bf21300b8b60bd0536ff57ee8dbe96b1a182016a87116a87fe6a7b5a7526dfc5"
+      },
+      "native/melonx/online/EmbeddedOnline.cs": {
+        "mode": "100644",
+        "gitBlob": "3263555205c28418e77b53988213600a1535ff09",
+        "sha256": "065ff8127afa080e4cd2a8faa55e6cefc65b52c71b19622a260699764eb151de"
+      },
+      "packages/libretro_internal_bridge/ios/Classes/LibretroAchievements.m": {
+        "mode": "100644",
+        "gitBlob": "b8307182d8117c9f06b8afb835039cae7399d831",
+        "sha256": "020d56ac77755233604186c1e9f4ea5496702cc2b16645d1e434f8c3f8e9a8b9"
+      },
+      "packages/libretro_internal_bridge/ios/Classes/LibretroInternalBridgePlugin.m": {
+        "mode": "100644",
+        "gitBlob": "274f077aa0cddc73a019e86c7b66fdca80f3817f",
+        "sha256": "d9b01e574caf28cfbad008d2bbd082d1de038c560286e6f24b8a4bbf2def6e94"
+      },
+      "packages/libretro_internal_bridge/ios/Classes/RBDiscHashReader.c": null,
+      "packages/libretro_internal_bridge/ios/Classes/RBDiscHashReader.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/LICENSE.txt": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/NEOSTATION_NOTICE.md": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/README.md": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/LICENSE": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/LzmaDec.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/real/7zTypes.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/real/LzmaDec.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/src/LzmaDec.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/src/real/LzmaDec.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstd.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstd_errors.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstddeclib.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/dr_libs/dr_flac.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/bitstream.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/cdrom.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/chd.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/chdconfig.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/coretypes.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/flac.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/huffman.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/macros.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_avhuff.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdfl.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdlz.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdzl.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdzs.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_flac.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_huff.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_lzma.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_zlib.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_zstd.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_bitstream.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_cdrom.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_chd.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_avhuff.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdfl.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdlz.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdzl.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdzs.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_flac.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_huff.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_lzma.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_zlib.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_zstd.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_flac.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_huffman.c": null,
+      "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec": {
+        "mode": "100644",
+        "gitBlob": "1c4589fea4ca0e3b002bfec28d65d9cf2f82e157",
+        "sha256": "2da2d0822c0488e5367db85a6eb696df8cd6b27e6cef30fd4ff9a55bea29bdab"
+      },
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXInternalBridgePlugin.swift": {
+        "mode": "100644",
+        "gitBlob": "3a0a9c2534124b60eac9004d08e9f3a492097ab4",
+        "sha256": "7470c228903fa11b8634360a9236466db1fe9a771d132d2346e56eb35162f8a6"
+      },
+      "packages/neoplay_bridge/ios/Classes/NPCapture.swift": {
+        "mode": "100644",
+        "gitBlob": "373752af3af47cdd1a9dd82a3b49a1f50bcf384a",
+        "sha256": "7708cd4d9baf0230824d734ea7e977e42c1f60440fbeb45f919e5e915a5c70c5"
+      },
+      "packages/neoplay_bridge/ios/Classes/NPController.swift": {
+        "mode": "100644",
+        "gitBlob": "dae73c753950493c39ab4afd55678586d346a730",
+        "sha256": "b7360a1c1037017b0badaae646c5eea3b66c3e249be4c337f4abff8394881744"
+      },
+      "packages/neoplay_bridge/ios/Classes/NPDirectStream.swift": {
+        "mode": "100644",
+        "gitBlob": "5ab9282a664f92c9b7ca2c3c4b97ea809bf213ef",
+        "sha256": "a53c9afda4e49b94c266cdcce3544ee3fbe9764d188dfc03b5a8419d1c491614"
+      },
+      "packages/neoplay_bridge/ios/Classes/NPFramesStream.swift": null,
+      "packages/neoplay_bridge/ios/Classes/NPGoogleCast.swift": {
+        "mode": "100644",
+        "gitBlob": "edc3921d3d042f2df7a006546304bfc77c1ac05c",
+        "sha256": "b29b6a08f34923a05e35360b7c068fc01e2f4cd3ce6858ba2f5bb8465c183f4c"
+      },
+      "packages/neoplay_bridge/ios/Classes/NPHTTPServer.swift": {
+        "mode": "100644",
+        "gitBlob": "c9aa10a1441106403e84d448bebd2d704c7a8e60",
+        "sha256": "7e23bc662cc3e204c9f2dc8c6b8405e583a1e619707c34ea104b3cbaf520e24c"
+      },
+      "packages/neoplay_bridge/ios/Classes/NPPolicy.swift": {
+        "mode": "100644",
+        "gitBlob": "b8467f8dc47df73b6afc8f2694fc628fc16b0018",
+        "sha256": "7f8f41362efa3ee09a35756664554b90713fa1ac806bfe991ff2f74c35c03ec1"
+      },
+      "packages/neoplay_bridge/ios/Classes/NPReceiverLink.swift": null,
+      "source.json": null,
+      "test/actions_cleanup_test.py": {
+        "mode": "100644",
+        "gitBlob": "b45856faaeaea9078ae6f1fab4f4dc420b3c2704",
+        "sha256": "3436f073837177c60de87fa823bcd4c46a3f06e78e06636713ac7daa2d4b78b0"
+      },
+      "test/libretro_ios_syntax_test.py": {
+        "mode": "100644",
+        "gitBlob": "d6353e5e3934400e7ce98196c6e0c44cfef2d5c4",
+        "sha256": "b3819844aade9966315ce11cb8f85c7f7f01851aedd9d09736022af1e96b702d"
+      },
+      "test/melonx_metal_binary_archive/generate_shaders.py": null,
+      "test/melonx_metal_binary_archive/metal_probe.mm": null,
+      "test/melonx_metal_binary_archive/mvk_archive_test.cpp": null,
+      "test/melonx_metal_binary_archive/run_mvk.py": null,
+      "test/melonx_metal_binary_archive/run_probe.py": null,
+      "test/melonx_metal_binary_archive/shaders.spvz": null,
+      "test/ra_disc_hash_reader_test.py": null,
+      "test/retro_achievements_identification_test.dart": null,
+      "tools/neoplay-cast-receiver/frames-engine.mjs": null,
+      "tools/neoplay-cast-receiver/index.html": null,
+      "tools/neoplay-cast-receiver/mp4-engine.mjs": null,
+      "tools/neoplay-cast-receiver/receiver.mjs": null,
+      "tools/neoplay-cast-receiver/site.mjs": null,
+      "tools/neoplay-cast-receiver/stream-packets.mjs": null
+    },
+    "effectiveDigest": "3de50345e5e965527dbcff0d46e130e9dc61da233c3ad8e961d1eb3877a645a8",
+    "productFiles": 8137,
+    "embeddedRecipeInputs": {
+      "LICENSE.md": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "NOTICE.md": "d1fca43d263ad459b2694db88fd3e50ed608a475e4c99d9a704d6e37be0f053b",
+      "docs/CHEAT_CATALOG_SOURCES.md": "b99792de4c9e917758628869bfc948ca8f653f47cb926378f3d8ad61d9c755f1",
+      "docs/ENGINE_CORRESPONDING_SOURCES.md": "d79c0a19a08dccedf3c7e1c65fdea6ae307e7dbd0b1c310430e9de7a7a5c4dd5",
+      "docs/HD_TEXTURE_CATALOG_SOURCES.md": "59b84b5f460db12bd43290877345e1e69be24ad4f899d0cfb8de0112857ff3d0",
+      "docs/HD_TEXTURE_SOURCES_AND_CREDITS.md": "058e36570f6b4b3e374ea790dad6d684192e65b526fe64dd7f40f09dda0c4041",
+      "docs/LEGAL_AND_CREDITS.md": "23734b31fb7894e579c2b92f4ec9fc1d534313c87204cc9cc372a41cb52f3394",
+      "docs/OVERLAY_SOURCES_AND_CREDITS.md": "463aeaf75b5f39f058e7bc1fbb80fefddc9a977cc5ba3a0bdfe70b565d70ef20",
+      "docs/PACKAGE_SOURCES_AND_LICENSES.md": "2fdae2151390207cab5953651448e181912e9270347f7fe5129a211f2056e21c",
+      "docs/PPSSPP_SOURCE_AND_LICENSE_AUDIT.md": "fbeced8b72541b2ba8aac27334f749c6f870aff7506b1efde8de6958ff600e2e",
+      "docs/SOURCE_CODE_ACCESS.md": "93aa12f4cd110446325a63ff0c5c85c3daa01d543cd361643f112161dfcf490c",
+      "docs/evidence/achievement-translation-declarations-2026-10-31.json": "c8edd7472b7944348e39499ef1d2a59cd4e8a9e91338c3d7da46c8baf582df6b",
+      "docs/evidence/engine-source-license-audit-2026-10-21.json": "866e0a743ddaa4881fd8428dbce235c252e0773fb58ddefaaf1cef364d7607fd",
+      "docs/evidence/modified-sources-since-0.0.8-2026-10-21.json": "18a2c562d9271554e54644aeea3c66e7b498c8e5761f3532f04e8f5be2d4e9e7",
+      "docs/evidence/package-sources-license-audit-2026-10-21.json": "348c5c7840a9262e095519b46aca8d632341ba82483c386a96653108f4a8b72c",
+      "docs/evidence/pocket-originals-declarations-2026-11-03.json": "37388cacfd4623de2d580476e6d5f48a50daf8af449c42aed75fb4a4164e5641",
+      "docs/evidence/ppsspp-source-license-audit-2026-10-21.json": "34d4df4576cac7a5c2a6b1e89bed95e98870165146e11b058fd624cf009946ce",
+      "docs/evidence/retro-achievements-session-declarations-2026-11-01.json": "7d341d4f57dfdfc4abe32a6b8f6845ba4d6236f32615fc0eed848c9b9679ad1e",
+      "docs/evidence/rewindbox-glacier-declarations-2026-11-02.json": "3c391df6cfc68f6ee4aa3691f8c4e8e2fcd37fc9d596060fbb7946ab7810c924",
+      "docs/evidence/rpcs3-retroachievements-declarations-2026-11-02.json": "12abf0d5396a77c8457da822d328bcee5d68338058afc848df51fc73ea15b876",
+      "docs/licenses/cheats/Admentus-Enhancement-Codes-Credits.txt": "ea9f46181d8a6eed2c318a2795f73ff1dfa2a838f8992d6b07be74ed0d9fb93b",
+      "docs/licenses/cheats/Admentus-Enhancement-Codes-LICENSE.txt": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "docs/licenses/cheats/Mupen64Plus-GPL-2.0.txt": "6774e66e59957ebf1da6c9e22be4e7b97fb169a534ab37e085e92831ff414fdd",
+      "docs/licenses/cheats/Mupen64Plus-mupencheat-header.txt": "39023c3dc42e1f1ea6085d79d44bdf9b59adf5846137496f9d73268f6ae7ecd5",
+      "docs/licenses/cheats/README.md": "191a16de4712ffb71f9604f0ed480b5ef1105e6f139575e77cff4b1b4d0dc340",
+      "docs/licenses/cheats/TAbdiukov-PPSSPP-patches-LICENCE.txt": "47a7bfd6b3e12546207665bcd53558b4087ac04fbcfc2592966968a3adab7987",
+      "docs/licenses/cheats/artemis-LICENSE.txt": "6a3e4ba999067b1c412f1740282bc077f8edf5f7178ea085acb5f5cca6fecb46",
+      "docs/licenses/cheats/provenance.json": "6a1ed0158a9f2c2c4f4ebed42b1c5e963baeac0c7c56fddfc4e84bf3c98ee843",
+      "docs/licenses/cheats/szTheory-NDS-Cheat-Databases-LICENSE.txt": "20b067f86de375aae6db0f283ab2e65de24d537733b89bd58432c101259d84cf",
+      "docs/licenses/cheats/tyler-EMERALD-NOTICE.txt": "868b4e7215a9a5835be022dc4d3c469ea18ce71598b20280d02b7b4c83f8621e",
+      "docs/licenses/cheats/tyler-GPL-3.0-LICENSE.txt": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "docs/licenses/rpcs3-wiki-2026-10-28.json": "e844cbcf720d9f8af0f6dc38bb1dd9fed67bd2c83e17299db21cff95e2a54628",
+      "docs/licenses/rpcs3-wiki-2026-10-28.md": "6ae6c89711313c17a0f4585b02760688b75114dd76e6e994a40d9acdaadaf075",
+      "docs/retroarch-rollback-2026-10-08.md": "0d76d77ba6e51bfeda4c84388cf0fa8eb25af3c221943a4d41999a6692eeea0c"
+    }
+  },
+  "images": {
+    "mustChange": [
+      "Frameworks/S2ArmEngine.framework/S2ArmEngine",
+      "Frameworks/libRPCS3Core.dylib",
+      "Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge",
+      "Runner"
+    ],
+    "added": [
+      "Frameworks/S2ArmEngine.framework/S2ArmEngine"
+    ],
+    "removed": [],
+    "replaced": {
+      "rpcs3": "Frameworks/libRPCS3Core.dylib"
+    },
+    "retained": {
+      "dolphin": [
+        "Frameworks/DolphinCore.framework/DolphinCore"
+      ],
+      "armsx2": [
+        "Frameworks/ARMSX2Core.framework/ARMSX2Core"
+      ],
+      "libretro": [
+        "Frameworks/*_libretro.framework/*_libretro",
+        "Frameworks/MoltenVK.framework/MoltenVK"
+      ],
+      "melonx-dependencies": [
+        "Frameworks/MeloNXAvCodec.framework/MeloNXAvCodec",
+        "Frameworks/MeloNXAvUtil.framework/MeloNXAvUtil",
+        "Frameworks/MeloNXJitSupport.framework/MeloNXJitSupport",
+        "Frameworks/MeloNXMoltenVK.framework/MeloNXMoltenVK",
+        "Frameworks/MeloNXSDL3.framework/MeloNXSDL3"
+      ],
+      "melonx-upstream": [
+        "Frameworks/MeloNXMoltenVKStandalone.framework/MeloNXMoltenVKStandalone"
+      ],
+      "xenia": [
+        "Frameworks/XeniaCore.framework/XeniaCore",
+        "Frameworks/libmetalirconverter.dylib"
+      ],
+      "melonx": [
+        "Frameworks/MeloNXCore.framework/MeloNXCore"
+      ]
+    },
+    "baseImages": [
+      "Frameworks/ARMSX2Core.framework/ARMSX2Core",
+      "Frameworks/App.framework/App",
+      "Frameworks/DolphinCore.framework/DolphinCore",
+      "Frameworks/Flutter.framework/Flutter",
+      "Frameworks/GTMSessionFetcher.framework/GTMSessionFetcher",
+      "Frameworks/MeloNXAvCodec.framework/MeloNXAvCodec",
+      "Frameworks/MeloNXAvUtil.framework/MeloNXAvUtil",
+      "Frameworks/MeloNXCore.framework/MeloNXCore",
+      "Frameworks/MeloNXJitSupport.framework/MeloNXJitSupport",
+      "Frameworks/MeloNXMoltenVK.framework/MeloNXMoltenVK",
+      "Frameworks/MeloNXMoltenVKStandalone.framework/MeloNXMoltenVKStandalone",
+      "Frameworks/MeloNXSDL3.framework/MeloNXSDL3",
+      "Frameworks/MoltenVK.framework/MoltenVK",
+      "Frameworks/NS2Pro.framework/NS2Pro",
+      "Frameworks/PDFium.framework/PDFium",
+      "Frameworks/S2ArmEngine.framework/S2ArmEngine",
+      "Frameworks/StikJIT.framework/StikJIT",
+      "Frameworks/XeniaCore.framework/XeniaCore",
+      "Frameworks/a5200_libretro.framework/a5200_libretro",
+      "Frameworks/achievement_translation.framework/achievement_translation",
+      "Frameworks/ardens_libretro.framework/ardens_libretro",
+      "Frameworks/armsx2_internal_bridge.framework/armsx2_internal_bridge",
+      "Frameworks/azahar_libretro.framework/azahar_libretro",
+      "Frameworks/battery_plus.framework/battery_plus",
+      "Frameworks/desmume_libretro.framework/desmume_libretro",
+      "Frameworks/device_info_plus.framework/device_info_plus",
+      "Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge",
+      "Frameworks/external_display.framework/external_display",
+      "Frameworks/external_folder_access.framework/external_folder_access",
+      "Frameworks/fbneo_libretro.framework/fbneo_libretro",
+      "Frameworks/file_picker.framework/file_picker",
+      "Frameworks/flutter_7zip.framework/flutter_7zip",
+      "Frameworks/flutter_localization.framework/flutter_localization",
+      "Frameworks/flutter_secure_storage_darwin.framework/flutter_secure_storage_darwin",
+      "Frameworks/freechaf_libretro.framework/freechaf_libretro",
+      "Frameworks/freeintv_libretro.framework/freeintv_libretro",
+      "Frameworks/gambatte_libretro.framework/gambatte_libretro",
+      "Frameworks/gamepads_darwin.framework/gamepads_darwin",
+      "Frameworks/gearcoleco_libretro.framework/gearcoleco_libretro",
+      "Frameworks/genesis_plus_gx_libretro.framework/genesis_plus_gx_libretro",
+      "Frameworks/genesis_plus_gx_wide_libretro.framework/genesis_plus_gx_wide_libretro",
+      "Frameworks/gw_libretro.framework/gw_libretro",
+      "Frameworks/handy_libretro.framework/handy_libretro",
+      "Frameworks/libRPCS3Core.dylib",
+      "Frameworks/libmetalirconverter.dylib",
+      "Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge",
+      "Frameworks/mednafen_ngp_libretro.framework/mednafen_ngp_libretro",
+      "Frameworks/mednafen_pce_fast_libretro.framework/mednafen_pce_fast_libretro",
+      "Frameworks/mednafen_pcfx_libretro.framework/mednafen_pcfx_libretro",
+      "Frameworks/mednafen_psx_hw_libretro.framework/mednafen_psx_hw_libretro",
+      "Frameworks/mednafen_psx_libretro.framework/mednafen_psx_libretro",
+      "Frameworks/mednafen_vb_libretro.framework/mednafen_vb_libretro",
+      "Frameworks/mednafen_wswan_libretro.framework/mednafen_wswan_libretro",
+      "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge",
+      "Frameworks/mesen_libretro.framework/mesen_libretro",
+      "Frameworks/mgba_libretro.framework/mgba_libretro",
+      "Frameworks/mupen64plus_next_libretro.framework/mupen64plus_next_libretro",
+      "Frameworks/neo_cheat_catalog.framework/neo_cheat_catalog",
+      "Frameworks/neo_shader_kit.framework/neo_shader_kit",
+      "Frameworks/neo_swap.framework/neo_swap",
+      "Frameworks/neo_texture_catalog.framework/neo_texture_catalog",
+      "Frameworks/neo_touch_layout.framework/neo_touch_layout",
+      "Frameworks/nestopia_libretro.framework/nestopia_libretro",
+      "Frameworks/o2em_libretro.framework/o2em_libretro",
+      "Frameworks/objective_c.framework/objective_c",
+      "Frameworks/package_info_plus.framework/package_info_plus",
+      "Frameworks/pdfium_flutter.framework/pdfium_flutter",
+      "Frameworks/picodrive_libretro.framework/picodrive_libretro",
+      "Frameworks/pokemini_libretro.framework/pokemini_libretro",
+      "Frameworks/potator_libretro.framework/potator_libretro",
+      "Frameworks/ppsspp_libretro.framework/ppsspp_libretro",
+      "Frameworks/prosystem_libretro.framework/prosystem_libretro",
+      "Frameworks/retro_achievements_session.framework/retro_achievements_session",
+      "Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge",
+      "Frameworks/sameduck_libretro.framework/sameduck_libretro",
+      "Frameworks/share_plus.framework/share_plus",
+      "Frameworks/shared_preferences_foundation.framework/shared_preferences_foundation",
+      "Frameworks/snes9x_libretro.framework/snes9x_libretro",
+      "Frameworks/sqlite3.framework/sqlite3",
+      "Frameworks/stella_libretro.framework/stella_libretro",
+      "Frameworks/stikjit_bridge.framework/stikjit_bridge",
+      "Frameworks/url_launcher_ios.framework/url_launcher_ios",
+      "Frameworks/uzem_libretro.framework/uzem_libretro",
+      "Frameworks/video_player_avfoundation.framework/video_player_avfoundation",
+      "Frameworks/wakelock_plus.framework/wakelock_plus",
+      "Frameworks/wasm4_libretro.framework/wasm4_libretro",
+      "Frameworks/xenia_internal_bridge.framework/xenia_internal_bridge",
+      "PlugIns/ARMSX2JITHelper.appex/ARMSX2JITHelper",
+      "PlugIns/DolphinJITHelper.appex/DolphinJITHelper",
+      "PlugIns/MeloNXJITHelper.appex/MeloNXJITHelper",
+      "PlugIns/MeloNXRamDonor.appex/MeloNXRamDonor",
+      "PlugIns/NeoSwapDonor.appex/NeoSwapDonor",
+      "PlugIns/NeoSwapPageRelay.appex/NeoSwapPageRelay",
+      "PlugIns/RPCS3JITHelper.appex/RPCS3JITHelper",
+      "PlugIns/S2ArmJITHelper.appex/S2ArmJITHelper",
+      "PlugIns/XeniaJITHelper.appex/XeniaJITHelper",
+      "Runner"
+    ],
+    "retainedFingerprints": {
+      "Frameworks/ARMSX2Core.framework/ARMSX2Core": "fab55193e509583b03c0e5b33ae8d8812745b5410d138a53e3779b6257f370d4",
+      "Frameworks/DolphinCore.framework/DolphinCore": "640e4389559c800087b3d4b2a2748b4c11307ae6a79bc72f59d55430ccddd6fc",
+      "Frameworks/MeloNXAvCodec.framework/MeloNXAvCodec": "cad556ba3651eece2068166f1fb61671d33d56ff68444475865a0055d316c01d",
+      "Frameworks/MeloNXAvUtil.framework/MeloNXAvUtil": "15acad8827f4dc80c453647c5196c91e393c8eb52e3f6367d1838454f7dee1c9",
+      "Frameworks/MeloNXCore.framework/MeloNXCore": "f5d6aac2cd65e342e5f347b66aa76d667c8b46c0a8a4c7dab267dff1c1618407",
+      "Frameworks/MeloNXJitSupport.framework/MeloNXJitSupport": "b85104bbc6e7464cd949b1cbf51989b6c3d6af16bddc10c33728cacca043700e",
+      "Frameworks/MeloNXMoltenVK.framework/MeloNXMoltenVK": "ea81c0e4728457b9e2fa6faf6360232467bda505f5f2c3927376fe7535083aac",
+      "Frameworks/MeloNXMoltenVKStandalone.framework/MeloNXMoltenVKStandalone": "fe0cf9caffedc0fb05dd25ebe54f6c288337afc9798ae07eaaa1b0f0e01e8343",
+      "Frameworks/MeloNXSDL3.framework/MeloNXSDL3": "cfd1e95b4fe64309b8f16efd2b2d3134cef3390cd6d5172bb13c4b8520aba942",
+      "Frameworks/MoltenVK.framework/MoltenVK": "7cbd35be66c78e741768528c7b0fbf3cf20f5b468dc5361893033d4924741520",
+      "Frameworks/XeniaCore.framework/XeniaCore": "5adfe13dde3c681773d4f1be915f8a7d03fad5db2d6db23fd8ac040d3b23b613",
+      "Frameworks/a5200_libretro.framework/a5200_libretro": "cfa6fedeb2b2ae954565491f0e103c67d62c0168edf3480fc08a301a9ca1a19b",
+      "Frameworks/ardens_libretro.framework/ardens_libretro": "5b1b62c69036580263c57d482cb8be16faa793a42614b556b5a32c7ff08ababc",
+      "Frameworks/azahar_libretro.framework/azahar_libretro": "65545169819d1c1270bf3d54a9f4dbabfb445affb54ccab8b27fbc615c7845fc",
+      "Frameworks/desmume_libretro.framework/desmume_libretro": "bd20ed434cc857b52dfdc9c3a5cdbd001bf15b4854c5ccdc162a653bbef5d12c",
+      "Frameworks/fbneo_libretro.framework/fbneo_libretro": "18102405bbe565cbba25fc822871ba87bee1db7dda5cf1da02302f6904ce5aec",
+      "Frameworks/freechaf_libretro.framework/freechaf_libretro": "fd60db6eac893840535a18cf3e025730a5682814120f4aacf339f437c37aab1c",
+      "Frameworks/freeintv_libretro.framework/freeintv_libretro": "dcccda5d6ca628c30dea61694cbe3115f4d35e04eef1615875b69ed02d15b9c1",
+      "Frameworks/gambatte_libretro.framework/gambatte_libretro": "3e803dca4a105e7d8469c3cd1ec79c41c5fe5d87137ebe3a91afbafc25957e30",
+      "Frameworks/gearcoleco_libretro.framework/gearcoleco_libretro": "9f5496ac38b3b464ac3dfe0b2d90c0ac5a1a365fe6c160e07d5f67be0b8a276e",
+      "Frameworks/genesis_plus_gx_libretro.framework/genesis_plus_gx_libretro": "e732f8a67cce93ad7bf2a3ad0c27bd8c6444882cb6ab67855b2354f1e838c7c1",
+      "Frameworks/genesis_plus_gx_wide_libretro.framework/genesis_plus_gx_wide_libretro": "145e71994f9cf2d7b72bd8e30ba49a348099aebb805450e7736619dee916b904",
+      "Frameworks/gw_libretro.framework/gw_libretro": "1561851ab719f3c1063bce1059d93982bd6fd0ad7ed8fa99144961ccd8fbd7c0",
+      "Frameworks/handy_libretro.framework/handy_libretro": "7a46ec1712e3e0f95db8a2c04c6626cc0882c374d904c4e1673d9e7781fcad31",
+      "Frameworks/libmetalirconverter.dylib": "c7f9161b2bb302c77f2ecc07d7f440a883c1a5016da947ab997d2e24fe1cf8db",
+      "Frameworks/mednafen_ngp_libretro.framework/mednafen_ngp_libretro": "7a22292d47f0d92c7fcc75c9b4b72b71172edd0f11132d5edc20afc11ae36c3f",
+      "Frameworks/mednafen_pce_fast_libretro.framework/mednafen_pce_fast_libretro": "e9f0abcb0f5b71111a6631e4e29f3ee0387325af3804e20a2a7a2717ec51a354",
+      "Frameworks/mednafen_pcfx_libretro.framework/mednafen_pcfx_libretro": "ad5aa730fb7862d5185da7b4c66fea236bbbdeb981d83f1be856800e5d675887",
+      "Frameworks/mednafen_psx_hw_libretro.framework/mednafen_psx_hw_libretro": "20febed54a2e7e53db2652fadcdf4fd7294c057f313225f9c89b01a7f1d8f5fb",
+      "Frameworks/mednafen_psx_libretro.framework/mednafen_psx_libretro": "21e108a787d92761ea6b49dbed20ae098b0e5dd94692e21377e19d866d3853b3",
+      "Frameworks/mednafen_vb_libretro.framework/mednafen_vb_libretro": "8eb3437fa0c5e247c15c959a18a9d3179f7646d1c616f6d6d6dc07ad59d70d16",
+      "Frameworks/mednafen_wswan_libretro.framework/mednafen_wswan_libretro": "29cce20057b765de6d99d962ea5e55a1a4a47e86cee83255e6d16b0e1ba0c545",
+      "Frameworks/mesen_libretro.framework/mesen_libretro": "e76d6c1dd46f8eb51a5478a1a21b2808d79bae0c7175199594b0f6781ee38684",
+      "Frameworks/mgba_libretro.framework/mgba_libretro": "a8f8613a1895d58cbac8effd04ccd84bb6dbb4c59a60cbc18efc2bf268a6d181",
+      "Frameworks/mupen64plus_next_libretro.framework/mupen64plus_next_libretro": "ba845fc8a78edf87639a750203b2d09eb0fd294cd7969473115ad816f9280286",
+      "Frameworks/nestopia_libretro.framework/nestopia_libretro": "847be8672c95558feebe0be55bdf3264e7e241009451b11a023a835b44d3e0ef",
+      "Frameworks/o2em_libretro.framework/o2em_libretro": "535cdf027548eab1117dff0522d9a589ac403d996e8fc569b81996c5bc3f1209",
+      "Frameworks/picodrive_libretro.framework/picodrive_libretro": "65d6dc5a241efda5ea1965443b3c9fe1e763538a36e14ca290d9ec571377d9e1",
+      "Frameworks/pokemini_libretro.framework/pokemini_libretro": "c1c03e755afc328ba64bfce2f8491f8838d224e6f9685a73f2bd060c67b4ff6e",
+      "Frameworks/potator_libretro.framework/potator_libretro": "19a67f1d4f65a819cc87cb1576d7348a8eb1451e1b509aad25d7d73636fea681",
+      "Frameworks/ppsspp_libretro.framework/ppsspp_libretro": "377f669eacb492181ca3681e6ccd017bea78263b45320a575d8172dab2bd88c1",
+      "Frameworks/prosystem_libretro.framework/prosystem_libretro": "82b4af35d8c61093d1e7edb0f6c3eeca361acb4b8c96d3e83ddf3ffbad5150af",
+      "Frameworks/sameduck_libretro.framework/sameduck_libretro": "f648c6efc1455c280441c1f70dd62d3f2451a6e36b57268f3acf7ed6ff2256cb",
+      "Frameworks/snes9x_libretro.framework/snes9x_libretro": "e0326b241edce3f8860b85e3a08684806e611e292a21204534456b3af08ba788",
+      "Frameworks/stella_libretro.framework/stella_libretro": "a44e78a4e58dc481233737681fa3547ecebdfef0178219de8213aa067e8cf368",
+      "Frameworks/uzem_libretro.framework/uzem_libretro": "ae053a29eff0b1490f7cedd6af8a79d0df45950ef71fd604a93703ceaa039d93",
+      "Frameworks/wasm4_libretro.framework/wasm4_libretro": "41dec5ccf2fdb0153db049f027424f42993ae0c83df61e4bd1db24b0cf9a4dde"
+    },
+    "replacedFingerprints": {
+      "Frameworks/libRPCS3Core.dylib": "e6e8e273f979d877aa7870ba7a401ddd589173820a5facf1ef8e09051f4e215c"
+    },
+    "derivedMustChange": [
+      "Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge"
+    ]
+  },
+  "tests": {
+    "flutter": {
+      "mode": "not-run",
+      "commands": [],
+      "reason": "Maintainer requested compilation of the latest additions without deep regression suites. Actual host compilation, source/binary/ABI integrity, signing, private encryption and final IPA validation remain mandatory."
+    },
+    "native": {
+      "mode": "not-run",
+      "commands": [],
+      "reason": "Maintainer requested compilation of the latest additions without deep regression suites. Actual host compilation, source/binary/ABI integrity, signing, private encryption and final IPA validation remain mandatory."
+    },
+    "awaitMinutes": 75
+  },
+  "recipient": {
+    "path": "build-utils/delivery-756-recipient.pem",
+    "sha256": "2cdc10eafaa72c0a7a2de36465956ec1f7696cde9668dee8c944a12eef079395"
+  },
+  "republish": [
+    "rpcs3-core",
+    "melonx-core",
+    "dolphin",
+    "armsx2",
+    "libretro",
+    "melonx-dependencies"
+  ],
+  "frozen": {
+    "at": "2026-11-16T03:24:43Z",
+    "commit": "f946cf4d5cc75d239be97f6aa168fae32e458bae",
+    "tool": "standard_delivery.py freeze",
+    "inCI": false
   }
- },
- "product": {
-  "reviewedCommits": [
-   {
-    "commit": "d2fd2d50e2df5476a28ccb5aa257fa34c5d2fd9e",
-    "note": "Reviewed by the executing session, which wrote it: docs(rpcs3): record the maintainer's asynchronous shader decision and correct the menu-wakeup attribution [skip ci]"
-   },
-   {
-    "commit": "3525b7c7158b62f95df5a6cec9535cb60412efc3",
-    "note": "Reviewed by the executing session, which wrote it: rpcs3(core939): the IPA 745 lot — asynchronous shaders by default, pipeline cache limit, glslang prewarm, guest memory of the Black Ops II freeze, and the heat part for menus and play; source, packaging, record [skip ci]"
-   },
-   {
-    "commit": "b762bfa4e8100846abb2d3c4f3277da78c4aaf4b",
-    "note": "Reviewed by the executing session, which wrote it: [rpcs3-core-build] build(rpcs3): request the Core 939 compile (IPA 745 lot: asynchronous shaders, freeze capture, heat)"
-   },
-   {
-    "commit": "2a71a05d4858a3270eda860ecd65b9a10b189b78",
-    "note": "The S2Arm session's engine work, taken into 756 as the recipe requires for an engine pin changed after the base (docs/standard-delivery-recipe.md § 3.12): written and verified by that session (verified pin e1ffb7e5, engine run 43794475005, artifact 14194660405); reviewed by the executing session for its paths (only the S2Arm engine patches 0045-0047, their README and legal rows, and the verified pin): feat(s2arm): patch 0045, a screenshot captures the next frame's render targets and pass lines (black objects, colour bands, pink trunks of Mario Kart World) [s2arm-engine]"
-   },
-   {
-    "commit": "2d6cfef5cccf50df0e47fdbd250ac1c01d39f0c1",
-    "note": "The S2Arm session's engine work, taken into 756 as the recipe requires for an engine pin changed after the base (docs/standard-delivery-recipe.md § 3.12): written and verified by that session (verified pin e1ffb7e5, engine run 43794475005, artifact 14194660405); reviewed by the executing session for its paths (only the S2Arm engine patches 0045-0047, their README and legal rows, and the verified pin): fix(s2arm): patch 0046, draws over a depth prepass wait for their pipeline instead of being skipped while it compiles (black objects of Mario Kart World) [s2arm-engine]"
-   },
-   {
-    "commit": "10f4a64e6b00968edd6a8571ac2b1e0751984d5a",
-    "note": "The S2Arm session's engine work, taken into 756 as the recipe requires for an engine pin changed after the base (docs/standard-delivery-recipe.md § 3.12): written and verified by that session (verified pin e1ffb7e5, engine run 43794475005, artifact 14194660405); reviewed by the executing session for its paths (only the S2Arm engine patches 0045-0047, their README and legal rows, and the verified pin): docs(s2arm): README and legal rows of patch 0046 (left out of 2d6cfef5c) [skip ci]"
-   },
-   {
-    "commit": "de298373cf76a7428f8ac22db1667bcd763f8f02",
-    "note": "Reviewed by the executing session, which wrote it: build(rpcs3): pin RPCS3 Core 939 (run 43788845920, artifact 14192148974, dylib d0875514 81116408 B, fingerprint 8acb98fa) [skip ci]"
-   },
-   {
-    "commit": "c496f35b4b21e6362ae5a9fad43a6a233d45580d",
-    "note": "Reviewed by the executing session, which wrote it: docs(rpcs3): Core 939 request 2 in preparation — what the adversarial review found and what it fixes [skip ci]"
-   },
-   {
-    "commit": "e33e4a34343809701a3091d36bf39e6aca2c2e03",
-    "note": "The S2Arm session's engine work, taken into 756 as the recipe requires for an engine pin changed after the base (docs/standard-delivery-recipe.md § 3.12): written and verified by that session (verified pin e1ffb7e5, engine run 43794475005, artifact 14194660405); reviewed by the executing session for its paths (only the S2Arm engine patches 0045-0047, their README and legal rows, and the verified pin): build(s2arm): pin the engine with patches 0045-0046 (screenshot frame capture; draws over a depth prepass wait for their pipeline) [s2arm-pin engine=43791231517 prepare=43304794526 sysdata=43038032448]"
-   },
-   {
-    "commit": "d90cffd39bf8956e178bc50eb0cc0d027e37f6c2",
-    "note": "The S2Arm session's engine work, taken into 756 as the recipe requires for an engine pin changed after the base (docs/standard-delivery-recipe.md § 3.12): written and verified by that session (verified pin e1ffb7e5, engine run 43794475005, artifact 14194660405); reviewed by the executing session for its paths (only the S2Arm engine patches 0045-0047, their README and legal rows, and the verified pin): build(s2arm): verified engine pin 3b2e4f80 — patches 0001-0046 (run 43791231517, artifact 14192484178) [skip ci]"
-   },
-   {
-    "commit": "fa5978f384d05d90e44d03971793eed3f8ff0bd5",
-    "note": "Reviewed by the executing session: the S2Arm session's merge that brought this session's b05170ce2 (the minimal FPS / CPU / RAM / NeoSwap performance bar), pushed during the 755 request; its diff against its first parent is that commit's change only: merge: the RPCS3 session's b05170ce2 (performance bar), pushed during the 755 request; source only for 755 [skip ci]"
-   },
-   {
-    "commit": "ce26b04211750920cfdbd36aa9211fcd9c889349",
-    "note": "Reviewed by the executing session, which wrote it: rpcs3(core939): request 2 — the fixes of the adversarial review before the IPA; source, packaging, record [skip ci]"
-   },
-   {
-    "commit": "13d33a25e32d7ca0ab436bc72614521884488e29",
-    "note": "Reviewed by the executing session, which wrote it: [rpcs3-core-build] build(rpcs3): request the Core 939 compile, request 2 (fixes of the adversarial review)"
-   },
-   {
-    "commit": "41c88fe1a545e63b8ffc864e43f094d873b9d554",
-    "note": "Reviewed by the executing session, which wrote it: build(delivery): recipient public key of the private test IPA 756 — the RPCS3 session takes the number [skip ci]"
-   },
-   {
-    "commit": "8b1ddaa6822e603461d06a781add9fd3ac4a8337",
-    "note": "The S2Arm session's engine work, taken into 756 as the recipe requires for an engine pin changed after the base (docs/standard-delivery-recipe.md § 3.12): written and verified by that session (verified pin e1ffb7e5, engine run 43794475005, artifact 14194660405); reviewed by the executing session for its paths (only the S2Arm engine patches 0045-0047, their README and legal rows, and the verified pin): fix(s2arm): patch 0047, MINIMAL_LAYOUT textures read in the driver's layout (Mario Kart World's CPU-written terrain maps; the vertical colour bands) [s2arm-engine]"
-   },
-   {
-    "commit": "e39db10244144ed80bed140831a2bdbe188b1474",
-    "note": "Reviewed by the executing session, which wrote it: fix(rpcs3): the minimal performance bar keeps a readable width; the NeoSwap contract test follows the bar [skip ci]"
-   },
-   {
-    "commit": "688348844a2813e7bca69319246ad67717d0fb92",
-    "note": "The S2Arm session's engine work, taken into 756 as the recipe requires for an engine pin changed after the base (docs/standard-delivery-recipe.md § 3.12): written and verified by that session (verified pin e1ffb7e5, engine run 43794475005, artifact 14194660405); reviewed by the executing session for its paths (only the S2Arm engine patches 0045-0047, their README and legal rows, and the verified pin): build(s2arm): pin the engine with patch 0047 (MINIMAL_LAYOUT textures in the driver's layout) [s2arm-pin engine=43794475005 prepare=43304794526 sysdata=43038032448]"
-   },
-   {
-    "commit": "28eb876c3c93b606ccaad8e6ff1811ed4f1cee3d",
-    "note": "The S2Arm session's engine work, taken into 756 as the recipe requires for an engine pin changed after the base (docs/standard-delivery-recipe.md § 3.12): written and verified by that session (verified pin e1ffb7e5, engine run 43794475005, artifact 14194660405); reviewed by the executing session for its paths (only the S2Arm engine patches 0045-0047, their README and legal rows, and the verified pin): build(s2arm): verified engine pin e1ffb7e5 — patches 0001-0047 (run 43794475005, artifact 14194660405) [skip ci]"
-   }
-  ],
-  "sourceOnly": [
-   {
-    "commit": "0ca565657554b343ddb087404df1c4b574d68f83",
-    "targetBuild": 754,
-    "note": "NeoPlay session's record of its delivered IPA 754 (evidence and documentation): docs(delivery): record verified private IPA 754 (run 43787137375, IPA 6b2c7b3e) and its receipts; recipient key deleted [skip ci]"
-   },
-   {
-    "commit": "8a495531641904187ae66050ec74f805011de1f6",
-    "targetBuild": 755,
-    "note": "S2Arm session's concurrent work for its private IPA 755 (engine patches 0045-0047, their pins, the 755 drafts, key and requests): build(delivery): recipient public key of the private test IPA 755 — the S2Arm session takes the number [skip ci]"
-   },
-   {
-    "commit": "16ab4a551eae355646b9e5a273c8dfc5319fa91c",
-    "targetBuild": 755,
-    "note": "S2Arm session's concurrent work for its private IPA 755 (engine patches 0045-0047, their pins, the 755 drafts, key and requests): build(delivery): draft 755 — the S2Arm engine of patches 0045-0046 on base 754, the base's RPCS3 Core kept [skip ci]"
-   },
-   {
-    "commit": "adcf597745f8c1115d9da9b6ca6ed907810942d9",
-    "targetBuild": 755,
-    "note": "S2Arm session's concurrent work for its private IPA 755 (engine patches 0045-0047, their pins, the 755 drafts, key and requests): [ipa-delivery:755] build the private test IPA 755: the S2Arm engine of patches 0045-0046 on base 754 (draws over a depth prepass wait for their pipeline; screenshot frame capture)"
-   },
-   {
-    "commit": "8d3165509ea30197a35badd6aa73f644f00f0f4e",
-    "targetBuild": 755,
-    "note": "S2Arm session's concurrent work for its private IPA 755 (engine patches 0045-0047, their pins, the 755 drafts, key and requests): build(delivery): draft 755 again — after the merge of the RPCS3 session's b05170ce2 [skip ci]"
-   },
-   {
-    "commit": "da6c195bf3460cc5180b23e49c9b07fc17ea2b97",
-    "targetBuild": 755,
-    "note": "S2Arm session's concurrent work for its private IPA 755 (engine patches 0045-0047, their pins, the 755 drafts, key and requests): [ipa-delivery:755] build the private test IPA 755: the S2Arm engine of patches 0045-0046 on base 754 (draws over a depth prepass wait for their pipeline; screenshot frame capture)"
-   },
-   {
-    "commit": "5e8517bb4ec5548fc26bced8de70ab18a4f2c9e4",
-    "targetBuild": 757,
-    "note": "NeoPlay Chromecast session's merge (first-parent line): it brings that session's e660b652d, the RewindBox Cast receiver stage 2 (NeoPlay bridge, dialog and locale, the receiver page) for its private IPA 757, together with this session's 5a7f0cd64 (the Core 939 request 2 pin, no product path; the rpcs3 component reads it)."
-   }
-  ],
-  "promotedCommits": []
- },
- "images": {
-  "mustChange": [
-   "Frameworks/S2ArmEngine.framework/S2ArmEngine",
-   "Frameworks/libRPCS3Core.dylib",
-   "Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge",
-   "Runner"
-  ],
-  "added": [
-   "Frameworks/S2ArmEngine.framework/S2ArmEngine"
-  ],
-  "removed": [],
-  "replaced": {
-   "rpcs3": "Frameworks/libRPCS3Core.dylib"
-  },
-  "retained": {
-   "dolphin": [
-    "Frameworks/DolphinCore.framework/DolphinCore"
-   ],
-   "armsx2": [
-    "Frameworks/ARMSX2Core.framework/ARMSX2Core"
-   ],
-   "libretro": [
-    "Frameworks/*_libretro.framework/*_libretro",
-    "Frameworks/MoltenVK.framework/MoltenVK"
-   ],
-   "melonx-dependencies": [
-    "Frameworks/MeloNXAvCodec.framework/MeloNXAvCodec",
-    "Frameworks/MeloNXAvUtil.framework/MeloNXAvUtil",
-    "Frameworks/MeloNXJitSupport.framework/MeloNXJitSupport",
-    "Frameworks/MeloNXMoltenVK.framework/MeloNXMoltenVK",
-    "Frameworks/MeloNXSDL3.framework/MeloNXSDL3"
-   ],
-   "melonx-upstream": [
-    "Frameworks/MeloNXMoltenVKStandalone.framework/MeloNXMoltenVKStandalone"
-   ],
-   "xenia": [
-    "Frameworks/XeniaCore.framework/XeniaCore",
-    "Frameworks/libmetalirconverter.dylib"
-   ],
-   "melonx": [
-    "Frameworks/MeloNXCore.framework/MeloNXCore"
-   ]
-  }
- },
- "tests": {
-  "flutter": {
-   "mode": "not-run",
-   "commands": [],
-   "reason": "Maintainer requested compilation of the latest additions without deep regression suites. Actual host compilation, source/binary/ABI integrity, signing, private encryption and final IPA validation remain mandatory."
-  },
-  "native": {
-   "mode": "not-run",
-   "commands": [],
-   "reason": "Maintainer requested compilation of the latest additions without deep regression suites. Actual host compilation, source/binary/ABI integrity, signing, private encryption and final IPA validation remain mandatory."
-  },
-  "awaitMinutes": 75
- },
- "recipient": {
-  "path": "build-utils/delivery-756-recipient.pem",
-  "sha256": "2cdc10eafaa72c0a7a2de36465956ec1f7696cde9668dee8c944a12eef079395"
- },
- "republish": [
-  "rpcs3-core",
-  "melonx-core",
-  "dolphin",
-  "armsx2",
-  "libretro",
-  "melonx-dependencies"
- ]
 }
