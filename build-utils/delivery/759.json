@@ -2,7 +2,7 @@
   "schema": 1,
   "build": 759,
   "status": "draft",
-  "note": "Private test IPA 759, for the maintainer's report of 16 November 2026 after the IPA 758 test (\"Les artefacts violet sont encore plus visibles et nombreux\", two screenshot frame captures and the log, then \"aide toi avec ce github : https://github.com/cheemu21/plumber-racer-2\"): the verified IPA 758 (run 43812588474, IPA 7f873529) with the S2Arm engine of patches 0001-0050 (run 43825107808, artifact 14207021472, verified pin acda5e89). Patch 0050: (1) Mario Kart World maps its terrain-cache arrays in pairs over the same physical pages (each pair's pools mapped by the same requests in 758's log), writes one set through the GPU (31565 / 31566 / 31567) and samples the other (31562 / 31563 / 31564); the tiled levels' tiles were already shared by physical memory, but each layer's mip tail was a tile of its own, uploaded from guest memory, which the GPU's writes never reach (level 5 of layer 0 of 31562 and 31564 magenta, all-zero ASTC blocks, in both captures). A tail of one 64 KB physical run is now shared too, keyed by the texture's shape, and the look line counts such tails; (2) 2,231 render-target upgrades in 758's 125 s log, all of textures taken from their storage (the game's dynamic-resolution targets, whose storage range changes with the size): such a texture with no packaged layout, in a colour format Apple GPUs render to, is made with render-target use (S2A_RB_CPU_RT=0 in env.txt turns it off). Patches 0001-0049 are those of 758. The RPCS3 Core, MeloNX, XeniaCore, the app and every other retained component are those of the base; the RetroAchievements session's later fork-gate commits are source only. Images that must change: S2ArmEngine and Runner. Build-only delivery: Flutter/native groups not-run. Nothing has run on an iPhone; no claim that the pink is gone or that the stutters are fewer until the maintainer's test.",
+  "note": "Private test IPA 759, for the maintainer's report of 16 November 2026 after the IPA 758 test (\"Les artefacts violet sont encore plus visibles et nombreux\", two screenshot frame captures and the log, then \"aide toi avec ce github : https://github.com/cheemu21/plumber-racer-2\") and the maintainer's answer \"759 avec MeloNX\": the verified IPA 758 (run 43812588474, IPA 7f873529) with (1) the S2Arm engine of patches 0001-0050 (run 43825107808, artifact 14207021472, verified pin acda5e89) and (2) the MeloNX session's new MeloNX Core (Core 127b72b9 of the lot after IPA 748-751 with the Nextendo online engine lot, run 43827244503, artifact 14206574778, verified pin c19e10dba). Patch 0050: Mario Kart World maps its terrain-cache arrays in pairs over the same physical pages (each pair's pools mapped by the same requests in 758's log), writes one set through the GPU (31565 / 31566 / 31567) and samples the other (31562 / 31563 / 31564); the tiled levels' tiles were already shared by physical memory, but each layer's mip tail was a tile of its own, uploaded from guest memory, which the GPU's writes never reach (level 5 of layer 0 of 31562 and 31564 magenta, all-zero ASTC blocks, in both captures): a tail of one 64 KB physical run is now shared too, keyed by the texture's shape; and 2,231 render-target upgrades in 758's 125 s log, all of textures taken from their storage (the game's dynamic-resolution targets), are avoided by making such a texture, with no packaged layout and in a colour format Apple GPUs render to, with render-target use (S2A_RB_CPU_RT=0 in env.txt turns it off). The MeloNX Core: the lot after IPA 748-751 (nine adapters) and the Nextendo online lot wired into the Core, DMA Core contract fd409792, 109 local gates, written, verified and pinned by the MeloNX session, nothing measured on an iPhone; the Nextendo online engine files it wires in are promoted from their deferred commits. The RPCS3 Core, XeniaCore, the app and every other retained component are those of the base; the app-side MeloNX overlay, the Nextendo app commits (RSwitch naming) and the RetroAchievements fork-gate commits stay source only. Images that must change: MeloNXCore, S2ArmEngine and Runner. Build-only delivery: Flutter/native groups not-run. Nothing has run on an iPhone; no claim that the pink is gone, that the stutters are fewer or that MeloNX behaves as before until the maintainer's test.",
   "base": {
     "build": 758,
     "source": "787d113fbaf5854b9ed98f0dcee7597e8dfca3f9",
@@ -63,15 +63,14 @@
       "image": "Frameworks/MeloNXCore.framework/MeloNXCore",
       "producerRoute": ".github/workflows/melonx-core.yml",
       "replaces": {
-        "build": 747,
-        "source": "03a889f631bd517c6126e0850c006d3a1754eed9",
-        "run": 43622519313,
-        "job": 132531124957,
-        "artifact": 14125675167,
-        "packagedFingerprint": "071137144e4683a79705a0e92a0f68bc9825495c04249a2a90cc74dcf2a7173a"
+        "build": 748,
+        "source": "030cc14fd24fb016c4493ecd10dcb9e55dc448d0",
+        "run": 43641508569,
+        "job": 132589878687,
+        "artifact": 14131839888,
+        "packagedFingerprint": "f5d6aac2cd65e342e5f347b66aa76d667c8b46c0a8a4c7dab267dff1c1618407"
       },
-      "pinSha256": "6c4a878f23163f7f6d40dd0d277a40cf9dcb583becf7ca8fcadab6083bc538d6",
-      "unchangedFromBase": true
+      "pinSha256": "e0bb992965ca58096cdb6200e735500689baff2a35fbfbdf0eef33dda85db36b"
     },
     "dolphin": {
       "mode": "retain",
@@ -379,6 +378,18 @@
       {
         "commit": "6535a6723b6658f946d1c742565309b14c6f07ba",
         "note": "Reviewed by main: build(delivery): draft 759 after merging another session's RSwitch naming (source only, target 760) [skip ci]"
+      },
+      {
+        "commit": "c1f0c832ce0417b7d80755ee2063287c8e7abc91",
+        "note": "Merge by this session bringing the MeloNX session's Core lot 7859fc6b0, 24056d280, dd570d1bf, 127b72b99 (Core inputs: the nine adapters of the lot after IPA 748-751 and the Nextendo online lot wired into the Core; DMA Core contract fd409792, 109 local gates, contract test 553; written, verified and pinned by the MeloNX session; nothing measured on an iPhone), carried in 759 at the maintainer's request of 16 November (\"759 avec MeloNX\"); not reviewed line by line by this session; it also brings 1c537d6e7 (docs(readme): RSwitch in the header, the engine list, the embedded sys), recipe paths only."
+      },
+      {
+        "commit": "8f2e24048c8ffbcb024fb5fe34ec325da85b6260",
+        "note": "Reviewed by main: build(delivery): draft 759 after merging the MeloNX and Nextendo sessions' later work (source only, target 760) [skip ci]"
+      },
+      {
+        "commit": "c19e10dba64a2c83b079c017c00d34011ea0baca",
+        "note": "Written and verified by the MeloNX session: the verified pin of MeloNX Core 127b72b9 (run 43827244503 attempt 1, job 133163885204, artifact 14206574778, contract fd409792, packagedFingerprint 16960d9b; replaces Core 030cc14f), carried in 759 at the maintainer's request of 16 November (\"759 avec MeloNX\")."
       }
     ],
     "sourceOnly": [
@@ -411,17 +422,59 @@
         "commit": "7bc74032f51c1f7f2105ffef912a616f27f1d577",
         "targetBuild": 760,
         "note": "Merge by this session bringing f7b7a226a (Nextendo online play session's concurrent work: feat(switch): the embedded Switch engine is named RSwitch; MeloNX keeps its credits and li); not written or reviewed by this session, left for its own delivery; this delivery compiles none of its product paths."
-      },
-      {
-        "commit": "c1f0c832ce0417b7d80755ee2063287c8e7abc91",
-        "targetBuild": 760,
-        "note": "Merge by this session bringing 7859fc6b0 (MeloNX session's work, source only until its next MeloNX IPA: build(melonx): wire the Nextendo online lot v2 into the next Core (local until the shared ); 24056d280 (MeloNX session's work, source only until its next MeloNX IPA: test(melonx): nifm-network-watch learns the Nextendo online lot v3 fixture (local until th); dd570d1bf (MeloNX session's work, source only until its next MeloNX IPA: build(melonx): wire the lot after IPA 748-751 (nine adapters) before the Nextendo online l); 127b72b99 (MeloNX session's work, source only until its next MeloNX IPA: [melonx-dma-core] build(melonx): request the Core of the lot after IPA 748-751 with the Ne); 1c537d6e7 (Nextendo online play session's concurrent work: docs(readme): RSwitch in the header, the engine list, the embedded systems table and the r); not written or reviewed by this session, left for its own delivery; this delivery compiles none of its product paths."
       }
     ],
-    "promotedCommits": []
+    "promotedCommits": [
+      {
+        "commit": "cec7cd834671cd70e951b1d2d4b9c5ce66c1ec2c",
+        "paths": [
+          "build-utils/melonx/online/adapt_nextendo_online.py",
+          "native/melonx/online/EmbeddedOnline.cs"
+        ],
+        "note": "Written by the Nextendo online play session (feat(melonx): Nextendo online lot rebased on Core 030cc14f and aligned with Nextendo's int), deferred by earlier deliveries; promoted for the online engine files the MeloNX Core lot of 759 wires in (paths limited to them), at the maintainer's request of 16 November (\"759 avec MeloNX\"); not reviewed line by line by this session."
+      },
+      {
+        "commit": "fd831ec7dd20239e2d67d17ea151e57c7cd9002a",
+        "paths": [
+          "build-utils/melonx/online/README.md",
+          "build-utils/melonx/online/wiring.patch"
+        ],
+        "note": "Written by the Nextendo online play session (build(melonx): wiring patch and handoff of the Nextendo online lot for the next Core freez), deferred by earlier deliveries; promoted for the online engine files the MeloNX Core lot of 759 wires in (paths limited to them), at the maintainer's request of 16 November (\"759 avec MeloNX\"); not reviewed line by line by this session."
+      },
+      {
+        "commit": "5bec72383648ca955fccfb1edbadd0dcc3c23c5a",
+        "paths": [
+          "build-utils/melonx/online/README.md",
+          "build-utils/melonx/online/adapt_nextendo_online.py",
+          "build-utils/melonx/online/v1-to-v2.patch",
+          "build-utils/melonx/online/wiring.patch",
+          "native/melonx/online/EmbeddedOnline.cs"
+        ],
+        "note": "Written by the Nextendo online play session (fix(melonx): Nextendo online lot v2 after the adversarial review \u2014 TLS failures, one-shot ), deferred by earlier deliveries; promoted for the online engine files the MeloNX Core lot of 759 wires in (paths limited to them), at the maintainer's request of 16 November (\"759 avec MeloNX\"); not reviewed line by line by this session."
+      },
+      {
+        "commit": "1f5ca59a4c1c5680ebfa045d8e60f76418a45f03",
+        "paths": [
+          "build-utils/melonx/online/README.md",
+          "build-utils/melonx/online/adapt_nextendo_online.py",
+          "build-utils/melonx/online/v2-to-v3.patch",
+          "build-utils/melonx/online/wiring.patch",
+          "native/melonx/online/EmbeddedOnline.cs"
+        ],
+        "note": "Written by the Nextendo online play session (fix(melonx): Nextendo online lot v3 after the review of v2 \u2014 session kept across programs,), deferred by earlier deliveries; promoted for the online engine files the MeloNX Core lot of 759 wires in (paths limited to them), at the maintainer's request of 16 November (\"759 avec MeloNX\"); not reviewed line by line by this session."
+      },
+      {
+        "commit": "fe17bafdd0036af41785da3bc4fd2b4c48600f58",
+        "paths": [
+          "build-utils/melonx/online/README.md"
+        ],
+        "note": "Written by the Nextendo online play session (docs(melonx): Nextendo online lot \u2014 v3 review verdict and the limits it keeps [skip ci]), deferred by earlier deliveries; promoted for the online engine files the MeloNX Core lot of 759 wires in (paths limited to them), at the maintainer's request of 16 November (\"759 avec MeloNX\"); not reviewed line by line by this session."
+      }
+    ]
   },
   "images": {
     "mustChange": [
+      "Frameworks/MeloNXCore.framework/MeloNXCore",
       "Frameworks/S2ArmEngine.framework/S2ArmEngine",
       "Runner"
     ],
@@ -454,9 +507,6 @@
       "xenia": [
         "Frameworks/XeniaCore.framework/XeniaCore",
         "Frameworks/libmetalirconverter.dylib"
-      ],
-      "melonx": [
-        "Frameworks/MeloNXCore.framework/MeloNXCore"
       ],
       "rpcs3": [
         "Frameworks/libRPCS3Core.dylib"
