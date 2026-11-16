@@ -332,9 +332,10 @@ class DonorContractTests(unittest.TestCase):
         # Current request: show the app footprint and active donations as two
         # independent lines. Keep unknown donation samples invalid.
         self.assertNotIn('systemCyanColor', overlay)
-        self.assertIn('RPCS3BodyColor()', overlay)
-        self.assertIn('self.ramText = [self memoryText:point.footprint valid:point.footprintValid];', overlay)
-        self.assertIn('self.neoswapText = [self memoryText:point.donated valid:point.donatedValid];', overlay)
+        self.assertIn('systemOrangeColor', overlay)
+        self.assertIn('systemGreenColor', overlay)
+        self.assertIn('self.ramValue.text = [self memoryText:point.footprint valid:point.footprintValid];', overlay)
+        self.assertIn('self.neoswapValue.text = [self memoryText:point.donated valid:point.donatedValid];', overlay)
         self.assertNotIn('memoryMicroprocess', overlay)
         self.assertIn('point.footprint = processFootprint;', policy)
         self.assertIn('point.donatedValid = donation.valid;', policy)

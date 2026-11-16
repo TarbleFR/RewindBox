@@ -2,34 +2,22 @@
 #import "RPCS3PerformanceOverlay.h"
 #import "RPCS3InGameLocalization.h"
 #include "NeoSwapUsagePolicy.h"
-#include "RPCS3OverlayButtonLayout.h"
 #include <cmath>
 
-// Minimal performance overlay on RPCS3's own model (maintainer, 16 Nov 2026: « reprends celui de RPCS3 comme base
-// minimaliste »). RPCS3's perf_metrics_overlay, at its low detail level, writes "FPS : %05.2f" and "CPU : %04.1f %%"
-// as a monospaced block of yellow text (Body Color #FFE138) on a dark blue box (Body Background #002339), both at
-// 70 % opacity (rpcs3/Emu/RSX/Overlays/overlay_perf_metrics.cpp and the Performance Overlay defaults of
-// system_config.h). The same block here, with the two memory lines the maintainer asked for, the colons aligned as
-// RPCS3 aligns its medium level (" PPU   : ", " Total : "):
-//   FPS     : 59.94    frames presented per second (Core metric, its validity bit kept);
-//   CPU     : 45.2 %   the process's CPU time over all the device's cores, 0-100 % (Core metric rpcs3_ios_performance_cpu);
-//   RAM     : 2.81 GB  the app's kernel footprint (phys_footprint), decimal GB;
-//   NeoSwap : 1.20 GB  the backing NeoSwap currently donates to RPCS3 (published guest objects plus active relay and
-//                      donor loans), decimal GB; never prepared capacity, idle shelves or aliases (NeoSwapMemoryGraph).
-// The two memory values stay independent: no sum, no graph. Numbers follow the user's locale (decimal separator, GB
-// unit). Drawn by UIKit above the game image, not inside it, so it keeps updating while a game is frozen; RPCS3's own
-// overlay stays available in the emulator settings. Four single-line labels, updated by the owner's sampler only while
-// the block is visible.
+// Minimal performance HUD (maintainer, 16 Nov 2026: « minimaliste », FPS, CPU, RAM and NeoSwap usage). One compact
+// bar, four columns, the value above its caption:
+//   FPS      frames presented per second (Core metric, its validity bit kept);
+//   CPU      the process's CPU time over all the device's cores, 0-100 % (Core metric rpcs3_ios_performance_cpu);
+//   RAM      the app's kernel footprint (phys_footprint), decimal GB;
+//   NeoSwap  the backing NeoSwap currently donates to RPCS3 (published guest objects plus active relay and donor
+//            loans), decimal GB; never prepared capacity, idle shelves or aliases (NeoSwapMemoryGraph).
+// The two memory values stay independent: no sum, no graph. Nothing is drawn by hand: four value labels and four
+// caption labels, updated by the owner's sampler only while the bar is visible.
 namespace {
-constexpr CGFloat kPaddingX = 6.0;
-constexpr CGFloat kLineHeight = 15.0;
-constexpr CGFloat kFontSize = 12.0;
-constexpr NSUInteger kNameWidth = 7;    // "NeoSwap", the longest name: the colons line up
+constexpr CGFloat kPadding = 8.0;
+// The memory columns carry a unit and are wider.
+constexpr CGFloat kColumnWeights[4] = {0.20, 0.20, 0.30, 0.30};
 constexpr uint32_t kCPUValid = 1U << 1; // rpcs3_ios_performance_cpu (Rpcs3CoreABI.h)
-
-// RPCS3's default colours at its default opacity (Performance Overlay: Opacity 70 %).
-UIColor* RPCS3BodyColor() { return [UIColor colorWithRed:0xFF / 255.0 green:0xE1 / 255.0 blue:0x38 / 255.0 alpha:0.7]; }
-UIColor* RPCS3BackgroundColor() { return [UIColor colorWithRed:0x00 / 255.0 green:0x23 / 255.0 blue:0x39 / 255.0 alpha:0.7]; }
 }
 
 @interface RPCS3PerformanceOverlay ()
@@ -37,13 +25,10 @@ UIColor* RPCS3BackgroundColor() { return [UIColor colorWithRed:0x00 / 255.0 gree
 @property(nonatomic, strong) UILabel* cpuValue;
 @property(nonatomic, strong) UILabel* ramValue;
 @property(nonatomic, strong) UILabel* neoswapValue;
-@property(nonatomic, strong) NSArray<UILabel*>* lines;
-@property(nonatomic, copy) NSString* fpsText;
-@property(nonatomic, copy) NSString* cpuText;
-@property(nonatomic, copy) NSString* ramText;
-@property(nonatomic, copy) NSString* neoswapText;
+@property(nonatomic, strong) NSArray<UILabel*>* values;
+@property(nonatomic, strong) NSArray<UILabel*>* captions;
 @property(nonatomic, strong) NSNumberFormatter* fpsFormatter;
-@property(nonatomic, strong) NSNumberFormatter* cpuFormatter;
+@property(nonatomic, strong) NSNumberFormatter* percentFormatter;
 @property(nonatomic, strong) NSNumberFormatter* memoryFormatter;
 @property(nonatomic, copy) NSString* localeIdentifier;
 @end
@@ -53,89 +38,103 @@ UIColor* RPCS3BackgroundColor() { return [UIColor colorWithRed:0x00 / 255.0 gree
   self = [super initWithFrame:frame];
   if (!self) return nil;
   self.opaque = NO;
-  self.backgroundColor = RPCS3BackgroundColor();
+  self.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.55];
+  self.layer.cornerRadius = 10.0;
   self.clipsToBounds = YES;
   self.userInteractionEnabled = NO;
   self.isAccessibilityElement = YES;
   self.accessibilityTraits = UIAccessibilityTraitStaticText;
   self.accessibilityIdentifier = @"rpcs3.performance.overlay";
-  self.fpsValue = [self newLineLabel];
-  self.cpuValue = [self newLineLabel];
-  self.ramValue = [self newLineLabel];
-  self.neoswapValue = [self newLineLabel];
-  self.lines = @[self.fpsValue, self.cpuValue, self.ramValue, self.neoswapValue];
-  // RPCS3's widths: "%05.2f" (FPS) and "%04.1f" (CPU) keep two integer digits.
-  self.fpsFormatter = [self newFormatterWithIntegerDigits:2 fractionDigits:2];
-  self.cpuFormatter = [self newFormatterWithIntegerDigits:2 fractionDigits:1];
-  self.memoryFormatter = [self newFormatterWithIntegerDigits:1 fractionDigits:2];
+  self.fpsValue = [self newValueLabel];
+  self.cpuValue = [self newValueLabel];
+  self.ramValue = [self newValueLabel];
+  self.neoswapValue = [self newValueLabel];
+  self.values = @[self.fpsValue, self.cpuValue, self.ramValue, self.neoswapValue];
+  // Captions are names, the same in every language; the colours keep the meaning of the former graph (orange: the
+  // app's RAM, green: NeoSwap's donated backing).
+  self.captions = @[[self newCaption:@"FPS" color:[UIColor colorWithWhite:1.0 alpha:0.6]],
+                    [self newCaption:@"CPU" color:[UIColor colorWithWhite:1.0 alpha:0.6]],
+                    [self newCaption:@"RAM" color:UIColor.systemOrangeColor],
+                    [self newCaption:@"NeoSwap" color:UIColor.systemGreenColor]];
+  self.fpsFormatter = [NSNumberFormatter new];
+  self.fpsFormatter.numberStyle = NSNumberFormatterDecimalStyle;
+  self.fpsFormatter.usesGroupingSeparator = NO;
+  self.fpsFormatter.minimumFractionDigits = 1;
+  self.fpsFormatter.maximumFractionDigits = 1;
+  self.percentFormatter = [NSNumberFormatter new];
+  self.percentFormatter.numberStyle = NSNumberFormatterPercentStyle;
+  self.percentFormatter.maximumFractionDigits = 0;
+  self.memoryFormatter = [NSNumberFormatter new];
+  self.memoryFormatter.numberStyle = NSNumberFormatterDecimalStyle;
+  self.memoryFormatter.usesGroupingSeparator = NO;
+  self.memoryFormatter.minimumFractionDigits = 2;
+  self.memoryFormatter.maximumFractionDigits = 2;
   [self setLocaleIdentifier:NSLocale.preferredLanguages.firstObject ?: @"en"];
   return self;
 }
-- (UILabel*)newLineLabel {
+- (UILabel*)newValueLabel {
   UILabel* label = [UILabel new];
-  label.font = [UIFont monospacedSystemFontOfSize:kFontSize weight:UIFontWeightMedium];
-  label.textColor = RPCS3BodyColor();
-  label.textAlignment = NSTextAlignmentLeft;
+  label.font = [UIFont monospacedDigitSystemFontOfSize:15 weight:UIFontWeightSemibold];
+  label.textColor = UIColor.whiteColor;
+  label.textAlignment = NSTextAlignmentCenter;
   label.adjustsFontSizeToFitWidth = YES;
-  label.minimumScaleFactor = 0.75;
+  label.minimumScaleFactor = 0.7;
   label.isAccessibilityElement = NO;
+  label.text = @"—";
   [self addSubview:label];
   return label;
 }
-- (NSNumberFormatter*)newFormatterWithIntegerDigits:(NSUInteger)integerDigits fractionDigits:(NSUInteger)fractionDigits {
-  NSNumberFormatter* formatter = [NSNumberFormatter new];
-  formatter.numberStyle = NSNumberFormatterDecimalStyle;
-  formatter.usesGroupingSeparator = NO;
-  formatter.minimumIntegerDigits = integerDigits;
-  formatter.minimumFractionDigits = fractionDigits;
-  formatter.maximumFractionDigits = fractionDigits;
-  return formatter;
+- (UILabel*)newCaption:(NSString*)text color:(UIColor*)color {
+  UILabel* label = [UILabel new];
+  label.font = [UIFont systemFontOfSize:9 weight:UIFontWeightMedium];
+  label.textColor = color;
+  label.textAlignment = NSTextAlignmentCenter;
+  label.adjustsFontSizeToFitWidth = YES;
+  label.minimumScaleFactor = 0.8;
+  label.isAccessibilityElement = NO;
+  label.text = text;
+  [self addSubview:label];
+  return label;
 }
 - (void)setLocaleIdentifier:(NSString*)localeIdentifier {
   _localeIdentifier = RPCS3CanonicalLocale(localeIdentifier);
   NSLocale* locale = [NSLocale localeWithLocaleIdentifier:_localeIdentifier];
   self.fpsFormatter.locale = locale;
-  self.cpuFormatter.locale = locale;
+  self.percentFormatter.locale = locale;
   self.memoryFormatter.locale = locale;
   self.accessibilityLabel = RPCS3LocalizedString(@"performance", _localeIdentifier);
   if (self.neoswapValue) [self reset];
 }
-- (CGSize)intrinsicContentSize { return CGSizeMake(rpcs3_overlay::kPanelWidth, rpcs3_overlay::kPanelHeight); }
+- (CGSize)intrinsicContentSize { return CGSizeMake(256, 44); }
 - (void)layoutSubviews {
   [super layoutSubviews];
-  const CGFloat width = MAX(0.0, self.bounds.size.width - 2.0 * kPaddingX);
-  // The four lines sit in the middle of whatever height the layout gives the block.
-  const CGFloat top = MAX(0.0, (self.bounds.size.height - kLineHeight * self.lines.count) / 2.0);
-  for (NSUInteger row = 0; row < self.lines.count; ++row) {
-    self.lines[row].frame = CGRectMake(kPaddingX, top + kLineHeight * row, width, kLineHeight);
+  const CGFloat width = MAX(0.0, self.bounds.size.width - 2.0 * kPadding);
+  // The two rows sit in the middle of whatever height the layout gives the bar.
+  const CGFloat top = MAX(0.0, (self.bounds.size.height - 34.0) / 2.0);
+  CGFloat x = kPadding;
+  for (NSUInteger column = 0; column < self.values.count; ++column) {
+    const CGFloat columnWidth = width * kColumnWeights[column];
+    self.values[column].frame = CGRectMake(x, top, columnWidth, 20);
+    self.captions[column].frame = CGRectMake(x, top + 21, columnWidth, 12);
+    x += columnWidth;
   }
-}
-- (NSString*)line:(NSString*)name value:(NSString*)value {
-  return [NSString stringWithFormat:@"%@ : %@", [name stringByPaddingToLength:kNameWidth withString:@" " startingAtIndex:0], value];
 }
 - (NSString*)memoryText:(uint64_t)bytes valid:(BOOL)valid {
   if (!valid) return @"—";
   return [NSString stringWithFormat:@"%@ %@", [self.memoryFormatter stringFromNumber:@(NeoSwapDecimalGB(bytes))],
       RPCS3LocalizedString(@"memoryUnitGB", _localeIdentifier)];
 }
-- (void)refreshLines {
-  self.fpsValue.text = [self line:@"FPS" value:self.fpsText];
-  self.cpuValue.text = [self line:@"CPU" value:self.cpuText];
-  self.ramValue.text = [self line:@"RAM" value:self.ramText];
-  self.neoswapValue.text = [self line:@"NeoSwap" value:self.neoswapText];
+- (void)updateAccessibility {
   // Spoken with the full names of the two memory values (12 languages).
   self.accessibilityValue = [NSString stringWithFormat:@"FPS %@. CPU %@. %@: %@. %@: %@",
-      self.fpsText, self.cpuText,
-      RPCS3LocalizedString(@"memoryDevice", _localeIdentifier), self.ramText,
-      RPCS3LocalizedString(@"memoryNeoSwap", _localeIdentifier), self.neoswapText];
+      self.fpsValue.text, self.cpuValue.text,
+      RPCS3LocalizedString(@"memoryDevice", _localeIdentifier), self.ramValue.text,
+      RPCS3LocalizedString(@"memoryNeoSwap", _localeIdentifier), self.neoswapValue.text];
 }
 - (void)reset {
   NSAssert(NSThread.isMainThread, @"RPCS3 performance UI must run on the main thread");
-  self.fpsText = @"—";
-  self.cpuText = @"—";
-  self.ramText = @"—";
-  self.neoswapText = @"—";
-  [self refreshLines];
+  for (UILabel* label in self.values) label.text = @"—";
+  [self updateAccessibility];
 }
 - (void)appendMetricsWithFPS:(double)fps cpu:(double)cpu gpu:(double)gpu
                   memoryUsed:(uint64_t)memoryUsed memoryTotal:(uint64_t)memoryTotal
@@ -143,10 +142,10 @@ UIColor* RPCS3BackgroundColor() { return [UIColor colorWithRed:0x00 / 255.0 gree
   NSAssert(NSThread.isMainThread, @"RPCS3 performance UI must run on the main thread");
   (void)gpu; (void)memoryUsed; (void)memoryTotal;
   if (self.hidden || !std::isfinite(timestampMs)) return;
-  self.fpsText = NeoSwapFPSValid(fps, validFields) ? [self.fpsFormatter stringFromNumber:@(fps)] : @"—";
+  self.fpsValue.text = NeoSwapFPSValid(fps, validFields) ? [self.fpsFormatter stringFromNumber:@(fps)] : @"—";
   const bool cpuValid = (validFields & kCPUValid) && std::isfinite(cpu) && cpu >= 0.0;
-  self.cpuText = cpuValid ? [NSString stringWithFormat:@"%@ %%", [self.cpuFormatter stringFromNumber:@(std::fmin(cpu, 100.0))]] : @"—";
-  [self refreshLines];
+  self.cpuValue.text = cpuValid ? [self.percentFormatter stringFromNumber:@(std::fmin(cpu, 100.0) / 100.0)] : @"—";
+  [self updateAccessibility];
 }
 - (void)appendNeoSwapWithClient:(const NeoSwapClientStats*)client
                           host:(const NeoSwapHostStats*)host
@@ -159,8 +158,8 @@ UIColor* RPCS3BackgroundColor() { return [UIColor colorWithRed:0x00 / 255.0 gree
   (void)client;
   // The app's actual kernel footprint and, independently, the backing currently donated to RPCS3.
   const auto point = NeoSwapMemoryGraph(host, relayGuestPublishedBytes, relayGuestMeasured, processFootprintBytes);
-  self.ramText = [self memoryText:point.footprint valid:point.footprintValid];
-  self.neoswapText = [self memoryText:point.donated valid:point.donatedValid];
-  [self refreshLines];
+  self.ramValue.text = [self memoryText:point.footprint valid:point.footprintValid];
+  self.neoswapValue.text = [self memoryText:point.donated valid:point.donatedValid];
+  [self updateAccessibility];
 }
 @end
