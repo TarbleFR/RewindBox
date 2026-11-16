@@ -41,7 +41,7 @@ func check(_ view:UIViewController) {
  graph.numberLocale=Locale(identifier:"en_US_POSIX");graph.processorCount=4
  check(graph.intrinsicContentSize==MeloNXMemoryGraph.barSize && !graph.isUserInteractionEnabled)
  check(graph.captionTexts==["FPS","CPU","RAM","RamDonor"])
- check(graph.accessibilityLabel=="MeloNX Performance" && graph.accessibilityIdentifier=="melonx.performance.overlay")
+ check(graph.accessibilityLabel=="RSwitch Performance" && graph.accessibilityIdentifier=="melonx.performance.overlay")
  // Before the first sample nothing is invented.
  check([graph.fpsText,graph.cpuText,graph.ramText,graph.donorText]==["—","—","—","—"])
  check(graph.accessibilityValue=="FPS —. CPU —. App RAM: —. RamDonor lent: —")

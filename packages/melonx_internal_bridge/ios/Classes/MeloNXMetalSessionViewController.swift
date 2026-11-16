@@ -488,7 +488,7 @@ final class MeloNXMetalSessionViewController: UIViewController {
         let access = MeloNXMemoryEntitlements()
         let state = MeloNXText(access["increasedMemoryLimit"] as? Bool == true ? "Granted" : "Unavailable")
         let donorState = MeloNXMemoryLease.shared.snapshot()["donorState"] as? String ?? "unavailable"
-        let message = MeloNXText("Extended memory") + ": " + state + "\nRamDonor: " + MeloNXText("Donor " + donorState) + "\n\n" + MeloNXText("RamDonor lends memory through the bundled extension. If unavailable, MeloNX uses normal memory.")
+        let message = MeloNXText("Extended memory") + ": " + state + "\nRamDonor: " + MeloNXText("Donor " + donorState) + "\n\n" + MeloNXText("RamDonor lends memory through the bundled extension. If unavailable, RSwitch uses normal memory.")
         let alert = UIAlertController(title:MeloNXText("Memory status"),message:message,preferredStyle:.alert)
         alert.addAction(UIAlertAction(title:MeloNXText("Done"),style:.default) { [weak self] _ in self?.setPause("menu",enabled:false) })
         present(alert,animated:true)

@@ -51,7 +51,7 @@ class LegalCreditsDialog {
       'assets/legal/ARMSX2-GPL-3.0.txt',
     ),
     _LegalEntry(
-      'MeloNX / Ryujinx / LibHac',
+      'RSwitch — based on MeloNX / Ryujinx / LibHac',
       'MeloNX, Ryujinx, LibHac and Melo-Controller contributors',
       'Upstream MIT notice and GPLv3 README declaration preserved; component licenses apply',
       'https://starforgejo.dev/projects/MeloNX',
@@ -92,14 +92,14 @@ class LegalCreditsDialog {
       'assets/legal/RewindBox-MODIFICATIONS.md',
     ),
     _LegalEntry(
-      'FFmpeg (in RPCS3, MeloNX and XeniOS)',
+      'FFmpeg (in RPCS3, RSwitch and XeniOS)',
       'FFmpeg developers',
       'LGPL-2.1-or-later; GPL where configured, per engine',
       'https://ffmpeg.org/legal.html',
       'assets/legal/engines/RPCS3-FFmpeg-LICENSE-md.txt',
     ),
     _LegalEntry(
-      'SDL3 (in MeloNX and XeniOS)',
+      'SDL3 (in RSwitch and XeniOS)',
       'Sam Lantinga and SDL contributors',
       'zlib',
       'https://github.com/libsdl-org/SDL',

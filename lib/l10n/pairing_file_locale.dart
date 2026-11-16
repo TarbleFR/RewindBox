@@ -54,9 +54,9 @@ class PairingFileLocale {
       configured: 'Configured',
       notConfigured: 'Not configured',
       configuredSubtitle:
-          'Ready for emulators that require JIT, including MeloNX, ARMSX2, RPCS3 and others. Select this option to replace it.',
+          'Ready for emulators that require JIT, including RSwitch, ARMSX2, RPCS3 and others. Select this option to replace it.',
       notConfiguredSubtitle:
-          'Essential for launching emulators that require JIT, such as MeloNX, ARMSX2, RPCS3 and others.',
+          'Essential for launching emulators that require JIT, such as RSwitch, ARMSX2, RPCS3 and others.',
       importAction: 'Import Pairing File',
       replaceAction: 'Replace Pairing File',
       pickerTitle: 'Select your Pairing File',
@@ -69,7 +69,7 @@ class PairingFileLocale {
       importFailed: 'The Pairing File could not be imported.',
       setupTitle: 'Pairing File',
       setupBody:
-          'The Pairing File is essential for launching emulators that require JIT, such as MeloNX, ARMSX2, RPCS3 and others. Import this iPhone’s .mobiledevicepairing file once. It is stored privately inside RewindBox and can be replaced later in Settings → Tools.',
+          'The Pairing File is essential for launching emulators that require JIT, such as RSwitch, ARMSX2, RPCS3 and others. Import this iPhone’s .mobiledevicepairing file once. It is stored privately inside RewindBox and can be replaced later in Settings → Tools.',
       chooseFile: 'Choose Pairing File',
       later: 'Later',
       checking: 'Checking Pairing File…',
@@ -81,9 +81,9 @@ class PairingFileLocale {
       configured: 'Konfiguriert',
       notConfigured: 'Nicht konfiguriert',
       configuredSubtitle:
-          'Bereit für Emulatoren, die JIT benötigen, darunter MeloNX, ARMSX2, RPCS3 und weitere. Wähle diese Option, um die Datei zu ersetzen.',
+          'Bereit für Emulatoren, die JIT benötigen, darunter RSwitch, ARMSX2, RPCS3 und weitere. Wähle diese Option, um die Datei zu ersetzen.',
       notConfiguredSubtitle:
-          'Erforderlich zum Starten von Emulatoren, die JIT benötigen, z. B. MeloNX, ARMSX2, RPCS3 und weitere.',
+          'Erforderlich zum Starten von Emulatoren, die JIT benötigen, z. B. RSwitch, ARMSX2, RPCS3 und weitere.',
       importAction: 'Pairing-Datei importieren',
       replaceAction: 'Pairing-Datei ersetzen',
       pickerTitle: 'Pairing-Datei auswählen',
@@ -94,7 +94,7 @@ class PairingFileLocale {
       importFailed: 'Die Pairing-Datei konnte nicht importiert werden.',
       setupTitle: 'Pairing-Datei',
       setupBody:
-          'Die Pairing-Datei ist erforderlich, um Emulatoren zu starten, die JIT benötigen, z. B. MeloNX, ARMSX2, RPCS3 und weitere. Importiere einmal die .mobiledevicepairing-Datei dieses iPhones. Sie wird privat in RewindBox gespeichert und kann später unter Einstellungen → Werkzeuge ersetzt werden.',
+          'Die Pairing-Datei ist erforderlich, um Emulatoren zu starten, die JIT benötigen, z. B. RSwitch, ARMSX2, RPCS3 und weitere. Importiere einmal die .mobiledevicepairing-Datei dieses iPhones. Sie wird privat in RewindBox gespeichert und kann später unter Einstellungen → Werkzeuge ersetzt werden.',
       chooseFile: 'Pairing-Datei auswählen',
       later: 'Später',
       checking: 'Pairing-Datei wird geprüft…',
@@ -106,9 +106,9 @@ class PairingFileLocale {
       configured: 'Configurado',
       notConfigured: 'Sin configurar',
       configuredSubtitle:
-          'Listo para emuladores que requieren JIT, incluidos MeloNX, ARMSX2, RPCS3 y otros. Selecciona esta opción para reemplazarlo.',
+          'Listo para emuladores que requieren JIT, incluidos RSwitch, ARMSX2, RPCS3 y otros. Selecciona esta opción para reemplazarlo.',
       notConfiguredSubtitle:
-          'Esencial para iniciar emuladores que requieren JIT, como MeloNX, ARMSX2, RPCS3 y otros.',
+          'Esencial para iniciar emuladores que requieren JIT, como RSwitch, ARMSX2, RPCS3 y otros.',
       importAction: 'Importar archivo de emparejamiento',
       replaceAction: 'Reemplazar archivo de emparejamiento',
       pickerTitle: 'Selecciona el archivo de emparejamiento',
@@ -120,7 +120,7 @@ class PairingFileLocale {
       importFailed: 'No se pudo importar el archivo de emparejamiento.',
       setupTitle: 'Archivo de emparejamiento',
       setupBody:
-          'El archivo de emparejamiento es esencial para iniciar emuladores que requieren JIT, como MeloNX, ARMSX2, RPCS3 y otros. Importa una vez el archivo .mobiledevicepairing de este iPhone. Se guardará de forma privada dentro de RewindBox y podrás reemplazarlo más tarde en Ajustes → Herramientas.',
+          'El archivo de emparejamiento es esencial para iniciar emuladores que requieren JIT, como RSwitch, ARMSX2, RPCS3 y otros. Importa una vez el archivo .mobiledevicepairing de este iPhone. Se guardará de forma privada dentro de RewindBox y podrás reemplazarlo más tarde en Ajustes → Herramientas.',
       chooseFile: 'Elegir archivo de emparejamiento',
       later: 'Más tarde',
       checking: 'Comprobando el archivo de emparejamiento…',
@@ -132,9 +132,9 @@ class PairingFileLocale {
       configured: 'Configuré',
       notConfigured: 'Non configuré',
       configuredSubtitle:
-          'Prêt pour les émulateurs nécessitant le JIT, notamment MeloNX, ARMSX2, RPCS3 et d’autres. Sélectionnez cette option pour le remplacer.',
+          'Prêt pour les émulateurs nécessitant le JIT, notamment RSwitch, ARMSX2, RPCS3 et d’autres. Sélectionnez cette option pour le remplacer.',
       notConfiguredSubtitle:
-          'Essentiel pour lancer les émulateurs nécessitant le JIT, comme MeloNX, ARMSX2, RPCS3 et d’autres.',
+          'Essentiel pour lancer les émulateurs nécessitant le JIT, comme RSwitch, ARMSX2, RPCS3 et d’autres.',
       importAction: 'Importer le Pairing File',
       replaceAction: 'Remplacer le Pairing File',
       pickerTitle: 'Sélectionnez votre Pairing File',
@@ -147,7 +147,7 @@ class PairingFileLocale {
       importFailed: 'Le Pairing File n’a pas pu être importé.',
       setupTitle: 'Pairing File',
       setupBody:
-          'Le Pairing File est essentiel pour lancer les émulateurs nécessitant le JIT, comme MeloNX, ARMSX2, RPCS3 et d’autres. Importez une seule fois le fichier .mobiledevicepairing de cet iPhone. Il sera conservé dans le stockage privé de RewindBox et pourra être remplacé plus tard dans Paramètres → Outils.',
+          'Le Pairing File est essentiel pour lancer les émulateurs nécessitant le JIT, comme RSwitch, ARMSX2, RPCS3 et d’autres. Importez une seule fois le fichier .mobiledevicepairing de cet iPhone. Il sera conservé dans le stockage privé de RewindBox et pourra être remplacé plus tard dans Paramètres → Outils.',
       chooseFile: 'Choisir le Pairing File',
       later: 'Plus tard',
       checking: 'Vérification du Pairing File…',
@@ -159,9 +159,9 @@ class PairingFileLocale {
       configured: 'Dikonfigurasi',
       notConfigured: 'Belum dikonfigurasi',
       configuredSubtitle:
-          'Siap untuk emulator yang memerlukan JIT, termasuk MeloNX, ARMSX2, RPCS3, dan lainnya. Pilih opsi ini untuk menggantinya.',
+          'Siap untuk emulator yang memerlukan JIT, termasuk RSwitch, ARMSX2, RPCS3, dan lainnya. Pilih opsi ini untuk menggantinya.',
       notConfiguredSubtitle:
-          'Penting untuk menjalankan emulator yang memerlukan JIT, seperti MeloNX, ARMSX2, RPCS3, dan lainnya.',
+          'Penting untuk menjalankan emulator yang memerlukan JIT, seperti RSwitch, ARMSX2, RPCS3, dan lainnya.',
       importAction: 'Impor File Pairing',
       replaceAction: 'Ganti File Pairing',
       pickerTitle: 'Pilih File Pairing Anda',
@@ -172,7 +172,7 @@ class PairingFileLocale {
       importFailed: 'File Pairing tidak dapat diimpor.',
       setupTitle: 'File Pairing',
       setupBody:
-          'File Pairing sangat penting untuk menjalankan emulator yang memerlukan JIT, seperti MeloNX, ARMSX2, RPCS3, dan lainnya. Impor file .mobiledevicepairing iPhone ini satu kali. File akan disimpan secara privat di dalam RewindBox dan dapat diganti nanti di Pengaturan → Alat.',
+          'File Pairing sangat penting untuk menjalankan emulator yang memerlukan JIT, seperti RSwitch, ARMSX2, RPCS3, dan lainnya. Impor file .mobiledevicepairing iPhone ini satu kali. File akan disimpan secara privat di dalam RewindBox dan dapat diganti nanti di Pengaturan → Alat.',
       chooseFile: 'Pilih File Pairing',
       later: 'Nanti',
       checking: 'Memeriksa File Pairing…',
@@ -184,9 +184,9 @@ class PairingFileLocale {
       configured: 'Configurato',
       notConfigured: 'Non configurato',
       configuredSubtitle:
-          'Pronto per gli emulatori che richiedono JIT, inclusi MeloNX, ARMSX2, RPCS3 e altri. Seleziona questa opzione per sostituirlo.',
+          'Pronto per gli emulatori che richiedono JIT, inclusi RSwitch, ARMSX2, RPCS3 e altri. Seleziona questa opzione per sostituirlo.',
       notConfiguredSubtitle:
-          'Essenziale per avviare emulatori che richiedono JIT, come MeloNX, ARMSX2, RPCS3 e altri.',
+          'Essenziale per avviare emulatori che richiedono JIT, come RSwitch, ARMSX2, RPCS3 e altri.',
       importAction: 'Importa file di abbinamento',
       replaceAction: 'Sostituisci file di abbinamento',
       pickerTitle: 'Seleziona il file di abbinamento',
@@ -198,7 +198,7 @@ class PairingFileLocale {
       importFailed: 'Impossibile importare il file di abbinamento.',
       setupTitle: 'File di abbinamento',
       setupBody:
-          'Il file di abbinamento è essenziale per avviare emulatori che richiedono JIT, come MeloNX, ARMSX2, RPCS3 e altri. Importa una sola volta il file .mobiledevicepairing di questo iPhone. Verrà conservato privatamente in RewindBox e potrà essere sostituito in seguito in Impostazioni → Strumenti.',
+          'Il file di abbinamento è essenziale per avviare emulatori che richiedono JIT, come RSwitch, ARMSX2, RPCS3 e altri. Importa una sola volta il file .mobiledevicepairing di questo iPhone. Verrà conservato privatamente in RewindBox e potrà essere sostituito in seguito in Impostazioni → Strumenti.',
       chooseFile: 'Scegli file di abbinamento',
       later: 'Più tardi',
       checking: 'Verifica del file di abbinamento…',
@@ -210,9 +210,9 @@ class PairingFileLocale {
       configured: '設定済み',
       notConfigured: '未設定',
       configuredSubtitle:
-          'MeloNX、ARMSX2、RPCS3 など、JIT を必要とするエミュレーターで使用できます。置き換えるにはこの項目を選択してください。',
+          'RSwitch、ARMSX2、RPCS3 など、JIT を必要とするエミュレーターで使用できます。置き換えるにはこの項目を選択してください。',
       notConfiguredSubtitle:
-          'MeloNX、ARMSX2、RPCS3 など、JIT を必要とするエミュレーターを起動するために不可欠です。',
+          'RSwitch、ARMSX2、RPCS3 など、JIT を必要とするエミュレーターを起動するために不可欠です。',
       importAction: 'ペアリングファイルを読み込む',
       replaceAction: 'ペアリングファイルを置き換える',
       pickerTitle: 'ペアリングファイルを選択',
@@ -223,7 +223,7 @@ class PairingFileLocale {
       importFailed: 'ペアリングファイルを読み込めませんでした。',
       setupTitle: 'ペアリングファイル',
       setupBody:
-          'ペアリングファイルは、MeloNX、ARMSX2、RPCS3 など、JIT を必要とするエミュレーターを起動するために不可欠です。この iPhone の .mobiledevicepairing ファイルを一度読み込んでください。ファイルは RewindBox 内に非公開で保存され、後から「設定 → ツール」で置き換えられます。',
+          'ペアリングファイルは、RSwitch、ARMSX2、RPCS3 など、JIT を必要とするエミュレーターを起動するために不可欠です。この iPhone の .mobiledevicepairing ファイルを一度読み込んでください。ファイルは RewindBox 内に非公開で保存され、後から「設定 → ツール」で置き換えられます。',
       chooseFile: 'ペアリングファイルを選択',
       later: '後で',
       checking: 'ペアリングファイルを確認中…',
@@ -235,9 +235,9 @@ class PairingFileLocale {
       configured: '설정됨',
       notConfigured: '설정되지 않음',
       configuredSubtitle:
-          'MeloNX, ARMSX2, RPCS3 등 JIT가 필요한 에뮬레이터에서 사용할 준비가 되었습니다. 교체하려면 이 옵션을 선택하세요.',
+          'RSwitch, ARMSX2, RPCS3 등 JIT가 필요한 에뮬레이터에서 사용할 준비가 되었습니다. 교체하려면 이 옵션을 선택하세요.',
       notConfiguredSubtitle:
-          'MeloNX, ARMSX2, RPCS3 등 JIT가 필요한 에뮬레이터를 실행하는 데 필수입니다.',
+          'RSwitch, ARMSX2, RPCS3 등 JIT가 필요한 에뮬레이터를 실행하는 데 필수입니다.',
       importAction: '페어링 파일 가져오기',
       replaceAction: '페어링 파일 교체',
       pickerTitle: '페어링 파일 선택',
@@ -248,7 +248,7 @@ class PairingFileLocale {
       importFailed: '페어링 파일을 가져올 수 없습니다.',
       setupTitle: '페어링 파일',
       setupBody:
-          '페어링 파일은 MeloNX, ARMSX2, RPCS3 등 JIT가 필요한 에뮬레이터를 실행하는 데 필수입니다. 이 iPhone의 .mobiledevicepairing 파일을 한 번 가져오세요. 파일은 RewindBox 내부에 비공개로 저장되며 나중에 설정 → 도구에서 교체할 수 있습니다.',
+          '페어링 파일은 RSwitch, ARMSX2, RPCS3 등 JIT가 필요한 에뮬레이터를 실행하는 데 필수입니다. 이 iPhone의 .mobiledevicepairing 파일을 한 번 가져오세요. 파일은 RewindBox 내부에 비공개로 저장되며 나중에 설정 → 도구에서 교체할 수 있습니다.',
       chooseFile: '페어링 파일 선택',
       later: '나중에',
       checking: '페어링 파일 확인 중…',
@@ -260,9 +260,9 @@ class PairingFileLocale {
       configured: 'Configurado',
       notConfigured: 'Não configurado',
       configuredSubtitle:
-          'Pronto para emuladores que exigem JIT, incluindo MeloNX, ARMSX2, RPCS3 e outros. Selecione esta opção para substituí-lo.',
+          'Pronto para emuladores que exigem JIT, incluindo RSwitch, ARMSX2, RPCS3 e outros. Selecione esta opção para substituí-lo.',
       notConfiguredSubtitle:
-          'Essencial para iniciar emuladores que exigem JIT, como MeloNX, ARMSX2, RPCS3 e outros.',
+          'Essencial para iniciar emuladores que exigem JIT, como RSwitch, ARMSX2, RPCS3 e outros.',
       importAction: 'Importar arquivo de emparelhamento',
       replaceAction: 'Substituir arquivo de emparelhamento',
       pickerTitle: 'Selecione o arquivo de emparelhamento',
@@ -274,7 +274,7 @@ class PairingFileLocale {
       importFailed: 'Não foi possível importar o arquivo de emparelhamento.',
       setupTitle: 'Arquivo de emparelhamento',
       setupBody:
-          'O arquivo de emparelhamento é essencial para iniciar emuladores que exigem JIT, como MeloNX, ARMSX2, RPCS3 e outros. Importe uma vez o arquivo .mobiledevicepairing deste iPhone. Ele será armazenado de forma privada no RewindBox e poderá ser substituído depois em Configurações → Ferramentas.',
+          'O arquivo de emparelhamento é essencial para iniciar emuladores que exigem JIT, como RSwitch, ARMSX2, RPCS3 e outros. Importe uma vez o arquivo .mobiledevicepairing deste iPhone. Ele será armazenado de forma privada no RewindBox e poderá ser substituído depois em Configurações → Ferramentas.',
       chooseFile: 'Escolher arquivo de emparelhamento',
       later: 'Mais tarde',
       checking: 'Verificando o arquivo de emparelhamento…',
@@ -286,9 +286,9 @@ class PairingFileLocale {
       configured: 'Настроен',
       notConfigured: 'Не настроен',
       configuredSubtitle:
-          'Готов для эмуляторов, которым требуется JIT, включая MeloNX, ARMSX2, RPCS3 и другие. Выберите этот пункт, чтобы заменить файл.',
+          'Готов для эмуляторов, которым требуется JIT, включая RSwitch, ARMSX2, RPCS3 и другие. Выберите этот пункт, чтобы заменить файл.',
       notConfiguredSubtitle:
-          'Необходим для запуска эмуляторов, которым требуется JIT, например MeloNX, ARMSX2, RPCS3 и других.',
+          'Необходим для запуска эмуляторов, которым требуется JIT, например RSwitch, ARMSX2, RPCS3 и других.',
       importAction: 'Импортировать файл сопряжения',
       replaceAction: 'Заменить файл сопряжения',
       pickerTitle: 'Выберите файл сопряжения',
@@ -299,7 +299,7 @@ class PairingFileLocale {
       importFailed: 'Не удалось импортировать файл сопряжения.',
       setupTitle: 'Файл сопряжения',
       setupBody:
-          'Файл сопряжения необходим для запуска эмуляторов, которым требуется JIT, например MeloNX, ARMSX2, RPCS3 и других. Один раз импортируйте файл .mobiledevicepairing этого iPhone. Он будет храниться в закрытом хранилище RewindBox, а позже его можно заменить в разделе Настройки → Инструменты.',
+          'Файл сопряжения необходим для запуска эмуляторов, которым требуется JIT, например RSwitch, ARMSX2, RPCS3 и других. Один раз импортируйте файл .mobiledevicepairing этого iPhone. Он будет храниться в закрытом хранилище RewindBox, а позже его можно заменить в разделе Настройки → Инструменты.',
       chooseFile: 'Выбрать файл сопряжения',
       later: 'Позже',
       checking: 'Проверка файла сопряжения…',
@@ -311,9 +311,9 @@ class PairingFileLocale {
       configured: '已配置',
       notConfigured: '未配置',
       configuredSubtitle:
-          '已可用于需要 JIT 的模拟器，包括 MeloNX、ARMSX2、RPCS3 等。选择此选项可替换文件。',
+          '已可用于需要 JIT 的模拟器，包括 RSwitch、ARMSX2、RPCS3 等。选择此选项可替换文件。',
       notConfiguredSubtitle:
-          '这是启动需要 JIT 的模拟器（如 MeloNX、ARMSX2、RPCS3 等）所必需的。',
+          '这是启动需要 JIT 的模拟器（如 RSwitch、ARMSX2、RPCS3 等）所必需的。',
       importAction: '导入配对文件',
       replaceAction: '替换配对文件',
       pickerTitle: '选择配对文件',
@@ -324,7 +324,7 @@ class PairingFileLocale {
       importFailed: '无法导入配对文件。',
       setupTitle: '配对文件',
       setupBody:
-          '配对文件是启动需要 JIT 的模拟器（如 MeloNX、ARMSX2、RPCS3 等）所必需的。只需导入一次此 iPhone 的 .mobiledevicepairing 文件。文件会私密保存在 RewindBox 中，之后可在“设置 → 工具”中替换。',
+          '配对文件是启动需要 JIT 的模拟器（如 RSwitch、ARMSX2、RPCS3 等）所必需的。只需导入一次此 iPhone 的 .mobiledevicepairing 文件。文件会私密保存在 RewindBox 中，之后可在“设置 → 工具”中替换。',
       chooseFile: '选择配对文件',
       later: '稍后',
       checking: '正在检查配对文件…',
@@ -335,9 +335,9 @@ class PairingFileLocale {
       configured: '已設定',
       notConfigured: '未設定',
       configuredSubtitle:
-          '已可用於需要 JIT 的模擬器，包括 MeloNX、ARMSX2、RPCS3 等。選擇此選項可替換檔案。',
+          '已可用於需要 JIT 的模擬器，包括 RSwitch、ARMSX2、RPCS3 等。選擇此選項可替換檔案。',
       notConfiguredSubtitle:
-          '這是啟動需要 JIT 的模擬器（例如 MeloNX、ARMSX2、RPCS3 等）所必需的。',
+          '這是啟動需要 JIT 的模擬器（例如 RSwitch、ARMSX2、RPCS3 等）所必需的。',
       importAction: '匯入配對檔案',
       replaceAction: '替換配對檔案',
       pickerTitle: '選擇配對檔案',
@@ -348,7 +348,7 @@ class PairingFileLocale {
       importFailed: '無法匯入配對檔案。',
       setupTitle: '配對檔案',
       setupBody:
-          '配對檔案是啟動需要 JIT 的模擬器（例如 MeloNX、ARMSX2、RPCS3 等）所必需的。只需匯入一次此 iPhone 的 .mobiledevicepairing 檔案。檔案會私密儲存在 RewindBox 中，之後可在「設定 → 工具」中替換。',
+          '配對檔案是啟動需要 JIT 的模擬器（例如 RSwitch、ARMSX2、RPCS3 等）所必需的。只需匯入一次此 iPhone 的 .mobiledevicepairing 檔案。檔案會私密儲存在 RewindBox 中，之後可在「設定 → 工具」中替換。',
       chooseFile: '選擇配對檔案',
       later: '稍後',
       checking: '正在檢查配對檔案…',

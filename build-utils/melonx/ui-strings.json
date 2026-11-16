@@ -756,19 +756,19 @@
       "峰值",
       "峰值"
     ],
-    "MeloNX Performance": [
-      "MeloNX Performance",
-      "Performances MeloNX",
-      "MeloNX-Leistung",
-      "Rendimiento de MeloNX",
-      "Prestazioni MeloNX",
-      "Desempenho do MeloNX",
-      "Производительность MeloNX",
-      "Performa MeloNX",
-      "MeloNXパフォーマンス",
-      "MeloNX 성능",
-      "MeloNX 性能",
-      "MeloNX 效能"
+    "RSwitch Performance": [
+      "RSwitch Performance",
+      "Performances RSwitch",
+      "RSwitch-Leistung",
+      "Rendimiento de RSwitch",
+      "Prestazioni RSwitch",
+      "Desempenho do RSwitch",
+      "Производительность RSwitch",
+      "Performa RSwitch",
+      "RSwitchパフォーマンス",
+      "RSwitch 성능",
+      "RSwitch 性能",
+      "RSwitch 效能"
     ],
     "App RAM": [
       "App RAM",
@@ -1008,19 +1008,19 @@
       "已用借入内存",
       "已用借入記憶體"
     ],
-    "RamDonor lends memory through the bundled extension. If unavailable, MeloNX uses normal memory.": [
-      "RamDonor lends memory through the bundled extension. If unavailable, MeloNX uses normal memory.",
-      "RamDonor prête de la mémoire via l’extension intégrée. Si le prêt est indisponible, MeloNX utilise la mémoire habituelle.",
-      "RamDonor stellt Speicher über die integrierte Erweiterung bereit. Ist dies nicht verfügbar, nutzt MeloNX normalen Speicher.",
-      "RamDonor presta memoria mediante la extensión integrada. Si no está disponible, MeloNX usa la memoria habitual.",
-      "RamDonor presta memoria tramite l’estensione integrata. Se non è disponibile, MeloNX usa la memoria normale.",
-      "RamDonor empresta memória pela extensão integrada. Se não estiver disponível, MeloNX usa a memória normal.",
-      "RamDonor предоставляет память через встроенное расширение. Если она недоступна, MeloNX использует обычную память.",
-      "RamDonor meminjamkan memori melalui ekstensi bawaan. Jika tidak tersedia, MeloNX memakai memori biasa.",
-      "RamDonorは内蔵拡張機能を通じてメモリを貸与します。利用できない場合、MeloNXは通常のメモリを使用します。",
-      "RamDonor는 내장 확장을 통해 메모리를 대여합니다. 사용할 수 없으면 MeloNX는 일반 메모리를 사용합니다.",
-      "RamDonor 通过内置扩展借出内存。若不可用，MeloNX 会使用常规内存。",
-      "RamDonor 透過內建擴充功能借出記憶體。若無法使用，MeloNX 會使用一般記憶體。"
+    "RamDonor lends memory through the bundled extension. If unavailable, RSwitch uses normal memory.": [
+      "RamDonor lends memory through the bundled extension. If unavailable, RSwitch uses normal memory.",
+      "RamDonor prête de la mémoire via l’extension intégrée. Si le prêt est indisponible, RSwitch utilise la mémoire habituelle.",
+      "RamDonor stellt Speicher über die integrierte Erweiterung bereit. Ist dies nicht verfügbar, nutzt RSwitch normalen Speicher.",
+      "RamDonor presta memoria mediante la extensión integrada. Si no está disponible, RSwitch usa la memoria habitual.",
+      "RamDonor presta memoria tramite l’estensione integrata. Se non è disponibile, RSwitch usa la memoria normale.",
+      "RamDonor empresta memória pela extensão integrada. Se não estiver disponível, RSwitch usa a memória normal.",
+      "RamDonor предоставляет память через встроенное расширение. Если она недоступна, RSwitch использует обычную память.",
+      "RamDonor meminjamkan memori melalui ekstensi bawaan. Jika tidak tersedia, RSwitch memakai memori biasa.",
+      "RamDonorは内蔵拡張機能を通じてメモリを貸与します。利用できない場合、RSwitchは通常のメモリを使用します。",
+      "RamDonor는 내장 확장을 통해 메모리를 대여합니다. 사용할 수 없으면 RSwitch는 일반 메모리를 사용합니다.",
+      "RamDonor 通过内置扩展借出内存。若不可用，RSwitch 会使用常规内存。",
+      "RamDonor 透過內建擴充功能借出記憶體。若無法使用，RSwitch 會使用一般記憶體。"
     ],
     "Donor off": [
       "Disabled",
