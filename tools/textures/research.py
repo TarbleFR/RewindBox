@@ -65,6 +65,7 @@ MAX_PAGE = 4 << 20
 PACE = 1.5  # seconds between two requests to one host
 _last = {}
 SHEETS = set()  # spreadsheet sheets whose rows are printed (--sheets)
+BRIEF = False   # --brief: links to the page's own forum are not printed
 
 HOSTS = [
     ('github-release', r'github\.com/[^/]+/[^/]+/releases'),
@@ -577,8 +578,12 @@ def review_url(url, follow_pages=0):
     # MyBB forums (Dolphin, PPSSPP): the author of the thread's first post, to credit the pack.
     # Themes differ (author_information, post_author), the archive view puts it in
     # <div class="author">; last, the first link to a member profile in the posts.
-    for source, pattern in (('author_information', r'class="author_information".*?<a [^>]*>(.*?)</a>'),
-                            ('post_author', r'class="post_author[^"]*".*?<a [^>]*>(.*?)</a>'),
+    # The name stands in the first <strong> of the post's author block, as a profile link for a
+    # member and as plain text for a guest or a removed account: reading up to the first link
+    # instead credited the first link of the post itself ("Download", "Mirror 1") for those.
+    for source, pattern in (('author_information', r'class="author_information"[^>]*>\s*<strong>(.*?)</strong>'),
+                            ('author_information link', r'class="author_information".{0,400}?<a [^>]*>(.*?)</a>'),
+                            ('post_author', r'class="post_author[^"]*".{0,600}?<a [^>]*>(.*?)</a>'),
                             ('archive', r'<div class="author">.*?<a [^>]*>(.*?)</a>'),
                             ('first profile link',
                              r'<a href="[^"]*(?:member\.php\?action=profile&(?:amp;)?uid=\d+|/user-\d+\.html)"[^>]*>(.*?)</a>')):
@@ -650,6 +655,8 @@ def describe(record, out):
         out.append(f"    title: {record['title'][:160]}")
     if record.get('author'):
         out.append(f"    author: {record['author']}" + (f" ({record['author_source']})" if record.get('author_source') not in (None, 'author_information') else ''))
+    elif record.get('kind') in ('dolphin-forum', 'ppsspp-forum'):
+        out.append('    author: (not found in the first post)')
     if record.get('error'):
         out.append(f"    error: {record['error']}")
     gb = record.get('gamebanana')
@@ -699,6 +706,8 @@ def describe(record, out):
     for link in record.get('links') or []:
         if link['kind'] in ('youtube', 'discord', 'reddit') and shown > 20:
             continue
+        if BRIEF and link['kind'] == record.get('kind') and not FILE_EXT.search(link['url']):
+            continue  # pagination, post anchors and signature threads of the page's own forum
         out.append(f"    LINK [{link['kind']}] {link['url'][:180]} :: {link['text'][:60]}")
         shown += 1
         if shown >= 60:
@@ -925,6 +934,7 @@ def main():
     refs.add_argument('--sheets', default='', help='spreadsheet sheets whose rows are printed, e.g. GC,Wii,3DS')
     refs.add_argument('--gbsearch', default='', help='GameBanana searches separated by |, their mods reviewed as references "G..."')
     refs.add_argument('--gbpages', type=int, default=3, help='result pages read for each GameBanana search')
+    refs.add_argument('--brief', action='store_true', help='leave out links to the page\'s own forum (shorter log)')
     refs.add_argument('--out', required=True)
     probes = sub.add_parser('probe')
     probes.add_argument('--urls', default='')
@@ -984,6 +994,8 @@ def main():
         print('PROBE_END', flush=True)
         return
     SHEETS.update(item for item in args.sheets.split(',') if item)
+    global BRIEF
+    BRIEF = args.brief
     references = json.loads(REFERENCES.read_text(encoding='utf-8'))['references']
     ids = {item for item in args.ids.split(',') if item}
     selected = [r for r in references if (not args.console or r['console'] in args.console.split(',')) and (not ids or r['id'] in ids)]
