@@ -129,7 +129,7 @@ final class NPReceiverLink {
 // The RewindBox receiver application registered in the Google Cast SDK Developer Console (Custom Receiver, URL
 // https://tarblefr.github.io/RewindBox/cast/). Empty: the feature is off and every session uses Google's receiver.
 enum NPReceiverApp {
-    static let applicationID = ""
+    static let applicationID = "6C880231"
     // Key of the GoogleCast 4.8.6 session option that names the application to launch (kGCKSessionOptionsKeyApplicationID,
     // exported by the framework but not declared in its public headers); discovery keeps Google's receiver, so a device
     // that cannot launch this one still appears and falls back.
