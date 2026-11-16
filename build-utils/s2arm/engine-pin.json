@@ -1,6 +1,6 @@
 {
   "status": "verified",
-  "packagedFingerprint": "507121b41934f6f40c8b663f33533688c0cb833c2f538a8f4db73e94c84e0d06",
+  "packagedFingerprint": "5608992e806ba3ab23f683c12cd120de62d745b707988f527b9fe55e1d19ba42",
   "producers": {
     "engine": {
       "run": 43762874022,
@@ -13,8 +13,8 @@
       "headBranch": "Claude",
       "expiresAt": "2026-12-15T21:30:45Z",
       "members": {
-        "S2ArmEngine.framework.zip": "c2580ab7757206b08ea1049e2cccc9bea6d09f9cbefd5661accffcdab4704c96",
-        "NS2Pro.framework.zip": "ccae6eb7bf784b8bba651ec3a398b46df3fd093db12b75abe15470bc08f3c851"
+        "S2ArmEngine.framework.zip": "3a5b9ea80ed7b30120c37ea334c54c7ee19ff48cf9f25de3fe9f76bbfb20b254",
+        "NS2Pro.framework.zip": "60d904883e971676f6428f337fff93d7edf1d80987916f3eebeb5092d94031b2"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "e83b6b49af8d982ae622dfafb65447975efe015c5f9432356c9ffa27b22b780b",
+    "engine": "3a5309a6a10f377093b1adf9195d6652619c321cf8fec7777779a7892ee9c393",
     "prepare": "aef8aafb38aa456defbdf16b3194716c32b2051b76a38bc68640d91f098fc87f",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -90,9 +90,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "caad9e96659b84d68ee9ef452f379aada6f3661169dd60fb04a95aab8f0683f0",
-      "bytes": 107492984,
-      "fingerprint": "507121b41934f6f40c8b663f33533688c0cb833c2f538a8f4db73e94c84e0d06"
+      "sha256": "826f84a92b85001333994f515fffe476682c7f2a5ead4156f46c5793473c92fd",
+      "bytes": 107512304,
+      "fingerprint": "5608992e806ba3ab23f683c12cd120de62d745b707988f527b9fe55e1d19ba42"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -125,9 +125,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 43729049277,
+      "run": 43762874022,
       "attempt": 1,
-      "head_sha": "340e93818ba56fddb711b4cc88cd95d1d90fd12b",
+      "head_sha": "704b13d0f8de583786918298683a6dffa59f62fe",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -286,11 +286,31 @@
         {
           "name": "0039-upstream-switch2-video-sdk19-decoder-forms-and-h264.patch",
           "sha256": "8229f305f31602c36a742742b863d83950870e26c0745bb2eb7d40852df62814"
+        },
+        {
+          "name": "0040-guest-lookahead-loads-no-shader-and-switch2-stages-translated-ahead.patch",
+          "sha256": "ee314b4fc3498d66a82c35990c5dddd981fac81d179937134390525bd8a47225"
+        },
+        {
+          "name": "0041-upstream-task-mesh-pipelines-skip-rules-prewarm-and-typed-outputs.patch",
+          "sha256": "ecc4dde8ad8acabfdc09fa07feebb4c41ad77c7572722d0508e5e300849b5cfd"
+        },
+        {
+          "name": "0042-upstream-core3-game-threads-tier-and-guest-memory-in-files.patch",
+          "sha256": "fa8982b93a98f9f8e7bd654772c9d4934795c0f2a74599fe76a490404404facc"
+        },
+        {
+          "name": "0043-guest-review-fixes-attachment-scan-and-translation-handover.patch",
+          "sha256": "71a608c2a5f8d5dde9e4bbe994e616b498375203dde2f8a5b09b5e5a58fb2d0b"
+        },
+        {
+          "name": "0044-upstream-padded-variant-program-pick-and-review-fixes-of-mesh-pipelines.patch",
+          "sha256": "ec33043ba53b16f99375f3714493d766c8f7d326d76e709a705edadd396ecf91"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "c2580ab7757206b08ea1049e2cccc9bea6d09f9cbefd5661accffcdab4704c96",
-        "NS2Pro.framework.zip": "ccae6eb7bf784b8bba651ec3a398b46df3fd093db12b75abe15470bc08f3c851"
+        "S2ArmEngine.framework.zip": "3a5b9ea80ed7b30120c37ea334c54c7ee19ff48cf9f25de3fe9f76bbfb20b254",
+        "NS2Pro.framework.zip": "60d904883e971676f6428f337fff93d7edf1d80987916f3eebeb5092d94031b2"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
