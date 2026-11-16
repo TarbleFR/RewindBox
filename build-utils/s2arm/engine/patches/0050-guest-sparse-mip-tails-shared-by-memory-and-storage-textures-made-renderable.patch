@@ -1,8 +1,8 @@
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
-index f0a893697..85667001a 100644
+index f0a893697..4151eaaa1 100644
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
-@@ -2847,6 +2847,22 @@ static void rt_sticky_add(const tex_t *t) {
+@@ -2847,6 +2847,28 @@ static void rt_sticky_add(const tex_t *t) {
      unsigned i = (unsigned)k & (RT_STICKY_CAP - 1); while (g_rt_sticky[i]) i = (i + 1) & (RT_STICKY_CAP - 1);
      g_rt_sticky[i] = k; g_rt_sticky_n++; g_rt_sticky_adds++;
  }
@@ -20,24 +20,48 @@ index f0a893697..85667001a 100644
 +    }
 +    return 0;
 +}
-+static int cpu_rt_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_CPU_RT"); v = !(e && !strcmp(e, "0")); MLOG("RewindBox: textures taken from their storage made with render-target use: %s (S2A_RB_CPU_RT)", v ? "on" : "off"); } return v; }
-+static uint64_t g_cpu_rt_made;
++// tex_desc also runs off the submit thread (sp_check for sparse textures, sparse_off_sub): the switch is read once, atomically; textures are counted where they are made (pkg_upload_)
++static int cpu_rt_on(void) {
++    static _Atomic int v = -1; int x = atomic_load_explicit(&v, memory_order_relaxed);
++    if (x < 0) { const char *e = getenv("S2A_RB_CPU_RT"); x = !(e && !strcmp(e, "0")); int was = -1;
++        if (atomic_compare_exchange_strong(&v, &was, x)) MLOG("RewindBox: textures taken from their storage made with render-target use: %s (S2A_RB_CPU_RT)", x ? "on" : "off"); }
++    return x;
++}
++static uint64_t g_cpu_rt_made;   // submit thread (pkg_upload_)
  static MTLTextureDescriptor *tex_desc(const tex_t *t, int packaged) {
      uint32_t pf = 0; uint8_t swz[4];
      if (!nvn_fmt_to_mtl(t->d.format, &pf, swz) || !pf) { RED_ONCE(0, "texture format %#x has no Metal equivalent (first case)", t->d.format); return nil; }
-@@ -2889,6 +2905,10 @@ static MTLTextureDescriptor *tex_desc(const tex_t *t, int packaged) {
+@@ -2889,6 +2911,9 @@ static MTLTextureDescriptor *tex_desc(const tex_t *t, int packaged) {
              //   Given at creation, like depth-stencil below: tex_upgrade_pfv at attach time would recreate a render target in use
              | (pf == MTLPixelFormatDepth32Float_Stencil8 ? MTLTextureUsagePixelFormatView : 0);   // Depth-stencil: the stencil is read through an X32_Stencil8 view, which Metal allows only with the format-view usage
              // (Apple GPUs read it right without, but the Metal validation layer aborts the process on the first such view). Given at creation: upgrading when the view first appears recreated the depth buffer in use
 +    if (packaged && !t->has_layout && !(d.usage & MTLTextureUsageRenderTarget) && d.sampleCount <= 1 && !fmt_compressed(t->d.format) && rt_color_pf(d.pixelFormat) && cpu_rt_on()) {   // RewindBox (patch 0050)
-+        d.usage |= MTLTextureUsageRenderTarget; uint64_t k = ++g_cpu_rt_made;
-+        if (k <= 4 || !(k & (k - 1))) MLOG("RewindBox: ser=%llu %ux%u format %#x taken from its storage, made with render-target use (%llu so far: no upgrade at a first draw)", (unsigned long long)t->serial, t->d.width, t->d.height, t->d.format, (unsigned long long)k);
++        d.usage |= MTLTextureUsageRenderTarget;   // counted by pkg_upload_ when it makes a texture with it
 +    }
      if (packaged && !(d.usage & MTLTextureUsageRenderTarget) && d.sampleCount <= 1 && rt_sticky_has(t)) {   // RewindBox (patch 0048): storage drawn into before (rt_sticky_add)
          d.usage |= MTLTextureUsageRenderTarget; uint64_t k = ++g_rt_sticky_hits;
          if (k <= 4 || !(k & (k - 1))) MLOG("RewindBox: ser=%llu %ux%u format %#x made with render-target use (storage drawn into before; %llu so far, no upgrade needed)", (unsigned long long)t->serial, t->d.width, t->d.height, t->d.format, (unsigned long long)k);
+@@ -3740,6 +3765,10 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
+                         && (!(d.usage & MTLTextureUsageRenderTarget) || (reuse.usage & MTLTextureUsageRenderTarget))   // RewindBox (patch 0048): not a spare without the render-target use the new texture is made with (rt_sticky_has)
+                         ? reuse : [g_dev newTextureWithDescriptor:d];
+     if (!mt) { RED_ONCE(2, "failed to create MTLTexture ser=%llu %ux%u format %#x target %d samples %d levels %u", (unsigned long long)t->serial, t->d.width, t->d.height, t->d.format, t->d.target, t->d.samples, t->d.levels); return nil; }
++    if (mt != reuse && !t->has_layout && (d.usage & MTLTextureUsageRenderTarget) && cpu_rt_on()) {   // RewindBox (patch 0050): a new texture with tex_desc's render-target use (rt_color_pf)
++        uint64_t k = ++g_cpu_rt_made;
++        if (k <= 4 || !(k & (k - 1))) MLOG("RewindBox: ser=%llu %ux%u format %#x taken from its storage, made with render-target use (%llu so far: no upgrade at a first draw)", (unsigned long long)t->serial, t->d.width, t->d.height, t->d.format, (unsigned long long)k);
++    }
+     if (g_allocprof > 0) { static int n; if (n++ < 30 || n % 500 == 0) MLOG("new texture (%s) #%d ser=%llu %ux%ux%u format %#x target %d levels %u storage %p", __func__, n, (unsigned long long)t->serial, t->d.width, t->d.height, t->d.depth, t->d.format, t->d.target, t->d.levels, (void *)t->mem); }
+     res_add(mt);   // Both first upload and re-upload register residency here (Metal 4 does not make resources resident automatically; a missed registration = GPU address page fault)
+     int sparse = t->pool && nvn_sparse_pool(t->pool);
+@@ -7635,6 +7664,7 @@ static id<MTLTexture> tex_alpha_red(int tid, id<MTLTexture> t, uint64_t *rid) {
+     if (sw.red != MTLTextureSwizzleRed || sw.green != MTLTextureSwizzleZero || sw.blue != MTLTextureSwizzleZero || sw.alpha != MTLTextureSwizzleOne || tid < 0 || tid >= g_ntreg) return nil;
+     id<MTLTexture> base = t.parentTexture ? t.parentTexture : t;
+     if (!(base.usage & MTLTextureUsageRenderTarget)) return nil;   // packaged and CPU-written textures are built without render-target usage
++    if (g_treg[tid].view_pkg) return nil;   // RewindBox (patch 0050): one taken from its storage now has the use from its creation (tex_desc, rt_color_pf); it is still the CPU's, not a render target
+     treg_t *r = &g_treg[tid];
+     if (r->ar && r->ar_of == (__bridge void *)t) { *rid = r->ar_rid; return (__bridge id<MTLTexture>)r->ar; }
+     treg_drop_ar(r);
 diff --git a/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc b/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
-index 6dccdc38f..821ec51c6 100644
+index 6dccdc38f..b27ab2eb4 100644
 --- a/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
 +++ b/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
 @@ -55,7 +55,7 @@ static uint64_t g_sp_live, g_sp_peak;
@@ -144,12 +168,14 @@ index 6dccdc38f..821ec51c6 100644
  static void sp_tile(sp_look *c, uint32_t y, uint32_t i) {
      NvSparse *s = c->s; const tex_t *t = c->t;
      int is_tail = i == s->tail_at; uint32_t l = 0, tx = 0, ty = 0;
-@@ -391,16 +409,17 @@ static void sp_tile(sp_look *c, uint32_t y, uint32_t i) {
+@@ -391,16 +409,19 @@ static void sp_tile(sp_look *c, uint32_t y, uint32_t i) {
          return;
      }
      uint32_t lw = MAX(t->d.width >> l, 1u), lh = MAX(t->d.height >> l, 1u), x0 = tx * s->tw, y0 = ty * s->th;
 -    const uint8_t *p = is_tail || x0 + s->tw > lw || y0 + s->th > lh ? NULL : nvn_sparse_tile_phys(t->pool, a);   // shared tiles (see above)
-+    const uint8_t *p = (is_tail ? n != SP_TILE : x0 + s->tw > lw || y0 + s->th > lh) ? NULL : nvn_sparse_tile_phys(t->pool, a);   // shared tiles (see above); RewindBox (patch 0050): a tail of one 64 KB run too
++    // RewindBox (patch 0050): a tail of one 64 KB run too, but a GPU-written texture's whose fresh heap tile is not zeroed (a format tex_fill leaves, zbpp 0): marked drawn by its first
++    //   write, it would show the heap tile's old bytes at a packaged place of the same shape; such a tail keeps a slot of its own, as before
++    const uint8_t *p = (is_tail ? n != SP_TILE || (s->gpu && !c->zbpp) : x0 + s->tw > lw || y0 + s->th > lh) ? NULL : nvn_sparse_tile_phys(t->pool, a);   // shared tiles (see above)
 +    uint64_t shape = is_tail && p ? sp_tail_shape(t) : 0;   // RewindBox (patch 0050)
      int moved = 0;
      if (*sl) {
@@ -165,7 +191,7 @@ index 6dccdc38f..821ec51c6 100644
      if (s->gpu) {   // mapped, for the GPU to write (patch 0030; a later CPU write to the memory shows at a packaged place)
          // RewindBox (patch 0030), S2Arm (not upstream, whose fresh tile keeps what the heap tile last held): a fresh heap tile (found ~0u; sp_slot hands out the tiles other textures
          //   gave back) is zeroed by the upload batch, as tex_mtl_ zeroes a new whole GPU texture (tex_zero_fill: a freshly mapped pool reads 0 on the Switch), so it never shows another
-@@ -412,7 +431,8 @@ static void sp_tile(sp_look *c, uint32_t y, uint32_t i) {
+@@ -412,7 +433,8 @@ static void sp_tile(sp_look *c, uint32_t y, uint32_t i) {
              if (!sp_blit_room(nb)) { c->nomem++; sp_drop(c, sl, rg, lev, y); return; }
          }
          if (moved && !sp_move_off(c, sl, rg, lev, y)) return;
@@ -175,7 +201,7 @@ index 6dccdc38f..821ec51c6 100644
          if (found == ~0u && sp_tl_of(*sl - 1)->p) nvn_dirty_protect_sparse(p, SP_TILE);
          if (zero) {   // one copy of the shared zero bytes a level: the tile's part of its level, or each level of the layer's tail
              for (uint32_t tl = is_tail ? s->ntiled : l; tl < (is_tail ? s->levels : l + 1); tl++) {
-@@ -427,7 +447,7 @@ static void sp_tile(sp_look *c, uint32_t y, uint32_t i) {
+@@ -427,7 +449,7 @@ static void sp_tile(sp_look *c, uint32_t y, uint32_t i) {
      }
      if (found != ~0u && sp_tl_of(found)->drawn && !nvn_dirty_since(p, SP_TILE, sp_tl_of(found)->stamp)) {   // the GPU's content, newer than the memory's: mapped, nothing uploaded
          if (moved && !sp_move_off(c, sl, rg, lev, y)) return;
@@ -184,7 +210,7 @@ index 6dccdc38f..821ec51c6 100644
          return;
      }
      size_t need = is_tail ? c->tail_need : SP_TILE; int nb = is_tail ? (int)(s->levels - s->ntiled) : 1;
-@@ -440,7 +460,7 @@ static void sp_tile(sp_look *c, uint32_t y, uint32_t i) {
+@@ -440,10 +462,12 @@ static void sp_tile(sp_look *c, uint32_t y, uint32_t i) {
      int bw = c->bw, bh = c->bh, bpb = c->bpb; uint8_t *dst = (uint8_t *)c->stg.contents + c->stg_off; size_t used = 0; int k = 0;
      struct { size_t off, pitch, image; MTLSize sz; uint32_t level, x0, y0; } bl[16];
      if (is_tail) {
@@ -192,8 +218,14 @@ index 6dccdc38f..821ec51c6 100644
 +        if (p) memcpy(c->tail, p, n); else nvn_sparse_copy(t->pool, c->tail, a, n);   // RewindBox (patch 0050): a shared tail is its memory at p (n is SP_TILE), as a shared tile
          for (uint32_t tl = s->ntiled; tl < s->levels; tl++) {
              uint32_t w = MAX(t->d.width >> tl, 1u), h = MAX(t->d.height >> tl, 1u); size_t pitch = (size_t)((w + bw - 1) / bw) * bpb, rows = (h + bh - 1) / bh;
-             if (nvn_deswizzle_from(&t->d, tl, y, c->tail, y * s->layer_size + s->tail_off, dst + used, pitch)) { RED_ONCE(187, "sparse tail level %u of format %#x not decoded: the tail is not mapped", tl, t->d.format); c->nodec++; return; }
-@@ -458,7 +478,10 @@ static void sp_tile(sp_look *c, uint32_t y, uint32_t i) {
+-            if (nvn_deswizzle_from(&t->d, tl, y, c->tail, y * s->layer_size + s->tail_off, dst + used, pitch)) { RED_ONCE(187, "sparse tail level %u of format %#x not decoded: the tail is not mapped", tl, t->d.format); c->nodec++; return; }
++            if (nvn_deswizzle_from(&t->d, tl, y, c->tail, y * s->layer_size + s->tail_off, dst + used, pitch)) { RED_ONCE(187, "sparse tail level %u of format %#x not decoded: the tail is not mapped", tl, t->d.format); c->nodec++;
++                if (moved) sp_move_off(c, sl, rg, lev, y);   // RewindBox (patch 0050): a shared tail is not left on the slot of other memory (as a tile, below)
++                return; }
+             bl[k].off = used; bl[k].pitch = pitch; bl[k].image = pitch * rows; bl[k].sz = MTLSizeMake(w, h, 1); bl[k].level = tl; bl[k].x0 = bl[k].y0 = 0; k++;
+             used += (pitch * rows + 255) & ~(size_t)255;
+         }
+@@ -458,7 +482,10 @@ static void sp_tile(sp_look *c, uint32_t y, uint32_t i) {
          used = SP_TILE;
      }
      if (moved && !sp_move_off(c, sl, rg, lev, y)) return;   // RewindBox (patch 0029): the old slot given up once the new one's content is staged (check C2)
@@ -205,7 +237,7 @@ index 6dccdc38f..821ec51c6 100644
      for (int q = 0; q < k; q++) up_blit_add_at(c->stg, c->stg_off + bl[q].off, bl[q].pitch, bl[q].image, bl[q].sz, c->tex, y, bl[q].level, bl[q].x0, bl[q].y0);   // S2Arm: (x0, y0), not an MTLOrigin
      c->stg_off += used; c->round_up++;
      if (p) sp_tl_of(*sl - 1)->stamp = c->stamp;   // taken before the protection above (RewindBox patch 0029: 1110473c)
-@@ -589,12 +612,14 @@ static void sparse_sync(NvSparse *s, const tex_t *t, int whole) {
+@@ -589,12 +616,14 @@ static void sparse_sync(NvSparse *s, const tex_t *t, int whole) {
      if (!g_cb) rec_publish();
      // RewindBox (patch 0029): upstream's line with the shared slots (1110473c, nvn_mtl.m:3687-3688 at 0c078130); S2Arm: the counts read under g_sp_mu, for a line only (a Finalize on a game
      //   thread changes them, nvn_be_sparse_phys_gone)
