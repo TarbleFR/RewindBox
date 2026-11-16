@@ -1,0 +1,205 @@
+[
+ {
+  "id": "3ds-mm3d-hd-font-ui-jc-manu",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "Majora's Mask 3D — HD Font & User Interface (English NTSC)",
+  "version": "See the author's page",
+  "games": [
+   {
+    "title": "The Legend of Zelda: Majora's Mask 3D",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000125500"
+     }
+    ],
+    "regions": [
+     "USA"
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "JC-Manu"
+  ],
+  "credits": "Gear, item and map icons by Proloe; file names by AlexV20 (credits of the GameBanana page).",
+  "page_url": "https://gamebanana.com/mods/568751",
+  "source_id": "gamebanana:568751",
+  "licence": {
+   "summary": "CC BY-NC-ND 4.0 (stated on the GameBanana page)",
+   "redistribution": "Link only: NeoStation opens the author's page and does not download, host or redistribute this pack."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/568751",
+   "file_name": "hd_font_and_ui_df7bf.rar"
+  },
+  "scope": "ui",
+  "family": "3ds-mm3d-hd-font-ui-jc-manu",
+  "notes": "The author labels the file \"NTSC/American Version\" (RAR, 14,926,295 bytes on 16 November 2026). The page names no Title ID: the USA title is matched from that label. Read on 16 November 2026 (review run 43954594224); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "3ds-mgs-snake-eater-3d-hd-edition-jimlafleur89",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "Metal Gear Solid 3D HD edition",
+  "version": "1.0",
+  "games": [
+   {
+    "title": "Metal Gear Solid: Snake Eater 3D",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000081E00"
+     }
+    ],
+    "regions": [
+     "USA"
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "Jimlafleur89"
+  ],
+  "page_url": "https://gamebanana.com/mods/150247",
+  "source_id": "gamebanana:150247",
+  "licence": {
+   "summary": "CC BY-NC-ND 4.0 (stated on the GameBanana page)",
+   "redistribution": "Link only: NeoStation opens the author's page and does not download, host or redistribute this pack."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/150247"
+  },
+  "family": "3ds-mgs-snake-eater-3d-hd-edition-jimlafleur89",
+  "notes": "Two files (a RAR and a ZIP, 569,464,978 bytes together). The page names no Title ID or region: the USA title is proposed, to confirm against your game. Read on 16 November 2026 (review run 43954594224); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "3ds-mgs-snake-eater-3d-remaster-overhaul-hugamuffin",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "MGS3 HD Edition (Snake Eater 3D Remaster Overhaul)",
+  "version": "1.1",
+  "games": [
+   {
+    "title": "Metal Gear Solid: Snake Eater 3D",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000081E00"
+     }
+    ],
+    "regions": [
+     "USA"
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "HugAMuffin"
+  ],
+  "page_url": "https://gamebanana.com/mods/416034",
+  "source_id": "gamebanana:416034",
+  "licence": {
+   "summary": "CC BY-NC-ND 4.0 (stated on the GameBanana page)",
+   "redistribution": "Link only: NeoStation opens the author's page and does not download, host or redistribute this pack."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/416034",
+   "file_name": "hd_overhaul.rar"
+  },
+  "family": "3ds-mgs-snake-eater-3d-remaster-overhaul-hugamuffin",
+  "notes": "One RAR of 904,036,689 bytes. The page names no Title ID or region: the USA title is proposed, to confirm against your game. Read on 16 November 2026 (review run 43954594224); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "3ds-devil-survivor-overclocked-hd-addon-diz0",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "Devil Survivor Overclocked — HD Texture Pack Addon",
+  "version": "1",
+  "games": [
+   {
+    "title": "Shin Megami Tensei: Devil Survivor Overclocked",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000038800"
+     }
+    ],
+    "regions": [
+     "USA"
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "DiZ0"
+  ],
+  "credits": "An addon to the HD texture pack by Kierk, thanked by the author as the original pack's author.",
+  "page_url": "https://gamebanana.com/mods/500409",
+  "source_id": "gamebanana:500409",
+  "licence": {
+   "summary": "CC BY-NC-ND 4.0 (stated on the GameBanana page)",
+   "redistribution": "Link only: NeoStation opens the author's page and does not download, host or redistribute this pack."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/500409",
+   "file_name": "devil_survivor_overclocked_hd_addon.zip"
+  },
+  "scope": "partial",
+  "family": "3ds-devil-survivor-overclocked-hd-addon-diz0",
+  "notes": "An addon (ZIP, 339,586,443 bytes) to Kierk's pack, catalogued separately. The page names no Title ID: the title of Kierk's pack is proposed, to confirm against your game. Read on 16 November 2026 (review run 43954594224); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "3ds-etrian-odyssey-nexus-hd-furizu",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "Etrian Odyssey Nexus HD",
+  "version": "2",
+  "games": [
+   {
+    "title": "Etrian Odyssey Nexus",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "00040000001D4E00"
+     },
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "00040000001D5200"
+     }
+    ],
+    "regions": [
+     "Europe",
+     "USA"
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "Furizu"
+  ],
+  "page_url": "https://gamebanana.com/mods/608253",
+  "source_id": "gamebanana:608253",
+  "licence": {
+   "summary": "CC BY-NC-ND 4.0 (stated on the GameBanana page)",
+   "redistribution": "Link only: NeoStation opens the author's page and does not download, host or redistribute this pack."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/608253"
+  },
+  "family": "3ds-etrian-odyssey-nexus-hd-furizu",
+  "notes": "Published as a four-part RAR (3,125,525,227 bytes): to extract on a computer. The page names no Title ID: the USA and European titles are proposed, to confirm against your game. Read on 16 November 2026 (review run 43954594224); the files were not downloaded or installed by RewindBox."
+ }
+]

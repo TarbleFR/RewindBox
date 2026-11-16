@@ -1,0 +1,147 @@
+[
+ {
+  "console": "gc",
+  "source": "BurnOut 2 HD Textures Mod Complete Edition (New working link 17/10/2026) (https://forums.dolphin-emu.org/Thread-burnout-2-hd-textures-mod-complete-edition-new-working-link-17-10-2026)",
+  "reason": "No download link was found in the pages of the thread read by the review run (run 43951999553)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Universal Dynamic Input (02.28) - a custom button pack for over 150 games! (https://forums.dolphin-emu.org/Thread-universal-dynamic-input-02-28-a-custom-button-pack-for-over-150-games)",
+  "reason": "A dynamic input (button prompt) pack for many games, installed in Dolphin's DynamicInputTextures folder: not a texture pack of one game."
+ },
+ {
+  "console": "wii",
+  "source": "Tatsunoko vs Capcom Ultimate All Stars custom texture pack (Work In Progress) (https://forums.dolphin-emu.org/Thread-tatsunoko-vs-capcom-ultimate-all-stars-custom-texture-pack-work-in-progress)",
+  "reason": "No download link was found in the pages of the thread read by the review run (run 43951999553)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "GhostlyDark's Mario Kart 64 HD (2025-12-20) (https://forums.dolphin-emu.org/Thread-ghostlydark-s-mario-kart-64-hd-2025-12-20)",
+  "reason": "Already catalogued from its GitHub repository (Virtual Console pack)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "GhostlyDark's SM64 Reloaded Texture Pack v2.5.0 (2025-02-23) (https://forums.dolphin-emu.org/Thread-ghostlydark-s-sm64-reloaded-texture-pack-v2-5-0-2025-02-23)",
+  "reason": "Already catalogued from its GitHub repository (Virtual Console pack)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "GameCube Main Menu HD Texture Pack (https://forums.dolphin-emu.org/Thread-gamecube-main-menu-hd-texture-pack)",
+  "reason": "Textures of the GameCube system menu (folder 00000000): no game disc to attach it to."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Mario Kart Double Dash - Cartoon(?) Textures (https://forums.dolphin-emu.org/Thread-mario-kart-double-dash-cartoon-textures)",
+  "reason": "A restyled (cartoon) look, not an HD version of the game's textures."
+ },
+ {
+  "console": "wii",
+  "source": "Rhythm Heaven Fever HD Edition - v1.01 (28.June 2016) (https://forums.dolphin-emu.org/Thread-rhythm-heaven-fever-hd-edition-v1-01-28-june-2016)",
+  "reason": "No download link was found in the pages of the thread read by the review run (run 43951999553)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Paper Mario 64 HD Texture Pack v1.3 (December 12, 2021) (https://forums.dolphin-emu.org/Thread-paper-mario-64-hd-texture-pack-v1-3-december-12-2021)",
+  "reason": "A Virtual Console title: its Dolphin Game ID is not established from the thread."
+ },
+ {
+  "console": "gc",
+  "source": "Zelda Twilight Princess: 4K Realistic Overhaul (https://forums.dolphin-emu.org/Thread-zelda-twilight-princess-4k-realistic-overhaul)",
+  "reason": "No download link was found in the pages of the thread read by the review run (run 43951999553)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "GhostlyDark's SSB Reloaded V2.0.0 (2025-03-20) (https://forums.dolphin-emu.org/Thread-ghostlydark-s-ssb-reloaded-v2-0-0-2025-03-20)",
+  "reason": "Already catalogued from its GitHub repository (Virtual Console pack)."
+ },
+ {
+  "console": "wii",
+  "source": "NBA Jam - HD Textures (https://forums.dolphin-emu.org/Thread-nba-jam-hd-textures)",
+  "reason": "No download link was found in the pages of the thread read by the review run (run 43951999553)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Wii Menu 4K Texture Pack (https://forums.dolphin-emu.org/Thread-wii-menu-4k-texture-pack)",
+  "reason": "Textures of the Wii system menu: no game disc to attach it to."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Wii Room 4K Texture Pack (https://forums.dolphin-emu.org/Thread-wii-room-4k-texture-pack)",
+  "reason": "Textures of a Wii channel: no game disc to attach it to."
+ },
+ {
+  "console": "wii",
+  "source": "Pandora’s Tower - UHD Texture Pack (https://forums.dolphin-emu.org/Thread-pandora%E2%80%99s-tower-uhd-texture-pack)",
+  "reason": "No download link was found in the pages of the thread read by the review run (run 43951999553)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "New HD with so many more! (https://forums.dolphin-emu.org/Thread-new-hd-with-so-many-more)",
+  "reason": "A list of one creator's projects, not a pack: each project is reviewed on its own page."
+ },
+ {
+  "console": "gc/wii",
+  "source": "[On hold due to a pending copyright claim] Wii Party UHD Remake (https://forums.dolphin-emu.org/Thread-on-hold-due-to-a-pending-copyright-claim-wii-party-uhd-remake)",
+  "reason": "Its author put it on hold for a pending copyright claim: not listed."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Mii Channel + Miis 4K Resource Pack (v1.3.1 - 4/19/2020) (https://forums.dolphin-emu.org/Thread-mii-channel-miis-4k-resource-pack-v1-3-1-4-19-2020)",
+  "reason": "Textures of the Mii Channel and of Miis across games: no single game disc to attach it to."
+ },
+ {
+  "console": "gc/wii",
+  "source": "HD Wii Menu Texture Pack (https://forums.dolphin-emu.org/Thread-hd-wii-menu-texture-pack)",
+  "reason": "Textures of the Wii system menu: no game disc to attach it to."
+ },
+ {
+  "console": "gc/wii",
+  "source": "GhostlyDarks's OoT & MM Reloaded (2025-04-13 / 2025-03-30) (https://forums.dolphin-emu.org/Thread-ghostlydarks-s-oot-mm-reloaded-2025-04-13-2025-03-30)",
+  "reason": "Already catalogued from its GitHub repository (Virtual Console and GameCube packs)."
+ },
+ {
+  "console": "gc",
+  "source": "The Legend of Zelda Four Swords Adventures - Enhanced - (https://forums.dolphin-emu.org/Thread-the-legend-of-zelda-four-swords-adventures-enhanced)",
+  "reason": "No download link was found in the pages of the thread read by the review run (run 43951999553)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Zelda Games Japanese HD Fonts (https://forums.dolphin-emu.org/Thread-zelda-games-japanese-hd-fonts)",
+  "reason": "Fonts for several games, published as loose files: the games and versions are not established."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Skyward Sword Texture Pack for Twilight Princess Project (https://forums.dolphin-emu.org/Thread-skyward-sword-texture-pack-for-twilight-princess-project)",
+  "reason": "A restyle with another game's textures, not an HD version of the game's textures."
+ },
+ {
+  "console": "gc/wii",
+  "source": "V 0.2 Zelda Twilight Princess Texture Pack (WW Styled) (https://forums.dolphin-emu.org/Thread-v-0-2-zelda-twilight-princess-texture-pack-ww-styled)",
+  "reason": "A restyle in the look of another game, not an HD version of the game's textures."
+ },
+ {
+  "console": "gc",
+  "source": "Resident Evil REmake HD UI (https://forums.dolphin-emu.org/Thread-resident-evil-remake-hd-ui)",
+  "reason": "No download link was found in the pages of the thread read by the review run (run 43951999553)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Kirby Air ride alternate textures (https://forums.dolphin-emu.org/Thread-kirby-air-ride-alternate-textures)",
+  "reason": "Alternate textures, not an HD version of the game's textures."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Phazon UI v1.19 - The Less Timely Update (https://forums.dolphin-emu.org/Thread-phazon-ui-v1-19-the-less-timely-update)",
+  "reason": "An interface theme whose target game is not named in the thread title; not established."
+ },
+ {
+  "console": "gc/wii",
+  "source": "New Super Mario Bros. Wii - Exclusive NVIDIA Shield’s (China) release ported UI (https://forums.dolphin-emu.org/Thread-new-super-mario-bros-wii-exclusive-nvidia-shield%E2%80%99s-china-release-ported-ui)",
+  "reason": "A build made for one device (Nvidia Shield), a variant of its author's Mario Kart Wii/NSMBW work."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Pac-Man 05 ((Pac-Man World 3 \"HD\" Texture Pack themed after Sonic 2006)) (https://forums.dolphin-emu.org/Thread-pac-man-05-pac-man-world-3-hd-texture-pack-themed-after-sonic-2006)",
+  "reason": "A themed restyle (after another game), not an HD version of the game's textures."
+ }
+]

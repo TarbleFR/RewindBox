@@ -36,6 +36,7 @@ source URLs are never rewritten for promotion.
 """
 import argparse
 import base64
+import datetime
 import gzip
 import hashlib
 import io
@@ -348,9 +349,25 @@ def build(entries, records):
     body = {'packs': packs, 'sources': source_list}
     digest = hashlib.sha256(json.dumps(body, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
     dates = sorted({p['verified_at'] for p in packs if p.get('verified_at')})
+    # The app keeps the later generated_at between the index it bundles and the one it refreshed
+    # (NeoTextureCatalog loadLocked), so the date must move whenever the content does. The date of
+    # the latest verification record does not move when page links are added or withdrawn: an
+    # updated app would have kept an older refreshed copy. The published index keeps its date while
+    # its content is the same, so rebuilding unchanged sources gives the same bytes on any day.
+    published = None
+    if HOSTED.exists():
+        try:
+            published = json.loads(gzip.decompress(HOSTED.read_bytes()))
+        except (OSError, ValueError):
+            published = None
+    if published and published.get('revision', '').endswith('.' + digest[:12]):
+        generated = published.get('generated_at', '')
+    else:
+        generated = max(dates[-1] if dates else '', (published or {}).get('generated_at', ''),
+                        datetime.datetime.now(datetime.timezone.utc).date().isoformat())
     index = {'catalogue_id': 'neostation-hd-textures', 'schema_version': 1,
-             'revision': f'{dates[-1] if dates else "unverified"}.{digest[:12]}',
-             'generated_at': dates[-1] if dates else '', **body}
+             'revision': f'{generated or "unverified"}.{digest[:12]}',
+             'generated_at': generated, **body}
     return index, excluded, pending
 
 
