@@ -187,7 +187,7 @@ l'IPA 726 phase par phase (fenêtres de 5 s, `COREPROF ENERGY931`, `SPUWAIT551`,
 |---|---|---|---|
 | Écritures disque, Black Ops II, menus | 1,45 à 1,64 Mio par fenêtre | 0,13 à 0,18 Mio | **−89 %, mesuré** (journaux gardés ouverts, e5ecdfac0). Les rafales au démarrage du jeu restent |
 | Réveils de minuterie < 2 ms, Black Ops II, menus | 44 000 à 49 000/s | 45 700 à 48 000/s (session 1 : 53 600 à 64 500) | **Inchangé** |
-| dont attentes GETLLAR de 100 µs | 35 000 à 36 300/s | 35 000 à 38 000/s | Site **non couvert** par le Core 935 : c'est l'objet du Core 937 |
+| dont attentes d'un SPU qui sonde (compteur `getllar_sleeps`) | 35 000 à 36 300/s | 35 000 à 38 000/s | **Corrigé au §10** : ce sont surtout les attentes après un PUTLLC qui n'écrit rien (Cores 627/911), pas l'attente GETLLAR de 100 µs ; la règle du Core 935 ne s'y déclenche jamais dans les menus |
 | dont parcage RSX (nouvelle sonde) | — | 7 000 à 9 400/s | Tranches de 50 µs ; non touché (allonger retarde chaque début d'image) |
 | dont attentes minutées des PPU invités | — | 3 000 à 3 400/s | Demandées par le jeu ; non touchées |
 | Black Ops II en jeu | 2,54 W, 4,72 cœurs, 100 mJ/image à 35 FPS | 2,23 à 2,94 W, 4,4 cœurs, 86 à 95 mJ/image à 26 à 34 FPS | Pas de différence démontrable (scènes différentes) |
@@ -234,6 +234,12 @@ Core 610. La borne est donc choisie autour de lui : le chien de garde MFC compte
 Effet attendu dans les menus de Black Ops II : de 35 000-38 000 à environ 9 000-12 000 attentes GETLLAR par seconde, soit
 de ~48 000 à ~20 000 réveils de minuterie par seconde. Effet sur la puissance et la température : **inconnu tant que ce
 n'est pas mesuré sur l'iPhone**. En jeu, ces attentes sont rares (400 à 2 200/s) : pas d'effet attendu.
+
+**Correction (journaux de l'IPA 745, 15 novembre) : cet effet attendu ne s'est pas produit, et il ne pouvait pas se
+produire.** Dans les menus, les 37 700 à 38 300 attentes par seconde mesurées sur la 745 ne sont pas l'attente GETLLAR de
+100 µs : ce sont les attentes de 150 µs après un PUTLLC qui n'écrit rien (Cores 627/911), comptées par le même compteur.
+La borne du Core 937 n'y est jamais armée. Le Core 937 est gardé (il est juste, et sans effet ailleurs) ; la suite est au
+§10.
 
 Vérifié sur PC : syntaxe ARM64 des deux fichiers C++, contrôle hôte jetable de la séquence (borne 100 → 200 → 400 µs,
 remise à zéro sur notification, maintien à 100 µs après une trouvaille tardive, aucune fuite vers une autre attente ;

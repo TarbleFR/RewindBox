@@ -101,6 +101,13 @@ for prior reasoning, then verify the current Core and delivery status.
   evidence and an applicable maintainer decision authorize a change. Do not
   restore the God of War III 30-FPS cap; its profile uses `Auto`, with explicit
   per-game user choices applied last. A VBlank change is not an established fix.
+- Since Core 939 the iOS default Shader Mode is the Async Recompiler
+  (`REWINDBOX_ASYNC_SHADERS_939`; maintainer decision of 15 November 2026, « Le
+  Mode asynchrone pour tous les jeux le nécessitant ! », on the IPA 745 evidence:
+  every Black Ops II frame over 100 ms was a first pipeline build). A title's
+  RPCS3 database Shader Mode and the user's per-game choice still apply over
+  it; the global value migrates once (marker beside config.yml), so a later
+  global choice stays. Do not make the shader interpreter a default.
 - Use existing `RPCS3-diagnostic.log` and `RPCS3-performance.log` counters for
   title-lever decisions; do not add diagnostics for that tuning exercise.
   Keep player settings minimal: optimizations belong in the Core/title profile,
