@@ -1,73 +1,112 @@
-// Uses the same TASK_VM_INFO.phys_footprint measurement as MeloNX's original
-// PerformanceOverlay (Stossy11), with a bounded history and explicit failures.
-// The title row also shows the engine's game FPS when a live session reports it.
+// The MeloNX performance bar, on RPCS3's minimal bar (RPCS3PerformanceOverlay.mm since IPA 756). One compact bar,
+// four columns, the value above its caption:
+//   FPS       the engine's game FPS (MeloNXRuntimeAPI.performanceSnapshot), one decimal, locale separator;
+//   CPU       the process's CPU time over all the device's cores between two samples, 0-100 % (getrusage);
+//   RAM       the app's kernel footprint (TASK_VM_INFO.phys_footprint, the measurement of MeloNX's original
+//             PerformanceOverlay by Stossy11), decimal GB;
+//   RamDonor  the RamDonor bytes the engine uses (donorUsedBytes), decimal GB; never the mapped capacity.
+// "—" when a value is not measured. No graph: eight labels, updated by the sampler only while the bar is shown.
 import UIKit
 
-struct MeloNXMemoryPoint {
-    let time: TimeInterval
-    let bytes: UInt64?
-}
-struct MeloNXMemoryHistory {
-    private(set) var points: [MeloNXMemoryPoint] = []
-    private(set) var peak: UInt64?
-    mutating func append(time: TimeInterval, bytes: UInt64?) {
-        points.append(MeloNXMemoryPoint(time:time,bytes:bytes))
-        if points.count > 120 { points.removeFirst(points.count - 120) }
-        points.removeAll { time - $0.time > 60 }
-        if let bytes { peak = max(peak ?? 0,bytes) }
-    }
+// User plus system CPU time of the whole process (every thread, ended ones included), in seconds.
+func MeloNXProcessCPUSeconds() -> Double? {
+    var usage = rusage()
+    guard getrusage(RUSAGE_SELF,&usage) == 0 else { return nil }
+    func seconds(_ time: timeval) -> Double { Double(time.tv_sec) + Double(time.tv_usec) / 1e6 }
+    return seconds(usage.ru_utime) + seconds(usage.ru_stime)
 }
 
 final class MeloNXMemoryGraph: UIView {
-    private let title = UILabel()
-    private let values = UILabel()
-    private let historyLabel = UILabel()
-    private let fps = UILabel()
-    private(set) var history = MeloNXMemoryHistory()
+    static let barSize = CGSize(width:256,height:44)
+    private static let padding: CGFloat = 8
+    // The memory columns carry a unit and are wider.
+    private static let weights: [CGFloat] = [0.20,0.20,0.30,0.30]
+    private let fpsValue = UILabel(), cpuValue = UILabel(), ramValue = UILabel(), donorValue = UILabel()
+    private var values: [UILabel] { [fpsValue,cpuValue,ramValue,donorValue] }
+    private var captions: [UILabel] = []
+    private let fpsFormat = NumberFormatter(), percentFormat = NumberFormatter(), memoryFormat = NumberFormatter()
+    private var lastCPU: (seconds: Double, time: TimeInterval)?
     private var timer: Timer?
     var now: () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }
-    var sample: () -> [String:Any] = { MeloNXMemorySnapshot() as? [String:Any] ?? [:] }
+    var sample: () -> [String:Any] = { MeloNXMemoryGraph.processSample() }
+    var processorCount = ProcessInfo.processInfo.activeProcessorCount
+    var numberLocale = Locale.current { didSet { for format in [fpsFormat,percentFormat,memoryFormat] { format.locale = numberLocale } } }
     var isSampling: Bool { timer != nil }
-    var fpsText: String { fps.text ?? "" }
+    var fpsText: String { fpsValue.text ?? "" }
+    var cpuText: String { cpuValue.text ?? "" }
+    var ramText: String { ramValue.text ?? "" }
+    var donorText: String { donorValue.text ?? "" }
+    var captionTexts: [String] { captions.map { $0.text ?? "" } }
+
+    // The footprint sampler of the app and the process's CPU time; the session adds the engine's values.
+    static func processSample() -> [String:Any] {
+        var values = MeloNXMemorySnapshot() as? [String:Any] ?? [:]
+        if let seconds = MeloNXProcessCPUSeconds() { values["processCpuSeconds"] = seconds }
+        return values
+    }
 
     override init(frame: CGRect) {
         super.init(frame:frame)
-        isUserInteractionEnabled = false
-        backgroundColor = UIColor.black.withAlphaComponent(0.72)
+        isOpaque = false
+        backgroundColor = UIColor(white:0,alpha:0.55)
         layer.cornerRadius = 10
-        for label in [title,values,historyLabel,fps] {
+        clipsToBounds = true
+        isUserInteractionEnabled = false
+        isAccessibilityElement = true
+        accessibilityTraits = .staticText
+        accessibilityIdentifier = "melonx.performance.overlay"
+        for label in values {
+            label.font = .monospacedDigitSystemFont(ofSize:15,weight:.semibold)
             label.textColor = .white
-            label.font = .monospacedSystemFont(ofSize:11,weight:.medium)
-            label.numberOfLines = 0
-            label.translatesAutoresizingMaskIntoConstraints = false
+            label.textAlignment = .center
+            label.adjustsFontSizeToFitWidth = true
+            label.minimumScaleFactor = 0.7
+            label.isAccessibilityElement = false
+            label.text = "—"
             addSubview(label)
         }
-        title.text = MeloNXText("RewindBox RAM")
-        historyLabel.text = MeloNXText("Last 60 s")
-        fps.numberOfLines = 1
-        fps.textAlignment = .right
-        fps.font = .monospacedSystemFont(ofSize:11,weight:.semibold)
-        fps.setContentHuggingPriority(.required,for:.horizontal)
-        fps.setContentCompressionResistancePriority(.required,for:.horizontal)
-        NSLayoutConstraint.activate([
-            title.leadingAnchor.constraint(equalTo:leadingAnchor,constant:9),
-            title.trailingAnchor.constraint(lessThanOrEqualTo:fps.leadingAnchor,constant:-6),
-            title.topAnchor.constraint(equalTo:topAnchor,constant:7),
-            fps.trailingAnchor.constraint(equalTo:trailingAnchor,constant:-9),
-            fps.firstBaselineAnchor.constraint(equalTo:title.firstBaselineAnchor),
-            values.leadingAnchor.constraint(equalTo:title.leadingAnchor),
-            values.trailingAnchor.constraint(equalTo:trailingAnchor,constant:-9),
-            values.topAnchor.constraint(equalTo:title.bottomAnchor,constant:3),
-            historyLabel.leadingAnchor.constraint(equalTo:title.leadingAnchor),
-            historyLabel.bottomAnchor.constraint(equalTo:bottomAnchor,constant:-5)
-        ])
-        isAccessibilityElement = true
+        // Captions are names, the same in every language; orange and green as RPCS3's RAM and NeoSwap.
+        let muted = UIColor(white:1,alpha:0.6)
+        for (text,color) in [("FPS",muted),("CPU",muted),("RAM",UIColor.systemOrange),("RamDonor",UIColor.systemGreen)] {
+            let label = UILabel()
+            label.font = .systemFont(ofSize:9,weight:.medium)
+            label.textColor = color
+            label.textAlignment = .center
+            label.adjustsFontSizeToFitWidth = true
+            label.minimumScaleFactor = 0.8
+            label.isAccessibilityElement = false
+            label.text = text
+            addSubview(label); captions.append(label)
+        }
+        fpsFormat.numberStyle = .decimal; fpsFormat.usesGroupingSeparator = false
+        fpsFormat.minimumFractionDigits = 1; fpsFormat.maximumFractionDigits = 1
+        percentFormat.numberStyle = .percent; percentFormat.maximumFractionDigits = 0
+        memoryFormat.numberStyle = .decimal; memoryFormat.usesGroupingSeparator = false
+        memoryFormat.minimumFractionDigits = 2; memoryFormat.maximumFractionDigits = 2
+        for format in [fpsFormat,percentFormat,memoryFormat] { format.locale = numberLocale }
+        accessibilityLabel = MeloNXText("MeloNX Performance")
+        updateAccessibility()
     }
     required init?(coder:NSCoder) { fatalError("init(coder:) is unavailable") }
+    override var intrinsicContentSize: CGSize { Self.barSize }
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let width = max(0,bounds.width - 2 * Self.padding)
+        // The two rows sit in the middle of whatever height the layout gives the bar.
+        let top = max(0,(bounds.height - 34) / 2)
+        var x = Self.padding
+        for (column,value) in values.enumerated() {
+            let columnWidth = width * Self.weights[column]
+            value.frame = CGRect(x:x,y:top,width:columnWidth,height:20)
+            captions[column].frame = CGRect(x:x,y:top + 21,width:columnWidth,height:12)
+            x += columnWidth
+        }
+    }
     func setSampling(_ enabled: Bool) {
         guard enabled != isSampling else { return }
         timer?.invalidate(); timer = nil
         guard enabled else { return }
+        lastCPU = nil // a CPU share covers one sampling interval, never a pause
         observe()
         let timer = Timer(timeInterval:0.5,repeats:true) { [weak self] _ in self?.observe() }
         timer.tolerance = 0.1
@@ -76,40 +115,34 @@ final class MeloNXMemoryGraph: UIView {
     }
     func observe() {
         let value = sample()
-        let footprint = value["footprintBytes"] as? NSNumber
-        let headroom = value["availableBytes"] as? NSNumber
-        fps.text = (value["gameFps"] as? NSNumber).map { String(format:"%.0f FPS",$0.doubleValue) } ?? ""
-        history.append(time:now(),bytes:footprint?.uint64Value)
-        func size(_ value: NSNumber?) -> String {
-            guard let value else { return MeloNXText("Unavailable") }
-            return String(format:"%.0f MiB",Double(value.uint64Value)/1048576)
+        let time = now()
+        // Zero is a stalled-frame sample, not a missing one (NeoSwapFPSValid).
+        let fps = (value["gameFps"] as? NSNumber)?.doubleValue
+        fpsValue.text = fps.flatMap { $0.isFinite && $0 >= 0 ? fpsFormat.string(from:NSNumber(value:$0)) : nil } ?? "—"
+        var cpu: Double?
+        if let seconds = (value["processCpuSeconds"] as? NSNumber)?.doubleValue, seconds.isFinite {
+            if let last = lastCPU, time > last.time, seconds >= last.seconds, processorCount > 0 {
+                cpu = (seconds - last.seconds) / ((time - last.time) * Double(processorCount)) * 100
+            }
+            lastCPU = (seconds,time)
+        } else {
+            lastCPU = nil
         }
-        values.text = size(footprint) + " · " + MeloNXText("Peak") + " " + size(history.peak.map { NSNumber(value:$0) }) + "\n" + MeloNXText("App headroom") + " " + size(headroom)
-        if value["donorState"] != nil {
-            let state = value["donorState"] as? String ?? "unavailable"
-            values.text = (values.text ?? "") + "\n" + MeloNXText("Donor in use") + " " + size(value["donorUsedBytes"] as? NSNumber) +
-                " / " + size(value["donorMappedBytes"] as? NSNumber) + "\n" + MeloNXText("Donor " + state)
-        }
-        accessibilityLabel = MeloNXText("RewindBox RAM") + ", " + (fpsText.isEmpty ? "" : fpsText + ", ") + (values.text ?? "")
-        setNeedsDisplay()
+        cpuValue.text = cpu.flatMap { $0.isFinite && $0 >= 0 ? percentFormat.string(from:NSNumber(value:min($0,100) / 100)) : nil } ?? "—"
+        ramValue.text = memory(value["footprintBytes"])
+        donorValue.text = memory(value["donorUsedBytes"])
+        updateAccessibility()
     }
-    override func draw(_ rect: CGRect) {
-        super.draw(rect)
-        guard let context = UIGraphicsGetCurrentContext(),let last = history.points.last else { return }
-        let area = CGRect(x:9,y:92,width:max(1,bounds.width-18),height:max(1,bounds.height-114))
-        context.setStrokeColor(UIColor.white.withAlphaComponent(0.3).cgColor)
-        context.setLineWidth(0.5); context.stroke(area)
-        let maximum = max(256 * 1048576,history.points.compactMap(\.bytes).max() ?? 0)
-        let path = UIBezierPath(); var connected = false; var previous: TimeInterval?
-        for point in history.points {
-            guard let bytes = point.bytes else { connected = false; previous = nil; continue }
-            let x = area.minX + CGFloat(max(0,1-(last.time-point.time)/60))*area.width
-            let y = area.maxY - CGFloat(Double(bytes)/Double(maximum))*area.height
-            if connected, let previous, point.time-previous < 1.5 { path.addLine(to:CGPoint(x:x,y:y)) }
-            else { path.move(to:CGPoint(x:x,y:y)) }
-            connected = true; previous = point.time
-        }
-        UIColor.systemMint.setStroke(); path.lineWidth = 1.5; path.stroke()
+    // Decimal gigabytes with two decimals, as RPCS3 (NeoSwapDecimalGB).
+    private func memory(_ value: Any?) -> String {
+        guard let bytes = (value as? NSNumber)?.uint64Value,
+              let text = memoryFormat.string(from:NSNumber(value:Double(bytes) / 1e9)) else { return "—" }
+        return text + " " + MeloNXText("GB")
+    }
+    private func updateAccessibility() {
+        // Spoken with the full names of the two memory values (12 languages).
+        let ram = MeloNXText("App RAM"), donor = MeloNXText("RamDonor lent")
+        accessibilityValue = "FPS \(fpsText). CPU \(cpuText). \(ram): \(ramText). \(donor): \(donorText)"
     }
     deinit { timer?.invalidate() }
 }

@@ -174,8 +174,9 @@ final class MeloNXMetalSessionViewController: UIViewController {
         view.addSubview(menuButton)
         NSLayoutConstraint.activate([menuButton.widthAnchor.constraint(equalToConstant:44),menuButton.heightAnchor.constraint(equalToConstant:44),menuButton.topAnchor.constraint(equalTo:view.safeAreaLayoutGuide.topAnchor,constant:8),menuButton.trailingAnchor.constraint(equalTo:view.safeAreaLayoutGuide.trailingAnchor,constant:-8)])
         let graph = MeloNXMemoryGraph()
+        graph.numberLocale = Locale(identifier:MeloNXStrings.canonical(MeloNXStrings.locale))
         graph.sample = { [weak self] in
-            var values = MeloNXMemorySnapshot() as? [String:Any] ?? [:]
+            var values = MeloNXMemoryGraph.processSample()
             for (key,value) in MeloNXMemoryLease.shared.snapshot() { values[key] = value }
             for (key,value) in self?.runtime?.memorySnapshot() ?? [:] { values[key] = value }
             if let self, let runtime = self.runtime, let generation = self.generation, !self.closing {
@@ -188,7 +189,8 @@ final class MeloNXMetalSessionViewController: UIViewController {
         NSLayoutConstraint.activate([
             graph.leadingAnchor.constraint(equalTo:view.safeAreaLayoutGuide.leadingAnchor,constant:8),
             graph.topAnchor.constraint(equalTo:view.safeAreaLayoutGuide.topAnchor,constant:8),
-            graph.widthAnchor.constraint(equalToConstant:240),graph.heightAnchor.constraint(equalToConstant:152)
+            graph.widthAnchor.constraint(equalToConstant:MeloNXMemoryGraph.barSize.width),
+            graph.heightAnchor.constraint(equalToConstant:MeloNXMemoryGraph.barSize.height)
         ])
         updateMemoryGraph()
         for (name, pause) in [(UIApplication.willResignActiveNotification,true),(UIApplication.didBecomeActiveNotification,false)] {
