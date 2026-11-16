@@ -426,6 +426,10 @@
       {
         "commit": "6fbc7a7f25209edc51dfad6baf8e98700bb4edfe",
         "note": "Reviewed by the executing session, which wrote it: feat(neoplay): the RewindBox Cast receiver application ID 6C880231 (one constant, NPReceiverApp.applicationID) [skip ci]"
+      },
+      {
+        "commit": "a413ff50cfec6378738d4695c6bc22c86de6066f",
+        "note": "Reviewed by the executing session, which wrote it after an independent review of e660b652d: fix(neoplay): stage-2 review — the frames route starts on a still screen; the frames engine leaves for MediaSource on lost pictures, not on decoder depth [skip ci]"
       }
     ],
     "sourceOnly": [
