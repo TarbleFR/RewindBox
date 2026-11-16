@@ -37,7 +37,7 @@ int main() {
   CHECK(l.menu.x == 62 + kMargin && l.menu.y == kMargin);
   CHECK(l.performanceButton.maxX() == 874 - 62 - kMargin && l.performanceButton.y == kMargin);
   CHECK(l.panel.maxX() == l.performanceButton.maxX() && l.panel.y == l.performanceButton.maxY() + kGap);
-  CHECK(l.panel.w == 256 && l.panel.h == 44);  // the minimal FPS / CPU / RAM / NeoSwap bar
+  CHECK(l.panel.w == kPanelWidth && l.panel.h == kPanelHeight);  // the minimal block on RPCS3's model
   common(b, in1, l, {});
   // Other landscape orientation (notch on the right) and no insets.
   Insets in2{0, 21, 21, 62};

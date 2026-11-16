@@ -6,8 +6,9 @@
 NS_ASSUME_NONNULL_BEGIN
 
 /// Passive NeoStation overlay for RPCS3's lock-independent iOS performance API:
-/// one minimal bar, FPS, CPU, RAM and NeoSwap. The owner samples only while
-/// this view is visible.
+/// one minimal block on RPCS3's own performance overlay (its low detail level,
+/// colours and opacity), FPS, CPU, RAM and NeoSwap. The owner samples only
+/// while this view is visible.
 @interface RPCS3PerformanceOverlay : UIView
 - (void)setLocaleIdentifier:(NSString*)localeIdentifier;
 - (void)appendMetricsWithFPS:(double)fps

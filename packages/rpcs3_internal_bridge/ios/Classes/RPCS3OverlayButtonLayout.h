@@ -28,11 +28,12 @@ struct Layout {
 constexpr double kTarget = 44.0;      // hit area, also when the glyph is smaller
 constexpr double kMargin = 10.0;      // inside the safe area
 constexpr double kGap = 8.0;          // between button and panel
-// The minimal performance bar (FPS, CPU, RAM, NeoSwap; RPCS3PerformanceOverlay.mm intrinsicContentSize).
-constexpr double kPanelWidth = 256.0;
-constexpr double kPanelHeight = 44.0;
-constexpr double kPanelMin = 40.0;
-constexpr double kPanelMinWidth = 200.0;  // four readable columns (CPU "100 %"), never a sliver
+// The minimal performance block on RPCS3's model (FPS, CPU, RAM, NeoSwap: four lines of 12 pt monospaced text,
+// at most 18 characters, "NeoSwap : 12.34 GB"; RPCS3PerformanceOverlay.mm intrinsicContentSize).
+constexpr double kPanelWidth = 152.0;
+constexpr double kPanelHeight = 68.0;
+constexpr double kPanelMin = 68.0;        // the four lines, never cut
+constexpr double kPanelMinWidth = 120.0;  // the lines shrink to 3/4 at most (minimumScaleFactor), never a sliver
 constexpr double kClearance = 4.0;    // kept free around occupied controls
 
 inline bool intersects(const Rect& a, const Rect& b, double pad = 0) {
