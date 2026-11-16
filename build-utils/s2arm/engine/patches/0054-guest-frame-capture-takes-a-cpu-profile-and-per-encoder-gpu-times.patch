@@ -1,0 +1,135 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index c63123e..41d2ee9 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1362,7 +1362,13 @@ static gp_lab g_gp_lab[GP_MAX / 2]; static int g_gp_n, g_gp_cur = -1, g_gp_drop;
+ static int gp_open(void); static long g_gp_f0 = -2, g_gp_f1; static uint64_t g_gp_frame;
+ static uint64_t g_stat_pass, g_stat_draw; static _Atomic uint64_t g_cur_frame; static uint32_t g_seg; static uint32_t g_gp_copies, g_gp_disp, g_gp_ubd;   // copies / dispatches encoded (for the compute encoders' labels)
+ static uint32_t g_rtw_w, g_rtw_h, g_rtw_fmt;   // 本窗口最大渲染目标（nvn_be_rt_window 读后清零）
++// RewindBox (patch 0054): frames asked for at run time. A frame capture asks for the GPU time of every encoder of a few frames a little later (cap_end): the first frame not before
++//   g_rb_gp_req, once no report is under way, and the five after it (a report re-arms at the next frame, so two or three of them are measured). The lines are DM_NVN_GPUPROF's
++static _Atomic long g_rb_gp_req = -1;
+ static int gp_active(void) {
++    long rq = atomic_load_explicit(&g_rb_gp_req, memory_order_relaxed);
++    if (__builtin_expect(rq >= 0, 0)) { long f = (long)atomic_load(&g_cur_frame);
++        if (f >= rq && atomic_load(&g_gp_state) == 0) { atomic_store(&g_rb_gp_req, -1); g_gp_f0 = f + 1; g_gp_f1 = f + 6; } }
+     if (__builtin_expect(g_gp_f0 == -1, 1)) return 0;
+     if (g_gp_f0 == -2) { const char *e = getenv("DM_NVN_GPUPROF"); g_gp_f0 = e ? atol(e) : -1; g_gp_f1 = e && strchr(e, '-') ? atol(strchr(e, '-') + 1) : g_gp_f0;
+         if (g_gp_f0 < 0) return 0; }
+@@ -4009,6 +4015,7 @@ static int mem_any(const uint8_t *p, uint64_t n) {   // whether any byte is non-
+ static uint64_t g_fill_untouched_bytes, g_fill_untouched_n;   // 判全 0 时没读的未触碰页（诊断行，首 4 次后按 2 的幂）
+ __attribute__((weak)) int s2a_guest_fd(void) { return -1; }   // native vawin.c (S2A_GUEST_FILE); graphics unit tests have no guest window
+ __attribute__((weak)) int s2a_guest_carved(uint64_t a, uint64_t n) { (void)a; (void)n; return 0; }   // RewindBox (patch 0038): vawin.c, the mapped region kept anonymous under file backing
++__attribute__((weak)) int s2a_cpuprof_request(const char *dir, double secs) { (void)dir; (void)secs; return 0; }   // RewindBox (patch 0054): native cpuprof.c; graphics unit tests have no sampler
+ static int mem_any_touched(const uint8_t *p, uint64_t n) {
+     // RewindBox (patch 0016): storage the game does not wholly hold as readable memory is judged on a copy (what it does not hold is untouched: zeros); see rb_span_readable
+     if (n && !rb_span_readable((uintptr_t)p, n)) { uint8_t *c = malloc(n); if (!c) return 0; rb_span_copy(c, (uintptr_t)p, n, NULL); int any = mem_any(c, n); free(c); return any; }
+@@ -16359,6 +16366,16 @@ static void cap_end(void) {   // td_dump has written the files
+     atomic_store(&g_cap_pd_log, 0);
+     pthread_mutex_lock(&g_cap_pd_mu); uint64_t lines = g_cap_pd_lines; if (g_cap_pd_f) fclose(g_cap_pd_f); g_cap_pd_f = NULL; pthread_mutex_unlock(&g_cap_pd_mu);
+     MLOG("RewindBox: frame capture written into %s (%llu pass lines, %d pass snapshots)", g_cap_dir, (unsigned long long)lines, g_cap_snaps);
++    // RewindBox (patch 0054): what the pictures do not say, for the same moment of play. Mario Kart World's submit thread ran 59 M instructions a frame (35 thousand a draw) and
++    //   its frames took 14 ms of GPU time in the race of the IPA 760 test, with no word on which functions or which passes: a CPU profile of 6 s goes to cpuprof.txt in the
++    //   capture's folder (raw addresses, runtime/src/cpuprof.c) and the GPU time of every encoder of a few frames to the log, both a little after the capture, which stops the
++    //   picture for seconds. S2A_RB_CAPTURE_PROF=0 leaves both out
++    {   const char *x = getenv("S2A_RB_CAPTURE_PROF");
++        if (g_cap_dir[0] && !(x && !strcmp(x, "0"))) {
++            int cpu = s2a_cpuprof_request(g_cap_dir, 6.0); long f0 = (long)atomic_load(&g_cur_frame) + 180;
++            atomic_store(&g_rb_gp_req, f0);
++            MLOG("RewindBox: frame capture: %s; the GPU time of every encoder of a few frames from frame %ld on goes to this log ([gpuprof] lines). Keep playing for ten seconds",
++                 cpu ? "a CPU profile of 6 s starts in 2 s (cpuprof.txt in the same folder)" : "no CPU profile (one is running, or no memory for its table)", f0); } }
+     g_cap_snap = 0; g_cap_dir[0] = 0;
+     g_pd_a0 = -2;   // passdump() reads DM_NVN_PASSDUMP again (unset: off, answered at its first test)
+     [g_cap_tex removeAllObjects]; [g_cap_tex_seen removeAllObjects]; g_cap_tex_over = g_cap_tex_kind = 0;   // RewindBox (patch 0048; 0049: the counts): td_dump's sheets are written (or its pipeline failed)
+diff --git a/runtime/src/cpuprof.c b/runtime/src/cpuprof.c
+index 91b7e77..28794c9 100644
+--- a/runtime/src/cpuprof.c
++++ b/runtime/src/cpuprof.c
+@@ -6,6 +6,8 @@
+ //   S2A_CPUPROF_THREAD=<名字子串> 只采名字含它的线程（如 nx-89）。开销：每样本挂起 / 放行一次，约几微秒；只用于诊断局
+ #include "native.h"
+ #include <dlfcn.h>
++#include <mach-o/dyld.h>   // RewindBox (patch 0054)
++#include <stdatomic.h>    // RewindBox (patch 0054)
+ #include <mach/mach.h>
+ #include <mach/thread_act.h>
+ #include <pthread.h>
+@@ -77,6 +79,7 @@ static void report(double secs) {
+     }
+     free(ak); free(av); free(fn);
+ }
++static double cp_window(double dur, double hz, const char *flt);   // RewindBox (patch 0054)
+ static void *cp_main(void *arg) {
+     (void)arg; pthread_setname_np("s2a-cpuprof");
+     pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0);
+@@ -86,6 +89,10 @@ static void *cp_main(void *arg) {
+     if (hz < 10) hz = 10;
+     struct timespec ts = {(time_t)t0, (long)((t0 - (time_t)t0) * 1e9)}; nanosleep(&ts, NULL);
+     LOG("[cpuprof] 开始采样：%.0f 秒、每秒 %.0f 次%s%s", dur, hz, flt ? "，只采名字含 " : "", flt ? flt : "");
++    report(cp_window(dur, hz, flt));
++    return NULL;
++}
++static double cp_window(double dur, double hz, const char *flt) {   // RewindBox (patch 0054): the sampling loop as it stood in cp_main; returns the window's length in seconds
+     thread_t self = mach_thread_self(); struct timespec beg, now; clock_gettime(CLOCK_MONOTONIC, &beg);
+     long per = (long)(1e9 / hz);
+     for (;;) {
+@@ -121,9 +128,58 @@ static void *cp_main(void *arg) {
+     }
+     clock_gettime(CLOCK_MONOTONIC, &now);
+     mach_port_deallocate(mach_task_self(), self);
+-    report((double)(now.tv_sec - beg.tv_sec) + (now.tv_nsec - beg.tv_nsec) / 1e9);
++    return (double)(now.tv_sec - beg.tv_sec) + (now.tv_nsec - beg.tv_nsec) / 1e9;
++}
++// RewindBox (patch 0054): a window on request, written as raw addresses. The frame capture asks for one once its files are written (nvn_mtl.m cap_end): on the iPhone no start-up
++//   variable can aim a window at a race, and the framework's own functions are not exported, so a name per sample would be the nearest exported one's. <dir>/cpuprof.txt has the
++//   load address of every image (I lines) and of the game's modules (M lines: base, size, name), the sampled threads (T lines: slot, samples, name) and one S line per sample
++//   (slot, pc, then return addresses); the link map kept with each engine build turns the engine's offsets into functions. No path and no title in it. One window at a time,
++//   and none while S2A_CPUPROF runs its own. While it samples, the sampler suspends each running thread for a few microseconds, RQ_HZ times a second
++enum { RQ_HZ = 500, RQ_WAIT_S = 2 };
++static _Atomic int g_rq_busy; static char g_rq_dir[1024]; static double g_rq_secs;
++static void cp_raw_write(const char *dir, double secs) {
++    char p[1100]; snprintf(p, sizeof p, "%s/cpuprof.txt", dir);
++    FILE *f = fopen(p, "w");
++    if (!f) { LOG("RewindBox: CPU profile: cannot write cpuprof.txt beside the frame capture (%d samples lost)", g_ns); return; }
++    fprintf(f, "# RewindBox CPU profile (patch 0054): %.1f s at %d samples a second, %d samples of running threads. I: image load address, name. M: game module base, size, name. "
++               "T: thread slot, samples, name. S: thread slot, pc, return addresses (hex)\n", secs, (int)RQ_HZ, g_ns);
++    for (uint32_t i = 0, n = _dyld_image_count(); i < n; i++) {
++        const char *nm = _dyld_get_image_name(i), *b = nm ? strrchr(nm, '/') : NULL;
++        fprintf(f, "I %llx %s\n", (unsigned long long)(uintptr_t)_dyld_get_image_header(i), b ? b + 1 : nm ? nm : "?");
++    }
++    for (int i = 0; i < g_nmod; i++) fprintf(f, "M %llx %llx %.16s\n", (unsigned long long)(uintptr_t)g_mod[i].base, (unsigned long long)g_mod[i].size, g_mod[i].name);
++    for (int t = 0; t < g_nthr; t++) fprintf(f, "T %d %d %s\n", t, g_thr[t].n, g_thr[t].name);
++    for (int i = 0; i < g_ns; i++) {
++        fprintf(f, "S %u", (unsigned)g_s[i].thr);
++        for (int d = 0; d < g_s[i].n; d++) fprintf(f, " %llx", (unsigned long long)g_s[i].pc[d]);
++        fputc('\n', f);
++    }
++    int bad = ferror(f); if (fclose(f)) bad = 1;
++    LOG("RewindBox: CPU profile: %d samples of %d threads over %.1f s %s cpuprof.txt beside the frame capture", g_ns, g_nthr, secs, bad ? "NOT all written (a write failed) to" : "written to");
++}
++static void *cp_rq_main(void *arg) {
++    (void)arg; pthread_setname_np("s2a-cpuprof");
++    pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0);
++    struct timespec w = {RQ_WAIT_S, 0}; nanosleep(&w, NULL);   // the capture stopped the picture for seconds: let the game run again first
++    g_ns = 0; g_nthr = 0; memset(g_thr, 0, sizeof g_thr);
++    double secs = cp_window(g_rq_secs, RQ_HZ, NULL);
++    cp_raw_write(g_rq_dir, secs);
++    free(g_s); g_s = NULL; g_ns = 0;
++    atomic_store(&g_rq_busy, 0);
+     return NULL;
+ }
++// 1: a window of secs seconds starts RQ_WAIT_S seconds from now and its samples go to <dir>/cpuprof.txt; 0: not started (one is running, S2A_CPUPROF has the table, no memory)
++int s2a_cpuprof_request(const char *dir, double secs) {
++    const char *e = getenv("S2A_CPUPROF");
++    if (!dir || !*dir || secs <= 0 || (e && *e) || atomic_exchange(&g_rq_busy, 1)) return 0;
++    if (!(g_s = calloc(CP_MAXS, sizeof *g_s))) { atomic_store(&g_rq_busy, 0); return 0; }
++    snprintf(g_rq_dir, sizeof g_rq_dir, "%s", dir); g_rq_secs = secs > 20 ? 20 : secs;
++    pthread_t t; pthread_attr_t a; pthread_attr_init(&a); pthread_attr_setdetachstate(&a, PTHREAD_CREATE_DETACHED);
++    int rc = pthread_create(&t, &a, cp_rq_main, NULL);
++    pthread_attr_destroy(&a);
++    if (rc) { free(g_s); g_s = NULL; atomic_store(&g_rq_busy, 0); return 0; }
++    return 1;
++}
+ // 环境变量在 envfile_boot（constructor 99）之后读：iOS 上 Documents/env.txt 设的也认
+ __attribute__((constructor(210))) static void cp_init(void) {
+     const char *e = getenv("S2A_CPUPROF"); if (!e || !*e) return;

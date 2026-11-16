@@ -1,0 +1,85 @@
+diff --git a/runtime/src/vawin.c b/runtime/src/vawin.c
+index c59d252..60e78e8 100644
+--- a/runtime/src/vawin.c
++++ b/runtime/src/vawin.c
+@@ -85,7 +85,8 @@ static int gf_at(uint64_t off, uint64_t *in, uint64_t *room) {
+ //   S2Arm measured the same: nearly all file writes come from this region, mostly pages the game had already released (Duo: 9.4 GB written uncarved, 33 MB carved).
+ //   The cost is this region's resident pages counted in the footprint. Ported (MIT) from S2Arm c1d9fd9c, d8b0f8fd, 0b2d2d26, 07314902 and f83bd54a, adapted to the
+ //   window files of patch 0036: the fallback mapping back to the files goes one file at a time (gf_at), as s2a_guest_zero does; a session reset gives the region back
+-static int g_low_tier;           // this session's device cannot hold the pool and the host estimate in physical memory, and the previous session did not die: carve.
++static int g_low_tier;           // this session's device cannot hold the pool and the host estimate in physical memory. It carved until patch 0052 (see s2a_guest_carve_wanted): what
++                                 //   follows is that rule's history.
+                                  //   Wider than S2Arm's tier on purpose (S2Arm's s2a_guest_file_wanted6 sets it only with no measured peak): on IPA 750's phone the measured peak
+                                  //   (8,340 MB, from sessions without file backing) would have kept the region in the files for good. A session that dies in the foreground
+                                  //   (killed at the memory limit, crash) turns it off for the next one (s2a_guest_run_died), so a carve that does not fit is not repeated
+@@ -265,10 +266,10 @@ static void guest_file_attach_(void) {
+         (unsigned long long)(pool >> 20), (unsigned long long)(room >> 20), room ? "" : "（0 = 未知）", (unsigned long long)(seen == UINT64_MAX ? 0 : seen >> 20), (unsigned long long)(host >> 20), s2a_process_prewarmed() ? "；预热进程" : "");
+     // RewindBox (patch 0038): the tier for s2a_guest_file_carve, S2Arm's rule (physical memory below the pool and the host estimate; unknown physical memory = not that tier)
+     { uint64_t phys = 0; size_t pn = sizeof phys; if (sysctlbyname("hw.memsize", &phys, &pn, NULL, 0)) phys = 0;
+-      g_gfile_room = room; g_low_tier = phys && pool && phys < pool + host && !died;
++      g_gfile_room = room; g_low_tier = phys && pool && phys < pool + host;   // RewindBox (patch 0052): for the log only (s2a_guest_carve_wanted), whatever the previous session did
+       if (on) LOG("RewindBox: guest file backing tier: physical memory %llu MB %s the pool and the host estimate (%llu MB)%s; room under the process limit %llu MB",
+                   (unsigned long long)(phys >> 20), phys && pool && phys < pool + host ? "cannot hold" : phys ? "holds" : "(unknown) is taken to hold", (unsigned long long)((pool + host) >> 20),
+-                  died && phys && pool && phys < pool + host ? ", but the previous session died in the foreground: the mapped region is not carved this time" : "", (unsigned long long)(room >> 20)); }
++                  g_low_tier ? ": the mapped region is carved only with room under the process limit (patch 0052)" : "", (unsigned long long)(room >> 20)); }
+     if (!on) return;
+     guest_file_map();
+ #else
+@@ -406,11 +407,21 @@ int s2a_guest_map_fixed(uint64_t a, uint64_t len) {
+     if (fd < 0) return -1;
+     return mmap((void *)(uintptr_t)a, len, PROT_NONE, MAP_FIXED | MAP_SHARED, fd, (off_t)off) == (void *)(uintptr_t)a ? 0 : -1;
+ }
+-// RewindBox (patch 0038): whether to carve (a pure function, unit tested): S2A_GUEST_FILE_CARVE=0 / 1 as set; the low tier carves; otherwise when the room under the per-process
++// RewindBox (patch 0038): whether to carve (a pure function, unit tested): S2A_GUEST_FILE_CARVE=0 / 1 as set; otherwise when the room under the per-process
+ //   limit is at least room_min (S2A_GUEST_FILE_CARVE_ROOM_MB, default 7168: S2Arm's threshold, a carved session's footprint peak being an absolute amount). Unknown room (0) does not
++// RewindBox (patch 0052): the low tier no longer carves by itself; S2Arm's rule alone (the room) decides. Mario Kart World on iPhone17,2 (7,619 MB, room about 6,130 MB), the
++//   eleven sessions of 16 November on one engine (patches 0001-0050) had both outcomes, the uncarved ones only because the session before had died. Medians of each session's
++//   second half, carved (eight sessions): 1.6 to 2.2 GB of the process compressed, other processes on 41 to 62 % of the six cores (the kernel compressing and expanding the
++//   region's pages), 14 to 51 thousand page-ins and 0.4 to 1.3 GB read per 10 s, footprint peak 4.5 to 5.4 GB (two sessions died during a frame capture), room left 1.3 to
++//   2.3 GB; uncarved (the two long sessions): 0.9 to 1.0 GB compressed, other processes on 16 to 18 %, 13 to 19 thousand page-ins and 0.35 to 0.4 GB read per 10 s, footprint
++//   peak 4.3 GB, room left 2.5 to 2.6 GB. Race windows of 10 s at thermal state 1: uncarved 33 to 48 frames a second in 11 of 12 (two sessions), carved 15 to 24 in 11 of 13
++//   (four sessions with no frame cap; 36 and 47 in the two others, early in one session); at thermal state 2: uncarved 28 to 32 (three windows, one session), carved 14 to
++//   28 in 14 of 15 (three sessions with no frame cap). Not proven: that nothing else differed (an uncarved session always followed a death). The cost that comes back: the
++//   region's dirty pages are written to storage when evicted (3.8 to 4.0 GB a long session uncarved, 0.03 to 0.5 GB carved). S2A_GUEST_FILE_CARVE=1 still carves; low stays
++//   in the signature for the log line and the unit test
+ int s2a_guest_carve_wanted(const char *e, int low, uint64_t room, uint64_t room_min) {
+     if (e && *e) return *e != '0';
+-    if (low) return 1;
++    (void)low;
+     return room && room >= room_min;
+ }
+ // The window files again over [lo, hi), one file at a time (the carve's fallback): 1 when every piece is mapped
+@@ -432,7 +443,7 @@ void s2a_guest_file_carve(uint64_t a, uint64_t n) {
+     uint64_t room_min = env_mb("S2A_GUEST_FILE_CARVE_ROOM_MB", 7168);
+     if (!s2a_guest_carve_wanted(e, g_low_tier, g_gfile_room, room_min)) {
+         LOG("RewindBox: guest file backing: the mapped region stays in the files (%s; room under the process limit %llu MB, threshold %llu MB)",
+-            e && *e ? "S2A_GUEST_FILE_CARVE=0" : "not the low-memory tier", (unsigned long long)(g_gfile_room >> 20), (unsigned long long)(room_min >> 20)); return; }
++            e && *e ? "S2A_GUEST_FILE_CARVE=0" : "room under the process limit below the threshold", (unsigned long long)(g_gfile_room >> 20), (unsigned long long)(room_min >> 20)); return; }
+     const uint64_t pg = 0x4000;
+     uint64_t lo = a > g_base ? a : g_base, hi = a + n < g_base + g_size ? a + n : g_base + g_size;
+     lo = (lo + pg - 1) & ~(pg - 1); hi &= ~(pg - 1);
+@@ -451,8 +462,8 @@ void s2a_guest_file_carve(uint64_t a, uint64_t n) {
+     }
+     g_anon_lo = lo; g_anon_hi = hi;
+     LOG("RewindBox: guest file backing: the mapped region %#llx +%llu MB kept anonymous (%s), out of the files: the game maps and releases it all the time; the game heap stays in the files",
+-        (unsigned long long)lo, (unsigned long long)((hi - lo) >> 20), e && *e ? "S2A_GUEST_FILE_CARVE=1" : g_low_tier ? "low-memory tier" : "room under the process limit");
+-    if (!(e && *e) && !g_low_tier) LOG("RewindBox: guest file backing: carved as room under the process limit %llu MB >= %llu MB", (unsigned long long)(g_gfile_room >> 20), (unsigned long long)(room_min >> 20));
++        (unsigned long long)lo, (unsigned long long)((hi - lo) >> 20), e && *e ? "S2A_GUEST_FILE_CARVE=1" : "room under the process limit");
++    if (!(e && *e)) LOG("RewindBox: guest file backing: carved as room under the process limit %llu MB >= %llu MB", (unsigned long long)(g_gfile_room >> 20), (unsigned long long)(room_min >> 20));
+ }
+ // [a, a + n) 在文件后备的窗口里：打洞（还文件块，再读是 0）并按原偏移重新映射成不可访问，返回 1；不在 / 没开文件后备 / 落在挖回匿名的那段（RewindBox patch 0038）返回 0（调用方照旧换匿名占位）
+ //   RewindBox (patch 0036): one window file at a time (gf_at), at contiguous addresses; a failure part way returns 0 and the caller covers the whole range anonymous, as before
+diff --git a/runtime/tests/t_guest_file.c b/runtime/tests/t_guest_file.c
+index b20b9d1..329c365 100644
+--- a/runtime/tests/t_guest_file.c
++++ b/runtime/tests/t_guest_file.c
+@@ -43,7 +43,8 @@ int main(void) {
+         int s2a_guest_carve_wanted(const char *, int, uint64_t, uint64_t); const uint64_t G = 1ull << 30, MIN = 7 * G;
+         CHECK(s2a_guest_carve_wanted("0", 1, 8 * G, MIN) == 0, "⑥' S2A_GUEST_FILE_CARVE=0: not carved (even in the low tier with room)");
+         CHECK(s2a_guest_carve_wanted("1", 0, 0, MIN) == 1, "⑥' S2A_GUEST_FILE_CARVE=1: carved (even with unknown room)");
+-        CHECK(s2a_guest_carve_wanted(NULL, 1, 1 * G, MIN) == 1, "⑥' low tier (iPhone17,2, 7,619 MB < pool 9,216 + host 2,048): carved");
++        CHECK(s2a_guest_carve_wanted(NULL, 1, 6130ull << 20, MIN) == 0, "⑥' low tier with room 6,130 MB < 7,168 (iPhone17,2, 7,619 MB < pool 9,216 + host 2,048): not carved (RewindBox patch 0052)");
++        CHECK(s2a_guest_carve_wanted(NULL, 1, 8 * G, MIN) == 1, "⑥' low tier with room 8,192 MB >= 7,168: carved, by the room (RewindBox patch 0052)");
+         CHECK(s2a_guest_carve_wanted(NULL, 0, 8189ull << 20, MIN) == 1, "⑥' room 8,189 MB >= 7,168: carved");
+         CHECK(s2a_guest_carve_wanted(NULL, 0, 6141ull << 20, MIN) == 0, "⑥' room 6,141 MB < 7,168: not carved");
+         CHECK(s2a_guest_carve_wanted(NULL, 0, 0, MIN) == 0, "⑥' unknown room (0, Mac): not carved");

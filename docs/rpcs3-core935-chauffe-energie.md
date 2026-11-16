@@ -600,6 +600,15 @@ Après correction : les 104 tests `--source` existants donnent le même résulta
 - Non exécutés : bancs historiques, appareil. **Aucun gain de température, de puissance ou d'images par seconde n'est
   annoncé avant les journaux de l'iPhone.**
 
+### Livraison 761 (16 novembre 2026)
+
+Core 941 : demande 1 (run 43922916468) compilée, relue par un relecteur indépendant, remplacée ; demande 2 (run
+43929679850) compilée, vérifiée et épinglée (empreinte 9ea6fcf6, identités de cache inchangées). IPA 761 sur la base
+760 (run 43937309952, première demande, verte) : elle reprend aussi le Core MeloNX de l'autre session (pin a320d7ab,
+recette § 3.12) ; le moteur S2Arm garde le pin de la base. IPA `6c8a1288…`, 331 256 663 octets, vérifiée hors ligne
+après téléchargement (`passed-offline-checks`) et remise au mainteneur ; clé privée supprimée. Groupes Flutter et natif
+non exécutés. Non testée sur iPhone : chaleur, puissance et images par seconde restent à observer.
+
 ### À lire dans les prochains journaux
 
 Menus de Black Ops II, 2 minutes, téléphone débranché : `THERMAL931 light_class=1`, `light_ms` proche de 5000 par

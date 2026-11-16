@@ -1,0 +1,25 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 41d2ee9..205be5f 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -16326,6 +16326,7 @@ static void td_clear(int pending_gpu) {
+ enum { CAP_SNAPS = 24, CAP_MAX = 4 };
+ #define CAP_SNAP_ROOM (1536ull << 20)
+ #define CAP_KEEP (512ull << 20)
++#define CAP_MAX_PX (16ull << 20)   // RewindBox (patch 0055): the largest level a guest capture writes, in pixels (td_dump)
+ static _Atomic int g_cap_req, g_cap_count; static _Atomic uint64_t g_cap_last_ns;
+ static int g_cap_snap, g_cap_snaps; static char g_cap_dir[1024];
+ void s2a_rb_capture_request(void) {   // any thread (the screenshot notification comes on the main thread)
+@@ -16532,6 +16533,12 @@ static void td_dump(void) {
+             FILE *f = fopen(rp_, "wb"); if (f) { fprintf(f, "%lu %lu %lu %zu\n", (unsigned long)rw, (unsigned long)rh, (unsigned long)t.pixelFormat, rw * bpp); fwrite(rb.contents, 1, rw * rh * bpp, f); fclose(f); }
+         }
+         NSUInteger w = MAX(t.width >> lv, 1u), h = MAX(t.height >> lv, 1u);
++        // RewindBox (patch 0055): a guest capture leaves out a level of more than CAP_MAX_PX pixels. Two sessions of 16 November ended at this very image, level 0 of Mario Kart
++        //   World's 6144x6144 terrain target (151 MB as RGBA8, as much again read back, the PNG encoder's on top), with 1.3 to 1.5 GB to spare: more than cap_room's estimate
++        //   (three times the image and CAP_KEEP, 965 MB) allows for. Its smaller levels are written as before
++        if (g_cap_dir[0] && (unsigned long long)w * h > CAP_MAX_PX) {
++            MLOG("RewindBox: frame capture: target ser=%llu level %lu (%lux%lu) left out: more than %llu M pixels (smaller levels are written)", ser, (unsigned long)lv, (unsigned long)w, (unsigned long)h, CAP_MAX_PX >> 20);
++            continue; }
+         if (!cap_room((size_t)w * h * 4, "target", ser)) continue;   // RewindBox (patch 0045)
+         id<MTLTexture> v = [t newTextureViewWithPixelFormat:t.pixelFormat textureType:MTLTextureType2D levels:NSMakeRange(lv, 1) slices:NSMakeRange(sl, 1)];
+         MTLTextureDescriptor *od = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm width:w height:h mipmapped:NO];

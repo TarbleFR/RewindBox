@@ -1,0 +1,88 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index c018458..c63123e 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -2005,12 +2005,16 @@ static evs_t g_evs[EVS_MAX]; static int g_nevs, g_evs_over;   // 已录、还没
+ static uint64_t g_evw_next, g_evw_released, g_evw_waits, g_evw_forced;
+ static id<MTLSharedEvent> g_evw_ev;
+ #define EVA_MAX 256
+-static struct { volatile uint32_t *val; uint8_t gpu, cpu; } g_eva[EVA_MAX]; static int g_neva;   // 见过的事件地址：录过 GPU 侧信号 / CPU 写过
++// RewindBox (patch 0053): cpu_up = a CPU write raised the value (it may be what a wait waits for); last = the value at the last write seen (CPU write or GPU-side signal landed).
++//   Mario Kart World's two queues order their stages with two events that only GPU-side signals raise (1 to 5 in a frame) and the CPU sets back to 0 for the next frame:
++//   cpu without cpu_up. See ev_wait
++static struct { volatile uint32_t *val; uint8_t gpu, cpu, cpu_up; uint32_t last; } g_eva[EVA_MAX]; static int g_neva;   // 见过的事件地址：录过 GPU 侧信号 / CPU 写过
+ static uint64_t g_evw_xq, g_evw_xq_skip;   // 录到排在等待之后的 GPU 侧信号而放行的次数 / 只由 GPU 侧写的事件不等的次数
++static uint64_t g_evw_xq_reset;   // RewindBox (patch 0053): waits parked on an event the CPU only sets back (holds g_evw_mu)
+ static int eva_at(volatile uint32_t *val) {   // 调用方持 g_evw_mu；表满返回 -1
+     for (int i = 0; i < g_neva; i++) if (g_eva[i].val == val) return i;
+     if (g_neva == EVA_MAX) return -1;
+-    g_eva[g_neva].val = val; g_eva[g_neva].gpu = g_eva[g_neva].cpu = 0; return g_neva++;
++    g_eva[g_neva].val = val; g_eva[g_neva].gpu = g_eva[g_neva].cpu = g_eva[g_neva].cpu_up = 0; g_eva[g_neva].last = *val; return g_neva++;
+ }
+ static int ev_cond(uint32_t cur, uint32_t mode, uint32_t v) { return mode == 1 ? (int32_t)(cur - v) >= 0 : cur == v; }   // NVN_EVENT_WAIT_MODE_EQUAL 0 / GEQUAL_WRAP 1
+ static void evw_release_locked(uint64_t upto) {   // 放行票号 ≤ upto 的等待（调用方持 g_evw_mu）
+@@ -2031,7 +2035,13 @@ void nvn_be_event_gpu_recorded(volatile uint32_t *val) {
+     pthread_mutex_lock(&g_evw_mu); int a = eva_at(val); if (a >= 0) g_eva[a].gpu = 1; pthread_mutex_unlock(&g_evw_mu);
+ }
+ void nvn_be_event_written(volatile uint32_t *val) {
+-    pthread_mutex_lock(&g_evw_mu); int a = val ? eva_at(val) : -1; if (a >= 0) g_eva[a].cpu = 1;
++    pthread_mutex_lock(&g_evw_mu); int a = val ? eva_at(val) : -1;
++    if (a >= 0) {   // RewindBox (patch 0053): cpu_up, last
++        uint32_t now = *val; int up = (int32_t)(now - g_eva[a].last) > 0;
++        for (int i = 0; up && i < g_nevs; i++) if (g_evs[i].val == val && g_evs[i].mode != 1 && g_evs[i].v == now) up = 0;   // the value of a GPU-side signal that landed between the game's write and this read (evs_landed has not taken it off yet)
++        if (up) g_eva[a].cpu_up = 1;
++        g_eva[a].last = now; g_eva[a].cpu = 1;
++    }
+     if (g_nevw) evw_check_locked(); pthread_mutex_unlock(&g_evw_mu);
+ }
+ void mtl_sub_event(volatile uint32_t *val, uint32_t mode, uint32_t v) {
+@@ -2047,6 +2057,7 @@ static void evs_landed(volatile uint32_t *val) {   // 完成回调落地了一
+     pthread_mutex_lock(&g_evw_mu);
+     for (int i = 0; i < g_nevs; i++) if (g_evs[i].val == val) { memmove(&g_evs[i], &g_evs[i + 1], (size_t)(g_nevs - i - 1) * sizeof *g_evs); g_nevs--; break; }
+     if (!g_nevs) g_evs_over = 0;
++    { int a = eva_at(val); if (a >= 0) g_eva[a].last = *val; }   // RewindBox (patch 0053)
+     if (g_nevw) evw_check_locked();
+     pthread_mutex_unlock(&g_evw_mu);
+ }
+@@ -2063,10 +2074,21 @@ static int ev_wait(volatile uint32_t *val, uint32_t mode, uint32_t v, const uint
+     uint32_t cur = ev_now_locked(val);
+     uint64_t ticket = 0;
+     int a = eva_at(val);
+-    if (!g_evs_over && !ev_cond(cur, mode, v) && a >= 0 && g_eva[a].gpu && !g_eva[a].cpu) {   // ④ 只由 GPU 侧信号写的事件：写它的信号还在后面的提交里，不在 GPU 上等
+-        if (xq_may_park(next, val, mode, v)) { g_xq_pval = val; g_xq_pmode = mode; g_xq_pv = v; g_xq_unwind = 1; pthread_mutex_unlock(&g_evw_mu); return 1; }   // 停住这条队列，等那笔信号回放后再接着回放（nvn_xqueue.inc）
++    // RewindBox (patch 0053): an event the CPU writes too, but only ever sets back (never raises), is met by the GPU-side signals alone, like one the CPU never writes: its unmet
++    //   wait parks the queue too. It used to wait on the GPU and be released as soon as the other queue's signal was recorded, which is before that queue's work runs: in Mario Kart
++    //   World (IPA 760, capture of frame 4275) the compute queue's five stages (62 dispatches, 59 buffers and 30 images written, which the graphics queue binds in 957 places)
++    //   all ran before the graphics queue's frame, reading what it had drawn the frame before; seven of the textures they read are drawn in the same frame, a shadow map among
++    //   them, a new texture nearly every frame while the resolution moves. The recording of that test has the near palm trees gone for single frames. When the park is
++    //   refused (xq_may_park) the wait goes on as before. S2A_RB_XQ_RESET=0 turns this off
++    static int reset_park = -1; if (reset_park < 0) { const char *x = getenv("S2A_RB_XQ_RESET"); reset_park = !(x && !strcmp(x, "0")); }
++    int unmet = !g_evs_over && !ev_cond(cur, mode, v), gpu_only = a >= 0 && g_eva[a].gpu && !g_eva[a].cpu, set_back = a >= 0 && g_eva[a].gpu && g_eva[a].cpu && !g_eva[a].cpu_up && reset_park;
++    if (unmet && a >= 0 && g_eva[a].gpu && g_eva[a].cpu_up) { static int n; if (!n++) MLOG("RewindBox: GPU event waits: event %p is raised by the game's own writes too: its unmet waits wait on the GPU as before (first case)", val); }
++    if (unmet && (gpu_only || set_back) && xq_may_park(next, val, mode, v)) {   // 停住这条队列，等那笔信号回放后再接着回放（nvn_xqueue.inc）
++        if (set_back && !g_evw_xq_reset++) MLOG("RewindBox: GPU event waits: event %p is raised only by GPU-side signals (the CPU sets it back): its unmet waits park the queue, as for an event the CPU never writes (first case; S2A_RB_XQ_RESET=0 turns this off)", val);
++        g_xq_pval = val; g_xq_pmode = mode; g_xq_pv = v; g_xq_unwind = 1; pthread_mutex_unlock(&g_evw_mu); return 1; }
++    if (unmet && gpu_only) {   // ④ 只由 GPU 侧信号写的事件：写它的信号还在后面的提交里，不在 GPU 上等
+         g_evw_xq_skip++; static int n; if (!n++) MLOG("GPU event waits: event %p is written only by GPU-side signals recorded after its waits (another queue); these waits do not stall the queue", val);
+-    } else if (!g_evs_over && !ev_cond(cur, mode, v)) {
++    } else if (unmet) {
+         if (!g_evw_ev) g_evw_ev = [g_dev newSharedEvent];
+         if (g_nevw < EVW_MAX) { ticket = ++g_evw_next; g_evw[g_nevw++] = (evw_t){val, mode, v, ticket}; g_evw_waits++; }
+         else { static int n; if (!n++) MLOG("【红】 GPU event waits: more than %d pending at once; this one does not wait", EVW_MAX); }
+diff --git a/graphics/nvn/gfx/nvn/nvn_xqueue.inc b/graphics/nvn/gfx/nvn/nvn_xqueue.inc
+index 133af21..d62dbee 100644
+--- a/graphics/nvn/gfx/nvn/nvn_xqueue.inc
++++ b/graphics/nvn/gfx/nvn/nvn_xqueue.inc
+@@ -195,9 +195,10 @@ static void xq_drain_ready(void) {
+ }
+ static void xq_stats(void) {
+     if (g_xq_subs % 3000 || !(g_xq_parks | g_xq_busy | g_xq_cycles | g_xq_forced)) return;
+-    MLOG("cross-queue event waits up to submission %llu: parked %llu, resumed %llu, kept released (lookahead spans the wait) %llu, cycles %llu, released by force %llu, owed fences %llu, queue waits behind a parked queue %llu, parked now %d; extra pieces %llu (%.1f ms submit thread in them), cycle checks %.1f ms",
++    pthread_mutex_lock(&g_evw_mu); unsigned long long sb = g_evw_xq_reset, late = g_evw_xq; pthread_mutex_unlock(&g_evw_mu);   // RewindBox (patch 0053)
++    MLOG("cross-queue event waits up to submission %llu: parked %llu, resumed %llu, kept released (lookahead spans the wait) %llu, cycles %llu, released by force %llu, owed fences %llu, queue waits behind a parked queue %llu, parked now %d; extra pieces %llu (%.1f ms submit thread in them), cycle checks %.1f ms; RewindBox: parks at events the game only sets back %llu, waits on the GPU released by a signal recorded after them %llu",
+          (unsigned long long)g_xq_subs, (unsigned long long)g_xq_parks, (unsigned long long)g_xq_resumes, (unsigned long long)g_xq_busy, (unsigned long long)g_xq_cycles, (unsigned long long)g_xq_forced,
+-         (unsigned long long)g_xq_owed_n, (unsigned long long)g_xq_deps, g_nxq, (unsigned long long)g_xq_pieces, g_xq_piece_ns / 1e6, g_xq_check_ns / 1e6);
++         (unsigned long long)g_xq_owed_n, (unsigned long long)g_xq_deps, g_nxq, (unsigned long long)g_xq_pieces, g_xq_piece_ns / 1e6, g_xq_check_ns / 1e6, sb, late);
+ }
+ // Release parked work now (CPU waits for it, or the watchdog); why = the reason for the red line. Caller holds the submit lock
+ static void xq_force(xq_t *e, const char *why) {
