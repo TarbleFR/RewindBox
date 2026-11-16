@@ -27,30 +27,37 @@ Maintainer request: analyse the latest MeloNX IPA, add what is useful to RewindB
 | Bindless texture arrays | Per-slot entries in the array cache | Per-element deltas, dirty log, barrier and reference deltas | Same direction; RewindBox measured |
 | Presentation | MetalFX upscaling with bilinear fallback | Present pacer; MetalFX callbacks deliberately off | Candidate (resolution / cost), measure |
 | Diagnostics | Environment-variable performance JSON, GPU timestamps, per-thread CPU | Per-second journal, GPU windows, hot profiles, GC and memory journals, offline tools | RewindBox ahead |
-| On-screen controls | Melo-Controller with fixes up to `b16a8e39` | Melo-Controller `c049ce88` (+ opacity) | **Taken**: `build-utils/melonx/controller-b16a8e3/` (source only, next freeze) |
-| Layout editor | Per game, import/export `.meloLayout`, copy from a game, toggle, slide between buttons, D-pad as a stick | Same editor (vendored), D-pad switch not honoured by the buttons | Fixed by the controller lot |
+| On-screen controls | Melo-Controller with fixes up to `b16a8e39` | Melo-Controller `c049ce88` (+ opacity) | Input fixes, not performance: prepared, then withdrawn (maintainer's decision) |
+| Layout editor | Per game, import/export `.meloLayout`, copy from a game, toggle, slide between buttons, D-pad as a stick | Same editor (vendored), D-pad switch not honoured by the buttons | Not performance |
 | Steam Controller | Bluetooth LE | Game Controller framework pads | Niche; large app-side work |
 | Shortcuts | "Launch <game>" App Intent | None | App-wide (every console), not MeloNX-specific |
 | External display | AirPlay library view and external display scene | External display service | Equivalent |
 | Online | LAN / local multiplayer (local-network permission) | No LAN option exposed; Nextendo lot ready (servers awaited) | Nextendo: RewindBox ahead (none in 2.8); LAN: small candidate (engine option exists in 2.7) |
 
-## Taken now
+## Maintainer's decision (16 November): performance only, nothing experimental
 
-- Melo-Controller `b16a8e39` (public, GPLv3, same licence file): stuck toggled buttons, sticks per touch, stick scale,
-  per-game D-pad switch, no main-queue hop. Prepared as a source-only lot because the controller revision is part of
-  the Core's source identity; it goes in with the next Core freeze. Checks: `build-utils/melonx/controller-b16a8e3/`.
+The "For RewindBox" column above was written before this decision. Kept from 2.8: nothing. Row by row:
+- Experimental in 2.8 itself, so excluded: play without JIT ("Enable (Experimental) JIT-Less Mode"), KosmicKrisp
+  (environment variable), the memory helpers ("Experimental: the helpers can be killed...") and their 512 MiB
+  GPU-buffer reserve ("Experimental, requires a game restart"); MetalFX is a player option, not a speed-up by itself.
+- Not performance: the controller update (Melo-Controller b16a8e39, input fixes) was prepared in 143b86bc2 and then
+  withdrawn; Steam Controller, Shortcuts, external display, LAN.
+- Uniform descriptors with dynamic offsets: 2.8 logs that it bypasses the shared Vulkan pipeline cache for them
+  ("Shared Vulkan pipeline cache bypassed for MoltenVK dynamic uniform offsets"). RewindBox's persistent, shared
+  pipeline cache is its largest measured GPU-side gain (Hogwarts pipeline creation on the render thread: 199 s in a
+  21-minute session on IPA 666, 356 ms after 165 s on IPA 729), so this trade is not taken.
+- Waits, timed sleeps, QoS and per-slot bindless arrays: 2.8 carries RewindBox's own designs under the same names.
+- Pipeline cache, GC, DMA copies, diagnostics: RewindBox goes further (measured on its journals).
+- Zero-page sharing (LazyZero): the only 2.8 performance change RewindBox lacks that is not marked experimental (no
+  option visible; it reports shared bytes and write faults). Not taken: iOS already leaves untouched guest pages
+  without physical memory, 2.8's own log says its shared-bytes count "is not a measurement of saved footprint", and it
+  would change the guest memory fault path. A lead only if RewindBox's journals ever show zeroed guest pages behind the
+  memory pressure.
 
-## Candidates for engine lots (MeloNX session's freeze), in order
-
-1. Zero-page sharing for guest memory (LazyZero design): addresses the measured memory pressure; needs a fault path
-   on iOS and device measurements of footprint and decompression.
-2. Uniform descriptors with dynamic offsets: GPU-thread time; measure descriptor work in the journal first.
-3. MetalFX presentation upscaling: a player option, not a default.
-4. Play without JIT: largest; needs on-device signing and an AOT link of guest code; separate project.
-5. KosmicKrisp as an experimental driver: only with an A/B against MoltenVK on the same titles.
+Verdict: on everything that can be compared, RewindBox's engine is equal or ahead; nothing in 2.8 is a proven,
+non-experimental performance gain for it.
 
 ## Not proven
 
-Everything about 2.8 comes from names and strings in its binaries, not from running it. Nothing here is measured on
-an iPhone; the controller lot is checked on Linux (vendoring, existing tests, delivery contract) and not compiled for
-iOS yet.
+Everything about 2.8 comes from names and strings in its binaries, not from running it. No FPS comparison between
+the two apps was run on an iPhone.
