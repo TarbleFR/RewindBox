@@ -1,0 +1,225 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index f0a893697..85667001a 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -2847,6 +2847,22 @@ static void rt_sticky_add(const tex_t *t) {
+     unsigned i = (unsigned)k & (RT_STICKY_CAP - 1); while (g_rt_sticky[i]) i = (i + 1) & (RT_STICKY_CAP - 1);
+     g_rt_sticky[i] = k; g_rt_sticky_n++; g_rt_sticky_adds++;
+ }
++// RewindBox (patch 0050): a texture with no packaged layout that is uploaded from its storage (tex_cpu_content: storage the GPU has not written yet, or the CPU wrote since) is
++//   made with render-target use when Metal renders its colour format. Mario Kart World's dynamic-resolution targets (R8 32x32, R16F about 316x178, RG8 about 638x358 and 1276x716,
++//   flags 0) are new texture objects whose storage range is new at each size, so they were taken from storage and upgraded at their first attachment: 2,231 upgrades in the IPA 758
++//   test (125 s, one every 3 frames), each a new texture, a copy of every level and every cached texture view sent down the slow path. Patch 0048's table missed them all: its key
++//   holds the size, which changes with the resolution. An upgrade only adds the use (tex_upgrade), so a texture made with it holds the same content; one never drawn into only
++//   carries a use it does not need. Packaged textures (a packaged layout: the game's files) keep patch 0048's rule. S2A_RB_CPU_RT=0 turns it off (the upgrade at the first draw)
++static int rt_color_pf(MTLPixelFormat pf) {   // colour formats every Apple GPU renders to
++    switch ((int)pf) {
++        case 10: case 13: case 14: case 20: case 23: case 24: case 25: case 30: case 33: case 34: case 53: case 54: case 55: case 60: case 63: case 64: case 65:   // R8 / R16 / RG8 / R32 / RG16
++        case 70: case 71: case 73: case 74: case 80: case 81: case 90: case 91: case 92: case 103: case 104: case 105: case 110: case 113: case 114: case 115:   // RGBA8 / BGRA8 / RGB10A2 / RG11B10F / RG32 / RGBA16
++        case 123: case 124: case 125: return 1;   // RGBA32
++    }
++    return 0;
++}
++static int cpu_rt_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_CPU_RT"); v = !(e && !strcmp(e, "0")); MLOG("RewindBox: textures taken from their storage made with render-target use: %s (S2A_RB_CPU_RT)", v ? "on" : "off"); } return v; }
++static uint64_t g_cpu_rt_made;
+ static MTLTextureDescriptor *tex_desc(const tex_t *t, int packaged) {
+     uint32_t pf = 0; uint8_t swz[4];
+     if (!nvn_fmt_to_mtl(t->d.format, &pf, swz) || !pf) { RED_ONCE(0, "texture format %#x has no Metal equivalent (first case)", t->d.format); return nil; }
+@@ -2889,6 +2905,10 @@ static MTLTextureDescriptor *tex_desc(const tex_t *t, int packaged) {
+             //   Given at creation, like depth-stencil below: tex_upgrade_pfv at attach time would recreate a render target in use
+             | (pf == MTLPixelFormatDepth32Float_Stencil8 ? MTLTextureUsagePixelFormatView : 0);   // Depth-stencil: the stencil is read through an X32_Stencil8 view, which Metal allows only with the format-view usage
+             // (Apple GPUs read it right without, but the Metal validation layer aborts the process on the first such view). Given at creation: upgrading when the view first appears recreated the depth buffer in use
++    if (packaged && !t->has_layout && !(d.usage & MTLTextureUsageRenderTarget) && d.sampleCount <= 1 && !fmt_compressed(t->d.format) && rt_color_pf(d.pixelFormat) && cpu_rt_on()) {   // RewindBox (patch 0050)
++        d.usage |= MTLTextureUsageRenderTarget; uint64_t k = ++g_cpu_rt_made;
++        if (k <= 4 || !(k & (k - 1))) MLOG("RewindBox: ser=%llu %ux%u format %#x taken from its storage, made with render-target use (%llu so far: no upgrade at a first draw)", (unsigned long long)t->serial, t->d.width, t->d.height, t->d.format, (unsigned long long)k);
++    }
+     if (packaged && !(d.usage & MTLTextureUsageRenderTarget) && d.sampleCount <= 1 && rt_sticky_has(t)) {   // RewindBox (patch 0048): storage drawn into before (rt_sticky_add)
+         d.usage |= MTLTextureUsageRenderTarget; uint64_t k = ++g_rt_sticky_hits;
+         if (k <= 4 || !(k & (k - 1))) MLOG("RewindBox: ser=%llu %ux%u format %#x made with render-target use (storage drawn into before; %llu so far, no upgrade needed)", (unsigned long long)t->serial, t->d.width, t->d.height, t->d.format, (unsigned long long)k);
+diff --git a/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc b/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
+index 6dccdc38f..821ec51c6 100644
+--- a/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
++++ b/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
+@@ -55,7 +55,7 @@ static uint64_t g_sp_live, g_sp_peak;
+ static uint64_t g_sp_sess = 1;         // S2Arm (check C6): the session whose tables the slots are in (sp_session_end); an NvSparse of another gives none back
+ static int g_sp_nmade, g_sp_nwhole; static uint64_t g_sp_whole_ser[64], g_sp_looks, g_sp_nskip;   // S2Arm: this session's log lines (sp_session_end starts them again)
+ // RewindBox (patch 0029): a heap slot's sharing record (below). Ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 1110473c (dm/gfx/nvn/nvn_mtl.m:3426 at 0c078130)
+-typedef struct sp_tl { uintptr_t p; uint64_t stamp; uint32_t rc; int fmt; uint8_t drawn; } sp_tl; static sp_tl *sp_tl_of(uint32_t slot);   // shared tiles, below
++typedef struct sp_tl { uintptr_t p; uint64_t stamp; uint32_t rc; int fmt; uint8_t drawn; uint64_t shape; } sp_tl; static sp_tl *sp_tl_of(uint32_t slot);   // shared tiles, below (RewindBox patch 0050: shape, a mip tail's, sp_tail_shape)
+ static sp_tl *g_sp_tl; static size_t g_sp_ntl;   // per slot; S2Arm (check C9): grown with the heaps in sp_slot (GROW), not in sp_tl_of
+ static uint64_t g_sp_drawn, g_sp_nwrote, g_sp_ngone;   // S2Arm: shared slots holding the GPU's content now; this session's sparse_gpu_wrote / nvn_be_sparse_phys_gone lines (sp_session_end)
+ static uint32_t sp_heap_tiles(void) {   // caller holds g_sp_mu
+@@ -134,10 +134,11 @@ static sp_tl *sp_tl_of(uint32_t slot) {   // caller holds g_sp_mu. S2Arm (check
+     if (slot >= g_sp_ntl) MDIE("sparse tile slot %u beyond the tile table (%zu)", slot, g_sp_ntl);
+     return &g_sp_tl[slot];
+ }
+-static size_t sp_ph_at(uintptr_t p, int fmt) { return (size_t)((((uint64_t)p >> 16) ^ (uint64_t)fmt * 0x9E3779B97F4A7C15ull) * 0x9E3779B97F4A7C15ull >> 20) & (g_sp_phcap - 1); }
+-static uint32_t sp_ph_find(uintptr_t p, int fmt) {   // caller holds g_sp_mu; → slot, or ~0u
++// RewindBox (patch 0050): the key adds shape, 0 for a tile of a tiled level and a layer's mip tail's shape for a tail (sp_tail_shape)
++static size_t sp_ph_at(uintptr_t p, int fmt, uint64_t shape) { return (size_t)((((uint64_t)p >> 16) ^ (uint64_t)fmt * 0x9E3779B97F4A7C15ull ^ shape) * 0x9E3779B97F4A7C15ull >> 20) & (g_sp_phcap - 1); }
++static uint32_t sp_ph_find(uintptr_t p, int fmt, uint64_t shape) {   // caller holds g_sp_mu; → slot, or ~0u
+     if (!g_sp_phcap) return ~0u;
+-    for (size_t i = sp_ph_at(p, fmt);; i = (i + 1) & (g_sp_phcap - 1)) { uint32_t e = g_sp_ph[i]; if (!e) return ~0u; if (g_sp_tl[e - 1].p == p && g_sp_tl[e - 1].fmt == fmt) return e - 1; }
++    for (size_t i = sp_ph_at(p, fmt, shape);; i = (i + 1) & (g_sp_phcap - 1)) { uint32_t e = g_sp_ph[i]; if (!e) return ~0u; if (g_sp_tl[e - 1].p == p && g_sp_tl[e - 1].fmt == fmt && g_sp_tl[e - 1].shape == shape) return e - 1; }
+ }
+ // S2Arm: → 1, or 0 when the table could not grow (calloc) and has no room left: the slot stays its place's own (a red line; upstream: MDIE). With room left in the old table it is kept,
+ //   fuller (one cell stays empty, so that a probe ends)
+@@ -146,24 +147,24 @@ static int sp_ph_put(uint32_t slot) {   // caller holds g_sp_mu
+         uint32_t *old = g_sp_ph; size_t oc = g_sp_phcap, nc = oc ? 2 * oc : 4096; uint32_t *nt = calloc(nc, sizeof *nt);
+         if (nt) {
+             g_sp_ph = nt; g_sp_phcap = nc;
+-            for (size_t i = 0; i < oc; i++) if (old[i]) { size_t j = sp_ph_at(g_sp_tl[old[i] - 1].p, g_sp_tl[old[i] - 1].fmt); while (g_sp_ph[j]) j = (j + 1) & (g_sp_phcap - 1); g_sp_ph[j] = old[i]; }
++            for (size_t i = 0; i < oc; i++) if (old[i]) { size_t j = sp_ph_at(g_sp_tl[old[i] - 1].p, g_sp_tl[old[i] - 1].fmt, g_sp_tl[old[i] - 1].shape); while (g_sp_ph[j]) j = (j + 1) & (g_sp_phcap - 1); g_sp_ph[j] = old[i]; }
+             free(old);
+         } else if (!oc || g_sp_phn + 2 > oc) {
+             RED_ONCE(192, "sparse tiles: the shared tile table cannot grow to %zu cells (no host memory; %zu shared): the tile is kept as its place's own, not shared", nc, g_sp_phn);
+             return 0;
+         }
+     }
+-    size_t j = sp_ph_at(g_sp_tl[slot].p, g_sp_tl[slot].fmt); while (g_sp_ph[j]) j = (j + 1) & (g_sp_phcap - 1);
++    size_t j = sp_ph_at(g_sp_tl[slot].p, g_sp_tl[slot].fmt, g_sp_tl[slot].shape); while (g_sp_ph[j]) j = (j + 1) & (g_sp_phcap - 1);
+     g_sp_ph[j] = slot + 1; g_sp_phn++; g_sp_shared++;
+     return 1;
+ }
+ static void sp_ph_del(uint32_t slot) {   // caller holds g_sp_mu; backward-shift deletion
+     if (!g_sp_phcap) return;   // S2Arm: no table yet (a put that could not make one)
+-    size_t i = sp_ph_at(g_sp_tl[slot].p, g_sp_tl[slot].fmt); while (g_sp_ph[i] && g_sp_ph[i] != slot + 1) i = (i + 1) & (g_sp_phcap - 1);
++    size_t i = sp_ph_at(g_sp_tl[slot].p, g_sp_tl[slot].fmt, g_sp_tl[slot].shape); while (g_sp_ph[i] && g_sp_ph[i] != slot + 1) i = (i + 1) & (g_sp_phcap - 1);
+     if (!g_sp_ph[i]) return;
+     g_sp_ph[i] = 0; g_sp_phn--; g_sp_shared--;
+     for (size_t j = (i + 1) & (g_sp_phcap - 1); g_sp_ph[j]; j = (j + 1) & (g_sp_phcap - 1)) {
+-        size_t h = sp_ph_at(g_sp_tl[g_sp_ph[j] - 1].p, g_sp_tl[g_sp_ph[j] - 1].fmt);
++        size_t h = sp_ph_at(g_sp_tl[g_sp_ph[j] - 1].p, g_sp_tl[g_sp_ph[j] - 1].fmt, g_sp_tl[g_sp_ph[j] - 1].shape);
+         if ((j > i && (h <= i || h > j)) || (j < i && h <= i && h > j)) { g_sp_ph[i] = g_sp_ph[j]; g_sp_ph[j] = 0; i = j; }
+     }
+ }
+@@ -325,7 +326,7 @@ static int sp_op(sp_ops *o, MTL4UpdateSparseTextureMappingOperation x) {   // S2
+ //   host memory. RewindBox (patch 0029): stamp, the look's dirty-page stamp, a shared slot's once uploaded (1110473c, nvn_mtl.m:3577 at 0c078130)
+ typedef struct { NvSparse *s; const tex_t *t; id<MTLTexture> tex; sp_ops *ops; uint32_t nheaps; uint8_t *tile, *tail; id<MTLBuffer> stg; size_t stg_off, tail_need; uint64_t up, unmapped, stamp; int bw, bh, bpb, force;
+                  int full, refused, heapfail; uint64_t done, round_up, rounds, staged, nostg, noheap, nodec, nomem; NSMutableArray *newh;
+-                 size_t zbpp; uint64_t zeroed; } sp_look;   // RewindBox (patch 0030), S2Arm: a GPU-written texture's bytes a texel when its fresh heap tiles are zeroed (0: not), and how many were
++                 size_t zbpp; uint64_t zeroed; uint64_t tail_shared, tail_drawn; } sp_look;   // RewindBox (patch 0030), S2Arm: a GPU-written texture's bytes a texel when its fresh heap tiles are zeroed (0: not), and how many were
+ static int sp_blit_room(int k) {   // S2Arm (check C2): room in the upload list for k copies before a tile is mapped (up_blit_add_at drops a copy it cannot record)
+     if (g_nup_blits + k <= g_up_blitcap) return 1;
+     size_t c = g_up_blitcap ? (size_t)g_up_blitcap * 2 : 256; while (c < (size_t)g_nup_blits + (size_t)k) c *= 2;
+@@ -353,7 +354,7 @@ static int sp_move_off(sp_look *c, uint32_t *sl, MTLRegion rg, uint32_t lev, uin
+ // RewindBox (patch 0029): with 1110473c's shared slot (nvn_mtl.m:3606-3614 at 0c078130): found, the slot sp_ph_find gave for the tile's memory p (~0u: none, a fresh slot); a fresh one of a
+ //   shared tile (p) goes into the table under p and the format; a place more maps a found one. S2Arm: a refusal releases the slot (sp_release; upstream after the 64 heaps only), and a
+ //   table that cannot grow leaves the slot this place's own (sp_ph_put)
+-static int sp_map(sp_look *c, uint32_t *sl, MTLRegion rg, uint32_t lev, uint32_t y, const uint8_t *p, uint32_t found) {
++static int sp_map(sp_look *c, uint32_t *sl, MTLRegion rg, uint32_t lev, uint32_t y, const uint8_t *p, uint32_t found, uint64_t shape) {
+     NvSparse *s = c->s; uint32_t slot = found; int fresh = found == ~0u; __strong id<MTLHeap> made = nil;
+     if (fresh) {
+         int r = sp_slot(&slot, c->done, c->heapfail ? NULL : &made);
+@@ -365,7 +366,7 @@ static int sp_map(sp_look *c, uint32_t *sl, MTLRegion rg, uint32_t lev, uint32_t
+     c->ops[hi].heap = g_sp_heaps[hi];
+     if (!sp_op(&c->ops[hi], (MTL4UpdateSparseTextureMappingOperation){MTLSparseTextureMappingModeMap, rg, lev, y, slot % g_sp_ht})) { sp_release(slot); c->nomem++; sp_rescan(s); return 0; }
+     *sl = slot + 1; s->nmap[lev]++; s->undrawn = 1;
+-    if (fresh && p) { sp_tl *e = sp_tl_of(slot); e->p = (uintptr_t)p; e->fmt = c->t->d.format; e->stamp = nvn_dirty_now(); if (!sp_ph_put(slot)) { e->p = 0; e->fmt = 0; } }
++    if (fresh && p) { sp_tl *e = sp_tl_of(slot); e->p = (uintptr_t)p; e->fmt = c->t->d.format; e->shape = shape; e->stamp = nvn_dirty_now(); if (!sp_ph_put(slot)) { e->p = 0; e->fmt = 0; e->shape = 0; } }
+     return 1;
+ }
+ // Tile i of layer y (the tail at s->tail_at): the game has mapped all its pages or not, and the Metal tile follows; its content is uploaded when it is newly mapped or its pages were written.
+@@ -376,6 +377,23 @@ static int sp_map(sp_look *c, uint32_t *sl, MTLRegion rg, uint32_t lev, uint32_t
+ //   slot of that memory and format (sp_ph_find) or a fresh one put under it; other memory behind a mapped tile moves it off its slot; a drawn slot is uploaded only when the CPU wrote its
+ //   memory since; a shared slot's content is protected and read at p. S2Arm (check C2): the move-off is recorded once the new slot's content is staged (a round that stops before leaves
+ //   the tile on its old slot for the next round, which looks at it again), and a found drawn slot the CPU did not write is mapped with no staging (upstream's late test, before the Map)
++// RewindBox (patch 0050): a layer's mip tail whose 64 KB are one run of physical memory is shared by that memory too, between textures of one shape. Mario Kart World maps its terrain
++//   arrays in pairs over the same physical pages (two 8192x8192x68 ASTC 8x8 and one BC6H a set, each pair's pools mapped by the same requests): it writes one of a pair (a copy
++//   through 31565 / 31566 / 31567 in IPA 758's log) and samples the other (31562 / 31563 / 31564 in its frame captures). The tiled levels' tiles were shared already, so the sampled
++//   array saw what the GPU wrote; its tails were tiles of their own, uploaded from the memory, which the GPU's writes never reach: all-zero ASTC blocks, decoded as magenta (level 5
++//   of layer 0 magenta but a corner in both captures), in the lighting of the cliffs and palm trunks. On the console a place shows its physical page whatever wrote it. A tile of
++//   a tiled level holds the same texels wherever it is mapped; a tail packs several small levels by the texture's shape, so its key adds that shape (the layout's fields, not the
++//   layer count): two textures of one shape pack a tail alike (one Metal descriptor but the array length). Otherwise as a tiled level's shared tile: drawn when the GPU writes
++//   through a texture that maps it (sparse_gpu_wrote), uploaded again only when the CPU writes its memory, kept while its physical pool lives. A tail that is not one 64 KB run
++//   of physical memory keeps a slot of its own, as before
++static uint64_t sp_tail_shape(const tex_t *t) {
++    const nvn_texdesc *d = &t->d;
++    const uint64_t f[] = {(uint64_t)d->target, (uint64_t)d->format, (uint64_t)(d->flags & (NVN_TEXTURE_FLAGS_LINEAR | NVN_TEXTURE_FLAGS_SPARSE | NVN_TEXTURE_FLAGS_LINEAR_RENDER_TARGET | NVN_TEXTURE_FLAGS_MINIMAL_LAYOUT)),
++                          (uint64_t)d->samples, d->width, d->height, d->levels, d->stride, (uint64_t)(uint32_t)d->pkg_layout};
++    uint64_t h = 1469598103934665603ull;
++    for (size_t k = 0; k < sizeof f / sizeof *f; k++) h = (h ^ f[k]) * 1099511628211ull;
++    return h | 1;   // never 0, a tiled level's key
++}
+ static void sp_tile(sp_look *c, uint32_t y, uint32_t i) {
+     NvSparse *s = c->s; const tex_t *t = c->t;
+     int is_tail = i == s->tail_at; uint32_t l = 0, tx = 0, ty = 0;
+@@ -391,16 +409,17 @@ static void sp_tile(sp_look *c, uint32_t y, uint32_t i) {
+         return;
+     }
+     uint32_t lw = MAX(t->d.width >> l, 1u), lh = MAX(t->d.height >> l, 1u), x0 = tx * s->tw, y0 = ty * s->th;
+-    const uint8_t *p = is_tail || x0 + s->tw > lw || y0 + s->th > lh ? NULL : nvn_sparse_tile_phys(t->pool, a);   // shared tiles (see above)
++    const uint8_t *p = (is_tail ? n != SP_TILE : x0 + s->tw > lw || y0 + s->th > lh) ? NULL : nvn_sparse_tile_phys(t->pool, a);   // shared tiles (see above); RewindBox (patch 0050): a tail of one 64 KB run too
++    uint64_t shape = is_tail && p ? sp_tail_shape(t) : 0;   // RewindBox (patch 0050)
+     int moved = 0;
+     if (*sl) {
+         const sp_tl *e = sp_tl_of(*sl - 1);
+-        if (e->p != (uintptr_t)p || (p && e->fmt != t->d.format)) moved = 1;   // other memory behind the tile now: this place gives up its slot (sp_move_off, below; a slot whose memory was finalized: SP_GONE)
++        if (e->p != (uintptr_t)p || (p && (e->fmt != t->d.format || e->shape != shape))) moved = 1;   // other memory behind the tile now: this place gives up its slot (sp_move_off, below; a slot whose memory was finalized: SP_GONE)
+         else if (s->gpu) return;   // the GPU's own writes are in the tile: a CPU write to its pages is not looked at
+         else if (e->drawn ? !nvn_dirty_since(p, SP_TILE, e->stamp) : !c->force && !(p ? nvn_dirty_since(p, SP_TILE, e->stamp) : (st & 2))) return;   // a shared slot: the CPU wrote its memory since its content was taken, through any place
+     }
+     uint32_t found = ~0u;   // the shared slot of the memory, for a tile to map
+-    if (!*sl || moved) found = p ? sp_ph_find((uintptr_t)p, t->d.format) : ~0u;
++    if (!*sl || moved) found = p ? sp_ph_find((uintptr_t)p, t->d.format, shape) : ~0u;
+     if (s->gpu) {   // mapped, for the GPU to write (patch 0030; a later CPU write to the memory shows at a packaged place)
+         // RewindBox (patch 0030), S2Arm (not upstream, whose fresh tile keeps what the heap tile last held): a fresh heap tile (found ~0u; sp_slot hands out the tiles other textures
+         //   gave back) is zeroed by the upload batch, as tex_mtl_ zeroes a new whole GPU texture (tex_zero_fill: a freshly mapped pool reads 0 on the Switch), so it never shows another
+@@ -412,7 +431,8 @@ static void sp_tile(sp_look *c, uint32_t y, uint32_t i) {
+             if (!sp_blit_room(nb)) { c->nomem++; sp_drop(c, sl, rg, lev, y); return; }
+         }
+         if (moved && !sp_move_off(c, sl, rg, lev, y)) return;
+-        if (!sp_map(c, sl, rg, lev, y, p, found)) return;
++        if (!sp_map(c, sl, rg, lev, y, p, found, shape)) return;
++        if (is_tail && found != ~0u) c->tail_shared++;   // RewindBox (patch 0050)
+         if (found == ~0u && sp_tl_of(*sl - 1)->p) nvn_dirty_protect_sparse(p, SP_TILE);
+         if (zero) {   // one copy of the shared zero bytes a level: the tile's part of its level, or each level of the layer's tail
+             for (uint32_t tl = is_tail ? s->ntiled : l; tl < (is_tail ? s->levels : l + 1); tl++) {
+@@ -427,7 +447,7 @@ static void sp_tile(sp_look *c, uint32_t y, uint32_t i) {
+     }
+     if (found != ~0u && sp_tl_of(found)->drawn && !nvn_dirty_since(p, SP_TILE, sp_tl_of(found)->stamp)) {   // the GPU's content, newer than the memory's: mapped, nothing uploaded
+         if (moved && !sp_move_off(c, sl, rg, lev, y)) return;
+-        sp_map(c, sl, rg, lev, y, p, found);
++        if (sp_map(c, sl, rg, lev, y, p, found, shape) && is_tail) { c->tail_shared++; c->tail_drawn++; }   // RewindBox (patch 0050): counted for the line
+         return;
+     }
+     size_t need = is_tail ? c->tail_need : SP_TILE; int nb = is_tail ? (int)(s->levels - s->ntiled) : 1;
+@@ -440,7 +460,7 @@ static void sp_tile(sp_look *c, uint32_t y, uint32_t i) {
+     int bw = c->bw, bh = c->bh, bpb = c->bpb; uint8_t *dst = (uint8_t *)c->stg.contents + c->stg_off; size_t used = 0; int k = 0;
+     struct { size_t off, pitch, image; MTLSize sz; uint32_t level, x0, y0; } bl[16];
+     if (is_tail) {
+-        nvn_sparse_copy(t->pool, c->tail, a, n);
++        if (p) memcpy(c->tail, p, n); else nvn_sparse_copy(t->pool, c->tail, a, n);   // RewindBox (patch 0050): a shared tail is its memory at p (n is SP_TILE), as a shared tile
+         for (uint32_t tl = s->ntiled; tl < s->levels; tl++) {
+             uint32_t w = MAX(t->d.width >> tl, 1u), h = MAX(t->d.height >> tl, 1u); size_t pitch = (size_t)((w + bw - 1) / bw) * bpb, rows = (h + bh - 1) / bh;
+             if (nvn_deswizzle_from(&t->d, tl, y, c->tail, y * s->layer_size + s->tail_off, dst + used, pitch)) { RED_ONCE(187, "sparse tail level %u of format %#x not decoded: the tail is not mapped", tl, t->d.format); c->nodec++; return; }
+@@ -458,7 +478,10 @@ static void sp_tile(sp_look *c, uint32_t y, uint32_t i) {
+         used = SP_TILE;
+     }
+     if (moved && !sp_move_off(c, sl, rg, lev, y)) return;   // RewindBox (patch 0029): the old slot given up once the new one's content is staged (check C2)
+-    if (!*sl && !sp_map(c, sl, rg, lev, y, p, found)) return;   // S2Arm: a new tile is mapped once its content is staged; one mapped already keeps its heap tile
++    if (!*sl) {   // S2Arm: a new tile is mapped once its content is staged; one mapped already keeps its heap tile
++        if (!sp_map(c, sl, rg, lev, y, p, found, shape)) return;
++        if (is_tail && found != ~0u) c->tail_shared++;   // RewindBox (patch 0050)
++    }
+     for (int q = 0; q < k; q++) up_blit_add_at(c->stg, c->stg_off + bl[q].off, bl[q].pitch, bl[q].image, bl[q].sz, c->tex, y, bl[q].level, bl[q].x0, bl[q].y0);   // S2Arm: (x0, y0), not an MTLOrigin
+     c->stg_off += used; c->round_up++;
+     if (p) sp_tl_of(*sl - 1)->stamp = c->stamp;   // taken before the protection above (RewindBox patch 0029: 1110473c)
+@@ -589,12 +612,14 @@ static void sparse_sync(NvSparse *s, const tex_t *t, int whole) {
+     if (!g_cb) rec_publish();
+     // RewindBox (patch 0029): upstream's line with the shared slots (1110473c, nvn_mtl.m:3687-3688 at 0c078130); S2Arm: the counts read under g_sp_mu, for a line only (a Finalize on a game
+     //   thread changes them, nvn_be_sparse_phys_gone)
+-    if (c.up || c.unmapped) { uint64_t lk = ++g_sp_looks; if (lk <= 20 || lk % 500 == 0) {
++    if (c.up || c.unmapped || c.tail_shared) { uint64_t lk = ++g_sp_looks; if (lk <= 20 || lk % 500 == 0) {
++        char tsl[192] = ""; if (c.tail_shared) snprintf(tsl, sizeof tsl, "; RewindBox: %llu mip tails share the tile of their physical memory with another place, %llu of them holding the GPU's content (not uploaded)",
++                                                    (unsigned long long)c.tail_shared, (unsigned long long)c.tail_drawn);   // RewindBox (patch 0050)
+         char zl[96] = ""; if (s->gpu) snprintf(zl, sizeof zl, "; GPU-written: %llu new heap tiles zeroed (%s)", (unsigned long long)c.zeroed, c.zbpp ? "the rest shared" : "a format not zeroed");   // RewindBox (patch 0030)
+         pthread_mutex_lock(&g_sp_mu); uint64_t live = g_sp_live, peak = g_sp_peak, shared = g_sp_shared, drawn = g_sp_drawn; pthread_mutex_unlock(&g_sp_mu);
+         MLOG("sparse texture ser=%llu: %llu tiles uploaded, %llu unmapped; %llu tiles mapped in all (%llu of them shared by physical memory), peak %llu (%llu MB); "
+-        "RewindBox: %llu rounds, %llu MB of staging; %llu shared tiles hold the GPU's content%s", (unsigned long long)t->serial, (unsigned long long)c.up, (unsigned long long)c.unmapped, (unsigned long long)live,
+-        (unsigned long long)shared, (unsigned long long)peak, (unsigned long long)(peak * SP_TILE >> 20), (unsigned long long)c.rounds, (unsigned long long)(c.staged >> 20), (unsigned long long)drawn, zl); } }
++        "RewindBox: %llu rounds, %llu MB of staging; %llu shared tiles hold the GPU's content%s%s", (unsigned long long)t->serial, (unsigned long long)c.up, (unsigned long long)c.unmapped, (unsigned long long)live,
++        (unsigned long long)shared, (unsigned long long)peak, (unsigned long long)(peak * SP_TILE >> 20), (unsigned long long)c.rounds, (unsigned long long)(c.staged >> 20), (unsigned long long)drawn, zl, tsl); } }
+     uint64_t left = c.nostg + c.noheap + c.nodec + c.nomem;
+     if (left) { uint64_t k = ++g_sp_nskip; if (k <= 8 || !(k & (k - 1))) { uint64_t fp, av; rb_up_mem(&fp, &av);   // S2Arm: what a look left out of date, counted
+         MLOG("【红】 RewindBox: sparse texture ser=%llu: %llu tiles left out of date in this look (staging refused %llu, no heap tile %llu%s, not decoded %llu, no host memory %llu): one not mapped reads 0, "
