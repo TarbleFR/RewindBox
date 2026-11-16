@@ -1,6 +1,6 @@
 {
   "status": "verified",
-  "packagedFingerprint": "067f139aa9da93ede94d567cc5d2c693ca2e73330bb96de00d6f68a03a268cb9",
+  "packagedFingerprint": "d30d3de9077a51265fd7b1fb8fd2a57b385c0eb496144d4122d5318d74852dd9",
   "producers": {
     "engine": {
       "run": 43810802470,
@@ -13,8 +13,8 @@
       "headBranch": "Claude",
       "expiresAt": "2026-12-16T05:41:21Z",
       "members": {
-        "S2ArmEngine.framework.zip": "dc9740523bb965bb0a7fcc63a1ac65cb7673b29ada559d646b79e6adc5e8b727",
-        "NS2Pro.framework.zip": "d1f4432566dd31973b8661b06db8169361994d5e0ca064e8863e50723feaa152"
+        "S2ArmEngine.framework.zip": "70d22c83dc9b2bcdb81329f04c23dd90d25f6c590f53dfba4ccaadad82afa670",
+        "NS2Pro.framework.zip": "94e7991531b7c632e012ed2470478413b0a4073b75211f706c417ea5e7ac374c"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "06c5f67537a88b115745c45e29cb61e9a6993c788672dc19e3e65c570f9ea03b",
+    "engine": "7c422683a82abfc7903961a58711847c1addc4b9da6f65ca7da3e730b13be061",
     "prepare": "aef8aafb38aa456defbdf16b3194716c32b2051b76a38bc68640d91f098fc87f",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -90,9 +90,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "a1d70fe42c518a90c28f96c39783f4b7253f88c2123ab37c2958709939f71cfe",
-      "bytes": 107529976,
-      "fingerprint": "067f139aa9da93ede94d567cc5d2c693ca2e73330bb96de00d6f68a03a268cb9"
+      "sha256": "0150e2faf2cedee710853ed24de599159d2a568bb5868085d7ca805e745957cd",
+      "bytes": 107530104,
+      "fingerprint": "d30d3de9077a51265fd7b1fb8fd2a57b385c0eb496144d4122d5318d74852dd9"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -125,9 +125,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 43806716837,
+      "run": 43810802470,
       "attempt": 1,
-      "head_sha": "21a3d3974b901c6cad533f941f3c0c3aadf1d70d",
+      "head_sha": "818a7d5ef5c2650c64bb298e64ec082dc165a333",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -322,11 +322,15 @@
         {
           "name": "0048-terrain-tiles-keep-render-target-use-and-capture-of-every-draw.patch",
           "sha256": "cba37eb23bdbda6c4e79ccba63b7f23e4e11ca5e749a57fb4c3156b4dce102a8"
+        },
+        {
+          "name": "0049-guest-review-fixes-of-0048-sticky-render-target-and-capture-sheets.patch",
+          "sha256": "e7dd5b28a5e8c54b28826304a17e51f610c2137583a0a1959151b24decc45309"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "dc9740523bb965bb0a7fcc63a1ac65cb7673b29ada559d646b79e6adc5e8b727",
-        "NS2Pro.framework.zip": "d1f4432566dd31973b8661b06db8169361994d5e0ca064e8863e50723feaa152"
+        "S2ArmEngine.framework.zip": "70d22c83dc9b2bcdb81329f04c23dd90d25f6c590f53dfba4ccaadad82afa670",
+        "NS2Pro.framework.zip": "94e7991531b7c632e012ed2470478413b0a4073b75211f706c417ea5e7ac374c"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
