@@ -1,0 +1,356 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 7582b59..b62ae84 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -2336,12 +2336,12 @@ static void gpu_hang_inject(void) {
+ // fsig_judge writes a line when a frame's draw list differs from the frames before and after it while those two agree, and another when three frames agree on the list but
+ // the middle one's GPU-written words differ. A capture (cap_end) writes the ring to frames.txt in its folder. S2A_RB_FSIG=0 turns the records off.
+ // Cost: three multiplies and a few stores a draw on the replaying thread, a memory read a GPU-written word in the completion handler. Not measured on a device
+-typedef struct { _Atomic uint64_t frame; uint64_t hash; _Atomic uint64_t ghash, gsum, ts0, ts1; uint32_t draws, ind, mdi, mesh, skipped, passes, pieces, disp, texnew, taken, w, h, gwords, dur; } fsig_t;   // frame: its number + 1 (0 = empty); dur (patch 0061): microseconds from its first replayed command to the next frame's
++typedef struct { _Atomic uint64_t frame; uint64_t hash; _Atomic uint64_t ghash, gsum, ts0, ts1; uint32_t draws, ind, mdi, mesh, skipped, passes, pieces, disp, texnew, taken, w, h, gwords, dur, rcn, rcoff, rcunk, rcclr, rcdrw; uint64_t rchash; } fsig_t;   // frame: its number + 1 (0 = empty); dur (patch 0061): microseconds from its first replayed command to the next frame's
+ static void rb_auto_probe(uint64_t f, uint32_t dur_us, uint32_t draws);   // RewindBox (patch 0061), defined with the frame capture
+ enum { FSIG_N = 1024, FSIG_ADDR = 2048 };
+ static fsig_t g_fsig[FSIG_N];
+ static uint64_t g_fsig_addr[FSIG_ADDR]; static uint32_t g_fsig_seq[FSIG_ADDR]; static int g_fsig_naddr;   // the piece being replayed: its GPU-written words (address, place in the frame's list)
+-static uint64_t g_fsig_frames, g_fsig_aba_list, g_fsig_aba_gpu;
++static uint64_t g_fsig_frames, g_fsig_aba_list, g_fsig_aba_gpu, g_fsig_aba_cond, g_fsig_jump_pass, g_fsig_jump_word;   // the last three: patch 0064
+ static int fsig_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_FSIG"); v = !(e && !strcmp(e, "0")); } return v; }
+ static fsig_t *fsig_at(uint64_t f) { fsig_t *c = &g_fsig[f % FSIG_N]; return atomic_load_explicit(&c->frame, memory_order_relaxed) == f + 1 ? c : NULL; }
+ // RewindBox (patch 0063): what differs in such a frame. The records above say that a frame's draw list, or the words the GPU wrote for it, are not the neighbours'; they do not
+@@ -2350,24 +2350,41 @@ static fsig_t *fsig_at(uint64_t f) { fsig_t *c = &g_fsig[f % FSIG_N]; return ato
+ //   six, with both frames' size and draw count, and whether the frame after agrees with the frame before there), or the words that differ (the first ten, as the three
+ //   frames read them). A pass is told by its place in the frame, so a frame replayed in other pieces can shift the places: the line gives the three pass counts for that.
+ //   Cost: one more hash a draw, 2,048 stores a frame. Not measured on a device
+-enum { FPD_FRAMES = 16, FPD_PASSES = 256 };
+-typedef struct { uint64_t hash; uint32_t draws; uint16_t w, h, fmt, pad; } fpd_pass;
+-typedef struct { _Atomic uint64_t frame; uint32_t np, over; fpd_pass p[FPD_PASSES]; _Atomic uint32_t word[FSIG_ADDR]; } fpd_t;   // frame: its number + 1 (0 = empty); over: passes past FPD_PASSES
++// RewindBox (patch 0064): three things the records lacked.
++//   Conditional rendering. Mario Kart World wraps its clears in SetRenderEnableConditional (82 conditions in a race frame of IPA 760, 30 of them not drawn): a clear of a
++//   target runs once a frame because the timestamp report that follows it puts 0 where the game's CPU wrote 1. The outcome is worked out here at replay (rc_value) from the
++//   reports of this submission, those of submissions still on the GPU, and memory; a clear run or left out by mistake for one frame changes no draw, so no record showed
++//   it, and a depth clear in the middle of a frame lets what is drawn later cover what is nearer. Each frame now counts its conditions, those not drawn, those not known
++//   yet, the clears and the draws left out, with a hash of the sequence; each pass counts the clears left out before it and the draws left out in it.
++//   The draws themselves. A pass that differs was told by its place and size; each draw of the last FPD_FRAMES frames now keeps its shader keys (the 16 hexadecimal
++//   characters a capture's pass list prints as vs= and fs=), counts and kind, and the line names the draws one frame has and the other has not.
++//   A camera that moves. "The frames before and after agree" asks for the same list two frames apart, which holds on a start grid and not in a race. A second test
++//   measures how far apart two frames are (the passes' draw counts; the GPU-written words) and writes a line when a frame is far from both its neighbours while those two
++//   are close to each other (fpd_jump).
++//   Cost: 32 bytes stored a draw (2.3 MB of zero-filled storage, about a megabyte of it touched), two passes over 2,048 words and 256 passes a frame. Not measured on a device
++enum { FPD_FRAMES = 16, FPD_PASSES = 256, FPD_DRAWS = 4096 };
++typedef struct { uint64_t hash; uint32_t draws; uint16_t w, h, fmt; uint8_t clr, drw; } fpd_pass;   // clr: clears left out by a condition before the pass opened; drw: draws left out by one in it (255 = that many or more)
++typedef struct { uint64_t vs, fs; uint32_t count, instances; uint16_t pass; uint8_t kind, pad; } fpd_draw;   // kind: 0 direct, 1 indirect, 2 of a multi-draw, 3 task / mesh, 4 the next draw of a multi-draw; pass 0xffff: before any
++typedef struct { _Atomic uint64_t frame; uint32_t np, over, nd, dover; fpd_pass p[FPD_PASSES]; _Atomic uint32_t word[FSIG_ADDR]; fpd_draw d[FPD_DRAWS]; } fpd_t;   // frame: its number + 1 (0 = empty); over / dover: passes / draws past what it holds
+ static fpd_t g_fpd[FPD_FRAMES];
++static uint32_t g_fpd_clr;   // clears left out by a condition since the last pass opened (the replaying thread)
+ static fpd_t *fpd_at(uint64_t f) { fpd_t *d = &g_fpd[f % FPD_FRAMES]; return atomic_load_explicit(&d->frame, memory_order_relaxed) == f + 1 ? d : NULL; }
+ static void fpd_open(uint64_t f) {   // the replaying thread, with the frame's record (fsig_cur)
+-    fpd_t *d = &g_fpd[f % FPD_FRAMES]; atomic_store(&d->frame, 0); d->np = d->over = 0;
++    fpd_t *d = &g_fpd[f % FPD_FRAMES]; atomic_store(&d->frame, 0); d->np = d->over = d->nd = d->dover = 0; g_fpd_clr = 0;
+     for (int i = 0; i < FSIG_ADDR; i++) atomic_store_explicit(&d->word[i], 0, memory_order_relaxed);
+     atomic_store(&d->frame, f + 1);
+ }
+-static void fpd_passes(fpd_t *a, fpd_t *b, fpd_t *c, char *out, size_t n) {   // b is the odd frame, a the frame before it, c the frame after
+-    uint32_t np = MIN(a->np, MIN(b->np, c->np)), nd = 0; size_t o = 0;
++static int fpd_pass_same(const fpd_pass *x, const fpd_pass *y) { return x->hash == y->hash && x->draws == y->draws && x->clr == y->clr && x->drw == y->drw; }   // by its draws and what a condition left out, not its size: a game with a dynamic resolution draws the same list at another size from one frame to the next
++static void fpd_passes(fpd_t *a, fpd_t *b, fpd_t *c, char *out, size_t n, uint32_t *first, int *nfirst, int maxfirst) {   // b is the odd frame, a the frame before it, c the frame after; first: the first passes that differ (patch 0064)
++    uint32_t np = MIN(a->np, MIN(b->np, c->np)), nd = 0; size_t o = 0; *nfirst = 0;
+     o += (size_t)snprintf(out, n, "passes %u / %u / %u%s", a->np, b->np, c->np, a->over || b->over || c->over ? " (more than the record holds)" : "");
+     for (uint32_t i = 0; i < np; i++) {
+         const fpd_pass *x = &a->p[i], *y = &b->p[i], *z = &c->p[i];
+-        if (x->hash == y->hash && x->draws == y->draws) continue;   // by its draws alone: a game with a dynamic resolution draws the same list at another size from one frame to the next
+-        if (++nd <= 6 && o < n) o += (size_t)snprintf(out + o, n - o, "; pass %u: %ux%u format %u with %u draws, in the odd frame %ux%u format %u with %u draws%s", i, x->w, x->h, x->fmt, x->draws,
+-                                                      y->w, y->h, y->fmt, y->draws, x->hash == z->hash && x->draws == z->draws ? "" : " (the frame after differs from the frame before there too)");
++        if (fpd_pass_same(x, y)) continue;
++        if (*nfirst < maxfirst && (x->hash != y->hash || x->draws != y->draws)) first[(*nfirst)++] = i;   // its draws are named when they differ, not when only a condition's clears do
++        if (++nd <= 6 && o < n) { o += (size_t)snprintf(out + o, n - o, "; pass %u: %ux%u format %u with %u draws, in the odd frame %ux%u format %u with %u draws", i, x->w, x->h, x->fmt, x->draws, y->w, y->h, y->fmt, y->draws);
++            if (o < n && (x->clr != y->clr || x->drw != y->drw)) o += (size_t)snprintf(out + o, n - o, ", clears left out by a condition before it %u / %u / %u, draws left out in it %u / %u / %u", x->clr, y->clr, z->clr, x->drw, y->drw, z->drw);
++            if (o < n && !fpd_pass_same(x, z)) o += (size_t)snprintf(out + o, n - o, " (the frame after differs from the frame before there too)"); }
+     }
+     if (o < n) snprintf(out + o, n - o, "; %u of the first %u passes differ from the frame before", nd, np);
+ }
+@@ -2380,22 +2397,110 @@ static void fpd_words(fpd_t *a, fpd_t *b, fpd_t *c, uint32_t nw, char *out, size
+     }
+     if (o < n) snprintf(out + o, n - o, "%s%u of %u words differ from the frame before", nd ? "; " : "", nd, nw);
+ }
++// RewindBox (patch 0064): the draws of pass `pass` that frame a has and frame b has not, and the other way round (b is the odd frame). The lists are mostly the same in the
++//   same order: what they share at both ends is left aside, and the rest is matched draw for draw whatever the order (512 a side at most)
++static int fpd_draw_same(const fpd_draw *x, const fpd_draw *y) { return x->vs == y->vs && x->fs == y->fs && x->count == y->count && x->instances == y->instances && x->kind == y->kind; }
++static size_t fpd_draw_text(const fpd_draw *x, char *out, size_t n) {
++    static const char *const kind[] = { "", " indirect", " of a multi-draw", " task / mesh", " next of a multi-draw" };
++    int k = snprintf(out, n, " vs=%016llx fs=%016llx", (unsigned long long)x->vs, (unsigned long long)x->fs); if (k < 0 || (size_t)k >= n) return n;
++    int j = x->kind == 0 || x->kind == 3 ? snprintf(out + k, n - (size_t)k, " %ux%u%s;", x->count, x->instances, kind[x->kind]) : snprintf(out + k, n - (size_t)k, "%s;", kind[x->kind < 5 ? x->kind : 0]);
++    return j < 0 || (size_t)(k + j) >= n ? n : (size_t)(k + j);
++}
++static void fpd_draws(const fpd_t *a, const fpd_t *b, uint32_t pass, char *out, size_t n) {
++    enum { SIDE = 512, SHOW = 6 }; static uint8_t used[SIDE];   // the replaying thread only
++    uint32_t a0 = 0, a1, b0 = 0, b1; size_t o = 0; if (n) out[0] = 0;
++    while (a0 < a->nd && a->d[a0].pass != pass) a0++;
++    for (a1 = a0; a1 < a->nd && a->d[a1].pass == pass; a1++) {}
++    while (b0 < b->nd && b->d[b0].pass != pass) b0++;
++    for (b1 = b0; b1 < b->nd && b->d[b1].pass == pass; b1++) {}
++    uint32_t na = a1 - a0, nb = b1 - b0;
++    while (a0 < a1 && b0 < b1 && fpd_draw_same(&a->d[a0], &b->d[b0])) { a0++; b0++; }   // the same start
++    while (a1 > a0 && b1 > b0 && fpd_draw_same(&a->d[a1 - 1], &b->d[b1 - 1])) { a1--; b1--; }   // the same end
++    o += (size_t)snprintf(out, n, "%u draws recorded in the frame before and %u in the odd frame%s, %u and %u of them between a common start and a common end", na, nb,
++                          a->dover || b->dover ? " (a frame has more draws than the record holds)" : "", a1 - a0, b1 - b0);
++    if (a1 - a0 > SIDE || b1 - b0 > SIDE) { if (o < n) snprintf(out + o, n - o, ": too many to match one by one"); return; }
++    memset(used, 0, sizeof used); uint32_t only_a = 0, only_b = 0;
++    if (o < n) o += (size_t)snprintf(out + o, n - o, "; only in the frame before:");
++    for (uint32_t i = a0; i < a1; i++) { uint32_t j = b0; while (j < b1 && (used[j - b0] || !fpd_draw_same(&a->d[i], &b->d[j]))) j++;
++        if (j < b1) { used[j - b0] = 1; continue; }
++        if (++only_a <= SHOW && o < n) o += fpd_draw_text(&a->d[i], out + o, n - o); }
++    if (o < n) o += (size_t)snprintf(out + o, n - o, " %u in all; only in the odd frame:", only_a);
++    for (uint32_t j = b0; j < b1; j++) { if (used[j - b0]) continue; if (++only_b <= SHOW && o < n) o += fpd_draw_text(&b->d[j], out + o, n - o); }
++    if (o < n) snprintf(out + o, n - o, " %u in all", only_b);
++}
++// How far apart two frames are: the passes' draw counts and what conditions left out in them, place by place (and the passes one has more), and the GPU-written words,
++//   place by place. A camera that moves changes both a little from one frame to the next; a frame that is far from both its neighbours while those two are near each
++//   other is a one-frame jump
++static uint64_t fpd_dist_pass(const fpd_t *a, const fpd_t *b) {
++    uint32_t np = MIN(a->np, b->np); uint64_t d = 8ull * (MAX(a->np, b->np) - np);
++    for (uint32_t i = 0; i < np; i++) { const fpd_pass *x = &a->p[i], *y = &b->p[i];
++        d += x->draws > y->draws ? x->draws - y->draws : y->draws - x->draws; d += 8ull * (uint64_t)(x->clr > y->clr ? x->clr - y->clr : y->clr - x->clr); d += x->drw > y->drw ? x->drw - y->drw : y->drw - x->drw; }
++    return d;
++}
++static uint64_t fpd_dist_word(fpd_t *a, fpd_t *b, uint32_t nw) {
++    uint64_t d = 0; if (nw > FSIG_ADDR) nw = FSIG_ADDR;
++    for (uint32_t i = 0; i < nw; i++) { uint32_t x = atomic_load_explicit(&a->word[i], memory_order_relaxed), y = atomic_load_explicit(&b->word[i], memory_order_relaxed); d += x > y ? x - y : y - x; }
++    return d;
++}
++static int fpd_jump(uint64_t ab, uint64_t bc, uint64_t ac) { uint64_t far = 4 * ac + 8; return ac && ab >= far && bc >= far; }   // ac == 0 is the exact test's case (the neighbours agree), which has its own lines
++static void fsig_detail(fpd_t *da, fpd_t *db, fpd_t *dc, uint64_t frame) {   // RewindBox (patch 0064): the passes that differ in the odd frame db, then the draws of the first two
++    char det[1200]; uint32_t first[2]; int nfirst = 0;
++    fpd_passes(da, db, dc, det, sizeof det, first, &nfirst, 2);
++    MLOG("RewindBox: frame signature: frame %llu against the frames before and after it: %s", (unsigned long long)frame, det);
++    for (int i = 0; i < nfirst; i++) { fpd_draws(da, db, first[i], det, sizeof det); MLOG("RewindBox: frame signature: frame %llu, pass %u: %s", (unsigned long long)frame, first[i], det); }
++}
+ static void fsig_judge(uint64_t f) {   // frame f's record has just been opened: the three frames before it are whole; GPU-written words are judged two frames later (their handlers have run)
+     if (f < 8) return;
+-    fsig_t *a = fsig_at(f - 3), *b = fsig_at(f - 2), *c = fsig_at(f - 1);
+-    if (a && b && c && a->draws >= 64 && a->hash == c->hash && b->hash != a->hash) {
++    fsig_t *a = fsig_at(f - 3), *b = fsig_at(f - 2), *c = fsig_at(f - 1), *z = fsig_at(f - 4);   // z (patch 0064): the frame before the three. A game that draws two lists in turn (a pass every other frame) has every frame unlike its neighbours, which agree: when the odd frame is what the frame before the three was, nothing is written
++    if (a && b && c && a->draws >= 64 && a->hash == c->hash && b->hash != a->hash && !(z && z->hash == b->hash)) {
+         uint64_t k = ++g_fsig_aba_list;
+         if (k <= 24 || !(k & (k - 1))) MLOG("RewindBox: frame signature: the draw list of frame %llu differs from the frames before and after it, which agree: draws %u / %u / %u, indirect %u / %u / %u, of multi-draws %u / %u / %u, task / mesh %u / %u / %u, "
+             "skipped for a pipeline %u / %u / %u, passes %u / %u / %u, pieces %u / %u / %u, dispatches %u / %u / %u, shared textures made %u / %u / %u, scene %ux%u / %ux%u / %ux%u; %llu such frames of %llu so far",
+             (unsigned long long)(f - 2), a->draws, b->draws, c->draws, a->ind, b->ind, c->ind, a->mdi, b->mdi, c->mdi, a->mesh, b->mesh, c->mesh, a->skipped, b->skipped, c->skipped, a->passes, b->passes, c->passes,
+             a->pieces, b->pieces, c->pieces, a->disp, b->disp, c->disp, a->texnew, b->texnew, c->texnew, a->w, a->h, b->w, b->h, c->w, c->h, (unsigned long long)k, (unsigned long long)g_fsig_frames);
+         fpd_t *da = fpd_at(f - 3), *db = fpd_at(f - 2), *dc = fpd_at(f - 1);   // RewindBox (patch 0063)
+-        if ((k <= 24 || !(k & (k - 1))) && da && db && dc) { char det[900]; fpd_passes(da, db, dc, det, sizeof det); MLOG("RewindBox: frame signature: frame %llu against the frames before and after it: %s", (unsigned long long)(f - 2), det); }
++        if ((k <= 24 || !(k & (k - 1))) && da && db && dc) fsig_detail(da, db, dc, f - 2);   // RewindBox (patch 0064): with the draws
++    }
++    // RewindBox (patch 0064): the conditional rendering of the middle frame, then a one-frame jump when the neighbours do not agree to the last draw (a camera that moves)
++    if (a && b && c && a->rcn && a->rchash == c->rchash && b->rchash != a->rchash && !(z && z->rchash == b->rchash)) {
++        uint64_t k = ++g_fsig_aba_cond;
++        if (k <= 24 || !(k & (k - 1))) {
++            MLOG("RewindBox: frame signature: the conditional rendering of frame %llu differs from the frames before and after it, which agree: conditions %u / %u / %u, not drawn %u / %u / %u, not known yet (drawn) %u / %u / %u, "
++                 "clears left out %u / %u / %u, draws left out %u / %u / %u; its draw list %s; %llu such frames of %llu so far", (unsigned long long)(f - 2), a->rcn, b->rcn, c->rcn, a->rcoff, b->rcoff, c->rcoff, a->rcunk, b->rcunk, c->rcunk,
++                 a->rcclr, b->rcclr, c->rcclr, a->rcdrw, b->rcdrw, c->rcdrw, a->hash == b->hash ? "is the neighbours'" : "differs too", (unsigned long long)k, (unsigned long long)g_fsig_frames);
++            fpd_t *da = fpd_at(f - 3), *db = fpd_at(f - 2), *dc = fpd_at(f - 1);
++            if (da && db && dc && a->hash == b->hash) fsig_detail(da, db, dc, f - 2);   // when the list differs too, the lines above have named the passes
++        }
++    }
++    if (a && b && c && z && a->draws >= 64) {
++        fpd_t *da = fpd_at(f - 3), *db = fpd_at(f - 2), *dc = fpd_at(f - 1), *dz = fpd_at(f - 4);
++        if (da && db && dc && dz) { uint64_t ab = fpd_dist_pass(da, db), bc = fpd_dist_pass(db, dc), ac = fpd_dist_pass(da, dc);
++            if (fpd_jump(ab, bc, ac) && fpd_dist_pass(dz, db) >= 4 * ac + 8) {   // and not what the frame before the three was (two lists in turn)
++                uint64_t k = ++g_fsig_jump_pass;
++                if (k <= 24 || !(k & (k - 1))) {
++                    MLOG("RewindBox: frame signature: frame %llu is far from both its neighbours, which are near each other (a one-frame jump in a list that changes from frame to frame): distance in the passes' draws "
++                         "%llu to the frame before, %llu to the frame after, %llu between those two; draws %u / %u / %u, conditions not drawn %u / %u / %u, clears left out %u / %u / %u, scene %ux%u / %ux%u / %ux%u; %llu such frames of %llu so far",
++                         (unsigned long long)(f - 2), (unsigned long long)ab, (unsigned long long)bc, (unsigned long long)ac, a->draws, b->draws, c->draws, a->rcoff, b->rcoff, c->rcoff, a->rcclr, b->rcclr, c->rcclr,
++                         a->w, a->h, b->w, b->h, c->w, c->h, (unsigned long long)k, (unsigned long long)g_fsig_frames);
++                    fsig_detail(da, db, dc, f - 2);
++                }
++            } }
++    }
++    a = fsig_at(f - 5); b = fsig_at(f - 4); c = fsig_at(f - 3); z = fsig_at(f - 6);
++    if (a && b && c && z && a->draws >= 64 && a->gwords && b->gwords && c->gwords && !(a->hash == b->hash && b->hash == c->hash && atomic_load(&a->ghash) == atomic_load(&c->ghash))) {   // RewindBox (patch 0064): the words' one-frame jump (the exact case is below)
++        fpd_t *da = fpd_at(f - 5), *db = fpd_at(f - 4), *dc = fpd_at(f - 3), *dz = fpd_at(f - 6);
++        if (da && db && dc && dz) { uint32_t nw = MAX(a->gwords, MAX(b->gwords, c->gwords)); uint64_t ab = fpd_dist_word(da, db, nw), bc = fpd_dist_word(db, dc, nw), ac = fpd_dist_word(da, dc, nw);
++            if (fpd_jump(ab, bc, ac) && fpd_dist_word(dz, db, nw) >= 4 * ac + 8) {
++                uint64_t k = ++g_fsig_jump_word;
++                if (k <= 24 || !(k & (k - 1))) { char det[900]; fpd_words(da, db, dc, nw, det, sizeof det);
++                    MLOG("RewindBox: frame signature: the GPU-written words of frame %llu are far from both its neighbours', which are near each other: distance %llu to the frame before, %llu to the frame after, %llu between those two, "
++                         "over %u / %u / %u words, draws %u / %u / %u; %s; %llu such frames of %llu so far", (unsigned long long)(f - 4), (unsigned long long)ab, (unsigned long long)bc, (unsigned long long)ac, a->gwords, b->gwords, c->gwords,
++                         a->draws, b->draws, c->draws, det, (unsigned long long)k, (unsigned long long)g_fsig_frames); }
++            } }
+     }
+-    a = fsig_at(f - 5); b = fsig_at(f - 4); c = fsig_at(f - 3);
+     if (a && b && c && a->draws >= 64 && a->gwords && a->hash == b->hash && b->hash == c->hash) {
+         uint64_t ga = atomic_load(&a->ghash), gb = atomic_load(&b->ghash), gc = atomic_load(&c->ghash);
+-        if (ga == gc && gb != ga) {
++        if (ga == gc && gb != ga && !(z && z->hash == b->hash && atomic_load(&z->ghash) == gb)) {   // z: patch 0064 (two sets of words in turn)
+             uint64_t k = ++g_fsig_aba_gpu;
+             if (k <= 24 || !(k & (k - 1))) MLOG("RewindBox: frame signature: frames %llu to %llu have one draw list, and the words the GPU wrote for its indirect draws differ in frame %llu from the two around it, which agree: "
+                 "their sum %llu / %llu / %llu over %u words, scene %ux%u / %ux%u / %ux%u, shared textures made %u / %u / %u, evicted %u / %u / %u; %llu such frames of %llu so far",
+@@ -2412,10 +2517,10 @@ static void fsig_judge(uint64_t f) {   // frame f's record has just been opened:
+ //   timestamp reports. Mario Kart World on IPA 762 re-made 7 to 14 shared textures a frame in the windows where it aimed at 60 frames a second and none where it held 30
+ static void fsig_window(uint64_t f) {
+     enum { W = 300, SZ = 48 }; if (f < W + 3) return;
+-    uint32_t sw[SZ], sh[SZ]; int ns = 0, over = 0; uint32_t pw = 0, ph = 0, changes = 0, n = 0, wmin = 0, hmin = 0, wmax = 0, hmax = 0; uint64_t made = 0, taken = 0, pieces = 0;
++    uint32_t sw[SZ], sh[SZ]; int ns = 0, over = 0; uint32_t pw = 0, ph = 0, changes = 0, n = 0, wmin = 0, hmin = 0, wmax = 0, hmax = 0; uint64_t made = 0, taken = 0, pieces = 0, cond = 0, coff = 0, cclr = 0;   // cond, coff, cclr: patch 0064
+     static uint32_t span[W]; uint32_t nsp = 0;   // the replaying thread only
+     for (uint64_t g = f - 3 - W; g < f - 3; g++) { fsig_t *c = fsig_at(g); if (!c || !c->w) continue;
+-        n++; made += c->texnew; taken += c->taken; pieces += c->pieces;
++        n++; made += c->texnew; taken += c->taken; pieces += c->pieces; cond += c->rcn; coff += c->rcoff; cclr += c->rcclr;
+         if (pw && (c->w != pw || c->h != ph)) changes++;
+         pw = c->w; ph = c->h;
+         if (!wmin || (uint64_t)c->w * c->h < (uint64_t)wmin * hmin) { wmin = c->w; hmin = c->h; }
+@@ -2430,13 +2535,16 @@ static void fsig_window(uint64_t f) {
+          "%.1f pieces a frame; GPU time the game read from its timestamp reports: p10 %.2f / p50 %.2f / p90 %.2f ms over %u frames; frames with another draw list than the two around them %llu, with other GPU-written words %llu (so far)",
+          (unsigned long long)f, n, wmin, hmin, wmax, hmax, ns, over ? " or more" : "", changes, (double)made / n, (double)taken / n, (double)pieces / n,
+          nsp ? span[nsp / 10] / 1000.0 : 0.0, nsp ? span[nsp / 2] / 1000.0 : 0.0, nsp ? span[nsp * 9 / 10] / 1000.0 : 0.0, nsp, (unsigned long long)g_fsig_aba_list, (unsigned long long)g_fsig_aba_gpu);
++    MLOG("RewindBox: frame signatures up to frame %llu: conditional rendering %.1f conditions a frame, %.1f of them not drawn, %.1f clears left out; frames whose conditional rendering differs from the two around them, which agree: %llu; "
++         "one-frame jumps in the passes' draws %llu, in the GPU-written words %llu (so far)", (unsigned long long)f, (double)cond / n, (double)coff / n, (double)cclr / n,
++         (unsigned long long)g_fsig_aba_cond, (unsigned long long)g_fsig_jump_pass, (unsigned long long)g_fsig_jump_word);   // RewindBox (patch 0064)
+ }
+ static fsig_t *fsig_cur(void) {   // the record of the frame being replayed, for the thread that replays (it holds the submit lock); NULL on any other thread, which leaves the records alone
+     if (!on_sub_thread()) return NULL;
+     uint64_t f = atomic_load_explicit(&g_cur_frame, memory_order_relaxed); fsig_t *c = &g_fsig[f % FSIG_N];
+     if (atomic_load_explicit(&c->frame, memory_order_relaxed) != f + 1) {
+         atomic_store(&c->frame, 0); c->hash = 0xcbf29ce484222325ull; atomic_store(&c->ghash, 0); atomic_store(&c->gsum, 0); atomic_store(&c->ts0, 0); atomic_store(&c->ts1, 0);
+-        c->draws = c->ind = c->mdi = c->mesh = c->skipped = c->passes = c->pieces = c->disp = c->texnew = c->taken = c->w = c->h = c->gwords = c->dur = 0;
++        c->draws = c->ind = c->mdi = c->mesh = c->skipped = c->passes = c->pieces = c->disp = c->texnew = c->taken = c->w = c->h = c->gwords = c->dur = c->rcn = c->rcoff = c->rcunk = c->rcclr = c->rcdrw = 0; c->rchash = 0xcbf29ce484222325ull;
+         static uint64_t t_prev; uint64_t now = clock_gettime_nsec_np(CLOCK_UPTIME_RAW); fsig_t *pr = f ? fsig_at(f - 1) : NULL;   // RewindBox (patch 0061): the frame before this one is whole
+         if (pr && t_prev) pr->dur = (uint32_t)MIN((now - t_prev) / 1000, (uint64_t)UINT32_MAX);
+         t_prev = now;
+@@ -2460,19 +2568,38 @@ static void fsig_draw(const void *vs, const void *fs, uint64_t ind, uint64_t cnt
+     c->hash = h; c->draws++;
+     { fpd_t *d = fpd_at(atomic_load_explicit(&g_cur_frame, memory_order_relaxed));   // RewindBox (patch 0063): the pass it is drawn in
+       if (d && d->np && !d->over) { fpd_pass *p = &d->p[d->np - 1]; uint64_t q = p->hash; q = (q ^ (uint64_t)(uintptr_t)vs) * 0x100000001b3ull; q = (q ^ (uint64_t)(uintptr_t)fs) * 0x100000001b3ull;
+-          p->hash = (q ^ (ind ? 1 : (uint64_t)count << 24 ^ instances)) * 0x100000001b3ull; p->draws++; } }
++          p->hash = (q ^ (ind ? 1 : (uint64_t)count << 24 ^ instances)) * 0x100000001b3ull; p->draws++; }
++      if (d) { if (d->nd < FPD_DRAWS) { fpd_draw *w = &d->d[d->nd++]; w->vs = (uint64_t)(uintptr_t)vs; w->fs = (uint64_t)(uintptr_t)fs; w->count = ind ? 0 : count; w->instances = ind ? 0 : instances;   // RewindBox (patch 0064): the draw itself
++                                         w->pass = (uint16_t)(d->np && !d->over ? d->np - 1 : 0xffff); w->kind = (uint8_t)(mesh ? 3 : cnt ? 2 : ind ? 1 : 0); w->pad = 0; } else d->dover++; } }
+     if (mesh) { c->mesh++; return; }
+     if (cnt) { c->mdi++; if (!g_fsig_naddr || g_fsig_addr[g_fsig_naddr - 1] != cnt) fsig_word(c, cnt); }   // the multi-draw's count once; records past it hold what was there before
+     else if (ind) { c->ind++; fsig_word(c, ind + 4); }   // the instance count of {count, instances, ...}, arrays and elements alike
+ }
+ static void fsig_draw_again(void) {   // the next draw of a multi-draw, encoded alone (mdx_next)
+-    FSIG(fc_->hash = (fc_->hash ^ 0x9e3779b97f4a7c15ull) * 0x100000001b3ull; fc_->draws++; fc_->mdi++;
+-         fpd_t *d = fpd_at(atomic_load_explicit(&g_cur_frame, memory_order_relaxed)); if (d && d->np && !d->over) { fpd_pass *p = &d->p[d->np - 1]; p->hash = (p->hash ^ 0x9e3779b97f4a7c15ull) * 0x100000001b3ull; p->draws++; });   // RewindBox (patch 0063)
++    fsig_t *c = fsig_on() ? fsig_cur() : NULL; if (!c) return;
++    c->hash = (c->hash ^ 0x9e3779b97f4a7c15ull) * 0x100000001b3ull; c->draws++; c->mdi++;
++    fpd_t *d = fpd_at(atomic_load_explicit(&g_cur_frame, memory_order_relaxed)); if (!d) return;   // RewindBox (patch 0063)
++    if (d->np && !d->over) { fpd_pass *p = &d->p[d->np - 1]; p->hash = (p->hash ^ 0x9e3779b97f4a7c15ull) * 0x100000001b3ull; p->draws++; }
++    if (!d->nd) return;   // RewindBox (patch 0064): the draw itself, with the shaders of the draw before it (the multi-draw's)
++    if (d->nd < FPD_DRAWS) { fpd_draw *w = &d->d[d->nd]; *w = d->d[d->nd - 1]; w->kind = 4; w->pass = (uint16_t)(d->np && !d->over ? d->np - 1 : 0xffff); d->nd++; } else d->dover++;
+ }
+ static void fsig_pass(uint32_t w, uint32_t h, uint32_t fmt) {   // RewindBox (patch 0063): a pass is opened; the replaying thread, inside FSIG
+     fpd_t *d = fpd_at(atomic_load_explicit(&g_cur_frame, memory_order_relaxed)); if (!d) return;
+     if (d->np >= FPD_PASSES) { d->over++; return; }
+-    fpd_pass *p = &d->p[d->np++]; p->hash = 0xcbf29ce484222325ull; p->draws = 0; p->w = (uint16_t)MIN(w, 65535u); p->h = (uint16_t)MIN(h, 65535u); p->fmt = (uint16_t)MIN(fmt, 65535u); p->pad = 0;
++    fpd_pass *p = &d->p[d->np++]; p->hash = 0xcbf29ce484222325ull; p->draws = 0; p->w = (uint16_t)MIN(w, 65535u); p->h = (uint16_t)MIN(h, 65535u); p->fmt = (uint16_t)MIN(fmt, 65535u); p->clr = (uint8_t)MIN(g_fpd_clr, 255u); p->drw = 0; g_fpd_clr = 0;   // clr, drw: patch 0064
++}
++// RewindBox (patch 0064): conditional rendering at replay: an OP_RENDER_COND, and each clear or draw left out inside a block that does not draw
++static void fsig_cond(int kind) {   // 0 a condition that draws, 1 one that does not, 2 one whose values are not known yet (drawn), 3 / 4 the game's own render enable off / on
++    fsig_t *c = fsig_on() ? fsig_cur() : NULL; if (!c) return;
++    c->rchash = (c->rchash ^ (uint64_t)(kind + 1)) * 0x100000001b3ull;
++    if (kind < 3) { c->rcn++; if (kind == 1) c->rcoff++; else if (kind == 2) c->rcunk++; }
++}
++static void fsig_cond_skip(int draw) {   // a clear (0) or a draw (1) left out
++    fsig_t *c = fsig_on() ? fsig_cur() : NULL; if (!c) return;
++    c->rchash = (c->rchash ^ (uint64_t)(6 + draw)) * 0x100000001b3ull;
++    if (!draw) { c->rcclr++; g_fpd_clr++; return; }
++    c->rcdrw++;
++    fpd_t *d = fpd_at(atomic_load_explicit(&g_cur_frame, memory_order_relaxed)); if (d && d->np && !d->over) { fpd_pass *p = &d->p[d->np - 1]; if (p->drw < 255) p->drw++; }
+ }
+ // A GPU-written word's share of its frame's hash: its place in the frame and its value mixed together, so that the sum over the words (the pieces' handlers run in any
+ //   order) tells a count that moved from one word to another from the same counts (a plain sum of place and value did not: caught by a run over made-up frames)
+@@ -2489,14 +2616,23 @@ static void fsig_dump(const char *dir) {   // cap_end: the ring, oldest frame fi
+     if (!fsig_on() || !dir || !dir[0]) return;
+     char p[1100]; snprintf(p, sizeof p, "%s/frames.txt", dir); FILE *f = fopen(p, "w"); if (!f) return;
+     fprintf(f, "# RewindBox frame signatures (patch 0059), oldest first. frame, draw-list hash, draws, indirect, of multi-draws, task/mesh, skipped for a pipeline, passes, pieces, dispatches, shared textures made, evicted over their storage, scene WxH, "
+-               "GPU-written words, their sum, their hash, timestamp span reported to the game in microseconds (0 = none), microseconds to the next frame's first command (0 = not known)\n");
++               "GPU-written words, their sum, their hash, timestamp span reported to the game in microseconds (0 = none), microseconds to the next frame's first command (0 = not known), "
++               "conditions of conditional rendering, of which not drawn, not known yet (drawn), clears left out by a condition, draws left out by one, hash of that sequence (patch 0064)\n");
+     uint64_t hi = 0; for (int i = 0; i < FSIG_N; i++) { uint64_t v = atomic_load(&g_fsig[i].frame); if (v > hi) hi = v; }
+     for (uint64_t v = hi > FSIG_N ? hi - FSIG_N + 1 : 1; v <= hi; v++) { fsig_t *c = fsig_at(v - 1); if (!c) continue;
+         uint64_t t0 = atomic_load(&c->ts0), t1 = atomic_load(&c->ts1);
+-        fprintf(f, "%llu %016llx %u %u %u %u %u %u %u %u %u %u %ux%u %u %llu %016llx %llu %u\n", (unsigned long long)(v - 1), (unsigned long long)c->hash, c->draws, c->ind, c->mdi, c->mesh, c->skipped, c->passes, c->pieces, c->disp, c->texnew, c->taken,
+-                c->w, c->h, c->gwords, (unsigned long long)atomic_load(&c->gsum), (unsigned long long)atomic_load(&c->ghash), t0 && t1 > t0 ? (unsigned long long)((t1 - t0) * 625 / 12000) : 0ull, c->dur); }
++        fprintf(f, "%llu %016llx %u %u %u %u %u %u %u %u %u %u %ux%u %u %llu %016llx %llu %u %u %u %u %u %u %016llx\n", (unsigned long long)(v - 1), (unsigned long long)c->hash, c->draws, c->ind, c->mdi, c->mesh, c->skipped, c->passes, c->pieces, c->disp, c->texnew, c->taken,
++                c->w, c->h, c->gwords, (unsigned long long)atomic_load(&c->gsum), (unsigned long long)atomic_load(&c->ghash), t0 && t1 > t0 ? (unsigned long long)((t1 - t0) * 625 / 12000) : 0ull, c->dur, c->rcn, c->rcoff, c->rcunk, c->rcclr, c->rcdrw, (unsigned long long)c->rchash); }
+     fprintf(f, "# frames with another draw list than the two around them, which agree: %llu; with the same list and other GPU-written words: %llu; frames recorded: %llu\n",
+             (unsigned long long)g_fsig_aba_list, (unsigned long long)g_fsig_aba_gpu, (unsigned long long)g_fsig_frames);
++    // RewindBox (patch 0064): the passes and the draws of the last FPD_FRAMES frames, to set a captured frame beside its neighbours
++    fprintf(f, "# frames whose conditional rendering differs from the two around them: %llu; one-frame jumps in the passes' draws: %llu; in the GPU-written words: %llu\n",
++            (unsigned long long)g_fsig_aba_cond, (unsigned long long)g_fsig_jump_pass, (unsigned long long)g_fsig_jump_word);
++    fprintf(f, "# P frame pass WxH format draws hash clears-left-out-before-it draws-left-out-in-it; D frame pass kind (0 direct, 1 indirect, 2 of a multi-draw, 3 task / mesh, 4 next of a multi-draw) vs fs count instances\n");
++    for (uint64_t v = hi > FPD_FRAMES ? hi - FPD_FRAMES + 1 : 1; v <= hi; v++) { fpd_t *d = fpd_at(v - 1); if (!d) continue;
++        uint32_t np = MIN(d->np, (uint32_t)FPD_PASSES), nd = MIN(d->nd, (uint32_t)FPD_DRAWS);
++        for (uint32_t i = 0; i < np; i++) fprintf(f, "P %llu %u %ux%u %u %u %016llx %u %u\n", (unsigned long long)(v - 1), i, d->p[i].w, d->p[i].h, d->p[i].fmt, d->p[i].draws, (unsigned long long)d->p[i].hash, d->p[i].clr, d->p[i].drw);
++        for (uint32_t i = 0; i < nd; i++) fprintf(f, "D %llu %u %u %016llx %016llx %u %u\n", (unsigned long long)(v - 1), d->d[i].pass, d->d[i].kind, (unsigned long long)d->d[i].vs, (unsigned long long)d->d[i].fs, d->d[i].count, d->d[i].instances); }
+     fclose(f);
+ }
+ uint64_t nvn_be_sub_commit(void) {
+@@ -6717,8 +6853,16 @@ static void shmap_load_once(void) {
+     uint8_t tess_dom, tess_part, tess_cw, tess_point;   // 从domain shader的tess_mode解出（prog_get时）：域（0等值线1三角2四边形，同 dmsh_build.py TESS_DOM / 寄存器 TessMode 位 0–1）、分区（0整数1奇分数2偶分数）、顺逆、点模式
+ } @end   // gp (S2Arm): the guest program, for its fragment shader's code / control at a typed-output variant (pso_fout_variant)   // geo_raster: GS output reader paired with this program's fragment stage
+ @implementation NvProg @end
+-// RewindBox (patch 0059): what a frame's record hashes of a shader: the 16 characters of its key, the same from one frame, object and session to the next (0 = no shader)
+-static uint64_t fsig_shkey(NvShader *s) { uint64_t a = 0, b = 0; if (!s) return 0; memcpy(&a, s->key, 8); memcpy(&b, s->key + 8, 8); return a ^ b * 0x9e3779b97f4a7c15ull; }
++// RewindBox (patch 0059): what a frame's record hashes of a shader: the 16 characters of its key, the same from one frame, object and session to the next (0 = no shader).
++//   Patch 0064: as the number those characters spell when they are hexadecimal digits (a translated shader's key), so that a line can print it the way a capture's pass list
++//   does (vs=0e1b13a4cdeb5733_b); another form of key is mixed as before
++static uint64_t fsig_shkey(NvShader *s) {
++    if (!s) return 0;
++    uint64_t v = 0; int i = 0;
++    for (; i < 16; i++) { unsigned ch = (unsigned char)s->key[i], d = ch - '0' < 10 ? ch - '0' : (ch | 32) - 'a' < 6 ? (ch | 32) - 'a' + 10 : 16; if (d > 15) break; v = v << 4 | d; }
++    if (i == 16) return v ? v : 1;
++    uint64_t a = 0, b = 0; memcpy(&a, s->key, 8); memcpy(&b, s->key + 8, 8); return a ^ b * 0x9e3779b97f4a7c15ull;
++}
+ // Warm-up entry: built in the background, waiting to be taken by the submit thread. vs / fs retain the actual shared shader objects (pso holds only raw pointers).
+ @interface WarmItem : NSObject { @public int kind, fc; NSString *key, *vs_key, *fs_key; NvShader *shader, *vs, *fs; pso_key pso; id<MTLFunction> fsfn; id object; NSData *mkey; } @end   // fc: a compute pipeline of the sampler-emulation variant (#800); mkey: a task / mesh pipeline's key (kind 4, nvn_geometry.inc mtk_warm)
+ @implementation WarmItem @end
+@@ -16193,9 +16337,10 @@ void nvn_be_exec(const uint8_t *p) {
+                 else mtl_sub_counter(ad, (uint32_t)t);
+                 break; }
+             case OP_RENDER_COND: { const p_render_cond *rc = a;   // recorded only with the profile key render_cond (hle_nvn.c)
+-                if (rc->mode >= 2) { g_rc_skip = rc->mode == 3; PD("E %llu render enable %d", g_stat_pass, rc->mode == 2); }
++                if (rc->mode >= 2) { g_rc_skip = rc->mode == 3; PD("E %llu render enable %d", g_stat_pass, rc->mode == 2); fsig_cond(rc->mode == 3 ? 3 : 4); }   // RewindBox (patch 0064): fsig_cond
+                 else { uint64_t x = 0, y = 0; int known = rc_value(rc->addr, &x) & rc_value(rc->addr + 16, &y);
+                     g_rc_skip = known && (rc->mode ? x == y : x != y);
++                    fsig_cond(!known ? 2 : g_rc_skip ? 1 : 0);   // RewindBox (patch 0064)
+                     PD("E %llu conditional render %s addr=%#llx values %llu / %llu%s%s", g_stat_pass, rc->mode ? "draw if not equal" : "draw if equal", (unsigned long long)rc->addr, (unsigned long long)x, (unsigned long long)y, known ? "" : " (unknown, drawn)", g_rc_skip ? " → not drawn" : ""); }
+                 break; }
+             case OP_WAIT_SYNC: { const sync_t *s; memcpy(&s, a, 8); void *ev; uint64_t v;   // another queue's fence: the queue waits for it before this submission commits (hle_nvn.c WaitSync)
+@@ -16236,7 +16381,7 @@ void nvn_be_exec(const uint8_t *p) {
+             }
+             case OP_CLEAR_COLOR: {
+                 const p_clear_color *c = a;
+-                if (g_rc_skip) { PD("c %llu color clear skipped by conditional rendering slot%d", g_stat_pass, c->index); break; }
++                if (g_rc_skip) { PD("c %llu color clear skipped by conditional rendering slot%d", g_stat_pass, c->index); fsig_cond_skip(0); break; }   // RewindBox (patch 0064): fsig_cond_skip
+                 if (g_wd > 0 && c->index >= 0 && c->index < R.rt.n && R.rt.color[c->index]) s2a_widen_target_cleared((uint32_t)R.rt.color[c->index]->serial);   // S2Arm widen: the target's screen-copy origin is void (WidenRenderer.Clear → Frame.OnTargetCleared)
+                 // A scissored clear to 0 outside a pass with all channels (SMBW clears pyramid levels as sub-rectangles of 480×272 and other targets): copy from the zero buffer into the scissor rectangle in the replay stream
+                 int p2w = g_wd > 0 && c->index >= 0 && c->index < R.rt.n && R.rt.color[c->index] && wd_p2_is_world(R.rt.color[c->index]->serial);   // S2Arm widen: per-path clear counts on the fallback world target (status line, widen_glue.inc)
+@@ -16257,7 +16402,7 @@ void nvn_be_exec(const uint8_t *p) {
+             }
+             case OP_CLEAR_DS: {
+                 const p_clear_ds *c = a; dsnap_stale();
+-                if (g_rc_skip) { PD("c %llu depth-stencil clear skipped by conditional rendering", g_stat_pass); break; }
++                if (g_rc_skip) { PD("c %llu depth-stencil clear skipped by conditional rendering", g_stat_pass); fsig_cond_skip(0); break; }   // RewindBox (patch 0064): fsig_cond_skip
+                 if (g_rt_merged) rp_end();
+                 // Load-action clears cannot express a partial rectangle or a
+                 // stencil write mask, even before the first encoder is opened.
+@@ -16275,15 +16420,16 @@ void nvn_be_exec(const uint8_t *p) {
+                 PD("c %llu depth-stencil clear recorded ser=%llu depth=%g depth_mask=%d stencil=%d stencil_mask=%#x", g_stat_pass, R.rt.depth ? (unsigned long long)R.rt.depth->serial : 0ull, c->depth, c->depth_mask, c->stencil, c->stencil_mask);
+                 break;
+             }
+-            case OP_DRAW: { if (g_rc_skip) break; sub_cut_pass(); p_draw t; g_exec_cur = p; g_exec_next = p + h.size; const p_draw *d = draw_rec(a, h.size, &t);
++            case OP_DRAW: { if (g_rc_skip) { fsig_cond_skip(1); break; } sub_cut_pass(); p_draw t; g_exec_cur = p; g_exec_next = p + h.size; const p_draw *d = draw_rec(a, h.size, &t);
+                 if (d->tfc) { g_tfd_args = tfd_args(d); if (g_tfd_args) draw(d, NULL); g_tfd_args = 0; } else draw_top(d, NULL); g_exec_next = NULL; break; }   // Lookahead start point
+-            case OP_DRAW_IDX: { if (g_rc_skip) break; sub_cut_pass(); p_draw_idx t; g_exec_cur = p; g_exec_next = p + h.size; draw_top(NULL, draw_idx_rec(a, h.size, &t)); g_exec_next = NULL; break; }
++            case OP_DRAW_IDX: { if (g_rc_skip) { fsig_cond_skip(1); break; } sub_cut_pass(); p_draw_idx t; g_exec_cur = p; g_exec_next = p + h.size; draw_top(NULL, draw_idx_rec(a, h.size, &t)); g_exec_next = NULL; break; }
+             case OP_MULTI_DRAW:   // a lookahead from outside the range stops at it (fz_next), including scans for inline writes to its arguments: masked copies made before it are not used past it
+                 g_mdx_epoch++; g_mdx_stop = NULL;
+                 if (!g_rc_skip && h.size >= 8 + sizeof(p_multi_draw)) { g_exec_cur = p; g_exec_next = NULL; draw_multi(a); }
++                else if (g_rc_skip) fsig_cond_skip(1);   // RewindBox (patch 0064)
+                 g_mdx_epoch++;
+                 break;
+-            case OP_DRAW_TEX: if (!g_rc_skip) draw_tex(a); break;
++            case OP_DRAW_TEX: if (!g_rc_skip) draw_tex(a); else fsig_cond_skip(1); break;   // RewindBox (patch 0064): fsig_cond_skip
+             // Do not mark dirty if the state did not change (the game often re-sends the same program / state block / vertex format before each draw; the dirty flag only decides whether to re-fetch the pipeline / depth-stencil object, and equal values mean the same object)
+             case OP_SCISSOR: case OP_BIND_PROGRAM: case OP_BIND_STATE: case OP_BIND_VATTR: case OP_BIND_VSTREAM: case OP_BIND_VBUF:
+             case OP_BIND_UBO: case OP_BIND_SSBO: case OP_BIND_TEX: case OP_BIND_TEX1: case OP_BIND_SAMP: case OP_BIND_IMG: case OP_STENCIL:
