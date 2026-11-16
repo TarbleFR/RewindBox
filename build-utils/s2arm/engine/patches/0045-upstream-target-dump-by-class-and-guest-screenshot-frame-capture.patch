@@ -1,0 +1,435 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 894f70144..17d83f7f0 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -5312,7 +5312,23 @@ static inline int passdump(void) {
+ }
+ // The next n frames' passes, on request (the Mac's DM_CTL "passdump n", hle_hid.c): for a scene that a fixed DM_NVN_PASSDUMP frame range cannot be timed to
+ void dm_gfx_passdump_next(long n) { long f = (long)atomic_load(&g_cur_frame); g_pd_a1 = f + n; g_pd_a0 = f + 1; }
+-#define PD(...) do { if (passdump()) { fprintf(stderr, "[pass] F%llu ", (unsigned long long)atomic_load(&g_cur_frame)); fprintf(stderr, __VA_ARGS__); fputc('\n', stderr); } } while (0)
++// RewindBox (patch 0045): a frame capture's pass lines go to passes.txt in its directory (a RewindBox guest's stderr is the host app's; host.log, 1-2 MB a race, keeps only its
++//   start and end past 64 MB), at most CAP_PD_LINES of them; the file is closed under g_cap_pd_mu, which any thread's line takes
++enum { CAP_PD_LINES = 200000 };
++static _Atomic int g_cap_pd_log; static uint64_t g_cap_pd_lines; static FILE *g_cap_pd_f; static pthread_mutex_t g_cap_pd_mu = PTHREAD_MUTEX_INITIALIZER;
++static void pd_out(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
++static void pd_out(const char *fmt, ...) {
++    char b[2048]; va_list ap; va_start(ap, fmt); vsnprintf(b, sizeof b, fmt, ap); va_end(ap);
++    unsigned long long f = (unsigned long long)atomic_load(&g_cur_frame);
++    if (atomic_load_explicit(&g_cap_pd_log, memory_order_relaxed)) {
++        pthread_mutex_lock(&g_cap_pd_mu);
++        if (g_cap_pd_f && g_cap_pd_lines < CAP_PD_LINES) { fprintf(g_cap_pd_f, "[pass] F%llu %s\n", f, b); if (++g_cap_pd_lines == CAP_PD_LINES) fprintf(g_cap_pd_f, "(the pass lines stop at %d)\n", (int)CAP_PD_LINES); }
++        pthread_mutex_unlock(&g_cap_pd_mu);
++        return;
++    }
++    fprintf(stderr, "[pass] F%llu %s\n", f, b);
++}
++#define PD(...) do { if (passdump()) pd_out(__VA_ARGS__); } while (0)
+ static void blit_note(void) { if (g_enc) PD("E %llu copy / buffer update ends the render pass", g_stat_pass); }
+ __attribute__((weak)) void dm_guest_frame_tick(void) {}   // hle_os.c provides the strong definition (DM_DETCLOCK deterministic guest clock); a no-op when graphics unit tests do not link the host   // diag.c provides the strong definition (DM_TICK_HOLD=E:SHOT unfreeze); a no-op when graphics unit tests do not link the host
+ __attribute__((weak)) int dm_detclock_enabled(void) { return 0; }   // Same as above: the host's hle_os.c provides the strong definition; when graphics unit tests do not link the host, the deterministic clock is treated as off
+@@ -10552,6 +10568,8 @@ static __attribute__((noinline, cold)) void p20_note(NvShader *sh, int st, const
+          sh->key, st, b->kind == NVN_RB_IMG ? "image" : b->kind == NVN_RB_TEXU ? "texture handle in uniform" : "texture", (int)b->reg, (unsigned)b->dtt, (unsigned)b->dpf, d2d ? " (type unknown offline, taken as 2D)" : "",
+          tt, pf, mtl_fmt_depth((MTLPixelFormat)pf) ? (unsigned)NVN_DPF_DEPTH : (unsigned)mtl_pf_dpf((MTLPixelFormat)pf), tm ? "; type differs" : "", cm ? "; class differs" : "");
+ }
++static long g_td_frame;   // DM_NVN_TEXDUMP selected frame (defined with the TEXDUMP code below; < 0 = off): the bind site checks it before noting 3D textures
++static void td_note_3d(id<MTLTexture> t, uint64_t ser);
+ static inline void p20_check(NvShader *sh, int st, const nvn_rbind *b, int tid, void *tv) {
+     g_p20_checked++;
+     unsigned tt, pf;
+@@ -10748,6 +10766,7 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+             __unsafe_unretained id<MTLTexture> size_view = t;
+             if (t && g_fb_n && g_fb_seq == g_draw_seq && nvn_stage == 1) for (int q = 0; q < g_fb_n; q++) if (t == g_fb_src[q]) { t = g_fb_use[q]; trid = g_fb_rid[q]; break; }   // same-pass feedback sampling: read the snapshot instead (see fb_prepare)
+             if (t && passdump() && tid < g_ntreg) PD("R %llu st%d ser=%llu", g_stat_pass, nvn_stage, g_treg[tid].t.serial);
++            if (__builtin_expect(g_td_frame >= 0, 0) && t && tid < g_ntreg && t.textureType == MTLTextureType3D) td_note_3d(t, g_treg[tid].t.serial);   // TEXDUMP: 3D textures the frame samples (td_dump saves them as slice atlases)
+             if (bl) PD("B %llu st%d tex reg%d tid=%d %s ser=%llu fmt=%lu %lux%lux%lu view_lv=%lu+%lu view_sl=%lu array=%lu target=%lu swz=%d%d%d%d mtl=%p", g_stat_pass, nvn_stage, reg, tid, t ? "real" : "dummy", t && tid < g_ntreg ? g_treg[tid].t.serial : 0ull,
+                        (unsigned long)t.pixelFormat, (unsigned long)t.width, (unsigned long)t.height, (unsigned long)t.depth,
+                        (unsigned long)(t.parentTexture ? t.parentRelativeLevel : 0), (unsigned long)t.mipmapLevelCount,
+@@ -16123,6 +16142,14 @@ static void shot(id<MTLTexture> src, const char *path, int screen, const int cro
+ static long g_td_frame = -2; static const char *g_td_path; static NSMutableArray *g_td_list; static int g_td_done;
+ static char *g_td_owned_path;
+ static NSIndexSet *g_td_frames;   // only the explicit comma-list mode; sorted and deduplicated
++static NSMutableArray *g_td_3d;   // 3D textures sampled in the selected frame: @[texture, serial] (at most 16; saved by td_dump as slice atlases)
++static void td_note_3d(id<MTLTexture> t, uint64_t ser) {
++    if (g_td_done || (long)atomic_load(&g_cur_frame) != g_td_frame) return;
++    if (!g_td_3d) g_td_3d = [NSMutableArray array];
++    if (g_td_3d.count >= 16) return;
++    for (NSArray *e in g_td_3d) if ([e[1] unsignedLongLongValue] == ser) return;
++    [g_td_3d addObject:@[t.parentTexture && t.parentTexture.textureType == MTLTextureType3D ? t.parentTexture : t, @(ser)]];
++}
+ static void td_dump(void);
+ static void td_path(char *path, size_t n, int index) {
+     if (!g_td_frames) { snprintf(path, n, g_td_path, index); return; }   // legacy single-frame / size filenames
+@@ -16136,6 +16163,85 @@ static void td_clear(int pending_gpu) {
+     // Only entries with a pass index own a diagnostic copy. Game attachments stay resident.
+     for (NSArray *e in g_td_list) if (e.count > 4) { if (pending_gpu) defer_obj_release(e[0]); else res_remove(e[0]); }
+     [g_td_list removeAllObjects];
++    [g_td_3d removeAllObjects];   // 3D textures are the game's own (no copy): just forget them
++}
++// RewindBox (patch 0045): a capture of one frame, asked for by the player's screenshot (ios/app.m, UIApplicationUserDidTakeScreenshotNotification). Mario Kart World draws objects
++//   all black, vertical bands of colour and red-pink trees on iPhone (the maintainer's recordings of 15 November) that its logs cannot explain: which pass leaves them, and in which
++//   target, is only seen in the targets themselves. The next frame's colour targets (DM_NVN_TEXDUMP's end-of-frame dump, integer targets by value), snapshots of its multi-target
++//   passes and of every fourth pass (DM_NVN_TEXSNAP's copies, at most CAP_SNAPS, none while the process has less than CAP_SNAP_ROOM to spare) and its pass lines (PASSDUMP, into
++//   passes.txt) go to <Documents>/Diagnostics/S2Arm/captures/<time>-f<frame>/, which the Files app shows. One capture every 20 s, at most CAP_MAX in a process (each takes tens of MB on
++//   disk): the GPU is waited for and the images written on the render thread, the picture stops for a few seconds. On iOS an image whose conversion would leave the process
++//   less than CAP_KEEP to spare is left out (cap_room; Mario Kart World races have had 1.4 to 2.5 GB to spare, 751 and 750's logs)
++enum { CAP_SNAPS = 24, CAP_MAX = 4 };
++#define CAP_SNAP_ROOM (1536ull << 20)
++#define CAP_KEEP (512ull << 20)
++static _Atomic int g_cap_req, g_cap_count; static _Atomic uint64_t g_cap_last_ns;
++static int g_cap_snap, g_cap_snaps; static char g_cap_dir[1024];
++void s2a_rb_capture_request(void) {   // any thread (the screenshot notification comes on the main thread)
++    uint64_t now = clock_gettime_nsec_np(CLOCK_UPTIME_RAW), last = atomic_load(&g_cap_last_ns);
++    if (last && now - last < 20000000000ull) { MLOG("RewindBox: screenshot: no frame capture, one every 20 s"); return; }
++    if (atomic_load(&g_cap_count) >= CAP_MAX) { MLOG("RewindBox: screenshot: no frame capture, %d in this process already", (int)CAP_MAX); return; }
++    atomic_store(&g_cap_last_ns, now); atomic_store(&g_cap_req, 1);
++    MLOG("RewindBox: screenshot: the next frame's render targets are captured (the picture stops for a few seconds while they are written)");
++}
++static void cap_texdump_next(const char *path) {   // dm_gfx_texdump_next without its rp_end(): td_note runs while a pass is being opened, none open (rp_begin_ex_ returns early otherwise)
++    td_clear(1);
++    char *p = strdup(path); if (!p) return;
++    free(g_td_owned_path); g_td_owned_path = p;
++    g_td_path = g_td_owned_path; g_td_list = [NSMutableArray array]; g_td_frames = nil; g_td_done = 0; g_td_frame = (long)atomic_load(&g_cur_frame) + 1;
++}
++static void cap_begin(void) { @autoreleasepool {   // render replay thread, before a pass opens (td_note)
++    NSString *docs = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
++    if (!docs.length) { MLOG("【红】 RewindBox: frame capture: no Documents directory"); return; }
++    NSDateFormatter *df = [NSDateFormatter new]; df.dateFormat = @"yyyyMMdd-HHmmss"; df.locale = [NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"];
++    unsigned long long f = (unsigned long long)atomic_load(&g_cur_frame) + 1;
++    NSString *dir = [docs stringByAppendingPathComponent:[NSString stringWithFormat:@"Diagnostics/S2Arm/captures/%@-f%llu", [df stringFromDate:NSDate.date], f]];
++    NSError *err = nil;
++    if (![NSFileManager.defaultManager createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:&err]) {
++        MLOG("【红】 RewindBox: frame capture: cannot make %s: %s", dir.fileSystemRepresentation, err.localizedDescription.UTF8String); return; }
++    snprintf(g_cap_dir, sizeof g_cap_dir, "%s", dir.fileSystemRepresentation);
++    char path[2100]; size_t o = 0; for (const char *c = g_cap_dir; *c && o < sizeof path - 16; c++) { if (*c == '%') path[o++] = '%'; path[o++] = *c; }   // td_path's format: a '%' of the directory doubled
++    snprintf(path + o, sizeof path - o, "/rt-%%d.png");
++    cap_texdump_next(path);   // frame f's targets at its end (td_dump, at the next frame's first pass)
++    g_cap_snap = 1; g_cap_snaps = 0;   // ts_note: frame f's multi-target passes and every fourth pass
++    { char pp[1200]; snprintf(pp, sizeof pp, "%s/passes.txt", g_cap_dir); FILE *pf = fopen(pp, "w");
++      if (!pf) MLOG("【红】 RewindBox: frame capture: cannot write %s: %s (no pass lines)", pp, strerror(errno));
++      pthread_mutex_lock(&g_cap_pd_mu); g_cap_pd_f = pf; g_cap_pd_lines = 0; pthread_mutex_unlock(&g_cap_pd_mu); }
++    dm_gfx_passdump_next(1); atomic_store(&g_cap_pd_log, 1);   // frame f's pass lines, into passes.txt
++    atomic_fetch_add(&g_cap_count, 1);
++    MLOG("RewindBox: frame capture of frame %llu into %s (images rt-<serial*100+layer*10+level>.png at the frame's end, rt-0_sNNN_<serial>_<level>.png after its pass NNN, pass lines in passes.txt)", f, g_cap_dir);
++} }
++static void cap_end(void) {   // td_dump has written the files
++    atomic_store(&g_cap_pd_log, 0);
++    pthread_mutex_lock(&g_cap_pd_mu); uint64_t lines = g_cap_pd_lines; if (g_cap_pd_f) fclose(g_cap_pd_f); g_cap_pd_f = NULL; pthread_mutex_unlock(&g_cap_pd_mu);
++    MLOG("RewindBox: frame capture written into %s (%llu pass lines, %d pass snapshots)", g_cap_dir, (unsigned long long)lines, g_cap_snaps);
++    g_cap_snap = 0; g_cap_dir[0] = 0;
++    g_pd_a0 = -2;   // passdump() reads DM_NVN_PASSDUMP again (unset: off, answered at its first test)
++}
++static void cap_reset(void) {   // session end (nvn_session.inc): a capture left unfinished stops there, its directory keeps what it has
++    atomic_store(&g_cap_req, 0);
++    if (g_cap_dir[0]) { MLOG("RewindBox: frame capture into %s stopped by the end of the session", g_cap_dir); g_pd_a0 = -2; }
++    atomic_store(&g_cap_pd_log, 0);
++    pthread_mutex_lock(&g_cap_pd_mu); if (g_cap_pd_f) fclose(g_cap_pd_f); g_cap_pd_f = NULL; pthread_mutex_unlock(&g_cap_pd_mu);
++    g_cap_snap = 0; g_cap_dir[0] = 0;
++}
++static int cap_room(size_t bytes, const char *what, uint64_t ser) {   // td_dump: room for one image's conversion (its RGBA8 copy, the read-back buffer and the PNG encoder's)
++#if TARGET_OS_IPHONE
++    if (g_cap_dir[0]) { size_t have = os_proc_available_memory();
++        if (have < bytes * 3 + CAP_KEEP) { MLOG("RewindBox: frame capture: %s ser=%llu left out (%zu MB to spare, %zu MB needed)", what, (unsigned long long)ser, have >> 20, (size_t)((bytes * 3 + CAP_KEEP) >> 20)); return 0; } }
++#else
++    (void)bytes; (void)what; (void)ser;
++#endif
++    return 1;
++}
++static int cap_snap_want(MTL4RenderPassDescriptor *pd, NSUInteger nc, int idx) {   // ts_note: a snapshot of this pass in the capture
++    if (!g_cap_snap || g_cap_snaps >= CAP_SNAPS) return 0;
++    int n = 0; for (NSUInteger i = 0; i < nc && i < 8; i++) if (pd.colorAttachments[i].texture) n++;
++    if (!n || (n < 2 && idx % 4)) return 0;
++#if TARGET_OS_IPHONE
++    if (os_proc_available_memory() < CAP_SNAP_ROOM) { static int once; if (!once++) MLOG("RewindBox: frame capture: pass snapshots stop, the process has less than %llu MB to spare", CAP_SNAP_ROOM >> 20); return 0; }
++#endif
++    g_cap_snaps++; return 1;
+ }
+ // DM_NVN_TEXDUMP=size=WxH:path instead picks the frame by content: the first frame that opens a render pass whose first color attachment level is WxH (for one-off work whose frame differs between runs)
+ static unsigned g_td_w, g_td_h;
+@@ -16152,6 +16258,7 @@ void td_note(MTL4RenderPassDescriptor *pd, NSUInteger nc) {
+             if (!frames.count || !c[1]) MDIE("invalid DM_NVN_TEXDUMP frame list: %s", e);
+             g_td_frames = frames; g_td_frame = (long)frames.firstIndex;
+         } }
++    if (pd && atomic_load_explicit(&g_cap_req, memory_order_relaxed) && atomic_exchange(&g_cap_req, 0)) cap_begin();   // RewindBox (patch 0045): a screenshot's frame capture
+     if (g_td_frame < 0 || g_td_done) return;
+     long f = (long)atomic_load(&g_cur_frame);
+     if (g_td_frame == LONG_MAX) { id<MTLTexture> t0 = nc ? pd.colorAttachments[0].texture : nil; NSUInteger lv = pd.colorAttachments[0].level;
+@@ -16184,7 +16291,7 @@ static void td_dump(void) {
+     g_td_done = 1;
+     rp_end(); if (g_blit) { enc_b_end(g_blit); g_blit = nil; }
+     mtl_finish_gpu();
+-    static id<MTLRenderPipelineState> ps; static id<MTLSamplerState> sp;
++    static id<MTLRenderPipelineState> ps, ps_i[2], ps_3d[3]; static id<MTLSamplerState> sp;
+     if (!ps) {
+         static const char *src_msl =
+             "#include <metal_stdlib>\nusing namespace metal;\n"
+@@ -16197,7 +16304,29 @@ static void td_dump(void) {
+         d.colorAttachments[0].pixelFormat = MTLPixelFormatRGBA8Unorm;
+         ps = [g_dev newRenderPipelineStateWithDescriptor:d error:&e];
+         MTLSamplerDescriptor *sd = [MTLSamplerDescriptor new]; sp = [g_dev newSamplerStateWithDescriptor:sd];
+-        if (!ps) { MLOG("【红】 TEXDUMP pipeline failed %s", e.localizedDescription.UTF8String); td_clear(0); return; }
++        if (!ps) { MLOG("【红】 TEXDUMP pipeline failed %s", e.localizedDescription.UTF8String); td_clear(0); if (g_cap_dir[0]) cap_end(); return; }   // RewindBox (patch 0045): cap_end
++        // Integer targets (G-buffer normals / material IDs): a float view reads them as undefined (shows black); read the integer and show 0-255 per channel (signed: +128)
++        // 3D textures: every slice side by side (16 per row), RGB and alpha as separate images (alpha is often the transmittance of a fog / light volume)
++        static const char *int_msl =
++            "#include <metal_stdlib>\nusing namespace metal;\n"
++            "struct V { float4 p [[position]]; float2 uv; };\n"
++            "vertex V vs(uint id [[vertex_id]]) { float2 uv = float2((id << 1) & 2, id & 2); V o; o.p = float4(uv * float2(2, -2) + float2(-1, 1), 0, 1); o.uv = uv; return o; }\n"
++            "fragment float4 fu(V in [[stage_in]], texture2d<uint> t [[texture(0)]]) { uint4 c = t.read(uint2(in.p.xy)); return float4(float3(min(c.rgb, 255u)) / 255.0, 1); }\n"
++            "fragment float4 fi(V in [[stage_in]], texture2d<int> t [[texture(0)]]) { int4 c = t.read(uint2(in.p.xy)); return float4(float3(clamp(c.rgb + 128, 0, 255)) / 255.0, 1); }\n"
++            "static bool cell(float2 p, uint4 k, thread uint3 &c) {   // k: slice width, height, depth, slices per row\n"
++            "    uint2 q = uint2(p); uint z = (q.y / k.y) * k.w + q.x / k.x; c = uint3(q.x % k.x, q.y % k.y, z); return z < k.z; }\n"
++            "#define PICK(c) (a ? float4(c.aaa, 1) : float4(c.rgb, 1))\n"
++            "fragment float4 f3(V in [[stage_in]], texture3d<float> t [[texture(0)]], constant uint4 &k [[buffer(0)]], constant uint &a [[buffer(1)]]) { uint3 q; if (!cell(in.p.xy, k, q)) return float4(0.25, 0, 0.25, 1); float4 c = t.read(q); return PICK(c); }\n"
++            "fragment float4 f3u(V in [[stage_in]], texture3d<uint> t [[texture(0)]], constant uint4 &k [[buffer(0)]], constant uint &a [[buffer(1)]]) { uint3 q; if (!cell(in.p.xy, k, q)) return float4(0.25, 0, 0.25, 1); float4 c = float4(min(t.read(q), 255u)) / 255.0; return PICK(c); }\n"
++            "fragment float4 f3i(V in [[stage_in]], texture3d<int> t [[texture(0)]], constant uint4 &k [[buffer(0)]], constant uint &a [[buffer(1)]]) { uint3 q; if (!cell(in.p.xy, k, q)) return float4(0.25, 0, 0.25, 1); float4 c = float4(clamp(t.read(q) + 128, 0, 255)) / 255.0; return PICK(c); }\n";
++        id<MTLLibrary> il = [g_dev newLibraryWithSource:@(int_msl) options:nil error:&e];
++        const char *fn[5] = {"fu", "fi", "f3", "f3u", "f3i"};
++        for (int k = 0; il && k < 5; k++) {
++            d.vertexFunction = [il newFunctionWithName:@"vs"]; d.fragmentFunction = [il newFunctionWithName:@(fn[k])];
++            id<MTLRenderPipelineState> p = [g_dev newRenderPipelineStateWithDescriptor:d error:&e];
++            if (k < 2) ps_i[k] = p; else ps_3d[k - 2] = p;
++        }
++        if (!il || !ps_i[0] || !ps_i[1] || !ps_3d[0] || !ps_3d[1] || !ps_3d[2]) MLOG("【红】 TEXDUMP integer / 3D pipelines failed %s (those targets are dumped as float)", e.localizedDescription.UTF8String);
+     }
+     MLOG("[texdump] frame %ld: %lu color targets", g_td_frame, (unsigned long)g_td_list.count);
+     // DM_NVN_TEXRAW=index,...: save raw bytes by texture index (including 3D; file: %d in the path is replaced with the index, suffix .raw, first-line text header: width height depth format bytes-per-row)
+@@ -16221,7 +16350,7 @@ static void td_dump(void) {
+         FILE *f = fopen(path, "wb"); if (f) { fprintf(f, "%lu %lu %lu %lu %zu\n", (unsigned long)w, (unsigned long)h, (unsigned long)dz, (unsigned long)t.pixelFormat, row); fwrite(buf.contents, 1, img * dz, f); fclose(f); }
+         MLOG("[texraw] ser=%llu %lux%lux%lu format %lu → %s", ser, (unsigned long)w, (unsigned long)h, (unsigned long)dz, (unsigned long)t.pixelFormat, path);
+     }
+-    for (NSArray *e in g_td_list) {
++    for (NSArray *e in g_td_list) @autoreleasepool {   // RewindBox (patch 0045): one image's command buffers (and the copies they hold) at a time
+         id<MTLTexture> t = e[0]; uint64_t ser = [e[1] unsignedLongLongValue]; NSUInteger lv = [e[2] unsignedIntegerValue], sl = [e[3] unsignedIntegerValue];
+         // 2D arrays are saved by the attached layer (file index ser*100 + layer*10 + level; layer 0 is named like 2D)
+         if (t.textureType != MTLTextureType2D && t.textureType != MTLTextureType2DArray) { MLOG("[texdump] ser=%llu type %lu skipped", ser, (unsigned long)t.textureType); continue; }
+@@ -16237,8 +16366,9 @@ static void td_dump(void) {
+             strlcat(rp_, ".raw", sizeof rp_);
+             FILE *f = fopen(rp_, "wb"); if (f) { fprintf(f, "%lu %lu %lu %zu\n", (unsigned long)rw, (unsigned long)rh, (unsigned long)t.pixelFormat, rw * bpp); fwrite(rb.contents, 1, rw * rh * bpp, f); fclose(f); }
+         }
+-        id<MTLTexture> v = [t newTextureViewWithPixelFormat:t.pixelFormat textureType:MTLTextureType2D levels:NSMakeRange(lv, 1) slices:NSMakeRange(sl, 1)];
+         NSUInteger w = MAX(t.width >> lv, 1u), h = MAX(t.height >> lv, 1u);
++        if (!cap_room((size_t)w * h * 4, "target", ser)) continue;   // RewindBox (patch 0045)
++        id<MTLTexture> v = [t newTextureViewWithPixelFormat:t.pixelFormat textureType:MTLTextureType2D levels:NSMakeRange(lv, 1) slices:NSMakeRange(sl, 1)];
+         MTLTextureDescriptor *od = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm width:w height:h mipmapped:NO];
+         od.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead; od.storageMode = MTLStorageModePrivate;
+         id<MTLTexture> o = [g_dev newTextureWithDescriptor:od];
+@@ -16246,7 +16376,9 @@ static void td_dump(void) {
+         MTLRenderPassDescriptor *rp = [MTLRenderPassDescriptor renderPassDescriptor];
+         rp.colorAttachments[0].texture = o; rp.colorAttachments[0].loadAction = MTLLoadActionDontCare; rp.colorAttachments[0].storeAction = MTLStoreActionStore;
+         id<MTLRenderCommandEncoder> en = [cb renderCommandEncoderWithDescriptor:rp];
+-        [en setRenderPipelineState:ps]; [en setFragmentTexture:v atIndex:0]; [en setFragmentSamplerState:sp atIndex:0];
++        int cls = mtl_fmt_depth(t.pixelFormat) ? NVN_DPF_DEPTH : mtl_pf_dpf(t.pixelFormat);
++        id<MTLRenderPipelineState> use = cls == NVN_DPF_UINT && ps_i[0] ? ps_i[0] : cls == NVN_DPF_SINT && ps_i[1] ? ps_i[1] : ps;
++        [en setRenderPipelineState:use]; [en setFragmentTexture:v atIndex:0]; [en setFragmentSamplerState:sp atIndex:0];
+         [en drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3]; [en endEncoding]; if (!cb_run(cb)) continue;
+         char path[1024]; td_path(path, sizeof path, (int)(ser * 100 + sl * 10 + lv));
+         if (e.count > 4) { td_path(path, sizeof path, 0); char *dot = strrchr(path, '.'), *slash = strrchr(path, '/'); char ext[16] = ""; if (dot && slash && dot < slash) dot = NULL; if (dot) { strlcpy(ext, dot, sizeof ext); *dot = 0; }
+@@ -16254,7 +16386,34 @@ static void td_dump(void) {
+         MLOG("[texdump] ser=%llu lv=%lu layer %lu format %lu %lux%lu", ser, (unsigned long)lv, (unsigned long)sl, (unsigned long)t.pixelFormat, (unsigned long)w, (unsigned long)h);
+         shot(o, path, 0, NULL);
+     }
++    // 3D textures the frame sampled (td_note_3d): level 0, every slice in a grid of 16 per row; <TEXDUMP path with %d = 0>_v3d_<serial>_rgb.png / _a.png
++    for (NSArray *e in g_td_3d) @autoreleasepool {   // RewindBox (patch 0045): as above
++        id<MTLTexture> t = e[0]; uint64_t ser = [e[1] unsignedLongLongValue];
++        int cls = mtl_pf_dpf(t.pixelFormat); id<MTLRenderPipelineState> use = ps_3d[cls == NVN_DPF_UINT ? 1 : cls == NVN_DPF_SINT ? 2 : 0];
++        NSUInteger W = t.width, H = t.height, D = t.depth, cols = MIN(D, (NSUInteger)16), rows = (D + cols - 1) / cols;
++        if (!use || W * cols > 8192 || H * rows > 8192) { MLOG("[texdump] 3D ser=%llu %lux%lux%lu format %lu: not saved (%s)", ser, (unsigned long)W, (unsigned long)H, (unsigned long)D, (unsigned long)t.pixelFormat, use ? "atlas too large" : "no pipeline"); continue; }
++        if (!cap_room((size_t)W * cols * H * rows * 4, "3D texture", ser)) continue;   // RewindBox (patch 0045)
++        for (uint32_t a = 0; a < 2; a++) {
++            MTLTextureDescriptor *od = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm width:W * cols height:H * rows mipmapped:NO];
++            od.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead; od.storageMode = MTLStorageModePrivate;
++            id<MTLTexture> o = [g_dev newTextureWithDescriptor:od];
++            id<MTLCommandBuffer> cb = q_cb();
++            MTLRenderPassDescriptor *rp = [MTLRenderPassDescriptor renderPassDescriptor];
++            rp.colorAttachments[0].texture = o; rp.colorAttachments[0].loadAction = MTLLoadActionDontCare; rp.colorAttachments[0].storeAction = MTLStoreActionStore;
++            id<MTLRenderCommandEncoder> en = [cb renderCommandEncoderWithDescriptor:rp];
++            uint32_t k[4] = {(uint32_t)W, (uint32_t)H, (uint32_t)D, (uint32_t)cols};
++            [en setRenderPipelineState:use]; [en setFragmentTexture:t atIndex:0]; [en setFragmentBytes:k length:sizeof k atIndex:0]; [en setFragmentBytes:&a length:sizeof a atIndex:1];
++            [en drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3]; [en endEncoding]; if (!cb_run(cb)) continue;
++            char path[1024]; td_path(path, sizeof path, 0); char *dot = strrchr(path, '.'), *slash = strrchr(path, '/'); char ext[16] = "";
++            if (dot && slash && dot < slash) dot = NULL;
++            if (dot) { strlcpy(ext, dot, sizeof ext); *dot = 0; }
++            char tail[64]; snprintf(tail, sizeof tail, "_v3d_%llu_%s%s", (unsigned long long)ser, a ? "a" : "rgb", ext); strlcat(path, tail, sizeof path);
++            MLOG("[texdump] 3D ser=%llu %lux%lux%lu format %lu (%s) → %lu slices per row", ser, (unsigned long)W, (unsigned long)H, (unsigned long)D, (unsigned long)t.pixelFormat, a ? "alpha" : "rgb", (unsigned long)cols);
++            shot(o, path, 0, NULL);
++        }
++    }
+     td_clear(0);
++    if (g_cap_dir[0]) cap_end();   // RewindBox (patch 0045)
+ }
+ // DM_NVN_TEXSNAP=in-frame index,... (together with the frame number and path of DM_NVN_TEXDUMP): as soon as these render passes end, copy their color attachments and save them together with the end-of-frame dump
+ // (the same target is often cleared and reused within a frame, so the end-of-frame state cannot reflect the output of intermediate passes); saved as <TEXDUMP path with %d = 0>_s<in-frame index>_<serial>_<level>.png
+@@ -16263,10 +16422,11 @@ static __strong id<MTLTexture> g_ts_att[8]; static uint64_t g_ts_ser[8]; static
+ void ts_note(MTL4RenderPassDescriptor *pd, NSUInteger nc) {
+     if (g_ts_n < 0) { g_ts_n = 0; const char *e = getenv("DM_NVN_TEXSNAP");
+         for (const char *q = e; q && *q && g_ts_n < 64; q = strchr(q, ',') ? strchr(q, ',') + 1 : q + strlen(q)) g_ts_idx[g_ts_n++] = atoi(q); }
+-    g_ts_on = 0; if (!g_ts_n || g_td_frame < 0 || g_td_done) return;
++    g_ts_on = 0; if ((!g_ts_n && !g_cap_snap) || g_td_frame < 0 || g_td_done) return;   // RewindBox (patch 0045): or a frame capture's snapshots
+     uint64_t f = atomic_load(&g_cur_frame); if (f != g_ts_curf) { g_ts_curf = f; g_ts_first = g_stat_pass; }
+     if ((long)f != g_td_frame) return;
+     int idx = (int)(g_stat_pass - g_ts_first); for (int i = 0; i < g_ts_n; i++) if (g_ts_idx[i] == idx) g_ts_on = idx + 1;
++    if (!g_ts_on && cap_snap_want(pd, nc, idx)) g_ts_on = idx + 1;
+     g_ts_na = 0; if (!g_ts_on) return;
+     for (NSUInteger i = 0; i < nc && i < 8; i++) { id<MTLTexture> t = pd.colorAttachments[i].texture; if (!t) continue;
+         g_ts_att[g_ts_na] = t; g_ts_ser[g_ts_na] = R.rt.color[i] ? R.rt.color[i]->serial : 0; g_ts_lv[g_ts_na] = pd.colorAttachments[i].level; g_ts_na++; }
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 1b909f476..e0d28ace5 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -236,6 +236,7 @@ int nvn_be_shutdown_session(void) {
+     g_nshotq = 0; g_td_list = nil; g_td_frames = nil;
+     free(g_td_owned_path); g_td_owned_path = NULL;
+     g_td_frame = -2; g_td_path = NULL; g_td_w = g_td_h = 0; g_td_done = 0; g_lp = nil;
++    cap_reset();   // RewindBox (patch 0045): a screenshot's frame capture the session ended in the middle of
+     atomic_store(&g_sub_thread_set, 0);
+     // Ordinary deferred releases target fence+1. There will be no next
+     // submission in this session, and all prior callbacks have completed.
+diff --git a/graphics/nvn/tests/t_nvn_texdump.m b/graphics/nvn/tests/t_nvn_texdump.m
+index 8dcabb8f3..7238bffd8 100644
+--- a/graphics/nvn/tests/t_nvn_texdump.m
++++ b/graphics/nvn/tests/t_nvn_texdump.m
+@@ -19,7 +19,19 @@ static const uint8_t colors[6][2][4] = {
+ static char directory[1024];
+ static tex_t small, large;
+ static NSMutableArray *copies;
+-static int replacing;
++static int replacing, classes;
++static id<MTLTexture> int_u, int_s, vol;   // classes mode: integer targets and a 3D texture, filled by the CPU with values chosen here
++static void fill_classes(void) {
++    MTLTextureDescriptor *d = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Uint width:8 height:8 mipmapped:NO];
++    int_u = [g_dev newTextureWithDescriptor:d]; d.pixelFormat = MTLPixelFormatRGBA8Sint; int_s = [g_dev newTextureWithDescriptor:d]; REQUIRE(int_u && int_s);
++    uint8_t u[64*4], sv[64*4]; for (int i = 0; i < 64; i++) { u[4*i]=7; u[4*i+1]=200; u[4*i+2]=255; u[4*i+3]=9; sv[4*i]=(uint8_t)-128; sv[4*i+1]=0; sv[4*i+2]=127; sv[4*i+3]=1; }
++    [int_u replaceRegion:MTLRegionMake2D(0,0,8,8) mipmapLevel:0 withBytes:u bytesPerRow:32];
++    [int_s replaceRegion:MTLRegionMake2D(0,0,8,8) mipmapLevel:0 withBytes:sv bytesPerRow:32];
++    MTLTextureDescriptor *v = [MTLTextureDescriptor new]; v.textureType = MTLTextureType3D; v.pixelFormat = MTLPixelFormatRGBA8Unorm; v.width = 1; v.height = 1; v.depth = 17;
++    vol = [g_dev newTextureWithDescriptor:v]; REQUIRE(vol);
++    for (unsigned z = 0; z < 17; z++) { uint8_t c[4] = {(uint8_t)(z*10), (uint8_t)(255-z*10), (uint8_t)z, (uint8_t)(z*5)};
++        [vol replaceRegion:MTLRegionMake3D(0,0,z,1,1,1) mipmapLevel:0 slice:0 withBytes:c bytesPerRow:4 bytesPerImage:4]; }
++}
+ 
+ static void texture(tex_t *t, unsigned side) {
+     memset(t,0,sizeof *t); t->magic=MAGIC('T','E','X',0); t->serial=nvn_new_serial();
+@@ -48,6 +60,11 @@ static void frame(unsigned f) {
+         CHECK(resident==2,"overridden snapshots stay resident until their GPU submission completes");
+         rp_flush();
+     }
++    if (classes && f==7) {   // as the bind site would note them during the selected frame
++        [g_td_list addObject:@[int_u, @901, @0, @0]]; [g_td_list addObject:@[int_s, @902, @0, @0]];
++        td_note_3d(vol, 903); td_note_3d(vol, 903);
++        CHECK(g_td_3d.count==1,"a 3D texture sampled twice in the frame is noted once");
++    }
+     uint64_t fence=nvn_be_sub_commit(); REQUIRE(nvn_be_wait(fence,10000000000ull)); REQUIRE(!mtl_last_commit_error());
+     defer_drain();
+     // Keep references only to inspect the real residency ledger after the next frame dumps them.
+@@ -74,6 +91,32 @@ static void png(const char *name, const uint8_t *want) {
+     unsigned bad=0; for (unsigned i=0;i<64;i++) bad+=memcmp(bytes+4*i,want,3)!=0;
+     CHECK(!bad,"PNG exact RGB: %s (%u wrong pixels)",name,bad);
+ }
++// any size: returns RGB at (x, y), or -1 when missing
++static int pixels(const char *name, unsigned *w, unsigned *h, uint8_t *out, size_t cap) {
++    char path[1200]; snprintf(path,sizeof path,"%s/%s",directory,name);
++    CFURLRef url=CFURLCreateFromFileSystemRepresentation(NULL,(const uint8_t *)path,strlen(path),false);
++    CGImageSourceRef source=CGImageSourceCreateWithURL(url,NULL); CFRelease(url); if (!source) return -1;
++    CGImageRef image=CGImageSourceCreateImageAtIndex(source,0,NULL); CFRelease(source); REQUIRE(image);
++    *w=(unsigned)CGImageGetWidth(image); *h=(unsigned)CGImageGetHeight(image); REQUIRE((size_t)*w**h*4<=cap);
++    CGColorSpaceRef cs=CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
++    CGContextRef context=CGBitmapContextCreate(out,*w,*h,8,*w*4,cs,(CGBitmapInfo)kCGImageAlphaNoneSkipLast); CGColorSpaceRelease(cs); REQUIRE(context);
++    CGContextDrawImage(context,CGRectMake(0,0,*w,*h),image); CGContextRelease(context); CGImageRelease(image); return 0;
++}
++static void classes_saved(void) {
++    uint8_t px[64*64*4]; unsigned w=0,h=0; char name[256];
++    static const uint8_t want_u[3]={7,200,255}, want_s[3]={0,128,255};   // uint: the value itself; sint: value + 128
++    const struct { unsigned ser; const uint8_t *want; } flat[2]={{901,want_u},{902,want_s}};
++    for (int k=0;k<2;k++) { snprintf(name,sizeof name,"capture-%u.png",flat[k].ser*100);
++        int got=!pixels(name,&w,&h,px,sizeof px); unsigned bad=0; if (got) for (unsigned i=0;i<w*h;i++) bad+=memcmp(px+4*i,flat[k].want,3)!=0;
++        CHECK(got && w==8 && h==8 && !bad,"integer target %s shows its values, not black (%u wrong pixels)",name,bad); }
++    // 1x1x17: 16 slices per row, 2 rows; slice z at (z %% 16, z / 16); the 15 cells after slice 16 are the filler (64, 0, 64)
++    for (int a=0;a<2;a++) { snprintf(name,sizeof name,"capture-0_v3d_903_%s.png",a?"a":"rgb");
++        int got=!pixels(name,&w,&h,px,sizeof px); unsigned bad=0;
++        if (got && w==16 && h==2) for (unsigned y=0;y<2;y++) for (unsigned x=0;x<16;x++) { unsigned z=y*16+x; uint8_t e[3];
++            if (z>=17) { e[0]=64; e[1]=0; e[2]=64; } else if (a) e[0]=e[1]=e[2]=(uint8_t)(z*5); else { e[0]=(uint8_t)(z*10); e[1]=(uint8_t)(255-z*10); e[2]=(uint8_t)z; }
++            const uint8_t *p=px+4*(y*16+x); bad+=abs(p[0]-e[0])>1 || abs(p[1]-e[1])>1 || abs(p[2]-e[2])>1; }
++        CHECK(got && w==16 && h==2 && !bad,"3D atlas %s: 16x2, every slice in its cell (%u wrong cells)",name,bad); }
++}
+ static void raw(const char *name, const uint8_t *want, int texture_raw) {
+     char path[1200], header[128]; snprintf(path,sizeof path,"%s/%s",directory,name);
+     FILE *file=fopen(path,"rb"); CHECK(file!=NULL,"RAW exists: %s",name); if (!file) return;
+@@ -95,21 +138,24 @@ static void saved(unsigned f, int multi) {
+     }
+ }
+ int main(int argc, char **argv) { @autoreleasepool {
+-    if (argc!=3) { fprintf(stderr,"usage: %s off|single|size|multi|replace <existing output parent>\n",argv[0]); return 2; }
++    if (argc!=3) { fprintf(stderr,"usage: %s off|single|size|multi|replace|classes <existing output parent>\n",argv[0]); return 2; }
+     int multi=!strcmp(argv[1],"multi"), off=!strcmp(argv[1],"off"), size=!strcmp(argv[1],"size");
+-    replacing=!strcmp(argv[1],"replace"); REQUIRE(multi || off || size || replacing || !strcmp(argv[1],"single"));
++    replacing=!strcmp(argv[1],"replace"); classes=!strcmp(argv[1],"classes"); REQUIRE(multi || off || size || replacing || classes || !strcmp(argv[1],"single"));
+     snprintf(directory,sizeof directory,"%s/texdump_%s_XXXXXX",argv[2],argv[1]); REQUIRE(mkdtemp(directory));
+     char config[1200]; snprintf(config,sizeof config,"%s:%s/capture-%%d.png",multi || replacing?"10,7,8,8":size?"size=8x8":"7",directory);
+     if (off) unsetenv("DM_NVN_TEXDUMP"); else setenv("DM_NVN_TEXDUMP",config,1);
+     setenv("DM_NVN_TEXSNAP","0,1",1); setenv("DM_NVN_SNAPRAW","1",1);
+-    nvn_be_sub_begin(); texture(&small,8); texture(&large,16);
++    nvn_be_sub_begin(); texture(&small,8); texture(&large,16); if (classes) fill_classes();
+     uint64_t initial=nvn_be_sub_commit(); REQUIRE(nvn_be_wait(initial,10000000000ull)); REQUIRE(!mtl_last_commit_error());
+     copies=[NSMutableArray array];
+     char serial[48]; snprintf(serial,sizeof serial,"%llu",(unsigned long long)small.serial); setenv("DM_NVN_TEXRAW",serial,1);
+     for (unsigned f=6;f<=11;f++) frame(f);
+     if (!off) { saved(replacing?8:7,multi); if (multi) { saved(8,1); saved(10,1); } }
++    if (classes) classes_saved();
+     NSArray *files=[[NSFileManager defaultManager] contentsOfDirectoryAtPath:@(directory) error:nil]; REQUIRE(files);
+-    CHECK(files.count==(off?0:multi?21:7),"%s: exactly %u files, no unselected-frame output or overwrites (got %lu)",argv[1],off?0:multi?21:7,(unsigned long)files.count);
++    unsigned want_files=off?0:multi?21:classes?13:7;   // classes: + 2 integer targets (PNG + SNAPRAW bytes) + 3D rgb / alpha
++    CHECK(files.count==want_files,"%s: exactly %u files, no unselected-frame output or overwrites (got %lu)",argv[1],want_files,(unsigned long)files.count);
++    CHECK(!g_td_3d.count,"no 3D texture retained after the dump");
+     CHECK(copies.count==(off?0:multi?6:replacing?4:2),"%s: independent snapshots for each selected frame/pass (%lu)",argv[1],(unsigned long)copies.count);
+     for (id copy in copies) CHECK(![g_res_objects containsObject:copy],"diagnostic copy leaves residency after GPU completion and export");
+     CHECK(!g_td_list.count,"no completed frame retained in the dump list");
+diff --git a/ios/app.m b/ios/app.m
+index dbefdf135..b8e4e466a 100644
+--- a/ios/app.m
++++ b/ios/app.m
+@@ -569,6 +569,12 @@ id s2a_ios_ext_register(UIViewController *vc);   // extdisplay.m：登记外接
+         // 回前台时可能停在失焦（浮层还在），等不到「获得焦点」：主线程下一拍状态已离开后台就放开
+         dispatch_async(dispatch_get_main_queue(), ^{ if (UIApplication.sharedApplication.applicationState != UIApplicationStateBackground) s2a_ios_suspend(0, "回前台"); }); }];
+     [nc addObserverForName:UIApplicationDidBecomeActiveNotification object:nil queue:nil usingBlock:^(NSNotification *n) { (void)n; display_focus_publish(UIApplication.sharedApplication.applicationState == UIApplicationStateActive); { void s2a_diag_session_fg(int); s2a_diag_session_fg(1); } s2a_ios_suspend(0, "获得焦点"); s2a_guest_run_mark(1); }];
++    // RewindBox (patch 0045): the player's screenshot (side button + volume up) asks the renderer for a capture of the next frame's render targets and pass lines
++    //   (nvn_mtl.m s2a_rb_capture_request, into Documents/Diagnostics/S2Arm/captures); S2A_RB_CAPTURE=0 (RewindBox's env.txt) turns it off. One observer per process
++    { static dispatch_once_t once; dispatch_once(&once, ^{
++        [nc addObserverForName:UIApplicationUserDidTakeScreenshotNotification object:nil queue:nil usingBlock:^(NSNotification *n) { (void)n;
++            const char *v = getenv("S2A_RB_CAPTURE"); if ((v && !strcmp(v, "0")) || s2a_rb_guest_session_over()) return;
++            void s2a_rb_capture_request(void); s2a_rb_capture_request(); }]; }); }
+     // 心跳：每 10 秒一行，被系统直接杀（SIGKILL 不进崩溃处理）时也能看到死前最后的帧号 / 热状态 / 内存（10-20 维护者 一款第一方动作冒险游戏闪退，日志 12 秒后无一行）
+     // 低区余量（10-21 巫师3 玩约 2 分钟低区耗尽、Metal 申请失败崩溃）：每行带上，局中能看到往下掉的过程
+     [NSTimer scheduledTimerWithTimeInterval:10 repeats:YES block:^(NSTimer *t) { (void)t;
+diff --git a/ios/settings.m b/ios/settings.m
+index 13456563c..7446a7cde 100644
+--- a/ios/settings.m
++++ b/ios/settings.m
+@@ -221,6 +221,7 @@ float s2a_ios_res_scale(NSUserDefaults *defaults) {
+ // 诊断局（#438，设置「诊断」组的开关 S2ADiagRunNext）：只管下一局。起局时读到开着就设上逐通道读数的环境变量、立刻关掉开关；
+ //   读数写本款文档根下的 diagrun/（出图 PNG 与颜色目标 PNG；逐通道记录 [pass] 行走 stderr → host.log），导出诊断包时带上（diag.m）。
+ //   帧号：第 3600 / 7200 次出图（60 帧游戏约 1 / 2 分钟）。这些是重探针、会拖慢帧率，所以只开一局。启动环境显式给的优先
++//   帧内快照到第 60 个渲染 pass（延迟光照这类合成 pass 常在 30 以后）；整数格式的目标按整数值出图，这一帧采样到的 3D 纹理逐层拼成一张图（RGB / alpha 各一张）
+ void s2a_ios_apply_diag_run(NSUserDefaults *defaults) {
+     if (![defaults boolForKey:@"S2ADiagRunNext"]) return;
+     [defaults setBool:NO forKey:@"S2ADiagRunNext"];
+@@ -234,7 +235,7 @@ void s2a_ios_apply_diag_run(NSUserDefaults *defaults) {
+     }
+     NSString *td = [NSString stringWithFormat:@"3600,7200:%@/td_%%d.png", dir], *shot = [NSString stringWithFormat:@"3600,7200:%@/shot_%%d.png", dir];
+     struct { const char *name; NSString *value; } vars[] = {
+-        {"DM_NVN_PASSDUMP", @"3600-3601"}, {"DM_NVN_TEXDUMP", td}, {"DM_NVN_TEXSNAP", @"0,4,8,12,16,20,24,28"}, {"DM_NVN_SHOT", shot}};
++        {"DM_NVN_PASSDUMP", @"3600-3601"}, {"DM_NVN_TEXDUMP", td}, {"DM_NVN_TEXSNAP", @"0,5,10,15,20,25,30,35,40,45,50,55,60"}, {"DM_NVN_SHOT", shot}};
+     for (size_t i = 0; i < sizeof vars / sizeof vars[0]; i++)
+         if (!getenv(vars[i].name)) setenv(vars[i].name, vars[i].value.UTF8String, 1);
+     fprintf(stderr, "[S2A 诊断局] 本局开逐通道读数（第 3600 / 7200 次出图），读数写 %s，下一局自动关\n", dir.fileSystemRepresentation);
+diff --git a/runtime/tests/mk/nvn_texdump.mk b/runtime/tests/mk/nvn_texdump.mk
+index 8de1cf031..0eeb2e86b 100644
+--- a/runtime/tests/mk/nvn_texdump.mk
++++ b/runtime/tests/mk/nvn_texdump.mk
+@@ -9,6 +9,6 @@ $(BUILD)/tests/t_nvn_texdump: graphics/nvn/tests/t_nvn_texdump.m $(NVN_MTL_DEPS)
+ 	  -framework ImageIO -framework UniformTypeIdentifiers -lc++
+ .PHONY: native-test-nvn_texdump
+ native-test-nvn_texdump: $(BUILD)/tests/t_nvn_texdump
+-	@for mode in off single size multi replace; do $(BUILD)/tests/t_nvn_texdump $$mode $(abspath $(BUILD)/tests) || exit $$?; done
++	@for mode in off single size multi replace classes; do $(BUILD)/tests/t_nvn_texdump $$mode $(abspath $(BUILD)/tests) || exit $$?; done
+ TEST_TARGETS += native-test-nvn_texdump
+ endif
