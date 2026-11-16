@@ -145,7 +145,8 @@ Before: commit `d4a494a`. Reproduce with
   saying which is left out. The thread lists are kept in
   `tools/textures/research/`.
 - **Shaders.** Five presets added upstream after the pin (see
-  shaders-system.md). Two community repositories were tried with the app's
+  shaders-system.md); the macOS Metal gate rendered the five (run
+  43955829459), so the 987 presets are all at validation `rendered`. Two community repositories were tried with the app's
   compiler and are not usable as published: anikom15/scanline-classic (its
   sources are produced by a build step: 14 of 15 presets have no source
   file) and ChthonVII/chthons_color_correction (its presets need files of

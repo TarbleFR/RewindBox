@@ -89,7 +89,11 @@ Résultat : run 38330265352 (commit `63d991b`) puis run 38332666178 (commit
 `2a076d8`) : **982 sur 982 rendus** après exclusion de
 `deinterlacing/nnedi3-nns256-deinterlacing` (délai GPU dépassé sur le GPU
 paravirtuel de la CI). Les verdicts sont transcrits dans
-`tools/shaders/slang-metal-results.json`. Il s'agit d'un GPU Apple de macOS,
+`tools/shaders/slang-metal-results.json`. Les 5 préréglages de l'ajout
+`9230b1f2` ont passé le même contrôle (run 43955829459, commit `0eeee55` :
+« 5 catalog entries: 5 rendered, 0 failed ») ; leurs verdicts sont dans
+`tools/shaders/slang-metal-results-9230b1f2.json` et le catalogue les porte
+en `rendered` (987 sur 987). Il s'agit d'un GPU Apple de macOS,
 pas d'un iPhone : le comportement sur iPhone (performances, mémoire) n'est
 pas démontré.
 

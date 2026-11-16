@@ -1,0 +1,30 @@
+{
+ "schema": 1,
+ "slangCommit": "9230b1f24a6d0f28febe61711c0b255c4926b231",
+ "environment": "macOS 15 (GitHub macos-15 runner, Apple Paravirtual device) Metal render + iPhone Metal compiler (-std=ios-metal2.4), GitHub run 43955829459",
+ "run": {
+  "id": 43955829459,
+  "job": 133609989849,
+  "commit": "0eeee551bcb8326a9e03ac01fdaf063efd5feb9b",
+  "workflow": ".github/workflows/shader-kit-checks.yml",
+  "step": "Every catalog entry compiles for iPhone and renders visibly with Metal",
+  "transcribed": "one verdict per line of the job log (\"VERDICT 9230b1f24a6d <preset> rendered\"); the job reports \"9230b1f24a6d: 5 catalog entries: 5 rendered, 0 failed\""
+ },
+ "presets": {
+  "edge-smoothing/scalenx/scale3xSFX.slangp": {
+   "status": "rendered"
+  },
+  "edge-smoothing/xbrz/xbrz-crisp.slangp": {
+   "status": "rendered"
+  },
+  "motion-interpolation/motion-interpolation.slangp": {
+   "status": "rendered"
+  },
+  "presets/pixel_transparency/pixel_transparency-accurate.slangp": {
+   "status": "rendered"
+  },
+  "presets/pixel_transparency/sunlight_shimmer-accurate.slangp": {
+   "status": "rendered"
+  }
+ }
+}
