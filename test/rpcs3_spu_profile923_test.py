@@ -101,7 +101,10 @@ def main() -> int:
     require('spu_tracked[i].add_running(spu.pc);' in loop and 'spu_tracked[i].add_waiting();' in loop and 'spu.state & cpu_flag::wait' in loop,
             'the SPU threads are sampled in the capture loop')
     require(loop.index('spu_threads.clear();') < loop.index('done.store(true'), 'the worker releases the SPU threads before it reports done')
-    require(dump.count('COREPROF SPUPROF923') == 3, 'begin, thread and end lines')
+    # REWINDBOX_HOT_CODE_942 adds one part=code line (the instruction words of the busiest regions).
+    require(dump.count('COREPROF SPUPROF923') == (4 if 'REWINDBOX_HOT_CODE_942' in dump else 3) and
+            dump.count('COREPROF SPUPROF923 session=%llu capture=%u part=code ') == (1 if 'REWINDBOX_HOT_CODE_942' in dump else 0),
+            'begin, thread and end lines (and the code line from Core 942)')
     require('COREPROF MEMPARTS923' in report and 'info.ledger_tag_graphics_footprint' in report and 'TASK_VM_INFO_REV3_COUNT' in report,
             'the kernel ledger line with the graphics tag')
     histogram = braced(capture, 'struct histogram').replace('max_regions', '512u') + ';'

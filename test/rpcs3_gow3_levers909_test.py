@@ -113,12 +113,30 @@ SITES = {
         'RSX(ctx)->ios_rsx_wrote_guest_memory(write_address, (out_pitch < 0 && line_count > 1) ? 0u : write_length,',
         'static_cast<u8>(rpcs3::ios::texture_validation::epoch_source::memory_copy));',
     ],
-    # The CPU blit writes no single exact range (destination offset, swizzled power-of-two surface, scaled rows):
-    # it keeps the global epoch, counted as blit_cpu (independent review of Core 909).
-    'rpcs3/Emu/RSX/NV47/HW/nv3089.cpp': [
-        'rpcs3::ios::texture_validation::advance_epoch(rpcs3::ios::texture_validation::epoch_source::blit_cpu);',
-    ],
+    # The CPU blit: checked apart (NV3089_GLOBAL_909 or NV3089_SCOPED_942 below).
+    'rpcs3/Emu/RSX/NV47/HW/nv3089.cpp': [],
 }
+# Cores 909 to 941: the CPU blit writes no single exact range (destination offset, swizzled power-of-two surface, scaled
+# rows): it keeps the global epoch, counted as blit_cpu (independent review of Core 909).
+NV3089_GLOBAL_909 = ['rpcs3::ios::texture_validation::advance_epoch(rpcs3::ios::texture_validation::epoch_source::blit_cpu);']
+# From Core 942 (REWINDBOX_SCOPED_CPU_BLIT_942): the bytes written to an untiled destination are bounded (the output
+# offset, max(out_h, clip_height) rows of the destination pitch, the next power of two of each side for a
+# swizzled surface) and the hook revalidates that range after the reservation lock; no bound: length 0, a new epoch.
+NV3089_SCOPED_942 = [
+    'REWINDBOX_SCOPED_CPU_BLIT_942',
+    'utils::deferred_op ios_cpu_copy_epoch([&]()',
+    'if (!ios_cpu_copy_done)',
+    'const u64 offset = u64{dst.offset_x} * dst.bpp + u64{dst.pitch} * dst.offset_y;',
+    'ios_written_start = u64{dst.rsx_address} + offset;',
+    'const u64 rows = std::max<u64>({ u64{out_h}, u64{dst.clip_height}, 1 });',
+    'const u64 row = std::max<u64>({ u64{dst.pitch}, u64{out_w} * dst.bpp, u64{dst.clip_width} * dst.bpp });',
+    'ios_written_length = u64{dst.pitch} * rows + row + 64;',
+    'ios_written_length = std::max<u64>(next_pow2(out_w), 1) * std::max<u64>(next_pow2(out_h), 1) * dst.bpp;',
+    'if (!tiled_region && rpcs3::ios::texture_validation::scoped_cpu_blit.load(std::memory_order_relaxed))',
+    'RSX(ctx)->ios_rsx_wrote_guest_memory(bounded ? static_cast<u32>(ios_written_start) : 0u,',
+    'static_cast<u8>(rpcs3::ios::texture_validation::epoch_source::blit_cpu));',
+    'ios_cpu_copy_done = true;',
+]
 
 
 def static_checks(source: Path) -> dict:
@@ -132,7 +150,21 @@ def static_checks(source: Path) -> dict:
         require(raw.count(b'\r\n') == raw.count(b'\n'), name + ' line endings changed (CRLF file)')
         report[name] = text.count('ios_rsx_wrote_guest_memory(')
     require(report['rpcs3/Emu/RSX/NV47/HW/nv308a.cpp'] == 4, 'four NV308A sites')
-    require(report['rpcs3/Emu/RSX/NV47/HW/nv3089.cpp'] == 0, 'NV3089 CPU blits keep the global epoch')
+    blit = (source / 'rpcs3/Emu/RSX/NV47/HW/nv3089.cpp').read_text()
+    if 'REWINDBOX_SCOPED_CPU_BLIT_942' in blit:
+        for needle in NV3089_SCOPED_942:
+            require(needle in blit, 'nv3089.cpp (Core 942): ' + needle)
+        require(report['rpcs3/Emu/RSX/NV47/HW/nv3089.cpp'] == 1 and NV3089_GLOBAL_909[0] not in blit,
+                'NV3089 CPU blits: one bounded scoped site, no direct epoch')
+        # The deferred call is declared before the reservation lock (it runs after the lock is released), the bound is
+        # computed before the tiled destination swaps dst.pixels, and a tiled destination keeps length 0.
+        require(blit.index('utils::deferred_op ios_cpu_copy_epoch([&]()') < blit.index('auto res = ::rsx::reservation_lock<true>(\n\t\t\t\tdst.rsx_address, write_length,'),
+                'the scoped call is declared before the reservation lock')
+        bound = blit.index('if (!tiled_region && rpcs3::ios::texture_validation::scoped_cpu_blit.load(std::memory_order_relaxed))')
+        require(blit.index('const auto tiled_region =') < bound < blit.index('tmp.resize(tiled_region.tile->size);') < blit.index('ios_cpu_copy_done = true;'),
+                'the bound is taken from the untiled destination before the copy')
+    else:
+        require(NV3089_GLOBAL_909[0] in blit and report['rpcs3/Emu/RSX/NV47/HW/nv3089.cpp'] == 0, 'NV3089 CPU blits keep the global epoch')
     thread_h = (source / 'rpcs3/Emu/RSX/RSXThread.h').read_text()
     thread_cpp = (source / 'rpcs3/Emu/RSX/RSXThread.cpp').read_text()
     require('virtual void ios_rsx_wrote_guest_memory(u32 address, u32 length, u8 epoch_source);' in thread_h, 'hook declared')
@@ -202,7 +234,7 @@ def main() -> int:
         require(result.returncode == 0, 'executed checks failed\n' + result.stdout + result.stderr[-2000:])
         report['executed'] = json.loads(result.stdout.strip().splitlines()[-1])
     report['result'] = 'passed'
-    print('PASS: epoch sources counted; NV308A/NV0039 writes go through the scoped hook (NV3089 CPU blits keep the epoch) (default = epoch, Vulkan = '
+    print('PASS: epoch sources counted; NV308A/NV0039 writes go through the scoped hook (NV3089 CPU blits: the epoch up to Core 941, a bounded range from Core 942) (default = epoch, Vulkan = '
           'CELL573 revalidation under the cache lock); MLAA application recorded and reported; freeze label lines')
     if args.report:
         args.report.write_text(json.dumps(report, indent=2) + '\n')

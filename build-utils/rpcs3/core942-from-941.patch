@@ -1,0 +1,581 @@
+diff --git a/rpcs3/Emu/RSX/NV47/HW/nv3089.cpp b/rpcs3/Emu/RSX/NV47/HW/nv3089.cpp
+index 8f967dc..db45ad0 100644
+--- a/rpcs3/Emu/RSX/NV47/HW/nv3089.cpp
++++ b/rpcs3/Emu/RSX/NV47/HW/nv3089.cpp
+@@ -7,6 +7,7 @@
+ #include "Emu/RSX/Host/MM.h"
+ #ifdef RPCS3_IOS
+ #include "ios/IOSTextureValidationProfile.h"
++#include "Utilities/deferred_op.hpp" // REWINDBOX_SCOPED_CPU_BLIT_942
+ #endif
+ #include "Emu/RSX/Utils/image_utils.hpp"
+ 
+@@ -588,6 +589,32 @@ namespace rsx
+ 			// Lock here. RSX cannot execute any locking operations from this point, including ZCULL read barriers
+ 			const u32 read_length = src.pitch * src.height;
+ 			const u32 write_length = dst.pitch * dst.clip_height;
++#ifdef RPCS3_IOS
++			// REWINDBOX_SCOPED_CPU_BLIT_942: God of War III, IPA 760 logs (Core 940), heavy scene: 5,419 of the 6,555
++			// texture epochs of a 5 s window (69 of 84 a frame) come from this CPU fallback, and each epoch makes the RSX
++			// thread hash again every texture it samples next (11,708 hashes on the RSX thread, 8 to 37 ms of its
++			// texture stage a frame; the prehash worker serves 9 % of them). The bytes this function writes lie in a
++			// range it can bound: when the copy below is the linear or the swizzled one of an untiled destination, only
++			// the sections over that range are revalidated (ios_rsx_wrote_guest_memory, as NV0039 and NV308A do), after
++			// the reservation lock is released (declared before it, like the deferred barrier of NV0039). A tiled
++			// destination, a bound that does not fit below 4 GiB, the scope lever off, or the setting Scoped CPU Blit
++			// Revalidation = Disabled: a new epoch, as before.
++			u64 ios_written_start = 0, ios_written_length = 0;
++			bool ios_cpu_copy_done = false;
++			utils::deferred_op ios_cpu_copy_epoch([&]()
++			{
++				if (!ios_cpu_copy_done)
++				{
++					return; // early return above the copy, or the GPU blit: nothing was written here
++				}
++
++				const bool bounded = ios_written_length && ios_written_length <= 0xffffffffull &&
++					ios_written_start + ios_written_length <= (1ull << 32);
++				RSX(ctx)->ios_rsx_wrote_guest_memory(bounded ? static_cast<u32>(ios_written_start) : 0u,
++					bounded ? static_cast<u32>(ios_written_length) : 0u,
++					static_cast<u8>(rpcs3::ios::texture_validation::epoch_source::blit_cpu));
++			});
++#endif
+ 			auto res = ::rsx::reservation_lock<true>(
+ 				dst.rsx_address, write_length,
+ 				src.rsx_address, read_length);
+@@ -637,6 +664,29 @@ namespace rsx
+ 			const auto tiled_region = RSX(ctx)->get_tiled_memory_region(utils::address_range32::start_length(dst.rsx_address, write_length));
+ 			std::vector<u8> tmp;
+ 
++#ifdef RPCS3_IOS
++			if (!tiled_region && rpcs3::ios::texture_validation::scoped_cpu_blit.load(std::memory_order_relaxed))
++			{
++				// REWINDBOX_SCOPED_CPU_BLIT_942: every store below starts at dst.pixels, which is the destination address
++				// plus the output offset (decode_transfer_registers). Linear copies write at most max(out_h, clip_height)
++				// rows of the destination pitch, a row never longer than max(pitch, out_w * bpp, clip_width * bpp)
++				// (memcpy, memmove, clip_image, the row loops, sws_scale; 64 bytes of slack for a vector tail). The
++				// swizzled copy writes exactly next_pow2(out_w) x next_pow2(out_h) texels (convert_linear_swizzle).
++				const u64 offset = u64{dst.offset_x} * dst.bpp + u64{dst.pitch} * dst.offset_y;
++				ios_written_start = u64{dst.rsx_address} + offset;
++
++				if (REGS(ctx)->blit_engine_context_surface() != blit_engine::context_surface::swizzle2d)
++				{
++					const u64 rows = std::max<u64>({ u64{out_h}, u64{dst.clip_height}, 1 });
++					const u64 row = std::max<u64>({ u64{dst.pitch}, u64{out_w} * dst.bpp, u64{dst.clip_width} * dst.bpp });
++					ios_written_length = u64{dst.pitch} * rows + row + 64;
++				}
++				else
++				{
++					ios_written_length = std::max<u64>(next_pow2(out_w), 1) * std::max<u64>(next_pow2(out_h), 1) * dst.bpp;
++				}
++			}
++#endif
+ 			if (tiled_region)
+ 			{
+ 				tmp.resize(tiled_region.tile->size);
+@@ -686,10 +736,11 @@ namespace rsx
+ 			}
+ #ifdef RPCS3_IOS
+ 			// The CPU fallback wrote guest bytes; GPU blits above retain their cache-managed path.
+-			// REWINDBOX_EPOCH_SOURCES_909: kept global (counted as blit_cpu). The bytes written are not one exact known
+-			// range here (destination offset, swizzled power-of-two surfaces, scaled rows beyond the clip), so a scoped
+-			// revalidation could leave a section in the untracked tail validated (independent review, Core 909).
+-			rpcs3::ios::texture_validation::advance_epoch(rpcs3::ios::texture_validation::epoch_source::blit_cpu);
++			// REWINDBOX_EPOCH_SOURCES_909 kept this epoch global (the bytes written were not bounded: destination offset,
++			// swizzled power-of-two surfaces, scaled rows beyond the clip). REWINDBOX_SCOPED_CPU_BLIT_942 bounds them
++			// above for an untiled destination; the deferred call declared before the reservation lock revalidates that
++			// range, or starts a new epoch when there is no bound (tiled destination: length 0).
++			ios_cpu_copy_done = true;
+ #endif
+ 		}
+ 	}
+diff --git a/rpcs3/Emu/RSX/Program/GLSLSnippets/VideoOutCalibrationPass.glsl b/rpcs3/Emu/RSX/Program/GLSLSnippets/VideoOutCalibrationPass.glsl
+index 8ebc8ae..db02775 100644
+--- a/rpcs3/Emu/RSX/Program/GLSLSnippets/VideoOutCalibrationPass.glsl
++++ b/rpcs3/Emu/RSX/Program/GLSLSnippets/VideoOutCalibrationPass.glsl
+@@ -78,11 +78,48 @@ vec4 anaglyph_stereo_image()
+ 	return anaglyph(left, right);
+ }
+ 
++// REWINDBOX_POST_AA_942: bit 1 of limit_range asks for FXAA of the single view (bit 0 stays the limited range flag).
++// The nine-tap FXAA of Timothy Lottes' white paper: the edge direction from the luma of the four diagonal texels,
++// two then four taps along it, the wider average kept only while its luma stays inside the local range.
++#define LIMIT_RANGE_BIT 1
++#define POST_AA_BIT 2
++
++vec4 fxaa_source()
++{
++	const vec2 texel = 1. / vec2(textureSize(fs0, 0));
++	const vec3 luma = vec3(0.299, 0.587, 0.114);
++
++	const vec4 centre = textureLod(fs0, tc0, 0.);
++	const float luma_nw = dot(textureLod(fs0, tc0 + vec2(-1., -1.) * texel, 0.).rgb, luma);
++	const float luma_ne = dot(textureLod(fs0, tc0 + vec2(1., -1.) * texel, 0.).rgb, luma);
++	const float luma_sw = dot(textureLod(fs0, tc0 + vec2(-1., 1.) * texel, 0.).rgb, luma);
++	const float luma_se = dot(textureLod(fs0, tc0 + vec2(1., 1.) * texel, 0.).rgb, luma);
++	const float luma_m = dot(centre.rgb, luma);
++
++	const float luma_min = min(luma_m, min(min(luma_nw, luma_ne), min(luma_sw, luma_se)));
++	const float luma_max = max(luma_m, max(max(luma_nw, luma_ne), max(luma_sw, luma_se)));
++
++	vec2 dir = vec2(-((luma_nw + luma_ne) - (luma_sw + luma_se)), (luma_nw + luma_sw) - (luma_ne + luma_se));
++	const float dir_reduce = max((luma_nw + luma_ne + luma_sw + luma_se) * (0.25 / 8.), 1. / 128.);
++	const float rcp_dir_min = 1. / (min(abs(dir.x), abs(dir.y)) + dir_reduce);
++	dir = clamp(dir * rcp_dir_min, vec2(-8.), vec2(8.)) * texel;
++
++	const vec3 rgb_a = 0.5 * (
++		textureLod(fs0, tc0 + dir * (1. / 3. - 0.5), 0.).rgb +
++		textureLod(fs0, tc0 + dir * (2. / 3. - 0.5), 0.).rgb);
++	const vec3 rgb_b = rgb_a * 0.5 + 0.25 * (
++		textureLod(fs0, tc0 + dir * -0.5, 0.).rgb +
++		textureLod(fs0, tc0 + dir * 0.5, 0.).rgb);
++	const float luma_b = dot(rgb_b, luma);
++
++	return vec4((luma_b < luma_min || luma_b > luma_max) ? rgb_a : rgb_b, centre.a);
++}
++
+ vec4 read_source()
+ {
+ 	if (stereo_display_mode == STEREO_MODE_DISABLED)
+ 	{
+-		return texture(fs0, tc0);
++		return ((limit_range & POST_AA_BIT) != 0) ? fxaa_source() : texture(fs0, tc0);
+ 	}
+ 
+ 	if (stereo_image_count == 1)
+@@ -151,7 +188,7 @@ void main()
+ {
+ 	vec4 color = read_source();
+ 	color.rgb = pow(color.rgb, vec3(gamma));
+-	ocol = (limit_range == FALSE)
++	ocol = ((limit_range & LIMIT_RANGE_BIT) == FALSE)
+ 		? color
+ 		: ((color * 220.) + 16.) / 255.;
+ 	ocol.a = 1.f;
+diff --git a/rpcs3/Emu/RSX/VK/VKOverlays.cpp b/rpcs3/Emu/RSX/VK/VKOverlays.cpp
+index 56a4d56..8c2db92 100644
+--- a/rpcs3/Emu/RSX/VK/VKOverlays.cpp
++++ b/rpcs3/Emu/RSX/VK/VKOverlays.cpp
+@@ -951,14 +951,15 @@ namespace vk
+ 
+ 	void video_out_calibration_pass::run(vk::command_buffer& cmd, const areau& viewport, vk::framebuffer* target,
+ 		const rsx::simple_array<vk::viewable_image*>& src, f32 gamma, bool limited_rgb,
+-		bool stereo_enabled, VkRenderPass render_pass)
++		bool stereo_enabled, VkRenderPass render_pass, bool post_aa)
+ 	{
+ 		static stereo_config stereo_cfg = stereo_config(true);
+ 		stereo_cfg.update_from_config(stereo_enabled);
+ 		const auto& matrices = stereo_cfg.matrices();
+ 
+ 		config.gamma = gamma;
+-		config.limit_range = limited_rgb ? 1 : 0;
++		// REWINDBOX_POST_AA_942: bit 1 asks the fragment shader for FXAA of the single view (never with stereo output).
++		config.limit_range = (limited_rgb ? 1 : 0) | ((post_aa && !stereo_enabled) ? 2 : 0);
+ 		config.stereo_display_mode = static_cast<u8>(stereo_cfg.stereo_mode());
+ 		config.stereo_image_count = std::min(::size32(src), 2u);
+ 
+diff --git a/rpcs3/Emu/RSX/VK/VKOverlays.h b/rpcs3/Emu/RSX/VK/VKOverlays.h
+index e354d23..c494090 100644
+--- a/rpcs3/Emu/RSX/VK/VKOverlays.h
++++ b/rpcs3/Emu/RSX/VK/VKOverlays.h
+@@ -240,7 +240,7 @@ namespace vk
+ 
+ 		void run(vk::command_buffer& cmd, const areau& viewport, vk::framebuffer* target,
+ 			const rsx::simple_array<vk::viewable_image*>& src, f32 gamma, bool limited_rgb,
+-			bool stereo_enabled, VkRenderPass render_pass);
++			bool stereo_enabled, VkRenderPass render_pass, bool post_aa = false); // post_aa: REWINDBOX_POST_AA_942
+ 	};
+ 
+ 	// TODO: Replace with a proper manager
+diff --git a/rpcs3/Emu/RSX/VK/VKPresent.cpp b/rpcs3/Emu/RSX/VK/VKPresent.cpp
+index d6dc643..53029ff 100644
+--- a/rpcs3/Emu/RSX/VK/VKPresent.cpp
++++ b/rpcs3/Emu/RSX/VK/VKPresent.cpp
+@@ -20,6 +20,7 @@
+ #include "ios/IOSTextureCacheProfile.h" // REWINDBOX_TEXCACHE_PROFILE_621
+ #include "ios/IOSGpuBackgroundGate.h"
+ #include "ios/IOSMoltenVKExec.h"
++#include "ios/IOSPostAA942.h" // REWINDBOX_POST_AA_942
+ #include "ios/RPCS3IOSExperimentalPolicy.h"
+ #include "Emu/RSX/Common/sampler_invalidation.h"
+ #endif
+@@ -1127,7 +1128,19 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
+ 		}
+ #endif
+ 
+-		if (!use_full_rgb_range_output || !rsx::fcmp(avconfig.gamma, 1.f) || avconfig.stereo_enabled) [[unlikely]]
++#ifdef RPCS3_IOS
++		// REWINDBOX_POST_AA_942 (ios/IOSPostAA942.h): the frame of a title whose own anti-aliasing is bypassed goes to
++		// the screen through the calibration pass, which then also runs FXAA on it. One view, scaled by the pass's own
++		// linear sampler: only the Bilinear output mode comes here (Nearest, MetalFX and FSR keep their path). The pass samples the whole source image
++		// where the transfer below copies the displayed region only, so a source larger than that region (a cropped
++		// surface) keeps the transfer.
++		const bool ios_post_aa = image_to_flip && !image_to_flip2 && !avconfig.stereo_enabled &&
++			image_to_flip->width() == buffer_width && image_to_flip->height() == buffer_height &&
++			m_output_scaling == output_scaling_mode::bilinear && rpcs3::ios::post_aa::wanted();
++#else
++		const bool ios_post_aa = false;
++#endif
++		if (!use_full_rgb_range_output || !rsx::fcmp(avconfig.gamma, 1.f) || avconfig.stereo_enabled || ios_post_aa) [[unlikely]]
+ 		{
+ 			if (image_to_flip) calibration_src.push_back(image_to_flip);
+ 			if (image_to_flip2) calibration_src.push_back(image_to_flip2);
+@@ -1163,7 +1176,13 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
+ 
+ 			vk::get_overlay_pass<vk::video_out_calibration_pass>()->run(
+ 				*m_current_command_buffer, areau(aspect_ratio), direct_fbo, calibration_src,
+-				avconfig.gamma, !use_full_rgb_range_output, avconfig.stereo_enabled, single_target_pass);
++				avconfig.gamma, !use_full_rgb_range_output, avconfig.stereo_enabled, single_target_pass, ios_post_aa);
++#ifdef RPCS3_IOS
++			if (ios_post_aa)
++			{
++				rpcs3::ios::post_aa::frames.fetch_add(1, std::memory_order_relaxed);
++			}
++#endif
+ 
+ 			direct_fbo->release();
+ 		}
+diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
+index 25b29eb..e42c720 100644
+--- a/rpcs3/Emu/system_config.h
++++ b/rpcs3/Emu/system_config.h
+@@ -188,6 +188,12 @@ struct cfg_root : cfg::node
+ 		cfg::_enum<ios_experimental_mode> expanded_spu_scratch{ this, "Expanded ARM64 SPU Scratch", ios_experimental_mode::automatic };
+ 		cfg::_enum<ios_experimental_mode> persistent_spu_object_cache{ this, "Persistent SPU Object Cache", ios_experimental_mode::automatic };
+ 		cfg::_enum<ios_experimental_mode> gow3_mlaa_bypass{ this, "God of War III MLAA Bypass", ios_experimental_mode::automatic };
++		// REWINDBOX_POST_AA_942 (ios/IOSPostAA942.h): FXAA at presentation. Automatic: the titles whose own
++		// anti-aliasing a bypass removed (God of War III), while it is removed.
++		cfg::_enum<ios_experimental_mode> post_aa{ this, "Post-Process Anti-Aliasing", ios_experimental_mode::automatic };
++		// REWINDBOX_SCOPED_CPU_BLIT_942 (Emu/RSX/NV47/HW/nv3089.cpp): Automatic and Enabled bound the bytes of a CPU
++		// image transfer; Disabled keeps a texture epoch for each of them (Cores 909 to 941).
++		cfg::_enum<ios_experimental_mode> scoped_cpu_blit{ this, "Scoped CPU Blit Revalidation", ios_experimental_mode::automatic };
+ 		// REWINDBOX_MOLTENVK_ASYNC_SUBMITS_V1: Automatic keeps MoltenVK's synchronous
+ 		// submits; Enabled moves Metal command encoding to MoltenVK's queue thread.
+ 		cfg::_enum<ios_experimental_mode> moltenvk_async_submits{ this, "MoltenVK Asynchronous Submits", ios_experimental_mode::automatic };
+diff --git a/rpcs3/ios/IOSCapture912.h b/rpcs3/ios/IOSCapture912.h
+index 4f5acec..4d6bbc1 100644
+--- a/rpcs3/ios/IOSCapture912.h
++++ b/rpcs3/ios/IOSCapture912.h
+@@ -508,6 +508,51 @@ struct histogram
+ 		waiting++;
+ 	}
+ 
++	// REWINDBOX_HOT_CODE_942: the samples counted so far for the region of this pc (0: none, or lost to overflow).
++	std::uint32_t count_of(std::uint32_t pc) const noexcept
++	{
++		const std::uint32_t region = pc >> 8;
++		std::size_t at = (region * 2654435761u) % max_regions;
++
++		for (std::size_t probe = 0; probe < max_regions; probe++, at = (at + 1) % max_regions)
++		{
++			const cell& c = cells[at];
++
++			if (c.count == 0)
++			{
++				return 0;
++			}
++
++			if (c.region == region)
++			{
++				return c.count;
++			}
++		}
++
++		return 0;
++	}
++
++	// REWINDBOX_HOT_CODE_942: the two busiest regions (count 0: none), for the code words printed beside the profile.
++	std::array<cell, 2> top_cells() const noexcept
++	{
++		std::array<cell, 2> best{};
++
++		for (const cell& c : cells)
++		{
++			if (c.count > best[0].count)
++			{
++				best[1] = best[0];
++				best[0] = c;
++			}
++			else if (c.count > best[1].count)
++			{
++				best[1] = c;
++			}
++		}
++
++		return best;
++	}
++
+ 	// The busiest regions first: region_base:count:first_pc.
+ 	std::string top(std::size_t limit) const
+ 	{
+diff --git a/rpcs3/ios/IOSPostAA942.h b/rpcs3/ios/IOSPostAA942.h
+new file mode 100644
+index 0000000..f7aaf4a
+--- /dev/null
++++ b/rpcs3/ios/IOSPostAA942.h
+@@ -0,0 +1,44 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <cstdint>
++
++#include "IOSGow3MlaaReport.h"
++
++// REWINDBOX_POST_AA_942: God of War III, iPhone logs of IPA 760 (Core 940), fresh boot: the MLAA bypass is applied
++// (COREPROF GOW3MLAA909 ppu=applied) and the title asks for no multisampling (MSAA Auto, CONFIG_LAYERS msaa=Auto): its
++// only anti-aliasing was the MLAA its SPUs ran on the finished frame, so the picture now reaches the screen with none.
++// Thin alpha-tested geometry (foliage) then crawls from one frame to the next, more so at the 14 to 21 frames a second
++// of the heavy scenes. The bypass stays (it frees the SPU time and the 1280x720 read-back of every frame); the
++// anti-aliasing comes back on the GPU instead, as FXAA in the pass that already scales the frame to the screen
++// (VideoOutCalibrationPass.glsl, bit 1 of its limit_range constant; VKPresent.cpp).
++//
++// Automatic: the titles the policy names (God of War III), and only while the game's own MLAA is known to be off (the
++// PPU half written at this boot, a restored savestate that holds it, or the SPU half patched). Enabled: every frame of
++// the title, whatever it does itself. Disabled: never. Read at boot. Only the Bilinear output mode takes this path
++// (the pass samples linearly); Nearest, MetalFX, FSR and stereo output keep their own.
++namespace rpcs3::ios::post_aa
++{
++inline std::atomic<bool> automatic{false}; // the title is one the Automatic mode covers
++inline std::atomic<bool> forced{false};    // the setting is Enabled
++inline std::atomic<std::uint64_t> frames{0}; // frames presented through FXAA since boot (COREPROF POSTAA942)
++
++inline bool wanted() noexcept
++{
++	if (forced.load(std::memory_order_relaxed))
++	{
++		return true;
++	}
++
++	if (!automatic.load(std::memory_order_relaxed))
++	{
++		return false;
++	}
++
++	const auto ppu = static_cast<gow3_mlaa::ppu_state>(gow3_mlaa::ppu.load(std::memory_order_relaxed));
++	return ppu == gow3_mlaa::ppu_state::applied || ppu == gow3_mlaa::ppu_state::savestate_applied ||
++		gow3_mlaa::savestate_patched.load(std::memory_order_relaxed) == 1 ||
++		gow3_mlaa::spu_words_patched.load(std::memory_order_relaxed) != 0; // the SPU half alone also turns the MLAA job off
++}
++}
+diff --git a/rpcs3/ios/IOSTextureValidationProfile.h b/rpcs3/ios/IOSTextureValidationProfile.h
+index 7d3101f..986bb64 100644
+--- a/rpcs3/ios/IOSTextureValidationProfile.h
++++ b/rpcs3/ios/IOSTextureValidationProfile.h
+@@ -126,6 +126,9 @@ enum class epoch_source : std::uint8_t
+ inline std::array<std::atomic<std::uint64_t>, static_cast<std::size_t>(epoch_source::count)> epoch_source_counts{};
+ // REWINDBOX_SCOPED_RSX_UPLOADS_909: RSX writes of a known range revalidated in scope instead of a new epoch.
+ inline std::atomic<std::uint64_t> scoped_rsx_writes{0}, scoped_rsx_write_bytes{0};
++// REWINDBOX_SCOPED_CPU_BLIT_942 (Emu/RSX/NV47/HW/nv3089.cpp): the CPU fallback of an NV3089 image transfer revalidates
++// the bounded range it wrote instead of starting an epoch. Off (setting Disabled): the epoch of Cores 909 to 941.
++inline std::atomic<bool> scoped_cpu_blit{true};
+ 
+ inline void advance_epoch(epoch_source source = epoch_source::other) noexcept
+ {
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+index a8f4fd5..0d8827e 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+@@ -30,6 +30,7 @@
+ #include "IOSThermalPolicy931.h" // REWINDBOX_THERMAL_POLICY_931
+ #include "IOSLocalProfileStore933.h" // REWINDBOX_LOCAL_PROFILE_933, REWINDBOX_LEARNED_PREFETCH_933
+ #include "IOSFlipDoneReplay.h" // REWINDBOX_FLIP_DONE_REPLAY_935
++#include "IOSPostAA942.h" // REWINDBOX_POST_AA_942
+ #include "Utilities/File.h"
+ #include "util/asm.hpp" // NEOSTATION_BUILD487_DIAGNOSTICS_V1 (L2): utils::arm_timer_scale
+ #include "util/logs.hpp"
+@@ -261,6 +262,10 @@ void resolve_experimental_policy() noexcept
+ 	// CELL589_TITLE_LEVERS: Assassin's Creed.
+ 	resolved.scoped_texture_revalidation = resolve_mode(g_cfg.ios_experimental.scoped_texture_revalidation, texture_epoch_title);
+ 	rpcs3::ios::texture_validation_scope::enabled.store(resolved.scoped_texture_revalidation, std::memory_order_relaxed);
++	// REWINDBOX_SCOPED_CPU_BLIT_942: part of the scope above (a title without it keeps its epochs); the setting only
++	// takes the CPU image transfers back out.
++	resolved.scoped_cpu_blit = resolve_mode(g_cfg.ios_experimental.scoped_cpu_blit, true);
++	rpcs3::ios::texture_validation::scoped_cpu_blit.store(resolved.scoped_cpu_blit, std::memory_order_relaxed);
+ 	// CELL581_TEXTURE_PREHASH: needs the epochs. CELL583_PREHASH_PACING: Automatic is God of
+ 	// War III only, whose RSX thread limits the frame rate; Black Ops II's SPU threads do
+ 	// (build 581: 3.4-4.1 SPU cores, RSX thread 0.1-0.5 core, 20-28 % of its validations served).
+@@ -318,6 +323,13 @@ void resolve_experimental_policy() noexcept
+ 	// that set it to Enabled (the RPCS3 database is the reference); the bypass itself only touches the six serials and the
+ 	// exact executables and SPU modules it knows (PPUModule.cpp, sys_spu.cpp).
+ 	resolved.gow3_mlaa_bypass = resolve_mode(g_cfg.ios_experimental.gow3_mlaa_bypass, is_god_of_war_iii_title(title_id));
++	// REWINDBOX_POST_AA_942 (ios/IOSPostAA942.h): Automatic is the title whose MLAA the bypass above removes, and the
++	// presenter then checks that it is removed at this boot; Enabled is every frame of the title; Disabled is never.
++	resolved.post_aa_forced = g_cfg.ios_experimental.post_aa.get() == ios_experimental_mode::enabled;
++	resolved.post_aa_automatic = g_cfg.ios_experimental.post_aa.get() == ios_experimental_mode::automatic &&
++		resolved.gow3_mlaa_bypass && is_god_of_war_iii_title(title_id);
++	rpcs3::ios::post_aa::forced.store(resolved.post_aa_forced, std::memory_order_relaxed);
++	rpcs3::ios::post_aa::automatic.store(resolved.post_aa_automatic, std::memory_order_relaxed);
+ 	// CELL587_MVK_ENCODE_BARRIER (ios/IOSMoltenVKExec.h): MoltenVK encodes the Metal commands on its queue thread and
+ 	// acquisitions wait for the last queued present. On the RSX thread the encoding took 490-640 ms per 5 s window in
+ 	// God of War III (build 583), 0.93-1.36 s in Assassin's Creed (build 601), 462-606 ms in Black Ops II (builds 694
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+index 8688925..864a2d3 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+@@ -63,6 +63,8 @@ struct experimental_policy
+ 	bool expanded_spu_scratch = false;
+ 	bool persistent_spu_object_cache = false;
+ 	bool gow3_mlaa_bypass = false;
++	bool post_aa_automatic = false, post_aa_forced = false; // REWINDBOX_POST_AA_942
++	bool scoped_cpu_blit = true; // REWINDBOX_SCOPED_CPU_BLIT_942
+ 	// REWINDBOX_MOLTENVK_ASYNC_SUBMITS_V1: read when the Vulkan instance is created.
+ 	bool moltenvk_async_submits = false;
+ 	// REWINDBOX_POSITION_INVARIANCE_610 (ios/IOSTitleLevers.h): vertex programs
+diff --git a/rpcs3/ios/RPCS3IOSFreezeDump.cpp b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
+index 881497e..6b8b268 100644
+--- a/rpcs3/ios/RPCS3IOSFreezeDump.cpp
++++ b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
+@@ -1261,6 +1261,18 @@ struct ppu_sampling
+ 	// REWINDBOX_SPU_WAIT_SITE_930: what each waiting sample waited on (spu_wait_calls is the last named call, not the wait).
+ 	std::array<std::array<u32, rpcs3::ios::spu_wait_site::count>, rpcs3::ios::auto_spu_profile::max_threads> spu_wait_sites{};
+ 	std::array<std::string, rpcs3::ios::auto_spu_profile::max_threads> spu_names;
++	// REWINDBOX_HOT_CODE_942: the 64 instruction words of the busiest 256-byte region of each SPU thread, copied from
++	// its local storage at the sample where that region takes the lead (the thread is running there then: SPURS loads
++	// other jobs at the same addresses later). spu_code_region is the region base (umax: none yet), spu_code_lead the
++	// highest count of one region seen so far.
++	std::array<std::array<u32, 64>, rpcs3::ios::auto_spu_profile::max_threads> spu_code{};
++	std::array<u32, rpcs3::ios::auto_spu_profile::max_threads> spu_code_region = []
++	{
++		std::array<u32, rpcs3::ios::auto_spu_profile::max_threads> all;
++		all.fill(umax);
++		return all;
++	}();
++	std::array<u32, rpcs3::ios::auto_spu_profile::max_threads> spu_code_lead{};
+ 	u32 spu_count = 0;
+ 	u32 spu_listed = 0;
+ 	u64 others_running = 0;
+@@ -1367,6 +1379,23 @@ struct ppu_sampling
+ 				if (!(spu.state & cpu_flag::wait))
+ 				{
+ 					spu_tracked[i].add_running(spu.pc);
++
++					// REWINDBOX_HOT_CODE_942: racy reads of local storage, as for the instruction at pc below; nothing is
++					// written to the thread.
++					if (const u32 lead = spu_tracked[i].count_of(spu.pc); lead > spu_code_lead[i])
++					{
++						spu_code_lead[i] = lead;
++
++						if (const u32 base = spu.pc & 0x3ff00; base != spu_code_region[i])
++						{
++							spu_code_region[i] = base;
++
++							for (u32 w = 0; w < 64; w++)
++							{
++								spu_code[i][w] = spu._ref<be_t<u32>>(base + w * 4);
++							}
++						}
++					}
+ 					continue;
+ 				}
+ 
+@@ -1423,6 +1452,7 @@ struct ppu_sampling
+ 		{
+ 			spu_tracked[i].thread_id = spu_threads[i]->id;
+ 			spu_names[i] = spu_threads[i]->get_name();
++
+ 		}
+ 
+ 		spu_threads.clear();
+@@ -1462,6 +1492,33 @@ void emit_ppu_profile(ppu_sampling& run)
+ 			h.waiting, h.same_pc, h.distinct, h.overflow, calls.empty() ? std::string("-") : calls, h.top(24));
+ 		ios_freeze_dump.notice("%s", bound_line(line));
+ 
++		// REWINDBOX_HOT_CODE_942: God of War III, IPA 760 logs: 51 % of the main thread's samples carry one pc (0x2eafe8, a
++		// conditional store) while three SPU threads are saturated; the profile cannot tell a spin on a lock from real work
++		// that follows an atomic helper. The 64 instruction words of each of the two busiest 256-byte regions say which
++		// loop it is (private diagnostic log). They are read here, after the capture, through copy_if_mapped() like every
++		// guest read of this file: a page freed since the check is not read.
++		for (const auto& hot : h.top_cells())
++		{
++			const u32 from = hot.region << 8;
++			std::array<be_t<u32>, 64> code{};
++
++			if (!hot.count || from < 0x10000 || !vm::check_addr(from, vm::page_readable, 256) ||
++				!rpcs3::ios::copy_if_mapped(code.data(), vm::get_super_ptr<const void>(from), 256))
++			{
++				continue;
++			}
++
++			std::string words;
++
++			for (u32 w = 0; w < 64; w++)
++			{
++				fmt::append(words, "%s%08x", w ? "," : "", +code[w]);
++			}
++
++			ios_freeze_dump.notice("COREPROF PPUPROF912 session=%llu capture=%u part=code id=0x%x from=%x samples=%u first_pc=%x words=%s",
++				session, s_ppu_captures, h.thread_id, from, hot.count, hot.first_pc, words);
++		}
++
+ 		// REWINDBOX_PPU_WAIT_SITE_936: the waits counted as guest_code above, by flag, by last named call and by pc, on a
+ 		// line of their own (the thread line keeps its length and its fields).
+ 		std::string unnamed_flags, unnamed_after, unnamed_pcs;
+@@ -1539,6 +1596,20 @@ void emit_ppu_profile(ppu_sampling& run)
+ 			run.spu_names[i].empty() ? std::string("-") : sanitize_token(run.spu_names[i]), h.running, h.waiting, h.same_pc, h.distinct, h.overflow,
+ 			sites.empty() ? std::string("-") : sites, calls.empty() ? std::string("-") : calls, h.top(24));
+ 		ios_freeze_dump.notice("%s", bound_line(line));
++
++		// REWINDBOX_HOT_CODE_942: the words copied from this thread's local storage when the region took the lead.
++		if (run.spu_code_region[i] != umax)
++		{
++			std::string words;
++
++			for (u32 w = 0; w < 64; w++)
++			{
++				fmt::append(words, "%s%08x", w ? "," : "", run.spu_code[i][w]);
++			}
++
++			ios_freeze_dump.notice("COREPROF SPUPROF923 session=%llu capture=%u part=code id=0x%x from=%x samples=%u words=%s",
++				session, s_ppu_captures, h.thread_id, run.spu_code_region[i], h.count_of(run.spu_code_region[i]), words);
++		}
+ 	}
+ 
+ 	ios_freeze_dump.notice("COREPROF SPUPROF923 session=%llu capture=%u part=end", session, s_ppu_captures);
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index c36e99b..13c8e86 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -43,6 +43,7 @@
+ #include "IOSLoadOpClear907.h"
+ #include "IOSWriterLockPhases.h" // REWINDBOX_WRITER_LOCK_PHASES_908
+ #include "IOSGow3MlaaReport.h" // REWINDBOX_GOW3_MLAA_REPORT_909
++#include "IOSPostAA942.h" // REWINDBOX_POST_AA_942
+ #include "IOSSpursRelaxedStore.h" // REWINDBOX_SPURS_RELAXED_STORE_916
+ #include "IOSIdleWindows916.h" // REWINDBOX_IDLE_WINDOWS_916
+ #include "IOSAutoPpuProfile916.h" // REWINDBOX_AUTO_PPU_PROFILE_916
+@@ -2140,6 +2141,19 @@ private:
+                 mlaa::ppu_patch_version.load(std::memory_order_relaxed), mlaa::ppu_call_word.load(std::memory_order_relaxed),
+                 mlaa::savestate_patched.load(std::memory_order_relaxed));
+         }
++        // REWINDBOX_POST_AA_942 (ios/IOSPostAA942.h): frames presented through FXAA in this window (only for a title the
++        // setting covers).
++        if (rpcs3::ios::post_aa::automatic.load(std::memory_order_relaxed) || rpcs3::ios::post_aa::forced.load(std::memory_order_relaxed))
++        {
++            static u64 post_aa_frames_before = 0; // report thread only
++            const u64 post_aa_frames = rpcs3::ios::post_aa::frames.load(std::memory_order_relaxed);
++            ios_core_profiler.notice("COREPROF POSTAA942 session=%llu window=%llu automatic=%u forced=%u wanted=%u frames=%llu "
++                "frames_since_launch=%llu scope=process_window",
++                profile_session, profile_window, rpcs3::ios::post_aa::automatic.load(std::memory_order_relaxed) ? 1u : 0u,
++                rpcs3::ios::post_aa::forced.load(std::memory_order_relaxed) ? 1u : 0u, rpcs3::ios::post_aa::wanted() ? 1u : 0u,
++                post_aa_frames - post_aa_frames_before, post_aa_frames);
++            post_aa_frames_before = post_aa_frames;
++        }
+         // CELL581_TEXTURE_PREHASH: RSX validations served by the worker and its work, one bounded line.
+         {
+             namespace prehash = rpcs3::ios::texture_prehash;
+diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
+index c1eeb5d..e621409 100644
+--- a/rpcs3/ios/RPCS3IOSSettings.cpp
++++ b/rpcs3/ios/RPCS3IOSSettings.cpp
+@@ -182,6 +182,10 @@ const std::array catalog{
+ 	SETTING("experimental.expanded_spu_scratch", "Experimental", "SPU", "Expanded ARM64 SPU scratch", "Reserves 256 KiB instead of RPCS3's 8 KiB for generated ARM64 SPU spills. Disable to restore the original reservation. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.expanded_spu_scratch, 0, 0, 0),
+ 	GLOBAL_SETTING("experimental.persistent_spu_object_cache", "Experimental", "SPU", "Persistent SPU object cache", "Keeps the compiled ARM64 SPU code of each title between sessions. Objects are keyed by the Core, LLVM, settings and CPU features, bounded to 40,000 files or 512 MiB per title (oldest removed first) and ignored when invalid. Automatic enables it. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.persistent_spu_object_cache, 0, 0, 0),
+ 	GAME_SETTING("experimental.gow3_mlaa_bypass", "Experimental", "SPU", "God of War III MLAA bypass", "Applies the exact official PPU/SPU MLAA bypasses for supported God of War III versions, freeing CELL time and allowing resolution scaling. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.gow3_mlaa_bypass, 0, 0, 0),
++	// REWINDBOX_SCOPED_CPU_BLIT_942 (Emu/RSX/NV47/HW/nv3089.cpp).
++	SETTING("experimental.scoped_cpu_blit", "Experimental", "FPS Experiments", "Scoped CPU blit revalidation", "With scoped texture revalidation, an image transfer the RSX runs on the CPU revalidates only the cached textures over the bytes it wrote instead of all of them (God of War III: 69 of 84 texture epochs a frame). Disabled: one texture epoch for each transfer, as before Core 942. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.scoped_cpu_blit, 0, 0, 0),
++	// REWINDBOX_POST_AA_942 (ios/IOSPostAA942.h).
++	SETTING("experimental.post_aa", "Experimental", "Rendering", "Post-process anti-aliasing (FXAA)", "Smooths the edges of the finished frame on the GPU when it is scaled to the screen. Automatic: God of War III while its own MLAA is bypassed, which otherwise leaves the picture with no anti-aliasing (foliage crawls). Enabled: every frame of the game. Disabled: never. Used with the Bilinear output mode only. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.post_aa, 0, 0, 0),
+ 	// REWINDBOX_GRAPHICS_TESTS_612: per-game levers of the in-game accuracy test page.
+ 	GAME_SETTING("experimental.position_invariance", "Experimental", "MoltenVK", "Position invariance", "Asks Metal to compute the vertex position the same way in every shader that writes it, so passes that draw the same geometry again (weapon models, lit walls) get identical depth. Automatic enables it for Call of Duty: Black Ops II and Assassin's Creed; Disabled restores the previous shaders. Metal compiles new shaders on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.position_invariance, 0, 0, 0),
+ 	GAME_SETTING("experimental.native_half_registers", "Experimental", "GPU", "Native half-precision registers", "Computes the half-precision registers of PlayStation 3 pixel shaders (the RSX H registers) in native 16-bit floats, as the RSX does, instead of 32-bit floats clamped to the half range; every other precision rule stays as with High precision. The Apple GPU executes 16-bit float math at twice the rate. Automatic enables it for Assassin's Creed; Disabled restores 32-bit registers. Shaders are compiled again on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.native_half_registers, 0, 0, 0),

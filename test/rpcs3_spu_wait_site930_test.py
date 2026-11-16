@@ -145,7 +145,8 @@ def static_checks(source: Path) -> None:
         require(flag in waiting, 'flag read: ' + flag)
     require('wait_sites=%s wait_calls=%s top=%s' in dump and 'wait_calls_scope=last_named_call wait_sites_scope=flags_then_instruction_at_saved_pc' in dump,
             'export: wait_sites before wait_calls, both scopes declared')
-    require(dump.count('COREPROF SPUPROF923') == 3, 'begin, thread and end lines unchanged in number')
+    # REWINDBOX_HOT_CODE_942 adds one part=code line; the begin, thread and end lines are unchanged.
+    require(dump.count('COREPROF SPUPROF923') == (4 if 'REWINDBOX_HOT_CODE_942' in dump else 3), 'begin, thread and end lines unchanged in number')
 
 
 def run(source: Path, cxx: str, sanitize: bool, mutation: str | None) -> tuple[int, str]:
