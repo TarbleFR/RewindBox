@@ -151,7 +151,9 @@ inline Layout compute(const Rect& bounds, const Insets& insets, const Rect& imag
   Rect best = out.panel;
   double least = detail::covered(out.panel, occupied, nullptr);
   for (const Rect& c : {below, side, sideClear}) {
-    if (c.w < kPanelMinWidth || c.h < kPanelMin) continue;
+    // Never under the Menu button, which is drawn above the bar: with the triggers moved down, sideClear can
+    // start in the Menu's column (review of IPA 756).
+    if (c.w < kPanelMinWidth || c.h < kPanelMin || intersects(c, out.menu, kGap)) continue;
     const double area = detail::covered(c, occupied, nullptr);
     if (area < least) { least = area; best = c; }
     if (area <= 0) break;
