@@ -104,7 +104,8 @@ final class NPGoogleCast: NSObject, GCKDiscoveryManagerListener, GCKSessionManag
         guard let channel, channel.isConnected, let data = try? JSONSerialization.data(withJSONObject: message), let text = String(data: data, encoding: .utf8) else { return }
         _ = channel.sendTextMessage(text, error: nil)
     }
-    func castChannel(_ channel: GCKGenericChannel, didReceiveTextMessage message: String, withNamespace protocolNamespace: String) {
+    // Swift name of castChannel:didReceiveTextMessage:withNamespace: ("Channel" is dropped: the parameter type says it).
+    func cast(_ channel: GCKGenericChannel, didReceiveTextMessage message: String, withNamespace protocolNamespace: String) {
         guard channel === self.channel, let data = message.data(using: .utf8), let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
         link.receive(object)
     }
