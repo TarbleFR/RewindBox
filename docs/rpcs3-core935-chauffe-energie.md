@@ -403,6 +403,25 @@ l'appareil.
 - Non exécutés : bancs historiques, compilation iOS de ce lot (demandée à la route Core), appareil. **Aucun gain de
   température, de puissance ou d'images par seconde n'est annoncé avant les journaux de l'iPhone.**
 
+### Livraison 756 (16 novembre 2026)
+
+IPA privée de test 756 (run `43798159829`, IPA `1ef938b7…`, 331 043 649 octets), vérifiée hors ligne puis remise ; reçu
+`docs/evidence/rewind756/delivery.json`. Base : l'IPA 754. Contenu : le Core 939 demande 2 (empreinte `e6e8e273`, à la
+place du Core 938), la barre de performance minimaliste (FPS, CPU, RAM, NeoSwap) et le moteur S2Arm des correctifs
+0001-0047 (pin vérifié `e1ffb7e5`). Ce moteur est repris parce que son pin a changé après la 754 : la recette (§ 3.12)
+demande alors de classer ses commits comme revus. Le mainteneur voulait de toute façon une seule IPA 756 avec RPCS3 et
+S2Arm (message de la session S2Arm). Le récepteur Cast de NeoPlay (étape 2) reste pour la 757.
+Vérifications :
+- contrat du serveur (préflight) réussi ;
+- les quatre morceaux égaux à leurs empreintes API ;
+- déchiffrement, IPA contre `SHA256SUMS` et le reçu du signataire, 97 images ;
+- versions 0.0.8 / 756 ;
+- validateurs melonx, neoplay, shaders, legal, no-kartpad et no-dusklight à 0.
+
+Images changées : S2ArmEngine, `libRPCS3Core.dylib`, `rpcs3_internal_bridge` et Runner (déclarées). `melonx_internal_bridge`
+a aussi changé, sans changement de ses sources (signalé, non bloquant ; même cas que les builds 732, 735, 737, 747, 748, 751
+et 752). Rien n'a encore tourné sur un iPhone : le protocole ci-dessus s'applique tel quel avec cette IPA.
+
 ### Protocole sur l'iPhone (Core 939)
 
 1. Premier lancement après la mise à jour : le journal doit contenir `REWINDBOX_ASYNC_SHADERS_939 global Shader Mode:
