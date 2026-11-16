@@ -1,0 +1,103 @@
+# Dolphin forum, Custom Texture Projects (S003, pages 9-13, read 16 November 2026 by research run 43957114686)
+https://forums.dolphin-emu.org/Thread-mario-golf-toadstool-tour-gcn-4x-ui-texture-pack	Mario Golf: Toadstool Tour (GCN) - 4x UI Texture Pack
+https://forums.dolphin-emu.org/Thread-custom-textures-in-png-format-loading-issue	Custom textures in PNG Format loading issue.
+https://forums.dolphin-emu.org/Thread-f-zero-gx-hd-texture-pack	F-zero GX HD texture pack
+https://forums.dolphin-emu.org/Thread-sonic-colors-xbox360-hud-textures	Sonic Colors - Xbox360 HUD textures
+https://forums.dolphin-emu.org/Thread-pokemon-xg-xd-hd-texture-pack-v1-0	Pokemon XG/XD HD Texture Pack V1.0
+https://forums.dolphin-emu.org/Thread-dbz-budokai-tenkaichi-3-hd-texture-project	DBZ Budokai Tenkaichi 3 - HD Texture Project
+https://forums.dolphin-emu.org/Thread-doshin-the-giant-hd-texture-pack	Doshin the Giant HD Texture Pack
+https://forums.dolphin-emu.org/Thread-shadow-the-hedgehog-hd-texture-pack	Shadow the Hedgehog HD Texture Pack
+https://forums.dolphin-emu.org/Thread-x-men-legends-ii-hd	X-Men Legends II HD
+https://forums.dolphin-emu.org/Thread-pok%C3%A9mon-snap-hd-texture-pack-final	Pokémon Snap HD Texture Pack - Final
+https://forums.dolphin-emu.org/Thread-texture-pack-from-pokemon-xd-gale-of-darkness-xg-next-gen	texture pack from pokemon xd gale of darkness (xg next gen)
+https://forums.dolphin-emu.org/Thread-beyond-good-evil-new-hd-remaster-v0-2-all-new-high-res-textures-and-new-lighting	Beyond Good&Evil New HD Remaster V0.2(All new high res Textures and new lighting)
+https://forums.dolphin-emu.org/Thread-resident-evil-4-wii-edition-high-res-textures-pack-rb4e08-and-rb4p08	Resident Evil 4 Wii edition High Res textures pack (RB4E08 and RB4P08)
+https://forums.dolphin-emu.org/Thread-hd-texture-pack-spider-man-2-webbed-up	HD Texture Pack - Spider-Man 2: Webbed Up
+https://forums.dolphin-emu.org/Thread-the-legend-of-zelda-four-swords-adventures-hd	The Legend of Zelda: Four Swords Adventures HD
+https://forums.dolphin-emu.org/Thread-fire-emblem-10-radiant-dawn-remove-grey-padding-in-16-9-mode-needs-ntsc-testing	Fire Emblem 10 Radiant Dawn: Remove grey padding in 16:9 mode (needs NTSC testing!)
+https://forums.dolphin-emu.org/Thread-harvest-moon-a-wonderful-life-hd-texture-pack	Harvest Moon: A Wonderful Life --- HD Texture Pack
+https://forums.dolphin-emu.org/Thread-viewtiful-joe-4k-hd-texture-pack	Viewtiful Joe 4K HD Texture Pack
+https://forums.dolphin-emu.org/Thread-forecast-channel-hd-textures	Forecast Channel HD Textures
+https://forums.dolphin-emu.org/Thread-xbox-one-controller-textures	Xbox One Controller Textures
+https://forums.dolphin-emu.org/Thread-resident-evil-3-high-res-ui-textures-ntsc-glee08-wip	Resident Evil 3 High-Res UI Textures [NTSC-GLEE08] [WIP]
+https://forums.dolphin-emu.org/Thread-mario-kart-wii-colorblind-mode-texture-mod	Mario Kart Wii colorblind mode texture mod
+https://forums.dolphin-emu.org/Thread-inazuma-eleven-strikers-4k-hd-texture-pack	Inazuma Eleven Strikers 4K (HD Texture Pack)
+https://forums.dolphin-emu.org/Thread-the-twilight-princess-hd-project	The Twilight Princess HD Project
+https://forums.dolphin-emu.org/Thread-luigi-s-mansion-uhd-pack	Luigi's Mansion UHD Pack
+https://forums.dolphin-emu.org/Thread-wip-the-legend-of-zelda-tp-hd-retexture	[WIP] The Legend Of Zelda TP HD retexture
+https://forums.dolphin-emu.org/Thread-tony-hawk%C2%B4s-pro-skater-3-grip-retexture	Tony Hawk´s Pro Skater 3 Grip Retexture
+https://forums.dolphin-emu.org/Thread-super-mario-sunshine-painted-edition	Super Mario Sunshine Painted Edition
+https://forums.dolphin-emu.org/Thread-star-fox-64-hd-texture-pack-v0-1-04-02-2020	Star Fox 64 HD Texture Pack V0.1 (04-02-2020)
+https://forums.dolphin-emu.org/Thread-2khs-nhl-2k11-mod	2KHS (NHL 2K11 mod)
+https://forums.dolphin-emu.org/Thread-2xhq-muramasa-the-demon-blade-texture-pack-pal-release-05-20-2014	[2xHQ] Muramasa: The Demon Blade Texture Pack - PAL - Release [05-20-2014]
+https://forums.dolphin-emu.org/Thread-zelda-collector-s-edition-hd-texture-pack-v2-1-2018-03-27	Zelda: Collector's Edition HD Texture Pack V2.1 (2018-03-27)
+https://forums.dolphin-emu.org/Thread-kirby-air-ride-uhd-texture-pack	Kirby Air Ride UHD Texture Pack
+https://forums.dolphin-emu.org/Thread-metroid-other-m-gravity-suit-custom-textures-updated-august-10-2015-r3oe01	Metroid Other M Gravity Suit + Custom textures UPDATED August 10, 2015 (R3OE01)
+https://forums.dolphin-emu.org/Thread-nfs-the-run-hd-texture-project	NFS THE RUN - HD Texture Project
+https://forums.dolphin-emu.org/Thread-metroid-prime-trilogy-kbm-ui-project	Metroid Prime Trilogy KBM UI Project
+https://forums.dolphin-emu.org/Thread-wii-dokapon-kingdom-esrgan-hd-texture-pack	[Wii] Dokapon Kingdom ESRGAN HD Texture Pack
+https://forums.dolphin-emu.org/Thread-hd-texture-pack-the-last-story-xbox360-controller-edition	[hd texture pack] The Last Story: XBox360 Controller Edition
+https://forums.dolphin-emu.org/Thread-is-it-possible-and-has-anyone-done-any-super-nes-retextures	Is it possible and has anyone done any Super NES retextures?
+https://forums.dolphin-emu.org/Thread-pandora-s-tower-hd-texture-2017-02-24	Pandora's Tower HD texture (2017-02-24)
+https://forums.dolphin-emu.org/Thread-super-mario-sunshine-fix-it-felix-outfit-wreck-it-ralph	Super Mario Sunshine - Fix It Felix Outfit (Wreck It Ralph)
+https://forums.dolphin-emu.org/Thread-the-last-story-hd-hi-texture-pack-19-07-11	The Last Story HD HI-Texture Pack (19-07-11)
+https://forums.dolphin-emu.org/Thread-xbox360-controller-texture-project	Xbox360 Controller Texture Project
+https://forums.dolphin-emu.org/Thread-alice-in-wonderland-hd-texture-pack	Alice in Wonderland HD (texture pack)
+https://forums.dolphin-emu.org/Thread-resident-evil-2-3-hi-res-project-1080p	Resident Evil 2&3 Hi-Res Project 1080p
+https://forums.dolphin-emu.org/Thread-resident-evil-2-waifu2x-upscaled-backgrounds--49698	Resident Evil 2 waifu2x upscaled backgrounds
+https://forums.dolphin-emu.org/Thread-hd-texture-project-zoids-battle-legends-v0-2	[HD Texture Project] Zoids: Battle Legends (v0.2)
+https://forums.dolphin-emu.org/Thread-resident-evil-2-high-res-ui-textures-v2-2-ntsc-ghae08	Resident Evil 2 High-Res UI Textures [v2.2] [NTSC-GHAE08]
+https://forums.dolphin-emu.org/Thread-metroid-prime-hd-texture-reupload	Metroid Prime HD Texture Reupload
+https://forums.dolphin-emu.org/Thread-sonic-adventure-2-custom-enhanced-skins-for-sonic	Sonic Adventure 2 Custom/Enhanced Skins for Sonic
+https://forums.dolphin-emu.org/Thread-pikmin-hd-texture-project	Pikmin HD texture project
+https://forums.dolphin-emu.org/Thread-fire-emblem-path-of-radiance-and-radiant-dawn-upscaled-ui-textures-updated	Fire Emblem: Path of Radiance and Radiant Dawn upscaled UI textures (updated)
+https://forums.dolphin-emu.org/Thread-release-unofficial-tool-to-convert-glide64-and-dolphin-textures-automatically	[Release][Unofficial] Tool to Convert Glide64 And Dolphin Textures Automatically
+https://forums.dolphin-emu.org/Thread-metroid-prime-trilogy-hud	Metroid Prime Trilogy HUD
+https://forums.dolphin-emu.org/Thread-no-more-heroes-2-desperate-struggle-hd-texture-pack-jan-2017	No More Heroes 2: Desperate Struggle HD Texture Pack (Jan 2017)
+https://forums.dolphin-emu.org/Thread-battle-stadium-d-o-n-remastered-hd-textures	Battle Stadium D.O.N Remastered [HD Textures]
+https://forums.dolphin-emu.org/Thread-sonic-adventure-2-battle-hi-res-texture-pack-v0-2-gsne8p	Sonic Adventure 2 Battle (Hi-Res Texture Pack V0.2) [GSNE8P]
+https://forums.dolphin-emu.org/Thread-super-smash-bros-brawl-hd-character-pack	Super Smash Bros. Brawl HD Character Pack
+https://forums.dolphin-emu.org/Thread-hd-qhd-retexture-muramasa-the-demon-blade-2k-momohime-add-on-pack-update-08-10-15	[HD/QHD Retexture] Muramasa:The Demon Blade 2K Momohime add-on pack - Update 08/10/15
+https://forums.dolphin-emu.org/Thread-luigi-s-mansion-specular-edition	Luigi's Mansion- Specular Edition
+https://forums.dolphin-emu.org/Thread-endless-ocean-2-hd-re-texture-wip	Endless Ocean 2 HD Re-Texture [WIP]
+https://forums.dolphin-emu.org/Thread-sonic-colors-playstation-hud-textures	Sonic Colors - PlayStation HUD textures
+https://forums.dolphin-emu.org/Thread-pikmin-2-hd-textures	Pikmin 2 HD textures
+https://forums.dolphin-emu.org/Thread-i-can-t-create-normal-maps-please-help	I can't create Normal Maps, please help!
+https://forums.dolphin-emu.org/Thread-waifu2x-naruto-clash-of-ninja-revolution-3	[WAIFU2X] Naruto: Clash Of Ninja Revolution 3!
+https://forums.dolphin-emu.org/Thread-crash-tag-team-racing-texture-fixes	Crash Tag Team Racing Texture Fixes
+https://forums.dolphin-emu.org/Thread-soul-calibur-ii-hd-project-gamecube	Soul Calibur II - HD Project (Gamecube)
+https://forums.dolphin-emu.org/Thread-smash-3-hd-remix-for-brawl-pm-feb-4	Smash 3 HD Remix for Brawl/PM: Feb 4
+https://forums.dolphin-emu.org/Thread-zelda-four-swords-adventures-texture-pack-and-aspect-ratio-mod	Zelda Four Swords Adventures texture pack and aspect ratio mod
+https://forums.dolphin-emu.org/Thread-dolphin-highres-texture-format-problem	Dolphin highres texture format problem
+https://forums.dolphin-emu.org/Thread-fire-emblem-path-of-radiance-xbox-one-texture-pack	Fire Emblem: Path of Radiance Xbox One Texture pack
+https://forums.dolphin-emu.org/Thread-mario-kart-wii-hd-retexture	Mario Kart Wii HD Retexture
+https://forums.dolphin-emu.org/Thread-mario-kart-double-dash-texture-pack	Mario Kart Double Dash Texture Pack
+https://forums.dolphin-emu.org/Thread-kirby-air-ride-hd-textures-v0-4-2-updated-wip	Kirby Air Ride HD Textures v0.4.2 [Updated!] [WIP]
+https://forums.dolphin-emu.org/Thread-old-custom-texture-format	Old custom texture format
+https://forums.dolphin-emu.org/Thread-request-mario-party-2-hd	[Request] Mario Party 2 HD
+https://forums.dolphin-emu.org/Thread-legacy-xp-2-0-beta-playstation-buttons-add-on	Legacy XP 2.0 BETA PlayStation Buttons add-on
+https://forums.dolphin-emu.org/Thread-unofficial-resize-dolphin-pack-for-linux-users-shrink-texture-packs-easily	[Unofficial] resize-dolphin-pack (for Linux users) - shrink texture packs easily
+https://forums.dolphin-emu.org/Thread-fire-emblem-series-playstation-button-pack	Fire Emblem Series Playstation Button Pack
+https://forums.dolphin-emu.org/Thread-the-legend-of-zelda-wind-waker-hd	The Legend of Zelda - Wind Waker HD
+https://forums.dolphin-emu.org/Thread-soul-calibur-ii-hd-character-retextures	Soul Calibur II HD Character Retextures.
+https://forums.dolphin-emu.org/Thread-animal-crossing-hd-textures-manual-scaling	Animal Crossing HD textures (manual scaling)
+https://forums.dolphin-emu.org/Thread-twilight-princess-to-wind-waker	Twilight Princess to Wind Waker
+https://forums.dolphin-emu.org/Thread-zelda-u-link-costume-twilight-princess	Zelda U Link Costume (Twilight Princess)
+https://forums.dolphin-emu.org/Thread-spongebob-squarepant-s-battle-of-bikini-bottom-hd-texture-pack-incomplete	SpongeBob SquarePant's Battle of Bikini Bottom HD Texture Pack (Incomplete)
+https://forums.dolphin-emu.org/Thread-small-hi-rez-textures-to-super-smash-bros-melee	Small Hi-Rez Textures to Super Smash Bros Melee.
+https://forums.dolphin-emu.org/Thread-mario-kart-64-hd-texture-pack-virtual-console	Mario Kart 64 HD Texture Pack (Virtual Console)
+https://forums.dolphin-emu.org/Thread-worms-blast-remastered-hd-textures	Worms Blast Remastered [HD Textures]
+https://forums.dolphin-emu.org/Thread-hd-texture-project-kirbys-air-ride	HD Texture Project Kirbys Air Ride
+https://forums.dolphin-emu.org/Thread-gcn-the-legend-of-zelda-twilight-princess-high-resolution-texture-pack	[GCN] The Legend of Zelda: Twilight Princess High Resolution Texture Pack
+https://forums.dolphin-emu.org/Thread-super-mario-galaxy-1-hires-texture-pack	Super Mario Galaxy 1 [hires texture pack]
+https://forums.dolphin-emu.org/Thread-remove-film-grain-effect-for-resident-evil-remake-gc-wii	[Remove Film Grain Effect] for Resident Evil Remake [GC&Wii]
+https://forums.dolphin-emu.org/Thread-green-notice-development-thread-custom-textures-verification-issues	Custom Textures verification issues
+https://forums.dolphin-emu.org/Thread-hd-texture-project-xenoblade-chronicles-v5-0u-may-17-2014	[HD Texture Project] Xenoblade Chronicles (v5.0U - May 17, 2014)
+https://forums.dolphin-emu.org/Thread-resident-evil-0-hd-pack	Resident Evil 0 (HD PACK)
+https://forums.dolphin-emu.org/Thread-hi-res-textures--17774	Hi-Res Textures
+https://forums.dolphin-emu.org/Thread-custom-texture-tool-ps-v52-5	Custom Texture Tool PS v52.5
+https://forums.dolphin-emu.org/Thread-how-to-install-texture-packs-custom-textures-info	How to Install Texture Packs / Custom Textures Info
+https://forums.dolphin-emu.org/Thread-introducing-dynamic-input-textures-a-new-feature-for-controller-icons	Introducing Dynamic Input Textures: a new feature for controller icons
+https://forums.dolphin-emu.org/Thread-introducing-resource-packs-a-new-feature-to-manage-and-install-texture-packs	Introducing Resource Packs: A new feature to manage and install texture packs
+https://forums.dolphin-emu.org/Thread-red-notice-read-this-first-how-to-start-an-hd-texture-project	How to start an HD Texture project
+https://forums.dolphin-emu.org/Thread-p-n-03-retexture-project	P.N.03 Retexture project.
