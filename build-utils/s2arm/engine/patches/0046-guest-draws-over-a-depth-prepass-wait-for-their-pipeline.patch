@@ -1,0 +1,82 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_geometry.inc b/graphics/nvn/gfx/nvn/nvn_geometry.inc
+index ab7a34008..167ef26e7 100644
+--- a/graphics/nvn/gfx/nvn/nvn_geometry.inc
++++ b/graphics/nvn/gfx/nvn/nvn_geometry.inc
+@@ -240,6 +240,7 @@ static id mtk_wait(const mtk_key *mk, const char *why) {
+ static const char *mtk_sync_why(NvShader *ts, NvShader *ms, NvShader *fs) {
+     if (!first_skip_on()) return "first-use skip off (DM_NVN_FIRST_SKIP=0)";
+     if (shader_writes(ts) || shader_writes(ms) || shader_writes(fs)) return "a stage writes storage";
++    if (over_prepass()) return "RewindBox: a draw over a depth prepass (depth EQUAL, no depth write)";   // RewindBox (patch 0046), nvn_mtl.m over_prepass
+     for (int i = 0; i < R.rt.n; i++) if (R.rt.color[i] && !rt_fresh_now(R.rt.color[i])) return "a target not started fresh this frame";
+     if (R.rt.depth && !rt_fresh_now(R.rt.depth)) return "a target not started fresh this frame";
+     for (int i = 0; i < R.rt.n; i++) if (R.rt.color[i] && !rt_seen_steady(R.rt.color[i])) return "a target not drawn in the last two frames";
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 17d83f7f0..de889420a 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -9020,20 +9020,34 @@ static int pso_fout_variant(NvProg *pr, NvShader *fs, const pso_key *k, int merg
+ static int g_first_skipped;   // pso_get_ returned nil to skip this draw (the draw counts it instead of logging a failure)
+ static uint64_t g_fsk_draws, g_fsk_frames, g_fsk_run, g_fsk_run_max, g_fsk_last_f, g_fsk_occl;   // g_fsk_occl: skipped while an occlusion query counted (its sample count reads low that frame)
+ static int shader_writes(NvShader *s) { if (!s) return 0; for (int i = 0; i < s->rf.nb; i++) if (s->rf.b[i].rw) return 1; return 0; }
+-static uint64_t g_fsk_no[4], g_fsk_no_n;   // why a first use was built here instead: [0] a shader writes storage [1] a target is loaded, not started fresh [2] a target not drawn every frame [3] background table full
+-static const char *const g_fsk_no_s[4] = {"a shader writes storage", "a target not started fresh this frame", "a target not drawn in the last two frames", "background table full"};
++static uint64_t g_fsk_no[5], g_fsk_no_n;   // why a first use was built here instead: [0] a shader writes storage [1] a target is loaded, not started fresh [2] a target not drawn every frame [3] background table full [4] RewindBox (patch 0046): a draw over a depth prepass
++static const char *const g_fsk_no_s[5] = {"a shader writes storage", "a target not started fresh this frame", "a target not drawn in the last two frames", "background table full", "RewindBox: a draw over a depth prepass"};
+ static int fsk_no(int i) {
+     g_fsk_no[i]++; uint64_t n = ++g_fsk_no_n;
+-    if (!(n & (n - 1))) MLOG("first-use skip: %llu first uses built on the submit thread instead (%s %llu, %s %llu, %s %llu, %s %llu); %llu draws skipped so far",
++    if (!(n & (n - 1))) MLOG("first-use skip: %llu first uses built on the submit thread instead (%s %llu, %s %llu, %s %llu, %s %llu, %s %llu); %llu draws skipped so far",
+                              (unsigned long long)n, g_fsk_no_s[0], (unsigned long long)g_fsk_no[0], g_fsk_no_s[1], (unsigned long long)g_fsk_no[1], g_fsk_no_s[2], (unsigned long long)g_fsk_no[2],
+-                             g_fsk_no_s[3], (unsigned long long)g_fsk_no[3], (unsigned long long)g_fsk_draws);
++                             g_fsk_no_s[3], (unsigned long long)g_fsk_no[3], g_fsk_no_s[4], (unsigned long long)g_fsk_no[4], (unsigned long long)g_fsk_draws);
+     return 0;
+ }
++// RewindBox (patch 0046): a draw that tests depth EQUAL without writing it draws over the depth another draw laid this frame (a depth prepass, then the scenery's colour draws).
++//   Skipped while its pipeline compiles, it leaves that shape with the targets' cleared colour for every frame the compile lasts: the objects drawn all black in the maintainer's
++//   recordings of Mario Kart World (15 November, IPA 751: a cube, posts and panels black while the frame rate fell to 4-8; each race session skipped 1,024 draws or more, up to
++//   10 frames in a row). Such a draw is not skippable: it waits for its pipeline as a draw whose target keeps content does (pso_pend_take, at most DM_NVN_PSO_UNSAFE_WAIT_MS),
++//   and a task / mesh draw like it within DM_NVN_MESH_WAIT_MS a frame (mtk_sync_why). The black shapes become a longer stall where a new pipeline is met. S2A_RB_EQ_WAIT=0
++//   (RewindBox's env.txt) skips them as before
++static int eq_wait_on(void) {
++    static int v = -1;
++    if (v < 0) { const char *e = getenv("S2A_RB_EQ_WAIT"); v = !(e && !strcmp(e, "0"));
++        MLOG("RewindBox: draws over a depth prepass (depth EQUAL, no depth write) %s (S2A_RB_EQ_WAIT)", v ? "wait for their pipeline instead of being skipped while it compiles" : "are skipped while their pipeline compiles, as before"); }
++    return v;
++}
++static int over_prepass(void) { return R.rt.depth && S.ds.dt && !S.ds.dw && S.ds.df == NVN_DEPTH_FUNC_EQUAL && eq_wait_on(); }
+ #define FSKN(i) fsk_no(i)
+ // Whether losing this draw costs at most a frame: no shader writes storage, every target is started fresh this frame and was drawn in the last two frames (first_skip_ok's rules).
+ //   Every skip goes through it: the first-use skip, a compile past its limit and a frame past its wait budget (pso_pend_take)
+ static int skip_safe(NvShader *vs, NvShader *fs) {
+     if (shader_writes(vs) || shader_writes(fs)) return 0;
++    if (over_prepass()) return 0;   // RewindBox (patch 0046)
+     for (int i = 0; i < R.rt.n; i++) if (R.rt.color[i] && (!rt_fresh_now(R.rt.color[i]) || !rt_seen_steady(R.rt.color[i]))) return 0;
+     if (R.rt.depth && (!rt_fresh_now(R.rt.depth) || !rt_seen_steady(R.rt.depth))) return 0;
+     return 1;
+@@ -9041,6 +9055,7 @@ static int skip_safe(NvShader *vs, NvShader *fs) {
+ static int first_skip_ok(const pso_key *k, NvShader *vs, NvShader *fs) {
+     if (!first_skip_on()) return 0;
+     if (shader_writes(vs) || shader_writes(fs)) return FSKN(0);
++    if (over_prepass()) return FSKN(4);   // RewindBox (patch 0046)
+     // Drawn every frame is not enough: a temporal history, accumulated decals or a partly updated shadow atlas are attached every frame and drawn on top of the last frame's content
+     //   (direct line 10-26): a draw skipped there leaves its hole for good. Only a target started fresh this frame (cleared / covered) gets it back next frame
+     for (int i = 0; i < R.rt.n; i++) if (R.rt.color[i] && !rt_fresh_now(R.rt.color[i])) return FSKN(1);
+@@ -9058,7 +9073,8 @@ static void first_skip_note(void) {
+     uint64_t n = ++g_fsk_draws, f = atomic_load_explicit(&g_cur_frame, memory_order_relaxed); g_fsk_occl += g_vis_cur >= 0;
+     // RewindBox (patch 0040): a draw that tests depth EQUAL and writes none draws over depth another draw laid (a depth prepass): skipped, it leaves that shape with the cleared
+     //   colour, not the scene behind it. Counted for the line below, to tell from a device log whether the black shapes Mario Kart World shows for the length of a stall (IPA 749,
+-    //   15 November, a boulder black for 3 s while the frame rate fell from 24 to 4) are such draws. Nothing is decided on it here
++    //   15 November, a boulder black for 3 s while the frame rate fell from 24 to 4) are such draws. Patch 0046 makes them wait (over_prepass): what this still counts was skipped
++    //   past a wait's cap, or with S2A_RB_EQ_WAIT=0
+     g_fsk_eq += R.rt.depth && S.ds.dt && !S.ds.dw && S.ds.df == NVN_DEPTH_FUNC_EQUAL;
+     if (n == 1 || f != g_fsk_last_f) { g_fsk_frames++; g_fsk_run = n > 1 && f == g_fsk_last_f + 1 ? g_fsk_run + 1 : 1; if (g_fsk_run > g_fsk_run_max) g_fsk_run_max = g_fsk_run; g_fsk_last_f = f; }
+     if (!(n & (n - 1))) MLOG("first-use skip: %llu draws skipped while their pipeline compiled in the background, over %llu frames (longest run %llu frames; %llu under an occlusion query); "
+@@ -9167,7 +9183,7 @@ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_vs(NvProg *pr, NvS
+           NSString *ak = par_rkey(&k, vs, fs, g_pso_lmap != NULL, ms_fn ? ms_fn : g_pso_fsfn);
+           MLOG("first-use wait #%llu frame %llu: %.1f ms for vertex %s fragment %s (archive key %s; %s; storage writes %d; waited for the queued compile %.1f ms, built here %.1f ms; prewarm lines compiling when it began %d, prewarm yields %s) targets:%s",
+                (unsigned long long)k_, (unsigned long long)atomic_load(&g_cur_frame), d_ / 1e6, vs->key, fs ? fs->key : "-", ak ? ak.UTF8String : "-",
+-               pp_late ? "past the wait limit" : may_skip ? "skippable, waited within the frame budget" : "not skippable", shader_writes(vs) || shader_writes(fs),
++               pp_late ? "past the wait limit" : may_skip ? "skippable, waited within the frame budget" : over_prepass() ? "not skippable: RewindBox, over a depth prepass" : "not skippable", shader_writes(vs) || shader_writes(fs),
+                fu_take / 1e6, fu_build / 1e6, fu_busy0, fu_yield_on() ? "on" : "off", tg);
+       } }
+     if (!ps && pso_err_transient(e)) {   // the compiler service, not the pipeline: retried after PSO_RETRY_FRAMES frames, its draws skipped meanwhile (never on the failed list for the run)
