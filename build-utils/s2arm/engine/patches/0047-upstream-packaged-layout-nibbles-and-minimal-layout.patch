@@ -1,0 +1,348 @@
+diff --git a/android/native/nvn/nvn_vk_first_draw.c b/android/native/nvn/nvn_vk_first_draw.c
+index 5f95ee7e1..07f79ef35 100644
+--- a/android/native/nvn/nvn_vk_first_draw.c
++++ b/android/native/nvn/nvn_vk_first_draw.c
+@@ -85,7 +85,7 @@ static void fd_tex_diag_once(const char *request_id, uint32_t tid, const struct
+            "tex=(flags=0x%x stride=%u blk_h=%d set_swz=%d swz=0x%x) "
+            "view=(%s) samp=(min=%u mag=%u wrap=%u/%u/%u cmp=%u/%u lod=%.2f..%.2f/%.2f aniso=%.1f)",
+            rid, tid, set, binding, slot, target, fmt, w, h, levels, layers,
+-           tex ? tex->nvn_flags : 0u, tex ? tex->nvn_stride : 0u, tex ? tex->nvn_pkg_block_h : 0,
++           tex ? tex->nvn_flags : 0u, tex ? tex->nvn_stride : 0u, tex ? tex->nvn_pkg_layout : 0,
+            tex ? tex->set_swz : 0, tex ? tex->swz : 0u, view_txt,
+            par ? par->minf : 0, par ? par->magf : 0, par ? par->ws : 0, par ? par->wt : 0, par ? par->wr : 0,
+            par ? par->cmp_mode : 0, par ? par->cmp_func : 0,
+diff --git a/android/native/nvn/nvn_vk_texcache.c b/android/native/nvn/nvn_vk_texcache.c
+index 3a571e432..02e1da40c 100644
+--- a/android/native/nvn/nvn_vk_texcache.c
++++ b/android/native/nvn/nvn_vk_texcache.c
+@@ -2447,7 +2447,7 @@ struct nvn_vk_tex *nvn_vk_texcache_get_tex(struct nvn_vk_texcache *c, const tex_
+                 levels, layers, depth, c->d->has_2d_array_compatible);
+     }
+     o->nvn_target = target; o->nvn_flags = (uint32_t)t->d.flags; o->nvn_stride = t->d.stride;
+-    o->nvn_pkg_block_h = t->d.pkg_block_h; o->view_type = vt; o->stencil_mode = (uint8_t)stencil_mode; o->valid = 1;
++    o->nvn_pkg_layout = t->d.pkg_layout; o->view_type = vt; o->stencil_mode = (uint8_t)stencil_mode; o->valid = 1;
+     o->set_swz = t->set_swz; o->swz = (uint16_t)t->swz;
+     o->generation = ++c->next_generation;
+     o->dsize = t->L.size;   // 批 A：内容账本/脏页查询都以存储字节数为准（未跟踪存储也保留）
+diff --git a/android/native/nvn/nvn_vk_texcache.h b/android/native/nvn/nvn_vk_texcache.h
+index d61a6a311..c3d48e9c4 100644
+--- a/android/native/nvn/nvn_vk_texcache.h
++++ b/android/native/nvn/nvn_vk_texcache.h
+@@ -40,7 +40,7 @@ struct nvn_vk_tex {
+     uint32_t nvn_target;    // NVNtextureTarget（8/9 = CUBEMAP/CUBEMAP_ARRAY；5/6/MS 与 10/BUFFER 未建图）
+     uint32_t nvn_flags;     // NVNtextureFlags（0x10 LINEAR / 0x20 SPARSE 等）
+     uint32_t nvn_stride;    // TextureBuilderSetStride（线性纹理行距）
+-    int32_t nvn_pkg_block_h;// 打包布局的 block height（0 = 自动算法）
++    int32_t nvn_pkg_layout;// 打包布局参数（编码见 nvn_tex.h pkg_layout；0 = 自动算法）
+     uint8_t stencil_mode;   // TextureBuilderSetDepthStencilMode(STENCIL)：采样 stencil 面而不是深度面
+     uint16_t swz;          // NVN TextureBuilderSetSwizzle：r | g<<3 | b<<6 | a<<9
+     uint8_t set_swz;
+diff --git a/android/tests/tex_identity_state_test.py b/android/tests/tex_identity_state_test.py
+index f75d63247..8dc60edb0 100644
+--- a/android/tests/tex_identity_state_test.py
++++ b/android/tests/tex_identity_state_test.py
+@@ -103,7 +103,7 @@ preamble = r'''
+ #include <string.h>
+ 
+ /* 共享记录布局的最小替身：只放被测函数读到的字段，字段名与 nvn_obj.h 同形（改名会让本测试编译失败）。 */
+-typedef struct { int target, format, flags, samples; uint32_t width, height, depth, levels, stride; int pkg_block_h; } nvn_texdesc;
++typedef struct { int target, format, flags, samples; uint32_t width, height, depth, levels, stride; int pkg_layout; } nvn_texdesc;
+ typedef struct { uint64_t size, layer_size; uint32_t align, layers, bpb; unsigned tileH, tileD; } nvn_texlayout;
+ typedef struct { uint32_t magic, flags; uint8_t *mem; uint64_t size; int32_t nvmap; uint64_t gva; } pool_t;
+ typedef struct {
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 191577032..6fb8c1d4c 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -510,8 +510,8 @@ NVN(nvnTextureBuilderSetStride, void, NVNtextureBuilder *b, ptrdiff_t s) { TB(b)
+ NVN(nvnTextureBuilderSetStorage, void, NVNtextureBuilder *b, NVNmemoryPool *p, ptrdiff_t off) { TB(b)->pool = (pool_t *)p; TB(b)->off = off; }
+ NVN(nvnTextureBuilderSetPackagedTextureLayout, void, NVNtextureBuilder *b, const NVNpackagedTextureLayout *l) {
+     TB(b)->has_layout = l != NULL; if (l) memcpy(TB(b)->layout, l->layout, 8);
+-    // byte 0 = block height (log2 GOBs) + 1 in bits 0-7; byte 1 = row-width alignment (log2 GOBs) + 1 in bits 8-15 (kept in the same int: tex_t must stay <= 0x80)
+-    TB(b)->d.pkg_block_h = l ? (l->layout[0] + 1) | (l->layout[1] + 1) << 8 : 0;
++    // byte 0 (low nibble block height, high nibble block depth, log2 GOBs) | byte 1's low nibble (width alignment, log2 GOBs) << 8, + 1 (one int: tex_t must stay <= 0x80; #676)
++    TB(b)->d.pkg_layout = l ? (l->layout[0] | (l->layout[1] & 0xf) << 8) + 1 : 0;
+ }
+ NVN(nvnTextureBuilderGetFlags, NVNtextureFlags, const NVNtextureBuilder *b) { return (NVNtextureFlags)((const tex_builder_t *)b)->d.flags; }
+ NVN(nvnTextureBuilderGetDevice, const NVNdevice *, const NVNtextureBuilder *b) { return ((const tex_builder_t *)b)->dev; }
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index de889420a..6a2275d86 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -3354,7 +3354,7 @@ static void zb_report(const tex_t *t, unsigned base, const char *why) {
+             if (sp) { for (uint64_t o = 0; o < n; o += 0x1000) m[o >> 12] = (uint8_t)nvn_sparse_mapped(t->pool, (uint64_t)(uintptr_t)t->mem + o, 0x1000);
+                 snprintf(fp, sizeof fp, "%s/zbm_%llu.bin", dir, (unsigned long long)t->serial); if ((f = fopen(fp, "wb"))) { fwrite(m, 1, n >> 12, f); fclose(f); } }
+             free(m); }
+-        MLOG("[zb] ser=%llu: block height log2 %d (packaged %d), stride %u, depth %u, target %d, samples %d", (unsigned long long)t->serial, (int)t->L.tileH, t->d.pkg_block_h, t->d.stride, t->d.depth, t->d.target, t->d.samples); }
++        MLOG("[zb] ser=%llu: block height log2 %d (packaged %d), stride %u, depth %u, target %d, samples %d", (unsigned long long)t->serial, (int)t->L.tileH, t->d.pkg_layout, t->d.stride, t->d.depth, t->d.target, t->d.samples); }
+ }
+ // The GPU deswizzle's source for a texture in a pool that holds only textures (no address given out, addr_meets; not resident yet): a zero-copy buffer over just this texture's pages, held by the
+ // open upload batch (g_up_keep), which takes it out of the residency set when the upload has run. Looked up as usual (nvn_be_addr → pool_res), such a pool went into the residency set whole and
+@@ -4885,7 +4885,7 @@ static id<MTLTexture> tex_mtl_(const tex_t *ct) {
+                     free(part); }
+                 MLOG("TEXINFO all=%d ser=%llu swizzled=%d has_layout=%d mem=%p pool=%p(%#x) off=%#llx target=%d format=%#x flags=%#x samples=%d %ux%ux%u levels=%u stride=%u block_h=%d storage %llu bytes non-zero %llu",
+                      any, (unsigned long long)t->serial, packaged, t->has_layout, t->mem, t->pool, t->pool ? t->pool->flags : 0, (unsigned long long)t->off, t->d.target, t->d.format, t->d.flags, t->d.samples,
+-                     t->d.width, t->d.height, t->d.depth, t->d.levels, t->d.stride, t->d.pkg_block_h, (unsigned long long)t->L.size, (unsigned long long)nz); }
++                     t->d.width, t->d.height, t->d.depth, t->d.levels, t->d.stride, t->d.pkg_layout, (unsigned long long)t->L.size, (unsigned long long)nz); }
+         }
+     }
+     id have = tex_get(t->serial);
+diff --git a/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc b/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
+index b2037e61f..6dccdc38f 100644
+--- a/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
++++ b/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
+@@ -238,7 +238,7 @@ static MTLTextureDescriptor *sp_check(const tex_t *t, int gpu, sp_geo *g, char *
+         if (!(t->d.flags & NVN_TEXTURE_FLAGS_SPARSE)) snprintf(why, nwhy, "not an NVN sparse texture (flags %#x): laid out whole, not in 64 KB tiles", t->d.flags);
+         else if (t->d.flags & (NVN_TEXTURE_FLAGS_LINEAR | NVN_TEXTURE_FLAGS_LINEAR_RENDER_TARGET)) snprintf(why, nwhy, "laid out linear (flags %#x)", t->d.flags);
+         else if (!q[0]) snprintf(why, nwhy, "no tiled level in NVN's sparse layout (flags %#x): all of it is mip tail", t->d.flags);
+-        else snprintf(why, nwhy, "NVN's tile %ux%ux%u (%u tiled levels) is not its layout's (packaged layout %#x; check C13)", q[1], q[2], q[3], q[0], (unsigned)t->d.pkg_block_h);
++        else snprintf(why, nwhy, "NVN's tile %ux%ux%u (%u tiled levels) is not its layout's (packaged layout %#x; check C13)", q[1], q[2], q[3], q[0], (unsigned)t->d.pkg_layout);   // RewindBox (patch 0047): S2Arm 3e0a61a0b renamed pkg_block_h
+         return nil;
+     }
+     if (n > 15 || td != 1 || t->d.levels > 16) { snprintf(why, nwhy, "%d tiled levels, tile depth %u, %u levels", n, td, t->d.levels); return nil; }
+diff --git a/graphics/nvn/gfx/nvn/nvn_tex.c b/graphics/nvn/gfx/nvn/nvn_tex.c
+index a00c2bd8c..1f80bd9a2 100644
+--- a/graphics/nvn/gfx/nvn/nvn_tex.c
++++ b/graphics/nvn/gfx/nvn/nvn_tex.c
+@@ -78,12 +78,15 @@ static int sparse_page(const nvn_texdesc *d, fmt_t t, unsigned *x, unsigned *y,
+ //   automatic block height. Samurai Shodown's 700×200 ASTC 6×6 sparse menu labels (34 block rows, page 384×384) come with the automatic 4-GOB block height; with the page's
+ //   8 GOBs, block columns 60 on read as all-zero blocks, which ASTC decodes as its error colour (magenta blocks over the main menu labels, 10-27)
+ static int sparse_levels(const nvn_texdesc *d) { uint32_t tl[4]; nvn_tex_sparse_layout(d, tl); return tl[0] != 0; }
++// Packaged layout byte 1, low nibble: log2 of the width alignment in GOBs (0 = none). Byte 0: low nibble log2 block height, high nibble log2 block depth (#676, after nxnative nvn_tex.c)
++static unsigned packaged_width_log2(const nvn_texdesc *d) { return d->pkg_layout ? ((unsigned)(d->pkg_layout - 1) >> 8) & 0xf : 0; }
+ // Offset of level `level` from the start of its layer, and the GOB columns it is laid out with (*gobs, may be NULL)
+ static uint64_t level_walk(const nvn_texdesc *d, unsigned level, unsigned dpl, uint32_t w, uint32_t h, uint32_t z,
+                            unsigned tileH, unsigned tileD, fmt_t t, uint32_t *gobs) {
+     uint32_t sx, sy; samples_xy(d->samples, &sx, &sy);
+-    uint32_t tw = 128u >> (tileH + tileD); if (!tw) tw = 1;   // GOB columns of a 64 KB tile
+-    int tiled = sparse_of(d) && sparse_levels(d);   // still in a sparse texture's tiled levels
++    unsigned pw = packaged_width_log2(d);
++    uint32_t tw = pw ? 1u << pw : 128u >> (tileH + tileD); if (!tw) tw = 1;   // GOB columns of a tile: the packaged width alignment, else those of a 64 KB tile
++    int tiled = (sparse_of(d) && sparse_levels(d)) || pw;   // still in the tiled levels (a sparse texture's, or a packaged layout's with width alignment)
+     uint64_t off = 0;
+     for (unsigned i = 0;; i++) {
+         uint32_t lw = blk(mip(w * sx, i), t.bw);
+@@ -94,9 +97,6 @@ static uint64_t level_walk(const nvn_texdesc *d, unsigned level, unsigned dpl, u
+         uint32_t wg = (lwb + 63) / 64, hg = (lh + 7) / 8;
+         tiled = tiled && lwb >= tw * 64 && lh >= 8u << tileH && ld >= 1u << tileD;
+         if (tiled) wg = (wg + tw - 1) / tw * tw;
+-        // Packaged layout byte 1: the row pitch of a level at least 2^n GOBs wide is aligned up to 2^n GOBs; narrower levels are not aligned.
+-        // Packaged ASTC / BC textures in 01004A4010FEA000 need it; read unaligned, the padding (all zero) is sampled and ASTC decodes it as magenta
+-        { unsigned pa = (unsigned)(d->pkg_block_h >> 8) & 0xff; if (!tiled && pa > 1) { unsigned a = 1u << (pa - 1); if (wg >= a) wg = (wg + a - 1) / a * a; } }
+         if (i == level) { if (gobs) *gobs = wg; return off; }
+         uint32_t ht = (hg + (1u << th) - 1) >> th, dt = (ld + (1u << td) - 1) >> td;
+         off += (uint64_t)wg * ht * dt << (9 + th + td);
+@@ -105,6 +105,20 @@ static uint64_t level_walk(const nvn_texdesc *d, unsigned level, unsigned dpl, u
+ static uint64_t level_offset(const nvn_texdesc *d, unsigned level, unsigned dpl, uint32_t w, uint32_t h, uint32_t z, unsigned tileH, unsigned tileD, fmt_t t) {
+     return level_walk(d, level, dpl, w, h, z, tileH, tileD, t, 0);
+ }
++// Bytes of one layer (all levels): a sparse texture's whole 64 KB tiles, a layered texture's layer aligned to its block (to its whole block times the width alignment of a packaged layout with one)
++static uint64_t layer_bytes(const nvn_texdesc *d, unsigned dpl, int layered, uint32_t w, uint32_t h, uint32_t z, unsigned tileH, unsigned tileD, fmt_t t) {
++    uint64_t ls = level_offset(d, d->levels ? d->levels : 1, dpl, w, h, z, tileH, tileD, t);
++    if (sparse_of(d)) ls = (ls + SPARSE_TILE - 1) & ~(uint64_t)(SPARSE_TILE - 1);
++    if (layered) {
++        uint32_t hh = blk(h, t.bh); unsigned th = tileH, td = tileD;
++        while (th && hh <= (8u << (th - 1))) th--;
++        while (td && z <= (1u << (td - 1))) td--;
++        unsigned pw = packaged_width_log2(d);
++        unsigned sh = pw ? pw + tileH + tileD + 9 : th + td + 9; uint64_t g = ls >> sh;
++        if (ls != g << sh) ls = (g + 1) << sh;
++    }
++    return ls;
++}
+ 
+ void nvn_tex_layout(const nvn_texdesc *d, nvn_texlayout *o) {
+     fmt_t t = fmt_of(d->format);
+@@ -126,19 +140,21 @@ void nvn_tex_layout(const nvn_texdesc *d, nvn_texlayout *o) {
+     }
+     unsigned tileH = 0, tileD = 0;
+     unsigned px, py, pz;
+-    if (dpl == 2) { uint32_t ah = blk(h * sy, t.bh); tileH = (d->pkg_block_h & 0xff) ? (unsigned)(d->pkg_block_h & 0xff) - 1 : sparse_page(d, t, &px, &py, &pz) && sparse_levels(d) ? py : pick_tile(ah * 3 / 16); }
++    if (d->pkg_layout) {                                              // packaged byte 0: low nibble block height, high nibble block depth (#676)
++        unsigned pl = (unsigned)(d->pkg_layout - 1) & 0xff;
++        if (dpl >= 2) tileH = pl & 0xf;
++        if (dpl == 3) tileD = pl >> 4;
++    }
++    else if (dpl == 2) { uint32_t ah = blk(h * sy, t.bh); tileH = sparse_page(d, t, &px, &py, &pz) && sparse_levels(d) ? py : pick_tile(ah * 3 / 16); }
+     else if (dpl == 3) { if (sparse_page(d, t, &px, &py, &pz)) { tileH = py; tileD = pz; } else tileD = pick_tile(z + z / 2); }
+-    o->tileH = tileH; o->tileD = tileD;
+-    unsigned levels = d->levels ? d->levels : 1;
+-    uint64_t ls = level_offset(d, levels, dpl, w, h, z, tileH, tileD, t);
+-    if (sparse_of(d)) ls = (ls + SPARSE_TILE - 1) & ~(uint64_t)(SPARSE_TILE - 1);
+-    if (layered) {                                                    // Layer size is aligned to the block
+-        uint32_t hh = blk(h, t.bh); unsigned th = tileH, td = tileD;
+-        while (th && hh <= (8u << (th - 1))) th--;
+-        while (td && z <= (1u << (td - 1))) td--;
+-        unsigned sh = th + td + 9; uint64_t g = ls >> sh;
+-        if (ls != g << sh) ls = (g + 1) << sh;
++    uint64_t ls = layer_bytes(d, dpl, layered, w, h, z, tileH, tileD, t);
++    // MINIMAL_LAYOUT (0x200): the driver keeps the automatic block height and depth only when the whole layer (every level, the layer alignment) is no larger than with 1-GOB blocks,
++    //   else it takes 1-GOB blocks (driver sweep, after nxnative nvn_tex.c). A packaged layout and a sparse texture's tiles keep their own
++    if ((d->flags & 0x200) && !d->pkg_layout && !sparse_of(d) && (tileH || tileD)) {
++        uint64_t one = layer_bytes(d, dpl, layered, w, h, z, 0, 0, t);
++        if (one != ls) { tileH = tileD = 0; ls = one; }
+     }
++    o->tileH = tileH; o->tileD = tileD;
+     o->layer_size = ls;
+     o->size = layered ? ls * z : ls;
+     o->align = sparse_of(d) ? SPARSE_TILE : 512;
+@@ -196,7 +212,8 @@ void nvn_tex_sparse_layout(const nvn_texdesc *d, uint32_t tile[4]) {
+ // RewindBox (patch 0024): the tiles of a sparse texture as this file lays it out (level_walk), for nvn_mtl.m's placement sparse textures (later patches), which map and
+ //   decode each tile as 64 KB of storage of its own (nvn_deswizzle_tile) and the levels from the first untiled one as the mip tail.
+ //   Ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 933b6759 and f24e6b80 (dm/gfx/nvn/nvn_tex.c:207-223 at 0c078130), over this file's layout: upstream's
+-//   nvn_tex.c is not taken (its packaged layout, MINIMAL_LAYOUT and LINEAR_RENDER_TARGET rules would change storage sizes in other games).
++//   nvn_tex.c is not taken (its packaged layout, MINIMAL_LAYOUT and LINEAR_RENDER_TARGET rules would change storage sizes in other games; S2Arm took the packaged
++//   layout and MINIMAL_LAYOUT rules itself later, in 3e0a61a0b, which RewindBox's patch 0047 takes: Mario Kart World's CPU-written 260x260 terrain textures are MINIMAL_LAYOUT).
+ //   S2Arm adaptations: level_walk shapes the tile with the layout's own block height (it has no tile_shape_h), and tiles nothing when the public query above has no
+ //   tiled level (sparse_levels); and the answer is 0, with no tile, when the layout's tiles are not that query's, which the game reads (nvnTextureGetSparseTileLayout,
+ //   patch 0012) and maps its tiles by. A size check cannot see a 64 KB tile of another shape (a packaged block height other than the query's page height) or a level the
+@@ -212,7 +229,9 @@ int nvn_tex_sparse_tiles(const nvn_texdesc *d, uint32_t *tw, uint32_t *th, uint3
+     if (!sparse_of(d) || !t.bpb || !q[0]) return 0;   // S2Arm: laid out linear (0x40 too, which the query tiles), or no tiled level in the query, so none in level_walk (sparse_levels)
+     uint32_t sx, sy; samples_xy(d->samples, &sx, &sy);
+     nvn_texlayout L; nvn_tex_layout(d, &L);
+-    uint32_t gw = 128u >> (L.tileH + L.tileD); if (!gw) gw = 1;   // GOB columns of a tile, as level_walk (S2Arm: the layout's block height)
++    // GOB columns of a tile, as level_walk (S2Arm: the layout's block height). RewindBox (patch 0047): and, as level_walk since S2Arm 3e0a61a0b, a packaged layout's width alignment
++    unsigned pw = packaged_width_log2(d);
++    uint32_t gw = pw ? 1u << pw : 128u >> (L.tileH + L.tileD); if (!gw) gw = 1;
+     uint32_t lw = gw * 64 / t.bpb * t.bw / sx, lh = dpl >= 2 ? (8u << L.tileH) * t.bh / sy : 1, ld = dpl >= 3 ? 1u << L.tileD : 1;
+     unsigned levels = d->levels ? d->levels : 1, n = 0;
+     for (; n < levels; n++) {   // the same test as level_walk's: a level at least one tile wide, high and deep
+diff --git a/graphics/nvn/gfx/nvn/nvn_tex.h b/graphics/nvn/gfx/nvn/nvn_tex.h
+index ad308e353..095dbf4c8 100644
+--- a/graphics/nvn/gfx/nvn/nvn_tex.h
++++ b/graphics/nvn/gfx/nvn/nvn_tex.h
+@@ -5,7 +5,7 @@
+ typedef struct {
+     int target, format, flags, samples;   // NVNtextureTarget / NVNformat / NVNtextureFlags / sample count (0 or 1 = single-sampled)
+     uint32_t width, height, depth, levels, stride;
+-    int pkg_block_h;                      // Bits 0-7: byte 0 of the packaged texture layout parameters (log2 of block height) + 1; bits 8-15: byte 1 (log2 of the row-width alignment in GOBs) + 1; 0 = use the automatic algorithm
++    int pkg_layout;                       // Packaged layout byte 0 (low nibble log2 block height, high nibble log2 block depth) | byte 1's low nibble (log2 width alignment in GOBs) << 8, + 1; 0 = automatic
+ } nvn_texdesc;
+ 
+ typedef struct {
+diff --git a/graphics/nvn/gfx/tex/README.md b/graphics/nvn/gfx/tex/README.md
+index bd405d6fc..1d99255d1 100644
+--- a/graphics/nvn/gfx/tex/README.md
++++ b/graphics/nvn/gfx/tex/README.md
+@@ -17,7 +17,7 @@ Block linear is how the Tegra X1 GPU stores textures: the data is not one row af
+ | `nvn_deswizzle_gpu.h`, `nvn_deswizzle_gpu.m` | A Metal compute shader version of the same deswizzling algorithm, used by the replay layer when uploading packaged textures; when initialization fails or an unsupported format is encountered, the replay layer falls back to the CPU version |
+ | `tests/` | Unit tests |
+ 
+-The offsets of each level and layer within the storage, and the block height and block depth actually used by each level, are all taken from `../nvn/nvn_tex.c` (`nvn_tex_layout`, `nvn_tex_level_offset`, `nvn_tex_level_tiles`); this directory only does addressing and moving within a level. The game's packaged textures carry their own layout parameters, whose byte 0 is the log2 of the level 0 block height; when it is present it takes precedence (the `pkg_block_h` field of `nvn_texdesc`).
++The offsets of each level and layer within the storage, and the block height and block depth actually used by each level, are all taken from `../nvn/nvn_tex.c` (`nvn_tex_layout`, `nvn_tex_level_offset`, `nvn_tex_level_tiles`); this directory only does addressing and moving within a level. The game's packaged textures carry their own layout parameters, whose byte 0 is the log2 of the level 0 block height; when it is present it takes precedence (the `pkg_layout` field of `nvn_texdesc`).
+ 
+ ## BC textures
+ 
+diff --git a/graphics/nvn/gfx/tex/tests/.gitignore b/graphics/nvn/gfx/tex/tests/.gitignore
+index 093b29391..a31a07ab5 100644
+--- a/graphics/nvn/gfx/tex/tests/.gitignore
++++ b/graphics/nvn/gfx/tex/tests/.gitignore
+@@ -1,3 +1,4 @@
+ t_tex
+ t_fmt_mtl
+ *.dSYM
++t_tex_layout
+diff --git a/graphics/nvn/gfx/tex/tests/Makefile b/graphics/nvn/gfx/tex/tests/Makefile
+index aa50aa20f..5d426365a 100644
+--- a/graphics/nvn/gfx/tex/tests/Makefile
++++ b/graphics/nvn/gfx/tex/tests/Makefile
+@@ -4,6 +4,8 @@ t_tex: t_tex.c ../nvn_deswizzle.c ../nvn_deswizzle.h ../../nvn/nvn_tex.c ../../n
+ 	clang $(CFLAGS) -o $@ t_tex.c ../nvn_deswizzle.c ../../nvn/nvn_tex.c -lm
+ t_fmt_mtl: t_fmt_mtl.m ../nvn_fmt_mtl.c ../nvn_fmt_mtl.h ../../nvn/nvn_fmt_expand.c ../../nvn/nvn_fmt_expand.h
+ 	clang $(CFLAGS) -fobjc-arc -o $@ t_fmt_mtl.m ../nvn_fmt_mtl.c ../../nvn/nvn_fmt_expand.c -framework Metal -framework Foundation
+-run: t_tex t_fmt_mtl
+-	./t_fmt_mtl && ./t_tex
++t_tex_layout: t_tex_layout.c ../../nvn/nvn_tex.c ../../nvn/nvn_tex.h
++	clang $(CFLAGS) -o $@ t_tex_layout.c ../../nvn/nvn_tex.c
++run: t_tex t_fmt_mtl t_tex_layout
++	./t_fmt_mtl && ./t_tex && ./t_tex_layout
+ .PHONY: run
+diff --git a/graphics/nvn/gfx/tex/tests/t_tex.c b/graphics/nvn/gfx/tex/tests/t_tex.c
+index 514b4af33..5d0b29f63 100644
+--- a/graphics/nvn/gfx/tex/tests/t_tex.c
++++ b/graphics/nvn/gfx/tex/tests/t_tex.c
+@@ -123,10 +123,10 @@ int main(void) {
+         for (unsigned l = 0; l < 3; l++) CHECK(nvn_tex_level_gobs(&d, l) == gobs[l], "S level %u laid out %u GOBs wide, expected %u", l, nvn_tex_level_gobs(&d, l), gobs[l]);
+         CHECK(L.size == 0xE0000 && L.align == 0x10000, "S storage %#llx alignment %#x, expected 0xe0000 / 0x10000", (unsigned long long)L.size, L.align);
+         printf("  S 1024×1024 ASTC 6×6 sparse: levels at 0, %#llx, %#llx …, storage %#llx (expected 0x90000, 0xd0000, 0xe0000)\n", (unsigned long long)nvn_tex_level_offset(&d, 1), (unsigned long long)nvn_tex_level_offset(&d, 2), (unsigned long long)L.size);
+-        d.pkg_block_h = 0; nvn_tex_layout(&d, &L);   // without the packaged layout the sparse page's block height (8 GOBs at 16 bytes a block) gives the same layout
++        d.pkg_layout = 0; nvn_tex_layout(&d, &L);   // without the packaged layout the sparse page's block height (8 GOBs at 16 bytes a block) gives the same layout
+         for (unsigned l = 0; l < 8; l++) CHECK(nvn_tex_level_offset(&d, l) == off[l], "S no packaged layout: level %u offset %#llx expected %#llx", l, (unsigned long long)nvn_tex_level_offset(&d, l), (unsigned long long)off[l]);
+         CHECK(L.size == 0xE0000 && L.tileH == 3, "S no packaged layout: storage %#llx block height %u, expected 0xe0000 / 3", (unsigned long long)L.size, L.tileH);
+-        d.pkg_block_h = 4;
++        d.pkg_layout = 4;
+         d.flags = 0; nvn_tex_layout(&d, &L);   // the same texture not sparse keeps the packed layout
+         CHECK(nvn_tex_level_offset(&d, 1) == 0x81000 && L.size == 0xBC400 && nvn_tex_level_gobs(&d, 0) == 43, "S not sparse: level 1 %#llx storage %#llx, expected 0x81000 / 0xbc400",
+               (unsigned long long)nvn_tex_level_offset(&d, 1), (unsigned long long)L.size);
+@@ -138,7 +138,7 @@ int main(void) {
+     // equal S's. Read unaligned (level 1 at 0x81000), the padding's all-zero blocks are sampled and ASTC decodes them as magenta (01004A4010FEA000's character menu background)
+     printf("P packaged row alignment (layout byte 1)\n");
+     {
+-        nvn_texdesc d = {1, 0x8B, 0, 0, 1024, 1024, 1, 8, 0, 4 | 5 << 8};
++        nvn_texdesc d = {1, 0x8B, 0, 0, 1024, 1024, 1, 8, 0, (3 | 4 << 8) + 1};   // pkg_layout: layout bytes 03 04 (#676 encoding)
+         static const uint64_t off[8] = {0, 0x90000, 0xD0000, 0xDB000, 0xDE000, 0xDEC00, 0xDF000, 0xDF200};
+         static const uint32_t gobs[3] = {48, 32, 11};
+         for (unsigned l = 0; l < 8; l++) CHECK(nvn_tex_level_offset(&d, l) == off[l], "P level %u offset %#llx expected %#llx", l, (unsigned long long)nvn_tex_level_offset(&d, l), (unsigned long long)off[l]);
+diff --git a/graphics/nvn/gfx/tex/tests/t_tex_layout.c b/graphics/nvn/gfx/tex/tests/t_tex_layout.c
+new file mode 100644
+index 000000000..d5d56cf7e
+--- /dev/null
++++ b/graphics/nvn/gfx/tex/tests/t_tex_layout.c
+@@ -0,0 +1,57 @@
++// Ported from nxnative dm/gfx/tests/t_tex_layout.c (MIT) for #676: packaged layout bytes, packaged width alignment, MINIMAL_LAYOUT. Its linear BC1 shape (the driver counts pixel rows,
++// also for BC) is left out: nvn_tex.c still sizes linear BC storage by block rows, a separate difference not touched here. nvn_tex_sparse_tiles is nxnative-only (S2Arm has nvn_tex_sparse_layout).
++// Texture storage against shapes the original NVN driver gives (digitalhivehub ran Tears of the Kingdom's driver under emulation, nxnative PR #11; MacNativeGames 3c482a7):
++// cube array depth counts layer-faces, packaged byte 0 = block height (low nibble) and block depth (high nibble), linear storage (LINEAR or LINEAR_RENDER_TARGET alone)
++// counts pixel rows, also for BC. pkg is the first 12 layout bits + 1 (0 = automatic), as nvn_texdesc stores it. The MINIMAL_LAYOUT shapes (flag 0x200) are the driver's from PR #11's t_tex,
++// the array and packaged ones from TotK 1.2.1's driver (sdk b9046c31, GitHub issue #183): automatic blocks only when they add no padding to the layer, else 1 GOB. The sparse (flag 0x20) shapes are block heights read off a game's guest bytes instead: a sparse texture at least one 64 KB tile wide and high
++// takes its tile's block height (384x384 DXT5, 1350x270 BGRA8), a smaller one keeps the automatic one (192x160 DXT5 and 384x384 DXT1, Yoshi's Crafted World)
++#include <stdio.h>
++#include "../../nvn/nvn_tex.h"
++
++typedef struct { const char *what; int target, format, flags; unsigned w, h, depth, levels, stride; int pkg; uint64_t size, layer, off1; unsigned align, th, td; } shape_t;
++static const shape_t driver[] = {
++    // Original Bayonetta Origins SDK arithmetic oracle: H3/D0/W4, no SPARSE flag.
++    {"packaged ASTC6x6 W4 paper", 1,0x7d,4,2052,1026,1,1,0,0x404,0x120000,0x120000,0,512,3,0},
++    {"packaged ASTC6x6 W0 negative control", 1,0x7d,4,2052,1026,1,1,0,4,0x102000,0x102000,0,512,3,0},
++    {"packaged ASTC6x6 W4 mip tail", 1,0x7d,4,2052,1026,1,8,0,0x404,0x19dc00,0x19dc00,0x120000,512,3,0},
++    {"packaged ASTC6x6 W4 cube tail alignment", 8,0x7d,4,1024,1024,6,8,0,0x404,0x540000,0xe0000,0x90000,512,3,0},
++    {"packaged ASTC6x6 W4 array tail alignment", 4,0x7d,4,2052,1026,3,8,0,0x404,0x4e0000,0x1a0000,0x120000,512,3,0},
++    {"cube array RGBA8 4x4 depth 6",                9, 0x25, 0,    4, 4, 6, 1, 0, 0,         3072, 512, 0, 512, 0, 0},
++    {"cube array RGBA8 64x64 depth 12, 7 levels",   9, 0x25, 0,    64, 64, 12, 7, 0, 0,      294912, 24576, 16384, 512, 3, 0},
++    {"packaged 3D BC4 64^3, 7 levels, byte 0x40",   2, 0x49, 0,    64, 64, 64, 7, 0, 0x41,   163328, 163328, 131072, 512, 0, 4},
++    {"packaged 3D RGBA8 32^3, byte 0x00",           2, 0x25, 0,    32, 32, 32, 1, 0, 0x01,   131072, 131072, 0, 512, 0, 0},
++    {"packaged 3D RGBA8 32^3, byte 0x12",           2, 0x25, 0,    32, 32, 32, 1, 0, 0x13,   131072, 131072, 0, 512, 2, 1},
++    {"packaged 2D RGBA8 64x64, byte 0x13",          1, 0x25, 0,    64, 64, 1, 1, 0, 0x14,    16384, 16384, 0, 512, 3, 0},
++    {"linear RT RGBA8 260x260 stride 1152",         1, 0x25, 0x40, 260, 260, 1, 1, 1152, 0,  299520, 299520, 0, 128, 0, 0},
++    {"linear RT RGBA8 1x1 stride 128",              1, 0x25, 0x40, 1, 1, 1, 1, 128, 0,       128, 128, 0, 128, 0, 0},
++    {"minimal RG8 260x260, 9 levels",               1, 0x0d, 0x200, 260, 260, 1, 9, 0, 0,   214528, 214528, 152064, 512, 0, 0},
++    {"minimal RGB565 320x320 (Depths)",             1, 0x3c, 0x200, 320, 320, 1, 1, 0, 0,   204800, 204800, 0, 512, 0, 0},
++    {"minimal RGB5A1 320x320 (Depths)",             1, 0x3b, 0x200, 320, 320, 1, 1, 0, 0,   204800, 204800, 0, 512, 0, 0},
++    {"minimal RGBA8 64x128, no padding: automatic", 1, 0x25, 0x200, 64, 128, 1, 1, 0, 0,    32768, 32768, 0, 512, 4, 0},
++    {"minimal R8 8x1920, 11 levels",                1, 0x01, 0x200, 8, 1920, 1, 11, 0, 0,   246784, 246784, 122880, 512, 0, 0},
++    {"minimal 3D RGBA8 64x64x8: automatic",         2, 0x25, 0x200, 64, 64, 8, 1, 0, 0,     131072, 131072, 0, 512, 0, 3},
++    {"minimal 3D RGBA8 64x64x9",                    2, 0x25, 0x200, 64, 64, 9, 1, 0, 0,     147456, 147456, 0, 512, 0, 0},
++    {"minimal 2D array RGBA8 64x64x3, 7 levels",    4, 0x25, 0x200, 64, 64, 3, 7, 0, 0,     70656, 23552, 16384, 512, 0, 0},
++    {"minimal RGB565 320x320, packaged byte 0x04",  1, 0x3c, 0x200, 320, 320, 1, 1, 0, 5,   245760, 245760, 0, 512, 4, 0},
++    {"sparse DXT5 192x160, under a tile",           1, 0x48, 0x20, 192, 160, 1, 1, 0, 0,     0x10000, 0x10000, 0, 0x10000, 2, 0},
++    {"sparse DXT1 384x384, narrower than a tile",   1, 0x45, 0x20, 384, 384, 1, 1, 0, 0,     0x20000, 0x20000, 0, 0x10000, 4, 0},
++    {"sparse DXT5 384x384, a tile wide",            1, 0x48, 0x20, 384, 384, 1, 1, 0, 0,     0x40000, 0x40000, 0, 0x10000, 3, 0},
++    {"sparse BGRA8 1350x270",                       1, 0x9c, 0x20, 1350, 270, 1, 1, 0, 0,    0x210000, 0x210000, 0, 0x10000, 4, 0},
++};
++
++int main(void) {
++    int fail = 0, n = (int)(sizeof driver / sizeof *driver);
++    for (int i = 0; i < n; i++) {
++        const shape_t *c = &driver[i];
++        nvn_texdesc d = {.target = c->target, .format = c->format, .flags = c->flags, .width = c->w, .height = c->h, .depth = c->depth, .levels = c->levels, .stride = c->stride, .pkg_layout = c->pkg};
++        nvn_texlayout l; nvn_tex_layout(&d, &l);
++        uint64_t off1 = c->levels > 1 ? nvn_tex_level_offset(&d, 1) : 0;
++        if (l.size != c->size || l.layer_size != c->layer || off1 != c->off1 || l.align != c->align || l.tileH != c->th || l.tileD != c->td) {
++            fail++;
++            printf("FAIL %s: size %llu layer %llu level 1 at %llu align %u block %u/%u; driver %llu %llu %llu %u %u/%u\n", c->what, (unsigned long long)l.size, (unsigned long long)l.layer_size,
++                   (unsigned long long)off1, l.align, l.tileH, l.tileD, (unsigned long long)c->size, (unsigned long long)c->layer, (unsigned long long)c->off1, c->align, c->th, c->td);
++        }
++    }
++    printf("t_tex_layout: %d of %d shapes match\n", n - fail, n);
++    return fail != 0;
++}
