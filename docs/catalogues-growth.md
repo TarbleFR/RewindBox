@@ -29,6 +29,12 @@ python3 tools/catalogues/report.py [--compare <commit>] [--json]
     commits: no file content is downloaded).
   - It changes no catalogue. A moved source is refreshed by its builder,
     which reviews and pins the new input.
+  - It lists 62 pins. On 16 November 2026 it asked 33 hosts once and found 15
+    moved pins; a second run made one request.
+- **`tools/textures/discover.py --cache <file>`** keeps its answers between
+  runs. In `github` mode a repository that was not pushed since its cached
+  description is not read again; in `links` mode a URL that answered "ok"
+  less than `--max-age` days ago is not asked again.
 - **`report.py`** prints the counts of the four catalogues from the published
   files, for the working tree or a commit, and the difference between two
   states. It checks every enhancement shard against its index while counting.
