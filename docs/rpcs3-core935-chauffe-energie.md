@@ -483,3 +483,95 @@ inchangées). IPA 760 sur la base 759 : première demande (run 43845801508) refu
 « ajouté » alors qu'inchangé), seconde demande verte (run 43849717506). IPA `5a60cc20…`, 331 176 688 octets, vérifiée
 hors ligne après téléchargement et remise au mainteneur ; clé privée supprimée. Groupes Flutter et natif non exécutés.
 Non testée sur iPhone : gel de Black Ops II, chaleur et images par seconde restent à observer.
+
+## 12. Journaux de l'IPA 760 (16 novembre) et Core 941
+
+Demande du mainteneur, 16 novembre : rester en état « nominal », ne pas s'arrêter à deux correctifs. Journaux privés hors
+Git, IPA 760 = Core 940 : Black Ops II (PID 24522, 306 s) puis God of War III (PID 24610, 109 s), 78 fenêtres de 5 s.
+
+### Ce que mesurent les journaux
+
+| Scène | Images/s | Puissance CPU | Cœurs occupés (dont cœurs P) | Fréquence des cœurs P | Réveils de minuterie/s | État |
+|---|---|---|---|---|---|---|
+| Black Ops II, menus | 60 | 0,60 à 2,12 W | 1,0 à 1,2 (0,72 à 0,82) | 1,75 à 3,42 GHz | 42 000 | nominal |
+| Black Ops II, partie, 15 premières secondes | 40 à 47 | 2,8 à 3,4 W | 4,3 (1,8) | 2,4 à 2,7 GHz | 21 000 | nominal |
+| Black Ops II, partie, ensuite | 20 à 30 | 1,9 à 2,0 W | 4,4 à 4,6 (1,9) | 1,6 à 1,8 GHz | 24 000 | fair |
+| God of War III, écran-titre | 60 | 0,53 W | 0,21 (0,18) | 3,93 GHz | 43 000 | fair |
+| God of War III, scènes lourdes | 14 à 21 | 2,0 à 2,25 W | 4,8 à 5,0 (1,95) | 1,26 à 1,45 GHz | 10 000 à 22 000 | fair |
+
+Lecture :
+
+1. **Les menus coûtent selon la fréquence qu'iOS donne aux cœurs P, pas selon le travail.** Quatre fenêtres de menu de
+   Black Ops II font le même travail pour 0,60, 1,35, 1,68 et 2,12 W. La grappe P est facturée 0,75 J par seconde de CPU
+   à 1,75 GHz et 2,7 J à 3,4 GHz ; la grappe E, 0,18 J. 73 % du temps CPU des menus est sur les cœurs P.
+2. Les 42 000 réveils par seconde des menus : 29 600 sommeils de sondage des six fils SPU (la règle du Core 939 n'en
+   allonge que 9 % : chaque fil prend un travail toutes les 0,64 ms), 11 300 tranches de parcage du RSX, 2 750 attentes
+   du jeu.
+3. La partie passe en « fair » environ 15 s après son début ; iOS baisse alors les cœurs P de 2,4-2,7 à 1,6-1,8 GHz et le
+   jeu, qui cale ses images sur des multiples de 16,7 ms, alterne entre 33 et 50 ms : c'est l'oscillation ressentie.
+   En partie le travail est réel (SPU 2,7 à 2,9 cœurs, PPU 1,0, RSX 0,36, encodage Metal 0,26) : aucun gaspillage du
+   même ordre que dans les menus n'y est mesuré.
+4. L'attente basse consommation (WFE) repose réellement le cœur depuis le Core 940 (`WFEPROBE939` : 1,33 µs par tour,
+   `wfe_verdict=1`), mais la politique ne l'emploie qu'à partir de « serious » : `event_waits=off` dans les 78 fenêtres.
+5. Les sommeils pris en classe « utility » par le Core 939 (IPA 756 et 760) : 11 893, dont 134 en retard (1,1 %), aucun
+   changement de classe en échec.
+6. La sonde d'échéance du Core 940 répond `status=ok chosen=0x47` : iOS 27 accepte qu'une app donne une échéance d'image.
+   Rien ne s'en sert encore.
+
+### Ce que change le Core 941
+
+- **`REWINDBOX_LIGHT_LOAD_941` (menus, écrans-titres, salons).** Quand le jeu est léger, ses fils PPU, SPU et RSX passent
+  dans la classe « utility », qu'iOS garde sur les cœurs E. « Léger » : pendant 3 s, au plus 1,25 cœur, aucun fil au-dessus
+  de 0,40 cœur, et une cadence d'images stable d'au moins 15 images/s (un chargement ou une image fixe n'est pas « léger » :
+  son travail n'est pas cadencé, le ralentir ne ferait que l'allonger). Sortie immédiate (un échantillon de 500 ms) à
+  2,5 cœurs, ou quand la cadence passe sous 95 % de celle d'avant l'entrée pendant deux échantillons ; une cadence perdue
+  dans les 5 s qui suivent l'entrée est imputée à la classe : la prochaine entrée attend 20 s, puis 40, … jusqu'à 320 s.
+  Chaque fil applique la classe là où il teste déjà son état, et reprend la sienne de la même façon. Fils audio,
+  compilation, MoltenVK et application hôte : non touchés.
+- **`REWINDBOX_RSX_IDLE_941`, tranches de parcage.** La tranche suit la durée du repos : 50 µs, 100 µs à partir de 2 ms,
+  200 µs à partir de 4 ms, 1 ms à partir de 250 ms (Core 938). Un parcage de 6,6 ms prend environ 50 tranches au lieu de
+  104 ; un de 8,2 ms environ 58 au lieu de 131. Un PUT du jeu après 2 ms de repos est vu au plus 100 µs plus tard, après
+  4 ms au plus 200 µs plus tard ; vidage, flip et ZCULL réveillent toujours aussitôt.
+- **`REWINDBOX_RSX_IDLE_941`, délai de grâce.** Pendant la milliseconde qui précède un parcage (341 périodes par fenêtre
+  en partie, 430 dans les menus, en appels d'ordonnanceur dos à dos sur un cœur P), l'attente sur la ligne du registre PUT
+  sert dans tous les états thermiques dès que l'auto-test du Core 940 a vu qu'elle repose le cœur, six tours entre deux
+  `yield` ; un PUT vu pendant un tour est lu sans `yield`.
+- `THERMAL931` publie `light_class`, `light_entries`, `light_leaves` (charge:cadence:imputée), `light_ms`,
+  `light_class_changes`, `light_class_failures`.
+
+Tout le lot se coupe avec « Event Waits When Hot » = Disabled. Aucun fichier d'entrée de génération de code n'est
+modifié : identités PPU `a987639e9f838d1c` et SPU `477a3fa442d27917` inchangées, caches des joueurs conservés.
+
+### Ce que le lot ne change pas, et pourquoi
+
+- **Les attentes WFE des fils PPU et des écrivains SPU restent à partir de « serious ».** Elles durent moins de 0,5 µs
+  dans 94 % des cas (1,15 million sur 1,22 par fenêtre) ; aucune fenêtre « serious » de l'IPA 760 ne mesure ce que le vrai
+  repos du Core 940 leur fait. Les avancer sans cette mesure pourrait coûter des images. À lire dans les prochains
+  journaux : `wfe_latency_us` et les images par seconde d'une fenêtre « serious ».
+- **Réservations SPU exactes de Black Ops II.** Les fils PPU y passent 10,6 % de leur temps à attendre derrière les
+  écritures exactes des SPU (530 ms par fenêtre, dont 183 ms pour le fil principal), et les SPU 603 ms dans le verrou. Le
+  réglage par jeu « Accurate SPU Reservations » désactivé les supprime ; la base RPCS3 reste la référence (règle du
+  Core 922), le défaut n'est donc pas changé ici. C'est l'essai le plus utile contre l'alternance 33/50 ms.
+- **Travail en partie** : pas de dépense évitable mesurée ; rester « nominal » pendant un long match demanderait de faire
+  moins de travail (cadence plafonnée), ce qui est une décision du mainteneur, pas un correctif.
+
+### Vérifications (PC)
+
+- Contrôle hôte jetable du contrôleur et des tranches (g++ avec ASan/UBSan et clang++, `-Wall -Wextra -Werror`) :
+  entrée après six échantillons, sortie sur charge, sur cadence, imputation et doublement des attentes, écran de
+  chargement et fil chargé jamais « légers », suivi par fil.
+- Syntaxe des fichiers C++ modifiés avec `-DRPCS3_IOS` sur l'hôte : `RSXFIFO.cpp`, `CPUThread.cpp` et `RSXThread.cpp`
+  n'ont que les erreurs que le Core 940 a déjà sur cet hôte ; `Thread.cpp` et `RPCS3IOSPerformance.cpp` dépendent
+  d'en-têtes absents ici (asmjit, Apple) : relus à la main, compilés par la route Core.
+- Porte de la route Core (`--check-source-closure`, code 0), test de route, test du pin (source), règle des marqueurs ;
+  correctif canonique re-matérialisé octet pour octet sur une copie propre de l'amont (510 fichiers) ; l'incrément se
+  retire proprement de l'arbre canonique.
+- Non exécutés : bancs historiques, appareil. **Aucun gain de température, de puissance ou d'images par seconde n'est
+  annoncé avant les journaux de l'iPhone.**
+
+### À lire dans les prochains journaux
+
+Menus de Black Ops II, 2 minutes, téléphone débranché : `THERMAL931 light_class=1`, `light_ms` proche de 5000 par
+fenêtre, `ENERGY931 p_share` en baisse nette (0,73 aujourd'hui) et `cpu_energy_mj` sous 3 000 par fenêtre ; images à 60.
+Si `light_leaves` compte des sorties « imputées » à répétition, la classe « utility » coûte des images sur ce jeu : le
+dire avec les journaux.

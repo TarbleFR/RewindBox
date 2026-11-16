@@ -1,0 +1,596 @@
+diff --git a/Utilities/Thread.cpp b/Utilities/Thread.cpp
+index f6fda89..48e0185 100644
+--- a/Utilities/Thread.cpp
++++ b/Utilities/Thread.cpp
+@@ -2886,6 +2886,7 @@ DECLARE(thread_ctrl::g_native_core_layout) { native_core_arrangement::undefined
+ 
+ #ifdef RPCS3_IOS
+ #include "ios/IOSThreadQoS.h"
++#include "ios/IOSLightLoad941.h" // REWINDBOX_LIGHT_LOAD_941
+ 
+ namespace
+ {
+@@ -4198,6 +4199,10 @@ void thread_ctrl::set_native_priority(int priority)
+ 	{
+ 		sig_log.error("pthread_set_qos_class_self_np() failed: %d", err);
+ 	}
++
++	// REWINDBOX_LIGHT_LOAD_941 (ios/IOSLightLoad941.h): the class this thread asked for, which it takes back when the
++	// game stops being light. A utility thread (compilers, loggers) is never moved.
++	rpcs3::ios::light_load::home(static_cast<int>(qos), level.relative_priority, !level.utility);
+ #else
+ 	int policy;
+ 	struct sched_param param;
+diff --git a/rpcs3/Emu/CPU/CPUThread.cpp b/rpcs3/Emu/CPU/CPUThread.cpp
+index bada453..c4fc5d5 100644
+--- a/rpcs3/Emu/CPU/CPUThread.cpp
++++ b/rpcs3/Emu/CPU/CPUThread.cpp
+@@ -15,6 +15,7 @@
+ #include "Emu/perf_meter.hpp"
+ #ifdef RPCS3_IOS
+ #include "ios/IOSThreadQoS.h" // REWINDBOX_SPU_QOS_627
++#include "ios/IOSLightLoad941.h" // REWINDBOX_LIGHT_LOAD_941
+ #include "ios/RPCS3IOSExperimentalPolicy.h"
+ #endif
+ 
+@@ -846,6 +847,11 @@ static atomic_t<u32> s_dummy_atomic = 0;
+ 
+ bool cpu_thread::check_state() noexcept
+ {
++#ifdef RPCS3_IOS
++	// REWINDBOX_LIGHT_LOAD_941 (ios/IOSLightLoad941.h): one relaxed load; a class change only when the game became
++	// light or stopped being light since this thread last came here.
++	rpcs3::ios::light_load::sync();
++#endif
+ 	bool cpu_sleep_called = false;
+ 	bool cpu_memory_checked = false;
+ 	bool cpu_can_stop = true;
+diff --git a/rpcs3/Emu/RSX/RSXFIFO.cpp b/rpcs3/Emu/RSX/RSXFIFO.cpp
+index 72d2864..ca2c719 100644
+--- a/rpcs3/Emu/RSX/RSXFIFO.cpp
++++ b/rpcs3/Emu/RSX/RSXFIFO.cpp
+@@ -17,6 +17,7 @@
+ #include "ios/IOSEventWait931.h"
+ #include "ios/IOSTextureValidationProfile.h"
+ #include "ios/IOSRsxIdlePark.h"
++#include "ios/IOSLightLoad941.h" // REWINDBOX_LIGHT_LOAD_941
+ #endif
+ 
+ #include "util/asm.hpp"
+@@ -75,6 +76,10 @@ namespace rsx
+ 		void FIFO_control::idle_wait()
+ 		{
+ #ifdef RPCS3_IOS
++			// REWINDBOX_LIGHT_LOAD_941 (ios/IOSLightLoad941.h): the RSX thread follows the light class here, at least
++			// once a frame.
++			rpcs3::ios::light_load::sync();
++
+ 			// CELL565_RSX_IDLE_PARK: once the FIFO has stayed empty for the grace period,
+ 			// sleep one slice instead of yielding (rpcs3/ios/IOSRsxIdlePark.h).
+ 			if (m_rsx_idle_park)
+@@ -125,7 +130,10 @@ namespace rsx
+ 				// REWINDBOX_THERMAL_POLICY_931 (ios/IOSThermalPolicy931.h): when hot, the time between two yields of an
+ 				// empty FIFO is spent waiting on the PUT register's line (the guest's next PUT ends it) instead of in
+ 				// back-to-back scheduler calls. The yield stays, so other threads get the core as before.
+-				if (rpcs3::ios::thermal::event_waits())
++				// REWINDBOX_RSX_IDLE_941 (ios/IOSRsxIdlePark.h): in every thermal state once the wait is known to rest
++				// the core, and then several turns between two yields.
++				const bool ios_always = rpcs3::ios::rsx_idle_park::grace_event_waits_always();
++				if (ios_always || rpcs3::ios::thermal::event_waits())
+ 				{
+ 					// Only for a FIFO that is empty because PUT equals the internal GET, tested on the very value the
+ 					// wait compares (a PUT written after this load clears the monitor). Other empty states (a block
+@@ -134,11 +142,21 @@ namespace rsx
+ 					// ended (an interrupt or an event of the system): how long that takes on the device is measured
+ 					// (REWINDBOX_EVENT_WAIT_LATENCY_932, THERMAL931 wfe_latency_us), not assumed.
+ 					const void* ios_word = &m_ctrl->put.raw();
+-					const u32 ios_seen = rpcs3::ios::event_wait::load32(ios_word);
+-					be_t<u32> ios_put{};
+-					std::memcpy(&ios_put, &ios_seen, sizeof(ios_seen));
+-					if (static_cast<u32>(ios_put) == m_internal_get && !m_remaining_commands)
++					const u32 ios_turns = ios_always ? rpcs3::ios::rsx_idle_park::grace_event_turns : 1;
++					for (u32 ios_turn = 0; ios_turn < ios_turns; ios_turn++)
+ 					{
++						const u32 ios_seen = rpcs3::ios::event_wait::load32(ios_word);
++						be_t<u32> ios_put{};
++						std::memcpy(&ios_put, &ios_seen, sizeof(ios_seen));
++						if (static_cast<u32>(ios_put) != m_internal_get || m_remaining_commands)
++						{
++							if (ios_turn)
++							{
++								// The guest wrote PUT during a turn: its commands are read now, without the yield.
++								return;
++							}
++							break;
++						}
+ 						rpcs3::ios::event_wait::once32(ios_word, ios_seen);
+ 						rpcs3::ios::thermal::count(rpcs3::ios::thermal::rsx_idle);
+ 					}
+diff --git a/rpcs3/Emu/RSX/RSXThread.cpp b/rpcs3/Emu/RSX/RSXThread.cpp
+index 05c7865..cef786c 100644
+--- a/rpcs3/Emu/RSX/RSXThread.cpp
++++ b/rpcs3/Emu/RSX/RSXThread.cpp
+@@ -37,6 +37,7 @@
+ #include "ios/RPCS3IOSProfilerHelpers.h"
+ #include "ios/IOSRsxSyncProfile.h"
+ #include "ios/IOSRsxIdlePark.h"
++#include "ios/IOSLightLoad941.h" // REWINDBOX_LIGHT_LOAD_941
+ #include "ios/IOSFlipDoneReplay.h" // REWINDBOX_FLIP_DONE_REPLAY_935
+ #include "Emu/Cell/lv2/sys_rsx.h" // RsxDriverInfo
+ #include "ios/IOSTransitionPhases.h" // REWINDBOX_TRANSITION_PHASES_610
+@@ -3563,6 +3564,11 @@ namespace rsx
+ 
+ 	void thread::on_frame_end(u32 buffer, bool forced)
+ 	{
++#ifdef RPCS3_IOS
++		// REWINDBOX_LIGHT_LOAD_941 (ios/IOSLightLoad941.h): an RSX thread that never finds its FIFO empty takes its
++		// own class back here, one frame after the game stopped being light.
++		rpcs3::ios::light_load::sync();
++#endif
+ 		bool pause_emulator = false;
+ 
+ 		// MM sync. This is a pre-emptive operation, so we can use a deferred request.
+diff --git a/rpcs3/ios/IOSLightLoad941.h b/rpcs3/ios/IOSLightLoad941.h
+new file mode 100644
+index 0000000..3d6addd
+--- /dev/null
++++ b/rpcs3/ios/IOSLightLoad941.h
+@@ -0,0 +1,282 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <cstdint>
++#if defined(__APPLE__)
++#include <pthread.h>
++#include <pthread/qos.h>
++#endif
++
++// REWINDBOX_LIGHT_LOAD_941 (maintainer, 16 Nov 2026: the phone must stay in the nominal thermal state; iPhone logs of
++// IPA 760, Core 940): while a game is light, its PPU, SPU and RSX threads run in the utility class, which iOS keeps
++// on the efficiency cores.
++//
++// What the logs show (COREPROF ENERGY931, 5 s windows, iPhone with 2 performance and 4 efficiency cores):
++// - Black Ops II menus at 60 FPS, session 2 windows 6 to 9: 1.0 to 1.2 cores of work, 73 % of it on the performance
++//   cores, for 0.60, 1.35, 1.68 and 2.12 W, with those cores at 1.75, 2.32, 2.91 and 3.42 GHz. The work is the
++//   same in the four windows; its cost follows the clock iOS gives the performance cores. The performance cluster
++//   is billed 0.75 J per second of CPU time at 1.75 GHz and 2.7 J at 3.4 GHz; the efficiency cluster 0.18 J.
++// - Those menus take 42,000 timer wakeups a second (29,600 SPU polling sleeps, 11,300 RSX park slices): the SPU
++//   threads are user-initiated, the PPU and RSX threads user-interactive, and with the performance cores idle iOS
++//   wakes all of them there.
++// - God of War III title screen at 60 FPS: 0.21 core at 3.93 GHz for 0.53 W (43,000 wakeups a second, 27,400 of
++//   them timed waits under 200 us of the game's own PPU threads).
++// - The match that follows (4.3 to 4.6 cores) reaches the fair state about 15 s after it starts, and iOS then
++//   lowers the performance cores from 2.4-2.7 to 1.6-1.8 GHz: what the menus spend before the match is heat the
++//   match starts with.
++// - Sleeps taken in the utility class by Core 939 (REWINDBOX_SPU_IDLE_EFFICIENCY_939, IPA 756 and 760): 11,893,
++//   of which 134 (1.1 %) ended later than their bound plus a quarter plus 50 us, and no class change failed.
++//
++// "Light" is decided by the profiler sampler (every 500 ms), from what the game does:
++// - to enter: for `enter_samples` samples in a row the process uses at most `enter_cores`, no thread more than
++//   `enter_thread_cores` (a thread near a whole performance core has no room to run slower), and the game
++//   presents frames at a steady rate of at least `min_rate` (a loading screen or a still picture is not light:
++//   its work is not paced by frames, so running it slower would only make it last longer);
++// - to leave, at once: the process uses `leave_cores` or more (work is slower on the efficiency cores, hence the
++//   higher bound), or the frame rate is under `rate_floor` of the rate it had before entering for
++//   `rate_miss_samples` samples in a row. A frame rate lost within `blame_ms` of entering is blamed on the class:
++//   the next entry waits `first_hold_ms`, doubled each time up to `max_hold_ms`; other exits wait `plain_hold_ms`.
++// Each thread applies the class to itself where it already tests its state: cpu_thread::check_state() for PPU and
++// SPU threads, the FIFO idle wait and the end of each frame for the RSX thread. Its own class (thread_ctrl::set_native_priority) is taken
++// back the same way, at the latest at its next wait once the game stops being light. The audio threads, the
++// compile threads, MoltenVK and the host application are not touched. Switched off with "Event Waits When Hot" =
++// Disabled, like the other idle levers.
++namespace rpcs3::ios::light_load
++{
++inline constexpr double enter_cores = 1.25;
++inline constexpr double enter_thread_cores = 0.40;
++inline constexpr double leave_cores = 2.5;
++inline constexpr double min_rate = 15.0;
++inline constexpr double rate_spread = 0.06;          // steady: (max - min) / max over the entry samples
++inline constexpr double rate_floor = 0.95;
++inline constexpr std::uint32_t enter_samples = 6;     // 3 s
++inline constexpr std::uint32_t rate_miss_samples = 2; // 1 s
++inline constexpr std::uint64_t blame_ms = 5'000;
++inline constexpr std::uint64_t plain_hold_ms = 5'000;
++inline constexpr std::uint64_t first_hold_ms = 20'000;
++inline constexpr std::uint64_t max_hold_ms = 320'000;
++inline constexpr std::uint64_t settled_ms = 60'000;   // a light period this long forgets the doubled holds
++
++// Read by the emulation threads: 1 while the game is light.
++inline std::atomic<std::uint32_t> wanted{0};
++
++// Report counters (COREPROF THERMAL931 tail).
++inline std::atomic<std::uint64_t> entries{0};
++inline std::atomic<std::uint64_t> leaves_load{0};
++inline std::atomic<std::uint64_t> leaves_rate{0};
++inline std::atomic<std::uint64_t> leaves_blamed{0};
++inline std::atomic<std::uint64_t> class_changes{0};
++inline std::atomic<std::uint64_t> class_failures{0};
++inline std::atomic<std::uint64_t> light_ms{0};
++
++enum class verdict : std::uint8_t { heavy, entered, light, left_load, left_rate, left_blamed, left_off };
++
++// The decision, without any system call (host-tested as a plain class).
++class controller
++{
++	bool m_light = false;
++	bool m_have_last = false;
++	std::uint64_t m_last_frames = 0;
++	std::uint64_t m_last_ms = 0;
++	std::uint32_t m_calm = 0;
++	double m_rate_min = 0.0, m_rate_max = 0.0, m_rate_sum = 0.0;
++	double m_reference = 0.0;
++	std::uint32_t m_missed = 0;
++	std::uint64_t m_entered_ms = 0;
++	std::uint64_t m_hold_until_ms = 0;
++	std::uint64_t m_next_hold_ms = first_hold_ms;
++
++	verdict leave(verdict why, std::uint64_t now_ms) noexcept
++	{
++		m_light = false;
++		m_calm = 0;
++		m_missed = 0;
++		if (why == verdict::left_blamed)
++		{
++			m_hold_until_ms = now_ms + m_next_hold_ms;
++			m_next_hold_ms = m_next_hold_ms * 2 < max_hold_ms ? m_next_hold_ms * 2 : max_hold_ms;
++		}
++		else
++		{
++			m_hold_until_ms = now_ms + plain_hold_ms;
++			if (now_ms - m_entered_ms >= settled_ms)
++			{
++				m_next_hold_ms = first_hold_ms;
++			}
++		}
++		return why;
++	}
++
++public:
++	bool light() const noexcept { return m_light; }
++	double reference() const noexcept { return m_reference; }
++	std::uint64_t next_hold_ms() const noexcept { return m_next_hold_ms; }
++
++	void reset() noexcept { *this = controller{}; }
++
++	// One sample: the cores the process used, its busiest thread, the frames presented so far, a monotonic clock.
++	verdict observe(double process_cores, double busiest_thread_cores, std::uint64_t frames, std::uint64_t now_ms, bool allowed) noexcept
++	{
++		double rate = -1.0; // unknown
++		if (m_have_last && now_ms > m_last_ms && now_ms - m_last_ms >= 200 && now_ms - m_last_ms <= 2'000 && frames >= m_last_frames)
++		{
++			rate = static_cast<double>(frames - m_last_frames) * 1000.0 / static_cast<double>(now_ms - m_last_ms);
++		}
++		m_have_last = true;
++		m_last_frames = frames;
++		m_last_ms = now_ms;
++
++		if (!allowed)
++		{
++			if (m_light)
++			{
++				return leave(verdict::left_off, now_ms);
++			}
++			m_calm = 0;
++			return verdict::heavy;
++		}
++
++		if (m_light)
++		{
++			if (process_cores >= leave_cores)
++			{
++				return leave(verdict::left_load, now_ms);
++			}
++
++			if (rate >= 0.0)
++			{
++				if (rate < m_reference * rate_floor)
++				{
++					if (++m_missed >= rate_miss_samples)
++					{
++						return leave(now_ms - m_entered_ms <= blame_ms ? verdict::left_blamed : verdict::left_rate, now_ms);
++					}
++				}
++				else
++				{
++					m_missed = 0;
++				}
++			}
++			else if (m_missed)
++			{
++				// A sample without a rate between two low ones does not clear them, and does not add one.
++			}
++
++			return verdict::light;
++		}
++
++		const bool calm = now_ms >= m_hold_until_ms && rate >= min_rate && process_cores <= enter_cores && busiest_thread_cores <= enter_thread_cores;
++		if (!calm)
++		{
++			m_calm = 0;
++			return verdict::heavy;
++		}
++
++		if (!m_calm)
++		{
++			m_rate_min = m_rate_max = rate;
++			m_rate_sum = 0.0;
++		}
++		m_rate_min = rate < m_rate_min ? rate : m_rate_min;
++		m_rate_max = rate > m_rate_max ? rate : m_rate_max;
++		m_rate_sum += rate;
++		m_calm++;
++
++		if (m_rate_max - m_rate_min > m_rate_max * rate_spread)
++		{
++			// Not a steady rate: start again from this sample.
++			m_rate_min = m_rate_max = rate;
++			m_rate_sum = rate;
++			m_calm = 1;
++			return verdict::heavy;
++		}
++
++		if (m_calm < enter_samples)
++		{
++			return verdict::heavy;
++		}
++
++		m_light = true;
++		m_reference = m_rate_sum / static_cast<double>(m_calm);
++		m_missed = 0;
++		m_entered_ms = now_ms;
++		return verdict::entered;
++	}
++};
++
++// The sampler's sample: updates `wanted` and the counters.
++inline void apply(controller& control, double process_cores, double busiest_thread_cores, std::uint64_t frames, std::uint64_t now_ms,
++	std::uint64_t sample_ms, bool allowed) noexcept
++{
++	const bool was = control.light();
++	switch (control.observe(process_cores, busiest_thread_cores, frames, now_ms, allowed))
++	{
++	case verdict::entered: entries.fetch_add(1, std::memory_order_relaxed); break;
++	case verdict::left_load: leaves_load.fetch_add(1, std::memory_order_relaxed); break;
++	case verdict::left_rate: leaves_rate.fetch_add(1, std::memory_order_relaxed); break;
++	case verdict::left_blamed: leaves_blamed.fetch_add(1, std::memory_order_relaxed); break;
++	default: break;
++	}
++	if (was)
++	{
++		light_ms.fetch_add(sample_ms, std::memory_order_relaxed);
++	}
++	wanted.store(control.light() ? 1u : 0u, std::memory_order_relaxed);
++}
++
++// ---- Per thread ----------------------------------------------------------------------------------------------
++// The class the thread asked for (thread_ctrl::set_native_priority) and what it runs with now.
++struct thread_class_state
++{
++	std::uint32_t applied = 0; // the value of `wanted` this thread runs with
++	bool home_known = false;
++	bool home_demotable = false; // user-interactive or user-initiated
++	int home_qos = 0;
++	int home_relative = 0;
++};
++
++inline thread_local thread_class_state t_class{};
++
++// thread_ctrl::set_native_priority() has just applied this class: remember it; the thread is in it again.
++inline void home(int qos, int relative_priority, bool demotable) noexcept
++{
++	t_class.home_known = true;
++	t_class.home_demotable = demotable;
++	t_class.home_qos = qos;
++	t_class.home_relative = relative_priority;
++	t_class.applied = 0;
++}
++
++// True while this thread runs in the utility class because the game is light.
++inline bool in_light_class() noexcept
++{
++	return t_class.applied != 0;
++}
++
++inline void change_class(std::uint32_t want) noexcept
++{
++	t_class.applied = want;
++#if defined(__APPLE__)
++	if (!t_class.home_known || !t_class.home_demotable)
++	{
++		return;
++	}
++
++	const int error = want
++		? pthread_set_qos_class_self_np(QOS_CLASS_UTILITY, 0)
++		: pthread_set_qos_class_self_np(static_cast<qos_class_t>(t_class.home_qos), t_class.home_relative);
++	(error ? class_failures : class_changes).fetch_add(1, std::memory_order_relaxed);
++#endif
++}
++
++// PPU and SPU threads (cpu_thread::check_state) and the RSX thread (FIFO idle wait): one load when nothing changed.
++inline void sync() noexcept
++{
++	const std::uint32_t want = wanted.load(std::memory_order_relaxed);
++	if (want != t_class.applied) [[unlikely]]
++	{
++		change_class(want);
++	}
++}
++} // namespace rpcs3::ios::light_load
+diff --git a/rpcs3/ios/IOSRsxIdlePark.h b/rpcs3/ios/IOSRsxIdlePark.h
+index 0333056..84b5d79 100644
+--- a/rpcs3/ios/IOSRsxIdlePark.h
++++ b/rpcs3/ios/IOSRsxIdlePark.h
+@@ -8,6 +8,8 @@
+ #include <mutex>
+ 
+ #include "IOSWakeCensus936.h" // REWINDBOX_WAKE_CENSUS_936
++#include "IOSEventWait931.h"     // REWINDBOX_RSX_IDLE_941
++#include "IOSThermalPolicy931.h" // REWINDBOX_RSX_IDLE_941
+ 
+ // CELL565_RSX_IDLE_PARK: with an empty FIFO the RSX thread yields in a loop, so
+ // it keeps a whole core while it waits for the next guest commands (Dragon Ball
+@@ -37,9 +39,41 @@ constexpr std::uint64_t slice_us = 50;
+ constexpr std::uint64_t long_idle_us = 250'000;
+ constexpr std::uint64_t long_slice_us = 1'000;
+ 
+-constexpr std::uint64_t slice_for(std::uint64_t idle_us) noexcept
++// REWINDBOX_RSX_IDLE_941 (iPhone logs of IPA 760, Core 940, COREPROF WAKE936): the 50 us slices are still most of what
++// the RSX thread does while it waits inside a frame. Black Ops II in a match: 35,624 slices per 5 s window for 341
++// park periods (2.27 s parked, 6.6 ms a period, 104 slices each); in its menus at 60 FPS: 56,384 slices for 430
++// periods (3.5 s parked, 8.2 ms a period): 7,100 and 11,300 timer wakeups a second on a performance core. A period
++// that has already lasted mid_idle_us is not a gap between two bursts of one frame's commands: the slice becomes
++// mid_slice_us, then far_slice_us from far_idle_us. With the 13 us each slice costs beyond its bound in those
++// windows, a park of 6.6 ms takes about 50 slices instead of 104, one of 8.2 ms about 58 instead of 131. The first guest PUT after a rest of 2 ms is seen at most 100 us later, after 4 ms at most
++// 200 us later (a PUT is a plain store, never notified); a flush, flip or ZCULL request still wakes the thread at
++// once. With "Event Waits When Hot" Disabled the slices are those of Core 938.
++constexpr std::uint64_t mid_idle_us = 2'000;
++constexpr std::uint64_t mid_slice_us = 100;
++constexpr std::uint64_t far_idle_us = 4'000;
++constexpr std::uint64_t far_slice_us = 200;
++
++constexpr std::uint64_t slice_for(std::uint64_t idle_us, bool lengthen = false) noexcept
++{
++	return idle_us >= long_idle_us ? long_slice_us
++		: lengthen && idle_us >= far_idle_us ? far_slice_us
++		: lengthen && idle_us >= mid_idle_us ? mid_slice_us
++		: slice_us;
++}
++
++// REWINDBOX_RSX_IDLE_941: during the grace period (the first grace_us of an empty FIFO) the RSX thread yields in a
++// loop: 341 periods of 1 ms per 5 s window in a Black Ops II match, 430 in its menus, on a performance core, in
++// back-to-back scheduler calls (SCHED918 mach_traps). The thermal policy of Core 931 replaces the time between two
++// yields by a wait on the PUT register's line (the guest's next PUT ends it) from the serious state only. Since Core
++// 940 that wait really rests the core (COREPROF WFEPROBE939 on IPA 760: sevl_ldaxr_wfe 1.33 us a turn, wfe_verdict
++// 1), and nothing but the RSX thread waits here, so it is used in every thermal state once the self-test has passed,
++// grace_event_turns turns between two yields (8 us at most; a flush request posted by another thread is seen at
++// the yield, as before). Off with "Event Waits When Hot" Disabled; without the verdict the wait is the Core 940 one.
++inline constexpr std::uint32_t grace_event_turns = 6;
++
++inline bool grace_event_waits_always() noexcept
+ {
+-	return idle_us >= long_idle_us ? long_slice_us : slice_us;
++	return event_wait::wfe_verdict.load(std::memory_order_relaxed) == 1 && thermal::idle_backoff();
+ }
+ 
+ inline std::mutex gate_mutex;
+@@ -62,7 +96,7 @@ inline void park(std::uint64_t idle_us = 0) noexcept
+ 	{
+ 		std::unique_lock lock(gate_mutex);
+ 		const std::uint64_t seen = generation;
+-		census_woken = gate.wait_for(lock, std::chrono::microseconds(slice_for(idle_us)), [&] { return generation != seen; });
++		census_woken = gate.wait_for(lock, std::chrono::microseconds(slice_for(idle_us, thermal::idle_backoff())), [&] { return generation != seen; });
+ 	}
+ 	parked.fetch_sub(1, std::memory_order_relaxed);
+ 
+diff --git a/rpcs3/ios/IOSSpuIdleEfficiency939.h b/rpcs3/ios/IOSSpuIdleEfficiency939.h
+index a7b8344..e02d198 100644
+--- a/rpcs3/ios/IOSSpuIdleEfficiency939.h
++++ b/rpcs3/ios/IOSSpuIdleEfficiency939.h
+@@ -8,6 +8,8 @@
+ #include <pthread/qos.h>
+ #endif
+ 
++#include "IOSLightLoad941.h" // REWINDBOX_LIGHT_LOAD_941
++
+ // REWINDBOX_SPU_IDLE_EFFICIENCY_939: an idle polling SPU thread sleeps in the utility class, so that iOS wakes it on an
+ // efficiency core, and takes its own class back as soon as it wakes.
+ //
+@@ -99,6 +101,12 @@ public:
+ // Before the timed wait of an idle thread. True when the thread now runs in the utility class.
+ inline bool enter() noexcept
+ {
++	// REWINDBOX_LIGHT_LOAD_941 (ios/IOSLightLoad941.h): while the game is light this thread already runs in the
++	// utility class; leave() would put it back in the class of the SPU threads.
++	if (light_load::in_light_class())
++	{
++		return false;
++	}
+ #if defined(__APPLE__)
+ 	if (pthread_set_qos_class_self_np(QOS_CLASS_UTILITY, 0) == 0)
+ 	{
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index d4edb37..1206a97 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -54,6 +54,7 @@
+ #include "IOSEventWait931.h" // REWINDBOX_EVENT_WAIT_LATENCY_932
+ #include "IOSSpuIdleBackoff935.h" // REWINDBOX_SPU_IDLE_BACKOFF_935
+ #include "IOSSpuIdleEfficiency939.h" // REWINDBOX_SPU_IDLE_EFFICIENCY_939
++#include "IOSLightLoad941.h" // REWINDBOX_LIGHT_LOAD_941
+ #include "IOSWakeCensus936.h" // REWINDBOX_WAKE_CENSUS_936
+ #include "IOSLocalProfileStore933.h" // REWINDBOX_LOCAL_PROFILE_933
+ #include "IOSEnergy931.h" // REWINDBOX_ENERGY_931
+@@ -638,6 +639,9 @@ public:
+ 		m_last_frame_change = m_profile_window_start;
+ 		// REWINDBOX_SPU_IDLE_EFFICIENCY_939: a new session starts as a heavy one until the sampler has measured it.
+ 		rpcs3::ios::spu_idle_efficiency::light_load.store(false, std::memory_order_relaxed);
++		// REWINDBOX_LIGHT_LOAD_941: and not a light one either.
++		m_light_load_reset.store(true, std::memory_order_relaxed); // the controller belongs to the sampler thread
++		rpcs3::ios::light_load::wanted.store(0, std::memory_order_relaxed);
+ 		if (!m_profile_thread.joinable())
+ 		{
+ 			m_profile_thread = std::thread([this] { sampler_main(); });
+@@ -996,6 +1000,23 @@ private:
+ 				ios_process_cores += cores;
+ 			}
+ 			rpcs3::ios::spu_idle_efficiency::observe_load(ios_process_cores);
++			// REWINDBOX_LIGHT_LOAD_941 (ios/IOSLightLoad941.h): whether the game is light (few cores, no thread near a
++			// whole core, a steady frame rate), from this sample and the frames presented so far.
++			{
++				double ios_busiest_thread = 0.0;
++				for (const auto& row : usage.detail)
++				{
++					ios_busiest_thread = std::max(ios_busiest_thread, row.cores);
++				}
++				if (m_light_load_reset.exchange(false, std::memory_order_relaxed))
++				{
++					m_light_load.reset();
++				}
++				const u64 ios_now_ms = static_cast<u64>(std::chrono::duration_cast<std::chrono::milliseconds>(last_thread_sample.time_since_epoch()).count());
++				rpcs3::ios::light_load::apply(m_light_load, ios_process_cores, ios_busiest_thread, frames, ios_now_ms,
++					static_cast<u64>(std::chrono::duration_cast<std::chrono::milliseconds>(thread_sample_period).count()),
++					rpcs3::ios::thermal::idle_backoff());
++			}
+ 			const auto process_memory = sample_process_memory();
+ 			bool report = false;
+ 			{
+@@ -2684,7 +2705,9 @@ private:
+ 				"ms_unknown=%llu ms_nominal=%llu ms_fair=%llu ms_serious=%llu ms_critical=%llu window_mixed=%s event_waits_window=%s "
+ 				"wfe_latency_us=%llu:%llu:%llu:%llu:%llu wfe_latency_bounds_us=2:16:128:1000 wfe_longest_us=%llu scope=process_window "
+ 				"spu_idle_backoff=%s spu_idle_lengthened_waits=%llu spu_idle_late_finds=%llu spu_efficient_sleeps=%llu spu_class_change_failures=%llu "
+-				"spu_efficient_late=%llu spu_light_load=%u",
++				"spu_efficient_late=%llu spu_light_load=%u "
++				"light_class=%u light_entries=%llu light_leaves=%llu:%llu:%llu light_ms=%llu light_class_changes=%llu light_class_failures=%llu "
++				"light_tuple=leaves_load:rate:blamed",
+ 				profile_session, profile_window, thermal::state_name(thermal::state.load(std::memory_order_relaxed)),
+ 				thermal::state_changes.load(std::memory_order_relaxed), thermal::event_waits() ? "on" : "off",
+ 				mode == 1 ? "enabled" : mode == 2 ? "disabled" : "automatic", forced < 0 ? "no" : forced ? "on" : "off",
+@@ -2709,7 +2732,16 @@ private:
+ 				static_cast<unsigned long long>(rpcs3::ios::spu_idle_efficiency::efficient_sleeps.exchange(0, std::memory_order_relaxed)),
+ 				static_cast<unsigned long long>(rpcs3::ios::spu_idle_efficiency::failed_changes.exchange(0, std::memory_order_relaxed)),
+ 				static_cast<unsigned long long>(rpcs3::ios::spu_idle_efficiency::late_wakeups.exchange(0, std::memory_order_relaxed)),
+-				rpcs3::ios::spu_idle_efficiency::light_load.load(std::memory_order_relaxed) ? 1u : 0u);
++				rpcs3::ios::spu_idle_efficiency::light_load.load(std::memory_order_relaxed) ? 1u : 0u,
++				// REWINDBOX_LIGHT_LOAD_941 (ios/IOSLightLoad941.h)
++				rpcs3::ios::light_load::wanted.load(std::memory_order_relaxed),
++				static_cast<unsigned long long>(rpcs3::ios::light_load::entries.exchange(0, std::memory_order_relaxed)),
++				static_cast<unsigned long long>(rpcs3::ios::light_load::leaves_load.exchange(0, std::memory_order_relaxed)),
++				static_cast<unsigned long long>(rpcs3::ios::light_load::leaves_rate.exchange(0, std::memory_order_relaxed)),
++				static_cast<unsigned long long>(rpcs3::ios::light_load::leaves_blamed.exchange(0, std::memory_order_relaxed)),
++				static_cast<unsigned long long>(rpcs3::ios::light_load::light_ms.exchange(0, std::memory_order_relaxed)),
++				static_cast<unsigned long long>(rpcs3::ios::light_load::class_changes.exchange(0, std::memory_order_relaxed)),
++				static_cast<unsigned long long>(rpcs3::ios::light_load::class_failures.exchange(0, std::memory_order_relaxed)));
+ 
+ 			// REWINDBOX_WAKE_CENSUS_936 (ios/IOSWakeCensus936.h): the timed waits of this window, by site.
+ 			ios_core_profiler.notice("%s", rpcs3::ios::wake_census::take_line(profile_session, profile_window).c_str());
+@@ -2800,6 +2832,8 @@ private:
+     u64 m_energy_session = ~0ull;
+     u64 m_energy_window = 0;
+     rpcs3::ios::thermal::ledger_snapshot m_thermal; // REWINDBOX_THERMAL_LEDGER_932: the previous report's snapshot, report thread only
++    rpcs3::ios::light_load::controller m_light_load; // REWINDBOX_LIGHT_LOAD_941: sampler thread only
++    std::atomic<bool> m_light_load_reset{false};     // REWINDBOX_LIGHT_LOAD_941: a new session asks the sampler for a fresh controller
+     u64 m_thermal_session = ~0ull;
+     u64 m_thermal_window = 0;
+     // REWINDBOX_FREEZE_EPISODE_621: sampler thread only.
