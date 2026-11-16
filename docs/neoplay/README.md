@@ -344,3 +344,22 @@ The bench was run again after the fixes: frames, 2.5 ms median, bar code right 1
    needs no device serial and works on every Chromecast.
 3. Set the 8-character application ID in `NPReceiverApp.applicationID`. While it is empty, the feature is off and the
    app behaves exactly as delivery 754.
+
+### Delivery 757 (16 November 2026)
+
+**Request 1 (run `43799272720`) stopped on the only compile error of the build.** Swift imports
+`castChannel:didReceiveTextMessage:withNamespace:` as `cast(_:didReceiveTextMessage:withNamespace:)`. The Linux
+stand-ins could not show it (recipe § 3.11). The fix is `0f69d3e9f`.
+
+**Request 2 (run `43807403424`) succeeded.**
+- IPA sha256 `effa19e08b1e1328198648049b62037e81c5e284d1eb7bb6f03d10d89d6adf89`, 331 067 286 bytes; offline
+  verification passed. The private key is deleted and the receipts are in `docs/evidence/rewind757`.
+- Content: the 756 content plus stage 2. The RPCS3 fix `74b45d2ce` and the S2Arm patch 0048 are source only.
+- The frozen `NPReceiverLink.swift` holds the application ID 6C880231. Swift keeps it as a small inline string, so a
+  byte search of `Runner` cannot find it.
+- `App` contains the new panel texts.
+- The Chromecast (serial registered in the console, application unpublished) is "Ready For Testing".
+- Not run: the Flutter and native groups. Not observed on a device yet.
+
+Lesson for the next receipts: copy the eight files from `work/delivery/`. A search of the whole work folder also finds
+older builds' files in the exported tree.
