@@ -1,0 +1,191 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 6a2275d86..6360d38b8 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -2816,6 +2816,36 @@ typedef struct { __unsafe_unretained id<MTLBuffer> src, params; size_t poff; uin
+ static up_dec *g_up_decs; static int g_nup_decs, g_up_deccap;
+ #include "nvn_rscale.inc"   // S2Arm internal resolution (S2A_RES_SCALE): state, eligibility, canvas sizes
+ #include "../../texture_extent.inc"
++// RewindBox (patch 0048): storage drawn into keeps render-target use. A packaged or CPU-written texture is made without it (tex_desc) and gets it from tex_upgrade at its first
++//   attachment, clear or drawn copy: a new texture, a copy of every level, a walk of the serial tables and every cached texture view sent down the slow path (g_ser_gen).
++//   Mario Kart World builds new texture objects over its reused terrain tile slots (R16F, RG8, R8) and draws into each: 1,687 such upgrades in the 756 test (one every
++//   1.6 frames in a race, 7,231 in 753's longer one). The storage, format, size and levels of an upgraded texture are remembered here (an upgrade adds the use, it never
++//   changes the content), and a packaged texture made over the same ones takes the use at creation. A fixed table of keys, cleared whole when it fills.
++//   S2A_RB_RT_STICKY=0 turns it off (every such texture upgraded at its first draw, as before). Submit thread only (tex_desc and tex_upgrade run there)
++enum { RT_STICKY_CAP = 4096 };   // a power of 2; at most half full
++static uint64_t g_rt_sticky[RT_STICKY_CAP]; static unsigned g_rt_sticky_n; static uint64_t g_rt_sticky_hits, g_rt_sticky_adds;
++static int rt_sticky_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_RT_STICKY"); v = !(e && !strcmp(e, "0")); MLOG("RewindBox: render-target use kept by storage once drawn into: %s (S2A_RB_RT_STICKY)", v ? "on" : "off"); } return v; }
++int nvn_sparse_pool(const void *pool);
++static uint64_t rt_sticky_key(const tex_t *t) {   // 0: not a candidate (no storage, compressed, depth / stencil, multisample, in a sparse pool: tex_upgrade keeps those as they are)
++    if (!t->mem || fmt_compressed(t->d.format) || fmt_depth(t->d.format) || t->d.samples > 1 || (t->pool && nvn_sparse_pool(t->pool))) return 0;
++    uint64_t k = (uint64_t)(uintptr_t)t->mem * 0x9E3779B97F4A7C15ull;
++    k ^= ((uint64_t)t->d.format << 48) ^ ((uint64_t)t->d.width << 32) ^ ((uint64_t)t->d.height << 16) ^ ((uint64_t)t->d.depth << 8) ^ (uint64_t)t->d.levels ^ ((uint64_t)t->d.target << 56);
++    k ^= k >> 29; k *= 0xBF58476D1CE4E5B9ull; k ^= k >> 32;
++    return k ? k : 1;
++}
++static int rt_sticky_has(const tex_t *t) {
++    if (!g_rt_sticky_n || !rt_sticky_on()) return 0;
++    uint64_t k = rt_sticky_key(t); if (!k) return 0;
++    for (unsigned i = (unsigned)k & (RT_STICKY_CAP - 1), n = 0; n < RT_STICKY_CAP && g_rt_sticky[i]; i = (i + 1) & (RT_STICKY_CAP - 1), n++) if (g_rt_sticky[i] == k) return 1;
++    return 0;
++}
++static void rt_sticky_add(const tex_t *t) {
++    if (!rt_sticky_on()) return;
++    uint64_t k = rt_sticky_key(t); if (!k || rt_sticky_has(t)) return;
++    if (g_rt_sticky_n >= RT_STICKY_CAP / 2) { memset(g_rt_sticky, 0, sizeof g_rt_sticky); g_rt_sticky_n = 0; MLOG("RewindBox: render-target use kept by storage: the table was full and starts again (%llu kept so far)", (unsigned long long)g_rt_sticky_adds); }
++    unsigned i = (unsigned)k & (RT_STICKY_CAP - 1); while (g_rt_sticky[i]) i = (i + 1) & (RT_STICKY_CAP - 1);
++    g_rt_sticky[i] = k; g_rt_sticky_n++; g_rt_sticky_adds++;
++}
+ static MTLTextureDescriptor *tex_desc(const tex_t *t, int packaged) {
+     uint32_t pf = 0; uint8_t swz[4];
+     if (!nvn_fmt_to_mtl(t->d.format, &pf, swz) || !pf) { RED_ONCE(0, "texture format %#x has no Metal equivalent (first case)", t->d.format); return nil; }
+@@ -2858,6 +2888,10 @@ static MTLTextureDescriptor *tex_desc(const tex_t *t, int packaged) {
+             //   Given at creation, like depth-stencil below: tex_upgrade_pfv at attach time would recreate a render target in use
+             | (pf == MTLPixelFormatDepth32Float_Stencil8 ? MTLTextureUsagePixelFormatView : 0);   // Depth-stencil: the stencil is read through an X32_Stencil8 view, which Metal allows only with the format-view usage
+             // (Apple GPUs read it right without, but the Metal validation layer aborts the process on the first such view). Given at creation: upgrading when the view first appears recreated the depth buffer in use
++    if (packaged && !(d.usage & MTLTextureUsageRenderTarget) && d.sampleCount <= 1 && rt_sticky_has(t)) {   // RewindBox (patch 0048): storage drawn into before (rt_sticky_add)
++        d.usage |= MTLTextureUsageRenderTarget; uint64_t k = ++g_rt_sticky_hits;
++        if (k <= 4 || !(k & (k - 1))) MLOG("RewindBox: ser=%llu %ux%u format %#x made with render-target use (storage drawn into before; %llu so far, no upgrade needed)", (unsigned long long)t->serial, t->d.width, t->d.height, t->d.format, (unsigned long long)k);
++    }
+     return d;
+ }
+ // In-place upgrade: when the original texture was not created with PixelFormatView (off by default, to keep Apple GPU lossless compression) but a different-format view is needed, create a new one with the original spec + PixelFormatView, copy over every slice × level, and replace the registration.
+@@ -2962,7 +2996,10 @@ static id<MTLTexture> tex_upgrade(const tex_t *t, id<MTLTexture> asked, MTLTextu
+         } else if (!named) tex_put(t->serial, upgraded);
+         defer_obj_release(base);
+     }
+-    MLOG("texture upgraded to allow %s ser=%llu base format %lu → view format %lu (upgrades=%llu)", root ? "image atomics (R32 storage, an RGBA8 view of the same bytes in its place)" : add & MTLTextureUsageRenderTarget ? "render-target use" : add & MTLTextureUsageShaderWrite ? "shader writes" : "format views", t->serial, (unsigned long)base.pixelFormat, (unsigned long)view_pf, ++g_pfv_upgrades);
++    int pkg_holder = [holder isKindOfClass:[NvPkg class]];
++    if ((add & MTLTextureUsageRenderTarget) && pkg_holder) rt_sticky_add(t);   // RewindBox (patch 0048): the next packaged texture over this storage is made with the use
++    MLOG("texture upgraded to allow %s ser=%llu base format %lu → view format %lu (upgrades=%llu; RewindBox: %ux%ux%u levels %u NVN format %#x flags %#x, %s)", root ? "image atomics (R32 storage, an RGBA8 view of the same bytes in its place)" : add & MTLTextureUsageRenderTarget ? "render-target use" : add & MTLTextureUsageShaderWrite ? "shader writes" : "format views", t->serial, (unsigned long)base.pixelFormat, (unsigned long)view_pf, ++g_pfv_upgrades,
++         t->d.width, t->d.height, t->d.depth, t->d.levels, t->d.format, t->d.flags, pkg_holder ? "packaged or CPU-written" : "GPU texture");
+     return upgraded_view ? upgraded_view : upgraded;
+ }
+ static id<MTLTexture> tex_upgrade_pfv(const tex_t *t, id<MTLTexture> base, MTLPixelFormat view_pf) { return tex_upgrade(t, base, MTLTextureUsagePixelFormatView, view_pf); }
+@@ -3696,6 +3733,7 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
+     MTLTextureDescriptor *d = tex_desc(t, 1);
+     if (!d) return nil;
+     id<MTLTexture> mt = reuse && reuse.pixelFormat == d.pixelFormat && reuse.width == d.width && reuse.height == d.height && reuse.mipmapLevelCount == d.mipmapLevelCount && reuse.textureType == d.textureType
++                        && (!(d.usage & MTLTextureUsageRenderTarget) || (reuse.usage & MTLTextureUsageRenderTarget))   // RewindBox (patch 0048): not a spare without the render-target use the new texture is made with (rt_sticky_has)
+                         ? reuse : [g_dev newTextureWithDescriptor:d];
+     if (!mt) { RED_ONCE(2, "failed to create MTLTexture ser=%llu %ux%u format %#x target %d samples %d levels %u", (unsigned long long)t->serial, t->d.width, t->d.height, t->d.format, t->d.target, t->d.samples, t->d.levels); return nil; }
+     if (g_allocprof > 0) { static int n; if (n++ < 30 || n % 500 == 0) MLOG("new texture (%s) #%d ser=%llu %ux%ux%u format %#x target %d levels %u storage %p", __func__, n, (unsigned long long)t->serial, t->d.width, t->d.height, t->d.depth, t->d.format, t->d.target, t->d.levels, (void *)t->mem); }
+@@ -5316,6 +5354,20 @@ void dm_gfx_passdump_next(long n) { long f = (long)atomic_load(&g_cur_frame); g_
+ //   start and end past 64 MB), at most CAP_PD_LINES of them; the file is closed under g_cap_pd_mu, which any thread's line takes
+ enum { CAP_PD_LINES = 200000 };
+ static _Atomic int g_cap_pd_log; static uint64_t g_cap_pd_lines; static FILE *g_cap_pd_f; static pthread_mutex_t g_cap_pd_mu = PTHREAD_MUTEX_INITIALIZER;
++// RewindBox (patch 0048): a capture records every draw, not only each pass's first: its d / u / v lines (as DM_NVN_PASSDUMP_ALL) and every binding's B lines. Mario Kart World's
++//   red-pink palm trees are a few of the ~900 draws of its main colour pass (756's capture), which the first-draw lines cannot name. And the textures the frame samples are saved
++//   as the shaders see them (cap_tex_note, td_dump): whether a wrong colour is in a texture already or comes from a shader then shows in the capture itself
++static inline int cap_all(void) { return atomic_load_explicit(&g_cap_pd_log, memory_order_relaxed); }
++enum { CAP_TEX_MAX = 768, CAP_TEX_EDGE = 256 };
++static NSMutableArray *g_cap_tex; static NSMutableSet *g_cap_tex_seen;   // submit thread (encode_args_, td_dump, cap_reset)
++static void cap_tex_note(id<MTLTexture> t, uint64_t ser) {
++    if (!t || !cap_all()) return;
++    if (!g_cap_tex) { g_cap_tex = [NSMutableArray array]; g_cap_tex_seen = [NSMutableSet set]; }
++    if (g_cap_tex.count >= CAP_TEX_MAX) return;
++    NSValue *k = [NSValue valueWithPointer:(__bridge const void *)t];
++    if ([g_cap_tex_seen containsObject:k]) return;
++    [g_cap_tex_seen addObject:k]; [g_cap_tex addObject:@[t, @(ser)]];
++}
+ static void pd_out(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
+ static void pd_out(const char *fmt, ...) {
+     char b[2048]; va_list ap; va_start(ap, fmt); vsnprintf(b, sizeof b, fmt, ap); va_end(ap);
+@@ -10698,7 +10750,7 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+     #define USE(r, u) do { (void)(u); if (__builtin_expect(g_res_check_on, 0)) res_check((r), sh->key, reg); } while (0)
+     // DM_NVN_PASSDUMP: on the first new encode per pass per stage, records the shader key (K) and the actual source of each binding (B: UBO address / length / first 4 floats, texture ID and serial, or "dummy")
+     static uint64_t bl_pass[6]; static int bl_all = -1; if (bl_all < 0) bl_all = getenv("DM_NVN_PASSDUMP_ALL") != NULL;   // Record on every new encode (otherwise only the first time per pass per stage)
+-    int bl = passdump() && (bl_all || g_kd_force || bl_pass[nvn_stage] != g_stat_pass);
++    int bl = passdump() && (bl_all || g_kd_force || cap_all() || bl_pass[nvn_stage] != g_stat_pass);   // RewindBox (patch 0048): cap_all
+     if (bl) { bl_pass[nvn_stage] = g_stat_pass; PD("K %llu st%d key=%s nb=%d", g_stat_pass, nvn_stage, sh->key[0] ? sh->key : sh->builtin ? sh->builtin : "?", sh->rf.nb); }
+     pthread_mutex_lock(&g_rmu);   // The texture / sampler registration tables may be being grown or rewritten by the game thread
+     for (int i = 0; i < sh->rf.nb; i++) {
+@@ -10783,6 +10835,7 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+             if (t && g_fb_n && g_fb_seq == g_draw_seq && nvn_stage == 1) for (int q = 0; q < g_fb_n; q++) if (t == g_fb_src[q]) { t = g_fb_use[q]; trid = g_fb_rid[q]; break; }   // same-pass feedback sampling: read the snapshot instead (see fb_prepare)
+             if (t && passdump() && tid < g_ntreg) PD("R %llu st%d ser=%llu", g_stat_pass, nvn_stage, g_treg[tid].t.serial);
+             if (__builtin_expect(g_td_frame >= 0, 0) && t && tid < g_ntreg && t.textureType == MTLTextureType3D) td_note_3d(t, g_treg[tid].t.serial);   // TEXDUMP: 3D textures the frame samples (td_dump saves them as slice atlases)
++            if (bl && t && tid < g_ntreg && cap_all()) cap_tex_note(t, g_treg[tid].t.serial);   // RewindBox (patch 0048): the capture's sampled textures (td_dump)
+             if (bl) PD("B %llu st%d tex reg%d tid=%d %s ser=%llu fmt=%lu %lux%lux%lu view_lv=%lu+%lu view_sl=%lu array=%lu target=%lu swz=%d%d%d%d mtl=%p", g_stat_pass, nvn_stage, reg, tid, t ? "real" : "dummy", t && tid < g_ntreg ? g_treg[tid].t.serial : 0ull,
+                        (unsigned long)t.pixelFormat, (unsigned long)t.width, (unsigned long)t.height, (unsigned long)t.depth,
+                        (unsigned long)(t.parentTexture ? t.parentRelativeLevel : 0), (unsigned long)t.mipmapLevelCount,
+@@ -14393,13 +14446,13 @@ static void draw(const p_draw *dw, const p_draw_idx *di) {
+     if (enc_label_on() && !g_el_draws++ && pr->sh[1]) { memcpy(g_el_key, pr->sh[1]->key, 8); g_el_key[8] = 0; }
+     if (passdump()) {   // Characteristics of a render pass's first draw (to judge whether the load can be omitted: full screen, no blending, writes all channels, does not depend on depth); with DM_NVN_PASSDUMP_ALL every draw is recorded
+         static uint64_t last_pass = ~0ull; static int all = -1; if (all < 0) all = getenv("DM_NVN_PASSDUMP_ALL") != NULL;
+-        if (all || g_kd_force) PD("d %llu bv=%d bi=%d first=%d vs=%s fs=%s vc=%d inst=%d blend=%#x b0=%#llx dt=%d dw=%d df=%d cull=%d st=%d sf=%d,%d sop=%d,%d,%d/%d,%d,%d smask=%#x,%#x/%#x,%#x sref=%#x,%#x ib=%#llx it=%d cmask=%#x b1=%#llx b2=%#llx b3=%#llx po=%d/%g,%g,%g dc=%d", g_stat_pass, di ? di->base_vertex : 0, di ? di->base_instance : 0, dw ? dw->first : 0, pr->sh[0] ? pr->sh[0]->key : "-", pr->sh[1] ? pr->sh[1]->key : "-",
++        if (all || g_kd_force || cap_all()) PD("d %llu bv=%d bi=%d first=%d vs=%s fs=%s vc=%d inst=%d blend=%#x b0=%#llx dt=%d dw=%d df=%d cull=%d st=%d sf=%d,%d sop=%d,%d,%d/%d,%d,%d smask=%#x,%#x/%#x,%#x sref=%#x,%#x ib=%#llx it=%d cmask=%#x b1=%#llx b2=%#llx b3=%#llx po=%d/%g,%g,%g dc=%d", g_stat_pass, di ? di->base_vertex : 0, di ? di->base_instance : 0, dw ? dw->first : 0, pr->sh[0] ? pr->sh[0]->key : "-", pr->sh[1] ? pr->sh[1]->key : "-",
+                     dw ? dw->count : di->count, dw ? dw->instances : di->instances, S.color.blend_en, (unsigned long long)*(uint64_t *)&S.blend[0], (int)S.ds.dt, (int)S.ds.dw, (int)S.ds.df, (int)S.poly.cull,
+                     (int)S.ds.st, (int)S.ds.sf_f, (int)S.ds.sf_b, (int)S.ds.fail_f, (int)S.ds.zfail_f, (int)S.ds.zpass_f,
+                     (int)S.ds.fail_b, (int)S.ds.zfail_b, (int)S.ds.zpass_b, S.st_vmask[0], S.st_vmask[1], S.st_wmask[0], S.st_wmask[1], S.st_ref[0], S.st_ref[1],
+                     di ? (unsigned long long)di->ibuf : 0ull, di ? di->itype : 0, S.chmask.mask, (unsigned long long)*(uint64_t *)&S.blend[1], (unsigned long long)*(uint64_t *)&S.blend[2], (unsigned long long)*(uint64_t *)&S.blend[3],
+                     (int)S.poly.offset_en, S.po.factor, S.po.units, S.po.clamp, S.depth_clamp);
+-        if (all && pr->sh[0]) {   // Content fingerprint of each constant buffer of the vertex stage (to judge whether a draw is completely identical across frames: used by the shadow cache etc.); when unreadable (a write pending execution in this submit) record P
++        if ((all || cap_all()) && pr->sh[0]) {   // RewindBox (patch 0048): cap_all. Content fingerprint of each constant buffer of the vertex stage (to judge whether a draw is completely identical across frames: used by the shadow cache etc.); when unreadable (a write pending execution in this submit) record P
+             char ub[400]; size_t o = 0; NvShader *v = pr->sh[0];
+             for (int i = 0; i < v->rf.nb && o < sizeof ub - 40; i++) if (v->rf.b[i].kind == NVN_RB_CBUF && v->rf.b[i].reg < 16) {
+                 const p_bind_buf *u = &S.ubo[0][v->rf.b[i].reg]; void *mb; uint64_t mo; const uint8_t *base; uint64_t h = 1469598103934665603ull;
+@@ -14410,7 +14463,8 @@ static void draw(const p_draw *dw, const p_draw_idx *di) {
+                   if (hn < 12 && u->size <= 608 && v->rf.b[i].reg == 3) { hn++; char hx[1300]; for (uint64_t q = 0; q < u->size; q++) snprintf(hx + 2 * q, 3, "%02x", base[mo + q]); PD("x %llu r%d %s", g_stat_pass, v->rf.b[i].reg, hx); } }
+                 o += snprintf(ub + o, sizeof ub - o, " r%d=%016llx/%llu/%016llx", v->rf.b[i].reg, (unsigned long long)h, (unsigned long long)u->size, (unsigned long long)h64); }
+             PD("u %llu%s", g_stat_pass, ub); }
+-        if (all) { char vb[1600]; size_t o = 0; o += snprintf(vb + o, sizeof vb - o, "nattr=%d", S.nattr);
++        if (cap_all()) PD("n %llu draw %llu indirect=%#llx multi-draw %d count at %#llx", g_stat_pass, (unsigned long long)g_stat_draw, dw ? (unsigned long long)dw->ind : (unsigned long long)di->ind, dw ? dw->mdi_i : di->mdi_i, dw ? (unsigned long long)dw->mdi_cnt : (unsigned long long)di->mdi_cnt);   // RewindBox (patch 0048)
++        if (all || cap_all()) { char vb[1600]; size_t o = 0; o += snprintf(vb + o, sizeof vb - o, "nattr=%d", S.nattr);   // RewindBox (patch 0048): cap_all
+             for (int i = 0; i < S.nattr && i < 16 && o < sizeof vb - 100; i++) { int st = S.attr[i].stream; if (!S.attr[i].fmt) continue;   // only attributes with a format
+                 o += snprintf(vb + o, sizeof vb - o, " a%d{fmt=%#x off=%d s=%d stride=%u div=%u vb=%#llx/%llu}", i, S.attr[i].fmt, S.attr[i].offset, st,
+                               st < 16 ? S.stream[st].stride : 0, st < 16 ? S.stream[st].divisor : 0, st < 16 ? (unsigned long long)S.vbuf[st].address : 0ull, st < 16 ? (unsigned long long)S.vbuf[st].size : 0ull); }
+@@ -16233,6 +16287,7 @@ static void cap_end(void) {   // td_dump has written the files
+     MLOG("RewindBox: frame capture written into %s (%llu pass lines, %d pass snapshots)", g_cap_dir, (unsigned long long)lines, g_cap_snaps);
+     g_cap_snap = 0; g_cap_dir[0] = 0;
+     g_pd_a0 = -2;   // passdump() reads DM_NVN_PASSDUMP again (unset: off, answered at its first test)
++    [g_cap_tex removeAllObjects]; [g_cap_tex_seen removeAllObjects];   // RewindBox (patch 0048): td_dump's thumbnails are written (or its pipeline failed)
+ }
+ static void cap_reset(void) {   // session end (nvn_session.inc): a capture left unfinished stops there, its directory keeps what it has
+     atomic_store(&g_cap_req, 0);
+@@ -16240,6 +16295,7 @@ static void cap_reset(void) {   // session end (nvn_session.inc): a capture left
+     atomic_store(&g_cap_pd_log, 0);
+     pthread_mutex_lock(&g_cap_pd_mu); if (g_cap_pd_f) fclose(g_cap_pd_f); g_cap_pd_f = NULL; pthread_mutex_unlock(&g_cap_pd_mu);
+     g_cap_snap = 0; g_cap_dir[0] = 0;
++    [g_cap_tex removeAllObjects]; [g_cap_tex_seen removeAllObjects];   // RewindBox (patch 0048)
+ }
+ static int cap_room(size_t bytes, const char *what, uint64_t ser) {   // td_dump: room for one image's conversion (its RGBA8 copy, the read-back buffer and the PNG encoder's)
+ #if TARGET_OS_IPHONE
+@@ -16428,6 +16484,38 @@ static void td_dump(void) {
+             shot(o, path, 0, NULL);
+         }
+     }
++    // RewindBox (patch 0048): the capture frame's sampled textures as its shaders read them (the bound view: its format and channel mapping), first layer, at the first level no
++    //   more than CAP_TEX_EDGE on its longer side: tx-<serial>_<Metal format>_<width>x<height>_l<level>.png in the capture's directory (colour as read, alpha left out)
++    if (g_cap_dir[0] && g_cap_tex.count) {
++        unsigned done = 0, left = 0;
++        for (NSArray *e in g_cap_tex) @autoreleasepool {
++            id<MTLTexture> v = e[0]; uint64_t ser = [e[1] unsignedLongLongValue]; MTLTextureType tt = v.textureType;
++            if (tt != MTLTextureType2D && tt != MTLTextureType2DArray && tt != MTLTextureTypeCube && tt != MTLTextureTypeCubeArray) { left++; continue; }
++            id<MTLTexture> base = v.parentTexture ? v.parentTexture : v;
++            if (base.textureType == MTLTextureType3D || base.sampleCount > 1 || base.textureType == MTLTextureTypeTextureBuffer || mtl_fmt_depth(v.pixelFormat)) { left++; continue; }   // depth / stencil: not colour
++            NSUInteger l0 = v.parentTexture ? v.parentRelativeLevel : 0, s0 = v.parentTexture ? v.parentRelativeSlice : 0, lv = 0;
++            while (lv + 1 < v.mipmapLevelCount && MAX(v.width >> lv, v.height >> lv) > CAP_TEX_EDGE) lv++;
++            NSUInteger w = MAX(v.width >> lv, 1u), h = MAX(v.height >> lv, 1u);
++            if (MAX(w, h) > 4 * CAP_TEX_EDGE || !cap_room((size_t)w * h * 4, "sampled texture", ser)) { left++; continue; }
++            id<MTLTexture> tv = [base newTextureViewWithPixelFormat:v.pixelFormat textureType:MTLTextureType2D levels:NSMakeRange(l0 + lv, 1) slices:NSMakeRange(s0, 1) swizzle:v.swizzle];
++            if (!tv) { left++; continue; }
++            MTLTextureDescriptor *od = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm width:w height:h mipmapped:NO];
++            od.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead; od.storageMode = MTLStorageModePrivate;
++            id<MTLTexture> o = [g_dev newTextureWithDescriptor:od]; if (!o) { left++; continue; }
++            id<MTLCommandBuffer> cb = q_cb();
++            MTLRenderPassDescriptor *rp = [MTLRenderPassDescriptor renderPassDescriptor];
++            rp.colorAttachments[0].texture = o; rp.colorAttachments[0].loadAction = MTLLoadActionDontCare; rp.colorAttachments[0].storeAction = MTLStoreActionStore;
++            id<MTLRenderCommandEncoder> en = [cb renderCommandEncoderWithDescriptor:rp];
++            int cls = mtl_pf_dpf(v.pixelFormat);
++            id<MTLRenderPipelineState> use = cls == NVN_DPF_UINT && ps_i[0] ? ps_i[0] : cls == NVN_DPF_SINT && ps_i[1] ? ps_i[1] : ps;
++            [en setRenderPipelineState:use]; [en setFragmentTexture:tv atIndex:0]; [en setFragmentSamplerState:sp atIndex:0];
++            [en drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3]; [en endEncoding]; if (!cb_run(cb)) { left++; continue; }
++            char path[1200]; snprintf(path, sizeof path, "%s/tx-%llu_%lu_%lux%lu_l%lu.png", g_cap_dir, (unsigned long long)ser, (unsigned long)v.pixelFormat, (unsigned long)v.width, (unsigned long)v.height, (unsigned long)lv);
++            shot(o, path, 0, NULL); done++;
++        }
++        MLOG("RewindBox: frame capture: %u sampled textures saved as the shaders read them (tx-*.png), %u left out (3D, multisample, too large or no room)", done, left);
++    }
++    [g_cap_tex removeAllObjects]; [g_cap_tex_seen removeAllObjects];   // RewindBox (patch 0048)
+     td_clear(0);
+     if (g_cap_dir[0]) cap_end();   // RewindBox (patch 0045)
+ }
