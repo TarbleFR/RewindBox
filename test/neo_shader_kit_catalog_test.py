@@ -16,6 +16,9 @@ For packages/neo_shader_kit/ios/Resources/slang-catalog.json:
    renders three frames of a moving picture, reads the result back) and
    must visibly change the picture compared with a plain nearest upscale.
 
+The presets of each later addition ("additions" of the catalog) get the
+same three checks against the commit that addition pins, fetched here.
+
 A catalog entry is offered as "rendered" only because this test passes on
 it. Failures are listed one per line ("FAIL <stage> <preset> <code>
 <detail>") so they can be excluded from the catalog with their reason; the
@@ -64,6 +67,20 @@ def check_files(catalog, checkout):
         elif hashlib.sha256(data).hexdigest() != digest:
             problems.append(f'{path}: SHA-256 differs from the catalog')
     return problems
+
+
+def addition_checkout(checkout, source):
+    """The repository at the commit a later addition pins, fetched next to the first checkout."""
+    target = checkout.with_name(f'{checkout.name}-{source["commit"][:12]}')
+    if not (target / '.git').exists():
+        run('git', 'init', '-q', target, check=True)
+        run('git', '-C', target, 'fetch', '-q', '--depth', '1', source['repository'], source['commit'], check=True)
+        run('git', '-C', target, 'checkout', '-q', 'FETCH_HEAD', check=True)
+    head = subprocess.run(['git', '-C', str(target), 'rev-parse', 'HEAD'], check=True, capture_output=True,
+                          text=True).stdout.strip()
+    if head != source['commit']:
+        raise SystemExit(f'addition checkout is {head}, the catalog pins {source["commit"]}')
+    return target
 
 
 def metal_compile(source, standard):
@@ -179,61 +196,79 @@ def main():
     commit = catalog['source']['commit']
     if head != commit:
         raise SystemExit(f'slang-shaders checkout is {head}, the catalog pins {commit}')
-    problems = check_files(catalog, checkout)
-    for problem in problems:
-        print('FILE', problem, flush=True)
-    if problems:
-        raise SystemExit(f'{len(problems)} catalog files differ from the pinned repository')
-    print(f'{len(catalog["files"])} catalog files match {commit}', flush=True)
+    # The catalog's own source, then each later addition against its own pinned commit.
+    sources = [(commit, checkout, catalog)]
+    for addition in catalog.get('additions', []):
+        sources.append((addition['source']['commit'], addition_checkout(checkout, addition['source']), addition))
+    for source_commit, source_checkout, layer in sources:
+        problems = check_files(layer, source_checkout)
+        for problem in problems:
+            print('FILE', problem, flush=True)
+        if problems:
+            raise SystemExit(f'{len(problems)} catalog files differ from the pinned repository at {source_commit}')
+        print(f'{len(layer["files"])} catalog files match {source_commit}', flush=True)
 
-    presets = [entry['id'] for entry in catalog['entries']]
+    total = failed = 0
     with tempfile.TemporaryDirectory(prefix='neo-shader-catalog-') as temporary:
         temporary = Path(temporary)
         build = arguments.build_directory or temporary / 'build'
         run('cmake', '-S', TOOLS, '-B', build, '-DCMAKE_BUILD_TYPE=Release', check=True)
         run('cmake', '--build', build, '--parallel', str(arguments.jobs), '--target', 'neoshader-tool',
             'neoshader-metal-validate', check=True)
+        for index, (source_commit, source_checkout, layer) in enumerate(sources):
+            presets = [entry['id'] for entry in layer['entries']]
+            work = temporary / f'source-{index}'
+            work.mkdir()
+            started = time.monotonic()
+            ios, standard = validate_ios(build / 'neoshader-tool', source_checkout, presets, work, arguments.jobs)
+            ios_seconds = time.monotonic() - started
+            started = time.monotonic()
+            metal = validate_metal(build / 'neoshader-metal-validate', source_checkout, presets, work)
+            metal_seconds = time.monotonic() - started
 
-        started = time.monotonic()
-        ios, standard = validate_ios(build / 'neoshader-tool', checkout, presets, temporary, arguments.jobs)
-        ios_seconds = time.monotonic() - started
-        started = time.monotonic()
-        metal = validate_metal(build / 'neoshader-metal-validate', checkout, presets, temporary)
-        metal_seconds = time.monotonic() - started
+            verdicts, failures = {}, []
+            for preset in presets:
+                record = metal.get(preset, {'ok': False, 'stage': 'render', 'code': 'NOT_VALIDATED', 'detail': ''})
+                if preset in ios:
+                    stage, code, detail = ios[preset]
+                elif not record['ok']:
+                    stage, code, detail = record['stage'], record['code'], record.get('detail', '')
+                else:
+                    stage = code = detail = ''
+                status = 'rendered' if not code else 'failed'
+                verdict = {'status': status}
+                if code:
+                    verdict.update({'stage': stage, 'code': code, 'detail': detail[:300]})
+                    failures.append((stage, preset, code, detail))
+                for key in ('passes', 'compileSeconds', 'gpuMilliseconds', 'changedFraction', 'meanDifference',
+                            'litFraction', 'colors'):
+                    if key in record:
+                        verdict[key] = record[key]
+                verdicts[preset] = verdict
 
-    verdicts, failures = {}, []
-    for preset in presets:
-        record = metal.get(preset, {'ok': False, 'stage': 'render', 'code': 'NOT_VALIDATED', 'detail': ''})
-        if preset in ios:
-            stage, code, detail = ios[preset]
-        elif not record['ok']:
-            stage, code, detail = record['stage'], record['code'], record.get('detail', '')
-        else:
-            stage = code = detail = ''
-        status = 'rendered' if not code else 'failed'
-        verdict = {'status': status}
-        if code:
-            verdict.update({'stage': stage, 'code': code, 'detail': detail[:300]})
-            failures.append((stage, preset, code, detail))
-        for key in ('passes', 'compileSeconds', 'gpuMilliseconds', 'changedFraction', 'meanDifference',
-                    'litFraction', 'colors'):
-            if key in record:
-                verdict[key] = record[key]
-        verdicts[preset] = verdict
-
-    for stage, preset, code, detail in failures:
-        first = detail.splitlines()[0][:200] if detail else ''
-        print(f'FAIL {stage} {preset} {code} {first}', flush=True)
-    environment = (f'macOS {platform.mac_ver()[0]} Metal render + iPhone Metal compiler '
-                   f'(-std={standard}), GitHub run {os.environ.get("GITHUB_RUN_ID", "local")}')
-    if arguments.verdicts:
-        arguments.verdicts.write_text(json.dumps({'schema': 1, 'slangCommit': commit, 'environment': environment,
-                                                  'presets': verdicts}, indent=1) + '\n', encoding='utf-8')
-    print(f'{len(presets)} catalog entries: {len(presets) - len(failures)} rendered, {len(failures)} failed '
-          f'(iOS translation and Metal compile {ios_seconds:.0f} s, Metal render {metal_seconds:.0f} s)', flush=True)
-    if failures:
+            for stage, preset, code, detail in failures:
+                first = detail.splitlines()[0][:200] if detail else ''
+                print(f'FAIL {stage} {preset} {code} {first}', flush=True)
+            # One line per entry of an addition: a log is enough to transcribe its verdicts.
+            if index:
+                for preset in presets:
+                    print(f'VERDICT {source_commit[:12]} {preset} {verdicts[preset]["status"]}', flush=True)
+            environment = (f'macOS {platform.mac_ver()[0]} Metal render + iPhone Metal compiler '
+                           f'(-std={standard}), GitHub run {os.environ.get("GITHUB_RUN_ID", "local")}')
+            if arguments.verdicts:
+                # The catalog's own source keeps the given name; an addition adds its commit to it.
+                target = arguments.verdicts if not index else arguments.verdicts.with_name(
+                    f'{arguments.verdicts.stem}-{source_commit[:12]}{arguments.verdicts.suffix}')
+                target.write_text(json.dumps({'schema': 1, 'slangCommit': source_commit, 'environment': environment,
+                                              'presets': verdicts}, indent=1) + '\n', encoding='utf-8')
+            print(f'{source_commit[:12]}: {len(presets)} catalog entries: {len(presets) - len(failures)} rendered, '
+                  f'{len(failures)} failed (iOS translation and Metal compile {ios_seconds:.0f} s, '
+                  f'Metal render {metal_seconds:.0f} s)', flush=True)
+            total += len(presets)
+            failed += len(failures)
+    if failed:
         raise SystemExit(1)
-    print('PASS: every catalog entry compiles for iPhone and renders visibly with Metal', flush=True)
+    print(f'PASS: every catalog entry ({total}) compiles for iPhone and renders visibly with Metal', flush=True)
 
 
 if __name__ == '__main__':

@@ -67,11 +67,21 @@ typedef NS_ENUM(NSInteger, NeoShaderCostTier) {
 @property(nonatomic, copy, readonly) NSArray<NSDictionary<NSString *, id> *> *options;
 /// Stable remarks ("hdr-output", "touch-geometry", ...).
 @property(nonatomic, copy, readonly) NSArray<NSString *> *notes;
+/// Repository and revision its files come from: the catalog's own source,
+/// or the source of the later addition that lists it. An installed preset
+/// stays at the revision it was installed from.
+@property(nonatomic, copy, readonly) NSString *sourceName;
+@property(nonatomic, copy, readonly) NSString *sourceRevision;
 @end
 
 /// A catalog bundled with the application, generated from a pinned commit
 /// of an official repository (tools/shaders/build_*_catalog.py). Files are
 /// fetched from that exact commit and checked against its SHA-256.
+///
+/// A catalog grows without moving that pin: "additions" list presets that
+/// appeared later, each addition with its own pinned source, files and
+/// entries. The entries of the first source are untouched, so what is
+/// installed keeps validating against the revision it came from.
 @interface NeoShaderCatalog : NSObject
 @property(nonatomic, copy, readonly) NSString *engine;
 @property(nonatomic, copy, readonly) NeoShaderFormat format;

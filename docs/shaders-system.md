@@ -36,6 +36,30 @@ comme préréglage RetroArch, et l'inverse.
   brutes, sémantiques non prises en charge, échec GPU). Chaque fichier
   nécessaire (préréglage, sources, inclusions, textures) est listé avec sa
   taille et son SHA-256 ; 2 412 fichiers, 33,8 Mo au total.
+- **Croissance sans déplacer l'épinglage (16 novembre 2026)** : un préréglage
+  installé reste lié à la révision dont il vient (`installed.json`,
+  `files/<révision>/`) et sa validation compare cette révision à celle du
+  catalogue ; déplacer le commit épinglé invaliderait donc tout ce qui est
+  installé. Les nouveautés amont sont ajoutées comme « ajouts »
+  (`additions` de `slang-catalog.json`) : un commit ultérieur du même dépôt,
+  épinglé dans `ADDITIONS` du générateur, avec sa propre table de fichiers
+  et ses entrées. Les 982 entrées du premier commit ne sont pas réécrites.
+  `build_slang_catalog.py --extend` ne retient que les préréglages qu'aucune
+  source antérieure ne possède (catalogués ou écartés) et écarte celui dont
+  tous les fichiers sont, octet pour octet, ceux d'un préréglage déjà
+  catalogué (renommage amont, `SAME_AS_CATALOGUED`). Premier ajout :
+  `9230b1f24a6d0f28febe61711c0b255c4926b231` (15 novembre 2026), 5
+  préréglages (`edge-smoothing/scalenx/scale3xSFX`,
+  `edge-smoothing/xbrz/xbrz-crisp`,
+  `motion-interpolation/motion-interpolation`,
+  `presets/pixel_transparency/pixel_transparency-accurate` et
+  `sunlight_shimmer-accurate`), 33 fichiers, 202 452 octets. Côté
+  application, `NeoShaderCatalog` lit les ajouts (une entrée porte
+  `sourceRevision`, un fichier se télécharge depuis le commit de son ajout)
+  et `NeoShaderStorage` installe et valide chaque entrée sous la révision de
+  sa propre source. Un ajout mal formé est ignoré en entier ; il ne retire
+  ni ne modifie aucune entrée antérieure. `tools/catalogues/watch.py --only
+  shaders --delta` indique si le dépôt amont a bougé et quels dossiers.
 - **Téléchargement** : seulement à la demande, depuis ce commit
   (`raw.githubusercontent.com`), vérification taille + SHA-256 de chaque
   fichier, mise en place atomique quand tout est vérifié ; fichiers partagés
