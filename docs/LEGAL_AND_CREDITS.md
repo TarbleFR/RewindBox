@@ -412,8 +412,9 @@ SHA-256 in `ThirdParty/*/SOURCE.txt`):
 
 The application bundles **catalogs**, not shader files: `slang-catalog.json`
 lists presets of **libretro/slang-shaders** (commit
-`e1d75632a205c70f14a4cc947c46d5abb7b3f7f1`) with the size and SHA-256 of
-every file. A preset's files are downloaded only when the player chooses
+`e1d75632a205c70f14a4cc947c46d5abb7b3f7f1`, and the presets added upstream
+since, read from commit `9230b1f24a6d0f28febe61711c0b255c4926b231`) with the
+size and SHA-256 of every file. A preset's files are downloaded only when the player chooses
 it, from that commit, and each file remains under its own license as its
 header states; author and license lines are shown as written. Previews come
 from **libretro/shader-previews** (commit

@@ -45,6 +45,8 @@ static NSURL *JoinURL(NSString *base, NSString *path) {
 @property(nonatomic, copy, readwrite) NSString *path;
 @property(nonatomic, readwrite) unsigned long long size;
 @property(nonatomic, copy, readwrite) NSString *sha256;
+/// https base of an addition's own source; nil for the catalog's first source.
+@property(nonatomic, copy, nullable) NSString *rawBaseURL;
 @end
 
 @implementation NeoShaderCatalogFile
@@ -89,6 +91,8 @@ static NSURL *JoinURL(NSString *base, NSString *path) {
 @property(nonatomic, copy, readwrite) NSString *validation;
 @property(nonatomic, copy, readwrite) NSArray<NSDictionary<NSString *, id> *> *options;
 @property(nonatomic, copy, readwrite) NSArray<NSString *> *notes;
+@property(nonatomic, copy, readwrite) NSString *sourceName;
+@property(nonatomic, copy, readwrite) NSString *sourceRevision;
 @end
 
 @implementation NeoShaderCatalogEntry
@@ -181,10 +185,15 @@ static NSArray<NSString *> *StringArray(id value, NSUInteger limit) {
   NSMutableDictionary<NSString *, NeoShaderCatalogEntry *> *byIdentifier = [NSMutableDictionary dictionary];
   NSMutableOrderedSet<NSString *> *categories = [NSMutableOrderedSet orderedSet];
   for (NSString *category in StringArray(json[@"categories"], 64)) [categories addObject:category];
-  for (id item in [json[@"entries"] isKindOfClass:NSArray.class] ? json[@"entries"] : @[]) {
+  // The entries of one source: `files` is that source's own file table.
+  void (^addEntries)(id, NSArray<NeoShaderCatalogFile *> *, NSString *, NSString *) =
+      ^(id items, NSArray<NeoShaderCatalogFile *> *sourceFiles, NSString *sourceName, NSString *sourceRevision) {
+  for (id item in [items isKindOfClass:NSArray.class] ? items : @[]) {
     if (![item isKindOfClass:NSDictionary.class]) continue;
     NSDictionary *value = item;
     NeoShaderCatalogEntry *entry = [NeoShaderCatalogEntry new];
+    entry.sourceName = sourceName;
+    entry.sourceRevision = sourceRevision;
     entry.identifier = StringValue(value[@"id"]);
     entry.name = StringValue(value[@"name"]);
     entry.category = StringValue(value[@"category"]);
@@ -199,11 +208,11 @@ static NSArray<NSString *> *StringArray(id value, NSUInteger limit) {
     unsigned long long bytes = 0;
     for (id index in [value[@"files"] isKindOfClass:NSArray.class] ? value[@"files"] : @[]) {
       if (![index isKindOfClass:NSNumber.class] || [index integerValue] < 0 ||
-          (NSUInteger)[index integerValue] >= files.count) {
+          (NSUInteger)[index integerValue] >= sourceFiles.count) {
         valid = NO;
         break;
       }
-      NeoShaderCatalogFile *file = files[(NSUInteger)[index integerValue]];
+      NeoShaderCatalogFile *file = sourceFiles[(NSUInteger)[index integerValue]];
       [entryFiles addObject:file];
       bytes += file.size;
     }
@@ -237,6 +246,31 @@ static NSArray<NSString *> *StringArray(id value, NSUInteger limit) {
     [entries addObject:entry];
     byIdentifier[entry.identifier] = entry;
     [categories addObject:entry.category];
+  }
+  };
+  addEntries(json[@"entries"], files, catalog.sourceName, catalog.sourceRevision);
+  // Later additions: each has its own pinned source. A malformed one is left
+  // out whole; it never removes or changes an entry of an earlier source.
+  for (id item in [json[@"additions"] isKindOfClass:NSArray.class] ? json[@"additions"] : @[]) {
+    if (![item isKindOfClass:NSDictionary.class]) continue;
+    NSDictionary *addition = item;
+    NSDictionary *origin = [addition[@"source"] isKindOfClass:NSDictionary.class] ? addition[@"source"] : @{};
+    NSString *raw = StringValue(origin[@"raw"]);
+    NSString *revision = StringValue(origin[@"commit"]);
+    if (revision.length == 0 || ![raw hasPrefix:@"https://"] || ![raw hasSuffix:@"/"]) continue;
+    NSMutableArray<NeoShaderCatalogFile *> *additionFiles = [NSMutableArray array];
+    BOOL complete = YES;
+    for (id fileItem in [addition[@"files"] isKindOfClass:NSArray.class] ? addition[@"files"] : @[]) {
+      NeoShaderCatalogFile *file = [NeoShaderCatalogFile fileFromJSON:fileItem];
+      if (file == nil) {
+        complete = NO;
+        break;
+      }
+      file.rawBaseURL = raw;
+      [additionFiles addObject:file];
+    }
+    if (!complete) continue;
+    addEntries(addition[@"entries"], additionFiles, StringValue(origin[@"name"]), revision);
   }
   catalog.entries = entries;
   catalog.byIdentifier = byIdentifier;
@@ -272,7 +306,7 @@ static NSArray<NSString *> *StringArray(id value, NSUInteger limit) {
 }
 
 - (NSURL *)downloadURLForFile:(NeoShaderCatalogFile *)file {
-  return JoinURL(self.rawBaseURL, file.path);
+  return JoinURL(file.rawBaseURL.length > 0 ? file.rawBaseURL : self.rawBaseURL, file.path);
 }
 
 - (NSURL *)previewURLForFile:(NeoShaderCatalogFile *)file {

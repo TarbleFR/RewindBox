@@ -16,11 +16,13 @@ void main() {
   tearDown(() => cache.deleteSync(recursive: true));
 
   test('the bundled index is the published index and lists every engine', () async {
+    final index = await repositoryCatalog(cache).index();
+    // Each revision is published in its own folder (r/<revision>/), where the app asks for it.
+    final folder = Uri.parse(index.baseUrl).path.split('/native/enhancements/catalogue/').last;
     final bundled = File('assets/data/enhancements_index.json.gz').readAsBytesSync();
-    final published = File('native/enhancements/catalogue/index.json.gz').readAsBytesSync();
+    final published = File('native/enhancements/catalogue/${folder}index.json.gz').readAsBytesSync();
     expect(bundled, published, reason: 'the IPA index and the remote index must be identical');
 
-    final index = await repositoryCatalog(cache).index();
     expect(index.baseUrl, startsWith('https://raw.githubusercontent.com/TarbleFR/RewindBox/'));
     for (final engine in ['melonx', 'rpcs3', 'armsx2', 'dolphin']) {
       expect(index.totals[engine], isNotNull, reason: engine);
@@ -101,7 +103,9 @@ void main() {
       cacheRoot: () async => cache,
       bundledIndex: () async => encode(source),
       fetcher: (uri, {required limit, onProgress}) async {
-        expect(uri.toString(), endsWith('/native/enhancements/catalogue/index.json.gz'));
+        // The index is asked from the folder of the revision the app holds (r/<revision>/).
+        expect(uri.toString(), contains('/native/enhancements/catalogue/'));
+        expect(uri.toString(), endsWith('/index.json.gz'));
         return encode(newer);
       },
     );
@@ -127,7 +131,8 @@ void main() {
     expect(shards, isNotEmpty);
     for (final entry in shards.entries) {
       final meta = entry.value as Map;
-      final bytes = File('native/enhancements/catalogue/${meta['path']}').readAsBytesSync();
+      final folder = Uri.parse(index.baseUrl).path.split('/native/enhancements/catalogue/').last;
+      final bytes = File('native/enhancements/catalogue/$folder${meta['path']}').readAsBytesSync();
       expect(bytes.length, meta['size'], reason: entry.key);
       expect(sha256.convert(bytes).toString(), meta['sha256'], reason: entry.key);
     }

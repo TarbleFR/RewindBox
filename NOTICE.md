@@ -166,7 +166,7 @@ https://github.com/TarbleFR/RewindBox/issues; entries are removed promptly.
   the PCSX2 patch set the embedded engine already ships): referenced by patch
   name and author credit only, to enable a patch in the per-game settings. No
   patch body or description is redistributed.
-- CookiePLMonster/Console-Cheat-Codes 26e407a754e0a2b2c73f55ad4f9261b32cfb42cd:
+- CookiePLMonster/Console-Cheat-Codes f63492f8ce9bbbf8eba57b2616fed3bc17c0740f:
   MIT, Copyright (c) 2020-2023 Adrian Zdanowicz (Silent).
 - AeroWidescreen/PCSX2-Cheats ab043ba5adb9e65837fd451d207e6c7c2731c3b1:
   MIT, Copyright (c) 2023 Aero_.
@@ -174,9 +174,9 @@ https://github.com/TarbleFR/RewindBox/issues; entries are removed promptly.
   copyright and permission notice in its comments.
 - Dolphin GameSettings, GPL-2.0-or-later: OatmealDome/dolphin-ios
   7cac54161659421ed95c2cd1c0b0746539a4cd38 (names only, bodies ship with the
-  engine); dolphin-emu/dolphin 3eb30c7620b4475b2e0404228ba0d2b238a132f1;
+  engine); dolphin-emu/dolphin c5069249b473da2427c89a698f1338aeb4011034;
   Tinob/Ishiiruka cba6d7279b44894297d8c1dde1effdbba3605c32;
-  project-slippi/Ishiiruka d6779e03dcfd8dab4bb9b6634eb8f9b393c9d195;
+  project-slippi/Ishiiruka 07b2d287a1f074942811d13b3c990fa29401ba7c;
   MarioPartyNetplay/Dolphin-MPN cb414b1d65213869928ccb2b6fd0d2406d04bfe0.
   Code credits ([Ralf], [gamemasterplc]...) are kept in each label.
 - Admentus64/Enhancement-Codes f8e9ad12d90460e316b552fdf73052eb308e9ab9:
@@ -188,6 +188,21 @@ original cheat authors"), blawar/titledb cheats.json (uncredited codes), the
 pcsx2_patches bodies (only names of the copy ARMSX2 ships are referenced),
 Gabominated/PCSX2, PeterDelta/PCSX2 and three other cheat and mod
 collections. None of their codes is distributed.
+
+Read by reference since 16 November 2026 (not hosted, not in the IPA): the
+catalogue lists the names and author credits of patch groups of
+PCSX2/pcsx2_patches b919d7fb5849feeb30b2da07d02f6dc662f28ba5 (groups the
+embedded engine does not already ship), PeterDelta/PCSX2
+8ee633941cfdfb233a772e2d28b1a6006624d392, Gabominated/PCSX2
+24eaa108d39a63aec5d53e19b4962bb239f145ef and Saramagrean/NetherSX2-cheats
+52187122e0adf73a50869b52ce9143e878ab4129, with pointers (byte ranges) into
+their files; and the names of the exefs patches of
+KeatonTheBot/switch-pchtxt-mods e882d7a8273783a981efcb2eeb38a580307bbce4,
+with pointers to their patch files. The application downloads a game's
+original file from the source repository at that revision, checks its
+SHA-256 and writes the selected groups or patches. These sources state no
+licence; each patch belongs to the author its file names
+(docs/ENHANCEMENTS.md, "Origin download" and "Rights").
 
 UNIFIED CHEAT CATALOGUE (native/cheats/) — 28 OCTOBER 2026 WITHDRAWAL
 

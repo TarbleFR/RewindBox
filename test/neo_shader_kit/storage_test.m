@@ -448,9 +448,17 @@ static void TestBundledCatalog(NSString *resources) {
   if (catalog == nil) return;
   NSArray *rawEntries = json[@"entries"];
   NSString *commit = json[@"source"][@"commit"];
-  CHECK(catalog.entries.count == rawEntries.count && rawEntries.count > 900,
-        "bundled catalog: %lu entries parsed of %lu", (unsigned long)catalog.entries.count,
-        (unsigned long)rawEntries.count);
+  // Later additions (presets that appeared after the pin) are parsed with the first source's entries.
+  NSUInteger rawCount = rawEntries.count, added = 0;
+  for (NSDictionary *addition in [json[@"additions"] isKindOfClass:NSArray.class] ? json[@"additions"] : @[]) {
+    rawCount += [addition[@"entries"] count];
+  }
+  for (NeoShaderCatalogEntry *entry in catalog.entries) {
+    if (![entry.sourceRevision isEqualToString:commit]) added++;
+  }
+  CHECK(catalog.entries.count == rawCount && rawEntries.count > 900 && added == rawCount - rawEntries.count,
+        "bundled catalog: %lu entries parsed of %lu (%lu of later additions)", (unsigned long)catalog.entries.count,
+        (unsigned long)rawCount, (unsigned long)added);
   CHECK([catalog.sourceRevision isEqualToString:commit] && commit.length == 40,
         "bundled catalog: pinned at its commit (%s)", catalog.sourceRevision.UTF8String);
   CHECK([catalog.engine isEqualToString:@"libretro"] && [catalog.format isEqualToString:NeoShaderFormatSlang],
@@ -484,6 +492,16 @@ static void TestBundledCatalog(NSString *resources) {
   CHECK(royale, "bundled catalog: a search ignores case and spaces (crt-royale)");
   NeoShaderCatalogFile *spaced = nil;
   for (NeoShaderCatalogEntry *entry in catalog.entries) {
+    if (![entry.sourceRevision isEqualToString:commit]) {
+      // An entry of a later addition downloads from that addition's own pinned commit.
+      NSURL *from = [catalog downloadURLForFile:entry.files.firstObject];
+      NSString *base = [NSString stringWithFormat:@"https://raw.githubusercontent.com/libretro/slang-shaders/%@/",
+                                                  entry.sourceRevision];
+      CHECK(entry.sourceRevision.length == 40 && [from.absoluteString hasPrefix:base],
+            "bundled catalog: %s downloads from its addition's commit (%s)", entry.identifier.UTF8String,
+            from.absoluteString.UTF8String);
+      continue;
+    }
     for (NeoShaderCatalogFile *file in entry.files) {
       if ([file.path containsString:@" "]) spaced = file;
     }

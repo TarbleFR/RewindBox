@@ -323,8 +323,10 @@ static NSDictionary *ReadJSONObject(NSString *path) {
   for (NeoShaderCatalogFile *file in entry.files) [expected addObject:file.path];
   // The registry alone is not a trusted manifest: a truncated file list
   // must not let an incomplete preset pass validation.
+  // An entry of a later addition belongs to that addition's own revision.
+  NSString *revision = entry.sourceRevision.length > 0 ? entry.sourceRevision : catalog.sourceRevision;
   if (entry == nil || ![catalog.engine isEqualToString:_engine] ||
-      ![installation.revision isEqualToString:catalog.sourceRevision] ||
+      ![installation.revision isEqualToString:revision] ||
       expected.count == 0 || registered.count != installation.files.count ||
       ![registered isEqualToSet:expected]) {
     return Failure(NeoShaderErrorEntryInvalid, installation.identifier);
@@ -392,12 +394,13 @@ static NSDictionary *ReadJSONObject(NSString *path) {
     });
   };
   NSString *identifier = [entry.identifier copy];
-  NSString *revision = [catalog.sourceRevision copy];
+  // The files of an entry are installed below the revision of its own source.
+  NSString *revision = [(entry.sourceRevision.length > 0 ? entry.sourceRevision : catalog.sourceRevision) copy];
   if (!SafeRelativePath(identifier) || !SafeRevision(revision) || entry.files.count == 0) {
     finish(Failure(NeoShaderErrorEntryInvalid, identifier));
     return;
   }
-  if (catalog.rawBaseURL.length == 0) {
+  if ([catalog downloadURLForFile:entry.files.firstObject] == nil) {
     finish(Failure(NeoShaderErrorNoDownloadURL, identifier));
     return;
   }

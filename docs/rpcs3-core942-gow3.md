@@ -152,3 +152,13 @@ Aucun fichier d'entrée de la génération de code n'est modifié : identités P
 Même scène lourde, démarrage normal (pas un ancien état sauvegardé), 2 minutes : `EPOCH909`, `OPT559`, `OPT581`,
 `RSXFRAME551 texture_ms`, `POSTAA942`, les lignes `part=code` de `PPUPROF912` et `SPUPROF923`, `FRAMEPROF527`
 (médiane, p95, p99).
+
+## 8. Compilation et livraison (16 novembre 2026)
+
+Core 942 : première demande verte (run 43950007115), artefact vérifié (empreinte de l'API), épinglé (dylib `22c1c3d5`,
+81 135 944 octets, empreinte 67fbf239 ; vérificateur du composant : `verified`) ; identités de cache inchangées, les
+trois nouveaux marqueurs présents dans le binaire. IPA 763 sur la base 762 (run 43954777719, première demande,
+verte) : seul le Core RPCS3 change ; MeloNX et S2Arm sont ceux de la base. IPA `e6f28a70…`, 331 341 591 octets,
+vérifiée hors ligne après téléchargement (`passed-offline-checks`) et remise au mainteneur ; clé privée supprimée.
+Groupes Flutter et natif non exécutés. **Non testée sur iPhone** : régularité, charge du fil RSX et image restent à
+observer (§ 7).

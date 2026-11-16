@@ -288,6 +288,7 @@ class EnhancementCatalog {
   ) async {
     final bases = {for (final source in index.sources) source.id: source.origin};
     final contents = <Uint8List>[];
+    final expendable = EnhancementOrigin.expendable(engine, record);
     for (final origin in EnhancementOrigin.files(record)) {
       final digest = origin['sha256']?.toString() ?? '';
       final size = origin['size'];
@@ -317,14 +318,35 @@ class EnhancementCatalog {
       if (bytes == null) {
         if (!download) return null;
         final uri = base.resolve(relative.split('/').map(Uri.encodeComponent).join('/'));
-        final fetched = await _fetcher(uri, limit: size, onProgress: onProgress);
-        if (!_matches(fetched, meta)) throw EnhancementException('origin_integrity', relative);
-        await _writeAtomically(file, fetched);
-        bytes = fetched;
+        try {
+          final fetched = await _fetcher(uri, limit: size, onProgress: onProgress);
+          if (!_matches(fetched, meta)) throw EnhancementException('origin_integrity', relative);
+          await _writeAtomically(file, fetched);
+          bytes = fetched;
+        } catch (error) {
+          // A source that cannot be reached, or no longer serves the pinned bytes, must not take
+          // away what the record offers without it (the PS2 engine's own patches).
+          final partial = EnhancementOrigin.withoutOrigin(engine, record);
+          if (partial != null) {
+            _log.w('Enhancements: $relative unavailable from its source ($error); its entries are left out');
+            return partial;
+          }
+          // A Switch patch file only exefs mods point to: those mods are left out, the cheats stay.
+          if (!expendable.contains(contents.length)) rethrow;
+          _log.w('Enhancements: $relative unavailable from its source ($error); its mod is left out');
+          bytes = Uint8List(0);
+        }
       }
       contents.add(bytes);
     }
-    return EnhancementOrigin.resolve(engine, record, contents);
+    try {
+      return EnhancementOrigin.resolve(engine, record, contents);
+    } on EnhancementException catch (error) {
+      final partial = EnhancementOrigin.withoutOrigin(engine, record);
+      if (partial == null) rethrow;
+      _log.w('Enhancements: origin files refused ($error); their entries are left out');
+      return partial;
+    }
   }
 
   bool _matches(Uint8List bytes, Map<String, dynamic> meta) =>

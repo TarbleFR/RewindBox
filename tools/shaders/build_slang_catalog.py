@@ -19,6 +19,21 @@ textures) with its size and SHA-256, so the application downloads exactly
 those files from the pinned commit and refuses any other content. Cost
 classes come from known figures of each preset (see cost()), never from a
 guess. Previews are mapped from shader-previews by path.
+
+Growing the catalog does not move the pin (a preset installed from it must
+keep validating against the same files). The presets that appear upstream
+later are added as an "addition": a later commit of the repository, pinned
+in ADDITIONS below, with its own file table and entries.
+
+    tools/shaders/build_slang_catalog.py --extend \
+        --slang-shaders CHECKOUT_AT_THE_ADDITION --tool NEOSHADER_TOOL \
+        [--shader-previews CHECKOUT] [--metal-results metal-validation.json]
+
+reads the committed catalog, lists the presets of the checkout that no
+earlier source has (catalogued or left out), leaves out a preset whose files
+are byte for byte those of a catalogued one (an upstream rename), compiles
+the others like any entry and writes them as the addition of that commit.
+The entries of the earlier sources are not rewritten.
 """
 import argparse
 import hashlib
@@ -38,6 +53,10 @@ SLANG_DATE = '2026-10-08'
 PREVIEWS_REPOSITORY = 'https://github.com/libretro/shader-previews'
 PREVIEWS_COMMIT = '2adabb17c594c0eafd58bac2d3c93a1a9d4e7631'
 COMPILER = 'glslang 16.3.0 + SPIRV-Cross (Khronos vulkan-sdk-1.4.350.1), MSL 2.4'
+# Later commits of the same repository, in order. Each adds the presets no earlier source has.
+ADDITIONS = (
+    {'commit': '9230b1f24a6d0f28febe61711c0b255c4926b231', 'date': '2026-11-15'},
+)
 
 CATEGORIES = ('crt', 'scanlines', 'lcd', 'pixel-art', 'upscaling', 'sharpen', 'anti-aliasing', 'ntsc-pal',
               'color', 'retro', 'vhs', 'other')
@@ -260,17 +279,161 @@ def run_tool(tool, root, presets, jobs=None):
         return results
 
 
+def make_entry(root, preset, category, result, validation, index_of, preview_index):
+    """The catalog entry of one compiled preset; index_of files its paths in the source's file table."""
+    samples, loop, float_passes, tier = cost(result)
+    authors, licence, notes = mentions(root, result['files'])
+    if not licence:
+        notes.append('license-not-stated')
+    return {
+        'id': preset,
+        'name': Path(preset).stem,
+        'category': category,
+        'family': family(preset),
+        'files': [index_of(relative) for relative in result['files']],
+        'passes': len(result['passes']),
+        'luts': len(result['textures']),
+        'parameters': len(result['parameters']),
+        'history': result['historyDepth'],
+        'feedback': sum(1 for item in result['passes'] if item['feedback']),
+        'floatPasses': float_passes,
+        'cost': {'samples': samples, 'loop': loop, 'tier': tier},
+        'preview': preview_index,
+        'mentions': authors,
+        'license': licence,
+        'validation': validation,
+        'notes': notes,
+    }
+
+
+def extend(arguments):
+    """Adds the presets of a later commit (ADDITIONS) that no earlier source has."""
+    root = arguments.slang_shaders.resolve()
+    commit = git_head(root)
+    addition = next((item for item in ADDITIONS if item['commit'] == commit), None)
+    if addition is None:
+        raise SystemExit(f'the checkout is at {commit}, which ADDITIONS does not pin')
+    output = arguments.output_directory
+    catalog = json.loads((output / 'slang-catalog.json').read_text(encoding='utf-8'))
+    diagnostics = json.loads((output / 'slang-catalog-diagnostics.json').read_text(encoding='utf-8'))
+    if catalog['source']['commit'] != SLANG_COMMIT:
+        raise SystemExit('the committed catalog is not at the pinned commit')
+    earlier = [layer for layer in catalog.get('additions', []) if layer['source']['commit'] != commit]
+    earlier_left_out = [layer for layer in diagnostics.get('additions', []) if layer['commit'] != commit]
+    layers = [catalog] + earlier
+    known = {entry['id'] for layer in layers for entry in layer['entries']}
+    known |= {item[0] for item in diagnostics['excluded']} | {item[0] for layer in earlier_left_out for item in layer['excluded']}
+    # A catalogued preset, by the bytes of every file it needs: an upstream rename is not a new preset.
+    catalogued = {}
+    for layer in layers:
+        for entry in layer['entries']:
+            catalogued[tuple(sorted(layer['files'][index][2] for index in entry['files']))] = entry['id']
+
+    presets = sorted(path.relative_to(root).as_posix() for path in root.rglob('*.slangp') if '.git' not in path.parts)
+    candidates, excluded, categories = [], [], {}
+    for preset in presets:
+        if preset in known:
+            continue
+        category, reason = classify(preset)
+        if category is None:
+            excluded.append([preset, reason, ''])
+        else:
+            categories[preset] = category
+            candidates.append(preset)
+    results = run_tool(arguments.tool, root, candidates) if candidates else {}
+    metal = None
+    if arguments.metal_results:
+        metal = json.loads(arguments.metal_results.read_text(encoding='utf-8'))
+        if metal.get('slangCommit') != commit:
+            raise SystemExit('Metal results were produced for another slang-shaders commit')
+
+    preview_files = catalog['previews']['files']
+    preview_index_of = {item[0]: index for index, item in enumerate(preview_files)}
+    previews = arguments.shader_previews.resolve() if arguments.shader_previews else None
+    if previews is not None and git_head(previews) != PREVIEWS_COMMIT:
+        raise SystemExit(f'shader-previews checkout is not {PREVIEWS_COMMIT}')
+    file_index, files, entries = {}, [], []
+
+    def index_of(relative):
+        if relative not in file_index:
+            path = root / relative
+            file_index[relative] = len(files)
+            files.append([relative, path.stat().st_size, sha256(path)])
+        return file_index[relative]
+
+    for preset in candidates:
+        result = results[preset]
+        if not result['ok']:
+            excluded.append([preset, result['error']['code'], result['error']['detail'][:300]])
+            continue
+        missing = [relative for relative in result['files'] if not (root / relative).is_file()]
+        if missing:
+            excluded.append([preset, 'FILE_MISSING', ', '.join(missing)[:300]])
+            continue
+        same = catalogued.get(tuple(sorted(sha256(root / relative) for relative in result['files'])))
+        if same:
+            excluded.append([preset, 'SAME_AS_CATALOGUED', same])
+            continue
+        validation = 'translated'
+        if metal is not None:
+            verdict = metal.get('presets', {}).get(preset)
+            if verdict is None:
+                excluded.append([preset, 'METAL_NOT_VALIDATED', ''])
+                continue
+            if verdict.get('status') != 'rendered':
+                excluded.append([preset, verdict.get('code', 'METAL_FAILED'), verdict.get('detail', '')[:300]])
+                continue
+            validation = 'rendered'
+        preview_index = -1
+        relative_preview = preset[:-len('.slangp')] + '.png'
+        if relative_preview in preview_index_of:
+            preview_index = preview_index_of[relative_preview]
+        elif previews is not None and (previews / relative_preview).is_file() and png_size(previews / relative_preview):
+            preview_files.append([relative_preview, (previews / relative_preview).stat().st_size,
+                                  sha256(previews / relative_preview)])
+            preview_index = preview_index_of[relative_preview] = len(preview_files) - 1
+        entries.append(make_entry(root, preset, categories[preset], result, validation, index_of, preview_index))
+
+    layer = {
+        'source': {'name': 'libretro/slang-shaders', 'repository': SLANG_REPOSITORY, 'commit': commit,
+                   'date': addition['date'], 'raw': f'https://raw.githubusercontent.com/libretro/slang-shaders/{commit}/'},
+        'validation': metal.get('environment', '') if metal else 'SPIR-V -> MSL translation only',
+        'files': files,
+        'entries': entries,
+    }
+    order = {item['commit']: index for index, item in enumerate(ADDITIONS)}
+    catalog['additions'] = sorted(earlier + ([layer] if entries else []), key=lambda item: order[item['source']['commit']])
+    if not catalog['additions']:
+        del catalog['additions']
+    diagnostics['additions'] = sorted(earlier_left_out + [{'commit': commit, 'excluded': sorted(excluded)}],
+                                      key=lambda item: order[item['commit']])
+    (output / 'slang-catalog.json').write_text(json.dumps(catalog, separators=(',', ':'), ensure_ascii=False) + '\n',
+                                               encoding='utf-8')
+    (output / 'slang-catalog-diagnostics.json').write_text(
+        json.dumps(diagnostics, separators=(',', ':'), ensure_ascii=False) + '\n', encoding='utf-8')
+    print(json.dumps({'commit': commit, 'presets': len(presets), 'new': len(candidates) + sum(
+        1 for item in excluded if item[1].startswith('EXCLUDED_')), 'added': [entry['id'] for entry in entries],
+        'validation': layer['validation'], 'files': len(files), 'downloadBytes': sum(item[1] for item in files),
+        'left_out': excluded}, indent=2))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--slang-shaders', type=Path, required=True)
-    parser.add_argument('--shader-previews', type=Path, required=True)
+    parser.add_argument('--shader-previews', type=Path)
     parser.add_argument('--tool', type=Path, required=True)
+    parser.add_argument('--extend', action='store_true',
+                        help='add the new presets of a later commit (ADDITIONS) to the committed catalog')
     parser.add_argument('--metal-results', type=Path)
     parser.add_argument('--output-directory', type=Path,
                         default=Path(__file__).resolve().parents[2] / 'packages/neo_shader_kit/ios/Resources')
     parser.add_argument('--report', type=Path)
     parser.add_argument('--results-cache', type=Path, help='Reuse or write the neoshader-tool results (JSON).')
     arguments = parser.parse_args()
+    if arguments.extend:
+        return extend(arguments)
+    if arguments.shader_previews is None:
+        parser.error('--shader-previews is required to build the catalog of the pinned commit')
 
     root = arguments.slang_shaders.resolve()
     previews = arguments.shader_previews.resolve()
@@ -339,35 +502,13 @@ def main():
         if missing:
             excluded.append([preset, 'FILE_MISSING', ', '.join(missing)[:300]])
             continue
-        samples, loop, float_passes, tier = cost(result)
-        authors, licence, notes = mentions(root, result['files'])
-        if not licence:
-            notes.append('license-not-stated')
         preview_index = -1
         preview_path = previews / (preset[:-len('.slangp')] + '.png')
         if preview_path.is_file() and png_size(preview_path) is not None:
             preview_files.append([preview_path.relative_to(previews).as_posix(), preview_path.stat().st_size,
                                   sha256(preview_path)])
             preview_index = len(preview_files) - 1
-        entries.append({
-            'id': preset,
-            'name': Path(preset).stem,
-            'category': categories[preset],
-            'family': family(preset),
-            'files': [index_of(relative) for relative in result['files']],
-            'passes': len(result['passes']),
-            'luts': len(result['textures']),
-            'parameters': len(result['parameters']),
-            'history': result['historyDepth'],
-            'feedback': sum(1 for item in result['passes'] if item['feedback']),
-            'floatPasses': float_passes,
-            'cost': {'samples': samples, 'loop': loop, 'tier': tier},
-            'preview': preview_index,
-            'mentions': authors,
-            'license': licence,
-            'validation': validation,
-            'notes': notes,
-        })
+        entries.append(make_entry(root, preset, categories[preset], result, validation, index_of, preview_index))
 
     catalog = {
         'schema': 1,

@@ -34,6 +34,17 @@ tools/textures/verify_packs.py installed the author's real file.
       or that names a game
       identifier: the review list without unrelated texture packs.
 
+--cache <file> keeps answers between runs, so a repeated run only asks for
+what changed:
+  - github: a repository whose last push (pushed_at, given by the search
+    itself) is the one of the cached description is not read again (its
+    tree, releases and README cost three or more requests each); only
+    repositories pushed since are described. Its catalogued/reviewed/new
+    status is always recomputed from tools/textures/sources.
+  - links: a URL that answered "ok" less than --max-age days ago (7 by
+    default) is not asked again; a refused, broken or changed answer is
+    always asked again.
+
 Every mode prints one line per result between DISCOVER_BEGIN and
 DISCOVER_END markers, so a CI log is enough to read them. The GitHub API is
 read with GH_TOKEN or GITHUB_TOKEN when set (repository search is limited to
@@ -381,19 +392,33 @@ def mode_github(args, gh, emit):
     if args.shard:
         index, count = (int(x) for x in args.shard.split('/'))
         names = names[index::count]
+    reused = 0
     for lower in names:
         item = found[lower]
         full_name = item['full_name'] if item else (code.get(lower) or {}).get('full_name') or next((n for n in args.repo or [] if n.lower() == lower), lower)
-        try:
-            record = describe(gh, full_name, item, known, left_out, (code.get(lower) or {}).get('paths'))
-        except Exception as error:  # one repository never stops the others
-            record = {'repo': full_name, 'error': repr(error)[:200]}
+        kept = PERSISTENT['repositories'].get(lower) if PERSISTENT is not None else None
+        if kept and item and item.get('pushed_at') and kept.get('pushed_at') == item['pushed_at'] \
+                and kept.get('code_paths') == ((code.get(lower) or {}).get('paths') or None):
+            # Not pushed since it was described: nothing to read again. Its status follows the sources of today.
+            record = dict(kept['record'], status='catalogued' if lower in known else ('reviewed' if lower in left_out else 'new'))
+            reused += 1
+        else:
+            try:
+                record = describe(gh, full_name, item, known, left_out, (code.get(lower) or {}).get('paths'))
+            except Exception as error:  # one repository never stops the others
+                record = {'repo': full_name, 'error': repr(error)[:200]}
+            if PERSISTENT is not None and not record.get('error') and record.get('pushed_at'):
+                PERSISTENT['repositories'][lower] = {'pushed_at': record['pushed_at'], 'record': record,
+                                                     'code_paths': (code.get(lower) or {}).get('paths') or None}
         if record.get('error') or (args.all or record.get('status') == 'new') and (args.all or promising(record)):
             emit(record)
-    log(f'# {gh.calls} GitHub requests')
+    log(f'# {gh.calls} GitHub requests; {reused} repositories not pushed since the cached run, not read again')
 
 
 HEAD_CACHE = {}
+# Answers kept between runs (--cache): {'links': {url: {status, size, type, checked}}, 'repositories': {...}}.
+PERSISTENT = None
+LINK_MAX_AGE = 7 * 86400
 HOST_LAST = {}
 HOST_INTERVAL = 1.0  # seconds between two requests to the same host
 
@@ -406,6 +431,11 @@ def head(url):
     as such, never worked around."""
     if url in HEAD_CACHE:
         return HEAD_CACHE[url]
+    if PERSISTENT is not None:
+        kept = PERSISTENT['links'].get(url)
+        if kept and kept.get('status') in (200, 206) and time.time() - kept.get('checked', 0) < LINK_MAX_AGE:
+            HEAD_CACHE[url] = {key: value for key, value in kept.items() if key != 'checked'}
+            return HEAD_CACHE[url]
     host = urllib.parse.urlsplit(url).hostname or ''
     wait = HOST_LAST.get(host, 0) + HOST_INTERVAL - time.monotonic()
     if wait > 0:
@@ -422,6 +452,8 @@ def head(url):
         result = {'status': 0, 'error': repr(error)[:120]}
     HOST_LAST[host] = time.monotonic()
     HEAD_CACHE[url] = result
+    if PERSISTENT is not None:
+        PERSISTENT['links'][url] = dict(result, checked=int(time.time()))
     return result
 
 
@@ -538,7 +570,17 @@ def main():
     parser.add_argument('--all', action='store_true', help='also report catalogued and reviewed repositories')
     parser.add_argument('--only', default='', help='links: only these pack ids')
     parser.add_argument('--shard', default='', help='github: describe only the repositories i, i+n... (i/n)')
+    parser.add_argument('--cache', default='', help='github, links: file of the answers kept between runs')
+    parser.add_argument('--max-age', type=float, default=7, help='links: days an "ok" answer is kept before the URL is asked again')
     args = parser.parse_args()
+    global PERSISTENT, LINK_MAX_AGE
+    LINK_MAX_AGE = args.max_age * 86400
+    if args.cache and args.mode in ('github', 'links'):
+        PERSISTENT = {'links': {}, 'repositories': {}}
+        if Path(args.cache).exists():
+            PERSISTENT.update(json.loads(Path(args.cache).read_text(encoding='utf-8')))
+            PERSISTENT.setdefault('links', {})
+            PERSISTENT.setdefault('repositories', {})
     gh = GitHub(os.environ.get('GH_TOKEN') or os.environ.get('GITHUB_TOKEN'))
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     with open(args.out, 'w', encoding='utf-8') as out:
@@ -548,7 +590,15 @@ def main():
             out.flush()
             log('DISCOVER ' + line)
         log('DISCOVER_BEGIN')
-        {'github': mode_github, 'links': mode_links, 'summarize': mode_summarize}[args.mode](args, gh, emit)
+        try:
+            {'github': mode_github, 'links': mode_links, 'summarize': mode_summarize}[args.mode](args, gh, emit)
+        finally:
+            # Kept even when a run stops early: what was answered is not asked again.
+            if PERSISTENT is not None:
+                Path(args.cache).parent.mkdir(parents=True, exist_ok=True)
+                temporary = Path(args.cache + '.tmp')
+                temporary.write_text(json.dumps(PERSISTENT, sort_keys=True, separators=(',', ':')) + '\n', encoding='utf-8')
+                os.replace(temporary, args.cache)
         log('DISCOVER_END')
 
 

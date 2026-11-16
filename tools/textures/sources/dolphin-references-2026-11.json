@@ -1,0 +1,190 @@
+[
+ {
+  "id": "gc-twilight-princess-4k-henriko",
+  "system": "gc",
+  "systems": [
+   "gc",
+   "wii"
+  ],
+  "engine": "dolphin",
+  "title": "Zelda: Twilight Princess 4K Texture Pack",
+  "version": "4.0d",
+  "games": [
+   {
+    "title": "The Legend of Zelda: Twilight Princess",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GZ2"
+     },
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "RZD"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "Henriko Magnifico"
+  ],
+  "page_url": "https://www.henrikomagnifico.com/zelda-twilight-princess-4k",
+  "source_id": "creator:Henriko Magnifico",
+  "source_url": "https://www.henrikomagnifico.com/",
+  "licence": {
+   "summary": "Free on the author's site; the author asks to link to the page instead of distributing the pack elsewhere",
+   "redistribution": "Link only, as the author asks (\"please refrain from distributing it outside of this website if possible and link to this page instead\"): NeoStation opens the author's page and does not download, host or redistribute this pack."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://www.henrikomagnifico.com/zelda-twilight-princess-4k"
+  },
+  "family": "gc-twilight-princess-4k-henriko",
+  "notes": "The page offers a \"GameCube/Wii (For Dolphin, 4.0d)\" download on MediaFire, and separate builds for another program that RewindBox does not use. The page read names no Game ID: the game is matched by its title (GameCube and Wii discs, every region); check the page for the versions the pack was made for. Read on 16 November 2026 (review run 43954594224); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "gc-wind-waker-4k-henriko",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Zelda: The Wind Waker 4K Texture Pack",
+  "version": "1.0.0d",
+  "games": [
+   {
+    "title": "The Legend of Zelda: The Wind Waker",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GZL"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "Henriko Magnifico"
+  ],
+  "page_url": "https://www.henrikomagnifico.com/wind-waker-4k",
+  "source_id": "creator:Henriko Magnifico",
+  "source_url": "https://www.henrikomagnifico.com/",
+  "licence": {
+   "summary": "Free on the author's site; no licence stated",
+   "redistribution": "Link only: NeoStation opens the author's page and does not download, host or redistribute this pack."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://www.henrikomagnifico.com/wind-waker-4k"
+  },
+  "family": "gc-wind-waker-4k-henriko",
+  "notes": "The page links the pack on Google Drive together with a build of Ishiiruka-Dolphin, which RewindBox does not embed: only the replacement textures apply. The page read names no Game ID: the game is matched by its title, for every region; check the page for the versions the pack was made for. Read on 16 November 2026 (review run 43954594224); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "wii-skyward-sword-4k-wii-edition-henriko",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Zelda: Skyward Sword 4K Texture Pack (Wii Edition)",
+  "version": "See the author's page",
+  "games": [
+   {
+    "title": "The Legend of Zelda: Skyward Sword",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "SOU"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "Henriko Magnifico"
+  ],
+  "page_url": "https://www.henrikomagnifico.com/zelda-skyward-sword-4k-wii-edition",
+  "source_id": "creator:Henriko Magnifico",
+  "source_url": "https://www.henrikomagnifico.com/",
+  "licence": {
+   "summary": "Free on the author's site; no licence stated",
+   "redistribution": "Link only: NeoStation opens the author's page and does not download, host or redistribute this pack."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://www.henrikomagnifico.com/zelda-skyward-sword-4k-wii-edition"
+  },
+  "family": "wii-skyward-sword-4k-wii-edition-henriko",
+  "notes": "The author's page says the material maps and shader features need Ishiiruka-Dolphin, which RewindBox does not embed: only the replacement textures apply. The author states that only the NTSC textures were remade and that the pack still loads on the European, Japanese and Korean versions; the Wii edition no longer receives updates (the author now maintains a version for another console, which RewindBox does not list). 4K (8x) and 1080p (4x) versions on Google Drive. Read on 16 November 2026 (review run 43954594224); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "gc-pikmin-2-4k-henriko",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Pikmin 2 4K Texture Pack",
+  "version": "1.5.0a",
+  "games": [
+   {
+    "title": "Pikmin 2",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GPV"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "Henriko Magnifico"
+  ],
+  "page_url": "https://www.henrikomagnifico.com/pikmin-2-4k-texture-pack",
+  "source_id": "creator:Henriko Magnifico",
+  "source_url": "https://www.henrikomagnifico.com/",
+  "licence": {
+   "summary": "Free on the author's site; no licence stated",
+   "redistribution": "Link only: NeoStation opens the author's page and does not download, host or redistribute this pack."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://www.henrikomagnifico.com/pikmin-2-4k-texture-pack"
+  },
+  "family": "gc-pikmin-2-4k-henriko",
+  "notes": "The author's page says the material maps and shader features need Ishiiruka-Dolphin, which RewindBox does not embed: only the replacement textures apply. The author states that only the NTSC textures were remade and that the pack still loads on the European, Japanese and Korean versions. Two editions in one Google Drive download (Standard and Post Processing). The page read names no Game ID: the GameCube game is matched by its title. Read on 16 November 2026 (review run 43954594224); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "wii-sonic-sega-all-stars-racing-hd-chris-cole3",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Sonic & SEGA All-Stars Racing (Wii) HD Texture Pack",
+  "version": "See the author's page",
+  "games": [
+   {
+    "title": "Sonic & Sega All-Stars Racing",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "R3R"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "Chris_Cole3"
+  ],
+  "page_url": "https://gamebanana.com/mods/629711",
+  "source_id": "gamebanana:629711",
+  "licence": {
+   "summary": "CC BY-NC-ND 4.0 (stated on the GameBanana page)",
+   "redistribution": "Link only: NeoStation opens the author's page and does not download, host or redistribute this pack."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/629711"
+  },
+  "family": "wii-sonic-sega-all-stars-racing-hd-chris-cole3",
+  "notes": "The GameBanana file holds the instructions; the page links the pack itself on MediaFire. The page names no Game ID: the Wii game is matched by its title, for every region. Read on 16 November 2026 (review run 43954594224); the files were not downloaded or installed by RewindBox."
+ }
+]
