@@ -1,8 +1,13 @@
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
-index 98e1a75..4b9581a 100644
+index 98e1a75..5437540 100644
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
-@@ -13050,16 +13050,23 @@ static id<MTLTexture> fb_narrow_view(id<MTLTexture> base, id<MTLTexture> t, MTLT
+@@ -13046,20 +13046,28 @@ static id<MTLTexture> fb_narrow_view(id<MTLTexture> base, id<MTLTexture> t, MTLT
+     if (pool[next]) defer_obj_unref(pool[next]); pool[next] = v; pbase[next] = base; pkey[next][0] = tl; pkey[next][1] = n; pkey[next][2] = slice; pkey[next][3] = ns << 4 | tt; ppf[next] = pf; psw[next] = sw; next = (next + 1) & 7;
+     return v;
+ }
++static int snap_pool_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_SNAP_POOL"); v = !(e && !strcmp(e, "0")); } return v; }   // RewindBox (patch 0057): S2A_RB_SNAP_POOL=0 keeps one texture a slot here and one for depth below, as before
+ // A snapshot of the shape a sampled view has: `nl` levels from level tl of the base and `ns` slices (a 2D array / cube base; 1 otherwise). The mip chain is kept because
  // the shader's LOD means the same in the snapshot as in the attachment (fb_prepare ④ copies every level and slice into it). One per slot of the draw: distinct sources of one draw
  // never share a snapshot, even with the same shape (10-27 #570 follow-up, xy0v0 ae42eb856: two same-format same-size attachments read the second one's copy); kept across draws
  static id<MTLTexture> fb_snap_shape(MTLTextureType tt, MTLPixelFormat pf, NSUInteger bw, NSUInteger bh, NSUInteger tl, NSUInteger nl, NSUInteger ns, int slot) {   // tt: the base's type (2D / 2D array); a cube / cube array view is made from the 2D array snapshot by fb_narrow_view, never as a cube base (see tex_desc)
@@ -31,7 +36,7 @@ index 98e1a75..4b9581a 100644
      return t;
  }
  // ⑤ 遍内自采样改片上读取（10-30 帧率能耗线；DM_NVN_FB_TILE=0 关）：第 ③ 步结束遍之前先试——这一笔采样本遍已改过的附件 k，且只在本像素读它：
-@@ -13189,15 +13196,28 @@ static void fb_report(uint64_t frame) {   // every 300 frames: hits per layer an
+@@ -13189,15 +13197,27 @@ static void fb_report(uint64_t frame) {   // every 300 frames: hits per layer an
  //   clear, a render-target change, a copy or buffer clear (storage may alias) and a new submission. Own storage: fb_snap_shape's slots are reused in place by other copies
  static struct { uint64_t ser; __unsafe_unretained id<MTLTexture> src; __strong id<MTLTexture> use; int valid; } g_dsnap;
  static void dsnap_stale(void) { g_dsnap.valid = 0; }
@@ -41,7 +46,6 @@ index 98e1a75..4b9581a 100644
 +//   holds the valid copy is g_dsnap's business as before (one copy at a time; the same shape gave the same texture already). S2A_RB_SNAP_POOL=0 keeps one
 +enum { DSNAP_POOL = 6 };
 +static uint64_t g_dsnap_made, g_dsnap_reused;
-+static int snap_pool_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_SNAP_POOL"); v = !(e && !strcmp(e, "0")); } return v; }
  static id<MTLTexture> dsnap_storage(MTLPixelFormat pf, NSUInteger bw, NSUInteger bh, NSUInteger tl, NSUInteger nl) {
 -    static __strong id<MTLTexture> t;
 -    NSUInteger w = mip_extent(bw, tl), h = mip_extent(bh, tl);

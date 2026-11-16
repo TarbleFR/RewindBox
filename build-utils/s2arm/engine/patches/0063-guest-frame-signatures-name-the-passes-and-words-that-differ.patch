@@ -1,5 +1,5 @@
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
-index 954473f..8a0372c 100644
+index 7a9b8a6..7582b59 100644
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
 @@ -2344,6 +2344,42 @@ static uint64_t g_fsig_addr[FSIG_ADDR]; static uint32_t g_fsig_seq[FSIG_ADDR]; s

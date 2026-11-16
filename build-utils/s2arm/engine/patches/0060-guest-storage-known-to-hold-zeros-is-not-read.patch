@@ -1,5 +1,5 @@
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
-index 8f4695c..7343daa 100644
+index 013ad3e..fcaff48 100644
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
 @@ -4161,12 +4161,165 @@ static uint64_t g_fill_untouched_bytes, g_fill_untouched_n;   // 判全 0 时没
