@@ -32,6 +32,7 @@ constexpr double kGap = 8.0;          // between button and panel
 constexpr double kPanelWidth = 256.0;
 constexpr double kPanelHeight = 44.0;
 constexpr double kPanelMin = 40.0;
+constexpr double kPanelMinWidth = 200.0;  // four readable columns (CPU "100 %"), never a sliver
 constexpr double kClearance = 4.0;    // kept free around occupied controls
 
 inline bool intersects(const Rect& a, const Rect& b, double pad = 0) {
@@ -150,7 +151,7 @@ inline Layout compute(const Rect& bounds, const Insets& insets, const Rect& imag
   Rect best = out.panel;
   double least = detail::covered(out.panel, occupied, nullptr);
   for (const Rect& c : {below, side, sideClear}) {
-    if (c.w < kPanelMin || c.h < kPanelMin) continue;
+    if (c.w < kPanelMinWidth || c.h < kPanelMin) continue;
     const double area = detail::covered(c, occupied, nullptr);
     if (area < least) { least = area; best = c; }
     if (area <= 0) break;
