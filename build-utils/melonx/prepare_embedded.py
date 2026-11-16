@@ -220,6 +220,7 @@ from adapt_array_membership_filter import apply as adapt_array_membership_filter
 from adapt_render_command_clock import apply as adapt_render_command_clock
 from adapt_replay_integer_mask import apply as adapt_replay_integer_mask
 from adapt_nextendo_online import apply as adapt_nextendo_online
+from adapt_runtime_yield import apply as adapt_runtime_yield
 
 
 def replace_once(path, old, new):
@@ -709,6 +710,9 @@ def main():
     # Last: online play on Nextendo Network (HleConfiguration, EmbeddedContent, the DNS proxy, ManagerServer, the SSL
     # connection); no other adapter edits these files, and EmbeddedOnline.cs is copied above with the native files.
     adapted += adapt_nextendo_online(source)
+    # After IPA 759 (every title): the Core's own sched_yield, a yield that keeps the thread's priority, for the
+    # runtime's contended locks (Ryujinx.Library.csproj as the preparation leaves it, and one new C file).
+    adapted += adapt_runtime_yield(source)
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -866,7 +870,7 @@ def main():
                  'adapt_stall_compaction_drain_guard.py', 'adapt_pacer_margin_decay.py',
                  'adapt_device_critical_trim.py', 'adapt_private_span_lazy.py', 'adapt_pinned_command_queue.py',
                  'adapt_array_membership_filter.py', 'adapt_render_command_clock.py', 'adapt_replay_integer_mask.py',
-                 'adapt_nextendo_online.py']:
+                 'adapt_nextendo_online.py', 'adapt_runtime_yield.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

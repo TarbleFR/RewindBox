@@ -285,6 +285,8 @@ LOT_FILES = {
     'adapt_replay_integer_mask': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
     # Nextendo online lot (adapt_nextendo_online): its HLE files and EmbeddedContent.cs are outside this composition.
     'adapt_nextendo_online': [],
+    # After IPA 759 (adapt_runtime_yield): Ryujinx.Library.csproj and its C file are outside this composition.
+    'adapt_runtime_yield': [],
 }
 
 checks = 0

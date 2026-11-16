@@ -133,7 +133,8 @@
   "build-utils/melonx/adapt_pinned_command_queue.py",
   "build-utils/melonx/adapt_array_membership_filter.py",
   "build-utils/melonx/adapt_render_command_clock.py",
-  "build-utils/melonx/adapt_replay_integer_mask.py"
+  "build-utils/melonx/adapt_replay_integer_mask.py",
+  "build-utils/melonx/adapt_runtime_yield.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -250,10 +251,12 @@
   "src/Ryujinx.HLE/HOS/Services/Sockets/Sfdnsres/Proxy/DnsMitmResolver.cs",
   "src/Ryujinx.HLE/HOS/Services/Sockets/Sfdnsres/Proxy/DnsBlacklist.cs",
   "src/Ryujinx.HLE/HOS/Services/Ssl/SslService/SslManagedSocketConnection.cs",
-  "src/Ryujinx.Library/EmbeddedContent.cs"
+  "src/Ryujinx.Library/EmbeddedContent.cs",
+  "src/Ryujinx.Library/Ryujinx.Library.csproj"
  ],
  "productionAdditions": [
-  "src/Ryujinx.HLE/EmbeddedOnline.cs"
+  "src/Ryujinx.HLE/EmbeddedOnline.cs",
+  "src/Ryujinx.Library/RewindBoxRuntimeYield.c"
  ],
  "fixtureInputs": [
   "build-utils/melonx/adapt_binding_data_snapshots.py",
@@ -4929,6 +4932,32 @@
     "src/Ryujinx.Graphics.Gpu/Engine/Threed/SemaphoreUpdater.cs",
     "src/Ryujinx.Graphics.Gpu/Engine/GPFifo/GPFifoClass.cs",
     "src/Ryujinx.Library/Library.cs"
+   ]
+  },
+  {
+   "name": "runtime-yield",
+   "script": "test/melonx_runtime_yield_test.py",
+   "report": "runtime-yield-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 1800,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false,
+    "objectsBuilt": 2,
+    "systemImportReplaced": true,
+    "nativeAotLinkExecuted": false,
+    "systemYieldKeptWhileThreadsStopped": true
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Library/Ryujinx.Library.csproj",
+    "src/Ryujinx.Library/RewindBoxRuntimeYield.c"
    ]
   }
  ]

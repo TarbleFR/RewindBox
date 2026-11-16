@@ -66,6 +66,26 @@ xcrun nm -n --defined-only "$SYMBOLS" | gzip -9 > "$TASK_ROOT/dist/melonx/$MELON
 xcrun dwarfdump --uuid "$CORE" > "$TASK_ROOT/dist/melonx/$MELONX_RUNTIME/Ryujinx.Library.uuid.txt"
 xcrun lipo "$CORE" -verify_arch arm64
 xcrun nm -gU "$CORE" > "$TASK_ROOT/dist/melonx/exports.txt"
+# RewindBox (adapt_runtime_yield): the linked library must hold the Core's own sched_yield. Its references bind to the
+# definition compiled into the image, so sched_yield is no longer imported from libSystem, thread_switch and swtch_pri
+# (the two calls of that definition) are, and the marker string is in the image. Without all of it the yields of the
+# runtime's locks would still be the system library's.
+YIELD_IMPORTS="$(xcrun nm -u "$CORE")"
+if grep -Eq '(^|[[:space:]])_sched_yield$' <<<"$YIELD_IMPORTS"; then
+  echo "RewindBox runtime yield: $MELONX_RUNTIME still imports sched_yield" >&2
+  exit 1
+fi
+for YIELD_IMPORT in _thread_switch _swtch_pri; do
+  if ! grep -Eq "(^|[[:space:]])${YIELD_IMPORT}\$" <<<"$YIELD_IMPORTS"; then
+    echo "RewindBox runtime yield: $MELONX_RUNTIME does not import $YIELD_IMPORT" >&2
+    exit 1
+  fi
+done
+if ! grep -aq 'RewindBox runtime yield 1: sched_yield is thread_switch(MACH_PORT_NULL, SWITCH_OPTION_NONE, 0) unless RhpTrapThreads' "$CORE"; then
+  echo "RewindBox runtime yield: the marker is missing from $MELONX_RUNTIME" >&2
+  exit 1
+fi
+echo "RewindBox runtime yield: $MELONX_RUNTIME binds sched_yield to its own definition (thread_switch and swtch_pri imported)"
 otool -L "$CORE" > "$TASK_ROOT/dist/melonx/dependencies.txt"
 xcrun vtool -show-build "$CORE" > "$TASK_ROOT/dist/melonx/platform.txt"
 cp LICENSE.txt "$TASK_ROOT/dist/melonx/MeloNX-LICENSE.txt"
