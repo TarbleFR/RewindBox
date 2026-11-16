@@ -1,0 +1,68 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 98e1a75..4b9581a 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -13050,16 +13050,23 @@ static id<MTLTexture> fb_narrow_view(id<MTLTexture> base, id<MTLTexture> t, MTLT
+ // the shader's LOD means the same in the snapshot as in the attachment (fb_prepare ④ copies every level and slice into it). One per slot of the draw: distinct sources of one draw
+ // never share a snapshot, even with the same shape (10-27 #570 follow-up, xy0v0 ae42eb856: two same-format same-size attachments read the second one's copy); kept across draws
+ static id<MTLTexture> fb_snap_shape(MTLTextureType tt, MTLPixelFormat pf, NSUInteger bw, NSUInteger bh, NSUInteger tl, NSUInteger nl, NSUInteger ns, int slot) {   // tt: the base's type (2D / 2D array); a cube / cube array view is made from the 2D array snapshot by fb_narrow_view, never as a cube base (see tex_desc)
+-    static __strong id<MTLTexture> pool[4];
+-    NSUInteger w = mip_extent(bw, tl), h = mip_extent(bh, tl);
+-    id<MTLTexture> p = pool[slot];
+-    if (p && p.textureType == tt && p.pixelFormat == pf && p.width == w && p.height == h && p.mipmapLevelCount == nl && p.arrayLength == (tt == MTLTextureType2D ? 1 : ns)) return p;
++    // RewindBox (patch 0057): FB_SNAP_KEEP shapes a slot, the least recently used giving way (one before: a slot whose draws ask two shapes in turn made its texture again at
++    //   every draw; the engine log of 16 November counts 110 to 190 textures made here in every 300 frames of a Mario Kart World race, 400 to 700 MB). A slot's textures stay its
++    //   own, so two sources of one draw still never share a snapshot. S2A_RB_SNAP_POOL=0 keeps one
++    enum { FB_SNAP_KEEP = 3 };
++    static __strong id<MTLTexture> pool[4][FB_SNAP_KEEP]; static uint64_t used[4][FB_SNAP_KEEP], tick;
++    NSUInteger w = mip_extent(bw, tl), h = mip_extent(bh, tl); int n = snap_pool_on() ? FB_SNAP_KEEP : 1, at = 0;
++    for (int i = 0; i < n; i++) {
++        id<MTLTexture> p = pool[slot][i];
++        if (p && p.textureType == tt && p.pixelFormat == pf && p.width == w && p.height == h && p.mipmapLevelCount == nl && p.arrayLength == (tt == MTLTextureType2D ? 1 : ns)) { used[slot][i] = ++tick; return p; }
++        if (!p ? pool[slot][at] != nil : pool[slot][at] && used[slot][i] < used[slot][at]) at = i;   // a free place first, else the least recently used
++    }
+     MTLTextureDescriptor *d = [MTLTextureDescriptor new];
+     d.textureType = tt; d.pixelFormat = pf; d.width = w; d.height = h; d.mipmapLevelCount = nl;
+     d.arrayLength = tt == MTLTextureType2D ? 1 : ns;
+     d.usage = MTLTextureUsageShaderRead | MTLTextureUsagePixelFormatView; d.storageMode = MTLStorageModePrivate;
+     id<MTLTexture> t = [g_dev newTextureWithDescriptor:d]; if (!t) return nil; res_add(t);
+-    if (pool[slot]) defer_obj_release(pool[slot]); pool[slot] = t;
++    if (pool[slot][at]) defer_obj_release(pool[slot][at]); pool[slot][at] = t; used[slot][at] = ++tick;
+     return t;
+ }
+ // ⑤ 遍内自采样改片上读取（10-30 帧率能耗线；DM_NVN_FB_TILE=0 关）：第 ③ 步结束遍之前先试——这一笔采样本遍已改过的附件 k，且只在本像素读它：
+@@ -13189,15 +13196,28 @@ static void fb_report(uint64_t frame) {   // every 300 frames: hits per layer an
+ //   clear, a render-target change, a copy or buffer clear (storage may alias) and a new submission. Own storage: fb_snap_shape's slots are reused in place by other copies
+ static struct { uint64_t ser; __unsafe_unretained id<MTLTexture> src; __strong id<MTLTexture> use; int valid; } g_dsnap;
+ static void dsnap_stale(void) { g_dsnap.valid = 0; }
++// RewindBox (patch 0057): the storage is one of a few kept by shape, the least recently used one giving way to a new shape. It was one texture, made again whenever the shape
++//   asked differed from the last one's, and Mario Kart World samples three depth attachments of its own passes in a frame (1248x700, 624x350 and 312x175 on IPA 762, a dozen
++//   times): the engine log of 16 November counts 800 to 900 textures made here in every 300 frames of a race (1.8 GB), at a resolution that did not change. Which texture
++//   holds the valid copy is g_dsnap's business as before (one copy at a time; the same shape gave the same texture already). S2A_RB_SNAP_POOL=0 keeps one
++enum { DSNAP_POOL = 6 };
++static uint64_t g_dsnap_made, g_dsnap_reused;
++static int snap_pool_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_SNAP_POOL"); v = !(e && !strcmp(e, "0")); } return v; }
+ static id<MTLTexture> dsnap_storage(MTLPixelFormat pf, NSUInteger bw, NSUInteger bh, NSUInteger tl, NSUInteger nl) {
+-    static __strong id<MTLTexture> t;
+-    NSUInteger w = mip_extent(bw, tl), h = mip_extent(bh, tl);
+-    if (t && t.pixelFormat == pf && t.width == w && t.height == h && t.mipmapLevelCount == nl) return t;
++    static __strong id<MTLTexture> pool[DSNAP_POOL]; static uint64_t used[DSNAP_POOL], tick;
++    NSUInteger w = mip_extent(bw, tl), h = mip_extent(bh, tl); int n = snap_pool_on() ? DSNAP_POOL : 1, at = 0;
++    for (int i = 0; i < n; i++) {
++        id<MTLTexture> t = pool[i];
++        if (t && t.pixelFormat == pf && t.width == w && t.height == h && t.mipmapLevelCount == nl) { used[i] = ++tick; g_dsnap_reused++; return t; }
++        if (!t ? pool[at] != nil : pool[at] && used[i] < used[at]) at = i;   // a free slot first, else the least recently used
++    }
+     MTLTextureDescriptor *d = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:pf width:w height:h mipmapped:NO];
+     d.mipmapLevelCount = nl; d.usage = MTLTextureUsageShaderRead | MTLTextureUsagePixelFormatView; d.storageMode = MTLStorageModePrivate;
+-    id<MTLTexture> n = [g_dev newTextureWithDescriptor:d]; if (!n) return nil; res_add(n);
+-    if (t) defer_obj_release(t);
+-    t = n; return t;
++    id<MTLTexture> nt = [g_dev newTextureWithDescriptor:d]; if (!nt) return nil; res_add(nt);
++    if (pool[at]) defer_obj_release(pool[at]);
++    pool[at] = nt; used[at] = ++tick; g_dsnap_made++;
++    if (!(g_dsnap_made & (g_dsnap_made - 1)) && g_dsnap_made >= 64) MLOG("RewindBox: depth snapshot storage: %llu textures made, %llu times one kept by shape was taken (%d kept)", (unsigned long long)g_dsnap_made, (unsigned long long)g_dsnap_reused, n);
++    return nt;
+ }
+ static void fb_prepare(NvProg *pr) {
+     g_draw_seq++; g_fb_n = 0; g_fbt.on = 0; g_fbt.fn = nil; g_fb_want_load = 0;

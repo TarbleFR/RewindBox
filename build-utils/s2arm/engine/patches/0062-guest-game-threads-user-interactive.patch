@@ -1,0 +1,34 @@
+diff --git a/runtime/src/thread.c b/runtime/src/thread.c
+index edc8b84..c1ec2ad 100644
+--- a/runtime/src/thread.c
++++ b/runtime/src/thread.c
+@@ -656,10 +656,21 @@ static int syscore_utility(void) {
+     if (syscore_in_files()) return 0;
+     return perf_cores() < 4;
+ }
++// RewindBox (patch 0062): in a RewindBox guest the game's other threads run USER_INTERACTIVE on two performance cores too, as the main thread does. RewindBox runs Switch 2
++//   games with this engine, whose worker pools do each frame's work (Mario Kart World: six-thread pools, NPDM core mask 0x3f). The reference implementation these games were
++//   brought up with (cheemu21/plumber-racer-2, dm/host/hle_thread.c prio_qos, MIT) runs every guest thread at user-interactive whatever its priority, "and the performance
++//   controller keeps all of them on fast cores at high clocks"; its notes give Mario Kart World 60 frames a second on a phone of two performance cores with the CPU at
++//   4.7 GHz, and about 46 when the CPU falls to 2.1 GHz with the same GPU time. IPA 762 on an iPhone17,2 (USER_INITIATED for these threads, S2Arm's rule under four
++//   performance cores, taken from a Switch 1 game whose main thread does the work): the game's threads used a tenth to a quarter of a core each, 48 to 68 % of the
++//   process's CPU time was on performance cores, their clock averaged 1.6 to 2.7 GHz where the game aimed at 60 frames a second, and the frames were late with 13 ms of GPU work. The submit thread keeps
++//   its real-time policy, above every class. S2A_GUEST_QOS=initiated gives S2Arm's rule back (same-build comparison). The effect on the clock, the frame rate and the heat
++//   is not measured
++__attribute__((weak)) int s2a_rb_guest_on(void) { return 0; }   // rb_guest.c; the standalone tests link thread.c without it
+ static qos_class_t guest_qos(int main_thread, uint64_t mask) {
+     if (main_thread) return main_qos();
+     if (mask == 1ull << 3 && syscore_utility()) return s2a_qos(S2A_QOS_GAME_SYSCORE);
+     if (other_qos() != QOS_CLASS_UNSPECIFIED) return other_qos();
++    if (s2a_rb_guest_on()) return QOS_CLASS_USER_INTERACTIVE;   // RewindBox (patch 0062)
+     return s2a_qos(S2A_QOS_GAME_OTHER);   // 性能核 ≥ 4 USER_INTERACTIVE、< 4 USER_INITIATED（表内同一判法）
+ }
+ qos_class_t s2a_test_guest_qos(int main_thread, uint64_t mask) { return guest_qos(main_thread, mask); }   // 单测入口（t_thread.c）
+@@ -961,6 +972,7 @@ uint32_t s2a_thread_main_init(void) {
+     LOG("线程调度档：性能核 %d 个 → 游戏主线程 %s，其余游戏线程 %s", perf_cores(), main_qos() == QOS_CLASS_USER_INTERACTIVE ? "USER_INTERACTIVE" : main_qos() == QOS_CLASS_USER_INITIATED ? "USER_INITIATED" : "UTILITY", guest_qos(0, 7) == QOS_CLASS_USER_INTERACTIVE ? "USER_INTERACTIVE" : guest_qos(0, 7) == QOS_CLASS_USER_INITIATED ? "USER_INITIATED" : "UTILITY");
+     { const char *v = getenv("S2A_SYSCORE_QOS"); LOG("线程调度档：核掩码只含 3 号核的游戏线程 %s（%s）", syscore_utility() ? "UTILITY" : "与其余游戏线程同档", v && (!strcmp(v, "utility") || !strcmp(v, "same")) ? "S2A_SYSCORE_QOS 强制" : syscore_in_files() ? "RewindBox: guest memory in files" : perf_cores() >= 4 ? "性能核 ≥ 4 缺省" : "性能核不足 4 个缺省");
+       if (!(v && (!strcmp(v, "utility") || !strcmp(v, "same"))) && syscore_in_files() && perf_cores() < 4) LOG("RewindBox: game threads of core 3 alone keep the other game threads' tier: the guest's memory is in files and a UTILITY thread's page-ins are second-tier I/O (S2A_SYSCORE_QOS=utility for S2Arm's rule on %d performance cores)", perf_cores()); }
++    if (s2a_rb_guest_on() && other_qos() == QOS_CLASS_UNSPECIFIED && perf_cores() < 4) LOG("RewindBox: the game's other threads run USER_INTERACTIVE on %d performance cores too (patch 0062, as the reference implementation; S2A_GUEST_QOS=initiated for S2Arm's rule)", perf_cores());
+ #endif
+     return t->handle;
+ }

@@ -1,0 +1,249 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 8f4695c..7343daa 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -4161,12 +4161,165 @@ static uint64_t g_fill_untouched_bytes, g_fill_untouched_n;   // 判全 0 时没
+ __attribute__((weak)) int s2a_guest_fd(void) { return -1; }   // native vawin.c (S2A_GUEST_FILE); graphics unit tests have no guest window
+ __attribute__((weak)) int s2a_guest_carved(uint64_t a, uint64_t n) { (void)a; (void)n; return 0; }   // RewindBox (patch 0038): vawin.c, the mapped region kept anonymous under file backing
+ __attribute__((weak)) int s2a_cpuprof_request(const char *dir, double secs) { (void)dir; (void)secs; return 0; }   // RewindBox (patch 0054): native cpuprof.c; graphics unit tests have no sampler
++// RewindBox (patch 0060): storage whose bytes the host can know to be zeros is not read.
++//   The GPU-write ledger marks every 512-byte block a GPU write covers with a hash of its guest bytes (gpw_add) and hashes the marked blocks again each time their storage is
++//   judged (gpw_stale); with the guest's memory in files a new texture's storage is also read whole for its initial content (mem_any_touched). Mario Kart World (iPhone17,2,
++//   IPA 762, guest memory in files) makes its scene targets anew when its dynamic resolution moves: 7 to 14 shared textures a frame in the 300-frame windows where it aims at
++//   60 frames a second (2,200 to 3,260 storage takeovers and 3.0 to 6.5 GB of new shared textures a window), none in the windows where it holds 30. In the former the submit
++//   thread ran 58 to 98 M instructions and 9 to 16 ms of CPU a frame over 19 to 33 ms of wall clock, in the latter 51 to 53 M and 7 ms over 8 to 9 ms, for as many draws and
++//   passes; the process took 11 to 30 thousand page-ins per 10 s in the former and 2 to 10 thousand in the latter. Storage the game never wrote is not in memory, and a read
++//   brings it in host page by host page: through the pager where it is a file's (pages of zeros made for the file's holes, dropped again under memory pressure), and as
++//   zero-filled pages counted in the footprint where it is anonymous (IPA 760, the mapped region carved: 2.1 GB compressed, a footprint of 5.0 to 5.4 GB).
++//   zp_build asks instead. mincore says which host pages are in memory. Of the others, a page of anonymous memory that is neither in core nor paged out was never touched and
++//   is zeros; a page of a window file is zeros where the file has no block for it. That is asked of the file s2a_guest_file_at names, through the file system's block map
++//   (fcntl F_LOG2PHYS_EXT: the question the pager itself asks before it reads a page or fills it with zeros; no block = device offset -1), and through lseek SEEK_DATA /
++//   SEEK_HOLE only where the block map gives no answer (zp_run). Only pages that are the window's own are judged: every Mach region of the span must be anonymous, or map
++//   that very file (the memory object's identity, taken from a probe mapping of the file) at the offset the address has in it, so that an alias of other pages (MapMemory,
++//   shared memory) is read as before; so is a span when any question fails, and so are the pages in memory. A 512-byte block in a page known to hold zeros takes the hash
++//   of 512 zero bytes without a read, and a block that is read is compared with zero before it is hashed: the hashes are the ones span_hash gives, the ledger's verdicts
++//   do not change.
++//   The answers are checked on the device: the first ZP_CHECK_FIRST pages known to hold zeros are read all the same, then one in ZP_CHECK_EVERY, and the first that holds a
++//   byte turns the whole thing off for the process, in red (zp_check); so does an lseek that takes more than 5 ms (a file system that writes the file's pages out to
++//   answer it). Its callers have asked rb_span_readable for the span first.
++//   What stays read: a page of a window file with blocks on disk (data the game wrote, or a page svc_mem.c zeroed in place when the game mapped it again), and spans under
++//   32 KB. S2A_RB_ZERO_PAGES=0 reads everything as before. Whether the storage Mario Kart World re-makes is of this kind is not known from its logs (zp_report counts it):
++//   not measured on a device
++__attribute__((weak)) int s2a_guest_in_file(uint64_t a, uint64_t n) { (void)a; (void)n; return 0; }   // native vawin.c; graphics unit tests have no guest window
++__attribute__((weak)) int s2a_guest_file_at(uint64_t a, uint64_t *off, uint64_t *room) { (void)a; (void)off; (void)room; return -1; }   // native vawin.c
++#ifndef SEEK_DATA
++#define SEEK_HOLE 3
++#define SEEK_DATA 4
++#endif
++enum { ZP_SMALL = 1024, ZP_MAX_PAGES = 1 << 16, ZP_MAX_REGIONS = 64, ZP_CHECK_FIRST = 256, ZP_CHECK_EVERY = 256 };
++#define ZP_MIN (32u << 10)
++typedef struct { uint64_t a0, pg; size_t np; unsigned char *v; unsigned char small[ZP_SMALL]; } zp_map;   // v[i] != 0: host page i from a0 is known to hold zeros (and is not in memory)
++static _Atomic uint64_t g_zp_maps, g_zp_refused, g_zp_hole_pages, g_zp_fresh_pages, g_zp_other_pages, g_zp_known, g_zp_checked;
++static _Atomic int g_zp_off, g_zp_oracle;   // off: an answer was wrong or too slow, nothing is asked any more; oracle: 0 not chosen yet, 1 the block map, 2 lseek, -1 neither (a window file's pages are read)
++static int zp_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_ZERO_PAGES"); v = !(e && !strcmp(e, "0")); } return v && !atomic_load_explicit(&g_zp_off, memory_order_relaxed); }
++static int mem_any(const uint8_t *p, uint64_t n);
++// A page just judged to hold zeros without a read: 1 = taken as such; 0 = it was read and holds a byte, and nothing is judged any more in this process
++static int zp_check(uint64_t page, uint64_t pg, int file) {
++    uint64_t k = atomic_fetch_add(&g_zp_known, 1);
++    if (k >= ZP_CHECK_FIRST && k % ZP_CHECK_EVERY) return 1;
++    atomic_fetch_add(&g_zp_checked, 1);
++    if (!mem_any((const uint8_t *)(uintptr_t)page, pg)) return 1;
++    if (!atomic_exchange(&g_zp_off, 1)) MLOG("【红】 RewindBox: storage known to hold zeros: the host page at %#llx was judged to hold zeros (%s) and holds data (page %llu judged, %llu read to check): no page is judged any more in this process, everything is read as before",
++                                             (unsigned long long)page, file ? "not in memory, no block in its window file" : "anonymous memory never touched", (unsigned long long)k + 1, (unsigned long long)atomic_load(&g_zp_checked));
++    return 0;
++}
++// The next run of window file fd from offset q, up to qe: 1 = *hole says whether the file holds no block for it, *len its length; 0 = not known (the pages are read)
++static int zp_run(int fd, uint64_t q, uint64_t qe, int *hole, uint64_t *len) {
++    int o = atomic_load(&g_zp_oracle);
++    if (o == 0 || o == 1) {
++        struct log2phys l; memset(&l, 0, sizeof l); l.l2p_devoffset = (off_t)q; l.l2p_contigbytes = (off_t)(qe - q);
++        if (!fcntl(fd, F_LOG2PHYS_EXT, &l) && l.l2p_contigbytes > 0) {
++            if (!o && !atomic_exchange(&g_zp_oracle, 1)) MLOG("RewindBox: storage known to hold zeros: the window files' holes are asked of the block map (F_LOG2PHYS_EXT)");
++            *hole = l.l2p_devoffset == -1; *len = MIN((uint64_t)l.l2p_contigbytes, qe - q); return 1; }
++        if (o == 1) return 0;   // it answers on this device: this run is not known
++        int e = errno; atomic_store(&g_zp_oracle, o = 2);
++        MLOG("RewindBox: storage known to hold zeros: the block map gives no answer for a window file (F_LOG2PHYS_EXT, errno %d): its holes are asked with lseek SEEK_DATA / SEEK_HOLE", e);
++    }
++    if (o != 2) return 0;
++    uint64_t t0 = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
++    off_t d = lseek(fd, (off_t)q, SEEK_DATA), h = -1; int e = errno;
++    if (d >= 0 && (uint64_t)d <= q) h = lseek(fd, (off_t)q, SEEK_HOLE);
++    uint64_t ns = clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - t0;
++    if (ns > 5000000) { atomic_store(&g_zp_oracle, -1); MLOG("【红】 RewindBox: storage known to hold zeros: lseek SEEK_DATA / SEEK_HOLE took %.1f ms on a window file: its holes are not asked any more in this process (a window file's pages are read as before)", ns / 1e6); return 0; }
++    if (d < 0) { if (e != ENXIO) return 0; *hole = 1; *len = qe - q; return 1; }   // ENXIO: no block from q to the file's end
++    if ((uint64_t)d > q) { *hole = 1; *len = MIN((uint64_t)d, qe) - q; return 1; }
++    if (h < 0 || (uint64_t)h <= q) return 0;
++    *hole = 0; *len = MIN((uint64_t)h, qe) - q; return 1;
++}
++static void zp_free(zp_map *z) { if (z->v && z->v != z->small) free(z->v); z->v = NULL; z->np = 0; }
++static inline int zp_zero(const zp_map *z, uint64_t a) { return z->v && a >= z->a0 && (a - z->a0) / z->pg < z->np && z->v[(a - z->a0) / z->pg]; }
++// The Mach region holding host address a: 1 = read. *oid = its memory object's identity (0 = no object yet: anonymous memory nothing touched), *off = the object offset a
++//   maps, *ext = the object's pager is outside the kernel (a file), *end = the region's end
++static int zp_region(uint64_t a, uint32_t *oid, uint64_t *off, int *ext, uint64_t *end) {
++    vm_address_t ra = (vm_address_t)a; vm_size_t rs = 0; natural_t depth = 0; vm_region_submap_short_info_data_64_t si; mach_msg_type_number_t cnt = VM_REGION_SUBMAP_SHORT_INFO_COUNT_64;
++    if (vm_region_recurse_64(mach_task_self(), &ra, &rs, &depth, (vm_region_recurse_info_t)&si, &cnt) != KERN_SUCCESS || (uint64_t)ra > a || !rs || si.is_submap) return 0;
++    *oid = si.object_id; *off = (uint64_t)si.offset + (a - (uint64_t)ra); *ext = si.external_pager != 0; *end = (uint64_t)ra + (uint64_t)rs;
++    return 1;
++}
++// The memory object of the file behind fd, from a probe mapping of its first host page (no access, nothing is read); kept by descriptor, asked again (fresh) when a region's
++//   object does not match what was kept (the descriptor names another file since)
++static int zp_file_object(int fd, uint32_t *oid, int fresh) {
++    static os_unfair_lock lk = OS_UNFAIR_LOCK_INIT; static struct { int fd; uint32_t oid; } tab[64]; static int n;
++    os_unfair_lock_lock(&lk);
++    int k = 0; while (k < n && tab[k].fd != fd) k++;
++    if (k < n && !fresh) { *oid = tab[k].oid; os_unfair_lock_unlock(&lk); return 1; }
++    os_unfair_lock_unlock(&lk);
++    size_t pg = (size_t)getpagesize(); void *m = mmap(NULL, pg, PROT_NONE, MAP_SHARED, fd, 0); if (m == MAP_FAILED) return 0;
++    uint32_t o = 0; uint64_t off = 0, end = 0; int ext = 0, ok = zp_region((uint64_t)(uintptr_t)m, &o, &off, &ext, &end) && ext && o;
++    munmap(m, pg);
++    if (!ok) return 0;
++    os_unfair_lock_lock(&lk);
++    k = 0; while (k < n && tab[k].fd != fd) k++;
++    if (k == n && n < 64) n++;
++    if (k < 64) { tab[k].fd = fd; tab[k].oid = o; }
++    os_unfair_lock_unlock(&lk);
++    *oid = o; return 1;
++}
++// z = which host pages of [a, a + n) are known to hold zeros without a read; z->v stays NULL when none is, or when the span is not judged (then everything is read)
++static void zp_build(zp_map *z, uint64_t a, uint64_t n) {
++    z->v = NULL; z->np = 0; z->a0 = 0; z->pg = 0;
++    if (!zp_on() || n < ZP_MIN || !a || s2a_far_g2h(a) || s2a_far_g2h(a + n - 1)) return;   // far alias storage has no host pages of its own (as rb_span_readable)
++    uint64_t pg = (uint64_t)getpagesize(), a0 = a & ~(pg - 1), a1 = (a + n + pg - 1) & ~(pg - 1); size_t np = (size_t)((a1 - a0) / pg);
++    if (!np || np > ZP_MAX_PAGES) return;
++    int file = -1, regions = 0;   // what the span is mapped from: 0 anonymous memory, 1 the window's files at their own offsets; anything else, or both, is not judged
++    for (uint64_t r = a0; r < a1; ) {
++        uint32_t oid = 0, fid = 0; uint64_t off = 0, end = 0, foff = 0, room = 0; int ext = 0, fd;
++        if (++regions > ZP_MAX_REGIONS || !zp_region(r, &oid, &off, &ext, &end) || end <= r || file == !ext) { atomic_fetch_add(&g_zp_refused, 1); return; }
++        file = ext;
++        if (ext) {
++            fd = s2a_guest_file_at(r, &foff, &room);
++            if (fd < 0 || !room || foff != off || !oid || !zp_file_object(fd, &fid, 0) || (fid != oid && !(zp_file_object(fd, &fid, 1) && fid == oid))) { atomic_fetch_add(&g_zp_refused, 1); return; }
++            if (r + room < end) end = r + room;   // the next window file answers for itself
++        }
++        r = end;
++    }
++    unsigned char *v = np <= ZP_SMALL ? z->small : malloc(np); if (!v) return;
++    if (mincore((void *)(uintptr_t)a0, (size_t)(a1 - a0), (char *)v)) { if (v != z->small) free(v); atomic_fetch_add(&g_zp_refused, 1); return; }
++    uint64_t hole = 0, fresh = 0, other = 0; int bad = 0;
++    if (!file) for (size_t i = 0; i < np; i++) { int zero = !(v[i] & (MINCORE_INCORE | MINCORE_PAGED_OUT)); v[i] = (unsigned char)zero; }
++    else for (size_t i = 0; i < np; ) {
++        if (v[i] & MINCORE_INCORE) { v[i++] = 0; continue; }
++        size_t j = i; while (j < np && !(v[j] & MINCORE_INCORE)) j++;
++        for (size_t k = i; k < j; k++) v[k] = 1;   // not in memory: zeros, unless the file holds a block for the page or the answer is not known (cleared below)
++        for (uint64_t p = a0 + i * pg, e = a0 + j * pg; p < e; ) {
++            uint64_t foff = 0, room = 0; int fd = s2a_guest_file_at(p, &foff, &room); uint64_t len = MIN(e - p, room); size_t p0 = (size_t)((p - a0) / pg);
++            if (fd < 0 || !len) { for (size_t k = p0; k < j; k++) v[k] = 0; break; }
++            for (uint64_t q = foff, qe = foff + len; q < qe; ) {
++                int is_hole = 0; uint64_t rl = 0;
++                if (!zp_run(fd, q, qe, &is_hole, &rl) || !rl) { for (uint64_t x = q & ~(pg - 1); x < qe; x += pg) v[p0 + (size_t)((x - foff) / pg)] = 0; break; }   // not known from q on: read
++                if (!is_hole) for (uint64_t x = q & ~(pg - 1); x < q + rl; x += pg) v[p0 + (size_t)((x - foff) / pg)] = 0;   // the pages holding any byte of the blocks [q, q + rl)
++                q += rl;
++            }
++            p += len;
++        }
++        i = j;
++    }
++    for (size_t i = 0; i < np; i++) {   // the answers, checked on some of the pages (zp_check)
++        if (v[i] && (bad || !zp_check(a0 + i * pg, pg, file))) { v[i] = 0; bad = 1; }
++        if (v[i]) { if (file) hole++; else fresh++; } else other++;
++    }
++    atomic_fetch_add(&g_zp_maps, 1); atomic_fetch_add(&g_zp_hole_pages, hole); atomic_fetch_add(&g_zp_fresh_pages, fresh); atomic_fetch_add(&g_zp_other_pages, other);
++    if ((!hole && !fresh) || bad) { if (v != z->small) free(v); return; }
++    z->a0 = a0; z->pg = pg; z->np = np; z->v = v;
++}
+ static int mem_any_touched(const uint8_t *p, uint64_t n) {
+     // RewindBox (patch 0016): storage the game does not wholly hold as readable memory is judged on a copy (what it does not hold is untouched: zeros); see rb_span_readable
+     if (n && !rb_span_readable((uintptr_t)p, n)) { uint8_t *c = malloc(n); if (!c) return 0; rb_span_copy(c, (uintptr_t)p, n, NULL); int any = mem_any(c, n); free(c); return any; }
+     // 客体内存文件后备时：被内核写回文件、又从内存里丢掉的页，mincore 两位也都是 0，但内容在文件里，不能当 0；而文件页读一下不计实占，直接整段读
+     //   RewindBox (patch 0038): not where the mapped region is carved out of the files: those pages are anonymous, and reading the untouched ones would count them in the footprint
+-    if (s2a_guest_fd() >= 0 && !s2a_guest_carved((uint64_t)(uintptr_t)p, n)) return mem_any(p, n);
++    if (s2a_guest_fd() >= 0 && !s2a_guest_carved((uint64_t)(uintptr_t)p, n)) {
++        zp_map z; zp_build(&z, (uint64_t)(uintptr_t)p, n);   // RewindBox (patch 0060): not the pages that are not in memory and for which the window's file holds no block
++        if (!z.v) return mem_any(p, n);
++        int any = 0;
++        for (size_t i = 0; i < z.np && !any; i++) { if (z.v[i]) continue;
++            uint64_t lo = MAX(z.a0 + i * z.pg, (uint64_t)(uintptr_t)p), hi = MIN(z.a0 + (i + 1) * z.pg, (uint64_t)(uintptr_t)p + n);
++            if (hi > lo) any = mem_any((const uint8_t *)(uintptr_t)lo, hi - lo); }
++        zp_free(&z); return any;
++    }
+     uint64_t pg = (uint64_t)getpagesize(), a0 = (uint64_t)(uintptr_t)p & ~(pg - 1), a1 = ((uint64_t)(uintptr_t)p + n + pg - 1) & ~(pg - 1), skipped = 0;
+     unsigned char vec[256];
+     for (uint64_t a = a0; a < a1; a += sizeof vec * pg) {
+@@ -4205,13 +4358,25 @@ typedef struct { uint64_t bits[8]; uint64_t h[512]; } gpw_blk;   // 256 KB of gu
+ typedef struct { uint64_t gen; uint32_t n; uint64_t bits[]; } gpw_dd;   // a texture's subresources (level × layer) already marked whole since generation gen
+ static nvn_hmap g_gpw = {.klen = 8}, g_gpw_ser = {.klen = 8};   // guest address >> 18 → gpw_blk *; serial → gpw_dd *
+ static pthread_mutex_t g_gpw_mu = PTHREAD_MUTEX_INITIALIZER; static uint64_t g_gpw_skips, g_gpw_gen = 1; static _Atomic uint64_t g_gpw_nblk;
++static uint64_t g_zp_gob_known, g_zp_gob_zero, g_zp_gob_read;   // under g_gpw_mu: blocks answered from a page known to hold zeros, read and found zero, read and hashed
++// RewindBox (patch 0060): span_hash of GOB g's 512 guest bytes; no read where zp_build knows its host page to hold zeros (under g_gpw_mu)
++static uint64_t gob_hash(uint64_t g, const zp_map *z) {
++    static uint64_t zh; static int have; if (!have) { static const uint8_t zero[512]; zh = span_hash(zero, 512); have = 1; }
++    if (zp_zero(z, g << 9)) { g_zp_gob_known++; return zh; }
++    const uint8_t *p = (const uint8_t *)(uintptr_t)(g << 9); uint64_t w, any = 0;
++    for (int i = 0; i < 512 && !any; i += 64) for (int k = 0; k < 64; k += 8) { memcpy(&w, p + i + k, 8); any |= w; }
++    if (!any) { g_zp_gob_zero++; return zh; }
++    g_zp_gob_read++; return span_hash(p, 512);
++}
+ static void gpw_add(void *u, uint64_t lo, uint64_t hi) {   // under g_gpw_mu; u = the texture's storage base: [lo, hi) are offsets from it
+-    uint64_t base = (uint64_t)(uintptr_t)u;
++    uint64_t base = (uint64_t)(uintptr_t)u, lk = UINT64_MAX; gpw_blk *b = NULL;
++    zp_map z; zp_build(&z, base + lo, hi > lo ? hi - lo : 0);   // RewindBox (patch 0060); the block of 512 GOBs is looked up once, not at every GOB
+     for (uint64_t g = (base + lo) >> 9, ge = (base + hi + 511) >> 9; g < ge; g++) {
+-        uint64_t k = g >> 9; gpw_blk *b = nvn_hm_get(&g_gpw, &k);
++        uint64_t k = g >> 9; if (k != lk) { b = nvn_hm_get(&g_gpw, &k); lk = k; }
+         if (!b) { if (!(b = calloc(1, sizeof *b))) MDIE("stale-byte table allocation failed"); nvn_hm_put(&g_gpw, &k, b); atomic_fetch_add(&g_gpw_nblk, 1); }
+-        unsigned i = (unsigned)(g & 511); b->bits[i >> 6] |= 1ull << (i & 63); b->h[i] = span_hash((const uint8_t *)(uintptr_t)(g << 9), 512);
++        unsigned i = (unsigned)(g & 511); b->bits[i >> 6] |= 1ull << (i & 63); b->h[i] = gob_hash(g, &z);
+     }
++    zp_free(&z);
+ }
+ static void gpw_unmark(uint64_t g) {   // under g_gpw_mu: GOB g is current again
+     uint64_t k = g >> 9; gpw_blk *b = nvn_hm_get(&g_gpw, &k); unsigned i = (unsigned)(g & 511);
+@@ -4405,19 +4570,38 @@ static int gpw_stale(const uint8_t *mem, uint64_t size, uint64_t **runs, uint64_
+     uint64_t a = (uint64_t)(uintptr_t)mem, e = a + size, *r = NULL; int n = 0, cap = 0, rb_ok = -1; *runs = NULL; *bytes = 0;
+     if (!atomic_load_explicit(&g_gpw_nblk, memory_order_relaxed)) return 0;
+     pthread_mutex_lock(&g_gpw_mu);
++    zp_map z; int zb = 0; z.v = NULL; z.np = 0; z.a0 = z.pg = 0;   // RewindBox (patch 0060): built at the first marked GOB of a readable range
++    uint64_t lk = UINT64_MAX; gpw_blk *b = NULL;   // the block of 512 GOBs, looked up once (gpw_unmark may free it: looked up again after one)
+     for (uint64_t g = a >> 9, ge = (e + 511) >> 9; g < ge; g++) {
+-        uint64_t k = g >> 9; gpw_blk *b = nvn_hm_get(&g_gpw, &k); if (!b) { g = (k << 9) + 511; continue; }
++        uint64_t k = g >> 9; if (k != lk) { b = nvn_hm_get(&g_gpw, &k); lk = k; }
++        if (!b) { g = (k << 9) + 511; continue; }
+         unsigned i = (unsigned)(g & 511); if (!(b->bits[i >> 6] >> (i & 63) & 1)) continue;
+         if (rb_ok < 0) rb_ok = rb_span_readable((uintptr_t)mem, size);   // RewindBox (patch 0016): asked once, at the first marked GOB (none in most ranges)
++        if (rb_ok && !zb) { zp_build(&z, a, size); zb = 1; }
+         // A range that cannot all be read: its marked GOBs stay stale, unread (nothing shows them rewritten; their readers take "no stale run" for "guest memory is current")
+-        if (rb_ok && span_hash((const uint8_t *)(uintptr_t)(g << 9), 512) != b->h[i]) { gpw_unmark(g); continue; }   // rewritten since (by the CPU or anything else that writes guest memory)
++        if (rb_ok && gob_hash(g, &z) != b->h[i]) { gpw_unmark(g); lk = UINT64_MAX; b = NULL; continue; }   // rewritten since (by the CPU or anything else that writes guest memory)
+         uint64_t lo = MAX(g << 9, a) - a, hi = MIN((g + 1) << 9, e) - a;
+         if (n && r[2 * n - 1] == lo) r[2 * n - 1] = hi;
+         else { if (n == cap) { cap = cap ? cap * 2 : 16; if (!(r = realloc(r, (size_t)cap * 2 * sizeof *r))) MDIE("stale run list allocation failed"); } r[2 * n] = lo; r[2 * n + 1] = hi; n++; }
+         *bytes += hi - lo;
+     }
++    if (zb) zp_free(&z);
+     pthread_mutex_unlock(&g_gpw_mu); *runs = r; return n;
+ }
++// RewindBox (patch 0060): every 300 frames, when a span was asked or a block hashed since the last line
++static void zp_report(uint64_t frame) {
++    static uint64_t p[8]; uint64_t v[8] = {atomic_load(&g_zp_maps), atomic_load(&g_zp_refused), atomic_load(&g_zp_hole_pages), atomic_load(&g_zp_fresh_pages), atomic_load(&g_zp_other_pages), 0, 0, 0};
++    pthread_mutex_lock(&g_gpw_mu); v[5] = g_zp_gob_known; v[6] = g_zp_gob_zero; v[7] = g_zp_gob_read; pthread_mutex_unlock(&g_gpw_mu);
++    if (v[0] != p[0] || v[1] != p[1] || v[5] != p[5] || v[6] != p[6] || v[7] != p[7]) {
++        double pm = (double)getpagesize() / 1048576.0;
++        MLOG("RewindBox: storage known to hold zeros up to frame %llu, since the previous line of this kind: %llu spans asked and %llu more not judged (not the window's own pages, or a question failed); "
++             "%.1f MB in holes of the window's files and %.1f MB of anonymous memory never touched known without a read, %.1f MB in memory or on disk left to be read; the write ledger took %.1f MB of 512-byte blocks from pages known to hold zeros, "
++             "read %.1f MB that held zeros and hashed %.1f MB that held data; %llu pages read to check the answers so far, %s (S2A_RB_ZERO_PAGES=0 reads everything)", (unsigned long long)frame, (unsigned long long)(v[0] - p[0]), (unsigned long long)(v[1] - p[1]),
++             (double)(v[2] - p[2]) * pm, (double)(v[3] - p[3]) * pm, (double)(v[4] - p[4]) * pm, (double)(v[5] - p[5]) / 2048.0, (double)(v[6] - p[6]) / 2048.0, (double)(v[7] - p[7]) / 2048.0,
++             (unsigned long long)atomic_load(&g_zp_checked), atomic_load(&g_zp_off) ? "one held data: nothing is judged any more" : "all of them zeros");
++    }
++    memcpy(p, v, sizeof p);
++}
+ // A texture's content is in the guest's bit order (what its packed-format swizzle is for, nvn_fmt_to_mtl): built on the pool buffer (tex_linear), packaged (NvPkg), or holding only
+ //   what was taken from its storage — no GPU write on record over its bytes (the write ledger, gpw_stale). Anything the GPU wrote into it is in Metal's order
+ static int tex_guest_order(const tex_t *t, id<MTLTexture> base) {
+@@ -5393,6 +5577,7 @@ void nvn_be_mem_stat(unsigned long long frame, unsigned long long rss_mb) {
+     alias_orphan_pass();   // #357: before the line cap below, which only limits the readout
+     nvn_mem_detail(frame);   // before the line cap below: the detailed accounting has its own interval and must not be starved by the 400-line budget
+     fb_report(frame); samp_report(frame); audit_probe_report(frame);
++    zp_report(frame);   // RewindBox (patch 0060)
+     static unsigned long long last_rss, last_gpu, last_frame; static int lines; unsigned long long gpu = (unsigned long long)(g_dev.currentAllocatedSize >> 20);
+     unsigned long long dr = rss_mb > last_rss ? rss_mb - last_rss : last_rss - rss_mb, dg = gpu > last_gpu ? gpu - last_gpu : last_gpu - gpu;
+     if (lines >= 400 || (lines && dr < 64 && dg < 64 && frame - last_frame < 3000)) return; lines++; last_rss = rss_mb; last_gpu = gpu; last_frame = frame;

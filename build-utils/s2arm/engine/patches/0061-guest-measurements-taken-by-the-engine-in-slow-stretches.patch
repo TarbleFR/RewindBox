@@ -1,0 +1,263 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 7343daa..954473f 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -2336,7 +2336,8 @@ static void gpu_hang_inject(void) {
+ // fsig_judge writes a line when a frame's draw list differs from the frames before and after it while those two agree, and another when three frames agree on the list but
+ // the middle one's GPU-written words differ. A capture (cap_end) writes the ring to frames.txt in its folder. S2A_RB_FSIG=0 turns the records off.
+ // Cost: three multiplies and a few stores a draw on the replaying thread, a memory read a GPU-written word in the completion handler. Not measured on a device
+-typedef struct { _Atomic uint64_t frame; uint64_t hash; _Atomic uint64_t ghash, gsum, ts0, ts1; uint32_t draws, ind, mdi, mesh, skipped, passes, pieces, disp, texnew, taken, w, h, gwords; } fsig_t;   // frame: its number + 1 (0 = empty)
++typedef struct { _Atomic uint64_t frame; uint64_t hash; _Atomic uint64_t ghash, gsum, ts0, ts1; uint32_t draws, ind, mdi, mesh, skipped, passes, pieces, disp, texnew, taken, w, h, gwords, dur; } fsig_t;   // frame: its number + 1 (0 = empty); dur (patch 0061): microseconds from its first replayed command to the next frame's
++static void rb_auto_probe(uint64_t f, uint32_t dur_us, uint32_t draws);   // RewindBox (patch 0061), defined with the frame capture
+ enum { FSIG_N = 1024, FSIG_ADDR = 2048 };
+ static fsig_t g_fsig[FSIG_N];
+ static uint64_t g_fsig_addr[FSIG_ADDR]; static uint32_t g_fsig_seq[FSIG_ADDR]; static int g_fsig_naddr;   // the piece being replayed: its GPU-written words (address, place in the frame's list)
+@@ -2394,9 +2395,13 @@ static fsig_t *fsig_cur(void) {   // the record of the frame being replayed, for
+     uint64_t f = atomic_load_explicit(&g_cur_frame, memory_order_relaxed); fsig_t *c = &g_fsig[f % FSIG_N];
+     if (atomic_load_explicit(&c->frame, memory_order_relaxed) != f + 1) {
+         atomic_store(&c->frame, 0); c->hash = 0xcbf29ce484222325ull; atomic_store(&c->ghash, 0); atomic_store(&c->gsum, 0); atomic_store(&c->ts0, 0); atomic_store(&c->ts1, 0);
+-        c->draws = c->ind = c->mdi = c->mesh = c->skipped = c->passes = c->pieces = c->disp = c->texnew = c->taken = c->w = c->h = c->gwords = 0;
++        c->draws = c->ind = c->mdi = c->mesh = c->skipped = c->passes = c->pieces = c->disp = c->texnew = c->taken = c->w = c->h = c->gwords = c->dur = 0;
++        static uint64_t t_prev; uint64_t now = clock_gettime_nsec_np(CLOCK_UPTIME_RAW); fsig_t *pr = f ? fsig_at(f - 1) : NULL;   // RewindBox (patch 0061): the frame before this one is whole
++        if (pr && t_prev) pr->dur = (uint32_t)MIN((now - t_prev) / 1000, (uint64_t)UINT32_MAX);
++        t_prev = now;
+         atomic_store(&c->frame, f + 1); g_fsig_frames++; fsig_judge(f);
+         if (f % 300 == 0) fsig_window(f);
++        rb_auto_probe(f, pr ? pr->dur : 0, pr ? pr->draws : 0);
+     }
+     return c;
+ }
+@@ -2431,12 +2436,12 @@ static void fsig_dump(const char *dir) {   // cap_end: the ring, oldest frame fi
+     if (!fsig_on() || !dir || !dir[0]) return;
+     char p[1100]; snprintf(p, sizeof p, "%s/frames.txt", dir); FILE *f = fopen(p, "w"); if (!f) return;
+     fprintf(f, "# RewindBox frame signatures (patch 0059), oldest first. frame, draw-list hash, draws, indirect, of multi-draws, task/mesh, skipped for a pipeline, passes, pieces, dispatches, shared textures made, evicted over their storage, scene WxH, "
+-               "GPU-written words, their sum, their hash, timestamp span reported to the game in microseconds (0 = none)\n");
++               "GPU-written words, their sum, their hash, timestamp span reported to the game in microseconds (0 = none), microseconds to the next frame's first command (0 = not known)\n");
+     uint64_t hi = 0; for (int i = 0; i < FSIG_N; i++) { uint64_t v = atomic_load(&g_fsig[i].frame); if (v > hi) hi = v; }
+     for (uint64_t v = hi > FSIG_N ? hi - FSIG_N + 1 : 1; v <= hi; v++) { fsig_t *c = fsig_at(v - 1); if (!c) continue;
+         uint64_t t0 = atomic_load(&c->ts0), t1 = atomic_load(&c->ts1);
+-        fprintf(f, "%llu %016llx %u %u %u %u %u %u %u %u %u %u %ux%u %u %llu %016llx %llu\n", (unsigned long long)(v - 1), (unsigned long long)c->hash, c->draws, c->ind, c->mdi, c->mesh, c->skipped, c->passes, c->pieces, c->disp, c->texnew, c->taken,
+-                c->w, c->h, c->gwords, (unsigned long long)atomic_load(&c->gsum), (unsigned long long)atomic_load(&c->ghash), t0 && t1 > t0 ? (unsigned long long)((t1 - t0) * 625 / 12000) : 0ull); }
++        fprintf(f, "%llu %016llx %u %u %u %u %u %u %u %u %u %u %ux%u %u %llu %016llx %llu %u\n", (unsigned long long)(v - 1), (unsigned long long)c->hash, c->draws, c->ind, c->mdi, c->mesh, c->skipped, c->passes, c->pieces, c->disp, c->texnew, c->taken,
++                c->w, c->h, c->gwords, (unsigned long long)atomic_load(&c->gsum), (unsigned long long)atomic_load(&c->ghash), t0 && t1 > t0 ? (unsigned long long)((t1 - t0) * 625 / 12000) : 0ull, c->dur); }
+     fprintf(f, "# frames with another draw list than the two around them, which agree: %llu; with the same list and other GPU-written words: %llu; frames recorded: %llu\n",
+             (unsigned long long)g_fsig_aba_list, (unsigned long long)g_fsig_aba_gpu, (unsigned long long)g_fsig_frames);
+     fclose(f);
+@@ -4160,6 +4165,7 @@ static int mem_any(const uint8_t *p, uint64_t n) {   // whether any byte is non-
+ static uint64_t g_fill_untouched_bytes, g_fill_untouched_n;   // 判全 0 时没读的未触碰页（诊断行，首 4 次后按 2 的幂）
+ __attribute__((weak)) int s2a_guest_fd(void) { return -1; }   // native vawin.c (S2A_GUEST_FILE); graphics unit tests have no guest window
+ __attribute__((weak)) int s2a_guest_carved(uint64_t a, uint64_t n) { (void)a; (void)n; return 0; }   // RewindBox (patch 0038): vawin.c, the mapped region kept anonymous under file backing
++__attribute__((weak)) int s2a_cpuprof_request_now(const char *dir, double secs) { (void)dir; (void)secs; return 0; }   // RewindBox (patch 0061): native cpuprof.c
+ __attribute__((weak)) int s2a_cpuprof_request(const char *dir, double secs) { (void)dir; (void)secs; return 0; }   // RewindBox (patch 0054): native cpuprof.c; graphics unit tests have no sampler
+ // RewindBox (patch 0060): storage whose bytes the host can know to be zeros is not read.
+ //   The GPU-write ledger marks every 512-byte block a GPU write covers with a hash of its guest bytes (gpw_add) and hashes the marked blocks again each time their storage is
+@@ -16761,8 +16767,49 @@ static void cap_end(void) {   // td_dump has written the files
+     [g_cap_tex removeAllObjects]; [g_cap_tex_seen removeAllObjects]; g_cap_tex_over = g_cap_tex_kind = 0;   // RewindBox (patch 0048; 0049: the counts): td_dump's sheets are written (or its pipeline failed)
+     [g_cap_keys removeAllObjects];   // RewindBox (patch 0051)
+ }
++// RewindBox (patch 0061): a measurement the engine takes by itself in a slow stretch of 3D play.
++//   A frame capture is taken when the player presses the screenshot keys, and the two sent so far held a menu (IPA 762) and one race frame (IPA 760): the 762 log shows
++//   Mario Kart World's race frames with 13 ms of GPU work and a submit thread at 13 to 16 ms of CPU over 19 to 35 ms of wall clock, no thread above a quarter of a core,
++//   11 to 30 thousand page-ins per 10 s, and nothing that says which functions run or what the threads wait for. When the 120 frames before a frame took 25 ms or more on
++//   average (under 40 frames a second) with 800 draws or more a frame (that game: 1,079 to 1,948 a frame in a race, 324 to 403 in its menus), the engine asks for what the
++//   capture asks for after its pictures, without the pictures and without stopping anything: a CPU profile of 4 s that also samples the waiting game and renderer threads
++//   (runtime/src/cpuprof.c: where each waits, and the address when the kernel holds it for a page of memory), the GPU time of every encoder of a few frames ([gpuprof] lines
++//   in the log) and, 240 frames later, the frame signatures around it (frames.txt). They go to <Documents>/Diagnostics/S2Arm/profiles/<time>-f<frame>/, which the Files app
++//   shows beside the captures. At most AP_MAX in a process, 30 s apart and 30 s from a capture; none while the frame signatures are off (S2A_RB_FSIG=0, whose records it
++//   reads). S2A_RB_AUTO_PROBE=0 takes none. The sampler suspends each sampled thread for a few microseconds, 500 times a second for the running ones and 50 for the
++//   waiting ones, for 4 s: its cost on a device is not measured
++enum { AP_MAX = 6, AP_RING = 120 };
++#define AP_GAP_NS 30000000000ull
++static uint64_t g_ap_dump_at; static char g_ap_dir[1024];
++static int ap_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_AUTO_PROBE"); v = !(e && !strcmp(e, "0")); } return v; }
++static void rb_auto_probe(uint64_t f, uint32_t dur_us, uint32_t draws) {   // the replaying thread, at each frame's first replayed command (fsig_cur): dur_us / draws are the frame before f's
++    static uint32_t rd[AP_RING], rn[AP_RING]; static uint64_t sd, sn, at, last_ns; static int filled, taken;
++    if (g_ap_dump_at && f >= g_ap_dump_at) { g_ap_dump_at = 0; fsig_dump(g_ap_dir); MLOG("RewindBox: automatic measurement: the frame signatures up to frame %llu written into %s (frames.txt)", (unsigned long long)f, g_ap_dir); g_ap_dir[0] = 0; }
++    if (!ap_on() || !dur_us) return;
++    unsigned k = (unsigned)(at++ % AP_RING); sd += dur_us; sd -= rd[k]; sn += draws; sn -= rn[k]; rd[k] = dur_us; rn[k] = draws; if (filled < AP_RING) filled++;
++    if (filled < AP_RING || f < 600 || taken >= AP_MAX || g_cap_dir[0] || g_ap_dump_at || atomic_load(&g_cap_req)) return;
++    if (sd / AP_RING < 25000 || sn / AP_RING < 800) return;
++    uint64_t now = clock_gettime_nsec_np(CLOCK_UPTIME_RAW), lc = atomic_load(&g_cap_last_ns);
++    if ((last_ns && now - last_ns < AP_GAP_NS) || (lc && now - lc < AP_GAP_NS)) return;
++    last_ns = now; taken++;
++    @autoreleasepool {
++        NSString *docs = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
++        NSDateFormatter *df = [NSDateFormatter new]; df.dateFormat = @"yyyyMMdd-HHmmss"; df.locale = [NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"];
++        NSString *dir = docs.length ? [docs stringByAppendingPathComponent:[NSString stringWithFormat:@"Diagnostics/S2Arm/profiles/%@-f%llu", [df stringFromDate:NSDate.date], (unsigned long long)f]] : nil;
++        NSError *err = nil;
++        if (!dir || ![NSFileManager.defaultManager createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:&err]) {
++            MLOG("【红】 RewindBox: automatic measurement: no folder for it (%s): none is taken in this process", err ? err.localizedDescription.UTF8String : "no Documents directory"); taken = AP_MAX; return; }
++        snprintf(g_ap_dir, sizeof g_ap_dir, "%s", dir.fileSystemRepresentation);
++    }
++    int cpu = s2a_cpuprof_request_now(g_ap_dir, 4.0);
++    atomic_store(&g_rb_gp_req, (long)f + 30); g_ap_dump_at = f + 240;
++    MLOG("RewindBox: automatic measurement %d of %d at frame %llu: the %d frames before it took %.1f ms each on average with %llu draws a frame. %s; the GPU time of every encoder of a few frames from frame %llu on goes to this log "
++         "([gpuprof] lines), the frame signatures to frames.txt in that folder 240 frames from now: %s (S2A_RB_AUTO_PROBE=0 takes none)", taken, (int)AP_MAX, (unsigned long long)f, (int)AP_RING, (double)sd / AP_RING / 1000.0,
++         (unsigned long long)(sn / AP_RING), cpu ? "A CPU profile of 4 s with the waiting threads starts now (cpuprof.txt)" : "No CPU profile (one is running, or no memory for its table)", (unsigned long long)f + 30, g_ap_dir);
++}
+ static void cap_reset(void) {   // session end (nvn_session.inc): a capture left unfinished stops there, its directory keeps what it has
+     atomic_store(&g_cap_req, 0);
++    g_ap_dump_at = 0; g_ap_dir[0] = 0;   // RewindBox (patch 0061)
+     if (g_cap_dir[0]) { MLOG("RewindBox: frame capture into %s stopped by the end of the session", g_cap_dir); g_pd_a0 = -2; }
+     atomic_store(&g_cap_pd_log, 0);
+     pthread_mutex_lock(&g_cap_pd_mu); if (g_cap_pd_f) fclose(g_cap_pd_f); g_cap_pd_f = NULL; pthread_mutex_unlock(&g_cap_pd_mu);
+diff --git a/ios/app.m b/ios/app.m
+index b8e4e46..1eae7ce 100644
+--- a/ios/app.m
++++ b/ios/app.m
+@@ -1,5 +1,6 @@
+ // iOS App 壳：UIKit 占主线程（s2a_front_run 覆盖 host_main.c 的弱缺省）。窗口与根视图在这里建；Metal 层与触屏 / 手柄由帧率能耗线、服务接入线挂到 s2a_ios_root_view()。
+ #include <dlfcn.h>
++#include <sys/sysctl.h>   // RewindBox (patch 0061): P_TRACED for the heartbeat line
+ #import "s2a_l10n.h"
+ #import <UIKit/UIKit.h>
+ #import "controller.h"
+@@ -591,9 +592,13 @@ id s2a_ios_ext_register(UIViewController *vc);   // extdisplay.m：登记外接
+         //   每 10 秒在后台吃秒级 CPU、分段持有进程地址映射锁，执行器还据此误判「出图停」）；缺省只报实占（phys_footprint，系统杀进程按它判），窗口常驻记「未扫」
+         int scan = mem_split_on(); if (scan) s2a_window_resident(&wr, &wo);
+         char wins[160]; if (scan) snprintf(wins, sizeof wins, "，客体窗口常驻 %llu MB、已压缩换出 %llu MB", (unsigned long long)(wr >> 20), (unsigned long long)(wo >> 20)); else snprintf(wins, sizeof wins, "，客体窗口常驻 未扫（S2A_MEM_SPLIT=1 才扫）");
+-        LOG("[心跳] 帧 %llu，热状态 %ld（0 正常 1 一般 2 严重 3 危急），进程实占 %llu MB，%s，持续执行档 %d（1 = 系统按稳态功率限制本进程，要权限 sustained-execution），低电量模式 %d，低区空洞合计 %llu MB、最大一块 %llu MB，文件句柄 %d / 软上限 %llu%s", (unsigned long long)s2a_ap_frames(), (long)NSProcessInfo.processInfo.thermalState,
++        // RewindBox (patch 0061): whether a debugger is attached at this moment (P_TRACED). RewindBox's JIT helper attaches one to serve the boot code and detaches it afterwards;
++        //   while one stays attached, every fault of the process stops in it before the engine's own handler sees it (about 0.3 s a fault while the boot code was served, IPA 731),
++        //   and the engine takes write-protection faults all through play (4 to 26 a frame in Mario Kart World's races, IPA 762): the log did not say which it was
++        int rb_traced = -1; { struct kinfo_proc kp; size_t kn = sizeof kp; int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_PID, getpid() }; if (!sysctl(mib, 4, &kp, &kn, NULL, 0) && kn) rb_traced = (kp.kp_proc.p_flag & P_TRACED) != 0; }
++        LOG("[心跳] 帧 %llu，热状态 %ld（0 正常 1 一般 2 严重 3 危急），进程实占 %llu MB，%s，持续执行档 %d（1 = 系统按稳态功率限制本进程，要权限 sustained-execution），低电量模式 %d，低区空洞合计 %llu MB、最大一块 %llu MB，文件句柄 %d / 软上限 %llu%s; RewindBox: debugger attached %d (1 = each fault of the process stops in it first, -1 = not known)", (unsigned long long)s2a_ap_frames(), (long)NSProcessInfo.processInfo.thermalState,
+             s2a_footprint_mb(), (const char *[]){"前台", "前台失焦", "后台"}[app_state],
+-            (int)[NSProcessInfo.processInfo hasPerformanceProfile:NSProcessPerformanceProfileSustained], (int)NSProcessInfo.processInfo.lowPowerModeEnabled, (unsigned long long)(lt >> 20), (unsigned long long)(ll >> 20), fn, (unsigned long long)fs, wins);
++            (int)[NSProcessInfo.processInfo hasPerformanceProfile:NSProcessPerformanceProfileSustained], (int)NSProcessInfo.processInfo.lowPowerModeEnabled, (unsigned long long)(lt >> 20), (unsigned long long)(ll >> 20), fn, (unsigned long long)fs, wins, rb_traced);
+         // 本款本机实测峰值（vawin.c s2a_guest_mem_note：进程实占 + 文件后备里已落块的客体字节）：下一局起局按它判文件后备开不开（11-07 卡顿线）
+         { void s2a_guest_mem_note(uint64_t footprint); s2a_guest_mem_note((uint64_t)s2a_footprint_mb() << 20); }
+         int s2a_disk_io(uint64_t *written, uint64_t *read, uint64_t *pageins, uint64_t *logical);   // energy.c（只此一处用，不进 native.h：那是出包抽取阶段的键；RewindBox (patch 0036): s2a_disk_written and more）
+diff --git a/runtime/src/cpuprof.c b/runtime/src/cpuprof.c
+index 28794c9..cd034c2 100644
+--- a/runtime/src/cpuprof.c
++++ b/runtime/src/cpuprof.c
+@@ -17,7 +17,7 @@
+ 
+ #define VA(x) ((x) & 0x0000007fffffffffull)   // 去掉返回地址高位的指针认证位
+ enum { CP_DEPTH = 16, CP_MAXS = 120000, CP_THR = 64, CP_TOP = 20 };
+-typedef struct { uint16_t thr; uint8_t n; uint64_t pc[CP_DEPTH]; } cp_sample;   // pc[0] = 当前 pc，之后是返回地址
++typedef struct { uint16_t thr; uint8_t n, st; uint64_t far; uint64_t pc[CP_DEPTH]; } cp_sample;   // pc[0] = 当前 pc，之后是返回地址；RewindBox (patch 0061): st = 0 running, else the Mach run state of a thread sampled while it waited; far = its last fault address
+ static cp_sample *g_s; static int g_ns;
+ static struct { uint64_t tid; char name[64]; int n; } g_thr[CP_THR]; static int g_nthr;
+ 
+@@ -79,7 +79,7 @@ static void report(double secs) {
+     }
+     free(ak); free(av); free(fn);
+ }
+-static double cp_window(double dur, double hz, const char *flt);   // RewindBox (patch 0054)
++static double cp_window(double dur, double hz, const char *flt, int waits);   // RewindBox (patch 0054; 0061: waits)
+ static void *cp_main(void *arg) {
+     (void)arg; pthread_setname_np("s2a-cpuprof");
+     pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0);
+@@ -89,13 +89,19 @@ static void *cp_main(void *arg) {
+     if (hz < 10) hz = 10;
+     struct timespec ts = {(time_t)t0, (long)((t0 - (time_t)t0) * 1e9)}; nanosleep(&ts, NULL);
+     LOG("[cpuprof] 开始采样：%.0f 秒、每秒 %.0f 次%s%s", dur, hz, flt ? "，只采名字含 " : "", flt ? flt : "");
+-    report(cp_window(dur, hz, flt));
++    report(cp_window(dur, hz, flt, 0));
+     return NULL;
+ }
+-static double cp_window(double dur, double hz, const char *flt) {   // RewindBox (patch 0054): the sampling loop as it stood in cp_main; returns the window's length in seconds
++// RewindBox (patch 0061): the threads whose waits a requested window records: the game's (nx-<handle>) and the renderer's own (dm-encode, nvn-present...). A thread that waits
++//   in a system call stands at the call's return; one the kernel holds for a page of memory (run state uninterruptible) stands at the instruction that touched it, and its
++//   exception state names the address
++static int cp_wait_name(const char *n) { return !strncmp(n, "nx-", 3) || !strncmp(n, "dm-", 3) || !strncmp(n, "nvn-", 4); }
++static int g_nwait;   // samples of waiting threads in the window
++// waits: 0 = running threads only (S2A_CPUPROF, as before); N = every Nth round also the waiting threads cp_wait_name names
++static double cp_window(double dur, double hz, const char *flt, int waits) {   // RewindBox (patch 0054): the sampling loop as it stood in cp_main; returns the window's length in seconds
+     thread_t self = mach_thread_self(); struct timespec beg, now; clock_gettime(CLOCK_MONOTONIC, &beg);
+-    long per = (long)(1e9 / hz);
+-    for (;;) {
++    long per = (long)(1e9 / hz); unsigned long round = 0; g_nwait = 0;
++    for (;; round++) {
+         clock_gettime(CLOCK_MONOTONIC, &now);
+         double el = (double)(now.tv_sec - beg.tv_sec) + (now.tv_nsec - beg.tv_nsec) / 1e9;
+         if (el >= dur || g_ns >= CP_MAXS) break;
+@@ -104,7 +110,9 @@ static double cp_window(double dur, double hz, const char *flt) {   // RewindBox
+             for (mach_msg_type_number_t i = 0; i < n && g_ns < CP_MAXS; i++) {
+                 if (th[i] == self) continue;
+                 thread_extended_info_data_t ei; mach_msg_type_number_t c = THREAD_EXTENDED_INFO_COUNT;
+-                if (thread_info(th[i], THREAD_EXTENDED_INFO, (thread_info_t)&ei, &c) != KERN_SUCCESS || ei.pth_run_state != TH_STATE_RUNNING) continue;
++                if (thread_info(th[i], THREAD_EXTENDED_INFO, (thread_info_t)&ei, &c) != KERN_SUCCESS) continue;
++                int rs = ei.pth_run_state, waiting = rs != TH_STATE_RUNNING;
++                if (waiting && !(waits && !(round % (unsigned long)waits) && (rs == TH_STATE_WAITING || rs == TH_STATE_UNINTERRUPTIBLE) && cp_wait_name(ei.pth_name))) continue;   // RewindBox (patch 0061)
+                 if (flt && !strstr(ei.pth_name, flt)) continue;
+                 thread_identifier_info_data_t ii; c = THREAD_IDENTIFIER_INFO_COUNT;
+                 uint64_t tid = thread_info(th[i], THREAD_IDENTIFIER_INFO, (thread_info_t)&ii, &c) == KERN_SUCCESS ? ii.thread_id : 0;
+@@ -116,10 +124,12 @@ static double cp_window(double dur, double hz, const char *flt) {   // RewindBox
+                     uint64_t fp = arm_thread_state64_get_fp(st); int d = 0;
+                     s->pc[d++] = VA(arm_thread_state64_get_pc(st));
+                     for (; d < CP_DEPTH && fp; ) { uint64_t nfp, ret; if (!rd(fp, &nfp) || !rd(fp + 8, &ret) || !VA(ret)) break; s->pc[d++] = VA(ret); if (nfp <= fp) break; fp = nfp; }
+-                    s->n = (uint8_t)d; s->thr = (uint16_t)slot; ok = 1;
++                    s->n = (uint8_t)d; s->thr = (uint16_t)slot; s->st = (uint8_t)(waiting ? rs : 0); s->far = 0; ok = 1;
++                    if (waiting) { arm_exception_state64_t es; mach_msg_type_number_t ec = ARM_EXCEPTION_STATE64_COUNT;   // RewindBox (patch 0061)
++                        if (thread_get_state(th[i], ARM_EXCEPTION_STATE64, (thread_state_t)&es, &ec) == KERN_SUCCESS) s->far = es.__far; }
+                 }
+                 thread_resume(th[i]);
+-                if (ok) { g_ns++; g_thr[slot].n++; }
++                if (ok) { g_ns++; if (waiting) g_nwait++; else g_thr[slot].n++; }
+             }
+             for (mach_msg_type_number_t i = 0; i < n; i++) mach_port_deallocate(mach_task_self(), th[i]);
+             vm_deallocate(mach_task_self(), (vm_address_t)th, n * sizeof *th);
+@@ -135,14 +145,16 @@ static double cp_window(double dur, double hz, const char *flt) {   // RewindBox
+ //   load address of every image (I lines) and of the game's modules (M lines: base, size, name), the sampled threads (T lines: slot, samples, name) and one S line per sample
+ //   (slot, pc, then return addresses); the link map kept with each engine build turns the engine's offsets into functions. No path and no title in it. One window at a time,
+ //   and none while S2A_CPUPROF runs its own. While it samples, the sampler suspends each running thread for a few microseconds, RQ_HZ times a second
+-enum { RQ_HZ = 500, RQ_WAIT_S = 2 };
+-static _Atomic int g_rq_busy; static char g_rq_dir[1024]; static double g_rq_secs;
++enum { RQ_HZ = 500, RQ_WAIT_S = 2, RQ_WAITS = 10 };   // RewindBox (patch 0061): RQ_WAITS: the waiting threads every tenth round (50 times a second)
++static _Atomic int g_rq_busy; static char g_rq_dir[1024]; static double g_rq_secs; static int g_rq_now;
+ static void cp_raw_write(const char *dir, double secs) {
+     char p[1100]; snprintf(p, sizeof p, "%s/cpuprof.txt", dir);
+     FILE *f = fopen(p, "w");
+     if (!f) { LOG("RewindBox: CPU profile: cannot write cpuprof.txt beside the frame capture (%d samples lost)", g_ns); return; }
+     fprintf(f, "# RewindBox CPU profile (patch 0054): %.1f s at %d samples a second, %d samples of running threads. I: image load address, name. M: game module base, size, name. "
+-               "T: thread slot, samples, name. S: thread slot, pc, return addresses (hex)\n", secs, (int)RQ_HZ, g_ns);
++               "T: thread slot, samples, name. S: thread slot, pc, return addresses (hex)\n", secs, (int)RQ_HZ, g_ns - g_nwait);
++    fprintf(f, "# Waits (patch 0061): %d samples of waiting game and renderer threads, taken %d times a second. W: thread slot, Mach run state (3 waiting, 4 uninterruptible: held by the kernel, "
++               "a page of memory being brought in when its pc is not a system call's return), last fault address, pc, return addresses (hex)\n", g_nwait, (int)(RQ_HZ / RQ_WAITS));
+     for (uint32_t i = 0, n = _dyld_image_count(); i < n; i++) {
+         const char *nm = _dyld_get_image_name(i), *b = nm ? strrchr(nm, '/') : NULL;
+         fprintf(f, "I %llx %s\n", (unsigned long long)(uintptr_t)_dyld_get_image_header(i), b ? b + 1 : nm ? nm : "?");
+@@ -150,30 +162,34 @@ static void cp_raw_write(const char *dir, double secs) {
+     for (int i = 0; i < g_nmod; i++) fprintf(f, "M %llx %llx %.16s\n", (unsigned long long)(uintptr_t)g_mod[i].base, (unsigned long long)g_mod[i].size, g_mod[i].name);
+     for (int t = 0; t < g_nthr; t++) fprintf(f, "T %d %d %s\n", t, g_thr[t].n, g_thr[t].name);
+     for (int i = 0; i < g_ns; i++) {
+-        fprintf(f, "S %u", (unsigned)g_s[i].thr);
++        if (g_s[i].st) fprintf(f, "W %u %u %llx", (unsigned)g_s[i].thr, (unsigned)g_s[i].st, (unsigned long long)g_s[i].far); else fprintf(f, "S %u", (unsigned)g_s[i].thr);
+         for (int d = 0; d < g_s[i].n; d++) fprintf(f, " %llx", (unsigned long long)g_s[i].pc[d]);
+         fputc('\n', f);
+     }
+     int bad = ferror(f); if (fclose(f)) bad = 1;
+-    LOG("RewindBox: CPU profile: %d samples of %d threads over %.1f s %s cpuprof.txt beside the frame capture", g_ns, g_nthr, secs, bad ? "NOT all written (a write failed) to" : "written to");
++    LOG("RewindBox: CPU profile: %d samples of running threads and %d of waiting ones, %d threads over %.1f s %s cpuprof.txt in the measurement's folder", g_ns - g_nwait, g_nwait, g_nthr, secs, bad ? "NOT all written (a write failed) to" : "written to");
+ }
+ static void *cp_rq_main(void *arg) {
+     (void)arg; pthread_setname_np("s2a-cpuprof");
+     pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0);
+-    struct timespec w = {RQ_WAIT_S, 0}; nanosleep(&w, NULL);   // the capture stopped the picture for seconds: let the game run again first
++    if (!g_rq_now) { struct timespec w = {RQ_WAIT_S, 0}; nanosleep(&w, NULL); }   // the capture stopped the picture for seconds: let the game run again first
+     g_ns = 0; g_nthr = 0; memset(g_thr, 0, sizeof g_thr);
+-    double secs = cp_window(g_rq_secs, RQ_HZ, NULL);
++    double secs = cp_window(g_rq_secs, RQ_HZ, NULL, RQ_WAITS);
+     cp_raw_write(g_rq_dir, secs);
+     free(g_s); g_s = NULL; g_ns = 0;
+     atomic_store(&g_rq_busy, 0);
+     return NULL;
+ }
+ // 1: a window of secs seconds starts RQ_WAIT_S seconds from now and its samples go to <dir>/cpuprof.txt; 0: not started (one is running, S2A_CPUPROF has the table, no memory)
+-int s2a_cpuprof_request(const char *dir, double secs) {
++//   RewindBox (patch 0061): s2a_cpuprof_request_now starts its window at once (the renderer's automatic measurement of a slow stretch: nothing stopped the picture)
++static int cp_request(const char *dir, double secs, int now);
++int s2a_cpuprof_request(const char *dir, double secs) { return cp_request(dir, secs, 0); }
++int s2a_cpuprof_request_now(const char *dir, double secs) { return cp_request(dir, secs, 1); }
++static int cp_request(const char *dir, double secs, int now) {
+     const char *e = getenv("S2A_CPUPROF");
+     if (!dir || !*dir || secs <= 0 || (e && *e) || atomic_exchange(&g_rq_busy, 1)) return 0;
+     if (!(g_s = calloc(CP_MAXS, sizeof *g_s))) { atomic_store(&g_rq_busy, 0); return 0; }
+-    snprintf(g_rq_dir, sizeof g_rq_dir, "%s", dir); g_rq_secs = secs > 20 ? 20 : secs;
++    snprintf(g_rq_dir, sizeof g_rq_dir, "%s", dir); g_rq_secs = secs > 20 ? 20 : secs; g_rq_now = now;
+     pthread_t t; pthread_attr_t a; pthread_attr_init(&a); pthread_attr_setdetachstate(&a, PTHREAD_CREATE_DETACHED);
+     int rc = pthread_create(&t, &a, cp_rq_main, NULL);
+     pthread_attr_destroy(&a);

@@ -1,0 +1,248 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 6fb8c1d..f11921e 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -2950,7 +2950,8 @@ NVN(nvnWindowInitialize, NVNboolean, NVNwindow *w, const NVNwindowBuilder *b) {
+ }
+ NVN(nvnWindowGetNativeWindow, NVNnativeWindow, const NVNwindow *w) { return ((const win_t *)w)->native; }
+ NVN(nvnWindowGetPresentInterval, int, const NVNwindow *w) { return ((const win_t *)w)->interval; }   // Link's Awakening reads it back every frame
+-NVN(nvnWindowSetPresentInterval, void, NVNwindow *w, int v) { if (((win_t *)w)->interval != v) LOG("[nvn] the game sets present interval %d → %d", ((win_t *)w)->interval, v); ((win_t *)w)->interval = v; }
++// RewindBox (patch 0059): the line says at which frame (Mario Kart World set it 1,135 times in the 5,968 frames of the IPA 762 run, and nothing told which frames)
++NVN(nvnWindowSetPresentInterval, void, NVNwindow *w, int v) { if (((win_t *)w)->interval != v) LOG("[nvn] the game sets present interval %d → %d (frame %llu)", ((win_t *)w)->interval, v, (unsigned long long)dm_nvn_frame_count()); ((win_t *)w)->interval = v; }
+ // 显示层裁切（nn::vi::SetLayerCrop，说明见 graphics/nvn/host_adapt.m s2a_vi_entry）：上屏取窗口贴图的区域。nvnWindowSetCrop 写的是同一个系统窗口裁切，谁最后写算谁
+ static pthread_mutex_t g_vi_mu = PTHREAD_MUTEX_INITIALIZER; static int g_vi_crop[4];
+ int32_t h_vi_set_layer_crop(void *layer, int32_t x, int32_t y, int32_t w, int32_t h) {
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 580f4bf..8f4695c 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -2321,6 +2321,126 @@ static void gpu_hang_inject(void) {
+     MLOG("DM_TEST_GPU_HANG: frame %llu, committing the endless kernel", (unsigned long long)f);
+     cb_put(cb);
+ }
++// ---------- RewindBox (patch 0059): frame signatures ----------
++// One record a frame of what the game asked the GPU for and what the back end made of it, the last FSIG_N frames in a ring: a hash of the draw list (each draw's vertex and
++// pixel shader and, for a direct draw, its counts), the draws by kind (indirect, of an indirect-count multi-draw, task / mesh), the draws skipped for a pipeline still being
++// built, the passes, the pieces the frame was committed in, the dispatches, the shared textures made and those evicted by a texture over their storage, the largest colour
++// target drawn with a depth buffer, the words the GPU wrote that decide what indirect draws draw (an indirect draw's instance count, a multi-draw's count; read from the pool
++// when the piece that drew with them has run), and the span of the timestamp reports written for the game (the first TIMESTAMP_TOP to the last other report: what a game
++// that measures its GPU time reads).
++// Why: Mario Kart World on an iPhone17,2 shows single frames whose vegetation is another set than the frames before and after (the recording of IPA 762, 16 November: 9 of 199
++// distinct frames; IPA 760: 5 of 288; the palms beside the start line give way to smaller ones farther off for one frame). The engine log of that run rules out the
++// cross-queue order (24,353 parks, none released by force), a present-interval change (none in those seconds) and, on IPA 760, draws skipped for a pipeline (one run of four
++// in 1,200 frames); a capture holds one frame, and none held such a frame. The records tell the two remaining kinds apart: the game itself issuing another draw list for a
++// frame, or the same list drawing from other GPU-written counts.
++// fsig_judge writes a line when a frame's draw list differs from the frames before and after it while those two agree, and another when three frames agree on the list but
++// the middle one's GPU-written words differ. A capture (cap_end) writes the ring to frames.txt in its folder. S2A_RB_FSIG=0 turns the records off.
++// Cost: three multiplies and a few stores a draw on the replaying thread, a memory read a GPU-written word in the completion handler. Not measured on a device
++typedef struct { _Atomic uint64_t frame; uint64_t hash; _Atomic uint64_t ghash, gsum, ts0, ts1; uint32_t draws, ind, mdi, mesh, skipped, passes, pieces, disp, texnew, taken, w, h, gwords; } fsig_t;   // frame: its number + 1 (0 = empty)
++enum { FSIG_N = 1024, FSIG_ADDR = 2048 };
++static fsig_t g_fsig[FSIG_N];
++static uint64_t g_fsig_addr[FSIG_ADDR]; static uint32_t g_fsig_seq[FSIG_ADDR]; static int g_fsig_naddr;   // the piece being replayed: its GPU-written words (address, place in the frame's list)
++static uint64_t g_fsig_frames, g_fsig_aba_list, g_fsig_aba_gpu;
++static int fsig_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_FSIG"); v = !(e && !strcmp(e, "0")); } return v; }
++static fsig_t *fsig_at(uint64_t f) { fsig_t *c = &g_fsig[f % FSIG_N]; return atomic_load_explicit(&c->frame, memory_order_relaxed) == f + 1 ? c : NULL; }
++static void fsig_judge(uint64_t f) {   // frame f's record has just been opened: the three frames before it are whole; GPU-written words are judged two frames later (their handlers have run)
++    if (f < 8) return;
++    fsig_t *a = fsig_at(f - 3), *b = fsig_at(f - 2), *c = fsig_at(f - 1);
++    if (a && b && c && a->draws >= 64 && a->hash == c->hash && b->hash != a->hash) {
++        uint64_t k = ++g_fsig_aba_list;
++        if (k <= 24 || !(k & (k - 1))) MLOG("RewindBox: frame signature: the draw list of frame %llu differs from the frames before and after it, which agree: draws %u / %u / %u, indirect %u / %u / %u, of multi-draws %u / %u / %u, task / mesh %u / %u / %u, "
++            "skipped for a pipeline %u / %u / %u, passes %u / %u / %u, pieces %u / %u / %u, dispatches %u / %u / %u, shared textures made %u / %u / %u, scene %ux%u / %ux%u / %ux%u; %llu such frames of %llu so far",
++            (unsigned long long)(f - 2), a->draws, b->draws, c->draws, a->ind, b->ind, c->ind, a->mdi, b->mdi, c->mdi, a->mesh, b->mesh, c->mesh, a->skipped, b->skipped, c->skipped, a->passes, b->passes, c->passes,
++            a->pieces, b->pieces, c->pieces, a->disp, b->disp, c->disp, a->texnew, b->texnew, c->texnew, a->w, a->h, b->w, b->h, c->w, c->h, (unsigned long long)k, (unsigned long long)g_fsig_frames);
++    }
++    a = fsig_at(f - 5); b = fsig_at(f - 4); c = fsig_at(f - 3);
++    if (a && b && c && a->draws >= 64 && a->gwords && a->hash == b->hash && b->hash == c->hash) {
++        uint64_t ga = atomic_load(&a->ghash), gb = atomic_load(&b->ghash), gc = atomic_load(&c->ghash);
++        if (ga == gc && gb != ga) {
++            uint64_t k = ++g_fsig_aba_gpu;
++            if (k <= 24 || !(k & (k - 1))) MLOG("RewindBox: frame signature: frames %llu to %llu have one draw list, and the words the GPU wrote for its indirect draws differ in frame %llu from the two around it, which agree: "
++                "their sum %llu / %llu / %llu over %u words, scene %ux%u / %ux%u / %ux%u, shared textures made %u / %u / %u, evicted %u / %u / %u; %llu such frames of %llu so far",
++                (unsigned long long)(f - 5), (unsigned long long)(f - 3), (unsigned long long)(f - 4), (unsigned long long)atomic_load(&a->gsum), (unsigned long long)atomic_load(&b->gsum), (unsigned long long)atomic_load(&c->gsum), b->gwords,
++                a->w, a->h, b->w, b->h, c->w, c->h, a->texnew, b->texnew, c->texnew, a->taken, b->taken, c->taken, (unsigned long long)k, (unsigned long long)g_fsig_frames);
++        }
++    }
++}
++// Every 300 frames, what the game's resolution and frame-interval controller did over the 300 frames before the last three (whose reports may still be on their way): the scene
++//   sizes it drew at, how often the size changed from one frame to the next, the shared textures made and evicted over their storage, and the GPU time it read from its own
++//   timestamp reports. Mario Kart World on IPA 762 re-made 7 to 14 shared textures a frame in the windows where it aimed at 60 frames a second and none where it held 30
++static void fsig_window(uint64_t f) {
++    enum { W = 300, SZ = 48 }; if (f < W + 3) return;
++    uint32_t sw[SZ], sh[SZ]; int ns = 0, over = 0; uint32_t pw = 0, ph = 0, changes = 0, n = 0, wmin = 0, hmin = 0, wmax = 0, hmax = 0; uint64_t made = 0, taken = 0, pieces = 0;
++    static uint32_t span[W]; uint32_t nsp = 0;   // the replaying thread only
++    for (uint64_t g = f - 3 - W; g < f - 3; g++) { fsig_t *c = fsig_at(g); if (!c || !c->w) continue;
++        n++; made += c->texnew; taken += c->taken; pieces += c->pieces;
++        if (pw && (c->w != pw || c->h != ph)) changes++;
++        pw = c->w; ph = c->h;
++        if (!wmin || (uint64_t)c->w * c->h < (uint64_t)wmin * hmin) { wmin = c->w; hmin = c->h; }
++        if ((uint64_t)c->w * c->h > (uint64_t)wmax * hmax) { wmax = c->w; hmax = c->h; }
++        int k = 0; while (k < ns && (sw[k] != c->w || sh[k] != c->h)) k++;
++        if (k == ns) { if (ns < SZ) { sw[ns] = c->w; sh[ns] = c->h; ns++; } else over = 1; }
++        uint64_t t0 = atomic_load(&c->ts0), t1 = atomic_load(&c->ts1); if (t0 && t1 > t0 && nsp < W) span[nsp++] = (uint32_t)MIN((t1 - t0) * 625 / 12000, (uint64_t)UINT32_MAX);
++    }
++    if (!n) return;
++    for (uint32_t i = 1; i < nsp; i++) { uint32_t v = span[i]; uint32_t j = i; while (j && span[j - 1] > v) { span[j] = span[j - 1]; j--; } span[j] = v; }   // 300 values at most
++    MLOG("RewindBox: frame signatures up to frame %llu: %u frames drew a scene, from %ux%u to %ux%u in %d%s sizes, another size than the frame before in %u; shared textures made %.1f a frame and %.1f evicted over their storage, "
++         "%.1f pieces a frame; GPU time the game read from its timestamp reports: p10 %.2f / p50 %.2f / p90 %.2f ms over %u frames; frames with another draw list than the two around them %llu, with other GPU-written words %llu (so far)",
++         (unsigned long long)f, n, wmin, hmin, wmax, hmax, ns, over ? " or more" : "", changes, (double)made / n, (double)taken / n, (double)pieces / n,
++         nsp ? span[nsp / 10] / 1000.0 : 0.0, nsp ? span[nsp / 2] / 1000.0 : 0.0, nsp ? span[nsp * 9 / 10] / 1000.0 : 0.0, nsp, (unsigned long long)g_fsig_aba_list, (unsigned long long)g_fsig_aba_gpu);
++}
++static fsig_t *fsig_cur(void) {   // the record of the frame being replayed, for the thread that replays (it holds the submit lock); NULL on any other thread, which leaves the records alone
++    if (!on_sub_thread()) return NULL;
++    uint64_t f = atomic_load_explicit(&g_cur_frame, memory_order_relaxed); fsig_t *c = &g_fsig[f % FSIG_N];
++    if (atomic_load_explicit(&c->frame, memory_order_relaxed) != f + 1) {
++        atomic_store(&c->frame, 0); c->hash = 0xcbf29ce484222325ull; atomic_store(&c->ghash, 0); atomic_store(&c->gsum, 0); atomic_store(&c->ts0, 0); atomic_store(&c->ts1, 0);
++        c->draws = c->ind = c->mdi = c->mesh = c->skipped = c->passes = c->pieces = c->disp = c->texnew = c->taken = c->w = c->h = c->gwords = 0;
++        atomic_store(&c->frame, f + 1); g_fsig_frames++; fsig_judge(f);
++        if (f % 300 == 0) fsig_window(f);
++    }
++    return c;
++}
++#define FSIG(stmt) do { fsig_t *fc_ = fsig_on() ? fsig_cur() : NULL; if (fc_) { stmt; } } while (0)   // on the replaying thread, with fc_ the frame's record
++static void fsig_word(fsig_t *c, uint64_t addr) {   // a word the GPU wrote, read back when this piece has run (nvn_be_sub_commit)
++    if (g_fsig_naddr < FSIG_ADDR) { g_fsig_seq[g_fsig_naddr] = c->gwords; g_fsig_addr[g_fsig_naddr++] = addr; }
++    c->gwords++;
++}
++// A draw: vs / fs identify its shaders (fsig_shkey of their keys, carried as pointers), ind its indirect record (0 = direct), cnt the count of its indirect-count multi-draw
++static void fsig_draw(const void *vs, const void *fs, uint64_t ind, uint64_t cnt, uint32_t count, uint32_t instances, int mesh) {
++    fsig_t *c = fsig_on() ? fsig_cur() : NULL; if (!c) return;
++    uint64_t h = c->hash;
++    h = (h ^ (uint64_t)(uintptr_t)vs) * 0x100000001b3ull; h = (h ^ (uint64_t)(uintptr_t)fs) * 0x100000001b3ull; h = (h ^ (ind ? 1 : (uint64_t)count << 24 ^ instances)) * 0x100000001b3ull;
++    c->hash = h; c->draws++;
++    if (mesh) { c->mesh++; return; }
++    if (cnt) { c->mdi++; if (!g_fsig_naddr || g_fsig_addr[g_fsig_naddr - 1] != cnt) fsig_word(c, cnt); }   // the multi-draw's count once; records past it hold what was there before
++    else if (ind) { c->ind++; fsig_word(c, ind + 4); }   // the instance count of {count, instances, ...}, arrays and elements alike
++}
++static void fsig_draw_again(void) { FSIG(fc_->hash = (fc_->hash ^ 0x9e3779b97f4a7c15ull) * 0x100000001b3ull; fc_->draws++; fc_->mdi++); }   // the next draw of a multi-draw, encoded alone (mdx_next)
++// A GPU-written word's share of its frame's hash: its place in the frame and its value mixed together, so that the sum over the words (the pieces' handlers run in any
++//   order) tells a count that moved from one word to another from the same counts (a plain sum of place and value did not: caught by a run over made-up frames)
++static uint64_t fsig_wmix(uint32_t seq, uint32_t v) {
++    uint64_t x = ((uint64_t)seq + 1) * 0x9e3779b97f4a7c15ull ^ ((uint64_t)v + 0x632be59bd9b4e019ull) * 0xff51afd7ed558ccdull;
++    x ^= x >> 31; x *= 0xc4ceb9fe1a85ec53ull; x ^= x >> 29; return x;
++}
++static void fsig_ts(uint64_t f, uint64_t t, int top) {   // a timestamp report written for the game (completion handler): the frame's first TIMESTAMP_TOP and last other report
++    fsig_t *r = fsig_on() ? fsig_at(f) : NULL; if (!r || !t) return;
++    if (top) { uint64_t o = atomic_load(&r->ts0); while ((!o || t < o) && !atomic_compare_exchange_weak(&r->ts0, &o, t)) {} }
++    else { uint64_t o = atomic_load(&r->ts1); while (t > o && !atomic_compare_exchange_weak(&r->ts1, &o, t)) {} }
++}
++static void fsig_dump(const char *dir) {   // cap_end: the ring, oldest frame first
++    if (!fsig_on() || !dir || !dir[0]) return;
++    char p[1100]; snprintf(p, sizeof p, "%s/frames.txt", dir); FILE *f = fopen(p, "w"); if (!f) return;
++    fprintf(f, "# RewindBox frame signatures (patch 0059), oldest first. frame, draw-list hash, draws, indirect, of multi-draws, task/mesh, skipped for a pipeline, passes, pieces, dispatches, shared textures made, evicted over their storage, scene WxH, "
++               "GPU-written words, their sum, their hash, timestamp span reported to the game in microseconds (0 = none)\n");
++    uint64_t hi = 0; for (int i = 0; i < FSIG_N; i++) { uint64_t v = atomic_load(&g_fsig[i].frame); if (v > hi) hi = v; }
++    for (uint64_t v = hi > FSIG_N ? hi - FSIG_N + 1 : 1; v <= hi; v++) { fsig_t *c = fsig_at(v - 1); if (!c) continue;
++        uint64_t t0 = atomic_load(&c->ts0), t1 = atomic_load(&c->ts1);
++        fprintf(f, "%llu %016llx %u %u %u %u %u %u %u %u %u %u %ux%u %u %llu %016llx %llu\n", (unsigned long long)(v - 1), (unsigned long long)c->hash, c->draws, c->ind, c->mdi, c->mesh, c->skipped, c->passes, c->pieces, c->disp, c->texnew, c->taken,
++                c->w, c->h, c->gwords, (unsigned long long)atomic_load(&c->gsum), (unsigned long long)atomic_load(&c->ghash), t0 && t1 > t0 ? (unsigned long long)((t1 - t0) * 625 / 12000) : 0ull); }
++    fprintf(f, "# frames with another draw list than the two around them, which agree: %llu; with the same list and other GPU-written words: %llu; frames recorded: %llu\n",
++            (unsigned long long)g_fsig_aba_list, (unsigned long long)g_fsig_aba_gpu, (unsigned long long)g_fsig_frames);
++    fclose(f);
++}
+ uint64_t nvn_be_sub_commit(void) {
+     gpu_hang_inject();
+     lc_land();   // clears still waiting (the command list ends with them)
+@@ -2346,6 +2466,10 @@ uint64_t nvn_be_sub_commit(void) {
+     atomic_fetch_add(&g_seg_inflight, 1);
+     fb_add(o, ^(id f) { (void)f; atomic_fetch_sub(&g_seg_inflight, 1); for (dispatch_block_t block in commit_blocks) block(); });
+     uint64_t gpu_f = atomic_load(&g_cur_frame); double gpu_sub = gpu_tag_begin(gpu_f);
++    // RewindBox (patch 0059): this piece's GPU-written words go to its handler, which reads them once the piece has run
++    int fsn = 0; uint64_t *fsa = NULL; uint32_t *fsq = NULL;
++    FSIG(fc_->pieces++; fsn = g_fsig_naddr; g_fsig_naddr = 0;
++         if (fsn && (fsa = malloc((size_t)fsn * 8)) && (fsq = malloc((size_t)fsn * 4))) { memcpy(fsa, g_fsig_addr, (size_t)fsn * 8); memcpy(fsq, g_fsig_seq, (size_t)fsn * 4); } else { free(fsa); fsa = NULL; fsn = 0; });
+     NSString *cctx = @(cctx_snap());
+     seg_clk *sc = g_sclk; uint32_t seg_last = g_seg; g_sclk = NULL;
+     fb_add(o, ^(id<MTL4CommitFeedback> cb) {
+@@ -2359,7 +2483,14 @@ uint64_t nvn_be_sub_commit(void) {
+                 for (int k = 0; k < l->n; k++) { sum += ((const uint64_t *)((__bridge id<MTLBuffer>)l->s[k].buf).contents)[l->s[k].slot]; CFRelease(l->s[k].buf); }
+                 free(l); uint64_t rec[2] = {sum, gpu_ticks()}; memcpy((void *)ops[i].addr, rec, sizeof rec);
+             }
+-            else { uint64_t t = rep_ticks(&ops[i], sc, seg_last, c0, c1), rec[2] = {(ops[i].type == 0 || ops[i].type == 0x10) && !DM_GAME_RENDER_COND ? t : 0, t}; memcpy((void *)ops[i].addr, rec, sizeof rec); }   // render_cond: a timestamp report's counter field is 0, as on the GPU (see rc_value)
++            else { uint64_t t = rep_ticks(&ops[i], sc, seg_last, c0, c1), rec[2] = {(ops[i].type == 0 || ops[i].type == 0x10) && !DM_GAME_RENDER_COND ? t : 0, t}; memcpy((void *)ops[i].addr, rec, sizeof rec);   // render_cond: a timestamp report's counter field is 0, as on the GPU (see rc_value)
++                if (ops[i].type == 0 || ops[i].type == 0x10) fsig_ts(gpu_f, t, ops[i].type == 0x10); }   // RewindBox (patch 0059)
++        }
++        if (fsa) {   // RewindBox (patch 0059): the words the GPU wrote for this piece's indirect draws, as they are now that it has run
++            uint64_t sum = 0, gh = 0;
++            for (int i = 0; i < fsn; i++) { uint32_t v = 0; if (nvn_host_readable(fsa[i], 4)) memcpy(&v, (const void *)(uintptr_t)fsa[i], 4); sum += v; gh += fsig_wmix(fsq[i], v); }
++            fsig_t *r = fsig_at(gpu_f); if (r) { atomic_fetch_add(&r->gsum, sum); atomic_fetch_add(&r->ghash, gh); }
++            free(fsa); free(fsq);
+         }
+         free(ops); seg_clk_put(sc);
+         pthread_mutex_lock(&g_mu); if (fence > g_done) g_done = fence; pthread_cond_broadcast(&g_cv); pthread_mutex_unlock(&g_mu);
+@@ -2621,7 +2752,7 @@ static void alias_take_over(const alias_key *nk) {
+             if (g_alias_dead_n < g_alias_dead_cap) g_alias_dead_ser[g_alias_dead_n++] = sk; }   // its texture-ID views go at the end of the submission (alias_dead_views: they need g_rmu, taken before g_smu)
+         if (serial_holds(&g_ghost, o) || serial_holds(&g_ghost_active, o)) defer_obj_unref(o); else defer_obj_release(o);
+     }
+-    if (n) { g_ser_gen++; g_alias_taken += n; }
++    if (n) { g_ser_gen++; g_alias_taken += n; FSIG(fc_->taken += n); }   // RewindBox (patch 0059): FSIG
+ }
+ // #357 unreferenced shared textures: no live object, finalized serial or texture ID resolves to them; the game has finalized every texture over that storage. NVN keeps the storage's
+ //   bytes, so an object rebuilt there with the same description must still find them (why the table keeps such textures at all); each goes once that no longer holds:
+@@ -5209,6 +5340,7 @@ static id<MTLTexture> tex_mtl_(const tex_t *ct) {
+     if (g_allocprof > 0) { static int n; if (n++ < 30 || n % 500 == 0) MLOG("new texture (%s) #%d ser=%llu %ux%ux%u format %#x target %d levels %u storage %p", __func__, n, (unsigned long long)t->serial, t->d.width, t->d.height, t->d.depth, t->d.format, t->d.target, t->d.levels, (void *)t->mem); }
+     if (getenv("DM_NVN_TEXCPU") && t->pool && !(t->pool->flags & NVN_MEMORY_POOL_FLAGS_CPU_NO_ACCESS)) MLOG("non-swizzled texture on a CPU-visible pool ser=%llu %ux%ux%u format %#x target %d levels %u texture flags %#x pool flags %#x storage %p", (unsigned long long)t->serial, t->d.width, t->d.height, t->d.depth, t->d.format, t->d.target, t->d.levels, t->d.flags, t->pool->flags, (void *)t->mem);
+     res_add(mt);
++    FSIG(fc_->texnew++);   // RewindBox (patch 0059)
+     pthread_mutex_lock(&g_smu);
+     if (!g_alias_set) g_alias_set = CFSetCreateMutable(NULL, 0, NULL);
+     alias_take_over(&ak);
+@@ -6164,6 +6296,8 @@ static id<MTL4RenderCommandEncoder> rp_begin_ex_(int clear_only) {
+     g_enc = enc_r_begin_pass(pd);
+     args_dirty_all();
+     g_stat_pass++;
++    FSIG(id<MTLTexture> ct = pd.colorAttachments[0].texture; fc_->passes++;   // RewindBox (patch 0059): the largest colour target drawn with a depth buffer is the scene's
++         if (ct && pd.depthAttachment.texture && (uint64_t)ct.width * ct.height > (uint64_t)fc_->w * fc_->h) { fc_->w = (uint32_t)ct.width; fc_->h = (uint32_t)ct.height; });
+     { id<MTLTexture> lt = pd.colorAttachments[0].texture ?: pd.depthAttachment.texture;   // 本窗口画过的最大渲染目标（11-02 塞尔达户外落 30：看动态分辨率有没有把渲染尺寸抬上去）
+       if (lt && (uint64_t)lt.width * lt.height > (uint64_t)g_rtw_w * g_rtw_h) { g_rtw_w = (uint32_t)lt.width; g_rtw_h = (uint32_t)lt.height; g_rtw_fmt = (uint32_t)lt.pixelFormat; } }
+     if (enc_label_on()) { id<MTLTexture> lt = pd.colorAttachments[0].texture ?: pd.depthAttachment.texture ?: pd.stencilAttachment.texture; g_el_w = (int)lt.width; g_el_h = (int)lt.height; g_el_draws = 0; g_el_key[0] = 0; }
+@@ -6336,6 +6470,8 @@ static void shmap_load_once(void) {
+     uint8_t tess_dom, tess_part, tess_cw, tess_point;   // 从domain shader的tess_mode解出（prog_get时）：域（0等值线1三角2四边形，同 dmsh_build.py TESS_DOM / 寄存器 TessMode 位 0–1）、分区（0整数1奇分数2偶分数）、顺逆、点模式
+ } @end   // gp (S2Arm): the guest program, for its fragment shader's code / control at a typed-output variant (pso_fout_variant)   // geo_raster: GS output reader paired with this program's fragment stage
+ @implementation NvProg @end
++// RewindBox (patch 0059): what a frame's record hashes of a shader: the 16 characters of its key, the same from one frame, object and session to the next (0 = no shader)
++static uint64_t fsig_shkey(NvShader *s) { uint64_t a = 0, b = 0; if (!s) return 0; memcpy(&a, s->key, 8); memcpy(&b, s->key + 8, 8); return a ^ b * 0x9e3779b97f4a7c15ull; }
+ // Warm-up entry: built in the background, waiting to be taken by the submit thread. vs / fs retain the actual shared shader objects (pso holds only raw pointers).
+ @interface WarmItem : NSObject { @public int kind, fc; NSString *key, *vs_key, *fs_key; NvShader *shader, *vs, *fs; pso_key pso; id<MTLFunction> fsfn; id object; NSData *mkey; } @end   // fc: a compute pipeline of the sampler-emulation variant (#800); mkey: a task / mesh pipeline's key (kind 4, nvn_geometry.inc mtk_warm)
+ @implementation WarmItem @end
+@@ -9217,6 +9353,7 @@ static int first_skip_ok(const pso_key *k, NvShader *vs, NvShader *fs) {
+ }
+ static uint64_t g_fsk_eq;   // RewindBox (patch 0040): skipped draws that test depth EQUAL without writing it (first_skip_note)
+ static void first_skip_note(void) {
++    FSIG(fc_->skipped++);   // RewindBox (patch 0059)
+     uint64_t n = ++g_fsk_draws, f = atomic_load_explicit(&g_cur_frame, memory_order_relaxed); g_fsk_occl += g_vis_cur >= 0;
+     // RewindBox (patch 0040): a draw that tests depth EQUAL and writes none draws over depth another draw laid (a depth prepass): skipped, it leaves that shape with the cleared
+     //   colour, not the scene behind it. Counted for the line below, to tell from a device log whether the black shapes Mario Kart World shows for the length of a stall (IPA 749,
+@@ -13735,6 +13872,7 @@ static int mdx_next(const p_draw *dw, const p_draw_idx *di) {
+     g_udc_precise = 1;
+     if (dw) enc_r_draw_indirect(g_enc, g_mdxc.mp, out); else enc_r_draw_indexed_indirect(g_enc, g_mdxc.mp, g_mdxc.it, g_mdxc.ig, g_mdxc.il, out);
+     g_stat_draw++; g_mdx_fast++; g_mdxc.next = g_mdx_range ? g_exec_cur : g_exec_next; g_mdxc.i = i;
++    fsig_draw_again();   // RewindBox (patch 0059)
+     return 1;
+ }
+ // A large indirect-count multi-draw (OP_MULTI_DRAW; upstream reference implementation, MIT, c7ba23df): one record whatever the maximum. Through the GPU mask (mdx_run) in batches with a
+@@ -14576,6 +14714,8 @@ static void draw(const p_draw *dw, const p_draw_idx *di) {
+         }
+     }
+     g_stat_draw++;
++    fsig_draw((const void *)(uintptr_t)(fsig_shkey(pr->sh[0]) ^ fsig_shkey(pr->sh[3]) * 3 ^ fsig_shkey(pr->sh[4]) * 5), (const void *)(uintptr_t)fsig_shkey(pr->sh[1]),   // RewindBox (patch 0059): vertex, task and mesh stages / fragment stage
++              dw ? dw->ind : di->ind, dw ? dw->mdi_cnt : di->mdi_cnt, (uint32_t)(dw ? dw->count : di->count), (uint32_t)(dw ? dw->instances : di->instances), g_mtk.on);
+     if (enc_label_on() && !g_el_draws++ && pr->sh[1]) { memcpy(g_el_key, pr->sh[1]->key, 8); g_el_key[8] = 0; }
+     if (passdump()) {   // Characteristics of a render pass's first draw (to judge whether the load can be omitted: full screen, no blending, writes all channels, does not depend on depth); with DM_NVN_PASSDUMP_ALL every draw is recorded
+         static uint64_t last_pass = ~0ull; static int all = -1; if (all < 0) all = getenv("DM_NVN_PASSDUMP_ALL") != NULL;
+@@ -14794,6 +14934,7 @@ static void dispatch(const p_dispatch *dp) {
+     if (dp->ind) { static int once; if (!once++) MLOG("indirect dispatch: first time (the GPU reads the threadgroup counts from %#llx)", (unsigned long long)dp->ind); }
+     NvShader *cs = prog_get(S.cprog)->sh[5];
+     if (!cs) { RED_ONCE(28, "the dispatched program has no compute shader (or it is not mapped)"); return; }
++    FSIG(fc_->disp++; fc_->hash = (fc_->hash ^ fsig_shkey(cs)) * 0x100000001b3ull);   // RewindBox (patch 0059): a dispatch is part of the list
+     if (cs->tensor == 1) { tensor_standin(cs); return; }   // S2Arm 11-05: the game's own tensor-core upscaling network: not dispatched (nvn_tensor.inc)
+     g_gmem_disp_all++; if (gmem_uses(cs)) g_gmem_disp++;   // 原始内存池表动态占比（gmem_count_draw）
+     const void *k = (__bridge const void *)cs;
+@@ -16419,6 +16560,7 @@ static void cap_end(void) {   // td_dump has written the files
+     atomic_store(&g_cap_pd_log, 0);
+     pthread_mutex_lock(&g_cap_pd_mu); uint64_t lines = g_cap_pd_lines; if (g_cap_pd_f) fclose(g_cap_pd_f); g_cap_pd_f = NULL; pthread_mutex_unlock(&g_cap_pd_mu);
+     MLOG("RewindBox: frame capture written into %s (%llu pass lines, %d pass snapshots)", g_cap_dir, (unsigned long long)lines, g_cap_snaps);
++    fsig_dump(g_cap_dir);   // RewindBox (patch 0059): the signatures of the frames up to this one (frames.txt)
+     // RewindBox (patch 0054): what the pictures do not say, for the same moment of play. Mario Kart World's submit thread ran 59 M instructions a frame (35 thousand a draw) and
+     //   its frames took 14 ms of GPU time in the race of the IPA 760 test, with no word on which functions or which passes: a CPU profile of 6 s goes to cpuprof.txt in the
+     //   capture's folder (raw addresses, runtime/src/cpuprof.c) and the GPU time of every encoder of a few frames to the log, both a little after the capture, which stops the
