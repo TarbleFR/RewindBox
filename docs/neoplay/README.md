@@ -230,3 +230,27 @@ receiver from a third-party sender: not pursued (the session's safety layer refu
 unauthorized access). A receiver application of RewindBox's own (a web page the Chromecast loads; per-picture
 stream, as the Windows receiver does) is the authorised way; it needs a one-time registration by the owner in the
 Google Cast SDK Developer Console (5 USD) and a public HTTPS page. The owner will decide after trying the direct route.
+
+### Delivery 754 (16 November 2026)
+
+Private test IPA 754 (run 43787137375, IPA `6b2c7b3e…`, base 753 with every engine of 753), verified offline and handed
+over; receipt `docs/evidence/rewind754/delivery.json`. The Release compilation on Xcode 26.3 with GoogleCast 4.8.6
+compiled the change (first real compilation of the new Swift files and of the Dart panel); `NPDirectStream`,
+`NPFragmentedMP4`, `NPLagController`, `NPAudioTimeline`, `NPAACEncoder` and the `cast.direct.*` rows are in the signed
+`Runner`, the panel's twelve-language strings in `App.framework`. Images changed from the base: `App` and `Runner`
+(declared) and, undeclared, the armsx2, libretro and rpcs3 bridges, whose sources are unchanged (the pattern of
+739–753). The first request (run 43785102981, base 752) stopped in the preflight on the S2Arm pin
+(`docs/standard-delivery-recipe.md`, item 12). Not observed on an iPhone or a Chromecast.
+
+### Trying it (iPhone 16 Pro Max, Chromecast 4K)
+
+1. Install IPA 754. Open RewindBox → AirPlay tab → leave the Chromecast mode on **Automatic** → **Find screens** →
+   pick the Chromecast. Under the status line the panel shows **Direct route** (or **Compatible route** after a fallback)
+   and, once the TV plays, the measured delay up to the TV's player.
+2. Launch a game and play. Compare with the Apple TV: a camera filming the phone and the TV together at 240 fps gives
+   the end-to-end delay (frames between the button press on the phone's screen and the change on the TV).
+3. Play 15 minutes; the delay shown should stay where it settled (no drift).
+4. If the picture stutters or freezes, try **Compatible** for comparison.
+5. Send `Documents/Diagnostics/System/NeoPlay/NeoPlay.jsonl` (Files app → On My iPhone → RewindBox): `cast.receiver.agent`
+   (the receiver's model and Chrome version), `cast.direct.started`, `cast.direct.lag` every 10 s, `cast.stats`
+   (pictures received from ReplayKit and sent), `cast.direct.trouble` / `fallback` say what happened.

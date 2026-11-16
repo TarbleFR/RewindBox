@@ -237,6 +237,13 @@ Les gains de durée doivent être mesurés sur les producteurs macOS.
    sinon c'est la première demande de livraison qui la compile, et un échec y coûte un correctif revu, un regel
    et les deux groupes de tests (§ 21).
 
+12. **Un changement de pin de moteur différé fait échouer le contrat en CI** (754, 16 novembre 2026). Si un commit
+   qui change `build-utils/<moteur>/*-pin.json` est classé « source seulement », le gel inscrit dans
+   `components.<moteur>.pinSha256` l'empreinte du pin de HEAD, alors que l'arbre effectif matérialisé en CI restaure le
+   pin de la base ; le contrat s'arrête sur « The pinned engine pin changed after the freeze » (run `43785102981`). Le
+   contrat hors ligne ne le voit pas. Remède sans changer la recette : partir de la livraison qui contient ce pin
+   (754 refaite sur la 753), ou classer le commit du pin comme revu.
+
 ## 4. État de la 611 (1er novembre 2026)
 
 Le manifeste `build-utils/delivery/611.json` est un **brouillon**. `freeze 611 --dry-run` sur
