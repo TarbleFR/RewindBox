@@ -3,7 +3,7 @@
  "status": "verified",
  "component": "rpcs3",
  "build": 941,
- "note": "RPCS3 Core 941 = Core 940 (delivered in IPA 760) + the heat lot of the IPA 760 logs (maintainer, 16 Nov 2026): REWINDBOX_LIGHT_LOAD_941 (while a game is light its PPU, SPU and RSX threads run in the utility class, on the efficiency cores, and take their classes back at once when the load or the frame rate says so) and REWINDBOX_RSX_IDLE_941 (the idle RSX park slice follows the idle time; the grace period waits on the PUT line in every thermal state once the wait is known to rest the core). Compilation-only route: the Apple host harnesses were not run. Codegen identities unchanged (no codegen input changes). Not run on an iPhone; no heat, energy or FPS claim.",
+ "note": "RPCS3 Core 941 request 2 = Core 940 (delivered in IPA 760) + the heat lot of the IPA 760 logs (maintainer, 16 Nov 2026): REWINDBOX_LIGHT_LOAD_941 (while a game is light its PPU, SPU and RSX threads run in the utility class, on the efficiency cores, and take their classes back at once when the load or the frame rate says so) and REWINDBOX_RSX_IDLE_941 (the idle RSX park slice follows the idle time; the grace period waits on the PUT line in every thermal state once the wait is known to rest the core), with the fixes of the independent review of request 1 (run 43922916468, pinned and never delivered). Compilation-only route: the Apple host harnesses were not run. Codegen identities unchanged (no codegen input changes). Not run on an iPhone; no heat, energy or FPS claim.",
  "producer": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "validationMode": "build-only",
@@ -25,15 +25,15 @@
     "Preserve compiler objects for the same recipe",
     "Preserve real diagnostics including partial failures"
    ],
-   "source": "4e3d784449acb3acb0ab0e4f6a87c03727b5667b",
-   "run": 43922916468,
+   "source": "6ee1fbf6ac722d722b7264ee799062e9a82932d6",
+   "run": 43929679850,
    "attempt": 1,
-   "job": 133494644406,
-   "artifact": 14256036510,
-   "name": "RPCS3Core-941-4e3d784449acb3acb0ab0e4f6a87c03727b5667b",
-   "bytes": 30596249,
-   "sha256": "3b9f308642be077824e0715160024afeda7390197cd9fd9be4cd7da7a4300e45",
-   "expiresAt": "2026-12-16T18:10:18Z"
+   "job": 133518430779,
+   "artifact": 14258932545,
+   "name": "RPCS3Core-941-6ee1fbf6ac722d722b7264ee799062e9a82932d6",
+   "bytes": 30596229,
+   "sha256": "f4321430a15f62d2367e11dfed965abcdbf1bbe7bc18397a9c74b1466fcb9a62",
+   "expiresAt": "2026-12-16T18:52:01Z"
   },
   "hostTests": {
    "mode": "not-run"
@@ -41,15 +41,15 @@
  },
  "core": {
   "type": "rpcs3-ios-core941",
-  "dylibBytes": 81135176,
-  "dylibSha256": "7d2d6fb3a4c4c2bc927440466a1fd0d52bd293105473b81c6d5c1b6569e93311",
-  "identitySha256": "a306fe1881e7974d6fd23b9a826044daac780f7b785f2f95f0849b049547156c",
+  "dylibBytes": 81135168,
+  "dylibSha256": "f8b79576899609b5a3695b0f86776a7a58dc8ce27e7ba6b337f913ee7733e18c",
+  "identitySha256": "ae372cff621ef26e85f6fff411be279df34c73f373e1bcc7ad7642d32ec5fc17",
   "proofMember": "core610-proof.json",
-  "proofSha256": "09503f2ee4dc9f2df5e881b356424e073e35961896b35f555a25defb9dda20b4",
-  "payloadFingerprint": "31506fdab881bc7b5ef63842bad320cca67d3430a4f1be91b618a2f55e81a7e4"
+  "proofSha256": "ad1eb9a96fff797f2ea4941943a706f424827b052c88a2ed90c6f527265a7e56",
+  "payloadFingerprint": "9ea6fcf69ac8bda62652c4489f22c1e0bb3531b31bd2237f4b8fa5b88fcca7bf"
  },
  "canonical": {
-  "patchSha256": "922b95cf53e0fab3b241a79b003719a2e1cb314472ada9822c48ed8e455be5b2",
+  "patchSha256": "b40913edcaa6685358969f1a66be74a1de1dc7a3e75deab3f1f01b77e4a10133",
   "postimages": 510,
   "upstreamCommit": "22f1152783cef1f7e04af7b1c895173e28fd5b03"
  },
