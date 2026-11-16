@@ -28,10 +28,16 @@ def load(path):
 class CatalogueData(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.index = load(CATALOGUE / 'index.json.gz')
+        # The newest index is the one bundled in the app. Each revision is published in its own
+        # folder, named by base_url (r/<revision>/); the first publication (root index.json.gz and
+        # shards/) is frozen for the apps that bundle it.
+        cls.index = load(ROOT / 'assets/data/enhancements_index.json.gz')
+        base = 'https://raw.githubusercontent.com/TarbleFR/RewindBox/Claude/native/enhancements/catalogue/'
+        assert cls.index['base_url'].startswith(base), cls.index['base_url']
+        cls.folder = CATALOGUE / cls.index['base_url'][len(base):]
         cls.shards = {}
         for name, meta in cls.index['shards'].items():
-            data = (CATALOGUE / meta['path']).read_bytes()
+            data = (cls.folder / meta['path']).read_bytes()
             cls.shards[name] = (meta, data)
 
     def records(self, engine):
@@ -44,7 +50,7 @@ class CatalogueData(unittest.TestCase):
 
     def test_index_matches_the_bundled_copy_and_shards(self):
         self.assertEqual((ROOT / 'assets/data/enhancements_index.json.gz').read_bytes(),
-                         (CATALOGUE / 'index.json.gz').read_bytes())
+                         (self.folder / 'index.json.gz').read_bytes())
         self.assertEqual(self.index['schema'], 1)
         self.assertTrue(self.index['base_url'].startswith('https://raw.githubusercontent.com/TarbleFR/RewindBox/'))
         for name, (meta, data) in self.shards.items():
@@ -52,8 +58,21 @@ class CatalogueData(unittest.TestCase):
             self.assertEqual(hashlib.sha256(data).hexdigest(), meta['sha256'], name)
             self.assertLessEqual(len(data), 8 << 20, name)
             self.assertLessEqual(meta['expanded'], 48 << 20, name)
-        on_disk = {p.name[:-len('.json.gz')] for p in (CATALOGUE / 'shards').glob('*.json.gz')}
+        on_disk = {p.name[:-len('.json.gz')] for p in (self.folder / 'shards').glob('*.json.gz')}
         self.assertEqual(on_disk, set(self.index['shards']), 'no orphan or missing shard')
+        # An app asks the folder of the index it holds: each folder of this record format holds the newest.
+        newest = (self.folder / 'index.json.gz').read_bytes()
+        for earlier in CATALOGUE.glob('r/*/index.json.gz'):
+            if load(earlier).get('format') == self.index['format']:
+                self.assertEqual(earlier.read_bytes(), newest, earlier.parent.name)
+        # The frozen first publication still serves the apps that bundle it: its index lists its own
+        # shards, and no record there points into a PS2 source's files (those apps cannot read them).
+        first = load(CATALOGUE / 'index.json.gz')
+        self.assertEqual(first['revision'], '2026-10-28.209508f70e51')
+        self.assertTrue(first['base_url'].endswith('/native/enhancements/catalogue/'))
+        for name, meta in first['shards'].items():
+            data = (CATALOGUE / meta['path']).read_bytes()
+            self.assertEqual(hashlib.sha256(data).hexdigest(), meta['sha256'], name)
         self.assertLess(len((CATALOGUE / 'index.json.gz').read_bytes()), 512 * 1024, 'bundled index stays small')
 
     def test_index_keys_point_at_their_shard(self):
@@ -120,17 +139,49 @@ class CatalogueData(unittest.TestCase):
 
     def test_armsx2_engine_patches_by_name_and_licensed_cheats_with_their_notice(self):
         count = 0
+        sources = {s['id']: s for s in self.index['sources']}
+        unhosted = {'pcsx2-patches', 'peterdelta-pcsx2', 'gabominated-pcsx2'}
         for serial, record in self.records('armsx2'):
             self.assertRegex(serial, r'^[A-Z]{4}-[0-9]{5}$')
+            origins = record.get('origin', [])
+            for origin in origins:
+                self.assertIn(origin['source'], unhosted)
+                self.assertRegex(sources[origin['source']]['origin'],
+                                 r'^https://raw\.githubusercontent\.com/[^/]+/[^/]+/[0-9a-f]{40}/$', 'pinned revision')
+                self.assertRegex(origin['path'], r'^[^/][^\\]*\.pnach$')
+                self.assertNotIn('..', origin['path'].split('/'))
+                self.assertRegex(origin['sha256'], r'^[0-9a-f]{64}$')
+                self.assertLessEqual(origin['size'], 512 * 1024)
             for crc, payload in record['files'].items():
                 self.assertRegex(crc, r'^[0-9A-F]{8}$')
                 # Under cheats/, matched by PCSX2's "<SERIAL>_*.pnach" cheat glob.
                 self.assertEqual(payload['name'], f'{serial}_{crc}_rewindbox.pnach')
-                encoded = payload['text'].encode('utf-8')
-                self.assertEqual(hashlib.sha256(encoded).hexdigest(), payload['sha256'])
-                self.assertEqual(len(encoded), payload['size'])
-                self.assertIn('// Permission is hereby granted, free of charge', payload['text'])
-                head = payload['text'].split('\n[', 1)[0]
+                self.assertRegex(payload['sha256'], r'^[0-9a-f]{64}$')
+                if 'parts' in payload:
+                    # By reference: RewindBox's own text, then pointers to the lines of a source it
+                    # does not host. The app rebuilds the file and checks size and SHA-256.
+                    self.assertNotIn('text', payload)
+                    parts = payload['parts']
+                    hosted = parts[0]
+                    self.assertIsInstance(hosted, str)
+                    self.assertIsInstance(parts[-1], str)
+                    for index, part in enumerate(parts[1:], 1):
+                        if isinstance(part, str):
+                            if index > 1 and isinstance(parts[index - 1], list):
+                                self.assertFalse(re.search(r'^\s*d?patch\s*=', part, re.M | re.I),
+                                                 'no line of an unhosted source is published')
+                            continue
+                        self.assertEqual(len(part), 3)
+                        self.assertIn(part[0], range(len(origins)))
+                        self.assertTrue(0 <= part[1] < part[2] <= origins[part[0]]['size'])
+                        self.assertRegex(parts[index - 1], r'\n\[[^\n]+\]\n$', 'a range follows its group header')
+                else:
+                    hosted = payload['text']
+                    encoded = hosted.encode('utf-8')
+                    self.assertEqual(hashlib.sha256(encoded).hexdigest(), payload['sha256'])
+                    self.assertEqual(len(encoded), payload['size'])
+                    self.assertIn('// Permission is hereby granted, free of charge', hosted)
+                head = hosted.split('\n[', 1)[0]
                 self.assertTrue(all(not l.strip() or l.startswith(('//', 'gametitle=')) for l in head.split('\n')),
                                 'no unlabelled patch: PCSX2 would apply it unconditionally')
             for entry in record['entries']:
@@ -139,9 +190,15 @@ class CatalogueData(unittest.TestCase):
                 if entry['kind'] == 'patch':
                     self.assertEqual(entry['source'], 'armsx2-patches-zip')
                     self.assertEqual(entry['description'], '', 'the engine ships the patch and its text')
+                    continue
+                payload = record['files'][entry['crc']]
+                header = '[' + entry['name'] + ']'
+                if entry['source'] in unhosted:
+                    self.assertEqual(entry['description'], '', 'names and credits only for an unhosted source')
+                    self.assertTrue(any(isinstance(p, str) and p.endswith('\n' + header + '\n') for p in payload['parts']))
                 else:
                     self.assertIn(entry['source'], ('cookieplmonster-ccc', 'aerowidescreen-pcsx2'))
-                    self.assertIn('[' + entry['name'] + ']', record['files'][entry['crc']]['text'])
+                    self.assertIn(header, payload.get('text') or payload['parts'][0])
         self.assertGreater(count, 6000)
 
     def test_dolphin_entries_are_enhancements_off_by_default(self):
@@ -165,6 +222,7 @@ class CatalogueData(unittest.TestCase):
         self.assertEqual(set(sources), {
             'switch-cheats-db', 'rpcs3-patches',
             'armsx2-patches-zip', 'cookieplmonster-ccc', 'aerowidescreen-pcsx2',
+            'pcsx2-patches', 'peterdelta-pcsx2', 'gabominated-pcsx2',
             'dolphin-gamesettings', 'dolphin-upstream', 'ishiiruka-gamesettings', 'slippi-gamesettings',
             'mpn-gamesettings', 'admentus-enhancement-codes'})
         used = set()

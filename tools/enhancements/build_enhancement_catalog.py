@@ -18,7 +18,24 @@ firmware or key is read or written. Usage:
 
   python3 tools/enhancements/build_enhancement_catalog.py --cache /tmp/enh-cache
 
-`--offline` requires every input in the cache.
+`--offline` requires every input in the cache. `--reuse-engines rpcs3`
+keeps the published records of the named engines, read back from the
+catalogue and checked against its SHA-256: an engine whose pins did not move
+needs no download and is not rebuilt.
+
+Publication never rewrites a file an app may still ask for. Each revision
+has its own folder, `r/<revision>/`, named by the index's `base_url`: its
+shards stay as they are, so an app holding that index keeps downloading the
+bytes it lists. An app asks the folder of the index it holds for a newer
+one, so the newest index is written to `r/*/index.json.gz` of every earlier
+revision of the same record format (`format` in the index), and bundled in
+the app (assets/data). A shard that did not change keeps its SHA-256: an
+app that adopts the new index downloads only the shards that changed. A run
+that changes no shard publishes nothing.
+
+The first publication (`index.json.gz` and `shards/` at the root, record
+format 1) is frozen: the apps that bundle it do not read PS2 records by
+reference, and keep exactly what they have.
 """
 import argparse
 import collections
@@ -42,6 +59,12 @@ OUTPUT = ROOT / 'native/enhancements/catalogue'
 BUNDLED_INDEX = ROOT / 'assets/data/enhancements_index.json.gz'
 BASE_URL = 'https://raw.githubusercontent.com/TarbleFR/RewindBox/Claude/native/enhancements/catalogue/'
 SHARDS_PER_ENGINE = 32
+# Record format of the published index. An app reads the formats it was built for; a new format
+# is published to new folders only, and the folders of earlier formats keep their last index.
+#   1  first publication (root index.json.gz and shards/, frozen)
+#   2  PS2 records may point into their sources' files (`origin`, files with `parts`)
+FORMAT = 2
+ENGINES = ('melonx', 'rpcs3', 'armsx2', 'dolphin')
 
 # Only sources whose licence allows redistribution, or content the embedded
 # engine already ships (referenced by name, never redistributed). Sources
@@ -90,7 +113,7 @@ SOURCES = {
         'name': 'CookiePLMonster Console-Cheat-Codes (PS2)',
         'url': 'https://github.com/CookiePLMonster/Console-Cheat-Codes',
         'git': 'https://github.com/CookiePLMonster/Console-Cheat-Codes',
-        'revision': '26e407a754e0a2b2c73f55ad4f9261b32cfb42cd',
+        'revision': 'f63492f8ce9bbbf8eba57b2616fed3bc17c0740f',
         'license': 'MIT, Copyright (c) 2020-2023 Adrian Zdanowicz (Silent).',
         'engines': ['armsx2'],
     },
@@ -100,6 +123,40 @@ SOURCES = {
         'git': 'https://github.com/AeroWidescreen/PCSX2-Cheats',
         'revision': 'ab043ba5adb9e65837fd451d207e6c7c2731c3b1',
         'license': 'MIT, Copyright (c) 2023 Aero_.',
+        'engines': ['armsx2'],
+    },
+    # No licence: by reference only. The catalogue holds each group's name, author and the byte
+    # range of its lines in the source's file; the app downloads that file from the source at the
+    # pinned revision, checks it, and writes the selected groups (origin, see docs/ENHANCEMENTS.md).
+    'pcsx2-patches': {
+        'name': 'PCSX2/pcsx2_patches (official PCSX2 patch repository, newer than the engine\'s patches.zip)',
+        'url': 'https://github.com/PCSX2/pcsx2_patches',
+        'git': 'https://github.com/PCSX2/pcsx2_patches.git',
+        'revision': 'b919d7fb5849feeb30b2da07d02f6dc662f28ba5',
+        'origin': 'https://raw.githubusercontent.com/PCSX2/pcsx2_patches/b919d7fb5849feeb30b2da07d02f6dc662f28ba5/',
+        'license': 'No licence; each patch belongs to the author its file names. Not hosted by RewindBox: the '
+                   'app downloads the game\'s original file from this repository and revision. Only the groups '
+                   'the embedded engine does not already ship are listed.',
+        'engines': ['armsx2'],
+    },
+    'peterdelta-pcsx2': {
+        'name': 'PeterDelta/PCSX2 (50/60 FPS, widescreen and quality-of-life patches)',
+        'url': 'https://github.com/PeterDelta/PCSX2',
+        'git': 'https://github.com/PeterDelta/PCSX2.git',
+        'revision': '8ee633941cfdfb233a772e2d28b1a6006624d392',
+        'origin': 'https://raw.githubusercontent.com/PeterDelta/PCSX2/8ee633941cfdfb233a772e2d28b1a6006624d392/',
+        'license': 'No licence; the patches belong to PeterDelta and the authors each group names. Not hosted '
+                   'by RewindBox: the app downloads the game\'s original file from this repository and revision.',
+        'engines': ['armsx2'],
+    },
+    'gabominated-pcsx2': {
+        'name': 'Gabominated/PCSX2 (FPS, widescreen and visual patches)',
+        'url': 'https://github.com/Gabominated/PCSX2',
+        'git': 'https://github.com/Gabominated/PCSX2.git',
+        'revision': '24eaa108d39a63aec5d53e19b4962bb239f145ef',
+        'origin': 'https://raw.githubusercontent.com/Gabominated/PCSX2/24eaa108d39a63aec5d53e19b4962bb239f145ef/',
+        'license': 'No licence; the patches belong to Gabominated and the authors each group names. Not hosted '
+                   'by RewindBox: the app downloads the game\'s original file from this repository and revision.',
         'engines': ['armsx2'],
     },
     # ------------------------------------------------------------ Dolphin
@@ -115,9 +172,9 @@ SOURCES = {
     },
     'dolphin-upstream': {
         'name': 'Dolphin Sys/GameSettings (dolphin-emu master)',
-        'url': 'https://github.com/dolphin-emu/dolphin/tree/3eb30c7620b4475b2e0404228ba0d2b238a132f1/Data/Sys/GameSettings',
+        'url': 'https://github.com/dolphin-emu/dolphin/tree/c5069249b473da2427c89a698f1338aeb4011034/Data/Sys/GameSettings',
         'git': 'https://github.com/dolphin-emu/dolphin.git',
-        'revision': '3eb30c7620b4475b2e0404228ba0d2b238a132f1',
+        'revision': 'c5069249b473da2427c89a698f1338aeb4011034',
         'sparse': 'Data/Sys/GameSettings/',
         'license': 'GPL-2.0-or-later (Dolphin); code credits kept in each name.',
         'engines': ['dolphin'],
@@ -133,9 +190,9 @@ SOURCES = {
     },
     'slippi-gamesettings': {
         'name': 'Slippi Ishiiruka Sys/GameSettings',
-        'url': 'https://github.com/project-slippi/Ishiiruka/tree/d6779e03dcfd8dab4bb9b6634eb8f9b393c9d195/Data/Sys/GameSettings',
+        'url': 'https://github.com/project-slippi/Ishiiruka/tree/07b2d287a1f074942811d13b3c990fa29401ba7c/Data/Sys/GameSettings',
         'git': 'https://github.com/project-slippi/Ishiiruka.git',
-        'revision': 'd6779e03dcfd8dab4bb9b6634eb8f9b393c9d195',
+        'revision': '07b2d287a1f074942811d13b3c990fa29401ba7c',
         'sparse': 'Data/Sys/GameSettings/',
         'license': 'GPL-2.0-or-later (Dolphin/Ishiiruka).',
         'engines': ['dolphin'],
@@ -544,6 +601,42 @@ PS2_EXTRA = (
     ('cookieplmonster-ccc', 'PS2/**/*.pnach', 'Silent'),
     ('aerowidescreen-pcsx2', '**/*.pnach', 'Aero'),
 )
+# Sources without a licence, read by reference (origin), in order of precedence.
+PS2_ORIGIN = (
+    ('pcsx2-patches', 'patches/*.pnach', 'PCSX2'),
+    ('peterdelta-pcsx2', 'patches/*.pnach', 'PeterDelta'),
+    ('gabominated-pcsx2', 'PCSX2 Patches/*.pnach', 'Gabominated'),
+)
+ORIGIN_NOTICE = ('// No licence is stated by this source. RewindBox does not host these lines: the app read them '
+                 'from the file above, at that revision.')
+
+
+def pnach_blocks(raw):
+    """The labelled groups of a pnach file as byte ranges: [(name, start, end)],
+    where raw[start:end] holds the lines after the "[name]" header up to the end
+    of the group's last non-blank line. Lines before the first group belong to none."""
+    blocks, offset, current = [], 0, None
+    for line in raw.split(b'\n'):
+        end = offset + len(line)
+        stripped = line.strip()
+        if stripped.startswith(b'[') and stripped.endswith(b']') and len(stripped) > 2:
+            current = [stripped[1:-1].strip(), min(end + 1, len(raw)), min(end + 1, len(raw))]
+            blocks.append(current)
+        elif current is not None and stripped:
+            current[2] = end
+        offset = end + 1
+    return [tuple(block) for block in blocks]
+
+
+def origin_body(raw, start, end):
+    """The text the app writes for raw[start:end]: strict UTF-8 with carriage returns removed
+    (EnhancementOrigin does the same), or None when the bytes are not UTF-8."""
+    try:
+        text = raw[start:end].decode('utf-8')
+    except UnicodeDecodeError:
+        return None
+    # Dart's decoder drops a leading byte order mark: such a range is never published.
+    return None if text.startswith('\ufeff') else text.replace('\r', '')
 
 
 def parse_pnach(text):
@@ -592,7 +685,9 @@ def build_armsx2(roots, stats):
     name only (enabled under [Patches]); then the labelled groups of licensed
     sources the zip lacks, in one cheat file the adapter writes to cheats/
     (enabled under [Cheats]). PCSX2 reads patches.zip only while patches/
-    holds no file for the game, so nothing is written there."""
+    holds no file for the game, so nothing is written there. Groups of the
+    sources without a licence follow, by reference: their names and authors,
+    and the byte range of their lines in the source's own file."""
     import zipfile
     source = SOURCES['armsx2-patches-zip']
     games = {}
@@ -654,6 +749,59 @@ def build_armsx2(roots, stats):
             if added:
                 game['extra'].append((source_id, path.relative_to(root).as_posix(), added))
 
+    for source_id, pattern, label in PS2_ORIGIN:
+        root = roots[source_id]
+        for path in sorted(root.glob(pattern)):
+            match = PS2_ANY_FILE.match(path.name)
+            if match is None or path.stat().st_size > 512 * 1024:
+                stats['armsx2_skipped_files'] += 1
+                continue
+            key = (match.group(1), match.group(2).upper())
+            raw = path.read_bytes()
+            try:
+                title = parse_pnach(raw.decode('utf-8'))[0]
+            except UnicodeDecodeError:
+                stats['armsx2_origin_not_utf8'] += 1
+                continue
+            game = games.setdefault(key, {'title': title, 'groups': [], 'extra': []})
+            game['title'] = game['title'] or title
+            taken = {g['name'].casefold() for g, _ in game['groups']}
+            codes = {tuple(g['code']) for g, _ in game['groups']}
+            added = []
+            for header, start, end in pnach_blocks(raw):
+                body = origin_body(raw, start, end)
+                try:
+                    name = header.decode('utf-8')
+                except UnicodeDecodeError:
+                    body = None
+                parsed = parse_pnach(f'[{name}]\n{body}\n')[2] if body else []
+                # One group exactly, read the same way from the range as from the whole file.
+                if len(parsed) != 1 or parsed[0]['name'] != name or not parsed[0]['patches'] or \
+                        '\n' in name or len(name) > 120:
+                    stats['armsx2_origin_rejected_groups'] += 1
+                    continue
+                group = parsed[0]
+                if tuple(group['code']) in codes:
+                    stats['armsx2_duplicate_groups'] += 1  # the engine or an earlier source has it
+                    continue
+                shown = name
+                if shown.casefold() in taken:
+                    shown = f'{name} ({label})'
+                    if shown.casefold() in taken:
+                        stats['armsx2_duplicate_groups'] += 1
+                        continue
+                # The description routes the entry to its tab; like the lines, it is not published.
+                renamed = dict(group, name=shown, kind='cheat', unhosted=True, range=(start, end), body=body)
+                if shown != name:
+                    renamed['variant_of'] = name
+                taken.add(shown.casefold())
+                codes.add(tuple(group['code']))
+                game['groups'].append((renamed, source_id))
+                added.append(renamed)
+            if added:
+                game.setdefault('origin', []).append(
+                    (source_id, path.relative_to(root).as_posix(), len(raw), hashlib.sha256(raw).hexdigest(), added))
+
     serials = {}
     for (serial, crc), game in sorted(games.items()):
         if not game['groups']:
@@ -662,18 +810,41 @@ def build_armsx2(roots, stats):
         # gametitle often carries the serial, CRC and version: keep the name.
         name = re.split(r'\s*[(\[]?\b[A-Z]{4}[-_ ]?[0-9]{3}\.?[0-9]{2}', game['title'])[0]
         record['title'] = record['title'] or clean_label(name.strip(' -/'), 120)
-        if game['extra']:
+        if game['extra'] or game.get('origin'):
+            # `parts` alternates RewindBox's own text (and the licensed groups it may host) with
+            # pointers [origin file, start, end] to the lines of a source it does not host.
             text = f'gametitle={game["title"]}\n'
+            parts, literal = [], text
             for source_id, relative, groups in game['extra']:
                 extra = SOURCES[source_id]
-                text += (f'\n// --- {extra["name"]}, {extra["url"]} @ {extra["revision"][:12]}, {relative}\n'
+                piece = (f'\n// --- {extra["name"]}, {extra["url"]} @ {extra["revision"][:12]}, {relative}\n'
                          + '\n'.join(licence_comment(roots[source_id])) + '\n')
                 for group in groups:
-                    text += f'\n[{group["name"]}]\n' + '\n'.join(group['lines']) + '\n'
+                    piece += f'\n[{group["name"]}]\n' + '\n'.join(group['lines']) + '\n'
+                text += piece
+                literal += piece
+            for source_id, relative, size, digest, groups in game.get('origin', []):
+                extra = SOURCES[source_id]
+                origins = record.setdefault('origin', [])
+                origins.append({'source': source_id, 'path': relative, 'size': size, 'sha256': digest})
+                piece = (f'\n// --- {extra["name"]}, {extra["url"]} @ {extra["revision"][:12]}, {relative}\n'
+                         f'{ORIGIN_NOTICE}\n')
+                text += piece
+                literal += piece
+                for group in groups:
+                    header = f'\n[{group["name"]}]\n'
+                    text += header + group['body'] + '\n'
+                    parts += [literal + header, [len(origins) - 1, group['range'][0], group['range'][1]]]
+                    literal = '\n'
             encoded = text.encode('utf-8')
             # The installed bytes are the UTF-8 text RewindBox writes.
-            record['files'][crc] = {'name': f'{serial}_{crc}_rewindbox.pnach', 'size': len(encoded),
-                                    'sha256': hashlib.sha256(encoded).hexdigest(), 'text': text}
+            payload = {'name': f'{serial}_{crc}_rewindbox.pnach', 'size': len(encoded),
+                       'sha256': hashlib.sha256(encoded).hexdigest()}
+            if parts:
+                payload['parts'] = parts + [literal]
+            else:
+                payload['text'] = text
+            record['files'][crc] = payload
         for group, source_id in game['groups']:
             if len(group['name']) > 160:
                 stats['armsx2_skipped_groups'] += 1
@@ -686,7 +857,7 @@ def build_armsx2(roots, stats):
                 'cat': cat, 'name': group['name'], 'crc': crc,
                 'kind': 'cheat' if cheat else 'patch',
                 # Bodies and descriptions of the engine's patches stay in the engine.
-                'description': clean_label(group['description'], 300) if cheat else '',
+                'description': clean_label(group['description'], 300) if cheat and not group.get('unhosted') else '',
                 'author': clean_label(group['author'], 200), 'source': source_id,
                 # A renamed variant replaces its namesake; ratio choices exclude each other.
                 'group': display_group(crc, group['name'], cat)
@@ -864,12 +1035,10 @@ def build_dolphin(roots, stats):
 
 # ---------------------------------------------------------------- output
 
-def write_gzip(path, payload):
+def pack_json(payload):
+    """(gzip bytes, expanded size) of one catalogue file; the same input gives the same bytes."""
     data = json.dumps(payload, ensure_ascii=False, separators=(',', ':'), sort_keys=True).encode()
-    packed = gzip.compress(data, compresslevel=9, mtime=0)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(packed)
-    return packed, len(data)
+    return gzip.compress(data, compresslevel=9, mtime=0), len(data)
 
 
 def counts(entries):
@@ -879,27 +1048,70 @@ def counts(entries):
     return result
 
 
+def published():
+    """The newest published index (the one bundled in the app) and the local folder its
+    `base_url` names."""
+    path = BUNDLED_INDEX
+    if not path.exists():
+        return None, None
+    index = json.loads(gzip.decompress(path.read_bytes()))
+    base = index.get('base_url', '')
+    if not base.startswith(BASE_URL):
+        raise SystemExit(f'published index: base_url {base} is not below {BASE_URL}')
+    return index, OUTPUT / base[len(BASE_URL):]
+
+
+def published_shards(index, folder):
+    """{shard: packed bytes} of the published index, each checked against it."""
+    shards = {}
+    for name, meta in index['shards'].items():
+        data = (folder / meta['path']).read_bytes()
+        if len(data) != meta['size'] or hashlib.sha256(data).hexdigest() != meta['sha256']:
+            raise SystemExit(f'published shard {name} does not match its index')
+        shards[name] = data
+    return shards
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--cache', type=Path, required=True)
     parser.add_argument('--offline', action='store_true')
     parser.add_argument('--revision', default='')
+    parser.add_argument('--reuse-engines', default='',
+                        help='engines (comma separated) whose published records are kept as they are')
     args = parser.parse_args()
     args.cache.mkdir(parents=True, exist_ok=True)
+    reuse = {engine for engine in args.reuse_engines.split(',') if engine}
+    unknown = reuse - set(ENGINES)
+    if unknown:
+        raise SystemExit(f'--reuse-engines: unknown engine {sorted(unknown)}')
+    previous, previous_folder = published()
+    previous_shards = published_shards(previous, previous_folder) if previous else {}
+    if reuse and not previous:
+        raise SystemExit('--reuse-engines needs a published catalogue')
     stats = collections.defaultdict(int)
-    git = {source_id: fetch_git(args.cache, source_id, args.offline)
-           for source_id, source in SOURCES.items() if 'git' in source}
-    engines = {
-        'melonx': build_melonx(git['switch-cheats-db'], fetch_git(args.cache, 'gbatemp-matias3ds', args.offline),
-                               stats),
-        'rpcs3': build_rpcs3(fetch_rpcs3(args.cache, args.offline), stats),
-        'armsx2': build_armsx2(git, stats),
-        'dolphin': build_dolphin(git, stats),
-    }
-    shards_dir = OUTPUT / 'shards'
-    for old in shards_dir.glob('*.json.gz') if shards_dir.exists() else []:
-        old.unlink()
-    index_engines, shard_meta, totals = {}, {}, {}
+    # A reused engine's sources are not fetched: its records come from the published shards.
+    needed = {source_id for source_id, source in SOURCES.items()
+              if 'git' in source and set(source['engines']) - reuse}
+    git = {source_id: fetch_git(args.cache, source_id, args.offline) for source_id in sorted(needed)}
+    engines = {}
+    for engine in ENGINES:
+        if engine in reuse:
+            records = {}
+            for name, data in previous_shards.items():
+                if name.startswith(engine + '-'):
+                    records.update(json.loads(gzip.decompress(data))['keys'])
+            engines[engine] = records
+        elif engine == 'melonx':
+            engines[engine] = build_melonx(git['switch-cheats-db'],
+                                           fetch_git(args.cache, 'gbatemp-matias3ds', args.offline), stats)
+        elif engine == 'rpcs3':
+            engines[engine] = build_rpcs3(fetch_rpcs3(args.cache, args.offline), stats)
+        elif engine == 'armsx2':
+            engines[engine] = build_armsx2(git, stats)
+        else:
+            engines[engine] = build_dolphin(git, stats)
+    index_engines, shard_meta, shard_bytes, totals = {}, {}, {}, {}
     for engine, records in engines.items():
         grouped = {}
         keys = {}
@@ -908,8 +1120,8 @@ def main():
             grouped.setdefault(shard, {})[key] = records[key]
             keys[key] = [records[key]['title'], counts(records[key]['entries']), shard]
         for shard, members in sorted(grouped.items()):
-            packed, expanded = write_gzip(shards_dir / f'{shard}.json.gz',
-                                          {'schema': 1, 'engine': engine, 'shard': shard, 'keys': members})
+            packed, expanded = pack_json({'schema': 1, 'engine': engine, 'shard': shard, 'keys': members})
+            shard_bytes[shard] = packed
             shard_meta[shard] = {'path': f'shards/{shard}.json.gz', 'size': len(packed), 'expanded': expanded,
                                  'sha256': hashlib.sha256(packed).hexdigest()}
         index_engines[engine] = {'keys': keys}
@@ -918,23 +1130,53 @@ def main():
             for cat, n in counts(record['entries']).items():
                 engine_totals[cat] = engine_totals.get(cat, 0) + n
         totals[engine] = {'keys': len(records), 'entries': engine_totals}
-    digest = hashlib.sha256(json.dumps(shard_meta, sort_keys=True).encode()).hexdigest()
-    revision = args.revision or datetime.date.today().isoformat() + '.' + digest[:12]
+    changed = sorted(shard for shard, data in shard_bytes.items() if previous_shards.get(shard) != data)
+    removed = sorted(set(previous_shards) - set(shard_bytes))
+    sources = [{'id': k, **{f: v[f] for f in ('name', 'url', 'license', 'engines')},
+                **({'origin': v['origin']} if 'origin' in v else {}),
+                'revision': v.get('revision') or v.get('sha256')} for k, v in SOURCES.items()]
+    if previous and not changed and not removed and previous.get('sources') == sources:
+        print(f'no shard or source changed: revision {previous["revision"]} stays published')
+        return
+    digest = hashlib.sha256(json.dumps([shard_meta, sources], sort_keys=True).encode()).hexdigest()
+    # Apps keep the later string: the UTC date and time order two publications of one day.
+    revision = args.revision or datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H%MZ') + '.' + digest[:12]
+    if previous and revision <= previous['revision']:
+        raise SystemExit(f'revision {revision} is not later than the published {previous["revision"]}: '
+                         'apps keep the later string')
+    folder = OUTPUT / 'r' / revision
+    for shard, data in shard_bytes.items():
+        target = folder / shard_meta[shard]['path']
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
     index = {
-        'schema': 1, 'catalogue': 'rewindbox-enhancements', 'revision': revision, 'base_url': BASE_URL,
-        'sources': [{'id': k, **{f: v[f] for f in ('name', 'url', 'license', 'engines')},
-                     **({'origin': v['origin']} if 'origin' in v else {}),
-                     'revision': v.get('revision') or v.get('sha256')} for k, v in SOURCES.items()],
+        'schema': 1, 'format': FORMAT, 'catalogue': 'rewindbox-enhancements', 'revision': revision,
+        'base_url': f'{BASE_URL}r/{revision}/', 'sources': sources,
         'engines': index_engines, 'shards': shard_meta, 'totals': totals,
     }
-    packed, _ = write_gzip(OUTPUT / 'index.json.gz', index)
-    BUNDLED_INDEX.parent.mkdir(parents=True, exist_ok=True)
-    BUNDLED_INDEX.write_bytes(packed)
+    packed, _ = pack_json(index)
+    # An app asks the folder of the index it holds: every earlier revision of this record format
+    # gets the newest index. The frozen first publication and other formats are left alone.
+    same_format = [path for path in sorted(OUTPUT.glob('r/*/index.json.gz'))
+                   if json.loads(gzip.decompress(path.read_bytes())).get('format') == FORMAT]
+    for target in [BUNDLED_INDEX, *same_format, folder / 'index.json.gz']:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(packed)
+    rejections = dict(stats)
+    validation = OUTPUT / 'VALIDATION.json'
+    if reuse and validation.exists():
+        # Counters of a reused engine are those of the run that built it.
+        for key, value in json.loads(validation.read_text())['rejections'].items():
+            if key.split('_')[0] in reuse:
+                rejections[key] = value
     report = {'revision': revision, 'index_sha256': hashlib.sha256(packed).hexdigest(),
-              'index_size': len(packed), 'totals': totals, 'rejections': stats,
-              'shard_bytes': sum(m['size'] for m in shard_meta.values())}
-    (OUTPUT / 'VALIDATION.json').write_text(json.dumps(report, indent=2, sort_keys=True) + '\n')
-    print(json.dumps(report, indent=2, sort_keys=True))
+              'index_size': len(packed), 'totals': totals, 'rejections': rejections,
+              'shard_bytes': sum(m['size'] for m in shard_meta.values()),
+              'published': {'previous': previous['revision'] if previous else None, 'reused_engines': sorted(reuse),
+                            'changed_shards': changed, 'removed_shards': removed,
+                            'changed_bytes': sum(len(shard_bytes[shard]) for shard in changed)}}
+    validation.write_text(json.dumps(report, indent=2, sort_keys=True) + '\n')
+    print(json.dumps({k: v for k, v in report.items() if k != 'rejections'}, indent=2, sort_keys=True))
 
 
 if __name__ == '__main__':

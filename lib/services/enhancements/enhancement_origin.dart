@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart';
+
 import 'enhancement_models.dart';
 
 /// Turns a catalogue record that points into its sources' original files
@@ -8,9 +10,10 @@ import 'enhancement_models.dart';
 ///
 /// Sources without a licence are not hosted by RewindBox: their record lists
 /// `origin` files (source, path, size, SHA-256 at a pinned revision) and,
-/// for each code, a pointer `{o: file, k: key}` into one of them. The
-/// catalogue downloads and verifies those files; this class reads the codes
-/// out of them with the same rules as tools/enhancements.
+/// for each code, a pointer into one of them: `{o: file, k: key}` for a
+/// Switch title file, `[file, start, end]` (a byte range) for a PS2 pnach.
+/// The catalogue downloads and verifies those files; this class reads the
+/// codes out of them with the same rules as tools/enhancements.
 abstract final class EnhancementOrigin {
   static final _switchLine = RegExp(r'^[0-9A-Fa-f]{8}( [0-9A-Fa-f]{8}){0,3}$');
 
@@ -44,9 +47,65 @@ abstract final class EnhancementOrigin {
     switch (engine) {
       case EnhancementEngine.melonx:
         return _resolveSwitch(record, contents);
+      case EnhancementEngine.armsx2:
+        return _resolvePs2(record, contents);
       default:
         throw EnhancementException('origin_kind', engine.name);
     }
+  }
+
+  /// PS2 cheat files: `parts` alternates RewindBox's own text with pointers
+  /// `[file, start, end]` to the lines of a group in a source's pnach file.
+  /// The text is rebuilt as the builder wrote it (strict UTF-8, carriage
+  /// returns removed) and must have the size and SHA-256 the catalogue
+  /// lists; the adapter then reads `text` as for a hosted file.
+  static Map<String, dynamic> _resolvePs2(Map<String, dynamic> record, List<Uint8List> contents) {
+    final files = <String, dynamic>{};
+    for (final item in (record['files'] as Map? ?? const {}).entries) {
+      final payload = item.value;
+      final parts = payload is Map ? payload['parts'] : null;
+      if (payload is! Map || parts is! List) {
+        files[item.key.toString()] = payload;
+        continue;
+      }
+      final text = StringBuffer();
+      for (final part in parts) {
+        if (part is String) {
+          text.write(part);
+          continue;
+        }
+        if (part is! List || part.length != 3) throw const EnhancementException('origin_format');
+        final index = part[0];
+        final start = part[1];
+        final end = part[2];
+        if (index is! int ||
+            start is! int ||
+            end is! int ||
+            index < 0 ||
+            index >= contents.length ||
+            start < 0 ||
+            end < start ||
+            end > contents[index].length) {
+          throw const EnhancementException('origin_format');
+        }
+        try {
+          text.write(utf8.decode(Uint8List.sublistView(contents[index], start, end)).replaceAll('\r', ''));
+        } on FormatException {
+          throw const EnhancementException('origin_format');
+        }
+      }
+      final value = text.toString();
+      final encoded = utf8.encode(value);
+      if (encoded.length != payload['size'] || sha256.convert(encoded).toString() != payload['sha256']) {
+        throw EnhancementException('origin_integrity', payload['name']?.toString() ?? '');
+      }
+      files[item.key.toString()] = {
+        for (final field in payload.entries)
+          if (field.key != 'parts') field.key.toString(): field.value,
+        'text': value,
+      };
+    }
+    return {...record, 'files': files};
   }
 
   /// switch-cheats-db title files: `{BUILDID: {"[Name]": "[Name]\nwords..."}}`.

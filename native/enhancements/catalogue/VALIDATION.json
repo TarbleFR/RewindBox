@@ -1,9 +1,53 @@
 {
-  "index_sha256": "ee5bace6734f48e93b4932ebfce8547ab347aa428cd6c522f6f6c9d76a648293",
-  "index_size": 151687,
+  "index_sha256": "1576c25770b2abf76736e4717d44df82810c127dd238bbdbe406a0497a041704",
+  "index_size": 158968,
+  "published": {
+    "changed_bytes": 614594,
+    "changed_shards": [
+      "armsx2-00",
+      "armsx2-01",
+      "armsx2-02",
+      "armsx2-03",
+      "armsx2-04",
+      "armsx2-05",
+      "armsx2-06",
+      "armsx2-07",
+      "armsx2-08",
+      "armsx2-09",
+      "armsx2-10",
+      "armsx2-11",
+      "armsx2-12",
+      "armsx2-13",
+      "armsx2-14",
+      "armsx2-15",
+      "armsx2-16",
+      "armsx2-17",
+      "armsx2-18",
+      "armsx2-19",
+      "armsx2-20",
+      "armsx2-21",
+      "armsx2-22",
+      "armsx2-23",
+      "armsx2-24",
+      "armsx2-25",
+      "armsx2-26",
+      "armsx2-27",
+      "armsx2-28",
+      "armsx2-29",
+      "armsx2-30",
+      "armsx2-31"
+    ],
+    "previous": "2026-10-28.209508f70e51",
+    "removed_shards": [],
+    "reused_engines": [
+      "melonx",
+      "rpcs3"
+    ]
+  },
   "rejections": {
-    "armsx2_duplicate_groups": 80,
-    "armsx2_skipped_files": 5,
+    "armsx2_duplicate_groups": 7258,
+    "armsx2_origin_rejected_groups": 161,
+    "armsx2_skipped_files": 9,
     "dolphin_cheats_left_to_catalogue": 5439,
     "dolphin_duplicate_codes": 44,
     "dolphin_fixes_skipped": 5,
@@ -211,18 +255,18 @@
     ],
     "rpcs3_rejected": 2
   },
-  "revision": "2026-10-28.209508f70e51",
-  "shard_bytes": 2144640,
+  "revision": "2026-11-16T2042Z.ef845ebb4860",
+  "shard_bytes": 2426830,
   "totals": {
     "armsx2": {
       "entries": {
-        "cheat": 397,
-        "fps": 811,
-        "graphics": 615,
-        "performance": 6,
-        "ultrawide": 4394
+        "cheat": 829,
+        "fps": 1613,
+        "graphics": 1055,
+        "performance": 11,
+        "ultrawide": 4976
       },
-      "keys": 4221
+      "keys": 4537
     },
     "dolphin": {
       "entries": {

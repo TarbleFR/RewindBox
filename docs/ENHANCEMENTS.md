@@ -62,7 +62,9 @@ EnhancementService ── EnhancementStore (state.json: every file/line written)
     It holds titles, per-category counts and the SHA-256 and size of 128
     shards (32 per engine, 3.4 MB in total).
   - A game's shard is downloaded over HTTPS the first time its page opens.
-    It comes from `native/enhancements/catalogue/` on the `Claude` branch.
+    It comes from the folder of the index's revision,
+    `native/enhancements/catalogue/r/<revision>/` on the `Claude` branch
+    (see Publication).
   - Every shard is checked against the size and SHA-256 listed in the index
     before it is cached. Gzip expansion is bounded (8 MiB packed / 48 MiB
     expanded).
@@ -112,6 +114,23 @@ are left out (`VALIDATION.json`, `melonx_restricted_titles`). On
 28 October 2026 every pointer was resolved against the pinned files
 (36,980 of 36,980), and a sample of origin URLs was checked byte for byte on
 the network.
+
+Since 16 November 2026 PS2 sources without a licence are read the same way
+(PCSX2/pcsx2_patches newer than the engine's `patches.zip`, PeterDelta/PCSX2,
+Gabominated/PCSX2; 1,407 files, 2,247 entries). A pnach file is text, so a
+pointer is a byte range, `[origin file, start, end]`: the lines of one
+labelled group. The record's cheat file is a `parts` list that alternates
+RewindBox's own text (the `gametitle`, a comment naming the source, its
+revision and file, the `[group]` header) with those pointers. The catalogue
+holds the group's name and `author=` credit, never its lines or its
+description. `EnhancementOrigin` rebuilds the file (strict UTF-8, carriage
+returns removed) and refuses it unless it has the size and SHA-256 the
+catalogue lists; the ARMSX2 adapter then installs it like a hosted cheat
+file. On 16 November 2026 the Dart resolver rebuilt all 1,241 such files of
+1,176 records from the pinned sources, and refused a changed origin file. A
+group the engine already ships, or an earlier source already has (same patch
+lines), is not listed twice; a group whose name is taken is offered as a
+variant (`name (PCSX2)`, `(PeterDelta)`, `(Gabominated)`).
 
 Licensed sources (RPCS3 CC BY-SA 4.0, Dolphin GPL, MIT) stay hosted, as their
 licences allow. The RPCS3 patch file changes every week, and hosting keeps
@@ -189,22 +208,29 @@ those patches stable.
 
 ## Sources
 
-11 pinned sources, 47,184 entries (catalogue revision `2026-10-28.209508f70e51`).
-Only sources whose licence allows redistribution, or content the embedded
-engine already ships, are kept (see Rights). Per-category totals are in
-`native/enhancements/catalogue/VALIDATION.json`.
+14 pinned sources, 49,445 entries (catalogue revision
+`2026-11-16T2042Z.ef845ebb4860`; 47,184 entries from 11 sources in
+`2026-10-28.209508f70e51`). A source is hosted only when its licence allows
+redistribution; content the embedded engine already ships is referenced by
+name; a source without a licence is read by reference (see Origin download
+and Rights). Per-category totals are in
+`native/enhancements/catalogue/VALIDATION.json`; the figures below are those
+of `python3 tools/catalogues/report.py`.
 
 | Engine | Source | Revision | Entries | Licence |
 | --- | --- | --- | ---: | --- |
 | MeloNX | [HamletDuFromage/switch-cheats-db](https://github.com/HamletDuFromage/switch-cheats-db) (GBAtemp main cheat file, ChanseyIsTheBest 60 FPS/graphics) | `109766ab21c7` | 36,980 | none: **not hosted**, downloaded from the source by the app |
 | RPCS3 | [RPCS3 game patches](https://wiki.rpcs3.net/index.php?title=Help:Game_Patches) via `rpcs3.net/compatibility?patch&api=v1&v=1.2` | content `f1f3cab0c8fe…` | 3,643 | CC BY-SA 4.0 (browser-verified 28 October 2026; page-specific exceptions apply) |
 | ARMSX2 | [ARMSX2 `patches.zip`](https://github.com/ARMSX2/ARMSX2/blob/9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe/platforms/ios/app/src/main/assets/resources/patches.zip) (the engine's own patch set, names and author credits only) | `9d989ca933a8` | 6,092 | shipped by the engine; nothing redistributed |
-| ARMSX2 | [CookiePLMonster/Console-Cheat-Codes](https://github.com/CookiePLMonster/Console-Cheat-Codes) (PS2) | `26e407a754e0` | 79 | MIT |
+| ARMSX2 | [CookiePLMonster/Console-Cheat-Codes](https://github.com/CookiePLMonster/Console-Cheat-Codes) (PS2) | `f63492f8ce9b` | 93 | MIT |
 | ARMSX2 | [AeroWidescreen/PCSX2-Cheats](https://github.com/AeroWidescreen/PCSX2-Cheats) | `ab043ba5adb9` | 52 | MIT |
+| ARMSX2 | [PCSX2/pcsx2_patches](https://github.com/PCSX2/pcsx2_patches) (groups the engine's `patches.zip` does not have) | `b919d7fb5849` | 1,007 | none: **not hosted**, downloaded from the source by the app |
+| ARMSX2 | [PeterDelta/PCSX2](https://github.com/PeterDelta/PCSX2) (50/60 FPS, widescreen) | `8ee633941cfd` | 390 | none: **not hosted**, downloaded from the source by the app |
+| ARMSX2 | [Gabominated/PCSX2](https://github.com/Gabominated/PCSX2) (FPS, widescreen, visual patches) | `24eaa108d39a` | 850 | none: **not hosted**, downloaded from the source by the app |
 | Dolphin | [dolphin-ios Sys/GameSettings](https://github.com/OatmealDome/dolphin-ios/tree/7cac54161659421ed95c2cd1c0b0746539a4cd38/Data/Sys/GameSettings) (the engine's own codes, names only) | `7cac54161659` | 240 | GPL-2.0+ |
-| Dolphin | [dolphin-emu/dolphin](https://github.com/dolphin-emu/dolphin) GameSettings (newer codes, with bodies) | `3eb30c7620b4` | 36 | GPL-2.0+ |
+| Dolphin | [dolphin-emu/dolphin](https://github.com/dolphin-emu/dolphin) GameSettings (newer codes, with bodies) | `c5069249b473` | 36 | GPL-2.0+ |
 | Dolphin | [Tinob/Ishiiruka](https://github.com/Tinob/Ishiiruka) GameSettings | `cba6d7279b44` | 15 | GPL-2.0+ |
-| Dolphin | [project-slippi/Ishiiruka](https://github.com/project-slippi/Ishiiruka) GameSettings | `d6779e03dcfd` | 1 | GPL-2.0+ |
+| Dolphin | [project-slippi/Ishiiruka](https://github.com/project-slippi/Ishiiruka) GameSettings | `07b2d287a1f0` | 1 | GPL-2.0+ |
 | Dolphin | [MarioPartyNetplay/Dolphin-MPN](https://github.com/MarioPartyNetplay/Dolphin-MPN) GameSettings | `cb414b1d6521` | 9 | GPL-2.0+ |
 | Dolphin | [Admentus64/Enhancement-Codes](https://github.com/Admentus64/Enhancement-Codes) (GameCube discs) | `f8e9ad12d904` | 37 | GPL-3.0 |
 
@@ -214,7 +240,7 @@ Engines' entry totals:
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | MeloNX | 2,285 | 36,980 | 22,446 | 1,405 | 36 | 12,971 | 122 |
 | RPCS3 | 964 | 3,643 | 1,592 | 643 | 694 | 702 | 12 |
-| ARMSX2 | 4,221 | 6,223 | 397 | 811 | 4,394 | 615 | 6 |
+| ARMSX2 | 4,537 | 8,484 | 829 | 1,613 | 4,976 | 1,055 | 11 |
 | Dolphin | 282 files | 338 | — | 62 | 216 | 33 | 27 |
 
 Removed on 28 October 2026 because they grant no licence to redistribute
@@ -228,6 +254,8 @@ entries from 17 sources):
   same day without being hosted: see Origin download.
 - **PS2:** the bodies of PCSX2/pcsx2_patches (only the names of the copy
   ARMSX2 ships are referenced), Gabominated/PCSX2 and PeterDelta/PCSX2.
+  These three came back on 16 November 2026 without being hosted, as
+  switch-cheats-db did: see Origin download.
 
 Not integrated after research (28 October 2026):
 
@@ -289,6 +317,16 @@ server code.
   Gabominated, PeterDelta and the pcsx2_patches bodies: no licence (194
   Switch titles even carry explicit "do not repost" restrictions). A source
   can come back when its authors grant a licence or written permission.
+- **Read by reference (not hosted).** switch-cheats-db (28 October 2026),
+  then PCSX2/pcsx2_patches, PeterDelta/PCSX2 and Gabominated/PCSX2
+  (16 November 2026). None states a licence and none states a restriction
+  (READMEs and repository files read at the pinned revisions; pcsx2_patches
+  exists to distribute patches to the emulator, and Gabominated's README
+  describes the in-app download of its patches by ARMSX2). RewindBox hosts
+  names, author credits and pointers; the app downloads the original file
+  from the source at the pinned revision. This is not a licence clearance:
+  a source or an author who objects is removed from `PS2_ORIGIN` or
+  `SOURCES` of the builder, and the next publication no longer lists it.
 - **Removal on request.** Any author can ask for removal at
   https://github.com/TarbleFR/RewindBox/issues.
 
@@ -305,11 +343,41 @@ The command:
 - fetches the pinned inputs (git revisions, and the RPCS3 patch.yml content
   SHA-256);
 - refuses an unreviewed RPCS3 update;
-- writes `native/enhancements/catalogue/{index.json.gz,shards/,VALIDATION.json}`
-  and the identical bundled copy `assets/data/enhancements_index.json.gz`.
+- writes the new revision to `native/enhancements/catalogue/r/<revision>/`
+  (`index.json.gz` and `shards/`), `VALIDATION.json`, and the identical
+  bundled index `assets/data/enhancements_index.json.gz`.
 
 Gzip output is deterministic (`mtime=0`). `--offline` requires every input
-in the cache.
+in the cache. `--reuse-engines rpcs3,melonx` keeps the published records of
+the named engines, read back from the catalogue and checked against its
+SHA-256: an engine whose pins did not move needs no download.
+`python3 tools/catalogues/watch.py --only enhancements` says which pins
+moved upstream (one `git ls-remote` per source, answers cached).
+
+### Publication
+
+Publication never rewrites a file an app may still ask for.
+
+- Each revision has its own folder, `r/<revision>/`, which the index names
+  in `base_url`. Its shards never change, so an app holding that index keeps
+  downloading the bytes it lists.
+- An app asks the folder of the index it holds for a newer one
+  (`EnhancementCatalog.refresh`). The builder therefore writes the newest
+  index into `r/*/index.json.gz` of every earlier revision of the same
+  record format (`format` in the index).
+- A shard that did not change keeps its SHA-256: an app that adopts the new
+  index downloads only the shards that changed (32 of 128 on 16 November
+  2026, 614,594 bytes; the Switch, PS3 and Dolphin shards were not fetched
+  again).
+- A revision is the UTC date and time, then a digest
+  (`2026-11-16T2042Z.ef845ebb4860`): the app keeps the later string.
+- The first publication (`index.json.gz` and `shards/` at the root,
+  `2026-10-28.209508f70e51`, record format 1) is frozen. The apps that
+  bundle it cannot read a PS2 record by reference; they keep exactly what
+  they have until they are updated. Before this layout a regenerated shard
+  replaced the published one in place, and an app with the older index
+  refused it (`shard_integrity`) until its user checked for updates.
+- A run that changes no shard and no source publishes nothing.
 
 Checks run in this change:
 
