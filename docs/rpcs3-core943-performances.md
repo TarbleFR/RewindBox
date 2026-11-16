@@ -152,3 +152,52 @@ compteurs et cadrage jugés corrects. Ses remarques, toutes appliquées :
   (diagnostic) et le vidage `part=callee`, qui suit le premier pc relevé dans la région chaude.
 
 Compilation du Core, épinglage et IPA : à compléter.
+
+## 4. Pourquoi la fréquence tombe, et ce qui peut la maintenir (demande du mainteneur, 16 novembre)
+
+Demande : « trouver ce qui fait que la fréquence tombe pour la gérer et la maintenir, et tenir plus de 30 FPS » ; pas
+de nouvelle IPA avant que le problème soit réglé et démontré.
+
+### 4.1 Ce que montrent les mesures (IPA 763)
+
+- **C'est un budget de puissance de la puce, pas un état thermique.** Black Ops II, fenêtre 16 → 17 (≈ 45 s de jeu
+  à 2,8-3,8 W) : cœurs P 2,31 → 1,80 GHz, cœurs E 2,42 → 2,11 GHz, et le GPU ralentit en même temps (11,0 → 12,7 ms de
+  GPU par image pour le même travail). Puissance du processeur 2,77 → 1,98 W. L'état thermique publié par iOS reste
+  « nominal » avant, pendant et après : il ne sert pas d'alarme.
+- **Ce budget se paie en cœurs P actifs.** Dans la même session de God of War III et le même état « fair », vers 2 W :
+  1,28 cœur P actif tourne à 3,3-3,4 GHz (introduction), 1,97 cœur P actif tombe à 1,27-1,41 GHz (jeu). Black Ops II
+  plafonné : 1,85 cœur P actif à 1,8 GHz.
+- **Coût d'un cœur occupé, mesuré** (énergie facturée par iOS, 266 fenêtres) :
+
+| Cœur | Fréquence | nJ par cycle | W par cœur occupé |
+| --- | --- | --- | --- |
+| P | 1,7-1,9 GHz | 0,41-0,42 | 0,72-0,78 |
+| P | 2,3-2,5 GHz | 0,48-0,50 | 1,10-1,25 |
+| P | 3,0-3,9 GHz | 0,37-0,75 selon le code | 1,2-2,3 |
+| E | 2,1 GHz | 0,107 | 0,23 |
+| E | 2,4 GHz | 0,135 | 0,32 |
+
+  À 1,8 GHz, un cœur P coûte 3,3 fois un cœur E à 2,1 GHz pour environ 1,4 fois son travail : au plafond, un cœur E fait
+  environ 2,4 fois plus de travail par joule.
+- **Qui occupe les cœurs P de Black Ops II plafonné (1,85 cœur)** : threads PPU 0,93 (dont ≈ 0,5 hors code du jeu),
+  RSX 0,38, encodage MoltenVK 0,29, débordement des SPU 0,26. Les cœurs E en ont 1,2 de libres. Pendant le plafond,
+  la consommation de chaque groupe est la même à 24 et à 37 FPS (r² ≈ 0) ; FPS ≈ 16-18 × fréquence des cœurs P.
+- **iOS accepte que l'application lui décrive ses images** : la sonde `deadline_probe` (Core 940) a réussi sur
+  l'iPhone (`status=ok`, intervalle de travail 0x47 : joignable, groupe, sans restriction, « finir à l'échéance »).
+  Ce mécanisme dit au régulateur de performance quels threads produisent l'image et pour quand ; il n'a jamais été
+  utilisé par l'émulation.
+
+### 4.2 Conséquence
+
+La fréquence tombe parce que le budget est réparti sur trop de cœurs P occupés en même temps. Le budget mesuré permet
+environ 1,85 cœur P à 1,8 GHz, ou environ 1 cœur P à 2,5 GHz avec les cœurs E en plus (0,72-0,78 W par cœur P à
+1,8 GHz, 1,1-1,25 W à 2,5 GHz, 0,23 W par cœur E). Pour maintenir la fréquence du chemin critique, il faut :
+1. retirer des cœurs P ce qui n'attend rien de rapide : l'attente active du thread principal de God of War III
+   (§ 2.1), l'encodage MoltenVK, le débordement des SPU de Black Ops II, le surcoût des threads PPU ;
+2. dire à iOS, par un intervalle de travail, quels threads produisent l'image et pour quand. Il peut alors donner la
+   fréquence à ce groupe, et baisser l'horloge quand une image est en avance (menus, introduction), ce qui garde de la
+   marge thermique pour le jeu.
+
+Prévision (modèle, non démontrée) : avec environ 1 cœur P occupé au lieu de 1,85 et le même budget, la fréquence du
+chemin critique de Black Ops II passerait d'environ 1,8 à environ 2,5 GHz, soit 39 % de plus. Si la relation mesurée
+FPS ≈ 16-18 × GHz tient, c'est plus de 30 FPS. Seule une mesure sur l'iPhone peut le démontrer.
