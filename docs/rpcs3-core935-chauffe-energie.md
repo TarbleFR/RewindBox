@@ -474,3 +474,12 @@ Identités de cache inchangées (PPU a987639e9f838d1c, SPU 477a3fa442d27917, ali
 92 exports. Vérifié sur PC : contrôle de fermeture des sources (code 0), contrôle Metal replié (PASS), syntaxe ARM64 de
 PPUModule.cpp, en-tête du correctif compilé et essayé sur l'hôte. Non exécuté : harnais historiques, iPhone. Aucun gain
 de chaleur, d'énergie ou d'images par seconde n'est revendiqué.
+
+### Livraison 760 (16 novembre 2026)
+
+Core 940 : demande 1 (run 43838124437) arrêtée par le contrôle de syntaxe iOS (canal de journal dans un espace de noms
+anonyme), demande 2 compilée (run 43841141271), vérifiée et épinglée (empreinte 73235b7e, identités de cache
+inchangées). IPA 760 sur la base 759 : première demande (run 43845801508) refusée à l'intégration (moteur S2Arm déclaré
+« ajouté » alors qu'inchangé), seconde demande verte (run 43849717506). IPA `5a60cc20…`, 331 176 688 octets, vérifiée
+hors ligne après téléchargement et remise au mainteneur ; clé privée supprimée. Groupes Flutter et natif non exécutés.
+Non testée sur iPhone : gel de Black Ops II, chaleur et images par seconde restent à observer.
