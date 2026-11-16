@@ -2,7 +2,7 @@
   "schema": 1,
   "build": 761,
   "status": "draft",
-  "note": "IPA 761 = IPA 760 + RPCS3 Core 941 (the heat lot of the IPA 760 logs, maintainer 16 Nov 2026: the phone must stay in the nominal thermal state): REWINDBOX_LIGHT_LOAD_941 (while a game is light its PPU, SPU and RSX threads run in the utility class, on the efficiency cores, and take their own classes back within one 500 ms sample when the load or the frame rate says so) and REWINDBOX_RSX_IDLE_941 (the idle RSX park slice follows the idle time; the grace period waits on the PUT line in every thermal state once the wait is known to rest the core). Codegen identities unchanged. MeloNX, S2Arm, XeniaCore, the application and every retained component are those of the base. Images that must change: libRPCS3Core.dylib and Runner. Build-only delivery: Flutter/native groups not-run. Nothing has run on an iPhone; no heat, energy or FPS claim.",
+  "note": "IPA 761 = IPA 760 + RPCS3 Core 941 (the heat lot of the IPA 760 logs, maintainer 16 Nov 2026: the phone must stay in the nominal thermal state): REWINDBOX_LIGHT_LOAD_941 (while a game is light its PPU, SPU and RSX threads run in the utility class, on the efficiency cores, and take their own classes back within one 500 ms sample when the load or the frame rate says so) and REWINDBOX_RSX_IDLE_941 (the idle RSX park slice follows the idle time; the grace period waits on the PUT line in every thermal state once the wait is known to rest the core). RPCS3 codegen identities unchanged. Also taken, each by its own verified pin (recipe 3.12): the MeloNX Core of the lot after IPA 759 (the Core's own sched_yield, MeloNX session, verified pin 72ef2465). S2Arm, XeniaCore, the application and every retained component are those of the base. Images that must change: Frameworks/MeloNXCore.framework/MeloNXCore, Frameworks/libRPCS3Core.dylib, Runner. Build-only delivery: Flutter/native groups not-run. Nothing has run on an iPhone; no heat, energy or FPS claim.",
   "base": {
     "build": 760,
     "source": "5e926eaf85ea0ec954d220ea19b5c3f82e2779d8",
@@ -61,8 +61,15 @@
       "packaging": "build-utils/melonx/package_runtime.py",
       "image": "Frameworks/MeloNXCore.framework/MeloNXCore",
       "producerRoute": ".github/workflows/melonx-core.yml",
-      "pinSha256": "e0bb992965ca58096cdb6200e735500689baff2a35fbfbdf0eef33dda85db36b",
-      "unchangedFromBase": true
+      "pinSha256": "72ef2465a9525b1921618df946bf11db1fa74d8c7b7187a3b4224b4277de8699",
+      "replaces": {
+        "build": 759,
+        "source": "127b72b99fc2e1d1c5515d55328dcbca0092df9a",
+        "run": 43827244503,
+        "job": 133163885204,
+        "artifact": 14206574778,
+        "packagedFingerprint": "16960d9b76ca4d3ad9055bc78df754069400eda6405df6f8ac8cd5f8c4f090d7"
+      }
     },
     "dolphin": {
       "mode": "retain",
@@ -353,6 +360,18 @@
         "note": "Reviewed by main: [rpcs3-core-build] build(rpcs3): request the Core 941 compile (heat lot of the IPA 760 logs)"
       },
       {
+        "commit": "f7613aa6fe53beb9ddae5952eb283da7895346d2",
+        "note": "Reviewed by main (melonx session, engine taken by its verified pin, recipe 3.12): build(melonx): after IPA 759 \u2014 the Core's own sched_yield wired (no priority drop in the runtime's contended locks), and the Ryujinx update verdict (local until the refreeze) [skip ci]"
+      },
+      {
+        "commit": "13b249c287dc4b3d0eaad37912db6cc27e97e2d2",
+        "note": "Reviewed by main (melonx session, engine taken by its verified pin, recipe 3.12): fix(melonx): the Core's own sched_yield keeps the system yield during a background collection too (independent review, before any build) [skip ci]"
+      },
+      {
+        "commit": "677754037848db87f1de3c6d42e9334ee90a63fc",
+        "note": "Reviewed by main (melonx session, engine taken by its verified pin, recipe 3.12): fix(melonx): adapt_runtime_yield compiles its C file with the link's SDK path, without warnings as errors [skip ci]"
+      },
+      {
         "commit": "aa664373d28c638fa1ea0be52af1f25e4c055526",
         "note": "Reviewed by main: build(rpcs3): pin RPCS3 Core 941 (run 43922916468, artifact 14256036510, dylib 7d2d6fb3 81135176 B, fingerprint 31506fda) [skip ci]"
       },
@@ -369,43 +388,46 @@
         "note": "Reviewed by main: [rpcs3-core-build] build(rpcs3): request the Core 941 compile, request 2 (fixes of the independent review)"
       },
       {
-        "commit": "3876618cbd7552f7f7d271c5932ed8fc139042a9",
+        "commit": "9943a5ca2b42c59074c49064a388dfa7b0287094",
+        "note": "Reviewed by main (melonx session, engine taken by its verified pin, recipe 3.12): [melonx-dma-core] build(melonx): request the Core after IPA 759 \u2014 the Core's own sched_yield (runtime-yield gate, 110 gates)"
+      },
+      {
+        "commit": "b54b6fee6aea55703f8076f95580dca442b477bd",
         "note": "Reviewed by main: build(rpcs3): pin RPCS3 Core 941 request 2 (run 43929679850, artifact 14258932545, dylib f8b79576 81135168 B, fingerprint 9ea6fcf6) [skip ci]"
+      },
+      {
+        "commit": "080b1a939cc7337b406ac4b72b6b69d355dcd36e",
+        "note": "Reviewed by main: build(delivery): draft 761 \u2014 RPCS3 Core 941 request 2 (heat lot of the IPA 760 logs) on base 760 [skip ci]"
+      },
+      {
+        "commit": "866c8121b6654119c68a0b7c8c6c9e2efa94fc48",
+        "note": "Reviewed by main: docs(rpcs3): heat section 12 \u2014 in-match windows of IPA 760 reread (energy per frame constant, SPU work real, micro-sleeps cheap); Black Ops II relaxed reservations not proposed (froze on IPA 657) [skip ci]"
+      },
+      {
+        "commit": "a320d7ab70c801158a35299f49e1e0ae582016c0",
+        "note": "Reviewed by main (melonx session, engine taken by its verified pin, recipe 3.12): build(melonx): verified pin of the Core after IPA 759 \u2014 the Core's own sched_yield (9943a5ca; packagedFingerprint 3df6c45b) [skip ci]"
       }
     ],
     "sourceOnly": [
       {
-        "commit": "f7613aa6fe53beb9ddae5952eb283da7895346d2",
-        "targetBuild": 762,
-        "note": "Another session's engine work pushed after IPA 760 (build(melonx): after IPA 759 \u2014 the Core's own sched_yield wired (no priority drop in the r): its engine keeps the base's pin here, not part of this RPCS3 build"
-      },
-      {
-        "commit": "13b249c287dc4b3d0eaad37912db6cc27e97e2d2",
-        "targetBuild": 762,
-        "note": "Another session's engine work pushed after IPA 760 (fix(melonx): the Core's own sched_yield keeps the system yield during a background collect): its engine keeps the base's pin here, not part of this RPCS3 build"
-      },
-      {
-        "commit": "677754037848db87f1de3c6d42e9334ee90a63fc",
-        "targetBuild": 762,
-        "note": "Another session's engine work pushed after IPA 760 (fix(melonx): adapt_runtime_yield compiles its C file with the link's SDK path, without war): its engine keeps the base's pin here, not part of this RPCS3 build"
-      },
-      {
         "commit": "53fdc1430f777188311927c5de3334801f878324",
         "targetBuild": 762,
-        "note": "Another session's engine work pushed after IPA 760 (fix(s2arm): patch 0051 \u2014 the depth output's register beside one-channel colour outputs (Ma): its engine keeps the base's pin here, not part of this RPCS3 build"
+        "note": "Another session's engine work pushed after IPA 760 (fix(s2arm): patch 0051 \u2014 the depth output's register beside one-channel colour outputs (Ma): its engine keeps the base's pin here, not part of this build"
       }
     ],
     "promotedCommits": []
   },
   "images": {
     "mustChange": [
+      "Frameworks/MeloNXCore.framework/MeloNXCore",
       "Frameworks/libRPCS3Core.dylib",
       "Runner"
     ],
     "added": [],
     "removed": [],
     "replaced": {
-      "rpcs3": "Frameworks/libRPCS3Core.dylib"
+      "rpcs3": "Frameworks/libRPCS3Core.dylib",
+      "melonx": "Frameworks/MeloNXCore.framework/MeloNXCore"
     },
     "retained": {
       "dolphin": [
@@ -431,9 +453,6 @@
       "xenia": [
         "Frameworks/XeniaCore.framework/XeniaCore",
         "Frameworks/libmetalirconverter.dylib"
-      ],
-      "melonx": [
-        "Frameworks/MeloNXCore.framework/MeloNXCore"
       ],
       "s2arm": [
         "Frameworks/S2ArmEngine.framework/S2ArmEngine"
