@@ -1,0 +1,3 @@
+[
+ { "name": "shaka-base", "repeat": 6, "args": { "duration": 40, "loadDelay": [50, 150, 250, 350, 450, 100] } }
+]

@@ -22,6 +22,9 @@ public final class NeoPlayBridgePlugin: NSObject, FlutterPlugin, FlutterStreamHa
         case "discover": controller.discover(); result(nil)
         case "stopDiscovery": controller.stopDiscovery(); result(nil)
         case "disconnect": controller.stop(); result(nil)
+        case "setCastMode":
+            guard let args = call.arguments as? [String: Any], let mode = args["mode"] as? String else { result(FlutterError(code: "arguments", message: nil, details: nil)); return }
+            controller.setCastMode(mode); result(nil)
         case "connect":
             guard let args = call.arguments as? [String: Any], let id = args["id"] as? String, let label = args["stopLabel"] as? String else { result(FlutterError(code: "arguments", message: nil, details: nil)); return }
             do { try controller.connect(id: id, pin: args["pin"] as? String ?? "", stopLabel: label); result(nil) }

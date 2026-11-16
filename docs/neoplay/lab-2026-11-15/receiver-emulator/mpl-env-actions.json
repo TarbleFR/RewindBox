@@ -1,0 +1,17 @@
+[
+ { "name": "mpl-media", "repeat": 2, "args": { "duration": 8, "flags": { "use_shaka_for_hls": false } } },
+ { "name": "mpl-optout-master", "repeat": 1, "args": { "duration": 30, "entry": "master", "flags": { "forced_opt_out_of_shaka_for_hls": "AAAAAAAA;CC1AD845" } } },
+ { "name": "mpl-master", "repeat": 4, "args": { "duration": 36, "entry": "master", "loadDelay": [50, 200, 350, 450], "flags": { "use_shaka_for_hls": false } } },
+ { "name": "mpl-master-seg1s", "repeat": 2, "args": { "duration": 36, "entry": "master", "loadDelay": [50, 500], "flags": { "use_shaka_for_hls": false }, "playlist": { "segmentSeconds": 1 } } },
+ { "name": "env-noplatform", "repeat": 1, "args": { "duration": 30, "platform": false } },
+ { "name": "env-googletv", "repeat": 1, "args": { "duration": 30, "ua": "googletv" } },
+ { "name": "env-noua", "repeat": 1, "args": { "duration": 30, "ua": "none" } },
+ { "name": "act-shaka-seekinf", "repeat": 1, "args": { "duration": 42, "poll": 1, "actions": [ { "at": 24, "do": "media", "msg": { "type": "SEEK", "currentTime": 4294967296, "resumeState": "PLAYBACK_START" } } ] } },
+ { "name": "act-shaka-seeknocur", "repeat": 1, "args": { "duration": 34, "poll": 1, "actions": [ { "at": 24, "do": "media", "msg": { "type": "SEEK", "resumeState": "PLAYBACK_START" } } ] } },
+ { "name": "act-shaka-play", "repeat": 1, "args": { "duration": 34, "poll": 1, "actions": [ { "at": 24, "do": "media", "msg": { "type": "PLAY" } } ] } },
+ { "name": "act-shaka-rate", "repeat": 1, "args": { "duration": 46, "poll": 1, "actions": [ { "at": 24, "do": "media", "msg": { "type": "SET_PLAYBACK_RATE", "playbackRate": 1.25 } }, { "at": 34, "do": "media", "msg": { "type": "SET_PLAYBACK_RATE", "playbackRate": 1 } } ] } },
+ { "name": "act-shaka-hold-seek", "repeat": 1, "args": { "duration": 52, "poll": 1, "actions": [ { "at": 24, "do": "hold", "ms": 2500 }, { "at": 38, "do": "media", "msg": { "type": "SEEK", "currentTime": 4294967296, "resumeState": "PLAYBACK_START" } } ] } },
+ { "name": "act-mpl-seekinf", "repeat": 1, "args": { "duration": 34, "poll": 1, "entry": "master", "flags": { "use_shaka_for_hls": false }, "actions": [ { "at": 16, "do": "media", "msg": { "type": "SEEK", "currentTime": 4294967296, "resumeState": "PLAYBACK_START" } } ] } },
+ { "name": "act-mpl-rate", "repeat": 1, "args": { "duration": 40, "poll": 1, "entry": "master", "flags": { "use_shaka_for_hls": false }, "actions": [ { "at": 16, "do": "media", "msg": { "type": "SET_PLAYBACK_RATE", "playbackRate": 1.25 } }, { "at": 26, "do": "media", "msg": { "type": "SET_PLAYBACK_RATE", "playbackRate": 1 } } ] } },
+ { "name": "act-mpl-hold-seek", "repeat": 1, "args": { "duration": 46, "poll": 1, "entry": "master", "flags": { "use_shaka_for_hls": false }, "actions": [ { "at": 16, "do": "hold", "ms": 2500 }, { "at": 30, "do": "media", "msg": { "type": "SEEK", "currentTime": 4294967296, "resumeState": "PLAYBACK_START" } } ] } }
+]

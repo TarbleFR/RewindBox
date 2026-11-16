@@ -1,0 +1,11 @@
+{
+  "defaults": { "duration": 40, "load-delay": 2 },
+  "runs": [
+    { "label": "r10-seg1", "args": { "seg": 1 }, "note": "framework config, rebufferingGoal 10" },
+    { "label": "r10-seg0.5", "args": { "seg": 0.5 } },
+    { "label": "r10-seg0.25", "args": { "seg": 0.25 } },
+    { "label": "r10-seg0.5-long", "args": { "seg": 0.5, "long-segments": "20" }, "note": "one 1 s segment (sequence 20) among 0.5 s ones" },
+    { "label": "r10-seg0.5-shaka5.0.1", "args": { "seg": 0.5, "shaka-version": "5.0.1" } },
+    { "label": "r10-seg0.5-window12", "args": { "seg": 0.5, "window-seconds": 14, "store-segments": 40 }, "note": "14 s playlist" }
+  ]
+}

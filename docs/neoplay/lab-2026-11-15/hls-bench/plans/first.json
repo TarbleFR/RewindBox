@@ -1,0 +1,20 @@
+{
+  "defaults": { "duration": 60, "load-delay": 2, "pixel-every": 3, "config-merge": { "streaming": { "rebufferingGoal": 0 } } },
+  "runs": [
+    { "label": "seg0.5", "args": { "seg": 0.5 }, "phases": [0.1, 0.5, 0.9], "note": "IPA 743, stock playlist" },
+    { "label": "seg1", "args": { "seg": 1 }, "phases": [0.2, 0.8], "note": "pre-743 sender, stock playlist" },
+    { "label": "seg0.25", "args": { "seg": 0.25 }, "phases": [0.2, 0.8], "note": "stock playlist" },
+    { "label": "seg0.5-hb1.5", "args": { "seg": 0.5, "hold-back": 1.5, "join-phase": 0.5 }, "note": "HOLD-BACK=1.5" },
+    { "label": "seg0.5-hb1.0", "args": { "seg": 0.5, "hold-back": 1.0, "join-phase": 0.5 }, "note": "HOLD-BACK=1.0" },
+    { "label": "seg0.5-hb0.75", "args": { "seg": 0.5, "hold-back": 0.75, "join-phase": 0.5 }, "note": "HOLD-BACK=0.75" },
+    { "label": "seg0.25-hb0.75", "args": { "seg": 0.25, "hold-back": 0.75, "join-phase": 0.5 }, "note": "HOLD-BACK=0.75" },
+    { "label": "seg0.25-hb0.5", "args": { "seg": 0.25, "hold-back": 0.5, "join-phase": 0.5 }, "note": "HOLD-BACK=0.5" },
+    { "label": "seg0.5-outage2", "args": { "seg": 0.5, "outage-at-play": 20, "outage-secs": 2, "join-phase": 0.5 }, "note": "2 s outage at 20 s, no seek" },
+    { "label": "seg0.5-outage2-tracker", "args": { "seg": 0.5, "outage-at-play": 20, "outage-secs": 2, "join-phase": 0.5, "seek-rule": "tracker" }, "note": "2 s outage, NPLiveLagTracker (currentTime = seekRange().end)" },
+    { "label": "seg0.5-outage4", "args": { "seg": 0.5, "outage-at-play": 20, "outage-secs": 4, "join-phase": 0.5 }, "note": "4 s outage, no seek" },
+    { "label": "seg0.5-outage4-tracker", "args": { "seg": 0.5, "outage-at-play": 20, "outage-secs": 4, "join-phase": 0.5, "seek-rule": "tracker" }, "note": "4 s outage, NPLiveLagTracker (currentTime = seekRange().end)" },
+    { "label": "seg0.5-outage4-tracker-goToLive", "args": { "seg": 0.5, "outage-at-play": 20, "outage-secs": 4, "join-phase": 0.5, "seek-rule": "tracker", "seek-action": "goToLive" }, "note": "4 s outage, NPLiveLagTracker (player.goToLive())" },
+    { "label": "seg1-outage2", "args": { "seg": 1, "outage-at-play": 20, "outage-secs": 2, "join-phase": 0.5 }, "note": "2 s outage, no seek" },
+    { "label": "seg0.25-outage2", "args": { "seg": 0.25, "outage-at-play": 20, "outage-secs": 2, "join-phase": 0.5 }, "note": "2 s outage, no seek" }
+  ]
+}

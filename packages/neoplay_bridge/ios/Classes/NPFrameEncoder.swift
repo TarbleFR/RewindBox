@@ -28,6 +28,11 @@ final class NPFrameEncoder {
     private var needKey = true           // lock
     private var cancelled = false        // lock
     private var lastVideo = CMTime.invalid // capture queue
+    private var lastPixel: CVPixelBuffer?  // capture queue: the picture a still screen repeats
+    private var lastSubmit: TimeInterval = 0 // capture queue, system uptime
+    private var lastWasRepeat = false      // capture queue
+    private var lastReal: TimeInterval = 0 // capture queue: system uptime of the last captured (not repeated) picture
+    static let stillAfter: TimeInterval = 0.1 // no captured picture for this long: the screen is still
     private var counters = (passthrough: 0, rendered: 0) // lock
     var audioPackets: Int { pcm.audioPackets }
     var reanchors: Int { pcm.reanchors }
@@ -115,7 +120,13 @@ final class NPFrameEncoder {
     }
 
     private func appendVideo(_ sample: CMSampleBuffer, time: CMTime) {
-        guard let session, let pool, !lastVideo.isNumeric || CMTimeGetSeconds(CMTimeSubtract(time, lastVideo)) >= 1.0 / 61.0 else { return }
+        var time = time
+        // The captured picture that ends a still phase is new content: the interval rule (which halves a 120 Hz capture) does
+        // not apply to it; its time stamp is only kept above the last repeat's, which the encoder requires.
+        let afterRepeat = lastWasRepeat
+        if afterRepeat, lastVideo.isNumeric, CMTimeCompare(time, lastVideo) <= 0 { time = CMTimeAdd(lastVideo, CMTime(value: 1, timescale: 1_000)) }
+        guard let session, let pool else { return }
+        if !afterRepeat, lastVideo.isNumeric, CMTimeGetSeconds(CMTimeSubtract(time, lastVideo)) < NPPolicy.minPictureInterval { return }
         let pixel: CVPixelBuffer
         let orientation = (CMGetAttachment(sample, key: RPVideoSampleOrientationKey as CFString, attachmentModeOut: nil) as? NSNumber)?.int32Value ?? 1
         if let captured = CMSampleBufferGetImageBuffer(sample), orientation == 1, CVPixelBufferGetWidth(captured) == output.width, CVPixelBufferGetHeight(captured) == output.height, Self.directFormats.contains(CVPixelBufferGetPixelFormatType(captured)) {
@@ -132,7 +143,25 @@ final class NPFrameEncoder {
             context.render(centered.composited(over: CIImage(color: .black).cropped(to: bounds)), to: rendered, bounds: bounds, colorSpace: CGColorSpaceCreateDeviceRGB())
             pixel = rendered; lock.lock(); counters.rendered += 1; lock.unlock()
         }
-        lastVideo = time
+        submit(pixel, time: time, to: session); lastWasRepeat = false; lastReal = lastSubmit
+    }
+    // A still screen delivers no picture. Once no picture was captured for `stillAfter` (a game that renders 20 or 30
+    // pictures a second is not still), the last one is encoded again every `interval`, so that the stream keeps flowing:
+    // the receiver's player starts after about twenty pictures and reads the response in 32 KB blocks. Capture queue.
+    func repeatIfStill(now: TimeInterval, interval: TimeInterval) {
+        // 0.9: the timer's tick and the submission time are read one after the other, an exact comparison would skip every other tick.
+        guard let session, let pixel = lastPixel, lastVideo.isNumeric, now - lastReal >= max(interval, Self.stillAfter), now - lastSubmit >= interval * 0.9 else { return }
+        submit(pixel, time: CMTimeAdd(lastVideo, CMTime(seconds: max(NPPolicy.minPictureInterval, now - lastSubmit), preferredTimescale: 1_000_000)), to: session); lastWasRepeat = true
+    }
+    // Link adaptation of the direct Chromecast route: same session, new average rate and one-second ceiling. Capture queue.
+    func setBitrate(_ bitsPerSecond: Int) {
+        guard let session, bitsPerSecond > 0 else { return }
+        let average = VTSessionSetProperty(session, key: kVTCompressionPropertyKey_AverageBitRate, value: bitsPerSecond as NSNumber)
+        let ceiling = VTSessionSetProperty(session, key: kVTCompressionPropertyKey_DataRateLimits, value: [bitsPerSecond / 8, 1] as NSArray)
+        NPLog.record("frames.bitrate", ["bitrate": bitsPerSecond, "average": Int(average), "ceiling": Int(ceiling)])
+    }
+    private func submit(_ pixel: CVPixelBuffer, time: CMTime, to session: VTCompressionSession) {
+        lastVideo = time; lastPixel = pixel; lastSubmit = ProcessInfo.processInfo.systemUptime
         lock.lock(); let key = needKey; needKey = false; lock.unlock()
         let properties: [CFString: Any]? = key ? [kVTEncodeFrameOptionKey_ForceKeyFrame: true] : nil
         let status = VTCompressionSessionEncodeFrame(session, imageBuffer: pixel, presentationTimeStamp: time, duration: .invalid, frameProperties: properties as CFDictionary?, infoFlagsOut: nil) { [weak self] status, _, encoded in
@@ -199,7 +228,7 @@ final class NPFrameEncoder {
         if flushVideo, let session { VTCompressionSessionCompleteFrames(session, untilPresentationTimeStamp: .invalid) }
         lock.lock(); cancelled = true; onPacket = nil; onError = nil; lock.unlock()
         if let session { VTCompressionSessionInvalidate(session) }
-        session = nil
+        session = nil; lastPixel = nil
         if ownsPCM { pcm.cancel() }
     }
 

@@ -1,0 +1,10 @@
+{
+  "defaults": { "duration": 60, "load-delay": 2, "pixel-every": 3 },
+  "runs": [
+    { "label": "r10-seg0.5", "args": { "seg": 0.5 }, "phases": [0.2, 0.8], "note": "framework config (rebufferingGoal 10), stock playlist" },
+    { "label": "r10-seg1", "args": { "seg": 1, "join-phase": 0.5 }, "note": "framework config (rebufferingGoal 10), stock playlist" },
+    { "label": "r10-seg0.25", "args": { "seg": 0.25, "join-phase": 0.5 }, "note": "framework config (rebufferingGoal 10), stock playlist" },
+    { "label": "r10-seg0.5-tracker", "args": { "seg": 0.5, "join-phase": 0.5, "seek-rule": "tracker" }, "note": "framework config + NPLiveLagTracker" },
+    { "label": "seg0.5-5min", "args": { "seg": 0.5, "join-phase": 0.5, "duration": 300, "config-merge": { "streaming": { "rebufferingGoal": 0 } } }, "note": "rebufferingGoal 0, 5 minutes (drift)" }
+  ]
+}

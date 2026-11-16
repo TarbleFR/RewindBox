@@ -41,11 +41,18 @@ final class NPCapture: NSObject, RPScreenRecorderDelegate {
     private var videoDropped = 0 // state lock
     private var lastKeyRequest = Date.distantPast // main thread
     private var pathRecorded = false // capture queue
+    private var stillTimer: DispatchSourceTimer? // main thread
+    private var stopping = false // main thread: stopCapture was called and has not answered yet
+    private var received = 0 // state lock: pictures ReplayKit delivered
+    private var bitrateOverride: Int? // capture queue: the link's rate, kept across encoders (a rotation creates a new one)
+    // A still screen delivers no picture; the encoders then repeat the last one at this interval (0 = never).
+    var stillInterval: TimeInterval = 0
+    static let stillTick: TimeInterval = 0.1
     static let keyRequestInterval: TimeInterval = 0.5
     private var cap: NPSize { NPPolicy.cap(tier: cast ? .half : tier, receiverMax: cast ? NPSize(width: 1280, height: 720) : receiverMax) }
     var diagnostics: [String: Any] {
-        state.lock(); let encoder = self.encoder, muxer = self.muxer, pcm = self.pcm, tier = self.tier, audioDropped = self.audioDropped, videoDropped = self.videoDropped; state.unlock()
-        return ["tier": tier.rawValue, "audioDropped": audioDropped, "videoDropped": videoDropped,
+        state.lock(); let encoder = self.encoder, muxer = self.muxer, pcm = self.pcm, tier = self.tier, audioDropped = self.audioDropped, videoDropped = self.videoDropped, received = self.received; state.unlock()
+        return ["tier": tier.rawValue, "audioDropped": audioDropped, "videoDropped": videoDropped, "received": received, "rendered": encoder?.rendered ?? 0,
                 "output": encoder.map { ["width": $0.output.width, "height": $0.output.height] } ?? muxer.map { ["width": $0.output.width, "height": $0.output.height] } ?? NSNull(),
                 "passthrough": encoder?.passthrough ?? 0, "audioPackets": pcm?.audioPackets ?? 0, "reanchors": pcm?.reanchors ?? 0,
                 "audioBeforeOrigin": pcm?.beforeOrigin ?? 0, "audioBeforeConfiguration": pcm?.beforeConfiguration ?? 0]
@@ -78,6 +85,7 @@ final class NPCapture: NSObject, RPScreenRecorderDelegate {
                 }
                 return
             }
+            self.state.lock(); self.received += 1; self.state.unlock()
             guard self.videoSlots.wait(timeout: .now()) == .success else { self.state.lock(); self.videoDropped += 1; self.state.unlock(); return }
             self.queue.async {
                 defer { self.videoSlots.signal() }
@@ -91,6 +99,7 @@ final class NPCapture: NSObject, RPScreenRecorderDelegate {
                             self.retire(encoder: self.encoder, muxer: nil)
                             guard let pcm else { return }
                             let encoder = try NPFrameEncoder(source: size, display: self.activeDisplay, cap: self.cap, pcm: pcm)
+                            if let rate = self.bitrateOverride { encoder.setBitrate(rate) }
                             self.state.lock(); self.encoder = encoder; self.state.unlock()
                             encoder.onError = { [weak self] error in DispatchQueue.main.async { if self?.requested == true { self?.onError?(error) } } }
                             // Keep configuration and pictures ordered with video
@@ -137,6 +146,12 @@ final class NPCapture: NSObject, RPScreenRecorderDelegate {
                             }
                         }
                         self.muxer?.append(sample, video: true)
+                        if !self.pathRecorded, let muxer = self.muxer {
+                            self.pathRecorded = true
+                            let orientation = (CMGetAttachment(sample, key: RPVideoSampleOrientationKey as CFString, attachmentModeOut: nil) as? NSNumber)?.int32Value ?? 1
+                            let format = CMSampleBufferGetImageBuffer(sample).map { Int(CVPixelBufferGetPixelFormatType($0)) } ?? 0
+                            NPLog.record("video.path", ["orientation": Int(orientation), "pixelFormat": format, "passthrough": false, "sourceWidth": size.width, "sourceHeight": size.height, "width": muxer.output.width, "height": muxer.output.height])
+                        }
                     }
                 } catch { DispatchQueue.main.async { if self.requested { self.onError?(.encoder) } } }
             }
@@ -149,7 +164,20 @@ final class NPCapture: NSObject, RPScreenRecorderDelegate {
                 self.onStarted?()
                 self.watchdog = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
                     guard let self else { return }
-                    self.queue.async { let stalled = Date().timeIntervalSince(self.lastSampleAt) > 12; DispatchQueue.main.async { if stalled && self.requested { self.onError?(.timeout) } } }
+                    // No picture for 12 s ends the session only if ReplayKit itself stopped recording: a still screen delivers nothing.
+                    self.queue.async { let stalled = Date().timeIntervalSince(self.lastSampleAt) > 12; DispatchQueue.main.async { if stalled && self.requested && !RPScreenRecorder.shared().isRecording { self.onError?(.timeout) } } }
+                }
+                if self.stillInterval > 0 {
+                    let interval = self.stillInterval
+                    let timer = DispatchSource.makeTimerSource(queue: self.queue)
+                    let tick = min(Self.stillTick, interval / 2)
+                    timer.schedule(deadline: .now() + tick, repeating: tick)
+                    timer.setEventHandler { [weak self] in
+                        guard let self else { return }
+                        let now = ProcessInfo.processInfo.systemUptime
+                        self.encoder?.repeatIfStill(now: now, interval: interval); self.muxer?.repeatIfStill(now: now, interval: interval)
+                    }
+                    timer.resume(); self.stillTimer = timer
                 }
             }
         })
@@ -176,6 +204,9 @@ final class NPCapture: NSObject, RPScreenRecorderDelegate {
             self.restartEncodersIfOutputChanges(reason: "link.tier", detail: ["tier": tier.rawValue])
         }
     }
+    // The direct Chromecast route: a receiver connection starts, or resumes after skipped pictures, on a key picture.
+    func requestKeyFrame() { state.lock(); let encoder = self.encoder; state.unlock(); encoder?.requestKeyFrame() }
+    func setBitrate(_ bitsPerSecond: Int) { queue.async { self.bitrateOverride = bitsPerSecond; self.encoder?.setBitrate(bitsPerSecond) } }
     // A shed picture: the receiver resumes at the next key picture. Key pictures
     // are large, so at most one request per half second; the link tier is the
     // reaction to repeated sheds.
@@ -201,11 +232,11 @@ final class NPCapture: NSObject, RPScreenRecorderDelegate {
         retire(encoder: nil, muxer: muxer)
     }
     func stop() {
-        requested = false; watchdog?.invalidate(); watchdog = nil
+        requested = false; watchdog?.invalidate(); watchdog = nil; stillTimer?.cancel(); stillTimer = nil
         cancelMediaSession()
-        if pending { return } // The late start completion stops its own recorder before another session can start.
-        guard ownsRecorder else { onStopped?(); return }; ownsRecorder = false
-        RPScreenRecorder.shared().stopCapture { [weak self] _ in DispatchQueue.main.async { self?.restoreRecorder(); self?.onStopped?() } }
+        if pending || stopping { return } // The late start completion stops its own recorder before another session can start; a stop in flight answers once.
+        guard ownsRecorder else { onStopped?(); return }; ownsRecorder = false; stopping = true
+        RPScreenRecorder.shared().stopCapture { [weak self] _ in DispatchQueue.main.async { self?.stopping = false; self?.restoreRecorder(); self?.onStopped?() } }
     }
     private func cancelMediaSession() {
         state.lock(); generation += 1; let pcm = self.pcm; self.pcm = nil; state.unlock()

@@ -1,0 +1,208 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>NeoPlay bench player</title>
+<style>
+  body { margin: 0; background: #111; color: #bbb; font: 12px monospace; }
+  video { width: 640px; height: 360px; background: #000; display: block; }
+  canvas { display: block; image-rendering: pixelated; }
+</style>
+</head>
+<body>
+<video id="video" playsinline></video>
+<canvas id="strip" width="368" height="16"></canvas>
+<pre id="status">loading</pre>
+<script>
+'use strict';
+// NeoPlay bench player: stands in for the Chromecast receiver page (Shaka Player on a <video>).
+// Parameters: JSON in the URL fragment (written by run.js). Protocol with run.js:
+//   bench.state: 'init' -> 'ready' (Shaka loaded, configured, clocks compared) -> bench.go() -> 'playing'
+//   -> bench.finish() returns every sample. Nothing here computes statistics: analyze.js does.
+(() => {
+  const P = JSON.parse(decodeURIComponent(location.hash.slice(1)) || '{}');
+  const video = document.getElementById('video');
+  const strip = document.getElementById('strip');
+  const status = document.getElementById('status');
+  const now = () => performance.now();
+  const B = window.bench = { state: 'init', error: null, params: P, events: [], firstFrameAt: null };
+  const ev = (type, data) => { if (B.events.length < 20000) B.events.push(Object.assign({ t: Math.round(now() * 10) / 10, type }, data || {})); };
+  const fail = (error) => { B.error = String(error && error.stack || error); B.state = 'error'; ev('bench.error', { message: String(error && error.message || error) }); status.textContent = B.error; };
+  window.addEventListener('error', (e) => ev('window.error', { message: e.message }));
+  window.addEventListener('unhandledrejection', (e) => ev('window.unhandledrejection', { message: String(e.reason && e.reason.message || e.reason) }));
+
+  // ---- per-frame samples (requestVideoFrameCallback)
+  const cap = Math.max(1000, P.maxFrames || 30000);
+  const F = {
+    count: 0, overflow: 0,
+    callbackTime: new Float64Array(cap),     // performance.now() of the callback
+    expectedDisplay: new Float64Array(cap),  // metadata.expectedDisplayTime ("glass")
+    presentation: new Float64Array(cap),     // metadata.presentationTime (frame submitted for composition)
+    mediaTime: new Float64Array(cap),        // metadata.mediaTime
+    currentTime: new Float64Array(cap),      // video.currentTime in the callback
+    presentedFrames: new Int32Array(cap),    // metadata.presentedFrames
+    frameNumber: new Int32Array(cap),        // counter read in the picture (-1 not read, < -1 unreadable)
+    processing: new Float32Array(cap),       // metadata.processingDuration (s)
+  };
+  const pat = P.pattern || { block: 16, bits: 20, x: 0, y: 0, blocks: 23 };
+  strip.width = pat.block * pat.blocks; strip.height = pat.block;
+  const ctx = strip.getContext('2d', { willReadFrequently: true });
+  function readFrameNumber() {
+    const width = pat.block * pat.blocks;
+    ctx.drawImage(video, pat.x, pat.y, width, pat.block, 0, 0, width, pat.block);
+    const d = ctx.getImageData(0, pat.block >> 1, width, 1).data;
+    const lum = (i) => { const p = (i * pat.block + (pat.block >> 1)) * 4; return (d[p] + d[p + 1] + d[p + 2]) / 3; };
+    if (lum(0) < 160 || lum(1) > 96) return -2;                // reference blocks missing: no picture yet
+    let n = 0, parity = 0;
+    for (let k = 0; k < pat.bits; k++) { const v = lum(2 + k); if (v > 160) { n += 2 ** k; parity ^= 1; } else if (v > 96) return -3; }
+    if ((lum(2 + pat.bits) > 128 ? 1 : 0) !== parity) return -4;
+    return n;
+  }
+  const pixelEvery = P.pixelEvery === undefined ? 1 : P.pixelEvery;
+  function onFrame(time, md) {
+    const i = F.count;
+    if (i < cap) {
+      F.callbackTime[i] = time; F.expectedDisplay[i] = md.expectedDisplayTime; F.presentation[i] = md.presentationTime;
+      F.mediaTime[i] = md.mediaTime; F.currentTime[i] = video.currentTime; F.presentedFrames[i] = md.presentedFrames;
+      F.processing[i] = md.processingDuration || 0;
+      F.frameNumber[i] = pixelEvery > 0 && i % pixelEvery === 0 ? readFrameNumber() : -1;
+      F.count = i + 1;
+      if (B.firstFrameAt === null && (pixelEvery <= 0 || F.frameNumber[i] >= 0)) { B.firstFrameAt = md.expectedDisplayTime; ev('bench.firstFrame', { frame: F.frameNumber[i], mediaTime: md.mediaTime }); }
+    } else F.overflow += 1;
+    video.requestVideoFrameCallback(onFrame);
+  }
+
+  // ---- clocks: page performance.now() -> origin clock, by request/response midpoint (best of n)
+  async function ping(n) {
+    let best = null;
+    for (let i = 0; i < (n || 9); i++) {
+      const a = now(); const r = await fetch(P.controlUrl + 'time', { cache: 'no-store' }); const j = await r.json(); const b = now();
+      if (!best || b - a < best.rttMs) best = { rttMs: b - a, offsetMs: j.now - (a + b) / 2, at: (a + b) / 2 };
+    }
+    best.dateOffsetMs = Date.now() - now();   // informative: Date.now() against performance.now(), 1 ms steps
+    best.timeOrigin = performance.timeOrigin;
+    return best;
+  }
+
+  // ---- the sender's seek-to-live rule (NPLiveLagTracker) and variants
+  function makeRule(R) {
+    if (!R || !R.type || R.type === 'none') return null;
+    const rule = Object.assign({ period: 1, excess: 1, checks: 2, settle: 3, cooldown: 15, reference: null, action: 'currentTime', margin: 0, rate: 1.1, release: 0.25 }, R);
+    const S = { best: null, late: 0, last: -Infinity, count: 0, fast: false };
+    const reference = (lag) => { if (rule.reference !== null) return rule.reference; S.best = Math.min(S.best === null ? lag : S.best, lag); return S.best; };
+    rule.tick = () => {
+      const player = B.player; if (!player) return;
+      const range = player.seekRange(), behind = range.end - video.currentTime, t = now() / 1000;
+      // the sender only samples while the receiver reports "playing"
+      const playing = !video.paused && !video.seeking && !player.isBuffering() && video.readyState >= 3;
+      if (rule.type === 'rate') {
+        if (!playing || !Number.isFinite(behind)) return;
+        const ref = reference(Math.max(0, behind));
+        if (!S.fast && behind > ref + rule.excess) { S.late += 1; if (S.late >= rule.checks) { S.fast = true; S.late = 0; S.count += 1; video.playbackRate = rule.rate; ev('rule.rate', { behind, reference: ref, rate: rule.rate }); } }
+        else if (S.fast && behind <= ref + rule.release) { S.fast = false; video.playbackRate = 1; ev('rule.rate', { behind, reference: ref, rate: 1 }); }
+        else if (!S.fast) S.late = 0;
+        return;
+      }
+      if (!playing || !Number.isFinite(behind) || !(behind > -1) || t - S.last < rule.settle) { S.late = 0; return; }
+      const lag = Math.max(0, behind), ref = reference(lag);
+      if (!(lag > ref + rule.excess)) { S.late = 0; return; }
+      S.late += 1;
+      if (S.late < rule.checks || t - S.last < rule.cooldown) return;
+      S.late = 0; S.last = t; S.best = null; S.count += 1;
+      const before = video.currentTime;
+      if (rule.action === 'goToLive') player.goToLive(); else video.currentTime = player.seekRange().end - rule.margin;
+      ev('rule.seek', { behind, reference: ref, action: rule.action, from: before, to: video.currentTime, seekRangeEnd: range.end });
+    };
+    return rule;
+  }
+
+  // ---- timeline samples
+  const timeline = [], statsSeries = [];
+  const TL = ['t', 'currentTime', 'seekStart', 'seekEnd', 'bufferedAhead', 'bufferedEnd', 'playbackRate', 'readyState', 'buffering', 'paused', 'ranges'];
+  function sample() {
+    const player = B.player; if (!player) return;
+    let range = { start: NaN, end: NaN }; try { range = player.seekRange(); } catch (_) { /* not loaded */ }
+    const ct = video.currentTime, buffered = video.buffered; let end = NaN;
+    for (let i = 0; i < buffered.length; i++) if (buffered.start(i) <= ct + 0.05 && buffered.end(i) >= ct) end = buffered.end(i);
+    const r3 = (v) => Math.round(v * 1000) / 1000;
+    timeline.push([Math.round(now() * 10) / 10, r3(ct), r3(range.start), r3(range.end), Number.isNaN(end) ? 0 : r3(end - ct), r3(end), video.playbackRate, video.readyState, player.isBuffering() ? 1 : 0, video.paused ? 1 : 0, buffered.length]);
+  }
+  const STAT_KEYS = ['liveLatency', 'bufferingTime', 'playTime', 'pauseTime', 'stallsDetected', 'gapsJumped', 'estimatedBandwidth', 'decodedFrames', 'droppedFrames', 'corruptedFrames', 'streamBandwidth', 'width', 'height', 'loadLatency', 'manifestTimeSeconds', 'maxSegmentDuration', 'manifestSizeBytes', 'bytesDownloaded', 'nonFatalErrorCount', 'manifestPeriodCount', 'manifestGapCount'];
+  function pickStats() { const s = B.player.getStats(), o = { t: Math.round(now()) }; for (const k of STAT_KEYS) if (k in s) o[k] = typeof s[k] === 'number' ? Math.round(s[k] * 1000) / 1000 : s[k]; return o; }
+
+  const ranges = () => { const b = video.buffered, out = []; for (let i = 0; i < b.length; i++) out.push([Math.round(b.start(i) * 1000) / 1000, Math.round(b.end(i) * 1000) / 1000]); return out; };
+  const timers = [];
+  async function prepare() {
+    if (!('requestVideoFrameCallback' in HTMLVideoElement.prototype)) throw new Error('requestVideoFrameCallback missing');
+    video.muted = !!P.muted; video.autoplay = true;
+    B.clockStart = await ping(15);
+    await new Promise((resolve, reject) => { const s = document.createElement('script'); s.src = P.shakaUrl; s.onload = resolve; s.onerror = () => reject(new Error('cannot load ' + P.shakaUrl)); document.head.appendChild(s); });
+    shaka.polyfill.installAll();
+    if (!shaka.Player.isBrowserSupported()) throw new Error('shaka: browser not supported');
+    // like the receiver framework: attach() when the version has it
+    let player;
+    if (typeof shaka.Player.prototype.attach === 'function') { player = new shaka.Player(); await player.attach(video); } else player = new shaka.Player(video);
+    B.player = player;
+    B.configAccepted = P.config && Object.keys(P.config).length ? player.configure(P.config) : true;
+    for (const name of ['buffering', 'error', 'stalldetected', 'gapjumped', 'loading', 'loaded', 'streaming', 'adaptation', 'variantchanged', 'ratechange', 'emsg', 'onstatechange']) {
+      player.addEventListener(name, (e) => {
+        const data = {};
+        if (name === 'buffering') data.buffering = e.buffering;
+        if (name === 'error' && e.detail) Object.assign(data, { code: e.detail.code, category: e.detail.category, severity: e.detail.severity, data: JSON.stringify(e.detail.data || []).slice(0, 300) });
+        if (name === 'onstatechange') data.state = e.state;
+        if (name === 'gapjumped' || name === 'stalldetected') { data.currentTime = video.currentTime; data.buffered = ranges(); }
+        ev('shaka.' + name, data);
+      });
+    }
+    for (const name of ['waiting', 'playing', 'stalled', 'seeking', 'seeked', 'ratechange', 'pause', 'play', 'ended', 'error', 'emptied', 'loadedmetadata', 'loadeddata', 'canplay', 'canplaythrough', 'durationchange'])
+      video.addEventListener(name, () => ev('video.' + name, Object.assign({ currentTime: Math.round(video.currentTime * 1000) / 1000, readyState: video.readyState, rate: video.playbackRate }, name === 'waiting' || name === 'seeking' ? { buffered: ranges() } : {})));
+    video.requestVideoFrameCallback(onFrame);
+    B.state = 'ready'; status.textContent = 'ready';
+  }
+
+  B.go = async () => {
+    try {
+      const player = B.player;
+      B.loadCallAt = now(); ev('bench.load');
+      timers.push(setInterval(sample, P.sampleMs || 250));
+      await player.load(P.manifestUrl, P.startTime === undefined ? undefined : P.startTime, P.mimeType || 'application/vnd.apple.mpegurl');
+      B.loadedAt = now(); ev('bench.loaded', { live: player.isLive(), seekRange: player.seekRange(), currentTime: video.currentTime });
+      B.state = 'playing'; status.textContent = 'playing';
+      video.play().catch((error) => ev('video.playRejected', { message: String(error) }));
+      timers.push(setInterval(() => statsSeries.push(pickStats()), 1000));
+      const rule = makeRule(P.seekRule);
+      if (rule) timers.push(setInterval(rule.tick, rule.period * 1000));
+    } catch (error) { fail(error && error.code ? new Error('shaka error ' + error.code + ' ' + JSON.stringify(error.data || []).slice(0, 300)) : error); }
+  };
+
+  B.finish = async () => {
+    for (const timer of timers) clearInterval(timer);
+    const player = B.player, n = F.count, r = (a, digits) => { const k = 10 ** digits, out = new Array(n); for (let i = 0; i < n; i++) out[i] = Math.round(a[i] * k) / k; return out; };
+    let clockEnd = null; try { clockEnd = await ping(15); } catch (_) { /* origin gone */ }
+    const out = {
+      userAgent: navigator.userAgent, params: P, error: B.error, state: B.state,
+      shakaVersion: window.shaka ? shaka.Player.version : null, configAccepted: B.configAccepted,
+      clockStart: B.clockStart, clockEnd, loadCallAt: B.loadCallAt, loadedAt: B.loadedAt, firstFrameAt: B.firstFrameAt, finishedAt: now(),
+      frames: { count: n, overflow: F.overflow, callbackTime: r(F.callbackTime, 2), expectedDisplay: r(F.expectedDisplay, 2), presentation: r(F.presentation, 2), mediaTime: r(F.mediaTime, 6), currentTime: r(F.currentTime, 4), presentedFrames: Array.from(F.presentedFrames.subarray(0, n)), frameNumber: Array.from(F.frameNumber.subarray(0, n)), processing: r(F.processing, 4) },
+      timeline: { fields: TL, rows: timeline }, statsSeries, events: B.events,
+    };
+    if (player) {
+      try {
+        const stats = player.getStats(); delete stats.switchHistory; delete stats.stateHistory; out.finalStats = stats;
+        const config = player.getConfiguration();
+        out.effectiveConfig = { streaming: JSON.parse(JSON.stringify(config.streaming, (k, v) => (typeof v === 'function' ? undefined : v))), hls: config.manifest.hls, manifest: { defaultPresentationDelay: config.manifest.defaultPresentationDelay, updatePeriod: config.manifest.updatePeriod, retryParameters: config.manifest.retryParameters }, abr: JSON.parse(JSON.stringify(config.abr, (k, v) => (typeof v === 'function' ? undefined : v))) };
+        out.isLive = player.isLive(); out.seekRange = player.seekRange(); out.manifestType = player.getManifestType ? player.getManifestType() : null;
+        out.tracks = player.getVariantTracks().map((t) => ({ videoCodec: t.videoCodec, audioCodec: t.audioCodec, width: t.width, height: t.height, frameRate: t.frameRate, bandwidth: t.bandwidth, mimeType: t.mimeType }));
+      } catch (error) { out.collectError = String(error); }
+    }
+    const q = video.getVideoPlaybackQuality();
+    out.quality = { totalVideoFrames: q.totalVideoFrames, droppedVideoFrames: q.droppedVideoFrames, corruptedVideoFrames: q.corruptedVideoFrames };
+    out.video = { width: video.videoWidth, height: video.videoHeight, currentTime: video.currentTime, error: video.error ? video.error.message : null };
+    return out;
+  };
+
+  prepare().catch(fail);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+[
+ { "name": "mpl-media-nofmt", "repeat": 2, "args": { "duration": 30, "loadDelay": [100, 300], "flags": { "use_shaka_for_hls": false }, "mediaExtra": { "hlsSegmentFormat": null } } },
+ { "name": "shaka-lag2-hold", "repeat": 2, "args": { "duration": 40, "poll": 1, "loadDelay": [100, 300], "playlist": { "firstLag": 2 }, "actions": [ { "at": 14, "do": "hold", "ms": 2500 } ] } },
+ { "name": "shaka-lag2-hb05-seek", "repeat": 3, "args": { "duration": 34, "poll": 1, "loadDelay": [50, 250, 450], "playlist": { "firstLag": 2, "holdBack": 0.5 }, "actions": [ { "at": 10, "do": "media", "msg": { "type": "SEEK", "currentTime": 4294967296, "resumeState": "PLAYBACK_START" } } ] } },
+ { "name": "shaka-seg025-lag2-seek", "repeat": 3, "args": { "duration": 34, "poll": 1, "loadDelay": [50, 150, 250], "playlist": { "segmentSeconds": 0.25, "firstLag": 2 }, "actions": [ { "at": 10, "do": "media", "msg": { "type": "SEEK", "currentTime": 4294967296, "resumeState": "PLAYBACK_START" } } ] } },
+ { "name": "shaka-seg025", "repeat": 2, "args": { "duration": 30, "loadDelay": [50, 200], "playlist": { "segmentSeconds": 0.25 } } },
+ { "name": "shaka-lag2-seek", "repeat": 2, "args": { "duration": 30, "poll": 1, "loadDelay": [100, 300], "playlist": { "firstLag": 2 }, "actions": [ { "at": 10, "do": "media", "msg": { "type": "SEEK", "currentTime": 4294967296, "resumeState": "PLAYBACK_START" } } ] } },
+ { "name": "shaka-base2", "repeat": 3, "args": { "duration": 36, "loadDelay": [100, 200, 300] } },
+ { "name": "shaka-lag2-long", "repeat": 1, "args": { "duration": 90, "playlist": { "firstLag": 2 } } }
+]

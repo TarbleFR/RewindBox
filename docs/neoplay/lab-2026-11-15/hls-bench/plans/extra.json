@@ -1,0 +1,11 @@
+{
+  "defaults": { "duration": 60, "load-delay": 2, "pixel-every": 3 },
+  "runs": [
+    { "label": "r10-seg0.5-debug", "args": { "seg": 0.5, "join-phase": 0.8, "shaka-debug": true, "console-filter": "gap|jump|evict|seek range|Removing|clearBuffer|Clearing the buffer", "console-lines": 250 }, "note": "framework config, Shaka debug build" },
+    { "label": "r10-seg0.5-absrule", "args": { "seg": 0.5, "join-phase": 0.5, "seek-rule": { "type": "tracker", "reference": 0.2, "excess": 0.8, "checks": 2, "settle": 3, "cooldown": 15 } }, "note": "framework config + seek when seekRange().end - currentTime > 1 s (fixed reference)" },
+    { "label": "seg0.5-early", "args": { "seg": 0.5, "load-delay": 0, "config-merge": { "streaming": { "rebufferingGoal": 0 } } }, "note": "rebufferingGoal 0, load() as soon as the playlist answers (3 segments)" },
+    { "label": "seg0.5-hb0.75-jitter", "args": { "seg": 0.5, "hold-back": 0.75, "join-phase": 0.5, "delay-ms": 30, "jitter-ms": 25, "config-merge": { "streaming": { "rebufferingGoal": 0 } } }, "note": "HOLD-BACK=0.75, responses delayed 30 +-25 ms" },
+    { "label": "seg0.25-hb0.5-jitter", "args": { "seg": 0.25, "hold-back": 0.5, "join-phase": 0.5, "delay-ms": 30, "jitter-ms": 25, "config-merge": { "streaming": { "rebufferingGoal": 0 } } }, "note": "HOLD-BACK=0.5, responses delayed 30 +-25 ms" },
+    { "label": "seg0.5-jitter", "args": { "seg": 0.5, "join-phase": 0.5, "delay-ms": 30, "jitter-ms": 25, "config-merge": { "streaming": { "rebufferingGoal": 0 } } }, "note": "stock, responses delayed 30 +-25 ms" }
+  ]
+}

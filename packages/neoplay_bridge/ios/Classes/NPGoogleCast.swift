@@ -41,6 +41,8 @@ final class NPGoogleCast: NSObject, GCKDiscoveryManagerListener, GCKSessionManag
         guard initialized else { return [] }
         return (0..<context.discoveryManager.deviceCount).map { context.discoveryManager.device(at: $0) }.filter { $0.isOnLocalNetwork && $0.hasCapabilities(.videoOut) }
     }
+    // Model name of the receiver of this session, as the device announces it ("Chromecast", "Chromecast Ultra", "Google TV Streamer" ...).
+    var deviceModel: String? { ownsSession ? context.sessionManager.currentCastSession?.device.modelName : nil }
     var receivers: [[String: Any]] { devices.map { ["id": "cast:\($0.uniqueID)", "name": $0.friendlyName ?? "Chromecast", "kind": "cast"] } }
     func connect(_ id: String) {
         guard let device = devices.first(where: { "cast:\($0.uniqueID)" == id }) else { onError?(.receiverGone); return }
@@ -55,41 +57,169 @@ final class NPGoogleCast: NSObject, GCKDiscoveryManagerListener, GCKSessionManag
         if cancelling { sessionManager.endSessionAndStopCasting(true); return }
         session.remoteMediaClient?.add(self); onReady?(); onReady = nil
     }
-    func load(_ url: URL) {
+    // Two ways to give the default receiver a live picture. `direct`: one endless fragmented MP4 that its media
+    // element plays as it arrives. `segments`: HLS, played by the receiver's HLS player with its own buffer.
+    enum Route: String { case direct, segments }
+    static let startTimeout: TimeInterval = 8 // direct route: no moving picture this long after a load is a failed start
+    private(set) var route = Route.segments
+    private var loadedURL: URL?
+    private var loadedAt: TimeInterval = 0
+    private var loads = 0
+    private var orderedSession = Int.min   // media session the play order went to
+    private var replacedSession = Int.min  // media session that the current load replaced: its late statuses are not ours
+    private var started = false
+    private(set) var everStarted = false   // the direct route has played at least once in this session
+    private var reports = 0                // positions reported by the receiver that moved, see checkDirect
+    private var lastReported = -1.0
+    private var playbackReported = false   // once per load: the direct route sends many statuses a second
+    private var moving = 0
+    private var lastPosition = -1.0
+    private var lastAdvance: TimeInterval = 0
+    private var lastTrouble: TimeInterval = -.infinity
+    private var control = NPLagController()
+    private var lastLag = 0.0
+    private var heldLag = -1.0   // what the receiver says it holds ahead, in seconds; -1 when it does not say
+    private var window = (count: 0, sum: 0.0, low: Double.infinity, high: 0.0) // lag since the last log row
+    private var ticks = 0
+    var newestPicture: (() -> Double)?          // direct route: time stamp, in seconds, of the newest picture produced
+    var onDirectTrouble: ((String) -> Void)?    // direct route: "start", "load", "error", "ended" or "reload"
+    private var uptime: TimeInterval { ProcessInfo.processInfo.systemUptime }
+    var diagnostics: [String: Any] {
+        ["route": route.rawValue, "started": started, "lagMs": Int(lastLag * 1000), "targetMs": Int(control.target * 1000), "rate": Double(control.rate),
+         "stalls": control.stalls, "loads": loads]
+    }
+    func load(_ url: URL, route: Route) {
         guard ownsSession, let session = context.sessionManager.currentCastSession, selected == session.device.uniqueID else { onError?(.cast); return }
         let media = GCKMediaInformationBuilder(contentURL: url)
-        media.contentType = "application/vnd.apple.mpegurl"; media.streamType = .live
-        media.hlsSegmentFormat = .FMP4; media.hlsVideoSegmentFormat = .FMP4
+        media.streamType = .live
+        switch route {
+        case .direct: media.contentType = "video/mp4"
+        case .segments:
+            // hlsVideoSegmentFormat only. With hlsSegmentFormat (the audio format) also set to fMP4, Google's older HLS player,
+            // still used on receivers opted out of Shaka, refuses this muxed stream at once (error 104 on the receiver page).
+            media.contentType = "application/vnd.apple.mpegurl"; media.hlsVideoSegmentFormat = .FMP4
+        }
         let metadata = GCKMediaMetadata(metadataType: .generic); metadata.setString("NeoPlay", forKey: kGCKMetadataKeyTitle); media.metadata = metadata
         let request = GCKMediaLoadRequestDataBuilder(); request.mediaInformation = media.build(); request.autoplay = true
+        replacedSession = session.remoteMediaClient?.mediaStatus?.mediaSessionID ?? Int.min
+        self.route = route; loadedURL = url; loadedAt = uptime; loads += 1
+        started = false; playbackReported = false; moving = 0; reports = 0; lastReported = -1; lastPosition = -1; lastAdvance = loadedAt; control.restarted(at: loadedAt)
+        NPLog.record("cast.load", ["route": route.rawValue, "count": loads, "model": session.device.modelName ?? "", "version": session.device.deviceVersion ?? "", "type": session.device.type.rawValue])
         session.remoteMediaClient?.loadMedia(with: request.build()).delegate = self
+        if route == .direct { startLiveWatch() }
     }
+    // The same stream again: the receiver opens a new connection, which starts on the live picture.
+    func reload() { if let loadedURL { load(loadedURL, route: route) } }
     func remoteMediaClient(_ client: GCKRemoteMediaClient, didUpdate mediaStatus: GCKMediaStatus?) {
-        guard ownsSession else { return }
-        if mediaStatus?.playerState == .playing { startLiveWatch(); onPlayback?() }
-        if mediaStatus?.playerState == .idle && mediaStatus?.idleReason == .error { onError?(.cast) }
+        guard ownsSession, let status = mediaStatus else { return }
+        let state = status.playerState
+        if route == .direct, state != .idle, state != .unknown, status.mediaSessionID != orderedSession {
+            // The receiver starts its media element in "autoplay", which waits until the element believes it can play through:
+            // three seconds for an endless stream, kept as delay for the whole session. An explicit play order starts it on the
+            // first data (measured on Google's receiver page in Chromium: 0.65 s behind instead of 3.0 s).
+            orderedSession = status.mediaSessionID
+            NPLog.record("cast.play.ordered", ["afterMs": Int((uptime - loadedAt) * 1000)])
+            _ = client.play()
+        }
+        if state == .playing { startLiveWatch(); if !playbackReported { playbackReported = true; onPlayback?() } }
+        guard state == .idle, status.mediaSessionID != replacedSession else { return }
+        switch route {
+        case .segments: if status.idleReason == .error { onError?(.cast) }
+        case .direct:
+            // An idle status that follows a new load belongs to the stream it replaced.
+            guard uptime - loadedAt > 2 else { return }
+            if status.idleReason == .error { trouble("error") } else if status.idleReason == .finished, started { trouble("ended") }
+        }
+    }
+    private func trouble(_ reason: String) {
+        let now = uptime
+        guard now - lastTrouble >= 1 else { return }
+        lastTrouble = now; NPLog.record("cast.direct.trouble", ["reason": reason, "started": started, "sinceLoadMs": Int((now - loadedAt) * 1000)])
+        onDirectTrouble?(reason)
     }
     private func startLiveWatch() {
         guard liveTimer == nil else { return }
-        lag = NPLiveLagTracker(); lagChecks = 0
-        liveTimer = Timer.scheduledTimer(withTimeInterval: NPLiveLagTracker.period, repeats: true) { [weak self] _ in self?.checkLive() }
+        lag = NPLiveLagTracker(); lagChecks = 0; ticks = 0
+        liveTimer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in self?.tick() }
     }
     private func stopLiveWatch() { liveTimer?.invalidate(); liveTimer = nil }
-    // A failed seek is not a session error: no delegate, the next lag lines show its effect.
-    private func checkLive() {
-        guard ownsSession, let session = context.sessionManager.currentCastSession, selected == session.device.uniqueID,
-              let client = session.remoteMediaClient, client.mediaStatus?.playerState == .playing else { return }
+    private func tick() {
+        guard ownsSession, let session = context.sessionManager.currentCastSession, selected == session.device.uniqueID, let client = session.remoteMediaClient else { return }
+        ticks += 1
+        switch route {
+        case .segments: if ticks % 4 == 0 { checkLive(client) }
+        case .direct: checkDirect(client)
+        }
+    }
+    // Direct route, four times a second: is the picture moving, how far behind the newest picture is it, and what to ask for.
+    private func checkDirect(_ client: GCKRemoteMediaClient) {
+        let now = uptime
+        // A fresh position even from a receiver that reports little: twice a second until the stream has started, then every 2 s.
+        if ticks % (started ? 8 : 2) == 0 { _ = client.requestStatus() }
+        guard let status = client.mediaStatus, status.mediaSessionID != replacedSession, status.playerState == .playing || status.playerState == .buffering, let newest = newestPicture?() else {
+            if !started, now - loadedAt > Self.startTimeout { trouble("start") }
+            return
+        }
+        let position = client.approximateStreamPosition()
+        let step = position - lastPosition
+        if step > 0.01 { lastAdvance = now; moving = lastPosition >= 0 && step < 1 ? moving + 1 : 0; lastPosition = position }
+        // Started = the receiver itself reported a position that moved, twice. The SDK's approximate position advances with the
+        // wall clock from the first PLAYING status, which the receiver sends before its element really plays.
+        let reported = status.streamPosition
+        if reported > lastReported + 0.05 { if lastReported >= 0 { reports += 1 }; lastReported = reported }
+        if !started {
+            if reports >= 2 { started = true; everStarted = true; NPLog.record("cast.direct.started", ["afterMs": Int((now - loadedAt) * 1000), "lagMs": Int(max(0, newest - position) * 1000)]) }
+            else if now - loadedAt > Self.startTimeout { trouble("start") }
+            return
+        }
+        let stalled = status.playerState == .buffering || status.playbackRate == 0 || now - lastAdvance > 1
+        // Two measures. By the clock: newest picture produced minus the receiver's position, which holds when the receiver's
+        // time line is the stream's (it was on Google's receiver page). By the receiver: the duration it reports for an endless
+        // stream is what it has received, so duration minus position is what it holds ahead. If they disagree by more than
+        // 1.5 s the time lines differ on this receiver and its own measure is used.
+        let byClock = max(0, newest - position)
+        let duration = status.mediaInformation?.streamDuration ?? .infinity
+        let held = duration.isFinite && duration > 0 ? max(0, duration - status.streamPosition) : nil
+        // The receiver's measure stops near 3.4 s (seen on its page): beyond 3 s only the clock is believed.
+        let behind = held.map { $0 < 3 && abs(byClock - $0) > 1.5 ? $0 : byClock } ?? byClock
+        heldLag = held ?? -1
+        lastLag = behind
+        if !stalled { window.count += 1; window.sum += behind; window.low = min(window.low, behind); window.high = max(window.high, behind) }
+        switch control.sample(lag: behind, stalled: stalled, at: now) {
+        case .rate(let rate):
+            NPLog.record("cast.direct.rate", ["rate": Double(rate), "lagMs": Int(behind * 1000), "targetMs": Int(control.target * 1000)])
+            _ = client.setPlaybackRate(rate)
+        case .reload: trouble("reload")
+        case .none: break
+        }
+        if ticks % 40 == 0 {
+            let mean = window.count > 0 ? window.sum / Double(window.count) : behind
+            NPLog.record("cast.direct.lag", ["meanMs": Int(mean * 1000), "minMs": Int((window.count > 0 ? window.low : behind) * 1000), "maxMs": Int(max(window.high, behind) * 1000),
+                                             "heldMs": Int(heldLag * 1000), "targetMs": Int(control.target * 1000), "rate": Double(control.rate), "stalls": control.stalls, "loads": loads])
+            window = (0, 0, .infinity, 0)
+        }
+    }
+    // Segments route, once a second: a failed seek is not a session error, the next lag lines show its effect.
+    private func checkLive(_ client: GCKRemoteMediaClient) {
+        guard client.mediaStatus?.playerState == .playing else { return }
         let end = client.approximateLiveSeekableRangeEnd(), position = client.approximateStreamPosition()
         guard end != kGCKInvalidTimeInterval, end.isFinite, end > 0, position.isFinite else { return }
         let behind = end - position, ms = { (value: TimeInterval) in (value * 1000).rounded() / 1000 }
-        lagChecks += 1
+        lagChecks += 1; lastLag = max(0, behind)
         if lagChecks % 10 == 1 { NPLog.record("cast.live.lag", ["behind": ms(behind), "best": ms(lag.best ?? behind)]) }
         guard lag.sample(behind: behind, at: Date().timeIntervalSinceReferenceDate) else { return }
         NPLog.record("cast.live.resync", ["behind": ms(behind), "count": lag.resyncs])
         let options = GCKMediaSeekOptions(); options.seekToInfinite = true; options.resumeState = .play
-        client.seek(with: options)
+        _ = client.seek(with: options)
     }
-    func request(_ request: GCKRequest, didFailWithError error: GCKError) { if ownsSession { NPLog.error("cast.request", error); onError?(.cast) } }
+    // Only the load request has this delegate. A direct stream that the receiver refuses is a route to change, not a dead session.
+    func request(_ request: GCKRequest, didFailWithError error: GCKError) {
+        guard ownsSession else { return }
+        NPLog.error("cast.request", error)
+        // A load that a newer load replaced or cancelled did not fail.
+        if error.code == GCKErrorCode.replaced.rawValue || error.code == GCKErrorCode.cancelled.rawValue { return }
+        if route == .direct { trouble("load") } else { onError?(.cast) }
+    }
     func sessionManager(_ sessionManager: GCKSessionManager, didFailToStart session: GCKCastSession, withError error: Error) {
         guard selected == session.device.uniqueID else { return }; NPLog.error("cast.session.start.failed", error); stopLiveWatch(); selected = nil; ownsSession = false; cancelling = false; onError?(.cast)
     }
@@ -97,7 +227,9 @@ final class NPGoogleCast: NSObject, GCKDiscoveryManagerListener, GCKSessionManag
         guard selected == session.device.uniqueID else { return }; NPLog.error("cast.session.ended", error); stopLiveWatch(); selected = nil; ownsSession = false; cancelling = false; onError?(.network)
     }
     func stop() {
-        onReady = nil; onPlayback = nil; onError = nil; stopLiveWatch()
+        onReady = nil; onPlayback = nil; onError = nil; onDirectTrouble = nil; newestPicture = nil; stopLiveWatch()
+        control = NPLagController(); window = (0, 0, .infinity, 0); lastTrouble = -.infinity; replacedSession = Int.min; everStarted = false; route = .segments
+        loadedURL = nil; loads = 0; orderedSession = Int.min; started = false; lastLag = 0
         guard initialized else { return }
         let matches = context.sessionManager.currentCastSession?.device.uniqueID == selected
         context.sessionManager.currentCastSession?.remoteMediaClient?.remove(self)

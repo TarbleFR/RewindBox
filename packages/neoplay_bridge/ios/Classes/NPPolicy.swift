@@ -47,6 +47,16 @@ enum NPPolicy {
     // Both parts scale with the segment length: 0.5 s instead of 1 s halves
     // them. Every segment starts on a key picture, so key pictures follow it.
     static let castSegmentSeconds = 0.5
+    // Shortest interval between two pictures that are both encoded. A 60 Hz capture is kept whole even when a
+    // stamp comes a few milliseconds early (1/61 s left 0.27 ms of margin and lost such pictures); a 120 Hz
+    // capture is still halved (8.3 ms).
+    static let minPictureInterval = 0.0135
+    // The first playlist answer of a load leaves out its two newest segments. Shaka Player (the default
+    // receiver's HLS player since mid-2026, configured with rebufferingGoal 10) anchors its live edge on the
+    // newest segment of that first answer and only leaves its buffering state when its buffer reaches that
+    // edge: with everything listed, the buffer stays behind and the picture freezes and jumps. Measured on
+    // Google's receiver page in Chromium: 10-16 s to start or never with everything listed, 0.7 s with two left out.
+    static let castFirstAnswerHeldBack = 2
     static let castStartSegments = 3   // the first load waits for three segments
     static let castWindowSegments = 6  // the playlist advertises at least six segments
     static let castWindowSeconds = 3.0 // and three target durations (RFC 8216 6.2.2)
@@ -74,13 +84,28 @@ struct NPLiveLagTracker {
     mutating func sample(behind: TimeInterval, at now: TimeInterval) -> Bool {
         guard behind.isFinite, behind > -1, now - lastResync >= Self.settle else { late = 0; return false }
         let lag = max(0, behind)
-        let reference = min(best ?? lag, lag); best = reference
+        // Until a first seek the reference is zero: on Shaka Player the end of the seekable range is where playback starts, so a
+        // lag that exists from the start is corrected too. A seek that changes nothing then becomes the reference (no loop).
+        let reference = min(best ?? (resyncs == 0 ? 0 : lag), lag); best = reference
         guard lag > reference + Self.excess else { late = 0; return false }
         late += 1
         guard late >= Self.checks, now - lastResync >= Self.cooldown else { return false }
         late = 0; lastResync = now; best = nil; resyncs += 1
         return true
     }
+}
+
+// Chromecast route chosen by the user: automatic (direct, with the segments route as a fallback), or one of them forced.
+// A receiver model on which the direct route never started is remembered, so that later sessions do not try it first.
+enum NPCastMode: String {
+    case automatic, direct, compatible
+    static let key = "neoplay.cast.mode"
+    static var stored: NPCastMode { NPCastMode(rawValue: UserDefaults.standard.string(forKey: key) ?? "") ?? .automatic }
+    static func store(_ mode: NPCastMode) { UserDefaults.standard.set(mode.rawValue, forKey: key) }
+    private static func failedKey(_ model: String?) -> String { "neoplay.cast.direct.failed." + (model ?? "unknown") }
+    static func directFailed(model: String?) -> Bool { UserDefaults.standard.bool(forKey: failedKey(model)) }
+    static func rememberDirectFailed(model: String?) { UserDefaults.standard.set(true, forKey: failedKey(model)) }
+    static func clearDirectFailed(model: String?) { if directFailed(model: model) { UserDefaults.standard.removeObject(forKey: failedKey(model)) } }
 }
 
 // Link adaptation. The transport reports every packet it had to shed. Three
@@ -130,6 +155,7 @@ final class NPSegmentStore {
     private var segments: [Segment] = []
     private var epoch = -1
     private var nextSequence = 0
+    private var answers = 0 // playlist answers since the last load
     private let maxBytes: Int
     private let maxSegments: Int
     init(maxBytes: Int = 24 * 1024 * 1024, maxSegments: Int = 24) { self.maxBytes = maxBytes; self.maxSegments = maxSegments }
@@ -160,14 +186,19 @@ final class NPSegmentStore {
         return segments[start...]
     }
     var isReady: Bool { lock.lock(); defer { lock.unlock() }; return advertised.count >= NPPolicy.castStartSegments }
+    // The receiver is about to load (again): its first playlist answer is the anchored one, see castFirstAnswerHeldBack.
+    func beginLoad() { lock.lock(); answers = 0; lock.unlock() }
     var count: Int { lock.lock(); defer { lock.unlock() }; return segments.count }
     var byteCount: Int { lock.lock(); defer { lock.unlock() }; return segments.reduce(0, {$0 + $1.bytes.count}) + initializations.values.reduce(0, {$0 + $1.count}) }
     func response(_ resource: String) -> (Int, String, Data) {
         lock.lock(); defer { lock.unlock() }
         if resource == "index.m3u8" {
             // RFC 8216: fixed target duration; retain older payloads after playlist eviction.
-            let advertised = Array(self.advertised)
-            guard let first = advertised.first, advertised.count >= NPPolicy.castStartSegments else { return (503, "text/plain", Data()) }
+            var advertised = Array(self.advertised)
+            guard advertised.count >= NPPolicy.castStartSegments else { return (503, "text/plain", Data()) }
+            if answers == 0 { advertised.removeLast(min(NPPolicy.castFirstAnswerHeldBack, advertised.count - 1)) }
+            answers += 1
+            guard let first = advertised.first else { return (503, "text/plain", Data()) }
             var lines = ["#EXTM3U", "#EXT-X-VERSION:7", "#EXT-X-TARGETDURATION:1", "#EXT-X-MEDIA-SEQUENCE:\(first.sequence)", "#EXT-X-DISCONTINUITY-SEQUENCE:\(first.epoch)"]
             var previous: Int?
             for item in advertised {

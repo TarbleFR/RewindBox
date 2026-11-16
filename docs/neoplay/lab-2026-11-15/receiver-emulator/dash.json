@@ -1,0 +1,6 @@
+[
+ { "name": "dash-spd10", "repeat": 3, "args": { "duration": 30, "poll": 1, "entry": "dash", "loadDelay": [50, 250, 450], "playlist": { "dashDelay": 1.0, "dashAstMarginMs": -400 }, "actions": [ { "at": 10, "do": "media", "msg": { "type": "SEEK", "currentTime": 4294967296, "resumeState": "PLAYBACK_START" } } ] } },
+ { "name": "dash-spd15", "repeat": 2, "args": { "duration": 30, "poll": 1, "entry": "dash", "loadDelay": [100, 300], "playlist": { "dashDelay": 1.5, "dashAstMarginMs": -400 }, "actions": [ { "at": 10, "do": "media", "msg": { "type": "SEEK", "currentTime": 4294967296, "resumeState": "PLAYBACK_START" } } ] } },
+ { "name": "dash-spd15-hold", "repeat": 2, "args": { "duration": 40, "poll": 1, "entry": "dash", "loadDelay": [100, 300], "playlist": { "dashDelay": 1.5, "dashAstMarginMs": -400 }, "actions": [ { "at": 12, "do": "hold", "ms": 2500 } ] } },
+ { "name": "dash-plain", "repeat": 2, "args": { "duration": 30, "entry": "dash", "loadDelay": [100, 300], "playlist": { "dashDelay": 1.5, "dashAstMarginMs": 40 } } }
+]

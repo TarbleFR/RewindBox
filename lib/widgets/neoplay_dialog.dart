@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:neostation/l10n/neoplay_companion_locale.dart';
 import 'package:neostation/l10n/neoplay_discovery_locale.dart';
+import 'package:neostation/l10n/neoplay_stream_locale.dart';
 import 'package:neostation/widgets/neoplay_apple_tv_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -125,10 +126,25 @@ class _NeoPlayDialogState extends State<NeoPlayDialog>
     );
   }
 
+  /// Chromecast: the route in use and, on the direct route, how far behind the
+  /// newest picture the TV's player is (decoding and display come on top).
+  String castLine(BuildContext context, Map info) {
+    String text(String key) => NeoPlayStreamLocale.get(context, key);
+    final direct = info['route'] == 'direct';
+    final route = text(direct ? 'routeDirect' : 'routeSegments');
+    final lag = info['lagMs'];
+    if (!direct || info['started'] != true || lag is! num) return route;
+    final seconds = (lag / 1000).toStringAsFixed(1);
+    return '$route · ${text('delay').replaceAll('{s}', seconds)}';
+  }
+
   @override
   Widget build(BuildContext context) {
     String text(String key) => NeoPlayLocale.get(context, key);
     final state = snapshot['state'] as String? ?? 'idle';
+    final stream = snapshot['stream'];
+    final castInfo = stream is Map ? stream['cast'] : null;
+    final castMode = snapshot['castMode'] as String? ?? 'automatic';
     final busy = const ['connecting', 'capturing', 'streaming'].contains(state);
     final receivers = (snapshot['receivers'] as List? ?? const [])
         .whereType<Map>()
@@ -152,6 +168,7 @@ class _NeoPlayDialogState extends State<NeoPlayDialog>
           Text(NeoPlayCompanionLocale.get(context, 'batteryHelp')),
           const SizedBox(height: 10),
           Text(text(state)),
+          if (castInfo is Map) Text(castLine(context, castInfo)),
           if (error)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
@@ -161,6 +178,26 @@ class _NeoPlayDialogState extends State<NeoPlayDialog>
               ),
             ),
           Text(NeoPlayDiscoveryLocale.get(context, 'networkHelp')),
+          const SizedBox(height: 10),
+          Text(NeoPlayStreamLocale.get(context, 'modeTitle')),
+          Wrap(
+            spacing: 8,
+            children: [
+              for (final mode in const ['automatic', 'direct', 'compatible'])
+                ChoiceChip(
+                  key: Key('neoplay-cast-mode-$mode'),
+                  label: Text(NeoPlayStreamLocale.get(context, mode)),
+                  selected: castMode == mode,
+                  onSelected: busy
+                      ? null
+                      : (_) => action(() => NeoPlayBridge.setCastMode(mode)),
+                ),
+            ],
+          ),
+          Text(
+            NeoPlayStreamLocale.get(context, 'modeHelp'),
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
           TextButton.icon(
             onPressed: search,
             icon: const Icon(Icons.cast),

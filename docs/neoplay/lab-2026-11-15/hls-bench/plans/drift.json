@@ -1,0 +1,2 @@
+{ "defaults": { "duration": 300, "load-delay": 2, "config-merge": { "streaming": { "rebufferingGoal": 0 } } },
+  "runs": [ { "label": "seg0.5-5min", "args": { "seg": 0.5, "join-phase": 0.5 }, "note": "5 minutes, drift" } ] }

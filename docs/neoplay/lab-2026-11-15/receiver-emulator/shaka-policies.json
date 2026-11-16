@@ -1,0 +1,11 @@
+[
+ { "name": "shaka-pdt", "repeat": 3, "args": { "duration": 36, "loadDelay": [50, 250, 450], "playlist": { "pdt": "all" } } },
+ { "name": "shaka-hb05", "repeat": 3, "args": { "duration": 36, "loadDelay": [50, 250, 450], "playlist": { "holdBack": 0.5 } } },
+ { "name": "shaka-hb30", "repeat": 2, "args": { "duration": 36, "loadDelay": [50, 300], "playlist": { "holdBack": 3 } } },
+ { "name": "shaka-lag1", "repeat": 3, "args": { "duration": 36, "loadDelay": [50, 250, 450], "playlist": { "firstLag": 1 } } },
+ { "name": "shaka-lag2", "repeat": 3, "args": { "duration": 36, "loadDelay": [50, 250, 450], "playlist": { "firstLag": 2 } } },
+ { "name": "shaka-lag2-hb05", "repeat": 3, "args": { "duration": 36, "loadDelay": [50, 250, 450], "playlist": { "firstLag": 2, "holdBack": 0.5 } } },
+ { "name": "shaka-lag1-hb10", "repeat": 3, "args": { "duration": 36, "loadDelay": [50, 250, 450], "playlist": { "firstLag": 1, "holdBack": 1.0 } } },
+ { "name": "shaka-master", "repeat": 1, "args": { "duration": 36, "entry": "master" } },
+ { "name": "shaka-seg1s", "repeat": 3, "args": { "duration": 40, "loadDelay": [50, 350, 700], "playlist": { "segmentSeconds": 1 } } }
+]

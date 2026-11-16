@@ -117,3 +117,116 @@ GoogleCast 4.8.6 SDK compiled this Swift (the first real compilation of the chan
 the armsx2, dolphin and rpcs3 bridge frameworks, whose sources are unchanged in the effective tree (only the three
 NeoPlay files differ); bridges changing without a source change also appear in 739–742. The base IPA can no longer
 be decrypted here, so no section-by-section comparison was made. Not yet observed on an iPhone or a TV.
+
+## Chromecast: direct route and repaired segments route — 15 November 2026
+
+Owner's report: stutter and about one second between an action and the picture on a Chromecast 4K; goal: as close
+to an Apple TV as an unmodified Chromecast allows. Nothing below was measured on an iPhone or a Chromecast: the
+figures come from a lab on this branch's tooling (`lab-2026-11-15/`), which runs Google's real Default Media
+Receiver page and Web Receiver framework 3.0.0157 (fetched 15 November 2026) in headless Chromium behind an emulated
+cast shell, against an origin that imitates the sender.
+
+### Cause (three independent reproductions)
+
+Since mid-2026 the default receiver plays HLS with Shaka Player 4.15.56 and configures it with
+`streaming.rebufferingGoal = 10` (`lab-2026-11-15/default-receiver-report.md`, sections 5 and 9). A live stream
+that plays a second or two behind its edge can never hold 10 s, so Shaka leaves its buffering state only when its
+buffer reaches a live edge that it anchors on the newest segment of the first playlist answer and then advances
+with its own clock. With every segment listed in that first answer the buffer stays behind that edge.
+Observed on the receiver page with the playlist of IPA 743: 10–14 s before the picture moves (median 12.5 s over
+six runs), then 1.9–4.5 s behind; with 1 s segments (before 743) the picture never moved in two runs of three;
+with `HOLD-BACK=0.5` alone, never. The same was found with Shaka alone in two other labs (0.3 to 10 pictures per
+second presented). Google's older player (MPL, for receivers opted out of Shaka) refused the stream at once
+because the load declared `hlsSegmentFormat = fmp4` (the audio format) for a muxed stream.
+
+### Change
+
+- **Direct route (default).** The per-picture H.264 encoder of the Windows route (`NPFrameEncoder`) also feeds
+  `NPDirectStream`, which writes a fragmented MP4 by hand (`NPFragmentedMP4`; AAC-LC from `NPAACEncoder`): an
+  initialization segment, then one `moof`+`mdat` per picture with the sound that is due. `NPHTTPServer` serves it
+  as one endless chunked response (`/live.mp4`). The load declares `video/mp4`, which the receiver plays with its
+  plain media element (no Shaka, no MPL). `NPGoogleCast` orders PLAY on the first status of the load (the
+  element's autoplay otherwise waits three seconds, kept as delay), reads the receiver's position four times a
+  second and compares it with the time stamp of the newest picture produced; `NPLagController` asks for a playback
+  rate of 1.1 to 1.5 to come back to its target (0.55 s at first; raised when the receiver stalls while catching
+  up, lowered slowly when it holds), or for a new load. A send queue above 0.35 s of stream skips pictures until
+  a key picture and lowers the bit rate by 30 % (`NPBitrateLadder`, back up by 15 % per quiet half minute); a queue
+  that does not drain for 2.5 s, or a new picture size, closes the connection and loads again. The sound track is
+  kept continuous (`NPAudioTimeline`): silence fills what the capture does not deliver, but never the span by which
+  the capture's sound arrives later than its pictures, which is measured all along (without that, sound arriving
+  100 ms or more behind the pictures was lost for the whole session after its first silence). Every fragment that
+  carries a picture is padded to 2–8 KB (by bit rate): Chromium reads a progressive response in 32 KB blocks, so
+  small pictures would otherwise reach the player a block at a time.
+- **Segments route (HLS; fallback, and the "Compatible" setting).** The first playlist answer of a load leaves
+  out its two newest segments (`NPPolicy.castFirstAnswerHeldBack`), `hlsSegmentFormat` is no longer sent, the
+  seek-to-live rule starts from an absolute reference.
+- **Both.** A still screen repeats its last picture (`repeatIfStill`): on the direct route thirty times a second
+  once no picture was captured for 0.1 s (a game at 20 or 30 pictures a second is not still; the receiver's element
+  starts after about twenty pictures), on the segments route five times a second; the picture gate is
+  13.5 ms instead of 1/61 s (which lost a 60 Hz picture stamped 0.3 ms early); the capture watchdog no longer ends
+  a session while ReplayKit still records; the phone's volume is lowered while the TV plays (best effort, restored
+  at the end; the Windows route already did); the route follows `NPCastMode` (automatic, direct, compatible; three
+  chips in the panel), automatic falling back to segments inside the same Cast session after two failed starts and
+  remembering a receiver model on which the direct route never started; the panel shows the route and the lag.
+
+### Lab results (receiver page in Chromium, loopback, 640x360 test stream)
+
+| Route | Start | Behind the capture | Smoothness |
+|---|---|---|---|
+| HLS as in IPA 743 (0.5 s segments) | 10–14 s | 1.9–4.5 s | frozen until then |
+| HLS as before 743 (1 s segments) | never in 2 of 3 | 5.3 s | frozen |
+| HLS, first answer without its two newest segments | 0.2–0.7 s | 2.2–2.7 s | no freeze in 90 s |
+| MPL with the corrected load | 0.2 s | 2.3–2.8 s | no freeze |
+| Direct, autoplay only | 3.4 s | 3.0 s | smooth |
+| Direct with the PLAY order (as shipped) | 1.0 s | 0.65 s | smooth |
+| Direct, after a rate of 1.25 for 0.8 s | – | 0.56 s | smooth; pushed further, one 0.3 s stall |
+| Direct after a 2.5 s outage, rate 1.5 | – | 2.7 s back to 0.7–1.1 s in 5 s | one short stall at the end |
+| Direct, still screen, 5 repeats a second, no padding | 7.5–17.5 s | 6.6–16.6 s | stalls |
+| Direct, still screen, as shipped (30 repeats a second, padding) | 0.7 s after the first picture | 0.93–1.0 s | none |
+
+`NPFragmentedMP4` and `NPDirectStream` were run on Linux (Swift 6.0.3) with real H.264 and AAC and their output
+played by that receiver page (0.65 s, no freeze) and checked with ffprobe in seven scenarios (start on a key
+picture, silence, sound absent at start, send-queue overflow, stall, new picture size, pictures stopping);
+`NPLagController` in five simulated receivers (`lab-2026-11-15/checks/`).
+
+### Review before the test IPA
+
+Three independent reviewers read the change (compilation and platform APIs; threads, lifetimes and state machines;
+stream format and control logic, the last one stopped by a usage limit after its first checks). Fixed from their
+reports: the still-screen start above; the lost sound above; a receiver model remembered as failing after a
+mid-session Wi-Fi drop (`everStarted`), and never forgotten (`clearDirectFailed`); `started` taken from the SDK's
+extrapolated position instead of positions the receiver reported; the receiver's own lag measure believed beyond
+the 3.4 s where it stops; a retain cycle on the stream; the lag controller and counters surviving a session; a
+rebuilt encoder (rotation) back at the nominal bit rate; a second stop answering before ReplayKit stopped; no
+start timer after a fallback; late statuses and replaced or cancelled loads of a previous media session taken as
+errors; Nagle's delay on the stream socket; a key picture request stuck while pictures were skipped. All changed
+Swift files type-check (Swift 6.0.3, Swift 5 mode) against stand-ins written from the GoogleCast 4.8.6 headers and
+Apple's documentation; the pure files compile and run; the stream output was checked with ffprobe/ffmpeg (pictures
+of 405 KB, audio-only fragments, time stamps beyond 2^32 ticks) and played on Google's receiver page. Not run: the
+Flutter tests and the native XCTest suite (no SDK here; the delivery recipe does not run them either).
+
+### Not known until a device test
+
+Which player the owner's Chromecast uses for HLS and what its media pipeline adds (Chromium's cast pipeline starts
+once up to 1 s is buffered, `chromecast/media/cma/pipeline/media_pipeline_impl.cc`, for every load type:
+`cast_renderer.cc` hard-codes the media-source thresholds); the real ReplayKit cadence and capture format on an
+iPhone 16 Pro Max (`video.path` and `cast.stats` now log them on the Cast routes); the delay added by decoding and
+the TV. The direct route targets about half a second plus those, not an Apple TV's tenth of a second.
+
+### Reading a session (`Documents/Diagnostics/System/NeoPlay/NeoPlay.jsonl`)
+
+`cast.route` (route, mode, receiver model), `cast.load`, `cast.receiver.agent` (the receiver's User-Agent: model
+and Chrome version), `cast.play.ordered`, `cast.direct.started` (ms after the load, lag), `cast.direct.lag` every
+10 s (mean, min, max, target, rate, stalls, loads), `cast.direct.rate`, `cast.direct.bitrate`,
+`cast.direct.trouble` / `reset` / `fallback`, `cast.stats` every 10 s (pictures received from ReplayKit, dropped,
+sent, skipped, silence), `video.path` (capture size, pixel format, orientation), and on the segments route
+`cast.live.lag` / `cast.live.resync`.
+
+### Next step for a delay close to an Apple TV
+
+HTTP media on the default receiver cannot go below the media element's own buffer. Two ways exist. Cast Streaming
+(Google's mirroring protocol) is not offered to iOS applications and would mean launching Google's own mirroring
+receiver from a third-party sender: not pursued (the session's safety layer refused the preparatory work as
+unauthorized access). A receiver application of RewindBox's own (a web page the Chromecast loads; per-picture
+stream, as the Windows receiver does) is the authorised way; it needs a one-time registration by the owner in the
+Google Cast SDK Developer Console (5 USD) and a public HTTPS page. The owner will decide after trying the direct route.

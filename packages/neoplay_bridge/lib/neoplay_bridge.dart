@@ -48,5 +48,9 @@ class NeoPlayBridge {
   static Future<void> discover() => _methods.invokeMethod<void>('discover');
   static Future<void> stopDiscovery() => _methods.invokeMethod<void>('stopDiscovery');
   static Future<void> disconnect() => _methods.invokeMethod<void>('disconnect');
+
+  /// Chromecast route: 'automatic' (the direct route, the compatible one as a
+  /// fallback), 'direct' or 'compatible'. Applies to the next connection.
+  static Future<void> setCastMode(String mode) => _methods.invokeMethod<void>('setCastMode', {'mode': mode});
   static Future<void> connect({required String id, required String stopLabel, String pin = ''}) => _methods.invokeMethod<void>('connect', {'id': id, 'pin': pin, 'stopLabel': stopLabel});
 }

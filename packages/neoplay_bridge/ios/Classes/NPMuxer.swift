@@ -19,6 +19,9 @@ final class NPMuxer: NSObject, AVAssetWriterDelegate {
     private var origin: CMTime?            // lock
     private var cancelled = false          // lock
     private var lastVideo = CMTime.invalid // capture queue
+    private var lastPixel: CVPixelBuffer?  // capture queue: the picture a still screen repeats
+    private var lastSubmit: TimeInterval = 0 // capture queue, system uptime
+    private(set) var counters = (appended: 0, busy: 0, early: 0, repeated: 0) // capture queue
     private var lastAudio = CMTime.invalid // audio queue
     private var lastAudioEnd = CMTime.invalid // audio queue
     private var pendingAudio: [CMSampleBuffer] = [] // audio queue: buffers the writer was not ready for
@@ -81,8 +84,9 @@ final class NPMuxer: NSObject, AVAssetWriterDelegate {
         if isVideo { appendVideo(sample, time: time) } else { appendAudio(sample, time: time) }
     }
     private func appendVideo(_ sample: CMSampleBuffer, time: CMTime) {
-        guard video.isReadyForMoreMediaData, !lastVideo.isNumeric || CMTimeGetSeconds(CMTimeSubtract(time, lastVideo)) >= 1.0/61.0,
-              let image = Self.image(sample), let pool = adaptor.pixelBufferPool else { return }
+        guard video.isReadyForMoreMediaData else { counters.busy += 1; return }
+        guard !lastVideo.isNumeric || CMTimeGetSeconds(CMTimeSubtract(time, lastVideo)) >= NPPolicy.minPictureInterval else { counters.early += 1; return }
+        guard let image = Self.image(sample), let pool = adaptor.pixelBufferPool else { return }
         var pixel: CVPixelBuffer?
         guard CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, pool, &pixel) == kCVReturnSuccess, let pixel else { fail(.encoder); return }
         let bounds = CGRect(x: 0, y: 0, width: output.width, height: output.height)
@@ -90,7 +94,16 @@ final class NPMuxer: NSObject, AVAssetWriterDelegate {
         let normalized = image.transformed(by: CGAffineTransform(translationX: -image.extent.minX, y: -image.extent.minY)).transformed(by: CGAffineTransform(scaleX: scale, y: scale))
         let centered = normalized.transformed(by: CGAffineTransform(translationX: (bounds.width - normalized.extent.width)/2, y: (bounds.height - normalized.extent.height)/2))
         context.render(centered.composited(over: CIImage(color: .black).cropped(to: bounds)), to: pixel, bounds: bounds, colorSpace: CGColorSpaceCreateDeviceRGB())
-        if adaptor.append(pixel, withPresentationTime: time) { lastVideo = time } else { NPLog.error("encoder.video", writer.error); fail(.encoder) }
+        if adaptor.append(pixel, withPresentationTime: time) { lastVideo = time; lastPixel = pixel; lastSubmit = ProcessInfo.processInfo.systemUptime; counters.appended += 1 }
+        else { NPLog.error("encoder.video", writer.error); fail(.encoder) }
+    }
+    // A still screen delivers no picture: the last one is appended again so that segments keep their length
+    // (a segment of 1.5 s or more would end the session). Capture queue.
+    func repeatIfStill(now: TimeInterval, interval: TimeInterval) {
+        lock.lock(); let live = !cancelled; lock.unlock()
+        guard live, writer.status == .writing, let pixel = lastPixel, lastVideo.isNumeric, now - lastSubmit >= interval, video.isReadyForMoreMediaData else { return }
+        let time = CMTimeAdd(lastVideo, CMTime(seconds: now - lastSubmit, preferredTimescale: 600))
+        if adaptor.append(pixel, withPresentationTime: time) { lastVideo = time; lastSubmit = now; counters.repeated += 1 }
     }
     // Sound: never dropped for a busy writer (deferred, in order), gaps longer
     // than silenceGap padded with silence of the exact length so the AAC
