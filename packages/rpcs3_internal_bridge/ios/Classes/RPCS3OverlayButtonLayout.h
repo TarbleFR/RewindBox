@@ -28,9 +28,10 @@ struct Layout {
 constexpr double kTarget = 44.0;      // hit area, also when the glyph is smaller
 constexpr double kMargin = 10.0;      // inside the safe area
 constexpr double kGap = 8.0;          // between button and panel
-constexpr double kPanelWidth = 320.0;
-constexpr double kPanelHeight = 250.0;
-constexpr double kPanelMin = 120.0;
+// The minimal performance bar (FPS, CPU, RAM, NeoSwap; RPCS3PerformanceOverlay.mm intrinsicContentSize).
+constexpr double kPanelWidth = 256.0;
+constexpr double kPanelHeight = 44.0;
+constexpr double kPanelMin = 40.0;
 constexpr double kClearance = 4.0;    // kept free around occupied controls
 
 inline bool intersects(const Rect& a, const Rect& b, double pad = 0) {
