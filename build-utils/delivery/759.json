@@ -371,6 +371,10 @@
       {
         "commit": "ffeffa88c28b0eb4323cee68f4cc4d906d5d24fd",
         "note": "Reviewed by main: build(s2arm): verified engine pin with patch 0050 (acda5e89; packagedFingerprint d1748fd6) [skip ci]"
+      },
+      {
+        "commit": "0c01f6f535bfb619861e5f37142f962a463a6dbd",
+        "note": "Reviewed by main: build(delivery): draft 759 \u2014 the S2Arm engine of patches 0001-0050 (pin acda5e89) on base 758 [skip ci]"
       }
     ],
     "sourceOnly": [
@@ -398,6 +402,11 @@
         "commit": "1804bdba50ad2ad61ab0fcf6d57724c57cc42f75",
         "targetBuild": 760,
         "note": "Merge by this session bringing 6d0be4925 (Nextendo online play session's concurrent work: docs(melonx): MeloNX 2.8 \u2014 performance only, nothing experimental: nothing taken; controll); not written or reviewed by this session, left for its own delivery; this delivery compiles none of its product paths."
+      },
+      {
+        "commit": "7bc74032f51c1f7f2105ffef912a616f27f1d577",
+        "targetBuild": 760,
+        "note": "Merge by this session bringing f7b7a226a (Nextendo online play session's concurrent work: feat(switch): the embedded Switch engine is named RSwitch; MeloNX keeps its credits and li); not written or reviewed by this session, left for its own delivery; this delivery compiles none of its product paths."
       }
     ],
     "promotedCommits": []
