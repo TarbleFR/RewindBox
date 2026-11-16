@@ -436,3 +436,41 @@ et 752). Rien n'a encore tourné sur un iPhone : le protocole ci-dessus s'appliq
 4. Essais facultatifs (un à la fois, même session si possible) : « Accurate SPU Reservations » désactivé pour Black Ops II,
    puis « Preferred SPU threads » à 2.
 5. God of War III : démarrer normalement, charger la partie, refaire une sauvegarde d'état (§9).
+
+## 11. Journaux de l'IPA 756 (16 novembre) et Core 940
+
+### Le gel de Black Ops II : la cause, lue dans la capture
+
+La capture `RPCS3-freeze-guest-1.bin` de l'IPA 756 (BLES01717 t6mp, exécutable PPU-fa8ffe9a…) a été lue hors appareil.
+Mesuré dans la capture : le RSX tourne sur un saut vers lui-même (JTS) à l'adresse 0x385165c0 (offset d'E/S
+0x084165c0 ; adresse = offset + 0x30100000). Ce bloc est l'image, octet pour octet, de la mémoire locale du SPU5
+(0x2f980..0x306ff), écrite par le travail SPU `r_draw_lit`. Déduit du code des quatre images `r_draw_*` : en fin de
+travail, elles empilent d'abord la demande {A,B,C,D} dans la file 0x2e1f400 (pour que `r_shaderpatch_ps3` remplace le
+JTS par un saut vers la suite), puis seulement vident leur bloc de commandes en mémoire. Si `r_shaderpatch_ps3` passe
+entre les deux, la vidange tardive réécrit le JTS par-dessus la libération : le RSX attend alors pour toujours. C'est
+une course rare, côté jeu, qui colle au gel « après plusieurs minutes ». Pourquoi l'hôte laisse cet intervalle s'ouvrir
+n'est pas mesuré.
+
+Correctif (Core 940, `REWINDBOX_BO2_RDRAW_FLUSH_940`) : sur cet exécutable seulement, au démarrage à froid, les quatre
+images vident leur bloc avant d'empiler la demande (44 mots, 11 par image). Chaque mot d'origine est comparé au contenu
+de la capture avant toute écriture ; sinon rien n'est écrit et une ligne le dit (`CONFIG_LAYERS part=bo2_rdraw_flush
+state=refused_guard`). Une sauvegarde d'état garde la mémoire du démarrage d'où elle vient (`state=savestate`). Écrire
+dans les données de l'exécutable désactive l'optimisation d'analyse PPU, comme pour tout patch de jeu : le premier
+démarrage peut recompiler. Non testé sur iPhone.
+
+### Chaleur : ce que le Core 940 ajoute
+
+- `REWINDBOX_WFE_SLEEP_940` : la 756 montre que l'attente WFE ne dormait jamais (CLREX vidait le moniteur). La séquence
+  devient sevl, wfe, ldaxr, puis wfe seulement si la ligne n'a pas changé, sans CLREX, et seulement après un auto-test
+  qui voit un vrai repos (entre 100 ns et 20 µs en moyenne). Sinon l'attente reste un simple indice d'attente.
+- `REWINDBOX_SPU_LR_BACKOFF_940` : l'attente après une réservation perdue rend la main à la borne du recul d'inactivité
+  du Core 935, qui peut alors l'allonger.
+- `REWINDBOX_WORK_INTERVAL_PROBE_940` (mesure seulement) : une fois par lancement, sur son propre fil, l'app essaie de
+  donner à iOS une échéance d'image (« work interval » avec FINISH_AT_DEADLINE). La ligne `CONFIG_LAYERS
+  part=deadline_probe` dit si iOS 27 l'accepte. Rien ne s'en sert encore : c'est la condition de la piste « finir à
+  l'échéance plutôt qu'au plus vite ».
+
+Identités de cache inchangées (PPU a987639e9f838d1c, SPU 477a3fa442d27917, alias exact de SPUThread.cpp), ABI 30,
+92 exports. Vérifié sur PC : contrôle de fermeture des sources (code 0), contrôle Metal replié (PASS), syntaxe ARM64 de
+PPUModule.cpp, en-tête du correctif compilé et essayé sur l'hôte. Non exécuté : harnais historiques, iPhone. Aucun gain
+de chaleur, d'énergie ou d'images par seconde n'est revendiqué.

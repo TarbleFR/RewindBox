@@ -1,0 +1,589 @@
+diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+index 64efa2e..e2e7f63 100644
+--- a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
++++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+@@ -208,6 +208,15 @@ function(neostation_codegen_compatible_hash source actual output)
+     elseif(source STREQUAL "Cell/SPUThread.cpp" AND
+            actual STREQUAL "27e3328a08b73850db5bd72485d9d1f8049493ace8c45a20ad1ee8b032202504")
+         set(${output} "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4" PARENT_SCOPE)
++    # Core 940, SPUThread.cpp, host bodies only: REWINDBOX_SPU_LR_BACKOFF_940 (the one-time callback of the
++    # reservation-lost wait returns at a reached bound when the idle backoff is on, so the backoff of Core 935 sees it).
++    # process_mfc_cmd() keeps its bytes. No emitter, helper signature, SPU layout (SPUThread.h unchanged) or relocation
++    # target changes: the objects call the same host functions. Preserve the delivered effective hash for this exact
++    # reviewed snapshot only.
++    elseif(source STREQUAL "Cell/SPUThread.cpp" AND
++           actual STREQUAL "ee5dc58189182337956d7e9caa15e9cfa1e3c2abce9986ed8af5016060ac25b6")
++        set(${output} "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4" PARENT_SCOPE)
++    # End of Core 940 alias.
+     # Core 935, SPULLVMRecompiler.cpp (RPCS3 965f4f58): compile() clears the list of function names the ARM64 frame
+     # pass has visited before each program, as the constructor already did once. A function compiled for the first
+     # time by its compiler gets the same passes on the same IR; only a second compilation of the same name by the
+diff --git a/rpcs3/Emu/Cell/PPUModule.cpp b/rpcs3/Emu/Cell/PPUModule.cpp
+index 1fc82ce..bb527a0 100644
+--- a/rpcs3/Emu/Cell/PPUModule.cpp
++++ b/rpcs3/Emu/Cell/PPUModule.cpp
+@@ -17,6 +17,7 @@
+ #include "ios/RPCS3IOSExperimentalPolicy.h"
+ #include "ios/IOSGow3MlaaReport.h" // REWINDBOX_GOW3_MLAA_REPORT_909
+ #include "ios/IOSGow3MlaaPatch.h" // REWINDBOX_GOW3_MLAA_100_916
++#include "ios/IOSBo2RdrawFlushPatch940.h" // REWINDBOX_BO2_RDRAW_FLUSH_940
+ #endif
+ #include "Emu/VFS.h"
+ 
+@@ -2449,6 +2450,33 @@ bool ppu_load_exec(const ppu_exec_object& elf, bool virtual_load, const std::str
+ 
+ 		rpcs3::ios::gow3_mlaa::record_executable(hash, mlaa_state);
+ 	}
++
++	// REWINDBOX_BO2_RDRAW_FLUSH_940 (ios/IOSBo2RdrawFlushPatch940.h): the Black Ops II multiplayer freeze. On that exact
++	// executable only, at a fresh boot, the four r_draw_* SPU images flush their command block before they ask
++	// r_shaderpatch_ps3 to release it, if all 44 words hold the content read in the freeze capture.
++	if (hash == rpcs3::ios::bo2_rdraw_flush940::executable)
++	{
++		namespace bo2_flush = rpcs3::ios::bo2_rdraw_flush940;
++		const auto bo2_mapped = [&](u32 address, u32 bytes) { return _main.get_ptr<u8>(address, bytes) != nullptr; };
++		const auto bo2_read32 = [&](u32 address) { return static_cast<u32>(_main.get_ref<u32>(address)); };
++
++		if (ar)
++		{
++			// A savestate holds the memory of the boot it was made from: report it, never write into it.
++			const bo2_flush::result bo2_seen = bo2_flush::apply(bo2_mapped, bo2_read32, [](u32, u32) {}, [](u32) {});
++			ppu_loader.notice("CONFIG_LAYERS part=bo2_rdraw_flush state=savestate patched=%d original=%u replaced=%u",
++				bo2_seen.what == bo2_flush::outcome::already_applied ? 1 : 0, bo2_seen.original_matches, bo2_seen.replacement_matches);
++		}
++		else
++		{
++			const bo2_flush::result bo2_result = bo2_flush::apply(bo2_mapped, bo2_read32,
++				[&](u32 address, u32 value) { _main.get_ref<u32>(address) = value; },
++				[&](u32 address) { applied.push_back(address); });
++			ppu_loader.notice("CONFIG_LAYERS part=bo2_rdraw_flush state=%s writes=%u original=%u replaced=%u mismatch=0x%x word=0x%08x",
++				bo2_flush::name(bo2_result.what), bo2_result.writes, bo2_result.original_matches, bo2_result.replacement_matches,
++				bo2_result.first_mismatch, bo2_result.first_mismatch_word);
++		}
++	}
+ #endif
+ 
+ 	if (!applied.empty() || ar)
+diff --git a/rpcs3/Emu/Cell/SPUThread.cpp b/rpcs3/Emu/Cell/SPUThread.cpp
+index 454b201..0e09e47 100644
+--- a/rpcs3/Emu/Cell/SPUThread.cpp
++++ b/rpcs3/Emu/Cell/SPUThread.cpp
+@@ -7010,7 +7010,18 @@ s64 spu_thread::get_ch_value(u32 ch)
+ 						// Check other reservations in other threads
+ 						lv2_obj::notify_all();
+ 
++#ifdef RPCS3_IOS
++						// REWINDBOX_SPU_LR_BACKOFF_940 (iPhone logs of IPA 756): with this one-time callback the wait engine
++						// keeps waiting at each timeout while the callback returns true (util/atomic.cpp), so the bound below
++						// was never reached and the idle backoff of Core 935 never lengthened it (God of War III title screen:
++						// 79 000 timer wake-ups a second, spu_idle_lengthened_waits 0). With nothing found at a timeout the
++						// wait now returns, and the backoff sees each reached bound (100 us, then 200, 400, 800 us after 8,
++						// 16 and 24 empty waits; a late find brings it back to 100 us). A notified write still ends the wait
++						// at once. With "Event Waits When Hot" Disabled the backoff is off and this returns true as before.
++						return !rpcs3::ios::thermal::idle_backoff();
++#else
+ 						return true;
++#endif
+ 					};
+ 
+ 					if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(_raddr, rtime); wait_var)
+diff --git a/rpcs3/ios/IOSBo2RdrawFlushPatch940.h b/rpcs3/ios/IOSBo2RdrawFlushPatch940.h
+new file mode 100644
+index 0000000..8dcd972
+--- /dev/null
++++ b/rpcs3/ios/IOSBo2RdrawFlushPatch940.h
+@@ -0,0 +1,131 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <array>
++#include <cstddef>
++#include <cstdint>
++#include <string_view>
++
++// REWINDBOX_BO2_RDRAW_FLUSH_940: the cause of the Black Ops II multiplayer freeze, and the game-side fix.
++//
++// IPA 756, BLES01717 t6mp (PPU-fa8ffe9a...), freeze capture RPCS3-freeze-guest-1.bin (16 Nov 2026), read offline:
++// the RSX loops on a JUMP-to-self (JTS) at EA 0x385165c0 (I/O offset 0x084165c0; EA = offset + 0x30100000). That
++// block is the image of SPU5's local store (bytes 0x2f980..0x306ff, identical), written by the r_draw_lit SPU job.
++// The r_draw_* jobs end in this order: X pushes the entry {A,B,C,D} into the CellSyncLFQueue 0x2e1f400 (the request
++// to "r_shaderpatch_ps3", which later replaces the JTS at A with JUMP(A+4) and fills the 0xca holes), then copy, then
++// J writes the final JUMP of the block in local store, then F flushes the block to main memory (PUT, wait). When the
++// PPU Backend drains the queue and r_shaderpatch_ps3 runs between X and F, F's flush overwrites the release with the
++// JTS from local store: the RSX then waits forever. Rare, after minutes of play, as the maintainer reports it.
++//
++// The fix reorders the end of the four r_draw_* images (11 words each, 44 words): J, then F (flush and wait), then X
++// (push), then the copy of desc+0x20 to ctx+0x20 done inline (lqd/stqd), which was the copy call. The push is still
++// before the close of the block, as in the original. Each word is the one read in the capture; the replacement is
++// written only on that exact executable, at a fresh boot, and only if all 44 words hold their original value (all 44
++// already holding the replacement means a patch.yml or an earlier pass applied it). Any other content refuses the
++// whole patch and says so: a different executable or revision is never patched. Like every executable patch, a
++// savestate keeps the memory of the boot it was made from (state=savestate).
++namespace rpcs3::ios::bo2_rdraw_flush940
++{
++inline constexpr std::string_view executable = "PPU-fa8ffe9ae59bfa8575027c9a6ec5aab7fb0215ab";
++inline constexpr std::size_t words_per_image = 11;
++
++struct image
++{
++	std::string_view name;
++	std::uint32_t address; // guest address of the first word, in the executable's image
++	std::array<std::uint32_t, words_per_image> original;
++	std::array<std::uint32_t, words_per_image> replacement;
++};
++
++inline constexpr image images[] = {
++	{"r_draw_depth", 0x00b4605c,
++		{0x04002883, 0x40800084, 0x3304fd80, 0x04002883, 0x337c4d80, 0x1c080083, 0x3fe02804, 0x330b6800, 0x1c080083, 0x04002804, 0x330bbc80},
++		{0x1c080083, 0x3fe02804, 0x330b6a80, 0x04002804, 0x330bbf80, 0x04002883, 0x40800084, 0x3304fb00, 0x34010082, 0x2400a802, 0x4020007f}},
++	{"r_draw_lit", 0x00b062a4,
++		{0x04002883, 0x40800084, 0x33054980, 0x04002883, 0x337cd080, 0x1c080083, 0x3fe02804, 0x33151600, 0x1c080083, 0x04002804, 0x33156a80},
++		{0x1c080083, 0x3fe02804, 0x33151880, 0x04002804, 0x33156d80, 0x04002883, 0x40800084, 0x33054700, 0x34010082, 0x2400a802, 0x4020007f}},
++	{"r_draw_lit_bsp", 0x00b1ecf4,
++		{0x04002883, 0x40800084, 0x33049780, 0x04002883, 0x337cb680, 0x1c080083, 0x3fe02804, 0x33088b00, 0x1c080083, 0x04002804, 0x3308df80},
++		{0x1c080083, 0x3fe02804, 0x33088d80, 0x04002804, 0x3308e280, 0x04002883, 0x40800084, 0x33049500, 0x34010082, 0x2400a802, 0x4020007f}},
++	{"r_draw_lit_static_model", 0x00b31f2c,
++		{0x04002883, 0x40800084, 0x33048480, 0x04002883, 0x337cb680, 0x1c080083, 0x3fe02804, 0x33086c00, 0x1c080083, 0x04002804, 0x3308c080},
++		{0x1c080083, 0x3fe02804, 0x33086e80, 0x04002804, 0x3308c380, 0x04002883, 0x40800084, 0x33048200, 0x34010082, 0x2400a802, 0x4020007f}},
++};
++
++inline constexpr std::size_t word_count = std::size(images) * words_per_image;
++
++enum class outcome : std::uint8_t { applied, already_applied, refused_guard };
++
++constexpr const char* name(outcome o) noexcept
++{
++	return o == outcome::applied ? "applied" : o == outcome::already_applied ? "already_applied" : "refused_guard";
++}
++
++struct result
++{
++	outcome what = outcome::refused_guard;
++	std::uint32_t writes = 0;
++	std::uint32_t original_matches = 0;    // words holding their original value
++	std::uint32_t replacement_matches = 0; // words already holding their replacement
++	std::uint32_t first_mismatch = 0;      // address of the first word holding neither (0: none)
++	std::uint32_t first_mismatch_word = 0;
++};
++
++// `mapped(address, bytes)` says whether the range lies in the executable's image; read32/write32 take a guest
++// address and the host-order value of a big-endian word; `wrote(address)` is called for each word changed.
++template <typename Mapped, typename Read32, typename Write32, typename Wrote>
++result apply(Mapped&& mapped, Read32&& read32, Write32&& write32, Wrote&& wrote)
++{
++	result r;
++
++	for (const image& img : images)
++	{
++		if (!mapped(img.address, static_cast<std::uint32_t>(words_per_image * 4)))
++		{
++			r.first_mismatch = img.address;
++			return r;
++		}
++
++		for (std::size_t i = 0; i < words_per_image; i++)
++		{
++			const std::uint32_t address = img.address + static_cast<std::uint32_t>(i * 4);
++			const std::uint32_t word = read32(address);
++			const bool is_original = word == img.original[i];
++			const bool is_replacement = word == img.replacement[i];
++			r.original_matches += is_original;
++			r.replacement_matches += is_replacement;
++
++			if (!is_original && !is_replacement && !r.first_mismatch)
++			{
++				r.first_mismatch = address;
++				r.first_mismatch_word = word;
++			}
++		}
++	}
++
++	if (r.replacement_matches == word_count)
++	{
++		r.what = outcome::already_applied;
++		return r;
++	}
++
++	if (r.original_matches != word_count)
++	{
++		return r;
++	}
++
++	for (const image& img : images)
++	{
++		for (std::size_t i = 0; i < words_per_image; i++)
++		{
++			const std::uint32_t address = img.address + static_cast<std::uint32_t>(i * 4);
++			write32(address, img.replacement[i]);
++			wrote(address);
++			r.writes++;
++		}
++	}
++
++	r.what = outcome::applied;
++	return r;
++}
++} // namespace rpcs3::ios::bo2_rdraw_flush940
+diff --git a/rpcs3/ios/IOSEventWait931.h b/rpcs3/ios/IOSEventWait931.h
+index b7e3017..0b131db 100644
+--- a/rpcs3/ios/IOSEventWait931.h
++++ b/rpcs3/ios/IOSEventWait931.h
+@@ -1,6 +1,7 @@
+ // SPDX-License-Identifier: GPL-2.0-only
+ #pragma once
+ 
++#include <atomic>   // REWINDBOX_WFE_SLEEP_940
+ #include <cstddef>
+ #include <cstdint>
+ #include <cstdio>  // REWINDBOX_WFE_PROBE_939
+@@ -94,21 +95,36 @@ inline void record_latency(std::uint64_t ticks) noexcept
+ 	latency.add_at(shard, latency_ticks_field, ticks); // REWINDBOX_WFE_PROBE_939
+ }
+ 
++// REWINDBOX_WFE_SLEEP_940 (iPhone logs of IPA 756, 16 Nov 2026): the event waits of the thermal policy never rested
++// a core. Each turn ran LDAXR, WFE, CLREX, and the CLREX left the event that ended the next turn's WFE at once: the
++// self-test measured 9 ns per WFE with it and 1 331 ns without (WFEPROBE939), the production waits 10.8-12.3 ns each
++// (Black Ops II in play and frozen). Now the event register is emptied first (SEVL, WFE), then LDAXR arms the
++// monitor, and WFE waits only if the value is still the one seen; no CLREX. A write to the line between LDAXR and
++// WFE clears the monitor and ends the WFE, so no wake-up is lost (the arm64 __cmpwait idiom of Linux); otherwise the
++// system's event stream ends it (about 1.3 us on the iPhone). The bounds and callers are unchanged. The sequence is
++// used only once the report thread's self-test has seen it wait between 100 ns and 20 us (wfe_verdict 1); before
++// that, or if it does not (verdict 2), a turn is a plain hint, which is what the old turns amounted to.
++inline std::atomic<int> wfe_verdict{0}; // 0 not measured yet, 1 the sequence rests the core, 2 it does not
++
+ inline void once32(const void* word, std::uint32_t seen) noexcept
+ {
+ #if defined(__aarch64__)
++	if (wfe_verdict.load(std::memory_order_relaxed) != 1)
++	{
++		hint();
++		return;
++	}
+ 	std::uint32_t value;
++	__asm__ volatile("sevl" ::: "memory");
++	__asm__ volatile("wfe" ::: "memory");
+ 	__asm__ volatile("ldaxr %w0, [%1]" : "=&r"(value) : "r"(word) : "memory");
+ 	if (value == seen)
+ 	{
+ 		const std::uint64_t begin = counter_now();
+ 		__asm__ volatile("wfe" ::: "memory");
+ 		const std::uint64_t end = counter_now();
+-		__asm__ volatile("clrex" ::: "memory");
+ 		record_latency(end - begin);
+-		return;
+ 	}
+-	__asm__ volatile("clrex" ::: "memory");
+ #else
+ 	(void)word;
+ 	(void)seen;
+@@ -119,18 +135,22 @@ inline void once32(const void* word, std::uint32_t seen) noexcept
+ inline void once64(const void* word, std::uint64_t seen) noexcept
+ {
+ #if defined(__aarch64__)
++	if (wfe_verdict.load(std::memory_order_relaxed) != 1) // REWINDBOX_WFE_SLEEP_940, see once32
++	{
++		hint();
++		return;
++	}
+ 	std::uint64_t value;
++	__asm__ volatile("sevl" ::: "memory");
++	__asm__ volatile("wfe" ::: "memory");
+ 	__asm__ volatile("ldaxr %x0, [%1]" : "=&r"(value) : "r"(word) : "memory");
+ 	if (value == seen)
+ 	{
+ 		const std::uint64_t begin = counter_now();
+ 		__asm__ volatile("wfe" ::: "memory");
+ 		const std::uint64_t end = counter_now();
+-		__asm__ volatile("clrex" ::: "memory");
+ 		record_latency(end - begin);
+-		return;
+ 	}
+-	__asm__ volatile("clrex" ::: "memory");
+ #else
+ 	(void)word;
+ 	(void)seen;
+@@ -178,7 +198,8 @@ inline std::uint64_t ticks_to_ns(std::uint64_t ticks, std::uint64_t hz) noexcept
+ 	return hz ? ticks * 1'000'000'000ull / hz : 0;
+ }
+ 
+-// kind 0: LDAXR, WFE, CLREX (IOSEventWait931.h once64). kind 1: LDAXR, WFE. kind 2: WFE.
++// kind 0: LDAXR, WFE, CLREX (the turn of Cores 931-939). kind 1: LDAXR, WFE. kind 2: WFE.
++// kind 3: SEVL, WFE, LDAXR, WFE (REWINDBOX_WFE_SLEEP_940, the turn of once32/once64 now).
+ inline sequence_result run_sequence(int kind, std::uint64_t hz) noexcept
+ {
+ 	sequence_result out;
+@@ -190,6 +211,11 @@ inline sequence_result run_sequence(int kind, std::uint64_t hz) noexcept
+ 	for (std::uint32_t turn = 0; turn <= turns; turn++)
+ 	{
+ 		std::uint64_t value = 0;
++		if (kind == 3)
++		{
++			__asm__ volatile("sevl" ::: "memory");
++			__asm__ volatile("wfe" ::: "memory");
++		}
+ 		if (kind != 2)
+ 		{
+ 			__asm__ volatile("ldaxr %x0, [%1]" : "=&r"(value) : "r"(word) : "memory");
+@@ -231,9 +257,17 @@ struct self_test
+ {
+ 	bool ran = false;
+ 	std::uint64_t hz = 0;
+-	sequence_result sequence[3];
++	sequence_result sequence[4];
+ };
+ 
++// REWINDBOX_WFE_SLEEP_940: the production sequence rests the core if its WFEs last between 100 ns and 20 us on average
++// and never a millisecond (no event stream would make a WFE wait for an unrelated interrupt).
++constexpr int wfe_verdict_of(const sequence_result& r) noexcept
++{
++	const std::uint64_t mean = r.turns ? r.total_ns / r.turns : 0;
++	return r.turns && mean >= 100 && mean <= 20'000 && r.longest_ns < 1'000'000 ? 1 : 2;
++}
++
+ // Report thread only (one caller, once per window).
+ inline std::string take_line(std::uint64_t session, std::uint64_t window)
+ {
+@@ -243,10 +277,11 @@ inline std::string take_line(std::uint64_t session, std::uint64_t window)
+ 		test.ran = true;
+ 		test.hz = counter_hz();
+ #if defined(__aarch64__)
+-		for (int kind = 0; kind < 3; kind++)
++		for (int kind = 0; kind < 4; kind++)
+ 		{
+ 			test.sequence[kind] = run_sequence(kind, test.hz);
+ 		}
++		wfe_verdict.store(wfe_verdict_of(test.sequence[3]), std::memory_order_relaxed);
+ #endif
+ 	}
+ 
+@@ -257,11 +292,13 @@ inline std::string take_line(std::uint64_t session, std::uint64_t window)
+ 	const sequence_result& a = test.sequence[0];
+ 	const sequence_result& b = test.sequence[1];
+ 	const sequence_result& c = test.sequence[2];
++	const sequence_result& d = test.sequence[3];
+ 
+ 	char line[512];
+ 	std::snprintf(line, sizeof(line),
+ 		"COREPROF WFEPROBE939 session=%llu window=%llu wfe_window_us=%llu cntfrq=%llu tuple=turns:mean_ns:under_100ns:longest_ns "
+ 		"ldaxr_wfe_clrex=%llu:%llu:%llu:%llu ldaxr_wfe=%llu:%llu:%llu:%llu wfe=%llu:%llu:%llu:%llu "
++		"sevl_ldaxr_wfe=%llu:%llu:%llu:%llu wfe_verdict=%d "
+ 		"scope=window_total_then_self_test_once_per_process",
+ 		static_cast<unsigned long long>(session), static_cast<unsigned long long>(window),
+ 		static_cast<unsigned long long>(window_us), static_cast<unsigned long long>(test.hz),
+@@ -270,7 +307,10 @@ inline std::string take_line(std::uint64_t session, std::uint64_t window)
+ 		static_cast<unsigned long long>(b.turns), static_cast<unsigned long long>(mean(b)),
+ 		static_cast<unsigned long long>(b.under_100ns), static_cast<unsigned long long>(b.longest_ns),
+ 		static_cast<unsigned long long>(c.turns), static_cast<unsigned long long>(mean(c)),
+-		static_cast<unsigned long long>(c.under_100ns), static_cast<unsigned long long>(c.longest_ns));
++		static_cast<unsigned long long>(c.under_100ns), static_cast<unsigned long long>(c.longest_ns),
++		static_cast<unsigned long long>(d.turns), static_cast<unsigned long long>(mean(d)),
++		static_cast<unsigned long long>(d.under_100ns), static_cast<unsigned long long>(d.longest_ns),
++		wfe_verdict.load(std::memory_order_relaxed));
+ 	return line;
+ }
+ } // namespace probe939
+diff --git a/rpcs3/ios/IOSWorkInterval940.h b/rpcs3/ios/IOSWorkInterval940.h
+new file mode 100644
+index 0000000..f9e7cc0
+--- /dev/null
++++ b/rpcs3/ios/IOSWorkInterval940.h
+@@ -0,0 +1,164 @@
++#pragma once
++
++// REWINDBOX_WORK_INTERVAL_PROBE_940 (thermal plan of IPA 756, 16 Nov 2026): can this app tell iOS when a frame must
++// be ready? The scheduler's performance controller (CLPC) takes per-interval start, finish and deadline from "work
++// intervals" (xnu bsd/sys/work_interval.h). With WORK_INTERVAL_FLAG_FINISH_AT_DEADLINE (0x40) it is asked for "just
++// enough performance to finish at the deadline and no sooner": the emulator knows the next PS3 VBLANK boundary, so it
++// could let early frames run at a lower clock instead of the maximum. The creation call is a private interface (not
++// in the public SDK), and whether iOS 27 lets a third-party app use it, and keeps the flag, is unknown. This probe
++// answers that once per process, on its own short-lived thread, before anything relies on it: it creates an interval,
++// reads its flags back, joins it, sends one notification, leaves and destroys it, for the variants 0x47 (joinable,
++// group, unrestricted, finish at deadline) and 0x07 (the same without the deadline flag). Nothing else uses the
++// interval; no emulation thread joins it. The symbols are looked up with dlsym: a missing one ends the probe.
++// One line: CONFIG_LAYERS part=deadline_probe status=ok|eperm|missing|error tries=<variant>:<call>=<ret>/<errno>,...
++// chosen=0x47|0x07|none.
++
++#include <cstdint>
++#include <cstdio>
++#include <string>
++
++#if defined(__APPLE__)
++#include <cerrno>
++#include <dlfcn.h>
++#include <mach/mach.h>
++#include <mach/mach_time.h>
++#endif
++
++namespace rpcs3::ios::work_interval940
++{
++inline constexpr std::uint32_t flag_joinable = 0x1;
++inline constexpr std::uint32_t flag_group = 0x2;
++inline constexpr std::uint32_t flag_unrestricted = 0x4;
++inline constexpr std::uint32_t flag_finish_at_deadline = 0x40;
++
++#if defined(__APPLE__)
++struct api
++{
++	using handle = void*;
++	int (*create)(handle*, std::uint32_t) = nullptr;
++	int (*copy_port)(handle, mach_port_t*) = nullptr;
++	int (*get_flags_from_port)(mach_port_t, std::uint32_t*) = nullptr;
++	int (*join)(handle) = nullptr;
++	int (*leave)() = nullptr;
++	int (*notify)(handle, std::uint64_t, std::uint64_t, std::uint64_t, std::uint64_t, std::uint32_t) = nullptr;
++	int (*destroy)(handle) = nullptr;
++
++	bool load() noexcept
++	{
++		create = reinterpret_cast<decltype(create)>(dlsym(RTLD_DEFAULT, "work_interval_create"));
++		copy_port = reinterpret_cast<decltype(copy_port)>(dlsym(RTLD_DEFAULT, "work_interval_copy_port"));
++		get_flags_from_port = reinterpret_cast<decltype(get_flags_from_port)>(dlsym(RTLD_DEFAULT, "work_interval_get_flags_from_port"));
++		join = reinterpret_cast<decltype(join)>(dlsym(RTLD_DEFAULT, "work_interval_join"));
++		leave = reinterpret_cast<decltype(leave)>(dlsym(RTLD_DEFAULT, "work_interval_leave"));
++		notify = reinterpret_cast<decltype(notify)>(dlsym(RTLD_DEFAULT, "work_interval_notify"));
++		destroy = reinterpret_cast<decltype(destroy)>(dlsym(RTLD_DEFAULT, "work_interval_destroy"));
++		return create && copy_port && get_flags_from_port && join && leave && notify && destroy;
++	}
++};
++
++// One variant; appends "<variant>:create=r/e,flags=0x..,join=r/e,notify=r/e,leave=r/e,destroy=r/e" and returns
++// true if every call succeeded and the flags read back hold the deadline flag when it was asked for.
++inline bool try_variant(const api& wi, std::uint32_t flags, std::string& out, bool& eperm) noexcept
++{
++	char part[256];
++	const auto call = [&](const char* name, int ret) {
++		std::snprintf(part, sizeof(part), ",%s=%d/%d", name, ret, ret ? errno : 0);
++		out += part;
++		eperm = eperm || (ret && (errno == EPERM || errno == EACCES));
++		return ret == 0;
++	};
++
++	std::snprintf(part, sizeof(part), "%s0x%x:", out.empty() || out.back() == '=' ? "" : ";", flags);
++	out += part;
++	api::handle h = nullptr;
++	errno = 0;
++	const int created = wi.create(&h, flags);
++	std::snprintf(part, sizeof(part), "create=%d/%d", created, created ? errno : 0);
++	out += part;
++	if (created || !h)
++	{
++		eperm = eperm || (created && (errno == EPERM || errno == EACCES));
++		return false;
++	}
++
++	bool ok = true;
++	std::uint32_t got = 0;
++	mach_port_t port = MACH_PORT_NULL;
++	if (call("copy_port", wi.copy_port(h, &port)) && port != MACH_PORT_NULL)
++	{
++		ok = call("get_flags", wi.get_flags_from_port(port, &got)) && ok;
++		mach_port_deallocate(mach_task_self(), port);
++	}
++	else
++	{
++		ok = false;
++	}
++	std::snprintf(part, sizeof(part), ",flags=0x%x", got);
++	out += part;
++	if ((flags & flag_finish_at_deadline) && !(got & flag_finish_at_deadline))
++	{
++		ok = false;
++	}
++
++	if (call("join", wi.join(h)))
++	{
++		const std::uint64_t now = mach_absolute_time();
++		mach_timebase_info_data_t tb{};
++		mach_timebase_info(&tb);
++		// 1 ms in mach units (numer/denom converts mach units to ns).
++		const std::uint64_t ms = tb.numer ? 1'000'000ull * tb.denom / tb.numer : 24'000;
++		ok = call("notify", wi.notify(h, now - 2 * ms, now - ms, now + 14 * ms, now + 14 * ms, 0)) && ok;
++		ok = call("leave", wi.leave()) && ok;
++	}
++	else
++	{
++		ok = false;
++	}
++	ok = call("destroy", wi.destroy(h)) && ok;
++	return ok;
++}
++#endif
++
++// Runs the probe and returns the CONFIG_LAYERS line. Call it on a thread that may join and leave an interval: it
++// does both, and leaves before returning.
++inline std::string run_probe()
++{
++#if defined(__APPLE__)
++	api wi;
++	if (!wi.load())
++	{
++		return "CONFIG_LAYERS part=deadline_probe status=missing tries= chosen=none";
++	}
++
++	const std::uint32_t base = flag_joinable | flag_group | flag_unrestricted;
++	std::string tries;
++	bool eperm = false;
++	std::uint32_t chosen = 0;
++	for (const std::uint32_t flags : {base | flag_finish_at_deadline, base})
++	{
++		if (try_variant(wi, flags, tries, eperm) && !chosen)
++		{
++			chosen = flags;
++		}
++	}
++
++	mach_timebase_info_data_t tb{};
++	mach_timebase_info(&tb);
++	char head[160];
++	std::snprintf(head, sizeof(head), "CONFIG_LAYERS part=deadline_probe status=%s timebase=%u/%u tries=",
++		chosen ? "ok" : eperm ? "eperm" : "error", tb.numer, tb.denom);
++	char tail[48];
++	if (chosen)
++	{
++		std::snprintf(tail, sizeof(tail), " chosen=0x%x", chosen);
++	}
++	else
++	{
++		std::snprintf(tail, sizeof(tail), " chosen=none");
++	}
++	return std::string(head) + tries + tail;
++#else
++	return "CONFIG_LAYERS part=deadline_probe status=missing tries= chosen=none";
++#endif
++}
++} // namespace rpcs3::ios::work_interval940
+diff --git a/rpcs3/ios/RPCS3IOS.cpp b/rpcs3/ios/RPCS3IOS.cpp
+index 3c1f0e2..fb38d5d 100644
+--- a/rpcs3/ios/RPCS3IOS.cpp
++++ b/rpcs3/ios/RPCS3IOS.cpp
+@@ -2,6 +2,9 @@
+ #include "IOSCompileAdmission.h"
+ #include "IOSCapture912.h" // REWINDBOX_CAPTURE_912
+ #include "IOSAsyncShaders939.h" // REWINDBOX_ASYNC_SHADERS_939
++#include "IOSWorkInterval940.h" // REWINDBOX_WORK_INTERVAL_PROBE_940
++#include "util/logs.hpp"
++#include <thread>
+ #include <os/proc.h>
+ #include <mach/mach.h>
+ #include "RPCS3IOS.h"
+@@ -541,6 +544,8 @@ bool apply_database_settings_for_api(std::string_view title_id)
+ 	return false;
+ }
+ 
++LOG_CHANNEL(ios_work_interval_log, "iOS WorkInterval"); // REWINDBOX_WORK_INTERVAL_PROBE_940
++
+ // REWINDBOX_ASYNC_SHADERS_939 (ios/IOSAsyncShaders939.h): once per installation, the global Shader Mode in config.yml
+ // moves from the former iOS default (Legacy Recompiler) to the Async Recompiler; any other value stays. It runs after
+ // Emu.Init() and before any boot, and g_cfg is restored afterwards as the settings API leaves it. When config.yml cannot
+@@ -1588,6 +1593,11 @@ extern "C" rpcs3_ios_status rpcs3_ios_initialize(const rpcs3_ios_config* config)
+ 		rpcs3::ios::apply_spu_spin_timing_policy();
+ 		// REWINDBOX_ASYNC_SHADERS_939: the global config.yml exists now (Emu.Init() writes it when missing).
+ 		migrate_global_shader_mode_939();
++		// REWINDBOX_WORK_INTERVAL_PROBE_940: once per process, on its own short-lived thread, can this app hand iOS a
++		// frame deadline (ios/IOSWorkInterval940.h)? A "start" line first: a process that stops during the probe leaves
++		// it without its result.
++		ios_work_interval_log.notice("CONFIG_LAYERS part=deadline_probe status=start");
++		std::thread([] { ios_work_interval_log.notice("%s", rpcs3::ios::work_interval940::run_probe()); }).detach();
+ 		g_lifecycle.finish_initialize(true);
+ 		g_accept_display_surfaces = true;
+ 		g_accept_pad_state = true;
