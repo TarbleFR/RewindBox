@@ -333,8 +333,10 @@ Ce que le lot change :
 - **`REWINDBOX_SPU_IDLE_EFFICIENCY_939`** (menus, et threads SPU au repos en partie) : un thread SPU au repos (même règle)
   dort dans la classe « utility », qu'iOS garde sur les cœurs économes, et reprend la classe des SPU dès son réveil. Son
   sommeil et son réveil se font donc sur un cœur économe ; tout ce qu'il fait ensuite, y compris le travail qu'il trouve,
-  se fait dans sa classe habituelle. Les cœurs P restent au PPU et au RSX. Coût : deux changements de classe par sommeil au
-  repos (un appel système d'environ 1 µs chacun, sur un cœur économe).
+  se fait dans sa classe habituelle. Les cœurs P restent au PPU et au RSX. Depuis la demande 2 : seulement pour les
+  attentes allongées, seulement quand le jeu est léger (menus, salons, chargements ; jamais pendant une partie chargée),
+  avec une auto-surveillance par fil (voir plus bas). Coût : deux changements de classe par tel sommeil (un appel
+  système d'environ 1 µs chacun, sur un cœur économe).
 - **`REWINDBOX_PREHASH_QOS_939`** (God of War III en jeu) : l'ouvrier de pré-validation des textures passe dans la classe
   des SPU. Il dépensait 0,07 à 0,11 cœur dans la classe du PPU pour servir 14 à 18 % des validations, pendant que les cœurs
   P étaient occupés à 97 % à 1,28 GHz et que le thread RSX était parqué 45 % du temps. Ce qu'il calcule ne change pas.
@@ -360,11 +362,11 @@ charge chauffe à elle seule) :
    instruction, moins de contention sur la file de travaux (18 % des échantillons SPU attendent une ligne verrouillée).
    Risque : moins de débit SPU si le jeu en manque.
 
-### Core 939, demande 2 (en préparation) : la relecture approfondie avant l'IPA
+### Core 939, demande 2 : la relecture approfondie avant l'IPA
 
 Avant de produire l'IPA, le Core 939 compilé a été relu par quatre relecteurs indépendants (un par domaine : mode
-asynchrone, capture du gel, chaleur SPU, le reste). Ce qu'ils ont trouvé, et ce que corrige la demande 2 (moteur corrigé, compilation à venir ; la première compilation,
-run 43788845920, ne contient pas ces corrections) :
+asynchrone, capture du gel, chaleur SPU, le reste). Ce qu'ils ont trouvé, et ce que corrige la demande 2 (la première compilation, run 43788845920, ne contient pas ces
+corrections) :
 
 | Point | Risque | Correction |
 |---|---|---|
@@ -375,6 +377,8 @@ run 43788845920, ne contient pas ces corrections) :
 | Stockage presque plein | `fs::file::write` arrête l'application sur un disque plein | Les deux captures (939 et la capture SPU du 938) refusent d'écrire avec moins de 64 Mio libres |
 | Une page du jeu libérée pendant la copie | Sur iOS, la vue « sudo » est démappée avec la page : faute de lecture sur le fil du profileur | Copie par `vm_read_overwrite` (une page disparue est écrite comme des zéros) |
 | En-tête RBGUEST1 | Compteurs SPU et régions différents des enregistrements écrits | En-tête réécrit à la fin avec les comptes réels |
+| Fils SPU au repos dans la classe « utility » (`REWINDBOX_SPU_IDLE_EFFICIENCY_939`) | Sous l'ordonnanceur Clutch d'iOS, un fil « utility » rendu exécutable attend qu'aucun fil de classe supérieure ne soit prêt sur son groupe de cœurs : en partie, un SPU réveillé pour un travail aurait pu démarrer des dizaines de millisecondes trop tard | La classe « utility » ne sert plus que pour les attentes allongées (320 et 640 µs), seulement quand le jeu est léger (le processus utilise au plus 2 cœurs, mesuré toutes les 0,5 s ; levé à partir de 3 ; menus de Black Ops II : 0,5 à 1,8 cœur, partie : 4,3 à 5,0), prise juste avant de bloquer ; un sommeil qui finit plus tard que sa borne + un quart + 50 µs remet ce fil dans sa classe pour 256, 512, … attentes. Compteurs `THERMAL931 spu_efficient_late` et `spu_light_load` |
+| Sonde WFE | La somme de la fenêtre pouvait déborder après une suspension de l'application de plus de 12 min | Conversion sans produit intermédiaire |
 
 Limite connue, non corrigée : si MoltenVK échoue à créer un pipeline en différé (échec de compilation Metal), le fil RSX.W
 s'arrête et les nouveaux pipelines restent sautés jusqu'à la fin de la session (le même échec arrêtait le fil RSX en mode
@@ -391,7 +395,7 @@ l'appareil.
   fichiers dépendent d'en-têtes Apple) ; la vérification signale bien une erreur volontaire.
 - Identités de génération de code recalculées : PPU a987639e9f838d1c, SPU 477a3fa442d27917 (alias exact de
   `SPUThread.cpp`).
-- Porte de la route Core (`--check-source-closure`, code 0) ; correctif canonique 4922a89d (506 fichiers) re-matérialisé
+- Porte de la route Core (`--check-source-closure`, code 0) ; correctif canonique 53790583 (507 fichiers, demande 2) re-matérialisé
   octet pour octet sur une copie propre de l'amont 22f1152 ; étape Metal du workflow rejouée localement (PASS, source
   inchangée après le retour et la ré-application des étapes).
 - Relecture contradictoire du correctif des attentes SPU (un relecteur indépendant, modèle hôte rejoué) : le défaut

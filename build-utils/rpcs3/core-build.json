@@ -22,8 +22,8 @@
  "abi_version": 30,
  "minimum_os": "16.3.0",
  "canonical": {
-  "patch_sha256": "4922a89d54aa77e9376b9c8086883d79abcf54ced9183fc4ce7e373c00237651",
-  "postimages": 506,
+  "patch_sha256": "537905837315e44cf4a59a7f60652d9b20a70499c6f4726a284ff43dba6221e3",
+  "postimages": 507,
   "records": [
    "core610_20261101",
    "retroachievements_core",
@@ -127,7 +127,7 @@
   "record": "core939_20261116",
   "manifest": "build-utils/rpcs3/core939-delta.json",
   "patch": "build-utils/rpcs3/core939-delta.patch",
-  "patch_sha256": "caad600b257c8f1aa753fceb101825b4b3a07f33651e3d90280cdb015bdd4bc6"
+  "patch_sha256": "b4db525d1fbedd7a093743168d5e27b4e98f8e6070c9d28646cb103b7db0a8d4"
  },
  "exports": 92,
  "core_inputs": {
@@ -184,6 +184,7 @@
   "rpcs3/Emu/title.cpp",
   "rpcs3/Loader/ISO.h",
   "rpcs3/ios/RPCS3IOSGPUDefaults.h",
+  "rpcs3/ios/RPCS3IOSPlatform.h",
   "rpcs3/ios/RPCS3IOSRuntimePatches.cpp",
   "rpcs3/ios/tests/RPCS3IOSGPUDefaultsTests.cpp",
   "rpcs3/util/atomic.cpp",
