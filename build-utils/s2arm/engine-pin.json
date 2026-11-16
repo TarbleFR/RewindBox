@@ -1,6 +1,6 @@
 {
   "status": "verified",
-  "packagedFingerprint": "7bf451c0c248cf30351af6068784a6e98ec53d8988275c4e4336a342c35041a4",
+  "packagedFingerprint": "8d6010a3ad429592e20e97026a7fa12401ceb831db96077d9de1d6050165b257",
   "producers": {
     "engine": {
       "run": 43794475005,
@@ -13,8 +13,8 @@
       "headBranch": "Claude",
       "expiresAt": "2026-12-16T03:02:19Z",
       "members": {
-        "S2ArmEngine.framework.zip": "ffe8d9acb9ea8984d63e6d9acc9dfb55f96d4afdcd07fd06c93df710ba21b34a",
-        "NS2Pro.framework.zip": "2ba6c3699de70efbca6f6f96091d526da94a730abfd0b33ee203d69435c1b7c7"
+        "S2ArmEngine.framework.zip": "1f9b6c01b4b5cfd117514591541f15e32043c0965ece985c8c6518ea6ee7ba88",
+        "NS2Pro.framework.zip": "61111adf6977cde3bd5e7574258e2ad93b12ab2247d22d1c01d6956eb5452fcc"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "6416d109ff653929de5a2a53e56b4b7db1f5096a604685b2b6ed975527897af7",
+    "engine": "0b34b5a5d995da4e1212063825649ae40c6b02c5be87b5316fff8a1874f45071",
     "prepare": "aef8aafb38aa456defbdf16b3194716c32b2051b76a38bc68640d91f098fc87f",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -90,9 +90,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "e19a9b80317c7e84b9e1e33e37d2ae6984bcf191e4c8c89a3d6cead5096eaa5f",
-      "bytes": 107529376,
-      "fingerprint": "7bf451c0c248cf30351af6068784a6e98ec53d8988275c4e4336a342c35041a4"
+      "sha256": "d309801d39ed4755eb5909d1a27fa4cc73353a2d41e14dcdbdc43d077872285c",
+      "bytes": 107529632,
+      "fingerprint": "8d6010a3ad429592e20e97026a7fa12401ceb831db96077d9de1d6050165b257"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -125,9 +125,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 43791231517,
+      "run": 43794475005,
       "attempt": 1,
-      "head_sha": "2d6cfef5cccf50df0e47fdbd250ac1c01d39f0c1",
+      "head_sha": "8b1ddaa6822e603461d06a781add9fd3ac4a8337",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -314,11 +314,15 @@
         {
           "name": "0046-guest-draws-over-a-depth-prepass-wait-for-their-pipeline.patch",
           "sha256": "2d233235d8b4b1068a007e1c4e3a55cbd9aec45f061c701ef30b9cecfb07e8cd"
+        },
+        {
+          "name": "0047-upstream-packaged-layout-nibbles-and-minimal-layout.patch",
+          "sha256": "c60de838e46a38c6321f47517a7364b4c7088f36ffe63c20495ff20f8a5e4e40"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "ffe8d9acb9ea8984d63e6d9acc9dfb55f96d4afdcd07fd06c93df710ba21b34a",
-        "NS2Pro.framework.zip": "2ba6c3699de70efbca6f6f96091d526da94a730abfd0b33ee203d69435c1b7c7"
+        "S2ArmEngine.framework.zip": "1f9b6c01b4b5cfd117514591541f15e32043c0965ece985c8c6518ea6ee7ba88",
+        "NS2Pro.framework.zip": "61111adf6977cde3bd5e7574258e2ad93b12ab2247d22d1c01d6956eb5452fcc"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
