@@ -90,7 +90,7 @@ Read in the source of the prepared engine:
 | --- | --- |
 | Implemented | Yes: adapter, wiring, journal clause |
 | Tested | On Linux, the real scheduler and the real program queue with a timed compile of 200 ms in place of Metal (gate `draw-wait-lanes`, 128 checks): a frame with five new programs goes from 1007 ms to 604 ms, with two from 402 ms to 209 ms, with one it stays 201 ms; every pipeline is compiled once, by the worker or the demand thread; no draw precedes its pipeline; a demanded compile keeps its precedence; without a draw waiting, or for a draw whose compile is not queued yet, the demand thread takes nothing else; off the render thread the wait is the plain one; a failed compile is thrown as before. The 111 gates of the Core pass on the final preparation and the contract is frozen (`9563a0bc`) |
-| Compiled | See the pin of the Core that holds it |
+| Compiled | Yes: Core `a80b212f` (run 43968706324, build-smoke: NativeAOT compile for the iPhone and the simulator, exported ABI, two simulator sessions). The iPhone binary holds `WaitForPipelineAtDraw`, `RenderThreadPrograms.CreateQueued`, the queue's `BeginDrawWait`/`EndDrawWait` and the journal clause. Pinned (artifact 14278297391, iPhone binary `368895c6`, packaged fingerprint `f74a9313`, contract `9563a0bc`, 111 gates) |
 | Delivered | No |
 | Observed on a device | No |
 

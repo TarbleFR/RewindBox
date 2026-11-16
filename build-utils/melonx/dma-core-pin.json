@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "9943a5ca2b42c59074c49064a388dfa7b0287094",
-  "run": 43933768917,
-  "job": 133532810297,
+  "source": "a80b212ff2458f938fd6c52a5130fb0daf6be214",
+  "run": 43968706324,
+  "job": 133654840642,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 14260457406,
-  "name": "MeloNX-engine-9943a5ca2b42c59074c49064a388dfa7b0287094",
-  "bytes": 100640524,
-  "sha256": "b44479523fc26150334ab726a268e7598f74b01189f2318ec3c21abcac57381f",
-  "expiresAt": "2027-02-14T18:54:40Z",
+  "artifact": 14278297391,
+  "name": "MeloNX-engine-a80b212ff2458f938fd6c52a5130fb0daf6be214",
+  "bytes": 100652437,
+  "sha256": "efe0b25346dffd526b4d1c4cf594a2386be34e2c78eb4599aa8d9c3a06e0e10a",
+  "expiresAt": "2027-02-14T22:18:04Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "a69d52e6d795be48e7d04db611384ce288764ef963c48dac2f32d0f3b431e53f",
-      "bytes": 38637392
+      "sha256": "368895c65713db26dd01f09b647158af37a8958b84160cc427da88e55fae7eb8",
+      "bytes": 38637416
     },
     "iossimulator-arm64": {
-      "sha256": "2b5dfc4406cea717a87d290f59ceb636d1b6a38f7ca420fe7eb3f962a63907d9",
-      "bytes": 38955864
+      "sha256": "2cf93ee51b6236506cc283dafb3da23ec9d86b0c749189ca0b152df86aa25d98",
+      "bytes": 38955880
     }
   },
   "identities": {
-    "ios-arm64": "dba86cc2c7696699d99f22c0ac522f9f267b470401832d84600b483a9a7bc0fa",
-    "iossimulator-arm64": "4440639b1b422e6653168fbecfd3e8118823d21f7ee8a9cb5d210fc3385d5f36"
+    "ios-arm64": "bea41c4c3bcc8f18a5583b6534a7ba27985d2a1368883f68a1e19271e891ec90",
+    "iossimulator-arm64": "1039fe872fb426e494e5986becf6764de66c06b886f57b96a99a03928db47fd1"
   },
-  "contractSha256": "2cc3d4fd7d91fdc5dc0f11dd944587f4c7c6e6e5913cd117a8597b613dbb92aa",
-  "resultSha256": "4012307a74573d435c80c424ce6c7f6e12e83f6efc5b54c51a5b3dcb235cfa5e",
-  "packagedFingerprint": "3df6c45ba2d51d812c323f64554b167e3235155df28e78eb624f154d47d84614",
+  "contractSha256": "9563a0bca1eea4eeb918cb6556a49a27233f3a8961cdde2b4bebcfbfd3c037c5",
+  "resultSha256": "b31445947d39364a3dacc53ffd55f7d1ec788ca94115e2be596c288e77358721",
+  "packagedFingerprint": "f74a9313fb7d6872ad8c379e213ca87c3b5209f31d61909d206ff0cf05927ff7",
   "replaces": {
-    "source": "127b72b99fc2e1d1c5515d55328dcbca0092df9a",
-    "run": 43827244503,
-    "artifact": 14206574778,
-    "packagedFingerprint": "16960d9b76ca4d3ad9055bc78df754069400eda6405df6f8ac8cd5f8c4f090d7",
-    "reason": "After IPA 759 (no probe added): the Core defines sched_yield itself, thread_switch with no thread, no option and no time, and swtch_pri(0), the system library's yield, only while the runtime stops its threads or a background collection runs; the runtime's contended locks no longer drop the yielding thread to priority 0 (97 of 640 and 109 of 753 running samples of the slow Hogwarts profiles of IPA 759 were in those yields). Contract 2cc3d4fd, 110 gates on the final preparation (Linux x86_64), build-smoke route; the build read both linked libraries: no sched_yield import, thread_switch and swtch_pri imported, marker present. No iPhone gameplay, frame rate or thermal gain is claimed."
+    "source": "9943a5ca2b42c59074c49064a388dfa7b0287094",
+    "run": 43933768917,
+    "artifact": 14260457406,
+    "packagedFingerprint": "3df6c45ba2d51d812c323f64554b167e3235155df28e78eb624f154d47d84614",
+    "reason": "After IPA 760 (no probe added): adapt_draw_wait_lanes, every title: a draw's wait for a pipeline compile on the render thread creates the programs queued behind it, and while the compile that draw promoted is one a thread already runs the demand thread starts the next high priority compile; no draw is skipped and none precedes its exact pipeline (IPA 760, Super Smash Bros. Ultimate: 253 first compiles of 98 ms waited for in full, 17.1 of the 28.8 s of gaps with two compiles or more in one frame). adapt_mirror_copy_journal, journal only: the bytes held by the managed whole-buffer copies of mirror data. Contract 9563a0bc, 111 gates on the final preparation (Linux x86_64), build-smoke route. No iPhone gameplay, stutter, frame rate or memory gain is claimed."
   }
 }
