@@ -1,0 +1,150 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 205be5f..98e1a75 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -9349,6 +9349,15 @@ static void warm_tick_full(long total);   // the front end's (total, total) tick
+ // derived profile: Hollow Knight: Silksong's 1.0.30000 list named 16 shaders its base game 1.0.27776 does not have), or a device's pso_user.tsv kept across a game update.
+ // A line with a key the shader map does not have is dropped quietly (counted in the "prewarm done" line); the game never draws with it
+ static int fb_loadable(NSString *pc);
++// RewindBox (patch 0056): the host's translation of a stage from the bytes kept beside an earlier one (graphics/nvn/host/dsh_miss.inc). Weak definitions: the graphics unit
++//   tests that do not link host_adapt.m keep nothing and translate nothing
++__attribute__((weak)) int dm_shader_kept(const char *k16) { (void)k16; return 0; }
++__attribute__((weak)) int dm_shader_retranslate(const char *k16) { (void)k16; return 0; }
++static int rb_stage_key(NSString *pc, char k16[17]) {   // a stage's library name "<16 hex digits>_b" → its key; 0 for any other library (a geometry or variant library is made from its stage's)
++    if (pc.length != 18 || ![pc hasSuffix:@"_b"]) return 0;
++    snprintf(k16, 17, "%.16s", pc.UTF8String); return 1;
++}
++static uint64_t g_warm_rekept;   // keys of the prewarm lists whose translation is an earlier translator's with its bytes kept (warm_stale)
+ static NSMutableSet<NSString *> *g_warm_fb_ok;   // keys found current in the fallback directory (warm_stale reads each key's json once)
+ static int warm_stale(NSString *key, NSMutableSet<NSString *> *stale) {
+     // library names are <map key>_b; a geometry-emulation stage's are <map key>_bgv / _bg<i> (lp_kind_of): their map key is the same 16 digits. 11-05 Switch Sports: only _b was stripped,
+@@ -9361,6 +9370,11 @@ static int warm_stale(NSString *key, NSMutableSet<NSString *> *stale) {
+     if ([g_warm_fb_ok containsObject:key]) return 0;
+     if (![stale containsObject:key]) {
+         if (fb_loadable(key)) { if (!g_warm_fb_ok) g_warm_fb_ok = [NSMutableSet set]; [g_warm_fb_ok addObject:key]; return 0; }
++        // RewindBox (patch 0056): a library an earlier translator made on this device, whose stage bytes were kept beside it (dsh_miss.inc dsh_in_save), is this game's too: its
++        //   lines stay in the list and warm_shader translates the stage again on a prewarm worker before loading it. They were dropped as "another game version", so the
++        //   first run after an update whose translator changed built nothing ahead (IPA 762: 0 shaders of 2,668 keys; 2,500 the run before) and every stage was translated
++        //   and compiled at its first draw. Only the file's presence is asked here (the list is parsed on the thread that starts the prewarm)
++        { char k16[17]; if (rb_stage_key(key, k16) && dm_shader_kept(k16) == 2) { if (!g_warm_fb_ok) g_warm_fb_ok = [NSMutableSet set]; [g_warm_fb_ok addObject:key]; g_warm_rekept++; return 0; } }
+         [stale addObject:key]; g_warm_skip_stale++;
+     }
+     return 1;
+@@ -9376,7 +9390,10 @@ static int fb_loadable(NSString *pc) {   // translated on this device before, by
+ }
+ static int shader_loadable(NSString *pc) { return mtl_shlib_has(pc.UTF8String) || fb_loadable(pc); }
+ static NvShader *warm_shader(NSString *key, int stage) {
+-    if (!shader_loadable(key)) { atomic_fetch_add_explicit(&g_cold_skips, 1, memory_order_relaxed); return nil; }
++    if (!shader_loadable(key)) {
++        char k16[17];   // RewindBox (patch 0056): an earlier translator's translation with its bytes kept is made again here, on the prewarm's worker, then loaded like any other
++        if (!(rb_stage_key(key, k16) && dm_shader_retranslate(k16) && shader_loadable(key))) { atomic_fetch_add_explicit(&g_cold_skips, 1, memory_order_relaxed); return nil; }
++    }
+     return shader_load(key, stage, 0);
+ }
+ static void warm_enqueue(WarmItem *item) {
+@@ -9639,6 +9656,7 @@ static void warm_finish(void) {
+     if (g_warm_mps) MLOG("pipeline prewarm: %llu task / mesh pipelines built (M lines)", (unsigned long long)g_warm_mps);
+     MLOG("pipeline prewarm done: shaders %llu / render pipelines %llu (specialized fragment skipped %llu) / compute pipelines %llu, background time %.1f ms; shader keys not in the shader map (another game version) %llu; not in the library yet (compiled at their first use) %llu",
+          (unsigned long long)g_warm_shaders, (unsigned long long)g_warm_rps, (unsigned long long)g_warm_skip_fz, (unsigned long long)g_warm_cps, (bp_now() - g_warm_t0) / 1e6, (unsigned long long)g_warm_skip_stale, (unsigned long long)atomic_load(&g_cold_skips));
++    if (g_warm_rekept) MLOG("RewindBox: pipeline prewarm: %llu keys of the lists had a translation of an earlier translator with their stage bytes kept; they were translated again on the prewarm's workers (the count made is in the host's lines)", (unsigned long long)g_warm_rekept);
+     if (g_par_on) MLOG("pipeline archive after the prewarm: %llu builds from the archive, %llu compiled (written beside it, in the background), %llu stale files dropped",
+                        (unsigned long long)g_par_hits, (unsigned long long)g_par_misses, (unsigned long long)g_par_stale);
+     atomic_store(&g_warm_running, 0); atomic_store(&g_wp_phase, WARM_DONE);   // the host's progress (nvn_warm.h)
+diff --git a/graphics/nvn/host/dsh_miss.inc b/graphics/nvn/host/dsh_miss.inc
+index d9a55e9..7c3351a 100644
+--- a/graphics/nvn/host/dsh_miss.inc
++++ b/graphics/nvn/host/dsh_miss.inc
+@@ -5,6 +5,8 @@ static _Atomic uint64_t g_dsh_ok, g_dsh_failed, g_dsh_skipped, g_dsh_reused, g_d
+ static _Atomic uint64_t g_dsh_eager_n, g_dsh_eager_ok, g_dsh_eager_hit, g_dsh_eager_waited, g_dsh_eager_cancel;   // 后台预编（dsh_eager_start）：交后台 / 编好 / 首遇复用 / 首遇时还在编等了 / 首遇时没开始改同步
+ // RewindBox (patch 0040): the lookahead's translations (dm_shader_ahead): handed over / translated / failed / time / found translated by an earlier run / first uses that waited for one in flight / that took one not started
+ static _Atomic uint64_t g_dsh_ahead_n, g_dsh_ahead_ok, g_dsh_ahead_failed, g_dsh_ahead_ns, g_dsh_ahead_had, g_dsh_ahead_waited, g_dsh_ahead_taken;
++// RewindBox (patch 0056): stage bytes kept beside their translations (dsh_in_save): files written, their bytes / stale keys translated again at the start, failures, time
++static _Atomic uint64_t g_dsh_in_n, g_dsh_in_bytes, g_dsh_re_n, g_dsh_re_fail, g_dsh_re_ns;
+ // 开发浮层「首遇现建」读（runtime/src/hud.c 经 dlsym）：成功 / 失败 / 跳过 / 复用上局 / 输出类型变体
+ void s2a_dsh_stats(uint64_t out[5]) { out[0] = atomic_load(&g_dsh_ok); out[1] = atomic_load(&g_dsh_failed); out[2] = atomic_load(&g_dsh_skipped); out[3] = atomic_load(&g_dsh_reused); out[4] = atomic_load(&g_dsh_typed); }
+ static void dsh_summary(int normal) {
+@@ -23,6 +25,9 @@ static void dsh_summary(int normal) {
+         "first uses that waited for one in flight %llu, that took one not started yet %llu",
+         (unsigned long long)atomic_load(&g_dsh_ahead_n), (unsigned long long)atomic_load(&g_dsh_ahead_ok), atomic_load(&g_dsh_ahead_ns) / 1e6, (unsigned long long)atomic_load(&g_dsh_ahead_failed),
+         (unsigned long long)atomic_load(&g_dsh_ahead_had), (unsigned long long)atomic_load(&g_dsh_ahead_waited), (unsigned long long)atomic_load(&g_dsh_ahead_taken));
++    // RewindBox (patch 0056): the bytes kept beside the translations and what the start made of them
++    if (atomic_load(&g_dsh_in_n) || atomic_load(&g_dsh_re_n) || atomic_load(&g_dsh_re_fail)) LOG("RewindBox: stage bytes kept beside their translations in this run: %llu files, %.1f MB; stale translations made again at the start: %llu (%.1f ms in all), %llu failed",
++        (unsigned long long)atomic_load(&g_dsh_in_n), atomic_load(&g_dsh_in_bytes) / 1048576.0, (unsigned long long)atomic_load(&g_dsh_re_n), atomic_load(&g_dsh_re_ns) / 1e6, (unsigned long long)atomic_load(&g_dsh_re_fail));
+     // #800 采样器归约变体（nvn_mtl.m se_done）：库里不带，绘制真绑了 min / max 采样器、本机不原生归约时在设备上编（本局现出或载上局现出的）
+     uint64_t se[2]; mtl_se_stats(se);
+     if (se[0] || se[1]) LOG("采样器归约变体：设备编好 %llu / 编不出 %llu", (unsigned long long)se[0], (unsigned long long)se[1]);
+@@ -134,18 +139,73 @@ void s2a_dsh_crash_dump(void) {
+     int fd = open(g_dsh_fly.pc, O_WRONLY | O_CREAT | O_TRUNC, 0644); if (fd >= 0) { ssize_t w = write(fd, g_dsh_fly.ctl, g_dsh_fly.nctl); (void)w; close(fd); }
+     fd = open(g_dsh_fly.pd, O_WRONLY | O_CREAT | O_TRUNC, 0644); if (fd >= 0) { ssize_t w = write(fd, g_dsh_fly.cd, g_dsh_fly.ncode); (void)w; close(fd); }
+ }
++// RewindBox (patch 0056): a stage's own bytes are kept beside its translation (<key>_b.in: a 16-byte header, the control section, the code). A translation is current only
++//   for the translator that made it (dsh_have: the fingerprint xfp), and the bytes it was made from exist only while the game runs the program, so after an update whose
++//   translator changed nothing could be translated before its first draw: IPA 762 (patch 0051 changed one translator file), Mario Kart World on an iPhone17,2, 16 November:
++//   the prewarm built 0 shaders of the list's 2,668 keys (2,500 the session before), 992 stages were translated again while the game ran, one after the other (27.9 s in
++//   all, median 21 ms, the longest 625 ms), and the frames that took 500 ms and more had shader libraries built in them. With the bytes kept, the prewarm translates a stale
++//   key again before the game's first frame or beside it (dm_shader_retranslate, nvn_mtl.m warm_shader). Written once a key, after a translation that succeeded, under the
++//   translator's lock; a key translated before this patch gets its file the next time it is translated. S2A_RB_DSH_KEEP=0 turns the keeping off
++#define DSH_IN_MAGIC 0x314e4953u   // "SIN1"
++static int dsh_in_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_DSH_KEEP"); v = !(e && !strcmp(e, "0")); } return v; }
++static void dsh_in_save(const char *out, const char *k, int st, const void *ctl, size_t nctl, const void *cd, size_t ncode) {
++    if (!dsh_in_on() || !out || !*out || !strcmp(out, "/dev/null") || !ctl || !cd || !nctl || !ncode || st < 0 || st > 5 || nctl > (1u << 20) || ncode >= (1u << 24)) return;
++    char p[1200], tmp[1216]; snprintf(p, sizeof p, "%s/%s_b.in", out, k);
++    if (!access(p, F_OK)) return;
++    snprintf(tmp, sizeof tmp, "%s.tmp", p);
++    int fd = open(tmp, O_WRONLY | O_CREAT | O_TRUNC, 0644); if (fd < 0) return;
++    const uint32_t h[4] = {DSH_IN_MAGIC, (uint32_t)st, (uint32_t)nctl, (uint32_t)ncode};
++    int ok = write(fd, h, sizeof h) == (ssize_t)sizeof h && write(fd, ctl, nctl) == (ssize_t)nctl && write(fd, cd, ncode) == (ssize_t)ncode;
++    close(fd);
++    if (ok && !rename(tmp, p)) { atomic_fetch_add(&g_dsh_in_n, 1); atomic_fetch_add(&g_dsh_in_bytes, sizeof h + nctl + ncode); } else unlink(tmp);
++}
+ static int dsh_comp_locked(dsh_comp_fn comp, const char *k, int st, const void *cd, size_t ncode, const void *ctl, size_t nctl, const char *out) {
+     pthread_mutex_lock(&g_dsh_comp_mu); dsh_fly_set(out, k, ctl, nctl, cd, ncode);
+     int rc = comp(k, st, cd, ncode, ctl, nctl, out);
++    if (!rc) dsh_in_save(out, k, st, ctl, nctl, cd, ncode);   // RewindBox (patch 0056)
+     dsh_fly_clear(); pthread_mutex_unlock(&g_dsh_comp_mu); return rc;
+ }
+ // 变体要的那份源码（审计 #1646 P1-123：输出类型 / 采样器归约 / 顶点补齐三处原先直接调 comp，不拿 g_dsh_comp_mu，后台预编在编时会并发进 C# 现编入口）：
+ //   锁里再查一次「兜底目录里已有本键源码」——锁外查过没有、等锁期间后台预编刚编完同一个键的，直接用，不重编。返回同 comp（0 = 成功）
+ static int dsh_comp_src_locked(dsh_comp_fn comp, const char *k, int st, const void *cd, size_t ncode, const void *ctl, size_t nctl, const char *out) {
+     pthread_mutex_lock(&g_dsh_comp_mu); int rc = 0;
+-    if (!dsh_have(out, k)) { dsh_fly_set(out, k, ctl, nctl, cd, ncode); rc = comp(k, st, cd, ncode, ctl, nctl, out); dsh_fly_clear(); }
++    if (!dsh_have(out, k)) { dsh_fly_set(out, k, ctl, nctl, cd, ncode); rc = comp(k, st, cd, ncode, ctl, nctl, out); if (!rc) dsh_in_save(out, k, st, ctl, nctl, cd, ncode); dsh_fly_clear(); }   // RewindBox (patch 0056): dsh_in_save
+     pthread_mutex_unlock(&g_dsh_comp_mu); return rc;
+ }
++// RewindBox (patch 0056): whether a key's translation is this translator's already (1), or can be made again from the bytes kept beside it (2); 0 = neither. No file is read
++int dm_shader_kept(const char *k16) {
++    const char *out = getenv("DM_MSL_FALLBACK"); char k[17], p[1200]; snprintf(k, sizeof k, "%.16s", k16);
++    if (!out || !*out || strlen(k) != 16) return 0;
++    if (dsh_have(out, k)) return 1;
++    snprintf(p, sizeof p, "%s/%s_b.in", out, k);
++    return dsh_in_on() && dsh_comp() && !access(p, R_OK) ? 2 : 0;
++}
++// RewindBox (patch 0056): translate a key again from the bytes kept beside its translation (the prewarm's workers, nvn_mtl.m warm_shader; never the submit thread). → 1 = its
++//   translation is this translator's now (made here, or by another thread meanwhile), 0 = no usable bytes or the translation failed (the key is then left to its first draw,
++//   which reports it). The file is checked against its own header before a byte reaches the translator
++int dm_shader_retranslate(const char *k16) {
++    const char *out = getenv("DM_MSL_FALLBACK"); char k[17], p[1200]; snprintf(k, sizeof k, "%.16s", k16);
++    if (!out || !*out || strlen(k) != 16) return 0;
++    if (dsh_have(out, k)) return 1;
++    dsh_comp_fn comp = dsh_comp(); if (!comp || !dsh_in_on()) return 0;
++    snprintf(p, sizeof p, "%s/%s_b.in", out, k);
++    int fd = open(p, O_RDONLY); if (fd < 0) return 0;
++    struct stat sb; uint32_t h[4] = {0}; uint8_t *b = NULL; size_t n = 0;
++    int ok = !fstat(fd, &sb) && read(fd, h, sizeof h) == (ssize_t)sizeof h && h[0] == DSH_IN_MAGIC && h[1] <= 5 && h[2] >= 0x60 && h[2] <= (1u << 20) && h[3] && h[3] < (1u << 24)
++             && (uint64_t)sb.st_size == sizeof h + (uint64_t)h[2] + h[3];
++    if (ok) { n = (size_t)h[2] + h[3]; b = malloc(n); ok = b && read(fd, b, n) == (ssize_t)n; }
++    close(fd);
++    if (!ok) { free(b); return 0; }
++    uint64_t t0 = now_ns();
++    int rc = dsh_comp_src_locked(comp, k, (int)h[1], b + h[2], h[3], b, h[2], out);
++    free(b);
++    atomic_fetch_add(&g_dsh_re_ns, now_ns() - t0);
++    if (rc) { uint64_t f = atomic_fetch_add(&g_dsh_re_fail, 1) + 1; if (f <= 4) LOG("RewindBox: a stale translation could not be made again at the start: %s (%s) rc=%d; left to its first draw", k, dsh_nm[h[1]], rc); return 0; }
++    uint64_t m = atomic_fetch_add(&g_dsh_re_n, 1) + 1;
++    if (m == 1 || !(m & (m - 1))) LOG("RewindBox: translations of an earlier translator made again at the start from their kept bytes: %llu so far (%.1f ms in all, %llu failed)",
++                                      (unsigned long long)m, atomic_load(&g_dsh_re_ns) / 1e6, (unsigned long long)atomic_load(&g_dsh_re_fail));
++    return 1;
++}
+ static void dsh_eager_start(const uint8_t key[8], int st, const uint8_t *cd, uint32_t ncode, const uint8_t *ctl, uint32_t nctl, const char *out) {
+     if (atomic_fetch_add(&g_dsh_eager_n, 1) >= (uint64_t)dsh_eager_max()) { atomic_fetch_sub(&g_dsh_eager_n, 1); return; }
+     dsh_job *j = calloc(1, sizeof *j + nctl); uint8_t *code = j ? malloc(ncode) : NULL;
