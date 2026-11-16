@@ -2193,10 +2193,10 @@ def verify_source():
 # term: the GPL rights are unchanged and anyone may edit this code (BRANDING.md). In the official repository
 # nothing changes: the check is a pure comparison of the run's environment, without git, network or exception.
 OFFICIAL_REPOSITORY_ID = '1329032710'
-OFFICIAL_RELEASES = 'https://github.com/' + REPOSITORY + '/releases'
+OFFICIAL_RELEASES = 'https://github.com/' + REPOSITORY + '/releases/latest'  # GitHub's page of the latest release
 FORK_REFUSAL = ('RewindBox test IPAs are built only by the official repository ' + REPOSITORY + '. Outside it, '
                 'this recipe stops unless the run is the exact rebuild of a published release (the commit its '
-                'release tag points to, with only the recipient key changed). Official builds: ' + OFFICIAL_RELEASES)
+                'release tag points to, with only the recipient key changed). Latest official build: ' + OFFICIAL_RELEASES)
 
 
 def run_repository(environ=None):
