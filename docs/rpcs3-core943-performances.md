@@ -99,10 +99,18 @@ code à 0x1cdad4 et les comptes du planificateur.
   est une « caverne de code » construite comme celles du moteur de patchs (code_alloc), atteinte par un saut lointain depuis
   0x2eaff4. Une attente finit toujours au premier appel qui répond ; une longue attente finit au plus un sommeil plus tard.
   Réglage « God of War III wait loop sleep » (Expérimental → PPU ; Automatique = cet exécutable ; Désactivé = la boucle du
-  jeu). Pas appliqué à la reprise d'une sauvegarde d'état (comme le contournement MLAA).
-- **Vérifications** : encodage des 23 mots de la caverne désassemblé (branches, comparaisons, compteurs, appel système 141) ;
-  compilation des fichiers modifiés comparée à celle du Core 942 (aucune nouvelle erreur) ; relecture indépendante (§ 3).
-  Non exécuté sur iPhone.
+  jeu). La caverne revient dans la boucle par des branches absolues réelles (`ba 0x2eafd8`, `ba 0x2eaff8`), que garde une
+  sauvegarde d'état ; à la reprise d'une sauvegarde faite depuis un démarrage corrigé, le chargeur retrouve la caverne à
+  ses mots exacts et réenregistre ce que l'hôte seul gardait (sa table d'exécution, le saut d'entrée), sans rien écrire
+  dans la mémoire restaurée (`state=savestate_restored`) ; une sauvegarde faite sans correctif garde la boucle du jeu.
+- **Coût connu** : une fonction qui contient un saut lointain sort de LLVM et passe par l'interpréteur, comme toute fonction
+  qu'atteint un patch code_alloc ; ici la fonction de 0x2eafb0, celle de la boucle. Le premier démarrage corrigé recompile
+  la partie du cache PPU qui la contient. Chaque sommeil est un vrai `sys_timer_usleep` (sortie et retour dans
+  l'ordonnanceur lv2) : la latence d'une longue attente peut dépasser 30 µs de la marge du minuteur et de la reprise d'une
+  place ; c'est ce que `SCHED943` mesure dans la même fenêtre.
+- **Vérifications** : encodage des 23 mots de la caverne désassemblé (branches, comparaisons, compteurs, appel système 141),
+  aussi décodé à la main par le relecteur ; analyse syntaxique des fichiers modifiés comparée à celle du Core 942 (aucune
+  nouvelle erreur) ; relecture indépendante (§ 3). Non exécuté sur iPhone.
 - **À lire dans les prochains journaux** : `CONFIG_LAYERS part=gow3_poll943 state=applied`, `COREPROF GOW3POLL943`
   (attentes et sommeils de la fenêtre), la part du thread principal dans le census, la puissance des cœurs P et les FPS dans
   la même scène. Effet attendu, non mesuré : rendre aux SPU une partie des 0,7 cœur P que prend l'attente.
@@ -132,4 +140,15 @@ code à 0x1cdad4 et les comptes du planificateur.
 
 ## 3. Compilation, relecture et livraison
 
-À compléter : relecture indépendante, compilation du Core, épinglage, IPA.
+Relecture indépendante du changement avant compilation : encodages, registres écrasés, usage de 0x70(r1), ordre des sauts,
+compteurs et cadrage jugés corrects. Ses remarques, toutes appliquées :
+- **bloquante** : une sauvegarde d'état prise pendant que le thread principal dort dans la caverne plantait à la reprise
+  (table d'exécution et sauts lointains perdus). Corrigé : branches absolues réelles et réenregistrement à la reprise (§ 2.1) ;
+- **majeure** : le rapport lisait la mémoire invitée sans protection depuis un thread non émulateur ; il passe par
+  `copy_if_mapped` ;
+- **mineures** : caverne rendue si le saut d'entrée échoue ; chargement virtuel (création du cache PPU d'un autre
+  exécutable) sans effet ; commentaires des compteurs `acks`, `self_acks`, `suspend_waits` corrigés ; coût de
+  l'interpréteur et latence décrits (§ 2.1). Restent notés sans changement : compteurs de la caverne non atomiques
+  (diagnostic) et le vidage `part=callee`, qui suit le premier pc relevé dans la région chaude.
+
+Compilation du Core, épinglage et IPA : à compléter.
