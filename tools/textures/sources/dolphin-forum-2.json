@@ -1,0 +1,1737 @@
+[
+ {
+  "id": "gc-mario-golf-toadstool-tour-forum-nickpancakes",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Mario Golf: Toadstool Tour (GCN) - 4x UI Texture Pack",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Mario Golf: Toadstool Tour",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GFT"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "NickPancakes"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-mario-golf-toadstool-tour-gcn-4x-ui-texture-pack",
+  "source_id": "dolphin-forum:mario-golf-toadstool-tour-gcn-4x-ui-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-mario-golf-toadstool-tour-gcn-4x-ui-texture-pack"
+  },
+  "family": "gc-mario-golf-toadstool-tour-forum-nickpancakes",
+  "notes": "The thread links files on Google Drive and MEGA. The pages read name no Game ID for this game: it is matched by its title, for every region. Check the thread for the regions and version the pack was made for. The thread also links a support page of its author. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox.",
+  "scope": "ui"
+ },
+ {
+  "id": "gc-f-zero-gx-forum-linkinworm",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "F-zero GX HD texture pack",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "F-Zero GX",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GFZ"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "linkinworm"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-f-zero-gx-hd-texture-pack",
+  "source_id": "dolphin-forum:f-zero-gx-hd-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-f-zero-gx-hd-texture-pack"
+  },
+  "family": "gc-f-zero-gx-forum-linkinworm",
+  "notes": "The thread links files on Google Drive. The pages read name no Game ID for this game: it is matched by its title, for every region. Check the thread for the regions and version the pack was made for. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "wii-sonic-colors-forum-ryanconner360",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Sonic Colors - Xbox360 HUD textures",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Sonic Colors",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "SNCE8P"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "RyanConner360"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-sonic-colors-xbox360-hud-textures",
+  "source_id": "dolphin-forum:sonic-colors-xbox360-hud-textures",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-sonic-colors-xbox360-hud-textures"
+  },
+  "family": "wii-sonic-colors-forum-ryanconner360",
+  "notes": "The thread links files on Google Drive. Game IDs as written in the thread. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox.",
+  "scope": "ui"
+ },
+ {
+  "id": "wii-dragon-ball-z-budokai-tenkaichi-3-forum-naxshe22",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "DBZ Budokai Tenkaichi 3 - HD Texture Project",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Dragon Ball Z: Budokai Tenkaichi 3",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "RDS"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "Naxshe22"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-dbz-budokai-tenkaichi-3-hd-texture-project",
+  "source_id": "dolphin-forum:dbz-budokai-tenkaichi-3-hd-texture-project",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-dbz-budokai-tenkaichi-3-hd-texture-project"
+  },
+  "family": "wii-dragon-ball-z-budokai-tenkaichi-3-forum-naxshe22",
+  "notes": "The thread links files on MEGA. The pages read name no Game ID for this game: it is matched by its title, for every region. Check the thread for the regions and version the pack was made for. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "gc-doshin-the-giant-forum-calebthegeek",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Doshin the Giant HD Texture Pack",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Doshin the Giant",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GKDP01"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "calebthegeek"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-doshin-the-giant-hd-texture-pack",
+  "source_id": "dolphin-forum:doshin-the-giant-hd-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-doshin-the-giant-hd-texture-pack"
+  },
+  "family": "gc-doshin-the-giant-forum-calebthegeek",
+  "notes": "The thread links files on Google Drive. Game IDs as written in the thread. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "gc-x-men-legends-ii-rise-of-apocalyps-forum-zombie",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "X-Men Legends II HD",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "X-Men Legends II: Rise of Apocalypse",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GX2"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "Zombie"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-x-men-legends-ii-hd",
+  "source_id": "dolphin-forum:x-men-legends-ii-hd",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-x-men-legends-ii-hd"
+  },
+  "family": "gc-x-men-legends-ii-rise-of-apocalyps-forum-zombie",
+  "notes": "The thread links files on Google Drive and MEGA. The pages read name no Game ID for this game: it is matched by its title, for every region. Check the thread for the regions and version the pack was made for. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "gc-beyond-good-evil-forum-mcdgray129",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Beyond Good&Evil New HD Remaster V0.2(All new high res Textures and new lighting)",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Beyond Good & Evil",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GGE"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "mcdgray129"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-beyond-good-evil-new-hd-remaster-v0-2-all-new-high-res-textures-and-new-lighting",
+  "source_id": "dolphin-forum:beyond-good-evil-new-hd-remaster-v0-2-all-new-high-res-textures-and-new-lighting",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-beyond-good-evil-new-hd-remaster-v0-2-all-new-high-res-textures-and-new-lighting"
+  },
+  "family": "gc-beyond-good-evil-forum-mcdgray129",
+  "notes": "The thread links files on MEGA and a site of the author. The pages read name no Game ID for this game: it is matched by its title, for every region. Check the thread for the regions and version the pack was made for. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "gc-harvest-moon-a-wonderful-life-forum-torrax",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Harvest Moon: A Wonderful Life --- HD Texture Pack",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Harvest Moon: A Wonderful Life",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GYW"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "torrax"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-harvest-moon-a-wonderful-life-hd-texture-pack",
+  "source_id": "dolphin-forum:harvest-moon-a-wonderful-life-hd-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-harvest-moon-a-wonderful-life-hd-texture-pack"
+  },
+  "family": "gc-harvest-moon-a-wonderful-life-forum-torrax",
+  "notes": "The thread links files on Google Drive. The pages read name no Game ID for this game: it is matched by its title, for every region. Check the thread for the regions and version the pack was made for. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "gc-viewtiful-joe-forum-coolhardy100",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Viewtiful Joe 4K HD Texture Pack",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Viewtiful Joe",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GVJE08"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "coolhardy100"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-viewtiful-joe-4k-hd-texture-pack",
+  "source_id": "dolphin-forum:viewtiful-joe-4k-hd-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-viewtiful-joe-4k-hd-texture-pack"
+  },
+  "family": "gc-viewtiful-joe-forum-coolhardy100",
+  "notes": "The thread links files on Google Drive. Game IDs as written in the thread. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "gc-resident-evil-3-nemesis-forum-slayer",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Resident Evil 3 High-Res UI Textures [NTSC-GLEE08] [WIP]",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Resident Evil 3: Nemesis",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GLEE08"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "SLAYER"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-resident-evil-3-high-res-ui-textures-ntsc-glee08-wip",
+  "source_id": "dolphin-forum:resident-evil-3-high-res-ui-textures-ntsc-glee08-wip",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-resident-evil-3-high-res-ui-textures-ntsc-glee08-wip"
+  },
+  "family": "gc-resident-evil-3-nemesis-forum-slayer",
+  "notes": "The thread links files on MediaFire. Game IDs as written in the thread. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox.",
+  "scope": "ui"
+ },
+ {
+  "id": "wii-inazuma-eleven-strikers-forum-milozaki",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Inazuma Eleven Strikers 4K (HD Texture Pack)",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Inazuma Eleven Strikers",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "STQ"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "Milozaki"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-inazuma-eleven-strikers-4k-hd-texture-pack",
+  "source_id": "dolphin-forum:inazuma-eleven-strikers-4k-hd-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-inazuma-eleven-strikers-4k-hd-texture-pack"
+  },
+  "family": "wii-inazuma-eleven-strikers-forum-milozaki",
+  "notes": "The thread links files on Google Drive and MEGA. The pages read name no Game ID for this game: it is matched by its title, for every region. Check the thread for the regions and version the pack was made for. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "wii-muramasa-the-demon-blade-forum-kevlahnota",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "[2xHQ] Muramasa: The Demon Blade Texture Pack - PAL - Release [05-20-2014]",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Muramasa: The Demon Blade",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "RSFP99"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "kevlahnota"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-2xhq-muramasa-the-demon-blade-texture-pack-pal-release-05-20-2014",
+  "source_id": "dolphin-forum:2xhq-muramasa-the-demon-blade-texture-pack-pal-release-05-20-2014",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-2xhq-muramasa-the-demon-blade-texture-pack-pal-release-05-20-2014"
+  },
+  "family": "wii-muramasa-the-demon-blade-forum-kevlahnota",
+  "notes": "The thread links files on Dropbox, GitHub, MediaFire and OneDrive. Game IDs as written in the thread. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "wii-need-for-speed-the-run-forum-zaozabot",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "NFS THE RUN - HD Texture Project",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Need for Speed: The Run",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "SNV"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "zaozabot"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-nfs-the-run-hd-texture-project",
+  "source_id": "dolphin-forum:nfs-the-run-hd-texture-project",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-nfs-the-run-hd-texture-project"
+  },
+  "family": "wii-need-for-speed-the-run-forum-zaozabot",
+  "notes": "The thread links files on MediaFire. The pages read name no Game ID for this game: it is matched by its title, for every region. Check the thread for the regions and version the pack was made for. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "wii-dokapon-kingdom-forum-giodude",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "[Wii] Dokapon Kingdom ESRGAN HD Texture Pack",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Dokapon Kingdom",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "R2D"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "Giodude"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-wii-dokapon-kingdom-esrgan-hd-texture-pack",
+  "source_id": "dolphin-forum:wii-dokapon-kingdom-esrgan-hd-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-wii-dokapon-kingdom-esrgan-hd-texture-pack"
+  },
+  "family": "wii-dokapon-kingdom-forum-giodude",
+  "notes": "The thread links files on MEGA. The pages read name no Game ID for this game: it is matched by its title, for every region. Check the thread for the regions and version the pack was made for. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "wii-the-last-story-forum-keller999",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "[hd texture pack] The Last Story: XBox360 Controller Edition",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "The Last Story",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "SLSP01"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "keller999"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-hd-texture-pack-the-last-story-xbox360-controller-edition",
+  "source_id": "dolphin-forum:hd-texture-pack-the-last-story-xbox360-controller-edition",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-hd-texture-pack-the-last-story-xbox360-controller-edition"
+  },
+  "family": "wii-the-last-story-forum-keller999",
+  "notes": "The thread links files on the forum itself (thread attachment). Game IDs as written in the thread. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox.",
+  "scope": "ui"
+ },
+ {
+  "id": "wii-pandora-s-tower-forum-1vierock28",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Pandora's Tower HD texture (2017-02-24)",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Pandora's Tower",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "SX3EXJ"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "1vierock28"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-pandora-s-tower-hd-texture-2017-02-24",
+  "source_id": "dolphin-forum:pandora-s-tower-hd-texture-2017-02-24",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-pandora-s-tower-hd-texture-2017-02-24"
+  },
+  "family": "wii-pandora-s-tower-forum-1vierock28",
+  "notes": "The thread links files on MediaFire. Game IDs as written in the thread. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "wii-the-last-story-forum-1vierock28",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "The Last Story HD HI-Texture Pack (19-07-11)",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "The Last Story",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "SLS"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "1vierock28"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-the-last-story-hd-hi-texture-pack-19-07-11",
+  "source_id": "dolphin-forum:the-last-story-hd-hi-texture-pack-19-07-11",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-the-last-story-hd-hi-texture-pack-19-07-11"
+  },
+  "family": "wii-the-last-story-forum-1vierock28",
+  "notes": "The thread links files on MediaFire. The pages read name no Game ID for this game: it is matched by its title, for every region. Check the thread for the regions and version the pack was made for. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "wii-disney-alice-in-wonderland-forum-nunyabizznass",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Alice in Wonderland HD (texture pack)",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Disney Alice in Wonderland",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "SAL"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "NunyaBizznass"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-alice-in-wonderland-hd-texture-pack",
+  "source_id": "dolphin-forum:alice-in-wonderland-hd-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-alice-in-wonderland-hd-texture-pack"
+  },
+  "family": "wii-disney-alice-in-wonderland-forum-nunyabizznass",
+  "notes": "The thread links files on MediaFire. The pages read name no Game ID for this game: it is matched by its title, for every region. Check the thread for the regions and version the pack was made for. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "gc-resident-evil-2-forum-piranchi",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Resident Evil 2&3 Hi-Res Project 1080p",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Resident Evil 2",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GHA"
+     }
+    ],
+    "confirm": true
+   },
+   {
+    "title": "Resident Evil 3: Nemesis",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GLE"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "Piranchi"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-resident-evil-2-3-hi-res-project-1080p",
+  "source_id": "dolphin-forum:resident-evil-2-3-hi-res-project-1080p",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-resident-evil-2-3-hi-res-project-1080p"
+  },
+  "family": "gc-resident-evil-2-forum-piranchi",
+  "notes": "The thread links files on Google Drive. The pages read name no Game ID for this game: it is matched by its title, for every region. Check the thread for the regions and version the pack was made for. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "gc-resident-evil-2-forum-saeedalshaikhpygas",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Resident Evil 2 waifu2x upscaled backgrounds",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Resident Evil 2",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GHAE08"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "saeedalshaikhpygas"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-resident-evil-2-waifu2x-upscaled-backgrounds--49698",
+  "source_id": "dolphin-forum:resident-evil-2-waifu2x-upscaled-backgrounds--49698",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-resident-evil-2-waifu2x-upscaled-backgrounds--49698"
+  },
+  "family": "gc-resident-evil-2-forum-saeedalshaikhpygas",
+  "notes": "The thread links files on MEGA and the forum itself (thread attachment). Game IDs as written in the thread. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "gc-zoids-battle-legends-forum-shadowxwolf7",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "[HD Texture Project] Zoids: Battle Legends (v0.2)",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Zoids: Battle Legends",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GZSE70"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "SHADOWxWOLF7"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-hd-texture-project-zoids-battle-legends-v0-2",
+  "source_id": "dolphin-forum:hd-texture-project-zoids-battle-legends-v0-2",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-hd-texture-project-zoids-battle-legends-v0-2"
+  },
+  "family": "gc-zoids-battle-legends-forum-shadowxwolf7",
+  "notes": "The thread links files on MediaFire. Game IDs as written in the thread. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "gc-resident-evil-2-forum-slayer",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Resident Evil 2 High-Res UI Textures [v2.2] [NTSC-GHAE08]",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Resident Evil 2",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GHAE08"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "SLAYER"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-resident-evil-2-high-res-ui-textures-v2-2-ntsc-ghae08",
+  "source_id": "dolphin-forum:resident-evil-2-high-res-ui-textures-v2-2-ntsc-ghae08",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-resident-evil-2-high-res-ui-textures-v2-2-ntsc-ghae08"
+  },
+  "family": "gc-resident-evil-2-forum-slayer",
+  "notes": "The thread links files on MediaFire. Game IDs as written in the thread. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox.",
+  "scope": "ui"
+ },
+ {
+  "id": "gc-pikmin-forum-coldsnap",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Pikmin HD texture project",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Pikmin",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GPI"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "Coldsnap"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-pikmin-hd-texture-project",
+  "source_id": "dolphin-forum:pikmin-hd-texture-project",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-pikmin-hd-texture-project"
+  },
+  "family": "gc-pikmin-forum-coldsnap",
+  "notes": "The thread links files on Dropbox. The pages read name no Game ID for this game: it is matched by its title, for every region. Check the thread for the regions and version the pack was made for. The thread also links a support page of its author. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "gc-fire-emblem-path-of-radiance-forum-link-to-the-past",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Fire Emblem: Path of Radiance and Radiant Dawn upscaled UI textures (updated)",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Fire Emblem: Path of Radiance",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GFEE01"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Link_to_the_past"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-fire-emblem-path-of-radiance-and-radiant-dawn-upscaled-ui-textures-updated",
+  "source_id": "dolphin-forum:fire-emblem-path-of-radiance-and-radiant-dawn-upscaled-ui-textures-updated",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-fire-emblem-path-of-radiance-and-radiant-dawn-upscaled-ui-textures-updated"
+  },
+  "family": "gc-fire-emblem-path-of-radiance-forum-link-to-the-past",
+  "notes": "The thread links files on MediaFire. Game IDs as written in the thread. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox.",
+  "scope": "ui"
+ },
+ {
+  "id": "wii-metroid-prime-trilogy-forum-razius",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Metroid Prime Trilogy HUD",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Metroid Prime Trilogy",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "R3M"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "razius"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-metroid-prime-trilogy-hud",
+  "source_id": "dolphin-forum:metroid-prime-trilogy-hud",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-metroid-prime-trilogy-hud"
+  },
+  "family": "wii-metroid-prime-trilogy-forum-razius",
+  "notes": "The thread links files on Google Drive. The pages read name no Game ID for this game: it is matched by its title, for every region. Check the thread for the regions and version the pack was made for. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox.",
+  "scope": "ui"
+ },
+ {
+  "id": "wii-no-more-heroes-2-desperate-struggl-forum-ui4ui",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "No More Heroes 2: Desperate Struggle HD Texture Pack (Jan 2017)",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "No More Heroes 2: Desperate Struggle",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "RUYE41"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "UI4UI"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-no-more-heroes-2-desperate-struggle-hd-texture-pack-jan-2017",
+  "source_id": "dolphin-forum:no-more-heroes-2-desperate-struggle-hd-texture-pack-jan-2017",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-no-more-heroes-2-desperate-struggle-hd-texture-pack-jan-2017"
+  },
+  "family": "wii-no-more-heroes-2-desperate-struggl-forum-ui4ui",
+  "notes": "The thread links files on Google Drive and OneDrive. Game IDs as written in the thread. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "gc-battle-stadium-d-o-n-forum-hipnosis183",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Battle Stadium D.O.N Remastered [HD Textures]",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Battle Stadium D.O.N",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "G8S"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "Hipnosis183"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-battle-stadium-d-o-n-remastered-hd-textures",
+  "source_id": "dolphin-forum:battle-stadium-d-o-n-remastered-hd-textures",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-battle-stadium-d-o-n-remastered-hd-textures"
+  },
+  "family": "gc-battle-stadium-d-o-n-forum-hipnosis183",
+  "notes": "The thread links files on MEGA. The pages read name no Game ID for this game: it is matched by its title, for every region. Check the thread for the regions and version the pack was made for. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "wii-super-smash-bros-brawl-forum-mxyl-v",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Super Smash Bros. Brawl HD Character Pack",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Super Smash Bros. Brawl",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "RSB"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "Mxyl V"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-super-smash-bros-brawl-hd-character-pack",
+  "source_id": "dolphin-forum:super-smash-bros-brawl-hd-character-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-super-smash-bros-brawl-hd-character-pack"
+  },
+  "family": "wii-super-smash-bros-brawl-forum-mxyl-v",
+  "notes": "The thread links files on MEGA. The pages read name no Game ID for this game: it is matched by its title, for every region. Check the thread for the regions and version the pack was made for. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "wii-endless-ocean-blue-world-forum-therealhp",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Endless Ocean 2 HD Re-Texture [WIP]",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Endless Ocean: Blue World",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "R4E"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "TheRealHP"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-endless-ocean-2-hd-re-texture-wip",
+  "source_id": "dolphin-forum:endless-ocean-2-hd-re-texture-wip",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-endless-ocean-2-hd-re-texture-wip"
+  },
+  "family": "wii-endless-ocean-blue-world-forum-therealhp",
+  "notes": "The thread links files on MediaFire. The pages read name no Game ID for this game: it is matched by its title, for every region. Check the thread for the regions and version the pack was made for. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "wii-sonic-colors-forum-ryanconner360-2",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Sonic Colors - PlayStation HUD textures",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Sonic Colors",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "SNCE8P"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "RyanConner360"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-sonic-colors-playstation-hud-textures",
+  "source_id": "dolphin-forum:sonic-colors-playstation-hud-textures",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-sonic-colors-playstation-hud-textures"
+  },
+  "family": "wii-sonic-colors-forum-ryanconner360-2",
+  "notes": "The thread links files on Google Drive. Game IDs as written in the thread. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox.",
+  "scope": "ui"
+ },
+ {
+  "id": "wii-naruto-shippuden-clash-of-ninja-re-forum-ggm",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "[WAIFU2X] Naruto: Clash Of Ninja Revolution 3!",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Naruto Shippuden: Clash of Ninja Revolution III",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "RNE"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "ggm"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-waifu2x-naruto-clash-of-ninja-revolution-3",
+  "source_id": "dolphin-forum:waifu2x-naruto-clash-of-ninja-revolution-3",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-waifu2x-naruto-clash-of-ninja-revolution-3"
+  },
+  "family": "wii-naruto-shippuden-clash-of-ninja-re-forum-ggm",
+  "notes": "The thread links files on Google Drive. The pages read name no Game ID for this game: it is matched by its title, for every region. Check the thread for the regions and version the pack was made for. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "gc-crash-tag-team-racing-forum-john30011887",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Crash Tag Team Racing Texture Fixes",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Crash Tag Team Racing",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "G9RE7D"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "JOHN30011887"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-crash-tag-team-racing-texture-fixes",
+  "source_id": "dolphin-forum:crash-tag-team-racing-texture-fixes",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-crash-tag-team-racing-texture-fixes"
+  },
+  "family": "gc-crash-tag-team-racing-forum-john30011887",
+  "notes": "The thread links files on MEGA and the forum itself (thread attachment). Game IDs as written in the thread. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "gc-soulcalibur-ii-forum-captainjak",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Soul Calibur II - HD Project (Gamecube)",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Soulcalibur II",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GRS"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "CaptainJak__"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-soul-calibur-ii-hd-project-gamecube",
+  "source_id": "dolphin-forum:soul-calibur-ii-hd-project-gamecube",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-soul-calibur-ii-hd-project-gamecube"
+  },
+  "family": "gc-soulcalibur-ii-forum-captainjak",
+  "notes": "The thread links files on Google Drive. The pages read name no Game ID for this game: it is matched by its title, for every region. Check the thread for the regions and version the pack was made for. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "gc-the-legend-of-zelda-four-swords-ad-forum-masterotaku",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Zelda Four Swords Adventures texture pack and aspect ratio mod",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "The Legend of Zelda: Four Swords Adventures",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "G4SP01"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "masterotaku"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-zelda-four-swords-adventures-texture-pack-and-aspect-ratio-mod",
+  "source_id": "dolphin-forum:zelda-four-swords-adventures-texture-pack-and-aspect-ratio-mod",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-zelda-four-swords-adventures-texture-pack-and-aspect-ratio-mod"
+  },
+  "family": "gc-the-legend-of-zelda-four-swords-ad-forum-masterotaku",
+  "notes": "The thread links files on Dropbox, GitHub and a site of the author. Game IDs as written in the thread. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "gc-fire-emblem-path-of-radiance-forum-thatprik",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Fire Emblem: Path of Radiance Xbox One Texture pack",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Fire Emblem: Path of Radiance",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GFE"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "thatprik"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-fire-emblem-path-of-radiance-xbox-one-texture-pack",
+  "source_id": "dolphin-forum:fire-emblem-path-of-radiance-xbox-one-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-fire-emblem-path-of-radiance-xbox-one-texture-pack"
+  },
+  "family": "gc-fire-emblem-path-of-radiance-forum-thatprik",
+  "notes": "The thread links files on MediaFire. The pages read name no Game ID for this game: it is matched by its title, for every region. Check the thread for the regions and version the pack was made for. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox.",
+  "scope": "ui"
+ },
+ {
+  "id": "wii-mario-kart-wii-forum-bachfugue",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Mario Kart Wii HD Retexture",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Mario Kart Wii",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "RMCP01"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "bachfugue"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-mario-kart-wii-hd-retexture",
+  "source_id": "dolphin-forum:mario-kart-wii-hd-retexture",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-mario-kart-wii-hd-retexture"
+  },
+  "family": "wii-mario-kart-wii-forum-bachfugue",
+  "notes": "The thread links files on Dropbox. Game IDs as written in the thread. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "gc-mario-kart-double-dash-forum-kiezan",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Mario Kart Double Dash Texture Pack",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Mario Kart: Double Dash!!",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GM4P01"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "kiezan"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-mario-kart-double-dash-texture-pack",
+  "source_id": "dolphin-forum:mario-kart-double-dash-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-mario-kart-double-dash-texture-pack"
+  },
+  "family": "gc-mario-kart-double-dash-forum-kiezan",
+  "notes": "The thread links files on Google Drive. Game IDs as written in the thread. The thread also links a support page of its author. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "gc-the-legend-of-zelda-the-wind-waker-forum-masterkillua",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "The Legend of Zelda - Wind Waker HD",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "The Legend of Zelda: The Wind Waker",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GZLE01"
+     },
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GZLP01"
+     }
+    ],
+    "regions": [
+     "Europe",
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "MasterKillua"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-the-legend-of-zelda-wind-waker-hd",
+  "source_id": "dolphin-forum:the-legend-of-zelda-wind-waker-hd",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-the-legend-of-zelda-wind-waker-hd"
+  },
+  "family": "gc-the-legend-of-zelda-the-wind-waker-forum-masterkillua",
+  "notes": "The thread links files on Dropbox. Game IDs as written in the thread. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "gc-soulcalibur-ii-forum-rlaugh0095",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Soul Calibur II HD Character Retextures.",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Soulcalibur II",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GRS"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "rlaugh0095"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-soul-calibur-ii-hd-character-retextures",
+  "source_id": "dolphin-forum:soul-calibur-ii-hd-character-retextures",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-soul-calibur-ii-hd-character-retextures"
+  },
+  "family": "gc-soulcalibur-ii-forum-rlaugh0095",
+  "notes": "The thread links files on MEGA. The pages read name no Game ID for this game: it is matched by its title, for every region. Check the thread for the regions and version the pack was made for. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "gc-spongebob-squarepants-battle-for-b-forum-curioustommy",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "SpongeBob SquarePant's Battle of Bikini Bottom HD Texture Pack (Incomplete)",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "SpongeBob SquarePants: Battle for Bikini Bottom",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GQPE78"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "CuriousTommy"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-spongebob-squarepant-s-battle-of-bikini-bottom-hd-texture-pack-incomplete",
+  "source_id": "dolphin-forum:spongebob-squarepant-s-battle-of-bikini-bottom-hd-texture-pack-incomplete",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-spongebob-squarepant-s-battle-of-bikini-bottom-hd-texture-pack-incomplete"
+  },
+  "family": "gc-spongebob-squarepants-battle-for-b-forum-curioustommy",
+  "notes": "The thread links files on Google Drive and the forum itself (thread attachment). Game IDs as written in the thread. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "gc-super-smash-bros-melee-forum-hyperspeed",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Small Hi-Rez Textures to Super Smash Bros Melee.",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Super Smash Bros. Melee",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GALE01"
+     },
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GALP01"
+     }
+    ],
+    "regions": [
+     "Europe",
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "hyperspeed"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-small-hi-rez-textures-to-super-smash-bros-melee",
+  "source_id": "dolphin-forum:small-hi-rez-textures-to-super-smash-bros-melee",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-small-hi-rez-textures-to-super-smash-bros-melee"
+  },
+  "family": "gc-super-smash-bros-melee-forum-hyperspeed",
+  "notes": "The thread links files on MEGA, MediaFire and a site of the author. Game IDs as written in the thread. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "gc-worms-blast-forum-hipnosis183",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Worms Blast Remastered [HD Textures]",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Worms Blast",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GWB"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "Hipnosis183"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-worms-blast-remastered-hd-textures",
+  "source_id": "dolphin-forum:worms-blast-remastered-hd-textures",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-worms-blast-remastered-hd-textures"
+  },
+  "family": "gc-worms-blast-forum-hipnosis183",
+  "notes": "The thread links files on MEGA and a site of the author. The pages read name no Game ID for this game: it is matched by its title, for every region. Check the thread for the regions and version the pack was made for. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "gc-kirby-air-ride-forum-dillxox123",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "HD Texture Project Kirbys Air Ride",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Kirby Air Ride",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GKY"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "dillxox123"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-hd-texture-project-kirbys-air-ride",
+  "source_id": "dolphin-forum:hd-texture-project-kirbys-air-ride",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-hd-texture-project-kirbys-air-ride"
+  },
+  "family": "gc-kirby-air-ride-forum-dillxox123",
+  "notes": "The thread links files on MediaFire. The pages read name no Game ID for this game: it is matched by its title, for every region. Check the thread for the regions and version the pack was made for. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "gc-the-legend-of-zelda-twilight-princ-forum-ganondork123",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "[GCN] The Legend of Zelda: Twilight Princess High Resolution Texture Pack",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "The Legend of Zelda: Twilight Princess",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GZ2"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "GANONdork123"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-gcn-the-legend-of-zelda-twilight-princess-high-resolution-texture-pack",
+  "source_id": "dolphin-forum:gcn-the-legend-of-zelda-twilight-princess-high-resolution-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-gcn-the-legend-of-zelda-twilight-princess-high-resolution-texture-pack"
+  },
+  "family": "gc-the-legend-of-zelda-twilight-princ-forum-ganondork123",
+  "notes": "The thread links files on MediaFire. The pages read name no Game ID for this game: it is matched by its title, for every region. Check the thread for the regions and version the pack was made for. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "wii-super-mario-galaxy-forum-razius",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Super Mario Galaxy 1 [hires texture pack]",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Super Mario Galaxy",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "RMGE01"
+     },
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "RMGP01"
+     }
+    ],
+    "regions": [
+     "Europe",
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "razius"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-super-mario-galaxy-1-hires-texture-pack",
+  "source_id": "dolphin-forum:super-mario-galaxy-1-hires-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-super-mario-galaxy-1-hires-texture-pack"
+  },
+  "family": "wii-super-mario-galaxy-forum-razius",
+  "notes": "The thread links files on MEGA. Game IDs as written in the thread. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "wii-xenoblade-chronicles-forum-poweredbykimchi",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "[HD Texture Project] Xenoblade Chronicles (v5.0U - May 17, 2014)",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Xenoblade Chronicles",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "SX4E01"
+     },
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "SX4P01"
+     }
+    ],
+    "regions": [
+     "Europe",
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "poweredbykimchi"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-hd-texture-project-xenoblade-chronicles-v5-0u-may-17-2014",
+  "source_id": "dolphin-forum:hd-texture-project-xenoblade-chronicles-v5-0u-may-17-2014",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-hd-texture-project-xenoblade-chronicles-v5-0u-may-17-2014"
+  },
+  "family": "wii-xenoblade-chronicles-forum-poweredbykimchi",
+  "notes": "The thread links files on Dropbox, MEGA and MediaFire. Game IDs as written in the thread. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "gc-p-n-03-forum-nellis-labs",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "P.N.03 Retexture project.",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "P.N. 03",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GPNE08"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Nellis_Labs"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-p-n-03-retexture-project",
+  "source_id": "dolphin-forum:p-n-03-retexture-project",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-p-n-03-retexture-project"
+  },
+  "family": "gc-p-n-03-forum-nellis-labs",
+  "notes": "The thread links files on Google Drive. Game IDs as written in the thread. Read on 16 November 2026 (review run 43958561872); the files were not downloaded or installed by RewindBox."
+ }
+]

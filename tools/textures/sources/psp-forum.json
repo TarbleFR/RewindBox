@@ -1,0 +1,946 @@
+[
+ {
+  "id": "psp-yu-gi-oh-gx-tag-force-3-forum-kpchi",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Yu-Gi-Oh! Tag Force 3 HD Texturas en ESPAÑOL!!",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Yu-Gi-Oh! GX Tag Force 3",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES01183"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "kpchi"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=39817",
+  "source_id": "ppsspp-forum:39817",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=39817"
+  },
+  "family": "psp-yu-gi-oh-gx-tag-force-3-forum-kpchi",
+  "notes": "The thread links files on Google Drive. Card and menu textures in Spanish, for the European disc. Game ID from the name of the author's archive. Read on 16 November 2026 (review run 43958566954); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "psp-crisis-core-final-fantasy-vii-forum-1vierock",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Final Fantasy VII Crisis Core HD/Remaster Project WIP",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Crisis Core: Final Fantasy VII",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES01045"
+     },
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES01044"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "1vierock"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=26017",
+  "source_id": "ppsspp-forum:26017",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=26017"
+  },
+  "family": "psp-crisis-core-final-fantasy-vii-forum-1vierock",
+  "notes": "The thread links files on MediaFire. The author's textures are named for ULES01045 (French disc); the thread also links an English UI part for ULES01044, credited to KaosuReido. Game ID from the name of the author's archive. Read on 16 November 2026 (review run 43958566954); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "psp-yu-gi-oh-gx-tag-force-forum-chrisfand",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Yu-Gi-Oh! GX Tag Force 1 HD Cards Texture Pack",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Yu-Gi-Oh! GX Tag Force",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10136"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "chrisfand"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=28535",
+  "source_id": "ppsspp-forum:28535",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=28535"
+  },
+  "family": "psp-yu-gi-oh-gx-tag-force-forum-chrisfand",
+  "notes": "The thread links files on Google Drive. The author states that the USA version in English is required. Read on 16 November 2026 (review run 43958566954); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "psp-tactics-ogre-let-us-cling-together-forum-sirbagsalot",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Tactics Ogre LUCT HD UI v0.9.9",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Tactics Ogre: Let Us Cling Together",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10565"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Sirbagsalot"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=26100",
+  "source_id": "ppsspp-forum:26100",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=26100"
+  },
+  "family": "psp-tactics-ogre-let-us-cling-together-forum-sirbagsalot",
+  "notes": "The thread links files on Dropbox, GitHub, Google Drive and MediaFire. Game ID from the name of the author's archive. Read on 16 November 2026 (review run 43958566954); the files were not downloaded or installed by RewindBox.",
+  "scope": "ui"
+ },
+ {
+  "id": "psp-castlevania-the-dracula-x-chronicl-forum-sirbagsalot",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Castlevania: The Dracula X Chronicles HD v1.0",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Castlevania: The Dracula X Chronicles",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10277"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Sirbagsalot"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=31528",
+  "source_id": "ppsspp-forum:31528",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=31528"
+  },
+  "family": "psp-castlevania-the-dracula-x-chronicl-forum-sirbagsalot",
+  "notes": "The thread links files on MediaFire. Game ID from the name of the author's archive. Read on 16 November 2026 (review run 43958566954); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "psp-gran-turismo-forum-vrbob",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Gran Turismo - Nürburgring Retextured",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Gran Turismo",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCES01245"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "vrbob"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=34809",
+  "source_id": "ppsspp-forum:34809",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=34809"
+  },
+  "family": "psp-gran-turismo-forum-vrbob",
+  "notes": "The thread links files on Google Drive. Retextures one track, the Nürburgring Nordschleife. Read on 16 November 2026 (review run 43958566954); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "psp-gran-turismo-forum-hanz0",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Gran turismo UCES01245 Ai enhanced hd textures",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Gran Turismo",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCES01245"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Hanz0"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=29124",
+  "source_id": "ppsspp-forum:29124",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=29124"
+  },
+  "family": "psp-gran-turismo-forum-hanz0",
+  "notes": "The thread links files on upfiles.com and megaup.net. A later post of the thread links an update by Kadaga. Read on 16 November 2026 (review run 43958566954); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "psp-lumines-puzzle-fusion-forum-revenant",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "[WIP] Lumines Puzzle Fusion - HD Texture Pack & 60 FPS Mode",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Lumines: Puzzle Fusion",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10002"
+     },
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJS00005"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "+Revenant+"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=28353",
+  "source_id": "ppsspp-forum:28353",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=28353"
+  },
+  "family": "psp-lumines-puzzle-fusion-forum-revenant",
+  "notes": "The thread links files on Google Drive and MediaFire. Game IDs as written in the thread. Read on 16 November 2026 (review run 43958566954); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "psp-mega-man-maverick-hunter-x-forum-sirbagsalot",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Mega Man Maverick Hunter X HD Texture Pack v1.2",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Mega Man Maverick Hunter X",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10068"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Sirbagsalot"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=29386",
+  "source_id": "ppsspp-forum:29386",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=29386"
+  },
+  "family": "psp-mega-man-maverick-hunter-x-forum-sirbagsalot",
+  "notes": "The thread links files on MediaFire. The author names the USA version. Read on 16 November 2026 (review run 43958566954); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "psp-last-ranker-forum-1vierock",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Last Ranker v2.3 HD Retexture",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Last Ranker",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJM05676"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "1vierock"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=25998",
+  "source_id": "ppsspp-forum:25998",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=25998"
+  },
+  "family": "psp-last-ranker-forum-1vierock",
+  "notes": "The thread links files on MediaFire. Game ID from the name of the author's archive. Read on 16 November 2026 (review run 43958566954); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "psp-jeanne-d-arc-forum-b0rd2death",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Jeanne D'Arc HD Textures (WIP)",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Jeanne d'Arc",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCUS98700"
+     },
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCJS10048"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "b0rd2dEAth"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=28861",
+  "source_id": "ppsspp-forum:28861",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=28861"
+  },
+  "family": "psp-jeanne-d-arc-forum-b0rd2death",
+  "notes": "The thread links files on MEGA. Game IDs as written in the thread. Read on 16 November 2026 (review run 43958566954); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "psp-lunar-silver-star-harmony-forum-pandavenom",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Lunar: Silver Star Harmony (US/Undub) | HD Textures",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Lunar: Silver Star Harmony",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10482"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "pandavenom"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=30786",
+  "source_id": "ppsspp-forum:30786",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=30786"
+  },
+  "family": "psp-lunar-silver-star-harmony-forum-pandavenom",
+  "notes": "The thread links files on MediaFire. Made for the undub version; the author expects it to work with the USA disc. Game ID from the name of the author's archive. The thread also links a support page of its author. Read on 16 November 2026 (review run 43958566954); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "psp-grand-knights-history-forum-1vierock",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Grand knights history beatiful HD Texture!!",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Grand Knights History",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJS00394"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "1vierock"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=27713",
+  "source_id": "ppsspp-forum:27713",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=27713"
+  },
+  "family": "psp-grand-knights-history-forum-1vierock",
+  "notes": "The thread links files on MediaFire. Game ID from the name of the author's archive. A reader reports that it did not load with the Japanese disc. Check the thread for the version of the game the pack was made for. Read on 16 November 2026 (review run 43958566954); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "psp-ridge-racer-2-forum-r-type-leo",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Ridge Racer 2 (UCES00422) Repacement UI Textures",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Ridge Racer 2",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCES00422"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "R-Type Leo"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=22241",
+  "source_id": "ppsspp-forum:22241",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=22241"
+  },
+  "family": "psp-ridge-racer-2-forum-r-type-leo",
+  "notes": "The thread links files on MediaFire. Game IDs as written in the thread. Read on 16 November 2026 (review run 43958566954); the files were not downloaded or installed by RewindBox.",
+  "scope": "ui"
+ },
+ {
+  "id": "psp-grand-theft-auto-liberty-city-stor-forum-efonte",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Grand Theft Auto: Liberty City Stories AI upscaled",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Grand Theft Auto: Liberty City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES00151"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "efonte"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=26734",
+  "source_id": "ppsspp-forum:26734",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=26734"
+  },
+  "family": "psp-grand-theft-auto-liberty-city-stor-forum-efonte",
+  "notes": "The thread links files on MEGA. The author states the European version. Read on 16 November 2026 (review run 43958566954); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "psp-syphon-filter-dark-mirror-forum-kayael",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Syphon Filter Dark Mirror and Logan's Shadow HD textures",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Syphon Filter: Dark Mirror",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCUS98641"
+     },
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCES00310"
+     }
+    ]
+   },
+   {
+    "title": "Syphon Filter: Logan's Shadow",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCUS98606"
+     },
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCES00710"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Kayael"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=28201",
+  "source_id": "ppsspp-forum:28201",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=28201"
+  },
+  "family": "psp-syphon-filter-dark-mirror-forum-kayael",
+  "notes": "The thread links files on MediaFire. One archive per game; the author names the folders to use for the European discs. Read on 16 November 2026 (review run 43958566954); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "psp-busou-shinki-battle-masters-forum-halcon-negro",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Busou Shinki: Battle Masters",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Busou Shinki: Battle Masters",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJM05538"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Halcón Negro"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=29482",
+  "source_id": "ppsspp-forum:29482",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=29482"
+  },
+  "family": "psp-busou-shinki-battle-masters-forum-halcon-negro",
+  "notes": "The thread links files on MediaFire. Game ID from the name of the author's archive. Read on 16 November 2026 (review run 43958566954); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "psp-ore-no-imouto-ga-konna-ni-kawaii-w-forum-slightly-apathetic-m",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Oreimo Portable Disc 1 (NPJH50568/ULJS00358) HD UI Texture Pack",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Ore no Imouto ga Konna ni Kawaii Wake ga Nai Portable",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPJH50568"
+     },
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJS00358"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Slightly Apathetic Mio"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=22687",
+  "source_id": "ppsspp-forum:22687",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=22687"
+  },
+  "family": "psp-ore-no-imouto-ga-konna-ni-kawaii-w-forum-slightly-apathetic-m",
+  "notes": "The thread links files on MediaFire. Game IDs as written in the thread. Read on 16 November 2026 (review run 43958566954); the files were not downloaded or installed by RewindBox.",
+  "scope": "ui"
+ },
+ {
+  "id": "psp-the-legend-of-heroes-trails-in-the-forum-arcenciel",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Legend of Heroes: Trails in the Sky FC[1.1] & SC[1.1] - PC Texture Pack (27-Sep-2021)",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "The Legend of Heroes: Trails in the Sky",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10540"
+     }
+    ]
+   },
+   {
+    "title": "The Legend of Heroes: Trails in the Sky SC",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPUH10191"
+     },
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPUH10197"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "ArcEnCiel"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=27532",
+  "source_id": "ppsspp-forum:27532",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=27532"
+  },
+  "family": "psp-the-legend-of-heroes-trails-in-the-forum-arcenciel",
+  "notes": "The thread links files on MEGA. Textures of the PC version; one archive per game. Read on 16 November 2026 (review run 43958566954); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "psp-monster-hunter-portable-3rd-forum-nyuuun",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Monster Hunter Portable 3rd Remake / ReTexture HD",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Monster Hunter Portable 3rd",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPJB40001"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Nyuuun"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=27616",
+  "source_id": "ppsspp-forum:27616",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=27616"
+  },
+  "family": "psp-monster-hunter-portable-3rd-forum-nyuuun",
+  "notes": "The thread links files on Google Drive and MediaFire. Game IDs as written in the thread. Read on 16 November 2026 (review run 43958566954); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "psp-earth-defense-force-2-portable-forum-luke-s",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Earth Defense Force 2 Portable English/Spanish UI + PS2 Textures/AI Upscale",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Earth Defense Force 2 Portable",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJS00374"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Luke S"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=28883",
+  "source_id": "ppsspp-forum:28883",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=28883"
+  },
+  "family": "psp-earth-defense-force-2-portable-forum-luke-s",
+  "notes": "The thread links files on MediaFire. Also translates the main menus to English or Spanish (one archive per language). Game ID from the name of the author's archive. Read on 16 November 2026 (review run 43958566954); the files were not downloaded or installed by RewindBox.",
+  "scope": "ui"
+ },
+ {
+  "id": "psp-persona-3-portable-forum-hououin-kyouma",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Persona 3 Portable HD Texture Pack (WIP) - Update (2019-02-03)",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Persona 3 Portable",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10512"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "hououin_kyouma"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=23509",
+  "source_id": "ppsspp-forum:23509",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=23509"
+  },
+  "family": "psp-persona-3-portable-forum-hououin-kyouma",
+  "notes": "The thread links files on GitHub and Google Drive. Game IDs as written in the thread. Read on 16 November 2026 (review run 43958566954); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "psp-dissidia-012-duodecim-final-fantas-forum-figure",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "dissidia 012 asian version (nphh00293) hd texture",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Dissidia 012 [duodecim] Final Fantasy",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPHH00293"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "figure"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=25203",
+  "source_id": "ppsspp-forum:25203",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=25203"
+  },
+  "family": "psp-dissidia-012-duodecim-final-fantas-forum-figure",
+  "notes": "The thread links files on Google Drive. Made for the Asian release. Read on 16 November 2026 (review run 43958566954); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "psp-genso-suikoden-tsumugareshi-hyakun-forum-1vierock",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Suikoden English+ HD texture",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Genso Suikoden: Tsumugareshi Hyakunen no Toki",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPJH50535"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "1vierock"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=27283",
+  "source_id": "ppsspp-forum:27283",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=27283"
+  },
+  "family": "psp-genso-suikoden-tsumugareshi-hyakun-forum-1vierock",
+  "notes": "The thread links files on MediaFire. Made for the English fan translation of the game. Game ID from the name of the author's archive. Read on 16 November 2026 (review run 43958566954); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "psp-spongebob-s-truth-or-square-forum-dark-aron",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "SPONGE BOB TRUTH OR SQUARE HD 2020 TEXTURES",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "SpongeBob's Truth or Square",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10478"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "DARK ARON"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=26669",
+  "source_id": "ppsspp-forum:26669",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=26669"
+  },
+  "family": "psp-spongebob-s-truth-or-square-forum-dark-aron",
+  "notes": "The thread links files on MediaFire. Game ID from the name of the author's archive. Read on 16 November 2026 (review run 43958566954); the files were not downloaded or installed by RewindBox."
+ },
+ {
+  "id": "psp-persona-3-portable-forum-dinjerr",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Persona 3 Portable (ULUS10512) HD Texture Packs",
+  "version": "See the author's thread",
+  "games": [
+   {
+    "title": "Persona 3 Portable",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10512"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "DinJerr"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=22257",
+  "source_id": "ppsspp-forum:22257",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=22257"
+  },
+  "family": "psp-persona-3-portable-forum-dinjerr",
+  "notes": "The thread links files on MEGA. Game IDs as written in the thread. Read on 16 November 2026 (review run 43958566954); the files were not downloaded or installed by RewindBox."
+ }
+]

@@ -95,21 +95,25 @@ Before: commit `d4a494a`. Reproduce with
 
 | Catalogue | Before | After |
 | --- | --- | --- |
-| Enhancements: sources | 11 | 14 |
-| Enhancements: entries | 47,184 | 49,445 |
-| Enhancements: PS2 games / entries | 4,221 / 6,223 | 4,537 / 8,484 |
-| Enhancements: entries by reference (not hosted) | 36,980 | 39,227 |
-| HD textures: references (sources) | 1,124 (457) | 1,246 (546) |
-| HD textures: page links | 615 | 737 |
+| Enhancements: sources | 11 | 16 |
+| Enhancements: entries | 47,184 | 50,462 |
+| Enhancements: PS2 games / entries | 4,221 / 6,223 | 4,618 / 9,251 |
+| Enhancements: Switch games / entries | 2,285 / 36,980 | 2,306 / 37,230 |
+| Enhancements: entries by reference (not hosted) | 36,980 | 40,244 |
+| HD textures: references (sources) | 1,124 (457) | 1,319 (619) |
+| HD textures: page links | 615 | 810 |
 | HD textures: one-tap profiles (distinct families) | 509 (424) | 509 (424) |
 | Shaders (slang): presets | 982 | 987 |
 | Unified cheats: programs | 2,394,631 | 2,394,631 |
 
 - **Enhancements.** CookiePLMonster moved to `f63492f8` (+14 cheats, MIT,
-  hosted). Three PS2 sources without a licence are read by reference:
+  hosted). Four PS2 sources without a licence are read by reference:
   PCSX2/pcsx2_patches newer than the engine's `patches.zip` (1,007 entries),
-  Gabominated/PCSX2 (850) and PeterDelta/PCSX2 (390). dolphin-emu and Slippi
-  moved to their heads without a new entry in the listed categories.
+  Gabominated/PCSX2 (850), Saramagrean/NetherSX2-cheats (767) and
+  PeterDelta/PCSX2 (390). Switch exefs patches of
+  KeatonTheBot/switch-pchtxt-mods are read the same way (250 mods of 60
+  titles). dolphin-emu and Slippi moved to their heads without a new entry
+  in the listed categories.
 - **HD textures.** ps2ktxpak moved from `807733e5` to `1d6cfc3b` (+41 page
   links, 10 entries withdrawn at their creators' or the catalogue's request,
   listed in `tools/textures/ps2ktxpak-report.json`). The Dolphin forum's
@@ -128,8 +132,26 @@ Before: commit `d4a494a`. Reproduce with
   `excluded-references-2026-11.json`). No file of these packs was downloaded
   or installed: they are references, not one-tap packs. A game the pages do
   not identify by ID is matched by its title and marked "to confirm".
+  A second series read two more sets of threads the same day: pages 9 to 13
+  of the Dolphin forum (run 43958561872, 102 threads: 47 entries in
+  `dolphin-forum-2.json`, 10 already catalogued, 45 left out in
+  `excluded-dolphin-forum-2.json`) and the PPSSPP forum's HD texture threads
+  (run 43958566954, 140 threads: 26 entries in `psp-forum.json`, 38 already
+  catalogued or reviewed earlier, 76 left out in `excluded-psp-forum.json`).
+  Each PSP entry was read by hand: its Game ID comes from the thread's words
+  or from the name of the author's archive, never from an ID quoted in
+  passing. A thread title that names a sequel is matched to the sequel's
+  disc only; a title that fits both a GameCube and a Wii release without
+  saying which is left out. The thread lists are kept in
+  `tools/textures/research/`.
 - **Shaders.** Five presets added upstream after the pin (see
-  shaders-system.md).
+  shaders-system.md). Two community repositories were tried with the app's
+  compiler and are not usable as published: anikom15/scanline-classic (its
+  sources are produced by a build step: 14 of 15 presets have no source
+  file) and ChthonVII/chthons_color_correction (its presets need files of
+  another tree and lookup tables the user generates). The 1,494 "bezel" and
+  150 "hdr" presets of the pinned repository stay out for the reasons in
+  `slang-catalog-diagnostics.json`.
 
 ## Not done, and why
 

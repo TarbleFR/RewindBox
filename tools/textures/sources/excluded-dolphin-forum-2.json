@@ -1,0 +1,227 @@
+[
+ {
+  "console": "gc/wii",
+  "source": "Custom textures in PNG Format loading issue. (https://forums.dolphin-emu.org/Thread-custom-textures-in-png-format-loading-issue)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Pokemon XG/XD HD Texture Pack V1.0 (https://forums.dolphin-emu.org/Thread-pokemon-xg-xd-hd-texture-pack-v1-0)",
+  "reason": "Made for the fan modification Pokémon XG: Next Gen, not for a retail disc: the Game ID it applies to is not established."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Pokémon Snap HD Texture Pack - Final (https://forums.dolphin-emu.org/Thread-pok%C3%A9mon-snap-hd-texture-pack-final)",
+  "reason": "The game is not established: the pages read name no Game ID and the thread title matches no disc title of the game database."
+ },
+ {
+  "console": "gc/wii",
+  "source": "texture pack from pokemon xd gale of darkness (xg next gen) (https://forums.dolphin-emu.org/Thread-texture-pack-from-pokemon-xd-gale-of-darkness-xg-next-gen)",
+  "reason": "Made for the fan modification Pokémon XG: Next Gen, not for a retail disc: the Game ID it applies to is not established."
+ },
+ {
+  "console": "gc/wii",
+  "source": "HD Texture Pack - Spider-Man 2: Webbed Up (https://forums.dolphin-emu.org/Thread-hd-texture-pack-spider-man-2-webbed-up)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Fire Emblem 10 Radiant Dawn: Remove grey padding in 16:9 mode (needs NTSC testing!) (https://forums.dolphin-emu.org/Thread-fire-emblem-10-radiant-dawn-remove-grey-padding-in-16-9-mode-needs-ntsc-testing)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Forecast Channel HD Textures (https://forums.dolphin-emu.org/Thread-forecast-channel-hd-textures)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Xbox One Controller Textures (https://forums.dolphin-emu.org/Thread-xbox-one-controller-textures)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Mario Kart Wii colorblind mode texture mod (https://forums.dolphin-emu.org/Thread-mario-kart-wii-colorblind-mode-texture-mod)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "The Twilight Princess HD Project (https://forums.dolphin-emu.org/Thread-the-twilight-princess-hd-project)",
+  "reason": "No download of the pack was found in the pages read: the thread links an emulator build site only."
+ },
+ {
+  "console": "gc/wii",
+  "source": "[WIP] The Legend Of Zelda TP HD retexture (https://forums.dolphin-emu.org/Thread-wip-the-legend-of-zelda-tp-hd-retexture)",
+  "reason": "The version of the game (GameCube or Wii) the pack was made for is not stated in the pages read."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Tony Hawk´s Pro Skater 3 Grip Retexture (https://forums.dolphin-emu.org/Thread-tony-hawk%C2%B4s-pro-skater-3-grip-retexture)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Super Mario Sunshine Painted Edition (https://forums.dolphin-emu.org/Thread-super-mario-sunshine-painted-edition)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "2KHS (NHL 2K11 mod) (https://forums.dolphin-emu.org/Thread-2khs-nhl-2k11-mod)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Zelda: Collector's Edition HD Texture Pack V2.1 (2018-03-27) (https://forums.dolphin-emu.org/Thread-zelda-collector-s-edition-hd-texture-pack-v2-1-2018-03-27)",
+  "reason": "The game is not established: the pages read name no Game ID and the thread title matches no disc title of the game database."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Metroid Other M Gravity Suit + Custom textures UPDATED August 10, 2015 (R3OE01) (https://forums.dolphin-emu.org/Thread-metroid-other-m-gravity-suit-custom-textures-updated-august-10-2015-r3oe01)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Metroid Prime Trilogy KBM UI Project (https://forums.dolphin-emu.org/Thread-metroid-prime-trilogy-kbm-ui-project)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Is it possible and has anyone done any Super NES retextures? (https://forums.dolphin-emu.org/Thread-is-it-possible-and-has-anyone-done-any-super-nes-retextures)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Super Mario Sunshine - Fix It Felix Outfit (Wreck It Ralph) (https://forums.dolphin-emu.org/Thread-super-mario-sunshine-fix-it-felix-outfit-wreck-it-ralph)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Xbox360 Controller Texture Project (https://forums.dolphin-emu.org/Thread-xbox360-controller-texture-project)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Metroid Prime HD Texture Reupload (https://forums.dolphin-emu.org/Thread-metroid-prime-hd-texture-reupload)",
+  "reason": "A re-upload of another author's pack by a third party: the original publication is not established, and the thread reports the link dead."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Sonic Adventure 2 Custom/Enhanced Skins for Sonic (https://forums.dolphin-emu.org/Thread-sonic-adventure-2-custom-enhanced-skins-for-sonic)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "[Release][Unofficial] Tool to Convert Glide64 And Dolphin Textures Automatically (https://forums.dolphin-emu.org/Thread-release-unofficial-tool-to-convert-glide64-and-dolphin-textures-automatically)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Luigi's Mansion- Specular Edition (https://forums.dolphin-emu.org/Thread-luigi-s-mansion-specular-edition)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Pikmin 2 HD textures (https://forums.dolphin-emu.org/Thread-pikmin-2-hd-textures)",
+  "reason": "The version of the game (GameCube or Wii) the pack was made for is not stated in the thread title, and the pages read name no Game ID."
+ },
+ {
+  "console": "gc/wii",
+  "source": "I can't create Normal Maps, please help! (https://forums.dolphin-emu.org/Thread-i-can-t-create-normal-maps-please-help)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Smash 3 HD Remix for Brawl/PM: Feb 4 (https://forums.dolphin-emu.org/Thread-smash-3-hd-remix-for-brawl-pm-feb-4)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Dolphin highres texture format problem (https://forums.dolphin-emu.org/Thread-dolphin-highres-texture-format-problem)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Old custom texture format (https://forums.dolphin-emu.org/Thread-old-custom-texture-format)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "[Request] Mario Party 2 HD (https://forums.dolphin-emu.org/Thread-request-mario-party-2-hd)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Legacy XP 2.0 BETA PlayStation Buttons add-on (https://forums.dolphin-emu.org/Thread-legacy-xp-2-0-beta-playstation-buttons-add-on)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "[Unofficial] resize-dolphin-pack (for Linux users) - shrink texture packs easily (https://forums.dolphin-emu.org/Thread-unofficial-resize-dolphin-pack-for-linux-users-shrink-texture-packs-easily)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Fire Emblem Series Playstation Button Pack (https://forums.dolphin-emu.org/Thread-fire-emblem-series-playstation-button-pack)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Twilight Princess to Wind Waker (https://forums.dolphin-emu.org/Thread-twilight-princess-to-wind-waker)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Zelda U Link Costume (Twilight Princess) (https://forums.dolphin-emu.org/Thread-zelda-u-link-costume-twilight-princess)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Mario Kart 64 HD Texture Pack (Virtual Console) (https://forums.dolphin-emu.org/Thread-mario-kart-64-hd-texture-pack-virtual-console)",
+  "reason": "The game is not established: the pages read name no Game ID and the thread title matches no disc title of the game database."
+ },
+ {
+  "console": "gc/wii",
+  "source": "[Remove Film Grain Effect] for Resident Evil Remake [GC&Wii] (https://forums.dolphin-emu.org/Thread-remove-film-grain-effect-for-resident-evil-remake-gc-wii)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Custom Textures verification issues (https://forums.dolphin-emu.org/Thread-green-notice-development-thread-custom-textures-verification-issues)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Resident Evil 0 (HD PACK) (https://forums.dolphin-emu.org/Thread-resident-evil-0-hd-pack)",
+  "reason": "No download link was found in the pages of the thread read by the review run (run 43958561872)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Hi-Res Textures (https://forums.dolphin-emu.org/Thread-hi-res-textures--17774)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Custom Texture Tool PS v52.5 (https://forums.dolphin-emu.org/Thread-custom-texture-tool-ps-v52-5)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "How to Install Texture Packs / Custom Textures Info (https://forums.dolphin-emu.org/Thread-how-to-install-texture-packs-custom-textures-info)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Introducing Dynamic Input Textures: a new feature for controller icons (https://forums.dolphin-emu.org/Thread-introducing-dynamic-input-textures-a-new-feature-for-controller-icons)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "Introducing Resource Packs: A new feature to manage and install texture packs (https://forums.dolphin-emu.org/Thread-introducing-resource-packs-a-new-feature-to-manage-and-install-texture-packs)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "How to start an HD Texture project (https://forums.dolphin-emu.org/Thread-red-notice-read-this-first-how-to-start-an-hd-texture-project)",
+  "reason": "Not an HD texture pack of one game (a question, a tool, a guide, a request, a button set, a costume or restyle, or an effect removal)."
+ }
+]
