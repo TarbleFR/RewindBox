@@ -317,14 +317,30 @@ class EnhancementCatalog {
       if (bytes == null) {
         if (!download) return null;
         final uri = base.resolve(relative.split('/').map(Uri.encodeComponent).join('/'));
-        final fetched = await _fetcher(uri, limit: size, onProgress: onProgress);
-        if (!_matches(fetched, meta)) throw EnhancementException('origin_integrity', relative);
-        await _writeAtomically(file, fetched);
-        bytes = fetched;
+        try {
+          final fetched = await _fetcher(uri, limit: size, onProgress: onProgress);
+          if (!_matches(fetched, meta)) throw EnhancementException('origin_integrity', relative);
+          await _writeAtomically(file, fetched);
+          bytes = fetched;
+        } catch (error) {
+          // A source that cannot be reached, or no longer serves the pinned bytes, must not take
+          // away what the record offers without it (the PS2 engine's own patches).
+          final partial = EnhancementOrigin.withoutOrigin(engine, record);
+          if (partial == null) rethrow;
+          _log.w('Enhancements: $relative unavailable from its source ($error); its entries are left out');
+          return partial;
+        }
       }
       contents.add(bytes);
     }
-    return EnhancementOrigin.resolve(engine, record, contents);
+    try {
+      return EnhancementOrigin.resolve(engine, record, contents);
+    } on EnhancementException catch (error) {
+      final partial = EnhancementOrigin.withoutOrigin(engine, record);
+      if (partial == null) rethrow;
+      _log.w('Enhancements: origin files refused ($error); their entries are left out');
+      return partial;
+    }
   }
 
   bool _matches(Uint8List bytes, Map<String, dynamic> meta) =>

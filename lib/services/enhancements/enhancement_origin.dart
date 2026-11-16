@@ -54,6 +54,32 @@ abstract final class EnhancementOrigin {
     }
   }
 
+  /// The record without what it reads from its sources' files, for an engine
+  /// whose record stays useful without them; null when the whole record
+  /// depends on them (Switch).
+  ///
+  /// A PS2 record also lists the patches the engine itself ships, enabled by
+  /// name. They must stay usable when a source cannot be reached or no longer
+  /// serves the pinned bytes: the cheat files built from pointers are left
+  /// out, with the entries that need them.
+  static Map<String, dynamic>? withoutOrigin(EnhancementEngine engine, Map<String, dynamic> record) {
+    if (engine != EnhancementEngine.armsx2) return null;
+    final files = <String, dynamic>{
+      for (final item in (record['files'] as Map? ?? const {}).entries)
+        if (item.value is Map && (item.value as Map)['text'] is String) item.key.toString(): item.value,
+    };
+    final entries = [
+      for (final entry in (record['entries'] as List? ?? const []))
+        if (entry is Map && (entry['kind'] != 'cheat' || files.containsKey(entry['crc']))) entry,
+    ];
+    return {
+      for (final field in record.entries)
+        if (field.key != 'origin') field.key: field.value,
+      'files': files,
+      'entries': entries,
+    };
+  }
+
   /// PS2 cheat files: `parts` alternates RewindBox's own text with pointers
   /// `[file, start, end]` to the lines of a group in a source's pnach file.
   /// The text is rebuilt as the builder wrote it (strict UTF-8, carriage
