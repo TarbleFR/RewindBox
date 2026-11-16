@@ -1,6 +1,6 @@
 {
   "status": "verified",
-  "packagedFingerprint": "8d6010a3ad429592e20e97026a7fa12401ceb831db96077d9de1d6050165b257",
+  "packagedFingerprint": "067f139aa9da93ede94d567cc5d2c693ca2e73330bb96de00d6f68a03a268cb9",
   "producers": {
     "engine": {
       "run": 43806716837,
@@ -13,8 +13,8 @@
       "headBranch": "Claude",
       "expiresAt": "2026-12-16T05:03:56Z",
       "members": {
-        "S2ArmEngine.framework.zip": "1f9b6c01b4b5cfd117514591541f15e32043c0965ece985c8c6518ea6ee7ba88",
-        "NS2Pro.framework.zip": "61111adf6977cde3bd5e7574258e2ad93b12ab2247d22d1c01d6956eb5452fcc"
+        "S2ArmEngine.framework.zip": "dc9740523bb965bb0a7fcc63a1ac65cb7673b29ada559d646b79e6adc5e8b727",
+        "NS2Pro.framework.zip": "d1f4432566dd31973b8661b06db8169361994d5e0ca064e8863e50723feaa152"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "0b34b5a5d995da4e1212063825649ae40c6b02c5be87b5316fff8a1874f45071",
+    "engine": "06c5f67537a88b115745c45e29cb61e9a6993c788672dc19e3e65c570f9ea03b",
     "prepare": "aef8aafb38aa456defbdf16b3194716c32b2051b76a38bc68640d91f098fc87f",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -90,9 +90,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "d309801d39ed4755eb5909d1a27fa4cc73353a2d41e14dcdbdc43d077872285c",
-      "bytes": 107529632,
-      "fingerprint": "8d6010a3ad429592e20e97026a7fa12401ceb831db96077d9de1d6050165b257"
+      "sha256": "a1d70fe42c518a90c28f96c39783f4b7253f88c2123ab37c2958709939f71cfe",
+      "bytes": 107529976,
+      "fingerprint": "067f139aa9da93ede94d567cc5d2c693ca2e73330bb96de00d6f68a03a268cb9"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -125,9 +125,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 43794475005,
+      "run": 43806716837,
       "attempt": 1,
-      "head_sha": "8b1ddaa6822e603461d06a781add9fd3ac4a8337",
+      "head_sha": "21a3d3974b901c6cad533f941f3c0c3aadf1d70d",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -318,11 +318,15 @@
         {
           "name": "0047-upstream-packaged-layout-nibbles-and-minimal-layout.patch",
           "sha256": "c60de838e46a38c6321f47517a7364b4c7088f36ffe63c20495ff20f8a5e4e40"
+        },
+        {
+          "name": "0048-terrain-tiles-keep-render-target-use-and-capture-of-every-draw.patch",
+          "sha256": "cba37eb23bdbda6c4e79ccba63b7f23e4e11ca5e749a57fb4c3156b4dce102a8"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "1f9b6c01b4b5cfd117514591541f15e32043c0965ece985c8c6518ea6ee7ba88",
-        "NS2Pro.framework.zip": "61111adf6977cde3bd5e7574258e2ad93b12ab2247d22d1c01d6956eb5452fcc"
+        "S2ArmEngine.framework.zip": "dc9740523bb965bb0a7fcc63a1ac65cb7673b29ada559d646b79e6adc5e8b727",
+        "NS2Pro.framework.zip": "d1f4432566dd31973b8661b06db8169361994d5e0ca064e8863e50723feaa152"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
