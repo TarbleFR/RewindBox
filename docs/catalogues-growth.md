@@ -95,11 +95,11 @@ Before: commit `d4a494a`. Reproduce with
 
 | Catalogue | Before | After |
 | --- | --- | --- |
-| Enhancements: sources | 11 | 16 |
-| Enhancements: entries | 47,184 | 50,462 |
+| Enhancements: sources | 11 | 18 |
+| Enhancements: entries | 47,184 | 50,600 |
 | Enhancements: PS2 games / entries | 4,221 / 6,223 | 4,618 / 9,251 |
-| Enhancements: Switch games / entries | 2,285 / 36,980 | 2,306 / 37,230 |
-| Enhancements: entries by reference (not hosted) | 36,980 | 40,244 |
+| Enhancements: Switch games / entries | 2,285 / 36,980 | 2,325 / 37,368 |
+| Enhancements: entries by reference (not hosted) | 36,980 | 40,382 |
 | HD textures: references (sources) | 1,124 (457) | 1,319 (619) |
 | HD textures: page links | 615 | 810 |
 | HD textures: one-tap profiles (distinct families) | 509 (424) | 509 (424) |
@@ -112,7 +112,9 @@ Before: commit `d4a494a`. Reproduce with
   Gabominated/PCSX2 (850), Saramagrean/NetherSX2-cheats (767) and
   PeterDelta/PCSX2 (390). Switch exefs patches of
   KeatonTheBot/switch-pchtxt-mods are read the same way (250 mods of 60
-  titles). dolphin-emu and Slippi moved to their heads without a new entry
+  titles), then those of StevensND/switch-port-mods and
+  StevensND/ue4-emuswitch-60fps (138 mods of 56 titles; their author
+  forbids re-uploads, and nothing of them is hosted). dolphin-emu and Slippi moved to their heads without a new entry
   in the listed categories.
 - **HD textures.** ps2ktxpak moved from `807733e5` to `1d6cfc3b` (+41 page
   links, 10 entries withdrawn at their creators' or the catalogue's request,

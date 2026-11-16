@@ -144,6 +144,17 @@ rebuilt the 585 texts on 16 November 2026; a mod is kept only with every
 patch it was published with. Resolution and aspect-ratio mods of one title
 share the group `display/<Title ID>`: one at a time.
 
+StevensND/switch-port-mods and StevensND/ue4-emuswitch-60fps are read the
+same way (`<game>/[<Title ID>]/<mod>/<version>.pchtxt`, no `exefs` folder;
+138 mods of 56 titles, 233 patch files, each checked against the source on
+16 November 2026). A folder that only repeats the version is not part of a
+mod's name. A mod whose name another source already uses for the title
+carries its author's name. The credit of a title is the one its readme
+states, the readme nearest to the patch file first: several mods credit
+other authors (masagrator, systemdev, Kirby567fan, Fl4sh). The author does
+not allow his mods to be re-uploaded to other sites; nothing of them is
+hosted here.
+
 When a source cannot be reached, or no longer serves the pinned bytes, the
 rest of a record stays usable: a PS2 record is returned without the cheat
 files built from pointers (the engine's own patches remain), and a Switch
@@ -226,8 +237,8 @@ those patches stable.
 
 ## Sources
 
-16 pinned sources, 50,462 entries (catalogue revision
-`2026-11-16T2112Z.a85f516925ab`; 47,184 entries from 11 sources in
+18 pinned sources, 50,600 entries (catalogue revision
+`2026-11-16T2139Z.d8b055350a6c`; 47,184 entries from 11 sources in
 `2026-10-28.209508f70e51`). A source is hosted only when its licence allows
 redistribution; content the embedded engine already ships is referenced by
 name; a source without a licence is read by reference (see Origin download
@@ -239,6 +250,8 @@ of `python3 tools/catalogues/report.py`.
 | --- | --- | --- | ---: | --- |
 | MeloNX | [HamletDuFromage/switch-cheats-db](https://github.com/HamletDuFromage/switch-cheats-db) (GBAtemp main cheat file, ChanseyIsTheBest 60 FPS/graphics) | `109766ab21c7` | 36,980 | none: **not hosted**, downloaded from the source by the app |
 | MeloNX | [KeatonTheBot/switch-pchtxt-mods](https://github.com/KeatonTheBot/switch-pchtxt-mods) (exefs patches: resolution, frame rate, effects) | `e882d7a82737` | 250 | none: **not hosted**, downloaded from the source by the app |
+| MeloNX | [StevensND/switch-port-mods](https://github.com/StevensND/switch-port-mods) (exefs patches: frame rate, resolution, aspect ratio) | `774e7f7c8556` | 99 | none, re-upload forbidden by the author: **not hosted**, downloaded from the source by the app |
+| MeloNX | [StevensND/ue4-emuswitch-60fps](https://github.com/StevensND/ue4-emuswitch-60fps) (exefs patches of Unreal Engine games) | `53c69bf93c2f` | 39 | none, re-upload forbidden by the author: **not hosted**, downloaded from the source by the app |
 | RPCS3 | [RPCS3 game patches](https://wiki.rpcs3.net/index.php?title=Help:Game_Patches) via `rpcs3.net/compatibility?patch&api=v1&v=1.2` | content `f1f3cab0c8fe…` | 3,643 | CC BY-SA 4.0 (browser-verified 28 October 2026; page-specific exceptions apply) |
 | ARMSX2 | [ARMSX2 `patches.zip`](https://github.com/ARMSX2/ARMSX2/blob/9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe/platforms/ios/app/src/main/assets/resources/patches.zip) (the engine's own patch set, names and author credits only) | `9d989ca933a8` | 6,092 | shipped by the engine; nothing redistributed |
 | ARMSX2 | [CookiePLMonster/Console-Cheat-Codes](https://github.com/CookiePLMonster/Console-Cheat-Codes) (PS2) | `f63492f8ce9b` | 93 | MIT |
@@ -341,8 +354,11 @@ server code.
   can come back when its authors grant a licence or written permission.
 - **Read by reference (not hosted).** switch-cheats-db (28 October 2026),
   then PCSX2/pcsx2_patches, PeterDelta/PCSX2, Gabominated/PCSX2,
-  Saramagrean/NetherSX2-cheats and KeatonTheBot/switch-pchtxt-mods
-  (16 November 2026). None states a licence and none states a restriction
+  Saramagrean/NetherSX2-cheats, KeatonTheBot/switch-pchtxt-mods,
+  StevensND/switch-port-mods and StevensND/ue4-emuswitch-60fps
+  (16 November 2026). None states a licence; StevensND forbids re-uploading
+  his mods to other sites, which reading them from his repository does not
+  do; the others state no restriction
   (READMEs and repository files read at the pinned revisions; pcsx2_patches
   exists to distribute patches to the emulator, and Gabominated's README
   describes the in-app download of its patches by ARMSX2). RewindBox hosts
@@ -393,10 +409,10 @@ Publication never rewrites a file an app may still ask for.
   first two publications of 16 November 2026, 27 Switch shards in the
   third; the PS3 and Dolphin shards were never fetched again).
 - A revision is the UTC date and time, then a digest
-  (`2026-11-16T2112Z.a85f516925ab`): the app keeps the later string.
+  (`2026-11-16T2139Z.d8b055350a6c`): the app keeps the later string.
 - Record formats: 1 is the first publication; 2 added PS2 records by
   reference (revisions `…T2042Z` and `…T2109Z`); 3 added Switch exefs
-  patches by reference (`…T2112Z`). An app built for format 2 keeps the last
+  patches by reference (`…T2112Z`, `…T2139Z`). An app built for format 2 keeps the last
   format-2 index: it would fail a title whose record lists a patch file.
 - The first publication (`index.json.gz` and `shards/` at the root,
   `2026-10-28.209508f70e51`, record format 1) is frozen. The apps that

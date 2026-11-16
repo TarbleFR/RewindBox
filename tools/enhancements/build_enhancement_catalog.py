@@ -97,6 +97,35 @@ SOURCES = {
         'license': 'No licence; the patches belong to KeatonTheBot. Not hosted by RewindBox: the app downloads each '
                    'patch file from this repository and revision.',
         'engines': ['melonx'],
+        'author': 'KeatonTheBot',
+    },
+    # Same kind of patches, laid out <game>/[<Title ID>]/<mod>/<version>.pchtxt (no exefs folder).
+    'stevensnd-port-mods': {
+        'name': 'StevensND/switch-port-mods (exefs patches: frame rate, resolution, aspect ratio)',
+        'url': 'https://github.com/StevensND/switch-port-mods',
+        'git': 'https://github.com/StevensND/switch-port-mods.git',
+        'revision': '774e7f7c85561ddd865c1cab555f2a335054d522',
+        'origin': 'https://raw.githubusercontent.com/StevensND/switch-port-mods/'
+                  '774e7f7c85561ddd865c1cab555f2a335054d522/',
+        'license': 'No licence; the patches belong to StevensND and to the authors each readme credits. Not hosted by '
+                   'RewindBox: the app downloads each patch file from this repository and revision.',
+        'engines': ['melonx'],
+        'author': 'StevensND',
+        'layout': 'bracket',
+    },
+    'stevensnd-ue4-mods': {
+        'name': 'StevensND/ue4-emuswitch-60fps (exefs patches of Unreal Engine games: frame rate, resolution, effects)',
+        'url': 'https://github.com/StevensND/ue4-emuswitch-60fps',
+        'git': 'https://github.com/StevensND/ue4-emuswitch-60fps.git',
+        'revision': '53c69bf93c2f79a6a0e6e7a46f26ea0f0010f06c',
+        'origin': 'https://raw.githubusercontent.com/StevensND/ue4-emuswitch-60fps/'
+                  '53c69bf93c2f79a6a0e6e7a46f26ea0f0010f06c/',
+        'license': 'No licence; the patches belong to StevensND and to the authors each readme credits. The author '
+                   'does not allow his mods to be re-uploaded to other sites: RewindBox hosts none of them, the app '
+                   'downloads each patch file from this repository and revision.',
+        'engines': ['melonx'],
+        'author': 'StevensND',
+        'layout': 'bracket',
     },
     # ------------------------------------------------------------ RPCS3
     'rpcs3-patches': {
@@ -396,7 +425,9 @@ def switch_restricted_titles(scdb, matias):
 
 PCHTXT_HEADER = re.compile(r'^@nsobid-([0-9A-Fa-f]{32,64})$')
 # Choices that patch the same values of a game (render resolution, aspect ratio): one at a time.
-SWITCH_DISPLAY = re.compile(r'\b\d{3,4}p\b|\b[24581]K\b|ultra ?wide|\b\d{1,2} ?[:.] ?\d{1,2}\b|\bSSAA\b', re.I)
+SWITCH_DISPLAY = re.compile(r'\b\d{3,4}p\b|\b\d{3,4} ?x ?\d{3,4}\b|\b[24581]K\b|ultra ?wide|\b\d{1,2} ?[:.] ?\d{1,2}\b|\bSSAA\b', re.I)
+BRACKET_TITLE = re.compile(r'^(?:.* )?\[(0100[0-9A-Fa-f]{12})\]$')
+VERSION_NAME = re.compile(r'^v?\d+(?:\.\d+)+$', re.I)
 
 
 def pchtxt_text(raw):
@@ -422,15 +453,59 @@ def pchtxt_text(raw):
     return (bid, body) if len(body) <= 64 * 1024 else None
 
 
+def readme_credits(folder):
+    """Credits a title's readme states (after "Credits:" or under a "Credits" heading), as one line.
+
+    Links keep their text only; support and donation lines are not credits."""
+    for name in ('readme.md', 'README.md', 'Readme.md'):
+        if (folder / name).is_file():
+            lines = (folder / name).read_text(encoding='utf-8', errors='replace').replace('\r', '').split('\n')
+            break
+    else:
+        return ''
+    found = []
+    for index, line in enumerate(lines):
+        inline = re.match(r'^\s*\**Credits\**\s*:\**\s*(.*)$', line, re.I)
+        heading = re.match(r'^#+\s*Credits\s*$', line, re.I)
+        if inline and inline.group(1).strip():
+            found.append(inline.group(1))
+        elif inline or heading:
+            for following in lines[index + 1:index + 14]:
+                if following.startswith('#'):
+                    break
+                found.append(following)
+        original = re.search(r'orig\w* made by \[?([\w .-]{2,40})', line, re.I)
+        if original:
+            found.append(f'{original.group(1).strip()} (original author)')
+    names = []
+    for line in found:
+        line = re.sub(r'\[([^\]]+)\]\([^)]*\)', r'\1', line).strip().lstrip('-*').strip().strip('*').strip()
+        if not line or re.search(r'https?://|ko-?fi|donate|support', line, re.I):
+            continue
+        if line.casefold() not in {name.casefold() for name in names}:
+            names.append(line)
+    return clean_label(', '.join(names), 200).rstrip('. ')
+
+
 def build_melonx_exefs(root, source_id, titles, restricted, stats):
     """Exefs patches of a repository laid out <game>/<Title ID>/<mod>/exefs/<version>.pchtxt,
     by reference: per mod, one pointer per patch file (Build ID, origin file, size and SHA-256
     of the text the app writes). Nothing of the patch itself is published."""
     mods = {}
-    for path in sorted(root.glob('*/*/**/exefs/*.pchtxt')):
+    bracket = SOURCES[source_id].get('layout') == 'bracket'
+    for path in sorted(root.glob('*/*/**/*.pchtxt' if bracket else '*/*/**/exefs/*.pchtxt')):
         parts = path.relative_to(root).parts
-        tid = parts[1].upper()
-        name = clean_label(' - '.join(parts[2:-2]), 120)
+        if bracket:
+            # <game>/[<Title ID>]/<mod>/<version>.pchtxt; a folder that only repeats the version is not part of the name.
+            named = BRACKET_TITLE.match(parts[1])
+            tid = named.group(1).upper() if named else ''
+            folders = [part for part in parts[2:-1] if part.casefold() != 'exefs']
+            if len(folders) > 1 and folders[-1] == path.stem and VERSION_NAME.match(folders[-1]):
+                folders = folders[:-1]
+            name = clean_label(' - '.join(folders), 120)
+        else:
+            tid = parts[1].upper()
+            name = clean_label(' - '.join(parts[2:-2]), 120)
         if not SWITCH_TITLE.match(tid) or not name:
             stats['melonx_exefs_rejected'] += 1
             continue
@@ -443,7 +518,9 @@ def build_melonx_exefs(root, source_id, titles, restricted, stats):
             stats['melonx_exefs_rejected'] += 1
             continue
         bid, text = read
-        mod = mods.setdefault((tid, name.casefold()), {'tid': tid, 'name': name, 'game': parts[0], 'files': {}})
+        mod = mods.setdefault((tid, name.casefold()), {'tid': tid, 'name': name, 'game': parts[0], 'files': {},
+                                                       'folders': [root.joinpath(*parts[:depth])
+                                                                   for depth in range(len(parts) - 1, 1, -1)]})
         if bid in mod['files']:
             stats['melonx_exefs_rejected'] += 1  # two files of one mod for the same executable
             continue
@@ -454,20 +531,37 @@ def build_melonx_exefs(root, source_id, titles, restricted, stats):
     for (tid, _), mod in sorted(mods.items()):
         record = titles.setdefault(tid, {'title': '', 'credits': [], 'origin': [], 'master': {}, 'entries': {}, 'seen': {}})
         record['title'] = record['title'] or clean_label(mod['game'], 120)
-        credit = f'Exefs patches by KeatonTheBot ({SOURCES[source_id]["url"]}).'
+        author = SOURCES[source_id]['author']
+        credit = f'Exefs patches by {author} ({SOURCES[source_id]["url"]}).'
+        # The readme nearest to the patch file speaks for it: the mod's own, else the title's.
+        stated = next(filter(None, map(readme_credits, mod['folders'])), '') if bracket else ''
+        if stated and stated.casefold() != author.casefold():
+            # The title's readme credits other people than the repository's owner: its words are kept.
+            credit = f'Exefs patches published by {author} ({SOURCES[source_id]["url"]}); credits of its readme: {stated}.'
         if credit not in record['credits']:
             record['credits'].append(credit)
         key = 'exefs/' + mod['name'].casefold()
         if key in record['entries']:
-            stats['melonx_exefs_rejected'] += 1
-            continue
+            if record['entries'][key]['source'] == source_id:
+                stats['melonx_exefs_rejected'] += 1
+                continue
+            # The same mod name from another author: both stay, the later one carries its author's name.
+            mod['name'] = clean_label(f"{mod['name']} ({author})", 120)
+            key = 'exefs/' + mod['name'].casefold()
+            if key in record['entries']:
+                stats['melonx_exefs_rejected'] += 1
+                continue
+            stats['melonx_exefs_same_name'] += 1
         patches = []
         for bid, item in sorted(mod['files'].items()):
             record['origin'].append({'source': source_id, 'path': item['path'], 'size': item['raw_size'],
                                      'sha256': item['raw_sha256']})
             patches.append({'bid': bid, 'o': len(record['origin']) - 1, 'size': item['size'], 'sha256': item['sha256']})
         category = classify(mod['name'], 'graphics')
-        entry = {'id': stable_id('melonx', tid, 'exefs', mod['name'].casefold()), 'cat': category, 'name': mod['name'],
+        # The first source's IDs are published: they keep their shape; a later source's ID carries its source.
+        identity = ('melonx', tid, 'exefs', mod['name'].casefold()) if not bracket else \
+            ('melonx', tid, 'exefs', source_id, mod['name'].casefold())
+        entry = {'id': stable_id(*identity), 'cat': category, 'name': mod['name'],
                  'source': source_id, 'exefs': patches}
         if SWITCH_DISPLAY.search(mod['name']):
             entry['group'] = f'display/{tid}'
@@ -1224,7 +1318,8 @@ def main():
         elif engine == 'melonx':
             engines[engine] = build_melonx(git['switch-cheats-db'],
                                            fetch_git(args.cache, 'gbatemp-matias3ds', args.offline), stats,
-                                           exefs=[(git['keatonthebot-pchtxt'], 'keatonthebot-pchtxt')])
+                                           exefs=[(git[source_id], source_id) for source_id in
+                                                  ('keatonthebot-pchtxt', 'stevensnd-port-mods', 'stevensnd-ue4-mods')])
         elif engine == 'rpcs3':
             engines[engine] = build_rpcs3(fetch_rpcs3(args.cache, args.offline), stats)
         elif engine == 'armsx2':

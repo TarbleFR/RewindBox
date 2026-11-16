@@ -25,6 +25,9 @@ def load(path):
     return json.loads(gzip.decompress(path.read_bytes()))
 
 
+EXEFS_SOURCES = ('keatonthebot-pchtxt', 'stevensnd-port-mods', 'stevensnd-ue4-mods')
+
+
 class CatalogueData(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -100,9 +103,13 @@ class CatalogueData(unittest.TestCase):
                 if origin['source'] == 'switch-cheats-db':
                     self.assertRegex(origin['path'], r'^cheats(_gfx)?/0100[0-9A-F]{12}\.json$')
                 else:
-                    # An exefs patch file of a source read by reference: <game>/<Title ID>/<mod>/exefs/<version>.pchtxt.
-                    self.assertEqual(origin['source'], 'keatonthebot-pchtxt')
-                    self.assertRegex(origin['path'], r'^[^/]+/' + title + r'/.+/exefs/[^/]+\.pchtxt$', re.I)
+                    # An exefs patch file of a source read by reference: <game>/<Title ID>/<mod>/exefs/<version>.pchtxt,
+                    # or <game>/[<Title ID>]/<mod>/<version>.pchtxt.
+                    self.assertIn(origin['source'], EXEFS_SOURCES)
+                    if origin['source'] == 'keatonthebot-pchtxt':
+                        self.assertRegex(origin['path'], r'^[^/]+/' + title + r'/.+/exefs/[^/]+\.pchtxt$', re.I)
+                    else:
+                        self.assertRegex(origin['path'], r'^[^/]+/(?:[^/]* )?\[' + title + r'\]/.+/[^/]+\.pchtxt$', re.I)
                     self.assertNotIn('..', origin['path'].split('/'))
                 self.assertRegex(origin['sha256'], r'^[0-9a-f]{64}$')
                 self.assertLessEqual(origin['size'], 16 << 20)
@@ -119,13 +126,13 @@ class CatalogueData(unittest.TestCase):
                 count += 1
                 if 'exefs' in entry:
                     # Exefs patches by reference: a Build ID and a pointer to the source's file, never its text.
-                    self.assertEqual(entry['source'], 'keatonthebot-pchtxt')
+                    self.assertIn(entry['source'], EXEFS_SOURCES)
                     self.assertNotIn('builds', entry)
                     self.assertTrue(entry['exefs'])
                     for patch in entry['exefs']:
                         self.assertEqual(set(patch), {'bid', 'o', 'size', 'sha256'})
                         self.assertRegex(patch['bid'], r'^[0-9A-F]{32,64}$')
-                        self.assertEqual(files[patch['o']]['source'], 'keatonthebot-pchtxt')
+                        self.assertEqual(files[patch['o']]['source'], entry['source'])
                         self.assertRegex(patch['sha256'], r'^[0-9a-f]{64}$')
                         self.assertLessEqual(patch['size'], 64 * 1024)
                     continue
@@ -239,7 +246,7 @@ class CatalogueData(unittest.TestCase):
     def test_sources_carry_attribution(self):
         sources = {s['id']: s for s in self.index['sources']}
         self.assertEqual(set(sources), {
-            'switch-cheats-db', 'keatonthebot-pchtxt', 'rpcs3-patches',
+            'switch-cheats-db', 'keatonthebot-pchtxt', 'stevensnd-port-mods', 'stevensnd-ue4-mods', 'rpcs3-patches',
             'armsx2-patches-zip', 'cookieplmonster-ccc', 'aerowidescreen-pcsx2',
             'pcsx2-patches', 'peterdelta-pcsx2', 'gabominated-pcsx2', 'nethersx2-cheats',
             'dolphin-gamesettings', 'dolphin-upstream', 'ishiiruka-gamesettings', 'slippi-gamesettings',

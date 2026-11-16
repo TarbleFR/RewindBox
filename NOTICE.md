@@ -198,7 +198,9 @@ embedded engine does not already ship), PeterDelta/PCSX2
 52187122e0adf73a50869b52ce9143e878ab4129, with pointers (byte ranges) into
 their files; and the names of the exefs patches of
 KeatonTheBot/switch-pchtxt-mods e882d7a8273783a981efcb2eeb38a580307bbce4,
-with pointers to their patch files. The application downloads a game's
+StevensND/switch-port-mods 774e7f7c85561ddd865c1cab555f2a335054d522 and
+StevensND/ue4-emuswitch-60fps 53c69bf93c2f79a6a0e6e7a46f26ea0f0010f06c
+(with the credits their readmes state), with pointers to their patch files. The application downloads a game's
 original file from the source repository at that revision, checks its
 SHA-256 and writes the selected groups or patches. These sources state no
 licence; each patch belongs to the author its file names
