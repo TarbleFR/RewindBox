@@ -518,6 +518,12 @@ prepared = (ROOT / 'native/melonx/EmbeddedPerformanceDiagnostics.cs').read_text(
 for before, after in DIAGNOSTIC_EDITS:
     check(prepared.count(before) == 1, 'Collector anchor drift')
     prepared = prepared.replace(before, after)
+# Lot after IPA 748-751 (plan 748 rank 7): adapt_stall_compaction_drain_guard adds RenderDrainInFlightMs to the collector
+# (after the array-delta edits; the payload rows and counters below are unchanged).
+import adapt_stall_compaction_drain_guard as drain_guard  # noqa: E402
+for before, after in drain_guard.FILE_PAIRS[drain_guard.DIAGNOSTICS]:
+    check(prepared.count(before) == 1, 'Collector anchor drift (drain guard)')
+    prepared = prepared.replace(before, after)
 
 
 def listed(pattern):
@@ -818,6 +824,11 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_render_command_clock.py',
                                                      # Lot after IPA 748-751, plan 748 rank 18.
                                                      'build-utils/melonx/adapt_replay_integer_mask.py',
+                                                     # Lot after IPA 748-751, plan 748 ranks 2, 7, 10 and 11.
+                                                     'build-utils/melonx/adapt_keepalive_after_ephemeral.py',
+                                                     'build-utils/melonx/adapt_stall_compaction_drain_guard.py',
+                                                     'build-utils/melonx/adapt_pacer_margin_decay.py',
+                                                     'build-utils/melonx/adapt_device_critical_trim.py',
                                                      # Nextendo online lot: its adapter and the engine class it adds.
                                                      'build-utils/melonx/adapt_nextendo_online.py',
                                                      'native/melonx/EmbeddedOnline.cs'} and
@@ -835,8 +846,10 @@ if not args.helpers_only:
           'Only GraphicsConfig.cs, Window.cs, TextureStorage.cs, ResourceArray.cs, PipelineLayoutCacheEntry.cs the four warm-up parity members, the GPU Window, KProcess and the two SurfaceFlinger files join the prepared source')
     # The prepared members that differ from the delivered source are exactly the reviewed changes.
     baseline = {**frozen['baselinePreparedMembers'], **frozen['baselineUnadaptedMembers']}
-    check(set(frozen['preparedMembers']) == set(baseline) and
-          {path for path, value in frozen['preparedMembers'].items() if baseline[path] != value} == CHANGES,
+    # The Nextendo online lot's declared addition (EmbeddedOnline.cs) is a prepared member the delivered source never had.
+    added = set(frozen['productionAdditions'])
+    check(set(frozen['preparedMembers']) - added == set(baseline) and
+          {path for path, value in frozen['preparedMembers'].items() if path not in added and baseline[path] != value} == CHANGES,
           'Prepared source differs from the delivered one outside the reviewed changes')
     collector = hashlib.sha256(prepared.encode('utf-8')).hexdigest()
     check(collector == frozen['preparedMembers'][DIAGNOSTICS] and collector != arrays_frozen['preparedMembers'][DIAGNOSTICS],
@@ -930,7 +943,7 @@ if not args.helpers_only:
     # Core 745: IGeneralService.cs (Ryujinx.HLE) and Library.cs are bound by the nifm gate, which builds the production
     # Ryujinx.HLE and Ryujinx.Library from the final preparation; the paced syncs' three files by theirs, which builds
     # the production Vulkan, Gpu and Library assemblies (GpuContext.cs and AutoFlushCounter.cs stay in the GPU closure).
-    check(set(C745_NIFM_NETWORK_WATCH) == set(gate['nifm-network-watch']['requiredPostimages']) and
+    check(set(C745_NIFM_NETWORK_WATCH) | set(C768_NEXTENDO_ONLINE) | {C768_ONLINE_ADDITION} == set(gate['nifm-network-watch']['requiredPostimages']) and
           gate['nifm-network-watch']['assertions'].get('productionHleAssemblyBuilt') is True and
           gate['nifm-network-watch']['assertions'].get('productionLibraryAssemblyBuilt') is True and
           gate['nifm-network-watch']['assertions'].get('candidateSwitchesKeptOfEleven') == 0 and
@@ -950,7 +963,8 @@ if not args.helpers_only:
           gate['collection-class']['assertions'].get('productionLibraryAssemblyBuilt') is True and
           gate['collection-class']['assertions'].get('bytesAllocatedInsideCollections') == 0 and
           gate['collection-class']['assertions'].get('mostOverridesAtOnce') == 1 and
-          set(C745_STALL_COMPACTION) == set(gate['stall-compaction']['requiredPostimages']) and
+          # Plan 748 rank 7: the drain guard's accessor in the collector joins the stall-compaction gate's scope.
+          set(C745_STALL_COMPACTION) | {drain_guard.DIAGNOSTICS} == set(gate['stall-compaction']['requiredPostimages']) and
           gate['stall-compaction']['assertions'].get('productionLibraryAssemblyBuilt') is True and
           gate['stall-compaction']['assertions'].get('compactionsDuringPresentedFrames') == 0 and
           gate['stall-compaction']['assertions'].get('replay729FiredInPlay') == 0 and
@@ -1037,6 +1051,8 @@ if not args.helpers_only:
     OUTSIDE_GPU |= {C747_SPIN_EVENT}
     # Core 749 candidate: PreciseSleepHelper.cs likewise; its gate (darwin-timed-waits) builds Ryujinx.Common and HLE.
     OUTSIDE_GPU |= {C749_TIMED_WAITS}
+    # Nextendo online lot: its five HLE files and EmbeddedContent.cs are outside the GPU closure; nifm-network-watch builds them.
+    OUTSIDE_GPU |= set(C768_NEXTENDO_ONLINE)
     check(CHANGES - OUTSIDE_GPU <= set(gate['fragmented-reads']['requiredPostimages']) and
           # Library.cs and the two HLE files (Core 647) are outside the GPU/Vulkan closure; their own gates bind them.
           CHANGES - {LIBRARY} - OUTSIDE_GPU <= {b['productionPath'] for b in gate['fragmented-reads']['compiledBindings']},
@@ -1098,7 +1114,9 @@ if not args.helpers_only:
                                             # Core 747: AsyncWorkQueue.cs likewise (its gate rebuilds its control).
                                             path != C747_SPIN_EVENT and
                                             # Core 749 candidate: PreciseSleepHelper.cs likewise.
-                                            path != C749_TIMED_WAITS}},
+                                            path != C749_TIMED_WAITS and
+                                            # Nextendo online lot: its five HLE files likewise (nifm-network-watch).
+                                            path not in C768_NEXTENDO_ONLINE}},
                         'ada': arrays_frozen['controlUnadaptedMembers']['ada']},
           'Control-only upstream inventories differ from the arrays contract plus the files joining the prepared source')
     rejects(lambda: verify.check_control_inventories({**frozen, 'controlUnadaptedMembers': {k: v for k, v in unadapted.items() if k != 'ada'}}),
