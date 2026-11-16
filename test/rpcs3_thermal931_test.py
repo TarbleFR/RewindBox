@@ -90,9 +90,16 @@ def source_errors(texts: dict[str, str]) -> list[str]:
         errors.append('the destructor no longer calls record_writer_lock after the release')
 
     # RSX FIFO idle: monitor wait on PUT, then the yield as before.
-    if not re.search(r'const void\* ios_word = &m_ctrl->put\.raw\(\);\s*const u32 ios_seen = rpcs3::ios::event_wait::load32\(ios_word\);\s*be_t<u32> ios_put\{\};'
-                     r'\s*std::memcpy\(&ios_put, &ios_seen, sizeof\(ios_seen\)\);\s*if \(static_cast<u32>\(ios_put\) == m_internal_get && !m_remaining_commands\)\s*\{\s*'
-                     r'rpcs3::ios::event_wait::once32\(ios_word, ios_seen\);\s*rpcs3::ios::thermal::count\(rpcs3::ios::thermal::rsx_idle\);\s*\}\s*\}\s*#endif\s*std::this_thread::yield\(\);', fifo):
+    # Core 941 (REWINDBOX_RSX_IDLE_941): the same wait, in a bounded loop of turns; a turn is only taken while PUT equals GET
+    # on the compared value, and the yield stays after the loop. Core 931 to 940 have the single turn.
+    single = (r'const void\* ios_word = &m_ctrl->put\.raw\(\);\s*const u32 ios_seen = rpcs3::ios::event_wait::load32\(ios_word\);\s*be_t<u32> ios_put\{\};'
+              r'\s*std::memcpy\(&ios_put, &ios_seen, sizeof\(ios_seen\)\);\s*if \(static_cast<u32>\(ios_put\) == m_internal_get && !m_remaining_commands\)\s*\{\s*'
+              r'rpcs3::ios::event_wait::once32\(ios_word, ios_seen\);\s*rpcs3::ios::thermal::count\(rpcs3::ios::thermal::rsx_idle\);\s*\}\s*\}\s*#endif\s*std::this_thread::yield\(\);')
+    turns = (r'const void\* ios_word = &m_ctrl->put\.raw\(\);.*?for \(u32 ios_turn = 0; ios_turn < ios_turns; ios_turn\+\+\)\s*\{.*?'
+             r'const u32 ios_seen = rpcs3::ios::event_wait::load32\(ios_word\);\s*be_t<u32> ios_put\{\};\s*std::memcpy\(&ios_put, &ios_seen, sizeof\(ios_seen\)\);'
+             r'\s*if \(static_cast<u32>\(ios_put\) != m_internal_get \|\| m_remaining_commands\)\s*\{.*?break;\s*\}\s*'
+             r'rpcs3::ios::event_wait::once32\(ios_word, ios_seen\);\s*rpcs3::ios::thermal::count\(rpcs3::ios::thermal::rsx_idle\);\s*\}\s*\}\s*#endif\s*std::this_thread::yield\(\);')
+    if not re.search(single, fifo) and not re.search(turns, fifo, re.S):
         errors.append('rsx fifo: monitor wait on PUT (PUT equals GET, tested on the compared value) before the kept yield missing')
 
     # Background pause and thermal state in the lifecycle observers. The GPU gate's three observers stay as Core 928 has

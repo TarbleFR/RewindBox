@@ -5,7 +5,7 @@
   "upstream_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
   "base_canonical_patch_sha256": "a63b964354acb157f99fa9ba4787e18e19faf2473eb90b5710134bf9a88cdaaf",
   "patch": "build-utils/rpcs3/core941-delta.patch",
-  "patch_sha256": "a6083d9945b708d4066799783533da055cf066d668bd26b96a19654e77582401",
+  "patch_sha256": "9352e960ea9ed9864313aa114cc8d6030e4b46877d94a7c1913c37b1e0021611",
   "abi_version": 30,
   "abi_version_changed": false,
   "exports_added": [
@@ -146,7 +146,7 @@
     "rpcs3/Crypto/sha256.cpp": "fbe449dca05e33622660e9e730aca2482973d428d24b1d53702a7aaacec3385a",
     "rpcs3/Emu/Audio/IOS/IOSAudioBackend.cpp": "d4c2e330148c796a3cd655a1907521f07292ddae5b005e88efd560810545df97",
     "rpcs3/Emu/CMakeLists.txt": "89b822c99adaa81022f812412a8cba6fa21a42e452ec817de2b4caf0fe519a19",
-    "rpcs3/Emu/CPU/CPUThread.cpp": "c81af00febd1cf437eea111f644cd6ced56f579321e62567e306c2d07071aef7",
+    "rpcs3/Emu/CPU/CPUThread.cpp": "229ef8f567591c3830dc3c5318e69deb820a97d4343549142db97d86609b9901",
     "rpcs3/Emu/CPU/JITCacheCompatibility.cmake": "ab158d273abbbdb4b52487e59e334e7d7dcb1f8773f8452f1a43d9aeb34536af",
     "rpcs3/Emu/Cell/Modules/cellAudio.cpp": "8c63d7ee15156820d6e04bed49719a59ae9c4973349be4cde659a74dc941f10d",
     "rpcs3/Emu/Cell/Modules/cellCamera.cpp": "c8beb44bfd3ab4b88c5b26df5f1d0cf0089c0485c4596820d5f947b77417d9da",
@@ -251,7 +251,7 @@
     "rpcs3/Emu/RSX/Program/ProgramStateCache.cpp": "3b1dd8b9f3bcfd2b299ca4bdbca2dc35356ee54c5591fd4643175961c3c4d5e7",
     "rpcs3/Emu/RSX/Program/SPIRVCommon.cpp": "822e3bde8f9eceed18a7324f3f177a7a77ca611441e918fa3f011bada60510e8",
     "rpcs3/Emu/RSX/Program/SPIRVCommon.h": "822fdc4f079bd0163b209a75e0aaaca4058bf7b5979403e91c0f96c0f1ab81e5",
-    "rpcs3/Emu/RSX/RSXFIFO.cpp": "fb29b77cde57ec62690fb1e0ddad4dcd039ac33d4be91b53e4e4e5cfd4021519",
+    "rpcs3/Emu/RSX/RSXFIFO.cpp": "0bf89f7161c4bede86ad51f4a42403864393150a72349b221fb4512eab8edbe1",
     "rpcs3/Emu/RSX/RSXFIFO.h": "17b19303f7b04e2def9c42b2bc61da8ac166fa1b0fb8d09200eb216c66ecbfda",
     "rpcs3/Emu/RSX/RSXOffload.cpp": "3eef67f751afc853690bf66d6de4ca9190ed27745c9c42371f4faba7d273a44d",
     "rpcs3/Emu/RSX/RSXTexture.cpp": "ab24a331ad3786a5602f1e6806106c9a4955c23b788ab4e4c87f71a4889d3c2d",
@@ -324,7 +324,7 @@
     "rpcs3/ios/IOSIdleWindows916.h": "ef1151bc4dd5eb032c1f2ecd91ed8cdb9bd34c823620f629fcc53cb07c32784f",
     "rpcs3/ios/IOSInPassReadTransition.h": "92d8d8ae1e01874662dccd4af28906a74f21a07f23302a7c974355b647d090cc",
     "rpcs3/ios/IOSJitLoad.h": "0b3696f7ad2bae9efd04839c64cb04b2f7114d7f253723d74e444203d52adc2f",
-    "rpcs3/ios/IOSLightLoad941.h": "7c0135d95ddc7b85d0148f971e2025cc6b9598ede7460d81c1273b8f68926e78",
+    "rpcs3/ios/IOSLightLoad941.h": "838b654377b93e0a099f9ee439daf3b965b10cf578402f4caa3351bf81c291ac",
     "rpcs3/ios/IOSLoadOpClear907.h": "e7a799f9714cf7df5802c0922ddc2583bb286a25fea39a49af600a7051588141",
     "rpcs3/ios/IOSLocalProfile933.h": "8e4ea44e3bfae12f6fd3a50ae02ba9fcd886e0c166cf6f479f0d1e02cb73d9b9",
     "rpcs3/ios/IOSLocalProfileStore933.h": "d4d388f8d5387b3c7fe5af94a1800e0c771db52530ebc21138b24eeb34ddbfee",
@@ -336,7 +336,7 @@
     "rpcs3/ios/IOSPipelineQueue.h": "127da73ba7b21671a14de381106a8d7f7d1efd9a762c55f362dfcbfa3440bfd6",
     "rpcs3/ios/IOSReadbackPrediction.h": "2edc251df0340d2faa96172f1c9149594586c4191e6ec2a9fbe6c28529e9520d",
     "rpcs3/ios/IOSRenderPassCensus.h": "173189622d96995a2aadda809b95ddd3254b190ae635399d1170175c17bbef27",
-    "rpcs3/ios/IOSRsxIdlePark.h": "d6f010355d533b15a91b9afc4072f435d94a28141f293aebdb3b4071b54182a7",
+    "rpcs3/ios/IOSRsxIdlePark.h": "4605e85b1777a657f3d08c4179ebdc393b4b18b510d674f1bec433bca336e2b2",
     "rpcs3/ios/IOSRsxLabelAccess.h": "257dc41df181231f29ea5914ea5a2dbe03e3370e085ec2b7b119e251cb1f64ea",
     "rpcs3/ios/IOSRsxSyncProfile.h": "fa21aa4d3537a71882b430a4f6821de275d2e91481b72c467f225ddc31d654c8",
     "rpcs3/ios/IOSShardedCounter931.h": "5c34f3451a62728748288c3a2742178054b16f4bf065aa1df6cda526db8a59ed",
@@ -379,10 +379,10 @@
     "rpcs3/ios/RPCS3IOSFreezeEpisode.h": "990e1dd5e890723b35d9654d6d74de3897b3ef9a2df4534e144ebd3e03b7d4ba",
     "rpcs3/ios/RPCS3IOSGPUDefaults.h": "6ca585f2db6abfe3f11faf24a80b041d6f28d1ecb9424f76f99ffae1bdecd0a0",
     "rpcs3/ios/RPCS3IOSLeverHelpers.h": "8ce7969c2d47a3ef2ff47d38219c67b7a9b4293cdc82e85ffe1f1b81b647917f",
-    "rpcs3/ios/RPCS3IOSPerformance.cpp": "801ddc8fd08e44b66009a137b8bd02f93bf602a77719cf7e049b287cd813ec8e",
+    "rpcs3/ios/RPCS3IOSPerformance.cpp": "93383bbde37b17587c0adc954f0226a1cb8c7188e173d7ededb3906c782d6e33",
     "rpcs3/ios/RPCS3IOSPerformance.h": "9594e4eb93371a9cc53e5f664c091836cd3e3527909b92c31bea937a1b8fbcfc",
     "rpcs3/ios/RPCS3IOSPlatform.h": "079f7da10b135fb4eecc2db3c1e87952840c48d807b99d5d73dc9c32189d0730",
-    "rpcs3/ios/RPCS3IOSPlatform.mm": "f6c8d3793b8035ed93c87a5e63a3ac619574187aebe7edcd9091202a51e2dbd9",
+    "rpcs3/ios/RPCS3IOSPlatform.mm": "ccf8274519b86a3c4d464b4efed4cf030f0359d0406905a0f2b98c276d14a877",
     "rpcs3/ios/RPCS3IOSProfilerHelpers.h": "939b3d79c7940d36a9e8bbae3cfb68ff5aefc6e84f151134231f834d17ee274b",
     "rpcs3/ios/RPCS3IOSRuntimePatches.cpp": "7944fa116d8ef679362837401376619357480d24cf8e19477a8ac2ed319aa50a",
     "rpcs3/ios/RPCS3IOSSettings.cpp": "5923e19777759a83d1c8a61d698636e31903d3c296cacaa29ae99e9a0f20e6c1",
@@ -774,8 +774,8 @@
     "wfe_sleep_940": "REWINDBOX_WFE_SLEEP_940 (ios/IOSEventWait931.h): sevl, wfe, ldaxr, then wfe only if the line is unchanged, without CLREX, used only after the self-test sees a rest of 100 ns to 20 us; the probe line gains the sequence and the verdict",
     "spu_lr_backoff_940": "REWINDBOX_SPU_LR_BACKOFF_940 (Emu/Cell/SPUThread.cpp): the reservation-lost wait callback returns at a reached bound of the Core 935 idle backoff",
     "work_interval_probe_940": "REWINDBOX_WORK_INTERVAL_PROBE_940 (ios/IOSWorkInterval940.h, ios/RPCS3IOS.cpp), measurement only: once per process, on its own thread, a work interval with FINISH_AT_DEADLINE is created, joined, notified, left and destroyed (CONFIG_LAYERS part=deadline_probe)",
-    "light_load_941": "REWINDBOX_LIGHT_LOAD_941 (ios/IOSLightLoad941.h, Utilities/Thread.cpp set_native_priority, Emu/CPU/CPUThread.cpp check_state, Emu/RSX/RSXFIFO.cpp idle_wait, Emu/RSX/RSXThread.cpp on_frame_end, ios/IOSSpuIdleEfficiency939.h enter, ios/RPCS3IOSPerformance.cpp sampler and THERMAL931): iPhone logs of IPA 760 (Core 940): the Black Ops II menus at 60 FPS take 0.60 to 2.12 W for 1.0 to 1.2 cores, 73 % of it on the performance cores at 1.75 to 3.42 GHz, with 42,000 timer wakeups a second; the match that follows reaches the fair state after about 15 s. While the game is light (six 500 ms samples in a row with at most 1.25 cores, no thread above 0.40 core and a steady frame rate of at least 15) its PPU, SPU and RSX threads run in the utility class, which iOS keeps on the efficiency cores; each thread applies the class to itself where it already tests its state and takes its own class back the same way. Left at once at 2.5 cores or when the frame rate is under 95 % of its rate before entering for two samples; a rate lost within 5 s of entering holds the next entry 20 s, doubled up to 320 s. Off with Event Waits When Hot = Disabled. THERMAL931 adds light_class, light_entries, light_leaves, light_ms, light_class_changes and light_class_failures",
-    "rsx_idle_941": "REWINDBOX_RSX_IDLE_941 (ios/IOSRsxIdlePark.h, Emu/RSX/RSXFIFO.cpp idle_wait): same logs, COREPROF WAKE936: 35,624 park slices of 50 us per 5 s window in a Black Ops II match (341 periods of 6.6 ms) and 56,384 in its menus (430 periods of 8.2 ms). The slice follows the idle time of the period: 50 us, 100 us from 2 ms, 200 us from 4 ms, 1 ms from 250 ms (Core 938). During the 1 ms grace period before a park, the wait on the PUT line of the Core 931 thermal policy is used in every thermal state once the Core 940 self-test has seen it rest the core (wfe_verdict 1 on IPA 760), six turns between two yields, and a PUT seen during a turn is read without the yield. A flush, flip or ZCULL request still wakes the thread at once. Off with Event Waits When Hot = Disabled",
+    "light_load_941": "REWINDBOX_LIGHT_LOAD_941 (ios/IOSLightLoad941.h, Utilities/Thread.cpp set_native_priority, Emu/CPU/CPUThread.cpp check_state, Emu/RSX/RSXFIFO.cpp idle_wait, Emu/RSX/RSXThread.cpp on_frame_end, ios/IOSSpuIdleEfficiency939.h enter, ios/RPCS3IOSPerformance.cpp sampler and THERMAL931): iPhone logs of IPA 760 (Core 940): the Black Ops II menus at 60 FPS take 0.60 to 2.12 W for 1.0 to 1.2 cores, 73 % of it on the performance cores at 1.75 to 3.42 GHz, with 42,000 timer wakeups a second; the match that follows reaches the fair state after about 15 s. While the game is light (six 500 ms samples in a row with at most 1.25 cores, no thread above 0.40 core and a steady frame rate of at least 15) its PPU, SPU and RSX threads run in the utility class, which iOS keeps on the efficiency cores; each thread applies the class to itself where it already tests its state and takes its own class back the same way. Left at once at 2.5 cores or when the frame rate is under 95 % of its rate before entering for two samples; a rate lost within 5 s of entering holds the next entry 20 s, doubled up to 320 s. Request 2 (independent review of request 1): the frames are the guest flips, not the host presents; a thread at 0.80 core for two samples also ends it; the reference rate follows the rate upwards; an exit for load within 5 s of entering is blamed like one for the rate; on leaving, every registered PPU and SPU thread gets the notify flag (Emu/CPU/CPUThread.cpp request_state_checks) and check_state syncs again when it returns; a Metal compile a demoted user-interactive thread waits for keeps the interactive queue (ios/RPCS3IOSPlatform.mm). Off with Event Waits When Hot = Disabled. THERMAL931 adds light_class, light_entries, light_leaves, light_ms, light_class_changes and light_class_failures",
+    "rsx_idle_941": "REWINDBOX_RSX_IDLE_941 (ios/IOSRsxIdlePark.h, Emu/RSX/RSXFIFO.cpp idle_wait): same logs, COREPROF WAKE936: 35,624 park slices of 50 us per 5 s window in a Black Ops II match (341 periods of 6.6 ms) and 56,384 in its menus (430 periods of 8.2 ms). The slice follows the idle time of the period: 50 us, 100 us from 2 ms, 200 us from 4 ms, 1 ms from 250 ms (Core 938). During the 1 ms grace period before a park, the wait on the PUT line of the Core 931 thermal policy is used in every thermal state once the Core 940 self-test has seen it rest the core (wfe_verdict 1 on IPA 760), at most six turns and 8 us between two yields, and a PUT seen during a turn is read without the yield. A flush, flip or ZCULL request still wakes the thread at once. Off with Event Waits When Hot = Disabled",
     "core941_20261116": "this record: the Core 940 record plus the Core 941 heat lot of the IPA 760 logs"
   },
   "behaviour": {
@@ -839,10 +839,10 @@
   "iphone_validation_run": false,
   "increment_from_core940": {
     "patch": "build-utils/rpcs3/core941-from-940.patch",
-    "patch_sha256": "2ad0a0e9bee966981d9cc0502a1328a58f96578c45fd4b7576eae937f8f07816",
+    "patch_sha256": "776a664b7b8449fd1f4f06fee3d98b3d0ec831fab2e0fc7e0c530adab1c3791f",
     "insertions_only": false,
-    "removed_lines": 10,
-    "files": 8,
+    "removed_lines": 11,
+    "files": 9,
     "files_before_sha256": {
       "Utilities/Thread.cpp": "1e920501316f61cd6dddf99b6b104adf98c32cbd749752cb4f159de585423fe1",
       "rpcs3/Emu/CPU/CPUThread.cpp": "8000493600f94953429133e4f9961ec8498f1f49d4192b1a4e7b293fb9e52f12",
@@ -850,17 +850,19 @@
       "rpcs3/Emu/RSX/RSXThread.cpp": "429e4398052c53dc018468eb40afdc337fbbc12874a0e62a7beda8fd496f9bcd",
       "rpcs3/ios/IOSRsxIdlePark.h": "02c76a1475b4561e58844627c68069bceaad1fdf9dd1979882ab01a42139c8a4",
       "rpcs3/ios/IOSSpuIdleEfficiency939.h": "8c7a142a65d6a7592b7f383ff8a534ab8f2ce0fb9577e7fa94b28341920ac95a",
-      "rpcs3/ios/RPCS3IOSPerformance.cpp": "79e9ed7f417e37cb1ad7db6ddbb40dc694e0a8aef348a9137f27169c1c42a275"
+      "rpcs3/ios/RPCS3IOSPerformance.cpp": "79e9ed7f417e37cb1ad7db6ddbb40dc694e0a8aef348a9137f27169c1c42a275",
+      "rpcs3/ios/RPCS3IOSPlatform.mm": "f6c8d3793b8035ed93c87a5e63a3ac619574187aebe7edcd9091202a51e2dbd9"
     },
     "files_after_sha256": {
       "Utilities/Thread.cpp": "4c95807bfff7374cafdf592cb052566bc7f1772436a7c7a708a969ea2e2f1626",
-      "rpcs3/Emu/CPU/CPUThread.cpp": "c81af00febd1cf437eea111f644cd6ced56f579321e62567e306c2d07071aef7",
-      "rpcs3/Emu/RSX/RSXFIFO.cpp": "fb29b77cde57ec62690fb1e0ddad4dcd039ac33d4be91b53e4e4e5cfd4021519",
+      "rpcs3/Emu/CPU/CPUThread.cpp": "229ef8f567591c3830dc3c5318e69deb820a97d4343549142db97d86609b9901",
+      "rpcs3/Emu/RSX/RSXFIFO.cpp": "0bf89f7161c4bede86ad51f4a42403864393150a72349b221fb4512eab8edbe1",
       "rpcs3/Emu/RSX/RSXThread.cpp": "88ebc9bd1b104ae5c229a8e6d0fca44e6f72d3256811568aace21d9a234b569d",
-      "rpcs3/ios/IOSLightLoad941.h": "7c0135d95ddc7b85d0148f971e2025cc6b9598ede7460d81c1273b8f68926e78",
-      "rpcs3/ios/IOSRsxIdlePark.h": "d6f010355d533b15a91b9afc4072f435d94a28141f293aebdb3b4071b54182a7",
+      "rpcs3/ios/IOSLightLoad941.h": "838b654377b93e0a099f9ee439daf3b965b10cf578402f4caa3351bf81c291ac",
+      "rpcs3/ios/IOSRsxIdlePark.h": "4605e85b1777a657f3d08c4179ebdc393b4b18b510d674f1bec433bca336e2b2",
       "rpcs3/ios/IOSSpuIdleEfficiency939.h": "c03d256009cfbd0027f5aea4012882ac102acb77b4efdaeb439aa21c9236d1ec",
-      "rpcs3/ios/RPCS3IOSPerformance.cpp": "801ddc8fd08e44b66009a137b8bd02f93bf602a77719cf7e049b287cd813ec8e"
+      "rpcs3/ios/RPCS3IOSPerformance.cpp": "93383bbde37b17587c0adc954f0226a1cb8c7188e173d7ededb3906c782d6e33",
+      "rpcs3/ios/RPCS3IOSPlatform.mm": "ccf8274519b86a3c4d464b4efed4cf030f0359d0406905a0f2b98c276d14a877"
     },
     "new_files": [
       "rpcs3/ios/IOSLightLoad941.h"

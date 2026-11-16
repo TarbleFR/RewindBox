@@ -542,6 +542,25 @@ Lecture :
 Tout le lot se coupe avec « Event Waits When Hot » = Disabled. Aucun fichier d'entrée de génération de code n'est
 modifié : identités PPU `a987639e9f838d1c` et SPU `477a3fa442d27917` inchangées, caches des joueurs conservés.
 
+### Core 941, demande 2 : la relecture indépendante avant l'IPA
+
+La première compilation (run 43922916468, épinglée puis remplacée, jamais livrée) a été relue par un relecteur
+indépendant. Ce qu'il a trouvé, et ce que corrige la demande 2 :
+
+| Point | Risque | Correction |
+|---|---|---|
+| Les images comptées étaient les présentations de l'hôte, dialogues natifs compris | Un dialogue sur image fixe ou un chargement donnait une « cadence stable » et permettait l'entrée | Compteur des flips du jeu (`m_guest_frames`) |
+| Une fois « léger », le fil le plus chargé n'était plus regardé et la cadence de référence restait celle de l'entrée | Un chargement animé derrière un menu, avec un fil saturé, restait en classe « utility » ; une chute de 60 à 40 après une entrée à 30 n'était pas vue | Sortie quand un fil atteint 0,80 cœur sur deux échantillons ; la référence suit la cadence à la hausse |
+| Un fil PPU ou SPU qui calcule sans drapeau d'état ne repasse pas par `check_state()` | Il gardait la classe « utility » après la sortie, sans borne de temps | À la sortie, chaque fil PPU et SPU enregistré reçoit le drapeau `notify` (que `check_state()` ne fait qu'effacer) ; `check_state()` resynchronise aussi à son retour |
+| Une sortie pour charge juste après l'entrée n'était retenue que 5 s | Si la classe elle-même fait monter la charge, entrée et sortie toutes les 8,5 s | Une sortie pour charge dans les 5 s est imputée comme une sortie pour cadence (20 s, puis doublement) |
+| MoltenVK choisit la file de compilation d'après la classe du fil qui attend | Avec le fil RSX en « utility », une compilation synchrone serait partie en file par défaut | La classe d'origine du fil est testée (`RPCS3IOSPlatform.mm`) |
+| L'auto-test WFE admet des tours jusqu'à 20 µs en moyenne | Six tours pouvaient retarder une demande de vidage de 120 µs | Au plus six tours et 8 µs mesurés entre deux `yield` |
+| `test/rpcs3_thermal931_test.py` exigeait l'ancienne forme (un seul tour) | Test existant en échec sur le Core 941 | Le test accepte le tour unique (Cores 931 à 940) ou la boucle bornée |
+
+Rien trouvé sur : la compilation des en-têtes, les 46 conversions de la ligne `THERMAL931`, les cycles d'inclusion, les
+fils du pool, `scoped_priority`, la paire `enter()`/`leave()` du Core 939, le comportement avec le réglage Disabled.
+Après correction : les 104 tests `--source` existants donnent le même résultat sur l'arbre 940 et sur l'arbre 941.
+
 ### Ce que le lot ne change pas, et pourquoi
 
 - **Les attentes WFE des fils PPU et des écrivains SPU restent à partir de « serious ».** Elles durent moins de 0,5 µs

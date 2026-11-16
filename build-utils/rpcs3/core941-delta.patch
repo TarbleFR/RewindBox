@@ -65864,7 +65864,7 @@ index f48435a..5679131 100644
  
  if(APPLE)
 diff --git a/rpcs3/Emu/CPU/CPUThread.cpp b/rpcs3/Emu/CPU/CPUThread.cpp
-index a446d58..c4fc5d5 100644
+index a446d58..b336263 100644
 --- a/rpcs3/Emu/CPU/CPUThread.cpp
 +++ b/rpcs3/Emu/CPU/CPUThread.cpp
 @@ -13,6 +13,11 @@
@@ -65894,18 +65894,45 @@ index a446d58..c4fc5d5 100644
  	ensure(g_fxo->is_init<cpu_profiler>());
  
  	switch (get_class())
-@@ -834,6 +847,11 @@ static atomic_t<u32> s_dummy_atomic = 0;
+@@ -834,6 +847,16 @@ static atomic_t<u32> s_dummy_atomic = 0;
  
  bool cpu_thread::check_state() noexcept
  {
 +#ifdef RPCS3_IOS
 +	// REWINDBOX_LIGHT_LOAD_941 (ios/IOSLightLoad941.h): one relaxed load; a class change only when the game became
-+	// light or stopped being light since this thread last came here.
++	// light or stopped being light since this thread last came here; and once more when this call returns, for a
++	// thread that was held here (a pause, a wait) while the game changed.
 +	rpcs3::ios::light_load::sync();
++	const struct ios_light_load_at_return
++	{
++		~ios_light_load_at_return() { rpcs3::ios::light_load::sync(); }
++	} ios_light_load_resync{};
 +#endif
  	bool cpu_sleep_called = false;
  	bool cpu_memory_checked = false;
  	bool cpu_can_stop = true;
+@@ -1147,6 +1170,21 @@ bool cpu_thread::check_state() noexcept
+ 	}
+ }
+ 
++#ifdef RPCS3_IOS
++// REWINDBOX_LIGHT_LOAD_941 (ios/IOSLightLoad941.h): the game stopped being light. A thread running compiled code
++// only calls check_state() when its state is not zero: the notify flag ("solely to allow atomic notification on
++// state without changing other flags") makes it do so once, and check_state() clears it.
++void rpcs3::ios::light_load::request_state_checks() noexcept
++{
++	reader_lock lock(s_cpu_lock);
++	cpu_counter::for_all_cpu(s_cpu_bits.load(), [](cpu_thread* cpu)
++	{
++		cpu->state += cpu_flag::notify;
++		return true;
++	});
++}
++#endif
++
+ void cpu_thread::notify()
+ {
+ 	state.notify_one();
 diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
 index 7f0f61d..e2e7f63 100644
 --- a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
@@ -91171,7 +91198,7 @@ index b4dd336..a900226 100644
 +	void prewarm_compiler_context();
  }
 diff --git a/rpcs3/Emu/RSX/RSXFIFO.cpp b/rpcs3/Emu/RSX/RSXFIFO.cpp
-index 5c87bc5..ca2c719 100644
+index 5c87bc5..47db963 100644
 --- a/rpcs3/Emu/RSX/RSXFIFO.cpp
 +++ b/rpcs3/Emu/RSX/RSXFIFO.cpp
 @@ -1,4 +1,5 @@
@@ -91213,7 +91240,7 @@ index 5c87bc5..ca2c719 100644
  					return;
  				}
  			}
-@@ -117,6 +126,42 @@ namespace rsx
+@@ -117,6 +126,48 @@ namespace rsx
  #endif
  			else
  			{
@@ -91234,8 +91261,14 @@ index 5c87bc5..ca2c719 100644
 +					// (REWINDBOX_EVENT_WAIT_LATENCY_932, THERMAL931 wfe_latency_us), not assumed.
 +					const void* ios_word = &m_ctrl->put.raw();
 +					const u32 ios_turns = ios_always ? rpcs3::ios::rsx_idle_park::grace_event_turns : 1;
++					static const u64 ios_budget_ticks = rpcs3::ios::event_wait::counter_hz() / 1'000'000 * rpcs3::ios::rsx_idle_park::grace_event_budget_ns / 1'000;
++					const u64 ios_begin_ticks = ios_always ? rpcs3::ios::event_wait::counter_now() : 0;
 +					for (u32 ios_turn = 0; ios_turn < ios_turns; ios_turn++)
 +					{
++						if (ios_turn && rpcs3::ios::event_wait::counter_now() - ios_begin_ticks >= ios_budget_ticks)
++						{
++							break; // the turns of this device are longer than the self-test's: the yield now
++						}
 +						const u32 ios_seen = rpcs3::ios::event_wait::load32(ios_word);
 +						be_t<u32> ios_put{};
 +						std::memcpy(&ios_put, &ios_seen, sizeof(ios_seen));
@@ -91256,7 +91289,7 @@ index 5c87bc5..ca2c719 100644
  				std::this_thread::yield();
  			}
  		}
-@@ -166,10 +211,18 @@ namespace rsx
+@@ -166,10 +217,18 @@ namespace rsx
  				put = m_ctrl->put.and_fetch(~3);
  			}
  
@@ -91278,7 +91311,7 @@ index 5c87bc5..ca2c719 100644
  			}
  
  			return put;
-@@ -326,6 +379,15 @@ namespace rsx
+@@ -326,6 +385,15 @@ namespace rsx
  		{
  			invalidate_cache();
  
@@ -91294,7 +91327,7 @@ index 5c87bc5..ca2c719 100644
  			if (spin_cmd && m_ctrl->get == get)
  			{
  				m_memwatch_addr = get;
-@@ -518,6 +580,28 @@ namespace rsx
+@@ -518,6 +586,28 @@ namespace rsx
  				}
  			}
  
@@ -91323,7 +91356,7 @@ index 5c87bc5..ca2c719 100644
  			if (m_cmd & RSX_METHOD_NON_METHOD_CMD_MASK) [[unlikely]]
  			{
  				if ((m_cmd & RSX_METHOD_OLD_JUMP_CMD_MASK) == RSX_METHOD_OLD_JUMP_CMD ||
-@@ -779,7 +863,18 @@ namespace rsx
+@@ -779,7 +869,18 @@ namespace rsx
  			{
  			case FIFO::FIFO_NOP:
  			{
@@ -101922,10 +101955,10 @@ index 0000000..5344bda
 +}
 diff --git a/rpcs3/ios/IOSLightLoad941.h b/rpcs3/ios/IOSLightLoad941.h
 new file mode 100644
-index 0000000..3d6addd
+index 0000000..fac7cfc
 --- /dev/null
 +++ b/rpcs3/ios/IOSLightLoad941.h
-@@ -0,0 +1,282 @@
+@@ -0,0 +1,309 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -101962,11 +101995,18 @@ index 0000000..3d6addd
 +//   presents frames at a steady rate of at least `min_rate` (a loading screen or a still picture is not light:
 +//   its work is not paced by frames, so running it slower would only make it last longer);
 +// - to leave, at once: the process uses `leave_cores` or more (work is slower on the efficiency cores, hence the
-+//   higher bound), or the frame rate is under `rate_floor` of the rate it had before entering for
-+//   `rate_miss_samples` samples in a row. A frame rate lost within `blame_ms` of entering is blamed on the class:
-+//   the next entry waits `first_hold_ms`, doubled each time up to `max_hold_ms`; other exits wait `plain_hold_ms`.
++//   higher bound), or one thread uses `leave_thread_cores` or more for `thread_busy_samples` samples in a row (a
++//   thread that has become CPU bound, a loading thread for instance, has no room left), or the frame rate is
++//   under `rate_floor` of its reference for `rate_miss_samples` samples in a row. The reference is the rate before
++//   entering and follows the rate upwards (a 30 FPS menu, then a 60 FPS scene). An exit within `blame_ms` of
++//   entering, for the load or for the rate, is blamed on the class: the next entry waits `first_hold_ms`, doubled
++//   each time up to `max_hold_ms`; other exits wait `plain_hold_ms`.
++// The frames are the guest's flips (not the host's presents, which the native dialogs also make).
 +// Each thread applies the class to itself where it already tests its state: cpu_thread::check_state() for PPU and
-+// SPU threads, the FIFO idle wait and the end of each frame for the RSX thread. Its own class (thread_ctrl::set_native_priority) is taken
++// SPU threads (on entry and again when it returns, so a thread that was blocked there leaves with the current
++// class), the FIFO idle wait and the end of each frame for the RSX thread. When the game stops being light the
++// sampler also asks every registered PPU and SPU thread to test its state once (request_state_checks: the notify
++// flag, which check_state() only clears), so a thread busy in compiled code does not keep the utility class. Its own class (thread_ctrl::set_native_priority) is taken
 +// back the same way, at the latest at its next wait once the game stops being light. The audio threads, the
 +// compile threads, MoltenVK and the host application are not touched. Switched off with "Event Waits When Hot" =
 +// Disabled, like the other idle levers.
@@ -101975,6 +102015,8 @@ index 0000000..3d6addd
 +inline constexpr double enter_cores = 1.25;
 +inline constexpr double enter_thread_cores = 0.40;
 +inline constexpr double leave_cores = 2.5;
++inline constexpr double leave_thread_cores = 0.80;
++inline constexpr std::uint32_t thread_busy_samples = 2;
 +inline constexpr double min_rate = 15.0;
 +inline constexpr double rate_spread = 0.06;          // steady: (max - min) / max over the entry samples
 +inline constexpr double rate_floor = 0.95;
@@ -102011,6 +102053,7 @@ index 0000000..3d6addd
 +	double m_rate_min = 0.0, m_rate_max = 0.0, m_rate_sum = 0.0;
 +	double m_reference = 0.0;
 +	std::uint32_t m_missed = 0;
++	std::uint32_t m_busy = 0;
 +	std::uint64_t m_entered_ms = 0;
 +	std::uint64_t m_hold_until_ms = 0;
 +	std::uint64_t m_next_hold_ms = first_hold_ms;
@@ -102020,6 +102063,7 @@ index 0000000..3d6addd
 +		m_light = false;
 +		m_calm = 0;
 +		m_missed = 0;
++		m_busy = 0;
 +		if (why == verdict::left_blamed)
 +		{
 +			m_hold_until_ms = now_ms + m_next_hold_ms;
@@ -102067,13 +102111,20 @@ index 0000000..3d6addd
 +
 +		if (m_light)
 +		{
-+			if (process_cores >= leave_cores)
++			m_busy = busiest_thread_cores >= leave_thread_cores ? m_busy + 1 : 0;
++			if (process_cores >= leave_cores || m_busy >= thread_busy_samples)
 +			{
-+				return leave(verdict::left_load, now_ms);
++				// Load that appears right after entering may be the class's own doing (the same work, slower).
++				return leave(now_ms - m_entered_ms <= blame_ms ? verdict::left_blamed : verdict::left_load, now_ms);
 +			}
 +
 +			if (rate >= 0.0)
 +			{
++				if (rate > m_reference)
++				{
++					m_reference = rate; // the game now presents faster: that is the rate to keep
++				}
++
 +				if (rate < m_reference * rate_floor)
 +				{
 +					if (++m_missed >= rate_miss_samples)
@@ -102128,10 +102179,15 @@ index 0000000..3d6addd
 +		m_light = true;
 +		m_reference = m_rate_sum / static_cast<double>(m_calm);
 +		m_missed = 0;
++		m_busy = 0;
 +		m_entered_ms = now_ms;
 +		return verdict::entered;
 +	}
 +};
++
++// Emu/CPU/CPUThread.cpp: every registered PPU and SPU thread gets the notify flag, which makes it call
++// check_state() (and so sync()) at its next state test; check_state() clears the flag and does nothing else with it.
++void request_state_checks() noexcept;
 +
 +// The sampler's sample: updates `wanted` and the counters.
 +inline void apply(controller& control, double process_cores, double busiest_thread_cores, std::uint64_t frames, std::uint64_t now_ms,
@@ -102151,6 +102207,10 @@ index 0000000..3d6addd
 +		light_ms.fetch_add(sample_ms, std::memory_order_relaxed);
 +	}
 +	wanted.store(control.light() ? 1u : 0u, std::memory_order_relaxed);
++	if (was && !control.light())
++	{
++		request_state_checks();
++	}
 +}
 +
 +// ---- Per thread ----------------------------------------------------------------------------------------------
@@ -104149,7 +104209,7 @@ index 0000000..a0001ca
 +}
 +}
 diff --git a/rpcs3/ios/IOSRsxIdlePark.h b/rpcs3/ios/IOSRsxIdlePark.h
-index b344283..84b5d79 100644
+index b344283..00e0765 100644
 --- a/rpcs3/ios/IOSRsxIdlePark.h
 +++ b/rpcs3/ios/IOSRsxIdlePark.h
 @@ -7,6 +7,10 @@
@@ -104163,7 +104223,7 @@ index b344283..84b5d79 100644
  // CELL565_RSX_IDLE_PARK: with an empty FIFO the RSX thread yields in a loop, so
  // it keeps a whole core while it waits for the next guest commands (Dragon Ball
  // Z Budokai HD on build 564: 0.90 core with the FIFO busy 33-43 % of the time,
-@@ -24,21 +28,88 @@ inline std::atomic<bool> enabled{false};
+@@ -24,21 +28,90 @@ inline std::atomic<bool> enabled{false};
  constexpr std::uint64_t grace_us = 1000;
  constexpr std::uint64_t slice_us = 50;
  
@@ -104206,9 +104266,11 @@ index b344283..84b5d79 100644
 +// yields by a wait on the PUT register's line (the guest's next PUT ends it) from the serious state only. Since Core
 +// 940 that wait really rests the core (COREPROF WFEPROBE939 on IPA 760: sevl_ldaxr_wfe 1.33 us a turn, wfe_verdict
 +// 1), and nothing but the RSX thread waits here, so it is used in every thermal state once the self-test has passed,
-+// grace_event_turns turns between two yields (8 us at most; a flush request posted by another thread is seen at
-+// the yield, as before). Off with "Event Waits When Hot" Disabled; without the verdict the wait is the Core 940 one.
++// at most grace_event_turns turns and grace_event_budget_ns between two yields (the verdict admits turns of up to
++// 20 us on another device; a flush request posted by another thread is seen at the yield, as before). Off with
++// "Event Waits When Hot" Disabled; without the verdict the wait is the Core 940 one.
 +inline constexpr std::uint32_t grace_event_turns = 6;
++inline constexpr std::uint64_t grace_event_budget_ns = 8'000;
 +
 +inline bool grace_event_waits_always() noexcept
 +{
@@ -113821,7 +113883,7 @@ index 094a672..cee4f58 100644
  	// scale: (cycles / 100) * scale ticks (rpcs3/util/asm.hpp).
  	constexpr std::uint64_t arm64_busy_wait_nanoseconds(std::uint64_t cycles, std::uint64_t cntfrq, std::uint64_t scale) noexcept
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index 08e293e..1206a97 100644
+index 08e293e..c36e99b 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
 @@ -5,6 +5,7 @@
@@ -114098,7 +114160,7 @@ index 08e293e..1206a97 100644
  		m_event_costs[4].record(wait_microseconds);
  		m_rsx_semaphore_waits.fetch_add(1, std::memory_order_relaxed);
  		m_rsx_semaphore_wait_us.fetch_add(wait_microseconds, std::memory_order_relaxed);
-@@ -817,6 +992,31 @@ private:
+@@ -817,6 +992,32 @@ private:
  			if (sample_clock::now() - last_thread_sample < thread_sample_period) continue;
  			last_thread_sample = sample_clock::now();
  			thread_usage_sample usage = sample_core_threads();
@@ -114123,14 +114185,15 @@ index 08e293e..1206a97 100644
 +					m_light_load.reset();
 +				}
 +				const u64 ios_now_ms = static_cast<u64>(std::chrono::duration_cast<std::chrono::milliseconds>(last_thread_sample.time_since_epoch()).count());
-+				rpcs3::ios::light_load::apply(m_light_load, ios_process_cores, ios_busiest_thread, frames, ios_now_ms,
++				// The guest's flips: the host's presents also count the native dialogs' own frames.
++				rpcs3::ios::light_load::apply(m_light_load, ios_process_cores, ios_busiest_thread, m_guest_frames.load(std::memory_order_relaxed), ios_now_ms,
 +					static_cast<u64>(std::chrono::duration_cast<std::chrono::milliseconds>(thread_sample_period).count()),
 +					rpcs3::ios::thermal::idle_backoff());
 +			}
  			const auto process_memory = sample_process_memory();
  			bool report = false;
  			{
-@@ -844,6 +1044,11 @@ private:
+@@ -844,6 +1045,11 @@ private:
  				report = now >= m_next_report;
  			}
  
@@ -114142,7 +114205,7 @@ index 08e293e..1206a97 100644
  			if (report)
  			{
  				report_profile_window();
-@@ -851,9 +1056,115 @@ private:
+@@ -851,9 +1057,115 @@ private:
  		}
  	}
  
@@ -114258,7 +114321,7 @@ index 08e293e..1206a97 100644
  		const u64 frequency = utils::get_tsc_freq();
  		std::array<double, core_group_count> average_cores{};
  		std::array<double, core_group_count> average_threads{};
-@@ -874,6 +1185,8 @@ private:
+@@ -874,6 +1186,8 @@ private:
          double seconds_without_frames = 0.0;
          rpcs3::ios::diagnostics::GuestFrameWindow::Sample guest_frames;
          rpcs3::ios::frame_trace::Profile::Snapshot frame_causes;
@@ -114267,7 +114330,7 @@ index 08e293e..1206a97 100644
          rpcs3::ios::renderer_causality::Profile::Snapshot renderer_causes;
          rpcs3::ios::signal_trace::summary_result signal_summary;
          rpcs3::ios::signal_trace::snapshot_result signal_snapshot;
-@@ -897,6 +1210,8 @@ private:
+@@ -897,6 +1211,8 @@ private:
              profile_window = ++m_report_window;
              guest_frames = m_guest_frame_window.take();
              frame_causes = rpcs3::ios::frame_trace::profile.take();
@@ -114276,7 +114339,7 @@ index 08e293e..1206a97 100644
              renderer_causes = rpcs3::ios::renderer_causality::profile.take();
              signal_report_us = get_system_time();
              signal_summary = rpcs3::ios::signal_trace::summary();
-@@ -997,6 +1312,21 @@ private:
+@@ -997,6 +1313,21 @@ private:
              guest_frames.p95_us / 1000.0, guest_frames.p99_us / 1000.0, guest_frames.maximum_us / 1000.0,
              guest_frames.over_50ms, guest_frames.over_100ms, guest_frames.total_us / 1000.0, elapsed_ms, frame_histogram.empty() ? "none" : frame_histogram,
              guest_window_flips, guest_progress.wall_guest_fps, guest_progress.completed_interval_fps, guest_progress.last_guest_flip_age_ms);
@@ -114298,7 +114361,7 @@ index 08e293e..1206a97 100644
          {
              const u64 anchor_before = utils::get_tsc();
              const u64 anchor_us = static_cast<u64>(std::chrono::duration_cast<std::chrono::microseconds>(
-@@ -1018,12 +1348,29 @@ private:
+@@ -1018,12 +1349,29 @@ private:
                  const auto wait_ms = [&](u64 ticks) {
                      return rpcs3::ios::frame_trace::microseconds(ticks, frame.frequency) / 1000.0;
                  };
@@ -114329,7 +114392,7 @@ index 08e293e..1206a97 100644
                      frame.session, profile_window, frame.frame, frame.begin_ticks, frame.end_ticks, frame.frequency,
                      frame.interval_available ? 1u : 0u, frame.interval_us / 1000.0,
                      frame.stages_sampled ? 1u : 0u, frame.forced ? 1u : 0u, frame.draws, frame.submits,
-@@ -1035,9 +1382,61 @@ private:
+@@ -1035,9 +1383,61 @@ private:
                      frame.stages_sampled ? frame.flip_us / 1000.0 : -1.0,
                      wait_ms(frame.waits.fence_ticks), wait_ms(frame.waits.submit_ticks),
                      wait_ms(frame.waits.drawable_ticks), wait_ms(frame.waits.present_ticks),
@@ -114392,7 +114455,7 @@ index 08e293e..1206a97 100644
          report_renderer_causes(renderer_causes, profile_session, profile_window);
          report_signal_causes(signal_summary, signal_dump ? &signal_snapshot : nullptr,
              profile_session, profile_window, signal_report_us);
-@@ -1161,6 +1560,21 @@ private:
+@@ -1161,6 +1561,21 @@ private:
              costs[4].count, costs[4].total / 1000.0, costs[4].maximum / 1000.0,
              costs[5].count, milliseconds(costs[5].total), milliseconds(costs[5].maximum),
              costs[6].count, milliseconds(costs[6].total), milliseconds(costs[6].maximum));
@@ -114414,7 +114477,7 @@ index 08e293e..1206a97 100644
          // REWINDBOX_COMPILE_PRESSURE_V1 / REWINDBOX_FENCE_WAIT_V1: draw-blocking
          // pipeline builds, SPU polls that waited passively meanwhile, and GPU
          // fence waits finished within the bounded spin or blocked in MoltenVK.
-@@ -1206,6 +1620,206 @@ private:
+@@ -1206,6 +1621,206 @@ private:
                  static_cast<unsigned long long>(sync::metal_compiles_interactive.exchange(0, std::memory_order_relaxed)),
                  static_cast<unsigned long long>(sync::metal_compiles_default.exchange(0, std::memory_order_relaxed)));
          }
@@ -114621,7 +114684,7 @@ index 08e293e..1206a97 100644
          // REWINDBOX_RSX_FRAME_PROFILE_V1: RPCS3's own per-frame RSX statistics;
          // stage times are averages over the sampled frames of the window.
          {
-@@ -1229,8 +1843,9 @@ private:
+@@ -1229,8 +1844,9 @@ private:
                  vc_requests, vc_misses, lookups, elided, idles, rpcs3::ios::rsx_sync::rsx_frame_sample_period);
          }
          // REWINDBOX_FEEDBACK_CENSUS_610: color-feedback work of the window. Per-frame
@@ -114633,7 +114696,7 @@ index 08e293e..1206a97 100644
          {
              namespace census = rpcs3::ios::feedback_census;
              auto& c = census::counters;
-@@ -1242,10 +1857,190 @@ private:
+@@ -1242,10 +1858,190 @@ private:
              ios_core_profiler.notice(
                  "COREPROF FEEDBACK610 session=%llu window=%llu draw_renderpasses=%llu snapshot_draws=%llu snapshot_copies=%llu "
                  "duplicate_copies=%llu snapshot_mpix=%.3f pb_draws=%llu msaa_feedback_reads=%llu depth_feedback_reads=%llu "
@@ -114825,7 +114888,7 @@ index 08e293e..1206a97 100644
          // REWINDBOX_SPU_WAIT_PROFILE_V1: SPU time outside guest code, summed over
          // the SPU threads (deltas of monotonic per-thread totals).
          {
-@@ -1258,14 +2053,20 @@ private:
+@@ -1258,14 +2054,20 @@ private:
                  d[i] = now_totals[i] >= s_previous[i] ? now_totals[i] - s_previous[i] : 0;
              }
              s_previous = now_totals;
@@ -114848,7 +114911,7 @@ index 08e293e..1206a97 100644
          }
          // CELL555_READBACK_EXPORT: fixed five origins, one bounded line per window.
          {
-@@ -1281,6 +2082,14 @@ private:
+@@ -1281,6 +2083,14 @@ private:
              }
              ios_core_profiler.notice("%s scope=process_window_all_threads parent_includes_gpu_fence=1 bytes_scope=confirmed_requested_not_dma_payload window_boundary_approximate=1", line);
          }
@@ -114863,7 +114926,7 @@ index 08e293e..1206a97 100644
          // CELL559_OPT_EXPORT: work the 559 paths avoided in this window, one bounded line.
          {
              namespace overwrite = rpcs3::ios::full_overwrite;
-@@ -1296,6 +2105,39 @@ private:
+@@ -1296,6 +2106,39 @@ private:
                  validation::epoch_enabled.load(std::memory_order_relaxed) ? 1u : 0u,
                  validation::epoch_skips.exchange(0, std::memory_order_relaxed), validation::epoch_skip_bytes.exchange(0, std::memory_order_relaxed),
                  validation::epoch_bumps.exchange(0, std::memory_order_relaxed));
@@ -114903,7 +114966,7 @@ index 08e293e..1206a97 100644
          }
          // CELL581_TEXTURE_PREHASH: RSX validations served by the worker and its work, one bounded line.
          {
-@@ -1315,9 +2157,11 @@ private:
+@@ -1315,9 +2158,11 @@ private:
          {
              namespace prehash = rpcs3::ios::texture_prehash;
              ios_core_profiler.notice("COREPROF OPT583 session=%llu window=%llu worker_passed=%llu worker_refills=%llu "
@@ -114917,7 +114980,7 @@ index 08e293e..1206a97 100644
          }
          // CELL560_OPT_EXPORT: framebuffer commits that skipped the GPU wait and what
          // became of their bytes in this window, one bounded line.
-@@ -1339,32 +2183,80 @@ private:
+@@ -1339,32 +2184,80 @@ private:
          // frame had used its budget, one bounded line.
          {
              namespace early = rpcs3::ios::early_submit;
@@ -115008,7 +115071,7 @@ index 08e293e..1206a97 100644
          }
          const auto& mem = memory_window.latest;
          const auto& peak = memory_window.peak;
-@@ -1376,6 +2268,14 @@ private:
+@@ -1376,6 +2269,14 @@ private:
              profile_session, profile_window, memory_window.samples, mem.valid ? 1u : 0u,
              mem.footprint, mem.resident, mem.compressed, mem.virtual_bytes,
              peak.footprint, peak.resident, peak.compressed, peak.virtual_bytes);
@@ -115023,7 +115086,7 @@ index 08e293e..1206a97 100644
          ios_core_profiler.notice(
              "COREPROF JITPUB527 session=%llu window=%llu calls=%llu empty_calls=%llu deferred_calls=%llu history_ranges=%llu dirty_ranges=%llu "
              "flushed_bytes=%llu total_ms=%.3f max_ms=%.3f retained_metadata_bytes=%llu peak_metadata_bytes=%llu "
-@@ -1383,6 +2283,18 @@ private:
+@@ -1383,6 +2284,18 @@ private:
              profile_session, profile_window, publication.calls, publication.empty_calls, publication.deferred_calls, publication.history_ranges, publication.dirty_ranges,
              publication.flushed_bytes, milliseconds(publication.ticks), milliseconds(publication.max_ticks),
              publication.retained_metadata_bytes, publication.peak_metadata_bytes);
@@ -115042,7 +115105,7 @@ index 08e293e..1206a97 100644
  
  		// NEOSTATION_BUILD481_SPU_OBJECT_CACHE_V1: obj_* fields of the persistent
  		// SPU object cache (counts per window; bytes of loaded/written objects).
-@@ -1413,11 +2325,30 @@ private:
+@@ -1413,11 +2326,30 @@ private:
  		// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (D7): wl_<source>_max_hold_us is the
  		// longest single hold of the window next to the sums, in microseconds.
  		const auto microseconds = [frequency](u64 ticks) { return rpcs3::ios::profiler::ticks_to_us(ticks, frequency); };
@@ -115074,7 +115137,7 @@ index 08e293e..1206a97 100644
  			profile_session, range.count, milliseconds(range.ticks), milliseconds(range.maximum_ticks),
  			range_iterations_max, range_blocker_sum, range_blocker_max,
  			writer_count[0], milliseconds(writer_acquire[0]), milliseconds(writer_hold[0]),
-@@ -1427,7 +2358,10 @@ private:
+@@ -1427,7 +2359,10 @@ private:
  			writer_count[4], milliseconds(writer_acquire[4]), milliseconds(writer_hold[4]),
  			writer_avoided[1], writer_avoided[3],
  			microseconds(writer_hold_max[0]), microseconds(writer_hold_max[1]), microseconds(writer_hold_max[2]),
@@ -115086,7 +115149,7 @@ index 08e293e..1206a97 100644
  
  		// NEOSTATION_BUILD444_JIT_PHASE_PROFILE_V1: name=events:total_ms:max_ms:bytes
  		// per LLVM phase, exclusive of nested phases; headroom_min_mib is the
-@@ -1435,6 +2369,9 @@ private:
+@@ -1435,6 +2370,9 @@ private:
  		{
  			const auto jit = jit_phase::g_counters.exchange();
  			std::string jit_line = fmt::format("JITPROF session=%llu", profile_session);
@@ -115096,7 +115159,7 @@ index 08e293e..1206a97 100644
  
  			for (unsigned phase = 0; phase < jit_phase::count; ++phase)
  			{
-@@ -1453,6 +2390,27 @@ private:
+@@ -1453,6 +2391,27 @@ private:
  			ios_core_profiler.notice("%s", jit_line);
  		}
  
@@ -115124,7 +115187,7 @@ index 08e293e..1206a97 100644
  		const u64 memory_reclaims = m_memory_reclaim_attempts.exchange(0, std::memory_order_relaxed);
  		const u64 memory_reclaim_effective = m_memory_reclaim_effective.exchange(0, std::memory_order_relaxed);
  		const u64 memory_reclaim_deferred = m_memory_reclaim_deferred.exchange(0, std::memory_order_relaxed);
-@@ -1522,6 +2480,10 @@ private:
+@@ -1522,6 +2481,10 @@ private:
  		const u64 window_frames = current_frames > frame_baseline ? current_frames - frame_baseline : 0;
  		if (!window_frames && Emu.GetStatus(false) == system_state::stopped)
  		{
@@ -115135,7 +115198,7 @@ index 08e293e..1206a97 100644
  			return;
  		}
  
-@@ -1612,9 +2574,27 @@ private:
+@@ -1612,9 +2575,27 @@ private:
  		const u64 rsx_window_elapsed_us = m_rsx_window_elapsed_us.exchange(0, std::memory_order_relaxed);
  		const u64 rsx_window_idle_us = m_rsx_window_idle_us.exchange(0, std::memory_order_relaxed);
  		const double rsx_fifo_busy = rpcs3::ios::profiler::rsx_fifo_busy_percent(rsx_window_elapsed_us, rsx_window_idle_us);
@@ -115165,7 +115228,7 @@ index 08e293e..1206a97 100644
  		ios_core_profiler.notice(
  			"COREPROF frames=%llu avg_fps=%.3f low1_fps=%.3f frametime_ms=%.3f p95_ms=%.3f p99_ms=%.3f "
  			"ppu_ms=%.3f spu_ms=%.3f rsx_ms=%.3f jit_ms=%.3f gpu_time_ms=-1 "
-@@ -1625,7 +2605,8 @@ private:
+@@ -1625,7 +2606,8 @@ private:
  			// NEOSTATION_BUILD487_DIAGNOSTICS_V1: appended fields (existing order kept).
  			"other_ms=%.3f window_ms=%.3f ppu_cores=%.3f spu_cores=%.3f rsx_cores=%.3f jit_cores=%.3f other_cores=%.3f "
  			"compile_threads=%.2f compile_cores=%.3f other_threads=%.2f rsx_fifo_busy=%.1f rsx_thread_cpu=%.3f top=%s "
@@ -115175,7 +115238,7 @@ index 08e293e..1206a97 100644
  			window_frames, average_fps, low_1_fps, frametime_ms,
  			p95_ms, p99_ms,
  			group_ms_per_frame(core_group::ppu), group_ms_per_frame(core_group::spu),
-@@ -1642,22 +2623,222 @@ private:
+@@ -1642,22 +2624,222 @@ private:
  			group_cores(core_group::ppu), group_cores(core_group::spu), group_cores(core_group::rsx),
  			group_cores(core_group::jit), group_cores(core_group::other),
  			compile_threads, compile_cores, average_threads[static_cast<usz>(core_group::other)],
@@ -115408,7 +115471,7 @@ index 08e293e..1206a97 100644
      u64 m_last_signal_dump_us = 0; // guarded by m_profile_mutex
      rpcs3::ios::diagnostics::GuestFrameWindow m_guest_frame_window;
      rpcs3::ios::diagnostics::ProcessMemoryWindow m_process_memory;
-@@ -1902,6 +3083,9 @@ void record_range_lock_episode(u64 wait_ticks, u64 iterations) noexcept
+@@ -1902,6 +3084,9 @@ void record_range_lock_episode(u64 wait_ticks, u64 iterations) noexcept
  
  void record_writer_lock(u32 source, u64 acquire_ticks, u64 hold_ticks) noexcept
  {
@@ -115418,7 +115481,7 @@ index 08e293e..1206a97 100644
  	g_performance_registry.record_writer_lock(source, acquire_ticks, hold_ticks);
  }
  
-@@ -1945,9 +3129,9 @@ void record_vram_allocation(bool allocated, u64 bytes) noexcept
+@@ -1945,9 +3130,9 @@ void record_vram_allocation(bool allocated, u64 bytes) noexcept
  	g_performance_registry.record_vram_allocation(allocated, bytes);
  }
  
@@ -115466,7 +115529,7 @@ index 1568bfe..7e62705 100644
  	std::string_view language_tag,
  	std::string_view localization_key,
 diff --git a/rpcs3/ios/RPCS3IOSPlatform.mm b/rpcs3/ios/RPCS3IOSPlatform.mm
-index 4b399d3..7c4e22a 100644
+index 4b399d3..ad0c9ca 100644
 --- a/rpcs3/ios/RPCS3IOSPlatform.mm
 +++ b/rpcs3/ios/RPCS3IOSPlatform.mm
 @@ -8,6 +8,7 @@
@@ -115477,7 +115540,7 @@ index 4b399d3..7c4e22a 100644
  #include <mach/mach_traps.h>
  #include <mach/thread_switch.h>
  #include <pthread/qos.h>
-@@ -15,9 +16,13 @@
+@@ -15,9 +16,14 @@
  #include <cstdint>
  #include <thread>
  
@@ -115486,12 +115549,26 @@ index 4b399d3..7c4e22a 100644
  #include "IOSReservationLockPolicy.h"
  #include "IOSRsxSyncProfile.h"
 +#include "IOSThermalPolicy931.h" // REWINDBOX_THERMAL_POLICY_931
++#include "IOSLightLoad941.h" // REWINDBOX_LIGHT_LOAD_941
 +#include "IOSBackgroundPause931.h" // REWINDBOX_BACKGROUND_PAUSE_931
 +#include "RPCS3IOS.h"
  
  // REWINDBOX_MOLTENVK_COMPILE_QOS_V1: MoltenVK 1.4.2 builds every Metal library
  // and pipeline with dispatch_async(dispatch_get_global_queue(
-@@ -84,14 +89,79 @@ void wait_for_present(std::uint64_t ticket) noexcept
+@@ -32,7 +38,11 @@
+ // compile now runs in the class of the thread that waits for it.
+ extern "C" __attribute__((visibility("hidden"))) dispatch_queue_t rbx_mvk_compile_qos_queue(intptr_t identifier, uintptr_t flags)
+ {
+-	if (qos_class_self() == QOS_CLASS_USER_INTERACTIVE)
++	// REWINDBOX_LIGHT_LOAD_941 (ios/IOSLightLoad941.h): a user-interactive thread that runs in the utility class
++	// while the game is light still waits for this compile: it runs in the thread's own class, as before.
++	if (qos_class_self() == QOS_CLASS_USER_INTERACTIVE ||
++		(rpcs3::ios::light_load::in_light_class() && rpcs3::ios::light_load::t_class.home_known &&
++			rpcs3::ios::light_load::t_class.home_qos == static_cast<int>(QOS_CLASS_USER_INTERACTIVE)))
+ 	{
+ 		rpcs3::ios::rsx_sync::metal_compiles_interactive.fetch_add(1, std::memory_order_relaxed);
+ 		return dispatch_get_global_queue(QOS_CLASS_USER_INTERACTIVE, 0);
+@@ -84,14 +94,79 @@ void wait_for_present(std::uint64_t ticket) noexcept
  	gcd::registry::instance().wait_for_present(ticket);
  }
  
@@ -115571,7 +115648,7 @@ index 4b399d3..7c4e22a 100644
  void reservation_lock_yield() noexcept
  {
  	// CELL579_WRITER_YIELD: ios/IOSReservationLockPolicy.h.
-@@ -192,3 +262,95 @@ std::string localized_application_string(
+@@ -192,3 +267,95 @@ std::string localized_application_string(
  	}
  }
  }
