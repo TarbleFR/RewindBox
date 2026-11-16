@@ -639,6 +639,11 @@ namespace Ryujinx.Graphics.Gpu.Image
         internal static bool TryReadInvalidationLog(long index, out Texture texture) { texture = InvalidationRing[index & (ChangeLogSize - 1)]; return texture != null; }
         // IPA 740 lot (adapt_array_log_membership): set by the final cache when it puts the texture into an array.
         internal bool InBindlessArray;
+        // Plan 748 rank 14 (adapt_array_membership_filter): the texture's bit in the arrays' membership filter, drawn as the
+        // production texture draws it (read by the final cache).
+        static int _arrayFilterSeed;
+        internal readonly byte ArrayFilterBit =
+            (byte)(unchecked((uint)System.Threading.Interlocked.Increment(ref _arrayFilterSeed) * 2654435761u) >> 24);
         internal int ContextUseEpoch => 0;
         public void SignalModified() { }
         public void BlacklistScale() => ScaleMode = TextureScaleMode.Blacklisted;

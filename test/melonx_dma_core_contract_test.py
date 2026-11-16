@@ -96,6 +96,22 @@ from adapt_compute_warmup_demand import BASELINE as C766_COMPUTE_WARMUP_DEMAND  
 # skipped draw queued is recorded once built, the draws that wait for its compile counted, the async skips split by cause.
 from adapt_variant_journal_room import BASELINE as C766_VARIANT_JOURNAL_ROOM  # noqa: E402
 from adapt_queued_variant_record import BASELINE as C766_QUEUED_VARIANT_RECORD  # noqa: E402
+# Lot after IPA 748-751, plan 748 rank 16: a partition's private spans are rebuilt by the first lookup after an Update,
+# under the read lock, instead of by every Map and Unmap.
+from adapt_private_span_lazy import BASELINE as NEXT_PRIVATE_SPAN_LAZY  # noqa: E402
+# Lot after IPA 748-751, plan 748 ranks 17 and 14: the threaded renderer's command queue allocated pinned; the texture
+# arrays' 256-bit membership filter tested before a signalled texture's lookup; one clock read per render command.
+from adapt_pinned_command_queue import BASELINE as NEXT_PINNED_COMMAND_QUEUE  # noqa: E402
+from adapt_array_membership_filter import BASELINE as NEXT_ARRAY_MEMBERSHIP_FILTER  # noqa: E402
+from adapt_render_command_clock import BASELINE as NEXT_RENDER_COMMAND_CLOCK  # noqa: E402
+# Lot after IPA 748-751, plan 748 rank 18: a recorded variant is replayed with the integer-format mask a draw has for its
+# colour attachments (recomputed when read), the recomputes counted in the variants summary.
+from adapt_replay_integer_mask import BASELINE as NEXT_REPLAY_INTEGER_MASK  # noqa: E402
+# Nextendo online lot (adapt_nextendo_online, last in ORDER, inert unless the host configures online play): five engine
+# files (HleConfiguration.cs, ManagerServer.cs, DnsMitmResolver.cs, DnsBlacklist.cs, SslManagedSocketConnection.cs) and the
+# prepared EmbeddedContent.cs change; src/Ryujinx.HLE/EmbeddedOnline.cs is added (native/melonx/EmbeddedOnline.cs).
+from adapt_nextendo_online import BASELINE as C768_NEXTENDO_ONLINE  # noqa: E402
+C768_ONLINE_ADDITION = 'src/Ryujinx.HLE/EmbeddedOnline.cs'
 from adapt_array_delta_invalidated import BASELINE as C697_ARRAY_DELTA_INVALIDATED  # noqa: E402
 from adapt_pipeline_cache_background import BASELINE as C697_PIPELINE_CACHE_BACKGROUND  # noqa: E402
 from adapt_sync_wait_attribution import BASELINE as C699_SYNC_WAIT_ATTRIBUTION  # noqa: E402
@@ -345,7 +361,15 @@ CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES
            # IPA 740 compute freeze: ShaderCollection.cs and BackgroundCompilationScheduler.cs are changed already.
            set(C766_COMPUTE_WARMUP_DEMAND) |
            # Variant journal lot: PipelineCacheManager.cs, ShaderCollection.cs and PipelineBase.cs are changed already.
-           set(C766_VARIANT_JOURNAL_ROOM) | set(C766_QUEUED_VARIANT_RECORD))
+           set(C766_VARIANT_JOURNAL_ROOM) | set(C766_QUEUED_VARIANT_RECORD) |
+           # Lot after IPA 748-751: AddressSpacePartition.cs is changed already.
+           set(NEXT_PRIVATE_SPAN_LAZY) |
+           # Lot after IPA 748-751: ThreadedRenderer.cs, Texture.cs and TextureBindingsArrayCache.cs are changed already.
+           set(NEXT_PINNED_COMMAND_QUEUE) | set(NEXT_ARRAY_MEMBERSHIP_FILTER) | set(NEXT_RENDER_COMMAND_CLOCK) |
+           # Lot after IPA 748-751 (plan 748 rank 18): PipelineState.cs and PipelineCacheManager.cs are changed already.
+           set(NEXT_REPLAY_INTEGER_MASK) |
+           # Nextendo online lot: its six files.
+           set(C768_NEXTENDO_ONLINE))
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
@@ -448,6 +472,9 @@ JOINED = JOINED | {C753_POOL}
 # Next lot (adapt_private_span_snapshot): Ryujinx.Cpu's AddressSpacePartition.cs joins the prepared source; fragmented-reads
 # composes, builds and binds it (read from its control, delivered609, as upstream). SemaphoreUpdater.cs is a member already.
 JOINED = JOINED | set(C766_PRIVATE_SPAN_SNAPSHOT)
+# Nextendo online lot: its five engine files join the prepared source (EmbeddedContent.cs is a member already);
+# nifm-network-watch composes, builds and binds them.
+JOINED = JOINED | (set(C768_NEXTENDO_ONLINE) - {'src/Ryujinx.Library/EmbeddedContent.cs'})
 REUSED_FRESH = set()
 
 
@@ -490,6 +517,12 @@ check(verify.CONTROL_MEMBERS == {'delivered': 'embedded-adapted-source.zip',
 prepared = (ROOT / 'native/melonx/EmbeddedPerformanceDiagnostics.cs').read_text(encoding='utf-8-sig')
 for before, after in DIAGNOSTIC_EDITS:
     check(prepared.count(before) == 1, 'Collector anchor drift')
+    prepared = prepared.replace(before, after)
+# Lot after IPA 748-751 (plan 748 rank 7): adapt_stall_compaction_drain_guard adds RenderDrainInFlightMs to the collector
+# (after the array-delta edits; the payload rows and counters below are unchanged).
+import adapt_stall_compaction_drain_guard as drain_guard  # noqa: E402
+for before, after in drain_guard.FILE_PAIRS[drain_guard.DIAGNOSTICS]:
+    check(prepared.count(before) == 1, 'Collector anchor drift (drain guard)')
     prepared = prepared.replace(before, after)
 
 
@@ -664,7 +697,9 @@ if not args.helpers_only:
     # Core 745: 100 (IGeneralService.cs). Core 747: 101 (AsyncWorkQueue.cs). Core 749 candidate: 102 (PreciseSleepHelper.cs).
     # IPA 736 lots: 105 (AddressSpacePartitioned.cs, FenceHolder.cs, MultiFenceHolder.cs). IPA 740 lot: 107 (Auto.cs,
     # CommandBufferPool.cs). Next lot: 109 (AddressSpacePartition.cs, SemaphoreUpdater.cs).
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 109 and not frozen["productionAdditions"], "Unexpected production scope")
+    # Nextendo online lot: 115 (its six files) and one production addition, src/Ryujinx.HLE/EmbeddedOnline.cs.
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 115 and
+          set(frozen["productionAdditions"]) == {C768_ONLINE_ADDITION}, "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
                                                      'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
                                                      'build-utils/melonx/adapt_queued_syncpoints.py',
@@ -780,7 +815,23 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_compute_warmup_demand.py',
                                                      # Variant journal lot.
                                                      'build-utils/melonx/adapt_variant_journal_room.py',
-                                                     'build-utils/melonx/adapt_queued_variant_record.py'} and
+                                                     'build-utils/melonx/adapt_queued_variant_record.py',
+                                                     # Lot after IPA 748-751, plan 748 rank 16.
+                                                     'build-utils/melonx/adapt_private_span_lazy.py',
+                                                     # Lot after IPA 748-751, plan 748 ranks 17 and 14.
+                                                     'build-utils/melonx/adapt_pinned_command_queue.py',
+                                                     'build-utils/melonx/adapt_array_membership_filter.py',
+                                                     'build-utils/melonx/adapt_render_command_clock.py',
+                                                     # Lot after IPA 748-751, plan 748 rank 18.
+                                                     'build-utils/melonx/adapt_replay_integer_mask.py',
+                                                     # Lot after IPA 748-751, plan 748 ranks 2, 7, 10 and 11.
+                                                     'build-utils/melonx/adapt_keepalive_after_ephemeral.py',
+                                                     'build-utils/melonx/adapt_stall_compaction_drain_guard.py',
+                                                     'build-utils/melonx/adapt_pacer_margin_decay.py',
+                                                     'build-utils/melonx/adapt_device_critical_trim.py',
+                                                     # Nextendo online lot: its adapter and the engine class it adds.
+                                                     'build-utils/melonx/adapt_nextendo_online.py',
+                                                     'native/melonx/EmbeddedOnline.cs'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -795,8 +846,10 @@ if not args.helpers_only:
           'Only GraphicsConfig.cs, Window.cs, TextureStorage.cs, ResourceArray.cs, PipelineLayoutCacheEntry.cs the four warm-up parity members, the GPU Window, KProcess and the two SurfaceFlinger files join the prepared source')
     # The prepared members that differ from the delivered source are exactly the reviewed changes.
     baseline = {**frozen['baselinePreparedMembers'], **frozen['baselineUnadaptedMembers']}
-    check(set(frozen['preparedMembers']) == set(baseline) and
-          {path for path, value in frozen['preparedMembers'].items() if baseline[path] != value} == CHANGES,
+    # The Nextendo online lot's declared addition (EmbeddedOnline.cs) is a prepared member the delivered source never had.
+    added = set(frozen['productionAdditions'])
+    check(set(frozen['preparedMembers']) - added == set(baseline) and
+          {path for path, value in frozen['preparedMembers'].items() if path not in added and baseline[path] != value} == CHANGES,
           'Prepared source differs from the delivered one outside the reviewed changes')
     collector = hashlib.sha256(prepared.encode('utf-8')).hexdigest()
     check(collector == frozen['preparedMembers'][DIAGNOSTICS] and collector != arrays_frozen['preparedMembers'][DIAGNOSTICS],
@@ -834,7 +887,11 @@ if not args.helpers_only:
     # the lot are members already).
     # IPA 740 compute freeze and variant journal lot: their three adapters join them (242); their four files are members
     # already (221).
-    check(len(frozen['preparationInputs']) == 242 and len(frozen['preparedMembers']) == 221, 'Wrong final composition')
+    # Nextendo online lot: its adapter and native/melonx/EmbeddedOnline.cs join them (244); five engine files and the added
+    # EmbeddedOnline.cs join the members (227).
+    # Lot after IPA 748-751 (plan 748 ranks 2, 7, 10, 11, 14, 16, 17 and 18): nine adapters join them (253); every file they
+    # edit is a member already.
+    check(len(frozen['preparationInputs']) == 253 and len(frozen['preparedMembers']) == 227, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
@@ -886,7 +943,7 @@ if not args.helpers_only:
     # Core 745: IGeneralService.cs (Ryujinx.HLE) and Library.cs are bound by the nifm gate, which builds the production
     # Ryujinx.HLE and Ryujinx.Library from the final preparation; the paced syncs' three files by theirs, which builds
     # the production Vulkan, Gpu and Library assemblies (GpuContext.cs and AutoFlushCounter.cs stay in the GPU closure).
-    check(set(C745_NIFM_NETWORK_WATCH) == set(gate['nifm-network-watch']['requiredPostimages']) and
+    check(set(C745_NIFM_NETWORK_WATCH) | set(C768_NEXTENDO_ONLINE) | {C768_ONLINE_ADDITION} == set(gate['nifm-network-watch']['requiredPostimages']) and
           gate['nifm-network-watch']['assertions'].get('productionHleAssemblyBuilt') is True and
           gate['nifm-network-watch']['assertions'].get('productionLibraryAssemblyBuilt') is True and
           gate['nifm-network-watch']['assertions'].get('candidateSwitchesKeptOfEleven') == 0 and
@@ -906,7 +963,8 @@ if not args.helpers_only:
           gate['collection-class']['assertions'].get('productionLibraryAssemblyBuilt') is True and
           gate['collection-class']['assertions'].get('bytesAllocatedInsideCollections') == 0 and
           gate['collection-class']['assertions'].get('mostOverridesAtOnce') == 1 and
-          set(C745_STALL_COMPACTION) == set(gate['stall-compaction']['requiredPostimages']) and
+          # Plan 748 rank 7: the drain guard's accessor in the collector joins the stall-compaction gate's scope.
+          set(C745_STALL_COMPACTION) | {drain_guard.DIAGNOSTICS} == set(gate['stall-compaction']['requiredPostimages']) and
           gate['stall-compaction']['assertions'].get('productionLibraryAssemblyBuilt') is True and
           gate['stall-compaction']['assertions'].get('compactionsDuringPresentedFrames') == 0 and
           gate['stall-compaction']['assertions'].get('replay729FiredInPlay') == 0 and
@@ -931,6 +989,14 @@ if not args.helpers_only:
           gate['fragmented-reads']['assertions'].get('privateRemapsChecked') is True and
           set(C766_PRIVATE_SPAN_SNAPSHOT) <= set(gate['fragmented-reads']['requiredPostimages']),
           'The next lot\'s changes are not bound by their gates')
+    # Lot after IPA 748-751, plan 748 rank 16: fragmented-reads executes the lazy private spans on the final source (the
+    # spans withdrawn after every Map and Unmap, rebuilt by the first lookup, each rebuild equal to the published spans,
+    # lookups racing Updates exact and every copy they published equal to the tree).
+    check(set(NEXT_PRIVATE_SPAN_LAZY) <= set(gate['fragmented-reads']['requiredPostimages']) and
+          all(gate['fragmented-reads']['assertions'].get('lazyPrivateSpans.' + name) is True
+              for name in ('executed', 'withdrawnAfterEveryUpdate', 'rebuiltByFirstLookup', 'rebuildsIdenticalToPublished',
+                           'concurrentStableReadsExact', 'concurrentPublicationsMatchTree')),
+          'The lazy private spans are not executed on the final source by fragmented-reads')
     # Lot after IPA 747: pipeline-variant-replay runs the three adapters' behaviour on the final source (Lot.cs): the
     # journal's eviction order, load trim and compaction, the states built for skipped draws and their counters, and the
     # demand-queue rule of the final scheduler, whose file it now binds.
@@ -945,6 +1011,17 @@ if not args.helpers_only:
           replay['assertions'].get('laterLot.demandQueue.idleOnDemandThread') == 30 and
           replay['assertions'].get('laterLot.demandQueue.highBeforeSecondDemanded') == 0,
           'The lot after IPA 747 is not executed by its gate')
+    # Lot after IPA 748-751, plan 748 rank 18: pipeline-variant-replay runs the final read of a variant (every GAL format's
+    # IsInt from its Vulkan format, draws' states read back uncounted, other masks read as the draw's and counted once) and
+    # the journal's count per session on the final source (Lot.cs).
+    check(set(NEXT_REPLAY_INTEGER_MASK) <= set(replay['requiredPostimages']) and
+          replay['assertions'].get('integerMaskExecuted') is True and
+          replay['assertions'].get('laterLot.integerMask.galFormats') == 152 and
+          replay['assertions'].get('laterLot.integerMask.drawStatesUncounted') == 2000 and
+          replay['assertions'].get('laterLot.integerMask.otherMaskReadAsDrawn') == 1000 and
+          replay['assertions'].get('laterLot.integerMask.journalRecomputed') == 3 and
+          replay['assertions'].get('laterLot.integerMask.nextSession') == 0,
+          'The replay\'s integer-format mask is not executed on the final source by its gate')
     # Lot after IPA 747 (review): setprogram-warmup builds and runs its fixture on the final source too; a compute program
     # translated during play has its warm-up demanded by its constructor, built on the demand thread and bound, once.
     warm = gate['setprogram-warmup']
@@ -955,11 +1032,27 @@ if not args.helpers_only:
           warm['assertions'].get('finalCompute.dispatchBoundWarmUp') is True and
           warm['assertions'].get('finalCompute.compiles') == 1,
           'The compute warm-up demanded at creation is not executed on the final source by its gate')
+    # Lot after IPA 748-751, plan 748 ranks 14 and 17: array-sync-epochs runs the final cache's membership filter (the same
+    # report with the filter answering yes, fewer lookups keyed by a texture; a filter answering no is caught), and
+    # sync-wait-attribution runs the final ThreadedRenderer.cs (the queue pinned, left in place by a compacting collection;
+    # NoteRenderCommand's return chained as the next start; the same lines and attribution).
+    epochs, waits = gate['array-sync-epochs'], gate['sync-wait-attribution']
+    check(set(NEXT_ARRAY_MEMBERSHIP_FILTER) <= set(epochs['requiredPostimages']) and
+          all(epochs['assertions'].get(name) is True for name in ('membershipStatesIdentical', 'membershipFilter.executed',
+                                                                  'membershipFilter.unfilteredIdentical', 'membershipFilter.alwaysSkipCaught')) and
+          set(NEXT_PINNED_COMMAND_QUEUE) | set(NEXT_RENDER_COMMAND_CLOCK) <= set(waits['requiredPostimages']) and
+          all(waits['assertions'].get(name) is True for name in ('finalRenderer.queuePinned', 'finalRenderer.noteReturnsNextStart',
+                                                                 'finalRenderer.chainedCommandsTelescoped',
+                                                                 'finalRenderer.linesAndAttributionAsCandidate')) and
+          waits['assertions'].get('finalRenderer.queueMovedInFinal') is False,
+          'The lot after IPA 748-751 is not executed on the final source by its gates')
     OUTSIDE_GPU |= {C745_NIFM_SERVICE}
     # Core 747: Ryujinx.Common's AsyncWorkQueue.cs is outside the GPU closure; its gate (wait-spin-bound) builds it.
     OUTSIDE_GPU |= {C747_SPIN_EVENT}
     # Core 749 candidate: PreciseSleepHelper.cs likewise; its gate (darwin-timed-waits) builds Ryujinx.Common and HLE.
     OUTSIDE_GPU |= {C749_TIMED_WAITS}
+    # Nextendo online lot: its five HLE files and EmbeddedContent.cs are outside the GPU closure; nifm-network-watch builds them.
+    OUTSIDE_GPU |= set(C768_NEXTENDO_ONLINE)
     check(CHANGES - OUTSIDE_GPU <= set(gate['fragmented-reads']['requiredPostimages']) and
           # Library.cs and the two HLE files (Core 647) are outside the GPU/Vulkan closure; their own gates bind them.
           CHANGES - {LIBRARY} - OUTSIDE_GPU <= {b['productionPath'] for b in gate['fragmented-reads']['compiledBindings']},
@@ -1021,7 +1114,9 @@ if not args.helpers_only:
                                             # Core 747: AsyncWorkQueue.cs likewise (its gate rebuilds its control).
                                             path != C747_SPIN_EVENT and
                                             # Core 749 candidate: PreciseSleepHelper.cs likewise.
-                                            path != C749_TIMED_WAITS}},
+                                            path != C749_TIMED_WAITS and
+                                            # Nextendo online lot: its five HLE files likewise (nifm-network-watch).
+                                            path not in C768_NEXTENDO_ONLINE}},
                         'ada': arrays_frozen['controlUnadaptedMembers']['ada']},
           'Control-only upstream inventories differ from the arrays contract plus the files joining the prepared source')
     rejects(lambda: verify.check_control_inventories({**frozen, 'controlUnadaptedMembers': {k: v for k, v in unadapted.items() if k != 'ada'}}),

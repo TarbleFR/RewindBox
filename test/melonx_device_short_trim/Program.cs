@@ -64,6 +64,9 @@ namespace Ryujinx.Graphics.Gpu.Image
         public bool Listed = true;
         public int Releases;
         public int Flushes;
+        // Plan 748 rank 11: every FlushModified call, and guest memory the CPU wrote since (no flush then).
+        public int FlushCalls;
+        public bool CpuDirty;
         public readonly ulong StorageBytes;
         public readonly string Name;
         public int References => _referenceCount;
@@ -77,9 +80,10 @@ namespace Ryujinx.Graphics.Gpu.Image
         }
         public ulong GetEstimatedHostSize() => StorageBytes;
         // Guest memory not modified by the CPU: the delivered eviction flushes GPU data.
-        public bool CheckModified(bool consume) => false;
+        public bool CheckModified(bool consume) => CpuDirty;
         public bool FlushModified(bool tracked)
         {
+            FlushCalls++;
             if (Group.GpuWritten) Flushes++;
             return Group.GpuWritten;
         }
@@ -175,6 +179,7 @@ static class Program
             evictedMiB = evicted / MiB,
             destroyedMiB = (ulong)built.Textures.Where(t => t.Releases != 0).Sum(t => (long)t.StorageBytes) / MiB,
             flushes = built.Textures.Sum(t => t.Flushes),
+            flushCalls = built.Textures.Sum(t => t.FlushCalls),
             // A view shares its storage's group: count each group once.
             dependentSynchronizations = built.Textures.Select(t => t.Group).Distinct().Sum(g => g.DependentSynchronizations),
             leftCache = string.Join(",", built.Textures.Where(t => !left.Contains(t)).Select(t => t.Name)),
@@ -195,7 +200,8 @@ static class Program
 
     static void Main(string[] args)
     {
-        bool candidate = args[0] == "candidate";
+        // Plan 748 rank 11: the final variant (adapt_device_critical_trim) also runs every candidate scenario.
+        bool candidate = args[0] != "control";
         Check((typeof(AutoDeleteCache).GetMethod("Trim").GetParameters().Length == 2) == candidate, "wrong source variant");
         var reports = new Dictionary<string, object>();
 
@@ -258,6 +264,68 @@ static class Program
             Trim(after.Cache, MemoryPressureLevel.Warning, freeOnly: true);
             Check(after.Cache.First() == after.Textures[0], "LRU order changed");
             reports["keptAfterTrimStillInLruOrder"] = after.Cache.Take(3).Select(t => t.Name).ToArray();
+        }
+
+        if (args[0] == "final")
+        {
+            // Plan 748 rank 11 (adapt_device_critical_trim): GpuContext.TrimCaches sets this flag around a trim that frees
+            // for real while only the device is short (Critical level or escalation), with freeOnly false.
+            FieldInfo flag = typeof(AutoDeleteCache).GetField("OnlyUnreferencedTrim", BindingFlags.NonPublic | BindingFlags.Static);
+            Check(flag != null && flag.FieldType == typeof(bool) && flag.GetCustomAttribute<ThreadStaticAttribute>() != null,
+                  "OnlyUnreferencedTrim is a thread-static flag");
+            (ulong, ulong) Flagged(AutoDeleteCache cache, MemoryPressureLevel level)
+            {
+                flag.SetValue(null, true);
+                try { return Trim(cache, level, freeOnly: false); }
+                finally { flag.SetValue(null, false); }
+            }
+
+            foreach (MemoryPressureLevel level in new[] { MemoryPressureLevel.Warning, MemoryPressureLevel.Critical })
+            {
+                Built built = Build();
+                (ulong evicted, ulong kept) = Flagged(built.Cache, level);
+                reports["onlyUnreferenced" + level] = Report(built, evicted, kept);
+                Check(built.Cache.TotalSize == 320 * MiB - evicted, "size bookkeeping");
+                Check(built.Textures.Where(t => t.Name.StartsWith("pool")).All(t => t.References == 2 && t.Releases == 0 && t.CacheNode != null),
+                      "pool-referenced textures stay in the cache with their references");
+                Check(built.Textures.All(t => t.Releases == 0 || (t.CacheNode == null && !t.Listed)), "released texture still listed");
+                Check(built.Cache.First() == built.Textures[0], "LRU order changed");
+            }
+
+            // Guest memory the CPU wrote since the GPU did: evicted without a flush, as the capacity eviction does.
+            {
+                Built built = Build();
+                built.Textures[1].CpuDirty = true;
+                (ulong evicted, ulong kept) = Flagged(built.Cache, MemoryPressureLevel.Warning);
+                reports["onlyUnreferencedCpuDirty"] = Report(built, evicted, kept);
+            }
+
+            // The flag set on another thread: this thread's trim is the delivered one.
+            {
+                Built built = Build();
+                var other = new System.Threading.Thread(() => flag.SetValue(null, true));
+                other.Start();
+                other.Join();
+                (ulong evicted, ulong kept) = Trim(built.Cache, MemoryPressureLevel.Warning, freeOnly: false);
+                reports["flagOnOtherThread"] = Report(built, evicted, kept);
+            }
+
+            // Only pool-referenced textures: nothing evicted, all walked bytes kept; a cache at its floor: nothing.
+            {
+                AutoDeleteCache busy = new();
+                TexturePool pool = new();
+                List<Texture> used = Enumerable.Range(0, 12).Select(i => new Texture(busy, "pool" + i, 16 * MiB)).ToList();
+                used.ForEach(t => { busy.Add(t); t.IncrementReferenceCount(pool, 0, 0); });
+                (ulong evicted, ulong kept) = Flagged(busy, MemoryPressureLevel.Critical);
+                Check(evicted == 0 && kept == 192 * MiB && used.All(t => t.Releases == 0 && t.CacheNode != null && t.Flushes == 0),
+                      "busy cache changed by the flagged trim");
+                AutoDeleteCache small = new();
+                List<Texture> few = Enumerable.Range(0, 8).Select(i => new Texture(small, "gpu" + i, 16 * MiB)).ToList();
+                few.ForEach(t => { small.Add(t); t.Group.GpuWritten = true; });
+                (evicted, kept) = Flagged(small, MemoryPressureLevel.Critical);
+                Check(evicted == 0 && few.All(t => t.Releases == 0 && t.FlushCalls == 0) && small.TotalSize == 128 * MiB, "floor not respected");
+            }
+            Check(!(bool)flag.GetValue(null), "flag left set");
         }
 
         Console.WriteLine(JsonSerializer.Serialize(new { variant = args[0], checks = _checks, reports }));

@@ -718,6 +718,43 @@ static class Program
         return new { threaded, kind = kind.ToString(), resScale, length, format, seed, steps, mostUpdates, digest = Hash(string.Join(";", digests)) };
     }
 
+    // ---- Plan 748 rank 14 (adapt_array_membership_filter) ----
+
+    // A small bound array whose updates read the change rings while the textures of another array (another cache, 200
+    // textures, all in an array: InBindlessArray set) are signalled dirty and have their sequences moved; the small
+    // array's own textures are written by the CPU and moved at some steps. Every step is checked against the pools and
+    // digested as the other scenarios are (control and candidate must agree); the dictionary lookups the small array's
+    // updates make are counted (Texture.Lookups, the hash codes the set lookups take).
+    static object Membership(bool threaded)
+    {
+        World others = new(400, threaded, 41, 200);
+        others.Update(World.Binding(400, Kind.Texture), Kind.Texture);
+        World w = new(16, threaded, 43, 8);
+        TextureBindingInfo binding = World.Binding(16, Kind.Texture);
+        w.Update(binding, Kind.Texture);
+        w.Update(binding, Kind.Texture);
+        const int Steps = 40;
+        List<string> digests = new();
+        long lookups = 0, signalled = 0;
+        for (int step = 0; step < Steps; step++)
+        {
+            for (int i = 0; i < 12; i++, signalled++)
+            {
+                Texture other = others.Library[1 + (step * 13 + i * 17) % others.LibrarySize];
+                if (i % 3 == 0) other.Invalidate(); else other.SignalGroupDirty();
+            }
+            if (step % 4 == 1) w.Library[1 + step % w.LibrarySize].CpuWrite();
+            if (step % 9 == 4) w.Library[1 + (step * 5) % w.LibrarySize].Invalidate();
+            long before = Texture.Lookups;
+            digests.Add(Step(w, binding, Kind.Texture, $"membership {(threaded ? "threaded" : "direct")} step {step}"));
+            lookups += Texture.Lookups - before;
+        }
+        Check.That(w.Violations == 0 && others.Violations == 0, "membership: a call reached a disposed texture");
+        w.Threaded?.Dispose();
+        others.Threaded?.Dispose();
+        return new { threaded, steps = Steps, signalled, lookups, digest = Hash(string.Join(";", digests)) };
+    }
+
     // A writer between its first and last step (the flag set, the epoch not moved yet), for the dirty flag and for a
     // sequence: the update that finds one walks; and the update after its epoch moved walks again.
     static object WriterInFlight(bool threaded)
@@ -800,6 +837,8 @@ static class Program
                     for (int seed = 1; seed <= 3; seed++)
                         cascades.Add(Cascade(threaded, kind, seed == 2, seed == 3 ? 400 : 70, format, seed * 17 + format, 40));
         List<object> writers = new() { WriterInFlight(true), WriterInFlight(false) };
+        // Plan 748 rank 14 (adapt_array_membership_filter): signals on another array's textures while a small array updates.
+        List<object> membership = new() { Membership(true), Membership(false) };
         List<object> visits = new();
         foreach (bool threaded in new[] { true, false })
         {
@@ -821,7 +860,7 @@ static class Program
         Console.WriteLine(JsonSerializer.Serialize(new
         {
             adapted = Adapted, checks = Check.Count, scenarios, shared, buffers, removals, failures, syncs, overflows, invalidations, quiet, measures,
-            cascades, writers, visits, syncCalls = Texture.SyncCalls, sequenceReads = Texture.SequenceReads,
+            cascades, writers, visits, membership, syncCalls = Texture.SyncCalls, sequenceReads = Texture.SequenceReads,
             counters = Enum.GetNames<PD.Counter>().Zip(PD.Totals).ToDictionary(p => p.First, p => p.Second),
             deltaPasses = PD.Calls[(int)PD.Work.ArrayDelta],
         }));
@@ -1031,6 +1070,13 @@ namespace Ryujinx.Graphics.Gpu.Image
         internal static bool TryReadInvalidationLog(long index, out Texture texture) { texture = InvalidationRing[index & (ChangeLogSize - 1)]; return texture != null; }
         // IPA 740 lot (adapt_array_log_membership): set by the final cache when it puts the texture into an array.
         internal bool InBindlessArray;
+        // Plan 748 rank 14 (adapt_array_membership_filter): the texture's bit in the arrays' membership filter, drawn as the
+        // production texture draws it; Lookups counts the hash codes taken by lookups keyed by a texture (the arrays' sets).
+        static int _arrayFilterSeed;
+        internal readonly byte ArrayFilterBit =
+            (byte)(unchecked((uint)System.Threading.Interlocked.Increment(ref _arrayFilterSeed) * 2654435761u) >> 24);
+        public static long Lookups;
+        public override int GetHashCode() { Lookups++; return base.GetHashCode(); }
         public static long SyncCalls, SequenceReads;
         internal int ContextUseEpoch => _world.UseEpoch;
         // Texture.SignalGroupDirty of the candidate (the control's sets the flag only; nothing reads the epoch there).

@@ -135,6 +135,10 @@ COMPOSED = sorted(set(COMPOSED) | set(COMMAND_BUFFER_OWNERSHIP))
 # composition, the build and the receipt, and section 6b of the probe drives it across partitions.
 from adapt_private_span_snapshot import BASELINE as PRIVATE_SPANS  # noqa: E402
 COMPOSED = sorted(set(COMPOSED) | set(PRIVATE_SPANS))
+# Lot after IPA 748-751 (plan 748 rank 16): adapt_private_span_lazy rebuilds those spans at the first lookup after an
+# Update instead of in every Update (the same file, composed through ORDER); section 6b of the probe executes it.
+from adapt_private_span_lazy import BASELINE as LAZY_PRIVATE_SPANS  # noqa: E402
+COMPOSED = sorted(set(COMPOSED) | set(LAZY_PRIVATE_SPANS))
 # Next lot: adapt_queued_3d_syncpoints' files (SemaphoreUpdater.cs is new to the production scope) join the composition,
 # so the final GPU build binds them.
 from adapt_queued_3d_syncpoints import BASELINE as QUEUED_3D  # noqa: E402
@@ -182,6 +186,8 @@ INPUTS = ['test/melonx_fragmented_reads_test.py', 'test/melonx_fragmented_reads/
           # Variant journal lot: applied last, in ORDER, on the composed PipelineCacheManager.cs, ShaderCollection.cs and
           # PipelineBase.cs (composed already through adapt_pipeline_variant_replay).
           'build-utils/melonx/adapt_variant_journal_room.py', 'build-utils/melonx/adapt_queued_variant_record.py',
+          # Lot after IPA 748-751: applied in ORDER on the composed AddressSpacePartition.cs.
+          'build-utils/melonx/adapt_private_span_lazy.py',
           'test/melonx_adapter_control.py', 'native/melonx/EmbeddedPerformanceDiagnostics.cs']
 # One fragment of a real anchor per adapted file; altering it must stop the whole adapter.
 DRIFT = {
@@ -401,6 +407,28 @@ if remaps['supported']:
           remaps['modelMatches'] is True, 'private remap scenario not exercised: ' + json.dumps(remaps))
     check(after['privateRemaps']['snapshotComparisons'] > 0 and after['privateRemaps']['partitionsCompared'] > 0,
           'the candidate did not compare its published private spans with the locked walk')
+# Lot after IPA 748-751 (adapt_private_span_lazy, plan 748 rank 16): in the candidate, every Map and Unmap of the remap
+# rounds left the spans of the partitions it touched withdrawn (two Updates in a row included: no copy per Update), the
+# first lookup after them rebuilt spans that tile the partition, every locked lookup's rebuild equals the spans published
+# before it (whose lookups equal the locked walk), and lookups racing 4000 Updates on other threads read the stable pages
+# exactly, while every copy they published, compared by the writer between its Updates, equals the tree (the probe fails
+# on any that does not). The control (no snapshot) runs none of it.
+lazy = dict(executed=bool(remaps['supported']))
+if remaps['supported']:
+    final = after['privateRemaps']
+    lazy.update(withdrawnAfterEveryUpdate=final['lazyWithdrawnAfterUpdate'] >= remaps['updates'],
+                rebuiltByFirstLookup=final['lazyRebuiltAfterUpdate'] > 0,
+                rebuildsIdenticalToPublished=final['lazyRebuildComparisons'] == final['snapshotComparisons'] > 0,
+                concurrentStableReadsExact=final['concurrentStableReadsExact'] is True and final['concurrentReads'] > 0 and
+                final['concurrentUpdates'] == 4000,
+                concurrentPublicationsMatchTree=final['concurrentPublishedChecked'] > 0,
+                counts={key: final[key] for key in ('lazyWithdrawnAfterUpdate', 'lazyRebuiltAfterUpdate', 'lazyRebuiltByFirstLookup',
+                                                    'lazyPublishedAtCheckpoint', 'lazyRebuildComparisons', 'concurrentUpdates',
+                                                    'concurrentReads', 'concurrentLookups', 'concurrentLookupsAfterWithdrawal',
+                                                    'concurrentPublishedChecked')})
+    check(all(lazy[key] is True for key in ('withdrawnAfterEveryUpdate', 'rebuiltByFirstLookup', 'rebuildsIdenticalToPublished',
+                                            'concurrentStableReadsExact', 'concurrentPublicationsMatchTree')),
+          'lazy private spans not executed as required: ' + json.dumps(lazy))
 page = os.sysconf('SC_PAGESIZE')
 reproduced = before['privatePartitions'].get('crossingUploadAllocated', 0) >= 0x30000
 limits = ['managed Release build of the GPU and Vulkan assembly closures, not the NativeAOT library; no Apple timing, device memory or FPS claim']
@@ -416,7 +444,7 @@ report = dict(result='passed', checks=checks + before['checks'] + after['checks'
               control=before, candidate=after, inputs={name: sha(ROOT / name) for name in INPUTS},
               host=platform.system() + ' ' + platform.machine() + ' Release managed build', pageSize=page,
               privatePartitionCopyReproducedOnHost=reproduced, hostMappedChecked=host_mapped['supported'],
-              privateRemapsChecked=remaps['supported'],
+              privateRemapsChecked=remaps['supported'], lazyPrivateSpans=lazy,
               physicalDeviceTested=False, fpsGainProven=False, limits=limits)
 args.report.parent.mkdir(parents=True, exist_ok=True)
 args.report.write_text(json.dumps(report, indent=2) + '\n')

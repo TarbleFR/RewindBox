@@ -148,6 +148,12 @@ with tempfile.TemporaryDirectory(prefix='melonx-performance-diagnostics-') as te
     # IPA 740 lot: adapt_keepalive_hold_off's line (the keep-alive's own decision again), applied after the hold and
     # undone before it.
     import adapt_keepalive_hold_off as _hold_off
+    # Plan 748 rank 2: adapt_keepalive_after_ephemeral's replacements in the keep-alive (the instant of its request and two
+    # summary counts), applied last and undone first; the bgc-keepalive gate executes them.
+    import adapt_keepalive_after_ephemeral as _after
+    for _old, _new in reversed(_after.PAIRS):
+        assert session_core.count(_new) <= 1
+        session_core = session_core.replace(_new, _old)
     assert session_core.count(_hold_off.LOOP_NEW) <= 1
     session_core = session_core.replace(_hold_off.LOOP_NEW, _hold_off.LOOP_OLD)
     for _old, _new in reversed(_hold.PAIRS):

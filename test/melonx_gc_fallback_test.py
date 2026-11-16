@@ -28,6 +28,9 @@ blocking one's (the device signature). The control must write the stale backgrou
 single flagged blocking line, nothing for real collections (no false positive), the flag at the final sample when the
 blocking budget is spent, and lohOccupiedAfterBytes = LOH size - LOH free on every line. Writes
 dist/melonx/gc-fallback-checks.json. No device; the runtime fallback itself is not reproduced on this host.
+Plan 748: a later preparation step of ORDER that edits the collector (adapt_stall_compaction_drain_guard adds a
+read-only accessor) is applied to the candidate in order; the static checks bind this lot's collector without it, the
+probes, the build and the postimage the final one.
 """
 from pathlib import Path
 import argparse, difflib, hashlib, json, os, re, shutil, subprocess, sys, tempfile
@@ -42,7 +45,7 @@ FINAL = args.candidate_source.resolve() if args.candidate_source else None
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 from adapt_session import once  # noqa: E402
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import journal_of_earlier_cores  # noqa: E402
+from melonx_adapter_control import ORDER, apply_present, journal_of_earlier_cores  # noqa: E402
 from adapt_bindless_array_deltas import DIAGNOSTIC_EDITS  # noqa: E402
 
 COLLECTOR = 'src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs'
@@ -67,6 +70,22 @@ def check(condition, message):
 
 def sha(data):
     return hashlib.sha256(data).hexdigest()
+
+
+def later_collector(collector, work):
+    """Plan 748: the preparation steps of ORDER that edit the collector after this lot (adapt_stall_compaction_drain_guard's
+    read-only accessor), applied to it in order. The final preparation holds exactly that collector, and the candidate
+    compiles it; the static checks bind this lot's collector, without them. None of them: the collector itself."""
+    tree = work / 'later'
+    (tree / COLLECTOR).parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(collector, tree / COLLECTOR)
+    for name in ORDER:
+        if apply_present(tree, name, only={COLLECTOR}):
+            LATER_STEPS.append(name)
+    return tree / COLLECTOR
+
+
+LATER_STEPS = []
 
 
 def region(lines, start, end):
@@ -134,8 +153,10 @@ with tempfile.TemporaryDirectory(prefix='melonx-gc-fallback-') as temporary:
     shutil.copyfile(ROOT / NATIVE, candidate_file)
     for old, new in DIAGNOSTIC_EDITS:
         once(candidate_file, old, new)
+    compiled_file = candidate_file
     if FINAL:
-        check((FINAL / COLLECTOR).read_bytes() == candidate_file.read_bytes(), 'final preparation holds this collector')
+        compiled_file = later_collector(candidate_file, work)
+        check((FINAL / COLLECTOR).read_bytes() == compiled_file.read_bytes(), 'final preparation holds this collector')
         # Core 725 gives the journal room at the start of a process (ConfigureJournal, MeloNX-core.log only) and Core 733
         # keeps the snapshot's bytes (core733_native); nothing else differs from the journal of the control, and the
         # candidate probe compiles the final one.
@@ -143,6 +164,7 @@ with tempfile.TemporaryDirectory(prefix='melonx-gc-fallback-') as temporary:
               (SOURCE / JOURNAL).read_text(encoding='utf-8-sig'), 'final preparation keeps the journal, but for its room at the start of a process and its kept snapshot')
     control_text = (SOURCE / COLLECTOR).read_text(encoding='utf-8-sig')
     candidate_text = candidate_file.read_text(encoding='utf-8-sig')
+    compiled_digest = sha(compiled_file.read_bytes())  # the collector the candidate compiles
 
     # Static: changes only in the epoch fields and the gcEvent methods.
     a, b = control_text.split('\n'), candidate_text.split('\n')
@@ -170,7 +192,7 @@ with tempfile.TemporaryDirectory(prefix='melonx-gc-fallback-') as temporary:
 
     # Both production Ryujinx.Common projects build.
     builds = {}
-    for side, collector in (('control', SOURCE / COLLECTOR), ('candidate', candidate_file)):
+    for side, collector in (('control', SOURCE / COLLECTOR), ('candidate', compiled_file)):
         tree = work / ('tree-' + side)
         shutil.copytree(SOURCE, tree, ignore=shutil.ignore_patterns('.git', 'bin', 'obj'), symlinks=True)
         shutil.copyfile(collector, tree / COLLECTOR)
@@ -206,7 +228,7 @@ with tempfile.TemporaryDirectory(prefix='melonx-gc-fallback-') as temporary:
         check(run.returncode == 0, 'probe runs: ' + side)
         return json.loads(next(line for line in run.stdout.splitlines() if line.startswith('{')))
 
-    observed = {side: probe(side, path) for side, path in (('control', SOURCE / COLLECTOR), ('candidate', candidate_file))}
+    observed = {side: probe(side, path) for side, path in (('control', SOURCE / COLLECTOR), ('candidate', compiled_file))}
 
 c, k = observed['control'], observed['candidate']
 
@@ -281,11 +303,13 @@ check(all(line['lohOccupiedAfterBytes'] == max(0, line['lohSizeAfterBytes'] - li
 
 inputs = [NATIVE, 'build-utils/melonx/adapt_bindless_array_deltas.py', 'build-utils/melonx/adapt_session.py',
           'test/melonx_gc_fallback_test.py', PROGRAM]
+if LATER_STEPS:
+    inputs += ['test/melonx_adapter_control.py', *('build-utils/melonx/' + name + '.py' for name in LATER_STEPS)]
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True, env=ENVIRONMENT).stdout.strip()
 receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL is not None,
                sourceKind='finalPreparation' if FINAL else 'core658PreparationPlusCheckoutCollector',
                sourceBaseline=BASELINE, nativeBaseline={NATIVE: NATIVE_BASELINE},
-               postimages={COLLECTOR: sha(candidate_text.encode()), JOURNAL: sha(((FINAL or SOURCE) / JOURNAL).read_bytes())},
+               postimages={COLLECTOR: compiled_digest, JOURNAL: sha(((FINAL or SOURCE) / JOURNAL).read_bytes())},
                productionCommonBuilt=builds, sdk=sdk, physicalDeviceTested=False,
                candidateFallbackLine=k['fallbackLines'][0], controlFallbackLines=c['fallbackLines'],
                hostRuntimeFallbacks={side: [o['hostFallback1'], o['hostFallback2']] for side, o in observed.items()},

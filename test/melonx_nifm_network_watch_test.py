@@ -26,7 +26,10 @@ real IGeneralService its real ServerBase (IpcService.TrySetServer) whose KernelC
 Static: only the two files change, each replacement is present once and reverses to the control; no instance handler
 on the event remains; the two cached fields are read only in GetLocalInterface. Host runtime, not an iPhone: that the
 undisposed general service is what held the 729 sessions is shown on the device by the sessionRetention line
-(Switch released, created minus disposed above zero). Writes dist/melonx/nifm-network-watch-checks.json.
+(Switch released, created minus disposed above zero).
+The Nextendo online lot (adapt_nextendo_online) is bound here too: its control is the final preparation with the lot
+reversed, a tree holding it is refused, and test/melonx_nifm_network_watch/Online.cs runs its checks on the candidate's
+production Ryujinx.HLE; its seven files' post-images join the receipt. Writes dist/melonx/nifm-network-watch-checks.json.
 """
 from pathlib import Path
 import hashlib, json, os, shutil, subprocess, sys, tempfile
@@ -44,6 +47,8 @@ SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_nifm_network_watch', _
 
 DOTNET = os.environ.get('DOTNET', 'dotnet')
 checks = 0
+# Checks of test/melonx_nifm_network_watch/Online.cs, pinned: a fixture that skips a part does not pass.
+ONLINE_CHECKS = 154
 
 
 def check(condition, message):
@@ -140,6 +145,43 @@ with tempfile.TemporaryDirectory(prefix='melonx-nifm-network-watch-') as tempora
 
     c, k, seam = execute(control), execute(candidate), execute(candidate, 'seam')
 
+    # The Nextendo online lot (adapt_nextendo_online, last in ORDER) is network code too: this gate binds its files. Its
+    # control is the final preparation with the lot reversed; its checks run on the candidate's production Ryujinx.HLE.
+    online_checks = None
+    if FINAL_PREPARATION:
+        import adapt_nextendo_online as online
+        online_control, online_present = control_source(FINAL_SOURCE, 'adapt_nextendo_online', _HOLD)
+        check(online_present, 'the final preparation holds the online lot')
+        for name, expected in online.BASELINE.items():
+            check(hashlib.sha256((online_control / name).read_bytes()).hexdigest() == expected, 'online control is the pinned preparation: ' + name)
+        check((candidate / online.ONLINE).read_bytes() == (ROOT / 'native/melonx/EmbeddedOnline.cs').read_bytes(), 'EmbeddedOnline.cs is the native file')
+        relapse = base / 'online-relapse'
+        shutil.copytree(candidate, relapse, ignore=ignore, symlinks=True)
+        try:
+            online.apply(relapse)
+            online_refused = False
+        except AssertionError:
+            online_refused = True
+        check(online_refused, 'fail closed: a tree that holds the online lot is refused')
+        online_fixture = base / 'online-fixture'
+        online_fixture.mkdir()
+        shutil.copy(ROOT / 'test/melonx_nifm_network_watch/Online.cs', online_fixture / 'Program.cs')
+        (online_fixture / 'Online.csproj').write_text(
+            '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework>'
+            '<Nullable>disable</Nullable><NuGetAudit>false</NuGetAudit></PropertyGroup><ItemGroup><ProjectReference Include="'
+            + str(candidate / 'src/Ryujinx.HLE/Ryujinx.HLE.csproj') + '" /></ItemGroup></Project>\n')
+        check(run([DOTNET, 'build', str(online_fixture / 'Online.csproj'), '-c', 'Release', '-nologo', '-p:NuGetAudit=false'], online_fixture).returncode == 0,
+              'online fixture builds against the candidate Ryujinx.HLE')
+        result = run([DOTNET, str(online_fixture / 'bin/Release/net10.0/Online.dll')], online_fixture, 600)
+        check(result.returncode == 0, 'online fixture passed: ' + result.stdout[-300:] + result.stderr[-300:])
+        online_report = json.loads(next(line for line in reversed(result.stdout.splitlines()) if line.startswith('{')))
+        # Every check ran, the six real handshakes included (a runner without a local IPv4 address fails here).
+        check(online_report['result'] == 'passed' and online_report['protocol'] == 'rewindbox-nextendo-online-1' and online_report['roots'] == 5
+              and online_report['handshakes'] == '6 handshakes' and online_report['checks'] == ONLINE_CHECKS,
+              'online fixture report: ' + str(online_report))
+        online_checks = online_report['checks']
+        postimages.update({name: hashlib.sha256((candidate / name).read_bytes()).hexdigest() for name in [*online.BASELINE, online.ONLINE]})
+
 print(json.dumps({'control': c, 'candidate': k, 'seam': seam})[:3000], flush=True)
 check(c['candidate'] is False and k['candidate'] is True, 'each engine is the one it is said to be')
 check(c['disposedSessionPartsAlive'] == 0 and k['disposedSessionPartsAlive'] == 0, 'a disposed general service releases its session in both')
@@ -169,10 +211,12 @@ report = {
     'controlSwitchesKeptOfEleven': c['switchesAlive'], 'candidateSwitchesKeptOfEleven': k['switchesAlive'],
     'controlHeapAfterElevenBytes': c['heapAfterElevenBytes'], 'candidateHeapAfterElevenBytes': k['heapAfterElevenBytes'],
     'observations': k['observations'], 'networkAvailable': k['networkAvailable'], 'subscriptions': seam['subscriptions'],
+    'onlineFixturePassed': online_checks is not None, 'onlineChecks': online_checks,
     'postimages': postimages, 'sourceBaseline': adapter.BASELINE,
     'inputs': {path: hashlib.sha256((ROOT / path).read_bytes()).hexdigest() for path in (
         'build-utils/melonx/adapt_nifm_network_watch.py', 'build-utils/melonx/adapt_session.py',
-        'test/melonx_nifm_network_watch_test.py', 'test/melonx_nifm_network_watch/Program.cs', 'test/melonx_adapter_control.py')},
+        'test/melonx_nifm_network_watch_test.py', 'test/melonx_nifm_network_watch/Program.cs', 'test/melonx_adapter_control.py',
+        'build-utils/melonx/adapt_nextendo_online.py', 'native/melonx/EmbeddedOnline.cs', 'test/melonx_nifm_network_watch/Online.cs')},
     'limitation': 'Host runtime and collector; the device check is the sessionRetention line after a close.',
 }
 out = ROOT / 'dist/melonx/nifm-network-watch-checks.json'

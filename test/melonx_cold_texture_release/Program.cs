@@ -19,6 +19,8 @@ using System.Threading;
 // MemoryManager of the candidate (adapt_cold_texture_release) against guest memory holding linear RGBA8 textures. Only
 // GAL is doubled: a renderer whose textures record what they are given (uploads, release); no Vulkan, Metal or GPU.
 // Time is the GPU use clock (GpuContext.TextureUseEpoch, seconds) and the pass clock (milliseconds), both set here.
+// Plan 748 rank 11 ("final" argument, final preparation's engine): the texture trim adapt_device_critical_trim runs for a
+// Critical level or an escalation while only the device is short, with host textures that return their data when flushed.
 static class Program
 {
     private const ulong GuestBase = 0x10000000;
@@ -31,6 +33,14 @@ static class Program
     private const string Tag = "(adapt_cold_texture_release)";
 
     private static readonly List<string> Lines = [];
+    private static bool _readableHosts;
+    private static readonly List<byte[]> Pinned = [];
+
+    // What a host texture of this size holds after the GPU wrote it (differs from every guest pattern AddTexture writes).
+    private static void HostPattern(int width, int height, byte[] data)
+    {
+        for (int i = 0; i < data.Length; i++) data[i] = (byte)(0xA5 ^ (i * 13 + (i >> 11)) ^ width);
+    }
 
     private sealed class RecordingTexture : ITexture
     {
@@ -49,8 +59,19 @@ static class Program
         public void CopyTo(ITexture destination, Extents2D srcRegion, Extents2D dstRegion, bool linearFilter) { }
         public void CopyTo(BufferRange range, int layer, int level, int stride) { }
         public ITexture CreateView(TextureCreateInfo info, int firstLayer, int firstLevel) => new RecordingTexture(info);
-        public PinnedSpan<byte> GetData() { Reads++; return default; }
-        public PinnedSpan<byte> GetData(int layer, int level) { Reads++; return default; }
+        public PinnedSpan<byte> GetData() { Reads++; return HostData(); }
+        public PinnedSpan<byte> GetData(int layer, int level) { Reads++; return HostData(); }
+
+        // Plan 748 rank 11: in the trim scenarios a read-back returns the host texture's own bytes (HostPattern), so a
+        // flush to guest memory is visible there; elsewhere nothing is returned, as before.
+        private PinnedSpan<byte> HostData()
+        {
+            if (!_readableHosts) return default;
+            byte[] data = GC.AllocateArray<byte>(Info.Width * Info.Height * 4, pinned: true);
+            HostPattern(Info.Width, Info.Height, data);
+            lock (Pinned) Pinned.Add(data);
+            return PinnedSpan<byte>.UnsafeFromSpan(data);
+        }
         public void SetData(MemoryOwner<byte> data) { Uploads.Add(data.Span.ToArray()); data.Dispose(); }
         public void SetData(MemoryOwner<byte> data, int layer, int level) { Uploads.Add(data.Span.ToArray()); data.Dispose(); }
         public void SetData(MemoryOwner<byte> data, int layer, int level, Rectangle<int> region) { Uploads.Add(data.Span.ToArray()); data.Dispose(); }
@@ -461,6 +482,78 @@ static class Program
         };
     }
 
+    // Plan 748 rank 11 (adapt_device_critical_trim): three 64 MiB textures written by the GPU (lifted into the auto delete
+    // cache in this order: A, B, D), B and D then dropped from the pool (the cache alone holds them), A still in it. A
+    // Warning trim (a quarter, above the 128 MiB floor: one texture) with "flagged" (OnlyUnreferencedTrim, what TrimCaches
+    // sets), "delivered" (this process's own pressure) or "freeOnly" (the device short, flush-free).
+    private static Dictionary<string, object> CriticalTrim(string mode)
+    {
+        using Session s = new();
+        _readableHosts = true;
+        try
+        {
+            (ulong addressA, int size) = s.AddTexture(20, 4096, 4096, 20);
+            (ulong addressB, _) = s.AddTexture(21, 4096, 4096, 21);
+            (ulong addressD, _) = s.AddTexture(22, 4096, 4096, 22);
+            s.Gpu.AdvanceSequence();
+            Epoch(s, 1000);
+            Texture a = s.Pool.Get(20), b = s.Pool.Get(21), d = s.Pool.Get(22);
+            a.SignalModified();
+            b.SignalModified();
+            d.SignalModified();
+            b.RemoveFromPools(false);
+            d.RemoveFromPools(false);
+            TextureCache cache = s.Gpu.PhysicalMemoryRegistry.Values.Single().TextureCache;
+            byte[] host = new byte[size];
+            HostPattern(4096, 4096, host);
+            byte[] guestA = s.Guest(addressA, size), guestB = s.Guest(addressB, size), guestD = s.Guest(addressD, size);
+            bool setup = a.CacheNode != null && b.CacheNode != null && d.CacheNode != null && !a.HasOneReference() && b.HasOneReference() &&
+                         d.HasOneReference() && a.Group.AnyHandleModified() && b.Group.AnyHandleModified() && d.Group.AnyHandleModified() &&
+                         s.Pool.GetCachedItem(20) == a && s.Pool.GetCachedItem(21) == null && !host.AsSpan().SequenceEqual(guestB);
+            FieldInfo flag = Type.GetType("Ryujinx.Graphics.Gpu.Image.AutoDeleteCache, Ryujinx.Graphics.Gpu")
+                ?.GetField("OnlyUnreferencedTrim", BindingFlags.NonPublic | BindingFlags.Static);
+            ulong released;
+            if (mode == "flagged")
+            {
+                flag!.SetValue(null, true);
+                try { released = cache.Trim(MemoryPressureLevel.Warning, freeOnly: false); }
+                finally { flag.SetValue(null, false); }
+            }
+            else
+            {
+                released = cache.Trim(MemoryPressureLevel.Warning, freeOnly: mode == "freeOnly");
+            }
+            Dictionary<string, object> State(Texture texture, int id, ulong address, byte[] before)
+            {
+                byte[] now = s.Guest(address, size);
+                return new()
+                {
+                    ["hostReads"] = Host(texture).Reads,
+                    ["hostReleases"] = Host(texture).Releases,
+                    ["inPool"] = s.Pool.GetCachedItem(id) == texture,
+                    ["inCache"] = texture.CacheNode != null,
+                    ["guest"] = now.AsSpan().SequenceEqual(before) ? "unchanged" : now.AsSpan().SequenceEqual(host) ? "hostData" : "other",
+                };
+            }
+            return new()
+            {
+                ["setup"] = setup,
+                ["flagFound"] = flag != null,
+                ["releasedMiB"] = released >> 20,
+                ["keptMiB"] = cache.LastTrimKeptBytes >> 20,
+                ["cachedMiB"] = cache.CachedBytes >> 20,
+                ["a"] = State(a, 20, addressA, guestA),
+                ["b"] = State(b, 21, addressB, guestB),
+                ["d"] = State(d, 22, addressD, guestD),
+            };
+        }
+        finally
+        {
+            _readableHosts = false;
+            lock (Pinned) Pinned.Clear();
+        }
+    }
+
     private static Dictionary<string, object> Run(Func<Dictionary<string, object>> scenario)
     {
         try { return scenario(); }
@@ -489,6 +582,13 @@ static class Program
             ["byteBound"] = Run(() => Bounds(100, 512, 512)),
             ["countBound"] = Run(() => Bounds(300, 64, 64)),
         };
+        if (args.Contains("final"))
+        {
+            foreach (string mode in new[] { "flagged", "delivered", "freeOnly" })
+            {
+                report["criticalTrim." + mode] = Run(() => CriticalTrim(mode));
+            }
+        }
         Console.WriteLine(JsonSerializer.Serialize(report));
     }
 }

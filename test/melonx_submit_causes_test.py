@@ -33,7 +33,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
 sys.path.insert(0, str(ROOT / 'tools/melonx'))
-from melonx_adapter_control import control_source, files_edited_later  # noqa: E402
+from melonx_adapter_control import ORDER, control_source, files_edited_later  # noqa: E402
 _HOLD = []
 FINAL_SOURCE = SOURCE
 SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_submit_causes', _HOLD)
@@ -145,6 +145,7 @@ for path in sorted((SOURCE / GPU).rglob('*.cs')):
 check(set(gpu_calls) == set(adapter.SITES) and all(gpu_calls[m] == {adapter.SITES[m]} for m in gpu_calls),
       'every CreateHostSyncIfNeeded call is in a method the site table names, in its file: ' + json.dumps({k: sorted(v) for k, v in gpu_calls.items()}))
 check(sum(1 for m in adapter.SITES if f'"{m}" =>' in adapter.CONTEXT_MEMBERS_NEW) == len(adapter.SITES) == 9, 'each site has a case')
+margin_decay = None
 if FINAL_PREPARATION:
     later = files_edited_later('adapt_submit_causes')
     # Core 745: adapt_paced_strict_syncs, a later adapter, paces the strict host syncs in GpuContext.cs and the voluntary
@@ -162,10 +163,21 @@ if FINAL_PREPARATION:
     # PipelineBase.cs's RenderStageTimer (pipeline state queued, shader modules not ready) and hands the framebuffer of a
     # draw that skips to the queued compile. Its PipelineBase.cs replacements are undone first (each required once).
     import adapt_queued_variant_record as variant_record  # noqa: E402
-    check(later <= {paced.GPU_CONTEXT, paced.AUTO_FLUSH, prereset.FULL, variant_record.DRAWS},
+    # Plan 748 rank 10 (after adapt_queued_variant_record): adapt_pacer_margin_decay changes the present pacer's margin
+    # rules in Window.cs (PresentPacer only). Its replacements are undone first when it is wired (each required once).
+    from melonx_adapter_control import ORDER  # noqa: E402
+    margin_decay = __import__('adapt_pacer_margin_decay') if 'adapt_pacer_margin_decay' in ORDER else None
+    check(later <= {paced.GPU_CONTEXT, paced.AUTO_FLUSH, prereset.FULL, variant_record.DRAWS} | ({margin_decay.WINDOW} if margin_decay else set()),
           'no later adapter edits these files but adapt_paced_strict_syncs, adapt_texture_play_clock, adapt_query_prereset, '
-          'adapt_queued_3d_syncpoints and adapt_queued_variant_record: ' + str(sorted(later)))
-    undo = (('adapt_queued_variant_record', {variant_record.DRAWS: list(variant_record.EDITS[variant_record.DRAWS])}),
+          'adapt_queued_3d_syncpoints, adapt_queued_variant_record and adapt_pacer_margin_decay: ' + str(sorted(later)))
+    # Plan 748 rank 11: adapt_device_critical_trim edits GpuContext.cs last (TrimCaches and the periodic trim's escalation);
+    # its replacements there are undone first, then adapt_pacer_margin_decay's in Window.cs.
+    critical_undo = ()
+    if 'adapt_device_critical_trim' in ORDER:
+        import adapt_device_critical_trim as critical_trim  # noqa: E402
+        critical_undo = (('adapt_device_critical_trim', {critical_trim.CONTEXT: list(critical_trim.EDITS[critical_trim.CONTEXT])}),)
+    pacer_undo = (('adapt_pacer_margin_decay', {margin_decay.WINDOW: list(margin_decay.PAIRS)}),) if margin_decay else ()
+    undo = critical_undo + pacer_undo + (('adapt_queued_variant_record', {variant_record.DRAWS: list(variant_record.EDITS[variant_record.DRAWS])}),
             ('adapt_queued_3d_syncpoints', {queued_3d.CONTEXT: [(old, new) for path, old, new in queued_3d.PAIRS
                                                                 if path == queued_3d.CONTEXT]}),
             ('adapt_query_prereset', {prereset.FULL: list(prereset.PAIRS)}),
@@ -319,6 +331,8 @@ inputs = ['build-utils/melonx/adapt_submit_causes.py', 'build-utils/melonx/adapt
           'test/melonx_submit_causes/Program.cs', 'test/melonx_adapter_control.py', 'tools/melonx/frame_report.py',
           'build-utils/melonx/adapt_texture_play_clock.py', 'build-utils/melonx/adapt_query_prereset.py',
           'build-utils/melonx/adapt_queued_3d_syncpoints.py', 'build-utils/melonx/adapt_queued_variant_record.py']
+if FINAL_PREPARATION and margin_decay:
+    inputs.append('build-utils/melonx/adapt_pacer_margin_decay.py')
 receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPARATION,
                sourceKind='finalPreparationWithReversedControl' if FINAL_PREPARATION else 'core741Preparation',
                postimages={name: sha(FINAL_SOURCE / name) for name in adapter.BASELINE} if FINAL_PREPARATION else {},

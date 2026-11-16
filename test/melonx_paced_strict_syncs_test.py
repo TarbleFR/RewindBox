@@ -37,7 +37,7 @@ SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import control_source, files_edited_later, later_sharing  # noqa: E402
+from melonx_adapter_control import ORDER, control_source, files_edited_later, later_sharing  # noqa: E402
 import importlib  # noqa: E402
 import adapt_paced_strict_syncs as adapter  # noqa: E402
 import adapt_texture_play_clock as play_clock  # noqa: E402
@@ -100,12 +100,19 @@ with tempfile.TemporaryDirectory(prefix='melonx-paced-strict-syncs-') as tempora
         # queue's call site passed to CreateHostSyncIfNeeded) edit GpuContext.cs after this adapter, and no other later
         # adapter edits its files. Their GpuContext.cs replacements are undone from the final text, latest adapter first
         # (each required once): what is left is exactly this candidate's GpuContext.cs.
+        # Plan 748 rank 11: adapt_device_critical_trim (TrimCaches and the periodic trim's escalation) edits GpuContext.cs
+        # last; its replacements there are undone first.
+        critical_names = ['adapt_device_critical_trim'] if 'adapt_device_critical_trim' in ORDER else []
         check([m for m in later_sharing('adapt_paced_strict_syncs') if set(importlib.import_module(m).BASELINE) & set(adapter.BASELINE)] ==
-              ['adapt_texture_play_clock', 'adapt_queued_3d_syncpoints'] and
-              set(play_clock.BASELINE) == {adapter.GPU_CONTEXT} and set(queued_3d.BASELINE) & set(adapter.BASELINE) == {adapter.GPU_CONTEXT},
-              'no later adapter edits these files but adapt_texture_play_clock and adapt_queued_3d_syncpoints, in GpuContext.cs')
+              ['adapt_texture_play_clock', 'adapt_queued_3d_syncpoints'] + critical_names and
+              set(play_clock.BASELINE) == {adapter.GPU_CONTEXT} and set(queued_3d.BASELINE) & set(adapter.BASELINE) == {adapter.GPU_CONTEXT} and
+              all(set(importlib.import_module(m).BASELINE) & set(adapter.BASELINE) == {adapter.GPU_CONTEXT} for m in critical_names),
+              'no later adapter edits these files but adapt_texture_play_clock, adapt_queued_3d_syncpoints and adapt_device_critical_trim, '
+              'in GpuContext.cs')
         final = (FINAL_SOURCE / adapter.GPU_CONTEXT).read_text(encoding='utf-8-sig')
-        for label, pairs in (('adapt_queued_3d_syncpoints', [(old, new) for path, old, new in queued_3d.PAIRS if path == queued_3d.CONTEXT]),
+        critical_pairs = [('adapt_device_critical_trim', list(importlib.import_module(m).EDITS[adapter.GPU_CONTEXT])) for m in critical_names]
+        for label, pairs in (*critical_pairs,
+                             ('adapt_queued_3d_syncpoints', [(old, new) for path, old, new in queued_3d.PAIRS if path == queued_3d.CONTEXT]),
                              ('adapt_texture_play_clock', list(play_clock.PAIRS))):
             for old, new in reversed(pairs):
                 check(final.count(new) == 1, label + ': each replacement once in ' + adapter.GPU_CONTEXT)

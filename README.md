@@ -4,6 +4,9 @@
 
 ### Your games, consoles and library on iPhone and iPad
 
+Game library and embedded emulators: Libretro, Dolphin, ARMSX2, RPCS3 and **RSwitch**, RewindBox's Nintendo Switch
+engine derived from MeloNX / Ryujinx (credited).
+
 <img src="assets/readme/rewindbox-preview.png" alt="RewindBox console library on iPhone" width="1100">
 
 [![Latest release](https://img.shields.io/github/v/release/TarbleFR/RewindBox?label=release)](https://github.com/TarbleFR/RewindBox/releases/latest)
@@ -21,7 +24,7 @@ For help with this app, use [RewindBox Issues](https://github.com/TarbleFR/Rewin
 or the [RewindBox community](https://discord.gg/G48u46ppX).
 
 RewindBox brings your game library and **embedded emulators** into one
-sideloaded app: Libretro, Dolphin, ARMSX2, RPCS3 and more. Compatible games run
+sideloaded app: Libretro, Dolphin, ARMSX2, RPCS3, RSwitch and more. Compatible games run
 inside RewindBox with its menus and controls; a separate emulator installation
 is not required.
 
@@ -178,6 +181,7 @@ RewindBox’s frontend license does not relicense third-party codes.
 | **Dolphin / DolphiniOS** | GameCube and Wii |
 | **ARMSX2 / PCSX2** | PlayStation 2 |
 | **RPCS3 / XITRIX iOS fork** | PlayStation 3 |
+| **RSwitch** (modified MeloNX / Ryujinx) | Nintendo Switch — in development, private test builds only |
 
 RewindBox no longer includes native game ports, nor the Ports playlist.
 KartPad (Mario Kart Wii) and Dusklight (Twilight Princess) were embedded in
@@ -259,7 +263,7 @@ Results depend on the game, device and allocation paths actually used.
 - **iOS 18 or later**, and a compatible IPA signing/sideloading method such as
   [SideStore](https://sidestore.io/).
 - Your own compatible games and any required system files.
-- For the embedded Dolphin, ARMSX2 and RPCS3 engines: a valid pairing file, Developer Mode,
+- For the embedded Dolphin, ARMSX2, RPCS3 and RSwitch engines: a valid pairing file, Developer Mode,
   suitable signing/provisioning and the supported StikJIT route. The current
   bridge checks a separately installed and activated **LocalDevVPN** route;
   RewindBox does not bundle or activate that VPN.

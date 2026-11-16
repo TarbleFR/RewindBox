@@ -122,7 +122,18 @@
   "build-utils/melonx/adapt_queued_3d_syncpoints.py",
   "build-utils/melonx/adapt_compute_warmup_demand.py",
   "build-utils/melonx/adapt_variant_journal_room.py",
-  "build-utils/melonx/adapt_queued_variant_record.py"
+  "build-utils/melonx/adapt_queued_variant_record.py",
+  "build-utils/melonx/adapt_nextendo_online.py",
+  "native/melonx/EmbeddedOnline.cs",
+  "build-utils/melonx/adapt_keepalive_after_ephemeral.py",
+  "build-utils/melonx/adapt_stall_compaction_drain_guard.py",
+  "build-utils/melonx/adapt_pacer_margin_decay.py",
+  "build-utils/melonx/adapt_device_critical_trim.py",
+  "build-utils/melonx/adapt_private_span_lazy.py",
+  "build-utils/melonx/adapt_pinned_command_queue.py",
+  "build-utils/melonx/adapt_array_membership_filter.py",
+  "build-utils/melonx/adapt_render_command_clock.py",
+  "build-utils/melonx/adapt_replay_integer_mask.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -233,9 +244,17 @@
   "src/Ryujinx.Graphics.Vulkan/Auto.cs",
   "src/Ryujinx.Graphics.Vulkan/CommandBufferPool.cs",
   "src/Ryujinx.Cpu/Jit/HostTracked/AddressSpacePartition.cs",
-  "src/Ryujinx.Graphics.Gpu/Engine/Threed/SemaphoreUpdater.cs"
+  "src/Ryujinx.Graphics.Gpu/Engine/Threed/SemaphoreUpdater.cs",
+  "src/Ryujinx.HLE/HleConfiguration.cs",
+  "src/Ryujinx.HLE/HOS/Services/Account/Acc/AccountService/ManagerServer.cs",
+  "src/Ryujinx.HLE/HOS/Services/Sockets/Sfdnsres/Proxy/DnsMitmResolver.cs",
+  "src/Ryujinx.HLE/HOS/Services/Sockets/Sfdnsres/Proxy/DnsBlacklist.cs",
+  "src/Ryujinx.HLE/HOS/Services/Ssl/SslService/SslManagedSocketConnection.cs",
+  "src/Ryujinx.Library/EmbeddedContent.cs"
  ],
- "productionAdditions": [],
+ "productionAdditions": [
+  "src/Ryujinx.HLE/EmbeddedOnline.cs"
+ ],
  "fixtureInputs": [
   "build-utils/melonx/adapt_binding_data_snapshots.py",
   "build-utils/melonx/adapt_bindless_array_deltas.py",
@@ -279,6 +298,7 @@
   "test/melonx_cold_texture_release/Program.cs",
   "test/melonx_descriptor_encoding_final.py",
   "test/melonx_device_short_trim/Program.cs",
+  "test/melonx_device_short_trim/Final.cs",
   "test/melonx_fallback_descriptor_scratch/NativeBoundary.cs",
   "test/melonx_fallback_descriptor_scratch/Program.cs",
   "test/melonx_forced_syncpoint_wait/Program.cs",
@@ -288,6 +308,7 @@
   "test/melonx_guest_fault_context/Program.cs",
   "test/melonx_hogwarts_dma_copies_test.py",
   "test/melonx_host_warning_trim/Program.cs",
+  "test/melonx_host_warning_trim/Final.cs",
   "test/melonx_memory_inventory/Program.cs",
   "test/melonx_moltenvk_barrier_ordering/Program.cs",
   "test/melonx_moltenvk_stage_ordering/Program.cs",
@@ -327,6 +348,7 @@
   "test/melonx_worker_main_cache_lookup/Program.cs",
   "test/melonx_compute_switch_bindings/Program.cs",
   "test/melonx_bgc_keepalive/Program.cs",
+  "test/melonx_bgc_keepalive/Final.cs",
   "test/melonx_pipeline_cache_background/Program.cs",
   "test/melonx_pipeline_cache_background/Double.cs",
   "test/melonx_sync_wait_attribution/Program.cs",
@@ -383,7 +405,8 @@
   "test/melonx_queued_syncpoints/Program.cs",
   "test/melonx_queued_syncpoints/Boundaries.cs",
   "test/melonx_pipeline_variant_replay/Program.cs",
-  "test/melonx_pipeline_variant_replay/Lot.cs"
+  "test/melonx_pipeline_variant_replay/Lot.cs",
+  "test/melonx_nifm_network_watch/Online.cs"
  ],
  "fixtureProductionInputs": [
   "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs",
@@ -535,7 +558,13 @@
     "sourceKind": "deliveredPreparedWithFinalCandidate",
     "physicalDeviceTested": false,
     "fpsGainProven": false,
-    "privateRemapsChecked": true
+    "privateRemapsChecked": true,
+    "lazyPrivateSpans.executed": true,
+    "lazyPrivateSpans.withdrawnAfterEveryUpdate": true,
+    "lazyPrivateSpans.rebuiltByFirstLookup": true,
+    "lazyPrivateSpans.rebuildsIdenticalToPublished": true,
+    "lazyPrivateSpans.concurrentStableReadsExact": true,
+    "lazyPrivateSpans.concurrentPublicationsMatchTree": true
    },
    "requiredPostimages": [
     "src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs",
@@ -2475,7 +2504,10 @@
     "result": "passed",
     "finalPreparationBound": true,
     "sourceKind": "finalPreparationWithReversedControl",
-    "physicalDeviceTested": false
+    "physicalDeviceTested": false,
+    "finalCriticalTrim.executed": true,
+    "finalCriticalTrim.flaggedCriticalDestroyedMiB": 160,
+    "finalCriticalTrim.poolReferencedDropped": 0
    },
    "requiredPostimages": [
     "src/Ryujinx.Graphics.Gpu/GpuContext.cs",
@@ -2870,7 +2902,16 @@
     "result": "passed",
     "finalPreparationBound": true,
     "sourceKind": "finalPreparationWithReversedControl",
-    "physicalDeviceTested": false
+    "physicalDeviceTested": false,
+    "finalMarginDecay.executed": true,
+    "finalMarginDecay.decaysToStartMargin": true,
+    "finalMarginDecay.wholeRefreshRaised": true,
+    "finalMarginDecay.subRefreshNotRaised": true,
+    "finalMarginDecay.probeSameCap": true,
+    "finalMarginDecay.resetAfterHostPause": true,
+    "finalMarginDecay.resetAfterDisabled": true,
+    "finalMarginDecay.latencyLowerOnceWornOff": true,
+    "finalMarginDecay.allocationBytes": 0
    },
    "requiredPostimages": [
     "src/Ryujinx.Graphics.Vulkan/Window.cs"
@@ -3117,7 +3158,10 @@
     "result": "passed",
     "finalPreparationBound": true,
     "sourceKind": "finalPreparationWithReversedControl",
-    "physicalDeviceTested": false
+    "physicalDeviceTested": false,
+    "finalCriticalTrim.executed": true,
+    "finalCriticalTrim.criticalFreesForReal": true,
+    "finalCriticalTrim.ownPressureUnchanged": true
    },
    "requiredPostimages": [
     "src/Ryujinx.Graphics.Gpu/GpuContext.cs"
@@ -3161,7 +3205,10 @@
     "result": "passed",
     "finalPreparationBound": true,
     "sourceKind": "finalPreparationWithReversedControl",
-    "physicalDeviceTested": false
+    "physicalDeviceTested": false,
+    "finalCriticalTrim.executed": true,
+    "finalCriticalTrim.flaggedReleasedMiB": 64,
+    "finalCriticalTrim.poolTextureTouched": false
    },
    "requiredPostimages": [
     "src/Ryujinx.Graphics.Gpu/GpuContext.cs",
@@ -3620,7 +3667,16 @@
     "finalPreparationBound": true,
     "sourceKind": "finalPreparationWithReversedControl",
     "physicalDeviceTested": false,
-    "productionLibraryAssemblyBuilt": true
+    "productionLibraryAssemblyBuilt": true,
+    "finalKeepAlive.executed": true,
+    "finalKeepAlive.controlRequestsAtFirstPollOf12s": true,
+    "finalKeepAlive.noRequestWithoutEphemeralBefore15500": true,
+    "finalKeepAlive.requestAfterEphemeral": true,
+    "finalKeepAlive.requestAtLatest": true,
+    "finalKeepAlive.windowUnchanged": true,
+    "finalKeepAlive.missedWhenHeldOverLastPolls": true,
+    "finalKeepAlive.summaryCountsBothKinds": true,
+    "finalKeepAlive.realBlockingAdded": 0
    },
    "requiredPostimages": [
     "src/Ryujinx.Library/EmbeddedSession.cs"
@@ -3666,7 +3722,12 @@
     "finalPreparationBound": true,
     "sourceKind": "finalPreparationWithReversedControl",
     "physicalDeviceTested": false,
-    "productionGalExecuted": true
+    "productionGalExecuted": true,
+    "finalRenderer.queuePinned": true,
+    "finalRenderer.queueMovedInFinal": false,
+    "finalRenderer.noteReturnsNextStart": true,
+    "finalRenderer.chainedCommandsTelescoped": true,
+    "finalRenderer.linesAndAttributionAsCandidate": true
    },
    "requiredPostimages": [
     "src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs"
@@ -3834,7 +3895,13 @@
     "laterLot.queuedRecord.stageLineSplit": true,
     "laterLot.demandQueue.idleOnDemandThread": 30,
     "laterLot.demandQueue.highBeforeSecondDemanded": 0,
-    "laterLot.demandQueue.demandedFirstWhileBusy": 10
+    "laterLot.demandQueue.demandedFirstWhileBusy": 10,
+    "integerMaskExecuted": true,
+    "laterLot.integerMask.galFormats": 152,
+    "laterLot.integerMask.drawStatesUncounted": 2000,
+    "laterLot.integerMask.otherMaskReadAsDrawn": 1000,
+    "laterLot.integerMask.journalRecomputed": 3,
+    "laterLot.integerMask.nextSession": 0
    },
    "requiredPostimages": [
     "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs",
@@ -4281,7 +4348,10 @@
     "comparison.recreatedControl": 672,
     "comparison.recreatedCandidate": 0,
     "comparison.pauseEvictedCandidate": 0,
-    "comparison.sensitivityVariantsFailed": 3
+    "comparison.sensitivityVariantsFailed": 3,
+    "finalCriticalTrim.executed": true,
+    "finalCriticalTrim.candidateScenariosUnchanged": true,
+    "finalCriticalTrim.criticalReleasedMiB": 38
    },
    "requiredPostimages": [
     "src/Ryujinx.Graphics.Gpu/Memory/Buffer.cs",
@@ -4573,11 +4643,19 @@
     "productionLibraryAssemblyBuilt": true,
     "controlSwitchesKeptOfEleven": 11,
     "candidateSwitchesKeptOfEleven": 0,
-    "subscriptions": 1
+    "subscriptions": 1,
+    "onlineFixturePassed": true
    },
    "requiredPostimages": [
     "src/Ryujinx.HLE/HOS/Services/Nifm/StaticService/IGeneralService.cs",
-    "src/Ryujinx.Library/Library.cs"
+    "src/Ryujinx.Library/Library.cs",
+    "src/Ryujinx.HLE/HleConfiguration.cs",
+    "src/Ryujinx.HLE/HOS/Services/Account/Acc/AccountService/ManagerServer.cs",
+    "src/Ryujinx.HLE/HOS/Services/Sockets/Sfdnsres/Proxy/DnsMitmResolver.cs",
+    "src/Ryujinx.HLE/HOS/Services/Sockets/Sfdnsres/Proxy/DnsBlacklist.cs",
+    "src/Ryujinx.HLE/HOS/Services/Ssl/SslService/SslManagedSocketConnection.cs",
+    "src/Ryujinx.Library/EmbeddedContent.cs",
+    "src/Ryujinx.HLE/EmbeddedOnline.cs"
    ]
   },
   {
@@ -4655,7 +4733,11 @@
     "scenariosWithIdenticalStates": 122,
     "quietUpdateSyncCallsControl": 3200,
     "quietUpdateSyncCallsCandidate": 0,
-    "quietUpdateSequenceReadsCandidate": 0
+    "quietUpdateSequenceReadsCandidate": 0,
+    "membershipStatesIdentical": true,
+    "membershipFilter.executed": true,
+    "membershipFilter.unfilteredIdentical": true,
+    "membershipFilter.alwaysSkipCaught": true
    },
    "requiredPostimages": [
     "src/Ryujinx.Graphics.Gpu/Image/Texture.cs",
@@ -4706,12 +4788,19 @@
     "productionLibraryAssemblyBuilt": true,
     "compactionsDuringPresentedFrames": 0,
     "replay729FiredInPlay": 0,
-    "liveFreeAfterMiB": 0
+    "liveFreeAfterMiB": 0,
+    "drainGuard.executed": true,
+    "drainGuard.refusedInHeldDrain": true,
+    "drainGuard.refusalsPerHeldGap": 1,
+    "drainGuard.loadingKept": true,
+    "drainGuard.youngDrainKept": true,
+    "drainGuard.lockFreeInvalidReads": 0
    },
    "requiredPostimages": [
     "src/Ryujinx.Library/EmbeddedMemory.cs",
     "src/Ryujinx.Library/EmbeddedSession.cs",
-    "src/Ryujinx.Library/Window/WindowBase.cs"
+    "src/Ryujinx.Library/Window/WindowBase.cs",
+    "src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs"
    ]
   },
   {

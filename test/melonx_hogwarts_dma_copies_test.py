@@ -259,6 +259,32 @@ LOT_FILES = {
     'adapt_variant_journal_room': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
     'adapt_queued_variant_record': ['src/Ryujinx.Graphics.Vulkan/PipelineBase.cs', 'src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs',
                                     'src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
+    # Plan 748 rank 2: the keep-alive's request right after an ephemeral collection (EmbeddedSession.cs, outside this
+    # composition).
+    'adapt_keepalive_after_ephemeral': [],
+    # Plan 748 rank 7: no presentation-gap compaction while the render thread is held in one drain (EmbeddedMemory.cs and
+    # the performance collector, outside this composition).
+    'adapt_stall_compaction_drain_guard': [],
+    # Plan 748 rank 10: the present pacer's margin decays, is raised only a whole refresh late and restarts after a pause
+    # (Window.cs in this composition).
+    'adapt_pacer_margin_decay': ['src/Ryujinx.Graphics.Vulkan/Window.cs'],
+    # Plan 748 rank 11: a Critical level or an escalated trim frees for real while only the device is short (BufferCache.cs
+    # in this composition: Trim's byCapacity; GpuContext.cs and AutoDeleteCache.cs outside it).
+    'adapt_device_critical_trim': ['src/Ryujinx.Graphics.Gpu/Memory/BufferCache.cs'],
+    # Plan 748 rank 16: a partition's private spans rebuilt by the first lookup after an Update (AddressSpacePartition.cs,
+    # outside this composition).
+    'adapt_private_span_lazy': [],
+    # Lot after IPA 748-751, plan 748 ranks 17 and 14: the threaded renderer's command queue allocated pinned, then one
+    # clock read per render command (ThreadedRenderer.cs in this composition); the texture arrays' membership filter
+    # (Texture.cs and TextureBindingsArrayCache.cs, outside it).
+    'adapt_pinned_command_queue': ['src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs'],
+    'adapt_array_membership_filter': [],
+    'adapt_render_command_clock': ['src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs'],
+    # Plan 748 rank 18: a recorded variant read with the draw's integer-format mask (PipelineState.cs, outside this
+    # composition) and the recomputes counted in the variants summary (PipelineCacheManager.cs in this composition).
+    'adapt_replay_integer_mask': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
+    # Nextendo online lot (adapt_nextendo_online): its HLE files and EmbeddedContent.cs are outside this composition.
+    'adapt_nextendo_online': [],
 }
 
 checks = 0

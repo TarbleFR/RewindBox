@@ -210,6 +210,16 @@ from adapt_queued_3d_syncpoints import apply as adapt_queued_3d_syncpoints
 from adapt_compute_warmup_demand import apply as adapt_compute_warmup_demand
 from adapt_variant_journal_room import apply as adapt_variant_journal_room
 from adapt_queued_variant_record import apply as adapt_queued_variant_record
+from adapt_keepalive_after_ephemeral import apply as adapt_keepalive_after_ephemeral
+from adapt_stall_compaction_drain_guard import apply as adapt_stall_compaction_drain_guard
+from adapt_pacer_margin_decay import apply as adapt_pacer_margin_decay
+from adapt_device_critical_trim import apply as adapt_device_critical_trim
+from adapt_private_span_lazy import apply as adapt_private_span_lazy
+from adapt_pinned_command_queue import apply as adapt_pinned_command_queue
+from adapt_array_membership_filter import apply as adapt_array_membership_filter
+from adapt_render_command_clock import apply as adapt_render_command_clock
+from adapt_replay_integer_mask import apply as adapt_replay_integer_mask
+from adapt_nextendo_online import apply as adapt_nextendo_online
 
 
 def replace_once(path, old, new):
@@ -339,7 +349,8 @@ def main():
                    'EmbeddedStartupTrace.cs': 'Ryujinx.Common',
                    'EmbeddedAudioPacing.cs': 'Ryujinx.Common',
                    'EmbeddedFirmwareStore.cs': 'Ryujinx.HLE',
-                   'EmbeddedFirmwareArchive.cs': 'Ryujinx.HLE'}.get(path.name, 'Ryujinx.Library')
+                   'EmbeddedFirmwareArchive.cs': 'Ryujinx.HLE',
+                   'EmbeddedOnline.cs': 'Ryujinx.HLE'}.get(path.name, 'Ryujinx.Library')
         target = source / 'src' / project / path.name
         shutil.copyfile(path, target)
         copied.append(target)
@@ -657,6 +668,47 @@ def main():
     # wait), and so are the draws that wait for such a compile; the async skips are split by cause (PipelineBase.cs,
     # ShaderCollection.cs after adapt_compute_warmup_demand, PipelineCacheManager.cs after adapt_variant_journal_room).
     adapted += adapt_queued_variant_record(source)
+    # Plan 748 rank 2, managed alternative (every title with the keep-alive active): the keep-alive's background gen2 is
+    # requested at the poll that sees an ephemeral collection end, or 15.5 s after the previous one at the latest, inside
+    # its unchanged 12-16 s window (EmbeddedSession.cs, after adapt_keepalive_hold_off).
+    adapted += adapt_keepalive_after_ephemeral(source)
+    # Plan 748 rank 7 (every title; IPA 748-751 SSBU: a 345-346 ms presentation-gap compaction inside each of two compile
+    # freezes): no such compaction while the render thread has been in one drain of its queue for half the gap or more;
+    # the collector reads that drain's age without a lock (EmbeddedMemory.cs after adapt_stall_compaction,
+    # EmbeddedPerformanceDiagnostics.cs after adapt_bindless_array_deltas).
+    adapted += adapt_stall_compaction_drain_guard(source)
+    # Plan 748 rank 10 (every title with present pacing; pacing state only): the pacer's margin decays by an eighth of
+    # its excess every 30 paced frames on their slot, is raised only by a frame a whole refresh late, and pacing resumes
+    # at the start margin after enabled = false or a second with nothing on glass (Window.cs, after adapt_submit_causes).
+    adapted += adapt_pacer_margin_decay(source)
+    # Plan 748 rank 11 (titles with host memory budget tracking, Hogwarts Legacy; GPU thread): a Critical level, or the
+    # periodic trim escalated after 30 s of play at 5 % or less, frees the GPU caches for real while only the device is
+    # short: the textures only the texture cache holds leave (GPU-written data flushed first), the buffer cache evicts by
+    # capacity (GpuContext.cs after adapt_queued_3d_syncpoints, AutoDeleteCache.cs after adapt_short_cache_reuse,
+    # BufferCache.cs after adapt_merged_buffer_order).
+    adapted += adapt_device_critical_trim(source)
+    # Plan 748 rank 16 (every title): a partition's private spans are no longer republished by every Map and Unmap; the
+    # first lookup after an Update rebuilds them under the read lock (AddressSpacePartition.cs, after
+    # adapt_private_span_snapshot).
+    adapted += adapt_private_span_lazy(source)
+    # Plan 748 rank 17 (every title): the threaded renderer's command queue on the pinned object heap, so a compaction
+    # cannot move it while the GPU thread writes through the pointer New<T> returned (ThreadedRenderer.cs, first edit
+    # after Core 030cc14f).
+    adapted += adapt_pinned_command_queue(source)
+    # Plan 748 rank 14, cpu-7 (every title): a bound texture array tests a 256-bit membership filter before the dictionary
+    # lookup of a signalled texture (Texture.cs, TextureBindingsArrayCache.cs after adapt_array_log_membership).
+    adapted += adapt_array_membership_filter(source)
+    # Plan 748 rank 14, cpu-9 (every title, render thread): one clock read per queued command, a command of a drain
+    # starting when the previous one's time ended (ThreadedRenderer.cs after adapt_pinned_command_queue).
+    adapted += adapt_render_command_clock(source)
+    # Plan 748 rank 18 (every title, replays only): a recorded variant is replayed with the integer-format mask a draw has
+    # for its colour attachments, recomputed from the formats and slots read, and the pipelineVariants summary counts the
+    # recomputes (PipelineState.cs after adapt_build_journal_load_wait, PipelineCacheManager.cs after
+    # adapt_queued_variant_record).
+    adapted += adapt_replay_integer_mask(source)
+    # Last: online play on Nextendo Network (HleConfiguration, EmbeddedContent, the DNS proxy, ManagerServer, the SSL
+    # connection); no other adapter edits these files, and EmbeddedOnline.cs is copied above with the native files.
+    adapted += adapt_nextendo_online(source)
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -810,7 +862,11 @@ def main():
                  'adapt_darwin_spin_yield.py', 'adapt_pool_slot_copy.py', 'adapt_texture_play_clock.py',
                  'adapt_private_span_snapshot.py', 'adapt_query_prereset.py', 'adapt_merged_buffer_order.py',
                  'adapt_queued_3d_syncpoints.py', 'adapt_compute_warmup_demand.py', 'adapt_variant_journal_room.py',
-                 'adapt_queued_variant_record.py']:
+                 'adapt_queued_variant_record.py', 'adapt_keepalive_after_ephemeral.py',
+                 'adapt_stall_compaction_drain_guard.py', 'adapt_pacer_margin_decay.py',
+                 'adapt_device_critical_trim.py', 'adapt_private_span_lazy.py', 'adapt_pinned_command_queue.py',
+                 'adapt_array_membership_filter.py', 'adapt_render_command_clock.py', 'adapt_replay_integer_mask.py',
+                 'adapt_nextendo_online.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'
