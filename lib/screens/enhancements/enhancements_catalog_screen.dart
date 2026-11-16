@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
 import '../../l10n/enhancements_locale.dart';
+import '../../services/catalogue_update_service.dart';
 import '../../services/enhancements/enhancement_catalog.dart';
 import '../../services/enhancements/enhancement_models.dart';
 import '../../services/enhancements/enhancement_service.dart';
@@ -139,11 +140,14 @@ class _EnhancementsCatalogScreenState extends State<EnhancementsCatalogScreen> {
 
   void _checkUpdates() => _run(() async {
     final updated = await _service.catalog.refresh();
+    // The bell's "new catalogues" notification follows the catalogue in use.
+    await CatalogueUpdateService.instance.check(reread: true);
     return _t(updated ? EnhancementsLocale.updated : EnhancementsLocale.upToDate);
   });
 
   void _clearCache() => _run(() async {
     await _service.catalog.clearCache();
+    await CatalogueUpdateService.instance.check(reread: true);
     return _t(EnhancementsLocale.cacheCleared);
   });
 

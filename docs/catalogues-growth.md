@@ -88,6 +88,34 @@ See [shaders-system.md](shaders-system.md), § 2. The pinned commit of
 (`test/neo_shader_kit_catalog_test.py`) validates each addition against its
 own commit.
 
+### In the app: the notification bell
+
+`lib/services/catalogue_update_service.dart` announces in the header's bell
+that a newer catalogue is published, for the two the app brings up to date
+by itself: Cheats & Enhancements (Settings > Tools, "Check for catalogue
+updates") and HD textures (a game's HD textures page, "Download the HD
+catalogues"). The unified cheats and the shader presets are bundled with the
+app: their new versions arrive with an app update, and the bell says nothing
+about them.
+
+- Nothing is read during startup: the first check waits 90 seconds, then the
+  network is read at most once a day (after 6 hours when offline).
+- Each check is one conditional request per catalogue, with the ETag of the
+  last answer: an unchanged catalogue answers `304 Not Modified`, without a
+  body. A changed one is read once (the enhancements index of the app's own
+  revision folder, so the record format the app reads; the HD manifest), in a
+  background isolate, and only its revision and size are kept.
+- "Newer" is the rule each catalogue applies when it refreshes: the later
+  revision string for enhancements, another revision of the same or a later
+  day for HD textures. The message names each catalogue, what it adds
+  ("+138 entries", "+73 packs") and where to update it, in the twelve
+  languages.
+- Nothing is downloaded into the catalogues, installed or replaced: the user
+  decides. The notification goes away once the catalogue is up to date;
+  dismissed (or cleared), it stays away for the revisions it announced and
+  comes back only for a later publication.
+- State: `RewindBox/Catalogues/updates.json` in the app's support directory.
+
 ## What was added on 16 November 2026
 
 Before: commit `d4a494a`. Reproduce with

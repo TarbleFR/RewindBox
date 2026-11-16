@@ -7,6 +7,7 @@ import 'package:neostation/providers/sqlite_database_provider.dart';
 import 'package:neostation/providers/file_provider.dart';
 import 'package:neostation/providers/theme_provider.dart';
 import 'package:neostation/services/glacier_preset.dart';
+import 'package:neostation/services/catalogue_update_service.dart';
 import 'package:retro_achievements_session/retro_achievements_session.dart';
 import 'package:neostation/themes/glacier_theme.dart';
 import 'package:neostation/themes/interface_style.dart';
@@ -666,6 +667,13 @@ void main() async {
       unawaited(_refreshBundledSkinsAfterStartup());
     });
   }
+
+  // Newer catalogues (Cheats & Enhancements, HD textures) are announced in the
+  // notification bell. Nothing is read before CatalogueUpdateService's first
+  // delay, then at most once a day, with a conditional request.
+  WidgetsBinding.instance.addPostFrameCallback(
+    (_) => CatalogueUpdateService.instance.start(),
+  );
 
   // Background music initialization removed
 
