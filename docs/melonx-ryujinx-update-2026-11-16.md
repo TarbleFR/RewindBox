@@ -117,7 +117,7 @@ condition stay the runtime's.
 | Step | State |
 | --- | --- |
 | Implemented | Yes: adapter, wiring, build check |
-| Tested | On Linux: the C file run with stand-ins (each call under each value of the two flags), the project's target run by MSBuild for both iOS runtime identifiers, the objects' symbols, and a Mach-O link (lld) of a stand-in caller, where the image's own definition replaces the system import (gate `runtime-yield`, 27 checks) |
+| Tested | On Linux: the C file run with stand-ins (each call under each value of the two flags), the project's target run by MSBuild for both iOS runtime identifiers, the objects' symbols, and a Mach-O link (lld) of a stand-in caller, where the image's own definition replaces the system import (gate `runtime-yield`, 28 checks) |
 | Compiled | Not yet: the NativeAOT link on macOS is the Core build |
 | Delivered | No |
 | Observed on a device | No |

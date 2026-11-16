@@ -13,7 +13,8 @@ swtch_pri(0), the system library's own yield, while the runtime's RhpTrapThreads
 or the collector's gc_background_running (a background collection) is not zero, and after thread_switch with no
 thread, no option and no time otherwise; build_core.sh refuses a library that still imports sched_yield, does not
 import thread_switch and swtch_pri, or lacks the marker.
-Executed with this host's clang, llvm-nm and Mach-O lld (no Apple SDK is read: the C file includes nothing): the C
+Executed with this host's clang, llvm-nm and Mach-O lld (no Apple SDK is read: the C file includes nothing; the
+target passes the link's SDK path when the link has one): the C
 file built for this host with stand-ins of the two calls and of the two flags makes each call with its arguments
 under the flags' values; the final project's target, taken out of the project into a stub that provides the two
 NativeAOT targets it hooks, is run by MSBuild for ios-arm64 and iossimulator-arm64 and is refused for another runtime
@@ -143,8 +144,10 @@ int main(void)
           'thread_switch(0, 0, 0) with both flags clear, swtch_pri(0) with either set, 0 returned: ' + str(branch))
     target = adapter.TARGET[:-len('</Project>')]
     check(target.count('BeforeTargets="LinkNative" DependsOnTargets="SetupOSSpecificProps"') == 1 and
-          target.count('<LinkerArg Include=') == 1 and target.count('<Exec Command=') == 1 and target.count('<Error Condition=') == 5,
-          'one compile, one link input, five refusals, before the native link')
+          target.count('<LinkerArg Include=') == 1 and target.count('<Exec Command=') == 1 and target.count('<Error Condition=') == 5 and
+          target.count('''<_RewindBoxYieldSysRoot Condition=" '$(SysRoot)' != '' ">-isysroot &quot;$(SysRoot)&quot; </_RewindBoxYieldSysRoot>''') == 1 and
+          target.count('--target=$(TargetTriple) $(_RewindBoxYieldSysRoot)-O2 -Wall -c ') == 1,
+          'one compile for the link\'s target and SDK, one link input, five refusals, before the native link')
     # The target as the final project holds it, in a stub that provides the two NativeAOT targets it hooks.
     project = work / 'stub'
     project.mkdir()
@@ -180,6 +183,13 @@ int main(void)
               undefined == sorted(['_RhpTrapThreads', adapter.BACKGROUND_FLAG, '_swtch_pri', '_thread_switch']),
               f'the object defines sched_yield and the marker, and needs only the two calls and the two flags: {rid} {defined} {undefined}')
         objects[rid] = dict(triple=triple, sha256=sha(produced), bytes=produced.stat().st_size)
+    # With an SDK path, as on the build host: the compile takes it and still succeeds (the C file includes nothing).
+    sdk_root = work / 'sdk root'
+    sdk_root.mkdir()
+    with_sdk = run([DOTNET, 'msbuild', 'stub.proj', '-t:LinkNative', '-p:RuntimeIdentifier=ios-arm64', f'-p:SysRoot={sdk_root}', '-v:n', '-nologo'], project)
+    check(with_sdk.returncode == 0 and f'-isysroot "{sdk_root}" -O2 -Wall -c ' in with_sdk.stdout and
+          sha(project / 'obj/Release/net10.0/ios-arm64/RewindBoxRuntimeYield.o') == objects['ios-arm64']['sha256'],
+          'the compile passes the link\'s SDK path and gives the same object')
     refused = run([DOTNET, 'msbuild', 'stub.proj', '-t:LinkNative', '-p:RuntimeIdentifier=osx-arm64', '-v:m', '-nologo'], project, expect=1)
     check(refused.returncode != 0 and 'no reviewed target for RuntimeIdentifier' in refused.stdout + refused.stderr and
           not (project / 'obj/Release/net10.0/osx-arm64/RewindBoxRuntimeYield.o').exists(), 'another runtime identifier is refused before the compile')

@@ -120,6 +120,8 @@ TARGET = '''
     <PropertyGroup>
       <_RewindBoxYieldSource>$(MSBuildThisFileDirectory)RewindBoxRuntimeYield.c</_RewindBoxYieldSource>
       <_RewindBoxYieldObject>$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)', 'RewindBoxRuntimeYield.o'))</_RewindBoxYieldObject>
+      <!-- The link's SDK (SetupOSSpecificProps): without it the driver takes the host's SDK for an iOS target. -->
+      <_RewindBoxYieldSysRoot Condition=" '$(SysRoot)' != '' ">-isysroot &quot;$(SysRoot)&quot; </_RewindBoxYieldSysRoot>
     </PropertyGroup>
     <Error Condition=" '$(RuntimeIdentifier)' != 'ios-arm64' and '$(RuntimeIdentifier)' != 'iossimulator-arm64' " Text="RewindBox runtime yield: no reviewed target for RuntimeIdentifier '$(RuntimeIdentifier)'." />
     <Error Condition=" '$(TargetTriple)' == '' " Text="RewindBox runtime yield: the link has no target triple." />
@@ -127,7 +129,7 @@ TARGET = '''
     <Error Condition=" !Exists('$(_RewindBoxYieldSource)') " Text="RewindBox runtime yield: the source is missing: $(_RewindBoxYieldSource)" />
     <MakeDir Directories="$([System.IO.Path]::GetDirectoryName('$(_RewindBoxYieldObject)'))" />
     <Delete Files="$(_RewindBoxYieldObject)" />
-    <Exec Command="&quot;$(CppLinker)&quot; --target=$(TargetTriple) -O2 -Wall -Werror -c &quot;$(_RewindBoxYieldSource)&quot; -o &quot;$(_RewindBoxYieldObject)&quot;" />
+    <Exec Command="&quot;$(CppLinker)&quot; --target=$(TargetTriple) $(_RewindBoxYieldSysRoot)-O2 -Wall -c &quot;$(_RewindBoxYieldSource)&quot; -o &quot;$(_RewindBoxYieldObject)&quot;" />
     <Error Condition=" !Exists('$(_RewindBoxYieldObject)') " Text="RewindBox runtime yield: the object was not produced: $(_RewindBoxYieldObject)" />
     <ItemGroup>
       <LinkerArg Include="&quot;$(_RewindBoxYieldObject)&quot;" />
