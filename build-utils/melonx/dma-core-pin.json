@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "030cc14fd24fb016c4493ecd10dcb9e55dc448d0",
-  "run": 43641508569,
-  "job": 132589878687,
+  "source": "127b72b99fc2e1d1c5515d55328dcbca0092df9a",
+  "run": 43827244503,
+  "job": 133163885204,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 14131839888,
-  "name": "MeloNX-engine-030cc14fd24fb016c4493ecd10dcb9e55dc448d0",
-  "bytes": 100533476,
-  "sha256": "3015d78505a6f8aa9879e6aabf5e7fe1104e98aa48b1c67144f5382d369583a1",
-  "expiresAt": "2027-02-12T21:11:44Z",
+  "artifact": 14206574778,
+  "name": "MeloNX-engine-127b72b99fc2e1d1c5515d55328dcbca0092df9a",
+  "bytes": 100637252,
+  "sha256": "94a9a0648bfe00d80b313b07a47bdefab7f42d2ad5e233ba45aff75ead4f1d41",
+  "expiresAt": "2027-02-14T07:55:35Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "4c783cc4de11f2b68d3419ecf11c21b040874b9440408d939ed286052f0306f8",
-      "bytes": 38588056
+      "sha256": "57faf63212632ec87228765cfe3e8a245e919e7eabb277c842ecc7017794c483",
+      "bytes": 38637336
     },
     "iossimulator-arm64": {
-      "sha256": "dcecebe6d23813ebb33f8be47e4cc4da40b3b40f766e0500a9c4683309d4f635",
-      "bytes": 38906136
+      "sha256": "53e2c25900f043c0f70facbf444da5e284ef96964ae9e73f56b7b06fe1960ec2",
+      "bytes": 38955800
     }
   },
   "identities": {
-    "ios-arm64": "d1cd9b522a0d36e6554d2944d577ff200131738f25c4328d4432da6931db47db",
-    "iossimulator-arm64": "8ebfe0ddbc690d36121833398b6537511e425bf85349cef5da1ce1c73fe25b11"
+    "ios-arm64": "023b0cc987eba7e3cf84127afd2e67a809cdef3952f778cfa2ddf6a054dca713",
+    "iossimulator-arm64": "b8cfc13e4d2e70cddca1cc781424c5da53866d8358aa19aa7e0695c946d9992e"
   },
-  "contractSha256": "1362352a466d41c0c57c46352501899f57132dfa9aca26899428a1a897ad7f2a",
-  "resultSha256": "71293cede78dde96b8dc1680988a7566418a3cd37680302c06ef8acfc2cd0f06",
-  "packagedFingerprint": "f5d6aac2cd65e342e5f347b66aa76d667c8b46c0a8a4c7dab267dff1c1618407",
+  "contractSha256": "fd40979213bdfa86e450004fa3b7ba92662b08bceed9ac7d500cb12f2bb75112",
+  "resultSha256": "4cb5560102ce1bb8ef601fa893e348a1421711cdfe02dce80f973280b12b6cd3",
+  "packagedFingerprint": "16960d9b76ca4d3ad9055bc78df754069400eda6405df6f8ac8cd5f8c4f090d7",
   "replaces": {
-    "source": "03a889f631bd517c6126e0850c006d3a1754eed9",
-    "run": 43622519313,
-    "artifact": 14125675167,
-    "packagedFingerprint": "071137144e4683a79705a0e92a0f68bc9825495c04249a2a90cc74dcf2a7173a",
-    "reason": "Lot after IPA 747 (no probe added): a compute program translated in play promoted to the demand thread and workers taking demanded compiles first; the full variant journal evicting a lower-ranked record for a new state (4 MiB with compaction, replays bounded by 2 048 and the 8 % memory hold); states compiled for skipped draws recorded with their own counter; 109 gates run on the final preparation (Linux x86_64), build-smoke route. No iPhone gameplay, frame rate or thermal gain is claimed."
+    "source": "030cc14fd24fb016c4493ecd10dcb9e55dc448d0",
+    "run": 43641508569,
+    "artifact": 14131839888,
+    "packagedFingerprint": "f5d6aac2cd65e342e5f347b66aa76d667c8b46c0a8a4c7dab267dff1c1618407",
+    "reason": "Lot after IPA 748-751 (no probe added) with the Nextendo online engine lot v3: keep-alive collection after an ephemeral one, no stall compaction during a held render drain, pacer margin decay and reset after pauses, device-critical trims that free for real, lazy private spans, pinned command queue, texture-array membership filter, one clock read per render command, replay with the integer-format mask; online play on Nextendo Network inert unless configured. Contract fd409792, 109 gates on the final preparation (Linux x86_64), build-smoke route. No iPhone gameplay, frame rate or thermal gain is claimed."
   }
 }
