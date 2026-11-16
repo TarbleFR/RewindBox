@@ -135,6 +135,11 @@ les IPA de test ne se compilent que dans `TarbleFR/RewindBox` ; ailleurs, seule 
   recette authentifie son propre run via l'API du dépôt officiel (`REPOSITORY`) : elle n'aboutit hors de
   `TarbleFR/RewindBox` qu'en adaptant ces appels (permis par la GPL), et seulement tant que les artefacts
   épinglés de la release existent. Le moyen fiable reste l'IPA publiée de la release.
+- **Pull requests** : un run de pull request porte le nom du dépôt officiel même venant d'un fork ;
+  `run_repository` le traite comme un fork (aucune livraison ne tourne sur pull request). Les gardes de
+  job ne voient pas la différence : le réglage GitHub « Require approval for all external contributors »
+  (Settings › Actions › General) reste la protection ; ne jamais approuver un run de pull request externe
+  qui touche `.github/`, `build-utils/`, `test/` ou une clé `.pem`.
 - **Limites** : un fork peut modifier ces scripts (GPL) ; ce sont des défauts du projet, pas une clause de
   licence ni une mesure technique de protection. Les artefacts d'Actions d'un dépôt public restent
   téléchargeables par tout compte GitHub connecté (règle GitHub), y compris les Cores de test.

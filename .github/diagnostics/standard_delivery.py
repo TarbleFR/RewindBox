@@ -2201,10 +2201,14 @@ FORK_REFUSAL = ('RewindBox test IPAs are built only by the official repository '
 
 def run_repository(environ=None):
     """'local' outside GitHub Actions, 'official' in a run of the official repository, 'fork' in any other
-    repository. GitHub sets GITHUB_REPOSITORY(_ID) itself; a workflow cannot overwrite them. Never raises."""
+    repository. GitHub sets GITHUB_REPOSITORY(_ID) itself; a workflow cannot overwrite them. A pull request run
+    carries the official name even when it comes from a fork, and deliveries never run on pull requests, so it
+    counts as a fork's run. Never raises."""
     environ = os.environ if environ is None else environ
     if environ.get('GITHUB_ACTIONS') != 'true':
         return 'local'
+    if str(environ.get('GITHUB_EVENT_NAME') or '').startswith('pull_request'):
+        return 'fork'
     if environ.get('GITHUB_REPOSITORY_ID') == OFFICIAL_REPOSITORY_ID or \
             str(environ.get('GITHUB_REPOSITORY') or '').casefold() == REPOSITORY.casefold():
         return 'official'

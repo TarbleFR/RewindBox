@@ -99,6 +99,11 @@ class RunRepository(unittest.TestCase):
         self.assertEqual(sd.run_repository({'GITHUB_ACTIONS': 'true', 'GITHUB_REPOSITORY': 'TarbleFR/Other',
                                             'GITHUB_REPOSITORY_ID': '1329032710'}), 'official')
         self.assertEqual(sd.run_repository(FORK), 'fork')
+        # A pull request (from a fork or not) runs under the official name: never official.
+        for event in ('pull_request', 'pull_request_target'):
+            self.assertEqual(sd.run_repository(dict(OFFICIAL, GITHUB_EVENT_NAME=event)), 'fork')
+        for event in ('push', 'workflow_dispatch'):
+            self.assertEqual(sd.run_repository(dict(OFFICIAL, GITHUB_EVENT_NAME=event)), 'official')
         self.assertEqual(sd.run_repository({'GITHUB_ACTIONS': 'true'}), 'fork')
 
     def test_official_and_local_runs_touch_neither_git_nor_network(self):

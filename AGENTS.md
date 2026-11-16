@@ -37,6 +37,7 @@ Aller jusqu’au résultat demandé, sans élargir la mission.
 - `main` reçoit uniquement les releases publiques validées et autorisées ; aucun développement dessus.
 - Avant chaque release : sauvegarder l’état validé sur `Backup` (version + SHA), puis vérifier.
 - Étiqueter chaque release sur son commit déclencheur `[ipa-delivery:N]` ; ne jamais déplacer une étiquette publiée.
+- Mettre à jour `main` avec `[skip ci]` dans le commit de tête (un push de plus de 1000 commits ignore les filtres de chemins et relancerait `publish-fix-009.yml`).
 - Préserver toutes les sauvegardes ; ne jamais fusionner `Backup` dans `Claude` ou `main`.
 
 ## 5. Garder les preuves utiles
