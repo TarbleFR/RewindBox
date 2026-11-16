@@ -117,17 +117,20 @@ if FINAL_PREPARATION:
     # IPA 736, second lot: adapt_array_dirty_log then adds the rings of signalled textures to Texture.cs (nothing of the
     # remap check either): undone first.
     # IPA 740 lot: adapt_array_log_membership then adds the membership flag to Texture.cs (nothing of the remap check).
-    check(LATER == ['adapt_array_sync_epochs', 'adapt_array_dirty_log', 'adapt_array_log_membership'] and
+    # Plan 748 rank 14: adapt_array_membership_filter then adds the texture's filter bit to Texture.cs (nothing of it either).
+    check(LATER == ['adapt_array_sync_epochs', 'adapt_array_dirty_log', 'adapt_array_log_membership', 'adapt_array_membership_filter'] and
           files_edited_later('adapt_remap_sweep_range') == {adapter.TEXTURE},
-          'the only later adapters on these files are adapt_array_sync_epochs, adapt_array_dirty_log and '
-          'adapt_array_log_membership, on Texture.cs: %s' % LATER)
+          'the only later adapters on these files are adapt_array_sync_epochs, adapt_array_dirty_log, '
+          'adapt_array_log_membership and adapt_array_membership_filter, on Texture.cs: %s' % LATER)
     import adapt_array_sync_epochs as epochs  # noqa: E402
     import adapt_array_dirty_log as dirty_log  # noqa: E402
     import adapt_array_log_membership as membership  # noqa: E402
+    import adapt_array_membership_filter as membership_filter  # noqa: E402
     for name in adapter.BASELINE:
         final_text = text(FINAL_SOURCE, name)
         for old, new in reversed(tuple(epochs.FILE_PAIRS.get(name, ())) + tuple(dirty_log.FILE_PAIRS.get(name, ())) +
-                                 tuple((o, n) for f, o, n in membership.PAIRS if f == name)):
+                                 tuple((o, n) for f, o, n in membership.PAIRS if f == name) +
+                                 tuple((o, n) for f, o, n in membership_filter.PAIRS if f == name)):
             check(final_text.count(new) == 1, name + ': later replacement present once')
             final_text = final_text.replace(new, old)
         check(candidate_text[name] == final_text, name + ': the final preparation is the control plus the adapter\'s replacements (and the later adapter\'s)')

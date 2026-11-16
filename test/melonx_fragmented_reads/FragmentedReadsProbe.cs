@@ -277,6 +277,10 @@ namespace Ryujinx.Graphics.Gpu.Memory
         //     partition boundary at 0x6000_0000 (32 MiB partitions). Each build must read back the bytes written at each
         //     page's last mapping (a model of the mapped pages) and give the same private-allocation lookups; the
         //     candidate's lookups through its published spans must equal its unchanged locked walk (spans withdrawn).
+        //     Lot after IPA 748-751 (adapt_private_span_lazy): in the candidate, every Map and Unmap leaves the spans of
+        //     the partitions it touched withdrawn (no copy per Update), the first lookup after them rebuilds them under
+        //     the read lock, each rebuild equals the spans published before, and lookups racing Updates on other threads
+        //     read the stable pages' bytes exactly and leave the published spans equal to the locked walk.
         private const ulong RemapVa = 0x6000_0000 - 0x40_0000, RemapPa = 0x180_0000, RemapSize = 0x80_0000;
         private const BindingFlags AnyInstance = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
 
@@ -448,10 +452,17 @@ namespace Ryujinx.Graphics.Gpu.Memory
                 ulong va = RemapVa + (ulong)page * Page;
                 cpu.Unmap(va, (ulong)count * Page);
                 tags.AsSpan(page, count).Fill(-1);
+#if FRAGMENTED_READS_CANDIDATE
+                CheckWithdrawn(space, va, (ulong)count * Page, results);
+#endif
 
                 if (random.Next(3) != 0)
                 {
                     cpu.Map(va, RemapPa + (ulong)random.Next(0, pages - count) * Page, (ulong)count * Page, MemoryMapFlags.Private);
+#if FRAGMENTED_READS_CANDIDATE
+                    CheckWithdrawn(space, va, (ulong)count * Page, results); // a second Update with no lookup between
+                    CheckRebuilt(space, va, (ulong)count * Page, results);
+#endif
                     Fill(page, count, round);
                 }
 
@@ -463,6 +474,9 @@ namespace Ryujinx.Graphics.Gpu.Memory
                 }
             }
 
+#if FRAGMENTED_READS_CANDIDATE
+            ConcurrentLookups(cpu, space, results);
+#endif
             results["supported"] = true;
             results["updates"] = updates;
             results["lookups"] = lookups;
@@ -485,6 +499,9 @@ namespace Ryujinx.Graphics.Gpu.Memory
             int comparisons = results.TryGetValue("snapshotComparisons", out object done) ? (int)done : 0;
             int maxSpans = results.TryGetValue("maxSpans", out object most) ? (int)most : 0;
             int partitions = results.TryGetValue("partitionsCompared", out object seen) ? (int)seen : 0;
+            int lazyRebuilt = results.TryGetValue("lazyRebuiltByFirstLookup", out object rebuiltSoFar) ? (int)rebuiltSoFar : 0;
+            int lazyPublished = results.TryGetValue("lazyPublishedAtCheckpoint", out object publishedSoFar) ? (int)publishedSoFar : 0;
+            int rebuildComparisons = results.TryGetValue("lazyRebuildComparisons", out object rebuildsSoFar) ? (int)rebuildsSoFar : 0;
 
             foreach (object partition in (System.Collections.IList)FieldOf(space, "_partitions"))
             {
@@ -493,7 +510,22 @@ namespace Ryujinx.Graphics.Gpu.Memory
                 object spans = spansField.GetValue(partition);
                 ulong address = (ulong)type.GetProperty("Address").GetValue(partition);
                 ulong end = (ulong)type.GetProperty("EndAddress").GetValue(partition);
-                Check(spans != null, "a partition's private spans are published after every update");
+                MethodInfo get = type.GetMethod("GetPrivateAllocation", AnyInstance);
+
+                // adapt_private_span_lazy: spans withdrawn by an Update that no lookup has followed yet are rebuilt and
+                // published by the first lookup (the locked walk); published spans stay published until the next Update.
+                if (spans == null)
+                {
+                    get.Invoke(partition, new object[] { address });
+                    spans = spansField.GetValue(partition);
+                    Check(spans != null, "the first lookup after an update publishes the private spans");
+                    lazyRebuilt++;
+                }
+                else
+                {
+                    lazyPublished++;
+                }
+
                 ulong next = address;
 
                 foreach (object span in (Array)spans)
@@ -507,7 +539,6 @@ namespace Ryujinx.Graphics.Gpu.Memory
                 Check(next == end, "the private spans end at the partition end");
                 maxSpans = Math.Max(maxSpans, ((Array)spans).Length);
                 partitions++;
-                MethodInfo get = type.GetMethod("GetPrivateAllocation", AnyInstance);
                 MethodInfo getFirst = type.GetMethod("GetFirstPrivateAllocation", AnyInstance);
                 MethodInfo has = type.GetMethod("HasPrivateAllocation", AnyInstance);
                 object empty = has.GetParameters()[4].ParameterType.GetElementType().GetProperty("Empty").GetValue(null);
@@ -526,10 +557,12 @@ namespace Ryujinx.Graphics.Gpu.Memory
                         string snapshot = Lookup(partition, method, arguments(), ids);
                         spansField.SetValue(partition, null);
                         string locked;
+                        object rebuilt;
 
                         try
                         {
                             locked = Lookup(partition, method, arguments(), ids);
+                            rebuilt = spansField.GetValue(partition);
                         }
                         finally
                         {
@@ -538,6 +571,9 @@ namespace Ryujinx.Graphics.Gpu.Memory
 
                         Check(snapshot == locked, $"private lookup {method.Name} at {va:x}: snapshot {snapshot}, locked walk {locked}");
                         comparisons++;
+                        // adapt_private_span_lazy: the locked lookup found the spans withdrawn and rebuilt them.
+                        Check(SameSpans(rebuilt, spans), $"the spans {method.Name} rebuilt at {va:x} differ from the published ones");
+                        rebuildComparisons++;
                     }
 
                     Both(get, () => new object[] { va });
@@ -554,6 +590,268 @@ namespace Ryujinx.Graphics.Gpu.Memory
             results["snapshotComparisons"] = comparisons;
             results["maxSpans"] = maxSpans;
             results["partitionsCompared"] = partitions;
+            results["lazyRebuiltByFirstLookup"] = lazyRebuilt;
+            results["lazyPublishedAtCheckpoint"] = lazyPublished;
+            results["lazyRebuildComparisons"] = rebuildComparisons;
+        }
+
+        // Two span arrays with the same elements (address, size and allocation: block, offset, size), in the same order.
+        private static bool SameSpans(object left, object right)
+        {
+            if (left is not Array a || right is not Array b || a.Length != b.Length)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < a.Length; i++)
+            {
+                if (!a.GetValue(i).Equals(b.GetValue(i)))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        // adapt_private_span_lazy: right after a Map or Unmap (which make no lookup), every partition it touched has its
+        // spans withdrawn: the Update did not copy them.
+        private static void CheckWithdrawn(object space, ulong va, ulong size, Dictionary<string, object> results)
+        {
+            int withdrawn = results.TryGetValue("lazyWithdrawnAfterUpdate", out object soFar) ? (int)soFar : 0;
+            int touched = 0;
+
+            foreach (object partition in (System.Collections.IList)FieldOf(space, "_partitions"))
+            {
+                Type type = partition.GetType();
+                ulong address = (ulong)type.GetProperty("Address").GetValue(partition);
+                ulong end = (ulong)type.GetProperty("EndAddress").GetValue(partition);
+
+                if (address < va + size && va < end)
+                {
+                    Check(type.GetField("_privateSpans", AnyInstance).GetValue(partition) == null,
+                          $"the private spans of the partition at {address:x} were republished by an update at {va:x}+{size:x}");
+                    withdrawn++;
+                    touched++;
+                }
+            }
+
+            Check(touched > 0, "no partition holds the updated range");
+            results["lazyWithdrawnAfterUpdate"] = withdrawn;
+        }
+
+        // adapt_private_span_lazy: the first lookup after those Updates (a partition's GetPrivateAllocation, the path of
+        // AddressSpacePartitioned.GetPrivateAllocation) rebuilds and publishes spans that tile the partition.
+        private static void CheckRebuilt(object space, ulong va, ulong size, Dictionary<string, object> results)
+        {
+            int rebuilt = results.TryGetValue("lazyRebuiltAfterUpdate", out object soFar) ? (int)soFar : 0;
+
+            foreach (object partition in (System.Collections.IList)FieldOf(space, "_partitions"))
+            {
+                Type type = partition.GetType();
+                ulong address = (ulong)type.GetProperty("Address").GetValue(partition);
+                ulong end = (ulong)type.GetProperty("EndAddress").GetValue(partition);
+
+                if (address < va + size && va < end)
+                {
+                    FieldInfo spansField = type.GetField("_privateSpans", AnyInstance);
+                    type.GetMethod("GetPrivateAllocation", AnyInstance).Invoke(partition, new object[] { Math.Max(va, address) });
+                    object spans = spansField.GetValue(partition);
+                    Check(spans != null, $"the first lookup after an update at {va:x}+{size:x} did not publish the spans");
+                    ulong next = address;
+
+                    foreach (object span in (Array)spans)
+                    {
+                        ulong spanAddress = (ulong)span.GetType().GetField("Address", AnyInstance).GetValue(span);
+                        ulong spanSize = (ulong)span.GetType().GetField("Size", AnyInstance).GetValue(span);
+                        Check(spanAddress == next && spanSize > 0, "the rebuilt private spans tile the partition");
+                        next = spanAddress + spanSize;
+                    }
+
+                    Check(next == end, "the rebuilt private spans end at the partition end");
+                    rebuilt++;
+                }
+            }
+
+            results["lazyRebuiltAfterUpdate"] = rebuilt;
+        }
+
+        // adapt_private_span_lazy: one thread maps and unmaps a range of the upper partition (each Update withdraws its
+        // spans) while three threads read pages of both partitions that stay mapped (through the lock-free spans or the
+        // locked walk that rebuilds them) and look the toggled range up, often right after a withdrawal. The stable pages'
+        // bytes must stay exact. Between its Updates (the tree then changes only on its thread) the writer compares any
+        // spans the readers have published with the tree, node by node: a reader that published a copy an Update had
+        // since changed would show here. Once every thread has stopped, CompareSpans checks the lookups as before.
+        private static void ConcurrentLookups(MemoryManagerHostTracked cpu, object space, Dictionary<string, object> results)
+        {
+            const ulong Stable = RemapSize / 2 - 0x40000, StableSize = 0x80000;   // 64 pages each side of the boundary
+            const ulong Toggled = RemapSize - 0x100000, ToggledSize = 0x40000;   // 64 pages of the upper partition
+            const int Writes = 2000, ReadSize = 0x3000;
+            byte[] stableBytes = new byte[StableSize];
+            byte[] page = new byte[Page];
+
+            foreach ((ulong offset, ulong size) in new[] { (Stable, StableSize), (Toggled, ToggledSize) })
+            {
+                cpu.Unmap(RemapVa + offset, size);
+                cpu.Map(RemapVa + offset, RemapPa + offset, size, MemoryMapFlags.Private);
+
+                for (ulong at = 0; at < size; at += Page)
+                {
+                    for (int b = 0; b < page.Length; b++)
+                    {
+                        page[b] = RemapByte(200, (int)((offset + at) / Page), b);
+                    }
+
+                    cpu.Write(RemapVa + offset + at, page);
+
+                    if (offset == Stable)
+                    {
+                        page.CopyTo(stableBytes, (int)at);
+                    }
+                }
+            }
+
+            Check(cpu.GetSpan(RemapVa + Stable, (int)StableSize).SequenceEqual(stableBytes.AsSpan()), "the stable pages hold their bytes before the race");
+            MethodInfo hasAny = space.GetType().GetMethod("HasAnyPrivateAllocation", AnyInstance);
+            MethodInfo getFirst = space.GetType().GetMethod("GetFirstPrivateAllocation", AnyInstance);
+            object upper = null;
+
+            foreach (object partition in (System.Collections.IList)FieldOf(space, "_partitions"))
+            {
+                ulong address = (ulong)partition.GetType().GetProperty("Address").GetValue(partition);
+
+                if (address <= RemapVa + Toggled && RemapVa + Toggled < address + (ulong)partition.GetType().GetProperty("Size").GetValue(partition))
+                {
+                    upper = partition;
+                }
+            }
+
+            FieldInfo spansField = upper.GetType().GetField("_privateSpans", AnyInstance);
+            object tree = FieldOf(upper, "_privateTree");
+            MethodInfo getNode = tree.GetType().GetMethod("GetNode", new[] { typeof(ulong) });
+            ulong upperAddress = (ulong)upper.GetType().GetProperty("Address").GetValue(upper);
+            int writerDone = 0, reads = 0, lookups = 0, sawWithdrawn = 0, mismatches = 0, publishedChecked = 0, stale = 0;
+
+            // On the writer's thread, between two of its Updates: published spans (if any) equal the tree.
+            bool PublishedMatchesTree()
+            {
+                if (spansField.GetValue(upper) is not Array spans)
+                {
+                    return true;
+                }
+
+                publishedChecked++;
+                int i = 0;
+
+                for (object node = getNode.Invoke(tree, new object[] { upperAddress }); node != null;
+                     node = node.GetType().GetField("Successor").GetValue(node), i++)
+                {
+                    if (i >= spans.Length)
+                    {
+                        return false;
+                    }
+
+                    object span = spans.GetValue(i);
+                    Type nodeType = node.GetType(), spanType = span.GetType();
+
+                    if (!nodeType.GetProperty("Address").GetValue(node).Equals(spanType.GetField("Address", AnyInstance).GetValue(span)) ||
+                        !nodeType.GetProperty("Size").GetValue(node).Equals(spanType.GetField("Size", AnyInstance).GetValue(span)) ||
+                        !nodeType.GetProperty("PrivateAllocation").GetValue(node).Equals(spanType.GetField("Allocation", AnyInstance).GetValue(span)))
+                    {
+                        return false;
+                    }
+                }
+
+                return i == spans.Length;
+            }
+            Exception failure = null;
+            var readers = new List<Thread>();
+
+            for (int r = 0; r < 3; r++)
+            {
+                int index = r;
+                readers.Add(new Thread(() =>
+                {
+                    try
+                    {
+                        byte[] read = new byte[ReadSize];
+
+                        for (int i = 0; Volatile.Read(ref writerDone) == 0; i++)
+                        {
+                            int offset = (int)((ulong)(i * 0x1800 + index * 0x800) % (StableSize - ReadSize));
+                            cpu.Read(RemapVa + Stable + (ulong)offset, read);
+
+                            if (!read.AsSpan().SequenceEqual(stableBytes.AsSpan(offset, ReadSize)) ||
+                                !cpu.GetSpan(RemapVa + Stable + (ulong)offset, ReadSize).SequenceEqual(stableBytes.AsSpan(offset, ReadSize)))
+                            {
+                                Interlocked.Increment(ref mismatches);
+                            }
+
+                            Interlocked.Increment(ref reads);
+
+                            if (spansField.GetValue(upper) == null)
+                            {
+                                Interlocked.Increment(ref sawWithdrawn);
+                            }
+
+                            ulong va = RemapVa + Toggled + (ulong)((i + index) % 8) * 0x8000;
+                            hasAny.Invoke(space, new object[] { va, 0x8000UL, null });
+                            getFirst.Invoke(space, new object[] { va, 0x8000UL, 0UL });
+                            Interlocked.Increment(ref lookups);
+                        }
+                    }
+                    catch (Exception exception)
+                    {
+                        Interlocked.CompareExchange(ref failure, exception, null);
+                    }
+                }));
+            }
+
+            foreach (Thread reader in readers)
+            {
+                reader.Start();
+            }
+
+            try
+            {
+                // The race starts once every reader has run (or one failed).
+                while (Volatile.Read(ref reads) < readers.Count && Volatile.Read(ref failure) == null)
+                {
+                    Thread.Yield();
+                }
+
+                for (int i = 0; i < Writes; i++)
+                {
+                    ulong at = (ulong)(i % 4) * 0x10000;
+                    cpu.Unmap(RemapVa + Toggled + at, 0x10000);
+                    Thread.Yield();
+                    stale += PublishedMatchesTree() ? 0 : 1;
+                    cpu.Map(RemapVa + Toggled + at, RemapPa + Toggled + at, 0x10000, MemoryMapFlags.Private);
+                    Thread.Yield();
+                    stale += PublishedMatchesTree() ? 0 : 1;
+                }
+            }
+            finally
+            {
+                Volatile.Write(ref writerDone, 1);
+
+                foreach (Thread reader in readers)
+                {
+                    reader.Join();
+                }
+            }
+
+            Check(failure == null, "a lookup racing the updates failed: " + failure);
+            Check(mismatches == 0, $"{mismatches} reads of the stable pages differ while the updates run");
+            Check(reads >= readers.Count && lookups >= readers.Count, "the readers did not run");
+            Check(stale == 0, $"{stale} of {publishedChecked} spans published during the race differ from the tree");
+            CompareSpans(space, results);
+            results["concurrentUpdates"] = 2 * Writes;
+            results["concurrentReads"] = reads;
+            results["concurrentLookups"] = lookups;
+            results["concurrentLookupsAfterWithdrawal"] = sawWithdrawn;
+            results["concurrentPublishedChecked"] = publishedChecked;
+            results["concurrentStableReadsExact"] = true;
         }
 #endif
 

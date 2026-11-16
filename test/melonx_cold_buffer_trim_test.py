@@ -23,6 +23,13 @@ Sensitivity: without the stamp in Touch, with the host's clock instead of second
 the candidate must each fail a scenario.
 The buffer is a double: the cost of a creation on the device (Metal allocation, guest memory copy, tracking handles) is
 the IPA 724 journal's, not this test's. Writes dist/melonx/cold-buffer-trim-checks.json.
+
+Plan 748 rank 11 (adapt_device_critical_trim), on the final preparation: BufferCache.cs and GpuContext.cs are undone from
+that adapter too before the comparisons above. Executed as a fourth variant: the candidate's members with the final
+preparation's Trim (byCapacity, set by GpuContext.TrimCaches for a Critical level or an escalation while only the device
+is short) give every candidate scenario unchanged; with byCapacity the trim is the capacity eviction whatever the headroom
+(buffer for buffer the candidate under this process's own pressure), down to the same Critical and Warning targets, passing
+over unevictable buffers, deferred when eviction is suppressed, nothing with tracking off.
 """
 from pathlib import Path
 import hashlib, json, os, platform, re, shutil, subprocess, sys, tempfile
@@ -32,7 +39,7 @@ FINAL_SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--can
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import control_source, files_edited_later  # noqa: E402
+from melonx_adapter_control import ORDER, control_source, files_edited_later  # noqa: E402
 _HOLD = []
 CONTROL_SOURCE, FINAL_PREPARATION = control_source(FINAL_SOURCE, 'adapt_cold_buffer_trim', _HOLD)
 import adapt_cold_buffer_trim as adapter  # noqa: E402
@@ -93,7 +100,22 @@ import adapt_buffer_hit_sets as _sets  # noqa: E402
 import adapt_merged_buffer_order as _order  # noqa: E402
 
 
+# Plan 748 rank 11: adapt_device_critical_trim edits BufferCache.cs (Trim's byCapacity) and GpuContext.cs (TrimCaches)
+# last; its replacements are undone first.
+CRITICAL = 'adapt_device_critical_trim' in ORDER
+if CRITICAL:
+    import adapt_device_critical_trim as _critical  # noqa: E402
+
+
+def without_critical(source, name):
+    for old, new in reversed(_critical.EDITS[name] if CRITICAL else ()):
+        check(source.count(new) == 1, 'adapt_device_critical_trim\'s replacement, once: ' + new.strip().splitlines()[0][:60])
+        source = source.replace(new, old)
+    return source
+
+
 def without_later(source):
+    source = without_critical(source, CACHE)
     for old, new in reversed(_order.PAIRS):
         check(source.count(new) == 1, 'the later adapter\'s replacement, once: ' + new.strip().splitlines()[0][:60])
         source = source.replace(new, old)
@@ -147,7 +169,7 @@ check('private const ulong TrimFloorDivisor = 8;' in final_cache and 'private co
 check(trim_final.count('EnforceCapacity(null, target);') == 1 and trim_final.count('EvictCold(target);') == 1 and
       re.search(r'if \(HostMemoryBudget\.AvailableBytes >= DeviceShortOnlyHeadroomBytes\)\s*\{\s*EvictCold\(target\);\s*\}\s*else\s*\{\s*EnforceCapacity\(null, target\);\s*\}', trim_final) is not None,
       'cold eviction with the comfortable headroom, upstream eviction otherwise')
-context = text(FINAL_SOURCE, CONTEXT)
+context = without_critical(text(FINAL_SOURCE, CONTEXT), CONTEXT)
 check('private const ulong ComfortableHeadroomBytes = 768 * TrimMiB;' in context and 'private const ulong TrimMiB = 1024 * 1024;' in context and
       'private const ulong DeviceShortOnlyHeadroomBytes = 768 * MiB;' in block,
       'the threshold is the one at or above which TrimCaches runs only because the device is short')
@@ -187,6 +209,19 @@ VARIANTS = {
     'hostClock': ('            return _hostSecondSeen - _skippedSeconds;\n', '            return _hostSecondSeen;\n'),
     'anyAge': (age_test, '                if (false)\n'),
 }
+if CRITICAL and FINAL_PREPARATION:
+    # Plan 748 rank 11: the candidate's members with the final preparation's Trim (adapt_device_critical_trim).
+    final_signature = 'public ulong Trim(MemoryPressureLevel level, bool byCapacity = false)'
+    final_trim = member(text(FINAL_SOURCE, CACHE), final_signature)
+    rebuilt = final_cache
+    for old, new in _critical.EDITS[CACHE]:
+        check(rebuilt.count(old) == 1, 'adapt_device_critical_trim edits Trim: ' + old.strip().splitlines()[0][:60])
+        rebuilt = rebuilt.replace(old, new)
+    check(final_trim == member(rebuilt, final_signature) and
+          all(member(rebuilt, signature) == member(final_cache, signature) for signature in MEMBERS if signature != MEMBERS[3]) and final_trim.count('if (!byCapacity && HostMemoryBudget.AvailableBytes >= DeviceShortOnlyHeadroomBytes)') == 1 and
+          final_trim.count('EnforceCapacity(null, target);') == 1,
+          'the final Trim is the candidate\'s with the capacity eviction for byCapacity, and nothing else')
+    VARIANTS['critical'] = (trim_final, final_trim)
 reports = {}
 for variant, change in VARIANTS.items():
     source = control_cache if variant == 'control' else final_cache
@@ -204,7 +239,8 @@ for variant, change in VARIANTS.items():
     shutil.copyfile(HARNESS / 'Program.cs', fixture / 'Program.cs')
     (fixture / 'Fixture.csproj').write_text(
         '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework>'
-        '<Nullable>disable</Nullable><NuGetAudit>false</NuGetAudit>'
+        '<Nullable>disable</Nullable><NuGetAudit>false</NuGetAudit>' +
+        ('<DefineConstants>$(DefineConstants);CRITICAL_TRIM</DefineConstants>' if variant == 'critical' else '') +
         '<NoWarn>CS0649;CS0414;CS0169;CS0067;CS8321;CS0162;CS8632</NoWarn></PropertyGroup></Project>\n')
     build = subprocess.run([DOTNET, 'build', str(fixture / 'Fixture.csproj'), '-c', 'Release', '-nologo', '-p:NuGetAudit=false'],
                            capture_output=True, text=True, timeout=900, env=environment, cwd=fixture)
@@ -294,8 +330,32 @@ check(reports['hostClock']['pauseUseFirst']['evicted'] == 31 and reports['hostCl
       'sensitivity: on the host\'s clock a pause and the seconds without a frame age the buffers')
 check(reports['anyAge']['hotSetDeviceShort']['recreated'] == 672, 'sensitivity: without the age test the trim is upstream\'s')
 
+# Plan 748 rank 11 (adapt_device_critical_trim): the final Trim, executed.
+critical = dict(executed=False)
+if 'critical' in reports:
+    f = reports['critical']
+    check(all(f[name] == k[name] for name in k if name != 'variant'), 'final Trim: every candidate scenario gives the candidate\'s result')
+    cap = f['byCapacity']
+    check(cap['hotSet'] == c['hotSetDeviceShort'] == k['hotSetOwnPressure'],
+          'byCapacity with a comfortable headroom: the capacity eviction, buffer for buffer the control and the candidate under '
+          'this process\'s own pressure: ' + json.dumps(cap['hotSet']))
+    check([(s['level'], s['releasedMiB'], s['evicted'], s['cachedMiB']) for s in cap['steps']] ==
+          [('Warning', 0, [], 100), ('WarningByCapacity', 25, list(range(25)), 75), ('CriticalByCapacity', 38, list(range(25, 63)), 37)],
+          'byCapacity at 30 s of play: Warning without it evicts nothing used within 60 s; an escalation (Warning) a quarter, least '
+          'recently used first; Critical half of what is left: ' + json.dumps(cap['steps']))
+    check(cap['recreated'] == 23 and cap['coldResident'] == 0 and cap['records'] == 1,
+          'the buffers in use evicted by the Critical trim are recreated when used again; one cold-trim record (the Warning without byCapacity)')
+    check(cap['unevictable']['evictionOrder'] == list(range(10, 41)) and cap['unevictable']['pinnedResident'],
+          'byCapacity passes over unevictable buffers')
+    check(cap['suppressed'] == {'returnedMiB': 0, 'pending': True}, 'byCapacity while eviction is suppressed: deferred, as the capacity eviction')
+    check(cap['trackingOff'] == {'returnedMiB': 0, 'evicted': 0}, 'tracking off: nothing')
+    critical = dict(executed=True, candidateScenariosUnchanged=True, byCapacityIsCapacityEviction=True,
+                    escalatedReleasedMiB=cap['steps'][1]['releasedMiB'], criticalReleasedMiB=cap['steps'][2]['releasedMiB'])
+
 inputs = ['build-utils/melonx/adapt_cold_buffer_trim.py', 'build-utils/melonx/adapt_session.py',
           'test/melonx_cold_buffer_trim_test.py', 'test/melonx_cold_buffer_trim/Program.cs', 'test/melonx_adapter_control.py']
+if critical['executed']:
+    inputs.append('build-utils/melonx/adapt_device_critical_trim.py')
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
 receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPARATION,
                sourceKind='finalPreparationWithReversedControl' if FINAL_PREPARATION else 'core729Preparation',
@@ -306,6 +366,7 @@ receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPA
                                pauseEvictedCandidate=k['pauseTrimFirst']['evicted'], journalRecordsAtMost=journal['records'],
                                sensitivityVariantsFailed=3),
                reports=reports, sdk=sdk, host=platform.system(), physicalDeviceTested=False, productionGpuSourceExecuted=True,
+               finalCriticalTrim=critical,
                deviceEvidence='IPA 724, Hogwarts Legacy, pid 49375 (private journals): 24 trims in 150 s; 5 s windows with a trim create 1 400 to '
                               '7 026 buffers on the render thread (64 to 460 ms) and dispose 3 637 to 7 317 after a Critical one; without a trim '
                               '0 to 870 created; the cache is back at 85-127 MiB at every 30 s report',

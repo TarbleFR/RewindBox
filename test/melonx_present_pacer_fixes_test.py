@@ -16,6 +16,18 @@ nearest rounding, a longer GPU tail, an offset that never settles), a device swe
 feedback allocate. Static checks bind that Window.cs is the preparation but the adapter's replacements, that Present
 and the extension wiring are unchanged, and the new state machine (in-flight frames voided at a stand-down, calibration,
 probe, session stop and its one journal line). No device. Writes dist/melonx/present-pacer-fixes-checks.json.
+
+Plan 748 rank 10 (adapt_pacer_margin_decay), on the final preparation: the final Window.cs is built (production
+Ryujinx.Graphics.Vulkan) and, as control, the same tree with that adapter's replacements undone (its pinned baseline);
+the fixture runs each one's compiled PresentPacer on the same inputs with its margin scenarios ("decay"): a paced frame
+shown 100 ms late after a freeze, then a host pause of 4 s or 60 frames with pacing not allowed, timed frames shown three
+quarters of a refresh or a whole refresh late, a first probe that does not settle, 4 frames a refresh late then a hitch
+every 20 s. Required: the margin raised by a frame late a whole refresh, as before, then back to the start margin after
+30 x (decay steps) paced frames on their slot (steps of max(0.5 ms, excess / 8)); 4 ms at the first paced frame after
+the pause and after the re-enable; no raise by a frame late less than a refresh; the probe's raise unchanged and under
+the miss path's cap; a paced latency a guest period lower once the raised margin has worn off; and, on the existing
+scenarios and sweeps, mean added latency not higher, the cost the plan names (a shorter margin brings back some missed
+slots) bounded and recorded, no added or instant stand-down, no allocation.
 """
 from pathlib import Path
 import hashlib, json, os, re, shutil, subprocess, sys, tempfile
@@ -24,7 +36,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate-source' in sys.argv else sys.argv[1]).resolve()
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import control_source, later_sharing, use_authenticated_libhac_feed  # noqa: E402
+from melonx_adapter_control import ORDER, control_source, files_edited_later, later_sharing, use_authenticated_libhac_feed  # noqa: E402
 import importlib  # noqa: E402
 _HOLD = []
 FINAL_SOURCE = SOURCE
@@ -134,6 +146,41 @@ with tempfile.TemporaryDirectory(prefix='melonx-pacer-fixes-') as temporary:
         result = run([DOTNET, str(fixture / 'bin/Release/net10.0/Fixture.dll'), variant, str(built[0])], fixture, 1800)
         check(result.returncode == 0, variant + ': fixture ran on the production assembly')
         reports[variant] = json.loads(next(line for line in result.stdout.splitlines() if line.startswith('{')))
+
+    # Plan 748 rank 10: the final preparation's PresentPacer (candidate) and the same Window.cs without
+    # adapt_pacer_margin_decay (control), built in one copy of the final tree and run with the margin scenarios.
+    final_decay = dict(executed=False)
+    if FINAL_PREPARATION and 'adapt_pacer_margin_decay' in ORDER:
+        import adapt_pacer_margin_decay as decay  # noqa: E402
+        check(files_edited_later('adapt_pacer_margin_decay') == set(), 'no later adapter edits Window.cs after adapt_pacer_margin_decay')
+        decay_final = (FINAL_SOURCE / decay.WINDOW).read_text(encoding='utf-8-sig')
+        decay_control = decay_final
+        for old, new in reversed(decay.PAIRS):
+            check(decay_control.count(new) == 1, 'adapt_pacer_margin_decay replacement once: ' + new.strip().splitlines()[0][:60])
+            decay_control = decay_control.replace(new, old)
+        check(hashlib.sha256(decay_control.encode('utf-8')).hexdigest() == decay.BASELINE[decay.WINDOW],
+              'the final Window.cs is adapt_pacer_margin_decay on its pinned baseline')
+        decay_texts = {'final-control': decay_control, 'final-candidate': decay_final}
+        final_work = Path(temporary).resolve() / 'final'
+        shutil.copytree(FINAL_SOURCE, final_work, ignore=shutil.ignore_patterns('.git', 'bin', 'obj'), symlinks=True)
+        use_authenticated_libhac_feed(final_work, ROOT)
+        decay_reports, decay_assemblies = {}, {}
+        for variant in ('final-candidate', 'final-control'):
+            (final_work / decay.WINDOW).write_text(decay_texts[variant], encoding='utf-8')
+            if variant == 'final-candidate':
+                check((final_work / decay.WINDOW).read_bytes() == (FINAL_SOURCE / decay.WINDOW).read_bytes(), 'final-candidate builds the final bytes')
+            check(run([DOTNET, 'build', str(final_work / (VULKAN + 'Ryujinx.Graphics.Vulkan.csproj')), '-c', 'Release', '-nologo', '-m:1',
+                       '-p:NuGetAudit=false'], final_work).returncode == 0, variant + ' production Vulkan assembly builds')
+            built = sorted((final_work / VULKAN / 'bin').rglob('Ryujinx.Graphics.Vulkan.dll'))
+            check(len(built) == 1, variant + ': one production Ryujinx.Graphics.Vulkan.dll: ' + str(built))
+            decay_assemblies[variant] = hashlib.sha256(built[0].read_bytes()).hexdigest()
+            result = run([DOTNET, str(fixture / 'bin/Release/net10.0/Fixture.dll'), variant, str(built[0]), 'decay'], fixture, 1800)
+            check(result.returncode == 0, variant + ': fixture ran on the production assembly')
+            decay_reports[variant] = json.loads(next(line for line in result.stdout.splitlines() if line.startswith('{')))
+            print(variant + ': production assembly built and run', flush=True)
+        check(decay_assemblies['final-candidate'] != decay_assemblies['final-control'], 'two different production assemblies')
+        shutil.rmtree(final_work)
+        final_decay.update(executed=True, productionAssemblySha256=decay_assemblies)
 
 c, k = reports['control'], reports['candidate']
 cs, ks = c['scenarios'], k['scenarios']
@@ -286,6 +333,144 @@ allocation = k['decisionAllocation']
 check(allocation['calls'] == 100000 and allocation['bytes'] == 0 and allocation['paced'] > 0 and allocation['standDowns'] >= 1 and
       allocation['probeRuns'] >= 2, 'decision and feedback allocate nothing (probes, stand-downs, latency sorts included): ' + json.dumps(allocation))
 
+# Plan 748 rank 10 (adapt_pacer_margin_decay) on the final preparation: the margin, executed (see the docstring).
+if final_decay['executed']:
+    fc, fk = decay_reports['final-control'], decay_reports['final-candidate']
+    dc, dk = fc['decay'], fk['decay']
+    check(sorted(dc) == sorted(dk) and fc['fixes'] and fk['fixes'] and fc['assembly'] == fk['assembly'] == 'Ryujinx.Graphics.Vulkan',
+          'final: the same margin scenarios, both production pacers')
+    for name in dc:
+        a, b = dc[name], dk[name]
+        check(a['inputHash'] == b['inputHash'] and a['unpacedAlternations17_50'] == b['unpacedAlternations17_50'], name + ': identical inputs')
+        check(b['notEarlierThanUnpaced'] and b['orderKept'] and b['holdBounded'] and b['instantStandDowns'] == 0 and
+              b['standDowns'] <= a['standDowns'], name + ': never earlier than unpaced, order kept, no added stand-down')
+        print('%-18s margin peak %6.2f -> %6.2f final %6.2f -> %6.2f raises %2d -> %2d, misses %3d -> %3d, pairs %3d -> %3d (unpaced %3d), '
+              'paced latency 2nd half %.2f -> %.2f ms' % (name, a['peakMarginMs'], b['peakMarginMs'], a['finalMarginMs'], b['finalMarginMs'],
+                                                          a['missRaises'], b['missRaises'], a['misses'], b['misses'], a['alternations17_50'],
+                                                          b['alternations17_50'], a['unpacedAlternations17_50'], a['pacedLatencySecondHalfMs'],
+                                                          b['pacedLatencySecondHalfMs']), flush=True)
+
+    def decay_steps(margin_ms):
+        # Steps of max(0.5 ms, (margin - 4 ms) / 8) in integer nanoseconds, from margin_ms to 4.5 ms or less.
+        margin, steps = round(margin_ms * 1e6), 0
+        while margin > 4_500_000:
+            margin = max(4_000_000, margin - max(500_000, (margin - 4_000_000) // 8))
+            steps += 1
+        return steps
+
+    # 1. A frame shown a whole refresh late raises the margin as before; 30 paced frames on their slot per decay step
+    # bring it back to the start margin (the control keeps it for the run).
+    f_c, f_k = dc['decayFreeze'], dk['decayFreeze']
+    expected_paced = 30 * decay_steps(f_k['freezeRaiseMs'])
+    check(f_k['freezeRaiseMs'] > f_k['marginBeforeFreezeMs'] and f_c['freezeRaiseMs'] > f_c['marginBeforeFreezeMs'] and
+          not f_k['freezeRaisedAgainFirst'] and abs(f_k['freezePacedFramesToStart'] - expected_paced) <= 6 and
+          f_c['freezePacedFramesToStart'] == -1 and f_c['finalMarginMs'] >= f_c['freezeRaiseMs'] - 5,
+          'decayFreeze: raised by the late frame, back to the start margin after %d paced frames (expected %d); the control keeps it: %s' % (
+              f_k['freezePacedFramesToStart'], expected_paced, json.dumps([f_c['freezeRaiseMs'], f_c['finalMarginMs'], f_k['freezeRaiseMs']])))
+    # 2. The raise of a frame a whole refresh late is the control's (same first raise, same rule); a frame three quarters
+    # of a refresh late is a miss for both but raises the margin only in the control.
+    l_c, l_k = dc['decayRefreshLate'], dk['decayRefreshLate']
+    s_c, s_k = dc['decaySubRefresh'], dk['decaySubRefresh']
+    check(l_k['slipRaises'] >= 1 and l_k['firstSlipRaiseMs'] == l_c['firstSlipRaiseMs'] and l_k['misses'] == l_c['misses'],
+          'decayRefreshLate: a frame a whole refresh late raises the margin as before: ' + json.dumps([l_c['firstSlipRaiseMs'], l_k['firstSlipRaiseMs']]))
+    check(s_c['slipRaises'] >= 1 and s_k['slipRaises'] == 0 and s_k['misses'] == s_c['misses'] and s_k['peakMarginMs'] < s_c['peakMarginMs'],
+          'decaySubRefresh: three quarters of a refresh late is a miss, without a raise: ' + json.dumps([s_c['slipRaises'], s_k['slipRaises'],
+                                                                                                     s_c['peakMarginMs'], s_k['peakMarginMs']]))
+    # 3. The probe path's raise is unchanged and under the same cap as the miss path; it then wears off.
+    p_c, p_k = dc['decayProbe'], dk['decayProbe']
+    check(p_k['probeRaises'] == p_c['probeRaises'] >= 1 and p_k['probeRaiseMarginMs'] == p_c['probeRaiseMarginMs'] and
+          p_k['probeRaiseMarginMs'] <= p_k['probeRaiseCapMs'] and p_k['finalMarginMs'] < p_c['finalMarginMs'],
+          'decayProbe: the probe raises the margin as before, under the cap, then it decays: ' + json.dumps(
+              [p_c['probeRaiseMarginMs'], p_k['probeRaiseMarginMs'], p_k['probeRaiseCapMs'], p_c['finalMarginMs'], p_k['finalMarginMs']]))
+    # 4. Pacing resumes at the start margin after a host pause (4 s with no present call) and after pacing not allowed.
+    h_c, h_k = dc['decayPause'], dk['decayPause']
+    e_c, e_k = dc['decayDisabled'], dk['decayDisabled']
+    check(h_k['marginBeforePauseMs'] > 4.5 and h_k['marginFirstPacedAfterPauseMs'] == 4.0 and
+          h_c['marginFirstPacedAfterPauseMs'] == h_c['marginBeforePauseMs'] > 4.5,
+          'decayPause: 4 ms at the first paced frame after the pause (control: the margin before it): ' + json.dumps(
+              [h_c['marginBeforePauseMs'], h_c['marginFirstPacedAfterPauseMs'], h_k['marginBeforePauseMs'], h_k['marginFirstPacedAfterPauseMs']]))
+    check(e_k['marginBeforeDisableMs'] > 4.5 and e_k['marginFirstPacedAfterEnableMs'] == 4.0 and
+          e_c['marginFirstPacedAfterEnableMs'] == e_c['marginBeforeDisableMs'] > 4.5,
+          'decayDisabled: 4 ms at the first paced frame after pacing is allowed again: ' + json.dumps(
+              [e_c['marginBeforeDisableMs'], e_c['marginFirstPacedAfterEnableMs'], e_k['marginBeforeDisableMs'], e_k['marginFirstPacedAfterEnableMs']]))
+    # The latency the plan bounds: once the raised margin has worn off, the re-anchored lattice is a guest period earlier.
+    for name in ('decayFreeze', 'decayPause', 'decayRatchet'):
+        a, b = dc[name], dk[name]
+        check(a['pacedLatencySecondHalfMs'] - b['pacedLatencySecondHalfMs'] >= 10 and b['meanAddedSecondHalfMs'] <= a['meanAddedSecondHalfMs'] - 10,
+              name + ': paced present call to glass a guest period lower once the margin wore off: %.2f -> %.2f ms' % (
+                  a['pacedLatencySecondHalfMs'], b['pacedLatencySecondHalfMs']))
+    for name in dc:
+        check(dk[name]['meanAddedMs'] <= dc[name]['meanAddedMs'] + 0.5, name + ': mean added latency not higher (0.5 ms)')
+
+    # The existing scenarios and sweeps, final control against final candidate: the cost of a shorter margin (more slots
+    # missed where the calibrated lead alone is short) is bounded; latency never higher; no added stand-down.
+    fcs, fks = fc['scenarios'], fk['scenarios']
+    pair_increases = {}
+    for name in fcs:
+        a, b = fcs[name], fks[name]
+        check(a['inputHash'] == b['inputHash'] and b['notEarlierThanUnpaced'] and b['orderKept'] and b['holdBounded'] and
+              b['instantStandDowns'] == 0 and b['standDowns'] <= a['standDowns'], name + ': final, no added stand-down, order kept')
+        check(b['meanAddedMs'] <= a['meanAddedMs'] + 0.05, name + ': final, mean added latency not higher: %.3f -> %.3f' % (a['meanAddedMs'], b['meanAddedMs']))
+        check(b['alternations17_50'] <= a['alternations17_50'] + 0.2 * a['unpacedAlternations17_50'] and
+              b['misses'] <= max(a['misses'], 0.015 * b['pacedFrames']),
+              name + ': final, adjacent 17/50 pairs %d -> %d (unpaced %d), misses %d -> %d of %d paced' % (
+                  a['alternations17_50'], b['alternations17_50'], a['unpacedAlternations17_50'], a['misses'], b['misses'], b['pacedFrames']))
+        if b['alternations17_50'] != a['alternations17_50']:
+            pair_increases[name] = [a['alternations17_50'], b['alternations17_50'], a['unpacedAlternations17_50']]
+    final_sweep = dict(controlPairs=0, candidatePairs=0, rowsWorse=0, rows=0)
+    for a, b in zip(fc['sweep'], fk['sweep']):
+        check(a['inputHash'] == b['inputHash'] and b['meanAddedMs'] <= a['meanAddedMs'] + 0.05 and b['instantStandDowns'] == 0 and
+              b['sessionOffRuns'] == 0 and b['pairs'] <= a['pairs'] + max(40, 0.02 * a['unpacedPairs']),
+              'final sweep %s: pairs %d -> %d, +%.3f -> +%.3f ms' % ((a['rounding'], a['jitter'], a['jitterMs'], a['tailMs']), a['pairs'],
+                                                                     b['pairs'], a['meanAddedMs'], b['meanAddedMs']))
+        final_sweep['controlPairs'] += a['pairs']
+        final_sweep['candidatePairs'] += b['pairs']
+        final_sweep['rowsWorse'] += b['pairs'] > a['pairs']
+        final_sweep['rows'] += 1
+    check(final_sweep['candidatePairs'] <= 1.01 * final_sweep['controlPairs'], 'final sweep: pairs within 1 %: ' + json.dumps(final_sweep))
+    final_device = dict(controlPairs=0, candidatePairs=0, unpacedPairs=0, rows=[])
+    for a, b in zip(fc['deviceSweep'], fk['deviceSweep']):
+        key = (a['timedLateRefreshes'], a['tailMs'], a['jitterMs'])
+        check(a['inputHash'] == b['inputHash'] and b['meanAddedMs'] <= a['meanAddedMs'] + 0.05 and b['instantStandDowns'] == 0 and
+              b['sessionOffRuns'] == 0 and b['pairs'] <= a['pairs'] + 0.05 * a['unpacedPairs'] and b['pairs'] * 2 <= a['unpacedPairs'],
+              'final device sweep %s: pairs %d -> %d (unpaced %d), +%.2f -> +%.2f ms' % (key, a['pairs'], b['pairs'], a['unpacedPairs'],
+                                                                                         a['meanAddedMs'], b['meanAddedMs']))
+        final_device['controlPairs'] += a['pairs']
+        final_device['candidatePairs'] += b['pairs']
+        final_device['unpacedPairs'] += a['unpacedPairs']
+        final_device['rows'].append(dict(timedLateRefreshes=key[0], tailMs=key[1], jitterMs=key[2], controlPairs=a['pairs'], candidatePairs=b['pairs'],
+                                         unpacedPairs=a['unpacedPairs'], controlMeanAddedMs=a['meanAddedMs'], candidateMeanAddedMs=b['meanAddedMs'],
+                                         controlStandDowns=a['standDowns'], candidateStandDowns=b['standDowns'],
+                                         controlPacedShare=a['pacedShare'], candidatePacedShare=b['pacedShare']))
+    check(final_device['candidatePairs'] <= 1.1 * final_device['controlPairs'], 'final device sweep: pairs within 10 %')
+    check(fk['decisionAllocation']['bytes'] == 0 and fk['decisionAllocation']['calls'] == 100000,
+          'final: the decision and the feedback allocate nothing: ' + json.dumps(fk['decisionAllocation']))
+
+    # Static: the final PresentPacer's margin rules.
+    pacer_f = member(decay_final, 'sealed class PresentPacer')
+    observe_f = member(pacer_f, 'public void Observe(uint presentId, long actual)')
+    next_f = member(pacer_f, 'public ulong Next(long now, bool enabled)')
+    probe_f = member(pacer_f, 'private void Probe(long residual)')
+    check('private const int MarginDecayHits = 30;' in pacer_f and 'private const long MarginDecayNanoseconds = 500_000;' in pacer_f and
+          '_margin = Math.Max(MinMarginNanoseconds, _margin - Math.Max(MarginDecayNanoseconds, (_margin - MinMarginNanoseconds) / 8));' in observe_f,
+          'final: a step of max(0.5 ms, excess / 8) every 30 paced frames on their slot')
+    check(re.search(r'if \(actual - expected > _refresh - _refresh / 8\)\s*\{\s*_margin = Math\.Min\(MarginCapNanoseconds,', observe_f) and
+          pacer_f.count('Math.Min(MarginCapNanoseconds,') == 2 and 'Math.Min(MarginCapNanoseconds,' in probe_f,
+          'final: a raise only about a whole refresh late (over 7/8); the miss path and the probe path under the same cap')
+    check(next_f.index('_resumeAtStartMargin = true;') < next_f.index('if (SessionOff)') and
+          next_f.index('if (_glass != 0 && now - _glass > 1_000_000_000L)') < next_f.index('if (_resumeAtStartMargin)') <
+          next_f.index('long need = now + Math.Max(_margin, CalibratedLatency(90) - GuestVsyncNanoseconds / 2);'),
+          'final: pacing resumes at the start margin after enabled = false or a second with nothing on glass, before the slot is chosen')
+    for method in ('public ulong Next(long now, bool enabled)', 'public void Observe(uint presentId, long actual)'):
+        code = re.sub(r'//[^\n]*', '', member(pacer_f, method))
+        check(not re.search(r'\bnew\b|stackalloc|\$"|\.ToString\(', code), 'final: allocation free: ' + method)
+    final_decay.update(
+        decaysToStartMargin=True, wholeRefreshRaised=True, subRefreshNotRaised=True, probeSameCap=True, resetAfterHostPause=True,
+        resetAfterDisabled=True, latencyLowerOnceWornOff=True, allocationBytes=fk['decisionAllocation']['bytes'],
+        scenarios={name: dict(control=dc[name], candidate=dk[name]) for name in dc},
+        freezeExpectedPacedFramesToStart=expected_paced, existingScenarioPairChanges=pair_increases, sweepTotals=final_sweep,
+        deviceSweep=final_device)
+
 # Static: the candidate is the control plus exactly the adapter's replacements.
 for name in BASELINE:
     text = texts['candidate'][name]
@@ -339,7 +524,8 @@ check(all(name in pacer_k for name in ('MinMarginNanoseconds = 4_000_000;', 'Max
                                        'StandDownFrames = 900;', 'MaxStandDownFrames = 7200;', 'MissRun = 6;', 'ShiftBurst = 4;')),
       'the Core 658 constants kept')
 
-inputs = ['build-utils/melonx/adapt_present_pacer_fixes.py', 'build-utils/melonx/adapt_session.py',
+inputs = (['build-utils/melonx/adapt_pacer_margin_decay.py'] if final_decay['executed'] else []) + [
+          'build-utils/melonx/adapt_present_pacer_fixes.py', 'build-utils/melonx/adapt_session.py',
           'test/melonx_present_pacer_fixes_test.py', 'test/melonx_present_pacer_fixes/Program.cs', 'test/melonx_adapter_control.py']
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
 measurements = {name: dict(control=summary(cs[name]), candidate=summary(ks[name])) for name in cs}
@@ -363,6 +549,16 @@ receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPA
                           'modelled. Holding frames on the calibrated slot adds about one refresh of latency where the Core 658 '
                           'pacer was off (device658: +14.8 ms mean). An offset that never settles costs 4 probes of 8 frames, '
                           'then no pacing for the session.')
+# Plan 748 rank 10: the final margin rules, executed on the final preparation (absent before adapt_pacer_margin_decay).
+receipt['finalMarginDecay'] = final_decay
+if final_decay['executed']:
+    receipt['finalMarginDecay']['limitation'] = (
+        'Simulated on glass (device658 model, steadier guest for the margin scenarios); not measured on an iPhone. The margin '
+        'decays back to its start value, so where the calibrated lead alone is short the final pacer misses more slots than '
+        'with the margin held (existingScenarioPairChanges, deviceSweep): the cost the plan names, bounded here. Mean added '
+        'latency is not higher on the existing scenarios and sweeps (0.05 ms) and at most 0.5 ms higher in the margin '
+        'scenarios (decayDisabled, after the reset). A host pause reaches the pacer only as a second with nothing on glass; '
+        'a stall as long resets the margin too.')
 out = ROOT / 'dist/melonx/present-pacer-fixes-checks.json'
 out.parent.mkdir(parents=True, exist_ok=True)
 out.write_text(json.dumps(receipt, indent=2) + '\n')

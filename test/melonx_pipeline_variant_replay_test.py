@@ -24,7 +24,10 @@ state, a worker's main-load wait summed on its own thread, the render stages lin
 second process with one pipeline worker as on a six-core iPhone, adapt_compute_warmup_demand (a demanded compile goes to
 the idle demand thread; with two demanded queued at a worker's end the worker takes the second before a non-demanded
 one; while the demand thread is busy the worker takes demanded compiles first; a non-demanded compile stays the
-worker's). Writes dist/melonx/pipeline-variant-replay-checks.json. No device: host times, no Vulkan creation.
+worker's), and plan 748's adapt_replay_integer_mask (the final read gives every GAL format's IsInt from its Vulkan format;
+a draw's state reads back unchanged and uncounted; a state recorded with another integer-format mask reads back with the
+draw's key, counted once; the R16_UINT case; the journal's summary counts its session's recomputes, the next session its
+own). Writes dist/melonx/pipeline-variant-replay-checks.json. No device: host times, no Vulkan creation.
 """
 from pathlib import Path
 import hashlib, json, os, platform, re, shutil, subprocess, sys, tempfile
@@ -93,8 +96,10 @@ for name in adapter.BASELINE:
     check((replay / name).read_bytes() == (PREPARED / name).read_bytes(), 'the later adapters reproduce the final preparation: ' + name)
 # The lot after IPA 747 (after adapt_queued_3d_syncpoints): each of its adapters in ORDER shares a file with this one, so it
 # is a later adapter here, and the probe runs its behaviour on the final source (Lot.cs, one symbol each).
+# Plan 748 rank 18: adapt_replay_integer_mask (after adapt_queued_variant_record) reads a variant with the draw's integer-format
+# mask (PipelineState.cs) and counts the recomputes in the journal's summary (PipelineCacheManager.cs): a later adapter here too.
 LOT = {'adapt_compute_warmup_demand': 'COMPUTE_WARMUP_DEMAND', 'adapt_variant_journal_room': 'VARIANT_JOURNAL_ROOM',
-       'adapt_queued_variant_record': 'QUEUED_VARIANT_RECORD'}
+       'adapt_queued_variant_record': 'QUEUED_VARIANT_RECORD', 'adapt_replay_integer_mask': 'REPLAY_INTEGER_MASK'}
 LOT_PRESENT = [name for name in LOT if name in control_tools.ORDER]
 check(LOT_PRESENT == [name for name in LOT if name in LATER], 'every adapter of the lot in ORDER is a later adapter here: %s' % LATER)
 DEFINES = [LOT[name] for name in LOT_PRESENT]
@@ -233,6 +238,46 @@ if 'adapt_queued_variant_record' in LOT_PRESENT:
           member(final_program, 'internal void NoteLateVariant(').count('waitedForSkipped: waitedForSkipped') == 1,
           'queued record: the compile notes builtForSkipped, a draw notes waitedForSkipped')
 
+if 'adapt_replay_integer_mask' in LOT_PRESENT:
+    import adapt_replay_integer_mask as integer_mask  # noqa: E402
+    final_state, final_manager = read(PREPARED, adapter.STATE), read(PREPARED, adapter.MANAGER)
+    check(final_state.count(integer_mask.READ_NEW) == 1 and final_manager.count(integer_mask.COUNT_NEW) == 1 and
+          final_manager.count(integer_mask.SUMMARY_NEW) == 1, 'integer mask: its three replacements are in the final source, once each')
+    read_variant = member(final_state, 'internal bool TryReadVariant(')
+    check(read_variant.count('return true;') == 1 and read_variant.rindex('return false;') <
+          read_variant.index('IntegerFormatMask(formats, colorSlots[..colorCount])') <
+          read_variant.index('Interlocked.Increment(ref PipelineVariantJournal.IntegerMasksRecomputedTotal)') < read_variant.index('return true;'),
+          'integer mask: recomputed once the variant is read and valid, counted only when it differs, before the read succeeds')
+    callers = {f.name: f.read_text(encoding='utf-8-sig').count('.TryReadVariant(') for f in sorted((PREPARED / VULKAN).glob('*.cs'))}
+    check(final_state.count('Interlocked.Increment(ref PipelineVariantJournal.IntegerMasksRecomputedTotal)') == 1 and
+          final_manager.count('internal static int IntegerMasksRecomputedTotal;') == 1 and
+          final_state.count(' IntegerFormatMask(') == 2 and {n: k for n, k in callers.items() if k} == {'ShaderCollection.cs': 1} and
+          'state.TryReadVariant(record.Variant, slots, out int colorCount)' in
+          member(final_program, 'Task<long> PipelineVariantJournal.ITarget.Schedule(PipelineVariantJournal.Record record)'),
+          'integer mask: one counted recompute, in the read whose one caller is the replay\'s Schedule: %s' % callers)
+    # The rule it mirrors, on the final source: FramebufferParams sets the bit of each slot whose GAL format IsInt (both
+    # constructors and Update) and the Vulkan format from the view; PipelineBase copies formats and mask together; the
+    # warm-up's converter does the same; ConvertToVkFormat substitutes only depth-stencil and R4G4B4A4 formats.
+    framebuffer = read(PREPARED, VULKAN + 'FramebufferParams.cs')
+    check(framebuffer.count('if (format.IsInt)\n                    {\n                        attachmentIntegerFormatMask |= 1u << bindIndex;') == 2 and
+          framebuffer.count('AttachmentIntegerFormatMask = format.IsInt ? 1u : 0u;') == 1 and
+          framebuffer.count('AttachmentFormats[index] = texture.VkFormat;') == 2 and framebuffer.count('AttachmentIndices[index] = bindIndex;') == 2,
+          'integer mask: the draw\'s rule in the final FramebufferParams (IsInt of the target\'s format, at its slot)')
+    attachments = member(final_draws, 'protected void UpdatePipelineAttachmentFormats()')
+    check('FramebufferParams.AttachmentFormats.AsSpan(..FramebufferParams.AttachmentsCount).CopyTo(dstAttachmentFormats);' in attachments and
+          '_newState.Internal.AttachmentIntegerFormatMask = FramebufferParams.AttachmentIntegerFormatMask;' in attachments and
+          final_draws.count('.Internal.AttachmentIntegerFormatMask =') == 1,
+          'integer mask: a draw\'s formats and mask come from the same framebuffer, nowhere else')
+    converter = read(PREPARED, VULKAN + 'PipelineConverter.cs')
+    check('if (attachmentFormatsSpan[i].IsInt)\n                    {\n                        attachmentIntegerFormatMask |= 1u << i;' in converter,
+          'integer mask: the warm-up\'s converter sets the same rule')
+    convert = member(read(PREPARED, VULKAN + 'FormatCapabilities.cs'), 'public VkFormat ConvertToVkFormat(Format srcFormat, bool storageFeatureFlagRequired)')
+    check(sorted(re.findall(r'format = (VkFormat\.\w+);', convert)) == ['VkFormat.D32SfloatS8Uint', 'VkFormat.R4G4B4A4UnormPack16'],
+          'integer mask: ConvertToVkFormat substitutes only D32SfloatS8Uint and R4G4B4A4UnormPack16 (not integer formats)')
+    check(final_manager.count('integer masks recomputed {IntegerMasksRecomputed}') == 1 and
+          final_manager.count('Journal: {_records.Count} of {MaxRecords} states, given up for') == 1,
+          'integer mask: one count in the variants summary, the journal sentence kept')
+
 # --- Executed: the production Vulkan assembly of the candidate, then the probe on it ---
 work = WORK / 'tree'
 shutil.copytree(FINAL_SOURCE, work, ignore=shutil.ignore_patterns('.git', 'bin', 'obj'), symlinks=True)
@@ -277,7 +322,11 @@ check(r['requireFailures'] == 0, 'probe requirements')
 c = r['codec']
 check(r['codecFields'] == r['stateProperties'] == 49, 'the schema names the 49 key properties')
 check(c['readBack'] == c['sameKey'] == c['sameHash'] == c['sameSlots'] == c['sameTessellation'] == c['deterministic'] == c['states'] == 3000,
-      'every random state reads back with the same key, hash, slots and tessellation flag: %s' % c)
+      'every random state reads back with the same key (its integer-format mask the draw\'s when adapt_replay_integer_mask is '
+      'present), hash, slots and tessellation flag: %s' % c)
+if 'adapt_replay_integer_mask' in LOT_PRESENT:
+    check(c['maskDiffers'] > 1000 and c['maskRecomputed'] == c['maskDiffers'],
+          'integer mask: each random state whose mask is not the draw\'s is read with the draw\'s, counted once: %s' % c)
 check(c['maxBytes'] <= 2048, 'a variant fits its bound: %s' % c['maxBytes'])
 check(all(r['codecRejects'].values()), 'malformed variants refused: %s' % r['codecRejects'])
 
@@ -368,6 +417,24 @@ if 'adapt_queued_variant_record' in LOT_PRESENT:
     s = q['stageLine']
     check(s['split'] and s['reset'] and s['queued'] == 3, 'queued record: the stages line splits the async skips by cause: %s' % s)
     lot['queuedRecord'] = dict(builtForSkipped=n['builtForSkipped'], waitedForSkipped=n['waitedForSkipped'], stageLineSplit=s['split'])
+if 'adapt_replay_integer_mask' in LOT_PRESENT:
+    m = r['integerMask']
+    check(m['table'] == dict(galFormats=152, sameAsIsInt=152, integerTargets=26, substitutesNotInteger=True),
+          'integer mask: the final read gives each GAL format\'s IsInt from its Vulkan format, 26 integer targets: %s' % m['table'])
+    k = m['codec']
+    check(k['drawStates'] == k['sameKey'] == k['uncounted'] == 2000 and k['withIntegerTarget'] > 1000,
+          'integer mask: 2000 draws\' states read back with their key, none counted: %s' % k)
+    check(k['otherMask'] == k['readAsDrawn'] == k['countedOnce'] == 1000 and k['refusedUncounted'],
+          'integer mask: 1000 states recorded with another mask read back with the draw\'s key and hash, each counted once; a '
+          'refused variant is not counted: %s' % k)
+    check(m['r16'] == dict(recordedMask=0, readMask=2, asDrawn=True, counted=1), 'integer mask: the R16_UINT case: %s' % m['r16'])
+    j = m['journal']
+    check(j['planned'] == j['replayed'] == j['keysAsDrawn'] == 9 and j['recomputed'] == 3 and j['nextSession'] == 0 and
+          'still planned 0 of 9, integer masks recomputed 3. Journal: 9 of 2048 states' in j['summary'] and
+          ', integer masks recomputed 0. Journal: ' in j['nextSummary'],
+          'integer mask: 9 replays read with their draws\' keys, the summary counts the session\'s 3, the next session 0: %s' % j)
+    lot['integerMask'] = dict(galFormats=m['table']['galFormats'], drawStatesUncounted=k['uncounted'], otherMaskReadAsDrawn=k['readAsDrawn'],
+                              codecRecomputed=r['codec']['maskRecomputed'], journalRecomputed=j['recomputed'], nextSession=j['nextSession'])
 demand = None
 if 'adapt_compute_warmup_demand' in LOT_PRESENT:
     # One pipeline worker, as on a six-core iPhone (cores / 4); the demand thread is the scheduler's own.
@@ -402,7 +469,8 @@ receipt = dict(result='passed', checks=checks, finalPreparationBound=True, sourc
                postimages={n: sha(PREPARED / n) for n in EXECUTED}, testedPostimages={n: sha(POST / n) for n in adapter.BASELINE},
                report=r, demandReport=demand, laterLot=lot, laterLotDefines=DEFINES,
                journalRoomExecuted='journalRoom' in lot, queuedVariantRecordExecuted='queuedRecord' in lot,
-               demandQueueRuleExecuted='demandQueue' in lot, sdk=sdk, host=platform.system(), physicalDeviceTested=False, gameTested=False,
+               demandQueueRuleExecuted='demandQueue' in lot, integerMaskExecuted='integerMask' in lot,
+               sdk=sdk, host=platform.system(), physicalDeviceTested=False, gameTested=False,
                inputs={n: sha(ROOT / n) for n in inputs},
                limitation='Host run of the production codec, journal and scheduler; no Vulkan device, so a replay creates nothing '
                           'and its cost is simulated. Whether replayed states are the ones a later draw asks for (built but missed '
@@ -411,7 +479,11 @@ receipt = dict(result='passed', checks=checks, finalPreparationBound=True, sourc
                           'the compute constructor\'s promotion runs on the final source in setprogram-warmup (its final variant: '
                           'demanded at creation, built on the demand thread, bound by the dispatch, compiled once). A skipped draw\'s '
                           'queued compile noting the state it built (ShaderCollection) and the PipelineBase increment of a draw that '
-                          'skips are built and read only: no host fixture drives a draw that skips (async compile skip).')
+                          'skips are built and read only: no host fixture drives a draw that skips (async compile skip). Plan 748 '
+                          '(adapt_replay_integer_mask): the final read and the journal\'s count run here; the draw\'s rule it '
+                          'mirrors is read on the final FramebufferParams, PipelineBase and PipelineConverter, not run (no texture '
+                          'view without a device), and whether any recorded variant has another mask (expected none) and the '
+                          'MoltenVK R16_UINT warnings (they do not depend on the mask) show only on a device.')
 out = ROOT / 'dist/melonx/pipeline-variant-replay-checks.json'
 out.parent.mkdir(parents=True, exist_ok=True)
 out.write_text(json.dumps(receipt, indent=2) + '\n')

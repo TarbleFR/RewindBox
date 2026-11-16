@@ -136,6 +136,13 @@ PipelineState RandomState(out int[] slots)
 
 int roundTrips = 0, keyEqual = 0, hashEqual = 0, deterministic = 0, slotsEqual = 0, tessEqual = 0;
 int maxBytes = 0;
+#if REPLAY_INTEGER_MASK
+// adapt_replay_integer_mask in the final preparation: a variant reads back with the integer-format mask a draw has for its
+// colour formats and slots (most random masks here differ from it), so the key expected back is the written state's with
+// that mask, and the final PipelineState counts each read that changed the mask (Lot.cs).
+int maskDiffers = 0, masksBefore = Volatile.Read(ref PipelineVariantJournal.IntegerMasksRecomputedTotal);
+var integerTargets = LotScenarios.IntegerTargets();
+#endif
 
 for (int n = 0; n < 3000; n++)
 {
@@ -143,6 +150,11 @@ for (int n = 0; n < 3000; n++)
     byte[] bytes = state.WriteVariant(slots);
     maxBytes = Math.Max(maxBytes, bytes.Length);
     deterministic += bytes.AsSpan().SequenceEqual(state.WriteVariant(slots)) ? 1 : 0;
+#if REPLAY_INTEGER_MASK
+    uint drawMask = LotScenarios.DrawMask(state.Internal.AttachmentFormats.AsSpan(), slots, integerTargets);
+    maskDiffers += drawMask != state.Internal.AttachmentIntegerFormatMask ? 1 : 0;
+    state.Internal.AttachmentIntegerFormatMask = drawMask;
+#endif
 
     PipelineState read = new();
     read.Initialize(false);
@@ -166,6 +178,10 @@ report["codec"] = new Dictionary<string, object>
     ["states"] = 3000, ["readBack"] = roundTrips, ["sameKey"] = keyEqual, ["sameHash"] = hashEqual, ["sameSlots"] = slotsEqual,
     ["sameTessellation"] = tessEqual, ["deterministic"] = deterministic, ["maxBytes"] = maxBytes,
 };
+#if REPLAY_INTEGER_MASK
+((Dictionary<string, object>)report["codec"])["maskDiffers"] = maskDiffers;
+((Dictionary<string, object>)report["codec"])["maskRecomputed"] = Volatile.Read(ref PipelineVariantJournal.IntegerMasksRecomputedTotal) - masksBefore;
+#endif
 
 bool Rejected(byte[] bytes)
 {
@@ -739,6 +755,11 @@ report["journalRoom"] = LotScenarios.JournalRoom(root, Require);
 // adapt_queued_variant_record in the final preparation: states built for skipped draws, the draws that waited for them, a
 // worker's wait for the main cache's load and the render stages' split of the async skips (Lot.cs).
 report["queuedRecord"] = LotScenarios.QueuedRecord(root, Require);
+#endif
+#if REPLAY_INTEGER_MASK
+// adapt_replay_integer_mask in the final preparation: the read's rule against IsInt for every GAL format, draws' states read
+// back unchanged, other masks read as the draw's and counted, the R16_UINT case, and the journal's count per session (Lot.cs).
+report["integerMask"] = LotScenarios.IntegerMask(root, Require);
 #endif
 
 report["requireFailures"] = failures;

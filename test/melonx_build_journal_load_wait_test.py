@@ -80,9 +80,25 @@ check(lookup.index('_servedByMain = hit;') < lookup.index('if (!hit)'), 'the loo
 check(lookup.replace(method(control, '        private static void NoteMainCacheLookup(bool hit)').split('{', 1)[1], '') != lookup and
       method(control, '        private static void NoteMainCacheLookup(bool hit)').split('{', 1)[1] in lookup,
       'the delivered body of NoteMainCacheLookup follows, unchanged')
+later_mask = False
 if FINAL_PREPARATION:
-    check(not files_edited_later('adapt_build_journal_load_wait'), 'no later adapter edits PipelineState.cs')
-    check(read(FINAL_SOURCE, S) == candidate, 'the final preparation is the control plus the adapter\'s replacements')
+    # Plan 748 rank 18 (after this adapter): adapt_replay_integer_mask reads a recorded variant with the draw's integer-format
+    # mask at the end of TryReadVariant (PipelineState.cs, none of the members this adapter edits). When it is wired its
+    # replacement is undone first (required once); no other later adapter edits PipelineState.cs.
+    from melonx_adapter_control import ORDER, reverse_present  # noqa: E402
+    later_mask = 'adapt_replay_integer_mask' in ORDER
+    check(files_edited_later('adapt_build_journal_load_wait') == ({S} if later_mask else set()),
+          'no later adapter edits PipelineState.cs but adapt_replay_integer_mask')
+    final_text = read(FINAL_SOURCE, S)
+    if later_mask:
+        with tempfile.TemporaryDirectory(prefix='melonx-build-journal-load-wait-later-') as later_root:
+            (Path(later_root) / S).parent.mkdir(parents=True)
+            shutil.copyfile(FINAL_SOURCE / S, Path(later_root) / S)
+            check(reverse_present(Path(later_root), 'adapt_replay_integer_mask', only=[S]) == [S],
+                  'adapt_replay_integer_mask undone in PipelineState.cs')
+            final_text = read(Path(later_root), S)
+    check(final_text == candidate, 'the final preparation is the control plus the adapter\'s replacements (then the later '
+          'adapt_replay_integer_mask\'s)')
 
 environment = dict(os.environ, DOTNET_CLI_TELEMETRY_OPTOUT='1', DOTNET_NOLOGO='1')
 pin = json.loads((ROOT / 'build-utils/melonx/source.json').read_text())
@@ -151,6 +167,8 @@ check(r['records'] == [expected_record], 'and only once in the session')
 
 inputs = ['build-utils/melonx/adapt_build_journal_load_wait.py', 'build-utils/melonx/adapt_session.py',
           'test/melonx_build_journal_load_wait_test.py', 'test/melonx_build_journal_load_wait/Program.cs', 'test/melonx_adapter_control.py']
+if later_mask:
+    inputs.append('build-utils/melonx/adapt_replay_integer_mask.py')
 receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPARATION,
                sourceKind='finalPreparationWithReversedControl' if FINAL_PREPARATION else 'core741Preparation',
                postimages={S: sha(FINAL_SOURCE / S)} if FINAL_PREPARATION else {}, physicalDeviceTested=False,

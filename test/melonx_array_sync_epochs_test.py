@@ -26,7 +26,11 @@ dirty flag, the use clock and the writers' protocol):
   stamp, uploads, scale mode, pending upload);
 - 24 scenarios where a synchronisation signals another texture during the walk: the same state once settled;
 - a writer in flight (flag set, epoch not moved yet), for the dirty flag and for a sequence: the candidate walks;
-- an array of 3 200 bound textures: synchronisations and sequence reads per update, control against candidate.
+- an array of 3 200 bound textures: synchronisations and sequence reads per update, control against candidate;
+- plan 748 rank 14 (adapt_array_membership_filter, final preparation): a small array updated while another cache's
+  textures (all in an array) are signalled dirty and moved: the same states as the control; the final cache's membership
+  filter executed against the same cache with the filter answering yes (the same report, more lookups keyed by a
+  texture) and answering no (the fixture must fail).
 No device: the GPU thread time is the device's to show. Writes dist/melonx/array-sync-epochs-checks.json.
 """
 from pathlib import Path
@@ -134,6 +138,12 @@ with tempfile.TemporaryDirectory(prefix='melonx-array-sync-epochs-') as temporar
         own = {}
         for name, pairs in adapter.FILE_PAIRS.items():
             final_text = (FINAL_SOURCE / name).read_text(encoding='utf-8-sig')
+            # Plan 748 rank 14: adapt_array_membership_filter adds the filter after the flag, in both files: undone first.
+            import adapt_array_membership_filter as _filter  # noqa: E402
+            for file, old, new in reversed(_filter.PAIRS):
+                if file == name:
+                    check(final_text.count(new) == 1, 'the later adapter\'s replacement, once: ' + new.strip().splitlines()[0][:70])
+                    final_text = final_text.replace(new, old)
             # IPA 740 lot: adapt_array_log_membership then adds the membership flag to both files: undone first.
             import adapt_array_log_membership as _membership  # noqa: E402
             for file, old, new in reversed(_membership.PAIRS):
@@ -231,6 +241,23 @@ with tempfile.TemporaryDirectory(prefix='melonx-array-sync-epochs-') as temporar
           'the validation walk is skipped only with no writer in flight and the epoch read before the last complete walk')
     check('GC.' not in ''.join(new for _, new in adapter.PAIRS) and 'lock (' not in ''.join(new for _, new in adapter.PAIRS), 'no lock, no collection')
 
+    # Plan 748 rank 14 (adapt_array_membership_filter), read in the final preparation: every insertion into an array's
+    # set notes the texture's bit first, the filter is cleared with the set, and both ring walks test it before the lookup.
+    filtered = None
+    if FINAL_PREPARATION:
+        final_cache = (FINAL_SOURCE / adapter.CACHE).read_text(encoding='utf-8-sig')
+        final_texture = (FINAL_SOURCE / adapter.TEXTURE).read_text(encoding='utf-8-sig')
+        inserts = re.findall(r'(?:entry\.)?NoteMember\(texture\); // RewindBox \(adapt_array_membership_filter\)\n\s*(?:entry\.)?Textures\[texture\] = ', final_cache)
+        final_writes = re.findall(r'\bTextures(?:\.(?:Add|TryAdd|Remove|Clear)\(|\[[^\]]+\] = )', final_cache)
+        check(len(inserts) == 3 and len(final_writes) == 5 and 'CollectionsMarshal' not in final_cache and
+              ordered(final_cache, 'Textures.Clear();', '_filter0 = _filter1 = _filter2 = _filter3 = 0;', 'ForgetWalks();') and
+              ordered(final_cache, 'logged.InBindlessArray &&', 'MayContain(logged.ArrayFilterBit) && Textures.ContainsKey(logged)') and
+              ordered(final_cache, 'moved.InBindlessArray &&', 'MayContain(moved.ArrayFilterBit) &&', 'Textures.TryGetValue(moved, out int recorded)') and
+              final_texture.count('internal readonly byte ArrayFilterBit =') == 1 and final_texture.count('ArrayFilterBit') == 1,
+              'final cache: the three insertions note the bit, Reset clears the filter, both ring walks test it; the bit is fixed')
+        filtered = 'return ((word >> (bit & 63)) & 1) != 0;'
+        check(final_cache.count(filtered) == 1, 'final cache: one filter test')
+
     # --- executed ---
     build = run([DOTNET, 'build', str(candidate / 'src/Ryujinx.Graphics.Gpu/Ryujinx.Graphics.Gpu.csproj'), '-c', 'Release', '-nologo', '-m:1',
                  '-p:NuGetAudit=false'], candidate)
@@ -267,6 +294,26 @@ with tempfile.TemporaryDirectory(prefix='melonx-array-sync-epochs-') as temporar
                            env=dict(os.environ, DOTNET_CLI_TELEMETRY_OPTOUT='1', DOTNET_NOLOGO='1'))
     silent_fails = wrong.returncode != 0 and 'blacklisted' in (wrong.stdout + wrong.stderr)
     check(silent_fails, 'a scale mode that leaves the blacklist unsignalled is caught by the fixture: rc %s %s' % (wrong.returncode, (wrong.stdout + wrong.stderr)[-300:]))
+    project.write_text(project.read_text().replace('<DefineConstants>ADAPTED;NO_SCALE_SIGNAL</DefineConstants>', '<DefineConstants>ADAPTED</DefineConstants>'))
+
+    # Plan 748 rank 14 (adapt_array_membership_filter): the final cache's filter executed. The same fixture, with the
+    # filter answering yes for every texture (the cache before the adapter, in effect), must give the same report with
+    # more lookups keyed by a texture; with the filter answering no, it must fail (the members are no longer synchronised
+    # or validated).
+    variants = {}
+    if FINAL_PREPARATION:
+        for variant, answer in (('unfiltered', 'return true;'), ('alwaysSkip', 'return false;')):
+            work = base / ('candidate-' + variant)
+            shutil.copytree(base / 'candidate', work, ignore=shutil.ignore_patterns('bin', 'obj'))
+            cache_copy = work / adapter.CACHE
+            cache_copy.write_text(cache_copy.read_text(encoding='utf-8-sig').replace(filtered, answer), encoding='utf-8')
+            result = subprocess.run([DOTNET, 'run', '--project', str(work / 'test.csproj'), '-c', 'Release'], capture_output=True, text=True,
+                                    timeout=1800, cwd=work, env=dict(os.environ, DOTNET_CLI_TELEMETRY_OPTOUT='1', DOTNET_NOLOGO='1'))
+            line = next((l for l in result.stdout.splitlines() if l.startswith('{')), None)
+            failure = next((l for l in (result.stdout + result.stderr).splitlines() if 'Exception' in l), '')
+            variants[variant] = dict(returncode=result.returncode, report=json.loads(line) if line and result.returncode == 0 else None,
+                                     failure=failure.strip()[:300], tail=(result.stdout + result.stderr)[-400:])
+            shutil.rmtree(work)
 
 c, k = reports['control'], reports['candidate']
 # IPA 736, second lot (adapt_array_dirty_log): a synchronisation that signals another texture is followed in the same
@@ -293,6 +340,29 @@ for cw, kw in zip(c['writers'], k['writers']):
           'candidate: a dirty writer in flight makes the update walk, and the update after its epoch moved reads its entry: %s' % kw)
     check(kw['inFlightSequenceReads'] == 2 * n and kw['afterWriterSequenceReads'] == n,
           'candidate: a sequence writer in flight makes both validations walk, the next one re-establishes: %s' % kw)
+check(len(c['membership']) == len(k['membership']) == 2 and
+      all(cm['digest'] == km['digest'] and cm['steps'] == km['steps'] == 40 and km['signalled'] == 480 for cm, km in zip(c['membership'], k['membership'])),
+      'membership: a small array updated while another array\'s textures are signalled leaves the control\'s states at every step')
+membership_filter = {}
+if FINAL_PREPARATION:
+    unfiltered, skipping = variants['unfiltered'], variants['alwaysSkip']
+    check(unfiltered['returncode'] == 0 and unfiltered['report'] is not None, 'unfiltered variant ran: ' + unfiltered['tail'])
+    u = unfiltered['report']
+    same = [key for key in k if key not in ('membership', 'measures', 'visits')]
+    check(all(u[key] == k[key] for key in same) and
+          [{key: v for key, v in m.items() if key != 'lookups'} for m in u['membership']] ==
+          [{key: v for key, v in m.items() if key != 'lookups'} for m in k['membership']] and
+          [v['digest'] for v in u['visits']] == [v['digest'] for v in k['visits']],
+          'the filter answering yes for every texture gives the candidate\'s report (states, checks, counters, delta passes)')
+    check(all(km['lookups'] < um['lookups'] for km, um in zip(k['membership'], u['membership'])),
+          'the final filter skips lookups the unfiltered cache makes: %s / %s' % ([m['lookups'] for m in k['membership']],
+                                                                                [m['lookups'] for m in u['membership']]))
+    check(skipping['returncode'] != 0 and 'InvalidOperationException' in skipping['failure'],
+          'a filter that skips members is caught by the fixture: ' + skipping['tail'][-200:])
+    membership_filter = {'executed': True, 'unfilteredIdentical': True, 'alwaysSkipCaught': True,
+                         'lookupsFiltered': [m['lookups'] for m in k['membership']],
+                         'lookupsUnfiltered': [m['lookups'] for m in u['membership']],
+                         'signalledPerScenario': k['membership'][0]['signalled'], 'alwaysSkipFailure': skipping['failure']}
 visits = []
 for cv, kv in zip(c['visits'], k['visits']):
     check(cv['digest'] == kv['digest'] and cv['boundElements'] == kv['boundElements'] >= 6000,
@@ -312,7 +382,8 @@ for cv, kv in zip(c['visits'], k['visits']):
 print(json.dumps(visits, indent=1), flush=True)
 
 inputs = ['build-utils/melonx/adapt_array_sync_epochs.py', 'build-utils/melonx/adapt_session.py', 'test/melonx_array_sync_epochs_test.py',
-          'test/melonx_array_sync_epochs/Program.cs', 'test/melonx_adapter_control.py', 'build-utils/melonx/adapt_texture_play_clock.py']
+          'test/melonx_array_sync_epochs/Program.cs', 'test/melonx_adapter_control.py', 'build-utils/melonx/adapt_texture_play_clock.py',
+          'build-utils/melonx/adapt_array_membership_filter.py']
 report = {
     'result': 'passed', 'checks': checks, 'fixtureChecks': k['checks'], 'finalPreparationBound': FINAL_PREPARATION,
     'sourceKind': 'finalPreparationWithReversedControl' if FINAL_PREPARATION else 'pinnedPreparationPlusAdapter',
@@ -324,6 +395,7 @@ report = {
     'quietUpdateSequenceReadsControl': c['visits'][0]['sequenceReadsPerUpdate'],
     'quietUpdateSequenceReadsCandidate': k['visits'][0]['sequenceReadsPerUpdate'],
     'visits': visits, 'writers': k['writers'], 'unsignalledScaleModeCaught': silent_fails,
+    'membershipStatesIdentical': True, 'membershipFilter': membership_filter,
     'deviceEvidence': 'IPA 729 Hogwarts Legacy (private journal, pid 58475): gpuWork arrayDelta 170-534 calls and 459-1 136 ms per 5 s '
                       'window during play, bindings 956-1 773 ms',
     'inputs': {path: sha(ROOT / path) for path in inputs},

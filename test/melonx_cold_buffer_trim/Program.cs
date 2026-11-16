@@ -255,6 +255,93 @@ foreach (bool useFirst in new[] { false, true })
     report["journal"] = result;
 }
 
+#if CRITICAL_TRIM
+// Plan 748 rank 11 (adapt_device_critical_trim): Trim's byCapacity, which GpuContext.TrimCaches passes for a Critical level
+// or an escalated trim while only the device is short.
+{
+    var capacity = new Dictionary<string, object>();
+    // The IPA 724 shape with every trim by capacity, at a comfortable headroom.
+    {
+        World world = Fresh(Limit554, Comfortable);
+        for (int second = 1; second <= 150; second++)
+        {
+            world.Second();
+            for (int id = 0; id < 100; id++) world.Use(id);
+            if (second % 6 == 0) world.Trim((second / 6) % 2 == 0 ? MemoryPressureLevel.Critical : MemoryPressureLevel.Warning, byCapacity: true);
+        }
+        var result = Summary(world);
+        result["evictionOrder"] = world.Evicted.Take(40).ToArray();
+        result["allResidentAtTheEnd"] = Enumerable.Range(0, 100).All(world.Resident);
+        capacity["hotSet"] = result;
+    }
+    // 40 buffers used during the first 5 s, 60 every second, 160 MiB limit; at 30 s: Warning, then Warning and Critical by capacity.
+    {
+        World world = Fresh(160 * MiB, Comfortable);
+        var steps = new List<object>();
+        for (int second = 1; second <= 30; second++)
+        {
+            world.Second();
+            if (second <= 5) for (int id = 0; id < 40; id++) world.Use(id);
+            for (int id = 40; id < 100; id++) world.Use(id);
+        }
+        foreach (var (name, level, byCapacity) in new[] { ("Warning", MemoryPressureLevel.Warning, false),
+                                                         ("WarningByCapacity", MemoryPressureLevel.Warning, true),
+                                                         ("CriticalByCapacity", MemoryPressureLevel.Critical, true) })
+        {
+            int before = world.Evicted.Count;
+            ulong released = world.Trim(level, byCapacity);
+            steps.Add(new Dictionary<string, object>
+            {
+                ["level"] = name,
+                ["releasedMiB"] = released / MiB,
+                ["evicted"] = world.Evicted.Skip(before).ToArray(),
+                ["cachedMiB"] = world.Cache.CachedBytes / MiB,
+            });
+        }
+        world.Second();
+        for (int id = 40; id < 100; id++) world.Use(id);
+        capacity["steps"] = steps;
+        capacity["recreated"] = world.Recreated;
+        capacity["coldResident"] = Enumerable.Range(0, 40).Count(world.Resident);
+        capacity["records"] = EmbeddedLaunchDiagnostics.Records.Count;
+    }
+    // Unevictable buffers are passed over (the ten oldest pinned), as the capacity eviction does.
+    {
+        World world = Fresh(Limit554, Comfortable);
+        for (int second = 1; second <= 3; second++)
+        {
+            world.Second();
+            for (int id = 0; id < 100; id++) world.Use(id);
+        }
+        for (int id = 0; id < 10; id++) world.Pin(id);
+        world.Trim(MemoryPressureLevel.Critical, byCapacity: true);
+        capacity["unevictable"] = new Dictionary<string, object>
+        {
+            ["evictionOrder"] = world.Evicted.ToArray(),
+            ["pinnedResident"] = Enumerable.Range(0, 10).All(world.Resident),
+        };
+    }
+    // Suppressed eviction: nothing now, the capacity eviction left pending.
+    {
+        World world = Fresh(Limit554, Comfortable);
+        world.Second();
+        for (int id = 0; id < 100; id++) world.Use(id);
+        world.Cache.Suppress(true);
+        ulong released = world.Trim(MemoryPressureLevel.Critical, byCapacity: true);
+        capacity["suppressed"] = new Dictionary<string, object> { ["returnedMiB"] = released / MiB, ["pending"] = world.Cache.Pending };
+    }
+    // Tracking off: no trim at all.
+    {
+        World world = Fresh(Limit554, Comfortable, tracking: false);
+        world.Second();
+        for (int id = 0; id < 100; id++) world.Use(id);
+        ulong released = world.Trim(MemoryPressureLevel.Critical, byCapacity: true);
+        capacity["trackingOff"] = new Dictionary<string, object> { ["returnedMiB"] = released / MiB, ["evicted"] = world.Evicted.Count };
+    }
+    report["byCapacity"] = capacity;
+}
+#endif
+
 Console.WriteLine(JsonSerializer.Serialize(report));
 
 // A game's use of the cache: a lookup of a buffer the cache no longer holds creates it again (GetOrCreateBuffer after
@@ -325,6 +412,18 @@ sealed class World
         LowestCachedBytes = Math.Min(LowestCachedBytes, Cache.CachedBytes);
         return released;
     }
+
+#if CRITICAL_TRIM
+    // Plan 748 rank 11: the final Trim's byCapacity (adapt_device_critical_trim).
+    public ulong Trim(MemoryPressureLevel level, bool byCapacity)
+    {
+        Trims++;
+        ulong released = Cache.Trim(level, byCapacity);
+        ReleasedBytes += released;
+        LowestCachedBytes = Math.Min(LowestCachedBytes, Cache.CachedBytes);
+        return released;
+    }
+#endif
 }
 
 namespace Ryujinx.Common

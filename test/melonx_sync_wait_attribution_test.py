@@ -17,6 +17,11 @@ queued behind 300 ms of render work, an empty action behind 250 ms, an action of
 second window. The candidate's line names each call's type, its wait and its own time (the read-back 500 ms of which
 200 ms its own; the actions 400 ms of which 150 ms), counts each window apart, and prints no other line; the GPU
 thread's own timing of each call is the same in both variants. No device.
+Plan 748 ranks 14 and 17, on the final preparation: the same fixture runs the final ThreadedRenderer.cs (a third
+variant, every later adapter included) with the same lines and attribution; there the command queue is on the pinned
+object heap (a compacting full collection with a hole before it leaves it in place; zeroed before any command), and
+NoteRenderCommand returns the next command's start (1 000 commands chained on it add exactly the time from the first
+start to the last return; after a window's line the start returned is read after the line).
 Writes dist/melonx/sync-wait-attribution-checks.json.
 """
 from pathlib import Path
@@ -127,15 +132,35 @@ check(sorted(invokers) == sorted(['ActionCommand', 'BufferGetDataCommand', 'GetC
                                   'ProgramGetBinaryCommand', 'ProgramCheckLinkCommand', 'TextureGetDataCommand',
                                   'TextureGetDataSliceCommand']), 'the eight synchronous commands: ' + str(sorted(invokers)))
 
+# Plan 748 ranks 14 and 17, read in the final preparation: the queue allocated pinned (New<T> still the only raw pointer
+# into it), and one clock read per command (a drain's first command reads it, the next start is the previous return,
+# the wake of a synchronous waiter is not charged to the next command).
+if FINAL_PREPARATION:
+    final_renderer = read(FINAL_SOURCE, RENDERER)
+    final_loop = member(final_renderer, 'public void RenderLoop()')
+    check(final_renderer.count('_commandQueue = GC.AllocateArray<byte>(_elementSize * QueueCount, pinned: true);') == 1 and
+          final_renderer.count('_commandQueue = ') == 1 and final_renderer.count('Unsafe.AsPointer(') == 1 and
+          'Unsafe.AsPointer(' in member(final_renderer, 'internal unsafe T* New<T>()'),
+          'final: the command queue is allocated pinned; New<T> is the only raw pointer into it')
+    check(in_order(final_loop, 'long nextCommandStart = 0;', 'using (PD.Measure(PD.Phase.RenderDrain))',
+                   'long commandStart = nextCommandStart != 0 ? nextCommandStart : Stopwatch.GetTimestamp();',
+                   'CommandHelper.RunCommand(command, this, _baseRenderer);', 'nextCommandStart = NoteRenderCommand(commandType, commandStart);',
+                   'Volatile.Write(ref _invokedOwnTicks, Stopwatch.GetTimestamp() - commandStart);',
+                   '_invokeRun.Set();\n                        nextCommandStart = 0;') and final_loop.count('Stopwatch.GetTimestamp()') == 2 and
+          'private long NoteRenderCommand(byte type, long start)' in final_renderer and
+          in_order(member(final_renderer, 'private long NoteRenderCommand(byte type, long start)'), 'long end = Stopwatch.GetTimestamp();',
+                   'LogRenderWork(end);', 'return Stopwatch.GetTimestamp();', 'return end;'),
+          'final: one clock read per command of a drain, a new read after the window\'s line and after a waiter\'s wake')
+
 replacements = []
 original_once = adapt_sync_wait_attribution.once
 reports, built = {}, []
 environment = dict(os.environ, DOTNET_CLI_TELEMETRY_OPTOUT='1', DOTNET_NOLOGO='1')
 with tempfile.TemporaryDirectory(prefix='melonx-sync-wait-attribution-') as temporary:
     temporary = Path(temporary).resolve()
-    for variant in ('control', 'candidate'):
+    for variant in ('control', 'candidate', 'final') if FINAL_PREPARATION else ('control', 'candidate'):
         work = temporary / variant
-        shutil.copytree(SOURCE, work, ignore=shutil.ignore_patterns('.git', 'bin', 'obj'), symlinks=True)
+        shutil.copytree(FINAL_SOURCE if variant == 'final' else SOURCE, work, ignore=shutil.ignore_patterns('.git', 'bin', 'obj'), symlinks=True)
         use_authenticated_libhac_feed(work, ROOT)
         if variant == 'candidate':
             def recording_once(path, old, new):
@@ -211,7 +236,8 @@ with tempfile.TemporaryDirectory(prefix='melonx-sync-wait-attribution-') as temp
         (fixture / 'Pipeline.g.cs').write_text(pipeline_double(read(work, GAL + 'IPipeline.cs')))
         for name in ('Program.cs', 'Backend.cs'):
             shutil.copyfile(FIXTURE / name, fixture / name)
-        defines = '<DefineConstants>$(DefineConstants);CANDIDATE</DefineConstants>' if variant == 'candidate' else ''
+        defines = {'candidate': '<DefineConstants>$(DefineConstants);CANDIDATE</DefineConstants>',
+                   'final': '<DefineConstants>$(DefineConstants);CANDIDATE;FINAL</DefineConstants>'}.get(variant, '')
         (fixture / 'Fixture.csproj').write_text(
             '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework>'
             f'<Nullable>disable</Nullable><NuGetAudit>false</NuGetAudit><NoWarn>CS0067;CS0649;CS0414;CS0169</NoWarn>{defines}'
@@ -224,6 +250,7 @@ with tempfile.TemporaryDirectory(prefix='melonx-sync-wait-attribution-') as temp
             check(result.returncode == 0, variant + ': ' + ' '.join(command[1:3]))
         reports[variant] = json.loads(next(line for line in result.stdout.splitlines() if line.startswith('{')))
         print(variant, json.dumps(reports[variant]), flush=True)
+        shutil.rmtree(work)  # disk: up to three tree copies otherwise
 
 c, k = reports['control'], reports['candidate']
 for variant, report in reports.items():
@@ -234,37 +261,61 @@ for variant, report in reports.items():
     check(calls['readBackBehindWorkMs'] >= 470 and calls['emptyActionBehindWorkMs'] >= 230 and calls['busyActionMs'] >= 140 and
           calls['readBackAloneMs'] >= 45, variant + ': each synchronous call waited for the work ahead and its own: ' + str(calls))
 check(not any('sync waits' in line for line in c['lines']), 'control: the line has no sync waits')
-check(c['loggerEvents'] == k['loggerEvents'], 'candidate: no log line added: ' + str((c['loggerEvents'], k['loggerEvents'])))
-for key in ('readBackBehindWorkMs', 'emptyActionBehindWorkMs', 'busyActionMs', 'readBackAloneMs'):
-    check(abs(c['calls'][key] - k['calls'][key]) < 150, 'the GPU thread waits as long in both variants: ' + key)
-for control_line, candidate_line in zip(c['lines'], k['lines']):
-    check(candidate_line[:candidate_line.index(' over ')] == control_line[:control_line.index(' over ')] and ' GPU thread sync waits ' in candidate_line and
-          candidate_line.index('top (calls, ms):') < candidate_line.index(' GPU thread sync waits '),
-          'candidate: the same line, the sync waits appended')
-first, second = attribution(k['lines'][0]), attribution(k['lines'][1])
-kc = k['calls']
-read_back = first['entries'].get('BufferGetData')
-check(read_back is not None and read_back[0] == 1 and 470 <= read_back[1] <= kc['readBackBehindWorkMs'] + 50 and
-      190 <= read_back[2] <= 400 and read_back[1] - read_back[2] >= 270,
-      'read-back behind work: one call, 500 ms of which 200 ms its own: ' + str(read_back))
-actions = first['entries'].get('Action')
-check(actions is not None and actions[0] == 2 and 370 <= actions[1] <= kc['emptyActionBehindWorkMs'] + kc['busyActionMs'] + 50 and
-      140 <= actions[2] <= 300 and actions[1] - actions[2] >= 220,
-      'actions: two calls, 400 ms of which 150 ms their own (the empty one waited only for the work ahead): ' + str(actions))
-check(first['entries'].get('GetCapabilities', (0,))[0] == 1 and first['calls'] == 4,
-      'first window: the warm-up call too, four in all: ' + str(first))
-check(abs(first['ms'] - sum(v[1] for v in first['entries'].values())) <= 1 and
-      abs(first['own'] - sum(v[2] for v in first['entries'].values())) <= 1, 'totals are the sum of the types listed')
-alone = second['entries'].get('BufferGetData')
-check(alone is not None and alone[0] == 1 and alone[2] >= 45 and alone[1] >= alone[2] and 'Action' not in second['entries'] and
-      second['calls'] == 2 and second['entries'].get('GetCapabilities', (0,))[0] == 1,
-      'second window: counted apart (the read-back alone and the first window\'s closing call): ' + str(second))
+attributed = [k] + ([reports['final']] if FINAL_PREPARATION else [])
+for k in attributed:
+    who = k['variant']
+    check(c['loggerEvents'] == k['loggerEvents'], who + ': no log line added: ' + str((c['loggerEvents'], k['loggerEvents'])))
+    for key in ('readBackBehindWorkMs', 'emptyActionBehindWorkMs', 'busyActionMs', 'readBackAloneMs'):
+        check(abs(c['calls'][key] - k['calls'][key]) < 150, who + ': the GPU thread waits as long as in the control: ' + key)
+    for control_line, candidate_line in zip(c['lines'], k['lines']):
+        check(candidate_line[:candidate_line.index(' over ')] == control_line[:control_line.index(' over ')] and ' GPU thread sync waits ' in candidate_line and
+              candidate_line.index('top (calls, ms):') < candidate_line.index(' GPU thread sync waits '),
+              who + ': the same line, the sync waits appended')
+    first, second = attribution(k['lines'][0]), attribution(k['lines'][1])
+    kc = k['calls']
+    read_back = first['entries'].get('BufferGetData')
+    check(read_back is not None and read_back[0] == 1 and 470 <= read_back[1] <= kc['readBackBehindWorkMs'] + 50 and
+          190 <= read_back[2] <= 400 and read_back[1] - read_back[2] >= 270,
+          who + ': read-back behind work: one call, 500 ms of which 200 ms its own: ' + str(read_back))
+    actions = first['entries'].get('Action')
+    check(actions is not None and actions[0] == 2 and 370 <= actions[1] <= kc['emptyActionBehindWorkMs'] + kc['busyActionMs'] + 50 and
+          140 <= actions[2] <= 300 and actions[1] - actions[2] >= 220,
+          who + ': actions: two calls, 400 ms of which 150 ms their own (the empty one waited only for the work ahead): ' + str(actions))
+    check(first['entries'].get('GetCapabilities', (0,))[0] == 1 and first['calls'] == 4,
+          who + ': first window: the warm-up call too, four in all: ' + str(first))
+    check(abs(first['ms'] - sum(v[1] for v in first['entries'].values())) <= 1 and
+          abs(first['own'] - sum(v[2] for v in first['entries'].values())) <= 1, who + ': totals are the sum of the types listed')
+    alone = second['entries'].get('BufferGetData')
+    check(alone is not None and alone[0] == 1 and alone[2] >= 45 and alone[1] >= alone[2] and 'Action' not in second['entries'] and
+          second['calls'] == 2 and second['entries'].get('GetCapabilities', (0,))[0] == 1,
+          who + ': second window: counted apart (the read-back alone and the first window\'s closing call): ' + str(second))
+    if who == 'candidate':
+        candidate_attribution = dict(first=first, second=second)
+k = reports['candidate']
+first, second = candidate_attribution['first'], candidate_attribution['second']
+final_checks = {}
+if FINAL_PREPARATION:
+    f = reports['final']
+    fq, fn = f['queue'], f['note']
+    check(fq['bytes'] == c['queue']['bytes'] == k['queue']['bytes'] > 0 and fq['zeroed'] and not fq['moved'] and
+          fq['pinnedHeapBytes'] >= fq['bytes'],
+          'final: the command queue (same length) is on the pinned object heap, zeroed, and a compacting collection leaves it: ' + str(fq))
+    check(all(r['queue']['pinnedHeapBytes'] < r['queue']['bytes'] for r in (c, k)),
+          'control and candidate: the command queue is not on the pinned object heap: ' + str((c['queue'], k['queue'])))
+    check(c['note'] == {'returns': 'Void'} and k['note'] == {'returns': 'Void'} and fn['returns'] == 'Int64' and fn['calls'] == 1000 and
+          fn['telescoped'] is True and fn['windowLines'] == 1 and fn['startAfterLine'] is True,
+          'final: NoteRenderCommand returns the next start; 1 000 chained commands add exactly the time they span; after a '
+          'window\'s line the start returned is read after it: ' + str(fn))
+    final_checks = {'queuePinned': True, 'queueMovedInControl': c['queue']['moved'], 'queueMovedInFinal': fq['moved'],
+                    'queueBytes': fq['bytes'], 'noteReturnsNextStart': True, 'chainedCommandsTelescoped': True,
+                    'linesAndAttributionAsCandidate': True}
 
 inputs = ['build-utils/melonx/adapt_sync_wait_attribution.py', 'build-utils/melonx/adapt_session.py',
+          'build-utils/melonx/adapt_pinned_command_queue.py', 'build-utils/melonx/adapt_render_command_clock.py',
           'test/melonx_sync_wait_attribution_test.py', 'test/melonx_adapter_control.py',
           'test/melonx_sync_wait_attribution/Program.cs', 'test/melonx_sync_wait_attribution/Backend.cs']
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
-receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPARATION,
+receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPARATION, finalRenderer=final_checks,
                sourceKind='finalPreparationWithReversedControl' if FINAL_PREPARATION else 'core697Preparation',
                postimages={p: hashlib.sha256((FINAL_SOURCE / p).read_bytes()).hexdigest() for p in BASELINE} if FINAL_PREPARATION else {},
                attribution=dict(first=first, second=second), reports=reports, sdk=sdk, physicalDeviceTested=False,

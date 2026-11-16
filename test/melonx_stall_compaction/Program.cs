@@ -5,6 +5,9 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using Ryujinx.Library;
+#if DRAIN_GUARD
+using PD = Ryujinx.Common.EmbeddedPerformanceDiagnostics;
+#endif
 
 // The production EmbeddedHeapCompaction class (the candidate EmbeddedMemory.cs, between its markers, unchanged) next to
 // three doubles: HostMemoryBudget (constrained, device share set by the fixture, footprint = this process's resident
@@ -15,6 +18,12 @@ using Ryujinx.Library;
 // and the poll against the real collector: a heap with free large-object space is compacted once in a presentation
 // gap, never while frames are presented, never when a stop is requested, never in a host pause, never after the
 // session ended nor before the next one's first frame.
+// "drain" (adapt_stall_compaction_drain_guard, built with DRAIN_GUARD and the candidate's EmbeddedPerformanceDiagnostics,
+// unchanged): a render thread double holds the collector's real scopes while the poll's thread reads the drain's age
+// without a lock: no compaction while the render thread is held in one drain through the gap (one refusal per gap),
+// the compaction of a loading (renderIdle) or of a drain younger than half the gap, nothing counted when the rule itself
+// does not hold, a session's count from zero; then a render thread opening and closing scopes for a second against a
+// reader that never blocks and never reads an age the scope cannot have.
 namespace Ryujinx.Memory
 {
     public static class HostMemoryBudget
@@ -36,6 +45,9 @@ namespace Ryujinx.Common
         {
             lock (Lines) Lines.Add(stage + " " + status + ": " + detail);
         }
+        // What the performance collector also uses (its epoch's start, the host's poll hook).
+        public static Action PerformanceObserver;
+        public static void BeginPerformance(long generation) { }
     }
 }
 
@@ -231,6 +243,147 @@ static class Fixture
         };
     }
 
+#if DRAIN_GUARD
+    static long Age() => PD.RenderDrainInFlightMs();
+
+    // The render thread double: holds one scope of the phase, opened on its own thread, until disposed.
+    sealed class RenderThread : IDisposable
+    {
+        readonly ManualResetEventSlim _entered = new(false), _release = new(false);
+        readonly Thread _thread;
+
+        public RenderThread(PD.Phase phase)
+        {
+            _thread = new Thread(() => { using (PD.Measure(phase)) { _entered.Set(); _release.Wait(); } }) { IsBackground = true, Name = "Fixture.Render" };
+            _thread.Start();
+            _entered.Wait();
+        }
+
+        public void Dispose()
+        {
+            _release.Set();
+            _thread.Join();
+        }
+    }
+
+    static object DrainRun()
+    {
+        Ryujinx.Memory.HostMemoryBudget.Device = 9;
+        bool stop = false;
+        long ageBeforeEpoch = Age(); // no session measures: the guard reads -1 and the poll is the one "live" runs
+        EmbeddedHeapCompaction.WatchStalls(() => stop);
+        PD.Start(1);
+        long ageNoScope = Age();
+        LoadingBurst(3, 420 * MiB);
+        long freeBefore = Reclaimable();
+
+        // The session's first frame, then 10.4 s of frames: nothing.
+        int atStart = Compactions;
+        Play(10_400);
+        int duringPlay = Compactions - atStart;
+
+        // A compile freeze: from the last frame on, the render thread is held in one drain. The rule holds from 700 ms
+        // on, with the space and the device short: no compaction in 3 s, one refusal for the gap whatever the polls.
+        long heldDrain, ageInDrain;
+        using (new RenderThread(PD.Phase.RenderDrain))
+        {
+            heldDrain = Stall(3000);
+            ageInDrain = Age();
+        }
+        int refusalsAfterFreeze = EmbeddedHeapCompaction.DrainRefusals;
+        long longestAfterFreeze = EmbeddedHeapCompaction.DrainRefusedLongestMs;
+        long freeAfterFreeze = Reclaimable();
+
+        // Frames again, then a gap in which the rule does not hold (the device not short): a held drain is no refusal.
+        Play(500);
+        Ryujinx.Memory.HostMemoryBudget.Device = 16;
+        long notShortWithDrain;
+        using (new RenderThread(PD.Phase.RenderDrain)) notShortWithDrain = Stall(1500);
+        Ryujinx.Memory.HostMemoryBudget.Device = 9;
+        int refusalsWhenRuleFails = EmbeddedHeapCompaction.DrainRefusals;
+
+        // A loading: the render thread waits for work (renderIdle) through the gap: the first poll past 700 ms compacts.
+        Play(8_200);
+        long idleWaited, ageInIdle;
+        using (new RenderThread(PD.Phase.RenderIdle))
+        {
+            ageInIdle = Age();
+            idleWaited = Stall(8000);
+        }
+        long freeAfterIdle = Reclaimable();
+
+        // A drain younger than half the gap at the poll: the compaction runs.
+        LoadingBurst(4, 420 * MiB);
+        long freeBeforeYoung = Reclaimable();
+        Play(8_200);
+        long lastFrame = Environment.TickCount64;
+        while (Environment.TickCount64 - lastFrame < 720) Thread.Sleep(5);
+        int beforeYoung = Compactions;
+        long ageAtYoungPoll;
+        using (new RenderThread(PD.Phase.RenderDrain))
+        {
+            ageAtYoungPoll = Age();
+            EmbeddedHeapCompaction.OnPoll();
+        }
+        int youngDrainCompacted = Compactions - beforeYoung;
+        int refusalsAtEnd = EmbeddedHeapCompaction.DrainRefusals;
+
+        // The session ends; the next session's run starts from zero.
+        EmbeddedHeapCompaction.OnSessionEnd();
+        EmbeddedHeapCompaction.WatchStalls(() => stop);
+        int refusalsNextSession = EmbeddedHeapCompaction.DrainRefusals;
+        PD.Stop(1);
+        long ageAfterStop = Age();
+
+        // The read without a lock: a render thread opens and closes drains (and idle waits between them) for 1 s while
+        // this thread reads the age; no read blocks, none is below -1 or above the time since the first drain began.
+        PD.Start(2);
+        long stressStart = System.Diagnostics.Stopwatch.GetTimestamp();
+        int drains = 0;
+        bool running = true;
+        Thread render = new(() =>
+        {
+            while (Volatile.Read(ref running))
+            {
+                using (PD.Measure(PD.Phase.RenderIdle)) Thread.SpinWait(50);
+                using (PD.Measure(PD.Phase.RenderDrain)) Thread.SpinWait(200);
+                drains++;
+            }
+        }) { IsBackground = true, Name = "Fixture.RenderLoop" };
+        render.Start();
+        long reads = 0, inFlight = 0, invalid = 0, maxAge = -1;
+        long readEnd = Environment.TickCount64 + 1000;
+        while (Environment.TickCount64 < readEnd)
+        {
+            long age = Age();
+            long bound = (System.Diagnostics.Stopwatch.GetTimestamp() - stressStart) * 1000 / System.Diagnostics.Stopwatch.Frequency;
+            reads++;
+            if (age >= 0) inFlight++;
+            if (age < -1 || age > bound) invalid++;
+            maxAge = Math.Max(maxAge, age);
+        }
+        Volatile.Write(ref running, false);
+        render.Join();
+        long ageAfterLoop = Age();
+        PD.Stop(2);
+
+        string[] lines;
+        lock (Ryujinx.Common.EmbeddedLaunchDiagnostics.Lines) lines = Ryujinx.Common.EmbeddedLaunchDiagnostics.Lines.Where(line => line.Contains("heapCompacted")).ToArray();
+        return new
+        {
+            drainLimitMs = EmbeddedHeapCompaction.StallDrainMs, gapMs = EmbeddedHeapCompaction.StallGapMs,
+            ageBeforeEpoch, ageNoScope, freeBeforeMiB = freeBefore / MiB, duringPlay,
+            heldDrain, ageInDrain, refusalsAfterFreeze, longestAfterFreeze, freeAfterFreezeMiB = freeAfterFreeze / MiB,
+            notShortWithDrain, refusalsWhenRuleFails,
+            idleWaited, ageInIdle, freeAfterIdleMiB = freeAfterIdle / MiB,
+            freeBeforeYoungMiB = freeBeforeYoung / MiB, ageAtYoungPoll, youngDrainCompacted, refusalsAtEnd,
+            refusalsNextSession, ageAfterStop,
+            stress = new { reads, inFlight, invalid, maxAge, drains, ageAfterLoop },
+            total = Compactions - atStart, lines,
+        };
+    }
+#endif
+
     static int Main(string[] arguments)
     {
         object report = arguments[0] switch
@@ -239,6 +392,9 @@ static class Fixture
             "replay" => new { presenting = Replay(arguments[1], false, false), sparseAtEnd = Replay(arguments[1], false, true),
                               gaps = Replay(arguments[1], true, true) },
             "live" => LiveRun(),
+#if DRAIN_GUARD
+            "drain" => DrainRun(),
+#endif
             _ => throw new ArgumentException(arguments[0]),
         };
         Console.WriteLine(JsonSerializer.Serialize(report));

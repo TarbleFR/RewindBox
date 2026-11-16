@@ -18,6 +18,14 @@ against the compiled production GpuContext, TexturePool, Texture, TextureGroup, 
 real guest memory and a recording GAL renderer: (a) release and re-creation from guest memory, (b) GPU-written data
 kept, (c) no reload loop, (d) nothing when the device is not short, (e) per-pass bounds.
 Writes dist/melonx/cold-texture-release-checks.json. No device, no Metal memory measurement, no FPS claim.
+
+Plan 748 rank 11 (adapt_device_critical_trim), on the final preparation: the production Ryujinx.Graphics.Gpu of the final
+preparation builds, and the same probe runs on it with "final": three 64 MiB textures written by the GPU (in the auto delete
+cache), one still in its pool, two held by the cache alone; a Warning texture trim with AutoDeleteCache.OnlyUnreferencedTrim
+(what GpuContext.TrimCaches sets for a Critical level or an escalation while only the device is short) reads back and
+releases the oldest texture the cache alone holds, its GPU data written to guest memory, and leaves the pool's texture
+untouched (no read, still cached); the delivered trim (this process's own pressure) reads back the pool's texture and drops
+it from the cache without freeing anything; the flush-free trim frees nothing here.
 """
 from pathlib import Path
 import hashlib, json, os, re, shutil, subprocess, sys, tempfile
@@ -30,7 +38,7 @@ if '--work' in ARGS:
 SOURCE = Path(ARGS[ARGS.index('--candidate-source') + 1] if '--candidate-source' in ARGS else ARGS[0]).resolve()
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import control_source, use_authenticated_libhac_feed  # noqa: E402
+from melonx_adapter_control import ORDER, control_source, use_authenticated_libhac_feed  # noqa: E402
 _HOLD = []
 FINAL_SOURCE = SOURCE
 SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_cold_texture_release', _HOLD)
@@ -214,7 +222,12 @@ else:
     WORK.mkdir(parents=True, exist_ok=True)
 work = WORK / 'candidate'
 probe = WORK / 'probe'
-for stale in (work, probe):
+# Plan 748 rank 11: the final preparation's engine and the probe built against it.
+CRITICAL = FINAL_PREPARATION and 'adapt_device_critical_trim' in ORDER
+final_work = WORK / 'final'
+final_probe = WORK / 'probe-final'
+final_report = None
+for stale in (work, probe, final_work, final_probe):
     if stale.exists():
         shutil.rmtree(stale)
 report = None
@@ -338,8 +351,37 @@ try:
         print(run.stdout[-4000:], run.stderr[-4000:], flush=True)
     check(run.returncode == 0, 'probe runs')
     report = json.loads(next(line for line in run.stdout.splitlines() if line.startswith('{')))
+
+    if CRITICAL:
+        # Plan 748 rank 11: the same probe on the final preparation's engine, with the texture trim scenarios.
+        def ignore_final(directory, names):
+            skipped = {'.git', 'bin', 'obj'} & set(names)
+            if Path(directory).resolve() == (FINAL_SOURCE / 'src').resolve() and 'MeloNX' in names:
+                skipped.add('MeloNX')
+            return skipped
+
+        shutil.copytree(FINAL_SOURCE, final_work, ignore=ignore_final, symlinks=True)
+        use_authenticated_libhac_feed(final_work, ROOT)
+        final_project = final_work / (GPU + 'Ryujinx.Graphics.Gpu.csproj')
+        text = final_project.read_text(encoding='utf-8-sig')
+        check(text.count('</Project>') == 1, 'final Gpu project')
+        final_project.write_text(text.replace('</Project>', '  <ItemGroup><InternalsVisibleTo Include="MeloNXColdTextureProbe" /></ItemGroup>\n</Project>'))
+        final_probe.mkdir(parents=True)
+        for name in ('Program.cs', 'Fakes.cs', 'global.json', 'nuget.config'):
+            shutil.copyfile(probe / name, final_probe / name)
+        (final_probe / 'MeloNXColdTextureProbe.csproj').write_text(
+            (probe / 'MeloNXColdTextureProbe.csproj').read_text().replace(str(work) + '/', str(final_work) + '/'))
+        check(str(final_work) in (final_probe / 'MeloNXColdTextureProbe.csproj').read_text(), 'the final probe references the final engine')
+        build = dotnet('build', str(final_probe / 'MeloNXColdTextureProbe.csproj'), '-c', 'Release', '-nologo', '-m:1', cwd=final_probe)
+        check(build.returncode == 0, 'probe builds against the final preparation\'s engine')
+        run = subprocess.run([DOTNET, str(final_probe / 'bin/Release/net10.0/MeloNXColdTextureProbe.dll'), 'final'], capture_output=True,
+                             text=True, timeout=900, env=environment, cwd=final_probe)
+        if run.returncode:
+            print(run.stdout[-4000:], run.stderr[-4000:], flush=True)
+        check(run.returncode == 0, 'probe runs on the final engine')
+        final_report = json.loads(next(line for line in run.stdout.splitlines() if line.startswith('{')))
 finally:
-    for path in (work, probe):
+    for path in (work, probe, final_work, final_probe):
         for sub in path.rglob('*') if path.exists() else []:
             if sub.is_dir() and sub.name in ('bin', 'obj'):
                 shutil.rmtree(sub, ignore_errors=True)
@@ -399,17 +441,49 @@ f = report['countBound']
 check([p['released'] for p in f['passes']] == [256, 44, 0, 0] and f['remainingInPool'] == 0 and f['hostReleases'] == 300 and
       f['lines'] == 4, f'(e) at most 256 textures a pass: {f}')
 
+# Plan 748 rank 11 (adapt_device_critical_trim): the texture trim on the final preparation's engine.
+critical = dict(executed=False)
+if final_report is not None:
+    for name in ('criticalTrim.flagged', 'criticalTrim.delivered', 'criticalTrim.freeOnly'):
+        check('harnessException' not in final_report[name], f'{name}: {final_report[name].get("harnessException", "")[:3000]}')
+        check(final_report[name]['setup'] and final_report[name]['flagFound'],
+              name + ': three GPU-written textures in the cache, one still in its pool; the flag exists: ' + json.dumps(final_report[name]))
+    untouched = dict(hostReads=0, hostReleases=0, inCache=True, guest='unchanged')
+    flagged = final_report['criticalTrim.flagged']
+    check(flagged['releasedMiB'] == 64 and flagged['keptMiB'] == 64 and flagged['cachedMiB'] == 128 and
+          flagged['a'] == dict(untouched, inPool=True) and
+          flagged['b'] == dict(hostReads=1, hostReleases=1, inPool=False, inCache=False, guest='hostData') and
+          flagged['d'] == dict(untouched, inPool=False),
+          'flagged: the texture the cache alone holds is read back once, its GPU data written to guest memory, and released; the '
+          'pool\'s texture is not touched: ' + json.dumps(flagged))
+    delivered = final_report['criticalTrim.delivered']
+    check(delivered['releasedMiB'] == 64 and delivered['cachedMiB'] == 128 and
+          delivered['a'] == dict(hostReads=1, hostReleases=0, inPool=True, inCache=False, guest='hostData') and
+          delivered['b'] == dict(untouched, inPool=False) and delivered['d'] == dict(untouched, inPool=False),
+          'delivered (own pressure): the pool\'s texture is read back and leaves the cache, nothing is freed: ' + json.dumps(delivered))
+    free_only = final_report['criticalTrim.freeOnly']
+    check(free_only['releasedMiB'] == 0 and free_only['keptMiB'] == 192 and free_only['cachedMiB'] == 192 and
+          free_only['a'] == dict(untouched, inPool=True) and free_only['b'] == dict(untouched, inPool=False) and
+          free_only['d'] == dict(untouched, inPool=False), 'flush-free: nothing here (all hold GPU data or a pool): ' + json.dumps(free_only))
+    for name, value in final_report.items():
+        check('harnessException' not in value, f'final engine {name}: {value.get("harnessException", "")[:3000]}')
+    critical = dict(executed=True, productionGpuAssemblyBuilt=True, flaggedReleasedMiB=flagged['releasedMiB'],
+                    flaggedReadBacks=flagged['b']['hostReads'], poolTextureTouched=False,
+                    deliveredFreedNothing=delivered['b']['hostReleases'] + delivered['a']['hostReleases'] == 0, scenarios=final_report)
+
 inputs = ['build-utils/melonx/adapt_cold_texture_release.py', 'build-utils/melonx/adapt_session.py',
           'test/melonx_cold_texture_release_test.py', 'test/melonx_cold_texture_release/Program.cs',
           'test/melonx_gpu_teardown/Fakes.cs', 'test/melonx_adapter_control.py',
           # IPA 740 lot 2c: reversed for the control and re-applied in the forward check (GpuContext.cs).
           'build-utils/melonx/adapt_texture_play_clock.py']
+if critical['executed']:
+    inputs.append('build-utils/melonx/adapt_device_critical_trim.py')
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
 receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPARATION,
                sourceKind='finalPreparationWithReversedControl' if FINAL_PREPARATION else 'core658Preparation',
                postimages={p: hashlib.sha256((FINAL_SOURCE / p).read_bytes()).hexdigest() for p in BASELINE} if FINAL_PREPARATION else {},
                lifetimeProof=proof, fixture=report, sdk=sdk, physicalDeviceTested=False, galDoubled=True,
-               productionGpuAssemblyBuilt=True, sourceBaseline=BASELINE,
+               productionGpuAssemblyBuilt=True, sourceBaseline=BASELINE, finalCriticalTrim=critical,
                inputs={p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in inputs},
                limitation='Real engine with a recording GAL renderer: the Vulkan deferred release is proven by source, not '
                           'executed; how many MiB are cold in Hogwarts (bindless pool arrays synchronise every texture they '

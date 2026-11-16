@@ -26,6 +26,18 @@ Executed (test/melonx_stall_compaction/Program.cs with the candidate's EmbeddedH
   again without space; none while the device is not short or a stop is requested; none in a host pause nor right after
   a resume; none after the session's end, nor before the next session's first frame when a frame of the closing one
   came after its end; the next session's first gap gives the second burst's space back.
+
+Plan 748 rank 7 (adapt_stall_compaction_drain_guard, when ORDER runs it; IPA 748-751 SSBU: a 345-346 ms compaction inside
+each of two compile freezes, the render thread held in one drain). Static, on the final preparation: the collector is
+the preparation's plus the accessor only (what --fixture-only compiles), the accessor reads the epoch, its Active and
+FirstStarts slots with volatile reads and writes nothing, only the render loop opens a renderDrain scope; the poll asks
+the guard once the rule holds and before the stop request, the compaction's gate asks again before collecting, the
+journal line carries the drain's age and the refusals. Executed ("drain", the class and the candidate's collector
+compiled together, a render thread double holding the collector's real scopes, the real collector): no session
+measuring reads -1 (the "live" run is the unguarded poll); no compaction in 3 s of a gap held in one drain, one refusal
+for that gap, the space still there; none counted when the rule itself does not hold; a loading (renderIdle) compacts
+at the first poll past the gap, and so does a drain younger than half the gap; a session's count starts from zero;
+1 s of a render loop opening and closing scopes against a reader: no invalid age.
 """
 from pathlib import Path
 import hashlib, json, os, platform, re, shutil, subprocess, sys, tempfile
@@ -35,6 +47,11 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
 import adapt_stall_compaction as adapter  # noqa: E402
+from melonx_adapter_control import ORDER  # noqa: E402
+# Plan 748: the drain guard runs after this adapter in EmbeddedMemory.cs and adds the collector's accessor it reads.
+DRAIN_GUARD = 'adapt_stall_compaction_drain_guard' in ORDER
+if DRAIN_GUARD:
+    import adapt_stall_compaction_drain_guard as guard  # noqa: E402
 # --fixture-only: the executed part alone (no preparation needed), with the same checks, on the class as the adapters
 # make it: the macOS workflow runs it on the kind of host the Core CI runs the gates on.
 FIXTURE_ONLY = '--fixture-only' in sys.argv
@@ -105,22 +122,36 @@ def synthesized_class():
     from adapt_safe_point_compaction import COMPACTION_CLASS
     from adapt_retention_chain import FIRST_FRAME_OLD, FIRST_FRAME_NEW
     text = COMPACTION_CLASS
-    for old, new in ((FIRST_FRAME_OLD, FIRST_FRAME_NEW), *adapter.FILE_PAIRS[adapter.MEMORY]):
+    guard_pairs = guard.FILE_PAIRS[guard.MEMORY] if DRAIN_GUARD else ()
+    for old, new in ((FIRST_FRAME_OLD, FIRST_FRAME_NEW), *adapter.FILE_PAIRS[adapter.MEMORY], *guard_pairs):
         assert text.count(old) == 1, old[:70]
         text = text.replace(old, new)
     return text
 
 
-def execute(temporary, klass):
-    """Builds the fixture with the class text and runs its three modes."""
+def synthesized_collector():
+    """The performance collector as the preparation makes it: the checked-in native collector, adapt_bindless_array_deltas'
+    edits, then the drain guard's accessor (what --fixture-only compiles with the class)."""
+    from adapt_bindless_array_deltas import DIAGNOSTIC_EDITS
+    text = (ROOT / 'native/melonx/EmbeddedPerformanceDiagnostics.cs').read_text(encoding='utf-8-sig')
+    for old, new in (*DIAGNOSTIC_EDITS, *guard.FILE_PAIRS[guard.DIAGNOSTICS]):
+        assert text.count(old) == 1, old[:70]
+        text = text.replace(old, new)
+    return text
+
+
+def execute(temporary, klass, collector=None):
+    """Builds the fixture with the class text (and, with the drain guard, the collector) and runs its modes."""
     fixture = temporary / 'fixture'
     fixture.mkdir()
     shutil.copyfile(ROOT / 'test/melonx_stall_compaction/Program.cs', fixture / 'Program.cs')
     (fixture / 'Compaction.cs').write_text('namespace Ryujinx.Library\n{\n' + klass + '}\n')
+    if collector is not None:
+        (fixture / 'EmbeddedPerformanceDiagnostics.cs').write_text(collector)
     (fixture / 'Probe.csproj').write_text('''<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup>
 <OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><Nullable>disable</Nullable><NuGetAudit>false</NuGetAudit>
 <ServerGarbageCollection>false</ServerGarbageCollection><ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
-</PropertyGroup></Project>
+''' + ('<AllowUnsafeBlocks>true</AllowUnsafeBlocks><DefineConstants>$(DefineConstants);DRAIN_GUARD</DefineConstants>\n' if collector is not None else '') + '''</PropertyGroup></Project>
 ''')
     (fixture / 'session729.json').write_text(json.dumps(SESSION_729))
     run([DOTNET, 'build', 'Probe.csproj', '-c', 'Release', '-nologo', '-v', 'q'], fixture, timeout=900)
@@ -130,12 +161,14 @@ def execute(temporary, klass):
     probe = [DOTNET, 'bin/Release/net10.0/Probe.dll']
     return (json.loads(run(probe + ['policy'], fixture).strip().splitlines()[-1]),
             json.loads(run(probe + ['replay', str(fixture / 'session729.json')], fixture).strip().splitlines()[-1]),
-            json.loads(run(probe + ['live'], fixture, timeout=600, env=gc_environment).strip().splitlines()[-1]))
+            json.loads(run(probe + ['live'], fixture, timeout=600, env=gc_environment).strip().splitlines()[-1]),
+            json.loads(run(probe + ['drain'], fixture, timeout=600, env=gc_environment).strip().splitlines()[-1]) if collector is not None else None)
 
 
+drain = None
 if FIXTURE_ONLY:
     with tempfile.TemporaryDirectory(prefix='melonx-stall-compaction-') as temporary:
-        policy, replay, live = execute(Path(temporary).resolve(), synthesized_class())
+        policy, replay, live, drain = execute(Path(temporary).resolve(), synthesized_class(), synthesized_collector() if DRAIN_GUARD else None)
 else:
     ignore = shutil.ignore_patterns('.git', 'bin', 'obj', 'MeloNX')
     with tempfile.TemporaryDirectory(prefix='melonx-stall-compaction-') as temporary:
@@ -170,6 +203,12 @@ else:
             later = files_edited_later('adapt_stall_compaction')
             for name, pairs in adapter.FILE_PAIRS.items():
                 final_text = (FINAL_SOURCE / name).read_text(encoding='utf-8-sig')
+                if DRAIN_GUARD and name == guard.MEMORY:
+                    # Plan 748: the drain guard edits inside this adapter's text (its first frame, run, poll and class
+                    # end); its replacements, each once in the final preparation, are undone first.
+                    for old, new in reversed(guard.FILE_PAIRS[guard.MEMORY]):
+                        check(final_text.count(new) == 1, 'drain guard replacement in the final preparation: ' + new.strip().splitlines()[0][:70])
+                        final_text = final_text.replace(new, old)
                 for _, new in pairs:
                     check(final_text.count(new) == 1, 'replacement in the final preparation: ' + new.strip().splitlines()[0][:70])
                 if name not in later:
@@ -178,6 +217,9 @@ else:
             shutil.copytree(FINAL_SOURCE, candidate, ignore=ignore, symlinks=True)
             after = {name: (candidate / name).read_text(encoding='utf-8-sig') for name in adapter.BASELINE}
             postimages = {name: sha(candidate / name) for name in adapter.BASELINE}
+            if DRAIN_GUARD:
+                # The fixture compiles the final collector with the class: bound here.
+                postimages[guard.DIAGNOSTICS] = sha(candidate / guard.DIAGNOSTICS)
 
         # --- static ---
         memory, window, session = after[adapter.MEMORY], after[adapter.WINDOW], after[adapter.SESSION]
@@ -226,6 +268,39 @@ else:
               'Volatile.Write(ref _hostPaused, false)' in resume and 'Volatile.Read(ref _hostPaused)' in compact,
               'a host pause keeps its own rule: the poll returns in it, and so does a compaction that reaches the gate after it began')
 
+        # --- the drain guard (plan 748), static ---
+        collector = None
+        if DRAIN_GUARD:
+            check(FINAL_PREPARATION, 'the drain guard is checked on the final preparation')
+            collector = (candidate / guard.DIAGNOSTICS).read_text(encoding='utf-8-sig')
+            check(collector == synthesized_collector(), 'the final collector is the preparation\'s plus the accessor only')
+            accessor = body(collector, 'public static long RenderDrainInFlightMs()')
+            check(all(mark in accessor for mark in ('Volatile.Read(ref _current)', 'Volatile.Read(ref epoch.Active[(int)Phase.RenderDrain])',
+                                                    'Volatile.Read(ref epoch.FirstStarts[(int)Phase.RenderDrain])', 'return -1;')) and
+                  not re.search(r'lock \(|Monitor\.|Interlocked\.|Volatile\.Write|\+\+|--|\b_current\s*=|\]\s*=[^=]', accessor),
+                  'the accessor reads the epoch\'s in-flight slots with volatile reads, writes nothing, takes no lock')
+            sites = {str(path.relative_to(candidate)): path.read_text(encoding='utf-8-sig').count('Phase.RenderDrain')
+                     for path in (candidate / 'src').rglob('*.cs') if 'Phase.RenderDrain' in path.read_text(encoding='utf-8-sig')}
+            renderer = (candidate / 'src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs').read_text(encoding='utf-8-sig')
+            check(sites == {'src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs': 1, guard.DIAGNOSTICS: 3} and
+                  'using (PD.Measure(PD.Phase.RenderDrain))' in body(renderer, 'public void RenderLoop()'),
+                  'only the render loop opens a renderDrain scope (one thread, one at a time): %s' % sites)
+            check(klass.count('DrainHolds(') == 3 and poll.count('DrainHolds(stamp)') == 1 and
+                  poll.index('System.GC.GetGCMemoryInfo()') < poll.index('DrainHolds(stamp)') < poll.index('stopping()'),
+                  'the poll asks the guard once the rule holds, before the stop request')
+            check(compact.count('DrainHolds(presentStamp)') == 1 and
+                  compact.index('Volatile.Read(ref _lastPresent) != presentStamp') < compact.index('DrainHolds(presentStamp)') < compact.index('System.GC.Collect('),
+                  'inside the gate, after the stamp, before collecting: the guard again')
+            holds = body(klass, 'private static bool DrainHolds(long presentStamp)')
+            check('RenderDrainInFlightMs()' in holds and 'if (drain < StallDrainMs)' in holds and 'internal const int StallDrainMs = StallGapMs / 2;' in klass and
+                  'System.GC.' not in holds, 'the guard: a drain of half the gap or more, read from the collector; no collection of its own')
+            check(compact.index('long drain = Ryujinx.Common.EmbeddedPerformanceDiagnostics.RenderDrainInFlightMs();') < compact.index('System.GC.Collect(') and
+                  'renderDrain in flight {drain} ms; stall compactions refused for a drain {' in compact,
+                  'the journal line carries the drain\'s age before collecting and the session\'s refusals')
+            check(klass.count('ClearDrainRefusals();') == 2 and 'ClearDrainRefusals();' in watch and
+                  'ClearDrainRefusals();' in body(klass, 'internal static void NotePresented()'),
+                  'a session\'s refusals start from zero (its run, its first frame), as its stall compactions')
+
         # --- built ---
         out = run([DOTNET, 'build', str(candidate / 'src/Ryujinx.Library/Ryujinx.Library.csproj'), '-c', 'Release', '-nologo', '-m:1',
                    '-p:NuGetAudit=false'], candidate)
@@ -235,9 +310,10 @@ else:
 
         # --- executed ---
         check(klass == synthesized_class(), 'the class of the final preparation is the three adapters\' text (what --fixture-only compiles)')
-        policy, replay, live = execute(temporary, klass)
+        policy, replay, live, drain = execute(temporary, klass, collector)
 
-print(json.dumps({'policy': policy, 'replay': replay, 'live': {k: v for k, v in live.items() if k != 'lines'}}), flush=True)
+print(json.dumps({'policy': policy, 'replay': replay, 'live': {k: v for k, v in live.items() if k != 'lines'},
+                  'drain': {k: v for k, v in drain.items() if k != 'lines'} if drain else None}), flush=True)
 
 check(policy['limits'] == {'freeMiB': 128, 'gapMs': 700, 'afterFirstFrameMs': 10000, 'intervalMs': 8000, 'perSession': 3}, 'the limits: %s' % policy['limits'])
 expected = {'atEveryLimit': True, 'freeBelow': False, 'device15': True, 'device16': False, 'deviceUnknown': False, 'firstFrame9999': False,
@@ -277,12 +353,48 @@ gap_lines = [line for line in live['lines'] if 'heapCompacted' in line]
 check(len(gap_lines) == 2 and all(re.match(r'memory heapCompacted: presentationGap \d+ ms: footprint \d+ -> \d+ MiB; ', line) for line in gap_lines),
       'each compaction writes the journal line with its reason and the footprint before and after: %s' % [line[:90] for line in gap_lines])
 
+drain_guard = dict(executed=False)
+if DRAIN_GUARD:
+    check(drain is not None, 'the drain guard is executed')
+    check(drain['drainLimitMs'] == 350 and drain['gapMs'] == 700, 'the guard\'s limit: half the gap (%s ms)' % drain['drainLimitMs'])
+    check(drain['ageBeforeEpoch'] == -1 and drain['ageNoScope'] == -1 and drain['ageAfterStop'] == -1,
+          'no session measuring, or no drain in flight: -1 (the "live" run above is that unguarded poll)')
+    check(drain['freeBeforeMiB'] >= 128 and drain['duringPlay'] == 0, 'no compaction while frames come')
+    check(drain['heldDrain'] == -1 and drain['ageInDrain'] >= 2500 and drain['freeAfterFreezeMiB'] >= 128,
+          'a gap held in one drain: no compaction in 3 s with %d MiB free (drain %d ms old, read by the poll\'s thread)' %
+          (drain['freeAfterFreezeMiB'], drain['ageInDrain']))
+    check(drain['refusalsAfterFreeze'] == 1 and 700 - 350 <= drain['longestAfterFreeze'] <= drain['ageInDrain'],
+          'one refusal for that gap whatever the polls, the longest drain seen at a refusal: %s' % drain['longestAfterFreeze'])
+    check(drain['notShortWithDrain'] == -1 and drain['refusalsWhenRuleFails'] == 1,
+          'the rule not holding (device not short), a held drain is no refusal')
+    check(drain['ageInIdle'] == -1 and 700 - 290 <= drain['idleWaited'] <= 8000 and drain['freeAfterIdleMiB'] <= 8,
+          'a loading (renderIdle through the gap): the first poll past the gap compacts: %s ms' % drain['idleWaited'])
+    check(drain['freeBeforeYoungMiB'] >= 128 and 0 <= drain['ageAtYoungPoll'] < 350 and drain['youngDrainCompacted'] == 1 and
+          drain['refusalsAtEnd'] == 1, 'a drain younger than half the gap at the poll: the compaction runs (%s ms)' % drain['ageAtYoungPoll'])
+    check(drain['refusalsNextSession'] == 0 and drain['total'] == 2, 'the next session counts its own refusals; two compactions in all')
+    stress = drain['stress']
+    check(stress['invalid'] == 0 and stress['reads'] >= 10_000 and stress['drains'] >= 1000 and stress['inFlight'] > 0 and
+          stress['ageAfterLoop'] == -1, 'the read without a lock against a render loop: %s' % stress)
+    guard_lines = drain['lines']
+    check(len(guard_lines) == 2 and
+          re.search(r'presentationGap \d+ ms: .*; renderDrain in flight -1 ms; stall compactions refused for a drain 1 \(longest \d+ ms\) '
+                    r'\(adapt_stall_compaction_drain_guard\)$', guard_lines[0]) and
+          re.search(r'presentationGap \d+ ms: .*; renderDrain in flight ([0-9]|[1-9][0-9]|[12][0-9][0-9]|3[0-4][0-9]) ms; stall compactions '
+                    r'refused for a drain 1 \(longest \d+ ms\) \(adapt_stall_compaction_drain_guard\)$', guard_lines[1]),
+          'the heapCompacted lines carry the drain\'s age and the session\'s refusals: %s' % [line[-140:] for line in guard_lines])
+    drain_guard = dict(executed=True, refusedInHeldDrain=drain['heldDrain'] == -1, refusalsPerHeldGap=drain['refusalsAfterFreeze'],
+                       loadingKept=drain['idleWaited'] > 0, youngDrainKept=drain['youngDrainCompacted'] == 1,
+                       lockFreeInvalidReads=stress['invalid'], lockFreeReads=stress['reads'])
+
 if FIXTURE_ONLY:
     print(f'PASS {checks} stall compaction fixture checks on {platform.system()}')
     raise SystemExit(0)
 
 inputs = ['build-utils/melonx/adapt_stall_compaction.py', 'build-utils/melonx/adapt_session.py', 'test/melonx_stall_compaction_test.py',
           'test/melonx_stall_compaction/Program.cs', 'test/melonx_adapter_control.py']
+if DRAIN_GUARD:
+    inputs += ['build-utils/melonx/adapt_stall_compaction_drain_guard.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
+               'native/melonx/EmbeddedPerformanceDiagnostics.cs']
 report = {
     'result': 'passed', 'checks': checks, 'finalPreparationBound': FINAL_PREPARATION,
     'sourceKind': 'finalPreparationWithReversedControl' if FINAL_PREPARATION else 'pinnedPreparationPlusAdapter',
@@ -292,6 +404,7 @@ report = {
     'replay729FiredInPlay': len([t for t in presenting['fired'] + sparse['fired'] if t >= 46.5]),
     'liveFreeBeforeMiB': live['freeBeforeMiB'], 'liveFreeAfterMiB': live['freeAfterMiB'], 'liveResidentGivenBackMiB': given_back,
     'policy': policy, 'replay': replay, 'live': live,
+    'drainGuard': drain_guard, 'drain': drain,
     'deviceEvidence': 'IPA 729 Hogwarts Legacy (private journal, pid 58475): heapCompacted firstFrame LOH 519 (253 free) -> 266 MiB, '
                       'footprint 2903 -> 2669 MiB, 80.5 ms; memoryInventory reports 2-6: LOH 455-458 MiB with 165-234 MiB free; '
                       'heapCompacted hostPause LOH 455 (169 free) -> 279 MiB, footprint 4882 -> 4576 MiB, 634 ms',

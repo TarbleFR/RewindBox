@@ -29,6 +29,9 @@ and session with the suppressed count, a background line after the blocking budg
 the budget is spent (both for a collection after the last sample and for a suppressed one); the performance sample
 keys are unchanged. The existing performance fixture (test/melonx_performance_diagnostics/Program.cs) runs on both too.
 Writes dist/melonx/gc-events-checks.json. No device.
+Plan 748: a later preparation step of ORDER that edits the collector (adapt_stall_compaction_drain_guard adds a
+read-only accessor) is applied to the candidate in order; the static checks bind this lot's collector without it, the
+probes, the build and the postimage the final one.
 """
 from pathlib import Path
 import argparse, difflib, hashlib, json, os, re, shutil, subprocess, sys, tempfile
@@ -43,7 +46,7 @@ FINAL = args.candidate_source.resolve() if args.candidate_source else None
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 from adapt_session import once  # noqa: E402
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import journal_of_earlier_cores  # noqa: E402
+from melonx_adapter_control import ORDER, apply_present, journal_of_earlier_cores  # noqa: E402
 from adapt_bindless_array_deltas import DIAGNOSTIC_EDITS  # noqa: E402
 
 COLLECTOR = 'src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs'
@@ -70,6 +73,22 @@ def sha(data):
     return hashlib.sha256(data).hexdigest()
 
 
+def later_collector(collector, work):
+    """Plan 748: the preparation steps of ORDER that edit the collector after this lot (adapt_stall_compaction_drain_guard's
+    read-only accessor), applied to it in order. The final preparation holds exactly that collector, and the candidate
+    compiles it; the static checks bind this lot's collector, without them. None of them: the collector itself."""
+    tree = work / 'later'
+    (tree / COLLECTOR).parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(collector, tree / COLLECTOR)
+    for name in ORDER:
+        if apply_present(tree, name, only={COLLECTOR}):
+            LATER_STEPS.append(name)
+    return tree / COLLECTOR
+
+
+LATER_STEPS = []
+
+
 for name, expected in BASELINE.items():
     check(sha((SOURCE / name).read_bytes()) == expected, 'not the Core 649 preparation: ' + name)
 
@@ -85,8 +104,10 @@ with tempfile.TemporaryDirectory(prefix='melonx-gc-events-') as temporary:
     shutil.copyfile(ROOT / NATIVE, candidate_file)
     for old, new in DIAGNOSTIC_EDITS:
         once(candidate_file, old, new)
+    compiled_file = candidate_file
     if FINAL:
-        check((FINAL / COLLECTOR).read_bytes() == candidate_file.read_bytes(), 'final preparation holds this collector')
+        compiled_file = later_collector(candidate_file, work)
+        check((FINAL / COLLECTOR).read_bytes() == compiled_file.read_bytes(), 'final preparation holds this collector')
         # Core 725 gives the journal room at the start of a process (ConfigureJournal, MeloNX-core.log only) and Core 733
         # keeps the snapshot's bytes (core733_native); nothing else differs from the journal of the control, and the
         # candidate probe compiles the final one.
@@ -94,6 +115,7 @@ with tempfile.TemporaryDirectory(prefix='melonx-gc-events-') as temporary:
               (SOURCE / JOURNAL).read_text(encoding='utf-8-sig'), 'final preparation keeps the journal, but for its room at the start of a process and its kept snapshot')
     control_text = (SOURCE / COLLECTOR).read_text(encoding='utf-8-sig')
     candidate_text = candidate_file.read_text(encoding='utf-8-sig')
+    compiled_digest = sha(compiled_file.read_bytes())  # the collector the candidate compiles
 
     # Static: inserted lines only, at the expected places.
     a, b = control_text.split('\n'), candidate_text.split('\n')
@@ -124,7 +146,7 @@ with tempfile.TemporaryDirectory(prefix='melonx-gc-events-') as temporary:
 
     # Both production Ryujinx.Common projects build.
     builds = {}
-    for side, collector in (('control', SOURCE / COLLECTOR), ('candidate', candidate_file)):
+    for side, collector in (('control', SOURCE / COLLECTOR), ('candidate', compiled_file)):
         tree = work / ('tree-' + side)
         shutil.copytree(SOURCE, tree, ignore=shutil.ignore_patterns('.git', 'bin', 'obj'), symlinks=True)
         shutil.copyfile(collector, tree / COLLECTOR)
@@ -163,13 +185,13 @@ with tempfile.TemporaryDirectory(prefix='melonx-gc-events-') as temporary:
     probe_runs = []
     for attempt in range(3):
         observed = {side: probe(side, path, 'test/melonx_performance_diagnostics/GcEventsProgram.cs')
-                    for side, path in (('control', SOURCE / COLLECTOR), ('candidate', candidate_file))}
+                    for side, path in (('control', SOURCE / COLLECTOR), ('candidate', compiled_file))}
         probe_runs.append({side: value.get('hostFallbacks', 0) for side, value in observed.items()})
         if not any(probe_runs[-1].values()):
             break
     check(not any(probe_runs[-1].values()), 'a probe run without a host-runtime background fallback: ' + str(probe_runs))
     existing = {side: probe(side, path, 'test/melonx_performance_diagnostics/Program.cs')
-                for side, path in (('control', SOURCE / COLLECTOR), ('candidate', candidate_file))}
+                for side, path in (('control', SOURCE / COLLECTOR), ('candidate', compiled_file))}
 
 control, candidate = observed['control'], observed['candidate']
 # Control: the delivered collector writes no gcEvent line at all.
@@ -228,11 +250,13 @@ for side in ('control', 'candidate'):
 inputs = [NATIVE, 'build-utils/melonx/adapt_bindless_array_deltas.py', 'build-utils/melonx/adapt_session.py',
           'test/melonx_gc_events_test.py', 'test/melonx_performance_diagnostics/GcEventsProgram.cs',
           'test/melonx_performance_diagnostics/Program.cs']
+if LATER_STEPS:
+    inputs += ['test/melonx_adapter_control.py', *('build-utils/melonx/' + name + '.py' for name in LATER_STEPS)]
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True, env=ENVIRONMENT).stdout.strip()
 receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL is not None,
                sourceKind='finalPreparation' if FINAL else 'core649PreparationPlusCheckoutCollector',
                sourceBaseline=BASELINE, nativeBaseline={NATIVE: NATIVE_BASELINE},
-               postimages={COLLECTOR: sha(candidate_text.encode()), JOURNAL: sha(((FINAL or SOURCE) / JOURNAL).read_bytes())},
+               postimages={COLLECTOR: compiled_digest, JOURNAL: sha(((FINAL or SOURCE) / JOURNAL).read_bytes())},
                productionCommonBuilt=builds, sdk=sdk, physicalDeviceTested=False,
                backgroundGcObserved=candidate['backgroundObserved'], serverGc=candidate['serverGc'], hostFallbackProbeRuns=probe_runs,
                candidateLines=dict(total=candidate['totalLines'], statuses=candidate['statuses'], maxDetailLength=candidate['maxDetailLength']),

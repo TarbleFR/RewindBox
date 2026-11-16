@@ -94,12 +94,18 @@ import adapt_wait_spin_bound as _spin  # noqa: E402
 # IPA 736 lot: adapt_timer_earliest_wake edits KTimeManager.cs after this adapter (when the timer thread is signalled);
 # its replacements are undone here too.
 import adapt_timer_earliest_wake as _timer  # noqa: E402
+# Lot after IPA 748-751 (plan 748 ranks 17 and 14): adapt_pinned_command_queue then adapt_render_command_clock edit the
+# renderer read below (the queue's allocation, the render loop's clock reads; nothing of HostThreadQos): undone first.
+import adapt_pinned_command_queue as _pinned  # noqa: E402
+import adapt_render_command_clock as _clock  # noqa: E402
 check(files_edited_later('adapt_host_thread_class') == {_spin.THREAD, _timer.MANAGER},
       'the only later edits of these files are adapt_wait_spin_bound\'s, in KThread.cs, and adapt_timer_earliest_wake\'s, in KTimeManager.cs')
 
 
 def without_later(name, source):
-    for old, new in reversed(tuple(_spin.FILE_PAIRS.get(name, ())) + (tuple(_timer.PAIRS) if name == _timer.MANAGER else ())):
+    renderer_later = tuple(_pinned.PAIRS) + tuple(_clock.PAIRS) if name == RENDERER else ()
+    for old, new in reversed(tuple(_spin.FILE_PAIRS.get(name, ())) + (tuple(_timer.PAIRS) if name == _timer.MANAGER else ()) +
+                             renderer_later):
         check(source.count(new) == 1, 'the later adapter\'s replacement, once: ' + new.strip().splitlines()[0][:60])
         source = source.replace(new, old)
     return source

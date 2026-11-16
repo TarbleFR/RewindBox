@@ -12,6 +12,11 @@
 // that never settles); never before the unpaced time, one frame per refresh (FIFO).
 // The drawable model: CAMetalLayer's 3 drawables, each held from its acquisition (just before the present call) until
 // the next frame replaces it on glass; an acquisition with 3 held waits (render-thread stall).
+// With "decay" as third argument (adapt_pacer_margin_decay, on the final preparation), the same run adds the margin
+// scenarios: a 350 ms freeze between a paced frame's present call and its GPU work, then a host pause (no present call
+// for 4 s) or pacing not allowed for 60 frames, timed frames shown part of a refresh or a whole refresh late, and a first
+// probe that does not settle; each reports the margin the pacer holds frame by frame (peak, return to the start margin,
+// at the first paced frame after the pause or the re-enable, raises by misses and by the probe).
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -92,6 +97,17 @@ static class Program
         public double LongFrameShare;        // share of frames taking one more guest period (unstable cadence)
         public int HitchFrame = -1;          // this frame and the following ones come 70 ms later
         public double HandlerMs = 2.0;       // presented handler -> history -> drained at the next present call
+        // adapt_pacer_margin_decay scenarios (inert by default).
+        public int TimedLateRandomUntil = int.MaxValue; // TimedLateRandom only for frames before this one
+        public int FreezeFrame = -1;         // this frame's GPU work, and every later frame, come FreezeMs later
+        public double FreezeMs;
+        public int PauseFrame = -1;          // no present call for PauseMs before this frame (a host pause)
+        public double PauseMs;
+        public int DisabledFrom = -1, DisabledTo = -1; // frames decided with pacing not allowed
+        public int SlipEvery;                // every SlipEvery-th frame, when timed, is shown SlipMs later than aimed
+        public double SlipMs;
+        public int BurstFrame = -1, BurstLate; // BurstLate timed frames, every other one from BurstFrame, a 60 Hz refresh late
+        public int HitchEvery;               // every HitchEvery-th frame and the following ones come 70 ms later
     }
 
     sealed class Result
@@ -106,6 +122,15 @@ static class Program
         public List<double> MarginsAfterStandDown = new();
         public bool OrderKept, NotEarlier, HoldBounded;
         public int PacedInHitchWindow = -1, PacedAfterHitch = -1;
+        // adapt_pacer_margin_decay: the margin after each decision (peak, first return to the start margin + 0.5 ms after
+        // it), around the pause and the disabled frames, raises seen across Observe (by a miss, by the probe path).
+        public long PeakMargin = long.MinValue, MarginBeforePause = -1, MarginAfterPause = -1, MarginBeforeDisable = -1,
+            MarginAfterEnable = -1, ProbeRaiseMargin = -1, ProbeRaiseCap = -1, FirstRaiseMargin = -1;
+        public int PeakFrame = -1, BackFrame = -1, PacedToBack = -1, MissRaises, ProbeRaises, SlipRaises;
+        public long FirstSlipRaise = -1, MarginBeforeFreeze = -1, FreezeRaise = -1;
+        public int FreezePacedToStart = -1, FreezeFramesToStart = -1;
+        public bool FreezeInterrupted;
+        public double MeanAddedLate, PacedLatencyLate;
     }
 
     static double Gauss(Random random)
@@ -160,6 +185,14 @@ static class Program
                 {
                     nominal += 70 * Ms;
                 }
+                if (k == s.PauseFrame)
+                {
+                    nominal += (long)Math.Round(s.PauseMs * Ms);
+                }
+                if (s.HitchEvery > 0 && k % s.HitchEvery == 0)
+                {
+                    nominal += 70 * Ms;
+                }
             }
             double jitter = s.Jitter switch
             {
@@ -170,6 +203,11 @@ static class Program
             };
             ready[k] = nominal + (long)Math.Round(jitter * Ms);
             done[k] = ready[k] + (long)Math.Round(Math.Max(0.1, s.TailMs + (random.NextDouble() * 2 - 1) * s.TailJitterMs) * Ms);
+            if (k == s.FreezeFrame)
+            {
+                done[k] += (long)Math.Round(s.FreezeMs * Ms);
+                nominal += (long)Math.Round(s.FreezeMs * Ms);
+            }
         }
 
         double refresh = 1e9 / s.DisplayHz;
@@ -184,6 +222,10 @@ static class Program
         long[] shown = new long[s.Frames];
         long[] unpaced = new long[s.Frames];
         uint[] ids = new uint[s.Frames];
+        bool[] slipped = new bool[s.Frames];
+        bool trackFreeze = false;
+        long lastMargin = 0;
+        int freezeObserved = -1, freezePaced = 0;
         int observed = 0;
         var r = new Result { Frames = s.Frames, OrderKept = true, NotEarlier = true, HoldBounded = true };
         long standDowns = 0;
@@ -196,11 +238,96 @@ static class Program
                 // Window drains vkGetPastPresentationTimingGOOGLE before deciding: the frames already on glass.
                 while (observed < k && shown[observed] + (long)(s.HandlerMs * Ms) <= ready[k])
                 {
+                    long marginBefore = pacer.Margin();
+                    long probeRunsBefore = pacer.ProbeRuns != null ? pacer.ProbeRuns() : 0;
                     pacer.Observe(ids[observed], shown[observed]);
+                    long marginAfter = pacer.Margin();
+                    if (observed == s.FreezeFrame)
+                    {
+                        // The frozen frame: the raise it causes, then the paced frames until the start margin (+0.5 ms).
+                        r.MarginBeforeFreeze = marginBefore;
+                        r.FreezeRaise = marginAfter;
+                        trackFreeze = marginAfter > marginBefore;
+                        freezeObserved = k;
+                        lastMargin = marginAfter;
+                    }
+                    else if (marginAfter > marginBefore && slipped[observed])
+                    {
+                        r.SlipRaises++;
+                        r.FirstSlipRaise = r.FirstSlipRaise < 0 ? marginAfter : r.FirstSlipRaise;
+                    }
+                    if (marginAfter > marginBefore)
+                    {
+                        if (pacer.ProbeRuns != null && pacer.ProbeRuns() != probeRunsBefore)
+                        {
+                            r.ProbeRaises++;
+                            r.ProbeRaiseMargin = marginAfter;
+                            r.ProbeRaiseCap = pacer.MarginCap();
+                        }
+                        else
+                        {
+                            r.MissRaises++;
+                            r.FirstRaiseMargin = r.FirstRaiseMargin < 0 ? marginAfter : r.FirstRaiseMargin;
+                        }
+                    }
                     observed++;
                 }
-                desired[k] = (long)pacer.Next(ready[k], s.Allowed);
-                ids[k] = s.Allowed ? pacer.FrameId() : 0;
+                bool allowed = s.Allowed && (k < s.DisabledFrom || k >= s.DisabledTo);
+                desired[k] = (long)pacer.Next(ready[k], allowed);
+                ids[k] = allowed ? pacer.FrameId() : 0;
+
+                long margin = pacer.Margin();
+                if (trackFreeze)
+                {
+                    if (margin > lastMargin)
+                    {
+                        // Raised again (another late frame) before the start margin was back.
+                        r.FreezeInterrupted = true;
+                        trackFreeze = false;
+                    }
+                    else
+                    {
+                        freezePaced += desired[k] != 0 ? 1 : 0;
+                        lastMargin = margin;
+                        if (margin <= 4_500_000)
+                        {
+                            r.FreezePacedToStart = freezePaced;
+                            r.FreezeFramesToStart = k - freezeObserved;
+                            trackFreeze = false;
+                        }
+                    }
+                }
+                if (margin > r.PeakMargin)
+                {
+                    r.PeakMargin = margin;
+                    r.PeakFrame = k;
+                    r.BackFrame = -1;
+                    r.PacedToBack = 0;
+                }
+                else if (r.BackFrame < 0)
+                {
+                    r.PacedToBack += desired[k] != 0 ? 1 : 0;
+                    if (margin <= 4_500_000)
+                    {
+                        r.BackFrame = k;
+                    }
+                }
+                if (k == s.PauseFrame - 1)
+                {
+                    r.MarginBeforePause = margin;
+                }
+                if (s.PauseFrame >= 0 && k >= s.PauseFrame && r.MarginAfterPause < 0 && desired[k] != 0)
+                {
+                    r.MarginAfterPause = margin;
+                }
+                if (k == s.DisabledFrom - 1)
+                {
+                    r.MarginBeforeDisable = margin;
+                }
+                if (s.DisabledTo >= 0 && k >= s.DisabledTo && r.MarginAfterEnable < 0 && desired[k] != 0)
+                {
+                    r.MarginAfterEnable = margin;
+                }
 
                 // Pacing episodes: paced frames between stand-downs; the margin the first paced frame after a stand-down uses.
                 long nowStandDowns = pacer.StandDowns();
@@ -243,7 +370,17 @@ static class Program
                     "lateByOne" => Latch(Latch(desired[k]) + 1),
                     _ => throw new ArgumentException(s.Rounding),
                 };
-                aimed = Later(aimed, s.TimedLateRefreshes + (s.TimedLateRandom ? lateRandom.Next(3) : 0));
+                aimed = Later(aimed, s.TimedLateRefreshes + (s.TimedLateRandom && k < s.TimedLateRandomUntil ? lateRandom.Next(3) : 0));
+                if (s.SlipEvery > 0 && k % s.SlipEvery == 0)
+                {
+                    aimed += (long)Math.Round(s.SlipMs * Ms);
+                    slipped[k] = true;
+                }
+                if (s.BurstFrame >= 0 && k >= s.BurstFrame && k < s.BurstFrame + 2 * s.BurstLate && (k - s.BurstFrame) % 2 == 0)
+                {
+                    aimed += GuestVsync;
+                    slipped[k] = true;
+                }
                 shown[k] = Math.Max(aimed, earliest);
             }
             unpaced[k] = earliest;
@@ -265,11 +402,21 @@ static class Program
         (r.UnpacedPairs, unpacedGaps, r.UnpacedShare, unpacedOrder) = Gaps(unpaced, s, refresh, period);
         r.Seconds = (shown[^1] - shown[0]) / 1e9;
 
-        long addedSum = 0, maxAdded = 0, latencySum = 0, latencyMax = 0;
+        long addedSum = 0, maxAdded = 0, latencySum = 0, latencyMax = 0, addedLate = 0, pacedLatencyLate = 0, pacedLate = 0;
         long cap = pacer?.MarginCap != null ? pacer.MarginCap() : PresentPacerMaxMargin;
         for (int k = 0; k < s.Frames; k++)
         {
             long added = shown[k] - unpaced[k];
+            // adapt_pacer_margin_decay: the second half of the run (after the transients of the margin scenarios).
+            if (k >= s.Frames / 2)
+            {
+                addedLate += added;
+                if (desired[k] != 0)
+                {
+                    pacedLatencyLate += shown[k] - ready[k];
+                    pacedLate++;
+                }
+            }
             r.NotEarlier &= added >= 0;
             addedSum += added;
             maxAdded = Math.Max(maxAdded, added);
@@ -296,6 +443,8 @@ static class Program
             r.PacedAfterHitch = Math.Max(r.PacedAfterHitch, 0);
         }
         r.MeanAdded = addedSum / 1e6 / s.Frames;
+        r.MeanAddedLate = addedLate / 1e6 / (s.Frames - s.Frames / 2);
+        r.PacedLatencyLate = pacedLate != 0 ? pacedLatencyLate / 1e6 / pacedLate : 0;
         r.MaxAdded = maxAdded / 1e6;
         r.UnpacedLatencyMean = latencySum / 1e6 / s.Frames;
         r.UnpacedLatencyMax = latencyMax / 1e6;
@@ -394,6 +543,26 @@ static class Program
         json.Append(",\"pacedAfterHitch\":").Append(r.PacedAfterHitch);
         json.Append('}');
         return json.ToString();
+    }
+
+    // adapt_pacer_margin_decay: the margin scenarios' report (the standard fields, then the margin trace).
+    static string DecayJson(string name, Result r)
+    {
+        string Ms6(long value) => value < 0 ? "null" : D(value / 1e6);
+        string json = Json(name, r);
+        return json.Substring(0, json.Length - 1) +
+               ",\"peakMarginMs\":" + Ms6(r.PeakMargin) + ",\"peakFrame\":" + r.PeakFrame + ",\"backToStartFrame\":" + r.BackFrame +
+               ",\"pacedFramesToStart\":" + (r.BackFrame < 0 ? -1 : r.PacedToBack) +
+               ",\"firstMissRaiseMs\":" + Ms6(r.FirstRaiseMargin) + ",\"missRaises\":" + r.MissRaises +
+               ",\"probeRaises\":" + r.ProbeRaises + ",\"probeRaiseMarginMs\":" + Ms6(r.ProbeRaiseMargin) +
+               ",\"probeRaiseCapMs\":" + Ms6(r.ProbeRaiseCap) +
+               ",\"marginBeforePauseMs\":" + Ms6(r.MarginBeforePause) + ",\"marginFirstPacedAfterPauseMs\":" + Ms6(r.MarginAfterPause) +
+               ",\"marginBeforeDisableMs\":" + Ms6(r.MarginBeforeDisable) + ",\"marginFirstPacedAfterEnableMs\":" + Ms6(r.MarginAfterEnable) +
+               ",\"meanAddedSecondHalfMs\":" + D(r.MeanAddedLate) + ",\"pacedLatencySecondHalfMs\":" + D(r.PacedLatencyLate) +
+               ",\"slipRaises\":" + r.SlipRaises + ",\"firstSlipRaiseMs\":" + Ms6(r.FirstSlipRaise) +
+               ",\"marginBeforeFreezeMs\":" + Ms6(r.MarginBeforeFreeze) + ",\"freezeRaiseMs\":" + Ms6(r.FreezeRaise) +
+               ",\"freezePacedFramesToStart\":" + r.FreezePacedToStart + ",\"freezeFramesToStart\":" + r.FreezeFramesToStart +
+               ",\"freezeRaisedAgainFirst\":" + (r.FreezeInterrupted ? "true" : "false") + "}";
     }
 
     static string SweepRow(string label, IEnumerable<Scenario> runs, Type pacerType)
@@ -538,12 +707,100 @@ static class Program
             }
         }
 
+        // adapt_pacer_margin_decay (third argument "decay"): the margin scenarios, on the device model of device658.
+        var decayReports = new List<string>();
+        if (args.Length > 2 && args[2] == "decay")
+        {
+            // device658's model (a compositor refresh, a timed frame shown one refresh after its requested one) with a
+            // steadier guest (1 ms jitter, 3 +- 0.5 ms GPU tail), so the scripted lateness is the margin's transient.
+            Scenario Device(string name, int seed) => new()
+            {
+                Name = name, Frames = 3600, ReportedHz = 120.0, Jitter = "gauss", JitterMs = 1.0, TailMs = 3.0, TailJitterMs = 0.5,
+                PhaseMs = 2.9, CompositorRefreshes = 1, TimedLateRefreshes = 1, Seed = seed,
+            };
+            var decayScenarios = new List<Scenario>();
+            // A 100 ms freeze between a paced frame's present call and its GPU work (the late frame of IPA 749 after the
+            // freeze of 04:59:56; Observe ignores a frame shown more than 250 ms after it was ready).
+            Scenario freeze = Device("decayFreeze", 749);
+            freeze.FreezeFrame = 600;
+            freeze.FreezeMs = 100;
+            decayScenarios.Add(freeze);
+            // The same, then a host pause of 4 s (05:01:00-04) 100 frames later.
+            Scenario pause = Device("decayPause", 750);
+            pause.FreezeFrame = 600;
+            pause.FreezeMs = 100;
+            pause.PauseFrame = 700;
+            pause.PauseMs = 4000;
+            decayScenarios.Add(pause);
+            // The same, then 60 frames with pacing not allowed.
+            Scenario disabled = Device("decayDisabled", 751);
+            disabled.FreezeFrame = 600;
+            disabled.FreezeMs = 100;
+            disabled.DisabledFrom = 700;
+            disabled.DisabledTo = 760;
+            decayScenarios.Add(disabled);
+            // Every 45th frame, when timed, shown 6.25 ms after its slot (three quarters of the reported 8.33 ms refresh).
+            Scenario slip = Device("decaySubRefresh", 752);
+            slip.SlipEvery = 45;
+            slip.SlipMs = 6.25;
+            decayScenarios.Add(slip);
+            // Every 45th frame, when timed, shown a whole 60 Hz refresh after its slot.
+            Scenario late = Device("decayRefreshLate", 753);
+            late.SlipEvery = 45;
+            late.SlipMs = 1000.0 / 60;
+            decayScenarios.Add(late);
+            // A first probe that does not settle (0 to 2 refreshes at random), then the device's one refresh.
+            Scenario probe = Device("decayProbe", 754);
+            probe.TimedLateRandom = true;
+            probe.TimedLateRandomUntil = 30;
+            decayScenarios.Add(probe);
+            // IPA 749 05:01:04-10: 4 paced frames a refresh late (every other frame) at frame 300, then a hitch every 600
+            // frames (each one re-anchors the lattice from ready + max(margin, p90 - 8.3 ms)).
+            Scenario ratchet = Device("decayRatchet", 757);
+            ratchet.BurstFrame = 300;
+            ratchet.BurstLate = 4;
+            ratchet.HitchEvery = 600;
+            decayScenarios.Add(ratchet);
+            // The same with two compositor refreshes (unpaced present call to glass about 40 ms).
+            Scenario ratchetDeep = Device("decayRatchetDeep", 758);
+            ratchetDeep.CompositorRefreshes = 2;
+            ratchetDeep.BurstFrame = 300;
+            ratchetDeep.BurstLate = 4;
+            ratchetDeep.HitchEvery = 600;
+            decayScenarios.Add(ratchetDeep);
+            // The freeze with two compositor refreshes (unpaced present call to glass about 40 ms, as in the IPA 749 windows).
+            Scenario deep = Device("decayFreezeDeep", 756);
+            deep.CompositorRefreshes = 2;
+            deep.FreezeFrame = 600;
+            deep.FreezeMs = 100;
+            decayScenarios.Add(deep);
+            // device658's own jitter and tail (2 ms, 3 +- 1 ms): misses of its own raise the margin too.
+            Scenario jittery = Device("decayFreezeJitter", 749);
+            jittery.JitterMs = 2.0;
+            jittery.TailJitterMs = 1.0;
+            jittery.FreezeFrame = 600;
+            jittery.FreezeMs = 100;
+            decayScenarios.Add(jittery);
+            // The freeze on a 60 Hz panel that reports 60 Hz (refresh 16.67 ms) and honours the target.
+            Scenario freeze60 = Device("decayFreeze60", 755);
+            freeze60.ReportedHz = 60.0;
+            freeze60.TimedLateRefreshes = 0;
+            freeze60.FreezeFrame = 600;
+            freeze60.FreezeMs = 100;
+            decayScenarios.Add(freeze60);
+            foreach (Scenario scenario in decayScenarios)
+            {
+                decayReports.Add(DecayJson(scenario.Name, Run(scenario, pacerType)));
+            }
+        }
+
         string allocation = MeasureAllocation(pacerType);
         Console.WriteLine("{\"variant\":\"" + variant + "\",\"pacer\":" + (pacerType != null ? "true" : "false") +
                           ",\"fixes\":" + (pacerType?.GetMethod("get_SessionOff") != null ? "true" : "false") +
                           ",\"assembly\":\"" + vulkan.GetName().Name + "\",\"decisionAllocation\":" + allocation +
                           ",\"scenarios\":{" + string.Join(",", reports) + "},\"sweep\":[" + string.Join(",", rows) +
-                          "],\"deviceSweep\":[" + string.Join(",", deviceRows) + "]}");
+                          "],\"deviceSweep\":[" + string.Join(",", deviceRows) + "]" +
+                          (decayReports.Count > 0 ? ",\"decay\":{" + string.Join(",", decayReports) + "}" : "") + "}");
         return 0;
     }
 
