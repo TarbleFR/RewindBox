@@ -89,31 +89,35 @@ every `sched_yield` of the Core (the runtime's `PalSwitchToThread`, the collecto
 symbol is hidden; no other image of the app changes. Spin counts, the order of spin, yield and block, and every wait
 condition stay the runtime's.
 
-- It calls `thread_switch` with no thread, no option and no time, except while the runtime stops its threads or
-  holds them stopped (`RhpTrapThreads` of the runtime is not zero from the start of `SuspendAllThreads` to the
-  resume): then it calls `swtch_pri(0)`, which is what the system library's `sched_yield` does.
-- Why the exception. The suspension loop yields once per millisecond of waiting so that a thread it must stop, and
-  that needs the suspending thread's core, can run. That thread may have a lower priority (thread pool, background
-  pipeline compilation) while guest threads in translated code keep their cores: only a yield that depresses hands
-  the core over. A first version without the exception was withdrawn before any build for that reason. Everything
-  inside a collection pause keeps today's yield.
+- It calls `thread_switch` with no thread, no option and no time, except in two states of the runtime, where it
+  calls `swtch_pri(0)`, which is what the system library's `sched_yield` does: while the runtime stops its threads or
+  holds them stopped (`RhpTrapThreads`, not zero from the start of `SuspendAllThreads` to the resume), and while a
+  background collection runs (`gc_background_running` of the collector).
+- Why the two exceptions: both have loops that move on only when a thread of possibly lower priority runs. The
+  suspension loop yields once per millisecond of waiting so that a thread it must stop, and that needs the
+  suspending thread's core, can run (thread pool, background pipeline compilation), while guest threads in
+  translated code keep their cores. During a background collection's concurrent mark, an allocating thread of
+  priority 47 can wait for the background collector's thread in a loop that only yields (`exclusive_sync`); the
+  runtime creates that thread without a priority class. Only a yield that depresses hands the core over. A first
+  version without the first exception was withdrawn before any build; the second came from an independent review.
 - Two other routes were weighed. The setting `System.Threading.Lock.SpinCount` (10 would stop the managed lock before
   its first yield) leaves `LowLevelLock` as it is and sends more waiters to it. Rebuilding the runtime library with a
   patched `PalSwitchToThread` (the route of `nativeaot-gc-rebuild`, not in the current Core) is a second build chain
   for a few lines.
-- What differs in behaviour, outside collection pauses: a yielding thread no longer lets lower-priority threads run
-  before it. Every spin that yields there is bounded: the two locks block after their spin, the collector's spin
-  locks sleep 5 ms at every eighth or thirty-second iteration.
+- What differs in behaviour, outside those two states: a yielding thread no longer lets lower-priority threads run
+  before it. The yields left there: the two locks (bounded spin, then a block), the collector's spin locks (a 5 ms
+  sleep at every thirty-second iteration), and one short yield-only loop around the collector's own lock.
 - Fail closed. The build stops for a runtime identifier other than the two iOS ones, without a target triple, or
   without the object. `build_core.sh` then reads the linked library: `sched_yield` no longer imported,
-  `thread_switch` and `swtch_pri` imported, the marker string present.
+  `thread_switch` and `swtch_pri` imported, the marker string present. The link itself fails if the runtime no
+  longer defines one of the two flags.
 
 ### Status
 
 | Step | State |
 | --- | --- |
 | Implemented | Yes: adapter, wiring, build check |
-| Tested | On Linux: the C file run with stand-ins (each call under each value of the flag), the project's target run by MSBuild for both iOS runtime identifiers, the objects' symbols, and a Mach-O link (lld) of a stand-in caller, where the image's own definition replaces the system import (gate `runtime-yield`, 27 checks) |
+| Tested | On Linux: the C file run with stand-ins (each call under each value of the two flags), the project's target run by MSBuild for both iOS runtime identifiers, the objects' symbols, and a Mach-O link (lld) of a stand-in caller, where the image's own definition replaces the system import (gate `runtime-yield`, 27 checks) |
 | Compiled | Not yet: the NativeAOT link on macOS is the Core build |
 | Delivered | No |
 | Observed on a device | No |

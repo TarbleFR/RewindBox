@@ -81,7 +81,7 @@ for YIELD_IMPORT in _thread_switch _swtch_pri; do
     exit 1
   fi
 done
-if ! grep -aq 'RewindBox runtime yield 1: sched_yield is thread_switch(MACH_PORT_NULL, SWITCH_OPTION_NONE, 0) unless RhpTrapThreads' "$CORE"; then
+if ! grep -aq 'RewindBox runtime yield 1: sched_yield is thread_switch(0, 0, 0) outside thread suspension and background collection' "$CORE"; then
   echo "RewindBox runtime yield: the marker is missing from $MELONX_RUNTIME" >&2
   exit 1
 fi

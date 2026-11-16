@@ -9,17 +9,18 @@ taken under 26 FPS, one in each of the two taken at 30 FPS. On Apple platforms s
 
 Static: only Ryujinx.Library.csproj changes, by exactly the adapter's target before the closing tag, and
 RewindBoxRuntimeYield.c is the adapter's text; the C file defines a hidden sched_yield that returns 0 after
-swtch_pri(0) while the runtime's RhpTrapThreads is not zero (threads being stopped or stopped: the system library's
-own yield) and after thread_switch with no thread, no option and no time otherwise; build_core.sh refuses a library
-that still imports sched_yield, does not import thread_switch and swtch_pri, or lacks the marker.
+swtch_pri(0), the system library's own yield, while the runtime's RhpTrapThreads (threads being stopped or stopped)
+or the collector's gc_background_running (a background collection) is not zero, and after thread_switch with no
+thread, no option and no time otherwise; build_core.sh refuses a library that still imports sched_yield, does not
+import thread_switch and swtch_pri, or lacks the marker.
 Executed with this host's clang, llvm-nm and Mach-O lld (no Apple SDK is read: the C file includes nothing): the C
-file built for this host with stand-ins of the two calls and of the flag makes each call with its arguments under
-the flag's values; the final project's target, taken out of the project into a stub that provides the two NativeAOT
-targets it hooks, is run by MSBuild for ios-arm64 and iossimulator-arm64 and is refused for another runtime
-identifier; each object defines _sched_yield and leaves only _thread_switch, _swtch_pri and _RhpTrapThreads
-undefined; a dylib linked from a caller of sched_yield that holds the flag, that object and a stub libSystem imports
-_thread_switch and _swtch_pri and no longer _sched_yield (the control link, without the object, imports
-_sched_yield), exports nothing more, and keeps the marker through dead stripping.
+file built for this host with stand-ins of the two calls and of the two flags makes each call with its arguments
+under the flags' values; the final project's target, taken out of the project into a stub that provides the two
+NativeAOT targets it hooks, is run by MSBuild for ios-arm64 and iossimulator-arm64 and is refused for another runtime
+identifier; each object defines _sched_yield and leaves only the two calls and the two flags undefined; a dylib
+linked from a caller of sched_yield that holds the flags, that object and a stub libSystem imports _thread_switch and
+_swtch_pri and no longer _sched_yield (the control link, without the object, imports _sched_yield), exports nothing
+more, and keeps the marker through dead stripping.
 Not executed here: the NativeAOT link on macOS (build_core.sh checks its result) and anything on a device. What it
 changes on the iPhone is read from the next IPA's [MeloNX:hot] lines.
 Writes dist/melonx/runtime-yield-checks.json.
@@ -99,41 +100,47 @@ with tempfile.TemporaryDirectory(prefix='melonx-runtime-yield-') as temporary:
     check(second is not None, 'a second application is refused')
     check('#include' not in c_source and c_source.count('int sched_yield(void)') == 1 and
           c_source.count('(void)thread_switch(0u, 0, 0u);') == 1 and c_source.count('(void)swtch_pri(0);') == 1 and
-          c_source.count('if (RhpTrapThreads != 0u) {') == 1 and c_source.count('extern volatile unsigned int RhpTrapThreads;') == 1 and
-          c_source.index('if (RhpTrapThreads != 0u) {') < c_source.index('(void)swtch_pri(0);') < c_source.index('} else {') <
+          c_source.count('if (RhpTrapThreads != 0u || rewindbox_gc_background_running != 0) {') == 1 and
+          c_source.count('extern volatile unsigned int RhpTrapThreads;') == 1 and
+          c_source.count('extern volatile int rewindbox_gc_background_running __asm__("' + adapter.BACKGROUND_FLAG + '");') == 1 and
+          adapter.BACKGROUND_FLAG == '__ZN3WKS7gc_heap21gc_background_runningE' and
+          c_source.index('if (RhpTrapThreads != 0u || rewindbox_gc_background_running != 0) {') < c_source.index('(void)swtch_pri(0);') < c_source.index('} else {') <
           c_source.index('(void)thread_switch(0u, 0, 0u);') and c_source.count('return 0;') == 1 and
           '__attribute__((visibility("hidden")))\nint sched_yield(void)' in c_source and adapter.MARKER in c_source,
-          'the C file is a hidden sched_yield: swtch_pri(0) while threads are stopped, thread_switch(0, 0, 0) otherwise')
-    # The branch, on this host: stand-ins of the two calls and of the runtime's flag.
+          'the C file is a hidden sched_yield: swtch_pri(0) during a suspension or a background collection, thread_switch(0, 0, 0) otherwise')
+    # The branch, on this host: stand-ins of the two calls and of the runtime's two flags.
     host = work / 'host'
     host.mkdir()
     shutil.copyfile(applied / adapter.C_FILE, host / 'RewindBoxRuntimeYield.c')
     (host / 'harness.c').write_text('''#include <stdio.h>
 volatile unsigned int RhpTrapThreads;
+volatile int background __asm__("''' + adapter.BACKGROUND_FLAG + '''");
 static int switches, depressions, option = -1, priority = -1;
 static unsigned int name = 1u, time = 1u;
 int thread_switch(unsigned int thread_name, int thread_option, unsigned int option_time) { switches++; name = thread_name; option = thread_option; time = option_time; return 0; }
 int swtch_pri(int pri) { depressions++; priority = pri; return 0; }
 int sched_yield(void);
+static void state(unsigned int trap, int collecting)
+{
+    RhpTrapThreads = trap;
+    background = collecting;
+    int result = sched_yield();
+    printf("%u %d: %d %d %u %d %u %d %d\\n", trap, collecting, switches, depressions, name, option, time, priority, result);
+}
 int main(void)
 {
-    int first = sched_yield();
-    printf("%d %d %u %d %u %d %d\\n", switches, depressions, name, option, time, priority, first);
-    RhpTrapThreads = 1u;
-    int second = sched_yield();
-    RhpTrapThreads = 2u;
-    int third = sched_yield();
-    printf("%d %d %d %d %d\\n", switches, depressions, priority, second, third);
-    RhpTrapThreads = 0u;
-    int fourth = sched_yield();
-    printf("%d %d %d\\n", switches, depressions, fourth);
+    state(0u, 0);
+    state(1u, 0);
+    state(0u, 1);
+    state(2u, 1);
+    state(0u, 0);
     return 0;
 }
 ''')
     check(run([CLANG, '-O2', '-Wall', '-Werror', 'harness.c', 'RewindBoxRuntimeYield.c', '-o', 'harness'], host).returncode == 0, 'the C file builds for this host')
-    branch = run([str(host / 'harness')], host).stdout.split('\n')[:3]
-    check(branch == ['1 0 0 0 0 -1 0', '1 2 0 0 0', '2 2 0'],
-          'thread_switch(0, 0, 0) with the flag clear, swtch_pri(0) with any flag set, 0 returned: ' + str(branch))
+    branch = run([str(host / 'harness')], host).stdout.split('\n')[:5]
+    check(branch == ['0 0: 1 0 0 0 0 -1 0', '1 0: 1 1 0 0 0 0 0', '0 1: 1 2 0 0 0 0 0', '2 1: 1 3 0 0 0 0 0', '0 0: 2 3 0 0 0 0 0'],
+          'thread_switch(0, 0, 0) with both flags clear, swtch_pri(0) with either set, 0 returned: ' + str(branch))
     target = adapter.TARGET[:-len('</Project>')]
     check(target.count('BeforeTargets="LinkNative" DependsOnTargets="SetupOSSpecificProps"') == 1 and
           target.count('<LinkerArg Include=') == 1 and target.count('<Exec Command=') == 1 and target.count('<Error Condition=') == 5,
@@ -169,8 +176,9 @@ int main(void)
         symbols = run([NM, str(produced)], project).stdout.split('\n')
         defined = sorted(line.split()[-1] for line in symbols if ' T ' in line or ' S ' in line)
         undefined = sorted(line.split()[-1] for line in symbols if line.strip().startswith('U '))
-        check(defined == ['_rewindbox_runtime_yield_marker', '_sched_yield'] and undefined == ['_RhpTrapThreads', '_swtch_pri', '_thread_switch'],
-              f'the object defines sched_yield and the marker, and needs only the two calls and the flag: {rid} {defined} {undefined}')
+        check(defined == ['_rewindbox_runtime_yield_marker', '_sched_yield'] and
+              undefined == sorted(['_RhpTrapThreads', adapter.BACKGROUND_FLAG, '_swtch_pri', '_thread_switch']),
+              f'the object defines sched_yield and the marker, and needs only the two calls and the two flags: {rid} {defined} {undefined}')
         objects[rid] = dict(triple=triple, sha256=sha(produced), bytes=produced.stat().st_size)
     refused = run([DOTNET, 'msbuild', 'stub.proj', '-t:LinkNative', '-p:RuntimeIdentifier=osx-arm64', '-v:m', '-nologo'], project, expect=1)
     check(refused.returncode != 0 and 'no reviewed target for RuntimeIdentifier' in refused.stdout + refused.stderr and
@@ -179,6 +187,7 @@ int main(void)
     link = work / 'link'
     link.mkdir()
     (link / 'caller.c').write_text('extern int sched_yield(void);\nvolatile unsigned int RhpTrapThreads;\n'
+                                   'volatile int background __asm__("' + adapter.BACKGROUND_FLAG + '");\n'
                                    'int pal_switch_to_thread(void) { sched_yield(); return 0; }\n')
     (link / 'libSystem.tbd').write_text('''--- !tapi-tbd
 tbd-version: 4
@@ -219,7 +228,8 @@ receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPA
                sourceKind='finalPreparationWithReversedControl' if FINAL_PREPARATION else 'predecessorPreparation',
                postimages={name: sha(FINAL_SOURCE / name) for name in (adapter.PROJECT, adapter.C_FILE)} if FINAL_PREPARATION else {},
                sdk=sdk, physicalDeviceTested=False, sourceBaseline=adapter.BASELINE, objectsBuilt=len(objects), objects=objects,
-               systemImportReplaced=True, systemYieldKeptWhileThreadsStopped=True, controlImports=imports['control'],
+               systemImportReplaced=True, systemYieldKeptWhileThreadsStopped=True, systemYieldKeptDuringBackgroundCollection=True,
+               controlImports=imports['control'],
                candidateImports=imports['candidate'],
                nativeAotLinkExecuted=False,
                inputs={path: sha(ROOT / path) for path in inputs},

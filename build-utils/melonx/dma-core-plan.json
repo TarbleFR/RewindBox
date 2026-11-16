@@ -4953,7 +4953,8 @@
     "objectsBuilt": 2,
     "systemImportReplaced": true,
     "nativeAotLinkExecuted": false,
-    "systemYieldKeptWhileThreadsStopped": true
+    "systemYieldKeptWhileThreadsStopped": true,
+    "systemYieldKeptDuringBackgroundCollection": true
    },
    "requiredPostimages": [
     "src/Ryujinx.Library/Ryujinx.Library.csproj",
