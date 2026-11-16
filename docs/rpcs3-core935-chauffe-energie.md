@@ -609,6 +609,16 @@ recette § 3.12) ; le moteur S2Arm garde le pin de la base. IPA `6c8a1288…`, 3
 après téléchargement (`passed-offline-checks`) et remise au mainteneur ; clé privée supprimée. Groupes Flutter et natif
 non exécutés. Non testée sur iPhone : chaleur, puissance et images par seconde restent à observer.
 
+Image non déclarée (recette § 3.10), comparée **après** l'enregistrement alors que la recette la demande avant : le
+rapport de vérification liste `melonx_internal_bridge` (empreinte `e8a0bf4e` dans la 760, `c029bdcf` dans la 761),
+sources du pont inchangées entre les deux commits. Le fichier livré dans la 761 a été comparé section par section à
+celui de la 763, qui porte l'empreinte de la 760 (l'empreinte couvre toutes les sections de code et de données, les
+symboles définis et les dépendances) : 43 sections sur 46 identiques, tables de liaison, symboles et `__got`
+identiques ; seuls diffèrent un octet de `__stubs` et un octet par bouchon de `__objc_stubs` (330 bouchons), plus
+l'UUID et la signature. Les deux cases d'import voisines (0x1113D0, 0x1113D8) sont liées toutes deux à
+`_objc_msgSend` ; l'éditeur de liens les attribue dans un ordre ou dans l'autre. Aucune différence de comportement ;
+rien à classer. Les reçus montrent la même alternance entre deux empreintes, sans changement de source, depuis la 745.
+
 ### À lire dans les prochains journaux
 
 Menus de Black Ops II, 2 minutes, téléphone débranché : `THERMAL931 light_class=1`, `light_ms` proche de 5000 par

@@ -162,3 +162,17 @@ verte) : seul le Core RPCS3 change ; MeloNX et S2Arm sont ceux de la base. IPA `
 vérifiée hors ligne après téléchargement (`passed-offline-checks`) et remise au mainteneur ; clé privée supprimée.
 Groupes Flutter et natif non exécutés. **Non testée sur iPhone** : régularité, charge du fil RSX et image restent à
 observer (§ 7).
+
+Image non déclarée (recette § 3.10), examinée **après** l'enregistrement alors que la recette la demande avant : le
+rapport de vérification liste `armsx2_internal_bridge` (empreinte `91ceaf60` dans la 762, `49a3db55` dans la 763),
+sources du pont inchangées entre les deux commits. Le fichier livré dans la 763 est identique octet pour octet,
+signature comprise, à celui de la 761. Aucune copie de la 762 n'est disponible ici : la comparaison directe n'a donc
+pas été refaite. Elle existe pour ces deux empreintes exactes — 725 (`91ceaf60`) et 726 (`49a3db55`), état de la 726
+dans la recette : seuls `__stubs` et `__objc_stubs` diffèrent — et l'empreinte couvre toutes les sections de code et
+de données, les symboles définis et les dépendances. Rien à classer.
+
+Constat utile à la 762, relevé au passage sur les fichiers de la 761 et de la 763 (cette dernière garde le pont RPCS3
+de la 762) : `rpcs3_internal_bridge` (`f852400e` puis `5cfa0b5b`, sources inchangées) ne diffère que par un octet de
+`__stubs` et un octet par bouchon de `__objc_stubs` (843 bouchons), UUID et signature ; les deux cases d'import
+(0xB8728, 0xB8730) sont liées à `_objc_msgSend`. Les empreintes recalculées sur les fichiers livrés sont celles des
+reçus.
