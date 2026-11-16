@@ -314,6 +314,14 @@ until the first session: its `cast.receiver.caps` row tells.
   resume, configuration in band, stall, hello/caps, clock offset, time limits.
 - Swift: the changed files type-check against the GoogleCast 4.8.6 stand-ins, except the unchanged `sa_len` line.
 - Receiver modules: `node --check` in the Pages workflow.
+- Receiver page with Google's real `cast_receiver_framework.js` (v3 snapshot), against an emulated cast shell (IPC web
+  socket, as in the 15 November lab) and a scripted phone on the namespace:
+  - it registers (`ready`, `startheartbeat`);
+  - `hello` gets `caps` 1.8 s after page load, `ping` gets `pong`, `play` gets `playing`, then one `stats` a second;
+  - 58 of 63 pictures are shown each second, 9 ms from arrival to screen;
+  - no page error.
+
+  The harness uses the snapshot of Google's files and is not committed.
 - Not run: the Flutter/native suites, an iOS compilation, any device.
 
 **Setting up (once).**
