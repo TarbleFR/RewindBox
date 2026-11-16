@@ -358,7 +358,48 @@
         "note": "Reviewed by the executing session, which wrote it: recipient public key of this delivery (recipe path)."
       }
     ],
-    "sourceOnly": [],
+    "sourceOnly": [
+      {
+        "commit": "ced2bedcc1cb8ebe33bb6655a315be30424387b8",
+        "targetBuild": 755,
+        "note": "S2Arm session's engine work (patches 0040-0044 and their pin), compiled by its own producer and delivered in 753; this delivery keeps the S2Arm engine of its base 752, so these inputs are not in this IPA; not written or reviewed by this session."
+      },
+      {
+        "commit": "1f5ca59a4c1c5680ebfa045d8e60f76418a45f03",
+        "targetBuild": 755,
+        "note": "MeloNX session's Nextendo online lot v3 and its review record, declared source only by that session; not compiled into this IPA; not written or reviewed by this session."
+      },
+      {
+        "commit": "9c6db6498affb167a34a43c95e6425431d5be419",
+        "targetBuild": 755,
+        "note": "S2Arm session's engine work (patches 0040-0044 and their pin), compiled by its own producer and delivered in 753; this delivery keeps the S2Arm engine of its base 752, so these inputs are not in this IPA; not written or reviewed by this session."
+      },
+      {
+        "commit": "fe17bafdd0036af41785da3bc4fd2b4c48600f58",
+        "targetBuild": 755,
+        "note": "MeloNX session's Nextendo online lot v3 and its review record, declared source only by that session; not compiled into this IPA; not written or reviewed by this session."
+      },
+      {
+        "commit": "ed9d2ac8526c4f65a07f5fcdccc54bac03b5c2cc",
+        "targetBuild": 755,
+        "note": "S2Arm session's engine work (patches 0040-0044 and their pin), compiled by its own producer and delivered in 753; this delivery keeps the S2Arm engine of its base 752, so these inputs are not in this IPA; not written or reviewed by this session."
+      },
+      {
+        "commit": "704b13d0f8de583786918298683a6dffa59f62fe",
+        "targetBuild": 755,
+        "note": "S2Arm session's engine work (patches 0040-0044 and their pin), compiled by its own producer and delivered in 753; this delivery keeps the S2Arm engine of its base 752, so these inputs are not in this IPA; not written or reviewed by this session."
+      },
+      {
+        "commit": "6a441bfa20a12934f56f706a0cfbb1c927aa2114",
+        "targetBuild": 755,
+        "note": "S2Arm session's engine work (patches 0040-0044 and their pin), compiled by its own producer and delivered in 753; this delivery keeps the S2Arm engine of its base 752, so these inputs are not in this IPA; not written or reviewed by this session."
+      },
+      {
+        "commit": "35a7acd05730b2acd39cf61403382fe60dec51e3",
+        "targetBuild": 755,
+        "note": "S2Arm session's engine work (patches 0040-0044 and their pin), compiled by its own producer and delivered in 753; this delivery keeps the S2Arm engine of its base 752, so these inputs are not in this IPA; not written or reviewed by this session."
+      }
+    ],
     "promotedCommits": []
   },
   "images": {
