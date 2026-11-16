@@ -2181,6 +2181,123 @@ def verify_source():
 
 # --- CI operations ---------------------------------------------------------------------------------------
 
+# --- Official repository and forks (16 November 2026, maintainer decision) -----------------------------------
+# Test IPAs are built only by the official repository. In any other repository (a fork that enabled Actions),
+# a run of this recipe may only rebuild a published release exactly: the commit its release tag points to
+# requests the same build, the frozen manifest is the release's own except its recipient, and the only other
+# change is the fork's recipient key. Everything else stops in materialize, the first step of every job,
+# before any file is restored or compiled. This is the project's default, not a licence term: the GPL rights
+# are unchanged and anyone may edit this code (BRANDING.md). In the official repository nothing changes: the
+# check is a pure comparison of the run's environment, without git, network or exception.
+OFFICIAL_REPOSITORY_ID = '1329032710'
+OFFICIAL_RELEASES = 'https://github.com/' + REPOSITORY + '/releases'
+FORK_REFUSAL = ('RewindBox test IPAs are built only by the official repository ' + REPOSITORY + '. Outside it, '
+                'this recipe only rebuilds a published release: check out the commit its release tag points to, '
+                'change only the recipient key (its PEM and the recipient of the frozen manifest) in one commit '
+                'whose subject requests the same build, and push. Official builds: ' + OFFICIAL_RELEASES)
+
+
+def run_repository(environ=None):
+    """'local' outside GitHub Actions, 'official' in a run of the official repository, 'fork' in any other
+    repository. GitHub sets GITHUB_REPOSITORY(_ID) itself; a workflow cannot overwrite them. Never raises."""
+    environ = os.environ if environ is None else environ
+    if environ.get('GITHUB_ACTIONS') != 'true':
+        return 'local'
+    if environ.get('GITHUB_REPOSITORY_ID') == OFFICIAL_REPOSITORY_ID or \
+            str(environ.get('GITHUB_REPOSITORY') or '').casefold() == REPOSITORY.casefold():
+        return 'official'
+    return 'fork'
+
+
+def official_pages(get, endpoint, pages=10):
+    """Every item of a paginated list endpoint of the official repository (at most `pages` pages of 100)."""
+    items = []
+    for page in range(1, pages + 1):
+        batch = get(f'{endpoint}?per_page=100&page={page}')
+        require(isinstance(batch, list), 'Unexpected answer for ' + endpoint)
+        items.extend(batch)
+        if len(batch) < 100:
+            return items
+    raise ValueError('More than %d entries in %s' % (pages * 100, endpoint))
+
+
+def published_release_commits(get=None):
+    """[(tag, commit)] of the published releases (not draft, not pre-release) of the official repository, from
+    its own REST answers (a fork cannot write them). /tags resolves annotated tags to their commit."""
+    get = api if get is None else get
+    releases = official_pages(get, 'releases')
+    tags = {}
+    for item in official_pages(get, 'tags'):
+        commit = (item.get('commit') or {}).get('sha') if isinstance(item, dict) else None
+        if isinstance(item, dict) and isinstance(item.get('name'), str) and isinstance(commit, str) and \
+                HEX40.fullmatch(commit):
+            tags[item['name']] = commit
+    result = []
+    for release in releases:
+        if not isinstance(release, dict) or release.get('draft') is not False or release.get('prerelease') is not False:
+            continue
+        name = release.get('tag_name')
+        if isinstance(name, str) and name in tags:
+            result.append((name, tags[name]))
+    return result
+
+
+def release_rebuild(requested, head, repo, releases):
+    """The published release that `head` rebuilds exactly, or None.
+
+    `head` must descend along its first-parent line, without merges, from the commit a release tag points to;
+    that commit's subject requests the same build; the frozen manifest is identical except its recipient; the
+    only other path changed is the recipient key, a regular file matching the recipient pattern."""
+    for tag, commit in releases:
+        if repo.run('cat-file', '-e', commit + '^{commit}', check=False).returncode != 0:
+            continue
+        try:
+            if subject_build(repo.subject(commit)) != requested:
+                continue
+        except ValueError:
+            continue
+        if not repo.on_first_parent_line(commit, head) or repo.merges(commit, head):
+            continue
+        try:
+            released = load_manifest(requested, ref=commit, repo=repo)
+            current = load_manifest(requested, ref=head, repo=repo)
+        except (ValueError, subprocess.CalledProcessError):
+            continue
+        recipient = (current.get('recipient') or {}).get('path')
+        if released.get('status') != 'frozen' or not isinstance(recipient, str):
+            continue
+        without = lambda value: canonical({key: item for key, item in value.items() if key != 'recipient'})
+        if without(current) != without(released):
+            continue
+        changed = {path for path in repo.text('diff', '--name-only', '-z', '--no-renames', commit, head).split('\0')
+                   if path}
+        if not changed <= {manifest_path(requested), recipient}:
+            continue
+        if recipient in changed:
+            if not any(fnmatch.fnmatchcase(recipient, pattern) and recipient.count('/') == pattern.count('/')
+                       for pattern in RECIPE_GLOBS):
+                continue
+            listing = repo.text('ls-tree', head, '--', recipient).split()
+            if not listing or listing[0] != '100644':
+                continue
+        return dict(release=tag, releaseCommit=commit, build=requested)
+    return None
+
+
+def fork_gate(requested, head, repo, environ=None, get=None):
+    """In a fork, stop the run unless it rebuilds a published release; elsewhere return at once."""
+    kind = run_repository(environ)
+    if kind != 'fork' or requested is None:
+        return dict(repository=kind)
+    try:
+        releases = published_release_commits(get)
+    except Exception as error:  # the run fails closed when the official releases cannot be read
+        raise ValueError(FORK_REFUSAL + ' (the published releases could not be read: %s)' % error) from error
+    rebuild = release_rebuild(requested, head, repo, releases)
+    require(rebuild is not None, FORK_REFUSAL)
+    return dict(repository=kind, **rebuild)
+
+
 def materialize():
     """First step after checkout in every job: restore and verify the frozen effective tree."""
     repo = Repo()
@@ -2188,6 +2305,10 @@ def materialize():
     require(head == os.environ.get('GITHUB_SHA', head), 'Checkout differs from the triggering source')
     subject = repo.subject(head)
     requested = subject_build(subject)
+    gate = fork_gate(requested, head, repo)
+    if gate['repository'] == 'fork' and requested is not None:
+        save('standard-fork-gate.json', gate)
+        print('Fork run allowed: it rebuilds published release %s (build %d).' % (gate['release'], requested))
     if os.environ.get('BUILD_NUMBER'):
         require(requested == ci_build(), 'The commit subject does not request build ' + os.environ['BUILD_NUMBER'])
     if requested is None:
@@ -3038,7 +3159,9 @@ def strip_expression(value):
 def jobs_that_run(spec, message, branch=BRANCH):
     """Jobs of a push-triggered workflow that would execute for this head commit message."""
     jobs = spec.get('jobs') or {}
+    # The push runs in the official repository: jobs guarded by github.repository (forks skip them) still run.
     context = dict(github=dict(event_name='push', ref='refs/heads/' + branch, ref_name=branch,
+                               repository=REPOSITORY, repository_id=OFFICIAL_REPOSITORY_ID,
                                event=dict(head_commit=dict(message=message)), sha='0' * 40),
                    inputs={}, env={}, vars={}, secrets={})
     results, unevaluated, order = {}, [], []

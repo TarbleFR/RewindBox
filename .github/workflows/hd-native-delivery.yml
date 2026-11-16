@@ -29,6 +29,7 @@ defaults:
       {0}
 jobs:
   checks:
+    if: ${{ github.repository == 'TarbleFR/RewindBox' }}
     name: Closed candidate, catalogue and reusable CI provenance
     runs-on: ubuntu-24.04
     timeout-minutes: 25
@@ -60,6 +61,7 @@ jobs:
         if-no-files-found: error
         retention-days: 14
   native:
+    if: ${{ github.repository == 'TarbleFR/RewindBox' }}
     name: Exact native reuse and Foundation with the final catalogue
     runs-on: macos-15
     timeout-minutes: 30
@@ -91,6 +93,7 @@ jobs:
         if-no-files-found: error
         retention-days: 14
   cold:
+    if: ${{ github.repository == 'TarbleFR/RewindBox' }}
     name: Release device build • cold • HD native
     runs-on: macos-15
     timeout-minutes: 60

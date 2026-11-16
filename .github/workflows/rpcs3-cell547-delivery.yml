@@ -21,8 +21,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   checks:
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[retroarch-delivery]')
-      }}
+    if: ${{ github.repository == 'TarbleFR/RewindBox' && (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[retroarch-delivery]')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
@@ -46,6 +45,7 @@ jobs:
         if-no-files-found: error
         retention-days: 14
   cold:
+    if: ${{ github.repository == 'TarbleFR/RewindBox' }}
     name: Release device build • cold
     runs-on: macos-15
     timeout-minutes: 90

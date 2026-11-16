@@ -33,6 +33,8 @@ jobs:
         run: python3 -m unittest discover -s .github/actions/upload-protected-artifact -p test_scan.py -v
       - name: Require guarded uploads in every workflow
         run: python3 .github/ipa-protection/check_workflows.py
+      - name: Require IPA workflows to run only in the official repository
+        run: python3 .github/ipa-protection/check_official_guard.py
       - name: Prepare harmless boundary probes
         run: |
           mkdir -p build/ipa-policy-allowed build/ipa-policy-blocked

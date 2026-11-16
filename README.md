@@ -76,6 +76,9 @@ AltStore PAL notarized package.
 - **SHA-256:** `bc640a83a01de8a623c16fb0b5977edf16ac6010b61c9c2489ae334d3db3c0d7`.
 - [SHA256SUMS](https://github.com/TarbleFR/RewindBox/releases/download/0.0.11/SHA256SUMS).
 
+Only the IPA files attached to a published release are official RewindBox builds; test IPAs
+are private and never published. See [official builds, name and logo](BRANDING.md).
+
 ## More to explore
 
 Browse HD texture packs, customize touch controls, explore interactive 3D
@@ -286,6 +289,11 @@ The recorded toolchain uses **Flutter 3.47.2** and **Xcode 26.3**.
 Version labels in dated source/legal notes apply to the release recorded there.
 Use the exact manifest and receipt above for this public release, and the shared
 task board linked from the documentation index for current private development.
+
+In a fork, the build recipes do not build test IPAs: the standard recipe only rebuilds a
+published release exactly (its release tag, with your own recipient key as the only change),
+and the older IPA workflows skip their jobs outside TarbleFR/RewindBox. These are defaults of
+the project's scripts, not licence conditions ([BRANDING.md](BRANDING.md)).
 
 Keep signing material, credentials and private user content out of Git.
 

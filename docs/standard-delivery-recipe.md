@@ -97,6 +97,39 @@ validation, la compilation complète reste disponible. Xcode, l'intégration des
 Cores courants, la signature et tous les validateurs finaux restent obligatoires.
 Les gains de durée doivent être mesurés sur les producteurs macOS.
 
+## Forks : pas d'IPA de test hors du dépôt officiel (16 novembre 2026)
+
+Décision du mainteneur (« Mets tout en oeuvre pour leur barrer la route tout en respectant les règles ») :
+les IPA de test ne se compilent que dans `TarbleFR/RewindBox` ; ailleurs, seule une release publiée peut
+être reconstruite. La politique publique est [BRANDING.md](../BRANDING.md).
+
+- **Recette standard** : `standard_delivery.fork_gate`, appelé par `materialize` (première étape de
+  chaque job), avant toute restauration ou compilation. Dans le dépôt officiel
+  (`GITHUB_REPOSITORY_ID` 1329032710 ou `GITHUB_REPOSITORY` = `TarbleFR/RewindBox`) et en local, rien
+  ne change : simple comparaison de l'environnement, sans git, réseau ni exception. Dans un fork, la
+  demande n'est acceptée que si la tête descend, en première parenté et sans fusion, du commit pointé par
+  l'étiquette d'une release publiée (ni brouillon ni préversion, lue dans l'API du dépôt officiel), si le
+  sujet de ce commit demande la même build, si le manifeste gelé est identique hormis `recipient`, et si
+  le seul autre fichier changé est la clé destinataire (`build-utils/delivery-*-recipient.pem`, fichier
+  ordinaire). Toute erreur de lecture refuse le run. Le workflow lui-même n'est pas modifié (son empreinte
+  est figée par `test/ipa_build_cache_test.py`) ; la ligne S2Arm passe par le même `materialize`.
+- **Releases** : étiqueter chaque release sur son commit déclencheur `[ipa-delivery:N]` (comme 0.0.11 sur
+  `cfb56420`), sinon un fork ne pourra pas la reconstruire avec la recette. Ne jamais déplacer une
+  étiquette publiée ni modifier la release 0.0.9 (son IPA est le donneur épinglé de chaque livraison).
+- **Anciens workflows IPA** : 61 workflows (118 jobs) portent
+  `if: ${{ github.repository == 'TarbleFR/RewindBox' && (<condition précédente>) }}`. Les 15 routes
+  héritées dont un test ou un relevé produit fige le texte gardent leur texte (liste et raisons dans
+  `EXEMPT` de `.github/ipa-protection/check_official_guard.py`) ; les deux routes appelées par
+  `rpcs3-core.yml` et `hd-textures.yml` sont gardées côté appelé. La simulation `trigger-paths` évalue
+  désormais `github.repository` comme le dépôt officiel.
+- **Contrôle** : `check_official_guard.py` (lancé par `private-ipa-policy.yml` quand un workflow change)
+  exige la garde en premier terme de chaque job d'un workflow qui chiffre, empaquette ou publie une IPA,
+  et vérifie que `materialize` appelle `fork_gate` avant de charger le manifeste. Tests locaux, hors du
+  parcours de livraison : `python3 -B .github/diagnostics/fork_gate_test.py`.
+- **Limites** : un fork peut modifier ces scripts (GPL) ; ce sont des défauts du projet, pas une clause de
+  licence ni une mesure technique de protection. Les artefacts d'Actions d'un dépôt public restent
+  téléchargeables par tout compte GitHub connecté (règle GitHub), y compris les Cores de test.
+
 ## 2. Ce qui est en place (première cible : 611)
 
 | Élément | Fichier |

@@ -21,8 +21,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   checks:
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message,
-      '[retroarch-delivery]') }}
+    if: ${{ github.repository == 'TarbleFR/RewindBox' && (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[retroarch-delivery]')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     env:
@@ -38,8 +37,7 @@ jobs:
     - name: Verify exact RPCS3 fixes and retain validated Build 533 components
       run: python3 .github/diagnostics/rpcs3cell534_delivery.py --wait-for-components
   native:
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message,
-      '[retroarch-delivery]') }}
+    if: ${{ github.repository == 'TarbleFR/RewindBox' && (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[retroarch-delivery]')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
@@ -54,6 +52,7 @@ jobs:
 
         '
   cold:
+    if: ${{ github.repository == 'TarbleFR/RewindBox' }}
     name: Release device build • cold
     runs-on: macos-15
     timeout-minutes: 90

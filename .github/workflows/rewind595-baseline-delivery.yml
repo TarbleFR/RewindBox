@@ -742,7 +742,7 @@ jobs:
       if: always()
       shell: bash
       run: rm -f .dart-defines.json
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[rewind595-delivery]') }}
+    if: ${{ github.repository == 'TarbleFR/RewindBox' && (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[rewind595-delivery]')) }}
 env:
   CI: 'true'
   FLUTTER_SUPPRESS_ANALYTICS: 'true'

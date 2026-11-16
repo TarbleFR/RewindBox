@@ -8,6 +8,7 @@ permissions:
   contents: write
 jobs:
   fix-asset-name:
+    if: ${{ github.repository == 'TarbleFR/RewindBox' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:

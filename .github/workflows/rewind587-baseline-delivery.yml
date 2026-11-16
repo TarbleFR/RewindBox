@@ -29,7 +29,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   checks:
-    if: ${{ github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.repository == 'TarbleFR/RewindBox' && (github.event_name == 'workflow_dispatch') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
@@ -1160,7 +1160,7 @@ jobs:
       if: always()
       shell: bash
       run: rm -f .dart-defines.json
-    if: ${{ github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.repository == 'TarbleFR/RewindBox' && (github.event_name == 'workflow_dispatch') }}
 env:
   CI: 'true'
   FLUTTER_SUPPRESS_ANALYTICS: 'true'

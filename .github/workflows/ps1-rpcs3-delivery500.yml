@@ -29,6 +29,7 @@ defaults:
       {0}
 jobs:
   checks:
+    if: ${{ github.repository == 'TarbleFR/RewindBox' }}
     name: Delivered499 Core, unchanged native product and current PS1 catalogue proof
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -50,6 +51,7 @@ jobs:
         if-no-files-found: error
         retention-days: 14
   cold:
+    if: ${{ github.repository == 'TarbleFR/RewindBox' }}
     name: Release device build • cold • RPCS3 audit
     runs-on: macos-15
     timeout-minutes: 60
