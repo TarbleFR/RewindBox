@@ -116,16 +116,25 @@ les IPA de test ne se compilent que dans `TarbleFR/RewindBox` ; ailleurs, seule 
 - **Releases** : étiqueter chaque release sur son commit déclencheur `[ipa-delivery:N]` (comme 0.0.11 sur
   `cfb56420`), sinon un fork ne pourra pas la reconstruire avec la recette. Ne jamais déplacer une
   étiquette publiée ni modifier la release 0.0.9 (son IPA est le donneur épinglé de chaque livraison).
-- **Anciens workflows IPA** : 61 workflows (118 jobs) portent
-  `if: ${{ github.repository == 'TarbleFR/RewindBox' && (<condition précédente>) }}`. Les 15 routes
-  héritées dont un test ou un relevé produit fige le texte gardent leur texte (liste et raisons dans
-  `EXEMPT` de `.github/ipa-protection/check_official_guard.py`) ; les deux routes appelées par
+- **Anciens workflows IPA** : 70 workflows (129 jobs) portent
+  `if: ${{ github.repository == 'TarbleFR/RewindBox' && (<condition précédente>) }}` ; leurs tests
+  produits donnent le même résultat qu'avant. Gardent leur texte : `rewind608`, `rewind609` et
+  `rewind610` (leurs tests produits exigent la transformation exacte relue) et `publish-fix-009.yml`,
+  `rename-fix-009-ipa.yml` (déclenchés par un push sur `main` touchant leur propre fichier : toute
+  modification les relancerait à la prochaine mise à jour de `main`) ; liste et raisons dans `EXEMPT` de
+  `.github/ipa-protection/check_official_guard.py`. Les deux routes appelées par
   `rpcs3-core.yml` et `hd-textures.yml` sont gardées côté appelé. La simulation `trigger-paths` évalue
   désormais `github.repository` comme le dépôt officiel.
 - **Contrôle** : `check_official_guard.py` (lancé par `private-ipa-policy.yml` quand un workflow change)
-  exige la garde en premier terme de chaque job d'un workflow qui chiffre, empaquette ou publie une IPA,
+  exige la garde en premier terme de chaque job d'un workflow qui chiffre, empaquette ou publie une IPA
+  (le reste de la condition entre une seule paire de parenthèses, sans `||` ni second `${{ }}` dehors),
   et vérifie que `materialize` appelle `fork_gate` avant de charger le manifeste. Tests locaux, hors du
   parcours de livraison : `python3 -B .github/diagnostics/fork_gate_test.py`.
+- **Reconstruction d'une release dans un fork** : le verrou accepte la reconstruction exacte d'une
+  release étiquetée sur son commit déclencheur tant que l'API officielle répond (sinon il refuse), mais la suite de la
+  recette authentifie son propre run via l'API du dépôt officiel (`REPOSITORY`) : elle n'aboutit hors de
+  `TarbleFR/RewindBox` qu'en adaptant ces appels (permis par la GPL), et seulement tant que les artefacts
+  épinglés de la release existent. Le moyen fiable reste l'IPA publiée de la release.
 - **Limites** : un fork peut modifier ces scripts (GPL) ; ce sont des défauts du projet, pas une clause de
   licence ni une mesure technique de protection. Les artefacts d'Actions d'un dépôt public restent
   téléchargeables par tout compte GitHub connecté (règle GitHub), y compris les Cores de test.

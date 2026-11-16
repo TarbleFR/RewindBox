@@ -30,7 +30,7 @@ Aller jusqu’au résultat demandé, sans élargir la mission.
 - Garder les IPA de test privées, avec transport chiffré et protections existantes.
 - Vérifier l’IPA finale avant livraison privée, puis la remettre aussitôt à l’utilisateur ; analyses et optimisations ensuite. Ne jamais publier une IPA de test.
 - Aucun secret, clé privée, journal privé brut ni artefact IPA de test en clair dans GitHub.
-- IPA de test uniquement dans `TarbleFR/RewindBox` : garder `fork_gate` dans la recette et, sur chaque job d’un workflow IPA, `if: ${{ github.repository == 'TarbleFR/RewindBox' ... }}` ([forks](docs/standard-delivery-recipe.md#forks--pas-dipa-de-test-hors-du-dépôt-officiel-16-novembre-2026), [BRANDING.md](BRANDING.md)).
+- IPA de test uniquement dans `TarbleFR/RewindBox` : garder `fork_gate` dans la recette et, sur chaque job d’un workflow IPA, `if: ${{ github.repository == 'TarbleFR/RewindBox' ... }}`, sauf les workflows de `EXEMPT` (`.github/ipa-protection/check_official_guard.py`), à ne pas modifier ([forks](docs/standard-delivery-recipe.md#forks--pas-dipa-de-test-hors-du-dépôt-officiel-16-novembre-2026), [BRANDING.md](BRANDING.md)).
 
 ## 4. Publier et sauvegarder
 

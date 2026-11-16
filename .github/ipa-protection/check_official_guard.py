@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Every workflow that builds, packages or publishes an IPA runs only in the official repository.
+"""Every guarded workflow that builds, packages or publishes an IPA runs only in the official repository.
 
 Maintainer decision of 16 November 2026: test IPAs are built only by TarbleFR/RewindBox. Each job of such a
 workflow carries the guard as its first conjunct, so a fork that enables Actions skips it:
@@ -22,7 +22,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[2]
 REPOSITORY = 'TarbleFR/RewindBox'
 GUARD = "github.repository == '%s'" % REPOSITORY
-GUARDED_IF = re.compile(r"^    if: \$\{\{ " + re.escape(GUARD) + r"(?: \}\}| && \(.*\) \}\})\s*$")
+CONDITION = re.compile(r'^    if: \$\{\{ (.*) \}\}\s*$')
 # A workflow that encrypts, packages, archives, exports or publishes an app (or an IPA asset).
 SIGNALS = re.compile(r'delivery_cipher\.py|\.ipa\b|Payload/|-exportArchive|flutter build (?:ios|ipa)|'
                      r'gh release (?:create|upload|edit)|releases/assets|xcodebuild[^\n]*\barchive\b')
@@ -30,24 +30,17 @@ RECIPE_GATE = ('standard-delivery.yml: its text is pinned by test/ipa_build_cach
                'standard_delivery.fork_gate (called by materialize) refuses fork runs')
 PINNED = 'legacy per-build route pinned by %s; guard it in the change that updates that pin'
 CHECKS = 'checks or inspects IPAs without building one'
+MAIN_ONE_SHOT = ('one-shot 0.0.9 release fix triggered by a push to main touching its own file: any edit would '
+                 're-run it at the next main update; keep it byte-identical')
 EXEMPT = {
+    'publish-fix-009.yml': MAIN_ONE_SHOT,
+    'rename-fix-009-ipa.yml': MAIN_ONE_SHOT,
     'standard-delivery.yml': RECIPE_GATE,
     's2arm-delivery.yml': 'generated from standard-delivery.yml (s2arm/make_workflow.py); its operations run '
                           'standard_delivery.main, whose materialize applies the fork gate',
-    'ios-ci.yml': PINNED % 'test/build351_native_donor_test.py and other product tests',
-    'neoswap-ipa.yml': PINNED % 'test/neo_swap_core_pin_test.py and check_workflows.py',
-    'retroarch-delivery.yml': PINNED % 'test/delivery_pipeline_test.py and other product tests',
-    'rewind598-baseline-delivery.yml': PINNED % 'test/rewind598_delivery_contract_test.py',
-    'rewind599-baseline-delivery.yml': PINNED % 'test/rewind599_delivery_contract_test.py',
-    'rewind600-baseline-delivery.yml': PINNED % 'test/rewind600_delivery_contract_test.py',
-    'rewind601-dual-core-delivery.yml': PINNED % 'test/rewind601_delivery_contract_test.py',
-    'rewind602-jit-helper-delivery.yml': PINNED % 'test/rewind602_delivery_contract_test.py',
-    'rewind603-hogwarts-core-delivery.yml': PINNED % 'test/rewind603_delivery_contract_test.py',
-    'rewind604-hogwarts-core-delivery.yml': PINNED % 'test/rewind604_delivery_contract_test.py',
-    'rewind608-retro-achievements-delivery.yml': PINNED % 'test/delivery609_contract_test.py',
-    'rewind609-hogwarts-liveness-delivery.yml': PINNED % 'test/delivery609_contract_test.py',
-    'rewind610-delivery.yml': PINNED % 'test/rewind610_delivery_contract_test.py',
-    'rpcs3-cell560-delivery.yml': PINNED % 'test/core_swap_base_test.py',
+    'rewind608-retro-achievements-delivery.yml': PINNED % 'test/delivery609_contract_test.py (exact 608 transform)',
+    'rewind609-hogwarts-liveness-delivery.yml': PINNED % 'test/delivery609_contract_test.py (exact 608 transform)',
+    'rewind610-delivery.yml': PINNED % 'test/rewind610_delivery_contract_test.py (exact reviewed transform)',
     'legal-compliance-check.yml': CHECKS,
     'private-ipa-policy.yml': CHECKS + ' (its fixture is not an application)',
     'retroarch-relaunch-proof.yml': CHECKS,
@@ -69,11 +62,46 @@ def jobs(text):
             for n, i in enumerate(keys)]
 
 
+def guarded(line):
+    """The condition is exactly ${{ GUARD }} or ${{ GUARD && (<rest>) }}: <rest> is one parenthesised group that
+    closes at the very end (quoted strings ignored) and holds no other template, so no || can bypass the guard."""
+    match = CONDITION.match(line)
+    if not match:
+        return False
+    body = match.group(1)
+    if body == GUARD:
+        return True
+    prefix = GUARD + ' && '
+    rest = body[len(prefix):] if body.startswith(prefix) else ''
+    if not rest.startswith('('):
+        return False
+    depth, quoted, index = 0, False, 0
+    while index < len(rest):
+        char = rest[index]
+        if quoted:
+            if char == "'" and rest[index + 1:index + 2] == "'":
+                index += 1
+            elif char == "'":
+                quoted = False
+        elif char == "'":
+            quoted = True
+        elif rest.startswith('${{', index) or rest.startswith('}}', index):
+            return False
+        elif char == '(':
+            depth += 1
+        elif char == ')':
+            depth -= 1
+            if depth == 0 and index != len(rest) - 1:
+                return False
+        index += 1
+    return depth == 0 and not quoted
+
+
 def unguarded_jobs(text):
     found = []
     for job, block in jobs(text):
         conditions = [line for line in block if re.match(r'^    if:', line)]
-        if len(conditions) != 1 or not GUARDED_IF.match(conditions[0]):
+        if len(conditions) != 1 or not guarded(conditions[0]):
             found.append(job)
     return found
 
@@ -118,7 +146,8 @@ def main():
         print(problem, file=sys.stderr)
     if problems:
         return 1
-    print('Every IPA workflow runs only in ' + REPOSITORY + '; the standard recipe keeps its fork gate.')
+    print('Every IPA workflow outside EXEMPT (%d legacy or check routes) runs only in %s; the standard recipe '
+          'keeps its fork gate.' % (len(EXEMPT), REPOSITORY))
     return 0
 
 

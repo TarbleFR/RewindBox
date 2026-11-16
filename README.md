@@ -290,10 +290,13 @@ Version labels in dated source/legal notes apply to the release recorded there.
 Use the exact manifest and receipt above for this public release, and the shared
 task board linked from the documentation index for current private development.
 
-In a fork, the build recipes do not build test IPAs: the standard recipe only rebuilds a
-published release exactly (its release tag, with your own recipient key as the only change),
-and the older IPA workflows skip their jobs outside TarbleFR/RewindBox. These are defaults of
-the project's scripts, not licence conditions ([BRANDING.md](BRANDING.md)).
+In a fork, the build recipes do not build test IPAs: the standard recipe refuses every run that
+is not the exact rebuild of a published release (its release tag, with only the recipient key
+changed), and the older IPA workflows skip their jobs outside TarbleFR/RewindBox (except the legacy
+routes listed in `EXEMPT` of `.github/ipa-protection/check_official_guard.py`). The recipe also
+authenticates its own runs through this repository's API, so rebuilding a release elsewhere means
+adapting those calls, which the GPL allows. These are defaults of the project's scripts, not
+licence conditions ([BRANDING.md](BRANDING.md)).
 
 Keep signing material, credentials and private user content out of Git.
 

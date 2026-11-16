@@ -21,7 +21,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   checks:
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[retroarch-delivery]') }}
+    if: ${{ github.repository == 'TarbleFR/RewindBox' && (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[retroarch-delivery]')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     env:
@@ -39,7 +39,7 @@ jobs:
 
         python3 .github/diagnostics/melonxlaunch529_delivery.py --wait-for-components'
   native:
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[retroarch-delivery]') }}
+    if: ${{ github.repository == 'TarbleFR/RewindBox' && (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[retroarch-delivery]')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
@@ -58,6 +58,7 @@ jobs:
 
         '
   cold:
+    if: ${{ github.repository == 'TarbleFR/RewindBox' }}
     name: "Release device build \u2022 cold"
     runs-on: macos-15
     timeout-minutes: 90

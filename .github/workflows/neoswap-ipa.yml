@@ -34,7 +34,7 @@ jobs:
     # Do not occupy a scarce macOS runner while the exact-SHA native workflows
     # are still queued. This Linux gate prevents the previous build/donation
     # runner deadlock; the macOS build revalidates and downloads the evidence.
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[neoswap-ipa]') }}
+    if: ${{ github.repository == 'TarbleFR/RewindBox' && (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[neoswap-ipa]')) }}
     name: Wait for exact candidate evidence
     runs-on: ubuntu-latest
     timeout-minutes: 150
@@ -152,7 +152,7 @@ jobs:
     needs: wait-evidence
     # Core-only development commits validate their native engine separately,
     # not a mislabeled full NeoStation IPA.
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[neoswap-ipa]') }}
+    if: ${{ github.repository == 'TarbleFR/RewindBox' && (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[neoswap-ipa]')) }}
     name: RewindBox 0.0.2 private IPA (421)
     runs-on: macos-15
     timeout-minutes: 210

@@ -2186,15 +2186,17 @@ def verify_source():
 # a run of this recipe may only rebuild a published release exactly: the commit its release tag points to
 # requests the same build, the frozen manifest is the release's own except its recipient, and the only other
 # change is the fork's recipient key. Everything else stops in materialize, the first step of every job,
-# before any file is restored or compiled. This is the project's default, not a licence term: the GPL rights
-# are unchanged and anyone may edit this code (BRANDING.md). In the official repository nothing changes: the
-# check is a pure comparison of the run's environment, without git, network or exception.
+# before any file is restored or compiled. The rest of the recipe still authenticates its own run through the
+# official repository's API (REPOSITORY), so even an allowed rebuild needs those calls adapted to finish in a
+# fork; the gate accepts the exact rebuild of a release tagged on its trigger commit while the official API
+# answers, and refuses otherwise (fail closed). This is the project's default, not a licence
+# term: the GPL rights are unchanged and anyone may edit this code (BRANDING.md). In the official repository
+# nothing changes: the check is a pure comparison of the run's environment, without git, network or exception.
 OFFICIAL_REPOSITORY_ID = '1329032710'
 OFFICIAL_RELEASES = 'https://github.com/' + REPOSITORY + '/releases'
 FORK_REFUSAL = ('RewindBox test IPAs are built only by the official repository ' + REPOSITORY + '. Outside it, '
-                'this recipe only rebuilds a published release: check out the commit its release tag points to, '
-                'change only the recipient key (its PEM and the recipient of the frozen manifest) in one commit '
-                'whose subject requests the same build, and push. Official builds: ' + OFFICIAL_RELEASES)
+                'this recipe stops unless the run is the exact rebuild of a published release (the commit its '
+                'release tag points to, with only the recipient key changed). Official builds: ' + OFFICIAL_RELEASES)
 
 
 def run_repository(environ=None):

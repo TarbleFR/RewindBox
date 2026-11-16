@@ -286,6 +286,20 @@ class OfficialGuardChecker(unittest.TestCase):
                 '    runs-on: macos-15\n    steps:\n      - run: gh release upload 1.0 app.ipa\n')
         self.assertEqual(len(self.checker.errors(self.root({'loose.yml': text}))), 1)
 
+    def test_a_condition_that_an_or_can_bypass_is_reported(self):
+        guard = "github.repository == 'TarbleFR/RewindBox'"
+        step = '    runs-on: macos-15\n    steps:\n      - run: gh release upload 1.0 app.ipa\n'
+        for condition in (f"${{{{ {guard} && (github.event_name == 'push') || (github.event_name == 'x') }}}}",
+                          f"${{{{ {guard} && (github.event_name == 'push') }}}} || ${{{{ (true) }}}}",
+                          f"${{{{ {guard} && github.event_name == 'push' }}}}",
+                          f"\"${{{{ {guard} }}}}\""):
+            with self.subTest(condition=condition):
+                text = f'on: push\njobs:\n  build:\n    if: {condition}\n' + step
+                self.assertEqual(len(self.checker.errors(self.root({'bypass.yml': text}))), 1)
+        quoted = f"${{{{ {guard} && (contains(github.event.head_commit.message, 'a)b''(c')) }}}}"
+        text = f'on: push\njobs:\n  build:\n    if: {quoted}\n' + step
+        self.assertEqual(self.checker.errors(self.root({'quoted.yml': text})), [])
+
     def test_a_recipe_without_the_gate_is_reported(self):
         late = self.RECIPE.replace('    fork_gate()\n    load_manifest()\n', '    load_manifest()\n    fork_gate()\n')
         self.assertEqual(len(self.checker.errors(self.root({}, recipe=late))), 1)
