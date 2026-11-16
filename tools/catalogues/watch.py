@@ -122,24 +122,37 @@ def pins():
         add('textures', 'pcsx2-gameindex', 'PCSX2 GameIndex.yaml (serials and titles)', 'https://github.com/PCSX2/pcsx2',
             data['gameindex_commit'], note='only bin/resources/GameIndex.yaml is read')
 
-    # Unified cheats: the origin table (what the app downloads) and the builder's lock.
-    origins = assignments(ROOT / 'tools/cheats/origin/sources.py', {'ORIGINS'}).get('ORIGINS', {})
+    # Unified cheats: the builder's lock, then the origin table (what the app downloads).
     seen = set()
     lock = json.loads((ROOT / 'tools/cheats/unified-sources.json').read_text(encoding='utf-8'))
     for source in lock['sources']:
         url, revision = github_url(source.get('url')), source.get('revision') or ''
+        status = source.get('status', '')
+        note = '' if status == 'available' else f'not published ({status})' if status else ''
         if url and COMMIT.match(revision) and (url, revision) not in seen:
             seen.add((url, revision))
-            status = source.get('status', '')
-            add('cheats', source['id'], source.get('name', source['id']), url, revision,
-                note='' if status == 'available' else f'not published ({status})' if status else '')
-    for identifier, origin in origins.items():
-        match = re.match(r'^https://raw\.githubusercontent\.com/([^/]+/[^/]+)/([0-9a-f]{40})/', origin.get('raw', ''))
-        if match and (f'https://github.com/{match.group(1)}', match.group(2)) not in seen:
-            seen.add((f'https://github.com/{match.group(1)}', match.group(2)))
-            add('cheats', identifier + ':origin', identifier + ' (origin download)', f'https://github.com/{match.group(1)}',
-                match.group(2))
+            add('cheats', source['id'], source.get('name', source['id']), url, revision, note=note)
+        elif re.match(r'^[0-9a-f]{64}$', revision) and str(source.get('download_url', '')).startswith('https://'):
+            # One file pinned by its SHA-256 (cheat.db, cheats.bml...): asked with its validators.
+            add('cheats', source['id'], source.get('name', source['id']), source['download_url'], 'sha256:' + revision,
+                'http', note)
+    for identifier, repository, commit in origin_pins(ROOT / 'tools/cheats/origin/sources.py'):
+        if (f'https://github.com/{repository}', commit) not in seen:
+            seen.add((f'https://github.com/{repository}', commit))
+            add('cheats', identifier + ':origin', identifier + ' (origin download)', f'https://github.com/{repository}', commit)
     return out
+
+
+def origin_pins(path):
+    """(source, repository, commit) of the github(...) entries of the origin table, read without running it."""
+    tree = ast.parse(path.read_text(encoding='utf-8'))
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name) and target.id == 'ORIGINS' for target in node.targets) \
+                and isinstance(node.value, ast.Dict):
+            for key, value in zip(node.value.keys, node.value.values):
+                if isinstance(key, ast.Constant) and isinstance(value, ast.Call) and getattr(value.func, 'id', '') == 'github' \
+                        and len(value.args) >= 2 and all(isinstance(argument, ast.Constant) for argument in value.args[:2]):
+                    yield key.value, value.args[0].value, value.args[1].value
 
 
 class Asker:
