@@ -569,10 +569,22 @@ Après correction : les 104 tests `--source` existants donnent le même résulta
   journaux : `wfe_latency_us` et les images par seconde d'une fenêtre « serious ».
 - **Réservations SPU exactes de Black Ops II.** Les fils PPU y passent 10,6 % de leur temps à attendre derrière les
   écritures exactes des SPU (530 ms par fenêtre, dont 183 ms pour le fil principal), et les SPU 603 ms dans le verrou. Le
-  réglage par jeu « Accurate SPU Reservations » désactivé les supprime ; la base RPCS3 reste la référence (règle du
-  Core 922), le défaut n'est donc pas changé ici. C'est l'essai le plus utile contre l'alternance 33/50 ms.
-- **Travail en partie** : pas de dépense évitable mesurée ; rester « nominal » pendant un long match demanderait de faire
-  moins de travail (cadence plafonnée), ce qui est une décision du mainteneur, pas un correctif.
+  mode relâché a déjà été essayé (Builds 587 à 657) : il a gelé le jeu 40,8 s (une mise à jour de la file de travaux
+  perdue, journaux de l'IPA 657) sans gain de cadence mesuré, et le réglage exact est revenu pour cela
+  (`lib/services/rpcs3_game_profile_service.dart`). Il n'est donc ni changé ni proposé à l'essai.
+- **Travail en partie.** L'énergie CPU par image y est la même dans les deux états thermiques : Black Ops II, 78 mJ à
+  40 images/s en « nominal » et 76 mJ à 26 images/s en « fair » ; God of War III en scène lourde, environ 130 mJ. La
+  puissance suit donc la cadence, et iOS ramène la cadence à ce que le téléphone évacue (environ 2 W dans ces journaux,
+  soit 26 images/s pour Black Ops II). Relu le 16 novembre sur les fenêtres de partie, sans rien trouver à retirer :
+  - les six fils SPU exécutent des travaux (52 % d'échantillons actifs chacun, répartis sur 384 régions de code), sur
+    les cœurs E (13,0 s de CPU E par fenêtre pour 13,4 s de SPU) ;
+  - les micro-sommeils du jeu (14 600 à 18 400 `sys_timer_usleep` de moins de 200 µs par seconde, 74 % des échantillons
+    du fil principal) coûtent moins de 2 µs de CPU chacun : God of War III en fait 27 600 par seconde à l'écran-titre
+    pour 0,046 cœur PPU. Leur effet est d'attirer les cœurs P à haute fréquence dans les scènes légères, ce que traite
+    `REWINDBOX_LIGHT_LOAD_941` ;
+  - 73 % de l'énergie va aux cœurs P (fils PPU, RSX, encodage) pour 41 % du temps CPU.
+  Rester « nominal » pendant un long match demande de dépenser moins d'énergie par image (optimisation du code émulé,
+  par petits pas mesurés) ou moins d'images ; plafonner la cadence est une décision du mainteneur, pas un correctif.
 
 ### Vérifications (PC)
 
