@@ -112,6 +112,10 @@ from adapt_replay_integer_mask import BASELINE as NEXT_REPLAY_INTEGER_MASK  # no
 # prepared EmbeddedContent.cs change; src/Ryujinx.HLE/EmbeddedOnline.cs is added (native/melonx/EmbeddedOnline.cs).
 from adapt_nextendo_online import BASELINE as C768_NEXTENDO_ONLINE  # noqa: E402
 C768_ONLINE_ADDITION = 'src/Ryujinx.HLE/EmbeddedOnline.cs'
+# After IPA 759 (adapt_runtime_yield, last in ORDER, every title): Ryujinx.Library.csproj gains the target that compiles
+# and links the Core's own sched_yield, and the C file is a production addition. Neither is in the GPU closure; the
+# runtime-yield gate runs the target, builds the objects and links a stand-in.
+from adapt_runtime_yield import BASELINE as C770_RUNTIME_YIELD, C_FILE as C770_RUNTIME_YIELD_ADDITION  # noqa: E402
 from adapt_array_delta_invalidated import BASELINE as C697_ARRAY_DELTA_INVALIDATED  # noqa: E402
 from adapt_pipeline_cache_background import BASELINE as C697_PIPELINE_CACHE_BACKGROUND  # noqa: E402
 from adapt_sync_wait_attribution import BASELINE as C699_SYNC_WAIT_ATTRIBUTION  # noqa: E402
@@ -270,6 +274,8 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             # Next lot: adapt_queued_3d_syncpoints changes guest-visible syncpoint ordering (ThreedClass.cs,
             # SemaphoreUpdater.cs, GPFifoDevice.cs, ...): the queued syncpoints fixture is run on the final source.
             'queued-3d-syncpoints': 'delivered',
+            # After IPA 759: the Core's own sched_yield (project target and C file).
+            'runtime-yield': 'delivered',
             # Core 743: its receipt declares SyncManager.cs, which adapt_submit_causes changes: run again on the final one.
             'sync-allocations': 'delivered',
             # Core 661: the native display fixture declares EmbeddedMemory.cs (adapt_safe_point_compaction): rerun.
@@ -369,7 +375,9 @@ CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES
            # Lot after IPA 748-751 (plan 748 rank 18): PipelineState.cs and PipelineCacheManager.cs are changed already.
            set(NEXT_REPLAY_INTEGER_MASK) |
            # Nextendo online lot: its six files.
-           set(C768_NEXTENDO_ONLINE))
+           set(C768_NEXTENDO_ONLINE) |
+           # After IPA 759: Ryujinx.Library.csproj.
+           set(C770_RUNTIME_YIELD))
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
@@ -698,8 +706,9 @@ if not args.helpers_only:
     # IPA 736 lots: 105 (AddressSpacePartitioned.cs, FenceHolder.cs, MultiFenceHolder.cs). IPA 740 lot: 107 (Auto.cs,
     # CommandBufferPool.cs). Next lot: 109 (AddressSpacePartition.cs, SemaphoreUpdater.cs).
     # Nextendo online lot: 115 (its six files) and one production addition, src/Ryujinx.HLE/EmbeddedOnline.cs.
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 115 and
-          set(frozen["productionAdditions"]) == {C768_ONLINE_ADDITION}, "Unexpected production scope")
+    # After IPA 759: 116 (Ryujinx.Library.csproj) and a second addition, src/Ryujinx.Library/RewindBoxRuntimeYield.c.
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 116 and
+          set(frozen["productionAdditions"]) == {C768_ONLINE_ADDITION, C770_RUNTIME_YIELD_ADDITION}, "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
                                                      'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
                                                      'build-utils/melonx/adapt_queued_syncpoints.py',
@@ -831,7 +840,9 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_device_critical_trim.py',
                                                      # Nextendo online lot: its adapter and the engine class it adds.
                                                      'build-utils/melonx/adapt_nextendo_online.py',
-                                                     'native/melonx/EmbeddedOnline.cs'} and
+                                                     'native/melonx/EmbeddedOnline.cs',
+                                                     # After IPA 759: the Core's own sched_yield.
+                                                     'build-utils/melonx/adapt_runtime_yield.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -891,7 +902,9 @@ if not args.helpers_only:
     # EmbeddedOnline.cs join the members (227).
     # Lot after IPA 748-751 (plan 748 ranks 2, 7, 10, 11, 14, 16, 17 and 18): nine adapters join them (253); every file they
     # edit is a member already.
-    check(len(frozen['preparationInputs']) == 253 and len(frozen['preparedMembers']) == 227, 'Wrong final composition')
+    # After IPA 759: adapt_runtime_yield.py joins them (254); its C file is a prepared member (228) and
+    # Ryujinx.Library.csproj is a member already.
+    check(len(frozen['preparationInputs']) == 254 and len(frozen['preparedMembers']) == 228, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
@@ -1053,6 +1066,8 @@ if not args.helpers_only:
     OUTSIDE_GPU |= {C749_TIMED_WAITS}
     # Nextendo online lot: its five HLE files and EmbeddedContent.cs are outside the GPU closure; nifm-network-watch builds them.
     OUTSIDE_GPU |= set(C768_NEXTENDO_ONLINE)
+    # After IPA 759: Ryujinx.Library.csproj is outside the GPU closure; runtime-yield binds it and the C file.
+    OUTSIDE_GPU |= set(C770_RUNTIME_YIELD)
     check(CHANGES - OUTSIDE_GPU <= set(gate['fragmented-reads']['requiredPostimages']) and
           # Library.cs and the two HLE files (Core 647) are outside the GPU/Vulkan closure; their own gates bind them.
           CHANGES - {LIBRARY} - OUTSIDE_GPU <= {b['productionPath'] for b in gate['fragmented-reads']['compiledBindings']},
@@ -1116,7 +1131,9 @@ if not args.helpers_only:
                                             # Core 749 candidate: PreciseSleepHelper.cs likewise.
                                             path != C749_TIMED_WAITS and
                                             # Nextendo online lot: its five HLE files likewise (nifm-network-watch).
-                                            path not in C768_NEXTENDO_ONLINE}},
+                                            path not in C768_NEXTENDO_ONLINE and
+                                            # After IPA 759: Ryujinx.Library.csproj likewise (runtime-yield reverses it).
+                                            path not in C770_RUNTIME_YIELD}},
                         'ada': arrays_frozen['controlUnadaptedMembers']['ada']},
           'Control-only upstream inventories differ from the arrays contract plus the files joining the prepared source')
     rejects(lambda: verify.check_control_inventories({**frozen, 'controlUnadaptedMembers': {k: v for k, v in unadapted.items() if k != 'ada'}}),

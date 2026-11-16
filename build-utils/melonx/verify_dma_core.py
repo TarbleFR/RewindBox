@@ -120,7 +120,9 @@ ARRAY_COUNTERS = arrays.ARRAY_COUNTERS
 # the core87 auto-ownership proof run again on the final command-buffer ownership).
 # 109 with the next lot (the queued syncpoints fixture run on the final source: the 3D engine's increment queued behind
 # its occlusion reports, the report guard and the per-entry processing executed, not only compiled).
-FRESH_GATES = 109
+# 110 after IPA 759 (the Core's own sched_yield: no priority depression in the runtime's contended locks, the system
+# library's yield kept during thread suspension and background collection).
+FRESH_GATES = 110
 HISTORICAL_RECEIPTS = 61
 
 
