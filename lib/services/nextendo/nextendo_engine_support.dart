@@ -1,58 +1,86 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
 
 /// Whether the Switch engine shipped in this build takes Nextendo online play.
 ///
-/// The engine's online request answers a protocol name (`EmbeddedOnline.Protocol`
-/// in the MeloNX Core); NativeAOT keeps that literal as UTF-16 text in the
-/// binary. The binary is read here, never loaded: loading the Core from a menu
-/// would mark the process as a MeloNX one (the Switch 2 engine then refuses to
-/// start). The launch itself confirms it: the engine answers the request or
-/// refuses it, and the launch journal says which.
+/// Nothing is loaded: loading the Core from a menu would mark the process as a
+/// Switch 1 one (the Switch 2 engine then refuses to start). The build answers
+/// first: the IPA carries the packaged Core's identity
+/// (`MeloNX-native-identity.json`, written beside the Core when the IPA is
+/// built and checked against it), which names every adapter compiled into it.
+/// Without that file, the Core binary is searched for texts of the online lot
+/// kept as UTF-16 by NativeAOT. The launch itself confirms it: the engine
+/// answers the online request or refuses it, and the launch journal says which.
 abstract final class NextendoEngineSupport {
   static const protocol = 'rewindbox-nextendo-online-1';
+
+  /// The adapter that adds online play to the engine.
+  static const adapter = 'adapt_nextendo_online.py';
+
+  /// Texts of the online lot searched in the binary. NativeAOT inlines the
+  /// protocol constant (absent from Core 127b72b9); the trust-store error of
+  /// EmbeddedOnline is kept.
+  static const binaryMarkers = [protocol, 'A Nextendo root differs from its published fingerprint'];
 
   static Future<bool>? _cached;
 
   /// The answer for the running application, computed once.
-  static Future<bool> supported() => _cached ??= _check(_corePath());
+  static Future<bool> supported() => _cached ??= _check(_bundle());
 
   /// For tests: forget the cached answer.
   static void reset() => _cached = null;
 
-  static String? _corePath() {
-    if (!Platform.isIOS) return null;
-    final bundle = File(Platform.resolvedExecutable).parent.path;
-    return '$bundle/Frameworks/MeloNXCore.framework/MeloNXCore';
-  }
+  static String? _bundle() => Platform.isIOS ? File(Platform.resolvedExecutable).parent.path : null;
 
-  static Future<bool> _check(String? path) async {
-    if (path == null) return false;
+  static Future<bool> _check(String? bundle) async {
+    if (bundle == null) return false;
     try {
-      return await Isolate.run(() => containsProtocol(path));
+      return await Isolate.run(() => supportedIn(bundle));
     } on Object {
       return false;
     }
   }
 
-  /// Whether the file at [path] holds [protocol] as UTF-16LE text.
-  static bool containsProtocol(String path) {
+  /// The answer for the application bundle at [bundle].
+  static bool supportedIn(String bundle) {
+    final identity = File('$bundle/MeloNX-native-identity.json');
+    if (identity.existsSync()) {
+      try {
+        final receipt = jsonDecode(identity.readAsStringSync());
+        final core = receipt is Map ? receipt['sourceCoreIdentity'] : null;
+        final adaptations = core is Map ? core['adaptations'] : null;
+        if (adaptations is Map) {
+          return adaptations.keys.any((name) => name is String && (name == adapter || name.endsWith('/$adapter')));
+        }
+      } on FormatException {
+        // An unreadable receipt: the binary decides.
+      }
+    }
+    return containsAny('$bundle/Frameworks/MeloNXCore.framework/MeloNXCore', binaryMarkers);
+  }
+
+  /// Whether the file at [path] holds one of [texts] as UTF-16LE text.
+  static bool containsAny(String path, List<String> texts) {
     final file = File(path);
-    if (!file.existsSync()) return false;
-    final needle = Uint8List.fromList(protocolBytes());
+    if (!file.existsSync() || texts.isEmpty) return false;
+    final needles = [for (final text in texts) Uint8List.fromList(utf16le(text))];
+    final longest = needles.map((n) => n.length).reduce((a, b) => a > b ? a : b);
     final reader = file.openSync();
     try {
       const chunk = 4 << 20;
-      final buffer = Uint8List(chunk + needle.length);
+      final buffer = Uint8List(chunk + longest);
       var carried = 0;
       while (true) {
         final read = reader.readIntoSync(buffer, carried, carried + chunk);
         if (read == 0) return false;
         final end = carried + read;
-        if (_indexOf(buffer, end, needle) >= 0) return true;
+        for (final needle in needles) {
+          if (_indexOf(buffer, end, needle) >= 0) return true;
+        }
         // Keep the tail that could start a match across the chunk boundary.
-        final keep = needle.length - 1 < end ? needle.length - 1 : end;
+        final keep = longest - 1 < end ? longest - 1 : end;
         buffer.setRange(0, keep, buffer, end - keep);
         carried = keep;
       }
@@ -75,6 +103,6 @@ abstract final class NextendoEngineSupport {
     return -1;
   }
 
-  /// The UTF-16LE bytes searched for (tests build a stand-in binary with them).
-  static List<int> protocolBytes() => [for (final unit in protocol.codeUnits) ...[unit & 0xFF, unit >> 8]];
+  /// The UTF-16LE bytes of [text].
+  static List<int> utf16le(String text) => [for (final unit in text.codeUnits) ...[unit & 0xFF, unit >> 8]];
 }
