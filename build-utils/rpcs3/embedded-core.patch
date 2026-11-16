@@ -142405,7 +142405,7 @@ index 0000000..112f20b
 +}
 +} // namespace vk
 diff --git a/rpcs3/ios/RPCS3IOS.cpp b/rpcs3/ios/RPCS3IOS.cpp
-index 74a6dc7..fb38d5d 100644
+index 74a6dc7..85e6975 100644
 --- a/rpcs3/ios/RPCS3IOS.cpp
 +++ b/rpcs3/ios/RPCS3IOS.cpp
 @@ -1,6 +1,20 @@
@@ -142468,17 +142468,20 @@ index 74a6dc7..fb38d5d 100644
  #endif
  #include "Emu/system_config.h"
  #include "Emu/system_progress.hpp"
-@@ -98,6 +122,9 @@
+@@ -98,6 +122,12 @@
  #include <thread>
  #include <unordered_map>
  #include <vector>
 +#include "IOSRestoreExecutor.h"
 +#include <exception>
 +#include <pthread.h>
++
++// REWINDBOX_WORK_INTERVAL_PROBE_940: at file scope (a LOG_CHANNEL inside the anonymous namespace makes logs:: ambiguous).
++LOG_CHANNEL(ios_work_interval_log, "iOS WorkInterval"); // REWINDBOX_WORK_INTERVAL_PROBE_940
  
  namespace
  {
-@@ -106,10 +133,17 @@ std::mutex g_progress_mutex;
+@@ -106,10 +136,17 @@ std::mutex g_progress_mutex;
  rpcs3::ios::lifecycle g_lifecycle;
  rpcs3::ios::error_store g_last_error;
  rpcs3_ios_config g_config{};
@@ -142496,7 +142499,7 @@ index 74a6dc7..fb38d5d 100644
  std::atomic_bool g_accept_display_surfaces = false;
  std::atomic_bool g_accept_pad_state = false;
  rpcs3::ios::display_surface_registry g_display_surface;
-@@ -312,7 +346,8 @@ boot_progress_snapshot capture_boot_progress()
+@@ -312,7 +349,8 @@ boot_progress_snapshot capture_boot_progress()
  	};
  
  	boot_progress_snapshot snapshot = read();
@@ -142506,7 +142509,7 @@ index 74a6dc7..fb38d5d 100644
  	{
  		boot_progress_snapshot next = read();
  		if (next == snapshot)
-@@ -321,6 +356,7 @@ boot_progress_snapshot capture_boot_progress()
+@@ -321,6 +359,7 @@ boot_progress_snapshot capture_boot_progress()
  		}
  		snapshot = std::move(next);
  	}
@@ -142514,7 +142517,7 @@ index 74a6dc7..fb38d5d 100644
  }
  
  rpcs3_ios_emulation_state current_emulation_state() noexcept
-@@ -378,6 +414,11 @@ void emit_log(int32_t level, std::string_view message)
+@@ -378,6 +417,11 @@ void emit_log(int32_t level, std::string_view message)
  	g_config.log_callback(g_config.user_context, level, terminated.c_str());
  }
  
@@ -142526,7 +142529,7 @@ index 74a6dc7..fb38d5d 100644
  void emit_jit_arena_statistics(std::string_view phase)
  {
  	constexpr usz mib = 1024 * 1024;
-@@ -385,7 +426,7 @@ void emit_jit_arena_statistics(std::string_view phase)
+@@ -385,7 +429,7 @@ void emit_jit_arena_statistics(std::string_view phase)
  	emit_log(4, fmt::format(
  		"iOS JIT arena %s: code live=%u MiB, free=%u MiB (%llu bytes), largest_free=%u MiB (%llu bytes), "
  		"runtime=%u MiB, peak=%u MiB; data live=%u MiB, free=%u MiB (%llu bytes), "
@@ -142535,7 +142538,7 @@ index 74a6dc7..fb38d5d 100644
  		phase,
  		stats.live_code_bytes / mib,
  		stats.free_code_bytes / mib,
-@@ -401,7 +442,15 @@ void emit_jit_arena_statistics(std::string_view phase)
+@@ -401,7 +445,15 @@ void emit_jit_arena_statistics(std::string_view phase)
  		static_cast<u64>(stats.largest_free_data_bytes),
  		stats.runtime_data_bytes / mib,
  		stats.peak_data_bytes / mib,
@@ -142552,7 +142555,7 @@ index 74a6dc7..fb38d5d 100644
  }
  
  class callback_log_listener final : public logs::listener
-@@ -448,16 +497,33 @@ private:
+@@ -448,16 +500,33 @@ private:
  	std::string m_name;
  };
  
@@ -142590,12 +142593,10 @@ index 74a6dc7..fb38d5d 100644
  }
  
  bool apply_database_settings_for_api(std::string_view title_id)
-@@ -478,6 +544,50 @@ bool apply_database_settings_for_api(std::string_view title_id)
+@@ -478,6 +547,48 @@ bool apply_database_settings_for_api(std::string_view title_id)
  	return false;
  }
  
-+LOG_CHANNEL(ios_work_interval_log, "iOS WorkInterval"); // REWINDBOX_WORK_INTERVAL_PROBE_940
-+
 +// REWINDBOX_ASYNC_SHADERS_939 (ios/IOSAsyncShaders939.h): once per installation, the global Shader Mode in config.yml
 +// moves from the former iOS default (Legacy Recompiler) to the Async Recompiler; any other value stays. It runs after
 +// Emu.Init() and before any boot, and g_cfg is restored afterwards as the settings API leaves it. When config.yml cannot
@@ -142641,7 +142642,7 @@ index 74a6dc7..fb38d5d 100644
  rpcs3_ios_status validate_game_settings_target(const char* title_id, rpcs3::ios::installed_game* installed_game = nullptr)
  {
  	if (!title_id || !title_id[0])
-@@ -904,10 +1014,10 @@ EmuCallbacks make_callbacks()
+@@ -904,10 +1015,10 @@ EmuCallbacks make_callbacks()
  		g_config.main_thread_callback(g_config.user_context, &invoke_main_thread_payload, payload);
  	};
  
@@ -142654,7 +142655,7 @@ index 74a6dc7..fb38d5d 100644
  	callbacks.on_ready = []() {};
  	callbacks.on_missing_fw = []() { emit_log(5, "PlayStation 3 firmware is not installed yet"); };
  	callbacks.on_emulation_stop_no_response = [](std::shared_ptr<atomic_t<bool>>, int)
-@@ -963,8 +1073,25 @@ EmuCallbacks make_callbacks()
+@@ -963,8 +1074,25 @@ EmuCallbacks make_callbacks()
  	};
  	callbacks.init_gs_render = [](utils::serial* archive)
  	{
@@ -142680,7 +142681,7 @@ index 74a6dc7..fb38d5d 100644
  		case video_renderer::vulkan:
  #ifdef HAVE_VULKAN
  			g_fxo->init<rsx::thread, named_thread<VKGSRender>>(archive);
-@@ -1267,15 +1394,15 @@ extern "C" uint32_t rpcs3_ios_abi_version(void) noexcept
+@@ -1267,15 +1395,15 @@ extern "C" uint32_t rpcs3_ios_abi_version(void) noexcept
  
  extern "C" const char* rpcs3_ios_build_info(void) noexcept
  {
@@ -142699,7 +142700,7 @@ index 74a6dc7..fb38d5d 100644
  		return RPCS3_IOS_INVALID_STATE;
  	}
  
-@@ -1289,40 +1416,105 @@ extern "C" rpcs3_ios_status rpcs3_ios_initialize(const rpcs3_ios_config* config)
+@@ -1289,40 +1417,105 @@ extern "C" rpcs3_ios_status rpcs3_ios_initialize(const rpcs3_ios_config* config)
  		return result;
  	}
  
@@ -142828,7 +142829,7 @@ index 74a6dc7..fb38d5d 100644
  		// A developer can request one bounded SPU profile through the injected
  		// cache root. Consume the request so subsequent launches stay unchanged.
  		const std::string profile_request = fs::get_cache_dir() + "jit-profile.once";
-@@ -1383,20 +1575,34 @@ extern "C" rpcs3_ios_status rpcs3_ios_initialize(const rpcs3_ios_config* config)
+@@ -1383,20 +1576,34 @@ extern "C" rpcs3_ios_status rpcs3_ios_initialize(const rpcs3_ios_config* config)
  				jit_stats.expanded ? "expanded" : "standard"));
  		}
  		Emu.SetCallbacks(make_callbacks());
@@ -142866,7 +142867,7 @@ index 74a6dc7..fb38d5d 100644
  		emit_jit_arena_statistics("after core initialization");
  		return RPCS3_IOS_OK;
  	}
-@@ -1519,6 +1725,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_run_llvm_self_test(uint64_t input, uint64_
+@@ -1519,6 +1726,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_run_llvm_self_test(uint64_t input, uint64_
  
  		using test_function = uint64_t (*)(uint64_t);
  		const auto function_address = compiler.get("rpcs3_ios_test_function");
@@ -142874,7 +142875,7 @@ index 74a6dc7..fb38d5d 100644
  		if (!function_address)
  		{
  			set_error("LLVM did not publish the self-test function");
-@@ -3161,7 +3368,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_enumerate_game_settings(
+@@ -3161,7 +3369,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_enumerate_game_settings(
  		}
  		bool custom_config = false;
  		const bool loaded = load_settings_for_api(title_id, custom_config);
@@ -142883,7 +142884,7 @@ index 74a6dc7..fb38d5d 100644
  		if (!loaded)
  		{
  			return RPCS3_IOS_SETTINGS_SAVE_FAILED;
-@@ -3198,6 +3405,15 @@ extern "C" rpcs3_ios_status rpcs3_ios_set_game_setting(
+@@ -3198,6 +3406,15 @@ extern "C" rpcs3_ios_status rpcs3_ios_set_game_setting(
  		set_error("A setting key and value are required");
  		return RPCS3_IOS_INVALID_ARGUMENT;
  	}
@@ -142899,7 +142900,7 @@ index 74a6dc7..fb38d5d 100644
  	if (const auto result = rpcs3::ios::validate_idle_operation_contract(
  		g_lifecycle.state(), current_emulation_state()); result != RPCS3_IOS_OK)
  	{
-@@ -3219,6 +3435,30 @@ extern "C" rpcs3_ios_status rpcs3_ios_set_game_setting(
+@@ -3219,6 +3436,30 @@ extern "C" rpcs3_ios_status rpcs3_ios_set_game_setting(
  			return RPCS3_IOS_SETTINGS_SAVE_FAILED;
  		}
  		normalize_current_game_resolution(game.resolution);
@@ -142930,7 +142931,7 @@ index 74a6dc7..fb38d5d 100644
  		if (std::string_view{key} == "gpu.resolution")
  		{
  			const std::vector<std::string> options = supported_game_resolution_options(game.resolution);
-@@ -3233,12 +3473,15 @@ extern "C" rpcs3_ios_status rpcs3_ios_set_game_setting(
+@@ -3233,12 +3474,15 @@ extern "C" rpcs3_ios_status rpcs3_ios_set_game_setting(
  		{
  			return result;
  		}
@@ -142949,7 +142950,7 @@ index 74a6dc7..fb38d5d 100644
  		return RPCS3_IOS_OK;
  	}
  	catch (const std::exception& error)
-@@ -3274,13 +3517,15 @@ extern "C" rpcs3_ios_status rpcs3_ios_reset_game_settings(const char* title_id)
+@@ -3274,13 +3518,15 @@ extern "C" rpcs3_ios_status rpcs3_ios_reset_game_settings(const char* title_id)
  		{
  			return RPCS3_IOS_SETTINGS_SAVE_FAILED;
  		}
@@ -142969,7 +142970,7 @@ index 74a6dc7..fb38d5d 100644
  		return RPCS3_IOS_OK;
  	}
  	catch (const std::exception& error)
-@@ -3310,7 +3555,8 @@ extern "C" rpcs3_ios_status rpcs3_ios_remove_game_settings(const char* title_id)
+@@ -3310,7 +3556,8 @@ extern "C" rpcs3_ios_status rpcs3_ios_remove_game_settings(const char* title_id)
  
  	try
  	{
@@ -142979,7 +142980,7 @@ index 74a6dc7..fb38d5d 100644
  		{
  			set_error(fmt::format("Unable to remove the custom configuration for %s", title_id));
  			return RPCS3_IOS_SETTINGS_SAVE_FAILED;
-@@ -3388,10 +3634,6 @@ extern "C" rpcs3_ios_status rpcs3_ios_save_game_settings_preset(
+@@ -3388,10 +3635,6 @@ extern "C" rpcs3_ios_status rpcs3_ios_save_game_settings_preset(
  		{
  			return RPCS3_IOS_SETTINGS_SAVE_FAILED;
  		}
@@ -142990,7 +142991,7 @@ index 74a6dc7..fb38d5d 100644
  		normalize_current_game_resolution(game.resolution);
  		const auto result = finish_game_settings_preset_result(
  			rpcs3::ios::save_current_game_settings_preset(title_id, name));
-@@ -4353,6 +4595,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_big_picture_mode(void) noexcept
+@@ -4353,6 +4596,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_big_picture_mode(void) noexcept
  		set_error("RPCS3Core must be ready and emulation stopped before booting Big Picture Mode");
  		return result;
  	}
@@ -142998,7 +142999,7 @@ index 74a6dc7..fb38d5d 100644
  	if (!g_display_surface.snapshot().valid())
  	{
  		set_error("Attach a valid iOS Metal display surface before booting Big Picture Mode");
-@@ -4396,6 +4639,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_vsh(void) noexcept
+@@ -4396,6 +4640,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_vsh(void) noexcept
  		set_error("RPCS3Core must be ready and emulation stopped before booting XMB");
  		return result;
  	}
@@ -143006,7 +143007,7 @@ index 74a6dc7..fb38d5d 100644
  	if (!g_display_surface.snapshot().valid())
  	{
  		set_error("Attach a valid iOS Metal display surface before booting XMB");
-@@ -4444,6 +4688,12 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4444,6 +4689,12 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  	const char* savestate_id) noexcept
  {
  	std::lock_guard lock(g_api_mutex);
@@ -143019,7 +143020,7 @@ index 74a6dc7..fb38d5d 100644
  	if (!title_id || !title_id[0])
  	{
  		set_error("An installed title ID is required");
-@@ -4471,6 +4721,8 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4471,6 +4722,8 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  		set_error("RPCS3Core must be ready and emulation stopped before booting a game");
  		return result;
  	}
@@ -143028,7 +143029,7 @@ index 74a6dc7..fb38d5d 100644
  	if (!g_display_surface.snapshot().valid())
  	{
  		set_error("Attach a valid iOS Metal display surface before booting a game");
-@@ -4486,7 +4738,37 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4486,7 +4739,37 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  			return RPCS3_IOS_GAME_NOT_FOUND;
  		}
  
@@ -143067,7 +143068,7 @@ index 74a6dc7..fb38d5d 100644
  		if (!requested_savestate_id.empty())
  		{
  			const auto savestates = enumerate_title_savestates(game->title_id, game->path);
-@@ -4503,21 +4785,6 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4503,21 +4786,6 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  				return RPCS3_IOS_BOOT_FAILED;
  			}
  			boot_path = selected->path;
@@ -143089,7 +143090,7 @@ index 74a6dc7..fb38d5d 100644
  		}
  
  		if (requested_savestate_id.empty())
-@@ -4532,14 +4799,23 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4532,14 +4800,23 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  		prepare_rpcn_for_guest_boot();
  		Emu.DeactivateBigPictureMode();
  		Emu.SetForceBoot(true);
@@ -143114,7 +143115,7 @@ index 74a6dc7..fb38d5d 100644
  		emit_log(4, requested_savestate_id.empty()
  			? fmt::format("Installed game boot request completed: %s", game->title_id)
  			: fmt::format("Save-state boot request completed: %s", game->title_id));
-@@ -4644,7 +4920,37 @@ extern "C" rpcs3_ios_status rpcs3_ios_get_performance_metrics(
+@@ -4644,7 +4921,37 @@ extern "C" rpcs3_ios_status rpcs3_ios_get_performance_metrics(
  		if (result != RPCS3_IOS_OK)
  		{
  			set_error("Performance metrics require a compatible output structure");
@@ -143152,7 +143153,7 @@ index 74a6dc7..fb38d5d 100644
  		return result;
  	}
  	catch (const std::exception& error)
-@@ -4730,15 +5036,210 @@ extern "C" rpcs3_ios_status rpcs3_ios_resume_emulation(void) noexcept
+@@ -4730,15 +5037,210 @@ extern "C" rpcs3_ios_status rpcs3_ios_resume_emulation(void) noexcept
  	return RPCS3_IOS_INTERNAL_ERROR;
  }
  
@@ -143363,7 +143364,7 @@ index 74a6dc7..fb38d5d 100644
  	try
  	{
  		// An explicit wrapper stop leaves the full-screen session. It must not
-@@ -4783,7 +5284,15 @@ extern "C" rpcs3_ios_state rpcs3_ios_get_state(void) noexcept
+@@ -4783,7 +5285,15 @@ extern "C" rpcs3_ios_state rpcs3_ios_get_state(void) noexcept
  
  extern "C" rpcs3_ios_status rpcs3_ios_shutdown(void) noexcept
  {
@@ -143380,7 +143381,7 @@ index 74a6dc7..fb38d5d 100644
  	bool should_run = false;
  	if (const auto result = g_lifecycle.begin_shutdown(should_run); result != RPCS3_IOS_OK)
  	{
-@@ -4822,7 +5331,18 @@ extern "C" rpcs3_ios_status rpcs3_ios_shutdown(void) noexcept
+@@ -4822,7 +5332,18 @@ extern "C" rpcs3_ios_status rpcs3_ios_shutdown(void) noexcept
  		g_display_surface.clear();
  		emit_jit_arena_statistics("before core shutdown completion");
  		logs::listener::sync_all();
@@ -143400,7 +143401,7 @@ index 74a6dc7..fb38d5d 100644
  		emit_log(4, "RPCS3Core shutdown completed");
  		return RPCS3_IOS_OK;
  	}
-@@ -4846,9 +5366,485 @@ extern "C" const char* rpcs3_ios_last_error(void) noexcept
+@@ -4846,9 +5367,485 @@ extern "C" const char* rpcs3_ios_last_error(void) noexcept
  	return copy.c_str();
  }
  

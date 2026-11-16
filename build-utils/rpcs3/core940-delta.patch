@@ -109716,7 +109716,7 @@ index 0000000..5c32c08
 +}
 +}
 diff --git a/rpcs3/ios/RPCS3IOS.cpp b/rpcs3/ios/RPCS3IOS.cpp
-index 607ca5f..fb38d5d 100644
+index 607ca5f..85e6975 100644
 --- a/rpcs3/ios/RPCS3IOS.cpp
 +++ b/rpcs3/ios/RPCS3IOS.cpp
 @@ -1,5 +1,10 @@
@@ -109754,7 +109754,17 @@ index 607ca5f..fb38d5d 100644
  #endif
  #include "Emu/system_config.h"
  #include "Emu/system_progress.hpp"
-@@ -500,8 +508,9 @@ bool load_settings_for_api(std::string_view title_id, bool& has_custom_config)
+@@ -118,6 +126,9 @@
+ #include <exception>
+ #include <pthread.h>
+ 
++// REWINDBOX_WORK_INTERVAL_PROBE_940: at file scope (a LOG_CHANNEL inside the anonymous namespace makes logs:: ambiguous).
++LOG_CHANNEL(ios_work_interval_log, "iOS WorkInterval"); // REWINDBOX_WORK_INTERVAL_PROBE_940
++
+ namespace
+ {
+ std::mutex g_api_mutex;
+@@ -500,8 +511,9 @@ bool load_settings_for_api(std::string_view title_id, bool& has_custom_config)
  		return false;
  	}
  
@@ -109766,12 +109776,10 @@ index 607ca5f..fb38d5d 100644
  	if (!title_id.empty() && !has_custom_config)
  	{
  		if (!apply_database_settings_for_api(title_id))
-@@ -535,6 +544,50 @@ bool apply_database_settings_for_api(std::string_view title_id)
+@@ -535,6 +547,48 @@ bool apply_database_settings_for_api(std::string_view title_id)
  	return false;
  }
  
-+LOG_CHANNEL(ios_work_interval_log, "iOS WorkInterval"); // REWINDBOX_WORK_INTERVAL_PROBE_940
-+
 +// REWINDBOX_ASYNC_SHADERS_939 (ios/IOSAsyncShaders939.h): once per installation, the global Shader Mode in config.yml
 +// moves from the former iOS default (Legacy Recompiler) to the Async Recompiler; any other value stays. It runs after
 +// Emu.Init() and before any boot, and g_cfg is restored afterwards as the settings API leaves it. When config.yml cannot
@@ -109817,7 +109825,7 @@ index 607ca5f..fb38d5d 100644
  rpcs3_ios_status validate_game_settings_target(const char* title_id, rpcs3::ios::installed_game* installed_game = nullptr)
  {
  	if (!title_id || !title_id[0])
-@@ -1020,8 +1073,25 @@ EmuCallbacks make_callbacks()
+@@ -1020,8 +1074,25 @@ EmuCallbacks make_callbacks()
  	};
  	callbacks.init_gs_render = [](utils::serial* archive)
  	{
@@ -109843,7 +109851,7 @@ index 607ca5f..fb38d5d 100644
  		case video_renderer::vulkan:
  #ifdef HAVE_VULKAN
  			g_fxo->init<rsx::thread, named_thread<VKGSRender>>(archive);
-@@ -1505,7 +1575,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_initialize(const rpcs3_ios_config* config)
+@@ -1505,7 +1576,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_initialize(const rpcs3_ios_config* config)
  				jit_stats.expanded ? "expanded" : "standard"));
  		}
  		Emu.SetCallbacks(make_callbacks());
@@ -109852,7 +109860,7 @@ index 607ca5f..fb38d5d 100644
  		Emu.SetDefaultRenderer(video_renderer::vulkan);
  		Emu.SetDefaultGraphicsAdapter("iOS Metal GPU");
  		Emu.SetHasGui(false);
-@@ -1521,6 +1591,13 @@ extern "C" rpcs3_ios_status rpcs3_ios_initialize(const rpcs3_ios_config* config)
+@@ -1521,6 +1592,13 @@ extern "C" rpcs3_ios_status rpcs3_ios_initialize(const rpcs3_ios_config* config)
  		// applies the same choice again at every boot with the title's
  		// overrides, before any emulation thread exists.
  		rpcs3::ios::apply_spu_spin_timing_policy();
@@ -109866,7 +109874,7 @@ index 607ca5f..fb38d5d 100644
  		g_lifecycle.finish_initialize(true);
  		g_accept_display_surfaces = true;
  		g_accept_pad_state = true;
-@@ -3328,6 +3405,15 @@ extern "C" rpcs3_ios_status rpcs3_ios_set_game_setting(
+@@ -3328,6 +3406,15 @@ extern "C" rpcs3_ios_status rpcs3_ios_set_game_setting(
  		set_error("A setting key and value are required");
  		return RPCS3_IOS_INVALID_ARGUMENT;
  	}
@@ -109882,7 +109890,7 @@ index 607ca5f..fb38d5d 100644
  	if (const auto result = rpcs3::ios::validate_idle_operation_contract(
  		g_lifecycle.state(), current_emulation_state()); result != RPCS3_IOS_OK)
  	{
-@@ -3349,6 +3435,30 @@ extern "C" rpcs3_ios_status rpcs3_ios_set_game_setting(
+@@ -3349,6 +3436,30 @@ extern "C" rpcs3_ios_status rpcs3_ios_set_game_setting(
  			return RPCS3_IOS_SETTINGS_SAVE_FAILED;
  		}
  		normalize_current_game_resolution(game.resolution);
@@ -109913,7 +109921,7 @@ index 607ca5f..fb38d5d 100644
  		if (std::string_view{key} == "gpu.resolution")
  		{
  			const std::vector<std::string> options = supported_game_resolution_options(game.resolution);
-@@ -3407,13 +3517,15 @@ extern "C" rpcs3_ios_status rpcs3_ios_reset_game_settings(const char* title_id)
+@@ -3407,13 +3518,15 @@ extern "C" rpcs3_ios_status rpcs3_ios_reset_game_settings(const char* title_id)
  		{
  			return RPCS3_IOS_SETTINGS_SAVE_FAILED;
  		}
@@ -109933,7 +109941,7 @@ index 607ca5f..fb38d5d 100644
  		return RPCS3_IOS_OK;
  	}
  	catch (const std::exception& error)
-@@ -4483,6 +4595,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_big_picture_mode(void) noexcept
+@@ -4483,6 +4596,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_big_picture_mode(void) noexcept
  		set_error("RPCS3Core must be ready and emulation stopped before booting Big Picture Mode");
  		return result;
  	}
@@ -109941,7 +109949,7 @@ index 607ca5f..fb38d5d 100644
  	if (!g_display_surface.snapshot().valid())
  	{
  		set_error("Attach a valid iOS Metal display surface before booting Big Picture Mode");
-@@ -4526,6 +4639,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_vsh(void) noexcept
+@@ -4526,6 +4640,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_vsh(void) noexcept
  		set_error("RPCS3Core must be ready and emulation stopped before booting XMB");
  		return result;
  	}
@@ -109949,7 +109957,7 @@ index 607ca5f..fb38d5d 100644
  	if (!g_display_surface.snapshot().valid())
  	{
  		set_error("Attach a valid iOS Metal display surface before booting XMB");
-@@ -4686,6 +4800,8 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4686,6 +4801,8 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  		Emu.DeactivateBigPictureMode();
  		Emu.SetForceBoot(true);
  		rpcs3::ios::restore_failure::reset();
@@ -109958,7 +109966,7 @@ index 607ca5f..fb38d5d 100644
  		const game_boot_result result = Emu.BootGame(boot_path, game->title_id);
  		if (result != game_boot_result::no_errors)
  		{
-@@ -4697,6 +4813,9 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4697,6 +4814,9 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  			return RPCS3_IOS_BOOT_FAILED;
  		}
  
@@ -109968,7 +109976,7 @@ index 607ca5f..fb38d5d 100644
  		emit_log(4, requested_savestate_id.empty()
  			? fmt::format("Installed game boot request completed: %s", game->title_id)
  			: fmt::format("Save-state boot request completed: %s", game->title_id));
-@@ -5628,3 +5747,104 @@ extern "C" RPCS3_IOS_EXPORT int32_t rpcs3_ios_set_source_archive_api(const NeoSw
+@@ -5628,3 +5748,104 @@ extern "C" RPCS3_IOS_EXPORT int32_t rpcs3_ios_set_source_archive_api(const NeoSw
  {
      return neostation::source_client::install(api);
  }

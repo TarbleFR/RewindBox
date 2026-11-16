@@ -5,7 +5,7 @@
   "upstream_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
   "base_canonical_patch_sha256": "a63b964354acb157f99fa9ba4787e18e19faf2473eb90b5710134bf9a88cdaaf",
   "patch": "build-utils/rpcs3/core940-delta.patch",
-  "patch_sha256": "8c312e9e6b79310d00f51d73ea9015354b09d3ba87f97cb91fd403fc78df39b6",
+  "patch_sha256": "dc1250ebe829eb7bb98a1a6baed05b08b2f8d09cae68cf5622a41ce4ad0c51d0",
   "abi_version": 30,
   "abi_version_changed": false,
   "exports_added": [
@@ -365,7 +365,7 @@
     "rpcs3/ios/IOSZcullLabelPage.h": "d5dda8affe89446b8625ddfe0865ad9897feeb92f50d8990cc630402722edaad",
     "rpcs3/ios/IOSZcullOnDemand.h": "39a78c0f987d494693b5aa932e7384512671768a769047ffd3c1ee4d01a66ad1",
     "rpcs3/ios/IOSZcullWatched.h": "274974f62585d54826da428a84e584cc7f6f705941b7660759431e48ca617872",
-    "rpcs3/ios/RPCS3IOS.cpp": "d50db2712c351220b072d2f4220b0b6766cbe8bdc0ea977928daf49b8b9ed31b",
+    "rpcs3/ios/RPCS3IOS.cpp": "75ac5a3130042d88ac59d957c9e38f82e4c98dde2fee121e738c498653ddb910",
     "rpcs3/ios/RPCS3IOS.exports": "4a7d309cc7a0df18f215f8582897931fc1d14bf0ec399e4c18afe2e87ccbad7d",
     "rpcs3/ios/RPCS3IOS.h": "e12732f8e0914f765e81e9ba2fb8278862369d91c03967c38e021e384e215987",
     "rpcs3/ios/RPCS3IOSAchievements.h": "bf04cc1b6ef98e4ebf777b33ce921803a17409b6cbc52b224e145f67708d9399",
@@ -834,7 +834,7 @@
   "iphone_validation_run": false,
   "increment_from_core939": {
     "patch": "build-utils/rpcs3/core940-from-939.patch",
-    "patch_sha256": "13830dff979fa0f298128c23dd8d720186f857e7978ac09f18a3d2fabc71009a",
+    "patch_sha256": "af4a19df9f4cdeeec816cd02c06c2f412af4790d5ccf69d56b00bae502d67783",
     "insertions_only": false,
     "removed_lines": 10,
     "files": 7,
@@ -852,7 +852,7 @@
       "rpcs3/ios/IOSBo2RdrawFlushPatch940.h": "6ee45c9281d807c898ff53432348d21a3c21583c44c72d8cba657434f333d620",
       "rpcs3/ios/IOSEventWait931.h": "e4a32863f27bf697d89ed19634687d161bc23147d8ba816daf37fbadf130f5b4",
       "rpcs3/ios/IOSWorkInterval940.h": "150fe01ddec3f8b94a2d74255a6ed6413719e2339bb4dc19f1a960050b5e9ff8",
-      "rpcs3/ios/RPCS3IOS.cpp": "d50db2712c351220b072d2f4220b0b6766cbe8bdc0ea977928daf49b8b9ed31b"
+      "rpcs3/ios/RPCS3IOS.cpp": "75ac5a3130042d88ac59d957c9e38f82e4c98dde2fee121e738c498653ddb910"
     },
     "new_files": [
       "rpcs3/ios/IOSBo2RdrawFlushPatch940.h",

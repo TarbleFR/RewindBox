@@ -553,7 +553,7 @@ index 0000000..f9e7cc0
 +}
 +} // namespace rpcs3::ios::work_interval940
 diff --git a/rpcs3/ios/RPCS3IOS.cpp b/rpcs3/ios/RPCS3IOS.cpp
-index 3c1f0e2..fb38d5d 100644
+index 3c1f0e2..85e6975 100644
 --- a/rpcs3/ios/RPCS3IOS.cpp
 +++ b/rpcs3/ios/RPCS3IOS.cpp
 @@ -2,6 +2,9 @@
@@ -566,16 +566,17 @@ index 3c1f0e2..fb38d5d 100644
  #include <os/proc.h>
  #include <mach/mach.h>
  #include "RPCS3IOS.h"
-@@ -541,6 +544,8 @@ bool apply_database_settings_for_api(std::string_view title_id)
- 	return false;
- }
+@@ -123,6 +126,9 @@
+ #include <exception>
+ #include <pthread.h>
  
++// REWINDBOX_WORK_INTERVAL_PROBE_940: at file scope (a LOG_CHANNEL inside the anonymous namespace makes logs:: ambiguous).
 +LOG_CHANNEL(ios_work_interval_log, "iOS WorkInterval"); // REWINDBOX_WORK_INTERVAL_PROBE_940
 +
- // REWINDBOX_ASYNC_SHADERS_939 (ios/IOSAsyncShaders939.h): once per installation, the global Shader Mode in config.yml
- // moves from the former iOS default (Legacy Recompiler) to the Async Recompiler; any other value stays. It runs after
- // Emu.Init() and before any boot, and g_cfg is restored afterwards as the settings API leaves it. When config.yml cannot
-@@ -1588,6 +1593,11 @@ extern "C" rpcs3_ios_status rpcs3_ios_initialize(const rpcs3_ios_config* config)
+ namespace
+ {
+ std::mutex g_api_mutex;
+@@ -1588,6 +1594,11 @@ extern "C" rpcs3_ios_status rpcs3_ios_initialize(const rpcs3_ios_config* config)
  		rpcs3::ios::apply_spu_spin_timing_policy();
  		// REWINDBOX_ASYNC_SHADERS_939: the global config.yml exists now (Emu.Init() writes it when missing).
  		migrate_global_shader_mode_939();
