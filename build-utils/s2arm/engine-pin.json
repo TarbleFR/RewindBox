@@ -1,6 +1,6 @@
 {
   "status": "verified",
-  "packagedFingerprint": "d30d3de9077a51265fd7b1fb8fd2a57b385c0eb496144d4122d5318d74852dd9",
+  "packagedFingerprint": "d1748fd630f7b640d2c32654af1c5717d750a1fdd39c6d203135f065e5be3735",
   "producers": {
     "engine": {
       "run": 43825107808,
@@ -13,8 +13,8 @@
       "headBranch": "Claude",
       "expiresAt": "2026-12-16T07:49:25Z",
       "members": {
-        "S2ArmEngine.framework.zip": "70d22c83dc9b2bcdb81329f04c23dd90d25f6c590f53dfba4ccaadad82afa670",
-        "NS2Pro.framework.zip": "94e7991531b7c632e012ed2470478413b0a4073b75211f706c417ea5e7ac374c"
+        "S2ArmEngine.framework.zip": "f673af97f0ea603cb180af58f787b2bd717323d1c228385dba00b0bc4dba0eea",
+        "NS2Pro.framework.zip": "f246e0bb3d7f293af650ad8976c21171e37fcd6a12ae19bf3a7cf633bd42a6f2"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "7c422683a82abfc7903961a58711847c1addc4b9da6f65ca7da3e730b13be061",
+    "engine": "3324fb9c281c73af5e2113fbc4b98247ceb755670a29ba54547d0ac261ef0fd3",
     "prepare": "aef8aafb38aa456defbdf16b3194716c32b2051b76a38bc68640d91f098fc87f",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -90,9 +90,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "0150e2faf2cedee710853ed24de599159d2a568bb5868085d7ca805e745957cd",
-      "bytes": 107530104,
-      "fingerprint": "d30d3de9077a51265fd7b1fb8fd2a57b385c0eb496144d4122d5318d74852dd9"
+      "sha256": "37237a684a86e8adecaa75b3071e46b278aff58420c90f968ea2cd86a61aaff8",
+      "bytes": 107530232,
+      "fingerprint": "d1748fd630f7b640d2c32654af1c5717d750a1fdd39c6d203135f065e5be3735"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -125,9 +125,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 43810802470,
+      "run": 43825107808,
       "attempt": 1,
-      "head_sha": "818a7d5ef5c2650c64bb298e64ec082dc165a333",
+      "head_sha": "1804bdba50ad2ad61ab0fcf6d57724c57cc42f75",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -326,11 +326,15 @@
         {
           "name": "0049-guest-review-fixes-of-0048-sticky-render-target-and-capture-sheets.patch",
           "sha256": "e7dd5b28a5e8c54b28826304a17e51f610c2137583a0a1959151b24decc45309"
+        },
+        {
+          "name": "0050-guest-sparse-mip-tails-shared-by-memory-and-storage-textures-made-renderable.patch",
+          "sha256": "a6201daf97f728c501c2e89603b9c89068f33ca9079b385304fe98d78aaee884"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "70d22c83dc9b2bcdb81329f04c23dd90d25f6c590f53dfba4ccaadad82afa670",
-        "NS2Pro.framework.zip": "94e7991531b7c632e012ed2470478413b0a4073b75211f706c417ea5e7ac374c"
+        "S2ArmEngine.framework.zip": "f673af97f0ea603cb180af58f787b2bd717323d1c228385dba00b0bc4dba0eea",
+        "NS2Pro.framework.zip": "f246e0bb3d7f293af650ad8976c21171e37fcd6a12ae19bf3a7cf633bd42a6f2"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
