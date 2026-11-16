@@ -300,11 +300,11 @@ lui, le premier shader 450 suivant prend 0,5 à 1,0 ms au lieu de 96 à 118 ms.
 **`REWINDBOX_FREEZE_GUEST_939` (mesure seulement).** Au premier relevé d'un épisode « occupé sans image » (3 s ; les
 joueurs arrêtent le jeu après 8 à 11 s, bien avant les 20 s de la capture du Core 938), si le relevé a la signature du gel
 de la file de travaux (FIFO RSX sur un saut sur lui-même hors d'un dessin, un thread PPU dans le code du jeu, deux SPU sur
-la même ligne), le Core écrit `Documents/Diagnostics/PS3/RPCS3-freeze-guest.bin` : les lignes de la file et ce qu'elles
+la même ligne ; Black Ops II seulement depuis la demande 2), le Core écrit `Documents/Diagnostics/PS3/RPCS3-freeze-guest-<n>.bin` : les lignes de la file et ce qu'elles
 désignent (enregistrements des types de travaux, images des travaux, noms), les commandes RSX autour de GET, le code, la
-pile et les registres du thread qui tourne, les registres de chaque PPU, les mémoires locales des SPU. Un seul fichier,
-réécrit (le dernier gel reste), au plus 16 Mio de mémoire du jeu plus 1,6 Mio de mémoires locales, quatre écritures par
-démarrage ; une ligne `FREEZE_DUMP guest_memory` dit ce qui a été écrit ou pourquoi rien ne l'a été. Rien n'est écrit
+pile et les registres du thread qui tourne, les registres de chaque PPU, les mémoires locales des SPU. Un fichier
+numéroté par capture (jamais écrasé), au plus 16 Mio de mémoire du jeu plus 1,6 Mio de mémoires locales, quatre captures
+par démarrage ; une ligne `FREEZE_DUMP guest_memory` dit ce qui a été écrit ou pourquoi rien ne l'a été. Rien n'est écrit
 dans la machine émulée. C'est ce fichier qui permet d'écrire le patch du jeu.
 
 ### Core 939 : la chaleur (demande du mainteneur, 16 novembre : « le téléphone doit rester en mode nominal », menus et jeu)
@@ -360,6 +360,27 @@ charge chauffe à elle seule) :
    instruction, moins de contention sur la file de travaux (18 % des échantillons SPU attendent une ligne verrouillée).
    Risque : moins de débit SPU si le jeu en manque.
 
+### Core 939, demande 2 (en préparation) : la relecture approfondie avant l'IPA
+
+Avant de produire l'IPA, le Core 939 compilé a été relu par quatre relecteurs indépendants (un par domaine : mode
+asynchrone, capture du gel, chaleur SPU, le reste). Ce qu'ils ont trouvé, et ce que corrige la demande 2 (moteur corrigé, compilation à venir ; la première compilation,
+run 43788845920, ne contient pas ces corrections) :
+
+| Point | Risque | Correction |
+|---|---|---|
+| Un dessin sauté (pipeline encore en construction) cédait le cœur par `yield()` | Sur iOS, `sched_yield` est `swtch_pri(0)` : le fil RSX peut tomber en priorité 0 jusqu'à ~10 ms à chaque dessin sauté ; une rafale de premières rencontres aurait pu devenir un diaporama | `REWINDBOX_ASYNC_SKIP_NO_YIELD_939` : plus de `yield` sur iOS à cet endroit ; le fil RSX passe aux commandes suivantes |
+| À l'arrêt, le fil RSX.W terminait tout le lot de constructions déjà retiré de sa file | Un arrêt, une sauvegarde d'état ou un changement de réglage pendant une rafale (20 × 0,5 s) pouvait dépasser les 10 s que l'application accorde | `REWINDBOX_ASYNC_TEARDOWN_939` : le fil vérifie l'arrêt avant chaque construction et abandonne le reste |
+| L'origine d'une construction différée était perdue (`SHADERSTALL538_EVENT origin=0`) | Mesures fausses dans les prochains journaux | `REWINDBOX_ASYNC_ORIGIN_939` : l'origine voyage avec la tâche |
+| La signature du gel se retrouvait dans les longs chargements de God of War III (noyaux SPURS au repos sur leur propre instance) | Quatre fausses captures de 17 Mio, ou la vraie capture écrasée | Capture réservée à Black Ops II (six numéros de disque), lignes des noyaux SPURS au repos ignorées, un fichier numéroté par capture (`RPCS3-freeze-guest-1.bin` à `-4.bin`), jamais d'écrasement |
+| Stockage presque plein | `fs::file::write` arrête l'application sur un disque plein | Les deux captures (939 et la capture SPU du 938) refusent d'écrire avec moins de 64 Mio libres |
+| Une page du jeu libérée pendant la copie | Sur iOS, la vue « sudo » est démappée avec la page : faute de lecture sur le fil du profileur | Copie par `vm_read_overwrite` (une page disparue est écrite comme des zéros) |
+| En-tête RBGUEST1 | Compteurs SPU et régions différents des enregistrements écrits | En-tête réécrit à la fin avec les comptes réels |
+
+Limite connue, non corrigée : si MoltenVK échoue à créer un pipeline en différé (échec de compilation Metal), le fil RSX.W
+s'arrête et les nouveaux pipelines restent sautés jusqu'à la fin de la session (le même échec arrêtait le fil RSX en mode
+Legacy). Corriger demanderait de rendre non fatale l'erreur au cœur de la création des pipelines : pas sans essai sur
+l'appareil.
+
 ### Vérifications du Core 939 (PC)
 
 - Test statique du moteur `ios/tests/RPCS3IOSGPUDefaultsTests.cpp` (défaut asynchrone, règle de migration) compilé et
@@ -387,8 +408,8 @@ charge chauffe à elle seule) :
    plus d'arrêt de plusieurs secondes aux premiers effets (un objet peut apparaître un instant en retard) ; dans les
    menus, `THERMAL931 spu_efficient_sleeps` non nul et moins de réveils (`ENERGY931 timer_wakeups_2ms`).
 3. Si Black Ops II gèle : **attendre au moins 5 secondes** avant d'arrêter, puis envoyer
-   `Documents/Diagnostics/PS3/RPCS3-freeze-guest.bin` avec les journaux. C'est le fichier qui permet d'écrire le patch du
-   jeu.
+   `Documents/Diagnostics/PS3/RPCS3-freeze-guest-1.bin` (et `-2`, `-3`, `-4` s'il y en a) avec les journaux. C'est le
+   fichier qui permet d'écrire le patch du jeu.
 4. Essais facultatifs (un à la fois, même session si possible) : « Accurate SPU Reservations » désactivé pour Black Ops II,
    puis « Preferred SPU threads » à 2.
 5. God of War III : démarrer normalement, charger la partie, refaire une sauvegarde d'état (§9).
