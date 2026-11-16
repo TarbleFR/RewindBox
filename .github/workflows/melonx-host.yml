@@ -29,7 +29,12 @@ run-name: MeloNX host • ${{ github.sha }}
     - native/melonx/EmbeddedAudioPacing.cs
     - native/melonx/EmbeddedAudioPacingExport.cs
     - build-utils/melonx/build_core.sh
-  workflow_dispatch: null
+  workflow_dispatch:
+    inputs:
+      display:
+        description: Run the [melonx-display] steps (SDK typecheck only, donor extension and lease, RAM bar in UIKit)
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
@@ -37,7 +42,7 @@ jobs:
     # The completion push reruns the changed plugin's actual UIKit presentation
     # fixture in melonx-completion-host and retains unchanged host scopes.
     runs-on: macos-26
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
     - uses: actions/checkout@v4
       with:
@@ -77,7 +82,7 @@ jobs:
 
         '
     - name: Compile the iPhone host and execute its native ABI scenarios
-      run: python3 test/melonx_session_host_test.py ${{ (contains(github.event.head_commit.message, '[melonx-display]') || contains(github.event.head_commit.message, '[melonx-audio-update]')) && '--sdk-only' || '' }}
+      run: python3 test/melonx_session_host_test.py ${{ (contains(github.event.head_commit.message, '[melonx-display]') || contains(github.event.head_commit.message, '[melonx-audio-update]') || inputs.display) && '--sdk-only' || '' }}
     - name: Exercise audio ownership, route changes and presentation handoff
       run: python3 test/melonx_audio_ownership_test.py
     - name: Type-check the folder access plugin (folder picker, saved accesses) against the iPhone SDK
@@ -91,13 +96,13 @@ jobs:
     - name: Answer the Switch keyboard in UIKit and check the L3/R3 toggle wiring
       run: python3 test/melonx_text_input_test.py
     - name: Compile the original donor extension and validate target packaging
-      if: ${{ contains(github.event.head_commit.message, '[melonx-display]') }}
+      if: ${{ contains(github.event.head_commit.message, '[melonx-display]') || inputs.display }}
       run: python3 test/melonx_memory_extension_test.py
     - name: Exercise donor ownership, cancellation, fallback and quarantine
-      if: ${{ contains(github.event.head_commit.message, '[melonx-display]') }}
+      if: ${{ contains(github.event.head_commit.message, '[melonx-display]') || inputs.display }}
       run: python3 test/melonx_memory_lease_test.py
     - name: Exercise RAM measurement, graph bounds and timer lifetime in UIKit
-      if: ${{ contains(github.event.head_commit.message, '[melonx-display]') }}
+      if: ${{ contains(github.event.head_commit.message, '[melonx-display]') || inputs.display }}
       run: python3 test/melonx_memory_graph_test.py
     - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       if: always()
