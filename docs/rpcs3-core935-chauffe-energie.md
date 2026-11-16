@@ -642,3 +642,32 @@ Ce qui reste à mesurer : deux minutes dans les menus, téléphone débranché, 
 Compilations de pipelines en partie : 13 de 0,49 à 0,94 s (compilation de la bibliothèque de fragments par Metal),
 toutes hors du fil RSX depuis le Core 939 : la partie ne se fige plus (avant le Core 939, 51 compilations figeaient
 23,9 s d'un match) ; un objet peut apparaître avec ce retard à sa première rencontre.
+
+## 14. Black Ops II sur l'IPA 761 : pourquoi la cadence ne tient pas 50 images/s (lecture du 16 novembre)
+
+Retour du mainteneur : « Je sens moins le téléphone chaud mais les performances ne se maintiennent pas à 50 FPS. »
+Mêmes journaux que le § 13 (37 fenêtres, capture de profil de 11,3 s en partie, trace de 3 072 écritures SPU exactes).
+
+1. **La partie n'atteint jamais 50 images/s dans cette session** : 43 au mieux, téléphone encore « nominal », puis
+   39, 42, 37, 34 en 25 s, puis 21 à 30 en « fair ».
+2. **La cadence suit la fréquence des cœurs P** : images/s ÷ GHz vaut 14 à 18 dans les 32 fenêtres de partie (43 à
+   2,57 GHz, 37 à 2,20, 26 à 1,70). Tenir 50 demanderait environ 3,1 GHz en continu, soit plus de 3,4 W : le
+   téléphone ne l'évacue pas. À puissance égale il faudrait une image presque deux fois moins chère.
+3. **Aucun fil n'est saturé ; chacun attend un autre.** Fil principal : 5 % actif, 74 % en `sys_timer_usleep` (330 à
+   600 micro-sommeils par image), 18 % en attente d'une des deux places de processeur PPU de l'ordonnanceur lv2
+   (drapeau `suspend` hors de tout appel). Fil « Secondary » : 28 % actif, 47 % en attente de condition, 15 % en
+   attente d'une place, 9 % arrêté par une écriture SPU exacte. Fil « Backend » : 27 % en attente d'une place.
+   Fils SPU : 55 % actifs, 21 % en attente de boîte aux lettres, 20 % en attente sur GETLLAR.
+4. **Environ 9 000 écritures SPU exactes par image** (7 400 à 12 300), d'un seul couloir de 16 octets chacune : la
+   trace montre les compteurs et les listes chaînées étiquetées du système de travaux du jeu (pc `0x25d0`, `0x2690`,
+   `0x2750`, lignes `0x2e20880`, `0x2e20c00`, `0x1add900`). Leur nombre par image ne dépend pas de l'état thermique.
+
+Lecture : l'image est une chaîne de relais entre fils (travaux SPU, puis une rafale où quatre ou cinq fils PPU se
+partagent deux places), dont chaque maillon va à la vitesse des cœurs P. Ce n'est pas un gaspillage du genre de ceux
+retirés par les Cores 931 à 941 ; c'est le coût de l'émulation exacte de ce jeu. Pistes, aucune n'est appliquée ici :
+
+- l'attente d'une place PPU (15 à 27 % du temps de trois fils) : le réglage « PPU Thread Count » existe (Debug → CPU),
+  mais l'amont RPCS3 le documente « must be 2 » ; le défaut n'est pas changé. Mesure à ajouter d'abord : le temps où
+  un fil attend une place alors qu'une place est libre (acquittements en retard de l'ordonnanceur) ;
+- le coût d'une écriture SPU exacte d'un seul couloir (9 000 par image) : toute variante doit rester exacte, le mode
+  relâché ayant déjà perdu des mises à jour sur ce jeu.
