@@ -211,8 +211,13 @@ final class NPCapture: NSObject, RPScreenRecorderDelegate {
             self.restartEncodersIfOutputChanges(reason: "link.tier", detail: ["tier": tier.rawValue])
         }
     }
-    // The direct Chromecast route: a receiver connection starts, or resumes after skipped pictures, on a key picture.
-    func requestKeyFrame() { state.lock(); let encoder = self.encoder; state.unlock(); encoder?.requestKeyFrame() }
+    // Chromecast routes: a receiver connection starts, or resumes after skipped pictures, on a key picture. A still screen
+    // delivers no picture to carry it, so the last one is encoded again at once (nothing happens while the screen moves:
+    // its next picture is the key picture).
+    func requestKeyFrame() {
+        state.lock(); let encoder = self.encoder; state.unlock(); encoder?.requestKeyFrame()
+        queue.async { [weak self] in self?.encoder?.repeatIfStill(now: ProcessInfo.processInfo.systemUptime, interval: 0) }
+    }
     func setBitrate(_ bitsPerSecond: Int) { queue.async { self.bitrateOverride = bitsPerSecond; self.encoder?.setBitrate(bitsPerSecond) } }
     // A shed picture: the receiver resumes at the next key picture. Key pictures
     // are large, so at most one request per half second; the link tier is the

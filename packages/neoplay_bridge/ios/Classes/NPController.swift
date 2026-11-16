@@ -240,9 +240,10 @@ final class NPController {
                 self.mediaURL = url
                 // A still screen must not starve a media element: the direct and mp4 routes repeat the last picture thirty times a
                 // second (measured on Google's receiver page: 0.7 s to start and 0.9-1.0 s behind, against 7-17 s at five a second);
-                // segments only need their length kept. The frames engine draws what it gets: nothing to repeat.
+                // segments only need their length kept. The frames engine draws what it gets; four repeats a second keep its
+                // delay measured on a still screen and give a key picture something to ride on.
                 let sink: ((Data) -> Void)? = stream.map { stream in { stream.consume($0) } } ?? framesStream.map { frames in { frames.consume($0) } }
-                let still: TimeInterval = framesStream != nil ? 0 : stream != nil ? 1.0 / 30 : 0.2
+                let still: TimeInterval = framesStream != nil ? 0.25 : stream != nil ? 1.0 / 30 : 0.2
                 self.startCapture(token: token, size: NPSize(width: 1280, height: 720), castRoute: sink == nil, stopLabel: self.castLabel, frames: sink != nil, receiverMax: NPSize(width: 1280, height: 720), sink: sink, stillInterval: still)
             case .failure(let error): fail(error)
             }

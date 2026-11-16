@@ -324,6 +324,20 @@ until the first session: its `cast.receiver.caps` row tells.
   The harness uses the snapshot of Google's files and is not committed.
 - Not run: the Flutter/native suites, an iOS compilation, any device.
 
+**Review before IPA 757** (independent reading of e660b652d, no code run). Three findings:
+- **Serious, fixed**: on a still iPhone screen, the frames route never started. Its first key picture left before the
+  TV connected; the key picture asked for on connection waited for a picture that ReplayKit does not deliver while
+  nothing moves. The TV showed « Connexion au jeu… » until the 15 s limit, and the receiver was then set aside for an
+  hour. Fix: `NPCapture.requestKeyFrame` encodes the last picture again at once on a still screen, and the frames route
+  repeats it four times a second.
+- **Medium, fixed**: the "this device is too slow" rule of the frames engine judged the time a picture spends in the
+  decoder. A hardware decoder that keeps a few pictures in flight while keeping up would have been sent to the slower
+  MediaSource engine. It now leaves only when fewer than 40 % of the pictures reach the screen (a 30 Hz display shows
+  half) or when the decoder queue stays at 8. Pictures are skipped above 8 queued, as in the Windows receiver.
+- **Low, moot**: the help text described the receiver while its ID was empty. The ID is now set.
+
+The bench was run again after the fixes: frames, 2.5 ms median, bar code right 12/12.
+
 **Setting up (once).**
 1. GitHub, Settings → Pages: Source "GitHub Actions". Settings → Environments → github-pages: allow branch `Claude`.
 2. Cast SDK Developer Console: Add new application → Custom Receiver → URL above → Publish. A published application

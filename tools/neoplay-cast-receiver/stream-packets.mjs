@@ -57,16 +57,19 @@ export class Spread {
 }
 
 // Decides when the picture engine cannot follow the stream on this device: four
-// consecutive seconds where decoding takes longer than a picture interval
-// allows, or where most pictures are lost before the screen. The engine then
-// asks for the MediaSource one. `sample` takes the counters of one second.
+// consecutive seconds where fewer than 40 % of the pictures reach the screen,
+// or where the decoder's queue stays at the point where pictures are skipped.
+// The engine then asks for the MediaSource one. A display refreshing at 30 Hz
+// still shows half of a 60 fps stream, and a hardware decoder may hold a few
+// pictures in flight while keeping up: neither is a reason to leave (the time
+// a picture spends in the decoder is reported, not judged).
+// `sample` takes the counters of one second.
 export class SlowWatch {
-  constructor({ seconds = 4, minimumPictures = 20 } = {}) { this.seconds = seconds; this.minimum = minimumPictures; this.run = 0; this.reason = null; }
-  sample({ pictures, presented, decodeMean, queue }) {
+  constructor({ seconds = 4, minimumPictures = 20, queueLimit = 8 } = {}) { this.seconds = seconds; this.minimum = minimumPictures; this.queueLimit = queueLimit; this.run = 0; this.reason = null; }
+  sample({ pictures, presented, queue }) {
     let reason = null;
-    if (pictures >= this.minimum && presented < pictures * 0.5) reason = `presented ${presented}/${pictures}`;
-    else if (decodeMean !== null && decodeMean > 60) reason = `decode ${decodeMean} ms`;
-    else if (queue > 6) reason = `queue ${queue}`;
+    if (pictures >= this.minimum && presented < pictures * 0.4) reason = `presented ${presented}/${pictures}`;
+    else if (queue >= this.queueLimit) reason = `queue ${queue}`;
     this.run = reason ? this.run + 1 : 0; this.reason = reason;
     return this.run >= this.seconds;
   }

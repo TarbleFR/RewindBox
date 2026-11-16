@@ -109,8 +109,9 @@ export function createFramesEngine({ url, canvas, emit, audioModule = new URL('.
     const { pts, key, data } = parseVideo(packet);
     transits.add(arrived - pts / 1000);
     if (waitKey && !key) { counters.skipped++; requestKey(); return; }
-    // A decoder that falls behind would add its queue to the delay: skip to the next key picture instead.
-    if (!key && decoder.decodeQueueSize > 3) { counters.skipped++; waitKey = true; requestKey(); return; }
+    // A decoder that falls behind would add its queue to the delay: skip to the next key picture instead. Eight, as the
+    // Windows receiver: hardware decoders keep a few pictures in flight while keeping up.
+    if (!key && decoder.decodeQueueSize > 8) { counters.skipped++; waitKey = true; requestKey(); return; }
     waitKey = false;
     inflight.set(pts, { arrived, decoding: performance.now() });
     if (inflight.size > 120) inflight.delete(inflight.keys().next().value);
@@ -167,7 +168,7 @@ export function createFramesEngine({ url, canvas, emit, audioModule = new URL('.
       const delta = { pictures: counters.pictures - previous.pictures, presented: counters.presented - previous.presented, skipped: counters.skipped - previous.skipped, replaced: counters.replaced - previous.replaced };
       previous = { pictures: counters.pictures, presented: counters.presented, skipped: counters.skipped, replaced: counters.replaced };
       const decode = decodeTimes.summary(), age = ages.summary(), transit = transits.summary();
-      if (playing && slow.sample({ pictures: delta.pictures, presented: delta.presented, decodeMean: decode?.mean ?? null, queue: decoder?.decodeQueueSize ?? 0 })) giveUp(`slow: ${slow.reason}`);
+      if (playing && slow.sample({ pictures: delta.pictures, presented: delta.presented, queue: decoder?.decodeQueueSize ?? 0 })) giveUp(`slow: ${slow.reason}`);
       return {
         engine: 'frames', playing, ...counters, second: delta, decoder: settings?.hardwareAcceleration ?? null, queue: decoder?.decodeQueueSize ?? 0,
         width: config?.width ?? 0, height: config?.height ?? 0, codec: config?.codec ?? null,
