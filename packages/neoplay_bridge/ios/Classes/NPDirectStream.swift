@@ -6,6 +6,15 @@ protocol NPAudioPacketEncoder: AnyObject {
     func encode(block: Data) -> [Data]
 }
 
+// An endless stream that NPHTTPServer serves to one receiver connection at a time (NPDirectStream: fragmented MP4;
+// NPFramesStream: NeoPlay v2 packets). `send` is called with each piece in order, `pending` tells how many bytes wait in
+// the connection; attach answers false while the stream has nothing to start with.
+protocol NPLiveSource: AnyObject {
+    var isReady: Bool { get }
+    func attach(send: @escaping (Data) -> Void, pending: @escaping () -> Int, at now: TimeInterval) -> Bool
+    func detach()
+}
+
 // Direct Chromecast route. Takes the packets of NPFrameEncoder (3 configuration,
 // 4 picture, 5 sound; see its header) and produces one fragmented-MP4 stream:
 // an initialization segment, then a fragment per picture carrying the sound
@@ -18,7 +27,7 @@ protocol NPAudioPacketEncoder: AnyObject {
 // them; fragments are handed to `send` under that lock so that they keep their
 // order. `send` and `pending` must not call back into this object. The other
 // callbacks run after the lock is released.
-final class NPDirectStream {
+final class NPDirectStream: NPLiveSource {
     static let blockFrames = 1_024
     static let aacPriming: Int64 = 2_112   // samples the AAC encoder delays its output by
     static let stallSeconds: TimeInterval = 2.5

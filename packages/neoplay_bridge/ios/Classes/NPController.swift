@@ -28,6 +28,8 @@ final class NPController {
     // Chromecast: the route of this session, see NPGoogleCast.Route
     private var castRoute = NPGoogleCast.Route.segments
     private var direct: NPDirectStream?
+    private var frames: NPFramesStream?          // RewindBox receiver, frames engine
+    private var relaunchPending = false          // the capture is stopping before the session starts again on Google's receiver
     private var ladder: NPBitrateLadder?
     private var castLabel = ""
     private var pendingRoute: NPGoogleCast.Route? // the capture is stopping to start again on this route
@@ -49,7 +51,11 @@ final class NPController {
     var snapshot: [String: Any] { ["state": state, "error": failure as Any? ?? NSNull(), "localAudioSuppressed": localAudio.active, "selected": selected as Any? ?? NSNull(), "receivers": discovery.receivers + cast.receivers, "appleTV": airplay.snapshot, "stream": streamDiagnostics as Any? ?? NSNull(), "castMode": NPCastMode.stored.rawValue, "physicalValidation": ["windows": false, "chromecast": false, "appleTV": false, "controllerBattery": false]] }
     private var streamDiagnostics: [String: Any]? {
         guard var stream = capture?.diagnostics else { return nil }
-        if selected?.hasPrefix("cast:") == true { stream["cast"] = cast.diagnostics.merging(["route": castRoute.rawValue]) { _, session in session }; if let direct { stream["direct"] = direct.statistics } }
+        if selected?.hasPrefix("cast:") == true {
+            stream["cast"] = cast.diagnostics.merging(["route": castRoute.rawValue]) { _, session in session }
+            if let direct { stream["direct"] = direct.statistics }
+            if let frames { stream["frames"] = frames.statistics }
+        }
         return stream
     }
     func setCastMode(_ value: String) { NPCastMode.store(NPCastMode(rawValue: value) ?? .automatic); publish() }
@@ -98,22 +104,24 @@ final class NPController {
             transport.onDisplay = { [weak self] size in DispatchQueue.main.async { guard let self, self.fence.accepts(token) else { return }; self.capture?.updateDisplay(size) } }
             transport.connect(host: host, port: service.port, pin: pin)
         } else if id.hasPrefix("cast:") {
-            castLabel = stopLabel; directFailures = []; pendingRoute = nil
+            castLabel = stopLabel; directFailures = []; pendingRoute = nil; relaunchPending = false
             cast.onError = fail; cast.onPlayback = playing
             cast.onDirectTrouble = { [weak self] reason in guard let self, self.fence.accepts(token) else { return }; self.directTrouble(reason, token: token) }
-            cast.onReady = { [weak self] in guard let self, self.fence.accepts(token) else { return }; self.startCastMedia(route: self.preferredCastRoute(), token: token) }
-            cast.connect(id)
+            cast.onReady = { [weak self] in
+                guard let self, self.fence.accepts(token) else { return }
+                // The RewindBox receiver first tells what it can decode; Google's receiver gets the stream at once.
+                if self.cast.receiverApplication == nil { self.startCastMedia(route: self.preferredCastRoute(), token: token) }
+            }
+            cast.onReceiverEvent = { [weak self] event in guard let self, self.fence.accepts(token) else { return }; self.receiverEvent(event, token: token) }
+            // Automatic mode tries the RewindBox receiver first (when configured); the other settings keep Google's receiver.
+            cast.connect(id, useReceiver: NPCastMode.stored == .automatic)
         } else { stop(error: .receiverGone); throw NPError.receiverGone }
     }
-    private func startCapture(token: Int, size: NPSize, castRoute: Bool, stopLabel: String, frames: Bool = false, receiverMax: NPSize = NPPolicy.legacyCap, direct: NPDirectStream? = nil) {
+    private func startCapture(token: Int, size: NPSize, castRoute: Bool, stopLabel: String, frames: Bool = false, receiverMax: NPSize = NPPolicy.legacyCap, sink: ((Data) -> Void)? = nil, stillInterval: TimeInterval = 0) {
         guard fence.accepts(token), capture == nil else { return }
         NPLog.record("session.protocol", ["frames": frames, "maxWidth": receiverMax.width, "maxHeight": receiverMax.height])
         let capture = NPCapture(); self.capture = capture; capture.display = size; capture.cast = castRoute; capture.frames = frames; capture.receiverMax = receiverMax
-        // A still screen must not starve the receiver's player. The direct route needs about twenty pictures before its
-        // element starts and a steady flow of bytes after: thirty repeats a second once the screen is still (measured on
-        // Google's receiver page: 0.7 s to start and 0.9-1.0 s behind, against 7-17 s at five a second). Segments only need
-        // their length kept.
-        capture.stillInterval = direct != nil ? 1.0 / 30 : (castRoute ? 0.2 : 0)
+        capture.stillInterval = stillInterval // see startCastMedia
         adapter = NPLinkAdapter(); adapterTimer?.invalidate()
         adapterTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
             guard let self, self.fence.accepts(token) else { return }
@@ -122,7 +130,7 @@ final class NPController {
         capture.onError = { [weak self] error in DispatchQueue.main.async { guard let self, self.fence.accepts(token) else { return }; self.stop(error: error) } }
         capture.onStarted = { [weak self] in guard let self, self.fence.accepts(token) else { return }; self.state = "capturing"; self.showOverlay(label: stopLabel); self.publish() }
         let store = self.store, windows = self.windows
-        capture.onPacket = { packet in if let direct { direct.consume(packet) } else { windows?.sendPacket(packet) } }
+        capture.onPacket = { packet in if let sink { sink(packet) } else { windows?.sendPacket(packet) } }
         capture.onSegment = { [weak self] data, initial, duration in
             do {
                 if let store { if initial { try store.initialize(data) } else { try store.append(data, duration: duration) } }
@@ -135,6 +143,8 @@ final class NPController {
         capture.onStopped = { [weak self, weak capture] in
             guard let self, self.capture === capture else { return }
             self.capture = nil; self.isStopping = false; self.publish()
+            // The RewindBox receiver cannot be used: now that the capture is stopped, the session starts again on Google's receiver.
+            if self.relaunchPending, self.fence.accepts(token) { self.relaunchPending = false; self.cast.relaunchDefault("receiver"); return }
             // The capture was stopped to change the Chromecast route: start it again on the other one, same Cast session.
             if let route = self.pendingRoute, self.fence.accepts(token) { self.pendingRoute = nil; self.startCastMedia(route: route, token: token) }
         }
@@ -153,10 +163,17 @@ final class NPController {
         let fail: (NPError) -> Void = { [weak self] error in DispatchQueue.main.async { guard let self, self.fence.accepts(token) else { return }; self.stop(error: error) } }
         var route = route
         var stream: NPDirectStream?
-        if route == .direct {
-            if let encoder = NPAACEncoder() { stream = NPDirectStream(audioEncoder: encoder) } else { NPLog.record("cast.direct.unavailable", ["reason": "aac"]); route = .segments }
+        if route == .direct || route == .mp4 {
+            if let encoder = NPAACEncoder() { stream = NPDirectStream(audioEncoder: encoder) }
+            else {
+                NPLog.record("cast.direct.unavailable", ["reason": "aac"])
+                if route == .mp4 { receiverUnusable(token: token); return }
+                route = .segments
+            }
         }
-        castRoute = route; didLoadCast = false; direct = stream; ladder = nil; mediaURL = nil
+        let framesStream = route == .frames ? NPFramesStream() : nil
+        castRoute = route; didLoadCast = false; direct = stream; frames = framesStream; ladder = nil; mediaURL = nil
+        if route == .frames || route == .mp4 { cast.receiverEngine(route) }
         NPLog.record("cast.route", ["route": route.rawValue, "mode": NPCastMode.stored.rawValue, "model": cast.deviceModel ?? ""])
         let http: NPHTTPServer
         if let stream {
@@ -168,8 +185,9 @@ final class NPController {
                 NPLog.record("cast.direct.bitrate", ["bitrate": lower, "reason": "congestion"]); self.capture?.setBitrate(lower); stream.setBitrate(lower)
             } }
             stream.onReset = { [weak self] reason in DispatchQueue.main.async {
-                guard let self, self.fence.accepts(token), self.castRoute == .direct, self.pendingRoute == nil else { return }
-                NPLog.record("cast.direct.reset", ["reason": reason]); self.http?.closeLive(); self.cast.reload()
+                guard let self, self.fence.accepts(token), self.castRoute == .direct || self.castRoute == .mp4, self.pendingRoute == nil else { return }
+                NPLog.record("cast.direct.reset", ["reason": reason, "route": self.castRoute.rawValue]); self.http?.closeLive()
+                if self.castRoute == .direct { self.cast.reload() } // the RewindBox receiver opens a new connection by itself
             } }
             stream.onReady = { [weak self, weak stream] in DispatchQueue.main.async {
                 guard let self, let stream, self.fence.accepts(token), !self.didLoadCast, let url = self.mediaURL else { return }
@@ -177,10 +195,36 @@ final class NPController {
                 let size = stream.statistics
                 let nominal = NPPolicy.bitrate(for: NPSize(width: size["width"] as? Int ?? 1280, height: size["height"] as? Int ?? 720))
                 self.ladder = NPBitrateLadder(nominal: nominal); stream.setBitrate(nominal)
+                if self.castRoute == .mp4 {
+                    self.cast.link.captureOrigin = { [weak self] in self?.capture?.timelineOrigin }
+                    self.cast.link.play(engine: "mp4", url: url); return
+                }
                 self.cast.newestPicture = { [weak stream] in stream?.newestPictureSeconds ?? 0 }
                 self.cast.load(url, route: .direct)
             } }
             http = NPHTTPServer(store: nil, live: stream)
+            http.onReceiverAgent = { agent in NPLog.record("cast.receiver.agent", ["agent": agent]) }
+        } else if let framesStream {
+            store = nil
+            framesStream.onKeyRequest = { [weak self] in DispatchQueue.main.async { self?.capture?.requestKeyFrame() } }
+            framesStream.onCongestion = { [weak self, weak framesStream] in DispatchQueue.main.async {
+                guard let self, let framesStream, self.fence.accepts(token), let lower = self.ladder?.congested(at: ProcessInfo.processInfo.systemUptime) else { return }
+                NPLog.record("cast.direct.bitrate", ["bitrate": lower, "reason": "congestion", "route": "frames"]); self.capture?.setBitrate(lower); framesStream.setBitrate(lower)
+            } }
+            framesStream.onReset = { [weak self] reason in DispatchQueue.main.async {
+                guard let self, self.fence.accepts(token), self.castRoute == .frames else { return }
+                NPLog.record("cast.frames.reset", ["reason": reason]); self.http?.closeLive() // the receiver reconnects and starts on a key picture
+            } }
+            framesStream.onReady = { [weak self, weak framesStream] in DispatchQueue.main.async {
+                guard let self, let framesStream, self.fence.accepts(token), !self.didLoadCast, let url = self.mediaURL else { return }
+                self.didLoadCast = true
+                let size = framesStream.statistics
+                let nominal = NPPolicy.bitrate(for: NPSize(width: size["width"] as? Int ?? 1280, height: size["height"] as? Int ?? 720))
+                self.ladder = NPBitrateLadder(nominal: nominal); framesStream.setBitrate(nominal)
+                self.cast.link.captureOrigin = { [weak self] in self?.capture?.timelineOrigin }
+                self.cast.link.play(engine: "frames", url: url)
+            } }
+            http = NPHTTPServer(store: nil, live: framesStream, resource: "frames", contentType: "application/octet-stream")
             http.onReceiverAgent = { agent in NPLog.record("cast.receiver.agent", ["agent": agent]) }
         } else {
             let store = NPSegmentStore(); self.store = store
@@ -194,10 +238,44 @@ final class NPController {
             switch result {
             case .success(let url):
                 self.mediaURL = url
-                self.startCapture(token: token, size: NPSize(width: 1280, height: 720), castRoute: stream == nil, stopLabel: self.castLabel, frames: stream != nil, receiverMax: NPSize(width: 1280, height: 720), direct: stream)
+                // A still screen must not starve a media element: the direct and mp4 routes repeat the last picture thirty times a
+                // second (measured on Google's receiver page: 0.7 s to start and 0.9-1.0 s behind, against 7-17 s at five a second);
+                // segments only need their length kept. The frames engine draws what it gets: nothing to repeat.
+                let sink: ((Data) -> Void)? = stream.map { stream in { stream.consume($0) } } ?? framesStream.map { frames in { frames.consume($0) } }
+                let still: TimeInterval = framesStream != nil ? 0 : stream != nil ? 1.0 / 30 : 0.2
+                self.startCapture(token: token, size: NPSize(width: 1280, height: 720), castRoute: sink == nil, stopLabel: self.castLabel, frames: sink != nil, receiverMax: NPSize(width: 1280, height: 720), sink: sink, stillInterval: still)
             case .failure(let error): fail(error)
             }
         } }
+    }
+    // RewindBox receiver. Its capabilities choose the engine; it asks for key pictures, for the MediaSource engine when its
+    // WebCodecs cannot keep up, and it reports when it shows the first picture (NPGoogleCast turns that into onPlayback).
+    private func receiverEvent(_ event: NPReceiverLink.Event, token: Int) {
+        switch event {
+        case .caps(let caps):
+            guard capture == nil, http == nil else { return }
+            switch caps["prefer"] as? String {
+            case "frames": startCastMedia(route: .frames, token: token)
+            case "mp4": startCastMedia(route: .mp4, token: token)
+            default: receiverUnusable(token: token)
+            }
+        case .playing: break
+        case .key: capture?.requestKeyFrame()
+        case .switchEngine:
+            guard castRoute == .frames, pendingRoute == nil, capture != nil else { return }
+            pendingRoute = .mp4; http?.stop(); http = nil; frames = nil; ladder = nil; mediaURL = nil
+            capture?.stop() // onStopped starts the mp4 engine, same session
+        case .failed: receiverUnusable(token: token)
+        }
+    }
+    // The RewindBox receiver did not answer, cannot decode or does not play: Google's receiver takes over in the same user
+    // action. The capture stops first; onStopped then starts the session again (NPGoogleCast.relaunchDefault).
+    private func receiverUnusable(token: Int) {
+        guard fence.accepts(token) else { return }
+        pendingRoute = nil; http?.stop(); http = nil; direct = nil; frames = nil; ladder = nil; mediaURL = nil; didLoadCast = false
+        startTimer?.invalidate()
+        startTimer = Timer.scheduledTimer(withTimeInterval: 40, repeats: false) { [weak self] _ in guard let self, self.fence.accepts(token) else { return }; self.stop(error: .timeout) }
+        if capture != nil { relaunchPending = true; capture?.stop() } else { cast.relaunchDefault("receiver") }
     }
     // Every 2 s of a Chromecast session: the readout for the panel, the way back up of the bit rate, and a log row every 10 s.
     private func castStats(token: Int) {
@@ -205,10 +283,13 @@ final class NPController {
         statsTicks += 1
         // The direct route plays on this receiver model: an earlier failed start no longer keeps automatic mode away from it.
         if castRoute == .direct, cast.everStarted { NPCastMode.clearDirectFailed(model: cast.deviceModel) }
-        if let higher = ladder?.tick(at: ProcessInfo.processInfo.systemUptime), let direct { NPLog.record("cast.direct.bitrate", ["bitrate": higher, "reason": "quiet"]); capture?.setBitrate(higher); direct.setBitrate(higher) }
+        if let higher = ladder?.tick(at: ProcessInfo.processInfo.systemUptime) {
+            NPLog.record("cast.direct.bitrate", ["bitrate": higher, "reason": "quiet", "route": castRoute.rawValue]); capture?.setBitrate(higher); direct?.setBitrate(higher); frames?.setBitrate(higher)
+        }
         if statsTicks % 5 == 0, var row = capture?.diagnostics {
             row.removeValue(forKey: "output"); row["route"] = castRoute.rawValue
             if let direct { for (key, value) in direct.statistics { row[key] = value } }
+            if let frames { for (key, value) in frames.statistics { row[key] = value } }
             NPLog.record("cast.stats", row)
         }
         publish()
@@ -238,7 +319,7 @@ final class NPController {
     func stop(error: NPError? = nil) {
         NPLog.record("session.stop", ["reason": error?.rawValue ?? "user"])
         fence.stop(); startTimer?.invalidate(); startTimer = nil; adapterTimer?.invalidate(); adapterTimer = nil
-        statsTimer?.invalidate(); statsTimer = nil; pendingRoute = nil; direct = nil; ladder = nil; directFailures = []
+        statsTimer?.invalidate(); statsTimer = nil; pendingRoute = nil; relaunchPending = false; direct = nil; frames = nil; ladder = nil; directFailures = []
         audioWatchdog?.invalidate(); audioWatchdog = nil
         let restored = localAudio.end()
         NPLog.record("audio.local.restore.requested", ["accepted": restored])

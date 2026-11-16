@@ -57,6 +57,13 @@ final class NPCapture: NSObject, RPScreenRecorderDelegate {
                 "passthrough": encoder?.passthrough ?? 0, "audioPackets": pcm?.audioPackets ?? 0, "reanchors": pcm?.reanchors ?? 0,
                 "audioBeforeOrigin": pcm?.beforeOrigin ?? 0, "audioBeforeConfiguration": pcm?.beforeConfiguration ?? 0]
     }
+    // Host-clock seconds (ReplayKit's time base, the same as ProcessInfo.systemUptime) of time stamp zero of the stream: the
+    // first captured picture. A picture's capture time is this plus its time stamp. Nil until the first picture.
+    var timelineOrigin: Double? {
+        state.lock(); let pcm = self.pcm; state.unlock()
+        guard let origin = pcm?.sessionOrigin, origin.isNumeric else { return nil }
+        return CMTimeGetSeconds(origin)
+    }
     func start() {
         let recorder = RPScreenRecorder.shared()
         guard !pending, !ownsRecorder, recorder.isAvailable, !recorder.isRecording else { onError?(.unavailable); return }
