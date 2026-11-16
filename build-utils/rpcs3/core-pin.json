@@ -2,8 +2,8 @@
  "schema": 1,
  "status": "verified",
  "component": "rpcs3",
- "build": 941,
- "note": "RPCS3 Core 941 request 2 = Core 940 (delivered in IPA 760) + the heat lot of the IPA 760 logs (maintainer, 16 Nov 2026): REWINDBOX_LIGHT_LOAD_941 (while a game is light its PPU, SPU and RSX threads run in the utility class, on the efficiency cores, and take their classes back at once when the load or the frame rate says so) and REWINDBOX_RSX_IDLE_941 (the idle RSX park slice follows the idle time; the grace period waits on the PUT line in every thermal state once the wait is known to rest the core), with the fixes of the independent review of request 1 (run 43922916468, pinned and never delivered). Compilation-only route: the Apple host harnesses were not run. Codegen identities unchanged (no codegen input changes). Not run on an iPhone; no heat, energy or FPS claim.",
+ "build": 942,
+ "note": "RPCS3 Core 942 = Core 941 request 2 (delivered in IPA 761) + the God of War III lot of the IPA 760 logs (maintainer, 16 Nov 2026): REWINDBOX_SCOPED_CPU_BLIT_942 (a CPU image transfer of the RSX revalidates only the cached textures over the bytes it wrote; God of War III took 69 of its 84 texture epochs a frame from these transfers), REWINDBOX_POST_AA_942 (FXAA at presentation while the MLAA bypass leaves the title with no anti-aliasing; setting, Bilinear output mode) and REWINDBOX_HOT_CODE_942 (the code words of the busiest regions in the PPU and SPU profile captures). Reviewed independently before the compile request. Compilation-only route: the Apple host harnesses were not run. Codegen identities unchanged (no codegen input changes). Not run on an iPhone; no frame rate, picture or heat claim.",
  "producer": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "validationMode": "build-only",
@@ -15,42 +15,42 @@
     "Read the declared Core build",
     "Select the retained Core toolchain",
     "Restore compiler objects of the same frozen recipe",
-    "Authenticate the Core 941 source closure and the native dependency",
+    "Authenticate the Core 942 source closure and the native dependency",
     "Preserve the authenticated preflight",
-    "Compile and link the actual iPhone Core 941",
-    "Verify the actual binary and write its Core 941 identity",
+    "Compile and link the actual iPhone Core 942",
+    "Verify the actual binary and write its Core 942 identity",
     "Preserve an unverified binary and actual inputs after metadata failure",
     "Record observed compiler-cache counters and compile duration",
-    "Upload the verified Core 941 without an application delivery",
+    "Upload the verified Core 942 without an application delivery",
     "Preserve compiler objects for the same recipe",
     "Preserve real diagnostics including partial failures"
    ],
-   "source": "6ee1fbf6ac722d722b7264ee799062e9a82932d6",
-   "run": 43929679850,
+   "source": "77806ff747e6de405042125e20506af6c5a4b7b0",
+   "run": 43950007115,
    "attempt": 1,
-   "job": 133518430779,
-   "artifact": 14258932545,
-   "name": "RPCS3Core-941-6ee1fbf6ac722d722b7264ee799062e9a82932d6",
-   "bytes": 30596229,
-   "sha256": "f4321430a15f62d2367e11dfed965abcdbf1bbe7bc18397a9c74b1466fcb9a62",
-   "expiresAt": "2026-12-16T18:52:01Z"
+   "job": 133589663695,
+   "artifact": 14272200544,
+   "name": "RPCS3Core-942-77806ff747e6de405042125e20506af6c5a4b7b0",
+   "bytes": 30596615,
+   "sha256": "67f782d9cb091ec01e998521302818dc1c586181a7c536a993706a207331a1ad",
+   "expiresAt": "2026-12-16T20:51:52Z"
   },
   "hostTests": {
    "mode": "not-run"
   }
  },
  "core": {
-  "type": "rpcs3-ios-core941",
-  "dylibBytes": 81135168,
-  "dylibSha256": "f8b79576899609b5a3695b0f86776a7a58dc8ce27e7ba6b337f913ee7733e18c",
-  "identitySha256": "ae372cff621ef26e85f6fff411be279df34c73f373e1bcc7ad7642d32ec5fc17",
+  "type": "rpcs3-ios-core942",
+  "dylibBytes": 81135944,
+  "dylibSha256": "22c1c3d517f772a7e110c3d5107522fee0a34b0eadbbdf831d389cec2fb5a06e",
+  "identitySha256": "f4d82459598faba20aa7d87bbc52cfbbedb0326152c98809dfd221133a776f3d",
   "proofMember": "core610-proof.json",
-  "proofSha256": "ad1eb9a96fff797f2ea4941943a706f424827b052c88a2ed90c6f527265a7e56",
-  "payloadFingerprint": "9ea6fcf69ac8bda62652c4489f22c1e0bb3531b31bd2237f4b8fa5b88fcca7bf"
+  "proofSha256": "7b105ce5d3db38b254c1c411a3ce4729e0edb0ce21fa7883f313459bfe0b269d",
+  "payloadFingerprint": "67fbf2395dece06182181e5eb6b02e494a56eec97ac176f882a9fac267c7f9da"
  },
  "canonical": {
-  "patchSha256": "b40913edcaa6685358969f1a66be74a1de1dc7a3e75deab3f1f01b77e4a10133",
-  "postimages": 510,
+  "patchSha256": "c3e20c378d570a5b1285e927c3b43556a2cd4ac01fbf167d92a3ec35d68406ed",
+  "postimages": 513,
   "upstreamCommit": "22f1152783cef1f7e04af7b1c895173e28fd5b03"
  },
  "abi": 30,
@@ -283,13 +283,16 @@
   "wfe_verdict=",
   "light_class=%u",
   "light_entries=%llu",
-  "light_tuple=leaves_load:rate:blamed"
+  "light_tuple=leaves_load:rate:blamed",
+  "COREPROF POSTAA942 session=%llu",
+  "part=code id=0x%x from=%x samples=%u",
+  "frames_since_launch=%llu"
  ],
  "cachePath": "build/rpcs3-core-component",
  "replaces": {
-  "source": "e92b5813e47089a84768a5c8a6b5098dfb312b63",
-  "run": 43841141271,
-  "artifact": 14213614500,
-  "payloadFingerprint": "73235b7ed65e7d7a7d9eacd6cd6c46867e4ad1db9f6b7daeead89bf9d8c026e6"
+  "source": "6ee1fbf6ac722d722b7264ee799062e9a82932d6",
+  "run": 43929679850,
+  "artifact": 14258932545,
+  "payloadFingerprint": "9ea6fcf69ac8bda62652c4489f22c1e0bb3531b31bd2237f4b8fa5b88fcca7bf"
  }
 }
