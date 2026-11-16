@@ -1,0 +1,82 @@
+diff --git a/compat/tree/src/Ryujinx.Graphics.Shader/Translation/TranslatorContext.cs b/compat/tree/src/Ryujinx.Graphics.Shader/Translation/TranslatorContext.cs
+index ba58d65..60b2a23 100644
+--- a/compat/tree/src/Ryujinx.Graphics.Shader/Translation/TranslatorContext.cs
++++ b/compat/tree/src/Ryujinx.Graphics.Shader/Translation/TranslatorContext.cs
+@@ -165,7 +165,13 @@ namespace Ryujinx.Graphics.Shader.Translation
+         internal int GetDepthRegister()
+         {
+             // The depth register is always two registers after the last color output.
+-            return BitOperations.PopCount((uint)Definitions.OmapTargets) + 1;
++            // RewindBox (patch 0051): a colour target the shader writes takes four registers whatever its component mask: EmitterContext.PrepareForReturn reads component c of
++            //   the n-th written target from register 4 n + c. The sample mask and the depth follow the last of those blocks, so the depth is at 4 x written targets + 1.
++            //   Counting the mask's bits gave that register only when every written target writes all four components; with a partial mask (a one-channel output) it named a
++            //   register inside the colour blocks, and the shader's depth output was whatever that register held.
++            uint written = (uint)Definitions.OmapTargets;
++            written = (written | (written >> 1) | (written >> 2) | (written >> 3)) & 0x11111111u;   // one bit a written target
++            return BitOperations.PopCount(written) * 4 + 1;
+         }
+ 
+         public void SetLayerOutputAttribute(int attr)
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 4151eaa..c018458 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -5409,6 +5409,16 @@ static void cap_tex_note(id<MTLTexture> t, uint64_t ser, int tid) {
+     if (g_cap_tex.count >= CAP_TEX_MAX) { g_cap_tex_over++; return; }
+     [g_cap_tex_seen addObject:k]; [g_cap_tex addObject:@[t, @(ser), @(tid)]];
+ }
++// RewindBox (patch 0051): the capture also keeps the translated source of each shader its frame binds (sh-<key>.metal, copied from the device's translation directory when the
++//   capture's files are written, td_dump). The capture of 16 November pointed at one shader (3738806f0474308c, which writes the quarter-resolution depth that Mario Kart World's
++//   ambient occlusion reads) but could not show its code, which is only on the device. Keys are noted where the K lines are written; at most CAP_KEY_MAX files a capture
++enum { CAP_KEY_MAX = 1024 };
++static NSMutableSet<NSString *> *g_cap_keys;   // replay thread (encode_args_, td_dump, cap_end, cap_reset)
++static void cap_key_note(const char *key) {
++    if (!key || !key[0] || !cap_all()) return;
++    if (!g_cap_keys) g_cap_keys = [NSMutableSet set];
++    if (g_cap_keys.count < CAP_KEY_MAX) [g_cap_keys addObject:@(key)];
++}
+ static void pd_out(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
+ static void pd_out(const char *fmt, ...) {
+     char b[2048]; va_list ap; va_start(ap, fmt); vsnprintf(b, sizeof b, fmt, ap); va_end(ap);
+@@ -10793,7 +10803,7 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+     // DM_NVN_PASSDUMP: on the first new encode per pass per stage, records the shader key (K) and the actual source of each binding (B: UBO address / length / first 4 floats, texture ID and serial, or "dummy")
+     static uint64_t bl_pass[6]; static int bl_all = -1; if (bl_all < 0) bl_all = getenv("DM_NVN_PASSDUMP_ALL") != NULL;   // Record on every new encode (otherwise only the first time per pass per stage)
+     int bl = passdump() && (bl_all || g_kd_force || cap_all() || bl_pass[nvn_stage] != g_stat_pass);   // RewindBox (patch 0048): cap_all
+-    if (bl) { bl_pass[nvn_stage] = g_stat_pass; PD("K %llu st%d key=%s nb=%d", g_stat_pass, nvn_stage, sh->key[0] ? sh->key : sh->builtin ? sh->builtin : "?", sh->rf.nb); }
++    if (bl) { bl_pass[nvn_stage] = g_stat_pass; PD("K %llu st%d key=%s nb=%d", g_stat_pass, nvn_stage, sh->key[0] ? sh->key : sh->builtin ? sh->builtin : "?", sh->rf.nb); cap_key_note(sh->key); }   // RewindBox (patch 0051): cap_key_note
+     pthread_mutex_lock(&g_rmu);   // The texture / sampler registration tables may be being grown or rewritten by the game thread
+     for (int i = 0; i < sh->rf.nb; i++) {
+         const nvn_rbind *b = &sh->rf.b[i];
+@@ -16330,6 +16340,7 @@ static void cap_end(void) {   // td_dump has written the files
+     g_cap_snap = 0; g_cap_dir[0] = 0;
+     g_pd_a0 = -2;   // passdump() reads DM_NVN_PASSDUMP again (unset: off, answered at its first test)
+     [g_cap_tex removeAllObjects]; [g_cap_tex_seen removeAllObjects]; g_cap_tex_over = g_cap_tex_kind = 0;   // RewindBox (patch 0048; 0049: the counts): td_dump's sheets are written (or its pipeline failed)
++    [g_cap_keys removeAllObjects];   // RewindBox (patch 0051)
+ }
+ static void cap_reset(void) {   // session end (nvn_session.inc): a capture left unfinished stops there, its directory keeps what it has
+     atomic_store(&g_cap_req, 0);
+@@ -16338,6 +16349,7 @@ static void cap_reset(void) {   // session end (nvn_session.inc): a capture left
+     pthread_mutex_lock(&g_cap_pd_mu); if (g_cap_pd_f) fclose(g_cap_pd_f); g_cap_pd_f = NULL; pthread_mutex_unlock(&g_cap_pd_mu);
+     g_cap_snap = 0; g_cap_dir[0] = 0;
+     [g_cap_tex removeAllObjects]; [g_cap_tex_seen removeAllObjects]; g_cap_tex_over = g_cap_tex_kind = 0;   // RewindBox (patch 0048; 0049: the counts)
++    [g_cap_keys removeAllObjects];   // RewindBox (patch 0051)
+ }
+ static int cap_room(size_t bytes, const char *what, uint64_t ser) {   // td_dump: room for one image's conversion (its RGBA8 copy, the read-back buffer and the PNG encoder's)
+ #if TARGET_OS_IPHONE
+@@ -16599,6 +16611,16 @@ static void td_dump(void) {
+              done, (unsigned long)((done + per - 1) / per), left, g_cap_tex_kind, g_cap_tex_over, (int)CAP_TEX_MAX);
+     }
+     [g_cap_tex removeAllObjects]; [g_cap_tex_seen removeAllObjects]; g_cap_tex_over = g_cap_tex_kind = 0;   // RewindBox (patch 0048; 0049: the counts)
++    // RewindBox (patch 0051): the translated source of the frame's shaders (cap_key_note). A key of the packaged library or a builtin has no file there and is counted as absent
++    if (g_cap_dir[0] && g_cap_keys.count) {
++        const char *fb = getenv("DM_MSL_FALLBACK"); unsigned copied = 0;
++        if (fb && *fb) for (NSString *k in g_cap_keys) {
++            NSString *src = [NSString stringWithFormat:@"%s/%@.metal", fb, k], *dst = [NSString stringWithFormat:@"%s/sh-%@.metal", g_cap_dir, k];
++            if ([NSFileManager.defaultManager copyItemAtPath:src toPath:dst error:nil]) copied++;
++        }
++        MLOG("RewindBox: frame capture: the source of %u of the frame's %lu shaders copied (sh-<key>.metal); the others have no file in the device's translation directory", copied, (unsigned long)g_cap_keys.count);
++    }
++    [g_cap_keys removeAllObjects];
+     td_clear(0);
+     if (g_cap_dir[0]) cap_end();   // RewindBox (patch 0045)
+ }
