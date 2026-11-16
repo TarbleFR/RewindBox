@@ -63,7 +63,8 @@ SHARDS_PER_ENGINE = 32
 # is published to new folders only, and the folders of earlier formats keep their last index.
 #   1  first publication (root index.json.gz and shards/, frozen)
 #   2  PS2 records may point into their sources' files (`origin`, files with `parts`)
-FORMAT = 2
+#   3  Switch exefs patches may point to a source's .pchtxt file (`exefs: [{bid, o, size, sha256}]`)
+FORMAT = 3
 ENGINES = ('melonx', 'rpcs3', 'armsx2', 'dolphin')
 
 # Only sources whose licence allows redistribution, or content the embedded
@@ -83,6 +84,18 @@ SOURCES = {
         'license': 'No licence; the codes belong to the authors credited in each title. Not hosted by '
                    'RewindBox: the app downloads the original file of each title from this repository and '
                    'revision. Titles whose authors restrict distribution are left out.',
+        'engines': ['melonx'],
+    },
+    # No licence either: exefs patches (IPSwitch .pchtxt), read by reference like the cheats above.
+    'keatonthebot-pchtxt': {
+        'name': 'KeatonTheBot/switch-pchtxt-mods (exefs patches: resolution, frame rate, effects)',
+        'url': 'https://github.com/KeatonTheBot/switch-pchtxt-mods',
+        'git': 'https://github.com/KeatonTheBot/switch-pchtxt-mods.git',
+        'revision': 'e882d7a8273783a981efcb2eeb38a580307bbce4',
+        'origin': 'https://raw.githubusercontent.com/KeatonTheBot/switch-pchtxt-mods/'
+                  'e882d7a8273783a981efcb2eeb38a580307bbce4/',
+        'license': 'No licence; the patches belong to KeatonTheBot. Not hosted by RewindBox: the app downloads each '
+                   'patch file from this repository and revision.',
         'engines': ['melonx'],
     },
     # ------------------------------------------------------------ RPCS3
@@ -157,6 +170,17 @@ SOURCES = {
         'origin': 'https://raw.githubusercontent.com/Gabominated/PCSX2/24eaa108d39a63aec5d53e19b4962bb239f145ef/',
         'license': 'No licence; the patches belong to Gabominated and the authors each group names. Not hosted '
                    'by RewindBox: the app downloads the game\'s original file from this repository and revision.',
+        'engines': ['armsx2'],
+    },
+    'nethersx2-cheats': {
+        'name': 'Saramagrean/NetherSX2-cheats (FPS, alternative widescreen ratios, no-interlacing; based on pcsx2_patches)',
+        'url': 'https://github.com/Saramagrean/NetherSX2-cheats',
+        'git': 'https://github.com/Saramagrean/NetherSX2-cheats.git',
+        'revision': '52187122e0adf73a50869b52ce9143e878ab4129',
+        'origin': 'https://raw.githubusercontent.com/Saramagrean/NetherSX2-cheats/52187122e0adf73a50869b52ce9143e878ab4129/',
+        'license': 'No licence; based on pcsx2_patches, each patch belongs to the author its file names. Not hosted '
+                   'by RewindBox: the app downloads the game\'s original file from this repository and revision. '
+                   'Only the groups no earlier source has are listed.',
         'engines': ['armsx2'],
     },
     # ------------------------------------------------------------ Dolphin
@@ -370,10 +394,92 @@ def switch_restricted_titles(scdb, matias):
     return restricted
 
 
-def build_melonx(scdb, matias, stats):
+PCHTXT_HEADER = re.compile(r'^@nsobid-([0-9A-Fa-f]{32,64})$')
+# Choices that patch the same values of a game (render resolution, aspect ratio): one at a time.
+SWITCH_DISPLAY = re.compile(r'\b\d{3,4}p\b|\b[24581]K\b|ultra ?wide|\b\d{1,2} ?[:.] ?\d{1,2}\b|\bSSAA\b', re.I)
+
+
+def pchtxt_text(raw):
+    """(Build ID, text) of an IPSwitch patch file as the app writes it, or None.
+
+    Strict UTF-8, carriage returns removed, the Build ID of the first line
+    in upper case (Ryujinx compares it case-sensitively), one final newline.
+    EnhancementOrigin applies the same rules and checks the SHA-256."""
+    try:
+        text = raw.decode('utf-8')
+    except UnicodeDecodeError:
+        return None
+    if text.startswith('\ufeff'):
+        return None
+    lines = text.replace('\r', '').split('\n')
+    header = PCHTXT_HEADER.match(lines[0])
+    if not header:
+        return None
+    bid = header.group(1).upper()
+    body = '\n'.join(['@nsobid-' + bid] + lines[1:])
+    if not body.endswith('\n'):
+        body += '\n'
+    return (bid, body) if len(body) <= 64 * 1024 else None
+
+
+def build_melonx_exefs(root, source_id, titles, restricted, stats):
+    """Exefs patches of a repository laid out <game>/<Title ID>/<mod>/exefs/<version>.pchtxt,
+    by reference: per mod, one pointer per patch file (Build ID, origin file, size and SHA-256
+    of the text the app writes). Nothing of the patch itself is published."""
+    mods = {}
+    for path in sorted(root.glob('*/*/**/exefs/*.pchtxt')):
+        parts = path.relative_to(root).parts
+        tid = parts[1].upper()
+        name = clean_label(' - '.join(parts[2:-2]), 120)
+        if not SWITCH_TITLE.match(tid) or not name:
+            stats['melonx_exefs_rejected'] += 1
+            continue
+        if tid in restricted:
+            stats['melonx_restricted_skipped'] += 1
+            continue
+        raw = path.read_bytes()
+        read = pchtxt_text(raw)
+        if read is None:
+            stats['melonx_exefs_rejected'] += 1
+            continue
+        bid, text = read
+        mod = mods.setdefault((tid, name.casefold()), {'tid': tid, 'name': name, 'game': parts[0], 'files': {}})
+        if bid in mod['files']:
+            stats['melonx_exefs_rejected'] += 1  # two files of one mod for the same executable
+            continue
+        encoded = text.encode('utf-8')
+        mod['files'][bid] = {'path': path.relative_to(root).as_posix(), 'raw_size': len(raw),
+                             'raw_sha256': hashlib.sha256(raw).hexdigest(), 'size': len(encoded),
+                             'sha256': hashlib.sha256(encoded).hexdigest()}
+    for (tid, _), mod in sorted(mods.items()):
+        record = titles.setdefault(tid, {'title': '', 'credits': [], 'origin': [], 'master': {}, 'entries': {}, 'seen': {}})
+        record['title'] = record['title'] or clean_label(mod['game'], 120)
+        credit = f'Exefs patches by KeatonTheBot ({SOURCES[source_id]["url"]}).'
+        if credit not in record['credits']:
+            record['credits'].append(credit)
+        key = 'exefs/' + mod['name'].casefold()
+        if key in record['entries']:
+            stats['melonx_exefs_rejected'] += 1
+            continue
+        patches = []
+        for bid, item in sorted(mod['files'].items()):
+            record['origin'].append({'source': source_id, 'path': item['path'], 'size': item['raw_size'],
+                                     'sha256': item['raw_sha256']})
+            patches.append({'bid': bid, 'o': len(record['origin']) - 1, 'size': item['size'], 'sha256': item['sha256']})
+        category = classify(mod['name'], 'graphics')
+        entry = {'id': stable_id('melonx', tid, 'exefs', mod['name'].casefold()), 'cat': category, 'name': mod['name'],
+                 'source': source_id, 'exefs': patches}
+        if SWITCH_DISPLAY.search(mod['name']):
+            entry['group'] = f'display/{tid}'
+        record['entries'][key] = entry
+        stats['melonx_exefs_entries'] += 1
+
+
+def build_melonx(scdb, matias, stats, exefs=()):
     """switch-cheats-db by reference: per title, the origin files (path, size,
     SHA-256 at the pinned revision) and, per program and Build ID, the key of
-    the code in that file. The app downloads the file and reads the lines."""
+    the code in that file. The app downloads the file and reads the lines.
+    `exefs` adds the patch files of (checkout, source id) repositories the same way."""
     restricted = switch_restricted_titles(scdb, matias)
     stats['melonx_restricted_titles'] = sorted(restricted)
     titles = {}
@@ -447,13 +553,15 @@ def build_melonx(scdb, matias, stats):
             else:
                 # Pointers into an unused file are never written; keep indexes dense.
                 assert not any(p['o'] == origin for e in record['entries'].values() for p in e['builds'].values())
+    for root, source_id in exefs:
+        build_melonx_exefs(root, source_id, titles, restricted, stats)
     out = {}
     for tid, record in sorted(titles.items()):
         entries = sorted(record['entries'].values(), key=lambda e: (e['cat'], e['name'].casefold()))
         if not entries:
             continue
         for entry in entries:
-            group = display_group(tid, entry['name'], entry['cat'])
+            group = entry.get('group') or display_group(tid, entry['name'], entry['cat'])
             if group:
                 entry['group'] = group
         out[tid] = {'title': record['title'] or tid, 'credits': record['credits'], 'origin': record['origin'],
@@ -606,7 +714,9 @@ PS2_ORIGIN = (
     ('pcsx2-patches', 'patches/*.pnach', 'PCSX2'),
     ('peterdelta-pcsx2', 'patches/*.pnach', 'PeterDelta'),
     ('gabominated-pcsx2', 'PCSX2 Patches/*.pnach', 'Gabominated'),
+    ('nethersx2-cheats', 'cheats_*/*.pnach', 'NetherSX2'),
 )
+PS2_CRC_FILE = re.compile(r'^([0-9A-Fa-f]{8})\.pnach$')
 ORIGIN_NOTICE = ('// No licence is stated by this source. RewindBox does not host these lines: the app read them '
                  'from the file above, at that revision.')
 
@@ -753,16 +863,25 @@ def build_armsx2(roots, stats):
         root = roots[source_id]
         for path in sorted(root.glob(pattern)):
             match = PS2_ANY_FILE.match(path.name)
-            if match is None or path.stat().st_size > 512 * 1024:
+            crc_only = PS2_CRC_FILE.match(path.name)
+            if (match is None and crc_only is None) or path.stat().st_size > 512 * 1024:
                 stats['armsx2_skipped_files'] += 1
                 continue
-            key = (match.group(1), match.group(2).upper())
             raw = path.read_bytes()
             try:
                 title = parse_pnach(raw.decode('utf-8'))[0]
             except UnicodeDecodeError:
                 stats['armsx2_origin_not_utf8'] += 1
                 continue
+            if match is not None:
+                key = (match.group(1), match.group(2).upper())
+            else:
+                # A file named by its CRC alone: the serial is the one its gametitle line gives.
+                found = PS2_SERIAL.search(title)
+                if not found:
+                    stats['armsx2_skipped_files'] += 1
+                    continue
+                key = (f'{found.group(1)}-{found.group(2)}{found.group(3)}', crc_only.group(1).upper())
             game = games.setdefault(key, {'title': title, 'groups': [], 'extra': []})
             game['title'] = game['title'] or title
             taken = {g['name'].casefold() for g, _ in game['groups']}
@@ -1104,7 +1223,8 @@ def main():
             engines[engine] = records
         elif engine == 'melonx':
             engines[engine] = build_melonx(git['switch-cheats-db'],
-                                           fetch_git(args.cache, 'gbatemp-matias3ds', args.offline), stats)
+                                           fetch_git(args.cache, 'gbatemp-matias3ds', args.offline), stats,
+                                           exefs=[(git['keatonthebot-pchtxt'], 'keatonthebot-pchtxt')])
         elif engine == 'rpcs3':
             engines[engine] = build_rpcs3(fetch_rpcs3(args.cache, args.offline), stats)
         elif engine == 'armsx2':

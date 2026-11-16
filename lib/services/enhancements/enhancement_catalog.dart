@@ -288,6 +288,7 @@ class EnhancementCatalog {
   ) async {
     final bases = {for (final source in index.sources) source.id: source.origin};
     final contents = <Uint8List>[];
+    final expendable = EnhancementOrigin.expendable(engine, record);
     for (final origin in EnhancementOrigin.files(record)) {
       final digest = origin['sha256']?.toString() ?? '';
       final size = origin['size'];
@@ -326,9 +327,14 @@ class EnhancementCatalog {
           // A source that cannot be reached, or no longer serves the pinned bytes, must not take
           // away what the record offers without it (the PS2 engine's own patches).
           final partial = EnhancementOrigin.withoutOrigin(engine, record);
-          if (partial == null) rethrow;
-          _log.w('Enhancements: $relative unavailable from its source ($error); its entries are left out');
-          return partial;
+          if (partial != null) {
+            _log.w('Enhancements: $relative unavailable from its source ($error); its entries are left out');
+            return partial;
+          }
+          // A Switch patch file only exefs mods point to: those mods are left out, the cheats stay.
+          if (!expendable.contains(contents.length)) rethrow;
+          _log.w('Enhancements: $relative unavailable from its source ($error); its mod is left out');
+          bytes = Uint8List(0);
         }
       }
       contents.add(bytes);

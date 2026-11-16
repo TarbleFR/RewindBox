@@ -117,7 +117,7 @@ the network.
 
 Since 16 November 2026 PS2 sources without a licence are read the same way
 (PCSX2/pcsx2_patches newer than the engine's `patches.zip`, PeterDelta/PCSX2,
-Gabominated/PCSX2; 1,407 files, 2,247 entries). A pnach file is text, so a
+Gabominated/PCSX2, Saramagrean/NetherSX2-cheats; 3,014 entries). A pnach file is text, so a
 pointer is a byte range, `[origin file, start, end]`: the lines of one
 labelled group. The record's cheat file is a `parts` list that alternates
 RewindBox's own text (the `gametitle`, a comment naming the source, its
@@ -126,11 +126,29 @@ holds the group's name and `author=` credit, never its lines or its
 description. `EnhancementOrigin` rebuilds the file (strict UTF-8, carriage
 returns removed) and refuses it unless it has the size and SHA-256 the
 catalogue lists; the ARMSX2 adapter then installs it like a hosted cheat
-file. On 16 November 2026 the Dart resolver rebuilt all 1,241 such files of
-1,176 records from the pinned sources, and refused a changed origin file. A
+file. On 16 November 2026 the Dart resolver rebuilt all 1,650 such files of
+1,545 records from the pinned sources, and refused a changed origin file.
+A NetherSX2-cheats file is named by its CRC alone: its serial is the one its
+`gametitle` line gives, as for the engine's own CRC-only files. A
 group the engine already ships, or an earlier source already has (same patch
 lines), is not listed twice; a group whose name is taken is offered as a
-variant (`name (PCSX2)`, `(PeterDelta)`, `(Gabominated)`).
+variant (`name (PCSX2)`, `(PeterDelta)`, `(Gabominated)`, `(NetherSX2)`).
+
+Switch exefs patches come the same way from KeatonTheBot/switch-pchtxt-mods
+(`<game>/<Title ID>/<mod>/exefs/<version>.pchtxt`; 250 mods of 60 titles,
+585 patch files). A mod lists, per patch file, the Build ID and a pointer
+`{bid, o, size, sha256}`: the origin file, and the size and SHA-256 of the
+text the adapter writes (strict UTF-8, carriage returns removed, the Build
+ID of the `@nsobid-` line in upper case, one final newline). The resolver
+rebuilt the 585 texts on 16 November 2026; a mod is kept only with every
+patch it was published with. Resolution and aspect-ratio mods of one title
+share the group `display/<Title ID>`: one at a time.
+
+When a source cannot be reached, or no longer serves the pinned bytes, the
+rest of a record stays usable: a PS2 record is returned without the cheat
+files built from pointers (the engine's own patches remain), and a Switch
+title loses only the mods whose patch file is missing. A Switch title file
+(the cheats themselves) still fails the record, as before.
 
 Licensed sources (RPCS3 CC BY-SA 4.0, Dolphin GPL, MIT) stay hosted, as their
 licences allow. The RPCS3 patch file changes every week, and hosting keeps
@@ -208,8 +226,8 @@ those patches stable.
 
 ## Sources
 
-14 pinned sources, 49,445 entries (catalogue revision
-`2026-11-16T2042Z.ef845ebb4860`; 47,184 entries from 11 sources in
+16 pinned sources, 50,462 entries (catalogue revision
+`2026-11-16T2112Z.a85f516925ab`; 47,184 entries from 11 sources in
 `2026-10-28.209508f70e51`). A source is hosted only when its licence allows
 redistribution; content the embedded engine already ships is referenced by
 name; a source without a licence is read by reference (see Origin download
@@ -220,6 +238,7 @@ of `python3 tools/catalogues/report.py`.
 | Engine | Source | Revision | Entries | Licence |
 | --- | --- | --- | ---: | --- |
 | MeloNX | [HamletDuFromage/switch-cheats-db](https://github.com/HamletDuFromage/switch-cheats-db) (GBAtemp main cheat file, ChanseyIsTheBest 60 FPS/graphics) | `109766ab21c7` | 36,980 | none: **not hosted**, downloaded from the source by the app |
+| MeloNX | [KeatonTheBot/switch-pchtxt-mods](https://github.com/KeatonTheBot/switch-pchtxt-mods) (exefs patches: resolution, frame rate, effects) | `e882d7a82737` | 250 | none: **not hosted**, downloaded from the source by the app |
 | RPCS3 | [RPCS3 game patches](https://wiki.rpcs3.net/index.php?title=Help:Game_Patches) via `rpcs3.net/compatibility?patch&api=v1&v=1.2` | content `f1f3cab0c8fe…` | 3,643 | CC BY-SA 4.0 (browser-verified 28 October 2026; page-specific exceptions apply) |
 | ARMSX2 | [ARMSX2 `patches.zip`](https://github.com/ARMSX2/ARMSX2/blob/9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe/platforms/ios/app/src/main/assets/resources/patches.zip) (the engine's own patch set, names and author credits only) | `9d989ca933a8` | 6,092 | shipped by the engine; nothing redistributed |
 | ARMSX2 | [CookiePLMonster/Console-Cheat-Codes](https://github.com/CookiePLMonster/Console-Cheat-Codes) (PS2) | `f63492f8ce9b` | 93 | MIT |
@@ -227,6 +246,7 @@ of `python3 tools/catalogues/report.py`.
 | ARMSX2 | [PCSX2/pcsx2_patches](https://github.com/PCSX2/pcsx2_patches) (groups the engine's `patches.zip` does not have) | `b919d7fb5849` | 1,007 | none: **not hosted**, downloaded from the source by the app |
 | ARMSX2 | [PeterDelta/PCSX2](https://github.com/PeterDelta/PCSX2) (50/60 FPS, widescreen) | `8ee633941cfd` | 390 | none: **not hosted**, downloaded from the source by the app |
 | ARMSX2 | [Gabominated/PCSX2](https://github.com/Gabominated/PCSX2) (FPS, widescreen, visual patches) | `24eaa108d39a` | 850 | none: **not hosted**, downloaded from the source by the app |
+| ARMSX2 | [Saramagrean/NetherSX2-cheats](https://github.com/Saramagrean/NetherSX2-cheats) (FPS, alternative widescreen ratios; groups no earlier source has) | `52187122e0ad` | 767 | none: **not hosted**, downloaded from the source by the app |
 | Dolphin | [dolphin-ios Sys/GameSettings](https://github.com/OatmealDome/dolphin-ios/tree/7cac54161659421ed95c2cd1c0b0746539a4cd38/Data/Sys/GameSettings) (the engine's own codes, names only) | `7cac54161659` | 240 | GPL-2.0+ |
 | Dolphin | [dolphin-emu/dolphin](https://github.com/dolphin-emu/dolphin) GameSettings (newer codes, with bodies) | `c5069249b473` | 36 | GPL-2.0+ |
 | Dolphin | [Tinob/Ishiiruka](https://github.com/Tinob/Ishiiruka) GameSettings | `cba6d7279b44` | 15 | GPL-2.0+ |
@@ -238,9 +258,9 @@ Engines' entry totals:
 
 | Engine | Games | Entries | Cheats | FPS | Ultrawide | Graphics | Performance |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| MeloNX | 2,285 | 36,980 | 22,446 | 1,405 | 36 | 12,971 | 122 |
+| MeloNX | 2,306 | 37,230 | 22,446 | 1,420 | 69 | 13,173 | 122 |
 | RPCS3 | 964 | 3,643 | 1,592 | 643 | 694 | 702 | 12 |
-| ARMSX2 | 4,537 | 8,484 | 829 | 1,613 | 4,976 | 1,055 | 11 |
+| ARMSX2 | 4,618 | 9,251 | 977 | 1,670 | 5,384 | 1,209 | 11 |
 | Dolphin | 282 files | 338 | — | 62 | 216 | 33 | 27 |
 
 Removed on 28 October 2026 because they grant no licence to redistribute
@@ -251,7 +271,9 @@ entries from 17 sources):
   "All rights belong to the original cheat authors"), blawar/titledb
   `cheats.json` (uncredited codes), KeatonTheBot/switch-pchtxt-mods and
   Fl4sh9174/Switch-Ultrawide-Mods (exefs). switch-cheats-db came back the
-  same day without being hosted: see Origin download.
+  same day without being hosted, and KeatonTheBot/switch-pchtxt-mods on
+  16 November 2026: see Origin download. Fl4sh9174's mods are published as
+  zip archives, which the origin download does not read.
 - **PS2:** the bodies of PCSX2/pcsx2_patches (only the names of the copy
   ARMSX2 ships are referenced), Gabominated/PCSX2 and PeterDelta/PCSX2.
   These three came back on 16 November 2026 without being hosted, as
@@ -318,7 +340,8 @@ server code.
   Switch titles even carry explicit "do not repost" restrictions). A source
   can come back when its authors grant a licence or written permission.
 - **Read by reference (not hosted).** switch-cheats-db (28 October 2026),
-  then PCSX2/pcsx2_patches, PeterDelta/PCSX2 and Gabominated/PCSX2
+  then PCSX2/pcsx2_patches, PeterDelta/PCSX2, Gabominated/PCSX2,
+  Saramagrean/NetherSX2-cheats and KeatonTheBot/switch-pchtxt-mods
   (16 November 2026). None states a licence and none states a restriction
   (READMEs and repository files read at the pinned revisions; pcsx2_patches
   exists to distribute patches to the emulator, and Gabominated's README
@@ -366,11 +389,15 @@ Publication never rewrites a file an app may still ask for.
   index into `r/*/index.json.gz` of every earlier revision of the same
   record format (`format` in the index).
 - A shard that did not change keeps its SHA-256: an app that adopts the new
-  index downloads only the shards that changed (32 of 128 on 16 November
-  2026, 614,594 bytes; the Switch, PS3 and Dolphin shards were not fetched
-  again).
+  index downloads only the shards that changed (the 32 PS2 shards in the
+  first two publications of 16 November 2026, 27 Switch shards in the
+  third; the PS3 and Dolphin shards were never fetched again).
 - A revision is the UTC date and time, then a digest
-  (`2026-11-16T2042Z.ef845ebb4860`): the app keeps the later string.
+  (`2026-11-16T2112Z.a85f516925ab`): the app keeps the later string.
+- Record formats: 1 is the first publication; 2 added PS2 records by
+  reference (revisions `…T2042Z` and `…T2109Z`); 3 added Switch exefs
+  patches by reference (`…T2112Z`). An app built for format 2 keeps the last
+  format-2 index: it would fail a title whose record lists a patch file.
 - The first publication (`index.json.gz` and `shards/` at the root,
   `2026-10-28.209508f70e51`, record format 1) is frozen. The apps that
   bundle it cannot read a PS2 record by reference; they keep exactly what

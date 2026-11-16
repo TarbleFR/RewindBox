@@ -193,12 +193,16 @@ Read by reference since 16 November 2026 (not hosted, not in the IPA): the
 catalogue lists the names and author credits of patch groups of
 PCSX2/pcsx2_patches b919d7fb5849feeb30b2da07d02f6dc662f28ba5 (groups the
 embedded engine does not already ship), PeterDelta/PCSX2
-8ee633941cfdfb233a772e2d28b1a6006624d392 and Gabominated/PCSX2
-24eaa108d39a63aec5d53e19b4962bb239f145ef, with pointers (byte ranges) into
-their files. The application downloads a game's original file from the
-source repository at that revision, checks its SHA-256 and writes the
-selected groups. These sources state no licence; each patch belongs to the
-author its file names (docs/ENHANCEMENTS.md, "Origin download" and "Rights").
+8ee633941cfdfb233a772e2d28b1a6006624d392, Gabominated/PCSX2
+24eaa108d39a63aec5d53e19b4962bb239f145ef and Saramagrean/NetherSX2-cheats
+52187122e0adf73a50869b52ce9143e878ab4129, with pointers (byte ranges) into
+their files; and the names of the exefs patches of
+KeatonTheBot/switch-pchtxt-mods e882d7a8273783a981efcb2eeb38a580307bbce4,
+with pointers to their patch files. The application downloads a game's
+original file from the source repository at that revision, checks its
+SHA-256 and writes the selected groups or patches. These sources state no
+licence; each patch belongs to the author its file names
+(docs/ENHANCEMENTS.md, "Origin download" and "Rights").
 
 UNIFIED CHEAT CATALOGUE (native/cheats/) — 28 OCTOBER 2026 WITHDRAWAL
 

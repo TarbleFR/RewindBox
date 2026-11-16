@@ -18,12 +18,13 @@ hand. Documentation: [`docs/ENHANCEMENTS.md`](../../../docs/ENHANCEMENTS.md).
 - `VALIDATION.json` — totals of the newest revision, the inputs the builder
   rejected, and what the publication changed.
 
-Sources (pinned): 14, listed with revisions and licences in the index
+Sources (pinned): 16, listed with revisions and licences in the index
 (`sources`), in [`docs/ENHANCEMENTS.md`](../../../docs/ENHANCEMENTS.md) and in
 `NOTICE.md`. A source is hosted only when its licence allows redistribution;
 content the embedded engine already ships (ARMSX2 `patches.zip`) is
 referenced by name only; a source without a licence (switch-cheats-db,
-PCSX2/pcsx2_patches, PeterDelta/PCSX2, Gabominated/PCSX2) is not hosted: the
+KeatonTheBot/switch-pchtxt-mods, PCSX2/pcsx2_patches, PeterDelta/PCSX2,
+Gabominated/PCSX2, Saramagrean/NetherSX2-cheats) is not hosted: the
 shards hold names, credits and pointers, and the application downloads the
 original file from the source at its pinned revision. The adapted RPCS3 entries are distributed under CC BY-SA 4.0
 (RPCS3 Wiki contributors); the PS2 cheat files carry their MIT notices; the

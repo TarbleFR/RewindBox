@@ -1,62 +1,61 @@
 {
-  "index_sha256": "1576c25770b2abf76736e4717d44df82810c127dd238bbdbe406a0497a041704",
-  "index_size": 158968,
+  "index_sha256": "4a901b4405dd181d0bbd191db34c367e8b0b567fd76fd6bb1d08202dbf44f3ac",
+  "index_size": 162307,
   "published": {
-    "changed_bytes": 614594,
+    "changed_bytes": 1162438,
     "changed_shards": [
-      "armsx2-00",
-      "armsx2-01",
-      "armsx2-02",
-      "armsx2-03",
-      "armsx2-04",
-      "armsx2-05",
-      "armsx2-06",
-      "armsx2-07",
-      "armsx2-08",
-      "armsx2-09",
-      "armsx2-10",
-      "armsx2-11",
-      "armsx2-12",
-      "armsx2-13",
-      "armsx2-14",
-      "armsx2-15",
-      "armsx2-16",
-      "armsx2-17",
-      "armsx2-18",
-      "armsx2-19",
-      "armsx2-20",
-      "armsx2-21",
-      "armsx2-22",
-      "armsx2-23",
-      "armsx2-24",
-      "armsx2-25",
-      "armsx2-26",
-      "armsx2-27",
-      "armsx2-28",
-      "armsx2-29",
-      "armsx2-30",
-      "armsx2-31"
+      "melonx-00",
+      "melonx-01",
+      "melonx-02",
+      "melonx-03",
+      "melonx-04",
+      "melonx-05",
+      "melonx-06",
+      "melonx-08",
+      "melonx-09",
+      "melonx-10",
+      "melonx-11",
+      "melonx-12",
+      "melonx-13",
+      "melonx-15",
+      "melonx-16",
+      "melonx-17",
+      "melonx-18",
+      "melonx-19",
+      "melonx-20",
+      "melonx-21",
+      "melonx-22",
+      "melonx-24",
+      "melonx-25",
+      "melonx-26",
+      "melonx-27",
+      "melonx-28",
+      "melonx-30"
     ],
-    "previous": "2026-10-28.209508f70e51",
+    "previous": "2026-11-16T2109Z.fbef60cc7980",
     "removed_shards": [],
     "reused_engines": [
-      "melonx",
+      "armsx2",
+      "dolphin",
       "rpcs3"
     ]
   },
   "rejections": {
-    "armsx2_duplicate_groups": 7258,
-    "armsx2_origin_rejected_groups": 161,
-    "armsx2_skipped_files": 9,
+    "armsx2_duplicate_groups": 12732,
+    "armsx2_origin_not_utf8": 3,
+    "armsx2_origin_rejected_groups": 216,
+    "armsx2_skipped_files": 517,
     "dolphin_cheats_left_to_catalogue": 5439,
     "dolphin_duplicate_codes": 44,
     "dolphin_fixes_skipped": 5,
     "dolphin_rejected_bodies": 94,
     "dolphin_skipped_files": 23,
     "melonx_duplicate_cheats": 22367,
+    "melonx_exefs_entries": 250,
+    "melonx_exefs_rejected": 12,
     "melonx_rejected_cheats": 839,
     "melonx_rejected_titles": 8,
-    "melonx_restricted_skipped": 217,
+    "melonx_restricted_skipped": 221,
     "melonx_restricted_titles": [
       "01000130120EE000",
       "010001701248C000",
@@ -255,18 +254,18 @@
     ],
     "rpcs3_rejected": 2
   },
-  "revision": "2026-11-16T2042Z.ef845ebb4860",
-  "shard_bytes": 2426830,
+  "revision": "2026-11-16T2112Z.a85f516925ab",
+  "shard_bytes": 2581955,
   "totals": {
     "armsx2": {
       "entries": {
-        "cheat": 829,
-        "fps": 1613,
-        "graphics": 1055,
+        "cheat": 977,
+        "fps": 1670,
+        "graphics": 1209,
         "performance": 11,
-        "ultrawide": 4976
+        "ultrawide": 5384
       },
-      "keys": 4537
+      "keys": 4618
     },
     "dolphin": {
       "entries": {
@@ -280,12 +279,12 @@
     "melonx": {
       "entries": {
         "cheat": 22446,
-        "fps": 1405,
-        "graphics": 12971,
+        "fps": 1420,
+        "graphics": 13173,
         "performance": 122,
-        "ultrawide": 36
+        "ultrawide": 69
       },
-      "keys": 2285
+      "keys": 2306
     },
     "rpcs3": {
       "entries": {
