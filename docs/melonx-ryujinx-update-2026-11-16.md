@@ -118,7 +118,7 @@ condition stay the runtime's.
 | --- | --- |
 | Implemented | Yes: adapter, wiring, build check |
 | Tested | On Linux: the C file run with stand-ins (each call under each value of the two flags), the project's target run by MSBuild for both iOS runtime identifiers, the objects' symbols, and a Mach-O link (lld) of a stand-in caller, where the image's own definition replaces the system import (gate `runtime-yield`, 28 checks) |
-| Compiled | Not yet: the NativeAOT link on macOS is the Core build |
+| Compiled | Yes: Core `9943a5ca` (run 43933768917, build-smoke, two simulator sessions). The build read both linked libraries (no `sched_yield` import, `thread_switch` and `swtch_pri` imported, marker present); in the iPhone binary `PalSwitchToThread` and `GCToOSInterface::YieldThread` both branch to the Core's `sched_yield`, which reads the two flags. Pinned (artifact 14260457406, iPhone binary `a69d52e6`, packaged fingerprint `3df6c45b`, contract `2cc3d4fd`, 110 gates) |
 | Delivered | No |
 | Observed on a device | No |
 
