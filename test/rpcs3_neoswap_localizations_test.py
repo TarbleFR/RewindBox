@@ -76,16 +76,17 @@ def catalogues() -> dict:
     assert 'NeoSwapMemoryGraph(' in overlay and 'NeoSwapDecimalGB(' in overlay
     assert 'fpsLine' not in overlay and 'donor_prepared_bytes' not in overlay
     assert 'memoryUsedBytes' not in overlay
-    assert 'NeoSwapFPSValid(fps, validFields)' in overlay
-    assert '@"FPS %.1f"' in overlay and '@"FPS —"' in overlay
-    assert 'self.ratesLabel.text, self.deviceLabel.text, self.neoswapLabel.text' in overlay
+    # Minimal bar (16 Nov 2026): FPS, CPU, RAM and NeoSwap, a value above its caption, no graph.
+    assert 'self.fpsValue.text = NeoSwapFPSValid(fps, validFields)' in overlay
+    assert 'kCPUValid = 1U << 1' in overlay and 'self.cpuValue.text = cpuValid' in overlay
+    assert 'drawRect' not in overlay
     # The app footprint (orange) and active donated backing (green) remain
-    # independent; idle capacity and shared aliases never form a third line.
+    # independent values; idle capacity and shared aliases are never shown.
+    assert 'self.ramValue.text = [self memoryText:point.footprint valid:point.footprintValid];' in overlay
+    assert 'self.neoswapValue.text = [self memoryText:point.donated valid:point.donatedValid];' in overlay
     assert 'systemCyanColor' not in overlay and 'systemOrangeColor' in overlay and 'systemGreenColor' in overlay
     assert 'memoryMicroprocess' not in overlay and 'memoryPhysical' not in overlay
     assert 'allocationLine' not in overlay and 'residentLine' not in overlay
-    assert 'append(deviceLine, sample.memory.footprint, sample.memory.footprintValid, deviceStarted);' in overlay
-    assert 'append(neoswapLine, sample.memory.donated, sample.memory.donatedValid, neoswapStarted);' in overlay
     assert 'memoryMicroprocess' not in source and 'memoryPhysical' not in source
     return catalogues
 
@@ -150,7 +151,7 @@ int main() { @autoreleasepool {
 
 if __name__ == "__main__":
     values = catalogues()
-    print("PASS: all 14 legacy NeoSwap keys remain valid in 12 catalogues; independent app-RAM and donated-backing decimal-GB graph verified", flush=True)
+    print("PASS: all 14 legacy NeoSwap keys remain valid in 12 catalogues; minimal FPS / CPU / RAM / NeoSwap bar with independent app-RAM and donated-backing values verified", flush=True)
     if sys.platform == "darwin":
         execute_native_lookup(values)
     else:
