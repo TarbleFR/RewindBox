@@ -259,3 +259,136 @@ du workflow. Non exécutés : bancs historiques, compilation iOS de ce lot (dema
 | Menus de Black Ops II plus coûteux par seconde de CPU dans la 737 | Cause non établie (fréquence plus haute ; écran de menu peut-être différent) : A/B dans la même session avec « Event Waits When Hot » |
 
 Vérifié sur PC pour le Core 938 : syntaxe ARM64 de `RSXFIFO.cpp`, `RSXZCULL.cpp` et `RPCS3IOSFreezeDump.cpp` (le rapport `RPCS3IOSPerformance.cpp` dépend d'en-têtes Apple ; l'appel ajouté a été relu contre `RPCS3IOSFreezeEpisode.h`), identités de génération de code inchangées (PPU a987639e9f838d1c, SPU 477a3fa442d27917), porte de la route Core (code 0), correctif canonique re-matérialisé octet pour octet (498 fichiers), étape Metal du workflow. Non exécutés : bancs historiques, appareil.
+
+## 10. Journaux de l'IPA 745 (15 novembre) et Core 939
+
+Journaux privés hors Git, IPA 745 = Core 938. Black Ops II (PID 9077, sessions 1, 2, 4 et 5) et God of War III
+(session 3). État thermique « serious » presque tout le temps. Le mainteneur précise : pas d'anomalie graphique, surtout de
+l'instabilité. Priorité donc aux gels et aux à-coups, puis à la régularité des images.
+
+| Constat (mesuré) | Cause | Suite |
+|---|---|---|
+| Black Ops II en partie (session 5) : **chaque image de plus de 100 ms est la première construction d'un pipeline graphique**. 51 constructions, 23,9 s, 19 % du match ; médiane 516 ms, dont 88 % dans la compilation Metal de la bibliothèque du fragment shader ; chaînes jusqu'à 18 constructions (9,3 s sans image : le « gel » de la session 5) | Mode « Legacy Recompiler » : le fil RSX attend chaque construction, le jeu s'arrête. Les caches marchent (rien n'est compilé deux fois, ils survivent aux mises à jour) : ce sont de vraies premières rencontres | **Core 939 : mode asynchrone** (décision du mainteneur) |
+| Cache MoltenVK de Black Ops II : 126 279 131 octets, **94 % de la limite de 128 Mio** (45 bibliothèques ajoutées en une session, ~39 ko chacune) | Au-delà de la limite, la sauvegarde est refusée : les nouvelles bibliothèques ne seraient plus gardées et les à-coups reviendraient à chaque partie | **Core 939 : limite 256 Mio** |
+| Première analyse GLSL d'une session : 140,4 ms, 136,5 ms et 55,3 ms sur le fil RSX en jeu, contre 5 à 9 ms ensuite | glslang construit ses tables de symboles intégrés au premier shader « #version 450 » | **Core 939 : préchauffage au démarrage** |
+| **Le vrai gel de Black Ops II** (session 2, flip 1960) | Le gestionnaire de travaux du jeu tourne en rond : les sept travailleurs (thread PPU « Secondary » et six noyaux SPURS) reprennent un travail, voient qu'il ne peut pas encore tourner et le remettent en file ; la tête de la réserve de nœuds (0x2e208a0) avance, la somme des compteurs en file / en cours reste la même. Même forme que Black Ops III (corrigé par ARMSX3 par un patch du jeu). Causes émulateur examinées et réfutées. Aucun réglage par jeu défendable | **Core 939 : capture de la mémoire du jeu à 3 s** ; le patch du jeu suivra |
+| Black Ops II en partie : 33 ms par image à ≥ 2,0 GHz, 50 ms quand iOS bride les cœurs P à 1,6-1,8 GHz (p95 35-36 ms contre 50,5 ms) | Le jeu est limité par le CPU invité sur les deux cœurs P (93 % occupés) ; 572 millions d'instructions par image, comme sur la 726 : **pas de régression du moteur** | Pas de correctif dans le Core. Essai sur l'iPhone : « Accurate SPU Reservations » désactivé pour Black Ops II (12 300 verrous d'écriture par image ; PPU parqué 5,5 ms par image) |
+| Menus de Black Ops II : 37 700 à 38 300 attentes SPU par seconde | Attentes après un PUTLLC qui n'écrit rien (correction du §9) ; la règle du Core 935 demande ~2 ms de silence et ne se déclenche jamais (les six threads repartent toutes les ~1,2 ms) | Voir le correctif de chauffe ci-dessous |
+| Placement des threads et politique thermique | Déjà justes : les SPU sont sur les cœurs E ; la seule vraie attente active sur les cœurs P est le parcage du PPU (0,166 cœur) | Rien à changer |
+| God of War III | Sauvegarde d'état faite sans la dérivation MLAA (§9) | Démarrer normalement, puis refaire une sauvegarde d'état |
+
+### Core 939 : le lot
+
+**`REWINDBOX_ASYNC_SHADERS_939` (mode asynchrone, décision du mainteneur du 15 novembre).** Le mode par défaut sur iOS
+devient « Async Recompiler » : la construction d'un pipeline se fait sur le fil de travail RSX.W et le jeu continue ; les
+dessins qui ont besoin d'un pipeline encore en construction sont sautés jusqu'à ce qu'il soit prêt (un objet peut
+apparaître un instant en retard la première fois qu'il est rencontré). L'étape GLSL vers SPIR-V reste sur le fil RSX (les
+12 % restants). Les pipelines déjà construits, le cache disque et son préchargement au démarrage ne changent pas. Un jeu dont
+la base RPCS3 fixe un autre mode le garde (28 titres « Legacy Recompiler » aujourd'hui) et le choix du joueur pour un jeu
+passe toujours en dernier. RPCS3 écrit tous les réglages dans `config.yml` : une installation existante garde donc
+l'ancienne valeur ; une migration unique la remplace au premier lancement (« Legacy Recompiler » devient « Async
+Recompiler », toute autre valeur reste ; un marqueur à côté de `config.yml` empêche de la refaire, un choix global ultérieur
+est donc respecté ; ligne de journal `REWINDBOX_ASYNC_SHADERS_939`). L'interpréteur de shaders n'est pas un défaut.
+
+**`REWINDBOX_PIPELINE_CACHE_LIMIT_939`.** Limite du cache MoltenVK sauvegardé : 256 Mio au lieu de 128 (l'en-tête du fichier
+garde la taille sur 32 bits). Effet visible seulement quand le cache aurait dépassé l'ancienne limite.
+
+**`REWINDBOX_GLSLANG_PREWARM_939`.** Un shader de fragment vide « #version 450 » est compilé une fois, sur son propre
+thread, pendant le démarrage du rendu ; le thread est attendu avant la fermeture de glslang. Sur PC (même glslang) : après
+lui, le premier shader 450 suivant prend 0,5 à 1,0 ms au lieu de 96 à 118 ms.
+
+**`REWINDBOX_FREEZE_GUEST_939` (mesure seulement).** Au premier relevé d'un épisode « occupé sans image » (3 s ; les
+joueurs arrêtent le jeu après 8 à 11 s, bien avant les 20 s de la capture du Core 938), si le relevé a la signature du gel
+de la file de travaux (FIFO RSX sur un saut sur lui-même hors d'un dessin, un thread PPU dans le code du jeu, deux SPU sur
+la même ligne), le Core écrit `Documents/Diagnostics/PS3/RPCS3-freeze-guest.bin` : les lignes de la file et ce qu'elles
+désignent (enregistrements des types de travaux, images des travaux, noms), les commandes RSX autour de GET, le code, la
+pile et les registres du thread qui tourne, les registres de chaque PPU, les mémoires locales des SPU. Un seul fichier,
+réécrit (le dernier gel reste), au plus 16 Mio de mémoire du jeu plus 1,6 Mio de mémoires locales, quatre écritures par
+démarrage ; une ligne `FREEZE_DUMP guest_memory` dit ce qui a été écrit ou pourquoi rien ne l'a été. Rien n'est écrit
+dans la machine émulée. C'est ce fichier qui permet d'écrire le patch du jeu.
+
+### Core 939 : la chaleur (demande du mainteneur, 16 novembre : « le téléphone doit rester en mode nominal », menus et jeu)
+
+Ce que disent les journaux de la 745 (fenêtres de 5 s, `ENERGY931` et `THERMAL931`, état « serious » tout le long) :
+
+| Phase de Black Ops II | Travail CPU | Puissance CPU | dont cœurs P | Part du temps sur les cœurs P |
+|---|---|---|---|---|
+| Menus à 60 images/s | 0,47 à 1,44 cœur | 1,32 à 2,37 W | 1,29 à 2,18 W | 60 à 77 % |
+| Partie (25 à 37 images/s) | 4,7 à 4,9 cœurs | 1,8 à 1,9 W | 1,2 à 1,3 W | 37 à 39 % |
+
+**Les menus coûtent autant ou plus que la partie, pour cinq fois moins de travail.** iOS y fait tourner les cœurs P à 3,6-3,96
+GHz (contre 1,7 GHz pour le même menu sur l'IPA 726, 0,46 à 0,60 W) ; les six threads SPU qui sondent la file de travaux du
+jeu (0,29 à 0,86 cœur) y sont réveillés sur des cœurs P inoccupés, 38 000 fois par seconde. C'est souvent là que le
+téléphone passe en « serious », avant même le match. En partie, au contraire, iOS donne une enveloppe d'environ 1,25 W aux
+cœurs P : le temps CPU qu'on leur retire y revient en fréquence (images plus rapides) plutôt qu'en chaleur.
+
+Ce que le lot change :
+
+- **`REWINDBOX_SPU_POLL_IDLE_939`** (menus) : un thread SPU est « au repos » après huit attentes de suite sans prendre de
+  travail ; les écritures faites pendant son sommeil ne relancent plus son sondage, et son attente s'allonge à 320 puis
+  640 µs. Une écriture qui notifie la ligne le réveille toujours aussitôt ; une trouvaille réellement tardive ramène la
+  règle d'avant pour un nombre d'attentes qui double à chaque fois. Modèle : de 37 000-39 000 à 19 000-23 000 sommeils
+  SPU par seconde, de 47 700 à environ 26 000-31 000 réveils de minuterie par seconde. En partie, les threads prennent
+  sans cesse du travail : rien ne change.
+- **`REWINDBOX_SPU_IDLE_EFFICIENCY_939`** (menus, et threads SPU au repos en partie) : un thread SPU au repos (même règle)
+  dort dans la classe « utility », qu'iOS garde sur les cœurs économes, et reprend la classe des SPU dès son réveil. Son
+  sommeil et son réveil se font donc sur un cœur économe ; tout ce qu'il fait ensuite, y compris le travail qu'il trouve,
+  se fait dans sa classe habituelle. Les cœurs P restent au PPU et au RSX. Coût : deux changements de classe par sommeil au
+  repos (un appel système d'environ 1 µs chacun, sur un cœur économe).
+- **`REWINDBOX_PREHASH_QOS_939`** (God of War III en jeu) : l'ouvrier de pré-validation des textures passe dans la classe
+  des SPU. Il dépensait 0,07 à 0,11 cœur dans la classe du PPU pour servir 14 à 18 % des validations, pendant que les cœurs
+  P étaient occupés à 97 % à 1,28 GHz et que le thread RSX était parqué 45 % du temps. Ce qu'il calcule ne change pas.
+- **`REWINDBOX_WFE_PROBE_939`** (mesure, pour le prochain gain en jeu) : en partie, le PPU attend en boucle derrière chaque
+  écriture exacte des SPU (166 500 attentes par seconde, 0,166 cœur P). Les attentes basse consommation (WFE) de la
+  politique thermique rendent la main aussitôt (au plus 76 ns par tour) au lieu de dormir. La sonde dit pourquoi, une fois
+  par démarrage (au plus 6 ms) : selon la réponse, ces attentes pourront vraiment dormir, ou être retirées.
+- **`REWINDBOX_OTHER_TOP_939`** (mesure) : les threads du groupe « autres » (0,29 cœur en partie, jamais nommés) sont
+  désormais listés dans `COREPROF frames … other_top=`.
+- Le **mode asynchrone** compte aussi : une construction de pipeline ne bloque plus le fil RSX ; le jeu continue.
+
+Ce que le lot ne peut pas promettre : en partie, Black Ops II occupe vraiment les deux cœurs P (93 %) et trois cœurs
+économes. Garder l'état « nominal » pendant un long match demanderait de faire moins de travail ; le lot retire le travail
+inutile. Effets sur la puissance et la température : **à mesurer sur l'iPhone** ; aucun gain n'est annoncé avant.
+
+Essais proposés sur l'iPhone (réglages par jeu existants, à comparer dans la même session, téléphone **non branché** : la
+charge chauffe à elle seule) :
+1. Black Ops II, « Accurate SPU Reservations » désactivé. C'était l'état de ce jeu des builds 587 à 656 ; il a été remis
+   parce qu'on soupçonnait ce mode d'être la cause du gel, mais le gel est revenu avec les réservations exactes (723 à 745),
+   donc ce soupçon tombe. Effet attendu : les 166 500 attentes PPU par seconde (5,5 ms par image) et 0,19 cœur de verrous
+   SPU disparaissent ; risque : un défaut propre au jeu dans ce mode.
+2. Black Ops II, « Preferred SPU threads » à 2 (le choix d'ARMSX3 pour ce jeu) : moins de SPU en même temps sur la même
+   instruction, moins de contention sur la file de travaux (18 % des échantillons SPU attendent une ligne verrouillée).
+   Risque : moins de débit SPU si le jeu en manque.
+
+### Vérifications du Core 939 (PC)
+
+- Test statique du moteur `ios/tests/RPCS3IOSGPUDefaultsTests.cpp` (défaut asynchrone, règle de migration) compilé et
+  exécuté avec g++ et clang++ (`-Wall -Wextra -Werror`).
+- Vérification de syntaxe ARM64 (cible aarch64, libc++, `RPCS3_IOS`) de `device.cpp`, `SPIRVCommon.cpp`, `VKGSRender.cpp`,
+  `RPCS3IOSFreezeDump.cpp`, `texture_cache.cpp` et `SPUThread.cpp` ; la fonction de migration de `RPCS3IOS.cpp`, la liste
+  `other_top` de `RPCS3IOSPerformance.cpp` et la sonde WFE, compilées seules contre les vrais en-têtes du moteur (ces deux
+  fichiers dépendent d'en-têtes Apple) ; la vérification signale bien une erreur volontaire.
+- Identités de génération de code recalculées : PPU a987639e9f838d1c, SPU 477a3fa442d27917 (alias exact de
+  `SPUThread.cpp`).
+- Porte de la route Core (`--check-source-closure`, code 0) ; correctif canonique 4922a89d (506 fichiers) re-matérialisé
+  octet pour octet sur une copie propre de l'amont 22f1152 ; étape Metal du workflow rejouée localement (PASS, source
+  inchangée après le retour et la ré-application des étapes).
+- Relecture contradictoire du correctif des attentes SPU (un relecteur indépendant, modèle hôte rejoué) : le défaut
+  trouvé (trouvailles tardives aveugles aux écritures ordinaires du jeu) est corrigé dans ce Core.
+- Non exécutés : bancs historiques, compilation iOS de ce lot (demandée à la route Core), appareil. **Aucun gain de
+  température, de puissance ou d'images par seconde n'est annoncé avant les journaux de l'iPhone.**
+
+### Protocole sur l'iPhone (Core 939)
+
+1. Premier lancement après la mise à jour : le journal doit contenir `REWINDBOX_ASYNC_SHADERS_939 global Shader Mode:
+   Legacy Recompiler (single-threaded) -> Async Recompiler (multi-threaded)` (ou `-> …` identique si la valeur était déjà
+   autre).
+2. Black Ops II, téléphone non branché, coque retirée si possible : 2 à 3 minutes dans les menus, puis un match. Attendu :
+   plus d'arrêt de plusieurs secondes aux premiers effets (un objet peut apparaître un instant en retard) ; dans les
+   menus, `THERMAL931 spu_efficient_sleeps` non nul et moins de réveils (`ENERGY931 timer_wakeups_2ms`).
+3. Si Black Ops II gèle : **attendre au moins 5 secondes** avant d'arrêter, puis envoyer
+   `Documents/Diagnostics/PS3/RPCS3-freeze-guest.bin` avec les journaux. C'est le fichier qui permet d'écrire le patch du
+   jeu.
+4. Essais facultatifs (un à la fois, même session si possible) : « Accurate SPU Reservations » désactivé pour Black Ops II,
+   puis « Preferred SPU threads » à 2.
+5. God of War III : démarrer normalement, charger la partie, refaire une sauvegarde d'état (§9).
