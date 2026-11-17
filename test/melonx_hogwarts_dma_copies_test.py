@@ -307,6 +307,7 @@ LOT_FILES = {
     'adapt_guest_break_context': [],
     # After IPA 771 (adapt_shader_load_binary_release): the disk cache files are outside this composition.
     'adapt_shader_load_binary_release': [],
+    'adapt_streaming_memory': [],
 }
 
 checks = 0

@@ -1,0 +1,58 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index e8cae65..7069150 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -2261,6 +2261,44 @@ static uint64_t rep_ticks(const post_op *o, seg_clk *sc, uint32_t last, uint64_t
+     if (!ns) ns = top ? c0 : c1;
+     return ns ? tsb_map(f, ns) * 12 / 625 : gpu_ticks();   // RewindBox (patch 0068): tsb_map
+ }
++// RewindBox (patch 0083): the game's dynamic resolution held at its size. IPA 775 test (Mario Kart World, iPhone17,2, races; host.log of 19:54, profiles f3650 / f4851 / f5955 /
++//   f6874): the scene size changed in 71-79% of race frames. The game grows its resolution by 4-8 pixels a frame from its 1248x700 floor while the GPU time it reads from its
++//   timestamp reports (a frame's first TIMESTAMP_TOP to its last report, on patch 0068's busy clock) is under about 15 ms, holds it between about 15 and 17 ms and drops it past
++//   that, two frames late (frames.txt, 4,096 race frames: 100% grew under 13 ms, 91% held at 16-17 ms, 45% dropped at 17-18 ms, 2% or less grew past 17 ms). Each new size made 7-14 shared
++//   textures and evicted 13-18 a frame; their render targets were uploaded from guest memory before their first pass (pkg_upload under rt_dims: 11.6% of the submit thread, reading
++//   pages the system had paged out), the residency set took and dropped about 27 textures a frame (commits about 3 ms a frame) and frames with a size change took 1.3-4.4 ms more.
++//   A TIMESTAMP report of a frame past half the hold after the frame's first TIMESTAMP_TOP now reads at least the hold after it: 16.6 ms at 60 fps, the game's budget at its own
++//   rate otherwise (nvn_be_fps_target: 30 while it holds interval 2 for a second, or at a 30 FPS limit). The game reads a time in its hold band and keeps its size; a frame the GPU really
++//   takes longer over keeps its time, so the game still lowers the size then. Reports in the frame's first half, TIMESTAMP_TOP and other counters keep their times. Completion
++//   handlers only (the report loop below), each frame's first TIMESTAMP_TOP in a ring by frame. S2A_RB_DRS_HOLD=0: the times as before
++static int rb_drs_hold_on(void) {
++    static int v = -1;
++    if (v < 0) { const char *e = getenv("S2A_RB_DRS_HOLD"); v = !(e && !strcmp(e, "0"));
++        MLOG("RewindBox: a frame's TIMESTAMP reports %s (S2A_RB_DRS_HOLD; patch 0083)", v ? "read at least the frame's hold (16.6 ms at 60 fps) after its first TIMESTAMP_TOP: the game's dynamic resolution keeps its size" : "keep their GPU times"); }
++    return v;
++}
++enum { DRS_N = 64 };
++static struct { _Atomic uint64_t frame, top; } g_drs[DRS_N];   // a frame's slot: the frame + 1 (0 = none yet) and its first TIMESTAMP_TOP report (19.2 MHz ticks)
++static _Atomic uint64_t g_drs_raised, g_drs_seen;   // TIMESTAMP reports raised to their frame's hold / looked at after a TIMESTAMP_TOP of their frame
++static uint64_t rb_drs_hold(uint64_t f, uint32_t type, uint64_t t) {   // the time a counter report of frame f records (19.2 MHz ticks)
++    if (!t || (type != 0 && type != 0x10) || !rb_drs_hold_on()) return t;
++    unsigned i = (unsigned)(f % DRS_N);
++    if (type == 0x10) {   // the frame's first TIMESTAMP_TOP: the earliest one of its frame
++        if (atomic_load(&g_drs[i].frame) != f + 1) { atomic_store(&g_drs[i].top, t); atomic_store(&g_drs[i].frame, f + 1); }
++        else { uint64_t o = atomic_load(&g_drs[i].top); while (t < o && !atomic_compare_exchange_weak(&g_drs[i].top, &o, t)) {} }
++        return t;
++    }
++    if (atomic_load(&g_drs[i].frame) != f + 1) return t;
++    uint64_t top = atomic_load(&g_drs[i].top); if (!top || t <= top) return t;
++    int fps = nvn_be_fps_target(); if (fps <= 0 || fps > 60) fps = 60;   // 30 / 60 (nvn_obj.h)
++    uint64_t hold = 16600000ull * 60 / (uint64_t)fps * 12 / 625;   // 16.6 ms at 60 fps, in 19.2 MHz ticks
++    uint64_t seen = atomic_fetch_add(&g_drs_seen, 1) + 1;
++    if (t - top >= hold || t - top < hold / 2) return t;
++    uint64_t n = atomic_fetch_add(&g_drs_raised, 1) + 1;
++    if (!(n & (n - 1)) && n >= 16) MLOG("RewindBox: dynamic resolution hold: %llu TIMESTAMP reports of %llu raised to their frame's hold (%.1f ms after its first TIMESTAMP_TOP, %d fps; S2A_RB_DRS_HOLD=0 keeps their times)",
++                                        (unsigned long long)n, (unsigned long long)seen, hold * 625 / 12 / 1e6, fps);
++    return top + hold;
++}
+ 
+ // ---------- Boot instrumentation (DM_BOOTPROF=1): metallib loading, pipeline creation (both happen synchronously during replay on the submit thread), texture upload, first-frame present ----------
+ static uint64_t bp_now(void) { struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t); return (uint64_t)t.tv_sec * 1000000000ull + t.tv_nsec; }
+@@ -3313,7 +3351,7 @@ uint64_t nvn_be_sub_commit(void) {
+                 for (int k = 0; k < l->n; k++) { sum += ((const uint64_t *)((__bridge id<MTLBuffer>)l->s[k].buf).contents)[l->s[k].slot]; CFRelease(l->s[k].buf); }
+                 free(l); uint64_t rec[2] = {sum, gpu_ticks()}; memcpy((void *)ops[i].addr, rec, sizeof rec);
+             }
+-            else { uint64_t t = rep_ticks(&ops[i], sc, seg_last, c0, c1, gpu_f), rec[2] = {(ops[i].type == 0 || ops[i].type == 0x10) && !DM_GAME_RENDER_COND ? t : 0, t}; memcpy((void *)ops[i].addr, rec, sizeof rec);   // render_cond: a timestamp report's counter field is 0, as on the GPU (see rc_value)  RewindBox (patch 0068): gpu_f
++            else { uint64_t t = rb_drs_hold(gpu_f, ops[i].type, rep_ticks(&ops[i], sc, seg_last, c0, c1, gpu_f)), rec[2] = {(ops[i].type == 0 || ops[i].type == 0x10) && !DM_GAME_RENDER_COND ? t : 0, t}; memcpy((void *)ops[i].addr, rec, sizeof rec);   // render_cond: a timestamp report's counter field is 0, as on the GPU (see rc_value)  RewindBox (patch 0068): gpu_f; RewindBox (patch 0083): rb_drs_hold
+                 if (ops[i].type == 0 || ops[i].type == 0x10) fsig_ts(gpu_f, t, ops[i].type == 0x10); }   // RewindBox (patch 0059)
+         }
+         if (fsa) {   // RewindBox (patch 0059): the words the GPU wrote for this piece's indirect draws, as they are now that it has run

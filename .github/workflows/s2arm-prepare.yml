@@ -37,6 +37,10 @@ jobs:
           python-version: '3.12'
       - name: Install the LZ4 module the original addr_need.py imports
         run: python3 -m pip install lz4==4.4.5
+      # ns2_nup.py reads zstd frames with compression.zstd (Python 3.14+), backports.zstd or zstandard; Python 3.12
+      # here, so zstandard (also the compressor run_nup_test.py writes its synthetic containers with).
+      - name: Install the zstd module the original ns2_nup.py imports
+        run: python3 -m pip install zstandard==0.23.0
       # nx_unpack (and its ZBIC test) target net10.0; their packages are vendored in S2Arm's
       # compat/packages (local feed in pack/nx_unpack/nuget.config), so no extra feed is used.
       - uses: actions/setup-dotnet@v4
@@ -98,7 +102,8 @@ jobs:
             -o proof/s2arm_prepare_cli native/s2arm/prepare/s2arm_prepare.c native/s2arm/prepare/s2arm_addr_need.c \
             native/s2arm/prepare/s2arm_modules.c native/s2arm/prepare/s2arm_nro.c native/s2arm/prepare/s2arm_zbic.c \
             native/s2arm/prepare/s2arm_ns2_dump.c native/s2arm/prepare/s2arm_sha256.c native/s2arm/prepare/s2arm_pack.c \
-            native/s2arm/prepare/s2arm_caps.c native/s2arm/prepare/s2arm_prepare_cli.c "$rewriter_lib" "$capstone_lib"
+            native/s2arm/prepare/s2arm_caps.c native/s2arm/prepare/s2arm_nup.c native/s2arm/prepare/s2arm_zstd.c \
+            native/s2arm/prepare/s2arm_prepare_cli.c "$rewriter_lib" "$capstone_lib"
           bash tools/s2arm_prototype/run_prepare_test.sh proof/s2arm_prepare_cli "$RUNNER_TEMP/rewriter/s2a-rewrite" \
             "$RUNNER_TEMP/prepare-work" proof/prepare-report.txt
       - name: Compare the address-need table with S2Arm's addr_need.py
@@ -124,6 +129,11 @@ jobs:
           bin="$RUNNER_TEMP/bin"
           python3 tools/s2arm_prototype/run_ns2_dump_test.py "$RUNNER_TEMP/s2arm" proof/s2arm_prepare_cli "$bin/nx_unpack" \
             "$RUNNER_TEMP/ns2-dump-work" "$bin/ZbicTest" | tee proof/ns2-dump-report.txt
+      - name: Compare the NUP expansion with S2Arm's ns2_nup.py
+        run: |
+          set -euo pipefail
+          python3 tools/s2arm_prototype/run_nup_test.py "$RUNNER_TEMP/s2arm" proof/s2arm_prepare_cli "$RUNNER_TEMP/nup-work" \
+            | tee proof/nup-report.txt
       - name: Compare the whole code stage with the same steps run by S2Arm's tools
         run: |
           set -euo pipefail
@@ -161,7 +171,7 @@ jobs:
           xcrun --sdk iphoneos clang -arch arm64 -miphoneos-version-min=17.4 -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" \
             -Wall -Wextra -Werror -I native/s2arm/prepare -I "$RUNNER_TEMP/deps/lz4-4.4.5/lz4libs" \
             -c native/s2arm/prepare/s2arm_addr_need.c -o proof/ios-s2arm_addr_need.o
-          for unit in s2arm_modules s2arm_nro s2arm_zbic s2arm_ns2_dump s2arm_sha256 s2arm_pack s2arm_caps; do
+          for unit in s2arm_modules s2arm_nro s2arm_zbic s2arm_ns2_dump s2arm_sha256 s2arm_pack s2arm_caps s2arm_nup s2arm_zstd; do
             xcrun --sdk iphoneos clang -arch arm64 -miphoneos-version-min=17.4 -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" \
               -Wall -Wextra -Werror -I native/s2arm/prepare -I "$RUNNER_TEMP/deps/lz4-4.4.5/lz4libs" \
               -c native/s2arm/prepare/$unit.c -o proof/ios-$unit.o
@@ -178,6 +188,7 @@ jobs:
             proof/code-stage-report.txt
             proof/zbic-report.txt
             proof/ns2-dump-report.txt
+            proof/nup-report.txt
             proof/pack-report.txt
             proof/sysdata-report.txt
             proof/sysdata-SHA256SUMS.txt

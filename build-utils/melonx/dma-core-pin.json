@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "9546deb792b6e24ed29c7667abed435a82ab01f2",
-  "run": 44096192928,
-  "job": 134083832546,
+  "source": "7ad86a14377da6ce1f8ce51bfec2f3bc9cc16183",
+  "run": 44165571216,
+  "job": 134330582817,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 14334228332,
-  "name": "MeloNX-engine-9546deb792b6e24ed29c7667abed435a82ab01f2",
-  "bytes": 100677632,
-  "sha256": "5f2067c267b05e62300ad7e46061a6319fbdb7d34f84c081834dcede0060c69a",
-  "expiresAt": "2027-02-15T13:47:06Z",
+  "artifact": 14365039866,
+  "name": "MeloNX-engine-7ad86a14377da6ce1f8ce51bfec2f3bc9cc16183",
+  "bytes": 100690150,
+  "sha256": "8cd4f4d8624b672e58437bba7095577a93dd6f42e4a75f50d098c9fb62ff08d4",
+  "expiresAt": "2027-02-15T20:05:31Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "dcd953d83380144c09fe3725005a9c044e0761562754adca48d18a406f1f5223",
-      "bytes": 38653848
+      "sha256": "939a939ff1653f0c13788e8658c61a83d2ac8a4fe1ac0074a8051950800bb072",
+      "bytes": 38653856
     },
     "iossimulator-arm64": {
-      "sha256": "7b3736328a0de7672587fd8a90db47b594d67c6a97f42aabeb5e10d0d75d4c33",
-      "bytes": 38972440
+      "sha256": "5658c71d6df7320f0d81387a798ffe2e3d96ac8aa68e15ecd51905300604d0d7",
+      "bytes": 38988952
     }
   },
   "identities": {
-    "ios-arm64": "9e94cc568d3ed96ace174b7d8ec6c96b4ac0771b1b2e2c8abb2587559740640b",
-    "iossimulator-arm64": "7efb10119aade240691830c37276fdbb787c9c014c2ef7af3002b7fb409b0473"
+    "ios-arm64": "c627c7aed5768ef2490d7467c7dd8e87c850a8511b54f64496406d4be200aa85",
+    "iossimulator-arm64": "cd31e76cdda172e765c263dbc0493194e5525e6d629b7db6108ff6263d8e156e"
   },
-  "contractSha256": "de62252fe386ed97f5228355592d6964da1d54d77a36d1216bbf495daa7ef758",
-  "resultSha256": "a9067621996d6f51a7debd3460339773ce603c110ddde78022955eb6f7edc028",
-  "packagedFingerprint": "fb85d9564b183c7abb4071a1126fae8ed35d82430b13bf309bf6ae4a719ff34c",
+  "contractSha256": "032d0c7edabfae1936dfe15de388862cb286e3e9141acf7d45ac8ae5b57012c6",
+  "resultSha256": "b325c8a93111497459e8ca1595a3f16202dea0e09bc74d794385e13920fd7c47",
+  "packagedFingerprint": "6e81bb2842f57cc16dff819f6cdc7a6ce524970692962540b32cfcf0e46adbff",
   "replaces": {
-    "source": "1df78c52fdbdc2cccb3fa75074b5b12dc3cd2281",
-    "run": 44075543918,
-    "artifact": 14324239963,
-    "packagedFingerprint": "fa5ce588282f30c89f2cee2db47649b5d709e79a27237685b5302713d0c705a4",
-    "reason": "After IPA 771, every title, memory: adapt_shader_load_binary_release (the shader cache load keeps no host code of the programs it creates from the host cache; a rebuild reads it back from the host cache files; SSBU about 695 MiB and Hogwarts about 205 MiB of SPIR-V no longer held in managed memory for the length of the load). Contract de62252f, 115 gates on the final preparation (Linux x86_64), build-smoke route. No iPhone gameplay, stutter, frame rate or memory gain is claimed."
+    "source": "9546deb792b6e24ed29c7667abed435a82ab01f2",
+    "run": 44096192928,
+    "artifact": 14334228332,
+    "packagedFingerprint": "fb85d9564b183c7abb4071a1126fae8ed35d82430b13bf309bf6ae4a719ff34c",
+    "reason": "Foreground compaction headroom and texture streaming allocation fixes on 7ad86a14"
   }
 }

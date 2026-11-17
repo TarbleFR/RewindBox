@@ -26,6 +26,24 @@ void main() {
     expect(menu, contains("_t('importGamesHint')"));
   });
 
+  test('the menu imports NUP containers, right after the export folder, and the button carries a label', () {
+    final items = menu.substring(menu.indexOf('itemBuilder:'));
+    expect(menu, contains("ValueKey('s2arm-import-nup')"));
+    expect(menu, contains("value: 'nup'"));
+    expect(menu, contains('S2ArmInternalService.importNupFiles('));
+    expect(menu, contains("_t('importNupHint')"));
+    expect(items.indexOf("ValueKey('s2arm-import-folder')"), lessThan(items.indexOf("ValueKey('s2arm-import-nup')")));
+    expect(items.indexOf("ValueKey('s2arm-import-nup')"), lessThan(items.indexOf("ValueKey('s2arm-import-save')")));
+    // The maintainer found the bare icon too easy to miss: a labelled button, and an icon per item.
+    expect(menu, contains("_t('importButton')"));
+    // IPA 777 screenshot: the glass menu let the game card show through its items; this one is opaque.
+    expect(menu, contains('color: menuColor,'));
+    expect(menu, contains(').withValues(alpha: 1);'));
+    expect(RegExp(r'child: _item\(\s*Icons\.').allMatches(items).length, greaterThanOrEqualTo(6));
+    // A divider between every option (maintainer, 17 Nov 2026): five dividers for the six options.
+    expect('const PopupMenuDivider()'.allMatches(items).length, 5);
+  });
+
   test('the menu opens the Switch 2 engine settings panel', () {
     expect(menu, contains("ValueKey('s2arm-settings')"));
     expect(menu, contains("value: 'settings'"));

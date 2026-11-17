@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "d726f96e2a9f80d14128ed9d90fdd9d86efd407a6a8d910ad2b933c90c12b8ed",
+  "packagedFingerprint": "64ec2bd5dd7af2e24173f4ad50e8f474ff4c6d292ca6441faa94670fcbe20552",
   "producers": {
     "engine": {
-      "run": 44133641596,
+      "run": 44168871889,
       "attempt": 1,
-      "artifact": 14351413630,
-      "name": "s2arm-engine-framework-235450c817b6e5893792caf179fae8de2a8e152d",
-      "bytes": 24105368,
-      "sha256": "79c5b5f949492c7be060a511c77e02c9e0c252ec4d4b107c2ddf20f587a4b5ff",
-      "headSha": "235450c817b6e5893792caf179fae8de2a8e152d",
+      "artifact": 14366784284,
+      "name": "s2arm-engine-framework-62619957d3b24de419cdba1e891817b601787d16",
+      "bytes": 24105390,
+      "sha256": "626ecf9ad7618e8b8d75628db6ea2e54b5a4b5ecece98c3571e43b2d0bd5368d",
+      "headSha": "62619957d3b24de419cdba1e891817b601787d16",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-17T17:21:53Z",
+      "expiresAt": "2026-12-17T20:39:36Z",
       "members": {
-        "S2ArmEngine.framework.zip": "a8baac17b1bb0f4bb0ddd7c76dec932e50269089c51dede14aebda2e23162f36",
-        "NS2Pro.framework.zip": "b6b0c4ceeac357d60348d3b28823b55636f9023a1ad69144c38581f8b8cf0976"
+        "S2ArmEngine.framework.zip": "d71802d5623d3b2e19ee99b8b8aba2786cb3acc90cdab20593b7a8b27eccd7c7",
+        "NS2Pro.framework.zip": "055a8d2c67a6128455c897cba0d57dc5c0f86a80538eb59699a026e1804c8046"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -22,17 +22,17 @@
       ]
     },
     "prepare": {
-      "run": 43304794526,
+      "run": 44174427912,
       "attempt": 1,
-      "artifact": 13983851142,
-      "name": "S2ArmPrepare-2175b72e8b818e036fa6dd48edb55620eeb3ebfa",
-      "bytes": 449982,
-      "sha256": "aef8aafb38aa456defbdf16b3194716c32b2051b76a38bc68640d91f098fc87f",
-      "headSha": "2175b72e8b818e036fa6dd48edb55620eeb3ebfa",
-      "headBranch": "work/s2arm-switch2-prototype-20261110",
-      "expiresAt": "2026-12-12T20:55:15Z",
+      "artifact": 14370050789,
+      "name": "S2ArmPrepare-c4e9f950c66b11fbd5af318587047fef9067f0d1",
+      "bytes": 508187,
+      "sha256": "66ca4c85bbf898d876940a6d535f73dc76e56773b64f2f5c0fc7d754d2d3d865",
+      "headSha": "c4e9f950c66b11fbd5af318587047fef9067f0d1",
+      "headBranch": "Claude",
+      "expiresAt": "2026-12-17T20:57:52Z",
       "members": {
-        "S2ArmPrepare.xcframework.zip": "cb8473932b8c27276f2ceb42292a49a905311c0c2a6279394784e53989e56924"
+        "S2ArmPrepare.xcframework.zip": "caa6885da5fea2bb7d245f6dd988939fa99e41dd292546169ba4f5fb3db99d87"
       },
       "subdir": "prepare"
     },
@@ -59,8 +59,8 @@
     }
   },
   "zips": {
-    "engine": "79c5b5f949492c7be060a511c77e02c9e0c252ec4d4b107c2ddf20f587a4b5ff",
-    "prepare": "aef8aafb38aa456defbdf16b3194716c32b2051b76a38bc68640d91f098fc87f",
+    "engine": "626ecf9ad7618e8b8d75628db6ea2e54b5a4b5ecece98c3571e43b2d0bd5368d",
+    "prepare": "66ca4c85bbf898d876940a6d535f73dc76e56773b64f2f5c0fc7d754d2d3d865",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
   "binaries": {
@@ -90,9 +90,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "463ea54bc1032668f3d64134b61ec40d3cba6ff478d510a7b5f4102245a33d23",
-      "bytes": 107848168,
-      "fingerprint": "d726f96e2a9f80d14128ed9d90fdd9d86efd407a6a8d910ad2b933c90c12b8ed"
+      "sha256": "56124ccbb7f571e9b410c0d96f0860c1bc0ca698899034e5308e6f1aaed781cb",
+      "bytes": 107865504,
+      "fingerprint": "64ec2bd5dd7af2e24173f4ad50e8f474ff4c6d292ca6441faa94670fcbe20552"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -115,8 +115,8 @@
       "bytes": 30922
     },
     "prepare/S2ArmPrepare.xcframework.zip": {
-      "sha256": "cb8473932b8c27276f2ceb42292a49a905311c0c2a6279394784e53989e56924",
-      "bytes": 462594
+      "sha256": "caa6885da5fea2bb7d245f6dd988939fa99e41dd292546169ba4f5fb3db99d87",
+      "bytes": 520722
     },
     "sysdata/SHA256SUMS": {
       "sha256": "d69cee225120276ede73c2a7710a2f40df0fc85443f498254538b24f557ace29",
@@ -125,9 +125,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 44133641596,
+      "run": 44168871889,
       "attempt": 1,
-      "head_sha": "235450c817b6e5893792caf179fae8de2a8e152d",
+      "head_sha": "62619957d3b24de419cdba1e891817b601787d16",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -458,11 +458,27 @@
         {
           "name": "0082-guest-upload-ring-of-eight-slots.patch",
           "sha256": "2f4037c9e0ea249d4b6d904e6d4861a5b3e774aff3ad7eb98846aaf85ed56c1a"
+        },
+        {
+          "name": "0083-guest-dynamic-resolution-held-at-its-size.patch",
+          "sha256": "6faa0fb53e3c7c71c0814cec544d0018024488de062063612128fe86e4330130"
+        },
+        {
+          "name": "0084-guest-lighter-automatic-measurements.patch",
+          "sha256": "1f802fd2d57d388d9d0873c44fefcb202207438ea4b03f90366ff75374c1fff6"
+        },
+        {
+          "name": "0085-guest-new-shaders-start-beside-the-submit-thread.patch",
+          "sha256": "4222225185635436e519f1a68bd27f1ef093f93fef6e605dc692e429561c10de"
+        },
+        {
+          "name": "0086-guest-smaller-texture-reuse-pool.patch",
+          "sha256": "58bffed29eedf0327edce6b0c95e3646f78478ddb0de7516ed9698ccd4aa3302"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "a8baac17b1bb0f4bb0ddd7c76dec932e50269089c51dede14aebda2e23162f36",
-        "NS2Pro.framework.zip": "b6b0c4ceeac357d60348d3b28823b55636f9023a1ad69144c38581f8b8cf0976"
+        "S2ArmEngine.framework.zip": "d71802d5623d3b2e19ee99b8b8aba2786cb3acc90cdab20593b7a8b27eccd7c7",
+        "NS2Pro.framework.zip": "055a8d2c67a6128455c897cba0d57dc5c0f86a80538eb59699a026e1804c8046"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",

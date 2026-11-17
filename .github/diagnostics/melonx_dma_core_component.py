@@ -91,7 +91,8 @@ CONTROL_PREPARED = {
 # journaled (reason, info bytes, thread, control registers, guest stack: guest-break-context); 114 with the kernel wait
 # bodies of Syscall.cs executed again from the final source (kernel-wait-lifetime-final, the historical gate's successor);
 # 115 after IPA 771 (the shader cache load keeps no host code of cached programs: shader-load-binary-release).
-FRESH_GATES = 115
+# Streaming-memory fixture is available for manual exact-source validation.
+FRESH_GATES = 116
 HISTORICAL_RECEIPTS = 61
 GPU_WORK_ROWS = 13
 READ_COUNTERS = 4

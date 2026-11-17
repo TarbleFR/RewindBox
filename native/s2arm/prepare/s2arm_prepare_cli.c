@@ -10,6 +10,10 @@
 //   s2arm_prepare_cli ns2-dump <export dir> <out dir> [--name N] [--reference] [--max-module-bytes N]
 //                                     (exit 0, or 1 with a line on stderr)
 //   s2arm_prepare_cli ns2-detect <dir>                  (prints "<PROGRAM ID>\t<folder>", exit 0; 1 when not an export)
+//   s2arm_prepare_cli nup <x.nup | folder with one .nup> <export dir>   (ns2_nup.py <src> <out>: exit 0, or 1 with
+//                                                        "result=<code> <message>" on stderr)
+//   s2arm_prepare_cli nup-detect <path>                 (prints the NUP file, exit 0; 1 when there is none)
+//   s2arm_prepare_cli nup-inspect <x.nup>               (prints "<PROGRAM ID>\t<bytes>\t<update>\t<dlc>\t<has base>", exit 0)
 //   s2arm_prepare_cli image-pack <root> <output.dylib> [module...]
 //   s2arm_prepare_cli caps <root> <s2a_caps.tsv> [<s2a_caps.all.tsv>]
 //   s2arm_prepare_cli module-dir <root> <dir> [--images <path>] [--save-identity <id> <name> <version> <content>]
@@ -24,6 +28,7 @@
 #include "s2arm_pack.h"
 #include "s2arm_modules.h"
 #include "s2arm_ns2_dump.h"
+#include "s2arm_nup.h"
 #include "s2arm_nro.h"
 #include "s2arm_prepare.h"
 #include "s2arm_zbic.h"
@@ -222,6 +227,30 @@ int main(int argc, char **argv) {
         int result = rb_s2arm_resource_pack(&request, error, sizeof error);
         if (result) fprintf(stderr, "result=%d %s\n", result, error);
         return result ? 1 : 0;
+    }
+    if (argc == 4 && !strcmp(argv[1], "nup")) {
+        rb_s2arm_nup_request request = {argv[2], argv[3], ns2_note, NULL, NULL, NULL};
+        char error[1024] = "";
+        int result = rb_s2arm_nup_expand(&request, NULL, error, sizeof error);
+        if (result) fprintf(stderr, "result=%d %s\n", result, error);
+        return result ? 1 : 0;
+    }
+    if (argc == 3 && !strcmp(argv[1], "nup-detect")) {
+        char nup[4096];
+        if (rb_s2arm_nup_detect(argv[2], nup, sizeof nup)) return 1;
+        printf("%s\n", nup);
+        return 0;
+    }
+    if (argc == 3 && !strcmp(argv[1], "nup-inspect")) {
+        rb_s2arm_nup_info info;
+        char error[1024] = "";
+        int result = rb_s2arm_nup_inspect(argv[2], &info, error, sizeof error);
+        if (result) {
+            fprintf(stderr, "result=%d %s\n", result, error);
+            return 1;
+        }
+        printf("%016llX\t%llu\t%u\t%u\t%d\n", (unsigned long long)info.program_id, (unsigned long long)info.bytes, info.update_version, info.dlc_count, info.has_base);
+        return 0;
     }
     if (argc == 3 && !strcmp(argv[1], "ns2-detect")) {
         char dump[4096], error[512] = "";
