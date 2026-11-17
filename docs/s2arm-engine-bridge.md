@@ -324,8 +324,9 @@ What changed (outputs are the same byte for byte; CI compares them with S2Arm's 
 - One difference from the old C walks remains, and the review accepted it. A folder that can be listed but not
   searched (read without execute permission) is now walked from its listing, as Python's `os.walk` does through
   `scandir`. Before, a stat of each entry failed. An export imported by the app has no such folder.
-- The bridge moves the previous root aside (one `rename`) and deletes it at background QoS once the preparation has
-  ended. Only `.discarded-*` entries are deleted there. The root holds about 150 MB until then.
+- The bridge moves the previous root aside (one `rename`) and deletes it at utility QoS once the preparation has
+  ended (background QoS until IPA 778, see "Not enough free storage" below). Only `.discarded-*` entries are deleted
+  there. The root holds about 150 MB until then.
 - The journal adds `cleared`, `unpackLayout` / `unpackUpdates` / `unpackDone`, `packWalk` and `packDone` lines. They
   carry counts, fixed words and durations only. With them, the next device run shows where the remaining time goes.
 
@@ -411,3 +412,24 @@ in 41 ms and reused the preparation (`identity: pin`), first frame 62 s after th
   reads `engine_pin.py snippet`, not the delivery manifest. Files the engine writes into a prepared game (translated
   shaders, RomFS index) now survive engine patches; their keys (shader chain, `rb-romfs-tree 2`) must be raised by any
   patch that changes their format.
+
+## Not enough free storage (IPA 778, 17 Nov 2026)
+
+On IPA 778, Mario Kart World opened on the engine's "Not enough free storage" page (needs about 12 GB, 7 GB free). The
+engine had found 7901 MB free in its temporary folder (`statfs`, which leaves out what iOS can purge), under its 12288 MB
+default, the Switch 2's whole memory (S2Arm `vawin.c` `guest_file_map`, `S2A_GUEST_FILE_MIN_FREE_MB`). It then kept the
+guest memory anonymous, though the game's pool (9216 MB) does not fit under the process limit (6133 MB left), so iOS
+would have stopped it after a while. The page stays over the game for the whole session. Every earlier session in the
+logs had the free space and put the guest memory in files.
+
+- **Threshold.** The files are sparse. In 25 sessions on the phone (12–17 Nov) they held at most 5094 MB on disk. The
+  bridge now sets `S2A_GUEST_FILE_MIN_FREE_MB=6144` before the dlopen (`S2ArmSettingsPrepareLaunch`, overwrite 0, so a
+  value already in the environment wins; 12288 gives the engine's behaviour back). No engine change.
+- **Old roots left on disk.** Each preparation moves the previous root aside (205 660 RomFS links and about 150 MB of
+  modules for this game). Its deletion waits while a game or a preparation runs. At background QoS it needed 60–267 s
+  per root, and the game starts right after a preparation. From 17 Nov 12:44 to 22:49, ten runs removed 116 315 entries
+  (about half a root) while four preparations moved four roots aside (journal `discardedPaused`). The queue now runs at
+  utility QoS and keeps the same pauses.
+- Checked by `test/s2arm_session_menu_test.py` and `test/s2arm_engine_bridge_test.py`. Not observed on a device. The
+  next journal's `discardedRemoved` / `discardedPaused` lines will show the speed, and the engine log's guest-file line
+  whether the files were used.

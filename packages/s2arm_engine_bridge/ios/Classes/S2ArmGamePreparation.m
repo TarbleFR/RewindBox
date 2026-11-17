@@ -365,13 +365,19 @@ static void prep_unpack_note(void *context, const char *line) {
   }
 }
 
-// Removes what earlier preparations of this game moved aside (.discarded-*), at background QoS: its disk work is
-// throttled behind the foreground. Called once a preparation has ended, never while one writes.
+// Removes what earlier preparations of this game moved aside (.discarded-*), at utility QoS. Called once a preparation has
+// ended, never while one writes.
 // It also waits while a game runs. In the IPA 765 test (Mario Kart World) the moved-aside root was still being deleted 90 s
 // after the launch, in the first race: 0.34 core of kernel time in removefile, beside the engine's reads of the game's
 // file-backed memory on the same volume. A launch or a resume pauses it (S2ArmPreparationGameRunning), at the next entry:
 // each tree goes entry by entry; the session's end, its park or the next start of the app resumes it. The folders still
 // to clean are kept on the serial cleanup queue, which alone touches them. A preparation running pauses it the same way.
+// It ran at background QoS until IPA 778. With its disk work throttled, a root took 60 to 267 s, but the launch follows the
+// preparation at once and the app was mostly reopened straight into a game: from 17 Nov 12:44 to 22:49 ten runs removed
+// 116 315 entries, about half of one root, while four preparations moved four roots aside (205 660 RomFS links and about
+// 150 MB of modules each). About three of them stayed on disk, and the next launch found 7901 MB free, under the 12288 MB
+// the engine then wanted for the guest memory files (S2ArmSettings.m). With a game or a preparation pausing it anyway, the
+// throttling only kept it from finishing in the moments it gets.
 static atomic_int g_prepGameRunning, g_prepRunning;
 
 static BOOL prep_cleanup_waits(void) { return atomic_load(&g_prepGameRunning) || atomic_load(&g_prepRunning); }
@@ -381,7 +387,7 @@ static dispatch_queue_t prep_cleanup_queue(void) {
   static dispatch_once_t once;
   dispatch_once(&once, ^{
     queue = dispatch_queue_create("rewindbox.s2arm.discarded",
-                                  dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_BACKGROUND, 0));
+                                  dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_UTILITY, 0));
   });
   return queue;
 }

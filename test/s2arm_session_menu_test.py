@@ -78,6 +78,13 @@ class Settings(unittest.TestCase):
         self.assertIn('setenv("S2A_SYSTEM_LANGUAGE", language.UTF8String, 1)', prepare)
         self.assertIn('setBool:YES forKey:kEngineBriefHud', prepare)
 
+    def test_the_launch_sets_the_free_space_for_the_guest_memory_files(self):
+        # IPA 778 (17 Nov): 7901 MB free under the engine's 12288 MB, so the guest memory stayed anonymous and the engine's
+        # storage page covered the game. The files held at most 5094 MB in 25 sessions; a value already set wins (overwrite 0).
+        prepare = block(SETTINGS, 'void S2ArmSettingsPrepareLaunch(void)')
+        self.assertEqual(prepare.count('setenv("S2A_GUEST_FILE_MIN_FREE_MB", "6144", 0);'), 1)
+        self.assertNotIn('S2A_GUEST_FILE_MIN_FREE_MB", "6144", 1', prepare)
+
 
 class Bridge(unittest.TestCase):
     def test_settings_methods(self):

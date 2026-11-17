@@ -320,14 +320,16 @@ check('@[ moduleDir, imagesDir, packDir ]' in prep and 'for (NSString *tree in @
       'a new preparation removes the previous image pack with the other outputs; the previous root (and a leftover root.tmp) is '
       'moved aside, or removed in place when it cannot be')
 # Mario Kart World on IPA 731: deleting the previous root took about 14 s before the unpack (one link per RomFS file in the
-# view of a delta update). It is moved aside and deleted at background QoS once the preparation has ended, and only what a
-# preparation moved aside (.discarded-*) is ever deleted there.
+# view of a delta update). It is moved aside and deleted at utility QoS once the preparation has ended (background QoS until
+# IPA 778: throttled, the roots were never finished between launches), and only what a preparation moved aside
+# (.discarded-*) is ever deleted there.
 cleanup = prep[prep.index('static atomic_int g_prepGameRunning, g_prepRunning;'):prep.index('void S2ArmPreparationGameRunning(BOOL running) {')]
-check('dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_BACKGROUND, 0)' in cleanup
+check('dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_UTILITY, 0)' in cleanup
+      and 'QOS_CLASS_BACKGROUND' not in cleanup
       and cleanup.count('if (![name hasPrefix:@".discarded-"]) continue;') == 1
       and cleanup.count('prep_remove_tree([gameDir stringByAppendingPathComponent:name].fileSystemRepresentation, &entries)') == 1
       and 'removeItemAtPath' not in cleanup and cleanup.count('prep_remove_tree(') == 2,
-      'the discarded roots are deleted in the background, and nothing but .discarded-* entries')
+      'the discarded roots are deleted on the utility-QoS cleanup queue, and nothing but .discarded-* entries')
 tree = cleanup[cleanup.index('static BOOL prep_remove_tree('):cleanup.index('static void prep_cleanup_run(void) {')]
 check('fts_open(paths, FTS_PHYSICAL | FTS_NOCHDIR | FTS_XDEV, NULL)' in tree and 'FTS_LOGICAL' not in tree and 'FTS_COMFOLLOW' not in tree
       and re.findall(r'\b(unlink|rmdir|remove|removefile)\(', tree) == ['rmdir', 'unlink'],

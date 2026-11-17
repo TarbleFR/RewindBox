@@ -98,6 +98,13 @@ void S2ArmSettingsPrepareLaunch(void) {
   } else {
     setenv("S2A_SYSTEM_LANGUAGE", language.UTF8String, 1);
   }
+  // The free space the engine wants before it puts the guest memory in files (S2Arm vawin.c guest_file_map; 12288 MB when
+  // unset, the Switch 2's whole memory, read with statfs, which leaves out what iOS can purge). Below it the engine keeps the
+  // memory anonymous, and a pool that does not fit under the process limit is stopped by iOS after a while (Mario Kart World:
+  // 9216 MB with 6133 MB left); its "Not enough free storage" page then covers the game for the whole session (IPA 778 on
+  // 17 Nov: 7901 MB free). The files are sparse: in 25 sessions of Mario Kart World on the phone (12-17 Nov) they held at
+  // most 5094 MB on disk, so 6144 MB keeps 1 GB above that. A value already in the environment wins (12288: the engine's).
+  setenv("S2A_GUEST_FILE_MIN_FREE_MB", "6144", 0);
   // The engine creates its brief overlay only when this key is on at the start; the in-game menu then hides or shows it.
   [NSUserDefaults.standardUserDefaults setBool:YES forKey:kEngineBriefHud];
 }
