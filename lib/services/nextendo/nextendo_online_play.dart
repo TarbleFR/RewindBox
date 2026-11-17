@@ -1,5 +1,10 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'nextendo_bcat.dart';
+import 'nextendo_catalog.dart';
 import 'nextendo_config.dart';
 import 'nextendo_engine_support.dart';
 import 'nextendo_servers.dart';
@@ -7,10 +12,28 @@ import 'nextendo_service.dart';
 
 /// What one Switch launch gives the engine to play on Nextendo Network.
 class NextendoLaunchOnline {
-  const NextendoLaunchOnline({required this.token, required this.serverAddress, required this.natAddress});
+  const NextendoLaunchOnline({
+    required this.token,
+    required this.serverAddress,
+    required this.natAddress,
+    this.bcatDirectory,
+    this.nsa,
+    this.acceptedVersions = const [],
+  });
   final NextendoGameToken token;
   final String serverAddress;
   final String natAddress;
+
+  /// The game's BCAT delivery data on the device ([NextendoBcat]); null when
+  /// Nextendo has none for the title.
+  final String? bcatDirectory;
+
+  /// The account id Animal Crossing: New Horizons must receive instead of the
+  /// PID (`nsa` of `/api/me`); null for every other game.
+  final String? nsa;
+
+  /// The exact versions Nextendo's signed catalog accepts for the title (journal).
+  final List<String> acceptedVersions;
 
   /// The engine's request (`configureOnline`). The game token goes to the
   /// engine in memory only; it is never written to a file or a journal. The
@@ -20,6 +43,9 @@ class NextendoLaunchOnline {
     'pid': token.pid,
     'serverAddress': serverAddress,
     'natAddress': natAddress,
+    if (bcatDirectory != null) 'bcatDirectory': bcatDirectory,
+    if (nsa != null) 'nsa': nsa,
+    if (acceptedVersions.isNotEmpty) 'acceptedVersions': acceptedVersions,
   };
 }
 
@@ -27,6 +53,9 @@ class NextendoLaunchOnline {
 abstract final class NextendoOnlinePlay {
   static const _enabledKey = 'rewindbox.nextendo.onlinePlay';
   static const _retail = ['.nsp', '.xci'];
+
+  /// Animal Crossing: New Horizons receives the account's BAAS user id.
+  static const animalCrossingTitleId = '01006f8002326000';
 
   /// On by default: signing in is the player's request to play online.
   static Future<bool> enabled([SharedPreferences? preferences]) async =>
@@ -60,8 +89,13 @@ abstract final class NextendoOnlinePlay {
     NextendoConfig? config,
     SharedPreferences? preferences,
     String? gamePath,
+    String? titleId,
+    Directory? dataRoot,
     Future<bool> Function()? engineSupported,
     void Function(String reason)? onSkipped,
+    void Function(String step, String detail)? onDetail,
+    Future<NextendoCatalog?> Function()? catalog,
+    Future<String?> Function(String titleId)? bcat,
   }) async {
     final nextendo = service ?? NextendoService.instance;
     try {
@@ -97,7 +131,24 @@ abstract final class NextendoOnlinePlay {
         onSkipped?.call('pidMissing');
         return null;
       }
-      return NextendoLaunchOnline(token: token, serverAddress: settings.serverAddress, natAddress: settings.natAddress);
+      unawaited(nextendo.markSession(token));
+      final extras = await _gameData(
+        settings: settings,
+        service: nextendo,
+        titleId: titleId,
+        dataRoot: dataRoot,
+        onDetail: onDetail,
+        catalog: catalog,
+        bcat: bcat,
+      );
+      return NextendoLaunchOnline(
+        token: token,
+        serverAddress: settings.serverAddress,
+        natAddress: settings.natAddress,
+        bcatDirectory: extras.bcatDirectory,
+        nsa: extras.nsa,
+        acceptedVersions: extras.accepted,
+      );
     } on NextendoException catch (error) {
       onSkipped?.call(error.code);
       return null;
@@ -105,5 +156,55 @@ abstract final class NextendoOnlinePlay {
       onSkipped?.call(error.runtimeType.toString());
       return null;
     }
+  }
+
+  /// What this title needs beyond the token, from Nextendo's integration guide:
+  /// the versions its signed catalog accepts, its BCAT delivery data, and for
+  /// Animal Crossing the account's BAAS user id. Each part is best effort: a
+  /// failure leaves that part out and the game still goes online.
+  static Future<({String? bcatDirectory, String? nsa, List<String> accepted})> _gameData({
+    required NextendoConfig settings,
+    required NextendoService service,
+    required String? titleId,
+    required Directory? dataRoot,
+    void Function(String step, String detail)? onDetail,
+    Future<NextendoCatalog?> Function()? catalog,
+    Future<String?> Function(String titleId)? bcat,
+  }) async {
+    final id = titleId?.toLowerCase();
+    if (id == null || !RegExp(r'^[0-9a-f]{16}$').hasMatch(id)) return (bcatDirectory: null, nsa: null, accepted: const <String>[]);
+    var accepted = const <String>[];
+    try {
+      final requirement = (await (catalog ?? (() => NextendoCatalogStore.current()))())?.forTitle(id);
+      if (requirement == null) {
+        onDetail?.call('catalog', 'notListed');
+      } else {
+        accepted = requirement.accepted;
+        onDetail?.call('catalog', '${requirement.enabled ? 'listed' : 'disabled'} ${requirement.accepted.join('|')}'
+            '${requirement.needsNplnPatches ? ' npln' : ''}');
+      }
+    } on Object catch (error) {
+      onDetail?.call('catalog', 'unavailable ${error.runtimeType}');
+    }
+    String? directory;
+    try {
+      if (bcat != null) {
+        directory = await bcat(id);
+      } else if (dataRoot != null) {
+        directory = await NextendoBcat.prepare(root: dataRoot, titleId: id, onEvent: (event) => onDetail?.call('bcat', event));
+      }
+    } on Object catch (error) {
+      onDetail?.call('bcat', 'failed ${error.runtimeType}');
+    }
+    String? nsa;
+    if (id == animalCrossingTitleId) {
+      try {
+        nsa = await service.baasUserId(settings);
+        onDetail?.call('nsa', nsa == null ? 'missing' : 'present');
+      } on Object catch (error) {
+        onDetail?.call('nsa', 'failed ${error.runtimeType}');
+      }
+    }
+    return (bcatDirectory: directory, nsa: nsa, accepted: accepted);
   }
 }

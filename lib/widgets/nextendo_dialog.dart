@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/switch_online_locale.dart';
 import '../services/logger_service.dart';
+import '../services/nextendo/nextendo_catalog.dart';
 import '../services/nextendo/nextendo_config.dart';
 import '../services/nextendo/nextendo_engine_support.dart';
 import '../services/nextendo/nextendo_online_play.dart';
@@ -29,6 +30,8 @@ class NextendoDialog extends StatefulWidget {
 
 class _NextendoDialogState extends State<NextendoDialog> {
   NextendoConfig? _config;
+  NextendoCatalog? _catalog;
+  bool _catalogLoaded = false;
   NextendoAccount? _account;
   bool _online = true;
   bool? _engine; // null while the engine binary is checked
@@ -59,6 +62,12 @@ class _NextendoDialogState extends State<NextendoDialog> {
   Future<void> _load() async {
     try {
       await NextendoServers.refresh();
+      unawaited(NextendoCatalogStore.current().then((catalog) {
+        if (mounted) setState(() {
+          _catalog = catalog;
+          _catalogLoaded = true;
+        });
+      }));
       final config = await NextendoConfig.load();
       final account = config.canSignIn ? await _service.restore(config) : null;
       final online = await NextendoOnlinePlay.enabled();
@@ -277,6 +286,32 @@ class _NextendoDialogState extends State<NextendoDialog> {
     ],
   );
 
+  /// Nextendo's signed catalog: each game and the exact version its servers
+  /// accept. NPLN titles also need online patches RewindBox does not apply yet.
+  Widget _games() {
+    final catalog = _catalog;
+    return ExpansionTile(
+      key: const ValueKey('nextendo-catalog'),
+      tilePadding: EdgeInsets.zero,
+      title: Text(_text('nextendoCatalogTitle')),
+      children: [
+        if (catalog == null)
+          Text(_catalogLoaded ? _text('nextendoCatalogUnavailable') : '…')
+        else
+          for (final game in catalog.games.where((game) => game.enabled))
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: Text(game.name),
+              subtitle: Text([
+                game.accepted.join(' / '),
+                if (game.needsNplnPatches) _text('nextendoCatalogNpln'),
+              ].join('\n')),
+            ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final config = _config;
@@ -302,6 +337,7 @@ class _NextendoDialogState extends State<NextendoDialog> {
               Text(_text('nextendoGames'), style: Theme.of(context).textTheme.bodySmall),
               const SizedBox(height: 4),
               Text(_text('nextendoLimits'), style: Theme.of(context).textTheme.bodySmall),
+              _games(),
               if (config != null && !config.serversAutomatic) _registration(config),
             ],
           ),

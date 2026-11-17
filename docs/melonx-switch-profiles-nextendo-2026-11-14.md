@@ -362,3 +362,20 @@ delivered.
   already sends exactly those three names to the NAT address.
 - Checked by `test/nextendo_servers_test.dart` (workflow `nextendo-checks.yml`).
   No address is written in the repository.
+
+## Game data for more titles (17 November, application side)
+
+From Nextendo's integration guide (wiki.nextendo.network/integration, read 17 November; public endpoints, no
+account needed):
+
+| What | Source | RewindBox |
+| --- | --- | --- |
+| Exact versions | Signed game catalog `GET /service-catalog/v1/game-catalog` (Ed25519, key `catalog-key-1`; revision 23 lists 61 games, Super Smash Bros. Ultimate `01006a800016e000` at 13.0.5) | `nextendo_catalog.dart` verifies it (`nextendo_ed25519.dart`, RFC 8032 vectors and the live document in `test/nextendo_catalog_test.dart`), keeps the last good copy, never takes a lower revision, refreshes after 6 h; the Nextendo screen lists each game and its version; each launch journals the requirement and sends it to the engine (journal) |
+| BCAT delivery data | `GET /api/bcat/<titleId>` (zip; 204 without data): Smash Bros. Ultimate, Splatoon 2/3, Pokémon Scarlet/Violet, Legends: Z-A, Sword/Shield, Switch Sports | `nextendo_bcat.dart` checks it at each online launch, extracts it to `<MeloNX root>/nextendo/bcat/<titleId>/<directory>/<file>` (only two plain levels, written apart then swapped, replaced when its SHA-256 changes, removed on 204, kept when unreachable) and sends the folder to the engine (`bcatDirectory`) |
+| Animal Crossing's account id | `nsa` of `GET /api/me` | asked at an Animal Crossing launch only and sent to the engine (`nsa`) |
+| Presence | `POST /api/nex-session` with the game token | sent once per online launch (best effort) |
+| NPLN online patches | `/service-catalog/v1/npln-title-index` (Ed25519, key `npln-patches-key-1`), then per title and build id | not yet: needs the build id of the game's main module (engine) and guarded IPS32 writes; NPLN titles are marked in the list |
+
+The engine side (serving `bcatDirectory` as the game's delivery cache, the `nsa` account id, the version journal line,
+and the Swift bridge forwarding these keys) is a separate lot that needs a Core freeze; until it is in a Core, the
+engine ignores the new keys (the Swift bridge forwards only the four it knows) and nothing changes for the game.

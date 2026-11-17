@@ -582,10 +582,21 @@ abstract final class MelonxInternalService {
       // player is signed in and this build knows Nextendo's servers. Anything
       // else (signed out, switched off, no network, a refusal) leaves the game
       // starting offline exactly as before; the launch is never refused for it.
+      // The title id names the game's Nextendo data: the catalog's exact
+      // versions, its BCAT delivery data, Animal Crossing's account id.
+      String? onlineTitleId;
+      try {
+        onlineTitleId = (await content('metadata', filePath: gamePath))['titleId']?.toString();
+      } on Object {
+        onlineTitleId = null;
+      }
       final online = await NextendoOnlinePlay.forLaunch(
         gamePath: gamePath,
+        titleId: onlineTitleId,
+        dataRoot: await rootDirectory(),
         onSkipped: (reason) => MelonxLaunchDiagnostics.record('online', 'skipped', {'diagnostic': reason}),
-      ).timeout(const Duration(seconds: 8), onTimeout: () {
+        onDetail: (step, detail) => MelonxLaunchDiagnostics.record('online', step, {'diagnostic': detail}),
+      ).timeout(const Duration(seconds: 20), onTimeout: () {
         MelonxLaunchDiagnostics.record('online', 'skipped', {'diagnostic': 'timeout'});
         return null;
       });
