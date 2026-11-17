@@ -138,6 +138,13 @@ with tempfile.TemporaryDirectory(prefix='melonx-array-sync-epochs-') as temporar
         own = {}
         for name, pairs in adapter.FILE_PAIRS.items():
             final_text = (FINAL_SOURCE / name).read_text(encoding='utf-8-sig')
+            # After IPA 764: adapt_array_walk_size bounds the two ring walks of the cache by the set's size (the complete
+            # walks the cache already has otherwise): undone first, each replacement once; the fixture below executes it.
+            import adapt_array_walk_size as _walk  # noqa: E402
+            for file, old, new in reversed(_walk.PAIRS):
+                if file == name:
+                    check(final_text.count(new) == 1, 'the later adapter\'s replacement, once: ' + new.strip().splitlines()[0][:70])
+                    final_text = final_text.replace(new, old)
             # Plan 748 rank 14: adapt_array_membership_filter adds the filter after the flag, in both files: undone first.
             import adapt_array_membership_filter as _filter  # noqa: E402
             for file, old, new in reversed(_filter.PAIRS):

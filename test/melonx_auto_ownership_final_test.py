@@ -37,6 +37,7 @@ sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
 import adapt_command_buffer_ownership as ownership  # noqa: E402
 import adapt_signalled_fence_release as signalled  # noqa: E402
+import adapt_release_passes as release_passes  # noqa: E402
 from melonx_adapter_control import _NoDigests, control_source, files_edited_later, later_sharing  # noqa: E402
 
 MODULE = 'adapt_command_buffer_ownership'
@@ -104,12 +105,15 @@ def release_loop(pool_text):
 
 def production_parts(pool_text, final):
     """What the fixture's pool double takes verbatim from the variant's production CommandBufferPool.cs."""
+    # After IPA 764 (adapt_release_passes): the final pool releases its dependants in two loops (every dependant's bits,
+    # then every release); the fixture takes both, verbatim, and they must be that adapter's text.
+    passes = final and pool_text.count(release_passes.LOOP_NEW) == 1
     parts = {'addDependant': method(pool_text, '        public void AddDependant(int cbIndex, IAuto dependant)'),
-             'releaseLoop': release_loop(pool_text)}
+             'releaseLoop': release_passes.LOOP_NEW if passes else release_loop(pool_text)}
     if final:
         parts['dependantEntry'] = method(pool_text, '        private readonly struct DependantEntry')
         check(parts['dependantEntry'] + '\n' in ownership.ENTRY_NEW, 'the final DependantEntry is the adapter\'s')
-        check(ownership.ADD_NEW in parts['addDependant'] and parts['releaseLoop'] == ownership.LOOP_NEW,
+        check(ownership.ADD_NEW in parts['addDependant'] and parts['releaseLoop'] == (release_passes.LOOP_NEW if passes else ownership.LOOP_NEW),
               'the final AddDependant and release loop store and release DependantEntry')
     else:
         check('DependantEntry' not in pool_text, 'the delivered pool has no DependantEntry')
@@ -202,8 +206,10 @@ def main():
 
     # --- static: the final preparation is the delivered files plus this adapter and the later one sharing the pool ---
     later = later_sharing(MODULE)
-    check(later == ['adapt_signalled_fence_release'] and files_edited_later(MODULE) == {POOL},
-          'adapt_signalled_fence_release is the only later adapter editing these files, CommandBufferPool.cs only')
+    # After IPA 764: adapt_release_passes then edits both files (the bit clears apart from the release, two loops).
+    check(later == ['adapt_signalled_fence_release', 'adapt_release_passes'] and files_edited_later(MODULE) == {POOL, AUTO},
+          'adapt_signalled_fence_release (CommandBufferPool.cs) and adapt_release_passes (both files) are the only later '
+          'adapters editing these files')
     prepared, final_bound = control_source(final_source, MODULE, hold)
     check(final_bound, 'the candidate is the final preparation (it contains adapt_command_buffer_ownership)')
     for name in (AUTO, POOL):
@@ -213,13 +219,18 @@ def main():
     check(own_pairs == [(name, old, new) for name, old, new in ownership.PAIRS], 'the adapter applies exactly its PAIRS')
     later_pairs = replacements(signalled)
     check(len(later_pairs) == 2 and all(name == POOL for name, _, _ in later_pairs), 'the later adapter edits the pool twice')
+    passes_pairs = replacements(release_passes)
+    check(sorted(name for name, _, _ in passes_pairs) == [AUTO, AUTO, POOL], 'adapt_release_passes edits Auto.cs twice and the pool once')
     final_auto = (final_source / AUTO).read_text(encoding='utf-8-sig')
     final_pool = (final_source / POOL).read_text(encoding='utf-8-sig')
+    # The latest adapter's replacements are undone first, each required once; what remains is checked as before.
+    before_auto = undo(final_auto, [p for p in passes_pairs if p[0] == AUTO], AUTO)
+    before_pool = undo(final_pool, [p for p in passes_pairs if p[0] == POOL], POOL)
     for name, _, new in own_pairs + later_pairs:
-        check((final_auto if name == AUTO else final_pool).count(new) == 1, 'final replacement once: ' + name + ': ' +
+        check((before_auto if name == AUTO else before_pool).count(new) == 1, 'final replacement once: ' + name + ': ' +
               new.strip().splitlines()[0][:80])
-    control_auto = undo(final_auto, [p for p in own_pairs if p[0] == AUTO], AUTO)
-    control_pool = undo(undo(final_pool, later_pairs, POOL), [p for p in own_pairs if p[0] == POOL], POOL)
+    control_auto = undo(before_auto, [p for p in own_pairs if p[0] == AUTO], AUTO)
+    control_pool = undo(undo(before_pool, later_pairs, POOL), [p for p in own_pairs if p[0] == POOL], POOL)
     check(same_bytes((control / AUTO).read_bytes(), control_auto), 'the delivered Auto.cs is the final one with the replacements undone')
     check(same_bytes((control / POOL).read_bytes(), control_pool),
           'the delivered CommandBufferPool.cs is the final one with both adapters\' replacements undone')
@@ -265,6 +276,7 @@ def main():
         check(compiled['control'][relative] == compiled['final'][relative], 'the same compiled source in both variants: ' + relative)
 
     inputs = ['build-utils/melonx/adapt_command_buffer_ownership.py', 'build-utils/melonx/adapt_signalled_fence_release.py',
+              'build-utils/melonx/adapt_release_passes.py',
               'build-utils/melonx/adapt_session.py', 'test/melonx_auto_ownership_final_test.py',
               'test/melonx_auto_ownership_final/Program.cs', 'test/melonx_auto_ownership_final/Boundaries.cs',
               'test/melonx_adapter_control.py']
