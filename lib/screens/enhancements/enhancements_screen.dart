@@ -5,6 +5,7 @@ import 'package:material_symbols_icons/symbols.dart';
 import '../../l10n/enhancements_locale.dart';
 import '../../models/game_model.dart';
 import '../../models/system_model.dart';
+import '../../services/enhancements/adapters/melonx_enhancement_adapter.dart';
 import '../../services/enhancements/enhancement_models.dart';
 import '../../services/enhancements/enhancement_service.dart';
 import '../../services/gamepad/gamepad_navigation_manager.dart';
@@ -573,7 +574,25 @@ class _EnhancementsScreenState extends State<EnhancementsScreen> {
         banner(_t(EnhancementsLocale.restartNote));
         if (_category == EnhancementCategory.fps) banner(_t(EnhancementsLocale.fpsNote));
         if (_category == EnhancementCategory.ultrawide) banner(_t(EnhancementsLocale.ultrawideNote));
-        if (engine == EnhancementEngine.melonx) banner(_t(EnhancementsLocale.buildNote));
+        if (engine == EnhancementEngine.melonx) {
+          banner(_t(EnhancementsLocale.buildNote));
+          // The installed build matches none of the codes: say which build they are for.
+          final unmatched = MelonxEnhancementAdapter.unmatchedBuild(view.items);
+          if (unmatched != null) {
+            final shown = unmatched.targets.take(6).join(', ');
+            banner(
+              EnhancementsLocale.format(context, EnhancementsLocale.unmatchedBuild, {
+                'build': unmatched.build,
+                'targets': unmatched.targets.length > 6 ? '$shown…' : shown,
+              }),
+              kind: GlassBannerKind.warning,
+            );
+          }
+          final refresh = MelonxEnhancementAdapter.engineRefresh(view.items);
+          if (_category == EnhancementCategory.fps && refresh != null) {
+            banner(EnhancementsLocale.format(context, EnhancementsLocale.engineRefresh, {'hz': refresh}));
+          }
+        }
       } else {
         banner(_t(EnhancementsLocale.empty));
       }

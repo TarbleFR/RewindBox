@@ -18,6 +18,12 @@ internal sealed class EmbeddedGraphicsSettings
     internal bool ShaderCache = true;
     internal bool AsyncShaders = false;
     internal VSyncMode Vsync = VSyncMode.Switch;
+    // A game mode that renders above 60 frames per second (a cheat or exefs patch such as a "120 FPS" enhancement) needs the
+    // emulated display's vblank at that rate: "vsyncFps" selects VSyncMode.Custom with that interval (Switch's
+    // UpdateVSyncInterval makes it TargetVSyncInterval, which SurfaceFlinger paces frames with). It overrides "vsync".
+    internal const int MinVsyncFps = 30, MaxVsyncFps = 240;
+    internal const string VsyncFpsRange = "RewindBox graphics vsyncFps: 30 to 240 frames per second.";
+    internal int? VsyncFps;
     internal ScalingFilter Filter = ScalingFilter.Bilinear;
     // Null leaves the base default (On, matching standalone). An explicit
     // per-game value is the escape hatch for a title that misbehaves threaded.
@@ -48,6 +54,11 @@ internal sealed class EmbeddedGraphicsSettings
                 case "shaderCache": settings.ShaderCache = property.Value.GetBoolean(); break;
                 case "asyncShaders": settings.AsyncShaders = property.Value.GetBoolean(); break;
                 case "vsync": settings.Vsync = property.Value.GetBoolean() ? VSyncMode.Switch : VSyncMode.Unbounded; break;
+                case "vsyncFps":
+                    int fps = property.Value.GetInt32();
+                    if (fps < MinVsyncFps || fps > MaxVsyncFps) throw new ArgumentOutOfRangeException("vsyncFps", VsyncFpsRange);
+                    settings.VsyncFps = fps;
+                    break;
                 case "backendThreading": settings.Threading = property.Value.GetBoolean() ? BackendThreading.On : BackendThreading.Off; break;
                 case "filter":
                     settings.Filter = property.Value.GetString() switch
@@ -62,6 +73,7 @@ internal sealed class EmbeddedGraphicsSettings
         }
         if (!float.IsFinite(settings.Resolution) || settings.Resolution < 0.5f || settings.Resolution > 2f)
             throw new ArgumentOutOfRangeException("resolution");
+        if (settings.VsyncFps.HasValue) settings.Vsync = VSyncMode.Custom;
         return settings;
     }
 
@@ -74,6 +86,8 @@ internal sealed class EmbeddedGraphicsSettings
         options.DisableShaderCache = !ShaderCache;
         options.EnableAsyncShaderCompilation = AsyncShaders;
         options.VSyncMode = Vsync;
+        // The custom interval only with "vsyncFps"; otherwise the session's own value (unused unless Custom) stays.
+        if (VsyncFps.HasValue) options.CustomVSyncInterval = VsyncFps.Value;
         options.ScalingFilter = Filter;
         // The standalone app forces BackendThreading.On before every launch and
         // never applies its saved value (default Off), so an imported personal

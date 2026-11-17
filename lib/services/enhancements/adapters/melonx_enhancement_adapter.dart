@@ -1,10 +1,13 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:path/path.dart' as path;
 
 import '../../../models/game_model.dart';
 import '../../logger_service.dart';
 import '../../melonx_internal_service.dart';
+import '../../nextendo/nextendo_engine_support.dart';
 import '../enhancement_adapter.dart';
 import '../enhancement_catalog.dart';
 import '../enhancement_models.dart';
@@ -19,19 +22,54 @@ import '../enhancement_store.dart';
 /// lists the enabled programs (`BUILDID-<name Cheat>`); when that file is
 /// absent the engine enables every cheat, so RewindBox only ever creates it
 /// with the player's existing cheats preserved.
+///
+/// The installed build: an engine from the cheat report lot answers the main
+/// executable's Build ID of the game file (`metadata`, `buildId`) and of an
+/// update (`inspectUpdate`, `buildId`), in the cheat files' 16-digit form. The
+/// selected update (`games/<title id>/updates.json`) is what runs. When it is
+/// known, a code of the application whose catalogue Build IDs do not include it
+/// is shown incompatible (the engine would skip it silently); without it (an
+/// older engine) nothing changes.
+///
+/// An FPS code with a target (`120 FPS`) only raises the game's own limit; the
+/// engine still presents at the Switch's 60 Hz unless its refresh follows. An
+/// engine that takes the `vsyncFps` graphics option (its marker text is in the
+/// Core binary) gets the code's target at launch ([launchRefresh]) while the
+/// code is on for the installed build; off, the player's VSync choice applies.
+/// An engine without the option is never sent it (it refuses unknown keys).
 class MelonxEnhancementAdapter extends EnhancementAdapter {
   MelonxEnhancementAdapter({
     Future<Directory> Function()? root,
     Future<Map<String, dynamic>> Function(String gamePath)? metadata,
+    Future<Map<String, dynamic>> Function(String updatePath, String titleId)? inspectUpdate,
+    Future<bool> Function()? refreshSupported,
   }) : _root = root ?? MelonxInternalService.rootDirectory,
-       _metadata = metadata ?? _nativeMetadata;
+       _metadata = metadata ?? _nativeMetadata,
+       _inspectUpdate = inspectUpdate ?? _nativeInspectUpdate,
+       _refreshSupported = refreshSupported ?? engineTakesRefresh;
 
   static const modName = 'RewindBox';
   static const masterName = 'RewindBox master code';
 
+  /// Text of the engine's `vsyncFps` option kept in the Core binary
+  /// (EmbeddedGraphicsSettings.VsyncFpsRange, UTF-16 under NativeAOT).
+  static const refreshMarker = 'RewindBox graphics vsyncFps: 30 to 240 frames per second.';
+
+  /// The launch graphics key and the range the engine accepts.
+  static const refreshKey = 'vsyncFps';
+  static const minRefresh = 30;
+  static const maxRefresh = 240;
+
   final Future<Directory> Function() _root;
   final Future<Map<String, dynamic>> Function(String gamePath) _metadata;
+  final Future<Map<String, dynamic>> Function(String updatePath, String titleId) _inspectUpdate;
+  final Future<bool> Function() _refreshSupported;
   final _log = LoggerService.instance;
+
+  /// The installed main Build ID of each identified application (null: not
+  /// known) and whether the engine takes `vsyncFps`, from the last [identify].
+  final _installedBuilds = <String, String?>{};
+  bool _refreshTaken = false;
 
   static final _titleId = RegExp(r'^[0-9A-Fa-f]{16}$');
   static final _buildId = RegExp(r'^[0-9A-F]{16}$');
@@ -40,6 +78,78 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
 
   static Future<Map<String, dynamic>> _nativeMetadata(String gamePath) =>
       MelonxInternalService.content('metadata', filePath: gamePath);
+
+  static Future<Map<String, dynamic>> _nativeInspectUpdate(String updatePath, String titleId) =>
+      MelonxInternalService.content('inspectUpdate', filePath: updatePath, titleId: titleId);
+
+  static Future<bool>? _refreshSupport;
+
+  /// Whether the Switch engine of this build takes the `vsyncFps` graphics
+  /// option, read once from the Core binary without loading it (loading the
+  /// Core from a menu would mark the process as a Switch 1 one).
+  static Future<bool> engineTakesRefresh() => _refreshSupport ??= _checkRefresh();
+
+  /// For tests: forget the cached answer.
+  static void resetRefreshSupport() => _refreshSupport = null;
+
+  static Future<bool> _checkRefresh() async {
+    if (!Platform.isIOS) return false;
+    final bundle = File(Platform.resolvedExecutable).parent.path;
+    try {
+      return await Isolate.run(() => refreshSupportedIn(bundle));
+    } on Object {
+      return false;
+    }
+  }
+
+  /// Whether the Core of the application bundle at [bundle] takes `vsyncFps`.
+  static bool refreshSupportedIn(String bundle) =>
+      NextendoEngineSupport.containsAny('$bundle/Frameworks/MeloNXCore.framework/MeloNXCore', const [refreshMarker]);
+
+  /// A Build ID in the cheat files' form (16 upper-case hex digits), or null.
+  static String? buildIdOf(Object? value) {
+    final text = value?.toString().trim().toUpperCase() ?? '';
+    return _buildId.hasMatch(text) && text.replaceAll('0', '').isNotEmpty ? text : null;
+  }
+
+  /// The frame rate an FPS code's name targets (`120 FPS (Emulator)` → 120),
+  /// when the engine can present at it; null otherwise.
+  static int? refreshTarget(String name) {
+    final match = RegExp(r'(?<![0-9])([0-9]{2,3}) ?fps', caseSensitive: false).firstMatch(name);
+    final value = match == null ? null : int.tryParse(match.group(1)!);
+    return value != null && value >= minRefresh && value <= maxRefresh ? value : null;
+  }
+
+  /// The selected update of `<root>/games/<titleId>/updates.json` (a path
+  /// relative to [root] or absolute under it), when its file exists.
+  static Future<String?> selectedUpdate(Directory root, String titleId) async {
+    final file = File(path.join(root.path, 'games', titleId.toLowerCase(), 'updates.json'));
+    if (!await file.exists() || await file.length() > 1024 * 1024) return null;
+    final decoded = jsonDecode(await file.readAsString());
+    final selected = decoded is Map ? decoded['selected'] : null;
+    if (selected is! String || selected.isEmpty) return null;
+    final absolute = path.isAbsolute(selected) ? selected : path.normalize(path.join(root.path, selected));
+    if (!path.isWithin(root.path, absolute)) return null;
+    return await File(absolute).exists() ? absolute : null;
+  }
+
+  /// The main Build ID of what runs for [titleId]: the selected update's when
+  /// one is selected (unknown when its Build ID cannot be read), the game
+  /// file's ([baseBuild]) otherwise. Never throws.
+  static Future<String?> installedBuild({
+    required Directory root,
+    required String titleId,
+    required String? baseBuild,
+    required Future<Map<String, dynamic>> Function(String updatePath, String titleId) inspectUpdate,
+  }) async {
+    try {
+      final update = await selectedUpdate(root, titleId);
+      if (update == null) return baseBuild;
+      return buildIdOf((await inspectUpdate(update, titleId.toLowerCase()))['buildId']);
+    } on Object {
+      return null;
+    }
+  }
 
   @override
   EnhancementEngine get engine => EnhancementEngine.melonx;
@@ -109,6 +219,8 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
     String? raw = _rawTitleId(game.titleId);
     var titleId = applicationTitleId(game.titleId);
     String? version;
+    String? baseBuild;
+    var read = false;
     var title = game.titleName ?? game.name;
     final romPath = game.romPath;
     if (romPath != null && romPath.startsWith('/')) {
@@ -118,6 +230,8 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
         if (applicationTitleId(reported) != null) {
           raw = _rawTitleId(reported);
           titleId = applicationTitleId(reported);
+          baseBuild = buildIdOf(report['buildId']);
+          read = true;
         }
         final displayVersion = report['version']?.toString().trim() ?? '';
         if (displayVersion.isNotEmpty) version = displayVersion;
@@ -134,6 +248,22 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
         EnhancementProblem.identityUnavailable,
         title: title,
       );
+    }
+    // Only an engine that reports the game file's Build ID tells which build
+    // runs; an older one keeps every code as before.
+    String? installed;
+    if (read && baseBuild != null) {
+      try {
+        installed = await installedBuild(root: await _root(), titleId: titleId, baseBuild: baseBuild, inspectUpdate: _inspectUpdate);
+      } on Object {
+        installed = null;
+      }
+    }
+    _installedBuilds[titleId] = installed;
+    try {
+      _refreshTaken = installed != null && await _refreshSupported();
+    } on Object {
+      _refreshTaken = false;
     }
     return EnhancementGameIdentity(
       engine: engine,
@@ -224,6 +354,14 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
       final builds = _builds(entry);
       if (!_safeName(name) || builds.isEmpty) continue;
       final buildList = builds.keys.toList()..sort();
+      // The installed build is the application's main executable: a
+      // collection's other programs run their own and keep their status.
+      final program = entry['program']?.toString() ?? identity.key;
+      final installed = program == identity.key ? _installedBuilds[identity.key] : null;
+      final matches = installed == null || builds.containsKey(installed);
+      final target = category == EnhancementCategory.fps && installed != null && matches && _refreshTaken
+          ? refreshTarget(name)
+          : null;
       items.add(
         EnhancementItem(
           id: id,
@@ -231,12 +369,17 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
           category: category,
           name: name,
           sourceId: entry['source']?.toString() ?? '',
-          status: EnhancementAdapter.statusOf(id, state),
+          status: matches ? EnhancementAdapter.statusOf(id, state) : EnhancementStatus.incompatible,
+          problem: matches ? EnhancementProblem.none : EnhancementProblem.versionMismatch,
           compatibility:
-              'Title ID ${entry['program'] ?? identity.key} · Build ID ${buildList.join(', ')}',
+              'Title ID $program · Build ID ${buildList.join(', ')}${installed == null ? '' : ' · installed $installed'}',
           version: '${buildList.length}',
           exclusiveGroup: entry['group']?.toString() ?? '',
-          payload: {'builds': buildList},
+          payload: {
+            'builds': buildList,
+            'installedBuild': ?installed,
+            'refreshHz': ?target,
+          },
         ),
       );
     }
@@ -247,6 +390,33 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
   List<String> credits(Map<String, dynamic> record) => [
     for (final credit in (record['credits'] as List? ?? const [])) credit.toString(),
   ];
+
+  /// The engine refresh an active FPS code sets at the next start (one target
+  /// among the active codes), or null.
+  static int? engineRefresh(Iterable<EnhancementItem> items) {
+    final targets = {
+      for (final item in items)
+        if (item.engine == EnhancementEngine.melonx && item.status == EnhancementStatus.active && item.payload['refreshHz'] is int)
+          item.payload['refreshHz'] as int,
+    };
+    return targets.length == 1 ? targets.single : null;
+  }
+
+  /// When the installed build is known and none of the application's codes is
+  /// for it: that build and the catalogue's Build IDs, for the page to say
+  /// which game version the codes were made for. Null otherwise.
+  static ({String build, List<String> targets})? unmatchedBuild(Iterable<EnhancementItem> items) {
+    final measured = [
+      for (final item in items)
+        if (item.engine == EnhancementEngine.melonx && item.payload['installedBuild'] is String) item,
+    ];
+    if (measured.isEmpty || measured.any((item) => item.status != EnhancementStatus.incompatible)) return null;
+    final targets = <String>{
+      for (final item in measured)
+        for (final build in (item.payload['builds'] as List? ?? const [])) build.toString(),
+    }.toList()..sort();
+    return (build: measured.first.payload['installedBuild'] as String, targets: targets);
+  }
 
   /// Program keys Ryujinx uses in enabled.txt.
   static String programKey(String buildId, String name) => '$buildId-<$name Cheat>';
@@ -323,7 +493,101 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
         state.files.remove(stale);
       }
     }
+    _recordRefresh(identity, record, state, active);
     state.installed = true;
+  }
+
+  /// The engine refresh of the active FPS codes, per Build ID with the
+  /// enable-list keys that carry it (read at launch by [launchRefresh]). Two
+  /// active codes with different targets for one build set none.
+  void _recordRefresh(
+    EnhancementGameIdentity identity,
+    Map<String, dynamic> record,
+    EnhancementGameState state,
+    Set<String> active,
+  ) {
+    final refresh = <String, Map<String, dynamic>>{};
+    final conflicts = <String>{};
+    for (final entry in _entries(record)) {
+      final id = entry['id']?.toString() ?? '';
+      final name = entry['name']?.toString() ?? '';
+      if (!active.contains(id) || entry['cat'] != EnhancementCategory.fps.name || !_safeName(name)) continue;
+      final target = refreshTarget(name);
+      if (target == null) continue;
+      final program = (entry['program']?.toString() ?? identity.key).toLowerCase();
+      for (final build in _builds(entry).keys) {
+        final current = refresh[build];
+        if (current != null && current['hz'] != target) {
+          conflicts.add(build);
+          continue;
+        }
+        final value = refresh[build] ??= {'hz': target, 'program': program, 'keys': <String>[]};
+        (value['keys'] as List<String>).add(programKey(build, name));
+      }
+    }
+    conflicts.forEach(refresh.remove);
+    if (refresh.isEmpty) {
+      state.data.remove('refresh');
+    } else {
+      state.data['refresh'] = refresh;
+    }
+  }
+
+  /// The `vsyncFps` of a launch: the target of an FPS code that is on for the
+  /// build that runs, only when the engine takes the option, the code's
+  /// RewindBox file is on disk and the engine's enable list names it (a code
+  /// the engine would not install never raises the refresh: a game made for
+  /// 60 Hz could then run fast). Null otherwise; never throws.
+  static Future<int?> launchRefresh(
+    String gamePath, {
+    Future<List<EnhancementGameState>> Function()? states,
+    Future<Directory> Function()? root,
+    Future<Map<String, dynamic>> Function(String gamePath)? metadata,
+    Future<Map<String, dynamic>> Function(String updatePath, String titleId)? inspectUpdate,
+    Future<bool> Function()? supported,
+  }) async {
+    try {
+      final all = await (states ?? EnhancementStore.instance.all)();
+      final candidates = [
+        for (final state in all)
+          if (state.engine == EnhancementEngine.melonx.name && state.data['refresh'] is Map && (state.data['refresh'] as Map).isNotEmpty)
+            state,
+      ];
+      if (candidates.isEmpty) return null;
+      final report = await (metadata ?? _nativeMetadata)(gamePath);
+      final titleId = applicationTitleId(report['titleId']?.toString());
+      final baseBuild = buildIdOf(report['buildId']);
+      if (titleId == null || baseBuild == null) return null;
+      EnhancementGameState? state;
+      for (final candidate in candidates) {
+        if (candidate.key == titleId) state = candidate;
+      }
+      if (state == null) return null;
+      final directory = await (root ?? MelonxInternalService.rootDirectory)();
+      final build = await installedBuild(
+        root: directory,
+        titleId: titleId,
+        baseBuild: baseBuild,
+        inspectUpdate: inspectUpdate ?? _nativeInspectUpdate,
+      );
+      final entry = build == null ? null : (state.data['refresh'] as Map)[build];
+      if (entry is! Map) return null;
+      final hz = entry['hz'];
+      final program = entry['program']?.toString() ?? '';
+      if (hz is! int || hz < minRefresh || hz > maxRefresh || !_titleId.hasMatch(program)) return null;
+      final keys = {for (final key in (entry['keys'] as List? ?? const [])) key.toString()};
+      final title = path.join(directory.path, 'mods', 'contents', program);
+      final enabled = File(path.join(title, 'cheats', 'enabled.txt'));
+      final file = File(path.join(title, modName, 'cheats', '$build.txt'));
+      if (!await enabled.exists() || !await file.exists()) return null;
+      final listed = {for (final line in await enabled.readAsLines()) line.trim()};
+      final written = {for (final name in parseCheatNames(await file.readAsString())) programKey(build!, name)};
+      if (!keys.any((key) => listed.contains(key) && written.contains(key))) return null;
+      if (!await (supported ?? engineTakesRefresh)()) return null;
+      return hz;
+    } on Object {
+      return null;
+    }
   }
 
   /// The recorded files are keyed relative to the MeloNX root. iOS can move

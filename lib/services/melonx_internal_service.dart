@@ -213,7 +213,27 @@ abstract final class MelonxInternalService {
     }
   }
 
-  static Future<Map<String, dynamic>> graphicsForGame(String gamePath) async {
+  /// The game's graphics as the player chose them. For a launch
+  /// ([forLaunch]), an FPS code that is on for the build that runs also sets
+  /// the engine's refresh (`vsyncFps`, only for an engine that takes it; see
+  /// MelonxEnhancementAdapter.launchRefresh). That key is never stored: off,
+  /// the player's VSync choice applies again.
+  static Future<Map<String, dynamic>> graphicsForGame(String gamePath, {bool forLaunch = false}) async {
+    final settings = Map<String, dynamic>.from(await _storedGraphics(gamePath))
+      ..remove(MelonxEnhancementAdapter.refreshKey);
+    if (!forLaunch) return settings;
+    final refresh = await engineRefresh(gamePath);
+    if (refresh == null) return settings;
+    MelonxLaunchDiagnostics.record('graphics', 'engineRefresh', {
+      'diagnostic': 'an FPS code is on for the installed build: engine refresh $refresh Hz (vsyncFps)',
+    });
+    return {...settings, MelonxEnhancementAdapter.refreshKey: refresh};
+  }
+
+  /// The engine refresh of a launch (tests replace it).
+  static Future<int?> Function(String gamePath) engineRefresh = MelonxEnhancementAdapter.launchRefresh;
+
+  static Future<Map<String, dynamic>> _storedGraphics(String gamePath) async {
     final prefs = await SharedPreferences.getInstance();
     final key = _graphicsKey(gamePath);
     var text = prefs.getString(key);
@@ -331,7 +351,9 @@ abstract final class MelonxInternalService {
     Map<String, dynamic> settings,
   ) async {
     final key = _graphicsKey(gamePath);
-    final text = jsonEncode(settings);
+    // The engine refresh of an FPS code belongs to the launch, not to the
+    // player's choice (the in-game menu saves the session's settings back).
+    final text = jsonEncode(Map<String, dynamic>.from(settings)..remove(MelonxEnhancementAdapter.refreshKey));
     if (!await (await SharedPreferences.getInstance()).setString(key, text)) {
       throw StateError('Graphics configuration could not be saved');
     }
@@ -605,7 +627,7 @@ abstract final class MelonxInternalService {
         'gamePath': gamePath,
         'locale': locale,
         'jitBackend': 'builtin',
-        'graphics': await graphicsForGame(gamePath),
+        'graphics': await graphicsForGame(gamePath, forLaunch: true),
         // The game token stays in memory: never a file, never a journal.
         if (online != null) 'online': online.toEngine(),
       });

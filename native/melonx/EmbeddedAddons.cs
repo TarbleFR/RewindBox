@@ -42,12 +42,13 @@ partial class Library
         {
             var verifiedTitles = new List<ulong>();
             var controls = new Dictionary<ulong, Nca>();
+            var programs = new Dictionary<ulong, Nca>();
             foreach (var pair in pfs.GetContentData(ContentMetaType.Patch, _virtualFileSystem, IntegrityCheckLevel.None))
             {
                 if (requested.HasValue && (pair.Key & ~0x1FFFUL) != requested.Value) continue;
                 var patch = pair.Value.GetNcaByType(_virtualFileSystem.KeySet, LibHac.Ncm.ContentType.Program, 0);
                 var control = pair.Value.GetNcaByType(_virtualFileSystem.KeySet, LibHac.Ncm.ContentType.Control, 0);
-                if (patch != null && control != null) { verifiedTitles.Add(pair.Key); controls[pair.Key] = control; }
+                if (patch != null && control != null) { verifiedTitles.Add(pair.Key); controls[pair.Key] = control; programs[pair.Key] = patch; }
             }
             titleId = EmbeddedAddonSelection.SelectUpdate(verifiedTitles, requested);
             json.WriteString("kind", "update");
@@ -55,6 +56,10 @@ partial class Library
             // compare the installed version with the one Nextendo's catalog requires. Omitted when unreadable; never throws.
             string displayVersion = UpdateDisplayVersion(controls, titleId);
             if (displayVersion != null) json.WriteString("displayVersion", displayVersion);
+            // RewindBox (adapt_cheat_report): the update's main executable build id, in the cheat files' 16-digit form (the
+            // selected update is what runs). Omitted when unreadable; never throws.
+            string updateBuildId = UpdateBuildId(programs, titleId);
+            if (updateBuildId != null) json.WriteString("buildId", updateBuildId);
         }
         else
         {
@@ -79,6 +84,57 @@ partial class Library
             json.WriteEndArray();
         }
         json.WriteString("baseTitleId", titleId.ToString("x16"));
+    }
+
+    // The main build id of the selected update: the Program NCA of the update for the base title's first program
+    // (base | 0x800) when there is one, otherwise of any update of that base title; its ExeFS "main" header.
+    internal static string UpdateBuildId(Dictionary<ulong, Nca> programs, ulong baseTitleId)
+    {
+        var ordered = new List<Nca>();
+        if (programs.TryGetValue(baseTitleId | 0x800UL, out Nca first)) ordered.Add(first);
+        foreach (var pair in programs)
+            if ((pair.Key & ~0x1FFFUL) == baseTitleId && pair.Key != (baseTitleId | 0x800UL)) ordered.Add(pair.Value);
+        foreach (Nca program in ordered)
+        {
+            try
+            {
+                string id = Ryujinx.HLE.EmbeddedCheatReport.MainBuildId(program.OpenFileSystem(NcaSectionType.Code, IntegrityCheckLevel.None));
+                if (id != null) return id;
+            }
+            catch (Exception)
+            {
+                // An update without a readable ExeFS leaves the build id out.
+            }
+        }
+
+        return null;
+    }
+
+    // RewindBox (adapt_cheat_report): the main executable build id of a game file (content operation 0), in the cheat
+    // files' 16-digit form: the base application's program 0 ExeFS "main". Null for homebrew or anything unreadable.
+    internal static string EmbeddedApplicationBuildId(string path)
+    {
+        try
+        {
+            string extension = Path.GetExtension(path ?? string.Empty).TrimStart('.').ToLowerInvariant();
+            if (extension != "nsp" && extension != "xci") return null;
+            using IFileSystem pfs = PartitionFileSystemUtils.OpenApplicationFileSystem(path, _virtualFileSystem, throwOnFailure: false);
+            if (pfs == null) return null;
+            foreach (var pair in pfs.GetContentData(ContentMetaType.Application, _virtualFileSystem, IntegrityCheckLevel.None))
+            {
+                if ((pair.Key & 0x1FFFUL) != 0) continue; // the base program, not another program of the application
+                var program = pair.Value.GetNcaByType(_virtualFileSystem.KeySet, LibHac.Ncm.ContentType.Program, 0);
+                if (program == null) continue;
+                string id = Ryujinx.HLE.EmbeddedCheatReport.MainBuildId(program.OpenFileSystem(NcaSectionType.Code, IntegrityCheckLevel.None));
+                if (id != null) return id;
+            }
+        }
+        catch (Exception)
+        {
+            // Metadata never fails for the build id.
+        }
+
+        return null;
     }
 
     // The display version of the selected update: the Control NCA of the update for the base title's first program

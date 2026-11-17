@@ -137,9 +137,10 @@ with tempfile.TemporaryDirectory(prefix='melonx-nextendo-data-') as temporary:
     run = subprocess.run([DOTNET, str(fixture / 'bin/Release/net10.0/Data.dll'), str(work)], cwd=fixture, env=environment,
                          text=True, capture_output=True, timeout=600)
     if run.returncode:
-        print(run.stdout[-3000:], run.stderr[-4000:], flush=True)
+        failure = work / 'failure.txt'
+        print(run.stdout[-3000:], run.stderr[-4000:], failure.read_text()[-4000:] if failure.exists() else '', flush=True)
     check(run.returncode == 0, 'the fixture passes')
-    report = json.loads(run.stdout.strip().splitlines()[-1])
+    report = json.loads((work / 'report.json').read_text())
     check(report['checks'] == FIXTURE_CHECKS, f"the fixture ran its {FIXTURE_CHECKS} checks: {report['checks']}")
     check(report['servedFiles'] == 4 and report['directories'] == ['line_news', 'popup_news', 'present2'], 'the SSBU-shaped folder served')
 

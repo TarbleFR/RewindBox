@@ -1,0 +1,51 @@
+name: MeloNX cheats, build ids and engine refresh checks
+run-name: MeloNX cheats build ids and engine refresh • ${{ github.sha }}
+# 17 November 2026: a player's MeloNX cheats "did not work in game": the engine installs a code only for the build it
+# was made for and skipped the others silently. The Cheats & Enhancements page now reads the installed build (the
+# engine's metadata buildId, or the selected update's inspectUpdate buildId) and shows the codes for another build as
+# incompatible, naming the catalogue's builds when none matches. An FPS code with a target (120 FPS) also sets the
+# engine refresh at launch (vsyncFps) when the engine takes it, never stored as the player's VSync choice. Analyzes the
+# files and runs the adapter, launch graphics and page tests (with the graphics durability test and the 12 languages).
+'on':
+  push:
+    branches:
+    - Claude
+    - work/melonx-fps-stability-20261103
+    paths:
+    - .github/workflows/melonx-cheats-checks.yml
+    - lib/services/enhancements/**
+    - lib/screens/enhancements/enhancements_screen.dart
+    - lib/l10n/enhancements_locale.dart
+    - lib/services/melonx_internal_service.dart
+    - test/enhancement_melonx_adapter_test.dart
+    - test/enhancement_test_support.dart
+    - test/enhancements_screen_test.dart
+    - test/melonx_engine_refresh_test.dart
+    - test/melonx_graphics_durable_test.dart
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: melonx-cheats-checks-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.47.2'
+        channel: stable
+        cache: true
+    - name: Resolve Flutter dependencies
+      run: flutter pub get --enforce-lockfile
+    - name: Analyze the adapter, the launch graphics, the page and its strings
+      run: flutter analyze --no-fatal-infos lib/services/enhancements/adapters/melonx_enhancement_adapter.dart lib/services/melonx_internal_service.dart lib/screens/enhancements/enhancements_screen.dart lib/l10n/enhancements_locale.dart test/enhancement_melonx_adapter_test.dart test/enhancements_screen_test.dart test/melonx_engine_refresh_test.dart
+    - name: Installed build, incompatible codes, engine refresh at launch and on the page
+      run: flutter test test/enhancement_melonx_adapter_test.dart test/melonx_engine_refresh_test.dart test/melonx_graphics_durable_test.dart test/enhancements_screen_test.dart
+    - name: Twelve languages
+      run: python3 test/localization_12_locale_coverage_test.py
