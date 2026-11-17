@@ -7,7 +7,9 @@
   "native/melonx/EmbeddedLaunchDiagnostics.cs",
   "native/melonx/EmbeddedLaunchPreflight.cs",
   "native/melonx/EmbeddedPerformanceDiagnostics.cs",
-  "native/melonx/EmbeddedRuntime.cs"
+  "native/melonx/EmbeddedRuntime.cs",
+  "native/melonx/EmbeddedAddons.cs",
+  "native/melonx/EmbeddedSessionCoordinator.cs"
  ],
  "addedPreparationInputs": [
   "build-utils/melonx/adapt_array_rebuild_allocations.py",
@@ -144,7 +146,10 @@
   "build-utils/melonx/adapt_loh_compaction_request.py",
   "build-utils/melonx/adapt_guest_break_context.py",
   "build-utils/melonx/adapt_shader_load_binary_release.py",
-  "build-utils/melonx/adapt_streaming_memory.py"
+  "build-utils/melonx/adapt_streaming_memory.py",
+  "build-utils/melonx/adapt_buffer_mirror_windows.py",
+  "build-utils/melonx/adapt_nextendo_data.py",
+  "native/melonx/EmbeddedDeliveryCache.cs"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -267,11 +272,16 @@
   "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ParallelDiskCacheLoader.cs",
   "src/Ryujinx.Common/Memory/MemoryOwner.cs",
   "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedImageArray.cs",
-  "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedTextureArray.cs"
+  "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedTextureArray.cs",
+  "src/Ryujinx.Graphics.Vulkan/BitMapStruct.cs",
+  "src/Ryujinx.Horizon/Bcat/Ipc/ServiceCreator.cs",
+  "src/Ryujinx.Library/EmbeddedAddons.cs",
+  "src/Ryujinx.Library/EmbeddedSessionCoordinator.cs"
  ],
  "productionAdditions": [
   "src/Ryujinx.HLE/EmbeddedOnline.cs",
-  "src/Ryujinx.Library/RewindBoxRuntimeYield.c"
+  "src/Ryujinx.Library/RewindBoxRuntimeYield.c",
+  "src/Ryujinx.Horizon/EmbeddedDeliveryCache.cs"
  ],
  "fixtureInputs": [
   "build-utils/melonx/adapt_binding_data_snapshots.py",
@@ -436,7 +446,9 @@
   "test/melonx_shader_load_binary_release_test.py",
   "test/melonx_shader_load_binary_release/Program.cs",
   "test/melonx_shader_load_binary_release/Boundaries.cs",
-  "test/melonx_streaming_memory/Probe.cs"
+  "test/melonx_streaming_memory/Probe.cs",
+  "test/melonx_nextendo_data/Program.cs",
+  "test/melonx_buffer_mirror_windows/Probe.cs"
  ],
  "fixtureProductionInputs": [
   "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs",
@@ -682,7 +694,8 @@
     "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ParallelDiskCacheLoader.cs",
     "src/Ryujinx.Common/Memory/MemoryOwner.cs",
     "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedImageArray.cs",
-    "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedTextureArray.cs"
+    "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedTextureArray.cs",
+    "src/Ryujinx.Graphics.Vulkan/BitMapStruct.cs"
    ],
    "compiledBindings": [
     {
@@ -1458,6 +1471,15 @@
       "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedTextureArray.cs"
      ],
      "productionPath": "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedTextureArray.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Vulkan/BitMapStruct.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Vulkan/BitMapStruct.cs"
     }
    ]
   },
@@ -5180,6 +5202,60 @@
     "src/Ryujinx.Graphics.GAL/Multithreading/Model/ThreadedArrayPool.cs",
     "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedTextureArray.cs",
     "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedImageArray.cs"
+   ]
+  },
+  {
+   "name": "nextendo-data",
+   "script": "test/melonx_nextendo_data_test.py",
+   "report": "nextendo-data-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 600,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "physicalDeviceTested": false,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "nextendoData.executed": true
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Horizon/Bcat/Ipc/ServiceCreator.cs",
+    "src/Ryujinx.HLE/HOS/Services/Account/Acc/AccountService/ManagerServer.cs",
+    "src/Ryujinx.Horizon/EmbeddedDeliveryCache.cs",
+    "src/Ryujinx.HLE/EmbeddedOnline.cs",
+    "src/Ryujinx.Library/EmbeddedAddons.cs"
+   ]
+  },
+  {
+   "name": "buffer-mirror-windows",
+   "script": "test/melonx_buffer_mirror_windows_test.py",
+   "report": "buffer-mirror-windows-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 600,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "physicalDeviceTested": false,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "measured.staleSnapshotRemoved": true,
+    "measured.duplicatePauseSuppressed": true
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Vulkan/BufferHolder.cs",
+    "src/Ryujinx.Graphics.Vulkan/PipelineFull.cs",
+    "src/Ryujinx.Graphics.Vulkan/BitMapStruct.cs",
+    "src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs",
+    "src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs",
+    "src/Ryujinx.Library/EmbeddedSessionCoordinator.cs"
    ]
   }
  ]

@@ -147359,7 +147359,7 @@ index b4602fe..37a708a 100644
  
  	rpcs3_ios_status begin_content_install() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index 7c3389b..edc7317 100644
+index 7c3389b..de4e4d1 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 @@ -1,8 +1,42 @@
@@ -147497,7 +147497,7 @@ index 7c3389b..edc7317 100644
  }
  
  const experimental_policy& get_experimental_policy() noexcept
-@@ -47,7 +166,159 @@ void resolve_experimental_policy() noexcept
+@@ -47,7 +166,167 @@ void resolve_experimental_policy() noexcept
  	const bool fps_batch = resolve_mode(g_cfg.ios_experimental.fps_optimization_batch, false);
  	resolved.dma_copy_specialization = arm64_default && resolve_mode(g_cfg.ios_experimental.dma_copy_specialization, fps_batch);
  	resolved.texture_hash_hybrid = arm64_default && resolve_mode(g_cfg.ios_experimental.texture_hash_hybrid, fps_batch);
@@ -147535,8 +147535,16 @@ index 7c3389b..edc7317 100644
 +	// other's reservations.
 +	// CELL575_TITLE_LEVERS adds Call of Duty: Black Ops II: 3.5-10 million failed PUTLLC
 +	// per 5 s window on build 567, with accurate reservations on.
++	// REWINDBOX_NOOP_PUTLLC_GOW3_948: God of War III too. IPA 777 logs (17 November 2026, Core 947), a savestate resumed in
++	// play: 9.4 million successful PUTLLC per 5 s window, 8.9 million of them write-backs of unchanged data, and 4.5 million
++	// failed (SPUWAIT551), against 0.55 million and 35,000 after a fresh boot (IPA 771). God of War III runs with Accurate
++	// SPU Reservations (515,000 data-changing PUTLLC under the writer lock per window): its polling SPUs cancelled each
++	// other's reservations, and the bounded wait of REWINDBOX_SPU_NOOP_SPIN_ACCURATE_911, Automatic for God of War III
++	// since Core 627 (spu_noop_spin_wait), was never reached, since it needs this setting. The energy of a frame rose from
++	// 119 to 168 mJ as the frame rate fell with the heat (ENERGY931): the polling costs time, not frames.
 +	resolved.noop_putllc_keeps_reservations = resolve_mode(g_cfg.ios_experimental.noop_putllc_keeps_reservations,
-+		rpcs3::ios::deferred_commit::is_dbz_budokai_hd_title(title_id) || rpcs3::ios::title_levers::is_black_ops_ii_title(title_id));
++		rpcs3::ios::deferred_commit::is_dbz_budokai_hd_title(title_id) || rpcs3::ios::title_levers::is_black_ops_ii_title(title_id) ||
++		is_god_of_war_iii_title(title_id));
 +	// CELL565_RSX_IDLE_PARK: Automatic is Dragon Ball Z Budokai HD Collection, whose RSX
 +	// thread yielded 0.90 core for a FIFO busy 33-43 % of the time on build 564, and
 +	// God of War III, whose CELL threads need every core. A non-default FIFO idle wait
@@ -147657,7 +147665,7 @@ index 7c3389b..edc7317 100644
  	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
  	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
  	resolved.mobile_spu_scheduling = resolve_mode(g_cfg.ios_experimental.mobile_spu_scheduling, false);
-@@ -58,27 +329,307 @@ void resolve_experimental_policy() noexcept
+@@ -58,27 +337,307 @@ void resolve_experimental_policy() noexcept
  	resolved.rsx_dma_wait_parking = resolve_mode(g_cfg.ios_experimental.rsx_dma_wait_parking, arm64_default);
  	resolved.vulkan_command_buffer_reclamation = resolve_mode(g_cfg.ios_experimental.vulkan_command_buffer_reclamation, arm64_default);
  	resolved.expanded_spu_scratch = resolve_mode(g_cfg.ios_experimental.expanded_spu_scratch, arm64_default);
@@ -155016,7 +155024,7 @@ index 6a52e85..f4b30ed 100644
  
  	return true;
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index b7b0474..8ea2c35 100644
+index b7b0474..8c9f76f 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
 @@ -1,21 +1,45 @@
@@ -155096,7 +155104,7 @@ index b7b0474..8ea2c35 100644
 +	SETTING("experimental.texture_validation_epoch", "Experimental", "FPS Experiments", "Texture validation per FIFO batch", "Keeps a texture whose content was just verified as valid until the next synchronization point (new guest commands, a semaphore, an RSX memory write or the next frame) instead of hashing it again for every draw. A texture the game rewrites without synchronizing may appear one batch late. Automatic enables it for God of War III, Call of Duty: Black Ops II, Bladestorm and Assassin's Creed; Disabled hashes at every draw as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_validation_epoch, 0, 0, 0),
 +	SETTING("experimental.deferred_fbo_writeback", "Experimental", "FPS Experiments", "Deferred framebuffer write-back", "When a region the GPU wrote is bound again as a framebuffer, copies its content to game memory only when the game actually reads it, instead of waiting for the GPU at every bind. The bytes the game reads are unchanged. Applies with Write Color Buffers off. Automatic enables it for Dragon Ball Z Budokai HD Collection only; Disabled waits at every bind as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.deferred_fbo_writeback, 0, 0, 0),
 +	SETTING("experimental.early_submit", "Experimental", "FPS Experiments", "Early command buffer submission", "When the GPU has finished everything already sent to it, sends the draws recorded since then at the end of a draw instead of keeping them until the end of the frame, so the GPU renders while the frame is still being recorded. The commands and their order are unchanged. Automatic enables it for Dragon Ball Z Budokai HD Collection and God of War III, and for Assassin's Creed and Call of Duty: Black Ops II, which send at the next point where no render pass is open so that no pass is split; Disabled sends at the end of the frame as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.early_submit, 0, 0, 0),
-+	SETTING("experimental.noop_putllc_keeps_reservations", "Experimental", "FPS Experiments", "No-op PUTLLC keeps reservations", "With Accurate SPU Reservations on, an SPU atomic store that writes back unchanged data still succeeds only if the data and its reservation are unchanged, but no longer cancels the reservations other SPUs hold on the same data. SPUs that poll the same data then stop failing each other's atomic updates. Automatic enables it for Dragon Ball Z Budokai HD Collection and Call of Duty: Black Ops II; Black Ops II runs with Accurate SPU Reservations off, so there it changes nothing. Disabled cancels them as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.noop_putllc_keeps_reservations, 0, 0, 0),
++	SETTING("experimental.noop_putllc_keeps_reservations", "Experimental", "FPS Experiments", "No-op PUTLLC keeps reservations", "With Accurate SPU Reservations on, an SPU atomic store that writes back unchanged data still succeeds only if the data and its reservation are unchanged, but no longer cancels the reservations other SPUs hold on the same data. SPUs that poll the same data then stop failing each other's atomic updates. Automatic enables it for Dragon Ball Z Budokai HD Collection, Call of Duty: Black Ops II and, from Core 948, God of War III, whose polling SPUs then wait for the line instead of spinning on it. Disabled cancels them as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.noop_putllc_keeps_reservations, 0, 0, 0),
 +	SETTING("experimental.rsx_idle_park", "Experimental", "FPS Experiments", "RSX idle park", "When the RSX command queue has stayed empty for one millisecond, the RSX thread sleeps in 50-microsecond steps instead of spinning, which frees a CPU core for the SPU and PPU threads. A memory flush, flip or ZCULL request from another thread wakes it at once; new guest commands are seen within one step. Applies with RSX FIFO Idle Wait set to Yield. Automatic enables it for every title; Disabled spins as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.rsx_idle_park, 0, 0, 0),
 +	SETTING("experimental.rsx_thread_priority", "Experimental", "FPS Experiments", "RSX thread priority", "Gives the RSX thread and the audio threads precedence over the PPU and SPU threads when the game asks for more CPU than the performance cores provide, as RPCS3 intends; iOS otherwise treats them alike. Automatic enables it for every title; Disabled gives every emulation thread the same priority as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.rsx_thread_priority, 0, 0, 0),
 +	SETTING("experimental.passive_lock_fairness", "Experimental", "FPS Experiments", "Passive lock fairness", "When a PPU or SPU thread has waited a long time to resume guest memory access while SPUs keep taking reservation write locks, new write locks briefly let it through first. No lock is skipped. Automatic enables it for every title; Disabled restores the previous lock order. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.passive_lock_fairness, 0, 0, 0),
