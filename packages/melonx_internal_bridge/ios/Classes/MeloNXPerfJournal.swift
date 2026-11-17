@@ -825,6 +825,12 @@ final class MeloNXMemoryBreakdown {
     private var started = 0.0
     private var lines = 0
     private var warned = false
+    private var warningObserver: NSObjectProtocol?
+
+    // UIApplication.didReceiveMemoryWarningNotification's name, without UIKit (the journal also runs in macOS tests).
+    // The journal observes it itself, so no session screen has to forward it (IPA 771: a forwarding change to the
+    // session view controller was held back with that file's renaming).
+    static let memoryWarningName = Notification.Name("UIApplicationDidReceiveMemoryWarningNotification")
 
     init(path: String, context: [String:String], first: Double = 30, every: Double = 60, maxLines: Int = 30) {
         self.path = path; self.context = context; self.first = first; self.every = every; self.maxLines = maxLines
@@ -839,6 +845,9 @@ final class MeloNXMemoryBreakdown {
             source.setEventHandler { [weak self] in self?.record() }
             timer = source
             source.resume()
+            warningObserver = NotificationCenter.default.addObserver(forName:Self.memoryWarningName, object:nil, queue:nil) { [weak self] _ in
+                self?.memoryWarning()
+            }
             record(why:"start")
         }
     }
@@ -853,7 +862,13 @@ final class MeloNXMemoryBreakdown {
     }
 
     // Asynchronous, like the journal's stop.
-    func stop() { queue.async { [self] in timer?.cancel(); timer = nil } }
+    func stop() {
+        queue.async { [self] in
+            timer?.cancel(); timer = nil
+            if let warningObserver { NotificationCenter.default.removeObserver(warningObserver) }
+            warningObserver = nil
+        }
+    }
 
     private func record(why: String? = nil) {
         guard lines < maxLines else { timer?.cancel(); timer = nil; return }

@@ -71,6 +71,7 @@ final class MeloNXHeapSample {
     private var started = 0.0
     private var path = ""
     private var context: [String:String] = [:]
+    private var warningObserver: NSObjectProtocol?
 
     /// At the start of a session, before the engine is launched (the hook is set when this returns). A session that
     /// begins while a window is open joins it.
@@ -87,6 +88,10 @@ final class MeloNXHeapSample {
                 return
             }
             open = true; window += 1; started = ProcessInfo.processInfo.systemUptime; self.path = path; self.context = owned
+            // The process's memory warning ends the window (observed here, not forwarded by the session screen).
+            warningObserver = NotificationCenter.default.addObserver(forName:MeloNXMemoryBreakdown.memoryWarningName, object:nil, queue:nil) { [weak self] _ in
+                self?.memoryWarning()
+            }
             let mine = window
             queue.asyncAfter(deadline:.now() + seconds) { [self] in if open && window == mine { finish("window") } }
         }
@@ -102,6 +107,8 @@ final class MeloNXHeapSample {
 
     private func finish(_ reason: String) {
         open = false
+        if let warningObserver { NotificationCenter.default.removeObserver(warningObserver) }
+        warningObserver = nil
         MeloNXHeapSamplerLink.stop()
         let seconds = Int((ProcessInfo.processInfo.systemUptime - started).rounded())
         Self.write(Self.lines(reason:reason, seconds:seconds), path:path, context:context)

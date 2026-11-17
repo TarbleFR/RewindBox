@@ -212,12 +212,6 @@ final class MeloNXMetalSessionViewController: UIViewController {
                 MeloNXLaunchJournal.record("lifecycle",event,detail:"memory " + MeloNXMetalSessionViewController.memoryField())
             })
         }
-        // The first memory warning of the session writes the footprint's breakdown and ends the native heap window, so
-        // both are in the journal if iOS then ends the process (IPA 767, Hogwarts Legacy courtyard).
-        observers.append(NotificationCenter.default.addObserver(forName:UIApplication.didReceiveMemoryWarningNotification,object:nil,queue:.main) { [weak self] _ in
-            MeloNXHeapSample.shared.memoryWarning()
-            self?.perf?.memoryWarning()
-        })
         // Screen recording, mirroring or AirPlay of this screen (isCaptured):
         // one line per change of the game window's screen and one at session
         // start, so a recording the player could not save can be matched with
