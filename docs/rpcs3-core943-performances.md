@@ -131,12 +131,63 @@ code à 0x1cdad4 et les comptes du planificateur.
 
 ### 2.3 Ce qui n'est pas changé, et pourquoi
 
+Règle du mainteneur (17 novembre) : tout gain de W est utilisé, et non écarté, tant qu'il ne nuit pas à la stabilité ;
+modifier le binaire si nécessaire (« 0,15 W n'est pas négligeable »). Restent hors du Core 943, chacun pour une raison
+mesurable :
 - Réservations SPU exactes de Black Ops II : gardées (le mode relâché a gelé le jeu 40,8 s sur l'IPA 657).
 - `PPU Threads` = 2 : la valeur d'origine ; `vm::_register_lock()` suppose qu'au plus deux threads PPU exécutent du code à la
   fois, en lever la règle ferait tourner le troisième. Décision après les mesures du § 2.2.
-- Classes de service des threads (REWINDBOX_SPU_QOS_627) : leur effet sous plafond de puissance dépend du jeu (Black Ops II a
-  besoin des cœurs P pour ses PPU, God of War III pour ses SPU) ; pas de changement sans mesure.
+- Threads SPU dans la classe « utility » (débordement de 0,26 cœur P dans Black Ops II, ≈ 0,12 W) : dans cette classe,
+  ils passeraient après chaque thread « user-initiated » de leur grappe et à égalité avec les compilations de shaders ;
+  God of War III a besoin de ses SPU (trois noyaux SPURS occupés à 93 %). Mesure de la place libre sur les cœurs E avec
+  l'IPA du Core 943 d'abord (ENERGY931, recensement).
+- Surcoût des threads PPU de Black Ops II (≈ 0,5 cœur hors code du jeu) : piste en cours, à terminer avant toute IPA
+  (demande du mainteneur, 17 novembre). Constat de l'IPA 763 : 70 000 à 91 000 attentes hôte de moins de 200 µs par
+  fenêtre de 5 s en jeu (`WAKE936`, presque toutes jusqu'à leur échéance), 66 000 changements de contexte par seconde
+  (`SCHED918`), et des threads suspendus faute de place PPU (Backend 27 % des échantillons, juste après un
+  `sys_semaphore_post` ; principal 17 % ; Secondary 13 %).
 - Nombre de threads SPURS : pas de mesure sur l'appareil ; inchangé.
+
+### 2.4 Intervalle de travail de l'image : PPU et RSX (REWINDBOX_FRAME_INTERVAL_943)
+
+- **Problème constaté** : § 4.1. iOS règle la fréquence des cœurs d'après ce qu'il sait des threads ; il ne sait pas quels
+  threads produisent l'image, ni pour quand. Sous le plafond de ≈ 2 W, il répartit le budget sur 1,85 cœur P occupé.
+- **Cause** : l'émulation n'a jamais décrit ses images au régulateur (CLPC). La sonde du Core 940 a montré sur l'iPhone qu'un
+  intervalle de travail 0x47 (joignable, groupe, sans restriction, « finir à l'échéance ») se crée, se joint, se notifie et
+  se quitte (`status=ok`).
+- **Correction** : les threads PPU et le thread RSX rejoignent un seul intervalle à leur démarrage (un groupe de threads) et
+  le quittent à leur fin ; le thread RSX le notifie à chaque image du jeu (flip) : l'image a duré du flip précédent à
+  celui-ci, et elle était due une période de 60 Hz après le flip précédent. Un écart de plus de 200 ms (chargement, pause)
+  n'est pas notifié. Les SPU, les compilations et MoltenVK restent dans le groupe par défaut de l'application. Rien ne
+  change dans l'émulation. Réglage « Frame work interval » (Expérimental → Scheduling) : Automatique = Black Ops II et God
+  of War III, Activé = tous les jeux, Désactivé = aucun. `COREPROF FRAMEWI943` : entrées, échecs, sorties, notifications,
+  images en retard, écarts ignorés.
+- **Vérifications** : compilation comparée (Linux) et branche iOS compilée seule avec en-têtes de substitution ; appels
+  identiques à ceux de la sonde. Non exécuté sur iPhone.
+
+### 2.5 Encodage MoltenVK sur les cœurs E (REWINDBOX_MVK_ENCODE_QOS_943)
+
+- **Problème constaté** : § 4.1. Dans Black Ops II plafonné, l'encodage des commandes Metal par MoltenVK (après le retour de
+  `vkQueueSubmit`) occupe environ 0,29 des 1,85 cœur P : ≈ 0,22 W, contre ≈ 0,09 W pour le même travail sur les cœurs E.
+  Il n'est pas sur le chemin de l'image : en jeu, le RSX l'a attendu 0 fois avant `vkAcquireNextImageKHR` et 16 à 29 fois
+  par fenêtre de 5 s avant un résultat de requête, pour 13 à 34 ms au total (`COREPROF OPT587`).
+- **Cause** : MoltenVK crée la file d'encodage en classe « user-initiated » (`MVKQueue::initExecQueue`).
+- **Correction** : aucune modification de l'archive MoltenVK n'est nécessaire. Son appel `dispatch_queue_create` est déjà
+  renommé en `rbx_mvk_exec_q_create`, que définit le Core (`RPCS3IOSPlatform.mm`). La file de la VkQueue qui présente y
+  est créée en classe « utility », qu'iOS garde sur les cœurs E. Un thread « utility » passe après le travail
+  « user-initiated » prêt sur sa grappe. Donc, quand le RSX doit attendre un encodage (acquisition, barrière, requête), il
+  ajoute d'abord à la file un bloc vide de sa propre classe (`DISPATCH_BLOCK_ENFORCE_QOS_CLASS`). libdispatch exécute
+  alors la file dans cette classe jusqu'à ce qu'elle soit vide, comme pour un `dispatch_sync`. Même travail, même ordre,
+  même file ; la file de transfert garde sa classe. Le changement ne concerne que l'archive liée au Core RPCS3, pas
+  MeloNX. Réglage « MoltenVK encoding class » (Expérimental → MoltenVK) : Automatique = Black Ops II et God of War III,
+  Activé = tous les jeux, Désactivé = aucun, avec les soumissions asynchrones seulement. `COREPROF MVKQOS943` :
+  files créées en « utility », remontées de classe. La quatrième valeur de `qos_ms` (ENERGY931) montre où tourne
+  l'encodage.
+- **Vérifications** : compilation comparée (Linux) et branche iOS compilée seule avec en-têtes de substitution, avec et
+  sans ARC. Les deux tests existants de la file MoltenVK ne s'appliquent plus, et l'écart est le même sur le commit
+  précédent. `rpcs3_cell587_test.py` est authentifié sur les fichiers du Core 587. `rpcs3_mvk_present_queue_test.py`
+  attend qu'une attente abandonne après 2 s, alors que le Core 927 attend sans abandon : il bloque à 90 s. Non exécuté sur
+  iPhone.
 
 ## 3. Compilation, relecture et livraison
 
@@ -151,7 +202,7 @@ compteurs et cadrage jugés corrects. Ses remarques, toutes appliquées :
   l'interpréteur et latence décrits (§ 2.1). Restent notés sans changement : compteurs de la caverne non atomiques
   (diagnostic) et le vidage `part=callee`, qui suit le premier pc relevé dans la région chaude.
 
-Compilation du Core, épinglage et IPA : à compléter.
+Compilation du Core, épinglage et IPA : après la piste du surcoût PPU (§ 2.3), à la demande du mainteneur.
 
 ## 4. Pourquoi la fréquence tombe, et ce qui peut la maintenir (demande du mainteneur, 16 novembre)
 
@@ -201,3 +252,16 @@ environ 1,85 cœur P à 1,8 GHz, ou environ 1 cœur P à 2,5 GHz avec les cœurs
 Prévision (modèle, non démontrée) : avec environ 1 cœur P occupé au lieu de 1,85 et le même budget, la fréquence du
 chemin critique de Black Ops II passerait d'environ 1,8 à environ 2,5 GHz, soit 39 % de plus. Si la relation mesurée
 FPS ≈ 16-18 × GHz tient, c'est plus de 30 FPS. Seule une mesure sur l'iPhone peut le démontrer.
+
+### 4.3 Démonstration (choix du mainteneur : une IPA avec les correctifs actifs)
+
+Le Core 943 active par défaut (Automatique) les changements des § 2.1, 2.4 et 2.5 pour Black Ops II et God of War III ;
+chacun a son réglage pour l'arrêter. On compare avec l'IPA 763 (Core 942) : mêmes jeux, mêmes passages, téléphone chaud.
+- **Ce qui doit monter** : à puissance du processeur égale (≈ 2 W), la fréquence des cœurs P (ENERGY931 `p_mcycles` /
+  `p_cpu_ms`), les FPS (FRAMEPROF527) ; et baisser : `p_share` et l'énergie d'une image (`mj_per_frame`).
+- **Ce qui a été fait** : `FRAMEWI943` (notifications, images en retard), `MVKQOS943` (files « utility », remontées) avec
+  la part « utility » de `qos_ms`, `GOW3POLL943` (attentes, sommeils), `SCHED943` (cause du surcoût PPU).
+- **Ce qui ne doit pas se dégrader** : `OPT587` (attentes d'encodage, retard des marqueurs de présentation), images
+  lentes (`low1_fps`, `p99_ms`), aucune erreur fatale ni gel.
+- **Critère** : Black Ops II au-dessus de 30 FPS après la fenêtre 17 (24-37 sur l'IPA 763, surtout 26-31) ; God of War III
+  en jeu au-delà de 10-13 FPS.
