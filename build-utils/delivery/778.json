@@ -2,7 +2,7 @@
   "schema": 1,
   "build": 778,
   "status": "frozen",
-  "note": "Private IPA 778 from verified build 777: S2Arm engine 0001-0086 (0083 dynamic resolution held at its size, 0084 lighter automatic measurements, 0085 new shaders start beside the submit thread, 0086 smaller texture reuse pool), the preparation library with the Switch 2 NUP import, and the Switch 2 import menu (NUP files, opaque menu, a divider between every option).",
+  "note": "Private IPA 778 from verified build 777: S2Arm engine 0001-0087 (0083 dynamic resolution held at its size, 0084 lighter automatic measurements, 0085 new shaders start beside the submit thread, 0086 smaller texture reuse pool), the preparation library with the Switch 2 NUP import, and the Switch 2 import menu (NUP files, opaque menu, a divider between every option), and patch 0087: under heat the game lowers its own resolution and the yields back off sooner.",
   "base": {
     "build": 777,
     "source": "16653b425702c182f3888af0e966d79cb327f9ed",
@@ -327,7 +327,7 @@
           "binary": "sysdata/SHA256SUMS"
         }
       ],
-      "pinSha256": "468e74cee0d1235db7a7968549eeb67b0f58421667834147a7ceeb62ddebee21"
+      "pinSha256": "c699b7200d1b8cbc9a810aef5ecba7c4509aafc2b9c4a9c3ff2daca47e9dc15b"
     }
   },
   "product": {
@@ -347,12 +347,30 @@
       {
         "commit": "85542c13e66c28ff04d06f438bc9fae713b9c1ce",
         "note": "Written by this session (S2Arm): build(s2arm): s2arm_engine_bridge.podspec back to its reviewed declaration (no UniformTypeIdentifiers line: static framework, module autolinking, Runner already links it)."
+      },
+      {
+        "commit": "5d75fc610f3b2af91cc49447aa14395b390c86d9",
+        "note": "Written by this session (S2Arm): feat(s2arm): engine patch 0087 (while the thermal state is serious or critical the game's dynamic resolution steps down and the yields back off after 50 \u00b5s), README and legal rows."
+      },
+      {
+        "commit": "9574c1254040358f1a5f6661d607df76fe68bd9b",
+        "note": "Written by this session (S2Arm): build(s2arm): pin of the engine 0001-0087 (run 44180695807), the preparation library with the NUP import (run 44174427912) and the unchanged system data."
       }
     ],
     "sourceOnly": [
       {
         "commit": "8946bfaee09ea8dd24036589cdd11623d82e8153",
         "note": "Merge of another session's concurrent Switch 1 work (f18f7fd6, Nextendo game servers found by name) pushed during this delivery; not compiled in 778, for its own delivery.",
+        "targetBuild": 779
+      },
+      {
+        "commit": "485afdeaed51567a013c7c4df8b3f49f99d23724",
+        "note": "Merge of another session's concurrent Switch 1 work (aefaaee9, Nextendo game data on the app side) pushed during this delivery; not compiled in 778, for its own delivery.",
+        "targetBuild": 779
+      },
+      {
+        "commit": "77102ecd9fdcfffa2e5c12dea7a611902353786d",
+        "note": "Recipe 3.9 merge bringing another session's concurrent Switch 1 and MeloNX work (a61547a0, a2fba997, 20aa05e6, 1ff79ad0: Nextendo versions and per-title data, MeloNX menu) back as second parent; not compiled in 778, for its own delivery.",
         "targetBuild": 779
       }
     ],
@@ -366,8 +384,8 @@
         "note": "Written by this session (S2Arm): engine patch 0084 (lighter automatic measurements), deferred by build 777 for this delivery (targetBuild 776, renumbered 778); README and patch."
       }
     ],
-    "freezeCommit": "06f5156ff748fce1d667b8475f56869b9b5b47c5",
-    "freezeTree": "06707f51348865d9c30c52fffffbaad6fc3b9185",
+    "freezeCommit": "1e5558f55477394a7cc09d960b140fe6d64f5df7",
+    "freezeTree": "d58bfe64ab208e1f28ff48db7049670f2508765c",
     "baseEffectiveDigest": "a798bc34bb0cf32f14209361b2cea0bd626556c8eb0d10853c9a2fde8f7711f9",
     "inheritedDeferredPaths": [
       "assets/data/enhancements_index.json.gz",
@@ -640,27 +658,27 @@
     "commits": [
       {
         "commit": "26b801b6c304a983acf08b8752701f407a88b003",
-        "subject": "feat(s2arm): engine patch 0083 — the game's dynamic resolution keeps its size [s2arm-engine]",
+        "subject": "feat(s2arm): engine patch 0083 \u2014 the game's dynamic resolution keeps its size [s2arm-engine]",
         "role": "promoted",
         "productPaths": 2,
         "partial": false
       },
       {
         "commit": "018f0455041400d6fffef262c466522b15c42328",
-        "subject": "feat(s2arm): engine patch 0084 — lighter automatic measurements [s2arm-engine]",
+        "subject": "feat(s2arm): engine patch 0084 \u2014 lighter automatic measurements [s2arm-engine]",
         "role": "promoted",
         "productPaths": 2,
         "partial": false
       },
       {
         "commit": "bfd45c62ad1d0f0b9f16cd00313ed0e1dcb1b9d5",
-        "subject": "feat(s2arm): engine patch 0085 — new shaders start beside the submit thread",
+        "subject": "feat(s2arm): engine patch 0085 \u2014 new shaders start beside the submit thread",
         "role": "reviewed",
         "productPaths": 2
       },
       {
         "commit": "62619957d3b24de419cdba1e891817b601787d16",
-        "subject": "feat(s2arm): engine patch 0086 — smaller texture reuse pool [s2arm-engine]",
+        "subject": "feat(s2arm): engine patch 0086 \u2014 smaller texture reuse pool [s2arm-engine]",
         "role": "reviewed",
         "productPaths": 2
       },
@@ -685,7 +703,7 @@
       },
       {
         "commit": "471fc9b0fd32c355c1217a3c2a3429e819f75339",
-        "subject": "build(delivery): recipient key and draft 778 — S2Arm engine 0001-0086, Switch 2 NUP import and import menu, on base 777 [skip ci]",
+        "subject": "build(delivery): recipient key and draft 778 \u2014 S2Arm engine 0001-0086, Switch 2 NUP import and import menu, on base 777 [skip ci]",
         "role": "recipe",
         "productPaths": 0
       },
@@ -701,6 +719,50 @@
         "subject": "build(delivery): draft 778 declares the merge of concurrent Nextendo work (8946bfae) source only [skip ci]",
         "role": "recipe",
         "productPaths": 0
+      },
+      {
+        "commit": "68f967ad7eb5a39fc1b98b189e91bba59bd72b17",
+        "subject": "[ipa-delivery:778] build the private test IPA 778: S2Arm engine 0001-0086 (shader freezes, memory, dynamic resolution), the Switch 2 NUP import and a clearer import menu, on base 777",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "5d75fc610f3b2af91cc49447aa14395b390c86d9",
+        "subject": "feat(s2arm): engine patch 0087 \u2014 under heat the game's resolution steps down and the yields back off sooner [s2arm-engine]",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "7e7ca4745fce122a075b540754c77950ef808c5b",
+        "subject": "build(delivery): 778 expects the preparation library built on Claude (run 44174427912) [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "485afdeaed51567a013c7c4df8b3f49f99d23724",
+        "subject": "Merge branch 'Claude' of https://github.com/TarbleFR/RewindBox into Claude",
+        "role": "sourceOnly",
+        "productPaths": 10,
+        "merge": true
+      },
+      {
+        "commit": "77102ecd9fdcfffa2e5c12dea7a611902353786d",
+        "subject": "Merge the concurrent Switch 1 work back as second parent of the delivery line (recipe 3.9) [skip ci]",
+        "role": "sourceOnly",
+        "productPaths": 21,
+        "merge": true
+      },
+      {
+        "commit": "9574c1254040358f1a5f6661d607df76fe68bd9b",
+        "subject": "build(s2arm): the 0087 engine pin on the delivery line (same bytes as 06bb1c85)",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "1e5558f55477394a7cc09d960b140fe6d64f5df7",
+        "subject": "build(delivery): draft 778 again \u2014 S2Arm engine 0001-0087 (with the thermal patch), NUP import and import menu, on base 777 [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
       }
     ],
     "deferred": {
@@ -713,6 +775,41 @@
         "lib/services/nextendo/nextendo_servers.dart",
         "lib/widgets/nextendo_dialog.dart",
         "test/nextendo_servers_test.dart"
+      ],
+      "485afdeaed51567a013c7c4df8b3f49f99d23724": [
+        "lib/l10n/switch_online_locale.dart",
+        "lib/services/melonx_internal_service.dart",
+        "lib/services/nextendo/nextendo_bcat.dart",
+        "lib/services/nextendo/nextendo_catalog.dart",
+        "lib/services/nextendo/nextendo_ed25519.dart",
+        "lib/services/nextendo/nextendo_online_play.dart",
+        "lib/services/nextendo/nextendo_service.dart",
+        "lib/widgets/nextendo_dialog.dart",
+        "test/fixtures/nextendo/game-catalog.json",
+        "test/nextendo_catalog_test.dart"
+      ],
+      "77102ecd9fdcfffa2e5c12dea7a611902353786d": [
+        "build-utils/melonx/adapt_nextendo_data.py",
+        "build-utils/melonx/prepare_embedded.py",
+        "lib/l10n/melonx_mods_locale.dart",
+        "lib/l10n/switch_online_locale.dart",
+        "lib/screens/game_screen/game_settings_dialog/game_settings_manage_tab.dart",
+        "lib/screens/game_screen/my_games_list.dart",
+        "lib/services/melonx_mods_service.dart",
+        "lib/services/nextendo/nextendo_game_versions.dart",
+        "lib/widgets/melonx_internal_playlist_actions.dart",
+        "lib/widgets/melonx_mods_dialog.dart",
+        "lib/widgets/nextendo_dialog.dart",
+        "native/melonx/EmbeddedAddons.cs",
+        "native/melonx/EmbeddedDeliveryCache.cs",
+        "native/melonx/EmbeddedOnline.cs",
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXInternalBridgePlugin.swift",
+        "test/melonx_adapter_control.py",
+        "test/melonx_mods_service_test.dart",
+        "test/melonx_nextendo_data/Program.cs",
+        "test/melonx_nextendo_data_test.py",
+        "test/nextendo_game_versions_test.dart",
+        "test/storage_contract_test.py"
       ]
     },
     "effective": {
@@ -723,13 +820,13 @@
       },
       "build-utils/s2arm/engine-pin.json": {
         "mode": "100644",
-        "gitBlob": "f8c487dc7d67a2a12ae438e429e002ae3a46bedd",
-        "sha256": "468e74cee0d1235db7a7968549eeb67b0f58421667834147a7ceeb62ddebee21"
+        "gitBlob": "312542f2a385374449f1572a0e3761bc24b78860",
+        "sha256": "c699b7200d1b8cbc9a810aef5ecba7c4509aafc2b9c4a9c3ff2daca47e9dc15b"
       },
       "build-utils/s2arm/engine/README.md": {
         "mode": "100644",
-        "gitBlob": "ae8e9e20dbc46ab267b91f58bb4619666ac85a45",
-        "sha256": "a030f738ca2a85cc0c07bd5b7f1d4f5184883730dbf750333f185dce06be6b48"
+        "gitBlob": "a2b6eece6f1d5e99533c7da9f22835a231d89a39",
+        "sha256": "1ec9a83c36f17175029c27fccd46cedfee9600c4e5d5ad5a933dca65faf8356e"
       },
       "build-utils/s2arm/engine/patches/0083-guest-dynamic-resolution-held-at-its-size.patch": {
         "mode": "100644",
@@ -750,6 +847,11 @@
         "mode": "100644",
         "gitBlob": "8f6a3bf766fb55cdc45efc0e0afb22fb54cd6a53",
         "sha256": "58bffed29eedf0327edce6b0c95e3646f78478ddb0de7516ed9698ccd4aa3302"
+      },
+      "build-utils/s2arm/engine/patches/0087-guest-under-heat-resolution-steps-down-and-yields-back-off-sooner.patch": {
+        "mode": "100644",
+        "gitBlob": "2af306e3f1eea99a89b40d79269d131b954ff7b9",
+        "sha256": "fdd72d82806c05b61d70784033b9562d465fb8859eaaf04198d0fafb54d515f9"
       },
       "lib/l10n/s2arm_engine_locale.dart": {
         "mode": "100644",
@@ -861,8 +963,14 @@
         "gitBlob": "d9d9eebd0b5f280598442a336aaf958cc9d033b6",
         "sha256": "9e491611b6146032815aac0b8934e6edbdbc14e2f817350c006e7e8541773b97"
       },
+      "build-utils/melonx/adapt_nextendo_data.py": null,
       "build-utils/melonx/metal-archive/README.md": null,
       "build-utils/melonx/metal-archive/moltenvk-v1.4.2-binary-archives.patch": null,
+      "build-utils/melonx/prepare_embedded.py": {
+        "mode": "100644",
+        "gitBlob": "dab73dd08d0f56cedc0061d2789e26b7dff666d0",
+        "sha256": "ab09f8557f0c36e54edf789bc5b48be869448254f7c4cbbf8368f6e03e5221d4"
+      },
       "build-utils/melonx/ui-strings.json": {
         "mode": "100644",
         "gitBlob": "88f92964315d051c143ec120512ff75924f20bed",
@@ -888,6 +996,7 @@
         "gitBlob": "d6a690cd0f357e405a6d154a24b7062caad0c819",
         "sha256": "9ce1b98126d0ae7d92e592d41c4d9eaa0bfc8f7c8036a6209610138a98ab4593"
       },
+      "lib/l10n/melonx_mods_locale.dart": null,
       "lib/l10n/pairing_file_locale.dart": {
         "mode": "100644",
         "gitBlob": "17ca034fa6064e41e25e75fc4eee8ff7f09dbc5d",
@@ -944,6 +1053,16 @@
         "gitBlob": "d43ff835f79f4f188f7503763cfb66dad61e3882",
         "sha256": "01c53d52d7365287ca912fc9d7ac46268d6e43cbd81f2f5fd8945c70030a6734"
       },
+      "lib/screens/game_screen/game_settings_dialog/game_settings_manage_tab.dart": {
+        "mode": "100644",
+        "gitBlob": "e81179d922598b9f7cf7e4e1afb2c8c036c93b4d",
+        "sha256": "fb89bc37f523f5717edd5ada08c99ae49f47c4f36e2f02f9d615263a0fb44423"
+      },
+      "lib/screens/game_screen/my_games_list.dart": {
+        "mode": "100644",
+        "gitBlob": "841c561cbb20bda0234813a0eb32c9dbcc7ce6c8",
+        "sha256": "1321a91980d1579bd62ad8ce0a391a2d02c89f9c3026173aa94b634c0befff08"
+      },
       "lib/screens/libretro/libretro_consoles_screen.dart": {
         "mode": "100644",
         "gitBlob": "3573a32d5f2bf47e1bc91b3415386731f1d3914f",
@@ -969,18 +1088,28 @@
         "gitBlob": "a174324112d66fe124ae8471cb7fc6fe34255f8f",
         "sha256": "be36d635f35d5b6a64a7decb70b7e8d0ff2884df7d78331d6d0365035ec29748"
       },
+      "lib/services/melonx_mods_service.dart": null,
+      "lib/services/nextendo/nextendo_bcat.dart": null,
+      "lib/services/nextendo/nextendo_catalog.dart": null,
       "lib/services/nextendo/nextendo_config.dart": {
         "mode": "100644",
         "gitBlob": "55fb591750563d9eccd19b31ccca2ca047cd0500",
         "sha256": "2064fdb69fd3a2e7ed858de5f6db19a9f936fdcdf3f64f95283e1fa848107b60"
       },
+      "lib/services/nextendo/nextendo_ed25519.dart": null,
       "lib/services/nextendo/nextendo_engine_support.dart": null,
+      "lib/services/nextendo/nextendo_game_versions.dart": null,
       "lib/services/nextendo/nextendo_online_play.dart": {
         "mode": "100644",
         "gitBlob": "409944904c13e05f0eb5e77fad6a6bb6aec694ce",
         "sha256": "4a83ae38fde439665e0f23873d85e122c3e491c3d55695548eff665e0d99d6f8"
       },
       "lib/services/nextendo/nextendo_servers.dart": null,
+      "lib/services/nextendo/nextendo_service.dart": {
+        "mode": "100644",
+        "gitBlob": "0ca56b4b6f1e5b85f3e4e096de4296f6ac2c5b40",
+        "sha256": "3eb726d626af7de89bd5083d4dd262bb4b1e86270949afaf1e7761fc4d966108"
+      },
       "lib/services/retro_achievements_helper.dart": {
         "mode": "100644",
         "gitBlob": "5b0cf3f335ef80c08b95cfd809958e2023e0d14e",
@@ -1027,6 +1156,7 @@
         "gitBlob": "de6aeaba03644192fdef42d2b4d30990d8bf47e9",
         "sha256": "835db827db2332093ba184f33d681e6f0149e3f19b9de63db11c64c1316e1aa2"
       },
+      "lib/widgets/melonx_mods_dialog.dart": null,
       "lib/widgets/nextendo_dialog.dart": {
         "mode": "100644",
         "gitBlob": "8f13753a09b4889e75c7c231427bfa7e8b8594ee",
@@ -1186,6 +1316,17 @@
       "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-29.json.gz": null,
       "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-30.json.gz": null,
       "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-31.json.gz": null,
+      "native/melonx/EmbeddedAddons.cs": {
+        "mode": "100644",
+        "gitBlob": "35c200b776d029fac56fadf51b83333775803bc6",
+        "sha256": "bb159cfec55c92ffc14fc5ac52a342e3112c4d95b7c1350b571f8cab29fd754f"
+      },
+      "native/melonx/EmbeddedDeliveryCache.cs": null,
+      "native/melonx/EmbeddedOnline.cs": {
+        "mode": "100644",
+        "gitBlob": "ee31a9e9ed1783d84282169d4f9bd676b3944894",
+        "sha256": "21b3609664e1bbe69e08580552512d9c8766a7277079579312dca1dfbb5d7a13"
+      },
       "packages/libretro_internal_bridge/ios/Classes/LibretroAchievements.m": {
         "mode": "100644",
         "gitBlob": "b8307182d8117c9f06b8afb835039cae7399d831",
@@ -1280,10 +1421,16 @@
         "gitBlob": "c68e7e8d7bcc6c53f40be0f61fbfb61e8e665ccc",
         "sha256": "9d35847beb665e687a101ae79e4c40727895b288e02cb1900fb89fb534aed565"
       },
+      "test/fixtures/nextendo/game-catalog.json": null,
       "test/libretro_ios_syntax_test.py": {
         "mode": "100644",
         "gitBlob": "d6353e5e3934400e7ce98196c6e0c44cfef2d5c4",
         "sha256": "b3819844aade9966315ce11cb8f85c7f7f01851aedd9d09736022af1e96b702d"
+      },
+      "test/melonx_adapter_control.py": {
+        "mode": "100644",
+        "gitBlob": "0be816dc7763a2a74d7d034bfa99f1f2d763627d",
+        "sha256": "36ab30c17d4c11dcc7ade660dff391727e83f5bacd8a376dc13415c4e3ce9bef"
       },
       "test/melonx_memory_graph_test.py": {
         "mode": "100644",
@@ -1296,17 +1443,27 @@
       "test/melonx_metal_binary_archive/run_mvk.py": null,
       "test/melonx_metal_binary_archive/run_probe.py": null,
       "test/melonx_metal_binary_archive/shaders.spvz": null,
+      "test/melonx_mods_service_test.dart": null,
+      "test/melonx_nextendo_data/Program.cs": null,
+      "test/melonx_nextendo_data_test.py": null,
+      "test/nextendo_catalog_test.dart": null,
+      "test/nextendo_game_versions_test.dart": null,
       "test/nextendo_servers_test.dart": null,
       "test/ra_disc_hash_reader_test.py": null,
       "test/retro_achievements_identification_test.dart": null,
+      "test/storage_contract_test.py": {
+        "mode": "100644",
+        "gitBlob": "f510ed1192ac2d98d7f51c2095a2007ba8e8dc2c",
+        "sha256": "200e3f27c20f6f7270b5a073f414fcf6badf372451618658d54cbfecfdbc159f"
+      },
       "tools/enhancements/build_enhancement_catalog.py": {
         "mode": "100644",
         "gitBlob": "9dc6b6e95f32adee940ffb5098bf3449179b38fc",
         "sha256": "59565b36d1c20ea6dc270ab5bd1b239ff059983c776d282369231219f8b935c1"
       }
     },
-    "effectiveDigest": "5c22653d9f6edaee9e0e59accf3d756abdbfe09b4b96d266721ffeb5c7a60577",
-    "productFiles": 8800,
+    "effectiveDigest": "a51166e2b0749d5b24a48e24c51a6975ad532b55eed6174ad6a3a6e9e29ccdf0",
+    "productFiles": 8801,
     "embeddedRecipeInputs": {
       "LICENSE.md": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
       "NOTICE.md": "52d7db526b6950733d0b6c387ff3b38326db526a080c3b015b436a8ed78910e6",
@@ -1562,8 +1719,8 @@
     "melonx-dependencies"
   ],
   "frozen": {
-    "at": "2026-11-17T21:16:55Z",
-    "commit": "06f5156ff748fce1d667b8475f56869b9b5b47c5",
+    "at": "2026-11-17T21:53:38Z",
+    "commit": "1e5558f55477394a7cc09d960b140fe6d64f5df7",
     "tool": "standard_delivery.py freeze",
     "inCI": false
   }

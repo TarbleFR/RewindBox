@@ -2,8 +2,8 @@
  "schema": 1,
  "status": "verified",
  "component": "rpcs3",
- "build": 947,
- "note": "RPCS3 Core 947 = Core 945 (delivered in IPA 771) + REWINDBOX_GOW3_POLL_SAVESTATE_946 (God of War III resumed from a savestate of an unpatched boot gets its loop sleep) + REWINDBOX_PUT_HORIZON_ATOMIC_947 (the PUT horizon defers in the Atomic FIFO: the cache ends at the horizon while an epoch is deferred) + REWINDBOX_CLUSTER_CENSUS_947 (P/E cluster time and energy by thread group, measurement). Core 946 compiled by its own run, not pinned. Compilation-only route: the Apple host harnesses were not run. Codegen identities unchanged (no codegen input changes). Not run on an iPhone; no frame rate, picture or heat claim.",
+ "build": 948,
+ "note": "RPCS3 Core 948 = Core 947 (delivered in IPA 773, 775 and 777) + REWINDBOX_NOOP_PUTLLC_GOW3_948 (no-op PUTLLC keeps reservations, Automatic for God of War III too: IPA 777 logs, 8.9 million no-op and 4.5 million failed PUTLLC per 5 s window after a savestate resume). Compilation-only route: the Apple host harnesses were not run. Codegen identities unchanged (no codegen input changes). Not run on an iPhone; no frame rate, picture or heat claim.",
  "producer": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "validationMode": "build-only",
@@ -25,31 +25,31 @@
     "Preserve compiler objects for the same recipe",
     "Preserve real diagnostics including partial failures"
    ],
-   "source": "4d4a2596eaa2feac7063c138e5feecb5e394abd6",
-   "run": 44099378298,
+   "source": "5da69bbd019371793408c4ecd3e0437b8f68256d",
+   "run": 44186662104,
    "attempt": 1,
-   "job": 134094952203,
-   "artifact": 14337132612,
-   "name": "RPCS3Core-947-4d4a2596eaa2feac7063c138e5feecb5e394abd6",
-   "bytes": 30612887,
-   "sha256": "825b077e9a61d8d61cf31c31a8a329ae9ef96cdc2c9c539c5cd3fbdd12fb0566",
-   "expiresAt": "2026-12-17T14:29:33Z"
+   "job": 134404884286,
+   "artifact": 14376945131,
+   "name": "RPCS3Core-948-5da69bbd019371793408c4ecd3e0437b8f68256d",
+   "bytes": 30613084,
+   "sha256": "36c215602a868f40b402fb72483629e17c8189ac57326458ca16d3b141588845",
+   "expiresAt": "2026-12-17T22:25:58Z"
   },
   "hostTests": {
    "mode": "not-run"
   }
  },
  "core": {
-  "type": "rpcs3-ios-core947",
+  "type": "rpcs3-ios-core948",
   "dylibBytes": 81174488,
-  "dylibSha256": "59fc6a33268e60fa3b3cbb452793d79055068ec2026f54b5ec39b7e8638a4e0e",
-  "identitySha256": "3ffe188a630c4d8aefaaa5424f7a133632908767e5dfedc1ca9a745e7a0e9fd8",
+  "dylibSha256": "63978be765105aee6a49bb666d0c419903650019dcf2213f7503f58085a42a6a",
+  "identitySha256": "caf604e5ad1b6d426d405a56b0c1d42aa97db485663de22eff98dd3a022c9bd5",
   "proofMember": "core610-proof.json",
-  "proofSha256": "caf1f5c7f71838950b5b39e7a3ddbaf453a035e03c74683adacb2166aa44daf8",
-  "payloadFingerprint": "93199df720e342bc31910aa25ab3505196579ada1523ef0760ade0315d10f046"
+  "proofSha256": "1521f8c224cb66d604ed2cf9f2ec9a87c81a4a8286fcfc6adc6c9e3fcaad2b0e",
+  "payloadFingerprint": "57693835b7c0d41656a6fa6ef98361cc07e1469312242953fd48a6afa0cc92e4"
  },
  "canonical": {
-  "patchSha256": "98cc2a98c16ee2a73b85a81c08cf161ffc90b0a1058ee760f5a92c9dc8ac3846",
+  "patchSha256": "9fea315829eb83cc4657b1c6ce28d073c8b72bfee62d9f6f294da5bffdc913bd",
   "postimages": 519,
   "upstreamCommit": "22f1152783cef1f7e04af7b1c895173e28fd5b03"
  },
@@ -301,9 +301,9 @@
  ],
  "cachePath": "build/rpcs3-core-component",
  "replaces": {
-  "source": "f23549748a2005284d12f3a339c3150ffa8186a8",
-  "run": 44068588337,
-  "artifact": 14322493451,
-  "payloadFingerprint": "5914939ba08e1f7f53b5d19b7c1e78044da5abfa5668d71a32b753cbbb42eeef"
+  "source": "4d4a2596eaa2feac7063c138e5feecb5e394abd6",
+  "run": 44099378298,
+  "artifact": 14337132612,
+  "payloadFingerprint": "93199df720e342bc31910aa25ab3505196579ada1523ef0760ade0315d10f046"
  }
 }
