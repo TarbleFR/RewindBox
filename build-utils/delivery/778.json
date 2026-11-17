@@ -309,7 +309,7 @@
         },
         "prepare": {
           "workflow": ".github/workflows/s2arm-core.yml",
-          "branch": "work/s2arm-switch2-prototype-20261110",
+          "branch": "Claude",
           "subdir": "prepare"
         },
         "sysdata": {
@@ -640,27 +640,27 @@
     "commits": [
       {
         "commit": "26b801b6c304a983acf08b8752701f407a88b003",
-        "subject": "feat(s2arm): engine patch 0083 \u2014 the game's dynamic resolution keeps its size [s2arm-engine]",
+        "subject": "feat(s2arm): engine patch 0083 — the game's dynamic resolution keeps its size [s2arm-engine]",
         "role": "promoted",
         "productPaths": 2,
         "partial": false
       },
       {
         "commit": "018f0455041400d6fffef262c466522b15c42328",
-        "subject": "feat(s2arm): engine patch 0084 \u2014 lighter automatic measurements [s2arm-engine]",
+        "subject": "feat(s2arm): engine patch 0084 — lighter automatic measurements [s2arm-engine]",
         "role": "promoted",
         "productPaths": 2,
         "partial": false
       },
       {
         "commit": "bfd45c62ad1d0f0b9f16cd00313ed0e1dcb1b9d5",
-        "subject": "feat(s2arm): engine patch 0085 \u2014 new shaders start beside the submit thread",
+        "subject": "feat(s2arm): engine patch 0085 — new shaders start beside the submit thread",
         "role": "reviewed",
         "productPaths": 2
       },
       {
         "commit": "62619957d3b24de419cdba1e891817b601787d16",
-        "subject": "feat(s2arm): engine patch 0086 \u2014 smaller texture reuse pool [s2arm-engine]",
+        "subject": "feat(s2arm): engine patch 0086 — smaller texture reuse pool [s2arm-engine]",
         "role": "reviewed",
         "productPaths": 2
       },
@@ -685,7 +685,7 @@
       },
       {
         "commit": "471fc9b0fd32c355c1217a3c2a3429e819f75339",
-        "subject": "build(delivery): recipient key and draft 778 \u2014 S2Arm engine 0001-0086, Switch 2 NUP import and import menu, on base 777 [skip ci]",
+        "subject": "build(delivery): recipient key and draft 778 — S2Arm engine 0001-0086, Switch 2 NUP import and import menu, on base 777 [skip ci]",
         "role": "recipe",
         "productPaths": 0
       },
