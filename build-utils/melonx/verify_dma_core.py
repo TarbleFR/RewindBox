@@ -126,8 +126,9 @@ ARRAY_COUNTERS = arrays.ARRAY_COUNTERS
 # bindless array walk size: gates taught, none added); 112 after IPA 767 (a host pressure report asks the collector's
 # next blocking collection to compact the large object heap: loh-compaction-request); 113 with the game's own break
 # journaled (reason, info bytes, thread, control registers, guest stack: guest-break-context); 114 with the kernel wait
-# bodies of Syscall.cs executed again from the final source (kernel-wait-lifetime-final, the historical gate's successor).
-FRESH_GATES = 114
+# bodies of Syscall.cs executed again from the final source (kernel-wait-lifetime-final, the historical gate's successor);
+# 115 after IPA 771 (the shader cache load keeps no host code of cached programs: shader-load-binary-release).
+FRESH_GATES = 115
 HISTORICAL_RECEIPTS = 61
 
 

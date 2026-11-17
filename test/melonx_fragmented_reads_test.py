@@ -143,6 +143,10 @@ COMPOSED = sorted(set(COMPOSED) | set(LAZY_PRIVATE_SPANS))
 # so the final GPU build binds them.
 from adapt_queued_3d_syncpoints import BASELINE as QUEUED_3D  # noqa: E402
 COMPOSED = sorted(set(COMPOSED) | set(QUEUED_3D))
+# After IPA 771: adapt_shader_load_binary_release's files join the composition (ParallelDiskCacheLoader.cs is new to the
+# production scope; DiskCacheHostStorage.cs is composed already), so the final GPU build binds them.
+from adapt_shader_load_binary_release import BASELINE as SHADER_LOAD_RELEASE  # noqa: E402
+COMPOSED = sorted(set(COMPOSED) | set(SHADER_LOAD_RELEASE))
 # Production files the candidate build compiles and this receipt binds (the region type is unchanged). Library.cs
 # (Ryujinx.Library) is outside the GPU assembly closure: it is composed and bound here, compiled by NativeAOT.
 COMPILED = sorted((set(COMPOSED) - {DMA_LIBRARY}) | {'src/Ryujinx.Graphics.Gpu/Memory/ReadOnlyRegion.cs'})

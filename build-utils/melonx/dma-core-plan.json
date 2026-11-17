@@ -142,7 +142,8 @@
   "build-utils/melonx/adapt_release_passes.py",
   "build-utils/melonx/adapt_array_walk_size.py",
   "build-utils/melonx/adapt_loh_compaction_request.py",
-  "build-utils/melonx/adapt_guest_break_context.py"
+  "build-utils/melonx/adapt_guest_break_context.py",
+  "build-utils/melonx/adapt_shader_load_binary_release.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -261,7 +262,8 @@
   "src/Ryujinx.HLE/HOS/Services/Ssl/SslService/SslManagedSocketConnection.cs",
   "src/Ryujinx.Library/EmbeddedContent.cs",
   "src/Ryujinx.Library/Ryujinx.Library.csproj",
-  "src/Ryujinx.HLE/HOS/Kernel/SupervisorCall/Syscall.cs"
+  "src/Ryujinx.HLE/HOS/Kernel/SupervisorCall/Syscall.cs",
+  "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ParallelDiskCacheLoader.cs"
  ],
  "productionAdditions": [
   "src/Ryujinx.HLE/EmbeddedOnline.cs",
@@ -426,7 +428,10 @@
   "test/melonx_guest_break_context_test.py",
   "test/melonx_guest_break_context/Program.cs",
   "test/melonx_kernel_wait_lifetime_final_test.py",
-  "test/melonx_kernel_wait_lifetime/Program.cs"
+  "test/melonx_kernel_wait_lifetime/Program.cs",
+  "test/melonx_shader_load_binary_release_test.py",
+  "test/melonx_shader_load_binary_release/Program.cs",
+  "test/melonx_shader_load_binary_release/Boundaries.cs"
  ],
  "fixtureProductionInputs": [
   "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs",
@@ -668,7 +673,8 @@
     "src/Ryujinx.Graphics.Vulkan/Auto.cs",
     "src/Ryujinx.Graphics.Vulkan/CommandBufferPool.cs",
     "src/Ryujinx.Cpu/Jit/HostTracked/AddressSpacePartition.cs",
-    "src/Ryujinx.Graphics.Gpu/Engine/Threed/SemaphoreUpdater.cs"
+    "src/Ryujinx.Graphics.Gpu/Engine/Threed/SemaphoreUpdater.cs",
+    "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ParallelDiskCacheLoader.cs"
    ],
    "compiledBindings": [
     {
@@ -1408,6 +1414,15 @@
       "src/Ryujinx.Graphics.Gpu/Engine/Threed/SemaphoreUpdater.cs"
      ],
      "productionPath": "src/Ryujinx.Graphics.Gpu/Engine/Threed/SemaphoreUpdater.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ParallelDiskCacheLoader.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ParallelDiskCacheLoader.cs"
     }
    ]
   },
@@ -5079,6 +5094,29 @@
     "src/Ryujinx.HLE/HOS/Kernel/Common/KSynchronizationObject.cs",
     "src/Ryujinx.HLE/HOS/Kernel/Threading/KSynchronization.cs",
     "src/Ryujinx.HLE/HOS/Kernel/SupervisorCall/Syscall.cs"
+   ]
+  },
+  {
+   "name": "shader-load-binary-release",
+   "script": "test/melonx_shader_load_binary_release_test.py",
+   "report": "shader-load-binary-release-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 3600,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false,
+    "shaderLoadBinaryRelease.executed": true
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ParallelDiskCacheLoader.cs",
+    "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/DiskCacheHostStorage.cs"
    ]
   }
  ]

@@ -83,6 +83,9 @@ CONTROL = WORK / 'control'
 shutil.copytree(FINAL_SOURCE, CONTROL, ignore=ignore_tree(FINAL_SOURCE), symlinks=True)
 
 # --- Control: the adapter reversed must be the Core 670 bytes; forward reproduces the final preparation ---
+# After IPA 771: adapt_shader_load_binary_release, a later adapter, also edits DiskCacheHostStorage.cs: undone first (its
+# reversal is exact), then re-applied to the forward composition so the final file is reproduced.
+control_tools._reverse('adapt_shader_load_binary_release', CONTROL)
 control_tools._reverse('adapt_nan_scrub', CONTROL)
 for name, expected in adapt_nan_scrub.BASELINE.items():
     check(sha(CONTROL / name) == expected, 'control is the Core 670 preparation: ' + name)
@@ -92,6 +95,7 @@ for name in adapt_nan_scrub.BASELINE:
     shutil.copyfile(CONTROL / name, forward / name)
 changed = sorted(str(p.relative_to(forward)) for p in adapt_nan_scrub.apply(forward))
 check(changed == sorted(adapt_nan_scrub.BASELINE), 'adapt_nan_scrub changes only its files')
+control_tools.apply_present(forward, 'adapt_shader_load_binary_release')
 for name in adapt_nan_scrub.BASELINE:
     check((forward / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
 
