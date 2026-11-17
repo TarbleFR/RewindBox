@@ -247,6 +247,7 @@ class CatalogueData(unittest.TestCase):
         sources = {s['id']: s for s in self.index['sources']}
         self.assertEqual(set(sources), {
             'switch-cheats-db', 'keatonthebot-pchtxt', 'stevensnd-port-mods', 'stevensnd-ue4-mods', 'rpcs3-patches',
+            'artemis-rpcs3', 'artemis-rpcs3-pkg',
             'armsx2-patches-zip', 'cookieplmonster-ccc', 'aerowidescreen-pcsx2',
             'pcsx2-patches', 'peterdelta-pcsx2', 'gabominated-pcsx2', 'nethersx2-cheats',
             'dolphin-gamesettings', 'dolphin-upstream', 'ishiiruka-gamesettings', 'slippi-gamesettings',

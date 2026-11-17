@@ -71328,7 +71328,7 @@ index a42ae12..de2bea5 100644
  	static inline const auto& get(bool llvm = false)
  	{
 diff --git a/rpcs3/Emu/Cell/PPUModule.cpp b/rpcs3/Emu/Cell/PPUModule.cpp
-index dc78ddc..f4a463e 100644
+index dc78ddc..bac1bdc 100644
 --- a/rpcs3/Emu/Cell/PPUModule.cpp
 +++ b/rpcs3/Emu/Cell/PPUModule.cpp
 @@ -1,4 +1,7 @@
@@ -71446,7 +71446,7 @@ index dc78ddc..f4a463e 100644
  	for (const auto& s : elf.shdrs)
  	{
  		ppu_loader.notice("** Section: sh_type=0x%x, addr=0x%llx, size=0x%llx, flags=0x%x", std::bit_cast<u32>(s.sh_type), s.sh_addr, s.sh_size, s._sh_flags);
-@@ -2335,6 +2392,218 @@ bool ppu_load_exec(const ppu_exec_object& elf, bool virtual_load, const std::str
+@@ -2335,6 +2392,238 @@ bool ppu_load_exec(const ppu_exec_object& elf, bool virtual_load, const std::str
  		g_fxo->get<patch_engine>().apply(applied, Emu.GetTitleID() + '-' + hash, [&](u32 addr, u32 size) { return _main.get_ptr<u8>(addr, size); });
  	}
  
@@ -71525,9 +71525,24 @@ index dc78ddc..f4a463e 100644
 +		// virtual load (PPU cache creation of another executable) never touches it.
 +		namespace poll943 = rpcs3::ios::gow3_poll943;
 +		using poll_state = poll943::state;
-+		poll_state poll_result = virtual_load ? poll_state::unset : !rpcs3::ios::get_experimental_policy().gow3_poll_sleep ? poll_state::policy_off :
-+			hash != poll943::executable ? poll_state::other_executable : ar ? poll_state::savestate : poll_state::applied;
++		// REWINDBOX_GOW3_POLL_SAVESTATE_946: a resumed savestate of this executable is examined whatever the setting says, so
++		// that the cave of a patched boot is always registered again (its main thread may be saved inside it); the setting
++		// decides only whether an unpatched one is patched.
++		const bool poll_policy = rpcs3::ios::get_experimental_policy().gow3_poll_sleep;
++		poll_state poll_result = virtual_load ? poll_state::unset : hash != poll943::executable ? (poll_policy ? poll_state::other_executable : poll_state::policy_off) :
++			ar ? poll_state::savestate : !poll_policy ? poll_state::policy_off : poll_state::applied;
 +		const auto poll_block = poll_result == poll_state::applied || poll_result == poll_state::savestate ? vm::get(vm::any, poll943::branch_word) : nullptr;
++
++		// REWINDBOX_GOW3_POLL_SAVESTATE_946 (ios/IOSGow3PollSleep943.h): a resumed savestate whose memory still holds the
++		// original first word (no mark: saved from an unpatched boot) is patched as a fresh boot, after the same guard.
++		bool poll_from_savestate = false;
++
++		if (poll_result == poll_state::savestate && poll_policy && poll_block && _main.get_ptr<u8>(poll943::first_word, 4) &&
++			static_cast<u32>(_main.get_ref<u32>(poll943::first_word)) == poll943::expected[0])
++		{
++			poll_result = poll_state::applied;
++			poll_from_savestate = true;
++		}
 +
 +		if (poll_result == poll_state::applied)
 +		{
@@ -71583,6 +71598,11 @@ index dc78ddc..f4a463e 100644
 +					applied.push_back(poll943::branch_word);
 +					rpcs3_ios_register_patch_block(poll943::branch_word);
 +					poll943::cave_address.store(cave, std::memory_order_relaxed);
++
++					if (poll_from_savestate)
++					{
++						poll_result = poll_state::savestate_applied;
++					}
 +				}
 +			}
 +		}
@@ -71665,7 +71685,7 @@ index dc78ddc..f4a463e 100644
  	if (!applied.empty() || ar)
  	{
  		// Compare memory changes in memory after executable code sections end
-@@ -2373,7 +2642,13 @@ bool ppu_load_exec(const ppu_exec_object& elf, bool virtual_load, const std::str
+@@ -2373,7 +2662,13 @@ bool ppu_load_exec(const ppu_exec_object& elf, bool virtual_load, const std::str
  	}
  
  	// Initialize HLE modules
@@ -71679,7 +71699,7 @@ index dc78ddc..f4a463e 100644
  
  	// Embedded SPU elf patching
  	for (const auto& seg : _main.segs)
-@@ -2650,7 +2925,14 @@ bool ppu_load_exec(const ppu_exec_object& elf, bool virtual_load, const std::str
+@@ -2650,7 +2945,14 @@ bool ppu_load_exec(const ppu_exec_object& elf, bool virtual_load, const std::str
  		}
  
  		void init_fxo_for_exec(utils::serial* ar, bool full);
@@ -129545,10 +129565,10 @@ index 0000000..a300a0d
 +} // namespace rpcs3::ios::gow3_mlaa
 diff --git a/rpcs3/ios/IOSGow3PollSleep943.h b/rpcs3/ios/IOSGow3PollSleep943.h
 new file mode 100644
-index 0000000..c4f7d4b
+index 0000000..974cbe4
 --- /dev/null
 +++ b/rpcs3/ios/IOSGow3PollSleep943.h
-@@ -0,0 +1,157 @@
+@@ -0,0 +1,169 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -129578,11 +129598,21 @@ index 0000000..c4f7d4b
 +// never writes; the nop at 0x2eafd4, just before the loop, stores the object pointer (r30) there as the "no wait yet"
 +// mark. The rest is a code cave reached by a far jump from 0x2eaff4, as the patch engine builds them (code_alloc); the
 +// cave leaves through absolute branches (ba 0x2eafd8, ba 0x2eaff8: both below 32 MiB), real guest instructions that a
-+// savestate keeps. Written at a fresh boot only, on this executable only, and only if the eleven words 0x2eafd4..0x2eaffc
++// savestate keeps. Written at a fresh boot (and, from Core 946, on resuming a savestate of an unpatched boot), on this executable only, and only if the eleven words 0x2eafd4..0x2eaffc
 +// are the ones read on the device: any other content refuses the patch and says so (COREPROF GOW3POLL943
 +// state=refused_guard). A savestate made from a patched boot holds the cave and the mark but not what the host keeps
 +// (the cave's execution table, the far jump into it): on resume the loader finds the cave by its exact words and
 +// registers both again, so a thread saved inside the cave (in its sleep, most often) resumes there; nothing is written.
++// This happens whatever the setting says (Core 946): with the setting Disabled a thread saved inside the cave could not
++// run its next instruction otherwise.
++// REWINDBOX_GOW3_POLL_SAVESTATE_946: IPA 771 logs (17 November 2026, Core 945), God of War III resumed from a savestate
++// made before Core 943 (session 2): state=savestate cave=0x0, the main thread back to 0.70-0.83 core in its poll. A
++// resumed savestate whose memory holds the eleven original words (no mark, so no cave) is patched as a fresh boot: a
++// new cave, the mark and the far jump (state=savestate_applied). A thread saved inside the loop has not stored the mark;
++// in the cave its 0x70(r1) slot is an older stack value, so its wait is taken as already older than 100 us and it sleeps
++// 30 us between calls from its next unanswered call, which is the rule; its next wait stores the mark as usual. Any
++// other content refuses the patch as at a fresh boot (refused_guard). A later savestate holds the cave and the mark and
++// is restored as savestate_restored.
 +// Cost: the function at 0x2eafb0 contains a far jump, so it leaves LLVM and runs in the interpreter fallback, as every
 +// function a code_alloc patch enters does; the loop is that function's own, the work it waits for is elsewhere.
 +namespace rpcs3::ios::gow3_poll943
@@ -129684,6 +129714,7 @@ index 0000000..c4f7d4b
 +	savestate,          // a resumed savestate whose memory holds no cave (made from an unpatched boot): the game's loop
 +	other_executable, refused_guard, no_memory, no_jump,
 +	savestate_restored, // a resumed savestate made from a patched boot: its cave found and registered again
++	savestate_applied,  // REWINDBOX_GOW3_POLL_SAVESTATE_946: a resumed savestate from an unpatched boot, patched as a fresh boot
 +};
 +
 +inline std::atomic<std::uint32_t> applied_state{0};
@@ -129702,6 +129733,7 @@ index 0000000..c4f7d4b
 +	case state::no_memory: return "no_memory";
 +	case state::no_jump: return "no_jump";
 +	case state::savestate_restored: return "savestate_restored";
++	case state::savestate_applied: return "savestate_applied";
 +	default: return "unset";
 +	}
 +}
@@ -154792,7 +154824,7 @@ index 6a52e85..f4b30ed 100644
  
  	return true;
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index b7b0474..197b370 100644
+index b7b0474..8ea2c35 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
 @@ -1,21 +1,45 @@
@@ -154912,7 +154944,7 @@ index b7b0474..197b370 100644
 +	// REWINDBOX_PPU_WAIT_FLOOR_943 (ios/IOSPpuWaitFloor943.h).
 +	GAME_SETTING("experimental.ppu_wait_floor", "Experimental", "PPU", "PPU short wait floor", "When a PPU thread polls with the same short timed wait again and again (the same system call, object and timeout under 200 us: sys_timer_usleep, or the timeout of a semaphore, condition variable, event queue or mutex) and the previous one ran to its end, the next one waits four times as long, at most 200 us, before it times out; a wait that is signalled still ends at once. An lv2 timeout is a minimum, so this is correct on the console too: the loop checks its flag a little later and makes up to four times fewer rounds of the PPU scheduler. Automatic: Call of Duty: Black Ops II and God of War III. Enabled: every game. Disabled: none, as before Core 943. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.ppu_wait_floor, 0, 0, 0),
 +	// REWINDBOX_GOW3_POLL_SLEEP_943 (ios/IOSGow3PollSleep943.h).
-+	GAME_SETTING("experimental.gow3_poll_sleep", "Experimental", "PPU", "God of War III wait loop sleep", "God of War III 01.00 only. The PPU main thread waits for the SPU jobs of each frame by calling the same check in a loop; after 100 us of waiting it sleeps 30 us between checks instead of keeping a performance core busy, so the SPU threads get that core and its power. A short wait is unchanged; a long one ends at most one sleep later. Disabled: the game's own loop. Takes effect on the next boot (not when a savestate is resumed).", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.gow3_poll_sleep, 0, 0, 0),
++	GAME_SETTING("experimental.gow3_poll_sleep", "Experimental", "PPU", "God of War III wait loop sleep", "God of War III 01.00 only. The PPU main thread waits for the SPU jobs of each frame by calling the same check in a loop; after 100 us of waiting it sleeps 30 us between checks instead of keeping a performance core busy, so the SPU threads get that core and its power. A short wait is unchanged; a long one ends at most one sleep later. Disabled: the game's own loop. Takes effect on the next boot or savestate resume; a savestate made from a patched boot keeps its loop sleep even when Disabled (its main thread may be saved inside it).", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.gow3_poll_sleep, 0, 0, 0),
 +	// REWINDBOX_SCOPED_CPU_BLIT_942 (Emu/RSX/NV47/HW/nv3089.cpp).
 +	SETTING("experimental.scoped_cpu_blit", "Experimental", "FPS Experiments", "Scoped CPU blit revalidation", "With scoped texture revalidation, an image transfer the RSX runs on the CPU revalidates only the cached textures over the bytes it wrote instead of all of them (God of War III: 69 of 84 texture epochs a frame). Disabled: one texture epoch for each transfer, as before Core 942. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.scoped_cpu_blit, 0, 0, 0),
 +	// REWINDBOX_POST_AA_942 (ios/IOSPostAA942.h).

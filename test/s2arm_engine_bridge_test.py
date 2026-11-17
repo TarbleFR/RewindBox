@@ -335,9 +335,9 @@ check(wrapper.index('atomic_fetch_add(&g_prepRunning, 1);') < wrapper.index('NSD
       < wrapper.index('atomic_fetch_sub(&g_prepRunning, 1);') < wrapper.index('if (_cleanupDir) prep_remove_discarded(_cleanupDir);')
       < wrapper.index('return result;'), 'the discarded roots are deleted only once the preparation has ended, whatever its result')
 # IPA 765 (Mario Kart World): the deletion still ran 90 s after the launch, in the first race (0.34 core of kernel time in
-# removefile). It waits while a game or a preparation runs, checked every 256 entries, and resumes at the session's end or park,
-# after a failed launch, or at the next start of the app.
-check(tree.count('(++*entries & 255) == 0 && prep_cleanup_waits()') == 1
+# removefile). It waits while a game or a preparation runs, checked at every entry (IPA 771: checked every 256 entries, it went on
+# 2.2 s into the game's start), and resumes at the session's end or park, after a failed launch, or at the next start of the app.
+check(tree.count('++*entries;\n    if (prep_cleanup_waits()) {') == 1 and '& 255' not in tree
       and 'if (prep_cleanup_waits()) return;' in cleanup and 'static BOOL prep_cleanup_waits(void) { return atomic_load(&g_prepGameRunning) || atomic_load(&g_prepRunning); }' in cleanup,
       'the deletion pauses while a game or a preparation runs')
 launch = plugin[plugin.index('- (void)launchGame:(id)arguments result:(FlutterResult)result {'):plugin.index('- (NSDictionary *)resumeParkedGame:(NSString *)gid {')]

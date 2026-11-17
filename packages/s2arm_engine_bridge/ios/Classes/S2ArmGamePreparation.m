@@ -369,7 +369,7 @@ static void prep_unpack_note(void *context, const char *line) {
 // throttled behind the foreground. Called once a preparation has ended, never while one writes.
 // It also waits while a game runs. In the IPA 765 test (Mario Kart World) the moved-aside root was still being deleted 90 s
 // after the launch, in the first race: 0.34 core of kernel time in removefile, beside the engine's reads of the game's
-// file-backed memory on the same volume. A launch or a resume pauses it (S2ArmPreparationGameRunning), within 256 entries:
+// file-backed memory on the same volume. A launch or a resume pauses it (S2ArmPreparationGameRunning), at the next entry:
 // each tree goes entry by entry; the session's end, its park or the next start of the app resumes it. The folders still
 // to clean are kept on the serial cleanup queue, which alone touches them. A preparation running pauses it the same way.
 static atomic_int g_prepGameRunning, g_prepRunning;
@@ -401,7 +401,10 @@ static BOOL prep_remove_tree(const char *path, unsigned long *entries) {
   if (!walk) return NO;
   BOOL whole = YES;
   for (FTSENT *entry; (entry = fts_read(walk));) {
-    if ((++*entries & 255) == 0 && prep_cleanup_waits()) {
+    // Looked at on every entry (two atomic loads): checked every 256 entries, the IPA 771 test's deletion went on for 2.2 s into the
+    // game's start, the 256 entries at background QoS taking that long beside the engine's boot reads (journal discardedPaused)
+    ++*entries;
+    if (prep_cleanup_waits()) {
       whole = NO;
       break;
     }

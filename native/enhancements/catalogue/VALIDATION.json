@@ -1,42 +1,48 @@
 {
-  "index_sha256": "ef2f17505620e6e5c38154f2289196b3fdf69bc524991c83112ecfb7b956a7e8",
-  "index_size": 163161,
+  "index_sha256": "253c8196ae299f55e5ae9112f072a35ef991bd21217266ee1c8b81899d302f4a",
+  "index_size": 166973,
   "published": {
-    "changed_bytes": 1201787,
+    "changed_bytes": 578738,
     "changed_shards": [
-      "melonx-00",
-      "melonx-01",
-      "melonx-03",
-      "melonx-04",
-      "melonx-05",
-      "melonx-06",
-      "melonx-07",
-      "melonx-08",
-      "melonx-09",
-      "melonx-11",
-      "melonx-12",
-      "melonx-13",
-      "melonx-14",
-      "melonx-15",
-      "melonx-16",
-      "melonx-17",
-      "melonx-19",
-      "melonx-20",
-      "melonx-21",
-      "melonx-22",
-      "melonx-23",
-      "melonx-24",
-      "melonx-26",
-      "melonx-27",
-      "melonx-28",
-      "melonx-30",
-      "melonx-31"
+      "rpcs3-00",
+      "rpcs3-01",
+      "rpcs3-02",
+      "rpcs3-03",
+      "rpcs3-04",
+      "rpcs3-05",
+      "rpcs3-06",
+      "rpcs3-07",
+      "rpcs3-08",
+      "rpcs3-09",
+      "rpcs3-10",
+      "rpcs3-11",
+      "rpcs3-12",
+      "rpcs3-13",
+      "rpcs3-14",
+      "rpcs3-15",
+      "rpcs3-16",
+      "rpcs3-17",
+      "rpcs3-18",
+      "rpcs3-19",
+      "rpcs3-20",
+      "rpcs3-21",
+      "rpcs3-22",
+      "rpcs3-23",
+      "rpcs3-24",
+      "rpcs3-25",
+      "rpcs3-26",
+      "rpcs3-27",
+      "rpcs3-28",
+      "rpcs3-29",
+      "rpcs3-30",
+      "rpcs3-31"
     ],
-    "previous": "2026-11-16T2112Z.a85f516925ab",
+    "previous": "2026-11-16T2139Z.d8b055350a6c",
     "removed_shards": [],
     "reused_engines": [
       "armsx2",
       "dolphin",
+      "melonx",
       "rpcs3"
     ]
   },
@@ -252,10 +258,14 @@
       "0100FFB015C6E000",
       "05450B00BA020000"
     ],
+    "rpcs3_artemis_duplicate": 1518,
+    "rpcs3_artemis_entries": 1889,
+    "rpcs3_artemis_rejected": 8,
+    "rpcs3_artemis_unreadable": 9,
     "rpcs3_rejected": 2
   },
-  "revision": "2026-11-16T2139Z.d8b055350a6c",
-  "shard_bytes": 2617451,
+  "revision": "2026-11-17T1313Z.50379e12bf9d",
+  "shard_bytes": 2759152,
   "totals": {
     "armsx2": {
       "entries": {
@@ -288,13 +298,13 @@
     },
     "rpcs3": {
       "entries": {
-        "cheat": 1592,
-        "fps": 643,
-        "graphics": 702,
-        "performance": 12,
+        "cheat": 3468,
+        "fps": 645,
+        "graphics": 707,
+        "performance": 18,
         "ultrawide": 694
       },
-      "keys": 964
+      "keys": 1139
     }
   }
 }

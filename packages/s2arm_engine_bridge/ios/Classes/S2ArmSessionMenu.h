@@ -2,7 +2,7 @@
 // RewindBox's in-game menu for the Switch 2 engine (native UIKit, the MeloNX / RPCS3 pattern). See docs/s2arm-engine-bridge.md.
 //
 // Opened by a ☰ button at the top right of the game view, or by − and + held together on a controller. Rows: resume, show /
-// hide the performance overlay (live), settings (written at once, used at the next game start), quit (the engine's clean
+// hide the performance overlay (live), settings (written at once, used at the next game start; the frame-rate limit at once, patch 0078), quit (the engine's clean
 // stop: saves written, then session_ended). Strings come from Dart at launch (menuStrings), English when a key is missing.
 // The engine's own gear menu (top left, en / zh only) stays available for controls, cheats and saves.
 #import <UIKit/UIKit.h>
@@ -15,6 +15,10 @@ NS_ASSUME_NONNULL_BEGIN
                                strings:(NSDictionary<NSString *, NSString *> *)strings
                                   stop:(void (^)(void))stop NS_DESIGNATED_INITIALIZER;
 - (instancetype)init NS_UNAVAILABLE;
+
+// A setting that can change during play (patch 0078: the frame-rate limit): YES when it is in effect now. Set by the host when the engine
+// has the entry point; nil = every setting waits for the next start.
+@property(nonatomic, copy, nullable) BOOL (^applyNow)(NSString *setting, id value);
 
 - (void)attach;   // main thread, once the game view controller is presented
 - (void)detach;   // main thread; idempotent

@@ -162,6 +162,20 @@ https://github.com/TarbleFR/RewindBox/issues; entries are removed promptly.
   choices, filtered.
   The adapted RPCS3 entries in native/enhancements/catalogue/ are distributed
   under CC BY-SA 4.0. RPCS3 is a trademark of its owners; no affiliation.
+- chidreams/Artemis-Patch-Collection-RPCS3 fd267a65759a2f1dcae31e362d318de7a6e16594
+  and PaauloSilva/Artemis-Patch-Collection-RPCS3_PKG
+  471bde6f857fe1ed9a717f7468e9dc91bc53a500: MIT, Copyright (c) 2023 chidreams.
+  Cheats of Aldo's PS3 cheat database ported to RPCS3 patches by ChiDreams;
+  each patch's Author is kept. Converted to RewindBox JSON.
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to
+  deal in the Software without restriction, including without limitation the
+  rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+  sell copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions: The above copyright
+  notice and this permission notice shall be included in all copies or
+  substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS",
+  WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED.
 - ARMSX2 patches.zip (ARMSX2/ARMSX2 9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe,
   the PCSX2 patch set the embedded engine already ships): referenced by patch
   name and author credit only, to enable a patch in the per-game settings. No

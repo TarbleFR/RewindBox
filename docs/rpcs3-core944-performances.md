@@ -237,3 +237,73 @@ revient au chemin critique, sous le même plafond d'environ 2,2 W. Il n'y a aucu
 - `wfe_latency_us` doit rester presque entièrement sous 2 µs.
 - ENERGY931 : la puissance des cœurs E, et la fréquence des cœurs P à puissance égale.
 - Les images par seconde de Black Ops II.
+
+## 6. Journaux de l'IPA 771 (Core 945) et Core 946
+
+L'IPA 771 a été construite par la session S2Arm et contient le Core 945. Journaux du 17 novembre, PID 35822, quatre
+sessions :
+- session 1 : God of War III, démarrage normal ;
+- session 2 : God of War III, reprise d'une sauvegarde d'état ;
+- sessions 3 et 4 : Black Ops II (solo, puis passage au multijoueur).
+
+### 6.1 Ce qui a changé par rapport à l'IPA 767
+
+| Mesure | IPA 767 | IPA 771 |
+| --- | --- | --- |
+| Black Ops II, réveils bloqués par `g_pending` (SCHED943 `pending_ms`) | 804 ms / 5 s | 53-65 ms / 5 s |
+| Black Ops II, suspensions sans accusé (`acks_skipped`) | — | 2 141-2 405 / 5 s |
+| Black Ops II, images par seconde | médiane 30 (cœurs P à 2,03 GHz) | 29-38, surtout 31-34 (cœurs P à 1,6-1,9 GHz) |
+| Black Ops II, images par GHz des cœurs P | ≈ 14,8 | ≈ 19,4 |
+| Black Ops II, état thermique | nominal | **serious**, après deux sessions de God of War III |
+| Attentes WFE de l'écrivain et du PPU | jamais (`event_waits=off`) | 0,9 et 1,1 million / 5 s |
+| `wfe_latency_us` sous 2 µs | — | 99,9 % |
+| God of War III (démarrage normal), images par seconde | 15-24 (médiane ≈ 18) | 21-27 (médiane ≈ 24) |
+| God of War III, plancher des attentes courtes | — | 10 573 attentes 30 → 120 µs / 5 s |
+
+- **Black Ops II produit le même nombre d'images avec des cœurs P plus lents.** Le téléphone était en état « serious » toute
+  la session, après deux sessions de God of War III, et les cœurs P tournaient 0,4 GHz plus bas. À fréquence égale, il fait
+  environ 30 % d'images en plus.
+- **L'horizon PUT ne diffère rien dans Black Ops II** (`put_deferred=0`). Black Ops II tourne avec la précision FIFO par
+  défaut (Atomic), qui ne lit PUT qu'au remplissage du cache. En revanche, l'horizon ouvre maintenant une époque à chaque saut
+  corrigé (`put_patched`, environ 200 par fenêtre). Ces époques trouvent environ 118 textures réellement modifiées par
+  fenêtre, que l'IPA 767 ne revalidait pas avant la prochaine époque. C'est une cause possible des artefacts brefs signalés sur
+  la 767. Le volume haché ne change pas (9,3 Go par fenêtre, contre 8,2 à 10,4 Go) : le réglage est conservé.
+
+### 6.2 Défaut : la boucle de God of War III n'est pas corrigée après une sauvegarde ancienne (REWINDBOX_GOW3_POLL_SAVESTATE_946)
+
+En session 2, God of War III reprend une sauvegarde d'état faite avant le Core 943. Le journal donne
+`CONFIG_LAYERS part=gow3_poll943 state=savestate cave=0x0`.
+- La mémoire restaurée ne contient pas le correctif, et le chargeur ne voulait rien y écrire.
+- Le thread principal retourne donc à son attente active : 0,70 à 0,83 cœur.
+- Les SPU font 8,6 millions de PUTLLC par fenêtre, avec 4,9 millions d'échecs, contre 0,55 million après un démarrage
+  normal.
+- Les images tombent de 20 à 7 par seconde à mesure que le téléphone chauffe.
+
+**Correctif.** Une sauvegarde dont la mémoire contient encore la boucle d'origine est corrigée comme au démarrage : même
+contrôle des onze mots, même code ajouté, même repère et même saut (`state=savestate_applied`).
+- Un thread sauvegardé au milieu de la boucle n'a pas écrit son repère. Il trouve dans sa pile une valeur plus ancienne, donc
+  il dort 30 µs entre deux appels dès l'appel suivant resté sans réponse, ce qui est la règle. Son attente suivante écrit le
+  repère normalement.
+- Une sauvegarde qui contient déjà le correctif le retrouve et le réenregistre, désormais quel que soit le réglage : un thread
+  sauvegardé dans ce code ne pourrait sinon pas reprendre.
+
+**Relecture indépendante :** aucun bloquant.
+- La mémoire est restaurée avant ce point, et l'analyse et la compilation PPU viennent après.
+- L'allocation du code ajouté respecte la carte restaurée.
+- Ses remarques sont appliquées : le réenregistrement quel que soit le réglage, et le texte du réglage et des commentaires.
+
+### 6.3 Contrôles
+
+- Passe de syntaxe sur l'hôte de `PPUModule.cpp` et `RPCS3IOSSettings.cpp` : aucun nouveau message.
+- Contrôles d'empaquetage : la route Core, son test, le test d'épinglage (sources) et les marqueurs réussissent.
+- Patch canonique rematérialisé ; l'incrément depuis le Core 945 s'inverse ; les 26 tests de sources réussissent.
+- Identités de génération de code inchangées.
+
+Non exécuté ici : l'iPhone.
+
+### 6.4 À lire dans les prochains journaux
+
+- God of War III repris d'une sauvegarde : `state=savestate_applied`, un thread principal sous 0,6 cœur et des PUTLLC SPU
+  revenus à l'ordre d'un démarrage normal.
+- Black Ops II dans un état thermique comparable à celui de l'IPA 767, pour séparer l'effet des correctifs de celui de la
+  chaleur.
