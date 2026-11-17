@@ -2,7 +2,7 @@
  "schema": 1,
  "build": 779,
  "status": "draft",
- "note": "Private test IPA 779: RPCS3 Core 948 (the IPA 777 logs: no-op PUTLLC keeps reservations for God of War III, whose polling SPUs then wait instead of cancelling each other's reservations) on the verified IPA 778; every other component is the base's.",
+ "note": "Private test IPA 779 on the verified IPA 778: RPCS3 Core 948 (no-op PUTLLC keeps reservations for God of War III, whose polling SPUs then wait instead of cancelling each other's reservations), MeloNX Core 5924dd56 (Vulkan mirror allocations and memory-warning stalls, native descriptor pool lifetime, cheat report and vsyncFps), the S2Arm bridge fix 40791bd2 (6 GB free for the guest memory files instead of 12, so Mario Kart World starts), and the Nextendo, MeloNX and Switch 1 work deferred since 753 (promoted).",
  "base": {
   "build": 778,
   "source": "cc6e066d8b93d82130023889fbf196a93ce3f31e",
@@ -61,8 +61,15 @@
    "packaging": "build-utils/melonx/package_runtime.py",
    "image": "Frameworks/MeloNXCore.framework/MeloNXCore",
    "producerRoute": ".github/workflows/melonx-core.yml",
-   "pinSha256": "f8a7e1ba27b7bb6a56d6f1a80d3c34e798fda896955645fa838c7c33f296ab72",
-   "unchangedFromBase": true
+   "pinSha256": "c58dc56015372400c6a9ab17c89b1233dd9a198acbf4821647112e0d92a4ea76",
+   "replaces": {
+    "build": 778,
+    "source": "7ad86a14377da6ce1f8ce51bfec2f3bc9cc16183",
+    "run": 44165571216,
+    "job": 134330582817,
+    "artifact": 14365039866,
+    "packagedFingerprint": "6e81bb2842f57cc16dff819f6cdc7a6ce524970692962540b32cfcf0e46adbff"
+   }
   },
   "dolphin": {
    "mode": "retain",
@@ -347,26 +354,81 @@
    {
     "commit": "9704668b27c279ce210fad70e165c5bcb4fb2292",
     "note": "Reviewed by main: rpcs3(core948): the RPCS3 Core 948 lot on the 778 delivery line — packaging, compile request and pin, as one change (recipe 3.9) [skip ci]"
-   }
-  ],
-  "sourceOnly": [
+   },
    {
     "commit": "b1510990e98b62b5ccaad6eeafe6901c8a789341",
-    "targetBuild": 780,
-    "note": "Recipe 3.9 merge by the RPCS3 session: against its first parent it brings only the MeloNX session's aad10b0c ([melonx-dma-core] Vulkan mirror allocations and memory-warning stalls), whose Core is not pinned yet; source-only, for the MeloNX session's next delivery"
+    "note": "Recipe 3.9 merge by the RPCS3 session: brings the MeloNX Core work aad10b0c (Vulkan mirror allocations and memory-warning stalls), which the pinned MeloNX Core 5924dd56 contains."
+   },
+   {
+    "commit": "a8e7f28f4437e0a5a3867ed6a0ff115a5065d85f",
+    "note": "Reviewed by main: build(delivery): recipient key and draft 779 — RPCS3 Core 948 on base 778 (not frozen: waiting for the MeloNX Core pin) [skip ci]"
+   },
+   {
+    "commit": "9229c4fa3c9a542e5583806e23234f9c935dc50c",
+    "note": "Merge by the RPCS3 session of concurrent MeloNX work (eb90d822, baabacb5: cheat report and vsyncFps), frozen into the MeloNX Core 5924dd56."
+   },
+   {
+    "commit": "5924dd56fc615b6d2e581ddee726cbb3e3f445e0",
+    "note": "Written by the MeloNX line (Codex), carried by the MeloNX session: [melonx-dma-core] native descriptor pools released once and after in-flight sets; the pinned MeloNX Core 5924dd56."
+   },
+   {
+    "commit": "40791bd21a9a6ab87413dd7dfe8623d96301476c",
+    "note": "Written by the S2Arm session, reviewed by main: the guest memory files need 6 GB free instead of 12 (Mario Kart World blocked on \"Not enough free storage\" on IPA 778), cleanup queue at utility QoS; bridge iOS compile run 44196095798 green; only Runner changes."
+   },
+   {
+    "commit": "c4751f1b3d2b95917eddae2bbd29f01ede0d4eda",
+    "note": "Written by the MeloNX session: pin of the MeloNX Core 5924dd56 (run 44193668756, fingerprint f1daf11a, 119 gates), verified offline by that session."
+   },
+   {
+    "commit": "c9e3fd49895b7e6a01bb718e8e96a875032828d7",
+    "note": "Reviewed by main: fix(s2arm): the guest memory files go by the free space iOS gives, purgeable space included"
    }
   ],
-  "promotedCommits": []
+  "sourceOnly": [],
+  "promotedCommits": [
+   {
+    "commit": "1f53f701367718c048d5be1680f05ec3a2bdd646",
+    "note": "Deferred by an earlier build and promoted into 779 at the maintainer's request (\"everything in the same IPA\": Nextendo, MeloNX, Switch 2 and RPCS3); the MeloNX Core 5924dd56 and the later MeloNX work are written on these files: feat(switch): Nextendo online play shows account, servers and engine apart; server addresses from the build; PID to the engine"
+   },
+   {
+    "commit": "1d1572027c0a5fb072ca5fcfddbf97cd3dbe0761",
+    "note": "Deferred by an earlier build and promoted into 779 at the maintainer's request (\"everything in the same IPA\": Nextendo, MeloNX, Switch 2 and RPCS3); the MeloNX Core 5924dd56 and the later MeloNX work are written on these files: fix(switch): a homebrew launch never receives the Nextendo game token"
+   },
+   {
+    "commit": "185928efd5637560f79bdbff88c3486a643405f4",
+    "note": "Deferred by an earlier build and promoted into 779 at the maintainer's request (\"everything in the same IPA\": Nextendo, MeloNX, Switch 2 and RPCS3); the MeloNX Core 5924dd56 and the later MeloNX work are written on these files: feat(melonx): the performance overlay becomes RPCS3's minimal bar — FPS, CPU, RAM, RamDonor (source only until the next MeloNX IPA) [melonx-display]"
+   },
+   {
+    "commit": "f7b7a226ae6181280885eac8f5a1b561aade3839",
+    "note": "Deferred by an earlier build and promoted into 779 at the maintainer's request (\"everything in the same IPA\": Nextendo, MeloNX, Switch 2 and RPCS3); the MeloNX Core 5924dd56 and the later MeloNX work are written on these files: feat(switch): the embedded Switch engine is named RSwitch; MeloNX keeps its credits and licences"
+   },
+   {
+    "commit": "8946bfaee09ea8dd24036589cdd11623d82e8153",
+    "note": "Deferred by an earlier build and promoted into 779 at the maintainer's request (\"everything in the same IPA\": Nextendo, MeloNX, Switch 2 and RPCS3); the MeloNX Core 5924dd56 and the later MeloNX work are written on these files: Merge branch 'Claude' of https://github.com/TarbleFR/RewindBox into Claude"
+   },
+   {
+    "commit": "485afdeaed51567a013c7c4df8b3f49f99d23724",
+    "note": "Deferred by an earlier build and promoted into 779 at the maintainer's request (\"everything in the same IPA\": Nextendo, MeloNX, Switch 2 and RPCS3); the MeloNX Core 5924dd56 and the later MeloNX work are written on these files: Merge branch 'Claude' of https://github.com/TarbleFR/RewindBox into Claude"
+   },
+   {
+    "commit": "77102ecd9fdcfffa2e5c12dea7a611902353786d",
+    "note": "Deferred by an earlier build and promoted into 779 at the maintainer's request (\"everything in the same IPA\": Nextendo, MeloNX, Switch 2 and RPCS3); the MeloNX Core 5924dd56 and the later MeloNX work are written on these files: Merge the concurrent Switch 1 work back as second parent of the delivery line (recipe 3.9) [skip ci]"
+   }
+  ]
  },
  "images": {
   "mustChange": [
+   "Frameworks/App.framework/App",
+   "Frameworks/MeloNXCore.framework/MeloNXCore",
    "Frameworks/libRPCS3Core.dylib",
+   "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge",
    "Runner"
   ],
   "added": [],
   "removed": [],
   "replaced": {
-   "rpcs3": "Frameworks/libRPCS3Core.dylib"
+   "rpcs3": "Frameworks/libRPCS3Core.dylib",
+   "melonx": "Frameworks/MeloNXCore.framework/MeloNXCore"
   },
   "retained": {
    "dolphin": [
@@ -389,9 +451,6 @@
    "xenia": [
     "Frameworks/XeniaCore.framework/XeniaCore",
     "Frameworks/libmetalirconverter.dylib"
-   ],
-   "melonx": [
-    "Frameworks/MeloNXCore.framework/MeloNXCore"
    ],
    "s2arm": [
     "Frameworks/S2ArmEngine.framework/S2ArmEngine"
