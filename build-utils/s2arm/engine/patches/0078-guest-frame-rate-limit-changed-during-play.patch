@@ -1,0 +1,84 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_fps.c b/graphics/nvn/gfx/nvn/nvn_fps.c
+index 26b2605..5f6927f 100644
+--- a/graphics/nvn/gfx/nvn/nvn_fps.c
++++ b/graphics/nvn/gfx/nvn/nvn_fps.c
+@@ -6,8 +6,12 @@
+ #include <stdarg.h>   // RewindBox (patch 0068): fps_say
+ #include <unistd.h>   // RewindBox (patch 0068): fps_say
+ 
++#include <stdatomic.h>   // RewindBox (patch 0078): the limit can change during play
+ static pthread_once_t g_once = PTHREAD_ONCE_INIT;
+-static int g_limit;
++// RewindBox (patch 0078): atomic, set once from S2A_FPS at the first read and again by s2a_rb_guest_set_fps_limit (RewindBox's in-game menu).
++//   Every reader takes it through nvn_fps_limit / nvn_fps_period* at each frame (present pacing link_sync, the present periods of egl.m, hle_vk.m,
++//   hle_nvn.c and nvn_mtl.m, the frame interval lines), so a new value is used from the next frame on
++static _Atomic int g_limit;
+ // 只认十进制整数（不带符号、空格或尾随字符）；越界或别的写法返回 -1
+ int nvn_fps_parse(const char *e) {
+     if (!e || !*e) return -1;
+@@ -37,11 +41,25 @@ static void fps_init(void) {
+     if (!e) { fps_say("[s2a] [nvn] S2A_FPS 未设：不额外限帧 (no frame-rate limit; RewindBox patch 0068)"); return; }   // RewindBox (patch 0068): fps_say
+     int v = nvn_fps_parse(e);
+     if (v < 0) { fps_say("[s2a] [nvn] 【红】 S2A_FPS=%s：只接受 0（不限）或 %d–%d 的整数", e, NVN_FPS_MIN_HZ, NVN_FPS_MAX_HZ); abort(); }   // RewindBox (patch 0068): fps_say
+-    g_limit = v;
+-    if (g_limit) fps_say("[s2a] [nvn] S2A_FPS=%d：直连额外帧率上限，保留游戏交换间隔；DM_PRESENT_HZ / DM_FPS 不绕过此上限 (active frame-rate limit %d fps; RewindBox patch 0068)", g_limit, g_limit);   // RewindBox (patch 0068): fps_say
++    atomic_store(&g_limit, v);   // RewindBox (patch 0078): atomic
++    if (v) fps_say("[s2a] [nvn] S2A_FPS=%d：直连额外帧率上限，保留游戏交换间隔；DM_PRESENT_HZ / DM_FPS 不绕过此上限 (active frame-rate limit %d fps; RewindBox patch 0068)", v, v);   // RewindBox (patch 0068): fps_say
+     else fps_say("[s2a] [nvn] S2A_FPS=0：不额外限帧 (no frame-rate limit; RewindBox patch 0068)");
+ }
+-int nvn_fps_limit(void) { pthread_once(&g_once, fps_init); return g_limit; }
++int nvn_fps_limit(void) { pthread_once(&g_once, fps_init); return atomic_load_explicit(&g_limit, memory_order_relaxed); }   // RewindBox (patch 0078): atomic
++// RewindBox (patch 0078): the frame-rate limit changed during play. RewindBox's in-game menu set S2A_FPS for the next start only, read once a process,
++//   so a change needed RewindBox to be closed and opened again (IPA 771 test: the player went from 30 to 60 that way). The host calls this on the main
++//   thread when the player picks a limit: 0 (none) or NVN_FPS_MIN_HZ to NVN_FPS_MAX_HZ, as S2A_FPS. Returns 0 when the value is in effect from the next frame,
++//   -1 for a value S2A_FPS would refuse, -2 when S2A_RB_LIVE_FPS=0 (the limit stays the one of the start, the old behaviour). Exported for the host
++//   (export_list.py GUEST_ENTRY_POINTS)
++static int rb_live_fps_on(void) { static _Atomic int v = -1; int o = atomic_load(&v); if (o < 0) { const char *e = getenv("S2A_RB_LIVE_FPS"); o = !(e && !strcmp(e, "0")); atomic_store(&v, o); } return o; }
++__attribute__((visibility("default"), used)) int s2a_rb_guest_set_fps_limit(int fps) {
++    if (fps != 0 && (fps < NVN_FPS_MIN_HZ || fps > NVN_FPS_MAX_HZ)) return -1;
++    pthread_once(&g_once, fps_init);
++    if (!rb_live_fps_on()) { fps_say("[s2a] [nvn] RewindBox: frame-rate limit %d asked during play, kept at %d until the next start (S2A_RB_LIVE_FPS=0; patch 0078)", fps, atomic_load(&g_limit)); return -2; }
++    int old = atomic_exchange(&g_limit, fps);
++    if (old != fps) fps_say("[s2a] [nvn] RewindBox: frame-rate limit changed during play: %d → %d fps (0 = none), from the next frame (S2A_RB_LIVE_FPS; patch 0078)", old, fps);
++    return 0;
++}
+ double nvn_fps_period(double period) {
+     int fps = nvn_fps_limit(); double limit = fps ? 1.0 / fps : 0;
+     return period < limit ? limit : period;
+diff --git a/graphics/nvn/gfx/nvn/nvn_fps.h b/graphics/nvn/gfx/nvn/nvn_fps.h
+index 5bd3331..4d72fbd 100644
+--- a/graphics/nvn/gfx/nvn/nvn_fps.h
++++ b/graphics/nvn/gfx/nvn/nvn_fps.h
+@@ -5,5 +5,6 @@
+ #define NVN_FPS_MAX_HZ 1000
+ int nvn_fps_parse(const char *value);   // "0" → 0；24–1000 的十进制整数 → 该值；其它 → -1（纯函数，单测直接调）
+ int nvn_fps_limit(void);   // S2A_FPS：0 / 未设（不额外限帧）或 24–1000，进程启动读一次；坏值起局退出
++int s2a_rb_guest_set_fps_limit(int fps);   // RewindBox (patch 0078): the host changes the limit during play (0 or 24–1000); 0 = done, -1 = refused value, -2 = S2A_RB_LIVE_FPS=0
+ double nvn_fps_period(double period);   // 秒；取原周期与用户上限周期的较大值
+ uint64_t nvn_fps_period_ns(uint64_t period);   // 纳秒；0 上限逐值保持输入
+diff --git a/runtime/src/hud.c b/runtime/src/hud.c
+index eccdd45..4b340a3 100644
+--- a/runtime/src/hud.c
++++ b/runtime/src/hud.c
+@@ -9,6 +9,7 @@
+ #include "../include/s2a_gfx_mode.h"
+ #include "../include/s2a_ui_text.h"   // 齿轮菜单「性能浮层」那一行：中文原宏 + _EN，S2A_UI 按界面语言取（#316）
+ #include <dlfcn.h>
++#include <pthread.h>   // RewindBox (patch 0078): cap_fps
+ #include <mach/mach.h>
+ #include <mach/mach_time.h>
+ #include <stdatomic.h>
+@@ -45,7 +46,13 @@ void s2a_hud_audio(int session, int64_t gap_ms_total, int64_t skipped) {
+ //   读不到时按近 10 秒间隔的中位数算，行里写明口径
+ // 帧率上限：与 graphics/nvn nvn_fps.c nvn_fps_parse、通用层 FramePacingPolicy 同口径，只认整串 0 或 24–1000 的十进制整数（别的值那两处起局就报红退出），
+ //   不用 atoi（"30abc" 不能只进浮层）；浮层不链图形层，这里照抄一份
++static pthread_once_t g_live_fps_once = PTHREAD_ONCE_INIT; static int (*g_live_fps)(void);   // RewindBox (patch 0078): cap_fps
++static void live_fps_look(void) { g_live_fps = (int (*)(void))dlsym(RTLD_DEFAULT, "nvn_fps_limit"); }
+ static int cap_fps(void) {
++    // RewindBox (patch 0078): the limit can change during play (nvn_fps.c s2a_rb_guest_set_fps_limit): the graphics layer's value when it is linked,
++    //   else S2A_FPS as before (the overlay does not link the graphics layer, hence the lookup by name)
++    pthread_once(&g_live_fps_once, live_fps_look);
++    if (g_live_fps) { int l = g_live_fps(); return l >= 24 && l <= 1000 ? l : 0; }
+     const char *e = getenv("S2A_FPS"); int v = 0;
+     if (!e || !*e) return 0;
+     for (const char *p = e; *p; p++) { if (*p < '0' || *p > '9' || p - e >= 4) return 0; v = v * 10 + (*p - '0'); }
