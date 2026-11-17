@@ -1,0 +1,38 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 6a626d1..eb60183 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -20193,8 +20193,32 @@ void mtl_present_flush(void) { pthread_mutex_lock(&g_pq_mu); uint64_t h = g_pq_i
+ //   g_link_mode is read as nvn_be_link_wait_tick reads it
+ static __thread int t_link_waited;   // RewindBox (patch 0068): this thread's last nvn_be_link_wait_tick waited for a tick
+ static int rb_present_depth(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_PRESENT_DEPTH"); v = !(e && !strcmp(e, "0")); } return v; }
++// RewindBox (patch 0079): the wait above only while the game keeps its pace. In the IPA 771 test (Mario Kart World, iPhone17,2) it was the main added cost of the long frames:
++//   in 46 of the 63 long race frames of the 30 FPS session the pacing wait and the frame's submit ran one after the other (1,193 ms waited), and at the race start of the 60 FPS
++//   session 33 of 37 long frames had waited a whole 33.3 ms on the link before their submit (16.5 fps). A frame that waits for the queue to drain cannot be absorbed by the queued
++//   one when it turns out long. So the wait (latency) is only for a game that held its period for RB_DEPTH_CALM acquires running (each within 1.2 periods); one acquire later than
++//   1.5 periods keeps the one-frame queue (smoothness) until the pace holds again. Measured between this thread's calls (one an acquire). S2A_RB_DEPTH_ADAPT=0: the wait as in 0068
++#define RB_DEPTH_CALM 120u
++static int rb_depth_adapt(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_DEPTH_ADAPT"); v = !(e && !strcmp(e, "0")); } return v; }
++static __thread uint64_t t_depth_last; static __thread unsigned t_depth_calm; static __thread unsigned long long t_depth_kept, t_depth_late, t_depth_said;
++static int rb_depth_keep_queue(double period) {   // 1 = no drain wait for this frame (the game is not keeping its pace)
++    if (!rb_depth_adapt() || period <= 0) return 0;
++    uint64_t now = now_ns(), last = t_depth_last; t_depth_last = now;
++    if (last) {
++        double dt = (double)(now - last) / 1e9;
++        if (dt > 1.5 * period) {
++            if (t_depth_calm >= RB_DEPTH_CALM && t_depth_said < 24) { t_depth_said++; MLOG("RewindBox: present depth: an acquire %.1f ms after the previous one (period %.1f ms): the one-frame queue is kept until the pace holds %u acquires (late %llu, kept %llu so far; patch 0079)", dt * 1e3, period * 1e3, RB_DEPTH_CALM, t_depth_late + 1, t_depth_kept); }
++            t_depth_calm = 0; t_depth_late++;
++        } else if (dt <= 1.2 * period && t_depth_calm < RB_DEPTH_CALM) {
++            if (++t_depth_calm == RB_DEPTH_CALM && t_depth_said < 24) { t_depth_said++; MLOG("RewindBox: present depth: the pace held %u acquires: the drain wait is back (late %llu, kept %llu so far; patch 0079)", RB_DEPTH_CALM, t_depth_late, t_depth_kept); }
++        }
++    }
++    if (t_depth_calm >= RB_DEPTH_CALM) return 0;
++    t_depth_kept++; return 1;
++}
+ void nvn_be_present_wait_taken(double period) {
+-    if (!rb_present_depth() || !t_link_waited || period <= 0.025 || g_link_mode >= 3 || atomic_load(&g_present_discard)) return;
++    const int keep = rb_depth_keep_queue(period);   // RewindBox (patch 0079): measured at every acquire, before the returns below
++    if (keep || !rb_present_depth() || !t_link_waited || period <= 0.025 || g_link_mode >= 3 || atomic_load(&g_present_discard)) return;
+     pthread_mutex_lock(&g_pq_mu);
+     uint64_t tk = g_pq_in;
+     if (!g_link_owns_layer || g_pq_read >= tk || g_stall_t0) { pthread_mutex_unlock(&g_pq_mu); return; }
