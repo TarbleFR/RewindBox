@@ -341,6 +341,30 @@ class NextendoService {
     return NextendoOnlineStatus(allowed: answer['allow'] as bool, reason: '${answer['reason'] ?? ''}');
   }
 
+  /// The account's BAAS user id (`nsa` of `GET /api/me`, 16 hex digits), which
+  /// Animal Crossing: New Horizons must receive as its account id instead of
+  /// the PID (integration guide, "BAAS id_token"). Null when the answer has none.
+  Future<String?> baasUserId(NextendoConfig config) async {
+    final answer = await _get('/api/me', await accessToken(config));
+    final nsa = answer is Map ? '${answer['nsa'] ?? ''}'.toLowerCase() : '';
+    return RegExp(r'^[0-9a-f]{16}$').hasMatch(nsa) ? nsa : null;
+  }
+
+  /// `POST /api/nex-session` with the game token: marks the emulator as
+  /// connected on the player's account page. Best effort: a failure changes
+  /// nothing for the game.
+  Future<bool> markSession(NextendoGameToken token) async {
+    try {
+      final response = await _client
+          .post(Uri.parse('${NextendoConfig.apiBase}/api/nex-session'),
+              headers: {'Authorization': 'Bearer ${token.token}', 'Accept': 'application/json'})
+          .timeout(_timeout);
+      return response.statusCode == 200;
+    } on Object {
+      return false;
+    }
+  }
+
   Future<String> _refresh(NextendoConfig config) async {
     final refresh = _session?['refresh_token'];
     if (refresh is! String) throw const NextendoException('signedOut');
