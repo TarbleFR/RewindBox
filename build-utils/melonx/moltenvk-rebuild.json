@@ -4,7 +4,7 @@
   "tag": "v1.4.2",
   "revision": "db66022459ffb663aa2b50f6b018bc2e124f5edf",
   "patch": "build-utils/melonx/moltenvk/rewindbox-moltenvk.patch",
-  "patchSha256": "4e279c68a271198eba904de19ca7681bba04c0080317df0843b9784bbbb79329",
+  "patchSha256": "56ae3454119d0397c40f0dd738110ea9217e9ad9db0be7134b1343b06867d78f",
   "platform": "ios",
   "license": "Apache-2.0",
   "agreement": "Maintainer, 3 Nov 2026: 14:40 agreement to recompile MoltenVK or replace its kept binary; 15:04 go-ahead for this workflow and its runs; 15:23 'keep the latest MoltenVK library, the most recent one'.",

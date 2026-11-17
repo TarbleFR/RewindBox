@@ -764,7 +764,7 @@ index c5b7499..eb342c1 100644
  	MVKShaderModuleKey _key;
      std::mutex _accessLock;
 diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm b/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm
-index 3aa44a4..0e728b1 100644
+index 3aa44a4..28b84b1 100644
 --- a/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm
 +++ b/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm
 @@ -20,6 +20,11 @@
@@ -827,7 +827,7 @@ index 3aa44a4..0e728b1 100644
  			_shaderLibraries.back().second->_owner = _owner;
  		}
  	}
-@@ -393,6 +415,175 @@ MVKShaderLibraryCache::~MVKShaderLibraryCache() {
+@@ -393,6 +415,177 @@ MVKShaderLibraryCache::~MVKShaderLibraryCache() {
  #pragma mark -
  #pragma mark MVKShaderModule
  
@@ -876,9 +876,11 @@ index 3aa44a4..0e728b1 100644
 +				if (fd >= 0) {
 +					unlink(name.data());
 +					_fd = fd;
-+					MVKLogInfo("RewindBox SPIR-V spill: compressed SPIR-V kept in an unlinked file of %s.", dir ? dir.UTF8String : "/tmp");
++					MVKBaseObject::reportMessage(nullptr, MVK_CONFIG_LOG_LEVEL_INFO,
++												 "RewindBox SPIR-V spill: compressed SPIR-V kept in an unlinked file of %s.", dir ? dir.UTF8String : "/tmp");
 +				} else {
-+					MVKLogInfo("RewindBox SPIR-V spill: no temporary file (errno %d); SPIR-V kept in memory.", errno);
++					MVKBaseObject::reportMessage(nullptr, MVK_CONFIG_LOG_LEVEL_INFO,
++												 "RewindBox SPIR-V spill: no temporary file (errno %d); SPIR-V kept in memory.", errno);
 +				}
 +			}
 +		}
@@ -1003,7 +1005,7 @@ index 3aa44a4..0e728b1 100644
  MVKMTLFunction MVKShaderModule::getMTLFunction(SPIRVToMSLConversionConfiguration* pShaderConfig,
  											   const VkSpecializationInfo* pSpecializationInfo,
  											   MVKPipeline* pipeline,
-@@ -421,8 +612,12 @@ bool MVKShaderModule::convert(SPIRVToMSLConversionConfiguration* pShaderConfig,
+@@ -421,8 +614,12 @@ bool MVKShaderModule::convert(SPIRVToMSLConversionConfiguration* pShaderConfig,
  	bool shouldLogCode = mvkCfg.debugMode;
  	bool shouldLogEstimatedGLSL = shouldLogCode && mvkCfg.shaderLogEstimatedGLSL;
  
@@ -1017,7 +1019,7 @@ index 3aa44a4..0e728b1 100644
  	addPerformanceInterval(getPerformanceStats().shaderCompilation.spirvToMSL, startTime);
  
  	const char* dumpDir = getMVKConfig().shaderDumpDir;
-@@ -444,7 +639,7 @@ bool MVKShaderModule::convert(SPIRVToMSLConversionConfiguration* pShaderConfig,
+@@ -444,7 +641,7 @@ bool MVKShaderModule::convert(SPIRVToMSLConversionConfiguration* pShaderConfig,
  		snprintf(path, sizeof(path), "%s/shader%s-%016zx.spv", dumpDir, type, _key.codeHash);
  		FILE* file = fopen(path, "wb");
  		if (file) {
@@ -1026,7 +1028,7 @@ index 3aa44a4..0e728b1 100644
  			fclose(file);
  		}
  		snprintf(path, sizeof(path), "%s/shader%s-%016zx.metal", dumpDir, type, _key.codeHash);
-@@ -504,7 +699,7 @@ MVKShaderModule::MVKShaderModule(MVKDevice* device,
+@@ -504,7 +701,7 @@ MVKShaderModule::MVKShaderModule(MVKDevice* device,
  			codeHash = mvkHash(pCreateInfo->pCode, spvCount);
  			addPerformanceInterval(getPerformanceStats().shaderCompilation.hashShaderCode, startTime);
  
