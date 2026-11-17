@@ -216,18 +216,22 @@ mesurable :
   Cela fait quatre changements de contexte et trois passages par le verrou du planificateur pour relire un drapeau,
   plus de 13 000 fois par seconde, sur les cœurs P dont l'image a besoin.
 - **Correction** : un délai lv2 garantit une durée minimale, jamais maximale. Sur la console comme ici, un thread qui
-  attend plus longtemps que demandé reste correct. La règle s'applique à partir de la deuxième attente courte
-  consécutive d'un thread qui est allée jusqu'à son échéance, c'est-à-dire à une boucle d'attente : une attente courte
-  isolée garde sa durée. Dès lors, l'attente suivante de moins de 200 µs dure 200 µs avant d'expirer. Cela vaut pour
-  `sys_timer_usleep` comme pour les délais des sémaphores, variables de condition, files d'événements et mutex. Une
-  attente réveillée par un signal finit toujours aussitôt. Une boucle d'attente relit alors son drapeau jusqu'à 200 µs
-  plus tard, et fait 4 à 5 fois moins de tours. Le nombre de places, les priorités, les primitives de synchronisation et
-  les règles du planificateur ne changent pas. Réglage « PPU short wait floor » (Expérimental → PPU) : Automatique =
-  Black Ops II, Activé = tous les jeux, Désactivé = aucun. `COREPROF PPUWAITFLOOR943` : attentes allongées, premières
-  attentes gardées, durées demandées (moins de 20, 50, 100 et 200 µs, moyenne) et appels système concernés (par numéro).
-  Dans `WAKE936`, ces attentes passent du compartiment des moins de 200 µs à celui des moins de 2 ms.
-- **Vérifications** : compilation comparée (Linux) ; règle de la série vérifiée sur un exemple local (première attente
-  gardée, suivantes à 200 µs, remise à zéro après un signal ou une attente longue). Non exécuté sur iPhone.
+  attend plus longtemps que demandé reste correct. Seule une boucle d'attente est allongée, c'est-à-dire la **même** attente
+  refaite : même thread PPU, même appel système (r11), même premier argument (r3 : l'objet, ou la durée d'un `usleep`),
+  même délai, après que la précédente est allée jusqu'à son échéance. À partir de la deuxième, son délai vaut quatre
+  fois celui demandé, au plus 200 µs. Cela vaut pour `sys_timer_usleep` comme pour les délais des sémaphores, variables
+  de condition, files d'événements et mutex. Une autre attente, une attente sans délai, une attente longue ou une attente
+  réveillée par un signal arrête la série, et une attente signalée finit toujours aussitôt. Une boucle d'attente fait
+  alors jusqu'à 4 fois moins de tours et voit son drapeau au plus trois délais plus tard. Une boucle bornée d'attentes
+  courtes dure au plus 4 fois plus longtemps. Un tour de plusieurs objets reste tel quel. Le nombre de places, les
+  priorités, les primitives de synchronisation et les règles du planificateur ne changent pas. Réglage « PPU short wait
+  floor » (Expérimental → PPU) : Automatique = Black Ops II, Activé = tous les jeux, Désactivé = aucun.
+  `COREPROF PPUWAITFLOOR943` : attentes allongées, premières attentes gardées, délais demandés (moins de 20, 50, 100 et
+  200 µs, moyennes demandée et accordée) et appels système concernés (par numéro). Dans `WAKE936`, les attentes de moins
+  de 200 µs doivent devenir plus rares.
+- **Vérifications** : compilation comparée (Linux) ; règle vérifiée sur des exemples locaux : `usleep(30)` répété → 30,
+  puis 120 µs ; `usleep(60)` → 200 µs ; dix files différentes à 1 µs inchangées ; la même file à 1 µs → 4 µs ; remise à
+  zéro par un signal, une attente sans délai ou un autre thread. Non exécuté sur iPhone.
 
 ### 2.7 Balayage de tous les journaux de l'IPA 763 (demande du mainteneur, 17 novembre)
 
@@ -291,6 +295,17 @@ Seconde relecture indépendante (intervalle de travail et encodage MoltenVK), au
   vide), ARC et non-ARC, aucun interblocage, identité de la file connue avant `vkCreateDevice`, politique résolue avant
   le périphérique Vulkan et les threads, en démarrage normal comme en reprise de sauvegarde ;
 - 115 tests existants qui lisent ces fichiers, lancés avant et après : aucun résultat ne change.
+
+Troisième relecture indépendante (plancher des attentes PPU), aucun bloquant :
+- **risque moyen** : la série couvrait toutes les attentes courtes d'un thread hôte, tous appels et objets confondus, et
+  rien ne la remettait à zéro. Un tour de dix files avec un délai de 1 µs aurait attendu 200 µs par file, et une boucle
+  bornée de 100 × 10 µs serait passée de 1 à 20 ms. Corrigé : même attente seulement (thread, appel, objet, délai),
+  quatre fois le délai au plus 200 µs, remise à zéro par une attente sans délai ;
+- **mineures** : délais de 10 µs ou moins sur sémaphore et condition jamais allongés (leur attente active dépasse déjà
+  l'échéance) ; délais relevés sans attente (`cancel_sleep`, `sys_rsx`), statistiques seulement ; `usleep_addend`
+  appliqué avant le plancher ;
+- vérifiés corrects : même délai partout (`end_time`, `g_waiting`, attente hôte recalculée depuis `end_time`), aucun
+  appel ne renvoie de temps restant, aucun délai sans fin, aucun nouveau blocage, sauvegardes d'état sans effet.
 
 Compilation du Core, épinglage et IPA : après la piste du surcoût PPU (§ 2.3), à la demande du mainteneur.
 
