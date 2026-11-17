@@ -10,7 +10,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 // A Switch game's installed version (base file, selected update) against Nextendo's signed catalog, as the game's
 // page shows it. test/fixtures/nextendo/game-catalog.json is the public catalog of 17 November 2026 (revision 23).
 class _MemoryStore implements NextendoStore {
-  _MemoryStore([this.value]);
   String? value;
   @override
   Future<String?> read() async => value;
