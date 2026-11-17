@@ -1,0 +1,46 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 9402975..6c63c7b 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -3687,6 +3687,14 @@ static int txr_on(void) { static int v = -1; if (v < 0) { const char *e = getenv
+ static int rb_view_keep_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_VIEW_KEEP"); v = !(e && !strcmp(e, "0")); } return v; }
+ enum { TXR_MAX = 256, TXR_SERS = 4, TXR_IDLE = 900 };
+ #define TXR_BYTES (192ull << 20)   // a model (the scene sizes of the 765 profiles, the 19 colour targets of a size in the frame 2976 capture) takes back 38% of them with 64 MB, 71% with 128, 88% with 192
++// RewindBox (patch 0086): a smaller pool, let go sooner. IPA 775 (Mario Kart World, iPhone17,2, races): 160 textures came into it and 3 were taken back ("reuse up to
++//   frame 8100": 157 kept, 3 taken back), while it held 191 MB until the system's memory pressure event let them go (event 2: 124 textures, 191 MB), and meanwhile the guest's
++//   memory was read back from its files at up to 13,000 pages a second (page-ins 131,888 in 10 s, TASK_VM_INFO compressed 825 MB): each size the game's dynamic resolution
++//   left seldom came back, and with that resolution held at its size (patch 0083) fewer do. Now at most 48 MB, and a texture idle 120 frames (2 s at 60) goes, swept also
++//   whenever another comes in (not only at the 300-frame report). S2A_RB_TXR_SMALL=0: 192 MB and 900 frames as before
++static int rb_txr_small_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_TXR_SMALL"); v = !(e && !strcmp(e, "0")); } return v; }   // read under g_smu: said by rb_reuse_report, after it lets the lock go
++static uint64_t txr_bytes_cap(void) { return rb_txr_small_on() ? (48ull << 20) : TXR_BYTES; }
++static uint64_t txr_idle_frames(void) { return rb_txr_small_on() ? 120 : TXR_IDLE; }
+ typedef struct { alias_key k; uint64_t fence, tick, frame, bytes, ser[TXR_SERS]; int nser; uint32_t tt, pf, w, h, z, nl, na, use; } txr_ent;   // fence: g_done must reach it; its Metal shape
+ static __strong id<MTLTexture> g_txr_t[TXR_MAX]; static txr_ent g_txr[TXR_MAX]; static int g_txr_n; static uint64_t g_txr_bytes, g_txr_tick;
+ static uint64_t g_txr_kept, g_txr_back, g_txr_back_key, g_txr_out, g_txr_press;   // kept, taken back (of them by their own storage and description), let go (oldest, idle, pool gone), let go for memory pressure
+@@ -3723,9 +3731,10 @@ static void txr_drop_pool(const void *pool) { for (int i = g_txr_n - 1; i >= 0;
+ static int txr_keep(id o, const alias_key *k, const uint64_t *ser, int nser) {   // caller holds g_smu (alias_take_over): 1 = kept, else the caller releases it
+     if (!txr_on() || !txr_fits(o)) return 0;
+     if (txr_press()) return 0;   // review: txr_press
+-    id<MTLTexture> t = o; uint64_t b = t.allocatedSize; if (b > TXR_BYTES) return 0;
++    id<MTLTexture> t = o; uint64_t b = t.allocatedSize; if (b > txr_bytes_cap()) return 0;   // RewindBox (patch 0086): txr_bytes_cap
+     for (int i = 0; i < g_txr_n; i++) if (g_txr_t[i] == t) { alias_dead_add(ser, nser); g_txr[i].fence = MAX(g_txr[i].fence, g_fence + 2); return 1; }   // one object under two keys: kept once
+-    while (g_txr_n == TXR_MAX || (g_txr_n && g_txr_bytes + b > TXR_BYTES)) { int x = 0; for (int i = 1; i < g_txr_n; i++) if (g_txr[i].tick < g_txr[x].tick) x = i; txr_out(x, 0); }   // the oldest first
++    if (rb_txr_small_on()) { uint64_t f = atomic_load_explicit(&g_cur_frame, memory_order_relaxed); for (int i = g_txr_n - 1; i >= 0; i--) if (f - g_txr[i].frame > txr_idle_frames()) txr_out(i, 0); }   // RewindBox (patch 0086): idle ones go first
++    while (g_txr_n == TXR_MAX || (g_txr_n && g_txr_bytes + b > txr_bytes_cap())) { int x = 0; for (int i = 1; i < g_txr_n; i++) if (g_txr[i].tick < g_txr[x].tick) x = i; txr_out(x, 0); }   // the oldest first; RewindBox (patch 0086): txr_bytes_cap
+     int i = g_txr_n++; txr_ent *e = &g_txr[i]; g_txr_t[i] = t;
+     memcpy(&e->k, k, sizeof e->k); e->fence = g_fence + 2; e->tick = ++g_txr_tick; e->frame = atomic_load_explicit(&g_cur_frame, memory_order_relaxed); e->bytes = b;   // fence: one submission past the one being encoded (g_fence read off the submit thread may lag by one)
+     e->tt = (uint32_t)t.textureType; e->pf = (uint32_t)t.pixelFormat; e->w = (uint32_t)t.width; e->h = (uint32_t)t.height; e->z = (uint32_t)t.depth; e->nl = (uint32_t)t.mipmapLevelCount; e->na = (uint32_t)t.arrayLength; e->use = (uint32_t)t.usage;
+@@ -15592,11 +15601,12 @@ static void rb_reuse_report(uint64_t frame) {
+     static uint64_t p[15];
+     pthread_mutex_lock(&g_smu);
+     txr_press();   // review: txr_press
+-    for (int i = g_txr_n - 1; i >= 0; i--) if (frame - g_txr[i].frame > TXR_IDLE) txr_out(i, 0);
++    for (int i = g_txr_n - 1; i >= 0; i--) if (frame - g_txr[i].frame > txr_idle_frames()) txr_out(i, 0);   // RewindBox (patch 0086): txr_idle_frames
+     int tn = g_txr_n; uint64_t tb = g_txr_bytes, gmf = g_ghost_miss_frame; unsigned gn = g_ghost.n;
+     uint64_t v[15] = {g_txr_kept, g_txr_back, g_txr_back_key, g_txr_out, g_txr_press, g_ghost_unheld, g_ghost_miss_gone, g_snp_depth.made, g_snp_color.made, g_fit_made, g_init_copy_n, atomic_load(&g_rb_low_n),
+                       g_snp_depth.taken, g_snp_color.taken, g_fit_kept};
+     pthread_mutex_unlock(&g_smu);
++    { static int said; if (!said++) MLOG("RewindBox: shared textures kept for reuse: at most %d MB, let go after %d idle frames (S2A_RB_TXR_SMALL%s; patch 0086)", rb_txr_small_on() ? 48 : 192, rb_txr_small_on() ? 120 : TXR_IDLE, rb_txr_small_on() ? "=0: 192 MB and 900 frames as before" : "=0"); }
+     ghost_trim_all(); atomic_store(&g_snp_sweep, 1);   // review
+     pthread_mutex_lock(&g_smu); unsigned gc = ghost_big_on() ? g_ghost_cap : NGHOST_SMALL; pthread_mutex_unlock(&g_smu);
+     if (!memcmp(v, p, sizeof v)) return;
