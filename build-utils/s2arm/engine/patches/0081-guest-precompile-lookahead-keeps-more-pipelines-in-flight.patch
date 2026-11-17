@@ -1,0 +1,81 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index ae2584a..f330697 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -13798,6 +13798,23 @@ static __unsafe_unretained NvProg *prog_peek(const prog_t *p) {
+ //   lookahead that also guessed the other depth / stencil attach modes and loaded the shaders kicked 362 pipelines of which its draws took 97, and they all queued at the one compiler
+ //   service with the pipeline the frame waited for. A guess that misses costs a background compile; one the draw needs is waited for at its draw as before
+ enum { PSO_AHEAD = 8 };
++// RewindBox (patch 0081): with the lanes of patch 0069 that cap holds back what it no longer protects. IPA 771 (Mario Kart World, iPhone17,2, first session after a new engine,
++//   30 FPS limit): render pipelines met for the first time cost the submit thread 13.2 s in the session (2.2 s in races; one 795.9 ms build at frame 1669), beside MSL compiled
++//   from source there 39 times (3.3 s) and 33 waits for a translation in flight (737 ms). 128 first uses could not be skipped, 59 of them draws over a depth prepass (patch 0046:
++//   skipped, they leave black shapes), the others on targets not started fresh or not drawn every frame: each waited without a frame budget for a build in the background
++//   ("waited for the queued compile", "built here 0.0 ms"), started at its own draw when the lookahead had not queued it (frame 144: 45 pipelines, 3,539 ms, waits of 62-98 ms
++//   one after the other). 7 of the session's 16 lookaheads that kicked anything handed exactly 7 or 8 pipelines: this cap, the draw at hand's own build counted. It kept
++//   every guess from queueing at the compiler service with the pipeline the frame waited for while every kick started at once; on the lanes a guess waits in the table, two
++//   compile at a time in draw order, and a pipeline a draw needs starts at once beside them (ppq_hurry_locked). Now, with the lanes on, the lookahead keeps up to RB_LOOK_AHEAD
++//   builds in flight or waiting for a lane. No draw is skipped that was not before: one that cannot be skipped still waits for its pipeline, whose build only starts earlier
++//   (a skippable one meeting a guess not compiled yet waits on its frame's allowance first, as patch 0069 has it). S2A_RB_LOOK_WIDE=0, or S2A_RB_PSO_LANES=0: PSO_AHEAD as before
++enum { RB_LOOK_AHEAD = 32 };
++static uint64_t g_rb_look_past, g_rb_look_left;   // submit thread (pso_predict_rest_): guesses handed past PSO_AHEAD in flight / guesses found that the cap left to their draw
++static int rb_look_wide_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_LOOK_WIDE"); v = !(e && !strcmp(e, "0")); } return v; }
++static int rb_look_cap(void) { return rb_look_wide_on() && rb_pso_lanes() ? RB_LOOK_AHEAD : PSO_AHEAD; }
++static void rb_look_past_note(void) {
++    if (!g_rb_look_past++) MLOG("RewindBox: the precompile lookahead keeps up to %d pipelines building or waiting for a lane, past the former %d: misses later in a submission start before their draw (S2A_RB_LOOK_WIDE=0 keeps %d)", RB_LOOK_AHEAD, PSO_AHEAD, PSO_AHEAD);
++}
+ // 前瞻自己的账（审计 P1-91：首遇密集时它在提交线程上多花多少、其中 tex_mtl 几次）：次数 / 纳秒 / tex_mtl 调用，跟「parallel precompile」那行一起打
+ static uint64_t g_ppr_n, g_ppr_ns, g_ppr_tex;
+ static void pso_predict_rest_(void);
+@@ -13854,14 +13871,19 @@ static void pso_predict_rest_(void) {
+     g_look = 0;
+     (void)df; (void)sf;
+     int busy = 0; pthread_mutex_lock(&g_pp_mu); for (int i = 0; i < PSO_PEND_MAX; i++) busy += g_pp[i].used && !g_pp[i].done; pthread_mutex_unlock(&g_pp_mu);
+-    for (int i = 0; i < na && busy < PSO_AHEAD; i++) { uint64_t k0 = g_pp_kicked; pso_pend_kick(&qa[i].k, (__bridge NvShader *)qa[i].vs, (__bridge NvShader *)qa[i].fs, 0); busy += g_pp_kicked != k0; }   // RewindBox (patch 0069): 0, a guess: on the lanes
++    int cap = rb_look_cap(), i = 0;   // RewindBox (patch 0081): RB_LOOK_AHEAD with the lanes, else PSO_AHEAD
++    for (; i < na && busy < cap; i++) { uint64_t k0 = g_pp_kicked; int past = busy >= PSO_AHEAD; pso_pend_kick(&qa[i].k, (__bridge NvShader *)qa[i].vs, (__bridge NvShader *)qa[i].fs, 0);   // RewindBox (patch 0069): 0, a guess: on the lanes
++        if (g_pp_kicked != k0) { busy++; if (past) rb_look_past_note(); } }   // RewindBox (patch 0081): past, handed where the former cap stopped
++    g_rb_look_left += (uint64_t)(na - i);   // RewindBox (patch 0081): found but left to their draw by the cap (unless queued already)
+     memcpy(&S, &Ssave, sizeof S); R = Rsave; args_dirty_all(); g_pso_dirty = pso_dirty; g_dss_dirty = dss_dirty; prog_resolve();
+     static uint64_t logged; if (g_pp_kicked > (uint64_t)kicked0 && (++logged <= 20 || !(logged & (logged - 1)))) {   // the first 20, then every power of two
+         pthread_mutex_lock(&g_pp_mu); uint64_t qn = g_ppq_now, ql = g_ppq_lane; pthread_mutex_unlock(&g_pp_mu);   // RewindBox (patch 0069)
+         MLOG("parallel precompile #%llu: %d draws left in this submission, %d pipelines handed to the background (so far kicked %llu, taken by their draw %llu, dropped untaken %llu); "
+-             "before this one %llu lookaheads, %.1f ms on the submit thread, %llu tex_mtl calls; RewindBox: builds started at once for a draw %llu, by a lane %llu", (unsigned long long)logged,
++             "before this one %llu lookaheads, %.1f ms on the submit thread, %llu tex_mtl calls; RewindBox: builds started at once for a draw %llu, by a lane %llu; "
++             "handed past the former cap of %d %llu, left to their draw by the cap %llu", (unsigned long long)logged,   // RewindBox (patch 0081): the last two counts
+              draws, (int)g_pp_kicked - kicked0, (unsigned long long)g_pp_kicked, (unsigned long long)g_pp_taken, (unsigned long long)g_pp_dropped,
+-             (unsigned long long)g_ppr_n, g_ppr_ns / 1e6, (unsigned long long)g_ppr_tex, (unsigned long long)qn, (unsigned long long)ql); }
++             (unsigned long long)g_ppr_n, g_ppr_ns / 1e6, (unsigned long long)g_ppr_tex, (unsigned long long)qn, (unsigned long long)ql,
++             PSO_AHEAD, (unsigned long long)g_rb_look_past, (unsigned long long)g_rb_look_left); }
+ }
+ 
+ static void fz_probe_cov2(const p_set_rt *r2, const uint8_t *first, const int8_t *p2map, const uint8_t *clr, int n1, int n) {
+diff --git a/graphics/nvn/tests/t_nvn_pso_lookahead.m b/graphics/nvn/tests/t_nvn_pso_lookahead.m
+index 738c732..5fccd93 100644
+--- a/graphics/nvn/tests/t_nvn_pso_lookahead.m
++++ b/graphics/nvn/tests/t_nvn_pso_lookahead.m
+@@ -60,15 +60,16 @@ int main(void) {
+         VERIFY(g_pp_kicked - kick0 == 2, "② 同一提交第二次缺管线不再往前看、B 不重复踢（踢出计数仍 2，实得 %llu）", (unsigned long long)(g_pp_kicked - kick0));
+ 
+         // ④ 后台已有 PSO_AHEAD 条在编：往前看不再踢（只踢手头这条），后面那笔留到它自己画时再踢
++        //   RewindBox (patch 0081): the cap is rb_look_cap(): RB_LOOK_AHEAD with the lanes, PSO_AHEAD with S2A_RB_LOOK_WIDE=0 or S2A_RB_PSO_LANES=0
+         pthread_mutex_lock(&g_pp_mu);
+-        for (int i = 0; i < PSO_AHEAD; i++) { int s_ = PSO_PEND_MAX - 1 - i; memset(&g_pp[s_].k, 0, sizeof g_pp[s_].k); memcpy(&g_pp[s_].k, &s_, sizeof s_); g_pp[s_].ps = nil; g_pp[s_].done = 0; g_pp[s_].late = 0; g_pp[s_].stuck = 0; g_pp[s_].used = 1; }
++        for (int i = 0; i < rb_look_cap(); i++) { int s_ = PSO_PEND_MAX - 1 - i; memset(&g_pp[s_].k, 0, sizeof g_pp[s_].k); memcpy(&g_pp[s_].k, &s_, sizeof s_); g_pp[s_].ps = nil; g_pp[s_].done = 0; g_pp[s_].late = 0; g_pp[s_].stuck = 0; g_pp[s_].used = 1; }
+         pthread_mutex_unlock(&g_pp_mu);
+         NvShader *fx = shader(lib, @"fa", "1111111111111111_b", 1), *fy = shader(lib, @"fb", "2222222222222222_b", 1);
+         NvProg *px = [NvProg new]; px->sh[0] = vs; px->sh[1] = fx; NvProg *py = [NvProg new]; py->sh[0] = vs; py->sh[1] = fy;
+         static prog_t gp_y; gp_y.serial = 0x7700cafeull; serial_put(gp_y.serial, py); S.prog = &gp_y; g_exec_next = cmds;
+         pso_key ky; pso_key_fill(&ky, vs, fy, g_pass.cfmt, 0, 0, 1, 0);
+         g_sub_serial++; kick0 = g_pp_kicked; ps = pso_get_(px, nil);
+-        VERIFY(ps && pso_pend_state(&ky) == 0 && g_pp_kicked - kick0 == 1, "④ 已有 %d 条在编：只踢手头这条（踢出 %llu）、后面那笔不踢（状态 %d）", PSO_AHEAD, (unsigned long long)(g_pp_kicked - kick0), pso_pend_state(&ky));
++        VERIFY(ps && pso_pend_state(&ky) == 0 && g_pp_kicked - kick0 == 1, "④ 已有 %d 条在编：只踢手头这条（踢出 %llu）、后面那笔不踢（状态 %d）", rb_look_cap(), (unsigned long long)(g_pp_kicked - kick0), pso_pend_state(&ky));
+         S.prog = NULL; g_exec_next = NULL;
+         pthread_mutex_lock(&g_pp_mu); for (int i = 0; i < PSO_PEND_MAX; i++) g_pp[i].used = 0; pthread_mutex_unlock(&g_pp_mu);
+ 
+@@ -120,5 +121,5 @@ int main(void) {
+         unlink(user); unlink(map);
+     }
+     if (failures) { printf("✗ t_nvn_pso_lookahead：%u 项里 %u 项不符\n", checks, failures); return 1; }   // 原生门禁按「✓ t_ / ✗ t_」逐组判
+-    printf("✓ t_nvn_pso_lookahead：%u 项全过（第一次缺管线先往前看、后面的从后台取；在编满 8 条不再往前踢；表满回收编完没人取的；前瞻不升级共享贴图）\n", checks); return 0;
++    printf("✓ t_nvn_pso_lookahead：%u 项全过（第一次缺管线先往前看、后面的从后台取；在编满 %d 条不再往前踢；表满回收编完没人取的；前瞻不升级共享贴图）\n", checks, rb_look_cap()); return 0;   // RewindBox (patch 0081): rb_look_cap()
+ }
