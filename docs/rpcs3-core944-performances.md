@@ -184,3 +184,56 @@ de chauffe.
   - PPUWAITFLOOR943 : des attentes `raised`.
   - Moins de changements de contexte par seconde.
   - Fréquence des cœurs P et images par seconde.
+
+## 5. Core 945 — gestion du processeur (demande du mainteneur, 17 novembre : « avant toute nouvelle IPA »)
+
+### 5.1 Ce que montrent les journaux de l'IPA 767
+
+Black Ops II en partie, fenêtre 20 de la session 2 :
+- 1,55 million de PUTLLC exacts (SPUWAIT551 `putllc_heavy`), soit 310 000 par seconde. Chacun prend le verrou d'écriture :
+  - l'écrivain SPU attend que chaque thread PPU en cours s'arrête ;
+  - les threads PPU attendent ensuite qu'il ait fini.
+- Le Build 676 mesurait déjà 2,4 à 2,9 s de temps SPU par fenêtre pour acquérir ces verrous, et le Core 935 530 ms de temps
+  PPU par fenêtre derrière eux.
+- Les échantillons SPU (SPUPROF923) trouvent chaque noyau SPURS en attente dans `mfc_getllar` ou `mfc_putllc` dans environ
+  16 % des cas.
+
+Ces deux attentes tournent sur le cœur. L'attente économe du Core 931 (WFE : le cœur est mis en veille jusqu'à l'écriture
+attendue) ne s'active qu'à partir de l'état thermique « serious ». Or, depuis les correctifs thermiques, le téléphone est resté
+« nominal » ou « fair » dans les 239 fenêtres des journaux : `event_waits=off` partout, et ces attentes n'ont jamais reposé un
+cœur.
+
+L'attente du thread RSX au repos suit la même règle depuis le Core 941, dans tout état thermique une fois l'auto-test WFE
+réussi. Sur l'IPA 767, elle se termine en moins de 2 µs dans 99,7 % de ses 74 000 attentes par fenêtre.
+
+### 5.2 Modification (REWINDBOX_EVENT_WAITS_ALWAYS_945)
+
+Fichiers : `rpcs3/ios/IOSThermalPolicy931.h` (`event_waits()`) et le texte du réglage dans `ios/RPCS3IOSSettings.cpp`.
+
+**La règle.** En Automatique, les deux attentes deviennent des attentes WFE dans tout état thermique, dès que l'auto-test du
+démarrage a constaté que la séquence repose le cœur (`wfe_verdict=1`, REWINDBOX_WFE_SLEEP_940) :
+- l'écrivain qui attend l'arrêt des threads PPU ;
+- le thread PPU qui attend derrière un écrivain.
+
+**Ce qui ne change pas.**
+- Chaque attente attend la même écriture, avec la même borne et le même repli.
+- L'écriture attendue vide le moniteur et met fin à l'attente WFE.
+- Avant l'auto-test, ou s'il échoue, la règle reste celle du Core 931 (« serious »).
+- Activé, Désactivé et une étape de comparaison de leviers restent comme avant.
+
+**Effet attendu.** Ces cœurs tournaient à vide ; ils sont désormais mis en veille pendant l'attente. La puissance économisée
+revient au chemin critique, sous le même plafond d'environ 2,2 W. Il n'y a aucun changement de synchronisation.
+
+### 5.3 Ce qui n'est pas changé
+
+- **GETLLAR SPU** (`busy_wait(300)` en attente d'une ligne verrouillée). Le code est dans `SPUThread.cpp`, une entrée de la
+  génération de code SPU : le modifier invaliderait les caches SPU compilés.
+- **Réservations exactes de Black Ops II.** Le mode relâché a gelé le jeu (IPA 657).
+- **Migrations entre grappes** (`pset_switches`, 12 000 par seconde). Les journaux ne disent pas quels threads migrent.
+
+### 5.4 À lire dans les prochains journaux
+
+- THERMAL931 : `event_waits=on`, ainsi que `writer_park_waits` et `ppu_passive_waits` non nuls.
+- `wfe_latency_us` doit rester presque entièrement sous 2 µs.
+- ENERGY931 : la puissance des cœurs E, et la fréquence des cœurs P à puissance égale.
+- Les images par seconde de Black Ops II.
