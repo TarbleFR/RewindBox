@@ -47,7 +47,8 @@ home screen, RewindBox left in the background, frame rate "slightly more stable"
 | --- | --- | --- | --- | --- | --- | --- |
 | MoltenVK, eighth part: a shader module's compressed SPIR-V in an unlinked temporary file of the process, read back (pread) for each use | 358 MiB of SSBU's native heap; Hogwarts ended at 4 % device available | Yes (patch 4e279c68) | Patch regenerates byte for byte; drawable ownership and warmup key parity pass; macOS cache keys measure on this change | iOS rebuild on this change | Next IPA | No |
 | Journal: footprint breakdown at the start and at the first memory warning; native heap report at that warning | 1.45 GiB before the game, unexplained; Hogwarts' heap never reported | Yes | 63 source checks; Swift compiled by melonx-host on macOS | With the app | Next IPA | No |
-| Core contract frozen again (the patch is one of its inputs), same Core code | The delivery checks every Core input | After the MoltenVK pin | The three gates reading the patch rerun and pass | Core build | Next IPA | No |
+| Core, adapt_loh_compaction_request (every title): at a host memory pressure report, when the last collection left 256 MiB or more free in the large object heap and the device has 15 % or less available, the collector's next blocking collection also compacts that heap (CompactOnce); no collection is started | SSBU: 490 MiB free in the LOH for eight minutes at 4 to 9 % device available; the collector's own blocking gen2 compacted the small object heap only | Yes | Gate loh-compaction-request (24 checks): host CoreCLR, segments GC with the Core's settings; a 319 MiB free LOH stays committed and resident without the request and is given back by the same collection with it (resident 671 to 358 MiB); production Ryujinx.HLE builds | Core build | Next IPA | No |
+| Core contract frozen again (the patch and the new adapter are inputs) | The delivery checks every Core input | After the MoltenVK pin | 112 gates on the final preparation | Core build | Next IPA | No |
 
 The SPIR-V store is about 100 MiB of Hogwarts' footprint by the IPA 759 measure (205 MiB before compression): it does
 not by itself give the courtyard the memory it lacks. The two journal records are there to say, at the next test, what
@@ -55,8 +56,10 @@ the 1.45 GiB before the game are and what the native heap holds when the courtya
 
 ## 4. Leads read and not taken
 
-- Large object heap free space (SSBU about 490 MiB, Hogwarts 150 to 270 MiB): compacting it with the GC's own blocking
-  collections would lengthen those pauses (the 650 ms gap) and is a global GC change; not taken without a measure.
+- Large object heap free space, compacted at every blocking collection: it would lengthen every such pause and is a
+  global GC change; not taken. The request above is bounded instead: only under host pressure, a short device and 256 MiB
+  free, once per collection. Its cost is the copy of the live large objects inside the one collection that consumes it
+  (SSBU: about 240 MiB); that pause is not measured on an iPhone.
 - A stronger codec for the SPIR-V store (LZFSE): about 30 % smaller than LZ4 on the SPIR-V available here (27 engine
   helper shaders: LZ4-style 1.88, zlib 2.53); superseded by the file, which takes the store out of the footprint.
 - Render thread in the courtyard: descriptor updates (7.5 million descriptors per 5 s), command buffer release

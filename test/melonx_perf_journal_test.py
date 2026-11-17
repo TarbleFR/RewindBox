@@ -237,6 +237,7 @@ check(HEAP == dict(windowSeconds=120, maxStacks=24, maxPlaces=10) and 'static le
 check(heap.count('MeloNXHeapSamplerLink.start()') == 1 and heap.count('MeloNXHeapSamplerLink.stop()') == 1 and
       'queue.asyncAfter(deadline:.now() + seconds) { [self] in if open && window == mine { finish("window") } }' in heap and
       'func end() { queue.async { [self] in if open { finish("sessionEnd") } } }' in heap and
+      'func memoryWarning() { queue.async { [self] in if open { finish("memoryWarning") } } }' in heap and
       heap.index('MeloNXHeapSamplerLink.stop()') < heap.index('Self.write(Self.lines(reason:reason, seconds:seconds)'),
       'one window: closed by its timer or by the end of the session, the hook removed before the report')
 check(heap.count('MeloNXStdioCapture.appendLine(') == 1 and 'to:path, limit:MeloNXPerfJournal.fileLimit)' in heap and 'open(' not in heap,
@@ -244,6 +245,10 @@ check(heap.count('MeloNXStdioCapture.appendLine(') == 1 and 'to:path, limit:Melo
 check(controller.index('MeloNXStdioCapture.begin()\n') < controller.index('MeloNXHeapSample.shared.begin(path:MeloNXStdioCapture.journalPath,context:MeloNXStdioCapture.sessionContext)')
       < controller.index('try host.start(game:game,locale:locale,') and controller.count('MeloNXHeapSample.shared.end()') == 2 and
       controller.count('MeloNXHeapSample.shared.begin(') == 1, 'the window opens before the engine is launched and ends with the session, failed launch included')
+check(controller.count('MeloNXHeapSample.shared.memoryWarning()') == 1 and controller.count('self?.perf?.memoryWarning()') == 1 and
+      re.search(r'addObserver\(forName:UIApplication\.didReceiveMemoryWarningNotification,object:nil,queue:\.main\) \{ \[weak self\] _ in\s*'
+                r'MeloNXHeapSample\.shared\.memoryWarning\(\)\s*self\?\.perf\?\.memoryWarning\(\)', controller) is not None,
+      'a memory warning ends the heap window and writes the breakdown, from the main queue observer')
 
 HOT = {name: float(value) for name, value in re.findall(r'\b(rounds|maxThreads|maxFrames|maxSlow|maxBase|minSecond|gapSeconds|streak|slowBelow|baseFrom|'
                                                          r'selfPlaces|stackPlaces|waitPlaces) = ([\d.]+)', hot)}
@@ -433,6 +438,11 @@ exit(2)
         result = subprocess.run([str(executable), str(log)], capture_output=True, text=True, timeout=60)
         check(result.returncode == 0, result)
         lines = log.read_text().splitlines()
+        # The memory breakdown starts with the journal and writes its start line (why=start) at once; its 30 s lines do not
+        # come in this run.
+        memory = [line for line in lines if line.startswith('[MeloNX:memory] ')]
+        check(len(memory) == 1 and memory[0].startswith('[MeloNX:memory] t=0 footprint=') and memory[0].endswith(' why=start'), memory)
+        lines = [line for line in lines if not line.startswith('[MeloNX:memory] ')]
         check(all(line.startswith('[MeloNX:perf] ') for line in lines), lines[:3])
         body = [line.removeprefix('[MeloNX:perf] ') for line in lines]
         check(body[0] == f'begin: every 0.25 s, {body[0].split(", ")[1]}, audio counters available', body[0])
@@ -665,6 +675,9 @@ print("TAGGED 0x" + String(tagged, radix:16))
 print("LINE " + MeloNXMemoryBreakdown.describe(seconds:0))
 let breakdown = MeloNXMemoryBreakdown(path:path, context:[:], first:0.2, every:0.3, maxLines:3)
 breakdown.start()
+usleep(100_000)
+breakdown.memoryWarning()
+breakdown.memoryWarning()
 usleep(6_000_000)
 breakdown.stop()
 usleep(300_000)
@@ -702,7 +715,9 @@ exit(0)
         check(len(top) <= 10 and any(entry.startswith(tagged + ':96:app3:private:') and sum(map(int, entry.split(':')[4].split('+'))) >= 64 for entry in top),
               'the tagged region is among the largest: ' + str(top))
         written = [l for l in memory_log.read_text().splitlines() if l.startswith('[MeloNX:memory] ')]
-        check(len(written) == 3 and all(re.match(r'\[MeloNX:memory\] t=\d+ footprint=', l) for l in written), 'three scheduled lines, then the bound: ' + str(written))
+        check(len(written) == 3 and all(re.match(r'\[MeloNX:memory\] t=\d+ footprint=', l) for l in written) and
+              written[0].endswith(' why=start') and written[1].endswith(' why=memoryWarning') and ' why=' not in written[2],
+              'the start line, one line for two memory warnings, one scheduled line, then the bound: ' + str(written))
 
         # Heap sample: the real hook under the system's allocator. 64 blocks of 1 MiB of which 32 are freed and one
         # grown to 3 MiB, 100 000 blocks of 2 KiB kept, and four threads allocating and freeing.

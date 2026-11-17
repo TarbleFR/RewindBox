@@ -62,7 +62,8 @@ ORDER = ('adapt_pipeline_warmup_parity', 'adapt_device_short_trim', 'adapt_molte
          'adapt_pinned_command_queue', 'adapt_array_membership_filter', 'adapt_render_command_clock',
          'adapt_replay_integer_mask', 'adapt_nextendo_online', 'adapt_runtime_yield',
          'adapt_draw_wait_lanes', 'adapt_mirror_copy_journal', 'adapt_array_attachment_members',
-         'adapt_empty_worker_snapshot', 'adapt_release_passes', 'adapt_array_walk_size')
+         'adapt_empty_worker_snapshot', 'adapt_release_passes', 'adapt_array_walk_size',
+         'adapt_loh_compaction_request')
 
 
 def sha(path: Path) -> str:
