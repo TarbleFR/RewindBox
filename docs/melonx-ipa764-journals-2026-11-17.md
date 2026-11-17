@@ -113,8 +113,13 @@ descriptors, same values) and applies to every title. No frame rate gain is clai
   predicates on the patch pass; iOS rebuild run `43993431320` (binary `5c34831d`, markers 7/7), pinned (`29821b95`);
   cache keys measure on macOS, run `43993431075`: 780 modules, 2 160 pipelines, the same bytes and keys as the sixth part,
   24 draws per run, 0 wrong pixels, pixels equal to the control's. The macos-26 runners now expose a paravirtual GPU
-  (family Apple 5) that binds with an argument encoder, not Metal 3 argument buffers as on the iPhone; the descriptor
-  cost comparison of the sixth and seventh parts on the same runner records that mode (run `43995838884`).
+  (family Apple 5) that binds with an argument encoder, not Metal 3 argument buffers as on the iPhone.
+- Measured on that runner (run `43995838884`: the sixth and seventh parts built in the same job, measured alternately,
+  three times each, medians), template writes of combined image samplers whose views are Metal texture views:
+  8 descriptors 0.77 -> 0.42 us, 32: 2.94 -> 1.57 us, 74: 7.83 -> 3.55 us (0.45 to 0.56 of the time); views that are the
+  image itself, which take no view: unchanged (0.97 to 1.02); 16 uniform buffers: unchanged in this mode (the GPU
+  address and the sampler resource ID are used by the Metal 3 encoder only, the iPhone's). A texture descriptor of a
+  Metal view now costs what one without a view costs. Not measured on an iPhone.
 
 ### 5.2 Core: a texture array's barrier pass calls only the storages that were ever attachments
 
@@ -182,5 +187,5 @@ costs one store and two tests). Same textures, samplers, arrays and uploads; nev
 
 | Change | Implemented | Tested | Compiled | Delivered | Observed on a device |
 | --- | --- | --- | --- | --- | --- |
-| 5.1 MoltenVK seventh part | Yes | macOS pixels and keys, patch checks | iOS, pinned | Next IPA | No |
+| 5.1 MoltenVK seventh part | Yes | macOS: pixels and keys equal, view writes 0.45 to 0.56 of the time | iOS, pinned | Next IPA | No |
 | 5.2 to 5.5 Core adapters | Yes | Vulkan and GPU assemblies built; 111 gates on the final preparation (in progress) | Core build pending | Next IPA | No |
