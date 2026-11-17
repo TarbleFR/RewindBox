@@ -82449,10 +82449,10 @@ index 0000000..eb97f59
 +};
 +}
 diff --git a/rpcs3/Emu/Cell/lv2/lv2.cpp b/rpcs3/Emu/Cell/lv2/lv2.cpp
-index 676df5a..88b110a 100644
+index 676df5a..eaeace7 100644
 --- a/rpcs3/Emu/Cell/lv2/lv2.cpp
 +++ b/rpcs3/Emu/Cell/lv2/lv2.cpp
-@@ -60,6 +60,12 @@
+@@ -60,6 +60,13 @@
  #include "util/sysinfo.hpp"
  #include "util/init_mutex.hpp"
  
@@ -82460,12 +82460,27 @@ index 676df5a..88b110a 100644
 +#include "ios/IOSWakeCensus936.h" // REWINDBOX_WAKE_CENSUS_936
 +#include "ios/IOSSchedCensus943.h" // REWINDBOX_SCHED_CENSUS_943
 +#include "ios/IOSPpuWaitFloor943.h" // REWINDBOX_PPU_WAIT_FLOOR_943
++#include "ios/IOSWaitingSuspend944.h" // REWINDBOX_WAITING_SUSPEND_944
 +#endif
 +
  #if defined(ARCH_X64)
  #ifdef _MSC_VER
  #include <intrin.h>
-@@ -1521,6 +1527,11 @@ bool lv2_obj::sleep_unlocked(cpu_thread& thread, u64 timeout, u64 current_time)
+@@ -1517,10 +1524,25 @@ bool lv2_obj::sleep_unlocked(cpu_thread& thread, u64 timeout, u64 current_time)
+ 	{
+ 		ppu_log.trace("sleep() - waiting (%zu)", g_pending);
+ 
++#ifdef RPCS3_IOS
++		// REWINDBOX_WAITING_SUSPEND_944 (ios/IOSWaitingSuspend944.h): a thread suspended without acknowledgment since its
++		// last sleep may carry the cpu_flag::signal of its resume, given before it reached this sleep: that signal is not a
++		// wake-up of this sleep (a wake-up is a resume of the cpu_flag::suspend this sleep adds), and it is dropped.
++		if (rpcs3::ios::waiting_suspend944::take(ppu))
++		{
++			ppu->state -= cpu_flag::signal;
++		}
++#endif
++
+ 		if (ppu->ack_suspend)
  		{
  			ppu->ack_suspend = false;
  			g_pending--;
@@ -82477,7 +82492,7 @@ index 676df5a..88b110a 100644
  		}
  
  		if (std::exchange(ppu->cancel_sleep, 0) == 2)
-@@ -1567,6 +1578,14 @@ bool lv2_obj::sleep_unlocked(cpu_thread& thread, u64 timeout, u64 current_time)
+@@ -1567,6 +1589,14 @@ bool lv2_obj::sleep_unlocked(cpu_thread& thread, u64 timeout, u64 current_time)
  
  		ppu->raddr = 0; // Clear reservation
  		ppu->start_time = start_time;
@@ -82492,8 +82507,41 @@ index 676df5a..88b110a 100644
  		ppu->end_time = timeout ? start_time + std::min<u64>(timeout, ~start_time) : u64{umax};
  	}
  	else if (auto spu = thread.try_get<spu_thread>())
-@@ -1794,6 +1813,11 @@ bool lv2_obj::awake_unlocked(cpu_thread* cpu, s32 prio)
+@@ -1792,9 +1822,46 @@ bool lv2_obj::awake_unlocked(cpu_thread* cpu, s32 prio)
+ 		if (i >= thread_count && cpu_flag::suspend - target->state)
+ 		{
  			ppu_log.trace("suspend(): %s", target->id);
++#ifdef RPCS3_IOS
++			// REWINDBOX_WAITING_SUSPEND_944 (ios/IOSWaitingSuspend944.h): outside guest code and free to stop, the thread
++			// sees cpu_flag::suspend before it can run guest code again; it owes no acknowledgment.
++			bool ios_waiting = false;
++
++			if (rpcs3::ios::waiting_suspend944::enabled.load(std::memory_order_relaxed) &&
++				rpcs3::ios::waiting_suspend944::unacked_count < rpcs3::ios::waiting_suspend944::unacked.size() &&
++				!vm::ios_holds_passive_slot(target))
++			{
++				target->state.fetch_op([&](bs_t<cpu_flag>& val)
++				{
++					ios_waiting = (val & cpu_flag::wait) && !(val & cpu_flag::temp) && !(val & cpu_flag::suspend);
++
++					if (ios_waiting)
++					{
++						val += cpu_flag::suspend;
++					}
++
++					return ios_waiting;
++				});
++			}
++
++			if (ios_waiting)
++			{
++				ensure(rpcs3::ios::waiting_suspend944::mark(target)); // its resume's signal is dropped at its next sleep
++				rpcs3::ios::sched943::add(rpcs3::ios::sched943::suspensions);
++				rpcs3::ios::sched943::add(rpcs3::ios::sched943::acks_skipped);
++			}
++			else
++#endif
++			{
  			target->ack_suspend = true;
  			g_pending++;
 +#ifdef RPCS3_IOS
@@ -82502,9 +82550,11 @@ index 676df5a..88b110a 100644
 +			rpcs3::ios::sched943::pending_changed(g_pending, [] { return utils::get_tsc(); });
 +#endif
  			ensure(!target->state.test_and_set(cpu_flag::suspend));
++			}
  
  			if (is_paused(target->state - cpu_flag::suspend))
-@@ -1811,6 +1835,11 @@ bool lv2_obj::awake_unlocked(cpu_thread* cpu, s32 prio)
+ 			{
+@@ -1811,6 +1878,11 @@ bool lv2_obj::awake_unlocked(cpu_thread* cpu, s32 prio)
  		if (std::exchange(current_ppu->ack_suspend, false))
  		{
  			ensure(g_pending)--;
@@ -82516,11 +82566,12 @@ index 676df5a..88b110a 100644
  		}
  	}
  
-@@ -1852,12 +1881,51 @@ void lv2_obj::cleanup()
+@@ -1852,12 +1924,52 @@ void lv2_obj::cleanup()
  	g_waiting.clear();
  	g_pending = 0;
  	s_yield_frequency = 0;
 +#ifdef RPCS3_IOS
++	rpcs3::ios::waiting_suspend944::reset(); // REWINDBOX_WAITING_SUSPEND_944
 +	rpcs3::ios::sched943::pending_changed(0, [] { return utils::get_tsc(); }); // REWINDBOX_SCHED_CENSUS_943
 +#endif
  }
@@ -82568,7 +82619,7 @@ index 676df5a..88b110a 100644
  	if (!g_pending && g_scheduler_ready)
  	{
  		auto target = +g_ppu;
-@@ -1868,6 +1936,9 @@ void lv2_obj::schedule_all(u64 current_time)
+@@ -1868,6 +1980,9 @@ void lv2_obj::schedule_all(u64 current_time)
  			if (target->state & cpu_flag::suspend)
  			{
  				ppu_log.trace("schedule(): %s", target->id);
@@ -82578,7 +82629,7 @@ index 676df5a..88b110a 100644
  
  				// Remove yield if it was sleeping until now
  				const bs_t<cpu_flag> remove_yield = target->start_time == 0 ? +cpu_flag::suspend : (cpu_flag::yield + cpu_flag::preempt);
-@@ -2149,8 +2220,30 @@ bool lv2_obj::wait_timeout(u64 usec, ppu_thread* cpu, bool scale, bool is_usleep
+@@ -2149,8 +2264,30 @@ bool lv2_obj::wait_timeout(u64 usec, ppu_thread* cpu, bool scale, bool is_usleep
  	const auto& state = cpu ? cpu->state : dummy;
  	auto old_state = +state;
  
@@ -82609,7 +82660,7 @@ index 676df5a..88b110a 100644
  		thread_ctrl::wait_on(state, old_state, timeout);
  	};
  
-@@ -2227,9 +2320,24 @@ bool lv2_obj::wait_timeout(u64 usec, ppu_thread* cpu, bool scale, bool is_usleep
+@@ -2227,9 +2364,24 @@ bool lv2_obj::wait_timeout(u64 usec, ppu_thread* cpu, bool scale, bool is_usleep
  			}
  		}
  
@@ -83675,15 +83726,16 @@ index 669f759..d0e01fd 100644
  
  		return false;
 diff --git a/rpcs3/Emu/Memory/vm.cpp b/rpcs3/Emu/Memory/vm.cpp
-index e7f55d7..9f0339d 100644
+index e7f55d7..8fdaee0 100644
 --- a/rpcs3/Emu/Memory/vm.cpp
 +++ b/rpcs3/Emu/Memory/vm.cpp
-@@ -12,8 +12,18 @@
+@@ -12,8 +12,19 @@
  #include "Emu/Cell/SPURecompiler.h"
  #include "Emu/perf_meter.hpp"
  #ifdef RPCS3_IOS
 +#include "ios/IOSPassiveLockGate.h"
 +#include "ios/IOSSchedCensus943.h" // REWINDBOX_SCHED_CENSUS_943
++#include "ios/IOSWaitingSuspend944.h" // REWINDBOX_WAITING_SUSPEND_944
  #include "ios/IOSReservationLockPolicy.h"
 +#include "ios/IOSWriterLockPhases.h"
 +#include "ios/IOSWriterParkSpin917.h" // REWINDBOX_WRITER_PARK_SPIN_917
@@ -83697,7 +83749,7 @@ index e7f55d7..9f0339d 100644
  #include <deque>
  #include <span>
  
-@@ -100,7 +110,18 @@ namespace vm
+@@ -100,7 +111,18 @@ namespace vm
  #ifdef RPCS3_IOS
  		if (rpcs3::ios::reservation_lock_should_yield(wait_iteration)) [[unlikely]]
  		{
@@ -83717,7 +83769,7 @@ index e7f55d7..9f0339d 100644
  			return;
  		}
  #endif
-@@ -111,6 +132,11 @@ namespace vm
+@@ -111,6 +133,11 @@ namespace vm
  	// Memory range lock slots (sparse atomics)
  	atomic_t<u64, 128> g_range_lock_set[64]{};
  
@@ -83729,7 +83781,7 @@ index e7f55d7..9f0339d 100644
  	// Memory pages
  	std::array<memory_page, 0x100000000 / 4096> g_pages;
  
-@@ -157,15 +183,38 @@ namespace vm
+@@ -157,17 +184,56 @@ namespace vm
  
  	static void _register_lock(cpu_thread* _cpu)
  	{
@@ -83766,10 +83818,28 @@ index e7f55d7..9f0339d 100644
 +				}
 +#endif
 +			}
++		}
++	}
++
++#ifdef RPCS3_IOS
++	// REWINDBOX_WAITING_SUSPEND_944 (ios/IOSWaitingSuspend944.h): lv2_obj::awake_unlocked, under lv2_obj::g_mutex.
++	bool ios_holds_passive_slot(const cpu_thread* cpu) noexcept
++	{
++		for (u32 i = 0, max = g_cfg.core.ppu_threads; i < max; i++)
++		{
++			if (g_locks[i].load() == cpu)
++			{
++				return true;
++			}
  		}
++
++		return false;
  	}
++#endif
  
-@@ -241,7 +290,10 @@ namespace vm
+ 	atomic_t<u64, 128>* alloc_range_lock()
+ 	{
+@@ -241,7 +307,10 @@ namespace vm
  
  			if (!busy) [[likely]]
  			{
@@ -83781,7 +83851,7 @@ index e7f55d7..9f0339d 100644
  				{
  					break;
  				}
-@@ -416,6 +468,40 @@ namespace vm
+@@ -416,6 +485,40 @@ namespace vm
  
  		if (!ok || cpu.state & cpu_flag::memory)
  		{
@@ -83822,7 +83892,7 @@ index e7f55d7..9f0339d 100644
  			for (u64 i = 0;; i++)
  			{
  				if (cpu.is_paused())
-@@ -429,10 +515,68 @@ namespace vm
+@@ -429,10 +532,68 @@ namespace vm
  					return;
  				}
  
@@ -83893,7 +83963,7 @@ index e7f55d7..9f0339d 100644
  
  				if (cpu_flag::wait - cpu.state)
  				{
-@@ -470,6 +614,28 @@ namespace vm
+@@ -470,6 +631,28 @@ namespace vm
  		}
  	}
  
@@ -83922,7 +83992,7 @@ index e7f55d7..9f0339d 100644
  	writer_lock::writer_lock() noexcept
  		: writer_lock(0, nullptr, 1)
  	{
-@@ -478,6 +644,12 @@ namespace vm
+@@ -478,6 +661,12 @@ namespace vm
  	writer_lock::writer_lock(u32 const addr, atomic_t<u64, 128>* range_lock, u32 const size, u64 const flags) noexcept
  		: range_lock(range_lock)
  	{
@@ -83935,7 +84005,7 @@ index e7f55d7..9f0339d 100644
  		if (cpu_thread* cpu = cpu_thread::get_current(); cpu && cpu->get_class() == thread_class::ppu)
  		{
  			// cpu_flag::wait must be added by the caller
-@@ -494,6 +666,16 @@ namespace vm
+@@ -494,6 +683,16 @@ namespace vm
  			}
  		}
  
@@ -83952,7 +84022,7 @@ index e7f55d7..9f0339d 100644
  		for (u64 i = 0;; i++)
  		{
  			auto& bits = get_range_lock_bits(true);
-@@ -539,13 +721,21 @@ namespace vm
+@@ -539,13 +738,21 @@ namespace vm
  
  		if (range_lock)
  		{
@@ -83975,7 +84045,7 @@ index e7f55d7..9f0339d 100644
  				}
  			}
  
-@@ -589,18 +779,74 @@ namespace vm
+@@ -589,18 +796,74 @@ namespace vm
  
  				reservation_lock_wait(wait_iteration);
  			}
@@ -84050,7 +84120,7 @@ index e7f55d7..9f0339d 100644
  	}
  
  	atomic_t<u32>* reservation_notifier_notify(u32 raddr, u64 rtime, bool postpone)
-@@ -1044,7 +1290,7 @@ namespace vm
+@@ -1044,7 +1307,7 @@ namespace vm
  		else
  		{
  			shm->unmap_critical(g_base_addr + addr);
@@ -84059,7 +84129,7 @@ index e7f55d7..9f0339d 100644
  			shm->unmap_critical(g_sudo_addr + addr);
  #endif
  		}
-@@ -1321,7 +1567,7 @@ namespace vm
+@@ -1321,7 +1584,7 @@ namespace vm
  			};
  
  			// Special path for whole-allocated areas allowing 4k granularity
@@ -84068,7 +84138,7 @@ index e7f55d7..9f0339d 100644
  
  			if (!map_critical(vm::_ptr<u8>(addr), this->flags & page_size_4k && utils::get_page_size() > 4096 ? utils::protection::rw : utils::protection::no) || !map_critical(vm::get_super_ptr(addr), utils::protection::rw))
  			{
-@@ -1361,7 +1607,7 @@ namespace vm
+@@ -1361,7 +1624,7 @@ namespace vm
  			if (m_common)
  			{
  				m_common->unmap_critical(vm::base(addr));
@@ -84077,7 +84147,7 @@ index e7f55d7..9f0339d 100644
  				m_common->unmap_critical(vm::get_super_ptr(addr));
  #endif
  				ensure(m_common.use_count() == 1);
-@@ -1415,7 +1661,7 @@ namespace vm
+@@ -1415,7 +1678,7 @@ namespace vm
  			shm = *src;
  		else
  		{
@@ -84086,7 +84156,7 @@ index e7f55d7..9f0339d 100644
  		}
  
  		const u32 max = (this->addr + this->size - size) & (0 - align);
-@@ -1435,6 +1681,101 @@ namespace vm
+@@ -1435,6 +1698,101 @@ namespace vm
  			return 0;
  		}
  
@@ -84188,7 +84258,7 @@ index e7f55d7..9f0339d 100644
  		// Search for an appropriate place (unoptimized)
  		for (;; addr += align)
  		{
-@@ -1494,7 +1835,7 @@ namespace vm
+@@ -1494,7 +1852,7 @@ namespace vm
  			shm = *src;
  		else
  		{
@@ -84197,7 +84267,7 @@ index e7f55d7..9f0339d 100644
  		}
  
  		vm::writer_lock lock;
-@@ -1725,6 +2066,52 @@ namespace vm
+@@ -1725,6 +2083,52 @@ namespace vm
  
  		ar.breathe();
  
@@ -84250,7 +84320,7 @@ index e7f55d7..9f0339d 100644
  		for (usz iter_count = 0; size; iter_count += sizeof(u32), ptr += byte_of_pages * sizeof(u32))
  		{
  			const u32 bitmap = read_from_ptr<le_t<u32>>(bit_array, iter_count);
-@@ -1757,6 +2144,7 @@ namespace vm
+@@ -1757,6 +2161,7 @@ namespace vm
  			}
  		}
  
@@ -84258,7 +84328,7 @@ index e7f55d7..9f0339d 100644
  		ar.breathe();
  	}
  
-@@ -1808,7 +2196,7 @@ namespace vm
+@@ -1808,7 +2213,7 @@ namespace vm
  	{
  		if (flags & preallocated)
  		{
@@ -84267,7 +84337,7 @@ index e7f55d7..9f0339d 100644
  			m_common->map_critical(vm::base(addr), this->flags & page_size_4k && utils::get_page_size() > 4096 ? utils::protection::rw : utils::protection::no);
  			m_common->map_critical(vm::get_super_ptr(addr));
  		}
-@@ -1849,6 +2237,13 @@ namespace vm
+@@ -1849,6 +2254,13 @@ namespace vm
  			{
  				pflags |= page_size_64k;
  			}
@@ -84281,7 +84351,7 @@ index e7f55d7..9f0339d 100644
  			else if (!(flags & (page_size_mask & ~page_size_1m)))
  			{
  				pflags |= page_size_1m;
-@@ -2403,7 +2798,7 @@ namespace vm
+@@ -2403,7 +2815,7 @@ namespace vm
  
  			const u32 flags = ar.pop<u32>();
  			const u64 size = ar.pop<u64>();
@@ -123291,7 +123361,7 @@ index 130f54b..4c096c9 100644
  void clean_savestates(std::string_view title_id, std::string_view boot_path, usz max_files, usz max_files_size);
 +void clean_orphaned_savestate_temps();
 diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
-index 7072922..6e42de1 100644
+index 7072922..6873f85 100644
 --- a/rpcs3/Emu/system_config.h
 +++ b/rpcs3/Emu/system_config.h
 @@ -26,6 +26,9 @@ struct cfg_root : cfg::node
@@ -123321,7 +123391,7 @@ index 7072922..6e42de1 100644
  		cfg::_bool empty_hdd0_tmp{ this, "Empty /dev_hdd0/tmp/", true };
  
  	} vfs{ this };
-@@ -121,6 +132,48 @@ struct cfg_root : cfg::node
+@@ -121,6 +132,49 @@ struct cfg_root : cfg::node
  		cfg::_enum<ios_experimental_mode> fps_optimization_batch{ this, "FPS Optimization Batch", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> dma_copy_specialization{ this, "DMA Copy Specialization", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> texture_hash_hybrid{ this, "Hybrid Texture Hash", ios_experimental_mode::automatic };
@@ -123362,7 +123432,8 @@ index 7072922..6e42de1 100644
 +		cfg::_enum<ios_experimental_mode> event_waits_when_hot{ this, "Event Waits When Hot", ios_experimental_mode::automatic };
 +		// CELL581_TEXTURE_PREHASH: Automatic follows Texture Validation Per FIFO Batch.
 +		cfg::_enum<ios_experimental_mode> texture_prehash{ this, "Texture Pre-Validation", ios_experimental_mode::automatic };
-+		// REWINDBOX_PUT_HORIZON_910: Automatic enables it for God of War III (needs Texture Validation Per FIFO Batch).
++		// REWINDBOX_PUT_HORIZON_910: Automatic enables it for God of War III (needs Texture Validation Per FIFO Batch);
++		// REWINDBOX_PUT_HORIZON_BO2_944 adds Black Ops II.
 +		cfg::_enum<ios_experimental_mode> put_epoch_horizon{ this, "Texture Epoch At The PUT Horizon", ios_experimental_mode::automatic };
 +		// REWINDBOX_CAPTURE_912 (ios/IOSCapture912.h): diagnostics, Automatic = off for every title.
 +		cfg::_enum<ios_experimental_mode> heavy_putllc_trace{ this, "Heavy PUTLLC Trace On Resume", ios_experimental_mode::automatic };
@@ -123370,7 +123441,7 @@ index 7072922..6e42de1 100644
  
  		cfg::_enum<ios_experimental_mode> neon_byte_swap{ this, "ARM64 Byte-Swap Uploads", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> neon_primitive_restart{ this, "ARM64 Primitive-Restart Uploads", ios_experimental_mode::automatic };
-@@ -134,6 +187,85 @@ struct cfg_root : cfg::node
+@@ -134,6 +188,89 @@ struct cfg_root : cfg::node
  		cfg::_enum<ios_experimental_mode> vulkan_command_buffer_reclamation{ this, "Vulkan Command-Buffer Reclamation", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> expanded_spu_scratch{ this, "Expanded ARM64 SPU Scratch", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> persistent_spu_object_cache{ this, "Persistent SPU Object Cache", ios_experimental_mode::automatic };
@@ -123391,8 +123462,12 @@ index 7072922..6e42de1 100644
 +		// threads' class (user-initiated). Automatic: Black Ops II; Enabled: every title; Disabled: none.
 +		cfg::_enum<ios_experimental_mode> mvk_encode_lowered{ this, "MoltenVK Encoding With SPU Class", ios_experimental_mode::automatic };
 +		// REWINDBOX_PPU_WAIT_FLOOR_943 (ios/IOSPpuWaitFloor943.h): a PPU polling loop's repeated lv2 timed wait under 200 us
-+		// lasts four times as long, at most 200 us. Automatic: Black Ops II; Enabled: every title; Disabled: none.
++		// lasts four times as long, at most 200 us. Automatic: Black Ops II and (Core 944) God of War III; Enabled: every
++		// title; Disabled: none.
 +		cfg::_enum<ios_experimental_mode> ppu_wait_floor{ this, "PPU Short Wait Floor", ios_experimental_mode::automatic };
++		// REWINDBOX_WAITING_SUSPEND_944 (ios/IOSWaitingSuspend944.h): a PPU thread in a host wait is suspended without an
++		// acknowledgment. Automatic: Black Ops II and God of War III; Enabled: every title; Disabled: none.
++		cfg::_enum<ios_experimental_mode> waiting_suspend{ this, "PPU Suspension Of Waiting Threads", ios_experimental_mode::automatic };
 +		// REWINDBOX_MOLTENVK_ASYNC_SUBMITS_V1: Automatic keeps MoltenVK's synchronous
 +		// submits; Enabled moves Metal command encoding to MoltenVK's queue thread.
 +		cfg::_enum<ios_experimental_mode> moltenvk_async_submits{ this, "MoltenVK Asynchronous Submits", ios_experimental_mode::automatic };
@@ -133874,10 +133949,10 @@ index 0000000..f7aaf4a
 +}
 diff --git a/rpcs3/ios/IOSPpuWaitFloor943.h b/rpcs3/ios/IOSPpuWaitFloor943.h
 new file mode 100644
-index 0000000..2fe9909
+index 0000000..f8dea43
 --- /dev/null
 +++ b/rpcs3/ios/IOSPpuWaitFloor943.h
-@@ -0,0 +1,168 @@
+@@ -0,0 +1,169 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -133914,7 +133989,8 @@ index 0000000..2fe9909
 +// A polling loop then makes up to four times fewer rounds and sees its flag up to three timeouts later; a loop that
 +// polls with a bounded count of short waits lasts at most four times as long; a poll of several objects in turn is
 +// left as it is. Nothing else changes: no synchronisation primitive, priority or slot rule. Setting PPU short wait
-+// floor (Experimental, PPU): Automatic is Black Ops II, Enabled every title, Disabled none. COREPROF PPUWAITFLOOR943
++// floor (Experimental, PPU): Automatic is Black Ops II and, from Core 944, God of War III (its main thread's wait loop of
++// REWINDBOX_GOW3_POLL_SLEEP_943 slept 30 us 48,810 times per 5 s window on IPA 767), Enabled every title, Disabled none. COREPROF PPUWAITFLOOR943
 +// says how many waits were lengthened, from which system calls and from what timeouts; WAKE936 shows the waits under
 +// 200 us thinning out.
 +namespace rpcs3::ios::ppu_wait_floor943
@@ -135247,10 +135323,10 @@ index 0000000..433344e
 +}
 diff --git a/rpcs3/ios/IOSSchedCensus943.h b/rpcs3/ios/IOSSchedCensus943.h
 new file mode 100644
-index 0000000..a427e7f
+index 0000000..bef06c6
 --- /dev/null
 +++ b/rpcs3/ios/IOSSchedCensus943.h
-@@ -0,0 +1,92 @@
+@@ -0,0 +1,93 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -135291,6 +135367,7 @@ index 0000000..a427e7f
 +	register_waited,      // ... that found both slots taken at least once
 +	register_ticks,       // time spent in those (get_tsc ticks)
 +	suspend_waits,        // cpu_wait() calls of a thread with cpu_flag::suspend (PPU, and SPU threads of a suspended group)
++	acks_skipped,         // REWINDBOX_WAITING_SUSPEND_944: suspensions of a thread in a host wait, no acknowledgment owed
 +	count
 +};
 +
@@ -135332,14 +135409,14 @@ index 0000000..a427e7f
 +	}
 +
 +	const auto ms = [tsc_frequency](unsigned long long ticks) { return tsc_frequency ? ticks * 1000.0 / static_cast<double>(tsc_frequency) : 0.0; };
-+	char line[512];
++	char line[560];
 +	std::snprintf(line, sizeof(line),
 +		"COREPROF SCHED943 session=%llu window=%llu suspensions=%llu self_acks=%llu acks=%llu gate_blocked=%llu "
 +		"gate_pending=%llu:%llu gate_pending_order=running:waiting resumes=%llu pending_episodes=%llu pending_ms=%.3f "
-+		"register=%llu:%llu register_wait_ms=%.3f suspend_waits=%llu scope=process_window",
++		"register=%llu:%llu register_wait_ms=%.3f suspend_waits=%llu acks_skipped=%llu scope=process_window",
 +		static_cast<unsigned long long>(session), static_cast<unsigned long long>(window), v[suspensions], v[self_acks], v[acks],
 +		v[gate_blocked], v[gate_pending_running], v[gate_pending_waiting], v[resumes], v[pending_episodes], ms(v[pending_ticks]),
-+		v[register_calls], v[register_waited], ms(v[register_ticks]), v[suspend_waits]);
++		v[register_calls], v[register_waited], ms(v[register_ticks]), v[suspend_waits], v[acks_skipped]);
 +	return line;
 +}
 +} // namespace rpcs3::ios::sched943
@@ -140698,6 +140775,111 @@ index 0000000..ecf9024
 +{
 +	return then_us && now_us >= then_us ? static_cast<double>(now_us - then_us) / 1000.0 : -1.0;
 +}
++}
+diff --git a/rpcs3/ios/IOSWaitingSuspend944.h b/rpcs3/ios/IOSWaitingSuspend944.h
+new file mode 100644
+index 0000000..910166d
+--- /dev/null
++++ b/rpcs3/ios/IOSWaitingSuspend944.h
+@@ -0,0 +1,99 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <array>
++#include <atomic>
++#include <cstddef>
++
++// REWINDBOX_WAITING_SUSPEND_944: a PPU thread that must give its slot up while it is outside guest code is suspended
++// without an acknowledgment to wait for.
++//
++// IPA 767 (17 November 2026, Core 943), Black Ops II in play (PID 32585, session 2, window 20): 8,260 suspensions per
++// 5 s window, and for 804 ms of it lv2_obj::schedule_all() woke nothing because g_pending was not zero; 9,547 wakes
++// were held back, 5,426 of them while every thread that owed the acknowledgment was in a host wait (cpu_flag::wait)
++// (COREPROF SCHED943 gate_pending=4121:5426). The samples find the Backend thread suspended in 46 % of them, 2,456
++// times just after a sys_semaphore_post, the main thread in 32 % (PPUPROF912). God of War III: 1,162 suspensions,
++// 110 ms. The upstream rule: a thread pushed beyond the ppu_threads slots gets cpu_flag::suspend and must acknowledge
++// it itself (at its next sleep, or through cpu_sleep -> lv2_obj::awake from check_state) before any wake proceeds,
++// so that no more than ppu_threads threads run guest code. A thread in a host wait cannot acknowledge until the wait
++// ends, so every other thread of the process waits for it.
++//
++// A thread in cpu_flag::wait leaves that state only in cpu_thread::check_state(), whose single atomic step keeps
++// cpu_flag::wait while cpu_flag::suspend is set when the thread may stop there; a thread that may not stop (cpu_flag::temp
++// set, or inside a check_state call that cleared it) leaves it, but only to host code, and stops at its next check
++// before guest code. So when cpu_flag::suspend is added in one atomic step that sees cpu_flag::wait and not
++// cpu_flag::temp, the thread cannot run guest code before it has seen the suspension, and the slot it held is free.
++// Two things the acknowledgment also protected are kept by other means:
++// - A thread still on its way to lv2_obj::sleep() (it set cpu_flag::wait at the system call's entry) may be resumed by
++//   schedule_all() before it sleeps; the cpu_flag::signal of that resume would make the sleep fail as signalled and its
++//   wait return without being woken. Such a suspension is recorded here (under lv2_obj::g_mutex) until the thread's next
++//   sleep_unlocked(), which drops a pending cpu_flag::signal of a recorded thread before its test: a PPU thread's signal
++//   only ever comes from a schedule_all() resume, and the resume that wakes a sleep needs the cpu_flag::suspend this sleep
++//   adds, so no wake-up of that sleep can come before it (an early lv2_obj::awake finds the thread still queued and
++//   only sets cancel_sleep, as upstream). The
++//   resume itself keeps cpu_flag::signal, which check_state() needs to call cpu_sleep() again at a later suspension.
++// - A thread that still holds one of the vm passive lock slots (vm::g_locks) keeps the upstream path: the thread woken
++//   in its place would otherwise spin in vm::_register_lock until the suspended one released its slot.
++// Any other state (running guest code, cpu_flag::temp, a slot held, a full record) keeps the acknowledgment as before.
++// The slot count, the priorities and the order of the queue do not change. Setting PPU suspension of waiting threads
++// (Experimental, PPU): Automatic is Black Ops II and God of War III, Enabled every title, Disabled none.
++// COREPROF SCHED943 acks_skipped= counts the suspensions that needed no acknowledgment. The debugger's "(LV2 suspended)"
++// mark (ack_suspend) is not shown for them.
++namespace rpcs3::ios::waiting_suspend944
++{
++inline std::atomic<bool> enabled{false}; // resolved at boot (RPCS3IOSExperimentalPolicy.cpp)
++
++// The threads suspended without acknowledgment since their last lv2 sleep. Only under lv2_obj::g_mutex. When it is full,
++// a suspension takes the upstream path.
++inline std::array<const void*, 64> unacked{};
++inline std::size_t unacked_count = 0;
++
++inline bool mark(const void* thread) noexcept
++{
++	for (std::size_t i = 0; i < unacked_count; i++)
++	{
++		if (unacked[i] == thread)
++		{
++			return true;
++		}
++	}
++
++	if (unacked_count == unacked.size())
++	{
++		return false;
++	}
++
++	unacked[unacked_count++] = thread;
++	return true;
++}
++
++// Forgets the record of `thread`; true if there was one.
++inline bool take(const void* thread) noexcept
++{
++	for (std::size_t i = 0; i < unacked_count; i++)
++	{
++		if (unacked[i] == thread)
++		{
++			unacked[i] = unacked[--unacked_count];
++			unacked[unacked_count] = nullptr;
++			return true;
++		}
++	}
++
++	return false;
++}
++
++inline void reset() noexcept
++{
++	unacked = {};
++	unacked_count = 0;
++}
++} // namespace rpcs3::ios::waiting_suspend944
++
++class cpu_thread;
++
++namespace vm
++{
++// Emu/Memory/vm.cpp: whether `cpu` holds one of the passive lock slots (g_locks).
++bool ios_holds_passive_slot(const cpu_thread* cpu) noexcept;
 +}
 diff --git a/rpcs3/ios/IOSWakeCensus936.h b/rpcs3/ios/IOSWakeCensus936.h
 new file mode 100644
@@ -147084,10 +147266,10 @@ index b4602fe..37a708a 100644
  
  	rpcs3_ios_status begin_content_install() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index 7c3389b..088d630 100644
+index 7c3389b..edc7317 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-@@ -1,8 +1,41 @@
+@@ -1,8 +1,42 @@
  #include "stdafx.h"
  #include "RPCS3IOSExperimentalPolicy.h"
  
@@ -147124,12 +147306,13 @@ index 7c3389b..088d630 100644
 +#include "IOSFrameInterval943.h" // REWINDBOX_FRAME_INTERVAL_943
 +#include "IOSMoltenVKEncodeQoS943.h" // REWINDBOX_MVK_ENCODE_QOS_943
 +#include "IOSPpuWaitFloor943.h" // REWINDBOX_PPU_WAIT_FLOOR_943
++#include "IOSWaitingSuspend944.h" // REWINDBOX_WAITING_SUSPEND_944
 +#include "Utilities/File.h"
 +#include "util/asm.hpp" // NEOSTATION_BUILD487_DIAGNOSTICS_V1 (L2): utils::arm_timer_scale
  #include "util/logs.hpp"
  
  LOG_CHANNEL(ios_experimental_log, "iOS Experimental");
-@@ -27,6 +60,91 @@ bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
+@@ -27,6 +61,91 @@ bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
  
  	return automatic_value;
  }
@@ -147221,7 +147404,7 @@ index 7c3389b..088d630 100644
  }
  
  const experimental_policy& get_experimental_policy() noexcept
-@@ -47,7 +165,153 @@ void resolve_experimental_policy() noexcept
+@@ -47,7 +166,159 @@ void resolve_experimental_policy() noexcept
  	const bool fps_batch = resolve_mode(g_cfg.ios_experimental.fps_optimization_batch, false);
  	resolved.dma_copy_specialization = arm64_default && resolve_mode(g_cfg.ios_experimental.dma_copy_specialization, fps_batch);
  	resolved.texture_hash_hybrid = arm64_default && resolve_mode(g_cfg.ios_experimental.texture_hash_hybrid, fps_batch);
@@ -147336,8 +147519,14 @@ index 7c3389b..088d630 100644
 +		resolve_mode(g_cfg.ios_experimental.texture_prehash, is_god_of_war_iii_title(title_id));
 +	rpcs3::ios::texture_prehash::enabled.store(resolved.texture_prehash, std::memory_order_relaxed);
 +	// REWINDBOX_PUT_HORIZON_910 (ios/IOSTextureValidationProfile.h): needs the epochs.
++	// REWINDBOX_PUT_HORIZON_BO2_944: Black Ops II too. IPA 767 (Core 943), in play: 55,000 to 63,000 of its 60,000 to
++	// 70,000 hashed texture validations per 5 s window came after PUT epochs (COREPROF TEXVAL943), 8.1 to 9.5 GB hashed
++	// by the RSX thread for 145 to 197 changes found; the lookup memo, whose entries last one epoch, served 25 to 35 %
++	// of 150,000 to 200,000 lookups (TEXMEMO660, 0.72 to 0.85 s of lookups a window). The horizon rule is general:
++	// commands visible when an epoch started were published after the data they need.
 +	resolved.put_epoch_horizon = resolved.texture_validation_epoch &&
-+		resolve_mode(g_cfg.ios_experimental.put_epoch_horizon, is_god_of_war_iii_title(title_id));
++		resolve_mode(g_cfg.ios_experimental.put_epoch_horizon,
++			is_god_of_war_iii_title(title_id) || rpcs3::ios::title_levers::is_black_ops_ii_title(title_id));
 +	rpcs3::ios::texture_validation::put_horizon_policy::enabled.store(resolved.put_epoch_horizon, std::memory_order_relaxed);
 +	// REWINDBOX_CAPTURE_912: off unless enabled for this boot (Automatic is off for every title).
 +	resolved.heavy_putllc_trace = resolve_mode(g_cfg.ios_experimental.heavy_putllc_trace, false);
@@ -147375,7 +147564,7 @@ index 7c3389b..088d630 100644
  	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
  	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
  	resolved.mobile_spu_scheduling = resolve_mode(g_cfg.ios_experimental.mobile_spu_scheduling, false);
-@@ -58,27 +322,300 @@ void resolve_experimental_policy() noexcept
+@@ -58,27 +329,307 @@ void resolve_experimental_policy() noexcept
  	resolved.rsx_dma_wait_parking = resolve_mode(g_cfg.ios_experimental.rsx_dma_wait_parking, arm64_default);
  	resolved.vulkan_command_buffer_reclamation = resolve_mode(g_cfg.ios_experimental.vulkan_command_buffer_reclamation, arm64_default);
  	resolved.expanded_spu_scratch = resolve_mode(g_cfg.ios_experimental.expanded_spu_scratch, arm64_default);
@@ -147415,8 +147604,15 @@ index 7c3389b..088d630 100644
 +		rpcs3::ios::title_levers::is_black_ops_ii_title(title_id));
 +	rpcs3::ios::mvk_encode_qos943::enabled.store(resolved.mvk_encode_lowered, std::memory_order_relaxed);
 +	// REWINDBOX_PPU_WAIT_FLOOR_943 (ios/IOSPpuWaitFloor943.h): read by the PPU threads at each lv2 timed wait.
-+	resolved.ppu_wait_floor = resolve_mode(g_cfg.ios_experimental.ppu_wait_floor, rpcs3::ios::title_levers::is_black_ops_ii_title(title_id));
++	// Core 944 adds God of War III: its main thread's wait loop (REWINDBOX_GOW3_POLL_SLEEP_943) slept 30 us 48,810 times
++	// per 5 s window in play on IPA 767 (COREPROF GOW3POLL943), about 600 sleeps for each of its 81 waits.
++	resolved.ppu_wait_floor = resolve_mode(g_cfg.ios_experimental.ppu_wait_floor,
++		rpcs3::ios::title_levers::is_black_ops_ii_title(title_id) || is_god_of_war_iii_title(title_id));
 +	rpcs3::ios::ppu_wait_floor943::enabled.store(resolved.ppu_wait_floor, std::memory_order_relaxed);
++	// REWINDBOX_WAITING_SUSPEND_944 (ios/IOSWaitingSuspend944.h): read by lv2_obj::awake_unlocked at each suspension.
++	resolved.waiting_suspend = resolve_mode(g_cfg.ios_experimental.waiting_suspend,
++		rpcs3::ios::title_levers::is_black_ops_ii_title(title_id) || is_god_of_war_iii_title(title_id));
++	rpcs3::ios::waiting_suspend944::enabled.store(resolved.waiting_suspend, std::memory_order_relaxed);
 +	// REWINDBOX_POSITION_INVARIANCE_610: Automatic is the title list.
 +	// REWINDBOX_POSITION_INVARIANCE_612: Enabled/Disabled (a per-game override) test the
 +	// other value; the vertex shader text changes, so Metal compiles new pipelines.
@@ -147687,7 +147883,7 @@ index 7c3389b..088d630 100644
  
  u32 get_spu_gateway_scratch_size() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-index 8fba197..096f2d5 100644
+index 8fba197..ef5020e 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 @@ -1,6 +1,7 @@
@@ -147746,7 +147942,7 @@ index 8fba197..096f2d5 100644
  	u32 fifo_cache_bytes = 1024;
  	bool fifo_idle_wfe = false;
  	bool deferred_get_publishing = false;
-@@ -20,8 +62,130 @@ struct experimental_policy
+@@ -20,8 +62,131 @@ struct experimental_policy
  	bool vulkan_command_buffer_reclamation = false;
  	bool expanded_spu_scratch = false;
  	bool persistent_spu_object_cache = false;
@@ -147757,6 +147953,7 @@ index 8fba197..096f2d5 100644
 +	bool frame_work_interval = false; // REWINDBOX_FRAME_INTERVAL_943
 +	bool mvk_encode_lowered = false; // REWINDBOX_MVK_ENCODE_QOS_943
 +	bool ppu_wait_floor = false; // REWINDBOX_PPU_WAIT_FLOOR_943
++	bool waiting_suspend = false; // REWINDBOX_WAITING_SUSPEND_944
 +	// REWINDBOX_MOLTENVK_ASYNC_SUBMITS_V1: read when the Vulkan instance is created.
 +	bool moltenvk_async_submits = false;
 +	// REWINDBOX_POSITION_INVARIANCE_610 (ios/IOSTitleLevers.h): vertex programs
@@ -154577,7 +154774,7 @@ index 6a52e85..f4b30ed 100644
  
  	return true;
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index b7b0474..15bf152 100644
+index b7b0474..ec64ea1 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
 @@ -1,21 +1,45 @@
@@ -154650,7 +154847,7 @@ index b7b0474..15bf152 100644
  	SETTING("advanced.read_color_buffers", "Advanced", "GPU Compatibility", "Read color buffers", "Allows the CPU to read rendered color-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_color_buffers, 0, 1, 1),
  	SETTING("advanced.read_depth_buffer", "Advanced", "GPU Compatibility", "Read depth buffers", "Allows the CPU to read rendered depth-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_depth_buffer, 0, 1, 1),
  	SETTING("advanced.write_depth_buffer", "Advanced", "GPU Compatibility", "Write depth buffers", "Mirrors depth-buffer data into emulated memory.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.write_depth_buffer, 0, 1, 1),
-@@ -122,21 +148,91 @@ const std::array catalog{
+@@ -122,21 +148,93 @@ const std::array catalog{
  	SETTING("experimental.fps_optimization_batch", "Experimental", "FPS Experiments", "FPS optimization batch", "Enables the DMA copy and large-texture hash experiments together on the next boot. Automatic is disabled. Individual overrides take precedence. Gameplay benefit requires device profiling.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fps_optimization_batch, 0, 0, 0),
  	SETTING("experimental.dma_copy_specialization", "Experimental", "FPS Experiments", "Specialize small DMA copies", "Tests fixed-size copies for 64 to 128 bytes while retaining DMA synchronization. Automatic follows FPS optimization batch; Disabled restores the original copy loop. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.dma_copy_specialization, 0, 0, 0),
  	SETTING("experimental.texture_hash_hybrid", "Experimental", "FPS Experiments", "Hybrid large-texture hash", "Tests a different ARM64 implementation of the same hash for ranges of at least 4 KiB. Every byte is still checked. Automatic follows FPS optimization batch; Disabled restores the original hash. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_hash_hybrid, 0, 0, 0),
@@ -154668,7 +154865,7 @@ index b7b0474..15bf152 100644
 +	SETTING("experimental.busy_wait_reference", "Experimental", "FPS Experiments", "Busy wait reference duration", "The emulator's short active waits (before a thread yields its core or sleeps) are written in ticks of the system counter. On a device whose counter runs faster than the 24 MHz of the reference iPhones they lasted proportionally less (42 times less on a 1 GHz counter). Automatic keeps the reference duration on every device. Disabled restores the previous duration. No effect with SPU Spin Timing = Calibrated. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.busy_wait_reference, 0, 0, 0),
 +	SETTING("experimental.lever_comparison", "Experimental", "FPS Experiments", "Lever comparison between report windows", "Diagnostic, for a measurement asked for on purpose. Enabled: during the first minutes of a game the performance report turns Writer lock park spin and Busy wait reference duration (each only while its own setting is Automatic) off and on again between its 5 second windows, in three passes of 80 seconds, then leaves both on; every switch is written to the performance journal, and the frame rate can vary between windows during a pass. Automatic and Disabled never alternate: both levers stay as their own settings say. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.lever_comparison, 0, 0, 0),
 +	SETTING("experimental.event_waits_when_hot", "Experimental", "FPS Experiments", "Event waits when hot", "Once the iPhone reports a serious thermal state, three short waits of the emulator (a write lock waiting for the PPU threads to stop, a PPU thread waiting for that lock, the RSX waiting for new commands) sleep the CPU core until the awaited write instead of spinning on it. They wait for the same thing, for the same time at most. Automatic: from the serious thermal state. Enabled: always. Disabled: never, the previous waits. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.event_waits_when_hot, 0, 0, 0),
-+	GAME_SETTING("experimental.put_epoch_horizon", "Experimental", "FPS Experiments", "Texture epoch at the PUT horizon", "With Texture Validation Per FIFO Batch, every new batch of guest commands the RSX noticed made every texture check its contents again, even while the RSX was still executing commands published earlier. The recheck now starts when the RSX reaches the first command that was not yet published at the previous one; semaphores, RSX writes and the end of a frame recheck as before. Every texture is still checked before any command published after its last check uses it. Automatic enables it for God of War III; Disabled rechecks at every batch noticed, as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.put_epoch_horizon, 0, 0, 0),
++	GAME_SETTING("experimental.put_epoch_horizon", "Experimental", "FPS Experiments", "Texture epoch at the PUT horizon", "With Texture Validation Per FIFO Batch, every new batch of guest commands the RSX noticed made every texture check its contents again, even while the RSX was still executing commands published earlier. The recheck now starts when the RSX reaches the first command that was not yet published at the previous one; semaphores, RSX writes and the end of a frame recheck as before. Every texture is still checked before any command published after its last check uses it. Automatic enables it for God of War III and Call of Duty: Black Ops II; Disabled rechecks at every batch noticed, as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.put_epoch_horizon, 0, 0, 0),
 +	GAME_SETTING("experimental.heavy_putllc_trace", "Experimental", "FPS Experiments", "Heavy PUTLLC trace on resume", "Diagnostic. When the game leaves a pause (in-game menu closed), records for each SPU thread up to 512 consecutive PUTLLC that change data (address, changed part, values read, asked and found) and writes them to the performance journal; two captures per boot at most. Nothing in the reservation protocol changes. Automatic and Disabled leave it off. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.heavy_putllc_trace, 0, 0, 0),
 +	GAME_SETTING("experimental.ppu_region_profile", "Experimental", "FPS Experiments", "PPU region profile on resume", "Diagnostic. When the game leaves a pause (in-game menu closed), samples the PPU threads about once per millisecond for at most 5 seconds and writes the busiest code regions of the running ones to the performance journal; three captures per boot at most. The position sampled is the last return, indirect call, system call or reservation instruction, not the exact instruction. Automatic and Disabled leave it off. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.ppu_region_profile, 0, 0, 0),
 +	SETTING("experimental.texture_prehash", "Experimental", "FPS Experiments", "Texture pre-validation", "With Texture Validation Per FIFO Batch, a texture used again after new guest commands is hashed again to check that the game did not change it. A worker thread now hashes, as soon as new commands arrive, the textures the previous frame checked next, so the RSX thread finds the result ready. Every byte is still checked and a result is used only for the commands it was taken for. Needs Texture Validation Per FIFO Batch. Automatic enables it for God of War III; Disabled hashes on the RSX thread as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_prehash, 0, 0, 0),
@@ -154692,8 +154889,10 @@ index b7b0474..15bf152 100644
 +	GAME_SETTING("experimental.gow3_mlaa_bypass", "Experimental", "SPU", "God of War III MLAA bypass", "Applies the exact official PPU/SPU MLAA bypasses for supported God of War III versions, freeing CELL time and allowing resolution scaling. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.gow3_mlaa_bypass, 0, 0, 0),
 +	// REWINDBOX_FRAME_INTERVAL_943 (ios/IOSFrameInterval943.h).
 +	GAME_SETTING("experimental.frame_work_interval", "Experimental", "Scheduling", "Frame work interval", "Tells iOS which threads make each frame (the PPU threads and the RSX thread) and when it is due (one 60 Hz period after the previous frame). A late frame asks iOS for more performance for those threads; the SPU threads, shader compilers and MoltenVK's encoder are left out. Automatic: Call of Duty: Black Ops II and God of War III. Enabled: every game. Disabled: none, as before Core 943. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.frame_work_interval, 0, 0, 0),
++	// REWINDBOX_WAITING_SUSPEND_944 (ios/IOSWaitingSuspend944.h).
++	GAME_SETTING("experimental.waiting_suspend", "Experimental", "PPU", "PPU suspension of waiting threads", "When a PPU thread must give its slot up to a thread of higher priority while it is outside guest code (in a system call or a host wait), it is suspended at once instead of being asked to acknowledge first; it still stops before it runs any guest code again, so no more threads run at once than the PPU slots allow. Other threads no longer wait for that acknowledgment before they are woken. Automatic: Call of Duty: Black Ops II and God of War III. Enabled: every game. Disabled: none, as before Core 944. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.waiting_suspend, 0, 0, 0),
 +	// REWINDBOX_PPU_WAIT_FLOOR_943 (ios/IOSPpuWaitFloor943.h).
-+	GAME_SETTING("experimental.ppu_wait_floor", "Experimental", "PPU", "PPU short wait floor", "When a PPU thread polls with the same short timed wait again and again (the same system call, object and timeout under 200 us: sys_timer_usleep, or the timeout of a semaphore, condition variable, event queue or mutex) and the previous one ran to its end, the next one waits four times as long, at most 200 us, before it times out; a wait that is signalled still ends at once. An lv2 timeout is a minimum, so this is correct on the console too: the loop checks its flag a little later and makes up to four times fewer rounds of the PPU scheduler. Automatic: Call of Duty: Black Ops II. Enabled: every game. Disabled: none, as before Core 943. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.ppu_wait_floor, 0, 0, 0),
++	GAME_SETTING("experimental.ppu_wait_floor", "Experimental", "PPU", "PPU short wait floor", "When a PPU thread polls with the same short timed wait again and again (the same system call, object and timeout under 200 us: sys_timer_usleep, or the timeout of a semaphore, condition variable, event queue or mutex) and the previous one ran to its end, the next one waits four times as long, at most 200 us, before it times out; a wait that is signalled still ends at once. An lv2 timeout is a minimum, so this is correct on the console too: the loop checks its flag a little later and makes up to four times fewer rounds of the PPU scheduler. Automatic: Call of Duty: Black Ops II and God of War III. Enabled: every game. Disabled: none, as before Core 943. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.ppu_wait_floor, 0, 0, 0),
 +	// REWINDBOX_GOW3_POLL_SLEEP_943 (ios/IOSGow3PollSleep943.h).
 +	GAME_SETTING("experimental.gow3_poll_sleep", "Experimental", "PPU", "God of War III wait loop sleep", "God of War III 01.00 only. The PPU main thread waits for the SPU jobs of each frame by calling the same check in a loop; after 100 us of waiting it sleeps 30 us between checks instead of keeping a performance core busy, so the SPU threads get that core and its power. A short wait is unchanged; a long one ends at most one sleep later. Disabled: the game's own loop. Takes effect on the next boot (not when a savestate is resumed).", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.gow3_poll_sleep, 0, 0, 0),
 +	// REWINDBOX_SCOPED_CPU_BLIT_942 (Emu/RSX/NV47/HW/nv3089.cpp).
@@ -154744,7 +154943,7 @@ index b7b0474..15bf152 100644
  	SETTING("emulator.shader_compiler_threads", "Emulator", "Compilation", "Max Shader Compile Threads", "Limits concurrent shader compiler threads; zero is automatic.", kind::RPCS3_IOS_SETTING_INTEGER, g_cfg.video.shader_compiler_threads_count, 0, 16, 1),
  	// Temporarily hidden until SwiftUI guest-dialog fallbacks are complete.
  	// SETTING("emulator.native_interface", "Emulator", "Behavior", "Use native user interface", "Uses RPCS3's controller-driven in-game overlays instead of desktop dialogs.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.misc.use_native_interface, 0, 1, 1),
-@@ -205,6 +301,89 @@ const std::array catalog{
+@@ -205,6 +303,89 @@ const std::array catalog{
  #undef GAME_SETTING
  #undef GLOBAL_SETTING
  
@@ -154834,7 +155033,7 @@ index b7b0474..15bf152 100644
  constexpr std::size_t maximum_preset_name_size = 80;
  constexpr std::size_t maximum_preset_config_size = 1024 * 1024;
  constexpr std::size_t maximum_presets_per_title = 128;
-@@ -536,21 +715,15 @@ settings_load_error load_effective_settings(std::string_view title_id, bool& has
+@@ -536,21 +717,15 @@ settings_load_error load_effective_settings(std::string_view title_id, bool& has
  		return settings_load_error::none;
  	}
  
@@ -154865,7 +155064,7 @@ index b7b0474..15bf152 100644
  }
  
  bool save_game_settings(std::string_view title_id) noexcept
-@@ -573,6 +746,151 @@ bool remove_game_settings(std::string_view title_id) noexcept
+@@ -573,6 +748,151 @@ bool remove_game_settings(std::string_view title_id) noexcept
  	return fs::remove_file(path) || fs::g_tls_error == fs::error::noent;
  }
  
@@ -155017,7 +155216,7 @@ index b7b0474..15bf152 100644
  std::string_view settings_load_error_detail(settings_load_error error) noexcept
  {
  	switch (error)
-@@ -637,18 +955,12 @@ game_settings_preset_result apply_game_settings_preset(
+@@ -637,18 +957,12 @@ game_settings_preset_result apply_game_settings_preset(
  	{
  		return result;
  	}

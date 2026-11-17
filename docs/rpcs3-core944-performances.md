@@ -156,10 +156,18 @@ quatre fois moins de tours de planificateur et voit la fin du travail SPU au plu
 
 ## 3. Contrôles
 
-- Passe de syntaxe sur l'hôte des unités modifiées, comparée à celle du Core 943 : aucun nouveau message.
-- Relecture indépendante de la règle de suspension (voir le message du commit d'empaquetage).
-- Contrôles d'empaquetage : porte de la route Core (fermeture des sources), test de route, test d'épinglage (sources), règle
-  des marqueurs, patch canonique rematérialisé et incrément réversible, tests de sources.
+- Passe de syntaxe sur l'hôte de `lv2.cpp` et `vm.cpp`, comparée à celle du Core 943 : aucun nouveau message.
+- Trois relectures indépendantes de la règle de suspension.
+  - La première a trouvé le signal de reprise périmé (bloquant).
+  - La deuxième a trouvé le blocage de `g_pending` causé par une reprise sans signal (bloquant).
+  - La troisième ne trouve plus de bloquant. Elle a vérifié que le signal effacé ne peut pas être un vrai réveil et que
+    l'enregistrement ne peut pas devenir périmé.
+- Porte de la route Core (fermeture des sources), test de route, test d'épinglage (sources) et règle des marqueurs : tous
+  réussis.
+- Patch canonique 97e47ec5 (519 fichiers) rematérialisé sur une copie amont propre. L'incrément depuis le Core 943 (9 fichiers)
+  s'inverse sur l'arbre canonique.
+- Les 26 tests de sources qui tournent sur cet hôte réussissent. Le contrôle statique de `rpcs3_put_horizon910_test` vérifie
+  désormais la règle Automatique étendue à Black Ops II ; ses scénarios et ses contrôles négatifs sont inchangés et réussissent.
 
 Aucune entrée de génération de code ne change : PPU a987639e9f838d1c, SPU 477a3fa442d27917.
 

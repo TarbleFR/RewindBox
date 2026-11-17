@@ -27,7 +27,7 @@ word at the horizon consumed from the word before it (no margin of one word), th
 ignored; on the model: the horizon kept across a FIFO reset, no epoch for a patched jump. Each must serve an illegal version.
 Static: read_put passes the FIFO position, defers only with the Fast FIFO and keeps one epoch per PUT change when the
 horizon is off; the FIFO reset and the FIFO recovery forget the horizon; a patched jump to itself starts an epoch with
-the horizon on; policy Automatic = God of War III with the epochs on.
+the horizon on; policy Automatic = God of War III and (from Core 944) Black Ops II with the epochs on.
 
     python3 test/rpcs3_put_horizon910_test.py --source CORE [--cxx g++] [--no-sanitizers] [--report OUT.json]
 """
@@ -488,9 +488,11 @@ def static_checks(source: Path) -> None:
             'fifo_ctrl->set_get(restore_point);\n#ifdef RPCS3_IOS\n\t\tfifo_ctrl->reset_epoch_horizon();' in thread and
             thread.count('reset_epoch_horizon()') == 2, 'the FIFO reset and the FIFO recovery forget the horizon')
     policy = (source / POLICY_CPP).read_text()
+    # REWINDBOX_PUT_HORIZON_BO2_944: Automatic covers Black Ops II too (Core 944).
     require('resolved.put_epoch_horizon = resolved.texture_validation_epoch &&\n'
-            '\t\tresolve_mode(g_cfg.ios_experimental.put_epoch_horizon, is_god_of_war_iii_title(title_id));' in policy,
-            'Automatic = God of War III, with the epochs on')
+            '\t\tresolve_mode(g_cfg.ios_experimental.put_epoch_horizon,\n'
+            '\t\t\tis_god_of_war_iii_title(title_id) || rpcs3::ios::title_levers::is_black_ops_ii_title(title_id));' in policy,
+            'Automatic = God of War III and Black Ops II, with the epochs on')
     require('put_horizon_policy::enabled.store(resolved.put_epoch_horizon' in policy, 'policy published')
 
 
