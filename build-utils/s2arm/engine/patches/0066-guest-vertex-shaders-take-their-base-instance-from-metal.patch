@@ -1,0 +1,281 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index b62ae84..c887d01 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -6834,6 +6834,7 @@ static void shmap_load_once(void) {
+     // The argument buffer encoded last time
+     id<MTLBuffer> ab_buf; uint64_t ab_gpu; size_t ab_off; uint64_t ab_pass, ab_size_sub, ab_pgen; uint32_t ab_binst;   // ab_pgen: g_psnap_gen when it was encoded (pool table addresses, pool_gpu)   // ABI2 additionally keys reuse by the submission owning its argument/support arenas
+     uint8_t ab_ub;   // #968: that encode bound an s2a_flags.yzw copy (ub_support, an arena block of its submission): reused only within the same submission (ab_size_sub)
++    uint8_t rb_bi;   // RewindBox (patch 0066): a vertex shader's base instance: 0 not rewritten (the library container, S2A_RB_BASE_INSTANCE=0, or the rewrite refused by Metal), 1 compiled here with no read of c0 + 0x644 in its rasterizing entries, 2 compiled here with them replaced
+     id<MTLLibrary> bflib; int bflib_tried; NSMutableDictionary<NSString *, id<MTLFunction>> *bffn;   // bflib: readable-tile version <key>_bf (merge B step 2)
+     uint64_t mis[4];   // mis: texture slots 0-255 already reported for a type mismatch (tex_mis_note)
+     uint64_t d2d[4];   // texture slots 0-255 whose sampler type the offline translation did not know and took as 2D (library resolution_scale_reasons "unknown_missing_fact:sampler_type:...slot=N"; audit #1534 P1-20 probe)
+@@ -6863,6 +6864,90 @@ static uint64_t fsig_shkey(NvShader *s) {
+     if (i == 16) return v ? v : 1;
+     uint64_t a = 0, b = 0; memcpy(&a, s->key, 8); memcpy(&b, s->key + 8, 8); return a ^ b * 0x9e3779b97f4a7c15ull;
+ }
++// RewindBox (patch 0066): the base instance the GPU wrote into the arguments of each indirect draw (and each live sub-draw of a masked multi-draw) whose vertex shader
++//   reads c0, read once its submission has run. PS1 / PS2 / PS4 of the 765 test: these draws (164 indirect draws and 152 sub-draws a frame in the capture of frame 2976)
++//   read c0 + 0x644 = 0 while their arguments hold a prefix sum, and no record showed the values (frames.txt keeps the instance counts' sum and hash only). Now each
++//   vertex shader met with a non-zero base is named once (64 at most: PS6's map of the palm and vegetation draws); a submission's line
++//   is written the first 4 times, then at powers of two; every 300 frames a line gives the draws a frame, those with a non-zero base, those of a vertex shader not
++//   rewritten (NvShader rb_bi 0), how many frames have other base instances than a frame among the 6 before with the same draw list and GPU-written counts (PS2: bases that
++//   move while nothing else does) and the last 12 frames' fingerprints of (record, base). The records go to the submission's commit blocks, apart from the frame
++//   signatures' words. S2A_RB_BINST_LOG=0 turns it off. Cost: 40 bytes a such draw on the replaying thread, two reads of guest memory each once the submission has run
++typedef struct { uint64_t ind, cnt, vs; uint32_t i; uint8_t el, bi; } rbb_rec;   // ind: the record (its base instance at + 16 when el, an indexed draw, else + 12); cnt: its multi-draw's count (0 = none), i: its place there; vs: fsig_shkey; bi: its rb_bi
++typedef struct { uint64_t frame; int n, cap; rbb_rec *r; } rbb_piece;   // a submission's records of one frame, malloc'd; its commit block reads and frees them
++typedef struct { _Atomic uint64_t frame, hash; _Atomic uint32_t n, nz, nu; } rbb_frame;   // frame: its number + 1 (0 = empty); hash: of (record, base); n: draws, nz: with a non-zero base, nu: of those not rewritten
++enum { RBB_KEYS = 64, RBB_FR = 1024, RBB_CAP = 65536 };
++static rbb_frame g_rbb_fr[RBB_FR];
++static rbb_piece *g_rbb_cur; static uint64_t g_rbb_fence, g_rbb_win, g_rbb_lost;   // the replaying thread: the piece being filled, the fence it goes out with, the last window line, records not kept
++static struct { uint64_t vs; uint8_t on, bi; } g_rbb_last;   // the last such draw's vertex shader (rb_bi_note), with which mdx_next encodes the next draws of its multi-draw
++static os_unfair_lock g_rbb_lk = OS_UNFAIR_LOCK_INIT; static uint64_t g_rbb_keys[RBB_KEYS]; static int g_rbb_nkeys;   // the vertex shaders met with a non-zero base (commit blocks, under the lock)
++static _Atomic uint64_t g_rbb_draws, g_rbb_nz, g_rbb_unc, g_rbb_pieces;
++static int rbb_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_BINST_LOG"); v = !(e && !strcmp(e, "0")); } return v; }
++static void rb_bi_land(const rbb_piece *p) {   // a commit block (a Metal completion thread): the submission has run
++    uint64_t f = p->frame; uint32_t nd = 0, nz = 0, nu = 0; uint64_t h = 0; char det[400]; size_t o = 0; int shown = 0; det[0] = 0;
++    for (int k = 0; k < p->n; k++) { const rbb_rec *r = &p->r[k];
++        if (r->cnt) { uint32_t c = 0; if (!nvn_host_readable(r->cnt, 4)) continue; memcpy(&c, (const void *)(uintptr_t)r->cnt, 4); if (r->i >= c) continue; }   // past its multi-draw's count: not drawn
++        uint64_t a = r->ind + (r->el ? 16 : 12); uint32_t v = 0; if (!nvn_host_readable(a, 4)) continue; memcpy(&v, (const void *)(uintptr_t)a, 4);
++        nd++; h += fsig_wmix((uint32_t)(r->ind ^ r->ind >> 32), v);
++        if (!v) continue;
++        nz++; if (!r->bi) nu++;
++        int fresh = 0; os_unfair_lock_lock(&g_rbb_lk);
++        { int j = 0; while (j < g_rbb_nkeys && g_rbb_keys[j] != r->vs) j++; if (j == g_rbb_nkeys && j < RBB_KEYS) { g_rbb_keys[g_rbb_nkeys++] = r->vs; fresh = g_rbb_nkeys; } }
++        os_unfair_lock_unlock(&g_rbb_lk);
++        if (fresh) MLOG("RewindBox: base instance (patch 0066): vertex shader %016llx draws indirectly with base instance %u in its arguments (record %#llx%s, frame %llu): %s; %d such vertex shaders so far",
++                        (unsigned long long)r->vs, v, (unsigned long long)r->ind, r->cnt ? ", of a multi-draw" : "", (unsigned long long)f,
++                        r->bi == 2 ? "its translation takes it from Metal" : r->bi == 1 ? "its translation does not read c0 + 0x644" : "it was not rewritten (the library container, S2A_RB_BASE_INSTANCE=0, or refused by Metal): if it reads c0 + 0x644 it gets 0", fresh);
++        if (shown < 6 && o < sizeof det) { int w = snprintf(det + o, sizeof det - o, " %016llx:%u%s", (unsigned long long)r->vs, v, r->bi == 2 ? "" : r->bi == 1 ? "(no read)" : "(not rewritten)"); if (w > 0) o += (size_t)w; shown++; }
++    }
++    rbb_frame *fr = &g_rbb_fr[f % RBB_FR];
++    if (atomic_load(&fr->frame) == f + 1) { atomic_fetch_add(&fr->hash, h); atomic_fetch_add(&fr->n, nd); atomic_fetch_add(&fr->nz, nz); atomic_fetch_add(&fr->nu, nu); }
++    uint64_t td = atomic_fetch_add(&g_rbb_draws, nd) + nd, tz = atomic_fetch_add(&g_rbb_nz, nz) + nz, tu = atomic_fetch_add(&g_rbb_unc, nu) + nu;
++    if (!nz) return;
++    uint64_t k = atomic_fetch_add(&g_rbb_pieces, 1) + 1;
++    if (k <= 4 || !(k & (k - 1))) MLOG("RewindBox: base instance (patch 0066): a submission of frame %llu drew %u indirect draws whose vertex shader reads c0, %u of them with a non-zero base instance in their arguments "
++                                       "(%u of a vertex shader not rewritten), the first (vertex shader:base):%s; %llu such submissions, %llu of %llu such draws with a non-zero base so far (%llu of a vertex shader not rewritten)",
++                                       (unsigned long long)f, nd, nz, nu, det, (unsigned long long)k, (unsigned long long)tz, (unsigned long long)td, (unsigned long long)tu);
++}
++static void rb_bi_window(uint64_t f) {   // the replaying thread: the 300 frames before the last three (whose submissions may still be on the GPU)
++    enum { W = 300, SHOW = 12 }; if (f < W + 3) return;
++    uint64_t dn = 0, dz = 0, du = 0; uint32_t nf = 0, same = 0, moved = 0; char det[400]; size_t o = 0; det[0] = 0;
++    for (uint64_t g = f - 3 - W; g < f - 3; g++) { rbb_frame *c = &g_rbb_fr[g % RBB_FR]; if (atomic_load(&c->frame) != g + 1) continue;
++        uint32_t n = atomic_load(&c->n); nf++; dn += n; dz += atomic_load(&c->nz); du += atomic_load(&c->nu);
++        if (g >= f - 3 - SHOW && o < sizeof det) { int w = snprintf(det + o, sizeof det - o, " %llu:%u/%u/%08llx", (unsigned long long)g, n, atomic_load(&c->nz), (unsigned long long)(atomic_load(&c->hash) & 0xffffffffull)); if (w > 0) o += (size_t)w; }
++        fsig_t *s = fsig_at(g); if (!s || !n) continue;
++        for (uint64_t d = 1; d <= 6 && d <= g; d++) { rbb_frame *q = &g_rbb_fr[(g - d) % RBB_FR]; fsig_t *t = fsig_at(g - d);   // the last of the 6 frames before with its draw list and GPU-written counts (the probe turns its faces every 3 or 6 frames)
++            if (atomic_load(&q->frame) != g - d + 1 || atomic_load(&q->n) != n || !t || t->hash != s->hash || atomic_load(&t->ghash) != atomic_load(&s->ghash)) continue;
++            same++; moved += atomic_load(&q->hash) != atomic_load(&c->hash); break; }
++    }
++    if (nf) MLOG("RewindBox: base instance (patch 0066) up to frame %llu: %.1f indirect draws a frame whose vertex shader reads c0 over %u frames, %.1f of them with a non-zero base instance in their arguments (%.1f of a vertex shader not rewritten); "
++                 "of %u frames with the draw list and GPU-written counts of one of the 6 frames before, %u have other base instances in the same records; %llu records not kept (so far); frame:draws/non-zero/fingerprint%s",
++                 (unsigned long long)f, (double)dn / nf, nf, (double)dz / nf, (double)du / nf, same, moved, (unsigned long long)g_rbb_lost, det);
++}
++static void rb_bi_put(uint64_t ind, int el, uint64_t cnt, int i) {   // the replaying thread
++    uint64_t f = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
++    if (!g_rbb_cur || g_rbb_fence != g_fence || g_rbb_cur->frame != f || g_rbb_cur->n >= RBB_CAP) {   // another submission (g_fence moves at each commit) or frame: a new piece
++        g_rbb_cur = NULL;
++        rbb_piece *p = g_commit_blocks ? malloc(sizeof *p) : NULL; if (!p) { g_rbb_lost++; return; }
++        *p = (rbb_piece){f, 0, 0, NULL};
++        rbb_frame *fr = &g_rbb_fr[f % RBB_FR];
++        if (atomic_load(&fr->frame) != f + 1) { atomic_store(&fr->frame, 0); atomic_store(&fr->hash, 0); atomic_store(&fr->n, 0); atomic_store(&fr->nz, 0); atomic_store(&fr->nu, 0); atomic_store(&fr->frame, f + 1); }
++        [g_commit_blocks addObject:^{ rb_bi_land(p); free(p->r); free(p); }];
++        g_rbb_cur = p; g_rbb_fence = g_fence;
++        if (f >= g_rbb_win + 300) { if (g_rbb_win) rb_bi_window(f); g_rbb_win = f; }
++    }
++    rbb_piece *p = g_rbb_cur;
++    if (p->n == p->cap) { int c = p->cap ? p->cap * 2 : 64; rbb_rec *r = realloc(p->r, (size_t)c * sizeof *r); if (!r) { g_rbb_lost++; return; } p->r = r; p->cap = c; }
++    p->r[p->n++] = (rbb_rec){ind, cnt, g_rbb_last.vs, (uint32_t)i, (uint8_t)el, g_rbb_last.bi};
++}
++static void rb_bi_note(NvShader *vs, const p_draw *dw, const p_draw_idx *di) {   // draw, before draw_emit (the replaying thread)
++    g_rbb_last.on = 0;
++    uint64_t ind = dw ? dw->ind : di ? di->ind : 0;
++    if (!ind || !vs || !vs->rf.drv_read[0] || !rbb_on() || !on_sub_thread()) return;
++    g_rbb_last.vs = fsig_shkey(vs); g_rbb_last.bi = vs->rb_bi; g_rbb_last.on = 1;
++    rb_bi_put(ind, !dw, dw ? dw->mdi_cnt : di->mdi_cnt, dw ? dw->mdi_i : di->mdi_i);
++}
++static void rb_bi_again(const p_draw *dw, const p_draw_idx *di) {   // mdx_next: the next draw of the multi-draw rb_bi_note saw last
++    if (g_rbb_last.on && (dw || di)) rb_bi_put(dw ? dw->ind : di->ind, !dw, dw ? dw->mdi_cnt : di->mdi_cnt, dw ? dw->mdi_i : di->mdi_i);
++}
+ // Warm-up entry: built in the background, waiting to be taken by the submit thread. vs / fs retain the actual shared shader objects (pso holds only raw pointers).
+ @interface WarmItem : NSObject { @public int kind, fc; NSString *key, *vs_key, *fs_key; NvShader *shader, *vs, *fs; pso_key pso; id<MTLFunction> fsfn; id object; NSData *mkey; } @end   // fc: a compute pipeline of the sampler-emulation variant (#800); mkey: a task / mesh pipeline's key (kind 4, nvn_geometry.inc mtk_warm)
+ @implementation WarmItem @end
+@@ -7185,6 +7270,119 @@ static const char *fb_xfp(void) {
+     return x;
+ }
+ static int fb_json_current(NSDictionary *j) { const char *x = fb_xfp(); return x && [j[@"chain"] isEqual:@DMSH_CHAIN] && [j[@"xfp"] isEqual:@(x)]; }
++// RewindBox (patch 0066): a vertex shader's base instance from Metal, not from the driver segment.
++//   GLSLC adds c0 + 0x644 (NVN's base instance word) to the instance ID where a vertex shader needs the absolute instance, and the translation keeps that read:
++//   (gl_InstanceIndex - gl_BaseInstance) + c0[0x644]. The host fills c0 + 0x644 from the draw's record (encode_args, g_draw_binst): right for a direct draw, 0 for an
++//   indirect one, whose base instance is in its arguments, which the GPU writes. On the console the driver's indirect-draw macro writes the arguments' base instance into
++//   c0 + 0x644 (Ryujinx's DrawManager sets HasConstantBufferDrawParameters for indirect and macro draws, and its translator then reads the built-in instead).
++//   Mario Kart World draws its vegetation and terrain indirectly from a GPU culling pass: a compute pass (0f682a39) writes each LOD bucket's arguments with a base instance
++//   from a prefix sum over atomics, another (41c33633) stores the instances at slot + base, and 45 vertex shaders (palm trunks 74b85bcc / 8b3b3ddc, fronds 68c42ab0, ferns
++//   129cd085, grass 6782f0f9, terrain 1e5d5ed8 / 8e02b0a6 with 76 sub-draws a multi-draw, the probe's vegetation) index them with this word (capture of frame 2976, IPA 765:
++//   164 indirect draws and 152 sub-draws a frame). Each such draw read instances [0, count) instead of its own, and which instances those were changed with the order of the
++//   atomics from one frame to the next while no draw list, count or LOD changed: the near palms gone for single frames (42 of the 168 recorded frames that show them).
++//   Metal's [[base_instance]] is the base instance of the draw as Metal draws it: the record's for a direct draw (the value the host writes into c0 + 0x644), the
++//   arguments' for an indirect one (NVN's indexed indirect record is MTLDrawIndexedPrimitivesIndirectArguments word for word; ixc's conversions copy it), each sub-draw's
++//   for a multi-draw. So in the entry points that rasterize (main0 / main0_z, and the layer entries main0_l / main0_lz, which prog_fold_gs makes the vertex function of the
++//   game's own draws, indirect ones included) each read of c0 + 0x644 becomes the built-in, declared when the entry point lacks it. Not in the geometry-capture main0_gs:
++//   geo_draw and tess_draw read its draw's arguments on the CPU and give first_instance both to c0 + 0x644 and to Metal. Applied when a translated vertex shader's source is
++//   compiled (shader_build, vp_build); a source Metal refuses so rewritten is built as translated, with a red line (rb_binst_refused). The pipeline archive keeps its keys
++//   (par_rkey hashes the shader keys and the state): each archived pipeline of these shaders misses once and is removed and written again (par_drop), so the first run after
++//   this patch, and the first after each change of S2A_RB_BASE_INSTANCE, compiles those pipelines again: measure pacing from the run after. S2A_RB_BASE_INSTANCE=0 keeps the
++//   driver segment's word. The draws whose arguments hold a non-zero base instance are counted and their vertex shaders named (rb_bi_land), and a frame capture's
++//   sh-<key>.metal is the source as compiled (rb_binst_copy)
++// RewindBox (patch 0066): replaces, in the entry points main0, main0_z, main0_l and main0_lz of a translated vertex shader, each read of c0 + 0x644 by Metal's base instance.
++//   Returns a malloc'd copy (NULL when nothing changed); *reads: reads replaced, *entries: entry points changed, *left: reads kept (main0_gs, or a read followed by a
++//   swizzle or name this does not know)
++static int rb_binst_idch(char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_'; }
++static char *rb_binst_fix(const char *src, size_t len, unsigned *reads, unsigned *entries, unsigned *left) {
++    static const char kRead[] = "(*spvDescriptorSet0.vp_c0)._m0[100].y";   // c0 is float4 _m0[]: byte 0x644 = _m0[100].y
++    static const char kParam[] = ", uint rb_binst [[base_instance]]";
++    const size_t kl = sizeof kRead - 1;
++    *reads = *entries = *left = 0;
++    if (!src || !memmem(src, len, kRead, kl)) return NULL;
++    size_t cap = len + 4096, n = 0; char *out = malloc(cap); if (!out) return NULL;
++    #define RB_PUT(p, l) do { size_t l_ = (l); if (n + l_ + 1 > cap) { while (n + l_ + 1 > cap) cap *= 2; char *t_ = realloc(out, cap); if (!t_) { free(out); return NULL; } out = t_; } memcpy(out + n, (p), l_); n += l_; } while (0)
++    size_t i = 0;
++    while (i < len) {
++        // the next entry point header of interest
++        const char *h0 = NULL; size_t hl = 0; const char *best = NULL;
++        static const char *const heads[] = { "\nvertex main0_out main0(", "\nvertex main0_out main0_z(", "\nvertex main0l_out main0_l(", "\nvertex main0l_out main0_lz(" };
++        for (int k = 0; k < (int)(sizeof heads / sizeof *heads); k++) { const char *f = memmem(src + i, len - i, heads[k], strlen(heads[k])); if (f && (!best || f < best)) { best = f; hl = strlen(heads[k]); } }
++        if (!best) break;
++        h0 = best;
++        size_t po = (size_t)(h0 - src) + hl, p = po; int depth = 1;
++        while (p < len && depth) { if (src[p] == '(') depth++; else if (src[p] == ')') depth--; p++; }
++        if (depth) break;
++        size_t pe = p - 1;   // ')' closing the parameters
++        const char *bo = memchr(src + pe, '{', len - pe); if (!bo) break;
++        size_t b = (size_t)(bo - src), q = b + 1; depth = 1;
++        while (q < len && depth) { if (src[q] == '{') depth++; else if (src[q] == '}') depth--; q++; }
++        if (depth) break;
++        size_t be = q;   // one past the body's '}'
++        // reads in the body? (one followed by a swizzle or a name, ._m0[100].yz, is not this word alone: kept)
++        unsigned nr = 0; for (size_t s = b; s + kl <= be; ) { const char *f = memmem(src + s, be - s, kRead, kl); if (!f) break; s = (size_t)(f - src) + kl; nr += s >= be || !rb_binst_idch(src[s]); }
++        if (!nr) { RB_PUT(src + i, be - i); i = be; continue; }
++        // the base instance parameter's name, if the entry point has one
++        char name[64] = "rb_binst"; int have = 0;
++        const char *bi = memmem(src + po, pe - po, "[[base_instance]]", 17);
++        if (bi) { const char *e = bi; while (e > src + po && (e[-1] == ' ' || e[-1] == '\t')) e--; const char *s = e; while (s > src + po && ((s[-1] >= 'a' && s[-1] <= 'z') || (s[-1] >= 'A' && s[-1] <= 'Z') || (s[-1] >= '0' && s[-1] <= '9') || s[-1] == '_')) s--;
++                  if (e > s && (size_t)(e - s) < sizeof name) { memcpy(name, s, (size_t)(e - s)); name[e - s] = 0; have = 1; } }
++        char with[96]; int wl = snprintf(with, sizeof with, "as_type<float>(uint(%s))", name);
++        RB_PUT(src + i, pe - i);   // up to the ')' of the parameters
++        if (!have) { size_t z = po; while (z < pe && (src[z] == ' ' || src[z] == '\t' || src[z] == '\n')) z++; size_t c = z < pe ? 0 : 2; RB_PUT(kParam + c, sizeof kParam - 1 - c); }   // no comma before it in an empty list
++        for (size_t s = pe; s < be; ) { const char *f = memmem(src + s, be - s, kRead, kl); if (!f) { RB_PUT(src + s, be - s); break; } size_t t = (size_t)(f - src) + kl; RB_PUT(src + s, (size_t)(f - src) - s);
++            if (t < be && rb_binst_idch(src[t])) RB_PUT(kRead, kl); else RB_PUT(with, (size_t)wl); s = t; }
++        *reads += nr; (*entries)++; i = be;
++    }
++    if (i < len) RB_PUT(src + i, len - i);
++    out[n] = 0;
++    #undef RB_PUT
++    for (size_t s = 0; s + kl <= n; ) { const char *f = memmem(out + s, n - s, kRead, kl); if (!f) break; (*left)++; s = (size_t)(f - out) + kl; }
++    if (!*entries) { free(out); return NULL; }
++    return out;
++}
++static int rb_binst_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_BASE_INSTANCE"); v = !(e && !strcmp(e, "0")); } return v; }
++static _Atomic uint32_t g_rb_binst_shaders, g_rb_binst_reads, g_rb_binst_refused, g_rb_binst_built;
++static __thread unsigned t_rb_binst_reads; static __thread int t_rb_binst_seen;   // what the last call on this thread did: reads replaced, a source examined (its caller reads and clears them)
++static NSString *rb_msl_base_instance(NSString *src, const char *key) {
++    t_rb_binst_reads = 0; t_rb_binst_seen = 0;
++    if (!rb_binst_on() || !src) return src;
++    const char *u = src.UTF8String; if (!u) return src;
++    t_rb_binst_seen = 1;
++    unsigned reads, entries, left; char *o = rb_binst_fix(u, strlen(u), &reads, &entries, &left);
++    if (!o) return src;
++    NSString *r = [[NSString alloc] initWithBytesNoCopy:o length:strlen(o) encoding:NSUTF8StringEncoding freeWhenDone:YES];
++    if (!r) { free(o); t_rb_binst_seen = 0; return src; }
++    t_rb_binst_reads = reads;
++    uint32_t k = atomic_fetch_add(&g_rb_binst_shaders, 1) + 1; atomic_fetch_add(&g_rb_binst_reads, reads);
++    if (k <= 8 || !(k & (k - 1))) MLOG("RewindBox: vertex shader %s takes its base instance from Metal (patch 0066): %u reads of c0 + 0x644 in %u entry points replaced, %u kept in the others; %u shaders so far",
++                                       key ? key : "?", reads, entries, left, k);
++    return r;
++}
++// RewindBox (patch 0066): Metal refused a rewritten source (it was never compiled before shipping: there is no Metal compiler where it is made); the caller builds the
++//   translation as written, whose indirect draws read base instance 0 from c0 + 0x644 as before, rather than lose the shader and its draws
++static void rb_binst_refused(const char *key, NSError *e) {
++    uint32_t k = atomic_fetch_add(&g_rb_binst_refused, 1) + 1;
++    const char *why = e.localizedDescription.UTF8String;
++    if (k <= 8 || !(k & (k - 1))) MLOG("【红】 RewindBox (patch 0066): Metal refused vertex shader %s with its base instance from Metal (%.300s): built as translated, its indirect draws keep base instance 0; %u such shaders so far",
++                                       key ? key : "?", why ? why : "no error", k);
++}
++// RewindBox (patch 0066): a vertex shader that reads c0 from the package's library container: no source here to rewrite. Its reflection says it reads c0, not which word
++//   (drv_reads lists only fragment-shader reads, Dsh.cs DrvReads), so rb_bi_land names its draws when their arguments hold a base instance
++static void rb_binst_built_note(const char *key) {
++    uint32_t k = atomic_fetch_add(&g_rb_binst_built, 1) + 1;
++    if (k == 1 || !(k & (k - 1))) MLOG("RewindBox (patch 0066): vertex shader %s reads the driver segment c0 and comes from the library container, not from a translation compiled here: if it reads its base instance "
++                                       "there (c0 + 0x644), its indirect draws keep base instance 0 (patch 0066 rewrites only the translations compiled on the device); %u such shaders so far", key ? key : "?", k);
++}
++// RewindBox (patch 0066): a frame capture's copy of a translation (sh-<key>.metal), as patch 0066 compiles it, with a last line saying so; 0 not copied, 1 copied as it is,
++//   2 copied rewritten. Only vertex entry points match, so a fragment or compute translation is copied as it is. Any thread
++static int rb_binst_copy(NSString *src, NSString *dst) {
++    NSData *d = rb_binst_on() ? [NSData dataWithContentsOfFile:src] : nil; unsigned r = 0, en = 0, l = 0; char *o = d ? rb_binst_fix(d.bytes, d.length, &r, &en, &l) : NULL;
++    if (!o) return [NSFileManager.defaultManager copyItemAtPath:src toPath:dst error:nil] ? 1 : 0;
++    FILE *w = fopen(dst.UTF8String, "w"); int ok = 0;
++    if (w) { fputs(o, w); fprintf(w, "\n// RewindBox (patch 0066): as compiled on the device: %u reads of c0 + 0x644 in %u entry points replaced by Metal's base instance, %u kept (a source Metal refused so is built as translated: see the journal)\n", r, en, l); ok = !fclose(w); }
++    free(o); return ok ? 2 : 0;
++}
+ static NvShader *shader_build(NSString *pc, int stage, int layer, int depth_zero) {
+     NSError *e = nil;
+     // S2Arm: a key missing from the library is looked up in DM_MSL_FALLBACK (the on-device fallback translation writes <key>_b.metal + .json there; iOS cannot store a metallib built at runtime)
+@@ -7217,9 +7415,13 @@ static NvShader *shader_build(NSString *pc, int stage, int layer, int depth_zero
+     if (lib && ul) { os_unfair_lock_lock(&ulock); if (!ulibs) ulibs = [NSMutableDictionary dictionary]; if (!ulibs[ul]) ulibs[ul] = lib; else lib = ulibs[ul]; os_unfair_lock_unlock(&ulock); }
+     if (!lib && dir != g_msl_dir) {   // S2Arm fallback: MSL source compiled here, same options as the offline chain (dm_msl_opts)
+         NSString *src = [NSString stringWithContentsOfFile:[NSString stringWithFormat:@"%@/%@.metal", dir, pc] encoding:NSUTF8StringEncoding error:&e];
++        if (src && stage == 0) src = rb_msl_base_instance(src, pc.UTF8String);   // RewindBox (patch 0066)
+         if (src) { MTLCompileOptions *co = dm_msl_opts(); t_lib_layer = [src containsString:@"render_target_array_index"]; lib = [g_dev newLibraryWithSource:src options:co error:&e]; }
+         if (lib) MLOG("shader %s loaded from the fallback translation (%s)", pc.UTF8String, fb);
+     }
++    unsigned rb_bi_n = t_rb_binst_reads; int rb_bi_seen = t_rb_binst_seen; t_rb_binst_reads = 0; t_rb_binst_seen = 0;   // RewindBox (patch 0066): what rb_msl_base_instance did to the source compiled above
++    if (!lib && rb_bi_n) { rb_binst_refused(pc.UTF8String, e); e = nil; rb_bi_n = 0; rb_bi_seen = 0; NSString *s0 = [NSString stringWithContentsOfFile:[NSString stringWithFormat:@"%@/%@.metal", dir, pc] encoding:NSUTF8StringEncoding error:&e];
++        if (s0) { t_lib_layer = [s0 containsString:@"render_target_array_index"]; lib = [g_dev newLibraryWithSource:s0 options:dm_msl_opts() error:&e]; } }   // RewindBox (patch 0066): Metal refused the rewritten source: the translation as written, as before
+     if (!lib || !j) { MLOG("【红】 failed to load shader %s: %s", pc.UTF8String, e ? e.localizedDescription.UTF8String : "no reflection json"); return nil; }
+     if (![j[@"chain"] isEqual:@DMSH_CHAIN]) { MLOG("【红】 shader %s has translation chain version %s, but this host expects %s", pc.UTF8String, [[j[@"chain"] description] UTF8String], DMSH_CHAIN); return nil; }
+     if (layer && !j[@"entry_layer"]) { MLOG("【红】 vertex shader %s has no layer entry points", pc.UTF8String); return nil; }
+@@ -7228,6 +7430,7 @@ static NvShader *shader_build(NSString *pc, int stage, int layer, int depth_zero
+     if (stage == 0 && [j[@"layer_from"] isKindOfClass:[NSDictionary class]]) { o->lay_loc = [j[@"layer_from"][@"loc"] intValue]; o->lay_comp = [[j[@"layer_from"][@"comp"] description] UTF8String][0]; }
+     char err[160];
+     if (nvn_refl_from_json(j, &o->rf, err, sizeof err)) { MLOG("【红】 shader %s reflection conversion failed: %s", pc.UTF8String, err); return nil; }
++    if (stage == 0) { o->rb_bi = (uint8_t)(rb_bi_n ? 2 : rb_bi_seen ? 1 : 0); if (dir == g_msl_dir && o->rf.drv_read[0]) rb_binst_built_note(pc.UTF8String); }   // RewindBox (patch 0066)
+     if (o->rf.dyn && !DM_GAME_TEX_DYN_SLOTS) {   // dynamic texture handles (TEXD / SAMPD) only where the profile says the game picks them from c2's tables, as before otherwise
+         // (rf.c1 is freed by dealloc when o goes: freeing it here too was a double free, which aborted FINAL FANTASY RESONANCE at its first such shader)
+         MLOG("【红】 shader %s reflection conversion failed: a texture handle the translator could not trace to one slot (profile key tex_dyn_slots off)", pc.UTF8String); return nil; }
+@@ -9355,7 +9558,10 @@ static id<MTLFunction> vp_build(NvShader *vs, const uint8_t md[8], uint64_t code
+     if (rc) { snprintf(why, n, "%s", rc == 3 ? "its translation already writes those outputs (or has no main0_out to add them to)" : "the device could not make it"); return nil; }
+     NSString *src = [NSString stringWithContentsOfFile:@(path) encoding:NSUTF8StringEncoding error:nil];
+     if (!src || ![src hasPrefix:@"// s2a:vs-pad 1 "]) { snprintf(why, n, "%s %s", path, src ? "is of another format" : "is unreadable"); return nil; }
++    src = rb_msl_base_instance(src, vs->key);   // RewindBox (patch 0066): the padded variant reads its base instance as its shader does
+     NSError *e = nil; id<MTLLibrary> lib = [g_dev newLibraryWithSource:src options:dm_msl_opts() error:&e];
++    if (!lib && t_rb_binst_reads) { rb_binst_refused(vs->key, e); e = nil; NSString *s0 = [NSString stringWithContentsOfFile:@(path) encoding:NSUTF8StringEncoding error:nil]; if (s0) lib = [g_dev newLibraryWithSource:s0 options:dm_msl_opts() error:&e]; }
++    t_rb_binst_reads = 0; t_rb_binst_seen = 0;   // RewindBox (patch 0066): Metal refused the rewritten variant: as translated, as in shader_build
+     if (!lib) { snprintf(why, n, "failed to build: %s", e.localizedDescription.UTF8String); return nil; }
+     id<MTLFunction> f = lib_entry(lib, vs->ventry);   // the logical entry the library's function is (main0 / main0_z / the layer ones); a source library has no name prefix
+     NSUInteger al = f && vs->rf.nb ? [f newArgumentEncoderWithBufferIndex:vs->rf.abi].encodedLength : vs->arg_len;
+@@ -14264,6 +14470,7 @@ static int mdx_next(const p_draw *dw, const p_draw_idx *di) {
+     if (dw) enc_r_draw_indirect(g_enc, g_mdxc.mp, out); else enc_r_draw_indexed_indirect(g_enc, g_mdxc.mp, g_mdxc.it, g_mdxc.ig, g_mdxc.il, out);
+     g_stat_draw++; g_mdx_fast++; g_mdxc.next = g_mdx_range ? g_exec_cur : g_exec_next; g_mdxc.i = i;
+     fsig_draw_again();   // RewindBox (patch 0059)
++    rb_bi_again(dw, di);   // RewindBox (patch 0066)
+     return 1;
+ }
+ // A large indirect-count multi-draw (OP_MULTI_DRAW; upstream reference implementation, MIT, c7ba23df): one record whatever the maximum. Through the GPU mask (mdx_run) in batches with a
+@@ -15167,6 +15374,7 @@ static void draw(const p_draw *dw, const p_draw_idx *di) {
+         return;
+     }
+     if (dw && dw->tfc) { if (g_tfd_args) enc_r_draw_indirect(en, mp, g_tfd_args); return; }   // DrawTransformFeedback: the arguments tfd_args made (nvn_geometry.inc)
++    rb_bi_note(pr->sh[0], dw, di);   // RewindBox (patch 0066): an indirect draw's base instance, read once its submission has run
+     // A draw with 0 primitives (the game does send count=0) draws no pixels, so skip encoding; Metal requires the count to be non-zero, otherwise the validation layer aborts on the spot (measured on the camp / wilderness / combat pages)
+     draw_emit(en, mp, prim, dw, di, mdx);
+ }
+@@ -17290,7 +17498,7 @@ static void td_dump(void) {
+         const char *fb = getenv("DM_MSL_FALLBACK"); unsigned copied = 0;
+         if (fb && *fb) for (NSString *k in g_cap_keys) {
+             NSString *src = [NSString stringWithFormat:@"%s/%@.metal", fb, k], *dst = [NSString stringWithFormat:@"%s/sh-%@.metal", g_cap_dir, k];
+-            if ([NSFileManager.defaultManager copyItemAtPath:src toPath:dst error:nil]) copied++;
++            if (rb_binst_copy(src, dst)) copied++;   // RewindBox (patch 0066): a vertex shader as compiled, its reads of c0 + 0x644 replaced
+         }
+         MLOG("RewindBox: frame capture: the source of %u of the frame's %lu shaders copied (sh-<key>.metal); the others have no file in the device's translation directory", copied, (unsigned long)g_cap_keys.count);
+     }

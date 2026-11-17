@@ -1,0 +1,980 @@
+diff --git a/runtime/src/os.c b/runtime/src/os.c
+index 3cfae08..817433e 100644
+--- a/runtime/src/os.c
++++ b/runtime/src/os.c
+@@ -175,6 +175,17 @@ int s2a_rb_guest_log_open(const char *dir) {
+ }
+ // logcap.c: 1 = fd is not the engine's own log file (the host's stderr), which the 64 MB roll must never rewrite
+ int s2a_rb_guest_log_foreign(int fd) { return g_rb_hosted && !(g_rb_log_open && fd == g_s2a_logfd); }
++// RewindBox (patch 0076): the services' own lines (C# Red.Log: unimplemented services in red, notes such as why the RomFS index was not read; the
++//   .NET GC heartbeat) went to Console.Error, the process's stderr, which in a guest is the host's: IPA 765 (Mario Kart World) has no C# line among the
++//   8,200 of its journal, so the 43.2 s walk of its 205,660 RomFS files at the first start after the install came with no reason. C# looks this up by
++//   name (Native.UseLinked) and gives those lines to the engine's log: 1 = the line went to host.log (line NULL: one would), 0 = not a guest, or its log
++//   is not open (C# keeps stderr). Any thread: one write per line (LOG)
++int s2a_rb_guest_log_line(const char *line);
++int s2a_rb_guest_log_line(const char *line) {
++    if (!g_rb_hosted || !g_rb_log_open) return 0;
++    if (line) LOG("[cs] %s", line);
++    return 1;
++}
+ #endif
+ // 早于 vawin.c（101）。未激活的预热进程不计入正式会话归档（每局一份、留 10 份），不能挤掉崩溃现场或触发 unknown 诊断提示。
+ __attribute__((constructor(100))) static void logfd_init(void) {
+diff --git a/services/S2A.Services/Application.cs b/services/S2A.Services/Application.cs
+index bee6532..21fee7e 100644
+--- a/services/S2A.Services/Application.cs
++++ b/services/S2A.Services/Application.cs
+@@ -123,16 +123,26 @@ namespace S2A.Services
+                 // RewindBox (patch 0014): S2Arm's pack-time index is read as before. An index written at an earlier start
+                 //   (RomFsIndex.RbWriteAndOpen) is read while the tree is the one it was written for and the index reads; otherwise it is
+                 //   dropped and written again (RomFsIndex.RbOpen). The three outcomes have their own start mark.
+-                IStorage image = RomFsIndex.RbOpen(romfs, index, overlay, out int rbDirectories);
++                IStorage image = RomFsIndex.RbOpen(romfs, index, overlay, out int rbDirectories, out string rbHow);
++                // RewindBox (patch 0076): an index written here is kept with the game's caches (RomFsIndex.RbKept), where a new preparation of the
++                //   game after an install leaves it (IPA 765: a 43.2 s walk at the first start of each install); next to the game data there is then
++                //   only S2Arm's pack-time index, or one an earlier patch wrote (read as before). The walk writes the kept one; its refusal stays here
++                string rbKept = image == null ? RomFsIndex.RbKept(ProgramId) : null;
++
++                if (rbKept != null)
++                {
++                    image = RomFsIndex.RbOpen(romfs, rbKept, overlay, out rbDirectories, out rbHow, kept: true);
++                }
+ 
+                 if (image != null)
+                 {
+-                    Native.Mark(System.Text.Encoding.UTF8.GetBytes($"RewindBox: RomFS index read ({rbDirectories} directories checked)\0"));
++                    Native.Mark(System.Text.Encoding.UTF8.GetBytes($"RewindBox: RomFS index read ({rbDirectories} directories checked{rbHow})\0"));
+                 }
+                 else
+                 {
+                     Console.Error.WriteLine($"S2A RomFS：游戏数据里没有预建索引 {RomFsIndex.FileName}，按目录现建（慢；出包应生成）");
+-                    image = RomFsIndex.RbWriteAndOpen(romfs, index, overlay, text => Native.Mark(System.Text.Encoding.UTF8.GetBytes(text + "\0")));
++                    image = RomFsIndex.RbWriteAndOpen(romfs, rbKept ?? index, overlay, text => Native.Mark(System.Text.Encoding.UTF8.GetBytes(text + "\0")),
++                                                      index + RomFsIndex.RbRefusedSuffix);
+ 
+                     if (image != null)
+                     {
+diff --git a/services/S2A.Services/MemDiag.cs b/services/S2A.Services/MemDiag.cs
+index 3bf1094..fbfeee5 100644
+--- a/services/S2A.Services/MemDiag.cs
++++ b/services/S2A.Services/MemDiag.cs
+@@ -18,6 +18,18 @@ namespace S2A.Services
+         //   旧入口（Mac / iOS 不带配置起局）不登记，照旧读 proc_pid_rusage。Host 起局登记、会话结束清掉
+         internal static Func<long> FootprintProvider;
+ 
++        // RewindBox (patch 0076): the managed heap was not measured in play. The 30 s line below goes to stderr, which in a RewindBox guest is the
++        //   host's (IPA 765: no GC line in host.log), and the GC limit of that start was the on-demand tier, SOH 384 / LOH 256 / POH 64 MB (gclimit.c),
++        //   25 MB short of the per-heap tier (largest low hole 3687 MB where 3712 MB are needed). Raising the tier takes low addresses back (2688 MB
++        //   reserved where this one reserves 870 MB at most), so it waits for a peak measured near a limit. With the beat, the 30 s wait is three of
++        //   10 s, each followed by one line in the engine's journal (Native.RbLog; stderr elsewhere): collections per generation, the total pause and
++        //   what these 10 s added, the heap size, each heap after the last collection, with the peaks; when the monitor stops (end of the session),
++        //   one line with the peaks against the limits. Only the monitor thread touches these fields. S2A_RB_GC_BEAT=0: one wait of 30 s, as before
++        private static readonly bool _rbBeat = Environment.GetEnvironmentVariable("S2A_RB_GC_BEAT") != "0";
++        private static int _rbBeats;
++        private static double _rbPauseMs, _rbPauseMost;
++        private static long _rbHeapPeak, _rbSohPeak, _rbLohPeak, _rbPohPeak;
++
+         static MemDiag()
+         {
+             Ryujinx.Common.S2AShutdown.OnRequest(_monitorStop.Set);
+@@ -133,6 +145,80 @@ namespace S2A.Services
+             }
+         }
+ 
++        // A limit of gclimit.c (DOTNET_ values are hexadecimal), in bytes; 0 = none
++        private static long RbLimit(string name)
++        {
++            string v = Environment.GetEnvironmentVariable(name);
++
++            if (v != null && v.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
++            {
++                v = v.Substring(2);
++            }
++
++            return long.TryParse(v, System.Globalization.NumberStyles.AllowHexSpecifier, System.Globalization.CultureInfo.InvariantCulture, out long b) && b > 0 ? b : 0;
++        }
++
++        private static string RbOfLimit(long peak, long limit) => limit > 0 ? $"{peak >> 20} of {limit >> 20} MB ({peak * 100 / limit}%)" : $"{peak >> 20} MB (no limit)";
++
++        // One GC line (the monitor thread): every 10 s, or the session's peaks when end
++        private static void RbBeat(bool end)
++        {
++            GCMemoryInfo g = GC.GetGCMemoryInfo();
++            ReadOnlySpan<GCGenerationInfo> gi = g.GenerationInfo;
++            long soh = gi.Length >= 5 ? gi[0].SizeAfterBytes + gi[1].SizeAfterBytes + gi[2].SizeAfterBytes : 0, loh = gi.Length >= 5 ? gi[3].SizeAfterBytes : 0, poh = gi.Length >= 5 ? gi[4].SizeAfterBytes : 0;
++            double pause = GC.GetTotalPauseDuration().TotalMilliseconds, added = pause - _rbPauseMs;
++            string counts = $"collections {GC.CollectionCount(0)} / {GC.CollectionCount(1)} / {GC.CollectionCount(2)} (generations 0 / 1 / 2)";
++            _rbPauseMs = pause;
++            _rbHeapPeak = Math.Max(_rbHeapPeak, g.HeapSizeBytes);
++            _rbSohPeak = Math.Max(_rbSohPeak, soh);
++            _rbLohPeak = Math.Max(_rbLohPeak, loh);
++            _rbPohPeak = Math.Max(_rbPohPeak, poh);
++            string line;
++
++            if (!end)
++            {
++                _rbBeats++;
++                _rbPauseMost = Math.Max(_rbPauseMost, added);
++                line = $"RewindBox: .NET GC at {_rbBeats * 10} s: {counts}, paused {pause:F1} ms in all (+{added:F1} ms in these 10 s), heap {g.HeapSizeBytes >> 20} MB " +
++                       $"(peak {_rbHeapPeak >> 20}), after the last collection SOH {soh >> 20} / LOH {loh >> 20} / POH {poh >> 20} MB (peaks {_rbSohPeak >> 20} / {_rbLohPeak >> 20} / {_rbPohPeak >> 20})";
++            }
++            else
++            {
++                long sohLimit = RbLimit("DOTNET_GCHeapHardLimitSOH"), lohLimit = RbLimit("DOTNET_GCHeapHardLimitLOH"), pohLimit = RbLimit("DOTNET_GCHeapHardLimitPOH"), total = RbLimit("DOTNET_GCHeapHardLimit");
++                bool near = (sohLimit > 0 && _rbSohPeak * 4 >= sohLimit * 3) || (lohLimit > 0 && _rbLohPeak * 4 >= lohLimit * 3) ||
++                            (pohLimit > 0 && _rbPohPeak * 4 >= pohLimit * 3) || (total > 0 && _rbHeapPeak * 4 >= total * 3);
++                line = $"RewindBox: .NET GC at the end ({_rbBeats * 10} s of beats): {counts}, paused {pause:F1} ms in all, at most {_rbPauseMost:F1} ms in 10 s; peaks: heap " +
++                       $"{(total > 0 ? RbOfLimit(_rbHeapPeak, total) : $"{_rbHeapPeak >> 20} MB")}, SOH {RbOfLimit(_rbSohPeak, sohLimit)}, LOH {RbOfLimit(_rbLohPeak, lohLimit)}, POH {RbOfLimit(_rbPohPeak, pohLimit)}: " +
++                       (near ? "a peak came within a quarter of its limit (gclimit.c: the next tier is for this case)" : "every peak stayed under three quarters of its limit (the tier is enough)");
++            }
++
++            if (!Native.RbLog(line))
++            {
++                Console.Error.WriteLine(line);
++            }
++        }
++
++        // RewindBox (patch 0076): the monitor's 30 s wait; with the beat, three waits of 10 s, each followed by the GC line. true = stop
++        private static bool RbWait()
++        {
++            if (!_rbBeat)
++            {
++                return _monitorStop.Wait(30000);
++            }
++
++            for (int i = 0; i < 3; i++)
++            {
++                if (_monitorStop.Wait(10000))
++                {
++                    return true;
++                }
++
++                RbBeat(false);
++            }
++
++            return false;
++        }
++
+         public static void Stop()
+         {
+             _monitorStop.Set();
+@@ -166,12 +252,16 @@ namespace S2A.Services
+                 return;
+             }
+             _monitorStop.Reset();
++            _rbBeats = 0;   // RewindBox (patch 0076): this session's beats (the previous monitor has stopped: Stop above)
++            _rbPauseMs = GC.GetTotalPauseDuration().TotalMilliseconds;
++            _rbPauseMost = 0;
++            _rbHeapPeak = _rbSohPeak = _rbLohPeak = _rbPohPeak = 0;
+             _monitorThread = new(() =>
+             {
+                 for (int n = 1; ; n++)
+                 {
+                     Ryujinx.Common.S2AThreadAlloc.Tick("内存诊断");   // 按线程拆账
+-                    if (_monitorStop.Wait(30000)) break;
++                    if (RbWait()) break;   // RewindBox (patch 0076): 30 s as before, with the GC line every 10 s
+                     if (heapAudit)
+                     {
+                         Console.Error.WriteLine($"[S2A 堆审计] 快照 {n} 请求：{DateTime.UtcNow:O}");
+@@ -180,6 +270,11 @@ namespace S2A.Services
+                     }
+                     Console.Error.WriteLine($"[S2A 内存] 第 {n * 30} 秒：{Snapshot()}");
+                 }
++
++                if (_rbBeat)
++                {
++                    RbBeat(true);   // RewindBox (patch 0076): the session's peaks against the limits
++                }
+             }) { IsBackground = true, Name = "S2A.MemDiag" };
+             _monitorThread.Start();
+         }
+diff --git a/services/S2A.Services/Native.cs b/services/S2A.Services/Native.cs
+index b381364..984a28a 100644
+--- a/services/S2A.Services/Native.cs
++++ b/services/S2A.Services/Native.cs
+@@ -98,6 +98,11 @@ namespace S2A.Services
+         public static delegate*<int> GuestFrozen;      // 接口 v2.17：客机冻结状态；音频暂停跟随它，不跟随焦点本身
+         public static delegate*<int> GfxMode;   // 双轨图形模式（runtime/include/s2a_gfx_mode.h）：0 通用 / 1 直连，起局判定后不变；测试里为 null
+         public static delegate*<byte*, void> BootMark;   // 接口 v2.7：起局分段计时，打「[起局] <段> +ms（本段 ms）」；测试里为 null
++        // RewindBox (patch 0076): os.c s2a_rb_guest_log_line, bound by UseLinked when the process has it and its engine log is open (a RewindBox
++        //   guest): the services' lines then reach host.log (RbLog). null elsewhere (S2Arm.app, where stderr is host.log already; Android; the tests)
++        //   and with S2A_RB_SERVICE_LOG=0. Set once, before the services start. Private: not one of the provider's public slots (the Android
++        //   provider test counts those)
++        private static delegate* unmanaged<byte*, int> _rbLogLine;
+         public static delegate* unmanaged<ulong> GuestTick;
+         public static delegate* unmanaged<ulong> GuestTickHz;   // 接口 v2.16：计数器频率（Switch 2 是 31.25 MHz）；旧原生层没有 = 19.2 MHz
+         public static delegate* unmanaged<long> ClockUnseen;   // 接口 v2.14：游戏计数器没看到的宿主时长（ns）；见 NativeTickSource.UnseenNs
+@@ -142,6 +147,42 @@ namespace S2A.Services
+         private static nint _fallbackOwner;
+         private static bool _fallbackOwnerRequired, _notedMissingFallbackOwner;
+ 
++        // RewindBox (patch 0076): one line in the engine's journal (host.log) through _rbLogLine; false = not written (not a guest, or its log is not
++        //   open: the caller keeps stderr). The host's home (the app's data container, renamed at each install) is written ~, so that no line names
++        //   it. Any thread
++        internal static bool RbLogOn => _rbLogLine != null;
++
++        internal static bool RbLog(string line)
++        {
++            delegate* unmanaged<byte*, int> write = _rbLogLine;
++
++            if (write == null || line == null)
++            {
++                return false;
++            }
++
++            string home = System.Environment.GetEnvironmentVariable("HOME");
++
++            // RewindBox (patch 0076): iOS may give HOME in its /private form, while the paths the engine prints are mostly in the /var form (765: about
++            //   2,000 data-container paths in host.log in the /var form, 1 in the /private form), which the mask missed: both forms are written ~
++            if (home != null && home.StartsWith("/private/", System.StringComparison.Ordinal))
++            {
++                home = home.Substring(8);
++            }
++
++            if (home != null && home.Length > 1 && home[0] == '/')
++            {
++                line = line.Replace("/private" + home, "~").Replace(home, "~");
++            }
++
++            byte[] text = System.Text.Encoding.UTF8.GetBytes(line.Replace('\0', ' ') + "\0");
++
++            fixed (byte* p = text)
++            {
++                return write(p) != 0;
++            }
++        }
++
+         // 起局打点：段名传 NUL 结尾的 UTF-8 字面量（"…\0"u8），不分配
+         public static void Mark(System.ReadOnlySpan<byte> stage)
+         {
+@@ -293,6 +334,7 @@ namespace S2A.Services
+                 // 接口 v2.14（#863）补时两导出与其它可选导出同一查找口径（11-01：原先固定查主程序句柄，安卓上原生层在 System.loadLibrary 的 .so 里，查不到、每局报红）
+                 bool hasUnseen = NativeLibrary.TryGetExport(exportOwner, "s2a_clock_unseen_ns", out nint unseen);
+                 bool hasCatchup = NativeLibrary.TryGetExport(exportOwner, "s2a_clock_register_catchup", out nint catchup);
++                bool hasRbLog = NativeLibrary.TryGetExport(exportOwner, "s2a_rb_guest_log_line", out nint rbLog);   // 平台例外：RewindBox (patch 0076): only iOS's native layer has it (os.c), and it answers 1 only in a RewindBox host whose engine log is open
+                 FarDesc* far = hasFar ? (FarDesc*)((delegate* unmanaged<void*>)farExport)() : null;
+                 if (hasMode != hasWrite)
+                 {
+@@ -314,6 +356,11 @@ namespace S2A.Services
+                     hasUnseen = hasCatchup = false;
+                 }
+ 
++                // RewindBox (patch 0076): published before the reports below, so that they reach the engine's journal too (Red.RbToJournal)
++                delegate* unmanaged<byte*, int> rbLogLine = (delegate* unmanaged<byte*, int>)rbLog;
++                _rbLogLine = hasRbLog && System.Environment.GetEnvironmentVariable("S2A_RB_SERVICE_LOG") != "0" && rbLogLine(null) != 0 ? rbLogLine : null;
++                Red.RbToJournal();
++
+                 if (!hasUnseen && !explicitOwner)
+                 {
+                     Red.Report("原生层没有 s2a_clock_unseen_ns / s2a_clock_register_catchup（接口 v2.14）：游戏日历会落后后台与睡眠时长");
+diff --git a/services/S2A.Services/Red.cs b/services/S2A.Services/Red.cs
+index 14fe3dc..683ceeb 100644
+--- a/services/S2A.Services/Red.cs
++++ b/services/S2A.Services/Red.cs
+@@ -22,6 +22,122 @@ namespace S2A.Services
+ 
+         public static Action<string> Log { get; set; } = line => Console.Error.WriteLine(line);
+ 
++        // RewindBox (patch 0076): in a RewindBox guest the process's stderr is the host's, so these lines never reached the engine's journal: IPA 765
++        //   has no line of the services in its host.log (no red, no stub, no note; the reason of a 43.2 s RomFS walk at its first start among them).
++        //   Once the native provider is bound (Native.UseLinked, before any service starts) and the process is a guest whose engine log is open, each
++        //   line also goes to host.log (Native.RbLog, its paths written <path>: RbNoPaths); the sink it had keeps it. The lines are those of Report (first,
++        //   then at 2^n), Note (once each, 256 at most) and Stub (once each): none per frame. Once per process; S2A_RB_SERVICE_LOG=0: stderr only
++        private static int _rbJournal;
++
++        // RewindBox (patch 0076): many lines carry paths in their detail (a game's files, the program folder, save folders, fs notes' Switch paths,
++        //   exception messages), which the journal must not hold: each path is written <path>, for host.log only (stderr keeps the line). A path is
++        //   a '/' (or "~/") at the start, after a space or after one of RbPathStarts, followed by more than a separator, or a token "name:/..."; it
++        //   ends where its quote ends, at a line break, at one of RbPathEnds, or at a space before a character that is not ASCII (Chinese text,
++        //   "→"). A '/' between two words ("程序号/端口", "ctl/control.nacp") or alone (" / ") is left
++        private const string RbPathStarts = "'\"(（「『【[<{=,，：;；~";
++        private const string RbPathEnds = "，；、）)」』】]>}：";
++
++        private static bool RbTokenChar(char c) => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '.' || c == '_' || c == '-';
++
++        internal static string RbNoPaths(string line)
++        {
++            if (line == null || line.IndexOf('/') < 0)
++            {
++                return line;
++            }
++
++            StringBuilder o = null;
++            int copied = 0;
++
++            for (int i = 0; i < line.Length; i++)
++            {
++                bool tokenStart = i == 0 || !RbTokenChar(line[i - 1]);
++                int start = -1;
++
++                if (line[i] == '/' && (i == 0 || char.IsWhiteSpace(line[i - 1]) || RbPathStarts.IndexOf(line[i - 1]) >= 0) &&
++                    i + 1 < line.Length && !char.IsWhiteSpace(line[i + 1]) && RbPathEnds.IndexOf(line[i + 1]) < 0)
++                {
++                    start = i > 0 && line[i - 1] == '~' ? i - 1 : i;
++                }
++                else if (tokenStart && RbTokenChar(line[i]))
++                {
++                    int j = i;
++
++                    while (j < line.Length && RbTokenChar(line[j]))
++                    {
++                        j++;
++                    }
++
++                    if (j + 1 < line.Length && line[j] == ':' && line[j + 1] == '/')
++                    {
++                        start = i;
++                    }
++                    else
++                    {
++                        i = j - 1;   // no token starts inside this one
++                        continue;
++                    }
++                }
++
++                if (start < 0)
++                {
++                    continue;
++                }
++
++                char quote = start > 0 && (line[start - 1] == '\'' || line[start - 1] == '"') ? line[start - 1] : '\0';
++                int k = start;
++
++                while (k < line.Length && line[k] != '\n' && line[k] != '\r')
++                {
++                    char c = line[k];
++
++                    if (quote != '\0' ? c == quote : RbPathEnds.IndexOf(c) >= 0)
++                    {
++                        break;
++                    }
++
++                    if (quote == '\0' && char.IsWhiteSpace(c))
++                    {
++                        int next = k;
++
++                        while (next < line.Length && char.IsWhiteSpace(line[next]) && line[next] != '\n' && line[next] != '\r')
++                        {
++                            next++;
++                        }
++
++                        if (next >= line.Length || line[next] > '\x7f' || line[next] == '\n' || line[next] == '\r')
++                        {
++                            break;
++                        }
++                    }
++
++                    k++;
++                }
++
++                o ??= new StringBuilder(line.Length);
++                o.Append(line, copied, start - copied).Append("<path>");
++                copied = k;
++                i = k - 1;
++            }
++
++            return o == null ? line : o.Append(line, copied, line.Length - copied).ToString();
++        }
++
++        internal static void RbToJournal()
++        {
++            if (!Native.RbLogOn || System.Threading.Interlocked.Exchange(ref _rbJournal, 1) != 0)
++            {
++                return;
++            }
++
++            Action<string> was = Log;
++            Log = line =>
++            {
++                Native.RbLog(RbNoPaths(line));   // its paths written <path>; the sink it had gets the line as it is
++                was(line);
++            };
++        }
++
+         public static long Total { get { lock (_lock) { return _counts.Values.Sum(); } } }
+ 
+         public static void Report(string what, string detail = null, bool allowFailFast = true)
+diff --git a/services/S2A.Services/RomFsIndex.cs b/services/S2A.Services/RomFsIndex.cs
+index 1e65eae..bfdb484 100644
+--- a/services/S2A.Services/RomFsIndex.cs
++++ b/services/S2A.Services/RomFsIndex.cs
+@@ -203,6 +203,25 @@ namespace S2A.Services
+         public const string RbListSuffix = ".rblist";
+         public const string RbRefusedSuffix = ".rbno";
+         private const string RbStampHead = "rb-romfs-tree 2";
++        // RewindBox (patch 0076): the RomFS index did not outlive an install. IPA 765 (Mario Kart World, iPhone17,2): 43.2 s at its first start walking
++        //   the 205,660 files of the tree; of the 30 journals with a RomFS line, the 14 that walk it are each the first start in a new data container (a
++        //   new install), and every later start in the same container read the index. An install moves the container, RewindBox prepares the game again
++        //   (its stamp holds the export's path), and the index went with the root it was next to; the tree made again holds the same files under new
++        //   directory times, which the stamp compared. Now the index written here is kept with the game's other caches (Ryujinx's games/<program>/,
++        //   which the preparations keep: RbKept), and its stamp (head 3) holds, besides each directory's time, what does not depend on where or when the
++        //   tree was made: for each directory (relative to the tree) a hash of its sorted entries, each with a file's length or a link's text, and
++        //   the time of each directory the links lead to (relative to the tree, as the links are). Times all equal: current, as before (one stat per
++        //   directory; the directories the links lead to are new in the check). The tree's times differ: its entries are read again (names, a link's
++        //   text, a file's length; no link is followed, no file opened) and the index is current when every hash and every time the links lead to is
++        //   the stamp's; the stamp then takes the new times. A file added, removed, renamed or replaced in the tree or behind its links changes a hash
++        //   or a time the links lead to; a file rewritten in place with another length is caught where it was before (LazyHostFile, RbMismatch).
++        //   A stamp of head 2 (patches 0014-0075, next to the game data) is checked as before. Why an index is not read goes to the engine's journal
++        //   (Native.Mark; it was a Red.Note on stderr, which in a guest is the host's). S2A_RB_ROMFS_KEEP=0: the index is written next to the game data
++        //   as before; S2A_RB_ROMFS_CONTENTS=0: times only, as before
++        private const string RbStampHead3 = "rb-romfs-tree 3";
++        internal const string RbKeptDir = "rb-romfs";
++        private static readonly bool RbKeepOn = Environment.GetEnvironmentVariable("S2A_RB_ROMFS_KEEP") != "0";
++        private static readonly bool RbContentsOn = Environment.GetEnvironmentVariable("S2A_RB_ROMFS_CONTENTS") != "0";
+         private const string RbStampPending = "index -";   // the stamp of an index that is being written: never current
+         private static readonly char[] RbLineBreaks = { '\n', '\r' };
+         private static readonly List<(string Root, string Index)> _rbOpened = new();   // the indexes written here that are in use, each with its romfs/ folder (RbMismatch); locked on itself
+@@ -228,16 +247,135 @@ namespace S2A.Services
+             return target != null ? target.FullName : root;
+         }
+ 
+-        // true = the index next to the tree was written here (it has a stamp) and is not to be read: the tree is no longer the one it was
+-        //   written for, or the index is not the whole file the stamp was written after. directories = how many were looked at
+-        internal static bool RbStale(string romfsDir, string indexPath, out int directories)
++        // RewindBox (patch 0076): the tree as a stamp of head 3 holds it (see RbStampHead3). Dirs: each directory, "." for the tree's own, with its
++        //   time (read before its entries are, so that a change after it shows later) and the hash of its entries sorted by name (a file: its length;
++        //   a link: its text, the link not followed; a directory: nothing, it has its own line); host junk is left out, as the walk leaves it out.
++        //   Targets: each directory outside the tree that a link leads to (relative to the tree, resolved by name as .NET resolves a link), with its
++        //   time, -1 when it is not found. Reads names, link texts and the lengths of files: one readlink per link, one lstat per other entry
++        private static (List<(string Rel, long Ticks, string Hash)> Dirs, SortedDictionary<string, long> Targets) RbSignature(string root)
++        {
++            List<(string Rel, long Ticks, string Hash)> dirs = new();
++            SortedDictionary<string, long> targets = new(StringComparer.Ordinal);
++            Queue<string> todo = new();
++            List<(string Name, string What)> entries = new();
++            HashSet<string> linkDirs = new(StringComparer.Ordinal);
++            StringBuilder text = new();
++            todo.Enqueue(".");
++
++            while (todo.Count > 0)
++            {
++                string rel = todo.Dequeue();
++                string dir = rel == "." ? root : Path.Combine(root, rel);
++                long ticks = Directory.GetLastWriteTimeUtc(dir).Ticks;
++                entries.Clear();
++                linkDirs.Clear();
++
++                foreach (string path in Directory.EnumerateFileSystemEntries(dir))
++                {
++                    string name = Path.GetFileName(path);
++                    System.IO.FileInfo info = new(path);
++                    string link = info.LinkTarget;   // readlink: null for what is not a link
++
++                    if (link != null)
++                    {
++                        if (IsHostJunk(path)) continue;
++                        entries.Add((name, "l" + link));
++
++                        if (linkDirs.Add(Path.GetDirectoryName(link) ?? ""))   // the links of a directory mostly share the directory they lead to
++                        {
++                            string to = Path.GetRelativePath(root, Path.GetDirectoryName(Path.GetFullPath(Path.Combine(dir, link))) ?? dir);
++
++                            if (to.StartsWith("..", StringComparison.Ordinal) || Path.IsPathRooted(to))
++                            {
++                                targets.TryAdd(to, 0);   // inside the tree, a directory has its own line
++                            }
++                        }
++                    }
++                    else if ((info.Attributes & System.IO.FileAttributes.Directory) != 0)   // lstat; an entry gone meanwhile reads -1: its enumeration then fails
++                    {
++                        entries.Add((name, "d"));
++                        todo.Enqueue(rel == "." ? name : Path.Combine(rel, name));
++                    }
++                    else if (!IsHostJunk(path))
++                    {
++                        entries.Add((name, "f" + info.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)));
++                    }
++                }
++
++                entries.Sort((a, b) => string.CompareOrdinal(a.Name, b.Name));
++                using var hash = System.Security.Cryptography.IncrementalHash.CreateHash(System.Security.Cryptography.HashAlgorithmName.SHA256);
++                text.Clear();
++
++                foreach ((string name, string what) in entries)
++                {
++                    text.Append(name).Append('\0').Append(what).Append('\n');
++
++                    if (text.Length >= 1 << 15)   // in pieces: a directory of 100,000 entries makes no 10 MB string
++                    {
++                        hash.AppendData(Encoding.UTF8.GetBytes(text.ToString()));
++                        text.Clear();
++                    }
++                }
++
++                hash.AppendData(Encoding.UTF8.GetBytes(text.ToString()));
++                dirs.Add((rel, ticks, Convert.ToHexString(hash.GetHashAndReset())));
++            }
++
++            foreach (string to in new List<string>(targets.Keys))
++            {
++                string full = Path.Combine(root, to);
++                targets[to] = Directory.Exists(full) ? Directory.GetLastWriteTimeUtc(full).Ticks : -1;
++            }
++
++            dirs.Sort((a, b) => string.CompareOrdinal(a.Rel, b.Rel));
++            return (dirs, targets);
++        }
++
++        // RewindBox (patch 0076): the stamp of head 3 of an index of indexLength bytes, written whole then renamed over the one in place
++        private static void RbStampWrite(string indexPath, long indexLength, (List<(string Rel, long Ticks, string Hash)> Dirs, SortedDictionary<string, long> Targets) tree)
++        {
++            StringBuilder stamp = new();
++            stamp.Append(RbStampHead3).Append("\nindex ").Append(indexLength).Append('\n');
++
++            foreach ((string rel, long ticks, string hash) in tree.Dirs)
++            {
++                stamp.Append("d ").Append(ticks).Append('\t').Append(hash).Append('\t').Append(rel).Append('\n');
++            }
++
++            foreach (KeyValuePair<string, long> to in tree.Targets)
++            {
++                if (to.Key.IndexOfAny(RbLineBreaks) >= 0)
++                {
++                    throw new InvalidDataException("a link of the RomFS tree holds a line break");
++                }
++
++                stamp.Append("t ").Append(to.Value).Append('\t').Append(to.Key).Append('\n');
++            }
++
++            string stampPath = indexPath + RbStampSuffix;
++
++            using (FileStream final = new(stampPath + ".tmp", FileMode.Create, FileAccess.Write, FileShare.None))
++            {
++                final.Write(new UTF8Encoding(false).GetBytes(stamp.ToString()));
++                final.Flush(true);
++            }
++
++            File.Move(stampPath + ".tmp", stampPath, overwrite: true);
++        }
++
++        // null = the index written here (it has a stamp) can be read; else why not, for the journal (no path): the tree is no longer the one it was
++        //   written for, or the index is not the whole file the stamp was written after. directories = how many were looked at. contents (head 3):
++        //   when the tree's times differ, compare its entries (RbSignature) and, when they are the same, give the stamp the tree's times; comparedMs =
++        //   how long that took, -1 = not done. An index without a stamp is S2Arm's: null
++        internal static string RbStale(string romfsDir, string indexPath, bool contents, out int directories, out long comparedMs)
+         {
+             directories = 0;
++            comparedMs = -1;
+             string stamp = indexPath + RbStampSuffix;
+ 
+             if (!File.Exists(stamp))
+             {
+-                return false;
++                return null;
+             }
+ 
+             try
+@@ -245,30 +383,175 @@ namespace S2A.Services
+                 string root = RbRoot(romfsDir);
+                 string[] lines = File.ReadAllLines(stamp, Encoding.UTF8);
+ 
+-                if (lines.Length < 3 || lines[0] != RbStampHead || !lines[1].StartsWith("index ", StringComparison.Ordinal) ||
+-                    !long.TryParse(lines[1].AsSpan(6), out long indexLength) || new System.IO.FileInfo(indexPath).Length != indexLength ||
+-                    !long.TryParse(lines[2], out long rootTicks) || Directory.GetLastWriteTimeUtc(root).Ticks != rootTicks)
++                if (lines.Length < 2 || (lines[0] != RbStampHead && lines[0] != RbStampHead3))
++                {
++                    return "its stamp is not one this engine writes";
++                }
++
++                if (lines[1] == RbStampPending)
++                {
++                    return "it was being written when an earlier start ended";
++                }
++
++                if (!lines[1].StartsWith("index ", StringComparison.Ordinal) || !long.TryParse(lines[1].AsSpan(6), out long indexLength))
++                {
++                    return "its stamp is damaged";
++                }
++
++                if (new System.IO.FileInfo(indexPath).Length != indexLength)
++                {
++                    return "it is not the length its stamp has (cut short)";
++                }
++
++                if (lines[0] == RbStampHead)   // patches 0014-0075: the tree's times, as before
++                {
++                    if (lines.Length < 3 || !long.TryParse(lines[2], out long rootTicks))
++                    {
++                        return "its stamp is damaged";
++                    }
++
++                    if (Directory.GetLastWriteTimeUtc(root).Ticks != rootTicks)
++                    {
++                        return "the top directory of the tree changed since it was written";
++                    }
++
++                    for (int i = 3; i < lines.Length; i++)
++                    {
++                        int tab = lines[i].LastIndexOf('\t');
++                        directories++;
++
++                        if (tab <= 0 || !long.TryParse(lines[i].AsSpan(tab + 1), out long ticks))
++                        {
++                            return "its stamp is damaged";
++                        }
++
++                        if (Directory.GetLastWriteTimeUtc(Path.Combine(root, lines[i].Substring(0, tab))).Ticks != ticks)
++                        {
++                            return $"directory {i - 2} of the {lines.Length - 3} below the top changed since it was written";
++                        }
++                    }
++
++                    return null;
++                }
++
++                Dictionary<string, (long Ticks, string Hash)> want = new(StringComparer.Ordinal);
++                Dictionary<string, long> wantTargets = new(StringComparer.Ordinal);
++
++                for (int i = 2; i < lines.Length; i++)
++                {
++                    string line = lines[i];
++                    int a = line.IndexOf('\t'), b = a < 0 ? -1 : line.IndexOf('\t', a + 1);
++
++                    if (line.StartsWith("d ", StringComparison.Ordinal) && b > a + 1 && long.TryParse(line.AsSpan(2, a - 2), out long ticks))
++                    {
++                        want[line.Substring(b + 1)] = (ticks, line.Substring(a + 1, b - a - 1));
++                    }
++                    else if (line.StartsWith("t ", StringComparison.Ordinal) && a > 2 && long.TryParse(line.AsSpan(2, a - 2), out long toTicks))
++                    {
++                        wantTargets[line.Substring(a + 1)] = toTicks;
++                    }
++                    else if (line.Length > 0)
++                    {
++                        return "its stamp is damaged";
++                    }
++                }
++
++                if (!want.ContainsKey("."))
++                {
++                    return "its stamp is damaged";
++                }
++
++                int gone = 0, moved = 0;
++
++                foreach (KeyValuePair<string, long> to in wantTargets)
+                 {
+-                    return true;
++                    string full = Path.Combine(root, to.Key);
++
++                    if ((Directory.Exists(full) ? Directory.GetLastWriteTimeUtc(full).Ticks : -1) != to.Value)
++                    {
++                        gone++;
++                    }
+                 }
+ 
+-                for (int i = 3; i < lines.Length; i++)
++                if (gone > 0)
++                {
++                    return $"{gone} of the {wantTargets.Count} directories its links lead to changed since it was written (the game's files changed)";
++                }
++
++                foreach (KeyValuePair<string, (long Ticks, string Hash)> dir in want)
+                 {
+-                    int tab = lines[i].LastIndexOf('\t');
+                     directories++;
+ 
+-                    if (tab <= 0 || !long.TryParse(lines[i].AsSpan(tab + 1), out long ticks) ||
+-                        Directory.GetLastWriteTimeUtc(Path.Combine(root, lines[i].Substring(0, tab))).Ticks != ticks)
++                    if (Directory.GetLastWriteTimeUtc(dir.Key == "." ? root : Path.Combine(root, dir.Key)).Ticks != dir.Value.Ticks)
+                     {
+-                        return true;
++                        moved++;
+                     }
+                 }
+ 
+-                return false;
++                if (moved == 0)
++                {
++                    return null;
++                }
++
++                if (!contents || !RbContentsOn)
++                {
++                    return $"{moved} of its {want.Count} directories changed since it was written";
++                }
++
++                if (wantTargets.ContainsValue(-1))
++                {
++                    return $"{moved} of its {want.Count} directories changed since it was written, and a directory its links lead to is not found, so their entries are not compared";
++                }
++
++                long started = System.Diagnostics.Stopwatch.GetTimestamp();
++                (List<(string Rel, long Ticks, string Hash)> Dirs, SortedDictionary<string, long> Targets) tree = RbSignature(root);
++                comparedMs = (long)System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds;
++                int differ = tree.Dirs.Count == want.Count ? 0 : Math.Abs(tree.Dirs.Count - want.Count);
++
++                foreach ((string rel, _, string hash) in tree.Dirs)
++                {
++                    if (!want.TryGetValue(rel, out (long Ticks, string Hash) was) || was.Hash != hash)
++                    {
++                        differ++;
++                    }
++                }
++
++                if (differ > 0)
++                {
++                    return $"{moved} of its {want.Count} directories changed since it was written, and the entries of {differ} differ (compared in {comparedMs} ms)";
++                }
++
++                if (tree.Targets.Count != wantTargets.Count)
++                {
++                    return $"the directories its links lead to are not the same (compared in {comparedMs} ms)";
++                }
++
++                foreach (KeyValuePair<string, long> to in tree.Targets)
++                {
++                    if (!wantTargets.TryGetValue(to.Key, out long was) || was != to.Value)
++                    {
++                        return $"the directories its links lead to are not the same (compared in {comparedMs} ms)";
++                    }
++                }
++
++                try
++                {
++                    RbStampWrite(indexPath, indexLength, tree);   // the next start compares times only
++                }
++                catch (Exception e) when (e is IOException || e is UnauthorizedAccessException || e is InvalidDataException || e is OutOfMemoryException)
++                {
++                    // the index is current all the same; the next start compares the entries again
++                }
++
++                return null;
+             }
+-            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException || e is ArgumentException)   // ArgumentException: a damaged stamp (a NUL in a path)
++            // RewindBox (patch 0076): the compare of head 3 (RbSignature: entry lists, SHA-256) can also run out of this start's managed heap (gclimit.c's
++            //   smallest tier, where the writer is known to fail) or fail in the hash; the index is then dropped and the start goes on as for a stale
++            //   one (the writer, or the directory build), instead of failing in Application.Register
++            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException || e is ArgumentException ||   // ArgumentException: a damaged stamp (a NUL in a path)
++                                      e is OutOfMemoryException || e is System.Security.Cryptography.CryptographicException)
+             {
+-                return true;
++                return "the tree or its stamp does not read (" + e.GetType().Name + ")";
+             }
+         }
+ 
+@@ -289,49 +572,72 @@ namespace S2A.Services
+             }
+         }
+ 
++        // RewindBox (patch 0076): a start mark of the RomFS index (Native.Mark: the engine's journal, as "RomFS index read"); text without a path
++        private static void RbMark(string text) => Native.Mark(Encoding.UTF8.GetBytes(text.Replace('\0', ' ') + "\0"));
++
+         // The index next to the tree when it is to be read, else null (there is none, or the one written here was dropped: the caller writes
+         //   one). S2Arm's pack-time index (no stamp) is opened as before, and its failures are S2Arm's. One written here is opened only while
+-        //   the tree is the one it was written for (RbStale), and one that does not read is dropped instead of stopping every start
+-        internal static IStorage RbOpen(string romfsDir, string indexPath, string overlayDir, out int directories)
++        //   the tree is the one it was written for (RbStale), and one that does not read is dropped instead of stopping every start.
++        //   RewindBox (patch 0076): kept = indexPath is the copy kept with the game's caches (RbKept), which always has a stamp. Why an index is
++        //   not read goes to the engine's journal (start mark, no path); how = what the mark of an index read adds (its entries compared)
++        internal static IStorage RbOpen(string romfsDir, string indexPath, string overlayDir, out int directories, out string how, bool kept = false)
+         {
+             directories = 0;
++            how = "";
+             RbInUse(romfsDir, indexPath, false);
+ 
+             if (!File.Exists(indexPath))
+             {
++                if (kept)
++                {
++                    RbMark("RewindBox: RomFS index: none kept with the game's caches yet (a first start with patch 0076, or the last one was dropped)");
++                }
++
+                 return null;
+             }
+ 
+-            if (!File.Exists(indexPath + RbStampSuffix))
++            if (!kept && !File.Exists(indexPath + RbStampSuffix))
+             {
+                 return Open(romfsDir, indexPath, overlayDir);
+             }
+ 
+-            string why;
++            long comparedMs = -1;
++            string why = File.Exists(indexPath + RbStampSuffix) ? RbStale(romfsDir, indexPath, true, out directories, out comparedMs) : "it has no stamp";
+ 
+-            if (RbStale(romfsDir, indexPath, out directories))
+-            {
+-                why = "RewindBox: the RomFS tree changed since its index was written (or the index is not whole), the index is written again";
+-            }
+-            else
++            if (why == null)
+             {
+                 try
+                 {
+                     IStorage image = Open(romfsDir, indexPath, overlayDir);
+                     RbInUse(romfsDir, indexPath, true);
++
++                    if (comparedMs >= 0)
++                    {
++                        how = $"; the tree was made again with the same entries (compared in {comparedMs} ms), its stamp now has the new times";
++                    }
++
+                     return image;
+                 }
+                 catch (Exception e) when (e is InvalidDataException || e is ArgumentException || e is IOException || e is UnauthorizedAccessException)
+                 {
+-                    why = "RewindBox: the RomFS index written on this device does not read (" + e.GetType().Name + "), it is written again";
++                    why = "it does not read (" + e.GetType().Name + ")";
+                 }
+             }
+ 
+-            Red.Note(why, indexPath);
++            RbMark($"RewindBox: RomFS index {(kept ? "kept with the game's caches" : "next to the game data")} not read: {why}; it is written again");
+             RbForget(indexPath);
+             return null;
+         }
+ 
++        // RewindBox (patch 0076): where the index written here is kept: with the game's other caches in Ryujinx's data (games/<program>/rb-romfs/,
++        //   lower case, beside its shader cache), which a new preparation of the game does not remove; null = next to the game data, as before (no Ryujinx
++        //   data yet, or S2A_RB_ROMFS_KEEP=0). The thread that starts the services
++        internal static string RbKept(ulong programId)
++        {
++            string games = RbKeepOn ? Ryujinx.Common.Configuration.AppDataManager.GamesDirPath : null;
++            return string.IsNullOrEmpty(games) ? null : Path.Combine(games, programId.ToString("x16", System.Globalization.CultureInfo.InvariantCulture), RbKeptDir, FileName);
++        }
++
+         // A file's length is not the index's (Application.cs LazyHostFile, which fails that read; path: the file as the image names it,
+         //   under its romfs/ folder): when the index of that folder is one written here, it is dropped, once, so that the next start writes
+         //   it again from the tree as it is. S2Arm's pack-time index is left as it is, and so is a folder read without an index
+@@ -353,7 +659,8 @@ namespace S2A.Services
+             if (index != null)
+             {
+                 RbForget(index);
+-                Red.Note("RewindBox: a RomFS file is not the length its index has; the index written on this device is dropped, the next start writes it again", index);
++                Red.Note("RewindBox: a RomFS file is not the length its index has; the index written on this device is dropped, the next start writes it again",
++                         Path.GetFileName(Path.GetDirectoryName(index)) == RbKeptDir ? "the one kept with the game's caches" : "the one next to the game data");   // RewindBox (patch 0076): no path (Red lines reach the journal)
+             }
+         }
+ 
+@@ -367,12 +674,40 @@ namespace S2A.Services
+         //   The order on disk: the stamp first, as pending, so that the folder is known to be writable before the walk and an index always
+         //   has a stamp; then the list and the index; the index flushed to the disk; then the stamp with the index's length, flushed and
+         //   renamed over the pending one. mark: the start mark of the walk (may be null)
+-        internal static IStorage RbWriteAndOpen(string romfsDir, string indexPath, string overlayDir, Action<string> mark = null)
++        //   RewindBox (patch 0076): indexPath may be the copy kept with the game's caches (RbKept); refusedPath = where the refusal is kept (next
++        //   to the game data, as before: it is the tree's, and goes with it; null = beside indexPath). The stamp (head 3) is what RbSignature reads
++        //   before the walk; the check after it compares times only, so that a change during the walk shows
++        internal static IStorage RbWriteAndOpen(string romfsDir, string indexPath, string overlayDir, Action<string> mark = null, string refusedPath = null)
+         {
+             RbInUse(romfsDir, indexPath, false);
++            string refused = refusedPath ?? indexPath + RbRefusedSuffix;
++
++            bool overlaid = OverlayFiles(overlayDir) != null;
+ 
+-            if (OverlayFiles(overlayDir) != null || File.Exists(indexPath + RbRefusedSuffix))
++            if (overlaid || File.Exists(refused))
+             {
++                // RewindBox (patch 0076): why, in the engine's journal: the start then builds the image from the directory (slow), and nothing said
++                //   why (at most a mark that no index is kept). The refusal's own reason only when it is this file's words about the tree (no path)
++                string why = "an interface overlay is present (its lengths are the pack-time writer's to know)";
++
++                if (!overlaid)
++                {
++                    string first = null;
++
++                    try
++                    {
++                        using StreamReader r = new(refused, Encoding.UTF8);
++                        first = r.ReadLine();
++                    }
++                    catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
++                    {
++                    }
++
++                    why = "the tree was refused at an earlier start" +
++                          (first != null && first.Contains("the RomFS tree", StringComparison.Ordinal) && first.IndexOf('/') < 0 ? " (" + first + ")" : "");
++                }
++
++                RbMark("RewindBox: RomFS index not written: " + why + "; the image is built from the directory at this start");
+                 return null;
+             }
+ 
+@@ -381,9 +716,12 @@ namespace S2A.Services
+ 
+             try
+             {
+-                File.WriteAllText(stampPath, RbStampHead + "\n" + RbStampPending + "\n", utf8);
++                Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(indexPath)));   // RewindBox (patch 0076): the kept copy's folder
++                File.WriteAllText(stampPath, RbStampHead3 + "\n" + RbStampPending + "\n", utf8);
+                 string root = RbRoot(romfsDir);
+-                long rootTicks = Directory.GetLastWriteTimeUtc(root).Ticks;   // the root's time, then the walk
++                (List<(string Rel, long Ticks, string Hash)> Dirs, SortedDictionary<string, long> Targets) tree = RbSignature(root);   // RewindBox (patch 0076): the stamp, then the walk
++                mark?.Invoke($"RewindBox: RomFS tree read for the index's stamp ({tree.Dirs.Count} directories, {tree.Targets.Count} directories its links lead to; " +
++                             "what a start after a new preparation reads again)");
+                 List<string> dirs = new();
+                 List<(string Rel, long Size)> files = new();
+ 
+@@ -414,7 +752,7 @@ namespace S2A.Services
+ 
+                     if (entry is System.IO.DirectoryInfo)
+                     {
+-                        dirs.Add(rel + "\t" + entry.LastWriteTimeUtc.Ticks);   // read before the directory's own entries are (a change after it shows below)
++                        dirs.Add(rel);   // RewindBox (patch 0076): counted; the stamp's times are RbSignature's
+                     }
+                     else if (!IsHostJunk(entry.FullName))
+                     {
+@@ -435,8 +773,6 @@ namespace S2A.Services
+                     }
+                 }
+ 
+-                dirs.Sort(StringComparer.Ordinal);
+-
+                 using (StreamWriter list = new(indexPath + RbListSuffix, false, utf8))
+                 {
+                     foreach ((string rel, long size) in files)
+@@ -459,23 +795,9 @@ namespace S2A.Services
+                     indexLength = written.Length;
+                 }
+ 
+-                StringBuilder stamp = new();
+-                stamp.Append(RbStampHead).Append("\nindex ").Append(indexLength).Append('\n').Append(rootTicks).Append('\n');
+-
+-                foreach (string dir in dirs)
+-                {
+-                    stamp.Append(dir).Append('\n');
+-                }
+-
+-                using (FileStream final = new(stampPath + ".tmp", FileMode.Create, FileAccess.Write, FileShare.None))
+-                {
+-                    final.Write(utf8.GetBytes(stamp.ToString()));
+-                    final.Flush(true);
+-                }
+-
+-                File.Move(stampPath + ".tmp", stampPath, overwrite: true);
++                RbStampWrite(indexPath, indexLength, tree);
+ 
+-                if (RbStale(romfsDir, indexPath, out _))
++                if (RbStale(romfsDir, indexPath, false, out _, out _) != null)
+                 {
+                     throw new IOException("the RomFS tree changed while its index was written");
+                 }
+@@ -484,7 +806,8 @@ namespace S2A.Services
+                 RbInUse(romfsDir, indexPath, true);
+                 return image;
+             }
+-            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException || e is InvalidDataException || e is OutOfMemoryException)
++            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException || e is InvalidDataException || e is OutOfMemoryException ||
++                                      e is System.Security.Cryptography.CryptographicException)   // RewindBox (patch 0076): RbSignature's hash, as in RbStale
+             {
+                 RbForget(indexPath);
+ 
+@@ -492,14 +815,17 @@ namespace S2A.Services
+                 {
+                     try
+                     {
+-                        File.WriteAllText(indexPath + RbRefusedSuffix, e.Message + "\n", utf8);
++                        File.WriteAllText(refused, e.Message + "\n", utf8);
+                     }
+                     catch (Exception again) when (again is IOException || again is UnauthorizedAccessException)
+                     {
+                     }
+                 }
+ 
+-                Red.Note("RewindBox: RomFS index not written, the image is built from the directory at this start", e.GetType().Name + ": " + e.Message);
++                // RewindBox (patch 0076): in the engine's journal, without a path: the message only when it is this file's own words about the tree (a
++                //   system message names the file; the writer's own names a file of the game)
++                RbMark("RewindBox: RomFS index not written (" + e.GetType().Name + (e.Message.Contains("the RomFS tree", StringComparison.Ordinal) ? ": " + e.Message : "") +
++                       "), the image is built from the directory at this start");
+                 return null;
+             }
+         }

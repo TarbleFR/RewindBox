@@ -1,0 +1,589 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index a06da9f..110c97f 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -1617,7 +1617,7 @@ static void put_hdr(uint8_t *p, uint32_t op, uint32_t size) { op_hdr h = {op, si
+ // submission and the game only re-records memory the GPU is done with, so this is a margin, not a requirement
+ #define SH_QUAR_FRAMES 2
+ #define SH_QUAR_CAP (256ull << 20)
+-typedef struct sblk { struct sblk *next; uint32_t cls, pad; } sblk;   // block header; records follow
++typedef struct sblk { struct sblk *next; uint32_t cls, pad; uintptr_t rb_tag; struct srec *rb_rec; } sblk;   // block header; records follow. RewindBox (patch 0072): rb_tag / rb_rec on a recording's first block
+ typedef struct { uintptr_t lo, hi; } siv;
+ typedef struct snode { struct snode *next, **pprev; struct srec *r; uintptr_t lo, hi, page; } snode;
+ typedef struct srec {
+@@ -1628,6 +1628,7 @@ typedef struct srec {
+     snode *nodes;               // index nodes, set at EndRecording
+     uintptr_t glo;              // start of the piece in the command buffer's current window
+     uint64_t bytes, rbytes, frame;   // host bytes of the blocks / of the records; frame of release
++    volatile uint32_t *rb_sig[8]; uint64_t rb_call[8]; uint8_t rb_nsig, rb_ncall, rb_over;   // RewindBox (patch 0072): its GPU-side event signals and the handles it calls (rb_xq_note); rb_over: more than 8
+ } srec;
+ static pthread_mutex_t g_sh_mu = PTHREAD_MUTEX_INITIALIZER;
+ static sblk *g_sh_free[SH_NCLS];
+@@ -1639,6 +1640,8 @@ static srec *g_sh_qhead, *g_sh_qtail; static uint64_t g_sh_qbytes;
+ static uint64_t g_sh_nlive, g_sh_live_bytes, g_sh_unanchored;
+ typedef struct { uint64_t h; uint32_t len; struct sblk *b; } sintern;
+ static sintern *g_sh_it; static size_t g_sh_itcap, g_sh_itn; static uint64_t g_sh_shared_n;   // interned recordings (sh_intern)
++// RewindBox (patch 0072): what marks a recording's first block, for its handle h = the block + 1 (a process of its own: a frame replay maps the blocks back, not the recordings)
++static uintptr_t rb_sh_tag(uintptr_t h) { return h ^ (uintptr_t)0x52427871a5c3e1d7ull ^ (uintptr_t)&g_sh_mu; }
+ static uint32_t sh_hash(uintptr_t page) { return (uint32_t)((page * 0x9E3779B97F4A7C15ull) >> 48) & (SH_NBKT - 1); }
+ static void sh_live(uint64_t *recs, uint64_t *bytes) { pthread_mutex_lock(&g_sh_mu); *recs = g_sh_nlive; *bytes = g_sh_live_bytes; pthread_mutex_unlock(&g_sh_mu); }
+ // Live recordings (begun and not released), for diagnostics and the unit tests
+@@ -1681,7 +1684,7 @@ static sblk *sh_blk_get(size_t want, size_t need) {   // g_sh_mu held; a block o
+         }
+         b = (sblk *)(g_sh_chunk[k].mem + ((size_t)g_sh_chunk[k].carved++ << (SH_CLS0 + c)));
+     }
+-    b->next = NULL; b->cls = (uint32_t)c; return b;
++    b->next = NULL; b->cls = (uint32_t)c; b->rb_tag = 0; b->rb_rec = NULL; return b;   // RewindBox (patch 0072): rb_tag / rb_rec
+ }
+ static void sh_index(srec *r) {   // g_sh_mu held
+     uint32_t n = 0;
+@@ -1696,6 +1699,7 @@ static void sh_index(srec *r) {   // g_sh_mu held
+         }
+ }
+ static void sh_free_rec(srec *r) {   // g_sh_mu held: blocks back to their classes
++    if (r->blk) r->blk->rb_tag = 0;   // RewindBox (patch 0072): no more its handle's (nvn_hle_handle_sigs)
+     for (sblk *b = r->blk, *nx; b; b = nx) { nx = b->next; b->next = g_sh_free[b->cls]; g_sh_free[b->cls] = b; }
+     if (r->iv != r->ivs) free(r->iv);
+     free(r);
+@@ -1802,7 +1806,7 @@ static void sh_grow(cmd_t *o, uint32_t need) {
+     srec *r = o->rec; size_t want = r->last ? (size_t)2 << (SH_CLS0 + r->last->cls) : (o->hint ? o->hint : 1024);
+     pthread_mutex_lock(&g_sh_mu); sh_pump();
+     sblk *b = sh_blk_get(want, need + sizeof(sblk)); size_t bs = (size_t)1 << (SH_CLS0 + b->cls);
+-    if (r->last) r->last->next = b; else r->blk = b;
++    if (r->last) r->last->next = b; else { r->blk = b; b->rb_rec = r; b->rb_tag = rb_sh_tag((uintptr_t)(b + 1)); }   // RewindBox (patch 0072): the handle's block
+     r->last = b; r->bytes += bs; g_sh_live_bytes += bs;
+     pthread_mutex_unlock(&g_sh_mu);
+     uint8_t *start = (uint8_t *)(b + 1);
+@@ -1878,7 +1882,7 @@ static int sh_intern(cmd_t *o, srec *r) {   // g_sh_mu held: 1 = r dropped, hand
+         g_sh_it[i] = (sintern){hv, (uint32_t)len, copy}; g_sh_itn++;
+     }
+     r->prev->next = r->next; r->next->prev = r->prev; g_sh_nlive--; g_sh_live_bytes -= r->bytes;
+-    b->next = g_sh_free[b->cls]; g_sh_free[b->cls] = b;   // nothing points into it yet: the handle is handed out below
++    b->rb_tag = 0; b->next = g_sh_free[b->cls]; g_sh_free[b->cls] = b;   // nothing points into it yet: the handle is handed out below. RewindBox (patch 0072): rb_tag
+     if (r->iv != r->ivs) free(r->iv);
+     free(r);
+     o->begin = (uint8_t *)(copy + 1); o->cur = o->end = NULL; g_sh_shared_n++;
+@@ -1896,6 +1900,30 @@ static void sh_end(cmd_t *o) {
+     if (un && (un == 1 || un % 1024 == 0)) LOG("【黄】[nvn] command recording without any of the game's memory: its host blocks stay until the session ends (%llu so far)", (unsigned long long)un);
+     o->rec = NULL;
+ }
++// RewindBox (patch 0072): the events a recording signals from the GPU and the handles it calls, noted as they are recorded. nvn_xqueue.inc xq_push walked every record of every
++//   stream it queued behind a parked queue, calls included, to find them (xq_sig_walk), again at each new park: IPA 765, Mario Kart World, 0.41 ms a frame of the submit thread
++//   in that walk alone (23,670 parks). p = the record (OP_SIGNAL_EVENT {event, mode, value} or OP_CALL {handle}); the recording's own thread, as the record
++static void rb_xq_note(cmd_t *o, uint32_t op, const uint8_t *p) {
++    srec *r = o->rec; if (!r || r->rb_over) return;
++    if (op == OP_SIGNAL_EVENT) { volatile uint32_t *x; uint32_t m; memcpy(&x, p + 8, 8); memcpy(&m, p + 16, 4); if (m & NVN_EV_WAIT) return;
++        for (int k = 0; k < r->rb_nsig; k++) if (r->rb_sig[k] == x) return;
++        if (r->rb_nsig == 8) r->rb_over = 1; else r->rb_sig[r->rb_nsig++] = x; return; }
++    uint64_t t; memcpy(&t, p + 8, 8);
++    for (int k = 0; k < r->rb_ncall; k++) if (r->rb_call[k] == t) return;
++    if (r->rb_ncall == 8) r->rb_over = 1; else r->rb_call[r->rb_ncall++] = t;
++}
++// RewindBox (patch 0072): for xq_push (submit thread, nvn_xqueue.inc). 1 = h is the handle of an ended recording, whose signals and calls (at most 8 each) are copied out; 0 = not
++//   known (no handle of ours, still recording, more than 8, an interned copy): the caller walks the records. A handle is its first block + 1, and blocks start on 2^SH_CLS0 bytes
++//   in page-aligned chunks, so the header read here is in h's own page. Under g_sh_mu: a recording's blocks are reused (sh_free_rec, its tag cleared first) under it too
++int nvn_hle_handle_sigs(uint64_t h, volatile uint32_t **sig, int *ns, uint64_t *call, int *nc) {
++    if (h < sizeof(sblk) || ((h - sizeof(sblk)) & ((1u << SH_CLS0) - 1))) return 0;
++    const sblk *b = (const sblk *)(uintptr_t)(h - sizeof(sblk)); int ok = 0;
++    pthread_mutex_lock(&g_sh_mu);
++    if (b->rb_tag == rb_sh_tag((uintptr_t)h)) { const srec *r = b->rb_rec;
++        if (r && !r->open && !r->rb_over) { *ns = r->rb_nsig; *nc = r->rb_ncall; memcpy(sig, (const void *)r->rb_sig, sizeof r->rb_sig); memcpy(call, r->rb_call, sizeof r->rb_call); ok = 1; } }
++    pthread_mutex_unlock(&g_sh_mu);
++    return ok;
++}
+ // A recording starts with its first command, as in NVN: no BEGIN record, so an empty recording takes only its END. Games size command memory by GetCommandMemoryUsed
+ // (nvn_obj.h draw_rec): Breath of the Wild sums one scratch recording per mesh and per shape and render pass into each model's prerecorded commands
+ NVN(nvnCommandBufferBeginRecording, void, NVNcommandBuffer *c) {
+@@ -1941,7 +1969,8 @@ NVN(nvnCommandBufferCopyCommands, void, NVNcommandBuffer *c, int n, const NVNcom
+                 p_bind_tex1 b; memcpy(&b, q + sizeof r, sizeof b); uint64_t hh = b.h;
+                 if (b.slot & BIND_TEX1_AT) { uint64_t g; memcpy(&g, q + sizeof r + sizeof b, 8); memcpy(&hh, (const void *)(uintptr_t)g, 8); }
+                 rec_bind_tex1(CB(c), b.stage, b.slot & ~BIND_TEX1_AT, hh, b.tbase, b.sbase, 0);
+-            } else { uint8_t *p = cmd_alloc_cb(CB(c), r.op, r.size, 0); memcpy(p + sizeof r, q + sizeof r, r.size - sizeof r); }
++            } else { uint8_t *p = cmd_alloc_cb(CB(c), r.op, r.size, 0); memcpy(p + sizeof r, q + sizeof r, r.size - sizeof r);
++                if (r.op == OP_SIGNAL_EVENT || r.op == OP_CALL) { if (r.size >= (r.op == OP_CALL ? 16u : 24u)) rb_xq_note(CB(c), r.op, p); else if (CB(c)->rec) CB(c)->rec->rb_over = 1; } }   // RewindBox (patch 0072): rb_xq_note
+             q += r.size;
+         }
+     }
+@@ -1961,7 +1990,7 @@ NVN(nvnCommandBufferSignalEvent, void, NVNcommandBuffer *c, const NVNevent *e, N
+     (void)loc; (void)flags;
+     uint8_t *p = cmd_alloc(CB(c), OP_SIGNAL_EVENT, 24);
+     const ev_t *ev = (const ev_t *)e; volatile uint32_t *val = ev->val; uint32_t mm = m;
+-    memcpy(p + 8, &val, 8); memcpy(p + 16, &mm, 4); memcpy(p + 20, &v, 4);
++    memcpy(p + 8, &val, 8); memcpy(p + 16, &mm, 4); memcpy(p + 20, &v, 4); rb_xq_note(CB(c), OP_SIGNAL_EVENT, p);   // RewindBox (patch 0072)
+     nvn_be_event_gpu_recorded(val);   // 录制时就告诉后端：这个事件由 GPU 侧信号写（别的队列先等它时不在 GPU 上等，nvn_mtl.m ev_wait ⑤）
+ }
+ // A fence recorded in a command buffer: the replay fences the sync with the submission that reaches this point (OP_FENCE_SYNC). Unreal Engine's NVN RHI fences its command buffers this way (Octopath Traveler 0); Pokémon Legends: Z-A fences once a frame this way and waits on it
+@@ -4861,7 +4890,7 @@ static const char *nvn2_red_why(const char *name) {
+ #include "../tex/nvn_deswizzle.h"
+ 
+ NVN(nvnCommandBufferCallCommands, void, NVNcommandBuffer *c, int n, const NVNcommandHandle *h) {   // the source runs as it is at submit time (Copy above takes its records now)
+-    for (int i = 0; i < n; i++) { uint8_t *p = cmd_alloc(CB(c), OP_CALL, 16); memcpy(p + 8, &h[i], 8); }
++    for (int i = 0; i < n; i++) { uint8_t *p = cmd_alloc(CB(c), OP_CALL, 16); memcpy(p + 8, &h[i], 8); rb_xq_note(CB(c), OP_CALL, p); }   // RewindBox (patch 0072): rb_xq_note
+ }
+ // Combined texture handle (texture id | sampler id << 20) is recorded into the texture slot as is: the replay layer takes the texture from the low 20 bits and the sampler from the high bits (nvn_mtl.m NVN_RB_SAMPT)
+ // One combined handle: its device word is kept in the game's command memory, where Luigi's Mansion 3 patches it after recording (rec_bind_tex1)
+@@ -5118,7 +5147,7 @@ NVN(nvnCommandBufferSetDepthRanges, void, NVNcommandBuffer *c, int first, int n,
+ NVN(nvnCommandBufferReportValue, void, NVNcommandBuffer *c, uint32_t v, NVNbufferAddress a) {
+     uint8_t *p = cmd_alloc(CB(c), OP_SIGNAL_EVENT, 24);
+     volatile uint32_t *val = (volatile uint32_t *)(uintptr_t)GA(a); uint32_t mm = NVN_EVENT_SIGNAL_MODE_WRITE;
+-    memcpy(p + 8, &val, 8); memcpy(p + 16, &mm, 4); memcpy(p + 20, &v, 4);
++    memcpy(p + 8, &val, 8); memcpy(p + 16, &mm, 4); memcpy(p + 20, &v, 4); rb_xq_note(CB(c), OP_SIGNAL_EVENT, p);   // RewindBox (patch 0072)
+ }
+ // Clear a buffer to a 32-bit value: one OP_CLEAR_BUF record, filled in order within the submission at replay (fillBuffer when all bytes match, otherwise copied from a pattern buffer)
+ NVN(nvnCommandBufferClearBuffer, void, NVNcommandBuffer *c, NVNbufferAddress a, size_t n, uint32_t v) { *REC(c, OP_CLEAR_BUF, p_clear_buf) = (p_clear_buf){GA(a), n, v, 0}; }
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.h b/graphics/nvn/gfx/nvn/nvn_mtl.h
+index 40b84e2..a1cc365 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.h
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.h
+@@ -51,6 +51,7 @@ int nvn_be_xq_fence(void *q, void *sync);                       // QueueFenceSyn
+ int nvn_be_xq_owed(const void *sync, void **q);                 // 这个同步对象的栅栏是否欠着（q = 欠它的队列）
+ int nvn_be_xq_owed_wait(const void *sync, uint64_t ns);         // 等欠着的栅栏发布，最多 ns 纳秒；1 = 已发布
+ void nvn_be_xq_wait_queue(void *q, void *owner);                // QueueWaitSync(q, 欠在 owner 上的栅栏)：q 之后的提交排在 owner 停住的工作后面
++int nvn_hle_handle_sigs(uint64_t h, volatile uint32_t **sig, int *ns, uint64_t *call, int *nc);   // RewindBox (patch 0072): hle_nvn.c, a recording's GPU-side signals and calls (nvn_xqueue.inc xq_sig_of)
+ 
+ uint64_t nvn_be_last_fence(void);                       // Fence value of the most recent submit (0 = never submitted)
+ int nvn_be_wait(uint64_t fence, uint64_t timeout_ns);   // Returns 1 when the GPU has completed up to fence, 0 on timeout
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 00194f6..4d05698 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -253,8 +253,16 @@ static void m3_commit(id<MTLCommandBuffer> cb, NSArray *fb, id<MTLSharedEvent> e
+     [cb commit];
+ }
+ // 旧队列上「交了就等完」的几处（回读 / 截图 / 帧录放）：安全停后不交也不等（没交的命令缓冲 waitUntilCompleted 永远不返回），返回 0，调用方按没拿到结果处理
+-static int cb_run(id<MTLCommandBuffer> cb) { if (!gpu_go()) return 0; [cb commit]; [cb waitUntilCompleted]; return 1; }
+-static int cb_put(id<MTLCommandBuffer> cb) { if (!gpu_go()) return 0; [cb commit]; return 1; }
++// RewindBox (patch 0072): the residency set committed once before a command buffer, not at each place that adds to it. res_commit ran where pools became resident (pool_res), where
++//   pool tables and the raw pool table grew, and where a parked queue's state came back, on top of the commit before each command buffer: IPA 765, Mario Kart World, 957 commits
++//   and 256.4 ms per 300 frames (3.2 commits, 0.85 ms a frame on the submit thread, nearly all in IOKit). Now those places only mark the set (g_res_dirty) and every command
++//   buffer commit is preceded by res_commit: the main and segment commits, upload batches, the count wait and the present already were, the old queue's (cb_run / cb_put) is now.
++//   A commit with only removals waits for the next frame or 32 MB of them (staying resident a little longer is harmless; a missed addition is a GPU fault, so additions never wait).
++//   S2A_RB_RES_ONCE=0 commits as before. Not on Metal 3, whose commits are not all preceded by res_commit
++static int rb_res_once_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_RES_ONCE"); v = !(e && !strcmp(e, "0")); } return v && !g_m3; }
++static void res_commit(void);
++static int cb_run(id<MTLCommandBuffer> cb) { if (!gpu_go()) return 0; if (rb_res_once_on()) res_commit(); [cb commit]; [cb waitUntilCompleted]; return 1; }   // RewindBox (patch 0072): res_commit
++static int cb_put(id<MTLCommandBuffer> cb) { if (!gpu_go()) return 0; if (rb_res_once_on()) res_commit(); [cb commit]; return 1; }   // RewindBox (patch 0072): res_commit
+ // Metal 3 encoders (#278 D3-2): the main command buffer's draw passes, compute and copy encoders are the old ones (MTLRenderCommandEncoder / MTLComputeCommandEncoder /
+ // MTLBlitCommandEncoder, whose state setters have the Metal 4 selectors), ordered by g_fence3 (m3_wait, m4_end). Argument binding is D3-3 (#279):
+ // enc_r_table / enc_c_table note each stage's DmTable3 and every draw and dispatch hands its slots to the encoder first (m3_bind_draw / m3_bind_dispatch)
+@@ -286,6 +294,9 @@ int mtl_m3_buf(uint64_t gpu, void **buf, uint64_t *off) { NSUInteger o = 0; id<M
+ static NSHashTable *g_res_objects;
+ // Residency churn by call site (the power line every 300 frames, nvn_be_res_stats): each commit with changes is a kernel call whose cost grows with what was added or removed
+ enum { RS_SITES = 16 }; static struct { int line; uint64_t n, bytes; } g_rs_site[RS_SITES]; static uint64_t g_rs_rm, g_rs_commits, g_rs_commit_ns;
++// RewindBox (patch 0072): what the uncommitted changes are (under g_res_mu): additions, bytes removed and the frame + 1 the first removal came in; commits with additions / only
++//   removals and removal-only commits put off since the last stats line; this thread's commit time, never reset (the cross-queue pieces' line takes its share, nvn_xqueue.inc)
++static int g_rb_res_add; static uint64_t g_rb_res_rm_bytes, g_rb_res_rm_frame, g_rb_res_c_add, g_rb_res_c_rm, g_rb_res_putoff; static _Thread_local uint64_t t_rb_res_ns;
+ #define res_add(r) res_add_at((r), __LINE__)
+ // 大贴图建立账（S2A_MEM_SPLIT=1，缺省关；11-05 时之笛第二十三版读档进场景：约 0.1 秒私有贴图 417 → 1708 MB，同期随包首传只有约 325 MB，要知道多出来的是哪些）：
+ //   进驻留集的私有贴图 ≥ 4 MB 各打一行（建它的源码行号定是哪条路：GPU 贴图 / 随包上传 / 升级 / 放宽 / 内部分辨率 / 临时图），带 Metal 侧尺寸、格式、级数、层数、用途与累计；
+@@ -320,7 +331,7 @@ static void res_add_at_body(id<MTLAllocation> r, int line) {
+     [g_res addAllocation:(id<MTLAllocation>)r];
+     [g_res_objects addObject:r];
+     if (g_m3 && [r conformsToProtocol:@protocol(MTLBuffer)]) m3_buf_add((id<MTLBuffer>)r);
+-    g_res_dirty = 1;
++    g_res_dirty = 1; g_rb_res_add = 1;   // RewindBox (patch 0072): an addition never waits (res_commit)
+     pthread_mutex_unlock(&g_res_mu);
+ }
+ static int pool_pin_retire(void *r);   // a pool table names it (pool_ent_put): it stays resident until no entry does
+@@ -335,6 +346,7 @@ static void res_remove_body(id<MTLAllocation> r) {
+     [g_res_objects removeObject:r];
+     if (g_m3 && [r conformsToProtocol:@protocol(MTLBuffer)]) m3_buf_del((id<MTLBuffer>)r);
+     g_res_dirty = 1; g_rs_rm++;
++    g_rb_res_rm_bytes += r.allocatedSize; if (!g_rb_res_rm_frame) g_rb_res_rm_frame = atomic_load_explicit(&g_cur_frame, memory_order_relaxed) + 1;   // RewindBox (patch 0072)
+     pthread_mutex_unlock(&g_res_mu);
+ }
+ // ---------- Metal 3 argument tables (#279 D3-3) ----------
+@@ -417,11 +429,16 @@ static void res_check(id r, const char *what, int reg) {
+         MLOG("【红】 missing residency #%d: %s slot %d %s %p (parent chain %d deep) allocated %lu B storage mode %lu%s", nbad, what, reg, is_tex ? "texture" : "buffer", (__bridge void *)a, hops, (unsigned long)a.allocatedSize, (unsigned long)a.storageMode,
+              t ? [NSString stringWithFormat:@" format %lu %lux%lu type %lu usage %#lx", (unsigned long)t.pixelFormat, (unsigned long)t.width, (unsigned long)t.height, (unsigned long)t.textureType, (unsigned long)t.usage].UTF8String : ""); }
+ }
+-static void res_commit(void) {
++static void res_commit_(int force);
++static void res_commit(void) { res_commit_(0); }
++static void res_commit_(int force) {   // RewindBox (patch 0072): force = removals too, whatever their age (session end)
+     pthread_mutex_lock(&g_res_mu);
+     // RewindBox (patch 0022): the commit in its own pool. It applies the removals of retired staging; on the submit thread, outside a local pool, what it
+     //   autoreleases stayed alive until the submission ended (IPA 741: ~1.3 GB of retired staging, see rb_up_pieces)
+-    if (g_res_dirty) { uint64_t t0 = clock_gettime_nsec_np(CLOCK_UPTIME_RAW); @autoreleasepool { [g_res commit]; } g_res_dirty = 0; g_rs_commits++; g_rs_commit_ns += clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - t0; }
++    // RewindBox (patch 0072): only removals, under 32 MB, all from this frame: they wait for a later commit (see rb_res_once_on)
++    if (g_res_dirty && !force && !g_rb_res_add && g_rb_res_rm_bytes < (32ull << 20) && g_rb_res_rm_frame == atomic_load_explicit(&g_cur_frame, memory_order_relaxed) + 1 && rb_res_once_on()) g_rb_res_putoff++;
++    else if (g_res_dirty) { uint64_t t0 = clock_gettime_nsec_np(CLOCK_UPTIME_RAW); @autoreleasepool { [g_res commit]; } g_res_dirty = 0; g_rs_commits++; uint64_t dt = clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - t0; g_rs_commit_ns += dt;
++        t_rb_res_ns += dt; if (g_rb_res_add) g_rb_res_c_add++; else g_rb_res_c_rm++; g_rb_res_add = 0; g_rb_res_rm_bytes = 0; g_rb_res_rm_frame = 0; }   // RewindBox (patch 0072)
+     pthread_mutex_unlock(&g_res_mu);
+ }
+ // Since the last call: residency commits (count, time), additions by source line (count, MB; the four largest by bytes) and removals
+@@ -431,8 +448,9 @@ void nvn_be_res_stats(char *out, size_t n) {
+     size_t o = snprintf(out, n, "commits %llu / %.1f ms, added %llu, %.0f MB (", (unsigned long long)g_rs_commits, g_rs_commit_ns / 1e6, (unsigned long long)tn, tb / 1048576.0);
+     for (int i = 0; i < 4 && o < n; i++) { int best = -1; for (int k = 0; k < RS_SITES; k++) if (g_rs_site[k].n && (best < 0 || g_rs_site[k].bytes > g_rs_site[best].bytes)) best = k;
+         if (best < 0) break; o += snprintf(out + o, n - o, "%sline %d: %llu, %.0f MB", i ? ", " : "", g_rs_site[best].line, (unsigned long long)g_rs_site[best].n, g_rs_site[best].bytes / 1048576.0); g_rs_site[best].n = 0; }
+-    if (o < n) snprintf(out + o, n - o, "), removed %llu", (unsigned long long)g_rs_rm);
+-    memset(g_rs_site, 0, sizeof g_rs_site); g_rs_rm = g_rs_commits = g_rs_commit_ns = 0;
++    if (o < n) o += snprintf(out + o, n - o, "), removed %llu", (unsigned long long)g_rs_rm);
++    if (o < n) snprintf(out + o, n - o, " (RewindBox, patch 0072: commits with additions %llu, with removals only %llu, removal-only commits put off %llu)", (unsigned long long)g_rb_res_c_add, (unsigned long long)g_rb_res_c_rm, (unsigned long long)g_rb_res_putoff);
++    memset(g_rs_site, 0, sizeof g_rs_site); g_rs_rm = g_rs_commits = g_rs_commit_ns = 0; g_rb_res_c_add = g_rb_res_c_rm = g_rb_res_putoff = 0;
+     pthread_mutex_unlock(&g_res_mu);
+ }
+ 
+@@ -772,7 +790,7 @@ static void pool_res(int i) {
+     if (!g_pools[i].reg) { g_pools[i].reg = 1; if (g_pools[i].gslot) g_gmem_rgen++; }   // the raw pool table never takes it out (gmem_scan): bindings encoded with its address may be reused;
+                                                                                           //   a table that has its entry cold or tracked is rebuilt with it plainly usable
+     if (g_pools[i].res) return;
+-    res_add(g_pools[i].buf); res_commit(); g_pools[i].res = 1; g_pool_res_n++;
++    res_add(g_pools[i].buf); if (!rb_res_once_on()) res_commit(); g_pools[i].res = 1; g_pool_res_n++;   // RewindBox (patch 0072): committed before the command buffer that uses it
+ }
+ __attribute__((weak)) uint8_t *s2a_far_g2h(uint64_t a) { (void)a; return NULL; }   // native far.c; graphics unit tests have no far region
+ // The game's address of a memory pool may lie in the far part of the alias region (address-space root fix: the host has no address there, the contents live in
+@@ -3203,7 +3221,11 @@ uint64_t nvn_be_sub_commit(void) {
+     NSArray<NSString *> *qsus = quar_take();   // this commit's suspects for a GPU error (quar_fault)
+     id o = fb_new();
+     atomic_fetch_add(&g_seg_inflight, 1);
+-    fb_add(o, ^(id f) { (void)f; atomic_fetch_sub(&g_seg_inflight, 1); for (dispatch_block_t block in commit_blocks) block(); });
++    // RewindBox (patch 0072): one completion handler for the submission's command buffer, not two (the first one's work now opens the second): Metal and libdispatch work tied
++    //   to submissions was 0.15 to 0.26 of a core in IPA 765. S2A_RB_ONE_HANDLER=0 adds two as before
++    static int one_fb = -1; if (one_fb < 0) { const char *e = getenv("S2A_RB_ONE_HANDLER"); one_fb = !(e && !strcmp(e, "0")); }
++    int one = one_fb;
++    if (!one) fb_add(o, ^(id f) { (void)f; atomic_fetch_sub(&g_seg_inflight, 1); for (dispatch_block_t block in commit_blocks) block(); });
+     uint64_t gpu_f = atomic_load(&g_cur_frame); double gpu_sub = gpu_tag_begin(gpu_f);
+     // RewindBox (patch 0059): this piece's GPU-written words go to its handler, which reads them once the piece has run
+     int fsn = 0; uint64_t *fsa = NULL; uint32_t *fsq = NULL; fsig_wx *fsx = NULL;   // RewindBox (patch 0067): fsx, each word's record, frame, stride and kind
+@@ -3216,6 +3238,7 @@ uint64_t nvn_be_sub_commit(void) {
+     NSString *cctx = @(cctx_snap());
+     seg_clk *sc = g_sclk; uint32_t seg_last = g_seg; g_sclk = NULL;
+     fb_add(o, ^(id<MTL4CommitFeedback> cb) {
++        if (one) { atomic_fetch_sub(&g_seg_inflight, 1); for (dispatch_block_t block in commit_blocks) block(); }   // RewindBox (patch 0072): what the first handler did, first
+         gpu_tag_done(gpu_f, 0, gpu_sub, cb.GPUStartTime, cb.GPUEndTime);
+         uint64_t c0 = 0, c1 = 0; if (seg_ts()) { c0 = gpu_s_guest_ns(cb.GPUStartTime); c1 = gpu_s_guest_ns(cb.GPUEndTime); }
+         if (rb_ts_busy()) tsb_piece(gpu_f, seg_ts() ? c0 : gpu_s_guest_ns(cb.GPUStartTime), seg_ts() ? c1 : gpu_s_guest_ns(cb.GPUEndTime));   // RewindBox (patch 0068): this piece, before its reports
+@@ -3311,10 +3334,13 @@ int nvn_be_wait(uint64_t fence, uint64_t timeout_ns) {
+ void *nvn_be_fence_event(void) { mtl_init(); return (__bridge void *)g_ev; }   // NVN 提交的共享事件：值 = 已完成的栅栏号（提交时 signal）
+ // NVN 队列在 GPU 上等别的队列的共享事件到 v：此后提交到本层队列的全部工作（主命令缓冲、上传批）都排在它后面。先等录制线程把已录的提交交出去，再下等待：
+ //   Metal 4 是队列级 waitForEvent；Metal 3 是只含一条 encodeWaitForEvent 的命令缓冲（同一队列后续命令缓冲都被它挡住，11-01 本机实测）。此前还没提交的工作也会一起等（只多等不少等）
++static uint64_t g_rb_qwait_n, g_rb_evwait_n, g_rb_fsync_n;   // RewindBox (patch 0072): queue waits made for another queue's or GL's fence (OP_WAIT_SYNC, QueueWaitSync) and for a GPU event
++                                                              //   wait's ticket (ev_wait, on g_evw_ev), fences taken in the replay (OP_FENCE_SYNC): what a piece holds (xq_piece)
+ static void queue_wait_event(void *ev, uint64_t v) {   // the wait itself; the replay calls it while encoding a submission (OP_WAIT_SYNC), whose command buffer commits after it
+     id<MTLSharedEvent> e = (__bridge id<MTLSharedEvent>)ev;
+     if (e.signaledValue >= v) return;
+     if (mtl_gpu_halted()) return;   // GPU 安全停后不再往队列放东西
++    if (ev == (__bridge void *)g_evw_ev) g_rb_evwait_n++; else g_rb_qwait_n++;   // RewindBox (patch 0072)
+     if (g_m3) { id<MTLCommandBuffer> cb = m3_cb(); [cb encodeWaitForEvent:e value:v]; [cb commit]; }
+     else [g_q4 waitForEvent:e value:v];
+ }
+@@ -12160,7 +12186,7 @@ static void pool_tab_put_n(pool_tab *t, uint32_t n) {   // the IDs a table cover
+         uint32_t cap = n + n / 4 + 1; size_t len = (DMSH_POOL_HEAD + 8 * (size_t)cap + 0xffff) & ~(size_t)0xffff;
+         id<MTLBuffer> b = [g_dev newBufferWithLength:len options:MTLResourceStorageModeShared];
+         if (!b) { RED_ONCE(173, "cannot grow a %s pool table to %u IDs: IDs past %u read the dummy", t->samp ? "sampler" : "texture", n, t->n); return; }
+-        res_add(b); res_commit(); g_pool_made++;
++        res_add(b); if (!rb_res_once_on()) res_commit(); g_pool_made++;   // RewindBox (patch 0072): committed before the command buffer that uses it
+         memcpy(b.contents, t->buf.contents, DMSH_POOL_HEAD + 8 * (size_t)t->n);
+         cap = (uint32_t)((len - DMSH_POOL_HEAD) / 8);   // obj holds as many entries as t->cap says (the buffer's room, rounded up to 64 KB), as pool_tab_new's calloc: sized to n + n/4 + 1 it
+                                                         //   fell short of t->cap, a later growth within the room skipped the realloc and pool_ent_put read past it (11-06 第47版 SIGSEGV objc_retain 0x1f7)
+@@ -12186,7 +12212,7 @@ static int pool_tab_new(int samp, int dtt, int dpf, int base) {   // the one who
+     id<MTLBuffer> b = [g_dev newBufferWithLength:len options:MTLResourceStorageModeShared];
+     void **obj = calloc((len - DMSH_POOL_HEAD) / 8, sizeof *obj);
+     if (!b || !obj) { free(obj); RED_ONCE(172, "cannot allocate a %s pool table of %d IDs: its reads fault on the GPU", samp ? "sampler" : "texture", n); return -1; }
+-    res_add(b); res_commit(); g_pool_made++; g_pool_walks++;
++    res_add(b); if (!rb_res_once_on()) res_commit(); g_pool_made++; g_pool_walks++;   // RewindBox (patch 0072): committed before the command buffer that uses it
+     atomic_store(&g_ptab_any, 1);
+     pool_tab *t = &g_ptab[ti];
+     *t = (pool_tab){.buf = b, .gpu = b.gpuAddress, .cap = (uint32_t)((len - DMSH_POOL_HEAD) / 8), .n = (uint32_t)n, .used = 1, .samp = samp, .dtt = dtt, .dpf = dpf, .base = base, .obj = obj};
+@@ -12374,7 +12400,7 @@ static void gmem_scan(void) {
+             if (!g_gout_q) g_gout_q = [NSMutableArray array];
+             [g_gout_q addObject:@[p->buf, @(p->gfence)]];
+         } }
+-    if (added || removed) res_commit();
++    if ((added || removed) && !rb_res_once_on()) res_commit();   // RewindBox (patch 0072): committed before the command buffer that uses them
+     if (changed) g_gmem_rgen++;
+     if (now - g_gstat_at >= GSTAT_EVERY) { g_gstat_at = now;
+         int n = 0; uint64_t mb = 0; for (int i = 0; i < g_npool; i++) if (g_pools[i].gm && !g_pools[i].reg) { n++; mb += g_pools[i].hi - g_pools[i].lo; }
+@@ -12452,7 +12478,7 @@ static id<MTLBuffer> gmem_map(void) {
+     }
+     if (over) { static int said; if (!said++) MLOG("【红】 raw global memory: %d more pool ranges than the %d entries of the pool table; addresses in them are not reached", over, GMEM_ENTRIES - 1); }
+     if (nobit) { static int said; if (!said++) MLOG("【红】 raw global memory: the %d access bits are all taken: %d pools made resident without being reached", GSLOT_MAX, nobit); }
+-    res_add(b); res_commit();
++    res_add(b); if (!rb_res_once_on()) res_commit();   // RewindBox (patch 0072): committed before the command buffer that uses it
+     if (g_gmem_buf) defer_obj_release(g_gmem_buf);
+     g_gmem_buf = b; g_gmem_cpu = cpu; g_gmem_gen = gen;
+     { static int said; if (!said++) MLOG("raw global memory: pool table of %d ranges, %d of them not resident until reached (pool generation %llu), rebuilt whenever a pool comes or goes, is given an address, or is made resident or taken out for the table", n - 1, cold, (unsigned long long)gen); }
+@@ -15710,6 +15736,9 @@ static int mdi_live(uint64_t cnt, int i) { return (uint32_t)i < mdi_count(cnt);
+ typedef struct { uint64_t ind, cnt, out, tag; } mdx_ent;   // out: GPU address of the copy, 0 when the record or count is in no Metal buffer (those draws wait, mdi_live)
+ static const p_multi_draw *g_mdx_range;   // only while draw_multi replays a range through the GPU mask: mdx_run takes the range's later draws instead of looking ahead
+ static mdx_ent g_mdx[MDX_SLOTS]; static int g_mdx_n; static uint64_t g_mdx_tag = 1, g_mdx_ep = ~0ull, g_mdx_sub, g_mdx_runs, g_mdx_splits, g_mdx_draws, g_mdx_fast; static const uint8_t *g_mdx_stop;
++static uint64_t g_rb_mdx_ahead, g_rb_mdx_ahead_recs;   // RewindBox (patch 0072): runs made before a pass opened (rb_mdx_ahead), records its looks went through
++static int g_rb_mdx_bar, g_rb_mdx_left = 1; static uint64_t g_rb_mdx_frame;   // RewindBox (patch 0072): run made ahead (its lookahead stops at a barrier); the last run's lookahead may have left
++                                                                                //   masked draws before the next write (it did not end at one); the frame of the last run
+ static const char k_mdx_msl[] =
+ "#include <metal_stdlib>\nusing namespace metal;\n"
+ "struct mjob { device const uint *rec; device const uint *cnt; device uint *out; uint i, words; };\n"   // draw i's record (words long), its multi-draw's count, the copy (null: padding)
+@@ -15750,6 +15779,7 @@ static void mdx_run(const p_draw *dw, const p_draw_idx *di) {
+     enum { QMAX = MDX_SLOTS / 4 };
+     static struct { mdx_ent *e; uint32_t i, words; } q[QMAX]; int nq = 0;
+     uint64_t lo = ~0ull, hi = 0;   // the hull of the records and counts taken, for the uniform update check
++    int left = 1;   // RewindBox (patch 0072): 0 once the lookahead ends at a write that starts a new epoch (g_rb_mdx_left)
+     #define MDX_TAKE(IND, CNT, I, W) do { mdx_ent *e_ = mdx_slot((IND), (CNT)); if (e_->tag != g_mdx_tag && nq < QMAX) { *e_ = (mdx_ent){(IND), (CNT), 0, g_mdx_tag}; g_mdx_n++; \
+         q[nq].e = e_; q[nq].i = (uint32_t)(I); q[nq++].words = (W); lo = MIN(lo, MIN((IND), (CNT))); hi = MAX(hi, MAX((IND) + 4 * (W), (CNT) + 4)); } } while (0)
+     if (dw) MDX_TAKE(dw->ind, dw->mdi_cnt, dw->mdi_i, 4); else MDX_TAKE(di->ind, di->mdi_cnt, di->mdi_i, 5);
+@@ -15760,17 +15790,20 @@ static void mdx_run(const p_draw *dw, const p_draw_idx *di) {
+         fz_cursor cur = fz_cursor_from_exec();
+         const uint8_t *p; op_hdr h; const void *a;
+         for (int guard = 0; guard < 200000 && nq < QMAX && fz_next(&cur, &p, &h, &a); guard++) {
+-            if (h.op == OP_DISPATCH || h.op == OP_COPY_B2B || h.op == OP_CLEAR_BUF || h.op == OP_COPY_T2B) break;
++            if (h.op == OP_DISPATCH || h.op == OP_COPY_B2B || h.op == OP_CLEAR_BUF || h.op == OP_COPY_T2B) { left = 0; break; }
++            if (g_rb_mdx_bar && h.op == OP_BARRIER) break;   // RewindBox (patch 0072): made before the pass, no copy past a barrier (rb_mdx_ahead)
+             if (h.op == OP_UPDATE_UB) { uint64_t d, n; memcpy(&d, a, 8); memcpy(&n, (const uint8_t *)a + 8, 8);
+                 int hit = 0; for (int k = 0; d < hi && lo < d + n && k < nq && !hit; k++) { const mdx_ent *e = q[k].e; hit = (d < e->ind + 4 * q[k].words && e->ind < d + n) || (d < e->cnt + 4 && e->cnt < d + n); }
+-                if (hit) { g_mdx_stop = p; break; } continue; }
++                if (hit) { g_mdx_stop = p; left = 0; break; } continue; }
+             p_draw dt; p_draw_idx it; const p_draw *d = h.op == OP_DRAW ? draw_rec(a, h.size, &dt) : NULL; const p_draw_idx *x = h.op == OP_DRAW_IDX ? draw_idx_rec(a, h.size, &it) : NULL;
+             if (d && mdx_wanted(d, NULL)) MDX_TAKE(d->ind, d->mdi_cnt, d->mdi_i, 4);
+             else if (x && mdx_wanted(NULL, x)) MDX_TAKE(x->ind, x->mdi_cnt, x->mdi_i, 5);
+         }
+     }
+     #undef MDX_TAKE
++    g_rb_mdx_left = left;   // RewindBox (patch 0072)
+     if (!nq) return;
++    g_rb_mdx_frame = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);   // RewindBox (patch 0072)
+     if (g_enc) { g_mdx_splits++; PD("M %llu indirect-count multi-draw masking: render pass split here", g_stat_pass); rp_end(); }
+     if (g_blit) { enc_b_end(g_blit); g_blit = nil; }
+     typedef struct { uint64_t rec, cnt, out; uint32_t i, words; } mjob;
+@@ -15797,8 +15830,8 @@ static void mdx_run(const p_draw *dw, const p_draw_idx *di) {
+     args_dirty_all();
+     g_mdx_draws += (uint64_t)nq;
+     if (!g_mdx_runs++) MLOG("indirect-count multi-draw masking: first time, %d draws (their records are copied on the GPU, zeros past the count, before the render pass)", nq);
+-    else if (g_mdx_runs % 3600 == 0) MLOG("indirect-count multi-draw masking: %llu times, %llu draws (%llu encoded alone, mdx_next), render pass split %llu times; waits for the GPU-written count %llu",
+-                                          (unsigned long long)g_mdx_runs, (unsigned long long)g_mdx_draws, (unsigned long long)g_mdx_fast, (unsigned long long)g_mdx_splits, (unsigned long long)g_mdi_waits);
++    else if (g_mdx_runs % 3600 == 0) MLOG("indirect-count multi-draw masking: %llu times, %llu draws (%llu encoded alone, mdx_next), render pass split %llu times; waits for the GPU-written count %llu; RewindBox (patch 0072): run before their pass opened %llu times, %llu records looked through for it",
++                                          (unsigned long long)g_mdx_runs, (unsigned long long)g_mdx_draws, (unsigned long long)g_mdx_fast, (unsigned long long)g_mdx_splits, (unsigned long long)g_mdi_waits, (unsigned long long)g_rb_mdx_ahead, (unsigned long long)g_rb_mdx_ahead_recs);
+ }
+ // The draws of one multi-draw are recorded back to back with the same state, and only the first few are live: each one replayed right after the one before it (no op between them,
+ // the same open pass) is encoded alone, without the rest of draw's work, which cost a whole draw for each masked one (about 1.5 µs on an M4 Pro, 1,100 a frame in Kamura Village)
+@@ -16473,8 +16506,45 @@ static int gmem_uses(NvShader *s) {
+ }
+ static void gmem_count_draw(NvProg *pr) { g_gmem_draws_all++; for (int i = 0; i < 5; i++) if (gmem_uses(pr->sh[i])) { g_gmem_draws++; break; } }
+ 
++// RewindBox (patch 0072): indirect-count multi-draws masked before their pass opens. mdx_run makes the copies when the replay meets the first such draw; met in an open pass, that
++//   compute ends the pass and the next draw opens it again, one more store and load of every attachment on a tiled GPU. IPA 765, Mario Kart World: 3600 runs, 3498 of them split
++//   a pass (about one a frame; capture of frame 2976: two 1248x700 passes, split after 28 and 62 direct draws). Now the draw about to open a pass looks ahead to that
++//   pass's end and, at a masked multi-draw no copy covers yet, runs mdx_run for it there: the copies are made before the pass and its draws find them (mdx_run takes, from the same
++//   place in the replay, the draws it would have taken at the first one). The look stops where the copy could read other data than at the draw: a write mdx_run stops at
++//   (dispatch, buffer copy, fill, texture → buffer), any inline uniform update (mdx_run checks only the records it took before one), an event wait or signal, a fence or another
++//   queue's sync, a game barrier, and the pass end (SET_RT, texture copies, clears, DLSS); at most 4096 records, once per pass. A deferred update over the draw's record or count
++//   (which the draw itself would land first, ubd_conflict) leaves it to the draw. A barrier stops it because NVN puts one between a shader's write of indirect data and its use:
++//   the pass's earlier draws may write the count, which the copy at the draw saw (the pass ended there and the compute waited for it); for the same reason the run made here takes
++//   no draw past a barrier either (g_rb_mdx_bar in mdx_run), so it copies only what nothing before it in the pass may have written. No look while the copies are still valid and
++//   the last run took every masked draw up to the next write (g_rb_mdx_left), nor once no run was made for 2 frames. S2A_RB_MDX_AHEAD=0 copies at the first such draw as before
++static int rb_mdx_ahead_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_MDX_AHEAD"); v = !(e && !strcmp(e, "0")); } return v; }
++static uint64_t g_rb_mdx_ahead_key[3];   // the pass, scratch generation and write epoch of the last look
++static void rb_mdx_ahead(void) {   // submit thread, in draw before the pass opens
++    if (!rb_mdx_ahead_on() || g_enc || !g_mdx_runs || !g_exec_next || g_ret_n > 8 || g_mdx_range || g_defer_replaying || g_fz.active || g_geo_program) return;
++    if ((g_mdx_ep == g_mdx_epoch && g_mdx_sub == g_arena_gen && !g_rb_mdx_left) || atomic_load_explicit(&g_cur_frame, memory_order_relaxed) > g_rb_mdx_frame + 2) return;   // nothing left to copy / no masking lately
++    if (g_rb_mdx_ahead_key[0] == g_stat_pass + 1 && g_rb_mdx_ahead_key[1] == g_arena_gen && g_rb_mdx_ahead_key[2] == g_mdx_epoch) return;   // this pass was looked at (a draw before returned early)
++    g_rb_mdx_ahead_key[0] = g_stat_pass + 1; g_rb_mdx_ahead_key[1] = g_arena_gen; g_rb_mdx_ahead_key[2] = g_mdx_epoch;
++    fz_cursor cur = fz_cursor_from_exec(); const uint8_t *p; op_hdr h; const void *a;
++    for (int guard = 0; guard < 4096 && fz_next(&cur, &p, &h, &a); guard++) {
++        g_rb_mdx_ahead_recs++;
++        switch (h.op) {
++            case OP_SET_RT: case OP_DISPATCH: case OP_COPY_B2B: case OP_CLEAR_BUF: case OP_COPY_T2B: case OP_COPY_B2T: case OP_COPY_T2T: case OP_CLEAR_TEX: case OP_DLSS:
++            case OP_UPDATE_UB: case OP_SIGNAL_EVENT: case OP_WAIT_SYNC: case OP_FENCE_SYNC: case OP_BARRIER: return;
++            case OP_DRAW: case OP_DRAW_IDX: {
++                p_draw dt; p_draw_idx it; const p_draw *d = h.op == OP_DRAW ? draw_rec(a, h.size, &dt) : NULL; const p_draw_idx *x = d ? NULL : draw_idx_rec(a, h.size, &it);
++                if (d ? !mdx_wanted(d, NULL) : !mdx_wanted(NULL, x)) break;
++                uint64_t ind = d ? d->ind : x->ind, cnt = d ? d->mdi_cnt : x->mdi_cnt, out;
++                if (mdx_find(ind, cnt, &out)) return;   // an earlier run took it, and the draws after it
++                if (ubd_hits(ind, ind + (d ? 16 : 20)) || ubd_hits(cnt, cnt + 4)) return;
++                g_rb_mdx_bar = 1; mdx_run(d, x); g_rb_mdx_bar = 0; g_rb_mdx_ahead++; return; }
++            default: break;
++        }
++    }
++}
++// RewindBox (patch 0072): the same look from a clear drawn as a triangle or a DrawTexture that opens the pass (the replay gives draws alone their place, g_exec_next)
++static void rb_mdx_ahead_from(const uint8_t *next) { const uint8_t *en = g_exec_next; g_exec_next = next; rb_mdx_ahead(); g_exec_next = en; }
+ static void draw(const p_draw *dw, const p_draw_idx *di) {
+-    if (dw && dw->prim == DM_PRIM_MESH_TASKS && !g_mtk.on) { mesh_tasks_draw(dw); return; }   // NVN2 task / mesh draw: binds its stages and comes back with its pixel stage (nvn_geometry.inc)
++    if (dw && dw->prim == DM_PRIM_MESH_TASKS && !g_mtk.on) { if (!g_enc) rb_mdx_ahead(); mesh_tasks_draw(dw); return; }   // NVN2 task / mesh draw: binds its stages and comes back with its pixel stage (nvn_geometry.inc). RewindBox (patch 0072): rb_mdx_ahead
+     g_udc_precise = 0;   // only this draw's own udc_note_draw may cover its encode (a draw that returned without encoding leaves no stale cover)
+     g_udc_lmap = NULL; g_udc_fsfn = 0;   // the output map is this draw's own too: the one a previous (on-chip read / merged) draw used must not judge the next pass's lookahead (pass_color_unwritten) or a geometry / tessellation draw's writes (11-06 TotK: tiled lights black outside the lit tiles)
+     g_draw_binst = (uint32_t)(dw ? dw->base_instance : di ? di->base_instance : 0);   // c0 + 0x644 of the stages that read the driver segment (encode_args)
+@@ -16482,6 +16552,7 @@ static void draw(const p_draw *dw, const p_draw_idx *di) {
+         NvProg *geometry_program = prog_get(S.prog);
+         if (geometry_program && geometry_program->sh[2] && geometry_program->sh[2]->geo_vertices) {
+             if ((dw && dw->mdi_cnt && !mdi_live(dw->mdi_cnt, dw->mdi_i)) || (di && di->mdi_cnt && !mdi_live(di->mdi_cnt, di->mdi_i))) return;
++            if (!g_enc && !g_gr.active) rb_mdx_ahead();   // RewindBox (patch 0072): before the geometry draw's pass (not inside a geometry run, whose lanes a compute would end)
+             draw_widen(geometry_program, dw, di); geo_draw(geometry_program, dw, di); return;
+         }
+     }
+@@ -16507,6 +16578,7 @@ static void draw(const p_draw *dw, const p_draw_idx *di) {
+     if (mdx_on) { uint64_t ind = dw ? dw->ind : di->ind, cnt = dw ? dw->mdi_cnt : di->mdi_cnt; int i = dw ? dw->mdi_i : di->mdi_i;
+         if (!mdx_find(ind, cnt, &mdx)) { mdx_run(dw, di); if (!mdx_find(ind, cnt, &mdx)) mdx = 0; }
+         if (!mdx && !mdi_live(cnt, i)) return; }
++    else if (!g_enc) rb_mdx_ahead();   // RewindBox (patch 0072): the pass's masked multi-draws copied before it opens
+     if (di && wide_wanted(di) && !wide_find(di)) wide_run(di);   // 8-bit indices written earlier in this submission: widened on the GPU before the render pass (see wide_run)
+     if (!g_defer_replaying && !g_geo_program) {
+         if (g_defer.active && g_defer.in_p && !g_defer.at_q) { if (defer_take(dw, di)) return; }
+@@ -17905,7 +17977,7 @@ void nvn_be_exec(const uint8_t *p) {
+                 if (s && sync_ext(s, &ev, &v)) queue_wait_event(ev, v);
+                 g_pkg_epoch++;   // what the other queue wrote before its fence is visible after the wait: packaged textures are checked again
+                 PD("Y wait_sync cmd=%p sync=%p", p, (const void *)s); break; }
+-            case OP_FENCE_SYNC: { sync_t *s; memcpy(&s, a, 8); uint64_t fv = g_fence + 1; sync_publish(s, fv);   // the fence value this submission (segment) commits with
++            case OP_FENCE_SYNC: { sync_t *s; memcpy(&s, a, 8); uint64_t fv = g_fence + 1; sync_publish(s, fv); g_rb_fsync_n++;   // the fence value this submission (segment) commits with. RewindBox (patch 0072): g_rb_fsync_n
+                 PD("Y fence_sync cmd=%p sync=%p fence=%llu", p, (void *)s, (unsigned long long)fv); break; }
+             case OP_RESET_COUNTER: { uint64_t t; memcpy(&t, a, 8); g_cnt_reset[t & 31]++; PD("Q reset type=%llu cmd=%p", (unsigned long long)t, p);
+                 if (t == NVN_COUNTER_TYPE_SAMPLES_PASSED) {
+@@ -17951,7 +18023,7 @@ void nvn_be_exec(const uint8_t *p) {
+                     // Inside a pass, with a partial mask or a partial scissor: drawn as a triangle (clear_color_tri)
+                     static uint64_t n; static int clog = -1; if (clog < 0) clog = getenv("DM_NVN_CLEARLOG") != NULL; if (clog && n++ < 40) MLOG("color clear drawn as a triangle frame %llu pass %llu target %d ser=%llu %ux%u mid=%d mask=%#x scissor=%d,%d,%d,%d color=%g,%g,%g,%g", (unsigned long long)atomic_load(&g_cur_frame), g_stat_pass, c->index,
+                         (unsigned long long)R.rt.color[c->index]->serial, R.rt.color[c->index]->d.width, R.rt.color[c->index]->d.height, g_enc != nil, c->mask, R.sc.x, R.sc.y, R.sc.w, R.sc.h, c->rgba[0], c->rgba[1], c->rgba[2], c->rgba[3]);
+-                    if (p2w) g_p2_clr[1]++; clear_color_tri(c); break; }
++                    if (p2w) g_p2_clr[1]++; if (!g_enc) rb_mdx_ahead_from(p + h.size); clear_color_tri(c); break; }   // RewindBox (patch 0072): rb_mdx_ahead_from, the triangle opens the pass
+                 if (p2w) g_p2_clr[0]++;
+                 R.clear_c[c->index] = 1; R.cc[c->index] = MTLClearColorMake(c->rgba[0], c->rgba[1], c->rgba[2], c->rgba[3]);
+                 wd_p2_clear(R.rt.color[c->index], &R.cc[c->index]);   // S2Arm widen: the pure-2D world target gets a sentinel alpha (fallback side-coverage sampling, widen_glue.inc)
+@@ -17966,6 +18038,7 @@ void nvn_be_exec(const uint8_t *p) {
+                 // stencil write mask, even before the first encoder is opened.
+                 unsigned sm = (unsigned)c->stencil_mask & 0xff;
+                 if (R.rt.depth && (!scissor_full(R.rt.depth, &R.rt.dview, R.rt.has_dview) || (sm && sm != 0xff))) {
++                    if (!g_enc) rb_mdx_ahead_from(p + h.size);   // RewindBox (patch 0072): the triangle opens the pass
+                     clear_ds_tri(c); break;
+                 }
+                 // Depth / stencil clear in the middle of a pass: end the current pass and attach the clear to the start of the next one (color attachments load as usual, as a continued pass does above when a clear arrives). It used to be skipped, and later draws depth-tested against stale depth.
+@@ -17987,7 +18060,7 @@ void nvn_be_exec(const uint8_t *p) {
+                 else if (g_rc_skip) fsig_cond_skip(1);   // RewindBox (patch 0064)
+                 g_mdx_epoch++;
+                 break;
+-            case OP_DRAW_TEX: if (!g_rc_skip) draw_tex(a); else fsig_cond_skip(1); break;   // RewindBox (patch 0064): fsig_cond_skip
++            case OP_DRAW_TEX: if (!g_rc_skip) { if (!g_enc) rb_mdx_ahead_from(p + h.size); draw_tex(a); } else fsig_cond_skip(1); break;   // RewindBox (patch 0064): fsig_cond_skip. RewindBox (patch 0072): rb_mdx_ahead_from
+             // Do not mark dirty if the state did not change (the game often re-sends the same program / state block / vertex format before each draw; the dirty flag only decides whether to re-fetch the pipeline / depth-stencil object, and equal values mean the same object)
+             case OP_SCISSOR: case OP_BIND_PROGRAM: case OP_BIND_STATE: case OP_BIND_VATTR: case OP_BIND_VSTREAM: case OP_BIND_VBUF:
+             case OP_BIND_UBO: case OP_BIND_SSBO: case OP_BIND_TEX: case OP_BIND_TEX1: case OP_BIND_SAMP: case OP_BIND_IMG: case OP_STENCIL:
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index a35b486..d6b9568 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -247,7 +247,7 @@ int nvn_be_shutdown_session(void) {
+         d->object = nil;
+     }
+     sp_session_end();   // RewindBox (patch 0028, check C6): the placement heaps and the tile lists, once every texture of the session has gone (above; nvn_sparse_tiles.inc)
+-    [g_deferred removeAllObjects]; res_commit();
++    [g_deferred removeAllObjects]; res_commit_(1);   // RewindBox (patch 0072): the removals too, whatever their age
+     return 0;
+ }
+ void nvn_be_begin_session(void) {
+diff --git a/graphics/nvn/gfx/nvn/nvn_xqueue.inc b/graphics/nvn/gfx/nvn/nvn_xqueue.inc
+index 64e9d64..f13fa21 100644
+--- a/graphics/nvn/gfx/nvn/nvn_xqueue.inc
++++ b/graphics/nvn/gfx/nvn/nvn_xqueue.inc
+@@ -51,22 +51,38 @@ static int xq_signals(const uint8_t *p, volatile uint32_t *val, int depth) {
+     }
+     return 0;
+ }
++static void xq_sig_of(xq_t *e, uint64_t h, int depth);   // RewindBox (patch 0072)
+ static void xq_sig_walk(xq_t *e, const uint8_t *p, int depth) {   // add the events stream p signals to e's set
+     for (int steps = 0; p && steps < 1000000 && !e->sigall; steps++) {
+         op_hdr h; memcpy(&h, p, sizeof h); if (rec_bad(h)) return;
+         const uint8_t *a = p + 8;
+         if (h.op == OP_END) return;
+         if (h.op == OP_JUMP) { memcpy(&p, a, 8); continue; }
+-        if (h.op == OP_CALL) { const uint8_t *t; memcpy(&t, a, 8); if (depth < 8) xq_sig_walk(e, t, depth + 1); else e->sigall = 1; }
++        if (h.op == OP_CALL) { const uint8_t *t; memcpy(&t, a, 8); if (depth < 8) xq_sig_of(e, (uint64_t)(uintptr_t)t, depth + 1); else e->sigall = 1; }   // RewindBox (patch 0072): xq_sig_of
+         if (h.op == OP_SIGNAL_EVENT) { volatile uint32_t *x; uint32_t m; memcpy(&x, a, 8); memcpy(&m, a + 8, 4);
+             if (!(m & NVN_EV_WAIT)) { int k = 0; while (k < e->nsig && e->sig[k] != x) k++; if (k == e->nsig) { if (e->nsig == 64) e->sigall = 1; else e->sig[e->nsig++] = x; } } }
+         p += h.size;
+     }
+ }
++// RewindBox (patch 0072): a whole recording's signals from the list hle_nvn.c noted while it was recorded (nvn_hle_handle_sigs), the walk above where there is none (a stream
++//   that starts inside a recording, a handle not known, unit tests). The same set as the walk: its own signals, then each handle it calls the same way one level deeper, all
++//   events from 8 levels down (sigall), and all once more than 64. IPA 765, Mario Kart World: xq_sig_walk was 0.41 ms a frame of the submit thread's own time (23,670 parks).
++//   S2A_RB_XQ_SIGS=0 walks every stream as before
++__attribute__((weak)) int nvn_hle_handle_sigs(uint64_t h, volatile uint32_t **sig, int *ns, uint64_t *call, int *nc) { (void)h; (void)sig; (void)ns; (void)call; (void)nc; return 0; }   // hle_nvn.c
++static int rb_xq_sigs_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_XQ_SIGS"); v = !(e && !strcmp(e, "0")); } return v; }
++static uint64_t g_rb_xq_listed, g_rb_xq_walked;   // streams whose signals came from the recording's list / from a walk (stats line)
++static void xq_sig_of(xq_t *e, uint64_t h, int depth) {
++    volatile uint32_t *sig[8]; uint64_t call[8]; int ns = 0, nc = 0;
++    if (e->sigall) return;
++    if (!rb_xq_sigs_on() || !nvn_hle_handle_sigs(h, sig, &ns, call, &nc) || ns > 8 || nc > 8) { g_rb_xq_walked++; xq_sig_walk(e, (const uint8_t *)(uintptr_t)h, depth); return; }
++    g_rb_xq_listed++;
++    for (int i = 0; i < ns && !e->sigall; i++) { volatile uint32_t *x = sig[i]; int k = 0; while (k < e->nsig && e->sig[k] != x) k++; if (k == e->nsig) { if (e->nsig == 64) e->sigall = 1; else e->sig[e->nsig++] = x; } }
++    for (int i = 0; i < nc && !e->sigall; i++) { if (depth < 8) xq_sig_of(e, call[i], depth + 1); else e->sigall = 1; }
++}
+ static int xq_sig_has(const xq_t *e, volatile uint32_t *val) { if (e->sigall) return 1; for (int k = 0; k < e->nsig; k++) if (e->sig[k] == val) return 1; return 0; }
+ static void xq_push(xq_t *e, uint64_t h) {
+     if (e->ncont == e->ccap) { e->ccap = e->ccap ? e->ccap * 2 : 16; e->cont = realloc(e->cont, sizeof *e->cont * e->ccap); if (!e->cont) MDIE("no memory for parked command streams"); }
+-    e->cont[e->ncont++] = h; xq_sig_walk(e, (const uint8_t *)(uintptr_t)h, 0);
++    e->cont[e->ncont++] = h; xq_sig_of(e, h, 0);   // RewindBox (patch 0072): xq_sig_of
+ }
+ // Replay state carried across a park: what the commands after the wait read from the commands before it. A bound vertex range is also a dependency of the already-submitted piece:
+ // NVN lets the guest Finalize its pool while the queue is waiting, but this host has not encoded the commands after the wait yet. Keep only those 16 bound ranges and expose them only
+@@ -113,7 +129,8 @@ static void xq_state_load(const void *p) {
+     const xq_state *x = p; memcpy(&S, &x->s, sizeof S); memcpy(&R, &x->r, sizeof R); g_rc_skip = x->rc_skip;
+     for (size_t i = 0; i < x->nrc; i++) rc_note(x->rc[i], 1);
+     for (int i = 0; i < 16; i++) if (x->vb[i].buf) res_add((__bridge id<MTLBuffer>)x->vb[i].buf);
+-    res_commit(); g_xq_state_active = x;
++    if (!rb_res_once_on()) res_commit();   // RewindBox (patch 0072): committed before this piece's command buffer (nvn_be_sub_commit)
++    g_xq_state_active = x;
+     g_pso_dirty = g_dss_dirty = 1; args_dirty_all();
+ }
+ static void xq_state_deactivate(void) { g_xq_state_active = NULL; }
+@@ -149,19 +166,34 @@ static void xq_publish_owed(xq_t *e, uint64_t fence) {
+     if (!e->nowed) return;
+     pthread_mutex_lock(&g_xq_mu); for (int i = 0; i < e->nowed; i++) sync_publish(e->owed[i], fence); e->nowed = 0; pthread_cond_broadcast(&g_xq_cv); pthread_mutex_unlock(&g_xq_mu);
+ }
++// RewindBox (patch 0072): what a piece costs besides its encoding, to decide whether pieces should share a command buffer (L20 / SC14 of the IPA 765 test: 23,670 parks, as many
++//   extra pieces with their own sub_begin, commit and residency commit, 65.3 s of the submit thread in them, encoding included; 5 to 7 command buffers a frame). Measured on every
++//   piece: begin (queue enter, sub_begin, parked state), store index, replay, commit (sub_commit, of it residency commits on this thread). Counted: pieces that follow another one in
++//   the same nvn_be_submit / nvn_be_xq_flush call (nothing returns to the game between them: they could share one command buffer), and of those the ones that hold something a
++//   shared buffer would delay: a fence the game may wait on (OP_FENCE_SYNC, owed fences), a queue wait for another queue's fence (OP_WAIT_SYNC), a queue wait for a GPU event wait's
++//   ticket (ev_wait), a CPU wait for a multi-draw count. Stats line only
++static uint64_t g_rb_pc_n, g_rb_pc_begin, g_rb_pc_index, g_rb_pc_enc, g_rb_pc_commit, g_rb_pc_res, g_rb_pc_follow, g_rb_pc_fence, g_rb_pc_qwait, g_rb_pc_ewait, g_rb_pc_cwait, g_rb_pc_call, g_rb_pc_last;
+ // One piece: replay streams h[0..n) of queue q as a submission; returns 1 if it parked (the rest is in q's entry)
+ static int xq_piece(void *q, const uint64_t *h, int n, const void *state) {
++    uint64_t t0 = clock_gettime_nsec_np(CLOCK_UPTIME_RAW), w0 = g_rb_qwait_n, v0 = g_rb_evwait_n, f0 = g_rb_fsync_n, m0 = g_mdi_waits;   // RewindBox (patch 0072)
++    int follows = g_rb_pc_last == g_rb_pc_call; g_rb_pc_last = g_rb_pc_call;
+     nvn_hle_queue_enter(q);
+     nvn_be_sub_begin(); nvn_hle_piece_begun(); xq_state_deactivate(); if (state) xq_state_load(state);
++    uint64_t t1 = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
+     nvn_be_sub_index(h, n);
++    uint64_t t2 = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
+     g_xq_cur = q; g_xq_unwind = 0; g_xq_nuc = 0; g_xq_ucover = 0;
+     int i = 0;
+     for (; i < n; i++) { nvn_be_exec_rest(h + i + 1, n - i - 1); nvn_be_exec((const uint8_t *)(uintptr_t)h[i]); if (g_xq_unwind) break; }
+     nvn_be_exec_rest(NULL, 0); g_xq_cur = NULL;
+     void *st = g_xq_unwind ? xq_state_save() : NULL;
++    uint64_t t3 = clock_gettime_nsec_np(CLOCK_UPTIME_RAW), r3 = t_rb_res_ns;
+     uint64_t fence = nvn_be_sub_commit();
++    uint64_t t4 = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
+     xq_state_deactivate();
+     xq_t *e = xq_find(q);
++    g_rb_pc_n++; g_rb_pc_begin += t1 - t0; g_rb_pc_index += t2 - t1; g_rb_pc_enc += t3 - t2; g_rb_pc_commit += t4 - t3; g_rb_pc_res += t_rb_res_ns - r3;   // RewindBox (patch 0072)
++    if (follows) { g_rb_pc_follow++; if (g_rb_fsync_n != f0 || (e && e->nowed && !g_xq_unwind)) g_rb_pc_fence++; if (g_rb_qwait_n != w0) g_rb_pc_qwait++; if (g_rb_evwait_n != v0) g_rb_pc_ewait++; if (g_mdi_waits != m0) g_rb_pc_cwait++; }
+     if (!g_xq_unwind) { if (e) { xq_publish_owed(e, fence); if (!e->ncont && !e->parked) xq_drop(e); } return 0; }
+     g_xq_unwind = 0;
+     if (g_xq_ucover) MDIE("cross-queue park: CALL nesting deeper than %d", XQ_UNWIND_MAX);
+@@ -199,6 +231,12 @@ static void xq_stats(void) {
+     MLOG("cross-queue event waits up to submission %llu: parked %llu, resumed %llu, kept released (lookahead spans the wait) %llu, cycles %llu, released by force %llu, owed fences %llu, queue waits behind a parked queue %llu, parked now %d; extra pieces %llu (%.1f ms submit thread in them), cycle checks %.1f ms; RewindBox: parks at events the game only sets back %llu, waits on the GPU released by a signal recorded after them %llu",
+          (unsigned long long)g_xq_subs, (unsigned long long)g_xq_parks, (unsigned long long)g_xq_resumes, (unsigned long long)g_xq_busy, (unsigned long long)g_xq_cycles, (unsigned long long)g_xq_forced,
+          (unsigned long long)g_xq_owed_n, (unsigned long long)g_xq_deps, g_nxq, (unsigned long long)g_xq_pieces, g_xq_piece_ns / 1e6, g_xq_check_ns / 1e6, sb, late);
++    // RewindBox (patch 0072): the pieces' costs (since the last line) and the signal lists
++    double pn = g_rb_pc_n ? (double)g_rb_pc_n : 1;
++    MLOG("RewindBox (patch 0072): submission pieces %llu since the last line, per piece: begin %.3f ms, store index %.3f ms, replay %.3f ms, commit %.3f ms (residency commits %.3f ms); following another piece of the same submit call %llu, of them with a fence the game may wait on %llu, with a queue wait for another queue's fence %llu, with a queue wait for a GPU event wait %llu, with a CPU wait for a multi-draw count %llu; parked streams' signals from the recording's list %llu, walked %llu",
++         (unsigned long long)g_rb_pc_n, g_rb_pc_begin / pn / 1e6, g_rb_pc_index / pn / 1e6, g_rb_pc_enc / pn / 1e6, g_rb_pc_commit / pn / 1e6, g_rb_pc_res / pn / 1e6, (unsigned long long)g_rb_pc_follow, (unsigned long long)g_rb_pc_fence,
++         (unsigned long long)g_rb_pc_qwait, (unsigned long long)g_rb_pc_ewait, (unsigned long long)g_rb_pc_cwait, (unsigned long long)g_rb_xq_listed, (unsigned long long)g_rb_xq_walked);
++    g_rb_pc_n = g_rb_pc_begin = g_rb_pc_index = g_rb_pc_enc = g_rb_pc_commit = g_rb_pc_res = g_rb_pc_follow = g_rb_pc_fence = g_rb_pc_qwait = g_rb_pc_ewait = g_rb_pc_cwait = 0;
+ }
+ // Release parked work now (CPU waits for it, or the watchdog); why = the reason for the red line. Caller holds the submit lock
+ static void xq_force(xq_t *e, const char *why) {
+@@ -206,6 +244,7 @@ static void xq_force(xq_t *e, const char *why) {
+     xq_run(e, 1); xq_drain_ready();
+ }
+ void nvn_be_submit(void *q, const uint64_t *h, int n) {
++    g_rb_pc_call++;   // RewindBox (patch 0072): pieces of one call (xq_piece)
+     g_xq_subs++; alias_game_submission();   // RewindBox (patch 0058): the game's own submissions count the idle time of shared textures (nvn_mtl.m alias_recent)
+     xq_t *e = xq_find(q);
+     if (e && (e->ncont || e->parked)) { for (int i = 0; i < n; i++) xq_push(e, h[i]); }   // behind its parked work, in order
+@@ -215,7 +254,7 @@ void nvn_be_submit(void *q, const uint64_t *h, int n) {
+     xq_stats();
+ }
+ // QueueFinish / present on q: its parked work goes now
+-void nvn_be_xq_flush(void *q, const char *why) { xq_t *e = xq_find(q); if (e && (e->ncont || e->parked)) xq_force(e, why); }
++void nvn_be_xq_flush(void *q, const char *why) { g_rb_pc_call++; xq_t *e = xq_find(q); if (e && (e->ncont || e->parked)) xq_force(e, why); }   // RewindBox (patch 0072): g_rb_pc_call
+ // QueueFenceSync on q: 1 = q has parked work, the fence is owed (published when that work is replayed)
+ int nvn_be_xq_fence(void *q, void *sv) {
+     sync_t *s = sv; xq_t *e = xq_find(q); if (!e || !(e->ncont || e->parked)) return 0;

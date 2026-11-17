@@ -1,0 +1,842 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 110c97f..86c9b5a 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -2067,6 +2067,28 @@ static const tex_t *tex_snap(void *rec_, size_t off, int k, const NVNtexture *t,
+     }
+     return s;
+ }
++// RewindBox (patch 0073): shading-rate images counted (L03). Mario Kart World binds one (CommandBufferBindShadingRateImage, a red line once in the 765 test) and the host shades every
++//   pass at full rate: how much shading the game meant to save is unknown (no count in that journal). Counted at recording, per command buffer: the binds and unbinds, the render
++//   targets set while one is bound and the pixels of their first target (or depth), the palettes and the palette mode; tsummary prints it every 300 frames while any were seen. Only a
++//   count: mapping the rate image to a Metal rasterization rate map changes the screen's geometry (physical and logical coordinates, a resample after) and is not done
++static pthread_mutex_t g_rb_sri_mu = PTHREAD_MUTEX_INITIALIZER;
++static struct { const void *cmd; } g_rb_sri[16]; static _Atomic int g_rb_sri_n;   // command buffers recording with a shading-rate image bound (g_rb_sri_mu; more than 16 are not counted)
++static _Atomic uint64_t g_rb_sri_bind, g_rb_sri_unbind, g_rb_sri_rt, g_rb_sri_px, g_rb_sri_pal; static _Atomic int g_rb_sri_mode; static _Atomic uint32_t g_rb_sri_w, g_rb_sri_h, g_rb_sri_fmt;
++static void rb_sri_bind(const void *c, const tex_t *t) {   // game threads (recording)
++    if (t) { atomic_fetch_add(&g_rb_sri_bind, 1); atomic_store(&g_rb_sri_w, t->d.width); atomic_store(&g_rb_sri_h, t->d.height); atomic_store(&g_rb_sri_fmt, t->d.format); } else atomic_fetch_add(&g_rb_sri_unbind, 1);
++    pthread_mutex_lock(&g_rb_sri_mu);
++    int n = atomic_load(&g_rb_sri_n), k = 0; while (k < n && g_rb_sri[k].cmd != c) k++;
++    if (t && k == n && n < 16) { g_rb_sri[n].cmd = c; atomic_store(&g_rb_sri_n, n + 1); }
++    else if (!t && k < n) { g_rb_sri[k] = g_rb_sri[n - 1]; atomic_store(&g_rb_sri_n, n - 1); }
++    pthread_mutex_unlock(&g_rb_sri_mu);
++}
++static void rb_sri_rt(const void *c, const tex_t *t) {   // SetRenderTargets while some command buffer has a shading-rate image bound
++    pthread_mutex_lock(&g_rb_sri_mu);
++    int n = atomic_load(&g_rb_sri_n), k = 0; while (k < n && g_rb_sri[k].cmd != c) k++;
++    pthread_mutex_unlock(&g_rb_sri_mu);
++    if (k == n) return;
++    atomic_fetch_add(&g_rb_sri_rt, 1); if (t) atomic_fetch_add(&g_rb_sri_px, (uint64_t)t->d.width * t->d.height);
++}
+ NVN(nvnCommandBufferSetRenderTargets, void, NVNcommandBuffer *c, int n, const NVNtexture *const *ct, const NVNtextureView *const *cv,
+     const NVNtexture *dt, const NVNtextureView *dv) {
+     if (n < 0 || n > 8) { LOG("【红】 SetRenderTargets count %d", n); n = n < 0 ? 0 : 8; }
+@@ -2074,6 +2096,7 @@ NVN(nvnCommandBufferSetRenderTargets, void, NVNcommandBuffer *c, int n, const NV
+     p_set_rt t = {.n = n};
+     for (int i = 0; i < n; i++) { t.color[i] = ct ? (const tex_t *)ct[i] : NULL; copy_view(&t.cview[i], &t.has_cview[i], cv ? cv[i] : NULL); }
+     t.depth = (const tex_t *)dt; copy_view(&t.dview, &t.has_dview, dv);
++    if (__builtin_expect(atomic_load_explicit(&g_rb_sri_n, memory_order_relaxed) != 0, 0)) rb_sri_rt(c, n && t.color[0] ? t.color[0] : t.depth);   // RewindBox (patch 0073)
+     p_set_rt_c *h = set_rt_put(rec(c, OP_SET_RT, set_rt_size(&t)), &t);
+     const tex_t **pt = (const tex_t **)(h + 1); uint32_t k = set_rt_ntex(h);
+     for (uint32_t i = 0; i < k; i++) { pt[i] = tex_snap(h, set_rt_snap_off(h), (int)i, (const NVNtexture *)pt[i], (uint64_t)__builtin_return_address(0)); if (pt[i]) rec_gpu_wrote(pt[i], "a render target (SetRenderTargets)"); }
+@@ -3031,6 +3054,8 @@ static int present_itv(const win_t *o);
+ __attribute__((weak)) void dm_main_yield_stats(uint64_t *n, uint64_t *ns) { *n = 0; *ns = 0; }   // The host's hle_thread.c provides the ground truth; 0 in graphics unit tests
+ __attribute__((weak)) uint32_t dm_guest_work_qos(unsigned *count) { if (count) *count = 0; return QOS_CLASS_UNSPECIFIED; }
+ __attribute__((weak)) void dm_thread_lv_stats(uint64_t out[2][2][2]) { memset(out, 0, 8 * sizeof(uint64_t)); }   // nvn_rec.h：编码 / 上屏线程按性能档；没有 Metal 后端（单测 / 安卓）为 0
++__attribute__((weak)) void dm_rb_rt_stats(int st[2], int pri[2]) { st[0] = st[1] = pri[0] = pri[1] = 0; }   // RewindBox (patch 0073): nvn_rec.h, the encode / uniform copy threads' policy
++__attribute__((weak)) void nvn_be_rb73_stats(uint64_t v[10]) { memset(v, 0, 10 * sizeof *v); }   // RewindBox (patch 0073): nvn_mtl.m, the encoding counts
+ __attribute__((weak)) void dm_yield_top(char *out, size_t n) { if (n) snprintf(out, n, "-"); }   // hle_thread.c: the threads that yielded most since the last call; none in graphics unit tests
+ __attribute__((weak)) void dm_thread_cpu(char *out, size_t n, double secs) { (void)secs; if (n) snprintf(out, n, "-"); }   // hle_thread.c: guest-thread CPU by Switch priority band since the last call
+ void nvn_be_res_stats(char *out, size_t n);
+@@ -3333,6 +3358,16 @@ static void tsummary(uint64_t frame) {
+           LOG("[nvn] vertex bindings up to frame %llu: per frame address lookups %.0f / reused %.0f, vertex table writes %.0f / skipped %.0f", frame,
+               (v[0] - prev[0]) / nf, (v[1] - prev[1]) / nf, (v[2] - prev[2]) / nf, (v[3] - prev[3]) / nf); }
+       memcpy(prev, v, sizeof prev); pf = frame; }
++    { static uint64_t prev[10], pf; uint64_t v[10]; nvn_be_rb73_stats(v);   // RewindBox (patch 0073): encoding counts (nvn_mtl.m)
++      if (pf && frame > pf) { double nf = (double)(frame - pf);
++          LOG("[nvn] RewindBox (patch 0073) encoding up to frame %llu: per frame fragment / compute table writes %.0f / left out %.0f; texture-ID views kept across texture additions %.0f / resolved again %.1f; attachments stored for a bindless reader %.1f / for an event wait before their clear %.1f, store lookahead index %.3f ms (S2A_RB_TBDR); image class variant dispatches %.1f (variants made %llu, not made %llu)", frame,
++              (v[0] - prev[0]) / nf, (v[1] - prev[1]) / nf, (v[2] - prev[2]) / nf, (v[3] - prev[3]) / nf, (v[4] - prev[4]) / nf, (v[8] - prev[8]) / nf, (v[9] - prev[9]) / 1e6 / nf, (v[5] - prev[5]) / nf, (unsigned long long)v[6], (unsigned long long)v[7]); }
++      memcpy(prev, v, sizeof prev); pf = frame; }
++    { static uint64_t pb, pu, pr, ppx, ppl, pf; uint64_t b = atomic_load(&g_rb_sri_bind), u = atomic_load(&g_rb_sri_unbind), r = atomic_load(&g_rb_sri_rt), px = atomic_load(&g_rb_sri_px), pl = atomic_load(&g_rb_sri_pal);   // RewindBox (patch 0073): L03
++      if (pf && frame > pf && (b != pb || r != pr || pl != ppl)) { double nf = (double)(frame - pf);
++          LOG("[nvn] RewindBox (patch 0073) shading-rate images up to frame %llu (at recording): per frame binds %.1f / unbinds %.1f, render targets set while one is bound %.1f covering %.2f Mpx, palettes %.1f; palette mode %d; last rate image %ux%u format %#x; shaded at full rate", frame,
++              (b - pb) / nf, (u - pu) / nf, (r - pr) / nf, (px - ppx) / 1e6 / nf, (pl - ppl) / nf, atomic_load(&g_rb_sri_mode), atomic_load(&g_rb_sri_w), atomic_load(&g_rb_sri_h), atomic_load(&g_rb_sri_fmt)); }
++      pb = b; pu = u; pr = r; ppx = px; ppl = pl; pf = frame; }
+     { static uint64_t pi, pc, pd, pf; uint64_t ci = atomic_load(&g_cum_sub_instr), cc = atomic_load(&g_cum_sub_cpu_ns), ps_, dr_; nvn_be_stats(&ps_, &dr_);   // translation layer
+       if (pf && frame > pf && dr_ > pd) LOG("[nvn] translation up to frame %llu: %.0f instructions per draw, submit per frame %.2f M instructions / CPU %.3f ms, %.0f draws per frame", frame,
+           (double)(ci - pi) / (double)(dr_ - pd), (ci - pi) / 1e6 / (double)(frame - pf), (cc - pc) / 1e6 / (double)(frame - pf), (double)(dr_ - pd) / (double)(frame - pf));
+@@ -3354,8 +3389,10 @@ static void tsummary(uint64_t frame) {
+           if (pf && frame > pf) { uint64_t tv[2][2][2]; static uint64_t ptv[2][2][2]; dm_thread_lv_stats(tv); double w[2][2], nf = (double)(frame - pf);   // 编码线程 / 上屏线程按性能档（nvn_rec.h thr_lv_add）
+             static mach_timebase_info_data_t ltb; if (!ltb.denom) mach_timebase_info(&ltb);
+             for (int t = 0; t < 2; t++) for (int k = 0; k < 2; k++) w[t][k] = (double)(tv[t][k][0] - ptv[t][k][0]) * ltb.numer / ltb.denom;
+-            LOG("[nvn] thread cores up to frame %llu: encode thread %.2f ms a frame, %.0f%% on performance cores; present thread %.2f ms a frame, %.0f%% on performance cores (s2a_qos.h table)", frame,
+-                (w[0][0] + w[0][1]) / 1e6 / nf, w[0][0] + w[0][1] > 0 ? 100.0 * w[0][0] / (w[0][0] + w[0][1]) : 0, (w[1][0] + w[1][1]) / 1e6 / nf, w[1][0] + w[1][1] > 0 ? 100.0 * w[1][0] / (w[1][0] + w[1][1]) : 0);
++            int rst[2], rpr[2]; dm_rb_rt_stats(rst, rpr); static const char *const rsn[] = {"not started", "real-time in effect", "real-time not in effect", "in the frame workgroup", "QoS only"};   // RewindBox (patch 0073)
++            LOG("[nvn] thread cores up to frame %llu: encode thread %.2f ms a frame, %.0f%% on performance cores; present thread %.2f ms a frame, %.0f%% on performance cores (s2a_qos.h table); RewindBox (patch 0073): encode thread %s (priority %d), uniform copy thread %s (priority %d)", frame,
++                (w[0][0] + w[0][1]) / 1e6 / nf, w[0][0] + w[0][1] > 0 ? 100.0 * w[0][0] / (w[0][0] + w[0][1]) : 0, (w[1][0] + w[1][1]) / 1e6 / nf, w[1][0] + w[1][1] > 0 ? 100.0 * w[1][0] / (w[1][0] + w[1][1]) : 0,
++                rsn[rst[0] >= 0 && rst[0] <= 4 ? rst[0] : 0], rpr[0], rsn[rst[1] >= 0 && rst[1] <= 4 ? rst[1] : 0], rpr[1]);
+             memcpy(ptv, tv, sizeof ptv); }
+         if (frame % 300 == 0) { unsigned wn = 0; uint32_t wq = dm_guest_work_qos(&wn); thread_extended_info_data_t xi; mach_msg_type_number_t xc = THREAD_EXTENDED_INFO_COUNT; int okx = thread_info(pthread_mach_thread_np(pthread_self()), THREAD_EXTENDED_INFO, (thread_info_t)&xi, &xc) == KERN_SUCCESS;
+             thread_time_constraint_policy_data_t tp; mach_msg_type_number_t tc = THREAD_TIME_CONSTRAINT_POLICY_COUNT; boolean_t def = 0; int rt_live = thread_policy_get(pthread_mach_thread_np(pthread_self()), THREAD_TIME_CONSTRAINT_POLICY, (thread_policy_t)&tp, &tc, &def) == KERN_SUCCESS && !def;   // def = 1: the real-time policy is not in effect (never set / revoked)
+@@ -4843,9 +4880,12 @@ NVN_NOPROTO(nvnCommandBufferSetExclusiveScissor, void, NVNcommandBuffer *c, int
+ NVN_NOPROTO(nvnCommandBufferSetExclusiveScissors, void, NVNcommandBuffer *c, int first, int n, const int *r) { (void)c; (void)first; (void)n; (void)r; }
+ // 可变着色率：着色率图（贴图, 视图；空 = 关）绑上才有降率，宿主按全速率着色（画面不缺内容、只多算）→ 绑非空时报红；调色板模式非 0 报红；调色板本身只是数据
+ NVN_NOPROTO(nvnCommandBufferBindShadingRateImage, void, NVNcommandBuffer *c, const NVNtexture *t, const NVNtextureView *v) {
+-    (void)c; (void)v; NVN2_RED_IF(t != NULL, "CommandBufferBindShadingRateImage：宿主没有可变着色率，按全速率着色"); }
+-NVN_NOPROTO(nvnCommandBufferSetShadingRatePaletteMode, void, NVNcommandBuffer *c, int mode) { (void)c; NVN2_RED_IF(mode != 0, "CommandBufferSetShadingRatePaletteMode(%d)：宿主没有可变着色率，按全速率着色", mode); }
+-NVN_NOPROTO(nvnCommandBufferShadingRateImagePalette, void, NVNcommandBuffer *c, int first, int n, const void *p) { (void)c; (void)first; (void)n; (void)p; }
++    (void)v; NVN2_RED_IF(t != NULL, "CommandBufferBindShadingRateImage：宿主没有可变着色率，按全速率着色"); rb_sri_bind(c, (const tex_t *)t); }   // RewindBox (patch 0073): counted
++NVN_NOPROTO(nvnCommandBufferSetShadingRatePaletteMode, void, NVNcommandBuffer *c, int mode) { (void)c; NVN2_RED_IF(mode != 0, "CommandBufferSetShadingRatePaletteMode(%d)：宿主没有可变着色率，按全速率着色", mode); atomic_store(&g_rb_sri_mode, mode); }   // RewindBox (patch 0073)
++NVN_NOPROTO(nvnCommandBufferShadingRateImagePalette, void, NVNcommandBuffer *c, int first, int n, const void *p) {
++    (void)c; atomic_fetch_add(&g_rb_sri_pal, 1);   // RewindBox (patch 0073): counted; the first palette's rates once (driver enum values)
++    static _Atomic int once; if (p && n > 0 && !atomic_exchange(&once, 1)) { const int32_t *r = p; char b[200]; size_t o = 0; for (int i = 0; i < n && i < 16 && o < sizeof b - 16; i++) o += (size_t)snprintf(b + o, sizeof b - o, " %d", r[i]);
++        LOG("[nvn] RewindBox (patch 0073): first shading-rate palette, entries %d+%d:%s%s", first, n, b, n > 16 ? " ..." : ""); } }
+ 
+ // 仍是未实现桩的 NVN2 入口与原因（调用即报红并标直连异常，nvn_unimpl_c 打出原因）。按名前缀匹配
+ static const struct { const char *name; const char *why; } g_nvn2_red[] = {
+diff --git a/graphics/nvn/gfx/nvn/nvn_geometry.inc b/graphics/nvn/gfx/nvn/nvn_geometry.inc
+index 167ef26..778e7f1 100644
+--- a/graphics/nvn/gfx/nvn/nvn_geometry.inc
++++ b/graphics/nvn/gfx/nvn/nvn_geometry.inc
+@@ -519,6 +519,7 @@ static void geo_run_flush(void) {
+     geo_runset_gsr(&g_gr.rs); memset(&g_gr.hz, 0, sizeof g_gr.hz); memset(&g_gr.rs, 0, sizeof g_gr.rs);
+     rec_lane_splice();
+     g_gr.cap = g_gr.gs = g_gr.cap_pso = nil; g_vt_valid = 0; args_dirty_all();
++    g_rb_ft_valid = g_rb_ct_valid = 0;   // RewindBox (patch 0073): the lanes' writes are in the stream now (rb_tab_skip)
+     if (g_gr.runs == 1 || g_gr.runs % 2000 == 0) MLOG("geometry run: %llu runs, %llu geometry draws in them, barriers before %llu of %llu geometry kernels, %llu runs ended to cut the segment for scratch, %llu ended for a read / write across the run's reordering (a run: captures, geometry kernels and main-pass draws each in one encoder)",
+         (unsigned long long)g_gr.runs, (unsigned long long)g_gr.draws, (unsigned long long)g_gr.barriers, (unsigned long long)g_gr.kernels, (unsigned long long)g_gr.cut, (unsigned long long)g_gr.hazard);
+ }
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 4d05698..9d28a72 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -135,6 +135,8 @@ static int g_mesh_ok;   // the device runs object / mesh pipelines (MTLGPUFamily
+ static int g_vbuf_cache = 1;   // DM_NVN_VBUF_CACHE=0 restores the uncached path for A/B measurements
+ static uint64_t g_vt_addr[31]; static uint32_t g_vt_valid;
+ static uint64_t g_vbuf_resolve, g_vbuf_reuse, g_vbuf_set, g_vbuf_skip;
++// RewindBox (patch 0073): the fragment and compute tables' slots as the vertex table's (g_vt_addr): what the main stream last wrote there (enc_r_args, enc_c_args; rb_tab_skip)
++static uint64_t g_rb_ft_addr[31], g_rb_ct_addr[31]; static uint32_t g_rb_ft_valid, g_rb_ct_valid; static uint64_t g_rb_tab_set, g_rb_tab_skip;
+ static id g_present_args;   // tab_new
+ static id<MTLBuffer> g_present_uv[3];
+ static uint64_t g_present_alloc_fence[3];
+@@ -1180,6 +1182,8 @@ static zskip_zero g_zskip_zero[4096]; static int g_zskip_n, g_zskip_count;
+ static zskip_zero g_zskip_cand[8]; static uint8_t g_zskip_cand_ok[8];
+ static void zskip_clear(void);
+ static int tbdr_on(void);
++// RewindBox (patch 0073): the TBDR set on with bindless readers taken into account (S2A_RB_TBDR=1, DM_NVN_TBDR unset; see tbdr_on)
++static int rb_tbdr_bl(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_TBDR"), *d = getenv("DM_NVN_TBDR"); v = !d && e && !strcmp(e, "1"); } return v; }
+ static id g_cb;
+ static void main_barrier_reset(void);
+ static id<MTL4ComputeCommandEncoder> g_blit;
+@@ -1580,8 +1584,19 @@ static inline void enc_r_vbuf(id<MTL4RenderCommandEncoder> e, NSUInteger i, uint
+     if (rec_on() && !g_m3) rec_table_op(RO_T_ADDR, g_vt, gpu, i); else tab_addr(g_vt, gpu, i);
+     g_vt_addr[i] = gpu; g_vt_valid |= bit; g_vbuf_set++;
+ }
++// RewindBox (patch 0073): unchanged fragment / compute slots are not written again (SC7: the submit thread spent about 10 ms of CPU a frame in the 765 test, f3696, encode_args 3.13 ms of it;
++//   every draw and dispatch wrote each of its fragment / compute slots, recorded for the encode thread, which made the same setAddress again). As for the vertex table (enc_r_vbuf): the
++//   table persists across encoders and submissions, and Metal takes its content at each draw / dispatch, so a slot already holding the address needs no write. Only on the main stream
++//   (g_rlane 0): a geometry run's lanes reach the encode thread after the main stream (rec_lane_splice), so their writes go through and the cache starts over after the splice
++//   (geo_run_flush), with a session's new tables (nvn_session.inc). Metal 4 only. S2A_RB_TAB_CACHE=0 writes every slot as before
++static int rb_tab_cache_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_TAB_CACHE"); v = !(e && !strcmp(e, "0")); } return v; }
++static inline int rb_tab_skip(uint64_t *addr, uint32_t *valid, uint64_t gpu, NSUInteger i) {   // 1: slot i already holds gpu (submit thread)
++    if (i >= 31 || g_rlane || g_m3 || !rb_tab_cache_on()) return 0;   // Metal 3: tab_addr may leave a slot unbound (m3_buf_at), to be tried again
++    uint32_t bit = 1u << i; if ((*valid & bit) && addr[i] == gpu) { g_rb_tab_skip++; return 1; }
++    addr[i] = gpu; *valid |= bit; g_rb_tab_set++; return 0;
++}
+ static inline void enc_r_args(id<MTL4RenderCommandEncoder> e, MTLRenderStages s, uint64_t gpu, NSUInteger i) {
+-    if (s == MTLRenderStageVertex) enc_r_vbuf(e, i, gpu); else if (rec_on() && !g_m3) rec_table_op(RO_T_ADDR, g_ft, gpu, i); else tab_addr(g_ft, gpu, i);
++    if (s == MTLRenderStageVertex) enc_r_vbuf(e, i, gpu); else if (rb_tab_skip(g_rb_ft_addr, &g_rb_ft_valid, gpu, i)) return; else if (rec_on() && !g_m3) rec_table_op(RO_T_ADDR, g_ft, gpu, i); else tab_addr(g_ft, gpu, i);   // RewindBox (patch 0073): rb_tab_skip
+ }
+ static inline void enc_r_half_mask(id e, uint8_t mask) {
+     if (g_half_mask_sent == mask) return;
+@@ -1644,7 +1659,7 @@ static inline void enc_end_on(id e, BOOL metal4) {
+ }
+ static inline void enc_c_end(id e) { m4_end(e); }
+ static inline void enc_c_pso(id e, id<MTLComputePipelineState> p) { [e setComputePipelineState:p]; }
+-static inline void enc_c_args(id e, uint64_t gpu, NSUInteger i) { (void)e; if (rec_on() && !g_m3) rec_table_op(RO_T_ADDR, g_ct, gpu, i); else tab_addr(g_ct, gpu, i); }
++static inline void enc_c_args(id e, uint64_t gpu, NSUInteger i) { (void)e; if (rb_tab_skip(g_rb_ct_addr, &g_rb_ct_valid, gpu, i)) return; if (rec_on() && !g_m3) rec_table_op(RO_T_ADDR, g_ct, gpu, i); else tab_addr(g_ct, gpu, i); }   // RewindBox (patch 0073): rb_tab_skip
+ static inline void enc_c_dispatch(id e, MTLSize n, MTLSize t) { if (g_m3) m3_bind_dispatch(e); [e dispatchThreadgroups:n threadsPerThreadgroup:t]; }
+ static inline void enc_c_dispatch_threads(id e, MTLSize n, MTLSize t) { if (g_m3) m3_bind_dispatch(e); [e dispatchThreads:n threadsPerThreadgroup:t]; }   // 最后一组不补满
+ // 同一计算编码器里前后两次派发的依赖（后一个读前一个写的缓冲）：Metal 4 编码器内派发可并行，要编码器内屏障；Metal 3 用缓冲域内存屏障（同 blit_barrier）。
+@@ -3426,6 +3441,8 @@ static nvn_hmap g_by_serial = {.klen = 8};     // Serial → MTLTexture / NvPkg
+ static pthread_mutex_t g_smu = PTHREAD_MUTEX_INITIALIZER;
+ // Serial table generation: +1 when entries are added / removed or a packaged texture is replaced. Downstream caches (texture views, programs) record the generation at fetch time; if it is unchanged they can be used directly without another table lookup
+ static _Atomic uint64_t g_ser_gen = 1;
++// RewindBox (patch 0073): the moves of g_ser_gen that only added a live serial no table held (tex_put), counted under g_smu; a texture ID's view survives those (tex_by_id, rb_view_keep_on)
++static uint64_t g_rb_ser_add = 1; static uint64_t g_rb_view_kept, g_rb_view_slow;
+ // Textures shared by storage (non-packaged): key = memory pool + offset + texture description. An NVN texture object is only a descriptor; an object rebuilt over the same storage with the same description is the same texture;
+ // SMBW rebuilds its transient render targets on new objects every frame and never Finalizes them, so building one per serial leaked about 13 MB of GPU memory per frame. Textures here are kept resident by the sharing table,
+ // and when the serial table replaces / deletes them it only drops its reference (defer_obj_unref), never removing them from the residency set. Entries go when their pool is finalized (nvn_be_alias_drop_pool)
+@@ -3851,7 +3868,8 @@ static void tex_put(uint64_t k, id o) {   // serials from 2^62 up are external t
+         if (rn == NGHOST) { if (g_ghost_cap < NGHOST) ghost_evict(&g_ghost_ring[(g_ghost_next - 1 - g_ghost_cap) % NGHOST]);   // review: the one this put moved past the cap
+             ghost_trim(rb_mem_low() ? NGHOST_SMALL : NGHOST, 64); }
+     }
+-    hm_put_id(m, &k, o); g_ser_gen++;
++    int rb_add = !old && m == &g_by_serial && !hm_get_id(&g_ghost, &k) && !hm_get_id(&g_ghost_active, &k);   // RewindBox (patch 0073): a serial no table held: every other serial resolves as before
++    hm_put_id(m, &k, o); g_ser_gen++; if (rb_add) g_rb_ser_add++;
+     if (m == &g_ghost && (active || (g_cb && on_sub_thread()))) hm_put_id(&g_ghost_active, &k, o);
+     pthread_mutex_unlock(&g_smu);
+ }
+@@ -6929,7 +6947,7 @@ void zskip_test_add(const char *key, int ubo_slot, int vec, int comp) {
+ }
+ int zskip_test_count(void) { return g_zskip_count; }
+ static int g_zskip_env = -1;   // Cache of DM_NVN_ZSKIP (−1 = not read). This function is called on every draw, and getenv once took about 8% of the submit path; unit tests set it back to −1 after toggling the switch mid-run
+-static int zskip_on(void) { if (g_zskip_env < 0) { const char *e = getenv("DM_NVN_ZSKIP"); g_zskip_env = !e || strcmp(e, "0"); } return g_zskip_env && tbdr_on(); }
++static int zskip_on(void) { if (g_zskip_env < 0) { const char *e = getenv("DM_NVN_ZSKIP"); g_zskip_env = !e || strcmp(e, "0"); } return g_zskip_env && tbdr_on() && !rb_tbdr_bl(); }   // RewindBox (patch 0073): no draw skipped in the bindless-aware set
+ static void zskip_clear(void) { g_zskip_n = 0; memset(g_zskip_cand_ok, 0, sizeof g_zskip_cand_ok); }
+ static void zskip_del(uint64_t ser) { for (int i = 0; i < g_zskip_n;) if (g_zskip_zero[i].ser == ser) g_zskip_zero[i] = g_zskip_zero[--g_zskip_n]; else i++; }
+ static int zskip_has(uint64_t ser, int lv, int sl) { for (int i = 0; i < g_zskip_n; i++) if (g_zskip_zero[i].ser == ser && g_zskip_zero[i].level == lv && g_zskip_zero[i].slice == sl) return 1; return 0; }
+@@ -7095,7 +7113,19 @@ static int udc_on(void) {
+ // Only for equivalence comparison (the same replay run on / off, comparing the picture byte by byte), not a product configuration
+ // Mario: off by default (only DM_NVN_TBDR=1 turns it on). These optimizations infer read / write relations from "which textures are bound in texture slots", while 38% of this game's shaders use bindless textures (handles in uniform buffers, NVN_RB_TEXU),
+ //   so the inference would miss readers - e.g. deciding an attachment is never read afterwards and not storing it. Turn them back on once they recognize bindless readers.
+-static int tbdr_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("DM_NVN_TBDR"); v = e && !strcmp(e, "1"); if (!v) MLOG("TBDR optimizations off by default (this game uses bindless textures; DM_NVN_TBDR=1 turns them on)"); } return v; }
++// RewindBox (patch 0073): S2A_RB_TBDR=1 turns the set on for a game that reads textures through handles (L19: Mario Kart World loaded about 304 MB and stored 348 MB of attachments a
++//   frame in the 765 test, 99 load-all store-all passes, 2717 clears in passes of their own per 300 frames). The store lookahead takes every draw / dispatch whose shaders read textures
++//   through handles (or are not loaded yet) as reading every attachment (sdx_walk, sdx_decide: an attachment is left unstored only when it is cleared again before any such draw), the
++//   clear hoist stops at such a draw (hoist_try), and what rests on predicting readers further stays off: the cross-submission ledger (xv_on), deferral (defer_on), the readable-tile merge
++//   (fuse_try) and the zero-source skip (zskip_on, a draw skip). Off by default: what it changes on screen only the device shows (captures compared frame by frame, DM_NVN_SHOT)
++//   Review: the clear hoist stops at queue synchronisation and an attachment is stored when an event wait comes before its clear (another queue replays at a park). The mode also
++//   turns off what runs only with the set off: color attachments proven unwritten to the pass end are loaded again (pass_color_unwritten: same-target continuation would extend the
++//   pass past its scan; 765: 2,048 attachments, 7.9 GB by frame ~4,800, about 1.7 MB a frame of the ~300 MB loaded), and it adds the index walk of each submission, the hoist and depth-stencil scans to
++//   the submit thread. An A/B compares, with the switch on and off: attachment load / store MB a frame and load-all store-all passes (residency line), GPU p50, submit CPU a frame
++//   (translation line), the encoding line's index ms, and the cross-queue line's 'kept released (lookahead spans the wait)', which must stay 0
++static int tbdr_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("DM_NVN_TBDR"); v = (e && !strcmp(e, "1")) || rb_tbdr_bl();
++    if (!v) MLOG("TBDR optimizations off by default (this game uses bindless textures; DM_NVN_TBDR=1 turns them on)");
++    else if (rb_tbdr_bl()) MLOG("RewindBox: TBDR optimizations on with bindless readers taken into account (S2A_RB_TBDR=1, patch 0073): a draw or dispatch reading textures through handles, or an event wait, counts as reading every attachment; no clear is hoisted past one or past queue synchronisation; the cross-submission ledger, deferral, readable-tile merge and zero-source skip stay off; attachments proven unwritten to the pass end are loaded again (that saving runs only with the set off); the submit thread walks each submission once more (encoding line: index ms)"); } return v; }
+ static int rt_range_on(void) { static int v = -1; if (v < 0) { const char *e=getenv("DM_NVN_RT_RANGE"); v=e && !strcmp(e,"1"); } return v; }   // Narrow candidate, off by default
+ static uint64_t g_sd_dead_bytes, g_sd_n_dead, g_sd_n_all;
+ // ---------- Cross-submission attachment validity ledger ----------
+@@ -7158,7 +7188,7 @@ static int xv_first_good(uint64_t ser, uint32_t lv, uint32_t sl) { for (int i =
+ static int xv_present(uint64_t ser) { for (int i = 0; i < g_xv_npresent; i++) if (g_xv_present[i] == ser) return 1; return 0; }
+ static void xv_forward(void);
+ static int tbdr_on(void);
+-static int xv_on(void) { static int off = -1; if (off < 0) { const char *e = getenv("DM_NVN_XV"); off = e && !strcmp(e, "0"); } return !off && tbdr_on(); }
++static int xv_on(void) { static int off = -1; if (off < 0) { const char *e = getenv("DM_NVN_XV"); off = e && !strcmp(e, "0"); } return !off && tbdr_on() && !rb_tbdr_bl(); }   // RewindBox (patch 0073): rb_tbdr_bl
+ void nvn_be_xv_window_tex(uint64_t serial) { if (!xv_present(serial) && g_xv_npresent < 128) g_xv_present[g_xv_npresent++] = serial; }   // Window (swapchain) texture: never enters the ledger
+ void xv_test_counts(int *dc, int *viol) { if (dc) *dc = (int)g_xv_dc; if (viol) *viol = (int)g_xv_viol; }
+ static void sd_finish(void);
+@@ -7554,37 +7584,38 @@ static id<MTL4RenderCommandEncoder> rp_begin_ex_(int clear_only) {
+     for (int i = 0; i < R.rt.n; i++) {
+         if (!R.rt.color[i] || (clear_only == 1 && !R.clear_c[i])) continue;
+         if (rt_dup_slot(&R.rt, i)) continue;   // a slot attached twice is not attached (see rt_dup_slot)
+-        attach(pd.colorAttachments[i], R.rt.color[i], &R.rt.cview[i], R.rt.has_cview[i]);
+-        if (!pd.colorAttachments[i].texture) continue;
++        MTLRenderPassColorAttachmentDescriptor *ca = pd.colorAttachments[i];   // RewindBox (patch 0073): fetched once (SC7: each pd.colorAttachments[i] is two message sends and a retain / release; rp_begin_ex was 1.20 ms a frame on the submit thread, f3696)
++        attach(ca, R.rt.color[i], &R.rt.cview[i], R.rt.has_cview[i]);
++        if (!ca.texture) continue;
+         any = 1;
+-        pd.colorAttachments[i].loadAction = R.clear_c[i] ? MTLLoadActionClear : MTLLoadActionLoad;
+-        if (!R.clear_c[i] && (g_noload_mask >> i & 1) && !(g_fb_want_load >> i & 1) && !bcrt_is(pd.colorAttachments[i].texture)) {   // proven unwritten to the pass end: no load (see g_noload_mask)
+-            pd.colorAttachments[i].loadAction = MTLLoadActionDontCare; g_noload_n++; g_noload_bytes += att_bytes(pd.colorAttachments[i].texture, pd.colorAttachments[i].level);
++        ca.loadAction = R.clear_c[i] ? MTLLoadActionClear : MTLLoadActionLoad;
++        if (!R.clear_c[i] && (g_noload_mask >> i & 1) && !(g_fb_want_load >> i & 1) && !bcrt_is(ca.texture)) {   // proven unwritten to the pass end: no load (see g_noload_mask)
++            ca.loadAction = MTLLoadActionDontCare; g_noload_n++; g_noload_bytes += att_bytes(ca.texture, ca.level);
+             if (!(g_noload_n & (g_noload_n - 1))) MLOG("color attachments not loaded (proven unwritten to the pass end): %llu so far, %.1f MB", (unsigned long long)g_noload_n, g_noload_bytes / 1048576.0);
+             PD("Q %llu c%d not loaded: proven unwritten to the pass end", g_stat_pass + 1, i); }
+         else g_noload_mask &= ~(1u << i);
+-        pd.colorAttachments[i].clearColor = R.cc[i];
++        ca.clearColor = R.cc[i];
+         if (R.clear_c[i]) PD("C %llu c%d cleared to %g,%g,%g,%g", g_stat_pass + 1, i, R.cc[i].red, R.cc[i].green, R.cc[i].blue, R.cc[i].alpha);
+-        if (bcrt_is(pd.colorAttachments[i].texture)) { if (pd.colorAttachments[i].loadAction != MTLLoadActionLoad) rt_fresh_mark(R.rt.color[i]); pd.colorAttachments[i].storeAction = MTLStoreActionStore; if (i < 8) g_fb_dirty[i] = pd.colorAttachments[i].loadAction != MTLLoadActionLoad; continue; }   // a shadow (bcrt_attach): loaded and stored as is, outside the bookkeeping below
+-        int cov = tbdr_on() && !R.clear_c[i] && !(g_fb_want_load >> i & 1) && (g_fd_dw || g_fd_di) && fz_load_covers(i, pd.colorAttachments[i].texture, pd.colorAttachments[i].level);   // 开遍的这一笔要片上读它（g_fb_want_load）：不能跳过载入
++        if (bcrt_is(ca.texture)) { if (ca.loadAction != MTLLoadActionLoad) rt_fresh_mark(R.rt.color[i]); ca.storeAction = MTLStoreActionStore; if (i < 8) g_fb_dirty[i] = ca.loadAction != MTLLoadActionLoad; continue; }   // a shadow (bcrt_attach): loaded and stored as is, outside the bookkeeping below
++        int cov = tbdr_on() && !R.clear_c[i] && !(g_fb_want_load >> i & 1) && (g_fd_dw || g_fd_di) && fz_load_covers(i, ca.texture, ca.level);   // 开遍的这一笔要片上读它（g_fb_want_load）：不能跳过载入
+         if (!R.clear_c[i] && (g_fd_dw || g_fd_di) && !cov) PD("Q %llu c%d load cannot be skipped why=%d", g_stat_pass + 1, i, g_fd_why);
+         if (cov) {
+             static int probe = -1; if (probe < 0) { probe = getenv("DM_NVN_LOADPROBE") ? atoi(getenv("DM_NVN_LOADPROBE")) : 0; if (probe) MLOG("DM_NVN_LOADPROBE: attachments whose load can be skipped are cleared to a sentinel color and read back to check"); }
+-            if (probe) { pd.colorAttachments[i].loadAction = MTLLoadActionClear; int pm = probe == 1 && pf_is_float(pd.colorAttachments[i].texture.pixelFormat) ? 3 : probe;   // Float formats use a NaN sentinel by default: a fixed sentinel value can be hit by real output (it has been hit in practice)
+-                pd.colorAttachments[i].clearColor = pm == 3 ? MTLClearColorMake(NAN, NAN, NAN, NAN) : probe == 2 ? MTLClearColorMake(0.777, 0.222, 0.555, 0.888) : MTLClearColorMake(0.123, 0.456, 0.789, 0.321);
++            if (probe) { ca.loadAction = MTLLoadActionClear; int pm = probe == 1 && pf_is_float(ca.texture.pixelFormat) ? 3 : probe;   // Float formats use a NaN sentinel by default: a fixed sentinel value can be hit by real output (it has been hit in practice)
++                ca.clearColor = pm == 3 ? MTLClearColorMake(NAN, NAN, NAN, NAN) : probe == 2 ? MTLClearColorMake(0.777, 0.222, 0.555, 0.888) : MTLClearColorMake(0.123, 0.456, 0.789, 0.321);
+                 if (!g_lp) g_lp = [NSMutableArray array];
+-                [g_lp addObject:@[pd.colorAttachments[i].texture, @(pd.colorAttachments[i].level), @(pd.colorAttachments[i].slice), @(g_stat_pass + 1), @(i), @(R.rt.color[i]->serial), @(pm)]]; }
+-            else pd.colorAttachments[i].loadAction = MTLLoadActionDontCare;
++                [g_lp addObject:@[ca.texture, @(ca.level), @(ca.slice), @(g_stat_pass + 1), @(i), @(R.rt.color[i]->serial), @(pm)]]; }
++            else ca.loadAction = MTLLoadActionDontCare;
+             g_fd_n++;
+         }
+-        if (pd.colorAttachments[i].loadAction != MTLLoadActionLoad) rt_fresh_mark(R.rt.color[i]);
+-        xv_touch_add(R.rt.color[i]->serial, (uint32_t)pd.colorAttachments[i].level, (uint32_t)pd.colorAttachments[i].slice,
+-                     pd.colorAttachments[i].loadAction != MTLLoadActionLoad);
+-        if (g_xv_n) { xv_ent *xe = xv_find(R.rt.color[i]->serial, (uint32_t)pd.colorAttachments[i].level, (uint32_t)pd.colorAttachments[i].slice);
+-            if (xe && (xe->state == XV_INVALID || xe->state == XV_PROBE)) { if (pd.colorAttachments[i].loadAction == MTLLoadActionLoad) { xv_ent copy = *xe; xv_violation(&copy, "old content loaded as an attachment"); } else xv_good(xe); } }
+-        pd.colorAttachments[i].storeAction = MTLStoreActionStore;
+-        if (i < 8 && pd.colorAttachments[i].loadAction == MTLLoadActionLoad) g_fb_loaded |= (uint8_t)(1u << i);
+-        if (i < 8) g_fb_dirty[i] = pd.colorAttachments[i].loadAction != MTLLoadActionLoad && !(g_noload_mask >> i & 1);   // same-pass feedback sampling: a cleared / don't-care slot differs from memory from the start (a not-loaded one does not: nothing writes it, memory is it)
++        if (ca.loadAction != MTLLoadActionLoad) rt_fresh_mark(R.rt.color[i]);
++        xv_touch_add(R.rt.color[i]->serial, (uint32_t)ca.level, (uint32_t)ca.slice,
++                     ca.loadAction != MTLLoadActionLoad);
++        if (g_xv_n) { xv_ent *xe = xv_find(R.rt.color[i]->serial, (uint32_t)ca.level, (uint32_t)ca.slice);
++            if (xe && (xe->state == XV_INVALID || xe->state == XV_PROBE)) { if (ca.loadAction == MTLLoadActionLoad) { xv_ent copy = *xe; xv_violation(&copy, "old content loaded as an attachment"); } else xv_good(xe); } }
++        ca.storeAction = MTLStoreActionStore;
++        if (i < 8 && ca.loadAction == MTLLoadActionLoad) g_fb_loaded |= (uint8_t)(1u << i);
++        if (i < 8) g_fb_dirty[i] = ca.loadAction != MTLLoadActionLoad && !(g_noload_mask >> i & 1);   // same-pass feedback sampling: a cleared / don't-care slot differs from memory from the start (a not-loaded one does not: nothing writes it, memory is it)
+     }
+     // clear_only: 0 attach all 1 only for clears 2 neither depth nor stencil attached 3 stencil only 4 depth only (3 / 4: the pass_ds_need lookahead proves the whole pass uses only that one)
+     if (R.rt.depth && clear_only == 3) {   // Stencil only: the depth plane of the combined format does not enter the tile and is neither read nor written (Metal allows an empty depth attachment with the combined texture on the stencil attachment)
+@@ -7887,6 +7918,7 @@ static void shmap_load_once(void) {
+     uint64_t mis[4];   // mis: texture slots 0-255 already reported for a type mismatch (tex_mis_note)
+     uint64_t d2d[4];   // texture slots 0-255 whose sampler type the offline translation did not know and took as 2D (library resolution_scale_reasons "unknown_missing_fact:sampler_type:...slot=N"; audit #1534 P1-20 probe)
+     NSString *ventry, *fnpfx; id<MTLFunction> vfn; int vfn_state;   // fnpfx: a batched library's function name prefix s<key>_ (json fn_prefix, dmsh_build.py unity_flush); ventry stays the logical entry name
++    NSString *rb_msl; id rb_ic_ps[4]; uint64_t rb_ic_mask[4]; uint8_t rb_ic_st[4], rb_bl;   // RewindBox (patch 0073): rb_msl: a compute shader's fallback translation compiled here (shader_build); its image class variants by mask (rb_icls_pick, rb_ic_st SE_* as se_st); rb_bl: 1 + reads textures through handles (rb_sh_bl)
+     uint32_t spill, spill_slot; } @end   // spill: a compute shader's shared memory moved to a device buffer, bytes per threadgroup, bound at spill_slot (dmsh_build.py spill_fix; dispatch)   // vertex: the entry point loaded (by the depth mode); vfn: the same entry of the shadow-input library <key>_bv (vin_fn; state 0 untried, 1 loaded, 2 failed)
+ @implementation NvShader
+ - (void)dealloc { free(rf.c1); free(rf.b); }
+@@ -8469,12 +8501,14 @@ static NvShader *shader_build(NSString *pc, int stage, int layer, int depth_zero
+     if (ul) { os_unfair_lock_lock(&ulock); lib = ulibs[ul]; os_unfair_lock_unlock(&ulock); }
+     if (!lib) lib = dir == g_msl_dir ? lib_from_pack(pc.UTF8String, &e) : [NSFileManager.defaultManager fileExistsAtPath:lp] ? lib_from_file(lp, &e) : nil;
+     if (lib && ul) { os_unfair_lock_lock(&ulock); if (!ulibs) ulibs = [NSMutableDictionary dictionary]; if (!ulibs[ul]) ulibs[ul] = lib; else lib = ulibs[ul]; os_unfair_lock_unlock(&ulock); }
++    NSString *rb_src = nil;   // RewindBox (patch 0073): a compute shader's fallback source compiled here (NvShader rb_msl, rb_icls_pick)
+     if (!lib && dir != g_msl_dir) {   // S2Arm fallback: MSL source compiled here, same options as the offline chain (dm_msl_opts)
+-        NSString *src = [NSString stringWithContentsOfFile:[NSString stringWithFormat:@"%@/%@.metal", dir, pc] encoding:NSUTF8StringEncoding error:&e];
++        NSString *src = [NSString stringWithContentsOfFile:(rb_src = [NSString stringWithFormat:@"%@/%@.metal", dir, pc]) encoding:NSUTF8StringEncoding error:&e];
+         if (src && stage == 0) src = rb_msl_base_instance(src, pc.UTF8String);   // RewindBox (patch 0066)
+         if (src) { MTLCompileOptions *co = dm_msl_opts(); t_lib_layer = [src containsString:@"render_target_array_index"]; uint64_t m0 = bp_now(); lib = [g_dev newLibraryWithSource:src options:co error:&e];
+             uint64_t md = bp_now() - m0; atomic_fetch_add_explicit(&g_rb_msl_n, 1, memory_order_relaxed); atomic_fetch_add_explicit(&g_rb_msl_ns, md, memory_order_relaxed); t_rb_msl_n++; t_rb_msl_ns += md; }   // RewindBox (patch 0069)
+         if (lib) MLOG("shader %s loaded from the fallback translation (%s)", pc.UTF8String, fb);
++        if (!lib) rb_src = nil;
+     }
+     unsigned rb_bi_n = t_rb_binst_reads; int rb_bi_seen = t_rb_binst_seen; t_rb_binst_reads = 0; t_rb_binst_seen = 0;   // RewindBox (patch 0066): what rb_msl_base_instance did to the source compiled above
+     if (!lib && rb_bi_n) { rb_binst_refused(pc.UTF8String, e); e = nil; rb_bi_n = 0; rb_bi_seen = 0; NSString *s0 = [NSString stringWithContentsOfFile:[NSString stringWithFormat:@"%@/%@.metal", dir, pc] encoding:NSUTF8StringEncoding error:&e];
+@@ -8483,6 +8517,7 @@ static NvShader *shader_build(NSString *pc, int stage, int layer, int depth_zero
+     if (![j[@"chain"] isEqual:@DMSH_CHAIN]) { MLOG("【红】 shader %s has translation chain version %s, but this host expects %s", pc.UTF8String, [[j[@"chain"] description] UTF8String], DMSH_CHAIN); return nil; }
+     if (layer && !j[@"entry_layer"]) { MLOG("【红】 vertex shader %s has no layer entry points", pc.UTF8String); return nil; }
+     NvShader *o = [NvShader new]; o->gs_loc = o->lay_loc = -1;
++    if (stage == 5) o->rb_msl = rb_src;   // RewindBox (patch 0073)
+     o->fnpfx = [j[@"fn_prefix"] isKindOfClass:[NSString class]] ? j[@"fn_prefix"] : @"";
+     if (stage == 0 && [j[@"layer_from"] isKindOfClass:[NSDictionary class]]) { o->lay_loc = [j[@"layer_from"][@"loc"] intValue]; o->lay_comp = [[j[@"layer_from"][@"comp"] description] UTF8String][0]; }
+     char err[160];
+@@ -8890,6 +8925,7 @@ void nvn_be_prog_release(prog_t *p) { if (p->serial) serial_del(p->serial); }
+ // At registration the whole texture object is snapshotted (NVN semantics: the descriptor has been written into the pool); view: the MTLTexture for that ID (a view or the base texture, held via CFBridgingRetain) and the serial-table / guest-write generations at the time it was obtained
+ typedef struct { tex_t t; int ok; view_t v; int has_v; void *view; uint64_t view_id, view_rid, view_ser, view_dirty, view_ep; int view_pkg;   // view_pkg: CPU-written (packaged); only those depend on guest writes (view_dirty)
+                  uint32_t view_pf; uint8_t view_tt;                         // view's pixel format / texture type, read once when it is set (the P1-20 probe compares them per binding without a message send)
++                 uint64_t view_sa;                                          // RewindBox (patch 0073): g_rb_ser_add with view_ser (0: not taken)
+                  uint64_t view_sp_seq, view_sp_ep, view_sp_frame; uint8_t view_sp;   // RewindBox (patch 0031): view_sp: the view's base is a placement sparse texture (treg_sp_note); view_sp_seq: its pool's mapping log count (nvn_sparse_log_seq) taken before the look that validated the view; view_sp_ep: the check period (g_pkg_epoch) it was last found current in; TREG_SP_UNSEEN: no look on record; view_sp_frame: g_cur_frame at that look (TREG_SP_RELOOK). Read only while view is set
+                  void *alt, *alt_of; uint64_t alt_rid; uint8_t alt_type;   // alt: compatible view used when the shader's declared type differs from view (tex_fit), alt_of = the view it was built from
+                  void *ar, *ar_of; uint64_t ar_rid;                         // ar: the alpha-from-red view for the profile's alpha_from_red shaders (tex_alpha_red), ar_of = the view it was built from
+@@ -9345,6 +9381,7 @@ static void treg_sp_note(int tid, treg_t *rp, id<MTLTexture> base, uint64_t spq)
+         MLOG("RewindBox: texture ID %d ser=%llu (placement sparse) resolved off the submit thread: no look there, its mappings are followed at its next use on the submit thread (%llu so far)",
+              tid, (unsigned long long)rp->t.serial, (unsigned long long)g_treg_sp_off);
+ }
++// RewindBox (patch 0073): rb_view_keep_on (S2A_RB_VIEW_KEEP, patch 0071) also governs the two view caches below; see tex_by_id
+ static id<MTLTexture> tex_by_id(int tid) {   // Caller holds g_rmu
+     if (g_tpool_n && tid >= g_tpool_n) { if (!g_stat_tex_oob++) MLOG("texture ID %d outside the pool (capacity %d) treated as an empty slot: reads 0", tid, g_tpool_n); return nil; }
+     if (tid == 0 && !g_tid0_reg) { if (!g_stat_tex_null++) MLOG("texture ID 0 read with nothing registered there (a slot left at the zero handle): the empty descriptor, reads 0 (frame %llu, first case)", (unsigned long long)atomic_load(&g_cur_frame)); return nil; }
+@@ -9357,6 +9394,15 @@ static id<MTLTexture> tex_by_id(int tid) {   // Caller holds g_rmu
+     //   checks, 0 changes). A write in the period leaves tex_mtl's own stamp behind, so the next period checks it
+     // RewindBox (patch 0031): a placement sparse view also needs its pool's mappings unmoved (treg_sp_fresh)
+     if (rp->view && rp->view_ser == sg && (!rp->view_pkg || rp->view_dirty == dg || rp->view_ep == g_pkg_epoch) && (!rp->view_sp || treg_sp_fresh(rp))) return (__bridge id<MTLTexture>)rp->view;
++    // RewindBox (patch 0073): a GPU texture's view outlives serial-table moves that only added other textures (SC7: tex_mtl took 1.17 ms a frame of the submit thread in the 765 test, f3696,
++    //   tex_by_id 0.84 ms; Mario Kart World makes textures every frame, and each new one sent every texture ID down this path, where tex_mtl found the same texture again). A serial no table
++    //   held (tex_put, g_rb_ser_add) changes no other serial's lookup: tex_mtl of this ID's serial gives what it gave. When every move since the view was taken is such an addition the view
++    //   stands; any other move (a texture replaced, dropped or taken over, a ghost, a CPU write, an upgrade), a CPU-written or placement sparse one, goes the slow path as before.
++    //   The two counts are read together under g_smu (tex_put moves both under it). S2A_RB_VIEW_KEEP=0 sends every move down the slow path as before
++    uint64_t sa = 0;
++    if (rb_view_keep_on()) { pthread_mutex_lock(&g_smu); sg = g_ser_gen; sa = g_rb_ser_add; pthread_mutex_unlock(&g_smu);
++        if (rp->view && rp->view_sa && !rp->view_pkg && !rp->view_sp && sg - rp->view_ser == sa - rp->view_sa) { rp->view_ser = sg; rp->view_sa = sa; g_rb_view_kept++; return (__bridge id<MTLTexture>)rp->view; }
++        if (rp->view) g_rb_view_slow++; }
+     // RewindBox (patch 0031): a placement sparse view's pool log count, taken before tex_mtl's look below as sg / dg are taken before the lookup (treg_sp_note records it). Counted here,
+     //   not in treg_sp_fresh, which a tex_fast / tex_fast_rid miss evaluates twice; a slow path g_ser_gen or a guest write caused, with the log unmoved, is not counted
+     uint64_t spq = rp->view && rp->view_sp ? nvn_sparse_log_seq(rp->t.pool) : TREG_SP_UNSEEN;
+@@ -9369,7 +9415,7 @@ static id<MTLTexture> tex_by_id(int tid) {   // Caller holds g_rmu
+     rp->view_pkg = (rp->t.has_layout || tex_cpu_written(rp->t.serial)) && rp->t.mem;
+     if (v) {   // The serial table or guest memory has changed: check whether the base texture was re-uploaded and replaced; if so the view is invalidated
+         id<MTLTexture> cur = tex_mtl(&rp->t);
+-        if (cur == v || v.parentTexture == cur) { rp->view_ser = sg; rp->view_dirty = dg; rp->view_ep = g_pkg_epoch; treg_sp_note(tid, rp, cur, spq); return v; }   // RewindBox (patch 0031): treg_sp_note
++        if (cur == v || v.parentTexture == cur) { rp->view_ser = sg; rp->view_sa = sa; rp->view_dirty = dg; rp->view_ep = g_pkg_epoch; treg_sp_note(tid, rp, cur, spq); return v; }   // RewindBox (patch 0031): treg_sp_note; (patch 0073): view_sa
+         defer_obj_unref(v); CFRelease(rp->view); rp->view = NULL; rp->view_rid = 0; v = nil;
+     }
+     treg_t r = *rp;
+@@ -9413,7 +9459,7 @@ static id<MTLTexture> tex_by_id(int tid) {   // Caller holds g_rmu
+         }
+         if (r.v.set_format && tex_need_pfv(base.pixelFormat, (MTLPixelFormat)pf) && !(base.usage & MTLTextureUsagePixelFormatView)) {
+             base = tex_upgrade_pfv(&rp->t, base, (MTLPixelFormat)pf);
+-            sg = g_ser_gen;
++            sg = g_ser_gen; sa = 0;   // RewindBox (patch 0073): not kept across moves (view_sa 0) after an upgrade here
+         }
+         tex_extent extent = tex_extent_at(&r.t, base, r.v.set_levels ? r.v.base_level : 0, r.v.set_layers ? r.v.min_layer : 0);
+         NSUInteger l0 = extent.level, nl = r.v.set_levels && r.v.nlevels ? r.v.nlevels : extent.levels;
+@@ -9442,6 +9488,7 @@ static id<MTLTexture> tex_by_id(int tid) {   // Caller holds g_rmu
+         }
+     }
+     rp->view = (void *)CFBridgingRetain(v); rp->view_rid = v.gpuResourceID._impl; rp->view_pf = (uint32_t)v.pixelFormat; rp->view_tt = (uint8_t)v.textureType; rp->view_ser = sg; rp->view_dirty = dg; rp->view_ep = g_pkg_epoch;
++    rp->view_sa = sa;   // RewindBox (patch 0073)
+     treg_sp_note(tid, rp, base, spq);   // RewindBox (patch 0031): a placement sparse base follows its pool's mappings (treg_sp_fresh)
+     return v;
+ }
+@@ -12729,15 +12776,24 @@ static __attribute__((noinline, cold)) void p20_note(NvShader *sh, int st, const
+          sh->key, st, b->kind == NVN_RB_IMG ? "image" : b->kind == NVN_RB_TEXU ? "texture handle in uniform" : "texture", (int)b->reg, (unsigned)b->dtt, (unsigned)b->dpf, d2d ? " (type unknown offline, taken as 2D)" : "",
+          tt, pf, mtl_fmt_depth((MTLPixelFormat)pf) ? (unsigned)NVN_DPF_DEPTH : (unsigned)mtl_pf_dpf((MTLPixelFormat)pf), tm ? "; type differs" : "", cm ? "; class differs" : "");
+ }
++// RewindBox (patch 0073): a binding's texture type and format without a message send when it is the ID's registered view, as tex_by_id read them once (view_tt / view_pf, the
++//   P1-20 probe's); another texture (a snapshot, an expanded or fitted view) is asked. SC7: libobjc took 1.50 ms a frame of the submit thread (765 test, f3696), encode_args 3.13 ms
++//   inclusive, and every texture binding of every draw asked its texture's type and, for a float declaration, its format. Caller holds g_rmu
++static inline MTLTextureType rb_tt(__unsafe_unretained id<MTLTexture> t, int tid) { return tid >= 0 && tid < g_ntreg && g_treg[tid].view == (__bridge void *)t ? (MTLTextureType)g_treg[tid].view_tt : t.textureType; }
++static inline MTLPixelFormat rb_pf(__unsafe_unretained id<MTLTexture> t, int tid) { return tid >= 0 && tid < g_ntreg && g_treg[tid].view == (__bridge void *)t ? (MTLPixelFormat)g_treg[tid].view_pf : t.pixelFormat; }
+ static long g_td_frame;   // DM_NVN_TEXDUMP selected frame (defined with the TEXDUMP code below; < 0 = off): the bind site checks it before noting 3D textures
+ static void td_note_3d(id<MTLTexture> t, uint64_t ser);
++// RewindBox (patch 0073): the compute shader whose image class variant this dispatch encodes, and the class of each of its bindings in it (2 bits per binding index: rb_icls_pick)
++static __unsafe_unretained NvShader *g_rb_icls_sh; static uint64_t g_rb_icls_used;
+ static inline void p20_check(NvShader *sh, int st, const nvn_rbind *b, int tid, void *tv) {
+     g_p20_checked++;
++    int dpf = b->dpf;   // RewindBox (patch 0073): the class the encoded variant declares (rb_icls_pick)
++    if (__builtin_expect(g_rb_icls_sh != nil, 0) && g_rb_icls_sh == sh) { ptrdiff_t bi = b - sh->rf.b; if (bi >= 0 && bi < 32 && (g_rb_icls_used >> (2 * bi) & 3)) dpf = (int)(g_rb_icls_used >> (2 * bi) & 3); }
+     unsigned tt, pf;
+     if (tid >= 0 && tid < g_ntreg && g_treg[tid].view == tv) { tt = g_treg[tid].view_tt; pf = g_treg[tid].view_pf; }
+     else { __unsafe_unretained id<MTLTexture> t = (__bridge id<MTLTexture>)tv; tt = (unsigned)t.textureType; pf = (unsigned)t.pixelFormat; }   // not the cached view (rare)
+     int cls = mtl_fmt_depth((MTLPixelFormat)pf) ? NVN_DPF_DEPTH : mtl_pf_dpf((MTLPixelFormat)pf);
+-    int tm = tt != b->dtt && !(b->f1d && tt == (unsigned)MTLTextureTypeTextureBuffer), cm = b->dpf != cls && !(b->dpf == NVN_DPF_FLOAT && cls == NVN_DPF_DEPTH);
++    int tm = tt != b->dtt && !(b->f1d && tt == (unsigned)MTLTextureTypeTextureBuffer), cm = dpf != cls && !(dpf == NVN_DPF_FLOAT && cls == NVN_DPF_DEPTH);   // RewindBox (patch 0073): dpf
+     if (__builtin_expect(tm | cm, 0)) p20_note(sh, st, b, tt, pf, tm, cm);
+ }
+ // 审计 #1534 P1-65 被动采样（只计数、不改行为）：界长表（NVN_RB_UBOLEN）按 u->size 记、封顶 4096 vec4，GPU 指针后面实际可读的字节可能更短。
+@@ -12934,13 +12990,13 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+                        (unsigned long)(t.parentTexture ? t.parentRelativeLevel : 0), (unsigned long)t.mipmapLevelCount,
+                        (unsigned long)(t.parentTexture ? t.parentRelativeSlice : 0), (unsigned long)t.arrayLength, (unsigned long)t.textureType, t ? (int)t.swizzle.red : 0, t ? (int)t.swizzle.green : 0, t ? (int)t.swizzle.blue : 0, t ? (int)t.swizzle.alpha : 0, (__bridge void *)(t.parentTexture ? t.parentTexture : t));
+             if (t && b->f1d && t.textureType == MTLTextureTypeTextureBuffer && (MTLTextureType)b->dtt == MTLTextureType2D) { uint64_t r2 = 0; id<MTLTexture> v = tbuf_as_2d(tid, t, b->f1d == 2, &r2); if (v) { t = v; trid = r2; } }   // see tbuf_as_2d
+-            if (t && t.textureType != (MTLTextureType)b->dtt) { uint64_t r2 = 0; id<MTLTexture> v = tex_fit(tid, t, (MTLTextureType)b->dtt, b->dpf, &r2); if (v) { t = v; trid = r2; }
++            if (t && rb_tt(t, tid) != (MTLTextureType)b->dtt) { uint64_t r2 = 0; id<MTLTexture> v = tex_fit(tid, t, (MTLTextureType)b->dtt, b->dpf, &r2); if (v) { t = v; trid = r2; }   // RewindBox (patch 0073): rb_tt
+                 // no view fits, and one side is a buffer texture (Octopath Traveler 0: a buffer texture left in a slot a shader reads as a cube): reads of it are undefined, so the slot reads 0
+                 else if (t.textureType == MTLTextureTypeTextureBuffer || (MTLTextureType)b->dtt == MTLTextureTypeTextureBuffer) { tex_mis_note(sh, nvn_stage, b->kind == NVN_RB_TEX ? reg : -1, tid, t, (MTLTextureType)b->dtt, "a buffer texture: the slot reads 0 (dummy)"); t = nil; }
+                 // any other mismatch: no texture there (Ryujinx's GetTargetTexture returns null for a target of other dimensions), so the zero texture of the declared type below.
+                 //   Bound as is it was undefined in Metal: a GPU fault can stall the queue for the whole run
+                 else { tex_mis_note(sh, nvn_stage, b->kind == NVN_RB_TEX ? reg : -1, tid, t, (MTLTextureType)b->dtt, "the slot reads 0 (the zero texture of the declared type, as Ryujinx leaves it unbound)"); t = nil; } }
+-            if (t && b->dpf == NVN_DPF_FLOAT && mtl_pf_dpf(t.pixelFormat) != NVN_DPF_FLOAT) { uint64_t r2 = 0; id<MTLTexture> v = tex_float_fit(tid, t, &r2); if (v) { t = v; trid = r2; } }   // see tex_float_fit
++            if (t && b->dpf == NVN_DPF_FLOAT && mtl_pf_dpf(rb_pf(t, tid)) != NVN_DPF_FLOAT) { uint64_t r2 = 0; id<MTLTexture> v = tex_float_fit(tid, t, &r2); if (v) { t = v; trid = r2; } }   // see tex_float_fit; RewindBox (patch 0073): rb_pf
+             if (t && nvn_stage == 1 && afr_want(sh)) { uint64_t r2 = 0; id<MTLTexture> v = tex_alpha_red(tid, t, &r2); if (v) { t = v; trid = r2; } }   // see tex_alpha_red
+             size_abi_texture(sh, nvn_stage, b, tid, size_view, t);
+             rs_bind_check(t, sh, nvn_stage, 0);   // S2Arm internal resolution: read where scaling is not supported → back to 1 at the next safe point
+@@ -13991,6 +14047,35 @@ static uint32_t *g_rtx_seq, *g_drx_seq; static uint32_t g_rtx_n, g_rtx_cap, g_dr
+ static void seq_push(uint32_t **v, uint32_t *n, uint32_t *cap, uint32_t x) { if (*n == *cap) { uint32_t c = *cap ? *cap * 2 : 1024; if (!grow_((void **)v, (size_t)c * sizeof **v, "sdx sequence")) return; *cap = c; } (*v)[(*n)++] = x; }
+ static void sdx_ev_add(sdx_ev e) { if (sdx_bucket(e.ser, 0) < 0) return; if (g_sdx_n == g_sdx_cap) { size_t c = g_sdx_cap ? g_sdx_cap * 2 : 4096; if (!GROW(g_sdx, c * sizeof *g_sdx, "sdx events") || !GROW(g_sdx_tmp, c * sizeof *g_sdx, "sdx events")) return; g_sdx_cap = c; } g_sdx[g_sdx_n++] = e; }
+ static void sdx_lvsl(const view_t *v, int hv, uint16_t *lv, uint16_t *sl) { *lv = (uint16_t)(hv && v->set_levels ? v->base_level : 0); *sl = (uint16_t)(hv && v->set_layers ? v->min_layer : 0); }
++// RewindBox (patch 0073): the store lookahead's bindless readers (rb_tbdr_bl, tbdr_on). A draw / dispatch whose shaders read textures through handles (in uniform buffers, a pool, the driver
++//   table's or the slots' arrays, raw memory) or are not loaded yet may read any attachment: its sequence number goes into g_rb_anyr (ascending, this submission), and an attachment is
++//   left unstored only when its clear comes before the next such draw (sdx_decide). Submit thread
++static uint32_t *g_rb_anyr; static uint32_t g_rb_anyr_n, g_rb_anyr_cap; static uint64_t g_rb_anyr_kept;
++// RewindBox (patch 0073, review): and the event waits of the submission (g_rb_wsq, same form). A wait that parks the queue ends this piece there: another queue's work, which the
++//   reader lists of this one cannot see (slots or handles), replays before the rest, the clear included. An attachment whose deciding clear lies past a wait is stored (sdx_decide)
++static uint32_t *g_rb_wsq; static uint32_t g_rb_wsq_n, g_rb_wsq_cap; static uint64_t g_rb_wsq_kept, g_rb_sdx_ns;   // g_rb_sdx_ns: time in the index (nvn_be_sub_index), this mode
++static int rb_sh_bl(__unsafe_unretained NvShader *sh) {
++    if (!sh->rb_bl) { int y = 0; for (int i = 0; i < sh->rf.nb && !y; i++) { int k = sh->rf.b[i].kind;
++        y = k == NVN_RB_TEXU || k == NVN_RB_TBUFU || k == NVN_RB_IMGU || k == NVN_RB_TEXP || k == NVN_RB_TEXA || k == NVN_RB_TEXD || k == NVN_RB_GMEM; }
++        sh->rb_bl = (uint8_t)(1 + y); }
++    return sh->rb_bl == 2;
++}
++static int rb_pr_bl(__unsafe_unretained NvProg *pr, int compute) {   // 1: a draw (compute 0) / dispatch with these shaders may read any attachment
++    if (!pr) return 1;
++    for (int st = 0; st < 6; st++) { __unsafe_unretained NvShader *sh = pr->sh[st]; if (sh && (st == 5) == (compute != 0) && rb_sh_bl(sh)) return 1; }
++    return 0;
++}
++static void rb_seq_push(uint32_t **v, uint32_t *n, uint32_t *cap, uint32_t seq) {   // g_rb_anyr / g_rb_wsq (review: one form for both)
++    if (*n && (*v)[*n - 1] == seq) return;
++    if (*n == *cap) { size_t c = *cap ? (size_t)*cap * 2 : 1024; if (!GROW(*v, c * sizeof **v, "store lookahead readers / waits")) { g_sdx_ok = 0; return; } *cap = (uint32_t)c; }   // no room: every pass stores
++    (*v)[(*n)++] = seq;
++}
++static int rb_seq_in(const uint32_t *v, uint32_t n, uint32_t lo, uint32_t hi) {   // an entry at a sequence number in [lo, hi)
++    uint32_t a = 0, b = n; while (a < b) { uint32_t m = (a + b) / 2; if (v[m] < lo) a = m + 1; else b = m; }
++    return a < n && v[a] < hi;
++}
++static void rb_anyr_push(uint32_t seq) { rb_seq_push(&g_rb_anyr, &g_rb_anyr_n, &g_rb_anyr_cap, seq); }
++static int rb_anyr_in(uint32_t lo, uint32_t hi) { return rb_seq_in(g_rb_anyr, g_rb_anyr_n, lo, hi); }   // a bindless reader at a sequence number in [lo, hi)
+ static void sdx_walk(const uint8_t *p, int depth) {
+     if (depth > 64) { g_sdx_ok = 0; return; }
+     for (uint32_t guard = 0; guard < 4000000 && p && g_sdx_ok; guard++) {
+@@ -14002,6 +14087,7 @@ static void sdx_walk(const uint8_t *p, int depth) {
+             case OP_END: return;
+             case OP_JUMP: { const uint8_t *t; memcpy(&t, a, 8); p = t; continue; }
+             case OP_CALL: { uint64_t t; memcpy(&t, a, 8); sdx_walk((const uint8_t *)t, depth + 1); break; }
++            case OP_SIGNAL_EVENT: { uint32_t m; memcpy(&m, (const uint8_t *)a + 8, 4); if ((m & NVN_EV_WAIT) && rb_tbdr_bl()) rb_seq_push(&g_rb_wsq, &g_rb_wsq_n, &g_rb_wsq_cap, seq); break; }   // RewindBox (patch 0073, review): a wait (g_rb_wsq)
+             case OP_SET_RT: { const p_set_rt *r = set_rt_rec(a, h.size, &g_pp_rt_buf); g_pp_rt = r; g_pp_rtseq = seq; seq_push(&g_rtx_seq, &g_rtx_n, &g_rtx_cap, seq);
+                 for (int k = 0; k < r->n && k < 8; k++) if (r->color[k]) sdx_bucket(r->color[k]->serial, 1);
+                 if (r->depth) sdx_bucket(r->depth->serial, 1);
+@@ -14026,9 +14112,10 @@ static void sdx_walk(const uint8_t *p, int depth) {
+                 // 审计 #1534 P1-111：只用已经装好的程序（prog_peek：不装库、不等预取、不现编，没装的交给旁边的加载车道）。原先 prog_get 在提交开头、第一段交给 GPU 之前
+                 //   把冷键同步现编完。没装好的走下面已有的保守分支（绑定的槽都记成被读，存储不省），冷键留到它真正绘制时再编：正确性不变，只可能多写回附件
+                 const prog_t *pp = h.op == OP_DISPATCH ? g_pp_cprog : g_pp_prog; __unsafe_unretained NvProg *pr = pp ? prog_peek(pp) : nil;
++                if (rb_tbdr_bl() && rb_pr_bl(pr, h.op == OP_DISPATCH)) rb_anyr_push(seq);   // RewindBox (patch 0073): a bindless reader (or one not loaded yet)
+                 if (!pr) { for (int st = 0; st < 6; st++) for (int k = 0; k < NTEX + 32; k++) if (g_pp_slot[st][k]) sdx_ev_add((sdx_ev){seq, 0, g_pp_slot[st][k], p, 0, 0, SDX_READ, 0, 0, 1}); }
+                 else for (int st = 0; st < 6; st++) { __unsafe_unretained NvShader *sh = pr->sh[st]; if (!sh || (h.op == OP_DISPATCH) != (st == 5)) continue;
+-                    for (int i = 0; i < sh->rf.nb; i++) { const nvn_rbind *b = &sh->rf.b[i]; int k = b->kind == NVN_RB_IMG ? NTEX + b->reg : (b->kind == NVN_RB_TEX || b->kind == NVN_RB_TBUF) ? b->reg : -1;
++                    for (int i = 0; i < sh->rf.nb; i++) { const nvn_rbind *b = &sh->rf.b[i]; int k = b->kind == NVN_RB_IMG || (b->kind == NVN_RB_IMGA && rb_tbdr_bl()) ? NTEX + b->reg : (b->kind == NVN_RB_TEX || b->kind == NVN_RB_TBUF) ? b->reg : -1;   // RewindBox (patch 0073): image atomics read the image slot's texture too
+                         if (k < 0 || k >= NTEX + 32 || sh->stage < 0 || sh->stage >= 6) continue; uint64_t ser = g_pp_slot[sh->stage][k];
+                         if (ser) sdx_ev_add((sdx_ev){seq, 0, ser, p, 0, 0, SDX_READ, 0, 0, 1}); } }
+                 const p_set_rt *r = g_pp_rt;
+@@ -14055,7 +14142,9 @@ static void sdx_walk(const uint8_t *p, int depth) {
+ }
+ void nvn_be_sub_index(const uint64_t *h, int n) {   // Start of submit (hle_nvn.c QueueSubmitCommands): build this submit's store lookahead index
+     g_xv_ntouch = 0; g_sdx_n = g_sdx_nop = 0; g_rtx_n = g_drx_n = 0; g_exec_seq = 0; g_sdx_ok = tbdr_on();
++    g_rb_anyr_n = g_rb_wsq_n = 0;   // RewindBox (patch 0073)
+     if (!g_sdx_ok) { g_xv_n = 0; g_xv_block = 1; return; }   // Index unavailable: clear the ledger and add nothing in this submit (the next touch cannot be verified)
++    uint64_t rb_t0 = rb_tbdr_bl() ? clock_gettime_nsec_np(CLOCK_UPTIME_RAW) : 0;   // RewindBox (patch 0073, review): what the index costs the submit thread in this mode (encoding line)
+     g_xv_block = 0;
+     memset(g_sdx_hk, 0, sizeof g_sdx_hk); g_sdx_nb = 0;
+     for (int i = 0; i < g_xv_n; i++) sdx_bucket(g_xv[i].ser, 1);   // Textures in the ledger enter the candidate set: otherwise, when one is only sampled and not used as an attachment in this submit, its read events are not indexed and the fallback cannot see them
+@@ -14064,7 +14153,7 @@ void nvn_be_sub_index(const uint64_t *h, int n) {   // Start of submit (hle_nvn.
+     for (int st = 0; st < 6; st++) { for (int k = 0; k < NTEX; k++) g_pp_slot[st][k] = S.tex[st][k] ? h_ser(S.tex[st][k]) : 0;
+                                      for (int k = 0; k < 32; k++) g_pp_slot[st][NTEX + k] = S.img[st][k] ? h_ser(S.img[st][k]) : 0; }
+     for (int i = 0; i < n && g_sdx_ok; i++) sdx_walk((const uint8_t *)h[i], 0);
+-    if (!g_sdx_ok) return;
++    if (!g_sdx_ok) { if (rb_t0) g_rb_sdx_ns += clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - rb_t0; return; }
+     // Counting sort into buckets: events are appended in sequence-number order, and within the same sequence number READ precedes ATT (the same draw is judged for reads first, then attachments), so after a stable scatter each bucket is ordered
+     memset(g_sdx_bcnt, 0, (g_sdx_nb + 1) * sizeof *g_sdx_bcnt);
+     for (uint32_t i = 0; i < g_sdx_n; i++) g_sdx_bcnt[sdx_bucket(g_sdx[i].ser, 0)]++;
+@@ -14073,6 +14162,7 @@ void nvn_be_sub_index(const uint64_t *h, int n) {   // Start of submit (hle_nvn.
+     for (uint32_t i = 0; i < g_sdx_n; i++) g_sdx_tmp[g_sdx_bcnt[sdx_bucket(g_sdx[i].ser, 0)]++] = g_sdx[i];
+     sdx_ev *t = g_sdx; g_sdx = g_sdx_tmp; g_sdx_tmp = t;
+     xv_forward();
++    if (rb_t0) g_rb_sdx_ns += clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - rb_t0;   // RewindBox (patch 0073, review)
+ }
+ static void sdx_seq(const uint8_t *p) {   // Every operation in nvn_be_exec: check the sequence number against the index (on mismatch invalidate, and store everything for the rest)
+     if (!g_sdx_ok) return;
+@@ -14082,7 +14172,7 @@ static void sdx_seq(const uint8_t *p) {   // Every operation in nvn_be_exec: che
+ static int sdx_decide(uint8_t st[SD_MAX]) {   // st[i]: 2 redundant; otherwise why << 2 (the reason it is needed, same as sd_need). Returns 0 = index unavailable
+     if (!g_sdx_ok || !g_exec_cur || !g_exec_seq || g_sdx_op[g_exec_seq - 1] != g_exec_cur) return 0;
+     uint32_t P = g_exec_seq - 1;
+-    for (int i = 0; i < g_nsd; i++) { const sd_att *t = &g_sd[i]; st[i] = 5 << 2;
++    for (int i = 0; i < g_nsd; i++) { const sd_att *t = &g_sd[i]; st[i] = 5 << 2; uint32_t ec = 0;   // RewindBox (patch 0073): ec, the deciding clear's sequence number
+         int b = sdx_bucket(t->ser, 0); if (b < 0) continue;   // Not in the candidate set: no related event at all in this submit -> undecided after scanning to the end, needed
+         uint32_t lo = g_sdx_bst[b], end = g_sdx_bst[b + 1], hi = end;   // First seq >= P in the bucket
+         while (lo < hi) { uint32_t m = (lo + hi) / 2; if (g_sdx[m].seq < P) lo = m + 1; else hi = m; }
+@@ -14093,7 +14183,9 @@ static int sdx_decide(uint8_t st[SD_MAX]) {   // st[i]: 2 redundant; otherwise w
+             int hit = t->depth ? (e->kind == SDX_ATT ? e->plane == 8 : e->plane == t->depth) && (e->anyls || (e->lv == t->lv && e->sl == t->sl))
+                                : e->plane == 0 && e->lv == t->lv && e->sl == t->sl;
+             if (!hit) continue;
+-            st[i] = e->kind == SDX_CLEAR ? 2 : (uint8_t)(2 << 2); break; }
++            st[i] = e->kind == SDX_CLEAR ? 2 : (uint8_t)(2 << 2); ec = e->seq; break; }
++        if (st[i] == 2 && rb_tbdr_bl() && rb_anyr_in(P, ec)) { st[i] = 1 << 2; g_rb_anyr_kept++; }   // RewindBox (patch 0073): a bindless reader before the clear: stored (why 1, read)
++        else if (st[i] == 2 && rb_tbdr_bl() && rb_seq_in(g_rb_wsq, g_rb_wsq_n, P, ec)) { st[i] = 1 << 2; g_rb_wsq_kept++; }   // RewindBox (patch 0073, review): an event wait before the clear (g_rb_wsq): stored
+     }
+     return 1;
+ }
+@@ -14124,6 +14216,9 @@ static void hoist_try(void) {
+     // Handles bound within the scan range are noted first and converted to texture serials together with the current slots at lookup time; the scan only reads commands and the current slots S do not change meanwhile, so the result is the same as checking at the start
+     uint64_t bh[512]; int nbh = 0;
+     const uint8_t *p = g_exec_next;
++    // RewindBox (patch 0073): with bindless readers taken into account (rb_tbdr_bl), the draws the hoisted clears would pass may read the cleared textures through handles, which the
++    //   bound-slot check below cannot see: none is hoisted past a draw whose shaders read through handles or are not loaded (the current program, then each one bound in the range)
++    int rb_bl = rb_tbdr_bl(); if (rb_bl && rb_pr_bl(S.prog ? prog_peek(S.prog) : nil, 0)) return;
+     for (int guard = 0; guard < 200000; guard++) {
+         op_hdr h; memcpy(&h, p, sizeof h); const void *a = p + 8;
+         if (rec_bad(h)) { rec_bad_red("clear hoist lookahead", p, h, NULL, NULL); return; }
+@@ -14131,6 +14226,12 @@ static void hoist_try(void) {
+             case OP_END: case OP_CALL: case OP_COPY_T2T: case OP_COPY_B2T: case OP_COPY_T2B: case OP_CLEAR_TEX: case OP_DISPATCH: case OP_DLSS: case OP_RENDER_COND: case OP_DRAW_TEX: case OP_MULTI_DRAW: return;
+             case OP_JUMP: { const uint8_t *t; memcpy(&t, a, 8); p = t; continue; }
+             case OP_DRAW: case OP_DRAW_IDX: if (in_grp) return; break;
++            case OP_BIND_PROGRAM: if (rb_bl) { p_bind_program bpt_; const p_bind_program *bp_ = bind_program_rec(a, h.size, &bpt_); const prog_t *pp_ = (bp_->stages & 0x1f) ? prog_live(bp_) : NULL;
++                if ((bp_->stages & 0x1f) && rb_pr_bl(pp_ ? prog_peek(pp_) : nil, 0)) return; } break;   // RewindBox (patch 0073): see rb_bl above
++            // RewindBox (patch 0073, review): nor past queue synchronisation. Hoisted clears keep g_hoist_n set until the replay reaches them, and xq_may_park_ then refuses to park at
++            //   an unmet event wait in between: a GPU-only event's wait is let through (ev_wait ④) and the waiting queue runs ahead of the work it waits for, the pre-0053 ordering
++            //   behind the vanishing palms (765: 14,718 parks in 6,000 submissions). DM_NVN_TBDR=1 keeps its upstream scan (its deferral and tile merge span waits the same way)
++            case OP_SIGNAL_EVENT: case OP_WAIT_SYNC: case OP_FENCE_SYNC: if (rb_bl) return; break;
+             case OP_SCISSOR: sc = *(const p_scissor *)a; has_sc = 1; break;
+             case OP_BIND_TEX: case OP_BIND_TEX1: case OP_BIND_IMG: { p_bind_handles t1; const p_bind_handles *b = bind_rec(h.op, a, &t1); bh_fresh(b); for (int k = 0; k < b->n && k < 32 && nbh < 512; k++) if (b->h[k]) bh[nbh++] = b->h[k]; break; }
+             case OP_CLEAR_COLOR: case OP_CLEAR_DS: {
+@@ -14260,6 +14361,7 @@ static int prog_samples_ser(const prog_t *pg, uint64_t tex[6][NTEX], uint64_t im
+ static int g_defer_env_ab, g_defer_env_off;   // Environment switches: read once at the start of each submit (defer_reset); the hot path does not call getenv
+ static void defer_env(void) { const char *x = getenv("DM_NVN_DEFER_AB"), *e = getenv("DM_NVN_DEFER"); g_defer_env_ab = x && !strcmp(x, "1"); g_defer_env_off = e && !strcmp(e, "0"); }
+ static int defer_on(void) {
++    if (rb_tbdr_bl()) return 0;   // RewindBox (patch 0073): its pre-screen reads the per-texture events only
+     if (!g_defer_env_ab) return tbdr_on() && !g_defer_env_off;
+     if (g_defer_ab < 0) { g_defer_ab = 0; g_defer_ab_on = 0; }
+     return tbdr_on() && (g_defer_ab || g_defer_ab_on); }
+@@ -14511,6 +14613,7 @@ static int fz_prefilter(void) {
+     return 0;
+ }
+ static void fuse_try(void) {
++    if (rb_tbdr_bl()) return;   // RewindBox (patch 0073): not with bindless readers (tbdr_on)
+     if (g_fz.active || !g_exec_next || g_hoist_n + 12 > HOIST_MAX || !R.rt.n) return;
+     if (!fz_prefilter()) return;
+     // One: from the earlier pass to the next SetRenderTargets, only draws and state are allowed
+@@ -16887,6 +16990,143 @@ static void draw_emit(id en, MTLPrimitiveType mp, int prim, const p_draw *dw, co
+     }
+     if (g_rt_range_pending) { PD("j rt_level_range pass=%llu vc=%u", g_stat_pass, (unsigned)(dw ? dw->count : di->count)); g_rt_range_pending=0; }
+ }
++// RewindBox (patch 0073): image class variants of compute shaders (EM6). A translation made without the image's format (the on-device fallback, DM_MSL_FALLBACK) declares every image
++//   float and writes the register bits as a float: texture2d<float, access::write>, write(float4(as_type<float>(bits), ...)). In Metal a shader type of another class than the bound
++//   format is undefined, and in the 765 test two kernels did it at every frame: 2c04affed9c64d35 writes a 0-15 slice index per 4x4 tile into a 78x44 R8Uint map that a later pass loads,
++//   20cedaf80534819b into an R32Uint texture (P1-20 probe: "pixel class differs" 16038 -> 17838 between frames 4200 and 4500, 6 a frame); the bits of a small integer are a denormal
++//   float, written as 0. An R8Unorm view would not do: a denormal still writes 0. The dispatch takes a variant of the kernel whose image has the class of the bound format, keyed by the
++//   class of each image binding (2 bits per binding index, rb_icls_mask) as a program's variants are by what it is drawn with: made from the fallback source (rb_msl) in the background
++//   (rb_icls_kick), main0 until it is ready, failed or for more than 4 class sets, as before. Compute only (the pipelines are the shader's own); a packaged library has no source to make it
++//   from. S2A_RB_IMG_CLASS=0 keeps main0 everywhere
++typedef struct { size_t pos; int pri; const char *ins; } rb_icls_ed;
++static int rb_icls_ident(char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_'; }
++static int rb_icls_edcmp(const void *a, const void *b) { const rb_icls_ed *x = a, *y = b; return x->pos < y->pos ? -1 : x->pos > y->pos ? 1 : x->pri - y->pri; }
++// The MSL of a translated shader with image members aid[k] declared in class cls[k] (1 uint, 2 int) instead of float: the declaration's element type, each
++//   write's value (as_type<uint4 / int4> of the float4 the translation builds from the register bits) and each read's result (as_type<float4>: the bits as the translation reads them).
++//   Any other use of such a member (sample, gather, atomics, passed to a function) and anything not found exactly once leave the source as it is: NULL, why says what. malloc'd result
++static char *rb_icls_fix(const char *src, size_t len, const unsigned *aid, const int *cls, int n, char *why, size_t wn) {
++    enum { ED_MAX = 512 }; rb_icls_ed *ed = malloc(ED_MAX * sizeof *ed); int ne = 0; char *out = NULL;
++    #define RB_FAIL(...) do { snprintf(why, wn, __VA_ARGS__); goto fail; } while (0)
++    #define RB_ED(p, r, s) do { if (ne >= ED_MAX) RB_FAIL("more than %d edits", ED_MAX); ed[ne].pos = (p); ed[ne].pri = (r); ed[ne].ins = (s); ne++; } while (0)
++    if (!ed) { snprintf(why, wn, "out of memory"); return NULL; }
++    if (why && wn) why[0] = 0;
++    for (int k = 0; k < n; k++) {
++        if (cls[k] != 1 && cls[k] != 2) continue;
++        char pat[32]; int pl = snprintf(pat, sizeof pat, "[[id(%u)]]", aid[k]);
++        const char *d = memmem(src, len, pat, (size_t)pl); if (!d) RB_FAIL("no member [[id(%u)]]", aid[k]);
++        if (memmem(d + pl, len - (size_t)(d + pl - src), pat, (size_t)pl)) RB_FAIL("member [[id(%u)]] declared twice", aid[k]);
++        const char *ls = d; while (ls > src && ls[-1] != '\n' && ls[-1] != ';' && ls[-1] != '{') ls--;
++        while (ls < d && (*ls == ' ' || *ls == '\t')) ls++;
++        if (d - ls < 9 || strncmp(ls, "texture", 7)) RB_FAIL("member [[id(%u)]] is not a texture", aid[k]);
++        const char *lt = memchr(ls, '<', (size_t)(d - ls)); if (!lt || d - lt < 7 || strncmp(lt + 1, "float", 5) || (lt[6] != '>' && lt[6] != ',')) RB_FAIL("member [[id(%u)]] is not a float texture", aid[k]);
++        const char *ne_ = d; while (ne_ > ls && ne_[-1] == ' ') ne_--;
++        const char *nb = ne_; while (nb > ls && rb_icls_ident(nb[-1])) nb--;
++        size_t nl = (size_t)(ne_ - nb); if (!nl || nl > 120) RB_FAIL("member [[id(%u)]] has no name", aid[k]);
++        RB_ED((size_t)(lt + 1 - src), -1, cls[k] == 1 ? "\001uint" : "\001int");   // \001: replaces the 5 bytes "float"
++        for (const char *s = src; (s = memmem(s, len - (size_t)(s - src), nb, nl)); s += nl) {
++            if ((s > src && rb_icls_ident(s[-1])) || (s + nl < src + len && rb_icls_ident(s[nl]))) continue;
++            if (s == nb) continue;   // the declaration
++            static const char obj[] = "spvDescriptorSet0.";
++            const size_t ol = sizeof obj - 1;
++            if ((size_t)(s - src) < ol || memcmp(s - ol, obj, ol) || ((size_t)(s - src) > ol && rb_icls_ident(s[-(long)ol - 1]))) RB_FAIL("image %.*s used outside the argument buffer", (int)nl, nb);
++            const char *m = s + nl; size_t left = len - (size_t)(m - src);
++            if (left > 6 && !memcmp(m, ".read(", 6)) {
++                const char *q = m + 6; int dep = 1; while (q < src + len && dep) { if (*q == '(') dep++; else if (*q == ')') dep--; q++; }
++                if (dep) RB_FAIL("unbalanced read of %.*s", (int)nl, nb);
++                RB_ED((size_t)(s - ol - src), 1, "as_type<float4>("); RB_ED((size_t)(q - src), 2, ")");
++            } else if (left > 7 && !memcmp(m, ".write(", 7)) {
++                const char *a = m + 7, *q = a; int dep = 0;
++                while (q < src + len) { char c = *q; if (c == '(' || c == '[' || c == '{') dep++; else if (c == ')' || c == ']' || c == '}') { if (!dep) break; dep--; } else if (c == ',' && !dep) break; q++; }
++                if (q >= src + len || *q != ',') RB_FAIL("write of %.*s without a coordinate", (int)nl, nb);
++                RB_ED((size_t)(a - src), 0, cls[k] == 1 ? "as_type<uint4>(" : "as_type<int4>("); RB_ED((size_t)(q - src), 2, ")");
++            } else if ((left > 5 && !memcmp(m, ".get_", 5)) || (left > 7 && !memcmp(m, ".fence(", 7))) continue;
++            else RB_FAIL("image %.*s used otherwise than read / write / get_*", (int)nl, nb);
++        }
++    }
++    if (!ne) { snprintf(why, wn, "nothing to change"); goto fail; }
++    qsort(ed, (size_t)ne, sizeof *ed, rb_icls_edcmp);
++    size_t cap = len + 1, extra = 0; for (int i = 0; i < ne; i++) extra += strlen(ed[i].ins);
++    out = malloc(cap + extra); if (!out) RB_FAIL("out of memory");
++    size_t o = 0, at = 0;
++    for (int i = 0; i < ne; i++) {
++        memcpy(out + o, src + at, ed[i].pos - at); o += ed[i].pos - at; at = ed[i].pos;
++        const char *s = ed[i].ins; if (*s == '\001') { s++; at += 5; }
++        size_t sl = strlen(s); memcpy(out + o, s, sl); o += sl;
++    }
++    memcpy(out + o, src + at, len - at); o += len - at; out[o] = 0;
++    free(ed);
++    return out;
++fail:
++    free(ed); free(out); return NULL;
++    #undef RB_ED
++    #undef RB_FAIL
++}
++static int rb_icls_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_IMG_CLASS"); v = !(e && !strcmp(e, "0")); } return v; }
++static _Atomic uint64_t g_rb_icls_made, g_rb_icls_failed, g_rb_icls_used_n, g_rb_icls_full;
++static dispatch_queue_t rb_icls_queue(void) {
++    static dispatch_queue_t q; static dispatch_once_t once;
++    dispatch_once(&once, ^{ q = dispatch_queue_create("dm.nvn.icls", s2a_qos_queue_attr(DISPATCH_QUEUE_SERIAL, S2A_QOS_SHADER_VARIANT)); });
++    return q;
++}
++// The class of each image binding of cs as this dispatch binds it, where the translation declares float and the bound texture is of an integer class (0: none). Submit thread
++static uint64_t rb_icls_mask(NvShader *cs) {
++    uint64_t m = 0;
++    pthread_mutex_lock(&g_rmu);
++    for (int i = 0; i < cs->rf.nb && i < 32; i++) {
++        const nvn_rbind *b = &cs->rf.b[i];
++        if ((b->kind != NVN_RB_IMG && b->kind != NVN_RB_IMGU) || b->dpf != NVN_DPF_FLOAT || b->atomic_image) continue;
++        int tid = img_tid(b, 5); void *tv = NULL; tex_fast_rid(tid, &tv); if (!tv) continue;
++        __unsafe_unretained id<MTLTexture> t = (__bridge id<MTLTexture>)tv;
++        int c = mtl_pf_dpf(rb_pf(t, tid)); if (c != NVN_DPF_UINT && c != NVN_DPF_SINT) continue;
++        if (b->rw && !(t.usage & MTLTextureUsageShaderWrite)) continue;   // the dummy image until its upgrade (encode_args): float
++        m |= (uint64_t)c << (2 * i);
++    }
++    pthread_mutex_unlock(&g_rmu);
++    return m;
++}
++static void rb_icls_kick(NvShader *cs, int k, uint64_t m) {
++    NSString *path = cs->rb_msl, *entry = fnn(cs, cs->ventry);
++    uint64_t t0 = bp_now();
++    dispatch_async(rb_icls_queue(), ^{ @autoreleasepool {
++        id<MTLComputePipelineState> ps = nil; char why[200] = "";
++        if (dm_gfx_session_stopping()) snprintf(why, sizeof why, "the session is stopping");
++        else {
++            NSString *src = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil]; const char *u = src.UTF8String;
++            unsigned aid[32]; int cls[32], n = 0;
++            for (int i = 0; i < cs->rf.nb && i < 32; i++) { int c = (int)(m >> (2 * i) & 3); if (c) { aid[n] = cs->rf.b[i].aid; cls[n] = c; n++; } }
++            char *o = u ? rb_icls_fix(u, strlen(u), aid, cls, n, why, sizeof why) : NULL;
++            if (!u) snprintf(why, sizeof why, "its fallback translation is unreadable");
++            NSString *vs = o ? [[NSString alloc] initWithBytesNoCopy:o length:strlen(o) encoding:NSUTF8StringEncoding freeWhenDone:YES] : nil;
++            if (o && !vs) { free(o); snprintf(why, sizeof why, "not UTF-8"); }
++            if (vs) { NSError *e = nil; id<MTLLibrary> lib = [g_dev newLibraryWithSource:vs options:dm_msl_opts() error:&e];
++                id<MTLFunction> f = lib_entry(lib, entry);   // RewindBox (patch 0073, review): specialised when it declares function constants, as main0 is (a pipeline of an unspecialised one fails)
++                ps = f ? par_compute(f, nil, &e) : nil;   // not archived: one per shader and class set, made once a run
++                if (!ps) snprintf(why, sizeof why, "%s", e ? e.localizedDescription.UTF8String : "no entry point"); }
++        }
++        cs->rb_ic_ps[k] = ps;
++        __atomic_store_n(&cs->rb_ic_st[k], ps ? SE_READY : SE_FAIL, __ATOMIC_RELEASE);
++        uint64_t nm = ps ? atomic_fetch_add(&g_rb_icls_made, 1) + 1 : 0, nf = ps ? 0 : atomic_fetch_add(&g_rb_icls_failed, 1) + 1;
++        if ((ps && nm <= 16) || (!ps && nf <= 16)) MLOG("RewindBox: compute shader %s: image class variant (patch 0073, classes %#llx by binding) %s in %.1f ms%s%s", cs->key, (unsigned long long)m,
++                                                        ps ? "made" : "not made, main0 kept", (bp_now() - t0) / 1e6, ps ? "" : ": ", ps ? "" : why);
++    } });
++}
++// The pipeline of cs's variant for the classes this dispatch binds (*used: those classes), nil for main0. Submit thread: it alone claims a slot (SE_NONE -> SE_BUSY), the variant's
++//   queue only finishes it (SE_READY / SE_FAIL, release; rb_ic_ps written before)
++static id<MTLComputePipelineState> rb_icls_pick(NvShader *cs, uint64_t *used) {
++    *used = 0;
++    if (!rb_icls_on()) return nil;
++    uint64_t m = rb_icls_mask(cs); if (!m) return nil;
++    for (int k = 0; k < 4; k++) {
++        uint8_t st = __atomic_load_n(&cs->rb_ic_st[k], __ATOMIC_ACQUIRE);
++        if (st == SE_NONE) { cs->rb_ic_mask[k] = m; __atomic_store_n(&cs->rb_ic_st[k], SE_BUSY, __ATOMIC_RELEASE); rb_icls_kick(cs, k, m); return nil; }
++        if (cs->rb_ic_mask[k] != m) continue;
++        if (st != SE_READY) return nil;
++        *used = m; atomic_fetch_add(&g_rb_icls_used_n, 1); return cs->rb_ic_ps[k];
++    }
++    uint64_t f = atomic_fetch_add(&g_rb_icls_full, 1) + 1;
++    if (f <= 4 || !(f & (f - 1))) MLOG("RewindBox: compute shader %s: a fifth image class set %#llx: main0 (patch 0073; %llu such dispatches)", cs->key, (unsigned long long)m, (unsigned long long)f);
++    return nil;
++}
+ static nvn_hmap g_cps = {.klen = sizeof(void *)};
+ typedef struct { const void *cs; uintptr_t fc; } cps_se_key;
+ static nvn_hmap g_cps_se = {.klen = sizeof(cps_se_key)};   // S2Arm #800: compute pipelines of the sampler-emulation variant (se_want), by shader and SE_* bits: keyed apart from main0's
+@@ -17006,13 +17246,16 @@ static void dispatch(const p_dispatch *dp) {
+     rs_pre_compute(cs);   // S2Arm internal resolution: scaled textures this dispatch reads / writes go back to 1 first (nvn_rscale_ops.inc)
+     tba_prepare(cs, nil, nil, nil, nil, 1);   // #309: as for draws (see tba_ent)
+     uint32_t gx = (uint32_t)dp->x, gy = (uint32_t)dp->y; wd_dispatch(cs, &gx, &gy, dp->ind != 0);   // S2Arm widen: images it writes widened, X groups to the widened width, compute constants rewritten (widen_glue.inc)
++    uint64_t rb_ic = 0; if (!fc && cs->rb_msl) { id<MTLComputePipelineState> v = rb_icls_pick(cs, &rb_ic); if (v) ps = v; else rb_ic = 0; }   // RewindBox (patch 0073): an integer image declared float: its variant (rb_icls_pick)
+     int own = dispatch_own();
+     if (own && g_blit) { enc_b_end(g_blit); g_blit = nil; }
+     id<MTLComputeCommandEncoder> ce = own ? own_compute() : (id<MTLComputeCommandEncoder>)dispatch_enc();
+     enc_c_pso(ce, ps);
+     g_dispatch_dim[0] = gx; g_dispatch_dim[1] = gy; g_dispatch_dim[2] = (uint32_t)dp->z;   // read back by the driver segment c0 (encode_args_)
+     g_c0_dim_buf = nil;
++    g_rb_icls_sh = rb_ic ? cs : nil; g_rb_icls_used = rb_ic;   // RewindBox (patch 0073): the P1-20 probe compares the classes the variant declares
+     encode_args(ce, cs, 5, 0);
++    g_rb_icls_sh = nil; g_rb_icls_used = 0;
+     if (fc) se_bind(ce, cs, 5);   // the variant reads its table at RED_SLOT, filled for this dispatch
+     // Binding ended the shared encoder (same as draw's retry, 11-02 Need for Speed): an image / texture view that needs a format-view usage upgrades its texture (tex_upgrade), whose copy
+     //   goes through blit(). On Metal 3 a copy needs a blit encoder, so blit_open_k ends the shared compute encoder g_blit and ce is an ended encoder; the dispatch below then crashed
+@@ -19932,6 +20175,13 @@ void nvn_be_args_stats(uint64_t *enc, uint64_t *reuse) { *enc = g_stat_args_enc;
+ void nvn_be_vbuf_stats(uint64_t *resolve, uint64_t *reuse, uint64_t *set, uint64_t *skip) {
+     *resolve = g_vbuf_resolve; *reuse = g_vbuf_reuse; *set = g_vbuf_set; *skip = g_vbuf_skip;
+ }
++// RewindBox (patch 0073): cumulative counts for hle_nvn.c's encoding line: fragment / compute table writes made / left out (rb_tab_skip), texture-ID views kept across serial-table
++//   additions / sent down the slow path (tex_by_id), attachments stored for a bindless reader (sdx_decide), image class variant dispatches / variants made / not made (rb_icls_pick);
++//   review: attachments stored for an event wait before their clear (sdx_decide), nanoseconds in the store lookahead index (nvn_be_sub_index; both S2A_RB_TBDR only)
++void nvn_be_rb73_stats(uint64_t v[10]) {
++    v[0] = g_rb_tab_set; v[1] = g_rb_tab_skip; v[2] = g_rb_view_kept; v[3] = g_rb_view_slow; v[4] = g_rb_anyr_kept;
++    v[5] = atomic_load(&g_rb_icls_used_n); v[6] = atomic_load(&g_rb_icls_made); v[7] = atomic_load(&g_rb_icls_failed); v[8] = g_rb_wsq_kept; v[9] = g_rb_sdx_ns;
++}
+ void nvn_be_use_stats(uint64_t *call, uint64_t *skip) { *call = 0; *skip = 0; }
+ uint64_t nvn_be_ds_omit(void) { return g_stat_ds_omit; }
+ void nvn_be_bw(uint64_t *load, uint64_t *store, uint64_t *full) { *load = g_bw_load; *store = g_bw_store; *full = g_pass_full_rw; }
+diff --git a/graphics/nvn/gfx/nvn/nvn_rec.h b/graphics/nvn/gfx/nvn/nvn_rec.h
+index 31bbdd3..4d9844d 100644
+--- a/graphics/nvn/gfx/nvn/nvn_rec.h
++++ b/graphics/nvn/gfx/nvn/nvn_rec.h
+@@ -24,8 +24,49 @@ static pthread_mutex_t g_ubc_mu = PTHREAD_MUTEX_INITIALIZER; static pthread_cond
+ //   (10 s Time Profiler, botw_1025095845_2): a whole performance core held at speed to wait for a memcpy on another thread
+ static pthread_cond_t g_ubc_done_cv = PTHREAD_COND_INITIALIZER; static _Atomic int g_ubc_waiters;
+ static int ubc_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("DM_NVN_UB_COPY_THREAD"); v = !(e && !strcmp(e, "0")); } return v; }
++// RewindBox (patch 0073): the encode thread (rec_thread) and the uniform copy thread (ubc_thread) get a time-constraint policy, or join the frame workgroup when it is on (S2A_WORKGROUP,
++//   runtime/src/thread.c). SC9: in the 765 test dm-encode, USER_INTERACTIVE, ran 11-37% of its 2.2-4.5 ms a frame on the performance cores ("thread cores" lines up to frames 600-3300) and
++//   the submit thread waited for it in rec_drain 0.75-1.8 ms a frame; QoS alone leaves it on the efficiency cores. The declaration is the display link thread's (link_rt_declare): period one
++//   frame of the target rate, computation S2A_RB_ENC_RT microseconds (default 3000, about what the encode thread does a frame; 0 = QoS only, as before), constraint one frame. Each thread
++//   looks twice a second whether the policy still holds (the kernel can take it back) and declares again at a new target rate; the "thread cores" line says what holds (dm_rb_rt_stats)
++static int rb_rt_us(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_ENC_RT"); v = e && *e ? atoi(e) : 3000; if (v < 0) v = 0; if (v > 20000) v = 20000; } return v; }
++__attribute__((weak)) int s2a_wg_join_thread(const char *who) { (void)who; return 0; }   // runtime/src/thread.c: 1 when this thread joined the frame workgroup (on only with S2A_WORKGROUP)
++int nvn_be_fps_target(void);
++static _Atomic int g_rb_rt_st[2], g_rb_rt_pri[2], g_rb_rt_hz[2];   // [0 encode, 1 uniform copy] st: 0 not started, 1 real-time in effect, 2 not in effect, 3 frame workgroup, 4 off
++void dm_rb_rt_stats(int st[2], int pri[2]) { for (int i = 0; i < 2; i++) { st[i] = atomic_load(&g_rb_rt_st[i]); pri[i] = atomic_load(&g_rb_rt_pri[i]); } }
++static void rb_rt_look(int who) {   // this thread: does the policy hold, and its current priority
++    thread_time_constraint_policy_data_t g = {0}; mach_msg_type_number_t gc = THREAD_TIME_CONSTRAINT_POLICY_COUNT; boolean_t gd = 0;
++    int live = thread_policy_get(pthread_mach_thread_np(pthread_self()), THREAD_TIME_CONSTRAINT_POLICY, (thread_policy_t)&g, &gc, &gd) == KERN_SUCCESS && !gd;
++    thread_extended_info_data_t xi; mach_msg_type_number_t xc = THREAD_EXTENDED_INFO_COUNT;
++    if (thread_info(pthread_mach_thread_np(pthread_self()), THREAD_EXTENDED_INFO, (thread_info_t)&xi, &xc) == KERN_SUCCESS) atomic_store(&g_rb_rt_pri[who], xi.pth_curpri);
++    int was = atomic_exchange(&g_rb_rt_st[who], live ? 1 : 2);
++    if (was == 1 && !live) { static _Atomic int n; if (atomic_fetch_add(&n, 1) < 4) MLOG("RewindBox: the %s's time-constraint policy no longer holds (patch 0073; declared again at the next look)", who ? "uniform copy thread" : "encode thread"); }
++}
++static void rb_rt_set(int who, int hz) {
++    if (hz <= 0) hz = 60;
++    mach_timebase_info_data_t tb; if (mach_timebase_info(&tb) != KERN_SUCCESS || !tb.numer || !tb.denom) tb.numer = tb.denom = 1;   // RewindBox (patch 0073, review): a local, both threads call this
++    uint64_t period_ns = (uint64_t)(1e9 / hz), comp_ns = (uint64_t)rb_rt_us() * 1000ull; if (comp_ns > period_ns / 2) comp_ns = period_ns / 2;
++    thread_time_constraint_policy_data_t p = { .period = (uint32_t)(period_ns * tb.denom / tb.numer), .computation = (uint32_t)(comp_ns * tb.denom / tb.numer),
++        .constraint = (uint32_t)(period_ns * tb.denom / tb.numer), .preemptible = 1 };
++    kern_return_t kr = thread_policy_set(pthread_mach_thread_np(pthread_self()), THREAD_TIME_CONSTRAINT_POLICY, (thread_policy_t)&p, THREAD_TIME_CONSTRAINT_POLICY_COUNT);
++    atomic_store(&g_rb_rt_hz[who], hz); rb_rt_look(who);
++    static _Atomic int n; if (atomic_fetch_add(&n, 1) < 8) MLOG("RewindBox: %s time-constraint policy (patch 0073; period %.3f ms, computation %.3f ms, S2A_RB_ENC_RT) %s, %s", who ? "uniform copy thread" : "encode thread",
++                                                                period_ns / 1e6, comp_ns / 1e6, kr == KERN_SUCCESS ? "set" : "failed to set", atomic_load(&g_rb_rt_st[who]) == 1 ? "in effect" : "not in effect");
++}
++static void rb_rt_start(int who) {
++    if (s2a_wg_join_thread(who ? "dm-ub-copy" : "dm-encode")) { atomic_store(&g_rb_rt_st[who], 3); return; }
++    if (!rb_rt_us()) { atomic_store(&g_rb_rt_st[who], 4); return; }
++    rb_rt_set(who, nvn_be_fps_target());
++}
++static void rb_rt_tick(int who, uint64_t *last) {   // after a stretch of work, at most twice a second
++    uint64_t now = clock_gettime_nsec_np(CLOCK_UPTIME_RAW); if (now - *last < 500000000ull) return; *last = now;
++    int st = atomic_load(&g_rb_rt_st[who]); if (st != 1 && st != 2) return;
++    int hz = nvn_be_fps_target();
++    if (st == 2 || hz != atomic_load(&g_rb_rt_hz[who])) rb_rt_set(who, hz); else rb_rt_look(who);
++}
+ static void *ubc_thread(void *arg) {
+     (void)arg; pthread_setname_np("dm-ub-copy"); s2a_qos_set_self(S2A_QOS_UB_COPY);
++    rb_rt_start(1); uint64_t rb_rt_last = 0;   // RewindBox (patch 0073)
+     for (uint64_t t = 0;;) {
+         uint64_t h = atomic_load_explicit(&g_ubc_head, memory_order_acquire);
+         if (t == h) {
+@@ -38,6 +79,7 @@ static void *ubc_thread(void *arg) {
+         atomic_store_explicit(&g_ubc_done, t, memory_order_release);
+         atomic_thread_fence(memory_order_seq_cst);   // pairs with the fence in ubc_wait: of 'done stored then waiters read' and 'waiters raised then done read' one side sees the other
+         if (atomic_load(&g_ubc_waiters)) { pthread_mutex_lock(&g_ubc_mu); pthread_cond_broadcast(&g_ubc_done_cv); pthread_mutex_unlock(&g_ubc_mu); }
++        rb_rt_tick(1, &rb_rt_last);   // RewindBox (patch 0073): after the waiters are woken
+     }
+     return NULL;
+ }
+@@ -188,7 +230,10 @@ static void rec_exec(const rec_t *r) {
+     case RO_C_COPY_TT: [(id<MTL4ComputeCommandEncoder>)e copyFromTexture:rec_id(a[0]) sourceSlice:a[2] sourceLevel:a[3] sourceOrigin:MTLOriginMake(a[4], a[5], a[6]) sourceSize:MTLSizeMake(a[7], a[8], a[9])
+                            toTexture:rec_id(a[1]) destinationSlice:a[10] destinationLevel:a[11] destinationOrigin:MTLOriginMake(a[12], a[13], a[14])]; break;
+     case RO_C_FILL: [(id<MTL4ComputeCommandEncoder>)e fillBuffer:rec_id(a[0]) range:NSMakeRange(a[1], a[2]) value:(uint8_t)a[3]]; break;
+-    case RO_T_ADDR: [(id<MTL4ArgumentTable>)rec_id(a[0]) setAddress:a[1] atIndex:a[2]]; break;
++    case RO_T_ADDR: {   // RewindBox (patch 0073): the most frequent record, through setAddress:atIndex:'s IMP looked up once per table class (SC7; this thread only)
++        id t = rec_id(a[0]); static Class tc; static void (*tf)(id, SEL, uint64_t, NSUInteger); Class k = object_getClass(t);
++        if (k != tc || !tf) { tf = (void (*)(id, SEL, uint64_t, NSUInteger))class_getMethodImplementation(k, @selector(setAddress:atIndex:)); tc = k; }
++        tf(t, @selector(setAddress:atIndex:), a[1], a[2]); break; }
+     case RO_T_TEX: [(id<MTL4ArgumentTable>)rec_id(a[0]) setTexture:(MTLResourceID){a[1]} atIndex:a[2]]; break;
+     case RO_T_SAMP: [(id<MTL4ArgumentTable>)rec_id(a[0]) setSamplerState:(MTLResourceID){a[1]} atIndex:a[2]]; break;
+     case RO_LABEL: [(id<MTL4CommandEncoder>)e setLabel:rec_id(a[0])]; break;
+@@ -251,6 +296,7 @@ void dm_thread_lv_stats(uint64_t out[2][2][2]) { for (int w = 0; w < 2; w++) for
+ static void *rec_thread(void *arg) {
+     (void)arg; pthread_setname_np("dm-encode");
+     s2a_qos_set_self(S2A_QOS_ENCODE);
++    rb_rt_start(0); uint64_t rb_rt_last = 0;   // RewindBox (patch 0073)
+     for (;;) {
+         pthread_mutex_lock(&g_rb_mu);
+         while (!g_rb_head) { g_rb_sleeping = 1; pthread_cond_wait(&g_rb_work, &g_rb_mu); g_rb_sleeping = 0; }
+@@ -263,6 +309,7 @@ static void *rec_thread(void *arg) {
+         b->n = 0; b->next = g_rb_free; g_rb_free = b; g_rb_busy = 0;
+         if (!g_rb_head) pthread_cond_broadcast(&g_rb_idle);
+         pthread_mutex_unlock(&g_rb_mu);
++        rb_rt_tick(0, &rb_rt_last);   // RewindBox (patch 0073)
+     }
+     return NULL;
+ }
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index d6b9568..d1bb431 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -165,6 +165,7 @@ int nvn_be_shutdown_session(void) {
+     for (int i = 0; i < 4; i++) { g_fb_src[i] = nil; g_fb_use[i] = nil; g_fb_rid[i] = 0; }
+     g_nbcrt = g_ms_na = g_ts_na = g_fb_n = 0;
+     g_vt_valid = 0; memset(g_vt_addr, 0, sizeof g_vt_addr); memset(g_args_dirty, 1, sizeof g_args_dirty);
++    g_rb_ft_valid = g_rb_ct_valid = 0;   // RewindBox (patch 0073): new tables below (rb_tab_skip)
+     g_args_reg_seen = g_args_dirty_seen = 0; g_c0_dim_buf = nil;
+     for (int i = 0; i < 3; i++) { g_m3_sent_enc[i] = nil; g_m3_sent_tab[i] = nil; }
+     if (g_dev) {
+diff --git a/runtime/src/thread.c b/runtime/src/thread.c
+index c1ec2ad..b59bea5 100644
+--- a/runtime/src/thread.c
++++ b/runtime/src/thread.c
+@@ -919,6 +919,9 @@ static void wg_leave_self(void) {
+     if (t_wg_joined != 1) return;
+     os_workgroup_leave((os_workgroup_t)g_wg, &t_wg_tok); t_wg_joined = -1;   // -1：不再重新加入（线程正在退出）
+ }
++// RewindBox (patch 0073): an engine thread the frame waits for joins the workgroup itself when it is on with the game threads (S2A_WORKGROUP=1 / all): graphics/nvn nvn_rec.h, the
++//   Metal encode thread and the uniform copy thread (SC9). 1 when this thread is in the workgroup
++int s2a_wg_join_thread(const char *who) { if (!wg_on() || g_wg_mode == 2) return 0; wg_join_self(who); return t_wg_joined == 1; }
+ // 每上屏一帧（ap_host.c s2a_frame_presented，渲染线程）：首次在本线程加入；结束上一帧间隔、开始下一帧。fps = 当前标称帧率（0 = 还没报过，按 30）
+ void s2a_wg_frame(int fps) {
+     if (!wg_on()) return;

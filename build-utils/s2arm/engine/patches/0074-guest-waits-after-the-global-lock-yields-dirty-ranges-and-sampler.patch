@@ -1,0 +1,841 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_dirty.c b/graphics/nvn/gfx/nvn/nvn_dirty.c
+index dd3be62..4ef7b44 100644
+--- a/graphics/nvn/gfx/nvn/nvn_dirty.c
++++ b/graphics/nvn/gfx/nvn/nvn_dirty.c
+@@ -80,6 +80,83 @@ typedef struct retired_arrays {
+     struct retired_arrays *next;
+ } retired_arrays;
+ static retired_arrays *g_retired_arrays;   // g_slot_mu; never read by the signal path
++// RewindBox (patch 0074): a sorted index of the live ranges for prep_write and on_fault, which scanned every slot. In the 765 test prep_write took 0.013 to 0.037 core of
++//   self time (about a quarter of the audio renderer's worker: AuxiliaryBufferCommand -> GuestMemory.WriteSignalled -> s2a_track_write_untracked -> prep_write) over
++//   about 4,938 live ranges, and on_fault 0.005 to 0.014 core more; its 64-entry miss cache forgets everything at each pool creation or destruction (g_table_epoch).
++//   The index holds (base, end, slot) sorted by base, with mx = the largest end up to each entry, so the ranges overlapping [a, e) are the entries before the first base
++//   >= e, walked down while mx > a. Writers (g_slot_mu, table epoch odd) insert or remove one entry in place, O(n), and stamp the index with the even epoch they are about
++//   to publish (rix_close). A reader uses it only when the table epoch is even, equal to that stamp, and unchanged after its walk (a seqlock: no writer started meanwhile);
++//   otherwise it scans every slot as before, after or instead of the walk. Every range the walk acts on is checked against the slot itself (live, base, end) as the scan
++//   does, and releasing a page twice changes nothing, so a torn read can only miss a range, and a missed range means an epoch that moved and a full scan. Atomics only, no
++//   lock and no allocation on the read side, so the fault handler can use it. A full index grows into a new block; the old one stays readable until
++//   nvn_dirty_reset_session, as the retired page arrays do. S2A_RB_DIRTY_INDEX=0 keeps the full scans
++typedef struct { _Atomic uintptr_t base, end, mx; _Atomic int slot; } rix_e;
++typedef struct rix { int cap; _Atomic int n; _Atomic uint64_t epoch; struct rix *old; rix_e e[]; } rix_t;
++static _Atomic(rix_t *) g_rix;   // written under g_slot_mu
++static _Atomic int g_rix_on = -1;   // -1 undecided (readers scan), decided at the first rix_insert under g_slot_mu (S2A_RB_DIRTY_INDEX), 0 off, 1 on
++#define RL(x) atomic_load_explicit(&(x), memory_order_relaxed)
++#define RS(x, v) atomic_store_explicit(&(x), (v), memory_order_relaxed)
++static void rix_off(const char *why) {   // g_slot_mu: the index can no longer follow the table; scans from now on
++    rix_t *x = atomic_load(&g_rix); if (x) atomic_store(&x->epoch, 0);
++    if (atomic_exchange(&g_rix_on, 0) > 0) LOG("RewindBox (patch 0074): dirty-page tracking: range index off (%s); prep_write and the fault handler scan every range", why);
++}
++static rix_t *rix_room(int need) {   // g_slot_mu; the index with room for need entries, grown into a new block if needed
++    rix_t *x = atomic_load(&g_rix);
++    if (x && x->cap >= need) return x;
++    int cap = x ? x->cap * 2 : 1024; while (cap < need) cap *= 2;
++    rix_t *y = calloc(1, sizeof *y + (size_t)cap * sizeof y->e[0]);
++    if (!y) return NULL;
++    int n = x ? RL(x->n) : 0; y->cap = cap; y->old = x;
++    for (int i = 0; i < n; i++) { RS(y->e[i].base, RL(x->e[i].base)); RS(y->e[i].end, RL(x->e[i].end)); RS(y->e[i].mx, RL(x->e[i].mx)); RS(y->e[i].slot, RL(x->e[i].slot)); }
++    RS(y->n, n);
++    atomic_store_explicit(&g_rix, y, memory_order_release);
++    return y;
++}
++static void rix_fix(rix_t *x, int from) { int n = RL(x->n); uintptr_t m = from > 0 ? RL(x->e[from - 1].mx) : 0; for (int i = from; i < n; i++) { uintptr_t e = RL(x->e[i].end); if (e > m) m = e; RS(x->e[i].mx, m); } }
++static void rix_insert(int slot, uintptr_t base, uintptr_t end) {   // g_slot_mu, table epoch odd
++    // The switch is decided here, under g_slot_mu, by the first insert: decided in add_range's unlocked first-call block, a pool registered meanwhile on another thread
++    //   could reach this point with -1, stay out of an index then turned on and stamped, and its protected pages' faults would no longer be found (a crash).
++    //   Every insert, remove and stamp runs under g_slot_mu, so all of them see the final value; readers seeing -1 scan, and getenv never runs in the fault handler
++    int on = atomic_load(&g_rix_on);
++    if (on < 0) { const char *v = getenv("S2A_RB_DIRTY_INDEX"); on = !(v && !strcmp(v, "0")); atomic_store(&g_rix_on, on);
++        if (!on) LOG("RewindBox (patch 0074): dirty-page tracking: range index off (S2A_RB_DIRTY_INDEX=0)"); }
++    if (on <= 0) return;
++    rix_t *c = atomic_load(&g_rix), *x = rix_room((c ? RL(c->n) : 0) + 1);
++    if (!x) { rix_off("no memory"); return; }
++    atomic_thread_fence(memory_order_release);
++    int n = RL(x->n), k = n;
++    while (k > 0 && RL(x->e[k - 1].base) > base) k--;   // after the equal bases: O(n) like the move below
++    for (int i = n; i > k; i--) { RS(x->e[i].base, RL(x->e[i - 1].base)); RS(x->e[i].end, RL(x->e[i - 1].end)); RS(x->e[i].slot, RL(x->e[i - 1].slot)); }
++    RS(x->e[k].base, base); RS(x->e[k].end, end); RS(x->e[k].slot, slot); RS(x->n, n + 1);
++    rix_fix(x, k);
++}
++static void rix_remove(int slot) {   // g_slot_mu, table epoch odd
++    rix_t *x = atomic_load(&g_rix);
++    if (atomic_load(&g_rix_on) <= 0 || !x) return;
++    atomic_thread_fence(memory_order_release);
++    int n = RL(x->n), k = 0;
++    while (k < n && RL(x->e[k].slot) != slot) k++;
++    if (k == n) { rix_off("a removed pool was not in it"); return; }
++    for (int i = k; i + 1 < n; i++) { RS(x->e[i].base, RL(x->e[i + 1].base)); RS(x->e[i].end, RL(x->e[i + 1].end)); RS(x->e[i].slot, RL(x->e[i + 1].slot)); }
++    RS(x->n, n - 1);
++    rix_fix(x, k);
++}
++static void rix_close(void) {   // g_slot_mu: closes a writer's odd epoch; the index (if any, and on) is valid for the even epoch published here
++    rix_t *x = atomic_load(&g_rix);
++    if (x && atomic_load(&g_rix_on) > 0) atomic_store(&x->epoch, atomic_load(&g_table_epoch) + 1);
++    atomic_fetch_add(&g_table_epoch, 1);
++}
++// The index's first entry with base >= e (all before it start below e), or -1 = not usable at this epoch. Reader side: atomics only
++static int rix_upper(rix_t **px, uint64_t epoch, uintptr_t e) {
++    if (atomic_load_explicit(&g_rix_on, memory_order_relaxed) <= 0 || (epoch & 1)) return -1;
++    rix_t *x = atomic_load_explicit(&g_rix, memory_order_acquire);
++    if (!x || atomic_load_explicit(&x->epoch, memory_order_acquire) != epoch) return -1;
++    int lo = 0, hi = RL(x->n); if (hi > x->cap) hi = x->cap;
++    while (lo < hi) { int k = lo + (hi - lo) / 2; if (RL(x->e[k].base) < e) lo = k + 1; else hi = k; }
++    *px = x; return lo;
++}
++// After a walk: 1 = no writer started since epoch was read, so the walk saw every range
++static int rix_stable(uint64_t epoch) { atomic_thread_fence(memory_order_acquire); return atomic_load(&g_table_epoch) == epoch; }
+ static _Atomic uint64_t g_mp_calls, g_mp_pages, g_mp_ticks;
+ // 保护分块（页数，相对所属映射起点对齐）。共享默认 0 = 逐页，与 main 行为一致：
+ // Apple 路径（iOS / Mac 也编本文件）没有 VMA 上限问题，不能替它付整块重传的代价（维护方审 11-04）。
+@@ -141,6 +218,7 @@ void nvn_dirty_reset_session(void) {
+         retired_arrays *r = g_retired_arrays; g_retired_arrays = r->next;
+         free(r->state); free(r->gen); free(r->sparse); free(r);
+     }
++    for (rix_t *x = atomic_exchange(&g_rix, NULL); x; ) { rix_t *o = x->old; free(x); x = o; }   // RewindBox (patch 0074): every fault handler has been joined (above)
+     atomic_store(&g_nr, 0); atomic_store(&g_live, 0); atomic_store(&g_live_peak, 0);
+     atomic_store(&g_now, 1); atomic_store(&g_overflow_logged, 0); atomic_store(&g_busy_red, 0); atomic_store(&g_hooks_on, 0);
+     atomic_store(&g_sparse_untracked_logged, 0); atomic_store(&g_span_ovl_logged, 0);   // RewindBox (patch 0025). g_sparse_writes is not reset: callers only compare it with a value they kept
+@@ -257,6 +335,16 @@ static int on_fault(void *addr, int is_write, void *uc) {
+     (void)uc;
+     if (!is_write) return 0;
+     uintptr_t a = (uintptr_t)addr; int ours = 0, n = atomic_load(&g_nr);
++    {   // RewindBox (patch 0074): the ranges holding a, from the index (see rix_e); a full scan below when it could not be used or the table moved meanwhile
++        uint64_t ep = atomic_load(&g_table_epoch); rix_t *x = NULL; int up = rix_upper(&x, ep, a + 1);
++        if (up >= 0) {
++            for (int i = up - 1; i >= 0 && RL(x->e[i].mx) > a; i--) {
++                int s = RL(x->e[i].slot); if (s < 0 || s >= n) continue;
++                range_t *r = rg(s); if (live_at(s) && a >= r->base && a < r->end) ours |= release_page(r, (a - r->base) >> g_shift, &g_faults);
++            }
++            if (rix_stable(ep)) return ours;
++        }
++    }
+     for (int i = 0; i < n; i++)   // Every range sharing the page must be released: releasing only one leaves the other range's state at "protected", and later writes no longer fault and are missed
+         { range_t *r = rg(i); if (live_at(i) && a >= r->base && a < r->end) ours |= release_page(r, (a - r->base) >> g_shift, &g_faults); }
+     return ours;
+@@ -295,8 +383,22 @@ static void prep_write(void *addr, size_t len) {
+     prep_miss *miss = &g_prep_miss[((a >> 2) ^ (a >> 11) ^ len) & 63];
+     if (!(epoch & 1) && miss->epoch == epoch && miss->addr == a && miss->len == len &&
+         atomic_load(&g_table_epoch) == epoch) return;
+-    int n = atomic_load(&g_nr), overlap = 0;
+-    for (int i = 0; i < n; i++) {
++    int n = atomic_load(&g_nr), overlap = 0, done = 0;
++    {   // RewindBox (patch 0074): the ranges overlapping [a, e) from the index (see rix_e); the full scan below when it could not be used or the table moved meanwhile
++        rix_t *x = NULL; int up = e > a ? rix_upper(&x, epoch, e) : -1;
++        if (up >= 0) {
++            for (int i = up - 1; i >= 0 && RL(x->e[i].mx) > a; i--) {
++                int s = RL(x->e[i].slot); if (s < 0 || s >= n) continue;
++                range_t *r = rg(s);
++                if (!live_at(s) || e <= r->base || a >= r->end) continue;
++                overlap = 1;
++                uintptr_t lo = a > r->base ? a : r->base, hi = e < r->end ? e : r->end;
++                release_pages(r, (lo - r->base) >> g_shift, (hi - 1 - r->base) >> g_shift, &g_preps);
++            }
++            done = rix_stable(epoch);
++        }
++    }
++    for (int i = 0; i < n && !done; i++) {
+         range_t *r = rg(i);
+         if (!live_at(i) || e <= r->base || a >= r->end) continue;
+         overlap = 1;
+@@ -321,7 +423,7 @@ int nvn_dirty_replace_range(const void *mem, size_t size) {
+     range_t *r = NULL;
+     int n = atomic_load(&g_nr);
+     for (int i = 0; i < n && !r; i++) if (live_at(i) && rg(i)->mem == (uintptr_t)mem) r = rg(i);
+-    if (!r) { atomic_fetch_add(&g_table_epoch, 1); pthread_mutex_unlock(&g_slot_mu); return 0; }
++    if (!r) { rix_close(); pthread_mutex_unlock(&g_slot_mu); return 0; }   // RewindBox (patch 0074): rix_close closes the epoch
+     // 换底长度/对齐与登记时不同：旧的页状态数组按旧 end 分配，不能按旧 end 重加只读（会保护到新映射之外）。
+     // 报红并走「删除 + 重新登记」，由 add_range 按新长度重新分配页状态（维护方审 11-04 第 8 条）。
+     const uintptr_t nbase = (uintptr_t)mem & ~(g_pg - 1);
+@@ -329,7 +431,7 @@ int nvn_dirty_replace_range(const void *mem, size_t size) {
+     if (nbase != r->base || nend != r->end) {
+         LOG("【红】 dirty-page tracking: replace_range %p size=%zu 与登记区间 [%p,%p) 不同，删除并重新登记（不按旧 end 加保护）",
+             mem, size, (void *)r->base, (void *)r->end);
+-        atomic_fetch_add(&g_table_epoch, 1);
++        rix_close();   // RewindBox (patch 0074)
+         pthread_mutex_unlock(&g_slot_mu);
+         nvn_dirty_remove_range(mem);
+         nvn_dirty_add_range(mem, size);
+@@ -355,7 +457,7 @@ int nvn_dirty_replace_range(const void *mem, size_t size) {
+         }
+         k = last + 1;
+     }
+-    atomic_fetch_add(&g_table_epoch, 1);
++    rix_close();   // RewindBox (patch 0074): same base and end, the index stands
+     pthread_mutex_unlock(&g_slot_mu);
+     return 1;
+ }
+@@ -375,7 +477,7 @@ void nvn_dirty_add_range(const void *mem, size_t size) {
+         if (n >= MAX_RANGE) {
+             int expected = 0;
+             if (atomic_compare_exchange_strong(&g_overflow_logged, &expected, 1)) LOG("【红】 dirty-page tracking ranges are full (%d), pool %p not tracked", MAX_RANGE, mem);
+-            atomic_fetch_add(&g_table_epoch, 1);
++            rix_close();   // RewindBox (patch 0074)
+             pthread_mutex_unlock(&g_slot_mu); return;
+         }
+         slot = n;
+@@ -426,17 +528,17 @@ void nvn_dirty_add_range(const void *mem, size_t size) {
+     atomic_store(&r->ovl, ovl);
+     if (slot == n) atomic_store(&g_nr, n + 1);
+     atomic_store_explicit(&r->live, 1, memory_order_release);
+-    atomic_fetch_add(&g_table_epoch, 1);
++    rix_insert(slot, base, end); rix_close();   // RewindBox (patch 0074)
+     pthread_mutex_unlock(&g_slot_mu);
+ }
+ // Pool destruction: first restore still-protected pages to writable (the pool memory may be reused for something else once returned to the game), then mark invalid
+ void nvn_dirty_remove_range(const void *mem) {
+     pthread_mutex_lock(&g_slot_mu);
+     atomic_fetch_add(&g_table_epoch, 1);
+-    range_t *r = NULL; int n = atomic_load(&g_nr);
+-    for (int i = 0; i < n && !r; i++) if (live_at(i) && rg(i)->mem == (uintptr_t)mem) r = rg(i);   // Match by the pool's exact start: an adjacent pool sharing a page may have the same rounded base
+-    if (r) { prep_write((void *)r->base, r->end - r->base); atomic_store_explicit(&r->live, 0, memory_order_release); atomic_fetch_sub(&g_live, 1); }
+-    atomic_fetch_add(&g_table_epoch, 1);
++    range_t *r = NULL; int n = atomic_load(&g_nr), slot = -1;   // RewindBox (patch 0074): slot, for the index
++    for (int i = 0; i < n && !r; i++) if (live_at(i) && rg(i)->mem == (uintptr_t)mem) { r = rg(i); slot = i; }   // Match by the pool's exact start: an adjacent pool sharing a page may have the same rounded base
++    if (r) { prep_write((void *)r->base, r->end - r->base); atomic_store_explicit(&r->live, 0, memory_order_release); atomic_fetch_sub(&g_live, 1); rix_remove(slot); }
++    rix_close();   // RewindBox (patch 0074)
+     pthread_mutex_unlock(&g_slot_mu);
+ }
+ int nvn_dirty_tracked(const void *addr, size_t len) {
+diff --git a/runtime/src/cpuprof.c b/runtime/src/cpuprof.c
+index e6b4962..76c7075 100644
+--- a/runtime/src/cpuprof.c
++++ b/runtime/src/cpuprof.c
+@@ -16,18 +16,33 @@
+ #include <time.h>
+ 
+ #define VA(x) ((x) & 0x0000007fffffffffull)   // 去掉返回地址高位的指针认证位
+-enum { CP_DEPTH = 16, CP_MAXS = 120000, CP_THR = 64, CP_TOP = 20 };
++// RewindBox (patch 0074): the sampler's own defects, from the 765 test's profiles: past 64 threads every later one fell into slot 63 under the name of the first there (T 63
++//   held 1,667 of 3,299 running samples at frame 600 and 2,136 of 3,217 at frame 3696, mixing a game pool, the renderer's threads, .NET and dispatch); 800 of 3,217 stacks
++//   stopped at 16 frames; and the real pace was 327 to 396 rounds a second, not 500, which the files did not say (a round costs 0.5 to 0.9 ms of work besides its 2 ms
++//   sleep), nor when a round was taken. Now 512 slots, the last one only for threads past them, named so, the thread id on T lines; 32 frames (CP_MAXS 80,000 samples,
++//   about 22 MB, was 120,000 of 16 frames, about 17 MB); the rounds and the waiting rounds in the header; and an "R <round> <ns since the window began> <frame>" line before
++//   each waiting round's samples (dm_nvn_frame_count, the renderer's frame). T lines are now "T <slot> <samples> <thread id> <name>". The deeper walk reads up to twice
++//   as many frames a sample (two reads each) while the sampled thread is suspended: S2A_RB_CPUPROF_DEEP=0 walks 16 again
++enum { CP_DEPTH = 32, CP_MAXS = 80000, CP_THR = 512, CP_TOP = 20 };
+ typedef struct { uint16_t thr; uint8_t n, st; uint64_t far; uint64_t pc[CP_DEPTH]; } cp_sample;   // pc[0] = 当前 pc，之后是返回地址；RewindBox (patch 0061): st = 0 running, else the Mach run state of a thread sampled while it waited; far = its last fault address
+ static cp_sample *g_s; static int g_ns;
+ static struct { uint64_t tid; char name[64]; int n; } g_thr[CP_THR]; static int g_nthr;
++static unsigned long g_rounds, g_wrounds;   // RewindBox (patch 0074): rounds of the last window, and those that also sampled the waiting threads
++enum { CP_RMAX = 4096 };
++static struct { unsigned long round; uint64_t ns, frame; int at; } g_rmk[CP_RMAX]; static int g_nrmk;   // RewindBox (patch 0074): R lines; at = the first sample of that round
++// 弱链接[host]：dm_nvn_frame_count（RewindBox (patch 0074): the R lines' frame; graphics/nvn hle_nvn.c, absent from a host built with the native layer alone, which writes 0 there）
++uint64_t dm_nvn_frame_count(void) __attribute__((weak_import));
+ 
+ static int rd(uint64_t a, uint64_t *v) {
+     vm_size_t got = 0;
+     return !(a & 7) && vm_read_overwrite(mach_task_self(), (vm_address_t)a, 8, (vm_address_t)v, &got) == KERN_SUCCESS && got == 8;
+ }
++static int cp_depth(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_CPUPROF_DEEP"); v = e && !strcmp(e, "0") ? 16 : CP_DEPTH; } return v; }   // RewindBox (patch 0074)
+ static int thr_slot(uint64_t tid, const char *name) {   // 采样线程自己调，不在挂起区间
+     for (int i = 0; i < g_nthr; i++) if (g_thr[i].tid == tid) return i;
+-    if (g_nthr >= CP_THR) return CP_THR - 1;
++    if (g_nthr >= CP_THR - 1) {   // RewindBox (patch 0074): the last slot holds only the threads past the others, under its own name
++        if (g_nthr == CP_THR - 1) { g_thr[g_nthr].tid = 0; snprintf(g_thr[g_nthr].name, sizeof g_thr[0].name, "(threads past %d)", CP_THR - 1); g_nthr++; }
++        return CP_THR - 1; }
+     g_thr[g_nthr].tid = tid; snprintf(g_thr[g_nthr].name, sizeof g_thr[0].name, "%s", name && *name ? name : "无名"); return g_nthr++;
+ }
+ // 地址 → 函数键：宿主函数起点（dladdr），游戏模块按 256 字节块；名字写进 out
+@@ -71,7 +86,7 @@ static void report(double secs) {
+             }
+         }
+         int tot = g_thr[t].n;
+-        LOG("[cpuprof] 线程「%s」%d 样本（约 %.0f%% 一核）", g_thr[t].name, tot, secs > 0 ? 100.0 * tot / (secs * (getenv("S2A_CPUPROF_HZ") ? atof(getenv("S2A_CPUPROF_HZ")) : 1000.0)) : 0);
++        LOG("[cpuprof] 线程「%s」%d 样本（约 %.0f%% 一核）", g_thr[t].name, tot, g_rounds ? 100.0 * tot / (double)g_rounds : 0);   // RewindBox (patch 0074): of the rounds taken, not of the rate asked for
+         qsort(fn, (size_t)nfn, sizeof *fn, fn_cmp_self);
+         for (int j = 0; j < nfn && j < CP_TOP && fn[j].self; j++) LOG("[cpuprof]   自身 %5.1f%% %s", 100.0 * fn[j].self / tot, fn[j].name);
+         qsort(fn, (size_t)nfn, sizeof *fn, fn_cmp_incl);
+@@ -104,12 +119,16 @@ static uint64_t cp_mono_ns(void) { struct timespec t; clock_gettime(CLOCK_MONOTO
+ // waits: 0 = running threads only (S2A_CPUPROF, as before); N = every Nth round also the waiting threads cp_wait_name names
+ static double cp_window(double dur, double hz, const char *flt, int waits) {   // RewindBox (patch 0054): the sampling loop as it stood in cp_main; returns the window's length in seconds
+     thread_t self = mach_thread_self(); struct timespec beg, now; clock_gettime(CLOCK_MONOTONIC, &beg);
+-    long per = (long)(1e9 / hz); unsigned long round = 0; g_nwait = 0;
++    long per = (long)(1e9 / hz); unsigned long round = 0; g_nwait = 0; g_rounds = g_wrounds = 0; g_nrmk = 0; int depth = cp_depth();   // RewindBox (patch 0074): depth
+     g_cp_susp_ns = g_cp_susp_max_ns = g_cp_susp_n = 0; uint64_t cpu0 = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID);   // RewindBox (patch 0068)
+     for (;; round++) {
+         clock_gettime(CLOCK_MONOTONIC, &now);
+         double el = (double)(now.tv_sec - beg.tv_sec) + (now.tv_nsec - beg.tv_nsec) / 1e9;
+         if (el >= dur || g_ns >= CP_MAXS) break;
++        g_rounds++;   // RewindBox (patch 0074): rounds taken, and the waiting ones with their R marker
++        if (waits && !(round % (unsigned long)waits)) { g_wrounds++;
++            if (g_nrmk < CP_RMAX) { g_rmk[g_nrmk].round = round; g_rmk[g_nrmk].ns = (uint64_t)(now.tv_sec - beg.tv_sec) * 1000000000ull + (uint64_t)(now.tv_nsec - beg.tv_nsec);
++                g_rmk[g_nrmk].frame = dm_nvn_frame_count ? dm_nvn_frame_count() : 0; g_rmk[g_nrmk].at = g_ns; g_nrmk++; } }
+         thread_act_array_t th; mach_msg_type_number_t n = 0;
+         if (task_threads(mach_task_self(), &th, &n) == KERN_SUCCESS) {
+             for (mach_msg_type_number_t i = 0; i < n && g_ns < CP_MAXS; i++) {
+@@ -129,7 +148,7 @@ static double cp_window(double dur, double hz, const char *flt, int waits) {   /
+                 if (thread_get_state(th[i], ARM_THREAD_STATE64, (thread_state_t)&st, &sc) == KERN_SUCCESS) {
+                     uint64_t fp = arm_thread_state64_get_fp(st); int d = 0;
+                     s->pc[d++] = VA(arm_thread_state64_get_pc(st));
+-                    for (; d < CP_DEPTH && fp; ) { uint64_t nfp, ret; if (!rd(fp, &nfp) || !rd(fp + 8, &ret) || !VA(ret)) break; s->pc[d++] = VA(ret); if (nfp <= fp) break; fp = nfp; }
++                    for (; d < depth && fp; ) { uint64_t nfp, ret; if (!rd(fp, &nfp) || !rd(fp + 8, &ret) || !VA(ret)) break; s->pc[d++] = VA(ret); if (nfp <= fp) break; fp = nfp; }
+                     s->n = (uint8_t)d; s->thr = (uint16_t)slot; s->st = (uint8_t)(waiting ? rs : 0); s->far = 0; ok = 1;
+                     if (waiting) { arm_exception_state64_t es; mach_msg_type_number_t ec = ARM_EXCEPTION_STATE64_COUNT;   // RewindBox (patch 0061)
+                         if (thread_get_state(th[i], ARM_EXCEPTION_STATE64, (thread_state_t)&es, &ec) == KERN_SUCCESS) s->far = es.__far; }
+@@ -160,7 +179,9 @@ static void cp_raw_write(const char *dir, double secs) {
+     FILE *f = fopen(p, "w");
+     if (!f) { LOG("RewindBox: CPU profile: cannot write cpuprof.txt beside the frame capture (%d samples lost)", g_ns); return; }
+     fprintf(f, "# RewindBox CPU profile (patch 0054): %.1f s at %d samples a second, %d samples of running threads. I: image load address, name. M: game module base, size, name. "
+-               "T: thread slot, samples, name. S: thread slot, pc, return addresses (hex)\n", secs, (int)RQ_HZ, g_ns - g_nwait);
++               "T: thread slot, samples, thread id, name (patch 0074). S: thread slot, pc, return addresses (hex)\n", secs, (int)RQ_HZ, g_ns - g_nwait);
++    fprintf(f, "# Rounds (patch 0074): %lu rounds taken (%.1f a second), %lu of them also over the waiting threads (%.1f a second); up to %d frames a stack, %d thread slots. "
++               "R: round, ns since the window began, renderer frame, before the samples of each waiting round\n", g_rounds, secs > 0 ? g_rounds / secs : 0, g_wrounds, secs > 0 ? g_wrounds / secs : 0, cp_depth(), (int)CP_THR);
+     fprintf(f, "# Waits (patch 0061): %d samples of waiting game and renderer threads, taken %d times a second. W: thread slot, Mach run state (3 waiting, 4 uninterruptible: held by the kernel, "
+                "a page of memory being brought in when its pc is not a system call's return), last fault address, pc, return addresses (hex)\n", g_nwait, (int)(RQ_HZ / RQ_WAITS));
+     for (uint32_t i = 0, n = _dyld_image_count(); i < n; i++) {
+@@ -168,12 +189,15 @@ static void cp_raw_write(const char *dir, double secs) {
+         fprintf(f, "I %llx %s\n", (unsigned long long)(uintptr_t)_dyld_get_image_header(i), b ? b + 1 : nm ? nm : "?");
+     }
+     for (int i = 0; i < g_nmod; i++) fprintf(f, "M %llx %llx %.16s\n", (unsigned long long)(uintptr_t)g_mod[i].base, (unsigned long long)g_mod[i].size, g_mod[i].name);
+-    for (int t = 0; t < g_nthr; t++) fprintf(f, "T %d %d %s\n", t, g_thr[t].n, g_thr[t].name);
++    for (int t = 0; t < g_nthr; t++) fprintf(f, "T %d %d %llu %s\n", t, g_thr[t].n, (unsigned long long)g_thr[t].tid, g_thr[t].name);   // RewindBox (patch 0074): thread id
++    int m = 0;   // RewindBox (patch 0074): the next R line
+     for (int i = 0; i < g_ns; i++) {
++        for (; m < g_nrmk && g_rmk[m].at <= i; m++) fprintf(f, "R %lu %llu %llu\n", g_rmk[m].round, (unsigned long long)g_rmk[m].ns, (unsigned long long)g_rmk[m].frame);   // RewindBox (patch 0074)
+         if (g_s[i].st) fprintf(f, "W %u %u %llx", (unsigned)g_s[i].thr, (unsigned)g_s[i].st, (unsigned long long)g_s[i].far); else fprintf(f, "S %u", (unsigned)g_s[i].thr);
+         for (int d = 0; d < g_s[i].n; d++) fprintf(f, " %llx", (unsigned long long)g_s[i].pc[d]);
+         fputc('\n', f);
+     }
++    for (; m < g_nrmk; m++) fprintf(f, "R %lu %llu %llu\n", g_rmk[m].round, (unsigned long long)g_rmk[m].ns, (unsigned long long)g_rmk[m].frame);   // RewindBox (patch 0074): rounds after the last sample
+     int bad = ferror(f); if (fclose(f)) bad = 1;
+     LOG("RewindBox: CPU profile: %d samples of running threads and %d of waiting ones, %d threads over %.1f s %s cpuprof.txt in the measurement's folder; the sampler held threads suspended %.1f ms in all "
+         "(%llu suspensions, the longest %.0f us) and took %.1f ms of CPU (RewindBox patch 0068)", g_ns - g_nwait, g_nwait, g_nthr, secs, bad ? "NOT all written (a write failed) to" : "written to",
+diff --git a/runtime/src/thread.c b/runtime/src/thread.c
+index b59bea5..414124a 100644
+--- a/runtime/src/thread.c
++++ b/runtime/src/thread.c
+@@ -40,6 +40,7 @@
+ #include <sys/ucontext.h>
+ #if defined(__APPLE__)
+ #include <sys/event.h>
++#include <os/os_sync_wait_on_address.h>   // RewindBox (patch 0074): untimed guest waits (block_u); macOS 14.4 / iOS 17.4, under both deployment targets
+ #endif
+ 
+ static uint64_t thread_clock(void) {
+@@ -122,6 +123,13 @@ typedef struct thr {
+     _Atomic uint64_t nsvc_all;                 // 全部系统调用次数（svc_thread 入口计；nsvc 只计线程类）：让步退避判「两次让步之间有没有别的系统调用」
+     uint64_t yrun_blk, yrun_sig, yrun_t0, nblk, y_lr, y_ret;   // Yield runs reset after an actual blocking wait, or changed guest state at another call site / after > SPIN_GAP_NS of guest code (y_lr / y_ret).
+     uint64_t sl_lr, sl_seq, sl_t0, sl_ret;
++    // RewindBox (patch 0074): uw = how an untimed wait sleeps (block_u: 0 not on t->woke, wakers signal cv; 1 may sleep on t->woke; 2 spinning first, no wake call needed),
++    //   set under G, taken by wake() with an exchange; sp_bud / sp_skip = this thread's spin budget (mach ticks) and its waits since the budget fell to 0, sp_init = budget set
++    //   (to the maximum, at its first spin); gw_n = its waits slept on t->woke, spun into a wake-up, spun in vain, fallbacks to cv, wake-ups it issued after G
++    //   (owner writes, relaxed atomic stores, GW_INC; others read them under G with atomic loads; folded into g_gw under G at exit)
++    _Atomic int uw; uint32_t sp_bud, sp_skip; uint8_t sp_init; uint64_t gw_n[5];
++    // RewindBox (patch 0074): yields (owner writes), CPU ns in them (one in 16 timed), ns slept by their backoff; *_rep / pw_cpu = what dm_yield_top / dm_thread_cpu last saw (under G)
++    uint64_t ny, ny_k, ny_cpu, ny_sl, ny_rep, ny_cpu_rep, pw_cpu;
+     uint64_t nsl, nsl_bo, sl_bo_ns, sl_up[2]; int is_main;   // sl_up：抽样记的上两层返回地址（帧指针回溯，定游戏哪段代码在轮询）   // 本线程短睡次数、被退避拉长次数、多睡纳秒（收局按线程列，s2a_yield_stat_log）；is_main = 游戏主线程   // 短睡轮询退避：上一次短睡的调用点、当时的 nsvc_all、这一轮起点、上一次醒来时刻
+     uint64_t srun_seq, srun_t0, spin_ret;   // 自旋闸：上一次过闸时的 nsvc_all、这一轮等待的起点、上一次出闸的时刻
+     uint64_t trun_key, trun_seq, trun_t0, tick_ret;   // 读时钟闸：上一次读时钟的调用点、当时的 nsvc_all、这一轮等待的起点、上一次读完的时刻
+@@ -325,16 +333,71 @@ static uint64_t wt_cpu_ns(void) { struct timespec ts; return clock_gettime(CLOCK
+ static _Atomic uint64_t g_wt_b[2][7], g_wt_n[2], g_wt_st[4], g_wt_st_ms[4];   // [0] 被唤醒方 [1] 唤醒方；停顿 [0] 被停住 [1] 在算 [2] 宿主阻塞段（DM_BLOCK，直连等待）[3] 回客体等虚拟核（次数、累计 ms）
+ static __thread uint64_t t_wt_blk_ns, t_wt_blk_t0, t_wt_core_ns, t_wt_blk_snap, t_wt_core_snap;   // 本线程 DM_BLOCK 段与惰性取核等待的累计墙钟；snap = 上次回游戏时的值
+ static void wt_bucket(int k, uint64_t ns) { int b = ns < 1000 ? 0 : ns < 10000 ? 1 : ns < 100000 ? 2 : ns < 1000000 ? 3 : ns < 10000000 ? 4 : ns < 100000000 ? 5 : 6; atomic_fetch_add(&g_wt_b[k][b], 1); atomic_fetch_add(&g_wt_n[k], 1); }
++#if defined(__APPLE__)
++// RewindBox (patch 0074): guest wake-ups after G. In the 765 test (iPhone17,2, 30 fps cap) the game's threads spent 0.26 to 0.95 thread-equivalent "woken but not yet running"
++//   under _block and 0.05 to 0.20 core waiting for or releasing a pthread mutex, G for the most part (0x34 / 0x35 about 1.66 million calls each in the session, 0x1A / 0x1B
++//   about 0.23 million; 113 running samples of one profile retaking G right under _block, 1,166 to 2,976 involuntary context switches per long frame): wake() signalled the
++//   woken thread's condition variable while it held G, so the woken thread ran at once into G still held by its waker, slept again and was switched in a second time.
++//   Now (1) inside the synchronization calls of svc_thread (wq scope) wake() records the wake-up and the call issues it once G is released (svc_thread after the call,
++//   block before it sleeps, thread_exit); (2) an untimed wait sleeps on its own word t->woke with os_sync_wait_on_address, G released, and does not take G again once woken
++//   when its caller needs nothing more under G (block_u); a timed wait keeps its kqueue and timer, its trigger deferred the same way; (3) 0x1A and 0x34 spin briefly first.
++//   No lost wake-up: wake() stores woke = 1 under G before it records anything; a sleeper sleeps only while the word is still 0 (the kernel compares it with the wait, and
++//   a kqueue user event stays pending), and a recorded wake-up is issued by its waker before that waker returns to the game, sleeps or exits, so it can be late by the rest of
++//   one system call, never missing. Outside a scope (host threads, C# events, session stop) and when the list is full, wake() issues it at once under G as before.
++//   No use after free: a deferred wake names only an address, which the kernel uses as a key in this process and does not read (os_sync_wake_by_address_any), so a thread
++//   freed meanwhile at worst gives a spurious wake-up to whatever waits there later, which every waiter on an address tolerates (all loops here recheck their word); a
++//   deferred kqueue trigger holds g_kq_infl for that descriptor until issued, and kq_close (the owner's exit) waits for it before closing, so it never reaches another file.
++//   Deterministic mode (block_det) keeps the condition variable. S2A_RB_GUEST_WAIT=0 gives the old waits back; S2A_RB_WAIT_SPIN=<µs> sets the spin (2, 0 = none)
++static int rb_gw_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_GUEST_WAIT"); v = !(e && !strcmp(e, "0")); } return v; }
++enum { WQ_N = 32, KQI_N = 256 };
++static __thread int t_wq_on, t_wq_n;
++static __thread struct { void *a; int kq; } t_wq[WQ_N];   // a = &t->woke to wake, or NULL and kq = the kqueue to trigger
++static _Atomic int g_kq_infl[KQI_N];                        // deferred triggers not yet issued, by descriptor & (KQI_N - 1)
++static _Atomic uint64_t g_gw[5];                            // thr_t.gw_n of exited threads
++#define GW_INC(t, k) __atomic_store_n(&(t)->gw_n[k], (t)->gw_n[k] + 1, __ATOMIC_RELAXED)   // owner only (no lost increment); readers use __atomic_load_n under G
++static void kq_trigger(int kq) { struct kevent64_s ev; EV_SET64(&ev, 2, EVFILT_USER, 0, NOTE_TRIGGER, 0, 0, 0, 0); kevent64(kq, &ev, 1, NULL, 0, 0, NULL); }
++static int wq_add(void *a, int kq) {   // G held; 0 = no scope or list full: the caller issues it now
++    if (!t_wq_on || t_wq_n >= WQ_N) return 0;
++    if (!a) atomic_fetch_add(&g_kq_infl[kq & (KQI_N - 1)], 1);
++    t_wq[t_wq_n].a = a; t_wq[t_wq_n].kq = kq; t_wq_n++;
++    return 1;
++}
++static void wq_flush(void) {   // issues this thread's recorded wake-ups (after G, or under it just before a wait that releases G atomically)
++    for (int i = 0; i < t_wq_n; i++) {
++        if (t_wq[i].a) os_sync_wake_by_address_any(t_wq[i].a, sizeof(int), OS_SYNC_WAKE_BY_ADDRESS_NONE);
++        else { kq_trigger(t_wq[i].kq); atomic_fetch_sub(&g_kq_infl[t_wq[i].kq & (KQI_N - 1)], 1); }
++    }
++    t_wq_n = 0;
++}
++// Spin budget in mach ticks (S2A_RB_WAIT_SPIN, µs, at most 50)
++static uint32_t gw_spin_max(void) {
++    static _Atomic int64_t v = -1; int64_t s = atomic_load_explicit(&v, memory_order_relaxed);
++    if (s < 0) { const char *e = getenv("S2A_RB_WAIT_SPIN"); long us = e && *e ? atol(e) : 2; if (us < 0) us = 0; if (us > 50) us = 50;
++        mach_timebase_info_data_t tb; mach_timebase_info(&tb); s = tb.numer ? (int64_t)((uint64_t)us * 1000 * tb.denom / tb.numer) : 0; atomic_store_explicit(&v, s, memory_order_relaxed); }
++    return (uint32_t)s;
++}
++#else
++static void wq_flush(void) {}
++#endif
+ static void wake(thr_t *t, int64_t res) {
+     wait_diag_wake_locked(t, res);
+     if (wt_on()) { thr_t *w = thread_current_or_null(); uint64_t n = thread_clock(); t->tr_wake_t = n; t->tr_waker = w ? w->id : 0; if (w && w != t) w->tr_lastwake_t = n; }
+-    wait_unlink(t); t->wkind = 0; t->woke = 1; t->wres = res; t->wake_t = thread_clock(); pthread_cond_signal(&t->cv);
+ #if defined(__APPLE__)
+-    if (t->kqw) { struct kevent64_s ev; EV_SET64(&ev, 2, EVFILT_USER, 0, NOTE_TRIGGER, 0, 0, 0, 0); kevent64(t->kqfd, &ev, 1, NULL, 0, 0, NULL); }   // 带超时的等待挂在 kqueue 上（按时醒）
++    // RewindBox (patch 0074): woke last, after wres and wake_t, which block_u reads without G once it sees it; the wake-up deferred to after G inside a wq scope (see wq_add)
++    wait_unlink(t); t->wkind = 0; t->wres = res; t->wake_t = thread_clock(); __atomic_store_n(&t->woke, 1, __ATOMIC_RELEASE);
++    int uw = atomic_exchange(&t->uw, 0), dw = 0;
++    if (uw == 1) { if (!(dw = wq_add(&t->woke, -1))) os_sync_wake_by_address_any(&t->woke, sizeof t->woke, OS_SYNC_WAKE_BY_ADDRESS_NONE); }
++    else if (!uw) pthread_cond_signal(&t->cv);   // 0: a condition-variable wait (deterministic mode, fallback, S2A_RB_GUEST_WAIT=0) or none; 2: spinning, it sees woke itself
++    if (t->kqw) { int d = wq_add(NULL, t->kqfd); if (!d) kq_trigger(t->kqfd); dw |= d; }   // 带超时的等待挂在 kqueue 上（按时醒）
++#else
++    wait_unlink(t); t->wkind = 0; t->woke = 1; t->wres = res; t->wake_t = thread_clock(); pthread_cond_signal(&t->cv);
+ #endif
+     // 同核高优先级唤醒让先（Horizon：被唤醒的线程掩码只含本核、优先级更高 → 立即抢占唤醒方，直到它再阻塞；Metroid Dread 播放器靠它保序，
+     //   见 docs/研究/虚拟核与轻量调度语义.md §1）。只记下来，唤醒方在系统调用返回游戏前等（peer_yield），持 G 时不等
+     thr_t *me = thread_current_or_null();
++#if defined(__APPLE__)
++    if (dw && me) GW_INC(me, 4);   // RewindBox (patch 0074)
++#endif
+     if (me && me != t && peer_on() && t->mask == 1ull << core_of(me) && t->prio < me->prio) {
+         thr_t *previous = h_obj(me->peer.handle, S2A_OBJ_THREAD);   // 仅 G 内借用；旧目标退出/关句柄后不能压住新的唤醒
+         if (!previous || previous->id != me->peer.id || previous->exited || t->prio < previous->prio)
+@@ -357,7 +420,7 @@ static void wait_trace_bump_cv(uint64_t key) {   // 持 G
+ //   与 QoS 无关：Spare-host utility 睡 30 ms 多睡 36 µs（nanosleep 8.5 ms）。每线程一个 kqueue（建时挂好用户事件 2，供唤醒方触发），
+ //   线程退出时由键析构关掉；建不出或等失败时退回原做法，报红一次
+ static pthread_key_t g_kq_key; static pthread_once_t g_kq_once = PTHREAD_ONCE_INIT;
+-static void kq_close(void *p) { close((int)(intptr_t)p - 1); }
++static void kq_close(void *p) { int kq = (int)(intptr_t)p - 1; while (atomic_load(&g_kq_infl[kq & (KQI_N - 1)])) sched_yield(); close(kq); }   // RewindBox (patch 0074): no deferred trigger outlives the descriptor (wq_add)
+ static void kq_init(void) { pthread_key_create(&g_kq_key, kq_close); }
+ static void kq_red(const char *what, int n, int e) { static _Atomic int warned; if (!atomic_fetch_add(&warned, 1)) LOG("【红】按时醒：%s 失败（n=%d errno=%d），退回原做法", what, n, e); }
+ static int thr_kq(void) {
+@@ -473,31 +536,70 @@ static void cvl_note(uint64_t key, uint64_t sig_id, int woken, int left) {   //
+     g_cvl[i].t = thread_clock(); g_cvl[i].sig_id = sig_id; g_cvl[i].woken = woken; g_cvl[i].left = left; g_cvl[i].n++;
+ }
+ static double mach_ms(uint64_t d) { return (double)thread_clock_ns(d) / 1e6; }
+-static int64_t block(thr_t *t, int kind, int64_t ns) {
++// RewindBox (patch 0074): block_u = block that, with unlocked non-NULL, may return without G (*unlocked = 1) after an untimed wait on t->woke; the caller then must not
++//   release G. Only for callers that need nothing more under G after the wait (0x1A, 0x1C, 0x34); block() keeps "returns with G held" for the others (0x18 loops under G)
++static int64_t block_u(thr_t *t, int kind, int64_t ns, int *unlocked) {
++    (void)unlocked;   // unused where the word wait below is compiled out (non-Apple, the Darwin protocol adapter)
+     if (atomic_load(&g_session_stop)) return R_CANCELLED;
+-    t->wkind = kind; t->woke = 0; t->next = g_wait; g_wait = t; t->wseq = ++g_wseq; t->wait_t0 = thread_clock();
++    t->wkind = kind; __atomic_store_n(&t->woke, 0, __ATOMIC_RELAXED); t->next = g_wait; g_wait = t; t->wseq = ++g_wseq; t->wait_t0 = thread_clock();   // RewindBox (patch 0074): woke is also read without G (block_u)
+     t->nsig = 0;   // 每次新挂上去重新数被发过几次信号（S2A_WAIT_TRACE）
+     if (ns == 0) { wait_diag_block_locked(t, kind, ns, NULL); wait_unlink(t); t->wkind = 0; return R_TIMEOUT; }
+     t->nblk++; // Zero-timeout polling above is not a blocking wait.
+ #ifndef S2A_UNIT_TEST
+-    if (s2a_det_mode()) return block_det(t, ns);
++    if (s2a_det_mode()) { wq_flush(); return block_det(t, ns); }   // RewindBox (patch 0074): wq_flush, though nothing is deferred to a deterministic-mode waiter
+ #endif
+     struct timespec dl;
+     if (ns > 0) { clock_gettime(CLOCK_REALTIME, &dl); dl.tv_sec += ns / 1000000000; dl.tv_nsec += ns % 1000000000; if (dl.tv_nsec >= 1000000000) { dl.tv_sec++; dl.tv_nsec -= 1000000000; } }
+     wait_diag_block_locked(t, kind, ns, ns > 0 ? &dl : NULL);
++#if defined(__APPLE__)
++    // RewindBox (patch 0074): an untimed wait sleeps on t->woke, G released (see wq_add). 0x1A and 0x34 first spin up to t->sp_bud ticks (S2A_RB_WAIT_SPIN, 2 µs):
++    //   the budget starts at the maximum (sp_init: thr_t is zeroed, and a budget starting at 0 never spun), is doubled up to it after a spin that saw the wake-up and
++    //   halved after one in vain; once at 0, every 16th wait probes the full budget, a hit restores it and a miss leaves it at 0. Only the waiting thread touches them.
++    //   uw 2 while spinning tells wake() that no wake call is needed; leaving the spin takes it 2 -> 1 with a compare-and-swap, and a failed swap means wake() already
++    //   took it, after storing woke. This block is its own #if so that the Darwin protocol adapter (run_pause_wait_host.py) can compile it out
++    if (ns < 0 && rb_gw_on()) {
++        uint32_t bud = 0, mx = kind == 1 || kind == 3 ? gw_spin_max() : 0; int probe = 0;
++        if (mx) { if (!t->sp_init) { t->sp_init = 1; t->sp_bud = mx; }
++            bud = t->sp_bud > mx ? mx : t->sp_bud; if (!bud && ++t->sp_skip >= 16) { t->sp_skip = 0; bud = mx; probe = 1; } }
++        atomic_store(&t->uw, bud ? 2 : 1);
++        pthread_mutex_unlock(&G); wq_flush();
++        if (bud) {
++            int hit = 0; uint64_t t0 = thread_clock();
++            while (!(hit = __atomic_load_n(&t->woke, __ATOMIC_ACQUIRE)) && thread_clock() - t0 < bud) {
++#if defined(__aarch64__) || defined(__arm64__)
++                __asm__ __volatile__("yield");
++#endif
++            }
++            int two = 2; if (!hit && !atomic_compare_exchange_strong(&t->uw, &two, 1)) hit = 1;
++            t->sp_bud = hit ? (bud * 2 < mx ? bud * 2 : mx) : probe ? 0 : bud / 2; GW_INC(t, hit ? 1 : 2);
++        }
++        int err = 0;
++        while (!__atomic_load_n(&t->woke, __ATOMIC_ACQUIRE)) {
++            if (os_sync_wait_on_address(&t->woke, 0, sizeof t->woke, OS_SYNC_WAIT_ON_ADDRESS_NONE) < 0 && errno != EINTR && !__atomic_load_n(&t->woke, __ATOMIC_ACQUIRE)) { err = errno; break; }
++            GW_INC(t, 0);
++        }
++        if (!err) {
++            if (unlocked && !wait_diag_on()) { *unlocked = 1; return t->wres; }   // wres was stored before woke (wake)
++            glock(); wait_diag_condition_locked(t, 0); return t->wres;
++        }
++        glock(); atomic_store(&t->uw, 0); GW_INC(t, 3);   // the word wait failed: the condition variable below; a waker that took uw = 1 before this also stored woke under G
++        static _Atomic int said; if (!atomic_exchange(&said, 1)) LOG("【红】RewindBox (patch 0074): os_sync_wait_on_address failed (errno %d); this wait and later failing ones use the condition variable", err);
++    }
++#endif
+ #if defined(__APPLE__)
+     // 带超时：在本线程 kqueue 上等按时定时器或唤醒方的用户事件（按时醒，见 thr_kq）；放 G 等、拿回 G 复查 woke，唤醒在 G 下置位，不会丢
+     int kq = ns > 0 ? thr_kq() : -1;
+     if (kq >= 0) {
+         uint64_t end = now_ns() + (uint64_t)ns; int r = 0;
+         t->kqfd = kq; t->kqw = 1;
+-        while (!t->woke) { pthread_mutex_unlock(&G); r = kq_wait_until(kq, end); glock(); wait_diag_condition_locked(t, r == 1 ? ETIMEDOUT : r < 0 ? EIO : 0); if (r) break; }
++        while (!t->woke) { pthread_mutex_unlock(&G); wq_flush(); r = kq_wait_until(kq, end); glock(); wait_diag_condition_locked(t, r == 1 ? ETIMEDOUT : r < 0 ? EIO : 0); if (r) break; }   // RewindBox (patch 0074): wq_flush
+         t->kqw = 0;
+         if (t->woke) { struct kevent64_s ev; EV_SET64(&ev, 1, EVFILT_TIMER, EV_DELETE, 0, 0, 0, 0, 0); kevent64(kq, &ev, 1, NULL, 0, 0, NULL); return t->wres; }   // 撤掉没到点的定时器
+         if (r == 1) { wait_unlink(t); t->wkind = 0; return R_TIMEOUT; }
+         ns = (int64_t)(end - now_ns()); if (ns <= 0) { wait_unlink(t); t->wkind = 0; return R_TIMEOUT; }   // kqueue 失败（已报红）：剩下的按原做法等
+     }
+ #endif
++    wq_flush();   // RewindBox (patch 0074): under G, as before, since the condition wait releases G atomically
+     while (!t->woke) {
+         int rc = thread_condition_wait(t, &t->cv, ns > 0 ? &dl : NULL);
+         wait_diag_condition_locked(t, rc);
+@@ -505,6 +607,7 @@ static int64_t block(thr_t *t, int kind, int64_t ns) {
+     }
+     return t->wres;
+ }
++static int64_t block(thr_t *t, int kind, int64_t ns) { return block_u(t, kind, ns, NULL); }   // RewindBox (patch 0074)
+ 
+ // ---------- 锁 ----------
+ static inline uint32_t ld32(uint64_t a) { return __atomic_load_n((uint32_t *)a, __ATOMIC_SEQ_CST); }
+@@ -801,12 +904,14 @@ static void thread_exit(thr_t *t) {
+     if (t->is_main && s2a_capacity_leave) s2a_capacity_leave(0);
+ #endif
+ #if defined(__APPLE__)
++    wq_flush();   // RewindBox (patch 0074): no recorded wake-up leaves with this thread
+     wg_leave_self();   // 必须在本线程、退出之前：带着工作组退出的线程会被系统库当场中止整个进程（10-30 丝之歌 S2A_WORKGROUP=all 真机两局无日志退出、Mac 复现 SIGILL）
+     // 这里不打日志：退出发生在游戏线程自己的栈上（有的只有十几 KiB），带浮点的 printf 会把栈撑爆（旧库真机冒烟 SIGBUS）
+     core_release(t);   // 0x0A 里 svc_exit 会重取核：退出前放开，否则带着核退出、同核线程永远等（S2A_CORES 单测抓到）
+     s2a_cs_thread_exit(t->handle);
+     glock();
+     t->exited = 1; wake_sync_waiters();
++    for (int i = 0; i < 5; i++) atomic_fetch_add_explicit(&g_gw[i], t->gw_n[i], memory_order_relaxed);   // RewindBox (patch 0074): under G with exited = 1, so s2a_yield_stat_log counts it once
+     pthread_setspecific(g_keythr, NULL);
+     void *tlr = t->tlr; t->tlr = NULL; void *hstk = t->hstk;
+     if (t->closed) thr_free(t);
+@@ -1810,15 +1915,29 @@ static int sig_obj(uint32_t h, int *bad) {   // 1 = 已触发（持 G）
+ // 合 Switch 语义：游戏轮询的是内存 / 时钟 / 服务状态，睡只让它晚看到变化（≤ 250 µs），不会少看到唤醒；睡在系统调用里，虚拟核已在 svc_enter 放开，同核线程照常上核。
+ // 值：1 = 缺省（250 µs 封顶、2 ms 起）；<封顶 µs>[:<起点 µs>] 自定；0 / 不设 = 关
+ static int64_t now_mono_ns(void);
+-static int64_t g_yb_cap = -1, g_yb_start = 2000000;
++// RewindBox (patch 0074): the yields' backoff starts after 250 µs of one round, no longer 2 ms (g_yb_ystart; the short sleeps' backoff keeps g_yb_start, 2 ms). In the 765 test
++//   the game yielded 1,994,599 times, 440,475 of them returned at once and only 10,760 slept (2,690 ms in all): its workers poll with SleepThread(0) in rounds shorter than
++//   2 ms, so about 1.54 million yields (about 7,000 a second) went through sched_yield, 0.12 to 0.22 core under _yield_bo in steady play and 0.77 after the capture. A round
++//   past 250 µs now sleeps run / 8 (31 µs then, 250 µs only past 2 ms): a worker sees its next task at most that much later. S2A_RB_YIELD_EARLY=0 gives 2 ms back;
++//   S2A_YIELD_BACKOFF=<cap µs>:<start µs> still sets both starts
++static int64_t g_yb_cap = -1, g_yb_start = 2000000, g_yb_ystart = 2000000;
+ static _Atomic uint64_t g_yb_yields, g_yb_sleeps, g_yb_sleep_ns;
+ static int yb_on(void) {
+     if (g_yb_cap < 0) { const char *e = getenv("S2A_YIELD_BACKOFF"); g_yb_cap = 0;   // 10-24 缺省开（S2A_YIELD_BACKOFF=0 关）：虚拟核改按需后，让步自旋的能耗由它管
+         if (!e || !*e) e = "1";
+-        if (strcmp(e, "0")) { g_yb_cap = 250000; if (strcmp(e, "1")) { g_yb_cap = atoll(e) * 1000; const char *c = strchr(e, ':'); if (c) g_yb_start = atoll(c + 1) * 1000; }
+-            LOG("让步退避：开（连续让步 %lld µs 后开始睡，每次最多 %lld µs）", (long long)(g_yb_start / 1000), (long long)(g_yb_cap / 1000)); } }
++        if (strcmp(e, "0")) { const char *c = NULL; g_yb_cap = 250000; if (strcmp(e, "1")) { g_yb_cap = atoll(e) * 1000; c = strchr(e, ':'); if (c) g_yb_start = atoll(c + 1) * 1000; }
++            { const char *v = getenv("S2A_RB_YIELD_EARLY"); g_yb_ystart = c || (v && !strcmp(v, "0")) ? g_yb_start : 250000; }   // RewindBox (patch 0074)
++            LOG("让步退避：开（连续让步 %lld µs 后开始睡，每次最多 %lld µs）；RewindBox (patch 0074): short sleeps from %lld µs", (long long)(g_yb_ystart / 1000), (long long)(g_yb_cap / 1000), (long long)(g_yb_start / 1000)); } }
+     return g_yb_cap > 0;
+ }
++// RewindBox (patch 0074): thread CPU spent in yields, per thread (dm_yield_top, s2a_yield_stat_log): one yield in 16 that enters the kernel is timed (two thread-CPU reads) and
++//   counted 16 times, so the reads cost a sixteenth of what timing every yield would. S2A_RB_YIELD_CPU=0 turns the timing off (the counts stay)
++static int rb_ycpu_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_YIELD_CPU"); v = !(e && !strcmp(e, "0")); } return v; }
++static void yb_sched_yield(thr_t *me) {
++    if (!rb_ycpu_on() || (me->ny_k++ & 15)) { sched_yield(); return; }
++    uint64_t c0 = wt_cpu_ns(); sched_yield(); uint64_t c1 = wt_cpu_ns();
++    if (c0 && c1 > c0) __atomic_store_n(&me->ny_cpu, me->ny_cpu + (c1 - c0) * 16, __ATOMIC_RELAXED);
++}
+ // 有进展即返回（S2A_YIELD_FAST，缺省开；照上游 thr_yield，MIT）：新一轮（x19–x28 变了或中间真阻塞过）的让步不进内核、直接回游戏。
+ //   Switch 同优先级轮转不靠这次 sched_yield：虚拟核在 svc_enter 放核、svc_exit 按 yielded 重取（core_claimed）；它只是给宿主调度器的提示。
+ //   10-26 真机塞尔达 120 秒让步 886 万次（约 7 万次 / 秒内核调用），上游同款 CPU 能耗降约 40%；真机同包 A/B 达标再翻缺省
+@@ -1831,7 +1950,8 @@ static int yf_on(void) { if (g_yf < 0) { const char *e = getenv("S2A_YIELD_FAST"
+ static _Atomic uint64_t g_sl_short, g_sl_hist[4], g_sl_bo, g_sl_bo_ns;
+ static void sleep_hist(int64_t ns) { atomic_fetch_add_explicit(&g_sl_hist[ns < 100000 ? 0 : ns < 1000000 ? 1 : ns < 10000000 ? 2 : 3], 1, memory_order_relaxed); }
+ static void yield_bo(thr_t *me, const uint64_t *regs) {
+-    if (!yb_on()) { sched_yield(); return; }
++    __atomic_store_n(&me->ny, me->ny + 1, __ATOMIC_RELAXED);   // RewindBox (patch 0074): this thread's yields (only it writes them)
++    if (!yb_on()) { yb_sched_yield(me); return; }
+     uint64_t now = (uint64_t)now_mono_ns(), sig = 0xcbf29ce484222325ull;
+     for (int i = 19; i <= 28; i++) sig = (sig ^ regs[i]) * 0x100000001b3ull;
+     // 新一轮 = 中间真阻塞过（等事件 / 锁 / 条件），或寄存器变了且「换了调用点或距上次让步返回超过 SPIN_GAP_NS（20 µs）」——循环在干活。
+@@ -1845,10 +1965,11 @@ static void yield_bo(thr_t *me, const uint64_t *regs) {
+     atomic_fetch_add_explicit(&g_yb_yields, 1, memory_order_relaxed);
+     uint64_t run = now - me->yrun_t0;
+     if (fresh && yf_on()) { atomic_fetch_add_explicit(&g_yf_n, 1, memory_order_relaxed); me->y_ret = (uint64_t)now_mono_ns(); return; }
+-    if (run < (uint64_t)g_yb_start) { sched_yield(); me->y_ret = (uint64_t)now_mono_ns(); return; }
++    if (run < (uint64_t)g_yb_ystart) { yb_sched_yield(me); me->y_ret = (uint64_t)now_mono_ns(); return; }   // RewindBox (patch 0074): g_yb_ystart, yb_sched_yield
+     uint64_t sl = run / 8; if (sl < 10000) sl = 10000; if (sl > (uint64_t)g_yb_cap) sl = (uint64_t)g_yb_cap;
+     struct timespec ts = {0, (long)sl}; nanosleep(&ts, NULL);
+     atomic_fetch_add_explicit(&g_yb_sleeps, 1, memory_order_relaxed); atomic_fetch_add_explicit(&g_yb_sleep_ns, sl, memory_order_relaxed);
++    __atomic_store_n(&me->ny_sl, me->ny_sl + sl, __ATOMIC_RELAXED);   // RewindBox (patch 0074)
+     me->y_ret = (uint64_t)now_mono_ns();
+ }
+ // 短睡轮询退避（S2A_YIELD_BACKOFF 同一开关）：短于 1 ms 的 SleepThread 连成一轮（同让步：中间没真阻塞、x19–x28 不变，让步与短睡混着也算），
+@@ -1995,11 +2116,89 @@ void s2a_yield_stat_log(const char *when) {
+             LOG("SleepThread [%s] 按线程 #%d：线程 %llu「%s」优先级 %d%s，短睡 %llu 次、被拉长 %llu 次、多睡 %.1f ms；最近调用点 %s", when, i + 1, (unsigned long long)top[i]->id, nm[0] ? nm : "?", top[i]->prio,
+                 top[i]->is_main ? "（游戏主线程）" : "", (unsigned long long)top[i]->nsl, (unsigned long long)top[i]->nsl_bo, top[i]->sl_bo_ns / 1e6, at); }
+         pthread_mutex_unlock(&G); }
++#if defined(__APPLE__)
++    {   // RewindBox (patch 0074): the six threads that yielded most in the session, with the thread CPU in their yields (one in 16 timed, yb_sched_yield) and what their backoff slept;
++        //   then the guest waits of block_u / wq_add (threads still running and those gone, g_gw). Their owners write ny, ny_cpu, ny_sl and gw_n without G: atomic loads here
++        thr_t *top[6] = {0}; uint64_t ty[6] = {0}, gw[5]; glock();
++        for (thr_t *t = g_all; t; t = t->all) { uint64_t y = __atomic_load_n(&t->ny, __ATOMIC_RELAXED); if (!y) continue;
++            for (int i = 0; i < 6; i++) if (!top[i] || y > ty[i]) { for (int j = 5; j > i; j--) { top[j] = top[j - 1]; ty[j] = ty[j - 1]; } top[i] = t; ty[i] = y; break; } }
++        for (int i = 0; i < 6 && top[i]; i++)
++            LOG("RewindBox (patch 0074): yields [%s] by thread #%d: thread %llu priority %d%s, %llu yields, about %.1f ms of thread CPU in them, %.1f ms slept by their backoff", when, i + 1,
++                (unsigned long long)top[i]->id, top[i]->prio, top[i]->is_main ? " (game main thread)" : "", (unsigned long long)ty[i],
++                __atomic_load_n(&top[i]->ny_cpu, __ATOMIC_RELAXED) / 1e6, __atomic_load_n(&top[i]->ny_sl, __ATOMIC_RELAXED) / 1e6);
++        for (int k = 0; k < 5; k++) gw[k] = atomic_load_explicit(&g_gw[k], memory_order_relaxed);
++        for (thr_t *t = g_all; t; t = t->all) if (!t->exited) for (int k = 0; k < 5; k++) gw[k] += __atomic_load_n(&t->gw_n[k], __ATOMIC_RELAXED);   // exited ones are in g_gw (folded under G)
++        pthread_mutex_unlock(&G);
++        LOG("RewindBox (patch 0074): guest waits [%s]: untimed sleeps on their own word %llu, spins that met their wake-up %llu, spins in vain %llu, fallbacks to the condition variable %llu; "
++            "wake-ups issued after G %llu (S2A_RB_GUEST_WAIT %s, spin up to %u ticks)", when, (unsigned long long)gw[0], (unsigned long long)gw[1], (unsigned long long)gw[2], (unsigned long long)gw[3],
++            (unsigned long long)gw[4], rb_gw_on() ? "on" : "off (0)", gw_spin_max());
++    }
++#endif
+     if (g_yb_cap <= 0) return;
+     LOG("让步退避 [%s]：让步 %llu 次，其中退避睡 %llu 次、共 %.1f ms；有进展直接返回 %llu 次", when, (unsigned long long)atomic_load(&g_yb_yields), (unsigned long long)atomic_load(&g_yb_sleeps), atomic_load(&g_yb_sleep_ns) / 1e6, (unsigned long long)atomic_load(&g_yf_n));
+ }
++#if defined(__APPLE__)
++// RewindBox (patch 0074): the power line's "top yielders" and the "threads up to frame N: CPU" line (graphics/nvn hle_nvn.c power_line, every 300 frames, present thread)
++//   printed "-" all session in the 765 and 762 tests (16 such lines in the 765): hle_nvn.c has only weak stubs for dm_yield_top and dm_thread_cpu, whose bodies (the reference
++//   port's hle_thread.c) S2Arm never had. They are here, from the thread table, under G: dm_yield_top gives the six guest threads that yielded most since its last call with the
++//   thread CPU in those yields; dm_thread_cpu gives guest-thread CPU since its last call by Switch priority band and the five threads that took most, from THREAD_BASIC_INFO.
++//   It does not hold G across those Mach calls (one per guest thread, about 100 here, would stall every guest synchronization call meanwhile): under G it pins the live
++//   threads (pins, as s2a_guest_pause_all does) and copies their port names, queries them without G, and takes G again to keep the results of the threads still not exited
++//   and unpin them (freeing one closed meanwhile, as thr_unpin does). A thread not exited then was alive during its query (it marks itself exited under G before it ends and
++//   gives its port name away), so the name named it; one that exited meanwhile is skipped. A thread born since the last call counts its whole CPU, all of it in the window.
++//   S2A_RB_THREAD_LINES=0 keeps the "-"
++static int rb_tl_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_THREAD_LINES"); v = !(e && !strcmp(e, "0")); } return v; }
++void dm_yield_top(char *out, size_t n) {
++    if (!n) return;
++    if (!rb_tl_on()) { snprintf(out, n, "-"); return; }
++    thr_t *top[6] = {0}; uint64_t dy[6] = {0}, dc[6] = {0}; size_t o = 0; out[0] = 0;
++    glock();
++    for (thr_t *t = g_all; t; t = t->all) {
++        uint64_t y = __atomic_load_n(&t->ny, __ATOMIC_RELAXED), c = __atomic_load_n(&t->ny_cpu, __ATOMIC_RELAXED), d = y - t->ny_rep, dcpu = c - t->ny_cpu_rep;
++        t->ny_rep = y; t->ny_cpu_rep = c;
++        if (!d) continue;
++        for (int i = 0; i < 6; i++) if (!top[i] || d > dy[i]) {
++            for (int j = 5; j > i; j--) { top[j] = top[j - 1]; dy[j] = dy[j - 1]; dc[j] = dc[j - 1]; }
++            top[i] = t; dy[i] = d; dc[i] = dcpu; break; }
++    }
++    for (int i = 0; i < 6 && top[i] && o < n; i++) { int w = snprintf(out + o, n - o, "%snx-%llu %llu (%.1f ms CPU)", i ? ", " : "", (unsigned long long)top[i]->id, (unsigned long long)dy[i], dc[i] / 1e6); if (w < 0) break; o += (size_t)w; }
++    pthread_mutex_unlock(&G);
++    if (!out[0]) snprintf(out, n, "none");
++}
++void dm_thread_cpu(char *out, size_t n, double secs) {
++    if (!n) return;
++    if (!rb_tl_on()) { snprintf(out, n, "-"); return; }
++    enum { PWN = 512 }; struct { thr_t *t; uint64_t ns; mach_port_t mp; int ok; } v[PWN]; int nv = 0;   // 12 KiB of the present thread's stack
++    glock();
++    for (thr_t *t = g_all; t && nv < PWN; t = t->all) if (!t->exited && t->mport) { ++t->pins; v[nv].t = t; v[nv].mp = t->mport; v[nv].ok = 0; nv++; }
++    pthread_mutex_unlock(&G);
++    for (int i = 0; i < nv; i++) {   // without G
++        thread_basic_info_data_t bi; mach_msg_type_number_t c = THREAD_BASIC_INFO_COUNT;
++        if (thread_info(v[i].mp, THREAD_BASIC_INFO, (thread_info_t)&bi, &c) != KERN_SUCCESS) continue;
++        v[i].ns = ((uint64_t)bi.user_time.seconds + bi.system_time.seconds) * 1000000000ull + ((uint64_t)bi.user_time.microseconds + bi.system_time.microseconds) * 1000ull; v[i].ok = 1;
++    }
++    uint64_t band[4] = {0}, all = 0, dt[5] = {0}, tid[5] = {0}; int nb[4] = {0}, tp[5] = {0}, nt = 0;
++    glock();
++    for (int i = 0; i < nv; i++) {
++        thr_t *t = v[i].t;
++        if (v[i].ok && !t->exited) {
++            uint64_t d = v[i].ns > t->pw_cpu ? v[i].ns - t->pw_cpu : 0; t->pw_cpu = v[i].ns;
++            int b = t->prio < 16 ? 0 : t->prio < 32 ? 1 : t->prio < 48 ? 2 : 3; band[b] += d; nb[b]++; all += d; nt++;
++            for (int k = 0; k < 5; k++) if (!tid[k] || d > dt[k]) {
++                for (int j = 4; j > k; j--) { dt[j] = dt[j - 1]; tid[j] = tid[j - 1]; tp[j] = tp[j - 1]; }
++                dt[k] = d; tid[k] = t->id; tp[k] = t->prio; break; }
++        }
++        --t->pins; if (!t->pins && t->exited && t->closed) thr_free(t);   // as thr_unpin
++    }
++    pthread_mutex_unlock(&G);
++    double k = secs > 0 ? 100.0 / (secs * 1e9) : 0;   // percent of one core
++    int o = snprintf(out, n, "%d guest threads %.0f%% (priority 0-15 %.0f%% in %d, 16-31 %.0f%% in %d, 32-47 %.0f%% in %d, 48-63 %.0f%% in %d); most:", nt, all * k,
++                     band[0] * k, nb[0], band[1] * k, nb[1], band[2] * k, nb[2], band[3] * k, nb[3]);
++    for (int i = 0; i < 5 && tid[i] && o > 0 && (size_t)o < n; i++) o += snprintf(out + o, n - (size_t)o, " nx-%llu p%d %.0f%%", (unsigned long long)tid[i], tp[i], dt[i] * k);
++}
++#endif
+ #ifdef S2A_UNIT_TEST
+-void s2a_test_yield_bo(int on) { g_yb_cap = on ? 250000 : 0; g_yb_start = 2000000; }
++void s2a_test_yield_bo(int on) { g_yb_cap = on ? 250000 : 0; g_yb_start = 2000000; g_yb_ystart = 2000000; }   // RewindBox (patch 0074): the case's counts are worked out for a 2 ms start of both
+ void s2a_test_yield_fast(int on) { g_yf = on; }
+ uint64_t s2a_test_yield_fastret(void) { return atomic_load(&g_yf_n); }
+ uint64_t s2a_test_yield_sleeps(void) { return atomic_load(&g_yb_sleeps); }
+@@ -2340,7 +2539,15 @@ int svc_thread(int num, uint64_t *regs) {
+         wait_diag_flush(1);
+     }
+     if (diag) { source_svc = g_wd_source_svc; g_wd_source_svc = num; }
++#if defined(__APPLE__)
++    // RewindBox (patch 0074): the synchronization calls defer their wake-ups to after G (wq_add) and issue them here, before peer_yield waits for one of the woken
++    int wq = rb_gw_on() && (num == 0x11 || num == 0x18 || num == 0x19 || num == 0x1A || num == 0x1B || num == 0x1C || num == 0x1D || num == 0x34 || num == 0x35);
++    if (wq) t_wq_on++;
++#endif
+     int r = svc_thread_impl(me, num, regs);
++#if defined(__APPLE__)
++    if (wq && !--t_wq_on) wq_flush();
++#endif
+     if (diag) g_wd_source_svc = source_svc;
+     if (wait_trace) {
+         glock(); wait_diag_end_locked(me, regs); pthread_mutex_unlock(&G);
+@@ -2467,12 +2674,12 @@ static int svc_thread_impl(thr_t *me, int num, uint64_t *regs) {
+         uint64_t addr = regs[1]; int64_t r = 0;
+         if (addr & 3) { regs[0] = 0xCC01; return 1; }   // InvalidAddress：锁字要 4 字节对齐（Ryujinx IsAddressNotWordAligned）
+         tag_check(me, (uint32_t)regs[2], "ArbitrateLock", addr);
+-        glock();
++        glock(); int ul = 0;   // RewindBox (patch 0074): ul = block_u returned without G
+         if (ld32(addr) == ((uint32_t)regs[0] | WAITERS_BIT)) {
+             if (!h_obj((uint32_t)regs[0], S2A_OBJ_THREAD)) r = R_BAD_HANDLE;   // 持有者句柄无效：照 Ryujinx ArbitrateLock 回 InvalidHandle（原先挂上去永远等不到交锁）
+-            else { me->waddr = addr; me->wtag = (uint32_t)regs[2]; if (hz_pi()) prio_raise(addr, me->prio); r = block(me, 1, -1); }
++            else { me->waddr = addr; me->wtag = (uint32_t)regs[2]; if (hz_pi()) prio_raise(addr, me->prio); r = block_u(me, 1, -1, &ul); }
+         }
+-        pthread_mutex_unlock(&G);
++        if (!ul) pthread_mutex_unlock(&G);
+         regs[0] = (uint64_t)r; return 1;
+     }
+     case 0x1B: if (regs[0] & 3) { regs[0] = 0xCC01; return 1; } glock(); lock_handoff(regs[0]); pthread_mutex_unlock(&G); regs[0] = 0; return 1;   // ArbitrateUnlock：同上对齐
+@@ -2489,8 +2696,8 @@ static int svc_thread_impl(thr_t *me, int num, uint64_t *regs) {
+ #ifdef S2A_UNIT_TEST
+         { extern void (*s2a_test_cv_after_release)(void); if (s2a_test_cv_after_release) s2a_test_cv_after_release(); }   // t_thread：紧跟放锁之后、挂链之前
+ #endif
+-        int64_t r = block(me, 2, (int64_t)regs[3]);   // 超时：不重新拿锁（用户态自己拿）
+-        pthread_mutex_unlock(&G);
++        int ul = 0; int64_t r = block_u(me, 2, (int64_t)regs[3], &ul);   // 超时：不重新拿锁（用户态自己拿）；RewindBox (patch 0074): ul = returned without G
++        if (!ul) pthread_mutex_unlock(&G);
+         regs[0] = (uint64_t)r; return 1;
+     }
+     case 0x1D: {  // SignalProcessWideKey(x0 条件键, w1 个数，≤0 全部)
+@@ -2511,7 +2718,7 @@ static int svc_thread_impl(thr_t *me, int num, uint64_t *regs) {
+         uint64_t addr = regs[0]; int type = (int)regs[1]; int32_t val = (int32_t)regs[2]; int64_t val64 = (int64_t)regs[2];
+         if (addr & (type == 3 ? 7 : 3)) { regs[0] = 0xCC01; return 1; }   // InvalidAddress（Ryujinx Syscall.WaitForAddress；64 位按 8 字节）
+         if ((unsigned)type > 3) { regs[0] = 0xF001; return 1; }        // InvalidEnumValue：原先未知类型按「小于则等」执行
+-        glock();
++        glock(); int ul = 0;   // RewindBox (patch 0074): ul = block_u returned without G
+         int64_t r; uint32_t v = ld32(addr);
+         int ok = type == 3 ? (int64_t)__atomic_load_n((uint64_t *)addr, __ATOMIC_SEQ_CST) == val64 : type == 2 ? (int32_t)v == val : (int32_t)v < val;
+         if (ok && type == 1) { while (!cas32(addr, &v, v - 1)) if (!((int32_t)v < val)) { ok = 0; break; } }
+@@ -2520,9 +2727,9 @@ static int svc_thread_impl(thr_t *me, int num, uint64_t *regs) {
+             // 换了地址才清「谁发过信号」：同地址超时重挂要保留——TimedWaitLightEvent 会周期性重挂，
+             //   每次清零就会永远显示「从没来过」，正好把要找的那条抹掉
+             if (me->waddr != addr) { me->sig_id = 0; me->sig_tick = 0; }
+-            me->waddr = addr; r = block(me, 3, (int64_t)regs[3]);
++            me->waddr = addr; r = block_u(me, 3, (int64_t)regs[3], &ul);
+         }
+-        pthread_mutex_unlock(&G);
++        if (!ul) pthread_mutex_unlock(&G);
+         regs[0] = (uint64_t)r; return 1;
+     }
+     case 0x35: {  // SignalToAddress(x0 地址, w1 类型, w2 值, w3 个数)：0 唤醒、1 相等则加一并唤醒、2 相等则按等待数改值并唤醒
+diff --git a/runtime/src/vawin.c b/runtime/src/vawin.c
+index 60e78e8..3b561d5 100644
+--- a/runtime/src/vawin.c
++++ b/runtime/src/vawin.c
+@@ -1145,11 +1145,56 @@ void s2a_vm_top(const char *when) {
+ // 低区文件映射按目录合计（10-21 巫师3：只读文件映射比账上的归档多约 335 MB，要知道是谁的文件）：逐块（只认文件页）proc_regionfilename，按所在目录累加字节与文件块数，打前 12。
+ // proc_regionfilename 不在 iOS SDK 头文件里：第一次（C# 初始化后，非信号上下文）按名字取，取不到就不打；崩溃处理里只用已取到的指针、不再 dlsym
+ static int (*g_regfn)(int, uint64_t, void *, uint32_t); static int g_regfn_tried;
++// RewindBox (patch 0074): the directory lines below print no private path. Keeping the largest directories (s2a_vm_low_files) now names the game's data and the 1.3 GB owner
++//   of the 765 test, whose full paths carry the container ids and may carry a folder named after a game. Shown as: the app bundle "<app>/..." (its own folders kept); a
++//   data or app-group container "<data>/..." / "<group>/...", a home folder "<home>/...", any other folder outside the system ones by its first three folders: past
++//   the first folder below such a root, each folder is "#" + an 8-digit hash of its name (FNV-1a, to tell them apart and match them offline), a 16-digit hex id (a title id)
++//   kept; system folders (/System, /usr, /Library, /private/preboot, /Applications, /Developer, /bin, /sbin) kept; ids of 20 or more hex digits and dashes (container,
++//   boot) "<id>" everywhere; the "/*.ext" group kept. File names were already cut off. Stack and snprintf only: it also runs in the crash handler
++static int vm_hexc(char c) { return (c >= '0' && c <= '9') || ((c | 32) >= 'a' && (c | 32) <= 'f'); }
++static int vm_idlike(const char *s, size_t n, size_t min, int dash) { if (n < min || (!dash && n != min)) return 0; for (size_t i = 0; i < n; i++) if (!vm_hexc(s[i]) && !(dash && s[i] == '-')) return 0; return 1; }
++static const char *vm_after(const char *s, const char *e, const char *mark, int at0, int skip) {   // the '/' (or e) ending mark and skip more folders; NULL = no mark
++    size_t l = strlen(mark);
++    for (const char *p = s; p + l <= e; p++) {
++        if (memcmp(p, mark, l)) { if (at0) return NULL; continue; }
++        const char *q = p + l - 1; for (int k = 0; k < skip && q < e; k++) { q++; while (q < e && *q != '/') q++; }
++        return q;
++    }
++    return NULL;
++}
++static void vm_dir_show(const char *in, char *out, size_t cap) {
++    static const char *const sys[] = {"/System", "/usr", "/Library", "/private/preboot", "/Applications", "/Developer", "/bin", "/sbin"};
++    const char *ext = strstr(in, "/*."), *e = ext ? ext : in + strlen(in), *q = NULL, *tok = ""; int priv = 1, lead = 3, idx = 0; size_t o = 0;
++    if ((q = vm_after(in, e, "/Bundle/Application/", 0, 2))) { tok = "<app>"; priv = 0; }
++    else if ((q = vm_after(in, e, "/Data/Application/", 0, 1))) { tok = "<data>"; lead = 1; }
++    else if ((q = vm_after(in, e, "/Shared/AppGroup/", 0, 1))) { tok = "<group>"; lead = 1; }
++    else if ((q = vm_after(in, e, "/Users/", 1, 1)) || (q = vm_after(in, e, "/private/var/mobile/", 1, 0)) || (q = vm_after(in, e, "/var/mobile/", 1, 0))) { tok = "<home>"; lead = 1; }
++    else { q = in; for (size_t k = 0; k < sizeof sys / sizeof sys[0]; k++) { size_t l = strlen(sys[k]); if ((size_t)(e - in) >= l && !memcmp(in, sys[k], l) && (in + l == e || in[l] == '/')) { priv = 0; break; } } }
++    out[0] = 0;
++#define VM_PUT(...) do { if (o < cap) { int w_ = snprintf(out + o, cap - o, __VA_ARGS__); if (w_ > 0) o += (size_t)w_; } } while (0)
++    VM_PUT("%s", tok);
++    for (const char *c = q; c < e;) {
++        if (*c == '/') { c++; continue; }
++        const char *d = c; while (d < e && *d != '/') d++;
++        size_t l = (size_t)(d - c);
++        if (vm_idlike(c, l, 20, 1)) VM_PUT("/<id>");
++        else if (!priv || idx < lead || vm_idlike(c, l, 16, 0)) VM_PUT("/%.*s", (int)l, c);
++        else { uint32_t h = 2166136261u; for (size_t i = 0; i < l; i++) h = (h ^ (unsigned char)c[i]) * 16777619u; VM_PUT("/#%08x", h); }
++        idx++; c = d;
++    }
++    if (!out[0]) VM_PUT("%s", "/");
++    if (ext) VM_PUT("%s", ext);
++#undef VM_PUT
++}
+ // 按目录 + 扩展名合计（10-21 巫师3：同一 shaders 目录里管线归档 .bin 与离线库 .metallib 要分开看）；扫 [lo, hi) 与窗口尾部 [lo2, hi2)（还给系统的那段，没有就传 0, 0）
+ static void s2a_vm_low_files(const char *when, uint64_t lo, uint64_t hi, uint64_t lo2, uint64_t hi2) {
+     if (!g_regfn_tried && strcmp(when, "崩溃时")) { g_regfn_tried = 1; g_regfn = (int (*)(int, uint64_t, void *, uint32_t))dlsym(RTLD_DEFAULT, "proc_regionfilename"); }
+     if (!g_regfn) return;
+-    enum { NDIR = 48 }; static struct { char dir[200]; uint64_t bytes; int n; } t[NDIR]; int nt = 0; uint64_t other = 0;
++    // RewindBox (patch 0074): the 765 test's line said 1,331 MB of "other directories (more than 48)" (664 MB in the 762) beside an unnamed 1,184 MB block: the table filled in
++    //   address order and the 49th directory on went to "other", whatever its size. Now 256 directories, and once full a new one takes the place of the smallest kept one when
++    //   its first block alone is larger (the smallest's bytes go to "other"), so a directory of 1 GB or more is named. S2A_RB_VM_DIRS=0: the first 48 by address, as before
++    static int keep = -1; if (keep < 0 && strcmp(when, "崩溃时")) { const char *v = getenv("S2A_RB_VM_DIRS"); keep = !(v && !strcmp(v, "0")); }   // read outside the crash path
++    enum { NDIR = 256 }; static struct { char dir[200]; uint64_t bytes; int n; } t[NDIR]; int nt = 0, ndir = keep ? NDIR : 48; uint64_t other = 0;
+     memset(t, 0, sizeof t);
+     char path[1024];
+     for (int seg = 0; seg < 2; seg++) {
+@@ -1166,7 +1211,12 @@ static void s2a_vm_low_files(const char *when, uint64_t lo, uint64_t hi, uint64_
+             if (dot && strlen(dot) < sizeof ext) snprintf(ext, sizeof ext, "%s", dot);
+             if (sl && sl != path) { *sl = 0; if (ext[0] && strlen(path) + strlen(ext) + 3 < sizeof path) strcat(strcat(path, "/*"), ext); }
+             int i = 0; for (; i < nt && strncmp(t[i].dir, path, sizeof t[i].dir - 1); i++) {}
+-            if (i == nt) { if (nt < NDIR) { snprintf(t[nt].dir, sizeof t[nt].dir, "%s", path); nt++; } else { other += sz; a += sz; continue; } }
++            if (i == nt) { if (nt < ndir) { snprintf(t[nt].dir, sizeof t[nt].dir, "%s", path); nt++; }
++                else if (keep) {   // RewindBox (patch 0074): full: replace the smallest kept directory if this block alone is larger
++                    int m = 0; for (int j = 1; j < nt; j++) if (t[j].bytes < t[m].bytes) m = j;
++                    if (t[m].bytes >= sz) { other += sz; a += sz; continue; }
++                    other += t[m].bytes; i = m; snprintf(t[i].dir, sizeof t[i].dir, "%s", path); t[i].bytes = 0; t[i].n = 0; }
++                else { other += sz; a += sz; continue; } }
+             t[i].bytes += sz; t[i].n++;
+         }
+         a += sz;
+@@ -1176,9 +1226,10 @@ static void s2a_vm_low_files(const char *when, uint64_t lo, uint64_t hi, uint64_
+         int m = k; for (int j = k + 1; j < nt; j++) if (t[j].bytes > t[m].bytes) m = j;
+         if (m != k) { typeof(t[0]) x = t[k]; t[k] = t[m]; t[m] = x; }
+         if (t[k].bytes < (1ull << 20)) break;
+-        LOG("  低区文件映射 [%s] %6llu MB（%d 块）%s", when, (unsigned long long)(t[k].bytes >> 20), t[k].n, t[k].dir);
++        char shown[320]; vm_dir_show(t[k].dir, shown, sizeof shown);   // RewindBox (patch 0074): no private path (vm_dir_show)
++        LOG("  低区文件映射 [%s] %6llu MB（%d 块）%s", when, (unsigned long long)(t[k].bytes >> 20), t[k].n, shown);
+     }
+-    if (other) LOG("  低区文件映射 [%s] 其余目录（超过 %d 个）%llu MB", when, NDIR, (unsigned long long)(other >> 20));
++    if (other) LOG("  低区文件映射 [%s] 其余目录（超过 %d 个）%llu MB", when, ndir, (unsigned long long)(other >> 20));   // RewindBox (patch 0074): ndir
+ }
+ 
+ // 低区 + 窗口尾部按用途标签合计（10-21 巫师3 测试设备2 进场骤降 1.2 GB，Metal 记账的只涨 68 MB：要分清 GPU 驱动区 100 / 无标签 0 / 线程栈 30 / malloc 的各自涨多少）：
+diff --git a/runtime/tests/support/run_pause_wait_host.py b/runtime/tests/support/run_pause_wait_host.py
+index de342f9..5d0ffb4 100644
+--- a/runtime/tests/support/run_pause_wait_host.py
++++ b/runtime/tests/support/run_pause_wait_host.py
+@@ -72,6 +72,9 @@ def adapt(root,out):
+     text=must(text,'#if !defined(__APPLE__)\n    case 0x32:', '#if 1\n    case 0x32:')
+     # Android timed waits sleep in thread_condition_wait (= android_condition_wait here); the Apple kqueue timer path (d31766f46) never sets vm_wait_safe
+     text=must(text,'#if defined(__APPLE__)\n    // 带超时：在本线程 kqueue','#if 0\n    // 带超时：在本线程 kqueue')
++    # RewindBox (patch 0074): so do Apple untimed waits (block_u sleeps on t->woke with os_sync_wait_on_address, its own #if): compiled out, they sleep in
++    #   thread_condition_wait as before, wake() keeps uw = 0 and signals the condition variable, and nothing is deferred
++    text=must(text,'#if defined(__APPLE__)\n    // RewindBox (patch 0074): an untimed wait sleeps on t->woke','#if 0\n    // RewindBox (patch 0074): an untimed wait sleeps on t->woke')
+     free=function(text,'static void thr_free(thr_t *t) {')
+     text=text.replace(free,free.replace('#if !defined(__APPLE__)','#if 1'))
+     park=function(text,'static void pause_park(thr_t *t) {')
+diff --git a/runtime/tests/support/run_pause_wait_linux.py b/runtime/tests/support/run_pause_wait_linux.py
+index ba35b3a..6c702a8 100644
+--- a/runtime/tests/support/run_pause_wait_linux.py
++++ b/runtime/tests/support/run_pause_wait_linux.py
+@@ -36,8 +36,13 @@ def production(root):
+         if not match:
+             raise RuntimeError("missing production function " + name)
+         parts.append(function(android, match[0]))
++    # RewindBox (patch 0074): block() wraps block_u, which calls wq_flush: off Apple an empty stub (the Apple definition comes first, so take the stub itself)
++    stub = "static void wq_flush(void) {}"
++    if thread.count(stub) != 1:
++        raise RuntimeError("missing production function wq_flush stub")
++    parts.append(stub)
+     for signature in ["static int thread_condition_wait(", "static void wait_unlink(",
+-                      "static int64_t block(", "static void pause_park(",
++                      "static int64_t block_u(", "static int64_t block(", "static void pause_park(",
+                       "static void sleep_wait_boundary(", "static void sleep_ontime_until("]:
+         # A declaration is not the definition. Match through the opening brace.
+         match = re.search(re.escape(signature) + r"[^;{]*\{", thread)

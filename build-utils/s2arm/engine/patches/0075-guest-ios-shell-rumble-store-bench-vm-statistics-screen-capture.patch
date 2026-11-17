@@ -1,0 +1,277 @@
+diff --git a/ios/app.m b/ios/app.m
+index 1eae7ce..8cd5c1a 100644
+--- a/ios/app.m
++++ b/ios/app.m
+@@ -113,6 +113,7 @@ static void *deferred_host_thread(void *arg) {
+ void s2a_host_shutdown(const char *why);
+ #include <mach/mach.h>
+ #include <os/proc.h>   // RewindBox (patch 0036): os_proc_available_memory in the [写盘] line
++#include <sys/mman.h>   // RewindBox (patch 0075): the scratch page that checks the heartbeat thread's writable alias
+ uint64_t s2a_ap_frames(void);   // ap_host.c：上屏帧数
+ void s2a_guest_run_mark(int running);   // vawin.c：「本局在跑」标记（前台写、后台 / 将终止删；下一局见标记还在 = 上局在前台死掉，强制开客体内存文件后备）
+ static unsigned long long s2a_footprint_mb(void) { task_vm_info_data_t v; mach_msg_type_number_t n = TASK_VM_INFO_COUNT;
+@@ -530,6 +531,61 @@ id s2a_ios_ext_register(UIViewController *vc);   // extdisplay.m：登记外接
+     });
+ }
+ @end
++// RewindBox (patch 0075): heartbeat-side diagnostics asked by the 765 test. Each S2A_RB_* switch is read once; '0' turns it off.
++//   S2A_RB_STORE_BENCH: the store emulation self-test was skipped at boot (a debugger was attached then) while all 27 heartbeats said "debugger attached 0":
++//     the cost of one write-protection fault (about 20 a frame in races, 99996 by frame 5100) was never measured. It now runs once at the first heartbeat without one.
++//   S2A_RB_VM_STATS: page-ins were 27764 per 10 s on average in races (+55 % on the 762) and "other processes" took up to 50 % of the machine around
++//     frames 3000-3300 with nothing saying who: the [写盘] line gains the machine's HOST_VM_INFO64 deltas and its system / user CPU shares.
++//   S2A_RB_SCREEN_CAPTURE: the GPU turned 2.3 to 2.5 times slower for the same work through the screen recording, a pause and Control Center, and no engine
++//     data covered the 42 recorded frames with vanishing palms: the screen's captured state (recording, mirroring, AirPlay) is watched, each change is
++//     logged with its frame, the heartbeat and [能耗] lines carry it with the focus state, and the renderer is told (nvn_be_rb_screen_capture, patch 0067).
++static int rb_store_bench_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_STORE_BENCH"); v = !(e && !strcmp(e, "0")); } return v; }
++static int rb_vm_stats_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_VM_STATS"); v = !(e && !strcmp(e, "0")); } return v; }
++static int rb_screen_cap_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_SCREEN_CAPTURE"); v = !(e && !strcmp(e, "0")); } return v; }
++// RewindBox (patch 0075): machine-wide paging and CPU since the previous call, for the [写盘] line. Heartbeat queue only (serial): the statics need no lock
++static void rb_vm_line(char *out, size_t n) {
++    static uint64_t last[6], lcpu[3], lt; static int have_vm, have_cpu;
++    uint64_t t = clock_gettime_nsec_np(CLOCK_UPTIME_RAW); double dt = lt && t > lt ? (double)(t - lt) / 1e9 : 0; lt = t;
++    vm_statistics64_data_t vs; mach_msg_type_number_t vc = HOST_VM_INFO64_COUNT; size_t o = 0;
++    kern_return_t kr = host_statistics64(mach_host_self(), HOST_VM_INFO64, (host_info64_t)&vs, &vc);
++    if (kr != KERN_SUCCESS) { o = (size_t)snprintf(out, n, "；RewindBox: machine VM not readable (kr=%d)", (int)kr); have_vm = 0; }
++    else {
++        uint64_t cur[6] = { vs.compressions, vs.decompressions, vs.swapins, vs.swapouts, vs.pageins, vs.pageouts }, d[6];
++        for (int i = 0; i < 6; i++) d[i] = have_vm && cur[i] >= last[i] ? cur[i] - last[i] : 0;
++        if (have_vm) o = (size_t)snprintf(out, n, "；RewindBox: machine VM over %.1f s (HOST_VM_INFO64, pages): compressions %llu, decompressions %llu, swapins %llu, swapouts %llu, pageins %llu, pageouts %llu",
++                                          dt, (unsigned long long)d[0], (unsigned long long)d[1], (unsigned long long)d[2], (unsigned long long)d[3], (unsigned long long)d[4], (unsigned long long)d[5]);
++        else o = (size_t)snprintf(out, n, "；RewindBox: machine VM counted from here (HOST_VM_INFO64)");
++        memcpy(last, cur, sizeof last); have_vm = 1;
++    }
++    natural_t nc = 0; processor_info_array_t pa = NULL; mach_msg_type_number_t pn = 0; uint64_t cpu[3] = {0, 0, 0};   // ticks over all cores: system, user + nice, all
++    if (host_processor_info(mach_host_self(), PROCESSOR_CPU_LOAD_INFO, &nc, &pa, &pn) == KERN_SUCCESS && nc && pa) {
++        processor_cpu_load_info_data_t *c = (processor_cpu_load_info_data_t *)pa;
++        for (natural_t i = 0; i < nc; i++) { uint64_t sy = c[i].cpu_ticks[CPU_STATE_SYSTEM], us = (uint64_t)c[i].cpu_ticks[CPU_STATE_USER] + c[i].cpu_ticks[CPU_STATE_NICE]; cpu[0] += sy; cpu[1] += us; cpu[2] += sy + us + c[i].cpu_ticks[CPU_STATE_IDLE]; }
++        if (o < n && have_cpu && cpu[2] > lcpu[2] && cpu[0] >= lcpu[0] && cpu[1] >= lcpu[1])
++            snprintf(out + o, n - o, "; machine CPU system %.0f%%, user %.0f%% (%u cores)", 100.0 * (double)(cpu[0] - lcpu[0]) / (double)(cpu[2] - lcpu[2]),
++                     100.0 * (double)(cpu[1] - lcpu[1]) / (double)(cpu[2] - lcpu[2]), (unsigned)nc);
++        memcpy(lcpu, cpu, sizeof lcpu); have_cpu = 1;
++    } else { if (o < n) snprintf(out + o, n - o, "; machine CPU not readable"); have_cpu = 0; }
++    if (pa) vm_deallocate(mach_task_self(), (vm_address_t)pa, pn * sizeof(integer_t));
++}
++// RewindBox (patch 0075): the renderer's hook for screen capture changes (nvn_mtl.m, patch 0067); absent = not called. Registered for the iOS links (runtime/build.mk S2A_WEAK_U):
++//   without the line below they need its definition at static link time, so a series without 0067 would not link
++// 弱链接[ios]：nvn_be_rb_screen_capture（graphics/nvn/gfx/nvn/nvn_mtl.m, patch 0067）
++extern void nvn_be_rb_screen_capture(int on) __attribute__((weak_import));
++static int g_rb_cap = -1;   // main thread only: the screen's captured state last seen (-1 = not watched)
++static unsigned g_rb_cap_changes; static unsigned long long g_rb_cap_frame;
++static void rb_screen_capture_seen(int on, const char *how) {   // main thread: the notification (main queue), startMonitoring and the heartbeat timer
++    if (on == g_rb_cap) return;
++    int first = g_rb_cap < 0; g_rb_cap = on;
++    if (first && !on) return;   // not captured when the watch starts: no event
++    unsigned long long f = s2a_ap_frames(); g_rb_cap_changes++; g_rb_cap_frame = f;
++    if (g_rb_cap_changes <= 32) {   // user-driven, but mirroring can flap: the first 32 changes get a line, the heartbeat counts them all
++        struct timespec ts; clock_gettime(CLOCK_REALTIME, &ts); struct tm tm; localtime_r(&ts.tv_sec, &tm); char hms[16]; strftime(hms, sizeof hms, "%H:%M:%S", &tm);
++        LOG("RewindBox: screen capture (recording, mirroring or AirPlay) %s at frame %llu, local time %s.%03ld (from the %s, change %u)", on ? "started" : "stopped", f, hms, (long)(ts.tv_nsec / 1000000), how, g_rb_cap_changes);
++    } else if (g_rb_cap_changes == 33) LOG("RewindBox: screen capture: more than 32 changes, no more lines and the renderer is not told any more (each stop makes it write a profile folder)");
++    // RewindBox (patch 0075): the same cap for the renderer (each stop = one profiles/<time>-rec folder in 0067, nothing else limits them); change 1 is always a start, so 32 keeps start / stop pairs
++    if (nvn_be_rb_screen_capture && g_rb_cap_changes <= 32 && !s2a_rb_guest_session_over()) nvn_be_rb_screen_capture(on);
++}
+ @interface S2AAppDelegate : UIResponder <UIApplicationDelegate>
+ @property (strong, nonatomic) UIWindow *window;
+ - (void)startMonitoring;
+@@ -576,6 +632,17 @@ id s2a_ios_ext_register(UIViewController *vc);   // extdisplay.m：登记外接
+         [nc addObserverForName:UIApplicationUserDidTakeScreenshotNotification object:nil queue:nil usingBlock:^(NSNotification *n) { (void)n;
+             const char *v = getenv("S2A_RB_CAPTURE"); if ((v && !strcmp(v, "0")) || s2a_rb_guest_session_over()) return;
+             void s2a_rb_capture_request(void); s2a_rb_capture_request(); }]; }); }
++    // RewindBox (patch 0075): the screen's captured state, watched once per process (rb_screen_capture_seen). The SDK may flag UIScreen.captured and its
++    //   notification as deprecated (the scene trait sceneCaptureState is the newer API); both still work, and the heartbeat reads the state too, so a change
++    //   the notification misses is seen within 10 s
++    if (rb_screen_cap_on()) { static dispatch_once_t once; dispatch_once(&once, ^{
++#pragma clang diagnostic push
++#pragma clang diagnostic ignored "-Wdeprecated-declarations"
++        rb_screen_capture_seen(UIScreen.mainScreen.captured, "first reading");
++        [nc addObserverForName:UIScreenCapturedDidChangeNotification object:nil queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *n) { (void)n;
++            rb_screen_capture_seen(UIScreen.mainScreen.captured, "notification"); }];
++#pragma clang diagnostic pop
++    }); }
+     // 心跳：每 10 秒一行，被系统直接杀（SIGKILL 不进崩溃处理）时也能看到死前最后的帧号 / 热状态 / 内存（10-20 维护者 一款第一方动作冒险游戏闪退，日志 12 秒后无一行）
+     // 低区余量（10-21 巫师3 玩约 2 分钟低区耗尽、Metal 申请失败崩溃）：每行带上，局中能看到往下掉的过程
+     [NSTimer scheduledTimerWithTimeInterval:10 repeats:YES block:^(NSTimer *t) { (void)t;
+@@ -585,6 +652,14 @@ id s2a_ios_ext_register(UIViewController *vc);   // extdisplay.m：登记外接
+         // 前后台状态只能在主线程读；其余（整窗 mincore 扫描、分区账、能耗、输入延迟）放后台串行队列：11-05 0400486024DEC000客体内存文件后备后，
+         //   整窗 64 GB 的 mincore 一次要数秒，在主线程上跑让系统卡顿检测连报 2–6 秒（MetricKit 卡顿诊断栈：startMonitoring 心跳块 → s2a_window_resident / mem_split_line）
+         int app_state = MIN((int)UIApplication.sharedApplication.applicationState, 2);
++        // RewindBox (patch 0075): the screen's captured state for this heartbeat and its [能耗] line (read here: UIKit is main-thread only)
++        int rb_cap = -1; unsigned rb_cap_n = 0; unsigned long long rb_cap_f = 0;
++        if (rb_screen_cap_on()) {
++#pragma clang diagnostic push
++#pragma clang diagnostic ignored "-Wdeprecated-declarations"
++            rb_screen_capture_seen(UIScreen.mainScreen.captured, "heartbeat");
++#pragma clang diagnostic pop
++            rb_cap = g_rb_cap; rb_cap_n = g_rb_cap_changes; rb_cap_f = g_rb_cap_frame; }
+         static dispatch_queue_t hb_q; static dispatch_once_t hb_once; dispatch_once(&hb_once, ^{ hb_q = dispatch_queue_create("s2a.heartbeat", DISPATCH_QUEUE_SERIAL); });
+         dispatch_async(hb_q, ^{
+         uint64_t lt, ll, fs, fh, wr = 0, wo = 0; int fn; s2a_low_holes(&lt, &ll); s2a_fd_usage(&fn, &fs, &fh);
+@@ -596,9 +671,21 @@ id s2a_ios_ext_register(UIViewController *vc);   // extdisplay.m：登记外接
+         //   while one stays attached, every fault of the process stops in it before the engine's own handler sees it (about 0.3 s a fault while the boot code was served, IPA 731),
+         //   and the engine takes write-protection faults all through play (4 to 26 a frame in Mario Kart World's races, IPA 762): the log did not say which it was
+         int rb_traced = -1; { struct kinfo_proc kp; size_t kn = sizeof kp; int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_PID, getpid() }; if (!sysctl(mib, 4, &kp, &kn, NULL, 0) && kn) rb_traced = (kp.kp_proc.p_flag & P_TRACED) != 0; }
+-        LOG("[心跳] 帧 %llu，热状态 %ld（0 正常 1 一般 2 严重 3 危急），进程实占 %llu MB，%s，持续执行档 %d（1 = 系统按稳态功率限制本进程，要权限 sustained-execution），低电量模式 %d，低区空洞合计 %llu MB、最大一块 %llu MB，文件句柄 %d / 软上限 %llu%s; RewindBox: debugger attached %d (1 = each fault of the process stops in it first, -1 = not known)", (unsigned long long)s2a_ap_frames(), (long)NSProcessInfo.processInfo.thermalState,
++        char rbcap[160] = ""; if (rb_cap >= 0) snprintf(rbcap, sizeof rbcap, "; screen captured %d (recording, mirroring or AirPlay), %u changes, the last at frame %llu", rb_cap, rb_cap_n, rb_cap_f);   // RewindBox (patch 0075)
++        LOG("[心跳] 帧 %llu，热状态 %ld（0 正常 1 一般 2 严重 3 危急），进程实占 %llu MB，%s，持续执行档 %d（1 = 系统按稳态功率限制本进程，要权限 sustained-execution），低电量模式 %d，低区空洞合计 %llu MB、最大一块 %llu MB，文件句柄 %d / 软上限 %llu%s; RewindBox: debugger attached %d (1 = each fault of the process stops in it first, -1 = not known)%s", (unsigned long long)s2a_ap_frames(), (long)NSProcessInfo.processInfo.thermalState,
+             s2a_footprint_mb(), (const char *[]){"前台", "前台失焦", "后台"}[app_state],
+-            (int)[NSProcessInfo.processInfo hasPerformanceProfile:NSProcessPerformanceProfileSustained], (int)NSProcessInfo.processInfo.lowPowerModeEnabled, (unsigned long long)(lt >> 20), (unsigned long long)(ll >> 20), fn, (unsigned long long)fs, wins, rb_traced);
++            (int)[NSProcessInfo.processInfo hasPerformanceProfile:NSProcessPerformanceProfileSustained], (int)NSProcessInfo.processInfo.lowPowerModeEnabled, (unsigned long long)(lt >> 20), (unsigned long long)(ll >> 20), fn, (unsigned long long)fs, wins, rb_traced, rbcap);
++        // RewindBox (patch 0075): the store emulation self-test, once, at the first heartbeat without a debugger (rb_store_bench_on). Its faults are claimed
++        //   through the faulting thread's writable alias slot, which a heartbeat thread has not got: the slot is made first and checked on a scratch page
++        //   (no slot or no working writable alias = the test's first fault would not be claimed, so it is not run)
++        { static int rb_bench_done; if (!rb_bench_done && rb_traced == 0 && rb_store_bench_on() && !s2a_rb_guest_session_over()) { rb_bench_done = 1;
++            void s2a_emul_store_bench(void);   // runtime/src/crash.c: skips itself again if a debugger is attached by now
++            s2a_alias_thread_init();
++            uint8_t *tp = mmap(NULL, 0x4000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
++            int alias_ok = tp != MAP_FAILED && s2a_alias_page_rw((uint64_t)(uintptr_t)tp) != NULL;
++            if (tp != MAP_FAILED) munmap(tp, 0x4000);
++            if (alias_ok) { LOG("RewindBox: store emulation self-test at the first heartbeat without a debugger (frame %llu)", (unsigned long long)s2a_ap_frames()); s2a_emul_store_bench(); }
++            else LOG("RewindBox: store emulation self-test not run at the heartbeat: no writable alias on its thread"); } }
+         // 本款本机实测峰值（vawin.c s2a_guest_mem_note：进程实占 + 文件后备里已落块的客体字节）：下一局起局按它判文件后备开不开（11-07 卡顿线）
+         { void s2a_guest_mem_note(uint64_t footprint); s2a_guest_mem_note((uint64_t)s2a_footprint_mb() << 20); }
+         int s2a_disk_io(uint64_t *written, uint64_t *read, uint64_t *pageins, uint64_t *logical);   // energy.c（只此一处用，不进 native.h：那是出包抽取阶段的键；RewindBox (patch 0036): s2a_disk_written and more）
+@@ -616,16 +703,20 @@ id s2a_ios_ext_register(UIViewController *vc);   // extdisplay.m：登记外接
+                                                (unsigned long long)(vi.internal >> 20), (unsigned long long)(vi.external >> 20), (unsigned long long)(vi.compressed >> 20));
+               else snprintf(vm, sizeof vm, "TASK_VM_INFO 取不到（kr=%d）", (int)kr);
+               if (gbad) snprintf(gb, sizeof gb, "，其中 %d 个 fstat 失败、没计进去", gbad);
++              char hv[400] = ""; if (rb_vm_stats_on()) rb_vm_line(hv, sizeof hv);   // RewindBox (patch 0075): the machine's paging and CPU (rb_vm_line)
+ #define S2A_D10(x, l) (unsigned long long)(have && (x) >= (l) ? (x) - (l) : 0)
+               LOG("[写盘] 进程累计 %llu MB，近 10 秒 %llu MB（客体内存文件后备 %s）；近 10 秒读盘 %llu MB、调页 %llu 次（ri_diskio_bytesread / ri_pageins），逻辑写累计 %llu MB、近 10 秒 %llu MB（ri_logical_writes）；"
+-                  "客体文件 %d 个已落块 %llu MB（st_blocks%s）；%s；os_proc_available_memory %llu MB",
++                  "客体文件 %d 个已落块 %llu MB（st_blocks%s）；%s；os_proc_available_memory %llu MB%s",
+                   (unsigned long long)(w >> 20), S2A_D10(w, last) >> 20, s2a_guest_fd() >= 0 ? "开" : "关", S2A_D10(r, last_r) >> 20, S2A_D10(pi, last_p),
+-                  (unsigned long long)(lw >> 20), S2A_D10(lw, last_l) >> 20, gn, (unsigned long long)(ga >> 20), gb, vm, (unsigned long long)(os_proc_available_memory() >> 20));
++                  (unsigned long long)(lw >> 20), S2A_D10(lw, last_l) >> 20, gn, (unsigned long long)(ga >> 20), gb, vm, (unsigned long long)(os_proc_available_memory() >> 20), hv);
+ #undef S2A_D10
+               last = w; last_r = r; last_p = pi; last_l = lw; have = 1; } }
+         // 客体内存分区账（S2A_MEM_SPLIT=1，缺省关）：心跳每 10 秒一行，另起 100 ms 采样线程抓跳变（mem_split_*）
+         if (mem_split_on()) { mem_split_line("内存分区", s2a_footprint_mb(), wr, wo, 0); mem_split_start(); }
+-        s2a_energy_log();
++        // RewindBox (patch 0075): the [能耗] line ends with this heartbeat's screen captured state and focus state
++        if (rb_cap >= 0) { char eb[2048]; s2a_energy_capture(eb, sizeof eb);
++            LOG("[能耗] %s; RewindBox: screen captured %d, focus %s", eb, rb_cap, (const char *[]){"active", "inactive (still in the foreground)", "background"}[app_state]); }
++        else s2a_energy_log();
+         s2a_pad_latency latency; s2a_pad_get_latency(&latency, 1);
+         if (latency.samples) LOG("[输入延迟] %llu 次变化：快照到HID提交 平均 %.3f ms / 最大 %.3f ms；读取到提交 平均 %.3f ms / 最大 %.3f ms（不含蓝牙和画面显示）",
+             (unsigned long long)latency.samples, latency.host_total_us / (1000.0 * latency.samples), latency.host_max_us / 1000.0,
+diff --git a/ios/controller.m b/ios/controller.m
+index 57db233..fd445c1 100644
+--- a/ios/controller.m
++++ b/ios/controller.m
+@@ -45,10 +45,22 @@ static pthread_mutex_t g_feedback_mu = PTHREAD_MUTEX_INITIALIZER;
+ static dispatch_queue_t g_system_haptics_queue;
+ static GCController *g_haptic_device; // 只在 g_system_haptics_queue 上访问
+ static CHHapticEngine *g_haptic_engine;
+-static id<CHHapticAdvancedPatternPlayer> g_haptic_player;
++static id<CHHapticPatternPlayer> g_haptic_player;   // RewindBox (patch 0075): the looping (advanced) player or, as fallback, a plain one
+ static dispatch_source_t g_haptic_timer;
+ static BOOL g_haptic_playing;
+ static s2a_hp_state g_haptic_retry;   // 只在 g_system_haptics_queue 上访问：失败退避与判死（ios/haptic_retry.h）
++// RewindBox (patch 0075): Xbox controller rumble was off for the whole session in the 765 test (and in the 762): the engine was built (Default locality,
++//   8 localities offered), then createAdvancedPlayerWithPattern failed with NSCocoaErrorDomain 4097 three times in a row (1 s and 4 s apart), each retry
++//   rebuilding the same set-up. macos/front_mac.m met the same 4097 with a DualSense: a plain player on a fresh engine was built and played there.
++//   Now a failed looping player drops that engine and retries at once on a fresh one with a plain player (restarted before its 30-s event ends);
++//   each player that cannot be built moves the next attempt to the next set-up (then the Handles locality, or Default again on a controller without it), other failures
++//   retry the same set-up, and the set-up that plays is logged.
++//   S2A_RB_HAPTIC_FALLBACK=0 keeps the old single set-up. Everything here runs on g_system_haptics_queue only
++static int g_haptic_variant;         // 0 = Default locality + looping player, 1 = Default + plain player, 2 = Handles + plain player
++static BOOL g_haptic_loops;          // the current player is the looping one
++static uint64_t g_haptic_started_ns; // plain player: when this round started (CLOCK_UPTIME_RAW)
++static const char *const g_haptic_variant_name[3] = { "locality Default, looping player", "locality Default, plain player on a fresh engine", "locality Handles, plain player" };
++static int rb_haptic_fallback_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_HAPTIC_FALLBACK"); v = !(e && !strcmp(e, "0")); } return v; }
+ // 下列字段由 g_feedback_mu 保护，提交方只更新固定快照。
+ static uint64_t g_system_epoch;
+ static BOOL g_system_present, g_system_supported, g_system_selected, g_system_pending, g_system_transition;
+@@ -96,16 +108,19 @@ static void system_fail_on_queue(const char *what, NSError *error) {
+     const char *domain = error.domain.UTF8String ?: "-";
+     long code = error ? (long)error.code : 0;
+     BOOL died = s2a_hp_on_fail(&g_haptic_retry, now);
++    const char *tried = g_haptic_variant_name[g_haptic_variant];   // RewindBox (patch 0075): the set-up that failed; a player that cannot be built moves the next attempt to the next one
++    //   (only that failure: an engine not built or not started, a start or an update that fails are not the set-up's doing, and haptic_retry.h's start-up glitches heal on the same one)
++    if (rb_haptic_fallback_on() && g_haptic_variant < 2 && !strcmp(what, "创建播放器失败")) g_haptic_variant++;
+     if (!g_haptic_retry.reported) {
+         g_haptic_retry.reported = YES;
+         LOG("【红】系统手柄震动：%s（%s/%ld）%s——本设备本局最多再试 %d 次（退避 %u ms、%u ms），仍失败就判死，"
+-            "不再逐帧重建引擎与播放器",
++            "不再逐帧重建引擎与播放器; RewindBox: set-up %s, next %s",
+             what, domain, code,
+             error.localizedDescription.UTF8String ?: "unknown",
+-            S2A_HP_MAX_FAILS - 1, S2A_HP_BACKOFF_MS(1), S2A_HP_BACKOFF_MS(2));
++            S2A_HP_MAX_FAILS - 1, S2A_HP_BACKOFF_MS(1), S2A_HP_BACKOFF_MS(2), tried, g_haptic_variant_name[g_haptic_variant]);
+     }
+-    if (died) LOG("【红】系统手柄震动：本设备本局停用（连续 %d 次失败，最后一次 %s/%ld）；换手柄或重新接入会再试一次",
+-                  S2A_HP_MAX_FAILS, domain, code);
++    if (died) LOG("【红】系统手柄震动：本设备本局停用（连续 %d 次失败，最后一次 %s/%ld）；换手柄或重新接入会再试一次; RewindBox: last set-up %s",
++                  S2A_HP_MAX_FAILS, domain, code, tried);
+ }
+ // 1 秒没有新的震动帧就停（游戏不发停止也不会一直震）
+ static void system_arm_stop_timer(void) {
+@@ -137,7 +152,12 @@ static void system_play_on_queue(s2a_pad_vibration pair[2]) {
+     float sharp = finite_clamp((hz - 160) / 160 * 0.5f + 0.3f, 0, 1);
+     NSError *error = nil;
+     if (!g_haptic_engine) {
+-        g_haptic_engine = [g_haptic_device.haptics createEngineWithLocality:GCHapticsLocalityDefault];
++        g_haptic_engine = [g_haptic_device.haptics createEngineWithLocality:g_haptic_variant >= 2 ? GCHapticsLocalityHandles : GCHapticsLocalityDefault];   // RewindBox (patch 0075)
++        // RewindBox (patch 0075): a controller that gives no Handles engine goes back to the Default one (set-up 1, as before 0075) instead of spending its retries on nil
++        if (!g_haptic_engine && g_haptic_variant >= 2) {
++            static BOOL said; if (!said) { said = YES; LOG("RewindBox: controller rumble: no engine with the Handles locality on this controller, the Default locality again"); }
++            g_haptic_variant = 1; g_haptic_engine = [g_haptic_device.haptics createEngineWithLocality:GCHapticsLocalityDefault];
++        }
+         if (!g_haptic_engine) { system_fail_on_queue("无法创建引擎", nil); return; }
+         g_haptic_engine.playsHapticsOnly = YES;
+         // 回调不在本队列执行，且旧引擎的回调可能晚于设备切换。
+@@ -155,7 +175,8 @@ static void system_play_on_queue(s2a_pad_vibration pair[2]) {
+         if (!g_haptic_retry.diagnosed) {
+             g_haptic_retry.diagnosed = YES;
+             NSArray *localities = g_haptic_device.haptics.supportedLocalities.allObjects;
+-            LOG("系统手柄震动：引擎已建（locality Default；手柄 %s 支持 %lu 个 locality：%s）",
++            LOG("系统手柄震动：引擎已建（locality %s；手柄 %s 支持 %lu 个 locality：%s）",
++                g_haptic_variant >= 2 ? "Handles" : "Default",   // RewindBox (patch 0075): the locality this engine was built with
+                 g_haptic_device.vendorName.UTF8String ?: "?",
+                 (unsigned long)localities.count,
+                 [localities componentsJoinedByString:@","].UTF8String ?: "");
+@@ -167,13 +188,25 @@ static void system_play_on_queue(s2a_pad_vibration pair[2]) {
+             [[CHHapticEventParameter alloc] initWithParameterID:CHHapticEventParameterIDHapticIntensity value:1],
+             [[CHHapticEventParameter alloc] initWithParameterID:CHHapticEventParameterIDHapticSharpness value:0.5]] relativeTime:0 duration:30];
+         CHHapticPattern *pattern = [[CHHapticPattern alloc] initWithEvents:@[event] parameters:@[] error:&error];
+-        g_haptic_player = pattern ? [g_haptic_engine createAdvancedPlayerWithPattern:pattern error:&error] : nil;
++        // RewindBox (patch 0075): a looping player that cannot be built leaves its engine unusable (front_mac.m: a plain player on it then fails with
++        //   "Client not registred"), so the engine is dropped and this vibration frame is replayed once on a fresh engine with a plain player
++        if (pattern && (g_haptic_variant == 0 || !rb_haptic_fallback_on())) {
++            id<CHHapticAdvancedPatternPlayer> advanced = [g_haptic_engine createAdvancedPlayerWithPattern:pattern error:&error];
++            if (advanced) { advanced.loopEnabled = YES; g_haptic_player = advanced; g_haptic_loops = YES; }
++            else if (rb_haptic_fallback_on()) {
++                LOG("RewindBox: controller rumble: the looping player cannot be built (%s/%ld); engine dropped, a plain player on a fresh engine now", error.domain.UTF8String ?: "-", error ? (long)error.code : 0L);
++                g_haptic_variant = 1; system_reset_on_queue(); system_play_on_queue(pair); return;
++            }
++        } else if (pattern) { g_haptic_player = [g_haptic_engine createPlayerWithPattern:pattern error:&error]; g_haptic_loops = NO; }
+         if (!g_haptic_player) { system_fail_on_queue("创建播放器失败", error); system_reset_on_queue(); return; }
+-        g_haptic_player.loopEnabled = YES;
+     }
++    uint64_t now = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
++    // RewindBox (patch 0075): a plain player cannot loop: after 20 s of continuous rumble its 30-s event is restarted (as front_mac.m)
++    if (g_haptic_playing && !g_haptic_loops && now - g_haptic_started_ns > 20ull * NSEC_PER_SEC) { [g_haptic_player stopAtTime:CHHapticTimeImmediate error:nil]; g_haptic_playing = NO; }
+     if (!g_haptic_playing && ![g_haptic_player startAtTime:CHHapticTimeImmediate error:&error]) {
+         system_fail_on_queue("播放失败", error); system_reset_on_queue(); return;
+     }
++    if (!g_haptic_playing) g_haptic_started_ns = now;
+     g_haptic_playing = YES;
+     if (![g_haptic_player sendParameters:@[
+         [[CHHapticDynamicParameter alloc] initWithParameterID:CHHapticDynamicParameterIDHapticIntensityControl value:amplitude relativeTime:0],
+@@ -181,7 +214,8 @@ static void system_play_on_queue(s2a_pad_vibration pair[2]) {
+         system_fail_on_queue("更新强度失败", error); system_reset_on_queue(); return;
+     }
+     s2a_hp_on_ok(&g_haptic_retry);   // 真正播起来了才清零连续失败
+-    static BOOL logged; if (!logged) { logged = YES; LOG("系统手柄震动：播放 强度 %.2f 锐度 %.2f", amplitude, sharp); }
++    // RewindBox (patch 0075): once per set-up that plays, which one it is
++    static int logged = -1; if (logged != g_haptic_variant) { logged = g_haptic_variant; LOG("系统手柄震动：播放 强度 %.2f 锐度 %.2f; RewindBox: set-up %s", amplitude, sharp, g_haptic_variant_name[g_haptic_variant]); }
+     system_arm_stop_timer();
+ }
+ 
+@@ -194,6 +228,7 @@ static void system_select_device(GCController *device) {
+     dispatch_async(g_system_haptics_queue, ^{
+         system_reset_on_queue(); g_haptic_device = device;
+         s2a_hp_rearm(&g_haptic_retry);   // 换手柄 / 重新接入 = 新机会；已经报过的红不再刷屏
++        g_haptic_variant = 0;   // RewindBox (patch 0075): a new controller starts again from the looping player
+         pthread_mutex_lock(&g_feedback_mu);
+         if (epoch == g_system_epoch) g_system_transition = NO;
+         pthread_mutex_unlock(&g_feedback_mu);

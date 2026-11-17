@@ -1,0 +1,794 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 7badfae..1b4f357 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -985,6 +985,7 @@ static prog_keys_t *pk_get(const void *p, int make) {
+ // 线程：录制线程写（g_ps_mu 串行），回放线程无锁读：条目整份建好后才以 release 写进槽位，扩容建新表整体发布、旧表不回收（读端可能正在探测，旧表合计小于新表）；
+ //   条目里的快照写入后不再变，回放层可长期持有它的指针（nvn_mtl.m prog_live）；键变好时换一份新的键组发布，旧键组不回收（每序号至多 12 次：6 个键位 + 6 个阶段位各变一次）
+ typedef struct { prog_t snap; _Atomic(const prog_keys_t *) ks;
++                 _Atomic uint8_t looked;   // RewindBox (patch 0069): nvnCommandBufferBindProgram handed this serial to nvn_be_prog_bound (once a serial, no lock; 8 B more an entry)
+ #if defined(__ANDROID__)
+                  struct nvn_program_pins pins;   // 该 serial 的源快照引用（g_ps_mu 保护）；苹果平台不占这份内存
+ #endif
+@@ -2070,6 +2071,9 @@ NVN(nvnCommandBufferSetViewports, void, NVNcommandBuffer *c, int first, int n, c
+ }
+ NVN(nvnCommandBufferSetScissor, void, NVNcommandBuffer *c, int x, int y, int w, int h) { *REC(c, OP_SCISSOR, p_scissor) = (p_scissor){x, y, w, h}; }
+ NVN(nvnCommandBufferSetDepthRange, void, NVNcommandBuffer *c, float n, float f) { *REC(c, OP_DEPTH_RANGE, p_depth_range) = (p_depth_range){n, f}; }
++// RewindBox (patch 0069): a program bind as the game records it, on the recording thread: nvn_mtl.m nvn_be_prog_bound starts its Switch 2 stages that are not translated yet a whole
++//   submission ahead of their draw. The weak default does nothing (Android, the graphics tests)
++__attribute__((weak)) void nvn_be_prog_bound(const prog_t *p) { (void)p; }
+ NVN(nvnCommandBufferBindProgram, void, NVNcommandBuffer *c, const NVNprogram *p, int stages) {
+     // 只录程序身份（见 nvn_obj.h p_bind_program_id）；程序内容与键按序号进快照表（prog_snap_put），回放用 bind_program_rec 还原
+     const prog_t *o = (const prog_t *)p;
+@@ -2081,6 +2085,12 @@ NVN(nvnCommandBufferBindProgram, void, NVNcommandBuffer *c, const NVNprogram *p,
+     prog_keys_t *k = pk_get(p, 0);
+     if (k) { memcpy(keys, k->key, sizeof keys); kok = k->ok; memcpy(stage, k->stage, sizeof stage); }
+     prog_snap_put(&snap, keys, kok, stage);
++#if !defined(__ANDROID__)
++    {   // RewindBox (patch 0069): the first bind of a serial goes to the backend once (its snapshot entry's flag, read without a lock: entries are never freed); later binds cost one probe
++        psnap_ent *pe = ps_find(atomic_load_explicit(&g_ps_tab, memory_order_acquire), o->serial);
++        if (pe && !atomic_load_explicit(&pe->looked, memory_order_relaxed) && !atomic_exchange_explicit(&pe->looked, 1, memory_order_relaxed)) nvn_be_prog_bound(o);
++    }
++#endif
+ #if defined(__ANDROID__)   // Android 直连：按 serial 补 key、记阶段、补存源快照（Apple 回放不读，不在 Apple 上付扫表成本）
+     (void)nvn_prog_snap_get(snap.serial, keys, &kok, stage);   // 合并后的最好已知（游戏按值复制的程序对象指针不同、序号相同）
+     {
+@@ -3143,13 +3153,19 @@ __attribute__((weak)) int dm_low_power_now(void) { return 0; }   // Low Power Mo
+ //   one thread clock read a frame
+ typedef struct { uint64_t f; double fr, nv, t_s, make_ms, up_mb, up_ms; unsigned pso, lib, up, rup;
+                  double cpu_ms, thr_ms, mp_ms, acq_ms, pq_ms; long flt, majflt, inblk, vcsw, ivcsw; unsigned wpf;   // cpu_ms ... wpf: patch 0065 (thr_ms -1: the presenting thread changed)
+-                 double per, rd_mb, drw_ms, blk[5]; } lf_rec;   // RewindBox (patch 0068): the present period (ms), storage read (MB), drawable waits, the presenting thread's blocked time by reason (-1: not known)
++                 double per, rd_mb, drw_ms, blk[5];   // RewindBox (patch 0068): the present period (ms), storage read (MB), drawable waits, the presenting thread's blocked time by reason (-1: not known)
++                 unsigned xn, xwn, msl_n; double x_ms, xw_ms, msl_ms; } lf_rec;   // RewindBox (patch 0069): shader translations on the submit thread / waits for one in flight / MSL compiled there
+ // RewindBox (patch 0068): storage the process read (runtime/src/energy.c, proc_pid_rusage ri_diskio_bytesread); none in hosts without it
+ __attribute__((weak)) int s2a_disk_io(uint64_t *written, uint64_t *read, uint64_t *pageins, uint64_t *logical) { (void)written; (void)read; (void)pageins; (void)logical; return -1; }
+ // RewindBox (patch 0068): the long-frame thresholds follow the frame's present period (S2A_RB_LONGFRAME_PERIOD=0: 20 / 16.7 ms and the 16-frame mean only, as before)
+ static int rb_lf_period(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_LONGFRAME_PERIOD"); v = !(e && !strcmp(e, "0")); } return v; }
+ static lf_rec g_lf[LFN];
+ __attribute__((weak)) void dm_longframe_note(const char *what) { LOG("[longframe] %s", what); }   // Default (graphics unit tests); the strong definition in the host's diag.c adds scene context and writes perf.txt
++// RewindBox (patch 0069): the long-frame line counted pipelines and shader libraries but not the translations the submit thread made or waited for (dsh_miss.inc
++//   dm_shader_miss_late), nor the MSL it compiled. IPA 765: frame 701 took 126.4 ms, 107.2 ms in the engine's calls, but its line gave "4.6 ms in all", while the profile had the
++//   submit thread translating there; frame 711, 182.6 ms against 47.5. Cumulative counters of the backend (nvn_mtl.m nvn_be_xlate_ns): translations made here and their ms, waits
++//   for one in flight and their ms, MSL compiled here and its ms. The weak default (no backend counters: Android, the graphics tests) reads zeros
++__attribute__((weak)) void nvn_be_xlate_ns(uint64_t o[6]) { memset(o, 0, 6 * sizeof *o); }
+ extern void nvn_be_create_ns(uint64_t *lib_ns, uint64_t *pso_ns); extern uint64_t nvn_be_upload_bytes(void); extern void nvn_be_pkg_stats(uint64_t *uploads, uint64_t *reuploads);
+ static const char *const g_tname[6] = {"frame time", "frame work", "NVN submit+present", "GPU", "translation layer recording", "translation layer submit"};
+ static void tpush(int k, double v) { g_tw[k][g_tn[k]++ % TWIN] = v; }
+@@ -3735,6 +3751,11 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+                 for (int k = 0; k < 5; k++) r->blk[k] = same ? (double)(bk[k] - pb[k]) / 1e6 : -1;
+                 memcpy(pb, bk, sizeof pb); bth = pthread_self(); hb = 1;
+             }
++            {   // RewindBox (patch 0069): translations and MSL compiles on the submit thread during the frame
++                static uint64_t px[6]; uint64_t x[6]; nvn_be_xlate_ns(x);
++                r->xn = (unsigned)(x[0] - px[0]); r->x_ms = (x[1] - px[1]) / 1e6; r->xwn = (unsigned)(x[2] - px[2]); r->xw_ms = (x[3] - px[3]) / 1e6; r->msl_n = (unsigned)(x[4] - px[4]); r->msl_ms = (x[5] - px[5]) / 1e6;
++                memcpy(px, x, sizeof px);
++            }
+         }
+         plib = lib_; ppso = pso_;
+         trow(f, "@t_s", (now_ns() - g_t0_ns) / 1e9);
+@@ -3769,6 +3790,9 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+                 if (la_skip) { snprintf(sk, sizeof sk, "; %u more frames of 1.5 periods or more not logged (10 a second)", la_skip); la_skip = 0; }
+                 snprintf(b + bl, sizeof b - bl, "; presenting thread blocked on the submit lock %.1f ms, GPU fences %.1f ms, the encode thread %.1f ms, readbacks and upload slots %.1f ms, owed cross-queue fences %.1f ms; drawables %.1f ms; period %.1f ms%s%s",
+                          r->blk[0], r->blk[1], r->blk[2], r->blk[3], r->blk[4], r->drw_ms, per, la ? ", logged as 1.5 periods or more" : "", sk); }
++              { size_t bl = strlen(b);   // RewindBox (patch 0069)
++                snprintf(b + bl, sizeof b - bl, "; RewindBox: shader translations on the submit thread %u, %.1f ms, waits for one in flight %u, %.1f ms; MSL compiled there %u, %.1f ms",
++                         r->xn, r->x_ms, r->xwn, r->xw_ms, r->msl_n, r->msl_ms); }
+               // Visibility: during the time a long frame "comes out late", what stays on screen is the previous frame; if the previous frame was a loading screen (or this frame itself is one), all the player sees is the loading screen staying a bit longer, with no motion interrupted
+               dm_longframe_note(b); } }
+         uint64_t g0, g1; if (frame_rec() && nvn_be_gpu_span(f - 8, &g0, &g1)) { trow(f - 8, "@gpu_beg_ms", (g0 - g_t0_ns) / 1e6); trow(f - 8, "@gpu_end_ms", (g1 - g_t0_ns) / 1e6); } }
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 127aa9f..c7e39b4 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -2271,7 +2271,8 @@ static int ub_skip(const char *key) {   // Whether this phase should drop draws
+     for (int i = 0; i < g_ub_nk[uc]; i++) { const char *k = g_ub_keys[uc][i]; if (k[0] == '@') continue; if (k[0] == '*' || !strncmp(key, k, strlen(k))) return 1; }
+     return 0;
+ }
+-void nvn_be_set_frame(uint64_t f) { atomic_store(&g_cur_frame, f); if (g_ub_n) ub_frame(f); }
++static _Atomic uint64_t g_rb_frame_t0;   // RewindBox (patch 0069): bp_now() when the last frame was presented (first_skip_ok); 0 = none yet
++void nvn_be_set_frame(uint64_t f) { atomic_store(&g_cur_frame, f); atomic_store_explicit(&g_rb_frame_t0, bp_now(), memory_order_relaxed); if (g_ub_n) ub_frame(f); }   // RewindBox (patch 0069): g_rb_frame_t0
+ // GPU timing registration: gpu_tag_begin(frame) before commit, gpu_tag_done(frame, GPU start, GPU end) on completion (seconds on the CACurrentMediaTime base).
+ // Old-queue command buffers go through gpu_tag_f; the Metal 4 main submission backfills in the feedback of nvn_be_sub_commit (when switching to Metal 4 all the call sites were lost and the GPU column of the timing line became empty)
+ static double gpu_tag_begin(uint64_t f) {   // 返回提交时刻（CACurrentMediaTime）：调用方原样交给 gpu_tag_done，GPU 不可能早于它开始
+@@ -7556,6 +7557,13 @@ static NSMutableDictionary<NSString *, NvShader *> *g_shcache;
+ static NSMutableDictionary<NSString *, ShaderFlight *> *g_shader_flights;
+ static os_unfair_lock g_shader_lock = OS_UNFAIR_LOCK_INIT;
+ static _Atomic uint64_t g_shader_requests, g_shader_hits, g_shader_waits, g_shader_wait_ns, g_shader_builds, g_shader_failures, g_shader_build_live;
++// RewindBox (patch 0069): the MSL a translation on this device leaves is compiled from source at every start (iOS keeps no library built at run time), and that time was
++//   counted only inside "shader libraries ... ms in all". IPA 765: the profile of window f1858 had the submit thread about 690 ms in a row in shader_build at frame 1892 (1,038.7 ms),
++//   Metal's compiler under it. Counted apart now: shader_build's fallback compiles (newLibraryWithSource, every thread; the output-type, sampler and vertex-pad variants are not
++//   counted), and the part on the submit thread (shader_load_submit, the long-frame line); the session's totals in dsh_miss.inc dsh_summary (nvn_be_msl_ns)
++static _Atomic uint64_t g_rb_msl_n, g_rb_msl_ns;   // all threads
++static __thread uint64_t t_rb_msl_n, t_rb_msl_ns;   // this thread's, read around a load by shader_load_submit
++static uint64_t g_bp_msl_n, g_bp_msl_ns;   // submit thread
+ // Stages whose entry point follows the depth mode: vertex, and an NVN2 mesh shader at stage 4 (main0 / main0_z as a vertex shader's; a domain shader there takes main0 either way)
+ static inline int stage_depth_moded(int stage) { return stage == 0 || stage == 4; }
+ static NSString *shader_identity(NSString *pc, int stage, int layer, int depth_zero) {
+@@ -7570,6 +7578,7 @@ static void shader_load_stats(void) {
+          (unsigned long long)atomic_load(&g_shader_requests), (unsigned long long)atomic_load(&g_shader_hits),
+          (unsigned long long)atomic_load(&g_shader_waits), atomic_load(&g_shader_wait_ns) / 1e6, (unsigned long long)atomic_load(&g_shader_builds),
+          (unsigned long long)atomic_load(&g_shader_failures), (unsigned long long)atomic_load(&g_shader_build_live));
++    if (atomic_load(&g_rb_msl_n)) MLOG("RewindBox: MSL of this device's translations compiled from source so far (shader_build's fallback path, every thread): %llu times, %.1f ms in all", (unsigned long long)atomic_load(&g_rb_msl_n), atomic_load(&g_rb_msl_ns) / 1e6);   // RewindBox (patch 0069)
+     if (atomic_load(&g_lp_lib_built)) MLOG("library container: %llu libraries built, %llu loads took one already built from the same segment (lib_pack.inc lp_library); "
+                                           "segments mapped in the host high range %llu (%.1f MB live), in the low range %llu (%.1f MB: high range full or absent)",
+                                           (unsigned long long)atomic_load(&g_lp_lib_built), (unsigned long long)atomic_load(&g_lp_lib_shared),
+@@ -8010,7 +8019,8 @@ static NvShader *shader_build(NSString *pc, int stage, int layer, int depth_zero
+     if (!lib && dir != g_msl_dir) {   // S2Arm fallback: MSL source compiled here, same options as the offline chain (dm_msl_opts)
+         NSString *src = [NSString stringWithContentsOfFile:[NSString stringWithFormat:@"%@/%@.metal", dir, pc] encoding:NSUTF8StringEncoding error:&e];
+         if (src && stage == 0) src = rb_msl_base_instance(src, pc.UTF8String);   // RewindBox (patch 0066)
+-        if (src) { MTLCompileOptions *co = dm_msl_opts(); t_lib_layer = [src containsString:@"render_target_array_index"]; lib = [g_dev newLibraryWithSource:src options:co error:&e]; }
++        if (src) { MTLCompileOptions *co = dm_msl_opts(); t_lib_layer = [src containsString:@"render_target_array_index"]; uint64_t m0 = bp_now(); lib = [g_dev newLibraryWithSource:src options:co error:&e];
++            uint64_t md = bp_now() - m0; atomic_fetch_add_explicit(&g_rb_msl_n, 1, memory_order_relaxed); atomic_fetch_add_explicit(&g_rb_msl_ns, md, memory_order_relaxed); t_rb_msl_n++; t_rb_msl_ns += md; }   // RewindBox (patch 0069)
+         if (lib) MLOG("shader %s loaded from the fallback translation (%s)", pc.UTF8String, fb);
+     }
+     unsigned rb_bi_n = t_rb_binst_reads; int rb_bi_seen = t_rb_binst_seen; t_rb_binst_reads = 0; t_rb_binst_seen = 0;   // RewindBox (patch 0066): what rb_msl_base_instance did to the source compiled above
+@@ -8202,8 +8212,9 @@ static NvShader *shader_load(NSString *pc, int stage, int layer) {
+     return shader_load_depth(pc, stage, layer, stage_depth_moded(stage) && atomic_load(&g_depth_zero), NULL, NULL);
+ }
+ static NvShader *shader_load_submit(NSString *pc, int stage, int layer, int depth_zero) {
+-    uint64_t start = bp_now(), wait_ns = 0; int built = 0;
++    uint64_t start = bp_now(), wait_ns = 0, mn0 = t_rb_msl_n, mns0 = t_rb_msl_ns; int built = 0;   // RewindBox (patch 0069): mn0 / mns0
+     NvShader *shader = shader_load_depth(pc, stage, layer, depth_zero, &built, &wait_ns);
++    g_bp_msl_n += t_rb_msl_n - mn0; g_bp_msl_ns += t_rb_msl_ns - mns0;   // RewindBox (patch 0069): MSL compiled here, on the submit thread
+     // A shared load can block this frame even when another thread constructs
+     // it, and a failed attempt still consumed time. Never count a waiter as a
+     // construction; expose its time both in the frame ledger and separately.
+@@ -8212,6 +8223,11 @@ static NvShader *shader_load_submit(NSString *pc, int stage, int layer, int dept
+     g_bp_lib_wait_ns += wait_ns;
+     return shader;
+ }
++// RewindBox (patch 0069): the long-frame line's counters (hle_nvn.c lf_rec): translations on the submit thread and their ms, waits for one in flight and their ms (dsh_miss.inc
++//   dm_shader_late_ns), MSL compiled on the submit thread and its ms; cumulative, the line takes a frame's difference. Weak default: the graphics tests without host_adapt.m
++__attribute__((weak)) void dm_shader_late_ns(uint64_t o[4]) { memset(o, 0, 4 * sizeof *o); }
++void nvn_be_xlate_ns(uint64_t o[6]) { dm_shader_late_ns(o); o[4] = g_bp_msl_n; o[5] = g_bp_msl_ns; }
++void nvn_be_msl_ns(uint64_t o[4]) { o[0] = atomic_load(&g_rb_msl_n); o[1] = atomic_load(&g_rb_msl_ns); o[2] = g_bp_msl_n; o[3] = g_bp_msl_ns; }   // RewindBox (patch 0069): dsh_miss.inc dsh_summary, at the session's end (the submit thread idle)
+ // The part of uniform slot reg's binding the shader can read: its first cb_ext bytes when cb_extent.tsv bounds them, else the whole binding
+ static inline uint64_t cb_len(NvShader *sh, int reg, uint64_t size) { uint32_t e = sh && reg >= 0 && reg < 16 ? sh->cb_ext[reg] : 0; return e && e < size ? e : size; }
+ 
+@@ -10342,6 +10358,46 @@ static void pso_key_fill(pso_key *k, NvShader *vs, NvShader *fs, const uint32_t
+ static struct { pso_key k; id<MTLRenderPipelineState> ps; int used, done, late, stuck; } g_pp[PSO_PEND_MAX];   // late: the submit thread already waited its limit for it once (pso_pend_take); stuck: a draw that cannot be skipped waited the unsafe cap for it
+ static pthread_mutex_t g_pp_mu = PTHREAD_MUTEX_INITIALIZER; static pthread_cond_t g_pp_cv = PTHREAD_COND_INITIALIZER;
+ static uint64_t g_pp_submit_mark, g_pp_kicked, g_pp_taken, g_pp_dropped;   // Whether this submission has already been predicted (by submission serial); cumulative kicked / taken / dropped untaken (pso_pend_kick) counts
++// RewindBox (patch 0069): every pipeline kicked to the background went to the global queue at once, without bound, and a draw that needed its own waited for it behind the others
++//   at the one system compiler service. IPA 765 (Mario Kart World, iPhone17,2): frame 463 took 5,619.5 ms with 66 pipelines (5,029.2 ms creating them), frame 806 3,481.8 ms
++//   with 27, frame 449 441.5 ms for one pipeline that had waited for the queued compile with no prewarm line compiling; 48 ms a creation in long frames against 6.1 ms in 762.
++//   Now the lookahead's guesses (pso_predict_rest) wait in the table and compile on S2A_RB_PSO_LANES lanes (default 2) in the order they were kicked, and a pipeline a draw needs
++//   (the draw at hand's kick, a first-use skip, or pso_pend_take reaching a guess no lane has started) starts at once at user-interactive QoS beside the lanes, never behind them.
++//   The build is the same (par_render on the same descriptor). S2A_RB_PSO_LANES=0: every kick on the global queue at once, as before
++static struct { MTLRenderPipelineDescriptor *d; NSString *pkey; uint64_t seq; int run, guess; } g_ppq[PSO_PEND_MAX];   // a kicked slot's build: d set = waiting for a lane; run = started; guess = kicked by the lookahead (g_pp_mu)
++static uint64_t g_ppq_seq, g_ppq_now, g_ppq_lane; static int g_ppq_lanes;   // kick order / builds started at once for a draw / started by a lane / lanes running (all g_pp_mu)
++static int rb_pso_lanes(void) {   // read once (submit thread)
++    static int v = -1;
++    if (v < 0) { const char *e = getenv("S2A_RB_PSO_LANES"); v = e && *e ? atoi(e) : 2; if (v < 0) v = 0; if (v > 8) v = 8;
++        MLOG("RewindBox: background pipeline compiles: %s (S2A_RB_PSO_LANES=%d)", v ? "the lookahead's guesses on lanes, a pipeline a draw needs at once" : "all at once on the global queue, as before", v); }
++    return v;
++}
++static void ppq_build(int slot, MTLRenderPipelineDescriptor *d, NSString *pkey) {   // a lane or a block started at once; d / pkey were taken out of g_ppq under g_pp_mu
++    id<MTLRenderPipelineState> ps; @autoreleasepool { NSError *e = nil; ps = par_render(d, pkey, &e); }
++    pthread_mutex_lock(&g_pp_mu); g_pp[slot].ps = ps; g_pp[slot].done = 1; pthread_cond_broadcast(&g_pp_cv); pthread_mutex_unlock(&g_pp_mu);
++}
++static int ppq_waiting(int i) { return i >= 0 && g_pp[i].used && !g_pp[i].done && !g_ppq[i].run && g_ppq[i].d; }   // caller holds g_pp_mu
++static void ppq_start_locked(int at) {   // caller holds g_pp_mu: slot at's build starts now, beside the lanes
++    MTLRenderPipelineDescriptor *d = g_ppq[at].d; NSString *pk = g_ppq[at].pkey; g_ppq[at].d = nil; g_ppq[at].pkey = nil; g_ppq[at].run = 1; g_ppq_now++;
++    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INTERACTIVE, 0), ^{ ppq_build(at, d, pk); });
++}
++static void ppq_hurry_locked(int at) { if (ppq_waiting(at)) ppq_start_locked(at); }   // caller holds g_pp_mu: a draw needs this guess now
++static void ppq_lane(void) {   // a lane: the oldest waiting build, until none is left
++    pthread_mutex_lock(&g_pp_mu);
++    for (;;) {
++        int at = -1; for (int i = 0; i < PSO_PEND_MAX; i++) if (ppq_waiting(i) && (at < 0 || g_ppq[i].seq < g_ppq[at].seq)) at = i;
++        if (at < 0) break;
++        MTLRenderPipelineDescriptor *d = g_ppq[at].d; NSString *pk = g_ppq[at].pkey; g_ppq[at].d = nil; g_ppq[at].pkey = nil; g_ppq[at].run = 1; g_ppq_lane++;
++        pthread_mutex_unlock(&g_pp_mu);
++        ppq_build(at, d, pk);
++        pthread_mutex_lock(&g_pp_mu);
++    }
++    g_ppq_lanes--; pthread_mutex_unlock(&g_pp_mu);
++}
++static void ppq_pump_locked(void) {   // caller holds g_pp_mu: one lane per waiting build, up to rb_pso_lanes()
++    int w = 0; for (int i = 0; i < PSO_PEND_MAX; i++) w += ppq_waiting(i);
++    for (; w > 0 && g_ppq_lanes < rb_pso_lanes(); w--) { g_ppq_lanes++; dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{ ppq_lane(); }); }
++}
+ static void pso_predict_rest(void);
+ // A pixel shader that reads a user(locn) its vertex shader does not write makes a pipeline Metal refuses: on the Mac the build returns an error, on iOS it aborted inside Metal
+ // (The Witcher 3, 10-26 test device 2, cold run, frame 1758: SIGABRT under pso_get_ on a vertex / pixel pair the build had not paired, so vs_pad gave the vertex shader nothing).
+@@ -10357,7 +10413,7 @@ static int pso_pair_ok(NvShader *vs, NvShader *fs, int report) {
+     return 0;
+ }
+ static int pso_pend_find(const pso_key *k) { for (int i = 0; i < PSO_PEND_MAX; i++) if (g_pp[i].used && !memcmp(&g_pp[i].k, k, sizeof *k)) return i; return -1; }
+-static void pso_pend_kick(const pso_key *k, NvShader *vs, NvShader *fs) {   // Called by the submit thread: kick only if it is neither in the cache nor in the table
++static void pso_pend_kick(const pso_key *k, NvShader *vs, NvShader *fs, int now) {   // Called by the submit thread: kick only if it is neither in the cache nor in the table. now: a draw needs it (RewindBox (patch 0069): started at once, not after the lookahead's guesses)
+     if (hm_get_id(&g_pso, k) || !pso_pair_ok(vs, fs, 0)) return;
+     pthread_mutex_lock(&g_pp_mu);
+     int at = pso_pend_find(k), slot = -1;
+@@ -10367,9 +10423,15 @@ static void pso_pend_kick(const pso_key *k, NvShader *vs, NvShader *fs) {   // C
+     //   compiled, and building the same descriptor again took 0.0 ms (M5 Max, 24 pipelines, 11-02 microbenchmark), and its records are written when a draw builds it
+     if (at < 0 && slot < 0) for (int i = 0; i < PSO_PEND_MAX; i++) if (g_pp[i].used && g_pp[i].done) { slot = i; g_pp[i].ps = nil; g_pp_dropped++; break; }
+     if (at < 0 && slot >= 0) { g_pp[slot].k = *k; g_pp[slot].ps = nil; g_pp[slot].done = 0; g_pp[slot].late = 0; g_pp[slot].stuck = 0; g_pp[slot].used = 1; }
++    if (at >= 0 && now) ppq_hurry_locked(at);   // RewindBox (patch 0069): a guess of the lookahead no lane has started, needed now
+     pthread_mutex_unlock(&g_pp_mu);
+     if (at >= 0 || slot < 0) return;
+     MTLRenderPipelineDescriptor *d = pso_desc(k, vs, fs, nil, 0); g_pp_kicked++; NSString *pkey = par_rkey(k, vs, fs, 0, nil);
++    if (rb_pso_lanes()) {   // RewindBox (patch 0069): the build waits in the table for a lane, or starts at once for the draw at hand
++        pthread_mutex_lock(&g_pp_mu); g_ppq[slot].d = d; g_ppq[slot].pkey = pkey; g_ppq[slot].run = 0; g_ppq[slot].guess = !now; g_ppq[slot].seq = ++g_ppq_seq;
++        if (now) ppq_start_locked(slot); else ppq_pump_locked();
++        pthread_mutex_unlock(&g_pp_mu); return;
++    }
+     dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+         NSError *e = nil; id<MTLRenderPipelineState> ps = par_render(d, pkey, &e);
+         pthread_mutex_lock(&g_pp_mu); g_pp[slot].ps = ps; g_pp[slot].done = 1; pthread_cond_broadcast(&g_pp_cv); pthread_mutex_unlock(&g_pp_mu);
+@@ -10404,6 +10466,22 @@ static void pso_budget_skip_note(void) {
+     uint64_t n = ++g_pp_bud_skips;
+     if (!(n & (n - 1))) MLOG("pipeline wait budget: %llu first uses skipped their draw after their frame had waited %d ms for compiles (still compiling in the background)", (unsigned long long)n, pso_frame_ms());
+ }
++// RewindBox (patch 0069): the first uses the first-use skip used to skip at once and now wait (first_skip_ok: a lookahead guess no lane had started, a frame long already) wait on
++//   an allowance of their own, not on the budget above. That budget is spent by the waits that made the frame long: IPA 765 frame 806 (3,481.8 ms, 27 pipelines, 2,812.9 ms
++//   creating them, 30 draws skipped) had none left when its skippable first uses came, so they would have skipped exactly as before; and charged to it, these waits would leave a
++//   later draw without the budget it had (a table-full first use then skipped instead of built here). S2A_RB_LATE_BUDGET_MS a frame (default 100; 0 = such draws skip at once)
++static uint64_t g_rb_lw_frame, g_rb_lw_ns, g_rb_lw_skips; static int g_rb_lw_take;   // submit thread only; g_rb_lw_take: the draw at hand waits on this allowance (first_skip_ok → pso_pend_take)
++static int rb_late_budget_ms(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_LATE_BUDGET_MS"); v = e && *e ? atoi(e) : 100; if (v < 0) v = 0; } return v; }
++static int64_t rb_late_left_ms(void) {   // what this frame's allowance still holds
++    uint64_t f = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
++    if (f != g_rb_lw_frame) { g_rb_lw_frame = f; g_rb_lw_ns = 0; }
++    int64_t left = (int64_t)rb_late_budget_ms() - (int64_t)(g_rb_lw_ns / 1000000ull);
++    return left > 0 ? left : 0;
++}
++static void rb_late_skip_note(void) {
++    uint64_t n = ++g_rb_lw_skips;
++    if (!(n & (n - 1))) MLOG("RewindBox: %llu first uses skipped their draw once their frame's %d ms allowance for draws formerly skipped at once was spent (S2A_RB_LATE_BUDGET_MS; still compiling in the background)", (unsigned long long)n, rb_late_budget_ms());
++}
+ // 首遇让路（11-07 卡顿线，异度3 冷装读档第 888 帧 2380.7 ms：那条管线在清单里还没轮到，提交线程等它时后台预热 2 个工人照领新行、跟它抢系统编译服务）：
+ //   提交线程在等一条首遇管线（g_fu_waiting > 0）期间，预热工人不领新行（warm_pick 里等，每次最多 FU_YIELD_MAX_MS，防饿死），已在编的编完。
+ //   g_warm_busy = 正在编的预热行数，首遇等待行里报「开始等时几个在编」，好分清等的是排队还是编译本身。DM_PSO_FU_YIELD=0 关（A/B 用）
+@@ -10417,21 +10495,24 @@ static id<MTLRenderPipelineState> pso_pend_take(const pso_key *k, int *timed_out
+     //   Super Mario Odyssey's Mac cold start (10-27): the system compiler was slow, the frame budget skipped 2048 draws in 4 frames, among them the temporal anti-aliasing / exposure
+     //   chain whose output feeds the next frame, and the 3D picture stayed black for the whole run; first_skip_ok never let those draws be skipped, these limits did
+     int at = pso_pend_find(k), blk = 0, ms = may_skip ? pso_wait_ms() : pso_unsafe_wait_ms(); id<MTLRenderPipelineState> ps = nil; *timed_out = 0;
++    ppq_hurry_locked(at);   // RewindBox (patch 0069): a guess of the lookahead no lane has started: it starts now, so this draw does not wait behind the others
+     if (may_skip && at >= 0 && g_pp[at].late && !g_pp[at].done) { pthread_mutex_unlock(&g_pp_mu); *timed_out = 1; return nil; }   // waited its limit once already: every later draw with it skips at once until it is done
+     // A draw that cannot be skipped waited the whole unsafe cap for it once: the compiler service is stuck on it, and every later draw with it, safe or not, skips at once until it is done.
+     //   Splatoon 3 (10-27 PSB, t0100c2500fc20000_1027065706_2): three such draws in a row each waited 10 s for the same pipeline (Hoian_UBER fragment fc88b546d13b4a9f), 31 s at frame 47
+     if (at >= 0 && g_pp[at].stuck && !g_pp[at].done) { pthread_mutex_unlock(&g_pp_mu); *timed_out = 1; return nil; }
++    int lw = may_skip && g_rb_lw_take;   // RewindBox (patch 0069): a draw formerly skipped at once: its frame's own allowance caps it, not the budget (rb_late_left_ms)
+     if (may_skip && at >= 0 && !g_pp[at].done) {   // the frame's budget caps this wait (a wait cut short by it does not make the pipeline late: a later frame waits for it again)
+-        int64_t left = pso_budget_left_ms(); int cut = 0;
++        int64_t left = lw ? rb_late_left_ms() : pso_budget_left_ms(); int cut = 0;   // RewindBox (patch 0069): lw
+         if (left < (ms ? ms : INT64_MAX)) { cut = 1; ms = (int)left; }
+-        if (cut && !ms) { pthread_mutex_unlock(&g_pp_mu); *timed_out = 2; pso_budget_skip_note(); return nil; }
++        if (cut && !ms) { pthread_mutex_unlock(&g_pp_mu); *timed_out = 2; if (lw) rb_late_skip_note(); else pso_budget_skip_note(); return nil; }   // RewindBox (patch 0069): rb_late_skip_note
+     }
+     if (at >= 0) { blk = !g_pp[at].done; if (blk) DM_BLOCK_BEGIN(); uint64_t w0 = bp_now();
+         struct timespec dl; clock_gettime(CLOCK_REALTIME, &dl); dl.tv_sec += ms / 1000; dl.tv_nsec += (long)(ms % 1000) * 1000000; if (dl.tv_nsec >= 1000000000) { dl.tv_sec++; dl.tv_nsec -= 1000000000; }
+         while (!g_pp[at].done) if (ms ? pthread_cond_timedwait(&g_pp_cv, &g_pp_mu, &dl) == ETIMEDOUT : pthread_cond_wait(&g_pp_cv, &g_pp_mu)) break;
+-        if (blk) g_pp_bud_ns += bp_now() - w0;
++        if (blk) { if (lw) g_rb_lw_ns += bp_now() - w0; else g_pp_bud_ns += bp_now() - w0; }   // RewindBox (patch 0069): lw charges its own allowance
+         if (blk && !may_skip && bp_now() - w0 > (uint64_t)pso_wait_ms() * 1000000ull) { static unsigned n; if (n++ < 8) MLOG("【红】 a draw that cannot be skipped (its target keeps content across frames) waited %.0f ms for its pipeline to compile%s", (bp_now() - w0) / 1e6, g_pp[at].done ? "" : ": past DM_NVN_PSO_UNSAFE_WAIT_MS, skipped after all (the picture may be wrong until the pipeline arrives)"); }
+         if (g_pp[at].done) { ps = g_pp[at].ps; g_pp[at].ps = nil; g_pp[at].used = 0; }
++        else if (lw && ms < pso_wait_ms()) { *timed_out = 2; rb_late_skip_note(); }   // RewindBox (patch 0069): the allowance ran out first
+         else if (ms < pso_wait_ms() && pso_frame_ms()) { *timed_out = 2; pso_budget_skip_note(); }   // the frame's budget ran out first
+         else { *timed_out = 1; g_pp[at].late = 1; if (!may_skip) g_pp[at].stuck = 1; g_pp_timeouts++; } }
+     pthread_mutex_unlock(&g_pp_mu);
+@@ -10441,6 +10522,9 @@ static id<MTLRenderPipelineState> pso_pend_take(const pso_key *k, int *timed_out
+ static int pso_pend_state(const pso_key *k) {   // 2 compiled in the background / 1 compiling / 0 not in the table (first_skip_ok)
+     pthread_mutex_lock(&g_pp_mu); int at = pso_pend_find(k), st = at < 0 ? 0 : g_pp[at].done ? 2 : 1; pthread_mutex_unlock(&g_pp_mu); return st;
+ }
++static int pso_pend_hurry(const pso_key *k) {   // RewindBox (patch 0069): a draw needs it now (a guess no lane has started starts here); → 1 when it is a lookahead guess not compiled yet
++    pthread_mutex_lock(&g_pp_mu); int at = pso_pend_find(k); ppq_hurry_locked(at); int g = at >= 0 && !g_pp[at].done && g_ppq[at].guess; pthread_mutex_unlock(&g_pp_mu); return g;
++}
+ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_(NvProg *pr, MTLRenderPassDescriptor *unused);
+ static id<MTLFunction> ms_fs_override(NvShader *fs);   // DM_NVN_MAGSCAN (defined before draw)
+ // A pipeline Metal refused: when a colour the fragment shader writes has an integer attachment, its output was most likely translated as float (a game without PC reflection has no output types,
+@@ -10526,6 +10610,23 @@ static int skip_safe(NvShader *vs, NvShader *fs) {
+     if (R.rt.depth && (!rt_fresh_now(R.rt.depth) || !rt_seen_steady(R.rt.depth))) return 0;
+     return 1;
+ }
++// RewindBox (patch 0069): a skippable first use was skipped at once even in a frame that was long already, where waiting a little more costs less than the missing object. IPA 765:
++//   the only skipped draws of the session were in such frames (frame 806, 3,481.8 ms: 30 draws; frame 3121: 1). Once S2A_RB_LATE_WAIT_MS (default 100) have passed since the last
++//   present, a first use whose pipeline is compiling goes to pso_pend_take as a skippable draw: it waits there within its frame's own allowance (S2A_RB_LATE_BUDGET_MS, apart from
++//   DM_NVN_PSO_FRAME_MS's budget, which the frame has usually spent) and its pipeline's limit, and is skipped past them as before ("draws skipped while their pipeline compiled").
++//   Never a wait without bound, and the budget other draws wait on is not touched. S2A_RB_LATE_WAIT_MS=0: these first uses skip at once as before (a lookahead guess no lane had
++//   started still waits: S2A_RB_LATE_BUDGET_MS=0 or S2A_RB_PSO_LANES=0 for that)
++static uint64_t g_rb_late_waits, g_rb_hurry_waits;   // submit thread: waits on the allowance for a long frame / for a lookahead guess no lane had started
++static int rb_late_frame(void) {
++    static int ms = -1; if (ms < 0) { const char *e = getenv("S2A_RB_LATE_WAIT_MS"); ms = e && *e ? atoi(e) : 100; if (ms < 0) ms = 0; }
++    uint64_t t0 = atomic_load_explicit(&g_rb_frame_t0, memory_order_relaxed);
++    return ms && t0 && bp_now() - t0 >= (uint64_t)ms * 1000000ull;
++}
++static void rb_late_wait_note(int hurried) {
++    uint64_t n = hurried ? ++g_rb_hurry_waits : ++g_rb_late_waits;
++    if (!(n & (n - 1))) MLOG("RewindBox: first uses that waited for their pipeline on their frame's allowance (S2A_RB_LATE_BUDGET_MS=%d) instead of being skipped at once: %llu in a frame long already, %llu for a lookahead guess no lane had started",
++                             rb_late_budget_ms(), (unsigned long long)g_rb_late_waits, (unsigned long long)g_rb_hurry_waits);
++}
+ static int first_skip_ok(const pso_key *k, NvShader *vs, NvShader *fs) {
+     if (!first_skip_on()) return 0;
+     if (shader_writes(vs) || shader_writes(fs)) return FSKN(0);
+@@ -10536,10 +10637,15 @@ static int first_skip_ok(const pso_key *k, NvShader *vs, NvShader *fs) {
+     if (R.rt.depth && !rt_fresh_now(R.rt.depth)) return FSKN(1);
+     for (int i = 0; i < R.rt.n; i++) if (R.rt.color[i] && !rt_seen_steady(R.rt.color[i])) return FSKN(2);
+     if (R.rt.depth && !rt_seen_steady(R.rt.depth)) return FSKN(2);
+-    if (!pso_pend_state(k)) pso_pend_kick(k, vs, fs);   // not queued yet (or the kick before was refused)
++    int hurried = 0;   // RewindBox (patch 0069)
++    if (!pso_pend_state(k)) pso_pend_kick(k, vs, fs, 1);   // not queued yet (or the kick before was refused)
++    else hurried = pso_pend_hurry(k);   // RewindBox (patch 0069): a guess no lane has started starts now
+     int st = pso_pend_state(k);
+     if (st == 2) return 0;   // already compiled: pso_pend_take takes it at once
+     if (st != 1) return FSKN(3);   // the background table is full: build here as before
++    // RewindBox (patch 0069): a lookahead guess not compiled when its draw came (before the lanes every guess started at once, so it might have been ready), or a frame long
++    //   already: pso_pend_take waits on the frame's allowance (rb_late_left_ms), then skips by the same rules. With the allowance spent, skipped at once as before
++    if ((hurried || rb_late_frame()) && rb_late_left_ms() > 0) { rb_late_wait_note(hurried); g_rb_lw_take = 1; return 0; }
+     g_first_skipped = 1; return 1;
+ }
+ static uint64_t g_fsk_eq;   // RewindBox (patch 0040): skipped draws that test depth EQUAL without writing it (first_skip_note)
+@@ -10578,7 +10684,7 @@ static uint8_t g_pso_color_round;
+ #define PSO_WHY(...) snprintf(g_pso_why, sizeof g_pso_why, __VA_ARGS__)
+ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_vs(NvProg *pr, NvShader *vs) {
+     __unsafe_unretained NvShader *fs = pr->sh[1]; g_pso_why[0] = 0;
+-    g_pso_color_round = 0;
++    g_pso_color_round = 0; g_rb_lw_take = 0;   // RewindBox (patch 0069): g_rb_lw_take, set by first_skip_ok for this draw only
+     if (!vs) { RED_ONCE(13, "program has no vertex shader (or it is not mapped)"); PSO_WHY("no vertex stage"); return nil; }
+     pso_key k; pso_key_fill(&k, vs, fs, g_pass.cfmt, g_pass.dfmt, g_pass.sfmt, g_pass.samples, g_pso_lmap != NULL);
+     if (g_pso_lmap) { memcpy(k.lmap, g_pso_lmap, 8); k.fsfn = (__bridge void *)g_pso_fsfn; }
+@@ -10615,11 +10721,12 @@ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_vs(NvProg *pr, NvS
+     //   came first and took the pipeline, so the lookahead below never ran and every first use of a scene compiled one after another (Super Mario Party, census 11-02, frame 30722:
+     //   61 new pipelines in one frame, 1,796 ms; 0 "parallel precompile" lines in the whole run). Kicked first, the draw at hand is ahead of them in the queue
+     if (!g_pso_lmap && !ms_fn && !g_pso_fsfn) {
+-        pso_pend_kick(&k, vs, fs);   // nothing when already queued (an earlier lookahead) or refused (table full: compiled here below)
++        pso_pend_kick(&k, vs, fs, 1);   // nothing when already queued (an earlier lookahead) or refused (table full: compiled here below); RewindBox (patch 0069): started at once, or hurried when the lookahead queued it
+         if (g_pp_submit_mark != g_sub_serial) { g_pp_submit_mark = g_sub_serial; pso_predict_rest(); }
+     }
+     atomic_fetch_add(&g_fu_waiting, 1); int fu_busy0 = atomic_load(&g_warm_busy); uint64_t fu_t0 = bp_now(), fu_take = 0, fu_build = 0;
+     ps = g_pso_lmap || ms_fn ? nil : pso_pend_take(&k, &pp_late, may_skip);
++    g_rb_lw_take = 0;   // RewindBox (patch 0069)
+     fu_take = bp_now() - fu_t0;
+     if (!ps && !pp_late && may_skip && !g_pso_lmap && !ms_fn && !g_pso_fsfn && !pso_budget_left_ms()) { atomic_fetch_sub(&g_fu_waiting, 1); pso_budget_skip_note(); g_first_skipped = 1; PSO_WHY("no pipeline wait budget left this frame"); return nil; }   // not queued (table full / refused) and no budget left: no synchronous build either
+     if (pp_late) {   // still compiling past the limit (pso_wait_ms): skip this draw, keep the compile queued; a synchronous build here would queue behind the same compiler service
+@@ -10695,6 +10802,13 @@ static int fb_loadable(NSString *pc);
+ //   tests that do not link host_adapt.m keep nothing and translate nothing
+ __attribute__((weak)) int dm_shader_kept(const char *k16) { (void)k16; return 0; }
+ __attribute__((weak)) int dm_shader_retranslate(const char *k16) { (void)k16; return 0; }
++__attribute__((weak)) void dm_shader_retranslate_kept(void) {}   // RewindBox (patch 0069): the start's background pass over every kept stage (dsh_miss.inc), after the prewarm
++__attribute__((weak)) int dm_shader_bg_busy(void) { return 0; }   // RewindBox (patch 0069): that pass is running (nvn_session.inc's drain waits for it)
++// RewindBox (patch 0069): the prewarm's "not in the shader map (another game version)" count did not say why a package prepared on the device left keys out. IPA 765: 1,282 keys,
++//   and with them the lines of 1,316 of the archive's 3,313 pipelines (1,997 built from it). Such a key's translation is an earlier translator's and its stage bytes were not kept
++//   (patch 0056 keeps them only from its own translations on): it is made again at the first draw that meets it, its bytes kept from then on (dsh_miss.inc dsh_keep_reused for the
++//   stages an earlier run translated). Counted here: the lines left out with them, and how many of those keys had a translation file at all
++static uint64_t g_warm_stale_lines, g_warm_stale_old;   // the thread that parses the lists
+ static int rb_stage_key(NSString *pc, char k16[17]) {   // a stage's library name "<16 hex digits>_b" → its key; 0 for any other library (a geometry or variant library is made from its stage's)
+     if (pc.length != 18 || ![pc hasSuffix:@"_b"]) return 0;
+     snprintf(k16, 17, "%.16s", pc.UTF8String); return 1;
+@@ -10718,7 +10832,9 @@ static int warm_stale(NSString *key, NSMutableSet<NSString *> *stale) {
+         //   and compiled at its first draw. Only the file's presence is asked here (the list is parsed on the thread that starts the prewarm)
+         { char k16[17]; if (rb_stage_key(key, k16) && dm_shader_kept(k16) == 2) { if (!g_warm_fb_ok) g_warm_fb_ok = [NSMutableSet set]; [g_warm_fb_ok addObject:key]; g_warm_rekept++; return 0; } }
+         [stale addObject:key]; g_warm_skip_stale++;
++        { const char *fb = getenv("DM_MSL_FALLBACK"); if (fb && *fb && [NSFileManager.defaultManager fileExistsAtPath:[NSString stringWithFormat:@"%s/%@.json", fb, key]]) g_warm_stale_old++; }   // RewindBox (patch 0069)
+     }
++    g_warm_stale_lines++;   // RewindBox (patch 0069): the caller leaves its line out
+     return 1;
+ }
+ // S2Arm: a library to load: in the package (mtl_shlib_has) or translated on this device before (DM_MSL_FALLBACK). A hot-key package's cold key is neither until its first use compiles it
+@@ -10778,6 +10894,7 @@ static shq_t g_shpre, g_shurg;   // the prefetch at ProgramSetShaders (utility Q
+ static NSMutableSet<NSString *> *g_shpre_seen;
+ static os_unfair_lock g_shpre_mu = OS_UNFAIR_LOCK_INIT;
+ static _Atomic int g_shpre_stopping;
++int nvn_be_stopping(void) { return atomic_load(&g_shpre_stopping); }   // RewindBox (patch 0069): dsh_miss.inc's start pass stops at a session stop (dm_shader_retranslate_kept)
+ static void shpre_sync(void) { dispatch_group_t g = dispatch_group_create(); os_unfair_lock_lock(&g_shpre_mu); shq_mark(&g_shpre, g); shq_mark(&g_shurg, g); os_unfair_lock_unlock(&g_shpre_mu); dispatch_group_wait(g, DISPATCH_TIME_FOREVER); }   // unit tests: wait for every queued load
+ // The lookahead (prog_peek) found a stage of a draw later in this submission not loaded: load it now on the urgent lanes, beside the submit thread, instead of when its draw reaches
+ //   prog_get. The submit thread then takes it from the cache or shares the load in flight (shader_load_depth, which lends it this thread's urgency). At most 2 per lane queued
+@@ -10850,6 +10967,43 @@ void nvn_be_shader_prefetch(const uint8_t md[8]) {
+     } });
+     os_unfair_lock_unlock(&g_shpre_mu);
+ }
++// RewindBox (patch 0069): a Switch 2 stage was first looked at when the submit thread replayed its bind (prog_get), or by the lookahead, which runs only at the first pipeline
++//   miss of a submission: the first new program of a scene was translated on the submit thread, then its library compiled there. IPA 765: 233 stages translated in play, 48 of them
++//   on the submit thread (1,877 ms in all; one vertex stage 687.3 ms, in frame 1543 of 869.6 ms), and 65 first uses waited for a lookahead translation still
++//   in flight. Now the game's own bind (hle_nvn.c nvnCommandBufferBindProgram, on the thread that records it) hands each stage of a program seen for the first time: one with no
++//   stage in the maps goes to dsh_miss.inc dm_shader_bound (translated on the lookahead's queue, or taken from an earlier run's translation), one known but not loaded to the
++//   prefetch lanes. The key is the one prog_get computes (prog_key_live on the same bytes), the code must lie in a registered memory pool and not be blank, as a draw needs it to;
++//   the first use takes the result as it takes the lookahead's. Once a serial: hle_nvn.c decides it with a flag in the serial's snapshot entry, without a lock (the first version
++//   kept its own 64-entry thread cache and a locked set, and most of a frame's hundreds of binds took that lock). S2A_RB_BIND_AHEAD=0 turns it off
++__attribute__((weak)) int dm_shader_bound(const char *k16, uint64_t code, const void *control) { (void)k16; (void)code; (void)control; return 0; }   // dsh_miss.inc: 1 queued for translation, 2 an earlier run's translation taken, 0 neither; weak: the graphics tests without host_adapt.m
++static _Atomic uint64_t g_rb_bound_progs, g_rb_bound_xl, g_rb_bound_re, g_rb_bound_pre;   // programs looked at / stages queued for translation / taken from an earlier run's / handed to the prefetch
++static int rb_bind_ahead_on(void) {
++    static _Atomic int v = -1; int r = atomic_load_explicit(&v, memory_order_relaxed);
++    if (r < 0) { const char *e = getenv("S2A_RB_BIND_AHEAD"); r = !(e && !strcmp(e, "0")); atomic_store(&v, r); }
++    return r;
++}
++static int rb_code_set(const uint8_t *c, uint32_t n) { for (uint32_t i = 0; i < n && i < 64; i++) if (c[i]) return 1; return 0; }   // the first bytes not all zero: code the game has filled in
++static int rb_addr_mapped(uint64_t a, uint64_t len) { a = nvn_ga2ca(a); pthread_mutex_lock(&g_mu); int i = pool_find(a, len); pthread_mutex_unlock(&g_mu); return i >= 0; }   // nvn_be_addr's lookup, without making the pool resident
++void nvn_be_prog_bound(const prog_t *p) {   // a game thread recording the first bind of a serial (hle_nvn.c)
++    if (!p || !p->serial || !nvn2_on() || !shpre_on() || !rb_bind_ahead_on()) return;
++    shmap_load(); int dz = atomic_load(&g_depth_zero); uint64_t np = atomic_fetch_add(&g_rb_bound_progs, 1) + 1;
++    @autoreleasepool {   // a game thread has no pool of its own
++    for (unsigned i = 0; i < p->nstage && i < 6; i++) {
++        const void *ctl = p->sd[i].control; uint64_t code = p->sd[i].data; uint8_t md[8]; char hx[17];
++        if (!ctl || (uintptr_t)ctl >= (1ull << 47) || !nvn2_ctl(ctl) || !code) continue;
++        uint32_t n2 = nvn2_code_len(ctl);
++        if (!n2 || n2 >= (1u << 24) || !rb_addr_mapped(code, n2) || !rb_code_set((const uint8_t *)(uintptr_t)code, n2) || !prog_key_live(p, i, md)) continue;
++        for (int b = 0; b < 8; b++) snprintf(hx + 2 * b, 3, "%02x", md[b]);
++        NSString *k = @(hx), *stage = shmap_stage(k); int st = stage ? stage_of(stage) : -1;
++        if (!stage) { int r = dm_shader_bound(hx, code, ctl); if (r) atomic_fetch_add_explicit(r == 1 ? &g_rb_bound_xl : &g_rb_bound_re, 1, memory_order_relaxed); continue; }
++        if (st < 0) continue;
++        os_unfair_lock_lock(&g_shader_lock); int have = g_shcache[shader_identity([k stringByAppendingString:@"_b"], st, 0, dz)] != nil; os_unfair_lock_unlock(&g_shader_lock);
++        if (!have) { nvn_be_shader_prefetch(md); atomic_fetch_add_explicit(&g_rb_bound_pre, 1, memory_order_relaxed); }
++    }
++    }
++    if (!(np & (np - 1)) && np >= 64) MLOG("RewindBox: programs bound by the game looked at ahead of their draw: %llu; stages queued for translation %llu, taken from an earlier run's translation %llu, handed to the prefetch %llu (S2A_RB_BIND_AHEAD)",
++                                           (unsigned long long)np, (unsigned long long)atomic_load(&g_rb_bound_xl), (unsigned long long)atomic_load(&g_rb_bound_re), (unsigned long long)atomic_load(&g_rb_bound_pre));
++}
+ // The lists' lines as tasks; *lines: the lines they hold
+ static NSArray<WarmTask *> *warm_parse(NSArray<NSString *> *paths, long *lines) {
+     NSMutableArray<WarmTask *> *tasks = [NSMutableArray array];
+@@ -10999,6 +11153,10 @@ static void warm_finish(void) {
+     MLOG("pipeline prewarm done: shaders %llu / render pipelines %llu (specialized fragment skipped %llu) / compute pipelines %llu, background time %.1f ms; shader keys not in the shader map (another game version) %llu; not in the library yet (compiled at their first use) %llu",
+          (unsigned long long)g_warm_shaders, (unsigned long long)g_warm_rps, (unsigned long long)g_warm_skip_fz, (unsigned long long)g_warm_cps, (bp_now() - g_warm_t0) / 1e6, (unsigned long long)g_warm_skip_stale, (unsigned long long)atomic_load(&g_cold_skips));
+     if (g_warm_rekept) MLOG("RewindBox: pipeline prewarm: %llu keys of the lists had a translation of an earlier translator with their stage bytes kept; they were translated again on the prewarm's workers (the count made is in the host's lines)", (unsigned long long)g_warm_rekept);
++    if (g_warm_skip_stale) { pthread_mutex_lock(&g_par_mu); unsigned long na = (unsigned long)g_par_have.count; pthread_mutex_unlock(&g_par_mu);   // RewindBox (patch 0069)
++        MLOG("RewindBox: pipeline prewarm: %llu lines left out for %llu keys with no current translation and no kept stage bytes (%llu of them translated by an earlier translator on this device): made again at their first draw, kept from then on; the archive holds %lu pipelines, %llu built from it",
++             (unsigned long long)g_warm_stale_lines, (unsigned long long)g_warm_skip_stale, (unsigned long long)g_warm_stale_old, na, (unsigned long long)g_par_hits); }
++    dm_shader_retranslate_kept();   // RewindBox (patch 0069): every other kept stage that is stale, in the background
+     if (g_par_on) MLOG("pipeline archive after the prewarm: %llu builds from the archive, %llu compiled (written beside it, in the background), %llu stale files dropped",
+                        (unsigned long long)g_par_hits, (unsigned long long)g_par_misses, (unsigned long long)g_par_stale);
+     atomic_store(&g_warm_running, 0); atomic_store(&g_wp_phase, WARM_DONE);   // the host's progress (nvn_warm.h)
+@@ -11165,7 +11323,7 @@ static void warm_start(void) {
+     if (g_warm_started++) return;
+     dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ pso_user_seen_load(); });   // the record's dedupe set, off the submit thread (pso_user_seen_load)
+     NSArray<NSString *> *paths = warm_paths(1);
+-    if (!paths) return;
++    if (!paths) { dm_shader_retranslate_kept(); return; }   // RewindBox (patch 0069): no prewarm, so no warm_finish
+     if (!g_warm_items) g_warm_items = [NSMutableArray array];
+     g_warm_t0 = bp_now(); atomic_store(&g_wp_t0, g_warm_t0);
+     atomic_store(&g_warm_running, 1);
+@@ -13075,13 +13233,14 @@ static void pso_predict_rest_(void) {
+     g_look = 0;
+     (void)df; (void)sf;
+     int busy = 0; pthread_mutex_lock(&g_pp_mu); for (int i = 0; i < PSO_PEND_MAX; i++) busy += g_pp[i].used && !g_pp[i].done; pthread_mutex_unlock(&g_pp_mu);
+-    for (int i = 0; i < na && busy < PSO_AHEAD; i++) { uint64_t k0 = g_pp_kicked; pso_pend_kick(&qa[i].k, (__bridge NvShader *)qa[i].vs, (__bridge NvShader *)qa[i].fs); busy += g_pp_kicked != k0; }
++    for (int i = 0; i < na && busy < PSO_AHEAD; i++) { uint64_t k0 = g_pp_kicked; pso_pend_kick(&qa[i].k, (__bridge NvShader *)qa[i].vs, (__bridge NvShader *)qa[i].fs, 0); busy += g_pp_kicked != k0; }   // RewindBox (patch 0069): 0, a guess: on the lanes
+     memcpy(&S, &Ssave, sizeof S); R = Rsave; args_dirty_all(); g_pso_dirty = pso_dirty; g_dss_dirty = dss_dirty; prog_resolve();
+-    static uint64_t logged; if (g_pp_kicked > (uint64_t)kicked0 && (++logged <= 20 || !(logged & (logged - 1))))   // the first 20, then every power of two
++    static uint64_t logged; if (g_pp_kicked > (uint64_t)kicked0 && (++logged <= 20 || !(logged & (logged - 1)))) {   // the first 20, then every power of two
++        pthread_mutex_lock(&g_pp_mu); uint64_t qn = g_ppq_now, ql = g_ppq_lane; pthread_mutex_unlock(&g_pp_mu);   // RewindBox (patch 0069)
+         MLOG("parallel precompile #%llu: %d draws left in this submission, %d pipelines handed to the background (so far kicked %llu, taken by their draw %llu, dropped untaken %llu); "
+-             "before this one %llu lookaheads, %.1f ms on the submit thread, %llu tex_mtl calls", (unsigned long long)logged,
++             "before this one %llu lookaheads, %.1f ms on the submit thread, %llu tex_mtl calls; RewindBox: builds started at once for a draw %llu, by a lane %llu", (unsigned long long)logged,
+              draws, (int)g_pp_kicked - kicked0, (unsigned long long)g_pp_kicked, (unsigned long long)g_pp_taken, (unsigned long long)g_pp_dropped,
+-             (unsigned long long)g_ppr_n, g_ppr_ns / 1e6, (unsigned long long)g_ppr_tex);
++             (unsigned long long)g_ppr_n, g_ppr_ns / 1e6, (unsigned long long)g_ppr_tex, (unsigned long long)qn, (unsigned long long)ql); }
+ }
+ 
+ static void fz_probe_cov2(const p_set_rt *r2, const uint8_t *first, const int8_t *p2map, const uint8_t *clr, int n1, int n) {
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 8730538..6a2b450 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -60,7 +60,7 @@ static int session_wait_backend(void) {
+     }
+     pthread_mutex_unlock(&g_mu);
+     uint64_t end = now_ns() + 10000000000ull;
+-    while (atomic_load(&g_up_pending) || atomic_load(&g_warm_running)) {
++    while (atomic_load(&g_up_pending) || atomic_load(&g_warm_running) || dm_shader_bg_busy()) {   // RewindBox (patch 0069): dm_shader_bg_busy, the start's pass over kept stages (it stops at the stop)
+         if (now_ns() >= end) return -ETIMEDOUT;
+         usleep(1000);
+     }
+diff --git a/graphics/nvn/host/dsh_miss.inc b/graphics/nvn/host/dsh_miss.inc
+index 7c3351a..743b59b 100644
+--- a/graphics/nvn/host/dsh_miss.inc
++++ b/graphics/nvn/host/dsh_miss.inc
+@@ -1,5 +1,6 @@
+ // 由 host_adapt.m 包含；纯 C 现编接点便于主机用真实实现测依赖边界，不引入另一份实现。
+ #include <stdatomic.h>
++#include <dirent.h>   // RewindBox (patch 0069): dm_shader_retranslate_kept lists the fallback directory
+ #include "../gfx/nvn/dmsh_chain.h"
+ static _Atomic uint64_t g_dsh_ok, g_dsh_failed, g_dsh_skipped, g_dsh_reused, g_dsh_typed;
+ static _Atomic uint64_t g_dsh_eager_n, g_dsh_eager_ok, g_dsh_eager_hit, g_dsh_eager_waited, g_dsh_eager_cancel;   // 后台预编（dsh_eager_start）：交后台 / 编好 / 首遇复用 / 首遇时还在编等了 / 首遇时没开始改同步
+@@ -7,6 +8,31 @@ static _Atomic uint64_t g_dsh_eager_n, g_dsh_eager_ok, g_dsh_eager_hit, g_dsh_ea
+ static _Atomic uint64_t g_dsh_ahead_n, g_dsh_ahead_ok, g_dsh_ahead_failed, g_dsh_ahead_ns, g_dsh_ahead_had, g_dsh_ahead_waited, g_dsh_ahead_taken;
+ // RewindBox (patch 0056): stage bytes kept beside their translations (dsh_in_save): files written, their bytes / stale keys translated again at the start, failures, time
+ static _Atomic uint64_t g_dsh_in_n, g_dsh_in_bytes, g_dsh_re_n, g_dsh_re_fail, g_dsh_re_ns;
++// RewindBox (patch 0069): the submit thread's part of the first uses (dm_shader_miss_late), for the long-frame line (nvn_mtl.m nvn_be_xlate_ns): stages translated there and their ns,
++//   waits for a translation in flight and their ns. g_dsh_late_waiting: the submit thread is about to translate, background translations hold back (dsh_yield_late)
++static _Atomic uint64_t g_dsh_late_n, g_dsh_late_ns, g_dsh_late_wn, g_dsh_late_wns;
++static _Atomic int g_dsh_late_waiting;
++// RewindBox (patch 0069): stage bytes kept for a translation of an earlier run met at a bind (dsh_keep_reused) / kept stages translated again by the start's background pass (dm_shader_retranslate_kept)
++//   / lookahead or bind jobs that found their key translated meanwhile (dsh_ahead_). g_dsh_bg_q: lookahead, bind and eager jobs queued and not yet claimed or dropped by their block;
++//   g_dsh_rk_busy: start passes running (nvn_mtl.m's session drain waits for them through dm_shader_bg_busy)
++static _Atomic uint64_t g_dsh_keep_n, g_dsh_rk_n, g_dsh_ahead_dup;
++static _Atomic int g_dsh_bg_q, g_dsh_rk_busy;
++int dm_shader_bg_busy(void) { return atomic_load(&g_dsh_rk_busy) > 0; }
++__attribute__((weak)) int nvn_be_stopping(void) { return 0; }   // RewindBox (patch 0069): nvn_mtl.m: a session stop was asked (g_shpre_stopping); weak: this file's host test without nvn_mtl.m
++__attribute__((weak)) void nvn_be_msl_ns(uint64_t o[4]) { memset(o, 0, 4 * sizeof *o); }   // RewindBox (patch 0069): nvn_mtl.m: MSL compiled from source (dsh_summary); weak: the same test
++void dm_shader_late_ns(uint64_t o[4]) { o[0] = atomic_load(&g_dsh_late_n); o[1] = atomic_load(&g_dsh_late_ns); o[2] = atomic_load(&g_dsh_late_wn); o[3] = atomic_load(&g_dsh_late_wns); }
++static void dsh_late_wait_note(uint64_t w0) { atomic_fetch_add(&g_dsh_late_wn, 1); atomic_fetch_add(&g_dsh_late_wns, now_ns() - w0); }
++// RewindBox (patch 0069): a background translation (the lookahead's queue, the eager queue, the prewarm's and the start's retranslations) waits before it takes the translator's lock
++//   while the submit thread wants it for a draw (dm_shader_miss_late), at most 2 s: the lock is not fair, and a queue that translates one stage after another could take it back
++//   before the submit thread ran. The one in flight finishes first, as before. S2A_RB_DSH_YIELD=0 turns it off
++static void dsh_yield_late(void) {
++    if (!atomic_load(&g_dsh_late_waiting)) return;
++    static _Atomic int on = -1; int r = atomic_load(&on);
++    if (r < 0) { const char *e = getenv("S2A_RB_DSH_YIELD"); r = !(e && !strcmp(e, "0")); atomic_store(&on, r); }
++    if (!r) return;
++    uint64_t t0 = now_ns();
++    while (atomic_load(&g_dsh_late_waiting) && now_ns() - t0 < 2000000000ull) usleep(500);
++}
+ // 开发浮层「首遇现建」读（runtime/src/hud.c 经 dlsym）：成功 / 失败 / 跳过 / 复用上局 / 输出类型变体
+ void s2a_dsh_stats(uint64_t out[5]) { out[0] = atomic_load(&g_dsh_ok); out[1] = atomic_load(&g_dsh_failed); out[2] = atomic_load(&g_dsh_skipped); out[3] = atomic_load(&g_dsh_reused); out[4] = atomic_load(&g_dsh_typed); }
+ static void dsh_summary(int normal) {
+@@ -28,6 +54,17 @@ static void dsh_summary(int normal) {
+     // RewindBox (patch 0056): the bytes kept beside the translations and what the start made of them
+     if (atomic_load(&g_dsh_in_n) || atomic_load(&g_dsh_re_n) || atomic_load(&g_dsh_re_fail)) LOG("RewindBox: stage bytes kept beside their translations in this run: %llu files, %.1f MB; stale translations made again at the start: %llu (%.1f ms in all), %llu failed",
+         (unsigned long long)atomic_load(&g_dsh_in_n), atomic_load(&g_dsh_in_bytes) / 1048576.0, (unsigned long long)atomic_load(&g_dsh_re_n), atomic_load(&g_dsh_re_ns) / 1e6, (unsigned long long)atomic_load(&g_dsh_re_fail));
++    // RewindBox (patch 0069): the submit thread's part, the bytes kept at a bind and the start's background pass
++    if (atomic_load(&g_dsh_late_n) || atomic_load(&g_dsh_late_wn) || atomic_load(&g_dsh_keep_n) || atomic_load(&g_dsh_rk_n)) LOG("RewindBox: first uses on the submit thread: %llu stages translated there (%.1f ms in all), %llu waited for a translation in flight (%.1f ms); "
++        "stage bytes kept at a bind for translations of an earlier run %llu; kept stages translated again in the background at the start %llu",
++        (unsigned long long)atomic_load(&g_dsh_late_n), atomic_load(&g_dsh_late_ns) / 1e6, (unsigned long long)atomic_load(&g_dsh_late_wn), atomic_load(&g_dsh_late_wns) / 1e6,
++        (unsigned long long)atomic_load(&g_dsh_keep_n), (unsigned long long)atomic_load(&g_dsh_rk_n));
++    if (atomic_load(&g_dsh_ahead_dup)) LOG("RewindBox: lookahead or bind translations that found their key translated meanwhile (not translated twice): %llu", (unsigned long long)atomic_load(&g_dsh_ahead_dup));
++    // RewindBox (patch 0069): the MSL this device's translations leave, compiled from source at their load (nvn_mtl.m shader_build's fallback path), for the whole session: the line
++    //   the backend writes at the prewarm's end stops there, and only long frames showed the submit thread's part (IPA 765 frame 1892: about 690 ms in shader_build)
++    { uint64_t m[4]; nvn_be_msl_ns(m);
++      if (m[0]) LOG("RewindBox: MSL of this device's translations compiled from source in this session (shader_build's fallback path): %llu times, %.1f ms in all; on the submit thread %llu, %.1f ms",
++                    (unsigned long long)m[0], m[1] / 1e6, (unsigned long long)m[2], m[3] / 1e6); }
+     // #800 采样器归约变体（nvn_mtl.m se_done）：库里不带，绘制真绑了 min / max 采样器、本机不原生归约时在设备上编（本局现出或载上局现出的）
+     uint64_t se[2]; mtl_se_stats(se);
+     if (se[0] || se[1]) LOG("采样器归约变体：设备编好 %llu / 编不出 %llu", (unsigned long long)se[0], (unsigned long long)se[1]);
+@@ -148,16 +185,17 @@ void s2a_dsh_crash_dump(void) {
+ //   translator's lock; a key translated before this patch gets its file the next time it is translated. S2A_RB_DSH_KEEP=0 turns the keeping off
+ #define DSH_IN_MAGIC 0x314e4953u   // "SIN1"
+ static int dsh_in_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_DSH_KEEP"); v = !(e && !strcmp(e, "0")); } return v; }
+-static void dsh_in_save(const char *out, const char *k, int st, const void *ctl, size_t nctl, const void *cd, size_t ncode) {
+-    if (!dsh_in_on() || !out || !*out || !strcmp(out, "/dev/null") || !ctl || !cd || !nctl || !ncode || st < 0 || st > 5 || nctl > (1u << 20) || ncode >= (1u << 24)) return;
++static int dsh_in_save(const char *out, const char *k, int st, const void *ctl, size_t nctl, const void *cd, size_t ncode) {   // RewindBox (patch 0069): → 1 when it wrote the file
++    if (!dsh_in_on() || !out || !*out || !strcmp(out, "/dev/null") || !ctl || !cd || !nctl || !ncode || st < 0 || st > 5 || nctl > (1u << 20) || ncode >= (1u << 24)) return 0;
+     char p[1200], tmp[1216]; snprintf(p, sizeof p, "%s/%s_b.in", out, k);
+-    if (!access(p, F_OK)) return;
++    if (!access(p, F_OK)) return 0;
+     snprintf(tmp, sizeof tmp, "%s.tmp", p);
+-    int fd = open(tmp, O_WRONLY | O_CREAT | O_TRUNC, 0644); if (fd < 0) return;
++    int fd = open(tmp, O_WRONLY | O_CREAT | O_TRUNC, 0644); if (fd < 0) return 0;
+     const uint32_t h[4] = {DSH_IN_MAGIC, (uint32_t)st, (uint32_t)nctl, (uint32_t)ncode};
+     int ok = write(fd, h, sizeof h) == (ssize_t)sizeof h && write(fd, ctl, nctl) == (ssize_t)nctl && write(fd, cd, ncode) == (ssize_t)ncode;
+     close(fd);
+-    if (ok && !rename(tmp, p)) { atomic_fetch_add(&g_dsh_in_n, 1); atomic_fetch_add(&g_dsh_in_bytes, sizeof h + nctl + ncode); } else unlink(tmp);
++    if (ok && !rename(tmp, p)) { atomic_fetch_add(&g_dsh_in_n, 1); atomic_fetch_add(&g_dsh_in_bytes, sizeof h + nctl + ncode); return 1; }
++    unlink(tmp); return 0;
+ }
+ static int dsh_comp_locked(dsh_comp_fn comp, const char *k, int st, const void *cd, size_t ncode, const void *ctl, size_t nctl, const char *out) {
+     pthread_mutex_lock(&g_dsh_comp_mu); dsh_fly_set(out, k, ctl, nctl, cd, ncode);
+@@ -167,9 +205,10 @@ static int dsh_comp_locked(dsh_comp_fn comp, const char *k, int st, const void *
+ }
+ // 变体要的那份源码（审计 #1646 P1-123：输出类型 / 采样器归约 / 顶点补齐三处原先直接调 comp，不拿 g_dsh_comp_mu，后台预编在编时会并发进 C# 现编入口）：
+ //   锁里再查一次「兜底目录里已有本键源码」——锁外查过没有、等锁期间后台预编刚编完同一个键的，直接用，不重编。返回同 comp（0 = 成功）
++static __thread int t_dsh_src_made;   // RewindBox (patch 0069): this thread's last dsh_comp_src_locked ran the translator (0: the key was this translator's already)
+ static int dsh_comp_src_locked(dsh_comp_fn comp, const char *k, int st, const void *cd, size_t ncode, const void *ctl, size_t nctl, const char *out) {
+-    pthread_mutex_lock(&g_dsh_comp_mu); int rc = 0;
+-    if (!dsh_have(out, k)) { dsh_fly_set(out, k, ctl, nctl, cd, ncode); rc = comp(k, st, cd, ncode, ctl, nctl, out); if (!rc) dsh_in_save(out, k, st, ctl, nctl, cd, ncode); dsh_fly_clear(); }   // RewindBox (patch 0056): dsh_in_save
++    pthread_mutex_lock(&g_dsh_comp_mu); int rc = 0; t_dsh_src_made = 0;   // RewindBox (patch 0069): t_dsh_src_made
++    if (!dsh_have(out, k)) { t_dsh_src_made = 1; dsh_fly_set(out, k, ctl, nctl, cd, ncode); rc = comp(k, st, cd, ncode, ctl, nctl, out); if (!rc) dsh_in_save(out, k, st, ctl, nctl, cd, ncode); dsh_fly_clear(); }   // RewindBox (patch 0056): dsh_in_save
+     pthread_mutex_unlock(&g_dsh_comp_mu); return rc;
+ }
+ // RewindBox (patch 0056): whether a key's translation is this translator's already (1), or can be made again from the bytes kept beside it (2); 0 = neither. No file is read
+@@ -196,6 +235,7 @@ int dm_shader_retranslate(const char *k16) {
+     if (ok) { n = (size_t)h[2] + h[3]; b = malloc(n); ok = b && read(fd, b, n) == (ssize_t)n; }
+     close(fd);
+     if (!ok) { free(b); return 0; }
++    dsh_yield_late();   // RewindBox (patch 0069)
+     uint64_t t0 = now_ns();
+     int rc = dsh_comp_src_locked(comp, k, (int)h[1], b + h[2], h[3], b, h[2], out);
+     free(b);
+@@ -206,6 +246,43 @@ int dm_shader_retranslate(const char *k16) {
+                                       (unsigned long long)m, atomic_load(&g_dsh_re_ns) / 1e6, (unsigned long long)atomic_load(&g_dsh_re_fail));
+     return 1;
+ }
++// RewindBox (patch 0069): the start translated again only the stale keys its prewarm lists name (nvn_mtl.m warm_shader); a stage whose bytes are kept but whose line is not in
++//   the lists (translated ahead and never drawn, or its line not recorded) stayed stale until a draw met it. After the prewarm (nvn_mtl.m warm_finish), one utility pass lists
++//   the fallback directory and translates again kept stages (<key>_b.in) whose translation is not this translator's, one at a time. It finds nothing to do while the translator
++//   is unchanged. Bounded like the eager queue, whose background translations made .NET collect during play (11-07 above): at most S2A_RB_REKEPT_MAX a pass (default 256; 0 =
++//   none), the rest left to their first draw and counted. It holds back while the submit thread translates (dsh_yield_late) and while lookahead, bind or eager jobs wait to be
++//   claimed (g_dsh_bg_q: they are for the scene being drawn), and stops at a session stop (nvn_be_stopping), which waits for it (dm_shader_bg_busy). Once per fallback
++//   directory unless it stopped early, then the next start goes on. S2A_RB_REKEPT=0 turns it off
++static int dsh_rk_max(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_REKEPT_MAX"); v = e && *e ? atoi(e) : 256; if (v < 0) v = 0; } return v; }
++void dm_shader_retranslate_kept(void) {
++    static pthread_mutex_t mu = PTHREAD_MUTEX_INITIALIZER; static char last[1200];
++    const char *out = getenv("DM_MSL_FALLBACK"); const char *e = getenv("S2A_RB_REKEPT");
++    if ((e && !strcmp(e, "0")) || !dsh_rk_max() || !out || !*out || !strcmp(out, "/dev/null") || strlen(out) >= sizeof last || !dsh_in_on() || !dsh_comp() || nvn_be_stopping()) return;
++    pthread_mutex_lock(&mu); int again = !strcmp(last, out); if (!again) snprintf(last, sizeof last, "%s", out); pthread_mutex_unlock(&mu);
++    char *o = again ? NULL : strdup(out); if (!o) return;
++    atomic_fetch_add(&g_dsh_rk_busy, 1);   // before the block: a session drain from now on waits for it
++    dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
++        DIR *d = opendir(o);
++        uint64_t seen = 0, made = 0, failed = 0, left = 0, t0 = now_ns(); int stop = 0, max = dsh_rk_max(); struct dirent *de;
++        while (d && (de = readdir(d))) {
++            const char *nm = de->d_name; char k[17];
++            if (strlen(nm) != 21 || strcmp(nm + 16, "_b.in") || strspn(nm, "0123456789abcdef") != 16) continue;   // <16 hex digits>_b.in
++            memcpy(k, nm, 16); k[16] = 0; seen++;
++            if (nvn_be_stopping()) { stop = 1; break; }   // the session is stopping: its drain waits for this pass
++            const char *cur = getenv("DM_MSL_FALLBACK"); if (!cur || strcmp(cur, o)) { stop = 1; break; }   // another game's session began: its own start makes its pass
++            if (dsh_have(o, k)) continue;
++            if (made + failed >= (uint64_t)max) { left++; continue; }   // past the bound: only counted
++            while (atomic_load(&g_dsh_bg_q) > 0 && !nvn_be_stopping()) usleep(5000);   // jobs for the scene being drawn come first
++            if (nvn_be_stopping()) { stop = 1; break; }
++            if (dm_shader_retranslate(k)) { made++; atomic_fetch_add(&g_dsh_rk_n, 1); } else failed++;   // dm_shader_retranslate holds back for the submit thread itself
++        }
++        if (d) closedir(d);
++        if (stop || left) { pthread_mutex_lock(&mu); if (!strcmp(last, o)) last[0] = 0; pthread_mutex_unlock(&mu); }   // stopped early: the next start of this directory goes on
++        if (made || failed || left || stop) LOG("RewindBox: kept stages translated again in the background after the prewarm: %llu (%llu could not be), %llu more left to their first draw (S2A_RB_REKEPT_MAX=%d), %llu kept stages looked at%s, %.1f s",
++                                                (unsigned long long)made, (unsigned long long)failed, (unsigned long long)left, max, (unsigned long long)seen, stop ? ", stopped by the session's end" : "", (now_ns() - t0) / 1e9);
++        free(o); atomic_fetch_sub(&g_dsh_rk_busy, 1);
++    });
++}
+ static void dsh_eager_start(const uint8_t key[8], int st, const uint8_t *cd, uint32_t ncode, const uint8_t *ctl, uint32_t nctl, const char *out) {
+     if (atomic_fetch_add(&g_dsh_eager_n, 1) >= (uint64_t)dsh_eager_max()) { atomic_fetch_sub(&g_dsh_eager_n, 1); return; }
+     dsh_job *j = calloc(1, sizeof *j + nctl); uint8_t *code = j ? malloc(ncode) : NULL;
+@@ -217,9 +294,12 @@ static void dsh_eager_start(const uint8_t key[8], int st, const uint8_t *cd, uin
+     static dispatch_queue_t q; static dispatch_once_t once;
+     dispatch_once(&once, ^{ q = dispatch_queue_create("s2a.dsh.eager", dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_DEFAULT, 0)); });
+     char *o = strdup(out);
++    atomic_fetch_add(&g_dsh_bg_q, 1);   // RewindBox (patch 0069): the start pass holds back meanwhile
+     dispatch_async(q, ^{
++        dsh_yield_late();   // RewindBox (patch 0069): before the job is claimed, so the submit thread can still take it for a draw
+         int want = DSH_JOB_QUEUED;
+-        if (atomic_compare_exchange_strong(&j->state, &want, DSH_JOB_RUNNING)) {
++        int claimed = atomic_compare_exchange_strong(&j->state, &want, DSH_JOB_RUNNING); atomic_fetch_sub(&g_dsh_bg_q, 1);   // RewindBox (patch 0069): g_dsh_bg_q
++        if (claimed) {
+             char k[17]; for (int i = 0; i < 8; i++) snprintf(k + 2 * i, 3, "%02x", j->key[i]);
+             dsh_comp_fn comp = dsh_comp(); uint64_t t0 = now_ns();
+             int rc = !comp ? -1 : dsh_comp_locked(comp, k, j->st, j->code, j->ncode, j->ctl, j->nctl, o);
+@@ -266,12 +346,36 @@ static int dsh_reuse_stage(const char *k, char *stage, size_t n) {
+     for (int st = 0; st < 6; st++) if (dsh_json_eq(b, "stage", js[st])) { snprintf(stage, n, "%s", dsh_nm[st]); return 1; }
+     return 0;
+ }
+-void dm_shader_ahead(const char *k16, uint64_t code, const void *control) {
+-    if (!dsh_ahead_on() || !nvn2_on()) return;
+-    uint8_t key[8]; for (int i = 0; i < 8; i++) { unsigned v; if (sscanf(k16 + 2 * i, "%2x", &v) != 1) return; key[i] = (uint8_t)v; }
++// RewindBox (patch 0069): the stage bytes of a translation an earlier run made were never kept (patch 0056 keeps them only when it translates), so once the translator changes
++//   such a stage is stale and nothing can make it again before a draw meets it. IPA 765: the prewarm left 1,282 such keys out ("not in the shader map"), 0 had kept bytes, and
++//   the archive's 3,313 pipelines gave only the 1,997 whose lines survived; 782 stages were taken from an earlier run's translation in play and none of their bytes kept. At a
++//   bind (dm_shader_bound: the game's thread, bytes it holds now and that hash to the key), such a stage's bytes are copied and written on a utility queue, once a key
++static void dsh_keep_reused(const char *k, uint64_t code, const void *control) {
++    const char *out = getenv("DM_MSL_FALLBACK"); char p[1200];
++    if (!dsh_in_on() || !out || !*out || !strcmp(out, "/dev/null") || !control || !code || (uint64_t)(uintptr_t)control >= (1ull << 47) || !nvn2_ctl(control)) return;
++    snprintf(p, sizeof p, "%s/%s_b.in", out, k);
++    if (!access(p, F_OK)) return;
++    uint32_t ncode = 0, nctl = 0; int st = dsh_stage((const uint8_t *)(uintptr_t)code, control, &ncode, &nctl);
++    if (st < 0) return;
++    uint8_t *b = malloc((size_t)nctl + ncode); char *o = strdup(out), *kk = strdup(k);
++    if (!b || !o || !kk) { free(b); free(o); free(kk); return; }
++    memcpy(b, control, nctl); memcpy(b + nctl, (const void *)(uintptr_t)code, ncode);
++    static dispatch_queue_t q; static dispatch_once_t once;
++    dispatch_once(&once, ^{ q = dispatch_queue_create("s2a.dsh.keep", dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_UTILITY, 0)); });
++    dispatch_async(q, ^{ if (dsh_in_save(o, kk, st, b, nctl, b + nctl, ncode)) atomic_fetch_add(&g_dsh_keep_n, 1); free(b); free(o); free(kk); });
++}
++// RewindBox (patch 0069): compute stages translated ahead too (their library is still built at their first use: nvn_mtl.m prog_get builds a tensor-core network from its reflection
++//   alone). IPA 765: 5 of the 48 translations on the submit thread were compute stages (65.6 ms and 53.8 ms the longest). S2A_RB_CS_AHEAD=0: vertex and pixel only, as before
++static int dsh_cs_ahead_on(void) { static _Atomic int v = -1; int r = atomic_load(&v); if (r < 0) { const char *e = getenv("S2A_RB_CS_AHEAD"); r = !(e && !strcmp(e, "0")); atomic_store(&v, r); } return r; }
++static int dsh_ahead_(const char *k16, uint64_t code, const void *control, int bound);
++void dm_shader_ahead(const char *k16, uint64_t code, const void *control) { (void)dsh_ahead_(k16, code, control, 0); }   // RewindBox (patch 0069): the lookahead (nvn_mtl.m prog_peek)
++int dm_shader_bound(const char *k16, uint64_t code, const void *control) { return dsh_ahead_(k16, code, control, 1); }   // RewindBox (patch 0069): the game's bind (nvn_mtl.m nvn_be_prog_bound): control and code read just now
++static int dsh_ahead_(const char *k16, uint64_t code, const void *control, int bound) {   // RewindBox (patch 0069): bound = 1 from a bind; → 1 queued, 2 an earlier run's translation taken, 0 neither
++    if (!dsh_ahead_on() || !nvn2_on()) return 0;
++    uint8_t key[8]; for (int i = 0; i < 8; i++) { unsigned v; if (sscanf(k16 + 2 * i, "%2x", &v) != 1) return 0; key[i] = (uint8_t)v; }
+     char k[17]; snprintf(k, sizeof k, "%.16s", k16);
+-    if (!dsh_ahead_first(key)) return;
+-    const char *out = getenv("DM_MSL_FALLBACK"); if (!out || !*out || !strcmp(out, "/dev/null")) return;
++    if (!dsh_ahead_first(key)) return 0;
++    const char *out = getenv("DM_MSL_FALLBACK"); if (!out || !*out || !strcmp(out, "/dev/null")) return 0;
+     // RewindBox (patch 0043): a stage an earlier run translated is taken from the fallback directory before the control section is looked at, as the first use does
+     //   (dm_shader_miss_late: a frame replay's control pointer is the recording process's, 11-04 0100f6000… SIGBUS). Its stage comes from the translation's own json and is
+     //   registered whatever it is, as the first use registers it (dm_shader_reuse, which also counts it as reused: not counted twice here), so the lookahead's stage mask
+@@ -280,15 +384,16 @@ void dm_shader_ahead(const char *k16, uint64_t code, const void *control) {
+       if (dsh_reuse_stage(k, sn, sizeof sn)) {
+           mtl_shmap_rt_add(k, sn); atomic_fetch_add(&g_dsh_ahead_had, 1);
+           if (!strcmp(sn, dsh_nm[0]) || !strcmp(sn, dsh_nm[1])) mtl_shader_ahead_load(k, sn);
+-          return; } }
+-    if (!control || !code || (uint64_t)(uintptr_t)control >= (1ull << 47) || !nvn2_ctl(control)) return;
++          if (bound) dsh_keep_reused(k, code, control);   // RewindBox (patch 0069)
++          return 2; } }
++    if (!control || !code || (uint64_t)(uintptr_t)control >= (1ull << 47) || !nvn2_ctl(control)) return 0;
+     const uint8_t *ctl = control, *cd = (const uint8_t *)(uintptr_t)code; uint32_t ncode = 0, nctl = 0;
+     int st = dsh_stage(cd, ctl, &ncode, &nctl);
+-    if ((st != 0 && st != 1) || !dsh_comp()) return;   // not a vertex or pixel stage, or no translator: left to the first use, which reports what it cannot do
++    if ((st != 0 && st != 1 && !(st == 2 && dsh_cs_ahead_on())) || !dsh_comp()) return 0;   // not a vertex or pixel stage, or no translator: left to the first use, which reports what it cannot do; RewindBox (patch 0069): compute too
+     mkdir(out, 0755);
+     dsh_dump(k, ctl, nctl, code, ncode);   // DM_NVN_SHDUMP: as the first use saves a stage it translates (dsh_nvn2_pend), which this one no longer reaches once translated here
+     dsh_job *j = calloc(1, sizeof *j + nctl); uint8_t *copy = j ? malloc(ncode) : NULL;
+-    if (!j || !copy) { free(j); free(copy); return; }
++    if (!j || !copy) { free(j); free(copy); return 0; }
+     memcpy(j->key, key, 8); j->st = st; j->nctl = nctl; j->ncode = ncode; memcpy(j->ctl, ctl, nctl); memcpy(copy, cd, ncode); j->code = copy;
+     j->done = dispatch_semaphore_create(0); atomic_store(&j->ref, 2); atomic_store(&j->state, DSH_JOB_QUEUED);   // one reference for the table, one for the block
+     unsigned b = dsh_bucket(key);
+@@ -298,23 +403,31 @@ void dm_shader_ahead(const char *k16, uint64_t code, const void *control) {
+     static dispatch_queue_t q; static dispatch_once_t once;
+     dispatch_once(&once, ^{ q = dispatch_queue_create("s2a.dsh.ahead", dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INITIATED, 0)); });
+     char *o = strdup(out);
++    atomic_fetch_add(&g_dsh_bg_q, 1);   // RewindBox (patch 0069): the start pass holds back meanwhile
+     dispatch_async(q, ^{
++        dsh_yield_late();   // RewindBox (patch 0069): before the job is claimed, so the submit thread can still take it for a draw
+         int want = DSH_JOB_QUEUED;
+-        if (o && atomic_compare_exchange_strong(&j->state, &want, DSH_JOB_RUNNING)) {
++        int claimed = o && atomic_compare_exchange_strong(&j->state, &want, DSH_JOB_RUNNING); atomic_fetch_sub(&g_dsh_bg_q, 1);   // RewindBox (patch 0069): g_dsh_bg_q
++        if (claimed) {
+             char kk[17]; for (int i = 0; i < 8; i++) snprintf(kk + 2 * i, 3, "%02x", j->key[i]);
+             dsh_comp_fn comp = dsh_comp(); uint64_t t0 = now_ns();
+-            int rc = !comp ? -1 : dsh_comp_locked(comp, kk, j->st, j->code, j->ncode, j->ctl, j->nctl, o);
+-            j->ns = now_ns() - t0; atomic_fetch_add(&g_dsh_ahead_ns, j->ns);
++            // RewindBox (patch 0069): _src_: a bind on another thread can queue a key the submit thread is translating itself (dm_shader_miss_late), which this lock then serializes:
++            //   rechecked under the lock, it is not translated a second time (that also refreshed K_b.metal's time, so K's typed, sampler and vertex-pad variants looked stale)
++            int rc = !comp ? -1 : dsh_comp_src_locked(comp, kk, j->st, j->code, j->ncode, j->ctl, j->nctl, o);
++            int made = comp && t_dsh_src_made;
++            j->ns = now_ns() - t0; if (made) atomic_fetch_add(&g_dsh_ahead_ns, j->ns);
+             atomic_store(&j->state, rc ? DSH_JOB_FAILED : DSH_JOB_OK);   // a failure is translated again at the first use, which reports it
+             if (rc) atomic_fetch_add(&g_dsh_ahead_failed, 1);
+             else {
+-                uint64_t m = atomic_fetch_add(&g_dsh_ahead_ok, 1) + 1;
+-                LOG("RewindBox: lookahead translation %llu: %s (%s, %.1f ms)", (unsigned long long)m, kk, dsh_nm[j->st], j->ns / 1e6);
+-                mtl_shader_ahead_load(kk, dsh_nm[j->st]);
++                if (made) { uint64_t m = atomic_fetch_add(&g_dsh_ahead_ok, 1) + 1;
++                    LOG("RewindBox: lookahead translation %llu: %s (%s, %.1f ms)", (unsigned long long)m, kk, dsh_nm[j->st], j->ns / 1e6); }
++                else atomic_fetch_add(&g_dsh_ahead_dup, 1);   // RewindBox (patch 0069): translated meanwhile by another thread: not twice; its library is still loaded ahead
++                if (j->st != 2) mtl_shader_ahead_load(kk, dsh_nm[j->st]);   // RewindBox (patch 0069): a compute stage's library is built at its first use
+             }
+         } else { int idle = DSH_JOB_QUEUED; atomic_compare_exchange_strong(&j->state, &idle, DSH_JOB_CANCELLED); }   // no copy of the directory name: left to the first use
+         dispatch_semaphore_signal(j->done); free(o); dsh_job_put(j);
+     });
++    return 1;   // RewindBox (patch 0069): queued
+ }
+ void dm_shader_miss(const uint8_t key[8], uint64_t code, const void *control) {
+     char k[17]; for (int i = 0; i < 8; i++) snprintf(k + 2 * i, 3, "%02x", key[i]);
+@@ -391,7 +504,7 @@ int dm_shader_miss_late(const char *k16, uint64_t code, const void *control) {
+         { dsh_job *ja = dsh_job_take(key);
+           if (ja) { int want = DSH_JOB_QUEUED;
+               if (atomic_compare_exchange_strong(&ja->state, &want, DSH_JOB_CANCELLED)) atomic_fetch_add(&g_dsh_ahead_taken, 1);
+-              else if (atomic_load(&ja->state) == DSH_JOB_RUNNING) { dispatch_semaphore_wait(ja->done, DISPATCH_TIME_FOREVER); atomic_fetch_add(&g_dsh_ahead_waited, 1); }
++              else if (atomic_load(&ja->state) == DSH_JOB_RUNNING) { uint64_t w0 = now_ns(); dispatch_semaphore_wait(ja->done, DISPATCH_TIME_FOREVER); atomic_fetch_add(&g_dsh_ahead_waited, 1); dsh_late_wait_note(w0); }   // RewindBox (patch 0069): dsh_late_wait_note
+               ahead_ok = atomic_load(&ja->state) == DSH_JOB_OK;
+               dsh_job_put(ja); } }
+         if (ahead_ok && dm_shader_reuse(k)) { atomic_fetch_sub_explicit(&g_dsh_reused, 1, memory_order_relaxed); atomic_fetch_add_explicit(&g_dsh_ok, 1, memory_order_relaxed); return 1; }
+@@ -399,6 +512,7 @@ int dm_shader_miss_late(const char *k16, uint64_t code, const void *control) {
+         //   原先先读它（nvn2_ctl）再看兜底目录，Switch 2 录像一放就 SIGBUS（11-04 Pokopia f6000：dm_shader_miss_late+0x158）；现场局里同样先复用，结果不变（dsh_nvn2_pend 也是先查 dsh_have）
+         if (dm_shader_reuse(k)) return 1;
+         if (!control || !code || !nvn2_on() || !nvn2_ctl(control) || !dsh_nvn2_first(key)) return 0;
++        (void)dsh_ahead_first(key);   // RewindBox (patch 0069): translated here from now on: a bind on another thread (dm_shader_bound) does not queue it again meanwhile
+         int r = dsh_nvn2_pend(key, k, code, control, &e);
+         if (r) return r > 0;
+     }
+@@ -408,7 +522,7 @@ int dm_shader_miss_late(const char *k16, uint64_t code, const void *control) {
+         int want = DSH_JOB_QUEUED; uint64_t w0 = now_ns();
+         if (atomic_compare_exchange_strong(&j->state, &want, DSH_JOB_CANCELLED)) atomic_fetch_add(&g_dsh_eager_cancel, 1);
+         else {
+-            if (atomic_load(&j->state) == DSH_JOB_RUNNING) { dispatch_semaphore_wait(j->done, DISPATCH_TIME_FOREVER); atomic_fetch_add(&g_dsh_eager_waited, 1); }
++            if (atomic_load(&j->state) == DSH_JOB_RUNNING) { uint64_t w1 = now_ns(); dispatch_semaphore_wait(j->done, DISPATCH_TIME_FOREVER); atomic_fetch_add(&g_dsh_eager_waited, 1); dsh_late_wait_note(w1); }   // RewindBox (patch 0069): dsh_late_wait_note
+             int ok = atomic_load(&j->state) == DSH_JOB_OK && out && *out && dsh_have(out, k);
+             if (ok) {
+                 int st = e->st; free(e); dsh_job_put(j);
+@@ -423,7 +537,11 @@ int dm_shader_miss_late(const char *k16, uint64_t code, const void *control) {
+     if (nvn2_on() && nvn2_ctl(e->ctl)) memcpy(&ncode, e->ctl + 0x44, 4); else memcpy(&ncode, e->ctl + 0x704, 4);
+     const uint8_t *cd = (const uint8_t *)(uintptr_t)code; dsh_comp_fn comp = dsh_comp();
+     int rc = !code || !out || !*out || !comp ? -1 : 0;
+-    uint64_t t0 = now_ns(); if (!rc) rc = dsh_comp_locked(comp, k, e->st, cd, ncode, e->ctl, e->nctl, out);
++    uint64_t t0 = now_ns();
++    if (!rc) {   // RewindBox (patch 0069): background translations hold back meanwhile (dsh_yield_late); counted for the long-frame line
++        atomic_fetch_add(&g_dsh_late_waiting, 1); rc = dsh_comp_locked(comp, k, e->st, cd, ncode, e->ctl, e->nctl, out); atomic_fetch_sub(&g_dsh_late_waiting, 1);
++        atomic_fetch_add(&g_dsh_late_n, 1); atomic_fetch_add(&g_dsh_late_ns, now_ns() - t0);
++    }
+     // 翻译器报错（rc > 0：编了、没编出来）：不管开没开 DM_NVN_SHDUMP，都把这支的控制段 / 代码区存进兜底目录 <键>.fail.ctl / .fail.code。翻译器的确定性 bug 修前要能在本机复现，
+     //   而这类着色器多是运行时才遇到的（不在离线着色器表里），没有输入就只能请玩家开开关重走（#442 夜之仪式：切场景后 4 支计算着色器越界，帧率跌到 6 帧）。只在失败时写，每键一次
+     if (rc > 0 && out && *out && strcmp(out, "/dev/null")) {
+diff --git a/graphics/nvn/tests/t_nvn_pso_lookahead.m b/graphics/nvn/tests/t_nvn_pso_lookahead.m
+index fbff92a..738c732 100644
+--- a/graphics/nvn/tests/t_nvn_pso_lookahead.m
++++ b/graphics/nvn/tests/t_nvn_pso_lookahead.m
+@@ -77,12 +77,12 @@ int main(void) {
+         for (int i = 0; i < PSO_PEND_MAX; i++) { memset(&g_pp[i].k, 0, sizeof g_pp[i].k); memcpy(&g_pp[i].k, &i, sizeof i); g_pp[i].ps = nil; g_pp[i].done = 1; g_pp[i].late = 0; g_pp[i].stuck = 0; g_pp[i].used = 1; }
+         pthread_mutex_unlock(&g_pp_mu);
+         NvShader *fc = shader(lib, @"fb", "eeeeeeeeeeeeeeee_b", 1); pso_key kc; pso_key_fill(&kc, vs, fc, g_pass.cfmt, 0, 0, 1, 0);
+-        uint64_t d0 = g_pp_dropped; pso_pend_kick(&kc, vs, fc);
++        uint64_t d0 = g_pp_dropped; pso_pend_kick(&kc, vs, fc, 0);   // RewindBox (patch 0069): now = 0, a background guess as before
+         VERIFY(pso_pend_state(&kc) != 0 && g_pp_dropped == d0 + 1, "③ 表满、都编完没人取：腾出一格给新管线（回收 +%llu，新管线状态 %d）", (unsigned long long)(g_pp_dropped - d0), pso_pend_state(&kc));
+         { int t = 0; id got = pso_pend_take(&kc, &t, 0); VERIFY(got && !t, "③ 新管线编完能取到"); }
+         pthread_mutex_lock(&g_pp_mu); for (int i = 0; i < PSO_PEND_MAX; i++) { g_pp[i].done = 0; g_pp[i].used = 1; } pthread_mutex_unlock(&g_pp_mu);
+         NvShader *fd2 = shader(lib, @"fa", "ffffffffffffffff_b", 1); pso_key kd; pso_key_fill(&kd, vs, fd2, g_pass.cfmt, 0, 0, 1, 0);
+-        d0 = g_pp_dropped; pso_pend_kick(&kd, vs, fd2);
++        d0 = g_pp_dropped; pso_pend_kick(&kd, vs, fd2, 0);   // RewindBox (patch 0069): now = 0
+         VERIFY(pso_pend_state(&kd) == 0 && g_pp_dropped == d0, "③ 表满、全在编：拒（新管线不进表，调用方现建），不回收在编的");
+         pthread_mutex_lock(&g_pp_mu); for (int i = 0; i < PSO_PEND_MAX; i++) g_pp[i].used = 0; pthread_mutex_unlock(&g_pp_mu);
+ 

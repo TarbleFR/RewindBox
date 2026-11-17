@@ -1,0 +1,1014 @@
+diff --git a/graphics/gate.sh b/graphics/gate.sh
+index 56a07b9..c1cd015 100755
+--- a/graphics/gate.sh
++++ b/graphics/gate.sh
+@@ -210,7 +210,8 @@ run_present_residency() {
+   if [ "$build_status" = 0 ] && need_fps_limit; then
+     # 450 秒：核心矩阵 56 个场景按真实显示时钟跑（每个约 3 秒、动态档 4 阶段），10-30 加动态换档场景后整组实测 286–303 秒，
+     #   原 300 秒到点 rc=124、已跑完的全 PASS 也判红（11-01 gfx 钩子合入后层红的一项）；按实测 1.5 倍给
+-    timeout 450 env FPS_HIGH_REFRESH=0 FPS_WIDEN_LIB="$widen_lib" \
++    #   RewindBox (patch 0068): 510, the two S2A_RB_LINK_CAP30=0 dynamic twins add about 40 s (four phases of 109 frames each, about 18 s a case) to the 286-303 s
++    timeout 510 env FPS_HIGH_REFRESH=0 FPS_WIDEN_LIB="$widen_lib" \
+       bash graphics/nvn/tests/t_fps_limit.sh > "$LOG/fps_limit.log" 2>&1
+     fps_status=$?; redlog $fps_status "$LOG/fps_limit.log"
+     PRESENT_RESIDENCY_RESULT="$PRESENT_RESIDENCY_RESULT / 帧率上限核心矩阵：$(tail -2 "$LOG/fps_limit.log" | tr '\n' ' ')（退出 ${fps_status}；120 Hz 专项须在支持设备另跑）"
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index d1c4581..7badfae 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -2432,6 +2432,8 @@ static void render_thread_qos(void) {
+ }
+ static int frame_rec(void);
+ static _Atomic uint64_t g_nvn_ns;   // Host time spent in submit / present this frame (replay encoding + present), used by the timing instrumentation
++// RewindBox (patch 0068): the calling thread's wait for the submit lock (submissions and a present's cross-queue flush), cumulative ns, for the long-frame line
++static __thread uint64_t t_rb_lock_ns;
+ 
+ // ---------- Lifecycle: dm_gfx_suspend (called before iOS goes to the background; equivalent to Switch suspend) ----------
+ // on=1: subsequent submits / presents block until on=0; before returning, wait for in-progress submit / present calls to exit and for all in-flight GPU work to complete (iOS requires no GPU work in the background).
+@@ -2787,7 +2789,7 @@ void nvn_hle_piece_begun(void) { nvn_ft_poll(); }
+ NVN(nvnQueueSubmitCommands, void, NVNqueue *q, int n, const NVNcommandHandle *h) {
+     gfx_enter();
+     if (dm_gfx_session_stopping()) { gfx_leave(); return; }
+-    pthread_mutex_lock(&g_sub_mu);
++    if (pthread_mutex_trylock(&g_sub_mu)) { uint64_t w0 = now_ns(); pthread_mutex_lock(&g_sub_mu); t_rb_lock_ns += now_ns() - w0; }   // RewindBox (patch 0068): a contended submit lock is timed
+     if (dm_gfx_session_stopping()) { pthread_mutex_unlock(&g_sub_mu); gfx_leave(); return; }
+     render_thread_qos();
+     thsc_lv lv0[2]; thr_counts_lv(lv0);
+@@ -2980,6 +2982,8 @@ static void trow(uint64_t f, const char *name, double v);
+ static void set_time_constraint(uint64_t period_ns);
+ static void rt_comp_tick(uint64_t period_ns);
+ static double g_rt_comp_ms;   // Currently declared real-time computation amount (ms; 0 = not declared)
++static double g_rt_bound_ms; static int g_rt_over = -1, g_rt_over_bound = -1;   // RewindBox (patch 0068): see rt_comp_tick
++static int rb_rt_bound(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_RT_BOUND"); v = e && !strcmp(e, "1"); } return v; }   // RewindBox (patch 0068): off by default, see rt_comp_tick
+ static double g_rt_period_ms;
+ static void sleep_until_ns(uint64_t dl);
+ static uint64_t present_period(const win_t *o);
+@@ -2995,6 +2999,9 @@ void nvn_be_barrier_stats(uint64_t *skip, uint64_t *full);
+ extern uint32_t nvn_be_present_qos(void);
+ static uint64_t g_frame;
+ static uint64_t g_acq_wait_ns, g_pq_wait_ns;   // Accumulated display-link wait / wait for the present queue to return inside acquire, recorded per frame at present (there can be several acquires within one frame)
++__attribute__((weak)) void nvn_be_present_wait_taken(double period) { (void)period; }   // RewindBox (patch 0068): nvn_mtl.m; backends without a display link do not wait
++__attribute__((weak)) void nvn_be_blocked_ns(uint64_t out[4]) { memset(out, 0, 4 * sizeof *out); }   // RewindBox (patch 0068): nvn_mtl.m; 0 elsewhere
++__attribute__((weak)) double nvn_be_gpu_probe_ms(void) { return -1; }   // RewindBox (patch 0068): nvn_mtl.m; none elsewhere
+ static uint64_t g_fs_start, g_fs_wait;   // frame step (fstep_tick): when the first acquire after a present returned (the frame's start, 0 = none yet), and its pacing wait
+ uint64_t dm_nvn_frame_count(void) { return g_frame; }
+ extern uint64_t g_t0_ns;   // Host process start point (main.c; same base as the UIMSG timestamps)
+@@ -3041,6 +3048,11 @@ NVN(nvnWindowAcquireTexture, NVNwindowAcquireTextureResult, NVNwindow *w, NVNsyn
+         uint64_t p0 = now_ns();
+         if (nvn_be_link_active()) { if (!nvn_be_link_wait_tick(present_itv(o), period ? 2 * period : 33333333ull) && wait) sleep_until_ns(at); }   // DM_PRESENT_LINK: pacing fully follows the display link (wait for the present interval's display-link ticks when running fast, go immediately when behind); our own 60 Hz clock is only the fallback when no display-link tick arrives
+         else if (wait) sleep_until_ns(at);
++        // RewindBox (patch 0068): at most one frame between the game's present and the display. In the IPA 765 race (Mario Kart World, iPhone17,2, 30 FPS limit) a frame waited about
++        //   one whole period in the present queue: 0 empty ticks in 300 presents, game enqueue to target display p50 85-93 ms (2.6 periods). The display link takes the frames in order,
++        //   one a tick, so once one frame waits it waits for good while the game keeps the pace. The frame now starts only once the link has taken every frame queued before it
++        //   (nvn_be_present_wait_taken, nvn_mtl.m: only for a held period over 25 ms on a 60 / 120 Hz link, where a missed tick costs one refresh; S2A_RB_PRESENT_DEPTH=0 turns it off)
++        if (nvn_be_link_active()) nvn_be_present_wait_taken(period / 1e9);
+         pace_ns = now_ns() - p0;
+     } else {   // DM_DETCLOCK_PACE=1 (used by the screenshot gate): while the guest clock advances per frame, each frame's wall clock is no shorter than one step -- frame count and in-game time are deterministic, and the background loading thread has at least one step of wall clock available per frame;
+                // When the machine is fully loaded frames only get slower and the background only gets more wall clock, so the picture captured at "the Nth frame after the message" is independent of load
+@@ -3048,7 +3060,9 @@ NVN(nvnWindowAcquireTexture, NVNwindowAcquireTextureResult, NVNwindow *w, NVNsyn
+         if (pace < 0) { const char *e = getenv("DM_DETCLOCK_PACE"), *d = getenv("DM_DETCLOCK"); step = d ? strtoull(d, 0, 0) : 0; pace = e && atoi(e) && step; }
+         if (pace) { if (last && now_ns() < last + step) sleep_until_ns(last + step); last = now_ns(); }
+     }
+-    g_acq_wait_ns += wait; trow(g_frame, "@late_ms", wait ? (now_ns() - at) / 1e6 : 0);
++    // RewindBox (patch 0068): the measured pacing wait, not the planned one (at - now, which the display-link path does not sleep): in the IPA 765 log 11 long-frame lines had a
++    //   display-link wait longer than the whole frame (frame 5: 54.2 ms in 43.4 ms). The deterministic clock keeps the planned wait (it sleeps no pacing wait here)
++    g_acq_wait_ns += dm_detclock_enabled() ? wait : pace_ns; trow(g_frame, "@late_ms", wait ? (now_ns() - at) / 1e6 : 0);
+     // The previous present of this texture has not yet been processed by the present thread (display cannot keep up, a whole swapchain round behind): wait for it to be returned, then hand it to the game to draw
+     uint64_t tk = *idx < 4 ? o->ticket[*idx] : 0;
+     if (tk) { uint64_t w0 = now_ns(); nvn_be_present_wait(tk); g_pq_wait_ns += now_ns() - w0; }
+@@ -3128,7 +3142,12 @@ __attribute__((weak)) int dm_low_power_now(void) { return 0; }   // Low Power Mo
+ //   involuntary context switches, the engine's write-protection faults and their mprotect time, and the display-link and present-queue waits. One getrusage call and
+ //   one thread clock read a frame
+ typedef struct { uint64_t f; double fr, nv, t_s, make_ms, up_mb, up_ms; unsigned pso, lib, up, rup;
+-                 double cpu_ms, thr_ms, mp_ms, acq_ms, pq_ms; long flt, majflt, inblk, vcsw, ivcsw; unsigned wpf; } lf_rec;   // cpu_ms ... wpf: patch 0065 (thr_ms -1: the presenting thread changed)
++                 double cpu_ms, thr_ms, mp_ms, acq_ms, pq_ms; long flt, majflt, inblk, vcsw, ivcsw; unsigned wpf;   // cpu_ms ... wpf: patch 0065 (thr_ms -1: the presenting thread changed)
++                 double per, rd_mb, drw_ms, blk[5]; } lf_rec;   // RewindBox (patch 0068): the present period (ms), storage read (MB), drawable waits, the presenting thread's blocked time by reason (-1: not known)
++// RewindBox (patch 0068): storage the process read (runtime/src/energy.c, proc_pid_rusage ri_diskio_bytesread); none in hosts without it
++__attribute__((weak)) int s2a_disk_io(uint64_t *written, uint64_t *read, uint64_t *pageins, uint64_t *logical) { (void)written; (void)read; (void)pageins; (void)logical; return -1; }
++// RewindBox (patch 0068): the long-frame thresholds follow the frame's present period (S2A_RB_LONGFRAME_PERIOD=0: 20 / 16.7 ms and the 16-frame mean only, as before)
++static int rb_lf_period(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_LONGFRAME_PERIOD"); v = !(e && !strcmp(e, "0")); } return v; }
+ static lf_rec g_lf[LFN];
+ __attribute__((weak)) void dm_longframe_note(const char *what) { LOG("[longframe] %s", what); }   // Default (graphics unit tests); the strong definition in the host's diag.c adds scene context and writes perf.txt
+ extern void nvn_be_create_ns(uint64_t *lib_ns, uint64_t *pso_ns); extern uint64_t nvn_be_upload_bytes(void); extern void nvn_be_pkg_stats(uint64_t *uploads, uint64_t *reuploads);
+@@ -3220,13 +3239,20 @@ static void tsummary(uint64_t frame) {
+         double v[TWIN]; memcpy(v, g_tw[k], n * sizeof *v); qsort(v, n, sizeof *v, dcmp);
+         o += snprintf(line + o, sizeof line - o, " %s p50 %.2f / p95 %.2f / max %.2f ms (%u frames);", g_tname[k], v[n / 2], v[(n * 95) / 100 < n ? (n * 95) / 100 : n - 1], v[n - 1], n);
+     }
+-    LOG("[nvn] timing up to frame %llu:%s", frame, line);
++    // RewindBox (patch 0068): the thermal state and a fixed GPU compute probe in the timing line. In the IPA 765 test the state was 2 (serious) from frame 3212 and the GPU took 25-28 ms
++    //   for the passes that took 10-11 ms at frames 3727-3731 at the same draw count: the probe (nvn_mtl.m nvn_be_gpu_probe_ms, the same small dispatch every 300 frames, the previous
++    //   window's time) tells a slower GPU clock or contention from more work. S2A_RB_GPU_PROBE=0: no probe
++    { char pr[48] = "not measured"; double pm = nvn_be_gpu_probe_ms(); if (pm >= 0) snprintf(pr, sizeof pr, "%.3f ms", pm);
++      LOG("[nvn] timing up to frame %llu:%s thermal state %d; fixed GPU probe %s", frame, line, dm_thermal_now(), pr); }
+     { uint32_t rw, rh, rf; nvn_be_rt_window(&rw, &rh, &rf); char sl[300] = ""; s2a_fps_slots_note(sl, sizeof sl);   // 11-02：动态分辨率有没有把渲染尺寸抬上去
+       LOG("[nvn] render targets up to frame %llu: largest %ux%u (Metal format %u)%s%s", frame, rw, rh, rf, sl[0] ? "; frame-rate table slots " : "", sl); }
+-    double tgt = 1000.0 / nvn_be_fps_target();   // milliseconds one frame should take: 16.7 at 60 fps, 33.3 when the game itself asks for 30 (the over-time / dropped-frame counts below use it)
++    // RewindBox (patch 0068): the target takes the user's frame-rate limit too (nvn_fps_period, as pres_expect_ms does). Under the 30 FPS limit of the IPA 765 test it was 16.7 ms whenever
++    //   the game asked for 60, and the window lines said '>16.7ms 293 / 300' and 'almost every frame slow: the game renders below the target rate' at a frame time p50 of 33.27 ms
++    double tgt = 1000.0 * nvn_fps_period(1.0 / nvn_be_fps_target());   // milliseconds one frame should take: 16.7 at 60 fps, 33.3 when the game itself asks for 30 or under a 30 limit (the over-time / dropped-frame counts below use it)
++    char capn[32] = ""; { int cap = nvn_fps_limit(); if (cap && fabs(1000.0 / cap - tgt) < 0.05) snprintf(capn, sizeof capn, " (limit %d)", cap); }   // RewindBox (patch 0068)
+     { unsigned n = g_tn[0] < TWIN ? g_tn[0] : TWIN, over = 0; double v[TWIN];   // frame interval gets its own line (M1 baseline): number of frames longer than one frame period in this window and p99
+       if (n) { memcpy(v, g_tw[0], n * sizeof *v); qsort(v, n, sizeof *v, dcmp); for (unsigned i = 0; i < n; i++) over += v[i] > tgt;
+-        LOG("[nvn] frame interval up to frame %llu: >%.1fms %u / %u frames, p99 %.2f ms", frame, tgt, over, n, v[(n * 99) / 100 < n ? (n * 99) / 100 : n - 1]);
++        LOG("[nvn] frame interval up to frame %llu: >%.1fms%s %u / %u frames, p99 %.2f ms", frame, tgt, capn, over, n, v[(n * 99) / 100 < n ? (n * 99) / 100 : n - 1]);   // RewindBox (patch 0068): capn
+         unsigned slow = 0; for (unsigned i = 0; i < n; i++) slow += v[i] > 1.5 * tgt;   // slow frame = longer than 1.5 periods (the five-question slow-frame rule); "> one period" is jitter at 60 fps (~half the frames)
+         load_line(frame, slow, n); } }
+     { unsigned n = g_presn < TWIN ? g_presn : TWIN, k = 0, drop = 0, discard = 0; double v[TWIN];   // on-screen present: dropped frame = on screen longer than its hold × 1.5 (pres_expect_ms) or discarded
+@@ -3267,7 +3293,10 @@ static void tsummary(uint64_t frame) {
+             memcpy(ptv, tv, sizeof ptv); }
+         if (frame % 300 == 0) { unsigned wn = 0; uint32_t wq = dm_guest_work_qos(&wn); thread_extended_info_data_t xi; mach_msg_type_number_t xc = THREAD_EXTENDED_INFO_COUNT; int okx = thread_info(pthread_mach_thread_np(pthread_self()), THREAD_EXTENDED_INFO, (thread_info_t)&xi, &xc) == KERN_SUCCESS;
+             thread_time_constraint_policy_data_t tp; mach_msg_type_number_t tc = THREAD_TIME_CONSTRAINT_POLICY_COUNT; boolean_t def = 0; int rt_live = thread_policy_get(pthread_mach_thread_np(pthread_self()), THREAD_TIME_CONSTRAINT_POLICY, (thread_policy_t)&tp, &tc, &def) == KERN_SUCCESS && !def;   // def = 1: the real-time policy is not in effect (never set / revoked)
+-            LOG("[nvn] thread policy: main thread real-time computation %.2f ms / period %.2f ms, real-time policy %s, current priority %d (base %d, policy %d); %u worker threads QoS %#x; present QoS %#x", g_rt_comp_ms, g_rt_period_ms, rt_live ? "in effect" : "not in effect", okx ? xi.pth_curpri : -1, okx ? xi.pth_priority : -1, okx ? xi.pth_policy : -1, wn, wq, nvn_be_present_qos()); }
++            // RewindBox (patch 0068): the frames over the declaration and over the bound (rt_comp_tick)
++            LOG("[nvn] thread policy: main thread real-time computation %.2f ms / period %.2f ms, real-time policy %s, current priority %d (base %d, policy %d); %u worker threads QoS %#x; present QoS %#x; "
++                "of the last 120 frames %d over the declared computation, a bound of max(p90 x 1.25, min(peak x 1.1, half the period)) = %.2f ms would have %d over it (%s; RewindBox patch 0068)", g_rt_comp_ms, g_rt_period_ms, rt_live ? "in effect" : "not in effect", okx ? xi.pth_curpri : -1, okx ? xi.pth_priority : -1, okx ? xi.pth_policy : -1, wn, wq, nvn_be_present_qos(),
++                g_rt_over, g_rt_bound_ms, g_rt_over_bound, rb_rt_bound() ? "declared, S2A_RB_RT_BOUND=1" : "not declared; S2A_RB_RT_BOUND=1 declares it"); }
+         py = cy; pk = ck; pw = cw; }
+       pi = ci; pc = cc; pd = dr_; pf = frame; }
+     uint64_t up, re, fa, pr; nvn_be_pkg_stats(&up, &re); nvn_dirty_stats(&fa, &pr);
+@@ -3335,6 +3364,11 @@ static int rt_comp_fixed_ms(void) { static int v = -2; if (v == -2) { const char
+ // The fixed value, or in auto mode the computation declared so far (auto's starting value of 2 ms only the first time): a reset to 2 ms at each period change under-declared the thread until the next p90
+ static void set_time_constraint(uint64_t period_ns) { int f = rt_comp_fixed_ms(); set_time_constraint_comp(period_ns, f > 0 ? (uint64_t)f * 1000000ull : g_rt_comp_ms > 0 ? (uint64_t)(g_rt_comp_ms * 1e6) : 2000000ull); }
+ // Called every frame at acquire: records this thread's CPU time since the last call; in auto mode re-declares based on p90
++// RewindBox (patch 0068): in the IPA 765 race (Mario Kart World, iPhone17,2) the cadence thread declared 30 ms of computation in a 33.3 ms period 12 times in 25 (the cap, 0.9 periods,
++//   reached through the window's peak), on a phone with two performance cores, while the performance cores ran at 1.64-2.68 GHz. A bound that keeps the measured need (p90 x 1.25)
++//   but lets the peak count only up to half the period would declare less; whether a frame past the declaration then stalls 30-60 ms as Dark Souls Remastered did (below) only a
++//   device can say, so the bound is off by default (S2A_RB_RT_BOUND=1 declares it) and the thread policy line gives, for the last window, the frames over the declaration and the
++//   frames that would be over the bound. Acquire thread only; the counts are read by the timing summary
+ static void rt_comp_tick(uint64_t period_ns) {
+     if (rt_comp_fixed_ms() > 0 || !period_ns || !g_rt_comp_ms) return;
+     static uint64_t last; static double win[120]; static int n;
+@@ -3345,6 +3379,10 @@ static void rt_comp_tick(uint64_t period_ns) {
+     // Also the window's peak: every frame that ran past the declaration stalled the thread for 30–60 ms. Dark Souls Remastered's render thread needs 1.9–2.0 ms a frame with one or
+     // two frames in 120 near 4.4 ms; declared at 2.5 ms (p90 × 1.25) it stalled about once a second, at 30 fps and at 60; declared above the peak it held 60 fps at the same CPU energy
+     double p90 = v[107], comp = fmax(p90 * 1.25, v[119] * 1.1), cap = period_ns * 0.9 / 1e6; if (comp > cap) comp = cap; if (comp < 1) comp = 1;
++    double bound = fmax(p90 * 1.25, fmin(v[119] * 1.1, period_ns * 0.5 / 1e6)); if (bound > cap) bound = cap; if (bound < 1) bound = 1;   // RewindBox (patch 0068)
++    int over = 0, over_b = 0; for (int i = 0; i < 120; i++) { over += v[i] > g_rt_comp_ms; over_b += v[i] > bound; }
++    g_rt_over = over; g_rt_over_bound = over_b; g_rt_bound_ms = bound;
++    if (rb_rt_bound()) comp = bound;
+     if (comp > g_rt_comp_ms * 1.15 || comp < g_rt_comp_ms * 0.85) set_time_constraint_comp(period_ns, (uint64_t)(comp * 1e6));
+ }
+ static void sleep_until_ns(uint64_t dl) {   // absolute time on the monotonic clock
+@@ -3390,6 +3428,9 @@ static int video_cap(void) {
+     if (say_busy) LOG("[nvn] 视频按片源帧率出图：在解 ≤ 30 帧视频，但游戏每帧绘制 %.0f（> %d，视频只是画面里的一块），不封顶", dpf, VP_DRAW_MAX);
+     return on;
+ }
++// RewindBox (patch 0068): whether a video caps the presents at 30 now, for the reason of the 'present pacing mode' line (nvn_mtl.m link_sync); any thread
++int nvn_rb_video_paced(void);
++int nvn_rb_video_paced(void) { pthread_mutex_lock(&g_vid_mu); int v = g_vid_cap; pthread_mutex_unlock(&g_vid_mu); return v; }
+ static int fps_step_cap(void) {
+     if (!dm_fps_state) return 0;
+     uint32_t b = __atomic_load_n((uint32_t *)dm_fps_state, __ATOMIC_RELAXED); float t; memcpy(&t, &b, sizeof t);
+@@ -3564,7 +3605,7 @@ static void fstep_tick(const win_t *o) {
+ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+     if (dm_gfx_session_stopping()) return;
+     win_t *o = (win_t *)w; o->presents++;
+-    if (q) { pthread_mutex_lock(&g_sub_mu); nvn_be_xq_flush(q, "a present on it"); pthread_mutex_unlock(&g_sub_mu); }   // 上屏排在这条队列的工作后面：停在跨队列等待上的部分先放行（nvn_xqueue.inc）
++    if (q) { if (pthread_mutex_trylock(&g_sub_mu)) { uint64_t w0 = now_ns(); pthread_mutex_lock(&g_sub_mu); t_rb_lock_ns += now_ns() - w0; } nvn_be_xq_flush(q, "a present on it"); pthread_mutex_unlock(&g_sub_mu); }   // 上屏排在这条队列的工作后面：停在跨队列等待上的部分先放行（nvn_xqueue.inc）  RewindBox (patch 0068): a contended submit lock is timed (the parked work it replays is CPU, and its own waits land in nvn_be_blocked_ns)
+     if (q && dev_ok(((queue_t *)q)->dev) && atomic_load(&g_cur_dev) != ((queue_t *)q)->dev) { pthread_mutex_lock(&g_sub_mu); dev_follow(((queue_t *)q)->dev); pthread_mutex_unlock(&g_sub_mu); }   // 上屏翻转跟上屏队列的设备
+     {   // 节拍主人：被上屏这张的取图线程（取图线程未知 = 上屏线程自己）；连续 PACE_SWITCH 次同一个才换
+         uintptr_t by = idx >= 0 && idx < 4 ? atomic_load_explicit(&g_acq_thr[idx], memory_order_relaxed) : 0; if (!by) by = (uintptr_t)pthread_self();
+@@ -3663,6 +3704,7 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+         // Accounting: number of synchronous creations on the submit thread this frame + a timestamp on the same clock as UIMSG (offline, frames are split into front end / loading / in-run by the loading screen intervals)
+         static uint64_t plib, ppso; uint64_t lib_, pso_; nvn_be_create_stats(&lib_, &pso_);
+         trow(f, "@lib_new", (double)(lib_ - plib)); trow(f, "@pso_new", (double)(pso_ - ppso));
++        double rb_drw_ms = nvn_be_drawable_ns_take() / 1e6;   // RewindBox (patch 0068): taken once, for the TSV row below and the long-frame line
+         {   // long-frame log: this frame's items are first recorded into the ring; whether to print is decided 8 frames later, once the GPU time has arrived (see below)
+             static uint64_t plns, ppns, pup, prup, pub; uint64_t lns, pns, up, rup, ub; nvn_be_create_ns(&lns, &pns); nvn_be_pkg_stats(&up, &rup); ub = nvn_be_upload_bytes();
+             lf_rec *r = &g_lf[f % LFN]; r->f = f; r->fr = fr; r->nv = nv; r->t_s = (now_ns() - g_t0_ns) / 1e9; r->pso = (unsigned)(pso_ - ppso); r->lib = (unsigned)(lib_ - plib);
+@@ -3681,10 +3723,22 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+                 r->thr_ms = pcpu && pthread_equal(th, pth) ? (double)(c - pcpu) / 1e6 : -1; pth = th; pcpu = c;
+                 r->wpf = rb_wpf; r->mp_ms = rb_mp_ms; r->acq_ms = g_acq_wait_ns / 1e6; r->pq_ms = g_pq_wait_ns / 1e6;
+             }
++            {   // RewindBox (patch 0068): storage read (ru_inblock stayed 0 on iOS: 0 in 397 of 397 IPA 765 lines, frame 337 included with 50,677 storage reads), drawable waits, and the
++                //   presenting thread's blocked time by reason since its previous present: in the late race frames of 46-60 ms submit+present took 25-40 ms with 11-20 ms of thread CPU,
++                //   and nothing named the rest. One proc_pid_rusage call a frame; the reasons are thread-local sums (nvn_be_blocked_ns, t_rb_lock_ns)
++                static uint64_t prd; static int hrd; uint64_t w_, rd_, pi_, lw_;
++                if (!s2a_disk_io(&w_, &rd_, &pi_, &lw_)) { r->rd_mb = hrd ? (double)(rd_ - prd) / 1048576.0 : -1; prd = rd_; hrd = 1; } else r->rd_mb = -1;
++                r->drw_ms = rb_drw_ms;
++                static pthread_t bth; static int hb; static uint64_t pb[5]; uint64_t mb[4], bk[5]; nvn_be_blocked_ns(mb);
++                bk[0] = t_rb_lock_ns; bk[1] = mb[0]; bk[2] = mb[1]; bk[3] = mb[2]; bk[4] = mb[3];
++                int same = hb && pthread_equal(bth, pthread_self());
++                for (int k = 0; k < 5; k++) r->blk[k] = same ? (double)(bk[k] - pb[k]) / 1e6 : -1;
++                memcpy(pb, bk, sizeof pb); bth = pthread_self(); hb = 1;
++            }
+         }
+         plib = lib_; ppso = pso_;
+         trow(f, "@t_s", (now_ns() - g_t0_ns) / 1e9);
+-        trow(f, "@drawable_ms", nvn_be_drawable_ns_take() / 1e6);
++        trow(f, "@drawable_ms", rb_drw_ms);   // RewindBox (patch 0068): rb_drw_ms
+         uint64_t sw = atomic_exchange(&g_sub_wall_ns, 0); g_cpath[f % 16].f = f; g_cpath[f % 16].t = t0 - sw;
+         trow(f, "@sub_wall_ms", sw / 1e6); trow(f, "@sub_cpu_ms", atomic_exchange(&g_sub_cpu_ns, 0) / 1e6); trow(f, "@sub_instr", (double)atomic_exchange(&g_sub_instr, 0));
+     } else atomic_store(&g_nvn_ns, 0);
+@@ -3693,15 +3747,28 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+         { lf_rec *r = &g_lf[(f - 8) % LFN];   // long-frame log (on by default, DM_LONGFRAME=0 turns it off): a line is printed only when the whole frame > 20 ms or GPU > 16.7 ms, and it is clearly above recent conditions
+           static int on = -1; if (on < 0) { const char *e = getenv("DM_LONGFRAME"); on = !(e && !strcmp(e, "0")); }
+           // "Long" is relative to recent conditions: when running steadily at 30 fps (menus / windowless host) or under sustained overload, every frame is > 20 ms; those are not long frames and must not flood the log - a frame has to be 40% above the sliding mean of the last 16 frames to count
+-          static double ef = 16.7, eg = 8; int lf = r->fr > 20.0 && r->fr > 1.4 * ef, lg = g > 16.7 && g > 1.3 * eg;
++          // RewindBox (patch 0068): the thresholds follow the frame's present period (the larger of its own and the frame before's: the hold it was shown for). In the IPA 765 race (Mario
++          //   Kart World, iPhone17,2, 30 FPS limit) 22 lines were ordinary 33 ms frames with 21-28 ms of GPU (GPU > 16.7 ms), while 15 of the 27 holds of 50 ms or more in the recording had
++          //   no line: in 22-25 fps stretches the 16-frame mean was 40-45 ms and 55-60 ms frames stayed under 1.4 times it. Now the whole frame counts above max(20 ms, 1.25 periods) and
++          //   the GPU above max(16.7 ms, one period), and a frame of 1.5 periods and 1.2 times the mean or more (a visible hitch in a slow stretch) is logged too, at most 10 such a second
++          double per = 0; if (rb_lf_period() && r->f == f - 8) { const lf_rec *rq = &g_lf[(f - 9) % LFN]; per = r->per; if (rq->f == f - 9 && rq->per > per) per = rq->per; }
++          static double ef = 16.7, eg = 8; int lf = r->fr > (1.25 * per > 20.0 ? 1.25 * per : 20.0) && r->fr > 1.4 * ef, lg = g > (per > 16.7 ? per : 16.7) && g > 1.3 * eg;
++          int la = !lf && !lg && per > 0 && r->fr > 1.5 * per && r->fr > 1.2 * ef; static uint64_t la_t; static unsigned la_n, la_skip;   // RewindBox (patch 0068): and 1.2 times the mean, so a game steadily slower than its period does not flood the log
++          if (la && on && r->f == f - 8 && f - 8 > 0) { uint64_t t = now_ns(); if (t - la_t >= 1000000000ull) { la_t = t; la_n = 0; } if (la_n >= 10) { la_skip++; la = 0; } else la_n++; }
+           if (r->f == f - 8) { ef += ((r->fr < 3 * ef ? r->fr : 3 * ef) - ef) / 16; eg += ((g < 3 * eg ? g : 3 * eg) - eg) / 16; }
+-          if (on && r->f == f - 8 && f - 8 > 0 && (lf || lg)) { char b[1024];   // RewindBox (patch 0065): 1024, the line is longer
++          if (on && r->f == f - 8 && f - 8 > 0 && (lf || lg || la)) { char b[1536];   // RewindBox (patch 0065): 1024, the line is longer; RewindBox (patch 0068): 1536
+               snprintf(b, sizeof b, "frame %llu (%.2f s) whole frame %.1f ms, submit+present %.1f ms, GPU %.1f ms; new pipelines %u + shader libraries %u, %.1f ms in all; texture uploads %u first + %u re-uploads, %.1f MB / %.1f ms",
+                        (unsigned long long)r->f, r->t_s, r->fr, r->nv, g, r->pso, r->lib, r->make_ms, r->up, r->rup, r->up_mb, r->up_ms);
+               { size_t bl = strlen(b);   // RewindBox (patch 0065): the process during the frame (-1 = not known)
+-                snprintf(b + bl, sizeof b - bl, "; process CPU %.1f ms (%.1f cores), presenting thread CPU %.1f ms; page faults %ld, %ld of them reading storage; blocks read %ld; context switches %ld voluntary, %ld involuntary; "
++                // RewindBox (patch 0068): storage read in MB in place of the blocks read (always 0); the switches in all (ru_nivcsw is the task's switches less ru_nvcsw on Darwin) and the BSD sleeps among them
++                long csw = r->vcsw >= 0 && r->ivcsw >= 0 ? r->vcsw + r->ivcsw : -1;
++                snprintf(b + bl, sizeof b - bl, "; process CPU %.1f ms (%.1f cores), presenting thread CPU %.1f ms; page faults %ld, %ld of them reading storage; storage read %.1f MB; context switches %ld in all, %ld of them BSD sleeps; "
+                          "write-protection faults %u, %.1f ms in mprotect; display-link wait %.1f ms, present-queue wait %.1f ms", r->cpu_ms, r->cpu_ms >= 0 && r->fr > 0 ? r->cpu_ms / r->fr : -1.0, r->thr_ms,
+-                         r->flt, r->majflt, r->inblk, r->vcsw, r->ivcsw, r->wpf, r->mp_ms, r->acq_ms, r->pq_ms); }
++                         r->flt, r->majflt, r->rd_mb, csw, r->vcsw, r->wpf, r->mp_ms, r->acq_ms, r->pq_ms); }
++              { size_t bl = strlen(b); char sk[96] = "";   // RewindBox (patch 0068): the presenting thread's blocked time by reason (-1 = it changed), drawable waits, the rule that logged it
++                if (la_skip) { snprintf(sk, sizeof sk, "; %u more frames of 1.5 periods or more not logged (10 a second)", la_skip); la_skip = 0; }
++                snprintf(b + bl, sizeof b - bl, "; presenting thread blocked on the submit lock %.1f ms, GPU fences %.1f ms, the encode thread %.1f ms, readbacks and upload slots %.1f ms, owed cross-queue fences %.1f ms; drawables %.1f ms; period %.1f ms%s%s",
++                         r->blk[0], r->blk[1], r->blk[2], r->blk[3], r->blk[4], r->drw_ms, per, la ? ", logged as 1.5 periods or more" : "", sk); }
+               // Visibility: during the time a long frame "comes out late", what stays on screen is the previous frame; if the previous frame was a loading screen (or this frame itself is one), all the player sees is the loading screen staying a bit longer, with no motion interrupted
+               dm_longframe_note(b); } }
+         uint64_t g0, g1; if (frame_rec() && nvn_be_gpu_span(f - 8, &g0, &g1)) { trow(f - 8, "@gpu_beg_ms", (g0 - g_t0_ns) / 1e6); trow(f - 8, "@gpu_end_ms", (g1 - g_t0_ns) / 1e6); } }
+@@ -3714,6 +3781,7 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+     atomic_store(&g_fps_game_itv, s2a_fps_present_hook() | (g_display_mode && s2a_fps_cap_reason() != 0));   // | 不用 ||：钩子每帧都要调（动态步长）。 S2Arm 帧率表：每帧只在这里调一次（present_period 一帧被调 3 次：取图 / 入队 / 节拍器，直连线 10-26 审出），present_itv 只读结果
+     // Real-device semantics: present only enqueues and returns immediately; this frame's display time is scheduled by the pacer, and the texture can be acquired again only at "display time + one period" (blocking in AcquireTexture)
+     uint64_t period = present_period(o), now = dm_detclock_enabled() ? guest_ns() : now_ns();
++    g_lf[f % LFN].per = period / 1e6;   // RewindBox (patch 0068): the frame's present period, for the long-frame thresholds
+     g_hold_ring[o->presents % 16] = (uint8_t)present_itv(o);
+     nvn_pacer pc = {o->pace};
+     uint64_t slot = now + nvn_pace(&pc, now, period);
+diff --git a/graphics/nvn/gfx/nvn/nvn_fps.c b/graphics/nvn/gfx/nvn/nvn_fps.c
+index ba60773..26b2605 100644
+--- a/graphics/nvn/gfx/nvn/nvn_fps.c
++++ b/graphics/nvn/gfx/nvn/nvn_fps.c
+@@ -3,6 +3,8 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
++#include <stdarg.h>   // RewindBox (patch 0068): fps_say
++#include <unistd.h>   // RewindBox (patch 0068): fps_say
+ 
+ static pthread_once_t g_once = PTHREAD_ONCE_INIT;
+ static int g_limit;
+@@ -17,13 +19,27 @@ int nvn_fps_parse(const char *e) {
+     }
+     return v >= NVN_FPS_MIN_HZ && v <= NVN_FPS_MAX_HZ ? v : -1;
+ }
++// RewindBox (patch 0068): these lines went to stderr, which is not the engine journal in a RewindBox guest (host.log is the runtime's log descriptor): the IPA 765 journal
++//   (Mario Kart World, iPhone17,2) never said that a 30 FPS limit was on, and the analysts had to infer S2A_FPS=30 from the 33.3 ms present period while the game asked for 60.
++//   They now go through the runtime's one log exit (native.h s2a_log_out on g_s2a_logfd2, as MLOG), and the line is written with no limit too. The weak defaults are native.h's own:
++//   the plain-C unit test (t_nvn_fps) still links this file alone and writes to stderr as before
++extern int g_s2a_logfd2; void s2a_log_out(int fd, const char *p, size_t n);
++__attribute__((weak)) int g_s2a_logfd2 = 2;
++__attribute__((weak)) void s2a_log_out(int fd, const char *p, size_t n) { ssize_t w = write(fd, p, n); (void)w; }
++__attribute__((format(printf, 1, 2))) static void fps_say(const char *fmt, ...) {
++    char b[512]; va_list ap; va_start(ap, fmt); int n = vsnprintf(b, sizeof b - 1, fmt, ap); va_end(ap);
++    if (n < 0) return;
++    if (n > (int)sizeof b - 2) n = (int)sizeof b - 2;
++    b[n++] = '\n'; s2a_log_out(g_s2a_logfd2, b, (size_t)n);
++}
+ static void fps_init(void) {
+     const char *e = getenv("S2A_FPS");
+-    if (!e) return;
++    if (!e) { fps_say("[s2a] [nvn] S2A_FPS 未设：不额外限帧 (no frame-rate limit; RewindBox patch 0068)"); return; }   // RewindBox (patch 0068): fps_say
+     int v = nvn_fps_parse(e);
+-    if (v < 0) { fprintf(stderr, "[nvn] 【红】 S2A_FPS=%s：只接受 0（不限）或 %d–%d 的整数\n", e, NVN_FPS_MIN_HZ, NVN_FPS_MAX_HZ); abort(); }
++    if (v < 0) { fps_say("[s2a] [nvn] 【红】 S2A_FPS=%s：只接受 0（不限）或 %d–%d 的整数", e, NVN_FPS_MIN_HZ, NVN_FPS_MAX_HZ); abort(); }   // RewindBox (patch 0068): fps_say
+     g_limit = v;
+-    if (g_limit) fprintf(stderr, "[nvn] S2A_FPS=%d：直连额外帧率上限，保留游戏交换间隔；DM_PRESENT_HZ / DM_FPS 不绕过此上限\n", g_limit);
++    if (g_limit) fps_say("[s2a] [nvn] S2A_FPS=%d：直连额外帧率上限，保留游戏交换间隔；DM_PRESENT_HZ / DM_FPS 不绕过此上限 (active frame-rate limit %d fps; RewindBox patch 0068)", g_limit, g_limit);   // RewindBox (patch 0068): fps_say
++    else fps_say("[s2a] [nvn] S2A_FPS=0：不额外限帧 (no frame-rate limit; RewindBox patch 0068)");
+ }
+ int nvn_fps_limit(void) { pthread_once(&g_once, fps_init); return g_limit; }
+ double nvn_fps_period(double period) {
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 209f545..127aa9f 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -228,6 +228,11 @@ static _Atomic int g_up_pending;
+ static pthread_mutex_t g_res_mu = PTHREAD_MUTEX_INITIALIZER;   // Dedicated lock for the residency set: res_add is called on paths that hold g_mu (arena_new), so it cannot share g_mu
+ #include "../../../../runtime/include/s2a_qos.h"   // 全进程线程调度档一张表（11-06 Switch2 线 71）
+ #include "../../../../runtime/include/s2a_docs.h"  // 文档根唯一取法（S2A_DOCS，否则 $HOME/Documents）
++// RewindBox (patch 0068): the calling thread's blocked time by reason (cumulative ns), for the long-frame line (hle_nvn.c reads its presenting thread's sums at each present):
++//   0 GPU fence waits (nvn_be_wait), 1 the encode thread and the copy worker (rec_drain, ubc_wait), 2 readbacks and upload slots (cb_run reads, up_wait_zero), 3 cross-queue fences owed by parked work
++//   (nvn_be_xq_owed_wait). In the late IPA 765 race frames of 46-60 ms, submit+present took 25-40 ms with 11-20 ms of thread CPU and nothing named the rest
++static __thread uint64_t t_rb_blk[4];
++void nvn_be_blocked_ns(uint64_t out[4]) { memcpy(out, t_rb_blk, sizeof t_rb_blk); }
+ #include "nvn_rec.h"   // deferred encoding (DM_NVN_ENC_THREAD)
+ #include "nvn_warm.h"   // the prewarm's progress for the host's loading page (s2a_warm_progress)
+ #include "nvn_be.h"
+@@ -1448,11 +1453,29 @@ static void gp_lane_end(id e, int k, uint32_t n1) {
+     g_gp_lab[k].kind = kind == 'P' ? 'R' : 'C'; g_gp_cur = k; g_gp_enc = e; gp_end(e); g_gp_cur = cur; g_gp_enc = enc;   // gp_end writes the end timestamp by kind
+     g_gp_lab[k].kind = kind; g_gp_lab[k].draws = n1 - n0;
+ }
++// RewindBox (patch 0068): the [gpuprof] lines (about 150 for each frame measured) are formatted and written on a utility queue of their own (gp_print), no longer on the GPU feedback
++//   thread whose handlers also complete the fences the submit thread waits for: the IPA 765 analysts could not tell how much the automatic measurements (frames 600, 1858, 2683, 3696
++//   and 4573) disturbed the frames they measured. The handler only resolves the timestamps (a copy) and re-arms the capture. S2A_RB_GPUPROF_DEFER=0: written in the handler, as before
++static int rb_gpuprof_defer(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_GPUPROF_DEFER"); v = !(e && !strcmp(e, "0")); } return v; }
++static void gp_print(NSData *r, int n, int dropped, gp_lab *lab, uint64_t frame, double tick_ns);
+ static void gp_report(int n, int dropped, gp_lab *lab, uint64_t frame) {   // the frame's last command buffer has completed
+     // Both resolve to 2n 64-bit timestamps in order (MTLCounterResultTimestamp holds the one field); Metal 3's sample buffer reports nanoseconds, Metal 4's heap ticks
+     NSData *r = g_m3 ? [g_gp_sb resolveCounterRange:NSMakeRange(0, 2 * n)] : [g_gp_heap resolveCounterRange:NSMakeRange(0, 2 * n)];
+     const uint64_t *t = r.bytes; if (!t) { free(lab); atomic_store(&g_gp_rearm_frame, atomic_load(&g_cur_frame)); atomic_store(&g_gp_state, 0); return; }
+-    double tick_ns = g_m3 ? 1.0 : 1e9 / (double)[g_dev queryTimestampFrequency], tot[2] = {0}, span = 0, gm_us = 0; int gm_n = 0; uint64_t t0 = 0, t1 = 0;
++    double tick_ns = g_m3 ? 1.0 : 1e9 / (double)[g_dev queryTimestampFrequency];
++    if (rb_gpuprof_defer()) {   // RewindBox (patch 0068)
++        static dispatch_queue_t q; static dispatch_once_t once;
++        dispatch_once(&once, ^{ q = dispatch_queue_create("rb.gpuprof", dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_UTILITY, 0)); });
++        atomic_store(&g_gp_rearm_frame, atomic_load(&g_cur_frame)); atomic_store(&g_gp_state, 0);
++        dispatch_async(q, ^{ gp_print(r, n, dropped, lab, frame, tick_ns); });
++        return;
++    }
++    gp_print(r, n, dropped, lab, frame, tick_ns);
++    atomic_store(&g_gp_rearm_frame, atomic_load(&g_cur_frame)); atomic_store(&g_gp_state, 0);
++}
++static void gp_print(NSData *r, int n, int dropped, gp_lab *lab, uint64_t frame, double tick_ns) {   // RewindBox (patch 0068): gp_report's lines, from its resolved timestamps; frees lab
++    const uint64_t *t = r.bytes;
++    double tot[2] = {0}, span = 0, gm_us = 0; int gm_n = 0; uint64_t t0 = 0, t1 = 0;
+     for (int i = 0; i < n; i++) { uint64_t a = t[2 * i], b = t[2 * i + 1]; if (!a || !b || b < a) continue;
+         double us = (b - a) * tick_ns / 1e3; const gp_lab *l = &lab[i]; tot[l->kind != 'R' && l->kind != 'P'] += us; if (l->gm) { gm_us += us; gm_n++; }
+         if (!t0 || a < t0) t0 = a; if (b > t1) t1 = b;
+@@ -1464,7 +1487,7 @@ static void gp_report(int n, int dropped, gp_lab *lab, uint64_t frame) {   // th
+     MLOG("[gpuprof] frame %llu: render %.2f ms, compute / copy %.2f ms over %d encoders, first start to last end %.2f ms; encoders with raw-memory-pool-table draws / dispatches %.2f ms (%d)%s", (unsigned long long)frame, tot[0] / 1e3, tot[1] / 1e3, n, span / 1e3, gm_us / 1e3, gm_n, dropped ? " (TRUNCATED: see the next line)" : "");
+     // 11-05 金刚：一帧 4000 多个编码器，只记得下前 GP_MAX / 2 个，报告曾被当成整帧读。记满时明说截断：之后的编码器没记，以上合计 / 跨度只是前段
+     if (dropped) MLOG("【黄】 [gpuprof] frame %llu TRUNCATED: %d more encoders after the first %d were not recorded (limit %d per frame = the largest timestamp heap); the totals and span above cover only the frame's start", (unsigned long long)frame, dropped, n, GP_MAX / 2);
+-    free(lab); atomic_store(&g_gp_rearm_frame, atomic_load(&g_cur_frame)); atomic_store(&g_gp_state, 0);
++    free(lab);   // RewindBox (patch 0068): re-armed by gp_report
+ }
+ // Render pass descriptors: MTL4RenderPassDescriptor on Metal 4, MTLRenderPassDescriptor on Metal 3. The replay writes them through the Metal 4 type and uses only what both classes have
+ // with the same names and meanings (attachments, target size and layers, raster sample count, visibility buffer)
+@@ -2133,7 +2156,38 @@ static uint64_t gpu_s_guest_ns(double s) {   // a feedback GPU time (seconds on
+     if (s <= 0 || !g || at > now || now - at > g) return 0;
+     return g - (now - at);
+ }
+-static uint64_t rep_ticks(const post_op *o, seg_clk *sc, uint32_t last, uint64_t c0, uint64_t c1) {   // the time a counter report records (19.2 MHz); c0 / c1: the last segment's GPU start / end on the guest clock
++// RewindBox (patch 0068): in-frame report times on a busy GPU clock. In the IPA 765 test (Mario Kart World, iPhone17,2) the span the game read from its timestamp reports ran from the
++//   GPU start of a frame's first piece to the GPU end of its last, so it took in the time the GPU sat idle between the frame's pieces waiting for the submit thread: frame 631 read
++//   18.57 ms for 15.70 ms of GPU work, frame 635 102.8 ms for 21.8 (a 89.7 ms submit stall), frame 1893 322.5 ms for 24.5 (118 first texture uploads). The game's dynamic resolution
++//   follows that span against its 16.7 ms budget: the scene size changed in 111-171 frames of 300, each change making 17-28 shared textures anew. A report now records its time less
++//   the GPU's idle time between the pieces of its frame before it; the frame's first piece keeps the real time, so GPU and CPU ticks stay within a frame of each other (patch 0059's
++//   'GPU time the game read' shows the result). Main-queue pieces only (sub_cut, nvn_be_sub_commit), as their feedback arrives (feedback threads, under g_tsb_lk). S2A_RB_TS_BUSY=0: real times
++static int rb_ts_busy(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_TS_BUSY"); v = !(e && !strcmp(e, "0")); MLOG("RewindBox: counter report times %s (S2A_RB_TS_BUSY)", v ? "on a busy GPU clock: the idle time between a frame's pieces left out" : "real GPU times"); } return v; }
++enum { TSB_N = 64, TSB_P = 64 };
++typedef struct { uint64_t frame; int n, over; uint64_t s[TSB_P], e[TSB_P]; } tsb_t;   // a frame's main-queue pieces by GPU start (guest ns); over: more than TSB_P
++static tsb_t g_tsb[TSB_N]; static os_unfair_lock g_tsb_lk = OS_UNFAIR_LOCK_INIT;
++static void tsb_piece(uint64_t f, uint64_t s0, uint64_t e0) {   // a piece of frame f ran from s0 to e0 (guest ns; 0 = not known)
++    if (!s0 || e0 < s0) return;
++    os_unfair_lock_lock(&g_tsb_lk);
++    tsb_t *b = &g_tsb[f % TSB_N]; if (b->frame != f) { b->frame = f; b->n = 0; b->over = 0; }
++    if (b->n == TSB_P) b->over = 1;
++    else { int i = b->n++; while (i > 0 && b->s[i - 1] > s0) { b->s[i] = b->s[i - 1]; b->e[i] = b->e[i - 1]; i--; } b->s[i] = s0; b->e[i] = e0; }
++    os_unfair_lock_unlock(&g_tsb_lk);
++}
++static uint64_t tsb_map(uint64_t f, uint64_t t) {   // a report time of frame f (guest ns) less the frame's idle GPU time before it; a time past the pieces stops at their end
++    if (!t || !rb_ts_busy()) return t;
++    uint64_t idle = 0;
++    os_unfair_lock_lock(&g_tsb_lk);
++    const tsb_t *b = &g_tsb[f % TSB_N];
++    if (b->frame == f && b->n && t > b->s[0]) {
++        uint64_t end = b->e[0];
++        for (int i = 1; i < b->n && b->s[i] <= t; i++) { if (b->s[i] > end) idle += b->s[i] - end; if (b->e[i] > end) end = b->e[i]; }
++        if (t > end && !b->over) idle += t - end;
++    }
++    os_unfair_lock_unlock(&g_tsb_lk);
++    return idle < t ? t - idle : t;
++}
++static uint64_t rep_ticks(const post_op *o, seg_clk *sc, uint32_t last, uint64_t c0, uint64_t c1, uint64_t f) {   // the time a counter report records (19.2 MHz); c0 / c1: the last segment's GPU start / end on the guest clock; f: its frame (RewindBox (patch 0068): tsb_map)
+     int top = o->type == 0x10; uint64_t ns = 0;
+     uint32_t bi = o->seg + !top;
+     if (sc && bi < sc->nb && g_ts_heap) if (@available(macOS 26.0, iOS 26.0, *)) {   // the boundary's own GPU timestamp, on the guest clock through a pair of samples: how long ago it was on the GPU's clock, back from the guest clock now
+@@ -2141,11 +2195,11 @@ static uint64_t rep_ticks(const post_op *o, seg_clk *sc, uint32_t last, uint64_t
+         static double scale; if (!scale) { uint64_t hz = [g_dev queryTimestampFrequency]; scale = hz ? 1e9 / (double)hz : 1; }
+         uint64_t g = guest_ns(); if (!g) { struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t); g = (uint64_t)t.tv_sec * 1000000000ull + t.tv_nsec; }   // as gpu_ticks
+         if (e && d.length >= sizeof *e && *e) { double at = (double)*e * scale, ago = (double)gpu - at; if (ago >= 0 && ago < 2e9 && ago < (double)g) ns = g - (uint64_t)ago; }   // an entry counts at queryTimestampFrequency, a sample in ns (upstream, measured on Apple GPUs)
+-        if (ns) return ns * 12 / 625;
++        if (ns) return tsb_map(f, ns) * 12 / 625;   // RewindBox (patch 0068): tsb_map
+     }
+     if (sc && o->seg < last && o->seg < SEG_CLK_N) ns = atomic_load(&sc->t[o->seg][!top]);
+     if (!ns) ns = top ? c0 : c1;
+-    return ns ? ns * 12 / 625 : gpu_ticks();
++    return ns ? tsb_map(f, ns) * 12 / 625 : gpu_ticks();   // RewindBox (patch 0068): tsb_map
+ }
+ 
+ // ---------- Boot instrumentation (DM_BOOTPROF=1): metallib loading, pipeline creation (both happen synchronously during replay on the submit thread), texture upload, first-frame present ----------
+@@ -3155,6 +3209,7 @@ uint64_t nvn_be_sub_commit(void) {
+     fb_add(o, ^(id<MTL4CommitFeedback> cb) {
+         gpu_tag_done(gpu_f, 0, gpu_sub, cb.GPUStartTime, cb.GPUEndTime);
+         uint64_t c0 = 0, c1 = 0; if (seg_ts()) { c0 = gpu_s_guest_ns(cb.GPUStartTime); c1 = gpu_s_guest_ns(cb.GPUEndTime); }
++        if (rb_ts_busy()) tsb_piece(gpu_f, seg_ts() ? c0 : gpu_s_guest_ns(cb.GPUStartTime), seg_ts() ? c1 : gpu_s_guest_ns(cb.GPUEndTime));   // RewindBox (patch 0068): this piece, before its reports
+         if (cb.error) { atomic_store(&g_last_commit_error, 1); atomic_fetch_add(&g_commit_error_n, 1); if (mtl_gpu_halted()) mtl_gpu_cb_error(cb.error, "main replay", fence); else { static int n, nv; int victim = [cb.error.description containsString:@"InnocentVictim"]; if (!victim) quar_fault(qsus, cb.error); if (victim ? nv++ < 1 : n++ < 8) MLOG("【红】 command buffer error details fence=%llu: %s | GPU %.3f→%.3f", (unsigned long long)fence, cb.error.description.UTF8String, cb.GPUStartTime, cb.GPUEndTime); if (!victim) MLOG("【红】 state of the failed submission fence=%llu: %s", (unsigned long long)fence, cctx.UTF8String); MLOG("【红】 command buffer execution error: %s", cb.error.localizedDescription.UTF8String); mtl_gpu_cb_error(cb.error, "main replay", fence); s2a_direct_gpu_error(cb.error.localizedDescription.UTF8String); } }
+         for (int i = 0; i < n; i++) {
+             if (ops[i].kind == 1) { if (ops[i].mode == 1) *ops[i].val += ops[i].v; else *ops[i].val = ops[i].v; evs_landed(ops[i].val); }
+@@ -3163,7 +3218,7 @@ uint64_t nvn_be_sub_commit(void) {
+                 for (int k = 0; k < l->n; k++) { sum += ((const uint64_t *)((__bridge id<MTLBuffer>)l->s[k].buf).contents)[l->s[k].slot]; CFRelease(l->s[k].buf); }
+                 free(l); uint64_t rec[2] = {sum, gpu_ticks()}; memcpy((void *)ops[i].addr, rec, sizeof rec);
+             }
+-            else { uint64_t t = rep_ticks(&ops[i], sc, seg_last, c0, c1), rec[2] = {(ops[i].type == 0 || ops[i].type == 0x10) && !DM_GAME_RENDER_COND ? t : 0, t}; memcpy((void *)ops[i].addr, rec, sizeof rec);   // render_cond: a timestamp report's counter field is 0, as on the GPU (see rc_value)
++            else { uint64_t t = rep_ticks(&ops[i], sc, seg_last, c0, c1, gpu_f), rec[2] = {(ops[i].type == 0 || ops[i].type == 0x10) && !DM_GAME_RENDER_COND ? t : 0, t}; memcpy((void *)ops[i].addr, rec, sizeof rec);   // render_cond: a timestamp report's counter field is 0, as on the GPU (see rc_value)  RewindBox (patch 0068): gpu_f
+                 if (ops[i].type == 0 || ops[i].type == 0x10) fsig_ts(gpu_f, t, ops[i].type == 0x10); }   // RewindBox (patch 0059)
+         }
+         if (fsa) {   // RewindBox (patch 0059): the words the GPU wrote for this piece's indirect draws, as they are now that it has run
+@@ -3235,10 +3290,11 @@ int nvn_be_wait(uint64_t fence, uint64_t timeout_ns) {
+     dl.tv_sec += ns / 1000000000ull; dl.tv_nsec = ns % 1000000000ull;
+     pthread_mutex_lock(&g_mu);
+     int r = 0, blk = g_done < fence; if (blk) { pthread_mutex_unlock(&g_mu); DM_BLOCK_BEGIN(); pthread_mutex_lock(&g_mu); }
++    uint64_t rb_w0 = blk ? now_ns() : 0;   // RewindBox (patch 0068): timed (t_rb_blk)
+     while (g_done < fence && !dm_gfx_session_stopping()) if ((r = pthread_cond_timedwait(&g_cv, &g_mu, &dl))) break;
+     int ok = g_done >= fence;
+     pthread_mutex_unlock(&g_mu);
+-    if (blk) DM_BLOCK_END();
++    if (blk) { DM_BLOCK_END(); t_rb_blk[0] += now_ns() - rb_w0; }   // RewindBox (patch 0068)
+     return ok;
+ }
+ 
+@@ -3943,9 +3999,10 @@ static pthread_mutex_t g_up_wmu = PTHREAD_MUTEX_INITIALIZER; static pthread_cond
+ static void up_wake(void) { pthread_mutex_lock(&g_up_wmu); pthread_cond_broadcast(&g_up_wcv); pthread_mutex_unlock(&g_up_wmu); }
+ static void up_wait_zero(_Atomic int *v) {
+     if (!atomic_load(v)) return;
++    uint64_t rb_w0 = now_ns();   // RewindBox (patch 0068): timed (t_rb_blk)
+     DM_BLOCK_BEGIN(); pthread_mutex_lock(&g_up_wmu);
+     while (atomic_load(v)) { struct timespec dl; clock_gettime(CLOCK_REALTIME, &dl); dl.tv_nsec += 10000000; if (dl.tv_nsec >= 1000000000) { dl.tv_sec++; dl.tv_nsec -= 1000000000; } pthread_cond_timedwait(&g_up_wcv, &g_up_wmu, &dl); }
+-    pthread_mutex_unlock(&g_up_wmu); DM_BLOCK_END();
++    pthread_mutex_unlock(&g_up_wmu); DM_BLOCK_END(); t_rb_blk[2] += now_ns() - rb_w0;   // RewindBox (patch 0068)
+ }
+ static unsigned g_up_seq;
+ #define UP_BLOCK_SIZE (32u * 1024u * 1024u)
+@@ -16296,7 +16353,7 @@ void nvn_be_read_texels(const tex_t *t, unsigned level, unsigned layer0, const N
+         for (int z = 0; z < nz; z++)
+             [b copyFromTexture:mt sourceSlice:layer0 + r->zoffset + z sourceLevel:level sourceOrigin:MTLOriginMake(sx, sy, 0) sourceSize:MTLSizeMake(sw, sh, 1)
+                       toBuffer:sb destinationOffset:z * swb * sh destinationBytesPerRow:swb destinationBytesPerImage:swb * sh];
+-        [b endEncoding]; DM_BLOCK_BEGIN(); cb_run(cb); DM_BLOCK_END();
++        [b endEncoding]; { uint64_t rb_w0 = now_ns(); DM_BLOCK_BEGIN(); cb_run(cb); DM_BLOCK_END(); t_rb_blk[2] += now_ns() - rb_w0; }   // RewindBox (patch 0068): timed
+         for (int z = 0; z < nz; z++) for (int y = 0; y < r->height; y++) {
+             long ty = (long)floor((r->yoffset + y + 0.5) * sc) - sy; if (ty < 0) ty = 0; if (ty >= sh) ty = sh - 1;
+             for (int x = 0; x < r->width; x++) {
+@@ -16309,7 +16366,7 @@ void nvn_be_read_texels(const tex_t *t, unsigned level, unsigned layer0, const N
+     for (int z = 0; z < nz; z++)
+         [b copyFromTexture:mt sourceSlice:is3d ? 0 : layer0 + r->zoffset + z sourceLevel:level sourceOrigin:MTLOriginMake(r->xoffset, r->yoffset, is3d ? r->zoffset + z : 0)
+                 sourceSize:MTLSizeMake(r->width, r->height, 1) toBuffer:buf destinationOffset:z * wb * hb destinationBytesPerRow:wb destinationBytesPerImage:wb * hb];
+-    [b endEncoding]; DM_BLOCK_BEGIN(); cb_run(cb); DM_BLOCK_END();   // the old queue: no fence (m4_end)
++    [b endEncoding]; { uint64_t rb_w0 = now_ns(); DM_BLOCK_BEGIN(); cb_run(cb); DM_BLOCK_END(); t_rb_blk[2] += now_ns() - rb_w0; }   // the old queue: no fence (m4_end)  RewindBox (patch 0068): timed
+     for (int z = 0; z < nz; z++) for (size_t y = 0; y < hb; y++) memcpy(dst + z * img + y * row, (uint8_t *)buf.contents + z * wb * hb + y * wb, wb);
+ }
+ // S2Arm internal resolution, diagnostics for tests (graphics/nvn/tests/t_nvn_rscale.m): a texture object's Metal storage size and scale record (returns RS_NONE / RS_SCALED / RS_BLACK,
+@@ -16825,6 +16882,7 @@ static void sub_cut(void) {
+         gpu_tag_done(f, 0, gpu_sub, cb.GPUStartTime, cb.GPUEndTime);
+         arena_seg_done(sf);
+         if (sc) { if (k < SEG_CLK_N) { atomic_store(&sc->t[k][0], gpu_s_guest_ns(cb.GPUStartTime)); atomic_store(&sc->t[k][1], gpu_s_guest_ns(cb.GPUEndTime)); } seg_clk_put(sc); }
++        if (rb_ts_busy()) tsb_piece(f, gpu_s_guest_ns(cb.GPUStartTime), gpu_s_guest_ns(cb.GPUEndTime));   // RewindBox (patch 0068): a piece of frame f
+         if (cb.error) { atomic_store(&g_last_commit_error, 1); atomic_fetch_add(&g_commit_error_n, 1); if (mtl_gpu_halted()) mtl_gpu_cb_error(cb.error, "segment", f); else { static int k; if (![cb.error.description containsString:@"InnocentVictim"]) quar_fault(qsus, cb.error); if (k++ < 8) MLOG("【红】 segment command buffer execution error: %s", cb.error.description.UTF8String); mtl_gpu_cb_error(cb.error, "segment", f); s2a_direct_gpu_error(cb.error.localizedDescription.UTF8String); } }
+     });
+     res_commit();
+@@ -18561,8 +18619,12 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+             for (int i = 1; i < 300; i++) { double v = a[i]; int j = i - 1; while (j >= 0 && a[j] > v) { a[j + 1] = a[j]; j--; } a[j + 1] = v; }
+             double b[300]; memcpy(b, e2e, sizeof b);
+             for (int i = 1; i < 300; i++) { double v = b[i]; int j = i - 1; while (j >= 0 && b[j] > v) { b[j + 1] = b[j]; j--; } b[j + 1] = v; }
+-            MLOG("display link up to tick %llu: ticks 300, presents %llu, empty ticks %llu (held for the present interval %llu), old frames dropped by merging %llu; submission ahead of target display p50 %.3f ms / min %.3f ms; game enqueue to target display p50 %.3f ms / min %.3f / max %.3f ms",
+-                 (unsigned long long)g_link_tick_n, (unsigned long long)g_present_n, (unsigned long long)(g_link_tick_n - g_present_n), (unsigned long long)g_link_held,
++            // RewindBox (patch 0068): the window's own ticks, presents and held ticks. The line said 'ticks 300' whatever the count (300 → 995 was 695 ticks in the IPA 765 log) and its
++            //   empty ticks were ticks less presents since the start, unsigned ('empty ticks 18446744073709551615' once presents passed ticks); now signed, for the window, totals kept
++            static uint64_t pt_n, pp_n, ph_n; if (g_link_tick_n < pt_n || g_present_n < pp_n || g_link_held < ph_n) pt_n = pp_n = ph_n = 0;   // a new session counts from 0
++            uint64_t dt = g_link_tick_n - pt_n, dp = g_present_n - pp_n, dh = g_link_held - ph_n; pt_n = g_link_tick_n; pp_n = g_present_n; ph_n = g_link_held;
++            MLOG("display link up to tick %llu: ticks %llu in this window, presents %llu (%llu in all), empty ticks %lld (held for the present interval %llu), old frames dropped by merging %llu; submission ahead of target display p50 %.3f ms / min %.3f ms; game enqueue to target display p50 %.3f ms / min %.3f / max %.3f ms",
++                 (unsigned long long)g_link_tick_n, (unsigned long long)dt, (unsigned long long)dp, (unsigned long long)g_present_n, (long long)dt - (long long)dp, (unsigned long long)dh,
+                  (unsigned long long)g_link_dropped, a[149], a[0], b[149], b[0], b[299]);
+         }
+     }
+@@ -18791,6 +18853,30 @@ static int link_exact(int mode, double period) {   // 该链路档能否用整
+     double t = period * (mode == 4 ? 20 : 30);
+     return t >= 1 - 1e-6 && fabs(t - round(t)) < 1e-6;
+ }
++// RewindBox (patch 0068): under the user's 30 FPS limit the link stays at its base rate (mode 1 / 2, 60 / 120 Hz). In the IPA 765 test (Mario Kart World, iPhone17,2) the limit put
++//   the link at 30 Hz (mode 3, 'present pacing mode 0 → 3' at frame 1, never changed): the screen moved by 33.3 ms steps, a frame of 34-50 ms (5.7 % of the race frames) stayed
++//   66.7 ms on screen (24 holds of 67 ms and one of 133 ms in the recording, on-screen p99 66.7-133 ms), and the link's callback came 33 ms before its display. The display-link
++//   hold (g_link_hold_until, the frame's 33.3 ms period) and nvn_be_link_wait_tick (the period in ticks of the link's rate) keep 33.3 ms a frame at 60 / 120 Hz, so a late frame
++//   now shows at the next 16.7 / 8.3 ms refresh. The game's own 30 under the limit (interval 2 held a second, a video, a frame-step cap) stays at the base rate too: its period is
++//   the limit's 33.3 ms either way, and as that period never changes the 1 s gate below never resets, so following nvn_game_fps (31 changes in the 765 log) would have changed the
++//   link's rate at each change. The 50 ms period (20 Hz) and DM_FPS=30 are unchanged; no limit: unchanged. S2A_RB_LINK_CAP30=0: 30 Hz under the limit, as before
++static int rb_link_cap30(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_LINK_CAP30"); v = !(e && !strcmp(e, "0")); } return v; }
++__attribute__((weak)) int nvn_rb_video_paced(void) { return 0; }   // RewindBox (patch 0068): hle_nvn.c provides the strong definition
++// RewindBox (patch 0068): why the link takes this mode, for the 'present pacing mode' line (the IPA 765 line gave none: its 30 Hz came from a 30 FPS limit that the journal never named)
++static const char *rb_pace_why(int want, int fallback, int inexact) {
++    if (!want) return "display link off";
++    if (fallback) return "20 Hz refused by the system";
++    if (inexact) return "the low rate cannot give this period";
++    if (want == 4) return "the game's 50 ms period";
++    if (want == 3) {
++        if (fps_override() == 30) return "DM_FPS=30 pin";
++        if (nvn_be_fps_target() == 30) return nvn_rb_video_paced() ? "a video at 30 fps" : "the game at 30 fps";
++        if (nvn_fps_limit() == 30) return "the user's 30 FPS limit (S2A_RB_LINK_CAP30=0)";
++        return "the period";
++    }
++    if (nvn_fps_limit() == 30 && rb_link_cap30()) return nvn_be_fps_target() == 30 ? "the user's 30 FPS limit held at the base rate, the game at 30 fps too" : "the user's 30 FPS limit held at the base rate";
++    return "the base rate";
++}
+ static void link_sync(double period) {   // Called every frame by the game's present thread: aligns the display link object's state to g_dm_present_link and the power-saving mode (can change at run time)
+     if (atomic_load(&g_link_stop)) return;
+     int applied = g_link_applied; int want = g_dm_present_link; const int base = want;
+@@ -18807,7 +18893,8 @@ static void link_sync(double period) {   // Called every frame by the game's pre
+             if (slots >= 1 - 1e-6 && fabs(slots - round(slots)) < 1e-6) candidate = 3;
+         }
+         // 20 Hz 档只看周期本身（恰好 50 ms、连续 1 秒，下面的迟滞判）：间隔 3 不再计入 30 帧口径（见 hle_nvn.c present_period）
+-        if (nvn_be_fps_target() == 30 || nvn_fps_limit() == 30 || candidate == 4) want = candidate;
++        const int keep = nvn_fps_limit() == 30 && rb_link_cap30();   // RewindBox (patch 0068): under the 30 limit only the 50 ms period leaves the base rate (the game's own 30 too, see above)
++        if (((nvn_be_fps_target() == 30 || nvn_fps_limit() == 30) && !keep) || candidate == 4) want = candidate;   // RewindBox (patch 0068): keep
+     }
+     // Reuse the one-second rationale of g_itv2_since: a single slow frame must
+     // not reconfigure the system's asynchronous display link. Both directions
+@@ -18848,7 +18935,7 @@ static void link_sync(double period) {   // Called every frame by the game's pre
+     }
+     if (want) link.preferredFrameRateRange = link_range(want);
+     else link_stop_locked();
+-    MLOG("present pacing mode %d → %d (low-rate hold %.0f s; frame %llu)", applied, want, lb_hold(&g_low) / 1e9, (unsigned long long)atomic_load(&g_cur_frame));
++    MLOG("present pacing mode %d → %d (%s; S2A_FPS %d; low-rate hold %.0f s; frame %llu)", applied, want, rb_pace_why(want, fallback, inexact), nvn_fps_limit(), lb_hold(&g_low) / 1e9, (unsigned long long)atomic_load(&g_cur_frame));   // RewindBox (patch 0068): the reason and the limit; the frame stays last (t_fps_limit.sh reads $NF)
+     lb_applied(&g_low, applied, want, now);
+     g_link_applied = want;
+     pthread_cond_broadcast(&g_pq_cv); pthread_mutex_unlock(&g_pq_mu);
+@@ -18975,6 +19062,65 @@ void nvn_be_present_wait(uint64_t tk) {
+ // Wait until all queued presents have been processed (used by nvn_be_finish = nvnQueueFinish etc.): goes through nvn_be_present_wait, so there is still a fallback when the display link stops (real device: the game called QueueFinish once while the display link was stopped,
+ // and this used to wait here without a timeout; nobody took the 3 queued frames and the game stalled; those two runs on Mac did not hit this call)
+ void mtl_present_flush(void) { pthread_mutex_lock(&g_pq_mu); uint64_t h = g_pq_in; pthread_mutex_unlock(&g_pq_mu); nvn_be_present_wait(h); }
++// RewindBox (patch 0068): the pacing owner (hle_nvn.c nvnWindowAcquireTexture, after its tick wait) waits until the display link has taken every frame queued so far, so at most one
++//   frame lies between the game's present and the display. In the IPA 765 race (Mario Kart World, iPhone17,2, 30 FPS limit) one frame was nearly always waiting: the link takes the
++//   frames in order, one a tick (at most one behind), and a game that keeps the pace never lets that queue drain (0 empty ticks in 300 presents; game enqueue to target display p50
++//   85-93 ms, minimum 31-60). Only for a held period (over 25 ms, as g_link_hold_until) at the link's base rate (mode 1 / 2): there a frame that misses its tick shows one 16.7 / 8.3 ms
++//   refresh later, and a 60 fps game keeps the queue that absorbs its 16-17.5 ms frames (DM_PRESENT_FIFO). And only when this thread's tick wait did wait (t_link_waited: the game is
++//   ahead of the display): a frame that is already behind starts at once as before, so a game slower than its period is not made to start each frame a tick later. Bounded at two
++//   periods; no wait while the link stalls (nvn_be_present_wait drops frames then) or presents are discarded. S2A_RB_PRESENT_DEPTH=0: no wait, as before. The game's acquire thread;
++//   g_link_mode is read as nvn_be_link_wait_tick reads it
++static __thread int t_link_waited;   // RewindBox (patch 0068): this thread's last nvn_be_link_wait_tick waited for a tick
++static int rb_present_depth(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_PRESENT_DEPTH"); v = !(e && !strcmp(e, "0")); } return v; }
++void nvn_be_present_wait_taken(double period) {
++    if (!rb_present_depth() || !t_link_waited || period <= 0.025 || g_link_mode >= 3 || atomic_load(&g_present_discard)) return;
++    pthread_mutex_lock(&g_pq_mu);
++    uint64_t tk = g_pq_in;
++    if (!g_link_owns_layer || g_pq_read >= tk || g_stall_t0) { pthread_mutex_unlock(&g_pq_mu); return; }
++    struct timespec ts; clock_gettime(CLOCK_REALTIME, &ts); uint64_t ns = (uint64_t)ts.tv_nsec + (uint64_t)(2 * period * 1e9);
++    ts.tv_sec += (time_t)(ns / 1000000000ull); ts.tv_nsec = (long)(ns % 1000000000ull);
++    pthread_mutex_unlock(&g_pq_mu); DM_BLOCK_BEGIN(); pthread_mutex_lock(&g_pq_mu);
++    while (g_link_owns_layer && g_pq_read < tk && !g_stall_t0 && !atomic_load(&g_present_discard)) if (pthread_cond_timedwait(&g_pq_cv, &g_pq_mu, &ts) == ETIMEDOUT) break;
++    pthread_mutex_unlock(&g_pq_mu); DM_BLOCK_END();
++}
++// RewindBox (patch 0068): a fixed GPU speed probe for the 300-frame timing line (hle_nvn.c tsummary, the game's present thread). In the IPA 765 test the GPU took 2.3-2.5 times as long
++//   for the same passes at the same draw count (frames 3727-3731: render 10-11 ms; 4604-4608: 25-28 ms) and the log could not tell a lower GPU clock or contention from more work.
++//   The same small compute dispatch (16,384 threads of 4,096 dependent FMAs, about 0.1 ms) runs on a command queue of its own each time; the call returns the previous one's GPU time
++//   and starts the next. The kernel is built once on a utility queue. None while the GPU is stopped, the app is not active or presents are discarded. S2A_RB_GPU_PROBE=0: none
++static int rb_gpu_probe(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_GPU_PROBE"); v = !(e && !strcmp(e, "0")); } return v; }
++static _Atomic int g_probe_state, g_probe_busy;   // state: 0 not made, 1 being made, 2 ready, -1 failed; busy: a probe in flight
++static _Atomic uint64_t g_probe_ns;   // the last probe's GPU time (0 = none yet)
++static __strong id<MTLComputePipelineState> g_probe_pso; static __strong id<MTLCommandQueue> g_probe_q; static __strong id<MTLBuffer> g_probe_buf;
++double nvn_be_gpu_probe_ms(void) {
++    if (!rb_gpu_probe() || !g_dev) return -1;
++    uint64_t last = atomic_load(&g_probe_ns); int st = atomic_load_explicit(&g_probe_state, memory_order_acquire);
++    if (!st) {
++        atomic_store(&g_probe_state, 1);
++        dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
++            NSError *er = nil;
++            id<MTLLibrary> lib = [g_dev newLibraryWithSource:@"#include <metal_stdlib>\nusing namespace metal;\n"
++                @"kernel void rb_probe(device float *o [[buffer(0)]], uint i [[thread_position_in_grid]]) {\n"
++                @"    float a = float(i) * 1e-6f, b = 1.0f;\n"
++                @"    for (int k = 0; k < 2048; k++) { b = fma(b, 0.99991f, a); a = fma(a, 1.00007f, b * 1e-7f); }\n"
++                @"    o[i & 1023u] = a + b;\n}\n" options:nil error:&er];
++            id<MTLFunction> fn = [lib newFunctionWithName:@"rb_probe"];
++            id<MTLComputePipelineState> pso = fn ? [g_dev newComputePipelineStateWithFunction:fn error:&er] : nil;
++            id<MTLCommandQueue> q = pso ? [g_dev newCommandQueue] : nil;
++            id<MTLBuffer> b = q ? [g_dev newBufferWithLength:4096 options:MTLResourceStorageModeShared] : nil;
++            if (!b) { MLOG("【黄】 RewindBox: the GPU probe could not be made (%s); the timing line says not measured", er ? er.localizedDescription.UTF8String : "no queue or buffer"); atomic_store(&g_probe_state, -1); return; }
++            g_probe_pso = pso; g_probe_q = q; g_probe_buf = b; atomic_store_explicit(&g_probe_state, 2, memory_order_release);
++        });
++    } else if (st == 2 && !mtl_gpu_halted() && dm_focus_now() == 1 && !atomic_load(&g_present_discard) && !atomic_exchange(&g_probe_busy, 1)) @autoreleasepool {   // the game's present thread never drains its implicit pool (see g_sub_pool): the command buffer, encoder and handler go with this one
++        id<MTLCommandBuffer> cb = [g_probe_q commandBuffer]; id<MTLComputeCommandEncoder> e = [cb computeCommandEncoder];
++        [e setComputePipelineState:g_probe_pso]; [e setBuffer:g_probe_buf offset:0 atIndex:0];
++        [e dispatchThreadgroups:MTLSizeMake(256, 1, 1) threadsPerThreadgroup:MTLSizeMake(64, 1, 1)]; [e endEncoding];
++        [cb addCompletedHandler:^(id<MTLCommandBuffer> c) {
++            if (c.status == MTLCommandBufferStatusCompleted && c.GPUEndTime > c.GPUStartTime) atomic_store(&g_probe_ns, (uint64_t)((c.GPUEndTime - c.GPUStartTime) * 1e9));
++            atomic_store(&g_probe_busy, 0); }];
++        if (!cb_put(cb)) atomic_store(&g_probe_busy, 0);
++    }
++    return last ? last / 1e6 : -1;
++}
+ void nvn_be_stats(uint64_t *passes, uint64_t *draws) { *passes = g_stat_pass; *draws = g_stat_draw; }
+ // 本窗口（上次读后）画过的最大渲染目标：宽 / 高 / Metal 像素格式，读后清零（hle_nvn.c 每 300 帧那行带出）
+ void nvn_be_rt_window(uint32_t *w, uint32_t *h, uint32_t *fmt) { *w = g_rtw_w; *h = g_rtw_h; *fmt = g_rtw_fmt; g_rtw_w = g_rtw_h = g_rtw_fmt = 0; }
+@@ -19008,6 +19154,7 @@ void nvn_be_link_sample(uint64_t *ticks, uint64_t *time_ns) {
+ }
+ void mtl_link_pause(int on) { CAMetalDisplayLink *l = g_link; if (l) l.paused = on != 0; }   // For testing (DM_TEST_BG): imitates the system stopping the display-link callback in the background
+ int nvn_be_link_wait_tick(int vsyncs, uint64_t timeout_ns) {
++    t_link_waited = 0;   // RewindBox (patch 0068): set below when the wait waited
+     if (!nvn_be_link_active()) return 0;
+     // Wait for the display link only when running faster than the display: if a display-link tick has already passed since the previous frame started work (this frame is already behind), start immediately instead of waiting in vain for the next display-link tick --
+     // otherwise when the frame time is slightly more than one display-link period it would "miss the tick -> wait another whole tick", locking the frame rate straight to half (measured on Mac under windowed load: runs of dropped frames)
+@@ -19030,7 +19177,7 @@ int nvn_be_link_wait_tick(int vsyncs, uint64_t timeout_ns) {
+     pthread_mutex_unlock(&g_link_mu); DM_BLOCK_BEGIN(); pthread_mutex_lock(&g_link_mu);
+     while (g_link_tick_n < g_link_started_tick + step) if (pthread_cond_timedwait(&g_link_cv, &g_link_mu, &ts) == ETIMEDOUT) { pthread_mutex_unlock(&g_link_mu); DM_BLOCK_END(); return 0; }
+     g_link_started_tick = g_link_tick_n;
+-    pthread_mutex_unlock(&g_link_mu); DM_BLOCK_END(); return 1;
++    pthread_mutex_unlock(&g_link_mu); DM_BLOCK_END(); t_link_waited = 1; return 1;   // RewindBox (patch 0068): t_link_waited
+ }
+ 
+ // The display's vsync for vi::GetDisplayVsyncEvent (hle_sdk16.c): returns 1 at the first display-link tick of the next 60 Hz vsync after *seen (the tick count it last returned, updated),
+diff --git a/graphics/nvn/gfx/nvn/nvn_obj.h b/graphics/nvn/gfx/nvn/nvn_obj.h
+index bee7267..056bf8d 100644
+--- a/graphics/nvn/gfx/nvn/nvn_obj.h
++++ b/graphics/nvn/gfx/nvn/nvn_obj.h
+@@ -339,6 +339,12 @@ int nvn_be_fps_target(void);                                   // target frame r
+ int mtl_warm_wait(int timeout_ms);
+ int nvn_be_link_active(void);
+ int nvn_be_link_wait_tick(int vsyncs, uint64_t timeout_ns);   // >0：游戏的60Hz交换间隔；0：一个实际显示链接拍（无原生锁且用户上限120）
++// RewindBox (patch 0068): the pacing owner's wait until every present it queued was taken by the display link (period: the frame's present period, s; no wait off the link, at a low link rate
++//   or below 25 ms); the calling thread's cumulative blocked ns by reason (0 GPU fences, 1 the encode thread / copy worker, 2 readbacks and upload slots, 3 cross-queue fences);
++//   a fixed GPU compute probe (the last one's GPU time in ms, -1 = none yet; also starts the next). Weak defaults in hle_nvn.c for backends without them
++void nvn_be_present_wait_taken(double period);
++void nvn_be_blocked_ns(uint64_t out[4]);
++double nvn_be_gpu_probe_ms(void);
+ double nvn_be_presented_time(uint64_t n);
+    // Actual presentation time (seconds) of the n-th present (counted from 1); 0 = not ready, −1 = dropped
+ // Texture release (at Finalize)
+diff --git a/graphics/nvn/gfx/nvn/nvn_rec.h b/graphics/nvn/gfx/nvn/nvn_rec.h
+index 11a6364..31bbdd3 100644
+--- a/graphics/nvn/gfx/nvn/nvn_rec.h
++++ b/graphics/nvn/gfx/nvn/nvn_rec.h
+@@ -50,10 +50,11 @@ static void ubc_wait(uint64_t seq) {
+         __builtin_arm_yield();
+     }
+     // then sleep until the worker reports progress (it broadcasts under g_ubc_mu after each batch whenever someone waits; the check below is under the same mutex: no lost wake-up)
++    uint64_t rb_w0 = now_ns();   // RewindBox (patch 0068): the sleep is timed (nvn_mtl.m t_rb_blk)
+     pthread_mutex_lock(&g_ubc_mu); atomic_fetch_add(&g_ubc_waiters, 1); atomic_thread_fence(memory_order_seq_cst);
+     struct timespec ts = {0, 2000000};   // 2 ms at most per sleep: a belt-and-braces bound, so a missed wake-up would cost 2 ms, never a hang
+     while (atomic_load_explicit(&g_ubc_done, memory_order_acquire) < seq) { pthread_cond_signal(&g_ubc_cv); pthread_cond_timedwait_relative_np(&g_ubc_done_cv, &g_ubc_mu, &ts); }
+-    atomic_fetch_sub(&g_ubc_waiters, 1); pthread_mutex_unlock(&g_ubc_mu);
++    atomic_fetch_sub(&g_ubc_waiters, 1); pthread_mutex_unlock(&g_ubc_mu); t_rb_blk[1] += now_ns() - rb_w0;   // RewindBox (patch 0068)
+ }
+ static inline uint64_t ubc_head(void) { return atomic_load_explicit(&g_ubc_head, memory_order_relaxed); }
+ // Queue a copy (submit thread only); returns the count of ops that must be made for it to be done
+@@ -319,7 +320,7 @@ static void rec_drain(void) {
+     if (!g_rb_started) { g_rlane = lane; return; }
+     rec_publish();
+     pthread_mutex_lock(&g_rb_mu);
+-    while (g_rb_head || g_rb_busy) pthread_cond_wait(&g_rb_idle, &g_rb_mu);
++    if (g_rb_head || g_rb_busy) { uint64_t w0 = now_ns(); while (g_rb_head || g_rb_busy) pthread_cond_wait(&g_rb_idle, &g_rb_mu); t_rb_blk[1] += now_ns() - w0; }   // RewindBox (patch 0068): timed (nvn_mtl.m t_rb_blk)
+     pthread_mutex_unlock(&g_rb_mu);
+     g_rlane = lane;
+ }
+diff --git a/graphics/nvn/gfx/nvn/nvn_xqueue.inc b/graphics/nvn/gfx/nvn/nvn_xqueue.inc
+index 4ba5767..64e9d64 100644
+--- a/graphics/nvn/gfx/nvn/nvn_xqueue.inc
++++ b/graphics/nvn/gfx/nvn/nvn_xqueue.inc
+@@ -230,9 +230,10 @@ int nvn_be_xq_owed(const void *s, void **q) { pthread_mutex_lock(&g_xq_mu); int
+ // SyncWait on an owed fence: wait up to ns for it to be published; 1 = published
+ int nvn_be_xq_owed_wait(const void *s, uint64_t ns) {
+     struct timespec ts; clock_gettime(CLOCK_REALTIME, &ts); uint64_t t = (uint64_t)ts.tv_sec * 1000000000ull + ts.tv_nsec + ns; ts.tv_sec = (time_t)(t / 1000000000ull); ts.tv_nsec = (long)(t % 1000000000ull);
++    uint64_t rb_w0 = now_ns();   // RewindBox (patch 0068): timed (nvn_mtl.m t_rb_blk)
+     pthread_mutex_lock(&g_xq_mu); int r = 0;
+     while ((r = !xq_owed_locked(s, NULL)) == 0) if (pthread_cond_timedwait(&g_xq_cv, &g_xq_mu, &ts)) { r = !xq_owed_locked(s, NULL); break; }
+-    pthread_mutex_unlock(&g_xq_mu); return r;
++    pthread_mutex_unlock(&g_xq_mu); t_rb_blk[3] += now_ns() - rb_w0; return r;   // RewindBox (patch 0068)
+ }
+ // QueueWaitSync(q, s) with s owed by owner: q's later submissions go behind owner's parked work
+ void nvn_be_xq_wait_queue(void *q, void *owner) {
+diff --git a/graphics/nvn/host_adapt.m b/graphics/nvn/host_adapt.m
+index 056899d..ef30116 100644
+--- a/graphics/nvn/host_adapt.m
++++ b/graphics/nvn/host_adapt.m
+@@ -675,6 +675,7 @@ static uint64_t g_ft_c;   // 已上屏次数（上屏线程独写）
+ static int g_ft_fd = -2;
+ static uint64_t g_ft_last;
+ static int g_ft_pace_last;
++static int g_ft_pace_cand; static uint64_t g_ft_pace_since;   // RewindBox (patch 0068): a new rate not held for 1 s yet (ft_pace)
+ static void ft_present(void) {
+     uint64_t p, d; nvn_be_stats(&p, &d); fe_t x = fe_stats(); p += x.passes; d += x.draws;   // Vulkan / OpenGL 款的绘制 / 遍数在前端层（NVN 款恒 0）
+     uint64_t c = ++g_ft_c; g_ft[c % FTN].t_ns = now_ns(); g_ft[c % FTN].draws = d; g_ft[c % FTN].passes = p;
+@@ -777,9 +778,21 @@ void dm_perf_present(double iv_ms) {   // 直连层 hle_nvn.c 弱符号（它的
+ // 直连局的「帧节拍」行（tools/game_fps.py 取游戏自己要的帧率；通用模式由 graphics/loop/RenderLoop.cs 打，直连下它不起）：
+ //   直连层按游戏设的交换间隔给目标帧率（nvn_game_fps：30 / 60），每次上屏比一次，变了打一行，格式同 RenderLoop.FrameLine
+ int nvn_game_fps(void);   // graphics/nvn/gfx/nvn/hle_nvn.c
++// RewindBox (patch 0068): a change is logged only once it has held for 1 s (the first rate at once). nvn_game_fps already waits 1 s before 30 but goes back to 60 at once: in the
++//   IPA 765 race (Mario Kart World, iPhone17,2) the game set present interval 2 for runs of one frame (665 interval changes, 220 of 297 interval-2 runs one frame long) and this line
++//   changed 32 times, with 60 phases of under a second inside the 30 ones. The line's format stays as tools/game_fps.py reads it (the last line). S2A_RB_PACE_LINE_HOLD=0: every change
++//   at once, as before. Present thread only
++static int rb_pace_hold(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_PACE_LINE_HOLD"); v = !(e && !strcmp(e, "0")); } return v; }
+ static void ft_pace(void) {
+     int fps = nvn_game_fps();
+-    if (fps <= 0 || fps == g_ft_pace_last) return;
++    if (fps <= 0) return;
++    if (fps == g_ft_pace_last) { g_ft_pace_cand = 0; return; }
++    if (g_ft_pace_last && rb_pace_hold()) {   // RewindBox (patch 0068)
++        uint64_t t = now_ns();
++        if (fps != g_ft_pace_cand) { g_ft_pace_cand = fps; g_ft_pace_since = t; return; }
++        if (t - g_ft_pace_since < 1000000000ull) return;
++    }
++    g_ft_pace_cand = 0;
+     g_ft_pace_last = fps; LOG("[gal] 帧节拍：交换间隔 %d，每帧 %.1f ms（%d 帧/秒）", 60 / fps, 1000.0 / fps, fps);
+ }
+ 
+@@ -822,7 +835,7 @@ void dm_gfx_retire_host_state(void) {
+     pthread_mutex_lock(&g_shot_mu); free(g_shot); g_shot = NULL; g_shot_w = g_shot_h = g_shot_cap = 0; pthread_mutex_unlock(&g_shot_mu);
+     atomic_store(&g_shot_armed, 0); g_wprep = NULL; g_suspended = 0;
+     pthread_mutex_lock(&g_anom_mu); memset(g_anom_seen, 0, sizeof g_anom_seen); g_anom_n = 0; pthread_mutex_unlock(&g_anom_mu);
+-    if (g_ft_fd >= 0) close(g_ft_fd); g_ft_fd = -2; g_ft_c = g_ft_last = 0; g_ft_pace_last = g_ft_gc = 0; g_ft_sample = NULL;
++    if (g_ft_fd >= 0) close(g_ft_fd); g_ft_fd = -2; g_ft_c = g_ft_last = 0; g_ft_pace_last = g_ft_gc = 0; g_ft_pace_cand = 0; g_ft_sample = NULL;   // RewindBox (patch 0068): g_ft_pace_cand
+     memset(g_ft, 0, sizeof g_ft); g_ap_draws = g_ap_prev = 0;
+ }
+ // 标称帧率（自动玩家折算路线帧数，runtime/src/ap_host.c s2a_nominal_fps_set）：出图实际跟的节拍，三种直连款各取自己的出图路径——
+diff --git a/graphics/nvn/tests/README_fps_limit.md b/graphics/nvn/tests/README_fps_limit.md
+index 0d886b1..56ea543 100644
+--- a/graphics/nvn/tests/README_fps_limit.md
++++ b/graphics/nvn/tests/README_fps_limit.md
+@@ -6,6 +6,8 @@
+ 
+ 30 上限在最终周期兼容 30 Hz 整拍时复用显示链接的 30 Hz 模式；interval 1、2 都能在 30 Hz 链接上等待一拍，不会叠加为 15 帧。自动低频通过既有原生 30 的稳定判据或 30 上限选择：最终周期 50 ms 请求 20 Hz，33.3 ms 请求 30 Hz。换档前新目标周期须连续保持一秒，两个方向相同；单帧偏离不切档，仍按当前链接速率向上取整等待。这个稳定秒与原生30资格同时计时，不额外再等一秒。其他不兼容周期保留请求的 60/120 Hz 基准，不再因一次慢周期锁定整个会话。NVN present 仍只入队，取图阶段等节拍；GL 和 Vulkan 复用各自既有的交换/取图等待。
+ 
++RewindBox (patch 0068): by default (`S2A_RB_LINK_CAP30` unset or not `0`) the 30 cap no longer selects the 30 Hz mode. Under the cap the link keeps its base rate (60 Hz, or 120 Hz with `DM_PRESENT_LINK=2`), the game's own 30 included, and the display-link hold and the tick wait give the 33.3 ms, so a late frame shows one 16.7 / 8.3 ms refresh later instead of one 33.3 ms tick later. Only the 50 ms period still asks for 20 Hz, and `DM_FPS=30` still pins 30 Hz. `S2A_RB_LINK_CAP30=0` restores the 30 Hz mode described in the previous paragraph. The runner checks both: the cap-30 `2→3→1` dynamic case expects the base rate in its 33.3 ms phases and no range setter in the mixed phase, and its `S2A_RB_LINK_CAP30=0` twin (`-linkcap30off`) keeps the 30 Hz and one-setter expectations.
++
+ `preferredFrameRateRange` 是系统尽力满足的提示。20 Hz 请求生效时，包括首次创建链接，生产 delegate 在虚拟节拍过滤前记录真实单调时钟；每30个回调间隔取一次中位数。若不在45..55 ms内，本会话禁用20 Hz，打红并在下一次present立即请求60 Hz，让50 ms按3拍等待。成功批次后继续检测，不能只验证首次获准；session清理复位。日志的请求60 Hz不等于实际回调已达到60 Hz，真实拒绝、恢复及iPad行为均须分别实测。
+ 
+ 只采真实前台有焦点且没有处在显示链接卡顿中的间隔。Mac壳按App活跃与游戏窗key状态、iOS壳按UIKit活跃生命周期发布原子焦点与`now_ns()`激活时间；回调线程不读AppKit/UIKit。失焦、激活时刻跨过上个样本或卡顿恢复都会清掉未满批次，跨边界的间隔不计。原显示链接卡顿守护也读这两个真实getter，失焦时间不再被无壳弱实现当成前台时间；原输入处理、后台暂停、队列退路与红阈值保持。
+@@ -23,9 +25,9 @@ FPS_WIDEN_LIB=/绝对路径/S2Arm.Gfx.Widen.dylib \
+   bash graphics/nvn/tests/t_fps_limit.sh
+ ```
+ 
+-默认只运行核心 **56 项**，结尾须为 `fps limit core matrix: 56/56 passed`，并明确打印「120 Hz专项未执行」。原 40 项保留：24 个无窗口场景测四个上限及原生间隔；10 个可见窗口场景测 Metal 3/4 × 三前端的 30 上限和 interval 2；6 个 HUD 场景在真实帧循环中停顿 200 ms，对照生产时间戳核目标 30、慢帧分子和 108 个真实间隔的分母。
++默认只运行核心 **61 项**（RewindBox (patch 0068): 61 with the two `S2A_RB_LINK_CAP30=0` twins），结尾须为 `fps limit core matrix: 61/61 passed`，并明确打印「120 Hz专项未执行」。原 40 项保留：24 个无窗口场景测四个上限及原生间隔；10 个可见窗口场景测 Metal 3/4 × 三前端的 30 上限和 interval 2；6 个 HUD 场景在真实帧循环中停顿 200 ms，对照生产时间戳核目标 30、慢帧分子和 108 个真实间隔的分母。
+ 
+-新增16项为Metal3/4各八项：interval3 × 四个上限的真实acquire/显示50ms及链接20Hz；`2→3→2`的30→60→20→60→30Hz（低频档表示不了新周期立即回60Hz，同一周期稳1秒再降）及逐帧`2↔3`回60Hz一次、周期41.7ms；cap30的`2→3→1`恢复30Hz且仍为33.3ms；显式`DM_FPS=30/60`与30上限边界。动态局保留首12帧真实acquire耗时和正显示时间差；两个方向首10帧分别应在旧30/20Hz链接等待66.7/50ms，稳定后再核最终周期。正式runner以真实`present pacing mode`日志核交替阶段没有范围setter，帧号强制转数字后比较327..435，不能把字符串34误算进该范围。`FPS_INTERVAL3_ONLY=1`只运行这16项，不能代替完整核心矩阵。
++新增16项为Metal3/4各八项：interval3 × 四个上限的真实acquire/显示50ms及链接20Hz；`2→3→2`的30→60→20→60→30Hz（低频档表示不了新周期立即回60Hz，同一周期稳1秒再降）及逐帧`2↔3`回60Hz一次、周期41.7ms；cap30的`2→3→1`仍为33.3ms（RewindBox (patch 0068): at the base rate by default, 30 Hz in the `S2A_RB_LINK_CAP30=0` twin）；显式`DM_FPS=30/60`与30上限边界。动态局保留首12帧真实acquire耗时和正显示时间差；两个方向首10帧分别应在旧30/20Hz链接等待66.7/50ms，稳定后再核最终周期。正式runner以真实`present pacing mode`日志核交替阶段没有范围setter，帧号强制转数字后比较327..435，不能把字符串34误算进该范围。`FPS_INTERVAL3_ONLY=1`只运行这一组（RewindBox (patch 0068): 20 cases with the twins），不能代替完整核心矩阵。
+ 
+ `FPS_TEST_DEACTIVATE=1`仅用于独立真实NVN窗口、静态interval3的受控拒绝探针：在第75帧对测试进程自己调用一次`NSApp deactivate`，不激活其他App、不构造回调或时间。该专项只保留API/队列检查并输出真实窗口与回调读数，不执行前台显示数量/周期验收，不能替代默认场景；普通前台场景的全部原阈值保持。若没有实际失去active或出现拒绝条件，必须报告未命中，不重试造出15Hz，不把API检查通过当作退路通过。
+ 
+@@ -40,7 +42,7 @@ FPS_HIGH_REFRESH=1 FPS_WIDEN_LIB=/绝对路径/S2Arm.Gfx.Widen.dylib \
+   bash graphics/nvn/tests/t_fps_limit.sh
+ ```
+ 
+-高刷子矩阵保留原14项，加两后端 × interval3 × 四个上限，以及两后端普通/回到1的动态切换，共26项。原高刷场景核实际120Hz，自动interval3核真实50ms及20Hz；动态稳定阶段期望30→20→30Hz。逐帧2↔3的内容平均帧率是24，但异步变频提示不能保证callback平均24Hz；该阶段记录实际频率并核20..30Hz请求区间，沿用10%测量容差，出帧周期及显示数量阈值保持。cap30的3→1恢复30Hz并核33.3ms。窗口所属NSScreen能力或高刷场景实际链接达不到120时明确`UNTESTED`、退出2，不能计通过；完整成功须为`fps limit 120 Hz matrix: 26/26 passed, 0 untested`。两套都实际通过才能合并报告82项，默认56项不能写成82/82。
++高刷子矩阵保留原14项，加两后端 × interval3 × 四个上限，以及两后端普通/回到1的动态切换，共26项（RewindBox (patch 0068): 28 with the two `S2A_RB_LINK_CAP30=0` twins）。原高刷场景核实际120Hz，自动interval3核真实50ms及20Hz；动态稳定阶段期望30→20→30Hz。逐帧2↔3的内容平均帧率是24，但异步变频提示不能保证callback平均24Hz；该阶段记录实际频率并核20..30Hz请求区间，沿用10%测量容差，出帧周期及显示数量阈值保持。cap30的3→1核33.3ms（RewindBox (patch 0068): 120 Hz base rate in phases 0 and 2 by default, 30 Hz in the `S2A_RB_LINK_CAP30=0` twin）。窗口所属NSScreen能力或高刷场景实际链接达不到120时明确`UNTESTED`、退出2，不能计通过；完整成功须为`fps limit 120 Hz matrix: 28/28 passed, 0 untested`。两套都实际通过才能合并报告89项，默认61项不能写成89/89（RewindBox (patch 0068): 28, 89 and 61）。
+ 
+ 测试只读使用预先准备的生产 Widen，不发布、不还原 NuGet。缺失依赖退出 2。NVN/GAL、完整原生宿主与 Mac 前端均从被测树编译；通过生产静态库和真实入口调用三前端，不提供宿主、链接或图形替身。核心默认产物在 `build/tests/fps-limit`，高刷新率默认在 `build/tests/fps-limit-high-refresh`；`FPS_LIMIT_BUILD` 可指定私有输出目录，`link-inputs.sha256` 记录实际链接身份。
+ 
+diff --git a/graphics/nvn/tests/t_fps_limit.m b/graphics/nvn/tests/t_fps_limit.m
+index 4623700..49232b2 100644
+--- a/graphics/nvn/tests/t_fps_limit.m
++++ b/graphics/nvn/tests/t_fps_limit.m
+@@ -85,7 +85,11 @@ static void dynamic_result(int phase, const double *times, uint64_t first, doubl
+     double hi = phase == 3 ? 1.10 : 1.30;
+     CHECK(mean >= expected[phase] * .90 && mean <= expected[phase] * hi,
+         "NVN动态阶段%d真实取图周期 %.3f ms，期望 %.3f ms（上限 %.2f 倍）", phase, mean, expected[phase], hi);
+-    const double rates[] = {30, 20, 30};
++    double rates[] = {30, 20, 30};
++    // RewindBox (patch 0068): under the 30 cap the link keeps its base rate (60 Hz, 120 Hz with DM_PRESENT_LINK=2) for the 33.3 ms phases 0 and 2, the hold and the tick wait giving
++    //   the 33.3 ms checked above and below; only the 50 ms phase goes to 20 Hz. S2A_RB_LINK_CAP30=0 (the runner's twin case) keeps the 30 Hz expectations
++    const char *fe = getenv("S2A_FPS"), *ke = getenv("S2A_RB_LINK_CAP30"), *le = getenv("DM_PRESENT_LINK");
++    if (fe && atoi(fe) == 30 && !(ke && !strcmp(ke, "0"))) rates[0] = rates[2] = le && atoi(le) == 2 ? 120 : 60;
+     // Per-frame changes are asynchronous hints, not an instantaneous 24 Hz
+     // callback clock. Keep exact stable rates and bound the mixed phase by
+     // its two requested rates, with the same 10% measurement tolerance.
+diff --git a/graphics/nvn/tests/t_fps_limit.sh b/graphics/nvn/tests/t_fps_limit.sh
+index fedf454..a13d35f 100644
+--- a/graphics/nvn/tests/t_fps_limit.sh
++++ b/graphics/nvn/tests/t_fps_limit.sh
+@@ -50,6 +50,7 @@ if [[ ${FPS_BUILD_ONLY:-0} == 1 ]]; then exit 0; fi
+ bad=0; cases=0; incomplete=0
+ run_case() {
+     local backend=$1 link=$2 api=$3 fps=$4 interval=$5 hz=$6 expected=$7 window=$8 hud=${9:-0} dynamic=${10:-0} pin=${11:-0} return_one=${12:-0} focus=${13:-0} stall=${14:-0} split=${15:-0} flap=${16:-0}
++    local link_cap30=${17:-1}   # RewindBox (patch 0068): 0 runs the case with S2A_RB_LINK_CAP30=0 (the 30 cap back on the 30 Hz link)
+     local name="$backend-link$link-$api-fps$fps-itv$interval-hz$hz-window$window"
+     if [[ "$hud" == 1 ]]; then name="$name-hud1"; fi
+     if [[ "$dynamic" == 1 ]]; then name="$name-dynamic"; fi
+@@ -59,9 +60,11 @@ run_case() {
+     if [[ "$stall" == 1 ]]; then name="$name-stall"; fi
+     if [[ "$split" == 1 ]]; then name="$name-split"; fi
+     if [[ "$flap" == 1 ]]; then name="$name-flap"; fi
++    if [[ "$link_cap30" == 0 ]]; then name="$name-linkcap30off"; fi   # RewindBox (patch 0068)
+     local runtime="$out/$name" status=0
+     mkdir -p "$runtime"
+-    local run_env=(env -u NXGAL_BE -u DM_FPS -u DM_DETCLOCK -u DM_DETCLOCK_PACE -u S2A_INPUT_CONFIG -u FPS_TEST_DYNAMIC -u FPS_TEST_RETURN_ONE -u FPS_TEST_DEACTIVATE -u FPS_TEST_FOCUS -u FPS_TEST_STALL -u FPS_TEST_SPLIT -u DM_TEST_LINK_STALL \
++    # RewindBox (patch 0068): S2A_RB_LINK_CAP30 is unset, so only the twin cases below set it
++    local run_env=(env -u NXGAL_BE -u DM_FPS -u DM_DETCLOCK -u DM_DETCLOCK_PACE -u S2A_INPUT_CONFIG -u FPS_TEST_DYNAMIC -u FPS_TEST_RETURN_ONE -u FPS_TEST_DEACTIVATE -u FPS_TEST_FOCUS -u FPS_TEST_STALL -u FPS_TEST_SPLIT -u DM_TEST_LINK_STALL -u S2A_RB_LINK_CAP30 \
+         -u MTL_SHADER_VALIDATION -u MTL_SHADER_VALIDATION_DEFAULT_STATE -u MTL_SHADER_VALIDATION_ENABLE_ERROR_REPORTING \
+         S2A_GFX=direct S2A_WIDEN_DIRECT=0 S2A_FPS="$fps" S2A_FPS60=0 S2A_GAME_DATA="$runtime" S2A_DOCS="$runtime" \
+         S2A_HUD="$hud" FPS_TEST_HUD="$hud" FPS_TEST_HUD_TARGET="$fps" \
+@@ -75,15 +78,18 @@ run_case() {
+     if [[ "$stall" == 1 ]]; then run_env+=(FPS_TEST_STALL=1 DM_TEST_LINK_STALL=0.5,0.5); fi
+     if [[ "$split" == 1 ]]; then run_env+=(FPS_TEST_SPLIT=1); fi
+     if [[ "$flap" == 1 ]]; then run_env+=(FPS_TEST_FLAP=1); fi
++    if [[ "$link_cap30" == 0 ]]; then run_env+=(S2A_RB_LINK_CAP30=0); fi   # RewindBox (patch 0068)
+     "${run_env[@]}" "$out/t_fps_limit" "$api" "$interval" "$expected" "$window" > "$out/$name.log" 2>&1 || status=$?
+     if [[ "$dynamic" == 1 ]]; then
+         local switches
+         switches=$(awk '/present pacing mode/ { frame=$NF; gsub(/[^0-9]/,"",frame); frame+=0; if (frame >= 327 && frame < 436) n++ } END {print n+0}' "$out/$name.log")
+         # 逐帧 2↔3：30 Hz 表示不了 50 ms，进阶段立即回 60 Hz 一次，之后不逐帧换档（11-04，原期望 0 次 = 留在 30 Hz）
+-        if [[ "$switches" == 1 ]]; then
+-            printf 'PASS 逐帧2/3只回60Hz一次：范围setter次数1\n' >> "$out/$name.log"
++        # RewindBox (patch 0068): under the 30 cap (S2A_RB_LINK_CAP30 on) phase 2 already runs at the base rate, so the mixed phase has nothing to return from: no range setter at all
++        local want_switches=1; if [[ "$fps" == 30 && "$link_cap30" != 0 ]]; then want_switches=0; fi
++        if [[ "$switches" == "$want_switches" ]]; then
++            printf 'PASS 逐帧2/3范围setter次数%s（期望%s：回60Hz一次；30上限保持基础频率时0次）\n' "$switches" "$want_switches" >> "$out/$name.log"
+         else
+-            printf 'FAIL 逐帧2/3触发范围setter %s 次，期望1（回60Hz一次）\n' "$switches" >> "$out/$name.log"; status=1
++            printf 'FAIL 逐帧2/3触发范围setter %s 次，期望%s（回60Hz一次；30上限保持基础频率时0次）\n' "$switches" "$want_switches" >> "$out/$name.log"; status=1   # RewindBox (patch 0068): want_switches
+         fi
+     fi
+     if [[ "$flap" == 1 ]]; then
+@@ -186,18 +192,19 @@ elif [[ "$high" == 0 ]]; then
+         for cap in 0 30 60 120; do run_case "$backend" 1 nvn "$cap" 3 60 50 1; done
+         run_case "$backend" 1 nvn 0 2 60 33.333333 1 0 1
+         run_case "$backend" 1 nvn 30 2 60 33.333333 1 0 1 0 1
++        run_case "$backend" 1 nvn 30 2 60 33.333333 1 0 1 0 1 0 0 0 0 0   # RewindBox (patch 0068): the same with S2A_RB_LINK_CAP30=0, the 30 Hz link under the cap
+         # 显式DM_FPS30是backend测试pin，不是用户上限；保留既有强制30Hz诊断。
+         run_case "$backend" 1 nvn 30 3 60 66.666667 1 0 0 30
+         run_case "$backend" 1 nvn 30 3 60 50 1 0 0 60
+         # 金刚形态：间隔 3 为主、每 30 帧一帧 2；不得 60↔20 Hz 来回换档，也不得留在 30 Hz 把 50 ms 取整成 67 ms
+         run_case "$backend" 1 nvn 0 3 60 50 1 0 0 0 0 0 0 0 1
+     done
+-    expected_cases=59; [[ ${FPS_INTERVAL3_ONLY:-0} != 1 ]] || expected_cases=18   # 57：11-02 加分线程取图一例（牧场物语形态）
++    expected_cases=61; [[ ${FPS_INTERVAL3_ONLY:-0} != 1 ]] || expected_cases=20   # 57：11-02 加分线程取图一例（牧场物语形态）; RewindBox (patch 0068): 61 / 20, the S2A_RB_LINK_CAP30=0 twins
+     [[ "$cases" == "$expected_cases" ]] || { echo "核心场景数量错误：${cases}（应${expected_cases}）" >&2; exit 1; }
+     printf 'fps limit core matrix: %d/%d passed (logs: %s)\n' "$((cases - bad))" "$expected_cases" "$out"
+-    echo '120 Hz专项未执行：有真实120Hz屏幕时另设 FPS_HIGH_REFRESH=1（仅运行26项）。'
++    echo '120 Hz专项未执行：有真实120Hz屏幕时另设 FPS_HIGH_REFRESH=1（仅运行28项）。'   # RewindBox (patch 0068): 28
+ else
+-    # 26个120Hz专项；能力不足由真实屏幕和链接采样返回UNTESTED/exit2，不能计绿。
++    # 26个120Hz专项；能力不足由真实屏幕和链接采样返回UNTESTED/exit2，不能计绿。RewindBox (patch 0068): 28 with the two S2A_RB_LINK_CAP30=0 twins
+     # GL interval0的120上限只等一实际拍；NVN无锁诊断仍保留原先interval1两拍的60步进。
+     for backend in mtl4 mtl3; do
+         for cap in 0 60 120; do
+@@ -210,9 +217,10 @@ else
+         for cap in 0 30 60 120; do run_case "$backend" 2 nvn "$cap" 3 60 50 1; done
+         run_case "$backend" 2 nvn 0 2 60 33.333333 1 0 1
+         run_case "$backend" 2 nvn 30 2 60 33.333333 1 0 1 0 1
++        run_case "$backend" 2 nvn 30 2 60 33.333333 1 0 1 0 1 0 0 0 0 0   # RewindBox (patch 0068): the same with S2A_RB_LINK_CAP30=0
+     done
+-    [[ "$cases" == 26 ]] || { echo "120Hz场景数量错误：${cases}（应26）" >&2; exit 1; }
+-    printf 'fps limit 120 Hz matrix: %d/26 passed, %d untested (logs: %s)\n' "$((cases - bad))" "$incomplete" "$out"
++    [[ "$cases" == 28 ]] || { echo "120Hz场景数量错误：${cases}（应28）" >&2; exit 1; }   # RewindBox (patch 0068): 28 with the twins
++    printf 'fps limit 120 Hz matrix: %d/28 passed, %d untested (logs: %s)\n' "$((cases - bad))" "$incomplete" "$out"   # RewindBox (patch 0068): 28
+ fi
+ if [[ "$bad" == 0 ]]; then exit 0; fi
+ if [[ "$bad" == "$incomplete" ]]; then exit 2; fi
+diff --git a/ios/hud.m b/ios/hud.m
+index 5ff2969..f97bdf6 100644
+--- a/ios/hud.m
++++ b/ios/hud.m
+@@ -60,7 +60,7 @@ void s2a_hud_brief_show(UIView *root, BOOL on) {
+     void (^tick)(void) = ^{
+         UIView *v = g_brief.superview; if (!v) return;
+         char t[128]; s2a_hud_brief(t, sizeof t); g_brief.text = @(t);
+-        CGSize s = [g_brief sizeThatFits:CGSizeMake(300, 30)]; UIEdgeInsets in = v.safeAreaInsets;
++        CGSize s = [g_brief sizeThatFits:CGSizeMake(360, 30)]; UIEdgeInsets in = v.safeAreaInsets;   // RewindBox (patch 0068): 360, the line has the limit and the longest interval too
+         g_brief.frame = CGRectMake(v.bounds.size.width - in.right - 8 - (s.width + 16), in.top + 6, s.width + 16, 20);
+     };
+     [g_brief_timer invalidate];
+diff --git a/runtime/include/s2a_hud.h b/runtime/include/s2a_hud.h
+index b6a95dd..f0fdfdb 100644
+--- a/runtime/include/s2a_hud.h
++++ b/runtime/include/s2a_hud.h
+@@ -12,7 +12,7 @@ int s2a_hud_on(void);
+ void s2a_hud_frame(void);                                              // 每上屏一帧（ap_host.c s2a_frame_presented）
+ void s2a_hud_audio(int session, int64_t gap_ms_total, int64_t skipped);   // 声音诊断 10 秒汇报（S2AOutputDiag.cs）
+ int s2a_hud_text(char *out, size_t n, const s2a_hud_host *h);
+-// 简版性能浮层（齿轮菜单「性能浮层」）：s2a_hud_brief_set 开关上屏计时（ap_host.c），s2a_hud_brief 出一行「NN 帧 · X.X GB」
++// 简版性能浮层（齿轮菜单「性能浮层」）：s2a_hud_brief_set 开关上屏计时（ap_host.c），s2a_hud_brief 出一行「NN 帧 · X.X GB」（RewindBox (patch 0068): with the active limit and the longest frame interval of the last second）
+ void s2a_hud_brief_set(int on);
+ int s2a_hud_brief(char *out, size_t n);
+ #ifdef __cplusplus
+diff --git a/runtime/include/s2a_ui_text.h b/runtime/include/s2a_ui_text.h
+index e2c2522..33991be 100644
+--- a/runtime/include/s2a_ui_text.h
++++ b/runtime/include/s2a_ui_text.h
+@@ -62,8 +62,11 @@ int s2a_ui_zh(void);
+ #define S2A_UI_STALL_WAIT_EN            "The game picture is stuck\n\nIt may still be loading, so you can wait a little longer. If nothing changes, swipe this app away in the app switcher and open it again."
+ 
+ // ---------- 齿轮菜单「性能浮层」那一行（runtime/src/hud.c s2a_hud_brief → ios/hud.m） ----------
+-#define S2A_UI_HUD_BRIEF                "%llu 帧 · %s"
+-#define S2A_UI_HUD_BRIEF_EN             "%llu FPS · %s"
++// RewindBox (patch 0068): the presents of the last second, the active frame-rate limit (S2A_UI_HUD_BRIEF_CAP, empty without one), the longest frame interval of that second, memory
++#define S2A_UI_HUD_BRIEF                "%llu 帧%s · 最长间隔 %.0f ms · %s"
++#define S2A_UI_HUD_BRIEF_EN             "%llu FPS%s · max %.0f ms · %s"
++#define S2A_UI_HUD_BRIEF_CAP            "（上限 %d）"
++#define S2A_UI_HUD_BRIEF_CAP_EN         " (limit %d)"
+ #define S2A_UI_HUD_MEM_FAIL             "内存读取失败"
+ #define S2A_UI_HUD_MEM_FAIL_EN          "Memory unavailable"
+ #ifdef __cplusplus
+diff --git a/runtime/src/ap_host.c b/runtime/src/ap_host.c
+index b234c23..3fc520a 100644
+--- a/runtime/src/ap_host.c
++++ b/runtime/src/ap_host.c
+@@ -71,12 +71,24 @@ uint64_t s2a_ap_frames(void) { return atomic_load_explicit(&g_frames, memory_ord
+ //   不是实测上屏率：机器负载高时实测掉到几帧，路线帧数不该跟着缩。
+ //   各出图路径每次上屏 / 节拍变化时报进来：直连（NVN / Vulkan / OpenGL）graphics/nvn/host_adapt.m dm_guest_frame_tick → present_fps（NVN 按 hle_nvn.c nvn_present_fps：
+ //   帧步进 hold / display 模式 / 这一帧退回游戏间隔；GL 按 eglSwapInterval；Vulkan 按目标帧率）；通用模式 graphics/loop/RenderLoop.cs FrameInterval（SurfaceFlinger 生效交换间隔，含 S2A_FPS 地板）。
+-//   0 = 还没上过屏（自动玩家按 30）。变了打一行（前 32 次逐次、之后每 1000 次一次，同 RenderLoop 帧节拍行的限频），tools/fps_speed_judge.py 等离线工具据此知道这局的折算口径
++//   0 = 还没上过屏（自动玩家按 30）。变了打一行（前 32 次逐次、之后每 1000 次一次，同 RenderLoop 帧节拍行的限频；RewindBox patch 0068: after the 32nd, at most one a second, see below），tools/fps_speed_judge.py 等离线工具据此知道这局的折算口径
++// RewindBox (patch 0068): in the IPA 765 race (Mario Kart World, iPhone17,2) the game flipped its present interval 665 times and the rate went 30 / 60 / 30 inside the recording, but this
++//   line stopped after its 32nd change (then every 1000th) and had no frame number: the 60 and 30 phases of the recorded frames could not be placed. Now each of the first 32 changes
++//   as before, then at most one line a second, which says how many changes it stands for; a change left unsaid is said once a second has passed (one atomic read a present
++//   otherwise). Each line ends with the presented frame (s2a_ap_frames) and the monotonic time. Called on the presenting thread; the state is atomic
++static _Atomic uint64_t g_nominal_said;   // RewindBox (patch 0068): now_ns of the last line
++static _Atomic int g_nominal_skip;        // RewindBox (patch 0068): changes since it not logged one by one
+ void s2a_nominal_fps_set(int fps) {
+     if (fps <= 0) return;
+-    int was = atomic_exchange_explicit(&g_nominal_fps, fps, memory_order_relaxed); if (was == fps) return;
+-    int n = atomic_fetch_add_explicit(&g_nominal_n, 1, memory_order_relaxed) + 1;
+-    if (n <= 32 || n % 1000 == 0) LOG("标称帧率：%d 帧/秒（出图实际跟的节拍%s；自动玩家按它折算按 30 帧写的路线 / 录手柄帧数）", fps, was ? "，运行中变了" : "");
++    int was = atomic_exchange_explicit(&g_nominal_fps, fps, memory_order_relaxed), skip = atomic_load_explicit(&g_nominal_skip, memory_order_relaxed);   // RewindBox (patch 0068): skip, the time limit below
++    if (was == fps && !skip) return;
++    uint64_t t = now_ns(), said = atomic_load_explicit(&g_nominal_said, memory_order_relaxed);
++    if (was == fps) { if (t - said < 1000000000ull) return; }
++    else { int n = atomic_fetch_add_explicit(&g_nominal_n, 1, memory_order_relaxed) + 1;
++        if (n > 32 && t - said < 1000000000ull) { atomic_fetch_add_explicit(&g_nominal_skip, 1, memory_order_relaxed); return; } }
++    atomic_store_explicit(&g_nominal_said, t, memory_order_relaxed); atomic_store_explicit(&g_nominal_skip, 0, memory_order_relaxed);
++    char more[96] = ""; if (skip) snprintf(more, sizeof more, "; %d more changes in the second before, not logged one by one", skip);
++    LOG("标称帧率：%d 帧/秒（出图实际跟的节拍%s；自动玩家按它折算按 30 帧写的路线 / 录手柄帧数）; frame %llu, %.3f s%s", fps, was ? "，运行中变了" : "", (unsigned long long)s2a_ap_frames(), t / 1e9, more);
+ }
+ int s2a_ap_nominal_fps(void) { return atomic_load_explicit(&g_nominal_fps, memory_order_relaxed); }
+ void s2a_host_shutdown(const char *why);
+diff --git a/runtime/src/cpuprof.c b/runtime/src/cpuprof.c
+index cd034c2..e6b4962 100644
+--- a/runtime/src/cpuprof.c
++++ b/runtime/src/cpuprof.c
+@@ -97,10 +97,15 @@ static void *cp_main(void *arg) {
+ //   exception state names the address
+ static int cp_wait_name(const char *n) { return !strncmp(n, "nx-", 3) || !strncmp(n, "dm-", 3) || !strncmp(n, "nvn-", 4); }
+ static int g_nwait;   // samples of waiting threads in the window
++// RewindBox (patch 0068): what the sampler itself cost in the window: the time it held threads suspended (all suspensions, their count and the longest) and its own CPU time. The IPA 765
++//   analysts could not tell how much the automatic 4 s profiles (frames 600, 1858, 2683, 3696, 4573) slowed the frames they sampled; the 'CPU profile' line now says it
++static uint64_t g_cp_susp_ns, g_cp_susp_max_ns, g_cp_susp_n, g_cp_cpu_ns;
++static uint64_t cp_mono_ns(void) { struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t); return (uint64_t)t.tv_sec * 1000000000ull + (uint64_t)t.tv_nsec; }
+ // waits: 0 = running threads only (S2A_CPUPROF, as before); N = every Nth round also the waiting threads cp_wait_name names
+ static double cp_window(double dur, double hz, const char *flt, int waits) {   // RewindBox (patch 0054): the sampling loop as it stood in cp_main; returns the window's length in seconds
+     thread_t self = mach_thread_self(); struct timespec beg, now; clock_gettime(CLOCK_MONOTONIC, &beg);
+     long per = (long)(1e9 / hz); unsigned long round = 0; g_nwait = 0;
++    g_cp_susp_ns = g_cp_susp_max_ns = g_cp_susp_n = 0; uint64_t cpu0 = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID);   // RewindBox (patch 0068)
+     for (;; round++) {
+         clock_gettime(CLOCK_MONOTONIC, &now);
+         double el = (double)(now.tv_sec - beg.tv_sec) + (now.tv_nsec - beg.tv_nsec) / 1e9;
+@@ -118,6 +123,7 @@ static double cp_window(double dur, double hz, const char *flt, int waits) {   /
+                 uint64_t tid = thread_info(th[i], THREAD_IDENTIFIER_INFO, (thread_info_t)&ii, &c) == KERN_SUCCESS ? ii.thread_id : 0;
+                 int slot = thr_slot(tid, ei.pth_name);
+                 cp_sample *s = &g_s[g_ns];
++                uint64_t su0 = cp_mono_ns();   // RewindBox (patch 0068): the suspension is timed
+                 if (thread_suspend(th[i]) != KERN_SUCCESS) continue;
+                 arm_thread_state64_t st; mach_msg_type_number_t sc = ARM_THREAD_STATE64_COUNT; int ok = 0;
+                 if (thread_get_state(th[i], ARM_THREAD_STATE64, (thread_state_t)&st, &sc) == KERN_SUCCESS) {
+@@ -129,6 +135,7 @@ static double cp_window(double dur, double hz, const char *flt, int waits) {   /
+                         if (thread_get_state(th[i], ARM_EXCEPTION_STATE64, (thread_state_t)&es, &ec) == KERN_SUCCESS) s->far = es.__far; }
+                 }
+                 thread_resume(th[i]);
++                { uint64_t d = cp_mono_ns() - su0; g_cp_susp_ns += d; g_cp_susp_n++; if (d > g_cp_susp_max_ns) g_cp_susp_max_ns = d; }   // RewindBox (patch 0068)
+                 if (ok) { g_ns++; if (waiting) g_nwait++; else g_thr[slot].n++; }
+             }
+             for (mach_msg_type_number_t i = 0; i < n; i++) mach_port_deallocate(mach_task_self(), th[i]);
+@@ -137,6 +144,7 @@ static double cp_window(double dur, double hz, const char *flt, int waits) {   /
+         struct timespec w = {0, per}; nanosleep(&w, NULL);
+     }
+     clock_gettime(CLOCK_MONOTONIC, &now);
++    g_cp_cpu_ns = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) - cpu0;   // RewindBox (patch 0068)
+     mach_port_deallocate(mach_task_self(), self);
+     return (double)(now.tv_sec - beg.tv_sec) + (now.tv_nsec - beg.tv_nsec) / 1e9;
+ }
+@@ -167,7 +175,9 @@ static void cp_raw_write(const char *dir, double secs) {
+         fputc('\n', f);
+     }
+     int bad = ferror(f); if (fclose(f)) bad = 1;
+-    LOG("RewindBox: CPU profile: %d samples of running threads and %d of waiting ones, %d threads over %.1f s %s cpuprof.txt in the measurement's folder", g_ns - g_nwait, g_nwait, g_nthr, secs, bad ? "NOT all written (a write failed) to" : "written to");
++    LOG("RewindBox: CPU profile: %d samples of running threads and %d of waiting ones, %d threads over %.1f s %s cpuprof.txt in the measurement's folder; the sampler held threads suspended %.1f ms in all "
++        "(%llu suspensions, the longest %.0f us) and took %.1f ms of CPU (RewindBox patch 0068)", g_ns - g_nwait, g_nwait, g_nthr, secs, bad ? "NOT all written (a write failed) to" : "written to",
++        g_cp_susp_ns / 1e6, (unsigned long long)g_cp_susp_n, g_cp_susp_max_ns / 1e3, g_cp_cpu_ns / 1e6);   // RewindBox (patch 0068): the sampler's cost
+ }
+ static void *cp_rq_main(void *arg) {
+     (void)arg; pthread_setname_np("s2a-cpuprof");
+diff --git a/runtime/src/hud.c b/runtime/src/hud.c
+index ba5c247..eccdd45 100644
+--- a/runtime/src/hud.c
++++ b/runtime/src/hud.c
+@@ -214,17 +214,24 @@ static void line_mem(char *o, size_t n) {
+ }
+ 
+ // 简版一行：近 1 秒上屏帧数 + 本进程物理内存占用（与开发浮层同源：上屏时间戳环、phys_footprint）
++// RewindBox (patch 0068): the pill counted presents a second only. In the IPA 765 test (Mario Kart World, iPhone17,2) it read 29-30 while that half second of the recording held three
++//   67 ms holds, and nothing said that a 30 FPS limit was on while the game aimed at 60: the maintainer saw 30 and felt the game was not fluid. It now gives the active limit
++//   (S2A_FPS, cap_fps) and the longest frame interval of the last second, from the same ring: the intervals that end in that second and the one still open since the newest present
++//   (a frozen picture shows as a long interval). About 60 subtractions every 0.5 s, on the interface thread
+ int s2a_hud_brief(char *out, size_t n) {
+-    uint64_t end = atomic_load_explicit(&g_fn, memory_order_acquire), now = mono_ns(), f1 = 0;
++    uint64_t end = atomic_load_explicit(&g_fn, memory_order_acquire), now = mono_ns(), f1 = 0, prev = 0, gap = 0;   // RewindBox (patch 0068): prev, gap
+     for (uint64_t i = end; i > 0 && end - i < HR - 1; i--) {
+         uint64_t t = atomic_load_explicit(&g_ft[(i - 1) % HR], memory_order_relaxed);
++        if (t && !prev && now > t) gap = now - t;   // RewindBox (patch 0068): the interval still open
++        if (t && prev > t && prev - t > gap) gap = prev - t;   // RewindBox (patch 0068): it ends in the last second
+         if (!t || now - t > 1000000000ull) break;
+-        f1++;
++        f1++; prev = t;   // RewindBox (patch 0068): prev
+     }
+     task_vm_info_data_t vi; mach_msg_type_number_t c = TASK_VM_INFO_COUNT;
+     double gb = task_info(mach_task_self(), TASK_VM_INFO, (task_info_t)&vi, &c) == KERN_SUCCESS ? vi.phys_footprint / 1073741824.0 : -1;
+     char m[24]; snprintf(m, sizeof m, "%s", S2A_UI(S2A_UI_HUD_MEM_FAIL)); if (gb >= 0) snprintf(m, sizeof m, "%.1f GB", gb);
+-    return snprintf(out, n, S2A_UI(S2A_UI_HUD_BRIEF), (unsigned long long)f1, m);
++    char lim[48] = ""; int cap = cap_fps(); if (cap) snprintf(lim, sizeof lim, S2A_UI(S2A_UI_HUD_BRIEF_CAP), cap);   // RewindBox (patch 0068)
++    return snprintf(out, n, S2A_UI(S2A_UI_HUD_BRIEF), (unsigned long long)f1, lim, gap / 1e6, m);
+ }
+ 
+ int s2a_hud_text(char *out, size_t n, const s2a_hud_host *h) {
