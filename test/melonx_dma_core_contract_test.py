@@ -292,7 +292,10 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             # Core 661: the native display fixture declares EmbeddedMemory.cs (adapt_safe_point_compaction): rerun.
             'display-native': 'delivered',
             # Core 654: its receipt declares the collector (postimage), so the single-virtual-dependency fixture is rerun.
-            'single-virtual-dependency': 'ada'}
+            'single-virtual-dependency': 'ada',
+            # After IPA 767: the large object heap request at a host pressure report, the game's own break journaled, and
+            # the historical kernel wait gate's successor (its receipt declares Syscall.cs, which the break context changes).
+            'loh-compaction-request': 'delivered', 'guest-break-context': 'delivered', 'kernel-wait-lifetime-final': 'delivered'}
 TEXTURE = 'src/Ryujinx.Graphics.Gpu/Image/Texture.cs'
 # Core 654: the collector (DIAGNOSTICS) is a reviewed change again, its gcEvent lines bound by the gc-events gate.
 CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES) |
@@ -392,7 +395,9 @@ CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES
            # After IPA 760: its five GAL and Vulkan files are changed already.
            set(C772_DRAW_WAIT_LANES) |
            # After IPA 760, journal only: BufferHolder.cs is changed already.
-           set(C772_MIRROR_COPY_JOURNAL))
+           set(C772_MIRROR_COPY_JOURNAL) |
+           # After IPA 767: the game's own break journaled (adapt_guest_break_context).
+           {'src/Ryujinx.HLE/HOS/Kernel/SupervisorCall/Syscall.cs'})
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
@@ -416,6 +421,9 @@ RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'pe
          # Core 733: adapt_host_thread_class adds the class request to KTimeManager.cs, which this core87 receipt
          # declares; it is run again on the final timer manager against the delivered one.
          CORE87 + 'kernel-timer-allocations-checks.json',
+         # After IPA 767: adapt_guest_break_context adds the break context to Syscall.cs, which this core87 receipt
+         # declares; its kernel wait bodies are run again on the final Syscall.cs (kernel-wait-lifetime-final).
+         CORE87 + 'kernel-wait-lifetime-checks.json',
          # Core 743: adapt_submit_causes adds counters to SyncManager.Create and names the interrupt flush's cause in
          # SyncManager.cs, which this core87 receipt declares; it is run again on the final sync manager against the delivered one.
          CORE87 + 'sync-allocation-checks.json'}
@@ -722,7 +730,8 @@ if not args.helpers_only:
     # CommandBufferPool.cs). Next lot: 109 (AddressSpacePartition.cs, SemaphoreUpdater.cs).
     # Nextendo online lot: 115 (its six files) and one production addition, src/Ryujinx.HLE/EmbeddedOnline.cs.
     # After IPA 759: 116 (Ryujinx.Library.csproj) and a second addition, src/Ryujinx.Library/RewindBoxRuntimeYield.c.
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 116 and
+    # After IPA 767: 117 (Syscall.cs, the game's own break journaled: adapt_guest_break_context).
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 117 and
           set(frozen["productionAdditions"]) == {C768_ONLINE_ADDITION, C770_RUNTIME_YIELD_ADDITION}, "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
                                                      'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
@@ -952,7 +961,7 @@ if not args.helpers_only:
     # files of Core 654) are outside the GPU/Vulkan closure.
     OUTSIDE_GPU = set(PAUSE_BASELINE) | {'src/Ryujinx.Library/Window/WindowBase.cs'} | set(BINDER_BASELINE)
     # Core 661: its HLE and Library-assembly files (bound by their own gates).
-    OUTSIDE_GPU |= {'src/Ryujinx.HLE/HOS/Horizon.cs', 'src/Ryujinx.HLE/HOS/Kernel/KernelStatic.cs', 'src/Ryujinx.HLE/HOS/Kernel/Process/KProcess.cs', 'src/Ryujinx.HLE/HOS/Kernel/Threading/KWritableEvent.cs', 'src/Ryujinx.HLE/HOS/Services/Bluetooth/BluetoothDriver/BluetoothEventManager.cs', 'src/Ryujinx.HLE/HOS/Services/Nv/NvDrvServices/NvHostCtrl/Types/NvHostEvent.cs', 'src/Ryujinx.HLE/HOS/Services/SurfaceFlinger/HOSBinderDriverServer.cs', 'src/Ryujinx.HLE/HOS/Services/SurfaceFlinger/SurfaceFlinger.cs', 'src/Ryujinx.HLE/HOS/Services/Time/Clock/StandardUserSystemClockCore.cs', 'src/Ryujinx.HLE/HOS/Services/Time/Clock/SystemClockContextUpdateCallback.cs', 'src/Ryujinx.HLE/HOS/Services/Time/TimeManager.cs', 'src/Ryujinx.HLE/HOS/Services/Time/TimeSharedMemory.cs', 'src/Ryujinx.HLE/PerformanceStatistics.cs', 'src/Ryujinx.HLE/Switch.cs', 'src/Ryujinx.Library/EmbeddedMemory.cs', 'src/Ryujinx.Library/EmbeddedRuntime.cs', 'src/Ryujinx.Library/Library.cs', 'src/Ryujinx.Library/Ryujinx.Library.csproj', 'src/Ryujinx.Library/Window/WindowBase.cs'}
+    OUTSIDE_GPU |= {'src/Ryujinx.HLE/HOS/Horizon.cs', 'src/Ryujinx.HLE/HOS/Kernel/KernelStatic.cs', 'src/Ryujinx.HLE/HOS/Kernel/Process/KProcess.cs', 'src/Ryujinx.HLE/HOS/Kernel/SupervisorCall/Syscall.cs', 'src/Ryujinx.HLE/HOS/Kernel/Threading/KWritableEvent.cs', 'src/Ryujinx.HLE/HOS/Services/Bluetooth/BluetoothDriver/BluetoothEventManager.cs', 'src/Ryujinx.HLE/HOS/Services/Nv/NvDrvServices/NvHostCtrl/Types/NvHostEvent.cs', 'src/Ryujinx.HLE/HOS/Services/SurfaceFlinger/HOSBinderDriverServer.cs', 'src/Ryujinx.HLE/HOS/Services/SurfaceFlinger/SurfaceFlinger.cs', 'src/Ryujinx.HLE/HOS/Services/Time/Clock/StandardUserSystemClockCore.cs', 'src/Ryujinx.HLE/HOS/Services/Time/Clock/SystemClockContextUpdateCallback.cs', 'src/Ryujinx.HLE/HOS/Services/Time/TimeManager.cs', 'src/Ryujinx.HLE/HOS/Services/Time/TimeSharedMemory.cs', 'src/Ryujinx.HLE/PerformanceStatistics.cs', 'src/Ryujinx.HLE/Switch.cs', 'src/Ryujinx.Library/EmbeddedMemory.cs', 'src/Ryujinx.Library/EmbeddedRuntime.cs', 'src/Ryujinx.Library/Library.cs', 'src/Ryujinx.Library/Ryujinx.Library.csproj', 'src/Ryujinx.Library/Window/WindowBase.cs'}
     # Core 667: the native launch preflight (Library assembly) is bound by the Core 667 gate.
     OUTSIDE_GPU |= {'src/Ryujinx.Library/EmbeddedLaunchPreflight.cs'}
     # Core 679: the Apple audio session (Ryujinx.Audio.Backends.Apple assembly) is bound by the audio-start-deferred gate.
@@ -1144,6 +1153,15 @@ if not args.helpers_only:
     check(unadapted['delivered'].get(ALLOCATION) == '8e871eedcbc45750022c45a497fc4c1a482ea908f1c04e3ae7cd5a8ab8e022b2',
           'MemoryAllocation.cs is the upstream file')
     delivered_graphics[ALLOCATION] = unadapted['delivered'][ALLOCATION]
+    # After IPA 767: kernel-wait-lifetime-final, the historical kernel wait gate run again on the final Syscall.cs, reads
+    # the harness's support files (unchanged upstream files) from the delivered control, as the historical gate read them
+    # from pristine upstream (the freeze checks each against pristine upstream and the materialized control).
+    KERNEL_WAIT_SUPPORT = ['src/Ryujinx.HLE/HOS/Kernel/Common/KAutoObject.cs', 'src/Ryujinx.HLE/HOS/Kernel/Threading/ThreadSchedState.cs',
+                           'src/Ryujinx.Common/Pools/ObjectPool.cs',
+                           *['src/Ryujinx.Horizon.Common/' + name for name in ['Result.cs', 'KernelResult.cs', 'ResultNames.cs',
+                                                                              'InvalidResultException.cs', 'ThreadTerminatedException.cs']]]
+    check(all(path in unadapted['delivered'] for path in KERNEL_WAIT_SUPPORT), 'The kernel wait support files are in the delivered control\'s inventory')
+    delivered_graphics.update({path: unadapted['delivered'][path] for path in KERNEL_WAIT_SUPPORT})
     check(unadapted == {'delivered': delivered_graphics,
                         'delivered611': {**arrays_frozen['controlUnadaptedMembers']['delivered'], TEXTURE_ARRAY_GAL: graphics[TEXTURE_ARRAY_GAL]},
                         # KProcess (Core 647) and the two SurfaceFlinger files (Core 654) are read from no control: only their own

@@ -260,7 +260,8 @@
   "src/Ryujinx.HLE/HOS/Services/Sockets/Sfdnsres/Proxy/DnsBlacklist.cs",
   "src/Ryujinx.HLE/HOS/Services/Ssl/SslService/SslManagedSocketConnection.cs",
   "src/Ryujinx.Library/EmbeddedContent.cs",
-  "src/Ryujinx.Library/Ryujinx.Library.csproj"
+  "src/Ryujinx.Library/Ryujinx.Library.csproj",
+  "src/Ryujinx.HLE/HOS/Kernel/SupervisorCall/Syscall.cs"
  ],
  "productionAdditions": [
   "src/Ryujinx.HLE/EmbeddedOnline.cs",
@@ -423,7 +424,9 @@
   "test/melonx_loh_compaction_request_test.py",
   "test/melonx_loh_compaction_request/Program.cs",
   "test/melonx_guest_break_context_test.py",
-  "test/melonx_guest_break_context/Program.cs"
+  "test/melonx_guest_break_context/Program.cs",
+  "test/melonx_kernel_wait_lifetime_final_test.py",
+  "test/melonx_kernel_wait_lifetime/Program.cs"
  ],
  "fixtureProductionInputs": [
   "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs",
@@ -5051,6 +5054,30 @@
     "guestBreakContext.executed": true
    },
    "requiredPostimages": [
+    "src/Ryujinx.HLE/HOS/Kernel/SupervisorCall/Syscall.cs"
+   ]
+  },
+  {
+   "name": "kernel-wait-lifetime-final",
+   "script": "test/melonx_kernel_wait_lifetime_final_test.py",
+   "report": "kernel-wait-lifetime-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 1800,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparation",
+    "physicalDeviceTested": false,
+    "kernelWaitLifetime.executed": true
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.HLE/HOS/Kernel/Common/KSynchronizationObject.cs",
+    "src/Ryujinx.HLE/HOS/Kernel/Threading/KSynchronization.cs",
     "src/Ryujinx.HLE/HOS/Kernel/SupervisorCall/Syscall.cs"
    ]
   }
