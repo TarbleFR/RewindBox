@@ -1,0 +1,88 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 7069150..5354631 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -19028,6 +19028,9 @@ static void cap_end(void) {   // td_dump has written the files
+ //   reads). S2A_RB_AUTO_PROBE=0 takes none. The sampler suspends each sampled thread for a few microseconds, 500 times a second for the running ones and 50 for the
+ //   waiting ones, for 4 s: its cost on a device is not measured
+ enum { AP_MAX = 6, AP_RING = 120 };
++// RewindBox (patch 0084): three automatic measurements a process, not six: each one's 4 s profile perturbs the race it measures (runtime/src/cpuprof.c rq_light; IPA 775: the
++//   sampler took about 1.1 s of CPU and held the game's threads suspended 0.7-1.0 s in each window). S2A_RB_PROBE_LIGHT=0: six as before
++static int ap_max(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_PROBE_LIGHT"); v = e && !strcmp(e, "0") ? AP_MAX : 3; } return v; }
+ #define AP_GAP_NS 30000000000ull
+ static uint64_t g_ap_dump_at; static char g_ap_dir[1024];
+ static char g_ap_note[400];   // RewindBox (patch 0067): why it was taken, for its frames.txt (the replaying thread)
+@@ -19080,7 +19083,7 @@ static void rb_auto_probe(uint64_t f, uint32_t dur_us, uint32_t draws) {   // th
+     int rel = ap_period_on(); double per = 1e6 * nvn_fps_period(1.0 / nvn_be_fps_target());   // RewindBox (patch 0067): microseconds a frame should take now
+     { double gm = rel && f > 4 ? nvn_be_gpu_ms(f - 4) : -1; uint8_t lg = rel && dur_us >= 1.5 * per, vg = gm >= 0; uint32_t ug = vg ? (uint32_t)MIN(gm * 1000.0, 1e9) : 0;
+       nl += lg; nl -= rl[k]; rl[k] = lg; nv += vg; nv -= rv[k]; rv[k] = vg; sg += ug; sg -= rg[k]; rg[k] = ug; }
+-    if (filled < AP_RING || f < 600 || taken >= AP_MAX || g_cap_dir[0] || g_ap_dump_at || atomic_load(&g_cap_req)) return;
++    if (filled < AP_RING || f < 600 || taken >= ap_max() || g_cap_dir[0] || g_ap_dump_at || atomic_load(&g_cap_req)) return;   // RewindBox (patch 0084): ap_max
+     if (sn / AP_RING < 800) return;
+     char why[240];   // RewindBox (patch 0067)
+     if (!rel) { if (sd / AP_RING < 25000) return; snprintf(why, sizeof why, "the %d frames before it took %.1f ms each on average", (int)AP_RING, (double)sd / AP_RING / 1000.0); }
+@@ -19097,15 +19100,15 @@ static void rb_auto_probe(uint64_t f, uint32_t dur_us, uint32_t draws) {   // th
+         NSString *dir = docs.length ? [docs stringByAppendingPathComponent:[NSString stringWithFormat:@"Diagnostics/S2Arm/profiles/%@-f%llu", [df stringFromDate:NSDate.date], (unsigned long long)f]] : nil;
+         NSError *err = nil;
+         if (!dir || ![NSFileManager.defaultManager createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:&err]) {
+-            MLOG("【红】 RewindBox: automatic measurement: no folder for it (%s): none is taken in this process", err ? err.localizedDescription.UTF8String : "no Documents directory"); taken = AP_MAX; return; }
++            MLOG("【红】 RewindBox: automatic measurement: no folder for it (%s): none is taken in this process", err ? err.localizedDescription.UTF8String : "no Documents directory"); taken = ap_max(); return; }   // RewindBox (patch 0084): ap_max
+         snprintf(g_ap_dir, sizeof g_ap_dir, "%s", dir.fileSystemRepresentation);
+     }
+     int cpu = s2a_cpuprof_request_now(g_ap_dir, 4.0);
+     atomic_store(&g_rb_gp_req, (long)f + 30); g_ap_dump_at = f + 240;
+-    snprintf(g_ap_note, sizeof g_ap_note, "automatic measurement %d of %d at frame %llu: %s, with %llu draws a frame", taken, (int)AP_MAX, (unsigned long long)f, why, (unsigned long long)(sn / AP_RING));   // RewindBox (patch 0067)
++    snprintf(g_ap_note, sizeof g_ap_note, "automatic measurement %d of %d at frame %llu: %s, with %llu draws a frame", taken, ap_max(), (unsigned long long)f, why, (unsigned long long)(sn / AP_RING));   // RewindBox (patch 0067); (patch 0084): ap_max
+     const char *apn = strrchr(g_ap_dir, '/');   // RewindBox (patch 0067): the folder's name, not its path
+     MLOG("RewindBox: automatic measurement %d of %d at frame %llu: %s, with %llu draws a frame. %s; the GPU time of every encoder of a few frames from frame %llu on goes to this log "
+-         "([gpuprof] lines), the frame signatures to frames.txt in that folder 240 frames from now: profiles/%s (S2A_RB_AUTO_PROBE=0 takes none)", taken, (int)AP_MAX, (unsigned long long)f, why,
++         "([gpuprof] lines), the frame signatures to frames.txt in that folder 240 frames from now: profiles/%s (S2A_RB_AUTO_PROBE=0 takes none)", taken, ap_max(), (unsigned long long)f, why,
+          (unsigned long long)(sn / AP_RING), cpu ? "A CPU profile of 4 s with the waiting threads starts now (cpuprof.txt)" : "No CPU profile (one is running, or no memory for its table)", (unsigned long long)f + 30, apn ? apn + 1 : g_ap_dir);
+ }
+ static void cap_reset(void) {   // session end (nvn_session.inc): a capture left unfinished stops there, its directory keeps what it has
+diff --git a/runtime/src/cpuprof.c b/runtime/src/cpuprof.c
+index 76c7075..0bd20f2 100644
+--- a/runtime/src/cpuprof.c
++++ b/runtime/src/cpuprof.c
+@@ -173,17 +173,26 @@ static double cp_window(double dur, double hz, const char *flt, int waits) {   /
+ //   (slot, pc, then return addresses); the link map kept with each engine build turns the engine's offsets into functions. No path and no title in it. One window at a time,
+ //   and none while S2A_CPUPROF runs its own. While it samples, the sampler suspends each running thread for a few microseconds, RQ_HZ times a second
+ enum { RQ_HZ = 500, RQ_WAIT_S = 2, RQ_WAITS = 10 };   // RewindBox (patch 0061): RQ_WAITS: the waiting threads every tenth round (50 times a second)
++// RewindBox (patch 0084): a lighter window. IPA 775 (Mario Kart World, iPhone17,2): each of the six automatic 4 s windows, taken in races, cost the sampler 0.92-1.09 s of
++//   CPU at user-interactive QoS (a quarter of a core beside the submit thread on the two performance cores) and held the game's threads suspended 674-969 ms in all
++//   (15,024-16,954 suspensions, the longest 2.1-11.1 ms): stutters of their own in the stretches they measure. The window now samples the running threads 100 times a
++//   second and the waiting ones 20 times (every fifth round), from a user-initiated thread: about 1,000 running samples a window, enough for the per-thread tables.
++//   S2A_RB_PROBE_LIGHT=0: 500 and 50 times a second at user-interactive QoS as before (nvn_mtl.m takes six windows a process then, three otherwise)
++enum { RQ_HZ_LIGHT = 100, RQ_WAITS_LIGHT = 5 };
++static int rq_light(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_PROBE_LIGHT"); v = !(e && !strcmp(e, "0")); } return v; }
++static int rq_hz(void) { return rq_light() ? RQ_HZ_LIGHT : RQ_HZ; }   // RewindBox (patch 0084)
++static int rq_waits(void) { return rq_light() ? RQ_WAITS_LIGHT : RQ_WAITS; }   // RewindBox (patch 0084)
+ static _Atomic int g_rq_busy; static char g_rq_dir[1024]; static double g_rq_secs; static int g_rq_now;
+ static void cp_raw_write(const char *dir, double secs) {
+     char p[1100]; snprintf(p, sizeof p, "%s/cpuprof.txt", dir);
+     FILE *f = fopen(p, "w");
+     if (!f) { LOG("RewindBox: CPU profile: cannot write cpuprof.txt beside the frame capture (%d samples lost)", g_ns); return; }
+     fprintf(f, "# RewindBox CPU profile (patch 0054): %.1f s at %d samples a second, %d samples of running threads. I: image load address, name. M: game module base, size, name. "
+-               "T: thread slot, samples, thread id, name (patch 0074). S: thread slot, pc, return addresses (hex)\n", secs, (int)RQ_HZ, g_ns - g_nwait);
++               "T: thread slot, samples, thread id, name (patch 0074). S: thread slot, pc, return addresses (hex)\n", secs, rq_hz(), g_ns - g_nwait);   // RewindBox (patch 0084): rq_hz
+     fprintf(f, "# Rounds (patch 0074): %lu rounds taken (%.1f a second), %lu of them also over the waiting threads (%.1f a second); up to %d frames a stack, %d thread slots. "
+                "R: round, ns since the window began, renderer frame, before the samples of each waiting round\n", g_rounds, secs > 0 ? g_rounds / secs : 0, g_wrounds, secs > 0 ? g_wrounds / secs : 0, cp_depth(), (int)CP_THR);
+     fprintf(f, "# Waits (patch 0061): %d samples of waiting game and renderer threads, taken %d times a second. W: thread slot, Mach run state (3 waiting, 4 uninterruptible: held by the kernel, "
+-               "a page of memory being brought in when its pc is not a system call's return), last fault address, pc, return addresses (hex)\n", g_nwait, (int)(RQ_HZ / RQ_WAITS));
++               "a page of memory being brought in when its pc is not a system call's return), last fault address, pc, return addresses (hex)\n", g_nwait, rq_hz() / rq_waits());   // RewindBox (patch 0084): rq_hz, rq_waits
+     for (uint32_t i = 0, n = _dyld_image_count(); i < n; i++) {
+         const char *nm = _dyld_get_image_name(i), *b = nm ? strrchr(nm, '/') : NULL;
+         fprintf(f, "I %llx %s\n", (unsigned long long)(uintptr_t)_dyld_get_image_header(i), b ? b + 1 : nm ? nm : "?");
+@@ -205,10 +214,10 @@ static void cp_raw_write(const char *dir, double secs) {
+ }
+ static void *cp_rq_main(void *arg) {
+     (void)arg; pthread_setname_np("s2a-cpuprof");
+-    pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0);
++    pthread_set_qos_class_self_np(rq_light() ? QOS_CLASS_USER_INITIATED : QOS_CLASS_USER_INTERACTIVE, 0);   // RewindBox (patch 0084): user-initiated
+     if (!g_rq_now) { struct timespec w = {RQ_WAIT_S, 0}; nanosleep(&w, NULL); }   // the capture stopped the picture for seconds: let the game run again first
+     g_ns = 0; g_nthr = 0; memset(g_thr, 0, sizeof g_thr);
+-    double secs = cp_window(g_rq_secs, RQ_HZ, NULL, RQ_WAITS);
++    double secs = cp_window(g_rq_secs, rq_hz(), NULL, rq_waits());   // RewindBox (patch 0084): rq_hz, rq_waits
+     cp_raw_write(g_rq_dir, secs);
+     free(g_s); g_s = NULL; g_ns = 0;
+     atomic_store(&g_rq_busy, 0);
