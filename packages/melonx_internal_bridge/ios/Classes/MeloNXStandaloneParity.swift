@@ -393,7 +393,7 @@ enum MeloNXCrashJournalLink {
 // - a session that ends normally removes it (the journal's stop);
 // - at the next launch (when the diagnostics directory is configured) a file still there means the process was ended
 //   during that session: one "[MeloNX:crash] previous session ..." line says when, in which state, and whether this
-//   journal recorded a fatal signal for that process (a crash) or not (ended from outside: iOS);
+//   journal recorded a fatal signal or an exit call for that process;
 // - on iOS, MetricKit's reports (the system's own exit counts by reason: memory pressure, memory limit, watchdog,
 //   crash, and its crash and hang diagnostics) are written as "[MeloNX:crash] metrickit ..." lines when iOS delivers
 //   them (at the next launch for diagnostics, about once a day for exit counts).
@@ -406,6 +406,7 @@ enum MeloNXSessionExit {
     private static let lock = NSLock()
     // Confined to the lock.
     private static var markerPath: String?
+    private static var markerOwner: UUID?
     private static var record: [String: String] = [:]
     private static var lastWrite = 0.0
     private static var started = 0.0
@@ -413,10 +414,13 @@ enum MeloNXSessionExit {
     private static var observers: [NSObjectProtocol] = []
 
     /// When a session's journal starts (MeloNXPerfJournal.start): the session is open until `end`.
-    static func begin(journalPath: String, context: [String: String]) {
+    static func begin(journalPath: String, context: [String: String], owner: UUID) {
         let path = URL(fileURLWithPath: journalPath).deletingLastPathComponent().appendingPathComponent(fileName).path
         lock.lock()
         markerPath = path
+        markerOwner = owner
+        let previousObservers = observers
+        observers = []
         started = ProcessInfo.processInfo.systemUptime
         warnings = 0
         record = ["session": context["session"] ?? "-", "pid": String(ProcessInfo.processInfo.processIdentifier),
@@ -425,18 +429,23 @@ enum MeloNXSessionExit {
         writeLocked(force: true)
         lock.unlock()
         let center = NotificationCenter.default
+        previousObservers.forEach { center.removeObserver($0) }
         let tokens = [
-            center.addObserver(forName: backgroundName, object: nil, queue: nil) { _ in state("background") },
-            center.addObserver(forName: foregroundName, object: nil, queue: nil) { _ in state("foreground") },
-            center.addObserver(forName: Notification.Name("UIApplicationDidReceiveMemoryWarningNotification"), object: nil, queue: nil) { _ in warning() },
+            center.addObserver(forName: backgroundName, object: nil, queue: nil) { _ in state("background", owner: owner) },
+            center.addObserver(forName: foregroundName, object: nil, queue: nil) { _ in state("foreground", owner: owner) },
+            center.addObserver(forName: Notification.Name("UIApplicationDidReceiveMemoryWarningNotification"), object: nil, queue: nil) { _ in warning(owner: owner) },
         ]
-        lock.lock(); observers.forEach { center.removeObserver($0) }; observers = tokens; lock.unlock()
+        lock.lock()
+        let current = markerOwner == owner
+        if current { observers = tokens }
+        lock.unlock()
+        if !current { tokens.forEach { center.removeObserver($0) } }
     }
 
     /// Every journal second: the last known state, written at most every 2 s.
-    static func update(seconds: Int, memory: String?, stall: String? = nil) {
+    static func update(seconds: Int, memory: String?, owner: UUID, stall: String? = nil) {
         lock.lock(); defer { lock.unlock() }
-        guard markerPath != nil else { return }
+        guard markerOwner == owner else { return }
         record["seconds"] = String(seconds)
         if let memory { record["memory"] = memory }
         if let stall { record["stall"] = stall }
@@ -445,28 +454,28 @@ enum MeloNXSessionExit {
     }
 
     /// The session ended normally (the journal's stop): nothing to report at the next launch.
-    static func end() {
+    static func end(owner: UUID) {
         lock.lock()
-        let path = markerPath
-        markerPath = nil; record = [:]
+        guard markerOwner == owner else { lock.unlock(); return }
+        if let path = markerPath { try? FileManager.default.removeItem(atPath: path) }
+        markerPath = nil; markerOwner = nil; record = [:]
         let tokens = observers; observers = []
         lock.unlock()
         tokens.forEach { NotificationCenter.default.removeObserver($0) }
-        if let path { try? FileManager.default.removeItem(atPath: path) }
     }
 
-    private static func state(_ value: String) {
+    private static func state(_ value: String, owner: UUID) {
         lock.lock(); defer { lock.unlock() }
-        guard markerPath != nil else { return }
+        guard markerOwner == owner else { return }
         let seconds = Int((ProcessInfo.processInfo.systemUptime - started).rounded())
         record["state"] = value
         record["stateSince"] = String(seconds)
         writeLocked(force: true)
     }
 
-    private static func warning() {
+    private static func warning(owner: UUID) {
         lock.lock(); defer { lock.unlock() }
-        guard markerPath != nil else { return }
+        guard markerOwner == owner else { return }
         warnings += 1
         record["memoryWarnings"] = String(warnings)
         record["lastWarningAt"] = String(Int((ProcessInfo.processInfo.systemUptime - started).rounded()))
@@ -490,10 +499,16 @@ enum MeloNXSessionExit {
     @discardableResult
     static func reportPrevious(directory: URL, crashJournal: String?) -> String? {
         let path = directory.appendingPathComponent(fileName).path
-        guard let data = FileManager.default.contents(atPath: path) else { return nil }
+        lock.lock()
+        guard markerPath != path,
+              let data = FileManager.default.contents(atPath: path),
+              let previous = (try? JSONSerialization.jsonObject(with: data)) as? [String: String],
+              previous["pid"] != String(ProcessInfo.processInfo.processIdentifier) else {
+            lock.unlock()
+            return nil
+        }
         try? FileManager.default.removeItem(atPath: path)
-        guard let previous = (try? JSONSerialization.jsonObject(with: data)) as? [String: String],
-              previous["pid"] != String(ProcessInfo.processInfo.processIdentifier) else { return nil }
+        lock.unlock()
         let pid = previous["pid"] ?? "-"
         var fatal = false
         if let crashJournal, let text = try? String(contentsOfFile: crashJournal, encoding: .utf8) {
@@ -516,8 +531,8 @@ enum MeloNXSessionExit {
         parts.append(warned)
         if let memory = previous["memory"] { parts.append("last mem=" + memory) }
         if let stall = previous["stall"] { parts.append("last stall " + stall) }
-        parts.append(fatal ? "a fatal signal or exit of that process is in this journal (a crash)"
-                           : "no fatal signal of that process in this journal: ended from outside (iOS)")
+        parts.append(fatal ? "a fatal signal or explicit exit of that process is in this journal"
+                           : "no fatal signal or explicit exit recorded for this process; termination reason unknown")
         let line = "[MeloNX:crash] " + parts.joined(separator: "; ")
         if let crashJournal {
             _ = MeloNXStdioCapture.appendLine(line, to: crashJournal)

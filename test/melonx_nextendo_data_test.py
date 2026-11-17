@@ -30,7 +30,8 @@ DOTNET = os.environ.get('DOTNET', 'dotnet')
 FIXTURE = ROOT / 'test/melonx_nextendo_data/Program.cs'
 # Checks of the fixture, pinned: a fixture that skips a part does not pass.
 FIXTURE_CHECKS = 102
-NATIVE = {'native/melonx/EmbeddedOnline.cs': 'src/Ryujinx.HLE/EmbeddedOnline.cs',
+NATIVE = {'native/melonx/EmbeddedAddons.cs': 'src/Ryujinx.Library/EmbeddedAddons.cs',
+          'native/melonx/EmbeddedOnline.cs': 'src/Ryujinx.HLE/EmbeddedOnline.cs',
           'native/melonx/EmbeddedDeliveryCache.cs': 'src/Ryujinx.Horizon/EmbeddedDeliveryCache.cs'}
 checks = 0
 
