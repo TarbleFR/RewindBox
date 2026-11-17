@@ -376,3 +376,67 @@ les cœurs E. Ces chiffres viennent de `proc_pidinfo(PROC_PIDTHREADCOUNTS)` (iOS
 - Patch canonique 98cc2a98 (519 fichiers) rematérialisé sur une copie amont propre, et l'incrément depuis le Core 946 s'inverse.
 - Les 26 tests de sources réussissent, dont `rpcs3_put_horizon910_test` avec ses 16 séries et le contrôle `no_atomic_clip`.
 - Identités de génération de code inchangées.
+
+## 8. Journaux de l'IPA 777 (Core 947) : God of War III repris de sa sauvegarde, et Core 948
+
+Retour du mainteneur (17 novembre) : la sauvegarde rechargée tourne « beaucoup mieux », mais il faut viser 30 FPS dans God of
+War III, avec la mémoire et la chaleur. Journaux : PID 41640, session 2 = reprise de la sauvegarde, fenêtres 2 à 22.
+
+### 8.1 Ce que mesurent les journaux
+
+**Le correctif de la boucle s'applique.** Le journal donne `state=savestate_applied cave=0x9c0000 resumed=1`. Le thread
+principal ne prend plus que 0,27 à 0,41 cœur, contre 0,70 à 0,83 sur l'IPA 771. Sa boucle dort 120 µs environ 2 400 fois par
+seconde.
+
+| Fenêtres | Images par seconde | Puissance du processeur | Cœurs P | Énergie d'une image |
+| --- | --- | --- | --- | --- |
+| 2-8 | 23,6-31,2 | 3,4-4,1 W | 2,3-2,7 GHz | ≈ 119 mJ |
+| 9-16 | 14,8-22,5 | 3,0-3,3 W | 2,0-2,2 GHz | ≈ 150 mJ |
+| 17-22 | 13,9-17,7 | 2,1-3,0 W | 1,4-1,9 GHz | ≈ 168 mJ |
+
+- **Les images suivent la puissance**, plafonnée par la chaleur, comme pour Black Ops II.
+- **L'énergie d'une image augmente quand le jeu ralentit.** Ce qui coûte, c'est une attente active qui dure en temps, pas en
+  images.
+- **La répartition entre cœurs (CLUSTER947, fenêtre 4).**
+  - Les SPU tournent 5,6 s sur les cœurs P (8,0 J) et 12,5 s sur les cœurs E (4,9 J).
+  - Une seconde de cœur P coûte 1,43 J, une seconde de cœur E 0,39 J.
+  - Les SPU débordant sur les cœurs P représentent 1,6 W des 3,7 W.
+- **L'attente active, c'est le sondage des SPU** (SPUWAIT551, fenêtre 4).
+  - 9,4 millions de PUTLLC réussis par fenêtre, dont 8,9 millions de réécritures de données inchangées (hors verrou
+    d'écriture), plus 4,5 millions d'échecs.
+  - Après un démarrage normal (IPA 771), il n'y en avait que 0,55 million et 35 000.
+- **La mémoire n'est pas en cause.** Il reste 3,8 Go de marge, sans aucune alerte ni récupération mémoire. iOS compresse
+  816 Mo, sans effet mesuré.
+- **Pas d'autre défaut.** Aucun arrêt de nuanceur, aucune erreur grave. Le seul pic d'image, 1,25 s, est celui de la reprise de
+  la sauvegarde.
+
+### 8.2 Correctif (REWINDBOX_NOOP_PUTLLC_GOW3_948)
+
+God of War III tourne avec les réservations SPU exactes : 515 000 PUTLLC qui changent des données passent par le verrou
+d'écriture à chaque fenêtre.
+
+**Le défaut.**
+- Une réécriture de données inchangées avançait l'heure de la ligne, ce qui annulait les réservations des autres SPU qui
+  sondaient la même ligne : d'où les échecs.
+- L'attente bornée de REWINDBOX_SPU_NOOP_SPIN_ACCURATE_911 (« SPU No-op Spin Wait ») est en Automatique pour God of War III
+  depuis le Core 627. Mais elle ne s'enclenche qu'avec « No-op PUTLLC keeps reservations » (CELL565), qui n'était en
+  Automatique que pour Dragon Ball Z Budokai HD et Black Ops II. Elle ne servait donc jamais.
+
+**La correction.** CELL565 passe en Automatique aussi pour God of War III. Une réécriture de données inchangées réussit
+toujours seulement si la ligne et son heure n'ont pas bougé, mais elle laisse les réservations des autres SPU intactes. Le SPU
+qui sonde attend alors la ligne, de façon bornée, au lieu de tourner.
+
+**Ce qui ne change pas.** Le stockage des données, la synchronisation PPU/SPU et la génération de code.
+
+### 8.3 Ce qui n'est pas changé
+
+**Le débordement des SPU sur les cœurs P.** Les cœurs E sont pleins : il faudrait environ 4,7 cœurs E pour tout le travail
+SPU, et il n'y en a que 4. Retenir les SPU sur les cœurs E ferait perdre des images à froid. Un gain à chaud n'est pas prouvé.
+La décision attend la mesure CLUSTER947 de la prochaine IPA, après la fin du sondage.
+
+### 8.4 À lire dans les prochains journaux
+
+- SPUWAIT551 : `putllc_ok` et `putllc_fail` revenus vers un démarrage normal.
+- ENERGY931 : `mj_per_frame` stable quand le jeu chauffe.
+- CLUSTER947 : la part des SPU sur les cœurs P.
+- Images par seconde à chaud.
