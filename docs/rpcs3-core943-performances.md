@@ -141,11 +141,10 @@ mesurable :
   ils passeraient après chaque thread « user-initiated » de leur grappe et à égalité avec les compilations de shaders ;
   God of War III a besoin de ses SPU (trois noyaux SPURS occupés à 93 %). Mesure de la place libre sur les cœurs E avec
   l'IPA du Core 943 d'abord (ENERGY931, recensement).
-- Surcoût des threads PPU de Black Ops II (≈ 0,5 cœur hors code du jeu) : piste en cours, à terminer avant toute IPA
-  (demande du mainteneur, 17 novembre). Constat de l'IPA 763 : 70 000 à 91 000 attentes hôte de moins de 200 µs par
-  fenêtre de 5 s en jeu (`WAKE936`, presque toutes jusqu'à leur échéance), 66 000 changements de contexte par seconde
-  (`SCHED918`), et des threads suspendus faute de place PPU (Backend 27 % des échantillons, juste après un
-  `sys_semaphore_post` ; principal 17 % ; Secondary 13 %).
+- Surcoût des threads PPU de Black Ops II : traité par le § 2.6, à la demande du mainteneur (« finir la piste avant toute
+  nouvelle IPA », 17 novembre). Le nombre de places PPU (2) et les règles du planificateur ne changent pas.
+- File d'attente du RSX quand sa FIFO est vide : déjà allongée par les Cores 938 et 941 (tranches de 100 puis 200 µs
+  après 2 et 4 ms) ; 2 400 réveils par seconde dans Black Ops II en jeu (`WAKE936` `rsx_park`), rien de sûr à gagner.
 - Nombre de threads SPURS : pas de mesure sur l'appareil ; inchangé.
 
 ### 2.4 Intervalle de travail de l'image : PPU et RSX (REWINDBOX_FRAME_INTERVAL_943)
@@ -188,6 +187,38 @@ mesurable :
   précédent. `rpcs3_cell587_test.py` est authentifié sur les fichiers du Core 587. `rpcs3_mvk_present_queue_test.py`
   attend qu'une attente abandonne après 2 s, alors que le Core 927 attend sans abandon : il bloque à 90 s. Non exécuté sur
   iPhone.
+
+### 2.6 Black Ops II : plancher des attentes courtes des threads PPU (REWINDBOX_PPU_WAIT_FLOOR_943)
+
+- **Problème constaté** : en jeu (IPA 763, fenêtres 8 à 44), les threads PPU coûtent 0,93 à 0,98 cœur pour 0,41 thread
+  qui exécute du code du jeu. 64 000 à 91 000 attentes hôte de threads du jeu plus courtes que 200 µs par fenêtre de
+  5 s, presque toutes jusqu'à leur échéance (`WAKE936` : 13 000 à 18 000 par seconde ; God of War III en jeu : environ
+  1 000). 66 000 changements de contexte par seconde (`SCHED918`). Les threads qui font le travail de l'image attendent
+  une place PPU : Backend est suspendu dans 27 % des échantillons (1 510 fois sur 1 545 juste après un
+  `sys_semaphore_post`), le principal dans 17 %, Secondary dans 13 %. Le principal est dans `sys_timer_usleep` dans
+  75 % des échantillons (`PPUPROF912`).
+- **Cause** : avec la précision des minuteries d'iOS (« As Host »), chaque attente courte est un tour complet du
+  planificateur lv2 :
+  1. le thread quitte sa place (`lv2_obj::sleep`), et un thread suspendu y est réveillé ;
+  2. le minuteur finit l'attente quelques dizaines de µs plus tard ;
+  3. le thread reprend sa place par priorité (`cpu_sleep` → `lv2_obj::awake`) ;
+  4. le thread délogé est suspendu et doit confirmer (`g_pending`) avant que le premier reparte.
+
+  Cela fait quatre changements de contexte et trois passages par le verrou du planificateur pour relire un drapeau,
+  plus de 13 000 fois par seconde, sur les cœurs P dont l'image a besoin.
+- **Correction** : un délai lv2 garantit une durée minimale, jamais maximale. Sur la console comme ici, un thread qui
+  attend plus longtemps que demandé reste correct. La règle s'applique à partir de la deuxième attente courte
+  consécutive d'un thread qui est allée jusqu'à son échéance, c'est-à-dire à une boucle d'attente : une attente courte
+  isolée garde sa durée. Dès lors, l'attente suivante de moins de 200 µs dure 200 µs avant d'expirer. Cela vaut pour
+  `sys_timer_usleep` comme pour les délais des sémaphores, variables de condition, files d'événements et mutex. Une
+  attente réveillée par un signal finit toujours aussitôt. Une boucle d'attente relit alors son drapeau jusqu'à 200 µs
+  plus tard, et fait 4 à 5 fois moins de tours. Le nombre de places, les priorités, les primitives de synchronisation et
+  les règles du planificateur ne changent pas. Réglage « PPU short wait floor » (Expérimental → PPU) : Automatique =
+  Black Ops II, Activé = tous les jeux, Désactivé = aucun. `COREPROF PPUWAITFLOOR943` : attentes allongées, premières
+  attentes gardées, durées demandées (moins de 20, 50, 100 et 200 µs, moyenne) et appels système concernés (par numéro).
+  Dans `WAKE936`, ces attentes passent du compartiment des moins de 200 µs à celui des moins de 2 ms.
+- **Vérifications** : compilation comparée (Linux) ; règle de la série vérifiée sur un exemple local (première attente
+  gardée, suivantes à 200 µs, remise à zéro après un signal ou une attente longue). Non exécuté sur iPhone.
 
 ## 3. Compilation, relecture et livraison
 
@@ -255,12 +286,13 @@ FPS ≈ 16-18 × GHz tient, c'est plus de 30 FPS. Seule une mesure sur l'iPhone 
 
 ### 4.3 Démonstration (choix du mainteneur : une IPA avec les correctifs actifs)
 
-Le Core 943 active par défaut (Automatique) les changements des § 2.1, 2.4 et 2.5 pour Black Ops II et God of War III ;
+Le Core 943 active par défaut (Automatique) les changements des § 2.1, 2.4, 2.5 et 2.6 pour Black Ops II et God of War III ;
 chacun a son réglage pour l'arrêter. On compare avec l'IPA 763 (Core 942) : mêmes jeux, mêmes passages, téléphone chaud.
 - **Ce qui doit monter** : à puissance du processeur égale (≈ 2 W), la fréquence des cœurs P (ENERGY931 `p_mcycles` /
   `p_cpu_ms`), les FPS (FRAMEPROF527) ; et baisser : `p_share` et l'énergie d'une image (`mj_per_frame`).
 - **Ce qui a été fait** : `FRAMEWI943` (notifications, images en retard), `MVKQOS943` (files « utility », remontées) avec
-  la part « utility » de `qos_ms`, `GOW3POLL943` (attentes, sommeils), `SCHED943` (cause du surcoût PPU).
+  la part « utility » de `qos_ms`, `GOW3POLL943` (attentes, sommeils), `PPUWAITFLOOR943` (attentes allongées) avec
+  `WAKE936` et `SCHED918` (changements de contexte), `SCHED943` (suspensions et confirmations du planificateur).
 - **Ce qui ne doit pas se dégrader** : `OPT587` (attentes d'encodage, retard des marqueurs de présentation), images
   lentes (`low1_fps`, `p99_ms`), aucune erreur fatale ni gel.
 - **Critère** : Black Ops II au-dessus de 30 FPS après la fenêtre 17 (24-37 sur l'IPA 763, surtout 26-31) ; God of War III
