@@ -141,7 +141,8 @@
   "build-utils/melonx/adapt_empty_worker_snapshot.py",
   "build-utils/melonx/adapt_release_passes.py",
   "build-utils/melonx/adapt_array_walk_size.py",
-  "build-utils/melonx/adapt_loh_compaction_request.py"
+  "build-utils/melonx/adapt_loh_compaction_request.py",
+  "build-utils/melonx/adapt_guest_break_context.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -420,7 +421,9 @@
   "test/melonx_draw_wait_lanes/Double.cs",
   "test/melonx_draw_wait_lanes/Program.cs",
   "test/melonx_loh_compaction_request_test.py",
-  "test/melonx_loh_compaction_request/Program.cs"
+  "test/melonx_loh_compaction_request/Program.cs",
+  "test/melonx_guest_break_context_test.py",
+  "test/melonx_guest_break_context/Program.cs"
  ],
  "fixtureProductionInputs": [
   "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs",
@@ -5027,6 +5030,28 @@
    },
    "requiredPostimages": [
     "src/Ryujinx.HLE/Switch.cs"
+   ]
+  },
+  {
+   "name": "guest-break-context",
+   "script": "test/melonx_guest_break_context_test.py",
+   "report": "guest-break-context-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 3600,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false,
+    "guestBreakContext.executed": true
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.HLE/HOS/Kernel/SupervisorCall/Syscall.cs"
    ]
   }
  ]

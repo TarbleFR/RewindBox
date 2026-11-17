@@ -61,6 +61,15 @@ check(re.search(r'LoadDiskCache\([^)]*\)\s*\{\s*return new DummyDiskCacheLoadSta
 compact_once = []
 for path in (SOURCE / 'src').rglob('*.cs'):
     text = path.read_text(encoding='utf-8-sig', errors='replace')
+    if path.relative_to(SOURCE).as_posix() == 'src/Ryujinx.HLE/Switch.cs' and '// RewindBox (adapt_loh_compaction_request) begin' in text:
+        # After IPA 767: adapt_loh_compaction_request, a later adapter in another file, adds a request at a host pressure
+        # report. Read Switch.cs without it (its replacements undone, once each, giving its pinned preparation bytes).
+        import adapt_loh_compaction_request as loh_request
+        for _, loh_old, loh_new in reversed(loh_request.PAIRS):
+            check(text.count(loh_new) == 1, 'adapt_loh_compaction_request applied once to Switch.cs')
+            text = text.replace(loh_new, loh_old)
+        check(hashlib.sha256(text.encode('utf-8')).hexdigest() == loh_request.BASELINE[loh_request.SWITCH],
+              'Switch.cs is its pinned preparation plus adapt_loh_compaction_request only')
     if 'GCLargeObjectHeapCompactionMode.CompactOnce' in text:
         compact_once.append(path.relative_to(SOURCE).as_posix())
 check(compact_once == ['src/ARMeilleure/Translation/PTC/Ptc.cs'], 'the only CompactOnce requester is PTC: ' + str(compact_once))

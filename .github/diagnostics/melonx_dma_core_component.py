@@ -87,8 +87,9 @@ CONTROL_PREPARED = {
 # library's yield kept during thread suspension and background collection).
 # 111 with the lot after IPA 764 (texture array barrier members, command buffer release passes, empty worker snapshot,
 # bindless array walk size: gates taught, none added); 112 after IPA 767 (a host pressure report asks the collector's
-# next blocking collection to compact the large object heap: loh-compaction-request).
-FRESH_GATES = 112
+# next blocking collection to compact the large object heap: loh-compaction-request); 113 with the game's own break
+# journaled (reason, info bytes, thread, control registers, guest stack: guest-break-context).
+FRESH_GATES = 113
 HISTORICAL_RECEIPTS = 61
 GPU_WORK_ROWS = 13
 READ_COUNTERS = 4

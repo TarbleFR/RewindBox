@@ -228,6 +228,7 @@ from adapt_empty_worker_snapshot import apply as adapt_empty_worker_snapshot
 from adapt_release_passes import apply as adapt_release_passes
 from adapt_array_walk_size import apply as adapt_array_walk_size
 from adapt_loh_compaction_request import apply as adapt_loh_compaction_request
+from adapt_guest_break_context import apply as adapt_guest_break_context
 
 
 def replace_once(path, old, new):
@@ -742,6 +743,9 @@ def main():
     # After IPA 767 (every title, memory): at a host pressure report, the collector's next blocking collection also
     # compacts the large object heap when it holds 256 MiB free or more and the device is short (the final Switch.cs).
     adapted += adapt_loh_compaction_request(source)
+    # After IPA 767 (every title, diagnostics): the game's own svcBreak writes its reason, info bytes, thread, control
+    # registers and guest stack into the Core journal before the process ends (the final Syscall.cs).
+    adapted += adapt_guest_break_context(source)
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -902,7 +906,7 @@ def main():
                  'adapt_nextendo_online.py', 'adapt_runtime_yield.py',
                  'adapt_draw_wait_lanes.py', 'adapt_mirror_copy_journal.py', 'adapt_array_attachment_members.py',
                  'adapt_empty_worker_snapshot.py', 'adapt_release_passes.py', 'adapt_array_walk_size.py',
-                 'adapt_loh_compaction_request.py']:
+                 'adapt_loh_compaction_request.py', 'adapt_guest_break_context.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

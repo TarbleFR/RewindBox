@@ -303,6 +303,8 @@ LOT_FILES = {
     'adapt_array_walk_size': [],
     # After IPA 767 (adapt_loh_compaction_request): Switch.cs is outside this composition.
     'adapt_loh_compaction_request': [],
+    # After IPA 767 (adapt_guest_break_context): Syscall.cs is outside this composition.
+    'adapt_guest_break_context': [],
 }
 
 checks = 0
