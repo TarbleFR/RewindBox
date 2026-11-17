@@ -90,10 +90,13 @@ them from those builds:
    third-party emulator, which decides whether titles such as Splatoon 2 can
    ever work.
 
-Where the server addresses go: build defines `NEXTENDO_SERVER_IP` and
-`NEXTENDO_NAT_IP` (`.env.example`); the standard delivery workflow does not pass
-them yet. Until then, the "Application registration" fields at the bottom of
-the Nextendo screen keep them on the device.
+Where the server addresses come from (17 November): Nextendo's developer gave
+the method, not addresses: resolve `nex.nextendo.network` (game server) and
+`nat.nextendo.network` (secondary NAT test) when the app starts, keep the
+result about ten minutes, keep the last good address when a lookup fails;
+nothing is hard-coded in the build and the rest of the integration guide is
+unchanged. See "Server addresses by name" below. Item 2 above is therefore no
+longer needed.
 
 ## Switch profiles (application side, no engine change)
 
@@ -330,3 +333,32 @@ the first build that links it.
 
 The state of the delivery is recorded under `docs/evidence/rewind739/` once
 delivered.
+
+## Server addresses by name (17 November)
+
+- `lib/services/nextendo/nextendo_servers.dart`: looks up the two names with the
+  system resolver (IPv4 only, five seconds at most each), keeps each name's
+  last good address and its time in the app's preferences, looks a name up
+  again only when its answer is ten minutes old or more, and keeps the last good
+  address when a lookup fails, times out or returns no usable IPv4 address.
+  The two names are kept apart. Concurrent calls share one lookup.
+- When: once the UI is up at app start, for a signed-in player with online play
+  on only (nobody else's start contacts Nextendo); at each Switch launch, before
+  the server check (only if stale); when the Nextendo screen opens.
+- Order per address in `NextendoConfig`: a build define (a maintainer's test
+  override; the delivery passes none unless the secrets exist), then the name's
+  last good lookup, then the maintainer's on-device field (shown only while no
+  lookup ever succeeded).
+- Same rule in Nextendo's integration guide (wiki.nextendo.network/integration,
+  "Network redirection", read 17 November): the two server addresses are
+  published as DNS names, `nex.nextendo.network` for the redirected hostnames
+  and `nat.nextendo.network` for `nncs2-*`, the Mario Kart 8 Deluxe NEX server
+  `g2b309e01-lp1.s.n.srv.nintendo.net` and the Splatoon 2 Pia host
+  `g2df33d01-lp1.p.srv.nintendo.net`; resolve them at run time and cache them
+  rather than hard-coding addresses, since the servers can move; both are DNS
+  only (not proxied) because part of the traffic is UDP.
+- The engine is unchanged: it still receives two literal IPv4 addresses per
+  launch and answers the game's DNS queries with them; `EmbeddedOnline.cs`
+  already sends exactly those three names to the NAT address.
+- Checked by `test/nextendo_servers_test.dart` (workflow `nextendo-checks.yml`).
+  No address is written in the repository.

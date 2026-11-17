@@ -2,22 +2,26 @@ import 'dart:io';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'nextendo_servers.dart';
+
 /// What RewindBox needs to reach Nextendo Network as a registered third-party
 /// application (https://nextendo.network/developers, public client with PKCE).
 ///
 /// - The client identifier (`nxc_…`) was issued to RewindBox's maintainer by the
 ///   Nextendo Developers portal (14 November 2026). It is public: a PKCE client
 ///   has no secret, and the identifier travels in every sign-in address.
-/// - The two game-server addresses are what Nextendo's own builds receive at
-///   build time. Nextendo does not publish them: a third-party client asks its
-///   team, and keeps them in configuration rather than in source (integration
-///   guide, "Network redirection"). RewindBox takes them from the build
-///   (`NEXTENDO_SERVER_IP`, `NEXTENDO_NAT_IP`), so players never type them.
+/// - The two game-server addresses are found by name (Nextendo's developer, 17
+///   November 2026): `nex.nextendo.network` for the game server and
+///   `nat.nextendo.network` for the secondary NAT test, looked up when the app
+///   starts and before a launch, kept about ten minutes, the last good address
+///   kept when a lookup fails ([NextendoServers]). Nothing is written into the
+///   build and players never type them.
 ///
-/// Each value comes from the build when the build has a valid one, otherwise
-/// from the maintainer's on-device field, otherwise (client identifier only)
-/// from the registered application. A partial build therefore keeps what it
-/// has and leaves only the missing values to the device.
+/// Each address comes from a build define when the build has a valid one (a
+/// maintainer's test override; the delivery passes none by default), otherwise
+/// from its name's last good lookup, otherwise from the maintainer's on-device
+/// field (a test before any lookup succeeded). The client identifier comes from
+/// the build, the on-device field or the registered application.
 class NextendoConfig {
   const NextendoConfig({
     required this.clientId,
@@ -26,6 +30,8 @@ class NextendoConfig {
     this.clientIdFromBuild = false,
     this.serverFromBuild = false,
     this.natFromBuild = false,
+    this.serverResolved = false,
+    this.natResolved = false,
   });
 
   final String clientId;
@@ -35,8 +41,13 @@ class NextendoConfig {
   final bool serverFromBuild;
   final bool natFromBuild;
 
-  /// Both server addresses come from the build: players see no technical field.
-  bool get fromBuild => serverFromBuild && natFromBuild;
+  /// The address is its name's last good lookup ([NextendoServers]).
+  final bool serverResolved;
+  final bool natResolved;
+
+  /// Both server addresses come from the build or from their names: players see
+  /// no technical field.
+  bool get serversAutomatic => (serverFromBuild || serverResolved) && (natFromBuild || natResolved);
 
   /// The account API. Tokens are only ever sent to this origin.
   static const apiBase = 'https://nextendo.network';
@@ -90,13 +101,7 @@ class NextendoConfig {
   /// A literal IPv4 address: the engine answers the game's DNS queries with it
   /// (a host name would have nothing to resolve it), and the Switch resolver
   /// only hands IPv4 addresses to a game.
-  static bool isAddress(String value) {
-    final parsed = InternetAddress.tryParse(value);
-    return parsed != null &&
-        parsed.type == InternetAddressType.IPv4 &&
-        !parsed.isLoopback &&
-        parsed.address != '0.0.0.0';
-  }
+  static bool isAddress(String value) => NextendoServers.usable(value);
 
   static Future<NextendoConfig> load([SharedPreferences? preferences]) =>
       resolve(buildClientId: _buildClientId, buildServer: _buildServer, buildNat: _buildNat, preferences: preferences);
@@ -114,13 +119,20 @@ class NextendoConfig {
     final serverFromBuild = isAddress(buildServer.trim());
     final natFromBuild = isAddress(buildNat.trim());
     final localClientId = prefs.getString(_clientIdKey) ?? '';
+    final resolved = NextendoServers.cached(prefs);
+    final serverResolved = !serverFromBuild && isAddress(resolved.server);
+    final natResolved = !natFromBuild && isAddress(resolved.nat);
     return NextendoConfig(
       clientId: clientFromBuild ? buildClientId.trim() : (localClientId.isEmpty ? registeredClientId : localClientId),
-      serverAddress: serverFromBuild ? buildServer.trim() : prefs.getString(_serverKey) ?? '',
-      natAddress: natFromBuild ? buildNat.trim() : prefs.getString(_natKey) ?? '',
+      serverAddress: serverFromBuild
+          ? buildServer.trim()
+          : (serverResolved ? resolved.server : prefs.getString(_serverKey) ?? ''),
+      natAddress: natFromBuild ? buildNat.trim() : (natResolved ? resolved.nat : prefs.getString(_natKey) ?? ''),
       clientIdFromBuild: clientFromBuild,
       serverFromBuild: serverFromBuild,
       natFromBuild: natFromBuild,
+      serverResolved: serverResolved,
+      natResolved: natResolved,
     );
   }
 

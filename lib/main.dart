@@ -8,6 +8,7 @@ import 'package:neostation/providers/file_provider.dart';
 import 'package:neostation/providers/theme_provider.dart';
 import 'package:neostation/services/glacier_preset.dart';
 import 'package:neostation/services/catalogue_update_service.dart';
+import 'package:neostation/services/nextendo/nextendo_online_play.dart';
 import 'package:retro_achievements_session/retro_achievements_session.dart';
 import 'package:neostation/themes/glacier_theme.dart';
 import 'package:neostation/themes/interface_style.dart';
@@ -673,6 +674,14 @@ void main() async {
   // delay, then at most once a day, with a conditional request.
   WidgetsBinding.instance.addPostFrameCallback(
     (_) => CatalogueUpdateService.instance.start(),
+  );
+
+  // Nextendo Network: the two game-server names are looked up once the UI is
+  // up, for a signed-in player with online play on only (nobody else's start
+  // contacts Nextendo). The answer is kept about ten minutes; a failed lookup
+  // keeps the last good addresses.
+  WidgetsBinding.instance.addPostFrameCallback(
+    (_) => unawaited(NextendoOnlinePlay.prepareAtStartup()),
   );
 
   // Background music initialization removed
