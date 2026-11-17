@@ -1,0 +1,226 @@
+{
+ "artifacts": [
+  {
+   "digest": "sha256:f331d18289ac10212a81e571cad5fd0cec0df4c0431d26794cad6c6a28718348",
+   "expired": false,
+   "expires_at": "2026-12-01T00:34:59Z",
+   "id": 14286911351,
+   "name": "RewindBox-Build765-db1085e59a58e6c77b2b35034e56f0fb78b47ee0-attempt1-cold-part02",
+   "size_in_bytes": 83051502,
+   "workflow_run": {
+    "head_branch": "Claude",
+    "head_sha": "db1085e59a58e6c77b2b35034e56f0fb78b47ee0",
+    "id": 43984879573
+   }
+  },
+  {
+   "digest": "sha256:076348880596c44e3edfc80ff05ab8bd1af596ea6142f4775be15ed1dc445850",
+   "expired": false,
+   "expires_at": "2026-12-01T00:34:55Z",
+   "id": 14286846779,
+   "name": "RewindBox-Build765-db1085e59a58e6c77b2b35034e56f0fb78b47ee0-attempt1-cold-part00",
+   "size_in_bytes": 83051502,
+   "workflow_run": {
+    "head_branch": "Claude",
+    "head_sha": "db1085e59a58e6c77b2b35034e56f0fb78b47ee0",
+    "id": 43984879573
+   }
+  },
+  {
+   "digest": "sha256:f9879ad9a9ffb904c630aaeb7457fe5ba8ff209eb3ebda1bd466b71a616b7f5f",
+   "expired": false,
+   "expires_at": "2026-12-01T00:35:01Z",
+   "id": 14286656892,
+   "name": "RewindBox-Build765-db1085e59a58e6c77b2b35034e56f0fb78b47ee0-attempt1-cold-part03",
+   "size_in_bytes": 83051502,
+   "workflow_run": {
+    "head_branch": "Claude",
+    "head_sha": "db1085e59a58e6c77b2b35034e56f0fb78b47ee0",
+    "id": 43984879573
+   }
+  },
+  {
+   "digest": "sha256:5cd194912b0e90da0cc6bba0d2c95db9d206a894bdd426e72430c31f1548ad5a",
+   "expired": false,
+   "expires_at": "2026-12-01T00:35:03Z",
+   "id": 14286497072,
+   "name": "RewindBox-Build765-db1085e59a58e6c77b2b35034e56f0fb78b47ee0-attempt1-cold-diagnostics",
+   "size_in_bytes": 7731529,
+   "workflow_run": {
+    "head_branch": "Claude",
+    "head_sha": "db1085e59a58e6c77b2b35034e56f0fb78b47ee0",
+    "id": 43984879573
+   }
+  },
+  {
+   "digest": "sha256:264c870fc44ad3293e025e71cbf1c5e842629ef24bfa89b7bb04c933c3fbf62f",
+   "expired": false,
+   "expires_at": "2026-12-01T00:34:57Z",
+   "id": 14286432169,
+   "name": "RewindBox-Build765-db1085e59a58e6c77b2b35034e56f0fb78b47ee0-attempt1-cold-part01",
+   "size_in_bytes": 83051502,
+   "workflow_run": {
+    "head_branch": "Claude",
+    "head_sha": "db1085e59a58e6c77b2b35034e56f0fb78b47ee0",
+    "id": 43984879573
+   }
+  },
+  {
+   "digest": "sha256:794a3a7b9255197cfddfaac192bd7e2307488ab26a07d3dc4dc1cd59aefaed6d",
+   "expired": false,
+   "expires_at": "2026-12-01T00:33:30Z",
+   "id": 14285968577,
+   "name": "RewindBox-Build765-db1085e59a58e6c77b2b35034e56f0fb78b47ee0-attempt1-cold-recovery-part02",
+   "size_in_bytes": 83032814,
+   "workflow_run": {
+    "head_branch": "Claude",
+    "head_sha": "db1085e59a58e6c77b2b35034e56f0fb78b47ee0",
+    "id": 43984879573
+   }
+  },
+  {
+   "digest": "sha256:9b12bddfe699c18fd660042744616f6e33f57a32a180f4c8b10c297f737e0d33",
+   "expired": false,
+   "expires_at": "2026-12-01T00:33:32Z",
+   "id": 14285893894,
+   "name": "RewindBox-Build765-db1085e59a58e6c77b2b35034e56f0fb78b47ee0-attempt1-cold-recovery-part03",
+   "size_in_bytes": 83032814,
+   "workflow_run": {
+    "head_branch": "Claude",
+    "head_sha": "db1085e59a58e6c77b2b35034e56f0fb78b47ee0",
+    "id": 43984879573
+   }
+  },
+  {
+   "digest": "sha256:d094e6d6c85d67950e0c516d5d6a466e5131dcc9ca16c8b1974e1c3fd16aa5a7",
+   "expired": false,
+   "expires_at": "2026-12-01T00:33:25Z",
+   "id": 14285858913,
+   "name": "RewindBox-Build765-db1085e59a58e6c77b2b35034e56f0fb78b47ee0-attempt1-cold-recovery-part00",
+   "size_in_bytes": 83032814,
+   "workflow_run": {
+    "head_branch": "Claude",
+    "head_sha": "db1085e59a58e6c77b2b35034e56f0fb78b47ee0",
+    "id": 43984879573
+   }
+  },
+  {
+   "digest": "sha256:217d73ac354c07971a894db83d893e20410542e7f5be85bcb68a6b9339c77c84",
+   "expired": false,
+   "expires_at": "2026-12-01T00:33:28Z",
+   "id": 14285838926,
+   "name": "RewindBox-Build765-db1085e59a58e6c77b2b35034e56f0fb78b47ee0-attempt1-cold-recovery-part01",
+   "size_in_bytes": 83032814,
+   "workflow_run": {
+    "head_branch": "Claude",
+    "head_sha": "db1085e59a58e6c77b2b35034e56f0fb78b47ee0",
+    "id": 43984879573
+   }
+  },
+  {
+   "digest": "sha256:5fd2c33603f59cd4b9c6342ab92f86aabd0f4dc9cf90400fea78fabc73b5a86d",
+   "expired": false,
+   "expires_at": "2027-02-15T00:06:20Z",
+   "id": 14285700456,
+   "name": "RewindBox-Build765-db1085e59a58e6c77b2b35034e56f0fb78b47ee0-attempt1-component-libretro",
+   "size_in_bytes": 55568023,
+   "workflow_run": {
+    "head_branch": "Claude",
+    "head_sha": "db1085e59a58e6c77b2b35034e56f0fb78b47ee0",
+    "id": 43984879573
+   }
+  },
+  {
+   "digest": "sha256:cc83504140fe68fe06d03bfbf3704e98e3efaba776d56b24d697f96b07839721",
+   "expired": false,
+   "expires_at": "2026-12-01T00:34:48Z",
+   "id": 14285574592,
+   "name": "RewindBox-Build765-db1085e59a58e6c77b2b35034e56f0fb78b47ee0-attempt1-cold",
+   "size_in_bytes": 332197917,
+   "workflow_run": {
+    "head_branch": "Claude",
+    "head_sha": "db1085e59a58e6c77b2b35034e56f0fb78b47ee0",
+    "id": 43984879573
+   }
+  },
+  {
+   "digest": "sha256:a14279dec501cf74d3f44ab2ba67dcaadcbc3821f455c4f7655be517e61abfd6",
+   "expired": false,
+   "expires_at": "2027-02-15T00:06:20Z",
+   "id": 14285242597,
+   "name": "RewindBox-Build765-db1085e59a58e6c77b2b35034e56f0fb78b47ee0-attempt1-component-melonx-dependencies",
+   "size_in_bytes": 49179302,
+   "workflow_run": {
+    "head_branch": "Claude",
+    "head_sha": "db1085e59a58e6c77b2b35034e56f0fb78b47ee0",
+    "id": 43984879573
+   }
+  },
+  {
+   "digest": "sha256:4a0da6cebd7293529014b00a2664e0f643182730ba9184f31af8a1b7ed5e5ffe",
+   "expired": false,
+   "expires_at": "2027-02-15T00:06:20Z",
+   "id": 14285227637,
+   "name": "RewindBox-Build765-db1085e59a58e6c77b2b35034e56f0fb78b47ee0-attempt1-component-dolphin",
+   "size_in_bytes": 11192276,
+   "workflow_run": {
+    "head_branch": "Claude",
+    "head_sha": "db1085e59a58e6c77b2b35034e56f0fb78b47ee0",
+    "id": 43984879573
+   }
+  },
+  {
+   "digest": "sha256:126a6d4d2e341fe9c1fb74a8a62fda213df963c4003635eb8658c17a41cdd64a",
+   "expired": false,
+   "expires_at": "2026-12-01T00:08:23Z",
+   "id": 14285096819,
+   "name": "RewindBox-Build765-db1085e59a58e6c77b2b35034e56f0fb78b47ee0-attempt1-contract",
+   "size_in_bytes": 6269,
+   "workflow_run": {
+    "head_branch": "Claude",
+    "head_sha": "db1085e59a58e6c77b2b35034e56f0fb78b47ee0",
+    "id": 43984879573
+   }
+  },
+  {
+   "digest": "sha256:5c7998c83527e52bb943942b8eb7d5842eb53d4bff6abd727812e58756bd1f7d",
+   "expired": false,
+   "expires_at": "2027-02-15T00:06:20Z",
+   "id": 14284857980,
+   "name": "RewindBox-Build765-db1085e59a58e6c77b2b35034e56f0fb78b47ee0-attempt1-component-armsx2",
+   "size_in_bytes": 14043861,
+   "workflow_run": {
+    "head_branch": "Claude",
+    "head_sha": "db1085e59a58e6c77b2b35034e56f0fb78b47ee0",
+    "id": 43984879573
+   }
+  },
+  {
+   "digest": "sha256:5a40a78cfbcd05c4185c65d8dc49eb3189ebeb4ef7d6b3f189cfdbc4c470aa28",
+   "expired": false,
+   "expires_at": "2027-02-15T00:06:20Z",
+   "id": 14284083599,
+   "name": "RewindBox-Build765-db1085e59a58e6c77b2b35034e56f0fb78b47ee0-attempt1-component-melonx-core",
+   "size_in_bytes": 100653639,
+   "workflow_run": {
+    "head_branch": "Claude",
+    "head_sha": "db1085e59a58e6c77b2b35034e56f0fb78b47ee0",
+    "id": 43984879573
+   }
+  },
+  {
+   "digest": "sha256:47795cbfa2d576cee4a5d136b1f4e12b1a6fcd34c6ba1e5b421a582860e4f8c8",
+   "expired": false,
+   "expires_at": "2027-02-15T00:06:20Z",
+   "id": 14283704921,
+   "name": "RewindBox-Build765-db1085e59a58e6c77b2b35034e56f0fb78b47ee0-attempt1-component-rpcs3-core",
+   "size_in_bytes": 30597816,
+   "workflow_run": {
+    "head_branch": "Claude",
+    "head_sha": "db1085e59a58e6c77b2b35034e56f0fb78b47ee0",
+    "id": 43984879573
+   }
+  }
+ ],
+ "total_count": 17
+}
