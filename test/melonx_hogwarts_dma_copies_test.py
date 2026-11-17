@@ -301,6 +301,8 @@ LOT_FILES = {
     'adapt_release_passes': [],
     # After IPA 764 (adapt_array_walk_size): TextureBindingsArrayCache.cs is outside this composition.
     'adapt_array_walk_size': [],
+    # After IPA 767 (adapt_loh_compaction_request): Switch.cs is outside this composition.
+    'adapt_loh_compaction_request': [],
 }
 
 checks = 0

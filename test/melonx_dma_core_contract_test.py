@@ -866,7 +866,9 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_array_attachment_members.py',
                                                      'build-utils/melonx/adapt_release_passes.py',
                                                      'build-utils/melonx/adapt_empty_worker_snapshot.py',
-                                                     'build-utils/melonx/adapt_array_walk_size.py'} and
+                                                     'build-utils/melonx/adapt_array_walk_size.py',
+                                                     # After IPA 767: the large object heap compaction request.
+                                                     'build-utils/melonx/adapt_loh_compaction_request.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -931,7 +933,8 @@ if not args.helpers_only:
     # After IPA 760: adapt_draw_wait_lanes.py and adapt_mirror_copy_journal.py join them (256); their six files are members
     # already.
     # After IPA 764: four adapters join them (260); their six files are members already (228).
-    check(len(frozen['preparationInputs']) == 260 and len(frozen['preparedMembers']) == 228, 'Wrong final composition')
+    # After IPA 767: adapt_loh_compaction_request.py joins them (261); Switch.cs is a member already (228).
+    check(len(frozen['preparationInputs']) == 261 and len(frozen['preparedMembers']) == 228, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and

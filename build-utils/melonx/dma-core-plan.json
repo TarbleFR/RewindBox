@@ -140,7 +140,8 @@
   "build-utils/melonx/adapt_array_attachment_members.py",
   "build-utils/melonx/adapt_empty_worker_snapshot.py",
   "build-utils/melonx/adapt_release_passes.py",
-  "build-utils/melonx/adapt_array_walk_size.py"
+  "build-utils/melonx/adapt_array_walk_size.py",
+  "build-utils/melonx/adapt_loh_compaction_request.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -417,7 +418,9 @@
   "test/melonx_pipeline_variant_replay/Lot.cs",
   "test/melonx_nifm_network_watch/Online.cs",
   "test/melonx_draw_wait_lanes/Double.cs",
-  "test/melonx_draw_wait_lanes/Program.cs"
+  "test/melonx_draw_wait_lanes/Program.cs",
+  "test/melonx_loh_compaction_request_test.py",
+  "test/melonx_loh_compaction_request/Program.cs"
  ],
  "fixtureProductionInputs": [
   "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs",
@@ -5002,6 +5005,28 @@
     "src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs",
     "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs",
     "src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs"
+   ]
+  },
+  {
+   "name": "loh-compaction-request",
+   "script": "test/melonx_loh_compaction_request_test.py",
+   "report": "loh-compaction-request-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 3600,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false,
+    "lohCompactionRequest.executed": true
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.HLE/Switch.cs"
    ]
   }
  ]

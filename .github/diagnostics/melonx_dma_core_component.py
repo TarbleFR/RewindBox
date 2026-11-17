@@ -85,7 +85,10 @@ CONTROL_PREPARED = {
 # its occlusion reports, the report guard and the per-entry processing executed, not only compiled).
 # 110 after IPA 759 (the Core's own sched_yield: no priority depression in the runtime's contended locks, the system
 # library's yield kept during thread suspension and background collection).
-FRESH_GATES = 111
+# 111 with the lot after IPA 764 (texture array barrier members, command buffer release passes, empty worker snapshot,
+# bindless array walk size: gates taught, none added); 112 after IPA 767 (a host pressure report asks the collector's
+# next blocking collection to compact the large object heap: loh-compaction-request).
+FRESH_GATES = 112
 HISTORICAL_RECEIPTS = 61
 GPU_WORK_ROWS = 13
 READ_COUNTERS = 4
