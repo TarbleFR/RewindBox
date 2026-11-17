@@ -302,10 +302,10 @@ check(expected_decisions[:2] == ['slow@42', 'base@62'] and sum(d.startswith('slo
 # opens the session's marker when it starts, updates it every second (written at most every 2 s), removes it when it
 # stops; the next launch reports a marker left behind in the crash journal, and subscribes to MetricKit's reports.
 check('enum MeloNXSessionExit' in parity and 'static let fileName = "MeloNX-session-open.json"' in parity and
-      journal.count('MeloNXSessionExit.begin(journalPath:path, context:context)') == 1 and
-      journal.count('MeloNXSessionExit.update(seconds:Int((now - started).rounded()), memory:footprint)') == 1 and
-      journal.count('MeloNXSessionExit.end()') == 1 and
-      journal.index('MeloNXSessionExit.end()') < journal.index('guard let timer else { return }'),
+      journal.count('MeloNXSessionExit.begin(journalPath:path, context:context, owner:markerOwner)') == 1 and
+      journal.count('MeloNXSessionExit.update(seconds:Int((now - started).rounded()), memory:footprint, owner:markerOwner)') == 1 and
+      journal.count('MeloNXSessionExit.end(owner:markerOwner)') == 1 and
+      journal.index('MeloNXSessionExit.end(owner:markerOwner)') < journal.index('guard let timer else { return }'),
       'the journal opens, updates and closes the session marker')
 check(parity.index('armCrashJournal()\n        // How the previous process') < parity.index('MeloNXSessionExit.reportPrevious(directory:directory, crashJournal:crashJournalPath)') and
       'MeloNXSessionExit.subscribeSystemReports(crashJournal:crashJournalPath)' in parity and
@@ -740,7 +740,7 @@ exit(0)
               'the tagged region is among the largest: ' + str(top))
         written = [l for l in memory_log.read_text().splitlines() if l.startswith('[MeloNX:memory] ')]
         check(len(written) == 3 and all(re.match(r'\[MeloNX:memory\] t=\d+ footprint=', l) for l in written) and
-              written[0].endswith(' why=start') and written[1].endswith(' why=memoryWarning') and ' why=' not in written[2],
+              written[0].endswith(' why=start') and written[1].endswith(' regions=deferred why=memoryWarning') and ' why=' not in written[2],
               'the start line, one line for two memory warnings, one scheduled line, then the bound: ' + str(written))
 
         # The session exit record, in separate processes: an open session ended without its stop, then the next launch.
@@ -751,13 +751,14 @@ let mode = CommandLine.arguments[1]
 let directory = URL(fileURLWithPath:CommandLine.arguments[2])
 let journal = directory.appendingPathComponent("perf.log").path
 let crash = directory.appendingPathComponent("crash.log").path
+let markerOwner = UUID()
 switch mode {
 case "open", "clean":
-    MeloNXSessionExit.begin(journalPath:journal, context:["session":"S-1", "titleId":"0100F7E00C70E000", "build":"772"])
-    MeloNXSessionExit.update(seconds:5, memory:"4000/2000/5/2")
+    MeloNXSessionExit.begin(journalPath:journal, context:["session":"S-1", "titleId":"0100F7E00C70E000", "build":"772"], owner:markerOwner)
+    MeloNXSessionExit.update(seconds:5, memory:"4000/2000/5/2", owner:markerOwner)
     NotificationCenter.default.post(name:Notification.Name("UIApplicationDidReceiveMemoryWarningNotification"), object:nil)
     NotificationCenter.default.post(name:MeloNXSessionExit.backgroundName, object:nil)
-    if mode == "clean" { MeloNXSessionExit.end() }
+    if mode == "clean" { MeloNXSessionExit.end(owner:markerOwner) }
     print("PID " + String(ProcessInfo.processInfo.processIdentifier))
     exit(0)
 default:
@@ -787,9 +788,9 @@ default:
             check(line.startswith(f'[MeloNX:crash] previous session S-1 pid {pid} title 0100F7E00C70E000 build 772; ended without closing:') and
                   'last second t=5 at ' in line and '; app background since t=' in line and '; memory warnings 1 (last at t=' in line and
                   '; last mem=4000/2000/5/2' in line, 'the previous session is reported with its last state: ' + line)
-            check(line.endswith('no fatal signal of that process in this journal: ended from outside (iOS)') == (case == 'open') and
-                  line.endswith('a fatal signal or exit of that process is in this journal (a crash)') == (case == 'crashed'),
-                  'a kill and a crash are told apart: ' + line)
+            check(line.endswith('no fatal signal or explicit exit recorded for this process; termination reason unknown') == (case == 'open') and
+                  line.endswith('a fatal signal or explicit exit of that process is in this journal') == (case == 'crashed'),
+                  'the report distinguishes a recorded signal or exit from an unknown cause: ' + line)
             check(not (folder / 'MeloNX-session-open.json').exists() and exit_run('report', folder) == 'LINE none',
                   'the marker is forgotten once reported')
             written = (folder / 'crash.log').read_text()

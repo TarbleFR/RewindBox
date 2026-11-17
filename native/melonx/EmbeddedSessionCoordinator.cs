@@ -62,6 +62,9 @@ internal sealed class EmbeddedSessionCoordinator
         lock (_gate)
         {
             if (generation != _generation || !_inputsOpen || (_state != 1 && _state != 2)) return false;
+            // Multiple host pause reasons can describe the same effective state. Repeating the
+            // callback would restart the compaction timer and queue another pipeline checkpoint.
+            if (_pauseRequested == paused) return true;
             _pauseRequested = paused;
             _pause?.Invoke(paused);
             return true;

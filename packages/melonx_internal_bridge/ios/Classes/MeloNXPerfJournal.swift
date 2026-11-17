@@ -127,6 +127,7 @@ final class MeloNXPerfJournal {
     private let fps: () -> [String: Any]
     private let presentation: () -> Presentation
     private let audio: () -> [Int64]?
+    private let markerOwner = UUID()
     private let memory: () -> String?
     private let stalls: MeloNXStallWatch
     private let breakdown: MeloNXMemoryBreakdown
@@ -194,7 +195,7 @@ final class MeloNXPerfJournal {
             breakdown.start()
             hot.start()
             // How this session ends is reported at the next launch if it does not end here (MeloNXSessionExit).
-            MeloNXSessionExit.begin(journalPath:path, context:context)
+            MeloNXSessionExit.begin(journalPath:path, context:context, owner:markerOwner)
         }
     }
 
@@ -400,7 +401,7 @@ final class MeloNXPerfJournal {
             stalls.stop()
             breakdown.stop()
             hot.stop()
-            MeloNXSessionExit.end()
+            MeloNXSessionExit.end(owner:markerOwner)
             guard let timer else { return }
             timer.cancel(); self.timer = nil
             let average = fpsCount > 0 ? fpsTotal / Double(fpsCount) : 0
@@ -483,7 +484,7 @@ final class MeloNXPerfJournal {
         let footprint = memory()
         stalls.exit()
         if let text = footprint { fields.append("mem=" + text) }
-        MeloNXSessionExit.update(seconds:Int((now - started).rounded()), memory:footprint)
+        MeloNXSessionExit.update(seconds:Int((now - started).rounded()), memory:footprint, owner:markerOwner)
         if let text = vmActivity() { fields.append("vm=" + text) }
         let served = hwActivity(cpuNs:total, seconds:elapsed)
         if let text = served.hw { fields.append("hw=" + text) }
@@ -829,6 +830,14 @@ final class MeloNXMemoryBreakdown {
     private var started = 0.0
     private var lines = 0
     private var warned = false
+    // Updated by the notification thread so a background VM walk can yield immediately.
+    private let pressureLock = NSLock()
+    private var resumeWalkAt: Double = 0
+
+    private func mayWalkRegions() -> Bool {
+        pressureLock.lock(); defer { pressureLock.unlock() }
+        return ProcessInfo.processInfo.systemUptime >= resumeWalkAt
+    }
     private var warningObserver: NSObjectProtocol?
 
     // UIApplication.didReceiveMemoryWarningNotification's name, without UIKit (the journal also runs in macOS tests).
@@ -858,6 +867,9 @@ final class MeloNXMemoryBreakdown {
 
     // Asynchronous: once per journal, while it runs.
     func memoryWarning() {
+        pressureLock.lock()
+        resumeWalkAt = ProcessInfo.processInfo.systemUptime + 60
+        pressureLock.unlock()
         queue.async { [self] in
             guard timer != nil, !warned else { return }
             warned = true
@@ -878,14 +890,14 @@ final class MeloNXMemoryBreakdown {
         guard lines < maxLines else { timer?.cancel(); timer = nil; return }
         lines += 1
         let seconds = Int((ProcessInfo.processInfo.systemUptime - started).rounded())
-        let line = Self.describe(seconds:seconds) + (why.map { " why=" + $0 } ?? "")
+        let line = Self.describe(seconds:seconds, mayWalk:mayWalkRegions) + (why.map { " why=" + $0 } ?? "")
         _ = MeloNXStdioCapture.appendLine(MeloNXStdioCapture.contextualLine("[MeloNX:memory] " + line, context:context), to:path, limit:MeloNXPerfJournal.fileLimit)
     }
 
     private struct Group { var resident: UInt64 = 0, compressed: UInt64 = 0, regions = 0 }
     private struct Region { let address: UInt64, size: UInt64, group: String, share: UInt8, resident: UInt64, compressed: UInt64 }
 
-    static func describe(seconds: Int) -> String {
+    static func describe(seconds: Int, mayWalk: () -> Bool = { true }) -> String {
         var parts = ["t=\(seconds)"]
         var vm = task_vm_info_data_t()
         var vmCount = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<natural_t>.size)
@@ -911,6 +923,9 @@ final class MeloNXMemoryBreakdown {
         //   counted once;
         // - shared regions under minSharedQueryBytes (the guest memory lease is 65 536 of them, IPA 724: the walk stopped
         //   at its 400 ms bound before the private regions above them): counted and sized only ("sharedSmall").
+        // Ledgers are a single task_info call. Avoid hundreds of thousands of VM queries under pressure.
+        guard mayWalk() else { return (parts + ["regions=deferred"]).joined(separator:" ") }
+
         let page = UInt64(vm_page_size)
         let begin = DispatchTime.now().uptimeNanoseconds
         var groups: [String: Group] = [:]
@@ -923,6 +938,9 @@ final class MeloNXMemoryBreakdown {
         var unwalked = 0, unwalkedBytes: UInt64 = 0
         var sharedSmall = 0, sharedSmallBytes: UInt64 = 0
         while true {
+            if regions & 255 == 0 && !mayWalk() {
+                return (parts + ["regions=deferred"]).joined(separator:" ")
+            }
             if regions >= maxRegions || Double(DispatchTime.now().uptimeNanoseconds - begin) / 1e6 > maxWalkMs { partial = true; break }
             var size: vm_size_t = 0
             var depth: natural_t = 0
