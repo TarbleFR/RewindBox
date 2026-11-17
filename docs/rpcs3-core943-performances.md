@@ -164,24 +164,33 @@ mesurable :
 - **Vérifications** : compilation comparée (Linux) et branche iOS compilée seule avec en-têtes de substitution ; appels
   identiques à ceux de la sonde. Non exécuté sur iPhone.
 
-### 2.5 Encodage MoltenVK sur les cœurs E (REWINDBOX_MVK_ENCODE_QOS_943)
+### 2.5 Black Ops II : encodage MoltenVK dans la classe des SPU (REWINDBOX_MVK_ENCODE_QOS_943)
 
 - **Problème constaté** : § 4.1. Dans Black Ops II plafonné, l'encodage des commandes Metal par MoltenVK (après le retour de
-  `vkQueueSubmit`) occupe environ 0,29 des 1,85 cœur P : ≈ 0,22 W, contre ≈ 0,09 W pour le même travail sur les cœurs E.
-  Il n'est pas sur le chemin de l'image : en jeu, le RSX l'a attendu 0 fois avant `vkAcquireNextImageKHR` et 16 à 29 fois
-  par fenêtre de 5 s avant un résultat de requête, pour 13 à 34 ms au total (`COREPROF OPT587`).
-- **Cause** : MoltenVK crée la file d'encodage en classe « user-initiated » (`MVKQueue::initExecQueue`).
+  `vkQueueSubmit`, les threads sans nom du recensement : 0,27 à 0,31 cœur) tourne avec les threads PPU et RSX en
+  « user-interactive », sur les cœurs P : ≈ 0,22 W, contre ≈ 0,09 W pour le même travail sur les cœurs E. Il est rarement
+  sur le chemin de l'image : en jeu, le RSX l'a attendu 0 fois avant `vkAcquireNextImageKHR` et 16 à 29 fois par fenêtre
+  de 5 s avant un résultat de requête, pour 13 à 34 ms au total (`COREPROF OPT587`).
+- **Cause** : la file d'encodage est « user-interactive », priorité relative −15. REWINDBOX_MOLTENVK_ASYNC_SUBMITS_V1
+  demande la priorité globale HIGH, parce que la file « user-initiated » de MEDIUM passait derrière les threads qui
+  l'attendaient. MoltenVK 1.4.2 traduit HIGH en `QOS_CLASS_USER_INTERACTIVE` −15 (`MVKQueue::initExecQueue`).
 - **Correction** : aucune modification de l'archive MoltenVK n'est nécessaire. Son appel `dispatch_queue_create` est déjà
   renommé en `rbx_mvk_exec_q_create`, que définit le Core (`RPCS3IOSPlatform.mm`). La file de la VkQueue qui présente y
-  est créée en classe « utility », qu'iOS garde sur les cœurs E. Un thread « utility » passe après le travail
-  « user-initiated » prêt sur sa grappe. Donc, quand le RSX doit attendre un encodage (acquisition, barrière, requête), il
-  ajoute d'abord à la file un bloc vide de sa propre classe (`DISPATCH_BLOCK_ENFORCE_QOS_CLASS`). libdispatch exécute
-  alors la file dans cette classe jusqu'à ce qu'elle soit vide, comme pour un `dispatch_sync`. Même travail, même ordre,
-  même file ; la file de transfert garde sa classe. Le changement ne concerne que l'archive liée au Core RPCS3, pas
-  MeloNX. Réglage « MoltenVK encoding class » (Expérimental → MoltenVK) : Automatique = Black Ops II et God of War III,
-  Activé = tous les jeux, Désactivé = aucun, avec les soumissions asynchrones seulement. `COREPROF MVKQOS943` :
-  files créées en « utility », remontées de classe. La quatrième valeur de `qos_ms` (ENERGY931) montre où tourne
-  l'encodage.
+  est créée en « user-initiated », priorité relative 0. C'est la classe et la priorité des threads SPU depuis
+  REWINDBOX_SPU_QOS_627, qu'iOS fait tourner sur les cœurs E en jeu. La classe « utility » n'a pas été retenue : un thread
+  « utility » passe après tout le travail « user-initiated » prêt sur sa grappe, donc derrière les SPU au lieu d'à côté
+  d'eux. Quand le RSX doit attendre un encodage (acquisition, barrière, requête), il ajoute d'abord à la file un bloc vide
+  de sa propre classe (`DISPATCH_BLOCK_ENFORCE_QOS_CLASS`). libdispatch exécute alors la file dans cette classe jusqu'à ce
+  qu'elle soit vide, comme pour un `dispatch_sync`. Même travail, même ordre, même file ; la file de transfert garde sa
+  classe. Le changement ne concerne que l'archive liée au Core RPCS3, pas MeloNX.
+- **Black Ops II seulement** : ses cœurs E gardent environ 1,2 cœur libre (2,7 à 2,8 occupés sur 4). God of War III garde
+  la classe d'avant : ses SPU occupent 3,4 à 3,7 cœurs en jeu, plus que la grappe E. Les autres attentes de cette file
+  ne la remontent pas (le `wait_for_event` d'une relecture DMA, `vkQueueWaitIdle`) : dans la classe des SPU, l'encodeur
+  partage la grappe avec eux sans passer derrière. Réglage « MoltenVK encoding class » (Expérimental → MoltenVK) :
+  Automatique = Black Ops II, Activé = tous les jeux, Désactivé = aucun, avec les soumissions asynchrones seulement.
+  `COREPROF MVKQOS943` : classe, files abaissées, remontées. Dans `qos_ms` (ENERGY931), l'encodage doit passer de la
+  première valeur (« user-interactive ») à la deuxième (« user-initiated »). `OPT587` dira si les présentations ou les
+  attentes ont ralenti.
 - **Vérifications** : compilation comparée (Linux) et branche iOS compilée seule avec en-têtes de substitution, avec et
   sans ARC. Les deux tests existants de la file MoltenVK ne s'appliquent plus, et l'écart est le même sur le commit
   précédent. `rpcs3_cell587_test.py` est authentifié sur les fichiers du Core 587. `rpcs3_mvk_present_queue_test.py`
@@ -266,6 +275,23 @@ compteurs et cadrage jugés corrects. Ses remarques, toutes appliquées :
   l'interpréteur et latence décrits (§ 2.1). Restent notés sans changement : compteurs de la caverne non atomiques
   (diagnostic) et le vidage `part=callee`, qui suit le premier pc relevé dans la région chaude.
 
+Seconde relecture indépendante (intervalle de travail et encodage MoltenVK), aucun bloquant :
+- **majeure** : la file MoltenVK n'était pas « user-initiated » mais « user-interactive » −15 (priorité globale HIGH). En
+  « utility », elle serait passée derrière les SPU « user-initiated », qui saturent les cœurs E de God of War III, et
+  plusieurs attentes (relecture DMA, `vkQueueWaitIdle`, portail GPU) ne la remontent pas. Corrigé : classe des SPU
+  (« user-initiated » 0), Black Ops II seulement (§ 2.5) ;
+- **non bloquante** : une exception sortant de `cpu_thread::operator()` aurait laissé le worker dans l'intervalle de
+  travail. Corrigé : un garde de portée le quitte en toute sortie ;
+- **notée** : l'échéance fixe de 16,7 ms rend presque chaque image de Black Ops II « en retard », et CLPC est poussé en
+  permanence. C'est ce que reçoit d'iOS un jeu à 60 Hz qui ne tient pas sa cadence (CADisplayLink). Une échéance à la
+  cadence du jeu laisserait CLPC baisser l'horloge jusqu'à ce rythme, au lieu de la tenir. Gardée ; Automatique se limite
+  aux deux jeux mesurés ;
+- vérifiés corrects : entrée et sortie sur le thread de la tâche, poignée écrite une fois, arguments et unités de
+  `work_interval_notify`, remontée GCD (le bloc ENFORCE remonte le thread qui vide la file jusqu'à ce qu'elle soit
+  vide), ARC et non-ARC, aucun interblocage, identité de la file connue avant `vkCreateDevice`, politique résolue avant
+  le périphérique Vulkan et les threads, en démarrage normal comme en reprise de sauvegarde ;
+- 115 tests existants qui lisent ces fichiers, lancés avant et après : aucun résultat ne change.
+
 Compilation du Core, épinglage et IPA : après la piste du surcoût PPU (§ 2.3), à la demande du mainteneur.
 
 ## 4. Pourquoi la fréquence tombe, et ce qui peut la maintenir (demande du mainteneur, 16 novembre)
@@ -319,8 +345,8 @@ FPS ≈ 16-18 × GHz tient, c'est plus de 30 FPS. Seule une mesure sur l'iPhone 
 
 ### 4.3 Démonstration (choix du mainteneur : une IPA avec les correctifs actifs)
 
-Le Core 943 active par défaut (Automatique) les changements des § 2.1, 2.4, 2.5 et 2.6 pour Black Ops II et God of War III ;
-chacun a son réglage pour l'arrêter. On compare avec l'IPA 763 (Core 942) : mêmes jeux, mêmes passages, téléphone chaud.
+Le Core 943 active par défaut (Automatique) : pour God of War III, les § 2.1 et 2.4 ; pour Black Ops II, les § 2.4, 2.5
+et 2.6. Chacun a son réglage pour l'arrêter. On compare avec l'IPA 763 (Core 942) : mêmes jeux, mêmes passages, téléphone chaud.
 - **Ce qui doit monter** : à puissance du processeur égale (≈ 2 W), la fréquence des cœurs P (ENERGY931 `p_mcycles` /
   `p_cpu_ms`), les FPS (FRAMEPROF527) ; et baisser : `p_share` et l'énergie d'une image (`mj_per_frame`).
 - **Ce qui a été fait** : `FRAMEWI943` (notifications, images en retard), `MVKQOS943` (files « utility », remontées) avec
