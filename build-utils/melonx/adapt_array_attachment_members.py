@@ -24,6 +24,9 @@ Change:
   holds: a full pass), calls only those members, in that order. A changed set, a new stage or such a promotion runs the
   full pass as before. Any element change (MoveStorage, SetDirty) forgets the members.
 - The barrier line of the detail journal adds the member passes and the storages first used as attachments so far.
+- A storage leaves the ring when it is disposed, and a pass that finds a forgotten slot among the promotions since its
+  last full pass runs the full pass: the ring keeps nothing of a closed session alive (a storage holds its renderer, the
+  renderer the window and the emulated console; independent review, 17 Nov).
 
 Not changed: which barriers are queued, their stages and accesses, their order (the skipped calls queue nothing; the
 members keep the order of the set's enumeration, unchanged since the full pass), the epoch skip, draws, descriptors.
@@ -89,6 +92,26 @@ LOAD_NEW = '''        public void QueueLoadOpBarrier(CommandBufferScoped cbs, bo
         {
             AttachmentEpoch++; // RewindBox (adapt_array_barrier_epoch)
             NoteAttachmentUse(); // RewindBox (adapt_array_attachment_members)
+'''
+
+DISPOSE_OLD = '''            Disposed = true;
+            _gd.UnregisterPresentationStorage(this);
+'''
+DISPOSE_NEW = '''            Disposed = true;
+            _gd.UnregisterPresentationStorage(this);
+
+            // RewindBox (adapt_array_attachment_members): the ring forgets this storage, so that it keeps nothing of a closed
+            // session alive; an array whose promotions since its last full pass include the forgotten slot runs a full pass.
+            if (AttachmentUsed)
+            {
+                for (int i = 0; i < PromotionRingSize; i++)
+                {
+                    if (ReferenceEquals(PromotionRing[i], this))
+                    {
+                        PromotionRing[i] = null;
+                    }
+                }
+            }
 '''
 
 TEXT_OLD = '''            string text = FormattableString.Invariant($"; texture array barrier passes {_barrierPasses} (storages visited {_barrierStorages}, sets rebuilt {_barrierRebuilds} over {_barrierRebuildElements} elements, {_barrierTicks * 1000.0 / System.Diagnostics.Stopwatch.Frequency:F1} ms), skipped unchanged {_barrierSkips}");
@@ -201,7 +224,8 @@ END_NEW = '''            _barrierPasses++;
         }
 
         // RewindBox (adapt_array_attachment_members): none of this set's storages became an attachment since its last full
-        // pass (every promotion since then is still in the ring and none is in the set; more than the ring holds: false).
+        // pass (every promotion since then is still in the ring and none is in the set; more than the ring holds, or a slot
+        // forgotten by a disposed storage: false).
         private bool MembersUnpromoted()
         {
             long promotions = TextureStorage.AttachmentPromotions;
@@ -214,7 +238,10 @@ END_NEW = '''            _barrierPasses++;
 
             for (long i = _attachmentMark; i < promotions; i++)
             {
-                if (_storages.Contains(TextureStorage.PromotionRing[(int)(i & (TextureStorage.PromotionRingSize - 1))]))
+                TextureStorage promoted = TextureStorage.PromotionRing[(int)(i & (TextureStorage.PromotionRingSize - 1))];
+
+                // A forgotten slot (its storage was disposed) cannot be checked: a full pass.
+                if (promoted == null || _storages.Contains(promoted))
                 {
                     return false;
                 }
@@ -229,6 +256,7 @@ PAIRS = [
     (STORAGE, STORAGE_FIELDS_OLD, STORAGE_FIELDS_NEW),
     (STORAGE, STORE_OLD, STORE_NEW),
     (STORAGE, LOAD_OLD, LOAD_NEW),
+    (STORAGE, DISPOSE_OLD, DISPOSE_NEW),
     (ARRAY, TEXT_OLD, TEXT_NEW),
     (ARRAY, FIELDS_OLD, FIELDS_NEW),
     (ARRAY, MOVE_OLD, MOVE_NEW),

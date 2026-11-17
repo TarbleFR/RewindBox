@@ -132,7 +132,9 @@ nothing. A pass over the same set, for covered stages, while no storage of the s
 of the last 64 such storages; more: a full pass), now calls only the storages that were attachments, in the set's order.
 Checked with a model of both classes: 6 000 random sequences of 4 000 operations on three driver configurations give the
 same barrier log and states, also with a ring of 4; three deliberate mutations are caught. Computed 40 to 100 ms per 5 s
-window; the barrier line gains the member passes and the storages ever attachments.
+window; the barrier line gains the member passes and the storages ever attachments. The independent review found that
+the static ring of promoted storages held them strongly, and through them a closed session's renderer, window and
+console until 64 new promotions: a disposed storage now leaves the ring, and a forgotten slot makes the next pass full.
 
 ### 5.3 Core: a finished command buffer clears its dependants' bits, then releases them
 
@@ -167,7 +169,15 @@ complete walk runs, the code the entry already runs whenever the ring is not rea
 costs one store and two tests). Same textures, samplers, arrays and uploads; never more visits than before. Computed 5 to
 7 of the GPU thread's 157 samples (about 1.1 to 1.6 ms per frame); no gain for the pool arrays.
 
-### 5.6 What the readings found and left
+### 5.6 Independent review of the five changes
+
+No wrong rendering, missed barrier, new use after free, deadlock or compile error found. Besides the ring above (fixed),
+two minor points of the MoltenVK seventh part are left as they are: a buffer's cached GPU address is not cleared when its
+memory object is freed while the buffer lives (`MVKDeviceMemory` clears the binding directly; reading it then is invalid
+Vulkan use, and Ryujinx destroys a buffer before its allocation), and a view's creation writes `_mtlTexture` outside the
+sequence lock (formal: the fast path also compares the current view and the generation).
+
+### 5.7 What the readings found and left
 
 - Compute dispatches (about 58 us each): about 13 us of main sets, 35 us of reference passes of the bindless arrays
   (once per command buffer, about 2 000 views and samplers; the ownership model requires it) and 11 us of slot writes.
