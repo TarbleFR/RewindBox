@@ -140138,10 +140138,10 @@ index 0000000..e6ca316
 +}
 diff --git a/rpcs3/ios/IOSThermalPolicy931.h b/rpcs3/ios/IOSThermalPolicy931.h
 new file mode 100644
-index 0000000..041a100
+index 0000000..c10817b
 --- /dev/null
 +++ b/rpcs3/ios/IOSThermalPolicy931.h
-@@ -0,0 +1,240 @@
+@@ -0,0 +1,258 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -140153,6 +140153,7 @@ index 0000000..041a100
 +
 +#include "IOSShardedCounter931.h"
 +#include "IOSWriterParkSpin917.h" // compare::event_waits_forced, set by the report thread inside a comparison step
++#include "IOSEventWait931.h"     // REWINDBOX_EVENT_WAITS_ALWAYS_945: event_wait::wfe_verdict
 +
 +// REWINDBOX_THERMAL_POLICY_931: the Core follows the iPhone's thermal state (ProcessInfo.thermalState, posted by
 +// the system: 0 nominal, 1 fair, 2 serious, 3 critical) and, once the device is hot, changes HOW some short waits
@@ -140184,10 +140185,27 @@ index 0000000..041a100
 +	return mode == 1 ? true : mode == 2 ? false : thermal_state >= automatic_from;
 +}
 +
++// REWINDBOX_EVENT_WAITS_ALWAYS_945: on Automatic, the waits are event waits in every thermal state once the WFE
++// self-test has found that the sequence rests the core (event_wait::wfe_verdict 1, REWINDBOX_WFE_SLEEP_940). IPA 767
++// logs (17 November 2026, Core 943): the phone stayed nominal or fair in all 239 report windows since Core 931, so
++// these waits never rested a core (THERMAL931 event_waits=off in every window) while Black Ops II made 1.55 million
++// exact PUTLLC per 5 s window, each a writer spinning until every running PPU thread parks and the PPU threads
++// spinning behind it (build 676: 2.4 to 2.9 s of SPU thread time per window acquiring those locks; Core 935: 530 ms of
++// PPU time waiting behind them). The RSX FIFO idle wait has used the same rule since Core 941, and its wait ended
++// within 2 us in 99.7 % of 74,000 waits per window on IPA 767. What each wait waits for, its bound and its fallback
++// are unchanged; the awaited write clears the monitor and ends the WFE. Enabled and Disabled are as before, and so is a
++// lever comparison step (forced). Before the self-test, or if it fails, Automatic is the Core 931 rule (serious).
 +inline bool event_waits() noexcept
 +{
-+	return decide(setting.load(std::memory_order_relaxed), state.load(std::memory_order_relaxed),
-+		writer_park::compare::event_waits_forced.load(std::memory_order_relaxed));
++	const std::uint8_t mode = setting.load(std::memory_order_relaxed);
++	const int forced = writer_park::compare::event_waits_forced.load(std::memory_order_relaxed);
++
++	if (mode == 0 && forced < 0 && event_wait::wfe_verdict.load(std::memory_order_relaxed) == 1)
++	{
++		return true;
++	}
++
++	return decide(mode, state.load(std::memory_order_relaxed), forced);
 +}
 +
 +// REWINDBOX_SPU_IDLE_BACKOFF_935 (ios/IOSSpuIdleBackoff935.h): the lengthened idle waits of SPU threads follow the
@@ -154774,7 +154792,7 @@ index 6a52e85..f4b30ed 100644
  
  	return true;
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index b7b0474..ec64ea1 100644
+index b7b0474..197b370 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
 @@ -1,21 +1,45 @@
@@ -154864,7 +154882,7 @@ index b7b0474..ec64ea1 100644
 +	SETTING("experimental.writer_park_spin", "Experimental", "FPS Experiments", "Writer lock park spin", "When an SPU or PPU atomic write takes the reservation write lock, it waits for every PPU thread to stop at its next check. It used to hand its CPU core off with a system call after a fraction of a microsecond, although the PPU thread it waits for is usually running and stops within about two microseconds; it now spins for 8 microseconds before the first hand-off. Every write lock is still taken and stops every PPU thread before the write. Automatic enables it for every title; Disabled hands off as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.writer_park_spin, 0, 0, 0),
 +	SETTING("experimental.busy_wait_reference", "Experimental", "FPS Experiments", "Busy wait reference duration", "The emulator's short active waits (before a thread yields its core or sleeps) are written in ticks of the system counter. On a device whose counter runs faster than the 24 MHz of the reference iPhones they lasted proportionally less (42 times less on a 1 GHz counter). Automatic keeps the reference duration on every device. Disabled restores the previous duration. No effect with SPU Spin Timing = Calibrated. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.busy_wait_reference, 0, 0, 0),
 +	SETTING("experimental.lever_comparison", "Experimental", "FPS Experiments", "Lever comparison between report windows", "Diagnostic, for a measurement asked for on purpose. Enabled: during the first minutes of a game the performance report turns Writer lock park spin and Busy wait reference duration (each only while its own setting is Automatic) off and on again between its 5 second windows, in three passes of 80 seconds, then leaves both on; every switch is written to the performance journal, and the frame rate can vary between windows during a pass. Automatic and Disabled never alternate: both levers stay as their own settings say. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.lever_comparison, 0, 0, 0),
-+	SETTING("experimental.event_waits_when_hot", "Experimental", "FPS Experiments", "Event waits when hot", "Once the iPhone reports a serious thermal state, three short waits of the emulator (a write lock waiting for the PPU threads to stop, a PPU thread waiting for that lock, the RSX waiting for new commands) sleep the CPU core until the awaited write instead of spinning on it. They wait for the same thing, for the same time at most. Automatic: from the serious thermal state. Enabled: always. Disabled: never, the previous waits. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.event_waits_when_hot, 0, 0, 0),
++	SETTING("experimental.event_waits_when_hot", "Experimental", "FPS Experiments", "Event waits when hot", "Once the iPhone reports a serious thermal state, three short waits of the emulator (a write lock waiting for the PPU threads to stop, a PPU thread waiting for that lock, the RSX waiting for new commands) sleep the CPU core until the awaited write instead of spinning on it. They wait for the same thing, for the same time at most. Automatic: always once the start-up self-test has found that the wait rests the core (Core 945), otherwise from the serious thermal state. Enabled: always. Disabled: never, the previous waits. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.event_waits_when_hot, 0, 0, 0),
 +	GAME_SETTING("experimental.put_epoch_horizon", "Experimental", "FPS Experiments", "Texture epoch at the PUT horizon", "With Texture Validation Per FIFO Batch, every new batch of guest commands the RSX noticed made every texture check its contents again, even while the RSX was still executing commands published earlier. The recheck now starts when the RSX reaches the first command that was not yet published at the previous one; semaphores, RSX writes and the end of a frame recheck as before. Every texture is still checked before any command published after its last check uses it. Automatic enables it for God of War III and Call of Duty: Black Ops II; Disabled rechecks at every batch noticed, as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.put_epoch_horizon, 0, 0, 0),
 +	GAME_SETTING("experimental.heavy_putllc_trace", "Experimental", "FPS Experiments", "Heavy PUTLLC trace on resume", "Diagnostic. When the game leaves a pause (in-game menu closed), records for each SPU thread up to 512 consecutive PUTLLC that change data (address, changed part, values read, asked and found) and writes them to the performance journal; two captures per boot at most. Nothing in the reservation protocol changes. Automatic and Disabled leave it off. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.heavy_putllc_trace, 0, 0, 0),
 +	GAME_SETTING("experimental.ppu_region_profile", "Experimental", "FPS Experiments", "PPU region profile on resume", "Diagnostic. When the game leaves a pause (in-game menu closed), samples the PPU threads about once per millisecond for at most 5 seconds and writes the busiest code regions of the running ones to the performance journal; three captures per boot at most. The position sampled is the last return, indirect call, system call or reservation instruction, not the exact instruction. Automatic and Disabled leave it off. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.ppu_region_profile, 0, 0, 0),
