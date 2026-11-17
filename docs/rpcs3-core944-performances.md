@@ -307,3 +307,45 @@ Non exécuté ici : l'iPhone.
   revenus à l'ordre d'un démarrage normal.
 - Black Ops II dans un état thermique comparable à celui de l'IPA 767, pour séparer l'effet des correctifs de celui de la
   chaleur.
+
+## 7. Core 947 — ce qu'il restait (demande du mainteneur, 17 novembre : « avant toute compilation corrige ce qu'il reste »)
+
+### 7.1 L'horizon PUT diffère aussi en précision FIFO Atomic (REWINDBOX_PUT_HORIZON_ATOMIC_947)
+
+**Le défaut.** Black Ops II tourne avec la précision FIFO par défaut (Atomic). Sur l'IPA 771, on mesure `put_deferred=0` pour
+1 916 époques PUT par fenêtre. Dans ce mode, la FIFO lit les commandes par un cache et ne lit PUT qu'au remplissage de celui-ci ;
+l'horizon ne pouvait donc rien différer sans risquer de franchir l'horizon sans le voir.
+
+**Le correctif** (`RSXFIFO.cpp` `read_put` et `fetch_u32_refill`).
+- Tant qu'une époque est différée, un remplissage du cache s'arrête à l'horizon. Cette limite s'applique après la limite au PUT
+  lu, puis de nouveau après une lecture partielle.
+- Le mot situé à l'horizon ne peut donc être lu qu'au travers d'un nouveau remplissage. Celui-ci lit PUT et ouvre l'époque
+  différée avant la première commande concernée.
+- Le cache ne contient jamais de mot au-delà du PUT lu, et les arguments lus directement (`get_current_arg_ptr`) restent bornés
+  au cache. Rien d'autre ne peut donc franchir l'horizon.
+- Les modes Fast et Atomic diffèrent ; les modes ordonné et « As PS3 » ne diffèrent jamais.
+
+**Le test** `rpcs3_put_horizon910_test` modélise maintenant aussi le mode Atomic : lecture de PUT au remplissage seulement, cache
+de 16 mots arrêté au PUT et à l'horizon, invalidé par les sauts, appels, retours, sauts sur eux-mêmes et remises à zéro.
+- Aucune des 16 séries ne sert de version de texture illégale.
+- Le contrôle négatif `no_atomic_clip` (le cache n'est plus arrêté à l'horizon) en sert 71.
+- Dans ce modèle, le mode Atomic retire 2 à 16 % des époques et 1 à 6 % des hachages. Le modèle lit déjà PUT moins souvent
+  que la FIFO réelle ; le gain réel se lira dans `EPOCH909 put_deferred` et `TEXVAL943`.
+
+### 7.2 Où tournent les threads (REWINDBOX_CLUSTER_CENSUS_947, mesure)
+
+Les 61 000 changements de grappe par fenêtre (`pset_switches`) ne disent pas quels threads migrent. Chaque fenêtre, la ligne
+`COREPROF CLUSTER947` donne le temps processeur et l'énergie des threads PPU, SPU, RSX, JIT et autres, sur les cœurs P et sur
+les cœurs E. Ces chiffres viennent de `proc_pidinfo(PROC_PIDTHREADCOUNTS)` (iOS 16), recherché au lancement comme
+`proc_pid_rusage`. C'est une mesure seulement : elle dira quel placement corriger.
+
+### 7.3 Autres points
+
+- **La ligne de rapport de la boucle de God of War III** porte `resumed=`, qui distingue un refus sur une sauvegarde d'un refus
+  au démarrage.
+- **La liste `applied`** ne sert qu'à un compte affiché dans le journal, ignoré lors d'une reprise. La différence relevée par la
+  relecture n'a aucun effet, elle reste telle quelle.
+- **Réservations exactes de Black Ops II.** Le mode relâché a gelé le jeu (IPA 657), il n'est pas réessayé. Les attentes qui
+  les entourent sont en WFE depuis le Core 945.
+- **GETLLAR SPU.** Le code est dans `SPUThread.cpp`, une entrée de la génération de code SPU. Le modifier invaliderait les caches
+  SPU compilés de tous les jeux : ce n'est pas un défaut à corriger ici.
