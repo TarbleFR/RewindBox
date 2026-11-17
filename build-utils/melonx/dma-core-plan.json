@@ -143,7 +143,8 @@
   "build-utils/melonx/adapt_array_walk_size.py",
   "build-utils/melonx/adapt_loh_compaction_request.py",
   "build-utils/melonx/adapt_guest_break_context.py",
-  "build-utils/melonx/adapt_shader_load_binary_release.py"
+  "build-utils/melonx/adapt_shader_load_binary_release.py",
+  "build-utils/melonx/adapt_streaming_memory.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -263,7 +264,10 @@
   "src/Ryujinx.Library/EmbeddedContent.cs",
   "src/Ryujinx.Library/Ryujinx.Library.csproj",
   "src/Ryujinx.HLE/HOS/Kernel/SupervisorCall/Syscall.cs",
-  "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ParallelDiskCacheLoader.cs"
+  "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ParallelDiskCacheLoader.cs",
+  "src/Ryujinx.Common/Memory/MemoryOwner.cs",
+  "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedImageArray.cs",
+  "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedTextureArray.cs"
  ],
  "productionAdditions": [
   "src/Ryujinx.HLE/EmbeddedOnline.cs",
@@ -431,7 +435,8 @@
   "test/melonx_kernel_wait_lifetime/Program.cs",
   "test/melonx_shader_load_binary_release_test.py",
   "test/melonx_shader_load_binary_release/Program.cs",
-  "test/melonx_shader_load_binary_release/Boundaries.cs"
+  "test/melonx_shader_load_binary_release/Boundaries.cs",
+  "test/melonx_streaming_memory/Probe.cs"
  ],
  "fixtureProductionInputs": [
   "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs",
@@ -674,7 +679,10 @@
     "src/Ryujinx.Graphics.Vulkan/CommandBufferPool.cs",
     "src/Ryujinx.Cpu/Jit/HostTracked/AddressSpacePartition.cs",
     "src/Ryujinx.Graphics.Gpu/Engine/Threed/SemaphoreUpdater.cs",
-    "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ParallelDiskCacheLoader.cs"
+    "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ParallelDiskCacheLoader.cs",
+    "src/Ryujinx.Common/Memory/MemoryOwner.cs",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedImageArray.cs",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedTextureArray.cs"
    ],
    "compiledBindings": [
     {
@@ -1423,6 +1431,33 @@
       "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ParallelDiskCacheLoader.cs"
      ],
      "productionPath": "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ParallelDiskCacheLoader.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Common/Memory/MemoryOwner.cs"
+     ],
+     "productionPath": "src/Ryujinx.Common/Memory/MemoryOwner.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedImageArray.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedImageArray.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedTextureArray.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedTextureArray.cs"
     }
    ]
   },
@@ -5117,6 +5152,34 @@
    "requiredPostimages": [
     "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ParallelDiskCacheLoader.cs",
     "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/DiskCacheHostStorage.cs"
+   ]
+  },
+  {
+   "name": "streaming-memory",
+   "script": "test/melonx_streaming_memory_test.py",
+   "report": "streaming-memory-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 600,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false,
+    "streamingMemory.executed": true
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Library/EmbeddedMemory.cs",
+    "src/Ryujinx.Common/Memory/MemoryOwner.cs",
+    "src/Ryujinx.Graphics.Gpu/Image/TextureBindingsArrayCache.cs",
+    "src/Ryujinx.Graphics.GAL/ITextureArray.cs",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Model/ThreadedArrayPool.cs",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedTextureArray.cs",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedImageArray.cs"
    ]
   }
  ]
