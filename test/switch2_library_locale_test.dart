@@ -20,6 +20,7 @@ void main() {
   test('placeholders are kept in every locale', () {
     for (final entry in Switch2LibraryLocale.values.entries) {
       expect(entry.value['importing'], contains('{name}'), reason: entry.key);
+      expect(entry.value['unpacking'], contains('{name}'), reason: entry.key);
       expect(entry.value['preparing'], contains('{name}'), reason: entry.key);
       expect(entry.value['imported'], contains('{count}'), reason: entry.key);
       expect(entry.value['duplicates'], contains('{count}'), reason: entry.key);

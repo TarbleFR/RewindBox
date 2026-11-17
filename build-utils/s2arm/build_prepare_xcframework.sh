@@ -1,6 +1,7 @@
 #!/bin/bash
 # Builds S2ArmPrepare.xcframework (iOS arm64, static): native/s2arm/prepare with
-# S2Arm's rewriter, Capstone and LZ4 inside, only the rb_s2arm_* symbols visible.
+# S2Arm's rewriter, Capstone, LZ4 and zstd 1.5.7's decoder (s2arm_zstd.c, for NUP containers)
+# inside, only the rb_s2arm_* symbols visible.
 # Usage: build_prepare_xcframework.sh <s2arm checkout> <rewriter deps dir> <output dir>
 # The S2Arm checkout and the dependencies are fetched at the pins of
 # tools/s2arm_prototype/pin.json by the caller; nothing of them is stored here.
@@ -41,7 +42,7 @@ xcrun --sdk iphoneos clang -arch arm64 -miphoneos-version-min=$minimum -isysroot
 xcrun libtool -static -o "$out/libS2ArmPrepare.a" "$out/objects/S2ArmPrepare.o"
 
 cp "$here"/native/s2arm/prepare/s2arm_prepare.h "$out/headers/"
-for header in s2arm_addr_need.h s2arm_zbic.h s2arm_ns2_dump.h s2arm_pack.h s2arm_caps.h; do
+for header in s2arm_addr_need.h s2arm_zbic.h s2arm_ns2_dump.h s2arm_pack.h s2arm_caps.h s2arm_nup.h; do
   [ ! -f "$here/native/s2arm/prepare/$header" ] || cp "$here/native/s2arm/prepare/$header" "$out/headers/"
 done
 xcodebuild -create-xcframework -library "$out/libS2ArmPrepare.a" -headers "$out/headers" -output "$out/S2ArmPrepare.xcframework"

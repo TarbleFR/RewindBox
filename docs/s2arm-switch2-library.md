@@ -19,7 +19,8 @@ service answers `engineMissing`: the playlist is listed but unavailable and noth
 | Export reader (NPDM, NACP, icon) | `lib/services/switch2_export_content.dart` |
 | Launch route (`S2ARM_INTERNAL_BEGIN/END`) | `lib/services/game/game_launch_service.dart` |
 | Session end through `S2ArmInternalService.sessionEvents` | `lib/services/game_launch_manager.dart` |
-| Import button and prepare dialog | `lib/widgets/s2arm_internal_playlist_actions.dart`, placed in `lib/screens/game_screen/my_games_list.dart` (`_isS2ArmLibrary`) |
+| Import button and prepare dialog | `lib/widgets/s2arm_internal_playlist_actions.dart`, placed in `lib/screens/game_screen/my_games_list.dart` (`_isS2ArmLibrary`; a labelled segment of `S2ArmInternalPlaylistActions.embeddedWidth` in the details card's tab bar) |
+| NUP containers: picker, check, expansion | `packages/s2arm_engine_bridge/ios/Classes/S2ArmNupImport.m`, `native/s2arm/prepare/s2arm_nup.c` (in `S2ArmPrepare.xcframework`), `S2ArmInternalService.importNupFiles` |
 | Emulator name `S2Arm` (no per-game settings screen) | `lib/widgets/system_emulator_settings_dialog.dart`, `.../game_settings_emulator_tab.dart` |
 | Scraping identity | `lib/services/screenscraper_service.dart` |
 | Strings beyond the engine locale | `lib/l10n/switch2_library_locale.dart` |
@@ -47,12 +48,27 @@ service answers `engineMissing`: the playlist is listed but unavailable and noth
   the other JIT engines use) or a localized failure, then `S2ArmInternalService.launch` behind a non-dismissible
   progress dialog. A failure returns `GameLaunchResult.failure(localized, 'S2Arm: error\ndetail')`; the route never
   falls through to another engine. Unlike XeniOS it does not open the pairing-file picker itself.
-- **Nothing of the Switch 1 engine (12 Nov 2026, maintainer).** The import menu offers import games, import a save,
-  open the saves folder, the Switch 2 settings and delete the selected game. It has no prod.keys item (S2Arm needs
+- **Nothing of the Switch 1 engine (12 Nov 2026, maintainer).** The import menu offers import games (an export
+  folder, or NUP files since 17 Nov 2026), import a save, open the saves folder, the Switch 2 settings and delete the
+  selected game. It has no prod.keys item (S2Arm needs
   none; prod.keys stays in the Switch 1 playlist) and no firmware item. The empty playlist only says how to import
   games. `lib/l10n/switch2_library_locale.dart` names neither MeloNX nor prod.keys; `importKeys`, `importKeysHint` and
   `keysFailed` are gone. Checked by `test/s2arm_playlist_menu_contract_test.dart` and
   `test/switch2_empty_hint_contract_test.py`.
+- **A visible menu (17 Nov 2026, maintainer).** The button reads "Import" next to its icon in the playlist's strong
+  colour, and in the details card it is a labelled segment of the tab bar, not a bare icon. Each menu item has an
+  icon and a bold title; delete is in the error colour. Checked by `test/s2arm_playlist_menu_contract_test.dart`.
+- **NUP containers (17 Nov 2026, maintainer).** A `.nup` file (public NUP specification v1: base, updates and DLC in
+  one file, not encrypted, no keys) is imported with "Import NUP files": the Files picker opens the files where they
+  are (never a copy of a file of tens of GB into the app), `rb_s2arm_nup_inspect` checks the container, the space
+  needed is the expanded files plus `spaceMargin`, and `rb_s2arm_nup_expand` (a C port of S2Arm's `pack/ns2_nup.py`)
+  writes the export layout (`base/`, `updates/<newest>/`, `dlc/<title id>/0/romfs/`) into `.importing/<n>`, checking
+  each file's size and SHA-256; the folder is then renamed into `Games/<title>` like any export, and the `.nup` is
+  left untouched. A container without a base (a standalone update) gets that update as `base/` too, as the original
+  does. The folder item also imports the `.nup` files of a picked folder that holds no export. CI compares the
+  expanded trees with S2Arm's script byte for byte on synthetic containers (`tools/s2arm_prototype/run_nup_test.py`,
+  `.github/workflows/s2arm-prepare.yml`). Errors: `nupInvalid` (not a NUP, or a check failed) and `nupIo` ->
+  `storageError` (`S2ArmEngineLocale`).
 - **Consoles tab reasons.** `engineMissing` -> `engineChainMissing`, `systemDataMissing`, `jitHelperMissing` ->
   `jitUnavailable`, `unsupportedPlatform` / `unknown` -> `unavailable` (all `S2ArmEngineLocale`), `requiresIOS26` ->
   `Switch2LibraryLocale` (the engine locale has no such key).

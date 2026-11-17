@@ -49,6 +49,8 @@ void main() {
         'cancelled': 'cancelled',
         'unavailable': 'unavailable',
         'switch1EngineLoaded': 'switch1EngineLoaded',
+        'nupInvalid': 'nupInvalid',
+        'nupIo': 'storageError',
       };
       cases.forEach((code, key) {
         expect(S2ArmInternalService.messageKey(code), key, reason: code);
@@ -84,7 +86,7 @@ void main() {
       final keys = {
         for (final code in ['engineRestartRequired', 'notExportFolder', 'exportInvalid', 'gameUnsupported', 'rewriterFailed',
                             'storageError', 'insufficientSpace', 'systemDataMissing', 'engineChainMissing', 'jitUnavailable',
-                            'cancelled', 'unavailable', 'switch1EngineLoaded', 'x'])
+                            'cancelled', 'unavailable', 'switch1EngineLoaded', 'nupInvalid', 'nupIo', 'x'])
           S2ArmInternalService.messageKey(code),
       };
       expect(S2ArmEngineLocale.values.length, 12);
@@ -328,6 +330,118 @@ void main() {
       final result = await S2ArmInternalService.importFolderAt(exportDir.path);
       expect(result.imported, 0);
       expect(result.items.single.reason, 'notEnoughSpace');
+    });
+
+    group('NUP containers', () {
+      late File nup;
+      late List<String> calls;
+      setUp(() async {
+        nup = File('${temp.path}/Inbox/Game.nup');
+        await nup.create(recursive: true);
+        calls = <String>[];
+      });
+
+      /// The native side as it answers a good container: inspect, expand (one progress event, then base/exefs/main.npdm
+      /// in the output folder), the export check and the title.
+      void fakeNative({Map<String, dynamic>? inspect, Map<String, dynamic>? expand, void Function()? duringExpand}) {
+        messenger.setMockMethodCallHandler(channel, (call) async {
+          calls.add(call.method);
+          final arguments = call.arguments is Map ? Map<String, dynamic>.from(call.arguments as Map) : <String, dynamic>{};
+          switch (call.method) {
+            case 'inspectNup':
+              return inspect ??
+                  {'success': true, 'programId': '0100ABCDEF000000', 'bytes': 4096, 'updateVersion': 65536, 'dlcCount': 1, 'hasBase': true};
+            case 'expandNup':
+              duringExpand?.call();
+              if (expand != null) return expand;
+              final output = arguments['output'].toString();
+              await messenger.handlePlatformMessage(
+                  channel.name, channel.codec.encodeMethodCall(const MethodCall('nupProgress', {'done': 2048, 'total': 4096})), (_) {});
+              final exefs = await Directory('$output/base/exefs').create(recursive: true);
+              await File('${exefs.path}/main.npdm').writeAsBytes(List<int>.filled(64, 1));
+              return {'success': true, 'programId': '0100ABCDEF000000', 'bytes': 4096};
+            case 'detectExport':
+              return {'success': true, 'exportDir': arguments['exportFolder'], 'gid': '0100ABCDEF000000'};
+            case 'gameInfo':
+              return {'success': true, 'title': 'Nup Game'};
+          }
+          return null;
+        });
+      }
+
+      Future<bool> gamesEmpty() async => (await S2ArmInternalService.gamesDirectory()).list().isEmpty;
+
+      test('a container is checked, expanded into staging and renamed into Games/<title>; the .nup stays', () async {
+        fakeNative();
+        final progress = <String>[];
+        final result = await S2ArmInternalService.importNupAt([nup.path],
+            onProgress: (p) => progress.add('${p.step} ${p.done}/${p.total}'));
+        expect(result.imported, 1, reason: result.items.map((i) => '${i.reason} ${i.detail}').join(','));
+        final imported = Directory(result.items.single.destination!);
+        expect(imported.path.endsWith('Games/Nup Game'), isTrue, reason: imported.path);
+        expect(await File('${imported.path}/base/exefs/main.npdm').exists(), isTrue);
+        expect(progress, containsAllInOrder(['nup 0/4096', 'nup 2048/4096']));
+        expect(calls, containsAllInOrder(['inspectNup', 'expandNup', 'detectExport', 'gameInfo']));
+        expect(await (await S2ArmInternalService.stagingDirectory()).exists(), isFalse, reason: 'staging is cleaned up');
+        expect(await nup.exists(), isTrue, reason: 'the container is read where it is, never moved or deleted');
+      });
+
+      test('a refused container carries its code and diagnostic, and nothing is expanded', () async {
+        fakeNative(inspect: {'success': false, 'code': 'nupInvalid', 'diagnostic': 'table of contents SHA-256 mismatch'});
+        final result = await S2ArmInternalService.importNupAt([nup.path]);
+        expect(result.imported, 0);
+        expect(result.items.single.reason, 'nupInvalid');
+        expect(result.items.single.detail, contains('SHA-256'));
+        expect(S2ArmInternalService.localizedError(en, result.items.single.reason), S2ArmEngineLocale.text(en, 'nupInvalid'));
+        expect(calls, isNot(contains('expandNup')));
+        expect(await gamesEmpty(), isTrue);
+      });
+
+      test('too little space for the expanded files refuses before expanding', () async {
+        S2ArmInternalService.freeBytes = (_) => 4096 + S2ArmInternalService.spaceMargin - 1;
+        fakeNative();
+        final result = await S2ArmInternalService.importNupAt([nup.path]);
+        expect(result.items.single.reason, 'notEnoughSpace');
+        expect(calls, isNot(contains('expandNup')));
+        expect(await gamesEmpty(), isTrue);
+      });
+
+      test('cancel stops the native expansion and imports nothing', () async {
+        final control = S2ArmImportControl();
+        fakeNative(expand: {'success': false, 'code': 'cancelled'}, duringExpand: control.cancel);
+        final result = await S2ArmInternalService.importNupAt([nup.path, nup.path], control: control);
+        await pumpEventQueue();
+        expect(result.cancelled, isTrue);
+        expect(result.imported, 0);
+        expect(calls, contains('cancelNup'));
+        expect(calls.where((method) => method == 'expandNup'), hasLength(1), reason: 'the second container is not started');
+        expect(await gamesEmpty(), isTrue);
+        expect(await (await S2ArmInternalService.stagingDirectory()).exists(), isFalse);
+      });
+
+      test('the folder item imports the .nup files of a folder that holds no export', () async {
+        messenger.setMockMethodCallHandler(channel, (call) async {
+          calls.add(call.method);
+          final arguments = call.arguments is Map ? Map<String, dynamic>.from(call.arguments as Map) : <String, dynamic>{};
+          if (call.method == 'detectExport') {
+            final folder = arguments['exportFolder'].toString();
+            return folder.contains('.importing')
+                ? {'success': true, 'exportDir': folder, 'gid': '0100ABCDEF000000'}
+                : {'success': false, 'code': 'notExportFolder'};
+          }
+          if (call.method == 'inspectNup') return {'success': true, 'bytes': 64};
+          if (call.method == 'expandNup') {
+            await Directory('${arguments['output']}/base/exefs').create(recursive: true);
+            return {'success': true, 'bytes': 64};
+          }
+          if (call.method == 'gameInfo') return {'success': true, 'title': 'From Folder'};
+          return null;
+        });
+        final result = await S2ArmInternalService.importFolderAt(nup.parent.path);
+        expect(result.imported, 1, reason: result.items.map((i) => i.reason).join(','));
+        expect(result.items.single.destination, endsWith('Games/From Folder'));
+        expect(calls, contains('inspectNup'));
+      });
     });
   });
 

@@ -166,7 +166,8 @@ def struct_field_names(text, name):
 prep_abi = read('S2ArmPrepareABI.h')
 for header, struct_name in (('s2arm_ns2_dump.h', 'rb_s2arm_ns2_dump_request'), ('s2arm_pack.h', 'rb_s2arm_module_request'),
                             ('s2arm_pack.h', 'rb_s2arm_resource_request'), ('s2arm_prepare.h', 'rb_s2arm_code_request'),
-                            ('s2arm_pack.h', 'rb_s2arm_save_identity')):
+                            ('s2arm_pack.h', 'rb_s2arm_save_identity'), ('s2arm_nup.h', 'rb_s2arm_nup_request'),
+                            ('s2arm_nup.h', 'rb_s2arm_nup_info')):
     source = (PREPARE / header).read_text()
     want = re.findall(r'\b(\w+);', source[source.index('} ' + struct_name) - 1200:source.index('} ' + struct_name)])
     mine = re.findall(r'\b(\w+);', prep_abi[prep_abi.index('} ' + struct_name) - 1200:prep_abi.index('} ' + struct_name)])
@@ -179,7 +180,8 @@ for header, struct_name in (('s2arm_ns2_dump.h', 'rb_s2arm_ns2_dump_request'), (
     check(native_members and native_members == pod_members,
           f'{struct_name}: the pod copy has the native members in order ({pod_members} vs {native_members})')
 for symbol in ('rb_s2arm_ns2_detect', 'rb_s2arm_ns2_dump', 'rb_s2arm_prepare_code', 'rb_s2arm_caps', 'rb_s2arm_module_dir',
-               'rb_s2arm_direct_skeleton', 'rb_s2arm_resource_pack'):
+               'rb_s2arm_direct_skeleton', 'rb_s2arm_resource_pack', 'rb_s2arm_nup_detect', 'rb_s2arm_nup_inspect',
+               'rb_s2arm_nup_expand'):
     check(symbol in prep_abi, f'the pod declares {symbol}')
 
 check('resolution: workspace' in (ROOT / 'packages/s2arm_engine_bridge/pubspec.yaml').read_text(),

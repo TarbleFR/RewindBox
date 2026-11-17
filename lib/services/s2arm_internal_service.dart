@@ -120,7 +120,8 @@ class S2ArmImportProgress {
   final int total;
   double? get fraction => total <= 0 ? null : (done / total).clamp(0.0, 1.0);
 
-  // A preparation only (null for an import copy). step: unpack, code, caps, direct, module, pack or done. part: the
+  // 'nup' while an import expands a NUP container (done / total in bytes written), else
+  // a preparation only (null for an import copy). step: unpack, code, caps, direct, module, pack or done. part: the
   // code stage's part (zbic, addr_need, nro, a module such as main, tables) or "reused". phase: the part's phase (a
   // pass of the rewriter, "walk", "zbic"...). attempt: 2... when the rewriter redoes a module with a new layout.
   // unitsDone / unitsTotal: the phase's own counts (functions, rewrite units, bytes, files), total 0 = no count.
@@ -138,7 +139,13 @@ class S2ArmImportProgress {
 class S2ArmImportControl {
   bool _cancelled = false;
   bool get cancelled => _cancelled;
-  void cancel() => _cancelled = true;
+
+  /// Also stops the native work in progress (a NUP expansion), set by the service while it runs.
+  void Function()? _onCancel;
+  void cancel() {
+    _cancelled = true;
+    _onCancel?.call();
+  }
 }
 
 class _Cancelled implements Exception {}
@@ -244,6 +251,7 @@ abstract final class S2ArmInternalService {
 
   static bool _handlerInstalled = false;
   static void Function(S2ArmImportProgress progress)? _activePrepareProgress;
+  static void Function(int done, int total)? _activeNupProgress;
 
   static void _installHandler() {
     if (_handlerInstalled) return;
@@ -274,6 +282,8 @@ abstract final class S2ArmInternalService {
             overall: preparationOverall(step, fraction),
           ));
         }
+      } else if (call.method == 'nupProgress') {
+        _activeNupProgress?.call((arguments['done'] as num?)?.toInt() ?? 0, (arguments['total'] as num?)?.toInt() ?? 0);
       } else if (call.method == 'sessionEnded') {
         _sessionRunning = false;
         _sessionEvents.add(S2ArmSessionEvent((arguments['code'] as num?)?.toInt() ?? 0, arguments['reason']?.toString() ?? ''));
@@ -324,11 +334,14 @@ abstract final class S2ArmInternalService {
         return 'exportInvalid';
       case 'gameUnsupported':
         return 'gameUnsupported';
+      case 'nupInvalid':
+        return 'nupInvalid';
       case 'rewriterFailed':
       case 'prepareFailed':
         return 'rewriterFailed';
       case 'storageError':
       case 'copyFailed':
+      case 'nupIo':
         return 'storageError';
       case 'insufficientSpace':
       case 'notEnoughSpace':
@@ -483,6 +496,9 @@ abstract final class S2ArmInternalService {
         ? <Map<String, dynamic>>[detected]
         : await _exportsBelow(picked);
     if (exports.isEmpty) {
+      // A folder that holds NUP containers instead of an export: they are imported as the NUP item does.
+      final nups = await _nupFilesIn(picked);
+      if (nups.isNotEmpty) return importNupAt(nups, onProgress: onProgress, control: control);
       // Files that iCloud has not downloaded to the iPhone are only placeholders (".<name>.icloud"): say so.
       final reason = await _hasICloudPlaceholder(picked) ? 'notDownloaded' : (detected['code'] ?? 'notExportFolder').toString();
       final detail = detected['diagnostic']?.toString();
@@ -502,6 +518,152 @@ abstract final class S2ArmInternalService {
       await _removeStaging(staging);
     }
     return S2ArmImportResult(items);
+  }
+
+  // ---------------- NUP containers ----------------
+
+  /// Picks Switch 2 NUP containers (.nup: base, update and DLC in one file) in Files and imports each one. The files are
+  /// opened where they are, never copied into the app first (a NUP holds a whole game); each one is checked, expanded into
+  /// staging as an export folder (base/, updates/<newest>/, dlc/<title id>/) by the native port of S2Arm's ns2_nup.py, then
+  /// renamed into Games like any export. Null when the picker was dismissed. docs/s2arm-switch2-library.md § NUP containers.
+  static Future<S2ArmImportResult?> importNupFiles({
+    void Function(S2ArmImportProgress progress)? onProgress,
+    S2ArmImportControl? control,
+  }) => StorageImportActivity.run(() async {
+    _installHandler();
+    await ensureLayout();
+    final List<String> picked;
+    try {
+      picked = await channel.invokeListMethod<String>('pickNupFiles') ?? const <String>[];
+    } on MissingPluginException {
+      return const S2ArmImportResult(<S2ArmImportItem>[S2ArmImportItem('', 'unavailable')]);
+    } on PlatformException catch (error) {
+      return S2ArmImportResult(<S2ArmImportItem>[S2ArmImportItem('', 'storageError', detail: error.message ?? error.code)]);
+    }
+    if (picked.isEmpty) return null;
+    try {
+      return await importNupAt(picked, onProgress: onProgress, control: control);
+    } finally {
+      try {
+        await channel.invokeMethod<Object?>('releaseNupFiles');
+      } on MissingPluginException {
+        // Nothing to release.
+      } on PlatformException {
+        // Same.
+      }
+    }
+  });
+
+  /// Imports the NUP containers [files] (readable local paths). Visible for tests.
+  static Future<S2ArmImportResult> importNupAt(
+    List<String> files, {
+    void Function(S2ArmImportProgress progress)? onProgress,
+    S2ArmImportControl? control,
+  }) async {
+    _installHandler();
+    await ensureLayout();
+    final games = await gamesDirectory();
+    final staging = await stagingDirectory();
+    await _removeStaging(staging);
+    final items = <S2ArmImportItem>[];
+    try {
+      for (var index = 0; index < files.length; index++) {
+        if (control?.cancelled ?? false) return S2ArmImportResult(items, cancelled: true);
+        final item = await _importNup(files[index], games, staging,
+            index: index + 1, count: files.length, onProgress: onProgress, control: control);
+        if (item == null) return S2ArmImportResult(items, cancelled: true);
+        items.add(item);
+      }
+    } finally {
+      await _removeStaging(staging);
+    }
+    return S2ArmImportResult(items);
+  }
+
+  /// The *.nup files directly inside [folder], sorted; none when it cannot be read.
+  static Future<List<String>> _nupFilesIn(String folder) async {
+    final files = <String>[];
+    try {
+      await for (final entry in Directory(folder).list(followLinks: false)) {
+        final name = path.basename(entry.path);
+        if (entry is File && path.extension(name).toLowerCase() == '.nup' && !name.startsWith('.')) files.add(entry.path);
+      }
+      return files..sort();
+    } on FileSystemException {
+      return const <String>[];
+    }
+  }
+
+  static Future<Map<String, dynamic>> _nupCall(String method, Map<String, Object?> arguments) async {
+    try {
+      final report = await channel.invokeMapMethod<String, dynamic>(method, arguments);
+      return report == null ? {'success': false, 'code': 'nupIo'} : Map<String, dynamic>.from(report);
+    } on MissingPluginException {
+      return {'success': false, 'code': 'unavailable'};
+    } on PlatformException catch (error) {
+      return {'success': false, 'code': 'nupIo', 'diagnostic': error.message ?? error.code};
+    }
+  }
+
+  static S2ArmImportItem _nupRefusal(String name, Map<String, dynamic> report) {
+    final detail = report['diagnostic']?.toString();
+    return S2ArmImportItem(name, (report['code'] ?? 'nupIo').toString(), detail: detail == null || detail.isEmpty ? null : detail);
+  }
+
+  /// Expands one NUP container into Games/<title> through staging. Null when the player cancelled.
+  static Future<S2ArmImportItem?> _importNup(
+    String file,
+    Directory games,
+    Directory staging, {
+    required int index,
+    required int count,
+    void Function(S2ArmImportProgress progress)? onProgress,
+    S2ArmImportControl? control,
+  }) async {
+    var name = path.basenameWithoutExtension(file);
+    final inspected = await _nupCall('inspectNup', {'path': file});
+    if (inspected['success'] != true) {
+      // A file iCloud has not downloaded yet is only a placeholder beside it (".<name>.icloud").
+      final placeholder = File(path.join(path.dirname(file), '.${path.basename(file)}.icloud'));
+      if (inspected['code'] == 'nupIo' && await placeholder.exists()) return S2ArmImportItem(name, 'notDownloaded');
+      return _nupRefusal(name, inspected);
+    }
+    final bytes = (inspected['bytes'] as num?)?.toInt() ?? 0;
+    final free = await availableBytes(games.path);
+    if (free != null && free < bytes + spaceMargin) {
+      LoggerService.instance.i('S2Arm import: $name refused, ${bytes ~/ (1024 * 1024)} MB to unpack, ${free ~/ (1024 * 1024)} MB available');
+      return S2ArmImportItem(name, 'notEnoughSpace');
+    }
+    await staging.create(recursive: true);
+    final stage = Directory(path.join(staging.path, '$index'));
+    await _removeStaging(stage);
+    onProgress?.call(S2ArmImportProgress(name: name, index: index, count: count, done: 0, total: bytes, step: 'nup'));
+    _activeNupProgress = (done, total) => onProgress?.call(
+        S2ArmImportProgress(name: name, index: index, count: count, done: done, total: total, step: 'nup'));
+    control?._onCancel = () => unawaited(channel.invokeMethod<Object?>('cancelNup').then<void>((_) {}, onError: (Object _) {}));
+    try {
+      if (control?.cancelled ?? false) return null;
+      final watch = Stopwatch()..start();
+      final expanded = await _nupCall('expandNup', {'path': file, 'output': stage.path});
+      if (expanded['code'] == 'cancelled' || (control?.cancelled ?? false)) return null;
+      if (expanded['success'] != true) return _nupRefusal(name, expanded);
+      final detected = await detectExport(stage.path);
+      if (detected['success'] != true) return _nupRefusal(name, detected);
+      final info = await gameInfo(stage.path);
+      name = _safeName((info['title'] ?? name).toString(), detected['gid']?.toString());
+      final target = await _freeDirectory(games, name);
+      await stage.rename(target.path);
+      LoggerService.instance.i('S2Arm import: $name unpacked from ${path.basename(file)} '
+          '(${bytes ~/ (1024 * 1024)} MB, update ${inspected['updateVersion']}, ${inspected['dlcCount']} DLC, '
+          '${watch.elapsed.inSeconds} s)');
+      return S2ArmImportItem(name, 'imported', destination: target.path);
+    } on FileSystemException catch (error) {
+      return S2ArmImportItem(name, error.osError?.errorCode == 28 ? 'notEnoughSpace' : 'copyFailed');
+    } finally {
+      _activeNupProgress = null;
+      control?._onCancel = null;
+      await _removeStaging(stage);
+    }
   }
 
   /// The Switch 2 exports inside [picked] when it is not one itself: a folder that holds the game folder (for example

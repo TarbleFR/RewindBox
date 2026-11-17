@@ -14,9 +14,10 @@ import '../services/switch2_export_content.dart';
 import 'delete_game_dialog.dart';
 import 'switch2_engine_settings_panel.dart';
 
-/// Menu of the Switch 2 playlist: import games (an export folder from Files,
-/// docs/s2arm-switch2-library.md § Import), saves, the Switch 2 settings and
-/// delete the highlighted game. Nothing of the Switch 1 engine: no prod.keys
+/// Menu of the Switch 2 playlist: import games (an export folder or NUP
+/// containers from Files, docs/s2arm-switch2-library.md § Import), saves, the
+/// Switch 2 settings and delete the highlighted game. A labelled button with an
+/// icon per item: the maintainer found the bare icon too easy to miss. Nothing of the Switch 1 engine: no prod.keys
 /// (S2Arm needs none) and no firmware. The maintainer wants no ambiguity
 /// between the two engines.
 class S2ArmInternalPlaylistActions extends StatefulWidget {
@@ -43,6 +44,9 @@ class S2ArmInternalPlaylistActions extends StatefulWidget {
   /// Inside the game details card (list view): no own surface.
   final bool embedded;
 
+  /// The width of the segment the details card gives the embedded button.
+  static double get embeddedWidth => 112.r;
+
   @override
   State<S2ArmInternalPlaylistActions> createState() =>
       _S2ArmInternalPlaylistActionsState();
@@ -65,7 +69,8 @@ class _S2ArmInternalPlaylistActionsState
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<void> _import() async {
+  /// [action] 'folder' (an export folder) or 'nup' (NUP containers).
+  Future<void> _import(String action) async {
     final control = S2ArmImportControl();
     final progress = ValueNotifier<S2ArmImportProgress?>(null);
     var dialogShown = false;
@@ -82,15 +87,22 @@ class _S2ArmInternalPlaylistActionsState
 
     S2ArmImportResult? result;
     try {
+      void onProgress(S2ArmImportProgress value) {
+        progress.value = value;
+        showProgress();
+      }
+
       result = await StorageImportActivity.run(
-        () => S2ArmInternalService.importFolder(
-          dialogTitle: _t('importGames'),
-          control: control,
-          onProgress: (value) {
-            progress.value = value;
-            showProgress();
-          },
-        ),
+        () => action == 'nup'
+            ? S2ArmInternalService.importNupFiles(
+                control: control,
+                onProgress: onProgress,
+              )
+            : S2ArmInternalService.importFolder(
+                dialogTitle: _t('importGames'),
+                control: control,
+                onProgress: onProgress,
+              ),
       );
     } finally {
       if (dialogShown && mounted) Navigator.of(context).pop();
@@ -252,7 +264,7 @@ class _S2ArmInternalPlaylistActionsState
     setState(() => _busy = true);
     _interaction(true);
     try {
-      if (action == 'folder') await _import();
+      if (action == 'folder' || action == 'nup') await _import(action);
       if (action == 'delete') await _delete();
       if (action == 'settings') await _openSettings();
       if (action == 'importSave') await _importSave();
@@ -265,14 +277,48 @@ class _S2ArmInternalPlaylistActionsState
     }
   }
 
-  Widget _item(String title, String subtitle) => Column(
-    mainAxisSize: MainAxisSize.min,
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(title),
-      Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
-    ],
-  );
+  /// One menu entry: an icon, the title in bold, and a line that says what it does.
+  Widget _item(IconData icon, String title, [String? subtitle, Color? color]) {
+    final theme = Theme.of(context);
+    final tint = color ?? theme.colorScheme.primary;
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: 48.r),
+      child: Row(
+        children: [
+          Container(
+            width: 36.r,
+            height: 36.r,
+            decoration: BoxDecoration(
+              color: tint.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(10.r),
+            ),
+            child: Icon(icon, size: 20.r, color: tint),
+          ),
+          SizedBox(width: 12.r),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+                ),
+                if (subtitle != null)
+                  Padding(
+                    padding: EdgeInsets.only(top: 2.r),
+                    child: Text(subtitle, style: theme.textTheme.bodySmall),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -280,66 +326,134 @@ class _S2ArmInternalPlaylistActionsState
       return const SizedBox.shrink();
     }
     final scheme = Theme.of(context).colorScheme;
-    final button = SizedBox(
-      width: 36.r,
-      height: 36.r,
-      child: PopupMenuButton<String>(
-        key: const ValueKey('s2arm-internal-import-menu'),
-        tooltip: _t('importMenu'),
-        enabled: !_busy,
-        padding: EdgeInsets.zero,
-        onOpened: () => _interaction(true),
-        onCanceled: () => _interaction(false),
-        onSelected: _selected,
-        icon: _busy
-            ? SizedBox(
-                width: 18.r,
-                height: 18.r,
-                child: const CircularProgressIndicator(strokeWidth: 2),
-              )
-            : Icon(
-                Icons.file_upload_outlined,
-                size: 18.r,
-                color: widget.embedded
-                    ? scheme.onSurface
-                    : scheme.onTertiaryFixed,
-              ),
-        itemBuilder: (context) => [
-          PopupMenuItem(
-            key: const ValueKey('s2arm-import-folder'),
-            value: 'folder',
-            child: _item(_t('importGames'), _t('importGamesHint')),
-          ),
-          // Saves come second, with or without a selected game.
-          PopupMenuItem(
-            key: const ValueKey('s2arm-import-save'),
-            value: 'importSave',
-            child: _item(_t('importSave'), _t('importSaveHint')),
-          ),
-          PopupMenuItem(
-            key: const ValueKey('s2arm-open-saves'),
-            value: 'openSaves',
-            child: _item(_t('openSaves'), _t('openSavesHint')),
-          ),
-          PopupMenuItem(
-            key: const ValueKey('s2arm-settings'),
-            value: 'settings',
-            child: Text(Switch2SettingsLocale.text(context, 'title')),
-          ),
-          if (widget.romPath != null && widget.appSystemId != null)
-            PopupMenuItem(
-              key: const ValueKey('s2arm-delete-game'),
-              value: 'delete',
-              child: Text(_t('deleteGame')),
-            ),
+    // Strong colours and a label: the button must stand out from the media tabs and the artwork behind it.
+    final background = widget.embedded ? scheme.tertiary : scheme.primary;
+    final foreground = widget.embedded ? scheme.onTertiary : scheme.onPrimary;
+    final label = Text(
+      _t('importButton'),
+      maxLines: 1,
+      style: TextStyle(
+        color: foreground,
+        fontSize: widget.embedded ? 13.r : 15.r,
+        fontWeight: FontWeight.w700,
+      ),
+    );
+    final face = Container(
+      height: widget.embedded ? 28.r : 40.r,
+      padding: EdgeInsets.symmetric(horizontal: widget.embedded ? 8.r : 14.r),
+      decoration: BoxDecoration(
+        color: _busy ? background.withValues(alpha: 0.6) : background,
+        borderRadius: BorderRadius.circular(widget.embedded ? 9.r : 12.r),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _busy
+              ? SizedBox(
+                  width: 18.r,
+                  height: 18.r,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: foreground,
+                  ),
+                )
+              : Icon(
+                  Icons.file_upload_outlined,
+                  size: widget.embedded ? 17.r : 22.r,
+                  color: foreground,
+                ),
+          SizedBox(width: widget.embedded ? 5.r : 8.r),
+          // In the tab bar the segment has a fixed width: a long word shrinks to fit.
+          widget.embedded
+              ? Flexible(
+                  child: FittedBox(fit: BoxFit.scaleDown, child: label),
+                )
+              : label,
+          if (!widget.embedded) ...[
+            SizedBox(width: 2.r),
+            Icon(Icons.arrow_drop_down, size: 22.r, color: foreground),
+          ],
         ],
       ),
     );
-    if (widget.embedded) return button;
+    final button = PopupMenuButton<String>(
+      key: const ValueKey('s2arm-internal-import-menu'),
+      tooltip: _t('importMenu'),
+      enabled: !_busy,
+      padding: EdgeInsets.zero,
+      constraints: BoxConstraints(minWidth: 300.r, maxWidth: 380.r),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14.r)),
+      onOpened: () => _interaction(true),
+      onCanceled: () => _interaction(false),
+      onSelected: _selected,
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          key: const ValueKey('s2arm-import-folder'),
+          value: 'folder',
+          child: _item(
+            Icons.create_new_folder_outlined,
+            _t('importGames'),
+            _t('importGamesHint'),
+          ),
+        ),
+        PopupMenuItem(
+          key: const ValueKey('s2arm-import-nup'),
+          value: 'nup',
+          child: _item(
+            Icons.inventory_2_outlined,
+            _t('importNup'),
+            _t('importNupHint'),
+          ),
+        ),
+        const PopupMenuDivider(),
+        // Saves come after the games, with or without a selected game.
+        PopupMenuItem(
+          key: const ValueKey('s2arm-import-save'),
+          value: 'importSave',
+          child: _item(
+            Icons.save_alt_outlined,
+            _t('importSave'),
+            _t('importSaveHint'),
+          ),
+        ),
+        PopupMenuItem(
+          key: const ValueKey('s2arm-open-saves'),
+          value: 'openSaves',
+          child: _item(
+            Icons.folder_open_outlined,
+            _t('openSaves'),
+            _t('openSavesHint'),
+          ),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          key: const ValueKey('s2arm-settings'),
+          value: 'settings',
+          child: _item(
+            Icons.tune,
+            Switch2SettingsLocale.text(context, 'title'),
+          ),
+        ),
+        if (widget.romPath != null && widget.appSystemId != null)
+          PopupMenuItem(
+            key: const ValueKey('s2arm-delete-game'),
+            value: 'delete',
+            child: _item(
+              Icons.delete_outline,
+              _t('deleteGame'),
+              null,
+              scheme.error,
+            ),
+          ),
+      ],
+      child: face,
+    );
+    if (widget.embedded) return Center(child: button);
     return Material(
-      color: scheme.tertiaryFixed,
-      borderRadius: BorderRadius.circular(10.r),
-      elevation: 2,
+      color: Colors.transparent,
+      elevation: 4,
+      shadowColor: scheme.shadow,
+      borderRadius: BorderRadius.circular(12.r),
       child: button,
     );
   }
@@ -363,12 +477,22 @@ class _S2ArmImportDialog extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                Switch2LibraryLocale.textf(context, 'importing', {
-                  'name': value?.name ?? '',
-                }),
+                Switch2LibraryLocale.textf(
+                  context,
+                  value?.step == 'nup' ? 'unpacking' : 'importing',
+                  {'name': value?.name ?? ''},
+                ),
               ),
               const SizedBox(height: 12),
               LinearProgressIndicator(value: value?.fraction),
+              if (value != null && value.fraction != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  '${(value.fraction! * 100).floor()} %',
+                  textAlign: TextAlign.end,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
             ],
           ),
         ),

@@ -26,6 +26,19 @@ void main() {
     expect(menu, contains("_t('importGamesHint')"));
   });
 
+  test('the menu imports NUP containers, right after the export folder, and the button carries a label', () {
+    final items = menu.substring(menu.indexOf('itemBuilder:'));
+    expect(menu, contains("ValueKey('s2arm-import-nup')"));
+    expect(menu, contains("value: 'nup'"));
+    expect(menu, contains('S2ArmInternalService.importNupFiles('));
+    expect(menu, contains("_t('importNupHint')"));
+    expect(items.indexOf("ValueKey('s2arm-import-folder')"), lessThan(items.indexOf("ValueKey('s2arm-import-nup')")));
+    expect(items.indexOf("ValueKey('s2arm-import-nup')"), lessThan(items.indexOf("ValueKey('s2arm-import-save')")));
+    // The maintainer found the bare icon too easy to miss: a labelled button, and an icon per item.
+    expect(menu, contains("_t('importButton')"));
+    expect(RegExp(r'child: _item\(\s*Icons\.').allMatches(items).length, greaterThanOrEqualTo(6));
+  });
+
   test('the menu opens the Switch 2 engine settings panel', () {
     expect(menu, contains("ValueKey('s2arm-settings')"));
     expect(menu, contains("value: 'settings'"));

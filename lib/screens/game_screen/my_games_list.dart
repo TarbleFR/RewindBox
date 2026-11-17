@@ -2052,6 +2052,10 @@ class _SystemGamesListState extends State<SystemGamesList> {
           ? _buildS2ArmImportAction(embedded: true)
           : null,
       // DOLPHIN_ISOLATION_END: import_action_in_tabs
+      // The Switch 2 import is a labelled segment, wider than a tab.
+      importActionWidth: _isS2ArmLibrary
+          ? S2ArmInternalPlaylistActions.embeddedWidth
+          : null,
       game: _selectedGame!,
       system: widget.system,
       fileProvider: _fileProvider,
