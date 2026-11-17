@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "c9947d453bdde7a79cdd87cbee75d23891c017a2cf7e113d73fc062327b56306",
+  "packagedFingerprint": "d726f96e2a9f80d14128ed9d90fdd9d86efd407a6a8d910ad2b933c90c12b8ed",
   "producers": {
     "engine": {
-      "run": 44097586484,
+      "run": 44133641596,
       "attempt": 1,
-      "artifact": 14336715235,
-      "name": "s2arm-engine-framework-efbefff34d6aab9deea559774e95546c2b6eaeb5",
-      "bytes": 24104664,
-      "sha256": "c9d2d100ef89534b430f1696a42e24a5e0a46768615027d46afba22497670972",
-      "headSha": "efbefff34d6aab9deea559774e95546c2b6eaeb5",
+      "artifact": 14351413630,
+      "name": "s2arm-engine-framework-235450c817b6e5893792caf179fae8de2a8e152d",
+      "bytes": 24105368,
+      "sha256": "79c5b5f949492c7be060a511c77e02c9e0c252ec4d4b107c2ddf20f587a4b5ff",
+      "headSha": "235450c817b6e5893792caf179fae8de2a8e152d",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-17T14:11:12Z",
+      "expiresAt": "2026-12-17T17:21:53Z",
       "members": {
-        "S2ArmEngine.framework.zip": "5480c9b63c2fec252a4cf774ab2c21c4f21f55a019fc13a9f0024c7eb8982a92",
-        "NS2Pro.framework.zip": "d0775c8de9e00f9b8c08b1bfb20ca2c9c48e303f60f4068662cdcc0938a46de8"
+        "S2ArmEngine.framework.zip": "a8baac17b1bb0f4bb0ddd7c76dec932e50269089c51dede14aebda2e23162f36",
+        "NS2Pro.framework.zip": "b6b0c4ceeac357d60348d3b28823b55636f9023a1ad69144c38581f8b8cf0976"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "c9d2d100ef89534b430f1696a42e24a5e0a46768615027d46afba22497670972",
+    "engine": "79c5b5f949492c7be060a511c77e02c9e0c252ec4d4b107c2ddf20f587a4b5ff",
     "prepare": "aef8aafb38aa456defbdf16b3194716c32b2051b76a38bc68640d91f098fc87f",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -90,9 +90,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "7d42b2be82e93d6c891c433a3244343b0060a8a86149e5b86fc675837dfebd3e",
-      "bytes": 107848040,
-      "fingerprint": "c9947d453bdde7a79cdd87cbee75d23891c017a2cf7e113d73fc062327b56306"
+      "sha256": "463ea54bc1032668f3d64134b61ec40d3cba6ff478d510a7b5f4102245a33d23",
+      "bytes": 107848168,
+      "fingerprint": "d726f96e2a9f80d14128ed9d90fdd9d86efd407a6a8d910ad2b933c90c12b8ed"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -125,9 +125,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 44097586484,
+      "run": 44133641596,
       "attempt": 1,
-      "head_sha": "efbefff34d6aab9deea559774e95546c2b6eaeb5",
+      "head_sha": "235450c817b6e5893792caf179fae8de2a8e152d",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -454,11 +454,15 @@
         {
           "name": "0081-guest-precompile-lookahead-keeps-more-pipelines-in-flight.patch",
           "sha256": "6cd148f95608b574ac1273d16ec81ebd52bd9b0b7c6630e4030f7f554ce7ab25"
+        },
+        {
+          "name": "0082-guest-upload-ring-of-eight-slots.patch",
+          "sha256": "2f4037c9e0ea249d4b6d904e6d4861a5b3e774aff3ad7eb98846aaf85ed56c1a"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "5480c9b63c2fec252a4cf774ab2c21c4f21f55a019fc13a9f0024c7eb8982a92",
-        "NS2Pro.framework.zip": "d0775c8de9e00f9b8c08b1bfb20ca2c9c48e303f60f4068662cdcc0938a46de8"
+        "S2ArmEngine.framework.zip": "a8baac17b1bb0f4bb0ddd7c76dec932e50269089c51dede14aebda2e23162f36",
+        "NS2Pro.framework.zip": "b6b0c4ceeac357d60348d3b28823b55636f9023a1ad69144c38581f8b8cf0976"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
