@@ -184,15 +184,21 @@ pool_vk = read(SOURCE, VK + 'CommandBufferPool.cs')
 # adapt_command_buffer_ownership stores the dependants as a struct (dependant.Value) and gives the objects an Auto
 # references (image, memory) only their command-buffer bit: the Auto's constructor reference keeps them (checked below).
 completion = member(pool_vk, 'private void WaitAndDecrementRef(int cbIndex, bool refreshFence = true, bool signaled = false)')
+# After IPA 764 (adapt_release_passes): every dependant's bits are cleared first, then each dependant is released; the
+# clears and the releases both come after the fence.
+passes = 'dependant.Value.ReleaseCommandBufferOwnership(cbIndex);' in completion
+release = 'dependant.Value.DecrementReferenceCount();' if passes else 'dependant.Value.DecrementReferenceCount(cbIndex);'
 check(re.search(r'if \(entry\.InConsumption\)\s*\{\s*if \(!signaled\)\s*\{\s*entry\.Fence\.Wait\(\);', completion) is not None and
-      completion.index('entry.Fence.Wait();') < completion.index('dependant.Value.DecrementReferenceCount(cbIndex);') and
+      completion.index('entry.Fence.Wait();') < completion.index(release) and
+      (not passes or completion.index('entry.Fence.Wait();') < completion.index('dependant.Value.ReleaseCommandBufferOwnership(cbIndex);')
+       < completion.index(release)) and
       '(signaled = entry.Fence.IsSignaled())' in member(pool_vk, 'private int FreeConsumed(bool wait)') and
       'dependant.IncrementReferenceCount();' in member(pool_vk, 'public void AddDependant(int cbIndex, IAuto dependant)'),
       'the command buffer releases its references only after its fence signalled (waited for, or just read signalled)')
 check(re.search(r'for \(int i = 0; i < referencedObjs\.Length; i\+\+\)\s*\{\s*referencedObjs\[i\]\.IncrementReferenceCount\(\);', auto) is not None and
       re.search(r'_value\.Dispose\(\);[\s\S]*?_referencedObjs\[i\]\.DecrementReferenceCount\(\);', auto) is not None,
       'an Auto keeps the objects it references until it is destroyed (the image its memory, a view its image)')
-proof['releasedAfterFence'] = where(SOURCE, VK + 'CommandBufferPool.cs', '                dependant.Value.DecrementReferenceCount(cbIndex);')
+proof['releasedAfterFence'] = where(SOURCE, VK + 'CommandBufferPool.cs', '                ' + release)
 blocks = read(SOURCE, VK + 'MemoryAllocatorBlockList.cs')
 check('block.Destroy(_api, _device);' in member(blocks, 'public void Free(Block block, ulong offset, ulong size)'),
       'a totally free block is destroyed (vkFreeMemory)')

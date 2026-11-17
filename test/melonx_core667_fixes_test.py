@@ -154,6 +154,14 @@ for name, signature, guard in ((TEXTURE_ARRAY, 'public void QueueWriteToReadBarr
         # first, newest first; what remains must hold the epoch pass once and, without it, be the Core 663 method.
         import adapt_array_storage_counts
         undone_text = final_text
+        # After IPA 764: adapt_array_attachment_members edits the same pass afterwards (the member passes, the members the
+        # full pass keeps); its gate is the adapter's model. Each of its replacements in this file must be there exactly
+        # once and is undone first, newest first.
+        import adapt_array_attachment_members
+        for path, members_old, members_new in reversed(adapt_array_attachment_members.PAIRS):
+            if path == name:
+                check(undone_text.count(members_new) == 1, name + ': each adapt_array_attachment_members replacement once')
+                undone_text = undone_text.replace(members_new, members_old)
         if adapt_array_storage_counts.TAG in final_text:
             for _, storage_old, storage_new in reversed(adapt_array_storage_counts.PAIRS):
                 check(undone_text.count(storage_new) == 1, name + ': each adapt_array_storage_counts replacement once')
