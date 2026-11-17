@@ -30,8 +30,16 @@ crash: the session closed normally. Counts and times only; no raw journal in Git
   So the 640 MB are not a per-allocation rounding (the same 15 300 blocks cost 718 MB before). One mechanism is in
   MoltenVK v1.4.2: every VkDeviceMemory of MeloNX gets a placement MTLHeap of its size at vkAllocateMemory (no
   dedicated-allocation structure), and a depth or stencil image's texture is not placed in it but made separately
-  ("depth/stencil from heaps is flaky"): its memory is paid twice. Measured on macOS by test/melonx_metal_memory
-  (workflow melonx-metal-memory) before any change; how much of the 640 MB it is needs the device.
+  ("depth/stencil from heaps is flaky"): its memory is paid twice in Metal's count.
+- Measured on macOS (run 44140309740, Apple Paravirtual device, placement heaps on, pinned eight-part patch, 16 images of
+  1024 x 1024, three runs, identical): Metal's allocated size is 2.0 times the Vulkan requirement for D32 and D16 depth
+  images and 2.58 times for D32S8 (81 MiB of heaps + 128 MiB of textures; a dedicated allocation gives 128 MiB), 1.0
+  times for color images; but the process footprint is the same with or without the unused heaps (128 MiB for D32S8
+  either way, 64 MiB for D32): an untouched heap is counted by Metal and costs no physical memory. Each D32S8 texture
+  takes 8 bytes a texel against a Vulkan requirement of 5.06 MiB per image (1.58 times). Everything is given back when
+  freed. So the heap next to a depth image explains Metal's count above Vulkan, not the courtyard's memory pressure (the
+  footprint's graphics share rose 652 MiB there); a deferred-heap MoltenVK part was written and is not adopted (no
+  physical gain shown). What the 652 MiB of physical graphics memory are is still to be found.
 
 ## 2. Memory owners (the new breakdowns)
 
@@ -50,7 +58,8 @@ crash: the session closed normally. Counts and times only; no raw journal in Git
 | Compute dispatches: keep descriptor sets bound when nothing changed | 4.4 ms per frame, 76 us per dispatch | -2 to -4 ms per frame | Investigation and prototype |
 | Graphics: reuse a set whose template payload is identical | about 9 ms per frame | -3 to -5 ms per frame if about 40 % repeat | Measure the repeat rate first |
 | Strict syncs ride the next flush | submits + CreateSync + pool about 12 ms per frame | -3 to -6 ms per frame | Semantics to check |
-| Depth and stencil images: no unused heap next to their texture (MoltenVK) | Metal 640 MB above Vulkan in the courtyard | up to the depth images' size | macOS measure first (melonx-metal-memory) |
+| Depth and stencil images: no unused heap next to their texture (MoltenVK) | Metal 640 MB above Vulkan in the courtyard | Metal's count only: the footprint is unchanged on macOS (run 44140309740) | Not adopted |
+| Attribute the courtyard's +652 MiB of physical graphics memory (by Metal resource kind) | footprint breakdown at the warning | the next real memory lever | To measure |
 | Cached Metal libraries compiled at first use | 129 MiB live site | none: refuted on macOS before (run 42925818096, no memory given back) | Not taken |
 | Sub-allocate small Vulkan buffers | 13.5-15.8k dedicated blocks, Metal 0.6 GiB above Vulkan | -50 to -250 MiB | Measure the difference first |
 | Journal: the per-second sampler stopped at t = 98 (its memory call starved for 3.3 s) | diagnostics | complete journals | Bridge fix |
