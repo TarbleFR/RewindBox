@@ -9,6 +9,7 @@
 #import "S2ArmLaunchJournal.h"
 #import "S2ArmSettings.h"
 #import "S2ArmSessionMenu.h"
+#import "S2ArmNupImport.h"
 
 #import <UIKit/UIKit.h>
 #import <dlfcn.h>
@@ -94,6 +95,7 @@ static NSString *S2ArmEnginePath(void) {
 @property(nonatomic, strong) dispatch_queue_t workQueue;
 @property(atomic, strong, nullable) S2ArmGamePreparation *activePreparation;
 @property(atomic, strong, nullable) S2ArmJitSession *jitSession;
+@property(nonatomic, strong, nullable) S2ArmNupImport *nupImport;   // NUP containers for the import (main thread)
 @property(atomic, assign) BOOL engineLoaded;      // the engine was dlopen'd: one per process, no retry after this
 @property(atomic, assign) BOOL launchInProgress;  // a launch attempt is running now
 @property(nonatomic, copy, nullable) NSDictionary<NSString *, NSString *> *menuStrings;   // from Dart, for the in-game menu
@@ -145,6 +147,36 @@ static NSString *S2ArmEnginePath(void) {
     BOOL opened = path.isAbsolutePath && s2arm_journal_open(path.fileSystemRepresentation) == 0;
     result(@(opened));  // a BOOL, so Dart gets true / false (see status)
     return;
+  }
+  // NUP containers (.nup): picked in place, checked, expanded into an export folder the Dart import moves into Games
+  if ([call.method hasSuffix:@"Nup"] || [call.method isEqualToString:@"pickNupFiles"] || [call.method isEqualToString:@"releaseNupFiles"]) {
+    if (!self.nupImport) self.nupImport = [[S2ArmNupImport alloc] initWithChannel:self.channel];
+    NSDictionary *args = [call.arguments isKindOfClass:NSDictionary.class] ? call.arguments : @{};
+    NSString *path = [args[@"path"] isKindOfClass:NSString.class] ? args[@"path"] : @"";
+    if ([call.method isEqualToString:@"pickNupFiles"]) {
+      [self.nupImport pickFrom:S2ArmTopViewController() result:result];
+      return;
+    }
+    if ([call.method isEqualToString:@"releaseNupFiles"]) {
+      [self.nupImport releaseFiles];
+      result(@YES);
+      return;
+    }
+    if ([call.method isEqualToString:@"inspectNup"]) {
+      [self.nupImport inspect:path result:result];
+      return;
+    }
+    if ([call.method isEqualToString:@"expandNup"]) {
+      NSString *output = [args[@"output"] isKindOfClass:NSString.class] ? args[@"output"] : @"";
+      NSString *documents = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject ?: @"";
+      [self.nupImport expand:path into:output documents:documents result:result];
+      return;
+    }
+    if ([call.method isEqualToString:@"cancelNup"]) {
+      [self.nupImport cancel];
+      result(@YES);
+      return;
+    }
   }
   if ([call.method isEqualToString:@"detectExport"]) {
     NSString *folder = [call.arguments isKindOfClass:NSDictionary.class] ? call.arguments[@"exportFolder"] : nil;

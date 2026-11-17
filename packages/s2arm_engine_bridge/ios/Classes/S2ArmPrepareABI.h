@@ -24,6 +24,27 @@ typedef struct {
 int rb_s2arm_ns2_detect(const char *root, char *dump, size_t dump_size, uint64_t *program_id, char *error, size_t error_size);
 int rb_s2arm_ns2_dump(const rb_s2arm_ns2_dump_request *request, char *error, size_t error_size);
 
+// s2arm_nup.h
+enum { RB_S2ARM_NUP_OK = 0, RB_S2ARM_NUP_INVALID = 1, RB_S2ARM_NUP_IO = 2, RB_S2ARM_NUP_CANCELLED = 5 };
+typedef struct {
+    uint64_t program_id;
+    uint64_t bytes;
+    uint32_t update_version;
+    uint32_t dlc_count;
+    int has_base;
+} rb_s2arm_nup_info;
+typedef struct {
+    const char *nup_path;
+    const char *output_dir;
+    void (*note)(void *context, const char *line);
+    int (*cancelled)(void *context);
+    void (*progress)(void *context, uint64_t done, uint64_t total);
+    void *context;
+} rb_s2arm_nup_request;
+int rb_s2arm_nup_detect(const char *path, char *nup, size_t nup_size);
+int rb_s2arm_nup_inspect(const char *nup_path, rb_s2arm_nup_info *info, char *error, size_t error_size);
+int rb_s2arm_nup_expand(const rb_s2arm_nup_request *request, rb_s2arm_nup_info *info, char *error, size_t error_size);
+
 // s2arm_prepare.h
 enum {
     RB_S2ARM_PREPARE_OK = 0,
