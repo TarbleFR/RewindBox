@@ -499,10 +499,21 @@ enum MeloNXSessionExit {
         if let crashJournal, let text = try? String(contentsOfFile: crashJournal, encoding: .utf8) {
             fatal = text.contains("fatal signal pid \(pid) ") || text.contains("exit() called pid \(pid) ")
         }
-        var parts = ["previous session \(previous["session"] ?? "-") pid \(pid) title \(previous["titleId"] ?? "-") build \(previous["build"] ?? "-")",
-                     "ended without closing: started \(previous["startedAt"] ?? "-"), last second t=\(previous["seconds"] ?? "-") at \(previous["lastAt"] ?? "-")",
-                     "app \(previous["state"] ?? "-")" + (previous["stateSince"].map { " since t=" + $0 } ?? ""),
-                     "memory warnings \(previous["memoryWarnings"] ?? "0")" + (previous["lastWarningAt"].map { " (last at t=" + $0 + ")" } ?? "")]
+        let session: String = previous["session"] ?? "-"
+        let title: String = previous["titleId"] ?? "-"
+        let build: String = previous["build"] ?? "-"
+        let startedAt: String = previous["startedAt"] ?? "-"
+        let seconds: String = previous["seconds"] ?? "-"
+        let lastAt: String = previous["lastAt"] ?? "-"
+        var state: String = "app " + (previous["state"] ?? "-")
+        if let since = previous["stateSince"] { state += " since t=" + since }
+        var warned: String = "memory warnings " + (previous["memoryWarnings"] ?? "0")
+        if let last = previous["lastWarningAt"] { warned += " (last at t=" + last + ")" }
+        var parts: [String] = []
+        parts.append("previous session " + session + " pid " + pid + " title " + title + " build " + build)
+        parts.append("ended without closing: started " + startedAt + ", last second t=" + seconds + " at " + lastAt)
+        parts.append(state)
+        parts.append(warned)
         if let memory = previous["memory"] { parts.append("last mem=" + memory) }
         if let stall = previous["stall"] { parts.append("last stall " + stall) }
         parts.append(fatal ? "a fatal signal or exit of that process is in this journal (a crash)"
@@ -537,14 +548,22 @@ enum MeloNXSessionExit {
                 var line = "[MeloNX:crash] metrickit exits \(Self.range(payload.timeStampBegin, payload.timeStampEnd))"
                 if #available(iOS 14.0, *), let exits = payload.applicationExitMetrics {
                     let f = exits.foregroundExitData, b = exits.backgroundExitData
-                    line += "; foreground: normal \(f.cumulativeNormalAppExitCount), memory pressure \(f.cumulativeMemoryPressureExitCount), " +
-                        "memory limit \(f.cumulativeMemoryResourceLimitExitCount), watchdog \(f.cumulativeAppWatchdogExitCount), " +
-                        "abnormal \(f.cumulativeAbnormalExitCount), bad access \(f.cumulativeBadAccessExitCount), " +
-                        "illegal instruction \(f.cumulativeIllegalInstructionExitCount)" +
-                        "; background: normal \(b.cumulativeNormalAppExitCount), memory pressure \(b.cumulativeMemoryPressureExitCount), " +
-                        "memory limit \(b.cumulativeMemoryResourceLimitExitCount), watchdog \(b.cumulativeAppWatchdogExitCount), " +
-                        "suspended with locked file \(b.cumulativeSuspendedWithLockedFileExitCount), " +
-                        "background task timeout \(b.cumulativeBackgroundTaskAssertionTimeoutExitCount), abnormal \(b.cumulativeAbnormalExitCount)"
+                    var counts: [String] = []
+                    counts.append("foreground: normal \(f.cumulativeNormalAppExitCount)")
+                    counts.append("memory pressure \(f.cumulativeMemoryPressureExitCount)")
+                    counts.append("memory limit \(f.cumulativeMemoryResourceLimitExitCount)")
+                    counts.append("watchdog \(f.cumulativeAppWatchdogExitCount)")
+                    counts.append("abnormal \(f.cumulativeAbnormalExitCount)")
+                    counts.append("bad access \(f.cumulativeBadAccessExitCount)")
+                    counts.append("illegal instruction \(f.cumulativeIllegalInstructionExitCount)")
+                    counts.append("background: normal \(b.cumulativeNormalAppExitCount)")
+                    counts.append("memory pressure \(b.cumulativeMemoryPressureExitCount)")
+                    counts.append("memory limit \(b.cumulativeMemoryResourceLimitExitCount)")
+                    counts.append("watchdog \(b.cumulativeAppWatchdogExitCount)")
+                    counts.append("suspended with locked file \(b.cumulativeSuspendedWithLockedFileExitCount)")
+                    counts.append("background task timeout \(b.cumulativeBackgroundTaskAssertionTimeoutExitCount)")
+                    counts.append("abnormal \(b.cumulativeAbnormalExitCount)")
+                    line += "; " + counts.joined(separator: ", ")
                 } else {
                     line += "; no exit counts"
                 }
