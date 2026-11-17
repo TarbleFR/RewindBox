@@ -19,6 +19,28 @@ crash: the session closed normally. Counts and times only; no raw journal in Git
   from then on, up to 151 000 pages decompressed in one second, stalls of 0.4-2.4 s, 18 collections of 36-250 ms in
   the courtyard (gen0 pauses of 215-250 ms for under 13 MiB promoted).
 
+- Per second (journal, until it stopped at t = 98): 29.4-31.3 frames per second in the courtyard at t = 53-57 s while
+  1 970-8 097 pages a second are decompressed, then 24.4, 21.0, 14.5 and 9.8 as decompression rises to 10 781-19 100 a
+  second (t = 58-62), then gaps of 15 s and 21 s with 151 302 and 298 573 pages decompressed. The frame rate follows
+  the device's memory, not the render thread: the render thread is at 38-58 % of a core, the guest's main thread
+  33-57 %, the GPU 33-41 %.
+- Metal against Vulkan (MoltenVK's "GPU memory allocated", currentAllocatedSize): 718 MB at 17:00:08 with 15 836
+  Vulkan blocks of 766 MiB, then 1 117 MB (17:00:20) and 1 356 MB (17:00:35) while the Vulkan device memory stays at
+  684 MiB (17:00:43); it never comes back (1 304-1 425 MB to the end) although the Vulkan memory falls to 679-698 MiB.
+  So the 640 MB are not a per-allocation rounding (the same 15 300 blocks cost 718 MB before). One mechanism is in
+  MoltenVK v1.4.2: every VkDeviceMemory of MeloNX gets a placement MTLHeap of its size at vkAllocateMemory (no
+  dedicated-allocation structure), and a depth or stencil image's texture is not placed in it but made separately
+  ("depth/stencil from heaps is flaky"): its memory is paid twice in Metal's count.
+- Measured on macOS (run 44140309740, Apple Paravirtual device, placement heaps on, pinned eight-part patch, 16 images of
+  1024 x 1024, three runs, identical): Metal's allocated size is 2.0 times the Vulkan requirement for D32 and D16 depth
+  images and 2.58 times for D32S8 (81 MiB of heaps + 128 MiB of textures; a dedicated allocation gives 128 MiB), 1.0
+  times for color images; but the process footprint is the same with or without the unused heaps (128 MiB for D32S8
+  either way, 64 MiB for D32): an untouched heap is counted by Metal and costs no physical memory. Each D32S8 texture
+  takes 8 bytes a texel against a Vulkan requirement of 5.06 MiB per image (1.58 times). Everything is given back when
+  freed. So the heap next to a depth image explains Metal's count above Vulkan, not the courtyard's memory pressure (the
+  footprint's graphics share rose 652 MiB there); a deferred-heap MoltenVK part was written and is not adopted (no
+  physical gain shown). What the 652 MiB of physical graphics memory are is still to be found.
+
 ## 2. Memory owners (the new breakdowns)
 
 - Before the game: 1 461 MiB, of which about 880 MiB is anonymous shared memory in small regions matching the JIT
@@ -36,6 +58,8 @@ crash: the session closed normally. Counts and times only; no raw journal in Git
 | Compute dispatches: keep descriptor sets bound when nothing changed | 4.4 ms per frame, 76 us per dispatch | -2 to -4 ms per frame | Investigation and prototype |
 | Graphics: reuse a set whose template payload is identical | about 9 ms per frame | -3 to -5 ms per frame if about 40 % repeat | Measure the repeat rate first |
 | Strict syncs ride the next flush | submits + CreateSync + pool about 12 ms per frame | -3 to -6 ms per frame | Semantics to check |
-| Cached Metal libraries compiled at first use (MoltenVK ninth part) | 129 MiB live site | -60 to -200 MiB | Next MoltenVK part |
+| Depth and stencil images: no unused heap next to their texture (MoltenVK) | Metal 640 MB above Vulkan in the courtyard | Metal's count only: the footprint is unchanged on macOS (run 44140309740) | Not adopted |
+| Attribute the courtyard's +652 MiB of physical graphics memory (by Metal resource kind) | footprint breakdown at the warning | the next real memory lever | To measure |
+| Cached Metal libraries compiled at first use | 129 MiB live site | none: refuted on macOS before (run 42925818096, no memory given back) | Not taken |
 | Sub-allocate small Vulkan buffers | 13.5-15.8k dedicated blocks, Metal 0.6 GiB above Vulkan | -50 to -250 MiB | Measure the difference first |
 | Journal: the per-second sampler stopped at t = 98 (its memory call starved for 3.3 s) | diagnostics | complete journals | Bridge fix |
