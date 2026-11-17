@@ -198,4 +198,4 @@ sequence lock (formal: the fast path also compares the current view and the gene
 | Change | Implemented | Tested | Compiled | Delivered | Observed on a device |
 | --- | --- | --- | --- | --- | --- |
 | 5.1 MoltenVK seventh part | Yes | macOS: pixels and keys equal, view writes 0.45 to 0.56 of the time | iOS, pinned | Next IPA | No |
-| 5.2 to 5.5 Core adapters | Yes | Vulkan and GPU assemblies built; 111 gates on the final preparation (in progress) | Core build pending | Next IPA | No |
+| 5.2 to 5.5 Core adapters | Yes | Vulkan and GPU assemblies built; 111 gates on the final preparation; contract 87a7e8eb | iOS: run 44005156898, two simulator sessions, pinned (58319c2c, fingerprint f9670c15) | Next IPA | No |

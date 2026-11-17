@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "a80b212ff2458f938fd6c52a5130fb0daf6be214",
-  "run": 43968706324,
-  "job": 133654840642,
+  "source": "58319c2cd3c085779cbb66fa76583e277519bbdd",
+  "run": 44005156898,
+  "job": 133778585856,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 14278297391,
-  "name": "MeloNX-engine-a80b212ff2458f938fd6c52a5130fb0daf6be214",
-  "bytes": 100652437,
-  "sha256": "efe0b25346dffd526b4d1c4cf594a2386be34e2c78eb4599aa8d9c3a06e0e10a",
-  "expiresAt": "2027-02-14T22:18:04Z",
+  "artifact": 14294757273,
+  "name": "MeloNX-engine-58319c2cd3c085779cbb66fa76583e277519bbdd",
+  "bytes": 100657010,
+  "sha256": "0898b6bd458aad5b245f01f830cb22320fe18dc315f9cec4ec8bae6f454e8e15",
+  "expiresAt": "2027-02-15T02:44:17Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "368895c65713db26dd01f09b647158af37a8958b84160cc427da88e55fae7eb8",
-      "bytes": 38637416
+      "sha256": "011495074a2ccdbeb372117ed29bf9e8f605d3475b5d0e6ed0a9be77d2fbfde5",
+      "bytes": 38637424
     },
     "iossimulator-arm64": {
-      "sha256": "2cf93ee51b6236506cc283dafb3da23ec9d86b0c749189ca0b152df86aa25d98",
+      "sha256": "139d0de9a2af9119ec3f81d33c55d07eb167ea700bce8322d7af07acf13f247a",
       "bytes": 38955880
     }
   },
   "identities": {
-    "ios-arm64": "bea41c4c3bcc8f18a5583b6534a7ba27985d2a1368883f68a1e19271e891ec90",
-    "iossimulator-arm64": "1039fe872fb426e494e5986becf6764de66c06b886f57b96a99a03928db47fd1"
+    "ios-arm64": "22ea4d588419942777784eb85872d7c628186041e0b6b3672389d3a63b5622b7",
+    "iossimulator-arm64": "2f462b7a46128af1a92bc429cbafcfac658e53217cd4da41d59112d1b6f50a9e"
   },
-  "contractSha256": "9563a0bca1eea4eeb918cb6556a49a27233f3a8961cdde2b4bebcfbfd3c037c5",
-  "resultSha256": "b31445947d39364a3dacc53ffd55f7d1ec788ca94115e2be596c288e77358721",
-  "packagedFingerprint": "f74a9313fb7d6872ad8c379e213ca87c3b5209f31d61909d206ff0cf05927ff7",
+  "contractSha256": "87a7e8ebe91d0456ce44c0e0bd06dba146f85604cdd09b3adaa26c8c1bc7f637",
+  "resultSha256": "595af3a6e8cf9564cbc2a00b929274e2f057e82967ac6ecc8edd9c9cf19a9611",
+  "packagedFingerprint": "f9670c15400ed910d27563feb65ec7cf58c28c7e197568d153333ec1c71b3a6e",
   "replaces": {
-    "source": "9943a5ca2b42c59074c49064a388dfa7b0287094",
-    "run": 43933768917,
-    "artifact": 14260457406,
-    "packagedFingerprint": "3df6c45ba2d51d812c323f64554b167e3235155df28e78eb624f154d47d84614",
-    "reason": "After IPA 760 (no probe added): adapt_draw_wait_lanes, every title: a draw's wait for a pipeline compile on the render thread creates the programs queued behind it, and while the compile that draw promoted is one a thread already runs the demand thread starts the next high priority compile; no draw is skipped and none precedes its exact pipeline (IPA 760, Super Smash Bros. Ultimate: 253 first compiles of 98 ms waited for in full, 17.1 of the 28.8 s of gaps with two compiles or more in one frame). adapt_mirror_copy_journal, journal only: the bytes held by the managed whole-buffer copies of mirror data. Contract 9563a0bc, 111 gates on the final preparation (Linux x86_64), build-smoke route. No iPhone gameplay, stutter, frame rate or memory gain is claimed."
+    "source": "a80b212ff2458f938fd6c52a5130fb0daf6be214",
+    "run": 43968706324,
+    "artifact": 14278297391,
+    "packagedFingerprint": "f74a9313fb7d6872ad8c379e213ca87c3b5209f31d61909d206ff0cf05927ff7",
+    "reason": "After IPA 764 (no probe added), every title, from the IPA 764 journals (Hogwarts Legacy, castle courtyard, 13 to 16 frames per second): adapt_array_attachment_members (a texture array's barrier pass over an unchanged set, for covered stages, calls only the storages that were ever attachments while none of its set became one since its last full pass; a disposed storage leaves the promotion ring; 22 413 passes over 1 053 305 storages per 5 s for 9 916 barriers), adapt_release_passes (a finished command buffer clears every dependant's ownership bits, then releases them, in the same order), adapt_empty_worker_snapshot (beside a main snapshot, a worker file of 64 bytes or less is read as no file: both Hogwarts launches joined an empty worker snapshot and wrote nothing) and adapt_array_walk_size (a bindless array entry walks its own textures when the change ring to read is longer than its set). Contract 87a7e8eb, 111 gates on the final preparation (Linux x86_64), build-smoke route. No iPhone gameplay, stutter, frame rate or memory gain is claimed."
   }
 }
