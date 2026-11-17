@@ -2,8 +2,8 @@
  "schema": 1,
  "status": "verified",
  "component": "rpcs3",
- "build": 943,
- "note": "RPCS3 Core 943 = Core 942 (delivered in IPA 766) + the lot of the IPA 763 logs (maintainer, 16-17 Nov 2026: hold the CPU frequency, use every watt saved, finish the PPU lead and every flagrant problem before the IPA): REWINDBOX_GOW3_POLL_SLEEP_943 (the God of War III 01.00 main thread sleeps 30 us between its checks of the SPU work after 100 us), REWINDBOX_FRAME_INTERVAL_943 (the PPU and RSX threads join an iOS work interval notified at each flip), REWINDBOX_MVK_ENCODE_QOS_943 (Black Ops II: MoltenVK's presenting encoding queue in the SPU threads' class, raised while the RSX thread waits for it), REWINDBOX_PPU_WAIT_FLOOR_943 (Black Ops II: the same short lv2 timed wait made again lasts four times its timeout, at most 200 us), REWINDBOX_SCHED_CENSUS_943 and REWINDBOX_TEXVAL_CENSUS_943 (measurements). Three independent reviews before the compile request. Compilation-only route: the Apple host harnesses were not run. Codegen identities unchanged (no codegen input changes). Not run on an iPhone; no frame rate, picture or heat claim.",
+ "build": 945,
+ "note": "RPCS3 Core 945 = Core 943 (delivered in IPA 767) + the lot of the IPA 767 logs (maintainer, 17 Nov 2026: relieve the CPU of useless work, improve its management before any new IPA): REWINDBOX_WAITING_SUSPEND_944 (a PPU thread pushed beyond the lv2 slots while it waits on the host, holding no passive lock slot, is suspended without an acknowledgment; its stale resume signal is dropped at its next sleep; three independent reviews), REWINDBOX_PUT_HORIZON_BO2_944 (the PUT horizon of the texture epochs Automatic for Black Ops II), the PPU short wait floor Automatic for God of War III, and REWINDBOX_EVENT_WAITS_ALWAYS_945 (the writer lock and PPU passive lock waits rest the core with WFE in every thermal state once the self-test has passed). Core 944 compiled by run 44063890194, not pinned. Compilation-only route: the Apple host harnesses were not run. Codegen identities unchanged (no codegen input changes). Not run on an iPhone; no frame rate, picture or heat claim.",
  "producer": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "validationMode": "build-only",
@@ -15,42 +15,42 @@
     "Read the declared Core build",
     "Select the retained Core toolchain",
     "Restore compiler objects of the same frozen recipe",
-    "Authenticate the Core 943 source closure and the native dependency",
+    "Authenticate the Core 945 source closure and the native dependency",
     "Preserve the authenticated preflight",
-    "Compile and link the actual iPhone Core 943",
-    "Verify the actual binary and write its Core 943 identity",
+    "Compile and link the actual iPhone Core 945",
+    "Verify the actual binary and write its Core 945 identity",
     "Preserve an unverified binary and actual inputs after metadata failure",
     "Record observed compiler-cache counters and compile duration",
-    "Upload the verified Core 943 without an application delivery",
+    "Upload the verified Core 945 without an application delivery",
     "Preserve compiler objects for the same recipe",
     "Preserve real diagnostics including partial failures"
    ],
-   "source": "9c0d02f3fb8c9d615f8351087c7112e3882ab4ea",
-   "run": 44012653815,
+   "source": "f23549748a2005284d12f3a339c3150ffa8186a8",
+   "run": 44068588337,
    "attempt": 1,
-   "job": 133803081616,
-   "artifact": 14297364709,
-   "name": "RPCS3Core-943-9c0d02f3fb8c9d615f8351087c7112e3882ab4ea",
-   "bytes": 30609257,
-   "sha256": "c9b113a5eeb735610c47c855531236850bed6bee18e6aba5720fb27cd2460869",
-   "expiresAt": "2026-12-17T04:12:07Z"
+   "job": 133988656810,
+   "artifact": 14322493451,
+   "name": "RPCS3Core-945-f23549748a2005284d12f3a339c3150ffa8186a8",
+   "bytes": 30609771,
+   "sha256": "4ed4da6c64e75c027ed847d7b5737843c5ac4a96593cd0403b9712469e9aedc2",
+   "expiresAt": "2026-12-17T11:15:19Z"
   },
   "hostTests": {
    "mode": "not-run"
   }
  },
  "core": {
-  "type": "rpcs3-ios-core943",
-  "dylibBytes": 81173752,
-  "dylibSha256": "d29be7b246bbbd79cb5b4d668e4d1a1511c9d546c8510896b4a6471ec5db6d7e",
-  "identitySha256": "95e21ab21e5fd67f572322b7daa77b4a0d269f97f1febc4825ecee92c1abba3f",
+  "type": "rpcs3-ios-core945",
+  "dylibBytes": 81174048,
+  "dylibSha256": "58f8f459a00c61cfd11ce6e64a0fb34fe892b2b12982df925456af831481b02c",
+  "identitySha256": "715458ea519cf92b0aa796ee64e0e929283921efebc645058a690e9add3c5f02",
   "proofMember": "core610-proof.json",
-  "proofSha256": "26c9283cdd81af5241f127e5d8127c491dd6dbed6d3f86b100e140dbc8f16281",
-  "payloadFingerprint": "f94177dc496abd9255e8a3709e3b277c7d55433b8e3216891549bb92aaf00e2b"
+  "proofSha256": "455fb1d71e6f8d83368d548f645764cd350926332869b71b04b010c3c0de8e43",
+  "payloadFingerprint": "5914939ba08e1f7f53b5d19b7c1e78044da5abfa5668d71a32b753cbbb42eeef"
  },
  "canonical": {
-  "patchSha256": "dc890982658bf780f2c9b10ac763f9e59b08a8dbc169c2f758d50c6dd073410a",
-  "postimages": 518,
+  "patchSha256": "8a32bb565c5726461b8d55257d4ef8a2076b6afad6d69fad20a289703ea18987",
+  "postimages": 519,
   "upstreamCommit": "22f1152783cef1f7e04af7b1c895173e28fd5b03"
  },
  "abi": 30,
@@ -293,13 +293,14 @@
   "COREPROF MVKQOS943 session=%llu",
   "COREPROF PPUWAITFLOOR943 session=%llu",
   "COREPROF TEXVAL943 session=%llu",
-  "CONFIG_LAYERS part=gow3_poll943 state=%s"
+  "CONFIG_LAYERS part=gow3_poll943 state=%s",
+  "acks_skipped=%llu"
  ],
  "cachePath": "build/rpcs3-core-component",
  "replaces": {
-  "source": "77806ff747e6de405042125e20506af6c5a4b7b0",
-  "run": 43950007115,
-  "artifact": 14272200544,
-  "payloadFingerprint": "67fbf2395dece06182181e5eb6b02e494a56eec97ac176f882a9fac267c7f9da"
+  "source": "9c0d02f3fb8c9d615f8351087c7112e3882ab4ea",
+  "run": 44012653815,
+  "artifact": 14297364709,
+  "payloadFingerprint": "f94177dc496abd9255e8a3709e3b277c7d55433b8e3216891549bb92aaf00e2b"
  }
 }
