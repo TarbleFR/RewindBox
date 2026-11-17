@@ -1,5 +1,5 @@
 diff --git a/ios/app.m b/ios/app.m
-index 1eae7ce..8cd5c1a 100644
+index 1eae7ce..bd0d8e4 100644
 --- a/ios/app.m
 +++ b/ios/app.m
 @@ -113,6 +113,7 @@ static void *deferred_host_thread(void *arg) {
@@ -105,7 +105,7 @@ index 1eae7ce..8cd5c1a 100644
          static dispatch_queue_t hb_q; static dispatch_once_t hb_once; dispatch_once(&hb_once, ^{ hb_q = dispatch_queue_create("s2a.heartbeat", DISPATCH_QUEUE_SERIAL); });
          dispatch_async(hb_q, ^{
          uint64_t lt, ll, fs, fh, wr = 0, wo = 0; int fn; s2a_low_holes(&lt, &ll); s2a_fd_usage(&fn, &fs, &fh);
-@@ -596,9 +671,21 @@ id s2a_ios_ext_register(UIViewController *vc);   // extdisplay.m：登记外接
+@@ -596,9 +671,23 @@ id s2a_ios_ext_register(UIViewController *vc);   // extdisplay.m：登记外接
          //   while one stays attached, every fault of the process stops in it before the engine's own handler sees it (about 0.3 s a fault while the boot code was served, IPA 731),
          //   and the engine takes write-protection faults all through play (4 to 26 a frame in Mario Kart World's races, IPA 762): the log did not say which it was
          int rb_traced = -1; { struct kinfo_proc kp; size_t kn = sizeof kp; int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_PID, getpid() }; if (!sysctl(mib, 4, &kp, &kn, NULL, 0) && kn) rb_traced = (kp.kp_proc.p_flag & P_TRACED) != 0; }
@@ -115,10 +115,12 @@ index 1eae7ce..8cd5c1a 100644
              s2a_footprint_mb(), (const char *[]){"前台", "前台失焦", "后台"}[app_state],
 -            (int)[NSProcessInfo.processInfo hasPerformanceProfile:NSProcessPerformanceProfileSustained], (int)NSProcessInfo.processInfo.lowPowerModeEnabled, (unsigned long long)(lt >> 20), (unsigned long long)(ll >> 20), fn, (unsigned long long)fs, wins, rb_traced);
 +            (int)[NSProcessInfo.processInfo hasPerformanceProfile:NSProcessPerformanceProfileSustained], (int)NSProcessInfo.processInfo.lowPowerModeEnabled, (unsigned long long)(lt >> 20), (unsigned long long)(ll >> 20), fn, (unsigned long long)fs, wins, rb_traced, rbcap);
-+        // RewindBox (patch 0075): the store emulation self-test, once, at the first heartbeat without a debugger (rb_store_bench_on). Its faults are claimed
++        // RewindBox (patch 0075): the store emulation self-test, once, at the first heartbeat without a debugger (rb_store_bench_on), only when the boot skipped it
++        //   for one (s2a_emul_store_bench_pending: a boot without a debugger measured already, and before the boot tried it the engine's signal handlers may not be in place). Its faults are claimed
 +        //   through the faulting thread's writable alias slot, which a heartbeat thread has not got: the slot is made first and checked on a scratch page
 +        //   (no slot or no working writable alias = the test's first fault would not be claimed, so it is not run)
-+        { static int rb_bench_done; if (!rb_bench_done && rb_traced == 0 && rb_store_bench_on() && !s2a_rb_guest_session_over()) { rb_bench_done = 1;
++        { int s2a_emul_store_bench_pending(void);   // RewindBox (patch 0075): runtime/src/crash.c, linked into the same image (S2Arm.app, and the guest framework)
++          static int rb_bench_done; if (!rb_bench_done && rb_traced == 0 && rb_store_bench_on() && !s2a_rb_guest_session_over() && s2a_emul_store_bench_pending()) { rb_bench_done = 1;
 +            void s2a_emul_store_bench(void);   // runtime/src/crash.c: skips itself again if a debugger is attached by now
 +            s2a_alias_thread_init();
 +            uint8_t *tp = mmap(NULL, 0x4000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
@@ -129,7 +131,7 @@ index 1eae7ce..8cd5c1a 100644
          // 本款本机实测峰值（vawin.c s2a_guest_mem_note：进程实占 + 文件后备里已落块的客体字节）：下一局起局按它判文件后备开不开（11-07 卡顿线）
          { void s2a_guest_mem_note(uint64_t footprint); s2a_guest_mem_note((uint64_t)s2a_footprint_mb() << 20); }
          int s2a_disk_io(uint64_t *written, uint64_t *read, uint64_t *pageins, uint64_t *logical);   // energy.c（只此一处用，不进 native.h：那是出包抽取阶段的键；RewindBox (patch 0036): s2a_disk_written and more）
-@@ -616,16 +703,20 @@ id s2a_ios_ext_register(UIViewController *vc);   // extdisplay.m：登记外接
+@@ -616,16 +705,20 @@ id s2a_ios_ext_register(UIViewController *vc);   // extdisplay.m：登记外接
                                                 (unsigned long long)(vi.internal >> 20), (unsigned long long)(vi.external >> 20), (unsigned long long)(vi.compressed >> 20));
                else snprintf(vm, sizeof vm, "TASK_VM_INFO 取不到（kr=%d）", (int)kr);
                if (gbad) snprintf(gb, sizeof gb, "，其中 %d 个 fstat 失败、没计进去", gbad);
@@ -275,3 +277,35 @@ index 57db233..fd445c1 100644
          pthread_mutex_lock(&g_feedback_mu);
          if (epoch == g_system_epoch) g_system_transition = NO;
          pthread_mutex_unlock(&g_feedback_mu);
+diff --git a/runtime/src/crash.c b/runtime/src/crash.c
+index 2dd1e7f..3444399 100644
+--- a/runtime/src/crash.c
++++ b/runtime/src/crash.c
+@@ -141,6 +141,11 @@ void s2a_emul_store_bench(void) { LOG("Android 使用完整读回；未运行 Ma
+ // 拦写模拟自测（帧率能耗线 10-24，拦写模拟开着时（缺省开，S2A_TRACK_EMUL_STORE=0 关）起局跑一次）：一张只读测试页上连写 N 次，每次都「缺页 → 信号里经可写别名模拟 → 返回」，
+ // 总时长 / N = 每次缺页 + 模拟的全部成本（含内核投递信号与返回；写跟踪计数里的每次耗时不含这一段）。测试页的缺页在信号处理最前面认领，不进写跟踪
+ static _Atomic uint64_t g_esb_page;
++// RewindBox (patch 0075): 1 = the measurement was skipped for an attached debugger and has not run since. Its first call is the process's first
++//   s2a_alias_thread_init (s2a_crash_install, after the signal handlers), so 1 also says they are installed: ios/app.m's heartbeat runs it then and only then
++static _Atomic int g_esb_debugger_skip;
++int s2a_emul_store_bench_pending(void);
++int s2a_emul_store_bench_pending(void) { return atomic_load(&g_esb_debugger_skip); }   // RewindBox (patch 0075): read by ios/app.m (same image)
+ void s2a_emul_store_bench(void) {
+     const char *e = getenv("S2A_TRACK_EMUL_STORE"); if (e && *e == '0') return;
+     // RewindBox (patch 0011): a measurement only (one log line). Each of its 2000 faults stops the process for an attached
+@@ -149,6 +154,7 @@ void s2a_emul_store_bench(void) {
+     { struct kinfo_proc kp; size_t n = sizeof kp; int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_PID, getpid() };
+       if (!sysctl(mib, 4, &kp, &n, NULL, 0) && n && (kp.kp_proc.p_flag & P_TRACED)) {
+           LOG("RewindBox: store emulation self-test skipped: a debugger is attached (each of its faults would stop the process)");
++          atomic_store(&g_esb_debugger_skip, 1);   // RewindBox (patch 0075): ios/app.m's heartbeat runs it once the debugger has gone
+           return; } }
+     uint8_t *p = mmap(NULL, 0x4000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0); if (p == MAP_FAILED) return;
+     memset(p, 0, 0x4000); mprotect(p, 0x4000, PROT_READ); atomic_store(&g_esb_page, (uint64_t)(uintptr_t)p);
+@@ -160,6 +166,7 @@ void s2a_emul_store_bench(void) {
+     int ok = ((volatile uint32_t *)p)[((N - 1) * 17) & 0xFFF] == N;
+     munmap(p, 0x4000);
+     LOG("拦写模拟自测：每次缺页 + 模拟 %.2f µs（含信号投递与返回，%d 次%s）", ns / 1000.0 / N, N, ok ? "" : "；【红】写入值不对");
++    atomic_store(&g_esb_debugger_skip, 0);   // RewindBox (patch 0075): it ran
+ }
+ // 崩溃原始现场（两段式的第一段）：只用 write 与栈上缓冲——不取锁、不分配、不格式化浮点，崩在持日志锁 / malloc 锁的线程上也写得出来。
+ //   一行一项：信号、出错地址、pc / lr / sp / fp、x0–x28、帧链返回地址（经 frame_read 校验）、模块表（名、基址、大小、补丁区）——

@@ -1,5 +1,5 @@
 diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
-index 7badfae..1b4f357 100644
+index 7badfae..18c26f2 100644
 --- a/graphics/nvn/gfx/nvn/hle_nvn.c
 +++ b/graphics/nvn/gfx/nvn/hle_nvn.c
 @@ -985,6 +985,7 @@ static prog_keys_t *pk_get(const void *p, int make) {
@@ -10,30 +10,43 @@ index 7badfae..1b4f357 100644
  #if defined(__ANDROID__)
                   struct nvn_program_pins pins;   // 该 serial 的源快照引用（g_ps_mu 保护）；苹果平台不占这份内存
  #endif
-@@ -2070,6 +2071,9 @@ NVN(nvnCommandBufferSetViewports, void, NVNcommandBuffer *c, int first, int n, c
+@@ -2070,6 +2071,22 @@ NVN(nvnCommandBufferSetViewports, void, NVNcommandBuffer *c, int first, int n, c
  }
  NVN(nvnCommandBufferSetScissor, void, NVNcommandBuffer *c, int x, int y, int w, int h) { *REC(c, OP_SCISSOR, p_scissor) = (p_scissor){x, y, w, h}; }
  NVN(nvnCommandBufferSetDepthRange, void, NVNcommandBuffer *c, float n, float f) { *REC(c, OP_DEPTH_RANGE, p_depth_range) = (p_depth_range){n, f}; }
 +// RewindBox (patch 0069): a program bind as the game records it, on the recording thread: nvn_mtl.m nvn_be_prog_bound starts its Switch 2 stages that are not translated yet a whole
 +//   submission ahead of their draw. The weak default does nothing (Android, the graphics tests)
 +__attribute__((weak)) void nvn_be_prog_bound(const prog_t *p) { (void)p; }
++#if !defined(__ANDROID__)
++// RewindBox (patch 0069): nvnCommandBuffer* stay on the game's own stack (nvn_init_slots), which may be a dozen KiB, but the hand-over goes deep (dsh_miss.inc dsh_ahead_ ->
++//   dsh_reuse_stage -> dsh_have, two nested frames of about 9.4 KB, file reads, NSStrings): it runs on this thread's host stack through S2Arm's stack switch, as host_adapt.m
++//   big_wrap does for the NVN functions that do Metal work. A game thread's stub switches to its host stack; on a host thread, or already on the host stack, it jumps straight.
++//   sw_xstack_wrap (native.h): runtime/src/xstack.c; the graphics tests' stubs (tests/host_stubs.h, gl/t_gl_stubs.inc) return the function itself
++typedef void (*rb_prog_bound_fn)(const prog_t *);   // RewindBox (patch 0069)
++static _Atomic(rb_prog_bound_fn) g_rb_prog_bound;   // RewindBox (patch 0069): the stub, obtained once (release / acquire: xs_entry reads the slot sw_xstack_wrap filled)
++static void rb_prog_bound(const prog_t *p) {   // RewindBox (patch 0069): sw_xstack_wrap gives one stub a function, so two threads binding first store the same one
++    rb_prog_bound_fn f = atomic_load_explicit(&g_rb_prog_bound, memory_order_acquire);
++    if (!f) { f = (rb_prog_bound_fn)sw_xstack_wrap("nvn_be_prog_bound", (void *)nvn_be_prog_bound); atomic_store_explicit(&g_rb_prog_bound, f, memory_order_release); }
++    f(p);
++}
++#endif
  NVN(nvnCommandBufferBindProgram, void, NVNcommandBuffer *c, const NVNprogram *p, int stages) {
      // 只录程序身份（见 nvn_obj.h p_bind_program_id）；程序内容与键按序号进快照表（prog_snap_put），回放用 bind_program_rec 还原
      const prog_t *o = (const prog_t *)p;
-@@ -2081,6 +2085,12 @@ NVN(nvnCommandBufferBindProgram, void, NVNcommandBuffer *c, const NVNprogram *p,
+@@ -2081,6 +2098,12 @@ NVN(nvnCommandBufferBindProgram, void, NVNcommandBuffer *c, const NVNprogram *p,
      prog_keys_t *k = pk_get(p, 0);
      if (k) { memcpy(keys, k->key, sizeof keys); kok = k->ok; memcpy(stage, k->stage, sizeof stage); }
      prog_snap_put(&snap, keys, kok, stage);
 +#if !defined(__ANDROID__)
 +    {   // RewindBox (patch 0069): the first bind of a serial goes to the backend once (its snapshot entry's flag, read without a lock: entries are never freed); later binds cost one probe
 +        psnap_ent *pe = ps_find(atomic_load_explicit(&g_ps_tab, memory_order_acquire), o->serial);
-+        if (pe && !atomic_load_explicit(&pe->looked, memory_order_relaxed) && !atomic_exchange_explicit(&pe->looked, 1, memory_order_relaxed)) nvn_be_prog_bound(o);
++        if (pe && !atomic_load_explicit(&pe->looked, memory_order_relaxed) && !atomic_exchange_explicit(&pe->looked, 1, memory_order_relaxed)) rb_prog_bound(o);   // RewindBox (patch 0069): on the host stack
 +    }
 +#endif
  #if defined(__ANDROID__)   // Android 直连：按 serial 补 key、记阶段、补存源快照（Apple 回放不读，不在 Apple 上付扫表成本）
      (void)nvn_prog_snap_get(snap.serial, keys, &kok, stage);   // 合并后的最好已知（游戏按值复制的程序对象指针不同、序号相同）
      {
-@@ -3143,13 +3153,19 @@ __attribute__((weak)) int dm_low_power_now(void) { return 0; }   // Low Power Mo
+@@ -3143,13 +3166,19 @@ __attribute__((weak)) int dm_low_power_now(void) { return 0; }   // Low Power Mo
  //   one thread clock read a frame
  typedef struct { uint64_t f; double fr, nv, t_s, make_ms, up_mb, up_ms; unsigned pso, lib, up, rup;
                   double cpu_ms, thr_ms, mp_ms, acq_ms, pq_ms; long flt, majflt, inblk, vcsw, ivcsw; unsigned wpf;   // cpu_ms ... wpf: patch 0065 (thr_ms -1: the presenting thread changed)
@@ -54,7 +67,7 @@ index 7badfae..1b4f357 100644
  extern void nvn_be_create_ns(uint64_t *lib_ns, uint64_t *pso_ns); extern uint64_t nvn_be_upload_bytes(void); extern void nvn_be_pkg_stats(uint64_t *uploads, uint64_t *reuploads);
  static const char *const g_tname[6] = {"frame time", "frame work", "NVN submit+present", "GPU", "translation layer recording", "translation layer submit"};
  static void tpush(int k, double v) { g_tw[k][g_tn[k]++ % TWIN] = v; }
-@@ -3735,6 +3751,11 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+@@ -3735,6 +3764,11 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
                  for (int k = 0; k < 5; k++) r->blk[k] = same ? (double)(bk[k] - pb[k]) / 1e6 : -1;
                  memcpy(pb, bk, sizeof pb); bth = pthread_self(); hb = 1;
              }
@@ -66,7 +79,7 @@ index 7badfae..1b4f357 100644
          }
          plib = lib_; ppso = pso_;
          trow(f, "@t_s", (now_ns() - g_t0_ns) / 1e9);
-@@ -3769,6 +3790,9 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+@@ -3769,6 +3803,9 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
                  if (la_skip) { snprintf(sk, sizeof sk, "; %u more frames of 1.5 periods or more not logged (10 a second)", la_skip); la_skip = 0; }
                  snprintf(b + bl, sizeof b - bl, "; presenting thread blocked on the submit lock %.1f ms, GPU fences %.1f ms, the encode thread %.1f ms, readbacks and upload slots %.1f ms, owed cross-queue fences %.1f ms; drawables %.1f ms; period %.1f ms%s%s",
                           r->blk[0], r->blk[1], r->blk[2], r->blk[3], r->blk[4], r->drw_ms, per, la ? ", logged as 1.5 periods or more" : "", sk); }
@@ -77,7 +90,7 @@ index 7badfae..1b4f357 100644
                dm_longframe_note(b); } }
          uint64_t g0, g1; if (frame_rec() && nvn_be_gpu_span(f - 8, &g0, &g1)) { trow(f - 8, "@gpu_beg_ms", (g0 - g_t0_ns) / 1e6); trow(f - 8, "@gpu_end_ms", (g1 - g_t0_ns) / 1e6); } }
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
-index 127aa9f..c7e39b4 100644
+index 5c26eca..1527726 100644
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
 @@ -2271,7 +2271,8 @@ static int ub_skip(const char *key) {   // Whether this phase should drop draws
@@ -90,7 +103,7 @@ index 127aa9f..c7e39b4 100644
  // GPU timing registration: gpu_tag_begin(frame) before commit, gpu_tag_done(frame, GPU start, GPU end) on completion (seconds on the CACurrentMediaTime base).
  // Old-queue command buffers go through gpu_tag_f; the Metal 4 main submission backfills in the feedback of nvn_be_sub_commit (when switching to Metal 4 all the call sites were lost and the GPU column of the timing line became empty)
  static double gpu_tag_begin(uint64_t f) {   // 返回提交时刻（CACurrentMediaTime）：调用方原样交给 gpu_tag_done，GPU 不可能早于它开始
-@@ -7556,6 +7557,13 @@ static NSMutableDictionary<NSString *, NvShader *> *g_shcache;
+@@ -7589,6 +7590,13 @@ static NSMutableDictionary<NSString *, NvShader *> *g_shcache;
  static NSMutableDictionary<NSString *, ShaderFlight *> *g_shader_flights;
  static os_unfair_lock g_shader_lock = OS_UNFAIR_LOCK_INIT;
  static _Atomic uint64_t g_shader_requests, g_shader_hits, g_shader_waits, g_shader_wait_ns, g_shader_builds, g_shader_failures, g_shader_build_live;
@@ -104,7 +117,7 @@ index 127aa9f..c7e39b4 100644
  // Stages whose entry point follows the depth mode: vertex, and an NVN2 mesh shader at stage 4 (main0 / main0_z as a vertex shader's; a domain shader there takes main0 either way)
  static inline int stage_depth_moded(int stage) { return stage == 0 || stage == 4; }
  static NSString *shader_identity(NSString *pc, int stage, int layer, int depth_zero) {
-@@ -7570,6 +7578,7 @@ static void shader_load_stats(void) {
+@@ -7603,6 +7611,7 @@ static void shader_load_stats(void) {
           (unsigned long long)atomic_load(&g_shader_requests), (unsigned long long)atomic_load(&g_shader_hits),
           (unsigned long long)atomic_load(&g_shader_waits), atomic_load(&g_shader_wait_ns) / 1e6, (unsigned long long)atomic_load(&g_shader_builds),
           (unsigned long long)atomic_load(&g_shader_failures), (unsigned long long)atomic_load(&g_shader_build_live));
@@ -112,7 +125,7 @@ index 127aa9f..c7e39b4 100644
      if (atomic_load(&g_lp_lib_built)) MLOG("library container: %llu libraries built, %llu loads took one already built from the same segment (lib_pack.inc lp_library); "
                                            "segments mapped in the host high range %llu (%.1f MB live), in the low range %llu (%.1f MB: high range full or absent)",
                                            (unsigned long long)atomic_load(&g_lp_lib_built), (unsigned long long)atomic_load(&g_lp_lib_shared),
-@@ -8010,7 +8019,8 @@ static NvShader *shader_build(NSString *pc, int stage, int layer, int depth_zero
+@@ -8043,7 +8052,8 @@ static NvShader *shader_build(NSString *pc, int stage, int layer, int depth_zero
      if (!lib && dir != g_msl_dir) {   // S2Arm fallback: MSL source compiled here, same options as the offline chain (dm_msl_opts)
          NSString *src = [NSString stringWithContentsOfFile:[NSString stringWithFormat:@"%@/%@.metal", dir, pc] encoding:NSUTF8StringEncoding error:&e];
          if (src && stage == 0) src = rb_msl_base_instance(src, pc.UTF8String);   // RewindBox (patch 0066)
@@ -122,7 +135,7 @@ index 127aa9f..c7e39b4 100644
          if (lib) MLOG("shader %s loaded from the fallback translation (%s)", pc.UTF8String, fb);
      }
      unsigned rb_bi_n = t_rb_binst_reads; int rb_bi_seen = t_rb_binst_seen; t_rb_binst_reads = 0; t_rb_binst_seen = 0;   // RewindBox (patch 0066): what rb_msl_base_instance did to the source compiled above
-@@ -8202,8 +8212,9 @@ static NvShader *shader_load(NSString *pc, int stage, int layer) {
+@@ -8235,8 +8245,9 @@ static NvShader *shader_load(NSString *pc, int stage, int layer) {
      return shader_load_depth(pc, stage, layer, stage_depth_moded(stage) && atomic_load(&g_depth_zero), NULL, NULL);
  }
  static NvShader *shader_load_submit(NSString *pc, int stage, int layer, int depth_zero) {
@@ -133,7 +146,7 @@ index 127aa9f..c7e39b4 100644
      // A shared load can block this frame even when another thread constructs
      // it, and a failed attempt still consumed time. Never count a waiter as a
      // construction; expose its time both in the frame ledger and separately.
-@@ -8212,6 +8223,11 @@ static NvShader *shader_load_submit(NSString *pc, int stage, int layer, int dept
+@@ -8245,6 +8256,11 @@ static NvShader *shader_load_submit(NSString *pc, int stage, int layer, int dept
      g_bp_lib_wait_ns += wait_ns;
      return shader;
  }
@@ -145,7 +158,7 @@ index 127aa9f..c7e39b4 100644
  // The part of uniform slot reg's binding the shader can read: its first cb_ext bytes when cb_extent.tsv bounds them, else the whole binding
  static inline uint64_t cb_len(NvShader *sh, int reg, uint64_t size) { uint32_t e = sh && reg >= 0 && reg < 16 ? sh->cb_ext[reg] : 0; return e && e < size ? e : size; }
  
-@@ -10342,6 +10358,46 @@ static void pso_key_fill(pso_key *k, NvShader *vs, NvShader *fs, const uint32_t
+@@ -10375,6 +10391,46 @@ static void pso_key_fill(pso_key *k, NvShader *vs, NvShader *fs, const uint32_t
  static struct { pso_key k; id<MTLRenderPipelineState> ps; int used, done, late, stuck; } g_pp[PSO_PEND_MAX];   // late: the submit thread already waited its limit for it once (pso_pend_take); stuck: a draw that cannot be skipped waited the unsafe cap for it
  static pthread_mutex_t g_pp_mu = PTHREAD_MUTEX_INITIALIZER; static pthread_cond_t g_pp_cv = PTHREAD_COND_INITIALIZER;
  static uint64_t g_pp_submit_mark, g_pp_kicked, g_pp_taken, g_pp_dropped;   // Whether this submission has already been predicted (by submission serial); cumulative kicked / taken / dropped untaken (pso_pend_kick) counts
@@ -192,7 +205,7 @@ index 127aa9f..c7e39b4 100644
  static void pso_predict_rest(void);
  // A pixel shader that reads a user(locn) its vertex shader does not write makes a pipeline Metal refuses: on the Mac the build returns an error, on iOS it aborted inside Metal
  // (The Witcher 3, 10-26 test device 2, cold run, frame 1758: SIGABRT under pso_get_ on a vertex / pixel pair the build had not paired, so vs_pad gave the vertex shader nothing).
-@@ -10357,7 +10413,7 @@ static int pso_pair_ok(NvShader *vs, NvShader *fs, int report) {
+@@ -10390,7 +10446,7 @@ static int pso_pair_ok(NvShader *vs, NvShader *fs, int report) {
      return 0;
  }
  static int pso_pend_find(const pso_key *k) { for (int i = 0; i < PSO_PEND_MAX; i++) if (g_pp[i].used && !memcmp(&g_pp[i].k, k, sizeof *k)) return i; return -1; }
@@ -201,7 +214,7 @@ index 127aa9f..c7e39b4 100644
      if (hm_get_id(&g_pso, k) || !pso_pair_ok(vs, fs, 0)) return;
      pthread_mutex_lock(&g_pp_mu);
      int at = pso_pend_find(k), slot = -1;
-@@ -10367,9 +10423,15 @@ static void pso_pend_kick(const pso_key *k, NvShader *vs, NvShader *fs) {   // C
+@@ -10400,9 +10456,15 @@ static void pso_pend_kick(const pso_key *k, NvShader *vs, NvShader *fs) {   // C
      //   compiled, and building the same descriptor again took 0.0 ms (M5 Max, 24 pipelines, 11-02 microbenchmark), and its records are written when a draw builds it
      if (at < 0 && slot < 0) for (int i = 0; i < PSO_PEND_MAX; i++) if (g_pp[i].used && g_pp[i].done) { slot = i; g_pp[i].ps = nil; g_pp_dropped++; break; }
      if (at < 0 && slot >= 0) { g_pp[slot].k = *k; g_pp[slot].ps = nil; g_pp[slot].done = 0; g_pp[slot].late = 0; g_pp[slot].stuck = 0; g_pp[slot].used = 1; }
@@ -217,7 +230,7 @@ index 127aa9f..c7e39b4 100644
      dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
          NSError *e = nil; id<MTLRenderPipelineState> ps = par_render(d, pkey, &e);
          pthread_mutex_lock(&g_pp_mu); g_pp[slot].ps = ps; g_pp[slot].done = 1; pthread_cond_broadcast(&g_pp_cv); pthread_mutex_unlock(&g_pp_mu);
-@@ -10404,6 +10466,22 @@ static void pso_budget_skip_note(void) {
+@@ -10437,6 +10499,22 @@ static void pso_budget_skip_note(void) {
      uint64_t n = ++g_pp_bud_skips;
      if (!(n & (n - 1))) MLOG("pipeline wait budget: %llu first uses skipped their draw after their frame had waited %d ms for compiles (still compiling in the background)", (unsigned long long)n, pso_frame_ms());
  }
@@ -240,7 +253,7 @@ index 127aa9f..c7e39b4 100644
  // 首遇让路（11-07 卡顿线，异度3 冷装读档第 888 帧 2380.7 ms：那条管线在清单里还没轮到，提交线程等它时后台预热 2 个工人照领新行、跟它抢系统编译服务）：
  //   提交线程在等一条首遇管线（g_fu_waiting > 0）期间，预热工人不领新行（warm_pick 里等，每次最多 FU_YIELD_MAX_MS，防饿死），已在编的编完。
  //   g_warm_busy = 正在编的预热行数，首遇等待行里报「开始等时几个在编」，好分清等的是排队还是编译本身。DM_PSO_FU_YIELD=0 关（A/B 用）
-@@ -10417,21 +10495,24 @@ static id<MTLRenderPipelineState> pso_pend_take(const pso_key *k, int *timed_out
+@@ -10450,21 +10528,24 @@ static id<MTLRenderPipelineState> pso_pend_take(const pso_key *k, int *timed_out
      //   Super Mario Odyssey's Mac cold start (10-27): the system compiler was slow, the frame budget skipped 2048 draws in 4 frames, among them the temporal anti-aliasing / exposure
      //   chain whose output feeds the next frame, and the 3D picture stayed black for the whole run; first_skip_ok never let those draws be skipped, these limits did
      int at = pso_pend_find(k), blk = 0, ms = may_skip ? pso_wait_ms() : pso_unsafe_wait_ms(); id<MTLRenderPipelineState> ps = nil; *timed_out = 0;
@@ -268,7 +281,7 @@ index 127aa9f..c7e39b4 100644
          else if (ms < pso_wait_ms() && pso_frame_ms()) { *timed_out = 2; pso_budget_skip_note(); }   // the frame's budget ran out first
          else { *timed_out = 1; g_pp[at].late = 1; if (!may_skip) g_pp[at].stuck = 1; g_pp_timeouts++; } }
      pthread_mutex_unlock(&g_pp_mu);
-@@ -10441,6 +10522,9 @@ static id<MTLRenderPipelineState> pso_pend_take(const pso_key *k, int *timed_out
+@@ -10474,6 +10555,9 @@ static id<MTLRenderPipelineState> pso_pend_take(const pso_key *k, int *timed_out
  static int pso_pend_state(const pso_key *k) {   // 2 compiled in the background / 1 compiling / 0 not in the table (first_skip_ok)
      pthread_mutex_lock(&g_pp_mu); int at = pso_pend_find(k), st = at < 0 ? 0 : g_pp[at].done ? 2 : 1; pthread_mutex_unlock(&g_pp_mu); return st;
  }
@@ -278,7 +291,7 @@ index 127aa9f..c7e39b4 100644
  static __unsafe_unretained id<MTLRenderPipelineState> pso_get_(NvProg *pr, MTLRenderPassDescriptor *unused);
  static id<MTLFunction> ms_fs_override(NvShader *fs);   // DM_NVN_MAGSCAN (defined before draw)
  // A pipeline Metal refused: when a colour the fragment shader writes has an integer attachment, its output was most likely translated as float (a game without PC reflection has no output types,
-@@ -10526,6 +10610,23 @@ static int skip_safe(NvShader *vs, NvShader *fs) {
+@@ -10559,6 +10643,23 @@ static int skip_safe(NvShader *vs, NvShader *fs) {
      if (R.rt.depth && (!rt_fresh_now(R.rt.depth) || !rt_seen_steady(R.rt.depth))) return 0;
      return 1;
  }
@@ -302,7 +315,7 @@ index 127aa9f..c7e39b4 100644
  static int first_skip_ok(const pso_key *k, NvShader *vs, NvShader *fs) {
      if (!first_skip_on()) return 0;
      if (shader_writes(vs) || shader_writes(fs)) return FSKN(0);
-@@ -10536,10 +10637,15 @@ static int first_skip_ok(const pso_key *k, NvShader *vs, NvShader *fs) {
+@@ -10569,10 +10670,15 @@ static int first_skip_ok(const pso_key *k, NvShader *vs, NvShader *fs) {
      if (R.rt.depth && !rt_fresh_now(R.rt.depth)) return FSKN(1);
      for (int i = 0; i < R.rt.n; i++) if (R.rt.color[i] && !rt_seen_steady(R.rt.color[i])) return FSKN(2);
      if (R.rt.depth && !rt_seen_steady(R.rt.depth)) return FSKN(2);
@@ -319,7 +332,7 @@ index 127aa9f..c7e39b4 100644
      g_first_skipped = 1; return 1;
  }
  static uint64_t g_fsk_eq;   // RewindBox (patch 0040): skipped draws that test depth EQUAL without writing it (first_skip_note)
-@@ -10578,7 +10684,7 @@ static uint8_t g_pso_color_round;
+@@ -10611,7 +10717,7 @@ static uint8_t g_pso_color_round;
  #define PSO_WHY(...) snprintf(g_pso_why, sizeof g_pso_why, __VA_ARGS__)
  static __unsafe_unretained id<MTLRenderPipelineState> pso_get_vs(NvProg *pr, NvShader *vs) {
      __unsafe_unretained NvShader *fs = pr->sh[1]; g_pso_why[0] = 0;
@@ -328,7 +341,7 @@ index 127aa9f..c7e39b4 100644
      if (!vs) { RED_ONCE(13, "program has no vertex shader (or it is not mapped)"); PSO_WHY("no vertex stage"); return nil; }
      pso_key k; pso_key_fill(&k, vs, fs, g_pass.cfmt, g_pass.dfmt, g_pass.sfmt, g_pass.samples, g_pso_lmap != NULL);
      if (g_pso_lmap) { memcpy(k.lmap, g_pso_lmap, 8); k.fsfn = (__bridge void *)g_pso_fsfn; }
-@@ -10615,11 +10721,12 @@ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_vs(NvProg *pr, NvS
+@@ -10648,11 +10754,12 @@ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_vs(NvProg *pr, NvS
      //   came first and took the pipeline, so the lookahead below never ran and every first use of a scene compiled one after another (Super Mario Party, census 11-02, frame 30722:
      //   61 new pipelines in one frame, 1,796 ms; 0 "parallel precompile" lines in the whole run). Kicked first, the draw at hand is ahead of them in the queue
      if (!g_pso_lmap && !ms_fn && !g_pso_fsfn) {
@@ -342,7 +355,7 @@ index 127aa9f..c7e39b4 100644
      fu_take = bp_now() - fu_t0;
      if (!ps && !pp_late && may_skip && !g_pso_lmap && !ms_fn && !g_pso_fsfn && !pso_budget_left_ms()) { atomic_fetch_sub(&g_fu_waiting, 1); pso_budget_skip_note(); g_first_skipped = 1; PSO_WHY("no pipeline wait budget left this frame"); return nil; }   // not queued (table full / refused) and no budget left: no synchronous build either
      if (pp_late) {   // still compiling past the limit (pso_wait_ms): skip this draw, keep the compile queued; a synchronous build here would queue behind the same compiler service
-@@ -10695,6 +10802,13 @@ static int fb_loadable(NSString *pc);
+@@ -10728,6 +10835,13 @@ static int fb_loadable(NSString *pc);
  //   tests that do not link host_adapt.m keep nothing and translate nothing
  __attribute__((weak)) int dm_shader_kept(const char *k16) { (void)k16; return 0; }
  __attribute__((weak)) int dm_shader_retranslate(const char *k16) { (void)k16; return 0; }
@@ -356,7 +369,7 @@ index 127aa9f..c7e39b4 100644
  static int rb_stage_key(NSString *pc, char k16[17]) {   // a stage's library name "<16 hex digits>_b" → its key; 0 for any other library (a geometry or variant library is made from its stage's)
      if (pc.length != 18 || ![pc hasSuffix:@"_b"]) return 0;
      snprintf(k16, 17, "%.16s", pc.UTF8String); return 1;
-@@ -10718,7 +10832,9 @@ static int warm_stale(NSString *key, NSMutableSet<NSString *> *stale) {
+@@ -10751,7 +10865,9 @@ static int warm_stale(NSString *key, NSMutableSet<NSString *> *stale) {
          //   and compiled at its first draw. Only the file's presence is asked here (the list is parsed on the thread that starts the prewarm)
          { char k16[17]; if (rb_stage_key(key, k16) && dm_shader_kept(k16) == 2) { if (!g_warm_fb_ok) g_warm_fb_ok = [NSMutableSet set]; [g_warm_fb_ok addObject:key]; g_warm_rekept++; return 0; } }
          [stale addObject:key]; g_warm_skip_stale++;
@@ -366,7 +379,7 @@ index 127aa9f..c7e39b4 100644
      return 1;
  }
  // S2Arm: a library to load: in the package (mtl_shlib_has) or translated on this device before (DM_MSL_FALLBACK). A hot-key package's cold key is neither until its first use compiles it
-@@ -10778,6 +10894,7 @@ static shq_t g_shpre, g_shurg;   // the prefetch at ProgramSetShaders (utility Q
+@@ -10811,6 +10927,7 @@ static shq_t g_shpre, g_shurg;   // the prefetch at ProgramSetShaders (utility Q
  static NSMutableSet<NSString *> *g_shpre_seen;
  static os_unfair_lock g_shpre_mu = OS_UNFAIR_LOCK_INIT;
  static _Atomic int g_shpre_stopping;
@@ -374,7 +387,7 @@ index 127aa9f..c7e39b4 100644
  static void shpre_sync(void) { dispatch_group_t g = dispatch_group_create(); os_unfair_lock_lock(&g_shpre_mu); shq_mark(&g_shpre, g); shq_mark(&g_shurg, g); os_unfair_lock_unlock(&g_shpre_mu); dispatch_group_wait(g, DISPATCH_TIME_FOREVER); }   // unit tests: wait for every queued load
  // The lookahead (prog_peek) found a stage of a draw later in this submission not loaded: load it now on the urgent lanes, beside the submit thread, instead of when its draw reaches
  //   prog_get. The submit thread then takes it from the cache or shares the load in flight (shader_load_depth, which lends it this thread's urgency). At most 2 per lane queued
-@@ -10850,6 +10967,43 @@ void nvn_be_shader_prefetch(const uint8_t md[8]) {
+@@ -10883,6 +11000,43 @@ void nvn_be_shader_prefetch(const uint8_t md[8]) {
      } });
      os_unfair_lock_unlock(&g_shpre_mu);
  }
@@ -418,7 +431,7 @@ index 127aa9f..c7e39b4 100644
  // The lists' lines as tasks; *lines: the lines they hold
  static NSArray<WarmTask *> *warm_parse(NSArray<NSString *> *paths, long *lines) {
      NSMutableArray<WarmTask *> *tasks = [NSMutableArray array];
-@@ -10999,6 +11153,10 @@ static void warm_finish(void) {
+@@ -11032,6 +11186,10 @@ static void warm_finish(void) {
      MLOG("pipeline prewarm done: shaders %llu / render pipelines %llu (specialized fragment skipped %llu) / compute pipelines %llu, background time %.1f ms; shader keys not in the shader map (another game version) %llu; not in the library yet (compiled at their first use) %llu",
           (unsigned long long)g_warm_shaders, (unsigned long long)g_warm_rps, (unsigned long long)g_warm_skip_fz, (unsigned long long)g_warm_cps, (bp_now() - g_warm_t0) / 1e6, (unsigned long long)g_warm_skip_stale, (unsigned long long)atomic_load(&g_cold_skips));
      if (g_warm_rekept) MLOG("RewindBox: pipeline prewarm: %llu keys of the lists had a translation of an earlier translator with their stage bytes kept; they were translated again on the prewarm's workers (the count made is in the host's lines)", (unsigned long long)g_warm_rekept);
@@ -429,7 +442,7 @@ index 127aa9f..c7e39b4 100644
      if (g_par_on) MLOG("pipeline archive after the prewarm: %llu builds from the archive, %llu compiled (written beside it, in the background), %llu stale files dropped",
                         (unsigned long long)g_par_hits, (unsigned long long)g_par_misses, (unsigned long long)g_par_stale);
      atomic_store(&g_warm_running, 0); atomic_store(&g_wp_phase, WARM_DONE);   // the host's progress (nvn_warm.h)
-@@ -11165,7 +11323,7 @@ static void warm_start(void) {
+@@ -11198,7 +11356,7 @@ static void warm_start(void) {
      if (g_warm_started++) return;
      dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ pso_user_seen_load(); });   // the record's dedupe set, off the submit thread (pso_user_seen_load)
      NSArray<NSString *> *paths = warm_paths(1);
@@ -438,7 +451,7 @@ index 127aa9f..c7e39b4 100644
      if (!g_warm_items) g_warm_items = [NSMutableArray array];
      g_warm_t0 = bp_now(); atomic_store(&g_wp_t0, g_warm_t0);
      atomic_store(&g_warm_running, 1);
-@@ -13075,13 +13233,14 @@ static void pso_predict_rest_(void) {
+@@ -13108,13 +13266,14 @@ static void pso_predict_rest_(void) {
      g_look = 0;
      (void)df; (void)sf;
      int busy = 0; pthread_mutex_lock(&g_pp_mu); for (int i = 0; i < PSO_PEND_MAX; i++) busy += g_pp[i].used && !g_pp[i].done; pthread_mutex_unlock(&g_pp_mu);
