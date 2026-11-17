@@ -1,0 +1,120 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 6c63c7b..7606c9d 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -2280,8 +2280,46 @@ static int rb_drs_hold_on(void) {
+ enum { DRS_N = 64 };
+ static struct { _Atomic uint64_t frame, top; } g_drs[DRS_N];   // a frame's slot: the frame + 1 (0 = none yet) and its first TIMESTAMP_TOP report (19.2 MHz ticks)
+ static _Atomic uint64_t g_drs_raised, g_drs_seen;   // TIMESTAMP reports raised to their frame's hold / looked at after a TIMESTAMP_TOP of their frame
++// RewindBox (patch 0087): the game's dynamic resolution steps down while the iPhone is hot. Nothing reacted to heat in races: S2Arm's quality ladder only goes from docked to
++//   handheld and the iPhone already runs handheld (IPA 775 log: "档位梯子：两档（主机 → 掌机，帧率归游戏），起始档 掌机"), and Mario Kart World is a 60 fps game, so the frame-rate
++//   ladder has nothing to lower. At ProcessInfo's serious state (IPA 773-775 races: thermal state 2 in 9 of the sessions sent, 24-35 fps, CPU 0.4-1.3 W, GPU busy 300-530 ms
++//   a second) iOS slowed the CPU and the GPU down while the GPU kept the same work. While the state is serious or critical, a frame's TIMESTAMP reports past half the hold read
++//   at least the hold and an eighth after the frame's first TIMESTAMP_TOP (18.7 ms at 60 fps): past the band the game holds its size in (about 15-17 ms), so the game lowers its
++//   own resolution toward its floor (1248x700 in Mario Kart World), as on a console that falls behind. Patch 0083's hold again after 30 s at fair or below. The state is read
++//   twice a second at most, from the report loop. S2A_RB_DRS_THERMAL=0: no step
++static int rb_drs_thermal_on(void) {
++    static int v = -1;
++    if (v < 0) { const char *e = getenv("S2A_RB_DRS_THERMAL"); v = !(e && !strcmp(e, "0"));
++        MLOG("RewindBox: the game's dynamic resolution %s (S2A_RB_DRS_THERMAL; patch 0087)", v ? "steps down while the thermal state is serious or critical, and is held again after 30 s at fair or below" : "is not stepped down under heat"); }
++    return v;
++}
++static _Atomic int g_drs_hot;   // 1 while the reports read past the game's band
++static _Atomic uint64_t g_drs_th_at, g_drs_cool_at, g_drs_hot_raised;   // last reading of the state (uptime ns), first reading at fair or below since then (0 = none), reports raised past the band
++static int rb_drs_hot(uint64_t f) {
++    if (!rb_drs_thermal_on()) return 0;
++    uint64_t now = clock_gettime_nsec_np(CLOCK_UPTIME_RAW), at = atomic_load(&g_drs_th_at);
++    if ((at && now - at < 500000000ull) || !atomic_compare_exchange_strong(&g_drs_th_at, &at, now)) return atomic_load(&g_drs_hot);
++    NSInteger st = NSProcessInfo.processInfo.thermalState;
++    if (st >= NSProcessInfoThermalStateSerious) {
++        atomic_store(&g_drs_cool_at, 0);
++        if (!atomic_exchange(&g_drs_hot, 1))
++            MLOG("RewindBox: thermal state %ld at frame %llu: the game's TIMESTAMP reports read past its band, its dynamic resolution steps down (S2A_RB_DRS_THERMAL=0 keeps it; patch 0087)",
++                 (long)st, (unsigned long long)f);
++    } else if (atomic_load(&g_drs_hot)) {
++        uint64_t since = atomic_load(&g_drs_cool_at);
++        if (!since) atomic_store(&g_drs_cool_at, now);
++        else if (now - since >= 30000000000ull) {
++            atomic_store(&g_drs_hot, 0); atomic_store(&g_drs_cool_at, 0);
++            MLOG("RewindBox: thermal state %ld for 30 s at frame %llu: the dynamic resolution is held again (%llu reports read past the band while hot; patch 0087)",
++                 (long)st, (unsigned long long)f, (unsigned long long)atomic_load(&g_drs_hot_raised));
++        }
++    }
++    return atomic_load(&g_drs_hot);
++}
+ static uint64_t rb_drs_hold(uint64_t f, uint32_t type, uint64_t t) {   // the time a counter report of frame f records (19.2 MHz ticks)
+-    if (!t || (type != 0 && type != 0x10) || !rb_drs_hold_on()) return t;
++    if (!t || (type != 0 && type != 0x10)) return t;
++    int hot = rb_drs_hot(f);   // RewindBox (patch 0087)
++    if (!hot && !rb_drs_hold_on()) return t;
+     unsigned i = (unsigned)(f % DRS_N);
+     if (type == 0x10) {   // the frame's first TIMESTAMP_TOP: the earliest one of its frame
+         if (atomic_load(&g_drs[i].frame) != f + 1) { atomic_store(&g_drs[i].top, t); atomic_store(&g_drs[i].frame, f + 1); }
+@@ -2292,12 +2330,14 @@ static uint64_t rb_drs_hold(uint64_t f, uint32_t type, uint64_t t) {   // the ti
+     uint64_t top = atomic_load(&g_drs[i].top); if (!top || t <= top) return t;
+     int fps = nvn_be_fps_target(); if (fps <= 0 || fps > 60) fps = 60;   // 30 / 60 (nvn_obj.h)
+     uint64_t hold = 16600000ull * 60 / (uint64_t)fps * 12 / 625;   // 16.6 ms at 60 fps, in 19.2 MHz ticks
++    uint64_t want = hot ? hold + hold / 8 : hold;   // RewindBox (patch 0087): past the game's band while hot
+     uint64_t seen = atomic_fetch_add(&g_drs_seen, 1) + 1;
+-    if (t - top >= hold || t - top < hold / 2) return t;
++    if (t - top >= want || t - top < hold / 2) return t;
++    if (hot) atomic_fetch_add(&g_drs_hot_raised, 1);   // RewindBox (patch 0087)
+     uint64_t n = atomic_fetch_add(&g_drs_raised, 1) + 1;
+     if (!(n & (n - 1)) && n >= 16) MLOG("RewindBox: dynamic resolution hold: %llu TIMESTAMP reports of %llu raised to their frame's hold (%.1f ms after its first TIMESTAMP_TOP, %d fps; S2A_RB_DRS_HOLD=0 keeps their times)",
+                                         (unsigned long long)n, (unsigned long long)seen, hold * 625 / 12 / 1e6, fps);
+-    return top + hold;
++    return top + want;   // RewindBox (patch 0087): want
+ }
+ 
+ // ---------- Boot instrumentation (DM_BOOTPROF=1): metallib loading, pipeline creation (both happen synchronously during replay on the submit thread), texture upload, first-frame present ----------
+diff --git a/runtime/src/thread.c b/runtime/src/thread.c
+index 414124a..cde898c 100644
+--- a/runtime/src/thread.c
++++ b/runtime/src/thread.c
+@@ -1949,6 +1949,26 @@ static int yf_on(void) { if (g_yf < 0) { const char *e = getenv("S2A_YIELD_FAST"
+ #define SPIN_GAP_NS 20000   // 两次过闸 / 两次短睡之间游戏代码不超过这么久算同一轮等待（自旋闸、短睡轮询退避共用）
+ static _Atomic uint64_t g_sl_short, g_sl_hist[4], g_sl_bo, g_sl_bo_ns;
+ static void sleep_hist(int64_t ns) { atomic_fetch_add_explicit(&g_sl_hist[ns < 100000 ? 0 : ns < 1000000 ? 1 : ns < 10000000 ? 2 : 3], 1, memory_order_relaxed); }
++// RewindBox (patch 0087): while the iPhone is hot, the yields' backoff starts after 50 µs of a round instead of 250 µs. IPA 775 test (Mario Kart World, races): the game's six
++//   workers (threads 81, 97-101) yielded 1,446,228 times in a session, 54,009 of them slept and 287,615 returned at once: about 1.1 million went through sched_yield,
++//   several thousand a second, with 2,000 to 5,800 wake-ups a second in the power lines; at the serious thermal state iOS slows the cores down and these spins take
++//   their share of the power the game's own work and the GPU need. While ProcessInfo's state is serious or critical (dm_thermal_now >= 2, read twice a second at
++//   most), a round past 50 µs sleeps run / 8 (10 µs at first, as before past 250 µs): a worker sees its next task at most that much later. S2A_RB_YIELD_THERMAL=0: as before
++__attribute__((weak)) int dm_thermal_now(void) { return -1; }   // strong in ios/app.m and runtime/src/host_main.c; the same weak default as fps.c and qladder_host.c (-1 without them)
++static _Atomic int g_yb_hot; static _Atomic uint64_t g_yb_hot_at, g_yb_hot_sleeps;
++static int rb_yield_hot(uint64_t now) {
++    static int on = -1;
++    if (on < 0) { const char *e = getenv("S2A_RB_YIELD_THERMAL"); on = !(e && !strcmp(e, "0"));
++        LOG("RewindBox (patch 0087): the yields' backoff %s (S2A_RB_YIELD_THERMAL)", on ? "starts after 50 µs of a round while the thermal state is serious or critical" : "keeps its start under heat"); }
++    if (!on) return 0;
++    uint64_t at = atomic_load(&g_yb_hot_at);
++    if ((at && now - at < 500000000ull) || !atomic_compare_exchange_strong(&g_yb_hot_at, &at, now)) return atomic_load(&g_yb_hot);
++    int st = dm_thermal_now(), hot = st >= 2;
++    if (atomic_exchange(&g_yb_hot, hot) != hot)
++        LOG("RewindBox (patch 0087): thermal state %d: the yields' backoff starts after %lld µs of a round (%llu backoff sleeps while hot so far)", st,
++            hot ? 50LL : (long long)(g_yb_ystart / 1000), (unsigned long long)atomic_load(&g_yb_hot_sleeps));
++    return hot;
++}
+ static void yield_bo(thr_t *me, const uint64_t *regs) {
+     __atomic_store_n(&me->ny, me->ny + 1, __ATOMIC_RELAXED);   // RewindBox (patch 0074): this thread's yields (only it writes them)
+     if (!yb_on()) { yb_sched_yield(me); return; }
+@@ -1965,8 +1985,10 @@ static void yield_bo(thr_t *me, const uint64_t *regs) {
+     atomic_fetch_add_explicit(&g_yb_yields, 1, memory_order_relaxed);
+     uint64_t run = now - me->yrun_t0;
+     if (fresh && yf_on()) { atomic_fetch_add_explicit(&g_yf_n, 1, memory_order_relaxed); me->y_ret = (uint64_t)now_mono_ns(); return; }
+-    if (run < (uint64_t)g_yb_ystart) { yb_sched_yield(me); me->y_ret = (uint64_t)now_mono_ns(); return; }   // RewindBox (patch 0074): g_yb_ystart, yb_sched_yield
++    uint64_t ystart = (uint64_t)g_yb_ystart; int hot = ystart > 50000 && rb_yield_hot(now); if (hot) ystart = 50000;   // RewindBox (patch 0087)
++    if (run < ystart) { yb_sched_yield(me); me->y_ret = (uint64_t)now_mono_ns(); return; }   // RewindBox (patch 0074): g_yb_ystart, yb_sched_yield; RewindBox (patch 0087): ystart
+     uint64_t sl = run / 8; if (sl < 10000) sl = 10000; if (sl > (uint64_t)g_yb_cap) sl = (uint64_t)g_yb_cap;
++    if (hot) atomic_fetch_add_explicit(&g_yb_hot_sleeps, 1, memory_order_relaxed);   // RewindBox (patch 0087)
+     struct timespec ts = {0, (long)sl}; nanosleep(&ts, NULL);
+     atomic_fetch_add_explicit(&g_yb_sleeps, 1, memory_order_relaxed); atomic_fetch_add_explicit(&g_yb_sleep_ns, sl, memory_order_relaxed);
+     __atomic_store_n(&me->ny_sl, me->ny_sl + sl, __ATOMIC_RELAXED);   // RewindBox (patch 0074)
+@@ -2136,6 +2158,7 @@ void s2a_yield_stat_log(const char *when) {
+ #endif
+     if (g_yb_cap <= 0) return;
+     LOG("让步退避 [%s]：让步 %llu 次，其中退避睡 %llu 次、共 %.1f ms；有进展直接返回 %llu 次", when, (unsigned long long)atomic_load(&g_yb_yields), (unsigned long long)atomic_load(&g_yb_sleeps), atomic_load(&g_yb_sleep_ns) / 1e6, (unsigned long long)atomic_load(&g_yf_n));
++    LOG("RewindBox (patch 0087): yields [%s]: %llu backoff sleeps while the thermal state was serious or critical (S2A_RB_YIELD_THERMAL)", when, (unsigned long long)atomic_load(&g_yb_hot_sleeps));
+ }
+ #if defined(__APPLE__)
+ // RewindBox (patch 0074): the power line's "top yielders" and the "threads up to frame N: CPU" line (graphics/nvn hle_nvn.c power_line, every 300 frames, present thread)
