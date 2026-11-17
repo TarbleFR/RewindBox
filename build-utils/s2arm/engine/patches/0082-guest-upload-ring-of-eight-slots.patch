@@ -1,0 +1,88 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index f330697..e8cae65 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -127,7 +127,15 @@ static dispatch_queue_t g_feedback_q;
+ static _Atomic uint32_t g_present_qos;
+ #define ALLOC_MAX 8
+ static id<MTL4CommandAllocator> g_alloc4[ALLOC_MAX]; static int g_alloc_n, g_alloc_cur;   // Command allocator pool of the main submission: at start pick one the GPU has finished with, create a new one if there is none (wait only at the cap)
+-static id<MTL4CommandAllocator> g_up_alloc4[3];
++// RewindBox (patch 0082): the upload ring has RB_UP_MAX slots, rb_up_n() of them used (3 before). IPA 773 test (Mario Kart World, iPhone17,2, races): a frame is submitted in about 8 pieces and
++//   each piece's uploads are one batch, so the fourth batch of a frame waited in up_begin for the batch of three pieces before to finish on the GPU, which runs it after the previous frame's
++//   work: "readbacks and upload slots" took 9.6-14.2 ms of the long race frames (median; 0.2 ms or less in IPA 771) and the CPU translation and the GPU ran one after the other (submit+present
++//   p50 18-22 ms, GPU busy 12.2 ms in a 25.5 ms span, the GPU idle about half the frame, 30-34 fps for a game asking 60, so a frame-locked race ran at about half speed). With 8 slots a frame's
++//   batches all have a slot while the frame before is still on the GPU. Each slot keeps its own staging block (UP_SLOT_BLOCK, 4 MB, grown to a batch's first texture): 32 MB for good instead
++//   of 12. S2A_RB_UP_SLOTS=0: 3 slots as before
++#define RB_UP_MAX 8
++static int rb_up_n(void) { static int v; if (!v) { const char *e = getenv("S2A_RB_UP_SLOTS"); v = e && !strcmp(e, "0") ? 3 : RB_UP_MAX; } return v; }   // read at the first device setup, before any upload
++static id<MTL4CommandAllocator> g_up_alloc4[RB_UP_MAX];   // RewindBox (patch 0082): RB_UP_MAX (3 before)
+ static id<MTL4CommandAllocator> g_present_alloc4[3];
+ static id<MTL4CommandBuffer> g_present_cb[3];
+ static id g_vt, g_ft, g_ct, g_up_ct, g_ot;   // a Metal 4 argument table on Metal 4, DmTable3 on Metal 3 (tab_new); g_ot: a task shader's (object stage, nvn_geometry.inc mtk_encode; the mesh stage shares g_vt)
+@@ -691,6 +699,13 @@ void mtl_init(void) {
+             if (!g_alloc4[i]) MDIE("failed to create MTL4CommandAllocator[%d]: %s", i, ae.localizedDescription.UTF8String);
+             g_up_alloc4[i] = [g_dev newCommandAllocatorWithDescriptor:ad error:&ae];
+             if (!g_up_alloc4[i]) MDIE("failed to create upload MTL4CommandAllocator[%d]: %s", i, ae.localizedDescription.UTF8String);
++            for (int j = 3; i == 2 && j < rb_up_n(); j++) {   // RewindBox (patch 0082): the upload slots past the first three, made with the last of the three
++                MTL4CommandAllocatorDescriptor *uad = [MTL4CommandAllocatorDescriptor new];
++                uad.label = [NSString stringWithFormat:@"nvn-mtl upload allocator %d", j];
++                g_up_alloc4[j] = [g_dev newCommandAllocatorWithDescriptor:uad error:&ae];
++                if (!g_up_alloc4[j]) MDIE("failed to create upload MTL4CommandAllocator[%d]: %s", j, ae.localizedDescription.UTF8String);
++                if (j == rb_up_n() - 1) MLOG("RewindBox: upload ring of %d slots (3 before; S2A_RB_UP_SLOTS=0 keeps 3; patch 0082)", rb_up_n());
++            }
+             MTL4CommandAllocatorDescriptor *pad = [MTL4CommandAllocatorDescriptor new];
+             pad.label = [NSString stringWithFormat:@"nvn-mtl present allocator %d", i];
+             g_present_alloc4[i] = [g_dev newCommandAllocatorWithDescriptor:pad error:&ae];
+@@ -4265,7 +4280,7 @@ static _Atomic uint64_t g_upload_ns;   // Cumulative time of deswizzle + upload
+ static _Atomic uint64_t g_upload_gpu_ns;
+ static id g_up_cb;   // MTL4CommandBuffer on Metal 4, MTLCommandBuffer on Metal 3
+ static id g_up_ce;   // its open encoder: Metal 4 compute (deswizzles, then the copies), Metal 3 copy encoder (the copies only)
+-static _Atomic int g_up_alloc_busy[3];
++static _Atomic int g_up_alloc_busy[RB_UP_MAX];   // RewindBox (patch 0082): RB_UP_MAX (3 before)
+ // Waiting for upload batches to finish (g_up_pending, g_up_alloc_busy): the batches' completion handler broadcasts after it updates them, so waiters sleep until then (they used to poll every 0.2–1 ms;
+ // Three Houses' loader calls QueueFinish after each resource, each one waited up to a millisecond late). The 10 ms timeout is only a safety net
+ static pthread_mutex_t g_up_wmu = PTHREAD_MUTEX_INITIALIZER; static pthread_cond_t g_up_wcv = PTHREAD_COND_INITIALIZER;
+@@ -4284,7 +4299,7 @@ static unsigned g_up_seq;
+ // a frame, about 3 GB/s of GPU memory allocated, made resident and freed, and 2.4 residency commits a frame. A slot's block grows to fit the first texture of a batch (up to UP_BLOCK_SIZE); what does
+ // not fit after that continues in fresh blocks of UP_BLOCK_SIZE as before
+ #define UP_SLOT_BLOCK (4u * 1024u * 1024u)
+-static __strong id<MTLBuffer> g_up_slot_blk[3]; static unsigned g_up_cur_slot;
++static __strong id<MTLBuffer> g_up_slot_blk[RB_UP_MAX]; static unsigned g_up_cur_slot;   // RewindBox (patch 0082): RB_UP_MAX (3 before)
+ typedef struct {
+     __unsafe_unretained id<MTLBuffer> src;
+     size_t off, row, image;
+@@ -4337,7 +4352,7 @@ static void up_flush(void) {
+     }
+     if (b) { m4_end(b); g_up_ce = nil; }   // Metal 3: m4_end updates the fence
+     id cb = g_up_cb;
+-    unsigned slot = (g_up_seq - 1) % 3;
++    unsigned slot = (g_up_seq - 1) % (unsigned)rb_up_n();   // RewindBox (patch 0082): rb_up_n() slots
+     NSMutableArray *dsts = [NSMutableArray arrayWithCapacity:(NSUInteger)g_nup_blits]; for (int i = 0; i < g_nup_blits; i++) if (g_up_blits[i].dst) [dsts addObject:g_up_blits[i].dst];
+     for (int i = 0; i < g_nup_decs; i++) if (g_up_decs[i].base) [dsts addObject:g_up_decs[i].base];   // a dropped batch re-uploads its GPU-decoded textures too
+     static int lost_at = -2; static uint64_t batch_n; if (lost_at == -2) { const char *e = getenv("DM_TEST_UP_LOST"); lost_at = e ? atoi(e) : -1; } int fake_lost = dsts.count && lost_at > 0 && (int)++batch_n == lost_at;
+@@ -4376,7 +4391,7 @@ static void up_begin(void) {
+     up_owner_check("up_begin");
+     if (g_up_cb && g_up_keep_bytes < UP_KEEP_CAP) return;
+     if (g_up_cb) { up_flush(); g_up_cap_flushes++; }
+-    unsigned slot = g_up_seq++ % 3;
++    unsigned slot = g_up_seq++ % (unsigned)rb_up_n();   // RewindBox (patch 0082): rb_up_n() slots
+     // With deferred encoding (nvn_rec.h, on by default on iPhone) the batch that last used this slot may still be a commit record in this thread's open block: the GPU has not seen it,
+     // so waiting for it to finish never ends. Hand everything recorded to the encode thread first, as every other wait for the GPU does. Textures deswizzled on the CPU (a sparse
+     // virtual pool's, read through its page table) are one batch each, so four in a row within one submission got here: Monster Hunter Rise stopped at frame 721 for 45 s
+@@ -18547,7 +18562,7 @@ static void nvn_mem_detail(unsigned long long frame) {
+         pthread_mutex_lock(&g_deferred_mu);
+         for (NvDeferredRelease *d in g_deferred) if (d->object) [snap[MU_DEFERRED] addObject:d->object];
+         pthread_mutex_unlock(&g_deferred_mu);
+-        for (int i = 0; i < 3; i++) if (g_up_slot_blk[i]) [snap[MU_UPLOAD] addObject:g_up_slot_blk[i]];
++        for (int i = 0; i < rb_up_n(); i++) if (g_up_slot_blk[i]) [snap[MU_UPLOAD] addObject:g_up_slot_blk[i]];   // RewindBox (patch 0082): every slot
+         if (g_up_block) [snap[MU_UPLOAD] addObject:g_up_block];
+         for (id b in g_up_keep) if (b) [snap[MU_UPLOAD] addObject:b];
+         for (NvArena *a in g_arenas) if (a->buf) [snap[MU_ARENAS] addObject:a->buf];
+@@ -18558,6 +18573,7 @@ static void nvn_mem_detail(unsigned long long frame) {
+         // Submit-owned main/upload slots; present slots are initialized before the queue starts.
+         for (int i = 0; i < g_alloc_n; i++) if (g_alloc4[i]) [snap[MU_ALLOCATORS] addObject:g_alloc4[i]];
+         for (int i = 0; i < 3; i++) { if (g_up_alloc4[i]) [snap[MU_ALLOCATORS] addObject:g_up_alloc4[i]]; if (g_present_alloc4[i]) [snap[MU_ALLOCATORS] addObject:g_present_alloc4[i]]; }
++        for (int i = 3; i < rb_up_n(); i++) if (g_up_alloc4[i]) [snap[MU_ALLOCATORS] addObject:g_up_alloc4[i]];   // RewindBox (patch 0082): the upload slots past three
+         // mincore does not dereference guest memory; an unmapped snapshot range is reported unknown.
+         uint64_t pool_resident = 0; unsigned pool_unknown = 0; size_t page = (size_t)getpagesize();
+         for (NSArray<NSNumber *> *range in pool_ranges) {

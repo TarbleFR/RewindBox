@@ -1,0 +1,1825 @@
+{
+  "schema": 1,
+  "build": 773,
+  "status": "frozen",
+  "note": "Private test IPA 773: RPCS3 Core 947 (the IPA 767 and 771 logs: PPU suspension of waiting threads, PUT horizon for Black Ops II and in the Atomic FIFO, PPU short wait floor for God of War III, event waits in every thermal state, God of War III loop sleep after an old savestate, P/E cluster census) on the verified IPA 771, with the lots of IPA 772 (S2Arm engine 0001-0081 and bridge fixes, MeloNX Core and journal fixes) declared again: 772 is not a base, its signed inventory was lost (recipe 3.8).",
+  "base": {
+    "build": 771,
+    "source": "6cee4def81f357776cfbdd6330083dc3c08a8fad",
+    "tree": "442cefb5230619f02e35f6a7430a79904470aeee",
+    "run": 44079216112,
+    "attempt": 1,
+    "workflow": ".github/workflows/standard-delivery.yml",
+    "jobs": {
+      "preflight": {
+        "name": "preflight",
+        "id": 134025099435
+      },
+      "application": {
+        "name": "application",
+        "id": 134026252561
+      }
+    },
+    "receipt": {
+      "path": "docs/evidence/rewind771/delivery.json",
+      "sha256": "3eb5875fc5d10c399d528331164a8f2f36c0d7f7aed00b637e68332e11628a0e",
+      "proofFiles": 12
+    },
+    "identity": {
+      "path": "docs/evidence/rewind771/signed-payload-identity.json",
+      "sha256": "fadef1f36221876e29a0eb0b39bd2945cb65fea054054ff962d0d48f8e9eb303",
+      "images": 97
+    },
+    "ipa": {
+      "name": "RewindBox-771.ipa",
+      "producerName": "RewindBox-Build771-6cee4def81f357776cfbdd6330083dc3c08a8fad-cold.ipa",
+      "bytes": 331824106,
+      "sha256": "d4f45b784dc0527b9da2478aa74878aa5711ae6b380ceeb2d6c4c9f857d3d7ee"
+    }
+  },
+  "components": {
+    "rpcs3": {
+      "mode": "replace",
+      "verifier": ".github/diagnostics/rpcs3_core_component.py",
+      "pin": "build-utils/rpcs3/core-pin.json",
+      "image": "Frameworks/libRPCS3Core.dylib",
+      "producerRoute": "RPCS3 Core route (.github/workflows/rpcs3-core610.yml driven by build-utils/rpcs3/core-build.json, build 947)",
+      "pinSha256": "04ffafa118be5429bd36b20e214bc1d9bd08ed650f95798ba4f63731a6f47053",
+      "replaces": {
+        "build": 945,
+        "source": "f23549748a2005284d12f3a339c3150ffa8186a8",
+        "run": 44068588337,
+        "job": 133988656810,
+        "artifact": 14322493451,
+        "payloadFingerprint": "5914939ba08e1f7f53b5d19b7c1e78044da5abfa5668d71a32b753cbbb42eeef"
+      }
+    },
+    "melonx": {
+      "mode": "replace",
+      "verifier": ".github/diagnostics/melonx_dma_core_component.py",
+      "pin": "build-utils/melonx/dma-core-pin.json",
+      "packaging": "build-utils/melonx/package_runtime.py",
+      "image": "Frameworks/MeloNXCore.framework/MeloNXCore",
+      "producerRoute": ".github/workflows/melonx-core.yml",
+      "pinSha256": "d6178b860104500eb54760fdf57344d1aa64cbeacc8d5fd2c2beaca76aa2ef4f",
+      "replaces": {
+        "build": 771,
+        "source": "1df78c52fdbdc2cccb3fa75074b5b12dc3cd2281",
+        "run": 44075543918,
+        "job": 134012469621,
+        "artifact": 14324239963,
+        "packagedFingerprint": "fa5ce588282f30c89f2cee2db47649b5d709e79a27237685b5302713d0c705a4"
+      }
+    },
+    "dolphin": {
+      "mode": "retain",
+      "retainedSince": 608,
+      "image": "Frameworks/DolphinCore.framework/DolphinCore",
+      "payloadFingerprint": "640e4389559c800087b3d4b2a2748b4c11307ae6a79bc72f59d55430ccddd6fc",
+      "upstreamRevision": "7cac54161659421ed95c2cd1c0b0746539a4cd38",
+      "legalFolder": "Dolphin-session608",
+      "inputs": "rewind608_producers.input_paths",
+      "origin": {
+        "workflow": ".github/workflows/rewind608-retro-achievements-delivery.yml",
+        "source": "0279198b1c33d869550cae3cf35f155b9d3a4f79",
+        "tree": "67f9f0c891d86b09d04c4f273931eeb0d33f602e",
+        "run": 41293321826,
+        "attempt": 1,
+        "runConclusion": "failure",
+        "job": 124810929735,
+        "jobName": "Build608 Dolphin arm64",
+        "steps": [
+          "Patch and compile Dolphin Core",
+          "Materialize and validate Dolphin framework",
+          "Bind608 native inputs and compiled payload"
+        ],
+        "artifact": 13078193437,
+        "name": "RewindBox608-dolphin-0279198b1c33d869550cae3cf35f155b9d3a4f79-attempt1",
+        "bytes": 11191038,
+        "sha256": "9d32c236c79c43cd57053b000dfaba94c4e0d6f627bd04a657f74b36dd58c064",
+        "expiresAt": "2026-11-15T09:41:57Z"
+      },
+      "consumedBy": {
+        "build": 608,
+        "receipt": "docs/evidence/rewind608/delivery.json",
+        "sha256": "2930e4d30eb26b9de343283b3fbab9f723dc9dd63399317833b4bef572d1ae9b"
+      },
+      "republished": {
+        "build": 662,
+        "source": "73d9f856a17a1a22099676280a4e87f9ecc0c457",
+        "run": 42020264926,
+        "attempt": 1,
+        "job": 127221343382,
+        "artifact": 13410284965,
+        "name": "RewindBox-Build662-73d9f856a17a1a22099676280a4e87f9ecc0c457-attempt1-component-dolphin",
+        "bytes": 11192276,
+        "sha256": "82cbdac055d32bd2041f61064cc041607885f4991c6f6690a58e593d8f76af71"
+      },
+      "inheritedChangedInputs": [
+        {
+          "path": "packages/dolphin_internal_bridge/ci/verify_ipa.py",
+          "baseBlob": "6032458096236bcf75fc007d208d4ba177dd3216",
+          "newBlob": "613eed254edce2cbaf54460a020be34a6a82136c",
+          "commit": "c0aae7294abe2deca32af68e1438e4f6bfa465cb",
+          "build": 727
+        }
+      ]
+    },
+    "armsx2": {
+      "mode": "retain",
+      "retainedSince": 608,
+      "image": "Frameworks/ARMSX2Core.framework/ARMSX2Core",
+      "payloadFingerprint": "fab55193e509583b03c0e5b33ae8d8812745b5410d138a53e3779b6257f370d4",
+      "upstreamRevision": "9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe",
+      "legalFolder": "ARMSX2-session608",
+      "inputs": "rewind608_producers.input_paths",
+      "origin": {
+        "workflow": ".github/workflows/rewind608-retro-achievements-delivery.yml",
+        "source": "0279198b1c33d869550cae3cf35f155b9d3a4f79",
+        "tree": "67f9f0c891d86b09d04c4f273931eeb0d33f602e",
+        "run": 41293321826,
+        "attempt": 1,
+        "runConclusion": "failure",
+        "job": 124810929747,
+        "jobName": "Build608 ARMSX2 ABI9 arm64",
+        "steps": [
+          "Compile native core and verify binary ABI",
+          "Bind608 native inputs and compiled payload"
+        ],
+        "artifact": 13078023872,
+        "name": "RewindBox608-armsx2-0279198b1c33d869550cae3cf35f155b9d3a4f79-attempt1",
+        "bytes": 14042625,
+        "sha256": "e4354b47eee93d5dc8d53be070a88cc83ceb8b31ff4f7ccdca2eb2c2067b8763",
+        "expiresAt": "2026-11-15T09:57:51Z"
+      },
+      "consumedBy": {
+        "build": 608,
+        "receipt": "docs/evidence/rewind608/delivery.json",
+        "sha256": "2930e4d30eb26b9de343283b3fbab9f723dc9dd63399317833b4bef572d1ae9b"
+      },
+      "republished": {
+        "build": 662,
+        "source": "73d9f856a17a1a22099676280a4e87f9ecc0c457",
+        "run": 42020264926,
+        "attempt": 1,
+        "job": 127221343382,
+        "artifact": 13411546417,
+        "name": "RewindBox-Build662-73d9f856a17a1a22099676280a4e87f9ecc0c457-attempt1-component-armsx2",
+        "bytes": 14043861,
+        "sha256": "c5fdcd92bc7f5276987310ffaa4bc5be463a4a0587b4a836e669d62cc202c4b4"
+      }
+    },
+    "libretro": {
+      "mode": "retain-archive",
+      "destination": "dist/libretro",
+      "inputs": [
+        "build-utils/libretro/"
+      ],
+      "origin": {
+        "workflow": ".github/workflows/build497-checks.yml",
+        "branch": "Claude",
+        "source": "ab9361c29f7c9ab769c4263dd8b7427fc4f4c036",
+        "run": 39455712245,
+        "attempt": 1,
+        "runConclusion": "success",
+        "artifact": 12280822192,
+        "name": "LibretroCores-ab9361c29f7c9ab769c4263dd8b7427fc4f4c036",
+        "bytes": 55566830,
+        "sha256": "e06f641dd10409c815787fe1cf4ac6746920360a1023c83b23631b2bd693ba47",
+        "expiresAt": "2026-11-03T16:19:42Z"
+      },
+      "republished": {
+        "build": 662,
+        "source": "73d9f856a17a1a22099676280a4e87f9ecc0c457",
+        "run": 42020264926,
+        "attempt": 1,
+        "job": 127221343382,
+        "artifact": 13410529404,
+        "name": "RewindBox-Build662-73d9f856a17a1a22099676280a4e87f9ecc0c457-attempt1-component-libretro",
+        "bytes": 55568023,
+        "sha256": "d1338a9d0c7b7ef5557a6ef8e910df147b4b092741782275eef0daf34d05a170"
+      }
+    },
+    "melonx-dependencies": {
+      "mode": "retain-archive",
+      "destination": "dist/melonx-native",
+      "inputs": [
+        "build-utils/melonx/native-dependencies.json"
+      ],
+      "origin": {
+        "workflow": ".github/workflows/melonx-native-dependencies.yml",
+        "branch": "work/melonx-embedded-20261022",
+        "source": "66737aa9c959eb5915264bf178f179bda8643314",
+        "run": 39854858591,
+        "attempt": 1,
+        "runConclusion": "success",
+        "artifact": 12458409441,
+        "name": "MeloNX-native-dependencies-66737aa9c959eb5915264bf178f179bda8643314",
+        "bytes": 49178074,
+        "sha256": "12a1e4c7bf1c970c218ebddead965a51c3aa57af4d0e1fb5c0523ca8b1340261",
+        "expiresAt": "2026-11-05T21:09:37Z"
+      },
+      "republished": {
+        "build": 662,
+        "source": "73d9f856a17a1a22099676280a4e87f9ecc0c457",
+        "run": 42020264926,
+        "attempt": 1,
+        "job": 127221343382,
+        "artifact": 13411123524,
+        "name": "RewindBox-Build662-73d9f856a17a1a22099676280a4e87f9ecc0c457-attempt1-component-melonx-dependencies",
+        "bytes": 49179302,
+        "sha256": "f70032b3b4cccebeb213eefb122e806d0fd3da18581c6677561b825bceffb4b5"
+      }
+    },
+    "melonx-upstream": {
+      "mode": "pinned-source",
+      "inputs": [
+        "build-utils/melonx/source.json",
+        "build-utils/melonx/vendor_controller.py"
+      ],
+      "tree": "82a29e6f593f6244869481e9a489b8d5154175fe",
+      "controller": "c049ce88a5635bddcd88e1965c42aa8fc92fe961"
+    },
+    "stikjit": {
+      "mode": "pinned-source",
+      "inputs": [
+        "build-utils/stikjit/",
+        "build-utils/patch_stikjit_rpcs3.py",
+        "build-utils/patch_stikjit_compat.py",
+        "build-utils/install_patched_stikjit.py",
+        "build-utils/build_patched_stikjit.py"
+      ],
+      "cacheKeySuffix": "37844950677"
+    },
+    "donor": {
+      "mode": "pinned-release",
+      "build": 527,
+      "release": "0.0.9",
+      "asset": "RewindBox-Build527.ipa",
+      "assetId": 673430199,
+      "url": "https://github.com/TarbleFR/RewindBox/releases/download/0.0.9/RewindBox-Build527.ipa",
+      "bytes": 186673707,
+      "sha256": "884a44dea6e627fc9cd774d296dc2abf1ef683ca01572651d5c0e3425bd9756e",
+      "preparer": "build-utils/prepare_release527_native_runtime.py"
+    },
+    "xenia": {
+      "mode": "pinned-engine",
+      "pin": "build-utils/xenia/core-pin.json",
+      "verifier": "build-utils/xenia/core_pin.py",
+      "identityFile": "Xenia-native-identity.json",
+      "frameworks": [
+        "Frameworks/XeniaCore.framework"
+      ],
+      "image": "Frameworks/XeniaCore.framework/XeniaCore",
+      "sideImages": [
+        {
+          "path": "Frameworks/libmetalirconverter.dylib",
+          "source": "build-utils/xenia/source.json#shader_converter.upstream_mirror"
+        }
+      ],
+      "extensions": [
+        "XeniaJITHelper.appex"
+      ],
+      "legalFolders": [
+        "Legal/XeniOS",
+        "Legal/MetalShaderConverter"
+      ],
+      "checks": [
+        "build-utils/xenia/check_app_shader_converter.py"
+      ],
+      "producers": {
+        "engine": {
+          "workflow": ".github/workflows/xenia-core.yml",
+          "branch": "Claude"
+        }
+      },
+      "pinSha256": "efe5d6e1a0afa5a6b7346725de20e534c4247caa892f58583df5d1d0e7479300",
+      "unchangedFromBase": true
+    },
+    "s2arm": {
+      "mode": "pinned-engine",
+      "pin": "build-utils/s2arm/engine-pin.json",
+      "verifier": "build-utils/s2arm/engine_pin.py",
+      "identityFile": "S2Arm-native-identity.json",
+      "frameworks": [
+        "Frameworks/S2ArmEngine.framework",
+        "Frameworks/NS2Pro.framework"
+      ],
+      "image": "Frameworks/S2ArmEngine.framework/S2ArmEngine",
+      "sideImages": [],
+      "extensions": [
+        "S2ArmJITHelper.appex"
+      ],
+      "legalFolders": [
+        "Legal/S2Arm"
+      ],
+      "checks": [
+        "build-utils/s2arm/check_app.py"
+      ],
+      "producers": {
+        "engine": {
+          "workflow": ".github/workflows/s2arm-engine.yml",
+          "branch": "Claude"
+        },
+        "prepare": {
+          "workflow": ".github/workflows/s2arm-core.yml",
+          "branch": "work/s2arm-switch2-prototype-20261110",
+          "subdir": "prepare"
+        },
+        "sysdata": {
+          "workflow": ".github/workflows/s2arm-prepare.yml",
+          "branch": "work/s2arm-switch2-prototype-20261110",
+          "subdir": "sysdata"
+        }
+      },
+      "podLibraries": [
+        "s2arm_engine_bridge"
+      ],
+      "appResources": [
+        {
+          "path": "S2ArmSystemData/SHA256SUMS",
+          "binary": "sysdata/SHA256SUMS"
+        }
+      ],
+      "pinSha256": "35ad4e0be7950a45d3ee1429f009ac2207e6c41fa78ffd7d1290f599f846e3ab"
+    }
+  },
+  "product": {
+    "reviewedCommits": [
+      {
+        "commit": "42c8c33a7d910951ac20d5b951b0e5751a1df2dc",
+        "note": "Written by this session (S2Arm): docs(delivery): record verified private IPA 771 and its receipts [skip ci]; delivery records only."
+      },
+      {
+        "commit": "a43f1b276d37e8011a1c0a044cbda6a7f9427915",
+        "note": "Written by the MeloNX session, reviewed by this session: docs(melonx): IPA 771 journals analysis; documentation only."
+      },
+      {
+        "commit": "e59eb698e37cc370e231250e0a500f243de713d1",
+        "note": "Written by this session (S2Arm): fix(s2arm): the game view is watched and put back when it leaves the screen; the in-game frame-rate limit applies at once (bridge, menu, 12 menu strings, locale test, bridge doc)."
+      },
+      {
+        "commit": "0c1ae2b8ef5efedd11d43441f126cc734bfb3ffb",
+        "note": "Written by this session (S2Arm): feat(s2arm): engine patch 0078 (frame-rate limit during play), export list entry point, README and legal rows."
+      },
+      {
+        "commit": "f0e572de834dc29050426004eea0b24b7da7f19d",
+        "note": "Written by this session (S2Arm): fix(s2arm): the deletion of earlier preparations pauses at the next entry when a game starts."
+      },
+      {
+        "commit": "bc13477d2dfec3716b4c7b23a1d110ea19ec5004",
+        "note": "Written by this session (S2Arm): feat(s2arm): engine patches 0079-0080 (present depth adapts to late frames, wider texture read-ahead), README and legal rows."
+      },
+      {
+        "commit": "efbefff34d6aab9deea559774e95546c2b6eaeb5",
+        "note": "Written by this session (S2Arm): fix(s2arm): patch 0080 compiles; patch 0081 (more pipelines built ahead), README and legal rows."
+      },
+      {
+        "commit": "9a9ca3a87009e88875bd6f5c5768e2f7a29ee81a",
+        "note": "Written by this session (S2Arm): build(s2arm): pin the engine with patches 0001-0081 (run 44097586484, packagedFingerprint c9947d45)."
+      },
+      {
+        "commit": "f659dd8ffeeb75adaf5eee47a4bfc442e77794a3",
+        "note": "Merge of Claude by the RPCS3 session; its side branch brings 20e85dec (the MeloNX session's Core request, adapt_shader_load_binary_release, contract de62252f) and c534feec (this session: legal notices, documentation only), both reviewed."
+      },
+      {
+        "commit": "4d4a2596eaa2feac7063c138e5feecb5e394abd6",
+        "note": "Merge of Claude by the RPCS3 session; its side branch brings 647b3b65 (the MeloNX session's pin of Core 9546deb7, fingerprint fb85d956) through the MeloNX merge 3183d033, reviewed."
+      },
+      {
+        "commit": "e58154cd51e4fde333b6b98f0a1e8a14679bced9",
+        "note": "Written by this session for the MeloNX session's journal lot (f365bf01 + 8ee65d65, reviewed): the final MeloNXPerfJournal.swift, MeloNXHeapSample.swift and test/melonx_perf_journal_test.py applied from the bytes IPA 771 delivered; MeloNXMetalSessionViewController.swift untouched."
+      },
+      {
+        "commit": "3e16c5702c80d22d490ba9f87284fceb4d59179d",
+        "note": "Written and reviewed by the RPCS3 session (main): rpcs3(core946) packaging: God of War III loop sleep after an old savestate; in IPA 773 through Core 947."
+      },
+      {
+        "commit": "eb6eed223bce99b9f17f6f797eb707628ba23bbd",
+        "note": "Written and reviewed by the RPCS3 session (main): Core 946 compile request (run 44094297151, success); its source is part of Core 947."
+      },
+      {
+        "commit": "51d9a84b75a1cb3f6c477cf999c7645615757222",
+        "note": "Written and reviewed by the RPCS3 session (main): docs(rpcs3) Core 947 documentation (docs/rpcs3-core944-performances.md section 7)."
+      },
+      {
+        "commit": "1ce6ccfb8ea904896288a9b8ff2adedd6ab44900",
+        "note": "Written and reviewed by the RPCS3 session (main): rpcs3(core947) packaging: PUT horizon deferral in the Atomic FIFO and the P/E cluster census; reviewed independently; the pinned Core of IPA 773."
+      },
+      {
+        "commit": "5bad74a4a669593800a18d849e43678b550032fc",
+        "note": "Written and reviewed by the RPCS3 session (main): Core 947 compile request (run 44099378298 on 4d4a2596, success, pinned by bb2a58d9)."
+      },
+      {
+        "commit": "1df1af0546408ea8ca765126197c18e54930203f",
+        "note": "Reviewed by main: build(delivery): recipient key and draft 772 \u2014 S2Arm engine 0001-0081 and bridge fixes, MeloNX Core 9546deb7 and journal fix, RPCS3 Core 945 kept, on base 771 [skip ci]"
+      },
+      {
+        "commit": "a023167ff5f0fc59c5947095fc92fc62bcc25386",
+        "note": "Reviewed by main: [ipa-delivery:772] build the private test IPA 772: S2Arm engine 0001-0081 (frame rate in play, pacing under late frames, wider read-ahead, more pipelines ahead) with the game view watch, MeloNX Core 9546deb7 and its journal fix, RPCS3 Core 945 kept, on base 771"
+      },
+      {
+        "commit": "fd3bdd8ed5227eedaca351935e1d933bca77bc9e",
+        "note": "Merge by the RPCS3 session (recipe 3.9): the tree of the head, first parent a023167f (the line IPA 772 froze), second parent the head; it brings as one reviewed change the MeloNX session-end record and MetricKit exits (49d75c48, 65327394, 112fd2fb), the RPCS3 Core 947 pin (bb2a58d9) and the IPA 772 record notes (c9a7c578)"
+      }
+    ],
+    "sourceOnly": [
+      {
+        "commit": "1afde3fe2a13880e28f841c001967eb27c3c1910",
+        "targetBuild": 774,
+        "note": "Written by the catalogue session: feat(enhancements) Artemis PS3 cheat collections; not announced for this IPA, deferred to its author's next delivery."
+      },
+      {
+        "commit": "8ee65d653596a8b3d5d2b01feceade5e604bc324",
+        "targetBuild": 773,
+        "note": "Written by the MeloNX session: its journal changes reach the IPA through e58154cd (same bytes, from the delivered ones); its hunk of MeloNXMetalSessionViewController.swift takes back f365bf01's, over the RSwitch naming f7b7a226 still deferred: that file stays as delivered."
+      },
+      {
+        "commit": "8b4682399aa86d0feb3e8f88cc8496f4d839bca9",
+        "targetBuild": 773,
+        "note": "Written by this session: the three MeloNX journal files back to their IPA 771 bytes, so that e58154cd applies the fix from them; no product change of its own reaches the IPA."
+      }
+    ],
+    "promotedCommits": [],
+    "freezeCommit": "3a9acd75c4175a07ea2eb6151789348618a82ff2",
+    "freezeTree": "451cddb7dca61b8832e0270eaa62472553383dc9",
+    "baseEffectiveDigest": "8d2aaa44c7e943dd8501ad50ab0a494dfafcb434655be59d4708632cc8f0f888",
+    "inheritedDeferredPaths": [
+      "build-utils/maintenance/actions-cleanup-2026-11-10-followup.json",
+      "build-utils/maintenance/actions-cleanup-2026-11-10.json",
+      "build-utils/maintenance/actions-cleanup-2026-11-13-bulk.json",
+      "build-utils/maintenance/cleanup_actions.py",
+      "build-utils/melonx/metal-archive/README.md",
+      "build-utils/melonx/metal-archive/moltenvk-v1.4.2-binary-archives.patch",
+      "build-utils/melonx/ui-strings.json",
+      "lib/l10n/melonx_launch_access_locale.dart",
+      "lib/l10n/melonx_launch_failure_locale.dart",
+      "lib/l10n/melonx_library_locale.dart",
+      "lib/l10n/melonx_locale.dart",
+      "lib/l10n/pairing_file_locale.dart",
+      "lib/l10n/switch_online_locale.dart",
+      "lib/models/retro_achievements_session.dart",
+      "lib/screens/enhancements/enhancements_catalog_screen.dart",
+      "lib/screens/game_box/game_box_inspector.dart",
+      "lib/screens/game_box/game_box_media_sheet.dart",
+      "lib/screens/game_screen/game_details_card/dialogs/game_achievements_dialog.dart",
+      "lib/screens/game_screen/game_details_card/game_details_card_list.dart",
+      "lib/screens/game_screen/game_details_card/tabs/game_details_achievements_tab.dart",
+      "lib/screens/game_screen/game_details_card/tabs/ra_identity_note.dart",
+      "lib/screens/game_screen/game_settings_dialog/game_settings_emulator_tab.dart",
+      "lib/screens/libretro/libretro_consoles_screen.dart",
+      "lib/screens/settings_screen/legal_credits_dialog.dart",
+      "lib/services/console_catalog.dart",
+      "lib/services/libretro_internal_service.dart",
+      "lib/services/melonx_internal_service.dart",
+      "lib/services/nextendo/nextendo_config.dart",
+      "lib/services/nextendo/nextendo_engine_support.dart",
+      "lib/services/nextendo/nextendo_online_play.dart",
+      "lib/services/retro_achievements_helper.dart",
+      "lib/services/retro_achievements_identity.dart",
+      "lib/services/retro_achievements_resolver.dart",
+      "lib/services/retro_achievements_session_service.dart",
+      "lib/services/retroachievements_hash_service.dart",
+      "lib/services/rpcs3_internal_service.dart",
+      "lib/services/rpcs3_launch_service.dart",
+      "lib/services/stikjit_armsx2_service.dart",
+      "lib/utils/optimized_md5_utils.dart",
+      "lib/widgets/melonx_internal_playlist_actions.dart",
+      "lib/widgets/nextendo_dialog.dart",
+      "lib/widgets/system_emulator_settings_dialog.dart",
+      "packages/libretro_internal_bridge/ios/Classes/LibretroAchievements.m",
+      "packages/libretro_internal_bridge/ios/Classes/LibretroInternalBridgePlugin.m",
+      "packages/libretro_internal_bridge/ios/Classes/RBDiscHashReader.c",
+      "packages/libretro_internal_bridge/ios/Classes/RBDiscHashReader.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/LICENSE.txt",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/NEOSTATION_NOTICE.md",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/README.md",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/LICENSE",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/LzmaDec.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/real/7zTypes.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/real/LzmaDec.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/src/LzmaDec.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/src/real/LzmaDec.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstd.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstd_errors.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstddeclib.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/dr_libs/dr_flac.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/bitstream.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/cdrom.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/chd.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/chdconfig.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/coretypes.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/flac.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/huffman.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/macros.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_avhuff.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdfl.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdlz.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdzl.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdzs.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_flac.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_huff.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_lzma.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_zlib.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_zstd.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_bitstream.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_cdrom.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_chd.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_avhuff.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdfl.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdlz.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdzl.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdzs.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_flac.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_huff.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_lzma.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_zlib.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_zstd.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_flac.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_huffman.c",
+      "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXInternalBridgePlugin.swift",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXMemoryGraph.swift",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXMetalSessionViewController.swift",
+      "source.json",
+      "test/actions_cleanup_test.py",
+      "test/console_manager_test.dart",
+      "test/libretro_ios_syntax_test.py",
+      "test/melonx_memory_graph_test.py",
+      "test/melonx_metal_binary_archive/generate_shaders.py",
+      "test/melonx_metal_binary_archive/metal_probe.mm",
+      "test/melonx_metal_binary_archive/mvk_archive_test.cpp",
+      "test/melonx_metal_binary_archive/run_mvk.py",
+      "test/melonx_metal_binary_archive/run_probe.py",
+      "test/melonx_metal_binary_archive/shaders.spvz",
+      "test/ra_disc_hash_reader_test.py",
+      "test/retro_achievements_identification_test.dart"
+    ],
+    "recipeDefinitionSHA256": "bb612f4a43186a801232ffa15ad61fcd22e4df60e31a7392b69cd7ab094f2b2a",
+    "recipeDefinition": {
+      "prefixes": [
+        ".github/",
+        "docs/",
+        ".claude/",
+        "build-utils/delivery/"
+      ],
+      "files": [
+        "build-utils/rpcs3/core-pin.json",
+        "build-utils/melonx/reads-core-pin.json",
+        "build-utils/melonx/arrays-core-pin.json",
+        "build-utils/melonx/dma-core-pin.json",
+        "test/standard_delivery_contract_test.py",
+        "build-utils/verify_downloaded_delivery.py"
+      ],
+      "globs": [
+        "build-utils/delivery-*-recipient.pem"
+      ],
+      "rootMarkdown": true
+    },
+    "commits": [
+      {
+        "commit": "42c8c33a7d910951ac20d5b951b0e5751a1df2dc",
+        "subject": "docs(delivery): record verified private IPA 771 (run 44079216112, IPA d4f45b78) and its receipts; recipient key deleted [skip ci]",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "8ee65d653596a8b3d5d2b01feceade5e604bc324",
+        "subject": "fix(melonx): the memory breakdown and the native heap window observe the memory warning themselves, so the session screen is unchanged and they can ship without its renaming",
+        "role": "sourceOnly",
+        "productPaths": 4
+      },
+      {
+        "commit": "a43f1b276d37e8011a1c0a044cbda6a7f9427915",
+        "subject": "docs(melonx): IPA 771 journals \u2014 Hogwarts Legacy ended by the device running out of memory in the castle grounds; the frame rate varies with memory compression [skip ci]",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "1afde3fe2a13880e28f841c001967eb27c3c1910",
+        "subject": "feat(enhancements): Artemis PS3 cheat collections (MIT) merged into the RPCS3 records \u2014 20 sources, 52,489 entries",
+        "role": "sourceOnly",
+        "productPaths": 136
+      },
+      {
+        "commit": "e59eb698e37cc370e231250e0a500f243de713d1",
+        "subject": "fix(s2arm): the game view is put back when it leaves the screen, and the in-game frame-rate limit applies at once",
+        "role": "reviewed",
+        "productPaths": 6
+      },
+      {
+        "commit": "0c1ae2b8ef5efedd11d43441f126cc734bfb3ffb",
+        "subject": "feat(s2arm): engine patch 0078 \u2014 the frame-rate limit can change during play [s2arm-engine]",
+        "role": "reviewed",
+        "productPaths": 3
+      },
+      {
+        "commit": "f0e572de834dc29050426004eea0b24b7da7f19d",
+        "subject": "fix(s2arm): the deletion of earlier preparations pauses at the next entry when a game starts",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "bc13477d2dfec3716b4c7b23a1d110ea19ec5004",
+        "subject": "feat(s2arm): engine patches 0079-0080 \u2014 fewer stutters: the present queue absorbs late frames, wider texture read-ahead [s2arm-engine]",
+        "role": "reviewed",
+        "productPaths": 3
+      },
+      {
+        "commit": "3e16c5702c80d22d490ba9f87284fceb4d59179d",
+        "subject": "rpcs3(core946): the God of War III poll loop sleep also applies after resuming a savestate of an unpatched boot; source, packaging, record [skip ci]",
+        "role": "reviewed",
+        "productPaths": 10
+      },
+      {
+        "commit": "eb6eed223bce99b9f17f6f797eb707628ba23bbd",
+        "subject": "[rpcs3-core-build] build(rpcs3): request the Core 946 compile (God of War III loop sleep after an old savestate)",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "51d9a84b75a1cb3f6c477cf999c7645615757222",
+        "subject": "docs(rpcs3): Core 947, what remained of the IPA 771 logs \u2014 the PUT horizon in the Atomic FIFO and the cluster census (not packaged yet) [skip ci]",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "f659dd8ffeeb75adaf5eee47a4bfc442e77794a3",
+        "subject": "Merge branch 'Claude' of https://github.com/TarbleFR/RewindBox into Claude",
+        "role": "reviewed",
+        "productPaths": 13,
+        "merge": true
+      },
+      {
+        "commit": "efbefff34d6aab9deea559774e95546c2b6eaeb5",
+        "subject": "fix(s2arm): patch 0080 compiles (a comment swallowed its closing brace), and patch 0081 \u2014 more pipelines built ahead [s2arm-engine]",
+        "role": "reviewed",
+        "productPaths": 3
+      },
+      {
+        "commit": "1ce6ccfb8ea904896288a9b8ff2adedd6ab44900",
+        "subject": "rpcs3(core947): what remained of the IPA 771 logs \u2014 the PUT horizon defers in the Atomic FIFO, P/E cluster census; source, packaging, record [skip ci]",
+        "role": "reviewed",
+        "productPaths": 11
+      },
+      {
+        "commit": "5bad74a4a669593800a18d849e43678b550032fc",
+        "subject": "[rpcs3-core-build] build(rpcs3): request the Core 947 compile (PUT horizon in the Atomic FIFO, cluster census)",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "4d4a2596eaa2feac7063c138e5feecb5e394abd6",
+        "subject": "Merge branch 'Claude' of https://github.com/TarbleFR/RewindBox into Claude",
+        "role": "reviewed",
+        "productPaths": 0,
+        "merge": true
+      },
+      {
+        "commit": "9a9ca3a87009e88875bd6f5c5768e2f7a29ee81a",
+        "subject": "build(s2arm): pin the engine with patches 0078-0081 (frame rate in play, pacing under late frames, wider read-ahead, more pipelines ahead) [s2arm-pin engine=44097586484 prepare=43304794526 sysdata=43038032448]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "8b4682399aa86d0feb3e8f88cc8496f4d839bca9",
+        "subject": "build(melonx): the journal files back to their IPA 771 bytes, before the journal fix is applied again on them",
+        "role": "sourceOnly",
+        "productPaths": 3
+      },
+      {
+        "commit": "e58154cd51e4fde333b6b98f0a1e8a14679bced9",
+        "subject": "fix(melonx): the journal fix of f365bf01 + 8ee65d65, applied on the bytes IPA 771 delivered (no change to the session view)",
+        "role": "reviewed",
+        "productPaths": 3
+      },
+      {
+        "commit": "1df1af0546408ea8ca765126197c18e54930203f",
+        "subject": "build(delivery): recipient key and draft 772 \u2014 S2Arm engine 0001-0081 and bridge fixes, MeloNX Core 9546deb7 and journal fix, RPCS3 Core 945 kept, on base 771 [skip ci]",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "a023167ff5f0fc59c5947095fc92fc62bcc25386",
+        "subject": "[ipa-delivery:772] build the private test IPA 772: S2Arm engine 0001-0081 (frame rate in play, pacing under late frames, wider read-ahead, more pipelines ahead) with the game view watch, MeloNX Core 9546deb7 and its journal fix, RPCS3 Core 945 kept, on base 771",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "fd3bdd8ed5227eedaca351935e1d933bca77bc9e",
+        "subject": "Merge the delivery line of IPA 772 back as first parent (recipe 3.9) [skip ci]",
+        "role": "reviewed",
+        "productPaths": 3,
+        "merge": true
+      },
+      {
+        "commit": "3a9acd75c4175a07ea2eb6151789348618a82ff2",
+        "subject": "build(delivery): recipient key and draft 773 \u2014 RPCS3 Core 947 on base 771, with the lots of IPA 772 declared again [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      }
+    ],
+    "deferred": {
+      "8ee65d653596a8b3d5d2b01feceade5e604bc324": [
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXHeapSample.swift",
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXMetalSessionViewController.swift",
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXPerfJournal.swift",
+        "test/melonx_perf_journal_test.py"
+      ],
+      "1afde3fe2a13880e28f841c001967eb27c3c1910": [
+        "assets/data/enhancements_index.json.gz",
+        "native/enhancements/catalogue/README.md",
+        "native/enhancements/catalogue/VALIDATION.json",
+        "native/enhancements/catalogue/r/2026-11-16T2112Z.a85f516925ab/index.json.gz",
+        "native/enhancements/catalogue/r/2026-11-16T2139Z.d8b055350a6c/index.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/index.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-00.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-01.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-02.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-03.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-04.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-05.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-06.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-07.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-08.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-09.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-10.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-11.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-12.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-13.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-14.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-15.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-16.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-17.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-18.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-19.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-20.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-21.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-22.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-23.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-24.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-25.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-26.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-27.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-28.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-29.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-30.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-31.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-00.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-01.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-02.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-03.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-04.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-05.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-06.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-07.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-08.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-09.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-10.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-11.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-12.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-13.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-14.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-15.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-16.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-17.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-18.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-19.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-20.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-21.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-22.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-23.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-24.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-25.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-26.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-27.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-28.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-29.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-30.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-31.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-00.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-01.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-02.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-03.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-04.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-05.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-06.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-07.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-08.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-09.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-10.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-11.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-12.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-13.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-14.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-15.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-16.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-17.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-18.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-19.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-20.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-21.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-22.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-23.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-24.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-25.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-26.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-27.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-28.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-29.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-30.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-31.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-00.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-01.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-02.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-03.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-04.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-05.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-06.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-07.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-08.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-09.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-10.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-11.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-12.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-13.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-14.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-15.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-16.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-17.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-18.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-19.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-20.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-21.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-22.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-23.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-24.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-25.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-26.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-27.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-28.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-29.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-30.json.gz",
+        "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-31.json.gz",
+        "test/enhancement_catalog_data_test.py",
+        "tools/enhancements/build_enhancement_catalog.py"
+      ],
+      "8b4682399aa86d0feb3e8f88cc8496f4d839bca9": [
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXHeapSample.swift",
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXPerfJournal.swift",
+        "test/melonx_perf_journal_test.py"
+      ]
+    },
+    "effective": {
+      "build-utils/melonx/adapt_shader_load_binary_release.py": {
+        "mode": "100644",
+        "gitBlob": "8c6c622703fc8bb455ff7ca9815b0ab86a629053",
+        "sha256": "01347ea2fd0e50e26c73848235a18ba914bda72536d842c27b556114f4655fcb"
+      },
+      "build-utils/melonx/dma-core-contract.json": {
+        "mode": "100644",
+        "gitBlob": "d98e44b0878df488dcea1037d4d832edc953aeda",
+        "sha256": "de62252fe386ed97f5228355592d6964da1d54d77a36d1216bbf495daa7ef758"
+      },
+      "build-utils/melonx/dma-core-plan.json": {
+        "mode": "100644",
+        "gitBlob": "46080b3126dd688f1583644dac2c4c04f438c553",
+        "sha256": "ca08f557896092f35c16aa7290f667df8a12330e27f5e43975b8ac039f3b371c"
+      },
+      "build-utils/melonx/prepare_embedded.py": {
+        "mode": "100644",
+        "gitBlob": "69a9111c403f576a0b789872515be84f3acf08ca",
+        "sha256": "64293c41be01c96d6b8ca9c9a20f4cba46299a262fba67efb883528779ab8972"
+      },
+      "build-utils/melonx/verify_dma_core.py": {
+        "mode": "100644",
+        "gitBlob": "dbf2c40240eb4651446bc9022c128c1622eaa11c",
+        "sha256": "78c0d07a0b487de65c5a621d5c8b6b07b8cf91ef3afd5e74738d1bbbf3d65c09"
+      },
+      "build-utils/rpcs3/canonical-source.json": {
+        "mode": "100644",
+        "gitBlob": "179b67e0557fca4c1a554a615e372b84f77c217d",
+        "sha256": "e212fcda74d71a867d5f868feed0531cd43e38c956331a4f731eefc79fb778d7"
+      },
+      "build-utils/rpcs3/core-build.json": {
+        "mode": "100644",
+        "gitBlob": "cda590026d2fe2edc92da0ccf437505f65922427",
+        "sha256": "3009f8f5645d2c3707cc297c612ed17d5d48358f8c8fc91ec19a66d7185759e9"
+      },
+      "build-utils/rpcs3/core946-delta.json": {
+        "mode": "100644",
+        "gitBlob": "44c41b983131456fdf88e814b6e41095d2fe506a",
+        "sha256": "1b2519a9f8f35836a5a48edc7cf8a323dd44663d5d8b0e42092c78c58ee0129d"
+      },
+      "build-utils/rpcs3/core946-delta.patch": {
+        "mode": "100644",
+        "gitBlob": "cb1e7535b86a313f8eff307d35ee62d16657c728",
+        "sha256": "16d4e223152b01af588e218977368873197974deb1843b7318ae33d709d7dc01"
+      },
+      "build-utils/rpcs3/core946-from-945.patch": {
+        "mode": "100644",
+        "gitBlob": "688bf8e93db5f69910ef0dbf1be37860525d8152",
+        "sha256": "ab58ccca2a908ca8b78e5a8670a0d4d4e2a63b620c49489b10e7269b1b6307d2"
+      },
+      "build-utils/rpcs3/core947-delta.json": {
+        "mode": "100644",
+        "gitBlob": "d78e11dd0ca6a6eea55fdc7b955c17a826c92734",
+        "sha256": "1ef775c910148a50b6eb481c1a278e5b29e3300a6f6d43afbadc1afe4ec5629e"
+      },
+      "build-utils/rpcs3/core947-delta.patch": {
+        "mode": "100644",
+        "gitBlob": "7f2e32f170db35fd443e3a51d3a53d3efcfbecd5",
+        "sha256": "43a4c606d1804c009c0d7216c388db8924160afcacb515642ac6cb07baf15f40"
+      },
+      "build-utils/rpcs3/core947-from-946.patch": {
+        "mode": "100644",
+        "gitBlob": "a3bb696628c1e26c7173379d36373e4906221eaa",
+        "sha256": "a81b4a73c28dfa9f2f6323d8d12f7171fdcbf149f9f848123680fb4ab32a208b"
+      },
+      "build-utils/rpcs3/embedded-core.patch": {
+        "mode": "100644",
+        "gitBlob": "463ff893e94689e5aa30bc2f2d498cb464e43def",
+        "sha256": "98cc2a98c16ee2a73b85a81c08cf161ffc90b0a1058ee760f5a92c9dc8ac3846"
+      },
+      "build-utils/rpcs3/metal-wip-from-945.patch": {
+        "mode": "100644",
+        "gitBlob": "688bf8e93db5f69910ef0dbf1be37860525d8152",
+        "sha256": "ab58ccca2a908ca8b78e5a8670a0d4d4e2a63b620c49489b10e7269b1b6307d2"
+      },
+      "build-utils/rpcs3/metal-wip-from-946.patch": {
+        "mode": "100644",
+        "gitBlob": "a3bb696628c1e26c7173379d36373e4906221eaa",
+        "sha256": "a81b4a73c28dfa9f2f6323d8d12f7171fdcbf149f9f848123680fb4ab32a208b"
+      },
+      "build-utils/s2arm/engine-pin.json": {
+        "mode": "100644",
+        "gitBlob": "91d583cf9e4909850dc08aa7a3d385f63c1b9217",
+        "sha256": "35ad4e0be7950a45d3ee1429f009ac2207e6c41fa78ffd7d1290f599f846e3ab"
+      },
+      "build-utils/s2arm/engine/README.md": {
+        "mode": "100644",
+        "gitBlob": "41b8b227e3ab4d3c96a16b87b862d0d80d748e6d",
+        "sha256": "469703484f01635112cb343799de853dff747e682cd08a638c377119405584b5"
+      },
+      "build-utils/s2arm/engine/export_list.py": {
+        "mode": "100644",
+        "gitBlob": "ba13042d49f9894b6af466394e3de82d5413c85f",
+        "sha256": "12b9110fb5b05a6c14f0f407f7a3e7319c983f1702a028f2f2ac9cb25df36ccf"
+      },
+      "build-utils/s2arm/engine/patches/0078-guest-frame-rate-limit-changed-during-play.patch": {
+        "mode": "100644",
+        "gitBlob": "cba453e6e280656d63780757bab167f55ec08362",
+        "sha256": "eb39382bd2d891b5f40a435734b05022d60adf7d8e13ceec50766db7ef9a629d"
+      },
+      "build-utils/s2arm/engine/patches/0079-guest-present-depth-wait-only-while-the-game-keeps-its-pace.patch": {
+        "mode": "100644",
+        "gitBlob": "daa96f730ad22b5c6b6ef8a4c6e9965569687c10",
+        "sha256": "e206b32e7fc8afe8f426743315646c7969dde7d8ea9246965a0dd51c12b39692"
+      },
+      "build-utils/s2arm/engine/patches/0080-guest-texture-read-ahead-wider-while-memory-is-not-low.patch": {
+        "mode": "100644",
+        "gitBlob": "65bcf9690702dfce8bea28dc82f159b9ed6b32be",
+        "sha256": "b6b624afe04d2e43486655e92983df66cfc2366ad2d43e31eac72a2b0d9342f4"
+      },
+      "build-utils/s2arm/engine/patches/0081-guest-precompile-lookahead-keeps-more-pipelines-in-flight.patch": {
+        "mode": "100644",
+        "gitBlob": "4bd44da2babe8afaf98917813909b8f214986198",
+        "sha256": "6cd148f95608b574ac1273d16ec81ebd52bd9b0b7c6630e4030f7f554ce7ab25"
+      },
+      "lib/l10n/switch2_settings_locale.dart": {
+        "mode": "100644",
+        "gitBlob": "b38fe0aacf2f840f9db5f619b6488e7c26919ca4",
+        "sha256": "0adf0f00ae222749b7f4b3e085ee53b48d2da43d7dac572b5d8c7cdedf96e035"
+      },
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXHeapSample.swift": {
+        "mode": "100644",
+        "gitBlob": "736eaa16877aebefe9954601c38a120142a7fb5f",
+        "sha256": "e9fde4a5f79c4d3955ac78da459b86e96961750113d822760241d771043a6670"
+      },
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXPerfJournal.swift": {
+        "mode": "100644",
+        "gitBlob": "f7414c075d53f1a5e40672c728ed07024ead4ee4",
+        "sha256": "81f5da2d43d0c9984c49cf5290a64b718992f5ca2639f28f65a934b293dd6398"
+      },
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXStandaloneParity.swift": {
+        "mode": "100644",
+        "gitBlob": "92bb773e0ee94390a6e72489bccf5f1a15481e97",
+        "sha256": "8a3bd6e04dea08ebb4428475274688ecd9e60feff0d5a66722226d5528a4f500"
+      },
+      "packages/s2arm_engine_bridge/ios/Classes/S2ArmEngineBridgePlugin.m": {
+        "mode": "100644",
+        "gitBlob": "bd64b542bd7e1ffce181a9285f848843bdf08419",
+        "sha256": "431fbbe6e5a834f5d9501df847025b05d85d61f09804c04c1589f37bd3ba3c98"
+      },
+      "packages/s2arm_engine_bridge/ios/Classes/S2ArmGamePreparation.m": {
+        "mode": "100644",
+        "gitBlob": "43b4971932b445be03c3a5ce4a167013c0e99f02",
+        "sha256": "50c0820ff924f42663a91011f5c0cba18b20b9be38ead5da21a637f1faac7c01"
+      },
+      "packages/s2arm_engine_bridge/ios/Classes/S2ArmGuestABI.h": {
+        "mode": "100644",
+        "gitBlob": "de8136d53c6084fb4c3a8823280be96f861540ce",
+        "sha256": "f5ee89e9eb4d00b9c7b44877c19d481ecd97b290f4f36689360bd0771e0d6046"
+      },
+      "packages/s2arm_engine_bridge/ios/Classes/S2ArmSessionMenu.h": {
+        "mode": "100644",
+        "gitBlob": "28487e5e0709e1332334aa0abe6f1e694acaea71",
+        "sha256": "bf8f2a68398b2945c8d1e96025ab9db0f823c382f475f1c5f625341294eefaf8"
+      },
+      "packages/s2arm_engine_bridge/ios/Classes/S2ArmSessionMenu.m": {
+        "mode": "100644",
+        "gitBlob": "5bdc824ae915b90c74d8b11e829d4041ac79b19e",
+        "sha256": "fff6cc39a4c86e3e9f6b1ebd316ebc327692456dc8326cdb37ef0aa70c872118"
+      },
+      "test/melonx_adapter_control.py": {
+        "mode": "100644",
+        "gitBlob": "f3e863fb8cf4b21231001b5246c0deb658cc54c3",
+        "sha256": "09cf825189998f62dfefc6f0285f1437d784a8330785c0b4e6860d0bf38020d5"
+      },
+      "test/melonx_dma_core_contract_test.py": {
+        "mode": "100644",
+        "gitBlob": "a5a726eb9223859343edc1060123f0aa39ac715b",
+        "sha256": "cc20a6a5029ae5002c0b7f77a6e2f6b8c1d8cfb43e34e2a3640cf788b0bd21f9"
+      },
+      "test/melonx_fragmented_reads_test.py": {
+        "mode": "100644",
+        "gitBlob": "6c9f3c015e05b554338db8bbd46684f18e29d8fb",
+        "sha256": "eb456f33408841755a959d8d22cf226f9edc6a2a6347ae13955bd686a5ab5353"
+      },
+      "test/melonx_hogwarts_dma_copies_test.py": {
+        "mode": "100644",
+        "gitBlob": "01a414117162eb3da740487f5b5ed702700e0ec3",
+        "sha256": "a0427ff345c4385777ffa1b71f65bf89c1970a2932f5ca0a3c80464d2a02e66a"
+      },
+      "test/melonx_nan_scrub_test.py": {
+        "mode": "100644",
+        "gitBlob": "45a04dd10a7394122b383417a81a8d18f2e048ee",
+        "sha256": "089d2860c85752c6d1e8e024636d5c0093dde2d371d62cc04dd8dce961eae8e9"
+      },
+      "test/melonx_perf_journal_test.py": {
+        "mode": "100644",
+        "gitBlob": "704bf4c45d44916374528c98e8ed9b78ec7e94a7",
+        "sha256": "b7e11c018efe8b2413e10aeeb0e07c2d4d3452c46bc6514f5a11af3f7cd42abb"
+      },
+      "test/melonx_shader_load_binary_release/Boundaries.cs": {
+        "mode": "100644",
+        "gitBlob": "4306924b8b7405ea4aadfcf4e697b9626e08a299",
+        "sha256": "17edc5896d8e4e2ab4df2793e5280084208760ba8cda824de1bd7b1ad17637c0"
+      },
+      "test/melonx_shader_load_binary_release/Program.cs": {
+        "mode": "100644",
+        "gitBlob": "f6768d61ab2b4ec61e2b4ad4af440391e3be9f16",
+        "sha256": "d0a7a530225f4aa4f66d85024176289b9e655217bf8d9577ae8198beefb6b0e2"
+      },
+      "test/melonx_shader_load_binary_release_test.py": {
+        "mode": "100644",
+        "gitBlob": "6e6c841512ab8e4543b62a7bbbc5b6b658a990b1",
+        "sha256": "97578f11e7e809204dd50a03fb0cb84476090cf99bffb8694aa88e5b63eb518f"
+      },
+      "test/neo_swap_core_pin_test.py": {
+        "mode": "100644",
+        "gitBlob": "90eacb347390a35d946733bb12887d04aa421541",
+        "sha256": "d6eedf426612d2610f5a3ff7277fa3258eabfc1e259c5f55d69cfdd8d4446cb1"
+      },
+      "test/rpcs3_lever_comparison920_test.py": {
+        "mode": "100644",
+        "gitBlob": "79cc2be2f903346f5354e26bdb4e0016b0cbc9ee",
+        "sha256": "98eb2e4aefc6b7cb801948849766968e95d1b847fac25efc49d31a4bd4883c00"
+      },
+      "test/rpcs3_put_horizon910_test.py": {
+        "mode": "100644",
+        "gitBlob": "a13ef532cb0e62e17c2eea4990ca187aa5edc44c",
+        "sha256": "689b734fe278babd1796c6fd1b41d44ac5a0ad06ecf423df4d286b6e8c7b69ae"
+      },
+      "test/rpcs3_zcull_watched919_test.py": {
+        "mode": "100644",
+        "gitBlob": "c246f3d2608d0f86ffd7fe367bbf5d464e85c74b",
+        "sha256": "2a8eca63be919ec9063793dd970fffcc23e20135de659e79ba1ca72201075366"
+      },
+      "test/s2arm_engine_bridge_test.py": {
+        "mode": "100644",
+        "gitBlob": "6607dfc262eae3df1174503fa8a7ed6f643fd80a",
+        "sha256": "fcceefebc066371f57e64bca24cc3e640369dcabda11ae362c6abf968ffcbb90"
+      },
+      "test/switch2_settings_locale_test.dart": {
+        "mode": "100644",
+        "gitBlob": "df8c6b597457743d700c3ddcb4ab970fbd8ce132",
+        "sha256": "150c0260ce8e1ff4da3981186f755103a4d272333e7cd654aa0eae6f4f88e88c"
+      }
+    },
+    "restore": {
+      "assets/data/enhancements_index.json.gz": {
+        "mode": "100644",
+        "gitBlob": "93c81ad2f4f9e33d61a61f57259ec8595c62ae12",
+        "sha256": "ef2f17505620e6e5c38154f2289196b3fdf69bc524991c83112ecfb7b956a7e8"
+      },
+      "build-utils/maintenance/actions-cleanup-2026-11-10-followup.json": null,
+      "build-utils/maintenance/actions-cleanup-2026-11-10.json": null,
+      "build-utils/maintenance/actions-cleanup-2026-11-13-bulk.json": null,
+      "build-utils/maintenance/cleanup_actions.py": {
+        "mode": "100644",
+        "gitBlob": "d9d9eebd0b5f280598442a336aaf958cc9d033b6",
+        "sha256": "9e491611b6146032815aac0b8934e6edbdbc14e2f817350c006e7e8541773b97"
+      },
+      "build-utils/melonx/metal-archive/README.md": null,
+      "build-utils/melonx/metal-archive/moltenvk-v1.4.2-binary-archives.patch": null,
+      "build-utils/melonx/ui-strings.json": {
+        "mode": "100644",
+        "gitBlob": "88f92964315d051c143ec120512ff75924f20bed",
+        "sha256": "95f308d140e58aba64ff20272f57742e43e1a75186857fb947e2eef2077127cc"
+      },
+      "lib/l10n/melonx_launch_access_locale.dart": {
+        "mode": "100644",
+        "gitBlob": "3d861c6f6e9101bbca23bb56a149784388b85962",
+        "sha256": "dca3e671b48a77e1f121e0a4c4d52f1dff5e31b55b17ff6394f5aba27b1cd2f1"
+      },
+      "lib/l10n/melonx_launch_failure_locale.dart": {
+        "mode": "100644",
+        "gitBlob": "7fde3fde69f5bff075bc85dfe514cfc7c583441a",
+        "sha256": "43f8848c9b661bcec714e488592733a6bd837a51834b8e6fe7b283e8d08a6371"
+      },
+      "lib/l10n/melonx_library_locale.dart": {
+        "mode": "100644",
+        "gitBlob": "7d7bc2cc72883073235a5ad75ee9d4961b9fb067",
+        "sha256": "27a6058915110da0a65018a91193034f33e04b41fad49fc5b86da2a4a2372394"
+      },
+      "lib/l10n/melonx_locale.dart": {
+        "mode": "100644",
+        "gitBlob": "d6a690cd0f357e405a6d154a24b7062caad0c819",
+        "sha256": "9ce1b98126d0ae7d92e592d41c4d9eaa0bfc8f7c8036a6209610138a98ab4593"
+      },
+      "lib/l10n/pairing_file_locale.dart": {
+        "mode": "100644",
+        "gitBlob": "17ca034fa6064e41e25e75fc4eee8ff7f09dbc5d",
+        "sha256": "961e9b92aa8651c11a203e806b5100fad4344987d121e2fc67d1b7483aa4ea51"
+      },
+      "lib/l10n/switch_online_locale.dart": {
+        "mode": "100644",
+        "gitBlob": "64362e86d328c4de8f4224b12979c21900e8ea60",
+        "sha256": "3acfae8a9686d12a62967bd5590571e81e4e6d327f4bba3c5c6a9cab6706ece2"
+      },
+      "lib/models/retro_achievements_session.dart": {
+        "mode": "100644",
+        "gitBlob": "4269f11a7461d639b925e07b30a8762a6abd3a44",
+        "sha256": "d1bd88333f43aaac85528c6754c47f6355e1aa223c95fac3fe1ee5f7961dbf29"
+      },
+      "lib/screens/enhancements/enhancements_catalog_screen.dart": {
+        "mode": "100644",
+        "gitBlob": "d5693b835363a46c0e7d8da10dc9c6868cba22c5",
+        "sha256": "82b80a6eef7286237a817328f1c5843b0538c55879cc1cd1256edcb612f20088"
+      },
+      "lib/screens/game_box/game_box_inspector.dart": {
+        "mode": "100644",
+        "gitBlob": "833511e1e905103cac5966ebd5d3c800ac5aa65f",
+        "sha256": "747fad9d1437fd03c29a772a9c6c385fa4b290bd62e1b699cf3ceed80dc80ba4"
+      },
+      "lib/screens/game_box/game_box_media_sheet.dart": {
+        "mode": "100644",
+        "gitBlob": "81e27a2d63e4a1624b750bf58b72b90020ec73c2",
+        "sha256": "2f21ccd5860c414eedc148f9b0b30843a4ab8413086c26b5d2f2e989e14528a5"
+      },
+      "lib/screens/game_screen/game_details_card/dialogs/game_achievements_dialog.dart": {
+        "mode": "100644",
+        "gitBlob": "518801de96b6a6980b3746e1b1d3dbf78165618c",
+        "sha256": "74806efe99a906107c401d637e6b4749f7031009611b891a2d2b4e1d0bc410db"
+      },
+      "lib/screens/game_screen/game_details_card/game_details_card_list.dart": {
+        "mode": "100644",
+        "gitBlob": "ab802e4ebeda9f2de2e33a3ffd806d3e7f4dad92",
+        "sha256": "5a1575c2be152382723931124434d798745d2d8ddea713e81ceaa3b96f1f622e"
+      },
+      "lib/screens/game_screen/game_details_card/tabs/game_details_achievements_tab.dart": {
+        "mode": "100644",
+        "gitBlob": "5194d28fc3916f841378d2b5ecb4870045f05d56",
+        "sha256": "9faed5aceffdf27b0a43fd1e8cb922e6cfd1453459086a593b8a90ddef544613"
+      },
+      "lib/screens/game_screen/game_details_card/tabs/ra_identity_note.dart": null,
+      "lib/screens/game_screen/game_settings_dialog/game_settings_emulator_tab.dart": {
+        "mode": "100644",
+        "gitBlob": "d43ff835f79f4f188f7503763cfb66dad61e3882",
+        "sha256": "01c53d52d7365287ca912fc9d7ac46268d6e43cbd81f2f5fd8945c70030a6734"
+      },
+      "lib/screens/libretro/libretro_consoles_screen.dart": {
+        "mode": "100644",
+        "gitBlob": "3573a32d5f2bf47e1bc91b3415386731f1d3914f",
+        "sha256": "9c43abea6ae104d16ea52c15cbc5b4d39e0e583fd3ed23b176665f42e33685cb"
+      },
+      "lib/screens/settings_screen/legal_credits_dialog.dart": {
+        "mode": "100644",
+        "gitBlob": "b4fd0aed5d44f27b505ca7e4d9f782737f76094b",
+        "sha256": "d45bce69dd7e53ed8de04787be5cf3804b950097b334f02f3ad8be71b7c51cf3"
+      },
+      "lib/services/console_catalog.dart": {
+        "mode": "100644",
+        "gitBlob": "2c3979f32993b2be994d812086bf635b3fb5c8f2",
+        "sha256": "7a9926a02a1b7b101948c11b773b68b3bf0b5c1e943abff855d913ad52a7ceee"
+      },
+      "lib/services/libretro_internal_service.dart": {
+        "mode": "100644",
+        "gitBlob": "75913a836bfed1a10345632bcfa864c305943234",
+        "sha256": "ef0e41f08fdbfaf5def6020cf496a903161841774b37b5bab5ae8996ea0d6d5b"
+      },
+      "lib/services/melonx_internal_service.dart": {
+        "mode": "100644",
+        "gitBlob": "a174324112d66fe124ae8471cb7fc6fe34255f8f",
+        "sha256": "be36d635f35d5b6a64a7decb70b7e8d0ff2884df7d78331d6d0365035ec29748"
+      },
+      "lib/services/nextendo/nextendo_config.dart": {
+        "mode": "100644",
+        "gitBlob": "55fb591750563d9eccd19b31ccca2ca047cd0500",
+        "sha256": "2064fdb69fd3a2e7ed858de5f6db19a9f936fdcdf3f64f95283e1fa848107b60"
+      },
+      "lib/services/nextendo/nextendo_engine_support.dart": null,
+      "lib/services/nextendo/nextendo_online_play.dart": {
+        "mode": "100644",
+        "gitBlob": "409944904c13e05f0eb5e77fad6a6bb6aec694ce",
+        "sha256": "4a83ae38fde439665e0f23873d85e122c3e491c3d55695548eff665e0d99d6f8"
+      },
+      "lib/services/retro_achievements_helper.dart": {
+        "mode": "100644",
+        "gitBlob": "5b0cf3f335ef80c08b95cfd809958e2023e0d14e",
+        "sha256": "8e99f5d77973dcada8083a33e16ca59c4df68c9d4e58d7de9b21c6233d2d61be"
+      },
+      "lib/services/retro_achievements_identity.dart": null,
+      "lib/services/retro_achievements_resolver.dart": {
+        "mode": "100644",
+        "gitBlob": "d4cdca0d130c7e89cd8cc0e0929a6a95475de254",
+        "sha256": "4291d240b7c8850adcc76f2f671d86aef1102bdfbb01a519545519be7f32033e"
+      },
+      "lib/services/retro_achievements_session_service.dart": {
+        "mode": "100644",
+        "gitBlob": "db22f94ae742da793b7cf55c9d8f2e244f2ab58d",
+        "sha256": "e026ebb8df3847ef38e007eac3a1e1b3eade55fe5c74f279cc3b6f0493495274"
+      },
+      "lib/services/retroachievements_hash_service.dart": {
+        "mode": "100644",
+        "gitBlob": "4592a53d11781c891d2bec1aeca61e86fcda787a",
+        "sha256": "4fe80a501277cca81fe5e290cc4775943b9835d62c6b4bda1b30d15ad82a7f97"
+      },
+      "lib/services/rpcs3_internal_service.dart": {
+        "mode": "100644",
+        "gitBlob": "31c0652fa26ec1362c21b3abca6d67c0fdc06090",
+        "sha256": "960bb99aed121ad939b965e66a97416b61c9af033fcb77d74b1b6e01a3567c8a"
+      },
+      "lib/services/rpcs3_launch_service.dart": {
+        "mode": "100644",
+        "gitBlob": "3af5b85efcbdec7b936e4975959be067f0d23f41",
+        "sha256": "b6fbbea5b094defba390f654a0664a7c121ee0c0d961fda600348a0f36e8d5f3"
+      },
+      "lib/services/stikjit_armsx2_service.dart": {
+        "mode": "100644",
+        "gitBlob": "04f465441c161b014439b3853357ea3c314d90d1",
+        "sha256": "9b734542053e2f4e45104f786e6365bc3e6073fa0efafd25fb7f269da6b758ec"
+      },
+      "lib/utils/optimized_md5_utils.dart": {
+        "mode": "100644",
+        "gitBlob": "c06f875587f6de81e3e4cdc78b0fe4be45cff371",
+        "sha256": "43b4a5b529110f5329a5eda322b5362aaa6e9d81426f4289141a1a5ca080739d"
+      },
+      "lib/widgets/melonx_internal_playlist_actions.dart": {
+        "mode": "100644",
+        "gitBlob": "de6aeaba03644192fdef42d2b4d30990d8bf47e9",
+        "sha256": "835db827db2332093ba184f33d681e6f0149e3f19b9de63db11c64c1316e1aa2"
+      },
+      "lib/widgets/nextendo_dialog.dart": {
+        "mode": "100644",
+        "gitBlob": "8f13753a09b4889e75c7c231427bfa7e8b8594ee",
+        "sha256": "bf21300b8b60bd0536ff57ee8dbe96b1a182016a87116a87fe6a7b5a7526dfc5"
+      },
+      "lib/widgets/system_emulator_settings_dialog.dart": {
+        "mode": "100644",
+        "gitBlob": "cb0fdee2af877b58ac32d029f04279d1c083bac6",
+        "sha256": "6f3664ab64fc96146713012c6f41733aac9cd3a16fa1ed1082f4bfbd81a8db0e"
+      },
+      "native/enhancements/catalogue/README.md": {
+        "mode": "100644",
+        "gitBlob": "87abece562cbce5cb2596f0985332ab15b3f6df6",
+        "sha256": "743101243f59bf9afe8a57e126b1a80c168f75e253858144e5bf25e25600ccf6"
+      },
+      "native/enhancements/catalogue/VALIDATION.json": {
+        "mode": "100644",
+        "gitBlob": "c2154bc81526f899af38537bc0eabbea58f299c1",
+        "sha256": "1158cdcf619c40ab8ccb658cc941b3783aa8cb9555f026e562aed7546ab7afdd"
+      },
+      "native/enhancements/catalogue/r/2026-11-16T2112Z.a85f516925ab/index.json.gz": {
+        "mode": "100644",
+        "gitBlob": "93c81ad2f4f9e33d61a61f57259ec8595c62ae12",
+        "sha256": "ef2f17505620e6e5c38154f2289196b3fdf69bc524991c83112ecfb7b956a7e8"
+      },
+      "native/enhancements/catalogue/r/2026-11-16T2139Z.d8b055350a6c/index.json.gz": {
+        "mode": "100644",
+        "gitBlob": "93c81ad2f4f9e33d61a61f57259ec8595c62ae12",
+        "sha256": "ef2f17505620e6e5c38154f2289196b3fdf69bc524991c83112ecfb7b956a7e8"
+      },
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/index.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-00.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-01.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-02.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-03.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-04.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-05.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-06.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-07.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-08.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-09.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-10.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-11.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-12.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-13.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-14.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-15.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-16.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-17.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-18.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-19.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-20.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-21.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-22.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-23.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-24.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-25.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-26.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-27.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-28.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-29.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-30.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-31.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-00.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-01.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-02.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-03.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-04.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-05.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-06.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-07.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-08.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-09.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-10.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-11.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-12.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-13.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-14.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-15.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-16.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-17.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-18.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-19.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-20.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-21.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-22.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-23.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-24.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-25.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-26.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-27.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-28.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-29.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-30.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-31.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-00.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-01.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-02.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-03.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-04.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-05.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-06.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-07.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-08.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-09.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-10.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-11.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-12.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-13.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-14.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-15.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-16.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-17.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-18.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-19.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-20.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-21.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-22.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-23.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-24.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-25.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-26.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-27.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-28.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-29.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-30.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-31.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-00.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-01.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-02.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-03.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-04.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-05.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-06.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-07.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-08.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-09.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-10.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-11.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-12.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-13.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-14.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-15.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-16.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-17.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-18.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-19.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-20.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-21.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-22.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-23.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-24.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-25.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-26.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-27.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-28.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-29.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-30.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-31.json.gz": null,
+      "packages/libretro_internal_bridge/ios/Classes/LibretroAchievements.m": {
+        "mode": "100644",
+        "gitBlob": "b8307182d8117c9f06b8afb835039cae7399d831",
+        "sha256": "020d56ac77755233604186c1e9f4ea5496702cc2b16645d1e434f8c3f8e9a8b9"
+      },
+      "packages/libretro_internal_bridge/ios/Classes/LibretroInternalBridgePlugin.m": {
+        "mode": "100644",
+        "gitBlob": "274f077aa0cddc73a019e86c7b66fdca80f3817f",
+        "sha256": "d9b01e574caf28cfbad008d2bbd082d1de038c560286e6f24b8a4bbf2def6e94"
+      },
+      "packages/libretro_internal_bridge/ios/Classes/RBDiscHashReader.c": null,
+      "packages/libretro_internal_bridge/ios/Classes/RBDiscHashReader.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/LICENSE.txt": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/NEOSTATION_NOTICE.md": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/README.md": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/LICENSE": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/LzmaDec.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/real/7zTypes.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/real/LzmaDec.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/src/LzmaDec.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/src/real/LzmaDec.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstd.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstd_errors.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstddeclib.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/dr_libs/dr_flac.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/bitstream.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/cdrom.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/chd.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/chdconfig.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/coretypes.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/flac.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/huffman.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/macros.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_avhuff.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdfl.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdlz.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdzl.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdzs.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_flac.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_huff.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_lzma.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_zlib.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_zstd.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_bitstream.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_cdrom.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_chd.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_avhuff.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdfl.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdlz.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdzl.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdzs.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_flac.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_huff.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_lzma.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_zlib.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_zstd.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_flac.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_huffman.c": null,
+      "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec": {
+        "mode": "100644",
+        "gitBlob": "1c4589fea4ca0e3b002bfec28d65d9cf2f82e157",
+        "sha256": "2da2d0822c0488e5367db85a6eb696df8cd6b27e6cef30fd4ff9a55bea29bdab"
+      },
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXInternalBridgePlugin.swift": {
+        "mode": "100644",
+        "gitBlob": "3a0a9c2534124b60eac9004d08e9f3a492097ab4",
+        "sha256": "7470c228903fa11b8634360a9236466db1fe9a771d132d2346e56eb35162f8a6"
+      },
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXMemoryGraph.swift": {
+        "mode": "100644",
+        "gitBlob": "16b0dd45118dbab3b614bc4af6707304945db412",
+        "sha256": "f250fa695e6e1e83bf113e8a3110eaea1d2d212c154b6b281eeda1d3c54cc269"
+      },
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXMetalSessionViewController.swift": {
+        "mode": "100644",
+        "gitBlob": "59ec2f494ec701fc4290faabf1a030084e27a697",
+        "sha256": "8e1e3f9d221d0ff431533b3cf138993c894cf096c1c7f1d47f553c0be8c0e40d"
+      },
+      "source.json": null,
+      "test/actions_cleanup_test.py": {
+        "mode": "100644",
+        "gitBlob": "b45856faaeaea9078ae6f1fab4f4dc420b3c2704",
+        "sha256": "3436f073837177c60de87fa823bcd4c46a3f06e78e06636713ac7daa2d4b78b0"
+      },
+      "test/console_manager_test.dart": {
+        "mode": "100644",
+        "gitBlob": "684273de493e791f3c7c9af23ffdf62d118e128c",
+        "sha256": "49fc5a67af43b3d802d293841aa5a2d3b5e2d5881842b9878b62c4b2134eb049"
+      },
+      "test/enhancement_catalog_data_test.py": {
+        "mode": "100644",
+        "gitBlob": "c68e7e8d7bcc6c53f40be0f61fbfb61e8e665ccc",
+        "sha256": "9d35847beb665e687a101ae79e4c40727895b288e02cb1900fb89fb534aed565"
+      },
+      "test/libretro_ios_syntax_test.py": {
+        "mode": "100644",
+        "gitBlob": "d6353e5e3934400e7ce98196c6e0c44cfef2d5c4",
+        "sha256": "b3819844aade9966315ce11cb8f85c7f7f01851aedd9d09736022af1e96b702d"
+      },
+      "test/melonx_memory_graph_test.py": {
+        "mode": "100644",
+        "gitBlob": "cebd05ac65ab142541d3c4dc5150047700159d15",
+        "sha256": "89fcaf6a5cc4088363dea7eb155acccb62b3dd9d74fd352b6a84ecfa6fce6ded"
+      },
+      "test/melonx_metal_binary_archive/generate_shaders.py": null,
+      "test/melonx_metal_binary_archive/metal_probe.mm": null,
+      "test/melonx_metal_binary_archive/mvk_archive_test.cpp": null,
+      "test/melonx_metal_binary_archive/run_mvk.py": null,
+      "test/melonx_metal_binary_archive/run_probe.py": null,
+      "test/melonx_metal_binary_archive/shaders.spvz": null,
+      "test/ra_disc_hash_reader_test.py": null,
+      "test/retro_achievements_identification_test.dart": null,
+      "tools/enhancements/build_enhancement_catalog.py": {
+        "mode": "100644",
+        "gitBlob": "9dc6b6e95f32adee940ffb5098bf3449179b38fc",
+        "sha256": "59565b36d1c20ea6dc270ab5bd1b239ff059983c776d282369231219f8b935c1"
+      }
+    },
+    "effectiveDigest": "d1a17563132b4fb0bd02ea167c3f36631061c2fb3462d802ea217b1a10a4a973",
+    "productFiles": 8783,
+    "embeddedRecipeInputs": {
+      "LICENSE.md": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "NOTICE.md": "52d7db526b6950733d0b6c387ff3b38326db526a080c3b015b436a8ed78910e6",
+      "docs/CHEAT_CATALOG_SOURCES.md": "b99792de4c9e917758628869bfc948ca8f653f47cb926378f3d8ad61d9c755f1",
+      "docs/ENGINE_CORRESPONDING_SOURCES.md": "d79c0a19a08dccedf3c7e1c65fdea6ae307e7dbd0b1c310430e9de7a7a5c4dd5",
+      "docs/HD_TEXTURE_CATALOG_SOURCES.md": "ca835a124356907c6ba68067a2399d55ba9326988e0fb732978cd4fe910d4392",
+      "docs/HD_TEXTURE_SOURCES_AND_CREDITS.md": "058e36570f6b4b3e374ea790dad6d684192e65b526fe64dd7f40f09dda0c4041",
+      "docs/LEGAL_AND_CREDITS.md": "93546aa59f01bc3191984d3f02375693505dff003c229eacb47242c0de1c2603",
+      "docs/OVERLAY_SOURCES_AND_CREDITS.md": "463aeaf75b5f39f058e7bc1fbb80fefddc9a977cc5ba3a0bdfe70b565d70ef20",
+      "docs/PACKAGE_SOURCES_AND_LICENSES.md": "2fdae2151390207cab5953651448e181912e9270347f7fe5129a211f2056e21c",
+      "docs/PPSSPP_SOURCE_AND_LICENSE_AUDIT.md": "fbeced8b72541b2ba8aac27334f749c6f870aff7506b1efde8de6958ff600e2e",
+      "docs/SOURCE_CODE_ACCESS.md": "93aa12f4cd110446325a63ff0c5c85c3daa01d543cd361643f112161dfcf490c",
+      "docs/evidence/achievement-translation-declarations-2026-10-31.json": "c8edd7472b7944348e39499ef1d2a59cd4e8a9e91338c3d7da46c8baf582df6b",
+      "docs/evidence/engine-source-license-audit-2026-10-21.json": "866e0a743ddaa4881fd8428dbce235c252e0773fb58ddefaaf1cef364d7607fd",
+      "docs/evidence/modified-sources-since-0.0.8-2026-10-21.json": "18a2c562d9271554e54644aeea3c66e7b498c8e5761f3532f04e8f5be2d4e9e7",
+      "docs/evidence/package-sources-license-audit-2026-10-21.json": "348c5c7840a9262e095519b46aca8d632341ba82483c386a96653108f4a8b72c",
+      "docs/evidence/pocket-originals-declarations-2026-11-03.json": "37388cacfd4623de2d580476e6d5f48a50daf8af449c42aed75fb4a4164e5641",
+      "docs/evidence/ppsspp-source-license-audit-2026-10-21.json": "34d4df4576cac7a5c2a6b1e89bed95e98870165146e11b058fd624cf009946ce",
+      "docs/evidence/retro-achievements-session-declarations-2026-11-01.json": "7d341d4f57dfdfc4abe32a6b8f6845ba4d6236f32615fc0eed848c9b9679ad1e",
+      "docs/evidence/rewindbox-glacier-declarations-2026-11-02.json": "3c391df6cfc68f6ee4aa3691f8c4e8e2fcd37fc9d596060fbb7946ab7810c924",
+      "docs/evidence/rpcs3-retroachievements-declarations-2026-11-02.json": "12abf0d5396a77c8457da822d328bcee5d68338058afc848df51fc73ea15b876",
+      "docs/licenses/cheats/Admentus-Enhancement-Codes-Credits.txt": "ea9f46181d8a6eed2c318a2795f73ff1dfa2a838f8992d6b07be74ed0d9fb93b",
+      "docs/licenses/cheats/Admentus-Enhancement-Codes-LICENSE.txt": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "docs/licenses/cheats/Mupen64Plus-GPL-2.0.txt": "6774e66e59957ebf1da6c9e22be4e7b97fb169a534ab37e085e92831ff414fdd",
+      "docs/licenses/cheats/Mupen64Plus-mupencheat-header.txt": "39023c3dc42e1f1ea6085d79d44bdf9b59adf5846137496f9d73268f6ae7ecd5",
+      "docs/licenses/cheats/README.md": "191a16de4712ffb71f9604f0ed480b5ef1105e6f139575e77cff4b1b4d0dc340",
+      "docs/licenses/cheats/TAbdiukov-PPSSPP-patches-LICENCE.txt": "47a7bfd6b3e12546207665bcd53558b4087ac04fbcfc2592966968a3adab7987",
+      "docs/licenses/cheats/artemis-LICENSE.txt": "6a3e4ba999067b1c412f1740282bc077f8edf5f7178ea085acb5f5cca6fecb46",
+      "docs/licenses/cheats/provenance.json": "6a1ed0158a9f2c2c4f4ebed42b1c5e963baeac0c7c56fddfc4e84bf3c98ee843",
+      "docs/licenses/cheats/szTheory-NDS-Cheat-Databases-LICENSE.txt": "20b067f86de375aae6db0f283ab2e65de24d537733b89bd58432c101259d84cf",
+      "docs/licenses/cheats/tyler-EMERALD-NOTICE.txt": "868b4e7215a9a5835be022dc4d3c469ea18ce71598b20280d02b7b4c83f8621e",
+      "docs/licenses/cheats/tyler-GPL-3.0-LICENSE.txt": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "docs/licenses/rpcs3-wiki-2026-10-28.json": "e844cbcf720d9f8af0f6dc38bb1dd9fed67bd2c83e17299db21cff95e2a54628",
+      "docs/licenses/rpcs3-wiki-2026-10-28.md": "6ae6c89711313c17a0f4585b02760688b75114dd76e6e994a40d9acdaadaf075",
+      "docs/retroarch-rollback-2026-10-08.md": "0d76d77ba6e51bfeda4c84388cf0fa8eb25af3c221943a4d41999a6692eeea0c"
+    }
+  },
+  "images": {
+    "mustChange": [
+      "Frameworks/App.framework/App",
+      "Frameworks/MeloNXCore.framework/MeloNXCore",
+      "Frameworks/libRPCS3Core.dylib",
+      "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge",
+      "Runner"
+    ],
+    "added": [
+      "Frameworks/S2ArmEngine.framework/S2ArmEngine"
+    ],
+    "removed": [],
+    "replaced": {
+      "melonx": "Frameworks/MeloNXCore.framework/MeloNXCore",
+      "rpcs3": "Frameworks/libRPCS3Core.dylib"
+    },
+    "retained": {
+      "dolphin": [
+        "Frameworks/DolphinCore.framework/DolphinCore"
+      ],
+      "armsx2": [
+        "Frameworks/ARMSX2Core.framework/ARMSX2Core"
+      ],
+      "libretro": [
+        "Frameworks/*_libretro.framework/*_libretro",
+        "Frameworks/MoltenVK.framework/MoltenVK"
+      ],
+      "melonx-dependencies": [
+        "Frameworks/MeloNXAvCodec.framework/MeloNXAvCodec",
+        "Frameworks/MeloNXAvUtil.framework/MeloNXAvUtil",
+        "Frameworks/MeloNXJitSupport.framework/MeloNXJitSupport",
+        "Frameworks/MeloNXMoltenVK.framework/MeloNXMoltenVK",
+        "Frameworks/MeloNXSDL3.framework/MeloNXSDL3"
+      ],
+      "xenia": [
+        "Frameworks/XeniaCore.framework/XeniaCore",
+        "Frameworks/libmetalirconverter.dylib"
+      ]
+    },
+    "baseImages": [
+      "Frameworks/ARMSX2Core.framework/ARMSX2Core",
+      "Frameworks/App.framework/App",
+      "Frameworks/DolphinCore.framework/DolphinCore",
+      "Frameworks/Flutter.framework/Flutter",
+      "Frameworks/GTMSessionFetcher.framework/GTMSessionFetcher",
+      "Frameworks/MeloNXAvCodec.framework/MeloNXAvCodec",
+      "Frameworks/MeloNXAvUtil.framework/MeloNXAvUtil",
+      "Frameworks/MeloNXCore.framework/MeloNXCore",
+      "Frameworks/MeloNXJitSupport.framework/MeloNXJitSupport",
+      "Frameworks/MeloNXMoltenVK.framework/MeloNXMoltenVK",
+      "Frameworks/MeloNXMoltenVKStandalone.framework/MeloNXMoltenVKStandalone",
+      "Frameworks/MeloNXSDL3.framework/MeloNXSDL3",
+      "Frameworks/MoltenVK.framework/MoltenVK",
+      "Frameworks/NS2Pro.framework/NS2Pro",
+      "Frameworks/PDFium.framework/PDFium",
+      "Frameworks/S2ArmEngine.framework/S2ArmEngine",
+      "Frameworks/StikJIT.framework/StikJIT",
+      "Frameworks/XeniaCore.framework/XeniaCore",
+      "Frameworks/a5200_libretro.framework/a5200_libretro",
+      "Frameworks/achievement_translation.framework/achievement_translation",
+      "Frameworks/ardens_libretro.framework/ardens_libretro",
+      "Frameworks/armsx2_internal_bridge.framework/armsx2_internal_bridge",
+      "Frameworks/azahar_libretro.framework/azahar_libretro",
+      "Frameworks/battery_plus.framework/battery_plus",
+      "Frameworks/desmume_libretro.framework/desmume_libretro",
+      "Frameworks/device_info_plus.framework/device_info_plus",
+      "Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge",
+      "Frameworks/external_display.framework/external_display",
+      "Frameworks/external_folder_access.framework/external_folder_access",
+      "Frameworks/fbneo_libretro.framework/fbneo_libretro",
+      "Frameworks/file_picker.framework/file_picker",
+      "Frameworks/flutter_7zip.framework/flutter_7zip",
+      "Frameworks/flutter_localization.framework/flutter_localization",
+      "Frameworks/flutter_secure_storage_darwin.framework/flutter_secure_storage_darwin",
+      "Frameworks/freechaf_libretro.framework/freechaf_libretro",
+      "Frameworks/freeintv_libretro.framework/freeintv_libretro",
+      "Frameworks/gambatte_libretro.framework/gambatte_libretro",
+      "Frameworks/gamepads_darwin.framework/gamepads_darwin",
+      "Frameworks/gearcoleco_libretro.framework/gearcoleco_libretro",
+      "Frameworks/genesis_plus_gx_libretro.framework/genesis_plus_gx_libretro",
+      "Frameworks/genesis_plus_gx_wide_libretro.framework/genesis_plus_gx_wide_libretro",
+      "Frameworks/gw_libretro.framework/gw_libretro",
+      "Frameworks/handy_libretro.framework/handy_libretro",
+      "Frameworks/libRPCS3Core.dylib",
+      "Frameworks/libmetalirconverter.dylib",
+      "Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge",
+      "Frameworks/mednafen_ngp_libretro.framework/mednafen_ngp_libretro",
+      "Frameworks/mednafen_pce_fast_libretro.framework/mednafen_pce_fast_libretro",
+      "Frameworks/mednafen_pcfx_libretro.framework/mednafen_pcfx_libretro",
+      "Frameworks/mednafen_psx_hw_libretro.framework/mednafen_psx_hw_libretro",
+      "Frameworks/mednafen_psx_libretro.framework/mednafen_psx_libretro",
+      "Frameworks/mednafen_vb_libretro.framework/mednafen_vb_libretro",
+      "Frameworks/mednafen_wswan_libretro.framework/mednafen_wswan_libretro",
+      "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge",
+      "Frameworks/mesen_libretro.framework/mesen_libretro",
+      "Frameworks/mgba_libretro.framework/mgba_libretro",
+      "Frameworks/mupen64plus_next_libretro.framework/mupen64plus_next_libretro",
+      "Frameworks/neo_cheat_catalog.framework/neo_cheat_catalog",
+      "Frameworks/neo_shader_kit.framework/neo_shader_kit",
+      "Frameworks/neo_swap.framework/neo_swap",
+      "Frameworks/neo_texture_catalog.framework/neo_texture_catalog",
+      "Frameworks/neo_touch_layout.framework/neo_touch_layout",
+      "Frameworks/nestopia_libretro.framework/nestopia_libretro",
+      "Frameworks/o2em_libretro.framework/o2em_libretro",
+      "Frameworks/objective_c.framework/objective_c",
+      "Frameworks/package_info_plus.framework/package_info_plus",
+      "Frameworks/pdfium_flutter.framework/pdfium_flutter",
+      "Frameworks/picodrive_libretro.framework/picodrive_libretro",
+      "Frameworks/pokemini_libretro.framework/pokemini_libretro",
+      "Frameworks/potator_libretro.framework/potator_libretro",
+      "Frameworks/ppsspp_libretro.framework/ppsspp_libretro",
+      "Frameworks/prosystem_libretro.framework/prosystem_libretro",
+      "Frameworks/retro_achievements_session.framework/retro_achievements_session",
+      "Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge",
+      "Frameworks/sameduck_libretro.framework/sameduck_libretro",
+      "Frameworks/share_plus.framework/share_plus",
+      "Frameworks/shared_preferences_foundation.framework/shared_preferences_foundation",
+      "Frameworks/snes9x_libretro.framework/snes9x_libretro",
+      "Frameworks/sqlite3.framework/sqlite3",
+      "Frameworks/stella_libretro.framework/stella_libretro",
+      "Frameworks/stikjit_bridge.framework/stikjit_bridge",
+      "Frameworks/url_launcher_ios.framework/url_launcher_ios",
+      "Frameworks/uzem_libretro.framework/uzem_libretro",
+      "Frameworks/video_player_avfoundation.framework/video_player_avfoundation",
+      "Frameworks/wakelock_plus.framework/wakelock_plus",
+      "Frameworks/wasm4_libretro.framework/wasm4_libretro",
+      "Frameworks/xenia_internal_bridge.framework/xenia_internal_bridge",
+      "PlugIns/ARMSX2JITHelper.appex/ARMSX2JITHelper",
+      "PlugIns/DolphinJITHelper.appex/DolphinJITHelper",
+      "PlugIns/MeloNXJITHelper.appex/MeloNXJITHelper",
+      "PlugIns/MeloNXRamDonor.appex/MeloNXRamDonor",
+      "PlugIns/NeoSwapDonor.appex/NeoSwapDonor",
+      "PlugIns/NeoSwapPageRelay.appex/NeoSwapPageRelay",
+      "PlugIns/RPCS3JITHelper.appex/RPCS3JITHelper",
+      "PlugIns/S2ArmJITHelper.appex/S2ArmJITHelper",
+      "PlugIns/XeniaJITHelper.appex/XeniaJITHelper",
+      "Runner"
+    ],
+    "retainedFingerprints": {
+      "Frameworks/ARMSX2Core.framework/ARMSX2Core": "fab55193e509583b03c0e5b33ae8d8812745b5410d138a53e3779b6257f370d4",
+      "Frameworks/DolphinCore.framework/DolphinCore": "640e4389559c800087b3d4b2a2748b4c11307ae6a79bc72f59d55430ccddd6fc",
+      "Frameworks/MeloNXAvCodec.framework/MeloNXAvCodec": "cad556ba3651eece2068166f1fb61671d33d56ff68444475865a0055d316c01d",
+      "Frameworks/MeloNXAvUtil.framework/MeloNXAvUtil": "15acad8827f4dc80c453647c5196c91e393c8eb52e3f6367d1838454f7dee1c9",
+      "Frameworks/MeloNXJitSupport.framework/MeloNXJitSupport": "b85104bbc6e7464cd949b1cbf51989b6c3d6af16bddc10c33728cacca043700e",
+      "Frameworks/MeloNXMoltenVK.framework/MeloNXMoltenVK": "ea81c0e4728457b9e2fa6faf6360232467bda505f5f2c3927376fe7535083aac",
+      "Frameworks/MeloNXSDL3.framework/MeloNXSDL3": "cfd1e95b4fe64309b8f16efd2b2d3134cef3390cd6d5172bb13c4b8520aba942",
+      "Frameworks/MoltenVK.framework/MoltenVK": "7cbd35be66c78e741768528c7b0fbf3cf20f5b468dc5361893033d4924741520",
+      "Frameworks/XeniaCore.framework/XeniaCore": "5adfe13dde3c681773d4f1be915f8a7d03fad5db2d6db23fd8ac040d3b23b613",
+      "Frameworks/a5200_libretro.framework/a5200_libretro": "cfa6fedeb2b2ae954565491f0e103c67d62c0168edf3480fc08a301a9ca1a19b",
+      "Frameworks/ardens_libretro.framework/ardens_libretro": "5b1b62c69036580263c57d482cb8be16faa793a42614b556b5a32c7ff08ababc",
+      "Frameworks/azahar_libretro.framework/azahar_libretro": "65545169819d1c1270bf3d54a9f4dbabfb445affb54ccab8b27fbc615c7845fc",
+      "Frameworks/desmume_libretro.framework/desmume_libretro": "bd20ed434cc857b52dfdc9c3a5cdbd001bf15b4854c5ccdc162a653bbef5d12c",
+      "Frameworks/fbneo_libretro.framework/fbneo_libretro": "18102405bbe565cbba25fc822871ba87bee1db7dda5cf1da02302f6904ce5aec",
+      "Frameworks/freechaf_libretro.framework/freechaf_libretro": "fd60db6eac893840535a18cf3e025730a5682814120f4aacf339f437c37aab1c",
+      "Frameworks/freeintv_libretro.framework/freeintv_libretro": "dcccda5d6ca628c30dea61694cbe3115f4d35e04eef1615875b69ed02d15b9c1",
+      "Frameworks/gambatte_libretro.framework/gambatte_libretro": "3e803dca4a105e7d8469c3cd1ec79c41c5fe5d87137ebe3a91afbafc25957e30",
+      "Frameworks/gearcoleco_libretro.framework/gearcoleco_libretro": "9f5496ac38b3b464ac3dfe0b2d90c0ac5a1a365fe6c160e07d5f67be0b8a276e",
+      "Frameworks/genesis_plus_gx_libretro.framework/genesis_plus_gx_libretro": "e732f8a67cce93ad7bf2a3ad0c27bd8c6444882cb6ab67855b2354f1e838c7c1",
+      "Frameworks/genesis_plus_gx_wide_libretro.framework/genesis_plus_gx_wide_libretro": "145e71994f9cf2d7b72bd8e30ba49a348099aebb805450e7736619dee916b904",
+      "Frameworks/gw_libretro.framework/gw_libretro": "1561851ab719f3c1063bce1059d93982bd6fd0ad7ed8fa99144961ccd8fbd7c0",
+      "Frameworks/handy_libretro.framework/handy_libretro": "7a46ec1712e3e0f95db8a2c04c6626cc0882c374d904c4e1673d9e7781fcad31",
+      "Frameworks/libmetalirconverter.dylib": "c7f9161b2bb302c77f2ecc07d7f440a883c1a5016da947ab997d2e24fe1cf8db",
+      "Frameworks/mednafen_ngp_libretro.framework/mednafen_ngp_libretro": "7a22292d47f0d92c7fcc75c9b4b72b71172edd0f11132d5edc20afc11ae36c3f",
+      "Frameworks/mednafen_pce_fast_libretro.framework/mednafen_pce_fast_libretro": "e9f0abcb0f5b71111a6631e4e29f3ee0387325af3804e20a2a7a2717ec51a354",
+      "Frameworks/mednafen_pcfx_libretro.framework/mednafen_pcfx_libretro": "ad5aa730fb7862d5185da7b4c66fea236bbbdeb981d83f1be856800e5d675887",
+      "Frameworks/mednafen_psx_hw_libretro.framework/mednafen_psx_hw_libretro": "20febed54a2e7e53db2652fadcdf4fd7294c057f313225f9c89b01a7f1d8f5fb",
+      "Frameworks/mednafen_psx_libretro.framework/mednafen_psx_libretro": "21e108a787d92761ea6b49dbed20ae098b0e5dd94692e21377e19d866d3853b3",
+      "Frameworks/mednafen_vb_libretro.framework/mednafen_vb_libretro": "8eb3437fa0c5e247c15c959a18a9d3179f7646d1c616f6d6d6dc07ad59d70d16",
+      "Frameworks/mednafen_wswan_libretro.framework/mednafen_wswan_libretro": "29cce20057b765de6d99d962ea5e55a1a4a47e86cee83255e6d16b0e1ba0c545",
+      "Frameworks/mesen_libretro.framework/mesen_libretro": "e76d6c1dd46f8eb51a5478a1a21b2808d79bae0c7175199594b0f6781ee38684",
+      "Frameworks/mgba_libretro.framework/mgba_libretro": "a8f8613a1895d58cbac8effd04ccd84bb6dbb4c59a60cbc18efc2bf268a6d181",
+      "Frameworks/mupen64plus_next_libretro.framework/mupen64plus_next_libretro": "ba845fc8a78edf87639a750203b2d09eb0fd294cd7969473115ad816f9280286",
+      "Frameworks/nestopia_libretro.framework/nestopia_libretro": "847be8672c95558feebe0be55bdf3264e7e241009451b11a023a835b44d3e0ef",
+      "Frameworks/o2em_libretro.framework/o2em_libretro": "535cdf027548eab1117dff0522d9a589ac403d996e8fc569b81996c5bc3f1209",
+      "Frameworks/picodrive_libretro.framework/picodrive_libretro": "65d6dc5a241efda5ea1965443b3c9fe1e763538a36e14ca290d9ec571377d9e1",
+      "Frameworks/pokemini_libretro.framework/pokemini_libretro": "c1c03e755afc328ba64bfce2f8491f8838d224e6f9685a73f2bd060c67b4ff6e",
+      "Frameworks/potator_libretro.framework/potator_libretro": "19a67f1d4f65a819cc87cb1576d7348a8eb1451e1b509aad25d7d73636fea681",
+      "Frameworks/ppsspp_libretro.framework/ppsspp_libretro": "377f669eacb492181ca3681e6ccd017bea78263b45320a575d8172dab2bd88c1",
+      "Frameworks/prosystem_libretro.framework/prosystem_libretro": "82b4af35d8c61093d1e7edb0f6c3eeca361acb4b8c96d3e83ddf3ffbad5150af",
+      "Frameworks/sameduck_libretro.framework/sameduck_libretro": "f648c6efc1455c280441c1f70dd62d3f2451a6e36b57268f3acf7ed6ff2256cb",
+      "Frameworks/snes9x_libretro.framework/snes9x_libretro": "e0326b241edce3f8860b85e3a08684806e611e292a21204534456b3af08ba788",
+      "Frameworks/stella_libretro.framework/stella_libretro": "a44e78a4e58dc481233737681fa3547ecebdfef0178219de8213aa067e8cf368",
+      "Frameworks/uzem_libretro.framework/uzem_libretro": "ae053a29eff0b1490f7cedd6af8a79d0df45950ef71fd604a93703ceaa039d93",
+      "Frameworks/wasm4_libretro.framework/wasm4_libretro": "41dec5ccf2fdb0153db049f027424f42993ae0c83df61e4bd1db24b0cf9a4dde"
+    },
+    "replacedFingerprints": {
+      "Frameworks/MeloNXCore.framework/MeloNXCore": "fb85d9564b183c7abb4071a1126fae8ed35d82430b13bf309bf6ae4a719ff34c",
+      "Frameworks/libRPCS3Core.dylib": "93199df720e342bc31910aa25ab3505196579ada1523ef0760ade0315d10f046"
+    },
+    "derivedMustChange": [
+      "Frameworks/App.framework/App",
+      "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge"
+    ]
+  },
+  "tests": {
+    "flutter": {
+      "mode": "not-run",
+      "commands": [],
+      "reason": "Maintainer requested compilation of the latest additions without deep regression suites. Actual host compilation, source/binary/ABI integrity, signing, private encryption and final IPA validation remain mandatory."
+    },
+    "native": {
+      "mode": "not-run",
+      "commands": [],
+      "reason": "Maintainer requested compilation of the latest additions without deep regression suites. Actual host compilation, source/binary/ABI integrity, signing, private encryption and final IPA validation remain mandatory."
+    },
+    "awaitMinutes": 75
+  },
+  "recipient": {
+    "path": "build-utils/delivery-773-recipient.pem",
+    "sha256": "9ac7ec319d89b13b8860868ed1894131d786f8aa163255f392ce046e7f4367b5"
+  },
+  "republish": [
+    "rpcs3-core",
+    "melonx-core",
+    "dolphin",
+    "armsx2",
+    "libretro",
+    "melonx-dependencies"
+  ],
+  "frozen": {
+    "at": "2026-11-17T15:37:02Z",
+    "commit": "3a9acd75c4175a07ea2eb6151789348618a82ff2",
+    "tool": "standard_delivery.py freeze",
+    "inCI": false
+  }
+}
