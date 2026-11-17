@@ -673,7 +673,9 @@ for _ in 0..<2 {
 }
 print("TAGGED 0x" + String(tagged, radix:16))
 print("LINE " + MeloNXMemoryBreakdown.describe(seconds:0))
-let breakdown = MeloNXMemoryBreakdown(path:path, context:[:], first:0.2, every:0.3, maxLines:3)
+// The warnings come 0.1 s after start, the first scheduled line 2 s after it: on a loaded runner (melonx-host run
+// 44067585494) a first line due 0.2 s after start was written before the warning enqueued at 0.1 s.
+let breakdown = MeloNXMemoryBreakdown(path:path, context:[:], first:2.0, every:0.3, maxLines:3)
 breakdown.start()
 usleep(100_000)
 breakdown.memoryWarning()
