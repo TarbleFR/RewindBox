@@ -550,7 +550,6 @@ enum MeloNXSessionExit {
                     let f = exits.foregroundExitData, b = exits.backgroundExitData
                     var counts: [String] = []
                     counts.append("foreground: normal \(f.cumulativeNormalAppExitCount)")
-                    counts.append("memory pressure \(f.cumulativeMemoryPressureExitCount)")
                     counts.append("memory limit \(f.cumulativeMemoryResourceLimitExitCount)")
                     counts.append("watchdog \(f.cumulativeAppWatchdogExitCount)")
                     counts.append("abnormal \(f.cumulativeAbnormalExitCount)")
@@ -562,6 +561,7 @@ enum MeloNXSessionExit {
                     counts.append("watchdog \(b.cumulativeAppWatchdogExitCount)")
                     counts.append("suspended with locked file \(b.cumulativeSuspendedWithLockedFileExitCount)")
                     counts.append("background task timeout \(b.cumulativeBackgroundTaskAssertionTimeoutExitCount)")
+                    counts.append("CPU limit \(b.cumulativeCPUResourceLimitExitCount)")
                     counts.append("abnormal \(b.cumulativeAbnormalExitCount)")
                     line += "; " + counts.joined(separator: ", ")
                 } else {
