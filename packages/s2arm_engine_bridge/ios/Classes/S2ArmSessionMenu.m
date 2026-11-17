@@ -24,6 +24,7 @@ static NSDictionary<NSString *, NSString *> *EnglishStrings(void) {
     @"menu.imageFormat" : @"Image format",
     @"menu.gameLanguage" : @"Game language",
     @"menu.nextLaunch" : @"Applies the next time a Switch 2 game starts, after RewindBox is restarted.",
+    @"menu.liveNow" : @"Applies at once to this game.",
     @"menu.quit" : @"Quit game",
     @"menu.quitTitle" : @"Quit the game?",
     @"menu.quitMessage" : @"The game saves are written before it closes.",
@@ -258,8 +259,10 @@ static UIView *FindView(UIView *view, NSString *identifier) {
 
 - (void)showChoices:(NSString *)setting {
   id current = S2ArmSettingsSnapshot()[setting];
+  // Patch 0078: the frame-rate limit applies at once when the engine can take it (applyNow), the other settings at the next start
+  BOOL live = self.applyNow != nil && [setting isEqualToString:@"frameRateLimit"];
   UIAlertController *sheet = [UIAlertController alertControllerWithTitle:[self text:TitleKey(setting)]
-                                                                 message:[self text:@"menu.nextLaunch"]
+                                                                 message:[self text:live ? @"menu.liveNow" : @"menu.nextLaunch"]
                                                           preferredStyle:UIAlertControllerStyleActionSheet];
   __weak S2ArmSessionMenu *weakSelf = self;
   for (id value in Choices(setting)) {
@@ -269,7 +272,9 @@ static UIView *FindView(UIView *view, NSString *identifier) {
                                               style:UIAlertActionStyleDefault
                                             handler:^(UIAlertAction *action) {
                                               S2ArmSettingsApply(@{setting : value});
-                                              [weakSelf showSettings];
+                                              S2ArmSessionMenu *menu = weakSelf;
+                                              if (menu.applyNow) (void)menu.applyNow(setting, value);   // stored above for the next start too
+                                              [menu showSettings];
                                             }]];
   }
   [sheet addAction:[UIAlertAction actionWithTitle:[self text:@"menu.back"]

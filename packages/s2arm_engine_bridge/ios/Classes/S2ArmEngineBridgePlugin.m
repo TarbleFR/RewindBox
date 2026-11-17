@@ -84,6 +84,13 @@ static NSString *S2ArmEnginePath(void) {
 @property(nonatomic, copy, nullable) NSString *saveFolder;   // Documents/S2Arm/Saves/<game>, given to the engine
 @property(atomic, copy, nullable) NSString *runningGameId;   // the title id of the game the engine was configured for
 @property(atomic, copy, nullable) NSString *parkedGameId;    // patch 0010: Quit parked this game; it can resume in this process
+// The game view's watch (main thread). IPA 771 test: the game view left the screen while the engine kept running (no stop, no park, no crash in
+// its log); RewindBox stayed on its launch dialog, which the player cannot close during a Switch 2 session, so the only way out was to kill the app.
+@property(nonatomic, strong, nullable) NSTimer *viewWatch;
+@property(nonatomic, assign) s2a_rb_guest_stop_fn viewStop;
+@property(nonatomic, assign) NSUInteger viewLostTicks;   // consecutive checks with the view off screen and no way to present it again
+@property(nonatomic, assign) NSUInteger viewRestores;    // times the view was put back in this session
+@property(nonatomic, assign) BOOL viewStopAsked;
 @end
 
 @implementation S2ArmEngineBridgePlugin
@@ -355,6 +362,7 @@ static NSString *S2ArmEnginePath(void) {
     return launchFail(@"engineRestartRequired", @"resume", @"The engine has no parked session to resume.");
   }
   S2ArmSettingsPrepareLaunch();   // settings changed while parked apply now (the rebuild reloads the graphics settings)
+  [self applyStoredFrameRateLimit];   // patch 0078: S2A_FPS was read once, at this process's first game start
   __block UIViewController *vc = nil;
   dispatch_sync(dispatch_get_main_queue(), ^{ vc = (__bridge UIViewController *)viewController(); });
   if (!vc) return launchFail(@"engineViewFailed", @"resume", @"The engine did not return the parked view controller.");
@@ -603,12 +611,112 @@ static NSDictionary *launchFail(NSString *error, NSString *stage, NSString *deta
                                                                    // The engine stops on its own queue; session_ended follows.
                                                                    if (stop) stop("rewindbox-menu");
                                                                  }];
+  // Patch 0078: the frame-rate limit the player picks in the menu is in effect at once (the other settings still wait for the next start)
+  __weak S2ArmEngineBridgePlugin *weakSelf = self;
+  if (dlsym(RTLD_DEFAULT, S2A_RB_GUEST_SET_FPS_LIMIT)) {
+    self.sessionMenu.applyNow = ^BOOL(NSString *setting, id value) { return [weakSelf applyLiveSetting:setting value:value]; };
+  }
   [self.sessionMenu attach];
   s2arm_journal("menu", "attached", NULL);
+  [self watchGameView:stop];
+}
+
+// Patch 0078 (engine): the limit changed during play. YES when the engine took it (from its next frame on).
+- (BOOL)applyLiveSetting:(NSString *)setting value:(id)value {
+  if (![setting isEqualToString:@"frameRateLimit"] || ![value isKindOfClass:NSString.class]) return NO;
+  s2a_rb_guest_set_fps_limit_fn set = (s2a_rb_guest_set_fps_limit_fn)dlsym(RTLD_DEFAULT, S2A_RB_GUEST_SET_FPS_LIMIT);
+  if (!set) return NO;
+  int fps = [(NSString *)value intValue];
+  int rc = set(fps);
+  s2arm_journal("frameRate", rc == 0 ? "now" : "nextStart", "\"fps\":%d,\"rc\":%d", fps, rc);
+  return rc == 0;
+}
+
+// The stored frame-rate choice, for a parked game that resumes: the engine read S2A_FPS once, when this process first started a game.
+- (void)applyStoredFrameRateLimit {
+  id value = S2ArmSettingsSnapshot()[@"frameRateLimit"];
+  if (value) (void)[self applyLiveSetting:@"frameRateLimit" value:value];
+}
+
+#pragma mark - game view watch
+
+// Main thread. Once a second while a game runs: the game view must stay presented. If it left the screen with no stop asked (IPA 771:
+// the engine kept running behind RewindBox's launch dialog, which the player cannot close in a Switch 2 session), it is presented again at
+// once on the visible window; if it cannot be for 5 checks running while RewindBox is in the foreground, the game is stopped properly
+// (saves written, session_ended) and RewindBox goes back to its menu instead of staying stuck. Each case goes to the journal.
+- (void)watchGameView:(s2a_rb_guest_stop_fn)stop {
+  [self.viewWatch invalidate];
+  self.viewStop = stop;
+  self.viewLostTicks = 0;
+  self.viewRestores = 0;
+  self.viewStopAsked = NO;
+  __weak S2ArmEngineBridgePlugin *weakSelf = self;
+  self.viewWatch = [NSTimer timerWithTimeInterval:1.0 repeats:YES block:^(NSTimer *timer) { [weakSelf checkGameView]; }];
+  [NSRunLoop.mainRunLoop addTimer:self.viewWatch forMode:NSRunLoopCommonModes];
+}
+
+- (void)unwatchGameView {
+  [self.viewWatch invalidate];
+  self.viewWatch = nil;
+}
+
+// Class names of a presentation chain, root first (journal only: no title, no path).
+static NSString *S2ArmChainNames(UIViewController *root) {
+  NSMutableArray<NSString *> *names = [NSMutableArray array];
+  for (UIViewController *c = root; c && names.count < 6; c = c.presentedViewController) [names addObject:NSStringFromClass(c.class)];
+  return [names componentsJoinedByString:@">"];
+}
+
+- (void)checkGameView {
+  UIViewController *vc = self.engineViewController;
+  if (!vc || self.viewStopAsked) return;
+  // What is on screen of the game: the view controller itself, or the engine's own screen over it (saves, settings: a full-screen
+  // presentation takes the presenter's view out of the window), so the window is read from the top of its chain
+  UIViewController *shown = vc;
+  while (shown.presentedViewController) shown = shown.presentedViewController;
+  if (vc.isBeingPresented || vc.isBeingDismissed || shown.isBeingPresented || shown.isBeingDismissed) return;   // look again at the next check
+  UIWindow *window = shown.view.window ?: vc.view.window;
+  if (vc.presentingViewController && window && !window.isHidden) {
+    self.viewLostTicks = 0;
+    return;
+  }
+  // Only the foreground can show it again (in the background the view stays where it is until the app comes back)
+  if (UIApplication.sharedApplication.applicationState != UIApplicationStateActive) return;
+  UIViewController *presenter = vc.presentingViewController ? nil : S2ArmTopViewController();
+  if (self.viewLostTicks == 0) {
+    s2arm_journal("gameView", "lost", "\"presenting\":%d,\"window\":%d,\"windowHidden\":%d,\"top\":\"%s\",\"restores\":%lu",
+                  vc.presentingViewController != nil, window != nil, window ? (int)window.isHidden : -1,
+                  S2ArmChainNames(presenter.view.window.rootViewController).UTF8String, (unsigned long)self.viewRestores);
+  }
+  if (vc.presentingViewController) {
+    // Still presented, but on a window that is hidden now (or in no window): take it back from there once, then present it again on the
+    // visible window at a next check. Never more than that for a view that is still presented: the game is not stopped for it.
+    if (window.isHidden && self.viewLostTicks == 0) [vc.presentingViewController dismissViewControllerAnimated:NO completion:nil];
+    self.viewLostTicks = 1;
+    return;
+  }
+  if (presenter.isBeingPresented || presenter.isBeingDismissed) return;   // its transition ends first: next check
+  if (presenter && presenter != vc) {
+    self.viewRestores++;
+    self.viewLostTicks = 0;
+    NSUInteger restores = self.viewRestores;
+    NSString *on = NSStringFromClass(presenter.class);
+    vc.modalPresentationStyle = UIModalPresentationFullScreen;
+    [presenter presentViewController:vc animated:NO completion:^{
+      s2arm_journal("gameView", "restored", "\"on\":\"%s\",\"restores\":%lu", on.UTF8String, (unsigned long)restores);
+    }];
+    return;
+  }
+  // Not presented and nowhere to present it for 5 checks running in the foreground: stop the game properly rather than leave the player stuck
+  if (++self.viewLostTicks < 5) return;
+  self.viewStopAsked = YES;
+  s2arm_journal("gameView", "stopping", "\"restores\":%lu", (unsigned long)self.viewRestores);
+  if (self.viewStop) self.viewStop("rewindbox-view-lost");   // session_ended follows: the dialog closes, the menu is back
 }
 
 // Main thread: the session is over (Quit from either menu, or an engine stop): remove the menu and the game view.
 - (void)closeSessionView {
+  [self unwatchGameView];
   [self.sessionMenu detach];
   self.sessionMenu = nil;
   UIViewController *vc = self.engineViewController;
@@ -680,16 +788,29 @@ static void S2ArmPrepareSaveFolder(NSString *folder, NSString *docs) {
   s2arm_journal("saveFolder", "documents", NULL);
 }
 
+// The view controller the game is presented on: the top of the visible, normal-level window of the foreground application scene (the key
+// window first). A transparent window above it (RewindBox's achievement text host, NeoPlay's overlay) or a hidden one never hosts the game:
+// the game would leave the screen with that window. With no such window, the key window as before.
 static UIViewController *S2ArmTopViewController(void) {
-  UIWindow *keyWindow = nil;
+  NSMutableArray<UIWindow *> *windows = [NSMutableArray array];
   for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
-    if (scene.activationState == UISceneActivationStateForegroundActive && [scene isKindOfClass:UIWindowScene.class]) {
+    if (scene.activationState != UISceneActivationStateForegroundActive || ![scene isKindOfClass:UIWindowScene.class]) continue;
+    if (![scene.session.role isEqualToString:UIWindowSceneSessionRoleApplication]) continue;
+    for (UIWindow *window in ((UIWindowScene *)scene).windows) {
+      if (window.isHidden || window.alpha <= 0 || window.windowLevel != UIWindowLevelNormal || !window.rootViewController) continue;
+      if (window.isKeyWindow) [windows insertObject:window atIndex:0];
+      else [windows addObject:window];
+    }
+  }
+  UIViewController *top = windows.firstObject.rootViewController;
+  if (!top) {
+    for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+      if (scene.activationState != UISceneActivationStateForegroundActive || ![scene isKindOfClass:UIWindowScene.class]) continue;
       for (UIWindow *window in ((UIWindowScene *)scene).windows) {
-        if (window.isKeyWindow) keyWindow = window;
+        if (window.isKeyWindow) top = window.rootViewController;
       }
     }
   }
-  UIViewController *top = keyWindow.rootViewController;
   while (top.presentedViewController) top = top.presentedViewController;
   return top;
 }

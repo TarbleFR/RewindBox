@@ -36,6 +36,7 @@ typedef void (*s2a_rb_guest_stop_fn)(const char *reason);
 typedef int (*s2a_rb_guest_parked_fn)(void);                        // patch 0010
 typedef void *(*s2a_rb_guest_view_controller_fn)(void);             // patch 0010: the parked game's view controller (main thread)
 typedef int (*s2a_rb_guest_resume_fn)(char *error, size_t error_size);   // patch 0010 (main thread, view in a window)
+typedef int (*s2a_rb_guest_set_fps_limit_fn)(int fps);   // patch 0078: 0 or 24–1000; 0 = in effect from the next frame, -1 refused, -2 off
 
 #define S2A_RB_GUEST_CONFIGURE "s2a_rb_guest_configure"
 #define S2A_RB_GUEST_MAKE_VIEW_CONTROLLER "s2a_rb_guest_make_view_controller"
@@ -44,6 +45,7 @@ typedef int (*s2a_rb_guest_resume_fn)(char *error, size_t error_size);   // patc
 #define S2A_RB_GUEST_PARKED "s2a_rb_guest_parked"
 #define S2A_RB_GUEST_VIEW_CONTROLLER "s2a_rb_guest_view_controller"
 #define S2A_RB_GUEST_RESUME "s2a_rb_guest_resume"
+#define S2A_RB_GUEST_SET_FPS_LIMIT "s2a_rb_guest_set_fps_limit"   // patch 0078: absent in engines before it
 
 // session_ended codes (rb_guest.h): 0 normal end, 1 the session could not start, 86 watchdog or GPU stop,
 // 134 fatal engine error (the process aborts after the call).

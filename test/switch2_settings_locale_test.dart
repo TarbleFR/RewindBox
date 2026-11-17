@@ -39,7 +39,7 @@ void main() {
       'menu.nextLaunch', 'menu.quit', 'menu.quitTitle', 'menu.quitMessage', 'menu.cancel', 'menu.back', 'menu.res050',
       'menu.res075', 'menu.res100', 'menu.aaNone', 'menu.aaSmaaMedium', 'menu.aaSmaaHigh', 'menu.filterBilinear',
       'menu.filterNearest', 'menu.fps30', 'menu.fps60', 'menu.fps120', 'menu.fpsUnlimited', 'menu.modeHandheld',
-      'menu.modeDocked', 'menu.formatWide', 'menu.format169', 'menu.languageAuto',
+      'menu.modeDocked', 'menu.formatWide', 'menu.format169', 'menu.languageAuto', 'menu.liveNow',
     ];
     for (final code in codes) {
       final strings = Switch2SettingsLocale.menuStrings(code);

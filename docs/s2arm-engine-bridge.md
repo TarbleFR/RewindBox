@@ -105,7 +105,9 @@ No engine change: everything below uses what the pinned engine already reads in 
   language. They are stored under the engine's own `NSUserDefaults` keys (`S2AResolutionScale`, `S2AAntiAliasing`,
   `S2AScalingFilter`, `S2AFrameRateLimit`, `S2ADockedMode`, `S2AWidescreen`), so the RewindBox screens and the engine's
   own settings page agree. The engine reads them once per process when a game starts, and a process runs one Switch 2
-  game: a change applies to the next game, after RewindBox is restarted. Scales above 1 are not offered: the engine's
+  game: a change applies to the next game, after RewindBox is restarted. The frame-rate limit is the exception from engine
+  patch 0078 on: the in-game menu hands it to `s2a_rb_guest_set_fps_limit` and it is in effect from the next frame (a parked
+  game that resumes takes the stored choice the same way). Scales above 1 are not offered: the engine's
   direct mode (the only one it ships) clamps them to 1. The game language is `S2A_SYSTEM_LANGUAGE` (a `SystemLanguage`
   name), set before the dlopen; "automatic" leaves it unset and the engine follows the iPhone's languages.
 - **Performance overlay**: the engine's own brief overlay ("FPS · memory", top right). The bridge turns it on before the
@@ -118,6 +120,14 @@ No engine change: everything below uses what the pinned engine already reads in 
   engine exports no pause. Strings come from Dart at launch (`menuStrings`, `lib/l10n/switch2_settings_locale.dart`,
   12 languages), English when a key is missing. The engine's own gear menu (top left, English or Chinese) stays for
   controls, cheats and saves.
+- **Game view watch** (`watchGameView` / `checkGameView`, once a second while a game runs). In the IPA 771 test the game
+  view left the screen while the engine kept running (no stop, park or crash in its log): RewindBox stayed on its launch
+  dialog, which cannot be closed during a Switch 2 session, until the app was killed. The bridge now presents the view
+  again on the visible normal-level window as soon as it is off screen with no stop asked (journal `gameView` `lost` /
+  `restored`, with the class names of the presentation chain); with nowhere to present it for 5 checks in the foreground,
+  it stops the game (`s2a_rb_guest_stop("rewindbox-view-lost")`, journal `gameView` `stopping`) so that `session_ended`
+  takes RewindBox back to its menu. The game is always presented on the visible normal-level window of the foreground
+  application scene (the key window first), never on a transparent window above it.
 - **Saves** (`S2ArmPrepareSaveFolder`, `S2ArmInternalService.saveFolderFor` / `importSave` / `openSaveFolder`): each game
   has one folder, `Documents/S2Arm/Saves/<title> [<TITLE ID>]`, visible in the Files app (On My iPhone → RewindBox → S2Arm
   → Saves) and found again by its title id. The bridge gives it to the engine as `S2A_SAVE_FOLDER` before the dlopen (the
