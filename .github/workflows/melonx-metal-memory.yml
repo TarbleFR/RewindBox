@@ -1,0 +1,47 @@
+name: MeloNX Metal memory per image kind
+run-name: Metal memory per image • ${{ github.sha }}
+# IPA 773 (Hogwarts Legacy courtyard): Metal's allocated size rose 640 MB above the engine's Vulkan device memory.
+# MoltenVK v1.4.2 with the pinned recipe patch, built for macOS: the Metal memory and process footprint of 16 depth and
+# stencil, depth and color images of 1024 x 1024 each (plain and dedicated allocations), after the binds, after a first
+# use and after they are freed, on the runner's Metal device. Nothing is packaged, pinned or delivered.
+'on':
+  push:
+    branches:
+    - work/melonx-fps-stability-20261103
+    - Claude
+    paths:
+    - .github/workflows/melonx-metal-memory.yml
+    - test/melonx_metal_memory/**
+permissions:
+  contents: read
+concurrency:
+  group: melonx-metal-memory-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  measure:
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - name: Name the baseline commit
+      id: baseline
+      run: python3 -c "import json; print('commit=' + json.load(open('test/melonx_metal_memory/baseline.json'))['commit'])" >> "$GITHUB_OUTPUT"
+    - name: Check out the baseline patch only
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ steps.baseline.outputs.commit }}
+        path: baseline
+        persist-credentials: false
+        sparse-checkout: build-utils/melonx/moltenvk
+        sparse-checkout-cone-mode: true
+    - name: Build MoltenVK v1.4.2 (recipe patch) for macOS and measure the Metal memory of depth and color images
+      run: python3 test/melonx_metal_memory/run_metal_memory.py
+    - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
+      if: always()
+      with:
+        name: MeloNX-metal-memory-${{ github.sha }}
+        path: dist/melonx-metal-memory
+        retention-days: 14
+        if-no-files-found: error
