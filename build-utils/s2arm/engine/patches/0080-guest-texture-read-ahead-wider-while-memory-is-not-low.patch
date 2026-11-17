@@ -1,5 +1,5 @@
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
-index eb60183..81d2906 100644
+index eb60183..ae2584a 100644
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
 @@ -4668,6 +4668,12 @@ static int tex_cpu_written(uint64_t serial);   // below (the textures the CPU wr
@@ -20,7 +20,7 @@ index eb60183..81d2906 100644
      uint64_t n = t->L.size, lowm = ((uint64_t)1 << 40) - 1, f = (atomic_load_explicit(&g_cur_frame, memory_order_relaxed) & 0xffffff) << 40, o = atomic_load_explicit(&g_pf_budget, memory_order_relaxed), nw;
      do { uint64_t used = (o & ~lowm) == f ? o & lowm : 0;   // another frame's count: this frame starts at 0
 -         if (used + n > RB_PF_FRAME || atomic_load_explicit(&g_pf_pend, memory_order_relaxed) + (int64_t)n > RB_PF_PENDING) { atomic_fetch_add_explicit(&g_pf_dropped, 1, memory_order_relaxed); return; }
-+         if (used + n > rb_pf_frame() || atomic_load_explicit(&g_pf_pend, memory_order_relaxed) + (int64_t)n > rb_pf_pending()) {   // RewindBox (patch 0080): rb_pf_frame / rb_pf_pending atomic_fetch_add_explicit(&g_pf_dropped, 1, memory_order_relaxed); return; }
++         if (used + n > rb_pf_frame() || atomic_load_explicit(&g_pf_pend, memory_order_relaxed) + (int64_t)n > rb_pf_pending()) { atomic_fetch_add_explicit(&g_pf_dropped, 1, memory_order_relaxed); return; }   // RewindBox (patch 0080): rb_pf_frame / rb_pf_pending
           nw = f | (used + n);
      } while (!atomic_compare_exchange_weak_explicit(&g_pf_budget, &o, nw, memory_order_relaxed, memory_order_relaxed));
      atomic_store_explicit(&g_pf_recent[slot], key, memory_order_relaxed);   // only once asked: one left above is asked again at its next registration
