@@ -61,6 +61,24 @@ static void S2ArmExportEngineLogs(void) {
   }
 }
 
+// The running game's log alone, when RewindBox goes to the background during a session. The IPA 772/773 test: the
+// sessions end when the player closes RewindBox from the app switcher, so the copy of the next app start had not happened
+// yet when the logs were sent, and the folder held only the sessions before (the profiles of the test were there). One
+// file of a few MB, on a utility queue: the app has seconds left in the background, and closing it later loses nothing.
+static void S2ArmExportRunningEngineLog(NSString *gid) {
+  NSFileManager *files = NSFileManager.defaultManager;
+  NSString *documents = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
+  NSString *library = S2ArmLibraryRoot();
+  if (!gid.length || !documents.length || !library.length || [gid containsString:@"/"]) return;
+  NSString *source = [[[library stringByAppendingPathComponent:gid] stringByAppendingPathComponent:@"docs"] stringByAppendingPathComponent:@"host.log"];
+  if (![files fileExistsAtPath:source]) return;
+  NSString *out = [[documents stringByAppendingPathComponent:@"Diagnostics/S2Arm/engine"] stringByAppendingPathComponent:gid];
+  [files createDirectoryAtPath:out withIntermediateDirectories:YES attributes:nil error:nil];
+  NSString *target = [out stringByAppendingPathComponent:@"host.log"];
+  [files removeItemAtPath:target error:nil];
+  [files copyItemAtPath:source toPath:target error:nil];
+}
+
 static BOOL S2ArmMeloNXCoreLoaded(void) {
   int (*loaded)(void) = (int (*)(void))dlsym(RTLD_DEFAULT, "rb_melonx_core_loaded");
   return loaded && loaded() != 0;
@@ -104,6 +122,17 @@ static NSString *S2ArmEnginePath(void) {
   // The previous run's engine log (a crash ends the process before session_ended can copy it).
   dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ S2ArmExportEngineLogs(); });
   S2ArmPreparationCleanupAtStart();   // what an earlier run left of moved-aside preparations, in the background
+  // A session's log is copied when RewindBox goes to the background with a game running (S2ArmExportRunningEngineLog)
+  __weak S2ArmEngineBridgePlugin *weak = instance;
+  [NSNotificationCenter.defaultCenter addObserverForName:UIApplicationDidEnterBackgroundNotification object:nil
+                                                   queue:NSOperationQueue.mainQueue
+                                              usingBlock:^(NSNotification *note) {
+                                                S2ArmEngineBridgePlugin *plugin = weak;
+                                                NSString *gid = plugin.engineViewController ? plugin.runningGameId : nil;
+                                                if (!gid.length) return;
+                                                s2arm_journal("engineLog", "copy", NULL);   // the copy itself runs next, on the utility queue
+                                                dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ S2ArmExportRunningEngineLog(gid); });
+                                              }];
 }
 
 - (void)handleMethodCall:(FlutterMethodCall *)call result:(FlutterResult)result {
