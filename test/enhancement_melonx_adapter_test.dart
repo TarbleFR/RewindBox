@@ -59,7 +59,20 @@ final _records = <String, Map<String, dynamic>>{
     _exefsMod('21.9 Ultrawide v1.0.103.9', 'ultrawide', 'display/0100A21017C42000'),
     _exefsMod('4K', 'graphics', 'display/0100A21017C42000'),
   ]),
+  // A fighting game shaped like the catalogue's Smash Bros. record: FPS codes named after their target, for the
+  // update's build and an older one.
+  _fighter: _record('Fighter', [
+    _cheat('120 FPS (Emulator)', [_update, _older], cat: 'fps'),
+    _cheat('30 FPS', [_update, _older], cat: 'fps'),
+    _cheat('FPS Unlock', [_update], cat: 'fps'),
+    _cheat('P1 0% damage', [_older]),
+  ]),
 };
+
+const _fighter = '0100F1F1F1F1E000';
+const _base = '1111222233334444';
+const _update = 'B9B166DF1DB90BAF';
+const _older = '77104350C9768709';
 
 void main() {
   late Directory temp;
@@ -367,5 +380,224 @@ void main() {
     expect(enabledList().readAsStringSync(), before);
     expect(File(path.join(other.path, 'enabled.txt')).existsSync(), isFalse);
     expect(await MelonxEnhancementAdapter.disableUnchosenCatalogueCheats(Directory(path.join(temp.path, 'none')), chosen), isEmpty);
+  });
+
+  group('installed build', () {
+    MelonxEnhancementAdapter withBuild(String? build, {String title = _title, Map<String, dynamic>? update, bool refresh = false}) =>
+        MelonxEnhancementAdapter(
+          root: () async => root,
+          metadata: (_) async => {'titleId': title, 'version': '1.0.0', 'buildId': ?build},
+          inspectUpdate: (updatePath, titleId) async {
+            expect(titleId, title.toLowerCase(), reason: 'the update is inspected for its base title');
+            if (update == null) throw StateError('unreadable');
+            return update;
+          },
+          refreshSupported: () async => refresh,
+        );
+    EnhancementService serviceWith(MelonxEnhancementAdapter adapter) => EnhancementService(
+      catalog: fixtureCatalog(Directory(path.join(temp.path, 'cache')), {'melonx': _records}),
+      store: EnhancementStore(root: () async => Directory(path.join(temp.path, 'store'))),
+      adapters: [adapter],
+      texturesSupported: (_) => false,
+    );
+    void selectUpdate(String title) {
+      final file = File(path.join(root.path, 'addons', title.toLowerCase(), 'update.nsp'))..createSync(recursive: true);
+      File(path.join(root.path, 'games', title.toLowerCase(), 'updates.json'))
+        ..createSync(recursive: true)
+        ..writeAsStringSync('{"selected":"${path.relative(file.path, from: root.path)}","paths":[]}');
+    }
+
+    test('a code for another build is incompatible and never counted active', () async {
+      final service = serviceWith(withBuild('3CA12DFAAF9C82DA'));
+      var view = await service.open(game, 'switch', download: true);
+      final coins = view.items.firstWhere((item) => item.name == '9999 Coins Save 1');
+      final health = view.items.firstWhere((item) => item.name == 'Infinite Health');
+      expect(coins.status, EnhancementStatus.available);
+      expect(health.status, EnhancementStatus.incompatible);
+      expect(health.problem, EnhancementProblem.versionMismatch);
+      expect(health.compatibility, endsWith('installed 3CA12DFAAF9C82DA'));
+      expect(MelonxEnhancementAdapter.unmatchedBuild(view.items), isNull, reason: 'one code matches');
+      await expectLater(
+        service.setActive(game, 'switch', view, health, true),
+        throwsA(isA<EnhancementException>().having((e) => e.code, 'code', 'incompatible')),
+      );
+
+      // A code turned on for an earlier build (the update changed) stays off the count.
+      await service.store.transaction((games) async {
+        games['melonx:$_title'] = EnhancementGameState(
+          storeKey: 'melonx:$_title',
+          engine: 'melonx',
+          key: _title,
+          installed: true,
+          active: {health.id},
+        );
+      });
+      view = await service.open(game, 'switch', download: true);
+      expect(view.items.firstWhere((item) => item.id == health.id).status, EnhancementStatus.incompatible);
+      expect(view.activeCount, 0);
+      view = await service.setActive(game, 'switch', view, view.items.firstWhere((item) => item.id == coins.id), true);
+      expect((await service.store.game('melonx:$_title'))!.active, {coins.id}, reason: 'the incompatible code is dropped');
+      expect(view.activeCount, 1);
+    });
+
+    test('when no code is for the installed build, the page gets the catalogue builds', () async {
+      final view = await serviceWith(withBuild('0123456789abcdef')).open(game, 'switch', download: true);
+      expect(view.items.every((item) => item.status == EnhancementStatus.incompatible), isTrue);
+      final unmatched = MelonxEnhancementAdapter.unmatchedBuild(view.items)!;
+      expect(unmatched.build, '0123456789ABCDEF');
+      expect(unmatched.targets, ['3CA12DFAAF9C82DA', 'B424BE150A8E7D78', 'F5DCCDDB37E97724']);
+    });
+
+    test('the selected update is what runs; an unreadable one leaves every code as before', () async {
+      selectUpdate(_title);
+      var view = await serviceWith(withBuild('B424BE150A8E7D78', update: {'buildId': '3CA12DFAAF9C82DA'}))
+          .open(game, 'switch', download: true);
+      expect(view.items.firstWhere((item) => item.name == '9999 Coins Save 1').status, EnhancementStatus.available);
+      expect(view.items.firstWhere((item) => item.name == 'Infinite Health').status, EnhancementStatus.incompatible,
+          reason: 'the base build matches it, the selected update does not');
+
+      view = await serviceWith(withBuild('B424BE150A8E7D78')).open(game, 'switch', download: true);
+      expect(view.items.map((item) => item.status).toSet(), {EnhancementStatus.available});
+      expect(view.items.any((item) => item.payload.containsKey('installedBuild')), isFalse);
+    });
+
+    test('an engine without buildId (older Core) changes nothing', () async {
+      final view = await service.open(game, 'switch', download: true);
+      expect(view.items.map((item) => item.status).toSet(), {EnhancementStatus.available});
+      expect(view.items.every((item) => item.problem == EnhancementProblem.none), isTrue);
+      expect(view.items.firstWhere((item) => item.name == 'Infinite Health').compatibility,
+          'Title ID $_title · Build ID B424BE150A8E7D78, F5DCCDDB37E97724');
+      expect(MelonxEnhancementAdapter.unmatchedBuild(view.items), isNull);
+      expect(MelonxEnhancementAdapter.buildIdOf('0000000000000000'), isNull);
+      expect(MelonxEnhancementAdapter.buildIdOf('b9b166df1db90baf'), 'B9B166DF1DB90BAF');
+      expect(MelonxEnhancementAdapter.buildIdOf('B9B166DF1DB90BAF00'), isNull);
+    });
+
+    test("a collection's other programs keep their status", () async {
+      final view = await serviceWith(withBuild('9999999999999999', title: '010049900F546000'))
+          .open(testGame(name: 'Super Mario 3D All-Stars', romPath: '/Documents/MeloNX/3das.nsp'), 'switch', download: true);
+      final byProgram = {for (final item in view.items) item.compatibility.split(' · ').first: item.status};
+      expect(byProgram['Title ID 010049900F546000'], EnhancementStatus.incompatible);
+      expect(byProgram['Title ID 010049900F546001'], EnhancementStatus.available);
+      expect(byProgram['Title ID 010049900F546003'], EnhancementStatus.available);
+      expect(MelonxEnhancementAdapter.unmatchedBuild(view.items), isNotNull);
+    });
+  });
+
+  group('engine refresh of an FPS code', () {
+    final fighter = testGame(name: 'Fighter', romPath: '/Documents/MeloNX/roms/switch/fighter.nsp');
+    late MelonxEnhancementAdapter adapter;
+    late EnhancementService service;
+    var supported = true;
+    Future<int?> launch({Map<String, dynamic>? update}) => MelonxEnhancementAdapter.launchRefresh(
+      fighter.romPath!,
+      states: service.store.all,
+      root: () async => root,
+      metadata: (_) async => {'titleId': _fighter, 'buildId': _base},
+      inspectUpdate: (_, _) async => update ?? {'buildId': _update},
+      supported: () async => supported,
+    );
+    EnhancementItem named(EnhancementGameView view, String name) => view.items.firstWhere((item) => item.name == name);
+
+    setUp(() {
+      supported = true;
+      final file = File(path.join(root.path, 'addons', _fighter.toLowerCase(), 'update.nsp'))..createSync(recursive: true);
+      File(path.join(root.path, 'games', _fighter.toLowerCase(), 'updates.json'))
+        ..createSync(recursive: true)
+        ..writeAsStringSync('{"selected":"${path.relative(file.path, from: root.path)}"}');
+      adapter = MelonxEnhancementAdapter(
+        root: () async => root,
+        metadata: (_) async => {'titleId': _fighter, 'version': '13.0.3', 'buildId': _base},
+        inspectUpdate: (_, _) async => {'buildId': _update},
+        refreshSupported: () async => supported,
+      );
+      service = EnhancementService(
+        catalog: fixtureCatalog(Directory(path.join(temp.path, 'cache')), {'melonx': _records}),
+        store: EnhancementStore(root: () async => Directory(path.join(temp.path, 'store'))),
+        adapters: [adapter],
+        texturesSupported: (_) => false,
+      );
+    });
+
+    test('the target comes from the name, within what the engine takes', () {
+      expect(MelonxEnhancementAdapter.refreshTarget('120 FPS (Emulator)'), 120);
+      expect(MelonxEnhancementAdapter.refreshTarget('Default 60 FPS'), 60);
+      expect(MelonxEnhancementAdapter.refreshTarget('60fps mode'), 60);
+      expect(MelonxEnhancementAdapter.refreshTarget('30 FPS'), 30);
+      expect(MelonxEnhancementAdapter.refreshTarget('FPS Unlock'), isNull);
+      expect(MelonxEnhancementAdapter.refreshTarget('20 FPS'), isNull);
+      expect(MelonxEnhancementAdapter.refreshTarget('300 FPS'), isNull);
+      expect(MelonxEnhancementAdapter.refreshTarget('1000 FPS'), isNull);
+    });
+
+    test('on for the build that runs: the launch carries the target and the page says so', () async {
+      var view = await service.open(fighter, 'switch', download: true);
+      expect(named(view, 'P1 0% damage').status, EnhancementStatus.incompatible, reason: 'only for the older build');
+      expect(named(view, '120 FPS (Emulator)').payload['refreshHz'], 120);
+      expect(named(view, 'FPS Unlock').payload.containsKey('refreshHz'), isFalse);
+      expect(await launch(), isNull, reason: 'nothing is on yet');
+
+      view = await service.setActive(fighter, 'switch', view, named(view, '120 FPS (Emulator)'), true);
+      expect(MelonxEnhancementAdapter.engineRefresh(view.items), 120);
+      expect(await launch(), 120);
+      final refresh = (await service.store.game('melonx:$_fighter'))!.data['refresh'] as Map;
+      expect(refresh[_update], {'hz': 120, 'program': _fighter.toLowerCase(), 'keys': ['$_update-<120 FPS (Emulator) Cheat>']});
+
+      // Another build runs (the update was changed): the code would not be installed, the refresh stays.
+      expect(await launch(update: {'buildId': _base}), isNull);
+      expect(await launch(update: {}), isNull, reason: 'unknown build');
+
+      // Off again: the player's VSync choice applies.
+      view = await service.setActive(fighter, 'switch', view, named(view, '120 FPS (Emulator)'), false);
+      expect(MelonxEnhancementAdapter.engineRefresh(view.items), isNull);
+      expect(await launch(), isNull);
+      expect((await service.store.game('melonx:$_fighter'))!.data.containsKey('refresh'), isFalse);
+    });
+
+    test('an engine without vsyncFps is never sent it', () async {
+      supported = false;
+      var view = await service.open(fighter, 'switch', download: true);
+      expect(named(view, '120 FPS (Emulator)').payload.containsKey('refreshHz'), isFalse);
+      view = await service.setActive(fighter, 'switch', view, named(view, '120 FPS (Emulator)'), true);
+      expect(MelonxEnhancementAdapter.engineRefresh(view.items), isNull);
+      expect(await launch(), isNull);
+    });
+
+    test('a code the engine would not install, or two targets at once, set no refresh', () async {
+      var view = await service.open(fighter, 'switch', download: true);
+      view = await service.setActive(fighter, 'switch', view, named(view, '120 FPS (Emulator)'), true);
+      final enabled = File(path.join(root.path, 'mods', 'contents', _fighter.toLowerCase(), 'cheats', 'enabled.txt'));
+      final before = enabled.readAsStringSync();
+      enabled.writeAsStringSync(before.replaceAll('$_update-<120 FPS (Emulator) Cheat>', ''));
+      expect(await launch(), isNull, reason: 'the enable list no longer names it');
+      enabled.writeAsStringSync(before);
+      expect(await launch(), 120);
+      File(path.join(root.path, 'mods', 'contents', _fighter.toLowerCase(), 'RewindBox', 'cheats', '$_update.txt')).deleteSync();
+      expect(await launch(), isNull, reason: 'its file is gone');
+
+      view = await service.setActive(fighter, 'switch', view, named(view, '120 FPS (Emulator)'), true);
+      view = await service.setActive(fighter, 'switch', view, named(view, '30 FPS'), true);
+      expect(MelonxEnhancementAdapter.engineRefresh(view.items), isNull);
+      expect(await launch(), isNull);
+      expect(
+        await MelonxEnhancementAdapter.launchRefresh(fighter.romPath!, states: () async => throw StateError('store'), supported: () async => true),
+        isNull,
+        reason: 'never throws',
+      );
+    });
+
+    test('the Core marker is searched as UTF-16 text', () {
+      final bundle = Directory(path.join(temp.path, 'Runner.app'));
+      final core = File(path.join(bundle.path, 'Frameworks', 'MeloNXCore.framework', 'MeloNXCore'))..createSync(recursive: true);
+      core.writeAsBytesSync([0, 1, 2]);
+      expect(MelonxEnhancementAdapter.refreshSupportedIn(bundle.path), isFalse);
+      final marker = MelonxEnhancementAdapter.refreshMarker;
+      core.writeAsBytesSync([
+        ...List.filled(7, 0),
+        for (final unit in marker.codeUnits) ...[unit & 0xFF, unit >> 8],
+      ]);
+      expect(MelonxEnhancementAdapter.refreshSupportedIn(bundle.path), isTrue);
+      expect(MelonxEnhancementAdapter.refreshSupportedIn(path.join(temp.path, 'none')), isFalse);
+    });
   });
 }

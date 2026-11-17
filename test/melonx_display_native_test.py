@@ -130,6 +130,21 @@ var threadedOff=EmbeddedGraphicsSettings.Parse("{\"backendThreading\":false}").A
 Check(threadedOff.BackendThreading==BackendThreading.Off);
 var threadedOn=EmbeddedGraphicsSettings.Parse("{\"backendThreading\":true}").Apply(new(){BackendThreading=BackendThreading.Off});
 Check(threadedOn.BackendThreading==BackendThreading.On);
+// A game mode above 60 fps (a "120 FPS" exefs patch): "vsyncFps" is the emulated display's vblank rate through
+// VSyncMode.Custom and CustomVSyncInterval, whatever "vsync" says and in either order; without it the base interval stays.
+var fps120=EmbeddedGraphicsSettings.Parse("{\"vsyncFps\":120}").Apply(new(){VSyncMode=VSyncMode.Switch,CustomVSyncInterval=60});
+Check(fps120.VSyncMode==VSyncMode.Custom && fps120.CustomVSyncInterval==120);
+var fpsOverOff=EmbeddedGraphicsSettings.Parse("{\"vsync\":false,\"vsyncFps\":90}").Apply(new());
+Check(fpsOverOff.VSyncMode==VSyncMode.Custom && fpsOverOff.CustomVSyncInterval==90);
+var fpsBeforeOn=EmbeddedGraphicsSettings.Parse("{\"vsyncFps\":240,\"vsync\":true}").Apply(new());
+Check(fpsBeforeOn.VSyncMode==VSyncMode.Custom && fpsBeforeOn.CustomVSyncInterval==240);
+var noFps=EmbeddedGraphicsSettings.Parse("{\"vsync\":true}").Apply(new(){CustomVSyncInterval=120});
+Check(noFps.VSyncMode==VSyncMode.Switch && noFps.CustomVSyncInterval==120);
+var unbounded=EmbeddedGraphicsSettings.Parse("{\"vsync\":false}").Apply(new());
+Check(unbounded.VSyncMode==VSyncMode.Unbounded);
+foreach(var text in new[]{"{\"vsyncFps\":29}","{\"vsyncFps\":241}","{\"vsyncFps\":\"120\"}","{\"vsyncFps\":120.5}","{\"vsyncFps\":null}"}) {
+ bool rejected=false;try{EmbeddedGraphicsSettings.Parse(text);}catch(Exception){rejected=true;}Check(rejected);
+}
 foreach(var text in new[]{"{\"aspectRatio\":-1}","{\"aspectRatio\":6}","{\"aspectRatio\":1.5}","{\"aspectRatio\":\"stretch\"}","{\"hostMemoryBudget\":1}","{\"textureRecompression\":null}","{\"showRamGraph\":true}","{\"backendThreading\":1}"}) {
  bool rejected=false;try{EmbeddedGraphicsSettings.Parse(text);}catch(Exception){rejected=true;}Check(rejected);
 }

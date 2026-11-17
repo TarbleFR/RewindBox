@@ -308,8 +308,13 @@ LOT_FILES = {
     # After IPA 771 (adapt_shader_load_binary_release): the disk cache files are outside this composition.
     'adapt_shader_load_binary_release': [],
     'adapt_streaming_memory': [],
+    # Nextendo data lot (adapt_nextendo_data): Horizon's BCAT ServiceCreator.cs and ManagerServer.cs are outside this
+    # composition.
     'adapt_nextendo_data': [],
     'adapt_buffer_mirror_windows': ['src/Ryujinx.Graphics.Vulkan/BufferHolder.cs', 'src/Ryujinx.Graphics.Vulkan/PipelineFull.cs', 'src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs', 'src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs'],
+    # Cheat report (adapt_cheat_report): ModLoader.cs, TamperMachine.cs, ProcessLoaderHelper.cs and EmbeddedContent.cs are
+    # outside this composition.
+    'adapt_cheat_report': [],
 }
 
 checks = 0

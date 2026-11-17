@@ -233,6 +233,7 @@ from adapt_shader_load_binary_release import apply as adapt_shader_load_binary_r
 from adapt_streaming_memory import apply as adapt_streaming_memory
 from adapt_nextendo_data import apply as adapt_nextendo_data
 from adapt_buffer_mirror_windows import apply as adapt_buffer_mirror_windows
+from adapt_cheat_report import apply as adapt_cheat_report
 
 
 def replace_once(path, old, new):
@@ -364,7 +365,8 @@ def main():
                    'EmbeddedFirmwareStore.cs': 'Ryujinx.HLE',
                    'EmbeddedFirmwareArchive.cs': 'Ryujinx.HLE',
                    'EmbeddedOnline.cs': 'Ryujinx.HLE',
-                   'EmbeddedDeliveryCache.cs': 'Ryujinx.Horizon'}.get(path.name, 'Ryujinx.Library')
+                   'EmbeddedDeliveryCache.cs': 'Ryujinx.Horizon',
+                   'EmbeddedCheatReport.cs': 'Ryujinx.HLE'}.get(path.name, 'Ryujinx.Library')
         target = source / 'src' / project / path.name
         shutil.copyfile(path, target)
         copied.append(target)
@@ -761,6 +763,11 @@ def main():
     # it); no other adapter edits these files.
     adapted += adapt_nextendo_data(source)
     adapted += adapt_buffer_mirror_windows(source)
+    # After IPA 773 (every title, journal and metadata only): which build the cheats were for. LoadCheats counts found and
+    # skipped (ModLoader.cs), the tamper machine counts installed and enabled (TamperMachine.cs), one Warning line per process
+    # (ProcessLoaderHelper.cs after adapt_session) and the main build id in the metadata answer (EmbeddedContent.cs after
+    # adapt_nextendo_online); EmbeddedCheatReport.cs is copied above with the native files; no other adapter edits these.
+    adapted += adapt_cheat_report(source)
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -922,7 +929,8 @@ def main():
                  'adapt_draw_wait_lanes.py', 'adapt_mirror_copy_journal.py', 'adapt_array_attachment_members.py',
                  'adapt_empty_worker_snapshot.py', 'adapt_release_passes.py', 'adapt_array_walk_size.py',
                  'adapt_loh_compaction_request.py', 'adapt_guest_break_context.py',
-                 'adapt_shader_load_binary_release.py', 'adapt_streaming_memory.py', 'adapt_nextendo_data.py', 'adapt_buffer_mirror_windows.py']:
+                 'adapt_shader_load_binary_release.py', 'adapt_streaming_memory.py', 'adapt_nextendo_data.py', 'adapt_buffer_mirror_windows.py',
+                 'adapt_cheat_report.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

@@ -121,7 +121,8 @@ static class Program
         {
             Run(args[0]);
             report["checks"] = checks;
-            Console.WriteLine(JsonSerializer.Serialize(report));
+            // Into a file: the engine's asynchronous console logger can write after a line printed here.
+            File.WriteAllText(Path.Combine(args[0], "report.json"), JsonSerializer.Serialize(report));
             return 0;
         }
         catch (Exception error)
