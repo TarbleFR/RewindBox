@@ -2468,7 +2468,10 @@ def images_for_paths(paths, base_images):
             plugin = parts[1]
             if parts[2] in ('lib', 'pubspec.yaml'):
                 images.add(APP)
-            elif parts[2] == 'ios' and not (len(parts) > 3 and parts[3] in ('Frameworks', 'Tests')):
+            # A plugin's ios/Resources are data files copied beside its framework binary, not compiled into it (IPA 768:
+            # packages/neo_texture_catalog/ios/Resources/manifest.json.gz alone made the binary a must-change image, which
+            # rightly kept its base payload): reported as unmapped, like Frameworks and Tests
+            elif parts[2] == 'ios' and not (len(parts) > 3 and parts[3] in ('Frameworks', 'Tests', 'Resources')):
                 name = PLUGIN_IMAGES.get(plugin, f'Frameworks/{plugin}.framework/{plugin}')
                 if name in base_images:
                     images.add(name)
