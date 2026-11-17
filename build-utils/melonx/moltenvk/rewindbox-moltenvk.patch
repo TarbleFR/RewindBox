@@ -197,9 +197,55 @@ index e385e9b..fb99f6c 100644
  										   MVKShaderModule* shaderModule,
  										   MVKPipeline* pipeline,
 diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm b/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm
-index 7eae64c..373221d 100644
+index 7eae64c..0ef8772 100644
 --- a/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm
 +++ b/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm
+@@ -1180,7 +1180,7 @@ MTLRenderPipelineDescriptor* MVKGraphicsPipeline::newMTLRenderPipelineDescriptor
+ 
+ 	SPIRVShaderOutputs vtxOutputs;
+ 	std::string errorLog;
+-	if (!getShaderOutputs(_vertexModule->getSPIRV(), spv::ExecutionModelVertex, pVertexSS->pName, vtxOutputs, errorLog) ) {
++	if (!_vertexModule->getShaderInterfaceVariables(spv::StorageClassOutput, spv::ExecutionModelVertex, pVertexSS->pName, vtxOutputs, errorLog) ) {
+ 		setConfigurationResult(reportError(VK_ERROR_INITIALIZATION_FAILED, "Failed to get vertex outputs: %s", errorLog.c_str()));
+ 		return nil;
+ 	}
+@@ -1219,7 +1219,7 @@ MTLComputePipelineDescriptor* MVKGraphicsPipeline::newMTLTessVertexStageDescript
+ 
+ 	SPIRVShaderInputs tcInputs;
+ 	std::string errorLog;
+-	if (!getShaderInputs(_tessCtlModule->getSPIRV(), spv::ExecutionModelTessellationControl, pTessCtlSS->pName, tcInputs, errorLog) ) {
++	if (!_tessCtlModule->getShaderInterfaceVariables(spv::StorageClassInput, spv::ExecutionModelTessellationControl, pTessCtlSS->pName, tcInputs, errorLog) ) {
+ 		setConfigurationResult(reportError(VK_ERROR_INITIALIZATION_FAILED, "Failed to get tessellation control inputs: %s", errorLog.c_str()));
+ 		return nil;
+ 	}
+@@ -1361,11 +1361,11 @@ MTLComputePipelineDescriptor* MVKGraphicsPipeline::newMTLTessControlStageDescrip
+ 	SPIRVShaderOutputs vtxOutputs;
+ 	SPIRVShaderInputs teInputs;
+ 	std::string errorLog;
+-	if (!getShaderOutputs(_vertexModule->getSPIRV(), spv::ExecutionModelVertex, pVertexSS->pName, vtxOutputs, errorLog) ) {
++	if (!_vertexModule->getShaderInterfaceVariables(spv::StorageClassOutput, spv::ExecutionModelVertex, pVertexSS->pName, vtxOutputs, errorLog) ) {
+ 		setConfigurationResult(reportError(VK_ERROR_INITIALIZATION_FAILED, "Failed to get vertex outputs: %s", errorLog.c_str()));
+ 		return nil;
+ 	}
+-	if (!getShaderInputs(_tessEvalModule->getSPIRV(), spv::ExecutionModelTessellationEvaluation, pTessEvalSS->pName, teInputs, errorLog) ) {
++	if (!_tessEvalModule->getShaderInterfaceVariables(spv::StorageClassInput, spv::ExecutionModelTessellationEvaluation, pTessEvalSS->pName, teInputs, errorLog) ) {
+ 		setConfigurationResult(reportError(VK_ERROR_INITIALIZATION_FAILED, "Failed to get tessellation evaluation inputs: %s", errorLog.c_str()));
+ 		return nil;
+ 	}
+@@ -1405,11 +1405,11 @@ MTLRenderPipelineDescriptor* MVKGraphicsPipeline::newMTLTessRasterStageDescripto
+ 	SPIRVShaderOutputs tcOutputs, teOutputs;
+ 	SPIRVShaderInputs teInputs;
+ 	std::string errorLog;
+-	if (!getShaderOutputs(_tessCtlModule->getSPIRV(), spv::ExecutionModelTessellationControl, pTessCtlSS->pName, tcOutputs, errorLog) ) {
++	if (!_tessCtlModule->getShaderInterfaceVariables(spv::StorageClassOutput, spv::ExecutionModelTessellationControl, pTessCtlSS->pName, tcOutputs, errorLog) ) {
+ 		setConfigurationResult(reportError(VK_ERROR_INITIALIZATION_FAILED, "Failed to get tessellation control outputs: %s", errorLog.c_str()));
+ 		return nil;
+ 	}
+-	if (!getShaderOutputs(_tessEvalModule->getSPIRV(), spv::ExecutionModelTessellationEvaluation, pTessEvalSS->pName, teOutputs, errorLog) ) {
++	if (!_tessEvalModule->getShaderInterfaceVariables(spv::StorageClassOutput, spv::ExecutionModelTessellationEvaluation, pTessEvalSS->pName, teOutputs, errorLog) ) {
+ 		setConfigurationResult(reportError(VK_ERROR_INITIALIZATION_FAILED, "Failed to get tessellation evaluation outputs: %s", errorLog.c_str()));
+ 		return nil;
+ 	}
 @@ -2630,6 +2630,7 @@ protected:
  	SPIRVToMSLConversionConfiguration& getShaderConversionConfig() { return _pSLCache->_shaderLibraries[_index].first; }
  	MVKCompressor<std::string>& getCompressedMSL() { return _pSLCache->_shaderLibraries[_index].second->getCompressedMSL(); }
@@ -387,10 +433,18 @@ index 7eae64c..373221d 100644
  
  
 diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h b/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h
-index c5b7499..596d9ec 100644
+index c5b7499..ab493f6 100644
 --- a/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h
 +++ b/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h
-@@ -154,6 +154,7 @@ protected:
+@@ -23,6 +23,7 @@
+ #include "MVKCodec.h"
+ #include "MVKSmallVector.h"
+ #include <MoltenVKShaderConverter/SPIRVToMSLConverter.h>
++#include <MoltenVKShaderConverter/SPIRVReflection.h>
+ #include <mutex>
+ 
+ #import <Metal/Metal.h>
+@@ -154,6 +155,7 @@ protected:
  	id<MTLLibrary> _mtlLibrary;
  	MVKCompressor<std::string> _compressedMSL;
  	mvk::SPIRVToMSLConversionResultInfo _shaderConversionResultInfo;
@@ -398,19 +452,67 @@ index c5b7499..596d9ec 100644
  
  	/** When true, representing a library created with source, but never specialized */
  	bool _maySpecializeWithMacro;
+@@ -257,8 +259,20 @@ public:
+ 	bool convert(mvk::SPIRVToMSLConversionConfiguration* pShaderConfig,
+                mvk::SPIRVToMSLConversionResult& conversionResult);
+ 
+-	/** Returns the original SPIR-V code that was specified when this object was created. */
+-	const std::vector<uint32_t>& getSPIRV() { return _spvConverter.getSPIRV(); }
++	/**
++	 * Returns the original SPIR-V code that was specified when this object was created.
++	 * RewindBox: a copy, decompressed from what this module keeps (see setSPIRV()).
++	 */
++	std::vector<uint32_t> getSPIRV();
++
++	/**
++	 * RewindBox: the interface variables of a storage class (input or output) of an entry point, as getShaderInputs() and
++	 * getShaderOutputs() of SPIRVReflection.h give them from this module's SPIR-V, into the same container type as
++	 * MVKGraphicsPipeline's. Reflected once per storage class, stage and entry point name, then copied from what this
++	 * module keeps. Returns false with the error in errorLog when the reflection fails; nothing is kept then.
++	 */
++	bool getShaderInterfaceVariables(spv::StorageClass storage, spv::ExecutionModel model, const std::string& entryName,
++									 MVKSmallVector<mvk::SPIRVShaderInterfaceVariable, 32>& vars, std::string& errorLog);
+ 
+     /** Sets the number of threads in a single compute kernel workgroup, per dimension. */
+     void setWorkgroupSize(uint32_t x, uint32_t y, uint32_t z);
+@@ -274,9 +288,22 @@ protected:
+ 	friend MVKShaderCacheIterator;
+ 
+ 	void propagateDebugName() override {}
++	void setSPIRV(const uint32_t* spirvCode, size_t wordCount);
++
++	// RewindBox: what one reflection of a stage interface gave.
++	struct ReflectedInterface {
++		spv::StorageClass storage;
++		spv::ExecutionModel model;
++		std::string entryName;
++		std::vector<mvk::SPIRVShaderInterfaceVariable> vars;
++	};
+ 
+ 	MVKShaderLibraryCache _shaderLibraryCache;
+-	mvk::SPIRVToMSLConverter _spvConverter;
++	std::vector<uint8_t> _spirvData;	// RewindBox: the SPIR-V, compressed with _spirvAlgorithm (NONE: the words as given)
++	size_t _spirvWordCount = 0;
++	MVKConfigCompressionAlgorithm _spirvAlgorithm = MVK_CONFIG_COMPRESSION_ALGORITHM_NONE;
++	std::vector<ReflectedInterface> _reflectedInterfaces;	// RewindBox: guarded by _reflectionLock
++	std::mutex _reflectionLock;
+ 	MVKShaderLibrary* _directMSLLibrary;
+ 	MVKShaderModuleKey _key;
+     std::mutex _accessLock;
 diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm b/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm
-index 3aa44a4..e985016 100644
+index 3aa44a4..1fb43e1 100644
 --- a/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm
 +++ b/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm
-@@ -20,6 +20,7 @@
+@@ -20,6 +20,8 @@
  #include "MVKPipeline.h"
  #include "MVKFoundation.h"
  #include <sys/stat.h>
 +#include <cstdlib>
++#include <cstring>
  
  using namespace std;
  using namespace mvk;
-@@ -357,11 +358,28 @@ MVKShaderLibrary* MVKShaderLibraryCache::findShaderLibrary(SPIRVToMSLConversionC
+@@ -357,11 +359,28 @@ MVKShaderLibrary* MVKShaderLibraryCache::findShaderLibrary(SPIRVToMSLConversionC
  	return nullptr;
  }
  
@@ -440,7 +542,7 @@ index 3aa44a4..e985016 100644
  	return shLib;
  }
  
-@@ -370,7 +388,7 @@ MVKShaderLibrary* MVKShaderLibraryCache::addShaderLibrary(const SPIRVToMSLConver
+@@ -370,7 +389,7 @@ MVKShaderLibrary* MVKShaderLibraryCache::addShaderLibrary(const SPIRVToMSLConver
  														  const SPIRVToMSLConversionResultInfo& resultInfo,
  														  const MVKCompressor<std::string> compressedMSL) {
  	MVKShaderLibrary* shLib = new MVKShaderLibrary(_owner, resultInfo, compressedMSL);
@@ -449,7 +551,7 @@ index 3aa44a4..e985016 100644
  	return shLib;
  }
  
-@@ -379,7 +397,7 @@ void MVKShaderLibraryCache::merge(MVKShaderLibraryCache* other) {
+@@ -379,7 +398,7 @@ void MVKShaderLibraryCache::merge(MVKShaderLibraryCache* other) {
  	if ( !other ) { return; }
  	for (auto& otherPair : other->_shaderLibraries) {
  		if ( !findShaderLibrary(&otherPair.first) ) {
@@ -458,6 +560,121 @@ index 3aa44a4..e985016 100644
  			_shaderLibraries.back().second->_owner = _owner;
  		}
  	}
+@@ -393,6 +412,82 @@ MVKShaderLibraryCache::~MVKShaderLibraryCache() {
+ #pragma mark -
+ #pragma mark MVKShaderModule
+ 
++// RewindBox: a shader module keeps its SPIR-V compressed (LZ4, Apple's codec through mvkCompress) and decompresses a copy
++// for each use: a conversion to MSL (a library no cache holds) and a reflection of a stage interface, made once per
++// module, storage class, stage and entry point (getShaderInterfaceVariables) where MVKGraphicsPipeline made it for every
++// pipeline. IPA 764, Super Smash Bros. Ultimate (11 145 programs): 695 MiB of the 1 350 MiB of live native heap were the
++// words this constructor copied (SPIRVToMSLConverter::setSPIRV). MVK_CONFIG_REWINDBOX_RAW_SPIRV in the environment keeps
++// the words as given (the control; nothing sets it in the app); the reflection is kept either way.
++__attribute__((used)) static const char kRewindBoxSPIRVStore[] =
++	"RewindBox SPIR-V store: a shader module keeps its SPIR-V compressed and reflects each stage interface once";
++
++static bool rewindBoxRawSPIRV() {
++	static const bool raw = getenv("MVK_CONFIG_REWINDBOX_RAW_SPIRV") != nullptr;
++	return raw;
++}
++
++void MVKShaderModule::setSPIRV(const uint32_t* spirvCode, size_t wordCount) {
++	size_t byteCount = wordCount * sizeof(uint32_t);
++	_spirvWordCount = wordCount;
++	_spirvData.resize(byteCount);
++	size_t stored = 0;
++	if ( !rewindBoxRawSPIRV() ) {
++		stored = mvkCompress((const uint8_t*)spirvCode, byteCount, _spirvData.data(), byteCount, MVK_CONFIG_COMPRESSION_ALGORITHM_LZ4);
++	}
++	if (stored) {
++		_spirvAlgorithm = MVK_CONFIG_COMPRESSION_ALGORITHM_LZ4;
++	} else {
++		// The control, or words LZ4 does not make smaller: kept as given.
++		_spirvAlgorithm = MVK_CONFIG_COMPRESSION_ALGORITHM_NONE;
++		if (byteCount) { memcpy(_spirvData.data(), spirvCode, byteCount); }
++		stored = byteCount;
++	}
++	_spirvData.resize(stored);
++	_spirvData.shrink_to_fit();
++}
++
++std::vector<uint32_t> MVKShaderModule::getSPIRV() {
++	std::vector<uint32_t> spirv(_spirvWordCount);
++	if (_spirvWordCount) {
++		size_t byteCount = _spirvWordCount * sizeof(uint32_t);
++		size_t read = mvkDecompress(_spirvData.data(), _spirvData.size(), (uint8_t*)spirv.data(), byteCount, _spirvAlgorithm);
++		if (read != byteCount) {
++			reportError(VK_ERROR_INITIALIZATION_FAILED, "RewindBox SPIR-V store: %zu of %zu bytes of SPIR-V decompressed.", read, byteCount);
++			spirv.clear();
++		}
++	}
++	return spirv;
++}
++
++bool MVKShaderModule::getShaderInterfaceVariables(spv::StorageClass storage, spv::ExecutionModel model, const string& entryName,
++												  MVKSmallVector<SPIRVShaderInterfaceVariable, 32>& vars, string& errorLog) {
++	{
++		lock_guard<mutex> lock(_reflectionLock);
++		for (const auto& reflected : _reflectedInterfaces) {
++			if (reflected.storage == storage && reflected.model == model && reflected.entryName == entryName) {
++				vars.clear();
++				for (const auto& var : reflected.vars) { vars.push_back(var); }
++				return true;
++			}
++		}
++	}
++
++	// Reflected without the lock, into the caller's container type: two threads may reflect the same interface at once,
++	// and they find the same variables; the first one kept stays.
++	auto spirv = getSPIRV();
++	bool wasReflected = (storage == spv::StorageClassOutput
++						 ? getShaderOutputs(spirv, model, entryName, vars, errorLog)
++						 : getShaderInputs(spirv, model, entryName, vars, errorLog));
++	if ( !wasReflected ) { return false; }
++
++	lock_guard<mutex> lock(_reflectionLock);
++	for (const auto& reflected : _reflectedInterfaces) {
++		if (reflected.storage == storage && reflected.model == model && reflected.entryName == entryName) { return true; }
++	}
++	_reflectedInterfaces.push_back({storage, model, entryName, std::vector<SPIRVShaderInterfaceVariable>(vars.begin(), vars.end())});
++	return true;
++}
++
+ MVKMTLFunction MVKShaderModule::getMTLFunction(SPIRVToMSLConversionConfiguration* pShaderConfig,
+ 											   const VkSpecializationInfo* pSpecializationInfo,
+ 											   MVKPipeline* pipeline,
+@@ -421,8 +516,12 @@ bool MVKShaderModule::convert(SPIRVToMSLConversionConfiguration* pShaderConfig,
+ 	bool shouldLogCode = mvkCfg.debugMode;
+ 	bool shouldLogEstimatedGLSL = shouldLogCode && mvkCfg.shaderLogEstimatedGLSL;
+ 
++	// RewindBox: the module's SPIR-V, decompressed for this conversion only (see setSPIRV()).
++	SPIRVToMSLConverter spvConverter;
++	spvConverter.setSPIRV(getSPIRV());
++
+ 	uint64_t startTime = getPerformanceTimestamp();
+-	bool wasConverted = _spvConverter.convert(*pShaderConfig, conversionResult, shouldLogCode, shouldLogCode, shouldLogEstimatedGLSL);
++	bool wasConverted = spvConverter.convert(*pShaderConfig, conversionResult, shouldLogCode, shouldLogCode, shouldLogEstimatedGLSL);
+ 	addPerformanceInterval(getPerformanceStats().shaderCompilation.spirvToMSL, startTime);
+ 
+ 	const char* dumpDir = getMVKConfig().shaderDumpDir;
+@@ -444,7 +543,7 @@ bool MVKShaderModule::convert(SPIRVToMSLConversionConfiguration* pShaderConfig,
+ 		snprintf(path, sizeof(path), "%s/shader%s-%016zx.spv", dumpDir, type, _key.codeHash);
+ 		FILE* file = fopen(path, "wb");
+ 		if (file) {
+-			fwrite(_spvConverter.getSPIRV().data(), sizeof(uint32_t), _spvConverter.getSPIRV().size(), file);
++			fwrite(spvConverter.getSPIRV().data(), sizeof(uint32_t), spvConverter.getSPIRV().size(), file);
+ 			fclose(file);
+ 		}
+ 		snprintf(path, sizeof(path), "%s/shader%s-%016zx.metal", dumpDir, type, _key.codeHash);
+@@ -504,7 +603,7 @@ MVKShaderModule::MVKShaderModule(MVKDevice* device,
+ 			codeHash = mvkHash(pCreateInfo->pCode, spvCount);
+ 			addPerformanceInterval(getPerformanceStats().shaderCompilation.hashShaderCode, startTime);
+ 
+-			_spvConverter.setSPIRV(pCreateInfo->pCode, spvCount);
++			setSPIRV(pCreateInfo->pCode, spvCount);
+ 
+ 			break;
+ 		}
 diff --git a/MoltenVK/MoltenVK/Utility/MVKCodec.h b/MoltenVK/MoltenVK/Utility/MVKCodec.h
 index c5e1561..5ffded5 100644
 --- a/MoltenVK/MoltenVK/Utility/MVKCodec.h
@@ -538,7 +755,7 @@ index 406f4f8..68579af 100644
  #pragma mark -
  #pragma mark SPIRVToMSLConverter
 diff --git a/MoltenVKShaderConverter/MoltenVKShaderConverter/SPIRVToMSLConverter.h b/MoltenVKShaderConverter/MoltenVKShaderConverter/SPIRVToMSLConverter.h
-index bffc072..6d59c83 100644
+index bffc072..7789122 100644
 --- a/MoltenVKShaderConverter/MoltenVKShaderConverter/SPIRVToMSLConverter.h
 +++ b/MoltenVKShaderConverter/MoltenVKShaderConverter/SPIRVToMSLConverter.h
 @@ -190,6 +190,12 @@ namespace mvk {
@@ -554,3 +771,13 @@ index bffc072..6d59c83 100644
  	} SPIRVToMSLConversionConfiguration;
  
  
+@@ -285,6 +291,9 @@ namespace mvk {
+ 		/** Sets the SPIRV code. */
+ 		void setSPIRV(const std::vector<uint32_t>& spirv) { _spirv = spirv; }
+ 
++		/** RewindBox: sets the SPIRV code, taking the vector (MVKShaderModule's decompressed copy). */
++		void setSPIRV(std::vector<uint32_t>&& spirv) { _spirv = std::move(spirv); }
++
+ 		/**
+ 		 * Sets the SPIRV code from the specified array of values.
+ 		 * The length parameter indicates the number of uint values to store.
