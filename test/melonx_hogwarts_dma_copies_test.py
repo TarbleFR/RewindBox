@@ -305,6 +305,8 @@ LOT_FILES = {
     'adapt_loh_compaction_request': [],
     # After IPA 767 (adapt_guest_break_context): Syscall.cs is outside this composition.
     'adapt_guest_break_context': [],
+    # After IPA 771 (adapt_shader_load_binary_release): the disk cache files are outside this composition.
+    'adapt_shader_load_binary_release': [],
 }
 
 checks = 0

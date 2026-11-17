@@ -295,7 +295,9 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'single-virtual-dependency': 'ada',
             # After IPA 767: the large object heap request at a host pressure report, the game's own break journaled, and
             # the historical kernel wait gate's successor (its receipt declares Syscall.cs, which the break context changes).
-            'loh-compaction-request': 'delivered', 'guest-break-context': 'delivered', 'kernel-wait-lifetime-final': 'delivered'}
+            'loh-compaction-request': 'delivered', 'guest-break-context': 'delivered', 'kernel-wait-lifetime-final': 'delivered',
+            # After IPA 771: the shader cache load keeps no host code of cached programs.
+            'shader-load-binary-release': 'delivered'}
 TEXTURE = 'src/Ryujinx.Graphics.Gpu/Image/Texture.cs'
 # Core 654: the collector (DIAGNOSTICS) is a reviewed change again, its gcEvent lines bound by the gc-events gate.
 CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES) |
@@ -397,7 +399,9 @@ CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES
            # After IPA 760, journal only: BufferHolder.cs is changed already.
            set(C772_MIRROR_COPY_JOURNAL) |
            # After IPA 767: the game's own break journaled (adapt_guest_break_context).
-           {'src/Ryujinx.HLE/HOS/Kernel/SupervisorCall/Syscall.cs'})
+           {'src/Ryujinx.HLE/HOS/Kernel/SupervisorCall/Syscall.cs'} |
+           # After IPA 771: the shader cache loader (adapt_shader_load_binary_release; DiskCacheHostStorage.cs is changed already).
+           {'src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ParallelDiskCacheLoader.cs'})
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
@@ -731,7 +735,8 @@ if not args.helpers_only:
     # Nextendo online lot: 115 (its six files) and one production addition, src/Ryujinx.HLE/EmbeddedOnline.cs.
     # After IPA 759: 116 (Ryujinx.Library.csproj) and a second addition, src/Ryujinx.Library/RewindBoxRuntimeYield.c.
     # After IPA 767: 117 (Syscall.cs, the game's own break journaled: adapt_guest_break_context).
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 117 and
+    # After IPA 771: 118 (ParallelDiskCacheLoader.cs: adapt_shader_load_binary_release).
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 118 and
           set(frozen["productionAdditions"]) == {C768_ONLINE_ADDITION, C770_RUNTIME_YIELD_ADDITION}, "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
                                                      'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
@@ -879,7 +884,9 @@ if not args.helpers_only:
                                                      # After IPA 767: the large object heap compaction request.
                                                      'build-utils/melonx/adapt_loh_compaction_request.py',
                                                      # After IPA 767: the game's own break in the Core journal.
-                                                     'build-utils/melonx/adapt_guest_break_context.py'} and
+                                                     'build-utils/melonx/adapt_guest_break_context.py',
+                                                     # After IPA 771: the shader cache load keeps no host code of cached programs.
+                                                     'build-utils/melonx/adapt_shader_load_binary_release.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -946,7 +953,8 @@ if not args.helpers_only:
     # After IPA 764: four adapters join them (260); their six files are members already (228).
     # After IPA 767: adapt_loh_compaction_request.py and adapt_guest_break_context.py join them (262); Switch.cs and
     # Syscall.cs are members already (228).
-    check(len(frozen['preparationInputs']) == 262 and len(frozen['preparedMembers']) == 228, 'Wrong final composition')
+    # After IPA 771: adapt_shader_load_binary_release.py joins them (263); its two disk cache files are members already.
+    check(len(frozen['preparationInputs']) == 263 and len(frozen['preparedMembers']) == 228, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
