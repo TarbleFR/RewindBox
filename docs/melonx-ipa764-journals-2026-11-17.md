@@ -70,7 +70,7 @@ record symbolised with the rebuilt MoltenVK, MoltenVK's own statistics, the memo
 | Implemented | Yes: `build-utils/melonx/moltenvk/rewindbox-moltenvk.patch` (`fa274300`), sixth marker in `moltenvk-rebuild.json` |
 | Tested | The patch applies to v1.4.2 (`db660224`) and regenerates byte for byte; drawable ownership check passes; the Core gates' predicates on the patch hold. On a real Metal device: the cache keys measure (macOS runner, pipelines built from SPIR-V, pixels checked) runs on this change |
 | Compiled | MoltenVK rebuild for iOS (`melonx-moltenvk-rebuild.yml`) on this change |
-| Delivered | Next private IPA after 765 |
+| Delivered | Private IPA 766 (run 44008219952, IPA 46e47178), with the seventh part |
 | Observed on a device | No |
 
 ## 4. Leads not taken
@@ -197,5 +197,15 @@ sequence lock (formal: the fast path also compares the current view and the gene
 
 | Change | Implemented | Tested | Compiled | Delivered | Observed on a device |
 | --- | --- | --- | --- | --- | --- |
-| 5.1 MoltenVK seventh part | Yes | macOS: pixels and keys equal, view writes 0.45 to 0.56 of the time | iOS, pinned | Next IPA | No |
-| 5.2 to 5.5 Core adapters | Yes | Vulkan and GPU assemblies built; 111 gates on the final preparation; contract 87a7e8eb | iOS: run 44005156898, two simulator sessions, pinned (58319c2c, fingerprint f9670c15) | Next IPA | No |
+| 5.1 MoltenVK seventh part | Yes | macOS: pixels and keys equal, view writes 0.45 to 0.56 of the time | iOS, pinned | Private IPA 766 | No |
+| 5.2 to 5.5 Core adapters | Yes | Vulkan and GPU assemblies built; 111 gates on the final preparation; contract 87a7e8eb | iOS: run 44005156898, two simulator sessions, pinned (58319c2c, fingerprint f9670c15) | Private IPA 766 | No |
+
+Private IPA 766 (run 44008219952, 17 November 2026): base 765, the two rows above and the sixth MoltenVK part; IPA
+`46e47178` (331 390 372 B), 97 signed images, offline verification passed (six validators at 0), receipt
+`docs/evidence/rewind766/delivery.json`, recipient key deleted. Images changed from the base: the three declared
+(MeloNXCore, MeloNXMoltenVKStandalone, Runner) and two undeclared bridges, each fingerprint-identical to an image
+already delivered (recipe 3.10): `armsx2_internal_bridge` `91ceaf60` is the image of 762 (also 758, 753, 752 and
+earlier), the other member of the pair compared at 725/726 and 762/763; `melonx_internal_bridge` `c029bdcf` is the
+image of 764 (also 761, 756, 751, 747), the pair compared at 761 (one byte of `__stubs` and one byte per
+`__objc_stubs` entry). Both alternate between two linker outputs; no compiled code or data of theirs changed in this
+lot. Nothing has run on an iPhone yet.
