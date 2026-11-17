@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "58319c2cd3c085779cbb66fa76583e277519bbdd",
-  "run": 44005156898,
-  "job": 133778585856,
+  "source": "1df78c52fdbdc2cccb3fa75074b5b12dc3cd2281",
+  "run": 44075543918,
+  "job": 134012469621,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 14294757273,
-  "name": "MeloNX-engine-58319c2cd3c085779cbb66fa76583e277519bbdd",
-  "bytes": 100657010,
-  "sha256": "0898b6bd458aad5b245f01f830cb22320fe18dc315f9cec4ec8bae6f454e8e15",
-  "expiresAt": "2027-02-15T02:44:17Z",
+  "artifact": 14324239963,
+  "name": "MeloNX-engine-1df78c52fdbdc2cccb3fa75074b5b12dc3cd2281",
+  "bytes": 100674538,
+  "sha256": "f7e042184798394b9e5218228d568567bf8641dd5f4897665f3e88699c302b1d",
+  "expiresAt": "2027-02-15T11:36:27Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "011495074a2ccdbeb372117ed29bf9e8f605d3475b5d0e6ed0a9be77d2fbfde5",
-      "bytes": 38637424
+      "sha256": "4e6873210f20860d3c4f23e9b3c172512f1515a4fb4da568d60fff7ae73421a8",
+      "bytes": 38653832
     },
     "iossimulator-arm64": {
-      "sha256": "139d0de9a2af9119ec3f81d33c55d07eb167ea700bce8322d7af07acf13f247a",
-      "bytes": 38955880
+      "sha256": "c373dfe89af5f87b8aee77635528fd9b9c3c849cee30aef4472d0f5d4b98e620",
+      "bytes": 38972424
     }
   },
   "identities": {
-    "ios-arm64": "22ea4d588419942777784eb85872d7c628186041e0b6b3672389d3a63b5622b7",
-    "iossimulator-arm64": "2f462b7a46128af1a92bc429cbafcfac658e53217cd4da41d59112d1b6f50a9e"
+    "ios-arm64": "a6e02f9f200454c24620549209b15593a09eb7e8946ac5a6c9dbe5b836847498",
+    "iossimulator-arm64": "c7316c7d00da1eb8ddd540bfa8e91dccb92985c63c8844b94c9a9800c45482d1"
   },
-  "contractSha256": "87a7e8ebe91d0456ce44c0e0bd06dba146f85604cdd09b3adaa26c8c1bc7f637",
-  "resultSha256": "595af3a6e8cf9564cbc2a00b929274e2f057e82967ac6ecc8edd9c9cf19a9611",
-  "packagedFingerprint": "f9670c15400ed910d27563feb65ec7cf58c28c7e197568d153333ec1c71b3a6e",
+  "contractSha256": "40b5f0897963d382fa899f47fdbff16c42bc62ed1665fed27d93bc5e40a049e4",
+  "resultSha256": "9fde166fcb5b04d3ff314c3d2f8880b7d7e6ef2381a82ad05011d49b3b8db3e9",
+  "packagedFingerprint": "fa5ce588282f30c89f2cee2db47649b5d709e79a27237685b5302713d0c705a4",
   "replaces": {
-    "source": "a80b212ff2458f938fd6c52a5130fb0daf6be214",
-    "run": 43968706324,
-    "artifact": 14278297391,
-    "packagedFingerprint": "f74a9313fb7d6872ad8c379e213ca87c3b5209f31d61909d206ff0cf05927ff7",
-    "reason": "After IPA 764 (no probe added), every title, from the IPA 764 journals (Hogwarts Legacy, castle courtyard, 13 to 16 frames per second): adapt_array_attachment_members (a texture array's barrier pass over an unchanged set, for covered stages, calls only the storages that were ever attachments while none of its set became one since its last full pass; a disposed storage leaves the promotion ring; 22 413 passes over 1 053 305 storages per 5 s for 9 916 barriers), adapt_release_passes (a finished command buffer clears every dependant's ownership bits, then releases them, in the same order), adapt_empty_worker_snapshot (beside a main snapshot, a worker file of 64 bytes or less is read as no file: both Hogwarts launches joined an empty worker snapshot and wrote nothing) and adapt_array_walk_size (a bindless array entry walks its own textures when the change ring to read is longer than its set). Contract 87a7e8eb, 111 gates on the final preparation (Linux x86_64), build-smoke route. No iPhone gameplay, stutter, frame rate or memory gain is claimed."
+    "source": "58319c2cd3c085779cbb66fa76583e277519bbdd",
+    "run": 44005156898,
+    "artifact": 14294757273,
+    "packagedFingerprint": "f9670c15400ed910d27563feb65ec7cf58c28c7e197568d153333ec1c71b3a6e",
+    "reason": "After IPA 767, every title, from the IPA 767 journals (Hogwarts Legacy ended by the device running out of memory in the castle courtyard; Super Smash Bros. Ultimate: 490 MiB free in the large object heap for eight minutes, then a game-initiated svcBreak after 29 minutes with no cause in any journal): adapt_loh_compaction_request (at a host pressure report, with 256 MiB or more free in the large object heap and the device at 15 % or less, the collector's next blocking collection also compacts that heap; no collection is started) and adapt_guest_break_context (the game's own svcBreak writes its reason, info bytes, thread, control registers and guest stack into the Core journal); the MoltenVK eight-part recipe patch as an input. Contract 40b5f089, 114 gates on the final preparation (Linux x86_64), build-smoke route. No iPhone gameplay, stutter, frame rate or memory gain is claimed."
   }
 }
