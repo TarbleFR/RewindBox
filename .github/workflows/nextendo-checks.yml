@@ -16,6 +16,7 @@ run-name: Nextendo Network app checks • ${{ github.sha }}
     - test/nextendo_*_test.dart
     - test/fixtures/nextendo/**
     - lib/services/melonx_internal_service.dart
+    - lib/screens/game_screen/game_settings_dialog/game_settings_manage_tab.dart
   workflow_dispatch:
 permissions:
   contents: read
@@ -38,6 +39,6 @@ jobs:
     - name: Resolve Flutter dependencies
       run: flutter pub get --enforce-lockfile
     - name: Analyze the Nextendo code, its screen, its strings and the app start
-      run: flutter analyze --no-fatal-infos lib/services/nextendo lib/widgets/nextendo_dialog.dart lib/l10n/switch_online_locale.dart lib/main.dart lib/services/melonx_internal_service.dart test/nextendo_servers_test.dart test/nextendo_catalog_test.dart
+      run: flutter analyze --no-fatal-infos lib/services/nextendo lib/widgets/nextendo_dialog.dart lib/l10n/switch_online_locale.dart lib/main.dart lib/services/melonx_internal_service.dart lib/screens/game_screen/game_settings_dialog/game_settings_manage_tab.dart test/nextendo_servers_test.dart test/nextendo_catalog_test.dart test/nextendo_game_versions_test.dart
     - name: Look the server names up, verify the signed catalog, keep the BCAT data
-      run: flutter test test/nextendo_servers_test.dart test/nextendo_catalog_test.dart
+      run: flutter test test/nextendo_servers_test.dart test/nextendo_catalog_test.dart test/nextendo_game_versions_test.dart

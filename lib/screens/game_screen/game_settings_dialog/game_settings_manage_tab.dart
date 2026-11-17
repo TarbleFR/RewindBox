@@ -15,6 +15,8 @@ import 'package:neostation/repositories/game_repository.dart';
 import 'package:neostation/screens/settings_screen/new_settings_options/widgets/setting_row.dart';
 import 'package:neostation/services/dolphin_internal_v2_service.dart';
 import 'package:neostation/services/melonx_internal_service.dart';
+import 'package:neostation/l10n/switch_online_locale.dart';
+import 'package:neostation/services/nextendo/nextendo_game_versions.dart';
 import 'package:neostation/l10n/switch2_library_locale.dart';
 import 'package:neostation/services/s2arm_internal_service.dart';
 import 'package:neostation/l10n/enhancements_locale.dart';
@@ -85,6 +87,86 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
       widget.isAllMode && widget.game.systemFolderName != null
       ? widget.game.systemFolderName!
       : widget.system.folderName;
+
+  // Nextendo Network: this Switch game's installed version against the
+  // version Nextendo's signed catalog requires (information only, not a
+  // focusable row: the controller navigation is unchanged).
+  NextendoGameVersionInfo? _nextendoVersion;
+
+  bool get _isLocalSwitchGame =>
+      _targetSystemFolder.toLowerCase() == 'switch' &&
+      (widget.game.romPath?.startsWith('/') ?? false) &&
+      !MelonxInternalService.isRetiredLink(widget.game.romPath ?? '');
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isLocalSwitchGame) _loadNextendoVersion();
+  }
+
+  Future<void> _loadNextendoVersion() async {
+    final info = await NextendoGameVersions.forLibrary(
+      gamePath: widget.game.romPath!,
+      root: await MelonxInternalService.rootDirectory(),
+      content: MelonxInternalService.content,
+    );
+    if (mounted && info != null) setState(() => _nextendoVersion = info);
+  }
+
+  Widget _nextendoVersionCard(BuildContext context) {
+    final info = _nextendoVersion!;
+    final theme = Theme.of(context);
+    String text(String key, [Map<String, Object?> values = const {}]) => SwitchOnlineLocale.text(context, key, values);
+    final lines = <String>[
+      if (!info.updateInstalled && info.baseVersion != null)
+        text('nextendoVersionInstalledBase', {'version': info.baseVersion})
+      else if (info.updateInstalled && info.updateVersion != null)
+        text('nextendoVersionInstalledUpdate', {'version': info.updateVersion})
+      else if (info.updateInstalled)
+        text('nextendoVersionInstalledUnknown'),
+      if (info.requirement != null)
+        text('nextendoVersionRequired', {'versions': info.requirement!.accepted.join(' / ')}),
+      switch (info.status) {
+        NextendoVersionStatus.matches => text('nextendoVersionMatches'),
+        NextendoVersionStatus.mismatch =>
+          text('nextendoVersionMismatch', {'version': info.requirement!.recommended}),
+        NextendoVersionStatus.installedUnknown => '',
+        NextendoVersionStatus.notListed => text('nextendoVersionNotListed'),
+        NextendoVersionStatus.disabled => text('nextendoVersionDisabled'),
+        NextendoVersionStatus.catalogUnavailable => text('nextendoCatalogUnavailable'),
+      },
+      if (info.requirement?.needsNplnPatches ?? false) text('nextendoCatalogNpln'),
+      if (info.bcatKept) text('nextendoVersionBcat'),
+    ].where((line) => line.isNotEmpty).toList();
+    final ok = info.status == NextendoVersionStatus.matches;
+    final warn = info.status == NextendoVersionStatus.mismatch || info.status == NextendoVersionStatus.disabled;
+    return SettingRow(
+      key: const ValueKey('nextendo-version'),
+      focused: false,
+      title: 'Nextendo Network',
+      subtitle: lines.join('\n'),
+      subtitleWidget: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final line in lines)
+            Text(
+              line,
+              style: TextStyle(
+                fontSize: 11.r,
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
+            ),
+        ],
+      ),
+      trailing: Icon(
+        ok ? Icons.check_circle_outline : (warn ? Icons.error_outline : Icons.info_outline),
+        size: 20.r,
+        color: ok
+            ? theme.colorScheme.primary
+            : (warn ? theme.colorScheme.error : theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+      ),
+    );
+  }
 
   @override
   void dispose() {
@@ -306,6 +388,10 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (_nextendoVersion != null) ...[
+            _nextendoVersionCard(context),
+            SizedBox(height: 12.r),
+          ],
           if (_hasEnhancements) ...[
             GestureDetector(
               onTap: () {

@@ -379,3 +379,13 @@ account needed):
 The engine side (serving `bcatDirectory` as the game's delivery cache, the `nsa` account id, the version journal line,
 and the Swift bridge forwarding these keys) is a separate lot that needs a Core freeze; until it is in a Core, the
 engine ignores the new keys (the Swift bridge forwards only the four it knows) and nothing changes for the game.
+
+## A game's version on its page (17 November)
+
+The Switch game's page (Manage tab) shows a "Nextendo Network" card: the installed version (the base file's, or the
+selected update's from `games/<titleId>/updates.json`), the version Nextendo's signed catalog requires, and the verdict
+(compatible; install update X; not listed; switched off by Nextendo; NPLN patches needed; BCAT data kept). Only a
+signed-in player's page refreshes the catalog; anyone else sees the card only when a catalog is already kept, and
+nothing contacts Nextendo for them. The base version comes from the engine's `metadata`; the update's from
+`inspectUpdate`'s `displayVersion`, which the engine lot of 17 November adds: with an older engine the card says an
+update is installed and its number will show with the next engine. `test/nextendo_game_versions_test.dart`.
