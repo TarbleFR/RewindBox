@@ -220,6 +220,39 @@ mesurable :
 - **Vérifications** : compilation comparée (Linux) ; règle de la série vérifiée sur un exemple local (première attente
   gardée, suivantes à 200 µs, remise à zéro après un signal ou une attente longue). Non exécuté sur iPhone.
 
+### 2.7 Balayage de tous les journaux de l'IPA 763 (demande du mainteneur, 17 novembre)
+
+Demande : corriger aussi, avant toute IPA, chaque autre problème flagrant que montrent les journaux. Les sessions de
+l'IPA 763 (God of War III PID 27597, Black Ops II PID 27739) ont été passées entière :
+- **Stabilité** : aucune erreur fatale, aucun gel, aucun délai dépassé. Les seules erreurs sont celles que ces jeux
+  provoquent normalement : `sys_fs_open` sur des fichiers absents, `cellNetCtlGetInfo` sans réseau,
+  `cellOskDialogAbort` sans clavier ouvert, une manette déconnectée. Les images « en retard » de 8 à 43 s de
+  God of War III (session 3, fenêtres 56-64) suivent l'arrêt du jeu (fermeture du menu, puis `teardown` à
+  1794865793), pas un gel. Le dossier `Incidents` ne contient que des builds anciennes (666 à 760, 4-16 novembre),
+  déjà traitées, et des fins en arrière-plan décidées par iOS.
+- **Mémoire, son, compilateurs** : empreinte 3,1 Go (pic 3,6 Go) pour une limite de 6,5 Go ; pas de manque audio ;
+  compilateurs PPU/SPU arrêtés pendant le jeu. Les compilations de shaders longues de Black Ops II (0,3 à 1,4 s,
+  presque toutes dans la bibliothèque Metal du fragment) sont asynchrones : aucune image de plus de 150 ms dans leurs
+  fenêtres.
+- **Corrigés dans ce Core** : § 2.1 (attente active de God of War III), § 2.4 (intervalle de travail), § 2.5
+  (encodage MoltenVK), § 2.6 (attentes courtes PPU de Black Ops II).
+- **Constatés, non changés, avec leur raison** :
+  - God of War III : le thread RSX hache 15 à 27 ms de textures par image pour vérifier qu'elles n'ont pas changé.
+    Sur iOS, le cache contrôle par empreinte (XXH3, déjà la plus rapide) à chaque point de synchronisation, soit
+    1 350 par fenêtre, environ 23 par image. L'assistant qui calcule les empreintes en avance n'en sert que 914 sur
+    13 000 (`OPT581`). 98,7 % des contrôles trouvent la texture inchangée, mais 355 changements par fenêtre restent à
+    attraper. Réduire ce volume demande de savoir quelles écritures du jeu touchent les textures ; sans cela, une
+    texture périmée s'afficherait (le type d'erreur du scintillement des arbres). Mesure dédiée d'abord. Le RSX n'est
+    pas le goulot de God of War III (les images lentes attendent le PPU ou les SPU : `FRAMECAUSE_EVENT` `rsx_other_ms`).
+  - Black Ops II : recherches de textures sur le RSX (5,4 ms par image, 27 % de reprises de l'aide-mémoire du Core 660,
+    déjà servi pour ce jeu et vérifié sans écart sur 4,7 millions de reprises). Le gain suivant suppose de profiler la
+    recherche elle-même.
+  - Black Ops II : la tempête d'écritures atomiques des SPU (`wl_putllc` 1,2 million par fenêtre) gare les threads PPU
+    585 000 fois par fenêtre (539 ms) et diffère les écritures de 515 ms (`PPUGRACE664`). C'est le mécanisme d'équité
+    des Cores 571 à 924, qui a supprimé les gels de 9 à 40 s des IPA 624, 657 et 662. Inchangé.
+  - Black Ops II : attentes de résultats d'occlusion (`ZCULLDEMAND619` : 126 par fenêtre, 670 ms au total), déjà
+    réduites par les Cores 613 à 920 ; rien de neuf de flagrant.
+
 ## 3. Compilation, relecture et livraison
 
 Relecture indépendante du changement avant compilation : encodages, registres écrasés, usage de 0x70(r1), ordre des sauts,
