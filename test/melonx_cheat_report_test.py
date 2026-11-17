@@ -32,7 +32,8 @@ DOTNET = os.environ.get('DOTNET', 'dotnet')
 FIXTURE = ROOT / 'test/melonx_cheat_report/Program.cs'
 # Checks of the fixture, pinned: a fixture that skips a part does not pass.
 FIXTURE_CHECKS = 27
-NATIVE = {'native/melonx/EmbeddedCheatReport.cs': 'src/Ryujinx.HLE/EmbeddedCheatReport.cs',
+NATIVE = {'native/melonx/EmbeddedGraphicsSettings.cs': 'src/Ryujinx.Library/EmbeddedGraphicsSettings.cs',
+          'native/melonx/EmbeddedCheatReport.cs': 'src/Ryujinx.HLE/EmbeddedCheatReport.cs',
           'native/melonx/EmbeddedAddons.cs': 'src/Ryujinx.Library/EmbeddedAddons.cs'}
 MATCHING = ('Cheats of 01006a800016e000: main build id 0123456789ABCDEF; found 5, installed 2, enabled 1, skipped for another '
             'build id 3 (1111222233334444, FEDCBA9876543210) (adapt_cheat_report)')
@@ -158,7 +159,7 @@ with tempfile.TemporaryDirectory(prefix='melonx-cheat-report-') as temporary:
 
 inputs = ['build-utils/melonx/adapt_cheat_report.py', 'build-utils/melonx/prepare_embedded.py', 'test/melonx_adapter_control.py',
           'test/melonx_cheat_report_test.py', 'test/melonx_cheat_report/Program.cs', 'native/melonx/EmbeddedCheatReport.cs',
-          'native/melonx/EmbeddedAddons.cs', 'native/melonx/EmbeddedLaunchDiagnostics.cs']
+          'native/melonx/EmbeddedAddons.cs', 'native/melonx/EmbeddedGraphicsSettings.cs', 'native/melonx/EmbeddedLaunchDiagnostics.cs']
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
 receipt = dict(result='passed', checks=checks, fixtureChecks=report['checks'], finalPreparationBound=FINAL_PREPARATION,
                sourceKind='finalPreparationWithReversedControl',

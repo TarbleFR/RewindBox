@@ -12,6 +12,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / 'test'), str(ROOT / 'build-utils/melonx')]
 from adapt_buffer_mirror_windows import BASELINE, GPU
+from adapt_descriptor_pool_lifetime import MANAGER
 from adapt_descriptor_updates import method
 from melonx_adapter_control import control_source
 
@@ -19,6 +20,8 @@ SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate
 HOLD = []
 BEFORE, bound = control_source(SOURCE, 'adapt_buffer_mirror_windows', HOLD)
 assert bound
+POOL_BEFORE, pool_bound = control_source(SOURCE, 'adapt_descriptor_pool_lifetime', HOLD)
+assert pool_bound
 COORDINATOR = 'src/Ryujinx.Library/EmbeddedSessionCoordinator.cs'
 FIXTURE = ROOT / 'test/melonx_buffer_mirror_windows/Probe.cs'
 HEADER = 'using System;\nusing System.Collections.Generic;\nusing Ryujinx.Common.Memory;\n'
@@ -138,8 +141,14 @@ with tempfile.TemporaryDirectory(prefix='melonx-buffer-windows-') as directory:
             (work / (name + label + '.cs')).write_text(source)
     for filename in (COORDINATOR, 'src/Ryujinx.Common/Memory/IArray.cs', 'src/Ryujinx.Common/Memory/StructArrayHelpers.cs'):
         shutil.copyfile(SOURCE / filename, work / Path(filename).name)
+    pool_fixture = FIXTURE.with_name('DescriptorPools.cs').read_text()
+    shared_api, boundary = pool_fixture.split('namespace AfterPool', 1)
+    (work / 'PoolDriver.cs').write_text(shared_api)
+    for tree, name in ((POOL_BEFORE, 'BeforePool'), (SOURCE, 'AfterPool')):
+        (work / (name + '.cs')).write_text((tree / MANAGER).read_text().replace('namespace Ryujinx.Graphics.Vulkan', 'namespace ' + name))
+        (work / (name + 'Boundary.cs')).write_text('using Silk.NET.Vulkan;\nnamespace ' + name + boundary)
     shutil.copyfile(FIXTURE, work / 'Probe.cs')
-    (work / 'probe.csproj').write_text('<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework><OutputType>Exe</OutputType><ImplicitUsings>enable</ImplicitUsings></PropertyGroup></Project>')
+    (work / 'probe.csproj').write_text('<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework><OutputType>Exe</OutputType><ImplicitUsings>enable</ImplicitUsings><AllowUnsafeBlocks>true</AllowUnsafeBlocks></PropertyGroup></Project>')
     dotnet = os.environ.get('DOTNET', 'dotnet')
     result = subprocess.run([dotnet, 'run', '-c', 'Release', '--project', str(work / 'probe.csproj')], text=True, stdout=subprocess.PIPE)
     if result.returncode:
@@ -147,7 +156,7 @@ with tempfile.TemporaryDirectory(prefix='melonx-buffer-windows-') as directory:
     stats = json.loads(result.stdout.strip().splitlines()[-1])
 receipt = dict(result='passed', finalPreparationBound=True, physicalDeviceTested=False,
                sourceKind='finalPreparationWithReversedControl',
-               measured=stats, postimages={p: hashlib.sha256((SOURCE / p).read_bytes()).hexdigest() for p in [*BASELINE, COORDINATOR]})
+               measured=stats, postimages={p: hashlib.sha256((SOURCE / p).read_bytes()).hexdigest() for p in [*BASELINE, MANAGER, COORDINATOR]})
 output = ROOT / 'dist/melonx/buffer-mirror-windows-checks.json'
 output.parent.mkdir(parents=True, exist_ok=True)
 output.write_text(json.dumps(receipt, indent=2) + '\n')

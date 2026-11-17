@@ -120,6 +120,12 @@ class Probe
         long beforeAlloc = Measure(oldDescriptors, 100000), afterAlloc = Measure(newDescriptors, 100000);
         Check(beforeAlloc > afterAlloc && afterAlloc == 0);
 
+        var beforePool = BeforePool.Lifetime.Exercise();
+        var afterPool = AfterPool.Lifetime.Exercise();
+        Check(beforePool.FailedPoolDestroys == 2 && beforePool.EarlyDestroys == 1);
+        Check(afterPool.FailedPoolDestroys == 1 && afterPool.EarlyDestroys == 0 && afterPool.LastSetReleased);
+        for (int i = 0; i < 100; i++) AfterPool.Lifetime.CheckConcurrentRelease();
+
         var owner = new EmbeddedSessionCoordinator();
         long id = owner.Prepare();
         Check(owner.Pause(id, true));
@@ -135,7 +141,7 @@ class Probe
         Check(!owner.Pause(id, true));
         Console.WriteLine(JsonSerializer.Serialize(new { mirrorComparisons = checks, beforeSparse, afterSparse,
             beforeAllocationBytes = beforeAlloc, afterAllocationBytes = afterAlloc, descriptorCalls = 100000,
-            descriptorStateComparisons = 4096 * 128, staleSnapshotRemoved = true, duplicatePauseSuppressed = true }));
+            descriptorStateComparisons = 4096 * 128, poolLifetimeVerified = true, staleSnapshotRemoved = true, duplicatePauseSuppressed = true }));
     }
 
     static long Measure(IProbeDescriptors descriptors, int calls)

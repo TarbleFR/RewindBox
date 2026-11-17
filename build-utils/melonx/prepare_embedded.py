@@ -234,6 +234,7 @@ from adapt_streaming_memory import apply as adapt_streaming_memory
 from adapt_nextendo_data import apply as adapt_nextendo_data
 from adapt_buffer_mirror_windows import apply as adapt_buffer_mirror_windows
 from adapt_cheat_report import apply as adapt_cheat_report
+from adapt_descriptor_pool_lifetime import apply as adapt_descriptor_pool_lifetime
 
 
 def replace_once(path, old, new):
@@ -768,6 +769,7 @@ def main():
     # (ProcessLoaderHelper.cs after adapt_session) and the main build id in the metadata answer (EmbeddedContent.cs after
     # adapt_nextendo_online); EmbeddedCheatReport.cs is copied above with the native files; no other adapter edits these.
     adapted += adapt_cheat_report(source)
+    adapted += adapt_descriptor_pool_lifetime(source)
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -930,7 +932,7 @@ def main():
                  'adapt_empty_worker_snapshot.py', 'adapt_release_passes.py', 'adapt_array_walk_size.py',
                  'adapt_loh_compaction_request.py', 'adapt_guest_break_context.py',
                  'adapt_shader_load_binary_release.py', 'adapt_streaming_memory.py', 'adapt_nextendo_data.py', 'adapt_buffer_mirror_windows.py',
-                 'adapt_cheat_report.py']:
+                 'adapt_cheat_report.py', 'adapt_descriptor_pool_lifetime.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

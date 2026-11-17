@@ -15,6 +15,8 @@ sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 import verify_dma_core as verify
 from freeze_performance_core import changed_dependencies
 from adapt_bindless_array_deltas import COUNTERS, DIAGNOSTIC_EDITS, DIAGNOSTICS, NAMES as ARRAY_NAMES, WORK_ROWS
+from adapt_cheat_report import BASELINE as CHEAT_REPORT, MOD_LOADER as CHEAT_MOD_LOADER, TAMPER as CHEAT_TAMPER
+from adapt_descriptor_pool_lifetime import MANAGER as DESCRIPTOR_POOL_MANAGER
 from adapt_buffer_mirror_windows import BASELINE as BUFFER_MIRRORS
 from adapt_nextendo_data import SERVICE_CREATOR
 from adapt_streaming_memory import BASELINE as STREAMING_MEMORY
@@ -301,7 +303,7 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'loh-compaction-request': 'delivered', 'guest-break-context': 'delivered', 'kernel-wait-lifetime-final': 'delivered',
             # After IPA 771: the shader cache load keeps no host code of cached programs.
             'shader-load-binary-release': 'delivered', 'streaming-memory': 'delivered',
-            'nextendo-data': 'delivered', 'buffer-mirror-windows': 'delivered'}
+            'nextendo-data': 'delivered', 'buffer-mirror-windows': 'delivered', 'cheat-report': 'delivered'}
 TEXTURE = 'src/Ryujinx.Graphics.Gpu/Image/Texture.cs'
 # Core 654: the collector (DIAGNOSTICS) is a reviewed change again, its gcEvent lines bound by the gc-events gate.
 CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES) |
@@ -405,7 +407,7 @@ CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES
            # After IPA 767: the game's own break journaled (adapt_guest_break_context).
            {'src/Ryujinx.HLE/HOS/Kernel/SupervisorCall/Syscall.cs'} |
            # After IPA 771: the shader cache loader (adapt_shader_load_binary_release; DiskCacheHostStorage.cs is changed already).
-           {'src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ParallelDiskCacheLoader.cs'} | set(STREAMING_MEMORY) | set(BUFFER_MIRRORS) |
+           {'src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ParallelDiskCacheLoader.cs'} | set(STREAMING_MEMORY) | set(BUFFER_MIRRORS) | {DESCRIPTOR_POOL_MANAGER} | set(CHEAT_REPORT) | {'src/Ryujinx.Library/EmbeddedGraphicsSettings.cs'} |
            {SERVICE_CREATOR, 'src/Ryujinx.Library/EmbeddedAddons.cs', 'src/Ryujinx.Library/EmbeddedSessionCoordinator.cs'})
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
@@ -515,7 +517,7 @@ JOINED = JOINED | set(C766_PRIVATE_SPAN_SNAPSHOT)
 # Nextendo online lot: its five engine files join the prepared source (EmbeddedContent.cs is a member already);
 # nifm-network-watch composes, builds and binds them.
 JOINED = JOINED | (set(C768_NEXTENDO_ONLINE) - {'src/Ryujinx.Library/EmbeddedContent.cs'})
-JOINED |= {SERVICE_CREATOR, 'src/Ryujinx.Graphics.Vulkan/BitMapStruct.cs'}
+JOINED |= {CHEAT_MOD_LOADER, CHEAT_TAMPER, SERVICE_CREATOR, DESCRIPTOR_POOL_MANAGER, 'src/Ryujinx.Graphics.Vulkan/BitMapStruct.cs'}
 REUSED_FRESH = set()
 
 
@@ -742,8 +744,8 @@ if not args.helpers_only:
     # After IPA 759: 116 (Ryujinx.Library.csproj) and a second addition, src/Ryujinx.Library/RewindBoxRuntimeYield.c.
     # After IPA 767: 117 (Syscall.cs, the game's own break journaled: adapt_guest_break_context).
     # After IPA 771: 118 (ParallelDiskCacheLoader.cs: adapt_shader_load_binary_release).
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 125 and
-          set(frozen["productionAdditions"]) == {C768_ONLINE_ADDITION, C770_RUNTIME_YIELD_ADDITION, 'src/Ryujinx.Horizon/EmbeddedDeliveryCache.cs'}, "Unexpected production scope")
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 130 and
+          set(frozen["productionAdditions"]) == {C768_ONLINE_ADDITION, C770_RUNTIME_YIELD_ADDITION, 'src/Ryujinx.Horizon/EmbeddedDeliveryCache.cs', 'src/Ryujinx.HLE/EmbeddedCheatReport.cs'}, "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
                                                      'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
                                                      'build-utils/melonx/adapt_queued_syncpoints.py',
@@ -896,6 +898,9 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_streaming_memory.py',
                                                      'build-utils/melonx/adapt_nextendo_data.py',
                                                      'build-utils/melonx/adapt_buffer_mirror_windows.py',
+                                                     'build-utils/melonx/adapt_descriptor_pool_lifetime.py',
+                                                     'build-utils/melonx/adapt_cheat_report.py',
+                                                     'native/melonx/EmbeddedCheatReport.cs',
                                                      'native/melonx/EmbeddedDeliveryCache.cs'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
@@ -906,7 +911,7 @@ if not args.helpers_only:
                                                        'native/melonx/EmbeddedLaunchPreflight.cs',
                                                        # Core 725: a process starts with room for its whole journal.
                                                        'native/melonx/EmbeddedLaunchDiagnostics.cs',
-                                                       'native/melonx/EmbeddedSessionCoordinator.cs', 'native/melonx/EmbeddedAddons.cs'},
+                                                       'native/melonx/EmbeddedSessionCoordinator.cs', 'native/melonx/EmbeddedAddons.cs', 'native/melonx/EmbeddedGraphicsSettings.cs'},
           'Unexpected preparation scope')
     check(set(frozen['baselineUnadaptedMembers']) == JOINED,
           'Only GraphicsConfig.cs, Window.cs, TextureStorage.cs, ResourceArray.cs, PipelineLayoutCacheEntry.cs the four warm-up parity members, the GPU Window, KProcess and the two SurfaceFlinger files join the prepared source')
@@ -965,7 +970,7 @@ if not args.helpers_only:
     # After IPA 767: adapt_loh_compaction_request.py and adapt_guest_break_context.py join them (262); Switch.cs and
     # Syscall.cs are members already (228).
     # After IPA 771: adapt_shader_load_binary_release.py joins them (263); its two disk cache files are members already.
-    check(len(frozen['preparationInputs']) == 267 and len(frozen['preparedMembers']) == 231, 'Wrong final composition')
+    check(len(frozen['preparationInputs']) == 270 and len(frozen['preparedMembers']) == 235, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
@@ -1129,6 +1134,7 @@ if not args.helpers_only:
     OUTSIDE_GPU |= set(C768_NEXTENDO_ONLINE)
     # After IPA 759: Ryujinx.Library.csproj is outside the GPU closure; runtime-yield binds it and the C file.
     OUTSIDE_GPU |= set(C770_RUNTIME_YIELD)
+    OUTSIDE_GPU |= set(CHEAT_REPORT) | {'src/Ryujinx.Library/EmbeddedGraphicsSettings.cs'}
     OUTSIDE_GPU |= {SERVICE_CREATOR, 'src/Ryujinx.Library/EmbeddedAddons.cs', 'src/Ryujinx.Library/EmbeddedSessionCoordinator.cs'}
     check(CHANGES - OUTSIDE_GPU <= set(gate['fragmented-reads']['requiredPostimages']) and
           # Library.cs and the two HLE files (Core 647) are outside the GPU/Vulkan closure; their own gates bind them.
@@ -1203,7 +1209,7 @@ if not args.helpers_only:
                                             # Core 749 candidate: PreciseSleepHelper.cs likewise.
                                             path != C749_TIMED_WAITS and
                                             # Nextendo online lot: its five HLE files likewise (nifm-network-watch).
-                                            path not in C768_NEXTENDO_ONLINE and path != SERVICE_CREATOR and
+                                            path not in C768_NEXTENDO_ONLINE and path not in {SERVICE_CREATOR, CHEAT_MOD_LOADER, CHEAT_TAMPER} and
                                             # After IPA 759: Ryujinx.Library.csproj likewise (runtime-yield reverses it).
                                             path not in C770_RUNTIME_YIELD}},
                         'ada': arrays_frozen['controlUnadaptedMembers']['ada']},
