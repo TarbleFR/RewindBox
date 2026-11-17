@@ -245,10 +245,15 @@ check(heap.count('MeloNXStdioCapture.appendLine(') == 1 and 'to:path, limit:Melo
 check(controller.index('MeloNXStdioCapture.begin()\n') < controller.index('MeloNXHeapSample.shared.begin(path:MeloNXStdioCapture.journalPath,context:MeloNXStdioCapture.sessionContext)')
       < controller.index('try host.start(game:game,locale:locale,') and controller.count('MeloNXHeapSample.shared.end()') == 2 and
       controller.count('MeloNXHeapSample.shared.begin(') == 1, 'the window opens before the engine is launched and ends with the session, failed launch included')
-check(controller.count('MeloNXHeapSample.shared.memoryWarning()') == 1 and controller.count('self?.perf?.memoryWarning()') == 1 and
-      re.search(r'addObserver\(forName:UIApplication\.didReceiveMemoryWarningNotification,object:nil,queue:\.main\) \{ \[weak self\] _ in\s*'
-                r'MeloNXHeapSample\.shared\.memoryWarning\(\)\s*self\?\.perf\?\.memoryWarning\(\)', controller) is not None,
-      'a memory warning ends the heap window and writes the breakdown, from the main queue observer')
+# IPA 771: the session screen no longer forwards the warning (that file's change was held back with its renaming); the
+# breakdown and the heap window observe the process's memory warning themselves, by the notification's name.
+check('MeloNXHeapSample.shared.memoryWarning()' not in controller and 'perf?.memoryWarning()' not in controller and
+      'static let memoryWarningName = Notification.Name("UIApplicationDidReceiveMemoryWarningNotification")' in journal and
+      journal.count('addObserver(forName:Self.memoryWarningName, object:nil, queue:nil) { [weak self] _ in') == 1 and
+      heap.count('addObserver(forName:MeloNXMemoryBreakdown.memoryWarningName, object:nil, queue:nil) { [weak self] _ in') == 1 and
+      heap.index('addObserver(forName:MeloNXMemoryBreakdown.memoryWarningName') < heap.index('let mine = window') and
+      heap.index('NotificationCenter.default.removeObserver(warningObserver)') < heap.index('MeloNXHeapSamplerLink.stop()\n        let seconds'),
+      'a memory warning ends the heap window and writes the breakdown, each observing it itself')
 
 HOT = {name: float(value) for name, value in re.findall(r'\b(rounds|maxThreads|maxFrames|maxSlow|maxBase|minSecond|gapSeconds|streak|slowBelow|baseFrom|'
                                                          r'selfPlaces|stackPlaces|waitPlaces) = ([\d.]+)', hot)}
@@ -678,8 +683,8 @@ print("LINE " + MeloNXMemoryBreakdown.describe(seconds:0))
 let breakdown = MeloNXMemoryBreakdown(path:path, context:[:], first:2.0, every:0.3, maxLines:3)
 breakdown.start()
 usleep(100_000)
-breakdown.memoryWarning()
-breakdown.memoryWarning()
+NotificationCenter.default.post(name:MeloNXMemoryBreakdown.memoryWarningName, object:nil)
+NotificationCenter.default.post(name:MeloNXMemoryBreakdown.memoryWarningName, object:nil)
 usleep(6_000_000)
 breakdown.stop()
 usleep(300_000)

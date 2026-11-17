@@ -196,6 +196,9 @@ final class MeloNXPerfJournal {
         }
     }
 
+    /// The process received a memory warning: the footprint's breakdown is written now (the first warning only).
+    func memoryWarning() { breakdown.memoryWarning() }
+
     // Asynchronous: never waits on the sampler from the caller's thread.
     // vm= field: the differences of TASK_VM_INFO's lifetime compression and decompression counts and TASK_EVENTS_INFO's
     // fault and page-in counts since the previous line. Two task_info calls on the sampler queue; nothing is changed.
@@ -782,7 +785,10 @@ final class MeloNXStallWatch {
 }
 
 // Lot 9, RAM: what the footprint is made of. One "[MeloNX:memory]" line 30 s after the journal starts, then every 60 s, at
-// most 30, from the journal's own utility queue:
+// most 30, from the journal's own utility queue; also one when the journal starts (why=start: what the process holds
+// before the game has loaded) and one at its first memory warning (why=memoryWarning). IPA 767: the footprint was
+// already 1 452 to 1 454 MiB at the start of each session, and Hogwarts Legacy was ended by iOS in the courtyard about
+// 35 s after its last line (t=90 never came):
 //   footprint= phys_footprint / its peak MiB (the figure iOS kills the process on)
 //   graphics=  the kernel's graphics ledger (Metal and IOAccelerator memory charged to the process) + its compressed part
 //   internal= compressed= device= media= neural= purgeable=  the other TASK_VM_INFO ledgers, MiB
@@ -818,6 +824,13 @@ final class MeloNXMemoryBreakdown {
     private var timer: DispatchSourceTimer?
     private var started = 0.0
     private var lines = 0
+    private var warned = false
+    private var warningObserver: NSObjectProtocol?
+
+    // UIApplication.didReceiveMemoryWarningNotification's name, without UIKit (the journal also runs in macOS tests).
+    // The journal observes it itself, so no session screen has to forward it (IPA 771: a forwarding change to the
+    // session view controller was held back with that file's renaming).
+    static let memoryWarningName = Notification.Name("UIApplicationDidReceiveMemoryWarningNotification")
 
     init(path: String, context: [String:String], first: Double = 30, every: Double = 60, maxLines: Int = 30) {
         self.path = path; self.context = context; self.first = first; self.every = every; self.maxLines = maxLines
@@ -832,17 +845,37 @@ final class MeloNXMemoryBreakdown {
             source.setEventHandler { [weak self] in self?.record() }
             timer = source
             source.resume()
+            warningObserver = NotificationCenter.default.addObserver(forName:Self.memoryWarningName, object:nil, queue:nil) { [weak self] _ in
+                self?.memoryWarning()
+            }
+            record(why:"start")
+        }
+    }
+
+    // Asynchronous: once per journal, while it runs.
+    func memoryWarning() {
+        queue.async { [self] in
+            guard timer != nil, !warned else { return }
+            warned = true
+            record(why:"memoryWarning")
         }
     }
 
     // Asynchronous, like the journal's stop.
-    func stop() { queue.async { [self] in timer?.cancel(); timer = nil } }
+    func stop() {
+        queue.async { [self] in
+            timer?.cancel(); timer = nil
+            if let warningObserver { NotificationCenter.default.removeObserver(warningObserver) }
+            warningObserver = nil
+        }
+    }
 
-    private func record() {
+    private func record(why: String? = nil) {
         guard lines < maxLines else { timer?.cancel(); timer = nil; return }
         lines += 1
         let seconds = Int((ProcessInfo.processInfo.systemUptime - started).rounded())
-        _ = MeloNXStdioCapture.appendLine(MeloNXStdioCapture.contextualLine("[MeloNX:memory] " + Self.describe(seconds:seconds), context:context), to:path, limit:MeloNXPerfJournal.fileLimit)
+        let line = Self.describe(seconds:seconds) + (why.map { " why=" + $0 } ?? "")
+        _ = MeloNXStdioCapture.appendLine(MeloNXStdioCapture.contextualLine("[MeloNX:memory] " + line, context:context), to:path, limit:MeloNXPerfJournal.fileLimit)
     }
 
     private struct Group { var resident: UInt64 = 0, compressed: UInt64 = 0, regions = 0 }
