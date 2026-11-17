@@ -99,11 +99,22 @@ if FINAL_PREPARATION:
     import adapt_pool_slot_copy as slot_copy  # noqa: E402
     check(files_edited_later('adapt_array_storage_counts') == {A}, 'the only later edit of TextureArray.cs is adapt_pool_slot_copy\'s')
     final_array = read(FINAL_SOURCE, A)
+    final_storage = read(FINAL_SOURCE, STORAGE)
+    # After IPA 764: adapt_array_attachment_members then edits TextureArray.cs and TextureStorage.cs (the member passes
+    # of the barrier pass; nothing of the storage counts): its replacements are undone first, newest first, each once.
+    import adapt_array_attachment_members as members  # noqa: E402
+    for path, old, new in reversed(members.PAIRS):
+        if path == A:
+            check(final_array.count(new) == 1, 'the latest adapter\'s replacement, once')
+            final_array = final_array.replace(new, old)
+        elif path == STORAGE:
+            check(final_storage.count(new) == 1, 'the latest adapter\'s replacement in TextureStorage.cs, once')
+            final_storage = final_storage.replace(new, old)
     for old, new in reversed(slot_copy.PAIRS):
         check(final_array.count(new) == 1, 'the later adapter\'s replacement, once')
         final_array = final_array.replace(new, old)
     check(final_array == candidate_array, 'the final preparation is the control plus the adapter\'s replacements')
-    check(read(FINAL_SOURCE, STORAGE) == storage_text, 'TextureStorage.cs is untouched')
+    check(final_storage == storage_text, 'TextureStorage.cs is untouched (but for the latest adapter, undone)')
 
 # Wrong variants of the candidate's text.
 WRONG = {

@@ -860,7 +860,13 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_runtime_yield.py',
                                                      # After IPA 760: the draw's wait for a compile, and the mirror copy journal.
                                                      'build-utils/melonx/adapt_draw_wait_lanes.py',
-                                                     'build-utils/melonx/adapt_mirror_copy_journal.py'} and
+                                                     'build-utils/melonx/adapt_mirror_copy_journal.py',
+                                                     # After IPA 764: the texture array barrier members, the command buffer release
+                                                     # passes, the empty worker snapshot, the bindless array walk size.
+                                                     'build-utils/melonx/adapt_array_attachment_members.py',
+                                                     'build-utils/melonx/adapt_release_passes.py',
+                                                     'build-utils/melonx/adapt_empty_worker_snapshot.py',
+                                                     'build-utils/melonx/adapt_array_walk_size.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -924,7 +930,8 @@ if not args.helpers_only:
     # Ryujinx.Library.csproj is a member already.
     # After IPA 760: adapt_draw_wait_lanes.py and adapt_mirror_copy_journal.py join them (256); their six files are members
     # already.
-    check(len(frozen['preparationInputs']) == 256 and len(frozen['preparedMembers']) == 228, 'Wrong final composition')
+    # After IPA 764: four adapters join them (260); their six files are members already (228).
+    check(len(frozen['preparationInputs']) == 260 and len(frozen['preparedMembers']) == 228, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
