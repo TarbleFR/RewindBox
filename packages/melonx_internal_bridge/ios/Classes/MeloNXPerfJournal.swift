@@ -193,6 +193,8 @@ final class MeloNXPerfJournal {
             stalls.start()
             breakdown.start()
             hot.start()
+            // How this session ends is reported at the next launch if it does not end here (MeloNXSessionExit).
+            MeloNXSessionExit.begin(journalPath:path, context:context)
         }
     }
 
@@ -398,6 +400,7 @@ final class MeloNXPerfJournal {
             stalls.stop()
             breakdown.stop()
             hot.stop()
+            MeloNXSessionExit.end()
             guard let timer else { return }
             timer.cancel(); self.timer = nil
             let average = fpsCount > 0 ? fpsTotal / Double(fpsCount) : 0
@@ -480,6 +483,7 @@ final class MeloNXPerfJournal {
         let footprint = memory()
         stalls.exit()
         if let text = footprint { fields.append("mem=" + text) }
+        MeloNXSessionExit.update(seconds:Int((now - started).rounded()), memory:footprint)
         if let text = vmActivity() { fields.append("vm=" + text) }
         let served = hwActivity(cpuNs:total, seconds:elapsed)
         if let text = served.hw { fields.append("hw=" + text) }

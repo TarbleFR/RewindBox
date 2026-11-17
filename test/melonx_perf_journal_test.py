@@ -298,6 +298,23 @@ expected_decisions = hot_decisions(HOT_LINES)
 check(expected_decisions[:2] == ['slow@42', 'base@62'] and sum(d.startswith('slow') for d in expected_decisions) == 4 and
       sum(d.startswith('base') for d in expected_decisions) == 2, 'the rule on the scripted session: ' + ','.join(expected_decisions))
 
+# How a game session ended, written by the app itself (MeloNXSessionExit, in MeloNXStandaloneParity.swift): the journal
+# opens the session's marker when it starts, updates it every second (written at most every 2 s), removes it when it
+# stops; the next launch reports a marker left behind in the crash journal, and subscribes to MetricKit's reports.
+check('enum MeloNXSessionExit' in parity and 'static let fileName = "MeloNX-session-open.json"' in parity and
+      journal.count('MeloNXSessionExit.begin(journalPath:path, context:context)') == 1 and
+      journal.count('MeloNXSessionExit.update(seconds:Int((now - started).rounded()), memory:footprint)') == 1 and
+      journal.count('MeloNXSessionExit.end()') == 1 and
+      journal.index('MeloNXSessionExit.end()') < journal.index('guard let timer else { return }'),
+      'the journal opens, updates and closes the session marker')
+check(parity.index('armCrashJournal()\n        // How the previous process') < parity.index('MeloNXSessionExit.reportPrevious(directory:directory, crashJournal:crashJournalPath)') and
+      'MeloNXSessionExit.subscribeSystemReports(crashJournal:crashJournalPath)' in parity and
+      'MXMetricManager.shared.add(reports)' in parity and 'cumulativeMemoryPressureExitCount' in parity and
+      'cumulativeAppWatchdogExitCount' in parity and 'crash.terminationReason' in parity and 'hang.hangDuration' in parity,
+      'the next launch reports the previous session and subscribes to the system exit reports')
+check('_ = rename(temporary, path)' in parity and 'force || now - lastWrite >= 2' in parity,
+      'the marker is written whole and renamed into place, at most every 2 s')
+
 if shutil.which('xcrun'):
     with tempfile.TemporaryDirectory(prefix='melonx-perf-') as temporary:
         work = Path(temporary)
@@ -725,6 +742,58 @@ exit(0)
         check(len(written) == 3 and all(re.match(r'\[MeloNX:memory\] t=\d+ footprint=', l) for l in written) and
               written[0].endswith(' why=start') and written[1].endswith(' why=memoryWarning') and ' why=' not in written[2],
               'the start line, one line for two memory warnings, one scheduled line, then the bound: ' + str(written))
+
+        # The session exit record, in separate processes: an open session ended without its stop, then the next launch.
+        exit_dir = work / 'exit'
+        (exit_dir / 'src').mkdir(parents=True)
+        (exit_dir / 'src' / 'main.swift').write_text('''import Foundation
+let mode = CommandLine.arguments[1]
+let directory = URL(fileURLWithPath:CommandLine.arguments[2])
+let journal = directory.appendingPathComponent("perf.log").path
+let crash = directory.appendingPathComponent("crash.log").path
+switch mode {
+case "open", "clean":
+    MeloNXSessionExit.begin(journalPath:journal, context:["session":"S-1", "titleId":"0100F7E00C70E000", "build":"772"])
+    MeloNXSessionExit.update(seconds:5, memory:"4000/2000/5/2")
+    NotificationCenter.default.post(name:Notification.Name("UIApplicationDidReceiveMemoryWarningNotification"), object:nil)
+    NotificationCenter.default.post(name:MeloNXSessionExit.backgroundName, object:nil)
+    if mode == "clean" { MeloNXSessionExit.end() }
+    print("PID " + String(ProcessInfo.processInfo.processIdentifier))
+    exit(0)
+default:
+    let line = MeloNXSessionExit.reportPrevious(directory:directory, crashJournal:crash)
+    print("LINE " + (line ?? "none"))
+}
+''')
+        exit_executable = exit_dir / 'exit'
+        subprocess.run(['xcrun', 'swiftc', '-swift-version', '5', str(CLASSES / 'MeloNXStandaloneParity.swift'),
+                        str(CLASSES / 'MeloNXPerfJournal.swift'), str(CLASSES / 'MeloNXHotSpots.swift'), str(exit_dir / 'src' / 'main.swift'),
+                        '-o', str(exit_executable)], check=True)
+        def exit_run(mode, folder):
+            out = subprocess.run([str(exit_executable), mode, str(folder)], capture_output=True, text=True, timeout=60)
+            check(out.returncode == 0, 'exit record run: ' + mode + ' ' + out.stderr[-500:])
+            return out.stdout.strip().splitlines()[-1]
+        for case in ('open', 'clean', 'crashed'):
+            folder = exit_dir / case
+            folder.mkdir()
+            pid = exit_run('clean' if case == 'clean' else 'open', folder).removeprefix('PID ')
+            check((folder / 'MeloNX-session-open.json').exists() == (case != 'clean'), 'the marker stays only for a session that did not stop: ' + case)
+            if case == 'crashed':
+                (folder / 'crash.log').write_text(f'[MeloNX:crash] fatal signal pid {pid} thread <x> tid 1 unix 1 signal 11\n')
+            line = exit_run('report', folder).removeprefix('LINE ')
+            if case == 'clean':
+                check(line == 'none', 'a session that stopped is not reported: ' + line)
+                continue
+            check(line.startswith(f'[MeloNX:crash] previous session S-1 pid {pid} title 0100F7E00C70E000 build 772; ended without closing:') and
+                  'last second t=5 at ' in line and '; app background since t=' in line and '; memory warnings 1 (last at t=' in line and
+                  '; last mem=4000/2000/5/2' in line, 'the previous session is reported with its last state: ' + line)
+            check(line.endswith('no fatal signal of that process in this journal: ended from outside (iOS)') == (case == 'open') and
+                  line.endswith('a fatal signal or exit of that process is in this journal (a crash)') == (case == 'crashed'),
+                  'a kill and a crash are told apart: ' + line)
+            check(not (folder / 'MeloNX-session-open.json').exists() and exit_run('report', folder) == 'LINE none',
+                  'the marker is forgotten once reported')
+            written = (folder / 'crash.log').read_text()
+            check(written.count('[MeloNX:crash] previous session S-1') == 1, 'the report is in the crash journal once')
 
         # Heap sample: the real hook under the system's allocator. 64 blocks of 1 MiB of which 32 are freed and one
         # grown to 3 MiB, 100 000 blocks of 2 KiB kept, and four threads allocating and freeing.

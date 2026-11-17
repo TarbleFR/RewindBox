@@ -1,5 +1,8 @@
 import Foundation
 import Darwin
+#if os(iOS) && canImport(MetricKit)
+import MetricKit
+#endif
 
 // Host behaviour carried over from the standalone MeloNX app.
 
@@ -51,6 +54,11 @@ enum MeloNXStdioCapture {
         try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true)
         routeLock.lock(); diagnosticsDirectory = directory; routeLock.unlock()
         armCrashJournal()
+        // How the previous process's game session ended, and the system's own exit reports (MeloNXSessionExit).
+        MeloNXSessionExit.reportPrevious(directory:directory, crashJournal:crashJournalPath)
+        #if os(iOS) && canImport(MetricKit)
+        MeloNXSessionExit.subscribeSystemReports(crashJournal:crashJournalPath)
+        #endif
     }
     private static func diagnosticPath(_ name: String) -> String? {
         routeLock.lock(); defer { routeLock.unlock() }
@@ -372,4 +380,209 @@ enum MeloNXCrashJournalLink {
     static func install(_ path: String) { path.withCString { installFunction?($0) } }
     static func setStderrSource(_ fd: Int32) { sourceFunction?(fd) }
     static func note(_ text: String) { text.withCString { noteFunction?($0) } }
+}
+
+// How a game session ended, written by the app itself (MeloNX-crash.log).
+//
+// IPA 771, Hogwarts Legacy: the session ended in the castle grounds with no fatal signal and no last line; the player
+// sees the app restart and go to the background, and the phone's analytics hold no JetsamEvent report. Nothing in the
+// journals said why. So:
+// - while a session runs, a small file (MeloNX-session-open.json, next to the journals) holds its identity and, every
+//   2 s, its last second: footprint/headroom/device/donors, whether the app was in the foreground or the background
+//   (and since when), the memory warnings so far, the last stalled engine call;
+// - a session that ends normally removes it (the journal's stop);
+// - at the next launch (when the diagnostics directory is configured) a file still there means the process was ended
+//   during that session: one "[MeloNX:crash] previous session ..." line says when, in which state, and whether this
+//   journal recorded a fatal signal for that process (a crash) or not (ended from outside: iOS);
+// - on iOS, MetricKit's reports (the system's own exit counts by reason: memory pressure, memory limit, watchdog,
+//   crash, and its crash and hang diagnostics) are written as "[MeloNX:crash] metrickit ..." lines when iOS delivers
+//   them (at the next launch for diagnostics, about once a day for exit counts).
+// Measurement only: nothing here changes a session.
+enum MeloNXSessionExit {
+    static let fileName = "MeloNX-session-open.json"
+    static let backgroundName = Notification.Name("UIApplicationDidEnterBackgroundNotification")
+    static let foregroundName = Notification.Name("UIApplicationWillEnterForegroundNotification")
+
+    private static let lock = NSLock()
+    // Confined to the lock.
+    private static var markerPath: String?
+    private static var record: [String: String] = [:]
+    private static var lastWrite = 0.0
+    private static var started = 0.0
+    private static var warnings = 0
+    private static var observers: [NSObjectProtocol] = []
+
+    /// When a session's journal starts (MeloNXPerfJournal.start): the session is open until `end`.
+    static func begin(journalPath: String, context: [String: String]) {
+        let path = URL(fileURLWithPath: journalPath).deletingLastPathComponent().appendingPathComponent(fileName).path
+        lock.lock()
+        markerPath = path
+        started = ProcessInfo.processInfo.systemUptime
+        warnings = 0
+        record = ["session": context["session"] ?? "-", "pid": String(ProcessInfo.processInfo.processIdentifier),
+                  "titleId": context["titleId"] ?? "-", "build": context["build"] ?? "-",
+                  "startedAt": ISO8601DateFormatter().string(from: Date()), "seconds": "0", "state": "foreground"]
+        writeLocked(force: true)
+        lock.unlock()
+        let center = NotificationCenter.default
+        let tokens = [
+            center.addObserver(forName: backgroundName, object: nil, queue: nil) { _ in state("background") },
+            center.addObserver(forName: foregroundName, object: nil, queue: nil) { _ in state("foreground") },
+            center.addObserver(forName: Notification.Name("UIApplicationDidReceiveMemoryWarningNotification"), object: nil, queue: nil) { _ in warning() },
+        ]
+        lock.lock(); observers.forEach { center.removeObserver($0) }; observers = tokens; lock.unlock()
+    }
+
+    /// Every journal second: the last known state, written at most every 2 s.
+    static func update(seconds: Int, memory: String?, stall: String? = nil) {
+        lock.lock(); defer { lock.unlock() }
+        guard markerPath != nil else { return }
+        record["seconds"] = String(seconds)
+        if let memory { record["memory"] = memory }
+        if let stall { record["stall"] = stall }
+        record["lastAt"] = ISO8601DateFormatter().string(from: Date())
+        writeLocked(force: false)
+    }
+
+    /// The session ended normally (the journal's stop): nothing to report at the next launch.
+    static func end() {
+        lock.lock()
+        let path = markerPath
+        markerPath = nil; record = [:]
+        let tokens = observers; observers = []
+        lock.unlock()
+        tokens.forEach { NotificationCenter.default.removeObserver($0) }
+        if let path { try? FileManager.default.removeItem(atPath: path) }
+    }
+
+    private static func state(_ value: String) {
+        lock.lock(); defer { lock.unlock() }
+        guard markerPath != nil else { return }
+        let seconds = Int((ProcessInfo.processInfo.systemUptime - started).rounded())
+        record["state"] = value
+        record["stateSince"] = String(seconds)
+        writeLocked(force: true)
+    }
+
+    private static func warning() {
+        lock.lock(); defer { lock.unlock() }
+        guard markerPath != nil else { return }
+        warnings += 1
+        record["memoryWarnings"] = String(warnings)
+        record["lastWarningAt"] = String(Int((ProcessInfo.processInfo.systemUptime - started).rounded()))
+        writeLocked(force: true)
+    }
+
+    private static func writeLocked(force: Bool) {
+        let now = ProcessInfo.processInfo.systemUptime
+        guard let path = markerPath, force || now - lastWrite >= 2 else { return }
+        lastWrite = now
+        guard let data = try? JSONSerialization.data(withJSONObject: record, options: [.sortedKeys]) else { return }
+        // Written whole and renamed into place, so a process ended in the middle leaves the previous version.
+        let temporary = path + ".tmp"
+        if FileManager.default.createFile(atPath: temporary, contents: data) {
+            _ = rename(temporary, path)
+        }
+    }
+
+    /// At launch, once the diagnostics directory is known: a session the previous process left open is reported in the
+    /// crash journal, then forgotten. Returns the line written (nil when there was none).
+    @discardableResult
+    static func reportPrevious(directory: URL, crashJournal: String?) -> String? {
+        let path = directory.appendingPathComponent(fileName).path
+        guard let data = FileManager.default.contents(atPath: path) else { return nil }
+        try? FileManager.default.removeItem(atPath: path)
+        guard let previous = (try? JSONSerialization.jsonObject(with: data)) as? [String: String],
+              previous["pid"] != String(ProcessInfo.processInfo.processIdentifier) else { return nil }
+        let pid = previous["pid"] ?? "-"
+        var fatal = false
+        if let crashJournal, let text = try? String(contentsOfFile: crashJournal, encoding: .utf8) {
+            fatal = text.contains("fatal signal pid \(pid) ") || text.contains("exit() called pid \(pid) ")
+        }
+        var parts = ["previous session \(previous["session"] ?? "-") pid \(pid) title \(previous["titleId"] ?? "-") build \(previous["build"] ?? "-")",
+                     "ended without closing: started \(previous["startedAt"] ?? "-"), last second t=\(previous["seconds"] ?? "-") at \(previous["lastAt"] ?? "-")",
+                     "app \(previous["state"] ?? "-")" + (previous["stateSince"].map { " since t=" + $0 } ?? ""),
+                     "memory warnings \(previous["memoryWarnings"] ?? "0")" + (previous["lastWarningAt"].map { " (last at t=" + $0 + ")" } ?? "")]
+        if let memory = previous["memory"] { parts.append("last mem=" + memory) }
+        if let stall = previous["stall"] { parts.append("last stall " + stall) }
+        parts.append(fatal ? "a fatal signal or exit of that process is in this journal (a crash)"
+                           : "no fatal signal of that process in this journal: ended from outside (iOS)")
+        let line = "[MeloNX:crash] " + parts.joined(separator: "; ")
+        if let crashJournal {
+            _ = MeloNXStdioCapture.appendLine(line, to: crashJournal)
+        }
+        return line
+    }
+
+    #if os(iOS) && canImport(MetricKit)
+    private static var subscriber: AnyObject?
+
+    /// At launch: the system's own reports, written to the crash journal as iOS delivers them.
+    static func subscribeSystemReports(crashJournal: String?) {
+        guard let crashJournal else { return }
+        lock.lock(); defer { lock.unlock() }
+        guard subscriber == nil else { return }
+        let reports = SystemReports(path: crashJournal)
+        subscriber = reports
+        MXMetricManager.shared.add(reports)
+        if #available(iOS 14.0, *) { reports.didReceive(MXMetricManager.shared.pastDiagnosticPayloads) }
+    }
+
+    private final class SystemReports: NSObject, MXMetricManagerSubscriber {
+        let path: String
+        init(path: String) { self.path = path }
+
+        func didReceive(_ payloads: [MXMetricPayload]) {
+            for payload in payloads {
+                var line = "[MeloNX:crash] metrickit exits \(Self.range(payload.timeStampBegin, payload.timeStampEnd))"
+                if #available(iOS 14.0, *), let exits = payload.applicationExitMetrics {
+                    let f = exits.foregroundExitData, b = exits.backgroundExitData
+                    line += "; foreground: normal \(f.cumulativeNormalAppExitCount), memory pressure \(f.cumulativeMemoryPressureExitCount), " +
+                        "memory limit \(f.cumulativeMemoryResourceLimitExitCount), watchdog \(f.cumulativeAppWatchdogExitCount), " +
+                        "abnormal \(f.cumulativeAbnormalExitCount), bad access \(f.cumulativeBadAccessExitCount), " +
+                        "illegal instruction \(f.cumulativeIllegalInstructionExitCount)" +
+                        "; background: normal \(b.cumulativeNormalAppExitCount), memory pressure \(b.cumulativeMemoryPressureExitCount), " +
+                        "memory limit \(b.cumulativeMemoryResourceLimitExitCount), watchdog \(b.cumulativeAppWatchdogExitCount), " +
+                        "suspended with locked file \(b.cumulativeSuspendedWithLockedFileExitCount), " +
+                        "background task timeout \(b.cumulativeBackgroundTaskAssertionTimeoutExitCount), abnormal \(b.cumulativeAbnormalExitCount)"
+                } else {
+                    line += "; no exit counts"
+                }
+                if let peak = payload.memoryMetrics?.peakMemoryUsage {
+                    line += "; peak memory \(Int(peak.converted(to: .megabytes).value)) MB"
+                }
+                _ = MeloNXStdioCapture.appendLine(line, to: path)
+            }
+        }
+
+        @available(iOS 14.0, *)
+        func didReceive(_ payloads: [MXDiagnosticPayload]) {
+            for payload in payloads {
+                let range = Self.range(payload.timeStampBegin, payload.timeStampEnd)
+                for crash in payload.crashDiagnostics ?? [] {
+                    var line = "[MeloNX:crash] metrickit crash \(range)"
+                    if let type = crash.exceptionType { line += "; exception type \(type)" }
+                    if let code = crash.exceptionCode { line += "; code \(code)" }
+                    if let signal = crash.signal { line += "; signal \(signal)" }
+                    if let reason = crash.terminationReason { line += "; termination \(reason.prefix(300))" }
+                    if let region = crash.virtualMemoryRegionInfo { line += "; region \(region.prefix(200))" }
+                    _ = MeloNXStdioCapture.appendLine(line, to: path)
+                }
+                for hang in payload.hangDiagnostics ?? [] {
+                    let seconds = hang.hangDuration.converted(to: .seconds).value
+                    _ = MeloNXStdioCapture.appendLine("[MeloNX:crash] metrickit hang \(range); \(String(format: "%.1f", seconds)) s", to: path)
+                }
+                for cpu in payload.cpuExceptionDiagnostics ?? [] {
+                    let seconds = cpu.totalCPUTime.converted(to: .seconds).value
+                    _ = MeloNXStdioCapture.appendLine("[MeloNX:crash] metrickit cpu exception \(range); \(String(format: "%.0f", seconds)) s of CPU", to: path)
+                }
+            }
+        }
+
+        private static func range(_ begin: Date, _ end: Date) -> String {
+            let format = ISO8601DateFormatter()
+            return format.string(from: begin) + ".." + format.string(from: end)
+        }
+    }
+    #endif
 }
