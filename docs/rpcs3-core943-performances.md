@@ -311,7 +311,24 @@ Troisième relecture indépendante (plancher des attentes PPU), aucun bloquant :
 - vérifiés corrects : même délai partout (`end_time`, `g_waiting`, attente hôte recalculée depuis `end_time`), aucun
   appel ne renvoie de temps restant, aucun délai sans fin, aucun nouveau blocage, sauvegardes d'état sans effet.
 
-Compilation du Core, épinglage et IPA : après la piste du surcoût PPU (§ 2.3), à la demande du mainteneur.
+Compilation, épinglage et IPA (17 novembre) :
+- **Core 943** : demande `9c0d02f3`, run `44012653815` vert du premier coup (job `133803081616`, compilation et édition
+  des liens 21 min). Artefact `14297364709` : 30 609 257 octets, sha256 `c9b113a5…`, égal à l'empreinte de l'API.
+  Identité : correctif canonique `dc890982` (518 fichiers) et ce dylib (`d29be7b2`, 81 173 752 octets, empreinte de
+  charge `f94177dc`). Identités de génération de code inchangées (PPU `a987639e9f838d1c`, SPU `477a3fa442d27917`).
+  Les marqueurs du Core 942 et les sept nouveaux sont dans le binaire (127). Épinglé par `f1ec3a42`.
+- **IPA 767** : déclenchée après le reçu de la 766 de la session MeloNX, comme convenu avec elle. Base 766 ; seul le
+  Core RPCS3 change. Brouillon `c53f3c7b` ; contrat (120 tests et contrôles API) passé ; gel sans bloquant ni commit non
+  classé (empreinte effective `c410ff01`) ; déclencheur `0cae8651`. Run `44016455273` vert : contrôle, republication et
+  application, groupes Flutter et natif non lancés (AGENTS.md) ; application 23,5 min.
+- **Vérification hors ligne** : les quatre pièces sont égales aux empreintes de l'API, déchiffrées avec la clé privée
+  hors Git, puis la clé est supprimée. IPA `RewindBox-Build767-0cae8651…-cold.ipa`, 331 507 587 octets, sha256
+  `dd4ab7755aba…0111`, conforme à SHA256SUMS et au reçu du signataire. Les six validateurs passent (MeloNX, NeoPlay,
+  shaders, légal, sans KartPad, sans Dusklight). [Reçu](evidence/rewind767/delivery.json), 12 fichiers de preuve.
+- **Images non déclarées (§ 3.10)** : `armsx2_internal_bridge` et `rpcs3_internal_bridge`, aux sources inchangées,
+  sont identiques octet pour octet à celles de l'IPA 763 (`4f1397e5`, `828ff7c5`). La 766 portait l'autre variante de
+  l'éditeur de liens. Rien à classer.
+- Non exécuté sur iPhone : la comparaison avec l'IPA 763 se fait sur les journaux du mainteneur (§ 4.3).
 
 ## 4. Pourquoi la fréquence tombe, et ce qui peut la maintenir (demande du mainteneur, 16 novembre)
 
