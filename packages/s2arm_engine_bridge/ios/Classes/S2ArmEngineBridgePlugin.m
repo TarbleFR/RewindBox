@@ -96,6 +96,7 @@ static NSString *S2ArmEnginePath(void) {
   [registrar addMethodCallDelegate:instance channel:channel];
   // The previous run's engine log (a crash ends the process before session_ended can copy it).
   dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ S2ArmExportEngineLogs(); });
+  S2ArmPreparationCleanupAtStart();   // what an earlier run left of moved-aside preparations, in the background
 }
 
 - (void)handleMethodCall:(FlutterMethodCall *)call result:(FlutterResult)result {
@@ -329,9 +330,13 @@ static NSString *S2ArmEnginePath(void) {
     result(@{@"success" : @NO, @"error" : @"switch1EngineLoaded", @"diagnostic" : @"The Switch 1 engine ran in this session of RewindBox."});
     return;
   }
+  // The deletion of earlier preparations (.discarded-*) waits while the game runs: it took 0.34 core in the first race of
+  // the IPA 765 test. A failed launch lets it go on; the session's end or park does too (s2arm_session_ended / _parked).
+  S2ArmPreparationGameRunning(YES);
   dispatch_async(self.workQueue, ^{
     NSDictionary *report = resume ? [self resumeParkedGame:gid]
                                   : [self runLaunchWithGid:gid images:images moduleDir:moduleDir gameData:gameData docs:docs pairing:pairing];
+    if (![report[@"success"] boolValue]) S2ArmPreparationGameRunning(NO);
     self.launchInProgress = NO;
     dispatch_async(dispatch_get_main_queue(), ^{ result(report); });
   });
@@ -618,6 +623,7 @@ static void s2arm_session_parked(const char *reason, void *context) {
   S2ArmEngineBridgePlugin *self = (__bridge S2ArmEngineBridgePlugin *)context;
   self.parkedGameId = self.runningGameId;
   s2arm_journal("sessionParked", "passed", NULL);
+  S2ArmPreparationGameRunning(NO);
   NSString *why = reason ? @(reason) : @"";
   dispatch_async(dispatch_get_main_queue(), ^{
     [self closeSessionView];
@@ -629,6 +635,7 @@ static void s2arm_session_ended(int code, const char *reason, void *context) {
   S2ArmEngineBridgePlugin *self = (__bridge S2ArmEngineBridgePlugin *)context;
   self.parkedGameId = nil;   // an end (or a failed resume) leaves nothing to resume
   s2arm_journal("sessionEnded", code == S2A_RB_ENDED_NORMAL ? "normal" : "failed", "\"code\":%d", code);
+  S2ArmPreparationGameRunning(NO);
   dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ S2ArmExportEngineLogs(); });
   NSString *why = reason ? @(reason) : @"";
   dispatch_async(dispatch_get_main_queue(), ^{

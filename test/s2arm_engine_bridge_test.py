@@ -320,14 +320,37 @@ check('@[ moduleDir, imagesDir, packDir ]' in prep and 'for (NSString *tree in @
 # Mario Kart World on IPA 731: deleting the previous root took about 14 s before the unpack (one link per RomFS file in the
 # view of a delta update). It is moved aside and deleted at background QoS once the preparation has ended, and only what a
 # preparation moved aside (.discarded-*) is ever deleted there.
-discard = prep[prep.index('static void prep_remove_discarded(NSString *gameDir) {'):]
-discard = discard[:discard.index('\n}\n')]
-check('dispatch_get_global_queue(QOS_CLASS_BACKGROUND, 0)' in discard and 'if (![name hasPrefix:@".discarded-"]) continue;' in discard
-      and discard.count('removeItemAtPath:') == 1,
+cleanup = prep[prep.index('static atomic_int g_prepGameRunning, g_prepRunning;'):prep.index('void S2ArmPreparationGameRunning(BOOL running) {')]
+check('dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_BACKGROUND, 0)' in cleanup
+      and cleanup.count('if (![name hasPrefix:@".discarded-"]) continue;') == 1
+      and cleanup.count('prep_remove_tree([gameDir stringByAppendingPathComponent:name].fileSystemRepresentation, &entries)') == 1
+      and 'removeItemAtPath' not in cleanup and cleanup.count('prep_remove_tree(') == 2,
       'the discarded roots are deleted in the background, and nothing but .discarded-* entries')
+tree = cleanup[cleanup.index('static BOOL prep_remove_tree('):cleanup.index('static void prep_cleanup_run(void) {')]
+check('fts_open(paths, FTS_PHYSICAL | FTS_NOCHDIR | FTS_XDEV, NULL)' in tree and 'FTS_LOGICAL' not in tree and 'FTS_COMFOLLOW' not in tree
+      and re.findall(r'\b(unlink|rmdir|remove|removefile)\(', tree) == ['rmdir', 'unlink'],
+      'a moved-aside tree is deleted without following its links (the RomFS view links into the export)')
 wrapper = prep[prep.index('- (NSDictionary *)run {'):prep.index('- (NSDictionary *)runSteps {')]
-check(wrapper.index('NSDictionary *result = [self runSteps];') < wrapper.index('if (_cleanupDir) prep_remove_discarded(_cleanupDir);')
+check(wrapper.index('atomic_fetch_add(&g_prepRunning, 1);') < wrapper.index('NSDictionary *result = [self runSteps];')
+      < wrapper.index('atomic_fetch_sub(&g_prepRunning, 1);') < wrapper.index('if (_cleanupDir) prep_remove_discarded(_cleanupDir);')
       < wrapper.index('return result;'), 'the discarded roots are deleted only once the preparation has ended, whatever its result')
+# IPA 765 (Mario Kart World): the deletion still ran 90 s after the launch, in the first race (0.34 core of kernel time in
+# removefile). It waits while a game or a preparation runs, checked every 256 entries, and resumes at the session's end or park,
+# after a failed launch, or at the next start of the app.
+check(tree.count('(++*entries & 255) == 0 && prep_cleanup_waits()') == 1
+      and 'if (prep_cleanup_waits()) return;' in cleanup and 'static BOOL prep_cleanup_waits(void) { return atomic_load(&g_prepGameRunning) || atomic_load(&g_prepRunning); }' in cleanup,
+      'the deletion pauses while a game or a preparation runs')
+launch = plugin[plugin.index('- (void)launchGame:(id)arguments result:(FlutterResult)result {'):plugin.index('- (NSDictionary *)resumeParkedGame:(NSString *)gid {')]
+check(launch.index('S2ArmPreparationGameRunning(YES);') < launch.index('dispatch_async(self.workQueue, ^{')
+      < launch.index("if (![report[@\"success\"] boolValue]) S2ArmPreparationGameRunning(NO);") < launch.index('self.launchInProgress = NO;\n    dispatch_async'),
+      'a launch or a resume pauses the deletion, and a failed one lets it go on')
+for callback in ('static void s2arm_session_parked(const char *reason, void *context) {',
+                 'static void s2arm_session_ended(int code, const char *reason, void *context) {'):
+    body = plugin[plugin.index(callback):]
+    body = body[:body.index('\n}\n')]
+    check('S2ArmPreparationGameRunning(NO);' in body, f'{callback.split()[2].split("(")[0]} resumes the deletion')
+register = plugin[plugin.index('+ (void)registerWithRegistrar:'):plugin.index('- (void)handleMethodCall:')]
+check('S2ArmPreparationCleanupAtStart();' in register, 'what an earlier run of the app left is deleted at its next start')
 check('[@".discarded-" stringByAppendingString:NSUUID.UUID.UUIDString]' in prep, 'each moved-aside root has a name of its own')
 # The unpack's information lines (ns2_dump notes) and the pack's walk and hashing times go to the journal as counts, fixed
 # words and durations only: the journal never holds a path or a title.

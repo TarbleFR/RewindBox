@@ -6,6 +6,7 @@
 #import "S2ArmCodePages.h"   // s2arm_code_now_ns
 
 #import <CommonCrypto/CommonDigest.h>
+#import <fts.h>
 #import <mach/mach.h>
 #import <os/proc.h>
 #import <pthread.h>
@@ -13,6 +14,7 @@
 #import <stdio.h>
 #import <string.h>
 #import <sys/stat.h>
+#import <unistd.h>
 
 NSString *const S2ArmErrorNotExportFolder = @"notExportFolder";
 NSString *const S2ArmErrorExportInvalid = @"exportInvalid";
@@ -365,18 +367,98 @@ static void prep_unpack_note(void *context, const char *line) {
 
 // Removes what earlier preparations of this game moved aside (.discarded-*), at background QoS: its disk work is
 // throttled behind the foreground. Called once a preparation has ended, never while one writes.
-static void prep_remove_discarded(NSString *gameDir) {
-  dispatch_async(dispatch_get_global_queue(QOS_CLASS_BACKGROUND, 0), ^{
-    NSFileManager *files = NSFileManager.defaultManager;
+// It also waits while a game runs. In the IPA 765 test (Mario Kart World) the moved-aside root was still being deleted 90 s
+// after the launch, in the first race: 0.34 core of kernel time in removefile, beside the engine's reads of the game's
+// file-backed memory on the same volume. A launch or a resume pauses it (S2ArmPreparationGameRunning), within 256 entries:
+// each tree goes entry by entry; the session's end, its park or the next start of the app resumes it. The folders still
+// to clean are kept on the serial cleanup queue, which alone touches them. A preparation running pauses it the same way.
+static atomic_int g_prepGameRunning, g_prepRunning;
+
+static BOOL prep_cleanup_waits(void) { return atomic_load(&g_prepGameRunning) || atomic_load(&g_prepRunning); }
+
+static dispatch_queue_t prep_cleanup_queue(void) {
+  static dispatch_queue_t queue;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    queue = dispatch_queue_create("rewindbox.s2arm.discarded",
+                                  dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_BACKGROUND, 0));
+  });
+  return queue;
+}
+
+// The game folders whose .discarded-* entries are still to delete. Only on prep_cleanup_queue.
+static NSMutableSet<NSString *> *prep_pending_cleanup(void) {
+  static NSMutableSet<NSString *> *pending;
+  if (!pending) pending = [NSMutableSet set];
+  return pending;
+}
+
+// Deletes one moved-aside tree without following links, children first. NO when a game or a preparation started meanwhile (the tree is
+// left partly deleted; the next run finishes it) or when something in it could not be deleted.
+static BOOL prep_remove_tree(const char *path, unsigned long *entries) {
+  char *paths[] = {(char *)path, NULL};
+  FTS *walk = fts_open(paths, FTS_PHYSICAL | FTS_NOCHDIR | FTS_XDEV, NULL);
+  if (!walk) return NO;
+  BOOL whole = YES;
+  for (FTSENT *entry; (entry = fts_read(walk));) {
+    if ((++*entries & 255) == 0 && prep_cleanup_waits()) {
+      whole = NO;
+      break;
+    }
+    if (entry->fts_info == FTS_D) continue;   // a directory goes after its entries (FTS_DP)
+    if (entry->fts_info == FTS_DP || entry->fts_info == FTS_DNR) rmdir(entry->fts_accpath);
+    else unlink(entry->fts_accpath);
+  }
+  fts_close(walk);
+  return whole && access(path, F_OK) != 0;
+}
+
+// On prep_cleanup_queue: deletes the .discarded-* entries of the pending folders, unless a game or a preparation runs.
+static void prep_cleanup_run(void) {
+  if (prep_cleanup_waits()) return;
+  NSFileManager *files = NSFileManager.defaultManager;
+  for (NSString *gameDir in prep_pending_cleanup().allObjects) {
     uint64_t start = s2arm_code_now_ns();
-    NSUInteger removed = 0;
+    unsigned long removed = 0, entries = 0;
+    BOOL paused = NO;
     for (NSString *name in [files contentsOfDirectoryAtPath:gameDir error:nil] ?: @[]) {
       if (![name hasPrefix:@".discarded-"]) continue;
-      if ([files removeItemAtPath:[gameDir stringByAppendingPathComponent:name] error:nil]) removed++;
+      if (prep_remove_tree([gameDir stringByAppendingPathComponent:name].fileSystemRepresentation, &entries)) removed++;
+      if (prep_cleanup_waits()) {
+        paused = YES;
+        break;
+      }
     }
-    if (removed)
-      s2arm_journal("prepare", "discardedRemoved", "\"folders\":%lu,\"ms\":%llu", (unsigned long)removed,
-                    (unsigned long long)((s2arm_code_now_ns() - start) / 1000000ull));
+    if (removed || paused)
+      s2arm_journal("prepare", paused ? "discardedPaused" : "discardedRemoved", "\"folders\":%lu,\"entries\":%lu,\"ms\":%llu", removed,
+                    entries, (unsigned long long)((s2arm_code_now_ns() - start) / 1000000ull));
+    if (paused) return;   // the rest waits for the session's end
+    [prep_pending_cleanup() removeObject:gameDir];
+  }
+}
+
+static void prep_remove_discarded(NSString *gameDir) {
+  NSString *dir = [gameDir copy];
+  dispatch_async(prep_cleanup_queue(), ^{
+    [prep_pending_cleanup() addObject:dir];
+    prep_cleanup_run();
+  });
+}
+
+void S2ArmPreparationGameRunning(BOOL running) {
+  atomic_store(&g_prepGameRunning, running ? 1 : 0);
+  if (!running) dispatch_async(prep_cleanup_queue(), ^{ prep_cleanup_run(); });
+}
+
+void S2ArmPreparationCleanupAtStart(void) {
+  dispatch_async(prep_cleanup_queue(), ^{
+    NSString *root = S2ArmLibraryRoot();
+    for (NSString *name in [NSFileManager.defaultManager contentsOfDirectoryAtPath:root error:nil] ?: @[]) {
+      BOOL dir = NO;
+      NSString *gameDir = [root stringByAppendingPathComponent:name];
+      if ([NSFileManager.defaultManager fileExistsAtPath:gameDir isDirectory:&dir] && dir) [prep_pending_cleanup() addObject:gameDir];
+    }
+    prep_cleanup_run();
   });
 }
 
@@ -527,7 +609,9 @@ static NSString *mapPrepareCode(int rc) {
 }
 
 - (NSDictionary *)run {
+  atomic_fetch_add(&g_prepRunning, 1);
   NSDictionary *result = [self runSteps];
+  atomic_fetch_sub(&g_prepRunning, 1);
   // The previous root moved aside at the start (and any left by a preparation the app did not finish) goes now, in the
   // background: on success, on failure and on cancel alike.
   if (_cleanupDir) prep_remove_discarded(_cleanupDir);

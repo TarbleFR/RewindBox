@@ -40,6 +40,12 @@ NSDictionary *S2ArmDetectExport(NSString *folder);
 /// {success: NO, code}. No game content is read beyond these display fields.
 NSDictionary *S2ArmGameInfo(NSString *folder, NSString *_Nullable localePref);
 
+/// The deletion of what earlier preparations moved aside (.discarded-*) waits while a game runs: YES when a launch or a
+/// resume begins, NO when the session ends, is parked or the launch failed (which resumes the deletion).
+void S2ArmPreparationGameRunning(BOOL running);
+/// At the app's start: the .discarded-* entries an earlier run of the app left are deleted in the background.
+void S2ArmPreparationCleanupAtStart(void);
+
 /// [fraction] is the share of [step] done (0–1). [detail] names the part of the step running (the code stage's module, e.g.
 /// "main"), or "reused" when a finished preparation of the same inputs is reused; nil otherwise. [work], for the code
 /// stage only: {phase, attempt, done, total} of the library's progress bar (rb_s2arm_code_request.work), else nil.
