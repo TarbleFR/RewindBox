@@ -223,6 +223,10 @@ from adapt_nextendo_online import apply as adapt_nextendo_online
 from adapt_runtime_yield import apply as adapt_runtime_yield
 from adapt_draw_wait_lanes import apply as adapt_draw_wait_lanes
 from adapt_mirror_copy_journal import apply as adapt_mirror_copy_journal
+from adapt_array_attachment_members import apply as adapt_array_attachment_members
+from adapt_empty_worker_snapshot import apply as adapt_empty_worker_snapshot
+from adapt_release_passes import apply as adapt_release_passes
+from adapt_array_walk_size import apply as adapt_array_walk_size
 
 
 def replace_once(path, old, new):
@@ -722,6 +726,18 @@ def main():
     # After IPA 760 (every title, journal only): the bytes held by the managed whole-buffer copies of mirror data
     # (BufferHolder.cs), the figure adapt_mirror_pending_pages was parked on.
     adapted += adapt_mirror_copy_journal(source)
+    # After IPA 764 (every title, render thread): a texture array's barrier pass calls only the storages that were ever
+    # attachments while none of its set became one (the final TextureStorage.cs and TextureArray.cs).
+    adapted += adapt_array_attachment_members(source)
+    # After IPA 764 (every title, pipeline cache): a worker file of a cache's header alone neither joins main nor holds
+    # the workers' files (the final PipelineCacheManager.cs).
+    adapted += adapt_empty_worker_snapshot(source)
+    # After IPA 764 (every title, render thread): a finished command buffer clears its dependants' ownership bits, then
+    # releases them (the final Auto.cs and CommandBufferPool.cs).
+    adapted += adapt_release_passes(source)
+    # After IPA 764 (every title, GPU thread): a bindless array entry walks its own textures when the change ring to
+    # read is longer than its set (the final TextureBindingsArrayCache.cs).
+    adapted += adapt_array_walk_size(source)
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -880,7 +896,8 @@ def main():
                  'adapt_device_critical_trim.py', 'adapt_private_span_lazy.py', 'adapt_pinned_command_queue.py',
                  'adapt_array_membership_filter.py', 'adapt_render_command_clock.py', 'adapt_replay_integer_mask.py',
                  'adapt_nextendo_online.py', 'adapt_runtime_yield.py',
-                 'adapt_draw_wait_lanes.py', 'adapt_mirror_copy_journal.py']:
+                 'adapt_draw_wait_lanes.py', 'adapt_mirror_copy_journal.py', 'adapt_array_attachment_members.py',
+                 'adapt_empty_worker_snapshot.py', 'adapt_release_passes.py', 'adapt_array_walk_size.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

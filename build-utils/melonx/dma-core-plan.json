@@ -136,7 +136,11 @@
   "build-utils/melonx/adapt_replay_integer_mask.py",
   "build-utils/melonx/adapt_runtime_yield.py",
   "build-utils/melonx/adapt_draw_wait_lanes.py",
-  "build-utils/melonx/adapt_mirror_copy_journal.py"
+  "build-utils/melonx/adapt_mirror_copy_journal.py",
+  "build-utils/melonx/adapt_array_attachment_members.py",
+  "build-utils/melonx/adapt_empty_worker_snapshot.py",
+  "build-utils/melonx/adapt_release_passes.py",
+  "build-utils/melonx/adapt_array_walk_size.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",

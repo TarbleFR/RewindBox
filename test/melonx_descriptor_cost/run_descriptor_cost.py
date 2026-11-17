@@ -11,7 +11,8 @@ argument buffers as on the iPhone. Writes dist/melonx-descriptor-cost/report.jso
 17 Nov (recipe patch, seventh part): when test/melonx_descriptor_cost/baseline.json names a patch other than the pinned
 one, both are built in this job on the same checkout and dependencies (the baseline from that commit, checked out by
 the workflow in baseline/), and the measure runs alternately on each build, three times; the report gives each field's
-median per build and the candidate's ratio to the baseline.
+median per build and the candidate's ratio to the baseline. The runner's descriptor binding mode is recorded (the
+macos-26 runners' paravirtual GPU uses an argument encoder, the iPhone Metal3 argument buffers).
 """
 import hashlib, json, os, statistics, subprocess, time
 from pathlib import Path
@@ -64,8 +65,16 @@ def run_once(binary, name, attempt):
     if run.returncode:
         print(run.stdout[-3000:], run.stderr[-3000:], flush=True)
         raise SystemExit(f'exit {run.returncode}')
-    assert 'Metal3 argument buffers' in run.stdout + run.stderr, 'MoltenVK must use Metal3 argument buffers, as on the iPhone'
+    # 17 Nov: the macos-26 runners now expose an "Apple Paravirtual device" (GPU family Apple 5), on which MoltenVK binds
+    # with Metal argument buffers through an argument encoder, not Metal3 argument buffers as on the iPhone. The mode is
+    # recorded and must be the same for both builds; the image view path the seventh part changes runs in either mode.
+    text = run.stdout + run.stderr
+    mode = ('Metal3 argument buffers' if 'Metal3 argument buffers' in text else
+            'Metal argument buffers (argument encoder)' if 'using Metal argument buffers' in text else 'discrete descriptors')
     result = json.loads(output.read_text())
+    result['argumentBufferMode'] = mode
+    device = next((line.split('model:', 1)[1].strip() for line in text.splitlines() if 'model:' in line), None)
+    result['gpuModel'] = device
     print(name, attempt, json.dumps(result), flush=True)
     return result
 
@@ -106,6 +115,8 @@ def main():
     for attempt in range(3):
         for name, (_, binary) in builds.items():
             runs[name].append(run_once(binary, name, attempt))
+    modes = {run['argumentBufferMode'] for found in runs.values() for run in found}
+    assert len(modes) == 1, 'both builds must bind descriptors the same way: ' + str(modes)
     summary = {name: medians(found) for name, found in runs.items()}
     ratios = {}
     if compare:
@@ -120,6 +131,7 @@ def main():
                            'libraries': {name: sha(library) for name, (library, _) in builds.items()},
                            'xcode': sh(['xcodebuild', '-version']).splitlines()[:2], 'os': sh(['sw_vers']).split()},
               'order': 'baseline then candidate, alternately, three times' if compare else 'candidate, three times',
+              'argumentBufferMode': modes.pop(), 'iPhoneMode': 'Metal3 argument buffers',
               'medians': summary, 'candidateOverBaseline': ratios, 'runs': runs}
     (OUT / 'report.json').write_text(json.dumps(report, indent=1) + '\n')
     print(json.dumps({'medians': summary, 'candidateOverBaseline': ratios}, indent=1), flush=True)

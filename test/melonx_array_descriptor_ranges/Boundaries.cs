@@ -184,6 +184,13 @@ namespace Ryujinx.Graphics.Vulkan
         // here every call changes the counted state, so every call moves it and the array passes its storages each time, as
         // the delivered array does (the skip itself is executed by the array-barrier-epoch gate).
         public static long AttachmentEpoch;
+        // After IPA 764 (adapt_array_attachment_members): production calls, in a pass over an unchanged set, only the storages
+        // that were ever attachments; here every storage counts as one, so every pass still calls all of them, as the
+        // delivered array does (the member passes themselves are checked by the adapter's model).
+        internal const int PromotionRingSize = 64;
+        public static long AttachmentPromotions;
+        public static readonly TextureStorage[] PromotionRing = new TextureStorage[PromotionRingSize];
+        public bool AttachmentUsed = true;
         public int Barriers;
         public void QueueWriteToReadBarrier(CommandBufferScoped cbs, AccessFlags access, PipelineStageFlags stage)
         {

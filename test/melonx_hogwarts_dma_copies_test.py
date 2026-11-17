@@ -292,6 +292,15 @@ LOT_FILES = {
                               'src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs', 'src/Ryujinx.Graphics.Vulkan/PipelineBase.cs'],
     # After IPA 760 (adapt_mirror_copy_journal, journal only): the managed whole-buffer copies of mirror data, counted.
     'adapt_mirror_copy_journal': ['src/Ryujinx.Graphics.Vulkan/BufferHolder.cs'],
+    # After IPA 764 (adapt_array_attachment_members): a texture array's barrier pass calls the storages that were ever
+    # attachments while none of its set became one.
+    'adapt_array_attachment_members': ['src/Ryujinx.Graphics.Vulkan/TextureStorage.cs', 'src/Ryujinx.Graphics.Vulkan/TextureArray.cs'],
+    # After IPA 764 (adapt_empty_worker_snapshot): a worker file of a cache's header alone is read as none.
+    'adapt_empty_worker_snapshot': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
+    # After IPA 764 (adapt_release_passes): Auto.cs and CommandBufferPool.cs are outside this composition.
+    'adapt_release_passes': [],
+    # After IPA 764 (adapt_array_walk_size): TextureBindingsArrayCache.cs is outside this composition.
+    'adapt_array_walk_size': [],
 }
 
 checks = 0
