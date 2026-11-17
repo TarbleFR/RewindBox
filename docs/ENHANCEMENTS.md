@@ -237,8 +237,8 @@ those patches stable.
 
 ## Sources
 
-18 pinned sources, 50,600 entries (catalogue revision
-`2026-11-16T2139Z.d8b055350a6c`; 47,184 entries from 11 sources in
+20 pinned sources, 52,489 entries (catalogue revision
+`2026-11-17T1313Z.50379e12bf9d`; 47,184 entries from 11 sources in
 `2026-10-28.209508f70e51`). A source is hosted only when its licence allows
 redistribution; content the embedded engine already ships is referenced by
 name; a source without a licence is read by reference (see Origin download
@@ -253,6 +253,8 @@ of `python3 tools/catalogues/report.py`.
 | MeloNX | [StevensND/switch-port-mods](https://github.com/StevensND/switch-port-mods) (exefs patches: frame rate, resolution, aspect ratio) | `774e7f7c8556` | 99 | none, re-upload forbidden by the author: **not hosted**, downloaded from the source by the app |
 | MeloNX | [StevensND/ue4-emuswitch-60fps](https://github.com/StevensND/ue4-emuswitch-60fps) (exefs patches of Unreal Engine games) | `53c69bf93c2f` | 39 | none, re-upload forbidden by the author: **not hosted**, downloaded from the source by the app |
 | RPCS3 | [RPCS3 game patches](https://wiki.rpcs3.net/index.php?title=Help:Game_Patches) via `rpcs3.net/compatibility?patch&api=v1&v=1.2` | content `f1f3cab0c8fe…` | 3,643 | CC BY-SA 4.0 (browser-verified 28 October 2026; page-specific exceptions apply) |
+| RPCS3 | [chidreams/Artemis-Patch-Collection-RPCS3](https://github.com/chidreams/Artemis-Patch-Collection-RPCS3) (Aldo's PS3 cheat database as RPCS3 patches) | `fd267a65759a` | 1,877 | MIT |
+| RPCS3 | [PaauloSilva/Artemis-Patch-Collection-RPCS3_PKG](https://github.com/PaauloSilva/Artemis-Patch-Collection-RPCS3_PKG) (the same, PSN releases) | `471bde6f857f` | 12 | MIT |
 | ARMSX2 | [ARMSX2 `patches.zip`](https://github.com/ARMSX2/ARMSX2/blob/9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe/platforms/ios/app/src/main/assets/resources/patches.zip) (the engine's own patch set, names and author credits only) | `9d989ca933a8` | 6,092 | shipped by the engine; nothing redistributed |
 | ARMSX2 | [CookiePLMonster/Console-Cheat-Codes](https://github.com/CookiePLMonster/Console-Cheat-Codes) (PS2) | `f63492f8ce9b` | 93 | MIT |
 | ARMSX2 | [AeroWidescreen/PCSX2-Cheats](https://github.com/AeroWidescreen/PCSX2-Cheats) | `ab043ba5adb9` | 52 | MIT |
@@ -343,6 +345,12 @@ server code.
   the embedded engine already ships it in the IPA. RewindBox lists a patch's
   name and `author=` credit and writes `Enable = <name>`, as the in-game
   Patches page does; no body or description is copied.
+- **Artemis collections (chidreams, PaauloSilva).** MIT (Copyright (c) 2023
+  chidreams): hosted with the notice in `NOTICE.md` and the source's licence
+  line in the index. They are merged into the RPCS3 records even when those
+  are reused (rpcs3.net is not reachable from every build host); a patch the
+  official database already has for the same executable is not listed twice
+  (1,518 left out), a name already taken is suffixed "(Artemis)".
 - **CookiePLMonster, AeroWidescreen.** MIT. The installed cheat file and
   the catalogue shard carry each copyright and permission notice.
 - **Dolphin GameSettings (dolphin-ios, dolphin-emu, Ishiiruka, Slippi, MPN)**
@@ -409,7 +417,7 @@ Publication never rewrites a file an app may still ask for.
   first two publications of 16 November 2026, 27 Switch shards in the
   third; the PS3 and Dolphin shards were never fetched again).
 - A revision is the UTC date and time, then a digest
-  (`2026-11-16T2139Z.d8b055350a6c`): the app keeps the later string.
+  (`2026-11-17T1313Z.50379e12bf9d`): the app keeps the later string.
 - Record formats: 1 is the first publication; 2 added PS2 records by
   reference (revisions `…T2042Z` and `…T2109Z`); 3 added Switch exefs
   patches by reference (`…T2112Z`, `…T2139Z`). An app built for format 2 keeps the last

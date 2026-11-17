@@ -138,6 +138,28 @@ SOURCES = {
                    'distributed under CC BY-SA 4.0. Per-patch Author and Notes kept.',
         'engines': ['rpcs3'],
     },
+    # MIT (copyright chidreams): Aldo's PS3 cheat database converted to RPCS3 patches, one file per game
+    # and version. Hosted with its notice; merged into the RPCS3 records even when those are reused.
+    'artemis-rpcs3': {
+        'name': 'ChiDreams/Artemis-Patch-Collection-RPCS3 (Aldo\'s PS3 cheat database as RPCS3 patches)',
+        'url': 'https://github.com/chidreams/Artemis-Patch-Collection-RPCS3',
+        'git': 'https://github.com/chidreams/Artemis-Patch-Collection-RPCS3.git',
+        'revision': 'fd267a65759a2f1dcae31e362d318de7a6e16594',
+        'license': 'MIT (Copyright (c) 2023 chidreams); cheats from Aldo\'s PS3 cheat database, ported by ChiDreams, '
+                   'with each patch\'s Author kept. Converted to RewindBox JSON.',
+        'engines': ['rpcs3'],
+        'merge': True,
+    },
+    'artemis-rpcs3-pkg': {
+        'name': 'PaauloSilva/Artemis-Patch-Collection-RPCS3_PKG (the same collection for PSN releases)',
+        'url': 'https://github.com/PaauloSilva/Artemis-Patch-Collection-RPCS3_PKG',
+        'git': 'https://github.com/PaauloSilva/Artemis-Patch-Collection-RPCS3_PKG.git',
+        'revision': '471bde6f857fe1ed9a717f7468e9dc91bc53a500',
+        'license': 'MIT (Copyright (c) 2023 chidreams, as its LICENSE states); cheats from Aldo\'s PS3 cheat database, '
+                   'with each patch\'s Author kept. Converted to RewindBox JSON.',
+        'engines': ['rpcs3'],
+        'merge': True,
+    },
     # ------------------------------------------------------------ ARMSX2
     'armsx2-patches-zip': {
         'name': 'ARMSX2 engine patches.zip (the PCSX2 patch set inside the embedded engine)',
@@ -795,6 +817,75 @@ def build_rpcs3(text, stats):
     return out
 
 
+ARTEMIS_SOURCES = ('artemis-rpcs3', 'artemis-rpcs3-pkg')
+
+
+def merge_rpcs3_artemis(records, roots, stats):
+    """Adds the Artemis collections to the RPCS3 records (built or reused). Idempotent: earlier
+    Artemis entries are dropped first. A patch the official database already has for the same
+    executable (same lines) is not listed twice; a name already taken gets the suffix "(Artemis)"."""
+    for record in records.values():
+        record['entries'] = [e for e in record['entries'] if e.get('source') not in ARTEMIS_SOURCES]
+    for root, source_id in roots:
+        for path in sorted(p for p in root.iterdir() if p.is_file() and not p.name.startswith('.')
+                           and p.name not in ('LICENSE', 'README.md')):
+            try:
+                document = load_patch_yml(path.read_bytes().decode('utf-8'))
+            except Exception:
+                stats['rpcs3_artemis_unreadable'] += 1
+                continue
+            for hash_key, patches in document.items():
+                if not RPCS3_HASH.match(str(hash_key)) or not isinstance(patches, dict):
+                    continue
+                for name, patch in patches.items():
+                    if not isinstance(patch, dict) or not isinstance(patch.get('Games'), dict):
+                        stats['rpcs3_artemis_rejected'] += 1
+                        continue
+                    variants = rpcs3_variants(clean_label(name, 160), patch)
+                    if not variants:
+                        stats['rpcs3_artemis_rejected'] += 1
+                        continue
+                    for title, by_serial in patch['Games'].items():
+                        if not isinstance(by_serial, dict):
+                            continue
+                        title = re.sub(r'\s*\(Artemis\)\s*$', '', str(title))
+                        for serial, versions in by_serial.items():
+                            if not RPCS3_SERIAL.match(str(serial)) or not isinstance(versions, list):
+                                continue
+                            versions = sorted({v for v in versions if isinstance(v, str) and RPCS3_VERSION.match(v)})
+                            if not versions:
+                                continue
+                            record = records.setdefault(serial, {'title': clean_label(title, 120), 'entries': []})
+                            for label, lines, group, variant in variants:
+                                target = {'hash': hash_key, 'title': clean_label(title, 200), 'versions': versions,
+                                          'patch': lines}
+                                same = [e for e in record['entries'] if e['name'].casefold() == label.casefold()]
+                                if any(t['hash'] == hash_key and t['patch'] == lines
+                                       for e in record['entries'] for t in e['targets']):
+                                    stats['rpcs3_artemis_duplicate'] += 1
+                                    continue
+                                mine = [e for e in same if e['source'] in ARTEMIS_SOURCES]
+                                if mine:
+                                    mine[0]['targets'].append(target)
+                                    continue
+                                shown = label if not same else f'{label} (Artemis)'
+                                if any(e['name'].casefold() == shown.casefold() for e in record['entries']):
+                                    stats['rpcs3_artemis_duplicate'] += 1
+                                    continue
+                                record['entries'].append({
+                                    'id': stable_id('rpcs3', serial, 'artemis', shown.casefold()), 'cat': classify(shown),
+                                    'name': shown, 'author': clean_label(patch.get('Author'), 200),
+                                    'notes': clean_label(patch.get('Notes'), 600),
+                                    'patch_version': clean_label(patch.get('Patch Version'), 20),
+                                    'group': group, 'variant': clean_label(variant, 40),
+                                    'source': source_id, 'targets': [target]})
+                                stats['rpcs3_artemis_entries'] += 1
+    for record in records.values():
+        record['entries'].sort(key=lambda e: (e['cat'], e['name'].casefold()))
+        for entry in record['entries']:
+            entry['targets'].sort(key=lambda t: (t['hash'], t['versions']))
+
+
 # ---------------------------------------------------------------- ARMSX2
 
 PS2_ANY_FILE = re.compile(r'^([A-Z]{4}-[0-9]{5})_([0-9A-Fa-f]{8})(?:_[^/]*)?\.pnach$')
@@ -1305,7 +1396,7 @@ def main():
     stats = collections.defaultdict(int)
     # A reused engine's sources are not fetched: its records come from the published shards.
     needed = {source_id for source_id, source in SOURCES.items()
-              if 'git' in source and set(source['engines']) - reuse}
+              if 'git' in source and (set(source['engines']) - reuse or source.get('merge'))}
     git = {source_id: fetch_git(args.cache, source_id, args.offline) for source_id in sorted(needed)}
     engines = {}
     for engine in ENGINES:
@@ -1326,6 +1417,8 @@ def main():
             engines[engine] = build_armsx2(git, stats)
         else:
             engines[engine] = build_dolphin(git, stats)
+        if engine == 'rpcs3':
+            merge_rpcs3_artemis(engines[engine], [(git[s], s) for s in ARTEMIS_SOURCES], stats)
     index_engines, shard_meta, shard_bytes, totals = {}, {}, {}, {}
     for engine, records in engines.items():
         grouped = {}

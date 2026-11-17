@@ -123,11 +123,12 @@ Before: commit `d4a494a`. Reproduce with
 
 | Catalogue | Before | After |
 | --- | --- | --- |
-| Enhancements: sources | 11 | 18 |
-| Enhancements: entries | 47,184 | 50,600 |
+| Enhancements: sources | 11 | 20 |
+| Enhancements: entries | 47,184 | 52,489 |
 | Enhancements: PS2 games / entries | 4,221 / 6,223 | 4,618 / 9,251 |
 | Enhancements: Switch games / entries | 2,285 / 36,980 | 2,325 / 37,368 |
 | Enhancements: entries by reference (not hosted) | 36,980 | 40,382 |
+| Enhancements: PS3 games / entries | 964 / 3,643 | 1,139 / 5,532 |
 | HD textures: references (sources) | 1,124 (457) | 1,319 (619) |
 | HD textures: page links | 615 | 810 |
 | HD textures: one-tap profiles (distinct families) | 509 (424) | 509 (424) |
@@ -194,7 +195,8 @@ Before: commit `d4a494a`. Reproduce with
   psxdatacenter.com), and it rewrites packs that the origin recipes then have
   to be located in again. It is a build to run where those hosts answer.
 - **RPCS3 patches.** `rpcs3.net` is not reachable from the work container;
-  the published RPCS3 records are reused as they are.
+  the published RPCS3 records are reused as they are. The Artemis collections (MIT) are
+  merged into them on 17 November: +1,889 entries, 175 more PS3 games.
 - **GBAtemp, Henriko Magnifico and other author sites.** Not reachable from
   the work container; GBAtemp also refuses the CI review (403). Their packs
   are added only from pages the CI review could read.

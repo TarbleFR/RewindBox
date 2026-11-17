@@ -18,7 +18,7 @@ hand. Documentation: [`docs/ENHANCEMENTS.md`](../../../docs/ENHANCEMENTS.md).
 - `VALIDATION.json` — totals of the newest revision, the inputs the builder
   rejected, and what the publication changed.
 
-Sources (pinned): 16, listed with revisions and licences in the index
+Sources (pinned): 20, listed with revisions and licences in the index
 (`sources`), in [`docs/ENHANCEMENTS.md`](../../../docs/ENHANCEMENTS.md) and in
 `NOTICE.md`. A source is hosted only when its licence allows redistribution;
 content the embedded engine already ships (ARMSX2 `patches.zip`) is
