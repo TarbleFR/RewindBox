@@ -1,0 +1,47 @@
+name: MeloNX menu, cheats and mods checks
+run-name: MeloNX menu, cheats and mods • ${{ github.sha }}
+# 17 November 2026: the MeloNX menu in three sections (this game, import, settings); Cheats & Enhancements and the new
+# Mods screen sit under the game's graphics; the Switch game's Manage tab no longer carries the cheats row. Analyzes
+# the files and runs the mods service test and the menu's existing widget test (skins entry).
+'on':
+  push:
+    branches:
+    - Claude
+    - work/melonx-fps-stability-20261103
+    paths:
+    - .github/workflows/melonx-menu-checks.yml
+    - lib/widgets/melonx_internal_playlist_actions.dart
+    - lib/widgets/melonx_mods_dialog.dart
+    - lib/services/melonx_mods_service.dart
+    - lib/l10n/melonx_mods_locale.dart
+    - lib/screens/game_screen/my_games_list.dart
+    - lib/screens/game_screen/game_settings_dialog/game_settings_manage_tab.dart
+    - test/melonx_mods_service_test.dart
+    - test/melonx_playlist_skins_test.dart
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: melonx-menu-checks-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.47.2'
+        channel: stable
+        cache: true
+    - name: Resolve Flutter dependencies
+      run: flutter pub get --enforce-lockfile
+    - name: Analyze the menu, the Mods screen and service, the library and the Manage tab
+      run: flutter analyze --no-fatal-infos lib/widgets/melonx_internal_playlist_actions.dart lib/widgets/melonx_mods_dialog.dart lib/services/melonx_mods_service.dart lib/l10n/melonx_mods_locale.dart lib/screens/game_screen/my_games_list.dart lib/screens/game_screen/game_settings_dialog/game_settings_manage_tab.dart test/melonx_mods_service_test.dart
+    - name: Import, turn on and off and delete mods; open the menu's skins entry
+      run: flutter test test/melonx_mods_service_test.dart test/melonx_playlist_skins_test.dart
+    - name: Storage contract (every pick inside the import activity)
+      run: python3 test/storage_contract_test.py

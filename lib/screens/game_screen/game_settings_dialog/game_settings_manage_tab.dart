@@ -71,8 +71,11 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
 
   // Cheats & Enhancements of the game's embedded engine first, then the
   // HD textures page (Build 486).
+  // Switch (embedded MeloNX): Cheats & Enhancements moved to the MeloNX menu,
+  // under the game's graphics, with its Mods (17 November 2026).
   bool get _hasEnhancements =>
       EnhancementService.instance.supports(_targetSystemFolder) &&
+      _targetSystemFolder.toLowerCase() != 'switch' &&
       (widget.game.romPath?.startsWith('/') ?? false);
   int get _enhancementsIdx => _hasEnhancements ? 0 : -1;
   bool get _hasTextures =>

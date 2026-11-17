@@ -1083,6 +1083,8 @@ class _SystemGamesListState extends State<SystemGamesList> {
               },
         gamePath: _selectedGame?.romPath,
         titleId: _selectedGame?.titleId,
+        game: _selectedGame,
+        system: widget.system,
         onInteractionChanged: (active) {
           if (!mounted) return;
           if (active) {
