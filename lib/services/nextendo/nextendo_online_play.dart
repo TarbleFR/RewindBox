@@ -2,6 +2,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'nextendo_config.dart';
 import 'nextendo_engine_support.dart';
+import 'nextendo_servers.dart';
 import 'nextendo_service.dart';
 
 /// What one Switch launch gives the engine to play on Nextendo Network.
@@ -35,9 +36,25 @@ abstract final class NextendoOnlinePlay {
     await (preferences ?? await SharedPreferences.getInstance()).setBool(_enabledKey, value);
   }
 
+  /// At app start: looks the two server names up for a signed-in player with
+  /// online play on, so a first launch finds fresh addresses. Nobody else's
+  /// start contacts Nextendo. Never throws.
+  static Future<void> prepareAtStartup({NextendoService? service, SharedPreferences? preferences}) async {
+    try {
+      final settings = await NextendoConfig.load(preferences);
+      if (!settings.canSignIn || !await enabled(preferences)) return;
+      if (await (service ?? NextendoService.instance).restore(settings) == null) return;
+      await NextendoServers.refresh(preferences: preferences);
+    } on Object {
+      // A launch looks the names up again if needed.
+    }
+  }
+
   /// The online configuration of this launch, or null with [reason] reported
   /// through [onSkipped]: the game then starts offline, exactly as before.
-  /// A launch is never refused or delayed beyond the token request.
+  /// A launch is never refused or delayed beyond the token request and, when
+  /// the last answer is older than ten minutes, the two name lookups (at most
+  /// five seconds; a failure keeps the last good addresses).
   static Future<NextendoLaunchOnline?> forLaunch({
     NextendoService? service,
     NextendoConfig? config,
@@ -48,7 +65,7 @@ abstract final class NextendoOnlinePlay {
   }) async {
     final nextendo = service ?? NextendoService.instance;
     try {
-      final settings = config ?? await NextendoConfig.load(preferences);
+      var settings = config ?? await NextendoConfig.load(preferences);
       if (!settings.canSignIn) return null; // Nextendo is not set up in this build: say nothing.
       if (await nextendo.restore(settings) == null) return null; // signed out
       if (!await enabled(preferences)) {
@@ -60,6 +77,12 @@ abstract final class NextendoOnlinePlay {
       if (gamePath != null && !_retail.any(gamePath.toLowerCase().endsWith)) {
         onSkipped?.call('homebrew');
         return null;
+      }
+      // The two server names, looked up again only when their answer is older
+      // than ten minutes; a failed lookup keeps the last good addresses.
+      if (config == null) {
+        await NextendoServers.refresh(preferences: preferences);
+        settings = await NextendoConfig.load(preferences);
       }
       if (!settings.serversConfigured) {
         onSkipped?.call(settings.serversIssue == 'same' ? 'serversSame' : 'serversNotConfigured');

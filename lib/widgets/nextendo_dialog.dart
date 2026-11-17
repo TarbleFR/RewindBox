@@ -8,13 +8,15 @@ import '../services/logger_service.dart';
 import '../services/nextendo/nextendo_config.dart';
 import '../services/nextendo/nextendo_engine_support.dart';
 import '../services/nextendo/nextendo_online_play.dart';
+import '../services/nextendo/nextendo_servers.dart';
 import '../services/nextendo/nextendo_service.dart';
 
 /// The player's Nextendo Network account in RewindBox: sign-in on
 /// nextendo.network, the linked identity, and the three conditions of online
 /// play shown apart (account, game servers, engine) with the action each
-/// missing one needs. The online switch only turns on when all three hold. A
-/// build without the server addresses shows the maintainer's fields.
+/// missing one needs. The online switch only turns on when all three hold. The
+/// server addresses are looked up by name ([NextendoServers]); the maintainer's
+/// fields only show while no lookup has ever succeeded.
 class NextendoDialog extends StatefulWidget {
   const NextendoDialog({super.key, this.service, this.engineSupported});
   final NextendoService? service;
@@ -56,6 +58,7 @@ class _NextendoDialogState extends State<NextendoDialog> {
 
   Future<void> _load() async {
     try {
+      await NextendoServers.refresh();
       final config = await NextendoConfig.load();
       final account = config.canSignIn ? await _service.restore(config) : null;
       final online = await NextendoOnlinePlay.enabled();
@@ -246,9 +249,9 @@ class _NextendoDialogState extends State<NextendoDialog> {
     ];
   }
 
-  /// Only in a build without the server addresses: the maintainer enters what
-  /// the Nextendo Developers portal and Nextendo's team issued for RewindBox.
-  /// A value the build carries is shown and cannot be changed here.
+  /// Only while the server addresses are neither in the build nor found by
+  /// name: the maintainer enters values for a test. A value the build carries
+  /// or a lookup found is shown and cannot be changed here.
   Widget _registration(NextendoConfig config) => ExpansionTile(
     tilePadding: EdgeInsets.zero,
     title: Text(_text('nextendoRegistration')),
@@ -256,8 +259,8 @@ class _NextendoDialogState extends State<NextendoDialog> {
       Text(_text('nextendoRegistrationHint', {'redirect': NextendoConfig.registeredRedirect})),
       for (final field in [
         (_clientId, 'nextendoClientId', config.clientIdFromBuild),
-        (_server, 'nextendoServer', config.serverFromBuild),
-        (_nat, 'nextendoNat', config.natFromBuild),
+        (_server, 'nextendoServer', config.serverFromBuild || config.serverResolved),
+        (_nat, 'nextendoNat', config.natFromBuild || config.natResolved),
       ])
         TextField(
           controller: field.$1,
@@ -299,7 +302,7 @@ class _NextendoDialogState extends State<NextendoDialog> {
               Text(_text('nextendoGames'), style: Theme.of(context).textTheme.bodySmall),
               const SizedBox(height: 4),
               Text(_text('nextendoLimits'), style: Theme.of(context).textTheme.bodySmall),
-              if (config != null && !config.fromBuild) _registration(config),
+              if (config != null && !config.serversAutomatic) _registration(config),
             ],
           ),
         ),

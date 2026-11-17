@@ -1,0 +1,41 @@
+name: Nextendo Network app checks
+run-name: Nextendo Network app checks • ${{ github.sha }}
+# Nextendo's developer (17 November 2026): the two game-server addresses are found by looking up nex.nextendo.network
+# and nat.nextendo.network when the app starts (kept about ten minutes, the last good address kept when a lookup
+# fails), not given at build time. Analyzes the Nextendo code and runs its lookup and configuration tests.
+'on':
+  push:
+    branches:
+    - Claude
+    - work/melonx-fps-stability-20261103
+    paths:
+    - .github/workflows/nextendo-checks.yml
+    - lib/services/nextendo/**
+    - lib/widgets/nextendo_dialog.dart
+    - lib/l10n/switch_online_locale.dart
+    - test/nextendo_*_test.dart
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: nextendo-checks-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.47.2'
+        channel: stable
+        cache: true
+    - name: Resolve Flutter dependencies
+      run: flutter pub get --enforce-lockfile
+    - name: Analyze the Nextendo code, its screen, its strings and the app start
+      run: flutter analyze --no-fatal-infos lib/services/nextendo lib/widgets/nextendo_dialog.dart lib/l10n/switch_online_locale.dart lib/main.dart test/nextendo_servers_test.dart
+    - name: Look the server names up and resolve the configuration
+      run: flutter test test/nextendo_servers_test.dart
