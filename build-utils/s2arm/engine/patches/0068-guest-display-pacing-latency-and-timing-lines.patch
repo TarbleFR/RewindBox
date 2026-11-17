@@ -286,7 +286,7 @@ index ba60773..26b2605 100644
  int nvn_fps_limit(void) { pthread_once(&g_once, fps_init); return g_limit; }
  double nvn_fps_period(double period) {
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
-index 209f545..127aa9f 100644
+index d53e97e..5c26eca 100644
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
 @@ -228,6 +228,11 @@ static _Atomic int g_up_pending;
@@ -351,7 +351,7 @@ index 209f545..127aa9f 100644
 +//   18.57 ms for 15.70 ms of GPU work, frame 635 102.8 ms for 21.8 (a 89.7 ms submit stall), frame 1893 322.5 ms for 24.5 (118 first texture uploads). The game's dynamic resolution
 +//   follows that span against its 16.7 ms budget: the scene size changed in 111-171 frames of 300, each change making 17-28 shared textures anew. A report now records its time less
 +//   the GPU's idle time between the pieces of its frame before it; the frame's first piece keeps the real time, so GPU and CPU ticks stay within a frame of each other (patch 0059's
-+//   'GPU time the game read' shows the result). Main-queue pieces only (sub_cut, nvn_be_sub_commit), as their feedback arrives (feedback threads, under g_tsb_lk). S2A_RB_TS_BUSY=0: real times
++//   'GPU time the game read' shows the result). Main-queue pieces only (sub_cut, nvn_be_sub_commit and, since the RewindBox (patch 0068) review, mdi_wait), as their feedback arrives (feedback threads, under g_tsb_lk). S2A_RB_TS_BUSY=0: real times
 +static int rb_ts_busy(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_TS_BUSY"); v = !(e && !strcmp(e, "0")); MLOG("RewindBox: counter report times %s (S2A_RB_TS_BUSY)", v ? "on a busy GPU clock: the idle time between a frame's pieces left out" : "real GPU times"); } return v; }
 +enum { TSB_N = 64, TSB_P = 64 };
 +typedef struct { uint64_t frame; int n, over; uint64_t s[TSB_P], e[TSB_P]; } tsb_t;   // a frame's main-queue pieces by GPU start (guest ns); over: more than TSB_P
@@ -395,7 +395,7 @@ index 209f545..127aa9f 100644
  }
  
  // ---------- Boot instrumentation (DM_BOOTPROF=1): metallib loading, pipeline creation (both happen synchronously during replay on the submit thread), texture upload, first-frame present ----------
-@@ -3155,6 +3209,7 @@ uint64_t nvn_be_sub_commit(void) {
+@@ -3182,6 +3236,7 @@ uint64_t nvn_be_sub_commit(void) {
      fb_add(o, ^(id<MTL4CommitFeedback> cb) {
          gpu_tag_done(gpu_f, 0, gpu_sub, cb.GPUStartTime, cb.GPUEndTime);
          uint64_t c0 = 0, c1 = 0; if (seg_ts()) { c0 = gpu_s_guest_ns(cb.GPUStartTime); c1 = gpu_s_guest_ns(cb.GPUEndTime); }
@@ -403,7 +403,7 @@ index 209f545..127aa9f 100644
          if (cb.error) { atomic_store(&g_last_commit_error, 1); atomic_fetch_add(&g_commit_error_n, 1); if (mtl_gpu_halted()) mtl_gpu_cb_error(cb.error, "main replay", fence); else { static int n, nv; int victim = [cb.error.description containsString:@"InnocentVictim"]; if (!victim) quar_fault(qsus, cb.error); if (victim ? nv++ < 1 : n++ < 8) MLOG("【红】 command buffer error details fence=%llu: %s | GPU %.3f→%.3f", (unsigned long long)fence, cb.error.description.UTF8String, cb.GPUStartTime, cb.GPUEndTime); if (!victim) MLOG("【红】 state of the failed submission fence=%llu: %s", (unsigned long long)fence, cctx.UTF8String); MLOG("【红】 command buffer execution error: %s", cb.error.localizedDescription.UTF8String); mtl_gpu_cb_error(cb.error, "main replay", fence); s2a_direct_gpu_error(cb.error.localizedDescription.UTF8String); } }
          for (int i = 0; i < n; i++) {
              if (ops[i].kind == 1) { if (ops[i].mode == 1) *ops[i].val += ops[i].v; else *ops[i].val = ops[i].v; evs_landed(ops[i].val); }
-@@ -3163,7 +3218,7 @@ uint64_t nvn_be_sub_commit(void) {
+@@ -3190,7 +3245,7 @@ uint64_t nvn_be_sub_commit(void) {
                  for (int k = 0; k < l->n; k++) { sum += ((const uint64_t *)((__bridge id<MTLBuffer>)l->s[k].buf).contents)[l->s[k].slot]; CFRelease(l->s[k].buf); }
                  free(l); uint64_t rec[2] = {sum, gpu_ticks()}; memcpy((void *)ops[i].addr, rec, sizeof rec);
              }
@@ -412,7 +412,7 @@ index 209f545..127aa9f 100644
                  if (ops[i].type == 0 || ops[i].type == 0x10) fsig_ts(gpu_f, t, ops[i].type == 0x10); }   // RewindBox (patch 0059)
          }
          if (fsa) {   // RewindBox (patch 0059): the words the GPU wrote for this piece's indirect draws, as they are now that it has run
-@@ -3235,10 +3290,11 @@ int nvn_be_wait(uint64_t fence, uint64_t timeout_ns) {
+@@ -3263,10 +3318,11 @@ int nvn_be_wait(uint64_t fence, uint64_t timeout_ns) {
      dl.tv_sec += ns / 1000000000ull; dl.tv_nsec = ns % 1000000000ull;
      pthread_mutex_lock(&g_mu);
      int r = 0, blk = g_done < fence; if (blk) { pthread_mutex_unlock(&g_mu); DM_BLOCK_BEGIN(); pthread_mutex_lock(&g_mu); }
@@ -425,7 +425,7 @@ index 209f545..127aa9f 100644
      return ok;
  }
  
-@@ -3943,9 +3999,10 @@ static pthread_mutex_t g_up_wmu = PTHREAD_MUTEX_INITIALIZER; static pthread_cond
+@@ -3971,9 +4027,10 @@ static pthread_mutex_t g_up_wmu = PTHREAD_MUTEX_INITIALIZER; static pthread_cond
  static void up_wake(void) { pthread_mutex_lock(&g_up_wmu); pthread_cond_broadcast(&g_up_wcv); pthread_mutex_unlock(&g_up_wmu); }
  static void up_wait_zero(_Atomic int *v) {
      if (!atomic_load(v)) return;
@@ -437,7 +437,23 @@ index 209f545..127aa9f 100644
  }
  static unsigned g_up_seq;
  #define UP_BLOCK_SIZE (32u * 1024u * 1024u)
-@@ -16296,7 +16353,7 @@ void nvn_be_read_texels(const tex_t *t, unsigned level, unsigned layer0, const N
+@@ -14920,10 +14977,13 @@ static void mdi_wait(void) {
+     if (g_blit) { enc_b_end(g_blit); g_blit = nil; }
+     up_flush(); res_commit();
+     if (!g_mdi_ev) g_mdi_ev = [g_dev newSharedEvent];
+-    if (g_m3) { rec_commit_m3(g_cb, nil, g_mdi_ev, ++g_mdi_v, 1); rec_drain(); }   // the CPU waits on the event: the signal must be on the queue first
++    // RewindBox (patch 0068): this command buffer is a main-queue piece of the frame too: its GPU time goes on the busy clock (tsb_piece) as sub_cut's does, or tsb_map takes it out as idle
++    //   time (the reviewer's bench: pieces 1000-2000 and 3000-4000 with this one at 2100-3000 read 2000 for 2900 of GPU work). S2A_RB_TS_BUSY=0: no handler, as before
++    id mo = nil; if (rb_ts_busy()) { uint64_t mf = atomic_load(&g_cur_frame); mo = fb_new(); fb_add(mo, ^(id<MTL4CommitFeedback> cb) { tsb_piece(mf, gpu_s_guest_ns(cb.GPUStartTime), gpu_s_guest_ns(cb.GPUEndTime)); }); }   // RewindBox (patch 0068)
++    if (g_m3) { rec_commit_m3(g_cb, mo, g_mdi_ev, ++g_mdi_v, 1); rec_drain(); }   // the CPU waits on the event: the signal must be on the queue first  RewindBox (patch 0068): mo
+     else {
+         [g_cb endCommandBuffer];
+-        rec_commit(g_cb, nil);
++        rec_commit(g_cb, mo);   // RewindBox (patch 0068): mo
+         rec_signal(g_mdi_ev, ++g_mdi_v); rec_drain();
+     }
+     if (![g_mdi_ev waitUntilSignaledValue:g_mdi_v timeoutMS:10000]) RED_ONCE(97, "indirect-count multi-draw: the GPU did not finish within 10 s; the count is read anyway");
+@@ -16329,7 +16389,7 @@ void nvn_be_read_texels(const tex_t *t, unsigned level, unsigned layer0, const N
          for (int z = 0; z < nz; z++)
              [b copyFromTexture:mt sourceSlice:layer0 + r->zoffset + z sourceLevel:level sourceOrigin:MTLOriginMake(sx, sy, 0) sourceSize:MTLSizeMake(sw, sh, 1)
                        toBuffer:sb destinationOffset:z * swb * sh destinationBytesPerRow:swb destinationBytesPerImage:swb * sh];
@@ -446,7 +462,7 @@ index 209f545..127aa9f 100644
          for (int z = 0; z < nz; z++) for (int y = 0; y < r->height; y++) {
              long ty = (long)floor((r->yoffset + y + 0.5) * sc) - sy; if (ty < 0) ty = 0; if (ty >= sh) ty = sh - 1;
              for (int x = 0; x < r->width; x++) {
-@@ -16309,7 +16366,7 @@ void nvn_be_read_texels(const tex_t *t, unsigned level, unsigned layer0, const N
+@@ -16342,7 +16402,7 @@ void nvn_be_read_texels(const tex_t *t, unsigned level, unsigned layer0, const N
      for (int z = 0; z < nz; z++)
          [b copyFromTexture:mt sourceSlice:is3d ? 0 : layer0 + r->zoffset + z sourceLevel:level sourceOrigin:MTLOriginMake(r->xoffset, r->yoffset, is3d ? r->zoffset + z : 0)
                  sourceSize:MTLSizeMake(r->width, r->height, 1) toBuffer:buf destinationOffset:z * wb * hb destinationBytesPerRow:wb destinationBytesPerImage:wb * hb];
@@ -455,7 +471,7 @@ index 209f545..127aa9f 100644
      for (int z = 0; z < nz; z++) for (size_t y = 0; y < hb; y++) memcpy(dst + z * img + y * row, (uint8_t *)buf.contents + z * wb * hb + y * wb, wb);
  }
  // S2Arm internal resolution, diagnostics for tests (graphics/nvn/tests/t_nvn_rscale.m): a texture object's Metal storage size and scale record (returns RS_NONE / RS_SCALED / RS_BLACK,
-@@ -16825,6 +16882,7 @@ static void sub_cut(void) {
+@@ -16858,6 +16918,7 @@ static void sub_cut(void) {
          gpu_tag_done(f, 0, gpu_sub, cb.GPUStartTime, cb.GPUEndTime);
          arena_seg_done(sf);
          if (sc) { if (k < SEG_CLK_N) { atomic_store(&sc->t[k][0], gpu_s_guest_ns(cb.GPUStartTime)); atomic_store(&sc->t[k][1], gpu_s_guest_ns(cb.GPUEndTime)); } seg_clk_put(sc); }
@@ -463,7 +479,7 @@ index 209f545..127aa9f 100644
          if (cb.error) { atomic_store(&g_last_commit_error, 1); atomic_fetch_add(&g_commit_error_n, 1); if (mtl_gpu_halted()) mtl_gpu_cb_error(cb.error, "segment", f); else { static int k; if (![cb.error.description containsString:@"InnocentVictim"]) quar_fault(qsus, cb.error); if (k++ < 8) MLOG("【红】 segment command buffer execution error: %s", cb.error.description.UTF8String); mtl_gpu_cb_error(cb.error, "segment", f); s2a_direct_gpu_error(cb.error.localizedDescription.UTF8String); } }
      });
      res_commit();
-@@ -18561,8 +18619,12 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+@@ -18594,8 +18655,12 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
              for (int i = 1; i < 300; i++) { double v = a[i]; int j = i - 1; while (j >= 0 && a[j] > v) { a[j + 1] = a[j]; j--; } a[j + 1] = v; }
              double b[300]; memcpy(b, e2e, sizeof b);
              for (int i = 1; i < 300; i++) { double v = b[i]; int j = i - 1; while (j >= 0 && b[j] > v) { b[j + 1] = b[j]; j--; } b[j + 1] = v; }
@@ -478,7 +494,7 @@ index 209f545..127aa9f 100644
                   (unsigned long long)g_link_dropped, a[149], a[0], b[149], b[0], b[299]);
          }
      }
-@@ -18791,6 +18853,30 @@ static int link_exact(int mode, double period) {   // 该链路档能否用整
+@@ -18824,6 +18889,30 @@ static int link_exact(int mode, double period) {   // 该链路档能否用整
      double t = period * (mode == 4 ? 20 : 30);
      return t >= 1 - 1e-6 && fabs(t - round(t)) < 1e-6;
  }
@@ -509,7 +525,7 @@ index 209f545..127aa9f 100644
  static void link_sync(double period) {   // Called every frame by the game's present thread: aligns the display link object's state to g_dm_present_link and the power-saving mode (can change at run time)
      if (atomic_load(&g_link_stop)) return;
      int applied = g_link_applied; int want = g_dm_present_link; const int base = want;
-@@ -18807,7 +18893,8 @@ static void link_sync(double period) {   // Called every frame by the game's pre
+@@ -18840,7 +18929,8 @@ static void link_sync(double period) {   // Called every frame by the game's pre
              if (slots >= 1 - 1e-6 && fabs(slots - round(slots)) < 1e-6) candidate = 3;
          }
          // 20 Hz 档只看周期本身（恰好 50 ms、连续 1 秒，下面的迟滞判）：间隔 3 不再计入 30 帧口径（见 hle_nvn.c present_period）
@@ -519,7 +535,7 @@ index 209f545..127aa9f 100644
      }
      // Reuse the one-second rationale of g_itv2_since: a single slow frame must
      // not reconfigure the system's asynchronous display link. Both directions
-@@ -18848,7 +18935,7 @@ static void link_sync(double period) {   // Called every frame by the game's pre
+@@ -18881,7 +18971,7 @@ static void link_sync(double period) {   // Called every frame by the game's pre
      }
      if (want) link.preferredFrameRateRange = link_range(want);
      else link_stop_locked();
@@ -528,7 +544,7 @@ index 209f545..127aa9f 100644
      lb_applied(&g_low, applied, want, now);
      g_link_applied = want;
      pthread_cond_broadcast(&g_pq_cv); pthread_mutex_unlock(&g_pq_mu);
-@@ -18975,6 +19062,65 @@ void nvn_be_present_wait(uint64_t tk) {
+@@ -19008,6 +19098,65 @@ void nvn_be_present_wait(uint64_t tk) {
  // Wait until all queued presents have been processed (used by nvn_be_finish = nvnQueueFinish etc.): goes through nvn_be_present_wait, so there is still a fallback when the display link stops (real device: the game called QueueFinish once while the display link was stopped,
  // and this used to wait here without a timeout; nobody took the 3 queued frames and the game stalled; those two runs on Mac did not hit this call)
  void mtl_present_flush(void) { pthread_mutex_lock(&g_pq_mu); uint64_t h = g_pq_in; pthread_mutex_unlock(&g_pq_mu); nvn_be_present_wait(h); }
@@ -594,7 +610,7 @@ index 209f545..127aa9f 100644
  void nvn_be_stats(uint64_t *passes, uint64_t *draws) { *passes = g_stat_pass; *draws = g_stat_draw; }
  // 本窗口（上次读后）画过的最大渲染目标：宽 / 高 / Metal 像素格式，读后清零（hle_nvn.c 每 300 帧那行带出）
  void nvn_be_rt_window(uint32_t *w, uint32_t *h, uint32_t *fmt) { *w = g_rtw_w; *h = g_rtw_h; *fmt = g_rtw_fmt; g_rtw_w = g_rtw_h = g_rtw_fmt = 0; }
-@@ -19008,6 +19154,7 @@ void nvn_be_link_sample(uint64_t *ticks, uint64_t *time_ns) {
+@@ -19041,6 +19190,7 @@ void nvn_be_link_sample(uint64_t *ticks, uint64_t *time_ns) {
  }
  void mtl_link_pause(int on) { CAMetalDisplayLink *l = g_link; if (l) l.paused = on != 0; }   // For testing (DM_TEST_BG): imitates the system stopping the display-link callback in the background
  int nvn_be_link_wait_tick(int vsyncs, uint64_t timeout_ns) {
@@ -602,7 +618,7 @@ index 209f545..127aa9f 100644
      if (!nvn_be_link_active()) return 0;
      // Wait for the display link only when running faster than the display: if a display-link tick has already passed since the previous frame started work (this frame is already behind), start immediately instead of waiting in vain for the next display-link tick --
      // otherwise when the frame time is slightly more than one display-link period it would "miss the tick -> wait another whole tick", locking the frame rate straight to half (measured on Mac under windowed load: runs of dropped frames)
-@@ -19030,7 +19177,7 @@ int nvn_be_link_wait_tick(int vsyncs, uint64_t timeout_ns) {
+@@ -19063,7 +19213,7 @@ int nvn_be_link_wait_tick(int vsyncs, uint64_t timeout_ns) {
      pthread_mutex_unlock(&g_link_mu); DM_BLOCK_BEGIN(); pthread_mutex_lock(&g_link_mu);
      while (g_link_tick_n < g_link_started_tick + step) if (pthread_cond_timedwait(&g_link_cv, &g_link_mu, &ts) == ETIMEDOUT) { pthread_mutex_unlock(&g_link_mu); DM_BLOCK_END(); return 0; }
      g_link_started_tick = g_link_tick_n;

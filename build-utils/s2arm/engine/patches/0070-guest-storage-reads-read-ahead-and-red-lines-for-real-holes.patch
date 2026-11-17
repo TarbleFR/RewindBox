@@ -1,8 +1,8 @@
 diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
-index 1b4f357..a06da9f 100644
+index 18c26f2..6ce698c 100644
 --- a/graphics/nvn/gfx/nvn/hle_nvn.c
 +++ b/graphics/nvn/gfx/nvn/hle_nvn.c
-@@ -3008,6 +3008,10 @@ void nvn_be_res_stats(char *out, size_t n);
+@@ -3021,6 +3021,10 @@ void nvn_be_res_stats(char *out, size_t n);
  void nvn_be_barrier_stats(uint64_t *skip, uint64_t *full);
  extern uint32_t nvn_be_present_qos(void);
  static uint64_t g_frame;
@@ -13,7 +13,7 @@ index 1b4f357..a06da9f 100644
  static uint64_t g_acq_wait_ns, g_pq_wait_ns;   // Accumulated display-link wait / wait for the present queue to return inside acquire, recorded per frame at present (there can be several acquires within one frame)
  __attribute__((weak)) void nvn_be_present_wait_taken(double period) { (void)period; }   // RewindBox (patch 0068): nvn_mtl.m; backends without a display link do not wait
  __attribute__((weak)) void nvn_be_blocked_ns(uint64_t out[4]) { memset(out, 0, 4 * sizeof *out); }   // RewindBox (patch 0068): nvn_mtl.m; 0 elsewhere
-@@ -3116,6 +3120,16 @@ static void dump_frame(void) {
+@@ -3129,6 +3133,16 @@ static void dump_frame(void) {
          if (!any || n0 != l0 || n1 != l1 || g_frame - lf >= 3000) { any = 1; lf = g_frame; l0 = n0; l1 = n1;
              LOG("[nvn] queue sync waits up to frame %llu: QueueWaitSync %llu, on a sync not fenced yet %llu (audit #1534 P1-23 probe)", (unsigned long long)g_frame, (unsigned long long)n0, (unsigned long long)n1); }
      }
@@ -30,7 +30,7 @@ index 1b4f357..a06da9f 100644
      g_frame++; cs_dump();
      // Every 300 frames read resident memory and hand it to the graphics layer to print the memory readout line (nvn_be_mem_stat, low frequency, capped). Memory watchdog: when resident memory exceeds the cap, log a failure and exit on its own. On by default only on the Mac host (24 GB: runaway host memory
      // drags the whole machine into a kernel panic, which happened twice with other programs on the same machine), or set for tests with DM_MEM_CAP_GB=<integer>; the player's iOS app has no cap (exiting before the system kills it is pointless and only adds another kind of crash)
-@@ -3160,6 +3174,13 @@ __attribute__((weak)) int s2a_disk_io(uint64_t *written, uint64_t *read, uint64_
+@@ -3173,6 +3187,13 @@ __attribute__((weak)) int s2a_disk_io(uint64_t *written, uint64_t *read, uint64_
  // RewindBox (patch 0068): the long-frame thresholds follow the frame's present period (S2A_RB_LONGFRAME_PERIOD=0: 20 / 16.7 ms and the 16-frame mean only, as before)
  static int rb_lf_period(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_LONGFRAME_PERIOD"); v = !(e && !strcmp(e, "0")); } return v; }
  static lf_rec g_lf[LFN];
@@ -44,7 +44,7 @@ index 1b4f357..a06da9f 100644
  __attribute__((weak)) void dm_longframe_note(const char *what) { LOG("[longframe] %s", what); }   // Default (graphics unit tests); the strong definition in the host's diag.c adds scene context and writes perf.txt
  // RewindBox (patch 0069): the long-frame line counted pipelines and shader libraries but not the translations the submit thread made or waited for (dsh_miss.inc
  //   dm_shader_miss_late), nor the MSL it compiled. IPA 765: frame 701 took 126.4 ms, 107.2 ms in the engine's calls, but its line gave "4.6 ms in all", while the profile had the
-@@ -3756,6 +3777,7 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+@@ -3769,6 +3790,7 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
                  r->xn = (unsigned)(x[0] - px[0]); r->x_ms = (x[1] - px[1]) / 1e6; r->xwn = (unsigned)(x[2] - px[2]); r->xw_ms = (x[3] - px[3]) / 1e6; r->msl_n = (unsigned)(x[4] - px[4]); r->msl_ms = (x[5] - px[5]) / 1e6;
                  memcpy(px, x, sizeof px);
              }
@@ -52,7 +52,7 @@ index 1b4f357..a06da9f 100644
          }
          plib = lib_; ppso = pso_;
          trow(f, "@t_s", (now_ns() - g_t0_ns) / 1e9);
-@@ -3793,6 +3815,9 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+@@ -3806,6 +3828,9 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
                { size_t bl = strlen(b);   // RewindBox (patch 0069)
                  snprintf(b + bl, sizeof b - bl, "; RewindBox: shader translations on the submit thread %u, %.1f ms, waits for one in flight %u, %.1f ms; MSL compiled there %u, %.1f ms",
                           r->xn, r->x_ms, r->xwn, r->xw_ms, r->msl_n, r->msl_ms); }
@@ -62,7 +62,7 @@ index 1b4f357..a06da9f 100644
                // Visibility: during the time a long frame "comes out late", what stays on screen is the previous frame; if the previous frame was a loading screen (or this frame itself is one), all the player sees is the loading screen staying a bit longer, with no motion interrupted
                dm_longframe_note(b); } }
          uint64_t g0, g1; if (frame_rec() && nvn_be_gpu_span(f - 8, &g0, &g1)) { trow(f - 8, "@gpu_beg_ms", (g0 - g_t0_ns) / 1e6); trow(f - 8, "@gpu_end_ms", (g1 - g_t0_ns) / 1e6); } }
-@@ -4165,6 +4190,7 @@ static int vrun_has(const struct vpool *v, uint64_t lo, uint64_t hi) { for (int
+@@ -4178,6 +4203,7 @@ static int vrun_has(const struct vpool *v, uint64_t lo, uint64_t hi) { for (int
  static int vsh_find(const struct vpool *v, uint64_t off) { for (int i = 0; i < v->nsh; i++) if (v->sh[i].off == off) return i; return -1; }
  static void vsh_fill(struct vpool *v, int i, uint64_t pg) {   // protect the physical pages first, then stamp, then copy: a write before the copy is in it, one after it is newer than the stamp
      struct vshp *s = &v->sh[i]; uint8_t *d = v->base + s->off;
@@ -71,10 +71,10 @@ index 1b4f357..a06da9f 100644
      s->stamp = nvn_dirty_now();
      for (uint64_t o = 0; o < pg; o += 0x1000) { const vpte *e = s->off + o < v->size ? vpt_get(v, s->off + o) : NULL; if (e && e->phys) memcpy(d + o, e->phys, 0x1000); else memset(d + o, 0, 0x1000); }
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
-index c7e39b4..5262f32 100644
+index 1527726..625b322 100644
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
-@@ -4263,7 +4263,27 @@ static int rb_pool_text(const tex_t *t, char *o, size_t cap) {   // the case, as
+@@ -4291,7 +4291,27 @@ static int rb_pool_text(const tex_t *t, char *o, size_t cap) {   // the case, as
  }
  // Submit thread: uploads that met unreadable storage, their bytes read as 0 and how many lines each case got; the comparisons of rb_pkg_same, the bytes copied for them, those that found the last upload
  static uint64_t g_rb_unread_n, g_rb_unread_bytes, g_rb_case_n[3], g_rb_cmp_n, g_rb_cmp_bytes, g_rb_same_n;
@@ -102,7 +102,7 @@ index c7e39b4..5262f32 100644
      uint64_t k = ++g_rb_unread_n; g_rb_unread_bytes += bad;
      char where[224]; int c = rb_pool_text(t, where, sizeof where);
      if (g_rb_case_n[c]++ >= 8) return;   // the first 8 of each case: what the log layer keeps of a red line (runtime/src/logcap.c; the case's words come first, so each case is a line of its own there)
-@@ -4285,6 +4305,141 @@ static void page_span(const tex_t *t, size_t k, const uint8_t **lo, size_t *n) {
+@@ -4313,6 +4333,141 @@ static void page_span(const tex_t *t, size_t k, const uint8_t **lo, size_t *n) {
      uintptr_t b = MAX(a, p0 + k * pg), c = MIN(e, p0 + (k + 1) * pg); *lo = (const uint8_t *)b; *n = c > b ? c - b : 0;
  }
  static uint32_t page_count(const tex_t *t) { uintptr_t pg = nvn_dirty_page_size(), a = (uintptr_t)t->mem; return t->L.size ? (uint32_t)(((a + t->L.size - 1) & ~(pg - 1)) - (a & ~(pg - 1))) / (uint32_t)pg + 1 : 0; }
@@ -244,7 +244,7 @@ index c7e39b4..5262f32 100644
  // RewindBox (patch 0016): whether a texture's storage, as the host may read it, holds page for page the bytes of its last upload (ph, as pkg_upload_ took
  //   them). Only for storage that cannot all be read (0 otherwise: readable storage is left to what it had before). No write-tracked pool holds such storage
  //   whole, so the tracking cannot say whether it changed and it would be uploaded again at every use, from a copy each time; comparing costs the copy alone
-@@ -4517,6 +4672,13 @@ static void rb_top_keep_mark(rb_top_keep *kp, size_t nk, uintptr_t h0, uintptr_t
+@@ -4545,6 +4700,13 @@ static void rb_top_keep_mark(rb_top_keep *kp, size_t nk, uintptr_t h0, uintptr_t
      size_t lo = 0, hi = nk; while (lo < hi) { size_t m = (lo + hi) / 2; if (kp[m].h < h0) lo = m + 1; else hi = m; }
      for (; lo < nk && kp[lo].h < h1; lo++) if (!kp[lo].v) { kp[lo].v = v; kp[lo].ga = g0 + (kp[lo].h - h0); }
  }
@@ -258,7 +258,7 @@ index c7e39b4..5262f32 100644
  static void res_top(const char *why, uint64_t fp, uint64_t was, uint64_t av, int nline) { @autoreleasepool {
      int sub = on_sub_thread();   // NvPkg fields and the open upload batch belong to the submit thread
      pthread_mutex_lock(&g_res_mu); NSArray *all = g_res_objects ? g_res_objects.allObjects : @[]; pthread_mutex_unlock(&g_res_mu);   // strong references, held until this pool drains
-@@ -4566,17 +4728,29 @@ static void res_top(const char *why, uint64_t fp, uint64_t was, uint64_t av, int
+@@ -4594,17 +4756,29 @@ static void res_top(const char *why, uint64_t fp, uint64_t was, uint64_t av, int
              memcpy(&ser[q], maps[m]->keys + (size_t)i * maps[m]->klen, sizeof ser[q]); how[q] = (m ? 3 : 1) + (a != (__bridge const void *)top[q]); }
      }
      pthread_mutex_unlock(&g_smu);
@@ -292,7 +292,7 @@ index c7e39b4..5262f32 100644
                       (unsigned long long)(h.size >> 20), (unsigned long long)(h.usedSize >> 20));
          } else if ([x conformsToProtocol:@protocol(MTLBuffer)]) { id<MTLBuffer> b = x;
              if (tp[q].st == 1) snprintf(d, sizeof d, "the zero-copy buffer of the pool at %#llx+%#llx", (unsigned long long)tp[q].lo, (unsigned long long)tp[q].len);
-@@ -4727,6 +4901,7 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
+@@ -4755,6 +4929,7 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
      if (g_allocprof > 0) { static int n; if (n++ < 30 || n % 500 == 0) MLOG("new texture (%s) #%d ser=%llu %ux%ux%u format %#x target %d levels %u storage %p", __func__, n, (unsigned long long)t->serial, t->d.width, t->d.height, t->d.depth, t->d.format, t->d.target, t->d.levels, (void *)t->mem); }
      res_add(mt);   // Both first upload and re-upload register residency here (Metal 4 does not make resources resident automatically; a missed registration = GPU address page fault)
      int sparse = t->pool && nvn_sparse_pool(t->pool);
@@ -300,7 +300,7 @@ index c7e39b4..5262f32 100644
      uint8_t *rb = NULL;   // RewindBox (patch 0016): the storage as the host may read it, when not all of it can be read (rb_pkg_bytes)
      if (stamp) {   // no stamp: a one-time upload of content the CPU will not change (tex_init_fill), with no write tracking
          if (sparse) nvn_sparse_protect(t->pool, (uint64_t)(uintptr_t)t->mem, t->L.size); else nvn_dirty_protect(t->mem, t->L.size);
-@@ -5918,6 +6093,9 @@ static int pkg_upload_rects(const tex_t *t, id<MTLTexture> mt, const rect_list *
+@@ -5946,6 +6121,9 @@ static int pkg_upload_rects(const tex_t *t, id<MTLTexture> mt, const rect_list *
      int bw, bh, bpb = nvn_fmt_bpb(t->d.format, &bw, &bh); if (!bpb) return 1;
      { uint32_t upf; int ubpp; if (fmt_unpack(t->d.format, &upf, &ubpp)) return 1; }   // stored in another format (fmt_unpack): the caller re-uploads it whole
      uint8_t *rb = rb_pkg_bytes(t, 1);   // RewindBox (patch 0016): a level is read whole below; as pkg_upload_, from a copy when the storage cannot all be read
@@ -310,7 +310,7 @@ index c7e39b4..5262f32 100644
      up_begin();
      for (int i = 0; i < L->n; i++) {
          const up_rect *q = &L->r[i]; int dup = 0; for (int j = 0; j < i; j++) dup |= L->r[j].level == q->level && L->r[j].layer == q->layer; if (dup) continue;   // one deswizzle per level and layer
-@@ -6143,6 +6321,7 @@ static id<MTLTexture> tex_mtl_(const tex_t *ct) {
+@@ -6171,6 +6349,7 @@ static id<MTLTexture> tex_mtl_(const tex_t *ct) {
                      //   (the protection above gives read access only to pages it takes: one it had left protected and the game has unmapped since stays as it is) is
                      //   not judged here: it stays not clean and is uploaded whole below, from a copy (pkg_upload_)
                      int rb_ok = rb_span_readable((uintptr_t)t->mem, t->L.size);
@@ -318,7 +318,7 @@ index c7e39b4..5262f32 100644
                      for (long k = 0; rb_ok && k < np && ncap >= pk->nph; k++) if (bits[k >> 6] >> (k & 63) & 1) {
                          const uint8_t *lo; size_t m; page_span(t, (size_t)k, &lo, &m); nh[k] = span_hash(lo, m);
                          if (nh[k] != pk->ph[k]) changed = 1; else bits[k >> 6] &= ~(1ull << (k & 63));   // bits now: pages whose bytes changed
-@@ -6362,6 +6541,7 @@ void nvn_be_mem_stat(unsigned long long frame, unsigned long long rss_mb) {
+@@ -6390,6 +6569,7 @@ void nvn_be_mem_stat(unsigned long long frame, unsigned long long rss_mb) {
      nvn_mem_detail(frame);   // before the line cap below: the detailed accounting has its own interval and must not be starved by the 400-line budget
      fb_report(frame); samp_report(frame); audit_probe_report(frame);
      zp_report(frame);   // RewindBox (patch 0060)
@@ -326,7 +326,7 @@ index c7e39b4..5262f32 100644
      static unsigned long long last_rss, last_gpu, last_frame; static int lines; unsigned long long gpu = (unsigned long long)(g_dev.currentAllocatedSize >> 20);
      unsigned long long dr = rss_mb > last_rss ? rss_mb - last_rss : last_rss - rss_mb, dg = gpu > last_gpu ? gpu - last_gpu : last_gpu - gpu;
      if (lines >= 400 || (lines && dr < 64 && dg < 64 && frame - last_frame < 3000)) return; lines++; last_rss = rss_mb; last_gpu = gpu; last_frame = frame;
-@@ -7375,7 +7555,11 @@ static void shmap_load_once(void) {
+@@ -7403,7 +7583,11 @@ static void shmap_load_once(void) {
      NSString *head = ct ? [[ct componentsSeparatedByString:@"\n"] firstObject] : nil;
      NSString *want = [NSString stringWithFormat:@"# chain b-%s inputs %@ ", DMSH_CHAIN, st_inputs ?: @"-"];   // a library without a stamp matches no table
      if (!head || ![head hasPrefix:want]) {
@@ -339,7 +339,7 @@ index c7e39b4..5262f32 100644
      } else {
          g_c1_full_valid = 1; g_c1_full = [NSMutableSet set];
          for (NSString *line in [ct componentsSeparatedByString:@"\n"]) if (line.length && ![line hasPrefix:@"#"]) [g_c1_full addObject:[line stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet]];
-@@ -8444,6 +8628,27 @@ typedef struct { tex_t t; int ok; view_t v; int has_v; void *view; uint64_t view
+@@ -8477,6 +8661,27 @@ typedef struct { tex_t t; int ok; view_t v; int has_v; void *view; uint64_t view
                   uint8_t tt1, gone;   // tt1: Metal texture type + 1 a pool walk found here (0 = not looked; pool_gpu skips the ID in tables of another type); gone: its memory pool was finalized (treg_drop_pool_views), until registered again
                   int ser_next, ser_prev; } treg_t;   // the other IDs registered with the same texture serial (g_treg_ser), as ID + 1, 0 = none
  static treg_t *g_treg; static int g_ntreg;
@@ -367,7 +367,7 @@ index c7e39b4..5262f32 100644
  // Texture serial → the IDs registered with it (ok): the first ID + 1 here, the rest chained through ser_next / ser_prev. Exactly the IDs with ok set (linked where ok and t change:
  //   nvn_be_reg_tex, nvn_be_unreg_tex_range). A finalized texture's IDs are found by its serial (treg_sweep_gone, alias_dead_views): those passes walked the whole registry, about
  //   33,000 IDs in Ocarina of Time, at every submission where a texture had been finalized (11-07 E1 on device: 11% of its submit CPU, 39% of Donkey Kong's). Under g_rmu
-@@ -8725,6 +8930,7 @@ void nvn_be_reg_tex(int tid, const tex_t *t, const view_t *v) {
+@@ -8758,6 +8963,7 @@ void nvn_be_reg_tex(int tid, const tex_t *t, const view_t *v) {
          if (id_ < (1 << 20)) atomic_store_explicit(&g_tser[id_], t ? t->serial : 0, memory_order_release);
      }
      pthread_mutex_unlock(&g_rmu);
@@ -375,7 +375,7 @@ index c7e39b4..5262f32 100644
      if (null_reads) MLOG("texture ID 0 registered (frame %llu) after %llu reads as an empty slot: those read 0, as hardware's first descriptor before it was written",
                           (unsigned long long)atomic_load(&g_cur_frame), (unsigned long long)null_reads);
      {   // DM_NVN_TREG_ID=n logs every registration of texture ID n: what it holds from then on, and when (the frame being recorded)
-@@ -14569,6 +14775,7 @@ static id<MTLTexture> fb_snap_shape(MTLTextureType tt, MTLPixelFormat pf, NSUInt
+@@ -14602,6 +14808,7 @@ static id<MTLTexture> fb_snap_shape(MTLTextureType tt, MTLPixelFormat pf, NSUInt
      d.arrayLength = tt == MTLTextureType2D ? 1 : ns;
      d.usage = MTLTextureUsageShaderRead | MTLTextureUsagePixelFormatView; d.storageMode = MTLStorageModePrivate;
      id<MTLTexture> t = [g_dev newTextureWithDescriptor:d]; if (!t) return nil; res_add(t);
@@ -383,7 +383,7 @@ index c7e39b4..5262f32 100644
      if (pool[slot][at]) defer_obj_release(pool[slot][at]); pool[slot][at] = t; used[slot][at] = ++tick;
      return t;
  }
-@@ -14716,6 +14923,7 @@ static id<MTLTexture> dsnap_storage(MTLPixelFormat pf, NSUInteger bw, NSUInteger
+@@ -14749,6 +14956,7 @@ static id<MTLTexture> dsnap_storage(MTLPixelFormat pf, NSUInteger bw, NSUInteger
      MTLTextureDescriptor *d = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:pf width:w height:h mipmapped:NO];
      d.mipmapLevelCount = nl; d.usage = MTLTextureUsageShaderRead | MTLTextureUsagePixelFormatView; d.storageMode = MTLStorageModePrivate;
      id<MTLTexture> nt = [g_dev newTextureWithDescriptor:d]; if (!nt) return nil; res_add(nt);
