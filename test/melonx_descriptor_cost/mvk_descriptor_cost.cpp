@@ -10,6 +10,9 @@
 // Measured, per size (8, 32, 74 combined image samplers): template writes alternating between two contents (each write
 // changes every descriptor), writes repeating the same content, plain vkUpdateDescriptorSets writes, and binds of an
 // already written set recorded into a command buffer. Prints one JSON line.
+// 17 Nov (recipe patch, seventh part): the same for image views that are Metal texture views (images of two levels,
+// views of the first: MoltenVK makes a texture view, as for Ryujinx's swizzled or partial views; "viewSizes"), and
+// template writes of 16 uniform buffers ("buffers"), the descriptor kinds whose writes that part changes.
 // Usage: mvk_descriptor_cost <output.json>
 #include <vulkan/vulkan.h>
 #include <chrono>
@@ -85,15 +88,18 @@ int main(int argc, char** argv) {
     VkMemoryRequirements requirements{};
     VkPhysicalDeviceMemoryProperties memoryProperties;
     vkGetPhysicalDeviceMemoryProperties(physical, &memoryProperties);
-    std::vector<VkImage> images(kTextures);
-    std::vector<VkImageView> views(kTextures);
-    std::vector<VkDeviceMemory> memories(kTextures);
-    for (int i = 0; i < kTextures; i++) {
+    // Images 0 to 159: one level, viewed whole (MoltenVK samples the image's own texture); 160 to 319: two levels,
+    // views of the first level (MoltenVK makes a Metal texture view of the image's texture).
+    std::vector<VkImage> images(2 * kTextures);
+    std::vector<VkImageView> views(2 * kTextures);
+    std::vector<VkDeviceMemory> memories(2 * kTextures);
+    for (int i = 0; i < 2 * kTextures; i++) {
+        const uint32_t levels = i < kTextures ? 1 : 2;
         VkImageCreateInfo imageInfo{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
         imageInfo.imageType = VK_IMAGE_TYPE_2D;
         imageInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
         imageInfo.extent = {16, 16, 1};
-        imageInfo.mipLevels = 1;
+        imageInfo.mipLevels = levels;
         imageInfo.arrayLayers = 1;
         imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
         imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
@@ -136,8 +142,11 @@ int main(int argc, char** argv) {
     const char* rounds = getenv("MVK_BENCH_ROUNDS");
     int iterations = rounds ? atoi(rounds) : 20000;
     std::ostringstream json;
-    json << "{\"device\": \"" << properties.deviceName << "\", \"iterations\": " << iterations << ", \"sizes\": [";
+    json << "{\"device\": \"" << properties.deviceName << "\", \"iterations\": " << iterations;
     const int sizes[3] = {8, 32, 74};
+    for (int kind = 0; kind < 2; kind++) {
+    const VkImageView* kindViews = views.data() + kind * kTextures;
+    json << (kind ? "], \"viewSizes\": [" : ", \"sizes\": [");
     for (int s = 0; s < 3; s++) {
         int n = sizes[s];
         VkDescriptorSetLayoutBinding binding{};
@@ -184,7 +193,7 @@ int main(int argc, char** argv) {
         std::vector<VkDescriptorImageInfo> contents[2];
         for (int k = 0; k < 2; k++) {
             contents[k].resize(n);
-            for (int i = 0; i < n; i++) contents[k][i] = {samplers[k], views[k * 80 + i], VK_IMAGE_LAYOUT_GENERAL};
+            for (int i = 0; i < n; i++) contents[k][i] = {samplers[k], kindViews[k * 80 + i], VK_IMAGE_LAYOUT_GENERAL};
         }
         // Warm-up, then template writes alternating between the two contents (every descriptor changes each time).
         for (int i = 0; i < 200; i++) vkUpdateDescriptorSetWithTemplate(device, sets[0], updateTemplate, contents[i & 1].data());
@@ -224,6 +233,98 @@ int main(int argc, char** argv) {
         vkDestroyDescriptorPool(device, descriptorPool, nullptr);
         vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
         vkDestroyDescriptorSetLayout(device, setLayout, nullptr);
+    }
+    }
+
+    // 16 uniform buffers per set, two contents of 16 distinct buffers bound in one host-visible allocation.
+    {
+        const int n = 16;
+        VkDeviceSize stride = properties.limits.minUniformBufferOffsetAlignment;
+        if (stride < 256) stride = 256;
+        std::vector<VkBuffer> buffers(2 * n);
+        VkBufferCreateInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+        bufferInfo.size = 256;
+        bufferInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+        for (int i = 0; i < 2 * n; i++) check(vkCreateBuffer(device, &bufferInfo, nullptr, &buffers[i]), "vkCreateBuffer");
+        vkGetBufferMemoryRequirements(device, buffers[0], &requirements);
+        if (requirements.alignment > stride) stride = requirements.alignment;
+        uint32_t type = UINT32_MAX;
+        for (uint32_t t = 0; t < memoryProperties.memoryTypeCount && type == UINT32_MAX; t++)
+            if ((requirements.memoryTypeBits & (1u << t)) && (memoryProperties.memoryTypes[t].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)) type = t;
+        if (type == UINT32_MAX) fail("no host-visible memory type for uniform buffers");
+        VkMemoryAllocateInfo allocation{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+        allocation.allocationSize = stride * 2 * n;
+        allocation.memoryTypeIndex = type;
+        VkDeviceMemory bufferMemory;
+        check(vkAllocateMemory(device, &allocation, nullptr, &bufferMemory), "vkAllocateMemory (buffers)");
+        for (int i = 0; i < 2 * n; i++) check(vkBindBufferMemory(device, buffers[i], bufferMemory, stride * i), "vkBindBufferMemory");
+        VkDescriptorSetLayoutBinding binding{};
+        binding.binding = 0;
+        binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        binding.descriptorCount = (uint32_t)n;
+        binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_VERTEX_BIT;
+        VkDescriptorSetLayoutCreateInfo layoutInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+        layoutInfo.bindingCount = 1;
+        layoutInfo.pBindings = &binding;
+        VkDescriptorSetLayout setLayout;
+        check(vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &setLayout), "vkCreateDescriptorSetLayout (buffers)");
+        VkDescriptorPoolSize poolSize{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, (uint32_t)(n * 4)};
+        VkDescriptorPoolCreateInfo descriptorPoolInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+        descriptorPoolInfo.maxSets = 4;
+        descriptorPoolInfo.poolSizeCount = 1;
+        descriptorPoolInfo.pPoolSizes = &poolSize;
+        VkDescriptorPool descriptorPool;
+        check(vkCreateDescriptorPool(device, &descriptorPoolInfo, nullptr, &descriptorPool), "vkCreateDescriptorPool (buffers)");
+        VkDescriptorSet sets[2];
+        VkDescriptorSetLayout layouts[2] = {setLayout, setLayout};
+        VkDescriptorSetAllocateInfo setInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+        setInfo.descriptorPool = descriptorPool;
+        setInfo.descriptorSetCount = 2;
+        setInfo.pSetLayouts = layouts;
+        check(vkAllocateDescriptorSets(device, &setInfo, sets), "vkAllocateDescriptorSets (buffers)");
+        VkDescriptorUpdateTemplateEntry entry{};
+        entry.dstBinding = 0;
+        entry.descriptorCount = (uint32_t)n;
+        entry.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        entry.stride = sizeof(VkDescriptorBufferInfo);
+        VkDescriptorUpdateTemplateCreateInfo templateInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_UPDATE_TEMPLATE_CREATE_INFO};
+        templateInfo.descriptorUpdateEntryCount = 1;
+        templateInfo.pDescriptorUpdateEntries = &entry;
+        templateInfo.templateType = VK_DESCRIPTOR_UPDATE_TEMPLATE_TYPE_DESCRIPTOR_SET;
+        templateInfo.descriptorSetLayout = setLayout;
+        VkDescriptorUpdateTemplate updateTemplate;
+        check(vkCreateDescriptorUpdateTemplate(device, &templateInfo, nullptr, &updateTemplate), "vkCreateDescriptorUpdateTemplate (buffers)");
+        std::vector<VkDescriptorBufferInfo> contents[2];
+        for (int k = 0; k < 2; k++) {
+            contents[k].resize(n);
+            for (int i = 0; i < n; i++) contents[k][i] = {buffers[k * n + i], 0, 256};
+        }
+        for (int i = 0; i < 200; i++) vkUpdateDescriptorSetWithTemplate(device, sets[0], updateTemplate, contents[i & 1].data());
+        double start = nowMs();
+        for (int i = 0; i < iterations; i++) vkUpdateDescriptorSetWithTemplate(device, sets[0], updateTemplate, contents[i & 1].data());
+        double alternating = (nowMs() - start) * 1000.0 / iterations;
+        start = nowMs();
+        for (int i = 0; i < iterations; i++) vkUpdateDescriptorSetWithTemplate(device, sets[1], updateTemplate, contents[0].data());
+        double same = (nowMs() - start) * 1000.0 / iterations;
+        VkWriteDescriptorSet write{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+        write.dstSet = sets[0];
+        write.dstBinding = 0;
+        write.descriptorCount = (uint32_t)n;
+        write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        start = nowMs();
+        for (int i = 0; i < iterations; i++) {
+            write.pBufferInfo = contents[i & 1].data();
+            vkUpdateDescriptorSets(device, 1, &write, 0, nullptr);
+        }
+        double plain = (nowMs() - start) * 1000.0 / iterations;
+        json << "], \"buffers\": [{\"descriptors\": " << n << ", \"templateWriteAlternatingUs\": " << alternating
+             << ", \"templateWriteSameUs\": " << same << ", \"plainWriteUs\": " << plain
+             << ", \"templateWritePerDescriptorUs\": " << alternating / n << "}";
+        vkDestroyDescriptorUpdateTemplate(device, updateTemplate, nullptr);
+        vkDestroyDescriptorPool(device, descriptorPool, nullptr);
+        vkDestroyDescriptorSetLayout(device, setLayout, nullptr);
+        for (VkBuffer buffer : buffers) vkDestroyBuffer(device, buffer, nullptr);
+        vkFreeMemory(device, bufferMemory, nullptr);
     }
     json << "]}";
     std::ofstream(output) << json.str() << "\n";

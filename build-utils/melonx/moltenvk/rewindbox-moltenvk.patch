@@ -13,8 +13,109 @@ index 861c967..101b484 100644
  	};
  
  	/** A character counting stream buffer. */
+diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKBuffer.h b/MoltenVK/MoltenVK/GPUObjects/MVKBuffer.h
+index 9b6a735..2d75e41 100644
+--- a/MoltenVK/MoltenVK/GPUObjects/MVKBuffer.h
++++ b/MoltenVK/MoltenVK/GPUObjects/MVKBuffer.h
+@@ -76,6 +76,9 @@ public:
+ 	/** Returns the GPU address for this MTLBuffer, respecting its offset. */
+ 	uint64_t getMTLBufferGPUAddress();
+ 
++	/** RewindBox (descriptor writes): the GPU address of the bound Metal buffer, read once per binding (0: none). */
++	uint64_t getMTLBufferBaseGPUAddress();
++
+ #pragma mark Construction
+ 	
+ 	MVKBuffer(MVKDevice* device, const VkBufferCreateInfo* pCreateInfo);
+@@ -95,6 +98,7 @@ protected:
+ 
+ 	VkBufferUsageFlags2 _usage;
+ 	id<MTLBuffer> _mtlBuffer = nil;
++    uint64_t _rbMTLBufferGPUAddress = 0;	// RewindBox (descriptor writes): 0 until read, cleared with the binding
+     std::mutex _lock;
+ };
+ 
+diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKBuffer.mm b/MoltenVK/MoltenVK/GPUObjects/MVKBuffer.mm
+index a00c09b..19ed9fc 100644
+--- a/MoltenVK/MoltenVK/GPUObjects/MVKBuffer.mm
++++ b/MoltenVK/MoltenVK/GPUObjects/MVKBuffer.mm
+@@ -76,6 +76,7 @@ VkResult MVKBuffer::getMemoryRequirements(VkMemoryRequirements2* pMemoryRequirem
+ }
+ 
+ VkResult MVKBuffer::bindDeviceMemory(MVKDeviceMemory* mvkMem, VkDeviceSize memOffset) {
++	__atomic_store_n(&_rbMTLBufferGPUAddress, (uint64_t)0, __ATOMIC_RELAXED);	// RewindBox (descriptor writes)
+ 	if (_deviceMemory) { MVKDeviceMemory::removeBuffer(&_deviceMemory, this); }
+ 	MVKResource::bindDeviceMemory(mvkMem, memOffset);
+ 
+@@ -170,7 +171,18 @@ id<MTLBuffer> MVKBuffer::getMTLBuffer() {
+ }
+ 
+ uint64_t MVKBuffer::getMTLBufferGPUAddress() {
+-	return [getMTLBuffer() gpuAddress] + getMTLBufferOffset();
++	return getMTLBufferBaseGPUAddress() + getMTLBufferOffset();
++}
++
++// RewindBox (descriptor writes): every buffer descriptor written asked the Metal buffer for its GPU address. The bound
++// buffer, and so its address, does not change until the binding does; a buffer without one reads 0 each time, as before.
++uint64_t MVKBuffer::getMTLBufferBaseGPUAddress() {
++	uint64_t addr = __atomic_load_n(&_rbMTLBufferGPUAddress, __ATOMIC_RELAXED);
++	if ( !addr ) {
++		addr = [getMTLBuffer() gpuAddress];
++		__atomic_store_n(&_rbMTLBufferGPUAddress, addr, __ATOMIC_RELAXED);
++	}
++	return addr;
+ }
+ 
+ #pragma mark Construction
+@@ -236,6 +248,7 @@ void MVKBuffer::destroy() {
+ 
+ // Potentially called twice, from destroy() and destructor, so ensure everything is nulled out.
+ void MVKBuffer::detachMemory() {
++	__atomic_store_n(&_rbMTLBufferGPUAddress, (uint64_t)0, __ATOMIC_RELAXED);	// RewindBox (descriptor writes)
+ 	if (_deviceMemory) { MVKDeviceMemory::removeBuffer(&_deviceMemory, this); }
+ 	MVKLiveResourceSet& live = _device->getLiveResources();
+ 	if (id<MTLBuffer> buf = _mtlBuffer) {
+diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKDescriptorSet.mm b/MoltenVK/MoltenVK/GPUObjects/MVKDescriptorSet.mm
+index 3cdc623..fe1fa99 100644
+--- a/MoltenVK/MoltenVK/GPUObjects/MVKDescriptorSet.mm
++++ b/MoltenVK/MoltenVK/GPUObjects/MVKDescriptorSet.mm
+@@ -913,13 +913,15 @@ template <> struct MVKArgBufEncoder<MVKArgumentBufferMode::Metal3> {
+ 	void setNullSampler(size_t index = 0) { dst[index].resource = {}; }
+ 	void setNullBuffer (size_t index = 0) { dst[index].gpuAddress = 0; }
+ 	void setTexture(MVKImageView* img, size_t index = 0) { setTexture(img ? img->getMTLTexture() : nil, index); }
+-	void setSampler(MVKSampler* samp, size_t index = 0) { setSampler(samp ? samp->getMTLSamplerState() : nil, index); }
++	// RewindBox (descriptor writes): the sampler's resource ID and the buffer's GPU address, read once by their objects.
++	void setSampler(MVKSampler* samp, size_t index = 0) { dst[index].resource = samp ? samp->getMTLSamplerResourceID() : MTLResourceID{}; }
+ 	void setBuffer(const VkDescriptorBufferInfo* info, size_t index = 0) {
+ 		uint64_t addr = 0;
+ 		if (MVKBuffer* buf = reinterpret_cast<MVKBuffer*>(info->buffer))
+-			addr = buf->getMTLBuffer().gpuAddress + buf->getMTLBufferOffset() + info->offset;
++			addr = buf->getMTLBufferBaseGPUAddress() + buf->getMTLBufferOffset() + info->offset;
+ 		dst[index].gpuAddress = addr;
+ 	}
++	void setBufferOf(MVKBuffer* buf, uint64_t offset, size_t index = 0) { dst[index].gpuAddress = buf->getMTLBufferBaseGPUAddress() + offset; }
+ };
+ 
+ /** Argument buffer encoder for argument encoder encoding */
+@@ -952,6 +954,7 @@ template <> struct MVKArgBufEncoder<MVKArgumentBufferMode::ArgEncoder> {
+ 	void setSampler(MVKSampler* samp, size_t index = 0) {
+ 		[enc setSamplerState:samp ? samp->getMTLSamplerState() : nil atIndex:base + index];
+ 	}
++	void setBufferOf(MVKBuffer* buf, uint64_t offset, size_t index = 0) { setBuffer(buf->getMTLBuffer(), offset, index); }
+ };
+ 
+ static constexpr size_t descriptorGPUStride(MVKArgumentBufferMode argBufMode, MVKDescriptorGPULayout layout) {
+@@ -1053,7 +1056,7 @@ static void writeDescriptorSetGPUBuffer(
+ 				auto* info = static_cast<const VkDescriptorBufferInfo*>(src);
+ 				auto* buf = reinterpret_cast<MVKBuffer*>(info->buffer);
+ 				if (buf) {
+-					enc.setBuffer(buf->getMTLBuffer(), buf->getMTLBufferOffset() + info->offset);
++					enc.setBufferOf(buf, buf->getMTLBufferOffset() + info->offset);	// RewindBox (descriptor writes)
+ 					VkDeviceSize size = info->range == VK_WHOLE_SIZE ? buf->getByteCount() - info->offset : info->range;
+ 					reinterpret_cast<uint32_t*>(base + auxOffsets[binding.auxIndex])[i] = static_cast<uint32_t>(size);
+ 				} else {
 diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKImage.h b/MoltenVK/MoltenVK/GPUObjects/MVKImage.h
-index 45ddd3a..f31b2df 100644
+index 45ddd3a..5c9249c 100644
 --- a/MoltenVK/MoltenVK/GPUObjects/MVKImage.h
 +++ b/MoltenVK/MoltenVK/GPUObjects/MVKImage.h
 @@ -499,6 +499,8 @@ protected:
@@ -34,11 +135,62 @@ index 45ddd3a..f31b2df 100644
  	id<MTLTexture> _mtlTextureHeadless = nil;
  	MVKSwapchainImageAvailability _availability;
  	MVKSmallVector<MVKSwapchainSignaler, 1> _availabilitySignalers;
+@@ -564,12 +567,22 @@ protected:
+     id<MTLTexture> newMTLTexture();
+     id<MTLTexture> newMTLTextureFromBaseMTLTexture(id<MTLTexture> baseMTLTexture);
+     bool matchesMTLTextureViewBase(id<MTLTexture> mtlTexture);
++    bool rbRecordMatch(id<MTLTexture> view, id<MTLTexture> base, uint64_t generation);
++    void rbWriteBegin();
++    void rbWriteEnd();
+     VkResult initSwizzledMTLPixelFormat(const VkImageViewCreateInfo* pCreateInfo);
+     MVKImageViewPlane(MVKImageView* imageView, uint8_t planeIndex, MTLPixelFormat mtlPixFmt, const VkImageViewCreateInfo* pCreateInfo);
+ 
+     friend MVKImageView;
+     MVKImageView* _imageView;
+ 	id<MTLTexture> _mtlTexture;
++	// RewindBox (descriptor writes): the current view and the texture it is a view of (its own base, which it retains).
++	// Written only between rbWriteBegin() and rbWriteEnd() (_rbViewGeneration odd while a write is in progress), and
++	// cleared in the same write as the view's release; read without the lock by getMTLTexture(), which uses them only
++	// from reads made at one even generation, and then skips matchesMTLTextureViewBase().
++	void* _rbMatchedBaseMTLTexture = nullptr;	// id<MTLTexture>, not retained
++	void* _rbMatchedMTLTexture = nullptr;		// id<MTLTexture>, not retained (_mtlTexture holds it)
++	uint64_t _rbViewGeneration = 0;
+ 	VkComponentMapping _componentSwizzle;
+     MTLPixelFormat _mtlPixFmt;
+ 	uint8_t _planeIndex;
+@@ -717,6 +730,9 @@ public:
+ 
+ 	/** Returns the Metal sampler state. */
+ 	id<MTLSamplerState> getMTLSamplerState() { return _mtlSamplerState; }
++
++	/** RewindBox (descriptor writes): the GPU resource ID of the Metal sampler state, read once. */
++	MTLResourceID getMTLSamplerResourceID();
+     
+     /** Returns the number of planes if this is a ycbcr conversion or 0 otherwise. */
+     uint8_t getPlaneCount() { return (_ycbcrConversion) ? _ycbcrConversion->getPlaneCount() : 0; }
+@@ -749,6 +765,7 @@ protected:
+ 	void detachMemory();
+ 
+ 	id<MTLSamplerState> _mtlSamplerState;
++	uint64_t _rbSamplerResourceID = 0;	// RewindBox (descriptor writes): MTLResourceID bits, 0 until read
+ 	SPIRV_CROSS_NAMESPACE::MSLConstexprSampler _constExprSampler;
+ 	MVKSamplerYcbcrConversion* _ycbcrConversion;
+ 	bool _requiresConstExprSampler;
 diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKImage.mm b/MoltenVK/MoltenVK/GPUObjects/MVKImage.mm
-index ef8ca60..5115676 100644
+index ef8ca60..771cebe 100644
 --- a/MoltenVK/MoltenVK/GPUObjects/MVKImage.mm
 +++ b/MoltenVK/MoltenVK/GPUObjects/MVKImage.mm
-@@ -1564,9 +1564,12 @@ static void signalAndUntrack(const MVKSwapchainSignaler& signaler) {
+@@ -42,7 +42,8 @@ static id<MTLTexture> mvkGetRootMTLTexture(id<MTLTexture> tex) {
+ }
+ 
+ static id<MTLTexture> mvkGetBaseMTLTexture(id<MTLTexture> tex) {
+-    return tex.parentTexture ? tex.parentTexture : tex;
++    id<MTLTexture> parent = tex.parentTexture;	// RewindBox: read once
++    return parent ? parent : tex;
+ }
+ 
+ static uint32_t mvkGetMTLTextureIOSurfaceID(id<MTLTexture> tex) {
+@@ -1564,9 +1565,12 @@ static void signalAndUntrack(const MVKSwapchainSignaler& signaler) {
  
  VkResult MVKPresentableSwapchainImage::acquireAndSignalWhenAvailable(MVKSemaphore* semaphore, MVKFence* fence) {
  
@@ -54,7 +206,7 @@ index ef8ca60..5115676 100644
  
  	lock_guard<mutex> lock(_availabilityLock);
  
-@@ -1602,32 +1605,69 @@ VkResult MVKPresentableSwapchainImage::acquireAndSignalWhenAvailable(MVKSemaphor
+@@ -1602,32 +1606,69 @@ VkResult MVKPresentableSwapchainImage::acquireAndSignalWhenAvailable(MVKSemaphor
  	return getConfigurationResult();
  }
  
@@ -142,7 +294,7 @@ index ef8ca60..5115676 100644
  }
  
  // If not headless, retrieve the MTLTexture directly from the CAMetalDrawable.
-@@ -1639,13 +1679,14 @@ id<MTLTexture> MVKPresentableSwapchainImage::getMTLTexture(uint8_t planeIndex) {
+@@ -1639,13 +1680,14 @@ id<MTLTexture> MVKPresentableSwapchainImage::getMTLTexture(uint8_t planeIndex) {
  // Pass MVKImagePresentInfo by value because it may not exist when the callback runs.
  VkResult MVKPresentableSwapchainImage::presentCAMetalDrawable(id<MTLCommandBuffer> mtlCmdBuff,
  															  MVKImagePresentInfo presentInfo) {
@@ -159,7 +311,7 @@ index ef8ca60..5115676 100644
  	MVKSwapchainSignaler signaler = getPresentationSignaler();
  	[mtlCmdBuff addScheduledHandler: ^(id<MTLCommandBuffer> mcb) {
  
-@@ -1670,7 +1711,7 @@ VkResult MVKPresentableSwapchainImage::presentCAMetalDrawable(id<MTLCommandBuffe
+@@ -1670,7 +1712,7 @@ VkResult MVKPresentableSwapchainImage::presentCAMetalDrawable(id<MTLCommandBuffe
  	// from this callback, because the last one or two presentation completion
  	// callbacks can occasionally stall.
  	retain();
@@ -168,7 +320,7 @@ index ef8ca60..5115676 100644
  	auto* fence = presentInfo.fence;
  	if (fence) { fence->retain(); }
  	[mtlCmdBuff addCompletedHandler: ^(id<MTLCommandBuffer> mcb) {
-@@ -1760,8 +1801,13 @@ void MVKPresentableSwapchainImage::endPresentation(const MVKImagePresentInfo& pr
+@@ -1760,8 +1802,13 @@ void MVKPresentableSwapchainImage::endPresentation(const MVKImagePresentInfo& pr
  
  // Releases the CAMetalDrawable underlying this image.
  void MVKPresentableSwapchainImage::releaseMetalDrawable() {
@@ -184,6 +336,116 @@ index ef8ca60..5115676 100644
  }
  
  // Signal, untrack, and release any signalers that are tracking.
+@@ -1868,11 +1915,64 @@ void MVKImageViewPlane::propagateDebugName() { _imageView->setMetalObjectLabel(_
+ 
+ #pragma mark Metal
+ 
++// RewindBox (descriptor writes): a descriptor write asks a view for its texture once for its CPU copy and once for the
++// argument buffer, and each time matchesMTLTextureViewBase() sent two parentTexture messages to compare the view's base
++// with the image's current texture. IPA 764, Hogwarts Legacy courtyard: 37 of the render thread's 221 running samples
++// were inside mvkUpdateDescriptorSetWithTemplate, 16 of them under this function and 12 in that comparison. A view whose
++// own base is the image's texture (the first test of matchesMTLTextureViewBase()) is now remembered with that texture:
++// the same texture again returns the same view at once. The view retains its base, so that pointer cannot name another
++// texture while the view is remembered; a view is remembered only if it is still the current one and nothing was
++// released since it was checked (generation), and it is forgotten in the same write as its release. The pair is read
++// without the lock from one state: an even generation that did not change during the reads. A view matched any other
++// way (same IOSurface, same root texture), another texture, or a view being created or released goes the checked way.
++__attribute__((used)) static const char kRewindBoxDescriptorWrites[] =
++	"RewindBox descriptor writes: a view's matched base and a buffer's GPU address are read once";
++
++// Writers hold _imageView->_lock, or run at construction or destruction: one at a time.
++void MVKImageViewPlane::rbWriteBegin() {
++    __atomic_store_n(&_rbViewGeneration, _rbViewGeneration + 1, __ATOMIC_RELAXED);	// odd: a write in progress
++    __atomic_thread_fence(__ATOMIC_RELEASE);
++}
++
++void MVKImageViewPlane::rbWriteEnd() {
++    __atomic_store_n(&_rbViewGeneration, _rbViewGeneration + 1, __ATOMIC_RELEASE);	// even: the write is done
++}
++
++bool MVKImageViewPlane::rbRecordMatch(id<MTLTexture> view, id<MTLTexture> base, uint64_t generation) {
++    lock_guard<mutex> lock(_imageView->_lock);
++    if (_mtlTexture != view || __atomic_load_n(&_rbViewGeneration, __ATOMIC_RELAXED) != generation) { return false; }
++    rbWriteBegin();
++    __atomic_store_n(&_rbMatchedBaseMTLTexture, (void*)base, __ATOMIC_RELAXED);
++    __atomic_store_n(&_rbMatchedMTLTexture, (void*)view, __ATOMIC_RELAXED);
++    rbWriteEnd();
++    return true;
++}
++
+ id<MTLTexture> MVKImageViewPlane::getMTLTexture() {
+     // If we can use a Metal texture view, lazily create it, otherwise use the image texture directly.
+     if (_useMTLTextureView) {
+         id<MTLTexture> baseMTLTexture = _imageView->_image->getMTLTexture(_planeIndex);
+ 
++        // RewindBox (descriptor writes): the current view, already found to be a view of this same texture.
++        uint64_t generation = __atomic_load_n(&_rbViewGeneration, __ATOMIC_ACQUIRE);
++        if ( !(generation & 1) ) {
++            void* matchedView = __atomic_load_n(&_rbMatchedMTLTexture, __ATOMIC_RELAXED);
++            void* matchedBase = __atomic_load_n(&_rbMatchedBaseMTLTexture, __ATOMIC_RELAXED);
++            void* currentView = __atomic_load_n((void**)&_mtlTexture, __ATOMIC_RELAXED);
++            __atomic_thread_fence(__ATOMIC_ACQUIRE);
++            if (matchedView && matchedView == currentView && matchedBase == (void*)baseMTLTexture &&
++                __atomic_load_n(&_rbViewGeneration, __ATOMIC_RELAXED) == generation) {
++                return (id<MTLTexture>)matchedView;
++            }
++
++            // The current view, checked to be a view of this texture and still current: remembered and returned.
++            id<MTLTexture> checkedView = (id<MTLTexture>)currentView;
++            if (checkedView && mvkGetBaseMTLTexture(checkedView) == baseMTLTexture &&
++                rbRecordMatch(checkedView, baseMTLTexture, generation)) {
++                return checkedView;
++            }
++        }
++
+         if (_mtlTexture && !matchesMTLTextureViewBase(baseMTLTexture)) {
+             lock_guard<mutex> lock(_imageView->_lock);
+             if (_mtlTexture && !matchesMTLTextureViewBase(baseMTLTexture)) {
+@@ -2188,11 +2288,15 @@ VkResult MVKImageViewPlane::initSwizzledMTLPixelFormat(const VkImageViewCreateIn
+ }
+ 
+ void MVKImageViewPlane::releaseMTLTexture() {
++	rbWriteBegin();	// RewindBox (descriptor writes): the remembered view is forgotten in the same write as its release
++	__atomic_store_n(&_rbMatchedMTLTexture, (void*)nullptr, __ATOMIC_RELAXED);
++	__atomic_store_n(&_rbMatchedBaseMTLTexture, (void*)nullptr, __ATOMIC_RELAXED);
+ 	if (id<MTLTexture> tex = _mtlTexture) {
+ 		getDevice()->getLiveResources().remove(tex);
+ 		[tex release];
+ 		_mtlTexture = nil;
+ 	}
++	rbWriteEnd();
+ }
+ 
+ MVKImageViewPlane::~MVKImageViewPlane() {
+@@ -2542,6 +2646,21 @@ MTLSamplerDescriptor* MVKSampler::newMTLSamplerDescriptor(const VkSamplerCreateI
+ 	return mtlSampDesc;
+ }
+ 
++MTLResourceID MVKSampler::getMTLSamplerResourceID() {
++	// RewindBox (descriptor writes): the sampler state is fixed for this object's life, and so is its resource ID.
++	static_assert(sizeof(MTLResourceID) == sizeof(uint64_t), "MTLResourceID is one 64-bit word");
++	MTLResourceID rid;
++	uint64_t bits = __atomic_load_n(&_rbSamplerResourceID, __ATOMIC_RELAXED);
++	if ( !bits ) {
++		rid = _mtlSamplerState.gpuResourceID;
++		memcpy(&bits, &rid, sizeof(bits));
++		__atomic_store_n(&_rbSamplerResourceID, bits, __ATOMIC_RELAXED);
++		return rid;
++	}
++	memcpy(&rid, &bits, sizeof(rid));
++	return rid;
++}
++
+ MVKSampler::MVKSampler(MVKDevice* device, const VkSamplerCreateInfo* pCreateInfo) : MVKVulkanAPIDeviceObject(device) {
+     _ycbcrConversion = NULL;
+     for (const auto* next = (const VkBaseInStructure*)pCreateInfo->pNext; next; next = next->pNext) {
+@@ -2672,5 +2791,6 @@ void MVKSampler::detachMemory() {
+ 			_device->getLiveResources().remove(_mtlSamplerState);
+ 		[_mtlSamplerState release];
+ 		_mtlSamplerState = nil;
++		__atomic_store_n(&_rbSamplerResourceID, (uint64_t)0, __ATOMIC_RELAXED);	// RewindBox (descriptor writes)
+ 	}
+ }
 diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.h b/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.h
 index e385e9b..fb99f6c 100644
 --- a/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.h

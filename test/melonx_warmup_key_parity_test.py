@@ -321,7 +321,9 @@ def shipped_patch_keeps_private_api_off(pin):
     return (hashlib.sha256((ROOT / pin['patch']).read_bytes()).hexdigest() == pin['patchSha256'] and
             'MVK_USE_METAL_PRIVATE_API' not in text and 'useMetalPrivateAPI' not in text and
             # Lot 10: the fifth part (cache keys) adds MVKShaderModule.mm and the converter's configuration (cacheKey()).
-            files == ['Common/MVKStrings.h', 'MoltenVK/MoltenVK/GPUObjects/MVKImage.h', 'MoltenVK/MoltenVK/GPUObjects/MVKImage.mm',
+            # 17 Nov, seventh part (descriptor writes): MVKBuffer.h, MVKBuffer.mm and MVKDescriptorSet.mm join the patch.
+            files == ['Common/MVKStrings.h', 'MoltenVK/MoltenVK/GPUObjects/MVKBuffer.h',
+                      'MoltenVK/MoltenVK/GPUObjects/MVKBuffer.mm', 'MoltenVK/MoltenVK/GPUObjects/MVKDescriptorSet.mm', 'MoltenVK/MoltenVK/GPUObjects/MVKImage.h', 'MoltenVK/MoltenVK/GPUObjects/MVKImage.mm',
                       'MoltenVK/MoltenVK/GPUObjects/MVKPipeline.h', 'MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm',
                       'MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h', 'MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm',
                       'MoltenVK/MoltenVK/Utility/MVKCodec.h',

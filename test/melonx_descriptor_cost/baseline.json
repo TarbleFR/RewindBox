@@ -1,0 +1,6 @@
+{
+  "why": "17 Nov, recipe patch seventh part (descriptor writes): the patch pinned before it, built on the same runner in the same job, so that the two builds are measured against each other (MoltenVK v1.4.2, same revision, same dependencies).",
+  "commit": "71e1ad781845827174177538b5b65cbd273928a3",
+  "patch": "build-utils/melonx/moltenvk/rewindbox-moltenvk.patch",
+  "patchSha256": "fa274300f2ab49db072d31b0880e63f34d34fe9a33776b64bee7253fc9b48cfc"
+}
