@@ -81,6 +81,10 @@ record symbolised with the rebuilt MoltenVK, MoltenVK's own statistics, the memo
   (set allocation, buffer mirrors, MoltenVK write, extra sets) is the measure that would show what to change.
 - Push descriptors are capped at 8 on MoltenVK (MeloNX's own limit), so Hogwarts' programs rewrite whole uniform sets;
   raising the cap changes how every title binds uniforms and needs its own proof.
+- Inside MoltenVK's descriptor write, each texture descriptor sends several Objective-C messages (the view's base texture
+  check, height and bytes per row for the CPU copy, the resource ID for the argument buffer), each buffer descriptor its
+  GPU address. Caching those values on the view and the buffer would remove most of them; MoltenVK and the Objective-C
+  runtime together hold about 14 % of the render thread's samples, so a few percent at best. Kept for a later lot.
 - The large objects that become live in the courtyard (28304: +232 MiB in 30 s) are not identified; a census by type
   would say which can go. No forced collection during play.
 - The fog effect: the journals hold no picture of it, and the recording ended with the process. A few screenshots, or
