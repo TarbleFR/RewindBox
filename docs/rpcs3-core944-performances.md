@@ -349,3 +349,30 @@ les cœurs E. Ces chiffres viennent de `proc_pidinfo(PROC_PIDTHREADCOUNTS)` (iOS
   les entourent sont en WFE depuis le Core 945.
 - **GETLLAR SPU.** Le code est dans `SPUThread.cpp`, une entrée de la génération de code SPU. Le modifier invaliderait les caches
   SPU compilés de tous les jeux : ce n'est pas un défaut à corriger ici.
+
+### 7.4 Relecture et contrôles
+
+**Relecture indépendante du Core 947 : aucun bloquant dans le code.**
+- **La règle Atomic tient sur tous les chemins qui passent par le cache.**
+  - En mode Atomic, `read_put` n'est appelé qu'au remplissage du cache. Quand une époque est différée, la fin du cache reste
+    à l'horizon ou avant.
+  - La taille du cache coupé reste supérieure ou égale à `addr - m_cache_addr + 4`, et il n'y a pas de remplissage sans fin.
+  - `get_current_arg_ptr` et ses appelants (nv4097, nv308a) restent bornés au cache.
+  - Les sauts, les sauts sur eux-mêmes modifiés et les remises à zéro sont couverts.
+- **La structure de `proc_threadcounts` est conforme.** Un échec de l'appel donne `available=0`, sans plantage.
+- **Remarques appliquées.**
+  - La mesure de répartition a sa propre continuité entre fenêtres.
+  - Le nombre de niveaux est remis à zéro à chaque relevé.
+  - Le bloquant signalé portait sur le test étendu, qui n'était pas encore sur la branche ; il est dans ce commit.
+- **Remarques laissées en l'état.**
+  - nv4097 saute les méthodes d'un bloc begin/end d'après le PUT brut. Les arguments ne sont relus qu'au dessin, après
+    l'époque que la commande END démarre en remplissant le cache. Le mode Fast fait déjà de même.
+  - Les lignes du cache situées au-delà de l'horizon sont lues puis jetées. C'est un petit coût seulement.
+
+**Contrôles.**
+- Passe de syntaxe sur l'hôte de `RSXFIFO.cpp`, `PPUModule.cpp` et `RPCS3IOSPerformance.cpp` : aucun nouveau message. Le bloc
+  Apple de la mesure de répartition a été compilé seul, depuis le texte réel, avec des déclarations Mach de substitution.
+- Contrôles d'empaquetage : la route Core, son test, le test d'épinglage (sources) et les marqueurs réussissent.
+- Patch canonique 98cc2a98 (519 fichiers) rematérialisé sur une copie amont propre, et l'incrément depuis le Core 946 s'inverse.
+- Les 26 tests de sources réussissent, dont `rpcs3_put_horizon910_test` avec ses 16 séries et le contrôle `no_atomic_clip`.
+- Identités de génération de code inchangées.

@@ -1,0 +1,275 @@
+diff --git a/rpcs3/Emu/Cell/PPUModule.cpp b/rpcs3/Emu/Cell/PPUModule.cpp
+index bac1bdc..60496f5 100644
+--- a/rpcs3/Emu/Cell/PPUModule.cpp
++++ b/rpcs3/Emu/Cell/PPUModule.cpp
+@@ -2590,9 +2590,10 @@ bool ppu_load_exec(const ppu_exec_object& elf, bool virtual_load, const std::str
+ 		if (!virtual_load)
+ 		{
+ 			poll943::applied_state.store(static_cast<u32>(poll_result), std::memory_order_relaxed);
+-			ppu_loader.notice("CONFIG_LAYERS part=gow3_poll943 state=%s cave=0x%x mismatch=0x%x spin_ticks=%u sleep_us=%u",
++			// REWINDBOX_GOW3_POLL_SAVESTATE_946: resumed= tells a refusal on a savestate from one at a fresh boot.
++			ppu_loader.notice("CONFIG_LAYERS part=gow3_poll943 state=%s cave=0x%x mismatch=0x%x spin_ticks=%u sleep_us=%u resumed=%d",
+ 				poll943::name(static_cast<u32>(poll_result)), poll943::cave_address.load(std::memory_order_relaxed),
+-				poll943::mismatch_address.load(std::memory_order_relaxed), poll943::spin_ticks, poll943::sleep_us);
++				poll943::mismatch_address.load(std::memory_order_relaxed), poll943::spin_ticks, poll943::sleep_us, ar ? 1 : 0);
+ 		}
+ 	}
+ 
+diff --git a/rpcs3/Emu/RSX/RSXFIFO.cpp b/rpcs3/Emu/RSX/RSXFIFO.cpp
+index 506bb45..0ddffd8 100644
+--- a/rpcs3/Emu/RSX/RSXFIFO.cpp
++++ b/rpcs3/Emu/RSX/RSXFIFO.cpp
+@@ -222,9 +222,12 @@ namespace rsx
+ 			namespace validation = rpcs3::ios::texture_validation;
+ 			if (put != m_epoch_horizon.seen || m_epoch_horizon.deferred) [[unlikely]]
+ 			{
+-				// Fast FIFO only: the other modes read PUT once per cache refill and would cross the horizon unseen.
++				// Fast FIFO, and from Core 947 the Atomic FIFO, whose cache refill stops at the horizon while an epoch is
++				// deferred (fetch_u32_refill): the word at the horizon is then read only through a refill, which reads PUT
++				// here first. The ordered and As PS3 modes never defer.
+ 				if (m_epoch_horizon.observe(m_internal_get, put, validation::validation_epoch.load(std::memory_order_relaxed),
+-					validation::put_horizon_policy::enabled.load(std::memory_order_relaxed) && !g_cfg.core.rsx_fifo_accuracy))
++					validation::put_horizon_policy::enabled.load(std::memory_order_relaxed) &&
++					(g_cfg.core.rsx_fifo_accuracy == rsx_fifo_mode::fast || g_cfg.core.rsx_fifo_accuracy == rsx_fifo_mode::atomic)))
+ 				{
+ 					validation::advance_epoch(validation::epoch_source::put);
+ 					m_epoch_horizon.started(validation::validation_epoch.load(std::memory_order_relaxed));
+@@ -294,6 +297,20 @@ namespace rsx
+ 					m_cache_size = put - m_cache_addr;
+ 				}
+ 
++#ifdef RPCS3_IOS
++				// REWINDBOX_PUT_HORIZON_ATOMIC_947: while a PUT epoch is deferred (read_put above), the cache ends at the horizon:
++				// the commands from the horizon on were published by a PUT whose epoch has not started, so the FIFO must refill,
++				// and read PUT (which starts that epoch), before it reads them. Below the horizon the commands were visible when
++				// the covering epoch started. The cache never holds words past the PUT it read, so nothing else can cross it.
++				const u32 ios_horizon_size = m_epoch_horizon.deferred && m_epoch_horizon.horizon > addr &&
++					m_epoch_horizon.horizon - m_cache_addr < m_cache_size ? m_epoch_horizon.horizon - m_cache_addr : 0;
++
++				if (ios_horizon_size)
++				{
++					m_cache_size = ios_horizon_size;
++				}
++#endif
++
+ 				// Atomic FIFO debug options
+ 				const bool force_cache_fill = g_cfg.core.rsx_fifo_accuracy == rsx_fifo_mode::atomic_ordered;
+ 				const bool strict_fetch_ordering = g_cfg.core.rsx_fifo_accuracy >= rsx_fifo_mode::atomic_ordered;
+@@ -375,6 +392,14 @@ namespace rsx
+ 						i = (i + m_cache_line_count - 1) % m_cache_line_count;
+ 					}
+ 				}
++
++#ifdef RPCS3_IOS
++				// REWINDBOX_PUT_HORIZON_ATOMIC_947: a partial fetch sets the size to the bytes read; it still ends at the horizon.
++				if (ios_horizon_size && m_cache_size > ios_horizon_size)
++				{
++					m_cache_size = ios_horizon_size;
++				}
++#endif
+ 			}
+ 
+ 			const auto ret = read_from_ptr_unsafe<be_t<u32>>(+m_cache[0], addr - m_cache_addr);
+diff --git a/rpcs3/ios/IOSTextureValidationProfile.h b/rpcs3/ios/IOSTextureValidationProfile.h
+index e6ca316..e780571 100644
+--- a/rpcs3/ios/IOSTextureValidationProfile.h
++++ b/rpcs3/ios/IOSTextureValidationProfile.h
+@@ -194,7 +194,10 @@ inline void advance_epoch(epoch_source source = epoch_source::other) noexcept
+ // also covers every command visible when it happened, so the horizon moves up to the last PUT read before it.
+ // A jump to itself that the guest patches publishes the commands behind it without moving PUT: with the horizon on,
+ // the patched command starts an epoch (RSXFIFO.cpp). The FIFO cache of the non-Fast accuracy modes reads PUT once per
+-// refill, so those modes never defer; a FIFO reset or recovery forgets the horizon (reset_epoch_horizon).
++// refill; REWINDBOX_PUT_HORIZON_ATOMIC_947: in the Atomic mode (the default, Black Ops II's: IPA 771 logs, put_deferred=0
++// for 1,916 PUT epochs per 5 s window) a refill made while an epoch is deferred ends at the horizon, so the FIFO refills
++// and reads PUT before it reads the word at the horizon; the ordered and As PS3 modes never defer. A FIFO reset or
++// recovery forgets the horizon (reset_epoch_horizon).
+ // Per title (Automatic: God of War III); off: an epoch for every PUT change read, as before.
+ namespace put_horizon_policy
+ {
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index 8528f2a..117f842 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -93,6 +93,7 @@
+ 
+ #include <algorithm>
+ #include <array>
++#include <unordered_map> // REWINDBOX_CLUSTER_CENSUS_947
+ #include <atomic>
+ #include <bit>
+ #include <chrono>
+@@ -239,6 +240,140 @@ thread_usage_sample sample_core_threads()
+ 	return result;
+ }
+ 
++// REWINDBOX_CLUSTER_CENSUS_947: where each thread group runs. IPA 771 logs (17 November 2026): 61,000 cluster changes
++// (ENERGY931 pset_switches) per 5 s window in Black Ops II, the P cores at 1.6 GHz and the E cores at 2.1 GHz, and no
++// way to tell which threads run where. proc_pidinfo(PROC_PIDTHREADCOUNTS) (iOS 16, looked up at run time like
++// proc_pid_rusage) gives each thread's CPU time and energy per performance level (0: performance cores, 1: efficiency
++// cores); the report thread takes the differences per window and sums them by group. Measurement only.
++struct cluster_counts947
++{
++	std::array<u64, 2> time_mach{};
++	std::array<u64, 2> energy_nj{};
++};
++
++struct cluster_census947
++{
++	std::unordered_map<u64, std::pair<u8, cluster_counts947>> last; // thread id -> group, cumulative counts
++	std::array<cluster_counts947, core_group_count> window{};
++	u32 levels = 0, threads = 0, new_threads = 0;
++	bool available = false;
++};
++
++void sample_cluster947(cluster_census947& census)
++{
++	census.window = {};
++	census.levels = 0;
++	census.threads = 0;
++	census.new_threads = 0;
++#ifdef __APPLE__
++	struct counts_data { u64 instructions, cycles, user_time_mach, system_time_mach, energy_nj; };
++	struct thread_counts { u16 len; u16 reserved0; u32 reserved1; counts_data counts[4]; };
++	using pidinfo_fn = int (*)(int, int, u64, void*, int);
++	static const pidinfo_fn read_pidinfo = reinterpret_cast<pidinfo_fn>(dlsym(RTLD_DEFAULT, "proc_pidinfo"));
++	constexpr int proc_pidthreadcounts = 34;
++
++	census.available = read_pidinfo != nullptr;
++	if (!read_pidinfo)
++	{
++		return;
++	}
++
++	thread_act_array_t threads = nullptr;
++	mach_msg_type_number_t thread_count = 0;
++	if (task_threads(mach_task_self(), &threads, &thread_count) != KERN_SUCCESS)
++	{
++		census.available = false;
++		return;
++	}
++
++	std::unordered_map<u64, std::pair<u8, cluster_counts947>> now;
++	now.reserve(thread_count);
++	bool any = false;
++
++	for (mach_msg_type_number_t index = 0; index < thread_count; ++index)
++	{
++		thread_extended_info_data_t info{};
++		mach_msg_type_number_t count = THREAD_EXTENDED_INFO_COUNT;
++		thread_identifier_info_data_t ident{};
++		mach_msg_type_number_t ident_count = THREAD_IDENTIFIER_INFO_COUNT;
++
++		if (thread_info(threads[index], THREAD_EXTENDED_INFO, reinterpret_cast<thread_info_t>(&info), &count) == KERN_SUCCESS &&
++			thread_info(threads[index], THREAD_IDENTIFIER_INFO, reinterpret_cast<thread_info_t>(&ident), &ident_count) == KERN_SUCCESS)
++		{
++			thread_counts data{};
++			const int bytes = read_pidinfo(getpid(), proc_pidthreadcounts, ident.thread_id, &data, static_cast<int>(sizeof(data)));
++
++			if (bytes >= static_cast<int>(offsetof(thread_counts, counts) + sizeof(counts_data)) && data.len)
++			{
++				any = true;
++				census.levels = std::min<u32>(data.len, 4);
++				cluster_counts947 counts{};
++
++				for (u32 level = 0; level < std::min<u32>(census.levels, 2); level++)
++				{
++					counts.time_mach[level] = data.counts[level].user_time_mach + data.counts[level].system_time_mach;
++					counts.energy_nj[level] = data.counts[level].energy_nj;
++				}
++
++				const u8 group = static_cast<u8>(classify_thread(info.pth_name));
++				now[ident.thread_id] = {group, counts};
++				census.threads++;
++
++				if (const auto it = census.last.find(ident.thread_id); it != census.last.end())
++				{
++					for (u32 level = 0; level < 2; level++)
++					{
++						const auto& before = it->second.second;
++						census.window[group].time_mach[level] += counts.time_mach[level] >= before.time_mach[level] ? counts.time_mach[level] - before.time_mach[level] : 0;
++						census.window[group].energy_nj[level] += counts.energy_nj[level] >= before.energy_nj[level] ? counts.energy_nj[level] - before.energy_nj[level] : 0;
++					}
++				}
++				else
++				{
++					census.new_threads++; // its time before this window is not counted
++				}
++			}
++		}
++
++		mach_port_deallocate(mach_task_self(), threads[index]);
++	}
++
++	vm_deallocate(mach_task_self(), reinterpret_cast<vm_address_t>(threads), static_cast<vm_size_t>(thread_count) * sizeof(thread_t));
++	census.available = any;
++	census.last = std::move(now);
++#endif
++}
++
++std::string format_cluster947(const cluster_census947& census, u64 session, u64 window, bool comparable)
++{
++	double ms_per_tick = 0.0;
++#ifdef __APPLE__
++	mach_timebase_info_data_t timebase{};
++	if (mach_timebase_info(&timebase) == KERN_SUCCESS && timebase.denom)
++	{
++		ms_per_tick = static_cast<double>(timebase.numer) / timebase.denom / 1e6;
++	}
++#endif
++	char head[192];
++	std::snprintf(head, sizeof(head), "COREPROF CLUSTER947 session=%llu window=%llu available=%u comparable=%u levels=%u threads=%u new_threads=%u",
++		static_cast<unsigned long long>(session), static_cast<unsigned long long>(window), census.available ? 1u : 0u, comparable ? 1u : 0u,
++		census.levels, census.threads, census.new_threads);
++	std::string line = head;
++	static constexpr std::array<const char*, core_group_count> names{"ppu", "spu", "rsx", "jit", "other"};
++
++	for (usz group = 0; group < core_group_count; group++)
++	{
++		const auto& c = census.window[group];
++		char part[160];
++		std::snprintf(part, sizeof(part), " %s_ms=%.1f:%.1f %s_mj=%.1f:%.1f", names[group], static_cast<double>(c.time_mach[0]) * ms_per_tick,
++			static_cast<double>(c.time_mach[1]) * ms_per_tick, names[group], static_cast<double>(c.energy_nj[0]) / 1e6, static_cast<double>(c.energy_nj[1]) / 1e6);
++		line += part;
++	}
++
++	line += " tuple=performance:efficiency scope=process_window";
++	return line;
++}
++
+ // REWINDBOX_BUSY_WAIT_REFERENCE_918: the scheduler's own counts for this process (context switches, Mach traps
+ // such as swtch_pri and thread_switch, BSD system calls). 32-bit counters: the caller takes differences modulo 2^32.
+ struct task_events_sample
+@@ -2132,7 +2267,7 @@ private:
+                 profile_session, profile_window, e_put, e_acquire, e_inline, e_copy, e_blit, e_flush, e_invalidate, e_frame, e_other,
+                 validation::scoped_rsx_writes.exchange(0, std::memory_order_relaxed),
+                 validation::scoped_rsx_write_bytes.exchange(0, std::memory_order_relaxed),
+-                validation::put_horizon_policy::enabled.load(std::memory_order_relaxed) && !g_cfg.core.rsx_fifo_accuracy ? 1u : 0u,
++                validation::put_horizon_policy::enabled.load(std::memory_order_relaxed) && (g_cfg.core.rsx_fifo_accuracy == rsx_fifo_mode::fast || g_cfg.core.rsx_fifo_accuracy == rsx_fifo_mode::atomic) ? 1u : 0u, // REWINDBOX_PUT_HORIZON_ATOMIC_947
+                 validation::put_deferred.exchange(0, std::memory_order_relaxed),
+                 validation::put_patched.exchange(0, std::memory_order_relaxed));
+ 
+@@ -2780,6 +2915,14 @@ private:
+ 			m_energy_session = profile_session;
+ 			m_energy_window = profile_window;
+ 
++			// REWINDBOX_CLUSTER_CENSUS_947: the same window's CPU time and energy by thread group and core type.
++			sample_cluster947(m_cluster);
++			// Its own continuity: the differences cover one window only after a sample of the previous window.
++			const bool cluster_comparable = m_cluster_session == profile_session && m_cluster_window + 1 == profile_window;
++			ios_core_profiler.notice("%s", format_cluster947(m_cluster, profile_session, profile_window, cluster_comparable).c_str());
++			m_cluster_session = profile_session;
++			m_cluster_window = profile_window;
++
+ 			namespace thermal = rpcs3::ios::thermal;
+ 			const int forced = rpcs3::ios::writer_park::compare::event_waits_forced.load(std::memory_order_relaxed);
+ 			const std::uint8_t mode = thermal::setting.load(std::memory_order_relaxed);
+@@ -2933,6 +3076,9 @@ private:
+     u64 m_task_events_session = ~0ull;
+     u64 m_task_events_window = 0;
+     energy931::sample m_energy; // REWINDBOX_ENERGY_931: the sample of the previous report, report thread only
++    cluster_census947 m_cluster; // REWINDBOX_CLUSTER_CENSUS_947: report thread only
++    u64 m_cluster_session = ~0ull;
++    u64 m_cluster_window = 0;
+     u64 m_energy_session = ~0ull;
+     u64 m_energy_window = 0;
+     rpcs3::ios::thermal::ledger_snapshot m_thermal; // REWINDBOX_THERMAL_LEDGER_932: the previous report's snapshot, report thread only

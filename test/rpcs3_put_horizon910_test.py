@@ -25,7 +25,8 @@ never covered a patched jump); never more epochs with the horizon, the patched-j
 least 40 % fewer epochs and fewer hashes in total. Negative controls on the real header: the horizon bound removed, the
 word at the horizon consumed from the word before it (no margin of one word), the publication inside the segment
 ignored; on the model: the horizon kept across a FIFO reset, no epoch for a patched jump. Each must serve an illegal version.
-Static: read_put passes the FIFO position, defers only with the Fast FIFO and keeps one epoch per PUT change when the
+Static: read_put passes the FIFO position, defers only with the Fast or Atomic FIFO (the Atomic cache ends at the
+horizon while an epoch is deferred, Core 947) and keeps one epoch per PUT change when the
 horizon is off; the FIFO reset and the FIFO recovery forget the horizon; a patched jump to itself starts an epoch with
 the horizon on; policy Automatic = God of War III and (from Core 944) Black Ops II with the epochs on.
 
@@ -83,7 +84,10 @@ struct result { std::uint64_t draws = 0, illegal = 0, epochs = 0, hashes = 0, de
 // resets: the guest resets the FIFO (new GET and PUT, sys_rsx attribute 0x001) onto commands it just rewrote.
 // spins: the guest publishes a jump to itself with commands behind it, writes their data while the RSX spins, then
 // patches the jump. forget_on_reset / patch_epoch: what RSXThread.cpp and RSXFIFO.cpp do with the horizon on.
-struct options { bool horizon_on = false, racy = false, resets = false, spins = false, forget_on_reset = true, patch_epoch = true; std::uint32_t rsx_percent = 35; };
+// atomic: REWINDBOX_PUT_HORIZON_ATOMIC_947, the Atomic FIFO: PUT is read only when the cache is exhausted (a refill), the
+// cache ends at the PUT read and, while an epoch is deferred, at the horizon (atomic_clip, RSXFIFO.cpp fetch_u32_refill).
+struct options { bool horizon_on = false, racy = false, resets = false, spins = false, forget_on_reset = true, patch_epoch = true,
+	atomic = false, atomic_clip = true; std::uint32_t rsx_percent = 35; };
 
 result simulate(std::uint64_t seed, const options& o, std::uint32_t steps)
 {
@@ -133,6 +137,9 @@ result simulate(std::uint64_t seed, const options& o, std::uint32_t steps)
 	std::uint32_t spin_addr = ~0u;   // the last jump to itself executed (RSXFIFO.cpp m_spin_addr)
 	std::uint32_t spin_slot = ~0u;   // guest: the unpatched jump to itself
 	std::array<std::uint32_t, 2> spin_textures{};
+	bool cache_valid = false;        // Atomic FIFO: the cached window [cache_begin, cache_end)
+	std::uint32_t cache_begin = 0, cache_end = 0;
+	constexpr std::uint32_t cache_words = 16;
 
 	// FIFO_control::read_put: the FIFO at get_now (its internal GET) reads PUT.
 	const auto see_put = [&](std::uint32_t get_now)
@@ -146,6 +153,20 @@ result simulate(std::uint64_t seed, const options& o, std::uint32_t steps)
 				horizon.started(epoch);
 			}
 		}
+	};
+
+	// FIFO_control::fetch_u32_refill (Atomic FIFO): the word at addr is read from the cache, refilled when outside it.
+	const auto atomic_fetch = [&](std::uint32_t addr)
+	{
+		if (cache_valid && addr >= cache_begin && addr < cache_end) return true;
+		see_put(get);
+		if (put == addr) return false; // FIFO empty
+		cache_begin = addr;
+		const std::uint32_t limit = addr + cache_words * 4;
+		cache_end = put > addr ? (put < limit ? put : limit) : (ring_slots * 4 < limit ? ring_slots * 4 : limit);
+		if (o.atomic_clip && horizon.deferred && horizon.horizon > addr && horizon.horizon < cache_end) cache_end = horizon.horizon;
+		cache_valid = true;
+		return true;
 	};
 
 	const auto write_texture = [&](std::uint32_t t)
@@ -205,7 +226,13 @@ result simulate(std::uint64_t seed, const options& o, std::uint32_t steps)
 				{
 					see_put(get); // inc_get(true): GET is already on the first argument
 					if (put == get) continue;
+					if (o.atomic && !atomic_fetch(get)) continue;
 					need_first = false;
+				}
+				else if (o.atomic)
+				{
+					if (!atomic_fetch(get + 4)) continue; // read_unsafe: fetch_u32(GET + 4)
+					get += 4;
 				}
 				else
 				{
@@ -223,8 +250,15 @@ result simulate(std::uint64_t seed, const options& o, std::uint32_t steps)
 			}
 			if (get < sub_base)
 			{
-				see_put(get);
-				if (get == put) continue; // FIFO empty
+				if (o.atomic)
+				{
+					if (!atomic_fetch(get)) continue;
+				}
+				else
+				{
+					see_put(get);
+					if (get == put) continue; // FIFO empty
+				}
 			}
 			const command c = get >= sub_base ? lists[(get - sub_base) / 16][((get - sub_base) % 16) / 4] : ring[get / 4];
 			if (spin_addr != ~0u)
@@ -251,8 +285,10 @@ result simulate(std::uint64_t seed, const options& o, std::uint32_t steps)
 				break;
 			case JUMP:
 				get = c.arg;
+				cache_valid = false; // set_get invalidates the cache
 				break;
 			case CALL:
+				cache_valid = false;
 				return_to = get + 4;
 				visible_uses[lists[c.arg][0].arg]--;
 				visible_uses[lists[c.arg][1].arg]--;
@@ -260,6 +296,7 @@ result simulate(std::uint64_t seed, const options& o, std::uint32_t steps)
 				break;
 			case RET:
 				get = return_to;
+				cache_valid = false;
 				break;
 			case HDR:
 				remaining = c.arg;
@@ -268,6 +305,7 @@ result simulate(std::uint64_t seed, const options& o, std::uint32_t steps)
 				break;
 			case SPIN:
 				spin_addr = get; // jump to itself
+				cache_valid = false;
 				break;
 			case NOP:
 				get += 4;
@@ -314,6 +352,7 @@ result simulate(std::uint64_t seed, const options& o, std::uint32_t steps)
 			put = wpos * 4;
 			get = n0 * 4;
 			remaining = 0; need_first = false; waiting_acquire = false; sema_released = false; spin_addr = ~0u; spin_slot = ~0u;
+			cache_valid = false;
 			if (o.forget_on_reset) horizon = {}; // FIFO_control::reset_epoch_horizon
 			out.resets++;
 			continue;
@@ -402,6 +441,7 @@ int main(int argc, char** argv)
 	bool first = true;
 	int failures = 0;
 	struct config { const char* name; bool racy, resets, spins; };
+	for (const bool atomic : {false, true})
 	for (const config& cfg : { config{"synced", false, false, false}, config{"racy", true, false, false},
 		config{"resets", false, true, false}, config{"spins", false, false, true} })
 	for (const std::uint32_t rsx_percent : {35u, 70u})
@@ -414,11 +454,14 @@ int main(int argc, char** argv)
 			o.racy = cfg.racy; o.resets = cfg.resets; o.spins = cfg.spins; o.rsx_percent = rsx_percent;
 			o.forget_on_reset = control != "no_forget_on_reset";
 			o.patch_epoch = control != "no_patch_epoch";
+			o.atomic = atomic;
+			o.atomic_clip = control != "no_atomic_clip";
 			o.horizon_on = true;
 			const result a = simulate(seed, o, 6000);
 			o.horizon_on = false;
 			const result b = simulate(seed, o, 6000);
-			if (a.draws != b.draws || a.put_changes != b.put_changes)
+			// The Atomic FIFO refills once more at the horizon: the same schedule, possibly more PUT reads.
+			if (a.draws != b.draws || (!atomic && a.put_changes != b.put_changes))
 			{
 				std::printf("FAIL: the two modes ran different schedules (seed %u)\n", seed);
 				return 1;
@@ -428,10 +471,10 @@ int main(int argc, char** argv)
 			on.patch_epochs += a.patch_epochs; on.resets += a.resets; on.spins += a.spins; on.arg_draws += a.arg_draws;
 			off.draws += b.draws; off.illegal += b.illegal; off.epochs += b.epochs; off.hashes += b.hashes; off.deferred += b.deferred;
 		}
-		std::printf("%s\"%s_rsx%u\": {\"draws\": %llu, \"put_changes\": %llu, \"illegal_horizon\": %llu, \"illegal_witness\": %llu, "
+		std::printf("%s\"%s%s_rsx%u\": {\"draws\": %llu, \"put_changes\": %llu, \"illegal_horizon\": %llu, \"illegal_witness\": %llu, "
 			"\"epochs_horizon\": %llu, \"epochs_witness\": %llu, \"hashes_horizon\": %llu, \"hashes_witness\": %llu, \"deferred\": %llu, "
 			"\"deferred_witness\": %llu, \"runs_with_more_epochs\": %llu, \"patch_epochs\": %llu, \"resets\": %llu, \"spins\": %llu, \"arg_draws\": %llu}",
-			first ? "" : ", ", cfg.name, rsx_percent,
+			first ? "" : ", ", atomic ? "atomic_" : "", cfg.name, rsx_percent,
 			(unsigned long long)on.draws, (unsigned long long)on.put_changes, (unsigned long long)on.illegal, (unsigned long long)off.illegal,
 			(unsigned long long)on.epochs, (unsigned long long)off.epochs, (unsigned long long)on.hashes, (unsigned long long)off.hashes,
 			(unsigned long long)on.deferred, (unsigned long long)off.deferred, (unsigned long long)more_epochs,
@@ -453,7 +496,7 @@ MUTATIONS = [
     ('no_word_margin', BOUND, 'get_now >= get && get_now < horizon && !(put >= get && put < horizon))'),
     ('ignore_publication_inside_segment_and_bound', 'put != horizon && ' + BOUND, 'put != horizon)'),
 ]
-MODEL_CONTROLS = {'no_forget_on_reset': 'resets', 'no_patch_epoch': 'spins'}
+MODEL_CONTROLS = {'no_forget_on_reset': 'resets', 'no_patch_epoch': 'spins', 'no_atomic_clip': 'atomic_'}
 
 
 def build(cxx: str, include: Path, work: Path, name: str, sanitize: bool) -> Path:
@@ -470,8 +513,21 @@ def build(cxx: str, include: Path, work: Path, name: str, sanitize: bool) -> Pat
 def static_checks(source: Path) -> None:
     fifo = (source / FIFO_CPP).read_text()
     require('m_epoch_horizon.observe(m_internal_get, put, validation::validation_epoch.load(std::memory_order_relaxed),\n'
-            '\t\t\t\t\tvalidation::put_horizon_policy::enabled.load(std::memory_order_relaxed) && !g_cfg.core.rsx_fifo_accuracy))' in fifo,
-            'read_put passes the FIFO position and defers only with the policy and the Fast FIFO')
+            '\t\t\t\t\tvalidation::put_horizon_policy::enabled.load(std::memory_order_relaxed) &&\n'
+            '\t\t\t\t\t(g_cfg.core.rsx_fifo_accuracy == rsx_fifo_mode::fast || g_cfg.core.rsx_fifo_accuracy == rsx_fifo_mode::atomic)))' in fifo,
+            'read_put passes the FIFO position and defers only with the policy and the Fast or Atomic FIFO')
+    # REWINDBOX_PUT_HORIZON_ATOMIC_947: the Atomic FIFO's cache ends at the horizon while an epoch is deferred, after the PUT
+    # clip and again after a partial fetch.
+    refill = fifo[fifo.index('std::pair<bool, u32> FIFO_control::fetch_u32_refill(u32 addr)'):]
+    refill = refill[:refill.index('void FIFO_control::set_get(')]
+    clip = ('const u32 ios_horizon_size = m_epoch_horizon.deferred && m_epoch_horizon.horizon > addr &&\n'
+            '\t\t\t\t\tm_epoch_horizon.horizon - m_cache_addr < m_cache_size ? m_epoch_horizon.horizon - m_cache_addr : 0;')
+    require(refill.count(clip) == 1 and refill.index('const u32 put = read_put();') < refill.index(clip) and
+            refill.index('m_cache_size = put - m_cache_addr;') < refill.index(clip) and
+            refill.count('if (ios_horizon_size && m_cache_size > ios_horizon_size)') == 1 and
+            refill.index(clip) < refill.index('if (ios_horizon_size && m_cache_size > ios_horizon_size)') <
+            refill.index('const auto ret = read_from_ptr_unsafe<be_t<u32>>(+m_cache[0], addr - m_cache_addr);'),
+            'the Atomic FIFO cache ends at the horizon while an epoch is deferred')
     require('if (put != m_epoch_horizon.seen || m_epoch_horizon.deferred) [[unlikely]]' in fifo, 'read_put fast path')
     require(fifo.count('validation::advance_epoch(validation::epoch_source::put);') == 1 and 'm_epoch_put' not in fifo, 'one PUT epoch site')
     require('if (spin_cmd && get == m_internal_get)\n\t\t\t{\n\t\t\t\tm_spin_addr = get;\n\t\t\t\tm_spin_cmd = spin_cmd;' in fifo,
@@ -518,16 +574,16 @@ def main() -> int:
         sys.stdout.write(result.stdout)
         require(result.returncode == 0, 'an illegal texture version, or more epochs with the horizon\n' + result.stderr[-2000:])
         runs = json.loads(result.stdout.strip().splitlines()[-1])
-        require(len(runs) == 8, 'eight runs')
+        require(len(runs) == 16, 'sixteen runs (Fast and Atomic FIFO)')
         for name, run in runs.items():
-            spins = name.startswith('spins')
+            spins = name.removeprefix('atomic_').startswith('spins')
             require(run['draws'] > 500 * args.seeds and run['arg_draws'] > 50 * args.seeds and run['illegal_horizon'] == 0 and
                     (spins or run['illegal_witness'] == 0), f'{name}: legality: {run}')
             require(run['epochs_horizon'] - run['patch_epochs'] <= run['epochs_witness'] and run['deferred_witness'] == 0 and
                     run['runs_with_more_epochs'] == 0, name + ': epochs')
-            require((run['resets'] > args.seeds) == name.startswith('resets') and (run['patch_epochs'] > args.seeds) == spins and
+            require((run['resets'] > args.seeds) == name.removeprefix('atomic_').startswith('resets') and (run['patch_epochs'] > args.seeds) == spins and
                     (run['spins'] > args.seeds) == spins, f'{name}: the scenario ran: {run}')
-            if name.endswith('rsx35') and not spins:
+            if name.endswith('rsx35') and not spins and not name.startswith('atomic_'):
                 require(run['epochs_horizon'] * 10 <= run['epochs_witness'] * 6 and run['hashes_horizon'] < run['hashes_witness'],
                         f'{name}: the lagging RSX saves less than 40 % of the epochs: {run}')
         report['runs'] = runs
@@ -542,19 +598,20 @@ def main() -> int:
             data = json.loads(outcome.stdout.strip().splitlines()[-1]) if outcome.stdout.strip().startswith('{') else {}
             illegal = sum(run['illegal_horizon'] for run in data.values())
             require(outcome.returncode == 2 and illegal > 0 and
-                    all(run['illegal_witness'] == 0 for key, run in data.items() if not key.startswith('spins')),
+                    all(run['illegal_witness'] == 0 for key, run in data.items() if not key.removeprefix('atomic_').startswith('spins')),
                     f'negative control {name}: no illegal version served ({outcome.returncode})')
             report['negative_controls'][name] = illegal
             print(f'negative control {name}: {illegal} illegal versions served')
         for name, scenario in MODEL_CONTROLS.items():
             outcome = subprocess.run([str(binary), str(args.seeds), name], capture_output=True, text=True, timeout=1800)
             data = json.loads(outcome.stdout.strip().splitlines()[-1])
-            illegal = sum(run['illegal_horizon'] for key, run in data.items() if key.startswith(scenario))
-            others = sum(run['illegal_horizon'] for key, run in data.items() if not key.startswith(scenario))
+            match = (lambda key: key.startswith(scenario)) if scenario == 'atomic_' else (lambda key: key.removeprefix('atomic_').startswith(scenario))
+            illegal = sum(run['illegal_horizon'] for key, run in data.items() if match(key))
+            others = sum(run['illegal_horizon'] for key, run in data.items() if not match(key))
             require(outcome.returncode == 2 and illegal > 0 and others == 0, f'negative control {name}: {illegal} illegal, {others} elsewhere')
             report['negative_controls'][name] = illegal
             print(f'negative control {name}: {illegal} illegal versions served')
-        report['witness_illegal_with_spins'] = sum(run['illegal_witness'] for key, run in runs.items() if key.startswith('spins'))
+        report['witness_illegal_with_spins'] = sum(run['illegal_witness'] for key, run in runs.items() if key.removeprefix('atomic_').startswith('spins'))
     report['result'] = 'passed'
     print('PASS: with the PUT horizon every draw samples a version legal for its command (synced and racy guests, lagging and '
           'fast RSX, ring wrap, display lists, acquires, PUT inside a method, FIFO resets, patched jumps), never more epochs than '
