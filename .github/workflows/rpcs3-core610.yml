@@ -17,6 +17,7 @@
 # Core compile request: Core 944 (core-build.json build 944, canonical patch 97e47ec5), request 1 (Core 943 request 1, compiled by run 44012653815 and pinned, plus the lot of the IPA 767 logs: the PPU suspension of waiting threads without acknowledgment, the PUT horizon for Black Ops II and the PPU short wait floor for God of War III; reviewed independently three times before this request; no codegen input changes)
 # Core compile request: Core 945 (core-build.json build 945, canonical patch 8a32bb56), request 1 (Core 944 request 1, run 44063890194 still compiling, plus event waits in every thermal state once the WFE self-test has passed; no codegen input changes)
 # Core compile request: Core 946 (core-build.json build 946, canonical patch ad88ad84), request 1 (Core 945 request 1, compiled by run 44068588337 and pinned, plus the God of War III poll loop sleep after resuming a savestate of an unpatched boot; reviewed independently; no codegen input changes)
+# Core compile request: Core 947 (core-build.json build 947, canonical patch 98cc2a98), request 1 (Core 946 request 1, run 44094297151, plus the PUT horizon deferral in the Atomic FIFO and the P/E cluster census; reviewed independently; no codegen input changes)
 name: RPCS3 Core
 # run-name is evaluated before any job and cannot read the spec; the build
 # number is in the step names, the artifact names and the identity type.
