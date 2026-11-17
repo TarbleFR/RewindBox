@@ -63,10 +63,12 @@ class _NextendoDialogState extends State<NextendoDialog> {
     try {
       await NextendoServers.refresh();
       unawaited(NextendoCatalogStore.current().then((catalog) {
-        if (mounted) setState(() {
-          _catalog = catalog;
-          _catalogLoaded = true;
-        });
+        if (mounted) {
+          setState(() {
+            _catalog = catalog;
+            _catalogLoaded = true;
+          });
+        }
       }));
       final config = await NextendoConfig.load();
       final account = config.canSignIn ? await _service.restore(config) : null;

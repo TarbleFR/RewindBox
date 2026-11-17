@@ -762,6 +762,9 @@ IMPORT_SITES = {
         'static Future<MelonxAddonReport> importAddon(',),
     'lib/widgets/melonx_transfer_dialog.dart': (
         'Future<bool> showMelonxTransfer(',),
+    # A Switch game's mod archive (.zip), from the MeloNX menu's Mods screen (17 November 2026).
+    'lib/widgets/melonx_mods_dialog.dart': (
+        'Future<void> _import(',),
 }
 
 # Dolphin's system files (IPL, Wii keys, system folders): every body given

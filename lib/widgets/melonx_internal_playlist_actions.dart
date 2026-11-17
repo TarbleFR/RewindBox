@@ -6,6 +6,7 @@ import 'melonx_hogwarts_graphics_options.dart';
 import 'melonx_unreal_profile_dialog.dart';
 import 'melonx_profiles_dialog.dart';
 import 'nextendo_dialog.dart';
+import 'melonx_mods_dialog.dart';
 
 import 'dart:io';
 import 'dart:async';
@@ -19,6 +20,11 @@ import 'package:provider/provider.dart';
 import '../l10n/library_link_locale.dart';
 import '../l10n/libretro_locale.dart';
 import '../l10n/melonx_library_locale.dart';
+import '../l10n/melonx_mods_locale.dart';
+import '../l10n/enhancements_locale.dart';
+import '../models/game_model.dart';
+import '../models/system_model.dart';
+import '../screens/enhancements/enhancements_screen.dart';
 import '../l10n/switch_online_locale.dart';
 import '../providers/sqlite_config_provider.dart';
 import '../screens/libretro/libretro_skin_manager_screen.dart';
@@ -101,12 +107,18 @@ class MelonxInternalPlaylistActions extends StatefulWidget {
     this.gamePath,
     this.titleId,
     this.onDelete,
+    this.game,
+    this.system,
   });
   final Future<void> Function() onLibraryChanged;
   final ValueChanged<bool>? onInteractionChanged;
   final bool embedded;
   final String? gamePath;
   final String? titleId;
+
+  /// The selected game and its system: Cheats & Enhancements opens on them.
+  final GameModel? game;
+  final SystemModel? system;
   final Future<void> Function()? onDelete;
   @override
   State<MelonxInternalPlaylistActions> createState() =>
@@ -221,6 +233,28 @@ class _MelonxInternalPlaylistActionsState
     if (_busy) return;
     if (action == 'skins') {
       await _openSkins();
+      return;
+    }
+    // Cheats & Enhancements and Mods of the selected game sit under its graphics.
+    if (action == 'cheats' && widget.game != null && widget.system != null) {
+      _interaction(true);
+      try {
+        await EnhancementsScreen.open(context, game: widget.game!, system: widget.system!, systemFolder: 'switch');
+      } finally {
+        if (mounted) _interaction(false);
+      }
+      return;
+    }
+    if (action == 'mods' && widget.titleId != null) {
+      _interaction(true);
+      try {
+        await showDialog<void>(
+          context: context,
+          builder: (_) => MelonxModsDialog(titleId: widget.titleId!, gameName: widget.game?.name),
+        );
+      } finally {
+        if (mounted) _interaction(false);
+      }
       return;
     }
     // Switch profiles and the Nextendo account are their own dialogs: each
@@ -467,6 +501,36 @@ class _MelonxInternalPlaylistActionsState
     ),
   );
 
+  /// A section title of the menu (not selectable).
+  PopupMenuEntry<String> _section(String title) => PopupMenuItem<String>(
+    enabled: false,
+    height: 28,
+    child: Text(
+      title.toUpperCase(),
+      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.6,
+        color: Theme.of(context).colorScheme.primary,
+      ),
+    ),
+  );
+
+  /// One entry: an icon and its label.
+  PopupMenuEntry<String> _entry(String value, IconData icon, String label, {Key? key, bool destructive = false}) {
+    final color = destructive ? Theme.of(context).colorScheme.error : null;
+    return PopupMenuItem<String>(
+      key: key,
+      value: value,
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: color),
+          const SizedBox(width: 12),
+          Expanded(child: Text(label, style: color == null ? null : TextStyle(color: color))),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (defaultTargetPlatform != TargetPlatform.iOS) {
@@ -483,52 +547,39 @@ class _MelonxInternalPlaylistActionsState
       onOpened: () => _interaction(true),
       onCanceled: () => _interaction(false),
       onSelected: _selected,
+      // Three short sections: this game (under its graphics, its cheats and
+      // mods), what can be imported, and the engine's settings.
       items: (_) => [
-        PopupMenuItem(value: 'games', child: Text(_text('Import games'))),
-        PopupMenuItem(
-          value: 'saves',
-          child: Text(MelonxTransferLocale.text(context, 'importSaves')),
-        ),
-        PopupMenuItem(
-          value: 'migration',
-          child: Text(MelonxTransferLocale.text(context, 'migrate')),
-        ),
-        PopupMenuItem(
-          value: 'discover',
-          child: Text(MelonxTransferLocale.text(context, 'rescan')),
-        ),
-        if (widget.onDelete != null)
-          PopupMenuItem(value: 'delete', child: Text(_text('Delete'))),
-        PopupMenuItem(value: 'firmware', child: Text(_text('Import firmware'))),
-        PopupMenuItem(
-          value: 'keys',
-          child: Text(_text('Import personal keys')),
-        ),
-        const PopupMenuDivider(),
-        PopupMenuItem(value: 'update', child: Text(_text('Import update'))),
-        if (validTitle) ...[
-          PopupMenuItem(value: 'dlc', child: Text(_text('Import DLC'))),
+        if (widget.gamePath != null || validTitle) ...[
+          _section(MelonxModsLocale.text(context, 'sectionGame')),
+          if (widget.gamePath != null)
+            _entry('graphics', Icons.tune, _text('Game graphics')),
+          if (widget.game != null && widget.system != null && widget.gamePath != null)
+            _entry('cheats', Icons.auto_fix_high, EnhancementsLocale.text(context, EnhancementsLocale.title),
+                key: const ValueKey('melonx-cheats')),
+          if (validTitle)
+            _entry('mods', Icons.extension_outlined, MelonxModsLocale.text(context, 'mods'),
+                key: const ValueKey('melonx-mods')),
+          if (validTitle) _entry('dlc', Icons.add_box_outlined, _text('Import DLC')),
+          const PopupMenuDivider(),
         ],
-        if (widget.gamePath != null)
-          PopupMenuItem(value: 'graphics', child: Text(_text('Game graphics'))),
+        _section(MelonxModsLocale.text(context, 'sectionImport')),
+        _entry('games', Icons.videogame_asset_outlined, _text('Import games')),
+        _entry('update', Icons.system_update_alt, _text('Import update')),
+        _entry('saves', Icons.save_outlined, MelonxTransferLocale.text(context, 'importSaves')),
+        _entry('firmware', Icons.memory, _text('Import firmware')),
+        _entry('keys', Icons.key_outlined, _text('Import personal keys')),
+        _entry('migration', Icons.drive_file_move_outline, MelonxTransferLocale.text(context, 'migrate')),
         const PopupMenuDivider(),
-        PopupMenuItem(
-          key: const ValueKey('melonx-skins'),
-          value: 'skins',
-          child: Text(LibretroLocale.text(context, 'skins')),
-        ),
-        PopupMenuItem(value: 'status', child: Text(_text('Engine status'))),
-        const PopupMenuDivider(),
-        PopupMenuItem(
-          key: const ValueKey('melonx-profiles'),
-          value: 'profiles',
-          child: Text(SwitchOnlineLocale.text(context, 'profilesTitle')),
-        ),
-        const PopupMenuItem(
-          key: ValueKey('melonx-nextendo'),
-          value: 'nextendo',
-          child: Text('Nextendo Network'),
-        ),
+        _section(MelonxModsLocale.text(context, 'sectionSettings')),
+        _entry('skins', Icons.gamepad_outlined, LibretroLocale.text(context, 'skins'), key: const ValueKey('melonx-skins')),
+        _entry('profiles', Icons.person_outline, SwitchOnlineLocale.text(context, 'profilesTitle'),
+            key: const ValueKey('melonx-profiles')),
+        _entry('nextendo', Icons.public, 'Nextendo Network', key: const ValueKey('melonx-nextendo')),
+        _entry('discover', Icons.refresh, MelonxTransferLocale.text(context, 'rescan')),
+        _entry('status', Icons.info_outline, _text('Engine status')),
+        if (widget.onDelete != null)
+          _entry('delete', Icons.delete_outline, _text('Delete'), destructive: true),
       ],
     );
   }

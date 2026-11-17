@@ -65,6 +65,9 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
     /// Online play of one launch (EmbeddedOnline.cs, content operation 11): the Nextendo game token and the two server
     /// addresses Dart resolved, or an empty request that clears what an earlier launch set. The token goes to the engine
     /// in memory and is never journaled. An engine without the operation, or a refused request, leaves the game offline.
+    /// The optional parts (adapt_nextendo_data) go with it when valid: the title's BCAT folder, the account's NSA
+    /// (Animal Crossing: New Horizons) and the versions Nextendo's catalog accepts; a malformed one is left out and
+    /// journaled, never the launch's online play.
     private func configureOnline(_ runtime: MeloNXRuntimeAPI, online: [String:Any]?) {
         var request = "{}"
         if let online {
@@ -72,7 +75,7 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
             guard let token = online["nexToken"] as? String, token.hasPrefix("nx2."), token.utf8.count <= 1024,
                   let pid = (online["pid"] as? NSNumber)?.int64Value, pid > 0,
                   let server = online["serverAddress"] as? String, let nat = online["natAddress"] as? String,
-                  let data = try? JSONSerialization.data(withJSONObject:["nexToken":token,"pid":NSNumber(value:pid),"serverAddress":server,"natAddress":nat]),
+                  let data = try? JSONSerialization.data(withJSONObject:Self.onlineRequest(online,token:token,pid:pid,server:server,nat:nat)),
                   let text = String(data:data,encoding:.utf8) else {
                 MeloNXLaunchJournal.record("online","skipped",detail:"The online request of this launch is malformed; the game starts offline.")
                 _ = try? runtime.content(path:"{}",operation:11)
@@ -87,6 +90,42 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
         } else {
             MeloNXLaunchJournal.record("online","skipped",detail:"This engine does not accept an online configuration (" + (response?["error"] as? String ?? "no answer") + "); the game starts offline.")
         }
+    }
+
+    /// The engine's online request: the required parts, then each optional part Dart sent that is valid (adapt_nextendo_data).
+    /// bcatDirectory: <Documents>/MeloNX/nextendo/bcat/<16 lowercase hex> exactly; nsa: 16 lowercase hex digits, not zero;
+    /// acceptedVersions: at most 16 printable ASCII strings of at most 32 characters. Values are never journaled.
+    static func onlineRequest(_ online:[String:Any], token:String, pid:Int64, server:String, nat:String, root:URL? = nil) -> [String:Any] {
+        var request:[String:Any] = ["nexToken":token,"pid":NSNumber(value:pid),"serverAddress":server,"natAddress":nat]
+        func lowerHex16(_ text:String) -> Bool { text.utf8.count == 16 && text.utf8.allSatisfy { (48...57).contains($0) || (97...102).contains($0) } }
+        if let value = online["bcatDirectory"] {
+            // Both sides resolved (Dart and Swift can name the container through /var or /private/var).
+            let base = (root ?? FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("MeloNX"))
+                .appendingPathComponent("nextendo").appendingPathComponent("bcat").standardizedFileURL.resolvingSymlinksInPath().path
+            let resolved = (value as? String).flatMap { $0.hasPrefix("/") && !$0.contains("/../") && !$0.hasSuffix("/..") ?
+                URL(fileURLWithPath:$0).standardizedFileURL.resolvingSymlinksInPath().path : nil }
+            if let path = resolved, path.hasPrefix(base + "/"), lowerHex16(String(path.dropFirst(base.count + 1))) {
+                request["bcatDirectory"] = path
+            } else {
+                MeloNXLaunchJournal.record("online","adjusted",detail:"The launch's BCAT folder is malformed and left out.")
+            }
+        }
+        if let value = online["nsa"] {
+            if let nsa = value as? String, lowerHex16(nsa), nsa != "0000000000000000" {
+                request["nsa"] = nsa
+            } else {
+                MeloNXLaunchJournal.record("online","adjusted",detail:"The launch's account NSA is malformed and left out.")
+            }
+        }
+        if let value = online["acceptedVersions"] {
+            if let versions = value as? [String], versions.count <= 16,
+               versions.allSatisfy({ !$0.isEmpty && $0.utf8.count <= 32 && $0.utf8.allSatisfy { (33...126).contains($0) } }) {
+                request["acceptedVersions"] = versions
+            } else {
+                MeloNXLaunchJournal.record("online","adjusted",detail:"The launch's accepted versions are malformed and left out.")
+            }
+        }
+        return request
     }
 
     private func startDiagnostics(_ runtime: MeloNXRuntimeAPI) {

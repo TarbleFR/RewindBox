@@ -231,6 +231,7 @@ from adapt_loh_compaction_request import apply as adapt_loh_compaction_request
 from adapt_guest_break_context import apply as adapt_guest_break_context
 from adapt_shader_load_binary_release import apply as adapt_shader_load_binary_release
 from adapt_streaming_memory import apply as adapt_streaming_memory
+from adapt_nextendo_data import apply as adapt_nextendo_data
 
 
 def replace_once(path, old, new):
@@ -361,7 +362,8 @@ def main():
                    'EmbeddedAudioPacing.cs': 'Ryujinx.Common',
                    'EmbeddedFirmwareStore.cs': 'Ryujinx.HLE',
                    'EmbeddedFirmwareArchive.cs': 'Ryujinx.HLE',
-                   'EmbeddedOnline.cs': 'Ryujinx.HLE'}.get(path.name, 'Ryujinx.Library')
+                   'EmbeddedOnline.cs': 'Ryujinx.HLE',
+                   'EmbeddedDeliveryCache.cs': 'Ryujinx.Horizon'}.get(path.name, 'Ryujinx.Library')
         target = source / 'src' / project / path.name
         shutil.copyfile(path, target)
         copied.append(target)
@@ -752,6 +754,11 @@ def main():
     # cache; a rebuild reads it back (the final ParallelDiskCacheLoader.cs and DiskCacheHostStorage.cs).
     adapted += adapt_shader_load_binary_release(source)
     adapted += adapt_streaming_memory(source)
+    # After IPA 773 (online sessions only): Nextendo's per-title data. The title's BCAT data served from the host's folder
+    # (Horizon's BCAT ServiceCreator.cs, pristine; EmbeddedDeliveryCache.cs is copied above with the native files) and the
+    # session's journal line when the game first asks for its id_token (ManagerServer.cs as adapt_nextendo_online leaves
+    # it); no other adapter edits these files.
+    adapted += adapt_nextendo_data(source)
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -913,7 +920,7 @@ def main():
                  'adapt_draw_wait_lanes.py', 'adapt_mirror_copy_journal.py', 'adapt_array_attachment_members.py',
                  'adapt_empty_worker_snapshot.py', 'adapt_release_passes.py', 'adapt_array_walk_size.py',
                  'adapt_loh_compaction_request.py', 'adapt_guest_break_context.py',
-                 'adapt_shader_load_binary_release.py', 'adapt_streaming_memory.py']:
+                 'adapt_shader_load_binary_release.py', 'adapt_streaming_memory.py', 'adapt_nextendo_data.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'
