@@ -255,8 +255,12 @@ l'IPA 763 (God of War III PID 27597, Black Ops II PID 27739) ont été passées 
     1 350 par fenêtre, environ 23 par image. L'assistant qui calcule les empreintes en avance n'en sert que 914 sur
     13 000 (`OPT581`). 98,7 % des contrôles trouvent la texture inchangée, mais 355 changements par fenêtre restent à
     attraper. Réduire ce volume demande de savoir quelles écritures du jeu touchent les textures ; sans cela, une
-    texture périmée s'afficherait (le type d'erreur du scintillement des arbres). Mesure dédiée d'abord. Le RSX n'est
-    pas le goulot de God of War III (les images lentes attendent le PPU ou les SPU : `FRAMECAUSE_EVENT` `rsx_other_ms`).
+    texture périmée s'afficherait (le type d'erreur du scintillement des arbres). Le RSX n'est pas le goulot de
+    God of War III (les images lentes attendent le PPU ou les SPU : `FRAMECAUSE_EVENT` `rsx_other_ms`). Le Core 943
+    ajoute la mesure qui manque (REWINDBOX_TEXVAL_CENSUS_943, `COREPROF TEXVAL943`). Chaque contrôle haché est compté
+    avec ce qu'il trouve (inchangé ou changé), ses octets, sa mémoire (locale RSX ou principale) et la source du dernier
+    point de synchronisation : PUT, saut réécrit, sémaphore, fin d'image, etc. Le contrôle lui-même ne change pas. Les
+    journaux de l'IPA suivante diront après quels points une texture change vraiment.
   - Black Ops II : recherches de textures sur le RSX (5,4 ms par image, 27 % de reprises de l'aide-mémoire du Core 660,
     déjà servi pour ce jeu et vérifié sans écart sur 4,7 millions de reprises). Le gain suivant suppose de profiler la
     recherche elle-même.
