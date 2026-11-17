@@ -16,8 +16,9 @@ import 'switch2_engine_settings_panel.dart';
 
 /// Menu of the Switch 2 playlist: import games (an export folder or NUP
 /// containers from Files, docs/s2arm-switch2-library.md § Import), saves, the
-/// Switch 2 settings and delete the highlighted game. A labelled button with an
-/// icon per item: the maintainer found the bare icon too easy to miss. Nothing of the Switch 1 engine: no prod.keys
+/// Switch 2 settings and delete the highlighted game. A coloured button (with
+/// its label where there is room) and an opaque menu with an icon per item: the
+/// maintainer found the bare icon and the see-through menu too easy to miss. Nothing of the Switch 1 engine: no prod.keys
 /// (S2Arm needs none) and no firmware. The maintainer wants no ambiguity
 /// between the two engines.
 class S2ArmInternalPlaylistActions extends StatefulWidget {
@@ -43,9 +44,6 @@ class S2ArmInternalPlaylistActions extends StatefulWidget {
 
   /// Inside the game details card (list view): no own surface.
   final bool embedded;
-
-  /// The width of the segment the details card gives the embedded button.
-  static double get embeddedWidth => 112.r;
 
   @override
   State<S2ArmInternalPlaylistActions> createState() =>
@@ -334,55 +332,66 @@ class _S2ArmInternalPlaylistActionsState
       maxLines: 1,
       style: TextStyle(
         color: foreground,
-        fontSize: widget.embedded ? 13.r : 15.r,
+        fontSize: 15.r,
         fontWeight: FontWeight.w700,
       ),
     );
+    final icon = _busy
+        ? SizedBox(
+            width: 18.r,
+            height: 18.r,
+            child: CircularProgressIndicator(strokeWidth: 2, color: foreground),
+          )
+        : Icon(
+            Icons.file_upload_outlined,
+            size: widget.embedded ? 19.r : 22.r,
+            color: foreground,
+          );
+    // In the details card's tab bar the button has one tab's width: a filled chip, no room for the label.
     final face = Container(
+      width: widget.embedded ? 30.r : null,
       height: widget.embedded ? 28.r : 40.r,
-      padding: EdgeInsets.symmetric(horizontal: widget.embedded ? 8.r : 14.r),
+      alignment: Alignment.center,
+      padding: widget.embedded
+          ? EdgeInsets.zero
+          : EdgeInsets.symmetric(horizontal: 14.r),
       decoration: BoxDecoration(
         color: _busy ? background.withValues(alpha: 0.6) : background,
         borderRadius: BorderRadius.circular(widget.embedded ? 9.r : 12.r),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _busy
-              ? SizedBox(
-                  width: 18.r,
-                  height: 18.r,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: foreground,
-                  ),
-                )
-              : Icon(
-                  Icons.file_upload_outlined,
-                  size: widget.embedded ? 17.r : 22.r,
-                  color: foreground,
-                ),
-          SizedBox(width: widget.embedded ? 5.r : 8.r),
-          // In the tab bar the segment has a fixed width: a long word shrinks to fit.
-          widget.embedded
-              ? Flexible(
-                  child: FittedBox(fit: BoxFit.scaleDown, child: label),
-                )
-              : label,
-          if (!widget.embedded) ...[
-            SizedBox(width: 2.r),
-            Icon(Icons.arrow_drop_down, size: 22.r, color: foreground),
-          ],
-        ],
-      ),
+      child: widget.embedded
+          ? icon
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                icon,
+                SizedBox(width: 8.r),
+                label,
+                SizedBox(width: 2.r),
+                Icon(Icons.arrow_drop_down, size: 22.r, color: foreground),
+              ],
+            ),
     );
+    // An opaque menu: the theme's glass fill let the game card behind show through the items (maintainer's
+    // screenshot of IPA 777), so its tint is laid on the surface colour at full opacity, with a rim and a shadow.
+    final menuColor = Color.alphaBlend(
+      Theme.of(context).popupMenuTheme.color ?? scheme.surfaceContainerHigh,
+      scheme.surface,
+    ).withValues(alpha: 1);
     final button = PopupMenuButton<String>(
       key: const ValueKey('s2arm-internal-import-menu'),
       tooltip: _t('importMenu'),
       enabled: !_busy,
       padding: EdgeInsets.zero,
       constraints: BoxConstraints(minWidth: 300.r, maxWidth: 380.r),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14.r)),
+      color: menuColor,
+      surfaceTintColor: Colors.transparent,
+      elevation: 8,
+      shadowColor: Colors.black,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14.r),
+        side: BorderSide(color: scheme.outline.withValues(alpha: 0.6)),
+      ),
       onOpened: () => _interaction(true),
       onCanceled: () => _interaction(false),
       onSelected: _selected,
@@ -396,6 +405,7 @@ class _S2ArmInternalPlaylistActionsState
             _t('importGamesHint'),
           ),
         ),
+        const PopupMenuDivider(),
         PopupMenuItem(
           key: const ValueKey('s2arm-import-nup'),
           value: 'nup',
@@ -406,7 +416,7 @@ class _S2ArmInternalPlaylistActionsState
           ),
         ),
         const PopupMenuDivider(),
-        // Saves come after the games, with or without a selected game.
+        // Saves come after the games, with or without a selected game; a divider between every option.
         PopupMenuItem(
           key: const ValueKey('s2arm-import-save'),
           value: 'importSave',
@@ -416,6 +426,7 @@ class _S2ArmInternalPlaylistActionsState
             _t('importSaveHint'),
           ),
         ),
+        const PopupMenuDivider(),
         PopupMenuItem(
           key: const ValueKey('s2arm-open-saves'),
           value: 'openSaves',
@@ -434,7 +445,8 @@ class _S2ArmInternalPlaylistActionsState
             Switch2SettingsLocale.text(context, 'title'),
           ),
         ),
-        if (widget.romPath != null && widget.appSystemId != null)
+        if (widget.romPath != null && widget.appSystemId != null) ...[
+          const PopupMenuDivider(),
           PopupMenuItem(
             key: const ValueKey('s2arm-delete-game'),
             value: 'delete',
@@ -445,16 +457,25 @@ class _S2ArmInternalPlaylistActionsState
               scheme.error,
             ),
           ),
+        ],
       ],
       child: face,
     );
-    if (widget.embedded) return Center(child: button);
+    // The dividers between the options in a clearly visible line (DividerTheme is carried into the menu's route).
+    final menu = DividerTheme(
+      data: DividerTheme.of(context).copyWith(
+        color: scheme.outline.withValues(alpha: 0.7),
+        thickness: 1,
+      ),
+      child: button,
+    );
+    if (widget.embedded) return Center(child: menu);
     return Material(
       color: Colors.transparent,
       elevation: 4,
       shadowColor: scheme.shadow,
       borderRadius: BorderRadius.circular(12.r),
-      child: button,
+      child: menu,
     );
   }
 }

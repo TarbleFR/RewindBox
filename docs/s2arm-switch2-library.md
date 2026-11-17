@@ -19,7 +19,7 @@ service answers `engineMissing`: the playlist is listed but unavailable and noth
 | Export reader (NPDM, NACP, icon) | `lib/services/switch2_export_content.dart` |
 | Launch route (`S2ARM_INTERNAL_BEGIN/END`) | `lib/services/game/game_launch_service.dart` |
 | Session end through `S2ArmInternalService.sessionEvents` | `lib/services/game_launch_manager.dart` |
-| Import button and prepare dialog | `lib/widgets/s2arm_internal_playlist_actions.dart`, placed in `lib/screens/game_screen/my_games_list.dart` (`_isS2ArmLibrary`; a labelled segment of `S2ArmInternalPlaylistActions.embeddedWidth` in the details card's tab bar) |
+| Import button and prepare dialog | `lib/widgets/s2arm_internal_playlist_actions.dart`, placed in `lib/screens/game_screen/my_games_list.dart` (`_isS2ArmLibrary`) |
 | NUP containers: picker, check, expansion | `packages/s2arm_engine_bridge/ios/Classes/S2ArmNupImport.m`, `native/s2arm/prepare/s2arm_nup.c` (in `S2ArmPrepare.xcframework`), `S2ArmInternalService.importNupFiles` |
 | Emulator name `S2Arm` (no per-game settings screen) | `lib/widgets/system_emulator_settings_dialog.dart`, `.../game_settings_emulator_tab.dart` |
 | Scraping identity | `lib/services/screenscraper_service.dart` |
@@ -55,9 +55,12 @@ service answers `engineMissing`: the playlist is listed but unavailable and noth
   games. `lib/l10n/switch2_library_locale.dart` names neither MeloNX nor prod.keys; `importKeys`, `importKeysHint` and
   `keysFailed` are gone. Checked by `test/s2arm_playlist_menu_contract_test.dart` and
   `test/switch2_empty_hint_contract_test.py`.
-- **A visible menu (17 Nov 2026, maintainer).** The button reads "Import" next to its icon in the playlist's strong
-  colour, and in the details card it is a labelled segment of the tab bar, not a bare icon. Each menu item has an
-  icon and a bold title; delete is in the error colour. Checked by `test/s2arm_playlist_menu_contract_test.dart`.
+- **A visible menu (17 Nov 2026, maintainer, with a screenshot of IPA 777).** The menu is opaque (the theme's glass
+  fill let the game card show through its items), with a rim and a shadow; each item has an icon, a bold title and
+  a one-line hint, a clearly visible divider separates every option, delete is in the error colour. The floating button reads "Import" next to its icon
+  in the strong colour; in the details card's tab bar (one tab's width) it is a filled chip. A labelled segment
+  there would change `game_details_card_list.dart`, whose delivered version is held back with RetroAchievements
+  work of another session, so it is not done. Checked by `test/s2arm_playlist_menu_contract_test.dart`.
 - **NUP containers (17 Nov 2026, maintainer).** A `.nup` file (public NUP specification v1: base, updates and DLC in
   one file, not encrypted, no keys) is imported with "Import NUP files": the Files picker opens the files where they
   are (never a copy of a file of tens of GB into the app), `rb_s2arm_nup_inspect` checks the container, the space
