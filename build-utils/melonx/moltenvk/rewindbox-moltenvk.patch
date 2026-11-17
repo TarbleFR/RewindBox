@@ -695,7 +695,7 @@ index 7eae64c..0ef8772 100644
  
  
 diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h b/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h
-index c5b7499..ab493f6 100644
+index c5b7499..eb342c1 100644
 --- a/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h
 +++ b/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h
 @@ -23,6 +23,7 @@
@@ -737,7 +737,7 @@ index c5b7499..ab493f6 100644
  
      /** Sets the number of threads in a single compute kernel workgroup, per dimension. */
      void setWorkgroupSize(uint32_t x, uint32_t y, uint32_t z);
-@@ -274,9 +288,22 @@ protected:
+@@ -274,9 +288,24 @@ protected:
  	friend MVKShaderCacheIterator;
  
  	void propagateDebugName() override {}
@@ -756,25 +756,30 @@ index c5b7499..ab493f6 100644
 +	std::vector<uint8_t> _spirvData;	// RewindBox: the SPIR-V, compressed with _spirvAlgorithm (NONE: the words as given)
 +	size_t _spirvWordCount = 0;
 +	MVKConfigCompressionAlgorithm _spirvAlgorithm = MVK_CONFIG_COMPRESSION_ALGORITHM_NONE;
++	uint64_t _spirvOffset = UINT64_MAX;	// RewindBox: where the stored bytes are in the spill file (UINT64_MAX: in _spirvData)
++	size_t _spirvStoredSize = 0;	// RewindBox: how many stored bytes the spill file holds for this module
 +	std::vector<ReflectedInterface> _reflectedInterfaces;	// RewindBox: guarded by _reflectionLock
 +	std::mutex _reflectionLock;
  	MVKShaderLibrary* _directMSLLibrary;
  	MVKShaderModuleKey _key;
      std::mutex _accessLock;
 diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm b/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm
-index 3aa44a4..1fb43e1 100644
+index 3aa44a4..0e728b1 100644
 --- a/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm
 +++ b/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm
-@@ -20,6 +20,8 @@
+@@ -20,6 +20,11 @@
  #include "MVKPipeline.h"
  #include "MVKFoundation.h"
  #include <sys/stat.h>
 +#include <cstdlib>
 +#include <cstring>
++#include <atomic>
++#include <cerrno>
++#include <unistd.h>
  
  using namespace std;
  using namespace mvk;
-@@ -357,11 +359,28 @@ MVKShaderLibrary* MVKShaderLibraryCache::findShaderLibrary(SPIRVToMSLConversionC
+@@ -357,11 +362,28 @@ MVKShaderLibrary* MVKShaderLibraryCache::findShaderLibrary(SPIRVToMSLConversionC
  	return nullptr;
  }
  
@@ -804,7 +809,7 @@ index 3aa44a4..1fb43e1 100644
  	return shLib;
  }
  
-@@ -370,7 +389,7 @@ MVKShaderLibrary* MVKShaderLibraryCache::addShaderLibrary(const SPIRVToMSLConver
+@@ -370,7 +392,7 @@ MVKShaderLibrary* MVKShaderLibraryCache::addShaderLibrary(const SPIRVToMSLConver
  														  const SPIRVToMSLConversionResultInfo& resultInfo,
  														  const MVKCompressor<std::string> compressedMSL) {
  	MVKShaderLibrary* shLib = new MVKShaderLibrary(_owner, resultInfo, compressedMSL);
@@ -813,7 +818,7 @@ index 3aa44a4..1fb43e1 100644
  	return shLib;
  }
  
-@@ -379,7 +398,7 @@ void MVKShaderLibraryCache::merge(MVKShaderLibraryCache* other) {
+@@ -379,7 +401,7 @@ void MVKShaderLibraryCache::merge(MVKShaderLibraryCache* other) {
  	if ( !other ) { return; }
  	for (auto& otherPair : other->_shaderLibraries) {
  		if ( !findShaderLibrary(&otherPair.first) ) {
@@ -822,7 +827,7 @@ index 3aa44a4..1fb43e1 100644
  			_shaderLibraries.back().second->_owner = _owner;
  		}
  	}
-@@ -393,6 +412,82 @@ MVKShaderLibraryCache::~MVKShaderLibraryCache() {
+@@ -393,6 +415,175 @@ MVKShaderLibraryCache::~MVKShaderLibraryCache() {
  #pragma mark -
  #pragma mark MVKShaderModule
  
@@ -838,6 +843,81 @@ index 3aa44a4..1fb43e1 100644
 +static bool rewindBoxRawSPIRV() {
 +	static const bool raw = getenv("MVK_CONFIG_REWINDBOX_RAW_SPIRV") != nullptr;
 +	return raw;
++}
++
++// RewindBox (eighth part): the compressed SPIR-V of a module goes to an unlinked temporary file of the process and is read
++// back for each use (the same uses as above), instead of staying in the heap. IPA 767, Super Smash Bros. Ultimate (22 490
++// modules, 177 conversions in the session): the compressed words were still the first allocation site of the native heap,
++// 358 of 1 023 MiB live; Hogwarts Legacy is ended by iOS in the castle courtyard with the device at 4 % available. Pages
++// of a file are not part of the process footprint and the system can drop them; the file is unlinked as soon as it is
++// created, so the system frees it when the process ends. Writes go at offsets taken atomically (pwrite), reads with pread:
++// any thread. When the file cannot be created, written or would pass 4 GiB, a module keeps its bytes in memory as the
++// sixth part does. MVK_CONFIG_REWINDBOX_SPIRV_IN_MEMORY in the environment keeps them in memory (the control; nothing sets
++// it in the app); the MVK_CONFIG_REWINDBOX_RAW_SPIRV control keeps the words in memory as given.
++__attribute__((used)) static const char kRewindBoxSPIRVSpill[] =
++	"RewindBox SPIR-V spill: a shader module's compressed SPIR-V is kept in an unlinked temporary file, not in the heap";
++
++namespace {
++	class RewindBoxSPIRVSpill {
++	public:
++		static constexpr uint64_t kLimit = 4ull << 30;
++		static constexpr uint64_t kNotSpilled = UINT64_MAX;
++
++		RewindBoxSPIRVSpill() {
++			if (getenv("MVK_CONFIG_REWINDBOX_SPIRV_IN_MEMORY") || getenv("MVK_CONFIG_REWINDBOX_RAW_SPIRV")) { return; }
++			@autoreleasepool {
++				NSString* dir = NSTemporaryDirectory();
++				std::string path = dir ? std::string(dir.fileSystemRepresentation) : std::string("/tmp");
++				if (path.empty() || path.back() != '/') { path += '/'; }
++				path += "rewindbox-spirv-XXXXXX";
++				std::vector<char> name(path.begin(), path.end());
++				name.push_back('\0');
++				int fd = mkstemp(name.data());
++				if (fd >= 0) {
++					unlink(name.data());
++					_fd = fd;
++					MVKLogInfo("RewindBox SPIR-V spill: compressed SPIR-V kept in an unlinked file of %s.", dir ? dir.UTF8String : "/tmp");
++				} else {
++					MVKLogInfo("RewindBox SPIR-V spill: no temporary file (errno %d); SPIR-V kept in memory.", errno);
++				}
++			}
++		}
++
++		/** The offset where all of the bytes were written, or kNotSpilled when they stay in memory. */
++		uint64_t write(const uint8_t* data, size_t size) {
++			if (_fd < 0 || size == 0) { return kNotSpilled; }
++			uint64_t offset = _next.fetch_add(size);
++			if (offset + size > kLimit) { return kNotSpilled; }
++			size_t done = 0;
++			while (done < size) {
++				ssize_t n = pwrite(_fd, data + done, size - done, (off_t)(offset + done));
++				if (n < 0 && errno == EINTR) { continue; }
++				if (n <= 0) { return kNotSpilled; }
++				done += (size_t)n;
++			}
++			return offset;
++		}
++
++		bool read(uint64_t offset, uint8_t* data, size_t size) {
++			size_t done = 0;
++			while (done < size) {
++				ssize_t n = pread(_fd, data + done, size - done, (off_t)(offset + done));
++				if (n < 0 && errno == EINTR) { continue; }
++				if (n <= 0) { return false; }
++				done += (size_t)n;
++			}
++			return true;
++		}
++
++	private:
++		int _fd = -1;
++		std::atomic<uint64_t> _next{0};
++	};
++
++	RewindBoxSPIRVSpill& rewindBoxSPIRVSpill() {
++		static RewindBoxSPIRVSpill spill;
++		return spill;
++	}
 +}
 +
 +void MVKShaderModule::setSPIRV(const uint32_t* spirvCode, size_t wordCount) {
@@ -857,14 +937,32 @@ index 3aa44a4..1fb43e1 100644
 +		stored = byteCount;
 +	}
 +	_spirvData.resize(stored);
-+	_spirvData.shrink_to_fit();
++	// RewindBox (eighth part): the stored bytes to the spill file; kept here when they cannot go there.
++	_spirvOffset = rewindBoxSPIRVSpill().write(_spirvData.data(), stored);
++	if (_spirvOffset != RewindBoxSPIRVSpill::kNotSpilled) {
++		_spirvStoredSize = stored;
++		std::vector<uint8_t>().swap(_spirvData);
++	} else {
++		_spirvData.shrink_to_fit();
++	}
 +}
 +
 +std::vector<uint32_t> MVKShaderModule::getSPIRV() {
 +	std::vector<uint32_t> spirv(_spirvWordCount);
 +	if (_spirvWordCount) {
 +		size_t byteCount = _spirvWordCount * sizeof(uint32_t);
-+		size_t read = mvkDecompress(_spirvData.data(), _spirvData.size(), (uint8_t*)spirv.data(), byteCount, _spirvAlgorithm);
++		std::vector<uint8_t> spilled;
++		const std::vector<uint8_t>* stored = &_spirvData;
++		if (_spirvOffset != RewindBoxSPIRVSpill::kNotSpilled) {
++			spilled.resize(_spirvStoredSize);
++			if ( !rewindBoxSPIRVSpill().read(_spirvOffset, spilled.data(), _spirvStoredSize) ) {
++				reportError(VK_ERROR_INITIALIZATION_FAILED, "RewindBox SPIR-V spill: %zu bytes of SPIR-V not read back (errno %d).", _spirvStoredSize, errno);
++				spirv.clear();
++				return spirv;
++			}
++			stored = &spilled;
++		}
++		size_t read = mvkDecompress(stored->data(), stored->size(), (uint8_t*)spirv.data(), byteCount, _spirvAlgorithm);
 +		if (read != byteCount) {
 +			reportError(VK_ERROR_INITIALIZATION_FAILED, "RewindBox SPIR-V store: %zu of %zu bytes of SPIR-V decompressed.", read, byteCount);
 +			spirv.clear();
@@ -905,7 +1003,7 @@ index 3aa44a4..1fb43e1 100644
  MVKMTLFunction MVKShaderModule::getMTLFunction(SPIRVToMSLConversionConfiguration* pShaderConfig,
  											   const VkSpecializationInfo* pSpecializationInfo,
  											   MVKPipeline* pipeline,
-@@ -421,8 +516,12 @@ bool MVKShaderModule::convert(SPIRVToMSLConversionConfiguration* pShaderConfig,
+@@ -421,8 +612,12 @@ bool MVKShaderModule::convert(SPIRVToMSLConversionConfiguration* pShaderConfig,
  	bool shouldLogCode = mvkCfg.debugMode;
  	bool shouldLogEstimatedGLSL = shouldLogCode && mvkCfg.shaderLogEstimatedGLSL;
  
@@ -919,7 +1017,7 @@ index 3aa44a4..1fb43e1 100644
  	addPerformanceInterval(getPerformanceStats().shaderCompilation.spirvToMSL, startTime);
  
  	const char* dumpDir = getMVKConfig().shaderDumpDir;
-@@ -444,7 +543,7 @@ bool MVKShaderModule::convert(SPIRVToMSLConversionConfiguration* pShaderConfig,
+@@ -444,7 +639,7 @@ bool MVKShaderModule::convert(SPIRVToMSLConversionConfiguration* pShaderConfig,
  		snprintf(path, sizeof(path), "%s/shader%s-%016zx.spv", dumpDir, type, _key.codeHash);
  		FILE* file = fopen(path, "wb");
  		if (file) {
@@ -928,7 +1026,7 @@ index 3aa44a4..1fb43e1 100644
  			fclose(file);
  		}
  		snprintf(path, sizeof(path), "%s/shader%s-%016zx.metal", dumpDir, type, _key.codeHash);
-@@ -504,7 +603,7 @@ MVKShaderModule::MVKShaderModule(MVKDevice* device,
+@@ -504,7 +699,7 @@ MVKShaderModule::MVKShaderModule(MVKDevice* device,
  			codeHash = mvkHash(pCreateInfo->pCode, spvCount);
  			addPerformanceInterval(getPerformanceStats().shaderCompilation.hashShaderCode, startTime);
  
