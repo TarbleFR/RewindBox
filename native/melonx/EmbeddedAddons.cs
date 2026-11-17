@@ -12,6 +12,7 @@ using LibHac.Fs;
 using LibHac.Fs.Fsa;
 using LibHac.FsSystem;
 using LibHac.Ncm;
+using LibHac.Ns;
 using LibHac.Tools.Fs;
 using LibHac.Tools.FsSystem.NcaUtils;
 using Ryujinx.HLE.FileSystem;
@@ -40,15 +41,20 @@ partial class Library
         if (operation == 4)
         {
             var verifiedTitles = new List<ulong>();
+            var controls = new Dictionary<ulong, Nca>();
             foreach (var pair in pfs.GetContentData(ContentMetaType.Patch, _virtualFileSystem, IntegrityCheckLevel.None))
             {
                 if (requested.HasValue && (pair.Key & ~0x1FFFUL) != requested.Value) continue;
                 var patch = pair.Value.GetNcaByType(_virtualFileSystem.KeySet, LibHac.Ncm.ContentType.Program, 0);
                 var control = pair.Value.GetNcaByType(_virtualFileSystem.KeySet, LibHac.Ncm.ContentType.Control, 0);
-                if (patch != null && control != null) verifiedTitles.Add(pair.Key);
+                if (patch != null && control != null) { verifiedTitles.Add(pair.Key); controls[pair.Key] = control; }
             }
             titleId = EmbeddedAddonSelection.SelectUpdate(verifiedTitles, requested);
             json.WriteString("kind", "update");
+            // RewindBox (Nextendo data): the update's display version, from its Control NCA's /control.nacp, so the host can
+            // compare the installed version with the one Nextendo's catalog requires. Omitted when unreadable; never throws.
+            string displayVersion = UpdateDisplayVersion(controls, titleId);
+            if (displayVersion != null) json.WriteString("displayVersion", displayVersion);
         }
         else
         {
@@ -73,5 +79,35 @@ partial class Library
             json.WriteEndArray();
         }
         json.WriteString("baseTitleId", titleId.ToString("x16"));
+    }
+
+    // The display version of the selected update: the Control NCA of the update for the base title's first program
+    // (base | 0x800) when there is one, otherwise of any update of that base title. DisplayVersion is one field of the
+    // NACP (not per language); NULs and blanks are trimmed. Null when nothing readable is found.
+    internal static string UpdateDisplayVersion(Dictionary<ulong, Nca> controls, ulong baseTitleId)
+    {
+        var ordered = new List<Nca>();
+        if (controls.TryGetValue(baseTitleId | 0x800UL, out Nca first)) ordered.Add(first);
+        foreach (var pair in controls)
+            if ((pair.Key & ~0x1FFFUL) == baseTitleId && pair.Key != (baseTitleId | 0x800UL)) ordered.Add(pair.Value);
+        foreach (Nca control in ordered)
+        {
+            try
+            {
+                var nacp = new BlitStruct<ApplicationControlProperty>(1);
+                using var file = new UniqueRef<IFile>();
+                if (control.OpenFileSystem(NcaSectionType.Data, IntegrityCheckLevel.None)
+                        .OpenFile(ref file.Ref, "/control.nacp".ToU8Span(), OpenMode.Read).IsFailure()) continue;
+                if (file.Get.Read(out long read, 0, nacp.ByteSpan, ReadOption.None).IsFailure() || read < nacp.ByteSpan.Length) continue;
+                string version = nacp.Value.DisplayVersionString.ToString()?.TrimEnd('\0').Trim();
+                if (!string.IsNullOrEmpty(version) && version.Length <= 0x10) return version;
+            }
+            catch (Exception)
+            {
+                // An unreadable control leaves the version out; the inspection itself stands.
+            }
+        }
+
+        return null;
     }
 }

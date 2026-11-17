@@ -30,6 +30,12 @@ namespace Ryujinx.HLE
     ///     names the host;
     ///   - a refused or failed TLS handshake, to those addresses or any other host, is the game's connection error
     ///     (ConnectionAbort, also for a later read or write), never an exception through the service.
+    /// RewindBox (adapt_nextendo_data), optional parts of the request: the host's folder of the launched title's BCAT data
+    /// (bcatDirectory), served as its delivery cache while the session plays online (EmbeddedDeliveryCache, Horizon); the
+    /// account's BAAS user id (nsa, Animal Crossing: New Horizons), then the account id the game reads instead of the PID;
+    /// and the versions Nextendo's signed game catalog accepts for the title (acceptedVersions), journaled with the
+    /// installed one when the game first asks for its id_token. A malformed optional part is left out (journaled); it
+    /// never makes the session offline.
     /// Without a configuration (the default) nothing above applies. The game token is kept in memory only: it is never
     /// logged and never written to a file.
     /// </summary>
@@ -46,7 +52,15 @@ namespace Ryujinx.HLE
             public long Pid;
             public IPAddress Server;
             public IPAddress Nat;
+            public string BcatDirectory; // adapt_nextendo_data
+            public long? Nsa; // adapt_nextendo_data
+            public string[] AcceptedVersions; // adapt_nextendo_data
+            public int BcatFiles = -1; // adapt_nextendo_data: files served at the session's start, -1 none
+            public int Journaled; // adapt_nextendo_data: the session's line is written once
         }
+
+        public const int MaxAcceptedVersions = 16; // adapt_nextendo_data
+        public const int MaxVersionLength = 32; // adapt_nextendo_data
 
         private static volatile Settings _settings; // the running session's
         private static volatile Settings _pending; // the host's last request, for the next session
@@ -205,6 +219,7 @@ zdAq1CTeFUrJ6r/siw==
             _settings = null;
             _pending = null;
             lock (_resolvedGate) _resolved.Clear();
+            Ryujinx.Horizon.Bcat.Ipc.EmbeddedDeliveryCache.Clear(); // adapt_nextendo_data
         }
 
         /// <summary>
@@ -215,9 +230,18 @@ zdAq1CTeFUrJ6r/siw==
         public static void BeginSession(bool firstProgram)
         {
             if (!firstProgram) return;
-            _settings = _pending;
+            Settings settings = _pending;
+            _settings = settings;
             _pending = null;
             lock (_resolvedGate) _resolved.Clear();
+
+            // adapt_nextendo_data: the title's BCAT data, served while this session plays online (nothing offline).
+            int files = Ryujinx.Horizon.Bcat.Ipc.EmbeddedDeliveryCache.Serve(settings?.BcatDirectory, out string reason);
+            if (settings != null) settings.BcatFiles = settings.BcatDirectory == null ? -1 : files;
+            if (settings?.BcatDirectory != null && reason != null)
+            {
+                Logger.Warning?.Print(LogClass.ServiceBcat, "Online play: BCAT data " + (files < 0 ? "not served: " : "served; ") + reason + ".");
+            }
         }
 
         /// <summary>
@@ -246,8 +270,110 @@ zdAq1CTeFUrJ6r/siw==
             IPAddress server = Address(Text(root, "serverAddress"), "serverAddress");
             IPAddress nat = Address(Text(root, "natAddress"), "natAddress");
             if (server.Equals(nat)) throw new FormatException("Online configuration: the server and NAT test addresses must differ.");
-            _pending = new Settings { NexToken = token, Pid = pid, Server = server, Nat = nat };
+            _pending = new Settings
+            {
+                NexToken = token, Pid = pid, Server = server, Nat = nat,
+                BcatDirectory = BcatDirectory(root), Nsa = Nsa(root), AcceptedVersions = AcceptedVersions(root),
+            };
             return true;
+        }
+
+        // adapt_nextendo_data: the optional parts. A malformed one is left out and journaled (without its value); the rest
+        // of the request stands.
+        private static void Dropped(string name) =>
+            Logger.Warning?.Print(LogClass.ServiceAcc, "Online play: the request's " + name + " is malformed and left out.");
+
+        internal static string BcatDirectory(JsonElement root)
+        {
+            if (!root.TryGetProperty("bcatDirectory", out JsonElement value)) return null;
+            string text = value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+            string name = text == null ? null : System.IO.Path.GetFileName(System.IO.Path.TrimEndingDirectorySeparator(text));
+            if (text == null || text.Length > 1024 || !System.IO.Path.IsPathFullyQualified(text) ||
+                Array.IndexOf(text.Split('/', '\\'), "..") >= 0 || name == null || name.Length != 16 || !IsLowerHex(name))
+            {
+                Dropped("bcatDirectory");
+                return null;
+            }
+
+            return text;
+        }
+
+        internal static long? Nsa(JsonElement root)
+        {
+            if (!root.TryGetProperty("nsa", out JsonElement value)) return null;
+            string text = value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+            if (text == null || text.Length != 16 || !IsLowerHex(text) ||
+                !ulong.TryParse(text, System.Globalization.NumberStyles.AllowHexSpecifier, null, out ulong nsa) || nsa == 0)
+            {
+                Dropped("nsa");
+                return null;
+            }
+
+            return unchecked((long)nsa);
+        }
+
+        internal static string[] AcceptedVersions(JsonElement root)
+        {
+            if (!root.TryGetProperty("acceptedVersions", out JsonElement value)) return null;
+            if (value.ValueKind != JsonValueKind.Array || value.GetArrayLength() > MaxAcceptedVersions)
+            {
+                Dropped("acceptedVersions");
+                return null;
+            }
+
+            List<string> versions = [];
+            foreach (JsonElement item in value.EnumerateArray())
+            {
+                string text = item.ValueKind == JsonValueKind.String ? item.GetString() : null;
+                if (string.IsNullOrWhiteSpace(text) || text.Length > MaxVersionLength)
+                {
+                    Dropped("acceptedVersions");
+                    return null;
+                }
+
+                foreach (char c in text)
+                {
+                    if (c <= ' ' || c > '~')
+                    {
+                        Dropped("acceptedVersions");
+                        return null;
+                    }
+                }
+
+                versions.Add(text);
+            }
+
+            return versions.ToArray();
+        }
+
+        private static bool IsLowerHex(string text)
+        {
+            foreach (char c in text)
+                if (!(c is >= '0' and <= '9' or >= 'a' and <= 'f')) return false;
+            return true;
+        }
+
+        /// <summary>
+        /// adapt_nextendo_data: the session's line, written once when the game first asks for its id_token (the installed
+        /// version is known then): the title, its installed version and whether the catalog accepts it, the BCAT data served
+        /// and the account id used. No token or account value is written. Returns the version, as the id_token takes it.
+        /// </summary>
+        public static string NoteVersion(string titleId, string displayVersion)
+        {
+            Settings settings = _settings;
+            if (settings == null) return displayVersion;
+            if (System.Threading.Interlocked.Exchange(ref settings.Journaled, 1) == 0)
+            {
+                string version = displayVersion?.Trim();
+                string accepted = settings.AcceptedVersions == null ? "unknown (no catalog entry)" :
+                    Array.IndexOf(settings.AcceptedVersions, version) >= 0 ? "yes" : "no (accepted: " + string.Join(", ", settings.AcceptedVersions) + ")";
+                string bcat = settings.BcatDirectory == null ? "none" : settings.BcatFiles < 0 ? "refused" : settings.BcatFiles + " files";
+                Logger.Info?.Print(LogClass.ServiceAcc,
+                    $"Online play: title {titleId}, installed version {version ?? "unknown"}, accepted by Nextendo's catalog: {accepted}; " +
+                    $"BCAT data: {bcat}; account id: {(settings.Nsa != null ? "the account's NSA" : "the PID")} (adapt_nextendo_data)");
+            }
+
+            return displayVersion;
         }
 
         private static string Text(JsonElement root, string name) =>
@@ -300,11 +426,12 @@ zdAq1CTeFUrJ6r/siw==
             lock (_resolvedGate) return _resolved.TryGetValue(address, out string host) ? host : null;
         }
 
-        /// <summary>The network service account id the game reads: the PID online, the engine's own value otherwise.</summary>
+        /// <summary>The network service account id the game reads: the NSA or the PID online, the engine's own value otherwise.</summary>
         public static long AccountId(long offline)
         {
             Settings settings = _settings;
-            return settings == null ? offline : settings.Pid;
+            // adapt_nextendo_data: the account's NSA when the request gives one (Animal Crossing: New Horizons).
+            return settings == null ? offline : settings.Nsa ?? settings.Pid;
         }
 
         /// <summary>
