@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "1df78c52fdbdc2cccb3fa75074b5b12dc3cd2281",
-  "run": 44075543918,
-  "job": 134012469621,
+  "source": "9546deb792b6e24ed29c7667abed435a82ab01f2",
+  "run": 44096192928,
+  "job": 134083832546,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 14324239963,
-  "name": "MeloNX-engine-1df78c52fdbdc2cccb3fa75074b5b12dc3cd2281",
-  "bytes": 100674538,
-  "sha256": "f7e042184798394b9e5218228d568567bf8641dd5f4897665f3e88699c302b1d",
-  "expiresAt": "2027-02-15T11:36:27Z",
+  "artifact": 14334228332,
+  "name": "MeloNX-engine-9546deb792b6e24ed29c7667abed435a82ab01f2",
+  "bytes": 100677632,
+  "sha256": "5f2067c267b05e62300ad7e46061a6319fbdb7d34f84c081834dcede0060c69a",
+  "expiresAt": "2027-02-15T13:47:06Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "4e6873210f20860d3c4f23e9b3c172512f1515a4fb4da568d60fff7ae73421a8",
-      "bytes": 38653832
+      "sha256": "dcd953d83380144c09fe3725005a9c044e0761562754adca48d18a406f1f5223",
+      "bytes": 38653848
     },
     "iossimulator-arm64": {
-      "sha256": "c373dfe89af5f87b8aee77635528fd9b9c3c849cee30aef4472d0f5d4b98e620",
-      "bytes": 38972424
+      "sha256": "7b3736328a0de7672587fd8a90db47b594d67c6a97f42aabeb5e10d0d75d4c33",
+      "bytes": 38972440
     }
   },
   "identities": {
-    "ios-arm64": "a6e02f9f200454c24620549209b15593a09eb7e8946ac5a6c9dbe5b836847498",
-    "iossimulator-arm64": "c7316c7d00da1eb8ddd540bfa8e91dccb92985c63c8844b94c9a9800c45482d1"
+    "ios-arm64": "9e94cc568d3ed96ace174b7d8ec6c96b4ac0771b1b2e2c8abb2587559740640b",
+    "iossimulator-arm64": "7efb10119aade240691830c37276fdbb787c9c014c2ef7af3002b7fb409b0473"
   },
-  "contractSha256": "40b5f0897963d382fa899f47fdbff16c42bc62ed1665fed27d93bc5e40a049e4",
-  "resultSha256": "9fde166fcb5b04d3ff314c3d2f8880b7d7e6ef2381a82ad05011d49b3b8db3e9",
-  "packagedFingerprint": "fa5ce588282f30c89f2cee2db47649b5d709e79a27237685b5302713d0c705a4",
+  "contractSha256": "de62252fe386ed97f5228355592d6964da1d54d77a36d1216bbf495daa7ef758",
+  "resultSha256": "a9067621996d6f51a7debd3460339773ce603c110ddde78022955eb6f7edc028",
+  "packagedFingerprint": "fb85d9564b183c7abb4071a1126fae8ed35d82430b13bf309bf6ae4a719ff34c",
   "replaces": {
-    "source": "58319c2cd3c085779cbb66fa76583e277519bbdd",
-    "run": 44005156898,
-    "artifact": 14294757273,
-    "packagedFingerprint": "f9670c15400ed910d27563feb65ec7cf58c28c7e197568d153333ec1c71b3a6e",
-    "reason": "After IPA 767, every title, from the IPA 767 journals (Hogwarts Legacy ended by the device running out of memory in the castle courtyard; Super Smash Bros. Ultimate: 490 MiB free in the large object heap for eight minutes, then a game-initiated svcBreak after 29 minutes with no cause in any journal): adapt_loh_compaction_request (at a host pressure report, with 256 MiB or more free in the large object heap and the device at 15 % or less, the collector's next blocking collection also compacts that heap; no collection is started) and adapt_guest_break_context (the game's own svcBreak writes its reason, info bytes, thread, control registers and guest stack into the Core journal); the MoltenVK eight-part recipe patch as an input. Contract 40b5f089, 114 gates on the final preparation (Linux x86_64), build-smoke route. No iPhone gameplay, stutter, frame rate or memory gain is claimed."
+    "source": "1df78c52fdbdc2cccb3fa75074b5b12dc3cd2281",
+    "run": 44075543918,
+    "artifact": 14324239963,
+    "packagedFingerprint": "fa5ce588282f30c89f2cee2db47649b5d709e79a27237685b5302713d0c705a4",
+    "reason": "After IPA 771, every title, memory: adapt_shader_load_binary_release (the shader cache load keeps no host code of the programs it creates from the host cache; a rebuild reads it back from the host cache files; SSBU about 695 MiB and Hogwarts about 205 MiB of SPIR-V no longer held in managed memory for the length of the load). Contract de62252f, 115 gates on the final preparation (Linux x86_64), build-smoke route. No iPhone gameplay, stutter, frame rate or memory gain is claimed."
   }
 }
