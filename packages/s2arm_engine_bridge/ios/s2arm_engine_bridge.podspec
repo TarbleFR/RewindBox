@@ -19,7 +19,7 @@ See docs/s2arm-engine-bridge.md.
   s.dependency 'Flutter'
   s.platform = :ios, '18.0'
   s.ios.deployment_target = '18.0'
-  s.frameworks = 'Foundation', 'UIKit', 'Security', 'UniformTypeIdentifiers'
+  s.frameworks = 'Foundation', 'UIKit', 'Security'
   # rb_s2arm_* come from S2ArmPrepare.xcframework and the s2a_rb_guest_* entry points from S2ArmEngine.framework. Neither is
   # in Git (nothing of S2Arm lives in this repo): the delivery supplies both from their pinned producer runs
   # (build-utils/s2arm/engine-pin.json, docs/s2arm-engine-bridge.md).
