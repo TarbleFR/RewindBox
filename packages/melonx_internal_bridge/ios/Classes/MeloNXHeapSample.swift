@@ -5,8 +5,7 @@ import Darwin
 // the default malloc zone holds 907 MiB of a 4 640 MiB footprint, most of it compressed, and no journal says whose
 // it is; the footprint is already 2.7 to 2.9 GiB at the first frame.
 //
-// From the start of a session (before the engine) and for 120 s, or until the session ends or the process receives its
-// first memory warning if sooner (the reason in the header: window, sessionEnd, memoryWarning), the sampler of
+// From the start of a session (before the engine) and for 120 s, or until the session ends if sooner, the sampler of
 // MeloNXHeapSampler.m is libmalloc's logging hook: it records one block in every 256 KiB allocated on average (a
 // block of 256 KiB or more always) with the return addresses of its call, and forgets it when it is freed. At the end
 // of the window the hook is removed and the call stacks are written by the bytes still allocated:
@@ -71,7 +70,6 @@ final class MeloNXHeapSample {
     private var started = 0.0
     private var path = ""
     private var context: [String:String] = [:]
-    private var warningObserver: NSObjectProtocol?
 
     /// At the start of a session, before the engine is launched (the hook is set when this returns). A session that
     /// begins while a window is open joins it.
@@ -88,10 +86,6 @@ final class MeloNXHeapSample {
                 return
             }
             open = true; window += 1; started = ProcessInfo.processInfo.systemUptime; self.path = path; self.context = owned
-            // The process's memory warning ends the window (observed here, not forwarded by the session screen).
-            warningObserver = NotificationCenter.default.addObserver(forName:MeloNXMemoryBreakdown.memoryWarningName, object:nil, queue:nil) { [weak self] _ in
-                self?.memoryWarning()
-            }
             let mine = window
             queue.asyncAfter(deadline:.now() + seconds) { [self] in if open && window == mine { finish("window") } }
         }
@@ -100,15 +94,8 @@ final class MeloNXHeapSample {
     /// At the end of the session: an open window ends with it.
     func end() { queue.async { [self] in if open { finish("sessionEnd") } } }
 
-    /// At the process's first memory warning of the session: an open window ends with it, so its report is written
-    /// before iOS may end the process. IPA 767, Hogwarts Legacy: the process was ended about 95 s into the session, in
-    /// the castle courtyard at 4 % device available, before the 120 s window closed; its native heap was never reported.
-    func memoryWarning() { queue.async { [self] in if open { finish("memoryWarning") } } }
-
     private func finish(_ reason: String) {
         open = false
-        if let warningObserver { NotificationCenter.default.removeObserver(warningObserver) }
-        warningObserver = nil
         MeloNXHeapSamplerLink.stop()
         let seconds = Int((ProcessInfo.processInfo.systemUptime - started).rounded())
         Self.write(Self.lines(reason:reason, seconds:seconds), path:path, context:context)
