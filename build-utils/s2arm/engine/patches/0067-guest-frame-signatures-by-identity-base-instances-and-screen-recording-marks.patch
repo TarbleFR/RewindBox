@@ -1,14 +1,14 @@
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
-index c887d01..209f545 100644
+index 0371a61..d53e97e 100644
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
-@@ -2336,13 +2336,25 @@ static void gpu_hang_inject(void) {
+@@ -2336,14 +2336,40 @@ static void gpu_hang_inject(void) {
  // fsig_judge writes a line when a frame's draw list differs from the frames before and after it while those two agree, and another when three frames agree on the list but
  // the middle one's GPU-written words differ. A capture (cap_end) writes the ring to frames.txt in its folder. S2A_RB_FSIG=0 turns the records off.
  // Cost: three multiplies and a few stores a draw on the replaying thread, a memory read a GPU-written word in the completion handler. Not measured on a device
 -typedef struct { _Atomic uint64_t frame; uint64_t hash; _Atomic uint64_t ghash, gsum, ts0, ts1; uint32_t draws, ind, mdi, mesh, skipped, passes, pieces, disp, texnew, taken, w, h, gwords, dur, rcn, rcoff, rcunk, rcclr, rcdrw; uint64_t rchash; } fsig_t;   // frame: its number + 1 (0 = empty); dur (patch 0061): microseconds from its first replayed command to the next frame's
 +typedef struct { _Atomic uint64_t frame; uint64_t hash; _Atomic uint64_t ghash, gsum, ts0, ts1; uint32_t draws, ind, mdi, mesh, skipped, passes, pieces, disp, texnew, taken, w, h, gwords, dur, rcn, rcoff, rcunk, rcclr, rcdrw; uint64_t rchash;
-+                 uint32_t dead, fresh; _Atomic uint64_t khash, bhash; _Atomic uint32_t wzero, binz, mdxn, mdxdiff; uint32_t wlost, wextra, wmoved, plost, pextra, pmoved; uint64_t svs, sfs; } fsig_t;   // frame: its number + 1 (0 = empty); dur (patch 0061): microseconds from its first replayed command to the next frame's; dead to sfs: RewindBox (patch 0067), see fsig_snap_write
++                 uint32_t dead, fresh; _Atomic uint64_t khash, bhash; _Atomic uint32_t wzero, binz, mdxn, mdxdiff, wlate; uint32_t wlost, wextra, wmoved, plost, pextra, pmoved; uint64_t svs, sfs; } fsig_t;   // frame: its number + 1 (0 = empty); dur (patch 0061): microseconds from its first replayed command to the next frame's; dead to sfs: RewindBox (patch 0067), see fsig_snap_write; wlate (RewindBox (patch 0067), integration review): fsig_wlate
  static void rb_auto_probe(uint64_t f, uint32_t dur_us, uint32_t draws);   // RewindBox (patch 0061), defined with the frame capture
  enum { FSIG_N = 1024, FSIG_ADDR = 2048 };
  static fsig_t g_fsig[FSIG_N];
@@ -18,6 +18,7 @@ index c887d01..209f545 100644
 +static fsig_wx g_fsig_wx[FSIG_ADDR];   // RewindBox (patch 0067): the piece being replayed: for each word in g_fsig_addr, for its handler
 +static uint64_t g_fsig_jump_pass_per, g_fsig_jump_word_per;   // RewindBox (patch 0067): frames that are one-frame jumps only through things that repeat at a period (fpd_wper, fpd_pper), counted apart
 +static uint64_t g_fsig_single_word, g_fsig_single_pass;   // RewindBox (patch 0067): frames with indirect draws (passes) that both neighbours have and they lack, or that only they have, not periodic
++static uint64_t g_fsig_late[4];   // RewindBox (patch 0067): frames whose word tests used words read late (fsig_wlate), counted apart from those above: one-frame jumps in the words, jumps only through periodic words, frames with single-frame indirect draws, other words between two frames that agree. The replaying thread only
 +static _Atomic uint64_t g_mdxchk_all, g_mdxchk_diff;   // RewindBox (patch 0067): multi-draw counts checked (mdx_run), and those the GPU read otherwise later in the piece
 +static _Atomic int g_fsig_said_mdb;   // RewindBox (patch 0067): the line listing a multi-draw's base instances, once a process
  static int fsig_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_FSIG"); v = !(e && !strcmp(e, "0")); } return v; }
@@ -27,9 +28,23 @@ index c887d01..209f545 100644
 +static int fsig_more_on(void) { static int v = -1; if (v < 0) v = rb_env_on("S2A_RB_FSIG_MORE"); return v; }   // RewindBox (patch 0067): textures a draw samples, condition addresses, live textures dropped
 +static int fsig_bg_on(void) { static int v = -1; if (v < 0) v = rb_env_on("S2A_RB_FSIG_BG"); return v; }   // RewindBox (patch 0067): dumps written on a background queue (fsig_dump, rb_bg_write)
  static fsig_t *fsig_at(uint64_t f) { fsig_t *c = &g_fsig[f % FSIG_N]; return atomic_load_explicit(&c->frame, memory_order_relaxed) == f + 1 ? c : NULL; }
++// RewindBox (patch 0067): integration review. The handler of nvn_be_sub_commit reads a piece's GPU-written words and their records' bases from guest memory once the piece has run,
++//   and nothing keeps the next main command buffer from running meanwhile (nvn_be_sub_begin does not wait for g_done): its culling can rewrite them. No copy is taken at the
++//   piece's end (mdxchk_after copies only the multi-draw counts it checks), so each frame counts the pieces whose words were read while a later main command buffer was
++//   committed and not reported back (wlate: g_seg_inflight above 0 once a frame's words of the piece are read; frames.txt, the 300-frame line). The word tests of a frame (the
++//   exact one, the jumps, the single-frame draws) whose own words or a neighbour's were read so count apart (g_fsig_late), with "read late" in their lines. Values are not changed.
++//   A wait of mdi_wait commits a main command buffer that g_seg_inflight does not count: a read that overlaps one is not marked. S2A_RB_FSIG_LATE=0 counts such frames with the others, as before
++static int fsig_late_on(void) { static int v = -1; if (v < 0) v = rb_env_on("S2A_RB_FSIG_LATE"); return v; }   // RewindBox (patch 0067): the replaying thread
++static int fsig_wlate(uint64_t g) {   // RewindBox (patch 0067): frame g's word tests set it against g - 1 and g + 1: whether one of the three had words read late (the replaying thread)
++    if (!fsig_late_on()) return 0;
++    for (uint64_t h = g ? g - 1 : 0; h <= g + 1; h++) { fsig_t *c = fsig_at(h); if (c && atomic_load(&c->wlate)) return 1; }
++    return 0;
++}
++static const char *fsig_late_txt(int wl) { return wl ? " (read late: the words of this frame or of a neighbour were read while a later main command buffer could run, so it is counted apart)" : ""; }   // RewindBox (patch 0067)
  // RewindBox (patch 0063): what differs in such a frame. The records above say that a frame's draw list, or the words the GPU wrote for it, are not the neighbours'; they do not
  //   say where. For the last FPD_FRAMES frames each pass keeps its target's size and format, its draws and a hash of them (as the frame's: shaders and direct counts, in
-@@ -2362,33 +2374,162 @@ static fsig_t *fsig_at(uint64_t f) { fsig_t *c = &g_fsig[f % FSIG_N]; return ato
+ //   order), and each GPU-written word its value. When fsig_judge finds an odd frame it writes a second line: the passes whose draws differ from the frame before (the first
+@@ -2362,33 +2388,162 @@ static fsig_t *fsig_at(uint64_t f) { fsig_t *c = &g_fsig[f % FSIG_N]; return ato
  //   measures how far apart two frames are (the passes' draw counts; the GPU-written words) and writes a line when a frame is far from both its neighbours while those two
  //   are close to each other (fpd_jump).
  //   Cost: 32 bytes stored a draw (2.3 MB of zero-filled storage, about a megabyte of it touched), two passes over 2,048 words and 256 passes a frame. Not measured on a device
@@ -197,7 +212,7 @@ index c887d01..209f545 100644
      uint32_t nd = 0; size_t o = 0; if (nw > FSIG_ADDR) nw = FSIG_ADDR; if (n) out[0] = 0;
      for (uint32_t i = 0; i < nw; i++) {
          uint32_t x = atomic_load_explicit(&a->word[i], memory_order_relaxed), y = atomic_load_explicit(&b->word[i], memory_order_relaxed), z = atomic_load_explicit(&c->word[i], memory_order_relaxed);
-@@ -2400,19 +2541,29 @@ static void fpd_words(fpd_t *a, fpd_t *b, fpd_t *c, uint32_t nw, char *out, size
+@@ -2400,19 +2555,29 @@ static void fpd_words(fpd_t *a, fpd_t *b, fpd_t *c, uint32_t nw, char *out, size
  // RewindBox (patch 0064): the draws of pass `pass` that frame a has and frame b has not, and the other way round (b is the odd frame). The lists are mostly the same in the
  //   same order: what they share at both ends is left aside, and the rest is matched draw for draw whatever the order (512 a side at most)
  static int fpd_draw_same(const fpd_draw *x, const fpd_draw *y) { return x->vs == y->vs && x->fs == y->fs && x->count == y->count && x->instances == y->instances && x->kind == y->kind; }
@@ -236,7 +251,7 @@ index c887d01..209f545 100644
      uint32_t na = a1 - a0, nb = b1 - b0;
      while (a0 < a1 && b0 < b1 && fpd_draw_same(&a->d[a0], &b->d[b0])) { a0++; b0++; }   // the same start
      while (a1 > a0 && b1 > b0 && fpd_draw_same(&a->d[a1 - 1], &b->d[b1 - 1])) { a1--; b1--; }   // the same end
-@@ -2423,9 +2574,9 @@ static void fpd_draws(const fpd_t *a, const fpd_t *b, uint32_t pass, char *out,
+@@ -2423,9 +2588,9 @@ static void fpd_draws(const fpd_t *a, const fpd_t *b, uint32_t pass, char *out,
      if (o < n) o += (size_t)snprintf(out + o, n - o, "; only in the frame before:");
      for (uint32_t i = a0; i < a1; i++) { uint32_t j = b0; while (j < b1 && (used[j - b0] || !fpd_draw_same(&a->d[i], &b->d[j]))) j++;
          if (j < b1) { used[j - b0] = 1; continue; }
@@ -248,7 +263,7 @@ index c887d01..209f545 100644
      if (o < n) snprintf(out + o, n - o, " %u in all", only_b);
  }
  // How far apart two frames are: the passes' draw counts and what conditions left out in them, place by place (and the passes one has more), and the GPU-written words,
-@@ -2443,11 +2594,107 @@ static uint64_t fpd_dist_word(fpd_t *a, fpd_t *b, uint32_t nw) {
+@@ -2443,11 +2608,107 @@ static uint64_t fpd_dist_word(fpd_t *a, fpd_t *b, uint32_t nw) {
      return d;
  }
  static int fpd_jump(uint64_t ab, uint64_t bc, uint64_t ac) { uint64_t far = 4 * ac + 8; return ac && ab >= far && bc >= far; }   // ac == 0 is the exact test's case (the neighbours agree), which has its own lines
@@ -324,10 +339,10 @@ index c887d01..209f545 100644
 +//   The odd frame's indirect draws (GPU-written words) and passes that both neighbours have and it lacks, or that only it has, or whose value jumps in it alone, not periodic,
 +//   are counted in its record (frames.txt, the 300-frame line), the first one's shader keys kept, and named here whatever the distances say (the first 24 frames, then at
 +//   powers of two)
-+static void fsig_single_word(fpd_t *da, fpd_t *db, uint64_t bf, fsig_t *r, const uint32_t n[3]) {
++static void fsig_single_word(fpd_t *da, fpd_t *db, uint64_t bf, fsig_t *r, const uint32_t n[3], int wl) {   // RewindBox (patch 0067): wl, integration review: words read late (fsig_wlate), counted apart
 +    for (int k = 0; k < g_fpd_nit; k++) { const fpd_item *t = &g_fpd_it[k]; if (t->per) continue; fpd_t *w = t->kind ? db : da; uint16_t di = w->wdraw[t->i];
 +        if (di < w->nd && di < FPD_DRAWS) { r->svs = w->d[di].vs; r->sfs = w->d[di].fs; } break; }
-+    uint64_t k = ++g_fsig_single_word; if (!(k <= 24 || !(k & (k - 1)))) return;
++    uint64_t k = wl ? ++g_fsig_late[2] : ++g_fsig_single_word; if (!(k <= 24 || !(k & (k - 1)))) return;   // RewindBox (patch 0067): wl (integration review)
 +    char det[1400]; size_t o = 0; int shown = 0; det[0] = 0;
 +    for (int i = 0; i < g_fpd_nit && shown < 6 && o < sizeof det; i++) { const fpd_item *t = &g_fpd_it[i]; if (t->per) continue; shown++;
 +        o += (size_t)snprintf(det + o, sizeof det - o, "%s %s", shown > 1 ? ";" : "", t->kind == 0 ? "missing" : t->kind == 1 ? "only in it" : "jumps in it"); if (o >= sizeof det) break;
@@ -336,7 +351,7 @@ index c887d01..209f545 100644
 +           : t->kind == 1 ? (size_t)snprintf(det + o, sizeof det - o, ", value %llu", (unsigned long long)(t->ab - 1))
 +           : (size_t)snprintf(det + o, sizeof det - o, ", value %u, %llu from the frame before's, %llu from the frame after's", atomic_load_explicit(&db->word[t->i], memory_order_relaxed), (unsigned long long)t->ab, (unsigned long long)t->bc); }
 +    MLOG("RewindBox: frame signature: frame %llu lacks %u indirect draws that both its neighbours have, has %u that neither has, and %u whose GPU-written word in it alone is far from both neighbours' "
-+         "(words matched by record address and shaders; none repeating at a period):%s; %llu such frames of %llu so far", (unsigned long long)bf, n[0], n[1], n[2], det, (unsigned long long)k, (unsigned long long)g_fsig_frames);
++         "(words matched by record address and shaders; none repeating at a period):%s%s; %llu such frames of %llu so far", (unsigned long long)bf, n[0], n[1], n[2], det, fsig_late_txt(wl), (unsigned long long)k, (unsigned long long)g_fsig_frames);   // RewindBox (patch 0067): wl (integration review)
 +}
 +static void fsig_single_pass(fpd_t *da, fpd_t *db, uint64_t bf, const uint32_t n[3]) {
 +    uint64_t k = ++g_fsig_single_pass; if (!(k <= 24 || !(k & (k - 1)))) return;
@@ -359,7 +374,7 @@ index c887d01..209f545 100644
  }
  static void fsig_judge(uint64_t f) {   // frame f's record has just been opened: the three frames before it are whole; GPU-written words are judged two frames later (their handlers have run)
      if (f < 8) return;
-@@ -2474,28 +2721,59 @@ static void fsig_judge(uint64_t f) {   // frame f's record has just been opened:
+@@ -2474,43 +2735,84 @@ static void fsig_judge(uint64_t f) {   // frame f's record has just been opened:
      }
      if (a && b && c && z && a->draws >= 64) {
          fpd_t *da = fpd_at(f - 3), *db = fpd_at(f - 2), *dc = fpd_at(f - 1), *dz = fpd_at(f - 4);
@@ -398,42 +413,51 @@ index c887d01..209f545 100644
      }
      a = fsig_at(f - 5); b = fsig_at(f - 4); c = fsig_at(f - 3); z = fsig_at(f - 6);
 -    if (a && b && c && z && a->draws >= 64 && a->gwords && b->gwords && c->gwords && !(a->hash == b->hash && b->hash == c->hash && atomic_load(&a->ghash) == atomic_load(&c->ghash))) {   // RewindBox (patch 0064): the words' one-frame jump (the exact case is below)
++    int wl = fsig_wlate(f - 4); const char *wlt = fsig_late_txt(wl);   // RewindBox (patch 0067): integration review, the word tests below count a frame read late apart
 +    int wex = a && b && c && a->hash == b->hash && b->hash == c->hash && atomic_load(&a->ghash) == atomic_load(&c->ghash);   // RewindBox (patch 0067): the exact case (below), where only the single-frame draws are counted here
 +    if (a && b && c && z && a->draws >= 64 && a->gwords && b->gwords && c->gwords && (!wex || fsig_id_on())) {   // RewindBox (patch 0064): the words' one-frame jump (the exact case is below)
          fpd_t *da = fpd_at(f - 5), *db = fpd_at(f - 4), *dc = fpd_at(f - 3), *dz = fpd_at(f - 6);
 -        if (da && db && dc && dz) { uint32_t nw = MAX(a->gwords, MAX(b->gwords, c->gwords)); uint64_t ab = fpd_dist_word(da, db, nw), bc = fpd_dist_word(db, dc, nw), ac = fpd_dist_word(da, dc, nw);
 -            if (fpd_jump(ab, bc, ac) && fpd_dist_word(dz, db, nw) >= 4 * ac + 8) {
+-                uint64_t k = ++g_fsig_jump_word;
+-                if (k <= 24 || !(k & (k - 1))) { char det[900]; fpd_words(da, db, dc, nw, det, sizeof det);
+-                    MLOG("RewindBox: frame signature: the GPU-written words of frame %llu are far from both its neighbours', which are near each other: distance %llu to the frame before, %llu to the frame after, %llu between those two, "
+-                         "over %u / %u / %u words, draws %u / %u / %u; %s; %llu such frames of %llu so far", (unsigned long long)(f - 4), (unsigned long long)ab, (unsigned long long)bc, (unsigned long long)ac, a->gwords, b->gwords, c->gwords,
+-                         a->draws, b->draws, c->draws, det, (unsigned long long)k, (unsigned long long)g_fsig_frames); }
 +        if (da && db && dc && dz) { uint32_t nw = MAX(a->gwords, MAX(b->gwords, c->gwords)); uint64_t ab, bc, ac; int jmp, jall = 0, nper = 0, per = 0; char pl[64]; pl[0] = 0;
 +            if (fsig_id_on()) {   // RewindBox (patch 0067): as for the passes (fpd_dist3_word, fpd_wper); the indirect draws one frame alone lacks, has or jumps in
 +                uint32_t n1[3]; fpd_dist3_word(da, db, dc, &ab, &bc, &ac);
 +                jall = !wex && (fpd_jump(ab, bc, ac) || (!ac && ab >= 8 && bc >= 8));   // neighbours that agree on the words both have (the same lists and words are the exact test's)
 +                fpd_items_period(f - 4, da, db, 1, &ab, &bc, n1, &nper, &per);
 +                jmp = !wex && (fpd_jump(ab, bc, ac) || (!ac && ab >= 8 && bc >= 8));
-+                b->wlost = n1[0]; b->wextra = n1[1]; b->wmoved = n1[2]; if (n1[0] || n1[1] || n1[2]) fsig_single_word(da, db, f - 4, b, n1);
++                b->wlost = n1[0]; b->wextra = n1[1]; b->wmoved = n1[2]; if (n1[0] || n1[1] || n1[2]) fsig_single_word(da, db, f - 4, b, n1, wl);   // RewindBox (patch 0067): wl (integration review)
 +                if (nper) snprintf(pl, sizeof pl, " (%d periodic words left out)", nper);
 +            } else { ab = fpd_dist_word(da, db, nw); bc = fpd_dist_word(db, dc, nw); ac = fpd_dist_word(da, dc, nw); jmp = fpd_jump(ab, bc, ac) && fpd_dist_word(dz, db, nw) >= 4 * ac + 8; }
 +            if (jmp) {
-                 uint64_t k = ++g_fsig_jump_word;
--                if (k <= 24 || !(k & (k - 1))) { char det[900]; fpd_words(da, db, dc, nw, det, sizeof det);
--                    MLOG("RewindBox: frame signature: the GPU-written words of frame %llu are far from both its neighbours', which are near each other: distance %llu to the frame before, %llu to the frame after, %llu between those two, "
--                         "over %u / %u / %u words, draws %u / %u / %u; %s; %llu such frames of %llu so far", (unsigned long long)(f - 4), (unsigned long long)ab, (unsigned long long)bc, (unsigned long long)ac, a->gwords, b->gwords, c->gwords,
--                         a->draws, b->draws, c->draws, det, (unsigned long long)k, (unsigned long long)g_fsig_frames); }
++                uint64_t k = wl ? ++g_fsig_late[0] : ++g_fsig_jump_word;   // RewindBox (patch 0067): integration review, read late: counted apart
 +                if (k <= 24 || !(k & (k - 1))) { char det[1600]; fpd_words(da, db, dc, nw, det, sizeof det);   // RewindBox (patch 0067): det 1600, the words named
 +                    MLOG("RewindBox: frame signature: the GPU-written words of frame %llu are far from both its neighbours', which are near each other: distance %llu to the frame before, %llu to the frame after, %llu between those two%s, "
-+                         "over %u / %u / %u words, draws %u / %u / %u; %s; %llu such frames of %llu so far", (unsigned long long)(f - 4), (unsigned long long)ab, (unsigned long long)bc, (unsigned long long)ac, pl, a->gwords, b->gwords, c->gwords,
-+                         a->draws, b->draws, c->draws, det, (unsigned long long)k, (unsigned long long)g_fsig_frames); }   // RewindBox (patch 0067): pl
++                         "over %u / %u / %u words, draws %u / %u / %u; %s%s; %llu such frames of %llu so far", (unsigned long long)(f - 4), (unsigned long long)ab, (unsigned long long)bc, (unsigned long long)ac, pl, a->gwords, b->gwords, c->gwords,
++                         a->draws, b->draws, c->draws, det, wlt, (unsigned long long)k, (unsigned long long)g_fsig_frames); }   // RewindBox (patch 0067): pl; wlt (integration review)
 +            } else if (jall) {   // RewindBox (patch 0067): a jump only through words that repeat at a period: counted apart
-+                uint64_t k = ++g_fsig_jump_word_per;
++                uint64_t k = wl ? ++g_fsig_late[1] : ++g_fsig_jump_word_per;   // RewindBox (patch 0067): integration review, read late: counted apart
 +                if (k <= 8 || !(k & (k - 1))) { char det[1600]; fpd_words(da, db, dc, nw, det, sizeof det);
 +                    MLOG("RewindBox: frame signature: the GPU-written words of frame %llu are far from both its neighbours' only through %d words that are as they were %d and %d frames before it (a periodic change, not "
-+                         "counted as a one-frame jump; without them %llu to the frame before, %llu to the frame after, %llu between those two); %s; %llu such frames of %llu so far", (unsigned long long)(f - 4), nper, per, 2 * per,
-+                         (unsigned long long)ab, (unsigned long long)bc, (unsigned long long)ac, det, (unsigned long long)k, (unsigned long long)g_fsig_frames); }
++                         "counted as a one-frame jump; without them %llu to the frame before, %llu to the frame after, %llu between those two); %s%s; %llu such frames of %llu so far", (unsigned long long)(f - 4), nper, per, 2 * per,
++                         (unsigned long long)ab, (unsigned long long)bc, (unsigned long long)ac, det, wlt, (unsigned long long)k, (unsigned long long)g_fsig_frames); }   // RewindBox (patch 0067): wlt (integration review)
              } }
      }
      if (a && b && c && a->draws >= 64 && a->gwords && a->hash == b->hash && b->hash == c->hash) {
-@@ -2507,10 +2785,19 @@ static void fsig_judge(uint64_t f) {   // frame f's record has just been opened:
+         uint64_t ga = atomic_load(&a->ghash), gb = atomic_load(&b->ghash), gc = atomic_load(&c->ghash);
+         if (ga == gc && gb != ga && !(z && z->hash == b->hash && atomic_load(&z->ghash) == gb)) {   // z: patch 0064 (two sets of words in turn)
+-            uint64_t k = ++g_fsig_aba_gpu;
++            uint64_t k = wl ? ++g_fsig_late[3] : ++g_fsig_aba_gpu;   // RewindBox (patch 0067): integration review, read late: counted apart
+             if (k <= 24 || !(k & (k - 1))) MLOG("RewindBox: frame signature: frames %llu to %llu have one draw list, and the words the GPU wrote for its indirect draws differ in frame %llu from the two around it, which agree: "
+-                "their sum %llu / %llu / %llu over %u words, scene %ux%u / %ux%u / %ux%u, shared textures made %u / %u / %u, evicted %u / %u / %u; %llu such frames of %llu so far",
++                "their sum %llu / %llu / %llu over %u words, scene %ux%u / %ux%u / %ux%u, shared textures made %u / %u / %u, evicted %u / %u / %u%s; %llu such frames of %llu so far",   // RewindBox (patch 0067): the second %s, wlt (integration review)
                  (unsigned long long)(f - 5), (unsigned long long)(f - 3), (unsigned long long)(f - 4), (unsigned long long)atomic_load(&a->gsum), (unsigned long long)atomic_load(&b->gsum), (unsigned long long)atomic_load(&c->gsum), b->gwords,
-                 a->w, a->h, b->w, b->h, c->w, c->h, a->texnew, b->texnew, c->texnew, a->taken, b->taken, c->taken, (unsigned long long)k, (unsigned long long)g_fsig_frames);
+-                a->w, a->h, b->w, b->h, c->w, c->h, a->texnew, b->texnew, c->texnew, a->taken, b->taken, c->taken, (unsigned long long)k, (unsigned long long)g_fsig_frames);
++                a->w, a->h, b->w, b->h, c->w, c->h, a->texnew, b->texnew, c->texnew, a->taken, b->taken, c->taken, wlt, (unsigned long long)k, (unsigned long long)g_fsig_frames);   // RewindBox (patch 0067): wlt (integration review)
              fpd_t *da = fpd_at(f - 5), *db = fpd_at(f - 4), *dc = fpd_at(f - 3);   // RewindBox (patch 0063)
 -            if ((k <= 24 || !(k & (k - 1))) && da && db && dc) { char det[900]; fpd_words(da, db, dc, b->gwords, det, sizeof det); MLOG("RewindBox: frame signature: the GPU-written words of frames %llu / %llu / %llu, in the frame's order: %s",
 +            if ((k <= 24 || !(k & (k - 1))) && da && db && dc) { char det[1600]; fpd_words(da, db, dc, b->gwords, det, sizeof det); MLOG("RewindBox: frame signature: the GPU-written words of frames %llu / %llu / %llu, in the frame's order: %s",   // RewindBox (patch 0067): det 1600
@@ -452,40 +476,46 @@ index c887d01..209f545 100644
  }
  // Every 300 frames, what the game's resolution and frame-interval controller did over the 300 frames before the last three (whose reports may still be on their way): the scene
  //   sizes it drew at, how often the size changed from one frame to the next, the shared textures made and evicted over their storage, and the GPU time it read from its own
-@@ -2519,8 +2806,10 @@ static void fsig_window(uint64_t f) {
+@@ -2519,8 +2821,13 @@ static void fsig_window(uint64_t f) {
      enum { W = 300, SZ = 48 }; if (f < W + 3) return;
      uint32_t sw[SZ], sh[SZ]; int ns = 0, over = 0; uint32_t pw = 0, ph = 0, changes = 0, n = 0, wmin = 0, hmin = 0, wmax = 0, hmax = 0; uint64_t made = 0, taken = 0, pieces = 0, cond = 0, coff = 0, cclr = 0;   // cond, coff, cclr: patch 0064
      static uint32_t span[W]; uint32_t nsp = 0;   // the replaying thread only
 +    uint64_t bnz = 0, wz = 0, dead = 0, fresh = 0, wl = 0, we = 0, wm = 0, pl = 0, pe = 0, pm = 0;   // RewindBox (patch 0067)
++    uint64_t lp = 0, lw[3] = {0}; uint32_t lf = 0, lt = 0;   // RewindBox (patch 0067): integration review, pieces read late (wlate) and the frames that have any; frames whose word tests were read late (fsig_wlate), their indirect draws missing, alone, jumping
      for (uint64_t g = f - 3 - W; g < f - 3; g++) { fsig_t *c = fsig_at(g); if (!c || !c->w) continue;
          n++; made += c->texnew; taken += c->taken; pieces += c->pieces; cond += c->rcn; coff += c->rcoff; cclr += c->rcclr;
-+        bnz += atomic_load(&c->binz); wz += atomic_load(&c->wzero); dead += c->dead; fresh += c->fresh; wl += c->wlost; we += c->wextra; wm += c->wmoved; pl += c->plost; pe += c->pextra; pm += c->pmoved;   // RewindBox (patch 0067)
++        bnz += atomic_load(&c->binz); wz += atomic_load(&c->wzero); dead += c->dead; fresh += c->fresh; pl += c->plost; pe += c->pextra; pm += c->pmoved;   // RewindBox (patch 0067)
++        uint32_t cl = atomic_load(&c->wlate); lp += cl; lf += cl != 0;   // RewindBox (patch 0067): integration review, words read late apart (fsig_wlate)
++        if (fsig_wlate(g)) { lt++; lw[0] += c->wlost; lw[1] += c->wextra; lw[2] += c->wmoved; } else { wl += c->wlost; we += c->wextra; wm += c->wmoved; }   // RewindBox (patch 0067): integration review, as fsig_judge counts them
          if (pw && (c->w != pw || c->h != ph)) changes++;
          pw = c->w; ph = c->h;
          if (!wmin || (uint64_t)c->w * c->h < (uint64_t)wmin * hmin) { wmin = c->w; hmin = c->h; }
-@@ -2538,6 +2827,12 @@ static void fsig_window(uint64_t f) {
+@@ -2538,6 +2845,15 @@ static void fsig_window(uint64_t f) {
      MLOG("RewindBox: frame signatures up to frame %llu: conditional rendering %.1f conditions a frame, %.1f of them not drawn, %.1f clears left out; frames whose conditional rendering differs from the two around them, which agree: %llu; "
           "one-frame jumps in the passes' draws %llu, in the GPU-written words %llu (so far)", (unsigned long long)f, (double)cond / n, (double)coff / n, (double)cclr / n,
           (unsigned long long)g_fsig_aba_cond, (unsigned long long)g_fsig_jump_pass, (unsigned long long)g_fsig_jump_word);   // RewindBox (patch 0064)
 +    MLOG("RewindBox: frame signatures up to frame %llu: one-frame jumps only through things that repeat at a period (counted apart from the jumps) in the passes' draws %llu, in the GPU-written words %llu; "
 +         "indirect draws whose record gives a base instance other than 0 %.1f a frame, GPU-written words that are 0 %.1f a frame; live textures dropped as overwritten %.2f a frame, samplings of new textures nothing wrote yet %.2f a frame; "
 +         "multi-draw counts checked at masking %llu, of them other later in the piece %llu (so far); in these frames, indirect draws that both neighbours had and the frame lacked %llu, that only the frame had %llu, "
-+         "whose word jumped in the frame alone %llu, passes likewise %llu, %llu and %llu (none periodic; frames with any so far: %llu and %llu)", (unsigned long long)f, (unsigned long long)g_fsig_jump_pass_per, (unsigned long long)g_fsig_jump_word_per,
++         "whose word jumped in the frame alone %llu, passes likewise %llu, %llu and %llu (none periodic; frames with any so far: %llu and %llu); GPU-written words read while a later main command buffer could run: "   // RewindBox (patch 0067): from here, integration review
++         "%llu pieces in %u of these frames, and %u frames whose word tests used such words, counted apart (their indirect draws missing %llu, alone %llu, jumping %llu; so far: one-frame jumps in the words %llu, "
++         "through periodic words %llu, frames with such draws %llu, other words between two frames that agree %llu)", (unsigned long long)f, (unsigned long long)g_fsig_jump_pass_per, (unsigned long long)g_fsig_jump_word_per,
 +         (double)bnz / n, (double)wz / n, (double)dead / n, (double)fresh / n, (unsigned long long)atomic_load(&g_mdxchk_all), (unsigned long long)atomic_load(&g_mdxchk_diff),
-+         (unsigned long long)wl, (unsigned long long)we, (unsigned long long)wm, (unsigned long long)pl, (unsigned long long)pe, (unsigned long long)pm, (unsigned long long)g_fsig_single_word, (unsigned long long)g_fsig_single_pass);   // RewindBox (patch 0067)
++         (unsigned long long)wl, (unsigned long long)we, (unsigned long long)wm, (unsigned long long)pl, (unsigned long long)pe, (unsigned long long)pm, (unsigned long long)g_fsig_single_word, (unsigned long long)g_fsig_single_pass,
++         (unsigned long long)lp, lf, lt, (unsigned long long)lw[0], (unsigned long long)lw[1], (unsigned long long)lw[2], (unsigned long long)g_fsig_late[0], (unsigned long long)g_fsig_late[1], (unsigned long long)g_fsig_late[2], (unsigned long long)g_fsig_late[3]);   // RewindBox (patch 0067); lp to g_fsig_late: integration review
  }
  static fsig_t *fsig_cur(void) {   // the record of the frame being replayed, for the thread that replays (it holds the submit lock); NULL on any other thread, which leaves the records alone
      if (!on_sub_thread()) return NULL;
-@@ -2545,6 +2840,8 @@ static fsig_t *fsig_cur(void) {   // the record of the frame being replayed, for
+@@ -2545,6 +2861,8 @@ static fsig_t *fsig_cur(void) {   // the record of the frame being replayed, for
      if (atomic_load_explicit(&c->frame, memory_order_relaxed) != f + 1) {
          atomic_store(&c->frame, 0); c->hash = 0xcbf29ce484222325ull; atomic_store(&c->ghash, 0); atomic_store(&c->gsum, 0); atomic_store(&c->ts0, 0); atomic_store(&c->ts1, 0);
          c->draws = c->ind = c->mdi = c->mesh = c->skipped = c->passes = c->pieces = c->disp = c->texnew = c->taken = c->w = c->h = c->gwords = c->dur = c->rcn = c->rcoff = c->rcunk = c->rcclr = c->rcdrw = 0; c->rchash = 0xcbf29ce484222325ull;
-+        c->dead = c->fresh = 0; atomic_store(&c->khash, 0); atomic_store(&c->bhash, 0); atomic_store(&c->wzero, 0); atomic_store(&c->binz, 0); atomic_store(&c->mdxn, 0); atomic_store(&c->mdxdiff, 0);   // RewindBox (patch 0067)
++        c->dead = c->fresh = 0; atomic_store(&c->khash, 0); atomic_store(&c->bhash, 0); atomic_store(&c->wzero, 0); atomic_store(&c->binz, 0); atomic_store(&c->mdxn, 0); atomic_store(&c->mdxdiff, 0); atomic_store(&c->wlate, 0);   // RewindBox (patch 0067); wlate: integration review
 +        c->wlost = c->wextra = c->wmoved = c->plost = c->pextra = c->pmoved = 0; c->svs = c->sfs = 0;   // RewindBox (patch 0067): fsig_judge sets them
          static uint64_t t_prev; uint64_t now = clock_gettime_nsec_np(CLOCK_UPTIME_RAW); fsig_t *pr = f ? fsig_at(f - 1) : NULL;   // RewindBox (patch 0061): the frame before this one is whole
          if (pr && t_prev) pr->dur = (uint32_t)MIN((now - t_prev) / 1000, (uint64_t)UINT32_MAX);
          t_prev = now;
-@@ -2556,43 +2853,67 @@ static fsig_t *fsig_cur(void) {   // the record of the frame being replayed, for
+@@ -2556,43 +2874,67 @@ static fsig_t *fsig_cur(void) {   // the record of the frame being replayed, for
      return c;
  }
  #define FSIG(stmt) do { fsig_t *fc_ = fsig_on() ? fsig_cur() : NULL; if (fc_) { stmt; } } while (0)   // on the replaying thread, with fc_ the frame's record
@@ -564,7 +594,7 @@ index c887d01..209f545 100644
  }
  static void fsig_cond_skip(int draw) {   // a clear (0) or a draw (1) left out
      fsig_t *c = fsig_on() ? fsig_cur() : NULL; if (!c) return;
-@@ -2612,28 +2933,188 @@ static void fsig_ts(uint64_t f, uint64_t t, int top) {   // a timestamp report w
+@@ -2612,28 +2954,194 @@ static void fsig_ts(uint64_t f, uint64_t t, int top) {   // a timestamp report w
      if (top) { uint64_t o = atomic_load(&r->ts0); while ((!o || t < o) && !atomic_compare_exchange_weak(&r->ts0, &o, t)) {} }
      else { uint64_t o = atomic_load(&r->ts1); while (t > o && !atomic_compare_exchange_weak(&r->ts1, &o, t)) {} }
  }
@@ -578,16 +608,16 @@ index c887d01..209f545 100644
 +//   queue at QOS_CLASS_UTILITY formats and writes it (fsig_snap_write), as it does the capture's pass lines, texture index and shader sources (rb_bg_write, td_dump).
 +//   S2A_RB_FSIG_BG=0 writes them on the replaying thread as before. The format is 0064's, each line with fields added at its end (frames_diff.py reads it as before)
 +typedef struct { uint64_t frame, hash, ghash, gsum, ts0, ts1, rchash, khash, bhash, svs, sfs; uint32_t draws, ind, mdi, mesh, skipped, passes, pieces, disp, texnew, taken, w, h, gwords, dur, rcn, rcoff, rcunk, rcclr, rcdrw, dead, fresh, wzero, binz, mdxn, mdxdiff,
-+                 wlost, wextra, wmoved, plost, pextra, pmoved; } fsig_row;
++                 wlost, wextra, wmoved, plost, pextra, pmoved, wlate; } fsig_row;   // RewindBox (patch 0067): wlate, integration review
 +typedef struct { uint64_t frame; uint32_t np, nd, nw, nc; fpd_pass *p; fpd_draw *d; fpd_cond *c; uint64_t *waddr; uint32_t *word, *wbv, *wbi, *wbn; uint16_t *wdraw; void *mem; } fpd_snap;
-+typedef struct { char note[600]; uint64_t aba_list, aba_gpu, aba_cond, jump_pass, jump_word, jump_pass_per, jump_word_per, single_word, single_pass, frames, mdx_all, mdx_diff, last; uint32_t nrow, nfpd; fsig_row *row; fpd_snap fpd[FPD_FRAMES]; } fsig_snap;
++typedef struct { char note[600]; uint64_t aba_list, aba_gpu, aba_cond, jump_pass, jump_word, jump_pass_per, jump_word_per, single_word, single_pass, frames, mdx_all, mdx_diff, last, late[4]; uint32_t nrow, nfpd; fsig_row *row; fpd_snap fpd[FPD_FRAMES]; } fsig_snap;   // RewindBox (patch 0067): late (g_fsig_late), integration review
 +static void fsig_snap_free(fsig_snap *s) { if (!s) return; for (uint32_t i = 0; i < s->nfpd; i++) free(s->fpd[i].mem); free(s->row); free(s); }
 +static fsig_snap *fsig_snap_take(const char *note) {   // the replaying thread, which writes the records' plain fields; the handlers' atomic ones are read once each
 +    fsig_snap *s = calloc(1, sizeof *s); if (!s) return NULL;
 +    if (!(s->row = malloc((size_t)FSIG_N * sizeof *s->row))) { free(s); return NULL; }
 +    snprintf(s->note, sizeof s->note, "%s", note ? note : "");
 +    s->aba_list = g_fsig_aba_list; s->aba_gpu = g_fsig_aba_gpu; s->aba_cond = g_fsig_aba_cond; s->jump_pass = g_fsig_jump_pass; s->jump_word = g_fsig_jump_word; s->jump_pass_per = g_fsig_jump_pass_per; s->jump_word_per = g_fsig_jump_word_per; s->single_word = g_fsig_single_word; s->single_pass = g_fsig_single_pass;
-+    s->frames = g_fsig_frames; s->mdx_all = atomic_load(&g_mdxchk_all); s->mdx_diff = atomic_load(&g_mdxchk_diff);
++    s->frames = g_fsig_frames; s->mdx_all = atomic_load(&g_mdxchk_all); s->mdx_diff = atomic_load(&g_mdxchk_diff); memcpy(s->late, g_fsig_late, sizeof s->late);   // RewindBox (patch 0067): late, integration review
 +    uint64_t hi = 0; for (int i = 0; i < FSIG_N; i++) { uint64_t v = atomic_load(&g_fsig[i].frame); if (v > hi) hi = v; }
 +    s->last = hi ? hi - 1 : 0;   // RewindBox (patch 0067): the newest frame, for what fsig_judge has judged
 +    for (uint64_t v = hi > FSIG_N ? hi - FSIG_N + 1 : 1; v <= hi; v++) { fsig_t *c = fsig_at(v - 1); if (!c) continue; fsig_row *r = &s->row[s->nrow++];
@@ -595,7 +625,8 @@ index c887d01..209f545 100644
 +        r->khash = atomic_load(&c->khash); r->bhash = atomic_load(&c->bhash); r->draws = c->draws; r->ind = c->ind; r->mdi = c->mdi; r->mesh = c->mesh; r->skipped = c->skipped; r->passes = c->passes;
 +        r->pieces = c->pieces; r->disp = c->disp; r->texnew = c->texnew; r->taken = c->taken; r->w = c->w; r->h = c->h; r->gwords = c->gwords; r->dur = c->dur; r->rcn = c->rcn; r->rcoff = c->rcoff;
 +        r->rcunk = c->rcunk; r->rcclr = c->rcclr; r->rcdrw = c->rcdrw; r->dead = c->dead; r->fresh = c->fresh; r->wzero = atomic_load(&c->wzero); r->binz = atomic_load(&c->binz);
-+        r->mdxn = atomic_load(&c->mdxn); r->mdxdiff = atomic_load(&c->mdxdiff); r->wlost = c->wlost; r->wextra = c->wextra; r->wmoved = c->wmoved; r->plost = c->plost; r->pextra = c->pextra; r->pmoved = c->pmoved; r->svs = c->svs; r->sfs = c->sfs; }
++        r->mdxn = atomic_load(&c->mdxn); r->mdxdiff = atomic_load(&c->mdxdiff); r->wlost = c->wlost; r->wextra = c->wextra; r->wmoved = c->wmoved; r->plost = c->plost; r->pextra = c->pextra; r->pmoved = c->pmoved; r->svs = c->svs; r->sfs = c->sfs;
++        r->wlate = atomic_load(&c->wlate); }   // RewindBox (patch 0067): integration review
 +    for (uint64_t v = hi > FPD_FRAMES ? hi - FPD_FRAMES + 1 : 1; v <= hi && s->nfpd < FPD_FRAMES; v++) { fpd_t *d = fpd_at(v - 1); if (!d) continue;
 +        fpd_snap *q = &s->fpd[s->nfpd]; q->frame = v - 1; q->np = MIN(d->np, (uint32_t)FPD_PASSES); q->nd = MIN(d->nd, (uint32_t)FPD_DRAWS); q->nw = MIN(d->nw, (uint32_t)FSIG_ADDR); q->nc = MIN(d->nc, (uint32_t)FPD_CONDS);
 +        size_t sp = (size_t)q->np * sizeof(fpd_pass), sd = (size_t)q->nd * sizeof(fpd_draw), sc = (size_t)q->nc * sizeof(fpd_cond), sw = (size_t)q->nw;
@@ -623,7 +654,8 @@ index c887d01..209f545 100644
 +               "hash of the words by their address, hash of the base instances by their record's address, multi-draw counts checked at masking, of them other later in the piece, "
 +               "indirect draws (GPU-written words) that both neighbours have and it lacks, that only it has, whose word in it alone is far from both neighbours', passes likewise (draws) "
 +               "(none periodic; - before the frame was judged: words 4 frames on, passes 2), "
-+               "the first such draw's vs:fs (- none) (patch 0067)\n");   // RewindBox (patch 0067)
++               "the first such draw's vs:fs (- none) (patch 0067), "
++               "pieces whose GPU-written words for it were read while a later main command buffer could run (patch 0067, integration review)\n");   // RewindBox (patch 0067)
 +    if (s->note[0]) fprintf(f, "# %s\n", s->note);
 +    for (uint32_t i = 0; i < s->nrow; i++) { const fsig_row *c = &s->row[i];
 +        fprintf(f, "%llu %016llx %u %u %u %u %u %u %u %u %u %u %ux%u %u %llu %016llx %llu %u %u %u %u %u %u %016llx %u %u %u %u %016llx %016llx %u %u", (unsigned long long)c->frame, (unsigned long long)c->hash, c->draws, c->ind, c->mdi, c->mesh, c->skipped, c->passes, c->pieces, c->disp, c->texnew, c->taken,
@@ -632,7 +664,8 @@ index c887d01..209f545 100644
 +        int wj = c->frame + 4 <= s->last, pj = c->frame + 2 <= s->last;   // judged (fsig_judge: words at the frame 4 on, passes 2 on)
 +        if (wj) fprintf(f, " %u %u %u", c->wlost, c->wextra, c->wmoved); else fputs(" - - -", f);
 +        if (pj) fprintf(f, " %u %u %u", c->plost, c->pextra, c->pmoved); else fputs(" - - -", f);
-+        if (c->svs || c->sfs) fprintf(f, " %016llx:%016llx\n", (unsigned long long)c->svs, (unsigned long long)c->sfs); else fputs(" -\n", f); }
++        if (c->svs || c->sfs) fprintf(f, " %016llx:%016llx", (unsigned long long)c->svs, (unsigned long long)c->sfs); else fputs(" -", f);
++        fprintf(f, " %u\n", c->wlate); }   // RewindBox (patch 0067): integration review, the last field
      fprintf(f, "# frames with another draw list than the two around them, which agree: %llu; with the same list and other GPU-written words: %llu; frames recorded: %llu\n",
 -            (unsigned long long)g_fsig_aba_list, (unsigned long long)g_fsig_aba_gpu, (unsigned long long)g_fsig_frames);
 +            (unsigned long long)s->aba_list, (unsigned long long)s->aba_gpu, (unsigned long long)s->frames);   // RewindBox (patch 0067): from the copy
@@ -649,6 +682,9 @@ index c887d01..209f545 100644
 +    fprintf(f, "# one-frame jumps only through things that repeat at a period (patch 0067): in the passes' draws: %llu; in the GPU-written words: %llu; frames with indirect draws missing, alone or jumping in them alone: %llu, with such passes: %llu; "
 +               "multi-draw counts checked at masking: %llu, of them other later in the piece: %llu\n",
 +            (unsigned long long)s->jump_pass_per, (unsigned long long)s->jump_word_per, (unsigned long long)s->single_word, (unsigned long long)s->single_pass, (unsigned long long)s->mdx_all, (unsigned long long)s->mdx_diff);
++    fprintf(f, "# frames whose word tests used GPU-written words read while a later main command buffer could run, counted apart from the counts above (patch 0067, integration review): one-frame jumps in "
++               "the GPU-written words: %llu; through words that repeat at a period: %llu; frames with indirect draws missing, alone or jumping in them alone: %llu; with the same list and other GPU-written words: %llu\n",
++            (unsigned long long)s->late[0], (unsigned long long)s->late[1], (unsigned long long)s->late[2], (unsigned long long)s->late[3]);   // RewindBox (patch 0067)
 +    fprintf(f, "# P frame pass WxH format draws hash clears-left-out-before-it draws-left-out-in-it, then (patch 0067) its first draw's vs fs and the conditions met from its opening to the next pass's "
 +               "(address:kind, kind 0 drawn, 1 not drawn, 2 not known yet (drawn), 3 / 4 the game's render enable off / on; - none); "
 +               "D frame pass kind (0 direct, 1 indirect, 2 of a multi-draw, 3 task / mesh, 4 next of a multi-draw) vs fs count instances, then (patch 0067) the low 32 bits of the serials of the first two textures it samples (0 none) "
@@ -770,7 +806,7 @@ index c887d01..209f545 100644
  }
  uint64_t nvn_be_sub_commit(void) {
      gpu_hang_inject();
-@@ -2641,6 +3122,7 @@ uint64_t nvn_be_sub_commit(void) {
+@@ -2641,6 +3149,7 @@ uint64_t nvn_be_sub_commit(void) {
      defer_fallback();   // Deferred merged pass: at the end of the submission there are still P draws not replayed (the normal path never gets here)
      rp_flush(); ubd_land();
      rt_keep_state();   // bound descriptors outlive the command records consumed by this submission
@@ -778,7 +814,7 @@ index c887d01..209f545 100644
      g_ts_pend = -1;   // nothing after it: the last segment's end is the command buffer's own (rep_ticks)
      if (g_blit) { enc_b_end(g_blit); g_blit = nil; }
      up_flush();
-@@ -2661,9 +3143,13 @@ uint64_t nvn_be_sub_commit(void) {
+@@ -2661,9 +3170,13 @@ uint64_t nvn_be_sub_commit(void) {
      fb_add(o, ^(id f) { (void)f; atomic_fetch_sub(&g_seg_inflight, 1); for (dispatch_block_t block in commit_blocks) block(); });
      uint64_t gpu_f = atomic_load(&g_cur_frame); double gpu_sub = gpu_tag_begin(gpu_f);
      // RewindBox (patch 0059): this piece's GPU-written words go to its handler, which reads them once the piece has run
@@ -794,7 +830,7 @@ index c887d01..209f545 100644
      NSString *cctx = @(cctx_snap());
      seg_clk *sc = g_sclk; uint32_t seg_last = g_seg; g_sclk = NULL;
      fb_add(o, ^(id<MTL4CommitFeedback> cb) {
-@@ -2681,12 +3167,41 @@ uint64_t nvn_be_sub_commit(void) {
+@@ -2681,12 +3194,42 @@ uint64_t nvn_be_sub_commit(void) {
                  if (ops[i].type == 0 || ops[i].type == 0x10) fsig_ts(gpu_f, t, ops[i].type == 0x10); }   // RewindBox (patch 0059)
          }
          if (fsa) {   // RewindBox (patch 0059): the words the GPU wrote for this piece's indirect draws, as they are now that it has run
@@ -808,7 +844,8 @@ index c887d01..209f545 100644
 +            uint64_t sum = 0, gh = 0, kh = 0, bh = 0, wf = ~0ull; uint32_t nz = 0, bnz = 0; fpd_t *fd = NULL; fsig_t *r = NULL;   // RewindBox (patch 0067): kh to bnz; wf, fd, r: the frame of the words at hand
 +            for (int i = 0; i <= fsn; i++) {
 +                uint64_t f1 = i < fsn ? (byid ? fsx[i].frame : gpu_f) : ~0ull;   // RewindBox (patch 0067): each word into its own frame's record and detail (S2A_RB_FSIG_ID=0: all into the piece's last, as before)
-+                if (f1 != wf) { if (r) { atomic_fetch_add(&r->gsum, sum); atomic_fetch_add(&r->ghash, gh); atomic_fetch_add(&r->khash, kh); atomic_fetch_add(&r->bhash, bh); atomic_fetch_add(&r->wzero, nz); atomic_fetch_add(&r->binz, bnz); }
++                if (f1 != wf) { if (r) { atomic_fetch_add(&r->gsum, sum); atomic_fetch_add(&r->ghash, gh); atomic_fetch_add(&r->khash, kh); atomic_fetch_add(&r->bhash, bh); atomic_fetch_add(&r->wzero, nz); atomic_fetch_add(&r->binz, bnz);
++                        if (atomic_load(&g_seg_inflight) > 0) atomic_fetch_add(&r->wlate, 1); }   // RewindBox (patch 0067): integration review, this frame's words of the piece are read: a later main command buffer committed and not reported back may have rewritten them (fsig_wlate)
 +                    sum = gh = kh = bh = 0; nz = bnz = 0; wf = f1; if (i == fsn) break; fd = fpd_at(wf); r = fsig_at(wf); }   // RewindBox (patch 0063): each word's value, by its place in the frame
 +                uint32_t v = 0; if (nvn_host_readable(fsa[i], 4)) memcpy(&v, (const void *)(uintptr_t)fsa[i], 4); sum += v; gh += fsig_wmix(fsq[i], v);
 +                // RewindBox (patch 0067): the record's base instance (+16 of an indexed record, +12 of an arrays one) and base vertex (+12, indexed), hashed with its address; for a
@@ -842,7 +879,7 @@ index c887d01..209f545 100644
          }
          free(ops); seg_clk_put(sc);
          pthread_mutex_lock(&g_mu); if (fence > g_done) g_done = fence; pthread_cond_broadcast(&g_cv); pthread_mutex_unlock(&g_mu);
-@@ -2919,8 +3434,20 @@ static void alias_note_write(const tex_t *t) {   // gpw_mark: the texture's stor
+@@ -2919,8 +3462,20 @@ static void alias_note_write(const tex_t *t) {   // gpw_mark: the texture's stor
      alias_key ak; alias_key_of(&ak, t);
      pthread_mutex_lock(&g_smu); if (nvn_hm_get(&g_alias, &ak)) nvn_hm_put(&g_alias_wrote, &ak, (void *)(uintptr_t)(g_fence + 1)); pthread_mutex_unlock(&g_smu);
  }
@@ -863,7 +900,7 @@ index c887d01..209f545 100644
      if (!L.size) return;
      int64_t lo = nk->off, hi = nk->off + (int64_t)L.size;
      uint32_t n = 0; alias_key ks[16];
-@@ -2944,11 +3471,12 @@ static void alias_take_over(const alias_key *nk) {
+@@ -2944,11 +3499,12 @@ static void alias_take_over(const alias_key *nk) {
          if (g_alias_set) CFSetRemoveValue(g_alias_set, (__bridge const void *)o);
          for (uint32_t i = 0; i < g_by_serial.cap; i++) if (g_by_serial.vals[i] == (__bridge void *)o) {   // live objects over overwritten storage: their next use makes the texture anew (tex_mtl_)
              uint64_t sk; memcpy(&sk, g_by_serial.keys + (size_t)i * g_by_serial.klen, sizeof sk); defer_obj_unref(o); hm_del_id(&g_by_serial, &sk); i = (uint32_t)-1; g_alias_dead++;   // deletion shifts entries: rescan
@@ -877,7 +914,7 @@ index c887d01..209f545 100644
  }
  // #357 unreferenced shared textures: no live object, finalized serial or texture ID resolves to them; the game has finalized every texture over that storage. NVN keeps the storage's
  //   bytes, so an object rebuilt there with the same description must still find them (why the table keeps such textures at all); each goes once that no longer holds:
-@@ -4728,6 +5256,7 @@ static void bcal_forget(uint64_t serial) {   // BC 贴图对象没了：它的
+@@ -4728,6 +5284,7 @@ static void bcal_forget(uint64_t serial) {   // BC 贴图对象没了：它的
  // Note a GPU write to texel rectangle (x, y, w, h) of layers [layer0, layer0 + nlayers) of `level` (w / h 0 = the whole level). Only once its Metal texture exists (no Metal texture: nothing
  // was written, and its own initial content is still to be taken). A whole-subresource mark is not repeated until a GOB turns current somewhere (g_gpw_gen)
  static void gpw_mark(const tex_t *t, unsigned level, unsigned layer0, unsigned nlayers, uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
@@ -885,7 +922,7 @@ index c887d01..209f545 100644
      if (!t || !t->serial || !t->mem || !t->L.size || t->d.target == NVN_TEXTURE_TARGET_BUFFER || (t->d.flags & (NVN_TEXTURE_FLAGS_LINEAR | NVN_TEXTURE_FLAGS_LINEAR_RENDER_TARGET))) return;
      if (tex_get(t->serial) == nil) return;
      alias_note_write(t);   // its storage's earlier tenants are overwritten (alias_overwritten)
-@@ -5708,7 +6237,7 @@ static id<MTLTexture> tex_mtl_(const tex_t *ct) {
+@@ -5708,7 +6265,7 @@ static id<MTLTexture> tex_mtl_(const tex_t *ct) {
          if (!d) return nil;
          mt = [g_dev newTextureWithDescriptor:d];
          if (!mt) { RED_ONCE(2, "failed to create MTLTexture ser=%llu %ux%u format %#x target %d samples %d levels %u", (unsigned long long)t->serial, t->d.width, t->d.height, t->d.format, t->d.target, t->d.samples, t->d.levels); return nil; }
@@ -894,7 +931,7 @@ index c887d01..209f545 100644
          if (big_tex_on() && mt.allocatedSize >= (4u << 20)) {   // 大贴图建立账（big_tex_res）：NVN 侧描述 + 存储有没有被游戏碰过（mincore，不读页）
              uint64_t touched = 0; size_t pg = (size_t)getpagesize(); unsigned char vec[512];
              for (uint64_t a = (uint64_t)(uintptr_t)t->mem & ~(uint64_t)(pg - 1), e = (uint64_t)(uintptr_t)t->mem + t->L.size; t->mem && a < e; a += sizeof vec * pg) {
-@@ -5800,7 +6329,7 @@ void nvn_be_mem_stat(unsigned long long frame, unsigned long long rss_mb) {
+@@ -5800,7 +6357,7 @@ void nvn_be_mem_stat(unsigned long long frame, unsigned long long rss_mb) {
  #if TARGET_OS_IPHONE
      snprintf(avail, sizeof avail, "%llu MB", (unsigned long long)(os_proc_available_memory() >> 20));
  #endif
@@ -903,7 +940,7 @@ index c887d01..209f545 100644
      {   // What the memory pools put in the residency set (on a phone: wired), and the uploads read from pools that hold only textures without putting them there (up_tex_src)
          uint64_t pall = 0, pres_b = 0; int pn = 0;
          pthread_mutex_lock(&g_mu); for (int i = 0; i < g_npool; i++) { uint64_t sz = g_pools[i].hi - g_pools[i].lo; pall += sz; if (g_pools[i].res) pres_b += sz; } pn = g_npool; pthread_mutex_unlock(&g_mu);
-@@ -5944,6 +6473,14 @@ void dm_gfx_passdump_next(long n) { long f = (long)atomic_load(&g_cur_frame); g_
+@@ -5944,6 +6501,14 @@ void dm_gfx_passdump_next(long n) { long f = (long)atomic_load(&g_cur_frame); g_
  //   start and end past 64 MB), at most CAP_PD_LINES of them; the file is closed under g_cap_pd_mu, which any thread's line takes
  enum { CAP_PD_LINES = 200000 };
  static _Atomic int g_cap_pd_log; static uint64_t g_cap_pd_lines; static FILE *g_cap_pd_f; static pthread_mutex_t g_cap_pd_mu = PTHREAD_MUTEX_INITIALIZER;
@@ -918,7 +955,7 @@ index c887d01..209f545 100644
  // RewindBox (patch 0048): a capture records every draw, not only each pass's first: its d / u / v lines (as DM_NVN_PASSDUMP_ALL) and every binding's B lines. Mario Kart World's
  //   red-pink palm trees are a few of the ~900 draws of its main colour pass (756's capture), which the first-draw lines cannot name. And the textures the frame samples are saved
  //   as the shaders see them (cap_tex_note, td_dump): whether a wrong colour is in a texture already or comes from a shader then shows in the capture itself
-@@ -11698,6 +12235,7 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+@@ -11703,6 +12268,7 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
              if (t && nvn_stage == 1 && afr_want(sh)) { uint64_t r2 = 0; id<MTLTexture> v = tex_alpha_red(tid, t, &r2); if (v) { t = v; trid = r2; } }   // see tex_alpha_red
              size_abi_texture(sh, nvn_stage, b, tid, size_view, t);
              rs_bind_check(t, sh, nvn_stage, 0);   // S2Arm internal resolution: read where scaling is not supported → back to 1 at the next safe point
@@ -926,7 +963,7 @@ index c887d01..209f545 100644
              if (!t) { t = dummy_tex(b->dtt, b->dpf); trid = g_dummy_tex_rid[b->dtt & 15][b->dpf & 3]; }
              slots[aid] = trid;
              USE(t, MTLResourceUsageRead);
-@@ -13969,6 +14507,7 @@ static id<MTLTexture> dsnap_storage(MTLPixelFormat pf, NSUInteger bw, NSUInteger
+@@ -13974,6 +14540,7 @@ static id<MTLTexture> dsnap_storage(MTLPixelFormat pf, NSUInteger bw, NSUInteger
  }
  static void fb_prepare(NvProg *pr) {
      g_draw_seq++; g_fb_n = 0; g_fbt.on = 0; g_fbt.fn = nil; g_fb_want_load = 0;
@@ -934,7 +971,7 @@ index c887d01..209f545 100644
      {   // a draw that may write depth / stencil changes what the copy holds: stale before it (its own sampling copies the depth as it is) and after it (its writes land after its reads)
          static int after; if (after) { dsnap_stale(); after = 0; }
          if ((S.ds.dt && S.ds.dw) || (S.ds.st && (S.st_wmask[0] || S.st_wmask[1]))) { dsnap_stale(); after = 1; } }
-@@ -14391,6 +14930,18 @@ static const char k_mdx_msl[] =
+@@ -14396,6 +14963,18 @@ static const char k_mdx_msl[] =
  "kernel void mdx_mask(device const mjob *j [[buffer(0)]], uint t [[thread_position_in_grid]]) {\n"
  "  mjob m = j[t]; if (!m.out) return; bool live = m.i < *m.cnt;\n"
  "  for (uint k = 0; k < m.words; k++) m.out[k] = live ? m.rec[k] : 0u; }\n";
@@ -953,7 +990,7 @@ index c887d01..209f545 100644
  static int mdx_wanted(const p_draw *dw, const p_draw_idx *di) { return dw ? dw->mdi_cnt && !ixc_wanted(dw, NULL) : di->mdi_cnt && !ixc_wanted(NULL, di); }
  static mdx_ent *mdx_slot(uint64_t ind, uint64_t cnt) {   // its entry in this tag, or the free slot for it
      for (uint64_t h = ((ind ^ cnt * 0xD6E8FEB86659FD93ull) * 0x9E3779B97F4A7C15ull) >> 50;; h = (h + 1) & (MDX_SLOTS - 1)) { mdx_ent *e = &g_mdx[h]; if (e->tag != g_mdx_tag || (e->ind == ind && e->cnt == cnt)) return e; }
-@@ -14402,11 +14953,13 @@ static int mdx_find(uint64_t ind, uint64_t cnt, uint64_t *out) {   // → 1 when
+@@ -14407,11 +14986,13 @@ static int mdx_find(uint64_t ind, uint64_t cnt, uint64_t *out) {   // → 1 when
  }
  static void mdx_run(const p_draw *dw, const p_draw_idx *di) {
      static id<MTLComputePipelineState> ps; static id at; static int failed;
@@ -969,7 +1006,7 @@ index c887d01..209f545 100644
      if (g_mdx_ep != g_mdx_epoch || g_mdx_sub != g_arena_gen || g_mdx_n > MDX_SLOTS / 4) { g_mdx_tag++; g_mdx_n = 0; g_mdx_ep = g_mdx_epoch; g_mdx_sub = g_arena_gen; }
      enum { QMAX = MDX_SLOTS / 4 };
      static struct { mdx_ent *e; uint32_t i, words; } q[QMAX]; int nq = 0;
-@@ -14435,13 +14988,23 @@ static void mdx_run(const p_draw *dw, const p_draw_idx *di) {
+@@ -14440,13 +15021,23 @@ static void mdx_run(const p_draw *dw, const p_draw_idx *di) {
      if (g_enc) { g_mdx_splits++; PD("M %llu indirect-count multi-draw masking: render pass split here", g_stat_pass); rp_end(); }
      if (g_blit) { enc_b_end(g_blit); g_blit = nil; }
      typedef struct { uint64_t rec, cnt, out; uint32_t i, words; } mjob;
@@ -997,7 +1034,7 @@ index c887d01..209f545 100644
      id<MTL4ComputeCommandEncoder> ce = enc_c_begin(NULL); enc_c_table(ce, at); tab_buf(at, ab, ao, 0); [ce setComputePipelineState:ps];
      enc_c_dispatch(ce, MTLSizeMake((NSUInteger)nj / 64, 1, 1), MTLSizeMake(64, 1, 1));
      enc_c_end(ce);
-@@ -14469,7 +15032,7 @@ static int mdx_next(const p_draw *dw, const p_draw_idx *di) {
+@@ -14474,7 +15065,7 @@ static int mdx_next(const p_draw *dw, const p_draw_idx *di) {
      g_udc_precise = 1;
      if (dw) enc_r_draw_indirect(g_enc, g_mdxc.mp, out); else enc_r_draw_indexed_indirect(g_enc, g_mdxc.mp, g_mdxc.it, g_mdxc.ig, g_mdxc.il, out);
      g_stat_draw++; g_mdx_fast++; g_mdxc.next = g_mdx_range ? g_exec_cur : g_exec_next; g_mdxc.i = i;
@@ -1006,7 +1043,7 @@ index c887d01..209f545 100644
      rb_bi_again(dw, di);   // RewindBox (patch 0066)
      return 1;
  }
-@@ -15313,7 +15876,7 @@ static void draw(const p_draw *dw, const p_draw_idx *di) {
+@@ -15318,7 +15909,7 @@ static void draw(const p_draw *dw, const p_draw_idx *di) {
      }
      g_stat_draw++;
      fsig_draw((const void *)(uintptr_t)(fsig_shkey(pr->sh[0]) ^ fsig_shkey(pr->sh[3]) * 3 ^ fsig_shkey(pr->sh[4]) * 5), (const void *)(uintptr_t)fsig_shkey(pr->sh[1]),   // RewindBox (patch 0059): vertex, task and mesh stages / fragment stage
@@ -1015,7 +1052,7 @@ index c887d01..209f545 100644
      if (enc_label_on() && !g_el_draws++ && pr->sh[1]) { memcpy(g_el_key, pr->sh[1]->key, 8); g_el_key[8] = 0; }
      if (passdump()) {   // Characteristics of a render pass's first draw (to judge whether the load can be omitted: full screen, no blending, writes all channels, does not depend on depth); with DM_NVN_PASSDUMP_ALL every draw is recorded
          static uint64_t last_pass = ~0ull; static int all = -1; if (all < 0) all = getenv("DM_NVN_PASSDUMP_ALL") != NULL;
-@@ -16545,10 +17108,10 @@ void nvn_be_exec(const uint8_t *p) {
+@@ -16550,10 +17141,10 @@ void nvn_be_exec(const uint8_t *p) {
                  else mtl_sub_counter(ad, (uint32_t)t);
                  break; }
              case OP_RENDER_COND: { const p_render_cond *rc = a;   // recorded only with the profile key render_cond (hle_nvn.c)
@@ -1028,7 +1065,7 @@ index c887d01..209f545 100644
                      PD("E %llu conditional render %s addr=%#llx values %llu / %llu%s%s", g_stat_pass, rc->mode ? "draw if not equal" : "draw if equal", (unsigned long long)rc->addr, (unsigned long long)x, (unsigned long long)y, known ? "" : " (unknown, drawn)", g_rc_skip ? " → not drawn" : ""); }
                  break; }
              case OP_WAIT_SYNC: { const sync_t *s; memcpy(&s, a, 8); void *ev; uint64_t v;   // another queue's fence: the queue waits for it before this submission commits (hle_nvn.c WaitSync)
-@@ -17150,7 +17713,11 @@ static void cap_begin(void) { @autoreleasepool {   // render replay thread, befo
+@@ -17155,7 +17746,11 @@ static void cap_begin(void) { @autoreleasepool {   // render replay thread, befo
      snprintf(path + o, sizeof path - o, "/rt-%%d.png");
      cap_texdump_next(path);   // frame f's targets at its end (td_dump, at the next frame's first pass)
      g_cap_snap = 1; g_cap_snaps = 0;   // ts_note: frame f's multi-target passes and every fourth pass
@@ -1041,7 +1078,7 @@ index c887d01..209f545 100644
        if (!pf) MLOG("【红】 RewindBox: frame capture: cannot write %s: %s (no pass lines)", pp, strerror(errno));
        pthread_mutex_lock(&g_cap_pd_mu); g_cap_pd_f = pf; g_cap_pd_lines = 0; pthread_mutex_unlock(&g_cap_pd_mu); }
      dm_gfx_passdump_next(1); atomic_store(&g_cap_pd_log, 1);   // frame f's pass lines, into passes.txt
-@@ -17159,19 +17726,30 @@ static void cap_begin(void) { @autoreleasepool {   // render replay thread, befo
+@@ -17164,19 +17759,30 @@ static void cap_begin(void) { @autoreleasepool {   // render replay thread, befo
  } }
  static void cap_end(void) {   // td_dump has written the files
      atomic_store(&g_cap_pd_log, 0);
@@ -1077,7 +1114,7 @@ index c887d01..209f545 100644
      g_cap_snap = 0; g_cap_dir[0] = 0;
      g_pd_a0 = -2;   // passdump() reads DM_NVN_PASSDUMP again (unset: off, answered at its first test)
      [g_cap_tex removeAllObjects]; [g_cap_tex_seen removeAllObjects]; g_cap_tex_over = g_cap_tex_kind = 0;   // RewindBox (patch 0048; 0049: the counts): td_dump's sheets are written (or its pipeline failed)
-@@ -17191,14 +17769,64 @@ static void cap_end(void) {   // td_dump has written the files
+@@ -17196,14 +17802,64 @@ static void cap_end(void) {   // td_dump has written the files
  enum { AP_MAX = 6, AP_RING = 120 };
  #define AP_GAP_NS 30000000000ull
  static uint64_t g_ap_dump_at; static char g_ap_dir[1024];
@@ -1144,7 +1181,7 @@ index c887d01..209f545 100644
      uint64_t now = clock_gettime_nsec_np(CLOCK_UPTIME_RAW), lc = atomic_load(&g_cap_last_ns);
      if ((last_ns && now - last_ns < AP_GAP_NS) || (lc && now - lc < AP_GAP_NS)) return;
      last_ns = now; taken++;
-@@ -17213,16 +17841,29 @@ static void rb_auto_probe(uint64_t f, uint32_t dur_us, uint32_t draws) {   // th
+@@ -17218,16 +17874,29 @@ static void rb_auto_probe(uint64_t f, uint32_t dur_us, uint32_t draws) {   // th
      }
      int cpu = s2a_cpuprof_request_now(g_ap_dir, 4.0);
      atomic_store(&g_rb_gp_req, (long)f + 30); g_ap_dump_at = f + 240;
@@ -1178,7 +1215,7 @@ index c887d01..209f545 100644
      g_cap_snap = 0; g_cap_dir[0] = 0;
      [g_cap_tex removeAllObjects]; [g_cap_tex_seen removeAllObjects]; g_cap_tex_over = g_cap_tex_kind = 0;   // RewindBox (patch 0048; 0049: the counts)
      [g_cap_keys removeAllObjects];   // RewindBox (patch 0051)
-@@ -17447,7 +18088,8 @@ static void td_dump(void) {
+@@ -17452,7 +18121,8 @@ static void td_dump(void) {
              if (!sps[0] || !sps[1] || !sps[2]) { sps_failed = 1; MLOG("【红】 RewindBox: frame capture: the texture sheet pipelines failed (%s): no sampled textures saved", e.localizedDescription.UTF8String); }
          }
          unsigned done = 0, left = 0; NSUInteger n = sps_failed ? 0 : g_cap_tex.count, per = CAP_TEX_ROW * CAP_TEX_ROW, edge = CAP_TEX_ROW * CAP_TEX_CELL;
@@ -1188,7 +1225,7 @@ index c887d01..209f545 100644
          if (ix) fprintf(ix, "# sheet cell serial texture-ID Metal-format width x height layer level channel-mapping(r g b a: 0 zero 1 one 2 R 3 G 4 B 5 A) view-type\n");
          for (NSUInteger s0_ = 0; s0_ < n; s0_ += per) @autoreleasepool {
              NSUInteger sheet = s0_ / per, last = MIN(n, s0_ + per);
-@@ -17489,18 +18131,21 @@ static void td_dump(void) {
+@@ -17494,18 +18164,21 @@ static void td_dump(void) {
              shot(o, path, 0, NULL); done += on_sheet;
          }
          if (ix) fclose(ix);

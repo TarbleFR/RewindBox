@@ -1,0 +1,58 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 1f32187..6a626d1 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -13422,6 +13422,10 @@ static int g_defer_ab = -1, g_defer_ab_on;
+ // One buffer texture (texture ID tid, read as 2D rows; exact: the wrapped 1D fetch's exact form) at an offset the linear-texture alignment refuses and with no GPU copy yet: ends
+ //   the open render pass and has the GPU copy the bytes the 2D-row view reads into the frame arena now (see tba_ent). Returns 1 when it made a copy. Leaves the copy encoder open
+ //   (the caller ends it once, after all of a draw's copies)
++// RewindBox (patch 0077): a GPU copy or conversion that holds only until the next buffer write (g_wr_epoch: tba_copy here, ixc_run) lands the deferred inline updates before it takes the
++//   epoch. They used to land after, in its own encoder (blit_raw, enc_c_begin), which moved the epoch past the result just made: the draw found no copy (the slot read 0) or no conversion
++//   (red line 88, the draw skipped). The updates land at the same place in command order, before that copy or compute pass. S2A_RB_LAND_FIRST=0: as before
++static int rb_land_first_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_LAND_FIRST"); v = !(e && !strcmp(e, "0")); } return v; }
+ static int tba_copy(int tid, int exact) {
+     if (tid < 0 || tid >= g_ntreg || !g_treg[tid].ok || g_tba_n >= TBA_MAX) return 0;
+     void *tv = NULL; (void)tex_fast_rid(tid, &tv); __unsafe_unretained id<MTLTexture> t = (__bridge id<MTLTexture>)tv;
+@@ -13430,6 +13434,9 @@ static int tba_copy(int tid, int exact) {
+     if (!tbuf_geom(tt, t, exact, &w, &h, &row) || tba_find(tt->serial, t)) return 0;
+     uint64_t avail = t.buffer.length > t.bufferOffset ? t.buffer.length - t.bufferOffset : 0, want = (uint64_t)row * h; size_t len = (size_t)(want < avail ? want : avail);
+     if (!len) return 0;
++    if (g_nubd && rb_land_first_on()) {   // RewindBox (patch 0077): the deferred inline updates land first (they went into blit() below), then the copy takes the epoch they leave
++        if (g_enc) { g_tba_splits++; PD("M %llu texture buffer aligned copy on the GPU: render pass split here", g_stat_pass); }
++        ubd_land(); tba_valid(); }
+     if (g_enc) { g_tba_splits++; PD("M %llu texture buffer aligned copy on the GPU: render pass split here", g_stat_pass); rp_end(); }
+     id<MTLBuffer> ab = nil; size_t off = arena_alloc(len, &ab); if (!ab) return 0;
+     enc_b_copy_buffer(blit(), t.buffer, t.bufferOffset, ab, off, len);
+@@ -13443,10 +13450,12 @@ static int tba_copy(int tid, int exact) {
+ //   or the compute shader (dispatch, stage 5)
+ static void tba_prepare(NvShader *x0, NvShader *x1, NvShader *x2, NvShader *x3, NvShader *x4, int compute) {
+     NvShader *sh[5] = {x0, x1, x2, x3, x4}; int made = 0;
++    for (int again = 0; again < 2; again++) { uint64_t ep = g_wr_epoch;   // RewindBox (patch 0077): once more when a copy landed the deferred updates (tba_copy): the copies found before it held the old epoch
+     for (int k = 0; k < 5; k++) { NvShader *x = sh[k]; if (!x) continue; int stage = compute ? 5 : k;
+         for (int i = 0; i < x->rf.nb; i++) { const nvn_rbind *b = &x->rf.b[i];
+             if (b->kind != NVN_RB_TEX || !b->f1d || (MTLTextureType)b->dtt != MTLTextureType2D) continue;
+             made |= tba_copy((int)(tex_slot_h(S.tex[stage], S.img[stage], b->reg) & 0xfffff), b->f1d == 2); } }
++    if (!rb_land_first_on() || g_wr_epoch == ep) break; }   // RewindBox (patch 0077): the second pass lands nothing (none left), so the epoch stays
+     if (made && g_blit) { enc_b_end(g_blit); g_blit = nil; }   // the copies end their encoder: the next pass / dispatch begins with its barrier after them
+ }
+ static void draw(const p_draw *dw, const p_draw_idx *di);
+@@ -15690,6 +15699,9 @@ static void ixc_run(const p_draw *dw, const p_draw_idx *di) {
+         for (int k = 0; k < 2 && lib; k++) { id<MTLFunction> f = [lib newFunctionWithName:k ? @"ixc_expand" : @"ixc_arrays"]; ps[k] = f ? [g_dev newComputePipelineStateWithFunction:f error:&e] : nil; }
+         at = ps[0] && ps[1] ? rec_table(tab_new(1, 0, 0, &e)) : nil;
+         if (!at) { failed = 1; MLOG("【红】 indirect draw conversion: cannot create the compute pipeline %s (indirect draws of quads / fans / 8-bit indices are skipped)", e.localizedDescription.UTF8String); return; } }
++    if (g_nubd && rb_land_first_on()) {   // RewindBox (patch 0077): the deferred inline updates land before the conversion takes its write epoch (they went in at enc_c_begin below), as mesh_tasks_draw does
++        if (g_enc) { g_ixc_splits++; PD("M %llu indirect draw conversion: render pass split here", g_stat_pass); }
++        ubd_land(); }
+     if (g_ixc_epoch != g_wr_epoch || g_ixc_sub != g_arena_gen || g_ixc_n > IXC_MAX - 8) { g_ixc_n = 0; g_ixc_epoch = g_wr_epoch; g_ixc_sub = g_arena_gen; }
+     int n0 = g_ixc_n; ixc_take(dw, di);
+     if (g_exec_next && g_ret_n <= 8) {   // Later draws in replay order (current list → callers → the rest of this submission), up to the next buffer write
+@@ -15771,6 +15783,9 @@ static void wide_run(const p_draw_idx *di) {
+         ps = f ? [g_dev newComputePipelineStateWithFunction:f error:&e] : nil;
+         at = ps ? rec_table(tab_new(1, 0, 0, &e)) : nil;
+         if (!at) { failed = 1; MLOG("【红】 8-bit index GPU expansion: cannot create the compute pipeline %s (the CPU expands them as before)", e.localizedDescription.UTF8String); return; } }
++    if (g_nubd && rb_land_first_on()) {   // RewindBox (patch 0077): as ixc_run: the deferred inline updates land before the expansion takes its write epoch (they went in at enc_c_begin below)
++        if (g_enc) { g_wide_splits++; PD("M %llu 8-bit index GPU expansion: render pass split here", g_stat_pass); }
++        ubd_land(); }
+     if (g_wide_epoch != g_wr_epoch || g_wide_sub != g_arena_gen || g_wide_n > WIDE_MAX - 8) { g_wide_n = 0; g_wide_epoch = g_wr_epoch; g_wide_sub = g_arena_gen; }
+     int n0 = g_wide_n; wide_take(di);
+     if (g_exec_next && g_ret_n <= 8) {   // Later draws in replay order (current list → callers → the rest of this submission), up to the next buffer write

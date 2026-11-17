@@ -5,7 +5,8 @@ import Darwin
 // the default malloc zone holds 907 MiB of a 4 640 MiB footprint, most of it compressed, and no journal says whose
 // it is; the footprint is already 2.7 to 2.9 GiB at the first frame.
 //
-// From the start of a session (before the engine) and for 120 s, or until the session ends if sooner, the sampler of
+// From the start of a session (before the engine) and for 120 s, or until the session ends or the process receives its
+// first memory warning if sooner (the reason in the header: window, sessionEnd, memoryWarning), the sampler of
 // MeloNXHeapSampler.m is libmalloc's logging hook: it records one block in every 256 KiB allocated on average (a
 // block of 256 KiB or more always) with the return addresses of its call, and forgets it when it is freed. At the end
 // of the window the hook is removed and the call stacks are written by the bytes still allocated:
@@ -93,6 +94,11 @@ final class MeloNXHeapSample {
 
     /// At the end of the session: an open window ends with it.
     func end() { queue.async { [self] in if open { finish("sessionEnd") } } }
+
+    /// At the process's first memory warning of the session: an open window ends with it, so its report is written
+    /// before iOS may end the process. IPA 767, Hogwarts Legacy: the process was ended about 95 s into the session, in
+    /// the castle courtyard at 4 % device available, before the 120 s window closed; its native heap was never reported.
+    func memoryWarning() { queue.async { [self] in if open { finish("memoryWarning") } } }
 
     private func finish(_ reason: String) {
         open = false
