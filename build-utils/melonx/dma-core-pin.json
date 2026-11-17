@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "7ad86a14377da6ce1f8ce51bfec2f3bc9cc16183",
-  "run": 44165571216,
-  "job": 134330582817,
+  "source": "5924dd56fc615b6d2e581ddee726cbb3e3f445e0",
+  "run": 44193668756,
+  "job": 134429339085,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 14365039866,
-  "name": "MeloNX-engine-7ad86a14377da6ce1f8ce51bfec2f3bc9cc16183",
-  "bytes": 100690150,
-  "sha256": "8cd4f4d8624b672e58437bba7095577a93dd6f42e4a75f50d098c9fb62ff08d4",
-  "expiresAt": "2027-02-15T20:05:31Z",
+  "artifact": 14379091341,
+  "name": "MeloNX-engine-5924dd56fc615b6d2e581ddee726cbb3e3f445e0",
+  "bytes": 100813015,
+  "sha256": "a224697b1ba8ab2d2d3bcf2168e6343faf1b4adcd27d65893304762d40f88bc0",
+  "expiresAt": "2027-02-15T22:48:58Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "939a939ff1653f0c13788e8658c61a83d2ac8a4fe1ac0074a8051950800bb072",
-      "bytes": 38653856
+      "sha256": "7c8509d2881b6bd0aa0717270a08829002e8547fdcfe28daa79f7bea7f88e9fe",
+      "bytes": 38752416
     },
     "iossimulator-arm64": {
-      "sha256": "5658c71d6df7320f0d81387a798ffe2e3d96ac8aa68e15ecd51905300604d0d7",
-      "bytes": 38988952
+      "sha256": "77b72442308b9aae09d36f7bbf2aca98267cb31821c41f786f82f235dadd9b9e",
+      "bytes": 39071800
     }
   },
   "identities": {
-    "ios-arm64": "c627c7aed5768ef2490d7467c7dd8e87c850a8511b54f64496406d4be200aa85",
-    "iossimulator-arm64": "cd31e76cdda172e765c263dbc0493194e5525e6d629b7db6108ff6263d8e156e"
+    "ios-arm64": "124a99ddb4139b106e1bf99e4ad2f578abc86b5693523ee1c2ea2838b54cad78",
+    "iossimulator-arm64": "3698404238e452bb463cf659d28cfc2a78679daa6c301be93382444f633fa12e"
   },
-  "contractSha256": "032d0c7edabfae1936dfe15de388862cb286e3e9141acf7d45ac8ae5b57012c6",
-  "resultSha256": "b325c8a93111497459e8ca1595a3f16202dea0e09bc74d794385e13920fd7c47",
-  "packagedFingerprint": "6e81bb2842f57cc16dff819f6cdc7a6ce524970692962540b32cfcf0e46adbff",
+  "contractSha256": "c34f65b657d1a73f779bbc68b02fb59e20beb0d5d2c3beff33f02bbfdaceec56",
+  "resultSha256": "2082559efdae228d9fd9f5b6a7375bfd7de34f781ef0703bee75a850c77819b5",
+  "packagedFingerprint": "f1daf11aafcdd4e164dcb732e686d07771ba4ef94d356c12e6d1ce224934bbeb",
   "replaces": {
-    "source": "9546deb792b6e24ed29c7667abed435a82ab01f2",
-    "run": 44096192928,
-    "artifact": 14334228332,
-    "packagedFingerprint": "fb85d9564b183c7abb4071a1126fae8ed35d82430b13bf309bf6ae4a719ff34c",
-    "reason": "Foreground compaction headroom and texture streaming allocation fixes on 7ad86a14"
+    "source": "7ad86a14377da6ce1f8ce51bfec2f3bc9cc16183",
+    "run": 44165571216,
+    "artifact": 14365039866,
+    "packagedFingerprint": "6e81bb2842f57cc16dff819f6cdc7a6ce524970692962540b32cfcf0e46adbff",
+    "reason": "After IPA 777, every title, memory and stalls: adapt_buffer_mirror_windows (a small deferred write on a buffer of at least 85,000 bytes keeps a 16 KiB managed window instead of a whole-buffer mirror; a transfer write also invalidates the staging mirrors it covers; Rebind walks bindings without allocating; one pause request per effective state), adapt_descriptor_pool_lifetime (a refused allocation no longer destroys an empty pool twice and closing no longer destroys a pool with sets in flight), the Nextendo game data (BCAT folder, nsa, accepted versions), and adapt_cheat_report (which build the cheats were for, the main build id in the metadata answer, vsyncFps as a custom refresh). Contract c34f65b6, 119 gates on the final preparation (Linux x86_64), build-smoke route. No iPhone gameplay, stutter, frame rate or memory gain is claimed."
   }
 }
