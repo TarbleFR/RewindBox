@@ -349,7 +349,13 @@
         "note": "Written by this session (S2Arm): build(s2arm): s2arm_engine_bridge.podspec back to its reviewed declaration (no UniformTypeIdentifiers line: static framework, module autolinking, Runner already links it)."
       }
     ],
-    "sourceOnly": [],
+    "sourceOnly": [
+      {
+        "commit": "8946bfaee09ea8dd24036589cdd11623d82e8153",
+        "note": "Merge of another session's concurrent Switch 1 work (f18f7fd6, Nextendo game servers found by name) pushed during this delivery; not compiled in 778, for its own delivery.",
+        "targetBuild": 779
+      }
+    ],
     "promotedCommits": [
       {
         "commit": "26b801b6c304a983acf08b8752701f407a88b003",
