@@ -97,9 +97,11 @@ autrement.
 - **Le signal de reprise.** Un thread entré dans un appel système (sys_semaphore_wait, par exemple) porte `cpu_flag::wait` avant
   d'atteindre `lv2_obj::sleep`. Si `schedule_all()` le reprenait avec `cpu_flag::signal` avant ce sommeil, ce sommeil échouerait
   comme « signalé » : l'attente rendrait CELL_OK sans `post` et le compte du sémaphore serait faussé pour de bon. Ces suspensions
-  sont donc enregistrées (sous `lv2_obj::g_mutex`), et un thread enregistré est repris sans `cpu_flag::signal` :
-  `check_state` n'a besoin que de la levée de `cpu_flag::suspend`. Si le thread s'endort avant sa reprise, `sleep_unlocked`
-  efface son enregistrement, et son vrai réveil est signalé comme avant.
+  sont donc enregistrées (sous `lv2_obj::g_mutex`) jusqu'au prochain sommeil du thread. Là, `sleep_unlocked` efface un
+  `cpu_flag::signal` en attente avant son test : aucun réveil de ce sommeil ne peut le précéder, puisqu'un thread ne trouve
+  l'endormi dans la file de l'objet que sous le verrou de cet objet. La reprise garde `cpu_flag::signal`, comme à l'origine :
+  `check_state` en a besoin pour rappeler `cpu_sleep()` lors d'une suspension suivante. Une première version reprenait le
+  thread sans signal ; la seconde relecture a montré que `g_pending` pouvait alors ne plus jamais revenir à zéro.
 - **Les emplacements du verrou mémoire.** Un thread qui détient un emplacement du verrou passif (`vm::g_locks`) garde le chemin
   d'origine. Sinon, le thread réveillé à sa place tournerait dans `vm::_register_lock` jusqu'à la libération de cet emplacement.
   Les threads qui ont dormi l'ont libéré (`prepare_for_sleep`) : c'est le cas fréquent des 5 426 réveils retenus.
