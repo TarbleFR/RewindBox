@@ -15,6 +15,7 @@
 #import <dlfcn.h>
 #import <errno.h>
 #import <sys/clonefile.h>
+#import <sys/mount.h>
 
 static NSString *const kChannel = @"neostation/s2arm_internal";
 static NSString *const kProgressMethod = @"prepareProgress";
@@ -28,6 +29,33 @@ static uint64_t const kBootQuiesceNs = 2000000000ull;   // 2 s with no hook acti
 
 static void s2arm_session_ended(int code, const char *reason, void *context);
 static void s2arm_session_parked(const char *reason, void *context);
+
+// The free space the engine wants before it puts the guest memory in files (S2Arm vawin.c guest_file_map reads
+// S2A_GUEST_FILE_MIN_FREE_MB, 12288 MB when unset). The engine measures it with statfs, which counts none of the space iOS
+// purges for a task the user asked for (caches); the Settings app and NSURLVolumeAvailableCapacityForImportantUsageKey count
+// it, as the import does (IPA 728). IPA 778 (17 Nov): statfs gave 7901 MB while Settings showed about 50 GB, so the engine
+// kept the guest memory anonymous (Mario Kart World's pool is 9216 MB, with 6133 MB left under the process limit: iOS stops
+// the game after a while) and its "Not enough free storage" page covered the game. In 25 earlier sessions the sparse files
+// held at most 5094 MB on disk. The files are used when either measure shows 6144 MB (the engine is given 0). Below that on
+// both, the engine keeps its own check at 6144 MB and its page: the phone is really full. A value already in the environment
+// is left as it is (12288 gives the engine's own behaviour back).
+static void S2ArmGuestFileSpace(void) {
+  if (getenv("S2A_GUEST_FILE_MIN_FREE_MB")) {
+    s2arm_journal("guestFileSpace", "kept", NULL);
+    return;
+  }
+  const unsigned long long needMB = 6144;
+  NSString *tmp = NSTemporaryDirectory();
+  struct statfs fs;
+  unsigned long long statfsMB = statfs(tmp.fileSystemRepresentation, &fs) == 0 ? ((unsigned long long)fs.f_bavail * fs.f_bsize) >> 20 : 0;
+  NSNumber *important = nil;
+  [[NSURL fileURLWithPath:tmp] getResourceValue:&important forKey:NSURLVolumeAvailableCapacityForImportantUsageKey error:nil];
+  unsigned long long importantMB = important.longLongValue > 0 ? (unsigned long long)important.longLongValue >> 20 : 0;
+  unsigned long long thresholdMB = statfsMB >= needMB || importantMB >= needMB ? 0 : needMB;
+  setenv("S2A_GUEST_FILE_MIN_FREE_MB", [NSString stringWithFormat:@"%llu", thresholdMB].UTF8String, 1);
+  s2arm_journal("guestFileSpace", thresholdMB ? "short" : "enough", "\"statfsMB\":%llu,\"importantMB\":%llu,\"thresholdMB\":%llu",
+                statfsMB, importantMB, thresholdMB);
+}
 static UIViewController *S2ArmTopViewController(void);
 static BOOL S2ArmPathInside(NSString *path, NSString *root);
 static void S2ArmPrepareSaveFolder(NSString *folder, NSString *docs);
@@ -518,6 +546,7 @@ static NSDictionary *launchFail(NSString *error, NSString *stage, NSString *deta
   setenv("DOTNET_GCSegmentSize", kGcSegmentSize.UTF8String, 0);
   setenv("MTL_SHADER_CACHE_SIZE", kShaderCacheSize.UTF8String, 0);
   S2ArmSettingsPrepareLaunch();   // the game language, and the engine's brief overlay that the in-game menu shows or hides
+  S2ArmGuestFileSpace();          // the free space the engine wants for the guest memory files (S2A_GUEST_FILE_MIN_FREE_MB)
   S2ArmPrepareSaveFolder(self.saveFolder, docs);   // the save folder the player sees in Files (S2A_SAVE_FOLDER)
   rb_s2arm_engine_mark_loading();
   self.engineLoaded = YES;   // from here the engine lives in this process: no second launch, even if the dlopen fails

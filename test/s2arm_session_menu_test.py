@@ -78,12 +78,25 @@ class Settings(unittest.TestCase):
         self.assertIn('setenv("S2A_SYSTEM_LANGUAGE", language.UTF8String, 1)', prepare)
         self.assertIn('setBool:YES forKey:kEngineBriefHud', prepare)
 
-    def test_the_launch_sets_the_free_space_for_the_guest_memory_files(self):
-        # IPA 778 (17 Nov): 7901 MB free under the engine's 12288 MB, so the guest memory stayed anonymous and the engine's
-        # storage page covered the game. The files held at most 5094 MB in 25 sessions; a value already set wins (overwrite 0).
-        prepare = block(SETTINGS, 'void S2ArmSettingsPrepareLaunch(void)')
-        self.assertEqual(prepare.count('setenv("S2A_GUEST_FILE_MIN_FREE_MB", "6144", 0);'), 1)
-        self.assertNotIn('S2A_GUEST_FILE_MIN_FREE_MB", "6144", 1', prepare)
+    def test_the_launch_decides_the_free_space_for_the_guest_memory_files(self):
+        # IPA 778 (17 Nov): the engine's statfs gave 7901 MB under its 12288 MB while Settings showed about 50 GB, so the guest
+        # memory stayed anonymous and the engine's storage page covered the game. The files held at most 5094 MB in 25
+        # sessions. The bridge measures as iOS does for a task the user asked for (purgeable space counted, as the import).
+        space = block(PLUGIN, 'static void S2ArmGuestFileSpace(void) {')
+        self.assertLess(space.index('if (getenv("S2A_GUEST_FILE_MIN_FREE_MB")) {'), space.index('setenv('), 'a value already set is kept')
+        self.assertIn('const unsigned long long needMB = 6144;', space)
+        self.assertIn('statfs(tmp.fileSystemRepresentation, &fs) == 0', space)
+        self.assertIn('NSURLVolumeAvailableCapacityForImportantUsageKey', space)
+        self.assertIn('unsigned long long thresholdMB = statfsMB >= needMB || importantMB >= needMB ? 0 : needMB;', space)
+        self.assertEqual(space.count('setenv("S2A_GUEST_FILE_MIN_FREE_MB",'), 1)
+        self.assertIn('s2arm_journal("guestFileSpace", thresholdMB ? "short" : "enough",', space)
+        self.assertNotIn('S2A_GUEST_FILE_MIN_FREE_MB', SETTINGS)
+        # Only the first launch configures the engine: the call sits between the settings and the dlopen, not in the resume.
+        launch = PLUGIN.index('- (NSDictionary *)runLaunchWithGid')
+        call = PLUGIN.index('S2ArmGuestFileSpace();', launch)
+        self.assertLess(PLUGIN.index('S2ArmSettingsPrepareLaunch();', launch), call)
+        self.assertLess(call, PLUGIN.index('dlopen(enginePath', launch))
+        self.assertEqual(PLUGIN.count('S2ArmGuestFileSpace();'), 1)
 
 
 class Bridge(unittest.TestCase):

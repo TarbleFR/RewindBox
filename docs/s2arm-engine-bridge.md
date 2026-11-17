@@ -415,16 +415,21 @@ in 41 ms and reused the preparation (`identity: pin`), first frame 62 s after th
 
 ## Not enough free storage (IPA 778, 17 Nov 2026)
 
-On IPA 778, Mario Kart World opened on the engine's "Not enough free storage" page (needs about 12 GB, 7 GB free). The
-engine had found 7901 MB free in its temporary folder (`statfs`, which leaves out what iOS can purge), under its 12288 MB
-default, the Switch 2's whole memory (S2Arm `vawin.c` `guest_file_map`, `S2A_GUEST_FILE_MIN_FREE_MB`). It then kept the
-guest memory anonymous, though the game's pool (9216 MB) does not fit under the process limit (6133 MB left), so iOS
-would have stopped it after a while. The page stays over the game for the whole session. Every earlier session in the
-logs had the free space and put the guest memory in files.
+On IPA 778, Mario Kart World opened on the engine's "Not enough free storage" page (needs about 12 GB, 7 GB free), while
+Settings showed about 50 GB available. The engine had found 7901 MB free in its temporary folder with `statfs`, which
+counts none of the space iOS purges on demand (the import met the same gap on IPA 728), under its 12288 MB default, the
+Switch 2's whole memory (S2Arm `vawin.c` `guest_file_map`, `S2A_GUEST_FILE_MIN_FREE_MB`). It then kept the guest memory
+anonymous, though the game's pool (9216 MB) does not fit under the process limit (6133 MB left), so iOS would have
+stopped it after a while. The page stays over the game for the whole session. Every earlier session in the logs had the
+free space and put the guest memory in files.
 
-- **Threshold.** The files are sparse. In 25 sessions on the phone (12–17 Nov) they held at most 5094 MB on disk. The
-  bridge now sets `S2A_GUEST_FILE_MIN_FREE_MB=6144` before the dlopen (`S2ArmSettingsPrepareLaunch`, overwrite 0, so a
-  value already in the environment wins; 12288 gives the engine's behaviour back). No engine change.
+- **Threshold.** The files are sparse. In 25 sessions on the phone (12–17 Nov) they held at most 5094 MB on disk. Before
+  the dlopen of the first launch, the bridge (`S2ArmGuestFileSpace`) measures the temporary folder's volume with `statfs`
+  and with `NSURLVolumeAvailableCapacityForImportantUsageKey`, which counts the purgeable space as Settings does. If either
+  shows 6144 MB, it gives the engine `S2A_GUEST_FILE_MIN_FREE_MB=0`, and the files are used. Otherwise it gives 6144, and
+  the engine keeps its check and its page (the phone is really full). A value already in the environment is kept (12288
+  gives the engine's behaviour back). Journal: `guestFileSpace` `enough` / `short` with `statfsMB`, `importantMB` and
+  `thresholdMB`. No engine change.
 - **Old roots left on disk.** Each preparation moves the previous root aside (205 660 RomFS links and about 150 MB of
   modules for this game). Its deletion waits while a game or a preparation runs. At background QoS it needed 60–267 s
   per root, and the game starts right after a preparation. From 17 Nov 12:44 to 22:49, ten runs removed 116 315 entries
