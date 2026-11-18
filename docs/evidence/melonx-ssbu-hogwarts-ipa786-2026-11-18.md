@@ -1,0 +1,35 @@
+# SSBU en ligne et performances de Hogwarts Legacy après l’IPA 786
+
+## Mesures sur iPhone avec l’IPA 786
+
+La vidéo de SSBU montre le retour de « Connexion à Internet… » au menu. Le cœur a accepté la configuration en ligne, servi les données BCAT et reçu sept fois le certificat de sujet et d’émetteur `CN=nintendo-private-server` pour `g23380901-lp1.s.n.srv.nintendo.net`. Les sept refus TLS précèdent la recherche d’adversaires. Les deux sessions détaillées ci-dessous se sont fermées avec confirmation native de libération de la mémoire. La même série de tentatives SSBU comporte sept refus d’une option de socket par iOS. La connexion a néanmoins progressé jusqu’au certificat à chaque fois. Le journal ne donne ni l’option concernée ni la liste complète des réponses DNS de ces tentatives.
+
+| Indicateur | SSBU | Hogwarts Legacy |
+| --- | --- | --- |
+| Début de session → première image | 14 s | 7 s |
+| Cache principal Vulkan | 143,96 Mio en 2 330 ms | 98,65 Mio en 1 320 ms |
+| Variantes prévues au lancement | 2 046 pour 829 programmes | 1 699 pour 435 programmes |
+| État thermique dans les échantillons | Nominal | 82 nominaux, 52 modérés (`fair`) |
+
+Hogwarts a produit 22,7 FPS de moyenne pendant le jeu. Sur 2 669 images présentées, le journal compte 886 intervalles supérieurs à 40 ms. À partir de la 60e seconde, 54 des 72 échantillons actifs avec FPS positifs sont sous 25 FPS. Le journal ne repère pas l’entrée dans les jardins. Dans la session complète, 1 156 variantes étaient prêtes avant leur premier dessin. Il y a eu 378 créations tardives, dont 375 nouvelles, pour 117 ms cumulées. Le cœur compte aussi 31 pauses du ramasse-miettes de plus de 33,3 ms et une empreinte mémoire atteignant 5,13 Go dans les relevés périodiques. Ces mesures proviennent de l’IPA testée avant les changements.
+
+Dans une fenêtre lente de 5,02 s, le moteur a présenté 97 images. Il a passé 873 ms à préparer les descripteurs graphiques, 425 ms à préparer les descripteurs de calcul et mesuré 1 171 ms d’attentes de synchronisation. Les dessins ont attendu 0 ms de compilation sur cette fenêtre. Ces compteurs peuvent se recouvrir. Ils désignent deux coûts encore présents pendant le jeu, au-delà du chargement du cache.
+
+## Changements sur Claude
+
+- **Nextendo.** Le correctif précédent donnait déjà priorité aux noms DNS de l’opérateur. RewindBox conserve désormais plusieurs réponses IPv4. Pour SSBU, lorsque plusieurs adresses distinctes restent après exclusion du serveur NAT, le cœur essaie jusqu’à quatre adresses en parallèle pendant le démarrage. Il utilise le nom TLS de Smash, HTTP/1.1 et les racines Nextendo. Les sondes ne transmettent aucune donnée du joueur. Le jeu vérifie à nouveau le certificat sur sa propre connexion. Avec une seule adresse, le jeu s’y connecte directement. Si aucune sonde n’aboutit, le jeu peut réessayer l’adresse principale avec les mêmes vérifications.
+- **Nom TLS et indication au joueur.** Seule la résolution effective mémorise le nom de destination. Cette mémoire appartient à la session. Le panneau Nextendo indique le dernier refus de certificat de SSBU observé par le jeu pendant l’exécution de l’application. Une vérification réussie par le jeu efface l’indication.
+- **Démarrage.** La lecture des métadonnées pour Nextendo intervient après la validation du compte, du type de fichier et du moteur. Le catalogue, les évènements BCAT et l’identifiant optionnel d’Animal Crossing se chargent en parallèle. Si le délai global expire après l’authentification, le lancement conserve sa configuration en ligne et les données locales déjà identifiées.
+- **RAM et entrées-sorties au lancement.** Les préparations BCAT simultanées d’un même titre partagent une requête. Si le serveur publie un ETag, une réponse HTTP 304 réutilise les fichiers installés. Le téléchargement contrôle sa taille pendant la lecture. L’installation valide les noms puis décompresse et écrit les fichiers un par un avant de remplacer le répertoire.
+- **Cache de shaders.** Quand un cache principal existe, le planificateur attend qu’il soit disponible pour distribuer les variantes spéculatives. Le moteur regroupe les offres en attente, les trie lorsqu’un worker peut les prendre et retire la variante prioritaire en fin de tableau. Le chemin d’un dessin demandé et les seuils de mémoire continuent à fonctionner indépendamment.
+- **Session longue.** Le routeur de manette transmet chaque changement de valeur utile, garde le dernier envoi accepté et retente un envoi refusé. Pour Hogwarts en usage normal, dès l’état thermique modéré, le journal espace d’au moins quatre secondes le relevé Mach de tous les threads. Les mesures de présentation, d’audio, de mémoire et d’état thermique continuent à leur cadence habituelle.
+
+## Vérifications et limites
+
+La sélection TLS a été exercée en boucle locale avec le code de validation du cœur, une autorité de test et un port éphémère. Un certificat au mauvais nom est refusé, une seconde adresse correctement authentifiée est sélectionnée et deux refus conservent la validation stricte sur la connexion du jeu. Le contrôle du filtrage DNS et la fermeture de session préservent puis libèrent la correspondance de nom attendue. Le scénario de lancement a vérifié la réutilisation BCAT sur 304, le partage d’une requête concurrente, la disponibilité du jeton pendant un retard du catalogue et l’absence de lecture des métadonnées Nextendo pour un joueur déconnecté.
+
+Le planificateur issu des sources préparées a respecté l’ordre de priorité, le maintien en attente sous pression mémoire et le réveil après le chargement du cache. Les contrôles Swift ont exercé l’arbitrage des sticks et la conservation des relevés. Une compilation et une session de simulateur ne mesurent ni le matchmaking public ni les FPS soutenus sur iPhone. L’opérateur doit présenter un certificat valide pour le nom de Smash sur au moins une destination accessible. [Déploiement Nextendo](https://github.com/NextendoNetwork/nextendo-docs/blob/main/DEPLOYMENT.md) · [Guide d’intégration](https://wiki.nextendo.network/integration)
+
+Le build Apple du cœur `cf6396a2` a produit les binaires iOS et simulateur. Le contrôle ABI et les deux sessions de simulateur avec libération des ressources ont réussi. L’archive officielle `14428770548` a été vérifiée par SHA-256, ainsi que ses binaires et les 245 fichiers sources préparés. L’empreinte de la charge utile iOS sélectionnée pour la prochaine IPA est `e58acedc9b3a9d3c41ee47cbe6eb06e068a2c6727acd453fe8dc99bd8b4c8731`. [Compilation du cœur](https://github.com/TarbleFR/RewindBox/actions/runs/44303057356)
+
+Les 15 scénarios de lancement Dart ont également réussi, dont la vérification de l’ordre des appels après la suppression de la lecture Nextendo hors ligne. Le contrôle historique de périmètre RetroArch échoue sur sept fichiers SQLite, bibliothèque et NeoSwap dont les contenus et le test sont identiques à la tête de Claude antérieure à ces changements. [Contrôle historique](https://github.com/TarbleFR/RewindBox/actions/runs/44304324067)

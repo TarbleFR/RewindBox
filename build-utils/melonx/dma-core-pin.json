@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "6d8cb068569fbe29f5dd408e50ab2d8155d379f9",
-  "run": 44274960144,
-  "job": 134700630566,
+  "source": "cf6396a2ca61cb6efdffab76ae85c3c5ac520987",
+  "run": 44303057356,
+  "job": 134797444394,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 14414617849,
-  "name": "MeloNX-engine-6d8cb068569fbe29f5dd408e50ab2d8155d379f9",
-  "bytes": 101207419,
-  "sha256": "9efc4cb0cc3ff88fd82afce3b5842521bc80434a2ce39231942b4492101ea579",
-  "expiresAt": "2027-02-16T09:20:15Z",
+  "artifact": 14428770548,
+  "name": "MeloNX-engine-cf6396a2ca61cb6efdffab76ae85c3c5ac520987",
+  "bytes": 101242454,
+  "sha256": "d3d195d2ced3f1f57325473e1285943fef6bc3be9925a92b8af8e7456312b562",
+  "expiresAt": "2027-02-16T12:20:57Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "d9e48ce44ebe66e7c72acdcdcf1e868c518afbbbbc3d0f5597dcf99eb7dd148d",
-      "bytes": 39130016
+      "sha256": "786c175354c45282e6ffa8ba9ae0553e0a74e0b7826f28f3be25bac2b825f105",
+      "bytes": 39162888
     },
     "iossimulator-arm64": {
-      "sha256": "a25995373c9a4bbc34f095c9df54f1efbe9908507f4a6e30eb2c624c2857be16",
-      "bytes": 39452344
+      "sha256": "f5d7712d18fb85d10e1bb4e6abe117aadeda24ca04763cdc46b821a08a70be57",
+      "bytes": 39485464
     }
   },
   "identities": {
-    "ios-arm64": "811e2a11525130260d4bdbd837339aa850f995131fd045533f696b927de74641",
-    "iossimulator-arm64": "b391ed86706a34744254f45aa854fab55dae84bb488cd3098cf48739ec0fdc2a"
+    "ios-arm64": "10a1679e9c208c0406b1ddd00d3860c7365d2cdfa3d1c26747715d86992f035a",
+    "iossimulator-arm64": "14a6f9df3d522979101045c355d40f4716479f56877575ac68f57811d195ba28"
   },
-  "contractSha256": "4424ced3c8c9d19c975e60be5c02ddf4dcfc01ccfda4a8801c0e4a682116a743",
-  "resultSha256": "a0d7af8e2adf2fca2277257c7b11e8a1342c838dafbc7d14758e1893d39e9939",
-  "packagedFingerprint": "b36ab3a0d50ef418982c1e7a3c63c23930f71777d2d899a9a90a99eeeb41eea1",
+  "contractSha256": "e2e86f28c5c5a2c8d072e2d19a781a61bdf316c717c6a23684833fb0aa86d839",
+  "resultSha256": "373c29d654be43282792618f0d29647e1955ce760258939038fd39dc6647e554",
+  "packagedFingerprint": "e58acedc9b3a9d3c41ee47cbe6eb06e068a2c6727acd453fe8dc99bd8b4c8731",
   "replaces": {
-    "source": "cb32cfaf3175d37358997681c536cf235e63cc46",
-    "run": 44270538946,
-    "artifact": 14412901985,
-    "packagedFingerprint": "974a19787ab103c5c20d5c6a661c683141ddeae6180fcad524d134803125d2ae",
-    "reason": "Reduce render queue atomics during sustained workload."
+    "source": "6d8cb068569fbe29f5dd408e50ab2d8155d379f9",
+    "run": 44274960144,
+    "artifact": 14414617849,
+    "packagedFingerprint": "b36ab3a0d50ef418982c1e7a3c63c23930f71777d2d899a9a90a99eeeb41eea1",
+    "reason": "Verify SSBU routes and coalesce speculative pipeline queue sorting."
   }
 }
