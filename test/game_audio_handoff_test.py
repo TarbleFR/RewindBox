@@ -46,6 +46,14 @@ class Armsx2InternalBridge {
   static final controller = StreamController<Map<String, dynamic>>.broadcast();
   static Stream<Map<String, dynamic>> get sessionEvents => controller.stream;
 }
+class XeniaInternalBridge {
+  static Stream<Map<String, dynamic>> get sessionEvents => const Stream.empty();
+}
+class S2ArmInternalService {
+  static const sessionExecutable = 'ios_s2arm_internal';
+  static bool get sessionRunning => false;
+  static Stream<({int code, String reason})> get sessionEvents => const Stream.empty();
+}
 class SfxService {
   static final instance = SfxService._();
   factory SfxService() => instance;
