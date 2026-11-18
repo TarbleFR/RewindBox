@@ -1,0 +1,65 @@
+diff --git a/runtime/src/rb_guest.c b/runtime/src/rb_guest.c
+--- a/runtime/src/rb_guest.c
++++ b/runtime/src/rb_guest.c
+@@ -40,6 +40,17 @@
+ static _Atomic int g_term;      // the process itself ends: 1 = SIGTERM (exit as S2Arm does), 2 = the app terminates (back to UIKit)
+ static _Atomic int g_started;   // the host thread exists (ios/app.m s2a_rb_guest_start)
+ static _Atomic int g_ready;     // s2a_rb_guest_configure returned 0 (ios/app.m: the view controller needs it)
++// RewindBox (patch 0099): the resume path can hold RESTARTING for up to 600 s.
++// Its Quit used to be ignored during that window, but UIKit had already latched
++// the button. Accept a single pending quit and run it after the rebuild hands
++// back ownership. S2A_RB_QUIT_DURING_RESUME=0 keeps the earlier behavior.
++static pthread_mutex_t g_resume_mu = PTHREAD_MUTEX_INITIALIZER;
++static int g_resume_pending, g_quit_after_resume;
++static int rb_quit_during_resume_on(void) {
++    const char *setting = getenv("S2A_RB_QUIT_DURING_RESUME");
++    return !(setting && !strcmp(setting, "0"));
++}
++
+ static s2a_rb_guest_config g_cfg;   // the host's hooks; its paths are copied into the launch context
+
+ int s2a_rb_guest_on(void) { return atomic_load(&g_on); }
+@@ -165,6 +176,16 @@
+
+ __attribute__((visibility("default"), used)) void s2a_rb_guest_stop(const char *reason) {
+     if (!s2a_rb_guest_on() || atomic_load(&g_ended)) return;
++    if (rb_quit_during_resume_on()) {
++        pthread_mutex_lock(&g_resume_mu);
++        int pending = g_resume_pending;
++        if (pending) g_quit_after_resume = 1;
++        pthread_mutex_unlock(&g_resume_mu);
++        if (pending) {
++            LOG("RewindBox (patch 0099): stop requested while resuming; queued until rebuild finishes");
++            return;
++        }
++    }
+     const char *dup = strdup(reason && *reason ? reason : "RewindBox: stop requested"), *why = dup ? dup : "RewindBox: stop requested";   // kept: the shutdown logs it later
+     if (!atomic_load(&g_started)) { s2a_rb_guest_ended(0, why); return; }   // nothing started yet: nothing to shut down
+     if (s2a_host_session_state() == S2A_SESSION_RESTARTING || s2a_session_retirement_busy()) {
+@@ -193,13 +214,25 @@
+ //   FAILED; another game, or this one, needs a new process).
+ static void resume_result(int result, const char *detail, void *context) {
+     (void)context;
+-    if (!result) { LOG("RewindBox guest: the parked session resumed"); return; }
++    pthread_mutex_lock(&g_resume_mu);
++    int quit = g_quit_after_resume;
++    g_resume_pending = g_quit_after_resume = 0;
++    pthread_mutex_unlock(&g_resume_mu);
++    if (!result) {
++        LOG("RewindBox guest: the parked session resumed");
++        // The control worker has already queued restart_done on the main queue.
++        if (quit) dispatch_async(dispatch_get_main_queue(), ^{ s2a_rb_guest_stop("rewindbox-resume-quit"); });
++        return;
++    }
+     s2a_rb_guest_ended(EXIT_FAILURE, detail && *detail ? detail : "RewindBox: the parked session could not resume");
+ }
+
+ int s2a_rb_guest_resume_session(char *error, size_t error_size) {   // ios/app.m s2a_rb_guest_resume, once the view is shown
+     if (!s2a_rb_guest_parked()) return refuse(error, error_size, "the session is not parked");
++    pthread_mutex_lock(&g_resume_mu);
+     int rc = s2a_host_resume(resume_result, NULL);
++    if (!rc && rb_quit_during_resume_on()) g_resume_pending = 1;
++    pthread_mutex_unlock(&g_resume_mu);
+     if (rc) return refuse(error, error_size, "the parked session could not resume now (%d)", rc);
+     s2a_sesmark_rest_home(0);   // patch 0018: no longer at rest from here on: a resume that fails, or a crash of the resumed game, is asked about at the next start
+     LOG("RewindBox guest: resume requested");

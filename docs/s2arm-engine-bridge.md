@@ -34,7 +34,7 @@ ARMSX2 bridges are `.mm`, where a comparison is a C++ `bool`. Not observed on a 
 
 ### One engine per process
 
-`S2ArmEngine` carries one NativeAOT runtime; MeloNX's Core carries another. They cannot share a process, so:
+`S2ArmEngine` and MeloNXCore each carry a NativeAOT runtime. RewindBox enforces one of these runtimes per process:
 
 - The plugin exports `rb_s2arm_engine_loaded()` (an atomic flag). It is set to 1 **before** the `dlopen` of the engine
   (even if the load then fails), so MeloNX's bridge, which reads it through `dlsym(RTLD_DEFAULT, "rb_s2arm_engine_loaded")`,
@@ -473,7 +473,8 @@ shutdown that followed reported code 0. Patch 0097 defaults to `S2A_WORKGROUP=0`
 two guest read-ahead queues before releasing the game window. An explicit workgroup value still wins for measurement,
 and `S2A_RB_PARK_COMPAT=0` restores the earlier defaults. The journal records the selected mode, park and dismissal.
 Patch 0098 hands the controller back before dismissal. Flutter completes controller recovery as part of session
-finalization before another launch. `S2A_RB_PARK_INPUT=0` restores the previous ownership behavior. Relaunch, input
+finalization before another launch. `S2A_RB_PARK_INPUT=0` restores the previous ownership behavior. Patch 0099
+keeps one Quit request during a resume and executes it when the rebuild completes. Relaunch, input
 handoff and the thermal effect of this mode still need an iPhone check.
 
 ## Lower workgroup power before serious heat (18 November 2026)
