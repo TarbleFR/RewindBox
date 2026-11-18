@@ -1,0 +1,270 @@
+{
+  "baselineBuild": 782,
+  "baselineIPASHA256": "7630ad56db2167813e7d9a26251dcbf9b7d30b84003b02999a062dd2af0e6efc",
+  "candidateBuild": 783,
+  "candidateIPASHA256": "955eea1c376f543a07705153b92358897f3f82eff8a6adc5a479d0289a261cf0",
+  "s2armDirectChainSHA256": "f7d62a4cfac858ef5ec9a66a0c3fde00ac282d07e647bc7bd9e7b894e13c1c65",
+  "images": {
+    "Frameworks/S2ArmEngine.framework/S2ArmEngine": {
+      "baselineFingerprint": "9f449f905cef0832cf446985209bd4bfef59b644dbbbc8e700a970e30fe2e3c6",
+      "candidateFingerprint": "d8c3e9e58e783775442d16fe9dd1b62c409278703d3c8c59c6150e3cff520311",
+      "changedAbiFields": [],
+      "sections": 44,
+      "identicalSections": 16,
+      "changed": {
+        "__DATA,.dotnet_eh_table": {
+          "bytes": [
+            2154593,
+            2154658
+          ]
+        },
+        "__DATA,__data": {
+          "bytes": [
+            429992,
+            430008
+          ]
+        },
+        "__DATA,__modules": {
+          "bytes": [
+            8,
+            8
+          ]
+        },
+        "__DATA,__objc_const": {
+          "bytes": [
+            44920,
+            44920
+          ]
+        },
+        "__DATA,__objc_selrefs": {
+          "bytes": [
+            15160,
+            15160
+          ]
+        },
+        "__DATA,__thread_vars": {
+          "bytes": [
+            2280,
+            2280
+          ]
+        },
+        "__DATA,swgl": {
+          "bytes": [
+            3568,
+            3568
+          ]
+        },
+        "__DATA,swglb": {
+          "bytes": [
+            424,
+            424
+          ]
+        },
+        "__DATA,swhle": {
+          "bytes": [
+            3152,
+            3152
+          ]
+        },
+        "__DATA,swnvn": {
+          "bytes": [
+            11328,
+            11328
+          ]
+        },
+        "__DATA,swvkb": {
+          "bytes": [
+            216,
+            216
+          ]
+        },
+        "__DATA_CONST,__cfstring": {
+          "bytes": [
+            48192,
+            48192
+          ]
+        },
+        "__DATA_CONST,__const": {
+          "bytes": [
+            115372,
+            115372
+          ]
+        },
+        "__DATA_CONST,__objc_intobj": {
+          "bytes": [
+            456,
+            456
+          ]
+        },
+        "__DATA_CONST,__objc_protolist": {
+          "bytes": [
+            168,
+            168
+          ]
+        },
+        "__DATA_CONST,__objc_protorefs": {
+          "bytes": [
+            72,
+            72
+          ]
+        },
+        "__TEXT,__const": {
+          "bytes": [
+            11201696,
+            11201696
+          ]
+        },
+        "__TEXT,__cstring": {
+          "bytes": [
+            1044371,
+            1045267
+          ]
+        },
+        "__TEXT,__eh_frame": {
+          "bytes": [
+            394964,
+            394964
+          ]
+        },
+        "__TEXT,__gcc_except_tab": {
+          "bytes": [
+            114832,
+            114832
+          ]
+        },
+        "__TEXT,__init_offsets": {
+          "bytes": [
+            96,
+            96
+          ]
+        },
+        "__TEXT,__managedcode": {
+          "bytes": [
+            19666736,
+            19665424
+          ]
+        },
+        "__TEXT,__objc_methlist": {
+          "bytes": [
+            14060,
+            14060
+          ]
+        },
+        "__TEXT,__objc_stubs": {
+          "bytes": [
+            18252,
+            18252
+          ],
+          "changedInstructions": 450,
+          "onlyLdrImmediateOffsets": false
+        },
+        "__TEXT,__stubs": {
+          "bytes": [
+            10320,
+            10320
+          ],
+          "changedInstructions": 315,
+          "onlyLdrImmediateOffsets": false
+        },
+        "__TEXT,__text": {
+          "bytes": [
+            7851776,
+            7851776
+          ]
+        },
+        "__TEXT,__unbox": {
+          "bytes": [
+            50696,
+            50696
+          ]
+        },
+        "__TEXT,__unwind_info": {
+          "bytes": [
+            1172184,
+            1172208
+          ]
+        }
+      },
+      "explanation": "Engine declared in images.added and authenticated by the S2Arm pin. The generic delta display also lists the updated engine because it already existed in the baseline.",
+      "engineRun": 44230830821
+    },
+    "Frameworks/armsx2_internal_bridge.framework/armsx2_internal_bridge": {
+      "baselineFingerprint": "49a3db55d6eb00a89707aeb90d6982dcf38429509d1eb7d097d8c5ce11b5b0ef",
+      "candidateFingerprint": "91ceaf60be4657f8816650d4acc3edc3999ae2619bcbc67d1f5583f42a6b938a",
+      "changedAbiFields": [],
+      "sections": 31,
+      "identicalSections": 29,
+      "changed": {
+        "__TEXT,__objc_stubs": {
+          "bytes": [
+            29888,
+            29888
+          ],
+          "changedInstructions": 934,
+          "onlyLdrImmediateOffsets": true
+        },
+        "__TEXT,__stubs": {
+          "bytes": [
+            3060,
+            3060
+          ],
+          "changedInstructions": 1,
+          "onlyLdrImmediateOffsets": true
+        }
+      },
+      "explanation": "Only the immediate load offsets in the two linker-generated stub sections differ."
+    },
+    "Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge": {
+      "baselineFingerprint": "0cb53f3e8470d03114b0b8eb4fdcb6489bbec83bfdcea19c086843d2f4d58826",
+      "candidateFingerprint": "da21cb1c0790676ba70a55d853d74cb823587bcbd93f0ac9b784718a854d68e4",
+      "changedAbiFields": [],
+      "sections": 30,
+      "identicalSections": 28,
+      "changed": {
+        "__TEXT,__objc_stubs": {
+          "bytes": [
+            65824,
+            65824
+          ],
+          "changedInstructions": 2057,
+          "onlyLdrImmediateOffsets": true
+        },
+        "__TEXT,__stubs": {
+          "bytes": [
+            3864,
+            3864
+          ],
+          "changedInstructions": 1,
+          "onlyLdrImmediateOffsets": true
+        }
+      },
+      "explanation": "Only the immediate load offsets in the two linker-generated stub sections differ."
+    },
+    "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge": {
+      "baselineFingerprint": "67f259a1130b3334aaf95422d2dd24f51554dd985e9450f969859e77050f6664",
+      "candidateFingerprint": "8a0af39c724fe4bb05b2cff5e26bad2a2a3623c00f9a3258286050c42f4a2736",
+      "changedAbiFields": [],
+      "sections": 43,
+      "identicalSections": 41,
+      "changed": {
+        "__TEXT,__objc_stubs": {
+          "bytes": [
+            10560,
+            10560
+          ],
+          "changedInstructions": 330,
+          "onlyLdrImmediateOffsets": true
+        },
+        "__TEXT,__stubs": {
+          "bytes": [
+            9744,
+            9744
+          ],
+          "changedInstructions": 1,
+          "onlyLdrImmediateOffsets": true
+        }
+      },
+      "explanation": "Only the immediate load offsets in the two linker-generated stub sections differ."
+    }
+  }
+}
