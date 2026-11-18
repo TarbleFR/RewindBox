@@ -160,7 +160,8 @@
   "build-utils/melonx/adapt_account_cache_import.py",
   "native/melonx/EmbeddedNsz.cs",
   "native/melonx/EmbeddedShaderMetadataReader.cs",
-  "build-utils/melonx/adapt_xci_update_identity.py"
+  "build-utils/melonx/adapt_xci_update_identity.py",
+  "build-utils/melonx/adapt_hogwarts_frame_budget.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -298,7 +299,8 @@
   "src/Ryujinx.Graphics.Vulkan/Shader.cs",
   "src/Ryujinx.HLE/HOS/Services/Account/Acc/AccountService/IManagerForApplication.cs",
   "src/Ryujinx.Library/EmbeddedAddonSelection.cs",
-  "src/Ryujinx.Library/GameInfo.cs"
+  "src/Ryujinx.Library/GameInfo.cs",
+  "src/Ryujinx.Graphics.Vulkan/BufferManager.cs"
  ],
  "productionAdditions": [
   "src/Ryujinx.HLE/EmbeddedOnline.cs",
@@ -727,7 +729,8 @@
     "src/Ryujinx.Graphics.Vulkan/DescriptorSetManager.cs",
     "src/Ryujinx.Graphics.GAL/ShaderSource.cs",
     "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ShaderBinarySerializer.cs",
-    "src/Ryujinx.Graphics.Vulkan/Shader.cs"
+    "src/Ryujinx.Graphics.Vulkan/Shader.cs",
+    "src/Ryujinx.Graphics.Vulkan/BufferManager.cs"
    ],
    "compiledBindings": [
     {
@@ -1548,6 +1551,15 @@
       "src/Ryujinx.Graphics.Vulkan/Shader.cs"
      ],
      "productionPath": "src/Ryujinx.Graphics.Vulkan/Shader.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Vulkan/BufferManager.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Vulkan/BufferManager.cs"
     }
    ]
   },

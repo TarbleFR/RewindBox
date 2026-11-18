@@ -239,6 +239,7 @@ from adapt_descriptor_and_block_usage import apply as adapt_descriptor_and_block
 from adapt_cached_shader_stages import apply as adapt_cached_shader_stages
 from adapt_account_cache_import import apply as adapt_account_cache_import
 from adapt_xci_update_identity import apply as adapt_xci_update_identity
+from adapt_hogwarts_frame_budget import apply as adapt_hogwarts_frame_budget
 
 
 def replace_once(path, old, new):
@@ -779,6 +780,7 @@ def main():
     adapted += adapt_cached_shader_stages(source)
     adapted += adapt_account_cache_import(source)
     adapted += adapt_xci_update_identity(source)
+    adapted += adapt_hogwarts_frame_budget(source)
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -942,7 +944,7 @@ def main():
                  'adapt_loh_compaction_request.py', 'adapt_guest_break_context.py',
                  'adapt_shader_load_binary_release.py', 'adapt_streaming_memory.py', 'adapt_nextendo_data.py', 'adapt_buffer_mirror_windows.py',
                  'adapt_cheat_report.py', 'adapt_descriptor_pool_lifetime.py', 'adapt_descriptor_and_block_usage.py', 'adapt_cached_shader_stages.py', 'adapt_account_cache_import.py',
-                 'adapt_xci_update_identity.py']:
+                 'adapt_xci_update_identity.py', 'adapt_hogwarts_frame_budget.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

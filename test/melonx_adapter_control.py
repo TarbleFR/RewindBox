@@ -66,7 +66,7 @@ ORDER = ('adapt_pipeline_warmup_parity', 'adapt_device_short_trim', 'adapt_molte
          'adapt_loh_compaction_request', 'adapt_guest_break_context',
          'adapt_shader_load_binary_release', 'adapt_streaming_memory', 'adapt_nextendo_data', 'adapt_buffer_mirror_windows',
          'adapt_cheat_report', 'adapt_descriptor_pool_lifetime', 'adapt_descriptor_and_block_usage', 'adapt_cached_shader_stages',
-         'adapt_account_cache_import', 'adapt_xci_update_identity')
+         'adapt_account_cache_import', 'adapt_xci_update_identity', 'adapt_hogwarts_frame_budget')
 
 
 def sha(path: Path) -> str:
