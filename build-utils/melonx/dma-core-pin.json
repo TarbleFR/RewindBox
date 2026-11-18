@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "f41ae7924b821ec791a812dccb857acba769ca67",
-  "run": 44207064110,
-  "job": 134475624715,
+  "source": "17e9536f90ec8c7aa7eefebd8076a99353e1aa69",
+  "run": 44223731484,
+  "job": 134531676079,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 14384524396,
-  "name": "MeloNX-engine-f41ae7924b821ec791a812dccb857acba769ca67",
-  "bytes": 100824668,
-  "sha256": "ba2e21a8032cf8c72dbc5dd6732d9dd1e4eb81dd9fb237a90ca6d7ba7c03ccfe",
-  "expiresAt": "2027-02-16T00:20:52Z",
+  "artifact": 14391694615,
+  "name": "MeloNX-engine-17e9536f90ec8c7aa7eefebd8076a99353e1aa69",
+  "bytes": 101139715,
+  "sha256": "2dfcb9eb4d4e5bcb7ab1456c91f641ea59eabde82633db3b786a028595514f45",
+  "expiresAt": "2027-02-16T02:30:14Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "631959ad378df6d1251072329c9cf816eaa539dc2b75a93a0738a0686a71aa68",
-      "bytes": 38752416
+      "sha256": "75f0457f7d8501c95e8a65cee8b97349954c93400aacb619da8cd00c2e85da6e",
+      "bytes": 39097152
     },
     "iossimulator-arm64": {
-      "sha256": "e742d85bbf40103ec7bd26e17b57a812f58ff68e6cdeaec8414381cf326a7a5e",
-      "bytes": 39071800
+      "sha256": "d728c352c2cba8c21c632cdab7b84599c50a3cfa0cd5213daebfd05a30908c74",
+      "bytes": 39419240
     }
   },
   "identities": {
-    "ios-arm64": "efd531c8add8b4ba99fae129bc3206aac17ae14d9d09609de2846f5ea751d2e9",
-    "iossimulator-arm64": "b701855479b6da081dd6d4c38911496edbef164761fbd55e5faf910131dca62c"
+    "ios-arm64": "174af581c8f6338e82a501cf7e0ab27b8cf70c3b3269a1af38a1d787f5b41b2a",
+    "iossimulator-arm64": "aadf9d7304e98e9aae274c36b3ece8f36c307aa31964991f5a572cd2d59acfe2"
   },
-  "contractSha256": "106bed94605ff2b4134a64f65b8b504539745e80b95053b2678d55ff4a53c935",
-  "resultSha256": "88fe781e488cd0d2b282212df799e47109f6e115cc37bdd99cafd524f2a9a93e",
-  "packagedFingerprint": "590969205b690ca311173d692a472387889cff5493c33c17375606f4e411c49d",
+  "contractSha256": "09607d3316a17568dce3d4420ec626f473c9ef83f2530221dc34eb23dede622b",
+  "resultSha256": "310da706e4ea2df69e8e9e37ce1f457de7ccdaa705c6c12e811d90ccb71e29d6",
+  "packagedFingerprint": "7e7beacafbbea6158d19d80bade8902d07a5ba2bbb2d6894364d21baba2e0b23",
   "replaces": {
-    "source": "5924dd56fc615b6d2e581ddee726cbb3e3f445e0",
-    "run": 44193668756,
-    "artifact": 14379091341,
-    "packagedFingerprint": "f1daf11aafcdd4e164dcb732e686d07771ba4ef94d356c12e6d1ce224934bbeb",
-    "reason": "After IPA 779, reduce cached SPIR-V copies, program hashing and translation-worker startup, narrow independent descriptor array invalidations and reduce dedicated allocation bookkeeping. Build-smoke on Apple ARM64; physical-device gameplay remains to be measured."
+    "source": "f41ae7924b821ec791a812dccb857acba769ca67",
+    "run": 44207064110,
+    "artifact": 14384524396,
+    "packagedFingerprint": "590969205b690ca311173d692a472387889cff5493c33c17375606f4e411c49d",
+    "reason": "Handle Hogwarts authorization requests, import NSZ updates, and buffer compressed shader metadata without changing cache contents."
   }
 }
