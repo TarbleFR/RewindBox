@@ -24,6 +24,7 @@ import 'screenscraper/screenscraper_client.dart';
 import 'screenscraper/media_downloader.dart';
 import 'screenscraper/game_id_media_fallback.dart';
 import 'screenscraper/screenscraper_exceptions.dart';
+import 'switch2_export_content.dart';
 import '../providers/scraping_provider.dart';
 import '../l10n/app_locale.dart';
 import '../widgets/scraping_summary_dialog.dart';
@@ -425,11 +426,11 @@ class ScreenScraperService {
         } catch (_) {}
       }
 
-      // Switch 2 exports are looked up by the NACP title only: the rom name
+      // Switch 2 exports are looked up by their resolved title: the rom name
       // is `main`, a hash would be of main.npdm, and the title id is not a
       // ScreenScraper serial (docs/s2arm-switch2-library.md § Scraping).
       final isSwitch2 = targetAppSystemId == 'switch2';
-      if (isSwitch2 && (gameName?.trim().isEmpty ?? true)) {
+      if (isSwitch2 && Switch2ExportContent.isGenericTitle(gameName)) {
         _log.w('Scraper: Switch 2 row without a title is not looked up');
         return null;
       }
@@ -438,10 +439,12 @@ class ScreenScraperService {
         md5 = null;
       }
 
-      final cleanRomName = await ScreenscraperRomHasher.getCleanRomName(
-        gameName ?? romName,
-        targetAppSystemId,
-      );
+      final cleanRomName = isSwitch2
+          ? gameName!.trim()
+          : await ScreenscraperRomHasher.getCleanRomName(
+              gameName ?? romName,
+              targetAppSystemId,
+            );
 
       final queryParameters = <String, String>{
         'devid': _devId,
@@ -781,7 +784,18 @@ class ScreenScraperService {
       final lowerRomPath = romPath.toLowerCase();
       final isMeloNxVirtual = lowerRomPath.startsWith('melonx://');
       final isRpcs3Virtual = lowerRomPath.startsWith('rpcs3-library://');
+      final isSwitch2 = appSystemId == 'switch2';
       var effectiveGameName = gameName;
+      if (isSwitch2) {
+        effectiveGameName = Switch2ExportContent.resolvedTitle(
+          romPath,
+          programId: serialNumber,
+          fallback: gameName,
+        );
+        if (effectiveGameName == null) {
+          return {'success': false, 'message': AppLocale.scrapeGameNotFound};
+        }
+      }
       if (isRpcs3Virtual &&
           !shouldRetryRpcs3ByNameForTesting(effectiveGameName, serialNumber) &&
           (serialNumber?.trim().isNotEmpty ?? false)) {
@@ -803,7 +817,7 @@ class ScreenScraperService {
               (systemFolder == 'android' ||
                   isMeloNxVirtual ||
                   isRpcs3Virtual ||
-                  systemFolder == 'switch2')
+                  isSwitch2)
               ? effectiveGameName
               : null,
           serialNumber: isRpcs3Virtual ? serialNumber : null,
@@ -835,12 +849,18 @@ class ScreenScraperService {
       final scraperConfig = await getScraperConfig();
 
       if (scraperConfig['scrape_metadata'] as bool? ?? true) {
+        final filename = isSwitch2 && !romName.toLowerCase().endsWith('.npdm')
+            ? '$romName.npdm'
+            : romName;
         final metadata = await _mapGameInfoToMetadata(
-          romName,
+          filename,
           romPath,
           gameInfo,
           preferredLanguage: preferredLanguage,
         );
+        if (isSwitch2 && metadata['real_name'] == filename) {
+          metadata['real_name'] = effectiveGameName;
+        }
         await _saveGameMetadata(metadata, appSystemId, isFullyScraped: true);
       }
 
@@ -941,6 +961,17 @@ class ScreenScraperService {
       final lowerRomPath = romPath.toLowerCase();
       final isMeloNxVirtual = lowerRomPath.startsWith('melonx://');
       final isRpcs3Virtual = lowerRomPath.startsWith('rpcs3-library://');
+      final isSwitch2 = appSystemId == 'switch2';
+      final lookupName = isSwitch2
+          ? Switch2ExportContent.resolvedTitle(
+              romPath,
+              programId: serialNumber,
+              fallback: gameName,
+            )
+          : gameName;
+      if (isSwitch2 && lookupName == null) {
+        return {'success': false, 'message': AppLocale.scrapeGameNotFound};
+      }
 
       Map<String, dynamic>? gameInfoResult;
       for (var attempt = 0; attempt < 3; attempt++) {
@@ -954,8 +985,8 @@ class ScreenScraperService {
               (systemFolder == 'android' ||
                   isMeloNxVirtual ||
                   isRpcs3Virtual ||
-                  systemFolder == 'switch2')
-              ? gameName : null,
+                  isSwitch2)
+              ? lookupName : null,
           serialNumber: isRpcs3Virtual ? serialNumber : null,
         );
         if (gameInfoResult != null && gameInfoResult['gameInfo'] != null) break;
@@ -1335,7 +1366,14 @@ class ScreenScraperService {
       final lowerRomPath = romPath.toLowerCase();
       final isMeloNxVirtual = lowerRomPath.startsWith('melonx://');
       final isRpcs3Virtual = lowerRomPath.startsWith('rpcs3-library://');
-      var effectiveTitleName = titleName;
+      final isSwitch2 = appSystemId == 'switch2';
+      var effectiveTitleName = isSwitch2
+          ? Switch2ExportContent.resolvedTitle(
+              romPath,
+              programId: titleId,
+              fallback: titleName,
+            )
+          : titleName;
       if (isRpcs3Virtual &&
           !shouldRetryRpcs3ByNameForTesting(effectiveTitleName, titleId) &&
           (titleId?.isNotEmpty ?? false)) {
@@ -1344,7 +1382,7 @@ class ScreenScraperService {
             effectiveTitleName;
       }
       final displayName =
-          (isMeloNxVirtual || isRpcs3Virtual || systemFolder == 'switch2') &&
+          (isMeloNxVirtual || isRpcs3Virtual || isSwitch2) &&
               (effectiveTitleName?.trim().isNotEmpty ?? false)
           ? effectiveTitleName!.trim()
           : filename;
@@ -1379,7 +1417,7 @@ class ScreenScraperService {
             romPath: romPath,
             name: name ?? scrapedName ?? effectiveTitleName,
             titleId: titleId,
-            titleName: titleName,
+            titleName: isSwitch2 ? effectiveTitleName : titleName,
             appSystemId: appSystemId,
             systemFolder: systemFolder,
           ),
@@ -1444,9 +1482,13 @@ class ScreenScraperService {
         };
       }
 
+      if (isSwitch2 && effectiveTitleName == null) {
+        return {'success': false, 'cancelled': false, 'requests': 0};
+      }
+
       var matchedBy = isRpcs3Virtual && (titleId?.isNotEmpty ?? false)
           ? GameBoxMatch.serial
-          : GameBoxMatch.fileName;
+          : isSwitch2 ? GameBoxMatch.title : GameBoxMatch.fileName;
       final gameResult = await fetchGameInfo(
         screenscraperSystemId.toString(),
         filename,
@@ -1456,7 +1498,7 @@ class ScreenScraperService {
             (systemFolder == 'android' ||
                   isMeloNxVirtual ||
                   isRpcs3Virtual ||
-                  systemFolder == 'switch2')
+                  isSwitch2)
             ? effectiveTitleName
             : null,
         serialNumber: isRpcs3Virtual ? titleId : null,
@@ -1508,7 +1550,7 @@ class ScreenScraperService {
       // ("main") nor an MD5 of the NPDM identifies the game, only its title.
       if (gameInfo == null &&
           systemFolder != 'android' &&
-          systemFolder != 'switch2' &&
+          !isSwitch2 &&
           romFile.existsSync()) {
         final size = romFile.lengthSync();
         if (size <= batchMd5Limit) {
@@ -1563,6 +1605,9 @@ class ScreenScraperService {
             gameInfo,
             preferredLanguage: preferredLanguage,
           );
+          if (isSwitch2 && metadata['real_name'] == filename) {
+            metadata['real_name'] = effectiveTitleName;
+          }
           gameName = metadata['real_name']?.toString();
           await _saveGameMetadata(metadata, appSystemId, isFullyScraped: false);
         }

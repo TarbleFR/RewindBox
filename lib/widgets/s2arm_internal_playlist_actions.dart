@@ -10,7 +10,10 @@ import 'package:path/path.dart' as path;
 import '../l10n/switch2_library_locale.dart';
 import '../l10n/switch2_settings_locale.dart';
 import '../repositories/game_repository.dart';
+import '../repositories/scraper_repository.dart';
+import '../services/logger_service.dart';
 import '../services/s2arm_internal_service.dart';
+import '../services/screenscraper_service.dart';
 import '../services/storage/storage_import_activity.dart';
 import '../services/switch2_export_content.dart';
 import 'delete_game_dialog.dart';
@@ -126,6 +129,7 @@ class _S2ArmInternalPlaylistActionsState
     if (result.cancelled) _notice(_t('cancelled'));
     if (result.imported > 0) {
       _notice(_tf('imported', {'count': result.imported}));
+      unawaited(_scrapeImportedGames(result));
     }
     final duplicates = result.items
         .where((item) => item.reason == 'duplicate')
@@ -136,6 +140,41 @@ class _S2ArmInternalPlaylistActionsState
         '${item.name}: ${S2ArmInternalService.localizedError(locale, item.reason)}'
         '${item.detail == null ? '' : '\n(${item.detail})'}',
       );
+    }
+  }
+
+  Future<void> _scrapeImportedGames(S2ArmImportResult result) async {
+    const system = S2ArmInternalService.systemFolder;
+    try {
+      if (!await ScreenScraperService.hasSavedCredentials()) return;
+      final config = await ScraperRepository.getSystemScraperConfig();
+      if (config[system] == false) return;
+      final entries = {
+        for (final item in result.items)
+          if (item.imported && item.destination != null)
+            path.normalize(item.destination!),
+      };
+      var scraped = false;
+      for (final game in await GameRepository.getGamesBySystem(system)) {
+        final export = path.normalize(Switch2ExportContent.exportFolder(game.romPath));
+        if (!entries.contains(export) || Switch2ExportContent.isGenericTitle(game.titleName)) {
+          continue;
+        }
+        final existing = await ScraperRepository.getGameMetadata(system, game.filename);
+        if (existing != null) continue;
+        await ScreenScraperService.scrapeSingleGame(
+          appSystemId: system,
+          romName: game.filename,
+          systemFolder: system,
+          romPath: game.romPath,
+          gameName: game.titleName,
+          serialNumber: game.titleId,
+        );
+        scraped = true;
+      }
+      if (scraped && mounted) await widget.onLibraryChanged();
+    } catch (error) {
+      LoggerService.instance.w('Switch 2 import: automatic scraping failed: $error');
     }
   }
 

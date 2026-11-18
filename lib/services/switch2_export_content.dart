@@ -87,6 +87,8 @@ abstract final class Switch2ExportContent {
     return wrapped;
   }
 
+  static String entryPath(String exportDir) => path.join(baseDirectory(exportDir), 'exefs', 'main.npdm');
+
   /// The `filename` stored for a library entry in `user_roms`. Every entry's file is `main.npdm`, and scraped
   /// metadata is keyed by (system, filename) (`user_screenscraper_metadata`, UNIQUE(app_system_id, filename)) while
   /// media files are named after the filename without its extension: each game gets its own name, like MeloNX's
@@ -158,16 +160,21 @@ abstract final class Switch2ExportContent {
   /// Finds control.nacp as s2arm_ns2_dump.c `find_control()` (~lines 850-890) does: in a version folder or one level
   /// below it (never inside `romfs` or `exefs`), a file of exactly 0x4000 bytes, the version folders in
   /// [controlRoots] order.
-  static Switch2Control? findControl(String exportDir) {
-    for (final root in controlRoots(exportDir)) {
+  static Switch2Control? findControl(String exportDir) => _controls(exportDir).firstOrNull;
+
+  static Iterable<Switch2Control> _controls(String exportDir, {bool includeExportRoot = false}) sync* {
+    final roots = controlRoots(exportDir);
+    if (includeExportRoot && !roots.contains(exportDir)) roots.add(exportDir);
+    const excluded = {'romfs', 'exefs', 'base', 'updates', 'dlc'};
+    for (final root in roots) {
       final places = <String>[root];
       try {
         final directory = Directory(root);
         if (!directory.existsSync()) continue;
         final children = <String>[];
         for (final entry in directory.listSync(followLinks: false)) {
-          final name = path.basename(entry.path);
-          if (entry is Directory && name != 'romfs' && name != 'exefs') children.add(entry.path);
+          final name = path.basename(entry.path).toLowerCase();
+          if (entry is Directory && !excluded.contains(name)) children.add(entry.path);
         }
         children.sort();
         places.addAll(children);
@@ -182,10 +189,9 @@ abstract final class Switch2ExportContent {
           continue;
         }
         final bytes = _readBounded(file.path, nacpSize);
-        if (bytes != null && bytes.length == nacpSize) return Switch2Control(directory: place, nacp: bytes);
+        if (bytes != null && bytes.length == nacpSize) yield Switch2Control(directory: place, nacp: bytes);
       }
     }
-    return null;
   }
 
   /// The NACP language indexes to try for [locale], best first, then American English, then the rest in table order.
@@ -232,17 +238,37 @@ abstract final class Switch2ExportContent {
   static String displayVersion(Uint8List nacp) =>
       nacp.length < nacpSize ? '' : _cString(nacp, _displayVersionOffset, _displayVersionSize);
 
-  /// The library title of the export whose base NPDM is [npdmPath]: the NACP title for the device locale, else the
-  /// export folder name.
-  static String libraryTitle(String npdmPath, {Locale? locale}) {
-    final folder = exportFolder(npdmPath);
-    final control = findControl(folder);
-    if (control != null) {
-      final best = bestTitle(control.nacp, locale ?? PlatformDispatcher.instance.locale);
-      if (best != null) return best.name;
-    }
-    return path.basename(folder);
+  static final _placeholder = RegExp(
+    r'^(?:v?\d+|(?:0x)?[0-9a-f]{16}(?:\.npdm)?|main(?:\.npdm)?|base|updates?|dlc|unknown|switch\s*2|\.)$',
+    caseSensitive: false,
+  );
+
+  static bool isGenericTitle(String? value) {
+    final name = value?.trim() ?? '';
+    return name.isEmpty || _placeholder.hasMatch(name);
   }
+
+  /// Resolves a usable title without sending export versions or program IDs as names.
+  static String? resolvedTitle(String npdmPath, {String? programId, String? fallback, Locale? locale}) {
+    final folder = exportFolder(npdmPath);
+    final languages = languageOrder(locale ?? PlatformDispatcher.instance.locale);
+    for (final control in _controls(folder, includeExportRoot: true)) {
+      for (final language in languages) {
+        final name = titleEntry(control.nacp, language).name;
+        if (!isGenericTitle(name)) return name;
+      }
+    }
+    final id = (programId ?? titleId(npdmPath))?.trim().toLowerCase();
+    // The nxnative profile pairs this program ID with Fire Emblem (including v131072).
+    if (id == '04007ef01f8ae000') return "Fire Emblem: Fortune's Weave";
+    if (!isGenericTitle(fallback)) return fallback!.trim();
+    final name = path.basename(folder);
+    return isGenericTitle(name) ? null : name;
+  }
+
+  /// Display fallback when the export has no identifiable title.
+  static String libraryTitle(String npdmPath, {Locale? locale}) =>
+      resolvedTitle(npdmPath, locale: locale) ?? path.basename(exportFolder(npdmPath));
 
   // ---------------- icon ----------------
 

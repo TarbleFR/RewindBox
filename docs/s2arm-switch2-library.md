@@ -31,7 +31,10 @@ service answers `engineMissing`: the playlist is listed but unavailable and noth
   for a flat export with a valid NPDM and a sibling `romfs/`. Files under `updates/` or `dlc/` are
   never rows (`Switch2ExportContent.isLibraryEntry`). The S2Arm `Games` root is scanned as is (direct root).
 - **Title and id.** Title from `control.nacp` for the device language (Switch language order), then American English,
-  then any entry, else the export folder name. Title id from the NPDM (`META`, ACI0 offset at 0x70, program id at
+  then any usable entry. If the metadata is missing, the resolver can use a verified program ID or a meaningful
+  export folder name. Fire Emblem: Fortune’s Weave uses `04007EF01F8AE000` even when the folder is named `131072`.
+  A rescan updates the library title in place, including rows that were already imported.
+  Title id from the NPDM (`META`, ACI0 offset at 0x70, program id at
   ACI0 + 0x10), 16 hex digits. No RomFS is read; reads are bounded (NPDM and icon 1 MiB, NACP exactly 0x4000).
 - **control.nacp lookup** mirrors `find_control()` of `native/s2arm/prepare/s2arm_ns2_dump.c` (~lines 850-890, used at
   ~1528): the newest `updates/<n>` folder first when it exists, then `base`; in the version folder or one level below,
@@ -43,7 +46,9 @@ service answers `engineMissing`: the playlist is listed but unavailable and noth
   (`Switch2ExportContent.libraryFileName`; without a title id, `<export folder>-<path digest>.npdm`). Scraped metadata
   is `UNIQUE(app_system_id, filename)` and media are named after the file name: a shared `main.npdm` would merge the games.
 - **Scraping.** The stored name is not a ROM identity: Switch 2 lookups send the title as `romnom`, never an MD5 of
-  `main.npdm`, never the title id as `serialnum`; a row without a title is not looked up.
+  `main.npdm`, never the title id as `serialnum`; a row with only a placeholder is not looked up.
+  New imports with a usable title are queued once in the background when ScreenScraper is configured and enabled
+  for Switch 2. Existing metadata and media are kept by automatic scraping.
   ScreenScraper system id 296 is what the ScreenScraper site lists for Switch 2; it is not confirmed through the API.
 - **Launch.** iOS and `switch2` only, policy first, then the stored JIT pairing file (`PairingFileService`, the store
   the other JIT engines use) or a localized failure, then `S2ArmInternalService.launch` behind a non-dismissible

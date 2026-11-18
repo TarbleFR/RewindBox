@@ -636,6 +636,7 @@ class SqliteDatabaseService {
   /// keys — is retried later instead of being frozen out by the path diff.
   static bool _needsMetadataExtraction(String systemId, RomEntry entry) {
     if (systemId == 'switch' || systemId == 'nintendo-switch') return true;
+    if (Platform.isIOS && systemId == 'switch2') return true;
     final lower = entry.filename.toLowerCase();
     return lower.endsWith('.psvita') || lower.endsWith('.steam');
   }
@@ -715,10 +716,11 @@ class SqliteDatabaseService {
         }
 
         if (isSwitch2 && !entry.path.startsWith('content://')) {
-          // Title from the NACP (device language, else the export folder
-          // name) and title id from the NPDM; never RomFS content.
-          titleName = Switch2ExportContent.libraryTitle(entry.path);
-          titleId = Switch2ExportContent.titleId(entry.path) ?? titleId;
+          titleId = Switch2ExportContent.titleId(entry.path);
+          titleName = Switch2ExportContent.resolvedTitle(
+            entry.path,
+            programId: titleId,
+          );
         }
 
         if (entry.filename.toLowerCase().endsWith('.steam')) {

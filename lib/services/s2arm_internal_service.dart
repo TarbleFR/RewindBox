@@ -439,7 +439,18 @@ abstract final class S2ArmInternalService {
         'exportFolder': exportFolder,
         'locale': (locale ?? PlatformDispatcher.instance.locale).toLanguageTag(),
       });
-      return report == null ? {'success': false, 'code': 'exportInvalid'} : Map<String, dynamic>.from(report);
+      if (report == null) return {'success': false, 'code': 'exportInvalid'};
+      final info = Map<String, dynamic>.from(report);
+      if (info['success'] == true) {
+        final title = Switch2ExportContent.resolvedTitle(
+          Switch2ExportContent.entryPath(exportFolder),
+          programId: info['titleId']?.toString(),
+          fallback: info['title']?.toString(),
+          locale: locale,
+        );
+        if (title != null) info['title'] = title;
+      }
+      return info;
     } on MissingPluginException {
       return {'success': false, 'code': 'unavailable'};
     } on PlatformException catch (error) {
@@ -1336,8 +1347,8 @@ abstract final class S2ArmInternalService {
     return importSaveAt(game, picked);
   });
 
-  /// Copies the folder [picked] into the game's save folder, as one sub-folder, so the engine's own recognition (JKSV,
-  /// Checkpoint, Ryujinx, yuzu, NX2Apple, plain files) sees it as picked. What the save folder held before is kept beside
+  /// Copies [picked] into the game's save folder. Play exports replace their matching files inside save/Play.
+  /// Other exports retain their layout for the engine's own recognition. What the save folder held before is kept beside
   /// it as "<name> (backup)" (one backup, replaced by the next import). With [exportFolder] null, the save must name its
   /// game (saveNoGame otherwise). Visible for tests.
   static Future<S2ArmSaveImportResult> importSaveAt(String? exportFolder, String picked) async {
@@ -1404,7 +1415,7 @@ abstract final class S2ArmInternalService {
         path.isWithin(normalizedSource, normalizedTarget)) {
       throw const S2ArmSaveException('saveSameFolder');
     }
-    final name = path.basename(normalizedSource);
+    final name = path.basename(path.normalize(source.path));
     // Stage the whole import before moving either save or backup. The marker tells the
     // guest to commit this import even when file sizes and modification times match.
     final staging = await target.parent.createTemp('.save-import-');
@@ -1413,10 +1424,16 @@ abstract final class S2ArmInternalService {
     final previousBackup = Directory(path.join(staging.path, 'previous-backup'));
     var clean = true;
     try {
-      final payload = slot == null
-          ? path.join(contents.path, direct?.kind ?? (name.isEmpty ? 'save' : name))
-          : path.join(contents.path, slot.program, path.basename(slot.folder.path));
-      final files = await _copyTree(source, Directory(payload));
+      final String payload;
+      final play = direct == null && name.toLowerCase() == 'play';
+      if (play) {
+        payload = await _stagePlaySave(target, contents, name);
+      } else {
+        payload = slot == null
+            ? path.join(contents.path, direct?.kind ?? (name.isEmpty ? 'save' : name))
+            : path.join(contents.path, slot.program, path.basename(slot.folder.path));
+      }
+      final files = await _copyTree(source, Directory(payload), rejectLinks: play);
       if (direct?.user case final String user) {
         await File(path.join(contents.path, 'user')).writeAsString(user, flush: true);
       }
@@ -1456,6 +1473,36 @@ abstract final class S2ArmInternalService {
     } finally {
       if (clean) await _removeStaging(staging);
     }
+  }
+
+  // On IPA 788 Mario Kart World recovered its progress when account.sav was moved into save/Play.
+  // Stage the native layout so the guest mounts save as the root and keeps the Play directory.
+  static Future<String> _stagePlaySave(Directory target, Directory contents, String name) async {
+    var playName = name;
+    final account = Directory(path.join(target.path, 'save'));
+    if (await account.exists()) {
+      final matches = await account
+          .list(followLinks: false)
+          .where((entry) => path.basename(entry.path).toLowerCase() == 'play')
+          .toList();
+      if (matches.isNotEmpty) {
+        if (matches.length != 1 || matches.single is! Directory) {
+          throw const S2ArmSaveException('saveFailed');
+        }
+        playName = path.basename(matches.single.path);
+      }
+      await _copyTree(account, Directory(path.join(contents.path, 'save')), rejectLinks: true);
+    }
+    final device = Directory(path.join(target.path, 'save_device'));
+    if (await device.exists()) {
+      await _copyTree(device, Directory(path.join(contents.path, 'save_device')), rejectLinks: true);
+    }
+    final user = File(path.join(target.path, 'user'));
+    if (await user.exists()) {
+      await contents.create(recursive: true);
+      await user.copy(path.join(contents.path, 'user'));
+    }
+    return path.join(contents.path, 'save', playName);
   }
 
   // The Files copy is pending until this marker is written by the guest after Commit.
@@ -1505,16 +1552,18 @@ abstract final class S2ArmInternalService {
     }
   }
 
-  static Future<int> _copyTree(Directory from, Directory to) async {
+  static Future<int> _copyTree(Directory from, Directory to, {bool rejectLinks = false}) async {
     var files = 0;
     await to.create(recursive: true);
     await for (final entry in from.list(followLinks: false)) {
       final destination = path.join(to.path, path.basename(entry.path));
       if (entry is Directory) {
-        files += await _copyTree(entry, Directory(destination));
+        files += await _copyTree(entry, Directory(destination), rejectLinks: rejectLinks);
       } else if (entry is File) {
         await entry.copy(destination);
         files++;
+      } else if (rejectLinks) {
+        throw const S2ArmSaveException('saveFailed');
       }
     }
     return files;

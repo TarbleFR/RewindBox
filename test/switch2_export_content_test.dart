@@ -198,6 +198,17 @@ void main() {
       write('My Export/base/control.nacp', nacp(titles: {0: ('Mario Kart World', 'Nintendo')}));
       expect(Switch2ExportContent.libraryTitle(npdmPath, locale: const Locale('en')), 'Mario Kart World');
     });
+
+    test('a numbered export is identified by metadata or by its verified program ID', () {
+      const french = Locale('fr');
+      final known = write('131072/base/exefs/main.npdm', npdm(programId: 0x04007EF01F8AE000));
+      final unknown = write('131073/base/exefs/main.npdm', npdm());
+      expect(Switch2ExportContent.resolvedTitle(known, locale: french), "Fire Emblem: Fortune's Weave");
+      expect(Switch2ExportContent.resolvedTitle(unknown, locale: french), isNull);
+      write('131073/updates/1/control.nacp', nacp(titles: {3: ('131073', '')}));
+      write('131073/control/control.nacp', nacp(titles: {3: ('Titre du jeu', '')}));
+      expect(Switch2ExportContent.resolvedTitle(unknown, locale: french), 'Titre du jeu');
+    });
   });
 
   group('icon', () {

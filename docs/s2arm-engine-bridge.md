@@ -178,6 +178,12 @@ No engine change: everything below uses what the pinned engine already reads in 
   créées par la 787 dont le chemin contient encore le mauvais identifiant restent en attente.
   Avant cette nouvelle copie, le menu affiche le résultat de l’import précédent, « Sauvegarde
   installée par le moteur du jeu ». La vidéo s’arrête avant le lancement qui suit la nouvelle copie.
+- **Dossier `save/Play` (retour IPA 788).** Mario Kart World a repris la progression après
+  le remplacement manuel d’`account.sav` dans `save/Play`. Le correctif 0119 recevait le
+  dossier `Play` comme racine de la sauvegarde et en retirait ainsi le premier niveau.
+  L’import RewindBox prépare désormais la structure native `save/Play`, reprend la casse du
+  dossier existant et remplace seulement les fichiers importés. Le reste de `save`, le
+  profil de la sauvegarde existante, `save_device` et la copie de secours sont conservés.
 - **End of session**: on `session_ended` (either menu's quit, or an engine stop) the bridge removes the menu and dismisses
   the game view controller before it tells Dart.
 - Checked by `test/s2arm_session_menu_test.py` and compiled for iOS arm64 by `.github/workflows/s2arm-bridge-ios.yml`.

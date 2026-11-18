@@ -44,6 +44,9 @@ jobs:
           dart analyze lib/services/s2arm_internal_service.dart
           dart analyze lib/widgets/s2arm_internal_playlist_actions.dart
           dart analyze lib/services/game_launch_manager.dart
+          dart analyze --no-fatal-infos lib/services/switch2_export_content.dart
+          dart analyze --no-fatal-infos lib/services/screenscraper_service.dart
+          dart analyze --no-fatal-infos lib/data/datasources/sqlite_database_service.dart
 
       - name: Analyze
         if: env.IMPORT_ONLY != 'true'

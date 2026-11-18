@@ -743,6 +743,30 @@ void main() {
       expect(await File('${target.path}/kept.bin').readAsBytes(), [1, 2, 3]);
     });
 
+    test('importing Play replaces the save in place and keeps the other save files', () async {
+      final target = (await S2ArmInternalService.saveFolderFor('/export'))!;
+      final account = File('${target.path}/save/play/account.sav');
+      await account.create(recursive: true);
+      await account.writeAsBytes([2]);
+      await File('${target.path}/save/play/other.sav').writeAsBytes([3]);
+      final device = File('${target.path}/save_device/device.sav');
+      await device.create(recursive: true);
+      await device.writeAsBytes([4]);
+      final user = File('${target.path}/user');
+      await user.writeAsString('1' * 32);
+
+      final source = await picked('Play', {'account.sav': 8});
+      final result = await S2ArmInternalService.importSaveAt('/export', source.path);
+      expect(result.files, 1);
+      expect(await account.readAsBytes(), List<int>.filled(8, 1));
+      expect(await File('${target.path}/save/account.sav').exists(), isFalse);
+      expect(await File('${target.path}/save/play/other.sav').readAsBytes(), [3]);
+      expect(await device.readAsBytes(), [4]);
+      expect(await user.readAsString(), '1' * 32);
+      expect(await File('${result.backup}/save/play/account.sav').readAsBytes(), [2]);
+      expect(await File('${target.path}/.rewindbox-import-pending').exists(), isTrue);
+    });
+
     test('the game a save names is read like the engine reads it', () async {
       final checkpoint = await picked('0x0100AAAA00000000 Other Game', {'2026-11-12/save.bin': 8});
       expect(await S2ArmInternalService.saveProgramId(checkpoint.path), '0100aaaa00000000');
