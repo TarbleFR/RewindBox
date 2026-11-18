@@ -961,7 +961,8 @@ static void S2ArmPrepareSaveFolder(NSString *folder, NSString *docs) {
     }
     s2arm_journal("saveFolder", moved ? "migrated" : "migrationIncomplete", NULL);
   }
-  if (!setenv("S2A_SAVE_FOLDER", folder.fileSystemRepresentation, 1)) {
+  int environmentStatus = setenv("S2A_SAVE_FOLDER", folder.fileSystemRepresentation, 1);
+  if (environmentStatus == 0) {
     BOOL pending = [files fileExistsAtPath:[folder stringByAppendingPathComponent:@".rewindbox-import-pending"]];
     s2arm_journal("saveFolder", "documents", "\"importPending\":%s", pending ? "true" : "false");
   } else {
