@@ -24,4 +24,10 @@ The close first stopped the guest, then the render worker faulted at `GPFifoDevi
 - Retain compatible buffer descriptor sets on program switches. Skip buffer-texture storage commands that repeat an identical logical range, invalidating the shortcut when a buffer is deleted. Skip pool-array descriptor updates when the resolved host binding is identical.
 - Record slow first-use pipelines even if a worker logged that variant first or the state matches the default. Keep the strongest timing across out-of-order writes. Prioritize costly entries during warm-cache replay within the existing launch priority, replay budget and device memory limit.
 
+## Follow-up on shader stalls
+
+The same session filled the 2,048-entry variant journal. Seven variants were evicted, with no cost recorded for those evictions. The previous admission policy ranked variants by recency and use count. Within each recency tier, the Hogwarts policy now ranks candidates by their recorded cost when either candidate reaches 100 ms. It can decline a cheaper candidate once only more expensive recent victims remain. It also accepts a later, costly draw note if an earlier worker note for the same variant could not be admitted. The entry count and disk format have the same bounds.
+
+Cached programs offered while the journal was loading are ranked as a batch before replay starts. For Hogwarts, the replay queue also waits for the Vulkan driver's primary cache while that snapshot loads. The cache loader wakes the queue as soon as the snapshot can serve lookups, or when the load ends after a failure. Speculative work still respects the device memory threshold, worker limits and compile budget. Actual draws can still demand a pipeline through the normal queue.
+
 The target is a repeatable 25–30 FPS in the gardens on the same phone and save after thermal stabilization. A matching route with a warm cache can separate sustained performance from new shader misses. The capture establishes a baseline. The new core's throughput, thermal behavior and user-visible exit still need device measurements.

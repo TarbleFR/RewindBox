@@ -1,4 +1,4 @@
-"""Preserve expensive first-use timings and replay them earlier."""
+"""Keep expensive first-use pipelines and give them earlier replay slots."""
 
 import hashlib
 
@@ -88,6 +88,229 @@ def prioritize_expensive_variants(path):
             return Compare(a, b);''')
 
 
+def retain_expensive_variants(path):
+    once(path, '''            var key = (program, id);
+            Record record;
+            int generation; // RewindBox (adapt_variant_journal_room):''',
+         '''            var key = (program, id);
+            uint costMs = (uint)Math.Clamp(elapsedMs, 0, uint.MaxValue);
+            int generation; // RewindBox (adapt_variant_journal_room):''')
+    once(path, '''                if (!firstNote)
+                {
+                    // RewindBox (adapt_variant_journal_room): a state not noted yet this session and refused here (met before
+                    // the journal is read, or past the session's note bound) is counted as not recorded.
+                    if (_stopped || !_loaded || !EncodingPolicy.IncrementalArrayDescriptors ||
+                        elapsedMs < VisibleDrawStallMs || !_notedThisSession.Contains(key) ||
+                        !_records.TryGetValue(key, out record) || elapsedMs <= record.CostMs)
+                    {
+                        if (!_stopped && !_notedThisSession.Contains(key))
+                        {
+                            NotRecorded++;
+                        }
+                        return;
+                    }
+                }
+
+                // RewindBox (adapt_variant_journal_room): a state given up earlier this session is still known (back below).
+                bool known = _records.TryGetValue(key, out record) || _evicted.TryGetValue(key, out record);''',
+         '''                // A costly draw may follow a cheaper worker note that was refused when the journal was full.
+                bool canRaiseCost = !_stopped && _loaded && EncodingPolicy.IncrementalArrayDescriptors &&
+                    costMs >= VisibleDrawStallMs && _notedThisSession.Contains(key);
+                if (!firstNote && !canRaiseCost)
+                {
+                    if (!_stopped && !_notedThisSession.Contains(key))
+                    {
+                        NotRecorded++;
+                    }
+                    return;
+                }
+
+                bool known = _records.TryGetValue(key, out Record record) || _evicted.TryGetValue(key, out record);
+                if (!firstNote && known && costMs <= record.CostMs)
+                {
+                    return;
+                }''')
+    once(path, '''                        if (!MakeRoom())
+                        {
+                            NotRecorded++;
+                            return;
+                        }
+
+                        _evicted.Remove(key);''',
+         '''                        if (!MakeRoom(Math.Max(record.CostMs, costMs)))
+                        {
+                            NotRecorded++;
+                            return;
+                        }
+
+                        _evicted.Remove(key);''')
+    once(path, '''                    record.CostMs = (uint)Math.Max(record.CostMs, (uint)Math.Min(uint.MaxValue, elapsedMs));''',
+         '''                    record.CostMs = Math.Max(record.CostMs, costMs);''')
+    once(path, '''                    if (!MakeRoom())
+                    {
+                        NotRecorded++;
+                        return;
+                    }
+
+                    record = new Record''',
+         '''                    if (!MakeRoom(costMs))
+                    {
+                        NotRecorded++;
+                        return;
+                    }
+
+                    record = new Record''')
+    once(path, '                        CostMs = (uint)Math.Min(uint.MaxValue, elapsedMs),', '                        CostMs = costMs,')
+    once(path, '''                    if (!MakeRoom())
+                    {
+                        NotRecorded++;
+                        return;
+                    }
+
+                    _evicted.Remove(key);''',
+         '''                    if (!MakeRoom(record.CostMs))
+                    {
+                        NotRecorded++;
+                        return;
+                    }
+
+                    _evicted.Remove(key);''')
+    once(path, '''            int order = Tier(a, current).CompareTo(Tier(b, current));
+
+            if (order == 0)''',
+         '''            int order = Tier(a, current).CompareTo(Tier(b, current));
+
+            if (order == 0 && EncodingPolicy.IncrementalArrayDescriptors &&
+                (a.CostMs >= VisibleDrawStallMs || b.CostMs >= VisibleDrawStallMs))
+            {
+                order = a.CostMs.CompareTo(b.CostMs);
+            }
+
+            if (order == 0)''')
+    once(path, '''        // state of this session's eviction order that it still holds and that was not met this session; false when none is
+        // left (every state it holds was met this session). Each loaded state is examined once per session.
+        private bool MakeRoom()''',
+         '''        // state of this session's eviction order that it still holds and that was not met this session.
+        // Keep a recent, costly variant if an incoming variant would save less time at its first draw.
+        private bool MakeRoom(uint incomingCostMs)''')
+    once(path, '''                Record victim = _victims[^1];
+                _victims.RemoveAt(_victims.Count - 1);
+                var key = (victim.Program, victim.Id);
+
+                if (victim.LastSession < _session && _records.TryGetValue(key, out Record held) && ReferenceEquals(held, victim))
+                {
+                    _records.Remove(key);
+                    _evicted[key] = victim;
+                    Evicted++;
+                }''',
+         '''                Record victim = _victims[^1];
+                var key = (victim.Program, victim.Id);
+
+                if (victim.LastSession < _session && _records.TryGetValue(key, out Record held) && ReferenceEquals(held, victim))
+                {
+                    if (EncodingPolicy.IncrementalArrayDescriptors && Tier(victim, _session) != 0 &&
+                        victim.CostMs >= VisibleDrawStallMs && victim.CostMs > incomingCostMs)
+                    {
+                        return false;
+                    }
+
+                    _records.Remove(key);
+                    _evicted[key] = victim;
+                    Evicted++;
+                }
+
+                _victims.RemoveAt(_victims.Count - 1);''')
+
+
+def start_replay_when_cache_is_ready(path):
+    once(path, '''                        _primaryCacheReady.Set();''', '''                        PublishPrimaryCacheReady();''')
+    once(path, '''                _mainLoaded.Set();
+                _primaryCacheReady.Set();''', '''                _mainLoaded.Set();
+                PublishPrimaryCacheReady();''')
+    once(path, '''        public PipelineCache MainCache => _mainState.Cache;''',
+         '''        private void PublishPrimaryCacheReady()
+        {
+            bool wakeReplay = !_primaryCacheReady.IsSet && EncodingPolicy.IncrementalArrayDescriptors;
+            _primaryCacheReady.Set();
+            if (wakeReplay)
+            {
+                ThreadPool.UnsafeQueueUserWorkItem(_ => Variants?.Pump(), null);
+            }
+        }
+
+        public PipelineCache MainCache => _mainState.Cache;''')
+    once(path, '''                mainCachePath == null ? null : Path.ChangeExtension(mainCachePath, ".variants"), PipelineVariantJournal.Schema, null);''',
+         '''                mainCachePath == null ? null : Path.ChangeExtension(mainCachePath, ".variants"),
+                PipelineVariantJournal.Schema, null,
+                primaryCacheReady: EncodingPolicy.IncrementalArrayDescriptors ? () => _primaryCacheReady.IsSet : null);''')
+    once(path, '''        private readonly Func<int> _devicePercent;''',
+         '''        private readonly Func<int> _devicePercent;
+        private readonly Func<bool> _primaryCacheReady;''')
+    once(path, '''        public PipelineVariantJournal(string path, ulong schema, Func<int> devicePercent, bool loadInBackground = true)''',
+         '''        public PipelineVariantJournal(string path, ulong schema, Func<int> devicePercent, bool loadInBackground = true,
+            Func<bool> primaryCacheReady = null)''')
+    once(path, '''            _devicePercent = devicePercent ?? DeviceAvailablePercent;''',
+         '''            _devicePercent = devicePercent ?? DeviceAvailablePercent;
+            _primaryCacheReady = primaryCacheReady;''')
+    once(path, '''            List<(ulong Program, ITarget Target)> offers;
+
+            lock (_lock)''', '''            int programCount;
+
+            lock (_lock)''')
+    once(path, '''                offers = new(_pendingOffers);
+                _pendingOffers.Clear();''',
+         '''                programCount = _plan.Count;
+                if (!_stopped)
+                {
+                    foreach ((ulong program, ITarget target) in _pendingOffers)
+                    {
+                        QueueReady(program, target);
+                    }
+
+                    _ready.Sort((a, b) => CompareForPlayback(a.Record, b.Record));
+                }
+                _pendingOffers.Clear();''')
+    once(path, '''                $"{kept.Count} variants of {_plan.Count} programs planned''',
+         '''                $"{kept.Count} variants of {programCount} programs planned''')
+    once(path, '''            foreach ((ulong program, ITarget target) in offers)
+            {
+                Offer(program, target);
+            }''', '''            Pump();''')
+    once(path, '''                if (!_plan.Remove(program, out List<Record> records))
+                {
+                    return;
+                }
+
+                foreach (Record record in records)
+                {
+                    _ready.Add((record, target));
+                }
+''', '''                if (!QueueReady(program, target))
+                {
+                    return;
+                }
+''')
+    once(path, '''        // Schedules the best-ranked ready variants while the bounds allow it.''',
+         '''        // Both the initial batch and a later offer are added under _lock before a worker can pick a variant.
+        private bool QueueReady(ulong program, ITarget target)
+        {
+            if (!_plan.Remove(program, out List<Record> records))
+            {
+                return false;
+            }
+
+            foreach (Record record in records)
+            {
+                _ready.Add((record, target));
+            }
+            return true;
+        }
+
+        // Schedules the best-ranked ready variants while the bounds allow it.''')
+    once(path, '''                        _replayMs >= ReplayWorkBudgetMs)''',
+         '''                        _replayMs >= ReplayWorkBudgetMs || _primaryCacheReady?.Invoke() == false)''')
+
+
 def note_slow_default_pipeline(path):
     once(path, '''        // Called by a draw that obtained a pipeline this program had not built for its state (created on the render thread,
         // or joined from a queued compile): recorded for the next launch, except the warm-up's own state.''',
@@ -162,6 +385,8 @@ def apply(source):
         assert hashlib.sha256((source / name).read_bytes()).hexdigest() == digest, name
 
     prioritize_expensive_variants(source / JOURNAL)
+    retain_expensive_variants(source / JOURNAL)
+    start_replay_when_cache_is_ready(source / JOURNAL)
     note_slow_default_pipeline(source / PROGRAM)
     skip_unchanged_array_descriptors(source / ARRAY_CACHE)
     return [source / name for name in (JOURNAL, PROGRAM, ARRAY_CACHE)]
