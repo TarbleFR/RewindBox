@@ -174,7 +174,8 @@ No engine change: everything below uses what the pinned engine already reads in 
   `Play` ou numéroté. Le correctif 0119 vérifie le titre lors de la restauration en attente et
   transmet les fichiers de ce dossier à la racine de la sauvegarde du jeu. Les copies en attente
   créées par la 787 dont le chemin contient encore le mauvais identifiant restent en attente.
-  La vidéo confirme le défaut de routage et s’arrête avant le lancement du jeu.
+  Avant cette nouvelle copie, le menu affiche le résultat de l’import précédent, « Sauvegarde
+  installée par le moteur du jeu ». La vidéo s’arrête avant le lancement qui suit la nouvelle copie.
 - **End of session**: on `session_ended` (either menu's quit, or an engine stop) the bridge removes the menu and dismisses
   the game view controller before it tells Dart.
 - Checked by `test/s2arm_session_menu_test.py` and compiled for iOS arm64 by `.github/workflows/s2arm-bridge-ios.yml`.

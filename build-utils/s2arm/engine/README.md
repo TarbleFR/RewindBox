@@ -126,6 +126,8 @@ fetched at build time and never committed here (Apache-2.0, see `docs/s2arm-lega
 | `0118-guest-bind-imported-saves-to-their-profile.patch` | IPA 785 copied 26 save files while the playable progress stayed old. IPA 786 had no confirmed restore. Preserve the identifiable source profile before allocating save data, refuse ambiguous profiles, and report if the guest actually installed all requested areas. `S2A_RB_SAVE_PROFILE=0` keeps the previous behavior. |
 | `0119-guest-check-title-of-imported-save-slots.patch` | The IPA 787 recording shows 26 files from `04007EF01F8AE000/000` copied for Mario Kart World (`0400C3F00006E000`). Check the title before restoring a pending `Play` or numbered save folder. Restore the selected slot's contents at the save root. `S2A_RB_SAVE_TITLE_SLOTS=0` restores the earlier detection. |
 
+The title check for pending save slots compiled on both macOS runners in [run 44321233097](https://github.com/TarbleFR/RewindBox/actions/runs/44321233097). Zero warnings targeted its 19 added engine lines. The shader translator stamp matches IPA 787. [Library](https://github.com/TarbleFR/RewindBox/actions/runs/44321234483) and [bridge](https://github.com/TarbleFR/RewindBox/actions/runs/44321233960) checks passed.
+
 The save profile and restore-result follow-up compiled on both runners in [run 44305135295](https://github.com/TarbleFR/RewindBox/actions/runs/44305135295). No warning targeted an added engine line. The shader translator stamp still matches IPA 786.
 
 The IPA 786 follow-up (0115–0117) was compiled and verified in [run 44301263731](https://github.com/TarbleFR/RewindBox/actions/runs/44301263731). The translator stamp matches IPA 786. See the [device audit](../../../docs/evidence/s2arm-ipa786-device-2026-11-18.md).
