@@ -121,13 +121,17 @@ void main() {
     expect(resolved.serversAutomatic, isTrue);
   });
 
-  test('a build define still overrides its name', () async {
+  test('build addresses are fallbacks until their names resolve', () async {
+    final fallback = await config(server: '198.51.100.50', nat: '203.0.113.50');
+    expect(fallback.serverAddress, '198.51.100.50');
+    expect(fallback.natAddress, '203.0.113.50');
+    expect(fallback.serverFromBuild && fallback.natFromBuild, isTrue);
     await refresh(answers(good));
-    final settings = await config(server: '198.51.100.50');
-    expect(settings.serverAddress, '198.51.100.50');
-    expect(settings.serverFromBuild, isTrue);
-    expect(settings.serverResolved, isFalse);
+    final settings = await config(server: '198.51.100.50', nat: '203.0.113.50');
+    expect(settings.serverAddress, '198.51.100.10');
     expect(settings.natAddress, '203.0.113.20');
+    expect(settings.serverFromBuild || settings.natFromBuild, isFalse);
+    expect(settings.serverResolved && settings.natResolved, isTrue);
     expect(settings.serversAutomatic, isTrue);
   });
 

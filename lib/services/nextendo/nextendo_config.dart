@@ -14,14 +14,12 @@ import 'nextendo_servers.dart';
 ///   November 2026): `nex.nextendo.network` for the game server and
 ///   `nat.nextendo.network` for the secondary NAT test, looked up when the app
 ///   starts and before a launch, kept about ten minutes, the last good address
-///   kept when a lookup fails ([NextendoServers]). Nothing is written into the
-///   build and players never type them.
+///   kept when a lookup fails ([NextendoServers]).
 ///
-/// Each address comes from a build define when the build has a valid one (a
-/// maintainer's test override; the delivery passes none by default), otherwise
-/// from its name's last good lookup, otherwise from the maintainer's on-device
-/// field (a test before any lookup succeeded). The client identifier comes from
-/// the build, the on-device field or the registered application.
+/// Each address uses its name's last good lookup. Until the first successful
+/// lookup, the optional build value or the maintainer's on-device field can
+/// provide it. The client identifier comes from the build, the on-device
+/// field or the registered application.
 class NextendoConfig {
   const NextendoConfig({
     required this.clientId,
@@ -115,18 +113,20 @@ class NextendoConfig {
   }) async {
     final prefs = preferences ?? await SharedPreferences.getInstance();
     final clientFromBuild = isClientId(buildClientId.trim());
-    final serverFromBuild = isAddress(buildServer.trim());
-    final natFromBuild = isAddress(buildNat.trim());
     final localClientId = prefs.getString(_clientIdKey) ?? '';
     final resolved = NextendoServers.cached(prefs);
-    final serverResolved = !serverFromBuild && isAddress(resolved.server);
-    final natResolved = !natFromBuild && isAddress(resolved.nat);
+    // Nextendo can move either endpoint after an IPA was built. A compiled
+    // address is useful when DNS has never answered, not as a permanent pin.
+    final serverResolved = isAddress(resolved.server);
+    final natResolved = isAddress(resolved.nat);
+    final serverFromBuild = !serverResolved && isAddress(buildServer.trim());
+    final natFromBuild = !natResolved && isAddress(buildNat.trim());
     return NextendoConfig(
       clientId: clientFromBuild ? buildClientId.trim() : (localClientId.isEmpty ? registeredClientId : localClientId),
-      serverAddress: serverFromBuild
-          ? buildServer.trim()
-          : (serverResolved ? resolved.server : prefs.getString(_serverKey) ?? ''),
-      natAddress: natFromBuild ? buildNat.trim() : (natResolved ? resolved.nat : prefs.getString(_natKey) ?? ''),
+      serverAddress: serverResolved
+          ? resolved.server
+          : (serverFromBuild ? buildServer.trim() : prefs.getString(_serverKey) ?? ''),
+      natAddress: natResolved ? resolved.nat : (natFromBuild ? buildNat.trim() : prefs.getString(_natKey) ?? ''),
       clientIdFromBuild: clientFromBuild,
       serverFromBuild: serverFromBuild,
       natFromBuild: natFromBuild,

@@ -122,6 +122,9 @@ abstract final class NextendoOnlinePlay {
         onSkipped?.call(settings.serversIssue == 'same' ? 'serversSame' : 'serversNotConfigured');
         return null;
       }
+      final primarySource = settings.serverResolved ? 'dns' : (settings.serverFromBuild ? 'build' : 'manual');
+      final natSource = settings.natResolved ? 'dns' : (settings.natFromBuild ? 'build' : 'manual');
+      onDetail?.call('servers', 'game=$primarySource nat=$natSource');
       if (!await (engineSupported ?? NextendoEngineSupport.supported)()) {
         onSkipped?.call('engineUnsupported');
         return null;
