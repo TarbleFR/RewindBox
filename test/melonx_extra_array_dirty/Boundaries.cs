@@ -115,6 +115,9 @@ namespace Ryujinx.Graphics.Vulkan
         public int LayoutId, Allocations;
         public PipelineLayout PipelineLayout;
         public readonly ResourceBindingSegment[][] BindingSegments;
+#if CURRENT_CORE
+        public DescriptorSetUpdater.DirtyFlags BufferViewDirtyFlags { get; }
+#endif
         public readonly ResourceBindingSegment[][] ClearSegments;
         public readonly DescriptorSetTemplate[] Templates;
         public ShaderCollection(int layoutId, ResourceBindingSegment[][] segments)
@@ -122,6 +125,9 @@ namespace Ryujinx.Graphics.Vulkan
             LayoutId = layoutId;
             PipelineLayout = new PipelineLayout((ulong)layoutId);
             BindingSegments = segments;
+#if CURRENT_CORE
+            BufferViewDirtyFlags = DescriptorSetUpdater.BufferViewSets(segments);
+#endif
             ClearSegments = new ResourceBindingSegment[segments.Length][];
             Templates = new DescriptorSetTemplate[segments.Length];
             for (int set = 0; set < segments.Length; set++)
@@ -205,7 +211,15 @@ namespace Ryujinx.Graphics.Vulkan
         public ReadOnlySpan<DescriptorImageInfo> GetImageInfos(VulkanRenderer gd, CommandBufferScoped cbs, TextureView texture) => throw new InvalidOperationException();
         public ReadOnlySpan<BufferView> GetBufferViews(CommandBufferScoped cbs) => throw new InvalidOperationException();
         public DescriptorSet[] GetDescriptorSets(Device device, CommandBufferScoped cbs, DescriptorSetTemplateUpdater updater,
-            ShaderCollection shader, int set, TextureView texture) => throw new InvalidOperationException();
+            ShaderCollection shader, int set, TextureView texture)
+#if CURRENT_CORE
+            => new[] { new DescriptorSet(Handle) };
+        private static ulong _next = 10000000;
+        public ulong Handle = _next++;
+        public void Change() => Handle = _next++;
+#else
+            => throw new InvalidOperationException();
+#endif
     }
     static class TestConversions
     {

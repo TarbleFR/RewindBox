@@ -148,8 +148,9 @@ COMPOSED = sorted(set(COMPOSED) | set(QUEUED_3D))
 from adapt_shader_load_binary_release import BASELINE as SHADER_LOAD_RELEASE  # noqa: E402
 from adapt_streaming_memory import BASELINE as STREAMING_MEMORY, MEMORY as LIBRARY_MEMORY  # noqa: E402
 from adapt_buffer_mirror_windows import BASELINE as BUFFER_MIRRORS  # noqa: E402
+from adapt_cached_shader_stages import BASELINE as CACHED_STAGES
 from adapt_descriptor_pool_lifetime import MANAGER as DESCRIPTOR_POOL_MANAGER  # noqa: E402
-COMPOSED = sorted(set(COMPOSED) | {DESCRIPTOR_POOL_MANAGER} | set(BUFFER_MIRRORS) | set(SHADER_LOAD_RELEASE) | (set(STREAMING_MEMORY) - {LIBRARY_MEMORY}))
+COMPOSED = sorted(set(COMPOSED) | set(CACHED_STAGES) | {DESCRIPTOR_POOL_MANAGER} | set(BUFFER_MIRRORS) | set(SHADER_LOAD_RELEASE) | (set(STREAMING_MEMORY) - {LIBRARY_MEMORY}))
 # Production files the candidate build compiles and this receipt binds (the region type is unchanged). Library.cs
 # (Ryujinx.Library) is outside the GPU assembly closure: it is composed and bound here, compiled by NativeAOT.
 COMPILED = sorted((set(COMPOSED) - {DMA_LIBRARY}) | {'src/Ryujinx.Graphics.Gpu/Memory/ReadOnlyRegion.cs'})

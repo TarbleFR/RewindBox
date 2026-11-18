@@ -29,8 +29,13 @@ sys.path.insert(0, str(ROOT / 'test'))
 from melonx_adapter_control import control_source, files_edited_later, use_authenticated_libhac_feed  # noqa: E402
 _HOLD = []
 FINAL_SOURCE = SOURCE
-SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_extra_array_dirty', _HOLD)
-import adapt_extra_array_dirty as adapter  # noqa: E402
+CURRENT = '--current-bindings' in sys.argv
+if CURRENT:
+    import adapt_descriptor_and_block_usage as adapter
+else:
+    import adapt_extra_array_dirty as adapter
+SOURCE, FINAL_PREPARATION = control_source(SOURCE, adapter.__name__, _HOLD)
+  # noqa: E402
 from adapt_descriptor_updates import method  # noqa: E402
 
 UPDATER = adapter.UPDATER
@@ -79,8 +84,7 @@ for name, expected in adapter.BASELINE.items():
 reports = {}
 environment = dict(os.environ, DOTNET_CLI_TELEMETRY_OPTOUT='1', DOTNET_NOLOGO='1', DOTNET_TieredCompilation='0')
 pin = json.loads((ROOT / 'build-utils/melonx/source.json').read_text())
-with tempfile.TemporaryDirectory(prefix='melonx-extra-array-dirty-') as temporary:
-    temporary = Path(temporary).resolve()
+def historical_variants(temporary):
     candidate_tree = temporary / 'candidate-tree'
     shutil.copytree(SOURCE, candidate_tree, ignore=shutil.ignore_patterns('.git', 'bin', 'obj'), symlinks=True)
     use_authenticated_libhac_feed(candidate_tree, ROOT)
@@ -128,7 +132,24 @@ with tempfile.TemporaryDirectory(prefix='melonx-extra-array-dirty-') as temporar
 
     variants = {'control': control_text, 'candidate': candidate_text,
                 'unbound': candidate_text.replace(adapter.EXTRA_NEW, adapter.EXTRA_OLD)}
-    check(variants['unbound'] != candidate_text, 'the rebind condition is removable for the sensitivity variant')
+    return candidate_tree, variants
+
+
+with tempfile.TemporaryDirectory(prefix='melonx-extra-array-dirty-') as directory:
+    temporary = Path(directory)
+    if CURRENT:
+        check(FINAL_PREPARATION, 'a prepared candidate with the new adapter is required')
+        candidate_tree = FINAL_SOURCE
+        after = read(candidate_tree, UPDATER)
+        variants = {'control': read(SOURCE, UPDATER), 'candidate': after,
+                    'unbound': after.replace('SignalDirty(DirtyFlags.Texture | DirtyFlags.TextureArrayExtra);',
+                                             'SignalDirty(DirtyFlags.Texture);')}
+        SIGNATURES = [s.replace('private enum DirtyFlags', 'internal enum DirtyFlags')
+                       .replace('private static DirtyFlags BufferViewSets(', 'internal static DirtyFlags BufferViewSets(')
+                      for s in SIGNATURES] + ['        public void SetImageArraySeparate(']
+    else:
+        candidate_tree, variants = historical_variants(temporary)
+    check(variants['unbound'] != variants['candidate'], 'the rebind condition is removable for the sensitivity variant')
     member_hashes = {}
     for variant, text in variants.items():
         members = [method(text, signature) for signature in SIGNATURES]
@@ -150,7 +171,8 @@ namespace Ryujinx.Graphics.Vulkan { partial class DescriptorSetUpdater {
         for relative in FILES:
             shutil.copyfile(tree / relative, work / Path(relative).name)
         for name in ('Program.cs', 'Boundaries.cs'):
-            shutil.copyfile(FIXTURE / name, work / name)
+            source_text = (FIXTURE / name).read_text()
+            (work / name).write_text(('#define CURRENT_CORE\n' if CURRENT else '') + source_text)
         (work / 'Probe.csproj').write_text('''<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup>
 <OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 <Nullable>disable</Nullable><EnableNETAnalyzers>false</EnableNETAnalyzers><NoWarn>0649;0162;0169;0414;8500</NoWarn>
@@ -162,7 +184,8 @@ namespace Ryujinx.Graphics.Vulkan { partial class DescriptorSetUpdater {
                                 cwd=work, capture_output=True, text=True, timeout=600, env=environment)
         if variant == 'unbound':
             failure = result.stdout + result.stderr
-            check(result.returncode != 0 and 'separate array B, set 2 unchanged: the texture array set bound is another array\'s set' in failure,
+            expected = 'texture array element changed' if CURRENT else "separate array B, set 2 unchanged: the texture array set bound is another array's set"
+            check(result.returncode != 0 and expected in failure and 'InvalidOperationException' in failure,
                   'sensitivity: without the rebind the draw reads the previous array\'s set: ' + failure[-800:])
             reports[variant] = dict(failedAsExpected=True)
             continue
@@ -179,6 +202,14 @@ check(c['trace'] == k['trace'] and c['traceSha256'] == k['traceSha256'] and c['o
       'every draw and dispatch reads the same descriptors in both variants, the separate array set included')
 check([s['label'] for s in c['steps']] == [s['label'] for s in k['steps']], 'same steps')
 steps = {cs['label']: (cs, ks) for cs, ks in zip(c['steps'], k['steps'])}
+if CURRENT:
+    before, after = c['loops']['scalarBindings'], k['loops']['scalarBindings']
+    check(before['arraySetLookups'] == 400 and after['arraySetLookups'] == 0, '400 scalar changes keep the extra array bound')
+    check(before['descriptors'] == after['descriptors'] and before['binds'] == after['binds'] + 400, 'identical scalar descriptors written')
+    check(steps['image array switched'][0]['writes'] == steps['image array switched'][1]['writes'] + 1, 'no rewrite of base image set')
+    print(json.dumps(dict(result='passed', decoded=c['observations'], trace=c['traceSha256'], scalarLookups=[400, 0],
+                          changedArrayRejectedByNegativeControl=True)))
+    sys.exit(0)
 for label, (cs, ks) in steps.items():
     check(ks['writes'] <= cs['writes'] and ks['descriptors'] <= cs['descriptors'] and ks['arraySetLookups'] == cs['arraySetLookups'],
           label + ': the candidate never writes more, and binds the separate array set exactly as often: ' + str((cs, ks)))

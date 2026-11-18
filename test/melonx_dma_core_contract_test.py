@@ -17,6 +17,7 @@ from freeze_performance_core import changed_dependencies
 from adapt_bindless_array_deltas import COUNTERS, DIAGNOSTIC_EDITS, DIAGNOSTICS, NAMES as ARRAY_NAMES, WORK_ROWS
 from adapt_cheat_report import BASELINE as CHEAT_REPORT, MOD_LOADER as CHEAT_MOD_LOADER, TAMPER as CHEAT_TAMPER
 from adapt_descriptor_pool_lifetime import MANAGER as DESCRIPTOR_POOL_MANAGER
+from adapt_cached_shader_stages import BASELINE as CACHED_STAGES, SOURCE as STAGE_SOURCE, PACK as STAGE_PACK, SHADER as VK_STAGE
 from adapt_buffer_mirror_windows import BASELINE as BUFFER_MIRRORS
 from adapt_nextendo_data import SERVICE_CREATOR
 from adapt_streaming_memory import BASELINE as STREAMING_MEMORY
@@ -407,7 +408,7 @@ CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES
            # After IPA 767: the game's own break journaled (adapt_guest_break_context).
            {'src/Ryujinx.HLE/HOS/Kernel/SupervisorCall/Syscall.cs'} |
            # After IPA 771: the shader cache loader (adapt_shader_load_binary_release; DiskCacheHostStorage.cs is changed already).
-           {'src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ParallelDiskCacheLoader.cs'} | set(STREAMING_MEMORY) | set(BUFFER_MIRRORS) | {DESCRIPTOR_POOL_MANAGER} | set(CHEAT_REPORT) | {'src/Ryujinx.Library/EmbeddedGraphicsSettings.cs'} |
+           {'src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ParallelDiskCacheLoader.cs'} | set(STREAMING_MEMORY) | set(BUFFER_MIRRORS) | set(CACHED_STAGES) | {DESCRIPTOR_POOL_MANAGER} | set(CHEAT_REPORT) | {'src/Ryujinx.Library/EmbeddedGraphicsSettings.cs'} |
            {SERVICE_CREATOR, 'src/Ryujinx.Library/EmbeddedAddons.cs', 'src/Ryujinx.Library/EmbeddedSessionCoordinator.cs'})
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
@@ -517,6 +518,7 @@ JOINED = JOINED | set(C766_PRIVATE_SPAN_SNAPSHOT)
 # Nextendo online lot: its five engine files join the prepared source (EmbeddedContent.cs is a member already);
 # nifm-network-watch composes, builds and binds them.
 JOINED = JOINED | (set(C768_NEXTENDO_ONLINE) - {'src/Ryujinx.Library/EmbeddedContent.cs'})
+JOINED |= {STAGE_SOURCE, STAGE_PACK, VK_STAGE}
 JOINED |= {CHEAT_MOD_LOADER, CHEAT_TAMPER, SERVICE_CREATOR, DESCRIPTOR_POOL_MANAGER, 'src/Ryujinx.Graphics.Vulkan/BitMapStruct.cs'}
 REUSED_FRESH = set()
 
@@ -744,7 +746,7 @@ if not args.helpers_only:
     # After IPA 759: 116 (Ryujinx.Library.csproj) and a second addition, src/Ryujinx.Library/RewindBoxRuntimeYield.c.
     # After IPA 767: 117 (Syscall.cs, the game's own break journaled: adapt_guest_break_context).
     # After IPA 771: 118 (ParallelDiskCacheLoader.cs: adapt_shader_load_binary_release).
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 130 and
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 133 and
           set(frozen["productionAdditions"]) == {C768_ONLINE_ADDITION, C770_RUNTIME_YIELD_ADDITION, 'src/Ryujinx.Horizon/EmbeddedDeliveryCache.cs', 'src/Ryujinx.HLE/EmbeddedCheatReport.cs'}, "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
                                                      'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
@@ -899,6 +901,8 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_nextendo_data.py',
                                                      'build-utils/melonx/adapt_buffer_mirror_windows.py',
                                                      'build-utils/melonx/adapt_descriptor_pool_lifetime.py',
+                                                     'build-utils/melonx/adapt_descriptor_and_block_usage.py',
+                                                     'build-utils/melonx/adapt_cached_shader_stages.py',
                                                      'build-utils/melonx/adapt_cheat_report.py',
                                                      'native/melonx/EmbeddedCheatReport.cs',
                                                      'native/melonx/EmbeddedDeliveryCache.cs'} and
@@ -970,7 +974,7 @@ if not args.helpers_only:
     # After IPA 767: adapt_loh_compaction_request.py and adapt_guest_break_context.py join them (262); Switch.cs and
     # Syscall.cs are members already (228).
     # After IPA 771: adapt_shader_load_binary_release.py joins them (263); its two disk cache files are members already.
-    check(len(frozen['preparationInputs']) == 270 and len(frozen['preparedMembers']) == 235, 'Wrong final composition')
+    check(len(frozen['preparationInputs']) == 272 and len(frozen['preparedMembers']) == 238, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and

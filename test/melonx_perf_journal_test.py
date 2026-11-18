@@ -76,11 +76,11 @@ check('if let text = vmActivity() { fields.append("vm=" + text) }' in journal an
 # cores, time waiting for a core, then the clocks of the performance cores and of the others), from one
 # proc_pid_rusage call looked up at run time; after vm=, before th=. The kernel's runnable time counts the time running
 # too (xnu thread.h: "time the thread is runnable (including running)"): the CPU time is taken off it.
-check('let served = hwActivity(cpuNs:total, seconds:elapsed)\n        if let text = served.hw { fields.append("hw=" + text) }' in journal and
+check('let served = hwActivity()\n        if let text = served.hw { fields.append("hw=" + text) }' in journal and
       journal.index('fields.append("vm=" + text)') < journal.index('fields.append("hw=" + text)') < journal.index('fields.append("th=" + ') and
       journal.count('dlsym(UnsafeMutableRawPointer(bitPattern:-2), "proc_pid_rusage")') == 1 and journal.count('RUSAGE_INFO_V6') == 2 and
       'info.ri_user_ptime &+ info.ri_system_ptime' in journal and 'info.ri_runnable_time' in journal and
-      'guard let before = previousHw else { return (nil, nil, nil) }' in journal,
+      'guard let before = previousHw, let seconds = hardwareWindow.seconds else { return (nil, nil, nil) }' in journal,
       'hw= field: one read-only call, optional, absent on the first line')
 check('waiting = String(Int((max(0, Double(now.runnable - before.runnable) - time) / time * 100).rounded()))' in journal and
       'performanceCycles:info.ri_pcycles' in journal and 'mach_timebase_info(&base) == KERN_SUCCESS' in journal and
@@ -314,6 +314,48 @@ check(parity.index('armCrashJournal()\n        // How the previous process') < p
       'the next launch reports the previous session and subscribes to the system exit reports')
 check('_ = rename(temporary, path)' in parity and 'force || now - lastWrite >= 2' in parity,
       'the marker is written whole and renamed into place, at most every 2 s')
+
+check('forName:ProcessInfo.thermalStateDidChangeNotification' in journal and
+      'heat?.mayWalk()' in journal and 'maySample:heat.mayProfile' in journal and
+      'guard continuing() else { break }' in hot, 'thermal changes affect optional work, including a running walk or profile')
+check('hardwareWindow.mark(ProcessInfo.processInfo.systemUptime)' in journal and
+      'vmWindow.mark(ProcessInfo.processInfo.systemUptime)' in journal and
+      'threadWindow.mark(ProcessInfo.processInfo.systemUptime)' in journal and
+      'presentationWindow.mark(ProcessInfo.processInfo.systemUptime)' in journal, 'each counter has a monotonic read endpoint')
+
+if shutil.which('swiftc'):
+    # Portable production code, including the same cooling deadlines and counter windows used on the phone.
+    with tempfile.TemporaryDirectory() as directory:
+        work = Path(directory)
+        window = journal[journal.index('struct MeloNXReadWindow {'):journal.index('// Only optional native probes')]
+        policy = journal[journal.index('    struct Policy {'):journal.index('    private let lock', journal.index('    struct Policy {'))]
+        (work / 'main.swift').write_text('import Foundation\n' + window + policy + """
+var window = MeloNXReadWindow()
+window.mark(20)
+precondition(window.field(since: 19, sampleStart: 20) == "1000,-")
+window.mark(23.5)
+precondition(window.seconds == 3.5 && window.field(since: 19, sampleStart: 21) == "4500,3500")
+precondition(window.field(since: 19, sampleStart: 24) == "-")
+window.mark(27)
+precondition(window.seconds == 3.5)
+var p = Policy()
+precondition(p.walk(at: 1) && p.profile(at: 1))
+p.update(1, at: 2)
+precondition(!p.walk(at: 3) && p.profile(at: 3))
+p.update(2, at: 4)
+precondition(!p.walk(at: 5) && !p.profile(at: 5))
+p.warning(at: 10)
+p.update(1, at: 12)
+precondition(!p.profile(at: 50) && p.profile(at: 70) && !p.walk(at: 70))
+p.update(0, at: 75)
+precondition(p.profile(at: 76) && !p.walk(at: 134) && p.walk(at: 135))
+p.update(3, at: 140); p.update(0, at: 141); p.update(3, at: 160); p.update(0, at: 170)
+precondition(!p.profile(at: 199) && p.profile(at: 200) && !p.walk(at: 229) && p.walk(at: 230))
+""")
+        executable = work / 'policy'
+        subprocess.run(['swiftc', str(work / 'main.swift'), '-o', str(executable)], check=True)
+        subprocess.run([str(executable)], check=True)
+        check(True, 'executed delayed reads, missing samples, thermal transitions and overlapping warnings')
 
 if shutil.which('xcrun'):
     with tempfile.TemporaryDirectory(prefix='melonx-perf-') as temporary:

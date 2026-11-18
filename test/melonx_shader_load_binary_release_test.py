@@ -21,11 +21,63 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import control_source, use_authenticated_libhac_feed  # noqa: E402
+from melonx_adapter_control import control_source, postimage, use_authenticated_libhac_feed  # noqa: E402
 import adapt_shader_load_binary_release as adapter  # noqa: E402
 
 FINAL_SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate-source' in sys.argv else sys.argv[1]).resolve()
 _HOLD = []
+if '--cached-stages' in sys.argv:
+    # Compare the two production Release assemblies on an authenticated 779 preparation and its candidate.
+    import xml.etree.ElementTree as ET
+    import statistics
+    import adapt_cached_shader_stages as stages
+    before = Path(sys.argv[1]).resolve()
+    assert all(hashlib.sha256((before / n).read_bytes()).hexdigest() == h for n, h in stages.BASELINE.items())
+    dotnet = os.environ.get('DOTNET', 'dotnet')
+    probe = ROOT / 'test/melonx_shader_load_binary_release/CacheStages.cs'
+    asset = 'src/Ryujinx.Graphics.Vulkan/Shaders/SpirvBinaries/'
+    results = []
+    with tempfile.TemporaryDirectory(prefix='melonx-cache-stages-') as directory:
+        for name, tree in [('control', before), ('candidate', FINAL_SOURCE)]:
+            work = Path(directory) / name
+            work.mkdir()
+            shutil.copyfile(probe, work / probe.name)
+            project = ET.Element('Project', Sdk='Microsoft.NET.Sdk')
+            props = ET.SubElement(project, 'PropertyGroup')
+            for prop, value in dict(OutputType='Exe', TargetFramework='net10.0', ImplicitUsings='enable',
+                                    NuGetAudit='false', DefineConstants='CANDIDATE' if name == 'candidate' else '').items():
+                ET.SubElement(props, prop).text = value
+            refs = ET.SubElement(project, 'ItemGroup')
+            for dep in ('Ryujinx.Graphics.Vulkan', 'Ryujinx.Graphics.Gpu'):
+                ET.SubElement(refs, 'ProjectReference', Include=str(tree / 'src' / dep / (dep + '.csproj')))
+            csproj = work / 'probe.csproj'
+            ET.ElementTree(project).write(csproj)
+            shutil.copyfile(tree / 'global.json', work / 'global.json')
+            feed = os.environ.get('MELONX_LOCAL_NUGET_CONFIG')
+            restore = [dotnet, 'restore', str(csproj), '-m:1', '-p:NuGetAudit=false']
+            if feed: restore.extend(['--configfile', feed])
+            subprocess.run(restore, cwd=work, check=True)
+            subprocess.run([dotnet, 'build', str(csproj), '-c', 'Release', '--no-restore', '-m:1'], cwd=work, check=True)
+        # Both libraries are built before timing. Alternate the process order to limit warm-up bias.
+        trials = {'control': [], 'candidate': []}
+        for name in ('control', 'candidate', 'candidate', 'control'):
+            work = Path(directory) / name
+            run = subprocess.check_output([dotnet, str(work / 'bin/Release/net10.0/probe.dll'),
+                str(before / (asset + 'ColorBlitVertex.spv')), str(before / (asset + 'ColorBlitFragment.spv')),
+                str(before / (asset + 'ChangeBufferStride.spv'))],
+                cwd=work, text=True, env=dict(os.environ, DOTNET_TieredCompilation='0'))
+            trials[name].append(json.loads(run.strip()))
+        for name in ('control', 'candidate'):
+            first, second = trials[name]
+            assert {k: v for k, v in first.items() if k != 'runs'} == {k: v for k, v in second.items() if k != 'runs'}
+            results.append({**first, 'runs': first['runs'] + second['runs']})
+    old, new = results
+    assert all(old[key] == new[key] for key in ('digest', 'original', 'textIdentity', 'computeIdentity', 'records'))
+    assert [r['checksum'] for r in old['runs']] == [r['checksum'] for r in new['runs']]
+    assert max(r['allocated'] for r in new['runs']) < min(r['allocated'] for r in old['runs']) // 100
+    print(json.dumps(dict(result='passed', results=results, medianMs=[statistics.median(r['ms'] for r in x['runs']) for x in results])))
+    sys.exit(0)
+
 SOURCE, FINAL_PREPARATION = control_source(FINAL_SOURCE, 'adapt_shader_load_binary_release', _HOLD)
 DOTNET = os.environ.get('DOTNET', 'dotnet')
 FIXTURE = ROOT / 'test/melonx_shader_load_binary_release'
@@ -57,10 +109,12 @@ with tempfile.TemporaryDirectory(prefix='melonx-shader-load-') as temporary:
     use_authenticated_libhac_feed(work, ROOT)
     changed = adapter.apply(work)
     check(sorted(str(p.relative_to(work)) for p in changed) == sorted(adapter.BASELINE), 'the adapter changes its two files only')
+    expected = temporary / 'postimage'
+    postimage('adapt_shader_load_binary_release', FINAL_SOURCE, expected)
     texts = {}
     for name in adapter.BASELINE:
-        final = (FINAL_SOURCE / name).read_text(encoding='utf-8-sig')
-        check((work / name).read_text(encoding='utf-8-sig') == final, 'the control plus the adapter is the final file: ' + name)
+        final = (expected / name).read_text(encoding='utf-8-sig')
+        check((work / name).read_text(encoding='utf-8-sig') == final, 'the control plus the adapter matches its exact postimage: ' + name)
         control_text = (SOURCE / name).read_text(encoding='utf-8-sig')
         reverted = final
         for file, old, new in reversed(adapter.PAIRS):
@@ -92,6 +146,14 @@ with tempfile.TemporaryDirectory(prefix='melonx-shader-load-') as temporary:
             target = run_dir / 'source' / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(tree / relative, target)
+            if relative == adapter.LOADER:
+                code = target.read_text()
+                entry = 'private void ProcessAsyncQueue(object state)\n        {'
+                assert code.count(entry) == 1
+                code = code.replace(entry, entry + '\n            System.Threading.Interlocked.Increment(ref global::Program.WorkerStarts);')
+                starts = [line for line in code.splitlines() if '.Start(_cancellationToken);' in line]
+                assert len(starts) == 1
+                target.write_text(code.replace(starts[0], '                global::Program.BeforeStart();\n' + starts[0]))
         (run_dir / 'global.json').write_text('{"sdk":{"version":"10.0.100","rollForward":"disable"}}')
         (run_dir / 'NuGet.Config').write_text('<configuration><packageSources><clear /></packageSources></configuration>')
         for name in ('Program.cs', 'Boundaries.cs'):
@@ -138,6 +200,20 @@ receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPA
                inputs={p: sha(ROOT / p) for p in inputs},
                limitation='Host CoreCLR on Linux; the loader runs against controlled storage, renderer and translator boundaries; '
                           'the sizes on a device are those of its cache (no device measurement)')
+if FINAL_PREPARATION and 'ArraySegment<byte> BinarySegment' in (FINAL_SOURCE / 'src/Ryujinx.Graphics.GAL/ShaderSource.cs').read_text():
+    import adapt_cached_shader_stages as stages
+    prior, bound = control_source(FINAL_SOURCE, 'adapt_cached_shader_stages', _HOLD)
+    assert bound
+    run = subprocess.run([sys.executable, __file__, str(prior), '--candidate-source', str(FINAL_SOURCE), '--cached-stages'],
+                         check=True, capture_output=True, text=True)
+    for field in ('emptyWorkerStarts', 'warmWorkerStarts', 'cancelledWorkerStarts'):
+        check(control[field] == 8 and candidate[field] == 0, field + ': workers start only for guest work')
+    check(control['guestWorkerStarts'] == candidate['guestWorkerStarts'] == 8, 'cold translation executes with all eight workers')
+    receipt['cachedStages'] = json.loads(run.stdout.splitlines()[-1])
+    receipt['postimages'].update({p: hashlib.sha256((FINAL_SOURCE / p).read_bytes()).hexdigest() for p in stages.BASELINE})
+    for p in ('build-utils/melonx/adapt_cached_shader_stages.py', 'test/melonx_shader_load_binary_release/CacheStages.cs'):
+        receipt['inputs'][p] = hashlib.sha256((ROOT / p).read_bytes()).hexdigest()
+receipt['checks'] = checks
 out = ROOT / 'dist/melonx/shader-load-binary-release-checks.json'
 out.parent.mkdir(parents=True, exist_ok=True)
 out.write_text(json.dumps(receipt, indent=2) + '\n')

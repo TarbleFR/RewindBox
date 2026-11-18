@@ -137,7 +137,10 @@ final class MeloNXPerfJournal {
     private var paused = false
     // Confined to the queue.
     private var timer: DispatchSourceTimer?
-    private var started = 0.0, last = 0.0
+    private var started = 0.0
+    private var threadWindow = MeloNXReadWindow(), presentationWindow = MeloNXReadWindow()
+    private var vmWindow = MeloNXReadWindow(), hardwareWindow = MeloNXReadWindow()
+    private let heat = MeloNXDiagnosticHeat()
     private var lines = 0, samples = 0
     private var previousShown = Presentation()
     private var previousAudio: [Int64]?
@@ -161,8 +164,8 @@ final class MeloNXPerfJournal {
         self.context = context
         self.fps = fps; self.presentation = presentation; self.audio = audio; self.memory = memory
         self.stalls = MeloNXStallWatch(path:path, context:context)
-        self.breakdown = MeloNXMemoryBreakdown(path:path, context:context)
-        self.hot = MeloNXHotSpots(path:path, context:context)
+        self.breakdown = MeloNXMemoryBreakdown(path:path, context:context, heat:heat)
+        self.hot = MeloNXHotSpots(path:path, context:context, maySample:heat.mayProfile)
     }
 
     func setPaused(_ value: Bool) { lock.lock(); paused = value; lock.unlock() }
@@ -180,11 +183,14 @@ final class MeloNXPerfJournal {
     func start() {
         queue.async { [self] in
             guard timer == nil, started == 0 else { return }
-            started = ProcessInfo.processInfo.systemUptime; last = started
+            started = ProcessInfo.processInfo.systemUptime
+            heat.start()
             // Baselines; this read also clears the engine's audio maxima.
             previousShown = presentation()
+            presentationWindow.mark(ProcessInfo.processInfo.systemUptime)
             previousAudio = MeloNXEngineCallClass.interactive { audio() }
             for thread in Self.threads() { previousThreads[thread.id] = thread.cpuNs }
+            if !previousThreads.isEmpty { threadWindow.mark(ProcessInfo.processInfo.systemUptime) }
             MeloNXStdioCapture.appendLine(MeloNXStdioCapture.contextualLine("[MeloNX:perf] begin: every \(interval) s, \(ProcessInfo.processInfo.activeProcessorCount) cores, audio counters \(previousAudio == nil ? "unavailable" : "available")",context:context), to:path, limit:Self.fileLimit)
             let source = DispatchSource.makeTimerSource(queue:queue)
             source.schedule(deadline:.now() + interval, repeating:interval, leeway:.milliseconds(100))
@@ -232,6 +238,7 @@ final class MeloNXPerfJournal {
 
     private func vmActivity() -> String? {
         guard let now = Self.vmCounters() else { return nil }
+        vmWindow.mark(ProcessInfo.processInfo.systemUptime)
         defer { previousVm = now }
         guard let before = previousVm else { return nil }
         return Self.vmField(from:before, to:now)
@@ -328,10 +335,12 @@ final class MeloNXPerfJournal {
         return "\(clock)/\(perCycle)/\(performance)/\(waiting)/\(performanceClock)/\(otherClock)"
     }
 
-    private func hwActivity(cpuNs: UInt64, seconds: Double) -> (hw: String?, energy: String?, switches: String?) {
+    private func hwActivity() -> (hw: String?, energy: String?, switches: String?) {
         guard let now = Self.hwCounters() else { return (nil, nil, nil) }
+        hardwareWindow.mark(ProcessInfo.processInfo.systemUptime)
         defer { previousHw = now }
-        guard let before = previousHw else { return (nil, nil, nil) }
+        guard let before = previousHw, let seconds = hardwareWindow.seconds else { return (nil, nil, nil) }
+        let cpuNs = now.time > before.time ? UInt64(Double(now.time - before.time) * Self.timeUnitNs) : 0
         return (Self.hwField(from:before, to:now, cpuNs:cpuNs), Self.energyField(from:before, to:now, seconds:seconds),
                 Self.switchField(from:before, to:now, seconds:seconds))
     }
@@ -401,6 +410,7 @@ final class MeloNXPerfJournal {
             stalls.stop()
             breakdown.stop()
             hot.stop()
+            heat.stop()
             MeloNXSessionExit.end(owner:markerOwner)
             guard let timer else { return }
             timer.cancel(); self.timer = nil
@@ -411,7 +421,6 @@ final class MeloNXPerfJournal {
 
     private func sample() {
         let now = ProcessInfo.processInfo.systemUptime
-        let elapsed = max(0.001, now - last); last = now
         lock.lock(); let isPaused = paused; lock.unlock()
         samples += 1
         var fields = ["t=" + String(Int((now - started).rounded()))]
@@ -430,6 +439,7 @@ final class MeloNXPerfJournal {
         fields.append("mgd=" + Self.decimal(callMs))
 
         let shown = presentation()
+        presentationWindow.mark(ProcessInfo.processInfo.systemUptime)
         let frames = shown.frames &- previousShown.frames
         let over20 = shown.over20 &- previousShown.over20, over40 = shown.over40 &- previousShown.over40
         let over50 = shown.over50 &- previousShown.over50, over100 = shown.over100 &- previousShown.over100
@@ -458,7 +468,9 @@ final class MeloNXPerfJournal {
         var current: [UInt64: UInt64] = [:]
         var busy: [(id: UInt64, name: String, ns: UInt64, priority: Int32)] = []
         var total: UInt64 = 0
-        for thread in Self.threads() {
+        let snapshot = Self.threads()
+        if !snapshot.isEmpty { threadWindow.mark(ProcessInfo.processInfo.systemUptime) }
+        for thread in snapshot {
             current[thread.id] = thread.cpuNs
             // A thread created during the interval counts from zero.
             let before = previousThreads[thread.id] ?? 0
@@ -467,10 +479,13 @@ final class MeloNXPerfJournal {
             total &+= used
             busy.append((id:thread.id, name:thread.name, ns:used, priority:thread.priority))
         }
-        previousThreads = current
+        if !current.isEmpty { previousThreads = current }
         busy.sort { $0.ns > $1.ns }
-        func percent(_ ns: UInt64) -> Int { Int((Double(ns) / (elapsed * 1e9) * 100).rounded()) }
-        var cpu = "cpu=\(percent(total))"
+        func percent(_ ns: UInt64) -> Int {
+            guard let seconds = threadWindow.seconds else { return 0 }
+            return Int((Double(ns) / (seconds * 1e9) * 100).rounded())
+        }
+        var cpu = !current.isEmpty && threadWindow.seconds != nil ? "cpu=\(percent(total))" : "cpu=-"
         for thread in busy.prefix(Self.topThreads) where thread.ns > 0 {
             cpu += " \(thread.name):\(percent(thread.ns))/\(thread.priority)"
         }
@@ -486,7 +501,7 @@ final class MeloNXPerfJournal {
         if let text = footprint { fields.append("mem=" + text) }
         MeloNXSessionExit.update(seconds:Int((now - started).rounded()), memory:footprint, owner:markerOwner)
         if let text = vmActivity() { fields.append("vm=" + text) }
-        let served = hwActivity(cpuNs:total, seconds:elapsed)
+        let served = hwActivity()
         if let text = served.hw { fields.append("hw=" + text) }
         if let text = served.energy { fields.append("en=" + text) }
         if let text = served.switches { fields.append("sw=" + text) }
@@ -498,9 +513,13 @@ final class MeloNXPerfJournal {
         hottest = max(hottest, thermal)
         fields.append("th=" + Self.thermal(thermal))
         fields.append("lp=" + (ProcessInfo.processInfo.isLowPowerModeEnabled ? "1" : "0"))
-        if isPaused { fields.append("paused") }
 
         guard lines < lineLimit else { return }
+        // Completed read time since session start and true interval, both in milliseconds.
+        // A failed counter read has no window on this line and keeps its previous successful baseline.
+        let windows = [threadWindow, vmWindow, hardwareWindow, presentationWindow]
+        fields.append("win=" + windows.map { $0.field(since:started, sampleStart:now) }.joined(separator:"/"))
+        if isPaused { fields.append("paused") }
         lines += 1
         MeloNXStdioCapture.appendLine(MeloNXStdioCapture.contextualLine("[MeloNX:perf] " + fields.joined(separator:" "),context:context), to:path, limit:Self.fileLimit)
         if lines == lineLimit {
@@ -833,10 +852,11 @@ final class MeloNXMemoryBreakdown {
     // Updated by the notification thread so a background VM walk can yield immediately.
     private let pressureLock = NSLock()
     private var resumeWalkAt: Double = 0
+    private let heat: MeloNXDiagnosticHeat?
 
     private func mayWalkRegions() -> Bool {
         pressureLock.lock(); defer { pressureLock.unlock() }
-        return ProcessInfo.processInfo.systemUptime >= resumeWalkAt
+        return ProcessInfo.processInfo.systemUptime >= resumeWalkAt && (heat?.mayWalk() ?? true)
     }
     private var warningObserver: NSObjectProtocol?
 
@@ -845,7 +865,8 @@ final class MeloNXMemoryBreakdown {
     // session view controller was held back with that file's renaming).
     static let memoryWarningName = Notification.Name("UIApplicationDidReceiveMemoryWarningNotification")
 
-    init(path: String, context: [String:String], first: Double = 30, every: Double = 60, maxLines: Int = 30) {
+    init(path: String, context: [String:String], first: Double = 30, every: Double = 60, maxLines: Int = 30, heat: MeloNXDiagnosticHeat? = nil) {
+        self.heat = heat
         self.path = path; self.context = context; self.first = first; self.every = every; self.maxLines = maxLines
     }
 
@@ -867,6 +888,7 @@ final class MeloNXMemoryBreakdown {
 
     // Asynchronous: once per journal, while it runs.
     func memoryWarning() {
+        heat?.memoryWarning()
         pressureLock.lock()
         resumeWalkAt = ProcessInfo.processInfo.systemUptime + 60
         pressureLock.unlock()
@@ -1094,5 +1116,81 @@ final class MeloNXMemoryBreakdown {
         case SM_LARGE_PAGE: return "large"
         default: return String(mode)
         }
+    }
+}
+
+// Monotonic endpoints for counters that can be separated by a delayed engine call.
+// Logged as end,interval milliseconds; "-" means no sample or no valid preceding read.
+struct MeloNXReadWindow {
+    private(set) var end: Double?
+    private(set) var seconds: Double?
+
+    mutating func mark(_ time: Double) {
+        seconds = end.flatMap { time > $0 ? time - $0 : nil }
+        end = time
+    }
+
+    func field(since origin: Double, sampleStart: Double) -> String {
+        guard let end, end >= sampleStart else { return "-" }
+        let milliseconds = seconds.map { String(Int(($0 * 1000).rounded())) } ?? "-"
+        return "\(Int(((end - origin) * 1000).rounded())),\(milliseconds)"
+    }
+}
+
+// Only optional native probes use this session's policy. VM ledgers, crash records,
+// the engine and its GC-capable callers continue at their normal cadence and priority.
+final class MeloNXDiagnosticHeat {
+    struct Policy {
+        private var level = 0
+        private var profileAfter = 0.0, walkAfter = 0.0
+
+        mutating func update(_ newLevel: Int, at time: Double) {
+            if level >= 2 && newLevel < 2 { profileAfter = max(profileAfter, time + 30) }
+            if level >= 1 && newLevel == 0 { walkAfter = max(walkAfter, time + 60) }
+            level = newLevel
+        }
+
+        mutating func warning(at time: Double) {
+            profileAfter = max(profileAfter, time + 60)
+            walkAfter = max(walkAfter, time + 60)
+        }
+
+        func profile(at time: Double) -> Bool { level < 2 && time >= profileAfter }
+        func walk(at time: Double) -> Bool { level == 0 && time >= walkAfter }
+    }
+
+    private let lock = NSLock()
+    private var policy = Policy()
+    private var observer: NSObjectProtocol?
+
+    func start() {
+        observer = NotificationCenter.default.addObserver(forName:ProcessInfo.thermalStateDidChangeNotification,
+                                                           object:nil, queue:nil) { [weak self] _ in self?.refresh() }
+        refresh()
+    }
+
+    func stop() {
+        if let observer { NotificationCenter.default.removeObserver(observer) }
+        observer = nil
+    }
+
+    private func refresh() {
+        lock.lock(); defer { lock.unlock() }
+        policy.update(ProcessInfo.processInfo.thermalState.rawValue, at:ProcessInfo.processInfo.systemUptime)
+    }
+
+    func memoryWarning() {
+        lock.lock(); defer { lock.unlock() }
+        policy.warning(at:ProcessInfo.processInfo.systemUptime)
+    }
+
+    func mayProfile() -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        return policy.profile(at:ProcessInfo.processInfo.systemUptime)
+    }
+
+    func mayWalk() -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        return policy.walk(at:ProcessInfo.processInfo.systemUptime)
     }
 }

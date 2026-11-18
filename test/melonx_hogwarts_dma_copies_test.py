@@ -312,6 +312,8 @@ LOT_FILES = {
     # composition.
     'adapt_nextendo_data': [],
     'adapt_descriptor_pool_lifetime': [],
+    'adapt_descriptor_and_block_usage': ['src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs'],
+    'adapt_cached_shader_stages': ['src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs'],
     'adapt_buffer_mirror_windows': ['src/Ryujinx.Graphics.Vulkan/BufferHolder.cs', 'src/Ryujinx.Graphics.Vulkan/PipelineFull.cs', 'src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs', 'src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs'],
     # Cheat report (adapt_cheat_report): ModLoader.cs, TamperMachine.cs, ProcessLoaderHelper.cs and EmbeddedContent.cs are
     # outside this composition.

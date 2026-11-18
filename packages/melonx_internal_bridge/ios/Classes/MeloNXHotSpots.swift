@@ -35,6 +35,7 @@ final class MeloNXHotSpots {
     struct Target { let id: UInt64; let name: String; let priority: Int32 }
     struct Request { let number: Int; let kind: String; let second: Int; let fps: Double; let targets: [Target] }
 
+    private let maySample: () -> Bool
     private let path: String
     private let context: [String:String]
     private let lock = NSLock()
@@ -45,7 +46,8 @@ final class MeloNXHotSpots {
     // Confined to the sampler queue (observe).
     private var slowStreak = 0, baseStreak = 0, slowDone = 0, baseDone = 0, lastSecond = -1_000, profiles = 0
 
-    init(path: String, context: [String:String]) {
+    init(path: String, context: [String:String], maySample: @escaping () -> Bool = { true }) {
+        self.maySample = maySample
         self.path = path; self.context = context
     }
 
@@ -79,7 +81,7 @@ final class MeloNXHotSpots {
 
     /// From the sampler, once per line, with the line's busiest threads first. Never blocks.
     func observe(second: Int, fps: Double?, paused: Bool, threads: [Target]) {
-        guard let kind = Self.decide(second:second, fps:fps ?? 0, paused:paused, slowStreak:&slowStreak, baseStreak:&baseStreak,
+        guard let kind = Self.decide(second:second, fps:fps ?? 0, paused:paused || !maySample(), slowStreak:&slowStreak, baseStreak:&baseStreak,
                                      slowDone:slowDone, baseDone:baseDone, lastSecond:lastSecond), !threads.isEmpty else { return }
         lock.lock()
         let free = running && !busy && pending == nil
@@ -103,7 +105,10 @@ final class MeloNXHotSpots {
             lock.unlock()
             guard alive else { return }
             if let request {
-                let lines = Self.profile(request)
+                let lines = Self.profile(request, continuing: {
+                    self.lock.lock(); let alive = self.running; self.lock.unlock()
+                    return alive && self.maySample()
+                })
                 for (index, line) in lines.enumerated() {
                     let text = "[MeloNX:hot] " + line
                     _ = MeloNXStdioCapture.appendLine(index == 0 ? MeloNXStdioCapture.contextualLine(text, context:context) : text,
@@ -118,7 +123,8 @@ final class MeloNXHotSpots {
 
     /// One profile, on the calling thread: the header line, then one line per thread asked for.
     static func profile(_ request: Request, rounds: Int = MeloNXHotSpots.rounds,
-                        periodMicroseconds: UInt32 = MeloNXHotSpots.periodMicroseconds) -> [String] {
+                        periodMicroseconds: UInt32 = MeloNXHotSpots.periodMicroseconds, continuing: () -> Bool = { true }) -> [String] {
+        guard continuing() else { return [] }
         var list: thread_act_array_t?
         var count: mach_msg_type_number_t = 0
         guard task_threads(mach_task_self_, &list, &count) == KERN_SUCCESS, let list else { return [] }
@@ -138,7 +144,10 @@ final class MeloNXHotSpots {
         var samples = [[Sample]](repeating:[], count:request.targets.count)
         var missed = [Int](repeating:0, count:request.targets.count)
         let begin = mach_absolute_time()
+        var taken = 0
         for _ in 0..<rounds {
+            guard continuing() else { break }
+            taken += 1
             for (index, target) in request.targets.enumerated() {
                 var basic = thread_basic_info_data_t()
                 guard let port = ports[target.id], MeloNXStallWatch.info(port, THREAD_BASIC_INFO, &basic),
@@ -149,6 +158,7 @@ final class MeloNXHotSpots {
             }
             usleep(periodMicroseconds)
         }
+        guard taken > 0 else { return [] }
         let took = Int(MeloNXStallWatch.milliseconds(mach_absolute_time() &- begin))
         var cache: [UInt64: String] = [:]
         func name(_ address: UInt64) -> String {
@@ -168,7 +178,7 @@ final class MeloNXHotSpots {
             return ordered.isEmpty ? "-" : ordered.map { "\($0.key):\($0.value)" }.joined(separator:",")
         }
         var lines = ["#\(request.number) \(request.kind) t=\(request.second) fps=\(String(format:"%.1f", request.fps)) " +
-                     "\(rounds) samples in \(took) ms, \(request.targets.count) threads"]
+                     "\(taken) samples in \(took) ms, \(request.targets.count) threads"]
         for (index, target) in request.targets.enumerated() {
             var own: [String: Int] = [:], stack: [String: Int] = [:], waiting: [String: Int] = [:]
             var run = 0, wait = 0

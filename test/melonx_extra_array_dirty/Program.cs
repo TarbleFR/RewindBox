@@ -50,6 +50,9 @@ static class Program
         public readonly Dictionary<int, TextureBuffer> BufferTexture = new(), BufferImage = new();
         public readonly Dictionary<int, ulong> Image = new();
         public TextureArray Array;
+#if CURRENT_CORE
+        public ImageArray ExtraImage;
+#endif
     }
 
     static readonly List<string> Trace = new();
@@ -188,6 +191,14 @@ static class Program
             Check.That(version == _m.Array.Version, $"{label}: the texture array set bound holds version {version}, current {_m.Array.Version}");
             text.Append(" 4=v").Append(version);
         }
+#if CURRENT_CORE
+        if (program.BindingSegments.Length > 5)
+        {
+            Check.That(_u.Gd.Api.Bound.TryGetValue((pbp, 5u), out ulong imageSet) && imageSet == _m.ExtraImage.Handle,
+                       label + ": current image array set");
+            text.Append(" image-set=").Append(imageSet);
+        }
+#endif
         Trace.Add(text.ToString());
     }
 
@@ -317,6 +328,30 @@ static class Program
         var afterSeparate = Counters();
         double separateMs = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
 
+#if CURRENT_CORE
+        var scalarStart = Counters();
+        for (int i = 0; i < 400; i++)
+        {
+            _u.SetProgram(_cbs, c1, true);
+            Texture(0, (i & 1) == 0 ? a : b, s1);
+            Image(0, (i & 1) == 0 ? c : d);
+            _u.UpdateAndBindDescriptorSets(_cbs, compute);
+            Observe("scalar " + i, compute);
+        }
+        var scalarEnd = Counters();
+        var imageProgram = new ShaderCollection(2, new[] { empty, empty, empty, new[] { Seg(0, 1, ResourceType.Image) },
+            empty, new[] { Seg(0, 1, ResourceType.Image, array: true) } });
+        void BindImageArray(ImageArray array)
+        {
+            _u.SetImageArraySeparate(_cbs, ShaderStage.Compute, 5, array);
+            _m.ExtraImage = array;
+        }
+        Run("image array initial", imageProgram, compute, () => BindImageArray(new ImageArray()));
+        Run("image array switched", imageProgram, compute, () => BindImageArray(new ImageArray()));
+        Run("image array contents changed", imageProgram, compute, () => { _m.ExtraImage.Change(); _u.ForceImageDirty(); });
+        NewCommandBuffer();
+        Run("image array fresh command buffer", imageProgram, compute, null);
+#endif
         object Loop((int writes, int binds, int allocations, long descriptors, int arrays) x, (int writes, int binds, int allocations, long descriptors, int arrays) y, double ms)
             => new { writes = y.writes - x.writes, binds = y.binds - x.binds, allocations = y.allocations - x.allocations,
                      descriptors = y.descriptors - x.descriptors, arraySetLookups = y.arrays - x.arrays, ms = Math.Round(ms, 2) };
@@ -328,7 +363,11 @@ static class Program
             traceSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(trace))).ToLowerInvariant(),
             observations = Trace.Count,
             steps = Steps,
-            loops = new { uniformEachDispatch = Loop(before, afterUniform, uniformMs), unchanged = Loop(afterUniform, afterUnchanged, unchangedMs),
+            loops = new {
+#if CURRENT_CORE
+                          scalarBindings = Loop(scalarStart, scalarEnd, 0),
+#endif
+                          uniformEachDispatch = Loop(before, afterUniform, uniformMs), unchanged = Loop(afterUniform, afterUnchanged, unchangedMs),
                           separateEachDispatch = Loop(afterUnchanged, afterSeparate, separateMs) },
             writesBySet = _u.Gd.Api.WritesBySet,
             renderDetail = new { RenderDetail.DescriptorSetWrites, RenderDetail.DescriptorsWritten, RenderDetail.ProgramSets, RenderDetail.SameProgramSets },
