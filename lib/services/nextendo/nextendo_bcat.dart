@@ -120,6 +120,11 @@ abstract final class NextendoBcat {
     return http.Response.bytes(body.takeBytes(), response.statusCode, headers: response.headers);
   }
 
+  static Future<String?> installed(Directory root, String titleId) async {
+    final id = titleId.toLowerCase();
+    return _titleId.hasMatch(id) ? await _existing(folder(root, id)) : null;
+  }
+
   static Future<String?> _existing(Directory target) async {
     try {
       if (!await target.exists()) return null;
@@ -184,7 +189,7 @@ abstract final class NextendoBcat {
       rethrow;
     } finally {
       if (await staging.exists()) await staging.delete(recursive: true);
-      if (await previous.exists()) await previous.delete(recursive: true);
+      if (!moved && await previous.exists()) await previous.delete(recursive: true);
     }
   }
 }

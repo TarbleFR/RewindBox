@@ -616,15 +616,18 @@ abstract final class MelonxInternalService {
       // starting offline exactly as before; the launch is never refused for it.
       // The title id names the game's Nextendo data: the catalog's exact
       // versions, its BCAT delivery data, Animal Crossing's account id.
+      NextendoLaunchOnline? authenticated;
       final online = await NextendoOnlinePlay.forLaunch(
         gamePath: gamePath,
+        onAuthenticated: (ready) => authenticated = ready,
         readTitleId: () async => (await content('metadata', filePath: gamePath))['titleId']?.toString(),
         dataRoot: await rootDirectory(),
         onSkipped: (reason) => MelonxLaunchDiagnostics.record('online', 'skipped', {'diagnostic': reason}),
         onDetail: (step, detail) => MelonxLaunchDiagnostics.record('online', step, {'diagnostic': detail}),
       ).timeout(const Duration(seconds: 20), onTimeout: () {
-        MelonxLaunchDiagnostics.record('online', 'skipped', {'diagnostic': 'timeout'});
-        return null;
+        final ready = authenticated;
+        MelonxLaunchDiagnostics.record('online', ready == null ? 'skipped' : 'extrasTimeout', {'diagnostic': 'timeout'});
+        return ready;
       });
       if (online != null) MelonxLaunchDiagnostics.record('online', 'requested');
       final response = await channel.invokeMethod<Object?>('launch', {

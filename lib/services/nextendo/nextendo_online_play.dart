@@ -100,11 +100,17 @@ abstract final class NextendoOnlinePlay {
     Directory? dataRoot,
     Future<bool> Function()? engineSupported,
     void Function(String reason)? onSkipped,
+    void Function(NextendoLaunchOnline)? onAuthenticated,
     void Function(String step, String detail)? onDetail,
     Future<NextendoCatalog?> Function()? catalog,
     Future<String?> Function(String titleId)? bcat,
   }) async {
     final nextendo = service ?? NextendoService.instance;
+    NextendoLaunchOnline? ready;
+    void remember(NextendoLaunchOnline value) {
+      ready = value;
+      onAuthenticated?.call(value);
+    }
     try {
       var settings = config ?? await NextendoConfig.load(preferences);
       if (!settings.canSignIn) return null; // Nextendo is not set up in this build: say nothing.
@@ -141,6 +147,11 @@ abstract final class NextendoOnlinePlay {
         onSkipped?.call('pidMissing');
         return null;
       }
+      NextendoLaunchOnline authenticated({List<String> addresses = const [], String? directory}) => NextendoLaunchOnline(
+        token: token, serverAddress: settings.serverAddress, natAddress: settings.natAddress,
+        smashDnsAddresses: addresses, bcatDirectory: directory,
+      );
+      remember(authenticated());
       unawaited(nextendo.markSession(token));
       if (titleId == null && readTitleId != null) {
         try {
@@ -148,6 +159,13 @@ abstract final class NextendoOnlinePlay {
         } on Object {
           // Title-specific data is optional. The game can still use the authenticated account.
         }
+      }
+      final addresses = titleId?.toLowerCase() == '01006a800016e000' && settings.serverResolved
+          ? await NextendoServers.smashAddresses(settings.serverAddress, settings.natAddress, preferences)
+          : const <String>[];
+      if (onAuthenticated != null) {
+        final previous = dataRoot == null || titleId == null ? null : await NextendoBcat.installed(dataRoot, titleId);
+        remember(authenticated(addresses: addresses, directory: previous));
       }
       final extras = await _gameData(
         settings: settings,
@@ -160,9 +178,7 @@ abstract final class NextendoOnlinePlay {
       );
       return NextendoLaunchOnline(
         token: token,
-        smashDnsAddresses: titleId?.toLowerCase() == '01006a800016e000' && settings.serverResolved
-            ? await NextendoServers.smashAddresses(settings.serverAddress, settings.natAddress, preferences)
-            : const [],
+        smashDnsAddresses: addresses,
         serverAddress: settings.serverAddress,
         natAddress: settings.natAddress,
         bcatDirectory: extras.bcatDirectory,
@@ -170,11 +186,11 @@ abstract final class NextendoOnlinePlay {
         acceptedVersions: extras.accepted,
       );
     } on NextendoException catch (error) {
-      onSkipped?.call(error.code);
-      return null;
+      if (ready == null) onSkipped?.call(error.code);
+      return ready;
     } on Object catch (error) {
-      onSkipped?.call(error.runtimeType.toString());
-      return null;
+      if (ready == null) onSkipped?.call(error.runtimeType.toString());
+      return ready;
     }
   }
 
@@ -194,37 +210,44 @@ abstract final class NextendoOnlinePlay {
     final id = titleId?.toLowerCase();
     if (id == null || !RegExp(r'^[0-9a-f]{16}$').hasMatch(id)) return (bcatDirectory: null, nsa: null, accepted: const <String>[]);
     var accepted = const <String>[];
-    try {
-      final requirement = (await (catalog ?? (() => NextendoCatalogStore.current()))())?.forTitle(id);
-      if (requirement == null) {
-        onDetail?.call('catalog', 'notListed');
-      } else {
-        accepted = requirement.accepted;
-        onDetail?.call('catalog', '${requirement.enabled ? 'listed' : 'disabled'} ${requirement.accepted.join('|')}'
-            '${requirement.needsNplnPatches ? ' npln' : ''}');
-      }
-    } on Object catch (error) {
-      onDetail?.call('catalog', 'unavailable ${error.runtimeType}');
-    }
     String? directory;
-    try {
-      if (bcat != null) {
-        directory = await bcat(id);
-      } else if (dataRoot != null) {
-        directory = await NextendoBcat.prepare(root: dataRoot, titleId: id, onEvent: (event) => onDetail?.call('bcat', event));
-      }
-    } on Object catch (error) {
-      onDetail?.call('bcat', 'failed ${error.runtimeType}');
-    }
     String? nsa;
-    if (id == animalCrossingTitleId) {
+    Future<void> loadCatalog() async {
       try {
-        nsa = await service.baasUserId(settings);
-        onDetail?.call('nsa', nsa == null ? 'missing' : 'present');
+        final requirement = (await (catalog ?? (() => NextendoCatalogStore.current()))())?.forTitle(id);
+        if (requirement == null) {
+          onDetail?.call('catalog', 'notListed');
+        } else {
+          accepted = requirement.accepted;
+          onDetail?.call('catalog', '${requirement.enabled ? 'listed' : 'disabled'} ${requirement.accepted.join('|')}'
+              '${requirement.needsNplnPatches ? ' npln' : ''}');
+        }
       } on Object catch (error) {
-        onDetail?.call('nsa', 'failed ${error.runtimeType}');
+        onDetail?.call('catalog', 'unavailable ${error.runtimeType}');
       }
     }
+    Future<void> loadBcat() async {
+      try {
+        if (bcat != null) {
+          directory = await bcat(id);
+        } else if (dataRoot != null) {
+          directory = await NextendoBcat.prepare(root: dataRoot, titleId: id, onEvent: (event) => onDetail?.call('bcat', event));
+        }
+      } on Object catch (error) {
+        onDetail?.call('bcat', 'failed ${error.runtimeType}');
+      }
+    }
+    Future<void> loadAccountId() async {
+      if (id == animalCrossingTitleId) {
+        try {
+          nsa = await service.baasUserId(settings);
+          onDetail?.call('nsa', nsa == null ? 'missing' : 'present');
+        } on Object catch (error) {
+          onDetail?.call('nsa', 'failed ${error.runtimeType}');
+        }
+      }
+    }
+    await Future.wait([loadCatalog(), loadBcat(), loadAccountId()]);
     return (bcatDirectory: directory, nsa: nsa, accepted: accepted);
   }
 }
