@@ -70,9 +70,8 @@ class NextendoConfig {
 
   /// The scopes registered for RewindBox's application on the portal (the
   /// maintainer's list of 14 November 2026). `identity` names the player and
-  /// `game.matchmaking` opens the game token; the others (friends, presence,
-  /// profile, history, favourite mods) are granted for features to come and
-  /// are not read by RewindBox yet.
+  /// `game.matchmaking` opens the game token and `friends` lets the header read
+  /// the online friends list. The other scopes are available for future features.
   static const scopes = 'identity friends presence game.matchmaking profil history mods.favorites';
 
   static const _buildClientId = String.fromEnvironment('NEXTENDO_CLIENT_ID');

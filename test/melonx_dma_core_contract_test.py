@@ -746,9 +746,9 @@ if not args.helpers_only:
     # After IPA 759: 116 (Ryujinx.Library.csproj) and a second addition, src/Ryujinx.Library/RewindBoxRuntimeYield.c.
     # After IPA 767: 117 (Syscall.cs, the game's own break journaled: adapt_guest_break_context).
     # After IPA 771: 118 (ParallelDiskCacheLoader.cs: adapt_shader_load_binary_release).
-    CHANGES.update({'src/Ryujinx.Library/EmbeddedAddonSelection.cs',
+    CHANGES.update({'src/Ryujinx.Library/EmbeddedAddonSelection.cs', 'src/Ryujinx.Library/GameInfo.cs',
                     'src/Ryujinx.HLE/HOS/Services/Account/Acc/AccountService/IManagerForApplication.cs'})
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 135 and
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 136 and
           set(frozen["productionAdditions"]) == {C768_ONLINE_ADDITION, C770_RUNTIME_YIELD_ADDITION, 'src/Ryujinx.Horizon/EmbeddedDeliveryCache.cs', 'src/Ryujinx.HLE/EmbeddedCheatReport.cs',
               'src/Ryujinx.Library/EmbeddedNsz.cs', 'src/Ryujinx.Graphics.Gpu/EmbeddedShaderMetadataReader.cs'}, "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
@@ -910,7 +910,8 @@ if not args.helpers_only:
                                                      'native/melonx/EmbeddedCheatReport.cs',
                                                      'native/melonx/EmbeddedDeliveryCache.cs',
                                                      'native/melonx/EmbeddedShaderMetadataReader.cs', 'native/melonx/EmbeddedNsz.cs',
-                                                     'build-utils/melonx/adapt_account_cache_import.py'} and
+                                                     'build-utils/melonx/adapt_account_cache_import.py',
+                                                     'build-utils/melonx/adapt_xci_update_identity.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -923,8 +924,10 @@ if not args.helpers_only:
                                                        'native/melonx/EmbeddedSessionCoordinator.cs', 'native/melonx/EmbeddedAddons.cs', 'native/melonx/EmbeddedGraphicsSettings.cs',
                                                        'native/melonx/EmbeddedAddonSelection.cs'},
           'Unexpected preparation scope')
-    check(set(frozen['baselineUnadaptedMembers']) == JOINED | {'src/Ryujinx.HLE/HOS/Services/Account/Acc/AccountService/IManagerForApplication.cs'},
-          'Only GraphicsConfig.cs, Window.cs, TextureStorage.cs, ResourceArray.cs, PipelineLayoutCacheEntry.cs the four warm-up parity members, the GPU Window, KProcess and the two SurfaceFlinger files join the prepared source')
+    check(set(frozen['baselineUnadaptedMembers']) == JOINED | {
+        'src/Ryujinx.HLE/HOS/Services/Account/Acc/AccountService/IManagerForApplication.cs',
+        'src/Ryujinx.Library/GameInfo.cs',
+    }, 'Unexpected upstream members joining the prepared source')
     # The prepared members that differ from the delivered source are exactly the reviewed changes.
     baseline = {**frozen['baselinePreparedMembers'], **frozen['baselineUnadaptedMembers']}
     # The Nextendo online lot's declared addition (EmbeddedOnline.cs) is a prepared member the delivered source never had.
@@ -980,7 +983,7 @@ if not args.helpers_only:
     # After IPA 767: adapt_loh_compaction_request.py and adapt_guest_break_context.py join them (262); Switch.cs and
     # Syscall.cs are members already (228).
     # After IPA 771: adapt_shader_load_binary_release.py joins them (263); its two disk cache files are members already.
-    check(len(frozen['preparationInputs']) == 275 and len(frozen['preparedMembers']) == 241, 'Wrong final composition')
+    check(len(frozen['preparationInputs']) == 276 and len(frozen['preparedMembers']) == 242, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
@@ -1145,7 +1148,7 @@ if not args.helpers_only:
     # After IPA 759: Ryujinx.Library.csproj is outside the GPU closure; runtime-yield binds it and the C file.
     OUTSIDE_GPU |= set(C770_RUNTIME_YIELD)
     OUTSIDE_GPU |= set(CHEAT_REPORT) | {'src/Ryujinx.Library/EmbeddedGraphicsSettings.cs'}
-    OUTSIDE_GPU |= {'src/Ryujinx.Library/EmbeddedAddonSelection.cs',
+    OUTSIDE_GPU |= {'src/Ryujinx.Library/EmbeddedAddonSelection.cs', 'src/Ryujinx.Library/GameInfo.cs',
                     'src/Ryujinx.HLE/HOS/Services/Account/Acc/AccountService/IManagerForApplication.cs'}
     OUTSIDE_GPU |= {SERVICE_CREATOR, 'src/Ryujinx.Library/EmbeddedAddons.cs', 'src/Ryujinx.Library/EmbeddedSessionCoordinator.cs'}
     check(CHANGES - OUTSIDE_GPU <= set(gate['fragmented-reads']['requiredPostimages']) and

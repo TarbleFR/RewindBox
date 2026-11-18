@@ -24,6 +24,7 @@ sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
 from melonx_adapter_control import control_source, use_authenticated_libhac_feed  # noqa: E402
 from adapt_account_cache_import import ACCOUNT
+from adapt_xci_update_identity import GAME_INFO
 import adapt_cheat_report as adapter  # noqa: E402
 
 FINAL_SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate-source' in sys.argv else sys.argv[1]).resolve()
@@ -61,6 +62,10 @@ for name, expected in adapter.BASELINE.items():
     check(sha(SOURCE / name) == expected, 'control is the predecessor preparation: ' + name)
 for native, prepared in NATIVE.items():
     check((FINAL_SOURCE / prepared).read_bytes() == (ROOT / native).read_bytes(), 'the prepared copy is the native file: ' + native)
+game_info = (FINAL_SOURCE / GAME_INFO).read_text()
+check('gameInfo.TitleId = id ?? controlTitleId;' in game_info and
+      'program.GetUpdateData(virtualFileSystem, IntegrityCheckLevel.None, 0, out updatePath)' in game_info,
+      'game metadata uses the application identity and the same selected update as the loader')
 for name, old, new in adapter.PAIRS:
     check(new.startswith(old) or new.endswith(old), 'each edit only adds lines: ' + name)
 
@@ -166,7 +171,7 @@ inputs = ['build-utils/melonx/adapt_cheat_report.py', 'build-utils/melonx/prepar
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
 receipt = dict(result='passed', checks=checks, fixtureChecks=report['checks'], finalPreparationBound=FINAL_PREPARATION,
                sourceKind='finalPreparationWithReversedControl',
-               postimages={p: sha(FINAL_SOURCE / p) for p in [*adapter.BASELINE, *NATIVE.values(), ACCOUNT]}, sdk=sdk, report=report,
+               postimages={p: sha(FINAL_SOURCE / p) for p in [*adapter.BASELINE, *NATIVE.values(), ACCOUNT, GAME_INFO]}, sdk=sdk, report=report,
                cheatReport=dict(executed=True, lines=[report['matching'], report['noneMatching'], report['withoutCheats']]),
                physicalDeviceTested=False, productionAssembliesBuilt=True, sourceBaseline=adapter.BASELINE,
                inputs={p: sha(ROOT / p) for p in inputs},

@@ -580,16 +580,17 @@ abstract final class MelonxEmbeddedLibraryService {
   }
 
   static Future<String> _installedGameName(String title) async {
-    final system = await SystemRepository.getSystemByFolderName('switch');
-    if (system?.id == null) throw const FormatException('updateGameMissing');
+    final systemId = (await SystemRepository.getSystemByFolderName('switch'))?.id;
+    if (systemId == null) throw const FormatException('updateGameMissing');
     final db = await SqliteService.getDatabase();
     final rows = await db.query(
       'user_roms',
       columns: ['rom_path', 'filename', 'title_id', 'title_name'],
       where: 'app_system_id = ?',
-      whereArgs: [system!.id],
+      whereArgs: [systemId],
     );
-    final unknown = <Map<String, Object?>>[];
+    final matches = <({String game, Map<String, Object?> row})>[];
+    final toInspect = <({String game, Map<String, Object?> row})>[];
     String label(Map<String, Object?> row) {
       final name = row['title_name']?.toString().trim();
       return name != null && name.isNotEmpty
@@ -598,38 +599,48 @@ abstract final class MelonxEmbeddedLibraryService {
     }
 
     for (final row in rows) {
-      final game = row['rom_path']?.toString() ?? '';
-      if (!path.isAbsolute(game) || !await File(game).exists()) continue;
-      final id = row['title_id']?.toString() ?? '';
-      if (!RegExp(r'^[0-9a-fA-F]{16}$').hasMatch(id)) {
-        unknown.add(row);
-      } else if (baseTitleId(id) == title) {
+      final storedPath = row['rom_path']?.toString() ?? '';
+      if (!path.isAbsolute(storedPath)) continue;
+      final extension = path.extension(storedPath).toLowerCase();
+      if (extension.isEmpty ||
+          !MelonxInternalService.gameExtensions.contains(extension.substring(1))) {
+        continue;
+      }
+      final game = await MelonxInternalService.inCurrentDocuments(storedPath);
+      if (!await File(game).exists()) continue;
+      final cachedTitle = row['title_id']?.toString() ?? '';
+      final cachedBase = RegExp(r'^[0-9a-fA-F]{16}$').hasMatch(cachedTitle)
+          ? baseTitleId(cachedTitle)
+          : null;
+      final cartridge = extension == '.xci';
+      if (cachedBase == title && !cartridge) {
         return label(row);
       }
+      if (cachedBase == title) {
+        matches.add((game: game, row: row));
+      } else if (cartridge || cachedBase == null || cachedBase == '0000000000000000') {
+        toInspect.add((game: game, row: row));
+      }
     }
-    // Older/moved playlist entries may lack a title ID. Read their native
-    // metadata only; do not hash, copy or rescan the library's game contents.
-    for (final row in unknown) {
-      final game = row['rom_path'].toString();
-      final extension = path.extension(game).toLowerCase();
-      if (extension.isEmpty ||
-          !MelonxInternalService.gameExtensions.contains(
-            extension.substring(1),
-          ))
-        continue;
+    // Older XCI rows may hold an account or save ID that looks like a title ID.
+    // Verify plausible matches first, then recover stale rows from native metadata.
+    for (final candidate in [...matches, ...toInspect]) {
       try {
         final info = await MelonxInternalService.content(
           'metadata',
-          filePath: game,
+          filePath: candidate.game,
         );
         final id = baseTitleId(info['titleId']?.toString() ?? '');
-        await db.update(
-          'user_roms',
-          {'title_id': id},
-          where: 'rom_path = ?',
-          whereArgs: [game],
-        );
-        if (id == title) return label(row);
+        if (id == '0000000000000000') continue;
+        if (candidate.row['title_id'] != id) {
+          await db.update(
+            'user_roms',
+            {'title_id': id},
+            where: 'app_system_id = ? AND rom_path = ?',
+            whereArgs: [systemId, candidate.row['rom_path']],
+          );
+        }
+        if (id == title) return label(candidate.row);
       } catch (error) {
         LoggerService.instance.w(
           'MeloNX update target metadata unavailable: $error',

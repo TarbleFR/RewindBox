@@ -299,6 +299,35 @@ class NextendoService {
     return _refreshing ??= _refresh(config).whenComplete(() => _refreshing = null);
   }
 
+  /// Friends whose presence is online (1) or playing (2). The documented
+  /// images=0 option keeps inline avatars out of this small text-only list.
+  Future<List<String>> onlineFriends(NextendoConfig config) async {
+    final owner = await restore(config);
+    if (owner == null) throw const NextendoException('signedOut');
+    final token = await accessToken(config);
+    if (!identical(account.value, owner)) throw const NextendoException('signedOut');
+    final response = await _get('/api/friends?images=0', token);
+    if (!identical(account.value, owner)) throw const NextendoException('signedOut');
+    if (response is! Map || response['friends'] is! List) {
+      throw const NextendoException('serverAnswer', 'friends');
+    }
+    final names = <String>[];
+    for (final friend in response['friends'] as List) {
+      if (friend is! Map || friend['presence'] is! Map) continue;
+      final status = (friend['presence'] as Map)['status'];
+      if (status != 1 && status != 2) continue;
+      final name = friend['name'];
+      final username = friend['username'];
+      final displayName = name is String ? name.trim() : '';
+      if (displayName.isNotEmpty) {
+        names.add(displayName);
+      } else if (username is String && username.trim().isNotEmpty) {
+        names.add(username.trim());
+      }
+    }
+    return names;
+  }
+
   /// The game token of this launch (`GET /api/nex-token`): asked again at every
   /// launch, as Nextendo's documentation says.
   Future<NextendoGameToken> gameToken(NextendoConfig config) async {

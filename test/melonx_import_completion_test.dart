@@ -77,6 +77,7 @@ void main() {
   late _Picker picker;
   late DatabaseTestHelper database;
   late SqliteConfigProvider config;
+  final metadataTitles = <String, String>{};
   int acquired = 0, released = 0, metadata = 0;
   bool rejectMutation = false;
   Future<File> file(
@@ -106,6 +107,7 @@ void main() {
     acquired = 0;
     released = 0;
     metadata = 0;
+    metadataTitles.clear();
     rejectMutation = false;
     messenger.setMockMethodCallHandler(MelonxInternalService.channel, (
       call,
@@ -120,7 +122,12 @@ void main() {
       }
       if (call.method == 'metadata') {
         metadata++;
-        return {'success': true, 'titleId': title, 'title': 'Fixture'};
+        final args = call.arguments as Map;
+        return {
+          'success': true,
+          'titleId': metadataTitles[args['path']] ?? title,
+          'title': 'Fixture',
+        };
       }
       if (call.method == 'inspectDlc' || call.method == 'inspectUpdate') {
         final args = call.arguments as Map;
@@ -132,6 +139,9 @@ void main() {
             'error': 'InvalidDataException',
             'diagnostic': 'Fixture belongs to another base game',
           };
+        if (args['expandedPath'] case final String expanded) {
+          await File(expanded).writeAsString('reconstructed NSP');
+        }
         return {
           'success': true,
           'baseTitleId': title,
@@ -342,8 +352,13 @@ void main() {
       )
       .onSelected!(action);
 
-  Future<void> installedGame(String name, {String? id = title}) async {
+  Future<void> installedGame(
+    String name, {
+    String? id = title,
+    String? actualId,
+  }) async {
     final game = await file('$name.xci');
+    metadataTitles[game.path] = actualId ?? id ?? title;
     await (await SqliteService.getDatabase()).insert('user_roms', {
       'app_system_id': 'switch', 'rom_path': game.path,
       'filename': '$name.xci', 'title_name': name, 'title_id': id,
@@ -357,7 +372,7 @@ void main() {
     final report = await MelonxEmbeddedLibraryService.importAddon(null, dlc: false);
     expect(report.imported, ['Unrelated game update.nsp']);
     expect(report.targets, {'Unrelated game update.nsp': 'Correct game'});
-    expect(metadata, 0);
+    expect(metadata, 1);
     expect(File('${temp.path}/MeloNX/games/$title/updates.json').existsSync(), true);
     expect(File('${temp.path}/MeloNX/games/0100999988880000/updates.json').existsSync(), false);
   });
@@ -381,6 +396,42 @@ void main() {
     expect(metadata, 1);
     final rows = await (await SqliteService.getDatabase()).query('user_roms');
     expect(rows.single['title_id'], title);
+  });
+
+  test('NSP and NSZ target an XCI with a moved path and stale title IDs', () async {
+    const unrelatedTitle = '0100999988880000';
+    await installedGame('Unrelated game', actualId: unrelatedTitle);
+    final game = await file('MeloNX/roms/switch/My Cartridge.XCI');
+    metadataTitles[game.path] = title;
+    final db = await SqliteService.getDatabase();
+    final oldPath =
+        '${temp.path}/old-sandbox/Documents/MeloNX/roms/switch/My Cartridge.XCI';
+    await db.insert('user_roms', {
+      'app_system_id': 'switch',
+      'rom_path': oldPath,
+      'filename': 'My Cartridge.XCI',
+      'title_name': 'My Cartridge',
+      'title_id': unrelatedTitle,
+    });
+    final config = File('${temp.path}/MeloNX/games/$title/updates.json');
+    for (final extension in ['nsp', 'NSZ']) {
+      final source = await file('Patch.$extension');
+      picker.files = [source];
+      final report = await MelonxEmbeddedLibraryService.importAddon(null, dlc: false);
+      expect(report.refused, isEmpty);
+      expect(report.targets, {source.uri.pathSegments.last: 'My Cartridge'});
+      final settings = jsonDecode(await config.readAsString()) as Map;
+      final selection = settings['selected'] as String;
+      expect(selection, startsWith('addons/$title/'));
+      expect(selection, endsWith('.nsp'));
+      expect(File('${temp.path}/MeloNX/$selection').existsSync(), true);
+    }
+    expect(
+      (await db.query('user_roms', where: 'rom_path = ?', whereArgs: [oldPath]))
+          .single['title_id'],
+      title,
+    );
+    expect(await game.readAsString(), 'personal test bytes');
   });
 
   testWidgets('playlist update recognizes its game even when another game is highlighted', (tester) async {
@@ -454,7 +505,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 350));
       expect(find.textContaining('Imported: 1'), findsOneWidget);
       expect(find.textContaining('update.nsp'), findsOneWidget);
-      expect(metadata, before);
+      expect(metadata, before + 1, reason: 'Only the installed XCI is verified.');
       await tester.tap(find.text('Done'));
       await tester.pumpAndSettle();
       expect(find.byType(CircularProgressIndicator), findsNothing);

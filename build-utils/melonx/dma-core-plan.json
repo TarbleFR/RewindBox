@@ -159,7 +159,8 @@
   "build-utils/melonx/adapt_cached_shader_stages.py",
   "build-utils/melonx/adapt_account_cache_import.py",
   "native/melonx/EmbeddedNsz.cs",
-  "native/melonx/EmbeddedShaderMetadataReader.cs"
+  "native/melonx/EmbeddedShaderMetadataReader.cs",
+  "build-utils/melonx/adapt_xci_update_identity.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -296,7 +297,8 @@
   "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ShaderBinarySerializer.cs",
   "src/Ryujinx.Graphics.Vulkan/Shader.cs",
   "src/Ryujinx.HLE/HOS/Services/Account/Acc/AccountService/IManagerForApplication.cs",
-  "src/Ryujinx.Library/EmbeddedAddonSelection.cs"
+  "src/Ryujinx.Library/EmbeddedAddonSelection.cs",
+  "src/Ryujinx.Library/GameInfo.cs"
  ],
  "productionAdditions": [
   "src/Ryujinx.HLE/EmbeddedOnline.cs",
@@ -5361,7 +5363,8 @@
     "src/Ryujinx.Library/EmbeddedAddons.cs",
     "src/Ryujinx.HLE/HOS/Services/Account/Acc/AccountService/IManagerForApplication.cs",
     "src/Ryujinx.Library/EmbeddedAddonSelection.cs",
-    "src/Ryujinx.Library/EmbeddedNsz.cs"
+    "src/Ryujinx.Library/EmbeddedNsz.cs",
+    "src/Ryujinx.Library/GameInfo.cs"
    ]
   }
  ]

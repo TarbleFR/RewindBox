@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:neoplay_bridge/neoplay_bridge.dart';
 import 'package:neostation/l10n/app_locale.dart';
 import 'package:neostation/providers/sqlite_config_provider.dart';
@@ -15,6 +16,7 @@ import 'package:neostation/services/sfx_service.dart';
 import 'package:neostation/themes/app_themes.dart';
 import 'package:neostation/themes/liquid_glass_theme.dart';
 import 'package:neostation/widgets/header.dart';
+import 'package:neostation/widgets/nextendo_friends_button.dart';
 import 'package:neostation/widgets/notification_bell.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -164,6 +166,11 @@ void main() {
           findsOneWidget,
         );
         final rects = groups(tester);
+        final bell = tester.getRect(find.byType(NotificationBell));
+        final friends = tester.getRect(find.byType(NextendoFriendsButton));
+        expect(friends.width, closeTo(bell.width, .01));
+        expect(friends.center.dy, closeTo(bell.center.dy, .01));
+        expect(friends.left - bell.right, inInclusiveRange(0, 4));
         for (var i = 0; i < rects.length; i++) {
           expect(rects[i].left, greaterThanOrEqualTo(safe.left - .01));
           expect(
@@ -201,6 +208,34 @@ void main() {
     await finish(tester);
   }, variant: ios);
 
+  testWidgets('friends and notifications share the compact portrait header', (
+    tester,
+  ) async {
+    await pumpHeader(
+      tester,
+      InterfaceStyleSettings.defaults,
+      size: const Size(375, 667),
+      safe: EdgeInsets.zero,
+    );
+    final bell = tester.getRect(find.byType(NotificationBell));
+    final friendsButton = find.byType(NextendoFriendsButton);
+    expect(
+      find.descendant(
+        of: friendsButton,
+        matching: find.byIcon(Symbols.group_rounded),
+      ),
+      findsOneWidget,
+    );
+    final friends = tester.getRect(friendsButton);
+    final [_, tabs, status] = groups(tester);
+    final clock = tester.getRect(find.byKey(const ValueKey('header-clock')));
+    expect(tabs.overlaps(status), isFalse);
+    expect(tabs.center.dy, closeTo(status.center.dy, .01));
+    expect(friends.left, greaterThanOrEqualTo(bell.right));
+    expect(friends.right, lessThanOrEqualTo(clock.left));
+    await finish(tester);
+  }, variant: ios);
+
   testWidgets('the status pill shows only the elements the user keeps', (
     tester,
   ) async {
@@ -221,6 +256,7 @@ void main() {
     );
     expect(find.byKey(const ValueKey('header-clock')), findsNothing);
     expect(find.byType(NotificationBell), findsNothing);
+    expect(find.byType(NextendoFriendsButton), findsOneWidget);
     expect(find.byKey(const ValueKey('header-device-battery')), findsNothing);
     expect(
       find.byKey(const ValueKey('header-controller-battery')),

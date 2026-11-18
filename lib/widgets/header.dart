@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:material_symbols_icons/symbols.dart';
@@ -26,6 +27,7 @@ import 'package:neostation/l10n/liquid_motion_locale.dart';
 import 'package:ui_refresh_rate/ui_refresh_rate.dart';
 import 'package:neostation/widgets/header_sort_dropdown.dart';
 import 'package:neostation/widgets/main_menu_tab_strip.dart';
+import 'package:neostation/widgets/nextendo_friends_button.dart';
 import 'package:neostation/widgets/notification_bell.dart';
 import 'package:neostation/screens/app_screen.dart';
 import 'package:neostation/utils/nav_tabs.dart';
@@ -335,6 +337,7 @@ class HeaderState extends State<Header> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final customColors = AppThemes.getCustomColors(context);
     final status = LiquidGlassTheme.of(context).settings;
+    final showFriends = defaultTargetPlatform == TargetPlatform.iOS;
     final safe = MediaQuery.viewPaddingOf(context);
     // RewindBox Glacier: the header shares the content's side margins, the
     // brand sits on the left and the view mode moves to the section title.
@@ -397,7 +400,10 @@ class HeaderState extends State<Header> with WidgetsBindingObserver {
                       context,
                     ).extension<CornerRadii>()?.radiusExternal ??
                     BorderRadius.circular(14),
-                padding: EdgeInsets.symmetric(horizontal: 6.r, vertical: 4.r),
+                padding: EdgeInsets.symmetric(
+                  horizontal: showFriends ? 4.r : 6.r,
+                  vertical: 4.r,
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: Theme.of(
@@ -407,15 +413,18 @@ class HeaderState extends State<Header> with WidgetsBindingObserver {
                     offset: Offset(2.0.r, 2.0.r),
                   ),
                 ],
-                // Bell, time and batteries, each of which can be hidden in
-                // Settings › Themes › User interface. No clock glyph: it sat
-                // before a label that already reads as a time (as upstream).
+                // The bell and friends share the status pill, beside the
+                // optional time and batteries.
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (status.showNotifications) const NotificationBell(),
-                    if (status.showNotifications && status.showClock)
-                      SizedBox(width: 8.r),
+                    if (status.showNotifications && showFriends)
+                      SizedBox(width: 2.r),
+                    if (showFriends) const NextendoFriendsButton(),
+                    if (status.showClock &&
+                        (status.showNotifications || showFriends))
+                      SizedBox(width: showFriends ? 4.r : 8.r),
                     if (status.showClock)
                       Text(
                         key: const ValueKey('header-clock'),
