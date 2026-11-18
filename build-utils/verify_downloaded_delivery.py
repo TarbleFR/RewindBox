@@ -191,7 +191,7 @@ def effective_checkout(repo, manifest, source, target):
     return target
 
 
-def packaged_engine_helpers(archive, root, bundles, manifest, read_source):
+def packaged_engine_helpers(archive, root, bundles, manifest, read_effective_source):
     """The JIT helpers of the engines packaged with their identity file (validate_single_ipa_distribution
     IDENTITY_ENGINES), each present in `bundles`. The identity files are exactly those of the manifest's pinned
     engines, and each names its pinned payload, which the packaged image carries (docs/xenios-playlist.md)."""
@@ -203,10 +203,10 @@ def packaged_engine_helpers(archive, root, bundles, manifest, read_source):
     require({spec['identityFile'] for spec in pinned.values()} == set(present),
             'The packaged engine identities differ from the pinned engines of the manifest')
     for key, spec in pinned.items():
-        pin_raw = read_source(spec['pin'])
+        pin_raw = read_effective_source(spec['pin'])
         pin = json.loads(pin_raw)
         identity = json.loads(archive.read(root + spec['identityFile']))
-        require(identity.get('component') == key and identity.get('pinSha256') == sha(pin_raw) and
+        require(identity.get('component') == key and identity.get('pinSha256') == spec['pinSha256'] == sha(pin_raw) and
                 identity.get('packagedFingerprint') == pin['packagedFingerprint'] and
                 payload_fingerprint(archive.read(root + spec['image'])) == pin['packagedFingerprint'],
                 f'The packaged {key} engine is not its pinned payload')
@@ -255,9 +255,18 @@ def verify(args):
 
     def read_source(path):
         return repo.show(source, path)
+
+    def read_effective_source(path):
+        restored = manifest['product']['restore']
+        if path not in restored:
+            return read_source(path)
+        entry = restored[path]
+        require(entry is not None, 'The effective source is missing ' + path)
+        return repo.blob(entry['gitBlob'])
+
     base = sd.verify_base(manifest, read_source)
     images = sd.check_images(actual, base, manifest)
-    pubspec = read_source('pubspec.yaml').decode()
+    pubspec = read_effective_source('pubspec.yaml').decode()
     version = next(line.partition(':')[2].strip().strip('"\'').split('+')[0]
                    for line in pubspec.splitlines() if line.startswith('version:'))
     root = sd.APP_ROOT
@@ -273,7 +282,7 @@ def verify(args):
             bundles[name[len(root):]] = dict(CFBundleIdentifier=info['CFBundleIdentifier'],
                 CFBundleVersion=str(info['CFBundleVersion']), CFBundleShortVersionString=info['CFBundleShortVersionString'],
                 MinimumOSVersion=info.get('MinimumOSVersion'))
-        helpers = packaged_engine_helpers(archive, root, bundles, manifest, read_source)
+        helpers = packaged_engine_helpers(archive, root, bundles, manifest, read_effective_source)
         require(len(bundles) == 8 + len(helpers) and all(b['CFBundleVersion'] == str(args.build) and
                 b['CFBundleShortVersionString'] == version for b in bundles.values()), 'Wrong bundle versions')
         identity_raw = archive.read(root + sd.IDENTITY)
