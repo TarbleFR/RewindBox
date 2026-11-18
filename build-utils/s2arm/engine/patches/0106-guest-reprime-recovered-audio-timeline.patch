@@ -1,0 +1,126 @@
+diff --git a/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs b/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
+--- a/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
++++ b/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
+@@ -69,6 +69,7 @@
+         // S2Arm (10-22 杂音): AudioQueue 是否已 AudioQueueStart（预充满足或兜底后才启播）；_startTicks = Start 时刻
+         private bool _queueRunning;
+         private long _startTicks;
++        private bool _recoveringTimeline;
+         private float _volume = 1f;
+
+         private readonly object _lock = new();
+@@ -82,6 +83,9 @@
+         //   S2A_AUDIO_HEAL=0 关（同包 A/B）；S2A_AUDIO_TEST_STALL_AT=<秒>：开播后到点暂停一次队列（模拟系统停播，测试用）
+         private const int StallMs = 1000;
+         private const int HealBackoffMs = 2000;
++        // RewindBox (patch 0106): IPA 785 caught two timeline recoveries with 960 and 1200
++        // frames in flight (20–25 ms at 48 kHz). Prime again after a successful timeline reset.
++        private static readonly bool _reprimeTimeline = Environment.GetEnvironmentVariable("S2A_RB_AUDIO_REPRIME") != "0";
+         private static readonly bool _healOn = Environment.GetEnvironmentVariable("S2A_AUDIO_HEAL") != "0";
+         private static readonly int _testStallAtS = int.TryParse(Environment.GetEnvironmentVariable("S2A_AUDIO_TEST_STALL_AT"), out int s) ? s : 0;
+         private static readonly AppleHardwareDeviceSession[] _watched = new AppleHardwareDeviceSession[8];
+@@ -259,7 +263,7 @@
+             if (_timeline.Tick(zero, returned, elapsed) && now - _lastHealTicks >= (long)HealBackoffMs * Stopwatch.Frequency / 1000)
+             {
+                 S2ARecover($"队列时间轴跑到声音前面（这 {elapsed * 1000 / Stopwatch.Frequency} ms 交还 {returned / _bytesPerFrame} 帧、{zero} 次交还后在途为 0：欠载后交的缓冲排在已过去的时刻，没播就交还）",
+-                           false, now, false);
++                           false, now, false, reprime: _reprimeTimeline);
+
+                 return;
+             }
+@@ -314,7 +318,7 @@
+         private static extern int s2a_dump_threads(string why);   // runtime/src/tdump.c：全线程宿主栈（自动玩家卡住、崩溃时同一份）
+
+         // 恢复输出流：iOS 重新激活会话 → 同步停队列（重置时重建）→ 收回在途 → 重新排进去 → 开播
+-        private void S2ARecover(string why, bool rebuild, long now, bool red)
++        private void S2ARecover(string why, bool rebuild, long now, bool red, bool reprime = false)
+         {
+             if (!_healOn)
+             {
+@@ -359,14 +363,24 @@
+                 }
+
+                 int startRc = -1;
++                _recoveringTimeline = reprime && !rebuild && stopRc == 0 && _started && newRc == 0;
+
+                 // 游戏自己停着播（Stop）就只恢复好队列，等它 Start
+                 if (_started && newRc == 0)
+                 {
+                     _pump.Pump();
+                     S2ACredit();
+-                    startRc = AudioQueueStart(_audioQueue, nint.Zero);
+-                    _queueRunning = startRc == 0;
++                    if (_recoveringTimeline)
++                    {
++                        _queueRunning = false;
++                        _startTicks = Stopwatch.GetTimestamp();
++                        startRc = StartRecoveredTimeline();
++                    }
++                    else
++                    {
++                        startRc = AudioQueueStart(_audioQueue, nint.Zero);
++                        _queueRunning = startRc == 0;
++                    }
+                 }
+                 else
+                 {
+@@ -377,7 +391,7 @@
+
+                 Console.Error.WriteLine($"[声] {(red ? "【红】" : "")}输出 #{_diag.Index}：{why}（在途 {inFlightFrames} 帧）→ {(rebuild ? "重建" : "重启")}输出队列（第 {++_heals} 次）：" +
+                     $"{(OperatingSystem.IsIOS() ? $"重新激活音频会话 {(active ? "成功" : "失败")}、" : "")}停队列 rc={stopRc}、收回 {reclaimed / _bytesPerFrame} 帧" +
+-                    $"{(rebuild ? $"、新建队列 rc={newRc}" : "")}、重新开播 rc={startRc}{(startRc == 0 ? "" : "（没开播：游戏停着或开播失败，下一笔声音到时再试）")}");
++                    $"{(rebuild ? $"、新建队列 rc={newRc}" : "")}、重新开播 rc={startRc}{(startRc == 0 ? "" : _recoveringTimeline ? "（等待音频预充）" : "（没开播：游戏停着或开播失败，下一笔声音到时再试）")}");
+             }
+         }
+
+@@ -693,11 +707,42 @@
+             }
+         }
+
++        // Producer and the existing watchdog retry under _lock. The pump's first-start latch
++        // stays set after a restart, so use the live in-flight depth for this recovery only.
++        private int StartRecoveredTimeline()
++        {
++            long buffered = _pump.InFlightBytes / _bytesPerFrame;
++            long target = (long)RequestedSampleRate * PrimeMilliseconds / 1000;
++            long now = Stopwatch.GetTimestamp();
++            long elapsedMs = (now - _startTicks) * 1000 / Stopwatch.Frequency;
++            if (buffered < target && elapsedMs < StartFallbackMilliseconds)
++            {
++                return -1;
++            }
++
++            int result = AudioQueueStart(_audioQueue, nint.Zero);
++            if (result == 0)
++            {
++                _queueRunning = true;
++                _recoveringTimeline = false;
++                Volatile.Write(ref _lastCallbackTicks, now);
++            }
++
++            Console.Error.WriteLine($"[声] RewindBox (patch 0106): output #{_diag.Index} timeline priming: {buffered}/{target} samples, waited {elapsedMs} ms, start rc={result}");
++            return result;
++        }
++
+         // S2Arm (10-22 杂音): 在途达预充下限（或 Start 后超过兜底时限）才让设备开播，起播有深度不掐边欠载。_lock 内调。
+         private void MaybeStartQueue()
+         {
+             if (_queueRunning || !_started)
+             {
++                return;
++            }
++
++            if (_recoveringTimeline)
++            {
++                StartRecoveredTimeline();
+                 return;
+             }
+
+@@ -723,6 +768,7 @@
+                     return;
+
+                 _started = false;
++                _recoveringTimeline = false;
+                 _diag.SetStarted(false);
+                 AudioQueuePause(_audioQueue);
+                 _pump.ResetClock();   // 暂停期间播放时钟怎么走不确定：续播后重新学交还相位

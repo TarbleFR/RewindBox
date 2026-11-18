@@ -1,0 +1,77 @@
+diff --git a/runtime/src/vawin.c b/runtime/src/vawin.c
+--- a/runtime/src/vawin.c
++++ b/runtime/src/vawin.c
+@@ -1284,8 +1284,12 @@
+ // RewindBox (patch 0092): in IPA 781 the old walk showed 173–179 MiB compressed during play while
+ // TASK_VM_INFO reported about 1 GiB. Visit the top-level map on both sides of the shared cache and
+ // inside the guest window. These are per-mapping VM counts (aliases can overlap), not a footprint.
+-void s2a_rb_mem_tags_wide(char *out, size_t cap) {
+-    enum { RB_VM_TAGS = 256, RB_VM_REGIONS = 8192, RB_VM_MS = 25 };
++// RewindBox (patch 0108): the bounded walk on IPA 785 counted 329–402 MiB before its
++// limit, against up to 1,140 MiB in TASK_VM_INFO. Keep separate, time-bounded slices;
++// their page counts describe mappings observed at different times, never one total.
++void s2a_rb_mem_tags_wide(char *out, size_t cap, uint64_t *resume, unsigned *slice) {
++    enum { RB_VM_TAGS = 256, RB_VM_REGIONS = 8192 };
++    const uint64_t budget_ns = (resume ? 5 : 25) * 1000000ull;
+     const uint64_t guest_start = g_ok ? g_base : 0, guest_end = guest_start ? guest_start + g_size : 0;
+     const uint64_t page_bytes = (uint64_t)vm_page_size;
+     const uint64_t start = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
+@@ -1293,9 +1297,9 @@
+     uint64_t h_file = 0, g_file = 0, crossing = 0;
+     unsigned regions = 0, skipped = 0;
+     const char *status = "region-limit";
+-    vm_address_t cursor = 0;
++    vm_address_t cursor = resume ? (vm_address_t)*resume : 0;
+     for (; regions < RB_VM_REGIONS; regions++) {
+-        if (!(regions % 64) && clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - start >= RB_VM_MS * 1000000ull) {
++        if (regions && !(regions % 64) && clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - start >= budget_ns) {
+             status = "time-limit";
+             break;
+         }
+@@ -1335,6 +1339,13 @@
+                         status, regions, skipped, (unsigned long long)(h_anon * page_bytes >> 20),
+                         (unsigned long long)(h_file * page_bytes >> 20), (unsigned long long)(g_anon * page_bytes >> 20),
+                         (unsigned long long)(g_file * page_bytes >> 20), (unsigned long long)(crossing * page_bytes >> 20));
++    if (resume) {
++        const int continued = (regions == RB_VM_REGIONS || strcmp(status, "time-limit") == 0) && cursor > *resume;
++        if (used > 0 && (size_t)used < cap)
++            used += snprintf(out + used, cap - (size_t)used, "; slice %u", *slice + 1);
++        *resume = continued ? cursor : 0;
++        *slice = continued ? *slice + 1 : 0;
++    }
+     for (int side = 0; side < 2; side++) {
+         uint64_t *tags = side ? guest : host;
+         for (int rank = 0; rank < 6 && used > 0 && (size_t)used < cap; rank++) {
+diff --git a/ios/app.m b/ios/app.m
+--- a/ios/app.m
++++ b/ios/app.m
+@@ -544,6 +544,10 @@
+ static int rb_screen_cap_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_SCREEN_CAPTURE"); v = !(e && !strcmp(e, "0")); } return v; }
+ static int rb_vm_tags_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_VM_TAGS"); v = !(e && !strcmp(e, "0")); } return v; }   // RewindBox (patch 0089): the host's memory by VM tag (s2a_rb_mem_tags)
+ static int rb_vm_tags_wide_on(void) { const char *e = getenv("S2A_RB_VM_TAGS_WIDE"); return !(e && !strcmp(e, "0")); }   // RewindBox (patch 0092): 0 keeps the 0089 walk
++static int rb_vm_tags_cursor_on(void) {
++    const char *e = getenv("S2A_RB_VM_TAGS_CURSOR");
++    return !(e && !strcmp(e, "0"));
++}
+ // RewindBox (patch 0075): machine-wide paging and CPU since the previous call, for the [写盘] line. Heartbeat queue only (serial): the statics need no lock
+ static void rb_vm_line(char *out, size_t n) {
+     static uint64_t last[6], lcpu[3], lt; static int have_vm, have_cpu;
+@@ -716,11 +720,13 @@
+ #undef S2A_D10
+               last = w; last_r = r; last_p = pi; last_l = lw; have = 1; } }
+         // RewindBox (patch 0089): the host's memory by VM tag, at the first heartbeat and every sixth after it (runtime/src/vawin.c s2a_rb_mem_tags). S2A_RB_VM_TAGS=0: not walked
+-        { static unsigned rb_tag_beats; if (rb_vm_tags_on() && rb_tag_beats++ % 6 == 0) { void s2a_rb_mem_tags(char *out, size_t cap); char tg[1024]; uint64_t t0 = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
+-            if (rb_vm_tags_wide_on()) {
+-                void s2a_rb_mem_tags_wide(char *out, size_t cap);
+-                s2a_rb_mem_tags_wide(tg, sizeof tg);
+-                LOG("RewindBox: memory by VM tag across the process (patch 0092; walked in %.1f ms): %s", (double)(clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - t0) / 1e6, tg);
++        { static unsigned rb_tag_beats, rb_tag_slice; static uint64_t rb_tag_cursor;
++          int wide = rb_vm_tags_wide_on(), sliced = wide && rb_vm_tags_cursor_on();
++          if (rb_vm_tags_on() && (rb_tag_beats++ % 6 == 0 || (sliced && rb_tag_cursor))) { void s2a_rb_mem_tags(char *out, size_t cap); char tg[1024]; uint64_t t0 = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
++            if (wide) {
++                void s2a_rb_mem_tags_wide(char *out, size_t cap, uint64_t *resume, unsigned *slice);
++                s2a_rb_mem_tags_wide(tg, sizeof tg, sliced ? &rb_tag_cursor : NULL, sliced ? &rb_tag_slice : NULL);
++                LOG("RewindBox: memory by VM tag across the process (patch %s; walked in %.1f ms): %s", sliced ? "0108" : "0092", (double)(clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - t0) / 1e6, tg);
+             } else {
+                 s2a_rb_mem_tags(tg, sizeof tg);
+                 LOG("RewindBox: the host's memory by VM tag (patch 0089; the low region and the window's tail, walked in %.1f ms): %s", (double)(clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - t0) / 1e6, tg);

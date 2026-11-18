@@ -1,0 +1,124 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -4804,6 +4804,15 @@
+ #define RB_WN_NONE UINT64_MAX             // rb_wn: the span was not looked at (not wholly in the window's files, far alias storage, or over RB_WN_MAX)
+ static _Atomic uint64_t g_wn_frame, g_wn_frame_noacc, g_wn_frame_unseen, g_wn_tot, g_wn_tot_noacc, g_wn_tot_unseen, g_wn_runs, g_wn_calls, g_wn_chunk[64];   // pages found not in memory: this frame / in all (and those of pools without CPU access); reads not looked at; runs asked; spans looked at; per GB of the window
+ // Whether host page [h, h + hp) of t's storage holds a page of bits (np pages, numbered as page_span's); every page without bits
++static _Atomic uint64_t g_wn_demand_probes, g_wn_demand_pages, g_wn_demand_fallbacks;
++// RewindBox (patch 0105): on IPA 785, frame 129 spent 109.9 ms on 43 first uploads (136.6 MiB) with
++// 59,968 process page-ins. Probe large contiguous demand reads four runs at a time, keeping the same
++// 64-page pager advice, selected bytes and speculation limits. On a failed large probe use old runs.
++static int rb_wn_batch_on(void) {
++    static int on = -1;   // Called only by the submit thread (pkg_upload_, pkg_upload_rects).
++    if (on < 0) { const char *e = getenv("S2A_RB_DEMAND_PROBE_BATCH"); on = !(e && !strcmp(e, "0")); }
++    return on;
++}
+ static int rb_wn_sel(const tex_t *t, const uint64_t *bits, long np, uintptr_t h, uintptr_t hp) {
+     if (!bits) return 1;
+     uintptr_t dp = nvn_dirty_page_size(), p0 = (uintptr_t)t->mem & ~(dp - 1);
+@@ -4813,28 +4822,49 @@
+ }
+ // The host pages of [p, p + n) not in memory (with bits: only those holding a page of bits), asked to be read ahead (MADV_WILLNEED) in runs; returns how many there were, RB_WN_NONE
+ //   when the span is not looked at. One window and far check for the span, then mincore by 64 host pages, skipping those that hold no selected page
+-static uint64_t rb_wn_(const void *p, uint64_t n, const tex_t *t, const uint64_t *bits, long np) {
++static uint64_t rb_wn_(const void *p, uint64_t n, const tex_t *t, const uint64_t *bits, long np, int demand) {
+     if (!n || !p) return 0;
+     if (n > RB_WN_MAX) return RB_WN_NONE;
+     uintptr_t pg = (uintptr_t)getpagesize(), a = (uintptr_t)p & ~(pg - 1), e = ((uintptr_t)p + n + pg - 1) & ~(pg - 1);
+     if (s2a_far_g2h((uint64_t)a) || s2a_far_g2h((uint64_t)e - 1) || !s2a_guest_in_file((uint64_t)a, (uint64_t)(e - a))) return RB_WN_NONE;
+     atomic_fetch_add_explicit(&g_wn_calls, 1, memory_order_relaxed);
+-    int adv = rb_wn_on(); uint64_t absent = 0; char v[64], s[64];
+-    for (uintptr_t c = a; c < e; c += sizeof v * pg) {
+-        size_t m = (size_t)MIN((uintptr_t)sizeof v, (e - c) / pg), any = 0;
+-        for (size_t i = 0; i < m; i++) any += (size_t)(s[i] = (char)rb_wn_sel(t, bits, np, c + i * pg, pg));
+-        if (!any) continue;   // none of these pages is to be read
+-        if (mincore((void *)c, m * pg, v)) break;   // not answered: the rest is read as before
++    enum { RB_WN_RUN = 64, RB_WN_BATCH = 4 * RB_WN_RUN };
++    int adv = rb_wn_on(), batch = demand && !bits && rb_wn_batch_on();
++    uint64_t absent = 0, probes = 0, probed_pages = 0, fallbacks = 0;
++    char v[RB_WN_BATCH], selected[RB_WN_RUN];
++    for (uintptr_t c = a; c < e;) {
++        size_t m = (size_t)MIN((uintptr_t)(batch ? RB_WN_BATCH : RB_WN_RUN), (e - c) / pg);
++        if (bits) {
++            size_t any = 0;
++            for (size_t i = 0; i < m; i++) any += (size_t)(selected[i] = (char)rb_wn_sel(t, bits, np, c + i * pg, pg));
++            if (!any) { c += m * pg; continue; }
++        }
++        if (demand) probes++;
++        if (mincore((void *)c, m * pg, v)) {
++            if (m <= RB_WN_RUN) break;   // not answered: the rest is read as before
++            fallbacks++;
++            batch = 0;
++            continue;
++        }
++        if (demand) probed_pages += m;
+         for (size_t i = 0; i < m;) {
+-            if (!s[i] || (v[i] & MINCORE_INCORE)) { i++; continue; }
+-            size_t j = i; while (j < m && s[j] && !(v[j] & MINCORE_INCORE)) j++;
+-            if (adv) { (void)madvise((void *)(c + i * pg), (j - i) * pg, MADV_WILLNEED); atomic_fetch_add_explicit(&g_wn_runs, 1, memory_order_relaxed); }   // advice: an error (a page the game unmapped since) changes nothing
++            if ((bits && !selected[i]) || (v[i] & MINCORE_INCORE)) { i++; continue; }
++            size_t end = MIN(m, ((i / RB_WN_RUN) + 1) * RB_WN_RUN), j = i + 1;
++            while (j < end && (!bits || selected[j]) && !(v[j] & MINCORE_INCORE)) j++;
++            if (adv) { (void)madvise((void *)(c + i * pg), (j - i) * pg, MADV_WILLNEED); atomic_fetch_add_explicit(&g_wn_runs, 1, memory_order_relaxed); }
+             absent += j - i; i = j;
+         }
++        c += m * pg;
++    }
++    if (demand) {
++        atomic_fetch_add_explicit(&g_wn_demand_probes, probes, memory_order_relaxed);
++        atomic_fetch_add_explicit(&g_wn_demand_pages, probed_pages, memory_order_relaxed);
++        atomic_fetch_add_explicit(&g_wn_demand_fallbacks, fallbacks, memory_order_relaxed);
+     }
+     return absent;
+ }
+-static uint64_t rb_wn(const void *p, uint64_t n) { return rb_wn_(p, n, NULL, NULL, 0); }
++static uint64_t rb_wn(const void *p, uint64_t n) { return rb_wn_(p, n, NULL, NULL, 0, 0); }
++static uint64_t rb_wn_demand(const void *p, uint64_t n) { return rb_wn_(p, n, NULL, NULL, 0, 1); }
+ static void rb_wn_note(const tex_t *t, uint64_t absent) {   // what a read of t's storage found (rb_wn), for the counts; reads t->pool as tex_mtl_ does (its callers' thread)
+     if (absent == RB_WN_NONE) { atomic_fetch_add_explicit(&g_wn_frame_unseen, 1, memory_order_relaxed); atomic_fetch_add_explicit(&g_wn_tot_unseen, 1, memory_order_relaxed); return; }
+     if (!absent) return;
+@@ -4852,15 +4882,15 @@
+     if (k0 < 0 || k0 >= np) return;
+     if (k1 >= np) k1 = np - 1;
+     const uint8_t *lo, *hi; size_t m0, m1; page_span(t, (size_t)k0, &lo, &m0); page_span(t, (size_t)k1, &hi, &m1);
+-    if (hi + m1 > lo) rb_wn_note(t, rb_wn_(lo, (uint64_t)(hi + m1 - lo), t, bits, np));
++    if (hi + m1 > lo) rb_wn_note(t, rb_wn_(lo, (uint64_t)(hi + m1 - lo), t, bits, np, 0));
+ }
+ // One level of one layer of t's storage, where nvn_deswizzle reads it (nvn_deswizzle_geom: layer × layer size + the level's offset), asked as rb_wn; the whole storage where no
+ //   level offset is known (linear, buffer or unknown format: nvn_tex_level_offset 0). For pkg_upload_rects
+ static uint64_t rb_wn_level(const tex_t *t, unsigned level, unsigned layer) {
+     uint64_t o = nvn_tex_level_offset(&t->d, level), e = nvn_tex_level_offset(&t->d, level + 1), b = (uint64_t)layer * t->L.layer_size + o;
+-    if (e <= o) return rb_wn(t->mem, t->L.size);
++    if (e <= o) return rb_wn_demand(t->mem, t->L.size);
+     if (b >= t->L.size) return 0;
+-    return rb_wn(t->mem + b, MIN(b + (e - o), t->L.size) - b);
++    return rb_wn_demand(t->mem + b, MIN(b + (e - o), t->L.size) - b);
+ }
+ // RewindBox (patch 0070, SC2 / SL-3): a texture's storage is asked ahead as soon as the game registers it (nvn_be_reg_tex, the game's threads), on a serial queue of its own: the
+ //   first upload, at the next submission that needs it (pool tables, a bind), then finds its pages on their way or in memory. Only a texture the host uploads from its storage
+@@ -5037,6 +5067,15 @@
+ }
+ static void rb_wn_line(unsigned long long frame) {   // every 300 frames (nvn_be_mem_stat, before its line cap), when anything moved: the totals, and the window's GB the reads found most pages missing in
+     static uint64_t last; uint64_t tot = atomic_load(&g_wn_tot), posted = atomic_load(&g_pf_posted), dropped = atomic_load(&g_pf_dropped), unseen = atomic_load(&g_wn_tot_unseen);
++    static uint64_t last_probes;
++    uint64_t probes = atomic_load_explicit(&g_wn_demand_probes, memory_order_relaxed);
++    if (probes != last_probes) {
++        last_probes = probes;
++        MLOG("RewindBox (patch 0105): texture demand probes up to frame %llu (batch %d): %llu probes, %llu pages, %llu fallbacks",
++             frame, rb_wn_batch_on(), (unsigned long long)probes,
++             (unsigned long long)atomic_load_explicit(&g_wn_demand_pages, memory_order_relaxed),
++             (unsigned long long)atomic_load_explicit(&g_wn_demand_fallbacks, memory_order_relaxed));
++    }
+     if (tot + posted + dropped + unseen == last) return;
+     last = tot + posted + dropped + unseen;
+     int top[3] = {-1, -1, -1}; uint64_t c[64];
+@@ -5524,7 +5563,7 @@
+     if (g_allocprof > 0) { static int n; if (n++ < 30 || n % 500 == 0) MLOG("new texture (%s) #%d ser=%llu %ux%ux%u format %#x target %d levels %u storage %p", __func__, n, (unsigned long long)t->serial, t->d.width, t->d.height, t->d.depth, t->d.format, t->d.target, t->d.levels, (void *)t->mem); }
+     res_add(mt);   // Both first upload and re-upload register residency here (Metal 4 does not make resources resident automatically; a missed registration = GPU address page fault)
+     int sparse = t->pool && nvn_sparse_pool(t->pool);
+-    if (!sparse) { uint64_t rb_ab = rb_wn(t->mem, t->L.size); rb_wn_note(t, rb_ab);   // RewindBox (patch 0070): its pages not in memory asked in runs before the hash and the deswizzle below read them (rb_wn)
++    if (!sparse) { uint64_t rb_ab = rb_wn_demand(t->mem, t->L.size); rb_wn_note(t, rb_ab);   // RewindBox (patch 0070): its pages not in memory asked in runs before the hash and the deswizzle below read them (rb_wn)
+         if (rb_ab && rb_ab != RB_WN_NONE) rb_pool_ahead(t); }   // RewindBox (patch 0089): and the pool around it
+     uint8_t *rb = NULL;   // RewindBox (patch 0016): the storage as the host may read it, when not all of it can be read (rb_pkg_bytes)
+     if (stamp) {   // no stamp: a one-time upload of content the CPU will not change (tex_init_fill), with no write tracking

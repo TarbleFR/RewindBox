@@ -1,0 +1,70 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -15734,6 +15734,16 @@
+     if (pool[next]) defer_obj_unref(pool[next]); pool[next] = v; pbase[next] = base; pkey[next][0] = tl; pkey[next][1] = n; pkey[next][2] = slice; pkey[next][3] = ns << 4 | tt; ppf[next] = pf; psw[next] = sw; next = (next + 1) & 7;
+     return v;
+ }
++// RewindBox (patch 0107): IPA 785 copied up to 1,881 feedback snapshots (1,713.2 MiB) per 300 frames,
++// with zero on-chip reads. A whole matching colour snapshot already describes the required view;
++// bind its own texture instead of creating or consulting a second Metal view. Leave the copy and
++// its ordering in place, and retain the existing view path for format, swizzle or type conversion.
++static int rb_fb_direct_snap_on(void) {
++    static int on = -1;   // Submit thread only.
++    if (on < 0) { const char *e = getenv("S2A_RB_FB_DIRECT_SNAPSHOT"); on = !(e && !strcmp(e, "0")); }
++    return on;
++}
++static uint64_t g_fb_direct_snap, g_fb_named_snap, g_fb_other_snap;
+ static int snap_pool_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_SNAP_POOL"); v = !(e && !strcmp(e, "0")); } return v; }   // RewindBox (patch 0057): S2A_RB_SNAP_POOL=0 keeps one texture a slot here and one for depth below, as before
+ // RewindBox (patch 0071): snapshot storage in two pools by exact shape, depth and colour, each bounded by a count and bytes. Patch 0057 kept six depth textures and three a
+ //   colour slot. IPA 765 (Mario Kart World, race): depth textures made fell from 795-900 a window of 300 frames (IPA 762) to 87-498, colour ones stayed at 28-152 (109-152 from
+@@ -15933,6 +15943,13 @@
+     MLOG("same-pass feedback sampling up to frame %llu: %llu draws sampled their own pass's attachment: ① narrowed view %llu, ② read memory as it was %llu, ③ pass ended first %llu, ④ snapshot %llu (%.1f MB copied), ⑤ read on-chip, pass kept %llu (of them before the pass drew the slot, read as loaded %llu; widen push dropped on %llu)",
+          (unsigned long long)frame, (unsigned long long)(g_fb_hits - h0), (unsigned long long)(g_fb_l1 - a0), (unsigned long long)(g_fb_l2 - b0), (unsigned long long)(g_fb_l3 - c0),
+          (unsigned long long)(g_fb_count - d0), (g_fb_bytes - y0) / 1048576.0, (unsigned long long)(g_fb_l5 - e0), (unsigned long long)(g_fb_l5ld - f0), (unsigned long long)g_fb_l5_unpush);
++    static uint64_t direct0, named0, other0;
++    if (rb_fb_direct_snap_on() && (named0 != g_fb_named_snap || other0 != g_fb_other_snap)) {
++        MLOG("RewindBox (patch 0107): colour feedback up to frame %llu: reused base %llu, per-game copy rules %llu, other colour copies %llu",
++             (unsigned long long)frame, (unsigned long long)(g_fb_direct_snap - direct0),
++             (unsigned long long)(g_fb_named_snap - named0), (unsigned long long)(g_fb_other_snap - other0));
++        direct0 = g_fb_direct_snap; named0 = g_fb_named_snap; other0 = g_fb_other_snap;
++    }
+     h0 = g_fb_hits; a0 = g_fb_l1; b0 = g_fb_l2; c0 = g_fb_l3; d0 = g_fb_count; y0 = g_fb_bytes; e0 = g_fb_l5; f0 = g_fb_l5ld;
+ }
+ // Called before the draw opens its render pass: if a snapshot is needed, end the current render pass, copy the snapshot and register the substitution (used by this draw's argument encoding)
+@@ -16158,8 +16175,10 @@
+             // The snapshot is always 2D / 2D array storage, as every cube texture is (tex_desc): a cube / cube array view is made from it by fb_narrow_view
+             int q = 0; while (q < ncopy && !(cbase[q] == base && ckey[q][0] == tl && ckey[q][1] == nl && ckey[q][2] == ts && ckey[q][3] == nsh)) q++;   // views of one real subresource share one copy
+             id<MTLTexture> snap = q < ncopy ? csnap[q] : nil; int fresh = !snap;
++            int direct_snap = rb_fb_direct_snap_on();
++            MTLTextureType storage_type = tt == MTLTextureType2D ? MTLTextureType2D : MTLTextureType2DArray;
+             if (!snap) {   // first view of this subresource in the draw: copy it (copies of other subresources go to other slots)
+-                snap = fb_snap_shape(tt == MTLTextureType2D ? MTLTextureType2D : MTLTextureType2DArray, base.pixelFormat, base.width, base.height, tl, nl, nsh, ncopy); if (!snap) continue;
++                snap = fb_snap_shape(storage_type, base.pixelFormat, base.width, base.height, tl, nl, nsh, ncopy); if (!snap) continue;
+                 if (g_enc) rp_end();
+                 id<MTL4ComputeCommandEncoder> e = blit();
+                 for (NSUInteger l = 0; l < nl; l++) {
+@@ -16168,7 +16187,22 @@
+                     g_fb_bytes += (uint64_t)w * h * nsh * (uint64_t)MAX(mtl_pf_bytes(base.pixelFormat), 1u); }
+                 cbase[ncopy] = base; csnap[ncopy] = snap; ckey[ncopy][0] = tl; ckey[ncopy][1] = nl; ckey[ncopy][2] = ts; ckey[ncopy][3] = nsh; ncopy++; g_fb_count++; }   // g_fb_count: ④ copies (one per real subresource and draw)
+             MTLTextureType stp = tt == MTLTextureType2D ? MTLTextureType2D : vt;   // the view the draw needs (cube / cube array on the snapshot's 2D array storage)
+-            id<MTLTexture> use = fb_narrow_view(snap, t, stp, 0, nl, 0, nsh);
++            id<MTLTexture> use = nil;
++            if (direct_snap) {
++                if (fresh) {
++                    if (listed) g_fb_named_snap++;
++                    else g_fb_other_snap++;
++                }
++                if (stp == storage_type && t.pixelFormat == snap.pixelFormat) {
++                    MTLTextureSwizzleChannels sw = t.swizzle;
++                    if (sw.red == MTLTextureSwizzleRed && sw.green == MTLTextureSwizzleGreen &&
++                        sw.blue == MTLTextureSwizzleBlue && sw.alpha == MTLTextureSwizzleAlpha) {
++                        use = snap;   // storage has exactly nl levels and nsh slices, with identity swizzle
++                        g_fb_direct_snap++;
++                    }
++                }
++            }
++            if (!use) use = fb_narrow_view(snap, t, stp, 0, nl, 0, nsh);
+             if (!use) { RED_ONCE(81, "same-pass feedback sampling: cannot create the snapshot view (format %lu type %lu); left as is", (unsigned long)t.pixelFormat, (unsigned long)stp); continue; }
+             if (g_fb_use[g_fb_n] && g_fb_use[g_fb_n] != use) defer_obj_unref(g_fb_use[g_fb_n]);
+             g_fb_src[g_fb_n] = t; g_fb_use[g_fb_n] = use; g_fb_rid[g_fb_n] = use.gpuResourceID._impl; g_fb_n++;
