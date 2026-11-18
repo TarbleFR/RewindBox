@@ -1,0 +1,99 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -3067,7 +3067,13 @@
+ // Every 300 frames, what the game's resolution and frame-interval controller did over the 300 frames before the last three (whose reports may still be on their way): the scene
+ //   sizes it drew at, how often the size changed from one frame to the next, the shared textures made and evicted over their storage, and the GPU time it read from its own
+ //   timestamp reports. Mario Kart World on IPA 762 re-made 7 to 14 shared textures a frame in the windows where it aimed at 60 frames a second and none where it held 30
++static uint64_t rb_frame_key_reads;
+ static void fsig_window(uint64_t f) {
++    if (rb_frame_key_reads) {
++        MLOG("RewindBox (patch 0114): frame %llu: %llu signature key decodes avoided since last sample",
++             (unsigned long long)f, (unsigned long long)rb_frame_key_reads);
++        rb_frame_key_reads = 0;
++    }
+     enum { W = 300, SZ = 48 }; if (f < W + 3) return;
+     uint32_t sw[SZ], sh[SZ]; int ns = 0, over = 0; uint32_t pw = 0, ph = 0, changes = 0, n = 0, wmin = 0, hmin = 0, wmax = 0, hmax = 0; uint64_t made = 0, taken = 0, pieces = 0, cond = 0, coff = 0, cclr = 0;   // cond, coff, cclr: patch 0064
+     static uint32_t span[W]; uint32_t nsp = 0;   // the replaying thread only
+@@ -8329,7 +8335,7 @@
+     id<MTLLibrary> at_lib; NSString *at_main, *at_u; NSMutableDictionary<NSNumber *, id<MTLFunction>> *at_fns; uint8_t has_atms;   // gap families 34 / 37: a fragment main0 declaring S2A_AT / S2A_MSOFF (Dsh.cs FsAlphaMs): its library and entry names, specialized per (u, at, msoff) on demand (fs_atms_fn)
+     int load_depth_zero;   // captured with the identity, also used by its layer variant
+     uint8_t u_mask;   // S2Arm gap 2 A: the colour outputs fn_u returns as uint, bit n = color(n) (json u_mask; dmsh_build.py fs_uint turns only the integer-bit writers)
+-    uint16_t tf_stride[4]; uint32_t cb_ext[16], sb_ro; nvn_refl rf; id<MTLArgumentEncoder> ae; NSUInteger arg_len; int stage, range_ro, afr, layer_out; const char *builtin; uint64_t logged; char key[24]; id<MTLBuffer> c1buf; uint64_t c1_gpu; size_t c1off;
++    uint16_t tf_stride[4]; uint32_t cb_ext[16], sb_ro; nvn_refl rf; id<MTLArgumentEncoder> ae; NSUInteger arg_len; int stage, range_ro, afr, layer_out; const char *builtin; uint64_t logged; uint64_t rb_frame_key; BOOL rb_frame_key_ready; char key[24]; id<MTLBuffer> c1buf; uint64_t c1_gpu; size_t c1off;
+     uint32_t geo_vertices, geo_invocations, geo_output, geo_stride, geo_index_stride;
+     // NVN2 task / mesh shader (json msl_entry_kind object / mesh, at stage 3 / 4; nvn_geometry.inc mesh_tasks_draw): mesh_kind 1 object 2 mesh (0 = neither); its workgroup's threads,
+     //   the payload's bytes (task), a task shader feeds it (mesh), the most vertices / primitives a mesh workgroup emits (Switch2 line's interface contract, item 6)
+@@ -8379,12 +8385,34 @@
+ // RewindBox (patch 0059): what a frame's record hashes of a shader: the 16 characters of its key, the same from one frame, object and session to the next (0 = no shader).
+ //   Patch 0064: as the number those characters spell when they are hexadecimal digits (a translated shader's key), so that a line can print it the way a capture's pass list
+ //   does (vs=0e1b13a4cdeb5733_b); another form of key is mixed as before
+-static uint64_t fsig_shkey(NvShader *s) {
+-    if (!s) return 0;
++static uint64_t fsig_parse_key(NvShader *s) {
+     uint64_t v = 0; int i = 0;
+     for (; i < 16; i++) { unsigned ch = (unsigned char)s->key[i], d = ch - '0' < 10 ? ch - '0' : (ch | 32) - 'a' < 6 ? (ch | 32) - 'a' + 10 : 16; if (d > 15) break; v = v << 4 | d; }
+     if (i == 16) return v ? v : 1;
+     uint64_t a = 0, b = 0; memcpy(&a, s->key, 8); memcpy(&b, s->key + 8, 8); return a ^ b * 0x9e3779b97f4a7c15ull;
++}
++// RewindBox (patch 0114): IPA 785 frame-6000 window averaged 2,628 draws per
++// frame. The same immutable shader names were decoded for each draw's signature.
++// Compute once before publishing the object. Unprepared / test objects still use the parser.
++static void rb_keep_frame_key(NvShader *shader) {
++    static int enabled;
++    static dispatch_once_t once;
++    dispatch_once(&once, ^{
++        const char *v = getenv("S2A_RB_FRAME_SHADER_KEY");
++        enabled = v && !strcmp(v, "1");
++    });
++    if (enabled) {
++        shader->rb_frame_key = fsig_parse_key(shader);
++        shader->rb_frame_key_ready = YES;
++    }
++}
++static uint64_t fsig_shkey(NvShader *s) {
++    if (!s) return 0;
++    if (s->rb_frame_key_ready) {
++        rb_frame_key_reads++;
++        return s->rb_frame_key;
++    }
++    return fsig_parse_key(s);
+ }
+ // RewindBox (patch 0066): the base instance the GPU wrote into the arguments of each indirect draw (and each live sub-draw of a masked multi-draw) whose vertex shader
+ //   reads c0, read once its submission has run. PS1 / PS2 / PS4 of the 765 test: these draws (164 indirect draws and 152 sub-draws a frame in the capture of frame 2976)
+@@ -8992,13 +9020,13 @@
+     NSDictionary *j = jd ? [NSJSONSerialization JSONObjectWithData:jd options:0 error:nil] : nil;
+     if (j && dir != g_msl_dir && !fb_json_current(j)) { MLOG("【红】 shader %s: the fallback translation has chain %s / translator %s, this build expects %s / %s", pc.UTF8String, [[j[@"chain"] description] UTF8String], [[j[@"xfp"] description] UTF8String], DMSH_CHAIN, fb_xfp() ?: "(no s2a_dsh_xfp)"); return nil; }
+     if (j && stage == 2 && [j[@"gs_slice"] isKindOfClass:[NSDictionary class]] && [j[@"chain"] isEqual:@DMSH_CHAIN]) {   // a slice-writing geometry shader has no library: a stub prog_fold_gs replaces
+-        NvShader *o = [NvShader new]; o->stage = 2; o->lay_loc = -1; strlcpy(o->key, pc.UTF8String, sizeof o->key);
++        NvShader *o = [NvShader new]; o->stage = 2; o->lay_loc = -1; strlcpy(o->key, pc.UTF8String, sizeof o->key); rb_keep_frame_key(o);
+         o->gs_loc = [j[@"gs_slice"][@"loc"] intValue]; o->gs_comp = [[j[@"gs_slice"][@"comp"] description] UTF8String][0];
+         return o;
+     }
+     if (stage == 2 && !j) return nil;   // missing geometry translation: the caller's red line says so
+     if (t_refl_only && stage == 5 && j && [j[@"chain"] isEqual:@DMSH_CHAIN]) {   // a tensor-core network program (t_refl_only): its reflection, no library
+-        NvShader *o = [NvShader new]; o->gs_loc = o->lay_loc = -1; o->stage = 5; o->tensor = 1; strlcpy(o->key, pc.UTF8String, sizeof o->key);
++        NvShader *o = [NvShader new]; o->gs_loc = o->lay_loc = -1; o->stage = 5; o->tensor = 1; strlcpy(o->key, pc.UTF8String, sizeof o->key); rb_keep_frame_key(o);
+         o->fnpfx = [j[@"fn_prefix"] isKindOfClass:[NSString class]] ? j[@"fn_prefix"] : @"";
+         char err[160]; if (nvn_refl_from_json(j, &o->rf, err, sizeof err)) { MLOG("【红】 shader %s reflection conversion failed: %s", pc.UTF8String, err); return nil; }
+         static _Atomic int n; if (atomic_fetch_add(&n, 1) < 16) MLOG("compute shader %s: tensor-core network, reflection only (its library is not loaded: it is never dispatched)", pc.UTF8String);
+@@ -9064,7 +9092,7 @@
+             NSArray *ent = e[1]; if (ent.count > 32) continue;
+             o->geo_tf_stride[b] = [e[0] unsignedIntValue]; o->geo_tf_n[b] = (uint32_t)ent.count;
+             for (NSUInteger k = 0; k < ent.count; k++) { o->geo_tf_off[b][k] = [ent[k][0] unsignedIntValue]; o->geo_tf_comp[b][k] = [ent[k][1] unsignedIntValue]; } } }
+-    o->fn = [lib newFunctionWithName:fnn(o, entry)]; o->stage = stage; o->load_depth_zero = depth_zero; strlcpy(o->key, pc.UTF8String, sizeof o->key); o->ventry = entry;
++    o->fn = [lib newFunctionWithName:fnn(o, entry)]; o->stage = stage; o->load_depth_zero = depth_zero; strlcpy(o->key, pc.UTF8String, sizeof o->key); rb_keep_frame_key(o); o->ventry = entry;
+     if (!o->fn) { MLOG("【红】 shader %s: no entry point %s in its library", pc.UTF8String, entry.UTF8String); return nil; }
+     // writes the layer (render_target_array_index, named in the library's metadata): its passes are layered and its pipelines get an input class (pso_desc). A library with layer entry points
+     // names it for those alone: its main0 / main0_z write no layer
+@@ -17375,8 +17403,8 @@
+         g_dt_tab = vf && ff ? rec_table(tab_new(1, 1, 1, &e)) : nil;
+         if (!g_dt_tab) { failed = 1; MLOG("【红】 DrawTexture: cannot build its shaders / argument table: %s; DrawTexture draws nothing", e.localizedDescription.UTF8String); return; }
+         NvShader *v = [NvShader new], *f = [NvShader new];
+-        v->fn = vf; v->stage = 0; strlcpy(v->key, "s2a_drawtex_vs", sizeof v->key);
+-        f->fn = ff; f->stage = 1; strlcpy(f->key, "s2a_drawtex_fs", sizeof f->key); f->rf.color_known = 1; f->rf.color_mask = 1;   // writes color(0) only (pso_key_norm / pso_desc: the rest masked)
++        v->fn = vf; v->stage = 0; strlcpy(v->key, "s2a_drawtex_vs", sizeof v->key); rb_keep_frame_key(v);
++        f->fn = ff; f->stage = 1; strlcpy(f->key, "s2a_drawtex_fs", sizeof f->key); rb_keep_frame_key(f); f->rf.color_known = 1; f->rf.color_mask = 1;   // writes color(0) only (pso_key_norm / pso_desc: the rest masked)
+         g_dt_vs = v; g_dt_fs = f; psos = [NSMutableDictionary dictionary];
+     }
+     int tid = (int)(t->handle & 0xfffff), sid = (int)(t->handle >> 20);

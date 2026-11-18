@@ -1,0 +1,72 @@
+diff --git a/runtime/src/thread.c b/runtime/src/thread.c
+--- a/runtime/src/thread.c
++++ b/runtime/src/thread.c
+@@ -127,7 +127,7 @@
+     //   set under G, taken by wake() with an exchange; sp_bud / sp_skip = this thread's spin budget (mach ticks) and its waits since the budget fell to 0, sp_init = budget set
+     //   (to the maximum, at its first spin); gw_n = its waits slept on t->woke, spun into a wake-up, spun in vain, fallbacks to cv, wake-ups it issued after G
+     //   (owner writes, relaxed atomic stores, GW_INC; others read them under G with atomic loads; folded into g_gw under G at exit)
+-    _Atomic int uw; uint32_t sp_bud, sp_skip; uint8_t sp_init; uint64_t gw_n[5];
++    _Atomic int uw; uint32_t sp_bud, sp_skip; uint8_t sp_init, rb_sp_interval; uint64_t gw_n[5];
+     // RewindBox (patch 0074): yields (owner writes), CPU ns in them (one in 16 timed), ns slept by their backoff; *_rep / pw_cpu = what dm_yield_top / dm_thread_cpu last saw (under G)
+     uint64_t ny, ny_k, ny_cpu, ny_sl, ny_rep, ny_cpu_rep, pw_cpu;
+     uint64_t nsl, nsl_bo, sl_bo_ns, sl_up[2]; int is_main;   // sl_up：抽样记的上两层返回地址（帧指针回溯，定游戏哪段代码在轮询）   // 本线程短睡次数、被退避拉长次数、多睡纳秒（收局按线程列，s2a_yield_stat_log）；is_main = 游戏主线程   // 短睡轮询退避：上一次短睡的调用点、当时的 nsvc_all、这一轮起点、上一次醒来时刻
+@@ -369,6 +369,19 @@
+     }
+     t_wq_n = 0;
+ }
++// RewindBox (patch 0113): IPA 785 had 208,326 fruitless spins and 4,515 hits.
++// Only re-probes after the adaptive spin budget has already reached zero change.
++// Count skipped 16-wait probe slots under G. Ordinary word sleeps still wake immediately.
++static uint64_t rb_sp_skipped;
++static int rb_sparse_probe_on(void) {   // called under G
++    static int on = -1;
++    if (on < 0) {
++        const char *v = getenv("S2A_RB_IDLE_WAIT_PROBE");
++        const char *custom = getenv("S2A_RB_WAIT_SPIN");
++        on = v && !strcmp(v, "1") && !(custom && *custom);
++    }
++    return on;
++}
+ // Spin budget in mach ticks (S2A_RB_WAIT_SPIN, µs, at most 50)
+ static uint32_t gw_spin_max(void) {
+     static _Atomic int64_t v = -1; int64_t s = atomic_load_explicit(&v, memory_order_relaxed);
+@@ -560,7 +573,17 @@
+     if (ns < 0 && rb_gw_on()) {
+         uint32_t bud = 0, mx = kind == 1 || kind == 3 ? gw_spin_max() : 0; int probe = 0;
+         if (mx) { if (!t->sp_init) { t->sp_init = 1; t->sp_bud = mx; }
+-            bud = t->sp_bud > mx ? mx : t->sp_bud; if (!bud && ++t->sp_skip >= 16) { t->sp_skip = 0; bud = mx; probe = 1; } }
++            bud = t->sp_bud > mx ? mx : t->sp_bud;
++            if (!bud && ++t->sp_skip >= 16) {
++                int sparse = !t->is_main && t->prio >= 44 && rb_sparse_probe_on();
++                unsigned interval = sparse && t->rb_sp_interval ? t->rb_sp_interval : 16;
++                if (t->sp_skip >= interval) {
++                    t->sp_skip = 0; bud = mx; probe = sparse ? 2 : 1;
++                } else if (!(t->sp_skip % 16)) {
++                    rb_sp_skipped++;
++                }
++            }
++        }
+         atomic_store(&t->uw, bud ? 2 : 1);
+         pthread_mutex_unlock(&G); wq_flush();
+         if (bud) {
+@@ -572,6 +595,8 @@
+             }
+             int two = 2; if (!hit && !atomic_compare_exchange_strong(&t->uw, &two, 1)) hit = 1;
+             t->sp_bud = hit ? (bud * 2 < mx ? bud * 2 : mx) : probe ? 0 : bud / 2; GW_INC(t, hit ? 1 : 2);
++            if (hit) t->rb_sp_interval = 0;
++            else if (probe == 2) t->rb_sp_interval = t->rb_sp_interval ? 64 : 32;
+         }
+         int err = 0;
+         while (!__atomic_load_n(&t->woke, __ATOMIC_ACQUIRE)) {
+@@ -2233,7 +2258,11 @@
+                 __atomic_load_n(&top[i]->ny_cpu, __ATOMIC_RELAXED) / 1e6, __atomic_load_n(&top[i]->ny_sl, __ATOMIC_RELAXED) / 1e6);
+         for (int k = 0; k < 5; k++) gw[k] = atomic_load_explicit(&g_gw[k], memory_order_relaxed);
+         for (thr_t *t = g_all; t; t = t->all) if (!t->exited) for (int k = 0; k < 5; k++) gw[k] += __atomic_load_n(&t->gw_n[k], __ATOMIC_RELAXED);   // exited ones are in g_gw (folded under G)
++        uint64_t skipped_probes = rb_sp_skipped;
++        int report_probes = rb_sparse_probe_on();
+         pthread_mutex_unlock(&G);
++        if (report_probes) LOG("RewindBox (patch 0113): worker waits [%s]: %llu old spin probe slots slept directly (process total)",
++                               when, (unsigned long long)skipped_probes);
+         LOG("RewindBox (patch 0074): guest waits [%s]: untimed sleeps on their own word %llu, spins that met their wake-up %llu, spins in vain %llu, fallbacks to the condition variable %llu; "
+             "wake-ups issued after G %llu (S2A_RB_GUEST_WAIT %s, spin up to %u ticks)", when, (unsigned long long)gw[0], (unsigned long long)gw[1], (unsigned long long)gw[2], (unsigned long long)gw[3],
+             (unsigned long long)gw[4], rb_gw_on() ? "on" : "off (0)", gw_spin_max());

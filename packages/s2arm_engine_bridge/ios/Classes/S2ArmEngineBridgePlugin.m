@@ -587,10 +587,16 @@ static NSDictionary *launchFail(NSString *error, NSString *stage, NSString *deta
   int pipelinePriorityProfile = setenv("S2A_RB_PSO_HOT_FIRST", kartRender, 0);
   int shaderCompletionProfile = setenv("S2A_RB_SHADER_AHEAD_JOIN", kartRender, 0);
   int pipelineLookaheadProfile = setenv("S2A_RB_PSO_LOOK_META", kartRender, 0);
+  // IPA 785: 967,104 bounds tables in 300 race frames; 208,326 unproductive word spins;
+  // 2,628 draws per frame repeated their shader signature lookup. Keep A/B controls per title.
+  int uniformBoundsProfile = setenv("S2A_RB_UNIFORM_BOUNDS_REUSE", kartRender, 0);
+  int waitProbeProfile = setenv("S2A_RB_IDLE_WAIT_PROBE", kartRender, 0);
+  int frameKeyProfile = setenv("S2A_RB_FRAME_SHADER_KEY", kartRender, 0);
   BOOL profileFailed = vertexProfile || stagingProfile || workgroupProfile || archiveProfile || workerProfile ||
                        readAheadProfile || shaderBytesProfile || shaderQueueProfile || poolIndexProfile ||
                        textureViewsProfile || demandProbeProfile || audioReprimeProfile || feedbackProfile ||
-                       pipelinePriorityProfile || shaderCompletionProfile || pipelineLookaheadProfile;
+                       pipelinePriorityProfile || shaderCompletionProfile || pipelineLookaheadProfile ||
+                       uniformBoundsProfile || waitProbeProfile || frameKeyProfile;
   s2arm_journal("gameProfile", profileFailed ? "failed" : "selected",
                 "\"profile\":\"%s\"", fastFusion ? "fast-fusion" : marioKartWorld ? "mario-kart-world" : "default");
   S2ArmSettingsPrepareLaunch();   // the game language, and the engine's brief overlay that the in-game menu shows or hides

@@ -1,0 +1,58 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -10418,7 +10418,27 @@
+     if (!a->buf) MDIE("cannot allocate %zu bytes of frame scratch (%llu MB of blocks)", minimum, (unsigned long long)(g_arena_bytes >> 20));
+     a->gpu = a->buf.gpuAddress; a->cpu = (uint8_t *)a->buf.contents; a->len = a->buf.length; res_add(a->buf); g_arena_made++; g_arena_bytes += a->len; return a;
+ }
+-void arena_begin(void) { if (!g_arenas) { g_arenas = [NSMutableArray array]; g_sub_arenas = [NSMutableArray array]; } g_cur_arena = nil; g_arena_seg = 0; g_arena_gen++; }
++// RewindBox (patch 0112): IPA 785 built 967,104 uniform bounds tables between frames
++// 5700 and 6000. Each 56-byte table consumes a 256-byte arena slot. The submit thread
++// may share an immutable table only after computing every bound for the current draw.
++static int rb_bounds_reuse;
++static uint64_t rb_bounds_hits, rb_bounds_misses;
++static void rb_bounds_report(void) {
++    static dispatch_once_t once;
++    dispatch_once(&once, ^{
++        const char *v = getenv("S2A_RB_UNIFORM_BOUNDS_REUSE");
++        rb_bounds_reuse = v && !strcmp(v, "1");
++    });
++    if (!rb_bounds_reuse) return;
++    static uint64_t last;
++    uint64_t frame = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
++    if (frame < last) { last = frame; rb_bounds_hits = rb_bounds_misses = 0; }
++    if (frame - last < 300) return;
++    MLOG("RewindBox (patch 0112): uniform bounds at frame %llu: %llu identical tables reused, %llu written since last sample",
++         (unsigned long long)frame, (unsigned long long)rb_bounds_hits, (unsigned long long)rb_bounds_misses);
++    last = frame; rb_bounds_hits = rb_bounds_misses = 0;
++}
++void arena_begin(void) { rb_bounds_report(); if (!g_arenas) { g_arenas = [NSMutableArray array]; g_sub_arenas = [NSMutableArray array]; } g_cur_arena = nil; g_arena_seg = 0; g_arena_gen++; }
+ void arena_commit(uint64_t fence) { for (NvArena *a in g_sub_arenas) { a->fence = fence; [g_arenas addObject:a]; } [g_sub_arenas removeAllObjects]; g_cur_arena = nil; g_arena_seg = 0; }
+ static uint64_t arena_cut(void) {   // sub_cut hands the segment to the GPU: its blocks come back with the segment's number (arena_seg_done)
+     uint64_t sf = ++g_seg_fence_n; g_arena_gen++;   // what was cached in these blocks is not handed out again (see g_arena_gen)
+@@ -13452,6 +13472,25 @@
+     if (kind == NVN_RB_UBOLEN) {
+         for (n = 0; n < NVN_UBOLEN_N; n++) q[n] = ubolen_vec4_cap(&S.ubo[nvn_stage][n], ubcap ? ubcap[n] : UINT64_MAX);
+     } else { sbsz_ctx c = {nvn_stage}; n = nvn_sbsz_fill(sh->rf.b, sh->rf.nb, sbsz_bound, &c, g_geo_size, q); }   // 几何缓冲的长度 = g_geo_size（geo_draw 与 g_geo_bind 同时设）
++    // The arena generation changes at both a new submission and an in-flight segment cut.
++    // A changed size cap, shadow or unbound slot changes the computed bytes before this lookup.
++    if (rb_bounds_reuse && kind == NVN_RB_UBOLEN && (unsigned)nvn_stage < 6) {
++        static struct { uint64_t generation, gpu; const uint32_t *bounds; } last[6];
++        const size_t length = sizeof(uint32_t) * NVN_UBOLEN_N;
++        if (last[nvn_stage].generation == g_arena_gen &&
++            !memcmp(q, last[nvn_stage].bounds, length)) {
++            rb_bounds_hits++;
++            return last[nvn_stage].gpu;
++        }
++        id<MTLBuffer> buffer;
++        size_t offset = arena_alloc(length, &buffer);
++        memcpy(g_cur_arena->cpu + offset, q, length);
++        last[nvn_stage].bounds = (const uint32_t *)(g_cur_arena->cpu + offset);
++        last[nvn_stage].generation = g_arena_gen;
++        last[nvn_stage].gpu = g_cur_arena->gpu + offset;
++        rb_bounds_misses++;
++        return last[nvn_stage].gpu;
++    }
+     id<MTLBuffer> ab; size_t o = arena_alloc(sizeof q[0] * (size_t)n, &ab); memcpy((uint8_t *)ab.contents + o, q, sizeof q[0] * (size_t)n);
+     return ab.gpuAddress + o;
+ }
