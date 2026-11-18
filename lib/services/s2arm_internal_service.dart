@@ -120,8 +120,8 @@ class S2ArmImportProgress {
   final int total;
   double? get fraction => total <= 0 ? null : (done / total).clamp(0.0, 1.0);
 
-  // 'nup' while an import expands a NUP container (done / total in bytes written), else
-  // a preparation only (null for an import copy). step: unpack, code, caps, direct, module, pack or done. part: the
+  // Import stages are 'scan' (indeterminate), 'nup' (unpacked bytes), and null (folder copy).
+  // For launch preparation the step is unpack, code, caps, direct, module, pack or done. part: the
   // code stage's part (zbic, addr_need, nro, a module such as main, tables) or "reused". phase: the part's phase (a
   // pass of the rewriter, "walk", "zbic"...). attempt: 2... when the rewriter redoes a module with a new layout.
   // unitsDone / unitsTotal: the phase's own counts (functions, rewrite units, bytes, files), total 0 = no count.
@@ -487,6 +487,9 @@ abstract final class S2ArmInternalService {
     void Function(S2ArmImportProgress progress)? onProgress,
     S2ArmImportControl? control,
   }) async {
+    onProgress?.call(S2ArmImportProgress(
+      name: path.basename(picked), index: 1, count: 1, done: 0, total: 0, step: 'scan',
+    ));
     await ensureLayout();
     final games = await gamesDirectory();
     final staging = await stagingDirectory();
@@ -498,10 +501,12 @@ abstract final class S2ArmInternalService {
     final detectedRoot = detected['exportDir']?.toString() ?? picked;
     final exports = detected['success'] == true && path.equals(detectedRoot, picked)
         ? <Map<String, dynamic>>[{...detected, 'exportDir': detectedRoot}]
-        : await _exportsBelow(picked);
+        : await _exportsBelow(picked, control: control);
+    if (control?.cancelled ?? false) return const S2ArmImportResult([], cancelled: true);
     if (exports.isEmpty) {
       // A folder that holds NUP containers instead of an export: they are imported as the NUP item does.
       final nups = await _nupFilesIn(picked);
+      if (control?.cancelled ?? false) return const S2ArmImportResult([], cancelled: true);
       if (nups.isNotEmpty) return importNupAt(nups, onProgress: onProgress, control: control);
       // Files that iCloud has not downloaded to the iPhone are only placeholders (".<name>.icloud"): say so.
       final reason = await _hasICloudPlaceholder(picked) ? 'notDownloaded' : (detected['code'] ?? 'notExportFolder').toString();
@@ -673,7 +678,7 @@ abstract final class S2ArmInternalService {
   /// The Switch 2 exports inside [picked] when it is not one itself: a folder that holds the game folder (for example
   /// "<game> + Emulator/<game>/base/exefs/main.npdm") or several games. Looks up to three levels down, never inside an
   /// export's own base, ExeFS, RomFS, updates or DLC, and validates each base NPDM with native detection.
-  static Future<List<Map<String, dynamic>>> _exportsBelow(String picked) async {
+  static Future<List<Map<String, dynamic>>> _exportsBelow(String picked, {S2ArmImportControl? control}) async {
     final found = <Map<String, dynamic>>[];
     var level = <Directory>[Directory(picked)];
     for (var depth = 0; depth < 3 && level.isNotEmpty && found.length < 200; depth++) {
@@ -687,6 +692,7 @@ abstract final class S2ArmInternalService {
         }
         children.sort((a, b) => a.path.compareTo(b.path));
         for (final child in children) {
+          if (control?.cancelled ?? false) return found;
           final name = path.basename(child.path);
           if (child is! Directory || name.startsWith('.') ||
               const {'base', 'exefs', 'romfs', 'updates', 'dlc'}.contains(name.toLowerCase())) continue;
@@ -735,42 +741,72 @@ abstract final class S2ArmInternalService {
     S2ArmImportControl? control,
   }) async {
     final exportDir = detected['exportDir'].toString();
-    final info = await gameInfo(exportDir);
-    final title = _safeName((info['title'] ?? path.basename(exportDir)).toString(), detected['gid']?.toString());
-
-    final source = Directory(exportDir);
-    final total = await _directorySize(source);
     final stage = Directory(path.join(staging.path, '$index'));
-    // A game on the same volume (the Files app's "On My iPhone", RewindBox's own folders) is cloned: instant, and it needs
-    // no free space. Otherwise the copy below, which does.
-    await staging.create(recursive: true);
-    await _removeStaging(stage);
-    if (await cloneTree(source.path, stage.path)) {
-      try {
-        onProgress?.call(S2ArmImportProgress(name: title, index: index, count: count, done: total, total: total));
-        final target = await _freeDirectory(games, title);
-        await stage.rename(target.path);
-        LoggerService.instance.i('S2Arm import: $title cloned (${total ~/ (1024 * 1024)} MB, no copy)');
-        return S2ArmImportItem(title, 'imported', destination: target.path);
-      } on FileSystemException {
-        return S2ArmImportItem(title, 'copyFailed');
-      } finally {
-        await _removeStaging(stage);
-      }
+    var title = path.basename(exportDir);
+
+    void report(int done, int total, {String? step, int? entries}) {
+      onProgress?.call(S2ArmImportProgress(
+        name: title, index: index, count: count, done: done, total: total,
+        step: step, unitsDone: entries,
+      ));
     }
-    await _removeStaging(stage);
-    final free = await availableBytes(games.path);
-    if (free != null && free < total + spaceMargin) {
-      LoggerService.instance.i('S2Arm import: $title refused, ${total ~/ (1024 * 1024)} MB to copy, ${free ~/ (1024 * 1024)} MB available');
-      return S2ArmImportItem(title, 'notEnoughSpace');
-    }
+
     try {
+      if (control?.cancelled ?? false) return null;
+      report(0, 0, step: 'scan');
+      final info = await gameInfo(exportDir);
+      title = _safeName((info['title'] ?? title).toString(), detected['gid']?.toString());
+      final source = Directory(exportDir);
+
+      await staging.create(recursive: true);
+      await _removeStaging(stage);
+      if (control?.cancelled ?? false) return null;
+      report(0, 0);
+      // APFS clones the tree in one system call. A successful clone needs no size walk.
+      if (await cloneTree(source.path, stage.path)) {
+        final target = await _freeDirectory(games, title);
+        if (control?.cancelled ?? false) return null;
+        await stage.rename(target.path);
+        report(1, 1);
+        LoggerService.instance.i('S2Arm import: $title cloned');
+        return S2ArmImportItem(title, 'imported', destination: target.path);
+      }
+
+      await _removeStaging(stage);
+      report(0, 0, step: 'scan');
+      final watch = Stopwatch()..start();
+      final total = await _directorySize(source, control: control, onEntry: (count) {
+        if (watch.elapsedMilliseconds < 100) return;
+        report(0, 0, step: 'scan', entries: count);
+        watch.reset();
+      });
+      final free = await availableBytes(games.path);
+      if (control?.cancelled ?? false) return null;
+      if (free != null && free < total + spaceMargin) {
+        LoggerService.instance.i('S2Arm import: $title refused, ${total ~/ (1024 * 1024)} MB to copy, ${free ~/ (1024 * 1024)} MB available');
+        return S2ArmImportItem(title, 'notEnoughSpace');
+      }
+
       var done = 0;
-      await _copyDirectory(source, stage, control: control, progress: (copied) {
-        onProgress?.call(S2ArmImportProgress(name: title, index: index, count: count, done: done + copied, total: total));
-      }, onFileDone: (bytes) => done += bytes);
+      report(0, total);
+      watch.reset();
+      void copied(int bytes) {
+        if (watch.elapsedMilliseconds < 100) return;
+        // Reserve 100% for a game already visible in the library.
+        report(total > 0 && bytes >= total ? total - 1 : bytes, total);
+        watch.reset();
+      }
+
+      await _copyDirectory(source, stage, control: control, progress: (bytes) {
+        copied(done + bytes);
+      }, onFileDone: (bytes) {
+        done += bytes;
+        copied(done);
+      });
       final target = await _freeDirectory(games, title);
+      if (control?.cancelled ?? false) return null;
       await stage.rename(target.path);
+      report(done > 0 ? done : 1, done > 0 ? done : 1);
       return S2ArmImportItem(title, 'imported', destination: target.path);
     } on _Cancelled {
       return null;
@@ -790,15 +826,22 @@ abstract final class S2ArmInternalService {
     }
   }
 
-  static Future<int> _directorySize(Directory directory) async {
+  static Future<int> _directorySize(
+    Directory directory, {
+    S2ArmImportControl? control,
+    required void Function(int count) onEntry,
+  }) async {
     var total = 0;
+    var count = 0;
     await for (final entry in directory.list(recursive: true, followLinks: false)) {
+      if (control?.cancelled ?? false) throw _Cancelled();
       if (entry is File) {
         try {
           total += await entry.length();
         } on FileSystemException {
           // Skipped from the estimate; the copy surfaces a real error.
         }
+        onEntry(++count);
       }
     }
     return total;

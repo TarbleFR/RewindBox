@@ -1,0 +1,97 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -12157,9 +12157,14 @@
+     } });
+     os_unfair_lock_unlock(&g_shpre_mu);
+ }
+-void nvn_be_shader_prefetch(const uint8_t md[8]) {
++// RewindBox (patch 0117): IPA 786 frame 1255 spent 2,019.8 ms on five pipelines
++// and three Metal libraries. A known recording bind had already identified its
++// stage and depth mode, but the old prefetch queued only its name and reread the
++// mode later. Schedule the same variant that the recorder checked.
++static void shader_prefetch(NSString *k, int stage_hint, int depth) {
+     if (!shpre_on()) return;
+-    NSString *k = [NSString stringWithFormat:@"%02x%02x%02x%02x%02x%02x%02x%02x", md[0], md[1], md[2], md[3], md[4], md[5], md[6], md[7]];
++    NSString *key = [k stringByAppendingString:@"_b"];
++    NSString *idkey = stage_hint >= 0 ? shader_identity(key, stage_hint, 0, depth) : k;
+     // Session stop takes this same lock: enqueue must finish before its drain marker can be submitted.
+     os_unfair_lock_lock(&g_shpre_mu);
+     if (atomic_load(&g_shpre_stopping)) { os_unfair_lock_unlock(&g_shpre_mu); return; }
+@@ -12167,23 +12172,55 @@
+     //   utility QoS on the lanes (shq_t), off the main and game threads; one a program draws with before its turn comes is loaded on the submit thread then (shader_get), or ahead of
+     //   it by the lookahead (shader_urgent)
+     if (!g_shpre.n) { shq_init(&g_shpre, "dm.nvn.sh-pre", s2a_qos(S2A_QOS_SHADER_PREFETCH)); g_shpre_seen = [NSMutableSet set]; }
+-    if ([g_shpre_seen containsObject:k]) { os_unfair_lock_unlock(&g_shpre_mu); return; }
+-    [g_shpre_seen addObject:k];
++    if ([g_shpre_seen containsObject:idkey]) { os_unfair_lock_unlock(&g_shpre_mu); return; }
++    [g_shpre_seen addObject:idkey];
+     shq_async(&g_shpre, k, ^{ @autoreleasepool {
+         if (atomic_load(&g_shpre_stopping)) return;
+-        shmap_load();
+-        NSString *stage = shmap_stage(k); int st = stage ? stage_of(stage) : -1;
++        int st = stage_hint;
++        if (st < 0) {
++            shmap_load();
++            NSString *stage = shmap_stage(k);
++            st = stage ? stage_of(stage) : -1;
++        }
+         if (st < 0) return;
+-        uint64_t t0 = bp_now(); NSString *key = [k stringByAppendingString:@"_b"];
+-        if (!shader_loadable(key)) { atomic_fetch_add_explicit(&g_cold_skips, 1, memory_order_relaxed); return; }   // compiled at its first use (dsh_miss.inc)
+-        NvShader *sh = shader_load(key, st, 0);
+-        if (!sh) return;   // the submit thread loads it again and logs the red line
++        uint64_t t0 = bp_now();
++        NvShader *sh = nil;
++        if (shader_loadable(key)) sh = stage_hint >= 0 ? shader_load_depth(key, st, 0, depth, NULL, NULL) : shader_load(key, st, 0);
++        else atomic_fetch_add_explicit(&g_cold_skips, 1, memory_order_relaxed);
++        if (!sh) {
++            if (stage_hint >= 0) {
++                os_unfair_lock_lock(&g_shpre_mu);
++                [g_shpre_seen removeObject:idkey];  // an earlier missing file must not suppress a later valid bind
++                os_unfair_lock_unlock(&g_shpre_mu);
++            }
++            return;   // the submit thread retains the existing fallback
++        }
++        if (stage_hint >= 0) {
++            static _Atomic uint64_t exact_loads;
++            uint64_t count = atomic_fetch_add_explicit(&exact_loads, 1, memory_order_relaxed) + 1;
++            if (!(count & (count - 1))) MLOG("RewindBox (patch 0117): %llu exact shader variants prefetched from recorded binds",
++                                           (unsigned long long)count);
++        }
+         WarmItem *item = [WarmItem new]; item->kind = 3; item->key = key; item->shader = sh;
+         warm_enqueue(item);
+         uint64_t d = bp_now() - t0, n = atomic_fetch_add(&g_shpre_n, 1) + 1, ns = atomic_fetch_add(&g_shpre_ns, d) + d;
+         if (!(n & (n - 1)) && n >= 64) MLOG("shader prefetch: %llu libraries loaded off the frame path on %d lanes, %.1f ms in all", (unsigned long long)n, g_shpre.n, ns / 1e6);
+     } });
+     os_unfair_lock_unlock(&g_shpre_mu);
++}
++void nvn_be_shader_prefetch(const uint8_t md[8]) {
++    if (!shpre_on()) return;
++    NSString *k = [NSString stringWithFormat:@"%02x%02x%02x%02x%02x%02x%02x%02x", md[0], md[1], md[2], md[3], md[4], md[5], md[6], md[7]];
++    shader_prefetch(k, -1, 0);
++}
++static int rb_bound_exact_on(void) {
++    static int on;
++    static dispatch_once_t once;
++    dispatch_once(&once, ^{
++        const char *e = getenv("S2A_RB_BOUND_SHADER_VARIANT");
++        on = e && !strcmp(e, "1");
++    });
++    return on;
+ }
+ // RewindBox (patch 0069): a Switch 2 stage was first looked at when the submit thread replayed its bind (prog_get), or by the lookahead, which runs only at the first pipeline
+ //   miss of a submission: the first new program of a scene was translated on the submit thread, then its library compiled there. IPA 765: 233 stages translated in play, 48 of them
+@@ -12219,7 +12256,11 @@
+         if (st < 0) continue;
+         if (!packed) dm_shader_keep_known(md, hx, code, ctl);   // RewindBox (patch 0100): this device's translations only
+         os_unfair_lock_lock(&g_shader_lock); int have = g_shcache[shader_identity([k stringByAppendingString:@"_b"], st, 0, dz)] != nil; os_unfair_lock_unlock(&g_shader_lock);
+-        if (!have) { nvn_be_shader_prefetch(md); atomic_fetch_add_explicit(&g_rb_bound_pre, 1, memory_order_relaxed); }
++        if (!have) {
++            if (rb_bound_exact_on()) shader_prefetch(k, st, stage_depth_moded(st) && dz);
++            else nvn_be_shader_prefetch(md);
++            atomic_fetch_add_explicit(&g_rb_bound_pre, 1, memory_order_relaxed);
++        }
+     }
+     }
+     if (!(np & (np - 1)) && np >= 64) MLOG("RewindBox: programs bound by the game looked at ahead of their draw: %llu; stages queued for translation %llu, taken from an earlier run's translation %llu, handed to the prefetch %llu (S2A_RB_BIND_AHEAD)",

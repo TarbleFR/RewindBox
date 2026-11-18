@@ -592,11 +592,16 @@ static NSDictionary *launchFail(NSString *error, NSString *stage, NSString *deta
   int uniformBoundsProfile = setenv("S2A_RB_UNIFORM_BOUNDS_REUSE", kartRender, 0);
   int waitProbeProfile = setenv("S2A_RB_IDLE_WAIT_PROBE", kartRender, 0);
   int frameKeyProfile = setenv("S2A_RB_FRAME_SHADER_KEY", kartRender, 0);
+  // IPA 786: 82 and 96 on-screen drops in successive 300-frame windows at guest 30 FPS.
+  int displayTicksProfile = setenv("S2A_RB_LINK_GAME30", kartRender, 0);
+  int residencyCensusProfile = setenv("S2A_RB_RES_TOP_PER_FRAME", kartRender, 0);
+  int shaderVariantProfile = setenv("S2A_RB_BOUND_SHADER_VARIANT", kartRender, 0);
   BOOL profileFailed = vertexProfile || stagingProfile || workgroupProfile || archiveProfile || workerProfile ||
                        readAheadProfile || shaderBytesProfile || shaderQueueProfile || poolIndexProfile ||
                        textureViewsProfile || demandProbeProfile || audioReprimeProfile || feedbackProfile ||
                        pipelinePriorityProfile || shaderCompletionProfile || pipelineLookaheadProfile ||
-                       uniformBoundsProfile || waitProbeProfile || frameKeyProfile;
+                       uniformBoundsProfile || waitProbeProfile || frameKeyProfile ||
+                       displayTicksProfile || residencyCensusProfile || shaderVariantProfile;
   s2arm_journal("gameProfile", profileFailed ? "failed" : "selected",
                 "\"profile\":\"%s\"", fastFusion ? "fast-fusion" : marioKartWorld ? "mario-kart-world" : "default");
   S2ArmSettingsPrepareLaunch();   // the game language, and the engine's brief overlay that the in-game menu shows or hides

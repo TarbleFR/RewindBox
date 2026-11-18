@@ -1,0 +1,32 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -20778,6 +20778,15 @@
+ //   the limit's 33.3 ms either way, and as that period never changes the 1 s gate below never resets, so following nvn_game_fps (31 changes in the 765 log) would have changed the
+ //   link's rate at each change. The 50 ms period (20 Hz) and DM_FPS=30 are unchanged; no limit: unchanged. S2A_RB_LINK_CAP30=0: 30 Hz under the limit, as before
+ static int rb_link_cap30(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_LINK_CAP30"); v = !(e && !strcmp(e, "0")); } return v; }
++// RewindBox (patch 0115): IPA 786 dropped 82 and 96 on-screen frames in consecutive
++// windows of 300 after switching the link to 30 Hz at frame 2106. On-screen p99
++// reached 79.17 ms. Keep the display at its base rate in automatic game-30 mode,
++// as for a user cap in patch 0068. The guest still waits a 33.33 ms period.
++static int rb_link_game30_on(void) {
++    static int v = -1;   // present thread only
++    if (v < 0) { const char *e = getenv("S2A_RB_LINK_GAME30"); v = e && !strcmp(e, "1"); }
++    return v;
++}
+ __attribute__((weak)) int nvn_rb_video_paced(void) { return 0; }   // RewindBox (patch 0068): hle_nvn.c provides the strong definition
+ // RewindBox (patch 0068): why the link takes this mode, for the 'present pacing mode' line (the IPA 765 line gave none: its 30 Hz came from a 30 FPS limit that the journal never named)
+ static const char *rb_pace_why(int want, int fallback, int inexact) {
+@@ -20812,6 +20821,12 @@
+         // 20 Hz 档只看周期本身（恰好 50 ms、连续 1 秒，下面的迟滞判）：间隔 3 不再计入 30 帧口径（见 hle_nvn.c present_period）
+         const int keep = nvn_fps_limit() == 30 && rb_link_cap30();   // RewindBox (patch 0068): under the 30 limit only the 50 ms period leaves the base rate (the game's own 30 too, see above)
+         if (((nvn_be_fps_target() == 30 || nvn_fps_limit() == 30) && !keep) || candidate == 4) want = candidate;   // RewindBox (patch 0068): keep
++        if (want == 3 && fps_override() < 0 && !nvn_rb_video_paced() && rb_link_game30_on()) {
++            want = candidate = base;
++            static int noted;
++            if (!noted) { noted = 1; MLOG("RewindBox (patch 0115): guest 30 FPS period on the base display link at frame %llu",
++                               (unsigned long long)atomic_load(&g_cur_frame)); }
++        }
+     }
+     // Reuse the one-second rationale of g_itv2_since: a single slow frame must
+     // not reconfigure the system's asynchronous display link. Both directions

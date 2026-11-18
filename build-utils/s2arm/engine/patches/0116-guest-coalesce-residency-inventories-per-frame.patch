@@ -1,0 +1,41 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -5446,6 +5446,19 @@
+ } }
+ // When to log it: the footprint risen by RB_TOP_STEP since the mark (at most RB_TOP_LINES lines), or force: a once-only event (RB_TOP_FORCED of them), logged whatever the growth
+ //   and the count. Any thread holding none of g_res_mu, g_mu, g_smu
++// RewindBox (patch 0116): IPA 786 frame 696 took 1,521.6 ms while three residency
++// inventories enumerated the active textures, pools and heaps during the same frame.
++// Keep the first coarse inventory and the forced failure diagnostics. Leave the
++// unreported footprint delta available for the next frame's normal census.
++static int rb_res_top_once_on(void) {
++    static int on;
++    static dispatch_once_t once;
++    dispatch_once(&once, ^{
++        const char *e = getenv("S2A_RB_RES_TOP_PER_FRAME");
++        on = e && !strcmp(e, "1");
++    });
++    return on;
++}
+ static void rb_res_top_check(const char *why, int force) {
+     if (!force && atomic_load_explicit(&g_rb_top_lines, memory_order_relaxed) >= RB_TOP_LINES) return;
+     uint64_t fp, av; rb_up_mem(&fp, &av);
+@@ -5454,6 +5467,17 @@
+     if (!force && !was) { atomic_compare_exchange_strong(&g_rb_top_fp, &was, fp); return; }   // no mark yet (the device line could not read one): this is the first
+     if (!force && fp + RB_TOP_STEP < was) { atomic_compare_exchange_strong(&g_rb_top_fp, &was, fp); return; }   // fallen more than a step below the mark: it follows, with no line
+     if (!force && fp < was + RB_TOP_STEP) return;
++    if (!force && rb_res_top_once_on()) {
++        static _Atomic uint64_t last_frame_plus_one;
++        static _Atomic uint64_t skipped;
++        const uint64_t frame = atomic_load_explicit(&g_cur_frame, memory_order_relaxed) + 1;
++        if (atomic_exchange_explicit(&last_frame_plus_one, frame, memory_order_relaxed) == frame) {
++            uint64_t count = atomic_fetch_add_explicit(&skipped, 1, memory_order_relaxed) + 1;
++            if (!(count & (count - 1))) MLOG("RewindBox (patch 0116): %llu duplicate residency inventories deferred",
++                                           (unsigned long long)count);
++            return;
++        }
++    }
+     if (force) atomic_store(&g_rb_top_fp, fp);
+     else if (!atomic_compare_exchange_strong(&g_rb_top_fp, &was, fp)) return;   // another thread took this step
+     int n = atomic_fetch_add(&g_rb_top_lines, 1);

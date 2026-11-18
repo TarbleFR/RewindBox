@@ -71,16 +71,19 @@ class _S2ArmInternalPlaylistActionsState
   Future<void> _import(String action) async {
     final control = S2ArmImportControl();
     final progress = ValueNotifier<S2ArmImportProgress?>(null);
-    var dialogShown = false;
+    final navigator = Navigator.of(context, rootNavigator: true);
+    DialogRoute<void>? dialog;
     void showProgress() {
-      if (dialogShown || !mounted) return;
-      dialogShown = true;
-      showDialog<void>(
+      if (dialog != null || !mounted) return;
+      final route = DialogRoute<void>(
         context: context,
         barrierDismissible: false,
+        themes: InheritedTheme.capture(from: context, to: navigator.context),
         builder: (context) =>
             _S2ArmImportDialog(progress: progress, onCancel: control.cancel),
       );
+      dialog = route;
+      navigator.push(route);
     }
 
     S2ArmImportResult? result;
@@ -103,7 +106,11 @@ class _S2ArmInternalPlaylistActionsState
               ),
       );
     } finally {
-      if (dialogShown && mounted) Navigator.of(context).pop();
+      final route = dialog;
+      if (route != null) {
+        if (navigator.mounted && route.isActive) navigator.removeRoute(route);
+        await route.completed;
+      }
       progress.dispose();
     }
     if (result == null || !mounted) return;
@@ -500,12 +507,22 @@ class _S2ArmImportDialog extends StatelessWidget {
               Text(
                 Switch2LibraryLocale.textf(
                   context,
-                  value?.step == 'nup' ? 'unpacking' : 'importing',
+                  switch (value?.step) {
+                    'nup' => 'unpacking',
+                    'scan' => 'preparing',
+                    _ => 'importing',
+                  },
                   {'name': value?.name ?? ''},
                 ),
               ),
               const SizedBox(height: 12),
               LinearProgressIndicator(value: value?.fraction),
+              if (value?.step == 'scan' && value?.unitsDone != null) ...[
+                const SizedBox(height: 6),
+                Text(Switch2LibraryLocale.textf(
+                  context, 'prepCountEntries', {'count': value!.unitsDone},
+                )),
+              ],
               if (value != null && value.fraction != null) ...[
                 const SizedBox(height: 6),
                 Text(
