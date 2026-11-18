@@ -97,7 +97,7 @@ void main() {
   final result=await MelonxInternalService.launch(gamePath:game.path,locale:'fr');
   expect(result['error'],'missingKey');expect(result['nativeStatus'],-17);
   expect(MelonxLaunchDiagnostics.details(result),contains('key_area_key_application_16'));
-  expect(calls,['memoryEntitlements','diagnostics','configureLaunchJournal','probeLocalDevVpnRoute','prepareJit','metadata','launch','cancelJit']);
+  expect(calls,['memoryEntitlements','diagnostics','configureLaunchJournal','probeLocalDevVpnRoute','prepareJit','launch','cancelJit']);
  });
  // Contract replaced: the StikDebug fallback is removed. Its external path ran
  // the pre-iOS 26 RX/RW probe, which iOS 26 kills. A value stored by an older
@@ -106,7 +106,7 @@ void main() {
   SharedPreferences.setMockInitialValues({'ios_stikdebug_fallback_v1':true});
   final first=await MelonxInternalService.launch(gamePath:game.path,locale:'fr');
   expect(first['success'],true);
-  expect(calls,['memoryEntitlements','diagnostics','configureLaunchJournal','probeLocalDevVpnRoute','prepareJit','metadata','launch']);
+  expect(calls,['memoryEntitlements','diagnostics','configureLaunchJournal','probeLocalDevVpnRoute','prepareJit','launch']);
   expect(launchArguments['jitBackend'],'builtin');
   launch={'success':true};
   expect((await MelonxInternalService.launch(gamePath:game.path,locale:'fr'))['success'],false);
@@ -179,7 +179,7 @@ void main() {
   calls.clear();releaseError=null;release={'engineQuarantined':false,'busy':false,'donorState':'released'};
   final result=await MelonxInternalService.launch(gamePath:game.path,locale:'fr');
   expect(result['success'],true);expect(MelonxInternalService.donorRetained,false);
-  expect(calls,['releaseRetainedSession','memoryEntitlements','diagnostics','configureLaunchJournal','probeLocalDevVpnRoute','prepareJit','metadata','launch']);
+  expect(calls,['releaseRetainedSession','memoryEntitlements','diagnostics','configureLaunchJournal','probeLocalDevVpnRoute','prepareJit','launch']);
  });
  test('an engine quarantine or a JIT restart is never cleared by a released donor',()async{
   release={'engineQuarantined':false,'busy':false,'donorState':'released'};
