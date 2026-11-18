@@ -1,0 +1,124 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 7606c9d..a802e66 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -3732,7 +3732,11 @@ enum { TXR_MAX = 256, TXR_SERS = 4, TXR_IDLE = 900 };
+ //   memory was read back from its files at up to 13,000 pages a second (page-ins 131,888 in 10 s, TASK_VM_INFO compressed 825 MB): each size the game's dynamic resolution
+ //   left seldom came back, and with that resolution held at its size (patch 0083) fewer do. Now at most 48 MB, and a texture idle 120 frames (2 s at 60) goes, swept also
+ //   whenever another comes in (not only at the 300-frame report). S2A_RB_TXR_SMALL=0: 192 MB and 900 frames as before
+-static int rb_txr_small_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_TXR_SMALL"); v = !(e && !strcmp(e, "0")); } return v; }   // read under g_smu: said by rb_reuse_report, after it lets the lock go
++// RewindBox (patch 0088): the small pool only with S2A_RB_TXR_SMALL=1. IPA 779 (Mario Kart World, iPhone17,2, races) against IPA 777: 17-40 textures taken back
++//   a 600-frame window against 1,400-1,900 with the 192 MB pool, the guest's memory read back from its files about twice as often a frame (100-290 page-ins
++//   against 46-139) and 33 frames of 200 ms or more that read 20 MB or more against 19: each texture the pool no longer held was made again and filled from
++//   guest memory the system had paged out. The 192 MB and 900 frames of before are the default again
++static int rb_txr_small_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_TXR_SMALL"); v = e && !strcmp(e, "1"); } return v; }   // read under g_smu: said by rb_reuse_report, after it lets the lock go; RewindBox (patch 0088): =1 only
+ static uint64_t txr_bytes_cap(void) { return rb_txr_small_on() ? (48ull << 20) : TXR_BYTES; }
+ static uint64_t txr_idle_frames(void) { return rb_txr_small_on() ? 120 : TXR_IDLE; }
+ typedef struct { alias_key k; uint64_t fence, tick, frame, bytes, ser[TXR_SERS]; int nser; uint32_t tt, pf, w, h, z, nl, na, use; } txr_ent;   // fence: g_done must reach it; its Metal shape
+@@ -15646,7 +15650,7 @@ static void rb_reuse_report(uint64_t frame) {
+     uint64_t v[15] = {g_txr_kept, g_txr_back, g_txr_back_key, g_txr_out, g_txr_press, g_ghost_unheld, g_ghost_miss_gone, g_snp_depth.made, g_snp_color.made, g_fit_made, g_init_copy_n, atomic_load(&g_rb_low_n),
+                       g_snp_depth.taken, g_snp_color.taken, g_fit_kept};
+     pthread_mutex_unlock(&g_smu);
+-    { static int said; if (!said++) MLOG("RewindBox: shared textures kept for reuse: at most %d MB, let go after %d idle frames (S2A_RB_TXR_SMALL%s; patch 0086)", rb_txr_small_on() ? 48 : 192, rb_txr_small_on() ? 120 : TXR_IDLE, rb_txr_small_on() ? "=0: 192 MB and 900 frames as before" : "=0"); }
++    { static int said; if (!said++) MLOG("RewindBox: shared textures kept for reuse: at most %d MB, let go after %d idle frames (S2A_RB_TXR_SMALL%s; patches 0086, 0088)", rb_txr_small_on() ? 48 : 192, rb_txr_small_on() ? 120 : TXR_IDLE, rb_txr_small_on() ? "=1: the small pool of patch 0086" : "=1 would keep 48 MB and 120 frames"); }
+     ghost_trim_all(); atomic_store(&g_snp_sweep, 1);   // review
+     pthread_mutex_lock(&g_smu); unsigned gc = ghost_big_on() ? g_ghost_cap : NGHOST_SMALL; pthread_mutex_unlock(&g_smu);
+     if (!memcmp(v, p, sizeof v)) return;
+diff --git a/runtime/src/thread.c b/runtime/src/thread.c
+index cde898c..5810c3f 100644
+--- a/runtime/src/thread.c
++++ b/runtime/src/thread.c
+@@ -1028,12 +1028,35 @@ static void wg_leave_self(void) {
+ //   Metal encode thread and the uniform copy thread (SC9). 1 when this thread is in the workgroup
+ int s2a_wg_join_thread(const char *who) { if (!wg_on() || g_wg_mode == 2) return 0; wg_join_self(who); return t_wg_joined == 1; }
+ // 每上屏一帧（ap_host.c s2a_frame_presented，渲染线程）：首次在本线程加入；结束上一帧间隔、开始下一帧。fps = 当前标称帧率（0 = 还没报过，按 30）
++// RewindBox (patch 0088): no frame interval while ProcessInfo's thermal state is serious or critical; intervals again after 30 s at fair or below. The workgroup
++//   keeps the frame's threads on the performance cores at a high clock (S2Arm's 10-30 reading: 1.9 -> 3.5 GHz), the power the heat cannot take; without an interval
++//   the system clocks them by their load again, and patch 0087 steps the game's resolution down meanwhile. Read twice a second (dm_thermal_now; the render thread
++//   alone calls s2a_wg_frame). S2A_RB_WG_THERMAL=0: intervals under heat too, as before
++__attribute__((weak)) int dm_thermal_now(void);   // declared weak before this first use: the weak default below (patch 0087), strong in ios/app.m and runtime/src/host_main.c
++static int rb_wg_paused(void) {
++    static int on = -1, paused; static uint64_t at, cool_since;
++    if (on < 0) { const char *e = getenv("S2A_RB_WG_THERMAL"); on = !(e && !strcmp(e, "0")); }
++    if (!on) return 0;
++    uint64_t ns = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
++    if (at && ns - at < 500000000ull) return paused;
++    at = ns;
++    int st = dm_thermal_now();
++    if (st >= 2) {
++        cool_since = 0;
++        if (!paused) { paused = 1; LOG("RewindBox (patch 0088): thermal state %d: the frame workgroup takes no intervals until 30 s at fair or below (S2A_RB_WG_THERMAL)", st); }
++    } else if (paused) {
++        if (!cool_since) cool_since = ns;
++        else if (ns - cool_since >= 30000000000ull) { paused = 0; cool_since = 0; LOG("RewindBox (patch 0088): thermal state %d for 30 s: the frame workgroup takes its intervals again", st); }
++    }
++    return paused;
++}
+ void s2a_wg_frame(int fps) {
+     if (!wg_on()) return;
+     if (!t_wg_joined) wg_join_self("渲染线程");
+     if (t_wg_joined < 0) return;
+     static int started;
+     if (started) { int frc = os_workgroup_interval_finish(g_wg, NULL); if (frc) { static int n; if (!n++) LOG("【红】帧间隔工作组：interval_finish rc=%d", frc); } }
++    if (rb_wg_paused()) { started = 0; return; }   // RewindBox (patch 0088): the interval just finished, none started under heat
+     uint64_t now = thread_clock(), per = g_wg_period;
+     if (!per) { per = (uint64_t)(1e9 / (fps > 0 ? fps : 30) * g_wg_tb.denom / g_wg_tb.numer); }
+     int rc = os_workgroup_interval_start(g_wg, now, now + per, NULL);
+diff --git a/services/S2A.Services/Native.cs b/services/S2A.Services/Native.cs
+index 984a28a..8dd5ff0 100644
+--- a/services/S2A.Services/Native.cs
++++ b/services/S2A.Services/Native.cs
+@@ -360,6 +360,7 @@ namespace S2A.Services
+                 delegate* unmanaged<byte*, int> rbLogLine = (delegate* unmanaged<byte*, int>)rbLog;
+                 _rbLogLine = hasRbLog && System.Environment.GetEnvironmentVariable("S2A_RB_SERVICE_LOG") != "0" && rbLogLine(null) != 0 ? rbLogLine : null;
+                 Red.RbToJournal();
++                RbAudioLines.Install();   // RewindBox (patch 0088)
+ 
+                 if (!hasUnseen && !explicitOwner)
+                 {
+@@ -468,4 +469,45 @@ namespace S2A.Services
+             [DllImport(Lib)] public static extern int s2a_register_cs(CsApi* api);
+         }
+     }
++    // RewindBox (patch 0088): the audio backend writes its lines on stderr ([声]: Ryujinx.Audio.Backends.Apple S2AOutputDiag, the 10-second callback, underrun and gap
++    //   counters and the recoveries), and in a guest the process's stderr stays the host's: no journal holds them (IPA 779: sound cut now and then, nothing to read).
++    //   They now reach the engine's journal (host.log) through Native.RbLog as well; every line still goes to the stderr it had. Lines of no other kind are copied.
++    //   S2A_RB_AUDIO_LOG=0: stderr only, as before
++    internal sealed class RbAudioLines : System.IO.TextWriter
++    {
++        private readonly System.IO.TextWriter _was;
++
++        private RbAudioLines(System.IO.TextWriter was)
++        {
++            _was = was;
++        }
++
++        internal static void Install()
++        {
++            if (!Native.RbLogOn || System.Environment.GetEnvironmentVariable("S2A_RB_AUDIO_LOG") == "0")
++            {
++                return;
++            }
++
++            System.Console.SetError(new RbAudioLines(System.Console.Error));   // Console wraps it in its synchronized writer
++        }
++
++        public override System.Text.Encoding Encoding => _was.Encoding;
++
++        public override void Write(char value) => _was.Write(value);
++
++        public override void Write(string value) => _was.Write(value);
++
++        public override void WriteLine(string value)
++        {
++            if (value != null && value.StartsWith("[声]", System.StringComparison.Ordinal))
++            {
++                Native.RbLog(value);
++            }
++
++            _was.WriteLine(value);
++        }
++
++        public override void Flush() => _was.Flush();
++    }
+ }
