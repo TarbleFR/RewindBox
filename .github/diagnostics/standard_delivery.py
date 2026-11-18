@@ -2912,14 +2912,16 @@ def freeze(build, dry_run=False, repo=None, root=None):
     for kind in ('rpcs3', 'melonx'):
         draft['components'][kind]['pinSha256'] = sha((root / draft['components'][kind]['pin']).read_bytes())
     for kind, spec in engine_components(draft).items():
+        # Product pins deferred from this delivery are restored by materialize before CI reads them.
+        raw = read_product(spec['pin'])
         try:
-            problems = engine_pin_errors(spec, json.loads((root / spec['pin']).read_bytes()))
-        except (OSError, ValueError) as error:
+            problems = engine_pin_errors(spec, json.loads(raw)) if raw is not None else ['missing pin in the effective tree']
+        except (TypeError, ValueError) as error:
             problems = [str(error)]
         if problems:
             blockers.append(f'components.{kind}: the pinned engine pin is not usable: ' + '; '.join(problems))
         else:
-            spec['pinSha256'] = sha((root / spec['pin']).read_bytes())
+            spec['pinSha256'] = sha(raw)
     for kind in retained.ARCHIVES + retained.NATIVES:
         expires = draft['components'][kind]['origin'].get('expiresAt')
         if expires and not draft['components'][kind].get('republished'):
