@@ -1,0 +1,77 @@
+{
+  "Frameworks/armsx2_internal_bridge.framework/armsx2_internal_bridge": {
+    "baselineFingerprint": "91ceaf60be4657f8816650d4acc3edc3999ae2619bcbc67d1f5583f42a6b938a",
+    "candidateFingerprint": "49a3db55d6eb00a89707aeb90d6982dcf38429509d1eb7d097d8c5ce11b5b0ef",
+    "changedAbiFields": [],
+    "sections": 31,
+    "identicalSections": 29,
+    "changed": {
+      "__TEXT,__objc_stubs": {
+        "bytes": [
+          29888,
+          29888
+        ],
+        "changedInstructions": 934,
+        "onlyLdrImmediateOffsets": true
+      },
+      "__TEXT,__stubs": {
+        "bytes": [
+          3060,
+          3060
+        ],
+        "changedInstructions": 1,
+        "onlyLdrImmediateOffsets": true
+      }
+    }
+  },
+  "Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge": {
+    "baselineFingerprint": "da21cb1c0790676ba70a55d853d74cb823587bcbd93f0ac9b784718a854d68e4",
+    "candidateFingerprint": "0cb53f3e8470d03114b0b8eb4fdcb6489bbec83bfdcea19c086843d2f4d58826",
+    "changedAbiFields": [],
+    "sections": 30,
+    "identicalSections": 28,
+    "changed": {
+      "__TEXT,__objc_stubs": {
+        "bytes": [
+          65824,
+          65824
+        ],
+        "changedInstructions": 2057,
+        "onlyLdrImmediateOffsets": true
+      },
+      "__TEXT,__stubs": {
+        "bytes": [
+          3864,
+          3864
+        ],
+        "changedInstructions": 1,
+        "onlyLdrImmediateOffsets": true
+      }
+    }
+  },
+  "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge": {
+    "baselineFingerprint": "8a0af39c724fe4bb05b2cff5e26bad2a2a3623c00f9a3258286050c42f4a2736",
+    "candidateFingerprint": "67f259a1130b3334aaf95422d2dd24f51554dd985e9450f969859e77050f6664",
+    "changedAbiFields": [],
+    "sections": 43,
+    "identicalSections": 41,
+    "changed": {
+      "__TEXT,__objc_stubs": {
+        "bytes": [
+          10560,
+          10560
+        ],
+        "changedInstructions": 330,
+        "onlyLdrImmediateOffsets": true
+      },
+      "__TEXT,__stubs": {
+        "bytes": [
+          9744,
+          9744
+        ],
+        "changedInstructions": 1,
+        "onlyLdrImmediateOffsets": true
+      }
+    }
+  }
+}
