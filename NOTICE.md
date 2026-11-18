@@ -220,6 +220,13 @@ SHA-256 and writes the selected groups or patches. These sources state no
 licence; each patch belongs to the author its file names
 (docs/ENHANCEMENTS.md, "Origin download" and "Rights").
 
+On 18 November 2026 the Switch catalogue added references to ExeFS patches
+and Atmosphère codes published by Fl4sh9174 and the contributors credited
+in the original archives. The application downloads the author's ZIP archive
+at the pinned revision and verifies its SHA-256 before reading the selected
+files. Game records contain names, executable IDs and file references.
+https://github.com/Fl4sh9174/Switch-Emulator-Ultrawide-FPS-Mods/tree/5eed21701e8091389e2e746f073f694ea2ad4ec6
+
 UNIFIED CHEAT CATALOGUE (native/cheats/) — 28 OCTOBER 2026 WITHDRAWAL
 
 The 60 FPS supplement programs of PCSX2/pcsx2_patches, Gabominated/PCSX2,

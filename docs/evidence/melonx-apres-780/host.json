@@ -1,0 +1,210 @@
+{
+  "reference": {
+    "app": "c005092532d8686ba05dfbc66d725bf17b01d5e1",
+    "build": 780,
+    "coreSource": "f41ae7924b821ec791a812dccb857acba769ca67",
+    "coreIosArm64Sha256": "631959ad378df6d1251072329c9cf816eaa539dc2b75a93a0738a0686a71aa68"
+  },
+  "production": {
+    "coreAndImport": "5655578e617bff60f79b5662cbe4b24d12d69951",
+    "catalogue": "1ed6a0681e03e429ba46dd92764593b12bc7bda0",
+    "catalogueRevision": "2026-11-18T0203Z.194be1570540",
+    "prepInputs": 275,
+    "adaptedMembers": 241,
+    "hostTarget": "linux-x64, .NET SDK 10.0.100, Release",
+    "managedLibrarySha256": "54abcc99980007674682cc61e063b25a93360c51888b99a76db3e6aea33d382c",
+    "swift": "syntax parse only",
+    "newIpa": null,
+    "newIosSessions": 0
+  },
+  "hogwarts": {
+    "referenceError": "IManagerForApplication:150 ServiceNotImplementedException followed by SIGABRT",
+    "referencePids": [
+      43820,
+      43839,
+      43858
+    ],
+    "verifiedDomainRequests": 512,
+    "result": "0x767c",
+    "invalidResult": "0x2c7c",
+    "returnedObjects": 0,
+    "clientHandlePreserved": true,
+    "serviceCopiesClosed": true
+  },
+  "nsz": {
+    "formatsCompared": [
+      "solid NCZ",
+      "mixed stored/compressed NCZ blocks",
+      "section gap",
+      "section overlap"
+    ],
+    "corruptInputsRejected": 6,
+    "patchMetadata": {
+      "kind": "update",
+      "displayVersion": "1.2.3",
+      "buildId": "0102030405060708",
+      "baseTitleId": "0100123456780000",
+      "success": true
+    },
+    "wrongTitle": "addonWrongGame",
+    "streamChunkBytes": 65536,
+    "maxDecoderWindowBytes": 134217728
+  },
+  "shaderMetadata": {
+    "fieldsPerProgram": 25,
+    "timerUnit": "ms",
+    "warmedRunsPerSizePerVersion": 14,
+    "controlTimedOutAfterMs": 1000,
+    "corruptInputCandidate": [
+      "invalid magic",
+      "negative length",
+      "truncated struct",
+      "short compressed record"
+    ],
+    "retainedCandidateReadBuffersAfterError": 0,
+    "samples": {
+      "control": {
+        "2112": {
+          "n": 14,
+          "median": 16.8035,
+          "minAlloc": 253480,
+          "maxAlloc": 253480,
+          "checksum": [
+            "1393893600"
+          ],
+          "timingsMs": [
+            17.498,
+            17.489,
+            16.942,
+            17.224,
+            16.887,
+            16.978,
+            17.244,
+            15.855,
+            16.265,
+            16.342,
+            15.87,
+            16.72,
+            16.489,
+            16.315
+          ]
+        },
+        "12150": {
+          "n": 14,
+          "median": 86.982,
+          "minAlloc": 1458040,
+          "maxAlloc": 1458264,
+          "checksum": [
+            "46131879375"
+          ],
+          "timingsMs": [
+            109.646,
+            105.893,
+            95.862,
+            79.218,
+            77.27,
+            76.662,
+            84.844,
+            100.081,
+            97.782,
+            96.279,
+            89.12,
+            80.659,
+            81.899,
+            77.386
+          ]
+        }
+      },
+      "candidate": {
+        "2112": {
+          "n": 14,
+          "median": 11.9925,
+          "minAlloc": 253480,
+          "maxAlloc": 253480,
+          "checksum": [
+            "1393893600"
+          ],
+          "timingsMs": [
+            11.057,
+            11.039,
+            11.248,
+            11.274,
+            11.213,
+            12.325,
+            12.229,
+            11.088,
+            12.511,
+            19.693,
+            17.903,
+            12.163,
+            12.468,
+            11.822
+          ]
+        },
+        "12150": {
+          "n": 14,
+          "median": 61.214,
+          "minAlloc": 1458040,
+          "maxAlloc": 1458264,
+          "checksum": [
+            "46131879375"
+          ],
+          "timingsMs": [
+            88.232,
+            97.355,
+            74.145,
+            64.055,
+            43.842,
+            45.733,
+            46.131,
+            65.186,
+            64.425,
+            63.991,
+            58.437,
+            43.681,
+            49.352,
+            56.791
+          ]
+        }
+      }
+    }
+  },
+  "catalogue": {
+    "sourceCommit": "5eed21701e8091389e2e746f073f694ea2ad4ec6",
+    "examinedZipArchives": 117,
+    "sourceEntries": 664,
+    "titles": 110,
+    "newTitles": 15,
+    "categories": {
+      "fps": 168,
+      "ultrawide": 202,
+      "graphics": 281,
+      "performance": 2,
+      "cheat": 11
+    },
+    "engineParsedExefsReferences": 1006,
+    "decodedWrites": 12011,
+    "compiledAtmosphereCodeBuildPairs": 31,
+    "allEntriesResolved": true,
+    "applyAndRemove": [
+      "exefs",
+      "exefs+cheat",
+      "cheat"
+    ],
+    "oldSwitchEntriesRemovedOrChanged": 0,
+    "otherEnginesIdenticalShards": 96
+  },
+  "checks": {
+    "composition": 519,
+    "hogwartsDma": 172,
+    "shaderLoader": 28,
+    "cheatReport": 55,
+    "catalogueDataTests": 8,
+    "flutterTargetedGroups": [
+      53,
+      38
+    ],
+    "creditsAndSkinSettings": 14,
+    "lastImportAndCatalogueGroupIncludingFixtures": 14
+  }
+}

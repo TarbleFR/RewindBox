@@ -18,12 +18,12 @@ hand. Documentation: [`docs/ENHANCEMENTS.md`](../../../docs/ENHANCEMENTS.md).
 - `VALIDATION.json` — totals of the newest revision, the inputs the builder
   rejected, and what the publication changed.
 
-Sources (pinned): 20, listed with revisions and licences in the index
+The 21 pinned sources are listed with revisions and licences in the index
 (`sources`), in [`docs/ENHANCEMENTS.md`](../../../docs/ENHANCEMENTS.md) and in
 `NOTICE.md`. A source is hosted only when its licence allows redistribution;
 content the embedded engine already ships (ARMSX2 `patches.zip`) is
 referenced by name only; a source without a licence (switch-cheats-db,
-KeatonTheBot/switch-pchtxt-mods, StevensND/switch-port-mods,
+Fl4sh9174/Switch-Emulator-Ultrawide-FPS-Mods, KeatonTheBot/switch-pchtxt-mods, StevensND/switch-port-mods,
 StevensND/ue4-emuswitch-60fps, PCSX2/pcsx2_patches, PeterDelta/PCSX2,
 Gabominated/PCSX2, Saramagrean/NetherSX2-cheats) is not hosted: the
 shards hold names, credits and pointers, and the application downloads the

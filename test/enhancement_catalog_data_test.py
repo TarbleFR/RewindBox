@@ -25,7 +25,7 @@ def load(path):
     return json.loads(gzip.decompress(path.read_bytes()))
 
 
-EXEFS_SOURCES = ('keatonthebot-pchtxt', 'stevensnd-port-mods', 'stevensnd-ue4-mods')
+EXEFS_SOURCES = ('fl4sh-zip', 'keatonthebot-pchtxt', 'stevensnd-port-mods', 'stevensnd-ue4-mods')
 
 
 class CatalogueData(unittest.TestCase):
@@ -102,6 +102,9 @@ class CatalogueData(unittest.TestCase):
                 self.assertRegex(base, r'^https://raw\.githubusercontent\.com/[^/]+/[^/]+/[0-9a-f]{40}/$', 'pinned revision')
                 if origin['source'] == 'switch-cheats-db':
                     self.assertRegex(origin['path'], r'^cheats(_gfx)?/0100[0-9A-F]{12}\.json$')
+                elif origin['source'] == 'fl4sh-zip':
+                    self.assertIn('[' + title + ']', origin['path'].upper())
+                    self.assertTrue(origin['path'].lower().endswith('.zip'))
                 else:
                     # An exefs patch file of a source read by reference: <game>/<Title ID>/<mod>/exefs/<version>.pchtxt,
                     # or <game>/[<Title ID>]/<mod>/<version>.pchtxt.
@@ -115,7 +118,11 @@ class CatalogueData(unittest.TestCase):
                 self.assertLessEqual(origin['size'], 16 << 20)
 
             def pointer(value):
-                self.assertEqual(set(value), {'o', 'k'})
+                extra = {'member', 'rawSize'} if files[value['o']]['source'] == 'fl4sh-zip' else set()
+                self.assertEqual(set(value), {'o', 'k'} | extra)
+                if extra:
+                    self.assertLessEqual(value['rawSize'], 65536)
+                    self.assertTrue(value['member'].lower().endswith('.txt'))
                 self.assertIn(value['o'], range(len(files)))
                 self.assertIsInstance(value['k'], str)
             for build, value in record['master'].items():
@@ -127,16 +134,24 @@ class CatalogueData(unittest.TestCase):
                 if 'exefs' in entry:
                     # Exefs patches by reference: a Build ID and a pointer to the source's file, never its text.
                     self.assertIn(entry['source'], EXEFS_SOURCES)
-                    self.assertNotIn('builds', entry)
+                    if 'builds' in entry:
+                        self.assertEqual(entry['source'], 'fl4sh-zip')
+                        self.assertEqual(set(entry['builds']), {p['bid'][:16] for p in entry['exefs']})
+                        for value in entry['builds'].values():
+                            pointer(value)
                     self.assertTrue(entry['exefs'])
                     for patch in entry['exefs']:
-                        self.assertEqual(set(patch), {'bid', 'o', 'size', 'sha256'})
+                        extra = {'member', 'rawSize'} if entry['source'] == 'fl4sh-zip' else set()
+                        self.assertEqual(set(patch), {'bid', 'o', 'size', 'sha256'} | extra)
+                        if extra:
+                            self.assertLessEqual(patch['rawSize'], 65536)
+                            self.assertTrue(patch['member'].lower().endswith('.pchtxt'))
                         self.assertRegex(patch['bid'], r'^[0-9A-F]{32,64}$')
                         self.assertEqual(files[patch['o']]['source'], entry['source'])
                         self.assertRegex(patch['sha256'], r'^[0-9a-f]{64}$')
                         self.assertLessEqual(patch['size'], 64 * 1024)
                     continue
-                self.assertEqual(entry['source'], 'switch-cheats-db')
+                self.assertIn(entry['source'], ('switch-cheats-db', 'fl4sh-zip'))
                 self.assertFalse(UNSAFE_SWITCH_NAME.search(entry['name']), entry['name'])
                 self.assertNotIn(entry['name'].casefold(), names, 'one program per name')
                 names.add(entry['name'].casefold())
@@ -246,7 +261,7 @@ class CatalogueData(unittest.TestCase):
     def test_sources_carry_attribution(self):
         sources = {s['id']: s for s in self.index['sources']}
         self.assertEqual(set(sources), {
-            'switch-cheats-db', 'keatonthebot-pchtxt', 'stevensnd-port-mods', 'stevensnd-ue4-mods', 'rpcs3-patches',
+            'switch-cheats-db', 'fl4sh-zip', 'keatonthebot-pchtxt', 'stevensnd-port-mods', 'stevensnd-ue4-mods', 'rpcs3-patches',
             'artemis-rpcs3', 'artemis-rpcs3-pkg',
             'armsx2-patches-zip', 'cookieplmonster-ccc', 'aerowidescreen-pcsx2',
             'pcsx2-patches', 'peterdelta-pcsx2', 'gabominated-pcsx2', 'nethersx2-cheats',
