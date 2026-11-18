@@ -98,8 +98,9 @@ Shaped like `XeniaInternalService` (PR #172) so the shared library layer calls b
 
 The bridge selects a compatibility profile by title ID before loading the guest framework. Fast Fusion
 gets patch 0090's NVN2 vertex-state fix. Mario Kart World gets patch 0091's earlier staging trim under
-memory pressure and patch 0093's workgroup rest during stable cadence at a fair thermal state. The
-default profile sets the three switches to `0`. Values supplied to the launch environment take
+memory pressure, patch 0093's workgroup rest during stable cadence at a fair thermal state, and
+patch 0094's coalesced archive writes during gameplay. The default profile sets these switches to
+`0`. Values supplied to the launch environment take
 precedence for comparison runs. The `gameProfile` journal entry records the selected profile. The
 graphics and language settings below are shared defaults.
 

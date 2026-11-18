@@ -1,0 +1,119 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -8494,6 +8494,7 @@
+     if (!s || [g_pso_user_seen containsObject:s]) return;
+     [g_pso_user_seen addObject:s]; fputs(line, f); fflush(f);
+ }
++static _Atomic int g_fu_waiting;   // RewindBox (patch 0094): also observed by the archive writer
+ #include "pso_archive.h"   // S2Arm: per-pipeline binary archive (after MacNativeGames, MIT)
+ // Archive keys: a render pipeline by its pso_skey, as pso_user.tsv records it; nil (not archived) for a specialized fragment (readable-tile merge) or a diagnostic override
+ static NSString *par_rkey(const pso_key *k, NvShader *vs, NvShader *fs, int merged, id fsfn) {
+@@ -11305,7 +11306,7 @@
+ //   提交线程在等一条首遇管线（g_fu_waiting > 0）期间，预热工人不领新行（warm_pick 里等，每次最多 FU_YIELD_MAX_MS，防饿死），已在编的编完。
+ //   g_warm_busy = 正在编的预热行数，首遇等待行里报「开始等时几个在编」，好分清等的是排队还是编译本身。DM_PSO_FU_YIELD=0 关（A/B 用）
+ enum { FU_YIELD_MAX_MS = 3000 };
+-static _Atomic int g_fu_waiting, g_warm_busy;
++static _Atomic int g_warm_busy;
+ static _Atomic uint64_t g_fu_yield_n, g_fu_yield_ns;
+ static int fu_yield_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("DM_PSO_FU_YIELD"); v = !(e && !strcmp(e, "0")); } return v; }
+ static id<MTLRenderPipelineState> pso_pend_take(const pso_key *k, int *timed_out, int may_skip) {   // Called by the submit thread: if it is in the table, wait for it to finish compiling and take it; otherwise return nil. *timed_out: 1 = past its own limit (late), 2 = the frame's budget ran out
+diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archive.h
+--- a/graphics/nvn/gfx/nvn/pso_archive.h
++++ b/graphics/nvn/gfx/nvn/pso_archive.h
+@@ -36,6 +36,7 @@
+ //   pipelines were compiled beside the submit thread already (736 kicked, 732 taken by their draw) and its stalls were library compiles (the three 10 s output stalls had
+ //   the submit thread in Metal under shader_build). With a seed list nothing changes; DM_PSO_ARCHIVE=0 turns it off with the archive
+ static int g_par_note_play;                                              // set by nvn_mtl.m warm_paths: the package has no seed list
++static int g_rb_archive_coalesce;                                       // RewindBox (patch 0094): set once with the archive
+ static NSMutableArray *g_par_todo;                                       // @[key, descriptor] noted by the prewarm, written beside it (par_writer)
+
+ static NSDictionary *par_identity(id<MTLDevice> dev) {
+@@ -113,6 +114,8 @@
+     static dispatch_once_t once;
+     dispatch_once(&once, ^{
+         const char *ev = getenv("DM_PSO_ARCHIVE"); if (ev && !strcmp(ev, "0")) { MLOG("DM_PSO_ARCHIVE=0: no pipeline archive, every pipeline compiles"); return; }
++        const char *coalesce = getenv("S2A_RB_PSO_ARCHIVE_COALESCE");
++        g_rb_archive_coalesce = coalesce && !strcmp(coalesce, "1");
+         // The package's archives (pack time, shader line 10-26: one file per pipeline under the same key, made for the target GPU): looked up first, never removed or rewritten
+         g_par_bhave = [NSMutableSet set];
+         if (g_shmap_path && !g_par_harvest) {
+@@ -232,7 +235,14 @@
+ #endif
+ static void par_write_batch(NSArray<NSArray *> *items) {
+     NSMutableArray<NSArray *> *todo = [NSMutableArray array];
+-    pthread_mutex_lock(&g_par_mu); for (NSArray *it in items) if (![g_par_have containsObject:it[0]]) [todo addObject:it]; pthread_mutex_unlock(&g_par_mu);
++    NSMutableSet<NSString *> *seen = g_rb_archive_coalesce ? [NSMutableSet set] : nil;
++    pthread_mutex_lock(&g_par_mu);
++    for (NSArray *it in items) {
++        if ([g_par_have containsObject:it[0]] || [seen containsObject:it[0]]) continue;
++        [seen addObject:it[0]];
++        [todo addObject:it];
++    }
++    pthread_mutex_unlock(&g_par_mu);
+     if (!todo.count) return;
+     NSString *name = [NSString stringWithFormat:@"batch-%llx-%d.metalarchive", (unsigned long long)clock_gettime_nsec_np(CLOCK_REALTIME), getpid()];
+     NSString *path = [g_par_dir stringByAppendingPathComponent:name], *temp = [path stringByAppendingString:@".tmp"];
+@@ -260,13 +270,49 @@
+ }
+ static int g_par_writer;                                                 // the writer is running (g_par_mu)
+ static uint64_t g_par_w_t0, g_par_w_n0;
++// RewindBox (patch 0094): Mario Kart World on IPA 783 opened 3891 pipelines, 2000 batch files.
++// The profile at frame 611 sampled the archive writer during a 4401 ms frame with 4298 ms of
++// new pipeline and library work. Archive writes call the Metal compiler again. Bundle sparse
++// play arrivals for 250 ms and let a required draw waiting for its pipeline go ahead of the
++// next write, for at most 2 s from the first enqueue. Prewarm writes and current writes keep
++// running; a timer on the existing queue keeps an isolated last item from remaining pending.
++// No change to descriptors, archive keys, draw order, or shaders. Set S2A_RB_PSO_ARCHIVE_COALESCE=0
++// for the original writer and compare write sizes, new pipeline waits, and late-frame CPU power.
++static uint64_t g_rb_archive_first, g_rb_archive_delays, g_rb_archive_priority_delays, g_rb_archive_batches;   // under g_par_mu
++static int g_rb_archive_has_warm;
+ static void par_writer(void) { @autoreleasepool {
+     for (;;) @autoreleasepool {
+         pthread_mutex_lock(&g_par_mu);
+-        NSUInteger n = MIN(g_par_todo.count, (NSUInteger)PAR_BATCH); NSArray *batch = n ? [g_par_todo subarrayWithRange:NSMakeRange(0, n)] : nil;
+-        if (n) [g_par_todo removeObjectsInRange:NSMakeRange(0, n)]; else g_par_writer = 0;
++        NSUInteger n = MIN(g_par_todo.count, (NSUInteger)PAR_BATCH);
++        uint64_t serial = 0, delays = 0, priority_delays = 0;
++        if (n && g_rb_archive_coalesce && !g_rb_archive_has_warm) {
++            uint64_t age = clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - g_rb_archive_first;
++            uint64_t delay = 0;
++            if (age < 2000000000ull && atomic_load_explicit(&g_fu_waiting, memory_order_relaxed)) {
++                delay = MIN(100000000ull, 2000000000ull - age);
++                g_rb_archive_priority_delays++;
++            } else if (n < PAR_BATCH && age < 250000000ull)
++                delay = 250000000ull - age;
++            if (delay) {
++                g_rb_archive_delays++;
++                pthread_mutex_unlock(&g_par_mu);
++                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)delay), s2a_qos_global(S2A_QOS_IO_BG), ^{ par_writer(); });
++                return;
++            }
++            serial = ++g_rb_archive_batches;
++            delays = g_rb_archive_delays;
++            priority_delays = g_rb_archive_priority_delays;
++        }
++        NSArray *batch = n ? [g_par_todo subarrayWithRange:NSMakeRange(0, n)] : nil;
++        if (n) {
++            [g_par_todo removeObjectsInRange:NSMakeRange(0, n)];
++            if (!g_par_todo.count) g_rb_archive_has_warm = 0;
++        } else g_par_writer = 0;
+         pthread_mutex_unlock(&g_par_mu);
+         if (!batch) break;
++        if (serial && !(serial & (serial - 1)))
++            MLOG("RewindBox (patch 0094): pipeline archive play batch %llu, %lu entries, %llu delays, %llu for first use",
++                 (unsigned long long)serial, (unsigned long)n, (unsigned long long)delays, (unsigned long long)priority_delays);
+         par_write_batch(batch);   // whatever is noted when the writer comes round, up to PAR_BATCH a file
+     }
+ } }
+@@ -274,6 +320,10 @@
+     if (!par_write_in_place) { static _Atomic int said; if (!atomic_exchange(&said, 1)) MLOG("pipeline archive: the package has no seed list: what is first compiled in play is written too, beside it"); }   // RewindBox (patch 0033): g_par_note_play
+     pthread_mutex_lock(&g_par_mu);
+     if (!g_par_todo) g_par_todo = [NSMutableArray array];
++    if (g_rb_archive_coalesce) {
++        if (!g_par_todo.count) g_rb_archive_first = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
++        if (par_write_in_place) g_rb_archive_has_warm = 1;
++    }
+     [g_par_todo addObject:@[key, desc]];
+     int start = !g_par_writer; g_par_writer = 1;
+     if (start && !g_par_w_t0) { g_par_w_t0 = clock_gettime_nsec_np(CLOCK_UPTIME_RAW); g_par_w_n0 = atomic_load(&g_par_written); }

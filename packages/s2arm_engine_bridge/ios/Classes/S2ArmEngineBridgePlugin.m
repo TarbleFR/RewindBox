@@ -556,7 +556,8 @@ static NSDictionary *launchFail(NSString *error, NSString *stage, NSString *deta
   int vertexProfile = setenv("S2A_RB_NVN2_VATTR_PREFIX", fastFusion ? "1" : "0", 0);
   int stagingProfile = setenv("S2A_RB_UP_PRESSURE_TRIM", marioKartWorld ? "1" : "0", 0);
   int workgroupProfile = setenv("S2A_RB_WG_CADENCE_IDLE", marioKartWorld ? "1" : "0", 0);
-  s2arm_journal("gameProfile", vertexProfile || stagingProfile || workgroupProfile ? "failed" : "selected",
+  int archiveProfile = setenv("S2A_RB_PSO_ARCHIVE_COALESCE", marioKartWorld ? "1" : "0", 0);
+  s2arm_journal("gameProfile", vertexProfile || stagingProfile || workgroupProfile || archiveProfile ? "failed" : "selected",
                 "\"profile\":\"%s\"", fastFusion ? "fast-fusion" : marioKartWorld ? "mario-kart-world" : "default");
   S2ArmSettingsPrepareLaunch();   // the game language, and the engine's brief overlay that the in-game menu shows or hides
   S2ArmGuestFileSpace();          // the free space the engine wants for the guest memory files (S2A_GUEST_FILE_MIN_FREE_MB)
