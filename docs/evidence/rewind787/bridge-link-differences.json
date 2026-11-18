@@ -1,0 +1,31 @@
+{
+  "Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge": {
+    "baselineFingerprint": "0cb53f3e8470d03114b0b8eb4fdcb6489bbec83bfdcea19c086843d2f4d58826",
+    "candidateFingerprint": "da21cb1c0790676ba70a55d853d74cb823587bcbd93f0ac9b784718a854d68e4",
+    "changedAbiFields": [],
+    "sections": 30,
+    "identicalSections": 28,
+    "changed": {
+      "__TEXT,__objc_stubs": {
+        "bytes": [
+          65824,
+          65824
+        ],
+        "changedInstructions": 2057,
+        "onlyLdrImmediateOffsets": true
+      },
+      "__TEXT,__stubs": {
+        "bytes": [
+          3864,
+          3864
+        ],
+        "changedInstructions": 1,
+        "onlyLdrImmediateOffsets": true
+      }
+    },
+    "reference": {
+      "comparisonBuild": 785,
+      "sameFingerprintAsSignedBase": 786
+    }
+  }
+}
