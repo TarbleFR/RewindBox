@@ -1296,7 +1296,7 @@
     "build-utils/melonx/adapt_cached_shader_stages.py": "5221ea35b9d38761e00c865f424ce9d11adf618d4adf4ef448e71de812679ca8",
     "build-utils/melonx/adapt_account_cache_import.py": "ce4300dd5d26ffbbd3f3a1ec0a3399e264a9dd7b38f5cc8de770fb666fa2375e",
     "build-utils/melonx/adapt_xci_update_identity.py": "4687bc1445405498a80d32ef23b597fb96d01709b883bcae0de8c02ef3b9e9c7",
-    "build-utils/melonx/adapt_hogwarts_frame_budget.py": "5ed485124b69777db66de404f76cf85d34b3067bd3018632f0b5358ca82db95c"
+    "build-utils/melonx/adapt_hogwarts_frame_budget.py": "64363f6f131a98ffd1395bbe606c9b17e6cd7aec4b539f4e8f64ced2f4c70741"
   },
   "preparedMembers": {
     "src/Ryujinx.Library/Library.cs": "ea0f7af448cae5d4e6c88c9fbd47a70e0256c070301dae252e68db6f559a627c",
@@ -1428,7 +1428,7 @@
     "src/Ryujinx.Cpu/LightningJit/Arm64/Target/Arm64/InstTable.cs": "5514038a1d441ad387498fabffdde73c741dd2a06ae13c73a5b7172a54730d4b",
     "src/Ryujinx.Cpu/LightningJit/NativeInterface.cs": "1202cee894cdd8b746dd46aae2600a03c387637bfd8b3cfd79ee183b4c59bbc4",
     "src/Ryujinx.Graphics.GAL/Multithreading/Model/CircularSpanPool.cs": "c167894bb19e2b431d2f611838e64a2ecd7b0d55a65dc2fb112765231cafeb81",
-    "src/Ryujinx.Graphics.Vulkan/BufferHolder.cs": "a6e73766ed464ed4872e60056f95aa2ea65f2cb5cc6adf43ec88ed9485c9ff7c",
+    "src/Ryujinx.Graphics.Vulkan/BufferHolder.cs": "2d8ac5a5b2ca707123dabe857a6fe37f0069e36ab86b6e094ec61f21c4b209ea",
     "src/Ryujinx.Memory/IVirtualMemoryManager.cs": "e5780e075bb2f8c03e3f3ec7196e567a7d8956e3feabf9902781a0c7e554f16a",
     "src/Ryujinx.Cpu/Jit/MemoryManagerHostTracked.cs": "ffd48399d30caa34fec2088122ec6eb78c39c8d4e8305b55ca7e0f5c263bdea6",
     "src/Ryujinx.Graphics.Gpu/Engine/Threed/DrawManager.cs": "86d90a713bd0f5c6b510110382e1c35b17195c9da9f551993c7326adb2b79e7f",

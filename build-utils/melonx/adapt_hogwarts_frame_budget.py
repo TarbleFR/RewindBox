@@ -170,7 +170,10 @@ def keep_partial_buffer_mirrors(source):
                 if (EncodingPolicy.IncrementalArrayDescriptors && _pendingData.Length >= 85000 &&
                     _pendingDataRanges.Count() == 0)
                 {
-                    MirrorCopyJournal.Removed(_pendingData.Length);
+                    if (!_mirrorCopyCountedOut)
+                    {
+                        MirrorCopyJournal.Removed(_pendingData.Length);
+                    }
                     _pendingData = null;
                     _pendingDataOffset = 0;
                 }
@@ -192,6 +195,38 @@ def keep_partial_buffer_mirrors(source):
          'SetData(rangeOffset, pending.AsSpan(rangeOffset - pendingOffset, rangeSize), cbs, _gd.PipelineInternal.EndRenderPassDelegate, false);')
     once(path, 'SetData(rangeOffset, _pendingData.AsSpan(rangeOffset - _pendingDataOffset, rangeSize), cbs, null, false);',
          'SetData(rangeOffset, pending.AsSpan(rangeOffset - pendingOffset, rangeSize), cbs, null, false);')
+    once(path, '''        public static void Added(int size, int previousSmallWindow = 0)
+        {
+            if (previousSmallWindow == 0)
+            {
+                Interlocked.Increment(ref _buffers);
+            }
+
+            if (size >= LargeObjectBytes)
+            {
+                Interlocked.Increment(ref _largeBuffers);
+                Interlocked.Add(ref _largeBytes, size);
+            }
+
+            long bytes = Interlocked.Add(ref _bytes, size - previousSmallWindow);''',
+         '''        public static void Added(int size, int previousCapacity = 0)
+        {
+            if (previousCapacity == 0)
+            {
+                Interlocked.Increment(ref _buffers);
+            }
+
+            if (size >= LargeObjectBytes)
+            {
+                if (previousCapacity < LargeObjectBytes)
+                {
+                    Interlocked.Increment(ref _largeBuffers);
+                }
+                int previousLargeBytes = previousCapacity >= LargeObjectBytes ? previousCapacity : 0;
+                Interlocked.Add(ref _largeBytes, size - previousLargeBytes);
+            }
+
+            long bytes = Interlocked.Add(ref _bytes, size - previousCapacity);''')
     return [path]
 
 
