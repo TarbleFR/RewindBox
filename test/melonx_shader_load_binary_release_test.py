@@ -193,7 +193,9 @@ inputs = ['build-utils/melonx/adapt_shader_load_binary_release.py', 'build-utils
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
 receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPARATION,
                sourceKind='finalPreparationWithReversedControl',
-               postimages={p: sha(FINAL_SOURCE / p) for p in adapter.BASELINE}, sdk=sdk, reports=reports,
+               postimages={p: sha(FINAL_SOURCE / p) for p in [*adapter.BASELINE,
+                   'src/Ryujinx.Graphics.Gpu/Shader/DiskCache/BinarySerializer.cs',
+                   'src/Ryujinx.Graphics.Gpu/EmbeddedShaderMetadataReader.cs']}, sdk=sdk, reports=reports,
                shaderLoadBinaryRelease=dict(executed=True, controlRetainedMiB=control['memoryRetainedMiB'],
                                             candidateRetainedMiB=candidate['memoryRetainedMiB']),
                physicalDeviceTested=False, productionGpuAssemblyBuilt=True, sourceBaseline=adapter.BASELINE,

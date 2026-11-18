@@ -159,11 +159,13 @@ abstract final class MelonxInternalService {
     String method, {
     String? filePath,
     String? titleId,
+    String? expandedPath,
   }) async {
     _installDiagnostics();
     final report = await channel.invokeMapMethod<String, dynamic>(method, {
       'path': filePath ?? '',
       if (titleId != null) 'titleId': titleId,
+      if (expandedPath != null) 'expandedPath': expandedPath,
     });
     if (report == null) throw StateError('Missing MeloNX content response');
     if (report['success'] != true)

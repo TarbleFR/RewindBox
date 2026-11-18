@@ -23,6 +23,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
 from melonx_adapter_control import control_source, use_authenticated_libhac_feed  # noqa: E402
+from adapt_account_cache_import import ACCOUNT
 import adapt_cheat_report as adapter  # noqa: E402
 
 FINAL_SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate-source' in sys.argv else sys.argv[1]).resolve()
@@ -34,7 +35,9 @@ FIXTURE = ROOT / 'test/melonx_cheat_report/Program.cs'
 FIXTURE_CHECKS = 27
 NATIVE = {'native/melonx/EmbeddedGraphicsSettings.cs': 'src/Ryujinx.Library/EmbeddedGraphicsSettings.cs',
           'native/melonx/EmbeddedCheatReport.cs': 'src/Ryujinx.HLE/EmbeddedCheatReport.cs',
-          'native/melonx/EmbeddedAddons.cs': 'src/Ryujinx.Library/EmbeddedAddons.cs'}
+          'native/melonx/EmbeddedAddons.cs': 'src/Ryujinx.Library/EmbeddedAddons.cs',
+          'native/melonx/EmbeddedNsz.cs': 'src/Ryujinx.Library/EmbeddedNsz.cs',
+          'native/melonx/EmbeddedAddonSelection.cs': 'src/Ryujinx.Library/EmbeddedAddonSelection.cs'}
 MATCHING = ('Cheats of 01006a800016e000: main build id 0123456789ABCDEF; found 5, installed 2, enabled 1, skipped for another '
             'build id 3 (1111222233334444, FEDCBA9876543210) (adapt_cheat_report)')
 NONE_MATCHING = ('Cheats of 01006a800016e000: main build id 9999888877776666; found 5, installed 0, enabled 0, skipped for '
@@ -163,7 +166,7 @@ inputs = ['build-utils/melonx/adapt_cheat_report.py', 'build-utils/melonx/prepar
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
 receipt = dict(result='passed', checks=checks, fixtureChecks=report['checks'], finalPreparationBound=FINAL_PREPARATION,
                sourceKind='finalPreparationWithReversedControl',
-               postimages={p: sha(FINAL_SOURCE / p) for p in [*adapter.BASELINE, *NATIVE.values()]}, sdk=sdk, report=report,
+               postimages={p: sha(FINAL_SOURCE / p) for p in [*adapter.BASELINE, *NATIVE.values(), ACCOUNT]}, sdk=sdk, report=report,
                cheatReport=dict(executed=True, lines=[report['matching'], report['noneMatching'], report['withoutCheats']]),
                physicalDeviceTested=False, productionAssembliesBuilt=True, sourceBaseline=adapter.BASELINE,
                inputs={p: sha(ROOT / p) for p in inputs},

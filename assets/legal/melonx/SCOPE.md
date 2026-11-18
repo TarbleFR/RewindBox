@@ -38,3 +38,7 @@ corresponding-source or binary distribution obligations. See the current
 native dependency evidence and release preparation review before enabling
 runtime packaging. The current test-build correspondence and limitations are
 recorded in `docs/melonx-embedded-build506.md`.
+
+ZstdSharp.Port 0.8.7 (Oleg Stepanischev, MIT) decodes Zstandard streams for
+compressed game updates. Its MIT notice and the Zstandard BSD notice accompany the engine. The format
+description is published by nicoboss/nsz.
