@@ -120,7 +120,7 @@ class S2ArmImportProgress {
   final int total;
   double? get fraction => total <= 0 ? null : (done / total).clamp(0.0, 1.0);
 
-  // Import stages are 'scan' (indeterminate), 'nup' (unpacked bytes), and null (folder copy).
+  // Import stages are 'scan', 'clone', 'nup' (unpacked bytes), and null (folder copy).
   // For launch preparation the step is unpack, code, caps, direct, module, pack or done. part: the
   // code stage's part (zbic, addr_need, nro, a module such as main, tables) or "reused". phase: the part's phase (a
   // pass of the rewriter, "walk", "zbic"...). attempt: 2... when the rewriter redoes a module with a new layout.
@@ -761,7 +761,7 @@ abstract final class S2ArmInternalService {
       await staging.create(recursive: true);
       await _removeStaging(stage);
       if (control?.cancelled ?? false) return null;
-      report(0, 0);
+      report(0, 0, step: 'clone');
       // APFS clones the tree in one system call. A successful clone needs no size walk.
       if (await cloneTree(source.path, stage.path)) {
         final target = await _freeDirectory(games, title);
@@ -1152,6 +1152,34 @@ abstract final class S2ArmInternalService {
   static final RegExp _hex16 = RegExp(r'^[0-9A-Fa-f]{16}$');
   static final RegExp _hex32 = RegExp(r'^[0-9A-Fa-f]{32}$');
   static final RegExp _checkpointName = RegExp(r'^0x([0-9A-Fa-f]{16})(?: .*)?$');
+
+  // Preserve title and profile metadata outside the deepest folder picked in Files.
+  static Future<({String program, String kind, String? user})?> _directSaveSource(String picked) async {
+    final root = path.normalize(picked);
+    final name = path.basename(root);
+    final parent = path.dirname(root);
+    final user = path.basename(parent).toLowerCase();
+    if (_hex16.hasMatch(name) && _hex32.hasMatch(user) &&
+        path.basename(path.dirname(parent)) == '0000000000000000') {
+      final device = user == '00000000000000000000000000000000';
+      return (program: name.toLowerCase(), kind: device ? 'device' : 'account', user: device ? null : user);
+    }
+    if (name != '0' || !_hex16.hasMatch(user)) return null;
+    final meta = File(path.join(parent, 'ExtraData0'));
+    if (!await meta.exists() || await meta.length() < 0x40) return null;
+    final bytes = await meta.openRead(0, 0x40).fold<List<int>>(<int>[], (all, chunk) => all..addAll(chunk));
+    final data = ByteData.sublistView(Uint8List.fromList(bytes));
+    final program = data.getUint64(0, Endian.little);
+    if (program == 0 || data.getUint64(0x18, Endian.little) != 0 || (bytes[0x20] != 1 && bytes[0x20] != 3)) return null;
+    String word(int offset) => data.getUint32(offset, Endian.little).toRadixString(16).padLeft(8, '0');
+    final profile = word(12) + word(8) + word(20) + word(16);
+    final device = bytes[0x20] == 3;
+    return (
+      program: program.toRadixString(16).padLeft(16, '0'),
+      kind: device ? 'device' : 'account',
+      user: device ? null : profile,
+    );
+  }
 
   /// The game a picked save names, as 16 lower-case hex digits, read the way the engine recognizes saves (S2Arm services
   /// SaveFolder.cs Detect): a Ryujinx export (<16 hex>/0 beside ExtraData0, whose first 8 bytes are the program id), a

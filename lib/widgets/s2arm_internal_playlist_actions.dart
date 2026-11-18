@@ -523,6 +523,7 @@ class _S2ArmImportDialog extends StatelessWidget {
                   switch (value?.step) {
                     'nup' => 'unpacking',
                     'scan' => 'preparing',
+                    'clone' => 'cloningFolder',
                     _ => 'importing',
                   },
                   {'name': value?.name ?? ''},
