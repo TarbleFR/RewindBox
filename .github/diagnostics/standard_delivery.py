@@ -2838,7 +2838,7 @@ def freeze(build, dry_run=False, repo=None, root=None):
         blockers.append('components.rpcs3: ' + '; '.join(pin_report['errors']))
     melonx_raw = (root / draft['components']['melonx']['pin']).read_bytes()
     melonx_pin = json.loads(melonx_raw)
-    contract = read_head(melonx_component(draft).CONTRACT)
+    contract = read_product(melonx_component(draft).CONTRACT)
     if not (melonx_pin.get('status') == 'verified' and contract is not None and
             melonx_pin['contractSha256'] == sha(contract) and melonx_pin['name'] == 'MeloNX-engine-' + melonx_pin['source']):
         blockers.append('components.melonx: the MeloNX Core pin is not verified against its contract')

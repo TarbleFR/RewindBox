@@ -2,7 +2,7 @@
   "schema": 1,
   "build": 784,
   "status": "draft",
-  "note": "Private Switch 2 validation on verified 783. Import flat ExeFS/RomFS layouts and all games in a selected parent. S2Arm 0094 coalesces gameplay pipeline archive writes for Mario Kart World.",
+  "note": "Draft on verified IPA 783. Holds IPA triggering until the updated S2Arm thermal candidate has been checked.",
   "base": {
     "build": 783,
     "source": "30b3843ad88181f0248a2fddba7b14c31a1f1f4e",
@@ -347,6 +347,10 @@
       {
         "commit": "66fc12b9e3da9f90fd347de57b8463e3a2238a83",
         "note": "Pin the S2Arm engine and preparation library; retain authenticated system data."
+      },
+      {
+        "commit": "00973711154545a5ebf78a82b72ce1e424d5a018",
+        "note": "Patches 0095 and 0096 reduce repeated worker polling and bound speculative reads in Mario Kart World."
       }
     ],
     "sourceOnly": [
@@ -364,7 +368,9 @@
       "Frameworks/App.framework/App",
       "Frameworks/S2ArmEngine.framework/S2ArmEngine"
     ],
-    "added": [],
+    "added": [
+      "Frameworks/S2ArmEngine.framework/S2ArmEngine"
+    ],
     "removed": [],
     "replaced": {},
     "retained": {

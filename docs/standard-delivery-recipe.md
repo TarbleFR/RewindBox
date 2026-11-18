@@ -291,6 +291,10 @@ les IPA de test ne se compilent que dans `TarbleFR/RewindBox` ; ailleurs, seule 
    contrat hors ligne ne le voit pas. Remède sans changer la recette : partir de la livraison qui contient ce pin
    (754 refaite sur la 753), ou classer le commit du pin comme revu.
 
+13. **Le gel vérifie le contrat du Core livré.** Quand un commit MeloNX différé change son contrat,
+   le gel et le test de contrat lisent le fichier de l'arbre effectif restauré. La vérification de
+   l'empreinte du contrat et du pin du Core retenu reste obligatoire en CI.
+
 ## 4. État de la 611 (1er novembre 2026)
 
 Le manifeste `build-utils/delivery/611.json` est un **brouillon**. `freeze 611 --dry-run` sur

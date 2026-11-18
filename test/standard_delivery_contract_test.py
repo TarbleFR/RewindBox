@@ -399,13 +399,18 @@ class Components(unittest.TestCase):
     def test_melonx_pin_is_verified_and_bound_to_its_contract(self):
         _, manifest = current_manifest()
         melonx = sd.melonx_component(manifest)
-        pin = melonx.pin()
+        pin_bytes = (ROOT / melonx.PIN).read_bytes()
+        pin = json.loads(pin_bytes)
         self.assertEqual(manifest['components']['melonx']['pin'], melonx.PIN)
-        self.assertEqual(pin['contractSha256'], sha((ROOT / melonx.CONTRACT).read_bytes()))
+        self.assertEqual(pin['status'], 'verified')
+        self.assertEqual(pin['workflow'], melonx.WORKFLOW)
+        contract = product_reader()(melonx.CONTRACT)
+        self.assertIsNotNone(contract)
+        self.assertEqual(pin['contractSha256'], sha(contract))
         self.assertEqual(pin['name'], 'MeloNX-engine-' + pin['source'])
         self.assertTrue(REPO.is_ancestor(pin['source'], 'HEAD'))
         if manifest['status'] == 'frozen':
-            self.assertEqual(manifest['components']['melonx']['pinSha256'], sha((ROOT / melonx.PIN).read_bytes()))
+            self.assertEqual(manifest['components']['melonx']['pinSha256'], sha(pin_bytes))
 
     def test_rpcs3_pin(self):
         _, manifest = current_manifest()
