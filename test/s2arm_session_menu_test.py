@@ -98,6 +98,15 @@ class Settings(unittest.TestCase):
         self.assertLess(call, PLUGIN.index('dlopen(enginePath', launch))
         self.assertEqual(PLUGIN.count('S2ArmGuestFileSpace();'), 1)
 
+    def test_the_launch_turns_on_the_frame_workgroup(self):
+        # IPA 779: the performance cores at 1.4-2.9 GHz with 1-1.5 cores busy. Mode 1 (render thread, main thread, the engine threads of patch 0073), set before
+        # the dlopen, overwrite 0 so that a value already set wins; patch 0088 takes no intervals under heat.
+        launch = PLUGIN.index('- (NSDictionary *)runLaunchWithGid')
+        wg = PLUGIN.index('setenv("S2A_WORKGROUP", "1", 0);', launch)
+        self.assertLess(PLUGIN.index('setenv("MTL_SHADER_CACHE_SIZE"', launch), wg)
+        self.assertLess(wg, PLUGIN.index('dlopen(enginePath', launch))
+        self.assertEqual(PLUGIN.count('setenv("S2A_WORKGROUP"'), 1)
+
 
 class Bridge(unittest.TestCase):
     def test_settings_methods(self):

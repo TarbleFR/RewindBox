@@ -545,6 +545,11 @@ static NSDictionary *launchFail(NSString *error, NSString *stage, NSString *deta
   // Environment the engine's main sets, then the flag before the dlopen, then the dlopen (RTLD_NOW | RTLD_GLOBAL).
   setenv("DOTNET_GCSegmentSize", kGcSegmentSize.UTF8String, 0);
   setenv("MTL_SHADER_CACHE_SIZE", kShaderCacheSize.UTF8String, 0);
+  // The engine's frame workgroup (S2Arm runtime/src/thread.c, off unless S2A_WORKGROUP is set): the render thread and the game's main thread, with the engine
+  // threads the frame waits for (patch 0073), join one os_workgroup interval a frame, so the system knows each frame's deadline. IPA 779 (Mario Kart World,
+  // races): the performance cores ran at 1.4-2.9 GHz with 1-1.5 cores busy while frames missed 16.7 ms; S2Arm measured 1.9 -> 3.5 GHz with it (10-30).
+  // It costs power: patch 0088 takes no intervals while the thermal state is serious or critical. A value already set wins (0: off, as before).
+  setenv("S2A_WORKGROUP", "1", 0);
   S2ArmSettingsPrepareLaunch();   // the game language, and the engine's brief overlay that the in-game menu shows or hides
   S2ArmGuestFileSpace();          // the free space the engine wants for the guest memory files (S2A_GUEST_FILE_MIN_FREE_MB)
   S2ArmPrepareSaveFolder(self.saveFolder, docs);   // the save folder the player sees in Files (S2A_SAVE_FOLDER)

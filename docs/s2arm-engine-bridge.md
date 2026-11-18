@@ -54,7 +54,7 @@ ARMSX2 bridges are `.mm`, where a comparison is a C++ `bool`. Not observed on a 
 4. Prepare the spare pool: R|X pages for the code the game loads after the detach (later NROs), filled with command 1 in
    chunks of at most 16 MiB while the helper is attached.
 5. `setenv("DOTNET_GCSegmentSize","2000000",0)` and `setenv("MTL_SHADER_CACHE_SIZE","67108864",0)` (the engine's `main`,
-   study § 9.1), `rb_s2arm_engine_mark_loading()`, then `dlopen(S2ArmEngine, RTLD_NOW | RTLD_GLOBAL)` (the engine looks up
+   study § 9.1), `setenv("S2A_WORKGROUP","1",0)` (the engine's frame workgroup, see "Frame workgroup" below), `rb_s2arm_engine_mark_loading()`, then `dlopen(S2ArmEngine, RTLD_NOW | RTLD_GLOBAL)` (the engine looks up
    85 of its own functions with `dlsym(RTLD_DEFAULT)`, so it must be global). Its exports are restricted to the guest entry points and the names it looks up by string (`build-utils/s2arm/engine/export_list.py`), so its third-party symbols (glslang, whose weak definitions DolphinCore also carries) are not coalesced with another engine's.
 6. `s2a_rb_guest_configure(&config, …)` with the prepared paths and `prepare_code = s2arm_code_prepare`.
 7. Main thread: present `s2a_rb_guest_make_view_controller()` full screen; the start runs in the presentation completion.
@@ -438,3 +438,20 @@ free space and put the guest memory in files.
 - Checked by `test/s2arm_session_menu_test.py` and `test/s2arm_engine_bridge_test.py`. Not observed on a device. The
   next journal's `discardedRemoved` / `discardedPaused` lines will show the speed, and the engine log's guest-file line
   whether the files were used.
+
+## Frame workgroup and the IPA 779 slowdown (18 Nov 2026)
+
+IPA 779 (Mario Kart World, races) ran slower than IPA 777 and stuttered more: race windows at 25-40 fps against 37-46.
+- The guest's memory was read back from its files about twice as often a frame (100-290 page-ins against 46-139); 33 frames
+  of 200 ms or more read 20 MB or more, against 19. Engine patch 0086's 48 MB texture pool took back 17-40 textures a
+  600-frame window, against 1,400-1,900 with 192 MB. Engine patch 0088 makes the 192 MB pool the default again.
+- The performance cores ran at 1.4-2.9 GHz with 1-1.5 cores busy. The bridge now sets `S2A_WORKGROUP=1` before the dlopen
+  (overwrite 0): the render thread, the game's main thread and the engine threads the frame waits for (patch 0073) join
+  one os_workgroup interval a frame, so the system knows each frame's deadline (S2Arm measured 1.9 -> 3.5 GHz). Patch
+  0088 takes no intervals while the thermal state is serious or critical.
+- Shaders were not the main cost any more: the device's prewarm list built 2,872 pipelines at the start, and 24 first-use
+  waits took 1.2 s in the session, against 37 and 3.0 s on IPA 777. 687 shader keys translated by an earlier translator
+  have no kept stage bytes and are made again at their first draw.
+- The audio backend's `[声]` lines (underruns, gaps) went to the host's stderr only; patch 0088 copies them to host.log.
+- Checked by `test/s2arm_session_menu_test.py`. Not observed on a device.
+
