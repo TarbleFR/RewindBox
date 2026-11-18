@@ -129,3 +129,10 @@ to be measured on equivalent routes and cache states.
 lines. The packaged shader chain is byte-identical to IPA 783. The updated import library was built by
 [run 44241257258](https://github.com/TarbleFR/RewindBox/actions/runs/44241257258), with synthetic
 preparation checks on macOS and Linux in [run 44241257215](https://github.com/TarbleFR/RewindBox/actions/runs/44241257215).
+
+[Producer run 44246340181](https://github.com/TarbleFR/RewindBox/actions/runs/44246340181) built patches
+0001–0099 on macOS 15 and 26. The downloaded build and guest-framework logs report zero diagnostics on the
+239 source lines added by 0094–0099. The packaged shader chain is byte-identical to IPA 783. The iOS bridge
+and session checks passed in [run 44245547801](https://github.com/TarbleFR/RewindBox/actions/runs/44245547801),
+and the Dart checks passed in [run 44246340217](https://github.com/TarbleFR/RewindBox/actions/runs/44246340217).
+The relaunch, controller handoff and thermal effect still need an iPhone run.
