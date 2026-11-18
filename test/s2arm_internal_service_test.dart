@@ -716,6 +716,7 @@ void main() {
       expect(result.files, 1);
       expect(result.backup, isNull);
       expect(await File('${result.folder}/JKSV/Test Game/User - 2026.11.12 @ 10.00.00/save.bin').length(), 64);
+      expect(await File('${result.folder}/.rewindbox-import-pending').exists(), isTrue);
       final second = await picked('0x0100abcdef000000 Test Game', {'2026-11-12/save.bin': 32, '2026-11-12/extra.bin': 8});
       final again = await S2ArmInternalService.importSaveAt('/export', second.path);
       expect(again.files, 2);
@@ -723,6 +724,7 @@ void main() {
       expect(await File('${again.backup}/JKSV/Test Game/User - 2026.11.12 @ 10.00.00/save.bin').exists(), isTrue);
       expect(await Directory('${again.folder}/JKSV').exists(), isFalse, reason: 'the folder holds only the new save');
       expect(await File('${again.folder}/0x0100abcdef000000 Test Game/2026-11-12/save.bin').length(), 32);
+      expect(await File('${again.folder}/.rewindbox-import-pending').exists(), isTrue);
     });
 
     test('an empty folder, the saves folder itself and a non-export are refused, nothing changes', () async {

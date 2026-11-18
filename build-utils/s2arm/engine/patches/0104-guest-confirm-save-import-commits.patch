@@ -1,0 +1,139 @@
+diff --git a/services/S2A.Services/SaveFolder.cs b/services/S2A.Services/SaveFolder.cs
+--- a/services/S2A.Services/SaveFolder.cs
++++ b/services/S2A.Services/SaveFolder.cs
+@@ -22,6 +22,11 @@
+     public static class SaveFolder
+     {
+         public const string StateFile = "savedata-state.txt", ProblemFile = "savedata-problem.txt";
++        const string PendingImport = ".rewindbox-import-pending";
++        // RewindBox (patch 0104): IPA 785 announced 26 imported Mario Kart World files,
++        // yet the next launch used the old progress. A mount refusal used to be marked
++        // consumed, and a wrapped save/save_device pair went through plain-file detection.
++        static bool RbImportOn() => Environment.GetEnvironmentVariable("S2A_RB_SAVE_IMPORT") != "0";
+         static readonly HashSet<string> Skip = new(StringComparer.OrdinalIgnoreCase) { ".DS_Store", "Thumbs.db", "desktop.ini", "edizon_save_metadata.json" };
+         static readonly HashSet<string> RyuMeta = new() { "ExtraData0", "ExtraData1" };
+         static string _atLaunch;   // 起局时存档位置的摘要：退出时对不上 = 这一局里被玩家动过
+@@ -70,14 +75,9 @@
+         static string Latest(string d) => Subdirs(d).OrderBy(x => Directory.GetLastWriteTimeUtc(x)).ThenBy(x => x, StringComparer.Ordinal).LastOrDefault() ?? d;
+         static readonly Regex Hex16 = new("^[0-9a-fA-F]{16}$"), Hex32 = new("^[0-9a-fA-F]{32}$"), Checkpoint = new(@"^0x([0-9a-fA-F]{16})(?: .*)?$");
+
+-        // ownTop：这款游戏自己写出的存档顶层名字（当前存档已提交副本的顶层），只用来判「外面唯一一层文件夹是包装还是游戏自己的目录」
+-        internal static List<(string kind, string dir)> Detect(string folder, ulong programId, ICollection<string> ownTop, out string why)
+-        {
+-            why = null;
+-            string pid = programId.ToString("x16");
+-            var subs = Subdirs(folder);
+-            var names = subs.Select(Path.GetFileName).ToList();
+-            // ① 固定结构 / NX2Apple：save / save_device（旁边的 .work / .new 是未提交副本）
++        static List<(string kind, string dir)> NativeLayout(string folder)
++        {
++            var names = Subdirs(folder).Select(Path.GetFileName).ToList();
+             if (names.Count > 0 && names.All(n => n is "save" or "save_device" || n.EndsWith(".work") || n.EndsWith(".new")) && names.Any(n => n is "save" or "save_device"))
+             {
+                 var r = new List<(string, string)>();
+@@ -86,6 +86,17 @@
+                 if (Directory.Exists(dev) && HasFiles(dev)) r.Add(("device", dev));
+                 if (r.Count > 0) return r;
+             }
++            return null;
++        }
++
++        // ownTop：这款游戏自己写出的存档顶层名字（当前存档已提交副本的顶层），只用来判「外面唯一一层文件夹是包装还是游戏自己的目录」
++        internal static List<(string kind, string dir)> Detect(string folder, ulong programId, ICollection<string> ownTop, out string why)
++        {
++            why = null;
++            string pid = programId.ToString("x16");
++            // ① 固定结构 / NX2Apple：save / save_device（旁边的 .work / .new 是未提交副本）
++            var native = NativeLayout(folder);
++            if (native != null) return native;
+             // ② Ryujinx 导出（…/<16 位编号>/0，同级 ExtraData0 开头 0x40 字节是存档属性：程序号 u64、用户号 16 字节、系统存档号 u64、类型 u8 在 0x20）
+             var ryu = new List<(string kind, string dir)>();
+             foreach (string d in Directory.EnumerateDirectories(folder, "0", SearchOption.AllDirectories))
+@@ -122,7 +133,10 @@
+             string cur = folder;
+             for (int guard = 0; guard < 8; guard++)
+             {
++                // RewindBox imports an export as a named child. Preserve the save kind
++                // after unwrapping that child, including saves copied by earlier builds.
+                 var top = TopNames(cur);
++                if (RbImportOn() && cur != folder && !top.Any(ownTop.Contains) && (native = NativeLayout(cur)) != null) return native;
+                 bool files = Directory.EnumerateFiles(cur).Any(f => { string n = Path.GetFileName(f); return !n.StartsWith('.') && !Skip.Contains(n); });
+                 var dirs = Subdirs(cur);
+                 if (files || dirs.Count == 0) break;
+@@ -147,14 +161,17 @@
+         {
+             string folder = Folder();
+             if (folder == null) return;
+-            _programId = programId; _keep = false;
++            bool verify = RbImportOn();
++            string pending = Path.Combine(folder, PendingImport);
++            bool requested = verify && File.Exists(pending);
++            _programId = programId; _keep = requested;
+             try
+             {
+                 Directory.CreateDirectory(folder);   // 玩家第一次就能在访达 / 「文件」App 里看到这个文件夹
+                 string now = Digest(folder), state = Path.Combine(DataRoot(), StateFile);
+                 _atLaunch = now;
+                 string last = File.Exists(state) ? File.ReadAllText(state).Trim() : null;
+-                if (now == "" || now == last) return;   // 空的（还没写回过）/ 和上次一样：沿用当前存档
++                if (now == "" || (now == last && !requested)) return;   // The host can explicitly request an import with the same file shape.
+                 var top = new HashSet<string>(OwnTop(device, programId));
+                 var src = Detect(folder, programId, top, out string why);
+                 if (src == null)
+@@ -164,9 +181,23 @@
+                     Red.Report("存档位置：认不出放进来的存档，沿用当前存档", $"{why}（{folder}）");
+                     return;
+                 }
+-                Saves.SeedFrom(device, programId, src);
++                int committed = Saves.SeedFrom(device, programId, src);
++                if (verify && committed != src.Count)
++                {
++                    _keep = true;
++                    string report = $"Save import kept in Files: {committed}/{src.Count} save areas committed";
++                    File.WriteAllText(Path.Combine(DataRoot(), ProblemFile), report);
++                    Native.Mark(Encoding.UTF8.GetBytes($"RewindBox: {report} (S2A_RB_SAVE_IMPORT)\0"));
++                    return;
++                }
+                 File.WriteAllText(state, now);
+                 File.Delete(Path.Combine(DataRoot(), ProblemFile));
++                if (verify)
++                {
++                    if (requested) File.Delete(pending);
++                    _keep = false;
++                    Native.Mark(Encoding.UTF8.GetBytes($"RewindBox: save import committed {committed}/{src.Count} save areas (S2A_RB_SAVE_IMPORT)\0"));
++                }
+                 Console.Error.WriteLine($"S2A 存档位置：读入玩家放进来的存档 {string.Join("、", src.Select(x => x.kind + " ← " + Path.GetRelativePath(folder, x.dir)))}");
+             }
+             catch (InvalidOperationException) { throw; }   // 拷入 / 提交失败：本次起局失败（同 S2A_SAVE_DIR）
+diff --git a/services/S2A.Services/Saves.cs b/services/S2A.Services/Saves.cs
+--- a/services/S2A.Services/Saves.cs
++++ b/services/S2A.Services/Saves.cs
+@@ -100,10 +100,11 @@
+         // 种入内核（S2A_SAVE_DIR 与存档位置 SaveData 共用，见 SaveFolder.cs）：每项 (类型, 目录)，目录内容 = 游戏挂载存档后看到的根目录。
+         //   类型 account / device；save = 有账号存档写账号存档，这款只有设备存档就写设备存档（NX2Apple 引擎的 save/ 规矩，存档位置也用它）。
+         //   清空 → 整棵拷入 → 提交；拷入或提交失败抛 InvalidOperationException（本次起局失败，已提交的旧档原样）
+-        internal static void SeedFrom(Switch device, ulong programId, System.Collections.Generic.IEnumerable<(string kind, string dir)> sources)
++        internal static int SeedFrom(Switch device, ulong programId, System.Collections.Generic.IEnumerable<(string kind, string dir)> sources)
+         {
+             HorizonClient hc = device.System.LibHacHorizonManager.RyujinxClient;
+             ApplicationId app = new(programId);
++            int committed = 0;
+
+             foreach ((string kind0, string sub) in sources)
+             {
+@@ -144,6 +145,7 @@
+
+                         if (r.IsSuccess())
+                         {
++                            committed++;
+                             Console.Error.WriteLine($"S2A 带存档起局：{kind} ← {sub}（{files} 个文件，{bytes} 字节）");
+                         }
+                     }
+@@ -158,6 +160,7 @@
+                     hc.Fs.Unmount("s2asave"u8);
+                 }
+             }
++            return committed;
+         }
+
+         // 存档点副本（录手柄，见 ios/vpad.m）：把本游戏此刻已提交的存档整份拷到 dir，布局同 S2A_SAVE_DIR（account/ device/ + user），回放局直接拿来带存档起局。

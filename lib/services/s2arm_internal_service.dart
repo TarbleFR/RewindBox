@@ -990,6 +990,7 @@ abstract final class S2ArmInternalService {
   // ---------------- launch ----------------
 
   static bool _launching = false;
+  static bool _importingSave = false;
 
   /// True from a successful launch until the native `sessionEnded` event.
   static bool _sessionRunning = false;
@@ -997,7 +998,7 @@ abstract final class S2ArmInternalService {
   static int _sessionEndSerial = 0;
 
   /// A game is being prepared, launched or running: its files must not be deleted.
-  static bool get busy => _preparing || _launching || _sessionRunning;
+  static bool get busy => _preparing || _launching || _sessionRunning || _importingSave;
 
   @visibleForTesting
   static set sessionRunningForTesting(bool value) => _sessionRunning = value;
@@ -1012,7 +1013,7 @@ abstract final class S2ArmInternalService {
   }) async {
     final runtime = await availability();
     if (!runtime.ready) return S2ArmLaunchOutcome.failure(runtime.state.name, runtime.detail);
-    if (_launching) return const S2ArmLaunchOutcome.failure('busy');
+    if (_launching || _importingSave) return const S2ArmLaunchOutcome.failure('busy');
     _launching = true;
     // The in-game menu speaks RewindBox's language (the app's locale when the caller has it, else the system one).
     final uiLocale = Switch2SettingsLocale.codeFor(locale ?? PlatformDispatcher.instance.locale);
@@ -1087,8 +1088,18 @@ abstract final class S2ArmInternalService {
     final saves = await savesDirectory();
     await saves.create(recursive: true);
     final tag = '[${gid.toUpperCase()}]';
+    final matches = <({Directory folder, DateTime modified})>[];
     await for (final entry in saves.list(followLinks: false)) {
-      if (entry is Directory && path.basename(entry.path).toUpperCase().endsWith(tag)) return entry;
+      if (entry is Directory && path.basename(entry.path).toUpperCase().endsWith(tag)) {
+        matches.add((folder: entry, modified: (await entry.stat()).modified));
+      }
+    }
+    if (matches.isNotEmpty) {
+      matches.sort((a, b) {
+        final byDate = b.modified.compareTo(a.modified);
+        return byDate != 0 ? byDate : a.folder.path.compareTo(b.folder.path);
+      });
+      return matches.first.folder;
     }
     final folder = Directory(path.join(saves.path, '${_safeName(await title(), 'Switch 2')} $tag'));
     await folder.create(recursive: true);
@@ -1156,12 +1167,14 @@ abstract final class S2ArmInternalService {
     return found;
   }
 
-  /// The title of the library game in Documents/S2Arm/Games whose title id is [gid], or null when none is there.
-  static Future<String?> _libraryTitleFor(String gid) async {
+  /// A save may name a program ID. Launches use the matching game's library ID.
+  static Future<S2ArmSaveGame?> _librarySaveGameFor(String gid) async {
+    S2ArmSaveGame? program;
     for (final game in await libraryGames()) {
-      if (game.gid == gid || game.programId == gid) return game.title;
+      if (game.gid == gid) return game;
+      if (game.programId == gid) program ??= game;
     }
-    return null;
+    return program;
   }
 
   /// Picks a save folder in Files (exported from a console with JKSV or Checkpoint, or copied from Ryujinx / yuzu) and puts
@@ -1197,6 +1210,19 @@ abstract final class S2ArmInternalService {
   /// it as "<name> (backup)" (one backup, replaced by the next import). With [exportFolder] null, the save must name its
   /// game (saveNoGame otherwise). Visible for tests.
   static Future<S2ArmSaveImportResult> importSaveAt(String? exportFolder, String picked) async {
+    if (_sessionRunning || _launching) throw const S2ArmSaveException('saveGameRunning');
+    if (_importingSave) throw const S2ArmSaveException('saveFailed');
+    _importingSave = true;
+    try {
+      return await _importSaveAt(exportFolder, picked);
+    } on FileSystemException {
+      throw const S2ArmSaveException('saveFailed');
+    } finally {
+      _importingSave = false;
+    }
+  }
+
+  static Future<S2ArmSaveImportResult> _importSaveAt(String? exportFolder, String picked) async {
     var own = const <String?>{};
     if (exportFolder != null) {
       final selected = await detectExport(exportFolder);
@@ -1214,9 +1240,11 @@ abstract final class S2ArmInternalService {
     String? redirectedTitle;
     final Directory target;
     if (saveId != null && !own.contains(saveId)) {
-      redirectedTo = saveId.toUpperCase();
-      redirectedTitle = await _libraryTitleFor(saveId);
-      target = await _saveFolderForId(saveId, () async => redirectedTitle ?? '');
+      final game = await _librarySaveGameFor(saveId);
+      final targetId = game?.gid ?? saveId;
+      redirectedTo = targetId.toUpperCase();
+      redirectedTitle = game?.title;
+      target = await _saveFolderForId(targetId, () async => redirectedTitle ?? '');
     } else if (exportFolder == null) {
       throw const S2ArmSaveException('saveNoGame');
     } else {
@@ -1224,31 +1252,59 @@ abstract final class S2ArmInternalService {
       if (folder == null) throw const S2ArmSaveException('saveNotExport');
       target = folder;
     }
-    final normalizedSource = path.normalize(source.absolute.path);
-    final normalizedTarget = path.normalize(target.absolute.path);
-    final saves = path.normalize((await savesDirectory()).absolute.path);
+    final normalizedSource = await source.resolveSymbolicLinks();
+    final normalizedTarget = await target.resolveSymbolicLinks();
+    final saves = await (await savesDirectory()).resolveSymbolicLinks();
     if (normalizedSource == normalizedTarget || path.isWithin(normalizedTarget, normalizedSource) ||
         path.isWithin(normalizedSource, normalizedTarget) || normalizedSource == saves) {
       throw const S2ArmSaveException('saveSameFolder');
     }
-    final files = await source.list(recursive: true, followLinks: false).where((entry) => entry is File).length;
-    if (files == 0) throw const S2ArmSaveException('saveEmpty');
-    // Keep what the folder held (the progress the engine last wrote back) before replacing it.
-    final backup = Directory('${target.path} (backup)');
-    if (!await target.list().isEmpty) {
-      if (await backup.exists()) await backup.delete(recursive: true);
-      await target.rename(backup.path);
-      await target.create(recursive: true);
-    }
     final name = path.basename(normalizedSource);
-    await _copyTree(source, Directory(path.join(target.path, name.isEmpty ? 'save' : name)));
-    return S2ArmSaveImportResult(
-      folder: target.path,
-      files: files,
-      backup: await backup.exists() ? backup.path : null,
-      redirectedTo: redirectedTo,
-      redirectedTitle: redirectedTitle,
-    );
+    // Stage the whole import before moving either save or backup. The marker tells the
+    // guest to commit this import even when file sizes and modification times match.
+    final staging = await target.parent.createTemp('.save-import-');
+    final contents = Directory(path.join(staging.path, 'contents'));
+    final backup = Directory('${target.path} (backup)');
+    final previousBackup = Directory(path.join(staging.path, 'previous-backup'));
+    var clean = true;
+    try {
+      final files = await _copyTree(source, Directory(path.join(contents.path, name.isEmpty ? 'save' : name)));
+      if (files == 0) throw const S2ArmSaveException('saveEmpty');
+      await File(path.join(contents.path, '.rewindbox-import-pending')).writeAsString('1\n', flush: true);
+      var backedUp = false;
+      var keptBackup = false;
+      try {
+        if (await target.list(followLinks: false).isEmpty) {
+          await target.delete();
+        } else {
+          if (await backup.exists()) {
+            await backup.rename(previousBackup.path);
+            keptBackup = true;
+          }
+          await target.rename(backup.path);
+          backedUp = true;
+        }
+        await contents.rename(target.path);
+      } on FileSystemException {
+        try {
+          if (backedUp) await backup.rename(target.path);
+          if (keptBackup) await previousBackup.rename(backup.path);
+        } on FileSystemException {
+          clean = false;
+          rethrow;
+        }
+        rethrow;
+      }
+      return S2ArmSaveImportResult(
+        folder: target.path,
+        files: files,
+        backup: await backup.exists() ? backup.path : null,
+        redirectedTo: redirectedTo,
+        redirectedTitle: redirectedTitle,
+      );
+    } finally {
+      if (clean) await _removeStaging(staging);
+    }
   }
 
   /// Opens the game's save folder in the Files app (creating it first), or Documents/S2Arm/Saves itself when no game is
@@ -1272,16 +1328,19 @@ abstract final class S2ArmInternalService {
     }
   }
 
-  static Future<void> _copyTree(Directory from, Directory to) async {
+  static Future<int> _copyTree(Directory from, Directory to) async {
+    var files = 0;
     await to.create(recursive: true);
     await for (final entry in from.list(followLinks: false)) {
       final destination = path.join(to.path, path.basename(entry.path));
       if (entry is Directory) {
-        await _copyTree(entry, Directory(destination));
+        files += await _copyTree(entry, Directory(destination));
       } else if (entry is File) {
         await entry.copy(destination);
+        files++;
       }
     }
+    return files;
   }
 
   // ---------------- delete ----------------

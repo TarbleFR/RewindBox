@@ -436,6 +436,7 @@ static NSString *S2ArmEnginePath(void) {
   self.runningGameId = gid;
   S2ArmPreparationGameRunning(YES);
   dispatch_async(self.workQueue, ^{
+    if (resume) S2ArmPrepareSaveFolder(saveFolder, docs);
     NSDictionary *report = resume ? [self resumeParkedGame:gid]
                                   : [self runLaunchWithGid:gid images:images moduleDir:moduleDir gameData:gameData docs:docs pairing:pairing];
     dispatch_async(dispatch_get_main_queue(), ^{
