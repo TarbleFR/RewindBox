@@ -1,0 +1,18 @@
+diff --git a/ios/loadpage.m b/ios/loadpage.m
+--- a/ios/loadpage.m
++++ b/ios/loadpage.m
+@@ -25,6 +25,14 @@
+ }
+ // NACP 标题：16 种语言各 0x300 字节（名称 0x200 + 发行商 0x100）；简体中文 14、繁体中文 13、日文 2、美式英文 0，先到先得，都没有取第一个非空
+ static NSString *nacp_title(void) {
++    // RewindBox (patch 0120): IPA 790 shows the export version 131072 as
++    // the title. The host resolves the real title without changing the NACP.
++    const char *use_host_title = getenv("S2A_RB_LAUNCH_TITLE");
++    if (!use_host_title || strcmp(use_host_title, "0") != 0) {
++        const char *host_title = getenv("S2A_RB_DISPLAY_TITLE");
++        NSString *title = host_title ? [NSString stringWithUTF8String:host_title] : nil;
++        if (title.length) return title;
++    }
+     NSData *d = [NSData dataWithContentsOfFile:[game_data_dir() stringByAppendingPathComponent:@"ctl/control.nacp"]];
+     if (d.length >= 0x3000) {
+         const char *p = d.bytes; int order[] = {14, 13, 2, 0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15};
