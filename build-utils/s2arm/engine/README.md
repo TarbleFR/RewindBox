@@ -107,3 +107,7 @@ S2Arm.app that behaves as before. Patch points, file:line and what is still miss
 `guest.mk` also writes `S2ArmDirectChain.txt` at the framework root: the `DMSH_CHAIN` of the pinned, generated
 `graphics/nvn/gfx/nvn/dmsh_chain.h`, which RewindBox's host bridge stamps on each game's `shaders/direct` skeleton
 (`S2ArmGamePreparation.m`); `s2arm-engine.yml` checks it against the header.
+
+For private IPA 783, [producer run 44228206616](https://github.com/TarbleFR/RewindBox/actions/runs/44228206616)
+built patches 0001–0092 on macOS 15 and 26. The build and guest-framework logs have zero diagnostics on lines
+added by patches 0090–0092. The prepare and system data producers are from the verified 782 delivery.
