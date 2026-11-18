@@ -394,7 +394,6 @@ static NSString *S2ArmEnginePath(void) {
   NSString *gameData = args[@"gameData"];
   NSString *docs = args[@"docs"];
   NSString *pairing = args[@"pairingFilePath"];
-  NSString *displayTitle = [args[@"displayTitle"] isKindOfClass:NSString.class] ? args[@"displayTitle"] : nil;
   NSDictionary *menuStrings = [args[@"menuStrings"] isKindOfClass:NSDictionary.class] ? args[@"menuStrings"] : @{};
   NSString *saveFolder = [args[@"saveFolder"] isKindOfClass:NSString.class] ? args[@"saveFolder"] : nil;
   if (![gid isKindOfClass:NSString.class] || ![images isKindOfClass:NSString.class] || ![moduleDir isKindOfClass:NSString.class] ||
@@ -438,9 +437,6 @@ static NSString *S2ArmEnginePath(void) {
   self.runningGameId = gid;
   S2ArmPreparationGameRunning(YES);
   dispatch_async(self.workQueue, ^{
-    const char *title = displayTitle.UTF8String;
-    if (title && *title) setenv("S2A_RB_DISPLAY_TITLE", title, 1);
-    else unsetenv("S2A_RB_DISPLAY_TITLE");
     if (resume) S2ArmPrepareSaveFolder(saveFolder, docs);
     NSDictionary *report = resume ? [self resumeParkedGame:gid]
                                   : [self runLaunchWithGid:gid images:images moduleDir:moduleDir gameData:gameData docs:docs pairing:pairing];

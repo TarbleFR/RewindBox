@@ -248,7 +248,7 @@ class GameDetailsGameInfoTab extends StatelessWidget {
           ),
           SizedBox(height: 16.r),
           FutureBuilder<bool>(
-            future: ScreenScraperService.canScrapeGame(game.systemId ?? system.id, game.titleId),
+            future: ScreenScraperService.hasSavedCredentials(),
             builder: (context, snapshot) {
               if (system.folderName == 'android-apps') {
                 return Text(

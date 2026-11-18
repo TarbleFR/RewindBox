@@ -25,7 +25,6 @@ import 'screenscraper/media_downloader.dart';
 import 'screenscraper/game_id_media_fallback.dart';
 import 'screenscraper/screenscraper_exceptions.dart';
 import 'switch2_export_content.dart';
-import 'switch2_publisher_catalogue.dart';
 import '../providers/scraping_provider.dart';
 import '../l10n/app_locale.dart';
 import '../widgets/scraping_summary_dialog.dart';
@@ -693,61 +692,6 @@ class ScreenScraperService {
     }
   }
 
-  static Future<bool> canScrapeGame(String? systemId, String? programId) async =>
-      (systemId == 'switch2' && Switch2PublisherCatalogue.title(programId) != null) ||
-      await hasSavedCredentials();
-
-  static Map<String, dynamic>? _switch2PublisherGame(String romPath, String? programId) =>
-      Switch2PublisherCatalogue.gameInfo(Switch2ExportContent.titleId(romPath) ?? programId);
-
-  static Set<String> _downloadedOrExistingMedia(Map<String, dynamic> result) => {
-    ...(result['downloadedTypes'] as List).cast<String>(),
-    ...(result['existingTypes'] as List).cast<String>(),
-  };
-
-  static Future<({bool useful, int added})> _fillSwitch2FromPublisher(
-    Map<String, dynamic> gameInfo, {
-    required String filename,
-    required String romPath,
-    required List<String> mediaTypes,
-    required bool fillMetadata,
-    String? preferredLanguage,
-    bool Function()? shouldCancel,
-    void Function(double)? onProgress,
-  }) async {
-    const system = 'switch2';
-    if (shouldCancel?.call() ?? false) return (useful: false, added: 0);
-    var metadataAvailable = false;
-    if (fillMetadata) {
-      final metadata = await _mapGameInfoToMetadata(
-        filename, romPath, gameInfo, preferredLanguage: preferredLanguage,
-      );
-      final existing = await ScraperRepository.getGameMetadata(system, filename);
-      final missing = <String, dynamic>{};
-      for (final entry in metadata.entries) {
-        if (entry.key == 'filename' || entry.value == null) continue;
-        final previous = existing?[entry.key]?.toString().trim() ?? '';
-        if (previous.isEmpty ||
-            (entry.key == 'real_name' && Switch2ExportContent.isGenericTitle(previous))) {
-          missing[entry.key] = entry.value;
-        }
-      }
-      metadataAvailable = missing.isEmpty ||
-          await ScraperRepository.updateGameMetadata(system, filename, missing);
-    }
-    final media = await ScreenscraperMediaDownloader.downloadGameMedia(
-      system, filename, gameInfo['medias'] as List<dynamic>, 1,
-      appSystemId: system,
-      preferredLanguage: preferredLanguage,
-      allowedMediaTypes: mediaTypes,
-      shouldCancel: shouldCancel,
-      onProgress: onProgress,
-    );
-    final added = (media['downloadedTypes'] as List).length;
-    final useful = metadataAvailable || added > 0 || (media['existingTypes'] as List).isNotEmpty;
-    return (useful: useful, added: added);
-  }
-
   static Future<Set<String>> _ensureVirtualMediaByGameId({
     required bool isMeloNxVirtual,
     required bool isRpcs3Virtual,
@@ -835,25 +779,23 @@ class ScreenScraperService {
   }) async {
     try {
       onProgress?.call(AppLocale.checkingCredentials, 0.05);
-      final isSwitch2 = appSystemId == 'switch2';
-      final publisher = isSwitch2 ? _switch2PublisherGame(romPath, serialNumber) : null;
-      final hasCredentials = await hasSavedCredentials();
-      if (!hasCredentials && publisher == null) {
+
+      if (!await hasSavedCredentials()) {
         return {'success': false, 'message': AppLocale.scrapeNoCredentials};
       }
 
-      int? screenScraperSystemId;
-      if (hasCredentials) {
+      int? screenScraperSystemId =
+          await ScraperRepository.getScreenScraperIdByAppSystemId(appSystemId);
+
+      if (screenScraperSystemId == null) {
+        await syncSystemIds();
         screenScraperSystemId =
-            await ScraperRepository.getScreenScraperIdByAppSystemId(appSystemId);
-        if (screenScraperSystemId == null) {
-          await syncSystemIds();
-          screenScraperSystemId =
-              await ScraperRepository.getScreenScraperIdByAppSystemId(appSystemId);
-        }
+            await ScraperRepository.getScreenScraperIdByAppSystemId(
+              appSystemId,
+            );
       }
 
-      if (screenScraperSystemId == null && publisher == null) {
+      if (screenScraperSystemId == null) {
         return {'success': false, 'message': AppLocale.scrapeSystemNotMapped};
       }
 
@@ -862,6 +804,7 @@ class ScreenScraperService {
       final lowerRomPath = romPath.toLowerCase();
       final isMeloNxVirtual = lowerRomPath.startsWith('melonx://');
       final isRpcs3Virtual = lowerRomPath.startsWith('rpcs3-library://');
+      final isSwitch2 = appSystemId == 'switch2';
       var effectiveGameName = gameName;
       if (isSwitch2) {
         effectiveGameName = Switch2ExportContent.resolvedTitle(
@@ -869,7 +812,7 @@ class ScreenScraperService {
           programId: serialNumber,
           fallback: gameName,
         );
-        if (effectiveGameName == null && publisher == null) {
+        if (effectiveGameName == null) {
           return {'success': false, 'message': AppLocale.scrapeGameNotFound};
         }
       }
@@ -883,9 +826,7 @@ class ScreenScraperService {
 
       Map<String, dynamic>? gameInfoResult;
       int attempts = 0;
-      while (screenScraperSystemId != null &&
-          (!isSwitch2 || effectiveGameName != null) &&
-          attempts < (isSwitch2 ? 1 : 3)) {
+      while (attempts < (isSwitch2 ? 1 : 3)) {
         if (attempts > 0) await Future.delayed(const Duration(seconds: 2));
         gameInfoResult = await fetchGameInfo(
           screenScraperSystemId.toString(),
@@ -906,7 +847,6 @@ class ScreenScraperService {
       }
 
       if ((gameInfoResult == null || gameInfoResult['gameInfo'] == null) &&
-          screenScraperSystemId != null &&
           isRpcs3Virtual &&
           shouldRetryRpcs3ByNameForTesting(effectiveGameName, serialNumber)) {
         gameInfoResult = await fetchGameInfo(
@@ -919,37 +859,19 @@ class ScreenScraperService {
         );
       }
 
-      final preferredLanguage = (await getSavedCredentials())?['preferred_language']?.toString() ??
-          (isSwitch2 ? WidgetsBinding.instance.platformDispatcher.locale.languageCode : 'en');
-      final scraperConfig = await getScraperConfig();
-      final saveMetadata = scraperConfig['scrape_metadata'] as bool? ?? true;
-      final filename = isSwitch2 && !romName.toLowerCase().endsWith('.npdm')
-          ? '$romName.npdm'
-          : romName;
-      final allowedMediaTypes = await ScraperRepository.getEnabledMediaTypes();
       if (gameInfoResult == null || gameInfoResult['gameInfo'] == null) {
-        if (publisher != null) {
-          onProgress?.call(AppLocale.downloadingImages, 0.2);
-          final fallback = await _fillSwitch2FromPublisher(
-            publisher,
-            filename: filename,
-            romPath: romPath,
-            mediaTypes: allowedMediaTypes,
-            fillMetadata: saveMetadata,
-            preferredLanguage: preferredLanguage,
-            onProgress: (p) => onProgress?.call(AppLocale.downloadingImages, 0.2 + (p * 0.8)),
-          );
-          return {
-            'success': fallback.useful,
-            'message': fallback.useful ? AppLocale.scrapeSuccessful : AppLocale.scrapeMediaDownloadsFailed,
-          };
-        }
         return {'success': false, 'message': AppLocale.scrapeGameNotFound};
       }
 
       final gameInfo = gameInfoResult['gameInfo'] as Map<String, dynamic>;
+      final credentials = await getSavedCredentials();
+      final preferredLanguage = credentials?['preferred_language'] ?? 'en';
+      final scraperConfig = await getScraperConfig();
 
-      if (saveMetadata) {
+      if (scraperConfig['scrape_metadata'] as bool? ?? true) {
+        final filename = isSwitch2 && !romName.toLowerCase().endsWith('.npdm')
+            ? '$romName.npdm'
+            : romName;
         final metadata = await _mapGameInfoToMetadata(
           filename,
           romPath,
@@ -963,6 +885,8 @@ class ScreenScraperService {
       }
 
       onProgress?.call(AppLocale.downloadingImages, 0.2);
+
+      final allowedMediaTypes = await ScraperRepository.getEnabledMediaTypes();
 
       if (allowedMediaTypes.isEmpty) {
         return {'success': true, 'message': AppLocale.scrapeSuccessful};
@@ -985,7 +909,7 @@ class ScreenScraperService {
           );
 
       var mediaSuccess = downloadResult['success'] == true;
-      if (screenScraperSystemId != null && (isMeloNxVirtual || isRpcs3Virtual)) {
+      if (isMeloNxVirtual || isRpcs3Virtual) {
         final successfulTypes = await _ensureVirtualMediaByGameId(
           isMeloNxVirtual: isMeloNxVirtual,
           isRpcs3Virtual: isRpcs3Virtual,
@@ -1003,21 +927,6 @@ class ScreenScraperService {
           allowedMediaTypes,
           successfulTypes,
         );
-      }
-      if (publisher != null) {
-        final available = _downloadedOrExistingMedia(downloadResult);
-        final missing = ScreenscraperMediaDownloader.expandMediaTypes(allowedMediaTypes)
-            .where((type) => !available.contains(type))
-            .toList();
-        final fallback = await _fillSwitch2FromPublisher(
-          publisher,
-          filename: filename,
-          romPath: romPath,
-          mediaTypes: missing,
-          fillMetadata: saveMetadata,
-          preferredLanguage: preferredLanguage,
-        );
-        mediaSuccess = mediaSuccess || fallback.useful;
       }
 
       return {
@@ -1707,25 +1616,6 @@ class ScreenScraperService {
         _log.w('Scraper: $systemFolder/$filename: not found on ScreenScraper');
       }
 
-      final publisher = isSwitch2 && extraSources ? _switch2PublisherGame(romPath, titleId) : null;
-      if (gameInfo == null && publisher != null) {
-        final fallback = await _fillSwitch2FromPublisher(
-          publisher,
-          filename: filename,
-          romPath: romPath,
-          mediaTypes: await ScraperRepository.getEnabledMediaTypes(),
-          fillMetadata: scraperConfig['scrape_metadata'] as bool? ?? true,
-          preferredLanguage: preferredLanguage,
-          shouldCancel: shouldCancel,
-        );
-        return {
-          'success': fallback.useful && !(shouldCancel?.call() ?? false),
-          'cancelled': shouldCancel?.call() ?? false,
-          'requests': requestsMade,
-          'mediaAdded': fallback.added,
-        };
-      }
-
       if (gameInfo != null) {
         String? gameName;
         if (scraperConfig['scrape_metadata'] as bool? ?? true) {
@@ -1796,23 +1686,6 @@ class ScreenScraperService {
               'cancelled': true,
               'requests': requestsMade,
             };
-          }
-
-          if (publisher != null) {
-            final available = _downloadedOrExistingMedia(res);
-            final missing = ScreenscraperMediaDownloader.expandMediaTypes(allowedTypes)
-                .where((type) => !available.contains(type))
-                .toList();
-            final fallback = await _fillSwitch2FromPublisher(
-              publisher,
-              filename: filename,
-              romPath: romPath,
-              mediaTypes: missing,
-              fillMetadata: scraperConfig['scrape_metadata'] as bool? ?? true,
-              preferredLanguage: preferredLanguage,
-              shouldCancel: shouldCancel,
-            );
-            mediaAdded += fallback.added;
           }
 
           var mediaSucceeded = res['success'] == true;

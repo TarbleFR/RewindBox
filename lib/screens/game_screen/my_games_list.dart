@@ -2242,10 +2242,10 @@ class _SystemGamesListState extends State<SystemGamesList> {
     final game = _selectedGame;
     if (game == null || _isScrapingSelectedGame) return;
 
-    final scrapeSystemId = game.systemId == 'switch2' ? game.systemId : widget.system.id;
+    final scrapeSystemId = widget.system.id;
     if (scrapeSystemId == null) return;
 
-    if (!await ScreenScraperService.canScrapeGame(scrapeSystemId, game.titleId)) {
+    if (!await ScreenScraperService.hasSavedCredentials()) {
       if (!mounted) return;
       AppNotification.showNotification(
         context,

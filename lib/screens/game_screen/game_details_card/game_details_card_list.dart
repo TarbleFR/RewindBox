@@ -886,7 +886,7 @@ class _GameDetailsCardListState extends State<GameDetailsCardList>
 
     if (!context.mounted) return;
 
-    if (!await ScreenScraperService.canScrapeGame(scrapeSystemId, _game.titleId)) {
+    if (!await ScreenScraperService.hasSavedCredentials()) {
       if (!mounted) return;
       AppNotification.showNotification(
         context,
