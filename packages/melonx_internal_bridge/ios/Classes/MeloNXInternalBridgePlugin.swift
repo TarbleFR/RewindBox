@@ -324,7 +324,14 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
                 do {
                     _ = try ensureRuntime()
                     DispatchQueue.main.async { [self] in result(["available":true,"initialized":true,"sessionActive":starting || host?.isSessionActive == true,"jitArenaReady":arenaReady,"gameplayVerified":false,"lastFailure":lastFailure]) }
-                } catch { DispatchQueue.main.async { result(["available":false,"initialized":false,"diagnostic":String(describing:error)]) } }
+                } catch {
+                    var failure = runtimeAvailability()
+                    failure["available"] = false
+                    failure["initialized"] = false
+                    failure["diagnostic"] = String(describing:error)
+                    let report = failure
+                    DispatchQueue.main.async { result(report) }
+                }
             }
         case "metadata", "installFirmware", "reloadKeys", "firmwareInfo", "inspectUpdate", "inspectDlc", "storageInfo", "saveTarget", "launchPreflight", "inspectUnreal":
             guard !starting, host?.isSessionActive != true else { result(FlutterError(code:"busy",message:"Close the current game first.",details:nil)); return }

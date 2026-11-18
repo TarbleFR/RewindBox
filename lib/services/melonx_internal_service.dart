@@ -375,16 +375,14 @@ abstract final class MelonxInternalService {
     return moved != gamePath && await File(moved).exists() ? moved : gamePath;
   }
 
-  /// Whether this build can run Switch games, asked without loading the engine
-  /// ('availability'). Through 'diagnostics' the Consoles page loaded
-  /// MeloNXCore on every visit, and the Switch 2 engine then refused every
-  /// launch until RewindBox restarted (IPA 728). The launch path keeps
-  /// 'diagnostics', which loads the engine it is about to use.
+  /// Whether this build embeds the Switch framework. A loaded Switch 2
+  /// runtime can block launching Switch games while their library stays visible.
+  /// Use the read-only probe: 'diagnostics' loads the engine (IPA 728).
   static Future<bool> runtimeAvailable() async {
     _installDiagnostics();
     try {
       final report = await channel.invokeMethod<Object?>('availability');
-      return report is Map && report['available'] == true;
+      return report is Map && (report['framework'] ?? report['available']) == true;
     } on MissingPluginException {
       return false;
     } on PlatformException {
@@ -537,13 +535,17 @@ abstract final class MelonxInternalService {
       final report = await channel.invokeMapMethod<String, dynamic>(
         'diagnostics',
       );
-      if (report?['available'] != true)
+      if (report?['available'] != true) {
+        final switch2Loaded = report?['framework'] == true &&
+            report?['recoveryRequired'] != true &&
+            report?['switch2EngineLoaded'] == true;
         return {
           'success': false,
-          'error': 'runtimeUnavailable',
+          'error': switch2Loaded ? 'switch2EngineLoaded' : 'runtimeUnavailable',
           'diagnostic': report?['diagnostic'],
           'stage': 'runtime',
         };
+      }
       MelonxLaunchDiagnostics.record('runtime', 'passed');
       // The native launch worker owns the complete content preflight. Running
       // it here as well reloaded keys and inspected the same game/firmware twice.

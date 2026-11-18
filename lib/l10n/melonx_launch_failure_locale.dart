@@ -20,6 +20,8 @@ abstract final class MelonxLaunchFailureLocale {
           "The local game content could not be validated. See the technical details; your imported files have been preserved.",
       "quarantined":
           "RSwitch could not confirm a safe shutdown. Close and reopen RewindBox before trying again; its native resources remain protected.",
+      "switch2EngineLoaded":
+          "A Nintendo Switch 2 game was launched in this session. Close RewindBox completely, then reopen it to start a Nintendo Switch game.",
       "switchRestartRequired":
           "The Switch engine did not stop cleanly, so RewindBox must be restarted before any other game can start. Close RewindBox completely (swipe it up in the app switcher), then open it again.",
     },
@@ -40,6 +42,8 @@ abstract final class MelonxLaunchFailureLocale {
           "Le contenu du jeu local n’a pas pu être validé. Consultez les détails techniques ; vos fichiers importés sont conservés.",
       "quarantined":
           "RSwitch n’a pas confirmé un arrêt sûr. Fermez puis rouvrez RewindBox avant de réessayer ; ses ressources natives restent protégées.",
+      "switch2EngineLoaded":
+          "Un jeu Nintendo Switch 2 a déjà été lancé dans cette session. Fermez complètement RewindBox, puis rouvrez-le pour lancer un jeu Nintendo Switch.",
       "switchRestartRequired":
           "Le moteur Switch ne s’est pas arrêté proprement : RewindBox doit être redémarré avant de lancer un autre jeu. Fermez complètement RewindBox (balayez-le vers le haut dans le sélecteur d’apps), puis rouvrez-le.",
     },
@@ -60,6 +64,8 @@ abstract final class MelonxLaunchFailureLocale {
           "No se pudo validar el contenido local del juego. Consulta los detalles técnicos; se han conservado tus archivos importados.",
       "quarantined":
           "RSwitch no pudo confirmar un cierre seguro. Cierra y vuelve a abrir RewindBox antes de reintentar; sus recursos nativos siguen protegidos.",
+      "switch2EngineLoaded":
+          "Ya se inició un juego de Nintendo Switch 2 en esta sesión. Cierra RewindBox por completo y vuelve a abrirlo para iniciar un juego de Nintendo Switch.",
       "switchRestartRequired":
           "El motor de Switch no se detuvo correctamente, así que hay que reiniciar RewindBox antes de iniciar otro juego. Cierra RewindBox por completo (deslízalo hacia arriba en el selector de apps) y vuelve a abrirlo.",
     },
@@ -80,6 +86,8 @@ abstract final class MelonxLaunchFailureLocale {
           "Der lokale Spielinhalt konnte nicht geprüft werden. Siehe technische Details; deine importierten Dateien bleiben erhalten.",
       "quarantined":
           "RSwitch konnte das sichere Beenden nicht bestätigen. Schließe und öffne RewindBox vor einem neuen Versuch; die nativen Ressourcen bleiben geschützt.",
+      "switch2EngineLoaded":
+          "In dieser Sitzung wurde bereits ein Nintendo-Switch-2-Spiel gestartet. Beende RewindBox vollständig und öffne es erneut, um ein Nintendo-Switch-Spiel zu starten.",
       "switchRestartRequired":
           "Die Switch-Engine wurde nicht sauber beendet. RewindBox muss neu gestartet werden, bevor ein anderes Spiel starten kann. Schließe RewindBox vollständig (im App-Umschalter nach oben wischen) und öffne es erneut.",
     },
@@ -100,6 +108,8 @@ abstract final class MelonxLaunchFailureLocale {
           "Impossibile verificare il contenuto locale del gioco. Consulta i dettagli tecnici; i file importati sono stati conservati.",
       "quarantined":
           "RSwitch non ha confermato un arresto sicuro. Chiudi e riapri RewindBox prima di riprovare; le risorse native restano protette.",
+      "switch2EngineLoaded":
+          "In questa sessione è già stato avviato un gioco per Nintendo Switch 2. Chiudi completamente RewindBox e riaprilo per avviare un gioco per Nintendo Switch.",
       "switchRestartRequired":
           "Il motore Switch non si è arrestato correttamente: devi riavviare RewindBox prima di avviare un altro gioco. Chiudi completamente RewindBox (scorrilo verso l’alto nel selettore delle app), poi riaprilo.",
     },
@@ -120,6 +130,8 @@ abstract final class MelonxLaunchFailureLocale {
           "Não foi possível validar o conteúdo local do jogo. Consulte os detalhes técnicos; os ficheiros importados foram preservados.",
       "quarantined":
           "O RSwitch não confirmou um encerramento seguro. Feche e reabra o RewindBox antes de tentar novamente; os recursos nativos continuam protegidos.",
+      "switch2EngineLoaded":
+          "Já foi iniciado um jogo da Nintendo Switch 2 nesta sessão. Fecha completamente a RewindBox e volta a abri-la para iniciar um jogo da Nintendo Switch.",
       "switchRestartRequired":
           "O motor do Switch não parou corretamente; é preciso reiniciar o RewindBox antes de iniciar outro jogo. Feche o RewindBox por completo (deslize-o para cima no seletor de apps) e abra-o de novo.",
     },
@@ -140,6 +152,8 @@ abstract final class MelonxLaunchFailureLocale {
           "Не удалось проверить локальные файлы игры. См. технические подробности; импортированные файлы сохранены.",
       "quarantined":
           "RSwitch не подтвердил безопасное завершение. Закройте и снова откройте RewindBox; нативные ресурсы остаются защищёнными.",
+      "switch2EngineLoaded":
+          "В этом сеансе уже запускалась игра для Nintendo Switch 2. Полностью закройте RewindBox и откройте его снова, чтобы запустить игру для Nintendo Switch.",
       "switchRestartRequired":
           "Движок Switch не завершился корректно, поэтому перед запуском другой игры нужно перезапустить RewindBox. Полностью закройте RewindBox (смахните его вверх в переключателе приложений) и откройте снова.",
     },
@@ -160,6 +174,8 @@ abstract final class MelonxLaunchFailureLocale {
           "Konten game lokal tidak dapat divalidasi. Lihat detail teknis; file impor Anda tetap disimpan.",
       "quarantined":
           "RSwitch tidak dapat memastikan penghentian yang aman. Tutup dan buka kembali RewindBox; sumber daya native tetap dilindungi.",
+      "switch2EngineLoaded":
+          "Game Nintendo Switch 2 telah dijalankan pada sesi ini. Tutup RewindBox sepenuhnya, lalu buka kembali untuk menjalankan game Nintendo Switch.",
       "switchRestartRequired":
           "Mesin Switch tidak berhenti dengan benar, jadi RewindBox harus dimulai ulang sebelum game lain bisa dijalankan. Tutup RewindBox sepenuhnya (geser ke atas di pengalih aplikasi), lalu buka lagi.",
     },
@@ -178,6 +194,8 @@ abstract final class MelonxLaunchFailureLocale {
           "ローカルのゲーム内容を検証できませんでした。技術情報を確認してください。インポート済みファイルは保持されています。",
       "quarantined":
           "RSwitchの安全な停止を確認できませんでした。RewindBoxを閉じて開き直してください。ネイティブリソースは保護されたままです。",
+      "switch2EngineLoaded":
+          "このセッションではすでに Nintendo Switch 2 のゲームを起動しました。Nintendo Switch のゲームを起動するには、RewindBox を完全に終了してから開き直してください。",
       "switchRestartRequired":
           "Switch エンジンが正常に終了しなかったため、ほかのゲームを起動する前に RewindBox を再起動する必要があります。App スイッチャーで RewindBox を上にスワイプして完全に終了し、もう一度開いてください。",
     },
@@ -193,6 +211,8 @@ abstract final class MelonxLaunchFailureLocale {
       "invalidContent": "로컬 게임 콘텐츠를 검증할 수 없습니다. 기술 정보를 확인하세요. 가져온 파일은 보존됩니다.",
       "quarantined":
           "RSwitch의 안전한 종료를 확인하지 못했습니다. RewindBox를 닫고 다시 여세요. 네이티브 리소스는 계속 보호됩니다.",
+      "switch2EngineLoaded":
+          "이 세션에서 Nintendo Switch 2 게임을 실행했습니다. Nintendo Switch 게임을 실행하려면 RewindBox를 완전히 종료한 뒤 다시 여세요.",
       "switchRestartRequired":
           "Switch 엔진이 정상적으로 종료되지 않아 다른 게임을 시작하기 전에 RewindBox를 다시 시작해야 합니다. 앱 전환기에서 RewindBox를 위로 쓸어 올려 완전히 닫은 뒤 다시 여세요.",
     },
@@ -205,6 +225,8 @@ abstract final class MelonxLaunchFailureLocale {
       "jitUnavailable": "无法为 RewindBox 授权 JIT。请检查所选 JIT 方式及使用中的 LocalDevVPN。",
       "invalidContent": "无法验证本地游戏内容。请查看技术详情；已导入的文件会保留。",
       "quarantined": "RSwitch 无法确认已安全停止。请关闭并重新打开 RewindBox；原生资源将继续受到保护。",
+      "switch2EngineLoaded":
+          "本次会话已启动过 Nintendo Switch 2 游戏。请完全关闭 RewindBox 并重新打开，再启动 Nintendo Switch 游戏。",
       "switchRestartRequired":
           "Switch 引擎未能正常停止，启动其他游戏前需要重新启动 RewindBox。请在应用切换器中向上轻扫，完全关闭 RewindBox，然后重新打开。",
     },
@@ -217,6 +239,8 @@ abstract final class MelonxLaunchFailureLocale {
       "jitUnavailable": "無法為 RewindBox 授權 JIT。請檢查所選 JIT 方式及使用中的 LocalDevVPN。",
       "invalidContent": "無法驗證本機遊戲內容。請查看技術詳情；已匯入的檔案會保留。",
       "quarantined": "RSwitch 無法確認已安全停止。請關閉並重新開啟 RewindBox；原生資源將繼續受到保護。",
+      "switch2EngineLoaded":
+          "這次工作階段已啟動過 Nintendo Switch 2 遊戲。請完全關閉 RewindBox 並重新開啟，再啟動 Nintendo Switch 遊戲。",
       "switchRestartRequired":
           "Switch 引擎未能正常停止，啟動其他遊戲前需要重新啟動 RewindBox。請在 App 切換器中向上滑動，完全關閉 RewindBox，然後重新開啟。",
     },
