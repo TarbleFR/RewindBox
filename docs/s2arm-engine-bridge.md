@@ -96,6 +96,12 @@ Shaped like `XeniaInternalService` (PR #172) so the shared library layer calls b
 
 ## Settings and in-game menu
 
+The bridge selects a compatibility profile by title ID before loading the guest framework. Fast Fusion
+gets patch 0090's NVN2 vertex-state fix. Mario Kart World gets patch 0091's earlier staging trim under
+memory pressure. Other titles keep the previous behaviour for these two switches. Values supplied to
+the launch environment take precedence for comparison runs. The `gameProfile` journal entry records
+which profile was selected. The graphics and language settings below are still shared defaults.
+
 No engine change: everything below uses what the pinned engine already reads in guest mode (S2Arm `ios/settings.m`,
 `ios/hud.m`, services `Host.cs`, read at the pinned commit).
 

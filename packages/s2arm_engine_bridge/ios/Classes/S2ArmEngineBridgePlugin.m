@@ -550,6 +550,13 @@ static NSDictionary *launchFail(NSString *error, NSString *stage, NSString *deta
   // races): the performance cores ran at 1.4-2.9 GHz with 1-1.5 cores busy while frames missed 16.7 ms; S2Arm measured 1.9 -> 3.5 GHz with it (10-30).
   // It costs power: patch 0088 takes no intervals while the thermal state is serious or critical. A value already set wins (0: off, as before).
   setenv("S2A_WORKGROUP", "1", 0);
+  // Select measured engine changes by title before loading the framework. A value supplied for an A/B run wins.
+  BOOL fastFusion = [gid caseInsensitiveCompare:@"040041E0212AE000"] == NSOrderedSame;
+  BOOL marioKartWorld = [gid caseInsensitiveCompare:@"0400C3F00006E000"] == NSOrderedSame;
+  int vertexProfile = setenv("S2A_RB_NVN2_VATTR_PREFIX", fastFusion ? "1" : "0", 0);
+  int stagingProfile = setenv("S2A_RB_UP_PRESSURE_TRIM", marioKartWorld ? "1" : "0", 0);
+  s2arm_journal("gameProfile", vertexProfile || stagingProfile ? "failed" : "selected",
+                "\"profile\":\"%s\"", fastFusion ? "fast-fusion" : marioKartWorld ? "mario-kart-world" : "default");
   S2ArmSettingsPrepareLaunch();   // the game language, and the engine's brief overlay that the in-game menu shows or hides
   S2ArmGuestFileSpace();          // the free space the engine wants for the guest memory files (S2A_GUEST_FILE_MIN_FREE_MB)
   S2ArmPrepareSaveFolder(self.saveFolder, docs);   // the save folder the player sees in Files (S2A_SAVE_FOLDER)
