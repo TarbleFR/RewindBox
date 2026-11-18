@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:path/path.dart' as path;
 
@@ -105,6 +107,10 @@ class _S2ArmInternalPlaylistActionsState
                 onProgress: onProgress,
               ),
       );
+    } on FileSystemException {
+      if (mounted) _notice(S2ArmInternalService.localizedError(Localizations.localeOf(context), 'storageError'));
+    } on PlatformException {
+      if (mounted) _notice(S2ArmInternalService.localizedError(Localizations.localeOf(context), 'storageError'));
     } finally {
       final route = dialog;
       if (route != null) {
@@ -437,11 +443,18 @@ class _S2ArmInternalPlaylistActionsState
         PopupMenuItem(
           key: const ValueKey('s2arm-open-saves'),
           value: 'openSaves',
-          child: _item(
-            Icons.folder_open_outlined,
-            _t('openSaves'),
-            _t('openSavesHint'),
-          ),
+          child: widget.romPath == null
+              ? _item(Icons.folder_open_outlined, _t('openSaves'), _t('openSavesHint'))
+              : FutureBuilder<String?>(
+                  future: S2ArmInternalService.saveImportStatus(
+                    Switch2ExportContent.exportFolder(widget.romPath!),
+                  ),
+                  builder: (context, state) => _item(
+                    Icons.folder_open_outlined,
+                    _t('openSaves'),
+                    _t(state.data ?? 'openSavesHint'),
+                  ),
+                ),
         ),
         const PopupMenuDivider(),
         PopupMenuItem(
@@ -517,6 +530,10 @@ class _S2ArmImportDialog extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               LinearProgressIndicator(value: value?.fraction),
+              if (value != null && value.count > 1)
+                Text(Switch2LibraryLocale.textf(
+                  context, 'prepCount', {'done': value.index, 'total': value.count},
+                )),
               if (value?.step == 'scan' && value?.unitsDone != null) ...[
                 const SizedBox(height: 6),
                 Text(Switch2LibraryLocale.textf(

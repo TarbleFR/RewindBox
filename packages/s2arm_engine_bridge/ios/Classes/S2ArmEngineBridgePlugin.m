@@ -59,6 +59,7 @@ static void S2ArmGuestFileSpace(void) {
 static UIViewController *S2ArmTopViewController(void);
 static BOOL S2ArmPathInside(NSString *path, NSString *root);
 static void S2ArmPrepareSaveFolder(NSString *folder, NSString *docs);
+static void S2ArmLogSaveImport(NSString *folder);
 
 // The engine writes its own log to <game>/docs/host.log (patch 0009) and keeps the previous ones in <game>/docs/logs/,
 // inside Library, which Files does not show. A copy goes to Documents/Diagnostics/S2Arm/engine/<gid>/ at each app start
@@ -599,12 +600,14 @@ static NSDictionary *launchFail(NSString *error, NSString *stage, NSString *deta
   // IPA 786's automatic sampler held individual threads for up to 32.5 ms.
   // Keep continuous frame statistics and let diagnostic launches request the heavy capture.
   int automaticProbeProfile = marioKartWorld ? setenv("S2A_RB_AUTO_PROBE", "0", 0) : 0;
+  int saveRestoreProfile = setenv("S2A_RB_SAVE_PROFILE", "1", 0);
   BOOL profileFailed = vertexProfile || stagingProfile || workgroupProfile || archiveProfile || workerProfile ||
                        readAheadProfile || shaderBytesProfile || shaderQueueProfile || poolIndexProfile ||
                        textureViewsProfile || demandProbeProfile || audioReprimeProfile || feedbackProfile ||
                        pipelinePriorityProfile || shaderCompletionProfile || pipelineLookaheadProfile ||
                        uniformBoundsProfile || waitProbeProfile || frameKeyProfile ||
-                       displayTicksProfile || residencyCensusProfile || shaderVariantProfile || automaticProbeProfile;
+                       displayTicksProfile || residencyCensusProfile || shaderVariantProfile || automaticProbeProfile ||
+                       saveRestoreProfile;
   s2arm_journal("gameProfile", profileFailed ? "failed" : "selected",
                 "\"profile\":\"%s\"", fastFusion ? "fast-fusion" : marioKartWorld ? "mario-kart-world" : "default");
   S2ArmSettingsPrepareLaunch();   // the game language, and the engine's brief overlay that the in-game menu shows or hides
@@ -893,6 +896,10 @@ static void s2arm_session_parked(const char *reason, void *context) {
     [self closeSessionViewWithCompletion:^{
       self.parkedGameId = gid;
       self.runningGameId = nil;
+      NSString *saveFolder = self.saveFolder;
+      self.saveFolder = nil;
+      self.menuStrings = nil;
+      if (saveFolder) dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ S2ArmLogSaveImport(saveFolder); });
       S2ArmPreparationGameRunning(NO);
       s2arm_journal("gameView", "closed", "\"parked\":true");
       dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ S2ArmExportRunningEngineLog(gid); });
@@ -910,6 +917,10 @@ static void s2arm_session_ended(int code, const char *reason, void *context) {
   dispatch_async(dispatch_get_main_queue(), ^{
     [self closeSessionViewWithCompletion:^{
       self.runningGameId = nil;
+      NSString *saveFolder = self.saveFolder;
+      self.saveFolder = nil;
+      self.menuStrings = nil;
+      if (saveFolder) dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ S2ArmLogSaveImport(saveFolder); });
       S2ArmPreparationGameRunning(NO);
       s2arm_journal("gameView", "closed", "\"parked\":false");
       [self.channel invokeMethod:@"sessionEnded" arguments:@{@"code" : @(code), @"reason" : why}];
@@ -932,6 +943,7 @@ static BOOL S2ArmPathInside(NSString *path, NSString *root) {
 static void S2ArmPrepareSaveFolder(NSString *folder, NSString *docs) {
   NSString *documents = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
   if (!folder.length || !S2ArmPathInside(folder, documents)) {
+    unsetenv("S2A_SAVE_FOLDER");
     s2arm_journal("saveFolder", "default", NULL);
     return;
   }
@@ -949,8 +961,33 @@ static void S2ArmPrepareSaveFolder(NSString *folder, NSString *docs) {
     }
     s2arm_journal("saveFolder", moved ? "migrated" : "migrationIncomplete", NULL);
   }
-  setenv("S2A_SAVE_FOLDER", folder.fileSystemRepresentation, 1);
-  s2arm_journal("saveFolder", "documents", NULL);
+  if (!setenv("S2A_SAVE_FOLDER", folder.fileSystemRepresentation, 1)) {
+    BOOL pending = [files fileExistsAtPath:[folder stringByAppendingPathComponent:@".rewindbox-import-pending"]];
+    s2arm_journal("saveFolder", "documents", "\"importPending\":%s", pending ? "true" : "false");
+  } else {
+    s2arm_journal("saveFolder", "failed", "\"errno\":%d", errno);
+  }
+}
+
+// Log only the guest's result, without storage paths, profile identifiers or file names.
+static void S2ArmLogSaveImport(NSString *folder) {
+  if (!folder.length) return;
+  NSString *path = [folder stringByAppendingPathComponent:@".rewindbox-import-result"];
+  NSFileManager *files = NSFileManager.defaultManager;
+  BOOL pending = [files fileExistsAtPath:[folder stringByAppendingPathComponent:@".rewindbox-import-pending"]];
+  NSDictionary *attributes = [files attributesOfItemAtPath:path error:nil];
+  NSString *reported = nil;
+  if ([attributes.fileType isEqual:NSFileTypeRegular] && attributes.fileSize <= 64) {
+    reported = [[NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil]
+        stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+  }
+  if ([reported isEqualToString:@"applied"] && !pending) {
+    s2arm_journal("saveImport", "applied", NULL);
+  } else if (pending) {
+    NSArray *reasons = @[@"unrecognized", @"ambiguousProfile", @"profileUnavailable", @"mountFailed", @"writeFailed"];
+    BOOL failed = reported && [reasons containsObject:reported];
+    s2arm_journal("saveImport", failed ? "failed" : "pending", "\"reason\":\"%s\"", failed ? reported.UTF8String : "unconfirmed");
+  }
 }
 
 // The view controller the game is presented on: the top of the visible, normal-level window of the foreground application scene (the key

@@ -1,0 +1,246 @@
+diff --git a/services/S2A.Services/Application.cs b/services/S2A.Services/Application.cs
+--- a/services/S2A.Services/Application.cs
++++ b/services/S2A.Services/Application.cs
+@@ -165,6 +165,7 @@
+             Aoc.Register(gameDir);   // DLC：aoc.tsv 里的全部登记为已拥有（有数据的挂 aoc/<idx>/，仅授权的挂载时报红）
+
+             Saves.SelectUser(device);
++            SaveFolder.SelectImportProfile(device, applicationId);
+             Result saveResult = ProcessLoaderHelper.EnsureSaveData(device, new ApplicationId(applicationId), nacp);
+             if (requireSuccess) saveResult.ThrowIfFailure();
+             Saves.Seed(device, applicationId);
+diff --git a/services/S2A.Services/SaveFolder.cs b/services/S2A.Services/SaveFolder.cs
+--- a/services/S2A.Services/SaveFolder.cs
++++ b/services/S2A.Services/SaveFolder.cs
+@@ -1,4 +1,5 @@
+ using Ryujinx.HLE;
++using Ryujinx.HLE.HOS.Services.Account.Acc;
+ using System;
+ using System.Collections.Generic;
+ using System.IO;
+@@ -27,6 +28,22 @@
+         // yet the next launch used the old progress. A mount refusal used to be marked
+         // consumed, and a wrapped save/save_device pair went through plain-file detection.
+         static bool RbImportOn() => Environment.GetEnvironmentVariable("S2A_RB_SAVE_IMPORT") != "0";
++        // RewindBox (patch 0118): the IPA 785 import of 26 files left the old in-game
++        // progress. IPA 786's journal records one Documents path selection but zero
++        // committed restores. Choose a single identifiable source account before
++        // allocating the title's save, and report the mount outcome for this import.
++        const string ImportResult = ".rewindbox-import-result";
++        static bool RbProfileOn() => RbImportOn() && Environment.GetEnvironmentVariable("S2A_RB_SAVE_PROFILE") == "1";
++
++        static void ReportImport(string folder, string status)
++        {
++            Native.Mark(Encoding.UTF8.GetBytes($"RewindBox (patch 0118): save restore {status}\0"));
++            string result = Path.Combine(folder, ImportResult);
++            string temporary = result + ".tmp";
++            File.WriteAllText(temporary, status + "\n");
++            File.Move(temporary, result, true);
++        }
++
+         static readonly HashSet<string> Skip = new(StringComparer.OrdinalIgnoreCase) { ".DS_Store", "Thumbs.db", "desktop.ini", "edizon_save_metadata.json" };
+         static readonly HashSet<string> RyuMeta = new() { "ExtraData0", "ExtraData1" };
+         static string _atLaunch;   // 起局时存档位置的摘要：退出时对不上 = 这一局里被玩家动过
+@@ -78,6 +95,17 @@
+         static List<(string kind, string dir)> NativeLayout(string folder)
+         {
+             var names = Subdirs(folder).Select(Path.GetFileName).ToList();
++            if (RbProfileOn() && names.Count > 0 && names.All(n => n is "account" or "device") &&
++                TopNames(folder).All(n => n is "account" or "device" or "user"))
++            {
++                var areas = new List<(string kind, string dir)>();
++                foreach (string kind in names)
++                {
++                    string dir = Path.Combine(folder, kind);
++                    if (HasFiles(dir)) areas.Add((kind, dir));
++                }
++                if (areas.Count > 0) return areas;
++            }
+             if (names.Count > 0 && names.All(n => n is "save" or "save_device" || n.EndsWith(".work") || n.EndsWith(".new")) && names.Any(n => n is "save" or "save_device"))
+             {
+                 var r = new List<(string, string)>();
+@@ -90,7 +118,7 @@
+         }
+
+         // ownTop：这款游戏自己写出的存档顶层名字（当前存档已提交副本的顶层），只用来判「外面唯一一层文件夹是包装还是游戏自己的目录」
+-        internal static List<(string kind, string dir)> Detect(string folder, ulong programId, ICollection<string> ownTop, out string why)
++        internal static List<(string kind, string dir)> Detect(string folder, ulong programId, ICollection<string> ownTop, out string why, bool exactAccounts = false)
+         {
+             why = null;
+             string pid = programId.ToString("x16");
+@@ -112,13 +140,17 @@
+             if (ryu.Count > 0) { why = null; return ryu; }
+             if (why != null) return null;
+             // ③ yuzu：…/0000000000000000/<32 位用户号>/<程序号>/（用户号全 0 = 设备存档）
++            var yuzu = new List<(string kind, string dir)>();
+             foreach (string d in Directory.EnumerateDirectories(folder, "*", SearchOption.AllDirectories))
+             {
+                 string user = Path.GetFileName(Path.GetDirectoryName(d)), zero = Path.GetFileName(Path.GetDirectoryName(Path.GetDirectoryName(d)) ?? "");
+                 if (!Hex16.IsMatch(Path.GetFileName(d)) || !Hex32.IsMatch(user) || zero != "0000000000000000") continue;
+                 if (!Path.GetFileName(d).Equals(pid, StringComparison.OrdinalIgnoreCase)) { why = $"这是另一款游戏的存档（程序号 {Path.GetFileName(d).ToLowerInvariant()}）"; continue; }
+-                return [(user.Trim('0').Length == 0 ? "device" : "account", d)];
+-            }
++                var area = (user.Trim('0').Length == 0 ? "device" : "account", d);
++                if (!exactAccounts) return [area];
++                yuzu.Add(area);
++            }
++            if (yuzu.Count > 0) { why = null; return yuzu; }
+             if (why != null) return null;
+             // ④ Checkpoint：0x<程序号> <游戏名>/<时间戳>/，取最新一份
+             foreach (string d in Directory.EnumerateDirectories(folder, "0x*", SearchOption.AllDirectories))
+@@ -156,6 +188,69 @@
+             return [("save", cur)];
+         }
+
++        // A native recording snapshot carries user next to account/device. In named
++        // emulator exports, use only the identifier beside the matched title's data.
++        static string ImportProfile(List<(string kind, string dir)> areas, out bool ambiguous)
++        {
++            ambiguous = areas.Count(x => x.kind != "device") > 1 || areas.Count(x => x.kind == "device") > 1;
++            if (ambiguous) return null;
++            var area = areas.FirstOrDefault(x => x.kind != "device");
++            if (area.dir == null) return null;
++            string parent = Path.GetDirectoryName(area.dir);
++            string name = Path.GetFileName(area.dir);
++            string profile = null;
++            if (name is "account" or "save")
++            {
++                string user = Path.Combine(parent, "user");
++                if (File.Exists(user))
++                {
++                    if (new FileInfo(user).Length > 128) { ambiguous = true; return null; }
++                    profile = File.ReadAllText(user).Trim();
++                }
++            }
++            else if (area.kind == "account" && name == "0" && Hex16.IsMatch(Path.GetFileName(parent)))
++            {
++                byte[] extra = new byte[0x40];
++                using (var data = File.OpenRead(Path.Combine(parent, "ExtraData0"))) data.ReadExactly(extra);
++                profile = $"{BitConverter.ToUInt64(extra, 8):x16}{BitConverter.ToUInt64(extra, 16):x16}";
++            }
++            else if (area.kind == "account" && Hex16.IsMatch(name) && Hex32.IsMatch(Path.GetFileName(parent)))
++            {
++                profile = Path.GetFileName(parent);
++            }
++            if (profile == null) return null;
++            if (Hex32.IsMatch(profile) && profile.Any(c => c != '0')) return profile.ToLowerInvariant();
++            ambiguous = true;
++            return null;
++        }
++
++        public static void SelectImportProfile(Switch device, ulong programId)
++        {
++            if (!RbProfileOn() || Saves.Dir() != null) return;
++            string folder = Folder();
++            if (folder == null || !File.Exists(Path.Combine(folder, PendingImport))) return;
++            try
++            {
++                var sources = Detect(folder, programId, Array.Empty<string>(), out _, true);
++                if (sources == null) return;
++                string profile = ImportProfile(sources, out bool ambiguous);
++                if (ambiguous || profile == null) return;
++                var id = new UserId(profile);
++                var accounts = device.System.AccountManager;
++                if (!accounts.GetAllUsers().Any(user => user.UserId == id))
++                    accounts.AddUser("Player", Ryujinx.Common.EmbeddedResources.Read("Ryujinx.HLE/HOS/Services/Account/Acc/DefaultUserImage.jpg"), id);
++                if (accounts.LastOpenedUser.UserId != id) accounts.OpenUser(id);
++            }
++            catch (IOException)
++            {
++                TryReportFailure(folder);
++            }
++            catch (UnauthorizedAccessException)
++            {
++                TryReportFailure(folder);
++            }
++        }
++
+         // ---- 起局读入 ----
+         public static void ReadIn(Switch device, ulong programId)
+         {
+@@ -164,6 +259,7 @@
+             bool verify = RbImportOn();
+             string pending = Path.Combine(folder, PendingImport);
+             bool requested = verify && File.Exists(pending);
++            bool receipt = RbProfileOn() && requested;
+             _programId = programId; _keep = requested;
+             try
+             {
+@@ -171,15 +267,26 @@
+                 string now = Digest(folder), state = Path.Combine(DataRoot(), StateFile);
+                 _atLaunch = now;
+                 string last = File.Exists(state) ? File.ReadAllText(state).Trim() : null;
++                if (now == "" && receipt) ReportImport(folder, "unrecognized");
+                 if (now == "" || (now == last && !requested)) return;   // The host can explicitly request an import with the same file shape.
+                 var top = new HashSet<string>(OwnTop(device, programId));
+-                var src = Detect(folder, programId, top, out string why);
++                var src = Detect(folder, programId, top, out string why, receipt);
+                 if (src == null)
+                 {
+                     _keep = true;
+                     File.WriteAllText(Path.Combine(DataRoot(), ProblemFile), why);
++                    if (receipt) ReportImport(folder, "unrecognized");
+                     Red.Report("存档位置：认不出放进来的存档，沿用当前存档", $"{why}（{folder}）");
+                     return;
++                }
++                if (receipt)
++                {
++                    string profile = ImportProfile(src, out bool ambiguous);
++                    if (ambiguous || (profile != null && profile != device.System.AccountManager.LastOpenedUser.UserId.ToString()))
++                    {
++                        ReportImport(folder, ambiguous ? "ambiguousProfile" : "profileUnavailable");
++                        return;
++                    }
+                 }
+                 int committed = Saves.SeedFrom(device, programId, src);
+                 if (verify && committed != src.Count)
+@@ -187,6 +294,7 @@
+                     _keep = true;
+                     string report = $"Save import kept in Files: {committed}/{src.Count} save areas committed";
+                     File.WriteAllText(Path.Combine(DataRoot(), ProblemFile), report);
++                    if (receipt) ReportImport(folder, "mountFailed");
+                     Native.Mark(Encoding.UTF8.GetBytes($"RewindBox: {report} (S2A_RB_SAVE_IMPORT)\0"));
+                     return;
+                 }
+@@ -194,14 +302,30 @@
+                 File.Delete(Path.Combine(DataRoot(), ProblemFile));
+                 if (verify)
+                 {
++                    if (receipt) ReportImport(folder, "applied");
+                     if (requested) File.Delete(pending);
+                     _keep = false;
+                     Native.Mark(Encoding.UTF8.GetBytes($"RewindBox: save import committed {committed}/{src.Count} save areas (S2A_RB_SAVE_IMPORT)\0"));
+                 }
+                 Console.Error.WriteLine($"S2A 存档位置：读入玩家放进来的存档 {string.Join("、", src.Select(x => x.kind + " ← " + Path.GetRelativePath(folder, x.dir)))}");
+             }
+-            catch (InvalidOperationException) { throw; }   // 拷入 / 提交失败：本次起局失败（同 S2A_SAVE_DIR）
+-            catch (Exception e) { Red.Report("存档位置：读入失败，沿用当前存档", e.Message); }
++            catch (InvalidOperationException)
++            {
++                if (receipt) TryReportFailure(folder);
++                throw;
++            }
++            catch (Exception e)
++            {
++                if (receipt) TryReportFailure(folder);
++                Red.Report("存档位置：读入失败，沿用当前存档", e.Message);
++            }
++        }
++
++        static void TryReportFailure(string folder)
++        {
++            try { ReportImport(folder, "writeFailed"); }
++            catch (IOException) { }
++            catch (UnauthorizedAccessException) { }
+         }
+         static IEnumerable<string> OwnTop(Switch device, ulong programId)
+         {
+@@ -230,6 +354,8 @@
+                 string acc = Path.Combine(snap, "account"), dev = Path.Combine(snap, "device");
+                 if (Directory.Exists(acc)) Directory.Move(acc, Path.Combine(next, "save"));
+                 if (Directory.Exists(dev)) Directory.Move(dev, Path.Combine(next, Directory.Exists(acc) || Directory.Exists(Path.Combine(next, "save")) ? "save_device" : "save"));
++                if (RbProfileOn() && File.Exists(Path.Combine(folder, ImportResult)))
++                    File.Copy(Path.Combine(folder, ImportResult), Path.Combine(next, ImportResult));
+                 if (Directory.Exists(folder)) Directory.Move(folder, old);
+                 Directory.Move(next, folder);
+                 if (Directory.Exists(old)) Directory.Delete(old, true);

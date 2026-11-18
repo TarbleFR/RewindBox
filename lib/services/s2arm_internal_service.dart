@@ -1159,6 +1159,8 @@ abstract final class S2ArmInternalService {
   /// the format names no game (JKSV, plain files, save / save_device) or names several. Visible for tests.
   static Future<String?> saveProgramId(String picked) async {
     final ids = <String>{};
+    final direct = await _directSaveSource(picked);
+    if (direct != null) return direct.program;
     final root = Directory(picked);
     final checkpoint = _checkpointName.firstMatch(path.basename(path.normalize(root.path)));
     if (checkpoint != null) ids.add(checkpoint.group(1)!.toLowerCase());
@@ -1278,7 +1280,8 @@ abstract final class S2ArmInternalService {
     final source = Directory(picked);
     if (!await source.exists()) throw const S2ArmSaveException('saveEmpty');
     // A save that names another game goes to that game's folder: the player picked the wrong game in the list, or none.
-    final saveId = await saveProgramId(picked);
+    final direct = await _directSaveSource(picked);
+    final saveId = direct?.program ?? await saveProgramId(picked);
     String? redirectedTo;
     String? redirectedTitle;
     final Directory target;
@@ -1311,7 +1314,12 @@ abstract final class S2ArmInternalService {
     final previousBackup = Directory(path.join(staging.path, 'previous-backup'));
     var clean = true;
     try {
-      final files = await _copyTree(source, Directory(path.join(contents.path, name.isEmpty ? 'save' : name)));
+      final files = await _copyTree(source, Directory(path.join(
+        contents.path, direct?.kind ?? (name.isEmpty ? 'save' : name),
+      )));
+      if (direct?.user case final String user) {
+        await File(path.join(contents.path, 'user')).writeAsString(user, flush: true);
+      }
       if (files == 0) throw const S2ArmSaveException('saveEmpty');
       await File(path.join(contents.path, '.rewindbox-import-pending')).writeAsString('1\n', flush: true);
       var backedUp = false;
@@ -1347,6 +1355,29 @@ abstract final class S2ArmInternalService {
       );
     } finally {
       if (clean) await _removeStaging(staging);
+    }
+  }
+
+  // The Files copy is pending until this marker is written by the guest after Commit.
+  static Future<String?> saveImportStatus(String exportFolder) async {
+    try {
+      final folder = await saveFolderFor(exportFolder);
+      if (folder == null) return null;
+      final pending = File(path.join(folder.path, '.rewindbox-import-pending'));
+      final result = File(path.join(folder.path, '.rewindbox-import-result'));
+      final isPending = await pending.exists();
+      if (!await result.exists() || await result.length() > 64) {
+        return isPending ? 'saveRestorePending' : null;
+      }
+      return switch ((await result.readAsString()).trim()) {
+        'applied' => isPending ? 'saveRestorePending' : 'saveRestoreApplied',
+        'unrecognized' => 'saveRestoreUnrecognized',
+        'ambiguousProfile' || 'profileUnavailable' => 'saveRestoreProfile',
+        'mountFailed' || 'writeFailed' => 'saveRestoreWriteFailed',
+        _ => isPending ? 'saveRestorePending' : null,
+      };
+    } on FileSystemException {
+      return 'saveRestoreWriteFailed';
     }
   }
 
