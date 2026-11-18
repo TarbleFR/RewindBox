@@ -10,7 +10,8 @@
   "native/melonx/EmbeddedRuntime.cs",
   "native/melonx/EmbeddedAddons.cs",
   "native/melonx/EmbeddedSessionCoordinator.cs",
-  "native/melonx/EmbeddedGraphicsSettings.cs"
+  "native/melonx/EmbeddedGraphicsSettings.cs",
+  "native/melonx/EmbeddedAddonSelection.cs"
  ],
  "addedPreparationInputs": [
   "build-utils/melonx/adapt_array_rebuild_allocations.py",
@@ -155,7 +156,10 @@
   "build-utils/melonx/adapt_cheat_report.py",
   "native/melonx/EmbeddedCheatReport.cs",
   "build-utils/melonx/adapt_descriptor_and_block_usage.py",
-  "build-utils/melonx/adapt_cached_shader_stages.py"
+  "build-utils/melonx/adapt_cached_shader_stages.py",
+  "build-utils/melonx/adapt_account_cache_import.py",
+  "native/melonx/EmbeddedNsz.cs",
+  "native/melonx/EmbeddedShaderMetadataReader.cs"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -290,13 +294,17 @@
   "src/Ryujinx.Library/EmbeddedGraphicsSettings.cs",
   "src/Ryujinx.Graphics.GAL/ShaderSource.cs",
   "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ShaderBinarySerializer.cs",
-  "src/Ryujinx.Graphics.Vulkan/Shader.cs"
+  "src/Ryujinx.Graphics.Vulkan/Shader.cs",
+  "src/Ryujinx.HLE/HOS/Services/Account/Acc/AccountService/IManagerForApplication.cs",
+  "src/Ryujinx.Library/EmbeddedAddonSelection.cs"
  ],
  "productionAdditions": [
   "src/Ryujinx.HLE/EmbeddedOnline.cs",
   "src/Ryujinx.Library/RewindBoxRuntimeYield.c",
   "src/Ryujinx.Horizon/EmbeddedDeliveryCache.cs",
-  "src/Ryujinx.HLE/EmbeddedCheatReport.cs"
+  "src/Ryujinx.HLE/EmbeddedCheatReport.cs",
+  "src/Ryujinx.Graphics.Gpu/EmbeddedShaderMetadataReader.cs",
+  "src/Ryujinx.Library/EmbeddedNsz.cs"
  ],
  "fixtureInputs": [
   "build-utils/melonx/adapt_binding_data_snapshots.py",
@@ -5236,7 +5244,9 @@
     "src/Ryujinx.Graphics.GAL/ShaderSource.cs",
     "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ShaderBinarySerializer.cs",
     "src/Ryujinx.Graphics.Vulkan/Shader.cs",
-    "src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs"
+    "src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs",
+    "src/Ryujinx.Graphics.Gpu/EmbeddedShaderMetadataReader.cs",
+    "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/BinarySerializer.cs"
    ]
   },
   {
@@ -5348,7 +5358,10 @@
     "src/Ryujinx.Library/EmbeddedContent.cs",
     "src/Ryujinx.HLE/EmbeddedCheatReport.cs",
     "src/Ryujinx.Library/EmbeddedGraphicsSettings.cs",
-    "src/Ryujinx.Library/EmbeddedAddons.cs"
+    "src/Ryujinx.Library/EmbeddedAddons.cs",
+    "src/Ryujinx.HLE/HOS/Services/Account/Acc/AccountService/IManagerForApplication.cs",
+    "src/Ryujinx.Library/EmbeddedAddonSelection.cs",
+    "src/Ryujinx.Library/EmbeddedNsz.cs"
    ]
   }
  ]

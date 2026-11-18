@@ -328,10 +328,13 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
       final name = entry['name']?.toString() ?? '';
       final category = EnhancementCategory.parse(entry['cat']?.toString());
       if (id.isEmpty || category == null) continue;
+      final program = entry['program']?.toString() ?? identity.key;
+      final installed = program == identity.key ? _installedBuilds[identity.key] : null;
       final patches = _exefs(entry);
       if (patches.isNotEmpty) {
         // Exefs mods are written only while active: no installed state.
         final bids = [for (final patch in patches) patch.bid.substring(0, 16)]..sort();
+        final matches = installed == null || bids.contains(installed);
         items.add(
           EnhancementItem(
             id: id,
@@ -339,7 +342,8 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
             category: category,
             name: name,
             sourceId: entry['source']?.toString() ?? '',
-            status: state?.active.contains(id) == true
+            problem: matches ? EnhancementProblem.none : EnhancementProblem.versionMismatch,
+            status: !matches ? EnhancementStatus.incompatible : state?.active.contains(id) == true
                 ? EnhancementStatus.active
                 : EnhancementStatus.available,
             compatibility:
@@ -356,8 +360,6 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
       final buildList = builds.keys.toList()..sort();
       // The installed build is the application's main executable: a
       // collection's other programs run their own and keep their status.
-      final program = entry['program']?.toString() ?? identity.key;
-      final installed = program == identity.key ? _installedBuilds[identity.key] : null;
       final matches = installed == null || builds.containsKey(installed);
       final target = category == EnhancementCategory.fps && installed != null && matches && _refreshTaken
           ? refreshTarget(name)
@@ -667,7 +669,7 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
             exefsFiles[path.join(exefsDirectory.path, '$id-$index.pchtxt')] = patches[index].text;
           }
         }
-        continue;
+        if (!entry.containsKey('builds')) continue;
       }
       if (!_safeName(name)) continue;
       for (final build in _builds(entry).entries) {

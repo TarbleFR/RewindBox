@@ -337,6 +337,7 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
             } else if operation == 4 || operation == 5 {
                 var addon: [String:Any] = ["path":path]
                 if let title = arguments["titleId"] as? String { addon["titleId"] = title }
+                if operation == 4, let stage = arguments["expandedPath"] as? String { addon["expandedPath"] = stage }
                 guard (operation == 4 || addon["titleId"] != nil),
                       let data = try? JSONSerialization.data(withJSONObject:addon),
                       let request = String(data:data,encoding:.utf8) else { result(FlutterError(code:"invalidTitle",message:"A base-game title is required.",details:nil)); return }

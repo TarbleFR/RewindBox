@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart';
 import 'package:crypto/crypto.dart';
 
 import 'enhancement_models.dart';
@@ -119,7 +120,7 @@ abstract final class EnhancementOrigin {
     for (final raw in (record['entries'] as List? ?? const [])) {
       if (raw is! Map) continue;
       for (final value in (raw['builds'] as Map? ?? const {}).values) {
-        note(value, needed);
+        note(value, value is Map && value.containsKey('member') ? optional : needed);
       }
       for (final patch in (raw['exefs'] as List? ?? const [])) {
         note(patch, optional);
@@ -190,11 +191,35 @@ abstract final class EnhancementOrigin {
       final Map<String, dynamic> map => map,
       _ => throw const EnhancementException('origin_format'),
     };
+    final archives = <int, Archive>{};
+    Uint8List? member(int index, Map pointer) {
+      final name = pointer['member'];
+      final size = pointer['rawSize'];
+      if (name is! String || size is! int || size < 1 || size > 65536 ||
+          contents[index].isEmpty || name.contains(r'\') ||
+          name.split('/').any((part) => part.isEmpty || part == '..' || part == '.')) {
+        return null;
+      }
+      // The catalogue verified the entire pinned ZIP. Read only the named patch in memory.
+      final archive = archives[index] ??= ZipDecoder().decodeBytes(contents[index]);
+      final file = archive.findFile(name);
+      if (file == null || !file.isFile || file.size != size) return null;
+      final bytes = file.readBytes();
+      return bytes != null && bytes.length == size ? bytes : null;
+    }
     List<String>? read(String build, Object? pointer) {
       if (pointer is! Map) return null;
       final index = pointer['o'];
       final key = pointer['k'];
       if (index is! int || index < 0 || index >= contents.length || key is! String) return null;
+      if (pointer.containsKey('member')) {
+        final bytes = member(index, pointer);
+        if (bytes == null) return null;
+        final lines = utf8.decode(bytes).replaceAll('\r', '').split('\n').map((line) => line.trim()).toList();
+        final start = lines.indexOf(key);
+        if (start < 0) return null;
+        return switchLines(lines.skip(start + 1).takeWhile((line) => !line.startsWith('[') && !line.startsWith('{')));
+      }
       final codes = titleFile(index)[build];
       final code = codes is Map ? codes[key] : null;
       if (code == null) return null;
@@ -223,15 +248,20 @@ abstract final class EnhancementOrigin {
           }
           final index = patch['o'];
           if (index is! int || index < 0 || index >= contents.length) continue;
-          final text = pchtxtText(contents[index]);
+          final bytes = patch.containsKey('member') ? member(index, patch) : contents[index];
+          final text = bytes == null ? null : pchtxtText(bytes);
           if (text == null || !text.startsWith('@nsobid-${patch['bid']}\n')) continue;
           final encoded = utf8.encode(text);
           if (encoded.length != patch['size'] || sha256.convert(encoded).toString() != patch['sha256']) continue;
           patches.add({'bid': patch['bid'], 'text': text});
         }
         // Like a cheat, a mod is kept only with every patch it was published with.
-        if (patches.isNotEmpty && patches.length == exefs.length) entries.add({...entry, 'exefs': patches});
-        continue;
+        if (patches.isEmpty || patches.length != exefs.length) continue;
+        entry['exefs'] = patches;
+        if (!entry.containsKey('builds')) {
+          entries.add(entry);
+          continue;
+        }
       }
       final builds = <String, dynamic>{};
       for (final build in (entry['builds'] as Map? ?? const {}).entries) {

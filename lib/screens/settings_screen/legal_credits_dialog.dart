@@ -58,6 +58,13 @@ class LegalCreditsDialog {
       'assets/legal/melonx/MeloNX-Ryujinx-LICENSE.txt',
     ),
     _LegalEntry(
+      'ZstdSharp / Zstandard',
+      'Oleg Stepanischev and the Zstandard contributors',
+      'MIT and BSD-3-Clause',
+      'https://github.com/oleg-st/ZstdSharp',
+      'assets/legal/melonx/ZstdSharp-LICENSE.txt',
+    ),
+    _LegalEntry(
       'XeniOS (Xenia for iOS)',
       'Ben Vanik, the Xenia project and XeniOS contributors',
       'BSD-3-Clause; component notices in Legal/XeniOS',

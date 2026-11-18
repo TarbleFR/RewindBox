@@ -36,6 +36,17 @@ partial class Library
         ulong titleId = requested ?? 0;
         if (path == null || !Path.IsPathFullyQualified(path) || !File.Exists(path))
             throw new FileNotFoundException("The add-on must be a readable local package.");
+        if (operation == 4 && string.Equals(Path.GetExtension(path), ".nsz", StringComparison.OrdinalIgnoreCase))
+        {
+            string stage = document.RootElement.GetProperty("expandedPath").GetString();
+            try { EmbeddedNsz.Expand(path, stage); }
+            catch (IOException error) when ((error.HResult & 0xffff) is 28 or 39 or 112)
+            { throw new IOException("insufficientSpace", error); }
+            catch (Exception error) when (error is InvalidDataException or EndOfStreamException or OverflowException or
+                                          System.Text.DecoderFallbackException or ZstdSharp.ZstdException)
+            { throw new InvalidDataException("invalidContent", error); }
+            path = stage;
+        }
         using IFileSystem pfs = PartitionFileSystemUtils.OpenApplicationFileSystem(path, _virtualFileSystem);
         _virtualFileSystem.ImportTickets(pfs);
         if (operation == 4)

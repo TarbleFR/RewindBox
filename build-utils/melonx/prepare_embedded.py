@@ -237,6 +237,7 @@ from adapt_cheat_report import apply as adapt_cheat_report
 from adapt_descriptor_pool_lifetime import apply as adapt_descriptor_pool_lifetime
 from adapt_descriptor_and_block_usage import apply as adapt_descriptor_and_block_usage
 from adapt_cached_shader_stages import apply as adapt_cached_shader_stages
+from adapt_account_cache_import import apply as adapt_account_cache_import
 
 
 def replace_once(path, old, new):
@@ -369,6 +370,7 @@ def main():
                    'EmbeddedFirmwareArchive.cs': 'Ryujinx.HLE',
                    'EmbeddedOnline.cs': 'Ryujinx.HLE',
                    'EmbeddedDeliveryCache.cs': 'Ryujinx.Horizon',
+                   'EmbeddedShaderMetadataReader.cs': 'Ryujinx.Graphics.Gpu',
                    'EmbeddedCheatReport.cs': 'Ryujinx.HLE'}.get(path.name, 'Ryujinx.Library')
         target = source / 'src' / project / path.name
         shutil.copyfile(path, target)
@@ -774,6 +776,7 @@ def main():
     adapted += adapt_descriptor_pool_lifetime(source)
     adapted += adapt_descriptor_and_block_usage(source)
     adapted += adapt_cached_shader_stages(source)
+    adapted += adapt_account_cache_import(source)
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -936,7 +939,7 @@ def main():
                  'adapt_empty_worker_snapshot.py', 'adapt_release_passes.py', 'adapt_array_walk_size.py',
                  'adapt_loh_compaction_request.py', 'adapt_guest_break_context.py',
                  'adapt_shader_load_binary_release.py', 'adapt_streaming_memory.py', 'adapt_nextendo_data.py', 'adapt_buffer_mirror_windows.py',
-                 'adapt_cheat_report.py', 'adapt_descriptor_pool_lifetime.py', 'adapt_descriptor_and_block_usage.py', 'adapt_cached_shader_stages.py']:
+                 'adapt_cheat_report.py', 'adapt_descriptor_pool_lifetime.py', 'adapt_descriptor_and_block_usage.py', 'adapt_cached_shader_stages.py', 'adapt_account_cache_import.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

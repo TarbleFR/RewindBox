@@ -155,6 +155,21 @@ other authors (masagrator, systemdev, Kirby567fan, Fl4sh). The author does
 not allow his mods to be re-uploaded to other sites; nothing of them is
 hosted here.
 
+Fl4sh9174 publishes per-game ZIP archives. Format 4 adds named ZIP members
+to the Switch catalogue. RewindBox fetches the original archive once per
+game, verifies its pinned size and SHA-256 and reads only the listed members.
+The adapter checks each ExeFS patch's normalised text and Build ID, and reads
+Atmosphère sections by executable Build ID. A release that needs both keeps
+its patch and cheat under a single switch. The user chooses which mods to
+enable in Cheats & Enhancements. Patches with zero active writes for a
+version and releases requiring an unsupported companion file are omitted.
+
+The 18 November catalogue adds 664 entries for 110 Switch titles at
+revision `5eed21701e8091389e2e746f073f694ea2ad4ec6`. It adds 168 FPS
+mods, 202 ultrawide mods, 281 graphics mods, 2 performance mods and 11
+cheats. The catalogue stores metadata. Mod contents come from the publisher.
+[Source and author credits](https://github.com/Fl4sh9174/Switch-Emulator-Ultrawide-FPS-Mods/tree/5eed21701e8091389e2e746f073f694ea2ad4ec6)
+
 When a source cannot be reached, or no longer serves the pinned bytes, the
 rest of a record stays usable: a PS2 record is returned without the cheat
 files built from pointers (the engine's own patches remain), and a Switch
@@ -287,8 +302,8 @@ entries from 17 sources):
   `cheats.json` (uncredited codes), KeatonTheBot/switch-pchtxt-mods and
   Fl4sh9174/Switch-Ultrawide-Mods (exefs). switch-cheats-db came back the
   same day without being hosted, and KeatonTheBot/switch-pchtxt-mods on
-  16 November 2026: see Origin download. Fl4sh9174's mods are published as
-  zip archives, which the origin download does not read.
+  16 November 2026. The Fl4sh9174 ZIP source returned by reference with
+  format 4 on 18 November 2026. See Origin download above.
 - **PS2:** the bodies of PCSX2/pcsx2_patches (only the names of the copy
   ARMSX2 ships are referenced), Gabominated/PCSX2 and PeterDelta/PCSX2.
   These three came back on 16 November 2026 without being hosted, as

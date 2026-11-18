@@ -97,17 +97,13 @@ abstract final class MelonxEmbeddedLibraryService {
     return FormatException('copyFailed:$detail');
   }
 
-  static Future<File> _copyUnique(
-    File source,
-    Directory destination, {
-    void Function(int, int)? progress,
-  }) async {
+  static Future<File> _freeDestination(Directory destination, String name) async {
     await destination.create(recursive: true);
-    final name = path.basename(source.path);
     var file = File(path.join(destination.path, name));
     for (var index = 2; await file.exists(); index++) {
-      if (index > 10000)
+      if (index > 10000) {
         throw const FileSystemException('No free import filename.');
+      }
       file = File(
         path.join(
           destination.path,
@@ -115,6 +111,15 @@ abstract final class MelonxEmbeddedLibraryService {
         ),
       );
     }
+    return file;
+  }
+
+  static Future<File> _copyUnique(
+    File source,
+    Directory destination, {
+    void Function(int, int)? progress,
+  }) async {
+    final file = await _freeDestination(destination, path.basename(source.path));
     final temporary = File('${file.path}.importing');
     try {
       final expected = await source.length();
@@ -428,7 +433,7 @@ abstract final class MelonxEmbeddedLibraryService {
       onProgress?.call(const MelonxImportProgress('choosingFiles'));
       final selection = await FilePicker.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['nsp'],
+        allowedExtensions: dlc ? ['nsp'] : ['nsp', 'nsz'],
         withData: false,
         allowMultiple: dlc,
       );
@@ -454,7 +459,7 @@ abstract final class MelonxEmbeddedLibraryService {
 
         try {
           if (picked.path == null ||
-              path.extension(picked.path!).toLowerCase() != '.nsp') {
+              !{'.nsp', if (!dlc) '.nsz'}.contains(path.extension(picked.path!).toLowerCase())) {
             throw const FormatException('invalidContent');
           }
           final source = File(picked.path!);
@@ -495,61 +500,83 @@ abstract final class MelonxEmbeddedLibraryService {
     required bool dlc,
     required void Function(String, [int, int]) progress,
   }) async {
-    final info = await MelonxInternalService.content(
-      dlc ? 'inspectDlc' : 'inspectUpdate',
-      filePath: source.path,
-      titleId: selectedTitle,
-    );
-    final title = baseTitleId(info['baseTitleId']?.toString() ?? '');
-    if (selectedTitle != null && title != selectedTitle) {
-      throw const FormatException('addonWrongGame');
-    }
-    // A playlist-wide update targets an installed local base game using the
-    // inspected package ID, never the name of the selected NSP.
-    final gameName = selectedTitle == null
-        ? await _installedGameName(title)
+    final compressed = !dlc && path.extension(source.path).toLowerCase() == '.nsz';
+    final sourceLength = await source.length();
+    final staging = compressed
+        ? await Directory.systemTemp.createTemp('rewindbox-nsz-')
         : null;
-    final root = await MelonxInternalService.rootDirectory();
-    final output = await _copyUnique(
-      source,
-      Directory(path.join(root.path, 'addons', title)),
-      progress: (done, total) => progress('copying', done, total),
-    );
-    progress('installing');
-    final relative = path.relative(output.path, from: root.path);
-    final configuration = File(
-      path.join(root.path, 'games', title, dlc ? 'dlc.json' : 'updates.json'),
-    );
+    final expanded = staging == null
+        ? null
+        : File(path.join(staging.path, '${path.basenameWithoutExtension(source.path)}.nsp'));
     try {
-      if (dlc) {
-        final previous = await configuration.exists()
-            ? jsonDecode(await configuration.readAsString()) as List
-            : <dynamic>[];
-        await _writeJson(configuration, [
-          ...previous,
-          {'path': relative, 'dlc_nca_list': info['dlc_nca_list']},
-        ]);
-      } else {
-        final previous = await configuration.exists()
-            ? jsonDecode(await configuration.readAsString()) as Map
-            : <String, dynamic>{};
-        await _writeJson(configuration, {
-          'selected': relative,
-          'paths': <dynamic>{
-            ...(previous['paths'] as List? ?? []),
-            relative,
-          }.toList(),
-        });
+      final info = await MelonxInternalService.content(
+        dlc ? 'inspectDlc' : 'inspectUpdate',
+        filePath: source.path,
+        titleId: selectedTitle,
+        expandedPath: expanded?.path,
+      );
+      if (expanded != null && (!await expanded.exists() || await source.length() != sourceLength)) {
+        throw const FormatException('incompleteTransfer');
       }
-    } catch (_) {
-      await output.delete();
-      rethrow;
+      final title = baseTitleId(info['baseTitleId']?.toString() ?? '');
+      if (selectedTitle != null && title != selectedTitle) {
+        throw const FormatException('addonWrongGame');
+      }
+      // A playlist-wide update targets an installed local base game using the
+      // inspected package ID, never the name of the selected NSP.
+      final gameName = selectedTitle == null
+          ? await _installedGameName(title)
+          : null;
+      final root = await MelonxInternalService.rootDirectory();
+      final destination = Directory(path.join(root.path, 'addons', title));
+      final output = expanded == null
+          ? await _copyUnique(
+              source, destination,
+              progress: (done, total) => progress('copying', done, total),
+            )
+          : await expanded.rename(
+              (await _freeDestination(destination, path.basename(expanded.path))).path,
+            );
+      progress('installing');
+      final relative = path.relative(output.path, from: root.path);
+      final configuration = File(
+        path.join(root.path, 'games', title, dlc ? 'dlc.json' : 'updates.json'),
+      );
+      try {
+        if (dlc) {
+          final previous = await configuration.exists()
+              ? jsonDecode(await configuration.readAsString()) as List
+              : <dynamic>[];
+          await _writeJson(configuration, [
+            ...previous,
+            {'path': relative, 'dlc_nca_list': info['dlc_nca_list']},
+          ]);
+        } else {
+          final previous = await configuration.exists()
+              ? jsonDecode(await configuration.readAsString()) as Map
+              : <String, dynamic>{};
+          await _writeJson(configuration, {
+            'selected': relative,
+            'paths': <dynamic>{
+              ...(previous['paths'] as List? ?? []),
+              relative,
+            }.toList(),
+          });
+        }
+      } catch (_) {
+        await output.delete();
+        rethrow;
+      }
+      await StoragePickerCopies.discardAfterVerifiedImport(
+        source.path,
+        expectedLength: expanded == null ? await output.length() : sourceLength,
+      );
+      return gameName;
+    } finally {
+      if (staging != null && await staging.exists()) {
+        await staging.delete(recursive: true);
+      }
     }
-    await StoragePickerCopies.discardAfterVerifiedImport(
-      source.path,
-      expectedLength: await output.length(),
-    );
-    return gameName;
   }
 
   static Future<String> _installedGameName(String title) async {

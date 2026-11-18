@@ -47,6 +47,7 @@ import re
 import subprocess
 import sys
 import urllib.request
+import zipfile
 from pathlib import Path
 
 import yaml
@@ -64,7 +65,8 @@ SHARDS_PER_ENGINE = 32
 #   1  first publication (root index.json.gz and shards/, frozen)
 #   2  PS2 records may point into their sources' files (`origin`, files with `parts`)
 #   3  Switch exefs patches may point to a source's .pchtxt file (`exefs: [{bid, o, size, sha256}]`)
-FORMAT = 3
+#   4  Switch pointers may select a named, bounded member of a pinned ZIP.
+FORMAT = 4
 ENGINES = ('melonx', 'rpcs3', 'armsx2', 'dolphin')
 
 # Only sources whose licence allows redistribution, or content the embedded
@@ -87,6 +89,17 @@ SOURCES = {
         'engines': ['melonx'],
     },
     # No licence either: exefs patches (IPSwitch .pchtxt), read by reference like the cheats above.
+    'fl4sh-zip': {
+        'name': 'Fl4sh9174/Switch-Emulator-Ultrawide-FPS-Mods',
+        'url': 'https://github.com/Fl4sh9174/Switch-Emulator-Ultrawide-FPS-Mods',
+        'git': 'https://github.com/Fl4sh9174/Switch-Emulator-Ultrawide-FPS-Mods.git',
+        'revision': '5eed21701e8091389e2e746f073f694ea2ad4ec6',
+        'origin': 'https://raw.githubusercontent.com/Fl4sh9174/Switch-Emulator-Ultrawide-FPS-Mods/'
+                  '5eed21701e8091389e2e746f073f694ea2ad4ec6/',
+        'license': "Original authors retain their rights. The app reads selected patches from the publisher's ZIP.",
+        'engines': ['melonx'],
+        'author': 'Fl4sh9174',
+    },
     'keatonthebot-pchtxt': {
         'name': 'KeatonTheBot/switch-pchtxt-mods (exefs patches: resolution, frame rate, effects)',
         'url': 'https://github.com/KeatonTheBot/switch-pchtxt-mods',
@@ -591,7 +604,147 @@ def build_melonx_exefs(root, source_id, titles, restricted, stats):
         stats['melonx_exefs_entries'] += 1
 
 
-def build_melonx(scdb, matias, stats, exefs=()):
+def has_enabled_ipswitch_write(text):
+    """Some releases include an empty template for one executable version."""
+    enabled = False
+    for raw in text.splitlines()[1:]:
+        if not raw.strip():
+            enabled = False
+        line = raw.split('//', 1)[0].strip()
+        if line.startswith('@stop'):
+            break
+        if line.startswith('@enabled'):
+            enabled = True
+        elif line.startswith('@disabled'):
+            enabled = False
+        elif enabled and re.match(r'^[0-9a-fA-F]{1,8} +(?:[0-9a-fA-F]{2}|")', line):
+            return True
+    return False
+
+
+def build_melonx_zip(root, titles, restricted, stats):
+    """Only publish pointers for complete mods the two existing Switch installers can apply."""
+    source = 'fl4sh-zip'
+    for package in sorted(root.glob('*.zip')):
+        match = re.search(r'\[(0100[0-9a-fA-F]{12})\]', package.stem)
+        if not match or match[1].upper() in restricted:
+            stats['fl4sh_archives_unmatched_or_restricted'] += 1
+            continue
+        tid = match[1].upper()
+        groups = collections.defaultdict(list)
+        with zipfile.ZipFile(package) as archive:
+            for item in archive.infolist():
+                if item.is_dir():
+                    continue
+                parts = item.filename.split('/')
+                if any(part in ('', '.', '..') or '\\' in part for part in parts):
+                    raise ValueError(f'Unsafe ZIP member in {package.name}')
+                for i, part in enumerate(parts):
+                    if part.lower() in ('exefs', 'romfs', 'cheats'):
+                        groups[tuple(parts[:i])].append((part.lower(), parts[i + 1:], item))
+                        break
+            record = titles.setdefault(tid, {'title': '', 'credits': [], 'origin': [], 'master': {}, 'entries': {}, 'seen': {}})
+            origin = len(record['origin'])
+            pending = {}
+            for folder, items in sorted(groups.items()):
+                label = clean_label(' - '.join(part.strip('[]') for part in folder), 120)
+                if not label or package.stat().st_size > 16 << 20 or any(
+                        len(parts) != 1 or item.file_size > 65536 or item.flag_bits & 1
+                        for _, parts, item in items):
+                    stats['fl4sh_groups_not_installable'] += 1
+                    continue
+                patches = {}
+                cheats = {}
+                has_empty_patch = False
+                for layout, parts, item in items:
+                    raw = archive.read(item)
+                    member = {'o': origin, 'member': item.filename, 'rawSize': len(raw)}
+                    if layout == 'exefs' and parts[0].lower().endswith('.pchtxt'):
+                        read = pchtxt_text(raw)
+                        if not read or read[0] in patches:
+                            break
+                        bid, body = read
+                        if not has_enabled_ipswitch_write(body):
+                            has_empty_patch = True
+                            stats['fl4sh_empty_patch_versions'] += 1
+                            continue
+                        encoded = body.encode()
+                        patches[bid] = {**member, 'bid': bid, 'size': len(encoded), 'sha256': hashlib.sha256(encoded).hexdigest()}
+                    elif layout == 'cheats' and re.fullmatch(r'[0-9A-Fa-f]{16}\.txt', parts[0], re.I):
+                        # Keep only complete, independent Atmosphère sections. A master or an
+                        # unrecognised line makes this whole mod unsuitable for the cheat installer.
+                        bid = parts[0][:-4].upper()
+                        try:
+                            lines = raw.decode('utf-8-sig').replace('\r', '').splitlines()
+                        except UnicodeError:
+                            break
+                        active = None
+                        sections = {}
+                        valid = True
+                        for line in (s.strip() for s in lines if s.strip()):
+                            if line.startswith('[') and line.endswith(']') and line not in sections:
+                                active = line
+                                sections[active] = []
+                            elif active and switch_lines([line]):
+                                sections[active].append(line)
+                            else:
+                                valid = False
+                                break
+                        sections = {key: body for key, body in sections.items() if body}
+                        if not valid or not sections or not all(switch_lines(body) for body in sections.values()):
+                            break
+                        for section in sections:
+                            builds = cheats.setdefault(section, {})
+                            if bid in builds:
+                                valid = False
+                                break
+                            builds[bid] = {**member, 'k': section}
+                        if not valid:
+                            break
+                    else:
+                        break
+                else:
+                    # The patch and cheat of a combined release must target the same executable.
+                    if has_empty_patch and cheats:
+                        stats['fl4sh_groups_not_installable'] += 1
+                        continue
+                    if patches and not cheats:
+                        pending[('exefs', folder)] = (label, {'exefs': [patches[k] for k in sorted(patches)]})
+                        continue
+                    if patches and len(cheats) == 1:
+                        builds = next(iter(cheats.values()))
+                        if set(builds) == {bid[:16] for bid in patches}:
+                            pending[('combined', folder)] = (label, {'exefs': [patches[k] for k in sorted(patches)], 'builds': builds})
+                            continue
+                    if cheats and not patches:
+                        for section, builds in sorted(cheats.items()):
+                            name = clean_label(section[1:-1], 120)
+                            if not name or not switch_name(section):
+                                continue
+                            pending[('cheat', folder, section)] = (name, {'builds': builds})
+                        continue
+                stats['fl4sh_groups_not_installable'] += 1
+            if not pending:
+                continue
+            record['title'] = record['title'] or clean_label(package.stem[:match.start()], 120)
+            record['credits'].append('Mods published by Fl4sh9174 and the authors credited in the original archives.')
+            with package.open('rb') as stream:
+                digest = hashlib.file_digest(stream, 'sha256').hexdigest()
+            record['origin'].append({'source': source, 'path': package.name, 'size': package.stat().st_size, 'sha256': digest})
+            for key, (label, payload) in pending.items():
+                identity = stable_id('melonx', tid, source, key[0], *key[1], *key[2:])
+                display_key = ('exefs/' if key[0] == 'exefs' else '') + label.casefold()
+                if display_key in record['entries'] or any(e['name'].casefold() == label.casefold() for e in record['entries'].values()):
+                    label = clean_label(f'{label} (Fl4sh9174 · {" / ".join(key[1])})', 180)
+                category = classify(label, 'cheat' if key[0] == 'cheat' else 'graphics')
+                entry = {'id': identity, 'name': label, 'source': source, 'cat': category, **payload}
+                if SWITCH_DISPLAY.search(label):
+                    entry['group'] = f'display/{tid}'
+                record['entries'][identity] = entry
+                stats['fl4sh_' + key[0] + '_entries'] += 1
+
+
+def build_melonx(scdb, matias, stats, exefs=(), archives=None):
     """switch-cheats-db by reference: per title, the origin files (path, size,
     SHA-256 at the pinned revision) and, per program and Build ID, the key of
     the code in that file. The app downloads the file and reads the lines.
@@ -671,6 +824,8 @@ def build_melonx(scdb, matias, stats, exefs=()):
                 assert not any(p['o'] == origin for e in record['entries'].values() for p in e['builds'].values())
     for root, source_id in exefs:
         build_melonx_exefs(root, source_id, titles, restricted, stats)
+    if archives is not None:
+        build_melonx_zip(archives, titles, restricted, stats)
     out = {}
     for tid, record in sorted(titles.items()):
         entries = sorted(record['entries'].values(), key=lambda e: (e['cat'], e['name'].casefold()))
@@ -1410,7 +1565,7 @@ def main():
             engines[engine] = build_melonx(git['switch-cheats-db'],
                                            fetch_git(args.cache, 'gbatemp-matias3ds', args.offline), stats,
                                            exefs=[(git[source_id], source_id) for source_id in
-                                                  ('keatonthebot-pchtxt', 'stevensnd-port-mods', 'stevensnd-ue4-mods')])
+                                                  ('keatonthebot-pchtxt', 'stevensnd-port-mods', 'stevensnd-ue4-mods')], archives=git['fl4sh-zip'])
         elif engine == 'rpcs3':
             engines[engine] = build_rpcs3(fetch_rpcs3(args.cache, args.offline), stats)
         elif engine == 'armsx2':
@@ -1429,6 +1584,10 @@ def main():
             keys[key] = [records[key]['title'], counts(records[key]['entries']), shard]
         for shard, members in sorted(grouped.items()):
             packed, expanded = pack_json({'schema': 1, 'engine': engine, 'shard': shard, 'keys': members})
+            # gzip headers can vary between Python versions. Preserve verified bytes and device caches.
+            old = previous_shards.get(shard)
+            if old and old != packed and gzip.decompress(old) == gzip.decompress(packed):
+                packed = old
             shard_bytes[shard] = packed
             shard_meta[shard] = {'path': f'shards/{shard}.json.gz', 'size': len(packed), 'expanded': expanded,
                                  'sha256': hashlib.sha256(packed).hexdigest()}

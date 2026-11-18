@@ -35,7 +35,7 @@ internal static class EmbeddedAddonSelection
 
     internal static string ErrorCode(Exception error) => error.Message switch
     {
-        "invalidContent" or "ambiguousUpdate" or "addonWrongGame" or "invalidUpdate" => error.Message,
+        "insufficientSpace" or "invalidContent" or "ambiguousUpdate" or "addonWrongGame" or "invalidUpdate" => error.Message,
         _ => "failed",
     };
 }
