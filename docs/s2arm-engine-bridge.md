@@ -472,7 +472,9 @@ On IPA 783, Mario Kart World refused the park with code -2 because the frame wor
 shutdown that followed reported code 0. Patch 0097 defaults to `S2A_WORKGROUP=0` for hosted sessions and drains the
 two guest read-ahead queues before releasing the game window. An explicit workgroup value still wins for measurement,
 and `S2A_RB_PARK_COMPAT=0` restores the earlier defaults. The journal records the selected mode, park and dismissal.
-The relaunch and the thermal effect of this mode still need an iPhone check.
+Patch 0098 hands the controller back before dismissal. Flutter completes controller recovery as part of session
+finalization before another launch. `S2A_RB_PARK_INPUT=0` restores the previous ownership behavior. Relaunch, input
+handoff and the thermal effect of this mode still need an iPhone check.
 
 ## Lower workgroup power before serious heat (18 November 2026)
 

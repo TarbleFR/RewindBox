@@ -38,6 +38,12 @@ jobs:
         if: env.IMPORT_ONLY == 'true'
         run: flutter test test/s2arm_internal_service_test.dart test/switch2_export_content_test.dart
 
+      - name: Check the Switch 2 session handoff
+        if: env.IMPORT_ONLY == 'true'
+        run: |
+          dart analyze --no-fatal-infos lib/services/s2arm_internal_service.dart
+          dart analyze --no-fatal-infos lib/services/game_launch_manager.dart
+
       - name: Analyze
         if: env.IMPORT_ONLY != 'true'
         run: flutter analyze --no-fatal-infos

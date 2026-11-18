@@ -1,0 +1,58 @@
+diff --git a/runtime/src/rb_guest.c b/runtime/src/rb_guest.c
+--- a/runtime/src/rb_guest.c
++++ b/runtime/src/rb_guest.c
+@@ -23,6 +23,18 @@
+ int s2a_rb_guest_log_open(const char *dir);   // os.c: the engine's log file in docs (the constructor redirected nothing)
+ void s2a_host_shutdown(const char *why);      // lifecycle.c
+
++// RewindBox (patch 0098): IPA 783 had 0 parked Mario Kart World stops out of 1 menu
++// stop. On the restored park path, the host and the game share the single native
++// valueChangedHandler slot per controller. Drop S2Arm's ownership before announcing
++// the return, so the resume attaches it again even with the same controller connected.
++// S2A_RB_PARK_INPUT=0 preserves the old controller lifecycle.
++extern void s2a_rb_guest_input_release(void) __attribute__((weak_import));
++static void release_guest_input(void) {
++    const char *setting = getenv("S2A_RB_PARK_INPUT");
++    if (s2a_rb_guest_input_release && !(setting && !strcmp(setting, "0")))
++        s2a_rb_guest_input_release();
++}
++
+ static _Atomic int g_on;        // 1 once s2a_rb_guest_configure passed its checks (before the launch context and the window)
+ static _Atomic int g_ended;     // the session is over and the host was told (session_ended sent at most once)
+ static _Atomic int g_term;      // the process itself ends: 1 = SIGTERM (exit as S2Arm does), 2 = the app terminates (back to UIKit)
+@@ -89,6 +101,7 @@
+     if (!s2a_rb_guest_on() || atomic_exchange(&g_ended, 1)) return;
+     LOG("RewindBox guest: session ended, code %d (%s)", code, why && *why ? why : "-");
+     s2a_logcon_flush();
++    release_guest_input();
+     if (g_cfg.session_ended) g_cfg.session_ended(code, why ? why : "", g_cfg.ended_context);
+ }
+
+@@ -133,6 +146,7 @@
+         LOG("RewindBox guest: session parked (%s); the same game can resume in this process", why);
+         s2a_sesmark_rest_home(1);   // patch 0018: at rest, as after an orderly end: the diagnostics question is not asked for a game the player quit
+         s2a_logcon_flush();
++        release_guest_input();
+         if (g_cfg.session_parked) g_cfg.session_parked(why, g_cfg.parked_context);   // the host copies the reason
+         free((void *)why);
+         return;
+diff --git a/ios/app.m b/ios/app.m
+--- a/ios/app.m
++++ b/ios/app.m
+@@ -1096,6 +1096,16 @@
+     LOG("RewindBox guest: host thread started");
+     return 0;
+ }
++// RewindBox (patch 0098): enqueued before the bridge's callback on the same main
++// queue. setForeground:NO releases the system handler and pauses BLE feedback.
++// The existing restart_done restores foreground and attaches on the resume.
++void s2a_rb_guest_input_release(void);
++void s2a_rb_guest_input_release(void) {
++    dispatch_async(dispatch_get_main_queue(), ^{
++        s2a_controller_set_foreground(0);
++        LOG("RewindBox (patch 0098): released game input before returning to the host");
++    });
++}
+ // Patch 0010: a parked session (rb_guest.c) resumes in the same view controller. The host presents it again, then resumes.
+ int s2a_rb_guest_parked(void); int s2a_rb_guest_resume_session(char *error, size_t error_size);
+ __attribute__((visibility("default"), used)) UIViewController *s2a_rb_guest_view_controller(void) {

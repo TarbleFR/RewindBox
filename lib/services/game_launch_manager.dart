@@ -229,7 +229,13 @@ class GameLaunchManager extends ChangeNotifier with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     // The engine has released the game: give the menu its controller back
     // before the user reaches for it (see [_reclaimControllers]).
-    if (Platform.isIOS) unawaited(_reclaimControllers());
+    if (Platform.isIOS) {
+      if (_activeEmulatorExe == S2ArmInternalService.sessionExecutable) {
+        await _reclaimControllers();
+      } else {
+        unawaited(_reclaimControllers());
+      }
+    }
     try {
       // The native session has ended before this route is disposed. Restore
       // audio ownership before resuming any menu voices, including on failure.
