@@ -1,0 +1,112 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -4865,14 +4865,53 @@
+ static uint64_t rb_pa_frame(void) { return rb_mem_low() ? RB_PA_FRAME / 4 : RB_PA_FRAME; }
+ static _Atomic uint32_t g_pa_last[RB_PA_SLOTS];   // the frame + 1 (its low 32 bits) each piece of the window was last asked in; 0 = never
+ static _Atomic uint64_t g_pa_budget, g_pa_runs, g_pa_bytes, g_pa_pages, g_pa_over, g_pa_unseen, g_pa_tex;   // g_pa_budget: the frame (its low 24 bits, << 40) | the bytes of pieces taken in it
+-static void rb_pa_post(dispatch_queue_t q, uintptr_t lo, uintptr_t hi, uintptr_t a, uintptr_t e) {   // [lo, hi) less the texture's own [a, e), which its upload asked
++// RewindBox (patch 0096): IPA 783 Mario Kart World asked ahead around 3,119 textures for
++// 3,548 MiB. It peaked at 145,061 process page-ins per 10 s; the profile around frame 2021
++// sampled this queue on several CPU threads. A per-frame budget alone does not bound the
++// work left on the serial queue. Limit admitted bytes outside the texture to 64 MiB in
++// nominal, 32 MiB in fair and 16 MiB in serious/critical. Rejected spans stay eligible and
++// the upload still requests its own pages. Set S2A_RB_POOL_QUEUE_BUDGET=0 for patch 0089 alone.
++static _Atomic uint64_t g_pa_pending, g_pa_pending_peak, g_pa_throttled;
++static int rb_pa_queue_budget_on(void) {
++    static dispatch_once_t once;
++    static int enabled;
++    dispatch_once(&once, ^{
++        const char *setting = getenv("S2A_RB_POOL_QUEUE_BUDGET");
++        enabled = setting && !strcmp(setting, "1");
++    });
++    return enabled;
++}
++static uint64_t rb_pa_queue_limit(void) {
++    static _Atomic uint64_t sampled;
++    static _Atomic int thermal;
++    uint64_t now = bp_now(), previous = atomic_load_explicit(&sampled, memory_order_relaxed);
++    if ((!previous || now - previous >= 500000000ull) &&
++        atomic_compare_exchange_strong_explicit(&sampled, &previous, now, memory_order_relaxed, memory_order_relaxed))
++        atomic_store_explicit(&thermal, (int)NSProcessInfo.processInfo.thermalState, memory_order_relaxed);
++    int state = atomic_load_explicit(&thermal, memory_order_relaxed);
++    return (uint64_t)(state >= 2 ? 16 : state == 1 ? 32 : 64) << 20;
++}
++static int rb_pa_reserve(uint64_t bytes, uint64_t limit) {
++    uint64_t old = atomic_load_explicit(&g_pa_pending, memory_order_relaxed), count;
++    do {
++        if (old + bytes > limit) return 0;
++        count = old + bytes;
++    } while (!atomic_compare_exchange_weak_explicit(&g_pa_pending, &old, count, memory_order_relaxed, memory_order_relaxed));
++    uint64_t peak = atomic_load_explicit(&g_pa_pending_peak, memory_order_relaxed);
++    while (peak < count &&
++           !atomic_compare_exchange_weak_explicit(&g_pa_pending_peak, &peak, count, memory_order_relaxed, memory_order_relaxed)) {}
++    return 1;
++}
++static void rb_pa_post(dispatch_queue_t q, uintptr_t lo, uintptr_t hi, uintptr_t a, uintptr_t e, int bounded) {
+     for (int i = 0; i < 2; i++) {
+         uintptr_t l = i ? MAX(lo, e) : lo, h = i ? hi : MIN(hi, a);
+         if (h <= l) continue;
+         const void *p = (const void *)l; uint64_t n = (uint64_t)(h - l);
+         atomic_fetch_add_explicit(&g_pa_runs, 1, memory_order_relaxed); atomic_fetch_add_explicit(&g_pa_bytes, n, memory_order_relaxed);
+         dispatch_async(q, ^{ uint64_t k = rb_wn(p, n);   // the window stays mapped: a pool the game let go since is still the window's memory (madvise and mincore change nothing there)
+-            if (k == RB_WN_NONE) atomic_fetch_add_explicit(&g_pa_unseen, 1, memory_order_relaxed); else atomic_fetch_add_explicit(&g_pa_pages, k, memory_order_relaxed); });
++            if (k == RB_WN_NONE) atomic_fetch_add_explicit(&g_pa_unseen, 1, memory_order_relaxed); else atomic_fetch_add_explicit(&g_pa_pages, k, memory_order_relaxed);
++            if (bounded) atomic_fetch_sub_explicit(&g_pa_pending, n, memory_order_relaxed);
++        });
+     }
+ }
+ static void rb_pool_ahead(const tex_t *t) {   // pkg_upload_'s thread, after its own rb_wn found pages not in memory
+@@ -4885,25 +4924,36 @@
+     uint64_t f = atomic_load_explicit(&g_cur_frame, memory_order_relaxed), lowm = ((uint64_t)1 << 40) - 1, ft = (f & 0xffffff) << 40; uint32_t fs = (uint32_t)f + 1;
+     static dispatch_queue_t q; static dispatch_once_t once;
+     dispatch_once(&once, ^{ q = dispatch_queue_create("rb.pool.ahead", dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_DEFAULT, 0)); });
++    int bounded = rb_pa_queue_budget_on();
++    uint64_t limit = bounded ? rb_pa_queue_limit() : 0;
+     atomic_fetch_add_explicit(&g_pa_tex, 1, memory_order_relaxed);
+     for (uintptr_t c = (uintptr_t)wb + ((lo - (uintptr_t)wb) & ~pm); c < hi; c += pm + 1) {
+         uintptr_t s = MAX(c, lo), x = MIN(c + pm + 1, hi);
+         _Atomic uint32_t *slot = &g_pa_last[((c - (uintptr_t)wb) >> RB_PA_SHIFT) & (RB_PA_SLOTS - 1)];
+         uint32_t last = atomic_load_explicit(slot, memory_order_relaxed);
+         int ask = !last || fs - last >= (uint32_t)RB_PA_AGAIN;
+-        if (ask) {   // the frame's budget
++        uint64_t extra = 0;
++        if (ask && bounded) {
++            uintptr_t left = MIN(x, a), right = MAX(s, e);
++            extra = (left > s ? left - s : 0) + (x > right ? x - right : 0);
++            if (!extra) ask = 0;
++            else if (!rb_pa_reserve(extra, limit)) ask = -2;
++        }
++        if (ask == 1) {   // the frame's budget
+             uint64_t o = atomic_load_explicit(&g_pa_budget, memory_order_relaxed), nw;
+             do { uint64_t used = (o & ~lowm) == ft ? o & lowm : 0;   // another frame's count: this frame starts at 0
+                  if (used + (x - s) > rb_pa_frame()) { ask = -1; break; }
+                  nw = ft | (used + (x - s));
+             } while (!atomic_compare_exchange_weak_explicit(&g_pa_budget, &o, nw, memory_order_relaxed, memory_order_relaxed));
++            if (ask < 0 && bounded) atomic_fetch_sub_explicit(&g_pa_pending, extra, memory_order_relaxed);
+         }
+-        if (ask == 1) { atomic_store_explicit(slot, fs, memory_order_relaxed); if (rhi > rlo && rhi == s) rhi = x; else { if (rhi > rlo) rb_pa_post(q, rlo, rhi, a, e); rlo = s; rhi = x; } continue; }
+-        if (rhi > rlo) rb_pa_post(q, rlo, rhi, a, e);
++        if (ask == 1) { atomic_store_explicit(slot, fs, memory_order_relaxed); if (rhi > rlo && rhi == s) rhi = x; else { if (rhi > rlo) rb_pa_post(q, rlo, rhi, a, e, bounded); rlo = s; rhi = x; } continue; }
++        if (rhi > rlo) rb_pa_post(q, rlo, rhi, a, e, bounded);
+         rlo = rhi = 0;
++        if (ask == -2) { atomic_fetch_add_explicit(&g_pa_throttled, 1, memory_order_relaxed); return; }
+         if (ask < 0) { atomic_fetch_add_explicit(&g_pa_over, 1, memory_order_relaxed); return; }   // the frame's budget is spent: the rest is left to the uploads' own asks
+     }
+-    if (rhi > rlo) rb_pa_post(q, rlo, rhi, a, e);
++    if (rhi > rlo) rb_pa_post(q, rlo, rhi, a, e, bounded);
+ }
+ // hle_nvn.c's long-frame line: pages texture reads found not in memory since the last call, those in pools without CPU access (L16: what a private backing of such pools could
+ //   save), and the reads not looked at (not wholly in the window's files); all -1 where the window is not in files (s2a_guest_fd), where nothing is looked at
+@@ -4934,6 +4984,11 @@
+                  frame, rb_pa_on() ? "" : ", off", (unsigned long long)pt, (unsigned long long)atomic_load(&g_pa_runs), (unsigned long long)(atomic_load(&g_pa_bytes) >> 20),
+                  (unsigned long long)atomic_load(&g_pa_pages), (unsigned long long)(atomic_load(&g_pa_pages) * pg >> 20), (unsigned long long)atomic_load(&g_pa_over),
+                  (unsigned long long)(rb_pa_frame() >> 20), (unsigned long long)atomic_load(&g_pa_unseen));
++    if (pt && rb_pa_queue_budget_on())
++        MLOG("RewindBox (patch 0096): pool read-ahead queue up to frame %llu: %llu MiB pending, %llu MiB peak, %llu refused spans",
++             frame, (unsigned long long)(atomic_load_explicit(&g_pa_pending, memory_order_relaxed) >> 20),
++             (unsigned long long)(atomic_load_explicit(&g_pa_pending_peak, memory_order_relaxed) >> 20),
++             (unsigned long long)atomic_load_explicit(&g_pa_throttled, memory_order_relaxed));
+ }
+ // RewindBox (patch 0016): whether a texture's storage, as the host may read it, holds page for page the bytes of its last upload (ph, as pkg_upload_ took
+ //   them). Only for storage that cannot all be read (0 otherwise: readable storage is left to what it had before). No write-tracked pool holds such storage

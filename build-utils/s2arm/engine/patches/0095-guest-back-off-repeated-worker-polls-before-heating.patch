@@ -1,0 +1,57 @@
+diff --git a/runtime/src/thread.c b/runtime/src/thread.c
+--- a/runtime/src/thread.c
++++ b/runtime/src/thread.c
+@@ -2028,6 +2028,24 @@
+             hot ? 50LL : (long long)(g_yb_ystart / 1000), (unsigned long long)atomic_load(&g_yb_hot_sleeps));
+     return hot;
+ }
++// RewindBox (patch 0095): IPA 783 Mario Kart World made 2,481,225 yields: 619,602 fresh
++// returns, 178,992 sleeps and 1,682,631 host scheduler yields. The five non-main top yielders
++// (all priority 44) spent 2,980 ms of sampled thread CPU in scheduler yields. For an unchanged
++// low-urgency worker polling at the same call site, begin the existing backoff at 125 µs while
++// cool or fair. The main thread, an explicit backoff setting, fresh rounds and the 50 µs hot
++// path keep their rules. S2A_RB_YIELD_WORKER_IDLE=0 restores the previous threshold.
++static _Atomic uint64_t g_yb_worker_early;
++static int rb_yield_worker_idle(void) {
++    static _Atomic int enabled = -1;
++    int value = atomic_load_explicit(&enabled, memory_order_relaxed);
++    if (value < 0) {
++        const char *setting = getenv("S2A_RB_YIELD_WORKER_IDLE");
++        const char *backoff = getenv("S2A_YIELD_BACKOFF");
++        value = setting && !strcmp(setting, "1") && (!backoff || !*backoff || !strcmp(backoff, "1"));
++        atomic_store_explicit(&enabled, value, memory_order_relaxed);
++    }
++    return value;
++}
+ static void yield_bo(thr_t *me, const uint64_t *regs) {
+     __atomic_store_n(&me->ny, me->ny + 1, __ATOMIC_RELAXED);   // RewindBox (patch 0074): this thread's yields (only it writes them)
+     if (!yb_on()) { yb_sched_yield(me); return; }
+@@ -2039,12 +2057,18 @@
+     //   寄存器不变的照旧同一轮（夹不阻塞的系统调用也算，10-25 哈迪斯）
+     static int yr = -1; if (yr < 0) { const char *e = getenv("S2A_YIELD_ROUND"); yr = !(e && !strcmp(e, "0")); if (!yr) LOG("让步判轮：S2A_YIELD_ROUND=0，寄存器一变就算新一轮（11-04 前旧判据，A/B 用）"); }
+     int fresh = me->yrun_blk != me->nblk || (me->yrun_sig != sig && (!yr || me->y_lr != regs[30] || now - me->y_ret > SPIN_GAP_NS));
++    int same_poll = !fresh && me->yrun_sig == sig && me->y_lr == regs[30] && now - me->y_ret <= SPIN_GAP_NS;
+     if (fresh) me->yrun_t0 = now;
+     me->yrun_blk = me->nblk; me->yrun_sig = sig; me->y_lr = regs[30];
+     atomic_fetch_add_explicit(&g_yb_yields, 1, memory_order_relaxed);
+     uint64_t run = now - me->yrun_t0;
+     if (fresh && yf_on()) { atomic_fetch_add_explicit(&g_yf_n, 1, memory_order_relaxed); me->y_ret = (uint64_t)now_mono_ns(); return; }
+     uint64_t ystart = (uint64_t)g_yb_ystart; int hot = ystart > 50000 && rb_yield_hot(now); if (hot) ystart = 50000;   // RewindBox (patch 0087)
++    if (ystart == 250000 && run >= 125000 && run < ystart && same_poll &&
++        !me->is_main && me->prio >= 44 && rb_yield_worker_idle()) {
++        ystart = 125000;
++        atomic_fetch_add_explicit(&g_yb_worker_early, 1, memory_order_relaxed);
++    }
+     if (run < ystart) { yb_sched_yield(me); me->y_ret = (uint64_t)now_mono_ns(); return; }   // RewindBox (patch 0074): g_yb_ystart, yb_sched_yield; RewindBox (patch 0087): ystart
+     uint64_t sl = run / 8; if (sl < 10000) sl = 10000; if (sl > (uint64_t)g_yb_cap) sl = (uint64_t)g_yb_cap;
+     if (hot) atomic_fetch_add_explicit(&g_yb_hot_sleeps, 1, memory_order_relaxed);   // RewindBox (patch 0087)
+@@ -2218,6 +2242,9 @@
+     if (g_yb_cap <= 0) return;
+     LOG("让步退避 [%s]：让步 %llu 次，其中退避睡 %llu 次、共 %.1f ms；有进展直接返回 %llu 次", when, (unsigned long long)atomic_load(&g_yb_yields), (unsigned long long)atomic_load(&g_yb_sleeps), atomic_load(&g_yb_sleep_ns) / 1e6, (unsigned long long)atomic_load(&g_yf_n));
+     LOG("RewindBox (patch 0087): yields [%s]: %llu backoff sleeps while the thermal state was serious or critical (S2A_RB_YIELD_THERMAL)", when, (unsigned long long)atomic_load(&g_yb_hot_sleeps));
++    if (rb_yield_worker_idle())
++        LOG("RewindBox (patch 0095): yields [%s]: %llu repeated worker polls backed off before 250 µs",
++            when, (unsigned long long)atomic_load_explicit(&g_yb_worker_early, memory_order_relaxed));
+ }
+ #if defined(__APPLE__)
+ // RewindBox (patch 0074): the power line's "top yielders" and the "threads up to frame N: CPU" line (graphics/nvn hle_nvn.c power_line, every 300 frames, present thread)
