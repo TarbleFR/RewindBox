@@ -575,7 +575,13 @@ static NSDictionary *launchFail(NSString *error, NSString *stage, NSString *deta
   int archiveProfile = setenv("S2A_RB_PSO_ARCHIVE_COALESCE", marioKartWorld ? "1" : "0", 0);
   int workerProfile = setenv("S2A_RB_YIELD_WORKER_IDLE", marioKartWorld ? "1" : "0", 0);
   int readAheadProfile = setenv("S2A_RB_POOL_QUEUE_BUDGET", marioKartWorld ? "1" : "0", 0);
-  BOOL profileFailed = vertexProfile || stagingProfile || workgroupProfile || archiveProfile || workerProfile || readAheadProfile;
+  const char *kartRender = marioKartWorld ? "1" : "0";
+  int shaderBytesProfile = setenv("S2A_RB_DSH_KEEP_MAPPED", kartRender, 0);
+  int shaderQueueProfile = setenv("S2A_RB_SHADER_URGENT_UNIQUE", kartRender, 0);
+  int poolIndexProfile = setenv("S2A_RB_POOL_INDEX_UPDATE", kartRender, 0);
+  int textureViewsProfile = setenv("S2A_RB_TEX_FIT_FAST", kartRender, 0);
+  BOOL profileFailed = vertexProfile || stagingProfile || workgroupProfile || archiveProfile || workerProfile ||
+                       readAheadProfile || shaderBytesProfile || shaderQueueProfile || poolIndexProfile || textureViewsProfile;
   s2arm_journal("gameProfile", profileFailed ? "failed" : "selected",
                 "\"profile\":\"%s\"", fastFusion ? "fast-fusion" : marioKartWorld ? "mario-kart-world" : "default");
   S2ArmSettingsPrepareLaunch();   // the game language, and the engine's brief overlay that the in-game menu shows or hides
