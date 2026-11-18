@@ -532,9 +532,14 @@ static int cmp_str(const void *a, const void *b) { return strcmp(*(char *const *
 static int listdir(const char *path, list_t *out) {
     DIR *d = opendir(path);
     if (!d) return -1;
-    struct dirent *e;
-    int ok = 1;
-    while (ok && (e = readdir(d)))
+    int result = 0;
+    while (!result) {
+        errno = 0;
+        struct dirent *e = readdir(d);
+        if (!e) {
+            if (errno) result = -1;
+            break;
+        }
         if (strcmp(e->d_name, ".") && strcmp(e->d_name, "..")) {
             size_t n = strlen(e->d_name);
             char *s = malloc(n + 2);
@@ -542,10 +547,14 @@ static int listdir(const char *path, list_t *out) {
                 memcpy(s, e->d_name, n + 1);
                 s[n + 1] = (char)s2arm_dirent_type(e);
             }
-            ok = list_add(out, s);
+            if (!list_add(out, s)) result = -2;
         }
+    }
     closedir(d);
-    if (!ok) return -2;
+    if (result) {
+        list_free(out);
+        return result;
+    }
     if (out->n) qsort(out->v, out->n, sizeof *out->v, cmp_str);
     return 0;
 }
@@ -1382,20 +1391,13 @@ static void pfiles_free(pfiles_t *f) {
     free(f->v);
     memset(f, 0, sizeof *f);
 }
+// The list takes ownership only on success. Callers retain both paths on failure.
 static int pfiles_add(pfiles_t *f, char *rel, char *src, uint64_t size) {
-    if (!rel || !src) {
-        free(rel);
-        free(src);
-        return 0;
-    }
+    if (!rel || !src) return 0;
     if (f->n == f->cap) {
         size_t cap = f->cap ? f->cap * 2 : 256;
         pfile_t *nv = realloc(f->v, cap * sizeof *nv);
-        if (!nv) {
-            free(rel);
-            free(src);
-            return 0;
-        }
+        if (!nv) return 0;
         f->v = nv;
         f->cap = cap;
     }
@@ -1409,16 +1411,21 @@ static int pfiles_add(pfiles_t *f, char *rel, char *src, uint64_t size) {
 // One source of pack.py: a single file under its name, or os.walk(top) with sorted directories and
 // files, symlinked directories listed but not entered, .DS_Store and ._* skipped.
 static int walk_source(ctx_t *x, pfiles_t *out, const char *name, const char *dir, const char *rel, int depth) {
+    if (stop(x)) return fail(x, RB_S2ARM_PACK_CANCELLED, "cancelled");
     if (depth > MAX_DEPTH) return fail(x, RB_S2ARM_PACK_INVALID, "directory tree too deep: %s", dir);
     list_t names = {0};
     int r = listdir(dir, &names);
-    if (r == -1) return 0;   // os.walk skips what it cannot list
+    if (r == -1) return fail(x, RB_S2ARM_PACK_IO, "cannot list %s", dir);
     if (r) return fail(x, RB_S2ARM_PACK_IO, "out of memory");
     list_t dirs = {0};
     int code = 0;
     // The stats are relative to the directory (fstatat), as stat(p) but without resolving its path again for each file.
     int dfd = open(dir, O_RDONLY | O_DIRECTORY);
     for (size_t i = 0; i < names.n && !code; i++) {   // files of this directory first (sorted), then the subdirectories
+        if (stop(x)) {
+            code = fail(x, RB_S2ARM_PACK_CANCELLED, "cancelled");
+            break;
+        }
         char *p = pjoin(dir, names.v[i]);
         if (!p) {
             code = fail(x, RB_S2ARM_PACK_IO, "out of memory");
@@ -1469,11 +1476,16 @@ static int walk_source(ctx_t *x, pfiles_t *out, const char *name, const char *di
 }
 
 static int add_source(ctx_t *x, pfiles_t *out, const char *name, const char *src) {
+    if (stop(x)) return fail(x, RB_S2ARM_PACK_CANCELLED, "cancelled");
     if (!exists(src)) return fail(x, RB_S2ARM_PACK_INVALID, "source missing: %s", src);
     if (is_file(src)) {
         struct stat st;
         if (stat(src, &st)) return fail(x, RB_S2ARM_PACK_IO, "cannot stat %s", src);
-        return pfiles_add(out, sdup(name), sdup(src), (uint64_t)st.st_size) ? 0 : fail(x, RB_S2ARM_PACK_IO, "out of memory");
+        char *relative = sdup(name), *source = sdup(src);
+        if (pfiles_add(out, relative, source, (uint64_t)st.st_size)) return 0;
+        free(relative);
+        free(source);
+        return fail(x, RB_S2ARM_PACK_IO, "out of memory");
     }
     return walk_source(x, out, name, src, "", 0);
 }
@@ -1761,6 +1773,7 @@ int rb_s2arm_resource_pack(const rb_s2arm_resource_request *r, char *error, size
     }
     if (!code && nlinked) code = hash_linked(&x, r, files.v, linked_files, nlinked, &done, total);
     free(linked_files);
+    if (!code && stop(&x)) code = fail(&x, RB_S2ARM_PACK_CANCELLED, "cancelled");
     if (!code) {   // index.tsv, manifest.json (version 2), then the device's bookkeeping
         char hex[65];
         for (size_t i = 0; i < files.n && !code; i++) {
@@ -1790,6 +1803,7 @@ int rb_s2arm_resource_pack(const rb_s2arm_resource_request *r, char *error, size
             free(p);
         }
     }
+    if (!code && stop(&x)) code = fail(&x, RB_S2ARM_PACK_CANCELLED, "cancelled");
     if (!code) {
         rmtree(pack, 0);
         if (rename(tmp, pack)) code = fail(&x, RB_S2ARM_PACK_IO, "cannot rename %s to %s", tmp, pack);

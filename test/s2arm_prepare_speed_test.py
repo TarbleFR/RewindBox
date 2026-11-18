@@ -133,6 +133,14 @@ source = body(pack, 'static int walk_source(ctx_t *x, pfiles_t *out, const char 
 check('if (type == DT_DIR) {' in source and 'fstatat(dfd, names.v[i], &st, 0)' in source and 'if (dfd >= 0) close(dfd);' in source
       and 'type == DT_UNKNOWN && !is_link(p)' in source,
       'the pack walk takes real directories from the listing and stats files relative to their directory')
+check(ordered(source, 'if (stop(x))', 'int r = listdir(dir, &names);', 'cannot list %s', 'for (size_t i = 0;',
+              'if (stop(x))', 'break;', 'pfiles_add(out, full, p,', 'free(full);', 'free(p);')
+      and ordered(resource, 'code = hash_linked(', 'if (!code && stop(&x))', 'index.tsv', 'if (!code && stop(&x))', 'rename(tmp, pack)'),
+      'pack preparation polls cancellation while walking and before publication, and rejects unreadable folders')
+append = body(pack, 'static int pfiles_add(pfiles_t *f, char *rel, char *src, uint64_t size) {')
+listing = body(pack, 'static int listdir(const char *path, list_t *out) {')
+check('free(' not in append and ordered(listing, 'errno = 0;', 'readdir(d);', 'if (errno) result = -1;', 'list_free(out);'),
+      'a failed append keeps path ownership at the caller and a partial failed listing is released')
 
 # The library is built with these units (CI and the xcframework compile every s2arm_*.c; the CI build lists them).
 prepare_yml = (ROOT / '.github/workflows/s2arm-prepare.yml').read_text(encoding='utf-8')
