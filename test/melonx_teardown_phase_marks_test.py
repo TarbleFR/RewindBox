@@ -23,6 +23,7 @@ _HOLD = []
 FINAL_SOURCE = SOURCE
 SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_teardown_phase_marks', _HOLD)
 from adapt_teardown_phase_marks import apply, BASELINE  # noqa: E402
+from adapt_fifo_channel_retirement import NV_CHANNEL  # noqa: E402
 
 WINDOW = 'src/Ryujinx.Library/Window/WindowBase.cs'
 RENDERER = 'src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs'
@@ -88,6 +89,9 @@ with tempfile.TemporaryDirectory(prefix='melonx-teardown-marks-') as temporary:
     check(j('BackgroundCompilationScheduler.Dispose();') < j('shader.WaitForBackgroundCompilation();') < j('"deviceIdleWait"') <
           j('Api.DeviceWaitIdle(_device);') < j('PipelineCacheManager.MergeAndSave();') < j('"gpuTeardown", "compiles"') <
           j('_window.Dispose();') < j('"swapchainReleased"') < j('HelperShader.Dispose();'), 'renderer marks around their phases')
+    if FINAL_PREPARATION:
+        check((work / NV_CHANNEL).read_bytes() == (FINAL_SOURCE / NV_CHANNEL).read_bytes(),
+              'the library build binds the final guest channel close path')
     result = subprocess.run([DOTNET, 'build', str(work / 'src/Ryujinx.Library/Ryujinx.Library.csproj'), '-c', 'Release', '-nologo',
                              '-m:1', '-p:NuGetAudit=false'], capture_output=True, text=True, timeout=2400, env=environment, cwd=work)
     if result.returncode:
@@ -95,11 +99,13 @@ with tempfile.TemporaryDirectory(prefix='melonx-teardown-marks-') as temporary:
     check(result.returncode == 0, 'production Ryujinx.Library builds with the marks')
 
 inputs = ['build-utils/melonx/adapt_teardown_phase_marks.py', 'build-utils/melonx/adapt_session.py',
+          'build-utils/melonx/adapt_fifo_channel_retirement.py',
           'test/melonx_teardown_phase_marks_test.py']
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
 receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPARATION,
                sourceKind='finalPreparationWithReversedControl' if FINAL_PREPARATION else 'core647Preparation',
-               postimages={p: hashlib.sha256((FINAL_SOURCE / p).read_bytes()).hexdigest() for p in BASELINE} if FINAL_PREPARATION else {},
+               postimages={p: hashlib.sha256((FINAL_SOURCE / p).read_bytes()).hexdigest()
+                           for p in (*BASELINE, NV_CHANNEL)} if FINAL_PREPARATION else {},
                sdk=sdk, physicalDeviceTested=False, productionLibraryBuilt=True, sourceBaseline=BASELINE,
                inputs={p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in inputs},
                limitation='Journal only; which phase holds the SSBU close while recording is known only from a device run.')

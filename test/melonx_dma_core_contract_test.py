@@ -749,7 +749,10 @@ if not args.helpers_only:
     CHANGES.update({'src/Ryujinx.Library/EmbeddedAddonSelection.cs', 'src/Ryujinx.Library/GameInfo.cs',
                     'src/Ryujinx.HLE/HOS/Services/Account/Acc/AccountService/IManagerForApplication.cs',
                     'src/Ryujinx.Graphics.Vulkan/BufferManager.cs'})
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 137 and
+    from adapt_fifo_channel_retirement import CHANNEL, MEMORY, NV_CHANNEL, PROCESSOR
+    from adapt_hogwarts_steady_render import TEXTURE as THREADED_TEXTURE
+    CHANGES.update({CHANNEL, MEMORY, NV_CHANNEL, PROCESSOR, THREADED_TEXTURE})
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 142 and
           set(frozen["productionAdditions"]) == {C768_ONLINE_ADDITION, C770_RUNTIME_YIELD_ADDITION, 'src/Ryujinx.Horizon/EmbeddedDeliveryCache.cs', 'src/Ryujinx.HLE/EmbeddedCheatReport.cs',
               'src/Ryujinx.Library/EmbeddedNsz.cs', 'src/Ryujinx.Graphics.Gpu/EmbeddedShaderMetadataReader.cs'}, "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
@@ -913,7 +916,10 @@ if not args.helpers_only:
                                                      'native/melonx/EmbeddedShaderMetadataReader.cs', 'native/melonx/EmbeddedNsz.cs',
                                                      'build-utils/melonx/adapt_account_cache_import.py',
                                                      'build-utils/melonx/adapt_xci_update_identity.py',
-                                                     'build-utils/melonx/adapt_hogwarts_frame_budget.py'} and
+                                                     'build-utils/melonx/adapt_hogwarts_frame_budget.py',
+                                                     'build-utils/melonx/adapt_fifo_channel_retirement.py',
+                                                     'build-utils/melonx/adapt_hogwarts_steady_render.py',
+                                                     'build-utils/melonx/adapt_hogwarts_pipeline_replay.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -930,6 +936,7 @@ if not args.helpers_only:
         'src/Ryujinx.HLE/HOS/Services/Account/Acc/AccountService/IManagerForApplication.cs',
         'src/Ryujinx.Library/GameInfo.cs',
         'src/Ryujinx.Graphics.Vulkan/BufferManager.cs',
+        CHANNEL, NV_CHANNEL, PROCESSOR,
     }, 'Unexpected upstream members joining the prepared source')
     # The prepared members that differ from the delivered source are exactly the reviewed changes.
     baseline = {**frozen['baselinePreparedMembers'], **frozen['baselineUnadaptedMembers']}
@@ -986,7 +993,7 @@ if not args.helpers_only:
     # After IPA 767: adapt_loh_compaction_request.py and adapt_guest_break_context.py join them (262); Switch.cs and
     # Syscall.cs are members already (228).
     # After IPA 771: adapt_shader_load_binary_release.py joins them (263); its two disk cache files are members already.
-    check(len(frozen['preparationInputs']) == 277 and len(frozen['preparedMembers']) == 242, 'Wrong final composition')
+    check(len(frozen['preparationInputs']) == 280 and len(frozen['preparedMembers']) == 245, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
@@ -1154,6 +1161,7 @@ if not args.helpers_only:
     OUTSIDE_GPU |= {'src/Ryujinx.Library/EmbeddedAddonSelection.cs', 'src/Ryujinx.Library/GameInfo.cs',
                     'src/Ryujinx.HLE/HOS/Services/Account/Acc/AccountService/IManagerForApplication.cs'}
     OUTSIDE_GPU |= {SERVICE_CREATOR, 'src/Ryujinx.Library/EmbeddedAddons.cs', 'src/Ryujinx.Library/EmbeddedSessionCoordinator.cs'}
+    OUTSIDE_GPU.add(NV_CHANNEL)
     check(CHANGES - OUTSIDE_GPU <= set(gate['fragmented-reads']['requiredPostimages']) and
           # Library.cs and the two HLE files (Core 647) are outside the GPU/Vulkan closure; their own gates bind them.
           CHANGES - {LIBRARY} - OUTSIDE_GPU <= {b['productionPath'] for b in gate['fragmented-reads']['compiledBindings']},
@@ -1212,6 +1220,7 @@ if not args.helpers_only:
                         # KProcess (Core 647) and the two SurfaceFlinger files (Core 654) are read from no control: only their own
                         # gates read them, from the final preparation.
                         'delivered609': {**arrays_frozen['controlUnadaptedMembers']['delivered609'],
+                                         **{path: frozen['baselineUnadaptedMembers'][path] for path in (CHANNEL, PROCESSOR)},
                                          **{path: digest for path, digest in graphics.items()
                                             if path not in PAUSE_BASELINE and path not in BINDER_BASELINE and path not in c661_hle and
                                             # Core 727: MemoryAllocator.cs joins, read only by its own gates (delivered control).
