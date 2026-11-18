@@ -1,0 +1,76 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -9333,7 +9333,7 @@
+
+ // ---------- Descriptor pool: texture ID / sampler ID → object ----------
+ // At registration the whole texture object is snapshotted (NVN semantics: the descriptor has been written into the pool); view: the MTLTexture for that ID (a view or the base texture, held via CFBridgingRetain) and the serial-table / guest-write generations at the time it was obtained
+-typedef struct { tex_t t; int ok; view_t v; int has_v; void *view; uint64_t view_id, view_rid, view_ser, view_dirty, view_ep; int view_pkg;   // view_pkg: CPU-written (packaged); only those depend on guest writes (view_dirty)
++typedef struct { tex_t t; int ok; view_t v; int has_v; void *view; uint64_t alt_source_rid, view_rid, view_ser, view_dirty, view_ep; int view_pkg;   // view_pkg: CPU-written (packaged); only those depend on guest writes (view_dirty)
+                  uint32_t view_pf; uint8_t view_tt;                         // view's pixel format / texture type, read once when it is set (the P1-20 probe compares them per binding without a message send)
+                  uint64_t view_sa;                                          // RewindBox (patch 0073): g_rb_ser_add with view_ser (0: not taken)
+                  uint64_t view_sp_seq, view_sp_ep, view_sp_frame; uint8_t view_sp;   // RewindBox (patch 0031): view_sp: the view's base is a placement sparse texture (treg_sp_note); view_sp_seq: its pool's mapping log count (nvn_sparse_log_seq) taken before the look that validated the view; view_sp_ep: the check period (g_pkg_epoch) it was last found current in; TREG_SP_UNSEEN: no look on record; view_sp_frame: g_cur_frame at that look (TREG_SP_RELOOK). Read only while view is set
+@@ -9392,7 +9392,7 @@
+ static void treg_drop_ar(treg_t *r) { if (r->ar) { defer_obj_unref((__bridge id)r->ar); CFRelease(r->ar); r->ar = r->ar_of = NULL; r->ar_rid = 0; }
+                                      if (r->im) { defer_obj_unref((__bridge id)r->im); CFRelease(r->im); r->im = r->im_of = NULL; r->im_rid = 0; } }   // and the image class view (img_fit)
+ static void treg_drop_views(treg_t *r) {   // every view the ID caches (view, alt, ar, im): each retains its base texture
+-    if (r->view) { defer_obj_unref((__bridge id)r->view); CFRelease(r->view); r->view = NULL; r->view_id = r->view_rid = 0; r->view_sp = 0; }   // RewindBox (patch 0031): view_sp with it
++    if (r->view) { defer_obj_unref((__bridge id)r->view); CFRelease(r->view); r->view = NULL; r->alt_source_rid = r->view_rid = 0; r->view_sp = 0; }   // RewindBox (patch 0031): view_sp with it
+     if (r->alt) { defer_obj_unref((__bridge id)r->alt); CFRelease(r->alt); r->alt = r->alt_of = NULL; r->alt_rid = 0; }
+     treg_drop_ar(r);
+ }
+@@ -9826,7 +9826,7 @@
+     if (v) {   // The serial table or guest memory has changed: check whether the base texture was re-uploaded and replaced; if so the view is invalidated
+         id<MTLTexture> cur = tex_mtl(&rp->t);
+         if ((cur || !txr_on()) && (cur == v || v.parentTexture == cur)) { rp->view_ser = sg; rp->view_sa = sa; rp->view_dirty = dg; rp->view_ep = g_pkg_epoch; treg_sp_note(tid, rp, cur, spq); return v; }   // RewindBox (patch 0031): treg_sp_note; (patch 0073): view_sa; RewindBox (patch 0073): cur, nil is no match (a root view's object may serve another texture now, patch 0071's txr_take; S2A_RB_TEX_REUSE=0 as before)
+-        defer_obj_unref(v); CFRelease(rp->view); rp->view = NULL; rp->view_rid = 0; v = nil;
++        defer_obj_unref(v); CFRelease(rp->view); rp->view = NULL; rp->alt_source_rid = rp->view_rid = 0; v = nil;
+     }
+     treg_t r = *rp;
+     id<MTLTexture> base = tex_mtl(&rp->t);
+@@ -9914,7 +9914,27 @@
+ // and the deferred lighting shader samples it as 2D: the ambient light of the whole picture became one colour, washed out white. 2D, 2D array, cube and cube array are all layers (below); any other mismatch is reported once. Caller holds g_rmu
+ static id<MTLTexture> dummy_tex(int dtt, int dpf); static uint64_t g_dummy_tex_rid[16][4];
+ static uint64_t g_fit_made, g_fit_kept;   // RewindBox (patch 0071): type-bridging views made / taken from the view cache (tex_fit, g_rmu)
++// RewindBox (patch 0103): IPA 785 recorded 1,124,027 type mismatches by frame 3600
++// and 11 of 149 active submit-thread samples in encode_args_ during the race.
++// Reuse the alternate view of the texture still held by this descriptor before
++// querying Metal for the same texture's type and array length again. The source
++// marker goes away with the descriptor view, and feedback snapshots use the old path.
++static int rb_fit_fast_on(void) {   // caller holds g_rmu
++    static int on = -1;
++    if (on < 0) { const char *e = getenv("S2A_RB_TEX_FIT_FAST"); on = !(e && !strcmp(e, "0")); }
++    return on;
++}
+ static id<MTLTexture> tex_fit(int tid, id<MTLTexture> t, MTLTextureType want, int dpf, uint64_t *rid) {   // dpf: the declared numeric class (the zero cube below is of it)
++    treg_t *r = tid >= 0 && tid < g_ntreg ? &g_treg[tid] : NULL;
++    int registered = r && r->view_rid && r->view == (__bridge void *)t && nvn2_on() && rb_fit_fast_on();
++    if (registered && r->alt && r->alt_of == r->view && r->alt_source_rid == r->view_rid && r->alt_type == (uint8_t)want) {
++        static uint64_t hits;
++        uint64_t n = ++hits;
++        if (n >= 4096 && !(n & (n - 1)))
++            MLOG("RewindBox: %llu descriptor texture views reused before querying Metal (S2A_RB_TEX_FIT_FAST)", (unsigned long long)n);
++        *rid = r->alt_rid;
++        return (__bridge id<MTLTexture>)r->alt;
++    }
+     MTLTextureType have = t.textureType; NSUInteger ns = 0;
+     // 2D, 2D array, cube and cube array are all layers to Maxwell, which keeps a cube's faces as six of them; the declared type only says how many layers the view takes (upstream reference
+     // implementation, MIT: on an M4 Pro a mismatched cube reads face 0 in every direction through a cube array argument and layer 0 at every index through a 2D array argument). A cube read
+@@ -9936,8 +9956,7 @@
+     if (!ns && (want == MTLTextureTypeCube || want == MTLTextureTypeCubeArray) && (have == MTLTextureType2D || (have == MTLTextureType2DArray && t.arrayLength < 6))) {
+         { static int once; if (!once++) MLOG("shader declares a cube, texture is 2D (texture ID %d): bound as the zero cube, as Ryujinx binds no texture there", tid); }
+         id<MTLTexture> z = dummy_tex((int)want, dpf); *rid = g_dummy_tex_rid[want & 15][dpf & 3]; return z; }   // of the declared class (a uint cube sampler got a float zero cube, PR #490)
+-    if (!ns || tid < 0 || tid >= g_ntreg) return nil;   // no view bridges it: the caller reports it (tex_mis_note)
+-    treg_t *r = &g_treg[tid];
++    if (!ns || !r) return nil;   // no view bridges it: the caller reports it (tex_mis_note)
+     if (r->alt && r->alt_of == (__bridge void *)t && r->alt_type == (uint8_t)want) { *rid = r->alt_rid; return (__bridge id<MTLTexture>)r->alt; }
+     if (r->alt) { defer_obj_unref((__bridge id)r->alt); CFRelease(r->alt); r->alt = r->alt_of = NULL; r->alt_rid = 0; }
+     // A view's level / slice ranges are relative to its source texture, so a view of t would start at t's own level 0 / layer 0: build it from t's parent at the offset t stands at
+@@ -9957,6 +9976,7 @@
+         if (!v) { RED_ONCE(77, "cannot create a type-compatible texture view: %lu → %lu (texture ID %d)", (unsigned long)have, (unsigned long)want, tid); return nil; }
+         g_fit_made++; if (fc) vc_store(r->t.serial, r->t.pool, &fk, v); }
+     r->alt = (void *)CFBridgingRetain(v); r->alt_of = (__bridge void *)t; r->alt_type = (uint8_t)want; r->alt_rid = v.gpuResourceID._impl;
++    r->alt_source_rid = registered ? r->view_rid : 0;
+     *rid = r->alt_rid; return v;
+ }
+ // tex_fit for an element of a handle array (TEXD, TEXU arrays): every element is declared as the type of the one the shader picks, and the others hold whatever the slots or handles do.

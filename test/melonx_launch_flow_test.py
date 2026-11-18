@@ -57,6 +57,7 @@ void main() {
    case 'memoryEntitlements':return access;
    case 'diagnostics':return {'available':true,'jitArenaReady':arena};
    case 'configureLaunchJournal':return {'success':true};
+   case 'metadata':return <String,dynamic>{};
    case 'launch':launchArguments=Map.of(call.arguments as Map);return launch;
    case 'cancelJit':return true;
    case 'releaseRetainedSession':if(releaseError!=null)throw releaseError!;return release;
@@ -81,13 +82,22 @@ void main() {
   access={...access,'allowed':false,'increasedMemoryLimit':false};
   final result=await MelonxInternalService.launch(gamePath:game.path,locale:'fr');
   expect(result['error'],'memoryEntitlements');expect(calls,['memoryEntitlements']);
+  access={...access,'allowed':true,'increasedMemoryLimit':true};calls.clear();
+  messenger.setMockMethodCallHandler(MelonxInternalService.channel,(call)async {
+   if(call.method!='diagnostics')return native(call);
+   calls.add(call.method);
+   return {'available':false,'framework':true,'switch2EngineLoaded':true};
+  });
+  final blocked=await MelonxInternalService.launch(gamePath:game.path,locale:'fr');
+  expect(blocked['error'],'switch2EngineLoaded');expect(blocked['stage'],'runtime');
+  expect(calls,['memoryEntitlements','diagnostics']);
  });
  test('the sole native preflight preserves key failure details',()async{
   launch={'success':false,'error':'missingKey','errorCode':'missingKey','stage':'contentPreflight','diagnostic':'Key Name: key_area_key_application_16','nativeStatus':-17};
   final result=await MelonxInternalService.launch(gamePath:game.path,locale:'fr');
   expect(result['error'],'missingKey');expect(result['nativeStatus'],-17);
   expect(MelonxLaunchDiagnostics.details(result),contains('key_area_key_application_16'));
-  expect(calls,['memoryEntitlements','diagnostics','configureLaunchJournal','probeLocalDevVpnRoute','prepareJit','launch','cancelJit']);
+  expect(calls,['memoryEntitlements','diagnostics','configureLaunchJournal','probeLocalDevVpnRoute','prepareJit','metadata','launch','cancelJit']);
  });
  // Contract replaced: the StikDebug fallback is removed. Its external path ran
  // the pre-iOS 26 RX/RW probe, which iOS 26 kills. A value stored by an older
@@ -96,7 +106,7 @@ void main() {
   SharedPreferences.setMockInitialValues({'ios_stikdebug_fallback_v1':true});
   final first=await MelonxInternalService.launch(gamePath:game.path,locale:'fr');
   expect(first['success'],true);
-  expect(calls,['memoryEntitlements','diagnostics','configureLaunchJournal','probeLocalDevVpnRoute','prepareJit','launch']);
+  expect(calls,['memoryEntitlements','diagnostics','configureLaunchJournal','probeLocalDevVpnRoute','prepareJit','metadata','launch']);
   expect(launchArguments['jitBackend'],'builtin');
   launch={'success':true};
   expect((await MelonxInternalService.launch(gamePath:game.path,locale:'fr'))['success'],false);
@@ -146,12 +156,13 @@ void main() {
   release={'engineQuarantined':true,'busy':false,'donorState':'retained'};
   expect((await MelonxInternalService.launch(gamePath:game.path,locale:'fr'))['requiresRestart'],true);expect(calls,['releaseRetainedSession']);
  });
- test('all nine errors have twelve translations and Traditional Chinese',(){
+ test('all ten errors have twelve translations and Traditional Chinese',(){
   expect(MelonxLaunchFailureLocale.values.length,12);
-  final keys=MelonxLaunchFailureLocale.values['en']!.keys.toSet();expect(keys.length,9);
+  final keys=MelonxLaunchFailureLocale.values['en']!.keys.toSet();expect(keys.length,10);
   for(final entry in MelonxLaunchFailureLocale.values.entries){expect(entry.value['switchRestartRequired'],isNot(contains('MeloNX')));}
   for(final entry in MelonxLaunchFailureLocale.values.entries){expect(entry.value.keys.toSet(),keys);expect(entry.value.values.every((s)=>s.isNotEmpty),true);}
   expect(MelonxLaunchFailureLocale.text(const Locale('zh','TW'),'missingKey'),MelonxLaunchFailureLocale.values['zh_Hant']!['missingKey']);
+  expect(MelonxLaunchFailureLocale.text(const Locale('fr'),'switch2EngineLoaded'),contains('Fermez complètement RewindBox'));
   final secret=List.filled(64,'a').join();
   expect(MelonxLaunchDiagnostics.details({'stage':'content','diagnostic':'header_key = '+secret}),isNot(contains(secret)));
  });
@@ -168,7 +179,7 @@ void main() {
   calls.clear();releaseError=null;release={'engineQuarantined':false,'busy':false,'donorState':'released'};
   final result=await MelonxInternalService.launch(gamePath:game.path,locale:'fr');
   expect(result['success'],true);expect(MelonxInternalService.donorRetained,false);
-  expect(calls,['releaseRetainedSession','memoryEntitlements','diagnostics','configureLaunchJournal','probeLocalDevVpnRoute','prepareJit','launch']);
+  expect(calls,['releaseRetainedSession','memoryEntitlements','diagnostics','configureLaunchJournal','probeLocalDevVpnRoute','prepareJit','metadata','launch']);
  });
  test('an engine quarantine or a JIT restart is never cleared by a released donor',()async{
   release={'engineQuarantined':false,'busy':false,'donorState':'released'};

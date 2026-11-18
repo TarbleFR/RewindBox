@@ -1,0 +1,121 @@
+diff --git a/graphics/nvn/host/dsh_miss.inc b/graphics/nvn/host/dsh_miss.inc
+--- a/graphics/nvn/host/dsh_miss.inc
++++ b/graphics/nvn/host/dsh_miss.inc
+@@ -17,6 +17,7 @@
+ //   / lookahead or bind jobs that found their key translated meanwhile (dsh_ahead_). g_dsh_bg_q: lookahead, bind and eager jobs queued and not yet claimed or dropped by their block;
+ //   g_dsh_rk_busy: start passes running (nvn_mtl.m's session drain waits for them through dm_shader_bg_busy)
+ static _Atomic uint64_t g_dsh_keep_n, g_dsh_rk_n, g_dsh_ahead_dup;
++static _Atomic uint64_t g_rb_dsh_known_saved, g_rb_dsh_known_deferred;
+ static _Atomic int g_dsh_bg_q, g_dsh_rk_busy;
+ int dm_shader_bg_busy(void) { return atomic_load(&g_dsh_rk_busy) > 0; }
+ __attribute__((weak)) int nvn_be_stopping(void) { return 0; }   // RewindBox (patch 0069): nvn_mtl.m: a session stop was asked (g_shpre_stopping); weak: this file's host test without nvn_mtl.m
+@@ -62,6 +63,9 @@
+         (unsigned long long)atomic_load(&g_dsh_late_n), atomic_load(&g_dsh_late_ns) / 1e6, (unsigned long long)atomic_load(&g_dsh_late_wn), atomic_load(&g_dsh_late_wns) / 1e6,
+         (unsigned long long)atomic_load(&g_dsh_keep_n), (unsigned long long)atomic_load(&g_dsh_rk_n), (unsigned long long)atomic_load(&g_dsh_boost_n));
+     if (atomic_load(&g_dsh_ahead_dup)) LOG("RewindBox: lookahead or bind translations that found their key translated meanwhile (not translated twice): %llu", (unsigned long long)atomic_load(&g_dsh_ahead_dup));
++    if (atomic_load(&g_rb_dsh_known_saved) || atomic_load(&g_rb_dsh_known_deferred))
++        LOG("RewindBox: already mapped shaders: %llu stage files kept, %llu copies deferred by the byte cap (S2A_RB_DSH_KEEP_MAPPED)",
++            (unsigned long long)atomic_load(&g_rb_dsh_known_saved), (unsigned long long)atomic_load(&g_rb_dsh_known_deferred));
+     // RewindBox (patch 0069): the MSL this device's translations leave, compiled from source at their load (nvn_mtl.m shader_build's fallback path), for the whole session: the line
+     //   the backend writes at the prewarm's end stops there, and only long frames showed the submit thread's part (IPA 765 frame 1892: about 690 ms in shader_build)
+     { uint64_t m[4]; nvn_be_msl_ns(m);
+@@ -377,19 +381,59 @@
+ //   such a stage is stale and nothing can make it again before a draw meets it. IPA 765: the prewarm left 1,282 such keys out ("not in the shader map"), 0 had kept bytes, and
+ //   the archive's 3,313 pipelines gave only the 1,997 whose lines survived; 782 stages were taken from an earlier run's translation in play and none of their bytes kept. At a
+ //   bind (dm_shader_bound: the game's thread, bytes it holds now and that hash to the key), such a stage's bytes are copied and written on a utility queue, once a key
+-static void dsh_keep_reused(const char *k, uint64_t code, const void *control) {
++// RewindBox (patch 0100): IPA 785 skipped 860 pipeline rows for 459 old keys with no stage bytes.
++// Only one earlier translation supplied its bytes at a bind. A key already in the runtime map
++// can bypass dm_shader_bound even though the current guest bind still holds hash-checked bytes.
++// Use the same store as fresh translations, with up to 8 MiB of additional live copies.
++static _Atomic size_t g_rb_dsh_known_bytes;
++static int dsh_keep_reused(const char *k, uint64_t code, const void *control, int mapped) {
+     const char *out = getenv("DM_MSL_FALLBACK"); char p[1200];
+-    if (!dsh_in_on() || !out || !*out || !strcmp(out, "/dev/null") || !control || !code || (uint64_t)(uintptr_t)control >= (1ull << 47) || !nvn2_ctl(control)) return;
++    if (!dsh_in_on() || !out || !*out || !strcmp(out, "/dev/null") || !control || !code || (uint64_t)(uintptr_t)control >= (1ull << 47) || !nvn2_ctl(control)) return 0;
+     snprintf(p, sizeof p, "%s/%s_b.in", out, k);
+-    if (!access(p, F_OK)) return;
++    if (!access(p, F_OK)) return 1;
+     uint32_t ncode = 0, nctl = 0; int st = dsh_stage((const uint8_t *)(uintptr_t)code, control, &ncode, &nctl);
+-    if (st < 0) return;
+-    uint8_t *b = malloc((size_t)nctl + ncode); char *o = strdup(out), *kk = strdup(k);
+-    if (!b || !o || !kk) { free(b); free(o); free(kk); return; }
++    if (st < 0) return 0;
++    const size_t bytes = (size_t)nctl + ncode, limit = 8u << 20;
++    if (mapped && atomic_fetch_add(&g_rb_dsh_known_bytes, bytes) + bytes > limit) {
++        atomic_fetch_sub(&g_rb_dsh_known_bytes, bytes);
++        atomic_fetch_add(&g_rb_dsh_known_deferred, 1);
++        return 0;
++    }
++    uint8_t *b = malloc(bytes); char *o = strdup(out), *kk = strdup(k);
++    if (!b || !o || !kk) {
++        free(b); free(o); free(kk);
++        if (mapped) atomic_fetch_sub(&g_rb_dsh_known_bytes, bytes);
++        return 0;
++    }
+     memcpy(b, control, nctl); memcpy(b + nctl, (const void *)(uintptr_t)code, ncode);
+     static dispatch_queue_t q; static dispatch_once_t once;
+     dispatch_once(&once, ^{ q = dispatch_queue_create("s2a.dsh.keep", dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_UTILITY, 0)); });
+-    dispatch_async(q, ^{ if (dsh_in_save(o, kk, st, b, nctl, b + nctl, ncode)) atomic_fetch_add(&g_dsh_keep_n, 1); free(b); free(o); free(kk); });
++    dispatch_async(q, ^{
++        if (mapped) pthread_mutex_lock(&g_dsh_comp_mu);
++        int saved = dsh_in_save(o, kk, st, b, nctl, b + nctl, ncode);
++        if (mapped) pthread_mutex_unlock(&g_dsh_comp_mu);
++        if (saved) atomic_fetch_add(mapped ? &g_rb_dsh_known_saved : &g_dsh_keep_n, 1);
++        free(b); free(o); free(kk);
++        if (mapped) atomic_fetch_sub(&g_rb_dsh_known_bytes, bytes);
++    });
++    return 1;
++}
++void dm_shader_keep_known(const uint8_t md[8], const char *k, uint64_t code, const void *control) {
++    static _Atomic int enabled = -1;
++    int on = atomic_load_explicit(&enabled, memory_order_relaxed);
++    if (on < 0) {
++        const char *e = getenv("S2A_RB_DSH_KEEP_MAPPED");
++        on = !(e && !strcmp(e, "0"));
++        atomic_store_explicit(&enabled, on, memory_order_relaxed);
++    }
++    if (!on || nvn_be_stopping()) return;
++    static _Atomic uint64_t seen[8192];
++    uint64_t key; memcpy(&key, md, sizeof key);
++    if (!key) return;
++    size_t slot = (key ^ (key >> 32)) % (sizeof seen / sizeof seen[0]);
++    if (atomic_exchange_explicit(&seen[slot], key, memory_order_relaxed) == key) return;
++    if (!dsh_keep_reused(k, code, control, 1))
++        atomic_compare_exchange_strong_explicit(&seen[slot], &key, 0, memory_order_relaxed, memory_order_relaxed);
+ }
+ // RewindBox (patch 0069): compute stages translated ahead too (their library is still built at their first use: nvn_mtl.m prog_get builds a tensor-core network from its reflection
+ //   alone). IPA 765: 5 of the 48 translations on the submit thread were compute stages (65.6 ms and 53.8 ms the longest). S2A_RB_CS_AHEAD=0: vertex and pixel only, as before
+@@ -411,7 +455,7 @@
+       if (dsh_reuse_stage(k, sn, sizeof sn)) {
+           mtl_shmap_rt_add(k, sn); atomic_fetch_add(&g_dsh_ahead_had, 1);
+           if (!strcmp(sn, dsh_nm[0]) || !strcmp(sn, dsh_nm[1])) mtl_shader_ahead_load(k, sn);
+-          if (bound) dsh_keep_reused(k, code, control);   // RewindBox (patch 0069)
++          if (bound) dsh_keep_reused(k, code, control, 0);   // RewindBox (patch 0069)
+           return 2; } }
+     if (!control || !code || (uint64_t)(uintptr_t)control >= (1ull << 47) || !nvn2_ctl(control)) return 0;
+     const uint8_t *ctl = control, *cd = (const uint8_t *)(uintptr_t)code; uint32_t ncode = 0, nctl = 0;
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -11868,6 +11868,7 @@
+ //   the first use takes the result as it takes the lookahead's. Once a serial: hle_nvn.c decides it with a flag in the serial's snapshot entry, without a lock (the first version
+ //   kept its own 64-entry thread cache and a locked set, and most of a frame's hundreds of binds took that lock). S2A_RB_BIND_AHEAD=0 turns it off
+ __attribute__((weak)) int dm_shader_bound(const char *k16, uint64_t code, const void *control) { (void)k16; (void)code; (void)control; return 0; }   // dsh_miss.inc: 1 queued for translation, 2 an earlier run's translation taken, 0 neither; weak: the graphics tests without host_adapt.m
++__attribute__((weak)) void dm_shader_keep_known(const uint8_t md[8], const char *k, uint64_t code, const void *control) { (void)md; (void)k; (void)code; (void)control; }
+ static _Atomic uint64_t g_rb_bound_progs, g_rb_bound_xl, g_rb_bound_re, g_rb_bound_pre;   // programs looked at / stages queued for translation / taken from an earlier run's / handed to the prefetch
+ static int rb_bind_ahead_on(void) {
+     static _Atomic int v = -1; int r = atomic_load_explicit(&v, memory_order_relaxed);
+@@ -11886,9 +11887,11 @@
+         uint32_t n2 = nvn2_code_len(ctl);
+         if (!n2 || n2 >= (1u << 24) || !rb_addr_mapped(code, n2) || !rb_code_set((const uint8_t *)(uintptr_t)code, n2) || !prog_key_live(p, i, md)) continue;
+         for (int b = 0; b < 8; b++) snprintf(hx + 2 * b, 3, "%02x", md[b]);
+-        NSString *k = @(hx), *stage = shmap_stage(k); int st = stage ? stage_of(stage) : -1;
++        NSString *k = @(hx), *packed = g_shmap[k], *stage = packed ?: shmap_rt_get(k);
++        int st = stage ? stage_of(stage) : -1;
+         if (!stage) { int r = dm_shader_bound(hx, code, ctl); if (r) atomic_fetch_add_explicit(r == 1 ? &g_rb_bound_xl : &g_rb_bound_re, 1, memory_order_relaxed); continue; }
+         if (st < 0) continue;
++        if (!packed) dm_shader_keep_known(md, hx, code, ctl);   // RewindBox (patch 0100): this device's translations only
+         os_unfair_lock_lock(&g_shader_lock); int have = g_shcache[shader_identity([k stringByAppendingString:@"_b"], st, 0, dz)] != nil; os_unfair_lock_unlock(&g_shader_lock);
+         if (!have) { nvn_be_shader_prefetch(md); atomic_fetch_add_explicit(&g_rb_bound_pre, 1, memory_order_relaxed); }
+     }

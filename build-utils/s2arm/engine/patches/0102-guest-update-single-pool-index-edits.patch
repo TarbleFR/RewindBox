@@ -1,0 +1,106 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -550,6 +550,7 @@
+     // gslot: its bit in the access bitmap + 1 (0: none); gout: times it was taken out for not being reached; gseen: the frame its bit was last seen; gfence: the submission after which the last taking out lets it go
+ static pool_ent *g_pools; static int g_npool, g_cap;
+ static int g_pidx_ok, g_plast = -1;   // whether the address→pool index is valid, the last hit (pool_find)
++static int g_rb_pidx_edit, g_rb_pidx_unique, g_rb_pidx_removed;
+ static NSMutableArray *g_keep;                  // Holds the buffer references (pool_ent has non-owning pointers)
+ static uint64_t g_pool_adds;
+ static int g_pool_res_n;   // registered pools already in the residency set (for the memory readout; under g_mu)
+@@ -871,6 +872,7 @@
+     if (g_npool == g_cap) { int c = g_cap ? g_cap * 2 : 64;
+         if (!GROW(g_pools, (size_t)c * sizeof *g_pools, "memory pool table")) { pthread_mutex_unlock(&g_mu); MLOG("【红】 memory pool %p+%#llx not registered: its addresses resolve to nothing (draws using it are skipped)", mem, (unsigned long long)size); return; }
+         g_cap = c; }
++    g_rb_pidx_edit = g_pidx_ok && g_rb_pidx_unique ? 1 : 0;
+     g_pidx_ok = 0; g_plast = -1; atomic_fetch_add(&g_pool_gen, 1);   // the address index and the per-thread caches are invalid (pool_find, pc_get)
+     g_pools[g_npool++] = (pool_ent){lo, hi, a, buf, buf.gpuAddress, mem, 0, ha};   // not in the residency set yet: put in the first time it is addressed (pool_res)
+     g_pool_adds++;
+@@ -890,6 +892,8 @@
+             if (!g_dead_pools) g_dead_pools = [NSHashTable weakObjectsHashTable];
+             gslot_put(i);
+             [g_dead_pools addObject:b]; g_pools[i] = g_pools[--g_npool]; if (i < g_npool && g_pools[i].gslot) g_gslot_pool[g_pools[i].gslot - 1] = i;   // the moved pool's bit follows it
++            g_rb_pidx_edit = g_pidx_ok && g_rb_pidx_unique ? 2 : 0;
++            g_rb_pidx_removed = i;
+             g_pidx_ok = 0; g_plast = -1; atomic_fetch_add(&g_pool_gen, 1); break; }
+     pthread_mutex_unlock(&g_mu);
+ }
+@@ -898,12 +902,64 @@
+ // The Legend of Zelda: Breath of the Wild keeps about 1760 memory pools alive and every buffer binding of every draw looks one up; the old full scan took about 4% of the submit thread's samples (mtl_gpu_addr 222 / 6 s). Adding / removing pools invalidates the index, which is re-sorted when next used. Caller holds g_mu
+ static int *g_pidx; static int g_pidx_cap;
+ static int pidx_cmp(const void *a, const void *b) { uintptr_t x = g_pools[*(const int *)a].lo, y = g_pools[*(const int *)b].lo; return x < y ? -1 : x > y; }
++// RewindBox (patch 0102): IPA 785 captured 11 pool_find and 7 pidx_cmp samples of
++// 94 active samples on nx-83 in frames 610–727. A single mutation between lookups
++// need not re-sort thousands of live pools. If starts can tie or edits accumulate,
++// use the original sort so overlap and equal-address selection stay identical.
++static int rb_pidx_on(void) {   // caller holds g_mu
++    static int on = -1;
++    if (on < 0) { const char *e = getenv("S2A_RB_POOL_INDEX_UPDATE"); on = !(e && !strcmp(e, "0")); }
++    return on;
++}
++static int rb_pidx_update(void) {   // caller holds g_mu, capacity already checked
++    int edit = g_rb_pidx_edit;
++    g_rb_pidx_edit = 0;
++    if (!edit) return 0;
++    if (edit == 1) {
++        int last = g_npool - 1, lo = 0, hi = last;
++        uintptr_t address = g_pools[last].lo;
++        while (lo < hi) {
++            int mid = lo + (hi - lo) / 2;
++            if (g_pools[g_pidx[mid]].lo < address) lo = mid + 1;
++            else hi = mid;
++        }
++        if (lo < last && g_pools[g_pidx[lo]].lo == address) return 0;
++        memmove(g_pidx + lo + 1, g_pidx + lo, (size_t)(last - lo) * sizeof *g_pidx);
++        g_pidx[lo] = last;
++        return 1;
++    }
++    int removed = g_rb_pidx_removed, at = -1;
++    for (int i = 0; i <= g_npool; i++) {
++        if (g_pidx[i] == removed) at = i;
++        else if (g_pidx[i] == g_npool) g_pidx[i] = removed;   // previous last entry moved into the hole
++    }
++    if (at < 0) return 0;
++    memmove(g_pidx + at, g_pidx + at + 1, (size_t)(g_npool - at) * sizeof *g_pidx);
++    return 1;
++}
++static void rb_pidx_note(int updated) {   // independent of frame sampling
++    static uint64_t edits, sorts;
++    edits += updated != 0;
++    sorts += updated == 0;
++    uint64_t n = edits + sorts;
++    if (!(n & (n - 1)) && n >= 64)
++        MLOG("RewindBox: pool address index: %llu single edits applied, %llu full sorts (S2A_RB_POOL_INDEX_UPDATE)",
++             (unsigned long long)edits, (unsigned long long)sorts);
++}
+ static int pool_find(uint64_t addr, uint64_t len) {
+     if (g_plast >= 0 && g_plast < g_npool && addr >= g_pools[g_plast].lo && addr + len <= g_pools[g_plast].hi) return g_plast;
+     if (!g_pidx_ok) {
+         if (g_pidx_cap < g_npool) { int c = g_npool * 2; if (!GROW(g_pidx, (size_t)c * sizeof *g_pidx, "pool address index")) { for (int i = 0; i < g_npool; i++) if (addr >= g_pools[i].lo && addr + len <= g_pools[i].hi) return g_plast = i; return -1; } g_pidx_cap = c; }   // no index: the full scan
+-        for (int i = 0; i < g_npool; i++) g_pidx[i] = i;
+-        qsort(g_pidx, (size_t)g_npool, sizeof *g_pidx, pidx_cmp); g_pidx_ok = 1;
++        int enabled = rb_pidx_on(), updated = enabled && rb_pidx_update();
++        if (!updated) {
++            for (int i = 0; i < g_npool; i++) g_pidx[i] = i;
++            qsort(g_pidx, (size_t)g_npool, sizeof *g_pidx, pidx_cmp);
++            g_rb_pidx_unique = enabled;
++            for (int i = 1; g_rb_pidx_unique && i < g_npool; i++)
++                if (g_pools[g_pidx[i - 1]].lo == g_pools[g_pidx[i]].lo) g_rb_pidx_unique = 0;
++        }
++        if (enabled) rb_pidx_note(updated);
++        g_pidx_ok = 1;
+     }
+     int lo = 0, hi = g_npool - 1, hit = -1;   // the last one whose start ≤ addr
+     while (lo <= hi) { int m = (lo + hi) / 2; if (g_pools[g_pidx[m]].lo <= addr) { hit = m; lo = m + 1; } else hi = m - 1; }
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -143,6 +143,7 @@
+     [g_keep removeAllObjects]; g_dead_pools = nil;
+     free(g_pools); g_pools = NULL; g_npool = g_cap = g_pool_res_n = 0;
+     free(g_pidx); g_pidx = NULL; g_pidx_cap = g_pidx_ok = 0; g_plast = -1;
++    g_rb_pidx_edit = g_rb_pidx_unique = 0;
+     atomic_fetch_add(&g_pool_gen, 1); atomic_fetch_add(&g_reg_gen, 1); atomic_fetch_add(&g_ser_gen, 1);
+     // Keys for these caches include program/guest buffer identity. Reuse only
+     // the compiled shader cache (its keys are content hashes).

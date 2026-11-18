@@ -56,7 +56,12 @@ void main() {
       return {'available': true};
     });
     expect(await MelonxInternalService.runtimeAvailable(), isTrue);
-    expect(methods, List.filled(5, 'availability'));
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      methods.add(call.method);
+      return {'available': false, 'framework': true, 'switch2EngineLoaded': true};
+    });
+    expect(await MelonxInternalService.runtimeAvailable(), isTrue);
+    expect(methods, List.filled(6, 'availability'));
   });
 
   test('the Consoles probe never asks for the engine (IPA 728: it loaded MeloNXCore and blocked Switch 2)', () async {

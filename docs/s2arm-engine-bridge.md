@@ -39,6 +39,9 @@ ARMSX2 bridges are `.mm`, where a comparison is a C++ `bool`. Not observed on a 
 - The plugin exports `rb_s2arm_engine_loaded()` (an atomic flag). It is set to 1 **before** the `dlopen` of the engine
   (even if the load then fails), so MeloNX's bridge, which reads it through `dlsym(RTLD_DEFAULT, "rb_s2arm_engine_loaded")`,
   refuses to load MeloNXCore afterwards (session 01, `a18490cb`).
+- The Switch launch dialog reports this process conflict as `switch2EngineLoaded`.
+  The read-only Consoles probe uses the installed framework flag so the Switch library remains visible.
+  NativeAOT shared libraries stay loaded for the life of the process. [Microsoft NativeAOT library documentation](https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/libraries)
 - Before opening the engine the plugin reads MeloNX's `rb_melonx_core_loaded()` the same way; if it answers non-zero it
   refuses the launch with its own code, `switch1EngineLoaded` (same-named message: the Switch 1 engine was loaded in
   this session, close and reopen RewindBox). It answered `engineRestartRequired` before 12 Nov 2026. The status map

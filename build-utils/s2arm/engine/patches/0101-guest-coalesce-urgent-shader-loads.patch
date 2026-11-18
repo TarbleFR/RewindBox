@@ -1,0 +1,60 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -11791,21 +11791,52 @@
+ // The lookahead (prog_peek) found a stage of a draw later in this submission not loaded: load it now on the urgent lanes, beside the submit thread, instead of when its draw reaches
+ //   prog_get. The submit thread then takes it from the cache or shares the load in flight (shader_load_depth, which lends it this thread's urgency). At most 2 per lane queued
+ static _Atomic int g_shurg_live; static _Atomic uint64_t g_shurg_n, g_shurg_ns;
++static NSMutableSet<NSString *> *g_rb_shurg_queued;   // protected by g_shpre_mu
++static uint64_t g_rb_shurg_duplicates;   // protected by g_shpre_mu
++static int rb_shurg_unique_on(void) {
++    static int on = -1;   // submit thread only
++    if (on < 0) { const char *e = getenv("S2A_RB_SHADER_URGENT_UNIQUE"); on = !(e && !strcmp(e, "0")); }
++    return on;
++}
++// RewindBox (patch 0101): IPA 785 had 17 Metal libraries compiled on submit (2,860 ms).
++// The lookahead revisits a cold program at each draw. Repeated stages can consume all six
++// speculative slots on the A18 Pro before a worker claims them. Use one slot per stage
++// and depth variant. Translation-completion requests keep their separate, uncapped path.
+ static void shader_urgent(NSString *k, int st) {
+     if (!shpre_on() || st < 0 || atomic_load(&g_shurg_live) >= 2 * shq_width()) return;
++    int unique = nvn2_on() && rb_shurg_unique_on();
++    int depth = unique && stage_depth_moded(st) && atomic_load(&g_depth_zero);
++    NSString *key = unique ? [k stringByAppendingString:@"_b"] : nil;
++    NSString *identity = unique ? shader_identity(key, st, 0, depth) : nil;
+     os_unfair_lock_lock(&g_shpre_mu);
+     if (atomic_load(&g_shpre_stopping)) { os_unfair_lock_unlock(&g_shpre_mu); return; }
++    if (identity) {
++        if ([g_rb_shurg_queued containsObject:identity]) {
++            uint64_t n = ++g_rb_shurg_duplicates;
++            os_unfair_lock_unlock(&g_shpre_mu);
++            if (!(n & (n - 1))) MLOG("RewindBox: %llu duplicate urgent shader loads coalesced (S2A_RB_SHADER_URGENT_UNIQUE)", (unsigned long long)n);
++            return;
++        }
++        if (!g_rb_shurg_queued) g_rb_shurg_queued = [NSMutableSet set];
++        [g_rb_shurg_queued addObject:identity];
++    }
+     shq_init(&g_shurg, "dm.nvn.sh-urg", s2a_qos(S2A_QOS_SHADER_URGENT));
+     atomic_fetch_add(&g_shurg_live, 1);
+     shq_async(&g_shurg, k, ^{ @autoreleasepool {
+         if (!atomic_load(&g_shpre_stopping)) {
+-            uint64_t t0 = bp_now(); NSString *key = [k stringByAppendingString:@"_b"];
+-            if (shader_loadable(key) && shader_load(key, st, 0)) {
+-                uint64_t n = atomic_fetch_add(&g_shurg_n, 1) + 1, ns = atomic_fetch_add(&g_shurg_ns, bp_now() - t0) + (bp_now() - t0);
++            uint64_t t0 = bp_now();
++            NSString *pc = key ?: [k stringByAppendingString:@"_b"];
++            if (shader_loadable(pc) && (unique ? shader_load_depth(pc, st, 0, depth, NULL, NULL) : shader_load(pc, st, 0))) {
++                uint64_t d = bp_now() - t0, n = atomic_fetch_add(&g_shurg_n, 1) + 1, ns = atomic_fetch_add(&g_shurg_ns, d) + d;
+                 if (!(n & (n - 1)) && n >= 16) MLOG("shader lookahead loads: %llu libraries loaded beside the submit thread for later draws of their submission, %.1f ms in all", (unsigned long long)n, ns / 1e6);
+             }
+         }
+-        atomic_fetch_sub(&g_shurg_live, 1);
++        if (identity) {
++            os_unfair_lock_lock(&g_shpre_mu);
++            [g_rb_shurg_queued removeObject:identity];
++            atomic_fetch_sub(&g_shurg_live, 1);
++            os_unfair_lock_unlock(&g_shpre_mu);
++        } else atomic_fetch_sub(&g_shurg_live, 1);
+     } });
+     os_unfair_lock_unlock(&g_shpre_mu);
+ }
