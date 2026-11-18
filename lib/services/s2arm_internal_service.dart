@@ -1066,6 +1066,7 @@ abstract final class S2ArmInternalService {
     required String pairingFilePath,
     void Function(S2ArmImportProgress progress)? onPrepareProgress,
     Locale? locale,
+    String? displayName,
   }) async {
     final runtime = await availability();
     if (!runtime.ready) return S2ArmLaunchOutcome.failure(runtime.state.name, runtime.detail);
@@ -1091,11 +1092,18 @@ abstract final class S2ArmInternalService {
       if (flag(now['engineLoaded']) && (detected['gid'] ?? '').toString().toUpperCase() != parked) {
         return const S2ArmLaunchOutcome.failure('engineRestartRequired');
       }
-      final prepared = await prepare(exportFolder: (detected['exportDir'] ?? exportFolder).toString(), onProgress: onPrepareProgress);
+      final detectedFolder = (detected['exportDir'] ?? exportFolder).toString();
+      final launchTitle = Switch2ExportContent.resolvedTitle(
+        Switch2ExportContent.entryPath(detectedFolder),
+        programId: detected['programId']?.toString(),
+        fallback: displayName,
+        locale: locale,
+      ) ?? 'Switch 2';
+      final prepared = await prepare(exportFolder: detectedFolder, onProgress: onPrepareProgress);
       if (prepared['success'] != true) {
         return S2ArmLaunchOutcome.failure((prepared['code'] ?? 'prepareFailed').toString(), prepared['diagnostic']?.toString());
       }
-      final saveFolder = await saveFolderFor((detected['exportDir'] ?? exportFolder).toString());
+      final saveFolder = await saveFolderFor(detectedFolder);
       final endSerial = _sessionEndSerial;
       final report = await channel.invokeMapMethod<String, dynamic>('launchGame', {
         'gid': prepared['gid'],
@@ -1103,6 +1111,7 @@ abstract final class S2ArmInternalService {
         'moduleDir': prepared['moduleDir'],
         'gameData': prepared['gameData'],
         'docs': prepared['docs'],
+        'displayTitle': launchTitle,
         'pairingFilePath': pairingFilePath,
         'uiLocale': uiLocale,
         'menuStrings': Switch2SettingsLocale.menuStrings(uiLocale),

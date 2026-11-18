@@ -739,7 +739,7 @@ extension SqliteConfigScanning on SqliteConfigProvider {
           !Switch2ExportContent.isLibraryEntry(romPath)) {
         continue;
       }
-      final hasMedia = const ['png', 'jpg', 'jpeg'].any(
+      final hasMedia = const ['png', 'jpg', 'jpeg', 'webp'].any(
         (extension) =>
             File(s2arm_path.join(media.path, '$titleId.$extension'))
                 .existsSync(),

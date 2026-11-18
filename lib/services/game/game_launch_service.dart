@@ -459,6 +459,11 @@ class GameLaunchService {
         }
         if (!context.mounted) return GameLaunchResult.failure('', '');
         final prepareProgress = ValueNotifier<S2ArmImportProgress?>(null);
+        final launchTitle = Switch2ExportContent.resolvedTitle(
+          Switch2ExportContent.entryPath(exportFolder),
+          fallback: game.name,
+          locale: locale,
+        ) ?? 'Switch 2';
         var prepareDialogShown = false;
         S2ArmLaunchOutcome outcome;
         try {
@@ -467,7 +472,7 @@ class GameLaunchService {
             barrierDismissible: false,
             builder: (_) => S2ArmPrepareDialog(
               progress: prepareProgress,
-              title: game.name,
+              title: launchTitle,
             ),
           );
           prepareDialogShown = true;
@@ -476,6 +481,7 @@ class GameLaunchService {
             pairingFilePath: pairingFilePath,
             onPrepareProgress: (value) => prepareProgress.value = value,
             locale: locale,
+            displayName: launchTitle,
           );
         } finally {
           if (prepareDialogShown && context.mounted) {

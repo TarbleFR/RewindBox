@@ -370,10 +370,13 @@ class GameModel {
     FileProvider? fileProvider,
   ]) {
     final lookupNames = _mediaLookupNames();
+    final imageExtensions = systemFolderName == 'switch2'
+        ? const ['png', 'jpg', 'jpeg', 'webp']
+        : const ['png', 'jpg', 'jpeg'];
 
     if (fileProvider != null && fileProvider.isInitialized) {
       for (final mediaName in lookupNames) {
-        for (final extension in const ['png', 'jpg', 'jpeg']) {
+        for (final extension in imageExtensions) {
           final candidate = fileProvider.getMediaPath(
             systemFolderName,
             imageType,
@@ -385,7 +388,7 @@ class GameModel {
 
         // Fallback for filenames that must be used literally rather than
         // extension-stripped by FileProvider.
-        for (final extension in const ['png', 'jpg', 'jpeg']) {
+        for (final extension in imageExtensions) {
           final literalCandidate = path.join(
             fileProvider.getMediaDirectoryPath(),
             systemFolderName,
@@ -419,7 +422,7 @@ class GameModel {
     // Manual filesystem lookup logic.
     for (final mediaName in lookupNames) {
       final baseName = _stripRomExtension(mediaName);
-      for (final extension in const ['png', 'jpg', 'jpeg']) {
+      for (final extension in imageExtensions) {
         final candidate = path.join(
           'media',
           systemFolderName,
@@ -429,7 +432,7 @@ class GameModel {
         if (File(candidate).existsSync()) return candidate;
       }
 
-      for (final extension in const ['png', 'jpg', 'jpeg']) {
+      for (final extension in imageExtensions) {
         final literalCandidate = path.join(
           'media',
           systemFolderName,
