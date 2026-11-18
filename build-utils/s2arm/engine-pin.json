@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "4afaac95530165f0a61b0d743f0a9783fe257f021c00324e32ac09dfcfa7981b",
+  "packagedFingerprint": "9f449f905cef0832cf446985209bd4bfef59b644dbbbc8e700a970e30fe2e3c6",
   "producers": {
     "engine": {
-      "run": 44180695807,
+      "run": 44216995963,
       "attempt": 1,
-      "artifact": 14373341695,
-      "name": "s2arm-engine-framework-5d75fc610f3b2af91cc49447aa14395b390c86d9",
-      "bytes": 24112734,
-      "sha256": "2eed7056a18ccb1d0e29e0f9287a331494f6cdaf116bcf040452920d3570e4f3",
-      "headSha": "5d75fc610f3b2af91cc49447aa14395b390c86d9",
+      "artifact": 14389562486,
+      "name": "s2arm-engine-framework-e90c5416c07a5940a87195de935da06e49ac1188",
+      "bytes": 24121216,
+      "sha256": "ecf2b0b696a02c0d5124948d86de61880ffafda079b1e9cd78785015bc0aaf3b",
+      "headSha": "e90c5416c07a5940a87195de935da06e49ac1188",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-17T21:45:09Z",
+      "expiresAt": "2026-12-18T01:50:36Z",
       "members": {
-        "S2ArmEngine.framework.zip": "2df5d940d4a275350a314d9243287e12f0b0702963cfb7ac3c706ceceb911b3e",
-        "NS2Pro.framework.zip": "2939c3ab7398d7cdcfadff6f78b9cb29b842d3ff5826209dc50f3e8ee6e00240"
+        "S2ArmEngine.framework.zip": "60c5321aace084aa3cdf4a39dbbd79403b9b13ec815fb08312ee6b086bc21a6b",
+        "NS2Pro.framework.zip": "a80416fd56a2f24e1989f77c1952a4f9f008ff8189cfc9591979910af57a197a"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "2eed7056a18ccb1d0e29e0f9287a331494f6cdaf116bcf040452920d3570e4f3",
+    "engine": "ecf2b0b696a02c0d5124948d86de61880ffafda079b1e9cd78785015bc0aaf3b",
     "prepare": "66ca4c85bbf898d876940a6d535f73dc76e56773b64f2f5c0fc7d754d2d3d865",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -90,9 +90,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "be7997a266f13bfec12d5c63085005256117bb6989e0dc8b088f4885ebc6b4ce",
-      "bytes": 107865784,
-      "fingerprint": "4afaac95530165f0a61b0d743f0a9783fe257f021c00324e32ac09dfcfa7981b"
+      "sha256": "d6b0aebf42393801b162b4c02ef6508cbcf53f47149928a33f302ba77d1ecaa9",
+      "bytes": 107869352,
+      "fingerprint": "9f449f905cef0832cf446985209bd4bfef59b644dbbbc8e700a970e30fe2e3c6"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -125,9 +125,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 44180695807,
+      "run": 44216995963,
       "attempt": 1,
-      "head_sha": "5d75fc610f3b2af91cc49447aa14395b390c86d9",
+      "head_sha": "e90c5416c07a5940a87195de935da06e49ac1188",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -478,11 +478,19 @@
         {
           "name": "0087-guest-under-heat-resolution-steps-down-and-yields-back-off-sooner.patch",
           "sha256": "fdd72d82806c05b61d70784033b9562d465fb8859eaaf04198d0fafb54d515f9"
+        },
+        {
+          "name": "0088-guest-texture-pool-as-before-workgroup-rests-under-heat-audio-lines-journaled.patch",
+          "sha256": "404373fa0f62701ff7d7039c3ae3d50db6af5e419e4d1d1619f7314158b9e8b1"
+        },
+        {
+          "name": "0089-guest-pool-read-ahead-idle-upload-slots-shrink-host-memory-by-tag.patch",
+          "sha256": "be042117f5ab114d020fb172e905e1abdaa40f60f34348244494ac56ad22978f"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "2df5d940d4a275350a314d9243287e12f0b0702963cfb7ac3c706ceceb911b3e",
-        "NS2Pro.framework.zip": "2939c3ab7398d7cdcfadff6f78b9cb29b842d3ff5826209dc50f3e8ee6e00240"
+        "S2ArmEngine.framework.zip": "60c5321aace084aa3cdf4a39dbbd79403b9b13ec815fb08312ee6b086bc21a6b",
+        "NS2Pro.framework.zip": "a80416fd56a2f24e1989f77c1952a4f9f008ff8189cfc9591979910af57a197a"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
