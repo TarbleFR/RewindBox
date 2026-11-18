@@ -943,7 +943,8 @@ static BOOL S2ArmPathInside(NSString *path, NSString *root) {
 static void S2ArmPrepareSaveFolder(NSString *folder, NSString *docs) {
   NSString *documents = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
   if (!folder.length || !S2ArmPathInside(folder, documents)) {
-    unsetenv("S2A_SAVE_FOLDER");
+    const char *saveFolderEnvironment = "S2A_SAVE_FOLDER";
+    unsetenv(saveFolderEnvironment);
     s2arm_journal("saveFolder", "default", NULL);
     return;
   }
