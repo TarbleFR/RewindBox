@@ -1,0 +1,27 @@
+{
+  "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge": {
+    "baselineFingerprint": "7938b9d2bbeab3edaf5025c9c618ca468555fd540e8ffb1fead2be6b92d98bc6",
+    "candidateFingerprint": "584c953301ac4d103e7bef69154e85110b244dccb6424fcbf44a7b79012cd3f1",
+    "changedAbiFields": [],
+    "sections": 43,
+    "identicalSections": 41,
+    "changed": {
+      "__TEXT,__objc_stubs": {
+        "bytes": [
+          10560,
+          10560
+        ],
+        "changedInstructions": 330,
+        "onlyLdrImmediateOffsets": true
+      },
+      "__TEXT,__stubs": {
+        "bytes": [
+          9744,
+          9744
+        ],
+        "changedInstructions": 1,
+        "onlyLdrImmediateOffsets": true
+      }
+    }
+  }
+}
