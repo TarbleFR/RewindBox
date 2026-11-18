@@ -28,7 +28,8 @@ Les changements 0105–0107 sont activés par le profil de Mario Kart World. Fas
 ## Vérification en CI
 
 - Le moteur compile sur macOS 15 et 26 avec les 108 correctifs attendus. Les journaux natifs et .NET des deux compilations donnent zéro avertissement sur les 626 lignes ajoutées depuis la 785, dont 167 pour les quatre nouveaux correctifs. Le fichier d’empreinte du traducteur est identique octet pour octet à celui de la 785. [Compilation du moteur](https://github.com/TarbleFR/RewindBox/actions/runs/44266269705)
-- Le pont iOS compile et les contrôles du pont, de la session et de la réutilisation des préparations passent après mise à jour du contrôle qui vérifie l’ordre des opérations. La bibliothèque de préparation avec annulation compile également. Les contrôles de l’identité et de l’intégrité des fichiers sont exécutés en CI. [Pont iOS](https://github.com/TarbleFR/RewindBox/actions/runs/44267337605) · [Bibliothèque de préparation](https://github.com/TarbleFR/RewindBox/actions/runs/44267909266)
+- Le pont iOS compile et les contrôles du pont, de la session et de la réutilisation des préparations passent après mise à jour du contrôle qui vérifie l’ordre des opérations. La bibliothèque de préparation avec annulation compile également. [Pont iOS](https://github.com/TarbleFR/RewindBox/actions/runs/44268361164) · [Bibliothèque de préparation](https://github.com/TarbleFR/RewindBox/actions/runs/44267909266)
+- L’épinglage a authentifié les archives du moteur 44266269705, de la préparation 44267909266 et des données système 43038032448. Le fichier sur `Claude` correspond exactement aux octets produits par la CI. [Vérification des trois composants](https://github.com/TarbleFR/RewindBox/actions/runs/44268598990)
 
 ## Points ouverts et vérification sur iPhone
 
