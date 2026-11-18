@@ -1,0 +1,59 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 74feb5bd..7138cf2b 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -4532,4 +4532,17 @@ static int rb_up_trim_on(void) { static int v = -1; if (v < 0) { const char *e =
+ enum { RB_UP_TRIM_FRAMES = 1800 };
+ static uint64_t g_up_slot_big[RB_UP_MAX], g_up_trims, g_up_trim_bytes;   // the last frame a batch of the slot started with more than UP_SLOT_BLOCK or ran past the slot's block (the upload thread, as g_up_slot_blk)
++// RewindBox (patch 0091): IPA 781 received memory pressure before frame 1500 but first trimmed staging at frame 2862.
++// Its first eight trims replaced 200 MiB with 32 MiB. Under existing memory pressure, wait half as many frames,
++// counting a batch that cumulatively uses more than 4 MiB as large even if its first allocation was small.
++// The same slot wait and deferred release protect GPU work. S2A_RB_UP_PRESSURE_TRIM=0 restores patch 0089.
++static int rb_up_pressure_trim_on(void) {
++    static int enabled = -1;  // upload owner, same as rb_up_trim_on
++    if (enabled < 0) {
++        const char *setting = getenv("S2A_RB_UP_PRESSURE_TRIM");
++        enabled = !(setting && !strcmp(setting, "0"));
++    }
++    return enabled;
++}
++static uint64_t g_up_pressure_trims, g_up_pressure_trim_bytes;
+ static id<MTLBuffer> up_alloc(size_t n, size_t *off) {
+     size_t need = (n + 255u) & ~((size_t)255u);
+@@ -4540,9 +4553,23 @@ static id<MTLBuffer> up_alloc(size_t n, size_t *off) {
+         if (want > UP_SLOT_BLOCK) g_up_slot_big[g_up_cur_slot] = rb_fr;
+         if (*sb && (*sb).length < want) { defer_obj_release(*sb); *sb = nil; }   // the slot's previous batch has finished (up_begin waited for it)
+-        else if (*sb && (*sb).length > UP_SLOT_BLOCK && rb_up_trim_on() && rb_fr > g_up_slot_big[g_up_cur_slot] + RB_UP_TRIM_FRAMES) {   // RewindBox (patch 0089): made again below at want (UP_SLOT_BLOCK)
+-            uint64_t k = ++g_up_trims; g_up_trim_bytes += (*sb).length;
+-            if (k <= 8 || !(k & (k - 1))) MLOG("RewindBox: upload slot %u's staging block of %llu MB goes back to %u MB at frame %llu (patch 0089: no batch of the slot needed more for %d frames); %llu such so far, %llu MB in all",
+-                                               g_up_cur_slot, (unsigned long long)((*sb).length >> 20), UP_SLOT_BLOCK >> 20, (unsigned long long)rb_fr, (int)RB_UP_TRIM_FRAMES, (unsigned long long)k, (unsigned long long)(g_up_trim_bytes >> 20));
+-            defer_obj_release(*sb); *sb = nil;
++        else if (*sb && (*sb).length > UP_SLOT_BLOCK && rb_up_trim_on() && want == UP_SLOT_BLOCK) {
++            const uint64_t last = g_up_slot_big[g_up_cur_slot];
++            const uint64_t idle = rb_fr >= last ? rb_fr - last : 0;
++            const int early = idle <= RB_UP_TRIM_FRAMES && idle > RB_UP_TRIM_FRAMES / 2 &&
++                              rb_up_pressure_trim_on() && rb_mem_low();
++            if (idle > RB_UP_TRIM_FRAMES || early) {
++                uint64_t k = ++g_up_trims; g_up_trim_bytes += (*sb).length;
++                if (k <= 8 || !(k & (k - 1))) MLOG("RewindBox: upload slot %u's staging block of %llu MB goes back to %u MB at frame %llu (patch 0089: no batch of the slot needed more for %d frames); %llu such so far, %llu MB in all",
++                                                   g_up_cur_slot, (unsigned long long)((*sb).length >> 20), UP_SLOT_BLOCK >> 20, (unsigned long long)rb_fr, early ? RB_UP_TRIM_FRAMES / 2 : RB_UP_TRIM_FRAMES,
++                                                   (unsigned long long)k, (unsigned long long)(g_up_trim_bytes >> 20));
++                if (early) {
++                    uint64_t count = ++g_up_pressure_trims;
++                    g_up_pressure_trim_bytes += (*sb).length - UP_SLOT_BLOCK;
++                    if (count <= 8 || !(count & (count - 1)))
++                        MLOG("RewindBox: memory pressure trimmed staging early at frame %llu (patch 0091); %llu trims, %llu MiB of slot capacity saved cumulatively",
++                             (unsigned long long)rb_fr, (unsigned long long)count, (unsigned long long)(g_up_pressure_trim_bytes >> 20));
++                }
++                defer_obj_release(*sb); *sb = nil;
++            }
+         }
+         if (!*sb) { *sb = [g_dev newBufferWithLength:want options:MTLResourceStorageModePrivate]; if (!*sb) MDIE("failed to create the swizzled-upload staging block %#zx", want); res_add(*sb); g_up_blocks_new++; }
+@@ -4564,4 +4591,7 @@ static id<MTLBuffer> up_alloc(size_t n, size_t *off) {
+     *off = g_up_block_off;
+     g_up_block_off += need;
++    if (*off <= UP_SLOT_BLOCK && g_up_block_off > UP_SLOT_BLOCK &&
++        g_up_block == g_up_slot_blk[g_up_cur_slot] && rb_up_trim_on() && rb_up_pressure_trim_on())
++        g_up_slot_big[g_up_cur_slot] = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);   // RewindBox (patch 0091): cumulative usage crossed the small block size
+     return g_up_block;
+ }

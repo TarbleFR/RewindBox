@@ -1,0 +1,107 @@
+diff --git a/ios/app.m b/ios/app.m
+index d536e40b..9c0f1e37 100644
+--- a/ios/app.m
++++ b/ios/app.m
+@@ -543,6 +543,7 @@ static int rb_store_bench_on(void) { static int v = -1; if (v < 0) { const char
+ static int rb_vm_stats_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_VM_STATS"); v = !(e && !strcmp(e, "0")); } return v; }
+ static int rb_screen_cap_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_SCREEN_CAPTURE"); v = !(e && !strcmp(e, "0")); } return v; }
+ static int rb_vm_tags_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_VM_TAGS"); v = !(e && !strcmp(e, "0")); } return v; }   // RewindBox (patch 0089): the host's memory by VM tag (s2a_rb_mem_tags)
++static int rb_vm_tags_wide_on(void) { const char *e = getenv("S2A_RB_VM_TAGS_WIDE"); return !(e && !strcmp(e, "0")); }   // RewindBox (patch 0092): 0 keeps the 0089 walk
+ // RewindBox (patch 0075): machine-wide paging and CPU since the previous call, for the [写盘] line. Heartbeat queue only (serial): the statics need no lock
+ static void rb_vm_line(char *out, size_t n) {
+     static uint64_t last[6], lcpu[3], lt; static int have_vm, have_cpu;
+@@ -716,8 +717,14 @@ static void rb_screen_capture_seen(int on, const char *how) {   // main thread:
+               last = w; last_r = r; last_p = pi; last_l = lw; have = 1; } }
+         // RewindBox (patch 0089): the host's memory by VM tag, at the first heartbeat and every sixth after it (runtime/src/vawin.c s2a_rb_mem_tags). S2A_RB_VM_TAGS=0: not walked
+         { static unsigned rb_tag_beats; if (rb_vm_tags_on() && rb_tag_beats++ % 6 == 0) { void s2a_rb_mem_tags(char *out, size_t cap); char tg[1024]; uint64_t t0 = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
+-            s2a_rb_mem_tags(tg, sizeof tg);
+-            LOG("RewindBox: the host's memory by VM tag (patch 0089; the low region and the window's tail, walked in %.1f ms): %s", (double)(clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - t0) / 1e6, tg); } }
++            if (rb_vm_tags_wide_on()) {
++                void s2a_rb_mem_tags_wide(char *out, size_t cap);
++                s2a_rb_mem_tags_wide(tg, sizeof tg);
++                LOG("RewindBox: memory by VM tag across the process (patch 0092; walked in %.1f ms): %s", (double)(clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - t0) / 1e6, tg);
++            } else {
++                s2a_rb_mem_tags(tg, sizeof tg);
++                LOG("RewindBox: the host's memory by VM tag (patch 0089; the low region and the window's tail, walked in %.1f ms): %s", (double)(clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - t0) / 1e6, tg);
++            } } }
+         // 客体内存分区账（S2A_MEM_SPLIT=1，缺省关）：心跳每 10 秒一行，另起 100 ms 采样线程抓跳变（mem_split_*）
+         if (mem_split_on()) { mem_split_line("内存分区", s2a_footprint_mb(), wr, wo, 0); mem_split_start(); }
+         // RewindBox (patch 0075): the [能耗] line ends with this heartbeat's screen captured state and focus state
+diff --git a/runtime/src/vawin.c b/runtime/src/vawin.c
+index 9dafcf3c..6e06e53d 100644
+--- a/runtime/src/vawin.c
++++ b/runtime/src/vawin.c
+@@ -1281,6 +1281,73 @@ void s2a_rb_mem_tags(char *out, size_t cap) {
+     }
+ }
+
++// RewindBox (patch 0092): in IPA 781 the old walk showed 173–179 MiB compressed during play while
++// TASK_VM_INFO reported about 1 GiB. Visit the top-level map on both sides of the shared cache and
++// inside the guest window. These are per-mapping VM counts (aliases can overlap), not a footprint.
++void s2a_rb_mem_tags_wide(char *out, size_t cap) {
++    enum { RB_VM_TAGS = 256, RB_VM_REGIONS = 8192, RB_VM_MS = 25 };
++    const uint64_t guest_start = g_ok ? g_base : 0, guest_end = guest_start ? guest_start + g_size : 0;
++    const uint64_t page_bytes = (uint64_t)vm_page_size;
++    const uint64_t start = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
++    uint64_t host[RB_VM_TAGS] = {0}, guest[RB_VM_TAGS] = {0};
++    uint64_t h_file = 0, g_file = 0, crossing = 0;
++    unsigned regions = 0, skipped = 0;
++    const char *status = "region-limit";
++    vm_address_t cursor = 0;
++    for (; regions < RB_VM_REGIONS; regions++) {
++        if (!(regions % 64) && clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - start >= RB_VM_MS * 1000000ull) {
++            status = "time-limit";
++            break;
++        }
++        vm_address_t address = cursor;
++        vm_size_t size = 0;
++        natural_t depth = 0;
++        vm_region_submap_info_data_64_t info;
++        mach_msg_type_number_t count = VM_REGION_SUBMAP_INFO_COUNT_64;
++        kern_return_t result = vm_region_recurse_64(mach_task_self(), &address, &size, &depth,
++                                                   (vm_region_recurse_info_t)&info, &count);
++        if (result != KERN_SUCCESS || !size || address + size <= cursor) {
++            status = result == KERN_INVALID_ADDRESS ? "complete" : "interrupted";
++            break;
++        }
++        vm_address_t next = address + size;
++        if (address < cursor || info.is_submap || info.user_tag == 32) {
++            skipped++;
++        } else {
++            uint64_t compressed = info.pages_swapped_out;
++            unsigned tag = info.user_tag < RB_VM_TAGS ? info.user_tag : 0;
++            if (address >= guest_end || next <= guest_start) {
++                if (info.external_pager) h_file += compressed;
++                else host[tag] += compressed;
++            } else if (address >= guest_start && next <= guest_end) {
++                if (info.external_pager) g_file += compressed;
++                else guest[tag] += compressed;
++            } else {
++                crossing += compressed;
++            }
++        }
++        cursor = next;
++    }
++    uint64_t h_anon = 0, g_anon = 0;
++    for (unsigned i = 0; i < RB_VM_TAGS; i++) { h_anon += host[i]; g_anon += guest[i]; }
++    int used = snprintf(out, cap, "%s, %u regions (%u skipped); compressed mapping MiB: outside window anon %llu / file %llu, "
++                        "inside window anon %llu / file %llu, straddling %llu",
++                        status, regions, skipped, (unsigned long long)(h_anon * page_bytes >> 20),
++                        (unsigned long long)(h_file * page_bytes >> 20), (unsigned long long)(g_anon * page_bytes >> 20),
++                        (unsigned long long)(g_file * page_bytes >> 20), (unsigned long long)(crossing * page_bytes >> 20));
++    for (int side = 0; side < 2; side++) {
++        uint64_t *tags = side ? guest : host;
++        for (int rank = 0; rank < 6 && used > 0 && (size_t)used < cap; rank++) {
++            unsigned largest = 0;
++            for (unsigned i = 1; i < RB_VM_TAGS; i++) if (tags[i] > tags[largest]) largest = i;
++            if (!tags[largest]) break;
++            used += snprintf(out + used, cap - (size_t)used, "; %s tag %u %llu MiB", side ? "inside" : "outside", largest,
++                             (unsigned long long)(tags[largest] * page_bytes >> 20));
++            tags[largest] = 0;
++        }
++    }
++}
++
+ // 低区文件映射按目录合计单独打（低区账骤降时调；10-26 巫师3 测试设备1：文件页 60 秒涨约 400 MB，只在 C# 初始化后列过一次、崩溃时宿主自己崩了没打出来，
+ //   看不出是谁的文件）。范围同低区全列：4 GB 起到窗口，加窗口尾部
+ void s2a_low_files(const char *when) {

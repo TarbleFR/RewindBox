@@ -1,0 +1,47 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index de95b199..948a3f63 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -2224,8 +2224,41 @@ NVN(nvnCommandBufferBindChannelMaskState, void, NVNcommandBuffer *c, const NVNch
+ NVN(nvnCommandBufferBindMultisampleState, void, NVNcommandBuffer *c, const NVNmultisampleState *st) { bind_state(c, 3, st, sizeof(ms_st)); }
+ NVN(nvnCommandBufferBindPolygonState, void, NVNcommandBuffer *c, const NVNpolygonState *st) { bind_state(c, 4, st, sizeof(poly_st)); }
+ NVN(nvnCommandBufferBindDepthStencilState, void, NVNcommandBuffer *c, const NVNdepthStencilState *st) { bind_state(c, 5, st, sizeof(ds_st)); }
++// RewindBox (patch 0090): Fast Fusion on IPA 781 presented 1801 images while the screen stayed black.
++// Its second run logged 8 rejects and 3788 suppressed repeats of BindVertexAttribState n=32.
++// Keep the prefix the renderer can bind; the old path discarded every attribute, including position.
++static int rb_nvn2_vattr_prefix_on(void) {
++    static _Atomic int enabled = -1;
++    int value = atomic_load_explicit(&enabled, memory_order_relaxed);
++    if (value < 0) {
++        const char *setting = getenv("S2A_RB_NVN2_VATTR_PREFIX");
++        value = !(setting && !strcmp(setting, "0"));
++        atomic_store_explicit(&enabled, value, memory_order_relaxed);
++    }
++    return value;
++}
+ NVN(nvnCommandBufferBindVertexAttribState, void, NVNcommandBuffer *c, int n, const NVNvertexAttribState *st) {
+-    if (n < 0 || n > 16) { LOG("【红】 BindVertexAttribState n=%d", n); return; }
++    enum { host_limit = sizeof(((p_bind_vattr *)0)->st) / sizeof(uint32_t), nvn2_limit = 32 };
++    if (n < 0 || n > host_limit) {
++        if (n < 0 || n > nvn2_limit || !st || !nvn2_on() || !rb_nvn2_vattr_prefix_on()) {
++            LOG("【红】 BindVertexAttribState n=%d", n);
++            return;
++        }
++        static _Atomic int logged, logged_upper;
++        if (!atomic_exchange_explicit(&logged, 1, memory_order_relaxed))
++            LOG("[nvn] RewindBox: recording %d of %d NVN2 vertex attributes (patch 0090, S2A_RB_NVN2_VATTR_PREFIX)", (int)host_limit, n);
++        if (!atomic_load_explicit(&logged_upper, memory_order_relaxed)) {
++            for (int i = host_limit; i < n; i++) {
++                va_st state;
++                memcpy(&state, (const uint8_t *)st + (size_t)i * sizeof state, sizeof state);
++                if (!state.fmt) continue;
++                if (!atomic_exchange_explicit(&logged_upper, 1, memory_order_relaxed))
++                    LOG("[nvn] RewindBox: NVN2 vertex attribute %d has a format beyond the renderer's %d supported slots (patch 0090)", i, (int)host_limit);
++                break;
++            }
++        }
++        n = host_limit;
++    }
+     p_bind_vattr *r = RECN(c, OP_BIND_VATTR, p_bind_vattr, st, n); r->first = 0; r->n = n; memcpy(r->st, st, 4 * n);
+ }
+ NVN(nvnCommandBufferBindVertexStreamState, void, NVNcommandBuffer *c, int n, const NVNvertexStreamState *st) {
