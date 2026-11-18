@@ -107,7 +107,7 @@ BLACKLIST_NEW = '''        public static bool IsHostBlocked(string host)
         {
             // RewindBox (adapt_nextendo_online): a name online play redirects goes to the configured service, not to
             // Nintendo's server; it is resolved by DnsMitmResolver instead of being refused here.
-            if (Ryujinx.HLE.EmbeddedOnline.Redirect(host) != null)
+            if (Ryujinx.HLE.EmbeddedOnline.ShouldRedirect(host))
             {
                 return false;
             }

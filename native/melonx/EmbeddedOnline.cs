@@ -3,6 +3,9 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Security;
+using System.Net.Sockets;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
@@ -52,6 +55,11 @@ namespace Ryujinx.HLE
             public long Pid;
             public IPAddress Server;
             public IPAddress Nat;
+            public IPAddress[] SmashCandidates;
+            public Task<IPAddress> SmashSelection;
+            public volatile IPAddress SmashServer;
+            public int SmashTlsState;
+            public readonly Dictionary<IPAddress, string> Resolved = new();
             public string BcatDirectory; // adapt_nextendo_data
             public long? Nsa; // adapt_nextendo_data
             public string[] AcceptedVersions; // adapt_nextendo_data
@@ -62,12 +70,10 @@ namespace Ryujinx.HLE
         public const int MaxAcceptedVersions = 16; // adapt_nextendo_data
         public const int MaxVersionLength = 32; // adapt_nextendo_data
 
+        private const string SmashHost = "g23380901-lp1.s.n.srv.nintendo.net";
+
         private static volatile Settings _settings; // the running session's
         private static volatile Settings _pending; // the host's last request, for the next session
-        private static readonly object _resolvedGate = new();
-        // The host name last redirected to each server address: the SNI of a TLS connection the game opens by address.
-        private static readonly Dictionary<IPAddress, string> _resolved = new();
-
         // The documented built-in rules, in their order: the names of the second (NAT test) address first.
         private static readonly string[] _natHosts =
         [
@@ -218,7 +224,6 @@ zdAq1CTeFUrJ6r/siw==
         {
             _settings = null;
             _pending = null;
-            lock (_resolvedGate) _resolved.Clear();
             Ryujinx.Horizon.Bcat.Ipc.EmbeddedDeliveryCache.Clear(); // adapt_nextendo_data
         }
 
@@ -231,9 +236,12 @@ zdAq1CTeFUrJ6r/siw==
         {
             if (!firstProgram) return;
             Settings settings = _pending;
+            if (settings?.SmashCandidates is { Length: > 1 } candidates)
+            {
+                settings.SmashSelection = Task.Run(() => SelectSmashServer(candidates));
+            }
             _settings = settings;
             _pending = null;
-            lock (_resolvedGate) _resolved.Clear();
 
             // adapt_nextendo_data: the title's BCAT data, served while this session plays online (nothing offline).
             int files = Ryujinx.Horizon.Bcat.Ipc.EmbeddedDeliveryCache.Serve(settings?.BcatDirectory, out string reason);
@@ -273,9 +281,69 @@ zdAq1CTeFUrJ6r/siw==
             _pending = new Settings
             {
                 NexToken = token, Pid = pid, Server = server, Nat = nat,
+                SmashCandidates = SmashCandidates(root, server, nat),
                 BcatDirectory = BcatDirectory(root), Nsa = Nsa(root), AcceptedVersions = AcceptedVersions(root),
             };
             return true;
+        }
+
+        // Only SSBU launches with multiple answers from the operator's game DNS name supply this field.
+        private static IPAddress[] SmashCandidates(JsonElement root, IPAddress server, IPAddress nat)
+        {
+            if (!root.TryGetProperty("smashDnsAddresses", out JsonElement entries) ||
+                entries.ValueKind != JsonValueKind.Array || entries.GetArrayLength() > 4) return null;
+            List<IPAddress> addresses = [server];
+            foreach (JsonElement entry in entries.EnumerateArray())
+            {
+                if (entry.ValueKind != JsonValueKind.String || !IPAddress.TryParse(entry.GetString(), out IPAddress address) ||
+                    address.AddressFamily != AddressFamily.InterNetwork || IPAddress.IsLoopback(address) ||
+                    address.Equals(IPAddress.Any) || address.Equals(nat) || addresses.Contains(address)) continue;
+                addresses.Add(address);
+            }
+            return addresses.ToArray();
+        }
+
+        // No application data is sent. Start during guest startup and bound the whole race, including slow peers.
+        private static async Task<IPAddress> SelectSmashServer(IPAddress[] candidates)
+        {
+            using CancellationTokenSource deadline = new(TimeSpan.FromSeconds(2));
+            List<Task<IPAddress>> probes = new(candidates.Length);
+            foreach (IPAddress address in candidates) probes.Add(VerifySmashRoute(address, deadline.Token));
+            try
+            {
+                while (probes.Count != 0)
+                {
+                    Task<IPAddress> done = await Task.WhenAny(probes).ConfigureAwait(false);
+                    probes.Remove(done);
+                    IPAddress verified = await done.ConfigureAwait(false);
+                    if (verified != null) return verified;
+                }
+                return candidates[0]; // The game's own TLS handshake can still recover from a transient failure.
+            }
+            finally
+            {
+                deadline.Cancel();
+                await Task.WhenAll(probes).ConfigureAwait(false);
+            }
+        }
+
+        private static async Task<IPAddress> VerifySmashRoute(IPAddress address, CancellationToken stop)
+        {
+            try
+            {
+                using TcpClient socket = new(AddressFamily.InterNetwork);
+                await socket.ConnectAsync(address, 443, stop).ConfigureAwait(false);
+                using SslStream tls = new(socket.GetStream(), false);
+                await tls.AuthenticateAsClientAsync(new SslClientAuthenticationOptions
+                {
+                    TargetHost = SmashHost,
+                    ApplicationProtocols = [SslApplicationProtocol.Http11],
+                    RemoteCertificateValidationCallback = (_, cert, chain, _) =>
+                        CertificateFailure(cert, chain, SmashHost, RootsForTests ?? TrustedRoots(), localChainOnly: true) == null,
+                }, stop).ConfigureAwait(false);
+                return address;
+            }
+            catch (Exception) { return null; }
         }
 
         // adapt_nextendo_data: the optional parts. A malformed one is left out and journaled (without its value); the rest
@@ -392,20 +460,31 @@ zdAq1CTeFUrJ6r/siw==
         /// <summary>
         /// The address a host name is redirected to, or null: offline, or not one of the documented names.
         /// </summary>
-        public static IPAddress Redirect(string host)
+        public static IPAddress Redirect(string host) => Resolve(host, remember: true);
+
+        public static bool ShouldRedirect(string host) => Resolve(host, remember: false) != null;
+
+        private static IPAddress Resolve(string host, bool remember)
         {
             Settings settings = _settings;
             if (settings == null || string.IsNullOrEmpty(host)) return null;
+            host = host.TrimEnd('.');
+            if (remember && settings.SmashSelection != null && string.Equals(host, SmashHost, StringComparison.OrdinalIgnoreCase))
+            {
+                IPAddress selected = settings.SmashSelection.GetAwaiter().GetResult();
+                settings.SmashServer = selected;
+                return Note(settings, selected, SmashHost);
+            }
             foreach (string pattern in _natHosts)
-                if (Matches(pattern, host)) return Note(settings.Nat, host);
+                if (Matches(pattern, host)) return remember ? Note(settings, settings.Nat, host) : settings.Nat;
             foreach (string pattern in _serverHosts)
-                if (Matches(pattern, host)) return Note(settings.Server, host);
+                if (Matches(pattern, host)) return remember ? Note(settings, settings.Server, host) : settings.Server;
             return null;
         }
 
-        private static IPAddress Note(IPAddress address, string host)
+        private static IPAddress Note(Settings settings, IPAddress address, string host)
         {
-            lock (_resolvedGate) _resolved[address] = host;
+            lock (settings.Resolved) settings.Resolved[address] = host;
             return address;
         }
 
@@ -415,15 +494,16 @@ zdAq1CTeFUrJ6r/siw==
             Settings settings = _settings;
             if (settings == null || address == null) return false;
             if (address.IsIPv4MappedToIPv6) address = address.MapToIPv4();
-            return address.Equals(settings.Server) || address.Equals(settings.Nat);
+            return address.Equals(settings.Server) || address.Equals(settings.Nat) || address.Equals(settings.SmashServer);
         }
 
         /// <summary>The host name last redirected to a server address, or null.</summary>
         public static string HostFor(IPAddress address)
         {
-            if (address == null) return null;
+            Settings settings = _settings;
+            if (settings == null || address == null) return null;
             if (address.IsIPv4MappedToIPv6) address = address.MapToIPv4();
-            lock (_resolvedGate) return _resolved.TryGetValue(address, out string host) ? host : null;
+            lock (settings.Resolved) return settings.Resolved.TryGetValue(address, out string host) ? host : null;
         }
 
         /// <summary>The network service account id the game reads: the NSA or the PID online, the engine's own value otherwise.</summary>
@@ -461,25 +541,39 @@ zdAq1CTeFUrJ6r/siw==
         public static bool ValidateServerCertificate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors errors)
         {
             string host = (sender as SslStream)?.TargetHostName;
-            bool valid = certificate != null && Validate(certificate, chain, host, RootsForTests ?? TrustedRoots());
+            string failure = CertificateFailure(certificate, chain, host, RootsForTests ?? TrustedRoots());
+            bool valid = failure == null;
+            Settings settings = _settings;
+            if (settings != null && string.Equals(host, SmashHost, StringComparison.OrdinalIgnoreCase))
+            {
+                int state = valid ? 1 : 2;
+                if (Interlocked.Exchange(ref settings.SmashTlsState, state) != state)
+                    Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("smashTls", valid ? "accepted" : "refused", detail: failure ?? "verified");
+            }
             if (!valid)
             {
                 Logger.Warning?.Print(LogClass.ServiceSsl,
-                    $"Online play: certificate refused for '{host}' (subject '{certificate?.Subject}', issuer '{certificate?.Issuer}').");
+                    $"Online play: certificate refused for '{host}' (reason: {failure}).");
             }
 
             return valid;
         }
 
         /// <summary>A chain from the certificate to one of the roots, with the host named by the leaf.</summary>
-        internal static bool Validate(X509Certificate certificate, X509Chain presented, string host, X509Certificate2Collection roots)
+        internal static bool Validate(X509Certificate certificate, X509Chain presented, string host, X509Certificate2Collection roots) =>
+            CertificateFailure(certificate, presented, host, roots) == null;
+
+        private static string CertificateFailure(X509Certificate certificate, X509Chain presented, string host, X509Certificate2Collection roots, bool localChainOnly = false)
         {
-            if (string.IsNullOrEmpty(host) || roots == null || roots.Count == 0) return false;
+            if (certificate == null) return "missing-certificate";
+            if (string.IsNullOrEmpty(host)) return "missing-host";
+            if (roots == null || roots.Count == 0) return "missing-roots";
             try
             {
                 using X509Certificate2 leaf = new(certificate);
-                if (!leaf.MatchesHostname(host, allowWildcards: true, allowCommonName: false)) return false;
+                if (!leaf.MatchesHostname(host, allowWildcards: true, allowCommonName: false)) return "hostname";
                 using X509Chain chain = new();
+                chain.ChainPolicy.DisableCertificateDownloads = localChainOnly;
                 chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
                 chain.ChainPolicy.CustomTrustStore.AddRange(roots);
                 chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
@@ -490,11 +584,11 @@ zdAq1CTeFUrJ6r/siw==
                         if (!element.Certificate.RawData.AsSpan().SequenceEqual(leaf.RawData)) chain.ChainPolicy.ExtraStore.Add(element.Certificate);
                 }
 
-                return chain.Build(leaf);
+                return chain.Build(leaf) ? null : "chain";
             }
             catch (Exception)
             {
-                return false;
+                return "validation-error";
             }
         }
 

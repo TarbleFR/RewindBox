@@ -1047,7 +1047,7 @@
     "native/melonx/EmbeddedNativeGamepadLease.cs": "37d764bec6bc8de819c0d35aa63d5c7c9f76375f7149786f15950788abddc4b3",
     "native/melonx/EmbeddedNativeLibraries.cs": "ad55396264a0e6c514ed3b6b643d5fdc63952fd15abbb3d503c7529f4cb5eebc",
     "native/melonx/EmbeddedNsz.cs": "d8ee13a39e0d911bdf3b191dbe914c665204053e78223d72343cbc281330b256",
-    "native/melonx/EmbeddedOnline.cs": "8865ea2fe7554d05d3e7099572eefd62d4ff6dad7c052f34d4cc6aebc5ba8fbb",
+    "native/melonx/EmbeddedOnline.cs": "d63c8a25be670903daca342c39533d120bd73f959001e9c9a99c766640a8fdf9",
     "native/melonx/EmbeddedPerformance.cs": "f3851f58bab40654888faaf2e15c8d22a3b8d3bcdd5c8d6525252c19c49a4462",
     "native/melonx/EmbeddedPerformanceDiagnostics.cs": "da619d6fa8ff59fd3452ea73ee0aafa40a32148e289ace3f5931ea7a7a16dcdf",
     "native/melonx/EmbeddedPersonalOptions.cs": "aebfe555c9604ae89a0204a1e5e6c4ada2ade210c90daa0bb80dcfb753127619",
@@ -1279,7 +1279,7 @@
     "build-utils/melonx/adapt_array_membership_filter.py": "bc8acc4f78f9597deb655dc51f6daaf5efef44970eaa5fec81c6588df78250aa",
     "build-utils/melonx/adapt_render_command_clock.py": "e686b9798ddaaf4d9c38837aad60ed5b297b668a0d5e49a7795049edff671e78",
     "build-utils/melonx/adapt_replay_integer_mask.py": "604774655d2f91ee264d8ab8ccc4bd4cb2d5eacdf9c8ad73abb30a56fc883e3b",
-    "build-utils/melonx/adapt_nextendo_online.py": "1f9c92e4b38ddfc88fd1fdc882f2542a10554042d51e0b358847d425adc06349",
+    "build-utils/melonx/adapt_nextendo_online.py": "c4fefa0892aa8524d770d0eac49ea87db9d2523561d1f82517125fb14a9015c4",
     "build-utils/melonx/adapt_runtime_yield.py": "d26aedb6a13fae7bc6598ee8e3a6820839e9c4e78c66b678811f4ae888abbf89",
     "build-utils/melonx/adapt_draw_wait_lanes.py": "0deac1e7fb7d52c24fb624104a987b224481919f40cdf4b88cfc6453badff5d0",
     "build-utils/melonx/adapt_mirror_copy_journal.py": "39ee4a725f45293dd39d01dfe98a992e030103efc2c738b801f7ea3338f69429",
@@ -1302,7 +1302,7 @@
     "build-utils/melonx/adapt_hogwarts_frame_budget.py": "64363f6f131a98ffd1395bbe606c9b17e6cd7aec4b539f4e8f64ced2f4c70741",
     "build-utils/melonx/adapt_fifo_channel_retirement.py": "b1f239243c8fada3555de18a66fe38e4c7fded08b7eb474e394855d9ec033583",
     "build-utils/melonx/adapt_hogwarts_steady_render.py": "55fbe150679d81cbd5204b7a45769132432b991694da1f46b3ae4040145ecf54",
-    "build-utils/melonx/adapt_hogwarts_pipeline_replay.py": "efe6c1dabc5ca26c0583f6f26edd26dc55e90af0f19527ca1b26a7af6541540a"
+    "build-utils/melonx/adapt_hogwarts_pipeline_replay.py": "33d2bd1b77240542c268b92ab0ec7a053422fd85c33154794a3f372fd2a27b5f"
   },
   "preparedMembers": {
     "src/Ryujinx.Library/Library.cs": "7ee2fb60d82347e794ce8a975e1822e98b551b5d0d59d7d35c4fc85d63b84a35",
@@ -1349,7 +1349,7 @@
     "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs": "bbf8b90d238e19bad3bdb1aeac1d01f5e4d99e412b98fc6dcb8b3e650832e6b4",
     "src/Ryujinx.HLE/HOS/Kernel/Threading/KThread.cs": "50efd0a7fbad1d809b142375796b045004282f10592d5d43f8f01bd5ddae3ed3",
     "src/Ryujinx.HLE/HOS/Kernel/Threading/KAddressArbiter.cs": "422500db44b1e3f88ea8171d7f47f92ccd979766eb5faad0740dbd804a80eab3",
-    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "1d3707317c60f8b67527178fcb2f0c93f0a68c2c435a9417fd169d9371b81ac2",
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "1ef7f1e1d3a7f033f394e41a05dca8e088b227f0c28de9b968900e0bd1e8c0c6",
     "src/Ryujinx.Graphics.Gpu/Engine/Dma/DmaClass.cs": "aad588c48efa33612b3b75dbd283fdf73d8b6fe356a9fc636b611749c1724667",
     "src/Ryujinx.Graphics.Gpu/Engine/GPFifo/GPFifoDevice.cs": "c4b6af2356d93aaee5576acfcebfe53e16ec317791bf60255770bd847382a6a6",
     "src/Ryujinx.Common/Memory/MemoryOwner.cs": "f94421c357ea252fd61e39c0e08969916eaaeb2327f4b1f60acd57300820d0ee",
@@ -1499,7 +1499,7 @@
     "src/Ryujinx.HLE/HleConfiguration.cs": "4556cd01b950af31c07d094cea013baed4fd658e3c38ca18c6e258a5d703f7bf",
     "src/Ryujinx.HLE/HOS/Services/Account/Acc/AccountService/ManagerServer.cs": "3505c04a0a447cc73a90e8dcea7a01465dffde995bdf6774524ec21c0a839c80",
     "src/Ryujinx.HLE/HOS/Services/Sockets/Sfdnsres/Proxy/DnsMitmResolver.cs": "50f777a5912794b7d731bd7841d09533e8135be2ff1bd79fac5a4bd74ef641a8",
-    "src/Ryujinx.HLE/HOS/Services/Sockets/Sfdnsres/Proxy/DnsBlacklist.cs": "0f78d1ae9b0b7579a1670365cdabe4d6c83aee6655792e34cef1c581530cc020",
+    "src/Ryujinx.HLE/HOS/Services/Sockets/Sfdnsres/Proxy/DnsBlacklist.cs": "5438d4cbd04c8bf9d998382d2ce8df612d6df4a75719cfff8c3ecdd020a49aa7",
     "src/Ryujinx.HLE/HOS/Services/Ssl/SslService/SslManagedSocketConnection.cs": "5dac4ba8a4198ec18f75c6b2c39a019125330fd74ae389646ae605335af465dd",
     "src/Ryujinx.Library/EmbeddedContent.cs": "84d30d845a4ad8e13865d96112752d29a1034758d5dd4ec026e0fae2fa0c1a3b",
     "src/Ryujinx.Library/RewindBoxRuntimeYield.c": "cba1ff349729371b9b215823b141081f5250144645c5c881cc3f48cdd3ede061",
@@ -1523,7 +1523,7 @@
     "src/Ryujinx.Library/EmbeddedLaunchPreflight.cs": "ddbbfb8cef308483caa67678ad8a9d380f0e8f64addd814338f0bed09b9fbb7c",
     "src/Ryujinx.Input.Native/EmbeddedNativeGamepadLease.cs": "37d764bec6bc8de819c0d35aa63d5c7c9f76375f7149786f15950788abddc4b3",
     "src/Ryujinx.Common/EmbeddedNativeLibraries.cs": "ad55396264a0e6c514ed3b6b643d5fdc63952fd15abbb3d503c7529f4cb5eebc",
-    "src/Ryujinx.HLE/EmbeddedOnline.cs": "8865ea2fe7554d05d3e7099572eefd62d4ff6dad7c052f34d4cc6aebc5ba8fbb",
+    "src/Ryujinx.HLE/EmbeddedOnline.cs": "d63c8a25be670903daca342c39533d120bd73f959001e9c9a99c766640a8fdf9",
     "src/Ryujinx.Library/EmbeddedPerformance.cs": "f3851f58bab40654888faaf2e15c8d22a3b8d3bcdd5c8d6525252c19c49a4462",
     "src/Ryujinx.Library/EmbeddedPersonalOptions.cs": "aebfe555c9604ae89a0204a1e5e6c4ada2ade210c90daa0bb80dcfb753127619",
     "src/Ryujinx.Library/EmbeddedRuntime.cs": "8d2cc3db0137ab00ca3b10aa3cc84e639d8e79da0f8bb490ad281d1804e9578c",
@@ -7137,7 +7137,7 @@
     "test/melonx_shader_load_binary_release/CacheStages.cs": "a1e21d8eeb6a1ffd30e12f5643451b07d1d93cb9846c6ac6585af61553fa7eb9",
     "build-utils/melonx/adapt_fifo_channel_retirement.py": "b1f239243c8fada3555de18a66fe38e4c7fded08b7eb474e394855d9ec033583",
     "build-utils/melonx/adapt_hogwarts_steady_render.py": "55fbe150679d81cbd5204b7a45769132432b991694da1f46b3ae4040145ecf54",
-    "build-utils/melonx/adapt_hogwarts_pipeline_replay.py": "efe6c1dabc5ca26c0583f6f26edd26dc55e90af0f19527ca1b26a7af6541540a"
+    "build-utils/melonx/adapt_hogwarts_pipeline_replay.py": "33d2bd1b77240542c268b92ab0ec7a053422fd85c33154794a3f372fd2a27b5f"
   },
   "freshAppleGates": 119,
   "reusedAppleGates": 14,

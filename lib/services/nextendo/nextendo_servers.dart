@@ -28,6 +28,15 @@ abstract final class NextendoServers {
   /// A lookup that takes longer counts as failed (the last good address stays).
   static const lookupTimeout = Duration(seconds: 5);
 
+  // Other authoritative game-server answers are useful when one edge serves the wrong certificate.
+  static const _addressesKey = 'rewindbox.nextendo.resolved.gameAddresses';
+  static Future<List<String>> smashAddresses(String primary, String nat, SharedPreferences? preferences) async {
+    final prefs = preferences ?? await SharedPreferences.getInstance();
+    final answers = prefs.getStringList(_addressesKey) ?? const [];
+    if (answers.isEmpty || answers.first != primary) return const [];
+    return answers.where((address) => address != nat && usable(address)).take(4).toList();
+  }
+
   static const _serverKey = 'rewindbox.nextendo.resolved.server';
   static const _natKey = 'rewindbox.nextendo.resolved.nat';
   static const _serverAtKey = 'rewindbox.nextendo.resolved.serverAt';
@@ -87,9 +96,10 @@ abstract final class NextendoServers {
     }
     try {
       final answers = await lookup(host).timeout(lookupTimeout);
-      final found = answers.map((address) => address.address).firstWhere(usable, orElse: () => '');
+      final found = answers.map((address) => address.address).where(usable).toSet().toList();
       if (found.isEmpty) return;
-      await prefs.setString(key, found);
+      if (host == serverHost) await prefs.setStringList(_addressesKey, found.take(5).toList());
+      await prefs.setString(key, found.first);
       await prefs.setInt(atKey, current.millisecondsSinceEpoch);
     } on Object {
       // Lookup failed or timed out: the last good address stays.

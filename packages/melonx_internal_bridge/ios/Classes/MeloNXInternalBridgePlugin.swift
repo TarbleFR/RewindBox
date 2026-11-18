@@ -97,6 +97,10 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
     /// acceptedVersions: at most 16 printable ASCII strings of at most 32 characters. Values are never journaled.
     static func onlineRequest(_ online:[String:Any], token:String, pid:Int64, server:String, nat:String, root:URL? = nil) -> [String:Any] {
         var request:[String:Any] = ["nexToken":token,"pid":NSNumber(value:pid),"serverAddress":server,"natAddress":nat]
+        if let addresses = online["smashDnsAddresses"] as? [String], (2...4).contains(addresses.count),
+           addresses.first == server, addresses.allSatisfy({ $0.utf8.count <= 15 }) {
+            request["smashDnsAddresses"] = addresses
+        }
         func lowerHex16(_ text:String) -> Bool { text.utf8.count == 16 && text.utf8.allSatisfy { (48...57).contains($0) || (97...102).contains($0) } }
         if let value = online["bcatDirectory"] {
             // Both sides resolved (Dart and Swift can name the container through /var or /private/var).

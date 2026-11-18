@@ -223,6 +223,10 @@ def retain_expensive_variants(path):
 
 
 def start_replay_when_cache_is_ready(path):
+    # The journal can load on a pool thread as soon as it is constructed.
+    # Publish the pending state before giving that thread access to the gate.
+    once(path, "            Variants = new PipelineVariantJournal(",
+         "            if (_pendingMainSnapshot != null) _primaryCacheReady.Reset();\n            Variants = new PipelineVariantJournal(")
     once(path, '''                        _primaryCacheReady.Set();''', '''                        PublishPrimaryCacheReady();''')
     once(path, '''                _mainLoaded.Set();
                 _primaryCacheReady.Set();''', '''                _mainLoaded.Set();
@@ -230,7 +234,7 @@ def start_replay_when_cache_is_ready(path):
     once(path, '''        public PipelineCache MainCache => _mainState.Cache;''',
          '''        private void PublishPrimaryCacheReady()
         {
-            bool wakeReplay = !_primaryCacheReady.IsSet && EncodingPolicy.IncrementalArrayDescriptors;
+            bool wakeReplay = !_primaryCacheReady.IsSet;
             _primaryCacheReady.Set();
             if (wakeReplay)
             {
@@ -242,7 +246,7 @@ def start_replay_when_cache_is_ready(path):
     once(path, '''                mainCachePath == null ? null : Path.ChangeExtension(mainCachePath, ".variants"), PipelineVariantJournal.Schema, null);''',
          '''                mainCachePath == null ? null : Path.ChangeExtension(mainCachePath, ".variants"),
                 PipelineVariantJournal.Schema, null,
-                primaryCacheReady: EncodingPolicy.IncrementalArrayDescriptors ? () => _primaryCacheReady.IsSet : null);''')
+                primaryCacheReady: _pendingMainSnapshot == null ? null : () => _primaryCacheReady.IsSet);''')
     once(path, '''        private readonly Func<int> _devicePercent;''',
          '''        private readonly Func<int> _devicePercent;
         private readonly Func<bool> _primaryCacheReady;''')
@@ -309,6 +313,25 @@ def start_replay_when_cache_is_ready(path):
         // Schedules the best-ranked ready variants while the bounds allow it.''')
     once(path, '''                        _replayMs >= ReplayWorkBudgetMs)''',
          '''                        _replayMs >= ReplayWorkBudgetMs || _primaryCacheReady?.Invoke() == false)''')
+
+    # An offer often arrives while both workers are busy or the snapshot is loading.
+    # Coalesce these offers into one sort immediately before actual consumption.
+    sort = "_ready.Sort((a, b) => CompareForPlayback(a.Record, b.Record));"
+    once(path, "                    " + sort, "")
+    once(path, "                " + sort, "")
+    once(path, "        private readonly List<(Record Record, ITarget Target)> _ready = new();",
+         "        private readonly List<(Record Record, ITarget Target)> _ready = new();\n        private bool _readyOrderDirty;")
+    once(path, "            foreach (Record record in records)\n            {\n                _ready.Add",
+         "            _readyOrderDirty = true;\n            foreach (Record record in records)\n            {\n                _ready.Add")
+    once(path, """                    (record, target) = _ready[0];
+                    _ready.RemoveAt(0);""", """                    if (_readyOrderDirty)
+                    {
+                        _ready.Sort((a, b) => CompareForPlayback(b.Record, a.Record));
+                        _readyOrderDirty = false;
+                    }
+                    int best = _ready.Count - 1;
+                    (record, target) = _ready[best];
+                    _ready.RemoveAt(best);""")
 
 
 def note_slow_default_pipeline(path):

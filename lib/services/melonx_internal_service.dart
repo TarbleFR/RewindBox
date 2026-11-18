@@ -73,6 +73,12 @@ abstract final class MelonxInternalService {
       }
       if (call.method == 'launchDiagnostic'  && call.arguments is Map) {
         final event = Map<String, dynamic>.from(call.arguments as Map);
+        if (event['stage'] == 'smashTls') {
+          final state = event['status'];
+          if (state == 'accepted' || state == 'refused') {
+            NextendoOnlinePlay.lastSmashTls = state as String;
+          }
+        }
         // A retained donor refuses the next Switch session until the native side
         // proves it released (refreshSessionQuarantine retries it).
         if (event['stage'] == 'memory' && event['status'] == 'retained') {
@@ -610,15 +616,9 @@ abstract final class MelonxInternalService {
       // starting offline exactly as before; the launch is never refused for it.
       // The title id names the game's Nextendo data: the catalog's exact
       // versions, its BCAT delivery data, Animal Crossing's account id.
-      String? onlineTitleId;
-      try {
-        onlineTitleId = (await content('metadata', filePath: gamePath))['titleId']?.toString();
-      } on Object {
-        onlineTitleId = null;
-      }
       final online = await NextendoOnlinePlay.forLaunch(
         gamePath: gamePath,
-        titleId: onlineTitleId,
+        readTitleId: () async => (await content('metadata', filePath: gamePath))['titleId']?.toString(),
         dataRoot: await rootDirectory(),
         onSkipped: (reason) => MelonxLaunchDiagnostics.record('online', 'skipped', {'diagnostic': reason}),
         onDetail: (step, detail) => MelonxLaunchDiagnostics.record('online', step, {'diagnostic': detail}),

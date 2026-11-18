@@ -228,6 +228,8 @@ class _NextendoDialogState extends State<NextendoDialog> {
         _status(false, _text('nextendoStatusServersSame'), _text('nextendoActionServersSame'))
       else
         _status(false, _text('nextendoStatusServersMissing'), _text('nextendoActionServers')),
+      if (NextendoOnlinePlay.lastSmashTls == 'refused')
+        _status(false, _text('nextendoSmashTlsRejected')),
       if (_engine == null)
         _status(null, _text('nextendoStatusEngineChecking'))
       else if (_engine!)

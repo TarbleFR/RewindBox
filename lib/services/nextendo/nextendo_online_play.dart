@@ -17,12 +17,14 @@ class NextendoLaunchOnline {
     required this.serverAddress,
     required this.natAddress,
     this.bcatDirectory,
+    this.smashDnsAddresses = const [],
     this.nsa,
     this.acceptedVersions = const [],
   });
   final NextendoGameToken token;
   final String serverAddress;
   final String natAddress;
+  final List<String> smashDnsAddresses;
 
   /// The game's BCAT delivery data on the device ([NextendoBcat]); null when
   /// Nextendo has none for the title.
@@ -43,6 +45,7 @@ class NextendoLaunchOnline {
     'pid': token.pid,
     'serverAddress': serverAddress,
     'natAddress': natAddress,
+    if (smashDnsAddresses.length > 1) 'smashDnsAddresses': smashDnsAddresses,
     if (bcatDirectory != null) 'bcatDirectory': bcatDirectory,
     if (nsa != null) 'nsa': nsa,
     if (acceptedVersions.isNotEmpty) 'acceptedVersions': acceptedVersions,
@@ -51,6 +54,9 @@ class NextendoLaunchOnline {
 
 /// Decides, at each Switch launch, whether the game starts with online play.
 abstract final class NextendoOnlinePlay {
+  // Only the actual guest handshake updates this, never the route probes.
+  static String? lastSmashTls;
+
   static const _enabledKey = 'rewindbox.nextendo.onlinePlay';
   static const _retail = ['.nsp', '.xci'];
 
@@ -90,6 +96,7 @@ abstract final class NextendoOnlinePlay {
     SharedPreferences? preferences,
     String? gamePath,
     String? titleId,
+    Future<String?> Function()? readTitleId,
     Directory? dataRoot,
     Future<bool> Function()? engineSupported,
     void Function(String reason)? onSkipped,
@@ -135,6 +142,13 @@ abstract final class NextendoOnlinePlay {
         return null;
       }
       unawaited(nextendo.markSession(token));
+      if (titleId == null && readTitleId != null) {
+        try {
+          titleId = await readTitleId();
+        } on Object {
+          // Title-specific data is optional. The game can still use the authenticated account.
+        }
+      }
       final extras = await _gameData(
         settings: settings,
         service: nextendo,
@@ -146,6 +160,9 @@ abstract final class NextendoOnlinePlay {
       );
       return NextendoLaunchOnline(
         token: token,
+        smashDnsAddresses: titleId?.toLowerCase() == '01006a800016e000' && settings.serverResolved
+            ? await NextendoServers.smashAddresses(settings.serverAddress, settings.natAddress, preferences)
+            : const [],
         serverAddress: settings.serverAddress,
         natAddress: settings.natAddress,
         bcatDirectory: extras.bcatDirectory,
