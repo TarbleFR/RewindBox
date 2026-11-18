@@ -1,0 +1,193 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index a802e66..74feb5b 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -4523,12 +4523,28 @@ static void up_diag(void) {
+          (unsigned long long)g_up_blocks_new, (unsigned long long)g_up_swaps, (unsigned long long)(g_up_swap_bytes >> 20), (unsigned long long)g_up_cap_flushes, alive, (unsigned long long)(abytes >> 20), inres, (unsigned long long)(g_dev.currentAllocatedSize >> 20), nres, ndef);
+     }
+ }
++// RewindBox (patch 0089): an upload slot's own staging block goes back to UP_SLOT_BLOCK once RB_UP_TRIM_FRAMES frames passed with no batch of the slot starting with more or
++//   running past the block. IPA 779 (Mario Kart World, races): the residency set held 8 private buffers of 216 MB to the end of the session, as many as the upload slots, whose
++//   blocks (patch 0082) grow to a scene's largest first textures (up to UP_BLOCK_SIZE each) and stay so for good, while a race frame's uploads take a few MB; the machine compressed and decompressed
++//   87,000-373,000 pages every 10 s and the guest's memory in RAM was 568-863 MB. At a batch's first allocation, after up_begin waited for the slot's previous batch, as the growth
++//   below; the next large first texture grows it again. S2A_RB_UP_TRIM=0: the blocks stay at their largest, as before
++static int rb_up_trim_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_UP_TRIM"); v = !(e && !strcmp(e, "0")); } return v; }
++enum { RB_UP_TRIM_FRAMES = 1800 };
++static uint64_t g_up_slot_big[RB_UP_MAX], g_up_trims, g_up_trim_bytes;   // the last frame a batch of the slot started with more than UP_SLOT_BLOCK or ran past the slot's block (the upload thread, as g_up_slot_blk)
+ static id<MTLBuffer> up_alloc(size_t n, size_t *off) {
+     size_t need = (n + 255u) & ~((size_t)255u);
+     if (!g_up_block && need <= UP_BLOCK_SIZE) {   // first allocation of the batch: the slot's own block, grown to the next power of two that holds it (a movie frame re-uploaded every frame, 8 MB in Link's Awakening)
+         __strong id<MTLBuffer> *sb = &g_up_slot_blk[g_up_cur_slot];
+         size_t want = UP_SLOT_BLOCK; while (want < need) want <<= 1;
++        uint64_t rb_fr = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);   // RewindBox (patch 0089)
++        if (want > UP_SLOT_BLOCK) g_up_slot_big[g_up_cur_slot] = rb_fr;
+         if (*sb && (*sb).length < want) { defer_obj_release(*sb); *sb = nil; }   // the slot's previous batch has finished (up_begin waited for it)
++        else if (*sb && (*sb).length > UP_SLOT_BLOCK && rb_up_trim_on() && rb_fr > g_up_slot_big[g_up_cur_slot] + RB_UP_TRIM_FRAMES) {   // RewindBox (patch 0089): made again below at want (UP_SLOT_BLOCK)
++            uint64_t k = ++g_up_trims; g_up_trim_bytes += (*sb).length;
++            if (k <= 8 || !(k & (k - 1))) MLOG("RewindBox: upload slot %u's staging block of %llu MB goes back to %u MB at frame %llu (patch 0089: no batch of the slot needed more for %d frames); %llu such so far, %llu MB in all",
++                                               g_up_cur_slot, (unsigned long long)((*sb).length >> 20), UP_SLOT_BLOCK >> 20, (unsigned long long)rb_fr, (int)RB_UP_TRIM_FRAMES, (unsigned long long)k, (unsigned long long)(g_up_trim_bytes >> 20));
++            defer_obj_release(*sb); *sb = nil;
++        }
+         if (!*sb) { *sb = [g_dev newBufferWithLength:want options:MTLResourceStorageModePrivate]; if (!*sb) MDIE("failed to create the swizzled-upload staging block %#zx", want); res_add(*sb); g_up_blocks_new++; }
+         g_up_block = *sb; g_up_block_size = (*sb).length; g_up_block_off = 0;
+     }
+@@ -4536,6 +4552,7 @@ static id<MTLBuffer> up_alloc(size_t n, size_t *off) {
+         // Block switch: the old block is still referenced by copy / decompress commands already recorded in this batch and cannot be freed on the spot; hand it to g_up_keep, to be retired later with the other staging after the flush commits (removed from the residency set on retire).
+         // Previously g_up_block was simply replaced with the new block here: nobody retired the old block, yet it stayed in the residency set, so each extra block switch in an upload batch leaked one block (usually 32 MB) of GPU memory.
+         // The old block and the "current block" retired at flush are two objects, so nothing is retired twice
++        if (g_up_block && g_up_block == g_up_slot_blk[g_up_cur_slot]) g_up_slot_big[g_up_cur_slot] = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);   // RewindBox (patch 0089): the slot's block was run past
+         g_up_blocks_new++; if (g_up_block) { g_up_swaps++; g_up_swap_bytes += g_up_block_size; if (!g_up_old) g_up_old = [NSHashTable weakObjectsHashTable]; [g_up_old addObject:g_up_block]; static int leak = -1; if (leak < 0) leak = getenv("DM_TEST_UP_LEAK") != NULL;   // test switch DM_TEST_UP_LEAK=1: do not retire the old block, as before the fix (for comparison, to measure the leak)
+             if (!leak && g_up_block != g_up_slot_blk[g_up_cur_slot]) up_keep_add(g_up_block); }   // the slot's block is not retired: it stays for the slot's later batches
+         g_up_block_size = n > UP_BLOCK_SIZE ? need : UP_BLOCK_SIZE;
+@@ -4800,6 +4817,64 @@ static void rb_pf_post(const tex_t *t) {   // any thread holding none of g_rmu,
+     const void *p = t->mem;
+     dispatch_async(q, ^{ uint64_t k = rb_wn(p, n); atomic_fetch_add_explicit(&g_pf_pages, k == RB_WN_NONE ? 0 : k, memory_order_relaxed); atomic_fetch_sub_explicit(&g_pf_pend, (int64_t)n, memory_order_relaxed); });
+ }
++// RewindBox (patch 0089): the pool around a texture whose upload found pages of its storage not in memory is asked ahead too. IPA 779 (Mario Kart World, iPhone17,2, races):
++//   a scene's first uploads took 136-550 ms on the submit thread (f2751: 520 textures, 97 MB, 549.8 ms, 4,164 host pages not in memory; f5467: 139, 49.6 MB, 416.6 ms, 3,518;
++//   f2346: 625, 162.5 MB, 421.6 ms), 5.6-8.5 ms for each MB read back there (2.1-2.8 ms in the IPA 777 log's largest): each upload asks its own pages (rb_wn) and its hash waits for them
++//   before the next texture's are asked, so the reads went one texture at a time (190 KB on average in f2751). The registration read-ahead found 16,722 such pages in the
++//   session against 52,699 found by the uploads: the game writes a scene's textures as it loads it, and the system writes them back to the window files and drops them before
++//   their first draw. Now such an upload also asks the 4 MB pieces of the window that hold its pool from RB_PA_BEHIND before its storage to RB_PA_AHEAD after it (the textures
++//   loaded with it lie there), its own storage left to its upload, on a serial queue of its own at QOS_CLASS_DEFAULT (I/O tier 0, as the submit thread's): their reads are in
++//   flight together while the uploads go on. A piece is asked again only RB_PA_AGAIN frames later; at most rb_pa_frame() bytes of pieces a frame (a quarter while memory is low:
++//   rb_mem_low). Pages read ahead and never used are clean file pages, which the system takes back first. What is read and uploaded does not change. The madvise runs count in
++//   rb_wn_line's runs and spans; this patch's own totals follow them. S2A_RB_POOL_AHEAD=0: the texture's own pages only, as before
++static int rb_pa_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_POOL_AHEAD"); v = !(e && !strcmp(e, "0")); } return v; }
++enum { RB_PA_SHIFT = 22, RB_PA_SLOTS = 16384, RB_PA_AGAIN = 600 };   // 4 MB pieces of the window; 16384 slots cover 64 GB of it
++#define RB_PA_BEHIND ((uint64_t)4 << 20)
++#define RB_PA_AHEAD ((uint64_t)16 << 20)
++#define RB_PA_FRAME ((uint64_t)128 << 20)
++static uint64_t rb_pa_frame(void) { return rb_mem_low() ? RB_PA_FRAME / 4 : RB_PA_FRAME; }
++static _Atomic uint32_t g_pa_last[RB_PA_SLOTS];   // the frame + 1 (its low 32 bits) each piece of the window was last asked in; 0 = never
++static _Atomic uint64_t g_pa_budget, g_pa_runs, g_pa_bytes, g_pa_pages, g_pa_over, g_pa_unseen, g_pa_tex;   // g_pa_budget: the frame (its low 24 bits, << 40) | the bytes of pieces taken in it
++static void rb_pa_post(dispatch_queue_t q, uintptr_t lo, uintptr_t hi, uintptr_t a, uintptr_t e) {   // [lo, hi) less the texture's own [a, e), which its upload asked
++    for (int i = 0; i < 2; i++) {
++        uintptr_t l = i ? MAX(lo, e) : lo, h = i ? hi : MIN(hi, a);
++        if (h <= l) continue;
++        const void *p = (const void *)l; uint64_t n = (uint64_t)(h - l);
++        atomic_fetch_add_explicit(&g_pa_runs, 1, memory_order_relaxed); atomic_fetch_add_explicit(&g_pa_bytes, n, memory_order_relaxed);
++        dispatch_async(q, ^{ uint64_t k = rb_wn(p, n);   // the window stays mapped: a pool the game let go since is still the window's memory (madvise and mincore change nothing there)
++            if (k == RB_WN_NONE) atomic_fetch_add_explicit(&g_pa_unseen, 1, memory_order_relaxed); else atomic_fetch_add_explicit(&g_pa_pages, k, memory_order_relaxed); });
++    }
++}
++static void rb_pool_ahead(const tex_t *t) {   // pkg_upload_'s thread, after its own rb_wn found pages not in memory
++    if (!rb_pa_on() || !rb_wn_on() || !s2a_window_get || !t->pool || !t->pool->mem || !t->pool->size || !t->mem || !t->L.size) return;
++    if (t->pool->flags & NVN_MEMORY_POOL_FLAGS_VIRTUAL) return;   // read through its page table (pkg_upload_ asks nothing there)
++    uint64_t wb = 0, ws = 0; s2a_window_get(&wb, &ws);
++    uintptr_t plo = (uintptr_t)t->pool->mem, phi = plo + (uintptr_t)t->pool->size, a = (uintptr_t)t->mem, e = a + (uintptr_t)t->L.size;
++    if (!ws || a < plo || e > phi || plo < wb || phi > wb + ws) return;   // storage outside its pool, or a pool outside the window: its own pages only
++    uintptr_t lo = a - plo > RB_PA_BEHIND ? a - RB_PA_BEHIND : plo, hi = phi - e > RB_PA_AHEAD ? e + RB_PA_AHEAD : phi, pm = ((uintptr_t)1 << RB_PA_SHIFT) - 1, rlo = 0, rhi = 0;
++    uint64_t f = atomic_load_explicit(&g_cur_frame, memory_order_relaxed), lowm = ((uint64_t)1 << 40) - 1, ft = (f & 0xffffff) << 40; uint32_t fs = (uint32_t)f + 1;
++    static dispatch_queue_t q; static dispatch_once_t once;
++    dispatch_once(&once, ^{ q = dispatch_queue_create("rb.pool.ahead", dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_DEFAULT, 0)); });
++    atomic_fetch_add_explicit(&g_pa_tex, 1, memory_order_relaxed);
++    for (uintptr_t c = (uintptr_t)wb + ((lo - (uintptr_t)wb) & ~pm); c < hi; c += pm + 1) {
++        uintptr_t s = MAX(c, lo), x = MIN(c + pm + 1, hi);
++        _Atomic uint32_t *slot = &g_pa_last[((c - (uintptr_t)wb) >> RB_PA_SHIFT) & (RB_PA_SLOTS - 1)];
++        uint32_t last = atomic_load_explicit(slot, memory_order_relaxed);
++        int ask = !last || fs - last >= (uint32_t)RB_PA_AGAIN;
++        if (ask) {   // the frame's budget
++            uint64_t o = atomic_load_explicit(&g_pa_budget, memory_order_relaxed), nw;
++            do { uint64_t used = (o & ~lowm) == ft ? o & lowm : 0;   // another frame's count: this frame starts at 0
++                 if (used + (x - s) > rb_pa_frame()) { ask = -1; break; }
++                 nw = ft | (used + (x - s));
++            } while (!atomic_compare_exchange_weak_explicit(&g_pa_budget, &o, nw, memory_order_relaxed, memory_order_relaxed));
++        }
++        if (ask == 1) { atomic_store_explicit(slot, fs, memory_order_relaxed); if (rhi > rlo && rhi == s) rhi = x; else { if (rhi > rlo) rb_pa_post(q, rlo, rhi, a, e); rlo = s; rhi = x; } continue; }
++        if (rhi > rlo) rb_pa_post(q, rlo, rhi, a, e);
++        rlo = rhi = 0;
++        if (ask < 0) { atomic_fetch_add_explicit(&g_pa_over, 1, memory_order_relaxed); return; }   // the frame's budget is spent: the rest is left to the uploads' own asks
++    }
++    if (rhi > rlo) rb_pa_post(q, rlo, rhi, a, e);
++}
+ // hle_nvn.c's long-frame line: pages texture reads found not in memory since the last call, those in pools without CPU access (L16: what a private backing of such pools could
+ //   save), and the reads not looked at (not wholly in the window's files); all -1 where the window is not in files (s2a_guest_fd), where nothing is looked at
+ void nvn_be_tex_absent_take(int64_t *pages, int64_t *noacc, int64_t *unseen) {
+@@ -4823,6 +4898,12 @@ static void rb_wn_line(unsigned long long frame) {   // every 300 frames (nvn_be
+          frame, rb_wn_on() ? "" : " (read-ahead off, pages only counted)", (unsigned long long)tot, (unsigned long long)(tot * pg >> 20), (unsigned long long)atomic_load(&g_wn_tot_noacc),
+          (unsigned long long)atomic_load(&g_wn_runs), (unsigned long long)atomic_load(&g_wn_calls), (unsigned long long)unseen, (unsigned long long)posted, (unsigned long long)atomic_load(&g_pf_pages),
+          (unsigned long long)dropped, (unsigned long long)(rb_pf_frame() >> 20), (long long)(rb_pf_pending() >> 20), o ? g : "none");
++    uint64_t pt = atomic_load(&g_pa_tex);   // RewindBox (patch 0089): the pool read-ahead's totals (rb_pool_ahead)
++    if (pt) MLOG("RewindBox: pool read-ahead up to frame %llu (patch 0089%s): %llu uploads found pages not in memory and asked around them in their pool, %llu spans of %llu MB asked ahead "
++                 "(%llu host pages not in memory there, %llu MB), %llu times the frame's %llu MB were spent, %llu spans not looked at (not wholly in the window's files)",
++                 frame, rb_pa_on() ? "" : ", off", (unsigned long long)pt, (unsigned long long)atomic_load(&g_pa_runs), (unsigned long long)(atomic_load(&g_pa_bytes) >> 20),
++                 (unsigned long long)atomic_load(&g_pa_pages), (unsigned long long)(atomic_load(&g_pa_pages) * pg >> 20), (unsigned long long)atomic_load(&g_pa_over),
++                 (unsigned long long)(rb_pa_frame() >> 20), (unsigned long long)atomic_load(&g_pa_unseen));
+ }
+ // RewindBox (patch 0016): whether a texture's storage, as the host may read it, holds page for page the bytes of its last upload (ph, as pkg_upload_ took
+ //   them). Only for storage that cannot all be read (0 otherwise: readable storage is left to what it had before). No write-tracked pool holds such storage
+@@ -5285,7 +5366,8 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
+     if (g_allocprof > 0) { static int n; if (n++ < 30 || n % 500 == 0) MLOG("new texture (%s) #%d ser=%llu %ux%ux%u format %#x target %d levels %u storage %p", __func__, n, (unsigned long long)t->serial, t->d.width, t->d.height, t->d.depth, t->d.format, t->d.target, t->d.levels, (void *)t->mem); }
+     res_add(mt);   // Both first upload and re-upload register residency here (Metal 4 does not make resources resident automatically; a missed registration = GPU address page fault)
+     int sparse = t->pool && nvn_sparse_pool(t->pool);
+-    if (!sparse) rb_wn_note(t, rb_wn(t->mem, t->L.size));   // RewindBox (patch 0070): its pages not in memory asked in runs before the hash and the deswizzle below read them (rb_wn)
++    if (!sparse) { uint64_t rb_ab = rb_wn(t->mem, t->L.size); rb_wn_note(t, rb_ab);   // RewindBox (patch 0070): its pages not in memory asked in runs before the hash and the deswizzle below read them (rb_wn)
++        if (rb_ab && rb_ab != RB_WN_NONE) rb_pool_ahead(t); }   // RewindBox (patch 0089): and the pool around it
+     uint8_t *rb = NULL;   // RewindBox (patch 0016): the storage as the host may read it, when not all of it can be read (rb_pkg_bytes)
+     if (stamp) {   // no stamp: a one-time upload of content the CPU will not change (tex_init_fill), with no write tracking
+         if (sparse) nvn_sparse_protect(t->pool, (uint64_t)(uintptr_t)t->mem, t->L.size); else nvn_dirty_protect(t->mem, t->L.size);
+diff --git a/ios/app.m b/ios/app.m
+index bd0d8e4..d536e40 100644
+--- a/ios/app.m
++++ b/ios/app.m
+@@ -542,6 +542,7 @@ id s2a_ios_ext_register(UIViewController *vc);   // extdisplay.m：登记外接
+ static int rb_store_bench_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_STORE_BENCH"); v = !(e && !strcmp(e, "0")); } return v; }
+ static int rb_vm_stats_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_VM_STATS"); v = !(e && !strcmp(e, "0")); } return v; }
+ static int rb_screen_cap_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_SCREEN_CAPTURE"); v = !(e && !strcmp(e, "0")); } return v; }
++static int rb_vm_tags_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_VM_TAGS"); v = !(e && !strcmp(e, "0")); } return v; }   // RewindBox (patch 0089): the host's memory by VM tag (s2a_rb_mem_tags)
+ // RewindBox (patch 0075): machine-wide paging and CPU since the previous call, for the [写盘] line. Heartbeat queue only (serial): the statics need no lock
+ static void rb_vm_line(char *out, size_t n) {
+     static uint64_t last[6], lcpu[3], lt; static int have_vm, have_cpu;
+@@ -713,6 +714,10 @@ static void rb_screen_capture_seen(int on, const char *how) {   // main thread:
+                   (unsigned long long)(lw >> 20), S2A_D10(lw, last_l) >> 20, gn, (unsigned long long)(ga >> 20), gb, vm, (unsigned long long)(os_proc_available_memory() >> 20), hv);
+ #undef S2A_D10
+               last = w; last_r = r; last_p = pi; last_l = lw; have = 1; } }
++        // RewindBox (patch 0089): the host's memory by VM tag, at the first heartbeat and every sixth after it (runtime/src/vawin.c s2a_rb_mem_tags). S2A_RB_VM_TAGS=0: not walked
++        { static unsigned rb_tag_beats; if (rb_vm_tags_on() && rb_tag_beats++ % 6 == 0) { void s2a_rb_mem_tags(char *out, size_t cap); char tg[1024]; uint64_t t0 = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
++            s2a_rb_mem_tags(tg, sizeof tg);
++            LOG("RewindBox: the host's memory by VM tag (patch 0089; the low region and the window's tail, walked in %.1f ms): %s", (double)(clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - t0) / 1e6, tg); } }
+         // 客体内存分区账（S2A_MEM_SPLIT=1，缺省关）：心跳每 10 秒一行，另起 100 ms 采样线程抓跳变（mem_split_*）
+         if (mem_split_on()) { mem_split_line("内存分区", s2a_footprint_mb(), wr, wo, 0); mem_split_start(); }
+         // RewindBox (patch 0075): the [能耗] line ends with this heartbeat's screen captured state and focus state
+diff --git a/runtime/src/vawin.c b/runtime/src/vawin.c
+index 3b561d5..9dafcf3 100644
+--- a/runtime/src/vawin.c
++++ b/runtime/src/vawin.c
+@@ -1251,6 +1251,36 @@ void s2a_low_tags(char *out, size_t cap) {
+         o += snprintf(out + o, cap - (size_t)o, "、标签 %d %llu MB", m, (unsigned long long)(bytag[m] >> 20)); bytag[m] = 0; }
+ }
+ 
++// RewindBox (patch 0089): the host's own memory by VM tag: pages in memory, compressed and dirty, over the ranges s2a_low_tags walks (the low region from 4 GB up to the
++//   shared cache, and the window's tail); file-backed regions summed apart, whatever their tag. For the heartbeat's line (ios/app.m, every sixth heartbeat). IPA 779 (Mario
++//   Kart World, races): TASK_VM_INFO had 180-290 MB of anonymous memory in RAM and 900-1,160 MB compressed while the machine compressed 87,000-373,000 pages and decompressed
++//   about as many every 10 s, its CPU 29-64 % in the system; the .NET heap held 122-136 MB (patch 0076) and the renderer counts Metal's resident objects, but nothing said
++//   whose the rest was. Reads vm_region only, allocates nothing; the window itself (the guest's memory, TASK_VM_INFO external) is not walked
++void s2a_rb_mem_tags(char *out, size_t cap) {
++    enum { NTAG = 256 }; uint64_t res[NTAG] = {0}, cmp[NTAG] = {0}, drt[NTAG] = {0}, fres = 0, fcmp = 0, fdrt = 0, fvsz = 0; unsigned regions = 0;
++    uint64_t lo2 = g_ok ? g_base + g_size : 0, pg = (uint64_t)vm_page_size;
++    for (int seg = 0; seg < 2; seg++) {
++        vm_address_t a = seg ? lo2 : 0x100000000ull; uint64_t end = seg ? (lo2 ? 1ull << 39 : 0) : g_ok ? g_base : 1ull << 39;
++        while (a < end) {
++            vm_size_t sz = 0; natural_t depth = 0; vm_region_submap_info_data_64_t info; mach_msg_type_number_t cnt = VM_REGION_SUBMAP_INFO_COUNT_64;
++            if (vm_region_recurse_64(mach_task_self(), &a, &sz, &depth, (vm_region_recurse_info_t)&info, &cnt) != KERN_SUCCESS || a >= end || (!seg && info.user_tag == 32)) break;
++            regions++;
++            if (info.external_pager) { fres += info.pages_resident; fcmp += info.pages_swapped_out; fdrt += info.pages_dirtied; fvsz += sz; }
++            else { unsigned k = info.user_tag < NTAG ? info.user_tag : 0; res[k] += info.pages_resident; cmp[k] += info.pages_swapped_out; drt[k] += info.pages_dirtied; }
++            a += sz;
++        }
++    }
++    int o = snprintf(out, cap, "%u regions; file-backed: %llu MB in memory, %llu MB compressed, %llu MB dirty (%llu MB mapped)", regions, (unsigned long long)(fres * pg >> 20),
++                     (unsigned long long)(fcmp * pg >> 20), (unsigned long long)(fdrt * pg >> 20), (unsigned long long)(fvsz >> 20));
++    for (int r = 0; r < 8 && o > 0 && (size_t)o < cap; r++) {
++        int m = -1; for (int i = 0; i < NTAG; i++) if (res[i] + cmp[i] && (m < 0 || res[i] + cmp[i] > res[m] + cmp[m])) m = i;
++        if (m < 0) break;
++        o += snprintf(out + o, cap - (size_t)o, "; tag %d: %llu MB in memory, %llu MB compressed, %llu MB dirty", m, (unsigned long long)(res[m] * pg >> 20),
++                      (unsigned long long)(cmp[m] * pg >> 20), (unsigned long long)(drt[m] * pg >> 20));
++        res[m] = cmp[m] = 0;
++    }
++}
++
+ // 低区文件映射按目录合计单独打（低区账骤降时调；10-26 巫师3 测试设备1：文件页 60 秒涨约 400 MB，只在 C# 初始化后列过一次、崩溃时宿主自己崩了没打出来，
+ //   看不出是谁的文件）。范围同低区全列：4 GB 起到窗口，加窗口尾部
+ void s2a_low_files(const char *when) {
