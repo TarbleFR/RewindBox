@@ -153,7 +153,9 @@
   "native/melonx/EmbeddedDeliveryCache.cs",
   "build-utils/melonx/adapt_descriptor_pool_lifetime.py",
   "build-utils/melonx/adapt_cheat_report.py",
-  "native/melonx/EmbeddedCheatReport.cs"
+  "native/melonx/EmbeddedCheatReport.cs",
+  "build-utils/melonx/adapt_descriptor_and_block_usage.py",
+  "build-utils/melonx/adapt_cached_shader_stages.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -285,7 +287,10 @@
   "src/Ryujinx.HLE/HOS/ModLoader.cs",
   "src/Ryujinx.HLE/HOS/TamperMachine.cs",
   "src/Ryujinx.HLE/Loaders/Processes/ProcessLoaderHelper.cs",
-  "src/Ryujinx.Library/EmbeddedGraphicsSettings.cs"
+  "src/Ryujinx.Library/EmbeddedGraphicsSettings.cs",
+  "src/Ryujinx.Graphics.GAL/ShaderSource.cs",
+  "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ShaderBinarySerializer.cs",
+  "src/Ryujinx.Graphics.Vulkan/Shader.cs"
  ],
  "productionAdditions": [
   "src/Ryujinx.HLE/EmbeddedOnline.cs",
@@ -460,7 +465,8 @@
   "test/melonx_nextendo_data/Program.cs",
   "test/melonx_buffer_mirror_windows/Probe.cs",
   "test/melonx_buffer_mirror_windows/DescriptorPools.cs",
-  "test/melonx_cheat_report/Program.cs"
+  "test/melonx_cheat_report/Program.cs",
+  "test/melonx_shader_load_binary_release/CacheStages.cs"
  ],
  "fixtureProductionInputs": [
   "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs",
@@ -708,7 +714,10 @@
     "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedImageArray.cs",
     "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedTextureArray.cs",
     "src/Ryujinx.Graphics.Vulkan/BitMapStruct.cs",
-    "src/Ryujinx.Graphics.Vulkan/DescriptorSetManager.cs"
+    "src/Ryujinx.Graphics.Vulkan/DescriptorSetManager.cs",
+    "src/Ryujinx.Graphics.GAL/ShaderSource.cs",
+    "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ShaderBinarySerializer.cs",
+    "src/Ryujinx.Graphics.Vulkan/Shader.cs"
    ],
    "compiledBindings": [
     {
@@ -1502,6 +1511,33 @@
       "src/Ryujinx.Graphics.Vulkan/DescriptorSetManager.cs"
      ],
      "productionPath": "src/Ryujinx.Graphics.Vulkan/DescriptorSetManager.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.GAL/ShaderSource.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.GAL/ShaderSource.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ShaderBinarySerializer.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ShaderBinarySerializer.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Vulkan/Shader.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Vulkan/Shader.cs"
     }
    ]
   },
@@ -5191,11 +5227,16 @@
     "finalPreparationBound": true,
     "sourceKind": "finalPreparationWithReversedControl",
     "physicalDeviceTested": false,
-    "shaderLoadBinaryRelease.executed": true
+    "shaderLoadBinaryRelease.executed": true,
+    "cachedStages.result": "passed"
    },
    "requiredPostimages": [
     "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ParallelDiskCacheLoader.cs",
-    "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/DiskCacheHostStorage.cs"
+    "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/DiskCacheHostStorage.cs",
+    "src/Ryujinx.Graphics.GAL/ShaderSource.cs",
+    "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ShaderBinarySerializer.cs",
+    "src/Ryujinx.Graphics.Vulkan/Shader.cs",
+    "src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs"
    ]
   },
   {

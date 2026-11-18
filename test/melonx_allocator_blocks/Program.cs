@@ -235,8 +235,52 @@ static class Program
         GC.KeepAlive(keep);
         return new { count, blockBytes, blockListBytes = listBytes };
     }
+#if USAGE_COUNTERS
+    static void DedicatedUsage()
+    {
+        var api = new Vk();
+        using var allocator = new MemoryAllocatorBlockList(api, default, 0, 16, true);
+        const int count = 13453;
+        var allocations = new MemoryAllocation[count];
+        ulong live = 0, bytes = 0, mapped = 0;
+        void Read()
+        {
+            ulong n = 0, size = 0, d = 0, m = 0, f = 0;
+            allocator.AddUsage(ref n, ref size, ref d, ref m, ref f);
+            Check((n, size, d, m, f) == (live, bytes, bytes, mapped, 0UL), "dedicated inventory");
+        }
+        for (int i = 0; i < count; i++)
+        {
+            ulong size = (ulong)(1024 + i);
+            bool map = i % 3 == 0;
+            allocations[i] = allocator.Allocate(size, 256, map);
+            live++; bytes += size; if (map) mapped += size;
+        }
+        Read();
+        for (int i = count - 1; i >= 0; i--)
+        {
+            // Alternate ends to exercise the moved last block and its updated index.
+            int j = i % 2 == 0 ? i / 2 : count - 1 - i / 2;
+            ulong size = allocations[j].Size;
+            live--; bytes -= size; if (j % 3 == 0) mapped -= size;
+            allocations[j].Dispose();
+            if (i % 113 == 0) Read();
+        }
+        Read();
+        Check(api.Live == 0 && api.Mapped == 0, "dedicated handles released exactly once");
+        var split = new MemoryAllocatorBlockList.Block(default, 0, 64, true);
+        Check(split.Allocate(64, 8) == 0 && split.FreeBytes() == 0, "full dedicated allocation");
+        split.Free(16, 48);
+        Check(split.Allocate(8, 16) == 16 && split.FreeBytes() == 40, "partial free becomes ordinary ranges");
+        split.Free(0, 24);
+        Check(split.IsTotallyFree() && split.FreeBytes() == 64, "split ranges coalesce");
+    }
+#endif
     static void Main(string[] args)
     {
+#if USAGE_COUNTERS
+        DedicatedUsage();
+#endif
         bool injected = args.Length > 0 && args[0] == "instrumented";
         var random = new[] { RandomLifetimes(4096), RandomLifetimes(16) };
         var imported = ImportedArena();

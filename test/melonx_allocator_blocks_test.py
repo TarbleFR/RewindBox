@@ -28,11 +28,27 @@ from adapt_allocator_blocks import apply
 PREIMAGES = {'src/Ryujinx.Graphics.Vulkan/MemoryAllocatorBlockList.cs': 'e59268ccf087f483e28557de1c5c9faa2e90c24d2f73d4f49479cb8084ff0b3c', 'src/Ryujinx.Graphics.Vulkan/MemoryAllocation.cs': '8e871eedcbc45750022c45a497fc4c1a482ea908f1c04e3ae7cd5a8ab8e022b2', 'src/Ryujinx.Graphics.Vulkan/VulkanException.cs': '979b68380d45dfe405df08d78a1bb6376493855585fdecea1b6b603050adb15c', 'src/Ryujinx.Common/Utilities/BitUtils.cs': '3f33297b391f95cfba6d3ec848b69f94534848b74f919310181e0a51eb450261'}
 CALLERS = {'src/Ryujinx.Graphics.Vulkan/MemoryAllocator.cs': '15833c21c16b3698de4f872d547f0d2b050cde28843695d972c366777512f9b3', 'src/Ryujinx.Graphics.Vulkan/DonatedBufferAllocator.cs': '0c84a345748de604d66c9d94adc4a4dcc7709832cddc416a7c755855406003ee'}
 
-if FINAL is not None:
+# The current final preparation has a second allocator change. Authenticate its predecessor
+# before using the older journal-only comparison or the direct A/B against Core 779.
+from adapt_descriptor_and_block_usage import BASELINE as WHOLE_BLOCKS, BLOCKS
+from melonx_adapter_control import control_source
+hold = []
+journal_tree = FINAL
+has_whole = FINAL is not None and hashlib.sha256((FINAL / BLOCKS).read_bytes()).hexdigest() != WHOLE_BLOCKS[BLOCKS]
+if has_whole:
+    journal_tree, bound = control_source(FINAL, 'adapt_descriptor_and_block_usage', hold)
+    assert bound
+direct = has_whole and hashlib.sha256((SOURCE / BLOCKS).read_bytes()).hexdigest() == WHOLE_BLOCKS[BLOCKS]
+if direct:
+    for table in (PREIMAGES, CALLERS):
+        for relative in table:
+            assert (SOURCE / relative).read_bytes() == (journal_tree / relative).read_bytes(), relative
+            table[relative] = hashlib.sha256((SOURCE / relative).read_bytes()).hexdigest()
+elif FINAL is not None:
     import adapt_vulkan_memory_journal as journal
     for relative in (journal.BLOCKS, journal.ALLOCATOR):
         (PREIMAGES if relative in PREIMAGES else CALLERS)[relative] = journal.BASELINE[relative]
-        text = (FINAL / relative).read_text(encoding='utf-8-sig')
+        text = (journal_tree / relative).read_text(encoding='utf-8-sig')
         for old, new in reversed(journal.EDITS[relative]):
             assert text.count(new) == 1, 'journal edit present once: ' + relative
             text = text.replace(new, old)
@@ -82,6 +98,8 @@ with tempfile.TemporaryDirectory(prefix='melonx-allocator-blocks-') as temporary
                 path.write_text(text)
             for name in ('Program.cs', 'Boundaries.cs'):
                 shutil.copyfile(ROOT / 'test/melonx_allocator_blocks' / name, work / name)
+            if direct:
+                (work / 'Program.cs').write_text('#define USAGE_COUNTERS\n' + (work / 'Program.cs').read_text())
             sources = list(PREIMAGES) + ['Program.cs', 'Boundaries.cs']
             compiled[variant][mode] = {p: hashlib.sha256((work / p).read_bytes()).hexdigest() for p in sources}
             includes = ''.join(f'<Compile Include="{p}" />' for p in sources)
@@ -112,7 +130,20 @@ if FINAL is not None:
         if isinstance(value, list):
             return [stable(v) for v in value]
         return value
-    assert stable(reports['control']['instrumented']) == stable(reports['candidate']['instrumented']), 'final allocator behaves as the delivered one'
+    old = stable(reports['control']['instrumented'])
+    new = stable(reports['candidate']['instrumented'])
+    if has_whole:
+        assert old['bookkeeping']['blockBytes'] > new['bookkeeping']['blockBytes']
+        assert new['bookkeeping']['blockListBytes'] >= old['bookkeeping']['blockListBytes']
+        for field in ('blockBytes', 'blockListBytes'):
+            old['bookkeeping'].pop(field)
+            new['bookkeeping'].pop(field)
+        for group in ('churn', 'searches'):
+            for before, after in zip(old[group], new[group], strict=True):
+                assert after['allocatedBytes'] <= before['allocatedBytes']
+                before.pop('allocatedBytes')
+                after.pop('allocatedBytes')
+    assert old == new, 'payloads, live bytes, ranges, releases, counters and failures must agree'
 for mode in (() if FINAL is not None else ('instrumented', 'timing')):
     old, new = [reports[v][mode] for v in ('control', 'candidate')]
     for field in ('imported', 'concurrent'):
@@ -148,6 +179,7 @@ inputs = ['build-utils/melonx/adapt_allocator_blocks.py', 'test/melonx_allocator
           'test/melonx_allocator_blocks/Program.cs', 'test/melonx_allocator_blocks/Boundaries.cs']
 if FINAL is not None:
     inputs.append('build-utils/melonx/adapt_vulkan_memory_journal.py')
+    if has_whole: inputs.append('build-utils/melonx/adapt_descriptor_and_block_usage.py')
 receipt = dict(result='passed', reports=reports, physicalDeviceTested=False, finalPreparationBound=FINAL is not None,
                sourceKind='deliveredPreparedWithFinalCandidate' if FINAL is not None else 'pristineUpstream',
                completeProductionAllocatorAndHandlesAndRanges=True,

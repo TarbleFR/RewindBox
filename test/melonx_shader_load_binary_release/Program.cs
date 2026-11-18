@@ -21,6 +21,13 @@ using Ryujinx.Graphics.Gpu.Shader.DiskCache;
 static class Program
 {
     private static int _checks;
+    internal static int WorkerStarts, FailStartAfter = -1;
+
+    internal static void BeforeStart()
+    {
+        if (FailStartAfter >= 0 && FailStartAfter-- == 0)
+            throw new ApplicationException("injected thread start failure");
+    }
     private static readonly Dictionary<string, object> Report = new();
 #if CANDIDATE
     private const bool Candidate = true;
@@ -34,11 +41,11 @@ static class Program
         if (!condition) throw new Exception(message);
     }
 
-    private static ParallelDiskCacheLoader Create(BoundaryState state, out DiskCacheHostStorage storage)
+    private static ParallelDiskCacheLoader Create(BoundaryState state, out DiskCacheHostStorage storage, CancellationToken token = default)
     {
         storage = new DiskCacheHostStorage(state);
         return new ParallelDiskCacheLoader(new GpuContext(state), new ShaderCacheHashTable(), new ComputeShaderCacheHashTable(), storage,
-            (kind, compiled, total) => state.States.Enqueue(kind), CancellationToken.None);
+            (kind, compiled, total) => state.States.Enqueue(kind), token);
     }
 
     private static CachedShaderProgram HostProgram(BoundaryState state, int index, bool compute)
@@ -140,11 +147,59 @@ static class Program
         Report["missingWritten"] = string.Join(",", Enumerable.Range(0, Programs).Select(i => missingStorage.Written[i] == "none" ? "none" : "code"));
     }
 
+    private static void Startup()
+    {
+        var elapsed = new List<double>();
+        var starts = new List<int>();
+        for (int i = 0; i < 21; i++)
+        {
+            var state = new BoundaryState();
+            var loader = Create(state, out var storage);
+            var before = WorkerStarts;
+            long start = System.Diagnostics.Stopwatch.GetTimestamp();
+            loader.LoadShaders();
+            if (i > 0) elapsed.Add(System.Diagnostics.Stopwatch.GetElapsedTime(start).TotalMilliseconds);
+            bool closed = false;
+            try { loader.QueueGuestProgram(Array.Empty<GuestCodeAndCbData?>(), new ShaderSpecializationState(), 0, true); }
+            catch (InvalidOperationException) { closed = true; }
+            Check(closed, "a late enqueue fails and starts no new worker");
+            starts.Add(WorkerStarts - before);
+        }
+        Check(starts.Distinct().Count() == 1, "empty cache starts a consistent number of threads");
+        Report["emptyWorkerStarts"] = starts[0];
+        Report["emptyLoadMsMedian"] = elapsed.Order().ElementAt(elapsed.Count / 2);
+
+        var failure = Create(new BoundaryState(), out var failedStorage);
+        failedStorage.OnLoad = (_, loading) => loading.QueueGuestProgram(Array.Empty<GuestCodeAndCbData?>(), new ShaderSpecializationState(), 0, true);
+        FailStartAfter = 3;
+        int prior = WorkerStarts;
+        try { failure.LoadShaders(); throw new Exception("expected a start failure"); }
+        catch (ApplicationException e) when (e.Message == "injected thread start failure") { }
+        finally { FailStartAfter = -1; }
+        Check(WorkerStarts == prior + 3, "three successfully started workers drain on failure");
+        foreach (bool cancelled in new[] { false, true })
+        {
+            var state = new BoundaryState();
+            state.TranslateAllowed.Set();
+            var loader = Create(state, out var storage, new CancellationToken(cancelled));
+            storage.OnLoad = (_, loading) => loading.QueueGuestProgram(
+                new GuestCodeAndCbData?[] { new GuestCodeAndCbData(new byte[] { 1 }, Array.Empty<byte>()) },
+                new ShaderSpecializationState(), 0, true);
+            int before = WorkerStarts;
+            loader.LoadShaders();
+            Check(state.Active == 0 && state.Completed == (cancelled ? 0 : 1), "guest translation drained");
+            Report[cancelled ? "cancelledWorkerStarts" : "guestWorkerStarts"] = WorkerStarts - before;
+        }
+    }
+
     public static void Main()
     {
         try
         {
+            Startup();
+            int before = WorkerStarts;
             Memory();
+            Report["warmWorkerStarts"] = WorkerStarts - before;
             Rebuild();
             Console.WriteLine(JsonSerializer.Serialize(new { candidate = Candidate, checks = _checks, report = Report }));
         }
