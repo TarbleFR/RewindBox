@@ -1162,7 +1162,7 @@ abstract final class S2ArmInternalService {
   static final RegExp _switch2SaveTitle = RegExp(r'^04[0-9A-Fa-f]{14}$');
   static final RegExp _titleSaveSlot = RegExp(r'^(?:Play|[0-9]{3})$', caseSensitive: false);
 
-  // IPA 787 staged 26 files from 04007EF01F8AE000/000 for 0400C3F00006E000.
+  // IPA 787 staged 26 files from a parent folder containing multiple titles for Mario Kart World.
   // An export in this format names its title even when Files returns only Play or 000.
   static String? _titleOfSaveSlot(String slot) {
     if (!_titleSaveSlot.hasMatch(path.basename(slot))) return null;

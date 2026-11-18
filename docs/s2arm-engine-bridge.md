@@ -165,9 +165,11 @@ No engine change: everything below uses what the pinned engine already reads in 
   `saveNoGame` ("select the game in the list") when that list is empty. "Open the saves folder" then opens
   `Documents/S2Arm/Saves` itself. Checked by `test/s2arm_session_menu_test.py` (Saves),
   `test/s2arm_internal_service_test.dart` (saves) and `test/s2arm_playlist_menu_contract_test.dart`. Not observed on a device.
-- **Sauvegardes classées par titre (IPA 787, 18 novembre 2026).** La vidéo montre le dossier
-  `04007EF01F8AE000/000` et la copie de 26 fichiers pour Mario Kart World. La capture situe la
-  sauvegarde de Mario Kart World dans `0400C3F00006E000/Play`, avec `account.sav` (851 ko).
+- **Sauvegardes classées par titre (IPA 787, 18 novembre 2026).** La vidéo montre une visite du
+  dossier `04007EF01F8AE000/000`, puis un retour au dossier parent qui regroupe plusieurs jeux.
+  Le bouton « Ouvrir » est pressé depuis ce parent vers 24 s. Les 26 fichiers copiés pour Mario
+  Kart World correspondent à cette sélection. La capture situe la sauvegarde de Mario Kart World
+  dans `0400C3F00006E000/Play`, avec `account.sav` (851 ko).
   L’import conserve l’identifiant du titre même si Fichiers renvoie le sous-dossier. Si le joueur
   choisit le dossier qui regroupe plusieurs titres, l’import prend le dossier du jeu sélectionné
   quand il n’y a qu’une sauvegarde pour ce jeu. En cas d’ambiguïté, il demande de choisir le dossier
