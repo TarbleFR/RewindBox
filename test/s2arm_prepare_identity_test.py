@@ -36,7 +36,7 @@ PKG = ROOT / 'packages/s2arm_engine_bridge/ios/Classes'
 # SHA-256 of runSteps in S2ArmGamePreparation.m, from its first line to the line before @end. When this test fails on
 # it: decide whether a game prepared by the previous steps can still be reused (if not, raise kPreparedSteps), then
 # record the new digest and the number it goes with.
-RUN_STEPS_SHA256 = '6ed919d8c9f6264efa280a3242eb27e4561a1546ea2298aa327894314ad222c7'
+RUN_STEPS_SHA256 = '3783642ba73e611f11a59d779ef991c14dd8b0a6bacec0935ea1b94ef94bdd92'
 PREPARED_STEPS = '1'
 failures, checks = [], 0
 
@@ -94,9 +94,18 @@ check(ordered(identity, 'if (isLowerHex(library, 64) && isLowerHex(commit, 40)) 
 check(ordered(prep, 'static BOOL isLowerHex(id value, NSUInteger length) {', 'if (![value isKindOfClass:NSString.class]) return NO;',
               'characterSetWithCharactersInString:@"0123456789abcdef"].invertedSet;', 'text.length == length &&'),
       'a value of the record counts only as lowercase hex of the expected length')
-check('[text appendFormat:@"%@\\nchain %@\\nexport %@\\n", preparationCodeIdentity(identityKind, engineRun), chain, exportDir];' in prep
+check('[text appendFormat:@"%@\\nchain %@\\nexport %@\\n", preparationCodeIdentity(identityKind, engineRun), chain, exportKey];' in prep
       and 'NSMutableString *text = [NSMutableString stringWithString:@"s2arm-prepared 1\\n"];' in prep,
       'the fingerprint holds the identity where it held the build number; the chain (the shader library\'s key) stays in it')
+check(ordered(prep, 'NSString *managedPath = managedExportPath(exportDir);',
+              'managedPath ? [@"container:" stringByAppendingString:managedPath] : exportDir',
+              'preparationFingerprint(exportDir, exportKey, chain, systemData',
+              'reusablePreparation(stampPath, fingerprint, gid, paths, exportDir, managedPath, chain, systemData)'),
+      'managed export identities survive a container move and external exports keep their absolute key')
+check(ordered(prep, 'NSString *legacyKey = preparationFingerprint(exportDir, legacyExport, chain, systemData',
+              '[files fileExistsAtPath:paths[key] isDirectory:&directory]', 'image.fileSize == 0',
+              'fileSize != 64', '[reused addEntriesFromDictionary:paths]'),
+      'the migrated key is recomputed and all artifact paths come from the current container')
 check('s2arm_journal("prepare", "reused", "\\"gid\\":\\"%s\\",\\"identity\\":\\"%s\\",\\"engineRun\\":%lld", gid.UTF8String, identityKind, engineRun);' in prep
       and 's2arm_journal("prepare", "begin", "\\"gid\\":\\"%s\\",\\"identity\\":\\"%s\\",\\"engineRun\\":%lld", gid.UTF8String, identityKind, engineRun);' in prep
       and 'long long engineRun = 0;' in prep,

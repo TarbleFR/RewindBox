@@ -534,11 +534,21 @@ static NSString *preparationCodeIdentity(const char **kind, long long *engineRun
 // - the direct library chain and the system data list (the pack holds a copy of the system data);
 // - the export as found: its folder, each top-level part (base, update, DLC) with its date, every ExeFS file by size and
 //   date, and each RomFS root.
-// Any change prepares again. The folder is part of it because the RomFS is read in place through links into the export.
-static NSString *preparationFingerprint(NSString *exportDir, NSString *chain, NSString *systemData, const char **identityKind, long long *engineRun) {
+// An export under Documents travels with Library/S2Arm when iOS moves the app container. The pack's links to that
+// export are relative. External exports keep their absolute identity.
+static NSString *_Nullable managedExportPath(NSString *exportDir) {
+  NSString *home = NSHomeDirectory().stringByResolvingSymlinksInPath;
+  NSString *resolved = exportDir.stringByResolvingSymlinksInPath;
+  NSString *prefix = [home stringByAppendingString:@"/Documents/S2Arm/Games/"];
+  if (![resolved hasPrefix:prefix] || resolved.length == prefix.length) return nil;
+  return [resolved substringFromIndex:home.length + 1];
+}
+
+static NSString *preparationFingerprint(NSString *exportDir, NSString *exportKey, NSString *chain, NSString *systemData,
+                                        const char **identityKind, long long *engineRun) {
   NSFileManager *files = NSFileManager.defaultManager;
   NSMutableString *text = [NSMutableString stringWithString:@"s2arm-prepared 1\n"];
-  [text appendFormat:@"%@\nchain %@\nexport %@\n", preparationCodeIdentity(identityKind, engineRun), chain, exportDir];
+  [text appendFormat:@"%@\nchain %@\nexport %@\n", preparationCodeIdentity(identityKind, engineRun), chain, exportKey];
   NSArray<NSString *> *parts = [[files contentsOfDirectoryAtPath:exportDir error:nil] sortedArrayUsingSelector:@selector(compare:)] ?: @[];
   BOOL wrappedBase = [files fileExistsAtPath:[exportDir stringByAppendingPathComponent:@"base/exefs/main.npdm"]];
   if (!wrappedBase) parts = [@[@"."] arrayByAddingObjectsFromArray:parts];
@@ -572,19 +582,54 @@ static NSString *preparationFingerprint(NSString *exportDir, NSString *chain, NS
 
 // The result of a finished preparation of the same inputs, still on disk, or nil. Before, every launch prepared the game
 // again from scratch: minutes for a large game.
-static NSDictionary *_Nullable reusablePreparation(NSString *stampPath, NSString *fingerprint, NSString *gid) {
+static NSDictionary *_Nullable reusablePreparation(
+    NSString *stampPath, NSString *fingerprint, NSString *gid, NSDictionary<NSString *, NSString *> *paths,
+    NSString *exportDir, NSString *_Nullable managedPath, NSString *chain, NSString *systemData) {
   NSData *data = [NSData dataWithContentsOfFile:stampPath];
   id stamp = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
-  if (![stamp isKindOfClass:NSDictionary.class] || ![stamp[@"fingerprint"] isEqual:fingerprint]) return nil;
+  if (![stamp isKindOfClass:NSDictionary.class]) return nil;
   NSDictionary *result = stamp[@"result"];
   if (![result isKindOfClass:NSDictionary.class] || ![result[@"gid"] isEqual:gid] || ![result[@"success"] isEqual:@YES]) return nil;
-  NSFileManager *files = NSFileManager.defaultManager;
-  for (NSString *key in @[ @"root", @"moduleDir", @"imagesPath", @"gameData", @"docs" ]) {
-    id path = result[key];
-    if (![path isKindOfClass:NSString.class] || ![files fileExistsAtPath:path]) return nil;
+  BOOL migrate = ![stamp[@"fingerprint"] isEqual:fingerprint];
+  if (migrate) {
+    // A previous stamp used the full export path. Recompute its exact key from the current metadata and the
+    // previous container prefix, using only the bridge's managed directory layout. No legacy path is opened.
+    if (!managedPath) return nil;
+    NSString *oldGameDir = [result[@"gameDir"] isKindOfClass:NSString.class] ? result[@"gameDir"] : nil;
+    NSString *suffix = [@"/Library/S2Arm/" stringByAppendingString:gid];
+    if (![oldGameDir hasSuffix:suffix]) return nil;
+    NSString *oldHome = [oldGameDir substringToIndex:oldGameDir.length - suffix.length];
+    if (!oldHome.isAbsolutePath) return nil;
+    const char *identityKind;
+    long long engineRun;
+    NSString *legacyExport = [oldHome stringByAppendingPathComponent:managedPath];
+    NSString *legacyKey = preparationFingerprint(exportDir, legacyExport, chain, systemData, &identityKind, &engineRun);
+    if (![stamp[@"fingerprint"] isEqual:legacyKey]) {
+      // The former caller could use the /private/var or /var spelling for the same directory.
+      if ([legacyExport hasPrefix:@"/private/var/"]) legacyExport = [legacyExport substringFromIndex:8];
+      else if ([legacyExport hasPrefix:@"/var/"]) legacyExport = [@"/private" stringByAppendingString:legacyExport];
+      else return nil;
+      legacyKey = preparationFingerprint(exportDir, legacyExport, chain, systemData, &identityKind, &engineRun);
+      if (![stamp[@"fingerprint"] isEqual:legacyKey]) return nil;
+    }
   }
-  if (![files fileExistsAtPath:[result[@"gameData"] stringByAppendingPathComponent:@".applied"]]) return nil;
+  NSFileManager *files = NSFileManager.defaultManager;
+  for (NSString *key in @[ @"root", @"moduleDir", @"gameData", @"docs" ]) {
+    BOOL directory = NO;
+    if (![files fileExistsAtPath:paths[key] isDirectory:&directory] || !directory) return nil;
+  }
+  NSDictionary *image = [files attributesOfItemAtPath:paths[@"imagesPath"] error:nil];
+  id sizes = result[@"sizes"];
+  if (![image.fileType isEqual:NSFileTypeRegular] || image.fileSize == 0 ||
+      ![sizes isKindOfClass:NSDictionary.class] || ![sizes[@"imagePack"] isEqual:@(image.fileSize)]) return nil;
+  NSString *applied = [paths[@"gameData"] stringByAppendingPathComponent:@".applied"];
+  if ([files attributesOfItemAtPath:applied error:nil].fileSize != 64) return nil;
   NSMutableDictionary *reused = [result mutableCopy];
+  [reused addEntriesFromDictionary:paths];
+  if (migrate || ![result[@"gameDir"] isEqual:paths[@"gameDir"]]) {
+    NSData *updated = [NSJSONSerialization dataWithJSONObject:@{@"fingerprint": fingerprint, @"result": reused} options:0 error:nil];
+    if (updated && ![updated writeToFile:stampPath atomically:YES]) s2arm_journal("prepare", "stamp", "\"written\":false");
+  }
   reused[@"reused"] = @YES;
   return reused;
 }
@@ -658,8 +703,12 @@ static NSString *mapPrepareCode(int rc) {
   NSString *stampPath = [gameDir stringByAppendingPathComponent:@"prepared.json"];
   const char *identityKind = "build";
   long long engineRun = 0;
-  NSString *fingerprint = preparationFingerprint(exportDir, chain, systemData, &identityKind, &engineRun);
-  NSDictionary *reused = reusablePreparation(stampPath, fingerprint, gid);
+  NSString *managedPath = managedExportPath(exportDir);
+  NSString *exportKey = managedPath ? [@"container:" stringByAppendingString:managedPath] : exportDir;
+  NSString *fingerprint = preparationFingerprint(exportDir, exportKey, chain, systemData, &identityKind, &engineRun);
+  NSDictionary *paths = @{@"gameDir": gameDir, @"root": root, @"moduleDir": moduleDir, @"imagesPath": imagesPath,
+                          @"gameData": packDir, @"docs": docsDir};
+  NSDictionary *reused = reusablePreparation(stampPath, fingerprint, gid, paths, exportDir, managedPath, chain, systemData);
   if (reused) {
     s2arm_journal("prepare", "reused", "\"gid\":\"%s\",\"identity\":\"%s\",\"engineRun\":%lld", gid.UTF8String, identityKind, engineRun);
     [self emit:@"done" index:kPrepareSteps count:kPrepareSteps fraction:1 detail:@"reused"];

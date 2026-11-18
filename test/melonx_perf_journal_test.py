@@ -518,7 +518,10 @@ exit(2)
             check('long=1/0' in fields and 'gaps=17,34' in fields, line)
             check(any(field.startswith('mgd=') for field in fields), line)
             check('dsp=200/3/7.5/3.1/1' in fields and 'out=200/1/12.0/12.0' in fields, line)
-            check(re.search(r' th=(nominal|fair|serious|critical) lp=[01]( paused)?$', line), line)
+            # Four counter windows. Each is missing or records completion time and its independently measured interval.
+            window = r'(?:-|-?\d+,(?:\d+|-))'
+            check(re.search(r' th=(nominal|fair|serious|critical) lp=[01] win=' + window +
+                            (r'/' + window) * 3 + r'( paused)?$', line), line)
             # The spinning thread is the busiest one listed (threads are sorted by CPU time): it comes first,
             # with a share above zero and at least that of every other listed thread. Its share of a 0.25 s
             # sample depends on the shared runner's load (39 % in run 41523517233, 7 % in delivery run
