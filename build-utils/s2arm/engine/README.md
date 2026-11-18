@@ -116,4 +116,11 @@ added by patches 0090–0092. The prepare and system data producers are from the
 
 [Producer run 44230830821](https://github.com/TarbleFR/RewindBox/actions/runs/44230830821) built patches
 0001–0093 on macOS 15 and 26. The build and guest-framework logs have zero diagnostics on lines
-added by patches 0090–0093. Device validation of patch 0093 is pending.
+added by patches 0090–0093. IPA 783 recorded the expected workgroup transitions; the thermal effect has yet
+to be measured on equivalent routes and cache states.
+
+[Producer run 44241732632](https://github.com/TarbleFR/RewindBox/actions/runs/44241732632) built patches
+0001–0094 on macOS 15 and 26. The build and guest-framework logs report zero diagnostics on the 55 added
+lines. The packaged shader chain is byte-identical to IPA 783. The updated import library was built by
+[run 44241257258](https://github.com/TarbleFR/RewindBox/actions/runs/44241257258), with synthetic
+preparation checks on macOS and Linux in [run 44241257215](https://github.com/TarbleFR/RewindBox/actions/runs/44241257215).
