@@ -112,3 +112,7 @@ S2Arm.app that behaves as before. Patch points, file:line and what is still miss
 For private IPA 783, [producer run 44228206616](https://github.com/TarbleFR/RewindBox/actions/runs/44228206616)
 built patches 0001–0092 on macOS 15 and 26. The build and guest-framework logs have zero diagnostics on lines
 added by patches 0090–0092. The prepare and system data producers are from the verified 782 delivery.
+
+[Producer run 44230830821](https://github.com/TarbleFR/RewindBox/actions/runs/44230830821) built patches
+0001–0093 on macOS 15 and 26. The build and guest-framework logs have zero diagnostics on lines
+added by patches 0090–0093. Device validation of patch 0093 is pending.
