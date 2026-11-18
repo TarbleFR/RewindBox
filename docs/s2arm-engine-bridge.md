@@ -98,9 +98,10 @@ Shaped like `XeniaInternalService` (PR #172) so the shared library layer calls b
 
 The bridge selects a compatibility profile by title ID before loading the guest framework. Fast Fusion
 gets patch 0090's NVN2 vertex-state fix. Mario Kart World gets patch 0091's earlier staging trim under
-memory pressure. Other titles keep the previous behaviour for these two switches. Values supplied to
-the launch environment take precedence for comparison runs. The `gameProfile` journal entry records
-which profile was selected. The graphics and language settings below are still shared defaults.
+memory pressure and patch 0093's workgroup rest during stable cadence at a fair thermal state. The
+default profile sets the three switches to `0`. Values supplied to the launch environment take
+precedence for comparison runs. The `gameProfile` journal entry records the selected profile. The
+graphics and language settings below are shared defaults.
 
 No engine change: everything below uses what the pinned engine already reads in guest mode (S2Arm `ios/settings.m`,
 `ios/hud.m`, services `Host.cs`, read at the pinned commit).
@@ -460,4 +461,18 @@ IPA 779 (Mario Kart World, races) ran slower than IPA 777 and stuttered more: ra
   have no kept stage bytes and are made again at their first draw.
 - The audio backend's `[声]` lines (underruns, gaps) went to the host's stderr only; patch 0088 copies them to host.log.
 - Checked by `test/s2arm_session_menu_test.py`. Not observed on a device.
+
+## Lower workgroup power before serious heat (18 November 2026)
+
+IPA 781 reached a serious thermal state around frame 3048 in Mario Kart World. During the earlier
+60 fps windows ending at frames 600 and 900, CPU power was 2.28 and 2.08 W while the GPU ran for
+106 ms per second. Patch 0093 allows the CPU deadline hint to rest after 120 punctual intervals at a
+fair thermal state. The first interval over 120% of the target, cadence change, or cooler sample
+restores the hint. Serious and critical states use patch 0088. The game selects its own cadence.
+
+Compare the same route and cache at similar starting thermal state and display brightness. Record
+time to serious heat, seconds spent there, median CPU watts, CPU joules per presented frame, p95/p99
+frame time and audible interruptions. Use `S2A_RB_WG_CADENCE_IDLE=0` for the comparison with patch 0088.
+The first IPA 783 application job was canceled before compilation when the maintainer made the
+thermal correction a condition of delivery. [Canceled run](https://github.com/TarbleFR/RewindBox/actions/runs/44230393977)
 

@@ -1,0 +1,60 @@
+diff --git a/runtime/src/thread.c b/runtime/src/thread.c
+index 5810c3f5..65ae9b2b 100644
+--- a/runtime/src/thread.c
++++ b/runtime/src/thread.c
+@@ -1034,4 +1034,5 @@ int s2a_wg_join_thread(const char *who) { if (!wg_on() || g_wg_mode == 2) return
+ //   alone calls s2a_wg_frame). S2A_RB_WG_THERMAL=0: intervals under heat too, as before
+ __attribute__((weak)) int dm_thermal_now(void);   // declared weak before this first use: the weak default below (patch 0087), strong in ios/app.m and runtime/src/host_main.c
++static int g_rb_wg_thermal_state = -1;   // RewindBox (patch 0093): only the presenting thread reads and writes it
+ static int rb_wg_paused(void) {
+     static int on = -1, paused; static uint64_t at, cool_since;
+@@ -1042,4 +1043,5 @@ static int rb_wg_paused(void) {
+     at = ns;
+     int st = dm_thermal_now();
++    g_rb_wg_thermal_state = st;   // RewindBox (patch 0093): reuse the existing twice-a-second sample
+     if (st >= 2) {
+         cool_since = 0;
+@@ -1051,4 +1053,37 @@ static int rb_wg_paused(void) {
+     return paused;
+ }
++// RewindBox (patch 0093): on IPA 781 Mario Kart World held 60 fps at frames 600 and 900 while
++// the GPU worked 106 ms/s and CPU power was 2.28 / 2.08 W. The phone reached serious thermal
++// state near frame 3048. At fair, let the OS schedule without our deadline hint after 120
++// punctual intervals. Restore the hint after the first late interval, rate change or cooler
++// sample. Neither the game cadence nor the workgroup's serious-state rule is changed.
++// S2A_RB_WG_CADENCE_IDLE=1 opts in; 0 keeps every interval from patch 0088.
++static int rb_wg_cadence_idle(int fps, uint64_t now, uint64_t period) {
++    enum { RB_WG_PUNCTUAL = 120 };
++    static int enabled = -1, last_fps, idle;
++    static unsigned punctual, changes;
++    static uint64_t previous;
++    if (enabled < 0) {
++        const char *setting = getenv("S2A_RB_WG_CADENCE_IDLE");
++        enabled = setting && !strcmp(setting, "1");
++    }
++    if (!enabled || g_wg_period) return 0;
++    const uint64_t elapsed = previous ? now - previous : UINT64_MAX;
++    previous = now;
++    if (g_rb_wg_thermal_state != 1 || fps < 30 || fps != last_fps || elapsed > period + period / 5)
++        punctual = 0;
++    else if (punctual < RB_WG_PUNCTUAL)
++        punctual++;
++    last_fps = fps;
++    const int rest = punctual == RB_WG_PUNCTUAL;
++    if (rest != idle) {
++        idle = rest;
++        unsigned n = ++changes;
++        if (n <= 8 || !(n & (n - 1)))
++            LOG("RewindBox (patch 0093): workgroup cadence %s, thermal state %d, target %d fps, transition %u",
++                idle ? "resting" : "boosting", g_rb_wg_thermal_state, fps, n);
++    }
++    return rest;
++}
+ void s2a_wg_frame(int fps) {
+     if (!wg_on()) return;
+@@ -1060,4 +1095,5 @@ void s2a_wg_frame(int fps) {
+     uint64_t now = thread_clock(), per = g_wg_period;
+     if (!per) { per = (uint64_t)(1e9 / (fps > 0 ? fps : 30) * g_wg_tb.denom / g_wg_tb.numer); }
++    if (rb_wg_cadence_idle(fps, now, per)) { started = 0; return; }   // RewindBox (patch 0093)
+     int rc = os_workgroup_interval_start(g_wg, now, now + per, NULL);
+     if (rc) { LOG("【红】帧间隔工作组：interval_start rc=%d，本功能关", rc); g_wg_state = -1; return; }
