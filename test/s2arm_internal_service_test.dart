@@ -824,6 +824,13 @@ void main() {
           case 'prepareGame':
             return {'success': true, 'gid': gid, 'reused': true, 'imagesPath': '/i', 'moduleDir': '/m', 'gameData': '/g', 'docs': '/d'};
           case 'launchGame':
+            await messenger.handlePlatformMessage(
+              channel.name,
+              channel.codec.encodeMethodCall(const MethodCall(
+                'sessionEnded', {'code': 0, 'reason': 'quit', 'parked': true},
+              )),
+              (_) {},
+            );
             return {'success': true, 'gid': gid, 'stage': 'running', 'resumed': true};
         }
         return null;
@@ -831,6 +838,7 @@ void main() {
       final resumed = await S2ArmInternalService.launch('/export', pairingFilePath: '/pair');
       expect(resumed.success, isTrue, reason: 'the parked game (title id compared without case) resumes');
       expect(calls, containsAllInOrder(['status', 'detectExport', 'prepareGame', 'launchGame']));
+      expect(S2ArmInternalService.sessionRunning, isFalse, reason: 'an early close survives the pending launch reply');
 
       calls.clear();
       parkedId = '0100AAAA00000000';

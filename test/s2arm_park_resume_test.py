@@ -150,6 +150,8 @@ check("[self.parkedGameId caseInsensitiveCompare:gid] == NSOrderedSame" in plugi
 launch_block = between(plugin, 'BOOL resume = NO;', 'self.launchInProgress = YES;')
 check(ordered(launch_block, 'if (self.launchInProgress) {', 'caseInsensitiveCompare:gid'),
       'a second tap during a launch or a resume answers busy, not restart (review defect 5)')
+check(ordered(launch_block, 'if (self.runningGameId.length) {', 'caseInsensitiveCompare:gid'),
+      'the bridge answers busy until the last game view has finished dismissing')
 check('config.session_parked = s2arm_session_parked;' in plugin and '@"parkedGameId" : self.parkedGameId ?: @""' in plugin,
       'the bridge asks for parks and reports the parked game in its status')
 ended = between(plugin, 'static void s2arm_session_ended(int code, const char *reason, void *context) {')

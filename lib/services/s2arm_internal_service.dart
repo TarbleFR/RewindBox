@@ -285,6 +285,7 @@ abstract final class S2ArmInternalService {
       } else if (call.method == 'nupProgress') {
         _activeNupProgress?.call((arguments['done'] as num?)?.toInt() ?? 0, (arguments['total'] as num?)?.toInt() ?? 0);
       } else if (call.method == 'sessionEnded') {
+        _sessionEndSerial++;
         _sessionRunning = false;
         _sessionEvents.add(S2ArmSessionEvent((arguments['code'] as num?)?.toInt() ?? 0, arguments['reason']?.toString() ?? ''));
       }
@@ -992,6 +993,8 @@ abstract final class S2ArmInternalService {
 
   /// True from a successful launch until the native `sessionEnded` event.
   static bool _sessionRunning = false;
+  static bool get sessionRunning => _sessionRunning;
+  static int _sessionEndSerial = 0;
 
   /// A game is being prepared, launched or running: its files must not be deleted.
   static bool get busy => _preparing || _launching || _sessionRunning;
@@ -1036,6 +1039,7 @@ abstract final class S2ArmInternalService {
         return S2ArmLaunchOutcome.failure((prepared['code'] ?? 'prepareFailed').toString(), prepared['diagnostic']?.toString());
       }
       final saveFolder = await saveFolderFor((detected['exportDir'] ?? exportFolder).toString());
+      final endSerial = _sessionEndSerial;
       final report = await channel.invokeMapMethod<String, dynamic>('launchGame', {
         'gid': prepared['gid'],
         'imagesPath': prepared['imagesPath'],
@@ -1048,7 +1052,7 @@ abstract final class S2ArmInternalService {
         if (saveFolder != null) 'saveFolder': saveFolder.path,
       });
       if (report?['success'] == true) {
-        _sessionRunning = true;
+        _sessionRunning = _sessionEndSerial == endSerial;
         LoggerService.instance.i('S2Arm launch: engine started');
         return const S2ArmLaunchOutcome.success();
       }

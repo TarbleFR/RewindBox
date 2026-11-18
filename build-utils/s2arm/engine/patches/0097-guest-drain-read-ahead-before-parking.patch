@@ -1,0 +1,103 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -4828,7 +4828,23 @@
+ static uint64_t rb_pf_frame(void) { return rb_pf_wide_on() && !rb_mem_low() ? 2 * RB_PF_FRAME : RB_PF_FRAME; }
+ static int64_t rb_pf_pending(void) { return rb_pf_wide_on() && !rb_mem_low() ? 2 * RB_PF_PENDING : RB_PF_PENDING; }
+ static _Atomic uint64_t g_pf_posted, g_pf_dropped, g_pf_pages, g_pf_recent[1024], g_pf_budget; static _Atomic int64_t g_pf_pend;   // g_pf_budget: the frame (its low 24 bits, << 40) | the bytes asked in it
++// RewindBox (patch 0097): IPA 783 asked for 3,548 MiB of pool read-ahead and its Quit did
++// not park (S2A_WORKGROUP, -2), so these queues were never exercised across a relaunch.
++// Their blocks hold addresses from the guest window. Drain both before that window is
++// reset, and restart the address/age filters with the next session's frame counter.
++// S2A_RB_PARK_COMPAT=0 keeps the original queue behavior.
++static dispatch_queue_t g_rb_tex_ahead_q, g_rb_pool_ahead_q;
++static int rb_park_compat(void) {
++    static dispatch_once_t once;
++    static int enabled;
++    dispatch_once(&once, ^{
++        const char *setting = getenv("S2A_RB_PARK_COMPAT");
++        enabled = setting && !strcmp(setting, "1");
++    });
++    return enabled;
++}
+ static void rb_pf_post(const tex_t *t) {   // any thread holding none of g_rmu, g_smu, g_cpu_tex_mu (tex_get takes g_smu, tex_cpu_written g_cpu_tex_mu)
++    if (rb_park_compat() && dm_gfx_session_stopping()) return;
+     if (!t || !t->mem || !t->L.size || t->L.size > RB_PF_MAX_TEX || !t->serial || !rb_pf_on() || !rb_wn_on()) return;
+     if (t->pool && (t->pool->flags & NVN_MEMORY_POOL_FLAGS_VIRTUAL)) return;   // sparse: read through its page table (pkg_upload_ asks nothing there either)
+     uint64_t a = (uint64_t)(uintptr_t)t->mem, key = a ^ t->L.size, slot = ((a >> 9) * 0x9e3779b97f4a7c15ull) >> 54;   // 10 bits: 1024 slots
+@@ -4842,10 +4858,10 @@
+     } while (!atomic_compare_exchange_weak_explicit(&g_pf_budget, &o, nw, memory_order_relaxed, memory_order_relaxed));
+     atomic_store_explicit(&g_pf_recent[slot], key, memory_order_relaxed);   // only once asked: one left above is asked again at its next registration
+     atomic_fetch_add_explicit(&g_pf_pend, (int64_t)n, memory_order_relaxed); atomic_fetch_add_explicit(&g_pf_posted, 1, memory_order_relaxed);
+-    static dispatch_queue_t q; static dispatch_once_t once;
+-    dispatch_once(&once, ^{ q = dispatch_queue_create("rb.tex.readahead", dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_DEFAULT, 0)); });
++    static dispatch_once_t once;
++    dispatch_once(&once, ^{ g_rb_tex_ahead_q = dispatch_queue_create("rb.tex.readahead", dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_DEFAULT, 0)); });
+     const void *p = t->mem;
+-    dispatch_async(q, ^{ uint64_t k = rb_wn(p, n); atomic_fetch_add_explicit(&g_pf_pages, k == RB_WN_NONE ? 0 : k, memory_order_relaxed); atomic_fetch_sub_explicit(&g_pf_pend, (int64_t)n, memory_order_relaxed); });
++    dispatch_async(g_rb_tex_ahead_q, ^{ uint64_t k = rb_wn(p, n); atomic_fetch_add_explicit(&g_pf_pages, k == RB_WN_NONE ? 0 : k, memory_order_relaxed); atomic_fetch_sub_explicit(&g_pf_pend, (int64_t)n, memory_order_relaxed); });
+ }
+ // RewindBox (patch 0089): the pool around a texture whose upload found pages of its storage not in memory is asked ahead too. IPA 779 (Mario Kart World, iPhone17,2, races):
+ //   a scene's first uploads took 136-550 ms on the submit thread (f2751: 520 textures, 97 MB, 549.8 ms, 4,164 host pages not in memory; f5467: 139, 49.6 MB, 416.6 ms, 3,518;
+@@ -4915,6 +4931,7 @@
+     }
+ }
+ static void rb_pool_ahead(const tex_t *t) {   // pkg_upload_'s thread, after its own rb_wn found pages not in memory
++    if (rb_park_compat() && dm_gfx_session_stopping()) return;
+     if (!rb_pa_on() || !rb_wn_on() || !s2a_window_get || !t->pool || !t->pool->mem || !t->pool->size || !t->mem || !t->L.size) return;
+     if (t->pool->flags & NVN_MEMORY_POOL_FLAGS_VIRTUAL) return;   // read through its page table (pkg_upload_ asks nothing there)
+     uint64_t wb = 0, ws = 0; s2a_window_get(&wb, &ws);
+@@ -4922,8 +4939,8 @@
+     if (!ws || a < plo || e > phi || plo < wb || phi > wb + ws) return;   // storage outside its pool, or a pool outside the window: its own pages only
+     uintptr_t lo = a - plo > RB_PA_BEHIND ? a - RB_PA_BEHIND : plo, hi = phi - e > RB_PA_AHEAD ? e + RB_PA_AHEAD : phi, pm = ((uintptr_t)1 << RB_PA_SHIFT) - 1, rlo = 0, rhi = 0;
+     uint64_t f = atomic_load_explicit(&g_cur_frame, memory_order_relaxed), lowm = ((uint64_t)1 << 40) - 1, ft = (f & 0xffffff) << 40; uint32_t fs = (uint32_t)f + 1;
+-    static dispatch_queue_t q; static dispatch_once_t once;
+-    dispatch_once(&once, ^{ q = dispatch_queue_create("rb.pool.ahead", dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_DEFAULT, 0)); });
++    static dispatch_once_t once;
++    dispatch_once(&once, ^{ g_rb_pool_ahead_q = dispatch_queue_create("rb.pool.ahead", dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_DEFAULT, 0)); });
+     int bounded = rb_pa_queue_budget_on();
+     uint64_t limit = bounded ? rb_pa_queue_limit() : 0;
+     atomic_fetch_add_explicit(&g_pa_tex, 1, memory_order_relaxed);
+@@ -4947,13 +4964,13 @@
+             } while (!atomic_compare_exchange_weak_explicit(&g_pa_budget, &o, nw, memory_order_relaxed, memory_order_relaxed));
+             if (ask < 0 && bounded) atomic_fetch_sub_explicit(&g_pa_pending, extra, memory_order_relaxed);
+         }
+-        if (ask == 1) { atomic_store_explicit(slot, fs, memory_order_relaxed); if (rhi > rlo && rhi == s) rhi = x; else { if (rhi > rlo) rb_pa_post(q, rlo, rhi, a, e, bounded); rlo = s; rhi = x; } continue; }
+-        if (rhi > rlo) rb_pa_post(q, rlo, rhi, a, e, bounded);
++        if (ask == 1) { atomic_store_explicit(slot, fs, memory_order_relaxed); if (rhi > rlo && rhi == s) rhi = x; else { if (rhi > rlo) rb_pa_post(g_rb_pool_ahead_q, rlo, rhi, a, e, bounded); rlo = s; rhi = x; } continue; }
++        if (rhi > rlo) rb_pa_post(g_rb_pool_ahead_q, rlo, rhi, a, e, bounded);
+         rlo = rhi = 0;
+         if (ask == -2) { atomic_fetch_add_explicit(&g_pa_throttled, 1, memory_order_relaxed); return; }
+         if (ask < 0) { atomic_fetch_add_explicit(&g_pa_over, 1, memory_order_relaxed); return; }   // the frame's budget is spent: the rest is left to the uploads' own asks
+     }
+-    if (rhi > rlo) rb_pa_post(q, rlo, rhi, a, e, bounded);
++    if (rhi > rlo) rb_pa_post(g_rb_pool_ahead_q, rlo, rhi, a, e, bounded);
+ }
+ // hle_nvn.c's long-frame line: pages texture reads found not in memory since the last call, those in pools without CPU access (L16: what a private backing of such pools could
+ //   save), and the reads not looked at (not wholly in the window's files); all -1 where the window is not in files (s2a_guest_fd), where nothing is looked at
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -87,6 +87,22 @@
+ int nvn_be_shutdown_session(void) {
+     rb_sub_open(2);   // RewindBox (patch 0071): no idle release by the pressure handler from here to the next session's first submission end (it waits for one under way; nvn_mtl.m rb_press_release)
+     int e = session_wait_backend(); if (e) { MLOG("【红】重启：Metal 工作仍持有旧会话 (%d)", e); return e; }
++    if (rb_park_compat()) {
++        // Guest/encode and upload producers are already retired by session_wait_backend.
++        dispatch_group_t reads = dispatch_group_create();
++        if (g_rb_tex_ahead_q) dispatch_group_async(reads, g_rb_tex_ahead_q, ^{});
++        if (g_rb_pool_ahead_q) dispatch_group_async(reads, g_rb_pool_ahead_q, ^{});
++        uint64_t begin = now_ns();
++        if (dispatch_group_wait(reads, dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_SEC))) {
++            MLOG("RewindBox (patch 0097): guest read-ahead did not drain");
++            return -ETIMEDOUT;
++        }
++        for (size_t i = 0; i < sizeof g_pf_recent / sizeof *g_pf_recent; i++) atomic_store(&g_pf_recent[i], 0);
++        for (size_t i = 0; i < sizeof g_pa_last / sizeof *g_pa_last; i++) atomic_store(&g_pa_last[i], 0);
++        atomic_store(&g_pf_budget, 0);
++        atomic_store(&g_pa_budget, 0);
++        MLOG("RewindBox (patch 0097): guest read-ahead drained in %.1f ms", (now_ns() - begin) / 1e6);
++    }
+     // Keep completed immutable shader loads in the device cache. This also
+     // consumes the old prefetch handoff before its pipeline maps are cleared.
+     warm_claim();

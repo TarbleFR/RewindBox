@@ -362,6 +362,8 @@ class GameLaunchManager extends ChangeNotifier with WidgetsBindingObserver {
               _triggerClose();
             }
           });
+      // A game can close while its launch reply is still coming back from the native bridge.
+      if (!S2ArmInternalService.sessionRunning) _triggerClose();
       _log.i('[GameLaunchManager] S2Arm uses native session-end monitoring.');
       return;
     }

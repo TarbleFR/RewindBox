@@ -43,18 +43,19 @@ ARMSX2 bridges are `.mm`, where a comparison is a C++ `bool`. Not observed on a 
   refuses the launch with its own code, `switch1EngineLoaded` (same-named message: the Switch 1 engine was loaded in
   this session, close and reopen RewindBox). It answered `engineRestartRequired` before 12 Nov 2026. The status map
   keeps the flag as `melonxCoreLoaded` (diagnostics only).
-- After one launch in a process the plugin refuses a second (`engineRestartRequired`, message `restartRequired`, about
-  Switch 2 only): v1 is one Switch 2 game per process.
+- The plugin can resume the same Switch 2 title after session retirement (patch 0010). A second title requires a new
+  process (`engineRestartRequired`). The pinned launch context and the executable pages belong to the original title.
 
 ### Launch sequence (`launchGame`)
 
-1. Refuse if MeloNX loaded, or if a launch already ran. Read the image pack's boot plan (`S2ArmPackPlan`).
+1. Refuse if MeloNX loaded or the active session is still closing. Resume the original title if parked, otherwise
+   check whether this process can load the engine and read the image pack's boot plan (`S2ArmPackPlan`).
 2. iOS 26+: start the JIT helper (`S2ArmJitSession`), wait for connect and attach. `s2arm_code_begin(universal)`.
 3. Prove the debugger round-trip (command 3 with the session nonce) before the `dlopen`, as the RPCS3 loader does.
 4. Prepare the spare pool: R|X pages for the code the game loads after the detach (later NROs), filled with command 1 in
    chunks of at most 16 MiB while the helper is attached.
 5. `setenv("DOTNET_GCSegmentSize","2000000",0)` and `setenv("MTL_SHADER_CACHE_SIZE","67108864",0)` (the engine's `main`,
-   study § 9.1), `setenv("S2A_WORKGROUP","1",0)` (the engine's frame workgroup, see "Frame workgroup" below), `rb_s2arm_engine_mark_loading()`, then `dlopen(S2ArmEngine, RTLD_NOW | RTLD_GLOBAL)` (the engine looks up
+   study § 9.1), select the workgroup default from `S2A_RB_PARK_COMPAT`, call `rb_s2arm_engine_mark_loading()`, then `dlopen(S2ArmEngine, RTLD_NOW | RTLD_GLOBAL)` (the engine looks up
    85 of its own functions with `dlsym(RTLD_DEFAULT)`, so it must be global). Its exports are restricted to the guest entry points and the names it looks up by string (`build-utils/s2arm/engine/export_list.py`), so its third-party symbols (glslang, whose weak definitions DolphinCore also carries) are not coalesced with another engine's.
 6. `s2a_rb_guest_configure(&config, …)` with the prepared paths and `prepare_code = s2arm_code_prepare`.
 7. Main thread: present `s2a_rb_guest_make_view_controller()` full screen; the start runs in the presentation completion.
@@ -64,7 +65,8 @@ ARMSX2 bridges are `.mm`, where a comparison is a C++ `bool`. Not observed on a 
    hook has been quiet for 2 s, the host issues command 0 and completes the JIT transaction. Code mapped after that comes
    from the spare pool: its pages are `vm_remap`-ed onto the engine's address and a writable alias is returned. New aliases
    after the detach are proved on device for the probe (802, `docs/s2arm-prototype-2026-11-10.md`) but not yet for the engine.
-10. `session_ended(code, reason)` is delivered to Dart through the channel (`sessionEvents`).
+10. On `session_parked` or `session_ended`, dismiss the UIKit view. Its completion releases the active launch slot
+    and sends the event to Dart (`sessionEvents`). An end event received during launch still closes the Flutter session.
 
 Every step is one line in `Documents/Diagnostics/Switch2/S2Arm-launch.log`.
 
@@ -454,7 +456,7 @@ IPA 779 (Mario Kart World, races) ran slower than IPA 777 and stuttered more: ra
 - The guest's memory was read back from its files about twice as often a frame (100-290 page-ins against 46-139); 33 frames
   of 200 ms or more read 20 MB or more, against 19. Engine patch 0086's 48 MB texture pool took back 17-40 textures a
   600-frame window, against 1,400-1,900 with 192 MB. Engine patch 0088 makes the 192 MB pool the default again.
-- The performance cores ran at 1.4-2.9 GHz with 1-1.5 cores busy. The bridge now sets `S2A_WORKGROUP=1` before the dlopen
+- The performance cores ran at 1.4-2.9 GHz with 1-1.5 cores busy. In IPA 783 the bridge set `S2A_WORKGROUP=1` before the dlopen
   (overwrite 0): the render thread, the game's main thread and the engine threads the frame waits for (patch 0073) join
   one os_workgroup interval a frame, so the system knows each frame's deadline (S2Arm measured 1.9 -> 3.5 GHz). Patch
   0088 takes no intervals while the thermal state is serious or critical.
@@ -463,6 +465,14 @@ IPA 779 (Mario Kart World, races) ran slower than IPA 777 and stuttered more: ra
   have no kept stage bytes and are made again at their first draw.
 - The audio backend's `[声]` lines (underruns, gaps) went to the host's stderr only; patch 0088 copies them to host.log.
 - Checked by `test/s2arm_session_menu_test.py`. Not observed on a device.
+
+### Returning to RewindBox and relaunching
+
+On IPA 783, Mario Kart World refused the park with code -2 because the frame workgroup was active. The terminal
+shutdown that followed reported code 0. Patch 0097 defaults to `S2A_WORKGROUP=0` for hosted sessions and drains the
+two guest read-ahead queues before releasing the game window. An explicit workgroup value still wins for measurement,
+and `S2A_RB_PARK_COMPAT=0` restores the earlier defaults. The journal records the selected mode, park and dismissal.
+The relaunch and the thermal effect of this mode still need an iPhone check.
 
 ## Lower workgroup power before serious heat (18 November 2026)
 

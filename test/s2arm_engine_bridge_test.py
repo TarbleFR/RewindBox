@@ -346,13 +346,16 @@ check(tree.count('++*entries;\n    if (prep_cleanup_waits()) {') == 1 and '& 255
       'the deletion pauses while a game or a preparation runs')
 launch = plugin[plugin.index('- (void)launchGame:(id)arguments result:(FlutterResult)result {'):plugin.index('- (NSDictionary *)resumeParkedGame:(NSString *)gid {')]
 check(launch.index('S2ArmPreparationGameRunning(YES);') < launch.index('dispatch_async(self.workQueue, ^{')
-      < launch.index("if (![report[@\"success\"] boolValue]) S2ArmPreparationGameRunning(NO);") < launch.index('self.launchInProgress = NO;\n    dispatch_async'),
+      < launch.index('dispatch_async(dispatch_get_main_queue(), ^{')
+      < launch.index('if (![report[@"success"] boolValue]) {') < launch.index('S2ArmPreparationGameRunning(NO);')
+      < launch.index('self.launchInProgress = NO;\n      result(report);'),
       'a launch or a resume pauses the deletion, and a failed one lets it go on')
 for callback in ('static void s2arm_session_parked(const char *reason, void *context) {',
                  'static void s2arm_session_ended(int code, const char *reason, void *context) {'):
     body = plugin[plugin.index(callback):]
     body = body[:body.index('\n}\n')]
-    check('S2ArmPreparationGameRunning(NO);' in body, f'{callback.split()[2].split("(")[0]} resumes the deletion')
+    check(body.index('[self closeSessionViewWithCompletion:^{') < body.index('S2ArmPreparationGameRunning(NO);')
+          < body.index('invokeMethod:@"sessionEnded"'), f'{callback.split()[2].split("(")[0]} resumes deletion after the view closes')
 register = plugin[plugin.index('+ (void)registerWithRegistrar:'):plugin.index('- (void)handleMethodCall:')]
 check('S2ArmPreparationCleanupAtStart();' in register, 'what an earlier run of the app left is deleted at its next start')
 check('[@".discarded-" stringByAppendingString:NSUUID.UUID.UUIDString]' in prep, 'each moved-aside root has a name of its own')

@@ -98,12 +98,13 @@ class Settings(unittest.TestCase):
         self.assertLess(call, PLUGIN.index('dlopen(enginePath', launch))
         self.assertEqual(PLUGIN.count('S2ArmGuestFileSpace();'), 1)
 
-    def test_the_launch_turns_on_the_frame_workgroup(self):
-        # IPA 779: the performance cores at 1.4-2.9 GHz with 1-1.5 cores busy. Mode 1 (render thread, main thread, the engine threads of patch 0073), set before
-        # the dlopen, overwrite 0 so that a value already set wins; patch 0088 takes no intervals under heat.
+    def test_the_launch_selects_park_compatible_workgroup_default(self):
+        # IPA 783: the active frame workgroup refused the park. Preserve explicit A/B values before dlopen.
         launch = PLUGIN.index('- (NSDictionary *)runLaunchWithGid')
-        wg = PLUGIN.index('setenv("S2A_WORKGROUP", "1", 0);', launch)
-        self.assertLess(PLUGIN.index('setenv("MTL_SHADER_CACHE_SIZE"', launch), wg)
+        park = PLUGIN.index('setenv("S2A_RB_PARK_COMPAT", "1", 0);', launch)
+        mode = PLUGIN.index('BOOL parkEnabled = parkCompat && strcmp(parkCompat, "1") == 0;', park)
+        wg = PLUGIN.index('setenv("S2A_WORKGROUP", parkEnabled ? "0" : "1", 0);', mode)
+        self.assertLess(PLUGIN.index('setenv("MTL_SHADER_CACHE_SIZE"', launch), park)
         self.assertLess(wg, PLUGIN.index('dlopen(enginePath', launch))
         self.assertEqual(PLUGIN.count('setenv("S2A_WORKGROUP"'), 1)
 
@@ -128,15 +129,22 @@ class Bridge(unittest.TestCase):
         resume = PLUGIN.index('- (NSDictionary *)resumeParkedGame:')
         body = PLUGIN[resume:PLUGIN.index('static NSDictionary *launchFail(', resume)]
         self.assertLess(body.index('S2ArmSettingsPrepareLaunch();'), body.index('resumeRc = resume(error, sizeof error);'))
+        self.assertLess(body.index('self.parkedGameId = nil;\n                           resumeRc ='), body.index('resumeRc = resume(error, sizeof error);'))
         self.assertLess(body.index('resumeRc = resume(error, sizeof error);'), body.index('} else [self attachSessionMenuTo:vc stop:stop];'))
         self.assertIn('dlsym(engine, S2A_RB_GUEST_STOP)', PLUGIN)
 
     def test_the_session_end_closes_the_game_view_first(self):
-        ended = block(PLUGIN, 'static void s2arm_session_ended(int code, const char *reason, void *context) {')
-        self.assertLess(ended.index('[self closeSessionView];'), ended.index('invokeMethod:@"sessionEnded"'))
-        close = block(PLUGIN, '- (void)closeSessionView {')
+        for signature in (
+            'static void s2arm_session_ended(int code, const char *reason, void *context) {',
+            'static void s2arm_session_parked(const char *reason, void *context) {',
+        ):
+            ended = block(PLUGIN, signature)
+            self.assertLess(ended.index('[self closeSessionViewWithCompletion:^{'), ended.index('self.runningGameId = nil;'))
+            self.assertLess(ended.index('self.runningGameId = nil;'), ended.index('invokeMethod:@"sessionEnded"'))
+        close = block(PLUGIN, '- (void)closeSessionViewWithCompletion:(dispatch_block_t)completion {')
         self.assertIn('[self.sessionMenu detach];', close)
-        self.assertIn('dismissViewControllerAnimated:NO', close)
+        self.assertIn('dismissViewControllerAnimated:NO completion:completion', close)
+        self.assertIn('completion();', close)
 
 
 class Menu(unittest.TestCase):
