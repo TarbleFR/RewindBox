@@ -87,6 +87,33 @@ void main() {
       expect(Switch2ExportContent.exportFolder('/g/Game/base/exefs/main.npdm'), '/g/Game');
     });
 
+    test('flat base needs its own valid NPDM and RomFS and gives way to a wrapped base', () {
+      final flat = write('Pack/Game/exefs/main.npdm', npdm());
+      final root = path.join(temp.path, 'Pack', 'Game');
+      expect(Switch2ExportContent.isLibraryEntry(flat), isFalse);
+      write('Pack/Game/romfs/data', [1]);
+      expect(Switch2ExportContent.isLibraryEntry(flat), isTrue);
+      expect(Switch2ExportContent.exportFolder(flat), root);
+      write('Pack/Game/control.nacp', nacp(version: '1.0'));
+      expect(Switch2ExportContent.findControl(root)?.directory, root);
+
+      write('Pack/Game/updates/2/control.nacp', nacp(version: '2.0'));
+      final update = write('Pack/Game/updates/2/exefs/main.npdm', npdm());
+      write('Pack/Game/updates/2/romfs/data', [2]);
+      expect(Switch2ExportContent.isLibraryEntry(update), isFalse);
+      final dlc = write('Pack/Game/dlc/04000000000abcde/exefs/main.npdm', npdm());
+      write('Pack/Game/dlc/04000000000abcde/romfs/data', [3]);
+      expect(Switch2ExportContent.isLibraryEntry(dlc), isFalse);
+      expect(Switch2ExportContent.findControl(root)?.directory, path.dirname(path.dirname(update)));
+
+      final corrupt = write('Broken/exefs/main.npdm', [0]);
+      write('Broken/romfs/data', [1]);
+      expect(Switch2ExportContent.isLibraryEntry(corrupt), isFalse);
+      final wrapped = write('Pack/Game/base/exefs/main.npdm', npdm());
+      expect(Switch2ExportContent.isLibraryEntry(wrapped), isTrue);
+      expect(Switch2ExportContent.isLibraryEntry(flat), isFalse);
+    });
+
     test('libraryFileName: <title id>.npdm, else folder name and a path digest, never main.npdm', () {
       expect(
         Switch2ExportContent.libraryFileName('/g/Game/base/exefs/main.npdm', '0100ABCDEF012000'),

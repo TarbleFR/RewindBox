@@ -715,23 +715,52 @@ static int read_tid(ctx_t *x, const char *npdm, uint64_t *tid) {
     return code;
 }
 
-static char *find_dump(const char *root) {
-    char *probe = pjoin3(root, "base", "exefs/main.npdm");
-    if (probe && is_file(probe)) {
-        free(probe);
-        return sdup(root);
+static int reserved_flat_root(const char *root) {
+    char *normalized = normpath(root);
+    if (!normalized) return 1;
+    char *slash = strrchr(normalized, '/');
+    const char *name = slash ? slash + 1 : normalized;
+    int reserved = !strcmp(name, "base") || !strcmp(name, "updates") || !strcmp(name, "dlc");
+    if (slash) {
+        *slash = 0;
+        const char *parent = strrchr(normalized, '/');
+        parent = parent ? parent + 1 : normalized;
+        reserved |= !strcmp(parent, "updates") || !strcmp(parent, "dlc");
     }
+    free(normalized);
+    return reserved;
+}
+
+static const char *base_part(const char *root) {
+    char *probe = pjoin3(root, "base", "exefs/main.npdm");
+    int wrapped = probe && is_file(probe);
     free(probe);
+    if (wrapped) return "base";
+
+    // A flat export has its own RomFS, in addition to the NPDM checked by the caller.
+    char *romfs = pjoin(root, "romfs");
+    char *npdm = pjoin(root, "exefs/main.npdm");
+    int flat = romfs && npdm && is_dir(romfs) && is_file(npdm);
+    free(romfs);
+    free(npdm);
+    return flat && !reserved_flat_root(root) ? "." : NULL;
+}
+
+static char *find_dump(const char *root, const char **base) {
+    *base = base_part(root);
+    if (*base) return sdup(root);
     list_t names = {0};
     if (listdir(root, &names)) return NULL;
     char *found = NULL;
     for (size_t i = 0; !found && i < names.n; i++) {
-        char *d = pjoin(root, names.v[i]);
+        const char *name = names.v[i];
+        if (name[0] == '.' || !strcmp(name, "base") || !strcmp(name, "exefs") ||
+            !strcmp(name, "romfs") || !strcmp(name, "updates") || !strcmp(name, "dlc")) continue;
+        char *d = pjoin(root, name);
         if (!d) break;
-        char *p = is_dir(d) ? pjoin3(d, "base", "exefs/main.npdm") : NULL;
-        if (p && is_file(p)) found = d;
+        *base = is_dir(d) ? base_part(d) : NULL;
+        if (*base) found = d;
         else free(d);
-        free(p);
     }
     list_free(&names);
     return found;
@@ -740,9 +769,10 @@ static char *find_dump(const char *root) {
 int rb_s2arm_ns2_detect(const char *root, char *dump, size_t dump_size, uint64_t *program_id, char *error, size_t error_size) {
     ctx_t x = {error, error_size, NULL};
     if (!root || !is_dir(root)) return fail(&x, RB_S2ARM_NS2_INVALID, "not a folder");
-    char *d = find_dump(root);
-    if (!d) return fail(&x, RB_S2ARM_NS2_INVALID, "%s is not a Switch 2 export folder (needs base/exefs/main.npdm)", root);
-    char *npdm = pjoin3(d, "base", "exefs/main.npdm");
+    const char *base = NULL;
+    char *d = find_dump(root, &base);
+    if (!d) return fail(&x, RB_S2ARM_NS2_INVALID, "%s is not a Switch 2 export folder (needs base/exefs/main.npdm, or exefs/main.npdm alongside romfs/)", root);
+    char *npdm = pjoin3(d, base, "exefs/main.npdm");
     uint64_t tid = 0;
     int r = npdm ? read_tid(&x, npdm, &tid) : fail(&x, RB_S2ARM_NS2_IO, "out of memory");
     free(npdm);
@@ -1202,10 +1232,10 @@ static int ascii_lower_cmp(const void *a, const void *b) {
     }
 }
 
-static int convert(ctx_t *x, const char *dump, const char *out, const char *name) {
+static int convert(ctx_t *x, const char *dump, const char *base_part_name, const char *out, const char *name) {
     const rb_s2arm_ns2_dump_request *rq = x->request;
     int code = 0;
-    char *base = pjoin(dump, "base"), *npdm0 = base ? pjoin3(base, "exefs", "main.npdm") : NULL;
+    char *base = pjoin(dump, base_part_name), *npdm0 = base ? pjoin3(base, "exefs", "main.npdm") : NULL;
     char *updates = pjoin(dump, "updates"), *upd = NULL, *tmp = NULL, *exsrc = NULL, *tmp_exefs = NULL, *keyfile = NULL;
     char *icon = NULL, *dumpname = NULL;
     list_t ups = {0}, dlcs = {0};
@@ -1729,10 +1759,11 @@ int rb_s2arm_ns2_dump(const rb_s2arm_ns2_dump_request *request, char *error, siz
     if (error && error_size) error[0] = 0;
     if (!request || !request->export_dir || !request->output_dir || !*request->output_dir)
         return fail(&x, RB_S2ARM_NS2_INVALID, "incomplete request");
-    char *dump = is_dir(request->export_dir) ? find_dump(request->export_dir) : NULL;
-    if (!dump) return fail(&x, RB_S2ARM_NS2_INVALID, "%s is not a Switch 2 export folder (needs base/exefs/main.npdm)", request->export_dir);
+    const char *base = NULL;
+    char *dump = is_dir(request->export_dir) ? find_dump(request->export_dir, &base) : NULL;
+    if (!dump) return fail(&x, RB_S2ARM_NS2_INVALID, "%s is not a Switch 2 export folder (needs base/exefs/main.npdm, or exefs/main.npdm alongside romfs/)", request->export_dir);
     char *out = normpath(request->output_dir);
-    int code = out ? convert(&x, dump, out, request->name) : fail(&x, RB_S2ARM_NS2_IO, "out of memory");
+    int code = out ? convert(&x, dump, base, out, request->name) : fail(&x, RB_S2ARM_NS2_IO, "out of memory");
     free(out);
     free(dump);
     return code;

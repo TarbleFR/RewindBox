@@ -5,6 +5,7 @@ name: S2Arm library layer
 on:
   push:
     branches:
+      - Claude
       - work/s2arm-switch2-library-20261111
       - work/s2arm-switch2-prototype-20261110
   workflow_dispatch:
@@ -14,7 +15,10 @@ permissions:
 
 jobs:
   library:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.ref != 'refs/heads/Claude' || contains(github.event.head_commit.message, '[s2arm-library]') }}
     runs-on: ubuntu-latest
+    env:
+      IMPORT_ONLY: ${{ github.event_name == 'push' && github.ref == 'refs/heads/Claude' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,10 +34,16 @@ jobs:
       - name: Resolve dependencies
         run: flutter pub get --enforce-lockfile
 
+      - name: Switch 2 import and library recognition
+        if: env.IMPORT_ONLY == 'true'
+        run: flutter test test/s2arm_internal_service_test.dart test/switch2_export_content_test.dart
+
       - name: Analyze
+        if: env.IMPORT_ONLY != 'true'
         run: flutter analyze --no-fatal-infos
 
       - name: Flutter tests
+        if: env.IMPORT_ONLY != 'true'
         run: >
           flutter test
           test/s2arm_internal_service_test.dart
@@ -53,9 +63,11 @@ jobs:
           test/rewindbox_glacier_test.dart
 
       - name: Switch 2 settings and in-game menu contract (Dart strings against the native bridge)
+        if: env.IMPORT_ONLY != 'true'
         run: python3 -B test/s2arm_session_menu_test.py
 
       - name: Switch 2 empty-state hint contract
+        if: env.IMPORT_ONLY != 'true'
         run: python3 -B test/switch2_empty_hint_contract_test.py
 
       - name: Storage contract (IMPORT_SITES)

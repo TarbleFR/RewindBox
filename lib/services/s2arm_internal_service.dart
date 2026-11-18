@@ -492,8 +492,11 @@ abstract final class S2ArmInternalService {
     await _removeStaging(staging);
 
     final detected = await detectExport(picked);
-    final exports = detected['success'] == true
-        ? <Map<String, dynamic>>[detected]
+    // Native detection also accepts a parent for direct launch. An import of that parent must scan
+    // all its children, including deeper siblings, instead of silently importing the first match.
+    final detectedRoot = detected['exportDir']?.toString() ?? picked;
+    final exports = detected['success'] == true && path.equals(detectedRoot, picked)
+        ? <Map<String, dynamic>>[{...detected, 'exportDir': detectedRoot}]
         : await _exportsBelow(picked);
     if (exports.isEmpty) {
       // A folder that holds NUP containers instead of an export: they are imported as the NUP item does.
@@ -668,7 +671,7 @@ abstract final class S2ArmInternalService {
 
   /// The Switch 2 exports inside [picked] when it is not one itself: a folder that holds the game folder (for example
   /// "<game> + Emulator/<game>/base/exefs/main.npdm") or several games. Looks up to three levels down, never inside an
-  /// export's own base / exefs / romfs, and asks detectExport about each candidate that has base/exefs/main.npdm.
+  /// export's own base, ExeFS, RomFS, updates or DLC, and validates each base NPDM with native detection.
   static Future<List<Map<String, dynamic>>> _exportsBelow(String picked) async {
     final found = <Map<String, dynamic>>[];
     var level = <Directory>[Directory(picked)];
@@ -684,11 +687,15 @@ abstract final class S2ArmInternalService {
         children.sort((a, b) => a.path.compareTo(b.path));
         for (final child in children) {
           final name = path.basename(child.path);
-          if (child is! Directory || name.startsWith('.') || const {'base', 'exefs', 'romfs'}.contains(name)) continue;
-          if (await File(path.join(child.path, 'base', 'exefs', 'main.npdm')).exists()) {
+          if (child is! Directory || name.startsWith('.') ||
+              const {'base', 'exefs', 'romfs', 'updates', 'dlc'}.contains(name.toLowerCase())) continue;
+          if (await File(path.join(child.path, 'base', 'exefs', 'main.npdm')).exists() ||
+              await File(path.join(child.path, 'exefs', 'main.npdm')).exists()) {
             final detected = await detectExport(child.path);
-            if (detected['success'] == true) {
-              found.add(detected['exportDir'] == null ? {...detected, 'exportDir': child.path} : detected);
+            final root = detected['exportDir']?.toString() ?? child.path;
+            if (detected['success'] == true && path.equals(root, child.path)) {
+              found.add({...detected, 'exportDir': root});
+              if (found.length >= 200) return found;
               continue;
             }
           }

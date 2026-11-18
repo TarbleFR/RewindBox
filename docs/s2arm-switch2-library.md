@@ -27,7 +27,8 @@ service answers `engineMissing`: the playlist is listed but unavailable and noth
 
 ## Decisions
 
-- **Library entry.** One row per export, at `<export>/base/exefs/main.npdm`. Files under `updates/` or `dlc/` are
+- **Library entry.** One row per export, at `<export>/base/exefs/main.npdm` or at `<export>/exefs/main.npdm`
+  for a flat export with a valid NPDM and a sibling `romfs/`. Files under `updates/` or `dlc/` are
   never rows (`Switch2ExportContent.isLibraryEntry`). The S2Arm `Games` root is scanned as is (direct root).
 - **Title and id.** Title from `control.nacp` for the device language (Switch language order), then American English,
   then any entry, else the export folder name. Title id from the NPDM (`META`, ACI0 offset at 0x70, program id at

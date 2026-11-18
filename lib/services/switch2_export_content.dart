@@ -15,7 +15,7 @@ class Switch2Control {
 }
 
 /// Reads what the library needs from a Switch 2 console export (docs/s2arm-switch2-library.md): the program id from
-/// base/exefs/main.npdm, the title, publisher and display version from control.nacp, the icon. Pure Dart, synchronous
+/// the base ExeFS's main.npdm, the title, publisher and display version from control.nacp, the icon. Pure Dart, synchronous
 /// and bounded; it never reads a RomFS and never writes. The export layout and the lookups mirror the native
 /// preparation in native/s2arm/prepare/s2arm_ns2_dump.c.
 abstract final class Switch2ExportContent {
@@ -53,27 +53,39 @@ abstract final class Switch2ExportContent {
 
   // ---------------- library entry ----------------
 
-  /// Whether [filePath] is the NPDM of an export's base program: `<export>/base/exefs/main.npdm`. Entries under an
-  /// export's `updates/<n>/` or `dlc/<n>/` are never library entries, nor is a `base` folder without an export folder
-  /// above it.
+  /// Whether [filePath] is the NPDM of an export's base program. Flat exports also need a readable NPDM and a
+  /// sibling RomFS. Entries from updates and DLC are never independent games.
   static bool isLibraryEntry(String filePath) {
-    final segments = path.split(path.normalize(filePath.replaceAll('\\', '/')));
+    final normalized = path.normalize(filePath.replaceAll('\\', '/'));
+    final segments = path.split(normalized);
     final count = segments.length;
-    if (count < 4) return false;
+    if (count < 3) return false;
     if (segments[count - 1].toLowerCase() != 'main.npdm') return false;
     if (segments[count - 2].toLowerCase() != 'exefs') return false;
-    if (segments[count - 3].toLowerCase() != 'base') return false;
-    final exportName = segments[count - 4].toLowerCase();
-    if (exportName == 'updates' || exportName == 'dlc') return false;
-    if (count >= 5) {
-      final parent = segments[count - 5].toLowerCase();
-      if ((parent == 'updates' || parent == 'dlc') && RegExp(r'^\d+$').hasMatch(exportName)) return false;
-    }
-    return true;
+    final wrapped = segments[count - 3].toLowerCase() == 'base';
+    final rootIndex = count - (wrapped ? 4 : 3);
+    if (rootIndex < 0 || segments[rootIndex] == path.separator) return false;
+    const versionContainers = {'updates', 'dlc'};
+    if (versionContainers.contains(segments[rootIndex].toLowerCase()) ||
+        (rootIndex > 0 && versionContainers.contains(segments[rootIndex - 1].toLowerCase()))) return false;
+    if (wrapped) return true;
+    final root = exportFolder(normalized);
+    return baseDirectory(root) == root && titleId(normalized) != null;
   }
 
-  /// The export folder of a library entry (`<export>/base/exefs/main.npdm` -> `<export>`).
-  static String exportFolder(String npdmPath) => path.dirname(path.dirname(path.dirname(npdmPath)));
+  static String exportFolder(String npdmPath) {
+    final versionRoot = path.dirname(path.dirname(npdmPath));
+    return path.basename(versionRoot).toLowerCase() == 'base' ? path.dirname(versionRoot) : versionRoot;
+  }
+
+  /// The wrapped base takes precedence when both layouts are present, as in native preparation.
+  static String baseDirectory(String exportDir) {
+    final wrapped = path.join(exportDir, 'base');
+    if (File(path.join(wrapped, 'exefs', 'main.npdm')).existsSync()) return wrapped;
+    if (File(path.join(exportDir, 'exefs', 'main.npdm')).existsSync() &&
+        Directory(path.join(exportDir, 'romfs')).existsSync()) return exportDir;
+    return wrapped;
+  }
 
   /// The `filename` stored for a library entry in `user_roms`. Every entry's file is `main.npdm`, and scraped
   /// metadata is keyed by (system, filename) (`user_screenscraper_metadata`, UNIQUE(app_system_id, filename)) while
@@ -139,7 +151,7 @@ abstract final class Switch2ExportContent {
     } on FileSystemException {
       // No usable update folder; the base is still read.
     }
-    roots.add(path.join(exportDir, 'base'));
+    roots.add(baseDirectory(exportDir));
     return roots;
   }
 

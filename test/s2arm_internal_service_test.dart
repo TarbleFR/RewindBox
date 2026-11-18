@@ -270,14 +270,22 @@ void main() {
       }
       final pack = '${temp.path}/Mario Kart World + Emulator';
       await game('$pack/Mario Kart World', 64);
-      await game('${temp.path}/Two games/A', 16);
-      await game('${temp.path}/Two games/sub/B', 32);
+      final batch = '${temp.path}/Two games';
+      await game('$batch/A', 16);
+      await game('$batch/sub/B', 32);
+      await Directory('$batch/sub/B/base/exefs').rename('$batch/sub/B/exefs');
+      await Directory('$batch/sub/B/base/romfs').rename('$batch/sub/B/romfs');
+      await game('$batch/sub/B/updates/2', 8);
+      await game('$batch/sub/B/dlc/0400000000000011', 8);
       messenger.setMockMethodCallHandler(channel, (call) async {
         final folder = (call.arguments as Map)['exportFolder'] as String;
         if (call.method == 'detectExport') {
-          if (!await File('$folder/base/exefs/main.npdm').exists()) return {'success': false, 'code': 'notExportFolder'};
-          final gid = folder.endsWith('/A') ? '0100000000000A00' : folder.endsWith('/B') ? '0100000000000B00' : '0100ABCDEF000000';
-          return {'success': true, 'exportDir': folder, 'gid': gid, 'programId': gid.toLowerCase()};
+          final root = folder == batch ? '$batch/A' : folder;
+          if (!await File('$root/base/exefs/main.npdm').exists() && !await File('$root/exefs/main.npdm').exists()) {
+            return {'success': false, 'code': 'notExportFolder'};
+          }
+          final gid = root.endsWith('/A') ? '0100000000000A00' : root.endsWith('/B') ? '0100000000000B00' : '0100ABCDEF000000';
+          return {'success': true, 'exportDir': root, 'gid': gid, 'programId': gid.toLowerCase()};
         }
         if (call.method == 'gameInfo') return {'success': true, 'title': path.basename(folder)};
         return null;
@@ -286,9 +294,13 @@ void main() {
       expect(result.imported, 1, reason: result.items.map((i) => i.reason).join(','));
       expect(result.items.single.destination!.endsWith('Games/Mario Kart World'), isTrue);
       expect(await File('${result.items.single.destination}/base/exefs/main.npdm').length(), 64);
-      final both = await S2ArmInternalService.importFolderAt('${temp.path}/Two games');
+      final both = await S2ArmInternalService.importFolderAt(batch);
       expect(both.imported, 2);
       expect(both.items.map((i) => i.name).toList(), ['A', 'B']);
+      final flat = both.items.last.destination!;
+      expect(await File('$flat/exefs/main.npdm').length(), 32);
+      expect(await File('$flat/updates/2/base/exefs/main.npdm').length(), 8);
+      expect(await File('$flat/dlc/0400000000000011/base/exefs/main.npdm').length(), 8);
       final empty = await Directory('${temp.path}/Nothing/inside').create(recursive: true);
       final none = await S2ArmInternalService.importFolderAt(empty.parent.path);
       expect(none.imported, 0);

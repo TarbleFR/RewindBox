@@ -539,9 +539,13 @@ static NSString *preparationFingerprint(NSString *exportDir, NSString *chain, NS
   NSFileManager *files = NSFileManager.defaultManager;
   NSMutableString *text = [NSMutableString stringWithString:@"s2arm-prepared 1\n"];
   [text appendFormat:@"%@\nchain %@\nexport %@\n", preparationCodeIdentity(identityKind, engineRun), chain, exportDir];
-  for (NSString *part in [[files contentsOfDirectoryAtPath:exportDir error:nil] sortedArrayUsingSelector:@selector(compare:)]) {
-    if ([part hasPrefix:@"."]) continue;
-    NSString *partPath = [exportDir stringByAppendingPathComponent:part];
+  NSArray<NSString *> *parts = [[files contentsOfDirectoryAtPath:exportDir error:nil] sortedArrayUsingSelector:@selector(compare:)] ?: @[];
+  BOOL wrappedBase = [files fileExistsAtPath:[exportDir stringByAppendingPathComponent:@"base/exefs/main.npdm"]];
+  if (!wrappedBase) parts = [@[@"."] arrayByAddingObjectsFromArray:parts];
+  for (NSString *part in parts) {
+    BOOL flatBase = [part isEqualToString:@"."];
+    if (!flatBase && [part hasPrefix:@"."]) continue;
+    NSString *partPath = flatBase ? exportDir : [exportDir stringByAppendingPathComponent:part];
     [text appendFormat:@"part %@ %.0f\n", part, [[files attributesOfItemAtPath:partPath error:nil].fileModificationDate timeIntervalSince1970]];
     NSString *exefs = [partPath stringByAppendingPathComponent:@"exefs"];
     for (NSString *name in [[files contentsOfDirectoryAtPath:exefs error:nil] sortedArrayUsingSelector:@selector(compare:)]) {

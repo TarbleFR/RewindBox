@@ -13,7 +13,8 @@
 // update), <out>/aoc/<index>/ + aoc.tsv (index = DLC title id - program id - 0x1000),
 // <out>/ctl/control.nacp (the exported one when present, else synthesised exactly as the
 // original, with README.synth), <out>/icon.jpg when exported, and <out>/unpack.tsv.
-// The program id comes from base/exefs/main.npdm (ACI0). The result is built in
+// The program id comes from the base part's exefs/main.npdm (ACI0). The base part may
+// be at the export root with romfs/ alongside exefs/. The result is built in
 // <out>.tmp and renamed at the end; <out>/.ns2_dump_key lets an unchanged export be reused.
 //
 // CI compares the trees with the original, byte for byte, on synthetic export folders
@@ -61,7 +62,7 @@ typedef struct {
 } rb_s2arm_ns2_dump_request;
 
 // ns2_dump.py --detect: root itself or one of its subfolders (in name order) holding
-// base/exefs/main.npdm. On success writes that folder into dump (NUL-terminated) and the
+// a wrapped or flat base. On success writes the export folder into dump (NUL-terminated) and the
 // program id; RB_S2ARM_NS2_INVALID when there is none or its NPDM is malformed.
 int rb_s2arm_ns2_detect(const char *root, char *dump, size_t dump_size, uint64_t *program_id, char *error, size_t error_size);
 

@@ -6,7 +6,7 @@ name: S2Arm engine bridge (iOS compile)
 'on':
   workflow_dispatch:
   push:
-    branches: [work/s2arm-switch2-prototype-20261110]
+    branches: [Claude, work/s2arm-switch2-prototype-20261110]
     paths:
       - .github/workflows/s2arm-bridge-ios.yml
       - packages/s2arm_engine_bridge/**
@@ -34,6 +34,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   compile:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.ref != 'refs/heads/Claude' || contains(github.event.head_commit.message, '[s2arm-bridge]') }}
     runs-on: macos-15
     timeout-minutes: 30
     steps:
@@ -68,6 +69,7 @@ jobs:
           nm -gU build/s2arm-bridge/S2ArmSettings.m.o | grep -q '_S2ArmSettingsSnapshot'
           nm -gU build/s2arm-bridge/S2ArmSessionMenu.m.o | grep -q 'OBJC_CLASS_\$_S2ArmSessionMenu'
       - name: Bridge and in-game menu contracts
+        if: github.event_name == 'workflow_dispatch' || github.ref != 'refs/heads/Claude'
         run: |
           python3 -B test/s2arm_engine_bridge_test.py
           python3 -B test/s2arm_session_menu_test.py
@@ -81,3 +83,8 @@ jobs:
           python3 -B test/s2arm_diag_prompt_test.py
           python3 -B test/s2arm_prepare_identity_test.py
           python3 -B test/s2arm_host_room_test.py
+      - name: Import and preparation identity contracts
+        if: github.event_name == 'push' && github.ref == 'refs/heads/Claude'
+        run: |
+          python3 -B test/s2arm_engine_bridge_test.py
+          python3 -B test/s2arm_prepare_identity_test.py

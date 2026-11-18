@@ -314,6 +314,24 @@ def main():
     run.case('base-only-from-parent', b.parent, check=lambda o: None if unpack(o)['update'] == '' else 'update field')
     run.detect('detect-parent', b.parent)
     run.detect('detect-not-export', inputs / 'Delta' / 'base')
+    flat = mk(inputs / 'FlatParent' / 'Nested' / 'Flat', full=False)
+    for part in ('exefs', 'romfs'):
+        (flat / 'base' / part).rename(flat / part)
+    (flat / 'base').rmdir()
+    detected = subprocess.run([str(run.cli), 'ns2-detect', str(flat.parent)], capture_output=True, text=True)
+    report(detected.returncode == 0 and detected.stdout.strip() == f'{TID:016X}\t{flat}',
+           'detect-flat-from-parent', detected.stderr.strip())
+    flat_out = run.work / 'flat-with-update-and-dlc'
+    rc, log = run.mine(flat, flat_out, ())
+    report(rc == 0 and unpack(flat_out)['update'] == '458752'
+           and (flat_out / 'romfs/S/old.Product.100.bin').is_file()
+           and b'040074a01bf13001' in (flat_out / 'aoc.tsv').read_bytes().lower(),
+           'flat-with-update-and-dlc', log[-200:])
+    broken = inputs / 'BrokenFlat'
+    w(broken / 'exefs/main.npdm', b'invalid')
+    w(broken / 'romfs/data', b'present')
+    rc, log = run.mine(broken, run.work / 'invalid-flat-npdm', ())
+    report(rc == 1 and 'META header' in log, 'invalid-flat-npdm', log)
     # 4. update without exefs/main: exefs from the base, romfs from the update
     u4 = mk(inputs / 'UpdNoMain')
     for v in ('65536', '458752'):
