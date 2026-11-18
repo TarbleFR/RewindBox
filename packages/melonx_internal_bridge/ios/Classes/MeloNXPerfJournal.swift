@@ -140,7 +140,7 @@ final class MeloNXPerfJournal {
     private var started = 0.0
     private var threadWindow = MeloNXReadWindow(), presentationWindow = MeloNXReadWindow()
     private var vmWindow = MeloNXReadWindow(), hardwareWindow = MeloNXReadWindow()
-    private let heat = MeloNXDiagnosticHeat()
+    private let heat: MeloNXDiagnosticHeat
     private var lines = 0, samples = 0
     private var previousShown = Presentation()
     private var previousAudio: [Int64]?
@@ -158,12 +158,14 @@ final class MeloNXPerfJournal {
     private static var inputSource: (() -> String?)?
 
     init(path: String, context: [String:String] = [:], interval: Double = 1, lineLimit: Int = 1800,
-         fps: @escaping () -> [String: Any], presentation: @escaping () -> Presentation,
+         profileOnlyWhenCool: Bool = false, fps: @escaping () -> [String: Any], presentation: @escaping () -> Presentation,
          audio: @escaping () -> [Int64]?, memory: @escaping () -> String? = { nil }) {
         self.path = path; self.interval = interval; self.lineLimit = lineLimit
         self.context = context
         self.fps = fps; self.presentation = presentation; self.audio = audio; self.memory = memory
         self.stalls = MeloNXStallWatch(path:path, context:context)
+        let heat = MeloNXDiagnosticHeat(profileOnlyWhenCool:profileOnlyWhenCool)
+        self.heat = heat
         self.breakdown = MeloNXMemoryBreakdown(path:path, context:context, heat:heat)
         self.hot = MeloNXHotSpots(path:path, context:context, maySample:heat.mayProfile)
     }
@@ -448,9 +450,11 @@ final class MeloNXPerfJournal {
         fields.append("pres=\(frames)/\(Self.decimal(shown.maxGapMs))/\(over20)/\(over40)")
         totalOver50 &+= over50; totalOver100 &+= over100
         fields.append("long=\(over50)/\(over100)")
-        if !shown.gapsMs.isEmpty { fields.append("gaps=" + shown.gapsMs.map { String($0) }.joined(separator:",")) }
-        if !shown.acquireGapsMs.isEmpty { fields.append("acq=" + shown.acquireGapsMs.map { String($0) }.joined(separator:",")) }
-        if !shown.acquireGapsMs.isEmpty { fields.append("acqw=" + Self.decimal(shown.maxAcquireWaitMs)) }
+        if lines < lineLimit {
+            if !shown.gapsMs.isEmpty { fields.append("gaps=" + shown.gapsMs.map { String($0) }.joined(separator:",")) }
+            if !shown.acquireGapsMs.isEmpty { fields.append("acq=" + shown.acquireGapsMs.map { String($0) }.joined(separator:",")) }
+            if !shown.acquireGapsMs.isEmpty { fields.append("acqw=" + Self.decimal(shown.maxAcquireWaitMs)) }
+        }
 
         stalls.enter("audio")
         let pacing = MeloNXEngineCallClass.interactive { audio() }
@@ -464,6 +468,15 @@ final class MeloNXPerfJournal {
             fields.append("dsp=\(delta(0))/\(delta(1))/\(Self.decimal(Double(delta(2)) / 1e6))/\(Self.decimal(Double(values[3]) / 1e6))/\(delta(4))")
             fields.append("out=\(delta(5))/\(delta(6))/\(Self.decimal(Double(delta(7)) / 1e6))/\(Self.decimal(Double(values[8]) / 1e6))")
         } else { fields.append("dsp=- out=-") }
+
+        stalls.enter("memory")
+        let footprint = memory()
+        stalls.exit()
+        MeloNXSessionExit.update(seconds:Int((now - started).rounded()), memory:footprint, owner:markerOwner)
+        let thermal = ProcessInfo.processInfo.thermalState.rawValue
+        hottest = max(hottest, thermal)
+        // The exit marker and end counters continue past the line cap. No further line consumes thread, VM or CPU samples.
+        guard lines < lineLimit else { return }
 
         var current: [UInt64: UInt64] = [:]
         var busy: [(id: UInt64, name: String, ns: UInt64, priority: Int32)] = []
@@ -495,11 +508,7 @@ final class MeloNXPerfJournal {
                     threads:busy.prefix(MeloNXHotSpots.maxThreads).filter { $0.ns > 0 }.map {
                         MeloNXHotSpots.Target(id:$0.id, name:$0.name, priority:$0.priority) })
 
-        stalls.enter("memory")
-        let footprint = memory()
-        stalls.exit()
         if let text = footprint { fields.append("mem=" + text) }
-        MeloNXSessionExit.update(seconds:Int((now - started).rounded()), memory:footprint, owner:markerOwner)
         if let text = vmActivity() { fields.append("vm=" + text) }
         let served = hwActivity()
         if let text = served.hw { fields.append("hw=" + text) }
@@ -509,12 +518,9 @@ final class MeloNXPerfJournal {
         if let text = performanceShares(threads:busy.map { (id:$0.id, ns:$0.ns) }, listed:listed) { fields.append("pc=" + text) }
         if let text = Self.input() { fields.append("in=" + text) }
 
-        let thermal = ProcessInfo.processInfo.thermalState.rawValue
-        hottest = max(hottest, thermal)
         fields.append("th=" + Self.thermal(thermal))
         fields.append("lp=" + (ProcessInfo.processInfo.isLowPowerModeEnabled ? "1" : "0"))
 
-        guard lines < lineLimit else { return }
         // Completed read time since session start and true interval, both in milliseconds.
         // A failed counter read has no window on this line and keeps its previous successful baseline.
         let windows = [threadWindow, vmWindow, hardwareWindow, presentationWindow]
@@ -1162,6 +1168,9 @@ final class MeloNXDiagnosticHeat {
     private let lock = NSLock()
     private var policy = Policy()
     private var observer: NSObjectProtocol?
+    private let profileOnlyWhenCool: Bool
+
+    init(profileOnlyWhenCool: Bool = false) { self.profileOnlyWhenCool = profileOnlyWhenCool }
 
     func start() {
         observer = NotificationCenter.default.addObserver(forName:ProcessInfo.thermalStateDidChangeNotification,
@@ -1186,7 +1195,8 @@ final class MeloNXDiagnosticHeat {
 
     func mayProfile() -> Bool {
         lock.lock(); defer { lock.unlock() }
-        return policy.profile(at:ProcessInfo.processInfo.systemUptime)
+        let now = ProcessInfo.processInfo.systemUptime
+        return policy.profile(at:now) && (!profileOnlyWhenCool || policy.walk(at:now))
     }
 
     func mayWalk() -> Bool {

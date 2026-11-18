@@ -193,7 +193,7 @@ check('        routeLock.unlock()\n        tee?(text)\n        appendLock.lock()
 check('MeloNXLiveCapture' not in plugin and 'MeloNXStdioCapture.forwardLive {' in plugin, 'the plugin depends on the journal writer only')
 check('MeloNXLiveCapture.shared.noteAcquire(time:requested, waitMs:waitMs)' in controller and
       controller.index('self.observationLock.unlock()\n            MeloNXLiveCapture.shared.notePresented(time:value.presentedTime, frame:presented)') > 0 and
-      'MeloNXLiveCapture.shared.start(path:path, context:MeloNXStdioCapture.context(generation:generation), owner:ObjectIdentifier(self))' in controller and
+      'MeloNXLiveCapture.shared.start(path:path, context:MeloNXStdioCapture.context(generation:generation), conserveLocalPower:isHogwarts, owner:ObjectIdentifier(self))' in controller and
       'if let self { MeloNXLiveCapture.shared.stop(owner:ObjectIdentifier(self)) }' in controller and
       'MeloNXLiveCapture.shared.setPaused(!pauseReasons.isEmpty)' in controller, 'started and stopped with the session, paused with it, fed outside the layer\'s lock')
 strings = json.loads((ROOT / 'build-utils/melonx/ui-strings.json').read_text())['rows']

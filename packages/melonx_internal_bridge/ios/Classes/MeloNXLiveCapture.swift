@@ -12,7 +12,7 @@ import AVFoundation
 // 11 288 pages decompressed, but one line per second cannot tell which thread worked during the gap, nor whether the
 // time went to the collector, to pages being decompressed or to waiting. This keeps, for the last 40 s:
 //   - every presentation (host time, frame number) and every drawable request (host time, wait);
-//   - every 50 ms, the process's decompression, fault and compression counters and, for the twelve busiest threads
+//   - at the journal's stated cadence, the process's decompression, fault and compression counters and, for the twelve busiest threads
 //     (plus the collector and the engine's render and GPU threads by name), CPU time, kernel run state and where the
 //     thread is (program counter and three return addresses, read without stopping it).
 // A gap of 100 ms or more between two presentations, a manual mark (a volume button on the iPhone, or the computer's
@@ -57,6 +57,7 @@ final class MeloNXLiveCapture {
         private var items: [T] = []
         private var next = 0
         let capacity: Int
+        var count: Int { items.count }
         init(capacity: Int) { self.capacity = max(1, capacity); items.reserveCapacity(self.capacity) }
         mutating func append(_ item: T) {
             if items.count < capacity { items.append(item) } else { items[next] = item }
@@ -110,7 +111,7 @@ final class MeloNXLiveCapture {
     private var epoch = 0
     private var networking = false
     private var owner: ObjectIdentifier?
-    private var lastStart: (path: String, context: [String:String])?
+    private var lastStart: (path: String, context: [String:String], conserveLocalPower: Bool)?
     private let wake = DispatchSemaphore(value:0)
     // One capture thread at a time: a start waits (at most 1 s) for the previous run's thread to leave.
     private let idle = NSCondition()
@@ -136,14 +137,15 @@ final class MeloNXLiveCapture {
     #endif
 
     /// Starts the rings and the capture thread for one game session. `target`: "a.b.c.d:port" or empty (no live copy).
-    func start(path: String, context: [String:String], target: String = MeloNXLiveCapture.preferred, owner: ObjectIdentifier? = nil) {
+    func start(path: String, context: [String:String], target: String = MeloNXLiveCapture.preferred,
+               conserveLocalPower: Bool = false, owner: ObjectIdentifier? = nil) {
         stateLock.lock()
         epoch += 1
         let mine = epoch
         queue.removeAll(); queueBytes = 0; droppedLines = 0
         networking = false
         self.owner = owner
-        lastStart = (path, context)
+        lastStart = (path, context, conserveLocalPower)
         stateLock.unlock()
         wake.signal()
         idle.lock()
@@ -158,7 +160,7 @@ final class MeloNXLiveCapture {
         frames.removeAll(); acquires.removeAll(); pending.removeAll()
         lastFrameTime = 0; lastFrameIndex = 0; paused = false; active = true
         frameLock.unlock()
-        let thread = Thread { [self] in run(epoch:mine, path:path, context:context, target:Self.parse(target)) }
+        let thread = Thread { [self] in run(epoch:mine, path:path, context:context, target:Self.parse(target), conserveLocalPower:conserveLocalPower) }
         thread.name = Self.threadName
         thread.qualityOfService = .utility
         thread.start()
@@ -189,7 +191,7 @@ final class MeloNXLiveCapture {
         stateLock.lock(); let last = lastStart; let owner = self.owner; stateLock.unlock()
         guard let last else { return }
         stop()
-        start(path:last.path, context:last.context, owner:owner)
+        start(path:last.path, context:last.context, conserveLocalPower:last.conserveLocalPower, owner:owner)
     }
 
     /// Whether lines are being queued for a computer (the engine's events are only serialized when they are).
@@ -233,18 +235,19 @@ final class MeloNXLiveCapture {
     func forward(_ line: String) {
         stateLock.lock()
         guard networking else { stateLock.unlock(); return }
+        let wasEmpty = queue.isEmpty
         let bytes = Array(line.utf8)
         queue.append(bytes); queueBytes += bytes.count
         while queue.count > Self.queueLineLimit || queueBytes > Self.queueByteLimit, !queue.isEmpty {
             queueBytes -= queue.removeFirst().count; droppedLines += 1
         }
         stateLock.unlock()
-        wake.signal()
+        if wasEmpty { wake.signal() }
     }
 
     private func current(_ mine: Int) -> Bool { stateLock.lock(); defer { stateLock.unlock() }; return epoch == mine }
 
-    private func run(epoch mine: Int, path: String, context: [String:String], target: (host: String, port: UInt16)?) {
+    private func run(epoch mine: Int, path: String, context: [String:String], target: (host: String, port: UInt16)?, conserveLocalPower: Bool) {
         self.path = path; self.context = context
         samples.removeAll(); names = [:]; previousCpu = [:]; scheduled = []; counts = [:]; records = 0
         sequence = 0; sentLines = 0; sentDatagrams = 0; sentBytes = 0; sendErrors = 0
@@ -256,17 +259,29 @@ final class MeloNXLiveCapture {
             if connected { stateLock.lock(); if epoch == mine { networking = true }; stateLock.unlock() }
         }
         let started = Self.now()
+        let localPlay = conserveLocalPower && target == nil
+        var heat = MeloNXDiagnosticHeat.Policy()
+        func samplePeriod(at time: Double) -> Double {
+            guard localPlay else { return Self.tickSeconds }
+            heat.update(ProcessInfo.processInfo.thermalState.rawValue, at:time)
+            return heat.walk(at:time) ? 0.1 : 0.25
+        }
+        var period = samplePeriod(at:started)
         var nextSample = started, nextRefresh = started, nextStats = started + statsInterval, nextSmooth = started + smoothInterval
         var ownCpu = Self.ownCpuNs()
         write("[MeloNX:live] begin: stream \(stream), live copy \(copy); " +
-              "samples every \(Int(Self.tickSeconds * 1000)) ms, record on a gap of \(Int(Self.gapTriggerMs)) ms or a mark", withContext:true)
+              "samples every \(Int(period * 1000)) ms, record on a gap of \(Int(Self.gapTriggerMs)) ms or a mark", withContext:true)
         while current(mine) {
-            _ = wake.wait(timeout:.now() + Self.tickSeconds)
+            _ = wake.wait(timeout:.now() + period)
             drain()
             receive()
             let time = Self.now()
-            if time >= nextRefresh { refresh(); nextRefresh = time + Self.refreshSeconds }
-            if time >= nextSample { sample(time:time); nextSample = max(nextSample + Self.tickSeconds, time) }
+            if time >= nextRefresh {
+                refresh()
+                period = samplePeriod(at:time)
+                nextRefresh = time + (localPlay ? 4 : Self.refreshSeconds)
+            }
+            if time >= nextSample { sample(time:time); nextSample = time + period }
             frameLock.lock(); let fresh = pending; pending.removeAll(keepingCapacity:true); frameLock.unlock()
             for trigger in fresh {
                 lastTrigger = max(lastTrigger, trigger.time)
@@ -296,7 +311,7 @@ final class MeloNXLiveCapture {
                 let cpu = Self.ownCpuNs()
                 stateLock.lock(); let dropped = droppedLines; let waiting = queue.count; stateLock.unlock()
                 write("[MeloNX:live] t=\(Int(time - started)) lines=\(sentLines)/\(dropped) datagrams=\(sentDatagrams) bytes=\(sentBytes) errors=\(sendErrors) " +
-                      "queued=\(waiting) samples=\(samples.ordered().count) threads=\(keys.count) records=\(records) " +
+                      "queued=\(waiting) samples=\(samples.count) threads=\(keys.count) records=\(records) sampleMs=\(Int(period * 1000)) " +
                       "gap=\(counts["gap", default:0])+\(counts["gapSkipped", default:0]) marks=\(counts["volume", default:0] + counts["pc", default:0]) " +
                       "smooth=\(counts["smooth", default:0]) ownCpuMs=\(String(format:"%.1f", Double(cpu &- ownCpu) / 1e6))", withContext:false)
                 ownCpu = cpu

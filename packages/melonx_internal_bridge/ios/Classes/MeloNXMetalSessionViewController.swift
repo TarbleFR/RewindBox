@@ -102,6 +102,7 @@ final class MeloNXMetalSessionViewController: UIViewController {
     private let host: MeloNXSessionHost
     private let runtime: MeloNXRuntimeAPI?
     private let titleID: String?
+    private var isHogwarts: Bool { titleID?.uppercased() == MeloNXHogwartsGraphics.titleID }
     private let game: URL
     private let locale: String
     private let beforeRun: (() -> Bool)?
@@ -249,6 +250,7 @@ final class MeloNXMetalSessionViewController: UIViewController {
         guard perf == nil, let path = MeloNXStdioCapture.journalPath else { return }
         let layer = surface.metalLayer
         let journal = MeloNXPerfJournal(path:path,context:MeloNXStdioCapture.context(generation:generation),
+            profileOnlyWhenCool:isHogwarts && MeloNXLiveCapture.preferred.isEmpty,
             fps:{ runtime.performanceSnapshot(generation:generation) },
             presentation:{ layer.presentation() },
             audio:{ runtime.audioPacing() },
@@ -256,7 +258,7 @@ final class MeloNXMetalSessionViewController: UIViewController {
         perf = journal
         journal.start()
         // Freeze records and the optional live copy to a computer (MeloNXLiveCapture.swift): this session's, until it ends.
-        MeloNXLiveCapture.shared.start(path:path, context:MeloNXStdioCapture.context(generation:generation), owner:ObjectIdentifier(self))
+        MeloNXLiveCapture.shared.start(path:path, context:MeloNXStdioCapture.context(generation:generation), conserveLocalPower:isHogwarts, owner:ObjectIdentifier(self))
     }
     // "footprint MiB/headroom MiB/device %/donors": phys_footprint, the
     // headroom to this process's jetsam limit (os_proc_available_memory), the
@@ -300,8 +302,11 @@ final class MeloNXMetalSessionViewController: UIViewController {
         // process's stderr (MoltenVK's reports) goes to the journal.
         UIApplication.shared.isIdleTimerDisabled = true
         MeloNXStdioCapture.begin()
-        // Lot 13: who allocates the native heap, for the first two minutes of the session ("[MeloNX:heap]" lines).
-        MeloNXHeapSample.shared.begin(path:MeloNXStdioCapture.journalPath,context:MeloNXStdioCapture.sessionContext)
+        // Heap attribution intercepts malloc/free across the process. A configured live capture
+        // opts the next Hogwarts launch into that window. Ordinary sessions still record OS memory warnings.
+        if !isHogwarts || !MeloNXLiveCapture.preferred.isEmpty {
+            MeloNXHeapSample.shared.begin(path:MeloNXStdioCapture.journalPath,context:MeloNXStdioCapture.sessionContext)
+        }
         do {
             try host.start(game:game,locale:locale,
                 width:Int32(max(1,min(16384,size.width))),height:Int32(max(1,min(16384,size.height))),
