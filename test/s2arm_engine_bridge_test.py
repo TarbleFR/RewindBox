@@ -283,7 +283,8 @@ check('s2arm_journal("prepare", "codeMemory"' in prep[prep.index('static void pr
       and 'footprint >= self->_memoryNotedMB + kMemoryStepMB' in prep, 'a memory line each time the footprint grows by a step')
 check('prep_pack_progress, prep_cancelled, (__bridge void *)self}' in prep, 'the resource pack reports its bytes')
 run = prep[prep.index('- (NSDictionary *)run {'):]
-check(run.index('reusablePreparation(stampPath, fingerprint, gid)') < run.index('[files removeItemAtPath:stampPath error:nil];')
+check(run.index('reusablePreparation(stampPath, fingerprint, gid, paths, exportDir, managedPath, chain, systemData)')
+      < run.index('[files removeItemAtPath:stampPath error:nil];')
       < run.index('if (rename(tree.fileSystemRepresentation, aside.fileSystemRepresentation) == 0) _discarded = aside;')
       < run.index('for (NSString *path in @[ moduleDir, imagesDir, packDir ]) [files removeItemAtPath:path error:nil];')
       < run.index('rb_s2arm_ns2_dump(&dump, error, sizeof error)'),
