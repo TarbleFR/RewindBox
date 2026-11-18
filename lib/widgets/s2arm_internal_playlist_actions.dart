@@ -146,7 +146,6 @@ class _S2ArmInternalPlaylistActionsState
   Future<void> _scrapeImportedGames(S2ArmImportResult result) async {
     const system = S2ArmInternalService.systemFolder;
     try {
-      if (!await ScreenScraperService.hasSavedCredentials()) return;
       final config = await ScraperRepository.getSystemScraperConfig();
       if (config[system] == false) return;
       final entries = {
@@ -160,6 +159,7 @@ class _S2ArmInternalPlaylistActionsState
         if (!entries.contains(export) || Switch2ExportContent.isGenericTitle(game.titleName)) {
           continue;
         }
+        if (!await ScreenScraperService.canScrapeGame(system, game.titleId)) continue;
         final existing = await ScraperRepository.getGameMetadata(system, game.filename);
         if (existing != null) continue;
         await ScreenScraperService.scrapeSingleGame(
@@ -376,9 +376,8 @@ class _S2ArmInternalPlaylistActionsState
       return const SizedBox.shrink();
     }
     final scheme = Theme.of(context).colorScheme;
-    // Strong colours and a label: the button must stand out from the media tabs and the artwork behind it.
-    final background = widget.embedded ? scheme.tertiary : scheme.primary;
-    final foreground = widget.embedded ? scheme.onTertiary : scheme.onPrimary;
+    final background = widget.embedded ? Colors.transparent : scheme.primary;
+    final foreground = widget.embedded ? scheme.onSurface : scheme.onPrimary;
     final label = Text(
       _t('importButton'),
       maxLines: 1,
@@ -399,7 +398,7 @@ class _S2ArmInternalPlaylistActionsState
             size: widget.embedded ? 19.r : 22.r,
             color: foreground,
           );
-    // In the details card's tab bar the button has one tab's width: a filled chip, no room for the label.
+    // The tab bar supplies the embedded button's background.
     final face = Container(
       width: widget.embedded ? 30.r : null,
       height: widget.embedded ? 28.r : 40.r,

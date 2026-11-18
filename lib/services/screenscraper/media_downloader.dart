@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
+import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
 import 'package:neostation/services/logger_service.dart';
 
@@ -98,12 +99,17 @@ class ScreenscraperMediaDownloader {
         }
       }
 
-      final response = await ScreenscraperClient.httpGetWithRetry(
-        Uri.parse(url),
-        timeout: const Duration(seconds: 60),
-        maxRetries: 2,
-        maxDailyRequests: maxDailyRequests,
-      );
+      final uri = Uri.parse(url);
+      final publisherMedia = systemFolder == 'switch2' &&
+          uri.scheme == 'https' && uri.host == 'www.nintendo.com';
+      final response = publisherMedia
+          ? await http.get(uri).timeout(const Duration(seconds: 15))
+          : await ScreenscraperClient.httpGetWithRetry(
+              uri,
+              timeout: const Duration(seconds: 60),
+              maxRetries: 2,
+              maxDailyRequests: maxDailyRequests,
+            );
       if (response.statusCode != 200) {
         _log.e('Error downloading media (${response.statusCode}): $url');
         return (success: false, wasExisting: false, replaced: false);

@@ -5,6 +5,8 @@ import 'dart:ui' show Locale, PlatformDispatcher;
 
 import 'package:path/path.dart' as path;
 
+import 'switch2_publisher_catalogue.dart';
+
 /// The control metadata of one Switch 2 export folder.
 class Switch2Control {
   const Switch2Control({required this.directory, required this.nacp});
@@ -260,7 +262,8 @@ abstract final class Switch2ExportContent {
     }
     final id = (programId ?? titleId(npdmPath))?.trim().toLowerCase();
     // The nxnative profile pairs this program ID with Fire Emblem (including v131072).
-    if (id == '04007ef01f8ae000') return "Fire Emblem: Fortune's Weave";
+    final publisherTitle = Switch2PublisherCatalogue.title(id);
+    if (publisherTitle != null) return publisherTitle;
     if (!isGenericTitle(fallback)) return fallback!.trim();
     final name = path.basename(folder);
     return isGenericTitle(name) ? null : name;

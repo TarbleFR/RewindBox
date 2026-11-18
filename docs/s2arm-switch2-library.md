@@ -51,6 +51,15 @@ service answers `engineMissing`: the playlist is listed but unavailable and noth
   New imports with a usable title are queued once in the background when ScreenScraper is configured and enabled
   for Switch 2. Existing metadata and media are kept by automatic scraping.
   ScreenScraper system id 296 is what the ScreenScraper site lists for Switch 2; it is not confirmed through the API.
+  When the entry or selected artwork is missing, a verified base program ID can select an official publisher
+  entry. Fire Emblem uses the [Nintendo France product page](https://www.nintendo.com/fr-fr/Jeux/Jeux-Nintendo-Switch-2/Fire-Emblem-Fortune-s-Weave-2915498.html)
+  and the [Nintendo Japan physical edition](https://www.nintendo.com/jp/games/switch2/aacsa/products/soft.html).
+  The Japanese cover, French screenshot and background are downloaded directly from Nintendo, with no ScreenScraper
+  credentials sent and no media bundled. The fallback fills empty metadata and keeps existing artwork except
+  square console-icon placeholders; it does not mark a publisher-only result as fully scraped.
+- **Launch title.** After IPA 790 displayed `131072` before Fire Emblem's first frame, both the preparation dialog
+  and the native loading view use the resolved title. Patch 0120 accepts it separately from the prepared
+  control data, so this also works for games that already have a prepared directory.
 - **Launch.** iOS and `switch2` only, policy first, then the stored JIT pairing file (`PairingFileService`, the store
   the other JIT engines use) or a localized failure, then `S2ArmInternalService.launch` behind a non-dismissible
   progress dialog. A failure returns `GameLaunchResult.failure(localized, 'S2Arm: error\ndetail')`; the route never

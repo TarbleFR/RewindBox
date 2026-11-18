@@ -15,14 +15,14 @@ class ScrapeMediaPlaceholder {
   static const int ps3IconHeight = 176;
 
   /// Largest side of a Switch title icon (256 × 256 JPEG in the NACP) copied
-  /// to `box2d` by the MeloNX import. A Switch case cover is portrait.
+  /// to `box2d` by the Switch imports. A case cover is portrait.
   static const int switchIconMaxSide = 512;
 
   /// Whether the picture at [path] is an imported console icon standing in
   /// for the ScreenScraper media type [mediaType] of [systemFolder].
   static bool isPlaceholder(String systemFolder, String mediaType, String path) {
     final folder = systemFolder.toLowerCase();
-    if (folder != 'ps3' && folder != 'switch') return false;
+    if (folder != 'ps3' && folder != 'switch' && folder != 'switch2') return false;
     if (mediaType != 'box2D' && mediaType != 'ss') return false;
     final size = GameBoxImageSize.of(path);
     if (size == null) return false;
