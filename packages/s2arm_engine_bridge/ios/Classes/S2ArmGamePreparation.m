@@ -622,7 +622,15 @@ static NSDictionary *_Nullable reusablePreparation(
   id sizes = result[@"sizes"];
   if (![image.fileType isEqual:NSFileTypeRegular] || image.fileSize == 0 ||
       ![sizes isKindOfClass:NSDictionary.class] || ![sizes[@"imagePack"] isEqual:@(image.fileSize)]) return nil;
-  NSString *applied = [paths[@"gameData"] stringByAppendingPathComponent:@".applied"];
+  NSString *pack = paths[@"gameData"];
+  BOOL romfsDirectory = NO;
+  if (![files fileExistsAtPath:[pack stringByAppendingPathComponent:@"romfs"] isDirectory:&romfsDirectory] ||
+      !romfsDirectory) return nil;
+  for (NSString *entry in @[ @"exefs/main.npdm", @"index.tsv", @"index.applied.tsv", @"manifest.json" ]) {
+    NSDictionary *attributes = [files attributesOfItemAtPath:[pack stringByAppendingPathComponent:entry] error:nil];
+    if (![attributes.fileType isEqual:NSFileTypeRegular] || attributes.fileSize == 0) return nil;
+  }
+  NSString *applied = [pack stringByAppendingPathComponent:@".applied"];
   if ([files attributesOfItemAtPath:applied error:nil].fileSize != 64) return nil;
   NSMutableDictionary *reused = [result mutableCopy];
   [reused addEntriesFromDictionary:paths];

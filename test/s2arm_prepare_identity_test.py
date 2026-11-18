@@ -104,8 +104,11 @@ check(ordered(prep, 'NSString *managedPath = managedExportPath(exportDir);',
       'managed export identities survive a container move and external exports keep their absolute key')
 check(ordered(prep, 'NSString *legacyKey = preparationFingerprint(exportDir, legacyExport, chain, systemData',
               '[files fileExistsAtPath:paths[key] isDirectory:&directory]', 'image.fileSize == 0',
+              'stringByAppendingPathComponent:@"romfs"] isDirectory:&romfsDirectory',
+              '@[ @"exefs/main.npdm", @"index.tsv", @"index.applied.tsv", @"manifest.json" ]',
+              'attributes.fileSize == 0',
               'fileSize != 64', '[reused addEntriesFromDictionary:paths]'),
-      'the migrated key is recomputed and all artifact paths come from the current container')
+      'the migrated key is recomputed and required artifacts are checked in the current container')
 check('s2arm_journal("prepare", "reused", "\\"gid\\":\\"%s\\",\\"identity\\":\\"%s\\",\\"engineRun\\":%lld", gid.UTF8String, identityKind, engineRun);' in prep
       and 's2arm_journal("prepare", "begin", "\\"gid\\":\\"%s\\",\\"identity\\":\\"%s\\",\\"engineRun\\":%lld", gid.UTF8String, identityKind, engineRun);' in prep
       and 'long long engineRun = 0;' in prep,
