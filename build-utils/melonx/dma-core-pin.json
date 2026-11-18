@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "ee5c757aefaa812989ba58badaa9dd3480ad8470",
-  "run": 44259094880,
-  "job": 134647796369,
+  "source": "cb32cfaf3175d37358997681c536cf235e63cc46",
+  "run": 44270538946,
+  "job": 134685736835,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 14406974040,
-  "name": "MeloNX-engine-ee5c757aefaa812989ba58badaa9dd3480ad8470",
-  "bytes": 101205404,
-  "sha256": "683d8035c87e42dcbebc18c3f89b20a08ffdefba51bd037cdf3360e82b3302bf",
-  "expiresAt": "2027-02-16T07:28:01Z",
+  "artifact": 14412901985,
+  "name": "MeloNX-engine-cb32cfaf3175d37358997681c536cf235e63cc46",
+  "bytes": 101207378,
+  "sha256": "706efd953a5dff0300ddb7da2c146c598a90a2e003bdf7f1388be53e29236f5f",
+  "expiresAt": "2027-02-16T08:51:05Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "076e1e572274d8d7c0b001979605dc62de308f1f0d14f85dd4fc57c6442132a2",
-      "bytes": 39130008
+      "sha256": "05f2a183c25f7adad6d557b519a6b12e7db1b0d54a5376ee1171787a39be8a1c",
+      "bytes": 39130016
     },
     "iossimulator-arm64": {
-      "sha256": "3060949dd4a3c036918e4c0910db146342299ce2d42dc5179547bde51af75d51",
+      "sha256": "9e812fabbf7814f70bd6c550a770880dfedfad7d993d3ba78c99f064997a2ad3",
       "bytes": 39452344
     }
   },
   "identities": {
-    "ios-arm64": "24332ddce63f27629eb1860b4c22b368f2a6d5bf2c6f23db8d99dc19aeff1286",
-    "iossimulator-arm64": "53b306242f0f93ac2bed011b881a1de7a181ac44d0ad0666db180fd4d8bbfca3"
+    "ios-arm64": "91550774cf58b4aeecb663179f482502318beb0674e13159177d0e2b68ff818a",
+    "iossimulator-arm64": "b2bb21425f3ff1c2d81ce23dd62a2c920e527d7eab5e3ebc67210508e4358be1"
   },
-  "contractSha256": "46826abcc4fea39e806ed55e9c7c55131bfcc1e24706f026888f479f4eedeec9",
-  "resultSha256": "d87eaa34f03b47380ba31c02a882385a39ddc61f5832e5d7b61674aaa24b4f86",
-  "packagedFingerprint": "12074adfe0be18a28cc6c4888084cb608923e03373a25c8a9457db005e4b11d6",
+  "contractSha256": "bfaf42c06c5fef3bba8a3591148a292085a840af4e1e4add85d56a82c6815764",
+  "resultSha256": "47e31fc37de50c5c693ab873b00976d7a45924a15ab326901566fade0f30a0e2",
+  "packagedFingerprint": "974a19787ab103c5c20d5c6a661c683141ddeae6180fcad524d134803125d2ae",
   "replaces": {
-    "source": "77a5340d07fcb8997c8720b3c995e6c775a2437e",
-    "run": 44245767536,
-    "artifact": 14402845516,
-    "packagedFingerprint": "c4ab3e2d41b21588c29ac03f594d70affc4c71fee15b0ec325a3b4efea2762a0",
-    "reason": "IPA 785 Hogwarts Legacy frame-time and GPU channel retirement follow-up."
+    "source": "ee5c757aefaa812989ba58badaa9dd3480ad8470",
+    "run": 44259094880,
+    "artifact": 14406974040,
+    "packagedFingerprint": "12074adfe0be18a28cc6c4888084cb608923e03373a25c8a9457db005e4b11d6",
+    "reason": "Protect stall-heavy Hogwarts pipelines and rank cached replay work before scheduling."
   }
 }
