@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "5924dd56fc615b6d2e581ddee726cbb3e3f445e0",
-  "run": 44193668756,
-  "job": 134429339085,
+  "source": "f41ae7924b821ec791a812dccb857acba769ca67",
+  "run": 44207064110,
+  "job": 134475624715,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 14379091341,
-  "name": "MeloNX-engine-5924dd56fc615b6d2e581ddee726cbb3e3f445e0",
-  "bytes": 100813015,
-  "sha256": "a224697b1ba8ab2d2d3bcf2168e6343faf1b4adcd27d65893304762d40f88bc0",
-  "expiresAt": "2027-02-15T22:48:58Z",
+  "artifact": 14384524396,
+  "name": "MeloNX-engine-f41ae7924b821ec791a812dccb857acba769ca67",
+  "bytes": 100824668,
+  "sha256": "ba2e21a8032cf8c72dbc5dd6732d9dd1e4eb81dd9fb237a90ca6d7ba7c03ccfe",
+  "expiresAt": "2027-02-16T00:20:52Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "7c8509d2881b6bd0aa0717270a08829002e8547fdcfe28daa79f7bea7f88e9fe",
+      "sha256": "631959ad378df6d1251072329c9cf816eaa539dc2b75a93a0738a0686a71aa68",
       "bytes": 38752416
     },
     "iossimulator-arm64": {
-      "sha256": "77b72442308b9aae09d36f7bbf2aca98267cb31821c41f786f82f235dadd9b9e",
+      "sha256": "e742d85bbf40103ec7bd26e17b57a812f58ff68e6cdeaec8414381cf326a7a5e",
       "bytes": 39071800
     }
   },
   "identities": {
-    "ios-arm64": "124a99ddb4139b106e1bf99e4ad2f578abc86b5693523ee1c2ea2838b54cad78",
-    "iossimulator-arm64": "3698404238e452bb463cf659d28cfc2a78679daa6c301be93382444f633fa12e"
+    "ios-arm64": "efd531c8add8b4ba99fae129bc3206aac17ae14d9d09609de2846f5ea751d2e9",
+    "iossimulator-arm64": "b701855479b6da081dd6d4c38911496edbef164761fbd55e5faf910131dca62c"
   },
-  "contractSha256": "c34f65b657d1a73f779bbc68b02fb59e20beb0d5d2c3beff33f02bbfdaceec56",
-  "resultSha256": "2082559efdae228d9fd9f5b6a7375bfd7de34f781ef0703bee75a850c77819b5",
-  "packagedFingerprint": "f1daf11aafcdd4e164dcb732e686d07771ba4ef94d356c12e6d1ce224934bbeb",
+  "contractSha256": "106bed94605ff2b4134a64f65b8b504539745e80b95053b2678d55ff4a53c935",
+  "resultSha256": "88fe781e488cd0d2b282212df799e47109f6e115cc37bdd99cafd524f2a9a93e",
+  "packagedFingerprint": "590969205b690ca311173d692a472387889cff5493c33c17375606f4e411c49d",
   "replaces": {
-    "source": "7ad86a14377da6ce1f8ce51bfec2f3bc9cc16183",
-    "run": 44165571216,
-    "artifact": 14365039866,
-    "packagedFingerprint": "6e81bb2842f57cc16dff819f6cdc7a6ce524970692962540b32cfcf0e46adbff",
-    "reason": "After IPA 777, every title, memory and stalls: adapt_buffer_mirror_windows (a small deferred write on a buffer of at least 85,000 bytes keeps a 16 KiB managed window instead of a whole-buffer mirror; a transfer write also invalidates the staging mirrors it covers; Rebind walks bindings without allocating; one pause request per effective state), adapt_descriptor_pool_lifetime (a refused allocation no longer destroys an empty pool twice and closing no longer destroys a pool with sets in flight), the Nextendo game data (BCAT folder, nsa, accepted versions), and adapt_cheat_report (which build the cheats were for, the main build id in the metadata answer, vsyncFps as a custom refresh). Contract c34f65b6, 119 gates on the final preparation (Linux x86_64), build-smoke route. No iPhone gameplay, stutter, frame rate or memory gain is claimed."
+    "source": "5924dd56fc615b6d2e581ddee726cbb3e3f445e0",
+    "run": 44193668756,
+    "artifact": 14379091341,
+    "packagedFingerprint": "f1daf11aafcdd4e164dcb732e686d07771ba4ef94d356c12e6d1ce224934bbeb",
+    "reason": "After IPA 779, reduce cached SPIR-V copies, program hashing and translation-worker startup, narrow independent descriptor array invalidations and reduce dedicated allocation bookkeeping. Build-smoke on Apple ARM64; physical-device gameplay remains to be measured."
   }
 }
