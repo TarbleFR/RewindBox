@@ -2,7 +2,7 @@
   "schema": 1,
   "build": 784,
   "status": "draft",
-  "note": "Draft on verified IPA 783. Holds IPA triggering until the updated S2Arm thermal candidate has been checked.",
+  "note": "Draft on verified IPA 783. IPA trigger is on hold while multi-title Switch 2 and the transition to Switch 1 remain blocked. Same-title return and thermal changes still need iPhone validation.",
   "base": {
     "build": 783,
     "source": "30b3843ad88181f0248a2fddba7b14c31a1f1f4e",
@@ -327,7 +327,7 @@
           "binary": "sysdata/SHA256SUMS"
         }
       ],
-      "pinSha256": "7544bec89e65e781d9837620e65e0c072aef3118dff66603c41f6ea988b98d55"
+      "pinSha256": "bc06c9c04f5cd2e966891f692d8d480c8a4a56f9d6b053f24bf55ae79e73aea7"
     }
   },
   "product": {
@@ -351,6 +351,26 @@
       {
         "commit": "00973711154545a5ebf78a82b72ce1e424d5a018",
         "note": "Patches 0095 and 0096 reduce repeated worker polling and bound speculative reads in Mario Kart World."
+      },
+      {
+        "commit": "e5c0783b80c4f8527b75853ffbefdf66b1765dc2",
+        "note": "Drain Switch 2 read-ahead before parking and complete the UIKit close before releasing the launch slot."
+      },
+      {
+        "commit": "12014c9bc15d61509853c4a101937349e13454b3",
+        "note": "Return the controller to the host and complete its handoff before the next launch."
+      },
+      {
+        "commit": "0c14efbb0fbe3d9d3dba07219ce7ab8551708227",
+        "note": "Keep a Quit request issued during the same-title resume."
+      },
+      {
+        "commit": "8d2361ce5201ae710563ded2a7adff9bc43aa515",
+        "note": "Record verified compiler output and shader chain identity for the S2Arm lifecycle producer."
+      },
+      {
+        "commit": "2fd2b6604d7744b2075c90989d55b33cdbbc761d",
+        "note": "Authenticate and pin the S2Arm lifecycle producer with the retained preparation and system data."
       }
     ],
     "sourceOnly": [
@@ -358,6 +378,16 @@
         "commit": "75934a41fd3e2742be923f1e302fe05ac03541d1",
         "targetBuild": 785,
         "note": "Concurrent MeloNX and Nextendo work is preserved on Claude and excluded from the Switch 2 package."
+      },
+      {
+        "commit": "1ac8b976e8a279716d50de58a3ef80cc09b56157",
+        "targetBuild": 785,
+        "note": "Concurrent MeloNX work remains excluded from this S2Arm draft."
+      },
+      {
+        "commit": "77a5340d07fcb8997c8720b3c995e6c775a2437e",
+        "targetBuild": 785,
+        "note": "Concurrent MeloNX work remains excluded from this S2Arm draft."
       }
     ],
     "promotedCommits": []
