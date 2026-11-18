@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "cde34c56de1d43ac8f837462d42e3d7b2ce4f106f3bbe92661b4f3929d1fc484",
+  "packagedFingerprint": "d8c3e9e58e783775442d16fe9dd1b62c409278703d3c8c59c6150e3cff520311",
   "producers": {
     "engine": {
-      "run": 44228206616,
+      "run": 44230830821,
       "attempt": 1,
-      "artifact": 14394063211,
-      "name": "s2arm-engine-framework-ac4f07e9a7337e4dc6573faae02d9b0dbc387b6e",
-      "bytes": 24122979,
-      "sha256": "785323970eef0d82941510c55d3eb644b8f0cd29032dc8e215730d0394de3c37",
-      "headSha": "ac4f07e9a7337e4dc6573faae02d9b0dbc387b6e",
+      "artifact": 14395114324,
+      "name": "s2arm-engine-framework-6f91ea05af92fd8375a611eb72274551ada72459",
+      "bytes": 24122182,
+      "sha256": "1a6259fbb2e2cd612e2684eeafd27146e9f53f64d09c1037830cb38e42b44c29",
+      "headSha": "6f91ea05af92fd8375a611eb72274551ada72459",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-18T03:19:53Z",
+      "expiresAt": "2026-12-18T03:44:01Z",
       "members": {
-        "S2ArmEngine.framework.zip": "7deb504abc70d6c3a0fdc71a0a72cbd6af4491dbc01526a47ad8aa941869aeb8",
-        "NS2Pro.framework.zip": "1870e48e963a462cf3d87b29e856ca00e9d714917d2cad1eec2bf5b58f9dcf9d"
+        "S2ArmEngine.framework.zip": "7ff30fb18d164968a002636db5b447f13269cf2d75c3837c670537e9e8f18643",
+        "NS2Pro.framework.zip": "04ba688b35b7da90eeeae3a24715b5724972c7ef3b4fd807ac3771686d5fbe6f"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "785323970eef0d82941510c55d3eb644b8f0cd29032dc8e215730d0394de3c37",
+    "engine": "1a6259fbb2e2cd612e2684eeafd27146e9f53f64d09c1037830cb38e42b44c29",
     "prepare": "66ca4c85bbf898d876940a6d535f73dc76e56773b64f2f5c0fc7d754d2d3d865",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -90,9 +90,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "5becb9f7bf10ab5309056aaa735159b2b3d2513a61ca4f8ab3002d89a2bbbc7e",
-      "bytes": 107869768,
-      "fingerprint": "cde34c56de1d43ac8f837462d42e3d7b2ce4f106f3bbe92661b4f3929d1fc484"
+      "sha256": "6e25a052b534de8be7845408254188acf67dd0e3c84d99dd1b3f6d4785d8361c",
+      "bytes": 107870296,
+      "fingerprint": "d8c3e9e58e783775442d16fe9dd1b62c409278703d3c8c59c6150e3cff520311"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -125,9 +125,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 44228206616,
+      "run": 44230830821,
       "attempt": 1,
-      "head_sha": "ac4f07e9a7337e4dc6573faae02d9b0dbc387b6e",
+      "head_sha": "6f91ea05af92fd8375a611eb72274551ada72459",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -498,11 +498,15 @@
         {
           "name": "0092-report-compressed-vm-across-the-process.patch",
           "sha256": "89f800a7664683169b7727aedba5697705553afa589369942c9e9aad71998b2b"
+        },
+        {
+          "name": "0093-guest-frame-workgroup-rests-when-cadence-is-stable.patch",
+          "sha256": "5138fc85f2c7687a15b2a90a948ed8ea058f65635ae70426c97013b142ea2566"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "7deb504abc70d6c3a0fdc71a0a72cbd6af4491dbc01526a47ad8aa941869aeb8",
-        "NS2Pro.framework.zip": "1870e48e963a462cf3d87b29e856ca00e9d714917d2cad1eec2bf5b58f9dcf9d"
+        "S2ArmEngine.framework.zip": "7ff30fb18d164968a002636db5b447f13269cf2d75c3837c670537e9e8f18643",
+        "NS2Pro.framework.zip": "04ba688b35b7da90eeeae3a24715b5724972c7ef3b4fd807ac3771686d5fbe6f"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
