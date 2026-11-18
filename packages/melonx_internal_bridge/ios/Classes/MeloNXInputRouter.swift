@@ -26,6 +26,7 @@ final class MeloNXInputRouter: ObservableObject, Controller {
     private var restoreHandlers: [() -> Void] = []
     private var pads: Set<Int32> = [1]
     private var buttons: [Int32: [String: Set<Int32>]] = [:]
+    private var appliedSticks: [Int32: [Int32: (Float, Float)]] = [:]
     private var axes: [Int32: [String: [Int32: (Float, Float)]]] = [:]
     // pad -> stick (1 left, 2 right) -> the source ("touch"/"physical") that last took it.
     private var stickOwners: [Int32: [Int32: String]] = [:]
@@ -104,7 +105,14 @@ final class MeloNXInputRouter: ObservableObject, Controller {
         let owner = Self.stickOwner(current: stickOwners[pad]?[stick], source: source, previous: previous, values: values, stick: stick)
         stickOwners[pad, default: [:]][stick] = owner
         let value = Self.stickValue(owner: owner, values: values, stick: stick)
-        let code = runtime.stick(generation, pad: pad, stick: stick, x: value.0, y: value.1)
+        let code: Int32
+        if let last = appliedSticks[pad]?[stick], last == value {
+            code = 0 // The engine already has this value. Count the source event below.
+        } else {
+            code = runtime.stick(generation, pad: pad, stick: stick, x: value.0, y: value.1)
+            if code == 0 { appliedSticks[pad, default: [:]][stick] = value }
+            else { appliedSticks[pad]?[stick] = nil }
+        }
         counters.stick(source: source, stick: stick, value: (x, y), sent: value, code: code)
     }
 
@@ -138,7 +146,7 @@ final class MeloNXInputRouter: ObservableObject, Controller {
     func suspend(_ value: Bool) {
         guard !closed else { return }
         for pad in pads { runtime.reset(generation, pad: pad) }
-        buttons.removeAll(); axes.removeAll(); stickOwners.removeAll(); suspended = value
+        buttons.removeAll(); axes.removeAll(); stickOwners.removeAll(); appliedSticks.removeAll(); suspended = value
         // Releasing a menu/editor never replays inputs held before it opened.
         // A resume follows every layout edit, mapping save and menu toggle.
         if !value { journalState("resume") }
@@ -151,7 +159,7 @@ final class MeloNXInputRouter: ObservableObject, Controller {
         observers.removeAll()
         restoreHandlers.reversed().forEach { $0() }; restoreHandlers.removeAll()
         for pad in pads { runtime.reset(generation, pad: pad); runtime.detach(generation, pad: pad) }
-        pads.removeAll(); buttons.removeAll(); axes.removeAll(); stickOwners.removeAll(); controllers.removeAll()
+        pads.removeAll(); buttons.removeAll(); axes.removeAll(); stickOwners.removeAll(); appliedSticks.removeAll(); controllers.removeAll()
     }
 
     func reconnect() {
@@ -159,7 +167,7 @@ final class MeloNXInputRouter: ObservableObject, Controller {
         epoch += 1
         restoreHandlers.reversed().forEach { $0() }; restoreHandlers.removeAll()
         for pad in pads { runtime.reset(generation, pad: pad); if pad > 1 { runtime.detach(generation, pad: pad) } }
-        pads = [1]; buttons.removeAll(); axes.removeAll(); stickOwners.removeAll()
+        pads = [1]; buttons.removeAll(); axes.removeAll(); stickOwners.removeAll(); appliedSticks.removeAll()
         controllers = Array(GCController.controllers().filter { $0.extendedGamepad != nil }.prefix(8))
         controllerCount = controllers.count
         for (index, controller) in controllers.enumerated() {

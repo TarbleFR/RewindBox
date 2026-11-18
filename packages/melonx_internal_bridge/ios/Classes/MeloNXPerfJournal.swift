@@ -150,6 +150,7 @@ final class MeloNXPerfJournal {
     private var totalOver50: UInt64 = 0, totalOver100: UInt64 = 0
     private var totalLate: Int64 = 0, totalLateNs: Int64 = 0, totalSkipped: Int64 = 0
     private var totalStarved: Int64 = 0, totalStarvedNs: Int64 = 0
+    private let profileOnlyWhenCool: Bool
     private var hottest = 0
     // in= comes from the running session's input router (one at a time); the
     // router installs it with its controls and removes it when it closes.
@@ -162,6 +163,7 @@ final class MeloNXPerfJournal {
          audio: @escaping () -> [Int64]?, memory: @escaping () -> String? = { nil }) {
         self.path = path; self.interval = interval; self.lineLimit = lineLimit
         self.context = context
+        self.profileOnlyWhenCool = profileOnlyWhenCool
         self.fps = fps; self.presentation = presentation; self.audio = audio; self.memory = memory
         self.stalls = MeloNXStallWatch(path:path, context:context)
         let heat = MeloNXDiagnosticHeat(profileOnlyWhenCool:profileOnlyWhenCool)
@@ -395,6 +397,7 @@ final class MeloNXPerfJournal {
 
     // `threads`: this interval's threads by CPU time used, the busiest first; `listed`: how many of them cpu= lists.
     private func performanceShares(threads: [(id: UInt64, ns: UInt64)], listed: Int) -> String? {
+        guard !threads.isEmpty else { return nil }
         var current: [UInt64: LevelTimes] = [:]
         for thread in threads.prefix(Self.levelThreads) where thread.ns >= 1_000_000 {
             if let times = Self.levelTimes(thread:thread.id) { current[thread.id] = times }
@@ -481,7 +484,10 @@ final class MeloNXPerfJournal {
         var current: [UInt64: UInt64] = [:]
         var busy: [(id: UInt64, name: String, ns: UInt64, priority: Int32)] = []
         var total: UInt64 = 0
-        let snapshot = Self.threads()
+        // Sampling every thread costs several Mach calls per thread. Keep frame, audio, VM and
+        // thermal samples at full cadence while spacing Hogwarts thread surveys under heat.
+        let surveyDue = !profileOnlyWhenCool || thermal == 0 || now - (threadWindow.end ?? 0) >= 4
+        let snapshot = surveyDue ? Self.threads() : []
         if !snapshot.isEmpty { threadWindow.mark(ProcessInfo.processInfo.systemUptime) }
         for thread in snapshot {
             current[thread.id] = thread.cpuNs

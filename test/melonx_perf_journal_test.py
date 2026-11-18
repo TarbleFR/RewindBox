@@ -204,7 +204,7 @@ hot = (CLASSES / 'MeloNXHotSpots.swift').read_text()
 check('            stalls.start()\n            breakdown.start()\n            hot.start()\n' in journal and
       '            stalls.stop()\n            breakdown.stop()\n            hot.stop()\n' in journal and journal.count('hot.observe(') == 1 and
       journal.index('stalls.enter("memory")') < journal.index('guard lines < lineLimit else { return }') <
-      journal.index('let snapshot = Self.threads()') < journal.index('fields.append(cpu)') < journal.index('hot.observe('),
+      journal.index('let snapshot = surveyDue ? Self.threads() : []') < journal.index('fields.append(cpu)') < journal.index('hot.observe('),
       'the exit marker continues after the line limit; thread scans and profiles run only for emitted lines')
 check(all(name not in hot for name in ('fps(', 'audio(', 'memory(', 'presentation(', 'thread_suspend', 'thread_resume', 'task_suspend',
                                        'DispatchQueue.main', 'MeloNXEngineCallClass')), 'the profiler calls no engine closure and suspends nothing')

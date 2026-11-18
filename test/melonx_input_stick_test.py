@@ -116,12 +116,19 @@ SET_STICK = '''    private func setStick(pad: Int32, source: String, stick: Int3
         let owner = Self.stickOwner(current: stickOwners[pad]?[stick], source: source, previous: previous, values: values, stick: stick)
         stickOwners[pad, default: [:]][stick] = owner
         let value = Self.stickValue(owner: owner, values: values, stick: stick)
-        let code = runtime.stick(generation, pad: pad, stick: stick, x: value.0, y: value.1)
+        let code: Int32
+        if let last = appliedSticks[pad]?[stick], last == value {
+            code = 0 // The engine already has this value. Count the source event below.
+        } else {
+            code = runtime.stick(generation, pad: pad, stick: stick, x: value.0, y: value.1)
+            if code == 0 { appliedSticks[pad, default: [:]][stick] = value }
+            else { appliedSticks[pad]?[stick] = nil }
+        }
         counters.stick(source: source, stick: stick, value: (x, y), sent: value, code: code)
     }'''
 check(router.count(SET_STICK) == 1, 'setStick differs from the model')
 # Ownership is cleared with the axes on every reset path (suspend, close, reconnect).
-check(router.count('axes.removeAll(); stickOwners.removeAll()') == 3 and router.count('axes.removeAll()') == 3, 'owners not reset with the axes')
+check(router.count('axes.removeAll(); stickOwners.removeAll(); appliedSticks.removeAll()') == 3 and router.count('axes.removeAll()') == 3, 'owners not reset with the axes')
 # Touch sticks: stick 1 left / 2 right with UIKit's Y inverted, physical sticks through the mapping, unchanged.
 check('setStick(pad: 1, source: "touch", stick: right ? 2 : 1, x: Float(position.x), y: Float(-position.y))' in router, 'touch stick index/inversion')
 check('for (axis, configuration) in [(Int32(1),mapping.leftStick),(Int32(2),mapping.rightStick)] where configuration.source == source {' in router and

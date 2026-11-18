@@ -6876,7 +6876,7 @@
     "native/melonx/EmbeddedPerformanceDiagnostics.cs": "da619d6fa8ff59fd3452ea73ee0aafa40a32148e289ace3f5931ea7a7a16dcdf",
     "native/melonx/EmbeddedSession.cs": "5b882aff47f53242bb25c2c8fd1906163db92231a460105e79ffd55a2b93fdba",
     "packages/melonx_internal_bridge/ios/Classes/MeloNXRuntimeAPI.swift": "9fc81e7adb5b8532f620041d6356ba2ae134cbe5ea3fe1ad2716cf10f4241a9b",
-    "packages/melonx_internal_bridge/ios/Classes/MeloNXSessionHost.swift": "27d788feb503ada71009405c0162b643ca7bd15272a40be831c5787de1c456ec",
+    "packages/melonx_internal_bridge/ios/Classes/MeloNXSessionHost.swift": "d5d274b732fb1f5a16caaa513b8618832f8020fc83601f95901d6f6ac5c1bfd8",
     "test/melonx_adapter_control.py": "299961c01adb87f8620f211c361ea47072134826343103f95befca02c62b69d8",
     "test/melonx_adapter_control_order_test.py": "92fc03f908022d22deb62065769497d0e890447ec412140cfe65e05b7a3f2085",
     "test/melonx_allocator_blocks/Boundaries.cs": "7b00ad236e58e5335ee51a0abf68d63cf9c896ac56bfc86f456fe79458f01836",
