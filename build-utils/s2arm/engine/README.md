@@ -125,6 +125,8 @@ fetched at build time and never committed here (Apache-2.0, see `docs/s2arm-lega
 | `0117-guest-prefetch-the-exact-bound-shader-variant.patch` | IPA 786 frame 1255 spent 2,019.8 ms on five pipelines and three libraries. Prefetch a recorded shader bind with its known stage and depth mode and allow a retry if its library is missing. Translation and archive formats stay unchanged. `S2A_RB_BOUND_SHADER_VARIANT=0` keeps the previous behavior. |
 | `0118-guest-bind-imported-saves-to-their-profile.patch` | IPA 785 copied 26 save files while the playable progress stayed old. IPA 786 had no confirmed restore. Preserve the identifiable source profile before allocating save data, refuse ambiguous profiles, and report if the guest actually installed all requested areas. `S2A_RB_SAVE_PROFILE=0` keeps the previous behavior. |
 
+The save profile and restore-result follow-up compiled on both runners in [run 44305135295](https://github.com/TarbleFR/RewindBox/actions/runs/44305135295). No warning targeted an added engine line. The shader translator stamp still matches IPA 786.
+
 The IPA 786 follow-up (0115–0117) was compiled and verified in [run 44301263731](https://github.com/TarbleFR/RewindBox/actions/runs/44301263731). The translator stamp matches IPA 786. See the [device audit](../../../docs/evidence/s2arm-ipa786-device-2026-11-18.md).
 
 The 0112–0114 thermal follow-up compiled in [run 44274723169](https://github.com/TarbleFR/RewindBox/actions/runs/44274723169) on macOS 15 and 26. Neither compiler reported a warning on an added line. The shader translator stamp matches IPA 785. The [device comparison](../../../docs/evidence/s2arm-ipa785-correctifs-2026-11-18.md) records the starting thermal state and the long-race protocol.
