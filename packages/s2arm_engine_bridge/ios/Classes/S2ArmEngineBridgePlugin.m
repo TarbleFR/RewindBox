@@ -596,12 +596,15 @@ static NSDictionary *launchFail(NSString *error, NSString *stage, NSString *deta
   int displayTicksProfile = setenv("S2A_RB_LINK_GAME30", kartRender, 0);
   int residencyCensusProfile = setenv("S2A_RB_RES_TOP_PER_FRAME", kartRender, 0);
   int shaderVariantProfile = setenv("S2A_RB_BOUND_SHADER_VARIANT", kartRender, 0);
+  // IPA 786's automatic sampler held individual threads for up to 32.5 ms.
+  // Keep continuous frame statistics and let diagnostic launches request the heavy capture.
+  int automaticProbeProfile = marioKartWorld ? setenv("S2A_RB_AUTO_PROBE", "0", 0) : 0;
   BOOL profileFailed = vertexProfile || stagingProfile || workgroupProfile || archiveProfile || workerProfile ||
                        readAheadProfile || shaderBytesProfile || shaderQueueProfile || poolIndexProfile ||
                        textureViewsProfile || demandProbeProfile || audioReprimeProfile || feedbackProfile ||
                        pipelinePriorityProfile || shaderCompletionProfile || pipelineLookaheadProfile ||
                        uniformBoundsProfile || waitProbeProfile || frameKeyProfile ||
-                       displayTicksProfile || residencyCensusProfile || shaderVariantProfile;
+                       displayTicksProfile || residencyCensusProfile || shaderVariantProfile || automaticProbeProfile;
   s2arm_journal("gameProfile", profileFailed ? "failed" : "selected",
                 "\"profile\":\"%s\"", fastFusion ? "fast-fusion" : marioKartWorld ? "mario-kart-world" : "default");
   S2ArmSettingsPrepareLaunch();   // the game language, and the engine's brief overlay that the in-game menu shows or hides

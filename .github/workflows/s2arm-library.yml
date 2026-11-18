@@ -42,6 +42,7 @@ jobs:
         if: env.IMPORT_ONLY == 'true'
         run: |
           dart analyze lib/services/s2arm_internal_service.dart
+          dart analyze lib/widgets/s2arm_internal_playlist_actions.dart
           dart analyze lib/services/game_launch_manager.dart
 
       - name: Analyze
