@@ -327,7 +327,7 @@
           "binary": "sysdata/SHA256SUMS"
         }
       ],
-      "pinSha256": "1d3f3ee647f7cdaa5f3cf170d8e7d9c7f78aa2ff26c41df6b5e800aa772ff245"
+      "pinSha256": "765e7bd40e98a4c06376a459743e5d9193c54ed0f5467111ed58bddde1fb0c29"
     }
   },
   "product": {
@@ -335,6 +335,14 @@
       {
         "commit": "0c02786caba15c04e272d4e4b7448b2783a14392",
         "note": "Identify title-scoped Switch 2 save folders before staging and validate the title before restoring."
+      },
+      {
+        "commit": "882355002685d9e4e1c1b3bf711f39fd968ccb09",
+        "note": "Record the device copy evidence and the validated engine and bridge compilation."
+      },
+      {
+        "commit": "261f016a0b77cb2aab99fd83f55410a169e61029",
+        "note": "Use the authenticated S2Arm engine with patch 0119 and keep preparation and system data from the verified base."
       }
     ],
     "sourceOnly": [],
