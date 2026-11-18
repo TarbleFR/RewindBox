@@ -581,8 +581,12 @@ static NSDictionary *launchFail(NSString *error, NSString *stage, NSString *deta
   int shaderQueueProfile = setenv("S2A_RB_SHADER_URGENT_UNIQUE", kartRender, 0);
   int poolIndexProfile = setenv("S2A_RB_POOL_INDEX_UPDATE", kartRender, 0);
   int textureViewsProfile = setenv("S2A_RB_TEX_FIT_FAST", kartRender, 0);
+  int demandProbeProfile = setenv("S2A_RB_DEMAND_PROBE_BATCH", kartRender, 0);
+  int audioReprimeProfile = setenv("S2A_RB_AUDIO_REPRIME", kartRender, 0);
+  int feedbackProfile = setenv("S2A_RB_FB_DIRECT_SNAPSHOT", kartRender, 0);
   BOOL profileFailed = vertexProfile || stagingProfile || workgroupProfile || archiveProfile || workerProfile ||
-                       readAheadProfile || shaderBytesProfile || shaderQueueProfile || poolIndexProfile || textureViewsProfile;
+                       readAheadProfile || shaderBytesProfile || shaderQueueProfile || poolIndexProfile ||
+                       textureViewsProfile || demandProbeProfile || audioReprimeProfile || feedbackProfile;
   s2arm_journal("gameProfile", profileFailed ? "failed" : "selected",
                 "\"profile\":\"%s\"", fastFusion ? "fast-fusion" : marioKartWorld ? "mario-kart-world" : "default");
   S2ArmSettingsPrepareLaunch();   // the game language, and the engine's brief overlay that the in-game menu shows or hides
