@@ -122,6 +122,8 @@ The [0104 producer run](https://github.com/TarbleFR/RewindBox/actions/runs/44260
 
 The [0108 producer run](https://github.com/TarbleFR/RewindBox/actions/runs/44266269705) built patches 0001–0108 on macOS 15 and 26. Its authenticated logs have zero diagnostics on the 626 engine lines added since IPA 785, including 167 for 0105–0108. The framework has an identical translator stamp, `0be3f28548fd`. The current preparation producer is [run 44267909266](https://github.com/TarbleFR/RewindBox/actions/runs/44267909266).
 
+The [0111 producer run](https://github.com/TarbleFR/RewindBox/actions/runs/44270146691) built patches 0001–0111 on macOS 15 and 26. Its authenticated logs have zero diagnostics on the 803 engine lines added since IPA 785, including 177 for 0109–0111. The framework's translator stamp is still `0be3f28548fd` with the exact IPA 785 bytes.
+
 Patches 0003–0009 are the guest interface of `runtime/src/rb_guest.h` (host sequence in its header comment). None of them
 is active unless the host calls `s2a_rb_guest_configure` (the constructor checks of 0003 and 0009 only apply when RewindBox
 loaded the engine: not the main executable, and `rb_s2arm_engine_loaded` exported by the process), so `make ios` builds an
