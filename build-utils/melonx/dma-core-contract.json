@@ -1301,7 +1301,7 @@
     "build-utils/melonx/adapt_xci_update_identity.py": "4687bc1445405498a80d32ef23b597fb96d01709b883bcae0de8c02ef3b9e9c7",
     "build-utils/melonx/adapt_hogwarts_frame_budget.py": "64363f6f131a98ffd1395bbe606c9b17e6cd7aec4b539f4e8f64ced2f4c70741",
     "build-utils/melonx/adapt_fifo_channel_retirement.py": "b1f239243c8fada3555de18a66fe38e4c7fded08b7eb474e394855d9ec033583",
-    "build-utils/melonx/adapt_hogwarts_steady_render.py": "571593552b906d477671e376fc095247d85fa8a4e6254742311f2dbe9f29a3d5",
+    "build-utils/melonx/adapt_hogwarts_steady_render.py": "55fbe150679d81cbd5204b7a45769132432b991694da1f46b3ae4040145ecf54",
     "build-utils/melonx/adapt_hogwarts_pipeline_replay.py": "efe6c1dabc5ca26c0583f6f26edd26dc55e90af0f19527ca1b26a7af6541540a"
   },
   "preparedMembers": {
@@ -1353,7 +1353,7 @@
     "src/Ryujinx.Graphics.Gpu/Engine/Dma/DmaClass.cs": "aad588c48efa33612b3b75dbd283fdf73d8b6fe356a9fc636b611749c1724667",
     "src/Ryujinx.Graphics.Gpu/Engine/GPFifo/GPFifoDevice.cs": "c4b6af2356d93aaee5576acfcebfe53e16ec317791bf60255770bd847382a6a6",
     "src/Ryujinx.Common/Memory/MemoryOwner.cs": "f94421c357ea252fd61e39c0e08969916eaaeb2327f4b1f60acd57300820d0ee",
-    "src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs": "e69c8edfce6c7d3a4673db187fd7f7fbea7aa1a36d0a70d8c234eb52788591d7",
+    "src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs": "cc9fc4fa94429459eff6f8f5e6f152095581bef0e97d8e00c005aed2467a44d3",
     "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ProgramQueue.cs": "ad38c0ff9e1e4b2a959d183b4919bd376c45c4d055dd3aec1e5e06b5303fe851",
     "src/Ryujinx.Graphics.Vulkan/PipelineConverter.cs": "7bbef29deaed820aaa81b220557677c93130a8c3ede0ef04fb87b1453ada9c97",
     "src/Ryujinx.Graphics.Shader/Translation/Optimizations/BindlessToArray.cs": "2d3a70a8bbe5b105e84fe8a4a493c16be14110988158771ed2d392f22cdc9684",
@@ -7136,7 +7136,7 @@
     "test/melonx_worker_main_cache_lookup_test.py": "0af71719002fb26137cdbf4087c8d70a8a71137e640b7db03adee735ba265b77",
     "test/melonx_shader_load_binary_release/CacheStages.cs": "a1e21d8eeb6a1ffd30e12f5643451b07d1d93cb9846c6ac6585af61553fa7eb9",
     "build-utils/melonx/adapt_fifo_channel_retirement.py": "b1f239243c8fada3555de18a66fe38e4c7fded08b7eb474e394855d9ec033583",
-    "build-utils/melonx/adapt_hogwarts_steady_render.py": "571593552b906d477671e376fc095247d85fa8a4e6254742311f2dbe9f29a3d5",
+    "build-utils/melonx/adapt_hogwarts_steady_render.py": "55fbe150679d81cbd5204b7a45769132432b991694da1f46b3ae4040145ecf54",
     "build-utils/melonx/adapt_hogwarts_pipeline_replay.py": "efe6c1dabc5ca26c0583f6f26edd26dc55e90af0f19527ca1b26a7af6541540a"
   },
   "freshAppleGates": 119,

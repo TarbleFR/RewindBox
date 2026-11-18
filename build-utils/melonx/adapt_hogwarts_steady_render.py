@@ -285,6 +285,43 @@ def reduce_repeated_texture_storage(renderer, texture, library):
             }''')
 
 
+def reduce_render_queue_atomics(path):
+    once(path, '        private int _invokePtr;', '        private int _invokePtr = -1;')
+    once(path, '                    if (Interlocked.CompareExchange(ref _invokePtr, -1, commandPtr) == commandPtr)',
+         '''                    if (Volatile.Read(ref _invokePtr) == commandPtr &&
+                        Interlocked.CompareExchange(ref _invokePtr, -1, commandPtr) == commandPtr)''')
+    once(path, '''                using (PD.Measure(PD.Phase.RenderDrain))
+                while (Volatile.Read(ref _commandCount) > 0 && Volatile.Read(ref _interruptAction) == null)''',
+         '''                // Only this consumer retires commands. Keep a conservative published count until
+                // this bounded batch completes. The ring cursor still releases each executed slot.
+                int remaining = Volatile.Read(ref _commandCount);
+                int retired = 0;
+                using (PD.Measure(PD.Phase.RenderDrain))
+                while (remaining > 0 && Volatile.Read(ref _interruptAction) == null)''')
+    once(path, '''                    _consumerPtr = (_consumerPtr + 1) % QueueCount;
+                    Volatile.Write(ref _completedCommands, _completedCommands + 1);
+
+                    Interlocked.Decrement(ref _commandCount);
+                }''',
+         '''                    Volatile.Write(ref _consumerPtr, (_consumerPtr + 1) % QueueCount);
+                    Volatile.Write(ref _completedCommands, _completedCommands + 1);
+
+                    retired++;
+                    if (--remaining == 0 || retired == 32)
+                    {
+                        // The returned count includes anything the producer published during the batch.
+                        remaining = Interlocked.Add(ref _commandCount, -retired);
+                        retired = 0;
+                    }
+                }
+
+                if (retired != 0)
+                {
+                    // An interrupt ended the drain early. The interrupt wake is already pending.
+                    Interlocked.Add(ref _commandCount, -retired);
+                }''')
+
+
 def apply(source):
     for name, digest in BASELINE.items():
         assert hashlib.sha256((source / name).read_bytes()).hexdigest() == digest, name
@@ -293,4 +330,5 @@ def apply(source):
     index_sync_handles(source / SYNCS)
     keep_compatible_buffer_descriptors(source / DESCRIPTORS)
     reduce_repeated_texture_storage(source / RENDERER, source / TEXTURE, source / LIBRARY)
+    reduce_render_queue_atomics(source / RENDERER)
     return [source / name for name in (CONTEXT, SYNCS, DESCRIPTORS, RENDERER, TEXTURE, LIBRARY)]
