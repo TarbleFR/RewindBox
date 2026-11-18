@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "77a5340d07fcb8997c8720b3c995e6c775a2437e",
-  "run": 44245767536,
-  "job": 134604789299,
+  "source": "ee5c757aefaa812989ba58badaa9dd3480ad8470",
+  "run": 44259094880,
+  "job": 134647796369,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 14402845516,
-  "name": "MeloNX-engine-77a5340d07fcb8997c8720b3c995e6c775a2437e",
-  "bytes": 101173047,
-  "sha256": "2f8ed0d8d315efbebf1ad668803acf246c7f7ea7f84897a493375564c1941c6e",
-  "expiresAt": "2027-02-16T05:39:33Z",
+  "artifact": 14406974040,
+  "name": "MeloNX-engine-ee5c757aefaa812989ba58badaa9dd3480ad8470",
+  "bytes": 101205404,
+  "sha256": "683d8035c87e42dcbebc18c3f89b20a08ffdefba51bd037cdf3360e82b3302bf",
+  "expiresAt": "2027-02-16T07:28:01Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "2834126eb73120d21b8704146e8bc9ff21fb12e6177c1b942539b992e3278a2a",
-      "bytes": 39113592
+      "sha256": "076e1e572274d8d7c0b001979605dc62de308f1f0d14f85dd4fc57c6442132a2",
+      "bytes": 39130008
     },
     "iossimulator-arm64": {
-      "sha256": "ee4c65ce4090ff648da69c9f0d233d3317ddbc06ece7624ae81f933730b92692",
-      "bytes": 39435784
+      "sha256": "3060949dd4a3c036918e4c0910db146342299ce2d42dc5179547bde51af75d51",
+      "bytes": 39452344
     }
   },
   "identities": {
-    "ios-arm64": "0a6042bce2fe99fcb794d5399b98bba233323df0992aa04d2b0cef6e8bde218a",
-    "iossimulator-arm64": "dc5df128d49ce3e4593ba9beef66f34b5558b38ae0be5f60b2a1378b67e644e6"
+    "ios-arm64": "24332ddce63f27629eb1860b4c22b368f2a6d5bf2c6f23db8d99dc19aeff1286",
+    "iossimulator-arm64": "53b306242f0f93ac2bed011b881a1de7a181ac44d0ad0666db180fd4d8bbfca3"
   },
-  "contractSha256": "7000ef563729d3e8af74a67427fee38bf4561639d630f53774109846a77db4e7",
-  "resultSha256": "d0609d5e728e8e1faf66e807b2148c400a3dafb4e31638148ee66ec078f64e2b",
-  "packagedFingerprint": "c4ab3e2d41b21588c29ac03f594d70affc4c71fee15b0ec325a3b4efea2762a0",
+  "contractSha256": "46826abcc4fea39e806ed55e9c7c55131bfcc1e24706f026888f479f4eedeec9",
+  "resultSha256": "d87eaa34f03b47380ba31c02a882385a39ddc61f5832e5d7b61674aaa24b4f86",
+  "packagedFingerprint": "12074adfe0be18a28cc6c4888084cb608923e03373a25c8a9457db005e4b11d6",
   "replaces": {
-    "source": "17e9536f90ec8c7aa7eefebd8076a99353e1aa69",
-    "run": 44223731484,
-    "artifact": 14391694615,
-    "packagedFingerprint": "7e7beacafbbea6158d19d80bade8902d07a5ba2bbb2d6894364d21baba2e0b23",
-    "reason": "After IPA 783, adjust Hogwarts frame pacing, memory and shader startup based on IPA 782 measurements, and include the cartridge update fix."
+    "source": "77a5340d07fcb8997c8720b3c995e6c775a2437e",
+    "run": 44245767536,
+    "artifact": 14402845516,
+    "packagedFingerprint": "c4ab3e2d41b21588c29ac03f594d70affc4c71fee15b0ec325a3b4efea2762a0",
+    "reason": "IPA 785 Hogwarts Legacy frame-time and GPU channel retirement follow-up."
   }
 }
