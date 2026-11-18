@@ -192,6 +192,10 @@ les IPA de test ne se compilent que dans `TarbleFR/RewindBox` ; ailleurs, seule 
   réinstallé depuis son pin. Son image est déclarée sous `images.retained.<clé>` et non sous
   `images.replaced`. Le gel exige que l'empreinte du pin soit celle de l'image de la base et que le
   fichier pin soit celui du manifeste de base ; `expected()` exige l'égalité au lieu de la différence.
+- **Remplacement d'un moteur déjà embarqué** : pour un composant `pinned-engine`, déclarer son image
+  principale dans `images.mustChange` quand elle figure dans l'inventaire signé de la base. Le gel
+  compare l'empreinte du nouveau pin à celle de la base, puis la CI authentifie le nouveau moteur
+  jusque dans l'IPA signée. `images.added` sert à l'ajout d'une image.
 - **Entrées conservées modifiées et déclarées** : un composant conservé (`retain`, `retain-archive`,
   `pinned-source` avec `inputs`) peut déclarer `changedInputs: [{path, baseBlob, newBlob, commit}]`
   pour un fichier de ses entrées qu'un commit revu de la ligne first-parent a changé sans toucher au

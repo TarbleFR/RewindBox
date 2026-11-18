@@ -442,6 +442,9 @@
         "Frameworks/XeniaCore.framework/XeniaCore",
         "Frameworks/libmetalirconverter.dylib"
       ],
+      "s2arm": [
+        "Frameworks/NS2Pro.framework/NS2Pro"
+      ],
       "rpcs3": [
         "Frameworks/libRPCS3Core.dylib"
       ]

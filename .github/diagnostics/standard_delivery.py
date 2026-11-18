@@ -707,6 +707,9 @@ def engine_spec_errors(key, spec, manifest):
     wanted = [spec.get('image')] + [item.get('path') for item in side if isinstance(item, dict)] \
         if isinstance(side, list) else [spec.get('image')]
     for image in wanted:
+        if (spec.get('unchangedFromBase') is not True and image == spec.get('image')
+                and image in images.get('mustChange', [])):
+            continue
         check(not isinstance(image, str) or image in held, f'image {image} must be listed in images.{introduced}')
     return errors
 
@@ -2915,13 +2918,20 @@ def freeze(build, dry_run=False, repo=None, root=None):
         # Product pins deferred from this delivery are restored by materialize before CI reads them.
         raw = read_product(spec['pin'])
         try:
-            problems = engine_pin_errors(spec, json.loads(raw)) if raw is not None else ['missing pin in the effective tree']
+            engine = json.loads(raw) if raw is not None else None
+            problems = engine_pin_errors(spec, engine) if engine is not None else ['missing pin in the effective tree']
         except (TypeError, ValueError) as error:
             problems = [str(error)]
         if problems:
             blockers.append(f'components.{kind}: the pinned engine pin is not usable: ' + '; '.join(problems))
         else:
             spec['pinSha256'] = sha(raw)
+            image = spec['image']
+            if image in images['mustChange'] and image not in images['added']:
+                if image not in base_images_value:
+                    blockers.append(f'components.{kind}: replacement image is absent from the signed base inventory')
+                elif engine['packagedFingerprint'] == base_images_value[image]:
+                    blockers.append(f'components.{kind}: replacement pin keeps the signed base image fingerprint')
     for kind in retained.ARCHIVES + retained.NATIVES:
         expires = draft['components'][kind]['origin'].get('expiresAt')
         if expires and not draft['components'][kind].get('republished'):
