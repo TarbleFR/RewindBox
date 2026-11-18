@@ -426,19 +426,13 @@ class ScreenScraperService {
         } catch (_) {}
       }
 
-      // Switch 2 exports are looked up by their resolved title: the rom name
-      // is `main`, a hash would be of main.npdm, and the title id is not a
-      // ScreenScraper serial (docs/s2arm-switch2-library.md § Scraping).
+      // Switch 2 exports use ScreenScraper's game-name search. The NPDM
+      // filename and hash describe the export, not a ROM in its catalogue.
       final isSwitch2 = targetAppSystemId == 'switch2';
       if (isSwitch2 && Switch2ExportContent.isGenericTitle(gameName)) {
         _log.w('Scraper: Switch 2 row without a title is not looked up');
         return null;
       }
-      if (isSwitch2) {
-        serialNumber = null;
-        md5 = null;
-      }
-
       final cleanRomName = isSwitch2
           ? gameName!.trim()
           : await ScreenscraperRomHasher.getCleanRomName(
@@ -453,11 +447,15 @@ class ScreenScraperService {
         'output': 'json',
         'ssid': credentials['username'] ?? '',
         'sspassword': credentials['password'] ?? '',
-        ...buildGameLookupParametersForTesting(
-          systemId: systemId,
-          romName: cleanRomName,
-          serialNumber: serialNumber,
-        ),
+        if (isSwitch2) ...{
+          'systemeid': systemId,
+          'recherche': cleanRomName,
+        } else
+          ...buildGameLookupParametersForTesting(
+            systemId: systemId,
+            romName: cleanRomName,
+            serialNumber: serialNumber,
+          ),
       };
 
       final preferredLanguage = credentials['preferred_language'];
@@ -465,11 +463,12 @@ class ScreenScraperService {
         queryParameters['langue'] = preferredLanguage;
       }
 
-      if (md5 != null && md5.isNotEmpty) {
+      if (!isSwitch2 && md5 != null && md5.isNotEmpty) {
         queryParameters['md5'] = md5;
       }
 
-      final url = Uri.parse('$_baseUrl/jeuInfos.php')
+      final endpoint = isSwitch2 ? 'jeuRecherche.php' : 'jeuInfos.php';
+      final url = Uri.parse('$_baseUrl/$endpoint')
           .replace(queryParameters: queryParameters);
 
       final response = await ScreenscraperClient.httpGetWithRetry(
@@ -480,10 +479,15 @@ class ScreenScraperService {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        if (data['header']['success'] == 'true') {
+        if (data['header']['success'].toString() == 'true') {
+          final results = data['response'];
+          final gameInfo = isSwitch2
+              ? _findSwitch2GameByName(results['jeux'], cleanRomName)
+              : results['jeu'];
+          if (isSwitch2 && gameInfo == null) return null;
           return {
-            'gameInfo': data['response']['jeu'],
-            'userInfo': data['response']['ssuser'],
+            'gameInfo': gameInfo,
+            'userInfo': results['ssuser'],
           };
         } else {
           _log.e('Error getting game information: ${data['header']['error']}');
@@ -499,6 +503,22 @@ class ScreenScraperService {
       _log.e('Error getting game information: $e');
       return null;
     }
+  }
+
+  static Map<String, dynamic>? _findSwitch2GameByName(Object? games, String title) {
+    if (games is! List) return null;
+    String normalize(String name) =>
+        name.toLowerCase().replaceAll(RegExp(r"[\s:.'’\-™®]+"), '');
+    final wanted = normalize(title);
+    for (final game in games.whereType<Map<String, dynamic>>()) {
+      final names = game['noms'];
+      if (names is List && names.whereType<Map>().any(
+        (name) => normalize(name['text']?.toString() ?? '') == wanted,
+      )) {
+        return game;
+      }
+    }
+    return null;
   }
 
   /// Maps a raw API response to the NeoStation metadata schema.
@@ -806,7 +826,7 @@ class ScreenScraperService {
 
       Map<String, dynamic>? gameInfoResult;
       int attempts = 0;
-      while (attempts < 3) {
+      while (attempts < (isSwitch2 ? 1 : 3)) {
         if (attempts > 0) await Future.delayed(const Duration(seconds: 2));
         gameInfoResult = await fetchGameInfo(
           screenScraperSystemId.toString(),
@@ -974,7 +994,7 @@ class ScreenScraperService {
       }
 
       Map<String, dynamic>? gameInfoResult;
-      for (var attempt = 0; attempt < 3; attempt++) {
+      for (var attempt = 0; attempt < (isSwitch2 ? 1 : 3); attempt++) {
         if (attempt > 0) await Future.delayed(const Duration(seconds: 2));
         gameInfoResult = await fetchGameInfo(
           screenScraperSystemId.toString(),

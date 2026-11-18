@@ -767,6 +767,30 @@ void main() {
       expect(await File('${target.path}/.rewindbox-import-pending').exists(), isTrue);
     });
 
+    test('a numbered import follows the existing slot and save area', () async {
+      final target = (await S2ArmInternalService.saveFolderFor('/export'))!;
+      final progress = File('${target.path}/save_device/000/progress');
+      await progress.create(recursive: true);
+      await progress.writeAsBytes([2]);
+      final source = await picked('000', {'progress': 8});
+      final result = await S2ArmInternalService.importSaveAt('/export', source.path);
+      expect(result.files, 1);
+      expect(await progress.length(), 8);
+      expect(await File('${target.path}/save/000/progress').exists(), isFalse);
+      expect(await File('${result.backup}/save_device/000/progress').readAsBytes(), [2]);
+    });
+
+    test('a numbered wrapper is removed when the game already uses its files at the root', () async {
+      final target = (await S2ArmInternalService.saveFolderFor('/export'))!;
+      final progress = File('${target.path}/save/progress');
+      await progress.create(recursive: true);
+      await progress.writeAsBytes([2]);
+      final source = await picked('000', {'progress': 8});
+      await S2ArmInternalService.importSaveAt('/export', source.path);
+      expect(await progress.length(), 8);
+      expect(await Directory('${target.path}/save/000').exists(), isFalse);
+    });
+
     test('the game a save names is read like the engine reads it', () async {
       final checkpoint = await picked('0x0100AAAA00000000 Other Game', {'2026-11-12/save.bin': 8});
       expect(await S2ArmInternalService.saveProgramId(checkpoint.path), '0100aaaa00000000');

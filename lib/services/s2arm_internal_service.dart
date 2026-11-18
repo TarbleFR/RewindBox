@@ -1347,7 +1347,7 @@ abstract final class S2ArmInternalService {
     return importSaveAt(game, picked);
   });
 
-  /// Copies [picked] into the game's save folder. Play exports replace their matching files inside save/Play.
+  /// Copies [picked] into the game's save folder. Play and numbered slots follow the game's last saved layout.
   /// Other exports retain their layout for the engine's own recognition. What the save folder held before is kept beside
   /// it as "<name> (backup)" (one backup, replaced by the next import). With [exportFolder] null, the save must name its
   /// game (saveNoGame otherwise). Visible for tests.
@@ -1425,15 +1425,15 @@ abstract final class S2ArmInternalService {
     var clean = true;
     try {
       final String payload;
-      final play = direct == null && name.toLowerCase() == 'play';
-      if (play) {
-        payload = await _stagePlaySave(target, contents, name);
+      final namedSlot = direct == null && _titleSaveSlot.hasMatch(name);
+      if (namedSlot) {
+        payload = await _stageSaveSlot(target, contents, source, name);
       } else {
         payload = slot == null
             ? path.join(contents.path, direct?.kind ?? (name.isEmpty ? 'save' : name))
             : path.join(contents.path, slot.program, path.basename(slot.folder.path));
       }
-      final files = await _copyTree(source, Directory(payload), rejectLinks: play);
+      final files = await _copyTree(source, Directory(payload), rejectLinks: namedSlot);
       if (direct?.user case final String user) {
         await File(path.join(contents.path, 'user')).writeAsString(user, flush: true);
       }
@@ -1475,34 +1475,37 @@ abstract final class S2ArmInternalService {
     }
   }
 
-  // On IPA 788 Mario Kart World recovered its progress when account.sav was moved into save/Play.
-  // Stage the native layout so the guest mounts save as the root and keeps the Play directory.
-  static Future<String> _stagePlaySave(Directory target, Directory contents, String name) async {
-    var playName = name;
-    final account = Directory(path.join(target.path, 'save'));
-    if (await account.exists()) {
-      final matches = await account
-          .list(followLinks: false)
-          .where((entry) => path.basename(entry.path).toLowerCase() == 'play')
-          .toList();
-      if (matches.isNotEmpty) {
-        if (matches.length != 1 || matches.single is! Directory) {
-          throw const S2ArmSaveException('saveFailed');
+  // IPA 788 Mario Kart World used save/Play. The supplied 000 archive has nine files, with no
+  // enclosing account metadata. Match the exported slot or filenames to the game's local snapshot.
+  static Future<String> _stageSaveSlot(Directory target, Directory contents, Directory source, String name) async {
+    final play = name.toLowerCase() == 'play';
+    final incomingFiles = play
+        ? const <String>{}
+        : await source.list(followLinks: false).where((entry) => entry is File)
+            .map((entry) => path.basename(entry.path)).toSet();
+    String? slot;
+    String? flat;
+    for (final area in ['save', 'save_device']) {
+      final current = Directory(path.join(target.path, area));
+      if (!await current.exists()) continue;
+
+      await for (final entry in current.list(followLinks: false)) {
+        final existing = path.basename(entry.path);
+        if (existing.toLowerCase() == name.toLowerCase()) {
+          if (entry is! Directory) throw const S2ArmSaveException('saveFailed');
+          slot ??= path.join(area, existing);
+        } else if (entry is File && incomingFiles.contains(existing)) {
+          flat ??= area;
         }
-        playName = path.basename(matches.single.path);
       }
-      await _copyTree(account, Directory(path.join(contents.path, 'save')), rejectLinks: true);
-    }
-    final device = Directory(path.join(target.path, 'save_device'));
-    if (await device.exists()) {
-      await _copyTree(device, Directory(path.join(contents.path, 'save_device')), rejectLinks: true);
+      await _copyTree(current, Directory(path.join(contents.path, area)), rejectLinks: true);
     }
     final user = File(path.join(target.path, 'user'));
     if (await user.exists()) {
       await contents.create(recursive: true);
       await user.copy(path.join(contents.path, 'user'));
     }
-    return path.join(contents.path, 'save', playName);
+    return path.join(contents.path, slot ?? flat ?? path.join('save', name));
   }
 
   // The Files copy is pending until this marker is written by the guest after Commit.

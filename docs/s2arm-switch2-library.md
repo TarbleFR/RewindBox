@@ -45,8 +45,9 @@ service answers `engineMissing`: the playlist is listed but unavailable and noth
 - **Stored file name.** Every entry is a `main.npdm`, so each row is stored as `<title id>.npdm`
   (`Switch2ExportContent.libraryFileName`; without a title id, `<export folder>-<path digest>.npdm`). Scraped metadata
   is `UNIQUE(app_system_id, filename)` and media are named after the file name: a shared `main.npdm` would merge the games.
-- **Scraping.** The stored name is not a ROM identity: Switch 2 lookups send the title as `romnom`, never an MD5 of
-  `main.npdm`, never the title id as `serialnum`; a row with only a placeholder is not looked up.
+- **Scraping.** Switch 2 lookups use ScreenScraper’s title search (`jeuRecherche.php`, `recherche`),
+  scoped to the Switch 2 system. The returned title must match one of the game’s names.
+  A row with only a placeholder is not looked up.
   New imports with a usable title are queued once in the background when ScreenScraper is configured and enabled
   for Switch 2. Existing metadata and media are kept by automatic scraping.
   ScreenScraper system id 296 is what the ScreenScraper site lists for Switch 2; it is not confirmed through the API.

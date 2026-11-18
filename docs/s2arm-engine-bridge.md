@@ -184,6 +184,13 @@ No engine change: everything below uses what the pinned engine already reads in 
   L’import RewindBox prépare désormais la structure native `save/Play`, reprend la casse du
   dossier existant et remplace seulement les fichiers importés. Le reste de `save`, le
   profil de la sauvegarde existante, `save_device` et la copie de secours sont conservés.
+- **Dossiers numérotés (retour IPA 788).** L’archive `000.zip` contient neuf fichiers
+  sous `000/`, sans identifiant de jeu ou de profil. Si une sauvegarde locale contient déjà
+  cet emplacement, l’import le réutilise dans `save` ou `save_device`. Si le jeu écrit
+  directement dans une de ces zones et qu’un nom de fichier correspond, il remplace le
+  fichier à cet endroit. Sans sauvegarde locale permettant de trancher, l’import conserve
+  le dossier numéroté. Le retour signale que la copie manuelle n’a pas rétabli la progression.
+  Le chargement des neuf fichiers en jeu reste à vérifier sur l’appareil.
 - **End of session**: on `session_ended` (either menu's quit, or an engine stop) the bridge removes the menu and dismisses
   the game view controller before it tells Dart.
 - Checked by `test/s2arm_session_menu_test.py` and compiled for iOS arm64 by `.github/workflows/s2arm-bridge-ios.yml`.
