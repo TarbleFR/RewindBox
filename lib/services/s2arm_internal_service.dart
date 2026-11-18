@@ -1129,7 +1129,16 @@ abstract final class S2ArmInternalService {
   /// The save folder tagged with title id [gid], created with the name [title] gives when there is none yet.
   static Future<Directory> _saveFolderForId(String gid, Future<String> Function() title) async {
     final saves = await savesDirectory();
-    await saves.create(recursive: true);
+    final existing = await _existingSaveFolder(saves, gid);
+    if (existing != null) return existing;
+    final tag = '[${gid.toUpperCase()}]';
+    final folder = Directory(path.join(saves.path, '${_safeName(await title(), 'Switch 2')} $tag'));
+    await folder.create(recursive: true);
+    return folder;
+  }
+
+  static Future<Directory?> _existingSaveFolder(Directory saves, String gid) async {
+    if (!await saves.exists()) return null;
     final tag = '[${gid.toUpperCase()}]';
     final matches = <({Directory folder, DateTime modified})>[];
     await for (final entry in saves.list(followLinks: false)) {
@@ -1137,16 +1146,12 @@ abstract final class S2ArmInternalService {
         matches.add((folder: entry, modified: (await entry.stat()).modified));
       }
     }
-    if (matches.isNotEmpty) {
-      matches.sort((a, b) {
-        final byDate = b.modified.compareTo(a.modified);
-        return byDate != 0 ? byDate : a.folder.path.compareTo(b.folder.path);
-      });
-      return matches.first.folder;
-    }
-    final folder = Directory(path.join(saves.path, '${_safeName(await title(), 'Switch 2')} $tag'));
-    await folder.create(recursive: true);
-    return folder;
+    if (matches.isEmpty) return null;
+    matches.sort((a, b) {
+      final byDate = b.modified.compareTo(a.modified);
+      return byDate != 0 ? byDate : a.folder.path.compareTo(b.folder.path);
+    });
+    return matches.first.folder;
   }
 
   static final RegExp _hex16 = RegExp(r'^[0-9A-Fa-f]{16}$');
@@ -1389,7 +1394,10 @@ abstract final class S2ArmInternalService {
   // The Files copy is pending until this marker is written by the guest after Commit.
   static Future<String?> saveImportStatus(String exportFolder) async {
     try {
-      final folder = await saveFolderFor(exportFolder);
+      final detected = await detectExport(exportFolder);
+      final gid = detected['gid']?.toString();
+      if (detected['success'] != true || gid == null || !_gidPattern.hasMatch(gid)) return null;
+      final folder = await _existingSaveFolder(await savesDirectory(), gid);
       if (folder == null) return null;
       final pending = File(path.join(folder.path, '.rewindbox-import-pending'));
       final result = File(path.join(folder.path, '.rewindbox-import-result'));
