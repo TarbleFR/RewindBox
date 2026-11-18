@@ -111,6 +111,8 @@ fetched at build time and never committed here (Apache-2.0, see `docs/s2arm-lega
 | `0103-guest-reuse-registered-texture-type-views.patch` | IPA 785 reported 1,124,027 texture and image type mismatches by frame 3600. Use the existing compatible view of a still-registered texture before asking Metal for its type and layer count. The source ID is invalidated with the registered view. `S2A_RB_TEX_FIT_FAST=0` restores the old lookup order. |
 | `0104-guest-confirm-save-import-commits.patch` | IPA 785 reported 26 Mario Kart World save files copied while the player still saw their previous progress after relaunch. Recognize nested native save layouts and acknowledge an import only after all selected save areas have committed. A pending host import is attempted even when its metadata matches the previous digest. `S2A_RB_SAVE_IMPORT=0` restores the former handling. |
 
+The [0104 producer run](https://github.com/TarbleFR/RewindBox/actions/runs/44260969240) built patches 0001–0104 on macOS 15 and 26. The authenticated build and framework logs have zero diagnostics on the 459 source lines added since IPA 785. The framework's translator stamp remains `0be3f28548fd` and matches the IPA 785 bytes. The flat-export preparation producer remains run 44241257258.
+
 Patches 0003–0009 are the guest interface of `runtime/src/rb_guest.h` (host sequence in its header comment). None of them
 is active unless the host calls `s2a_rb_guest_configure` (the constructor checks of 0003 and 0009 only apply when RewindBox
 loaded the engine: not the main executable, and `rb_s2arm_engine_loaded` exported by the process), so `make ios` builds an
