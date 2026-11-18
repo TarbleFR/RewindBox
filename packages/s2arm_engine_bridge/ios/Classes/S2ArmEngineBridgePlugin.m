@@ -601,13 +601,14 @@ static NSDictionary *launchFail(NSString *error, NSString *stage, NSString *deta
   // Keep continuous frame statistics and let diagnostic launches request the heavy capture.
   int automaticProbeProfile = marioKartWorld ? setenv("S2A_RB_AUTO_PROBE", "0", 0) : 0;
   int saveRestoreProfile = setenv("S2A_RB_SAVE_PROFILE", "1", 0);
+  int saveTitleSlots = setenv("S2A_RB_SAVE_TITLE_SLOTS", "1", 0);
   BOOL profileFailed = vertexProfile || stagingProfile || workgroupProfile || archiveProfile || workerProfile ||
                        readAheadProfile || shaderBytesProfile || shaderQueueProfile || poolIndexProfile ||
                        textureViewsProfile || demandProbeProfile || audioReprimeProfile || feedbackProfile ||
                        pipelinePriorityProfile || shaderCompletionProfile || pipelineLookaheadProfile ||
                        uniformBoundsProfile || waitProbeProfile || frameKeyProfile ||
                        displayTicksProfile || residencyCensusProfile || shaderVariantProfile || automaticProbeProfile ||
-                       saveRestoreProfile;
+                       saveRestoreProfile || saveTitleSlots;
   s2arm_journal("gameProfile", profileFailed ? "failed" : "selected",
                 "\"profile\":\"%s\"", fastFusion ? "fast-fusion" : marioKartWorld ? "mario-kart-world" : "default");
   S2ArmSettingsPrepareLaunch();   // the game language, and the engine's brief overlay that the in-game menu shows or hides

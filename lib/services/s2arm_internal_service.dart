@@ -98,6 +98,8 @@ class S2ArmSaveException implements Exception {
   String toString() => 'S2ArmSaveException($code)';
 }
 
+typedef _TitleSaveSlot = ({String program, Directory folder});
+
 class S2ArmImportProgress {
   const S2ArmImportProgress({
     required this.name,
@@ -1157,6 +1159,47 @@ abstract final class S2ArmInternalService {
   static final RegExp _hex16 = RegExp(r'^[0-9A-Fa-f]{16}$');
   static final RegExp _hex32 = RegExp(r'^[0-9A-Fa-f]{32}$');
   static final RegExp _checkpointName = RegExp(r'^0x([0-9A-Fa-f]{16})(?: .*)?$');
+  static final RegExp _switch2SaveTitle = RegExp(r'^04[0-9A-Fa-f]{14}$');
+  static final RegExp _titleSaveSlot = RegExp(r'^(?:Play|[0-9]{3})$', caseSensitive: false);
+
+  // IPA 787 staged 26 files from 04007EF01F8AE000/000 for 0400C3F00006E000.
+  // An export in this format names its title even when Files returns only Play or 000.
+  static String? _titleOfSaveSlot(String slot) {
+    if (!_titleSaveSlot.hasMatch(path.basename(slot))) return null;
+    final titleFolder = path.dirname(slot);
+    final title = path.basename(titleFolder);
+    if (!_switch2SaveTitle.hasMatch(title)) return null;
+    final parent = path.dirname(titleFolder);
+    // A yuzu title folder is already the payload root, even if it contains a slot named 000.
+    if (_hex32.hasMatch(path.basename(parent)) &&
+        path.basename(path.dirname(parent)) == '0000000000000000') return null;
+    return title.toLowerCase();
+  }
+
+  static Future<List<_TitleSaveSlot>> _titleSaveSlots(Directory root) async {
+    final title = _titleOfSaveSlot(path.normalize(root.path));
+    if (title != null) return [(program: title, folder: root)];
+
+    final titleFolders = <Directory>[];
+    if (_switch2SaveTitle.hasMatch(path.basename(path.normalize(root.path)))) {
+      titleFolders.add(root);
+    } else {
+      await for (final entry in root.list(followLinks: false)) {
+        if (entry is Directory && _switch2SaveTitle.hasMatch(path.basename(entry.path))) {
+          titleFolders.add(entry);
+        }
+      }
+    }
+    final slots = <_TitleSaveSlot>[];
+    for (final folder in titleFolders) {
+      await for (final entry in folder.list(followLinks: false)) {
+        if (entry is! Directory) continue;
+        final program = _titleOfSaveSlot(entry.path);
+        if (program != null) slots.add((program: program, folder: entry));
+      }
+    }
+    return slots;
+  }
 
   // Preserve title and profile metadata outside the deepest folder picked in Files.
   static Future<({String program, String kind, String? user})?> _directSaveSource(String picked) async {
@@ -1188,13 +1231,23 @@ abstract final class S2ArmInternalService {
 
   /// The game a picked save names, as 16 lower-case hex digits, read the way the engine recognizes saves (S2Arm services
   /// SaveFolder.cs Detect): a Ryujinx export (<16 hex>/0 beside ExtraData0, whose first 8 bytes are the program id), a
-  /// yuzu tree (0000000000000000/<32 hex user>/<16 hex program>) or a Checkpoint folder ("0x<16 hex> <name>"). Null when
+  /// yuzu tree (0000000000000000/<32 hex user>/<16 hex program>), a Checkpoint folder ("0x<16 hex> <name>"), or
+  /// a Switch 2 save under its title folder (Play / a numbered slot). Null when
   /// the format names no game (JKSV, plain files, save / save_device) or names several. Visible for tests.
   static Future<String?> saveProgramId(String picked) async {
-    final ids = <String>{};
     final direct = await _directSaveSource(picked);
     if (direct != null) return direct.program;
     final root = Directory(picked);
+    final slots = await _titleSaveSlots(root);
+    if (slots.isNotEmpty) {
+      final titles = slots.map((slot) => slot.program).toSet();
+      return titles.length == 1 ? titles.single : null;
+    }
+    return _embeddedSaveProgramId(root);
+  }
+
+  static Future<String?> _embeddedSaveProgramId(Directory root) async {
+    final ids = <String>{};
     final checkpoint = _checkpointName.firstMatch(path.basename(path.normalize(root.path)));
     if (checkpoint != null) ids.add(checkpoint.group(1)!.toLowerCase());
     var visited = 0;
@@ -1310,11 +1363,22 @@ abstract final class S2ArmInternalService {
       }
       own = {selectedGid.toLowerCase(), selected['programId']?.toString().toLowerCase()};
     }
-    final source = Directory(picked);
-    if (!await source.exists()) throw const S2ArmSaveException('saveEmpty');
+    final pickedFolder = Directory(picked);
+    if (!await pickedFolder.exists()) throw const S2ArmSaveException('saveEmpty');
     // A save that names another game goes to that game's folder: the player picked the wrong game in the list, or none.
     final direct = await _directSaveSource(picked);
-    final saveId = direct?.program ?? await saveProgramId(picked);
+    _TitleSaveSlot? slot;
+    if (direct == null) {
+      final slots = await _titleSaveSlots(pickedFolder);
+      if (slots.isNotEmpty) {
+        final matching = slots.where((slot) => own.contains(slot.program)).toList();
+        final candidates = matching.isEmpty ? slots : matching;
+        if (candidates.length != 1) throw const S2ArmSaveException('saveSelectTitleSlot');
+        slot = candidates.single;
+      }
+    }
+    final source = slot?.folder ?? pickedFolder;
+    final saveId = direct?.program ?? slot?.program ?? await _embeddedSaveProgramId(pickedFolder);
     String? redirectedTo;
     String? redirectedTitle;
     final Directory target;
@@ -1332,10 +1396,12 @@ abstract final class S2ArmInternalService {
       target = folder;
     }
     final normalizedSource = await source.resolveSymbolicLinks();
+    final normalizedPicked = slot == null ? normalizedSource : await pickedFolder.resolveSymbolicLinks();
     final normalizedTarget = await target.resolveSymbolicLinks();
     final saves = await (await savesDirectory()).resolveSymbolicLinks();
-    if (normalizedSource == normalizedTarget || path.isWithin(normalizedTarget, normalizedSource) ||
-        path.isWithin(normalizedSource, normalizedTarget) || normalizedSource == saves) {
+    if (normalizedPicked == saves ||
+        normalizedSource == normalizedTarget || path.isWithin(normalizedTarget, normalizedSource) ||
+        path.isWithin(normalizedSource, normalizedTarget)) {
       throw const S2ArmSaveException('saveSameFolder');
     }
     final name = path.basename(normalizedSource);
@@ -1347,9 +1413,10 @@ abstract final class S2ArmInternalService {
     final previousBackup = Directory(path.join(staging.path, 'previous-backup'));
     var clean = true;
     try {
-      final files = await _copyTree(source, Directory(path.join(
-        contents.path, direct?.kind ?? (name.isEmpty ? 'save' : name),
-      )));
+      final payload = slot == null
+          ? path.join(contents.path, direct?.kind ?? (name.isEmpty ? 'save' : name))
+          : path.join(contents.path, slot.program, path.basename(slot.folder.path));
+      final files = await _copyTree(source, Directory(payload));
       if (direct?.user case final String user) {
         await File(path.join(contents.path, 'user')).writeAsString(user, flush: true);
       }

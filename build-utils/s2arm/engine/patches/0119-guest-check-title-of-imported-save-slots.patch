@@ -1,0 +1,46 @@
+diff --git a/services/S2A.Services/SaveFolder.cs b/services/S2A.Services/SaveFolder.cs
+--- a/services/S2A.Services/SaveFolder.cs
++++ b/services/S2A.Services/SaveFolder.cs
+@@ -91,6 +91,8 @@
+         static List<string> TopNames(string d) => Directory.EnumerateFileSystemEntries(d).Select(Path.GetFileName).Where(n => !n.StartsWith('.') && !Skip.Contains(n) && !RyuMeta.Contains(n)).ToList();
+         static string Latest(string d) => Subdirs(d).OrderBy(x => Directory.GetLastWriteTimeUtc(x)).ThenBy(x => x, StringComparer.Ordinal).LastOrDefault() ?? d;
+         static readonly Regex Hex16 = new("^[0-9a-fA-F]{16}$"), Hex32 = new("^[0-9a-fA-F]{32}$"), Checkpoint = new(@"^0x([0-9a-fA-F]{16})(?: .*)?$");
++        static readonly Regex Switch2Title = new("^04[0-9a-fA-F]{14}$");
++        static readonly Regex TitleSlot = new("^(Play|[0-9]{3})$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+         static List<(string kind, string dir)> NativeLayout(string folder)
+         {
+@@ -141,9 +143,17 @@
+             if (why != null) return null;
+             // ③ yuzu：…/0000000000000000/<32 位用户号>/<程序号>/（用户号全 0 = 设备存档）
+             var yuzu = new List<(string kind, string dir)>();
++            // RewindBox (patch 0119): IPA 787 staged 26 files from 04007EF01F8AE000/000
++            // for 0400C3F00006E000. The bare-file fallback discarded the folder's title.
++            // Respect the title for pending imports, including copies left by IPA 787.
++            var titleSlots = exactAccounts && Environment.GetEnvironmentVariable("S2A_RB_SAVE_TITLE_SLOTS") == "1"
++                ? new List<string>() : null;
+             foreach (string d in Directory.EnumerateDirectories(folder, "*", SearchOption.AllDirectories))
+             {
+                 string user = Path.GetFileName(Path.GetDirectoryName(d)), zero = Path.GetFileName(Path.GetDirectoryName(Path.GetDirectoryName(d)) ?? "");
++                if (titleSlots != null && TitleSlot.IsMatch(Path.GetFileName(d)) && Switch2Title.IsMatch(user) &&
++                    Path.GetRelativePath(folder, d).Split(Path.DirectorySeparatorChar).Length is 2 or 3)
++                    titleSlots.Add(d);
+                 if (!Hex16.IsMatch(Path.GetFileName(d)) || !Hex32.IsMatch(user) || zero != "0000000000000000") continue;
+                 if (!Path.GetFileName(d).Equals(pid, StringComparison.OrdinalIgnoreCase)) { why = $"这是另一款游戏的存档（程序号 {Path.GetFileName(d).ToLowerInvariant()}）"; continue; }
+                 var area = (user.Trim('0').Length == 0 ? "device" : "account", d);
+@@ -152,6 +162,15 @@
+             }
+             if (yuzu.Count > 0) { why = null; return yuzu; }
+             if (why != null) return null;
++            if (titleSlots?.Count > 0)
++            {
++                var matches = titleSlots.Where(d => string.Equals(
++                    Path.GetFileName(Path.GetDirectoryName(d)), pid, StringComparison.OrdinalIgnoreCase)).ToList();
++                if (matches.Count == 1 && HasFiles(matches[0])) return [("save", matches[0])];
++                why = matches.Count == 0 ? "The selected save slot belongs to a different title."
++                    : "Select one non-empty save slot for this title.";
++                return null;
++            }
+             // ④ Checkpoint：0x<程序号> <游戏名>/<时间戳>/，取最新一份
+             foreach (string d in Directory.EnumerateDirectories(folder, "0x*", SearchOption.AllDirectories))
+             {
