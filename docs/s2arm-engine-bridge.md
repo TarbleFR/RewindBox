@@ -107,7 +107,8 @@ memory pressure, patch 0093's workgroup rest during stable cadence at a fair the
 patch 0094's coalesced archive writes during gameplay, patch 0095's backoff for repeat worker polls,
 patch 0096's thermal budget for the speculative pool queue, the shader cache and render
 preparation changes in 0100–0103, and the demand texture probes, audio recovery and colour
-snapshot changes in 0105–0107. The default profile sets these switches to `0`.
+snapshot changes in 0105–0107 and the pipeline priority, shader load and lookahead changes in
+0109–0111. The default profile sets these switches to `0`.
 The 0108 VM log samples apply to all titles.
 Values supplied to the launch environment take
 precedence for comparison runs. The `gameProfile` journal entry records the selected profile. The

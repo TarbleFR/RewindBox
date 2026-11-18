@@ -1,0 +1,82 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -11973,6 +11973,8 @@
+ static _Atomic int g_shurg_live; static _Atomic uint64_t g_shurg_n, g_shurg_ns;
+ static NSMutableSet<NSString *> *g_rb_shurg_queued;   // protected by g_shpre_mu
+ static uint64_t g_rb_shurg_duplicates;   // protected by g_shpre_mu
++static NSMutableSet<NSString *> *g_rb_shahead_claimed;   // completion owns the load; g_shpre_mu
++static uint64_t g_rb_shurg_joined_completion;   // g_shpre_mu
+ static int rb_shurg_unique_on(void) {
+     static int on = -1;   // submit thread only
+     if (on < 0) { const char *e = getenv("S2A_RB_SHADER_URGENT_UNIQUE"); on = !(e && !strcmp(e, "0")); }
+@@ -11991,6 +11993,13 @@
+     os_unfair_lock_lock(&g_shpre_mu);
+     if (atomic_load(&g_shpre_stopping)) { os_unfair_lock_unlock(&g_shpre_mu); return; }
+     if (identity) {
++        if ([g_rb_shahead_claimed containsObject:identity]) {
++            uint64_t n = ++g_rb_shurg_joined_completion;
++            os_unfair_lock_unlock(&g_shpre_mu);
++            if (!(n & (n - 1))) MLOG("RewindBox (patch 0110): %llu lookahead loads reused a translation completion",
++                                      (unsigned long long)n);
++            return;
++        }
+         if ([g_rb_shurg_queued containsObject:identity]) {
+             uint64_t n = ++g_rb_shurg_duplicates;
+             os_unfair_lock_unlock(&g_shpre_mu);
+@@ -12025,19 +12034,53 @@
+ //   load the submit thread reaches first is built there and found in the cache here (shader_load_depth). The stage is not put in the runtime map here: the first use does it
+ //   (dm_shader_miss_late), as for every Switch 2 stage
+ static _Atomic uint64_t g_shahead_n, g_shahead_ns;
++// RewindBox (patch 0110): IPA 785 counted 1,024 completed speculative loads and 17
++// Metal libraries still built on submit (2,860.3 ms). Translation completion and
++// recorded draws can both enqueue the same library. Join a queued completion by
++// exact variant. A speculative load that found no file must never hide a completion.
++static int rb_shahead_join_on(void) {
++    static int on;
++    static dispatch_once_t once;
++    dispatch_once(&once, ^{ const char *e = getenv("S2A_RB_SHADER_AHEAD_JOIN"); on = !(e && !strcmp(e, "0")); });
++    return on;
++}
++static uint64_t g_rb_shahead_dup;   // g_shpre_mu
+ void mtl_shader_ahead_load(const char *k16, const char *stage) {
+     if (!shpre_on() || !k16 || !stage) return;
+     NSString *k = @(k16); int st = stage_of(@(stage)); if (st < 0) return;
++    NSString *key = [k stringByAppendingString:@"_b"];
++    NSString *identity = nil;
++    int depth = 0;
++    if (rb_shahead_join_on()) {
++        depth = stage_depth_moded(st) && atomic_load(&g_depth_zero);
++        identity = shader_identity(key, st, 0, depth);
++    }
+     os_unfair_lock_lock(&g_shpre_mu);
+     if (atomic_load(&g_shpre_stopping)) { os_unfair_lock_unlock(&g_shpre_mu); return; }
++    if (identity) {
++        if ([g_rb_shahead_claimed containsObject:identity]) {
++            uint64_t n = ++g_rb_shahead_dup;
++            os_unfair_lock_unlock(&g_shpre_mu);
++            if (!(n & (n - 1))) MLOG("RewindBox (patch 0110): %llu translated-stage loads already queued",
++                                      (unsigned long long)n);
++            return;
++        }
++        if (!g_rb_shahead_claimed) g_rb_shahead_claimed = [NSMutableSet set];
++        [g_rb_shahead_claimed addObject:identity];
++    }
+     shq_init(&g_shurg, "dm.nvn.sh-urg", s2a_qos(S2A_QOS_SHADER_URGENT));
+     shq_async(&g_shurg, k, ^{ @autoreleasepool {
+         if (!atomic_load(&g_shpre_stopping)) {
+-            uint64_t t0 = bp_now(); NSString *key = [k stringByAppendingString:@"_b"];
+-            if (shader_loadable(key) && shader_load(key, st, 0)) {
++            uint64_t t0 = bp_now();
++            if (shader_loadable(key) && (identity ? shader_load_depth(key, st, 0, depth, NULL, NULL) : shader_load(key, st, 0))) {
+                 uint64_t n = atomic_fetch_add(&g_shahead_n, 1) + 1, ns = atomic_fetch_add(&g_shahead_ns, bp_now() - t0) + (bp_now() - t0);
+                 if (!(n & (n - 1)) && n >= 16) MLOG("RewindBox: libraries of stages translated ahead: %llu loaded beside the submit thread, %.1f ms in all", (unsigned long long)n, ns / 1e6);
+             }
++        }
++        if (identity) {
++            os_unfair_lock_lock(&g_shpre_mu);
++            [g_rb_shahead_claimed removeObject:identity];
++            os_unfair_lock_unlock(&g_shpre_mu);
+         }
+     } });
+     os_unfair_lock_unlock(&g_shpre_mu);

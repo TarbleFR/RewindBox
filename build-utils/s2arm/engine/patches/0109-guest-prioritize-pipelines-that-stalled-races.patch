@@ -1,0 +1,127 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -8630,6 +8630,68 @@
+     if (u && *u) return @(u);
+     return save && *save ? [[@(save) stringByDeletingLastPathComponent] stringByAppendingPathComponent:@"pso_user.tsv"] : nil;
+ }
++// RewindBox (patch 0109): 20 detailed first-use entries at IPA 785 frame 2841 accounted
++// for 2,580.8 ms waiting for queued Metal pipelines. Prioritize successful render
++// pipelines with a long first use on later runs. Keep the hints outside the manifests
++// exported to the shader tools, and batch writes off the submit thread.
++enum { RB_PSO_HOT_LIMIT = 64, RB_PSO_HOT_HISTORY = 256, RB_PSO_HOT_MS = 50 };
++static int rb_pso_hot_on(void) {
++    static int on;
++    static dispatch_once_t once;
++    dispatch_once(&once, ^{ const char *e = getenv("S2A_RB_PSO_HOT_FIRST"); on = !(e && !strcmp(e, "0")); });
++    return on;
++}
++static NSString *rb_pso_hot_path(void) {
++    return [pso_user_path() stringByAppendingString:@".rb-priority"];
++}
++static NSMutableOrderedSet<NSString *> *rb_pso_hot_read(NSString *path) {
++    NSMutableOrderedSet<NSString *> *rows = [NSMutableOrderedSet orderedSet];
++    if (!path || [NSFileManager.defaultManager attributesOfItemAtPath:path error:nil].fileSize > 512 * 1024) return rows;
++    NSString *text = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
++    for (NSString *line in [text componentsSeparatedByString:@"\n"]) {
++        if (line.length != sizeof(pso_skey) * 2 + 2 || ![line hasPrefix:@"R\t"] || [rows containsObject:line]) continue;
++        if (rows.count == RB_PSO_HOT_HISTORY) [rows removeObjectAtIndex:0];
++        [rows addObject:line];
++    }
++    return rows;
++}
++static void rb_pso_hot_note(const char *hex) {
++    NSString *path = rb_pso_hot_path();
++    if (!path) return;
++    NSString *row = [NSString stringWithFormat:@"R\t%s", hex];
++    static dispatch_queue_t queue;
++    static dispatch_once_t once;
++    static NSMutableDictionary<NSString *, NSMutableOrderedSet<NSString *> *> *pending;   // queue only
++    dispatch_once(&once, ^{
++        queue = dispatch_queue_create("rewindbox.pso-history",
++                                      dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, s2a_qos(S2A_QOS_IO_BG), 0));
++        pending = [NSMutableDictionary dictionary];
++    });
++    dispatch_async(queue, ^{ @autoreleasepool {
++        NSMutableOrderedSet<NSString *> *batch = pending[path];
++        if (!batch) {
++            batch = pending[path] = [NSMutableOrderedSet orderedSet];
++            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC), queue, ^{ @autoreleasepool {
++                NSMutableOrderedSet<NSString *> *history = rb_pso_hot_read(path);
++                NSUInteger updated = 0;
++                for (NSString *item in pending[path]) {
++                    if ([history containsObject:item]) continue;
++                    if (history.count == RB_PSO_HOT_HISTORY) [history removeObjectAtIndex:0];
++                    [history addObject:item];
++                    updated++;
++                }
++                [pending removeObjectForKey:path];
++                if (updated) {
++                    NSString *body = [[history.array componentsJoinedByString:@"\n"] stringByAppendingString:@"\n"];
++                    BOOL written = [body writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:nil];
++                    MLOG("RewindBox (patch 0109): pipeline wait history added %lu rows (%lu kept, wrote %d)",
++                         (unsigned long)updated, (unsigned long)history.count, written);
++                }
++            } });
++        }
++        if (batch.count < RB_PSO_HOT_HISTORY) [batch addObject:row];
++    } });
++}
+ static FILE *g_pso_user; static int g_pso_user_checked;
+ static NSMutableSet<NSString *> *g_pso_user_seen;
+ static FILE *pso_user_file(void) {
+@@ -11759,7 +11821,8 @@
+     if (!ps && fs && !ms_fn && !g_pso_fsfn && pso_fout_variant(pr, fs, &k, g_pso_lmap != NULL)) {   // S2Arm: integer attachments the library's entry points do not match
+         e = nil; ps = [g_dev newRenderPipelineStateWithDescriptor:pso_desc(&k, vs, fs, nil, g_pso_lmap != NULL) error:&e];
+     }
+-    { uint64_t d_ = bp_now() - bt; g_bp_pso_n++; g_bp_pso_ns += d_; fe_sync_note(d_);
++    const uint64_t first_use_ns = bp_now() - bt;
++    { uint64_t d_ = first_use_ns; g_bp_pso_n++; g_bp_pso_ns += d_; fe_sync_note(d_);
+       // 首遇等待诊断（11-02 怪猎真机第 63 / 65 秒整帧 180 ms：5 条管线不在归档、首遇跳过判不安全，提交线程等后台编完）：每次这样等过就记一行——
+       //   着色器对、归档键、等了多久、能不能跳（不能的原因看各目标：fresh = 这一帧清过 / 不读旧内容，steady = 前两帧都画过；存储写 = 着色器写存储），
+       //   据此分出「下一帧会被重画满」与「真正累积（历史 / 贴花 / 图集）」两类目标，再定跳过判据。前 64 次逐条，之后 2 的幂次
+@@ -11784,7 +11847,9 @@
+                hm_put_id(&g_pso_fail, &k, NSNull.null); return nil; }
+     if (!ms_fn) { pso_skey sk; char shex[sizeof sk * 2 + 1]; pso_skey_from(&k, vs, fs, g_pso_lmap != NULL, g_pso_lmap ? &g_pso_fz : NULL, &sk); pso_skey_hex(&sk, shex);
+         pso_record("R\t%s\n", shex);
+-        pso_user_record("R\t%s\n", shex); }
++        pso_user_record("R\t%s\n", shex);
++        if (rb_pso_hot_on() && !g_pso_lmap && !g_pso_fsfn && first_use_ns >= RB_PSO_HOT_MS * 1000000ull)
++            rb_pso_hot_note(shex); }
+     quar_built(vs, fs);
+     hm_put_id(&g_pso, &k, ps);
+     return ps;
+@@ -12048,6 +12113,8 @@
+ // The lists' lines as tasks; *lines: the lines they hold
+ static NSArray<WarmTask *> *warm_parse(NSArray<NSString *> *paths, long *lines) {
+     NSMutableArray<WarmTask *> *tasks = [NSMutableArray array];
++    NSMutableOrderedSet<NSString *> *hot = rb_pso_hot_on() ? rb_pso_hot_read(rb_pso_hot_path()) : nil;
++    NSMutableArray<WarmTask *> *priority = hot.count ? [NSMutableArray array] : nil;
+     NSMutableSet<NSString *> *seen = [NSMutableSet set], *stale = [NSMutableSet set]; long n = 0;
+     for (NSString *path in paths) {
+         NSString *txt = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
+@@ -12081,7 +12148,9 @@
+                 // One task per R line (11-06, Xenoblade 3 on 测试设备1): lines used to be grouped per (vertex, fragment) pair and a pair's pipelines built one after another on one
+                 //   worker; its list has a pair with 73 lines, so the prepare step's last lines ran on one core while the rest idled and the first frame waited the whole 15 s cap with
+                 //   12497 of 12523 lines done. The shaders' loads are shared anyway (shader_load_depth: one load per key, waiters join the one in flight), so the pair bought nothing
+-                t = [WarmTask new]; t->kind = 1; t->vkey = vkey; t->fkey = fkey; t->rs = [NSMutableArray arrayWithObject:[NSData dataWithBytes:&sk length:sizeof sk]]; [tasks addObject:t];
++                t = [WarmTask new]; t->kind = 1; t->vkey = vkey; t->fkey = fkey; t->rs = [NSMutableArray arrayWithObject:[NSData dataWithBytes:&sk length:sizeof sk]];
++                if (priority.count < RB_PSO_HOT_LIMIT && [hot containsObject:line]) [priority addObject:t];
++                else [tasks addObject:t];
+             } else if ([c[0] isEqualToString:@"M"] && c.count >= 4) {   // a task / mesh pipeline (nvn_geometry.inc mtk_record): the mesh shader in the vertex place, then the task shader key ("-": none) and the padded variant's mask
+                 pso_skey sk; if (pso_skey_parse(c[1].UTF8String, &sk)) continue;
+                 NSString *mkey = warm_key(sk.vs, sizeof sk.vs), *fkey = warm_key(sk.fs, sizeof sk.fs), *tkey = [c[2] isEqualToString:@"-"] ? @"" : c[2];
+@@ -12092,7 +12161,12 @@
+             n++;
+         }
+     }
+-    *lines = n; return tasks;
++    *lines = n;
++    if (hot.count) MLOG("RewindBox (patch 0109): prewarm promoted %lu previously slow pipelines from %lu recorded priorities",
++                        (unsigned long)priority.count, (unsigned long)hot.count);
++    if (!priority.count) return tasks;
++    [priority addObjectsFromArray:tasks];
++    return priority;
+ }
+ // 预热插队（11-06 卡顿线，异度3 测试设备1 冷装读档）：清单按录制局「首次用到的先后」排，读档直接进的场景，它的管线在 12796 行的清单里排第 12679–12744 行；
+ //   加载页到点放行时只编到第 5341 行，场景第一帧整个 G-buffer 都是新开的目标（不能跳），13 条管线排在后台队列里没编到，提交线程干等，最长一条 2714 ms。

@@ -1,0 +1,91 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -14377,6 +14377,47 @@
+ }
+ // 前瞻自己的账（审计 P1-91：首遇密集时它在提交线程上多花多少、其中 tex_mtl 几次）：次数 / 纳秒 / tex_mtl 调用，跟「parallel precompile」那行一起打
+ static uint64_t g_ppr_n, g_ppr_ns, g_ppr_tex;
++// RewindBox (patch 0111): IPA 785's first 99 pipeline lookaheads took 144.2 ms on submit
++// and 7,975 texture lookups. In a single scan the same recorded attachment and view
++// can reuse its format and sample count. The real draw still resolves actual attachments.
++enum { RB_PSO_RT_SLOTS = 16 };
++typedef struct {
++    tex_t tex;
++    view_t view;
++    uint32_t format, samples;
++    uint8_t valid, depth, viewed;
++} rb_pso_rt_meta;
++static uint64_t g_ppr_meta_reused;
++static int rb_pso_rt_meta_on(void) {
++    static int on = -1;
++    if (on < 0) { const char *e = getenv("S2A_RB_PSO_LOOK_META"); on = !(e && !strcmp(e, "0")); }
++    return on;
++}
++static uint32_t rb_pso_rt_format(rb_pso_rt_meta *cache, const tex_t *tex, const view_t *view,
++                                int viewed, int depth, uint32_t *samples) {
++    if (!tex) return 0;
++    rb_pso_rt_meta *entry = cache && tex->serial ? &cache[(tex->serial ^ (tex->serial >> 8)) & (RB_PSO_RT_SLOTS - 1)] : NULL;
++    if (entry && entry->valid && entry->depth == depth && entry->viewed == viewed &&
++        !memcmp(&entry->tex, tex, sizeof *tex) && (!viewed || !memcmp(&entry->view, view, sizeof *view))) {
++        *samples = entry->samples;
++        g_ppr_meta_reused++;
++        return entry->format;
++    }
++    id<MTLTexture> target = tex_mtl(tex);
++    if (!target || (!depth && nvn_fmt_bc(tex->d.format))) return 0;
++    uint32_t format = (uint32_t)(depth ? target.pixelFormat : rt_view_fmt(target, view, viewed));
++    *samples = (uint32_t)target.sampleCount;
++    if (entry) {
++        memcpy(&entry->tex, tex, sizeof *tex);
++        if (viewed) memcpy(&entry->view, view, sizeof *view);
++        entry->format = format;
++        entry->samples = *samples;
++        entry->valid = 1;
++        entry->depth = depth;
++        entry->viewed = viewed;
++    }
++    return format;
++}
+ static void pso_predict_rest_(void);
+ static void pso_predict_rest(void) {
+     if (!g_exec_next) return;
+@@ -14393,6 +14434,8 @@
+     fz_cursor cur = fz_cursor_from_exec();
+     // Collect them all first, then dispatch: keys for "attachments attached as-is" go first (most likely to be used), the other attach modes after -- background concurrency is limited, and what is dispatched first is compiled first
+     enum { QN = 160 }; static struct { pso_key k; void *vs, *fs; } qa[QN]; int na = 0;
++    rb_pso_rt_meta rt_meta[RB_PSO_RT_SLOTS] = {0};
++    rb_pso_rt_meta *meta = rb_pso_rt_meta_on() ? rt_meta : NULL;
+     g_look = look_noload_on();   // RewindBox (patch 0040): the binds replayed below load nothing (bind_stages); cleared before the saved state is restored
+     for (int guard = 0; guard < 200000 && na < QN; guard++) {
+         const uint8_t *q; op_hdr hq; const void *aq;
+@@ -14400,11 +14443,14 @@
+         if (hq.op == OP_SET_RT) {
+             p_set_rt rb; const p_set_rt *r = set_rt_rec(aq, hq.size, &rb); memset(cf, 0, sizeof cf); dfull = sfull = 0; samples = 1;
+             g_tex_peek = 1;   // 只取格式 / 采样数（见 g_tex_peek）
+-            for (int i = 0; i < r->n && i < 8; i++) { id<MTLTexture> t = r->color[i] && !rt_dup_slot(r, i) ? tex_mtl(r->color[i]) : nil; if (t && nvn_fmt_bc(r->color[i]->d.format)) t = nil; if (t) { cf[i] = (uint32_t)rt_view_fmt(t, &r->cview[i], r->has_cview[i]); samples = (uint32_t)t.sampleCount; } }   // BC targets are never attached (see attach)
+-            id<MTLTexture> dt = r->depth ? tex_mtl(r->depth) : nil;
++            for (int i = 0; i < r->n && i < 8; i++) {
++                if (r->color[i] && !rt_dup_slot(r, i))
++                    cf[i] = rb_pso_rt_format(meta, r->color[i], &r->cview[i], r->has_cview[i], 0, &samples);
++            }
++            uint32_t f = rb_pso_rt_format(meta, r->depth, NULL, 0, 1, &samples);
+             g_tex_peek = 0;
+-            if (dt) { MTLPixelFormat f = dt.pixelFormat; samples = (uint32_t)dt.sampleCount;
+-                dfull = f != MTLPixelFormatStencil8 ? (uint32_t)f : 0; sfull = (f == MTLPixelFormatStencil8 || f == MTLPixelFormatDepth32Float_Stencil8) ? (uint32_t)f : 0; }
++            dfull = f != MTLPixelFormatStencil8 ? f : 0;
++            sfull = (f == MTLPixelFormatStencil8 || f == MTLPixelFormatDepth32Float_Stencil8) ? f : 0;
+             df = dfull; sf = sfull; continue;
+         }
+         if (hq.op == OP_DRAW || hq.op == OP_DRAW_IDX) {
+@@ -14443,7 +14489,10 @@
+              "handed past the former cap of %d %llu, left to their draw by the cap %llu", (unsigned long long)logged,   // RewindBox (patch 0081): the last two counts
+              draws, (int)g_pp_kicked - kicked0, (unsigned long long)g_pp_kicked, (unsigned long long)g_pp_taken, (unsigned long long)g_pp_dropped,
+              (unsigned long long)g_ppr_n, g_ppr_ns / 1e6, (unsigned long long)g_ppr_tex, (unsigned long long)qn, (unsigned long long)ql,
+-             PSO_AHEAD, (unsigned long long)g_rb_look_past, (unsigned long long)g_rb_look_left); }
++             PSO_AHEAD, (unsigned long long)g_rb_look_past, (unsigned long long)g_rb_look_left);
++        if (meta) MLOG("RewindBox (patch 0111): pipeline lookahead reused %llu attachment descriptions so far",
++                       (unsigned long long)g_ppr_meta_reused);
++    }
+ }
+
+ static void fz_probe_cov2(const p_set_rt *r2, const uint8_t *first, const int8_t *p2map, const uint8_t *clr, int n1, int n) {

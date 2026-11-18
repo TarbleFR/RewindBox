@@ -584,9 +584,13 @@ static NSDictionary *launchFail(NSString *error, NSString *stage, NSString *deta
   int demandProbeProfile = setenv("S2A_RB_DEMAND_PROBE_BATCH", kartRender, 0);
   int audioReprimeProfile = setenv("S2A_RB_AUDIO_REPRIME", kartRender, 0);
   int feedbackProfile = setenv("S2A_RB_FB_DIRECT_SNAPSHOT", kartRender, 0);
+  int pipelinePriorityProfile = setenv("S2A_RB_PSO_HOT_FIRST", kartRender, 0);
+  int shaderCompletionProfile = setenv("S2A_RB_SHADER_AHEAD_JOIN", kartRender, 0);
+  int pipelineLookaheadProfile = setenv("S2A_RB_PSO_LOOK_META", kartRender, 0);
   BOOL profileFailed = vertexProfile || stagingProfile || workgroupProfile || archiveProfile || workerProfile ||
                        readAheadProfile || shaderBytesProfile || shaderQueueProfile || poolIndexProfile ||
-                       textureViewsProfile || demandProbeProfile || audioReprimeProfile || feedbackProfile;
+                       textureViewsProfile || demandProbeProfile || audioReprimeProfile || feedbackProfile ||
+                       pipelinePriorityProfile || shaderCompletionProfile || pipelineLookaheadProfile;
   s2arm_journal("gameProfile", profileFailed ? "failed" : "selected",
                 "\"profile\":\"%s\"", fastFusion ? "fast-fusion" : marioKartWorld ? "mario-kart-world" : "default");
   S2ArmSettingsPrepareLaunch();   // the game language, and the engine's brief overlay that the in-game menu shows or hides
