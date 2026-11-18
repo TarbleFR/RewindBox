@@ -120,13 +120,27 @@
       ]
     },
     {
+      "component": "ZstdSharp.Port and Zstandard",
+      "repository": "https://github.com/oleg-st/ZstdSharp.git",
+      "revision": "0ee6121aaa173b42e68d3c6c8816a68e910e0557",
+      "distribution_scope": "managed-nsz-update-decoder",
+      "files": [
+        {
+          "path": "ZstdSharp-LICENSE.txt",
+          "sha256": "d4ab19d94247abfed5fcd5c8687c77ff9a3f5998a1cdd6bf94340b07d2298df7",
+          "source_url": "https://github.com/oleg-st/ZstdSharp/blob/0ee6121aaa173b42e68d3c6c8816a68e910e0557/LICENSE",
+          "exact_copy": false
+        }
+      ]
+    },
+    {
       "component": "NeoStation reference-scope record",
       "repository": "local NeoStation integration",
       "revision": "source pins in build-utils/melonx/source.json",
       "files": [
         {
           "path": "SCOPE.md",
-          "sha256": "9a4160967098115cfb439714b670d5c2211103c10619bd53455fa6881f4ef268",
+          "sha256": "85682d7c7213794c4c072fbab6bf3ab10d34214725fd6d05c05400e3b373d347",
           "exact_copy": false
         }
       ]
