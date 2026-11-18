@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "6f0df5a62862d6553cfdc696b71bee820833190f8b597f645527179f9fb9b1fe",
+  "packagedFingerprint": "7361f75f2a1cd0ebe8880fa16adab25246d9be08e350eef4b5db8ce85faa53be",
   "producers": {
     "engine": {
-      "run": 44266269705,
+      "run": 44270146691,
       "attempt": 1,
-      "artifact": 14411665805,
-      "name": "s2arm-engine-framework-94bd0de74dbfb8ff38bce0994b90123b361bb5d2",
-      "bytes": 24748168,
-      "sha256": "034c37fb9f371287c82c61f835af4c9590df9fd24d5ecf45eaed75f2d26572dd",
-      "headSha": "94bd0de74dbfb8ff38bce0994b90123b361bb5d2",
+      "artifact": 14413485704,
+      "name": "s2arm-engine-framework-efd01e734ebcd68dd216c9fdaa5a1bdf24b5d007",
+      "bytes": 24751424,
+      "sha256": "4caa6fd84120a122b66a1407e3ae262aa7d75b326baa0f933d7350ce16107be0",
+      "headSha": "efd01e734ebcd68dd216c9fdaa5a1bdf24b5d007",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-18T08:35:59Z",
+      "expiresAt": "2026-12-18T09:04:10Z",
       "members": {
-        "S2ArmEngine.framework.zip": "6f881ab179f20dfa086e5b414c7be8743e408e157b516aa64ea50b7f3df2f455",
-        "NS2Pro.framework.zip": "7dcb2f458dcc4ea330d9346567fcdc5df114060fdc5aadfc639f286cd1d101db"
+        "S2ArmEngine.framework.zip": "0bb0364fed4b04d33c02e68fbd07fe5e17ac48ac83c4def3d2054415ab9c9173",
+        "NS2Pro.framework.zip": "a2908d6b5acf403cbfe35ecc69016b37102ad51a7004a2e22f269d27effa28d0"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "034c37fb9f371287c82c61f835af4c9590df9fd24d5ecf45eaed75f2d26572dd",
+    "engine": "4caa6fd84120a122b66a1407e3ae262aa7d75b326baa0f933d7350ce16107be0",
     "prepare": "38974ac1a30069e6a47c8507106d51d3b43fb63166e026b3f8a8d1d0007e6dea",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -90,9 +90,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "c59e847956b03cbda1173257dabca4929b81b659e3dac6555132d5bcd14043f5",
-      "bytes": 113554912,
-      "fingerprint": "6f0df5a62862d6553cfdc696b71bee820833190f8b597f645527179f9fb9b1fe"
+      "sha256": "875c021b8b3c9992bfb591ef4d146f18b78a223d93b6bc85112f677fb3a410d9",
+      "bytes": 113556040,
+      "fingerprint": "7361f75f2a1cd0ebe8880fa16adab25246d9be08e350eef4b5db8ce85faa53be"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -125,9 +125,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 44266269705,
+      "run": 44270146691,
       "attempt": 1,
-      "head_sha": "94bd0de74dbfb8ff38bce0994b90123b361bb5d2",
+      "head_sha": "efd01e734ebcd68dd216c9fdaa5a1bdf24b5d007",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -562,11 +562,23 @@
         {
           "name": "0108-guest-continue-bounded-vm-tag-samples.patch",
           "sha256": "80e557af8491013ffce6a80271a5630d913c43b4c97181092b17d110872e7ad8"
+        },
+        {
+          "name": "0109-guest-prioritize-pipelines-that-stalled-races.patch",
+          "sha256": "3f4e9e51044e30ac5b4410cd984f5268c380dc6afd769b024f72adabb6769211"
+        },
+        {
+          "name": "0110-guest-share-urgent-translated-shader-loads.patch",
+          "sha256": "233d15c6a049012c597072b0fa37ca34a228431335503ae172653c740e75d294"
+        },
+        {
+          "name": "0111-guest-reuse-attachment-descriptions-in-pipeline-lookahead.patch",
+          "sha256": "8b5a9c823bd3522a3885481113725abe718c740b215ee30bf57ba7232e05140a"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "6f881ab179f20dfa086e5b414c7be8743e408e157b516aa64ea50b7f3df2f455",
-        "NS2Pro.framework.zip": "7dcb2f458dcc4ea330d9346567fcdc5df114060fdc5aadfc639f286cd1d101db"
+        "S2ArmEngine.framework.zip": "0bb0364fed4b04d33c02e68fbd07fe5e17ac48ac83c4def3d2054415ab9c9173",
+        "NS2Pro.framework.zip": "a2908d6b5acf403cbfe35ecc69016b37102ad51a7004a2e22f269d27effa28d0"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
