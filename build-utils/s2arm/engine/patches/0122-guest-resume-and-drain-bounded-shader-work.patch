@@ -1,0 +1,796 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index ba89f28..b925edb 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -3754,9 +3754,11 @@ static void rb_alias_dead_note(uint64_t ser, const alias_key *k, const alias_key
+ enum { RB_REUSE_ROOM_MB = 1024, RB_PRESS_HOLD = 600 };
+ static _Atomic uint64_t g_rb_press, g_rb_low_n, g_rb_low_until;   // g_rb_press: events and starts of a low state; the low state lasts while g_cur_frame < g_rb_low_until
+ static dispatch_source_t g_rb_press_src;
++static _Atomic uint64_t g_spec_pressure_until;
+ static _Atomic int g_snp_give, g_snp_sweep;   // RewindBox (patch 0071 review): the snapshot pools let everything go (the low-region ledger) / their idle textures (the 300-frame report) at the next submission end (snp_maint)
+ static void rb_press_release(void);   // the event handler's release (defined with the ring, after tex_put)
+ static void rb_low_from(uint64_t f, int event) {   // any thread: a low state starts, or goes on, for RB_PRESS_HOLD frames from frame f
++    if (event) atomic_store(&g_spec_pressure_until, bp_now() + 5000000000ull);
+     if (f >= atomic_load(&g_rb_low_until)) { atomic_fetch_add(&g_rb_low_n, 1); atomic_fetch_add(&g_rb_press, 1); }   // a new one: counted, and every pool lets go once
+     else if (event) atomic_fetch_add(&g_rb_press, 1);   // an event inside one: let go again
+     atomic_store(&g_rb_low_until, f + RB_PRESS_HOLD);
+@@ -5009,7 +5011,9 @@ static uint64_t rb_pa_queue_limit(void) {
+ //   hold (none: the serious or critical thermal state, or less than S2A_RB_SPEC_MIN_FREE_MB, 768 by default, left before the process limit, iOS). Nothing is dropped:
+ //   held work resumes when the level allows, a draw that meets an unbuilt pipeline builds it as before, and a session stop releases every waiter. A line at each change
+ //   (the first 8, then powers of two) and a summary in the prewarm's end line. S2A_RB_SPEC_GOVERN=0 restores the previous pace
+-enum { RB_SPEC_RUN = 0, RB_SPEC_ONE = 1, RB_SPEC_HOLD = 2 };
++#include "rb_spec_gate.h"
++static rb_spec_gate g_spec_gate = RB_SPEC_GATE_INITIALIZER;
++int nvn_be_stopping(void);
+ static _Atomic uint64_t g_spec_sampled, g_spec_changes, g_spec_parks, g_spec_parked_ns;
+ static _Atomic int g_spec_level, g_spec_why;
+ static const char *const k_spec_why[] = {"no reason", "the fair thermal state", "Low Power Mode", "the serious or critical thermal state", "little memory left before the process limit"};
+@@ -5027,37 +5031,63 @@ static uint64_t rb_spec_min_free(void) {
+ static int rb_spec_level(void) {
+     if (!rb_spec_on()) return RB_SPEC_RUN;
+     uint64_t now = bp_now(), prev = atomic_load_explicit(&g_spec_sampled, memory_order_relaxed);
+-    if ((!prev || now - prev >= 500000000ull) && atomic_compare_exchange_strong_explicit(&g_spec_sampled, &prev, now, memory_order_relaxed, memory_order_relaxed)) {
++    if ((!prev || (now > prev && now - prev >= 500000000ull)) && atomic_compare_exchange_strong_explicit(&g_spec_sampled, &prev, now, memory_order_relaxed, memory_order_relaxed)) {
+         NSProcessInfo *pi = NSProcessInfo.processInfo; int th = (int)pi.thermalState, low = pi.isLowPowerModeEnabled ? 1 : 0;
+-        size_t av = 0;
++        uint64_t av = UINT64_MAX;
+ #if TARGET_OS_IPHONE
+-        av = os_proc_available_memory();   // 0: no limit known
++        static _Atomic int saw_positive;
++        size_t reading = os_proc_available_memory();
++        if (reading) atomic_store(&saw_positive, 1);
++        // App bundles (including the private IPA) can report zero after exceeding
++        // their limit. A non-app host with no prior positive reading reports
++        // unknown. Either situation is resampled by parked workers.
++        av = rb_spec_headroom(reading, atomic_load(&saw_positive) ||
++                              [NSBundle.mainBundle.bundlePath.pathExtension isEqualToString:@"app"]);
+ #endif
+-        int level = RB_SPEC_RUN, why = 0;
+-        if (th >= (int)NSProcessInfoThermalStateSerious) { level = RB_SPEC_HOLD; why = 3; }
+-        else if (av && av < rb_spec_min_free()) { level = RB_SPEC_HOLD; why = 4; }
+-        else if (th == (int)NSProcessInfoThermalStateFair) { level = RB_SPEC_ONE; why = 1; }
+-        else if (low) { level = RB_SPEC_ONE; why = 2; }
++        _Static_assert(NSProcessInfoThermalStateFair == 1 && NSProcessInfoThermalStateSerious == 2, "thermal states");
++        int why = rb_spec_reason(th, low, av, rb_spec_min_free());
++        if (why != RB_SPEC_HOT && now < atomic_load(&g_spec_pressure_until)) why = RB_SPEC_LOW_MEMORY;
++        int level = rb_spec_tier(why);
+         atomic_store_explicit(&g_spec_why, why, memory_order_relaxed);
+         int was = atomic_exchange_explicit(&g_spec_level, level, memory_order_relaxed);
+-        if (was != level) { uint64_t k = atomic_fetch_add(&g_spec_changes, 1) + 1;
+-            if (k <= 8 || !(k & (k - 1))) MLOG("RewindBox: speculative shader work %s: %s (thermal state %d, %llu MB left before the process limit, Low Power Mode %d; %llu changes; patch 0121)",
++        if (was != level) { rb_spec_wake(&g_spec_gate); uint64_t k = atomic_fetch_add(&g_spec_changes, 1) + 1;
++            if (k <= 8 || !(k & (k - 1))) MLOG("RewindBox: speculative shader work %s: %s (thermal state %d, %lld MB left before the process limit (-1 unknown), Low Power Mode %d; %llu changes; patch 0121)",
+                                               level == RB_SPEC_HOLD ? "held" : level == RB_SPEC_ONE ? "on one worker" : "back on every worker", k_spec_why[why], th,
+-                                              (unsigned long long)(av >> 20), low, (unsigned long long)k); }
++                                              av == UINT64_MAX ? -1ll : (long long)(av >> 20), low, (unsigned long long)k); }
+     }
+     return atomic_load_explicit(&g_spec_level, memory_order_relaxed);
+ }
+-static int rb_spec_may(int w) { int lv = rb_spec_level(); return lv == RB_SPEC_RUN || (lv == RB_SPEC_ONE && w <= 0); }
+-// One park of a speculative worker (w: its index, 0 the first): 250 ms, counted. → 0 when the session stops
+-static int rb_spec_park(void) {
+-    uint64_t t0 = bp_now(); atomic_fetch_add(&g_spec_parks, 1);
+-    usleep(250000);
+-    atomic_fetch_add(&g_spec_parked_ns, bp_now() - t0);
+-    return !dm_gfx_session_stopping();
+-}
+-// For the other translation units (dsh_miss.inc's retranslation pass, which has a weak stand-in that always allows and waits with its own stop test): may optional work run now
+-int rb_spec_allow(int w);
+-int rb_spec_allow(int w) { return rb_spec_may(w); }
++static int rb_spec_may(int w) { return rb_spec_worker_allowed(rb_spec_level(), w); }
++static void rb_spec_park(uint64_t ticket) {
++    uint64_t start = bp_now();
++    atomic_fetch_add(&g_spec_parks, 1);
++    rb_spec_wait(&g_spec_gate, ticket);
++    atomic_fetch_add(&g_spec_parked_ns, bp_now() - start);
++}
++
++// Used by the host translation unit. Link failure is preferable to bypassing
++// the governor or stop flag in the guest. Standalone test stubs live in the test.
++int rb_spec_allow(int worker) { return rb_spec_may(worker); }
++static _Atomic unsigned g_spec_active;
++int rb_spec_take(int worker, int *lease) {
++    *lease = rb_spec_admit(&g_spec_active, rb_spec_level(), worker);
++    return *lease;
++}
++void rb_spec_done(int *lease) {
++    if (!*lease) return;
++    *lease = 0;
++    if (atomic_fetch_sub(&g_spec_active, 1u) == 1u && atomic_load(&g_spec_level) == RB_SPEC_ONE)
++        rb_spec_wake(&g_spec_gate);
++}
++int rb_spec_take_optional(void) {
++    for (;;) {
++        uint64_t ticket = atomic_load(&g_spec_gate.epoch);
++        if (nvn_be_stopping()) return 0;
++        int lease;
++        if (rb_spec_allow(0) && rb_spec_take(0, &lease)) return lease;
++        rb_spec_park(ticket);
++    }
++}
+ static int rb_pa_reserve(uint64_t bytes, uint64_t limit) {
+     uint64_t old = atomic_load_explicit(&g_pa_pending, memory_order_relaxed), count;
+     do {
+@@ -12391,6 +12421,7 @@ static os_unfair_lock g_wu_lock = OS_UNFAIR_LOCK_INIT;
+ static NSDictionary<NSString *, NSArray<NSNumber *> *> *g_wu_pairs;   // "顶点键|片元键" → R 行下标；nil = 当前没有在跑的预热
+ static NSMutableArray<NSNumber *> *g_wu_q;                             // 急件下标（先进先出）
+ static _Atomic(uint8_t) *g_wu_claim; static long g_wu_n;                // 每行「已领」标记
++static _Atomic long g_wu_remaining;
+ static _Atomic uint64_t g_wu_bumped, g_wu_taken;                        // 放进急件的行数 / 由急件路领走编的行数
+ static void warm_urgent_index(NSArray<WarmTask *> *tasks) {
+     NSMutableDictionary<NSString *, NSMutableArray<NSNumber *> *> *m = [NSMutableDictionary dictionary];
+@@ -12398,25 +12429,34 @@ static void warm_urgent_index(NSArray<WarmTask *> *tasks) {
+         NSString *k = [NSString stringWithFormat:@"%@|%@", t->vkey, t->fkey ?: @""];
+         NSMutableArray *a = m[k]; if (!a) m[k] = a = [NSMutableArray array]; [a addObject:@(i)]; }
+     _Atomic(uint8_t) *c = calloc(tasks.count ? tasks.count : 1, sizeof *c);
+-    os_unfair_lock_lock(&g_wu_lock); free((void *)g_wu_claim); g_wu_claim = c; g_wu_n = (long)tasks.count; g_wu_pairs = m; g_wu_q = [NSMutableArray array]; os_unfair_lock_unlock(&g_wu_lock);
++    os_unfair_lock_lock(&g_wu_lock); free((void *)g_wu_claim); g_wu_claim = c; g_wu_n = (long)tasks.count; atomic_store(&g_wu_remaining, g_wu_n); g_wu_pairs = c ? m : nil; g_wu_q = [NSMutableArray array]; os_unfair_lock_unlock(&g_wu_lock);
+ }
+ static void warm_urgent_end(void) { os_unfair_lock_lock(&g_wu_lock); g_wu_pairs = nil; [g_wu_q removeAllObjects]; os_unfair_lock_unlock(&g_wu_lock); }   // 标记数组留给还没退出的工人读（随下一次索引换掉）
+ // 工人领下一行：先急件，再按清单顺序；已领的跳过。→ 下标，-1 = 没有了
+ // RewindBox (patch 0121): w, the background worker's index (-1: the prepare step's workers, the first frame waits on them, never held): a sequential row waits for the
+ //   speculative level (rb_spec_may); a row moved to the front by a program the game registered (warm_bump) is taken whatever the level
+-static long warm_pick(_Atomic long *next, long n, int w) {
++static long warm_pick(_Atomic long *next, long n, int w, int *lease) {
++    *lease = 0;
+     if (fu_yield_on() && atomic_load(&g_fu_waiting)) {   // 首遇让路：提交线程在等首遇管线时不领新行
+         uint64_t t0 = bp_now();
+         while (atomic_load(&g_fu_waiting) && (bp_now() - t0) < FU_YIELD_MAX_MS * 1000000ull && !dm_gfx_session_stopping()) usleep(500);
+         atomic_fetch_add(&g_fu_yield_n, 1); atomic_fetch_add(&g_fu_yield_ns, bp_now() - t0);
+     }
+     for (;;) {
++        uint64_t ticket = atomic_load(&g_spec_gate.epoch);
++        if (dm_gfx_session_stopping() || nvn_be_stopping()) return -1;
+         long i = -1;
+         os_unfair_lock_lock(&g_wu_lock); if (g_wu_q.count) { i = g_wu_q[0].longValue; [g_wu_q removeObjectAtIndex:0]; } _Atomic(uint8_t) *c = g_wu_claim; long cn = g_wu_n; os_unfair_lock_unlock(&g_wu_lock);
+         int urgent = i >= 0;
+-        if (!urgent && w >= 0 && !rb_spec_may(w)) { if (!rb_spec_park()) return -1; continue; }   // RewindBox (patch 0121): look at the front again after each park
+-        if (!urgent) { i = atomic_fetch_add(next, 1); if (i >= n) return -1; }
+-        if (!c || i >= cn || !atomic_exchange(&c[i], 1)) { if (urgent) atomic_fetch_add(&g_wu_taken, 1); return i; }
++        if (!urgent && (atomic_load(next) >= n || (c && !atomic_load(&g_wu_remaining)))) return -1;
++        if (!urgent && w >= 0 && !rb_spec_take(w, lease)) { rb_spec_park(ticket); continue; }
++        if (!urgent) { i = atomic_fetch_add(next, 1); if (i >= n) { rb_spec_done(lease); return -1; } }
++        if (!c || i >= cn || rb_claim_row(&c[i])) {
++            if (c && i < cn && atomic_fetch_sub(&g_wu_remaining, 1) == 1) rb_spec_wake(&g_spec_gate);
++            if (urgent) atomic_fetch_add(&g_wu_taken, 1);
++            return i;
++        }
++        rb_spec_done(lease);
+     }
+ }
+ static void warm_bump(const char *vk, const char *fk) {
+@@ -12424,9 +12464,9 @@ static void warm_bump(const char *vk, const char *fk) {
+     NSString *k = [NSString stringWithFormat:@"%s|%s", vk, fk ? fk : ""]; uint64_t added = 0;
+     os_unfair_lock_lock(&g_wu_lock);
+     NSArray<NSNumber *> *rows = g_wu_pairs[k];
+-    for (NSNumber *r in rows) if (r.longValue < g_wu_n && !atomic_load(&g_wu_claim[r.longValue])) { [g_wu_q addObject:r]; added++; }
++    for (NSNumber *r in rows) if (r.longValue < g_wu_n && rb_promote_row(&g_wu_claim[r.longValue])) { [g_wu_q addObject:r]; added++; }
+     os_unfair_lock_unlock(&g_wu_lock);
+-    if (added) { uint64_t n = atomic_fetch_add(&g_wu_bumped, added) + added;
++    if (added) { rb_spec_wake(&g_spec_gate); uint64_t n = atomic_fetch_add(&g_wu_bumped, added) + added;
+         if (!((n - added) & (n - added - 1)) || n == added) MLOG("pipeline prewarm: the game registered a program whose pipelines were still queued: %llu lines moved to the front so far (%llu taken from the front)", (unsigned long long)n, (unsigned long long)atomic_load(&g_wu_taken)); }
+ }
+ static void warm_task_(WarmTask *t);
+@@ -12492,14 +12532,15 @@ static void warm_finish(void) {
+     dm_shader_retranslate_kept();   // RewindBox (patch 0069): every other kept stage that is stale, in the background
+     if (g_par_on) MLOG("pipeline archive after the prewarm: %llu builds from the archive, %llu compiled (written beside it, in the background), %llu stale files dropped",
+                        (unsigned long long)g_par_hits, (unsigned long long)g_par_misses, (unsigned long long)g_par_stale);
+-    atomic_store(&g_warm_running, 0); atomic_store(&g_wp_phase, WARM_DONE);   // the host's progress (nvn_warm.h)
++    atomic_store(&g_wp_phase, WARM_DONE);   // the host's progress (nvn_warm.h)
+     warm_urgent_end();
+     if (atomic_load(&g_fu_yield_n)) MLOG("pipeline prewarm: workers held back %llu times while the submit thread waited for a first-use pipeline, %.1f ms in all", (unsigned long long)atomic_load(&g_fu_yield_n), atomic_load(&g_fu_yield_ns) / 1e6);
+     if (atomic_load(&g_wu_bumped)) MLOG("pipeline prewarm: %llu lines moved to the front when the game registered their programs, %llu of them built from the front", (unsigned long long)atomic_load(&g_wu_bumped), (unsigned long long)atomic_load(&g_wu_taken));
+     if (atomic_load(&g_spec_parks)) MLOG("RewindBox: speculative shader work parked %llu times, %.1f s in all, %llu level changes so far (patch 0121; last reason: %s)",
+                                           (unsigned long long)atomic_load(&g_spec_parks), atomic_load(&g_spec_parked_ns) / 1e9, (unsigned long long)atomic_load(&g_spec_changes), k_spec_why[atomic_load(&g_spec_why) % 5]);
+-    warm_tick_full(atomic_load(&g_wp_total));   // the whole list is built (the front end's "fully prewarmed" mark)
++    if (!dm_gfx_session_stopping() && !nvn_be_stopping()) warm_tick_full(atomic_load(&g_wp_total));
+     par_flush_bg();
++    atomic_store(&g_warm_running, 0);   // session drain can now tear down the old session
+ }
+ // Wait for the background warm-up to finish (at most timeout_ms): returns how many milliseconds were actually waited, 0 if it is not running. On first install the system shader cache is fully cold; if warm-up is slower than the player entering a run,
+ // pipelines not yet warmed are compiled on the spot on the submit thread = in-run stutter; the loading screen on entering a run blocks the player anyway, so let it load a little longer (called where hle_nvn.c presents).
+@@ -12507,7 +12548,7 @@ int mtl_warm_wait(int timeout_ms) {
+     if (!atomic_load(&g_warm_running)) return 0;
+     if (rb_spec_level() == RB_SPEC_HOLD) return 0;   // RewindBox (patch 0121): the prewarm's workers are parked; a loading screen would wait for nothing
+     uint64_t t0 = bp_now();
+-    DM_BLOCK_BEGIN(); while (atomic_load(&g_warm_running) && (bp_now() - t0) / 1000000ull < (uint64_t)timeout_ms) usleep(2000); DM_BLOCK_END();
++    DM_BLOCK_BEGIN(); while (atomic_load(&g_warm_running) && !nvn_be_stopping() && rb_spec_level() != RB_SPEC_HOLD && (bp_now() - t0) / 1000000ull < (uint64_t)timeout_ms) usleep(2000); DM_BLOCK_END();
+     return (int)((bp_now() - t0) / 1000000ull) + 1;
+ }
+ // ---- The prepare step: the prewarm before the game's first frame (after the upstream reference implementation's warm_prepare, MIT) ----
+@@ -12571,13 +12612,23 @@ static _Atomic long g_warm_bg_after_cap;   // 到点放行后由后台 utility 
+ //   2 路 default 5143 条 45.6 s（系统缓存命中三臂相近 1721 / 1635 / 1589）——utility 被排到能效核是慢的主因，加线程几乎不帮；
+ //   同停菜单同时长（约 554 s）的整局整机 3 路 utility 2.35 W / 2 路 default 2.37 W，能耗差 1% 内。首遇现建（user-initiated）仍排在它前面
+ #define WARM_BG_QOS QOS_CLASS_DEFAULT
++static void warm_background_rows(NSArray<WarmTask *> *tasks, _Atomic long *next, int worker, int after_cap) {
++    for (;;) {
++        int lease;
++        long i = warm_pick(next, (long)tasks.count, worker, &lease);
++        if (i < 0 || dm_gfx_session_stopping() || nvn_be_stopping()) { rb_spec_done(&lease); break; }
++        if (after_cap) atomic_fetch_add(&g_warm_bg_after_cap, 1);
++        warm_task(tasks[(NSUInteger)i]);
++        rb_spec_done(&lease);
++    }
++}
+ static int warm_prepare(NSArray<WarmTask *> *tasks, long lines) {
+     int workers = prepare_workers(); long n = (long)tasks.count; uint64_t t0 = bp_now(), lim = (uint64_t)prepare_max_ms() * 1000000ull, stall = (uint64_t)prepare_stall_ms() * 1000000ull;
+     atomic_store(&g_wp_total, lines); atomic_store(&g_wp_phase, WARM_FRONT);
+     __block _Atomic long next = 0; __block _Atomic int stop = 0;   // stop：到点放行后满核的准备工人不再领新行（剩下的交后台低优先，见下）
+     dispatch_group_t g = dispatch_group_create();
+     for (int w = 0; w < workers; w++) dispatch_group_async(g, dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+-        for (;;) { if (atomic_load(&stop)) break; long i = warm_pick(&next, n, -1); if (i < 0 || dm_gfx_session_stopping()) break; WARM_PREPARE_TASK(tasks[(NSUInteger)i]); }
++        for (;;) { if (atomic_load(&stop)) break; int lease; long i = warm_pick(&next, n, -1, &lease); if (i < 0 || dm_gfx_session_stopping()) break; WARM_PREPARE_TASK(tasks[(NSUInteger)i]); }
+     });
+     int shown = 0, late = 0; long seen = -1; uint64_t moved = t0;
+     int front = s2a_front_warm_tick(0, lines) >= 0;   // a front end decides when to stop waiting (it was told the total); else this file's guards
+@@ -12599,7 +12650,7 @@ static int warm_prepare(NSArray<WarmTask *> *tasks, long lines) {
+         atomic_store(&stop, 1);   // 满核的准备工人做完手上这行就退；剩下的从同一位置交给后台 DM_PSO_BG_THREADS 路 WARM_BG_QOS（11-02 怪猎发热：别让满核 user-initiated 一直编下去）
+         { const char *e = getenv("DM_PSO_BG_THREADS"); int bw = e && atoi(e) > 0 ? atoi(e) : 2; workers = bw;
+           for (int w = 0; w < bw; w++) dispatch_group_async(g, dispatch_get_global_queue(WARM_BG_QOS, 0), ^{
+-              for (;;) { long i = warm_pick(&next, n, w); if (i < 0 || dm_gfx_session_stopping()) break; atomic_fetch_add(&g_warm_bg_after_cap, 1); warm_task(tasks[(NSUInteger)i]); }
++              warm_background_rows(tasks, &next, w, 1);
+           }); }
+         atomic_store(&g_wp_why, late); atomic_store(&g_wp_phase, WARM_BG);
+         MLOG("pipeline prepare: the first frame waited %.0f ms (%s); %ld of %ld lines done, the rest goes on in the background on %d workers", (bp_now() - t0) / 1e6,
+@@ -12673,11 +12724,11 @@ static void warm_start(void) {
+     //   workers keep the compile load off the cores the game and the system need (six at user-initiated were the heat above)
+     dispatch_async(dispatch_get_global_queue(WARM_BG_QOS, 0), ^{ @autoreleasepool { long lines = 0; NSArray<WarmTask *> *ts = warm_parse(paths, &lines); warm_urgent_index(ts);
+         atomic_store(&g_wp_total, lines); atomic_store(&g_wp_why, WARM_WHY_CONFIG); atomic_store(&g_wp_phase, WARM_BG);
+-        const char *e = getenv("DM_PSO_BG_THREADS"); int workers = e && atoi(e) > 0 ? atoi(e) : 2; long n = (long)ts.count;
++        const char *e = getenv("DM_PSO_BG_THREADS"); int workers = e && atoi(e) > 0 ? atoi(e) : 2;
+         MLOG("pipeline prewarm: %ld lines in the background on %d workers at default QoS, the game does not wait for it", lines, workers);
+         __block _Atomic long next = 0; dispatch_group_t g = dispatch_group_create();
+         for (int w = 0; w < workers; w++) dispatch_group_async(g, dispatch_get_global_queue(WARM_BG_QOS, 0), ^{
+-            for (;;) { long i = warm_pick(&next, n, w); if (i < 0 || dm_gfx_session_stopping()) break; warm_task(ts[(NSUInteger)i]); }
++            warm_background_rows(ts, &next, w, 0);
+         });
+         dispatch_group_notify(g, dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ warm_finish(); }); } });
+ }
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 6ade944..eb8c494 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -8,6 +8,8 @@ int nvn_be_request_stop(void) {
+     os_unfair_lock_lock(&g_shpre_mu);
+     atomic_store(&g_shpre_stopping, 1);
+     os_unfair_lock_unlock(&g_shpre_mu);
++    rb_spec_wake(&g_spec_gate);
++    par_begin_close();
+     atomic_store(&g_present_discard, 1);
+     atomic_store(&g_link_stop, 1);
+     pthread_mutex_lock(&g_pq_mu);
+@@ -76,7 +78,9 @@ static int session_wait_backend(void) {
+         dispatch_async(g_feedback_q, ^{ dispatch_semaphore_signal(done); });
+         if (dispatch_semaphore_wait(done, dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_SEC))) return -ETIMEDOUT;
+     }
+-    return 0;
++    // PSO and shader producers have all retired. Keep the old archive identity
++    // alive until an already-started Metal call and atomic rename finish.
++    return par_wait_idle(&dl);
+ }
+ static void session_resource_release(void *v) {
+     id o = (__bridge id)v;
+@@ -270,6 +274,7 @@ int nvn_be_shutdown_session(void) {
+     return 0;
+ }
+ void nvn_be_begin_session(void) {
++    atomic_store(&g_par_close_until, 0);
+     os_unfair_lock_lock(&g_shpre_mu);
+     atomic_store(&g_shpre_stopping, 0);
+     os_unfair_lock_unlock(&g_shpre_mu);
+diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archive.h
+index 19998fc..08c8951 100644
+--- a/graphics/nvn/gfx/nvn/pso_archive.h
++++ b/graphics/nvn/gfx/nvn/pso_archive.h
+@@ -233,6 +233,7 @@ static void par_write(NSString *key, id desc) {
+ #ifndef PAR_BATCH
+ #define PAR_BATCH 32   // 单测反证编 -DPAR_BATCH=1
+ #endif
++static _Atomic uint64_t g_par_close_until;
+ static void par_write_batch(NSArray<NSArray *> *items) {
+     NSMutableArray<NSArray *> *todo = [NSMutableArray array];
+     NSMutableSet<NSString *> *seen = g_rb_archive_coalesce ? [NSMutableSet set] : nil;
+@@ -251,7 +252,10 @@ static void par_write_batch(NSArray<NSArray *> *items) {
+     NSSet<NSString *> *before = par_ga_list(0);
+     @autoreleasepool {
+         id<MTLBinaryArchive> a = [g_dev newBinaryArchiveWithDescriptor:[MTLBinaryArchiveDescriptor new] error:&e];
+-        for (NSArray *it in todo) { NSError *e1 = nil; id desc = it[1];
++        for (NSArray *it in todo) {
++            uint64_t deadline = atomic_load(&g_par_close_until);
++            if (deadline && bp_now() >= deadline) break;
++            NSError *e1 = nil; id desc = it[1];
+             BOOL one = a && ([desc isKindOfClass:MTLRenderPipelineDescriptor.class] ? [a addRenderPipelineFunctionsWithDescriptor:desc error:&e1] : [a addComputePipelineFunctionsWithDescriptor:desc error:&e1]);
+             if (one) [keys addObject:it[0]]; else { e = e1; atomic_fetch_add(&g_par_write_failed, 1); } }
+         if (keys.count) ok = [a serializeToURL:[NSURL fileURLWithPath:temp] error:&e] && rename(temp.fileSystemRepresentation, path.fileSystemRepresentation) == 0;
+@@ -268,6 +272,10 @@ static void par_write_batch(NSArray<NSArray *> *items) {
+     pthread_mutex_lock(&g_par_mu); for (NSString *k in keys) { g_par_bmap[k] = name; [g_par_have addObject:k]; } pthread_mutex_unlock(&g_par_mu);
+     atomic_fetch_add(&g_par_written, keys.count);
+ }
++// Under g_par_mu: pending keys include the batch the sole writer is serializing.
++static NSMutableSet<NSString *> *g_par_pending_keys;
++static pthread_cond_t g_par_idle = PTHREAD_COND_INITIALIZER;
++static uint64_t g_par_deferred;
+ static int g_par_writer;                                                 // the writer is running (g_par_mu)
+ static uint64_t g_par_w_t0, g_par_w_n0;
+ // RewindBox (patch 0094): Mario Kart World on IPA 783 opened 3891 pipelines, 2000 batch files.
+@@ -280,17 +288,60 @@ static uint64_t g_par_w_t0, g_par_w_n0;
+ // for the original writer and compare write sizes, new pipeline waits, and late-frame CPU power.
+ static uint64_t g_rb_archive_first, g_rb_archive_delays, g_rb_archive_priority_delays, g_rb_archive_batches;   // under g_par_mu
+ static int g_rb_archive_has_warm;
++static uint64_t g_par_ticket, g_par_timer;
++static void par_writer(void);
++
++// Called with g_par_mu held. The current writer transfers ownership to exactly
++// one timer. Stop can take it back immediately, invalidating the old callback.
++static void par_schedule_locked(uint64_t ns) {
++    uint64_t ticket = ++g_par_ticket;
++    g_par_timer = ticket;
++    pthread_mutex_unlock(&g_par_mu);
++    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)ns), s2a_qos_global(S2A_QOS_IO_BG), ^{
++        pthread_mutex_lock(&g_par_mu);
++        int owns = g_par_timer == ticket;
++        if (owns) g_par_timer = 0;
++        pthread_mutex_unlock(&g_par_mu);
++        if (owns) par_writer();
++    });
++}
++static void par_begin_close(void) {
++    pthread_mutex_lock(&g_par_mu);
++    if (!atomic_load(&g_par_close_until)) atomic_store(&g_par_close_until, bp_now() + 1500000000ull);
++    int wake = g_par_timer != 0;
++    g_par_timer = 0;
++    pthread_mutex_unlock(&g_par_mu);
++    if (wake) dispatch_async(s2a_qos_global(S2A_QOS_IO_BG), ^{ par_writer(); });
++}
++static int par_wait_idle(const struct timespec *deadline) {
++    pthread_mutex_lock(&g_par_mu);
++    while (g_par_writer) {
++        int e = pthread_cond_timedwait(&g_par_idle, &g_par_mu, deadline);
++        if (e && g_par_writer) { pthread_mutex_unlock(&g_par_mu); return -e; }
++    }
++    pthread_mutex_unlock(&g_par_mu);
++    return 0;
++}
++
+ static void par_writer(void) { @autoreleasepool {
+     for (;;) @autoreleasepool {
+         pthread_mutex_lock(&g_par_mu);
+-        NSUInteger n = MIN(g_par_todo.count, (NSUInteger)PAR_BATCH);
++        uint64_t deadline = atomic_load(&g_par_close_until);
++        if (deadline && bp_now() >= deadline && g_par_todo.count) {
++            // The recipe remains in the prewarm list. Never hold up session
++            // teardown for the whole optional backlog or borrow the next session.
++            MLOG("RewindBox: session close left %lu optional descriptors for a later prewarm", (unsigned long)g_par_todo.count);
++            [g_par_todo removeAllObjects];
++            [g_par_pending_keys removeAllObjects];  // this is the sole writer, between batches
++            g_rb_archive_has_warm = 0;
++        }
++        NSUInteger n = MIN(g_par_todo.count, (NSUInteger)(deadline || atomic_load(&g_spec_level) == RB_SPEC_ONE ? 1 : PAR_BATCH));
+         uint64_t serial = 0, delays = 0, priority_delays = 0;
+-        if (n && !rb_spec_may(0) && !dm_gfx_session_stopping()) {   // RewindBox (patch 0121): writing compiles the pipeline once more; held while the speculative level holds (nvn_mtl.m rb_spec_level)
+-            pthread_mutex_unlock(&g_par_mu);
+-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)1000000000), s2a_qos_global(S2A_QOS_IO_BG), ^{ par_writer(); });
++        if (n && !deadline && !rb_spec_may(0)) {
++            par_schedule_locked(250000000ull);
+             return;
+         }
+-        if (n && g_rb_archive_coalesce && !g_rb_archive_has_warm) {
++        if (n && !deadline && g_rb_archive_coalesce && !g_rb_archive_has_warm) {
+             uint64_t age = clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - g_rb_archive_first;
+             uint64_t delay = 0;
+             if (age < 2000000000ull && atomic_load_explicit(&g_fu_waiting, memory_order_relaxed)) {
+@@ -300,30 +351,58 @@ static void par_writer(void) { @autoreleasepool {
+                 delay = 250000000ull - age;
+             if (delay) {
+                 g_rb_archive_delays++;
+-                pthread_mutex_unlock(&g_par_mu);
+-                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)delay), s2a_qos_global(S2A_QOS_IO_BG), ^{ par_writer(); });
++                par_schedule_locked(delay);
+                 return;
+             }
+             serial = ++g_rb_archive_batches;
+             delays = g_rb_archive_delays;
+             priority_delays = g_rb_archive_priority_delays;
+         }
++        int lease = 0;
++        if (n && !deadline && !rb_spec_take(0, &lease)) {
++            par_schedule_locked(250000000ull);
++            return;
++        }
+         NSArray *batch = n ? [g_par_todo subarrayWithRange:NSMakeRange(0, n)] : nil;
+         if (n) {
+             [g_par_todo removeObjectsInRange:NSMakeRange(0, n)];
+             if (!g_par_todo.count) g_rb_archive_has_warm = 0;
+-        } else g_par_writer = 0;
++        } else {
++            g_par_writer = 0;
++            pthread_cond_broadcast(&g_par_idle);
++        }
+         pthread_mutex_unlock(&g_par_mu);
+         if (!batch) break;
+         if (serial && !(serial & (serial - 1)))
+             MLOG("RewindBox (patch 0094): pipeline archive play batch %llu, %lu entries, %llu delays, %llu for first use",
+                  (unsigned long long)serial, (unsigned long)n, (unsigned long long)delays, (unsigned long long)priority_delays);
+-        par_write_batch(batch);   // whatever is noted when the writer comes round, up to PAR_BATCH a file
++        par_write_batch(batch);
++        rb_spec_done(&lease);
++        pthread_mutex_lock(&g_par_mu);
++        for (NSArray *entry in batch) [g_par_pending_keys removeObject:entry[0]];
++        pthread_mutex_unlock(&g_par_mu);
+     }
+ } }
+ static void par_note(NSString *key, id desc) {
+     if (!par_write_in_place) { static _Atomic int said; if (!atomic_exchange(&said, 1)) MLOG("pipeline archive: the package has no seed list: what is first compiled in play is written too, beside it"); }   // RewindBox (patch 0033): g_par_note_play
+     pthread_mutex_lock(&g_par_mu);
++    if ([g_par_have containsObject:key] || [g_par_pending_keys containsObject:key]) {
++        pthread_mutex_unlock(&g_par_mu);
++        return;
++    }
++    // Optional descriptor retention only. All admitted entries stay eligible for
++    // writing. An over-budget key can be offered again and its draw still uses
++    // the exact pipeline just built. Count this separately from a usable hit.
++    NSUInteger limit = atomic_load(&g_spec_level) == RB_SPEC_HOLD ? 128 : 1024;
++    uint64_t deadline = atomic_load(&g_par_close_until);
++    if (g_par_pending_keys.count >= limit || (deadline && bp_now() >= deadline)) {
++        uint64_t count = ++g_par_deferred;
++        pthread_mutex_unlock(&g_par_mu);
++        if (!(count & (count - 1))) MLOG("RewindBox: skipped %llu optional archive writes under the queue or close budget", (unsigned long long)count);
++        return;
++    }
++    if (!g_par_pending_keys) g_par_pending_keys = [NSMutableSet set];
++    [g_par_pending_keys addObject:key];
+     if (!g_par_todo) g_par_todo = [NSMutableArray array];
+     if (g_rb_archive_coalesce) {
+         if (!g_par_todo.count) g_rb_archive_first = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
+diff --git a/graphics/nvn/gfx/nvn/rb_spec_gate.h b/graphics/nvn/gfx/nvn/rb_spec_gate.h
+new file mode 100644
+index 0000000..16d3fde
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_spec_gate.h
+@@ -0,0 +1,80 @@
++#ifndef RB_SPEC_GATE_H
++#define RB_SPEC_GATE_H
++#include <pthread.h>
++#include <stdatomic.h>
++#include <stdint.h>
++#include <time.h>
++
++enum { RB_SPEC_RUN, RB_SPEC_ONE, RB_SPEC_HOLD };
++enum { RB_SPEC_CLEAR, RB_SPEC_FAIR, RB_SPEC_LOW_POWER, RB_SPEC_HOT, RB_SPEC_LOW_MEMORY };
++// Unknown headroom is UINT64_MAX. For an iOS app, zero may mean that the
++// process limit has already been exceeded; an actual zero is a valid reading.
++static inline uint64_t rb_spec_headroom(uint64_t bytes, int app_or_measured) {
++    return bytes || app_or_measured ? bytes : UINT64_MAX;
++}
++static inline int rb_spec_reason(int thermal, int low_power, uint64_t available, uint64_t floor) {
++    if (thermal >= 2) return RB_SPEC_HOT;
++    if (available < floor) return RB_SPEC_LOW_MEMORY;
++    if (thermal == 1) return RB_SPEC_FAIR;
++    return low_power ? RB_SPEC_LOW_POWER : RB_SPEC_CLEAR;
++}
++static inline int rb_spec_tier(int why) {
++    if (why == RB_SPEC_HOT || why == RB_SPEC_LOW_MEMORY) return RB_SPEC_HOLD;
++    return why == RB_SPEC_CLEAR ? RB_SPEC_RUN : RB_SPEC_ONE;
++}
++static inline int rb_spec_worker_allowed(int level, int worker) {
++    return level == RB_SPEC_RUN || (level == RB_SPEC_ONE && worker == 0);
++}
++
++// Count active optional work, including work admitted in RUN. A transition
++// to ONE lets the old work finish before another producer takes a lease.
++static inline int rb_spec_admit(_Atomic unsigned *active, int level, int worker) {
++    if (!rb_spec_worker_allowed(level, worker)) return 0;
++    if (level == RB_SPEC_ONE) {
++        unsigned idle = 0;
++        return atomic_compare_exchange_strong(active, &idle, 1u);
++    }
++    atomic_fetch_add(active, 1u);
++    return 1;
++}
++
++// Record an epoch before checking the queue. A signal between that check and
++// the wait then makes the wait a no-op. Timed wakeups resample the sensors.
++typedef struct {
++    pthread_mutex_t mutex;
++    pthread_cond_t changed;
++    _Atomic uint64_t epoch;
++} rb_spec_gate;
++#define RB_SPEC_GATE_INITIALIZER { PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER, 0 }
++static inline void rb_spec_wake(rb_spec_gate *gate) {
++    pthread_mutex_lock(&gate->mutex);
++    atomic_fetch_add(&gate->epoch, 1);
++    pthread_cond_broadcast(&gate->changed);
++    pthread_mutex_unlock(&gate->mutex);
++}
++static inline void rb_spec_wait(rb_spec_gate *gate, uint64_t ticket) {
++    pthread_mutex_lock(&gate->mutex);
++    if (atomic_load(&gate->epoch) == ticket) {
++        struct timespec ts;
++#if defined(__APPLE__)
++        ts = (struct timespec){0, 250000000};
++        pthread_cond_timedwait_relative_np(&gate->changed, &gate->mutex, &ts);
++#else
++        clock_gettime(CLOCK_REALTIME, &ts);
++        ts.tv_nsec += 250000000;
++        if (ts.tv_nsec >= 1000000000) { ts.tv_nsec -= 1000000000; ts.tv_sec++; }
++        pthread_cond_timedwait(&gate->changed, &gate->mutex, &ts);
++#endif
++    }
++    pthread_mutex_unlock(&gate->mutex);
++}
++
++enum { RB_ROW_FREE, RB_ROW_CLAIMED, RB_ROW_PROMOTED };
++static inline int rb_promote_row(_Atomic(uint8_t) *row) {
++    uint8_t free_row = RB_ROW_FREE;
++    return atomic_compare_exchange_strong(row, &free_row, RB_ROW_PROMOTED);
++}
++static inline int rb_claim_row(_Atomic(uint8_t) *row) {
++    return atomic_exchange(row, RB_ROW_CLAIMED) != RB_ROW_CLAIMED;
++}
++#endif
+diff --git a/graphics/nvn/host/dsh_miss.inc b/graphics/nvn/host/dsh_miss.inc
+index a7653d4..617dce9 100644
+--- a/graphics/nvn/host/dsh_miss.inc
++++ b/graphics/nvn/host/dsh_miss.inc
+@@ -20,7 +20,7 @@ static _Atomic uint64_t g_dsh_keep_n, g_dsh_rk_n, g_dsh_ahead_dup;
+ static _Atomic uint64_t g_rb_dsh_known_saved, g_rb_dsh_known_deferred;
+ static _Atomic int g_dsh_bg_q, g_dsh_rk_busy;
+ int dm_shader_bg_busy(void) { return atomic_load(&g_dsh_rk_busy) > 0; }
+-__attribute__((weak)) int nvn_be_stopping(void) { return 0; }   // RewindBox (patch 0069): nvn_mtl.m: a session stop was asked (g_shpre_stopping); weak: this file's host test without nvn_mtl.m
++int nvn_be_stopping(void);
+ __attribute__((weak)) void nvn_be_msl_ns(uint64_t o[4]) { memset(o, 0, 4 * sizeof *o); }   // RewindBox (patch 0069): nvn_mtl.m: MSL compiled from source (dsh_summary); weak: the same test
+ void dm_shader_late_ns(uint64_t o[4]) { o[0] = atomic_load(&g_dsh_late_n); o[1] = atomic_load(&g_dsh_late_ns); o[2] = atomic_load(&g_dsh_late_wn); o[3] = atomic_load(&g_dsh_late_wns); }
+ static void dsh_late_wait_note(uint64_t w0) { atomic_fetch_add(&g_dsh_late_wn, 1); atomic_fetch_add(&g_dsh_late_wns, now_ns() - w0); }
+@@ -285,9 +285,9 @@ int dm_shader_retranslate(const char *k16) {
+ //   none), the rest left to their first draw and counted. It holds back while the submit thread translates (dsh_yield_late) and while lookahead, bind or eager jobs wait to be
+ //   claimed (g_dsh_bg_q: they are for the scene being drawn), and stops at a session stop (nvn_be_stopping), which waits for it (dm_shader_bg_busy). Once per fallback
+ //   directory unless it stopped early, then the next start goes on. S2A_RB_REKEPT=0 turns it off
+-// RewindBox (patch 0121): the pass is optional work; it waits while heat, memory or Low Power Mode hold speculative work (nvn_mtl.m rb_spec_allow; this stand-in lets it run
+-//   where the Metal backend is not linked), testing the session's stop every 250 ms as the drain that waits for it needs
+-__attribute__((weak)) int rb_spec_allow(int w) { (void)w; return 1; }
++// Provided by the linked Metal backend, stubbed only in t_dsh_stats.c.
++int rb_spec_take_optional(void);
++void rb_spec_done(int *lease);
+ static int dsh_rk_max(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_REKEPT_MAX"); v = e && *e ? atoi(e) : 256; if (v < 0) v = 0; } return v; }
+ void dm_shader_retranslate_kept(void) {
+     static pthread_mutex_t mu = PTHREAD_MUTEX_INITIALIZER; static char last[1200];
+@@ -307,10 +307,16 @@ void dm_shader_retranslate_kept(void) {
+             const char *cur = getenv("DM_MSL_FALLBACK"); if (!cur || strcmp(cur, o)) { stop = 1; break; }   // another game's session began: its own start makes its pass
+             if (dsh_have(o, k)) continue;
+             if (made + failed >= (uint64_t)max) { left++; continue; }   // past the bound: only counted
+-            while (atomic_load(&g_dsh_bg_q) > 0 && !nvn_be_stopping()) usleep(5000);   // jobs for the scene being drawn come first
+-            while (!rb_spec_allow(0) && !nvn_be_stopping()) usleep(250000);   // RewindBox (patch 0121)
+-            if (nvn_be_stopping()) { stop = 1; break; }
+-            if (dm_shader_retranslate(k)) { made++; atomic_fetch_add(&g_dsh_rk_n, 1); } else failed++;   // dm_shader_retranslate holds back for the submit thread itself
++            int lease = 0;
++            while (!nvn_be_stopping()) {
++                while (atomic_load(&g_dsh_bg_q) && !nvn_be_stopping()) usleep(5000);
++                if (!(lease = rb_spec_take_optional())) break;
++                if (!atomic_load(&g_dsh_bg_q)) break;
++                rb_spec_done(&lease);  // scene work arrived during a park
++            }
++            if (!lease || nvn_be_stopping()) { rb_spec_done(&lease); stop = 1; break; }
++            if (dm_shader_retranslate(k)) { made++; atomic_fetch_add(&g_dsh_rk_n, 1); } else failed++;
++            rb_spec_done(&lease);
+         }
+         if (d) closedir(d);
+         if (stop || left) { pthread_mutex_lock(&mu); if (!strcmp(last, o)) last[0] = 0; pthread_mutex_unlock(&mu); }   // stopped early: the next start of this directory goes on
+diff --git a/graphics/nvn/tests/t_dsh_stats.c b/graphics/nvn/tests/t_dsh_stats.c
+index 72aee02..3dbab00 100644
+--- a/graphics/nvn/tests/t_dsh_stats.c
++++ b/graphics/nvn/tests/t_dsh_stats.c
+@@ -67,6 +67,9 @@ static void fixture_log(const char *fmt, ...) {
+ #include "../gfx/nvn/nvn2.h"   // dsh_miss.inc 认 Switch 2 控制段；34–37 是 Switch 2 场景（nvn2_on 桩返回 nvn2），其余 Switch 1
+ static int nvn2;
+ int nvn2_on(void) { return nvn2; }
++int nvn_be_stopping(void) { return 0; }
++int rb_spec_take_optional(void) { return 1; }
++void rb_spec_done(int *lease) { *lease = 0; }
+ #include "../host/dsh_miss.inc"
+ static const char *chain_name(void) { return DMSH_CHAIN; }
+ #undef dlsym
+diff --git a/graphics/nvn/tests/t_nvn_pso_batch.m b/graphics/nvn/tests/t_nvn_pso_batch.m
+index 7100b23..08845da 100644
+--- a/graphics/nvn/tests/t_nvn_pso_batch.m
++++ b/graphics/nvn/tests/t_nvn_pso_batch.m
+@@ -2,11 +2,13 @@
+ //   直接包含生产 nvn_mtl.m，在真 Metal 设备上编 70 条不同的计算管线（先编一遍 = 预热），一次放进待写队列再同步跑写回。期望（按 PAR_BATCH=32 手算）：
+ //   ① 写出 3 个批文件（32 + 32 + 6）、batches.tsv 70 行、每行指向在的文件；② 70 个键都能经 par_archive_for 取到归档，只准命中归档地建管线（FailOnBinaryArchiveMiss）70/70 成；
+ //   ③ 写成计数 +70、写失败 0。反证（构建规则另编 -DPAR_BATCH=1）：批文件 70 个，① 不符
++#include <sched.h>
+ #include "../gfx/nvn/nvn_mtl.m"
+ static unsigned checks, failures;
+ #define REQUIRE(c) do { if (!(c)) { fprintf(stderr, "FAIL setup %s:%d: %s\n", __FILE__, __LINE__, #c); exit(1); } } while (0)
+ #define VERIFY(c, ...) do { checks++; int ok_ = !!(c); if (!ok_) failures++; printf("%s ", ok_ ? "PASS" : "FAIL"); printf(__VA_ARGS__); putchar('\n'); fflush(stdout); } while (0)
+ int main(void) { @autoreleasepool {
++    atomic_store(&g_spec_sampled, UINT64_MAX); atomic_store(&g_spec_level, RB_SPEC_RUN);
+     g_dev = MTLCreateSystemDefaultDevice(); REQUIRE(g_dev);
+     char tmpl[] = "/tmp/t_pso_batch.XXXXXX"; REQUIRE(mkdtemp(tmpl));
+     g_par_dir = @(tmpl); g_par_have = [NSMutableSet set]; g_par_open = [NSMutableDictionary dictionary]; g_par_bmap = [NSMutableDictionary dictionary]; g_par_on = 1;
+@@ -35,6 +37,28 @@ int main(void) { @autoreleasepool {
+     VERIFY(got == N, "② 只准命中归档地建管线 %d/%d", got, N);
+     VERIFY(atomic_load(&g_par_written) - w0 == N && atomic_load(&g_par_write_failed) == f0, "③ 写成 +%llu（期望 70）、写失败 +%llu（期望 0）",
+            (unsigned long long)(atomic_load(&g_par_written) - w0), (unsigned long long)(atomic_load(&g_par_write_failed) - f0));
++    atomic_store(&g_spec_level, RB_SPEC_HOLD);
++    NSString *held = @"thermal-close";
++    par_note(held, descs[0]); par_note(held, descs[0]);
++    uint64_t until = bp_now() + 3000000000ull;
++    BOOL waiting = NO;
++    while (!waiting && bp_now() < until) {
++        pthread_mutex_lock(&g_par_mu); waiting = g_par_timer != 0; pthread_mutex_unlock(&g_par_mu);
++        if (!waiting) sched_yield();
++    }
++    pthread_mutex_lock(&g_par_mu);
++    VERIFY(waiting && g_par_todo.count == 1 && g_par_pending_keys.count == 1,
++           "a duplicate during HOLD retains one descriptor with a scheduled writer");
++    pthread_mutex_unlock(&g_par_mu);
++    par_begin_close();
++    struct timespec close_deadline = session_deadline();
++    VERIFY(!par_wait_idle(&close_deadline), "stop takes over the delayed writer and drains it");
++    id<MTLBinaryArchive> archive = par_archive_for(held);
++    MTLComputePipelineDescriptor *held_desc = [descs[0] copy]; held_desc.binaryArchives = archive ? @[archive] : @[];
++    VERIFY(archive && [g_dev newComputePipelineStateWithDescriptor:held_desc options:MTLPipelineOptionFailOnBinaryArchiveMiss reflection:nil error:nil],
++           "deferred entry is usable without recompilation");
++    VERIFY(g_par_pending_keys.count == 0 && atomic_load(&g_par_written) == w0 + N + 1,
++           "single writer published one deferred descriptor");
+     [NSFileManager.defaultManager removeItemAtPath:g_par_dir error:nil];
+     if (failures) { printf("✗ t_nvn_pso_batch：%u 项里 %u 项不符\n", checks, failures); return 1; }
+     printf("✓ t_nvn_pso_batch：%u 项全过（70 条管线写成 3 个批文件，按键全部取回）\n", checks); return 0;
+diff --git a/graphics/nvn/tests/t_nvn_warmbump.m b/graphics/nvn/tests/t_nvn_warmbump.m
+index bc1a3c8..5d1cb63 100644
+--- a/graphics/nvn/tests/t_nvn_warmbump.m
++++ b/graphics/nvn/tests/t_nvn_warmbump.m
+@@ -3,6 +3,7 @@
+ //   ① 什么都不插：按清单顺序 0 1 2 3 4 5，之后 -1
+ //   ② 先插 c|z → 先领 2 3，再顺序 0；此时再插 c|z 不重复入队（已领）；插 e|v → 下一个领 5；之后顺序 1 4，顺序路走到 5 时跳过（已领），然后 -1
+ //   ③ 插一对清单里没有的、或片元为空的 → 不改顺序；收尾（warm_urgent_end）后再插 → 不入队
++#include <sched.h>
+ #include "../gfx/nvn/nvn_mtl.m"
+ static int bad;
+ static void ck(int ok, const char *what) { printf("%s %s\n", ok ? "  ✓" : "  ✗", what); if (!ok) bad++; }
+@@ -12,14 +13,16 @@ static NSArray<WarmTask *> *mk(void) {
+     for (int i = 0; i < 6; i++) { WarmTask *t = [WarmTask new]; t->kind = 1; t->vkey = @(p[i][0]); t->fkey = @(p[i][1]); [a addObject:t]; }
+     return a;
+ }
+-static NSString *seq(_Atomic long *next, int k) { NSMutableArray *o = [NSMutableArray array]; for (int i = 0; i < k; i++) [o addObject:@(warm_pick(next, 6))]; return [o componentsJoinedByString:@" "]; }
++static NSString *seq(_Atomic long *next, int k) { NSMutableArray *o = [NSMutableArray array]; for (int i = 0; i < k; i++) [o addObject:@(warm_pick(next, 6, -1, &(int){0}))]; return [o componentsJoinedByString:@" "]; }
+ int main(void) {
+     @autoreleasepool {
+-        _Atomic long next = 0; warm_urgent_index(mk());
++        __block _Atomic long next = 0; warm_urgent_index(mk());
+         ck([seq(&next, 7) isEqualToString:@"0 1 2 3 4 5 -1"], "① 不插队：按清单顺序，领完回 -1");
+ 
+         next = 0; warm_urgent_index(mk());
+         warm_bump("c", "z");
++        warm_bump("c", "z");
++        ck(g_wu_q.count == 2, "a second promotion before pickup adds no duplicate rows");
+         NSString *s1 = seq(&next, 3);
+         warm_bump("c", "z");   // 2 3 已领：不重复入队
+         warm_bump("e", "v");
+@@ -39,13 +42,55 @@ int main(void) {
+         next = 0; warm_urgent_index(mk());
+         atomic_store(&g_fu_waiting, 1);
+         __block _Atomic long got = -9; dispatch_semaphore_t done = dispatch_semaphore_create(0);
+-        dispatch_async(dispatch_get_global_queue(QOS_CLASS_DEFAULT, 0), ^{ atomic_store(&got, warm_pick(&next, 6)); dispatch_semaphore_signal(done); });
++        dispatch_async(dispatch_get_global_queue(QOS_CLASS_DEFAULT, 0), ^{ atomic_store(&got, warm_pick(&next, 6, -1, &(int){0})); dispatch_semaphore_signal(done); });
+         usleep(100000);
+         ck(atomic_load(&got) == -9, "④ 首遇在等：工人 100 ms 内没领新行");
+         atomic_store(&g_fu_waiting, 0);
+         ck(!dispatch_semaphore_wait(done, dispatch_time(DISPATCH_TIME_NOW, 1000000000ll)) && atomic_load(&got) == 0, "④ 首遇等完：工人放行，领第 0 行");
+         ck(atomic_load(&g_fu_yield_n) == 1 && atomic_load(&g_fu_yield_ns) >= 90000000ull, "④ 计数：让路 1 次、累计 ≥90 ms");
++        // Freeze the last sample while changing tiers explicitly. A parked worker
++        // must serve a registered program even in HOLD; no sleeps define ordering.
++        atomic_store(&g_spec_sampled, UINT64_MAX);
++        atomic_store(&g_spec_level, RB_SPEC_HOLD);
++        next = 0; warm_urgent_index(mk()); got = -9;
++        uint64_t parks = atomic_load(&g_spec_parks);
++        dispatch_async(dispatch_get_global_queue(QOS_CLASS_DEFAULT, 0), ^{
++            int lease;
++            atomic_store(&got, warm_pick(&next, 6, 1, &lease));
++            rb_spec_done(&lease);
++            dispatch_semaphore_signal(done);
++        });
++        uint64_t deadline = bp_now() + 3000000000ull;
++        while (atomic_load(&g_spec_parks) == parks && bp_now() < deadline) sched_yield();
++        ck(atomic_load(&g_spec_parks) > parks && got == -9, "ordinary worker parked under HOLD");
++        warm_bump("b", "y");
++        ck(!dispatch_semaphore_wait(done, dispatch_time(DISPATCH_TIME_NOW, 3000000000ll)) && got == 1, "urgent row wakes worker during HOLD");
++        next = 0; warm_urgent_index(mk());
++        warm_bump("a","x"); warm_bump("b","y"); warm_bump("c","z"); warm_bump("d","w"); warm_bump("e","v");
++        for (int j = 0; j < 6; j++) ck(warm_pick(&next, 6, 1, &(int){0}) >= 0, "promoted row served");
++        ck(warm_pick(&next, 6, 1, &(int){0}) == -1 && next == 0, "HOLD finishes even when every row was taken from the front");
++
++        next = 0; warm_urgent_index(mk()); got = -9;
++        parks = atomic_load(&g_spec_parks);
++        dispatch_async(dispatch_get_global_queue(QOS_CLASS_DEFAULT, 0), ^{
++            int lease; atomic_store(&got, warm_pick(&next, 6, 1, &lease)); rb_spec_done(&lease);
++            dispatch_semaphore_signal(done);
++        });
++        deadline = bp_now() + 3000000000ull;
++        while (atomic_load(&g_spec_parks) == parks && bp_now() < deadline) sched_yield();
++        atomic_store(&g_spec_level, RB_SPEC_RUN); rb_spec_wake(&g_spec_gate);
++        ck(!dispatch_semaphore_wait(done, dispatch_time(DISPATCH_TIME_NOW, 3000000000ll)) && got == 0, "return to RUN resumes held row");
++        atomic_store(&g_spec_level, RB_SPEC_HOLD); got = -9;
++        parks = atomic_load(&g_spec_parks);
++        dispatch_async(dispatch_get_global_queue(QOS_CLASS_DEFAULT, 0), ^{
++            int lease; atomic_store(&got, warm_pick(&next, 6, 1, &lease)); rb_spec_done(&lease);
++            dispatch_semaphore_signal(done);
++        });
++        deadline = bp_now() + 3000000000ull;
++        while (atomic_load(&g_spec_parks) == parks && bp_now() < deadline) sched_yield();
++        nvn_be_request_stop();
++        ck(!dispatch_semaphore_wait(done, dispatch_time(DISPATCH_TIME_NOW, 3000000000ll)) && got == -1, "stop releases worker without claiming another row");
+     }
+-    printf(bad ? "✗ t_nvn_warmbump：%d 项不通\n" : "✓ t_nvn_warmbump：9 项全过\n", bad);
++    printf(bad ? "✗ t_nvn_warmbump：%d 项不通\n" : "✓ t_nvn_warmbump：所有项通过\n", bad);
+     return bad ? 1 : 0;
+ }
+diff --git a/graphics/nvn/tests/t_rb_spec_gate.c b/graphics/nvn/tests/t_rb_spec_gate.c
+new file mode 100644
+index 0000000..ae939a0
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_spec_gate.c
+@@ -0,0 +1,63 @@
++// Host-only admission and wakeup tests. Uses exactly the primitives included
++// by nvn_mtl.m; no Metal device or claims about device timings.
++#define _POSIX_C_SOURCE 200809L
++#include "../gfx/nvn/rb_spec_gate.h"
++#include <assert.h>
++#include <sched.h>
++#include <stdio.h>
++
++enum { WORKERS = 8 };
++static rb_spec_gate gate = RB_SPEC_GATE_INITIALIZER;
++static _Atomic unsigned active, ready, go, tried, finish;
++static _Atomic unsigned promoted, claimed, leases;
++static _Atomic(uint8_t) row;
++static void *race(void *unused) {
++    (void)unused;
++    uint64_t epoch = atomic_load(&gate.epoch);
++    atomic_fetch_add(&ready, 1);
++    while (!atomic_load(&go)) rb_spec_wait(&gate, epoch);
++    if (rb_promote_row(&row)) atomic_fetch_add(&promoted, 1);
++    if (rb_claim_row(&row)) atomic_fetch_add(&claimed, 1);
++    int mine = rb_spec_admit(&active, RB_SPEC_ONE, 0);
++    if (mine) atomic_fetch_add(&leases, 1);
++    atomic_fetch_add(&tried, 1);
++    for (;;) {
++        epoch = atomic_load(&gate.epoch);
++        if (atomic_load(&finish)) break;
++        rb_spec_wait(&gate, epoch);
++    }
++    if (mine) atomic_fetch_sub(&active, 1);
++    return NULL;
++}
++static int tier(int th, int power, uint64_t mem) {
++    return rb_spec_tier(rb_spec_reason(th, power, mem, 768ull << 20));
++}
++int main(void) {
++    const uint64_t floor = 768ull << 20;
++    assert(tier(0, 0, floor) == RB_SPEC_RUN);
++    assert(tier(0, 0, rb_spec_headroom(0, 1)) == RB_SPEC_HOLD);
++    assert(tier(0, 0, rb_spec_headroom(0, 0)) == RB_SPEC_RUN);
++    assert(tier(0, 0, rb_spec_headroom(floor, 1)) == RB_SPEC_RUN);
++    assert(tier(1, 0, UINT64_MAX) == RB_SPEC_ONE && tier(0, 1, UINT64_MAX) == RB_SPEC_ONE);
++    assert(tier(1, 1, floor - 1) == RB_SPEC_HOLD && tier(2, 1, 0) == RB_SPEC_HOLD);
++    assert(tier(3, 0, UINT64_MAX) == RB_SPEC_HOLD && tier(0, 0, floor + 1) == RB_SPEC_RUN);
++    assert(rb_spec_admit(&active, RB_SPEC_RUN, 2) && rb_spec_admit(&active, RB_SPEC_RUN, 0));
++    assert(!rb_spec_admit(&active, RB_SPEC_ONE, 0));
++    atomic_fetch_sub(&active, 2);
++    assert(!rb_spec_admit(&active, RB_SPEC_ONE, 1));
++    assert(!rb_spec_admit(&active, RB_SPEC_HOLD, 0) && !atomic_load(&active));
++    pthread_t workers[WORKERS];
++    for (unsigned i = 0; i < WORKERS; ++i) assert(!pthread_create(&workers[i], NULL, race, NULL));
++    while (atomic_load(&ready) != WORKERS) sched_yield();
++    atomic_store(&go, 1);
++    rb_spec_wake(&gate);
++    while (atomic_load(&tried) != WORKERS) sched_yield();
++    assert(atomic_load(&promoted) == 1 && atomic_load(&claimed) == 1);
++    assert(atomic_load(&leases) == 1 && atomic_load(&active) == 1);
++    atomic_store(&finish, 1);
++    rb_spec_wake(&gate);
++    for (unsigned i = 0; i < WORKERS; ++i) assert(!pthread_join(workers[i], NULL));
++    assert(!atomic_load(&active) && !rb_promote_row(&row) && !rb_claim_row(&row));
++    assert(rb_spec_admit(&active, RB_SPEC_RUN, 1));
++    puts("PASS thermal levels, unknown headroom, draining RUN, shared ONE lease, exclusive queue claims, all waiters released");
++}

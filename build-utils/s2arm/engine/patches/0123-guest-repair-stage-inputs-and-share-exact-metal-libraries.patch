@@ -1,0 +1,911 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn2.c b/graphics/nvn/gfx/nvn/nvn2.c
+index f8e950a..aa170ae 100644
+--- a/graphics/nvn/gfx/nvn/nvn2.c
++++ b/graphics/nvn/gfx/nvn/nvn2.c
+@@ -14,16 +14,7 @@ __attribute__((weak)) int dm_nvn2_driver_item(unsigned item, int *out) { (void)i
+ 
+ int nvn2_on(void) { return s2a_platform_ounce() != 0; }   // 不缓存：装载器重定位期（s2a_nv_entry）也问，原生层 NPDM 那时已读（svc_mem.c layout_prepare）
+ 
+-int nvn2_key(const void *control, const void *code, uint8_t out[8]) {
+-    uint8_t ctl[NVN2_KEY_CTL]; memcpy(ctl, control, NVN2_KEY_CTL);
+-    memset(ctl + 0x20, 0, 8); memset(ctl + 0x30, 0, 4);
+-    uint32_t n = nvn2_code_len(control);
+-    uint8_t md[CC_SHA256_DIGEST_LENGTH]; CC_SHA256_CTX hc; CC_SHA256_Init(&hc);
+-    CC_SHA256_Update(&hc, ctl, NVN2_KEY_CTL);
+-    if (code && n && n < (1u << 24)) CC_SHA256_Update(&hc, code, n);
+-    CC_SHA256_Final(md, &hc); memcpy(out, md, 8);
+-    return 1;
+-}
++#include "nvn2_key.inc"
+ 
+ static uint32_t w32(const uint8_t *img, size_t o) { uint32_t w; memcpy(&w, img + o, 4); return w; }
+ static int64_t sx21(uint32_t w) { int64_t v = (int64_t)(((w >> 3) & 0x1FFFFC) | ((w >> 29) & 3)); return v & 0x100000 ? v - 0x200000 : v; }   // adr / adrp 的 21 位立即数
+diff --git a/graphics/nvn/gfx/nvn/nvn2_key.inc b/graphics/nvn/gfx/nvn/nvn2_key.inc
+new file mode 100644
+index 0000000..7d486ae
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/nvn2_key.inc
+@@ -0,0 +1,11 @@
++// Shared between the runtime and the standalone disk-input test fixture.
++int nvn2_key(const void *control, const void *code, uint8_t out[8]) {
++    uint8_t ctl[NVN2_KEY_CTL]; memcpy(ctl, control, NVN2_KEY_CTL);
++    memset(ctl + 0x20, 0, 8); memset(ctl + 0x30, 0, 4);
++    uint32_t n = nvn2_code_len(control);
++    uint8_t md[CC_SHA256_DIGEST_LENGTH]; CC_SHA256_CTX hc; CC_SHA256_Init(&hc);
++    CC_SHA256_Update(&hc, ctl, NVN2_KEY_CTL);
++    if (code && n && n < (1u << 24)) CC_SHA256_Update(&hc, code, n);
++    CC_SHA256_Final(md, &hc); memcpy(out, md, 8);
++    return 1;
++}
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index b925edb..7e595f0 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -8625,7 +8625,7 @@ static NSMutableDictionary<NSString *, NvShader *> *g_shcache;
+ // The lock protects lookup/publication only: file I/O, Metal construction and
+ // waiting for another loader never hold it. g_shcache remains the session's
+ // owning cache, so session retirement can release it after draining warm/prefetch.
+-@interface ShaderFlight : NSObject { @public dispatch_group_t done; NvShader *shader; pthread_t builder; } @end   // builder: the thread building it (flight_wait_locked lends it the waiter's QoS)
++@interface ShaderFlight : NSObject { @public dispatch_group_t done; NvShader *shader; id<MTLLibrary> library; pthread_t builder; } @end   // builder: the thread building it (flight_wait_locked lends it the waiter's QoS)
+ @implementation ShaderFlight @end
+ static NSMutableDictionary<NSString *, ShaderFlight *> *g_shader_flights;
+ static os_unfair_lock g_shader_lock = OS_UNFAIR_LOCK_INIT;
+@@ -8635,7 +8635,7 @@ static _Atomic uint64_t g_rb_lib_done;   // RewindBox (patch 0085): libraries bu
+ //   counted only inside "shader libraries ... ms in all". IPA 765: the profile of window f1858 had the submit thread about 690 ms in a row in shader_build at frame 1892 (1,038.7 ms),
+ //   Metal's compiler under it. Counted apart now: shader_build's fallback compiles (newLibraryWithSource, every thread; the output-type, sampler and vertex-pad variants are not
+ //   counted), and the part on the submit thread (shader_load_submit, the long-frame line); the session's totals in dsh_miss.inc dsh_summary (nvn_be_msl_ns)
+-static _Atomic uint64_t g_rb_msl_n, g_rb_msl_ns;   // all threads
++static _Atomic uint64_t g_rb_msl_n, g_rb_msl_ns, g_rb_msl_shared;   // all threads
+ static __thread uint64_t t_rb_msl_n, t_rb_msl_ns;   // this thread's, read around a load by shader_load_submit
+ static uint64_t g_bp_msl_n, g_bp_msl_ns;   // submit thread
+ // Stages whose entry point follows the depth mode: vertex, and an NVN2 mesh shader at stage 4 (main0 / main0_z as a vertex shader's; a domain shader there takes main0 either way)
+@@ -8652,6 +8652,7 @@ static void shader_load_stats(void) {
+          (unsigned long long)atomic_load(&g_shader_requests), (unsigned long long)atomic_load(&g_shader_hits),
+          (unsigned long long)atomic_load(&g_shader_waits), atomic_load(&g_shader_wait_ns) / 1e6, (unsigned long long)atomic_load(&g_shader_builds),
+          (unsigned long long)atomic_load(&g_shader_failures), (unsigned long long)atomic_load(&g_shader_build_live));
++    if (atomic_load(&g_rb_msl_shared)) MLOG("RewindBox: existing Metal source library reused for another shader identity: %llu", (unsigned long long)atomic_load(&g_rb_msl_shared));
+     if (atomic_load(&g_rb_msl_n)) MLOG("RewindBox: MSL of this device's translations compiled from source so far (shader_build's fallback path, every thread): %llu times, %.1f ms in all", (unsigned long long)atomic_load(&g_rb_msl_n), atomic_load(&g_rb_msl_ns) / 1e6);   // RewindBox (patch 0069)
+     if (atomic_load(&g_lp_lib_built)) MLOG("library container: %llu libraries built, %llu loads took one already built from the same segment (lib_pack.inc lp_library); "
+                                           "segments mapped in the host high range %llu (%.1f MB live), in the low range %llu (%.1f MB: high range full or absent)",
+@@ -9123,6 +9124,68 @@ static int rb_binst_copy(NSString *src, NSString *dst) {
+     if (w) { fputs(o, w); fprintf(w, "\n// RewindBox (patch 0066): as compiled on the device: %u reads of c0 + 0x644 in %u entry points replaced by Metal's base instance, %u kept (a source Metal refused so is built as translated: see the journal)\n", r, en, l); ok = !fclose(w); }
+     free(o); return ok ? 2 : 0;
+ }
++// RewindBox (patch 0123). Depth/layer select different functions in the same
++// library. Share only the exact post-rewrite MSL, with the same device and compile
++// options. Keep at most 16 recent libraries; the ordinary NvShader cache still owns
++// the distinct functions. The existing flight lock and priority donation protect
++// builds with overlapping requests. Failed Metal calls are never cached.
++enum { RB_RECENT_MSL = 16 };
++static NSString *g_rb_msl_keys[RB_RECENT_MSL];
++static id<MTLLibrary> g_rb_msl_libraries[RB_RECENT_MSL];
++
++static uint64_t flight_wait_locked(ShaderFlight *flight);
++
++static id<MTLLibrary> rb_compile_source(NSString *src, NSError **error) {
++    uint64_t start = bp_now();
++    id<MTLLibrary> lib = [g_dev newLibraryWithSource:src options:dm_msl_opts() error:error];
++    uint64_t elapsed = bp_now() - start;
++    atomic_fetch_add_explicit(&g_rb_msl_n, 1, memory_order_relaxed);
++    atomic_fetch_add_explicit(&g_rb_msl_ns, elapsed, memory_order_relaxed);
++    t_rb_msl_n++;
++    t_rb_msl_ns += elapsed;
++    return lib;
++}
++static id<MTLLibrary> rb_stage_library(NSString *src, int stage, NSError **error) {
++    t_lib_layer = [src containsString:@"render_target_array_index"];
++    if (!stage_depth_moded(stage)) return rb_compile_source(src, error);
++    const char *bytes = src.UTF8String;
++    if (!bytes) return rb_compile_source(src, error);
++    NSString *identity = [NSString stringWithFormat:@"lib/%p/%@", (__bridge void *)g_dev,
++                          par_hash(bytes, [src lengthOfBytesUsingEncoding:NSUTF8StringEncoding])];
++    unsigned slot = (unsigned)(identity.hash % RB_RECENT_MSL);
++    os_unfair_lock_lock(&g_shader_lock);
++    if ([g_rb_msl_keys[slot] isEqual:identity]) {
++        id<MTLLibrary> lib = g_rb_msl_libraries[slot];
++        os_unfair_lock_unlock(&g_shader_lock);
++        atomic_fetch_add(&g_rb_msl_shared, 1);
++        return lib;
++    }
++    ShaderFlight *flight = g_shader_flights[identity];
++    if (flight) {
++        flight_wait_locked(flight);
++        if (flight->library) atomic_fetch_add(&g_rb_msl_shared, 1);
++        return flight->library;
++    }
++    flight = [ShaderFlight new];
++    flight->builder = pthread_self();
++    flight->done = dispatch_group_create();
++    dispatch_group_enter(flight->done);
++    if (!g_shader_flights) g_shader_flights = [NSMutableDictionary dictionary];
++    g_shader_flights[identity] = flight;
++    os_unfair_lock_unlock(&g_shader_lock);
++
++    id<MTLLibrary> lib = rb_compile_source(src, error);
++    os_unfair_lock_lock(&g_shader_lock);
++    flight->library = lib;
++    if (lib) {
++        g_rb_msl_keys[slot] = identity;
++        g_rb_msl_libraries[slot] = lib;
++    }
++    [g_shader_flights removeObjectForKey:identity];
++    dispatch_group_leave(flight->done);
++    os_unfair_lock_unlock(&g_shader_lock);
++    return lib;
++}
+ static NvShader *shader_build(NSString *pc, int stage, int layer, int depth_zero) {
+     NSError *e = nil;
+     // S2Arm: a key missing from the library is looked up in DM_MSL_FALLBACK (the on-device fallback translation writes <key>_b.metal + .json there; iOS cannot store a metallib built at runtime)
+@@ -9131,7 +9194,8 @@ static NvShader *shader_build(NSString *pc, int stage, int layer, int depth_zero
+     const char *fb = getenv("DM_MSL_FALLBACK");
+     if (!jd && fb && *fb) { NSString *fd = @(fb); if ((jd = [NSData dataWithContentsOfFile:[NSString stringWithFormat:@"%@/%@.json", fd, pc]])) dir = fd; }
+     NSDictionary *j = jd ? [NSJSONSerialization JSONObjectWithData:jd options:0 error:nil] : nil;
+-    if (j && dir != g_msl_dir && !fb_json_current(j)) { MLOG("【红】 shader %s: the fallback translation has chain %s / translator %s, this build expects %s / %s", pc.UTF8String, [[j[@"chain"] description] UTF8String], [[j[@"xfp"] description] UTF8String], DMSH_CHAIN, fb_xfp() ?: "(no s2a_dsh_xfp)"); return nil; }
++    if (![j isKindOfClass:[NSDictionary class]]) return nil;
++    if (dir != g_msl_dir && !fb_json_current(j)) { MLOG("【红】 shader %s: the fallback translation has chain %s / translator %s, this build expects %s / %s", pc.UTF8String, [[j[@"chain"] description] UTF8String], [[j[@"xfp"] description] UTF8String], DMSH_CHAIN, fb_xfp() ?: "(no s2a_dsh_xfp)"); return nil; }
+     if (j && stage == 2 && [j[@"gs_slice"] isKindOfClass:[NSDictionary class]] && [j[@"chain"] isEqual:@DMSH_CHAIN]) {   // a slice-writing geometry shader has no library: a stub prog_fold_gs replaces
+         NvShader *o = [NvShader new]; o->stage = 2; o->lay_loc = -1; strlcpy(o->key, pc.UTF8String, sizeof o->key); rb_keep_frame_key(o);
+         o->gs_loc = [j[@"gs_slice"][@"loc"] intValue]; o->gs_comp = [[j[@"gs_slice"][@"comp"] description] UTF8String][0];
+@@ -9157,14 +9221,13 @@ static NvShader *shader_build(NSString *pc, int stage, int layer, int depth_zero
+     if (!lib && dir != g_msl_dir) {   // S2Arm fallback: MSL source compiled here, same options as the offline chain (dm_msl_opts)
+         NSString *src = [NSString stringWithContentsOfFile:(rb_src = [NSString stringWithFormat:@"%@/%@.metal", dir, pc]) encoding:NSUTF8StringEncoding error:&e];
+         if (src && stage == 0) src = rb_msl_base_instance(src, pc.UTF8String);   // RewindBox (patch 0066)
+-        if (src) { MTLCompileOptions *co = dm_msl_opts(); t_lib_layer = [src containsString:@"render_target_array_index"]; uint64_t m0 = bp_now(); lib = [g_dev newLibraryWithSource:src options:co error:&e];
+-            uint64_t md = bp_now() - m0; atomic_fetch_add_explicit(&g_rb_msl_n, 1, memory_order_relaxed); atomic_fetch_add_explicit(&g_rb_msl_ns, md, memory_order_relaxed); t_rb_msl_n++; t_rb_msl_ns += md; }   // RewindBox (patch 0069)
++        if (src) lib = rb_stage_library(src, stage, &e);
+         if (lib) MLOG("shader %s loaded from the fallback translation (%s)", pc.UTF8String, fb);
+         if (!lib) rb_src = nil;
+     }
+     unsigned rb_bi_n = t_rb_binst_reads; int rb_bi_seen = t_rb_binst_seen; t_rb_binst_reads = 0; t_rb_binst_seen = 0;   // RewindBox (patch 0066): what rb_msl_base_instance did to the source compiled above
+     if (!lib && rb_bi_n) { rb_binst_refused(pc.UTF8String, e); e = nil; rb_bi_n = 0; rb_bi_seen = 0; NSString *s0 = [NSString stringWithContentsOfFile:[NSString stringWithFormat:@"%@/%@.metal", dir, pc] encoding:NSUTF8StringEncoding error:&e];
+-        if (s0) { t_lib_layer = [s0 containsString:@"render_target_array_index"]; lib = [g_dev newLibraryWithSource:s0 options:dm_msl_opts() error:&e]; } }   // RewindBox (patch 0066): Metal refused the rewritten source: the translation as written, as before
++        if (s0) lib = rb_stage_library(s0, stage, &e); }   // RewindBox (patch 0066): Metal refused the rewritten source: the translation as written, as before
+     if (!lib || !j) { MLOG("【红】 failed to load shader %s: %s", pc.UTF8String, e ? e.localizedDescription.UTF8String : "no reflection json"); return nil; }
+     if (![j[@"chain"] isEqual:@DMSH_CHAIN]) { MLOG("【红】 shader %s has translation chain version %s, but this host expects %s", pc.UTF8String, [[j[@"chain"] description] UTF8String], DMSH_CHAIN); return nil; }
+     if (layer && !j[@"entry_layer"]) { MLOG("【红】 vertex shader %s has no layer entry points", pc.UTF8String); return nil; }
+@@ -12073,11 +12136,9 @@ static int warm_stale(NSString *key, NSMutableSet<NSString *> *stale) {
+ // S2Arm: a library to load: in the package (mtl_shlib_has) or translated on this device before (DM_MSL_FALLBACK). A hot-key package's cold key is neither until its first use compiles it
+ //   (dsh_miss.inc): the prewarm (this device's pso_user.tsv may list it) and the prefetch skip it quietly instead of a red "failed to load" per key (283 in a Mario run with 86 keys removed)
+ static _Atomic uint64_t g_cold_skips;
+-static int fb_loadable(NSString *pc) {   // translated on this device before, by this chain and translator
+-    const char *fb = getenv("DM_MSL_FALLBACK"); if (!fb || !*fb) return 0;
+-    NSData *jd = [NSData dataWithContentsOfFile:[NSString stringWithFormat:@"%s/%@.json", fb, pc]];   // an older translator's leftover (fb_json_current) is cold too
+-    NSDictionary *j = jd ? [NSJSONSerialization JSONObjectWithData:jd options:0 error:nil] : nil;
+-    return [j isKindOfClass:[NSDictionary class]] && fb_json_current(j);
++#include "rb_stage_reflection.h"
++static int fb_loadable(NSString *pc) {
++    return rb_translation_available(getenv("DM_MSL_FALLBACK"), pc, fb_xfp(), 1, NULL);
+ }
+ static int shader_loadable(NSString *pc) { return mtl_shlib_has(pc.UTF8String) || fb_loadable(pc); }
+ static NvShader *warm_shader(NSString *key, int stage) {
+diff --git a/graphics/nvn/gfx/nvn/rb_stage_reflection.h b/graphics/nvn/gfx/nvn/rb_stage_reflection.h
+new file mode 100644
+index 0000000..b5f10e0
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_stage_reflection.h
+@@ -0,0 +1,28 @@
++// RewindBox (patch 0123). Shared by the translator host and the Metal prewarm.
++// Parse the complete reflection: stage and translator fingerprint can follow a large
++// binding list. A truncated JSON prefix containing both fields is not usable.
++#pragma once
++#import <Foundation/Foundation.h>
++#include <sys/stat.h>
++
++static int rb_translation_available(const char *dir, NSString *name, const char *xfp,
++                                    int allow_binary, int *stage) {
++    if (!dir || !*dir || !xfp) return 0;
++    @autoreleasepool {
++        NSString *base = [@(dir) stringByAppendingPathComponent:name];
++        NSData *data = [NSData dataWithContentsOfFile:[base stringByAppendingPathExtension:@"json"]];
++        NSDictionary *j = data.length ? [NSJSONSerialization JSONObjectWithData:data options:0 error:NULL] : nil;
++        if (![j isKindOfClass:NSDictionary.class] || ![j[@"chain"] isEqual:@DMSH_CHAIN] || ![j[@"xfp"] isEqual:@(xfp)]) return 0;
++        if (stage) {
++            static NSString *const stages[] = {@"vs", @"ps", @"cs", @"gs", @"ts", @"ms"};
++            *stage = -1;
++            for (int i = 0; i < 6; ++i) if ([stages[i] isEqual:j[@"stage"]]) { *stage = i; break; }
++        }
++        if ([j[@"stage"] isEqual:@"gs"] && [j[@"gs_slice"] isKindOfClass:NSDictionary.class]) return 1;
++        struct stat st;
++        if (!stat([base stringByAppendingPathExtension:@"metal"].fileSystemRepresentation, &st)
++            && S_ISREG(st.st_mode) && st.st_size > 0) return 1;
++        return allow_binary && !stat([base stringByAppendingPathExtension:@"metallib"].fileSystemRepresentation, &st)
++            && S_ISREG(st.st_mode) && st.st_size > 0;
++    }
++}
+diff --git a/graphics/nvn/host/dsh_miss.inc b/graphics/nvn/host/dsh_miss.inc
+index 617dce9..16ab7c9 100644
+--- a/graphics/nvn/host/dsh_miss.inc
++++ b/graphics/nvn/host/dsh_miss.inc
+@@ -18,8 +18,9 @@ static _Atomic int g_dsh_late_waiting;
+ //   g_dsh_rk_busy: start passes running (nvn_mtl.m's session drain waits for them through dm_shader_bg_busy)
+ static _Atomic uint64_t g_dsh_keep_n, g_dsh_rk_n, g_dsh_ahead_dup;
+ static _Atomic uint64_t g_rb_dsh_known_saved, g_rb_dsh_known_deferred;
+-static _Atomic int g_dsh_bg_q, g_dsh_rk_busy;
+-int dm_shader_bg_busy(void) { return atomic_load(&g_dsh_rk_busy) > 0; }
++static _Atomic uint64_t g_rb_stage_write_errors, g_rb_stage_input_rejections;
++static _Atomic int g_dsh_bg_q, g_dsh_rk_busy, g_rb_keep_busy;
++int dm_shader_bg_busy(void) { return atomic_load(&g_dsh_rk_busy) > 0 || atomic_load(&g_rb_keep_busy) > 0; }
+ int nvn_be_stopping(void);
+ __attribute__((weak)) void nvn_be_msl_ns(uint64_t o[4]) { memset(o, 0, 4 * sizeof *o); }   // RewindBox (patch 0069): nvn_mtl.m: MSL compiled from source (dsh_summary); weak: the same test
+ void dm_shader_late_ns(uint64_t o[4]) { o[0] = atomic_load(&g_dsh_late_n); o[1] = atomic_load(&g_dsh_late_ns); o[2] = atomic_load(&g_dsh_late_wn); o[3] = atomic_load(&g_dsh_late_wns); }
+@@ -63,6 +64,9 @@ static void dsh_summary(int normal) {
+         (unsigned long long)atomic_load(&g_dsh_late_n), atomic_load(&g_dsh_late_ns) / 1e6, (unsigned long long)atomic_load(&g_dsh_late_wn), atomic_load(&g_dsh_late_wns) / 1e6,
+         (unsigned long long)atomic_load(&g_dsh_keep_n), (unsigned long long)atomic_load(&g_dsh_rk_n), (unsigned long long)atomic_load(&g_dsh_boost_n));
+     if (atomic_load(&g_dsh_ahead_dup)) LOG("RewindBox: lookahead or bind translations that found their key translated meanwhile (not translated twice): %llu", (unsigned long long)atomic_load(&g_dsh_ahead_dup));
++    if (atomic_load(&g_rb_stage_write_errors) || atomic_load(&g_rb_stage_input_rejections))
++        LOG("RewindBox: stage input publications failed %llu, inputs unreadable or identity invalid %llu",
++            (unsigned long long)atomic_load(&g_rb_stage_write_errors), (unsigned long long)atomic_load(&g_rb_stage_input_rejections));
+     if (atomic_load(&g_rb_dsh_known_saved) || atomic_load(&g_rb_dsh_known_deferred))
+         LOG("RewindBox: already mapped shaders: %llu stage files kept, %llu copies deferred by the byte cap (S2A_RB_DSH_KEEP_MAPPED)",
+             (unsigned long long)atomic_load(&g_rb_dsh_known_saved), (unsigned long long)atomic_load(&g_rb_dsh_known_deferred));
+@@ -85,21 +89,13 @@ static const char *dsh_xfp(void) {
+     dispatch_once(&once, ^{ const char *(*fn)(void) = (const char *(*)(void))dlsym(RTLD_DEFAULT, "s2a_dsh_xfp"); x = fn ? fn() : NULL; });
+     return x;
+ }
+-// json 文本里字段 name 的字符串值等于 want（只认 "name": "want" 这种平铺写法，现编 json 是 S2A.Dsh 写的、就是这样）
+-static int dsh_json_eq(const char *b, const char *name, const char *want) {
+-    char q[32]; snprintf(q, sizeof q, "\"%s\"", name);
+-    const char *c = strstr(b, q); c = c ? strchr(c + strlen(q), '"') : NULL; size_t n = strlen(want);
+-    return c && !strncmp(c + 1, want, n) && c[1 + n] == '"';
+-}
+-// 上一局现编过的键：兜底目录里 <键>_b.metal 在、<键>_b.json 记的翻译链版本是本机的、翻译器指纹 xfp 也是本机现编库的
+-//   （链号只随宿主 / 库接口变，App 升级换了翻译器链号不动、兜底目录又跨更新保留，所以还要比 xfp；拿不到本机指纹就不复用。shader_build 载兜底那支同样两项都核）
+-static int dsh_have(const char *out, const char *k) {
+-    char p[1200], b[8192]; snprintf(p, sizeof p, "%s/%s_b.metal", out, k);
+-    const char *x = dsh_xfp(); if (!x || access(p, R_OK)) return 0;
+-    snprintf(p, sizeof p, "%s/%s_b.json", out, k); FILE *f = fopen(p, "r"); if (!f) return 0;
+-    size_t n = fread(b, 1, sizeof b - 1, f); fclose(f); b[n] = 0;
+-    return dsh_json_eq(b, "chain", DMSH_CHAIN) && dsh_json_eq(b, "xfp", x);
++#include "../gfx/nvn/rb_stage_reflection.h"
++static int dsh_current_stage(const char *out, const char *k, int *stage) {
++    @autoreleasepool {
++        return rb_translation_available(out, [NSString stringWithFormat:@"%s_b", k], dsh_xfp(), 0, stage);
++    }
+ }
++static int dsh_have(const char *out, const char *k) { return dsh_current_stage(out, k, NULL); }
+ 
+ typedef int (*dsh_comp_fn)(const char *, int, const void *, size_t, const void *, size_t, const char *);
+ static dsh_comp_fn dsh_comp(void) {
+@@ -119,14 +115,11 @@ static void dsh_dump(const char *k, const void *control, uint32_t nctl, uint64_t
+     snprintf(path, sizeof path, "%s/%s.ctl", shd, k); if ((f = fopen(path, "wb"))) { fwrite(control, 1, nctl, f); fclose(f); }
+     snprintf(path, sizeof path, "%s/%s.code", shd, k); if ((f = fopen(path, "wb"))) { fwrite((const void *)(uintptr_t)code, 1, ncode, f); fclose(f); }
+ }
++#include "rb_stage_input.h"
+ static int dsh_stage(const uint8_t *cd, const uint8_t *ctl, uint32_t *ncode, uint32_t *nctl) {
+     // Switch 2 的 NVN2 控制段（graphics/nvn/gfx/nvn/nvn2.h，版本 0xc9）：代码长在 +0x44、阶段在 +0x56（0 顶点 1 像素 2 几何 5 计算 6 任务 7 网格；外壳 / 域现编不支持），
+     //   控制段取自报长度（+0x30，文件里 0xd8 / 0xe0、内存里可能是 0）、不足或认不出按最短的 0xd8；现编链（S2A.Dsh Nvn2Job）认 0xc9 走 Ampere 前端
+-    if (nvn2_on() && nvn2_ctl(ctl)) {
+-        uint32_t own; memcpy(ncode, ctl + 0x44, 4); memcpy(&own, ctl + 0x30, 4); *nctl = own >= 0xd8 && own <= NVN2_CTL_COPY ? own : 0xd8;
+-        int st = ctl[0x56] == 0 ? 0 : ctl[0x56] == 1 ? 1 : ctl[0x56] == 5 ? 2 : ctl[0x56] == 2 ? 3 : ctl[0x56] == 6 ? 4 : ctl[0x56] == 7 ? 5 : -1;   // 4 / 5 = S2A.Dsh 的 ts / ms（11-05 时之笛 11aa3147be208368 阶段字节 6 不能现编）
+-        return !*ncode || *ncode >= (1u << 24) ? -1 : st;
+-    }
++    if (nvn2_on() && nvn2_ctl(ctl)) return rb_nvn2_input_stage(ctl, ncode, nctl);
+     uint32_t w; memcpy(ncode, ctl + 0x704, 4); memcpy(nctl, ctl + 0x20, 4); memcpy(&w, cd + 0x30, 4);
+     static const uint8_t gfx_magic[4] = {0x78, 0x56, 0x34, 0x12}; int t = (w >> 10) & 0xf; if (t == 0 && (w & 0x1f) == 1) t = 1;
+     int st = memcmp(cd, gfx_magic, 4) ? 2 : t == 1 ? 0 : t == 5 ? 1 : t == 4 ? 3 : -1;
+@@ -215,41 +208,53 @@ void s2a_dsh_crash_dump(void) {
+ //   all, median 21 ms, the longest 625 ms), and the frames that took 500 ms and more had shader libraries built in them. With the bytes kept, the prewarm translates a stale
+ //   key again before the game's first frame or beside it (dm_shader_retranslate, nvn_mtl.m warm_shader). Written once a key, after a translation that succeeded, under the
+ //   translator's lock; a key translated before this patch gets its file the next time it is translated. S2A_RB_DSH_KEEP=0 turns the keeping off
+-#define DSH_IN_MAGIC 0x314e4953u   // "SIN1"
+-static int dsh_in_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_DSH_KEEP"); v = !(e && !strcmp(e, "0")); } return v; }
++static int dsh_in_on(void) {
++    static dispatch_once_t once; static int enabled;
++    dispatch_once(&once, ^{ const char *e = getenv("S2A_RB_DSH_KEEP"); enabled = !(e && !strcmp(e, "0")); });
++    return enabled;
++}
+ static int dsh_in_save(const char *out, const char *k, int st, const void *ctl, size_t nctl, const void *cd, size_t ncode) {   // RewindBox (patch 0069): → 1 when it wrote the file
+     if (!dsh_in_on() || !out || !*out || !strcmp(out, "/dev/null") || !ctl || !cd || !nctl || !ncode || st < 0 || st > 5 || nctl > (1u << 20) || ncode >= (1u << 24)) return 0;
+-    char p[1200], tmp[1216]; snprintf(p, sizeof p, "%s/%s_b.in", out, k);
+-    if (!access(p, F_OK)) return 0;
+-    snprintf(tmp, sizeof tmp, "%s.tmp", p);
+-    int fd = open(tmp, O_WRONLY | O_CREAT | O_TRUNC, 0644); if (fd < 0) return 0;
+-    const uint32_t h[4] = {DSH_IN_MAGIC, (uint32_t)st, (uint32_t)nctl, (uint32_t)ncode};
+-    int ok = write(fd, h, sizeof h) == (ssize_t)sizeof h && write(fd, ctl, nctl) == (ssize_t)nctl && write(fd, cd, ncode) == (ssize_t)ncode;
+-    close(fd);
+-    if (ok && !rename(tmp, p)) { atomic_fetch_add(&g_dsh_in_n, 1); atomic_fetch_add(&g_dsh_in_bytes, sizeof h + nctl + ncode); return 1; }
+-    unlink(tmp); return 0;
+-}
+-static int dsh_comp_locked(dsh_comp_fn comp, const char *k, int st, const void *cd, size_t ncode, const void *ctl, size_t nctl, const char *out) {
+-    pthread_mutex_lock(&g_dsh_comp_mu); dsh_fly_set(out, k, ctl, nctl, cd, ncode);
+-    int rc = comp(k, st, cd, ncode, ctl, nctl, out);
+-    if (!rc) dsh_in_save(out, k, st, ctl, nctl, cd, ncode);   // RewindBox (patch 0056)
+-    dsh_fly_clear(); pthread_mutex_unlock(&g_dsh_comp_mu); return rc;
+-}
+-// 变体要的那份源码（审计 #1646 P1-123：输出类型 / 采样器归约 / 顶点补齐三处原先直接调 comp，不拿 g_dsh_comp_mu，后台预编在编时会并发进 C# 现编入口）：
+-//   锁里再查一次「兜底目录里已有本键源码」——锁外查过没有、等锁期间后台预编刚编完同一个键的，直接用，不重编。返回同 comp（0 = 成功）
+-static __thread int t_dsh_src_made;   // RewindBox (patch 0069): this thread's last dsh_comp_src_locked ran the translator (0: the key was this translator's already)
+-static int dsh_comp_src_locked(dsh_comp_fn comp, const char *k, int st, const void *cd, size_t ncode, const void *ctl, size_t nctl, const char *out) {
+-    pthread_mutex_lock(&g_dsh_comp_mu); int rc = 0; t_dsh_src_made = 0;   // RewindBox (patch 0069): t_dsh_src_made
+-    if (!dsh_have(out, k)) { t_dsh_src_made = 1; dsh_fly_set(out, k, ctl, nctl, cd, ncode); rc = comp(k, st, cd, ncode, ctl, nctl, out); if (!rc) dsh_in_save(out, k, st, ctl, nctl, cd, ncode); dsh_fly_clear(); }   // RewindBox (patch 0056): dsh_in_save
+-    pthread_mutex_unlock(&g_dsh_comp_mu); return rc;
++    char p[1200];
++    if (snprintf(p, sizeof p, "%s/%s_b.in", out, k) >= (int)sizeof p) return 0;
++    if (!rb_stage_publish(p, st, ctl, (uint32_t)nctl, cd, (uint32_t)ncode)) { atomic_fetch_add(&g_rb_stage_write_errors, 1); return 0; }
++    atomic_fetch_add(&g_dsh_in_n, 1);
++    atomic_fetch_add(&g_dsh_in_bytes, 16 + nctl + ncode);
++    return 1;
+ }
++// Recheck after acquiring the existing translator lock. A draw that raced a
++// warm retranslation must use the completed source and keep its own live input.
++static __thread int t_dsh_src_made;
++static int dsh_translate_locked(dsh_comp_fn comp, const char *k, int st, const void *cd, size_t ncode,
++                                const void *ctl, size_t nctl, const char *out, int restoring) {
++    int rc = 0;
++    pthread_mutex_lock(&g_dsh_comp_mu);
++    t_dsh_src_made = !dsh_have(out, k);
++    if (t_dsh_src_made) {
++        dsh_fly_set(out, k, ctl, nctl, cd, ncode);
++        rc = comp(k, st, cd, ncode, ctl, nctl, out);
++        dsh_fly_clear();
++    }
++    if (!rc && !restoring) {
++        char p[1200];
++        if (t_dsh_src_made || (snprintf(p, sizeof p, "%s/%s_b.in", out, k) < (int)sizeof p && !rb_stage_present(p)))
++            dsh_in_save(out, k, st, ctl, nctl, cd, ncode);
++    }
++    pthread_mutex_unlock(&g_dsh_comp_mu);
++    return rc;
++}
++static int dsh_comp_locked(dsh_comp_fn comp, const char *k, int st, const void *cd, size_t ncode,
++                           const void *ctl, size_t nctl, const char *out) {
++    return dsh_translate_locked(comp, k, st, cd, ncode, ctl, nctl, out, 0);
++}
++
+ // RewindBox (patch 0056): whether a key's translation is this translator's already (1), or can be made again from the bytes kept beside it (2); 0 = neither. No file is read
+ int dm_shader_kept(const char *k16) {
+     const char *out = getenv("DM_MSL_FALLBACK"); char k[17], p[1200]; snprintf(k, sizeof k, "%.16s", k16);
+     if (!out || !*out || strlen(k) != 16) return 0;
+     if (dsh_have(out, k)) return 1;
+     snprintf(p, sizeof p, "%s/%s_b.in", out, k);
+-    return dsh_in_on() && dsh_comp() && !access(p, R_OK) ? 2 : 0;
++    return dsh_in_on() && dsh_comp() && rb_stage_present(p) ? 2 : 0;
+ }
+ // RewindBox (patch 0056): translate a key again from the bytes kept beside its translation (the prewarm's workers, nvn_mtl.m warm_shader; never the submit thread). → 1 = its
+ //   translation is this translator's now (made here, or by another thread meanwhile), 0 = no usable bytes or the translation failed (the key is then left to its first draw,
+@@ -260,19 +265,22 @@ int dm_shader_retranslate(const char *k16) {
+     if (dsh_have(out, k)) return 1;
+     dsh_comp_fn comp = dsh_comp(); if (!comp || !dsh_in_on()) return 0;
+     snprintf(p, sizeof p, "%s/%s_b.in", out, k);
+-    int fd = open(p, O_RDONLY); if (fd < 0) return 0;
+-    struct stat sb; uint32_t h[4] = {0}; uint8_t *b = NULL; size_t n = 0;
+-    int ok = !fstat(fd, &sb) && read(fd, h, sizeof h) == (ssize_t)sizeof h && h[0] == DSH_IN_MAGIC && h[1] <= 5 && h[2] >= 0x60 && h[2] <= (1u << 20) && h[3] && h[3] < (1u << 24)
+-             && (uint64_t)sb.st_size == sizeof h + (uint64_t)h[2] + h[3];
+-    if (ok) { n = (size_t)h[2] + h[3]; b = malloc(n); ok = b && read(fd, b, n) == (ssize_t)n; }
++    int fd = open(p, O_RDONLY | O_NONBLOCK); if (fd < 0) return 0;
++    uint32_t h[4];
++    int ok = rb_stage_header(fd, h);
++    size_t n = ok ? (size_t)h[2] + h[3] : 0;
++    uint8_t *b = ok ? malloc(n) : NULL;
++    ok = b && rb_stage_read(fd, b, n);
+     close(fd);
+-    if (!ok) { free(b); return 0; }
++    if (ok && nvn2_on()) ok = rb_nvn2_input_matches(k, h, b);
++    if (!ok) { atomic_fetch_add(&g_rb_stage_input_rejections, 1); free(b); return 0; }   // The next successful live translation atomically replaces this entry.
+     dsh_yield_late();   // RewindBox (patch 0069)
+     uint64_t t0 = now_ns();
+-    int rc = dsh_comp_src_locked(comp, k, (int)h[1], b + h[2], h[3], b, h[2], out);
++    int rc = dsh_translate_locked(comp, k, (int)h[1], b + h[2], h[3], b, h[2], out, 1);
+     free(b);
+     atomic_fetch_add(&g_dsh_re_ns, now_ns() - t0);
+     if (rc) { uint64_t f = atomic_fetch_add(&g_dsh_re_fail, 1) + 1; if (f <= 4) LOG("RewindBox: a stale translation could not be made again at the start: %s (%s) rc=%d; left to its first draw", k, dsh_nm[h[1]], rc); return 0; }
++    if (!t_dsh_src_made) return 1;
+     uint64_t m = atomic_fetch_add(&g_dsh_re_n, 1) + 1;
+     if (m == 1 || !(m & (m - 1))) LOG("RewindBox: translations of an earlier translator made again at the start from their kept bytes: %llu so far (%.1f ms in all, %llu failed)",
+                                       (unsigned long long)m, atomic_load(&g_dsh_re_ns) / 1e6, (unsigned long long)atomic_load(&g_dsh_re_fail));
+@@ -379,13 +387,10 @@ static int dsh_ahead_first(const uint8_t key[8]) {   // each key is handed over
+ }
+ // The stage name (as in the map) of a key an earlier run translated on this device, from its json in the fallback directory, as dm_shader_reuse reads it; 0 = none usable. Nothing is registered here
+ static int dsh_reuse_stage(const char *k, char *stage, size_t n) {
+-    static const char *const js[6] = {"vs", "ps", "cs", "gs", "ts", "ms"};
+-    const char *out = getenv("DM_MSL_FALLBACK"); char p[1200], b[8192];
+-    if (!out || !*out || !dsh_have(out, k)) return 0;
+-    snprintf(p, sizeof p, "%s/%s_b.json", out, k); FILE *f = fopen(p, "r"); if (!f) return 0;
+-    size_t m = fread(b, 1, sizeof b - 1, f); fclose(f); b[m] = 0;
+-    for (int st = 0; st < 6; st++) if (dsh_json_eq(b, "stage", js[st])) { snprintf(stage, n, "%s", dsh_nm[st]); return 1; }
+-    return 0;
++    int st;
++    if (!dsh_current_stage(getenv("DM_MSL_FALLBACK"), k, &st) || st < 0) return 0;
++    snprintf(stage, n, "%s", dsh_nm[st]);
++    return 1;
+ }
+ // RewindBox (patch 0069): the stage bytes of a translation an earlier run made were never kept (patch 0056 keeps them only when it translates), so once the translator changes
+ //   such a stage is stale and nothing can make it again before a draw meets it. IPA 765: the prewarm left 1,282 such keys out ("not in the shader map"), 0 had kept bytes, and
+@@ -394,17 +399,18 @@ static int dsh_reuse_stage(const char *k, char *stage, size_t n) {
+ // RewindBox (patch 0100): IPA 785 skipped 860 pipeline rows for 459 old keys with no stage bytes.
+ // Only one earlier translation supplied its bytes at a bind. A key already in the runtime map
+ // can bypass dm_shader_bound even though the current guest bind still holds hash-checked bytes.
+-// Use the same store as fresh translations, with up to 8 MiB of additional live copies.
++// Use the same store as fresh translations: 8 MiB for accumulated copies, or one larger stage alone.
+ static _Atomic size_t g_rb_dsh_known_bytes;
+-static int dsh_keep_reused(const char *k, uint64_t code, const void *control, int mapped) {
++static int dsh_keep_reused(const char *k, uint64_t code, const void *control, _Atomic uint64_t *seen, uint64_t token) {
+     const char *out = getenv("DM_MSL_FALLBACK"); char p[1200];
+     if (!dsh_in_on() || !out || !*out || !strcmp(out, "/dev/null") || !control || !code || (uint64_t)(uintptr_t)control >= (1ull << 47) || !nvn2_ctl(control)) return 0;
+     snprintf(p, sizeof p, "%s/%s_b.in", out, k);
+-    if (!access(p, F_OK)) return 1;
++    if (rb_stage_present(p)) return 1;
+     uint32_t ncode = 0, nctl = 0; int st = dsh_stage((const uint8_t *)(uintptr_t)code, control, &ncode, &nctl);
+     if (st < 0) return 0;
+     const size_t bytes = (size_t)nctl + ncode, limit = 8u << 20;
+-    if (mapped && atomic_fetch_add(&g_rb_dsh_known_bytes, bytes) + bytes > limit) {
++    size_t used = atomic_fetch_add(&g_rb_dsh_known_bytes, bytes);
++    if (used && used + bytes > limit) {
+         atomic_fetch_sub(&g_rb_dsh_known_bytes, bytes);
+         atomic_fetch_add(&g_rb_dsh_known_deferred, 1);
+         return 0;
+@@ -412,19 +418,26 @@ static int dsh_keep_reused(const char *k, uint64_t code, const void *control, in
+     uint8_t *b = malloc(bytes); char *o = strdup(out), *kk = strdup(k);
+     if (!b || !o || !kk) {
+         free(b); free(o); free(kk);
+-        if (mapped) atomic_fetch_sub(&g_rb_dsh_known_bytes, bytes);
++        atomic_fetch_sub(&g_rb_dsh_known_bytes, bytes);
+         return 0;
+     }
+     memcpy(b, control, nctl); memcpy(b + nctl, (const void *)(uintptr_t)code, ncode);
+     static dispatch_queue_t q; static dispatch_once_t once;
+     dispatch_once(&once, ^{ q = dispatch_queue_create("s2a.dsh.keep", dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_UTILITY, 0)); });
++    atomic_fetch_add(&g_rb_keep_busy, 1);
+     dispatch_async(q, ^{
+-        if (mapped) pthread_mutex_lock(&g_dsh_comp_mu);
+-        int saved = dsh_in_save(o, kk, st, b, nctl, b + nctl, ncode);
+-        if (mapped) pthread_mutex_unlock(&g_dsh_comp_mu);
+-        if (saved) atomic_fetch_add(mapped ? &g_rb_dsh_known_saved : &g_dsh_keep_n, 1);
++        const uint32_t h[4] = {DSH_IN_MAGIC, (uint32_t)st, nctl, ncode};
++        int matches = rb_nvn2_input_matches(kk, h, b);
++        if (!matches) atomic_fetch_add(&g_rb_stage_input_rejections, 1);
++        int saved = matches && dsh_in_save(o, kk, st, b, nctl, b + nctl, ncode);
++        if (!saved && seen) {
++            uint64_t expected = token;
++            atomic_compare_exchange_strong_explicit(seen, &expected, 0, memory_order_relaxed, memory_order_relaxed);
++        }
++        if (saved) atomic_fetch_add(seen ? &g_rb_dsh_known_saved : &g_dsh_keep_n, 1);
+         free(b); free(o); free(kk);
+-        if (mapped) atomic_fetch_sub(&g_rb_dsh_known_bytes, bytes);
++        atomic_fetch_sub(&g_rb_dsh_known_bytes, bytes);
++        atomic_fetch_sub(&g_rb_keep_busy, 1);
+     });
+     return 1;
+ }
+@@ -439,10 +452,21 @@ void dm_shader_keep_known(const uint8_t md[8], const char *k, uint64_t code, con
+     if (!on || nvn_be_stopping()) return;
+     static _Atomic uint64_t seen[8192];
+     uint64_t key; memcpy(&key, md, sizeof key);
+-    if (!key) return;
++    const char *out = getenv("DM_MSL_FALLBACK");
++    if (!out || !*out) return;
++    // A known key in one game's directory says nothing about the same key in another.
++    static __thread char previous[1200];
++    static __thread uint64_t scope;
++    if (strcmp(previous, out)) {
++        if (snprintf(previous, sizeof previous, "%s", out) >= (int)sizeof previous) return;
++        scope = 14695981039346656037ull;
++        for (const unsigned char *p = (const unsigned char *)out; *p; ++p) scope = (scope ^ *p) * 1099511628211ull;
++    }
++    key ^= scope;
++    if (!key) key = 1;
+     size_t slot = (key ^ (key >> 32)) % (sizeof seen / sizeof seen[0]);
+     if (atomic_exchange_explicit(&seen[slot], key, memory_order_relaxed) == key) return;
+-    if (!dsh_keep_reused(k, code, control, 1))
++    if (!dsh_keep_reused(k, code, control, &seen[slot], key))
+         atomic_compare_exchange_strong_explicit(&seen[slot], &key, 0, memory_order_relaxed, memory_order_relaxed);
+ }
+ // RewindBox (patch 0069): compute stages translated ahead too (their library is still built at their first use: nvn_mtl.m prog_get builds a tensor-core network from its reflection
+@@ -465,7 +489,7 @@ static int dsh_ahead_(const char *k16, uint64_t code, const void *control, int b
+       if (dsh_reuse_stage(k, sn, sizeof sn)) {
+           mtl_shmap_rt_add(k, sn); atomic_fetch_add(&g_dsh_ahead_had, 1);
+           if (!strcmp(sn, dsh_nm[0]) || !strcmp(sn, dsh_nm[1])) mtl_shader_ahead_load(k, sn);
+-          if (bound) dsh_keep_reused(k, code, control, 0);   // RewindBox (patch 0069)
++          if (bound) dsh_keep_reused(k, code, control, NULL, 0);   // RewindBox (patch 0069)
+           return 2; } }
+     if (!control || !code || (uint64_t)(uintptr_t)control >= (1ull << 47) || !nvn2_ctl(control)) return 0;
+     const uint8_t *ctl = control, *cd = (const uint8_t *)(uintptr_t)code; uint32_t ncode = 0, nctl = 0;
+@@ -493,7 +517,7 @@ static int dsh_ahead_(const char *k16, uint64_t code, const void *control, int b
+             dsh_comp_fn comp = dsh_comp(); uint64_t t0 = now_ns();
+             // RewindBox (patch 0069): _src_: a bind on another thread can queue a key the submit thread is translating itself (dm_shader_miss_late), which this lock then serializes:
+             //   rechecked under the lock, it is not translated a second time (that also refreshed K_b.metal's time, so K's typed, sampler and vertex-pad variants looked stale)
+-            int rc = !comp ? -1 : dsh_comp_src_locked(comp, kk, j->st, j->code, j->ncode, j->ctl, j->nctl, o);
++            int rc = !comp ? -1 : dsh_comp_locked(comp, kk, j->st, j->code, j->ncode, j->ctl, j->nctl, o);
+             int made = comp && t_dsh_src_made;
+             j->ns = now_ns() - t0; if (made) atomic_fetch_add(&g_dsh_ahead_ns, j->ns);
+             dsh_job_finish(j, rc ? DSH_JOB_FAILED : DSH_JOB_OK);   // a failure is translated again at the first use, which reports it; RewindBox (patch 0085): dsh_job_finish
+@@ -531,13 +555,11 @@ void dm_shader_miss(const uint8_t key[8], uint64_t code, const void *control) {
+ }
+ // 没登记过的键（帧回放：程序从录像放回、不经 ProgramSetShaders 登记）：兜底目录里有上一局现编过、本机能复用的就按 json 的阶段加进映射，成功返回 1
+ int dm_shader_reuse(const char *k16) {
+-    static const char *const js[6] = {"vs", "ps", "cs", "gs", "ts", "ms"};
+-    const char *out = getenv("DM_MSL_FALLBACK"); char k[17], p[1200], b[8192]; snprintf(k, sizeof k, "%.16s", k16);
+-    if (!out || !*out || !dsh_have(out, k)) return 0;
+-    snprintf(p, sizeof p, "%s/%s_b.json", out, k); FILE *f = fopen(p, "r"); if (!f) return 0;
+-    size_t n = fread(b, 1, sizeof b - 1, f); fclose(f); b[n] = 0;
+-    for (int st = 0; st < 6; st++) if (dsh_json_eq(b, "stage", js[st])) { mtl_shmap_rt_add(k, dsh_nm[st]); atomic_fetch_add_explicit(&g_dsh_reused, 1, memory_order_relaxed); return 1; }
+-    return 0;
++    char k[17], stage[16]; snprintf(k, sizeof k, "%.16s", k16);
++    if (!dsh_reuse_stage(k, stage, sizeof stage)) return 0;
++    mtl_shmap_rt_add(k, stage);
++    atomic_fetch_add_explicit(&g_dsh_reused, 1, memory_order_relaxed);
++    return 1;
+ }
+ // 第一次用到（提交线程建程序时库里没有这支）：待编表里有就现编，成功返回 1（映射已加，调用方再装载一次）；没登记过 / 现编失败返回 0。code：在用程序的代码区
+ // control：在用程序的控制段。Switch 2 用：NVN2 的键到第一次用到才算（hle_nvn.c keys_hash），SetShaders 时没登记进待编表，这里按在用控制段登记（Switch 1 不走这里）。
+@@ -620,7 +642,8 @@ int dm_shader_miss_late(const char *k16, uint64_t code, const void *control) {
+     uint64_t t0 = now_ns();
+     if (!rc) {   // RewindBox (patch 0069): background translations hold back meanwhile (dsh_yield_late); counted for the long-frame line
+         atomic_fetch_add(&g_dsh_late_waiting, 1); rc = dsh_comp_locked(comp, k, e->st, cd, ncode, e->ctl, e->nctl, out); atomic_fetch_sub(&g_dsh_late_waiting, 1);
+-        atomic_fetch_add(&g_dsh_late_n, 1); atomic_fetch_add(&g_dsh_late_ns, now_ns() - t0);
++        if (t_dsh_src_made) { atomic_fetch_add(&g_dsh_late_n, 1); atomic_fetch_add(&g_dsh_late_ns, now_ns() - t0); }
++        else dsh_late_wait_note(t0);
+     }
+     // 翻译器报错（rc > 0：编了、没编出来）：不管开没开 DM_NVN_SHDUMP，都把这支的控制段 / 代码区存进兜底目录 <键>.fail.ctl / .fail.code。翻译器的确定性 bug 修前要能在本机复现，
+     //   而这类着色器多是运行时才遇到的（不在离线着色器表里），没有输入就只能请玩家开开关重走（#442 夜之仪式：切场景后 4 支计算着色器越界，帧率跌到 6 帧）。只在失败时写，每键一次
+@@ -668,7 +691,7 @@ int dm_shader_fout(const uint8_t key[8], uint64_t code, const void *control, uin
+     mkdir(out, 0755);
+     char base[1200]; snprintf(base, sizeof base, "%s/%s_b.metal", out, k);
+     int fresh = !dsh_have(out, k);
+-    if (fresh && dsh_comp_src_locked(comp, k, st, (const void *)(uintptr_t)code, ncode, control, nctl, out)) { atomic_fetch_add_explicit(&g_dsh_failed, 1, memory_order_relaxed); LOG("【红】直连：片元 %s 现编源码失败，出不了输出类型变体", k); return 1; }
++    if (fresh && dsh_comp_locked(comp, k, st, (const void *)(uintptr_t)code, ncode, control, nctl, out)) { atomic_fetch_add_explicit(&g_dsh_failed, 1, memory_order_relaxed); LOG("【红】直连：片元 %s 现编源码失败，出不了输出类型变体", k); return 1; }
+     snprintf(path, n, "%s/%s_t%x_%x.metal", out, k, umask, smask);
+     if ((fresh || !dsh_variant_newer(path, base)) && fv(base, umask, smask, path)) { atomic_fetch_add_explicit(&g_dsh_failed, 1, memory_order_relaxed); return 1; }
+     atomic_fetch_add_explicit(&g_dsh_typed, 1, memory_order_relaxed);
+@@ -690,7 +713,7 @@ int dm_shader_se(const uint8_t key[8], uint64_t code, const void *control, char
+     mkdir(out, 0755);
+     char base[1200]; snprintf(base, sizeof base, "%s/%s_b.metal", out, k);
+     int fresh = !dsh_have(out, k);
+-    if (fresh && dsh_comp_src_locked(comp, k, st, (const void *)(uintptr_t)code, ncode, control, nctl, out)) { atomic_fetch_add_explicit(&g_dsh_failed, 1, memory_order_relaxed); LOG("【红】直连：%s 现编源码失败，出不了采样器模拟变体", k); return 1; }
++    if (fresh && dsh_comp_locked(comp, k, st, (const void *)(uintptr_t)code, ncode, control, nctl, out)) { atomic_fetch_add_explicit(&g_dsh_failed, 1, memory_order_relaxed); LOG("【红】直连：%s 现编源码失败，出不了采样器模拟变体", k); return 1; }
+     snprintf(path, n, "%s/%s_se.metal", out, k);
+     if (!fresh && dsh_variant_newer(path, base)) return 0;
+     int rc = fv(base, path);
+@@ -723,7 +746,7 @@ int dm_shader_vpad(const uint8_t key[8], uint64_t code, const void *control, uin
+     mkdir(out, 0755);
+     char base[1200]; snprintf(base, sizeof base, "%s/%s_b.metal", out, k);
+     int fresh = !dsh_have(out, k);
+-    if (fresh && dsh_comp_src_locked(comp, k, st, (const void *)(uintptr_t)code, ncode, control, nctl, out)) { atomic_fetch_add_explicit(&g_dsh_failed, 1, memory_order_relaxed); LOG("【红】直连：顶点 %s 现编源码失败，出不了补齐变体", k); return 1; }
++    if (fresh && dsh_comp_locked(comp, k, st, (const void *)(uintptr_t)code, ncode, control, nctl, out)) { atomic_fetch_add_explicit(&g_dsh_failed, 1, memory_order_relaxed); LOG("【红】直连：顶点 %s 现编源码失败，出不了补齐变体", k); return 1; }
+     snprintf(path, n, "%s/%s_vp%x.metal", out, k, mask);
+     if (!fresh && dsh_variant_newer(path, base)) return 0;
+     int rc = st == 5 ? mesh_pad_file(base, mask, path) : fv(base, mask, path);
+diff --git a/graphics/nvn/host/rb_stage_input.h b/graphics/nvn/host/rb_stage_input.h
+new file mode 100644
+index 0000000..9728183
+--- /dev/null
++++ b/graphics/nvn/host/rb_stage_input.h
+@@ -0,0 +1,90 @@
++// RewindBox (patch 0123). Existing SIN1 files remain readable across app updates.
++#pragma once
++#include <errno.h>
++#include <fcntl.h>
++#include <stdint.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <sys/stat.h>
++#include <unistd.h>
++
++#define DSH_IN_MAGIC 0x314e4953u
++
++static int rb_stage_read(int fd, void *data, size_t size) {
++    unsigned char *p = data;
++    while (size) {
++        ssize_t n = read(fd, p, size);
++        if (n < 0 && errno == EINTR) continue;
++        if (n <= 0) return 0;
++        p += n;
++        size -= (size_t)n;
++    }
++    return 1;
++}
++
++static int rb_stage_header(int fd, uint32_t h[4]) {
++    struct stat st;
++    return !fstat(fd, &st) && S_ISREG(st.st_mode) && rb_stage_read(fd, h, 16)
++        && h[0] == DSH_IN_MAGIC && h[1] <= 5 && h[2] >= 0x60 && h[2] <= (1u << 20)
++        && h[3] && h[3] < (1u << 24) && (uint64_t)st.st_size == 16ull + h[2] + h[3];
++}
++
++static int rb_stage_present(const char *path) {
++    uint32_t h[4];
++    int fd = open(path, O_RDONLY | O_NONBLOCK);
++    if (fd < 0) return 0;
++    int ok = rb_stage_header(fd, h);
++    close(fd);
++    return ok;
++}
++
++static int rb_stage_write(int fd, const void *data, size_t size) {
++    const unsigned char *p = data;
++    while (size) {
++        ssize_t n = write(fd, p, size);
++        if (n < 0 && errno == EINTR) continue;
++        if (n <= 0) return 0;
++        p += n;
++        size -= (size_t)n;
++    }
++    return 1;
++}
++
++static int rb_stage_publish(const char *path, int stage, const void *ctl, uint32_t nctl,
++                            const void *code, uint32_t ncode) {
++    char tmp[1232];
++    if (snprintf(tmp, sizeof tmp, "%s.tmp.XXXXXX", path) >= (int)sizeof tmp) return 0;
++    int fd = mkstemp(tmp);
++    if (fd < 0) return 0;
++    uint32_t h[4] = {DSH_IN_MAGIC, (uint32_t)stage, nctl, ncode};
++    int ok = rb_stage_write(fd, h, sizeof h) && rb_stage_write(fd, ctl, nctl)
++          && rb_stage_write(fd, code, ncode);
++    if (close(fd)) ok = 0;
++    if (ok && !rename(tmp, path)) return 1;
++    unlink(tmp);
++    return 0;
++}
++
++#include "../gfx/nvn/nvn2.h"
++
++static int rb_nvn2_input_stage(const uint8_t *control, uint32_t *ncode, uint32_t *nctl) {
++    static const int stages[8] = {0, 1, 3, -1, -1, 2, 4, 5};
++    uint32_t own;
++    memcpy(&own, control + 0x30, sizeof own);
++    *nctl = own >= 0xd8 && own <= NVN2_CTL_COPY ? own : 0xd8;
++    *ncode = nvn2_code_len(control);
++    unsigned type = control[0x56];
++    return type < 8 && *ncode && *ncode < (1u << 24) ? stages[type] : -1;
++}
++
++// The caller has read exactly h[2]+h[3] bytes. Check internal sizes before
++// nvn2_key uses the length contained inside the control block.
++static int rb_nvn2_input_matches(const char *key, const uint32_t h[4], const uint8_t *payload) {
++    uint32_t nc, nt;
++    if (h[2] < 0xd8 || h[2] > NVN2_CTL_COPY || !nvn2_ctl(payload)
++        || rb_nvn2_input_stage(payload, &nc, &nt) != (int)h[1] || nc != h[3] || nt != h[2]) return 0;
++    uint8_t md[8]; char actual[17];
++    nvn2_key(payload, payload + nt, md);
++    for (int i = 0; i < 8; ++i) snprintf(actual + 2 * i, 3, "%02x", md[i]);
++    return !strcmp(actual, key);
++}
+diff --git a/graphics/nvn/tests/t_dsh_stats.c b/graphics/nvn/tests/t_dsh_stats.c
+index 3dbab00..28022df 100644
+--- a/graphics/nvn/tests/t_dsh_stats.c
++++ b/graphics/nvn/tests/t_dsh_stats.c
+@@ -1,4 +1,5 @@
+ // 包含生产现编接点，仅替换编译器、映射和日志依赖；不需要 GPU 或游戏。
++#import <Foundation/Foundation.h>
+ #include <dispatch/dispatch.h>
+ #include <dlfcn.h>
+ #include <fcntl.h>
+@@ -47,7 +48,7 @@ static int compiler_(const char *key, int stage, const char *out) {
+     compiled_stage = stage; atomic_fetch_add(&compiler_calls, 1);   // 先计数再慢：41 据此知道键 0 已在编（键 1 还在队里）
+     if (slow_first && !strcmp(key, "0000000000000000")) usleep(300000);
+     if (write_out && !compile_rc && out && strcmp(out, "/dev/null")) {
+-        char p[1200]; FILE *f; snprintf(p, sizeof p, "%s/%s_b.metal", out, key); if ((f = fopen(p, "w"))) fclose(f);
++        char p[1200]; FILE *f; snprintf(p, sizeof p, "%s/%s_b.metal", out, key); if ((f = fopen(p, "w"))) { fputs("// MSL fixture", f); fclose(f); }
+         snprintf(p, sizeof p, "%s/%s_b.json", out, key); if ((f = fopen(p, "w"))) { fprintf(f, "{\n \"chain\": \"%s\",\n \"xfp\": \"" XFP "\"\n}\n", chain_name()); fclose(f); }
+     }
+     return compile_rc;
+@@ -65,6 +66,8 @@ static void fixture_log(const char *fmt, ...) {
+ #define dlsym fake_dlsym
+ #define LOG(...) fixture_log(__VA_ARGS__)
+ #include "../gfx/nvn/nvn2.h"   // dsh_miss.inc 认 Switch 2 控制段；34–37 是 Switch 2 场景（nvn2_on 桩返回 nvn2），其余 Switch 1
++#include <CommonCrypto/CommonDigest.h>
++#include "../gfx/nvn/nvn2_key.inc"
+ static int nvn2;
+ int nvn2_on(void) { return nvn2; }
+ int nvn_be_stopping(void) { return 0; }
+@@ -131,7 +134,7 @@ static void scenario(int n) {
+     if (n == 17) { known = 1; inlib = 0; call(); check(atomic_load(&compiler_calls) == 1); }   // 映射表有、库里没有（热键版包的冷键）：照样现编
+     if (n == 10 || n == 11 || (n >= 29 && n <= 31)) {   // 上局编过：同链同指纹复用、不调编译器；链不同（11）/ 指纹不同（29）/ json 没有 xfp（30）/ 没链 s2a_dsh_xfp（31）重编
+         char d[] = "/tmp/t_dsh_reuseXXXXXX", p[256]; check(mkdtemp(d) != NULL); setenv("DM_MSL_FALLBACK", d, 1);
+-        snprintf(p, sizeof p, "%s/0000000000000000_b.metal", d); FILE *f = fopen(p, "w"); check(f != NULL); fclose(f);
++        snprintf(p, sizeof p, "%s/0000000000000000_b.metal", d); FILE *f = fopen(p, "w"); check(f != NULL); fputs("// MSL fixture", f); fclose(f);
+         snprintf(p, sizeof p, "%s/0000000000000000_b.json", d); f = fopen(p, "w"); check(f != NULL);
+         fprintf(f, "{\n \"key\": \"0000000000000000_b\",\n \"chain\": \"%s\"%s\n}\n", n == 11 ? "000000000000" : DMSH_CHAIN,
+                 n == 29 ? ",\n \"xfp\": \"0123456789abcdee\"" : n == 30 ? "" : ",\n \"xfp\": \"" XFP "\""); fclose(f);
+@@ -149,7 +152,7 @@ static void scenario(int n) {
+     if (n >= 14 && n <= 16) {   // 兜底目录里的变体能不能直接载：14 同链、变体比源码新 → 能；15 源码是别的链 → 不能；16 变体比源码旧 → 不能
+         char d[] = "/tmp/t_dsh_freshXXXXXX", p[256]; check(mkdtemp(d) != NULL); setenv("DM_MSL_FALLBACK", d, 1);
+         const char *names[] = {"0000000000000000_b.metal", "0000000000000000_t4_0.metal"};
+-        for (int k = 0; k < 2; k++) { snprintf(p, sizeof p, "%s/%s", d, names[k]); FILE *f = fopen(p, "w"); check(f != NULL); fclose(f);
++        for (int k = 0; k < 2; k++) { snprintf(p, sizeof p, "%s/%s", d, names[k]); FILE *f = fopen(p, "w"); check(f != NULL); fputs("// MSL fixture", f); fclose(f);
+             struct timeval tv[2] = {{1000 + (k ^ (n == 16)) * 10, 0}, {1000 + (k ^ (n == 16)) * 10, 0}}; check(!utimes(p, tv)); }   // 16：源码时间 1010、变体 1000
+         snprintf(p, sizeof p, "%s/0000000000000000_b.json", d); FILE *f = fopen(p, "w"); check(f != NULL);
+         fprintf(f, "{\n \"chain\": \"%s\",\n \"xfp\": \"" XFP "\"\n}\n", n == 15 ? "000000000000" : DMSH_CHAIN); fclose(f);
+@@ -169,7 +172,7 @@ static void scenario(int n) {
+     if (n >= 23 && n <= 25) {   // 兜底目录里的 <键>_se.metal 能不能直接载：23 同链、变体比源码新 → 能；24 源码是别的链 → 不能；25 变体比源码旧 → 不能
+         char d[] = "/tmp/t_dsh_sefXXXXXX", p[256]; check(mkdtemp(d) != NULL); setenv("DM_MSL_FALLBACK", d, 1);
+         const char *names[] = {"0000000000000000_b.metal", "0000000000000000_se.metal"};
+-        for (int k = 0; k < 2; k++) { snprintf(p, sizeof p, "%s/%s", d, names[k]); FILE *f = fopen(p, "w"); check(f != NULL); fclose(f);
++        for (int k = 0; k < 2; k++) { snprintf(p, sizeof p, "%s/%s", d, names[k]); FILE *f = fopen(p, "w"); check(f != NULL); fputs("// MSL fixture", f); fclose(f);
+             struct timeval tv[2] = {{1000 + (k ^ (n == 25)) * 10, 0}, {1000 + (k ^ (n == 25)) * 10, 0}}; check(!utimes(p, tv)); }
+         snprintf(p, sizeof p, "%s/0000000000000000_b.json", d); FILE *f = fopen(p, "w"); check(f != NULL);
+         fprintf(f, "{\n \"chain\": \"%s\",\n \"xfp\": \"" XFP "\"\n}\n", n == 24 ? "000000000000" : DMSH_CHAIN); fclose(f);
+@@ -188,7 +191,7 @@ static void scenario(int n) {
+     }
+     if (n == 32 || n == 33) {   // 没登记过的键（帧回放）：兜底目录有本机同链同指纹的现编产物就按 json 阶段加映射、不调编译器（32：ps → pixel）；json 没写阶段（33）→ 不复用
+         char d[] = "/tmp/t_dsh_reuseXXXXXX", p[256]; check(mkdtemp(d) != NULL); setenv("DM_MSL_FALLBACK", d, 1);
+-        snprintf(p, sizeof p, "%s/0000000000000000_b.metal", d); FILE *f = fopen(p, "w"); check(f != NULL); fclose(f);
++        snprintf(p, sizeof p, "%s/0000000000000000_b.metal", d); FILE *f = fopen(p, "w"); check(f != NULL); fputs("// MSL fixture", f); fclose(f);
+         snprintf(p, sizeof p, "%s/0000000000000000_b.json", d); f = fopen(p, "w"); check(f != NULL);
+         fprintf(f, "{\n \"chain\": \"%s\",\n \"xfp\": \"" XFP "\"%s\n}\n", DMSH_CHAIN, n == 32 ? ",\n \"stage\": \"ps\"" : ""); fclose(f);
+         int got = dm_shader_reuse("0000000000000000");
+@@ -198,7 +201,7 @@ static void scenario(int n) {
+     if (n == 34) {   // 帧回放的 Switch 2 程序（11-04 Pokopia f6000）：没登记过、控制段指针是录时的宿主地址（这里给一页不可读的内存），兜底目录里已有同链同指纹的产物 →
+         //   dm_shader_miss_late 直接复用、返回 1、不读控制段也不调编译器；改前先读控制段，回放一放就 SIGBUS
+         char d[] = "/tmp/t_dsh_replayXXXXXX", p[256]; check(mkdtemp(d) != NULL); setenv("DM_MSL_FALLBACK", d, 1);
+-        snprintf(p, sizeof p, "%s/0000000000000000_b.metal", d); FILE *f = fopen(p, "w"); check(f != NULL); fclose(f);
++        snprintf(p, sizeof p, "%s/0000000000000000_b.metal", d); FILE *f = fopen(p, "w"); check(f != NULL); fputs("// MSL fixture", f); fclose(f);
+         snprintf(p, sizeof p, "%s/0000000000000000_b.json", d); f = fopen(p, "w"); check(f != NULL);
+         fprintf(f, "{\n \"chain\": \"%s\",\n \"xfp\": \"" XFP "\",\n \"stage\": \"vs\"\n}\n", DMSH_CHAIN); fclose(f);
+         void *stale = mmap(NULL, 0x4000, PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0); check(stale != MAP_FAILED);
+@@ -216,7 +219,7 @@ static void scenario(int n) {
+     }
+     if (n == 38) {   // 没登记过的键：兜底目录里上局现编的网格（json stage "ms"）按 mesh 加映射、不调编译器
+         char d[] = "/tmp/t_dsh_reuseXXXXXX", p[256]; check(mkdtemp(d) != NULL); setenv("DM_MSL_FALLBACK", d, 1);
+-        snprintf(p, sizeof p, "%s/0000000000000000_b.metal", d); FILE *f = fopen(p, "w"); check(f != NULL); fclose(f);
++        snprintf(p, sizeof p, "%s/0000000000000000_b.metal", d); FILE *f = fopen(p, "w"); check(f != NULL); fputs("// MSL fixture", f); fclose(f);
+         snprintf(p, sizeof p, "%s/0000000000000000_b.json", d); f = fopen(p, "w"); check(f != NULL);
+         fprintf(f, "{\n \"chain\": \"%s\",\n \"xfp\": \"" XFP "\",\n \"stage\": \"ms\"\n}\n", DMSH_CHAIN); fclose(f);
+         int got = dm_shader_reuse("0000000000000000");
+@@ -248,7 +251,46 @@ static void scenario(int n) {
+     }
+     registered(n != 8); _exit(0);
+ }
+-int main(void) {
++static int stage_recovery(void) {
++    char dir[] = "/tmp/rb_stage_recovery.XXXXXX", path[256], msl[256], json[256], k[17];
++    check(mkdtemp(dir) != NULL);
++    setenv("DM_MSL_FALLBACK", dir, 1);
++    nvn2 = 1; write_out = 1;
++    uint8_t control[0xd8] = {0}, bytes[64] = {7}, md[8];
++    uint32_t magic = NVN2_CTL_MAGIC, version = NVN2_CTL_VERSION, length = sizeof bytes;
++    memcpy(control, &magic, 4); memcpy(control + 4, &version, 4); memcpy(control + 0x44, &length, 4);
++    nvn2_key(control, bytes, md);
++    for (int i = 0; i < 8; ++i) snprintf(k+2*i, 3, "%02x", md[i]);
++    snprintf(path, sizeof path, "%s/%s_b.in", dir, k);
++    snprintf(msl, sizeof msl, "%s/%s_b.metal", dir, k);
++    snprintf(json, sizeof json, "%s/%s_b.json", dir, k);
++    check(dm_shader_kept(k) == 0);
++    check(!dsh_comp_locked(compiler,k,0,bytes,sizeof bytes,control,sizeof control,dir));
++    check(compiler_calls == 1 && dm_shader_kept(k) == 1 && rb_stage_present(path));
++    check(!dsh_comp_locked(compiler,k,0,bytes,sizeof bytes,control,sizeof control,dir) && compiler_calls == 1);
++    FILE *partial = fopen(json, "w"); check(partial != NULL);
++    fprintf(partial, "{\"chain\":\"%s\",\"xfp\":\"%s\",\"stage\":\"vs\",\"bindings\":[", DMSH_CHAIN, XFP);
++    check(!fclose(partial) && dm_shader_kept(k) == 2);
++    check(dm_shader_retranslate(k) && compiler_calls == 2);
++    check(!truncate(msl,0) && dm_shader_kept(k) == 2);
++    check(dm_shader_retranslate(k) && compiler_calls == 3 && dm_shader_kept(k) == 1);
++    check(!unlink(msl));
++    int fd = open(path,O_WRONLY); check(fd >= 0);
++    uint8_t bad = 42;
++    check(pwrite(fd,&bad,1,16 + sizeof control) == 1 && !close(fd));
++    check(!dm_shader_retranslate(k) && compiler_calls == 3);
++    check(!dsh_comp_locked(compiler,k,0,bytes,sizeof bytes,control,sizeof control,dir));
++    check(!unlink(msl) && dm_shader_retranslate(k) && compiler_calls == 5);
++    check(!truncate(path,12) && !rb_stage_present(path));
++    dm_shader_keep_known(md,k,(uintptr_t)bytes,control);
++    while (dm_shader_bg_busy()) usleep(1000);
++    check(rb_stage_present(path));
++    check(!unlink(path) && !unlink(msl) && !unlink(json) && !rmdir(dir));
++    puts("PASS live translation, compatible reuse, incomplete reflection, empty MSL, corrupt payload, retranslation, live bind repair");
++    return 0;
++}
++int main(int argc, char **argv) {
++    if (argc == 2 && !strcmp(argv[1], "--rb-stage-recovery")) { alarm(10); return stage_recovery(); }
+     setvbuf(stdout, NULL, _IONBF, 0);
+     static const char *expect[] = {
+         "成功 0、失败 0、跳过 0、复用上局 0、输出类型变体 0（正常收局）", "成功 1、失败 0、跳过 0、复用上局 0、输出类型变体 0（正常收局）",
+diff --git a/graphics/nvn/tests/t_nvn_shader_flight.m b/graphics/nvn/tests/t_nvn_shader_flight.m
+index 64c012d..c89e4b9 100644
+--- a/graphics/nvn/tests/t_nvn_shader_flight.m
++++ b/graphics/nvn/tests/t_nvn_shader_flight.m
+@@ -216,6 +216,18 @@ int main(void) { @autoreleasepool {
+     dispatch_apply(16,dispatch_get_global_queue(QOS_CLASS_USER_INITIATED,0),^(size_t i) { @autoreleasepool { REQUIRE(warm_shader(key,0)); } });
+     constructed=atomic_load(&g_vs_loaded)-before;
+     CHECK(constructed==1,"16 concurrent production warm requests: actual vertex constructions=%d (expected 1)",constructed);
++    // Different runtime functions, one actual newLibraryWithSource for identical MSL.
++    // Fresh source text prevents earlier fixtures from satisfying this comparison.
++    NSString *variants = @"acacacacacacacac_b";
++    fixture(variants,[vertex_source stringByAppendingString:@"\n// variant-only fixture\n"],@"plain");
++    uint64_t msl_before = atomic_load(&g_rb_msl_n), shared_before = atomic_load(&g_rb_msl_shared);
++    dispatch_apply(4, dispatch_get_global_queue(QOS_CLASS_USER_INITIATED,0), ^(size_t i) {
++        @autoreleasepool { REQUIRE(shader_load_depth(variants,0,i >> 1,i & 1,NULL,NULL)); }
++    });
++    CHECK(atomic_load(&g_rb_msl_n) == msl_before + 1 && atomic_load(&g_rb_msl_shared) == shared_before + 3,
++          "four layer/depth entries share one compiled Metal library");
++    for (int i = 0; i < 4; i++)
++        vertex_gpu(shader_load_depth(variants,0,i >> 1,i & 1,NULL,NULL),0.25f * (i+1),i >> 1);
+     independent_keys();
+ 
+     key=@"3333333333333333_b"; fixture(key,vertex_source,@"plain");
+diff --git a/graphics/nvn/tests/t_rb_stage_input.c b/graphics/nvn/tests/t_rb_stage_input.c
+new file mode 100644
+index 0000000..c514c79
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_stage_input.c
+@@ -0,0 +1,77 @@
++// RewindBox (patch 0123). POSIX file persistence and the production NVN2 key.
++// Linux: cc -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -pthread t_rb_stage_input.c -lcrypto -o t_stage
++#include <assert.h>
++#include <pthread.h>
++#include <signal.h>
++#include <sys/resource.h>
++#include <sys/wait.h>
++#include "../host/rb_stage_input.h"
++#ifdef __APPLE__
++#include <CommonCrypto/CommonDigest.h>
++#else
++#define OPENSSL_SUPPRESS_DEPRECATED
++#include <openssl/sha.h>
++#define CC_SHA256_DIGEST_LENGTH SHA256_DIGEST_LENGTH
++#define CC_SHA256_CTX SHA256_CTX
++#define CC_SHA256_Init SHA256_Init
++#define CC_SHA256_Update SHA256_Update
++#define CC_SHA256_Final SHA256_Final
++#endif
++#include "../gfx/nvn/nvn2_key.inc"
++
++enum { NT = 0xd8, NC = 512 };
++static char path[256], key[17];
++static uint8_t input[NT + NC];
++static void *publish(void *arg) {
++    (void)arg;
++    for (int i = 0; i < 16; i++)
++        assert(rb_stage_publish(path, 1, input, NT, input + NT, NC));
++    return NULL;
++}
++static void verify(void) {
++    uint32_t h[4]; uint8_t got[NT + NC];
++    int fd = open(path, O_RDONLY);
++    assert(fd >= 0 && rb_stage_header(fd, h) && h[2] == NT && h[3] == NC);
++    assert(rb_stage_read(fd, got, sizeof got) && !close(fd));
++    assert(!memcmp(got, input, sizeof got) && rb_nvn2_input_matches(key, h, got));
++    got[NT] ^= 1;
++    assert(!rb_nvn2_input_matches(key, h, got));
++    got[0x44] ^= 0x80;
++    assert(!rb_nvn2_input_matches(key, h, got));
++    got[0x44] ^= 0x80; got[NT] ^= 1;
++    h[1] = 0;
++    assert(!rb_nvn2_input_matches(key, h, got));
++}
++int main(void) {
++    char dir[] = "/tmp/rb_shader_input.XXXXXX";
++    assert(mkdtemp(dir));
++    uint32_t magic = NVN2_CTL_MAGIC, version = NVN2_CTL_VERSION, n = NC;
++    memcpy(input, &magic, 4); memcpy(input + 4, &version, 4); memcpy(input + 0x44, &n, 4);
++    input[0x56] = 1;
++    uint8_t md[8]; nvn2_key(input, input + NT, md);
++    for (int i = 0; i < 8; i++) snprintf(key + 2*i, 3, "%02x", md[i]);
++    snprintf(path, sizeof path, "%s/%s_b.in", dir, key);
++    assert(!rb_stage_present(path));
++    assert(rb_stage_publish(path, 1, input, NT, input + NT, NC));
++    pid_t child = fork(); assert(child >= 0);
++    if (!child) { verify(); _exit(0); }
++    int status; assert(waitpid(child, &status, 0) == child && WIFEXITED(status) && !WEXITSTATUS(status));
++    // An interrupted writer cannot truncate the committed file.
++    child = fork(); assert(child >= 0);
++    if (!child) {
++        struct rlimit lim = {32, 32};
++        assert(!setrlimit(RLIMIT_FSIZE, &lim)); signal(SIGXFSZ, SIG_IGN);
++        assert(!rb_stage_publish(path, 1, input, NT, input + NT, NC)); _exit(0);
++    }
++    assert(waitpid(child, &status, 0) == child && WIFEXITED(status) && !WEXITSTATUS(status));
++    verify();
++    assert(!truncate(path, 12) && !rb_stage_present(path));
++    assert(rb_stage_publish(path, 1, input, NT, input + NT, NC));
++    pthread_t workers[4];
++    for (int i = 0; i < 4; i++) assert(!pthread_create(&workers[i], NULL, publish, NULL));
++    for (int i = 0; i < 64; i++) verify();
++    for (int i = 0; i < 4; i++) assert(!pthread_join(workers[i], NULL));
++    verify(); assert(!unlink(path) && !rmdir(dir));
++    puts("PASS cold/warm SIN1, second process, interrupted write, corrupt key/length/stage, truncation repair, 64 concurrent publications");
++    return 0;
++}
+diff --git a/runtime/tests/mk/dsh_stats.mk b/runtime/tests/mk/dsh_stats.mk
+index a9e1a3e..3620748 100644
+--- a/runtime/tests/mk/dsh_stats.mk
++++ b/runtime/tests/mk/dsh_stats.mk
+@@ -3,6 +3,6 @@ NATIVE_TEST_OWN += dsh_stats
+ .PHONY: native-test-dsh_stats
+ native-test-dsh_stats:
+ 	@mkdir -p $(BUILD)/tests
+-	$(CC) $(CFLAGS) -fblocks -pthread -o $(BUILD)/tests/t_dsh_stats graphics/nvn/tests/t_dsh_stats.c
++	$(CC) $(CFLAGS) -x objective-c -fblocks -pthread -framework Foundation -o $(BUILD)/tests/t_dsh_stats graphics/nvn/tests/t_dsh_stats.c
+ 	timeout 30 $(BUILD)/tests/t_dsh_stats
+ TEST_TARGETS += native-test-dsh_stats

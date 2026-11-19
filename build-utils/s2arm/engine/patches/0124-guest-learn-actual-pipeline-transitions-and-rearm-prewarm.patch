@@ -1,0 +1,605 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 60300ce..284eb45 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -94,7 +94,7 @@ static int grow_(void **p, size_t n, const char *what) {
+ }
+ #define GROW(ptr, nbytes, what) grow_((void **)&(ptr), (size_t)(nbytes), what)
+ 
+-static void warm_start(void), warm_announce(void);
++static void warm_start(void), warm_announce(void), rb_warm_resume(void);
+ static void warm_claim(void);
+ static void warm_bump(const char *vk, const char *fk);   // 游戏登记着色器程序时把预热清单里这对着色器的管线提到队头（warm_pick）
+ 
+@@ -1320,6 +1320,7 @@ static void ts_sub_begin(void);   // segment boundary timestamps (ts_on, before
+ static void sub_cut_begin(void);   // the segment draw count starts with the submission (before sub_cut)
+ static void dsnap_stale(void);   // #387 (with fb_prepare)
+ void nvn_be_sub_begin(void) {
++    rb_warm_resume();  // first submit of an explicitly resumed session
+     rb_sub_open(1);   // RewindBox (patch 0071): a submission is open (waits for the pressure handler's idle release, rb_press_release)
+     dsnap_stale();   // #387: depth may change between submissions (CPU writes, other queues)
+     mtl_init(); g_sub_serial++; g_pkg_epoch++; g_sub_vgen = nvn_sparse_gen(); wd_sub_begin(); g_seg = 0; seg_clk_put(g_sclk); g_sclk = NULL; rc_retire(); g_rc_npend = 0; g_rc_skip = 0;   // RewindBox (patch 0031): g_sub_vgen
+@@ -1641,7 +1642,15 @@ static inline id<MTL4RenderCommandEncoder> enc_r_begin(MTL4RenderPassDescriptor
+     enc_r_table(e, g_vt, MTLRenderStageVertex); enc_r_table(e, g_ft, MTLRenderStageFragment); gp_begin(e, 'R', d); return e;
+ }
+ static inline void enc_r_end(id e) { m4_end(e); }
+-static inline void enc_r_pso(id<MTL4RenderCommandEncoder> e, id<MTLRenderPipelineState> p) { [e setRenderPipelineState:p]; }
++// Object lifetimes are owned by g_pso until session drain. Keep only pointers,
++ // and remove the first actual encoder bind from the same tiny table.
++static nvn_hmap g_rb_promoted_objects = {.klen = sizeof(void *)};
++static int g_rb_observing = 1;
++static void rb_trace_bound(id ps);
++static inline void enc_r_pso(id<MTL4RenderCommandEncoder> e, id<MTLRenderPipelineState> p) {
++    [e setRenderPipelineState:p];
++    if (g_rb_promoted_objects.n && e) rb_trace_bound(p);
++}
+ static inline void enc_r_dss(id<MTL4RenderCommandEncoder> e, id<MTLDepthStencilState> s) { [e setDepthStencilState:s]; }
+ static inline void enc_r_viewport(id<MTL4RenderCommandEncoder> e, MTLViewport v) { [e setViewport:v]; }
+ static inline void enc_r_scissor(id<MTL4RenderCommandEncoder> e, MTLScissorRect r) { [e setScissorRect:r]; }
+@@ -8607,7 +8616,7 @@ static void rb_bi_again(const p_draw *dw, const p_draw_idx *di) {   // mdx_next:
+     if (g_rbb_last.on && (dw || di)) rb_bi_put(dw ? dw->ind : di->ind, !dw, dw ? dw->mdi_cnt : di->mdi_cnt, dw ? dw->mdi_i : di->mdi_i);
+ }
+ // Warm-up entry: built in the background, waiting to be taken by the submit thread. vs / fs retain the actual shared shader objects (pso holds only raw pointers).
+-@interface WarmItem : NSObject { @public int kind, fc; NSString *key, *vs_key, *fs_key; NvShader *shader, *vs, *fs; pso_key pso; id<MTLFunction> fsfn; id object; NSData *mkey; } @end   // fc: a compute pipeline of the sampler-emulation variant (#800); mkey: a task / mesh pipeline's key (kind 4, nvn_geometry.inc mtk_warm)
++@interface WarmItem : NSObject { @public int kind, fc, transition; NSString *key, *vs_key, *fs_key; NvShader *shader, *vs, *fs; pso_key pso; id<MTLFunction> fsfn; id object; NSData *mkey; } @end   // fc: a compute pipeline of the sampler-emulation variant (#800); mkey: a task / mesh pipeline's key (kind 4, nvn_geometry.inc mtk_warm)
+ @implementation WarmItem @end
+ static NSMutableDictionary<NSString *, NvShader *> *g_shcache;
+ #define NVN_SHADER_FLIGHT_IMPL 1
+@@ -11897,6 +11906,7 @@ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_(NvProg *pr, MTLRe
+ // S2Arm tessellation: the vertex stage is given explicitly. A normal draw's is sh[0]; the tessellation render pass's (tess_draw ④) is the domain shader sh[4], a plain vertex function
+ //   reading the expanded domain points (dmsh_build.py tess_finish). Taking sh[0] there paired the capture vertex shader with a fragment shader that reads what the domain stage writes:
+ //   pso_pair_ok rejected every pair and none of The Witcher 3's 8 patch draws drew (w3tess6b, 10-28). g_pso_why: why the last call returned nil, for a caller whose red line names it
++static void rb_trace_used(id ps, const pso_key *k, NvShader *vs, NvShader *fs);
+ static char g_pso_why[200];
+ // Submit-thread only: pso_get_ (normal/GS final draw) and tess_draw are the two
+ // callers. Background prewarm builds descriptors directly, without this state.
+@@ -11925,7 +11935,10 @@ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_vs(NvProg *pr, NvS
+           static uint64_t n; if (!(++n & (n - 1))) MLOG("skip-safe test (DM_NVN_SKIP_SAFE_AT=%ld): %llu draws skipped; %llu steady answers so far came from the storage only", at, (unsigned long long)n, (unsigned long long)g_rt_steady_mem);
+           g_first_skipped = 1; PSO_WHY("skip-safe test frame"); return nil; } }
+     __unsafe_unretained id<MTLRenderPipelineState> cached = hm_get_id(&g_pso, &k);
+-    if (cached) return cached;
++    if (cached) {
++        if (g_rb_observing && !g_pso_lmap && !k.fsfn) rb_trace_used(cached, &k, vs, fs);
++        return cached;
++    }
+     if (hm_get_id(&g_pso_fail, &k)) { PSO_WHY("on the failed list (its first build was refused; the red line then said why)"); return nil; }
+     { NSNumber *r = hm_get_id(&g_pso_retry, &k); if (r && r.unsignedLongLongValue > atomic_load(&g_cur_frame)) { g_first_skipped = 1; PSO_WHY("waiting to retry after a compiler service failure"); return nil; } }   // waiting to retry (pso_err_transient)
+     if (quar_has(vs, fs)) { hm_put_id(&g_pso_fail, &k, NSNull.null); PSO_WHY("quarantined after a GPU error"); return nil; }   // a GPU error quarantined it (quar_fault)
+@@ -12003,6 +12016,7 @@ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_vs(NvProg *pr, NvS
+             rb_pso_hot_note(shex); }
+     quar_built(vs, fs);
+     hm_put_id(&g_pso, &k, ps);
++    if (g_rb_observing && !g_pso_lmap && !k.fsfn) rb_trace_used(ps, &k, vs, fs);
+     return ps;
+ }
+ static NSString *warm_key(const char *s, size_t n) {
+@@ -12413,13 +12427,17 @@ static NSMutableArray<NSNumber *> *g_wu_q;                             // 急件
+ static _Atomic(uint8_t) *g_wu_claim; static long g_wu_n;                // 每行「已领」标记
+ static _Atomic long g_wu_remaining;
+ static _Atomic uint64_t g_wu_bumped, g_wu_taken;                        // 放进急件的行数 / 由急件路领走编的行数
++#include "rb_pso_transitions.inc"
+ static void warm_urgent_index(NSArray<WarmTask *> *tasks) {
+     NSMutableDictionary<NSString *, NSMutableArray<NSNumber *> *> *m = [NSMutableDictionary dictionary];
+     for (NSUInteger i = 0; i < tasks.count; i++) { WarmTask *t = tasks[i]; if (t->kind != 1) continue;
+         NSString *k = [NSString stringWithFormat:@"%@|%@", t->vkey, t->fkey ?: @""];
+         NSMutableArray *a = m[k]; if (!a) m[k] = a = [NSMutableArray array]; [a addObject:@(i)]; }
+     _Atomic(uint8_t) *c = calloc(tasks.count ? tasks.count : 1, sizeof *c);
+-    os_unfair_lock_lock(&g_wu_lock); free((void *)g_wu_claim); g_wu_claim = c; g_wu_n = (long)tasks.count; atomic_store(&g_wu_remaining, g_wu_n); g_wu_pairs = c ? m : nil; g_wu_q = [NSMutableArray array]; os_unfair_lock_unlock(&g_wu_lock);
++    os_unfair_lock_lock(&g_wu_lock); free((void *)g_wu_claim); g_wu_claim = c; g_wu_n = (long)tasks.count; atomic_store(&g_wu_remaining, g_wu_n); g_wu_pairs = c ? m : nil; g_wu_q = [NSMutableArray array];
++    g_rb_follow_rows = nil; atomic_store(&g_rb_next_row, 0);
++    os_unfair_lock_unlock(&g_wu_lock);
++    if (c) rb_trace_index(tasks, m);
+ }
+ static void warm_urgent_end(void) { os_unfair_lock_lock(&g_wu_lock); g_wu_pairs = nil; [g_wu_q removeAllObjects]; os_unfair_lock_unlock(&g_wu_lock); }   // 标记数组留给还没退出的工人读（随下一次索引换掉）
+ // 工人领下一行：先急件，再按清单顺序；已领的跳过。→ 下标，-1 = 没有了
+@@ -12440,8 +12458,19 @@ static long warm_pick(_Atomic long *next, long n, int w, int *lease) {
+         int urgent = i >= 0;
+         if (!urgent && (atomic_load(next) >= n || (c && !atomic_load(&g_wu_remaining)))) return -1;
+         if (!urgent && w >= 0 && !rb_spec_take(w, lease)) { rb_spec_park(ticket); continue; }
+-        if (!urgent) { i = atomic_fetch_add(next, 1); if (i >= n) { rb_spec_done(lease); return -1; } }
+-        if (!c || i >= cn || rb_claim_row(&c[i])) {
++        long hint = (!urgent && w >= 0) ? atomic_exchange(&g_rb_next_row, 0) : 0;
++        if (hint && (atomic_load(&g_fu_waiting) || !c || hint > cn)) hint = 0;
++        if (hint) {
++            i = hint - 1;
++            uint8_t freeRow = RB_ROW_FREE;
++            if (!atomic_compare_exchange_strong(&c[i], &freeRow, RB_ROW_CLAIMED)) { rb_spec_done(lease); continue; }
++        } else if (!urgent) {
++            i = atomic_fetch_add(next, 1);
++            if (i >= n) { rb_spec_done(lease); return -1; }
++        }
++        if (hint || !c || i >= cn || rb_claim_row(&c[i])) {
++            g_rb_picked_hint = hint != 0;
++            if (hint) atomic_fetch_add(&g_rb_promoted, 1);
+             if (c && i < cn && atomic_fetch_sub(&g_wu_remaining, 1) == 1) rb_spec_wake(&g_spec_gate);
+             if (urgent) atomic_fetch_add(&g_wu_taken, 1);
+             return i;
+@@ -12505,7 +12534,7 @@ static void warm_task_(WarmTask *t) {
+                 vs->layer_out = 1; e = nil; ps = par_render(pso_desc(&k, vs, fs, fsfn, sk.merged), akey, &e); }
+             g_warm_done++;
+             if (!ps) { MLOG("【红】 background render pipeline creation failed: %s", e.localizedDescription.UTF8String); continue; }
+-            WarmItem *item = [WarmItem new]; item->kind = 1; item->vs_key = t->vkey; item->fs_key = t->fkey; item->vs = vs; item->fs = fs; item->fsfn = fsfn; item->pso = k; item->object = ps;
++            WarmItem *item = [WarmItem new]; item->kind = 1; item->transition = g_rb_picked_hint; item->vs_key = t->vkey; item->fs_key = t->fkey; item->vs = vs; item->fs = fs; item->fsfn = fsfn; item->pso = k; item->object = ps;
+             warm_enqueue(item); g_warm_rps++;
+         }
+     }
+@@ -12696,7 +12725,15 @@ static void warm_announce(void) {
+     int r = s2a_front_warm_tick(0, n);
+     MLOG("pipeline prepare: announced before the first frame (%ld list lines; front end %s)", n, r < 0 ? "absent" : "told");
+ }
+-static void warm_start(void) {
++static int g_rb_warm_retired, g_rb_warm_resume;
++static void warm_start_mode(int resumed);
++static void rb_warm_resume(void) {
++    if (!g_rb_warm_resume) return;
++    g_rb_warm_resume = 0;
++    warm_start_mode(1);
++}
++static void warm_start(void) { warm_start_mode(0); }
++static void warm_start_mode(int resumed) {
+     if (g_warm_started++) return;
+     dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ pso_user_seen_load(); });   // the record's dedupe set, off the submit thread (pso_user_seen_load)
+     NSArray<NSString *> *paths = warm_paths(1);
+@@ -12704,7 +12741,7 @@ static void warm_start(void) {
+     if (!g_warm_items) g_warm_items = [NSMutableArray array];
+     g_warm_t0 = bp_now(); atomic_store(&g_wp_t0, g_warm_t0);
+     atomic_store(&g_warm_running, 1);
+-    if (prepare_on()) {
++    if (!resumed && prepare_on()) {
+         long lines = 0; NSArray<WarmTask *> *tasks = warm_parse(paths, &lines); warm_urgent_index(tasks);
+         if (!lines) { MLOG("pipeline prepare: the prewarm lists hold nothing to build"); warm_finish(); }
+         else if (warm_prepare(tasks, lines)) warm_finish();
+@@ -18183,7 +18220,13 @@ static void warm_claim(void) {
+         } else if (item->kind == 4) {
+             mtk_warm_claim(item->mkey, item->object);
+         } else if (item->kind == 1) {
+-            if (!hm_get_id(&g_pso, &item->pso)) { hm_put_id(&g_pso, &item->pso, item->object); g_warm_claim_rps++; }
++            if (!hm_get_id(&g_pso, &item->pso)) {
++                hm_put_id(&g_pso, &item->pso, item->object); g_warm_claim_rps++;
++                if (item->transition) {
++                    const void *raw = (__bridge const void *)item->object;
++                    if (!nvn_hm_put(&g_rb_promoted_objects, &raw, (void *)(uintptr_t)1)) ++g_rb_published;
++                }
++            }
+         } else {
+             const void *key = (__bridge const void *)item->shader; cps_se_key fk = {key, (uintptr_t)item->fc};   // S2Arm #800: an emulation variant's pipeline goes where dispatch looks for it
+             nvn_hmap *cps = item->fc ? &g_cps_se : &g_cps; const void *ck = item->fc ? (const void *)&fk : (const void *)&key;
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index eb8c494..a8a29cf 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -110,6 +110,7 @@ int nvn_be_shutdown_session(void) {
+     // Keep completed immutable shader loads in the device cache. This also
+     // consumes the old prefetch handoff before its pipeline maps are cleared.
+     warm_claim();
++    rb_trace_end();
+     pool_session_reset();   // before the owners below: its pins would keep what they remove resident
+     // No callbacks can touch these objects now. Drop descriptors first, then
+     // texture/program owners, then no-copy memory-pool buffers.
+@@ -270,10 +271,23 @@ int nvn_be_shutdown_session(void) {
+         d->object = nil;
+     }
+     sp_session_end();   // RewindBox (patch 0028, check C6): the placement heaps and the tile lists, once every texture of the session has gone (above; nvn_sparse_tiles.inc)
+-    [g_deferred removeAllObjects]; res_commit_(1);   // RewindBox (patch 0072): the removals too, whatever their age
++    [g_deferred removeAllObjects]; res_commit_(1);
++    g_rb_warm_retired = (g_warm_started || g_rb_warm_resume) && g_shmap != nil;
++    g_rb_warm_resume = 0;   // RewindBox (patch 0072): the removals too, whatever their age
+     return 0;
+ }
+ void nvn_be_begin_session(void) {
++    if (g_rb_warm_retired) {
++        g_rb_warm_retired = 0;
++        g_rb_warm_resume = 1;
++        g_warm_started = 0;
++        atomic_store(&g_warm_done, 0); atomic_store(&g_wp_total, 0);
++        atomic_store(&g_wp_phase, WARM_NONE); atomic_store(&g_wp_why, WARM_WHY_NONE);
++        atomic_store(&g_wp_t0, 0); atomic_store(&g_wp_full_sent, 0); atomic_store(&g_wp_play, 0);
++        pthread_mutex_lock(&g_wp_mu);
++        memset(&g_wp_ring, 0, sizeof g_wp_ring);
++        pthread_mutex_unlock(&g_wp_mu);
++    }
+     atomic_store(&g_par_close_until, 0);
+     os_unfair_lock_lock(&g_shpre_mu);
+     atomic_store(&g_shpre_stopping, 0);
+diff --git a/graphics/nvn/gfx/nvn/rb_pso_trace.h b/graphics/nvn/gfx/nvn/rb_pso_trace.h
+new file mode 100644
+index 0000000..a14dc55
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_pso_trace.h
+@@ -0,0 +1,58 @@
++// RewindBox: short histories of first demanded render pipelines. A history hit
++// is only a scheduling hint; the existing warm manifest owns every descriptor.
++#pragma once
++#include <stddef.h>
++#include "nvn_hmap.h"
++
++enum { RB_TRACE_LIMIT = 2048, RB_TRACE_SLOTS = RB_TRACE_LIMIT * 2 };
++typedef struct { uint64_t count, key[RB_TRACE_LIMIT]; } rb_pso_trace;
++typedef struct {
++    uint64_t format, checksum;
++    rb_pso_trace prior, latest;
++} rb_pso_history;
++
++// Fixed-size, at most half full. Zero is reserved for an empty slot.
++static inline size_t rb_trace_slot(const uint64_t *keys, uint64_t key) {
++    size_t i = nvn_hm_hash(&key, sizeof key) & (RB_TRACE_SLOTS - 1);
++    while (keys[i] && keys[i] != key) i = (i + 1) & (RB_TRACE_SLOTS - 1);
++    return i;
++}
++static inline int rb_trace_first(uint64_t *keys, uint64_t key) {
++    if (!key) return 0;
++    size_t i = rb_trace_slot(keys, key);
++    if (keys[i]) return 0;
++    keys[i] = key;
++    return 1;
++}
++static inline uint64_t rb_history_checksum(const rb_pso_history *h) {
++    return nvn_hm_hash(&h->prior, sizeof(*h) - offsetof(rb_pso_history, prior));
++}
++static inline int rb_history_valid(const rb_pso_history *h, size_t len) {
++    return len == sizeof(*h) && h->format == 1 && h->prior.count <= RB_TRACE_LIMIT &&
++           h->latest.count <= RB_TRACE_LIMIT && h->checksum == rb_history_checksum(h);
++}
++static inline void rb_history_append(rb_pso_history *out, const rb_pso_history *atLaunch,
++                                     const void *keys, size_t bytes) {
++    memset(out, 0, sizeof *out);
++    out->format = 1;
++    out->prior = atLaunch->latest;
++    out->latest.count = bytes / sizeof(uint64_t);
++    memcpy(out->latest.key, keys, bytes);
++    out->checksum = rb_history_checksum(out);
++}
++// Both traces contain first uses, each key at most once. Only an immediate
++// successor seen after the same predecessor on BOTH launches is eligible.
++typedef struct { uint64_t from[RB_TRACE_SLOTS], to[RB_TRACE_SLOTS]; } rb_pso_edges;
++static inline void rb_trace_edges(const rb_pso_trace *trace, rb_pso_edges *edges) {
++    for (size_t i = 1; i < trace->count; i++) {
++        uint64_t source = trace->key[i - 1];
++        if (!source || !trace->key[i] || source == trace->key[i]) continue;
++        size_t slot = rb_trace_slot(edges->from, source);
++        edges->from[slot] = source;
++        edges->to[slot] = trace->key[i];
++    }
++}
++static inline int rb_edge_agrees(const rb_pso_edges *edges, uint64_t source, uint64_t target) {
++    size_t slot = rb_trace_slot(edges->from, source);
++    return source && target && source != target && edges->from[slot] == source && edges->to[slot] == target;
++}
+diff --git a/graphics/nvn/gfx/nvn/rb_pso_transitions.inc b/graphics/nvn/gfx/nvn/rb_pso_transitions.inc
+new file mode 100644
+index 0000000..50d6ae3
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_pso_transitions.inc
+@@ -0,0 +1,195 @@
++// RewindBox: one replaceable suggestion for existing warm workers. No draw
++// decisions, descriptors or compiler jobs originate in the transition model.
++#include "rb_pso_trace.h"
++extern const char *s2a_main_build_id(void) __attribute__((weak_import));
++
++@interface RBPipelineTrace : NSObject {
++@public
++    NSString *path;
++    rb_pso_trace current;                           // submit thread only
++    uint64_t seenPSO[RB_TRACE_SLOTS], seenKey[RB_TRACE_SLOTS];
++    size_t objectCount;
++    rb_pso_history priorLaunches;                    // serial I/O queue only
++    os_unfair_lock writeLock;
++    NSData *pendingPrefix;
++    int writing;
++}
++@end
++@implementation RBPipelineTrace @end
++
++static dispatch_queue_t rb_trace_io(void) {
++    static dispatch_queue_t q;
++    static dispatch_once_t once;
++    dispatch_once(&once, ^{
++        q = dispatch_queue_create("rewindbox.pso-transitions",
++            dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, s2a_qos(S2A_QOS_IO_BG), 0));
++    });
++    return q;
++}
++static RBPipelineTrace *g_rb_trace;
++static int g_rb_trace_initialized;
++static os_unfair_lock g_rb_trace_lock = OS_UNFAIR_LOCK_INIT;
++static RBPipelineTrace *rb_trace_session(void) {
++    os_unfair_lock_lock(&g_rb_trace_lock);
++    if (!g_rb_trace_initialized) {
++        g_rb_trace_initialized = 1;
++        const char *enable = getenv("S2A_RB_PSO_TRANSITIONS");
++        const char *build = s2a_main_build_id ? s2a_main_build_id() : NULL;
++        NSString *root = pso_user_path();
++        if ((!enable || strcmp(enable, "0")) && root && build && *build &&
++            strlen(build) <= 64 && strspn(build, "0123456789abcdefABCDEF") == strlen(build)) {
++            RBPipelineTrace *run = [RBPipelineTrace new];
++            run->path = [root stringByAppendingFormat:@".rb-trace-v1-%s-%s-%zu", build, DMSH_CHAIN, sizeof(pso_skey)];
++            g_rb_trace = run;
++            dispatch_async(rb_trace_io(), ^{ @autoreleasepool {
++                // One fixed-size read even if a damaged file reports a huge size.
++                FILE *f = fopen(run->path.fileSystemRepresentation, "rb");
++                if (!f) return;
++                rb_pso_history *h = &run->priorLaunches;
++                size_t bytes = fread(h, 1, sizeof *h, f);
++                if (fgetc(f) != EOF || ferror(f) || !rb_history_valid(h, bytes)) memset(h, 0, sizeof *h);
++                fclose(f);
++            } });
++        }
++    }
++    RBPipelineTrace *run = g_rb_trace;
++    os_unfair_lock_unlock(&g_rb_trace_lock);
++    return run;
++}
++static void rb_trace_write(RBPipelineTrace *run) {
++    for (;;) { @autoreleasepool {
++        os_unfair_lock_lock(&run->writeLock);
++        NSData *prefix = run->pendingPrefix;
++        run->pendingPrefix = nil;
++        if (!prefix) run->writing = 0;
++        os_unfair_lock_unlock(&run->writeLock);
++        if (!prefix) return;
++        rb_pso_history *h = calloc(1, sizeof *h);
++        if (!h) continue;
++        rb_history_append(h, &run->priorLaunches, prefix.bytes, prefix.length);
++        NSData *data = [NSData dataWithBytesNoCopy:h length:sizeof *h freeWhenDone:YES];
++        NSError *error = nil;
++        if (![data writeToFile:run->path options:NSDataWritingAtomic error:&error])
++            MLOG("RewindBox PSO transitions: checkpoint failed (%ld)", (long)error.code);
++    } }
++}
++static void rb_trace_save(RBPipelineTrace *run, int final) {
++    if (!run || run->current.count < 2) return;
++    // One write active and one replaceable prefix, even if the last batch
++    // arrives at capacity. No disk reads, writes or waits on submit.
++    NSData *prefix = [NSData dataWithBytes:run->current.key length:run->current.count * sizeof(uint64_t)];
++    os_unfair_lock_lock(&run->writeLock);
++    run->pendingPrefix = prefix;
++    if (!run->writing) {
++        run->writing = 1;
++        dispatch_async(rb_trace_io(), ^{ rb_trace_write(run); });
++    }
++    os_unfair_lock_unlock(&run->writeLock);
++    if (final) dispatch_sync(rb_trace_io(), ^{});   // only after the session drain
++}
++static NSDictionary<NSNumber *, NSNumber *> *g_rb_follow_rows; // immutable; g_wu_lock
++static _Atomic long g_rb_next_row;                              // one-based or zero
++static _Thread_local int g_rb_picked_hint;
++static _Atomic uint64_t g_rb_promoted;
++static uint64_t g_rb_published, g_rb_reused;
++static RBPipelineTrace *g_rb_submit_trace;
++static int g_rb_submit_initialized;
++
++static void rb_trace_scan(NSArray<WarmTask *> *tasks, NSDictionary *epoch, NSDictionary *targets,
++                          NSMutableDictionary *rows, NSUInteger offset) {
++    os_unfair_lock_lock(&g_wu_lock);
++    int active = g_wu_pairs == epoch;
++    os_unfair_lock_unlock(&g_wu_lock);
++    if (!active || !epoch || dm_gfx_session_stopping() || nvn_be_stopping()) return;
++    int busy = atomic_load(&g_fu_waiting) || rb_spec_level() != RB_SPEC_RUN;
++    NSUInteger end = busy ? offset : MIN(tasks.count, offset + 128);
++    for (; offset < end && rows.count < targets.count; offset++) {
++        WarmTask *t = tasks[offset];
++        if (t->kind != 1) continue;
++        NSData *data = t->rs.firstObject;
++        if (data.length != sizeof(pso_skey)) continue;
++        uint64_t key = nvn_hm_hash(data.bytes, sizeof(pso_skey));
++        NSNumber *src = targets[@(key)];
++        if (src) rows[src] = @(offset);
++    }
++    if (offset < tasks.count && rows.count < targets.count) {
++        __weak NSArray *weakTasks = tasks;
++        __weak NSDictionary *weakEpoch = epoch;
++        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, busy ? 100 * NSEC_PER_MSEC : 0), rb_trace_io(), ^{ @autoreleasepool {
++            NSArray *nextTasks = weakTasks;
++            NSDictionary *nextEpoch = weakEpoch;
++            if (nextTasks && nextEpoch) rb_trace_scan(nextTasks, nextEpoch, targets, rows, offset);
++        } });
++        return;
++    }
++    os_unfair_lock_lock(&g_wu_lock);
++    if (g_wu_pairs == epoch) g_rb_follow_rows = rows;
++    os_unfair_lock_unlock(&g_wu_lock);
++}
++
++// Scan existing manifest rows in short slices. A finished or replaced list
++// invalidates its index; pressure pauses optional bookkeeping between slices.
++static void rb_trace_index(NSArray<WarmTask *> *tasks, NSDictionary *epoch) {
++    RBPipelineTrace *run = rb_trace_session();
++    if (!run) return;
++    dispatch_async(rb_trace_io(), ^{ @autoreleasepool {
++        const rb_pso_history *h = &run->priorLaunches;
++        if (h->prior.count < 2 || h->latest.count < 2) return;
++        rb_pso_edges *prior = calloc(1, sizeof *prior);
++        if (!prior) return;
++        rb_trace_edges(&h->prior, prior);
++        NSMutableDictionary<NSNumber *, NSNumber *> *byDestination = [NSMutableDictionary dictionary];
++        for (size_t j = 1; j < h->latest.count; j++) {
++            uint64_t src = h->latest.key[j-1], dst = h->latest.key[j];
++            if (rb_edge_agrees(prior, src, dst)) byDestination[@(dst)] = @(src);
++        }
++        free(prior);
++        if (!byDestination.count) return;
++        rb_trace_scan(tasks, epoch, byDestination, [NSMutableDictionary dictionaryWithCapacity:byDestination.count], 0);
++    } });
++}
++static void rb_trace_bound(id ps) {
++    const void *raw = (__bridge const void *)ps;
++    if (nvn_hm_del(&g_rb_promoted_objects, &raw)) {
++        ++g_rb_reused;
++        if (!(g_rb_reused & (g_rb_reused - 1)))
++            MLOG("RewindBox PSO transitions: %llu promoted, %llu warmed Metal objects bound",
++                 (unsigned long long)atomic_load(&g_rb_promoted), (unsigned long long)g_rb_reused);
++    }
++}
++static void rb_trace_used(id ps, const pso_key *k, NvShader *vs, NvShader *fs) {
++    if (!g_rb_submit_initialized) { g_rb_submit_trace = rb_trace_session(); g_rb_submit_initialized = 1; }
++    RBPipelineTrace *run = g_rb_submit_trace;
++    if (!run) { g_rb_observing = 0; return; }
++    // Called on successful render lookup, including a cached object. Exclude
++    // diagnostic/merged overrides that cannot use ordinary R rows.
++    if (run->objectCount >= RB_TRACE_LIMIT || !rb_trace_first(run->seenPSO, (uintptr_t)(__bridge void *)ps)) return;
++    if (++run->objectCount == RB_TRACE_LIMIT) g_rb_observing = 0;
++    pso_skey sk; pso_skey_from(k, vs, fs, 0, NULL, &sk);
++    uint64_t key = nvn_hm_hash(&sk, sizeof sk);
++    if (!rb_trace_first(run->seenKey, key)) return;
++    run->current.key[run->current.count++] = key;
++    if (run->current.count == 2 || !(run->current.count % 32)) rb_trace_save(run, 0);
++    if (!atomic_load_explicit(&g_warm_running, memory_order_relaxed)) return;
++    os_unfair_lock_lock(&g_wu_lock);
++    NSNumber *row = g_wu_pairs ? g_rb_follow_rows[@(key)] : nil;
++    long next = row && g_wu_claim && row.longValue < g_wu_n && !atomic_load(&g_wu_claim[row.longValue]) ? row.longValue + 1 : 0;
++    atomic_store(&g_rb_next_row, next);
++    os_unfair_lock_unlock(&g_wu_lock);
++}
++static void rb_trace_end(void) {
++    // Submit and warm workers are drained by the caller.
++    rb_trace_save(g_rb_submit_trace, 1);
++    if (g_rb_submit_trace)
++        MLOG("RewindBox PSO transitions: %llu first-used, %llu promoted, %llu published, %llu warmed Metal objects bound, %llu published but unused",
++             (unsigned long long)g_rb_submit_trace->current.count, (unsigned long long)atomic_load(&g_rb_promoted),
++             (unsigned long long)g_rb_published, (unsigned long long)g_rb_reused,
++             (unsigned long long)(g_rb_published - g_rb_reused));
++    g_rb_submit_trace = nil; g_rb_submit_initialized = 0;
++    os_unfair_lock_lock(&g_rb_trace_lock);
++    g_rb_trace = nil; g_rb_trace_initialized = 0;
++    os_unfair_lock_unlock(&g_rb_trace_lock);
++    os_unfair_lock_lock(&g_wu_lock); g_rb_follow_rows = nil; atomic_store(&g_rb_next_row, 0); os_unfair_lock_unlock(&g_wu_lock);
++    nvn_hm_clear(&g_rb_promoted_objects, NULL);
++    g_rb_published = g_rb_reused = 0; g_rb_observing = 1; atomic_store(&g_rb_promoted, 0);
++}
+diff --git a/graphics/nvn/tests/t_nvn_warmbump.m b/graphics/nvn/tests/t_nvn_warmbump.m
+index 5d1cb63..1bfdab3 100644
+--- a/graphics/nvn/tests/t_nvn_warmbump.m
++++ b/graphics/nvn/tests/t_nvn_warmbump.m
+@@ -5,6 +5,12 @@
+ //   ③ 插一对清单里没有的、或片元为空的 → 不改顺序；收尾（warm_urgent_end）后再插 → 不入队
+ #include <sched.h>
+ #include "../gfx/nvn/nvn_mtl.m"
++@interface RBTestEncoder : NSObject
++@property (nonatomic, strong) id bound;
++@end
++@implementation RBTestEncoder
++- (void)setRenderPipelineState:(id)ps { self.bound = ps; }
++@end
+ static int bad;
+ static void ck(int ok, const char *what) { printf("%s %s\n", ok ? "  ✓" : "  ✗", what); if (!ok) bad++; }
+ static NSArray<WarmTask *> *mk(void) {
+@@ -50,7 +56,60 @@ int main(void) {
+         ck(atomic_load(&g_fu_yield_n) == 1 && atomic_load(&g_fu_yield_ns) >= 90000000ull, "④ 计数：让路 1 次、累计 ≥90 ms");
+         // Freeze the last sample while changing tiers explicitly. A parked worker
+         // must serve a registered program even in HOLD; no sleeps define ordering.
++        // A prediction reorders one existing row, below the registered
++        // program, and uses exactly the same single-claim accounting.
+         atomic_store(&g_spec_sampled, UINT64_MAX);
++        atomic_store(&g_spec_level, RB_SPEC_RUN);
++        warm_urgent_index(mk()); next = 0;
++        atomic_store(&g_rb_next_row, 5);
++        warm_bump("b", "y");
++        int lease;
++        ck(warm_pick(&next, 6, 0, &lease) == 1 && !g_rb_picked_hint, "registered demand precedes prediction");
++        rb_spec_done(&lease);
++        ck(warm_pick(&next, 6, 0, &lease) == 4 && g_rb_picked_hint, "existing predicted row taken once");
++        rb_spec_done(&lease);
++        atomic_store(&g_rb_next_row, 5);
++        ck(warm_pick(&next, 6, 0, &lease) == 0 && !g_rb_picked_hint, "already claimed prediction falls through");
++        rb_spec_done(&lease);
++        ck([seq(&next, 4) isEqualToString:@"2 3 5 -1"], "manifest drained without duplicates");
++        // A promoted metadata row alone never increments the reuse count.
++        RBTestEncoder *encoder = [RBTestEncoder new];
++        id<MTLRenderPipelineState> predicted = (id)[NSObject new], unrelated = (id)[NSObject new];
++        const void *object = (__bridge const void *)predicted;
++        nvn_hm_put(&g_rb_promoted_objects, &object, (void *)(uintptr_t)1);
++        enc_r_pso((id)encoder, unrelated);
++        ck(!g_rb_reused && g_rb_promoted_objects.n == 1, "unused prediction remains unconsumed");
++        enc_r_pso((id)encoder, predicted); enc_r_pso((id)encoder, predicted);
++        ck(encoder.bound == predicted && g_rb_reused == 1 && !g_rb_promoted_objects.n, "actual encoder bind credits the exact object once");
++
++        // The writer is deliberately occupied when the last checkpoint arrives.
++        // No final shutdown flush is needed to get the newer prefix.
++        char dir[] = "/tmp/t_rb_trace_XXXXXX";
++        ck(mkdtemp(dir) != NULL, "temporary history directory");
++        RBPipelineTrace *run = [RBPipelineTrace new];
++        run->path = [@(dir) stringByAppendingPathComponent:@"trace"];
++        dispatch_semaphore_t unblock = dispatch_semaphore_create(0);
++        dispatch_async(rb_trace_io(), ^{ dispatch_semaphore_wait(unblock, DISPATCH_TIME_FOREVER); });
++        run->current.count = 2; run->current.key[0] = 11; run->current.key[1] = 22;
++        rb_trace_save(run, 0);
++        run->current.count = 3; run->current.key[2] = 33; rb_trace_save(run, 0);
++        dispatch_semaphore_signal(unblock);
++        dispatch_sync(rb_trace_io(), ^{});
++        NSData *saved = [NSData dataWithContentsOfFile:run->path];
++        const rb_pso_history *persisted = saved.bytes;
++        ck(rb_history_valid(persisted, saved.length) && persisted->latest.count == 3 && persisted->latest.key[2] == 33 &&
++           persisted->prior.count == 0, "last checkpoint retained, no fabricated second session");
++        unlink(run->path.fileSystemRepresentation); rmdir(dir);
++        // Exercise the real resume-entry and first-submit hooks. An empty
++        // manifest keeps the test independent of a Metal device.
++        setenv("DM_PSO_MANIFEST", "off", 1);
++        g_rb_warm_retired = 1;
++        atomic_store(&g_warm_done, 6); atomic_store(&g_wp_full_sent, 1);
++        nvn_be_begin_session();
++        ck(g_rb_warm_resume && !g_warm_started && !g_warm_done && !g_wp_full_sent, "retired warmup rearmed by session begin");
++        rb_warm_resume(); rb_warm_resume();
++        ck(!g_rb_warm_resume && g_warm_started == 1, "first resumed submission starts warmup only once");
++        unsetenv("DM_PSO_MANIFEST");
+         atomic_store(&g_spec_level, RB_SPEC_HOLD);
+         next = 0; warm_urgent_index(mk()); got = -9;
+         uint64_t parks = atomic_load(&g_spec_parks);
+diff --git a/graphics/nvn/tests/t_rb_pso_trace.c b/graphics/nvn/tests/t_rb_pso_trace.c
+new file mode 100644
+index 0000000..d5a7686
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_pso_trace.c
+@@ -0,0 +1,53 @@
++// cc -std=c11 -O2 -Wall -Wextra -Werror t_rb_pso_trace.c -o t_rb_pso_trace
++#include "../gfx/nvn/rb_pso_trace.h"
++#include <assert.h>
++#include <stdio.h>
++
++static rb_pso_history disk, loaded, empty;
++static rb_pso_edges edges;
++static uint64_t seen[RB_TRACE_SLOTS];
++
++static void reopen(void) {
++    FILE *f = tmpfile();
++    assert(f && fwrite(&disk, sizeof disk, 1, f) == 1);
++    rewind(f);
++    assert(fread(&loaded, sizeof loaded, 1, f) == 1 && fgetc(f) == EOF && !ferror(f));
++    assert(rb_history_valid(&loaded, sizeof loaded));
++    fclose(f);
++}
++
++int main(void) {
++    const uint64_t first[] = {5, 11, 19, 23, 41};
++    const uint64_t second[] = {5, 11, 29, 23, 41};
++    rb_history_append(&disk, &empty, first, 2 * sizeof(uint64_t)); // first launch checkpoint
++    rb_history_append(&disk, &empty, first, sizeof first);        // same launch, not another vote
++    reopen();
++    assert(loaded.prior.count == 0 && loaded.latest.count == 5);
++    rb_trace_edges(&loaded.prior, &edges);
++    assert(!rb_edge_agrees(&edges, 5, 11));
++    rb_history_append(&disk, &loaded, second, sizeof second);
++    reopen();
++    rb_trace_edges(&loaded.prior, &edges);
++    size_t agreed = 0;
++    for (size_t i = 1; i < loaded.latest.count; i++)
++        agreed += rb_edge_agrees(&edges, loaded.latest.key[i-1], loaded.latest.key[i]);
++    assert(agreed == 2);
++    assert(rb_edge_agrees(&edges, 5, 11) && rb_edge_agrees(&edges, 23, 41));
++    assert(!rb_edge_agrees(&edges, 11, 29) && !rb_edge_agrees(&edges, 29, 23));
++    assert(!rb_edge_agrees(&edges, 5, 5) && !rb_edge_agrees(&edges, 0, 11));
++    assert(!rb_history_valid(&loaded, sizeof loaded - 1));
++    assert(!rb_history_valid(&loaded, sizeof loaded + 1));
++    loaded.latest.key[1] ^= 1;
++    assert(!rb_history_valid(&loaded, sizeof loaded));
++    loaded = disk;
++    loaded.latest.count = RB_TRACE_LIMIT + 1; loaded.checksum = rb_history_checksum(&loaded);
++    assert(!rb_history_valid(&loaded, sizeof loaded));
++    loaded = disk; loaded.format++;
++    assert(!rb_history_valid(&loaded, sizeof loaded));
++    for (uint64_t i = 1; i <= RB_TRACE_LIMIT; i++) {
++        assert(rb_trace_first(seen, i) && !rb_trace_first(seen, i));
++    }
++    assert(!rb_trace_first(seen, 0));
++    puts("PSO first-use traces: cold/hot, two sessions, consensus, bounded deduplication, damaged history passed");
++    return 0;
++}

@@ -582,7 +582,9 @@ static NSDictionary *launchFail(NSString *error, NSString *stage, NSString *deta
   int workerProfile = setenv("S2A_RB_YIELD_WORKER_IDLE", marioKartWorld ? "1" : "0", 0);
   int readAheadProfile = setenv("S2A_RB_POOL_QUEUE_BUDGET", marioKartWorld ? "1" : "0", 0);
   const char *kartRender = marioKartWorld ? "1" : "0";
-  int shaderBytesProfile = setenv("S2A_RB_DSH_KEEP_MAPPED", kartRender, 0);
+  // Preserve reconstructible stage bytes on a real bind for every hosted title.
+  // The engine bounds outstanding copies and retries failed writes.
+  int shaderBytesProfile = setenv("S2A_RB_DSH_KEEP_MAPPED", "1", 0);
   int shaderQueueProfile = setenv("S2A_RB_SHADER_URGENT_UNIQUE", kartRender, 0);
   int poolIndexProfile = setenv("S2A_RB_POOL_INDEX_UPDATE", kartRender, 0);
   int textureViewsProfile = setenv("S2A_RB_TEX_FIT_FAST", kartRender, 0);

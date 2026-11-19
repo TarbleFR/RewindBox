@@ -75,6 +75,20 @@ jobs:
             echo "iphoneos SDK $(DEVELOPER_DIR="$best/Contents/Developer" xcrun --sdk iphoneos --show-sdk-version)"
             echo "S2Arm pins: $(grep -E '^(IPHONEOS_DEPLOYMENT_TARGET|IPHONEOS_SDK_MAJOR)=' "$RUNNER_TEMP/s2arm/tools/toolchain.env" | tr '\n' ' ')"
           } | tee -a proof/inputs.txt
+      - name: Check adaptive shader cache changes
+        if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-shader-checks]')
+        run: |
+          set -euo pipefail
+          source_tree="$RUNNER_TEMP/s2arm"
+          for fixture in spec_gate stage_input pso_trace archive_index; do
+            xcrun --sdk macosx clang -std=gnu11 -D_DARWIN_C_SOURCE -O2 -Wall -Wextra -pthread \
+              "$source_tree/graphics/nvn/tests/t_rb_$fixture.c" -o "$RUNNER_TEMP/t_rb_$fixture"
+            "$RUNNER_TEMP/t_rb_$fixture"
+          done
+          xcrun --sdk macosx clang -x objective-c -std=gnu11 -fblocks -pthread -framework Foundation \
+            "$source_tree/graphics/nvn/tests/t_dsh_stats.c" -o "$RUNNER_TEMP/t_dsh_stats"
+          "$RUNNER_TEMP/t_dsh_stats" --rb-stage-recovery
+          sh build-utils/s2arm/engine/tests/test_metal_archive.sh "$source_tree"
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
