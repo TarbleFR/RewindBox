@@ -1,0 +1,24 @@
+diff --git a/graphics/nvn/tests/rb_reference_gpu.inc b/graphics/nvn/tests/rb_reference_gpu.inc
+--- a/graphics/nvn/tests/rb_reference_gpu.inc
++++ b/graphics/nvn/tests/rb_reference_gpu.inc
+@@ -291,10 +291,17 @@
+     reference_boot(root);
+     while (atomic_load(&g_warm_running)) usleep(1000);
+     uint64_t countsGPU[6]; GPU_CHECK(s2a_rb_guest_prepare_gpu_status(countsGPU)==1 && countsGPU[4]>=1);
+-    NvShader *vs=shader_get(stage_name(ST_VERTEX),0), *fs=shader_get(stage_name(ST_A),1);
+-    pso_key key; pso_key_fill(&key,vs,fs,g_pass.cfmt,g_pass.dfmt,g_pass.sfmt,g_pass.samples,0);
++    // shader_get claims the handoff. Capture the strict object's identity before
++    // the first demand, selecting RGBA8 from the two recorded pass formats.
+     id expected=nil;
+-    for (WarmItem *item in g_warm_items) if (item->referenceKey && !memcmp(&key,&item->pso,sizeof key)) expected=item->object;
++    os_unfair_lock_lock(&g_warm_lock);
++    for (WarmItem *item in g_warm_items) {
++        if (!item->referenceKey || ![item->vs_key isEqual:stage_name(ST_VERTEX)] ||
++            ![item->fs_key isEqual:stage_name(ST_A)] || item->pso.cfmt[0]!=MTLPixelFormatRGBA8Unorm) continue;
++        GPU_CHECK(!expected);
++        expected=item->object;
++    }
++    os_unfair_lock_unlock(&g_warm_lock);
+     GPU_CHECK(expected); demand_vertex_and_draw(stage_name(ST_VERTEX),ST_A,expected);
+     GPU_CHECK(!nvn_be_request_stop() && !nvn_be_shutdown_session());
+     GPU_CHECK([NSFileManager.defaultManager removeItemAtPath:root error:NULL]);

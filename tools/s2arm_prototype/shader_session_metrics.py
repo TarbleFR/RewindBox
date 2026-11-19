@@ -15,6 +15,11 @@ COURSE_LINE = re.compile(
     r"RewindBox course metrics frames=(\d+)\.\.(\d+) asset=([A-Za-z0-9_\[\]-]{1,63}) "
     + " ".join(key + (r"=(\d+)" if key in COURSE_COUNTS else r"=(\d+\.\d+)") for key in COURSE_FIELDS)
     + r"\s*$")
+SLOW_TIMES = ("pso_wait_ms", "shared_library_wait_ms", "xlate_wait_ms", "xlate_ms",
+              "msl_ms", "texture_upload_ms", "texture_gpu_completed_ms")
+SLOW_LINE = re.compile(
+    r"RewindBox course slow frame=(\d+) asset=([A-Za-z0-9_\[\]-]{1,63}) interval_ns=(\d+) "
+    + " ".join(key + r"=(\d+\.\d+)" for key in SLOW_TIMES) + r"\s*$")
 
 
 def course_totals(windows):
@@ -74,12 +79,24 @@ def summarize(host, captures, first, last):
     slow_logged = {100: 0, 200: 0, 500: 0}
     full_windows, gap_rows, reference_binds = [], {}, []
     course_windows = {}
+    slow_frames_by_asset = {}
+    seen_slow_frames = set()
     archive = None
     missing = None
     shared_library_count = None
     completed_predictions, active_prediction, governor = [], None, []
     with host.open(encoding="utf-8", errors="replace") as lines:
         for line in lines:
+            if "RewindBox course slow frame=" in line:
+                slow = SLOW_LINE.search(line)
+                if slow and selected(int(slow[1])):
+                    frame, interval = int(slow[1]), int(slow[3])
+                    if frame in seen_slow_frames:
+                        raise ValueError("Duplicate slow frame. Supply a single session.")
+                    seen_slow_frames.add(frame)
+                    slow_frames_by_asset.setdefault(slow[2], []).append({
+                        "frame": frame, "interval_ns": interval, "over500Ms": interval > 500_000_000,
+                        **{key: float(value) for key, value in zip(SLOW_TIMES, slow.groups()[3:])}})
             if "RewindBox course metrics frames=" in line:
                 m = COURSE_LINE.search(line)
                 if m and selected(int(m[1])) and selected(int(m[2])):
@@ -149,7 +166,7 @@ def summarize(host, captures, first, last):
         intervals = {"first": full_windows[0][0], "last": full_windows[-1][1], "samples": n,
                      "missingWithinObservedSpan": full_windows[-1][1] - full_windows[0][0] + 1 - n,
                      "averageFPS": round(n * 1e9 / ns, 3), "over100Ms": s100, "over200Ms": s200, "over500Ms": s500}
-    return {"courseAssetWindows": course_totals(course_windows),
+    return {"courseAssetWindows": course_totals(course_windows), "slowFramesByAsset": slow_frames_by_asset,
         "frameSignatureIntervals": sig, "completeHostWindows": intervals, "referenceBinds": reference_binds,
         "selectedLoggedFrames": {"rowsOverMs": slow_logged, "submitGaps": gap_rows,
         "longFrameRows": len(long_frames), "rowsWithCompilerBreakdown": len(available),

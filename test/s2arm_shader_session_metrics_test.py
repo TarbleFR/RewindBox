@@ -8,6 +8,20 @@ from shader_session_metrics import summarize
 
 
 class SessionMetricsTests(unittest.TestCase):
+    def test_slow_frame_identity_costs_and_strict_threshold(self):
+        with tempfile.TemporaryDirectory() as directory:
+            host = Path(directory) / "host.log"
+            times = ("pso_wait_ms=24.100 shared_library_wait_ms=0.000 xlate_wait_ms=0.000 "
+                     "xlate_ms=4.000 msl_ms=8.000 texture_upload_ms=32.000 texture_gpu_completed_ms=4.000")
+            host.write_text(f"RewindBox course slow frame=3132 asset=unknown interval_ns=500000000 {times}\n"
+                            f"RewindBox course slow frame=5536 asset=Race_A interval_ns=500000001 {times}\n")
+            frames = summarize(host, [], 0, 6000)["slowFramesByAsset"]
+            self.assertFalse(frames["unknown"][0]["over500Ms"])
+            self.assertTrue(frames["Race_A"][0]["over500Ms"])
+            self.assertEqual(frames["Race_A"][0]["frame"], 5536)
+            self.assertEqual(frames["Race_A"][0]["texture_upload_ms"], 32)
+            self.assertEqual(set(summarize(host, [], 5000, 6000)["slowFramesByAsset"]), {"Race_A"})
+
     def test_course_windows_keep_all_frames_and_unknown_boundaries(self):
         with tempfile.TemporaryDirectory() as directory:
             host = Path(directory) / "host.log"

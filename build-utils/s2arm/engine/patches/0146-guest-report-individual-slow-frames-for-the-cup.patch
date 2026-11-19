@@ -1,0 +1,35 @@
+diff --git a/graphics/nvn/gfx/nvn/rb_course_tracking.inc b/graphics/nvn/gfx/nvn/rb_course_tracking.inc
+--- a/graphics/nvn/gfx/nvn/rb_course_tracking.inc
++++ b/graphics/nvn/gfx/nvn/rb_course_tracking.inc
+@@ -139,10 +139,16 @@
+     }
+     os_unfair_lock_unlock(&g_wu_lock);
+ }
++static const char *rb_course_bucket_name(unsigned bucket) {
++    if (bucket == 0) return "unknown";
++    if (bucket == 1) return "selection_asset";
++    if (bucket == 2) return "race_sequence_asset";
++    return g_course_live.course[bucket - 3].name;
++}
+ static void rb_course_flush(void) {
+     for(unsigned i=0;i<RB_COURSES+3;++i) {
+         rb_course_sample *s=&g_course_samples[i];if (!s->count) continue;
+-        const char *label=i==0?"unknown":i==1?"selection_asset":i==2?"race_sequence_asset":g_course_live.course[i-3].name;
++        const char *label=rb_course_bucket_name(i);
+         MLOG("RewindBox course metrics frames=%llu..%llu asset=%s samples=%u interval_ms=%.3f over100=%u over500=%u pso_wait_ms=%.3f shared_library_wait_ms=%.3f xlate_wait_ms=%.3f xlate_ms=%.3f msl_count=%u msl_ms=%.3f texture_upload_ms=%.3f texture_gpu_completed_ms=%.3f",
+             (unsigned long long)g_course_first_frame,(unsigned long long)g_course_last_frame,label,s->count,s->ns/1e6,s->slow100,s->slow500,
+             s->pso_wait/1e6,s->lib_wait/1e6,s->xwait,s->xlate,s->libs,s->msl,s->upload,s->upload_gpu);
+@@ -173,6 +179,13 @@
+     // The interval spans the boundary. Never charge it to either named course.
+     int attributed=slot!=prev ? RB_COURSE_UNKNOWN : slot;
+     unsigned bucket=attributed>=0 ? (unsigned)attributed+3 : (unsigned)(-attributed-1);
++    if (ns > 100000000ULL) {
++        MLOG("RewindBox course slow frame=%llu asset=%s interval_ns=%llu pso_wait_ms=%.3f "
++             "shared_library_wait_ms=%.3f xlate_wait_ms=%.3f xlate_ms=%.3f msl_ms=%.3f "
++             "texture_upload_ms=%.3f texture_gpu_completed_ms=%.3f",
++             (unsigned long long)frame, rb_course_bucket_name(bucket), (unsigned long long)ns,
++             pw / 1e6, lw / 1e6, xwait, xlate, msl, upload, upload_gpu);
++    }
+     rb_course_sample_add(&g_course_samples[bucket],ns,upload,upload_gpu,xlate,xwait,libs,msl,pw,lw);
+     if(!g_course_sample_count) g_course_first_frame=frame;
+     g_course_last_frame=frame;

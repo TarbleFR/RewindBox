@@ -1,0 +1,268 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_geometry.inc b/graphics/nvn/gfx/nvn/nvn_geometry.inc
+index 778e7f1..54fa674 100644
+--- a/graphics/nvn/gfx/nvn/nvn_geometry.inc
++++ b/graphics/nvn/gfx/nvn/nvn_geometry.inc
+@@ -195,6 +195,8 @@ static void mtk_warm_claim(NSData *key, id ps) {   // submit thread (warm_claim)
+ //   could not wait behind every other pipeline queued before it)
+ static int mtk_width(void) { static int w; if (!w) { const char *e = getenv("DM_NVN_MESH_PAR"); int n = (int)NSProcessInfo.processInfo.activeProcessorCount; w = e && atoi(e) > 0 ? atoi(e) : n > 4 ? n - 2 : 2; MLOG("task / mesh pipelines: built in the background %d at a time (DM_NVN_MESH_PAR)", w); } return w; }
+ static dispatch_semaphore_t g_mtk_sem;
++static pthread_mutex_t g_mtk_finish_mu=PTHREAD_MUTEX_INITIALIZER;
++static pthread_cond_t g_mtk_finish_cv=PTHREAD_COND_INITIALIZER;
+ static void mtk_kick(MTLMeshRenderPipelineDescriptor *m, NSString *names, const mtk_key *key) {
+     mtk_key kk = *key;
+     atomic_fetch_add(&g_mtk_inflight, 1);
+@@ -213,6 +215,11 @@ static void mtk_kick(MTLMeshRenderPipelineDescriptor *m, NSString *names, const
+         if (mtk_pace()) { if (!g_mtk_ready) g_mtk_ready = [NSMutableArray array]; [g_mtk_ready addObject:@[[NSData dataWithBytes:&kk length:sizeof kk], p ? (id)p : NSNull.null]]; }   // held: mtk_publish delivers
+         else if (hm_get_id(&g_pso_mtk, &kk) == g_pso_mtk_building) hm_put_id(&g_pso_mtk, &kk, p ?: NSNull.null);   // the prewarm may have handed one over meanwhile: keep that one
+         os_unfair_lock_unlock(&g_pso_mtk_lock);
++        if (rb_course_exact()) {
++            pthread_mutex_lock(&g_mtk_finish_mu);
++            pthread_cond_broadcast(&g_mtk_finish_cv);
++            pthread_mutex_unlock(&g_mtk_finish_mu);
++        }
+     } });
+ }
+ // A draw that cannot be skipped waits on the submit thread for its pipeline's background build, at most mtk_budget_ms() a frame in all (DM_NVN_MESH_WAIT_MS); past the budget the draw is
+@@ -223,18 +230,34 @@ static int mtk_budget_ms(void) { if (g_mtk_budget < 0) { const char *e = getenv(
+ static id mtk_wait(const mtk_key *mk, const char *why) {
+     uint64_t f = atomic_load_explicit(&g_cur_frame, memory_order_relaxed); if (f != g_mtk_wait_frame) { g_mtk_wait_frame = f; g_mtk_wait_frame_ns = 0; }
+     uint64_t budget = (uint64_t)mtk_budget_ms() * 1000000ull, t0 = bp_now(); __unsafe_unretained id p = nil; int done = 0;
+-    while (!mtk_pace()) {
++    // Debug pacing deliberately publishes on a future frame. Normal profile draws
++    // join their specific Metal build, including the first time a mesh is seen.
++    int exact=rb_course_exact() && !mtk_pace();
++    if (exact) {
++        DM_BLOCK_BEGIN();
++        pthread_mutex_lock(&g_mtk_finish_mu);
++        while (!dm_gfx_session_stopping()) {
++            os_unfair_lock_lock(&g_pso_mtk_lock);
++            p=hm_get_id(&g_pso_mtk,mk);
++            os_unfair_lock_unlock(&g_pso_mtk_lock);
++            if (p!=g_pso_mtk_building) { done=1; break; }
++            rb_compile_wait(&g_mtk_finish_cv,&g_mtk_finish_mu);
++        }
++        pthread_mutex_unlock(&g_mtk_finish_mu);
++        DM_BLOCK_END();
++    } else while (!mtk_pace()) {
+         os_unfair_lock_lock(&g_pso_mtk_lock); p = hm_get_id(&g_pso_mtk, mk); os_unfair_lock_unlock(&g_pso_mtk_lock);
+         if (p != g_pso_mtk_building) { done = 1; break; }
+         if (g_mtk_wait_frame_ns + (bp_now() - t0) >= budget) break;
+         usleep(200);
+     }
+     uint64_t dt = bp_now() - t0; g_mtk_wait_frame_ns += dt; g_mtk_waits++; g_mtk_wait_ns += dt; if (dt > g_mtk_wait_max) g_mtk_wait_max = dt;
++    atomic_fetch_add_explicit(&g_course_pso_wait_ns,dt,memory_order_relaxed);
+     if (!done) g_mtk_wait_over++;
+     // RewindBox (patch 0044): a wait past the budget is logged at powers of two of their count as well; it was one line a draw, every frame, for as long as a pipeline took to build
+     if (!(g_mtk_waits & (g_mtk_waits - 1)) || (!done && !(g_mtk_wait_over & (g_mtk_wait_over - 1)))) MLOG("task / mesh draw that cannot be skipped (%s) waited for its background pipeline %.1f ms (%s); %llu waits so far, %.1f ms in all, longest %.1f ms, %llu past the %d ms frame budget (skipped)",
+         why, dt / 1e6, done ? "ready" : "not ready: skipped this frame", (unsigned long long)g_mtk_waits, g_mtk_wait_ns / 1e6, g_mtk_wait_max / 1e6, (unsigned long long)g_mtk_wait_over, mtk_budget_ms());
+-    return done && p != NSNull.null ? p : nil;
++    return done && (p != NSNull.null || exact) ? p : nil;
+ }
+ // Why a mesh draw whose pipeline is not built yet may not be skipped (nil: it may, its pipeline builds in the background); the same rules as skip_safe / first_skip_ok
+ static const char *mtk_sync_why(NvShader *ts, NvShader *ms, NvShader *fs) {
+@@ -264,7 +287,11 @@ static id<MTLRenderPipelineState> mtk_pso(NvProg *raster) {
+     os_unfair_lock_lock(&g_pso_mtk_lock); __unsafe_unretained id ps = hm_get_id(&g_pso_mtk, &mk);
+     if (!ps) { if (!g_pso_mtk_building) g_pso_mtk_building = [NSObject new]; hm_put_id(&g_pso_mtk, &mk, g_pso_mtk_building); }
+     os_unfair_lock_unlock(&g_pso_mtk_lock);
+-    if (ps == NSNull.null && !mk.pad && want) vp_ask(S.prog, ms, want);   // refused unpadded: ask for the padded variant (once; a variant that cannot be made stays failed)
++    if (ps == NSNull.null && !mk.pad && want) {
++        if (rb_course_exact()) {
++            if (rb_demand_padding(S.prog,ms,want)) return mtk_pso(raster);
++        } else vp_ask(S.prog,ms,want);
++    }   // refused unpadded: ask for the padded variant (once; a variant that cannot be made stays failed)
+     if (ps && ps != NSNull.null && ps != g_pso_mtk_building) {   // #770: the first draw of each pipeline, with the frame and how many are still building
+         if (!g_mtk_drawn) g_mtk_drawn = [NSMutableSet set];
+         if (![g_mtk_drawn containsObject:ps]) { [g_mtk_drawn addObject:ps]; mtk_record(&mk, ts, ms, fs, merged);
+@@ -277,7 +304,7 @@ static id<MTLRenderPipelineState> mtk_pso(NvProg *raster) {
+     //   fresh this frame and was drawn in the last two. 11-13 0400486024DEC000 on Duo: the mesh draws of the opening scene were skipped for 10–20 s while 54 mesh pipelines built one
+     //   after another in the background, and the scene came out washed white until the last of them was ready. A draw that cannot be skipped waits for its background build, within
+     //   a per-frame budget (mtk_wait). Building it here instead held the submit thread 19 s in all (one pipeline 3.1 s) and a cross-queue GPU event wait timed out into a GPU hang
+-    const char *why = mtk_sync_why(ts, ms, fs);
++    const char *why = rb_course_exact() ? "Mushroom Cup graphics profile" : mtk_sync_why(ts, ms, fs);
+     if (!ps) {
+         // RewindBox (patch 0041): the fragment shader's typed-output variant, made before the pipeline is asked for. A vertex draw's pipeline that Metal refuses over an integer
+         //   attachment is built again with it (pso_get_ → pso_fout_variant); a task / mesh pipeline was only ever given the library's entry point, and a refusal is final for the
+@@ -298,6 +325,7 @@ static id<MTLRenderPipelineState> mtk_pso(NvProg *raster) {
+     }
+     if (!why) return nil;   // building in the background, and this draw may wait for it
+     __unsafe_unretained id p = mtk_wait(&mk, why);
++    if (p==NSNull.null) return mtk_pso(raster); // refusal is published; retry once with the missing padded interface
+     if (p) { if (!g_mtk_drawn) g_mtk_drawn = [NSMutableSet set];
+         if (![g_mtk_drawn containsObject:p]) { [g_mtk_drawn addObject:p]; mtk_record(&mk, ts, ms, fs, merged); } }
+     return p;
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index dc81582..c0c6977 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1647,7 +1647,14 @@ static inline void enc_r_end(id e) { m4_end(e); }
+  // and remove the first actual encoder bind from the same tiny table.
+ static nvn_hmap g_rb_promoted_objects = {.klen = sizeof(void *)};
+ static int g_rb_observing = 1;
+-static _Atomic int g_course_capture;
++static _Atomic int g_course_capture, g_course_exact;
++static int rb_course_enabled(void);
++static int rb_course_exact(void) { return atomic_load_explicit(&g_course_exact,memory_order_relaxed) && rb_course_enabled(); }
++// Metal completion wakes the caller immediately. A timed wake also observes a stop request.
++static void rb_compile_wait(pthread_cond_t *cv, pthread_mutex_t *mu) {
++    const struct timespec slice={0,100000000};
++    pthread_cond_timedwait_relative_np(cv,mu,&slice);
++}
+ static _Atomic uint64_t g_course_pso_wait_ns, g_course_library_wait_ns;
+ static void rb_course_bound(id ps);
+ 
+@@ -11556,7 +11563,7 @@ static int vp_ask(const prog_t *p, NvShader *vs, uint32_t miss) {
+     uint8_t md[8] = {0}; int at = -1; uint64_t t0 = bp_now();
+     const prog_t *gp = (const prog_t *)vp_pick_prog(p, vp_bst_at, 5, vs->key, md, vp_stage_of_at, NULL, &at);
+     if (at < 0) { static unsigned n; if (!n++ || !(n & (n - 1))) MLOG("顶点补齐变体：%s 在绘制 program 与 5 个按阶段绑定的 program 里都没有有效控制段（%u 次）", vs->key, n); }
+-    if (se_sync()) { char why[300] = ""; id<MTLFunction> f = vp_build(vs, md, at < 0 ? 0 : gp->sd[at].data, at < 0 ? NULL : gp->sd[at].control, want, why, sizeof why); vp_done(vs, f, want, why, t0, "同步现编"); return f != nil; }
++    if (se_sync() || rb_course_exact()) { char why[300] = ""; id<MTLFunction> f = vp_build(vs, md, at < 0 ? 0 : gp->sd[at].data, at < 0 ? NULL : gp->sd[at].control, want, why, sizeof why); vp_done(vs, f, want, why, t0, "同步现编"); return f != nil; }
+     uint64_t code = 0; const void *ctl = NULL; void *snap = at < 0 ? NULL : dm_shader_snap(gp->sd[at].data, gp->sd[at].control, &code, &ctl); uint64_t key; memcpy(&key, md, 8);
+     fprintf(stderr, "[s2a] 顶点补齐变体：程序号 %s 顶点 %.16s 首遇缺 user(locn) 掩码 %#x，后台编，编好前这对的绘制照旧跳过\n", s2a_nvn_game_id(), vs->key, want);
+     static dispatch_queue_t q; static dispatch_once_t once;
+@@ -11569,6 +11576,15 @@ static int vp_ask(const prog_t *p, NvShader *vs, uint32_t miss) {
+     } });
+     return 1;
+ }
++// The prewarmer serializes masks on this same shader. If it has just started a
++// narrower variant, join it first, then produce the mask the current draw needs.
++static BOOL rb_demand_padding(const prog_t *p, NvShader *shader, uint32_t mask) {
++    @synchronized(shader) {
++        if (dm_gfx_session_stopping()) return NO;
++        if (vp_fn(shader,mask)) return YES;
++        return vp_ask(p,shader,mask) && vp_fn(shader,mask)!=nil;
++    }
++}
+ // Gap families 34 / 37 (contract: state/直连缺陷线.md, Dsh.cs FsAlphaMs): the fragment entry (main0, or main0_u when u) specialized with S2A_AT = the NVN alpha function
+ //   (1 NEVER … 7 GEQUAL; not given when 0, the test compiled out) and S2A_MSOFF = sample mask written full. Built once per (u, at, msoff) and kept; nil when the shader declares none
+ static os_unfair_lock g_atfn_lock = OS_UNFAIR_LOCK_INIT;
+@@ -11861,7 +11877,7 @@ static id<MTLRenderPipelineState> pso_pend_take(const pso_key *k, int *timed_out
+     if (may_skip && at >= 0 && g_pp[at].late && !g_pp[at].done) { pthread_mutex_unlock(&g_pp_mu); *timed_out = 1; return nil; }   // waited its limit once already: every later draw with it skips at once until it is done
+     // A draw that cannot be skipped waited the whole unsafe cap for it once: the compiler service is stuck on it, and every later draw with it, safe or not, skips at once until it is done.
+     //   Splatoon 3 (10-27 PSB, t0100c2500fc20000_1027065706_2): three such draws in a row each waited 10 s for the same pipeline (Hoian_UBER fragment fc88b546d13b4a9f), 31 s at frame 47
+-    if (at >= 0 && g_pp[at].stuck && !g_pp[at].done) { pthread_mutex_unlock(&g_pp_mu); *timed_out = 1; return nil; }
++    if (!rb_course_exact() && at >= 0 && g_pp[at].stuck && !g_pp[at].done) { pthread_mutex_unlock(&g_pp_mu); *timed_out = 1; return nil; }
+     int lw = may_skip && g_rb_lw_take;   // RewindBox (patch 0069): a draw formerly skipped at once: its frame's own allowance caps it, not the budget (rb_late_left_ms)
+     if (may_skip && at >= 0 && !g_pp[at].done) {   // the frame's budget caps this wait (a wait cut short by it does not make the pipeline late: a later frame waits for it again)
+         int64_t left = lw ? rb_late_left_ms() : pso_budget_left_ms(); int cut = 0;   // RewindBox (patch 0069): lw
+@@ -11870,11 +11886,14 @@ static id<MTLRenderPipelineState> pso_pend_take(const pso_key *k, int *timed_out
+     }
+     if (at >= 0) { blk = !g_pp[at].done; if (blk) DM_BLOCK_BEGIN(); uint64_t w0 = bp_now();
+         struct timespec dl; clock_gettime(CLOCK_REALTIME, &dl); dl.tv_sec += ms / 1000; dl.tv_nsec += (long)(ms % 1000) * 1000000; if (dl.tv_nsec >= 1000000000) { dl.tv_sec++; dl.tv_nsec -= 1000000000; }
+-        while (!g_pp[at].done) if (ms ? pthread_cond_timedwait(&g_pp_cv, &g_pp_mu, &dl) == ETIMEDOUT : pthread_cond_wait(&g_pp_cv, &g_pp_mu)) break;
++        if (rb_course_exact()) {
++            while (!g_pp[at].done && !dm_gfx_session_stopping()) rb_compile_wait(&g_pp_cv,&g_pp_mu);
++        } else while (!g_pp[at].done) if (ms ? pthread_cond_timedwait(&g_pp_cv, &g_pp_mu, &dl) == ETIMEDOUT : pthread_cond_wait(&g_pp_cv, &g_pp_mu)) break;
+         if (blk) { uint64_t waited=bp_now()-w0; if (lw) g_rb_lw_ns+=waited; else g_pp_bud_ns+=waited;
+             atomic_fetch_add_explicit(&g_course_pso_wait_ns,waited,memory_order_relaxed); }   // RewindBox (patch 0069): lw charges its own allowance
+         if (blk && !may_skip && bp_now() - w0 > (uint64_t)pso_wait_ms() * 1000000ull) { static unsigned n; if (n++ < 8) MLOG("【红】 a draw that cannot be skipped (its target keeps content across frames) waited %.0f ms for its pipeline to compile%s", (bp_now() - w0) / 1e6, g_pp[at].done ? "" : ": past DM_NVN_PSO_UNSAFE_WAIT_MS, skipped after all (the picture may be wrong until the pipeline arrives)"); }
+         if (g_pp[at].done) { ps = g_pp[at].ps; g_pp[at].ps = nil; g_pp[at].used = 0; }
++        else if (rb_course_exact() && dm_gfx_session_stopping()) *timed_out=1;
+         else if (lw && ms < pso_wait_ms()) { *timed_out = 2; rb_late_skip_note(); }   // RewindBox (patch 0069): the allowance ran out first
+         else if (ms < pso_wait_ms() && pso_frame_ms()) { *timed_out = 2; pso_budget_skip_note(); }   // the frame's budget ran out first
+         else { *timed_out = 1; g_pp[at].late = 1; if (!may_skip) g_pp[at].stuck = 1; g_pp_timeouts++; } }
+@@ -12080,13 +12099,20 @@ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_vs(NvProg *pr, NvS
+     if (hm_get_id(&g_pso_fail, &k)) { PSO_WHY("on the failed list (its first build was refused; the red line then said why)"); return nil; }
+     { NSNumber *r = hm_get_id(&g_pso_retry, &k); if (r && r.unsignedLongLongValue > atomic_load(&g_cur_frame)) { g_first_skipped = 1; PSO_WHY("waiting to retry after a compiler service failure"); return nil; } }   // waiting to retry (pso_err_transient)
+     if (quar_has(vs, fs)) { hm_put_id(&g_pso_fail, &k, NSNull.null); PSO_WHY("quarantined after a GPU error"); return nil; }   // a GPU error quarantined it (quar_fault)
++    const int exact=rb_course_exact();
+     if (!pso_pair_ok(vs, fs, 1)) {
+-        if (vp_ask(pr->gp, vs, pso_pair_miss(vs, fs))) { PSO_WHY("the vertex stage %s's padded variant is being made", vs->key); return nil; }   // not failed: the next draw asks again
+-        hm_put_id(&g_pso_fail, &k, NSNull.null); PSO_WHY("the vertex stage %s does not write a user(locn) the fragment reads", vs->key); return nil; }
+-    if (!g_pso_lmap && !ms_fn && !g_pso_fsfn && first_skip_ok(&k, vs, fs)) { PSO_WHY("compiling in the background (first-use skip)"); return nil; }   // S2Arm first-use skip: no stand-in, the full pipeline compiles in the background (draw counts it)
++        uint32_t mask=pso_pair_miss(vs,fs);
++        if (exact) {
++            if (!rb_demand_padding(pr->gp,vs,mask)) { PSO_WHY("required vertex padding unavailable"); return nil; }
++        } else {
++            if (vp_ask(pr->gp,vs,mask)) { PSO_WHY("the vertex stage %s's padded variant is being made", vs->key); return nil; }
++            hm_put_id(&g_pso_fail,&k,NSNull.null); PSO_WHY("the vertex stage %s does not write a user(locn) the fragment reads", vs->key); return nil;
++        }
++    }
++    if (!exact && !g_pso_lmap && !ms_fn && !g_pso_fsfn && first_skip_ok(&k, vs, fs)) { PSO_WHY("compiling in the background (first-use skip)"); return nil; }   // S2Arm first-use skip: no stand-in, the full pipeline compiles in the background (draw counts it)
+     id<MTLRenderPipelineState> ps;
+     NSError *e = nil; uint64_t bt = bp_now();
+-    int pp_late = 0, may_skip = skip_safe(vs, fs);
++    int pp_late = 0, may_skip = !exact && skip_safe(vs, fs);
+     // Not queued: compile it in the background too and wait the same bounded time, instead of compiling here with no limit (the same compiler service, the same queue).
+     //   The first miss of a submission kicks the later misses of the submission out to compile beside it (pso_predict_rest) before this draw waits: since 93dc5957e (10-26) the wait
+     //   came first and took the pipeline, so the lookahead below never ran and every first use of a scene compiled one after another (Super Mario Party, census 11-02, frame 30722:
+@@ -12123,6 +12149,9 @@ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_vs(NvProg *pr, NvS
+     if (!ps && fs && !ms_fn && !g_pso_fsfn && pso_fout_variant(pr, fs, &k, g_pso_lmap != NULL)) {   // S2Arm: integer attachments the library's entry points do not match
+         e = nil; ps = [g_dev newRenderPipelineStateWithDescriptor:pso_desc(&k, vs, fs, nil, g_pso_lmap != NULL) error:&e];
+     }
++    // Queued waits are charged at their condition variable. Include PSOs the
++    // submit thread built itself when the pending table was full or inapplicable.
++    if (fu_build) atomic_fetch_add_explicit(&g_course_pso_wait_ns,fu_build,memory_order_relaxed);
+     const uint64_t first_use_ns = bp_now() - bt;
+     { uint64_t d_ = first_use_ns; g_bp_pso_n++; g_bp_pso_ns += d_; fe_sync_note(d_);
+       // 首遇等待诊断（11-02 怪猎真机第 63 / 65 秒整帧 180 ms：5 条管线不在归档、首遇跳过判不安全，提交线程等后台编完）：每次这样等过就记一行——
+@@ -12561,6 +12590,8 @@ static NSArray<WarmTask *> *warm_parse(NSArray<NSString *> *paths, long *lines)
+     for (NSString *path in paths) {
+         NSString *txt = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
+         RBReferenceProof *reference=[path isEqual:referencePath] ? rb_ref_open(path,txt) : nil;
++        if (txt.length && [path isEqual:referenceList])
++            atomic_store_explicit(&g_course_exact,1,memory_order_relaxed);
+         BOOL externalList=referenceList && [path isEqual:[referenceList.stringByDeletingLastPathComponent stringByAppendingPathComponent:@"pso_external.tsv"]];
+         if (externalList) rb_recovered_index(txt);
+         if (!txt) { if (reference) rb_ref_abort(); MLOG("【红】 cannot read prewarm list: %s", path.UTF8String); continue; }
+@@ -13973,9 +14004,9 @@ static int se_want(const prog_t *p, NvShader *sh, int nvn_stage) {
+     if (__atomic_compare_exchange_n(&sh->se_st, &st, SE_BUSY, 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
+         uint64_t t0 = bp_now(); id<MTLFunction> f = se_packed(sh);
+         if (f && fold && !sh->se_fold) { f = nil; sh->se_fold = 0; }   // the package's variant predates folded textures: made here instead
+-        if (f) se_done(sh, f, "", t0, "包内"); else se_kick(p, sh, fold);   // folded: no stand-in, made here (se_fold_wait)
++        if (f) se_done(sh, f, "", t0, "包内"); else se_kick(p, sh, fold || rb_course_exact());   // folded: no stand-in, made here (se_fold_wait)
+     }
+-    if (fold && !se_fn(sh, fc)) se_fold_wait(p, sh);   // being made elsewhere: wait for it
++    if ((fold || rb_course_exact()) && !se_fn(sh, fc)) se_fold_wait(p, sh);   // being made elsewhere: wait for it
+     if (!se_fn(sh, fc)) return 0;
+     if (fold && sh->se_fold && nvn_stage >= 0 && nvn_stage < 6) g_fold_sh[nvn_stage] = sh;
+     else if (fold) RED_ONCE(140, "shader %s reads a folded linear texture, but its sampler-emulation variant cannot (made before format 4): the texture reads 0", sh->key);
+diff --git a/graphics/nvn/gfx/nvn/rb_course_tracking.inc b/graphics/nvn/gfx/nvn/rb_course_tracking.inc
+index 606f417..3318b0b 100644
+--- a/graphics/nvn/gfx/nvn/rb_course_tracking.inc
++++ b/graphics/nvn/gfx/nvn/rb_course_tracking.inc
+@@ -22,7 +22,9 @@ static int rb_course_enabled(void) {
+     if (on>=0) return on;
+     const char *b=s2a_main_build_id ? s2a_main_build_id() : NULL;
+     if (!b || !*b) return 0; // guest loader not ready
+-    on=!strcasecmp(b,rb_ref_build) && s2a_npdm_program_id && s2a_npdm_program_id()==0x0400c3f00006e000ull;
++    uint64_t title=s2a_npdm_program_id ? s2a_npdm_program_id() : 0;
++    if (!strcasecmp(b,rb_ref_build) && !title) return 0; // NPDM identity can follow the build ID
++    on=!strcasecmp(b,rb_ref_build) && title==0x0400c3f00006e000ull;
+     atomic_store_explicit(&g_course_on,on,memory_order_release); return on;
+ }
+ static int rb_course_known(const rb_course_db *db,const char *name) {
+@@ -186,6 +188,7 @@ static void rb_course_end(void) {
+     g_course_path=nil;g_course_rows=nil;g_course_prior=(rb_course_db){0};g_course_live=(rb_course_db){0};
+     g_course_pending=RB_COURSE_IGNORE;g_course_current=RB_COURSE_UNKNOWN;g_course_first=-1;
+     g_course_dirty=g_course_queued=0;++g_course_epoch;g_course_frames=g_course_attempts=0;
++    atomic_store(&g_course_exact,0);
+     atomic_store(&g_course_capture,0);atomic_store(&g_course_hints,0);atomic_store(&g_course_on,-1);
+     atomic_store(&g_course_pso_wait_ns,0);atomic_store(&g_course_library_wait_ns,0);
+     os_unfair_lock_unlock(&g_wu_lock);
+diff --git a/graphics/nvn/tests/rb_course_gpu.inc b/graphics/nvn/tests/rb_course_gpu.inc
+index 4ceef61..4a38d03 100644
+--- a/graphics/nvn/tests/rb_course_gpu.inc
++++ b/graphics/nvn/tests/rb_course_gpu.inc
+@@ -8,7 +8,7 @@ static int course_test_child(NSString *root,int launch) {
+     setenv("DM_MSL_DIR",root.fileSystemRepresentation,1);
+     setenv("DM_MSL_FALLBACK",[[root stringByAppendingPathComponent:@"translation"] fileSystemRepresentation],1);
+     setenv("RB_TEST_GAME_BUILD",rb_ref_build,1);
+-    setenv("S2A_RB_SPEC_GOVERN","0",1);setenv("DM_NVN_FIRST_SKIP","0",1);
++    setenv("S2A_RB_SPEC_GOVERN","0",1);setenv("DM_NVN_FIRST_SKIP",launch==4?"1":"0",1);
+     setenv("DM_NVN_PSO_FRAME_MS","0",1);setenv("DM_NVN_PSO_WAIT_MS","0",1);
+     setenv("DM_PSO_ARCHIVE","0",1);setenv("DM_PSO_PREPARE",launch==3?"0":"1",1);setenv("DM_PSO_BG_THREADS","1",1);
+     unsetenv("DM_PSO_MANIFEST");
+@@ -45,6 +45,13 @@ static int course_test_child(NSString *root,int launch) {
+         i=warm_pick(&next,n,0,&lease);GPU_CHECK(i==2);rb_spec_done(&lease);
+         i=warm_pick(&next,n,0,&lease);GPU_CHECK(i==0);rb_spec_done(&lease);
+         GPU_CHECK(warm_pick(&next,n,0,&lease)==-1);
++        // ST_C was absent from both inventories and has never been requested.
++        // Its very first draw must produce the exact blue pixel even with the
++        // normal first-use skip enabled and the per-frame budget exhausted.
++        GPU_CHECK(rb_course_exact() && !handed_pipeline(ST_C,0));
++        g_pso_frame_ms=1; g_pp_bud_frame=atomic_load(&g_cur_frame); g_pp_bud_ns=1000000;
++        demand_and_draw(ST_C,nil);
++        puts("PASS unlisted fragment pipeline drew its exact first Metal pixel with an exhausted wait budget");
+         warm_urgent_end();
+         puts("PASS cold selection: observed Kartnative order promotes exact Metal PSO before generic work on first launch, correct pixel");
+     } else if(launch<3) {
