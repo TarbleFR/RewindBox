@@ -1,0 +1,419 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index a5eab9c..8345b6b 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -8634,7 +8634,7 @@ static NSMutableDictionary<NSString *, NvShader *> *g_shcache;
+ // The lock protects lookup/publication only: file I/O, Metal construction and
+ // waiting for another loader never hold it. g_shcache remains the session's
+ // owning cache, so session retirement can release it after draining warm/prefetch.
+-@interface ShaderFlight : NSObject { @public dispatch_group_t done; NvShader *shader; id<MTLLibrary> library; pthread_t builder; } @end   // builder: the thread building it (flight_wait_locked lends it the waiter's QoS)
++@interface ShaderFlight : NSObject { @public dispatch_group_t done; NvShader *shader; id<MTLLibrary> library; NSError *libraryError; pthread_t builder; } @end   // builder: the thread building it (flight_wait_locked lends it the waiter's QoS)
+ @implementation ShaderFlight @end
+ static NSMutableDictionary<NSString *, ShaderFlight *> *g_shader_flights;
+ static os_unfair_lock g_shader_lock = OS_UNFAIR_LOCK_INIT;
+@@ -9173,6 +9173,7 @@ static id<MTLLibrary> rb_stage_library(NSString *src, int stage, NSError **error
+     if (flight) {
+         flight_wait_locked(flight);
+         if (flight->library) atomic_fetch_add(&g_rb_msl_shared, 1);
++        else if (error) *error = flight->libraryError;
+         return flight->library;
+     }
+     flight = [ShaderFlight new];
+@@ -9186,6 +9187,7 @@ static id<MTLLibrary> rb_stage_library(NSString *src, int stage, NSError **error
+     id<MTLLibrary> lib = rb_compile_source(src, error);
+     os_unfair_lock_lock(&g_shader_lock);
+     flight->library = lib;
++    if (!lib && error) flight->libraryError = *error;
+     if (lib) {
+         g_rb_msl_keys[slot] = identity;
+         g_rb_msl_libraries[slot] = lib;
+@@ -9195,7 +9197,19 @@ static id<MTLLibrary> rb_stage_library(NSString *src, int stage, NSError **error
+     os_unfair_lock_unlock(&g_shader_lock);
+     return lib;
+ }
+-static NvShader *shader_build(NSString *pc, int stage, int layer, int depth_zero) {
++// Only deterministic compiler failures on device-generated MSL enter this set.
++static NSMutableDictionary<NSString *, NSString *> *g_rb_rejected_msl;
++static int rb_msl_rejected(NSError *e) {
++    return [e.domain isEqualToString:MTLLibraryErrorDomain] && e.code == MTLLibraryErrorCompileFailure;
++}
++static NSString *rb_msl_digest(NSString *src) {
++    const char *s = src.UTF8String;
++    return s ? par_hash(s,[src lengthOfBytesUsingEncoding:NSUTF8StringEncoding]) : nil;
++}
++__attribute__((weak)) int dm_shader_repair_msl(const char *dir, const char *key, NSString *src, NSString *digest) {
++    (void)dir; (void)key; (void)src; (void)digest; return 0;
++}
++static NvShader *shader_build_attempt(NSString *pc, int stage, int layer, int depth_zero, int can_repair) {
+     NSError *e = nil;
+     // S2Arm: a key missing from the library is looked up in DM_MSL_FALLBACK (the on-device fallback translation writes <key>_b.metal + .json there; iOS cannot store a metallib built at runtime)
+     NSString *dir = g_msl_dir;
+@@ -9227,8 +9241,14 @@ static NvShader *shader_build(NSString *pc, int stage, int layer, int depth_zero
+     if (!lib) lib = dir == g_msl_dir ? lib_from_pack(pc.UTF8String, &e) : [NSFileManager.defaultManager fileExistsAtPath:lp] ? lib_from_file(lp, &e) : nil;
+     if (lib && ul) { os_unfair_lock_lock(&ulock); if (!ulibs) ulibs = [NSMutableDictionary dictionary]; if (!ulibs[ul]) ulibs[ul] = lib; else lib = ulibs[ul]; os_unfair_lock_unlock(&ulock); }
+     NSString *rb_src = nil;   // RewindBox (patch 0073): a compute shader's fallback source compiled here (NvShader rb_msl, rb_icls_pick)
++    NSString *original = nil, *refused = nil, *digest = nil;
+     if (!lib && dir != g_msl_dir) {   // S2Arm fallback: MSL source compiled here, same options as the offline chain (dm_msl_opts)
+         NSString *src = [NSString stringWithContentsOfFile:(rb_src = [NSString stringWithFormat:@"%@/%@.metal", dir, pc]) encoding:NSUTF8StringEncoding error:&e];
++        original = src;
++        os_unfair_lock_lock(&g_shader_lock);
++        refused = g_rb_rejected_msl[rb_src];
++        os_unfair_lock_unlock(&g_shader_lock);
++        if (refused && src && [refused isEqual:(digest = rb_msl_digest(src))]) src = nil;
+         if (src && stage == 0) src = rb_msl_base_instance(src, pc.UTF8String);   // RewindBox (patch 0066)
+         if (src) lib = rb_stage_library(src, stage, &e);
+         if (lib) MLOG("shader %s loaded from the fallback translation (%s)", pc.UTF8String, fb);
+@@ -9237,6 +9257,20 @@ static NvShader *shader_build(NSString *pc, int stage, int layer, int depth_zero
+     unsigned rb_bi_n = t_rb_binst_reads; int rb_bi_seen = t_rb_binst_seen; t_rb_binst_reads = 0; t_rb_binst_seen = 0;   // RewindBox (patch 0066): what rb_msl_base_instance did to the source compiled above
+     if (!lib && rb_bi_n) { rb_binst_refused(pc.UTF8String, e); e = nil; rb_bi_n = 0; rb_bi_seen = 0; NSString *s0 = [NSString stringWithContentsOfFile:[NSString stringWithFormat:@"%@/%@.metal", dir, pc] encoding:NSUTF8StringEncoding error:&e];
+         if (s0) lib = rb_stage_library(s0, stage, &e); }   // RewindBox (patch 0066): Metal refused the rewritten source: the translation as written, as before
++    if (!lib && original.length && pc.length == 18 && [pc hasSuffix:@"_b"] &&
++        (rb_msl_rejected(e) || (refused && [refused isEqual:digest]))) {
++        digest = digest ?: rb_msl_digest(original);
++        if (digest) {
++            NSString *path = [dir stringByAppendingPathComponent:[pc stringByAppendingString:@".metal"]];
++            os_unfair_lock_lock(&g_shader_lock);
++            if (!g_rb_rejected_msl) g_rb_rejected_msl = [NSMutableDictionary dictionary];
++            if (g_rb_rejected_msl.count < 128 || g_rb_rejected_msl[path]) g_rb_rejected_msl[path] = digest;
++            os_unfair_lock_unlock(&g_shader_lock);
++            char key[17]; snprintf(key,sizeof key,"%.16s",pc.UTF8String);
++            if (can_repair && dm_shader_repair_msl(dir.fileSystemRepresentation,key,original,digest))
++                return shader_build_attempt(pc,stage,layer,depth_zero,0);
++        }
++    }
+     if (!lib || !j) { MLOG("【红】 failed to load shader %s: %s", pc.UTF8String, e ? e.localizedDescription.UTF8String : "no reflection json"); return nil; }
+     if (![j[@"chain"] isEqual:@DMSH_CHAIN]) { MLOG("【红】 shader %s has translation chain version %s, but this host expects %s", pc.UTF8String, [[j[@"chain"] description] UTF8String], DMSH_CHAIN); return nil; }
+     if (layer && !j[@"entry_layer"]) { MLOG("【红】 vertex shader %s has no layer entry points", pc.UTF8String); return nil; }
+@@ -9381,6 +9415,9 @@ static uint64_t flight_wait_locked(ShaderFlight *flight) {
+     if (ov) pthread_override_qos_class_end_np(ov);
+     return elapsed;
+ }
++static NvShader *shader_build(NSString *pc, int stage, int layer, int depth_zero) {
++    return shader_build_attempt(pc, stage, layer, depth_zero, 1);
++}
+ static NvShader *shader_load_depth(NSString *pc, int stage, int layer, int depth_zero, int *built, uint64_t *wait_ns) {
+     if (built) *built = 0;
+     if (wait_ns) *wait_ns = 0;
+diff --git a/graphics/nvn/host/dsh_miss.inc b/graphics/nvn/host/dsh_miss.inc
+index 16ab7c9..1654f51 100644
+--- a/graphics/nvn/host/dsh_miss.inc
++++ b/graphics/nvn/host/dsh_miss.inc
+@@ -259,21 +259,26 @@ int dm_shader_kept(const char *k16) {
+ // RewindBox (patch 0056): translate a key again from the bytes kept beside its translation (the prewarm's workers, nvn_mtl.m warm_shader; never the submit thread). → 1 = its
+ //   translation is this translator's now (made here, or by another thread meanwhile), 0 = no usable bytes or the translation failed (the key is then left to its first draw,
+ //   which reports it). The file is checked against its own header before a byte reaches the translator
+-int dm_shader_retranslate(const char *k16) {
+-    const char *out = getenv("DM_MSL_FALLBACK"); char k[17], p[1200]; snprintf(k, sizeof k, "%.16s", k16);
+-    if (!out || !*out || strlen(k) != 16) return 0;
+-    if (dsh_have(out, k)) return 1;
+-    dsh_comp_fn comp = dsh_comp(); if (!comp || !dsh_in_on()) return 0;
+-    snprintf(p, sizeof p, "%s/%s_b.in", out, k);
++static uint8_t *dsh_read_input(const char *out, const char *k, uint32_t h[4], int verify_nvn2) {
++    char p[1200];
++    if (snprintf(p,sizeof p,"%s/%s_b.in",out,k) >= (int)sizeof p) return NULL;
+     int fd = open(p, O_RDONLY | O_NONBLOCK); if (fd < 0) return 0;
+-    uint32_t h[4];
+     int ok = rb_stage_header(fd, h);
+     size_t n = ok ? (size_t)h[2] + h[3] : 0;
+     uint8_t *b = ok ? malloc(n) : NULL;
+     ok = b && rb_stage_read(fd, b, n);
+     close(fd);
+-    if (ok && nvn2_on()) ok = rb_nvn2_input_matches(k, h, b);
+-    if (!ok) { atomic_fetch_add(&g_rb_stage_input_rejections, 1); free(b); return 0; }   // The next successful live translation atomically replaces this entry.
++    if (ok && verify_nvn2) ok = rb_nvn2_input_matches(k, h, b);
++    if (!ok) { atomic_fetch_add(&g_rb_stage_input_rejections, 1); free(b); return 0; }
++    return b;
++}
++int dm_shader_retranslate(const char *k16) {
++    const char *out = getenv("DM_MSL_FALLBACK"); char k[17]; snprintf(k, sizeof k, "%.16s", k16);
++    if (!out || !*out || strlen(k) != 16) return 0;
++    if (dsh_have(out, k)) return 1;
++    dsh_comp_fn comp = dsh_comp(); if (!comp || !dsh_in_on()) return 0;
++    uint32_t h[4]; uint8_t *b = dsh_read_input(out,k,h,nvn2_on());
++    if (!b) return 0;
+     dsh_yield_late();   // RewindBox (patch 0069)
+     uint64_t t0 = now_ns();
+     int rc = dsh_translate_locked(comp, k, (int)h[1], b + h[2], h[3], b, h[2], out, 1);
+@@ -286,6 +291,50 @@ int dm_shader_retranslate(const char *k16) {
+                                       (unsigned long long)m, atomic_load(&g_dsh_re_ns) / 1e6, (unsigned long long)atomic_load(&g_dsh_re_fail));
+     return 1;
+ }
++// A deterministic Metal compiler error is stronger evidence than matching JSON and
++// a nonempty file. Compare the rejected text again under the normal translator lock:
++// another identity may already have fixed this key. Keep the same SIN1/JSON/MSL layout.
++int dm_shader_repair_msl(const char *out, const char *k, NSString *rejected, NSString *digest) {
++    if (!out || !*out || strlen(k) != 16 || strspn(k,"0123456789abcdef") != 16 ||
++        !rejected.length || !digest || !dsh_in_on()) return 0;
++    dsh_comp_fn comp = dsh_comp();
++    if (!comp) return 0;
++    @autoreleasepool {
++        NSString *dir = @(out);
++        NSString *base = [dir stringByAppendingPathComponent:[NSString stringWithFormat:@"%s_b",k]];
++        NSString *path = [base stringByAppendingPathExtension:@"metal"];
++        pthread_mutex_lock(&g_dsh_comp_mu);
++        int retry = 0;
++        NSString *current = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:NULL];
++        if (current.length && ![current isEqualToString:rejected]) retry = 1;
++        else if (current && !nvn_be_stopping()) {
++            struct stat st;
++            static NSString *scope;
++            static NSMutableSet<NSString *> *attempts;
++            if (![scope isEqualToString:dir]) { scope = [dir copy]; attempts = [NSMutableSet new]; }
++            if (!stat([base stringByAppendingPathExtension:@"in"].fileSystemRepresentation,&st)) {
++                // A validated bind publishes by rename. A changed input or changed MSL
++                // may be tried again; a broken translator output cannot loop per draw.
++                NSString *version = [NSString stringWithFormat:@"%s/%@/%llu/%lld/%ld", k,digest,
++                    (unsigned long long)st.st_ino,(long long)st.st_mtimespec.tv_sec,st.st_mtimespec.tv_nsec];
++                if (attempts.count < 128 && ![attempts containsObject:version]) {
++                    [attempts addObject:version];
++                    uint32_t h[4]; uint8_t *b = dsh_read_input(out,k,h,1);
++                    if (b) {
++                        dsh_fly_set(out,k,b,h[2],b+h[2],h[3]);
++                        int rc = comp(k,(int)h[1],b+h[2],h[3],b,h[2],out);
++                        dsh_fly_clear();
++                        free(b);
++                        retry = !rc && dsh_have(out,k);
++                        LOG("RewindBox: rejected fallback MSL %s, retranslation from verified input rc=%d",k,rc);
++                    }
++                }
++            }
++        }
++        pthread_mutex_unlock(&g_dsh_comp_mu);
++        return retry;
++    }
++}
+ // RewindBox (patch 0069): the start translated again only the stale keys its prewarm lists name (nvn_mtl.m warm_shader); a stage whose bytes are kept but whose line is not in
+ //   the lists (translated ahead and never drawn, or its line not recorded) stayed stale until a draw met it. After the prewarm (nvn_mtl.m warm_finish), one utility pass lists
+ //   the fallback directory and translates again kept stages (<key>_b.in) whose translation is not this translator's, one at a time. It finds nothing to do while the translator
+@@ -402,15 +451,16 @@ static int dsh_reuse_stage(const char *k, char *stage, size_t n) {
+ // Use the same store as fresh translations: 8 MiB for accumulated copies, or one larger stage alone.
+ static _Atomic size_t g_rb_dsh_known_bytes;
+ static int dsh_keep_reused(const char *k, uint64_t code, const void *control, _Atomic uint64_t *seen, uint64_t token) {
+-    const char *out = getenv("DM_MSL_FALLBACK"); char p[1200];
++    const char *out = getenv("DM_MSL_FALLBACK");
+     if (!dsh_in_on() || !out || !*out || !strcmp(out, "/dev/null") || !control || !code || (uint64_t)(uintptr_t)control >= (1ull << 47) || !nvn2_ctl(control)) return 0;
+-    snprintf(p, sizeof p, "%s/%s_b.in", out, k);
+-    if (rb_stage_present(p)) return 1;
++    if (nvn_be_stopping()) return 0;
+     uint32_t ncode = 0, nctl = 0; int st = dsh_stage((const uint8_t *)(uintptr_t)code, control, &ncode, &nctl);
+     if (st < 0) return 0;
+     const size_t bytes = (size_t)nctl + ncode, limit = 8u << 20;
++    int jobs = atomic_fetch_add(&g_rb_keep_busy, 1);
+     size_t used = atomic_fetch_add(&g_rb_dsh_known_bytes, bytes);
+-    if (used && used + bytes > limit) {
++    if (jobs >= 32 || (used && used + bytes > limit) || nvn_be_stopping()) {
++        atomic_fetch_sub(&g_rb_keep_busy, 1);
+         atomic_fetch_sub(&g_rb_dsh_known_bytes, bytes);
+         atomic_fetch_add(&g_rb_dsh_known_deferred, 1);
+         return 0;
+@@ -419,18 +469,21 @@ static int dsh_keep_reused(const char *k, uint64_t code, const void *control, _A
+     if (!b || !o || !kk) {
+         free(b); free(o); free(kk);
+         atomic_fetch_sub(&g_rb_dsh_known_bytes, bytes);
++        atomic_fetch_sub(&g_rb_keep_busy, 1);
+         return 0;
+     }
+     memcpy(b, control, nctl); memcpy(b + nctl, (const void *)(uintptr_t)code, ncode);
+     static dispatch_queue_t q; static dispatch_once_t once;
+     dispatch_once(&once, ^{ q = dispatch_queue_create("s2a.dsh.keep", dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_UTILITY, 0)); });
+-    atomic_fetch_add(&g_rb_keep_busy, 1);
+     dispatch_async(q, ^{
+         const uint32_t h[4] = {DSH_IN_MAGIC, (uint32_t)st, nctl, ncode};
+         int matches = rb_nvn2_input_matches(kk, h, b);
+         if (!matches) atomic_fetch_add(&g_rb_stage_input_rejections, 1);
+-        int saved = matches && dsh_in_save(o, kk, st, b, nctl, b + nctl, ncode);
+-        if (!saved && seen) {
++        char path[1200];
++        int have = matches && snprintf(path, sizeof path, "%s/%s_b.in", o, kk) < (int)sizeof path
++                   && rb_stage_same_live(path, h, b);
++        int saved = matches && !have && dsh_in_save(o, kk, st, b, nctl, b + nctl, ncode);
++        if (!have && !saved && seen) {
+             uint64_t expected = token;
+             atomic_compare_exchange_strong_explicit(seen, &expected, 0, memory_order_relaxed, memory_order_relaxed);
+         }
+diff --git a/graphics/nvn/host/rb_stage_input.h b/graphics/nvn/host/rb_stage_input.h
+index 9728183..bb195c3 100644
+--- a/graphics/nvn/host/rb_stage_input.h
++++ b/graphics/nvn/host/rb_stage_input.h
+@@ -88,3 +88,32 @@ static int rb_nvn2_input_matches(const char *key, const uint32_t h[4], const uin
+     for (int i = 0; i < 8; ++i) snprintf(actual + 2 * i, 3, "%02x", md[i]);
+     return !strcmp(actual, key);
+ }
++
++// Only the utility worker calls this. Compare the saved code in bounded chunks,
++// including control data past the key's 0x48 bytes. The live program address and
++// relocated record size are explicitly excluded by nvn2_key.
++static int rb_stage_same_live(const char *path, const uint32_t expected[4], const uint8_t *live) {
++    int fd = open(path, O_RDONLY | O_NONBLOCK);
++    if (fd < 0) return 0;
++    uint32_t h[4];
++    uint8_t control[NVN2_CTL_COPY], chunk[4096];
++    int ok = rb_stage_header(fd,h) && !memcmp(h,expected,sizeof h) && h[2] >= 0xd8 &&
++             h[2] <= sizeof control && rb_stage_read(fd,control,h[2]);
++    uint32_t nc = 0, nt = 0;
++    if (ok) ok = nvn2_ctl(control) && rb_nvn2_input_stage(control,&nc,&nt) == (int)h[1]
++                 && nc == h[3] && nt == h[2];
++    if (ok) {
++        memcpy(control + 0x20, live + 0x20, 8);
++        memcpy(control + 0x30, live + 0x30, 4);
++        ok = !memcmp(control, live, h[2]);
++        live += h[2];
++        size_t left = h[3];
++        while (ok && left) {
++            size_t n = left < sizeof chunk ? left : sizeof chunk;
++            ok = rb_stage_read(fd,chunk,n) && !memcmp(chunk,live,n);
++            left -= n; live += n;
++        }
++    }
++    close(fd);
++    return ok;
++}
+diff --git a/graphics/nvn/tests/t_dsh_stats.c b/graphics/nvn/tests/t_dsh_stats.c
+index 28022df..cee0cc2 100644
+--- a/graphics/nvn/tests/t_dsh_stats.c
++++ b/graphics/nvn/tests/t_dsh_stats.c
+@@ -57,7 +57,10 @@ static int variant(const char *in, uint32_t u, uint32_t s, const char *out) { (v
+ static int se_variant(const char *in, const char *out) { (void)in; (void)out; atomic_fetch_add(&se_calls, 1); return se_rc; }
+ static int vp_variant(const char *in, uint32_t m, const char *out) { (void)in; (void)out; vp_mask = m; atomic_fetch_add(&vp_calls, 1); return vp_rc; }
+ static const char *xfp(void) { return XFP; }
+-static void *fake_dlsym(void *handle, const char *name) { (void)handle; return missing ? NULL : !strcmp(name, "s2a_dsh_xfp") ? (noxfp ? NULL : (void *)xfp) : !strcmp(name, "s2a_dsh_fout_variant") ? (void *)variant : !strcmp(name, "s2a_dsh_samp_emu") ? (void *)se_variant : !strcmp(name, "s2a_dsh_vs_pad") ? (void *)vp_variant : (void *)compiler; }
++// In native-producer mode the shader compiler and fingerprint resolve to the
++// unmodified NativeAOT library built from the same pinned S2A.Dsh project.
++static void *native_dsh;
++static void *fake_dlsym(void *handle, const char *name) { if (native_dsh) return dlsym(native_dsh,name); (void)handle; return missing ? NULL : !strcmp(name, "s2a_dsh_xfp") ? (noxfp ? NULL : (void *)xfp) : !strcmp(name, "s2a_dsh_fout_variant") ? (void *)variant : !strcmp(name, "s2a_dsh_samp_emu") ? (void *)se_variant : !strcmp(name, "s2a_dsh_vs_pad") ? (void *)vp_variant : (void *)compiler; }
+ // 捕获固定汇总行；逐次成功/红行仍经生产调用，只在本依赖桩中不打印。
+ static void fixture_log(const char *fmt, ...) {
+     if (strncmp(fmt, "直连着色器现编汇总：", strlen("直连着色器现编汇总："))) return;
+@@ -289,7 +292,49 @@ static int stage_recovery(void) {
+     puts("PASS live translation, compatible reuse, incomplete reflection, empty MSL, corrupt payload, retranslation, live bind repair");
+     return 0;
+ }
++static int native_input_recovery(const char *mode, const char *dir, const char *key, const char *library) {
++    check(strlen(key) == 16);
++    native_dsh = dlopen(library,RTLD_NOW|RTLD_LOCAL);
++    if (!native_dsh) fprintf(stderr,"dsh: %s\n",dlerror());
++    check(native_dsh && dlsym(native_dsh,"s2a_dsh_compile") && dlsym(native_dsh,"s2a_dsh_xfp"));
++    setenv("DM_MSL_FALLBACK",dir,1);
++    nvn2 = 1;
++    if (!strcmp(mode,"cold")) {
++        char path[1200];
++        snprintf(path,sizeof path,"%s/fixture.ctl",dir);
++        NSData *ctl = [NSData dataWithContentsOfFile:@(path)];
++        snprintf(path,sizeof path,"%s/fixture.code",dir);
++        NSData *code = [NSData dataWithContentsOfFile:@(path)];
++        check(ctl.length == 0xd8 && code.length && code.length < (1u << 24));
++        check(!dsh_comp_locked(dsh_comp(),key,1,code.bytes,code.length,ctl.bytes,ctl.length,dir));
++        check(t_dsh_src_made && dm_shader_kept(key) == 1);
++        snprintf(path,sizeof path,"%s/%s_b.in",dir,key);
++        NSData *original = [NSData dataWithContentsOfFile:@(path)];
++        int fd = open(path,O_RDWR); uint8_t bad;
++        check(fd >= 0 && pread(fd,&bad,1,16+ctl.length) == 1);
++        bad ^= 1; check(pwrite(fd,&bad,1,16+ctl.length) == 1 && !close(fd));
++        check(rb_stage_present(path) && dm_shader_kept(key) == 1);
++        uint8_t md[8]; nvn2_key(ctl.bytes,code.bytes,md);
++        for (int i=0; i<32; ++i) dm_shader_keep_known(md,key,(uintptr_t)code.bytes,ctl.bytes);
++        while (dm_shader_bg_busy()) usleep(1000);
++        if (atomic_load(&g_rb_dsh_known_saved) != 1 ||
++            ![original isEqual:[NSData dataWithContentsOfFile:@(path)]]) {
++            fprintf(stderr,"FAIL matching-length corrupt SIN1 was not repaired by its bind\n");
++            return 71;
++        }
++        puts("PASS valid translation retained; same-length damaged SIN1 repaired once from overlapping live binds");
++    } else {
++        check(!strcmp(mode,"restore") && dm_shader_kept(key) == 2);
++        check(dm_shader_retranslate(key) && atomic_load(&g_dsh_re_n) == 1 && dm_shader_kept(key) == 1);
++        check(dm_shader_retranslate(key) && atomic_load(&g_dsh_re_n) == 1);
++        puts("PASS new process used NativeAOT translator exactly once, exclusively from restored disk input");
++    }
++    return 0;
++}
+ int main(int argc, char **argv) {
++    if (argc == 6 && !strcmp(argv[1],"--rb-native-input")) { @autoreleasepool {
++        alarm(90); return native_input_recovery(argv[2],argv[3],argv[4],argv[5]);
++    } }
+     if (argc == 2 && !strcmp(argv[1], "--rb-stage-recovery")) { alarm(10); return stage_recovery(); }
+     setvbuf(stdout, NULL, _IONBF, 0);
+     static const char *expect[] = {
+diff --git a/graphics/nvn/tests/t_nvn_shader_flight.m b/graphics/nvn/tests/t_nvn_shader_flight.m
+index 9986bc0..b6cd1d7 100644
+--- a/graphics/nvn/tests/t_nvn_shader_flight.m
++++ b/graphics/nvn/tests/t_nvn_shader_flight.m
+@@ -23,7 +23,8 @@ static NSString *const compute_source=@"#include <metal_stdlib>\nusing namespace
+ "kernel void output(constant Inputs &a [[buffer(0)]]) { *a.p=0x1234abcd; }\n";
+ 
+ // 本测扮演链了 S2A.Aot 的 App：兜底目录的 json 要带与它相同的翻译器指纹才载（nvn_mtl.m fb_json_current，dlsym 在主程序里找到它）
+-const char *s2a_dsh_xfp(void) { return "0123456789abcdef"; }
++static const char *(*native_fingerprint)(void);
++const char *s2a_dsh_xfp(void) { return native_fingerprint ? native_fingerprint() : "0123456789abcdef"; }
+ static NSDictionary *reflection(NSString *entry) {
+     return @{@"chain":@DMSH_CHAIN,@"xfp":@"0123456789abcdef",@"route":@"B",@"bindings":@[],@"entry":entry,
+         @"entry_z":@"zero",@"entry_layer":@"layered",@"entry_layer_z":@"layered_zero",
+@@ -191,7 +192,42 @@ static void retirement_prefetch(void) {
+     warm_claim();
+ }
+ #endif
+-int main(void) { @autoreleasepool {
++// This mode consumes a real fallback translation in its own process. The
++// synthetic GPU oracle uses an original NVN2 fragment stage generated by the repository fixture.
++static int native_msl_recovery(const char *mode, const char *dir, const char *key, const char *lib) {
++    void *handle = dlopen(lib, RTLD_NOW | RTLD_GLOBAL);
++    if (!handle) fprintf(stderr,"dsh: %s\n",dlerror());
++    REQUIRE(handle && (native_fingerprint = dlsym(handle,"s2a_dsh_xfp")));
++    REQUIRE(dlsym(RTLD_DEFAULT,"s2a_dsh_compile"));
++    setenv("DM_MSL_FALLBACK",dir,1);
++    setenv("DM_PSO_MANIFEST","off",1);
++    g_msl_dir = [@(dir) stringByAppendingPathComponent:@"empty-bundle"];
++    g_dev = MTLCreateSystemDefaultDevice(); REQUIRE(g_dev); g_m3 = 1;
++    NSString *name = [@(key) stringByAppendingString:@"_b"];
++    NSString *msl = [@(dir) stringByAppendingPathComponent:[name stringByAppendingString:@".metal"]];
++    uint64_t before = atomic_load(&g_rb_msl_n);
++    NvShader *stage = shader_load(name,1,0);
++    if (!strcmp(mode,"unrecoverable")) {
++        REQUIRE(!stage && !shader_load(name,1,0) && !shader_load(name,1,0));
++        REQUIRE(atomic_load(&g_rb_msl_n) == before+1);
++        puts("PASS unchanged invalid MSL compiled once; absent input does not create a usable GPU function");
++        return 0;
++    }
++    REQUIRE(!strcmp(mode,"repair"));
++    if (!stage && atomic_load(&g_rb_msl_n) == before+1) {
++        fprintf(stderr,"FAIL Metal rejected source and the retained input was never retranslated\n");
++        return 72;
++    }
++    REQUIRE(stage && stage->fn && shader_load(name,1,0)==stage);
++    REQUIRE(atomic_load(&g_rb_msl_n) == before+2);
++    NSData *actual = [NSData dataWithContentsOfFile:msl];
++    REQUIRE(actual.length && [actual isEqual:[NSData dataWithContentsOfFile:[@(dir) stringByAppendingPathComponent:@"expected.metal"]]]);
++    puts("PASS actual Metal rejection followed by real NativeAOT retranslation and actual Metal function");
++    return 0;
++}
++int main(int argc, char **argv) { @autoreleasepool {
++    if (argc == 6 && !strcmp(argv[1],"--rb-native-msl"))
++        return native_msl_recovery(argv[2],argv[3],argv[4],argv[5]);
+     char tmp[]="/tmp/t_nvn_shader_flight_XXXXXX"; REQUIRE(mkdtemp(tmp)); root=@(tmp);
+     fallback=[root stringByAppendingPathComponent:@"fallback"];
+     REQUIRE([NSFileManager.defaultManager createDirectoryAtPath:fallback withIntermediateDirectories:YES attributes:nil error:nil]);
+diff --git a/graphics/nvn/tests/t_rb_stage_input.c b/graphics/nvn/tests/t_rb_stage_input.c
+index c514c79..f398adb 100644
+--- a/graphics/nvn/tests/t_rb_stage_input.c
++++ b/graphics/nvn/tests/t_rb_stage_input.c
+@@ -53,6 +53,20 @@ int main(void) {
+     snprintf(path, sizeof path, "%s/%s_b.in", dir, key);
+     assert(!rb_stage_present(path));
+     assert(rb_stage_publish(path, 1, input, NT, input + NT, NC));
++    uint32_t expected[4] = {DSH_IN_MAGIC, 1, NT, NC};
++    assert(rb_stage_same_live(path,expected,input));
++    input[0x20] ^= 1;  // relocation may differ on every run
++    assert(rb_stage_same_live(path,expected,input));
++    input[0x20] ^= 1;
++    int corruptfd = open(path,O_RDWR);
++    uint8_t corrupt = input[NT] ^ 1;
++    assert(corruptfd >= 0 && pwrite(corruptfd,&corrupt,1,16+NT) == 1);
++    close(corruptfd);
++    assert(rb_stage_present(path) && !rb_stage_same_live(path,expected,input));
++    assert(rb_stage_publish(path,1,input,NT,input+NT,NC));
++    input[0xb1] ^= 1;  // control beyond the canonical digest also matters to the translator
++    assert(!rb_stage_same_live(path,expected,input));
++    input[0xb1] ^= 1;
+     pid_t child = fork(); assert(child >= 0);
+     if (!child) { verify(); _exit(0); }
+     int status; assert(waitpid(child, &status, 0) == child && WIFEXITED(status) && !WEXITSTATUS(status));
