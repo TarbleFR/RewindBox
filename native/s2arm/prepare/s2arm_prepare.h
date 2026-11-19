@@ -45,6 +45,11 @@ typedef struct {
 // Decode one dictionary-free zstd shader resource within the caller's memory budget.
 // On success the caller owns *out (free). On failure outputs are NULL and zero.
 int rb_s2arm_shader_inflate(const void *src, size_t n, void **out, size_t *size, size_t limit);
+// Stream one zstd frame into an empty temporary file. Returns 1 on success,
+// 0 for malformed data, -1 on cancel, -2 for a resource limit, -3 for an
+// unavailable dictionary, -4 for I/O. A failed decode truncates the output.
+int rb_s2arm_shader_inflate_fd(const void *src, size_t n, int fd, uint64_t limit,
+                                int (*cancel)(void *), void *ctx, uint64_t *written);
 
 int rb_s2arm_prepare_rewrite(const rb_s2arm_rewrite_request *request, char *error, size_t error_size);
 

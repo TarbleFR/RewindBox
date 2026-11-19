@@ -56,5 +56,6 @@ test -n "$visible"
 if echo "$visible" | grep -v '^_rb_s2arm_'; then echo "unexpected visible symbols" >&2; exit 1; fi
 echo "$visible" | grep -qx '_rb_s2arm_prepare_rewrite'
 echo "$visible" | grep -qx '_rb_s2arm_shader_inflate'
+echo "$visible" | grep -qx '_rb_s2arm_shader_inflate_fd'
 echo "undefined symbols:"; xcrun nm -u "$out/libS2ArmPrepare.a" | awk 'NF { print $NF }' | sort -u | tee "$out/undefined.txt"
 (cd "$out" && zip -qry S2ArmPrepare.xcframework.zip S2ArmPrepare.xcframework && shasum -a 256 S2ArmPrepare.xcframework.zip libS2ArmPrepare.a | tee sha256.txt)

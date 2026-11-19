@@ -33,4 +33,36 @@ def main():
         huge=bytes.fromhex('28b52ffda0')+(1<<30).to_bytes(4,'little')+block
         assert decode(huge,1<<20) is None
         print('PASS shipped zstd shader decoder, declared/unknown size, truncation, trailing data, concatenation and allocation bounds')
+        fd_decode=C.CDLL(str(lib)).rb_s2arm_shader_inflate_fd
+        callback=C.CFUNCTYPE(C.c_int,C.c_void_p)
+        fd_decode.argtypes=[C.c_void_p,C.c_size_t,C.c_int,C.c_uint64,callback,C.c_void_p,C.POINTER(C.c_uint64)]
+        total=(65<<20)+71
+        data=bytearray(bytes.fromhex('28b52ffd8050')+total.to_bytes(4,'little'))
+        left=total
+        while left:
+            take=min(left,128<<10);left-=take
+            data.extend((take*8+2+int(not left)).to_bytes(3,'little')+b'R')
+        frame=bytes(data)
+        def streamed(frame,limit,stop=lambda:False):
+            with tempfile.TemporaryFile() as tmp:
+                size=C.c_uint64(99);rc=fd_decode(frame,len(frame),tmp.fileno(),limit,callback(lambda _:int(stop())),None,C.byref(size))
+                assert tmp.seek(0,2)==size.value
+                if rc==1:
+                    tmp.seek(0)
+                    assert all(chunk==b'R'*len(chunk) for chunk in iter(lambda:tmp.read(65536),b''))
+                else: assert size.value==0
+                return rc,size.value
+        assert streamed(frame,total)==(1,total)
+        assert streamed(frame,total-1)==(-2,0)
+        assert streamed(frame[:-1],total)==(0,0)
+        assert streamed(frame+b'!',total)==(0,0)
+        calls=[0]
+        def stop():
+            calls[0]+=1
+            return calls[0]==5
+        assert streamed(frame,total,stop)==(-1,0) and calls[0]==5
+        assert streamed(frame[:5]+b'\xa8'+frame[6:],total)==(-2,0)
+        # A valid header can name a dictionary without containing its bytes.
+        assert streamed(frame[:4]+b'\x81\x50\x07'+frame[6:],total)==(-3,0)
+        print('PASS streamed 65 MiB zstd with 1 MiB window, cancellation/truncation cleanup, disk quota, dictionary and history limits')
 if __name__=='__main__': main()
