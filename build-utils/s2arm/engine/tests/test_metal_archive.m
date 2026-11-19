@@ -27,7 +27,9 @@ static int rb_spec_level(void) { return atomic_load(&g_spec_gate.level); }
 static int rb_spec_may(int w) { return rb_spec_worker_allowed(rb_spec_level(), w); }
 static int rb_spec_take(int worker, int *lease) { return *lease = rb_spec_admit(&g_spec_gate, worker); }
 static void rb_spec_done(int *lease) { rb_spec_release(&g_spec_gate, lease); }
-static unsigned serializations, refuse_serializations;
+static unsigned serializations, refuse_serializations, adds;
+static __weak id<MTLBinaryArchive> last_rejected_archive;
+static int verify_same_archive;
 static int expire_on_refusal;
 static BOOL serialize_fixture(id<MTLBinaryArchive> archive, NSURL *url, NSError **error);
 #define RB_ARCHIVE_TEST_SERIALIZE(a, url, e) serialize_fixture(a, url, e)
@@ -50,8 +52,14 @@ static const int control_793 = 0;
 
 static BOOL serialize_fixture(id<MTLBinaryArchive> archive, NSURL *url, NSError **error) {
     ++serializations;
+    if (verify_same_archive) {
+        REQUIRE(last_rejected_archive == archive);
+        verify_same_archive = 0;
+    }
     if (!refuse_serializations) return [archive serializeToURL:url error:error];
     --refuse_serializations;
+    last_rejected_archive = archive;  // weak: only the writer may keep the object alive
+    verify_same_archive = 1;
     if (expire_on_refusal) {
         REQUIRE(atomic_load(&g_par_close_until));
         atomic_store(&g_par_close_until, bp_now());
@@ -63,6 +71,7 @@ enum { INTERRUPT_AT = 7 };
 static dispatch_semaphore_t at_boundary, release_writer;
 static NSMutableArray<NSString *> *attempts;
 static void after_descriptor(NSString *key) {
+    ++adds;
     if (!attempts) return;
     [attempts addObject:key];
     if (attempts.count != INTERRUPT_AT) return;
@@ -125,13 +134,17 @@ static void test_mid_batch(const char *directory, const char *mode) {
         await_parked_tail(PAR_BATCH - INTERRUPT_AT);
         REQUIRE(attempts.count == INTERRUPT_AT && atomic_load(&g_par_written) == INTERRUPT_AT);
         for (unsigned i = INTERRUPT_AT; i < PAR_BATCH; i++) par_note(keys[i], entries[i]);
-        if (one) rb_spec_done(&other_lease); else rb_spec_publish(&g_spec_gate, RB_SPEC_RUN);
+        if (one) {
+            refuse_serializations = 1;  // first ONE archive after the original 7
+            rb_spec_done(&other_lease);
+        } else rb_spec_publish(&g_spec_gate, RB_SPEC_RUN);
     }
     struct timespec deadline; clock_gettime(CLOCK_REALTIME, &deadline); deadline.tv_sec += 30;
     REQUIRE(!par_wait_idle(&deadline));
     NSUInteger finished = closing ? INTERRUPT_AT : PAR_BATCH;
     REQUIRE([attempts isEqual:[keys subarrayWithRange:NSMakeRange(0, finished)]]);
     REQUIRE(atomic_load(&g_par_written) == finished && !atomic_load(&g_par_write_failed));
+    if (one) REQUIRE(!verify_same_archive && adds == PAR_BATCH);
     REQUIRE(!g_par_pending_keys.count && !g_par_todo.count && !g_spec_gate.active);
     for (NSUInteger i = 0; i < finished; ++i) {
         id<MTLBinaryArchive> archive = par_archive_for(keys[i]); REQUIRE(archive);
@@ -200,8 +213,9 @@ static void test_held_writer(const char *directory, const char *mode, int replay
         clock_gettime(CLOCK_REALTIME, &deadline);
         deadline.tv_sec += 30;
         REQUIRE(!par_wait_idle(&deadline));
-        REQUIRE(!g_par_pending_keys.count && !g_par_todo.count);
+        REQUIRE(!g_par_pending_keys.count && !g_par_todo.count && adds == 1);
 #ifndef RB_ARCHIVE_TEST_793_CONTROL
+        REQUIRE(!g_par_retry && !g_par_ga_held);
         if (retry || failed || expired) {
             REQUIRE(serializations == (expired ? 1 : 2) && atomic_load(&g_par_serialize_retries) == (unsigned)!expired);
         }

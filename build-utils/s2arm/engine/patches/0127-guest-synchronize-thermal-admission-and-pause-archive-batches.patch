@@ -56,10 +56,50 @@ index a5eab9c..374d384 100644
      for (;;) {
          uint64_t ticket = atomic_load(&g_spec_gate.epoch);
 diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archive.h
-index bacbce8..a4f066a 100644
+index bacbce8..c6e1f94 100644
 --- a/graphics/nvn/gfx/nvn/pso_archive.h
 +++ b/graphics/nvn/gfx/nvn/pso_archive.h
-@@ -270,31 +270,65 @@ static void par_write(NSString *key, id desc) {
+@@ -109,6 +109,25 @@ static int par_ga_lock(void) {
+     return fd;
+ }
+ static void par_ga_unlock(int fd) { if (fd >= 0) flock(fd, LOCK_UN); }
++// Protected by g_par_wmu. Keep a failed archive's live Metal build folders
++// across one scheduled retry. Capture only the delta inside the cooperative
++// flock, and recheck the directory identity before deleting the original.
++#include <sys/stat.h>
++static NSDictionary<NSString *, NSArray *> *g_par_ga_held;
++static NSArray *par_ga_identity(NSString *path) {
++    struct stat st;
++    if (lstat(path.fileSystemRepresentation, &st) || !S_ISDIR(st.st_mode)) return nil;
++    return @[@(st.st_dev), @(st.st_ino), @(st.st_birthtimespec.tv_sec), @(st.st_birthtimespec.tv_nsec)];
++}
++static NSDictionary<NSString *, NSArray *> *par_ga_hold_new(NSSet<NSString *> *before) {
++    NSMutableDictionary *owned = [NSMutableDictionary dictionary];
++    for (NSString *path in par_ga_list(0)) {
++        if ([before containsObject:path]) continue;
++        NSArray *identity = par_ga_identity(path);
++        if (identity) owned[path] = identity;
++    }
++    return owned;
++}
+ static void par_ga_remove_new(NSSet<NSString *> *before) {
+     NSMutableSet<NSString *> *made = [par_ga_list(0) mutableCopy]; [made minusSet:before];
+     for (NSString *path in made) {
+@@ -136,9 +155,10 @@ static void par_open_dir(void) {
+         g_par_dir = g_par_harvest ? @(g_par_harvest) : [user.stringByDeletingLastPathComponent stringByAppendingPathComponent:@"pipelines"];
+         NSFileManager *fm = NSFileManager.defaultManager;
+         dispatch_async(s2a_qos_global(S2A_QOS_IO_BG), ^{   // the app's own build folders left by earlier runs (a crash in a write)
+-            pthread_mutex_lock(&g_par_wmu); NSUInteger n = 0;
+-            for (NSString *path in par_ga_list(1)) if ([NSFileManager.defaultManager removeItemAtPath:path error:nil]) n++;
+-            pthread_mutex_unlock(&g_par_wmu);
++            pthread_mutex_lock(&g_par_wmu); int lk = par_ga_lock(); NSUInteger n = 0;
++            for (NSString *path in par_ga_list(1))
++                if (!g_par_ga_held[path] && [NSFileManager.defaultManager removeItemAtPath:path error:nil]) n++;
++            par_ga_unlock(lk); pthread_mutex_unlock(&g_par_wmu);
+             if (n) MLOG("pipeline archive: removed %lu build folders Metal left behind in earlier runs", (unsigned long)n);
+         });
+         NSString *stamp_path = [g_par_dir stringByAppendingPathComponent:@"identity.json"];
+@@ -270,42 +290,121 @@ static void par_write(NSString *key, id desc) {
  #define PAR_BATCH 32   // 单测反证编 -DPAR_BATCH=1
  #endif
  static _Atomic uint64_t g_par_close_until;
@@ -68,7 +108,50 @@ index bacbce8..a4f066a 100644
 +// Return the number of input entries consumed. On a tier change the writer
 +// retains the untouched suffix, along with its pending-key reservations.
 +static _Atomic uint64_t g_par_serialize_retries;
-+static NSUInteger par_write_batch_try(NSArray<NSArray *> *items, NSMutableArray<NSArray *> **retry_out) {
++// Only one writer and one retained Metal archive can exist for a session.
++@interface RBArchiveSerialization : NSObject {
++@public
++    id<MTLBinaryArchive> archive;
++    NSArray<NSString *> *keys;
++    NSString *path;
++}
++@end
++@implementation RBArchiveSerialization @end
++static RBArchiveSerialization *g_par_retry;  // writer ownership under g_par_mu
++
++// The caller holds g_par_wmu and the cross-process lock. Keep the file/rename
++// before the index. Only a refusal from serializeToURL is eligible for retry.
++static BOOL par_serialize(id<MTLBinaryArchive> archive, NSString *path, NSArray<NSString *> *keys,
++                          BOOL *refused, NSError **error) {
++    NSString *temp = [path stringByAppendingString:@".tmp"];
++    NSURL *url = [NSURL fileURLWithPath:temp];
++#ifdef RB_ARCHIVE_TEST_SERIALIZE
++    BOOL serialized = RB_ARCHIVE_TEST_SERIALIZE(archive, url, error);
++#else
++    BOOL serialized = [archive serializeToURL:url error:error];
++#endif
++    *refused = !serialized;
++    if (!serialized || rename(temp.fileSystemRepresentation, path.fileSystemRepresentation)) {
++        unlink(temp.fileSystemRepresentation);
++        return NO;
++    }
++    NSMutableString *lines = [NSMutableString string];
++    for (NSString *key in keys) [lines appendFormat:@"%@\t%@\n", key, path.lastPathComponent];
++    return rb_archive_index_append([path.stringByDeletingLastPathComponent stringByAppendingPathComponent:@"batches.tsv"].fileSystemRepresentation,
++                                   lines.UTF8String);
++}
++static void par_publish(NSString *path, NSArray<NSString *> *keys) {
++    pthread_mutex_lock(&g_par_mu);
++    for (NSString *key in keys) { g_par_bmap[key] = path.lastPathComponent; [g_par_have addObject:key]; }
++    pthread_mutex_unlock(&g_par_mu);
++    atomic_fetch_add(&g_par_written, keys.count);
++}
++static void par_terminal(NSString *path, NSUInteger n, NSError *e) {
++    if (atomic_fetch_add(&g_par_write_failed, 1) < 4)
++        MLOG("【红】 pipeline archive: cannot persist %s (%lu keys, %s/%ld): %s", path.lastPathComponent.UTF8String,
++             (unsigned long)n, e.domain.UTF8String ?: "-", (long)e.code, e.localizedDescription.UTF8String ?: "rename or index failed");
++}
++static NSUInteger par_write_batch_try(NSArray<NSArray *> *items, RBArchiveSerialization **retry_out) {
 +    NSMutableIndexSet *skip = [NSMutableIndexSet indexSet];
      NSMutableSet<NSString *> *seen = g_rb_archive_coalesce ? [NSMutableSet set] : nil;
      pthread_mutex_lock(&g_par_mu);
@@ -86,7 +169,8 @@ index bacbce8..a4f066a 100644
 +    if (skip.count == items.count) return items.count;
 +    NSUInteger consumed = 0;
      NSString *name = [NSString stringWithFormat:@"batch-%llx-%d.metalarchive", (unsigned long long)clock_gettime_nsec_np(CLOCK_REALTIME), getpid()];
-     NSString *path = [g_par_dir stringByAppendingPathComponent:name], *temp = [path stringByAppendingString:@".tmp"];
+-    NSString *path = [g_par_dir stringByAppendingPathComponent:name], *temp = [path stringByAppendingString:@".tmp"];
++    NSString *path = [g_par_dir stringByAppendingPathComponent:name];
      NSMutableArray<NSString *> *keys = [NSMutableArray array]; NSError *e = nil; BOOL ok = NO;
 +    BOOL serialize_refused = NO;
      pthread_mutex_lock(&g_par_wmu); int lk = par_ga_lock();
@@ -117,62 +201,38 @@ index bacbce8..a4f066a 100644
              BOOL one = a && ([desc isKindOfClass:MTLRenderPipelineDescriptor.class] ? [a addRenderPipelineFunctionsWithDescriptor:desc error:&e1] : [a addComputePipelineFunctionsWithDescriptor:desc error:&e1]);
 -            if (one) [keys addObject:it[0]]; else { e = e1; atomic_fetch_add(&g_par_write_failed, 1); } }
 -        if (keys.count) ok = [a serializeToURL:[NSURL fileURLWithPath:temp] error:&e] && rename(temp.fileSystemRepresentation, path.fileSystemRepresentation) == 0;
+-    }
+-    par_ga_remove_new(before);
+-    if (ok) {   // the index after the file: a line always names a file that is there
+-        NSMutableString *lines = [NSMutableString string]; for (NSString *k in keys) [lines appendFormat:@"%@\t%@\n", k, name];
+-        ok = rb_archive_index_append([g_par_dir stringByAppendingPathComponent:@"batches.tsv"].fileSystemRepresentation, lines.UTF8String);
 +            if (one) [keys addObject:it[0]]; else { e = e1; atomic_fetch_add(&g_par_write_failed, 1); }
 +#ifdef RB_ARCHIVE_TEST_AFTER_DESCRIPTOR
 +            RB_ARCHIVE_TEST_AFTER_DESCRIPTOR(it[0]);
 +#endif
 +        }
-+        if (keys.count) {
-+            NSURL *url = [NSURL fileURLWithPath:temp];
-+#ifdef RB_ARCHIVE_TEST_SERIALIZE
-+            BOOL serialized = RB_ARCHIVE_TEST_SERIALIZE(a, url, &e);
-+#else
-+            BOOL serialized = [a serializeToURL:url error:&e];
-+#endif
-+            serialize_refused = !serialized;
-+            ok = serialized && rename(temp.fileSystemRepresentation, path.fileSystemRepresentation) == 0;
-+        }
-     }
-     par_ga_remove_new(before);
-     if (ok) {   // the index after the file: a line always names a file that is there
-@@ -302,10 +336,43 @@ static void par_write_batch(NSArray<NSArray *> *items) {
-         ok = rb_archive_index_append([g_par_dir stringByAppendingPathComponent:@"batches.tsv"].fileSystemRepresentation, lines.UTF8String);
++        if (keys.count) ok = par_serialize(a, path, keys, &serialize_refused, &e);
++        uint64_t until = atomic_load(&g_par_close_until);
++        if (serialize_refused && retry_out && (!until || bp_now() < until)) {
++            RBArchiveSerialization *retry = [RBArchiveSerialization new];
++            retry->archive = a;
++            retry->keys = keys;
++            retry->path = path;
++            *retry_out = retry;
++            g_par_ga_held = par_ga_hold_new(before);
++            atomic_fetch_add(&g_par_serialize_retries, 1);
++            MLOG("pipeline archive: Metal refused serialization (%s/%ld: %s); retaining one archive of %lu keys",
++                 e.domain.UTF8String ?: "-", (long)e.code, e.localizedDescription.UTF8String ?: "-", (unsigned long)keys.count);
++        } else par_ga_remove_new(before);
      }
      par_ga_unlock(lk); pthread_mutex_unlock(&g_par_wmu);
 -    if (!ok) { unlink(temp.fileSystemRepresentation);
 -               if (atomic_fetch_add(&g_par_write_failed, 1) < 4) MLOG("【红】 pipeline archive: cannot write the batch %s (%lu pipelines): %s", name.UTF8String, (unsigned long)keys.count, e ? e.localizedDescription.UTF8String : "rename or index failed"); return; }
+-    pthread_mutex_lock(&g_par_mu); for (NSString *k in keys) { g_par_bmap[k] = name; [g_par_have addObject:k]; } pthread_mutex_unlock(&g_par_mu);
+-    atomic_fetch_add(&g_par_written, keys.count);
 +    rb_spec_done(&lease);
-+    if (!consumed) return 0;  // no descriptor entered Metal before the close deadline
-+    if (!ok) {
-+        unlink(temp.fileSystemRepresentation);
-+        NSMutableArray<NSArray *> *retry = nil;
-+        uint64_t until = atomic_load(&g_par_close_until);
-+        if (serialize_refused && retry_out && (!until || bp_now() < until)) {
-+            retry = [NSMutableArray array];
-+            // A successful add can still leave an archive that Metal refuses
-+            // to serialize. Only accepted keys get one new archive attempt.
-+            // A third field marks a retry and never escapes this writer.
-+            for (NSUInteger i = 0; i < consumed; ++i) {
-+                NSArray *it = items[i];
-+                if (it.count == 2 && ![skip containsIndex:i] && [keys containsObject:it[0]])
-+                    [retry addObject:@[it[0], it[1], @YES]];
-+            }
-+        }
-+        if (retry.count) {
-+            *retry_out = retry;
-+            atomic_fetch_add(&g_par_serialize_retries, retry.count);
-+            MLOG("pipeline archive: Metal refused serialization (%s/%ld: %s); %lu accepted descriptors queued for one retry",
-+                 e.domain.UTF8String ?: "-", (long)e.code, e.localizedDescription.UTF8String ?: "-", (unsigned long)retry.count);
-+        }
-+        if (!retry.count || retry.count < keys.count) {
-+            if (atomic_fetch_add(&g_par_write_failed, 1) < 4)
-+                MLOG("【红】 pipeline archive: cannot write %s (%lu pipelines, %s/%ld): %s", name.UTF8String, (unsigned long)keys.count,
-+                     e.domain.UTF8String ?: "-", (long)e.code, e.localizedDescription.UTF8String ?: "rename or index failed");
-+        }
-+        return consumed;
-+    }
-     pthread_mutex_lock(&g_par_mu); for (NSString *k in keys) { g_par_bmap[k] = name; [g_par_have addObject:k]; } pthread_mutex_unlock(&g_par_mu);
-     atomic_fetch_add(&g_par_written, keys.count);
++    if (ok) par_publish(path, keys);
++    else if (consumed && (!retry_out || !*retry_out)) par_terminal(path, keys.count, e);
 +    return consumed;
 +}
 +// Synchronous test/harvest fixtures have no queue to hold a retry.
@@ -181,7 +241,7 @@ index bacbce8..a4f066a 100644
  }
  // Under g_par_mu: pending keys include the batch the sole writer is serializing.
  static NSMutableSet<NSString *> *g_par_pending_keys;
-@@ -342,9 +409,10 @@ static void par_schedule_locked(uint64_t ns) {
+@@ -342,9 +441,10 @@ static void par_schedule_locked(uint64_t ns) {
  }
  static void par_begin_close(void) {
      pthread_mutex_lock(&g_par_mu);
@@ -195,7 +255,60 @@ index bacbce8..a4f066a 100644
      pthread_mutex_unlock(&g_par_mu);
      if (wake) dispatch_async(s2a_qos_global(S2A_QOS_IO_BG), ^{ par_writer(); });
  }
-@@ -370,7 +438,7 @@ static void par_writer(void) { @autoreleasepool {
+@@ -358,9 +458,52 @@ static int par_wait_idle(const struct timespec *deadline) {
+     return 0;
+ }
+
++// A retry only serializes the same Metal object. Its keys stay reserved in
++// g_par_pending_keys and its descriptor suffix stays in g_par_todo. A denied
++// lease returns to the writer timer without either write lock or a worker.
++static BOOL par_retry_serialization(RBArchiveSerialization *r) {
++    int lease = 0; BOOL refused = NO, ok = NO; NSError *e = nil;
++    pthread_mutex_lock(&g_par_wmu); int lk = par_ga_lock();
++    uint64_t until = atomic_load(&g_par_close_until);
++    if (!until && !rb_spec_take(0, &lease)) {
++        par_ga_unlock(lk); pthread_mutex_unlock(&g_par_wmu);
++        return NO;
++    }
++    NSSet<NSString *> *before = par_ga_list(0);
++    until = atomic_load(&g_par_close_until);
++    BOOL expired = until && bp_now() >= until;
++    if (!expired) ok = par_serialize(r->archive, r->path, r->keys, &refused, &e);
++    r->archive = nil;
++    par_ga_remove_new(before);
++    for (NSString *path in g_par_ga_held)
++        if ([g_par_ga_held[path] isEqual:par_ga_identity(path)] &&
++            [NSFileManager.defaultManager removeItemAtPath:path error:nil]) atomic_fetch_add(&g_par_ga_removed, 1);
++    g_par_ga_held = nil;
++    par_ga_unlock(lk); pthread_mutex_unlock(&g_par_wmu);
++    rb_spec_done(&lease);
++    if (ok) par_publish(r->path, r->keys);
++    else if (expired) MLOG("pipeline archive: close deadline expired before retrying serialization of %lu keys", (unsigned long)r->keys.count);
++    else par_terminal(r->path, r->keys.count, e);
++    return YES;
++}
+ static void par_writer(void) { @autoreleasepool {
+     for (;;) @autoreleasepool {
+         pthread_mutex_lock(&g_par_mu);
++        RBArchiveSerialization *retry = g_par_retry;
++        if (retry) {
++            pthread_mutex_unlock(&g_par_mu);
++            BOOL finished = par_retry_serialization(retry);
++            pthread_mutex_lock(&g_par_mu);
++            if (finished) {
++                for (NSString *key in retry->keys) [g_par_pending_keys removeObject:key];
++                g_par_retry = nil;
++            } else if (!atomic_load(&g_par_close_until)) {
++                par_schedule_locked(250000000ull);
++                return;
++            }
++            pthread_mutex_unlock(&g_par_mu);
++            continue;
++        }
+         uint64_t deadline = atomic_load(&g_par_close_until);
+         if (deadline && bp_now() >= deadline && g_par_todo.count) {
+             // The recipe remains in the prewarm list. Never hold up session
+@@ -370,7 +513,7 @@ static void par_writer(void) { @autoreleasepool {
              [g_par_pending_keys removeAllObjects];  // this is the sole writer, between batches
              g_rb_archive_has_warm = 0;
          }
@@ -204,7 +317,7 @@ index bacbce8..a4f066a 100644
          uint64_t serial = 0, delays = 0, priority_delays = 0;
          if (n && !deadline && !rb_spec_may(0)) {
              par_schedule_locked(250000000ull);
-@@ -393,11 +461,7 @@ static void par_writer(void) { @autoreleasepool {
+@@ -393,11 +536,7 @@ static void par_writer(void) { @autoreleasepool {
              delays = g_rb_archive_delays;
              priority_delays = g_rb_archive_priority_delays;
          }
@@ -217,13 +330,12 @@ index bacbce8..a4f066a 100644
          NSArray *batch = n ? [g_par_todo subarrayWithRange:NSMakeRange(0, n)] : nil;
          if (n) {
              [g_par_todo removeObjectsInRange:NSMakeRange(0, n)];
-@@ -411,10 +475,31 @@ static void par_writer(void) { @autoreleasepool {
+@@ -411,10 +550,28 @@ static void par_writer(void) { @autoreleasepool {
          if (serial && !(serial & (serial - 1)))
              MLOG("RewindBox (patch 0094): pipeline archive play batch %llu, %lu entries, %llu delays, %llu for first use",
                   (unsigned long long)serial, (unsigned long)n, (unsigned long long)delays, (unsigned long long)priority_delays);
 -        par_write_batch(batch);
 -        rb_spec_done(&lease);
-+        NSMutableArray<NSArray *> *retry = nil;
 +        NSUInteger consumed = par_write_batch_try(batch, &retry);
          pthread_mutex_lock(&g_par_mu);
 -        for (NSArray *entry in batch) [g_par_pending_keys removeObject:entry[0]];
@@ -233,17 +345,15 @@ index bacbce8..a4f066a 100644
 +            [g_par_todo insertObjects:[batch subarrayWithRange:tail]
 +                            atIndexes:[NSIndexSet indexSetWithIndexesInRange:NSMakeRange(0, tail.length)]];
 +        }
-+        if (retry.count) {
-+            for (NSArray *it in retry) [g_par_pending_keys addObject:it[0]];
-+            [g_par_todo insertObjects:retry atIndexes:[NSIndexSet indexSetWithIndexesInRange:NSMakeRange(0, retry.count)]];
++        if (retry) {
++            for (NSString *key in retry->keys) [g_par_pending_keys addObject:key];
++            g_par_retry = retry;
 +        }
-+        if (retry.count || consumed < n) g_rb_archive_has_warm |= had_warm;
-+        if (retry.count || !consumed) {
-+            // Give the compiler service time to retire the previous attempt.
-+            // Never hold the write locks or sleep past the absolute close budget.
++        if (consumed < n) g_rb_archive_has_warm |= had_warm;
++        if (retry || !consumed) {
 +            deadline = atomic_load(&g_par_close_until);
-+            uint64_t now = bp_now(), delay = retry.count ? 100000000ull : 250000000ull;
-+            if (!deadline || (retry.count && now < deadline)) {
++            uint64_t now = bp_now(), delay = retry ? 100000000ull : 250000000ull;
++            if (!deadline || (retry && now < deadline)) {
 +                if (deadline && deadline - now < delay) delay = deadline - now;
 +                par_schedule_locked(delay);
 +                return;
@@ -252,7 +362,7 @@ index bacbce8..a4f066a 100644
          pthread_mutex_unlock(&g_par_mu);
      }
  } }
-@@ -428,7 +513,7 @@ static void par_note(NSString *key, id desc) {
+@@ -428,7 +585,7 @@ static void par_note(NSString *key, id desc) {
      // Optional descriptor retention only. All admitted entries stay eligible for
      // writing. An over-budget key can be offered again and its draw still uses
      // the exact pipeline just built. Count this separately from a usable hit.
