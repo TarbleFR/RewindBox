@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "f444d69a3d9ac4b8528f59f9172306b856e0298df6bfe4d2de7a956d20c2d360",
+  "packagedFingerprint": "b46ac2153c20c23b9da3786dcd93f1094acb1625e9d8e6e679a693c3dd34f1e1",
   "producers": {
     "engine": {
-      "run": 44535281536,
+      "run": 44558981086,
       "attempt": 1,
-      "artifact": 14535823720,
-      "name": "s2arm-engine-framework-5e4e07c695f995c232fa61a84768554d53ca5408",
-      "bytes": 24777774,
-      "sha256": "6f7e646028812dc0aec4af24a62e8de4ebbb4b42f0b90cd790f44b4f9aa61319",
-      "headSha": "5e4e07c695f995c232fa61a84768554d53ca5408",
+      "artifact": 14550055216,
+      "name": "s2arm-engine-framework-14347e7912856839d4c4c967a02d7eb2e4aa89f3",
+      "bytes": 24803891,
+      "sha256": "82d8b53b66663fd51ac1fff5d5ea09cc09df2c536694e6a99572010425fe9156",
+      "headSha": "14347e7912856839d4c4c967a02d7eb2e4aa89f3",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-19T13:54:39Z",
+      "expiresAt": "2026-12-19T15:58:25Z",
       "members": {
-        "S2ArmEngine.framework.zip": "487f70e0571334e6357a037d650f9f7d8c8e867c36678fab15826ef93186a133",
-        "NS2Pro.framework.zip": "d21ffbfcf7d5b5b64e71fbc2774ce6b68dd6f69b8deba65b3dbb1ca82860c818"
+        "S2ArmEngine.framework.zip": "2d2113f91897434573debbb7c8dbe285149b2062514b6b00a735f4f88f062efb",
+        "NS2Pro.framework.zip": "bf6cdb13f0165af7d1dae2c0e30b9d0a12435281af9998b940312df1153af5d6"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -22,17 +22,17 @@
       ]
     },
     "prepare": {
-      "run": 44267909266,
+      "run": 44555747908,
       "attempt": 1,
-      "artifact": 14411825530,
-      "name": "S2ArmPrepare-ce49dc63ad664161ce89c60cc5fe7347b73d8083",
-      "bytes": 508468,
-      "sha256": "38974ac1a30069e6a47c8507106d51d3b43fb63166e026b3f8a8d1d0007e6dea",
-      "headSha": "ce49dc63ad664161ce89c60cc5fe7347b73d8083",
+      "artifact": 14544697879,
+      "name": "S2ArmPrepare-f299358c05efe50cc182775902bffbeb96f46f0f",
+      "bytes": 511751,
+      "sha256": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
+      "headSha": "f299358c05efe50cc182775902bffbeb96f46f0f",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-18T08:35:52Z",
+      "expiresAt": "2026-12-19T15:33:17Z",
       "members": {
-        "S2ArmPrepare.xcframework.zip": "1c0969b69e5502a27b72d8946f3698cca850089237d7a04282dc94d99191cde5"
+        "S2ArmPrepare.xcframework.zip": "80ed6cd43bdc67fa1936f5ec130f29ffb309c1ad41d39ab068dfc16f76f53b4c"
       },
       "subdir": "prepare"
     },
@@ -59,8 +59,8 @@
     }
   },
   "zips": {
-    "engine": "6f7e646028812dc0aec4af24a62e8de4ebbb4b42f0b90cd790f44b4f9aa61319",
-    "prepare": "38974ac1a30069e6a47c8507106d51d3b43fb63166e026b3f8a8d1d0007e6dea",
+    "engine": "82d8b53b66663fd51ac1fff5d5ea09cc09df2c536694e6a99572010425fe9156",
+    "prepare": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
   "binaries": {
@@ -90,9 +90,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "55077b6b3ac0e9e7cd7abb7a12bc29f7ed4b36cb2fbff80b88e916b4ea28fb21",
-      "bytes": 113607152,
-      "fingerprint": "f444d69a3d9ac4b8528f59f9172306b856e0298df6bfe4d2de7a956d20c2d360"
+      "sha256": "d9f0da1286c7600f7bc79b24a8156355fa1c9147bdd6878af2fb8ec11769dea0",
+      "bytes": 113692952,
+      "fingerprint": "b46ac2153c20c23b9da3786dcd93f1094acb1625e9d8e6e679a693c3dd34f1e1"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -115,8 +115,8 @@
       "bytes": 30922
     },
     "prepare/S2ArmPrepare.xcframework.zip": {
-      "sha256": "1c0969b69e5502a27b72d8946f3698cca850089237d7a04282dc94d99191cde5",
-      "bytes": 520696
+      "sha256": "80ed6cd43bdc67fa1936f5ec130f29ffb309c1ad41d39ab068dfc16f76f53b4c",
+      "bytes": 523201
     },
     "sysdata/SHA256SUMS": {
       "sha256": "d69cee225120276ede73c2a7710a2f40df0fc85443f498254538b24f557ace29",
@@ -125,9 +125,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 44535281536,
+      "run": 44558981086,
       "attempt": 1,
-      "head_sha": "5e4e07c695f995c232fa61a84768554d53ca5408",
+      "head_sha": "14347e7912856839d4c4c967a02d7eb2e4aa89f3",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -646,11 +646,51 @@
         {
           "name": "0129-test-real-pipeline-transitions-over-three-metal-launches.patch",
           "sha256": "d35d3de49ee3c9de747cd4cccec533bdd647edfa9084cd2ac505191a99f7a838"
+        },
+        {
+          "name": "0130-guest-index-local-nvn2-inputs-before-warming.patch",
+          "sha256": "feea42e089968e0df3a15307ba6728364da7d23a7e80d4becc1d598dd8cb9d23"
+        },
+        {
+          "name": "0131-guest-prepare-verified-reference-stages-and-pipelines.patch",
+          "sha256": "1fc88a0158eb73c76ffd7d80b81bf11c88396b98e4bdee169874b8c54b0abef3"
+        },
+        {
+          "name": "0132-guest-advance-recorded-texture-uploads-and-measure-submit-gaps.patch",
+          "sha256": "1d441afff1d75804b2e3dbb45ef6fa77cee4fe5b132ffa744eebb53200b28904"
+        },
+        {
+          "name": "0133-guest-ship-observed-pipeline-recipes-and-resume-strict-preparation.patch",
+          "sha256": "2d33c1336e51148c16f0dd193d8a2ff4d881e5e9879be5fda10871783bf35df9"
+        },
+        {
+          "name": "0134-guest-retranslate-witnessed-stages-once-per-generation.patch",
+          "sha256": "65c9bb80090a71fd9433f52ce1deb41b968b4dc76024cc095f890b395da43e52"
+        },
+        {
+          "name": "0135-guest-count-full-frame-intervals-and-yield-texture-lookahead.patch",
+          "sha256": "efe26be30569a897b9bdf043ee42aee2ac9546ccfe705aed4c848ea7ab23ee31"
+        },
+        {
+          "name": "0136-guest-stream-large-local-shader-resources-and-report-coverage.patch",
+          "sha256": "ac6dab844f529bcc1b94c8e8d3644f5be1c776395c08a81bfc6d8b9333d25f9b"
+        },
+        {
+          "name": "0137-guest-track-reference-reuse-on-normal-launch-and-capture-first-draw.patch",
+          "sha256": "1f826698bd096cf8c11e158700dbe8e8ee482b1c28207eb05161359f2f7a86ac"
+        },
+        {
+          "name": "0138-guest-observe-thermal-admission-on-committed-profile-launch.patch",
+          "sha256": "e29c77e866e6e4e9ba72848576b91c548d0bfd825712e8799dc88f2ec79b9227"
+        },
+        {
+          "name": "0139-guest-gate-first-submit-on-mandatory-reference-proofs.patch",
+          "sha256": "d951fc511078f9911e34fd9a963df630bb7c167adcda004274e57413ffe563e2"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "487f70e0571334e6357a037d650f9f7d8c8e867c36678fab15826ef93186a133",
-        "NS2Pro.framework.zip": "d21ffbfcf7d5b5b64e71fbc2774ce6b68dd6f69b8deba65b3dbb1ca82860c818"
+        "S2ArmEngine.framework.zip": "2d2113f91897434573debbb7c8dbe285149b2062514b6b00a735f4f88f062efb",
+        "NS2Pro.framework.zip": "bf6cdb13f0165af7d1dae2c0e30b9d0a12435281af9998b940312df1153af5d6"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
