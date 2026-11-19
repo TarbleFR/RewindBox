@@ -96,4 +96,5 @@ test "$pixel" = '0000002a 00000007 00000063 00000001' || { echo "Unexpected nati
 echo "PASS exact RGBA32Uint from repaired production NVN2 fragment $pixel"
 rm "$data/${key}_b.in"
 cp "$data/truncated.metal" "$msl"
-build/tests/t_nvn_shader_flight --rb-native-msl unrecoverable "$data" "$key" "$translator"
+# A valid path with repeated separators must address the very same refusal record.
+build/tests/t_nvn_shader_flight --rb-native-msl unrecoverable "$case_dir//fallback/" "$key" "$translator"

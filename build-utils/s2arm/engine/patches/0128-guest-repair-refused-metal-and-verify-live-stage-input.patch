@@ -1,5 +1,5 @@
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
-index a5eab9c..8345b6b 100644
+index a5eab9c..468bc7d 100644
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
 @@ -8634,7 +8634,7 @@ static NSMutableDictionary<NSString *, NvShader *> *g_shcache;
@@ -48,33 +48,37 @@ index a5eab9c..8345b6b 100644
      NSError *e = nil;
      // S2Arm: a key missing from the library is looked up in DM_MSL_FALLBACK (the on-device fallback translation writes <key>_b.metal + .json there; iOS cannot store a metallib built at runtime)
      NSString *dir = g_msl_dir;
-@@ -9227,8 +9241,14 @@ static NvShader *shader_build(NSString *pc, int stage, int layer, int depth_zero
+@@ -9227,16 +9241,35 @@ static NvShader *shader_build(NSString *pc, int stage, int layer, int depth_zero
      if (!lib) lib = dir == g_msl_dir ? lib_from_pack(pc.UTF8String, &e) : [NSFileManager.defaultManager fileExistsAtPath:lp] ? lib_from_file(lp, &e) : nil;
      if (lib && ul) { os_unfair_lock_lock(&ulock); if (!ulibs) ulibs = [NSMutableDictionary dictionary]; if (!ulibs[ul]) ulibs[ul] = lib; else lib = ulibs[ul]; os_unfair_lock_unlock(&ulock); }
      NSString *rb_src = nil;   // RewindBox (patch 0073): a compute shader's fallback source compiled here (NvShader rb_msl, rb_icls_pick)
-+    NSString *original = nil, *refused = nil, *digest = nil;
++    NSString *fallbackPath = nil, *original = nil, *refused = nil, *digest = nil;
      if (!lib && dir != g_msl_dir) {   // S2Arm fallback: MSL source compiled here, same options as the offline chain (dm_msl_opts)
-         NSString *src = [NSString stringWithContentsOfFile:(rb_src = [NSString stringWithFormat:@"%@/%@.metal", dir, pc]) encoding:NSUTF8StringEncoding error:&e];
+-        NSString *src = [NSString stringWithContentsOfFile:(rb_src = [NSString stringWithFormat:@"%@/%@.metal", dir, pc]) encoding:NSUTF8StringEncoding error:&e];
++        fallbackPath = [dir stringByAppendingPathComponent:[pc stringByAppendingString:@".metal"]];
++        NSString *src = [NSString stringWithContentsOfFile:fallbackPath encoding:NSUTF8StringEncoding error:&e];
 +        original = src;
 +        os_unfair_lock_lock(&g_shader_lock);
-+        refused = g_rb_rejected_msl[rb_src];
++        refused = g_rb_rejected_msl[fallbackPath];
 +        os_unfair_lock_unlock(&g_shader_lock);
 +        if (refused && src && [refused isEqual:(digest = rb_msl_digest(src))]) src = nil;
          if (src && stage == 0) src = rb_msl_base_instance(src, pc.UTF8String);   // RewindBox (patch 0066)
          if (src) lib = rb_stage_library(src, stage, &e);
-         if (lib) MLOG("shader %s loaded from the fallback translation (%s)", pc.UTF8String, fb);
-@@ -9237,6 +9257,20 @@ static NvShader *shader_build(NSString *pc, int stage, int layer, int depth_zero
+-        if (lib) MLOG("shader %s loaded from the fallback translation (%s)", pc.UTF8String, fb);
+-        if (!lib) rb_src = nil;
++        if (lib) { rb_src = fallbackPath; MLOG("shader %s loaded from the fallback translation (%s)", pc.UTF8String, fb); }
+     }
      unsigned rb_bi_n = t_rb_binst_reads; int rb_bi_seen = t_rb_binst_seen; t_rb_binst_reads = 0; t_rb_binst_seen = 0;   // RewindBox (patch 0066): what rb_msl_base_instance did to the source compiled above
-     if (!lib && rb_bi_n) { rb_binst_refused(pc.UTF8String, e); e = nil; rb_bi_n = 0; rb_bi_seen = 0; NSString *s0 = [NSString stringWithContentsOfFile:[NSString stringWithFormat:@"%@/%@.metal", dir, pc] encoding:NSUTF8StringEncoding error:&e];
+-    if (!lib && rb_bi_n) { rb_binst_refused(pc.UTF8String, e); e = nil; rb_bi_n = 0; rb_bi_seen = 0; NSString *s0 = [NSString stringWithContentsOfFile:[NSString stringWithFormat:@"%@/%@.metal", dir, pc] encoding:NSUTF8StringEncoding error:&e];
++    if (!lib && rb_bi_n) { rb_binst_refused(pc.UTF8String, e); e = nil; rb_bi_n = 0; rb_bi_seen = 0; NSString *s0 = [NSString stringWithContentsOfFile:fallbackPath encoding:NSUTF8StringEncoding error:&e];
          if (s0) lib = rb_stage_library(s0, stage, &e); }   // RewindBox (patch 0066): Metal refused the rewritten source: the translation as written, as before
 +    if (!lib && original.length && pc.length == 18 && [pc hasSuffix:@"_b"] &&
 +        (rb_msl_rejected(e) || (refused && [refused isEqual:digest]))) {
 +        digest = digest ?: rb_msl_digest(original);
 +        if (digest) {
-+            NSString *path = [dir stringByAppendingPathComponent:[pc stringByAppendingString:@".metal"]];
 +            os_unfair_lock_lock(&g_shader_lock);
 +            if (!g_rb_rejected_msl) g_rb_rejected_msl = [NSMutableDictionary dictionary];
-+            if (g_rb_rejected_msl.count < 128 || g_rb_rejected_msl[path]) g_rb_rejected_msl[path] = digest;
++            if (g_rb_rejected_msl.count < 128 || g_rb_rejected_msl[fallbackPath]) g_rb_rejected_msl[fallbackPath] = digest;
 +            os_unfair_lock_unlock(&g_shader_lock);
 +            char key[17]; snprintf(key,sizeof key,"%.16s",pc.UTF8String);
 +            if (can_repair && dm_shader_repair_msl(dir.fileSystemRepresentation,key,original,digest))
@@ -84,7 +88,7 @@ index a5eab9c..8345b6b 100644
      if (!lib || !j) { MLOG("【红】 failed to load shader %s: %s", pc.UTF8String, e ? e.localizedDescription.UTF8String : "no reflection json"); return nil; }
      if (![j[@"chain"] isEqual:@DMSH_CHAIN]) { MLOG("【红】 shader %s has translation chain version %s, but this host expects %s", pc.UTF8String, [[j[@"chain"] description] UTF8String], DMSH_CHAIN); return nil; }
      if (layer && !j[@"entry_layer"]) { MLOG("【红】 vertex shader %s has no layer entry points", pc.UTF8String); return nil; }
-@@ -9381,6 +9415,9 @@ static uint64_t flight_wait_locked(ShaderFlight *flight) {
+@@ -9381,6 +9414,9 @@ static uint64_t flight_wait_locked(ShaderFlight *flight) {
      if (ov) pthread_override_qos_class_end_np(ov);
      return elapsed;
  }
