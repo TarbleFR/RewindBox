@@ -172,7 +172,7 @@ int main(void) { @autoreleasepool {
   CHECK(![replacement writeEvidenceToDirectory:child(dir,@"different-game") session:session phase:@"reused"]);
   CHECK(![NSFileManager.defaultManager fileExistsAtPath:child(out,child(@"shaders",@"0123456789abcdef_b.metal"))]);
   NSString *secondSession = NSUUID.UUID.UUIDString;
-  put(replacement.wire,@"stage-recovery.tsv",[@"x" stringByPaddingToLength:512*1024+1 withString:@"x" startingAtIndex:0]);
+  put(replacement.wire,@"stage-recovery.tsv",[@"x" stringByPaddingToLength:4*1024*1024+1 withString:@"x" startingAtIndex:0]);
   CHECK([replacement writeEvidenceToDirectory:diagnostics session:secondSession phase:@"resumed"]);
   NSString *second = child(child(diagnostics,@"preparation"),secondSession);
   CHECK(!readText(second,@"stage-recovery.tsv") && !readText(second,@"pso_reference.archives.tsv"));

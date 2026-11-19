@@ -74,9 +74,70 @@ def run(tool,game,wire,profile,dsh,decoder):
     print(cp.stdout,end='')
     return tuple(map(int,next(l[7:] for l in cp.stdout.splitlines() if l.startswith('STAGES ')).split()))
 
+
+def external_cases(a,base,game,rom,fmt,ctl,code,rgba):
+    # All three identities come from the same actual Ampere program bytes.
+    # Nonzero masked fields ensure no foreign 16hex name matches by chance.
+    ctl=bytearray(ctl);ctl[0x20:0x28]=bytes(range(1,9));struct.pack_into('<I',ctl,0x30,len(ctl))
+    ctl=bytes(ctl)
+    def hashes(ct):
+        k=hashlib.sha256(ct[:0xd8]+code).hexdigest()[:16]
+        short=bytearray(ct[:0x48]); short[0x30:0x34]=bytes(4)
+        p=hashlib.sha256(short+code).hexdigest()[:16]
+        short[0x20:0x28]=bytes(8)
+        return k,p,hashlib.sha256(short+code).hexdigest()[:16]
+    k,p,n=hashes(ctl);assert len({k,p,n})==3
+    asset=rom/'796.sarc.zs';asset.write_bytes(archive(glslc(ctl,code)))
+    (game/'index.tsv').write_text(fmt(asset))
+    title='0400C3F00006E000'; build='9e244438c3d8ef1c703a6a85ef99c4f0'
+    header=f'# rb-external-stages-v1\t{title}\t{build}\n'
+    header_out=header.replace('stages-v1','stage-map-v1')
+    req=f'K\t{k}\t1\nP\t{p}\t1\nK\t{k}\t0\nP\t{n}\t1\n'
+    def make(name,h=header):
+        w=base/name; w.mkdir()
+        (w/'external-stages.tsv').write_text(h+req)
+        return w
+    def process(w):
+        return run(a.tool,game,w,w/'empty-native-history',a.dsh,a.decoder)
+    def results(w):
+        lines=(w/'external-stage-map.tsv').read_text().splitlines(keepends=True)
+        assert lines.pop(0)==header_out
+        return {tuple(x.rstrip('\n').split('\t')[:3]):x.rstrip('\n').split('\t')[3] for x in lines}
+    old=make('external-795-control')
+    prior=run(a.red_alias,game,old,old/'empty-native-history',a.dsh,a.decoder)
+    assert prior==(0,0,0,0,0,0,0,1) and not (old/'external-stage-map.tsv').exists() and not list((old/'shaders').glob('*.in'))
+    print('RED 795: both publishers listed, same local program present, no native input or translation without 0140')
+    wire=make('external-priority');assert process(wire)==(1,0,0,1,0,1,0,1)
+    assert results(wire)=={('K',k,'1'):n,('P',p,'1'):n,('K',k,'0'):'-',('P',n,'1'):'-'}
+    out=wire/'shaders'; f=out/(n+'_b.in'); msl=out/(n+'_b.metal')
+    assert not (out/(k+'_b.in')).exists() and not (out/(p+'_b.in')).exists()
+    assert f.read_bytes()[16:]==ctl+code
+    assert 'priority-retranslated' in (wire/'stage-recovery.tsv').read_text()
+    assert subprocess.check_output([str(a.pixel),str(msl)],text=True).strip()==rgba
+    stamp=msl.stat().st_mtime_ns
+    assert process(wire)==(1,1,0,0,0,0,0,1) and msl.stat().st_mtime_ns==stamp
+    # A byte outside S2Arm's native key was corrupted in place. The per-asset
+    # full witness must force a rescan and restore the actual imported control.
+    corrupt=bytearray(f.read_bytes());corrupt[16+0xbc]^=1;f.write_bytes(corrupt)
+    assert process(wire)[5]==0 and f.read_bytes()[16:]==ctl+code and msl.stat().st_mtime_ns==stamp
+    # Both controls hash to the very same P and S2Arm IDs, but differ in
+    # translation-relevant bytes outside the short native hash. Neither can
+    # stand in for the other. Reuse the same staging/index to exercise restore.
+    collision=bytearray(ctl);collision[0xc0]^=1
+    other=rom/'796-conflict.sarc.zs';other.write_bytes(archive(glslc(bytes(collision),code)))
+    (game/'index.tsv').write_text(fmt(asset)+fmt(other)); counts=process(wire)
+    assert counts[5]==0 and results(wire)[('P',p,'1')]=='!' and results(wire)[('K',k,'1')]=='!'
+    sums=plistlib.loads((wire/'external-stage-counts.plist').read_bytes())
+    assert sums['ambiguous']==2 and sums['verifiedReady']==0 and sums['unlocated']==2,sums
+    # Even when all inputs are physically present, a different main build is ineligible.
+    wrong=make('external-other-build',header.replace(build,'0'*32))
+    assert process(wrong)[5]==0 and not list((wrong/'shaders').glob('*.in')) and not results(wrong)
+    assert plistlib.loads((wrong/'external-stage-counts.plist').read_bytes())['incompatibleRequest']
+    print('PASS two upstream SHA rules, exact imported NVN2 input, empty history, NativeAOT translation, hot checkpoint, damaged input restored, ambiguous pair and incompatible build rejected, exact RGBA32Uint '+rgba)
+
 def main():
     p=argparse.ArgumentParser()
-    for name in ['source','tool','dsh','decoder','pixel','red']: p.add_argument(name,type=Path)
+    for name in ['source','tool','dsh','decoder','pixel','red','red_alias']: p.add_argument(name,type=Path)
     a=p.parse_args()
     spec=importlib.util.spec_from_file_location('ampere',a.source/'tests/ampere_isa/cases.py')
     ampere=importlib.util.module_from_spec(spec);spec.loader.exec_module(ampere)
@@ -186,4 +247,5 @@ def main():
         assert not list(big_wire.glob('.stage-inflate-*'))
         assert subprocess.check_output([str(a.pixel),str(big_wire/'shaders'/msl.name)],text=True).strip()==rgba
         print('PASS second process read the true large zstd/Yaz0 stage through the production decoder, strict coverage reasons and exact pixel '+rgba)
+        external_cases(a,base,game,rom,fmt,ctl,code,rgba)
 if __name__=='__main__': main()

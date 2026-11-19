@@ -40,6 +40,7 @@ translator="$case_dir/translator/S2A.Dsh.dylib"
 test -s "$translator" && test -s "$root/build/dsx/libdsx.dylib"
 cp "$root/build/dsx/libdsx.dylib" "$case_dir/translator/"
 export DYLD_LIBRARY_PATH="$case_dir/translator${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}"
+build/tests/t_nvn_warmbump --reference-padded "$translator"
 export S2A_GAME_DATA="$case_dir/game"
 data="$case_dir/fallback"
 mkdir -p "$data/empty-bundle" "$S2A_GAME_DATA/shaders/direct"
@@ -103,11 +104,14 @@ pre134="$case_dir/pre134"
 mkdir -p "$pre134/graphics" "$pre134/runtime"
 cp -R graphics/nvn "$pre134/graphics/"
 cp -R runtime/include "$pre134/runtime/"
+git -C "$pre134" apply -R --include='graphics/nvn/host/*' "$tests"/../patches/0140-*.patch
+xcrun --sdk macosx clang -x objective-c -std=gnu11 -fblocks -pthread -framework Foundation \
+  "$pre134/graphics/nvn/tests/t_dsh_stats.c" -o "$case_dir/dsh-795-no-aliases"
 git -C "$pre134" apply -R --include='graphics/nvn/host/*' --include='graphics/nvn/tests/t_dsh_stats.c' "$tests"/../patches/0136-*.patch
 git -C "$pre134" apply -R --include='graphics/nvn/host/*' "$tests"/../patches/0134-*.patch
 xcrun --sdk macosx clang -x objective-c -std=gnu11 -fblocks -pthread -framework Foundation \
   "$pre134/graphics/nvn/tests/t_dsh_stats.c" -o "$case_dir/dsh-before-priority"
-python3 "$tests/test_local_stage_recovery.py" "$root" "$dsh_stats" "$translator" "$case_dir/prepare-zstd.dylib" "$case_dir/fragment" "$case_dir/dsh-before-priority"
+python3 "$tests/test_local_stage_recovery.py" "$root" "$dsh_stats" "$translator" "$case_dir/prepare-zstd.dylib" "$case_dir/fragment" "$case_dir/dsh-before-priority" "$case_dir/dsh-795-no-aliases"
 rm "$data/${key}_b.in"
 cp "$data/truncated.metal" "$msl"
 # A valid path with repeated separators must address the very same refusal record.

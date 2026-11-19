@@ -1,0 +1,484 @@
+diff --git a/graphics/nvn/host/rb_external_key.h b/graphics/nvn/host/rb_external_key.h
+new file mode 100644
+index 0000000..7d0b611
+--- /dev/null
++++ b/graphics/nvn/host/rb_external_key.h
+@@ -0,0 +1,30 @@
++// The reference producers hash different views of one validated NVN2 program.
++// kartnative 47f2d1d nvn_shader_key.h; plumber-racer-2 843170a hle_nvn.c:keys_hash.
++// No control-only key is a witness. S2Arm retains its own nvn2_key unchanged.
++#pragma once
++static int rb_external_key(char source,const uint8_t *ctl,size_t nt,const uint8_t *code,size_t nc,char hex[17]) {
++    if ((source!='K' && source!='P') || !ctl || nt<0xd8 || !nvn2_ctl(ctl) ||
++        !code || !nc || nc>=(1u<<24) || nvn2_code_len(ctl)!=nc) return 0;
++    CC_SHA256_CTX hash;
++    unsigned char digest[CC_SHA256_DIGEST_LENGTH];
++    CC_SHA256_Init(&hash);
++    if (source=='K') {
++        CC_SHA256_Update(&hash,ctl,0xd8);
++    } else {
++        uint8_t header[0x48];
++        memcpy(header,ctl,sizeof header); memset(header+0x30,0,4);
++        CC_SHA256_Update(&hash,header,sizeof header);
++    }
++    CC_SHA256_Update(&hash,code,(unsigned)nc);
++    CC_SHA256_Final(digest,&hash);
++    static const char digits[]="0123456789abcdef";
++    for (unsigned i=0;i<8;i++) { hex[2*i]=digits[digest[i]>>4]; hex[2*i+1]=digits[digest[i]&15]; }
++    hex[16]=0;
++    return 1;
++}
++
++// DSH translator IDs are not the stage numbers in a Metal warming row.
++static int rb_external_render_stage(int dsh) {
++    static const int render[]={0,1,5,2,3,4}; // vs, ps, cs, gs, task, mesh
++    return (unsigned)dsh<sizeof render/sizeof render[0] ? render[dsh] : -1;
++}
+diff --git a/graphics/nvn/host/rb_external_stages.inc b/graphics/nvn/host/rb_external_stages.inc
+new file mode 100644
+index 0000000..41fa1c8
+--- /dev/null
++++ b/graphics/nvn/host/rb_external_stages.inc
+@@ -0,0 +1,141 @@
++// Scope the alias index to the exact external manifest, and rebuild each alias
++// from the control and GPU bytes observed in the user's own imported game.
++#include "rb_external_key.h"
++#define RB_EXT_HEADER "# rb-external-stages-v1\t0400C3F00006E000\t9e244438c3d8ef1c703a6a85ef99c4f0"
++#define RB_EXT_MAP_HEADER "# rb-external-stage-map-v1\t0400C3F00006E000\t9e244438c3d8ef1c703a6a85ef99c4f0"
++enum { RB_EXT_MAX = 16384 };
++@interface RBStageAliases : NSObject {
++@public
++    NSMutableOrderedSet<NSString *> *requested;
++    NSMutableDictionary<NSString *,NSString *> *resolved;
++    NSMutableDictionary<NSString *,NSNumber *> *inputStages;
++    NSMutableSet<NSString *> *conflicts;
++    NSMutableDictionary<NSString *,NSString *> *witnesses, *saved;
++    NSString *indexName;
++    unsigned active[2];
++    BOOL rejected;
++}
++@end
++@implementation RBStageAliases @end
++
++static NSString *rb_alias_id(char src,int stage,const char *hex) {
++    return [NSString stringWithFormat:@"%c%d%s",src,stage,hex];
++}
++static BOOL rb_read_external(NSString *wire,RBStageAliases *a) {
++    NSString *path=[wire stringByAppendingPathComponent:@"external-stages.tsv"];
++    FILE *f=fopen(path.fileSystemRepresentation,"r");
++    if (!f) return errno==ENOENT;
++    char line[128],hex[17]; unsigned size=0,expected=sizeof(RB_EXT_HEADER)-1;
++    CC_SHA256_CTX hc; CC_SHA256_Init(&hc);
++    a->requested=[NSMutableOrderedSet orderedSet]; a->resolved=[NSMutableDictionary dictionary];
++    a->witnesses=[NSMutableDictionary dictionary]; a->saved=[NSMutableDictionary dictionary];
++    a->inputStages=[NSMutableDictionary dictionary]; a->conflicts=[NSMutableSet set];
++    if (!fgets(line,sizeof line,f) || strncmp(line,RB_EXT_HEADER,expected) || strcmp(line+expected,"\n")) a->rejected=YES;
++    while (!a->rejected && fgets(line,sizeof line,f)) {
++        size=(unsigned)strlen(line);
++        if (size!=21 || (line[0]!='K' && line[0]!='P') || line[1]!='\t' || line[18]!='\t' ||
++            !strchr("01345",line[19]) || line[20]!='\n' || strspn(line+2,"0123456789abcdef")!=16 ||
++            a->requested.count>=RB_EXT_MAX) { a->rejected=YES; break; }
++        memcpy(hex,line+2,16); hex[16]=0;
++        [a->requested addObject:rb_alias_id(line[0],line[19]-'0',hex)];
++        a->active[line[0]=='P']=1;
++        CC_SHA256_Update(&hc,line,size);
++    }
++    int io=ferror(f); fclose(f);
++    if (io) return NO;
++    if (a->rejected) { [a->requested removeAllObjects]; a->active[0]=a->active[1]=0; return YES; }
++    unsigned char md[CC_SHA256_DIGEST_LENGTH]; CC_SHA256_Final(md,&hc);
++    char sha[65];
++    for (unsigned i=0;i<sizeof md;i++) snprintf(sha+2*i,3,"%02x",md[i]);
++    if (a->requested.count) a->indexName=[NSString stringWithFormat:@"stage-index-external-v1-%s.tsv",sha];
++    return YES;
++}
++static void rb_alias_record(RBStageAliases *a,NSString *alias,NSString *native) {
++    NSString *old=a->resolved[alias];
++    if (!old) a->resolved[alias]=native;
++    else if (![old isEqual:native]) a->resolved[alias]=@"!";
++}
++// S2Arm intentionally masks the live address and relocated length. Check all
++// remaining control bytes and the full code to catch stale inputs and prevent
++// two external candidates sharing a truncated native key from being conflated.
++static NSString *rb_alias_witness(const uint8_t *ctl,unsigned nt,const uint8_t *code,unsigned nc) {
++    uint8_t header[NVN2_CTL_COPY], md[CC_SHA256_DIGEST_LENGTH];
++    memcpy(header,ctl,nt); memset(header+0x20,0,8); memset(header+0x30,0,4);
++    CC_SHA256_CTX hc; CC_SHA256_Init(&hc); CC_SHA256_Update(&hc,header,nt);
++    CC_SHA256_Update(&hc,code,nc); CC_SHA256_Final(md,&hc);
++    char hex[65]; for (unsigned i=0;i<sizeof md;i++) snprintf(hex+2*i,3,"%02x",md[i]);
++    return @(hex);
++}
++static void rb_alias_expect(RBStageAliases *a,NSString *native,NSString *witness) {
++    NSString *old=a->witnesses[native];
++    if (!old) a->witnesses[native]=witness;
++    else if (![old isEqual:witness]) [a->conflicts addObject:native];
++}
++
++static int rb_alias_input(RBStageAliases *a,NSString *native,int stage,const char *out) {
++    if ([a->conflicts containsObject:native]) return -1;
++    NSNumber *known=a->inputStages[native];
++    if (!known) {
++        uint32_t h[4]; uint8_t *input=dsh_read_input(out,native.UTF8String,h,1);
++        if (!input) return 0;
++        a->saved[native]=rb_alias_witness(input,h[2],input+h[2],h[3]);
++        free(input); known=@(rb_external_render_stage((int)h[1])); a->inputStages[native]=known;
++    }
++    if (known.intValue!=stage) { [a->conflicts addObject:native]; return -1; }
++    return [a->saved[native] isEqual:a->witnesses[native]];
++}
++
++// Aliases are kept per pack-index row, alongside the original native-key
++// inventory. They are committed only for completed assets; cancellation repeats
++// at most the partial asset. The original native-only index remains readable.
++static BOOL rb_alias_candidate(RBStageAliases *a,NSMutableOrderedSet *entries,NSString *native,int dsh,
++                               const uint8_t *ctl,unsigned nt,const uint8_t *code,unsigned nc,int *overflow) {
++    if (!a->indexName) return NO;
++    int stage=rb_external_render_stage(dsh);
++    BOOL matched=NO; NSString *witness=nil;
++    for (int i=0;i<2;i++) {
++        char src=i?'P':'K', hex[17];
++        if (!a->active[i] || !rb_external_key(src,ctl,nt,code,nc,hex)) continue;
++        NSString *alias=rb_alias_id(src,stage,hex);
++        if (![a->requested containsObject:alias]) continue;
++        if (!witness) { witness=rb_alias_witness(ctl,nt,code,nc); rb_alias_expect(a,native,witness); }
++        rb_alias_record(a,alias,native);
++        NSString *entry=[NSString stringWithFormat:@"%@=%@:%@",alias,native,witness];
++        if ([entries containsObject:entry] || entries.count<RB_EXT_MAX) [entries addObject:entry];
++        else *overflow=1;
++        matched=YES;
++    }
++    return matched;
++}
++static int rb_cached_alias(RBStageAliases *a,char *token,NSMutableDictionary *asset,const char *out) {
++    if (!a->indexName || strlen(token)!=100 || token[18]!='=' || token[35]!=':' || (token[0]!='K' && token[0]!='P') ||
++        !strchr("01345",token[1]) || strspn(token+2,"0123456789abcdef")!=16 ||
++        strspn(token+19,"0123456789abcdef")!=16 || strspn(token+36,"0123456789abcdef")!=64) return -2;
++    token[18]=token[35]=0; NSString *alias=@(token), *native=@(token+19);
++    if (![a->requested containsObject:alias]) return -2;
++    NSString *old=asset[alias];
++    asset[alias]=old && ![old isEqual:native] ? @"!" : native;
++    rb_alias_expect(a,native,@(token+36));
++    return rb_alias_input(a,native,token[1]-'0',out);
++}
++static BOOL rb_alias_report(RBStageAliases *a,NSMutableSet *failed,NSString *wire) {
++    NSString *p=[wire stringByAppendingPathComponent:@"external-stage-map.tsv"];
++    if (!a->requested) { if (unlink(p.fileSystemRepresentation) && errno!=ENOENT) return NO; return YES; }
++    NSMutableString *text=[NSMutableString stringWithString:[@(RB_EXT_MAP_HEADER) stringByAppendingString:@"\n"]];
++    NSUInteger kept=0,missing=0,ambiguous=0,refused=0;
++    for (NSString *alias in a->requested) {
++        NSString *key=a->resolved[alias];
++        if (!key) { key=@"-"; missing++; }
++        else if ([key isEqual:@"!"] || [a->conflicts containsObject:key]) { key=@"!"; ambiguous++; }
++        else if ([failed containsObject:key]) { key=@"?"; refused++; }
++        else kept++;
++        const char *s=alias.UTF8String;
++        [text appendFormat:@"%c\t%s\t%c\t%@\n",s[0],s+2,s[1],key];
++    }
++    LOG("RewindBox: imported shader identities: %zu verified and ready, %zu unlocated in inspected resources, %zu ambiguous, %zu translation refusals, incompatible request %d",
++        (size_t)kept,(size_t)missing,(size_t)ambiguous,(size_t)refused,(int)a->rejected);
++    NSDictionary *counts=@{@"verifiedReady":@(kept),@"unlocated":@(missing),@"ambiguous":@(ambiguous),
++                           @"translationRefused":@(refused),@"incompatibleRequest":@(a->rejected)};
++    return [text writeToFile:p atomically:YES encoding:NSUTF8StringEncoding error:NULL] &&
++        [counts writeToFile:[wire stringByAppendingPathComponent:@"external-stage-counts.plist"] atomically:YES];
++}
+diff --git a/graphics/nvn/host/rb_local_stage.h b/graphics/nvn/host/rb_local_stage.h
+index e98ebfe..ec88b17 100644
+--- a/graphics/nvn/host/rb_local_stage.h
++++ b/graphics/nvn/host/rb_local_stage.h
+@@ -175,8 +175,10 @@ static void rb_scan_blob(rb_local_scan *s, const uint8_t *b, size_t n, unsigned
+     if (n>=16) {  // sead primitive drawer's two control/code pairs
+         for (int i=0;i<2;++i) {
+             uint32_t c=rb_u32(b+4*i), k=rb_u32(b+8+4*i);
+-            if (c>=16 && rb_span(n,c,0xd8) && nvn2_ctl(b+c))
+-                rb_emit_program(s,b,n,c,rb_u32(b+c+0x30),k,rb_u32(b+c+0x44),i);
++            if (c>=16 && rb_span(n,c,0xd8) && nvn2_ctl(b+c)) {
++                unsigned block=rb_u32(b+c+0x30);
++                rb_emit_program(s,b,n,c,block ? block : 0xd8,k,rb_u32(b+c+0x44),i);
++            }
+         }
+     }
+     // Fixed polling intervals even for a multi-GB plain, memory-mapped file.
+diff --git a/graphics/nvn/host/rb_prepare_stages.inc b/graphics/nvn/host/rb_prepare_stages.inc
+index de1b991..b5c49e5 100644
+--- a/graphics/nvn/host/rb_prepare_stages.inc
++++ b/graphics/nvn/host/rb_prepare_stages.inc
+@@ -5,6 +5,8 @@
+ #include <sys/mman.h>
+ #include <CommonCrypto/CommonDigest.h>
+ 
++#include "rb_external_stages.inc"
++
+ enum { RB_STAGE_ROW = 2<<20, RB_STAGE_KEYS_PER_ASSET = 65536 };
+ 
+ static NSString *rb_observed_stage_key(const char *p) {
+@@ -50,6 +52,8 @@ typedef struct {
+     __unsafe_unretained NSMutableSet<NSString *> *need;
+     __unsafe_unretained NSMutableOrderedSet<NSString *> *in_asset;
+     __unsafe_unretained NSMutableSet<NSString *> *found;
++    __unsafe_unretained RBStageAliases *aliases;
++    __unsafe_unretained NSMutableOrderedSet<NSString *> *aliasEntries;
+     const char *out;
+     int (*cancel)(void *);
+     void *ctx;
+@@ -71,10 +75,20 @@ static void rb_local_found(void *arg,const uint8_t *ctl,unsigned nt,const uint8_
+     NSString *key=@(hex);
+     if (b->in_asset.count < RB_STAGE_KEYS_PER_ASSET) [b->in_asset addObject:key];
+     else b->overflow=1;
+-    if (![b->need containsObject:key]) return;
++    if (rb_batch_cancel(b)) return;
++    BOOL matched=rb_alias_candidate(b->aliases,b->aliasEntries,key,stage,ctl,nt,code,nc,&b->overflow);
++    int renderStage=rb_external_render_stage(stage);
++    int input=matched ? rb_alias_input(b->aliases,key,renderStage,b->out) : 0;
++    BOOL requested=[b->need containsObject:key];
++    if (input>0 && requested) { [b->need removeObject:key]; [b->found addObject:key]; }
++    if (input || (!requested && !matched)) return;
+     char path[1200];
+     if (snprintf(path,sizeof path,"%s/%s_b.in",b->out,hex)>=(int)sizeof path ||
+         !rb_stage_publish(path,stage,ctl,nt,code,nc)) { b->write_error=1; return; }
++    if (matched) {
++        b->aliases->inputStages[key]=@(renderStage);
++        b->aliases->saved[key]=b->aliases->witnesses[key];
++    }
+     [b->need removeObject:key];
+     [b->found addObject:key];
+     }
+@@ -158,10 +172,11 @@ static int rb_stage_assets(NSString *game,NSString *wire,rb_local_scan *scan,rb_
+     if (!manifest) return -1;
+     struct stat st;
+     if (fstat(fileno(manifest),&st)) { fclose(manifest); return -1; }
+-    NSString *path=[wire stringByAppendingPathComponent:@"stage-index-v1.tsv"];
++    NSString *path=[wire stringByAppendingPathComponent:b->aliases->indexName ?: @"stage-index-v1.tsv"];
+     FILE *idx=fopen(path.fileSystemRepresentation,"r+");
+     if (!idx) idx=fopen(path.fileSystemRepresentation,"w+");
+-    char *rec=malloc(RB_STAGE_ROW);
++    int rowSize=b->aliases->indexName ? 4<<20 : RB_STAGE_ROW;
++    char *rec=malloc((size_t)rowSize);
+     if (!idx || !rec) { free(rec); if (idx) fclose(idx); fclose(manifest); return -1; }
+     char item[8192];
+     int rc=0, reuse=1;
+@@ -204,10 +219,25 @@ static int rb_stage_assets(NSString *game,NSString *wire,rb_local_scan *scan,rb_
+         char *end_size=NULL;
+         unsigned long long bytes=strtoull(sep+1,&end_size,10);
+         if (end_size==sep+1 || *end_size) { rc=-1; break; }
++        char diskIdentity[65];
++        if (b->aliases->indexName && itemRoot==game) {
++            // During a partial generation also notice a symlink target replaced
++            // in-place after import, including same-length asset replacements.
++            struct stat fs;
++            NSString *asset=[game stringByAppendingPathComponent:@(item)];
++            char stamp[256];
++            int len=stat(asset.fileSystemRepresentation,&fs) ? snprintf(stamp,sizeof stamp,"%s:unreadable",sha) :
++                snprintf(stamp,sizeof stamp,"%s:%llu:%lld:%lld:%ld:%lld:%ld",sha,(unsigned long long)fs.st_ino,
++                         (long long)fs.st_size,(long long)fs.st_mtimespec.tv_sec,fs.st_mtimespec.tv_nsec,
++                         (long long)fs.st_ctimespec.tv_sec,fs.st_ctimespec.tv_nsec);
++            if (len<0 || (size_t)len>=sizeof stamp) { rc=-1; break; }
++            rb_row_digest(stamp,(size_t)len,diskIdentity); sha=diskIdentity;
++        }
++        NSMutableDictionary *assetAliases=nil;
+         off_t offset=ftello(idx);
+         int valid=0,matches=0; unsigned prior[4]={0};
+         uint64_t count=0;
+-        if (reuse && fgets(rec,RB_STAGE_ROW,idx)) {
++        if (reuse && fgets(rec,rowSize,idx)) {
+             char *first=strchr(rec,'\t'), *keys=first?strchr(first+1,'\t'):NULL;
+             size_t len=strlen(rec);
+             if (first==rec+64 && keys && len>0 && rec[len-1]=='\n') {
+@@ -220,13 +250,20 @@ static int rb_stage_assets(NSString *game,NSString *wire,rb_local_scan *scan,rb_
+                     if (valid && *keys=='!') {
+                         char *sep=strchr(keys,'|');
+                         if (!sep || sscanf(keys,"!%u,%u,%u,%u",prior,prior+1,prior+2,prior+3)!=4) valid=0;
+-                        else { keys=sep+1; matches=b->need.count && (prior[2] || prior[3]); }
++                        else { keys=sep+1; matches=(b->need.count || b->aliases->indexName) && (prior[2] || prior[3]); }
+                     }
+                     if (valid) {
+                         char *id;
+                         while ((id=strsep(&keys,",")) && *id) {
+-                            count++;
+-                            if (!matches && [b->need containsObject:@(id)]) matches=1;
++                            if (*id=='K' || *id=='P') {
++                                if (!assetAliases) assetAliases=[NSMutableDictionary dictionary];
++                                int present=rb_cached_alias(b->aliases,id,assetAliases,b->out);
++                                if (present==-2) { valid=0; break; }
++                                if (!present) matches=1;
++                            } else {
++                                count++;
++                                if (!matches && [b->need containsObject:@(id)]) matches=1;
++                            }
+                         }
+                     }
+                 }
+@@ -239,11 +276,13 @@ static int rb_stage_assets(NSString *game,NSString *wire,rb_local_scan *scan,rb_
+         }
+         if (!valid || matches) {
+             __attribute__((objc_precise_lifetime)) NSMutableOrderedSet *ids=[NSMutableOrderedSet orderedSet];
+-            b->in_asset=ids; b->overflow=0;
++            __attribute__((objc_precise_lifetime)) NSMutableOrderedSet *aliases=b->aliases->indexName ? [NSMutableOrderedSet orderedSet] : nil;
++            b->in_asset=ids; b->aliasEntries=aliases; b->overflow=0;
++
+             unsigned before[]={scan->unsupported,scan->malformed,scan->limited,scan->io_errors};
+             unsigned skipped=rb_resource_scan(scan,itemRoot,item,bytes);
+             if (b->overflow) { scan->limited++; skipped=1; }
+-            b->in_asset=nil;
++            b->in_asset=nil; b->aliasEntries=nil;
+             if (b->cancelled || b->write_error) { rc=b->cancelled?1:-1; break; }
+             scanned++; if (skipped) limited++;
+             if (valid && !skipped && (prior[0] || prior[1] || prior[2] || prior[3])) {
+@@ -254,16 +293,21 @@ static int rb_stage_assets(NSString *game,NSString *wire,rb_local_scan *scan,rb_
+             }
+             if (!valid) {
+                 NSString *text=[ids.array componentsJoinedByString:@","];
++                if (aliases.count) {
++                    NSString *extra=[aliases.array componentsJoinedByString:@","];
++                    text=text.length ? [NSString stringWithFormat:@"%@,%@",text,extra] : extra;
++                }
+                 if (skipped) text=[NSString stringWithFormat:@"!%u,%u,%u,%u|%@",scan->unsupported-before[0],
+                     scan->malformed-before[1],scan->limited-before[2],scan->io_errors-before[3],text];
+-                int len=snprintf(rec,RB_STAGE_ROW,"%s\t%s\t%s",sha,item,text.UTF8String);
++                int len=snprintf(rec,rowSize,"%s\t%s\t%s",sha,item,text.UTF8String);
+                 char hash[65];
+-                if (len<0 || len>=RB_STAGE_ROW-67) { rc=-1; break; }
++                if (len<0 || len>=rowSize-67) { rc=-1; break; }
+                 rb_row_digest(rec,(size_t)len,hash);
+                 if (fprintf(idx,"%s\t%s\n",rec,hash)<0) { rc=-1; break; }
+                 count=ids.count;
+             }
+         } else {
++            for (NSString *alias in assetAliases) rb_alias_record(b->aliases,alias,assetAliases[alias]);
+             scan->unsupported+=prior[0]; scan->malformed+=prior[1];
+             scan->limited+=prior[2]; scan->io_errors+=prior[3];
+             if (prior[0] || prior[1] || prior[2] || prior[3]) limited++;
+@@ -293,12 +337,15 @@ static int rb_prepare_stage_batch(const char *game,const char *wire_path,const c
+     NSMutableOrderedSet *targets=[NSMutableOrderedSet orderedSet];
+     if (profile && *profile) rb_stage_targets(@(profile),targets);
+     NSSet *priority=[NSSet setWithArray:targets.array];
++    __attribute__((objc_precise_lifetime)) RBStageAliases *aliases=[RBStageAliases new];
++    if (!rb_read_external(wire,aliases)) return -1;
++    NSMutableSet *external=[NSMutableSet set], *refused=[NSMutableSet set];
+     NSMutableSet *packed_only=[NSMutableSet set];
+     rb_stage_targets([wire stringByAppendingPathComponent:@"pso_user.tsv"],targets);
+     rb_stage_targets([@(game) stringByAppendingPathComponent:@"shaders/direct/pso_manifest.tsv"],targets);
+     NSMutableSet *current=[NSMutableSet set], *legacy=[NSMutableSet set];
+     __attribute__((objc_precise_lifetime)) NSMutableSet *need=[NSMutableSet set], *found=[NSMutableSet set];
+-    rb_stage_batch batch={.need=need,.found=found,.out=out.fileSystemRepresentation,.cancel=cancel,.ctx=ctx};
++    rb_stage_batch batch={.need=need,.found=found,.aliases=aliases,.out=out.fileSystemRepresentation,.cancel=cancel,.ctx=ctx};
+     rb_local_scan scan={.cancel=rb_batch_cancel,.stage=rb_local_found,.ctx=&batch,.inflate=inflate,.budget=8u<<20,
+                         .spill=spill,.scratch=wire_path,.disk_budget=2ull<<30};
+     NSString *bundled=[[@(game) stringByAppendingPathComponent:@"shaders/direct"] stringByAppendingPathComponent:@"b-" DMSH_CHAIN];
+@@ -327,6 +374,17 @@ static int rb_prepare_stage_batch(const char *game,const char *wire_path,const c
+     if (progress) progress(ctx,0,0);
+     int rc=rb_stage_assets(@(game),wire,&scan,&batch,&stats[7],progress);
+     if (rc) return rc;
++    for (NSString *alias in aliases->requested) {
++        NSString *native=aliases->resolved[alias];
++        if (!native || [native isEqual:@"!"] || [aliases->conflicts containsObject:native]) continue;
++        [external addObject:native];
++        if (![targets containsObject:native]) {
++            [targets addObject:native];
++            if (dsh_have(batch.out,native.UTF8String)) [current addObject:native];
++        }
++        [need removeObject:native];
++    }
++    stats[0]=targets.count; stats[1]=current.count;
+     BOOL incomplete=scan.unsupported || scan.malformed || scan.limited || scan.io_errors;
+     NSMutableString *report=[NSMutableString stringWithString:@"key\tprevious_source\tinput\ttranslation\n"];
+     uint64_t old_kept=0,old_found=0,old_missing=0,done=0;
+@@ -338,7 +396,9 @@ static int rb_prepare_stage_batch(const char *game,const char *wire_path,const c
+         NSString *result=ready ? @"current" : incomplete ? @"not-located-in-partial-scan" : @"missing";
+         if (!ready && missing) stats[4]++;
+         if (!ready && recovered) stats[3]++;
+-        BOOL rebuild=[priority containsObject:key] && ![packed_only containsObject:key];
++        BOOL required=[priority containsObject:key] && ![packed_only containsObject:key];
++        BOOL externalKey=[external containsObject:key];
++        BOOL rebuild=required || externalKey;
+         if (rebuild && ready && missing) { priority_no_input++; result=@"preserved-no-input"; }
+         if (!missing && (rebuild || !ready)) {
+             uint32_t h[4]; uint8_t *input=dsh_read_input(batch.out,key.UTF8String,h,1);
+@@ -347,7 +407,7 @@ static int rb_prepare_stage_batch(const char *game,const char *wire_path,const c
+                 ok=rb_priority_stage(key,wire,out,&batch,h,input,&made);
+                 priority_made+=made; stats[5]+=made;
+                 if (ok>0 && !made) priority_reused++;
+-                if (!ok) priority_failed++;
++                if (!ok && required) priority_failed++;
+                 result=ok>0 ? (made?@"priority-retranslated":@"priority-checkpoint") : @"failed";
+             } else if (input) {
+                 dsh_comp_fn compile=dsh_comp();
+@@ -355,10 +415,10 @@ static int rb_prepare_stage_batch(const char *game,const char *wire_path,const c
+                    && dsh_have(batch.out,key.UTF8String);
+                 if (ok) stats[5]++;
+                 result=ok ? @"translated" : @"failed";
+-            } else { result=@"failed"; if (rebuild) priority_failed++; }
++            } else { result=@"failed"; if (required) priority_failed++; }
+             free(input);
+             if (ok<0) return 1;
+-            if (!ok) stats[6]++;
++            if (!ok) { stats[6]++; if (externalKey) [refused addObject:key]; }
+         }
+         [report appendFormat:@"%@\t%@\t%@\t%@\n",key,ready?@"current":old?@"stale":@"absent",
+                 missing?@"unavailable":[from_dump containsObject:key]?@"diagnostic-dump":recovered?@"resource":@"present-or-bundled",result];
+@@ -371,6 +431,7 @@ static int rb_prepare_stage_batch(const char *game,const char *wire_path,const c
+     if (![coverage writeToFile:[wire stringByAppendingPathComponent:@"stage-scan-coverage.plist"] atomically:YES]) return -1;
+     LOG("RewindBox: priority stage inputs: %llu newly retranslated, %llu generation checkpoints reused, %llu compatible sources preserved without input, %llu failed",
+         priority_made,priority_reused,priority_no_input,priority_failed);
++    if (!rb_alias_report(aliases,refused,wire)) return -1;
+     return priority_failed ? -1 : 0;
+ }
+ 
+diff --git a/graphics/nvn/tests/t_rb_local_stage.c b/graphics/nvn/tests/t_rb_local_stage.c
+index 176dc20..d8e6ca6 100644
+--- a/graphics/nvn/tests/t_rb_local_stage.c
++++ b/graphics/nvn/tests/t_rb_local_stage.c
+@@ -13,6 +13,7 @@
+ #define CC_SHA256_Final SHA256_Final
+ #endif
+ #include "../gfx/nvn/nvn2_key.inc"
++#include "../host/rb_external_key.h"
+ 
+ static void put32(uint8_t *p,uint32_t v) { memcpy(p,&v,4); }
+ static void put64(uint8_t *p,uint64_t v) { memcpy(p,&v,8); }
+@@ -27,6 +28,38 @@ static void candidate(void *arg,const uint8_t *ctl,unsigned nt,const uint8_t *co
+ static void control(uint8_t *p,uint32_t own) {
+     put32(p,NVN2_CTL_MAGIC);put32(p+4,NVN2_CTL_VERSION);put32(p+0x30,own);put32(p+0x44,256);p[0x56]=1;
+ }
++
++// Expected values were evaluated with the upstream skey/ctl_len/key_ctl from
++// kartnative 47f2d1d and plumber-racer-2 843170a, for the very same typed input.
++static void external_keys(void) {
++    uint8_t ctl[0xe0], code[256], baseline[8], native[8];
++    for (unsigned i=0;i<sizeof ctl;i++) ctl[i]=(uint8_t)(i*13+3);
++    for (unsigned i=0;i<sizeof code;i++) code[i]=(uint8_t)(i*29+5);
++    control(ctl,0xe0); ctl[0x57]=0;
++    nvn2_key(ctl,code,baseline);
++    const int positions[]={-1,0x20,0x30,0xc0,0xdc};
++    const char *expected[2][5]={
++        {"752f69395fd56edb","887b7b7022e41b07","872ef62db58dea5f","926e306833bc5db6","752f69395fd56edb"},
++        {"d0bff06413eed1ef","8b6fea791c22ab79","d0bff06413eed1ef","d0bff06413eed1ef","d0bff06413eed1ef"}
++    };
++    char hex[17];
++    for (unsigned i=0;i<5;i++) {
++        if (i) ctl[positions[i]]^=1;
++        for (unsigned j=0;j<2;j++) {
++            assert(rb_external_key(j?'P':'K',ctl,sizeof ctl,code,sizeof code,hex));
++            assert(!strcmp(hex,expected[j][i]));
++        }
++        nvn2_key(ctl,code,native); assert(!memcmp(native,baseline,8));
++        if (i) ctl[positions[i]]^=1;
++    }
++    assert(!rb_external_key('K',ctl,0xd7,code,sizeof code,hex));
++    assert(!rb_external_key('P',ctl,sizeof ctl,code,sizeof code-1,hex));
++    assert(!rb_external_key('K',ctl,sizeof ctl,NULL,sizeof code,hex));
++    assert(!rb_external_key('X',ctl,sizeof ctl,code,sizeof code,hex));
++    assert(rb_external_render_stage(2)==5 && rb_external_render_stage(4)==3 && rb_external_render_stage(5)==4);
++    puts("PASS same local bytes, five independently reproduced upstream vectors per producer, invalid inputs and stage numbering");
++}
++
+ static void one(rb_local_scan *s,uint8_t *p,size_t len) {
+     seen=0; rb_scan_blob(s,p,len,0); assert(seen==1);
+ }
+@@ -46,6 +79,7 @@ static int stream_case(const char *path,const char *hex) {
+ }
+ #endif
+ int main(int argc,char **argv) {
++    external_keys();
+ #ifdef RB_STAGE_STREAM_FIXTURE
+     if (argc==3 && strlen(argv[2])==16) return stream_case(argv[1],argv[2]);
+ #else

@@ -284,7 +284,7 @@ static BOOL genID(id value) {
 // recovery results. Shader bytes, archive binaries and paths stay in Library.
 static NSData *evidenceTable(NSString *path) {
   BOOL coverage = [path.lastPathComponent isEqual:@"stage-scan-coverage.plist"];
-  const off_t limit = coverage ? 8192 : 512 * 1024;
+  const off_t limit = coverage ? 8192 : [path.lastPathComponent isEqual:@"stage-recovery.tsv"] ? 4 * 1024 * 1024 : 512 * 1024;
   int fd = open(path.fileSystemRepresentation, O_RDONLY | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK);
   if (fd < 0) return nil;
   struct stat st;
@@ -356,7 +356,7 @@ static NSData *evidenceTable(NSString *path) {
   if (!atomicJSON(info, receipt, NULL)) return NO;
   if (!previous) {
     // Preserve the four most recent sessions for this game, at up to three
-    // 512 KiB tables and six scan counters each. Only remove our exports.
+    // bounded tables and scan counters each. Only remove our exports.
     NSMutableDictionary<NSString *,NSNumber *> *older = [NSMutableDictionary dictionary];
     for (NSString *other in [fm contentsOfDirectoryAtPath:root error:NULL]) {
       if ([other isEqual:session] || ![[NSUUID alloc] initWithUUIDString:other]) continue;
