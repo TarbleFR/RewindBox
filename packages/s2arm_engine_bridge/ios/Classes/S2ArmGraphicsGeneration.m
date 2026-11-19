@@ -10,7 +10,7 @@
 #import <unistd.h>
 
 // Independent of the IPA, the CPU import format, and the engine producer run.
-static const NSUInteger kMarioKartGraphicsRevision = 1;
+static const NSUInteger kMarioKartGraphicsRevision = 2;
 static NSString *const kKart = @"0400C3F00006E000";
 static NSString *const kKartBuild = @"9e244438c3d8ef1c703a6a85ef99c4f0";
 
@@ -70,7 +70,7 @@ static BOOL genID(id value) {
 @end
 
 @implementation S2ArmGraphicsGeneration {
-  NSString *_base, *_generation, *_source, *_slot;
+  NSString *_base, *_generation, *_source, *_slot, *_seedSlot;
   NSDictionary *_identity;
 }
 + (instancetype)planForGame:(NSString *)gid directory:(NSString *)gameDir root:(NSString *)root
@@ -136,6 +136,23 @@ static BOOL genID(id value) {
   // phase finds exactly this work (even if an older receipt remains active).
   NSDictionary *pending = json([_base stringByAppendingPathComponent:@"pending.json"]);
   NSString *candidate = pending[@"slot"];
+  // A 795 that finished its CPU scan but failed 30/32 stored subsequent
+  // gameplay in the pending slot. Keep that learned history across the upgrade,
+  // including a restart half-way through cloning it into the new generation.
+  NSString *seed = [pending[@"identity"] isEqual:_identity] ? pending[@"seedSlot"] : candidate;
+  if (safeLeaf(seed)) {
+    NSString *folder = [_base stringByAppendingPathComponent:seed];
+    NSDictionary *sealedSeed = json([folder stringByAppendingPathComponent:@".seeded.json"]);
+    NSMutableDictionary *compatible = [_identity mutableCopy];
+    if (sealedSeed && [sealedSeed[@"revision"] isKindOfClass:NSNumber.class]) {
+      compatible[@"revision"] = sealedSeed[@"revision"];
+      NSString *seedHash = digest([NSJSONSerialization dataWithJSONObject:sealedSeed options:NSJSONWritingSortedKeys error:NULL]);
+      if ([seed hasPrefix:[seedHash stringByAppendingString:@"."]] && [sealedSeed isEqual:compatible] &&
+          [sealedSeed[@"revision"] unsignedIntegerValue] < kMarioKartGraphicsRevision) {
+        _source = folder; _seedSlot = seed;
+      }
+    }
+  }
   if ([pending[@"identity"] isEqual:_identity] && safeLeaf(candidate) && ![slot isEqual:candidate] &&
       [candidate hasPrefix:[_generation stringByAppendingString:@"."]])
     _slot = candidate;
@@ -146,7 +163,9 @@ static BOOL genID(id value) {
 - (BOOL)stage:(BOOL (^)(void))cancel progress:(void (^)(NSUInteger))progress error:(NSError **)error {
   NSFileManager *fm = NSFileManager.defaultManager;
   if (![fm createDirectoryAtPath:_wire withIntermediateDirectories:YES attributes:nil error:error]) return NO;
-  if (!atomicJSON(@{@"identity":_identity, @"slot":_slot}, [_base stringByAppendingPathComponent:@"pending.json"], error)) return NO;
+  NSMutableDictionary *pending = [@{@"identity":_identity, @"slot":_slot} mutableCopy];
+  if (_seedSlot) pending[@"seedSlot"] = _seedSlot;
+  if (!atomicJSON(pending, [_base stringByAppendingPathComponent:@"pending.json"], error)) return NO;
   NSString *marker = [_wire stringByAppendingPathComponent:@".seeded.json"];
   if ([json(marker) isEqual:_identity]) return YES;
   NSUInteger count = 0;
@@ -195,7 +214,7 @@ static BOOL genID(id value) {
 - (NSDictionary *)outputsForCount:(uint64_t)expected {
   NSString *manifest = [_wire stringByAppendingPathComponent:@"pso_reference.archives.tsv"];
   NSString *text = [NSString stringWithContentsOfFile:manifest encoding:NSUTF8StringEncoding error:nil];
-  NSMutableSet *ids = [NSMutableSet set], *files = [NSMutableSet setWithObjects:@"pso_reference.tsv", @"pso_reference.archives.tsv",
+  NSMutableSet *ids = [NSMutableSet set], *files = [NSMutableSet setWithObjects:@"pso_reference.tsv", @"pso_external.tsv", @"pso_reference.archives.tsv",
                                                          @"pipelines/identity.json", nil];
   NSMutableDictionary *batch = [NSMutableDictionary dictionary];
   for (NSString *line in [text componentsSeparatedByString:@"\n"]) {
@@ -281,6 +300,11 @@ static NSData *evidenceTable(NSString *path) {
   }
   unsigned char extra; ssize_t tail = read(fd,&extra,1); close(fd);
   if (tail) return nil;
+  if ([path.lastPathComponent isEqual:@"external-profile-counts.plist"]) {
+    id counters = [NSPropertyListSerialization propertyListWithData:data options:NSPropertyListImmutable format:NULL error:NULL];
+    if (![counters isKindOfClass:NSDictionary.class]) return nil;
+    return [NSPropertyListSerialization dataWithPropertyList:counters format:NSPropertyListXMLFormat_v1_0 options:0 error:NULL];
+  }
   if (coverage) {
     // The scan writes six counts. Encode only those values, including when
     // Foundation represents the source dictionary as a binary plist.
@@ -315,7 +339,11 @@ static NSData *evidenceTable(NSString *path) {
   NSMutableArray *missing = [NSMutableArray array];
   NSArray *tables = !inputs ? @[] : verified ? @[@"stage-recovery.tsv",@"stage-scan-coverage.plist",@"pso_reference.tsv",@"pso_reference.archives.tsv"]
                                               : @[@"stage-recovery.tsv",@"stage-scan-coverage.plist",@"pso_reference.tsv"];
-  for (NSString *name in tables) {
+  NSMutableArray *available = [tables mutableCopy];
+  for (NSString *name in @[@"pso_reference.progress.tsv", @"external-profile-counts.plist"]) {
+    if ([fm fileExistsAtPath:[_wire stringByAppendingPathComponent:name]]) [available addObject:name];
+  }
+  for (NSString *name in available) {
     NSData *data = evidenceTable([_wire stringByAppendingPathComponent:name]);
     if (!data) { [missing addObject:name]; continue; }
     NSString *out = [dir stringByAppendingPathComponent:name];

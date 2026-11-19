@@ -2,6 +2,7 @@
 // verification. Counts below exercise only the host's acceptance of that proof.
 #import "S2ArmGraphicsGeneration.h"
 #import <stdio.h>
+#import <CommonCrypto/CommonDigest.h>
 #import <stdlib.h>
 #import <string.h>
 
@@ -42,6 +43,31 @@ int main(void) { @autoreleasepool {
   }
   [retry consume]; // consumed before the first call to guest configure
   CHECK([retry engineForGame:gid paths:launchPaths] == NULL);
+  // Reopen a partially verified 795 generation whose sole up-to-date personal
+  // manifest and shaders live in the pending slot, never promoted to active.
+  NSString *upgradeDir = child(NSTemporaryDirectory(), NSUUID.UUID.UUIDString);
+  NSDictionary *oldIdentity = @{@"gid":gid,@"build":build,@"content":@"same-content",@"chain":chain,
+                               @"hardware":@"same-device",@"osBuild":@"same-os",@"revision":@1};
+  NSData *serialized = [NSJSONSerialization dataWithJSONObject:oldIdentity options:NSJSONWritingSortedKeys error:NULL];
+  unsigned char sum[CC_SHA256_DIGEST_LENGTH]; CC_SHA256(serialized.bytes,(CC_LONG)serialized.length,sum);
+  NSMutableString *oldSlot = [NSMutableString string];
+  for (NSUInteger i=0; i<sizeof sum; ++i) [oldSlot appendFormat:@"%02x",sum[i]];
+  [oldSlot appendFormat:@".%@",NSUUID.UUID.UUIDString];
+  NSString *oldWire = child(child(upgradeDir,@"graphics"),oldSlot);
+  put(oldWire,@".seeded.json",[[NSString alloc] initWithData:serialized encoding:NSUTF8StringEncoding]);
+  put(oldWire,@"pso_user.tsv",@"795 raced here");
+  put(oldWire,@"shaders/only-in-795.in",@"learned while incomplete");
+  NSDictionary *pending795=@{@"identity":oldIdentity,@"slot":oldSlot};
+  put(upgradeDir,@"graphics/pending.json",[[NSString alloc] initWithData:[NSJSONSerialization dataWithJSONObject:pending795 options:0 error:NULL] encoding:NSUTF8StringEncoding]);
+  S2ArmGraphicsGeneration *migration=plan(upgradeDir);
+  CHECK(!migration.active && ![oldWire isEqual:migration.wire]);
+  CHECK(![migration stage:^BOOL{ return YES; } progress:^(NSUInteger n){ (void)n; } error:NULL]);
+  S2ArmGraphicsGeneration *again=plan(upgradeDir);
+  CHECK([again.wire isEqual:migration.wire] && stage(again));
+  CHECK([readText(again.wire,@"pso_user.tsv") isEqual:@"795 raced here"]);
+  CHECK([readText(again.wire,@"shaders/only-in-795.in") isEqual:@"learned while incomplete"]);
+  CHECK([readText(oldWire,@"pso_user.tsv") isEqual:@"795 raced here"]);
+  [NSFileManager.defaultManager removeItemAtPath:upgradeDir error:NULL];
   NSString *dir = child(NSTemporaryDirectory(), NSUUID.UUID.UUIDString);
   NSString *legacy = child(child(dir, @"docs/wire"), gid);
   NSString *marker = @"graphics/active.json";
@@ -94,6 +120,7 @@ int main(void) { @autoreleasepool {
   CHECK([readText(resumed.wire,@"pso_user.tsv") isEqual:@"prior game rows"]);
   put(resumed.wire, @"shaders/0123456789abcdef_b.metal", @"new translation");
   CHECK(stage(plan(dir)) && [readText(resumed.wire,@"shaders/0123456789abcdef_b.metal") isEqual:@"new translation"]);
+  put(resumed.wire, @"pso_external.tsv", @"# resolved external recipes\n");
   put(resumed.wire, @"pso_reference.tsv", @"S\t0123456789abcdef_b\t0\n");
   const uint64_t partial[] = {1,1,1,1,0,12}, valid[] = {1,1,1,1,1,12};
   CHECK(![resumed activateWithGPU:partial error:NULL] && ![resumed activateWithGPU:valid error:NULL]);
@@ -112,6 +139,7 @@ int main(void) { @autoreleasepool {
   CHECK(!replacement.active && ![replacement.wire isEqual:resumed.wire]);
   CHECK(stage(replacement) && ![replacement activateWithGPU:valid error:NULL]);
   CHECK([readText(dir, marker) isEqual:receipt] && [plan(dir).wire isEqual:replacement.wire]);
+  put(replacement.wire, @"pso_external.tsv", @"# resolved external recipes\n");
   put(replacement.wire, @"pso_reference.tsv", @"S\t0123456789abcdef_b\t0\n");
   put(replacement.wire, @"pso_reference.archives.tsv", rows);
   put(replacement.wire, @"pipelines/batches.tsv", rows);
