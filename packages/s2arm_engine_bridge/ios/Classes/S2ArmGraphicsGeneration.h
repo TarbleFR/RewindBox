@@ -11,6 +11,9 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, readonly) BOOL active;
 + (nullable instancetype)planForGame:(NSString *)gid directory:(NSString *)gameDir root:(NSString *)root
                               chain:(NSString *)chain reused:(BOOL)reused error:(NSError **)error;
+/// Only stages compatible files from an already prepared import. The normal launch
+/// performs full validation and owns Metal translation, pipeline creation and activation.
++ (nullable instancetype)startupPlanInLibrary:(NSString *)library chain:(nullable NSString *)chain;
 /// Select a transaction using the preparation and platform identities.
 - (instancetype)initWithDirectory:(NSString *)directory gid:(NSString *)gid buildID:(NSString *)buildID
                           content:(NSString *)content chain:(NSString *)chain hardware:(NSString *)hardware

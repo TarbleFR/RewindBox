@@ -73,6 +73,21 @@ static BOOL genID(id value) {
   NSString *_base, *_generation, *_source, *_slot, *_seedSlot;
   NSDictionary *_identity;
 }
++ (instancetype)startupPlanInLibrary:(NSString *)library chain:(NSString *)chain {
+  NSString *dir = [library stringByAppendingPathComponent:kKart];
+  NSDictionary *prepared = json([dir stringByAppendingPathComponent:@"prepared.json"])[@"result"];
+  if (![prepared isKindOfClass:NSDictionary.class] || ![prepared[@"gid"] isEqual:kKart] ||
+      ![prepared[@"success"] isEqual:@YES] || !chain.length) return nil;
+  // A committed current revision needs no upgrade at app startup. The game launch
+  // still verifies the content, device identity and Metal archives before their use.
+  NSDictionary *active = json([dir stringByAppendingPathComponent:@"graphics/active.json"]);
+  NSDictionary *identity = active[@"identity"];
+  if ([identity isKindOfClass:NSDictionary.class] && [identity[@"revision"] isEqual:@(kMarioKartGraphicsRevision)]) return nil;
+  S2ArmGraphicsGeneration *plan = [self planForGame:kKart directory:dir root:[dir stringByAppendingPathComponent:@"root"]
+                                              chain:chain reused:YES error:NULL];
+  if (!plan || plan.active || [json([plan.wire stringByAppendingPathComponent:@".seeded.json"]) isEqual:plan->_identity]) return nil;
+  return plan;
+}
 + (instancetype)planForGame:(NSString *)gid directory:(NSString *)gameDir root:(NSString *)root
                       chain:(NSString *)chain reused:(BOOL)reused error:(NSError **)error {
   if ([gid caseInsensitiveCompare:kKart] != NSOrderedSame || ![chain isEqual:@"0be3f28548fd"]) return nil;

@@ -60,6 +60,7 @@ import 'package:neostation/services/ios_linked_library_folders.dart';
 import 'package:neostation/services/armsx2_library_service.dart';
 import 'package:neostation/services/armsx2_internal_service.dart';
 import 'package:neostation/services/xenia_internal_service.dart';
+import 'package:neostation/l10n/switch2_library_locale.dart';
 import 'package:neostation/services/s2arm_internal_service.dart';
 import 'package:neostation/services/rpcs3_library_service.dart';
 import 'package:neostation/services/rpcs3_internal_service.dart';
@@ -665,6 +666,7 @@ void main() async {
           _prepareIosFilesWorkspaceAfterStartup,
         ),
       );
+      unawaited(S2ArmInternalService.stageGraphicsAtStartup());
       unawaited(_refreshBundledSkinsAfterStartup());
     });
   }
@@ -1056,7 +1058,34 @@ class _MyAppState extends State<MyApp> {
                               maxScaleFactor: 1.4,
                             ),
                           ),
-                          child: NeoPlayGameHUDHost(child: child!),
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              NeoPlayGameHUDHost(child: child!),
+                              if (Platform.isIOS)
+                                Align(
+                                  alignment: Alignment.topCenter,
+                                  child: IgnorePointer(
+                                    child: SafeArea(
+                                      child: ValueListenableBuilder<int?>(
+                                        valueListenable: S2ArmInternalService.startupGraphicsFiles,
+                                        builder: (context, files, _) {
+                                          if (files == null) return const SizedBox.shrink();
+                                          final label = Switch2LibraryLocale.text(context, 'graphicsCacheCopy');
+                                          final count = Switch2LibraryLocale.textf(context, 'prepCountEntries', {'count': files});
+                                          return Card(
+                                            child: Padding(
+                                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                              child: Text('Mario Kart World · $label\n$count', textAlign: TextAlign.center),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
                         );
                       },
                       theme: themeProvider.currentTheme.copyWith(

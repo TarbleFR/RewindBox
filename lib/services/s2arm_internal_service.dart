@@ -252,6 +252,22 @@ abstract final class S2ArmInternalService {
   static final StreamController<S2ArmSessionEvent> _sessionEvents = StreamController<S2ArmSessionEvent>.broadcast();
   static Stream<S2ArmSessionEvent> get sessionEvents => _sessionEvents.stream;
 
+  /// Number of compatible graphics-cache files examined during an in-place upgrade.
+  static final startupGraphicsFiles = ValueNotifier<int?>(null);
+
+  static Future<void> stageGraphicsAtStartup() async {
+    _installHandler();
+    try {
+      await channel.invokeMethod<void>('stageGraphicsAtStartup');
+    } on MissingPluginException {
+      // Builds without this native bridge continue through the normal game-launch path.
+    } on PlatformException catch (error) {
+      LoggerService.instance.w('S2Arm graphics startup deferred: ${error.code}');
+    } finally {
+      startupGraphicsFiles.value = null;
+    }
+  }
+
   static bool _handlerInstalled = false;
   static void Function(S2ArmImportProgress progress)? _activePrepareProgress;
   static void Function(int done, int total)? _activeNupProgress;
@@ -262,6 +278,10 @@ abstract final class S2ArmInternalService {
     channel.setMethodCallHandler((call) async {
       if (call.arguments is! Map) return null;
       final arguments = Map<String, dynamic>.from(call.arguments as Map);
+      if (call.method == 'startupGraphicsProgress') {
+        startupGraphicsFiles.value = (arguments['files'] as num?)?.toInt();
+        return null;
+      }
       if (call.method == 'prepareProgress') {
         final step = arguments['step']?.toString() ?? '';
         final detail = arguments['detail']?.toString() ?? '';

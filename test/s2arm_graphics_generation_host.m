@@ -68,7 +68,8 @@ int main(void) { @autoreleasepool {
   CHECK([readText(again.wire,@"shaders/only-in-795.in") isEqual:@"learned while incomplete"]);
   CHECK([readText(oldWire,@"pso_user.tsv") isEqual:@"795 raced here"]);
   [NSFileManager.defaultManager removeItemAtPath:upgradeDir error:NULL];
-  NSString *dir = child(NSTemporaryDirectory(), NSUUID.UUID.UUIDString);
+  NSString *library = child(NSTemporaryDirectory(), NSUUID.UUID.UUIDString);
+  NSString *dir = child(library,gid);
   NSString *legacy = child(child(dir, @"docs/wire"), gid);
   NSString *marker = @"graphics/active.json";
   // Use the production title, NSO and direct-chain gate as well as the
@@ -84,8 +85,15 @@ int main(void) { @autoreleasepool {
   NSString *id2 = [@"b" stringByPaddingToLength:64 withString:@"b" startingAtIndex:0];
   put(dir,@"pack/.applied",id1);
   put(dir,@"pack/manifest.json",[NSString stringWithFormat:@"{\"index_sha256\":\"%@\"}",id1]);
+  CHECK(![S2ArmGraphicsGeneration startupPlanInLibrary:library chain:chain]);
+  put(dir,@"prepared.json",[NSString stringWithFormat:@"{\"result\":{\"success\":true,\"gid\":\"%@\"}}",gid]);
+  S2ArmGraphicsGeneration *startup = [S2ArmGraphicsGeneration startupPlanInLibrary:library chain:chain];
+  CHECK(startup && ![startup stage:^BOOL { return YES; } progress:^(NSUInteger n){ (void)n; } error:NULL]);
+  S2ArmGraphicsGeneration *resumeStartup = [S2ArmGraphicsGeneration startupPlanInLibrary:library chain:chain];
+  CHECK([resumeStartup.wire isEqual:startup.wire] && stage(resumeStartup));
+  CHECK(![S2ArmGraphicsGeneration startupPlanInLibrary:library chain:chain]);
   S2ArmGraphicsGeneration *pack1 = [S2ArmGraphicsGeneration planForGame:gid directory:dir root:root chain:chain reused:YES error:NULL];
-  CHECK(pack1 && stage(pack1));
+  CHECK(!pack1.active && [pack1.wire isEqual:startup.wire] && stage(pack1));
   put(dir,@"pack/.applied",id2);
   CHECK(![S2ArmGraphicsGeneration planForGame:gid directory:dir root:root chain:chain reused:YES error:NULL]);
   put(dir,@"pack/manifest.json",[NSString stringWithFormat:@"{\"index_sha256\":\"%@\"}",id2]);
@@ -179,7 +187,7 @@ int main(void) { @autoreleasepool {
   CHECK([readText(out,@"stage-recovery.tsv") isEqual:@"stage\tcurrent\n"]);
   CHECK([readText(legacy,@"shaders/0123456789abcdef_b.metal") isEqual:@"source"]);
   CHECK([readText(dir,@"save/profile") isEqual:@"save"] && [readText(dir,@"defaults") isEqual:@"settings"]);
-  CHECK([NSFileManager.defaultManager removeItemAtPath:dir error:NULL]);
+  CHECK([NSFileManager.defaultManager removeItemAtPath:library error:NULL]);
   puts("PASS legacy 794, interrupted copy, translation checkpoint, strict receipt, hot reuse, damaged index/archive/source and repair isolation");
   return 0;
 } }

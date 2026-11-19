@@ -308,6 +308,10 @@ static NSString *S2ArmEnginePath(void) {
     });
     return;
   }
+  if ([call.method isEqualToString:@"stageGraphicsAtStartup"]) {
+    [self stageGraphicsAtStartup:result];
+    return;
+  }
   if ([call.method isEqualToString:@"prepareGame"]) {
     [self prepareGame:call.arguments result:result];
     return;
@@ -392,6 +396,36 @@ static NSString *S2ArmEnginePath(void) {
 }
 
 #pragma mark - prepare
+
+- (void)stageGraphicsAtStartup:(FlutterResult)result {
+  // Serialize cache writes with normal preparation. A play request takes over the
+  // same transaction at its last complete file, even if the player taps immediately.
+  dispatch_async(self.workQueue, ^{
+    if (self.engineLoaded || self.launchInProgress || self.activePreparation) {
+      dispatch_async(dispatch_get_main_queue(), ^{ result(nil); });
+      return;
+    }
+    S2ArmGraphicsGeneration *plan = [S2ArmGraphicsGeneration startupPlanInLibrary:S2ArmLibraryRoot()
+                                                                            chain:S2ArmShippedDirectChain()];
+    if (plan) {
+      void (^notify)(NSUInteger) = ^(NSUInteger files) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+          [self.channel invokeMethod:@"startupGraphicsProgress" arguments:@{@"files":@(files)}];
+        });
+      };
+      notify(0);
+      NSError *error = nil;
+      BOOL staged = [plan stage:^BOOL {
+        [self.graphicsPause lock];
+        while (self.graphicsBackground) [self.graphicsPause wait];
+        [self.graphicsPause unlock];
+        return self.launchInProgress || self.activePreparation != nil;
+      } progress:notify error:&error];
+      s2arm_journal("graphics", staged ? "startupStaged" : "startupDeferred", NULL);
+    }
+    dispatch_async(dispatch_get_main_queue(), ^{ result(nil); });
+  });
+}
 
 - (void)prepareGame:(id)arguments result:(FlutterResult)result {
   if (![arguments isKindOfClass:NSDictionary.class] || ![arguments[@"exportFolder"] isKindOfClass:NSString.class]) {
