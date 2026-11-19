@@ -289,8 +289,14 @@ class ManifestSchema(unittest.TestCase):
                 (root / sd.MANIFESTS).mkdir(parents=True)
                 shutil.copy2(ROOT / sd.manifest_path(chosen), root / sd.manifest_path(chosen))
                 folder = root / f'docs/evidence/rewind{chosen}'
-                shutil.copytree(ROOT / f'docs/evidence/rewind{chosen}', folder)
-                (folder / 'delivery.json').unlink()
+                # Reconstruct the evidence as it existed when the receipt was written.
+                # Later device and GPU qualification reports can share this directory.
+                source = ROOT / f'docs/evidence/rewind{chosen}'
+                for name, digest in committed['proofFiles'].items():
+                    relative = sd.safe_relative(name)
+                    self.assertEqual(sd.sha_file(source / relative), digest, name)
+                    (folder / relative).parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(source / relative, folder / relative)
                 verification = folder / f'download{chosen}-verification.json'
                 api = folder / 'api'
                 if verification_outside:
