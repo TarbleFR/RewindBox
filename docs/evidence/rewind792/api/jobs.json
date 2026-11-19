@@ -1,0 +1,65 @@
+{
+ "jobs": [
+  {
+   "completed_at": "2026-11-19T07:25:30Z",
+   "conclusion": "success",
+   "head_branch": "Claude",
+   "head_sha": "98c2e67d50e26971d6bdac92f5c286b67be8dc88",
+   "id": 135407041214,
+   "name": "preflight",
+   "run_attempt": 1,
+   "run_id": 44479202539,
+   "started_at": "2026-11-19T07:23:17Z",
+   "status": "completed"
+  },
+  {
+   "completed_at": "2026-11-19T07:28:14Z",
+   "conclusion": "success",
+   "head_branch": "Claude",
+   "head_sha": "98c2e67d50e26971d6bdac92f5c286b67be8dc88",
+   "id": 135408017785,
+   "name": "republish",
+   "run_attempt": 1,
+   "run_id": 44479202539,
+   "started_at": "2026-11-19T07:25:32Z",
+   "status": "completed"
+  },
+  {
+   "completed_at": "2026-11-19T07:48:41Z",
+   "conclusion": "success",
+   "head_branch": "Claude",
+   "head_sha": "98c2e67d50e26971d6bdac92f5c286b67be8dc88",
+   "id": 135408017850,
+   "name": "application",
+   "run_attempt": 1,
+   "run_id": 44479202539,
+   "started_at": "2026-11-19T07:25:37Z",
+   "status": "completed"
+  },
+  {
+   "completed_at": "2026-11-19T07:25:30Z",
+   "conclusion": "skipped",
+   "head_branch": "Claude",
+   "head_sha": "98c2e67d50e26971d6bdac92f5c286b67be8dc88",
+   "id": 135408019651,
+   "name": "flutter",
+   "run_attempt": 1,
+   "run_id": 44479202539,
+   "started_at": "2026-11-19T07:25:31Z",
+   "status": "completed"
+  },
+  {
+   "completed_at": "2026-11-19T07:25:30Z",
+   "conclusion": "skipped",
+   "head_branch": "Claude",
+   "head_sha": "98c2e67d50e26971d6bdac92f5c286b67be8dc88",
+   "id": 135408020861,
+   "name": "native",
+   "run_attempt": 1,
+   "run_id": 44479202539,
+   "started_at": "2026-11-19T07:25:31Z",
+   "status": "completed"
+  }
+ ],
+ "total_count": 5
+}
