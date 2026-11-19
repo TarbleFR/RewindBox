@@ -136,6 +136,8 @@ fetched at build time and never committed here (Apache-2.0, see `docs/s2arm-lega
 | `0128-guest-repair-refused-metal-and-verify-live-stage-input.patch` | Checks retained stage input against the first live bind in the background and retries refused Metal source from verified input. |
 | `0129-test-real-pipeline-transitions-over-three-metal-launches.patch` | Runs independent training and replay processes with the real pipeline picker, encoder and pixel readback. |
 
+The 129-patch engine for private IPA 794 was built on macOS 15 and 26 from `5e4e07c6`. The delivery commit is `71942e66ab3cd596dd1e85d9d910cf302d201388`. The Mac GPU checks cover archive suspension and retry on the same Metal instance, repair from a live bind and on-disk input, and the exact pipeline bound after two sessions of training. [Engine producer](https://github.com/TarbleFR/RewindBox/actions/runs/44535281536) · [Delivery manifest](../../delivery/794.json)
+
 The title check for pending save slots compiled on both macOS runners in [run 44321233097](https://github.com/TarbleFR/RewindBox/actions/runs/44321233097). Zero warnings targeted its 19 added engine lines. The shader translator stamp matches IPA 787. [Library](https://github.com/TarbleFR/RewindBox/actions/runs/44321234483) and [bridge](https://github.com/TarbleFR/RewindBox/actions/runs/44321233960) checks passed.
 
 The save profile and restore-result follow-up compiled on both runners in [run 44305135295](https://github.com/TarbleFR/RewindBox/actions/runs/44305135295). No warning targeted an added engine line. The shader translator stamp still matches IPA 786.
