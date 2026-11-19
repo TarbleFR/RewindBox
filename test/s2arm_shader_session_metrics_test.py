@@ -8,6 +8,26 @@ from shader_session_metrics import summarize
 
 
 class SessionMetricsTests(unittest.TestCase):
+    def test_course_windows_keep_all_frames_and_unknown_boundaries(self):
+        with tempfile.TemporaryDirectory() as directory:
+            host = Path(directory) / "host.log"
+            def row(start, end, asset, n):
+                return (f"RewindBox course metrics frames={start}..{end} asset={asset} samples={n} "
+                        "interval_ms=511.100 over100=1 over500=1 pso_wait_ms=12.250 shared_library_wait_ms=0.400 "
+                        "xlate_wait_ms=2.000 xlate_ms=3.000 msl_count=1 msl_ms=4.000 texture_upload_ms=5.020 "
+                        "texture_gpu_completed_ms=0.300")
+            text = "\n".join((row(1, 4, "unknown", 1), row(1, 4, "FirstCircuit_A_00[Game03]", 3),
+                              row(5, 8, "unknown", 1)))
+            host.write_text(text)
+            result = summarize(host, [], 0, 99)["courseAssetWindows"]
+            self.assertEqual(result["incompleteWindows"], [[5, 8]])
+            self.assertEqual(result["completeIntervalsByAsset"]["unknown"]["samples"], 1)
+            self.assertEqual(result["completeIntervalsByAsset"]["FirstCircuit_A_00[Game03]"]["texture_upload_ms"], 5.02)
+            self.assertEqual(summarize(host, [], 2, 6)["courseAssetWindows"]["completeIntervalsByAsset"], {})
+            host.write_text(text + "\n" + row(1, 4, "unknown", 1))
+            with self.assertRaisesRegex(ValueError, "Duplicate course"):
+                summarize(host, [], 0, 99)
+
     def test_complete_windows_and_timed_gaps(self):
         with tempfile.TemporaryDirectory() as directory:
             host = Path(directory) / "host.log"

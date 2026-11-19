@@ -7,6 +7,36 @@ from pathlib import Path
 import re
 
 
+COURSE_FIELDS = ("samples", "interval_ms", "over100", "over500", "pso_wait_ms",
+                 "shared_library_wait_ms", "xlate_wait_ms", "xlate_ms", "msl_count",
+                 "msl_ms", "texture_upload_ms", "texture_gpu_completed_ms")
+COURSE_COUNTS = {"samples", "over100", "over500", "msl_count"}
+COURSE_LINE = re.compile(
+    r"RewindBox course metrics frames=(\d+)\.\.(\d+) asset=([A-Za-z0-9_\[\]-]{1,63}) "
+    + " ".join(key + (r"=(\d+)" if key in COURSE_COUNTS else r"=(\d+\.\d+)") for key in COURSE_FIELDS)
+    + r"\s*$")
+
+
+def course_totals(windows):
+    by_asset = {}
+    first_incomplete = []
+    previous_end = -1
+    for (start, end), assets in sorted(windows.items()):
+        if start <= previous_end or end < start:
+            raise ValueError("Overlapping course windows. Supply a single session.")
+        previous_end = end
+        if sum(row["samples"] for row in assets.values()) != end - start + 1:
+            first_incomplete.append([start, end])
+            continue
+        for asset, row in assets.items():
+            totals = by_asset.setdefault(asset, dict.fromkeys(COURSE_FIELDS, 0))
+            for key, value in row.items():
+                totals[key] += value
+    for totals in by_asset.values():
+        for key in totals.keys() - COURSE_COUNTS:
+            totals[key] = round(totals[key], 3)
+    return {"completeIntervalsByAsset": by_asset, "incompleteWindows": first_incomplete}
+
 def summarize(host, captures, first, last):
     def selected(frame):
         return first <= frame <= last
@@ -43,12 +73,21 @@ def summarize(host, captures, first, last):
     long_frames, waits, footprint, thermal = {}, [], [], {}
     slow_logged = {100: 0, 200: 0, 500: 0}
     full_windows, gap_rows, reference_binds = [], {}, []
+    course_windows = {}
     archive = None
     missing = None
     shared_library_count = None
     completed_predictions, active_prediction, governor = [], None, []
     with host.open(encoding="utf-8", errors="replace") as lines:
         for line in lines:
+            if "RewindBox course metrics frames=" in line:
+                m = COURSE_LINE.search(line)
+                if m and selected(int(m[1])) and selected(int(m[2])):
+                    assets = course_windows.setdefault((int(m[1]), int(m[2])), {})
+                    if m[3] in assets:
+                        raise ValueError("Duplicate course window and asset. Supply a single session.")
+                    assets[m[3]] = {key: (int(v) if key in COURSE_COUNTS else float(v))
+                                    for key, v in zip(COURSE_FIELDS, m.groups()[3:])}
             m = re.search(r"\[longframe\] frame (\d+) \(([\d.]+) s\) whole frame ([\d.]+) ms", line)
             if m and selected(int(m[1])):
                 parts = re.search(r"shader translations on the submit thread (\d+), ([\d.]+) ms, waits for one in flight (\d+), ([\d.]+) ms; MSL compiled there (\d+), ([\d.]+) ms", line)
@@ -110,7 +149,8 @@ def summarize(host, captures, first, last):
         intervals = {"first": full_windows[0][0], "last": full_windows[-1][1], "samples": n,
                      "missingWithinObservedSpan": full_windows[-1][1] - full_windows[0][0] + 1 - n,
                      "averageFPS": round(n * 1e9 / ns, 3), "over100Ms": s100, "over200Ms": s200, "over500Ms": s500}
-    return {"frameSignatureIntervals": sig, "completeHostWindows": intervals, "referenceBinds": reference_binds,
+    return {"courseAssetWindows": course_totals(course_windows),
+        "frameSignatureIntervals": sig, "completeHostWindows": intervals, "referenceBinds": reference_binds,
         "selectedLoggedFrames": {"rowsOverMs": slow_logged, "submitGaps": gap_rows,
         "longFrameRows": len(long_frames), "rowsWithCompilerBreakdown": len(available),
         "compilerTotalsOnTheseRows": dict(zip(

@@ -1,0 +1,911 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 685bc81..18c367c 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -2901,6 +2901,8 @@ void nvn_hle_queue_enter(void *q) {
+ }
+ void nvn_hle_piece_begun(void) { nvn_ft_poll(); }
+ #include "rb_submit_gap.h"
++extern void nvn_rb_course_frame(uint64_t frame, uint64_t ns, double texture_ms, double gpu_upload_ms, double xlate_ms,
++                                double xwait_ms, unsigned msl_n, double msl_ms) __attribute__((weak_import));
+ static pthread_mutex_t rb_gap_lock = PTHREAD_MUTEX_INITIALIZER;
+ static rb_gap_clock rb_calls;
+ static rb_frame_window rb_intervals;
+@@ -3849,6 +3851,7 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+         trow(g_frame, "@rec_ms", rec * tb.numer / tb.denom / 1e6); trow(g_frame, "@submit_ms", sub * tb.numer / tb.denom / 1e6);
+         tpush(4, rec * tb.numer / tb.denom / 1e6); tpush(5, sub * tb.numer / tb.denom / 1e6);
+     }
++    uint64_t rb_interval = f && rb_last_present && t0 >= rb_last_present ? t0-rb_last_present : 0;
+     if (f && rb_last_present && t0 >= rb_last_present) {
+         rb_frame_add(&rb_intervals, t0 - rb_last_present);
+         if (rb_intervals.count == 300) rb_report_intervals(f);
+@@ -3896,7 +3899,8 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+         double rb_mp_ms = (mn_ - pmn) / 1e6;   // RewindBox (patch 0065): for the long-frame line
+         trow(f, "@mprotect_calls", (double)(mc_ - pmc)); trow(f, "@mprotect_pages", (double)(mpg_ - pmp)); trow(f, "@mprotect_ms", (mn_ - pmn) / 1e6); pmc = mc_; pmp = mpg_; pmn = mn_;
+         double up_ms = nvn_be_upload_ns_take() / 1e6; trow(f, "@upload_ms", up_ms);
+-        trow(f, "@upload_gpu_ms", nvn_be_upload_gpu_ns_take() / 1e6);
++        double rb_upload_gpu_ms=nvn_be_upload_gpu_ns_take()/1e6;
++        trow(f, "@upload_gpu_ms", rb_upload_gpu_ms);
+         // Accounting: number of synchronous creations on the submit thread this frame + a timestamp on the same clock as UIMSG (offline, frames are split into front end / loading / in-run by the loading screen intervals)
+         static uint64_t plib, ppso; uint64_t lib_, pso_; nvn_be_create_stats(&lib_, &pso_);
+         trow(f, "@lib_new", (double)(lib_ - plib)); trow(f, "@pso_new", (double)(pso_ - ppso));
+@@ -3936,6 +3940,7 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+                 r->xn = (unsigned)(x[0] - px[0]); r->x_ms = (x[1] - px[1]) / 1e6; r->xwn = (unsigned)(x[2] - px[2]); r->xw_ms = (x[3] - px[3]) / 1e6; r->msl_n = (unsigned)(x[4] - px[4]); r->msl_ms = (x[5] - px[5]) / 1e6;
+                 memcpy(px, x, sizeof px);
+             }
++            if (nvn_rb_course_frame && rb_interval) nvn_rb_course_frame(f,rb_interval,r->up_ms,rb_upload_gpu_ms,r->x_ms,r->xw_ms,r->msl_n,r->msl_ms);
+             nvn_be_tex_absent_take(&g_lf_abs[f % LFN][0], &g_lf_abs[f % LFN][1], &g_lf_abs[f % LFN][2]);   // RewindBox (patch 0070)
+         }
+         plib = lib_; ppso = pso_;
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index efc0583..65745a6 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1647,6 +1647,10 @@ static inline void enc_r_end(id e) { m4_end(e); }
+  // and remove the first actual encoder bind from the same tiny table.
+ static nvn_hmap g_rb_promoted_objects = {.klen = sizeof(void *)};
+ static int g_rb_observing = 1;
++static _Atomic int g_course_capture;
++static _Atomic uint64_t g_course_pso_wait_ns, g_course_library_wait_ns;
++static void rb_course_bound(id ps);
++
+ static nvn_hmap g_rb_seed_objects = {.klen = sizeof(void *)}; // submit thread only
+ static void rb_ref_bound(id ps);
+ static void rb_trace_bound(id ps);
+@@ -1654,6 +1658,7 @@ static inline void enc_r_pso(id<MTL4RenderCommandEncoder> e, id<MTLRenderPipelin
+     [e setRenderPipelineState:p];
+     if (g_rb_promoted_objects.n && e) rb_trace_bound(p);
+     if (g_rb_seed_objects.n && e) rb_ref_bound(p);
++    if (e && atomic_load_explicit(&g_course_capture,memory_order_relaxed)) rb_course_bound(p);
+ }
+ static inline void enc_r_dss(id<MTL4RenderCommandEncoder> e, id<MTLDepthStencilState> s) { [e setDepthStencilState:s]; }
+ static inline void enc_r_viewport(id<MTL4RenderCommandEncoder> e, MTLViewport v) { [e setViewport:v]; }
+@@ -9474,6 +9479,7 @@ static NvShader *shader_load_submit(NSString *pc, int stage, int layer, int dept
+     if (built) { if (shader) g_bp_lib_n++; g_bp_lib_ns += bp_now() - start; }
+     else g_bp_lib_ns += wait_ns;
+     g_bp_lib_wait_ns += wait_ns;
++    if (wait_ns) atomic_fetch_add_explicit(&g_course_library_wait_ns,wait_ns,memory_order_relaxed);
+     return shader;
+ }
+ // RewindBox (patch 0069): the long-frame line's counters (hle_nvn.c lf_rec): translations on the submit thread and their ms, waits for one in flight and their ms (dsh_miss.inc
+@@ -11862,7 +11868,8 @@ static id<MTLRenderPipelineState> pso_pend_take(const pso_key *k, int *timed_out
+     if (at >= 0) { blk = !g_pp[at].done; if (blk) DM_BLOCK_BEGIN(); uint64_t w0 = bp_now();
+         struct timespec dl; clock_gettime(CLOCK_REALTIME, &dl); dl.tv_sec += ms / 1000; dl.tv_nsec += (long)(ms % 1000) * 1000000; if (dl.tv_nsec >= 1000000000) { dl.tv_sec++; dl.tv_nsec -= 1000000000; }
+         while (!g_pp[at].done) if (ms ? pthread_cond_timedwait(&g_pp_cv, &g_pp_mu, &dl) == ETIMEDOUT : pthread_cond_wait(&g_pp_cv, &g_pp_mu)) break;
+-        if (blk) { if (lw) g_rb_lw_ns += bp_now() - w0; else g_pp_bud_ns += bp_now() - w0; }   // RewindBox (patch 0069): lw charges its own allowance
++        if (blk) { uint64_t waited=bp_now()-w0; if (lw) g_rb_lw_ns+=waited; else g_pp_bud_ns+=waited;
++            atomic_fetch_add_explicit(&g_course_pso_wait_ns,waited,memory_order_relaxed); }   // RewindBox (patch 0069): lw charges its own allowance
+         if (blk && !may_skip && bp_now() - w0 > (uint64_t)pso_wait_ms() * 1000000ull) { static unsigned n; if (n++ < 8) MLOG("【红】 a draw that cannot be skipped (its target keeps content across frames) waited %.0f ms for its pipeline to compile%s", (bp_now() - w0) / 1e6, g_pp[at].done ? "" : ": past DM_NVN_PSO_UNSAFE_WAIT_MS, skipped after all (the picture may be wrong until the pipeline arrives)"); }
+         if (g_pp[at].done) { ps = g_pp[at].ps; g_pp[at].ps = nil; g_pp[at].used = 0; }
+         else if (lw && ms < pso_wait_ms()) { *timed_out = 2; rb_late_skip_note(); }   // RewindBox (patch 0069): the allowance ran out first
+@@ -12031,6 +12038,7 @@ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_(NvProg *pr, MTLRe
+ //   reading the expanded domain points (dmsh_build.py tess_finish). Taking sh[0] there paired the capture vertex shader with a fragment shader that reads what the domain stage writes:
+ //   pso_pair_ok rejected every pair and none of The Witcher 3's 8 patch draws drew (w3tess6b, 10-28). g_pso_why: why the last call returned nil, for a caller whose red line names it
+ static void rb_trace_used(id ps, const pso_key *k, NvShader *vs, NvShader *fs);
++static void rb_course_candidate(id ps, const pso_key *k, NvShader *vs, NvShader *fs);
+ static char g_pso_why[200];
+ // Submit-thread only: pso_get_ (normal/GS final draw) and tess_draw are the two
+ // callers. Background prewarm builds descriptors directly, without this state.
+@@ -12062,6 +12070,8 @@ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_vs(NvProg *pr, NvS
+     __unsafe_unretained id<MTLRenderPipelineState> cached = hm_get_id(&g_pso, &k);
+     if (cached) {
+         if (g_rb_observing && !g_pso_lmap && !k.fsfn) rb_trace_used(cached, &k, vs, fs);
++        if (atomic_load_explicit(&g_course_capture,memory_order_relaxed) && !g_pso_lmap && !k.fsfn)
++            rb_course_candidate(cached, &k, vs, fs);
+         return cached;
+     }
+     if (hm_get_id(&g_pso_fail, &k)) { PSO_WHY("on the failed list (its first build was refused; the red line then said why)"); return nil; }
+@@ -12150,6 +12160,8 @@ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_vs(NvProg *pr, NvS
+     quar_built(vs, fs);
+     hm_put_id(&g_pso, &k, ps);
+     if (g_rb_observing && !g_pso_lmap && !k.fsfn) rb_trace_used(ps, &k, vs, fs);
++        if (atomic_load_explicit(&g_course_capture,memory_order_relaxed) && !g_pso_lmap && !k.fsfn)
++            rb_course_candidate(ps, &k, vs, fs);
+     return ps;
+ }
+ static NSString *warm_key(const char *s, size_t n) {
+@@ -12160,7 +12172,7 @@ static NSString *warm_key(const char *s, size_t n) {
+ // shaders, so one worker builds them one after the other). The tasks keep the lists' order (a pair at its first line). shader_load shares successful objects and in-flight loads
+ // with prefetch and runtime, without negatively caching failures. After the upstream reference implementation (MIT) warm_parse / warm_task
+ #include "rb_reference.inc"
+-@interface WarmTask : NSObject { @public RBReferenceProof *reference; NSString *referenceIdentity; BOOL externalOnly; int kind, stage, fc; uint32_t pad; NSString *key, *vkey, *fkey, *tkey; NSMutableArray<NSData *> *rs; } @end   // fc: a C line's sampler-emulation bits this GPU runs (#800, warm_parse)
++@interface WarmTask : NSObject { @public RBReferenceProof *reference; NSString *referenceIdentity; BOOL externalOnly; uint8_t cupRank; int kind, stage, fc; uint32_t pad; NSString *key, *vkey, *fkey, *tkey; NSMutableArray<NSData *> *rs; } @end   // fc: a C line's sampler-emulation bits this GPU runs (#800, warm_parse)
+ @implementation WarmTask @end
+ static _Atomic long g_warm_done;   // lines done (the prepare step's progress)
+ static _Atomic int g_wp_phase, g_wp_why, g_wp_play; static _Atomic long g_wp_total; static _Atomic uint64_t g_wp_t0;
+@@ -12509,7 +12521,11 @@ static NSArray<WarmTask *> *warm_parse(NSArray<NSString *> *paths, long *lines)
+         if (!txt) { if (reference) rb_ref_abort(); MLOG("【红】 cannot read prewarm list: %s", path.UTF8String); continue; }
+         { unsigned long nl = 0; for (NSString *l in [txt componentsSeparatedByString:@"\n"]) nl += l.length && ![l hasPrefix:@"#"];
+           MLOG("pipeline prewarm list %s: %lu lines", path.UTF8String, nl); }   // Diagnostics: how many lines each manifest gave (when a device warms up 0, shows which one was missing)
++        BOOL tagged=NO; unsigned cupOrdinal=0;
+         for (NSString *line in [txt componentsSeparatedByString:@"\n"]) {
++            if (externalList && [line isEqual:@"# rb-kart-cup-row-v1"]) { tagged=YES; continue; }
++            uint8_t rank=tagged && cupOrdinal<128 && [line hasPrefix:@"R\t"] ? (uint8_t)++cupOrdinal : 0;
++            tagged=NO;
+             if (!line.length || [line hasPrefix:@"#"] || [seen containsObject:line]) continue;
+             [seen addObject:line];
+             NSArray<NSString *> *c = [line componentsSeparatedByString:@"\t"];
+@@ -12537,7 +12553,7 @@ static NSArray<WarmTask *> *warm_parse(NSArray<NSString *> *paths, long *lines)
+                 // One task per R line (11-06, Xenoblade 3 on 测试设备1): lines used to be grouped per (vertex, fragment) pair and a pair's pipelines built one after another on one
+                 //   worker; its list has a pair with 73 lines, so the prepare step's last lines ran on one core while the rest idled and the first frame waited the whole 15 s cap with
+                 //   12497 of 12523 lines done. The shaders' loads are shared anyway (shader_load_depth: one load per key, waiters join the one in flight), so the pair bought nothing
+-                t = [WarmTask new]; t->kind = 1; t->vkey = vkey; t->fkey = fkey; t->rs = [NSMutableArray arrayWithObject:[NSData dataWithBytes:&sk length:sizeof sk]];
++                t = [WarmTask new]; t->kind = 1; t->cupRank=rank; t->vkey = vkey; t->fkey = fkey; t->rs = [NSMutableArray arrayWithObject:[NSData dataWithBytes:&sk length:sizeof sk]];
+                 // A previously deferred recipe encountered in play already lives in
+                 // pso_user.tsv. Promote its actual row next launch without modifying
+                 // the host's sealed profile or inventing a new cache.
+@@ -12599,8 +12615,9 @@ static long rb_ref_take_hint(void) {
+ }
+ static void warm_urgent_index(NSArray<WarmTask *> *tasks) {
+     NSMutableDictionary<NSString *, NSMutableArray<NSNumber *> *> *m = [NSMutableDictionary dictionary];
+-    long lateRows[2]={0,0};
++    long lateRows[2]={0,0}, cupRows[128]={0};
+     for (NSUInteger i = 0; i < tasks.count; i++) { WarmTask *t = tasks[i]; if (t->kind != 1) continue;
++        if (t->cupRank && t->cupRank<=128) cupRows[t->cupRank-1]=(long)i+1;
+         if ([t->fkey isEqual:@"eb4884ca0964a92f_b"]) for (int slot=0;slot<2;++slot) {
+             if (strncmp(t->vkey.UTF8String,rb_ref_late_vs[slot],16)) continue;
+             NSData *row=t->rs.firstObject;
+@@ -12610,13 +12627,15 @@ static void warm_urgent_index(NSArray<WarmTask *> *tasks) {
+         NSMutableArray *a = m[k]; if (!a) m[k] = a = [NSMutableArray array]; [a addObject:@(i)]; }
+     _Atomic(uint8_t) *c = calloc(tasks.count ? tasks.count : 1, sizeof *c);
+     os_unfair_lock_lock(&g_wu_lock); free((void *)g_wu_claim); g_wu_claim = c; g_wu_n = (long)tasks.count; atomic_store(&g_wu_remaining, g_wu_n); g_wu_pairs = c ? m : nil; g_wu_q = [NSMutableArray array];
++    memcpy(g_course_starters,cupRows,sizeof cupRows);
++    rb_course_rows_locked(nil);
+     g_rb_follow_rows = nil; atomic_store(&g_rb_next_row, 0);
+     atomic_store(&g_ref_late_rows[0],lateRows[0]); atomic_store(&g_ref_late_rows[1],lateRows[1]);
+     atomic_store(&g_ref_late_hints,0); atomic_store(&g_ref_late_live,c ? (!!lateRows[0] | (!!lateRows[1]<<1)) : 0);
+     os_unfair_lock_unlock(&g_wu_lock);
+     if (c) rb_trace_index(tasks, m);
+ }
+-static void warm_urgent_end(void) { os_unfair_lock_lock(&g_wu_lock); g_wu_pairs = nil; atomic_store(&g_ref_late_live,0); atomic_store(&g_ref_late_hints,0); [g_wu_q removeAllObjects]; os_unfair_lock_unlock(&g_wu_lock); }   // 标记数组留给还没退出的工人读（随下一次索引换掉）
++static void warm_urgent_end(void) { os_unfair_lock_lock(&g_wu_lock); memset(g_course_starters,0,sizeof g_course_starters); rb_course_rows_locked(nil); g_wu_pairs = nil; atomic_store(&g_ref_late_live,0); atomic_store(&g_ref_late_hints,0); [g_wu_q removeAllObjects]; os_unfair_lock_unlock(&g_wu_lock); }   // 标记数组留给还没退出的工人读（随下一次索引换掉）
+ // 工人领下一行：先急件，再按清单顺序；已领的跳过。→ 下标，-1 = 没有了
+ // RewindBox (patch 0121): w, the background worker's index (-1: the prepare step's workers, the first frame waits on them, never held): a sequential row waits for the
+ //   speculative level (rb_spec_may); a row moved to the front by a program the game registered (warm_bump) is taken whatever the level
+@@ -12641,7 +12660,11 @@ static long warm_pick(_Atomic long *next, long n, int w, int *lease) {
+ #endif
+             rb_spec_park(ticket); continue;
+         }
+-        long routeHint=(!urgent && w>=0 && !atomic_load(&g_fu_waiting)) ? rb_ref_take_hint() : 0;
++        long routeHint=0;
++        if (!urgent && w>=0 && !atomic_load(&g_fu_waiting)) {
++            routeHint=rb_course_take_hint();
++            if (!routeHint) routeHint=rb_ref_take_hint();
++        }
+         long hint=routeHint ? routeHint : (!urgent && w>=0 ? atomic_exchange(&g_rb_next_row,0) : 0);
+         if (hint && (atomic_load(&g_fu_waiting) || !c || hint > cn || hint > n)) hint = 0;
+         if (hint) {
+diff --git a/graphics/nvn/gfx/nvn/rb_course_history.h b/graphics/nvn/gfx/nvn/rb_course_history.h
+new file mode 100644
+index 0000000..5bf2769
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_course_history.h
+@@ -0,0 +1,76 @@
++// MKW 1.0.0 course cues. No guest paths or game payload are persisted.
++#pragma once
++#include <stdint.h>
++#include <string.h>
++#include <stddef.h>
++enum { RB_COURSES=32, RB_COURSE_KEYS=8, RB_COURSE_NAME=64,
++       RB_COURSE_UNKNOWN=-1, RB_COURSE_MENU=-2, RB_COURSE_SEQUENCE=-3,
++       RB_COURSE_IGNORE=-4, RB_COURSE_CONFLICT=-5 };
++typedef struct { char name[RB_COURSE_NAME]; uint64_t key[RB_COURSE_KEYS]; } rb_course_entry;
++typedef struct {
++    uint64_t version, checksum;
++    uint32_t starts, first;
++    rb_course_entry course[RB_COURSES];
++} rb_course_db;
++static inline int rb_course_token(const char *p,size_t n) {
++    if (!n || n>=RB_COURSE_NAME) return 0;
++    for (size_t i=0; i<n; ++i) {
++        char c=p[i]; if (!(('a'<=c&&c<='z') || ('A'<=c&&c<='Z') ||
++            ('0'<=c&&c<='9') || c=='_' || c=='[' || c==']' || c=='-')) return 0;
++    }
++    return 1;
++}
++static inline int rb_course_parse(const char *p,size_t n,char out[RB_COURSE_NAME]) {
++    const char menu[]="Layout/CourseBtn_00.Nin_Ounce_NVN2.blarc.zs", seq[]="AI/RaceSequence.root.ainb";
++    const char pre[]="Banc/Race_",ext[]=".bcett.byml.zs";
++    if (n==sizeof(menu)-1 && !memcmp(p,menu,n)) return RB_COURSE_MENU;
++    if (n==sizeof(seq)-1 && !memcmp(p,seq,n)) return RB_COURSE_SEQUENCE;
++    if (n<=sizeof(pre)+sizeof(ext)-2 || memcmp(p,pre,sizeof(pre)-1) || memcmp(p+n-sizeof(ext)+1,ext,sizeof(ext)-1))
++        return RB_COURSE_IGNORE;
++    size_t len=n-(sizeof(pre)+sizeof(ext)-2);
++    if (!rb_course_token(p+sizeof(pre)-1,len)) return RB_COURSE_IGNORE;
++    memcpy(out,p+sizeof(pre)-1,len); out[len]=0; return 0;
++}
++static inline int rb_course_slot(rb_course_db *db,const char *name) {
++    for (int i=0;i<RB_COURSES;++i) {
++        if (!db->course[i].name[0]) { memcpy(db->course[i].name,name,strlen(name)+1); return i; }
++        if (!strcmp(db->course[i].name,name)) return i;
++    }
++    return RB_COURSE_UNKNOWN;
++}
++static inline uint64_t rb_course_checksum(const rb_course_db *db) {
++    const unsigned char *p=(const unsigned char *)&db->starts;
++    uint64_t h=14695981039346656037ull;
++    for (size_t i=0;i<sizeof(*db)-offsetof(rb_course_db,starts);++i) { h^=p[i]; h*=1099511628211ull; }
++    return h;
++}
++static inline int rb_course_valid(const rb_course_db *db,size_t n) {
++    if (n!=sizeof(*db) || db->version!=1 || db->first>=RB_COURSES || db->starts>2 ||
++        db->checksum!=rb_course_checksum(db) || (db->starts&&!db->course[db->first].name[0])) return 0;
++    for (int i=0;i<RB_COURSES;++i) {
++        const rb_course_entry *e=&db->course[i];
++        const char *end=memchr(e->name,0,sizeof e->name);
++        if (!end || (e->name[0] && !rb_course_token(e->name,end-e->name))) return 0;
++    }
++    return 1;
++}
++static inline void rb_course_first(rb_course_db *db,unsigned slot) {
++    if (db->starts && db->first==slot) { if (db->starts<2) ++db->starts; }
++    else {db->first=slot; db->starts=1;}
++}
++static inline int rb_course_add(rb_course_entry *e,uint64_t key) {
++    if (!key) return 0;
++    for (int i=0;i<RB_COURSE_KEYS;++i) {
++        if (e->key[i]==key) return 0;
++        if (!e->key[i]) { e->key[i]=key; return 1; }
++    }
++    return 0;
++}
++typedef struct { unsigned count, slow100, slow500, libs; uint64_t ns,pso_wait,lib_wait;
++    double upload,upload_gpu,xlate,xwait,msl; } rb_course_sample;
++static inline void rb_course_sample_add(rb_course_sample *s,uint64_t ns,double upload,double upload_gpu,double xlate,double xwait,
++                                        unsigned libs,double msl,uint64_t pso_wait,uint64_t lib_wait) {
++    ++s->count; s->ns+=ns; s->slow100+=ns>100000000; s->slow500+=ns>500000000;
++    s->upload+=upload; s->upload_gpu+=upload_gpu; s->xlate+=xlate; s->xwait+=xwait; s->libs+=libs; s->msl+=msl;
++    s->pso_wait+=pso_wait; s->lib_wait+=lib_wait;
++}
+diff --git a/graphics/nvn/gfx/nvn/rb_course_tracking.inc b/graphics/nvn/gfx/nvn/rb_course_tracking.inc
+new file mode 100644
+index 0000000..606f417
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_course_tracking.inc
+@@ -0,0 +1,192 @@
++// One scheduling hint per existing worker claim. Only exact R rows confirmed by
++// an encoder bind in a named course window can enter this tiny history.
++#include "rb_course_history.h"
++extern uint64_t s2a_npdm_program_id(void) __attribute__((weak_import));
++static rb_course_db g_course_prior, g_course_live; // g_wu_lock
++static NSDictionary *g_course_rows;
++static NSString *g_course_path;
++static _Atomic int g_course_on=-1, g_course_hints;
++static int g_course_current=RB_COURSE_UNKNOWN;
++static _Atomic int g_course_pending=RB_COURSE_IGNORE;
++static char g_course_pending_name[RB_COURSE_NAME];
++static int g_course_first=-1,g_course_dirty,g_course_queued;
++static long g_course_hint[RB_COURSE_KEYS],g_course_starters[128];
++static unsigned g_course_epoch,g_course_attempts,g_course_frames,g_course_lookups;
++static uintptr_t g_course_probed[RB_COURSE_KEYS*2];
++static rb_course_sample g_course_samples[RB_COURSES+3]; // present thread / after drain
++static unsigned g_course_sample_count;
++static uint64_t g_course_first_frame,g_course_last_frame;
++static _Thread_local struct { uintptr_t ps; uint64_t key; unsigned epoch; } t_course;
++static int rb_course_enabled(void) {
++    int on=atomic_load_explicit(&g_course_on,memory_order_acquire);
++    if (on>=0) return on;
++    const char *b=s2a_main_build_id ? s2a_main_build_id() : NULL;
++    if (!b || !*b) return 0; // guest loader not ready
++    on=!strcasecmp(b,rb_ref_build) && s2a_npdm_program_id && s2a_npdm_program_id()==0x0400c3f00006e000ull;
++    atomic_store_explicit(&g_course_on,on,memory_order_release); return on;
++}
++static int rb_course_known(const rb_course_db *db,const char *name) {
++    for (int i=0;i<RB_COURSES;++i) if (db->course[i].name[0] && !strcmp(name,db->course[i].name)) return i;
++    return -1;
++}
++static void rb_course_hints_locked(void) {
++    int src=-1,n=0;
++    if (g_course_current>=0) src=rb_course_known(&g_course_prior,g_course_live.course[g_course_current].name);
++    else if ((g_course_current==RB_COURSE_MENU || g_course_current==RB_COURSE_SEQUENCE) &&
++             g_course_first<0 && g_course_prior.starts>=2) src=(int)g_course_prior.first;
++    if (src>=0) for (int i=0;i<RB_COURSE_KEYS;++i) {
++        uint64_t key=g_course_prior.course[src].key[i];
++        if (!key) break;
++        long row=[g_course_rows[@(key)] longValue];
++        if (row>0) g_course_hint[n++]=row;
++    }
++    if (!n && g_course_current!=RB_COURSE_UNKNOWN && g_wu_claim) {
++        // No track association. On the first cup selection/loading, take a short
++        // prefix of the corroborated external list in Kartnative observation order.
++        for (int i=0;i<128 && n<RB_COURSE_KEYS;++i) {
++            long row=g_course_starters[i];
++            if(row>0 && row<=g_wu_n && atomic_load(&g_wu_claim[row-1])==RB_ROW_FREE) g_course_hint[n++]=row;
++        }
++    }
++    // Reverse for a bounded stack, preserving the observed first-bind order.
++    for(int i=0;i<n/2;++i) { long tmp=g_course_hint[i];g_course_hint[i]=g_course_hint[n-i-1];g_course_hint[n-i-1]=tmp; }
++    atomic_store(&g_course_hints,n);
++}
++static void rb_course_rows_locked(NSDictionary *rows) { g_course_rows=rows; rb_course_hints_locked(); }
++static long rb_course_take_hint(void) {
++    if (!atomic_load_explicit(&g_course_hints,memory_order_relaxed)) return 0;
++    os_unfair_lock_lock(&g_wu_lock);
++    int n=atomic_load(&g_course_hints);
++    long row=n ? g_course_hint[n-1] : 0;
++    if (n) atomic_store(&g_course_hints,n-1);
++    os_unfair_lock_unlock(&g_wu_lock); return row;
++}
++// Called on the serial trace I/O queue. Read length-capped, including damaged files.
++static NSSet *rb_course_load(RBPipelineTrace *run) {
++    if (!rb_course_enabled()) return nil;
++    NSString *path=[run->path stringByAppendingString:@".courses-v1"];
++    rb_course_db hist={0};
++    FILE *f=fopen(path.fileSystemRepresentation,"rb");
++    if (f) {
++        size_t n=fread(&hist,1,sizeof hist,f);
++        if (!rb_course_valid(&hist,n) || fgetc(f)!=EOF || ferror(f)) memset(&hist,0,sizeof hist);
++        fclose(f);
++    }
++    NSMutableSet *keys=[NSMutableSet set];
++    for (int i=0;i<RB_COURSES;++i) for (int j=0;j<RB_COURSE_KEYS && hist.course[i].key[j];++j)
++        [keys addObject:@(hist.course[i].key[j])];
++    os_unfair_lock_lock(&g_wu_lock); g_course_prior=hist; g_course_path=path; os_unfair_lock_unlock(&g_wu_lock);
++    return keys;
++}
++static void rb_course_checkpoint(void) {
++    // Serialized with load and with previous writes. Each checkpoint is a copy
++    // of the launch snapshot plus this run, so retries do not add fake starts.
++    rb_course_db db,live; NSString *path; int first;
++    os_unfair_lock_lock(&g_wu_lock);
++    path=g_course_path;first=g_course_first;db=g_course_prior;live=g_course_live;g_course_dirty=0;
++    os_unfair_lock_unlock(&g_wu_lock);
++    for (int i=0;path && i<RB_COURSES;++i) {
++        if (!live.course[i].name[0]) break;
++        int slot=rb_course_slot(&db,live.course[i].name); if(slot<0) continue;
++        for(int j=0;j<RB_COURSE_KEYS && live.course[i].key[j];++j) rb_course_add(&db.course[slot],live.course[i].key[j]);
++        if (i==first) rb_course_first(&db,(unsigned)slot);
++    }
++    db.version=1;db.checksum=rb_course_checksum(&db);
++    BOOL ok=path && [[NSData dataWithBytes:&db length:sizeof db] writeToFile:path options:NSDataWritingAtomic error:NULL];
++    os_unfair_lock_lock(&g_wu_lock); if (!ok) g_course_dirty=1; g_course_queued=0; os_unfair_lock_unlock(&g_wu_lock);
++}
++static void rb_course_request_save(void) {
++    os_unfair_lock_lock(&g_wu_lock); int queue=g_course_path && g_course_dirty && !g_course_queued;
++    if(queue)g_course_queued=1; os_unfair_lock_unlock(&g_wu_lock);
++    if(queue) dispatch_async(rb_trace_io(),^{ @autoreleasepool {rb_course_checkpoint();} });
++}
++void nvn_rb_route_read(const char *p,int len) {
++    if (!p || len<=0 || !rb_course_enabled()) return;
++    char name[RB_COURSE_NAME]={0}; int kind=rb_course_parse(p,(size_t)len,name);
++    if (kind==RB_COURSE_IGNORE) return;
++    os_unfair_lock_lock(&g_wu_lock);
++    int prev=g_course_pending;
++    if (prev==RB_COURSE_CONFLICT || (kind<0 && prev>=0)) { os_unfair_lock_unlock(&g_wu_lock);return; }
++    if (prev>=0 && kind>=0 && strcmp(name,g_course_pending_name)) kind=RB_COURSE_CONFLICT;
++    g_course_pending=kind;
++    if (kind>=0) memcpy(g_course_pending_name,name,sizeof name);
++    os_unfair_lock_unlock(&g_wu_lock);
++}
++static void rb_course_candidate(id ps,const pso_key *k,NvShader *vs,NvShader *fs) {
++    t_course.ps=0; if (!ps) return;
++    uintptr_t raw=(uintptr_t)(__bridge void *)ps;
++    os_unfair_lock_lock(&g_wu_lock);
++    if (!atomic_load(&g_course_capture)) {os_unfair_lock_unlock(&g_wu_lock);return;}
++    if (++g_course_lookups>256) {atomic_store(&g_course_capture,0);os_unfair_lock_unlock(&g_wu_lock);return;}
++    for(unsigned j=0;j<g_course_attempts;++j) if(g_course_probed[j]==raw) {os_unfair_lock_unlock(&g_wu_lock);return;}
++    if(g_course_attempts>=RB_COURSE_KEYS*2){atomic_store(&g_course_capture,0);os_unfair_lock_unlock(&g_wu_lock);return;}
++    // Only insert in the probed set after an encoder really binds the object.
++    unsigned epoch=g_course_epoch;os_unfair_lock_unlock(&g_wu_lock);
++    pso_skey sk; pso_skey_from(k,vs,fs,0,NULL,&sk);
++    t_course.ps=raw;t_course.epoch=epoch;t_course.key=nvn_hm_hash(&sk,sizeof sk);
++}
++static void rb_course_bound(id ps) {
++    uintptr_t raw=(uintptr_t)(__bridge void *)ps;
++    if(t_course.ps!=raw)return;
++    t_course.ps=0;os_unfair_lock_lock(&g_wu_lock);
++    if(g_course_current>=0 && t_course.epoch==g_course_epoch && atomic_load(&g_course_capture)) {
++        if(g_course_attempts<RB_COURSE_KEYS*2)g_course_probed[g_course_attempts++]=raw;
++        rb_course_entry *e=&g_course_live.course[g_course_current];
++        g_course_dirty|=rb_course_add(e,t_course.key);
++        if(e->key[RB_COURSE_KEYS-1]||g_course_attempts==RB_COURSE_KEYS*2)atomic_store(&g_course_capture,0);
++    }
++    os_unfair_lock_unlock(&g_wu_lock);
++}
++static void rb_course_flush(void) {
++    for(unsigned i=0;i<RB_COURSES+3;++i) {
++        rb_course_sample *s=&g_course_samples[i];if (!s->count) continue;
++        const char *label=i==0?"unknown":i==1?"selection_asset":i==2?"race_sequence_asset":g_course_live.course[i-3].name;
++        MLOG("RewindBox course metrics frames=%llu..%llu asset=%s samples=%u interval_ms=%.3f over100=%u over500=%u pso_wait_ms=%.3f shared_library_wait_ms=%.3f xlate_wait_ms=%.3f xlate_ms=%.3f msl_count=%u msl_ms=%.3f texture_upload_ms=%.3f texture_gpu_completed_ms=%.3f",
++            (unsigned long long)g_course_first_frame,(unsigned long long)g_course_last_frame,label,s->count,s->ns/1e6,s->slow100,s->slow500,
++            s->pso_wait/1e6,s->lib_wait/1e6,s->xwait,s->xlate,s->libs,s->msl,s->upload,s->upload_gpu);
++    }
++    memset(g_course_samples,0,sizeof g_course_samples);g_course_sample_count=0;
++}
++void nvn_rb_course_frame(uint64_t frame,uint64_t ns,double upload,double upload_gpu,double xlate,double xwait,unsigned libs,double msl) {
++    if (!rb_course_enabled()) return;
++    uint64_t pw=atomic_exchange(&g_course_pso_wait_ns,0),lw=atomic_exchange(&g_course_library_wait_ns,0);
++    int prev=g_course_current,slot=prev;
++    if (atomic_load_explicit(&g_course_pending,memory_order_acquire)!=RB_COURSE_IGNORE) {
++        os_unfair_lock_lock(&g_wu_lock);
++        int cue=g_course_pending;
++        g_course_pending=RB_COURSE_IGNORE;
++        if(cue>=0) slot=rb_course_slot(&g_course_live,g_course_pending_name);
++        else if(cue==RB_COURSE_CONFLICT) slot=RB_COURSE_UNKNOWN;
++        else if(cue!=RB_COURSE_IGNORE) slot=cue;
++        if(slot!=prev) {
++            g_course_current=slot;++g_course_epoch;g_course_lookups=g_course_attempts=0;g_course_frames=0;
++            if(slot>=0 && g_course_first<0) {g_course_first=slot;g_course_dirty=1;}
++            atomic_store(&g_course_capture,slot>=0 && !g_course_live.course[slot].key[RB_COURSE_KEYS-1]);
++            rb_course_hints_locked();
++        }
++        os_unfair_lock_unlock(&g_wu_lock);
++    }
++    if (atomic_load_explicit(&g_course_capture,memory_order_relaxed) && ++g_course_frames>=120)
++        atomic_store(&g_course_capture,0);
++    // The interval spans the boundary. Never charge it to either named course.
++    int attributed=slot!=prev ? RB_COURSE_UNKNOWN : slot;
++    unsigned bucket=attributed>=0 ? (unsigned)attributed+3 : (unsigned)(-attributed-1);
++    rb_course_sample_add(&g_course_samples[bucket],ns,upload,upload_gpu,xlate,xwait,libs,msl,pw,lw);
++    if(!g_course_sample_count) g_course_first_frame=frame;
++    g_course_last_frame=frame;
++    if(++g_course_sample_count==300) {rb_course_flush();rb_course_request_save();}
++}
++static void rb_course_end(void) {
++    if (g_course_sample_count) rb_course_flush();
++    if (atomic_load(&g_course_on)==1) {
++        dispatch_sync(rb_trace_io(),^{});rb_course_request_save();dispatch_sync(rb_trace_io(),^{});
++    }
++    os_unfair_lock_lock(&g_wu_lock);
++    memset(g_course_starters,0,sizeof g_course_starters);
++    g_course_path=nil;g_course_rows=nil;g_course_prior=(rb_course_db){0};g_course_live=(rb_course_db){0};
++    g_course_pending=RB_COURSE_IGNORE;g_course_current=RB_COURSE_UNKNOWN;g_course_first=-1;
++    g_course_dirty=g_course_queued=0;++g_course_epoch;g_course_frames=g_course_attempts=0;
++    atomic_store(&g_course_capture,0);atomic_store(&g_course_hints,0);atomic_store(&g_course_on,-1);
++    atomic_store(&g_course_pso_wait_ns,0);atomic_store(&g_course_library_wait_ns,0);
++    os_unfair_lock_unlock(&g_wu_lock);
++}
+diff --git a/graphics/nvn/gfx/nvn/rb_external_profile.inc b/graphics/nvn/gfx/nvn/rb_external_profile.inc
+index ac492f9..efc0954 100644
+--- a/graphics/nvn/gfx/nvn/rb_external_profile.inc
++++ b/graphics/nvn/gfx/nvn/rb_external_profile.inc
+@@ -108,7 +108,13 @@ static int rb_ext_materialize(NSString *wire,NSString *pack,NSArray *sources,con
+     } }
+     NSString *path=[wire stringByAppendingPathComponent:@"pso_external.tsv"];
+     NSMutableString *inventory=[NSMutableString stringWithString:@"# RewindBox external profile 1\n"];
+-    for (NSString *row in ordered) [inventory appendFormat:@"%@\n",row];
++    unsigned kartRank=0;
++    for (NSString *row in ordered) {
++        if (kartRank<128 && ([families[row] unsignedIntValue]&1)) {
++            ++kartRank;[inventory appendString:@"# rb-kart-cup-row-v1\n"];
++        }
++        [inventory appendFormat:@"%@\n",row];
++    }
+     for (NSString *row in computes) [inventory appendFormat:@"%@\n",row];
+     if (![inventory writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:NULL]) return -1;
+     // Native observations, including a formerly missing exact draw, go first.
+diff --git a/graphics/nvn/gfx/nvn/rb_pso_transitions.inc b/graphics/nvn/gfx/nvn/rb_pso_transitions.inc
+index 50d6ae3..c8c2389 100644
+--- a/graphics/nvn/gfx/nvn/rb_pso_transitions.inc
++++ b/graphics/nvn/gfx/nvn/rb_pso_transitions.inc
+@@ -6,6 +6,7 @@ extern const char *s2a_main_build_id(void) __attribute__((weak_import));
+ @interface RBPipelineTrace : NSObject {
+ @public
+     NSString *path;
++    NSSet *courseKeys; // serial I/O queue only
+     rb_pso_trace current;                           // submit thread only
+     uint64_t seenPSO[RB_TRACE_SLOTS], seenKey[RB_TRACE_SLOTS];
+     size_t objectCount;
+@@ -16,6 +17,7 @@ extern const char *s2a_main_build_id(void) __attribute__((weak_import));
+ }
+ @end
+ @implementation RBPipelineTrace @end
++static NSSet *rb_course_load(RBPipelineTrace *run);
+ 
+ static dispatch_queue_t rb_trace_io(void) {
+     static dispatch_queue_t q;
+@@ -42,6 +44,7 @@ static RBPipelineTrace *rb_trace_session(void) {
+             run->path = [root stringByAppendingFormat:@".rb-trace-v1-%s-%s-%zu", build, DMSH_CHAIN, sizeof(pso_skey)];
+             g_rb_trace = run;
+             dispatch_async(rb_trace_io(), ^{ @autoreleasepool {
++                run->courseKeys=rb_course_load(run);
+                 // One fixed-size read even if a damaged file reports a huge size.
+                 FILE *f = fopen(run->path.fileSystemRepresentation, "rb");
+                 if (!f) return;
+@@ -95,35 +98,37 @@ static uint64_t g_rb_published, g_rb_reused;
+ static RBPipelineTrace *g_rb_submit_trace;
+ static int g_rb_submit_initialized;
+ 
++#include "rb_course_tracking.inc"
+ static void rb_trace_scan(NSArray<WarmTask *> *tasks, NSDictionary *epoch, NSDictionary *targets,
+-                          NSMutableDictionary *rows, NSUInteger offset) {
++                          NSMutableDictionary *rows, NSSet *courseKeys, NSMutableDictionary *courseRows, NSUInteger offset) {
+     os_unfair_lock_lock(&g_wu_lock);
+     int active = g_wu_pairs == epoch;
+     os_unfair_lock_unlock(&g_wu_lock);
+     if (!active || !epoch || dm_gfx_session_stopping() || nvn_be_stopping()) return;
+     int busy = atomic_load(&g_fu_waiting) || rb_spec_level() != RB_SPEC_RUN;
+     NSUInteger end = busy ? offset : MIN(tasks.count, offset + 128);
+-    for (; offset < end && rows.count < targets.count; offset++) {
++    for (; offset < end && (rows.count < targets.count || courseRows.count < courseKeys.count); offset++) {
+         WarmTask *t = tasks[offset];
+         if (t->kind != 1) continue;
+         NSData *data = t->rs.firstObject;
+         if (data.length != sizeof(pso_skey)) continue;
+         uint64_t key = nvn_hm_hash(data.bytes, sizeof(pso_skey));
++        if ([courseKeys containsObject:@(key)]) courseRows[@(key)]=@(offset+1);
+         NSNumber *src = targets[@(key)];
+         if (src) rows[src] = @(offset);
+     }
+-    if (offset < tasks.count && rows.count < targets.count) {
++    if (offset < tasks.count && (rows.count < targets.count || courseRows.count < courseKeys.count)) {
+         __weak NSArray *weakTasks = tasks;
+         __weak NSDictionary *weakEpoch = epoch;
+         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, busy ? 100 * NSEC_PER_MSEC : 0), rb_trace_io(), ^{ @autoreleasepool {
+             NSArray *nextTasks = weakTasks;
+             NSDictionary *nextEpoch = weakEpoch;
+-            if (nextTasks && nextEpoch) rb_trace_scan(nextTasks, nextEpoch, targets, rows, offset);
++            if (nextTasks && nextEpoch) rb_trace_scan(nextTasks, nextEpoch, targets, rows, courseKeys, courseRows, offset);
+         } });
+         return;
+     }
+     os_unfair_lock_lock(&g_wu_lock);
+-    if (g_wu_pairs == epoch) g_rb_follow_rows = rows;
++    if (g_wu_pairs == epoch) { g_rb_follow_rows = rows; rb_course_rows_locked(courseRows); }
+     os_unfair_lock_unlock(&g_wu_lock);
+ }
+ 
+@@ -134,7 +139,8 @@ static void rb_trace_index(NSArray<WarmTask *> *tasks, NSDictionary *epoch) {
+     if (!run) return;
+     dispatch_async(rb_trace_io(), ^{ @autoreleasepool {
+         const rb_pso_history *h = &run->priorLaunches;
+-        if (h->prior.count < 2 || h->latest.count < 2) return;
++        NSSet *courseKeys=run->courseKeys;
++        if ((h->prior.count < 2 || h->latest.count < 2) && !courseKeys.count) return;
+         rb_pso_edges *prior = calloc(1, sizeof *prior);
+         if (!prior) return;
+         rb_trace_edges(&h->prior, prior);
+@@ -144,8 +150,9 @@ static void rb_trace_index(NSArray<WarmTask *> *tasks, NSDictionary *epoch) {
+             if (rb_edge_agrees(prior, src, dst)) byDestination[@(dst)] = @(src);
+         }
+         free(prior);
+-        if (!byDestination.count) return;
+-        rb_trace_scan(tasks, epoch, byDestination, [NSMutableDictionary dictionaryWithCapacity:byDestination.count], 0);
++        if (!byDestination.count && !courseKeys.count) return;
++        rb_trace_scan(tasks, epoch, byDestination, [NSMutableDictionary dictionaryWithCapacity:byDestination.count],
++                      courseKeys,[NSMutableDictionary dictionaryWithCapacity:courseKeys.count],0);
+     } });
+ }
+ static void rb_trace_bound(id ps) {
+@@ -179,6 +186,7 @@ static void rb_trace_used(id ps, const pso_key *k, NvShader *vs, NvShader *fs) {
+ }
+ static void rb_trace_end(void) {
+     // Submit and warm workers are drained by the caller.
++    rb_course_end();
+     rb_trace_save(g_rb_submit_trace, 1);
+     if (g_rb_submit_trace)
+         MLOG("RewindBox PSO transitions: %llu first-used, %llu promoted, %llu published, %llu warmed Metal objects bound, %llu published but unused",
+diff --git a/graphics/nvn/tests/rb_course_gpu.inc b/graphics/nvn/tests/rb_course_gpu.inc
+new file mode 100644
+index 0000000..4ceef61
+--- /dev/null
++++ b/graphics/nvn/tests/rb_course_gpu.inc
+@@ -0,0 +1,102 @@
++// Three fresh processes. Store only real binds during the named track, then
++// pause the real warm worker and check the next selection promotes that exact PSO.
++static int course_test_child(NSString *root,int launch) {
++    alarm(90);
++    if (launch==1 || launch==4) stage_assets(root);
++    setenv("DM_PSO_USER",[[root stringByAppendingPathComponent:@"pso_user.tsv"] fileSystemRepresentation],1);
++    setenv("DM_NVN_SHMAP",[[root stringByAppendingPathComponent:@"shader_map.tsv"] fileSystemRepresentation],1);
++    setenv("DM_MSL_DIR",root.fileSystemRepresentation,1);
++    setenv("DM_MSL_FALLBACK",[[root stringByAppendingPathComponent:@"translation"] fileSystemRepresentation],1);
++    setenv("RB_TEST_GAME_BUILD",rb_ref_build,1);
++    setenv("S2A_RB_SPEC_GOVERN","0",1);setenv("DM_NVN_FIRST_SKIP","0",1);
++    setenv("DM_NVN_PSO_FRAME_MS","0",1);setenv("DM_NVN_PSO_WAIT_MS","0",1);
++    setenv("DM_PSO_ARCHIVE","0",1);setenv("DM_PSO_PREPARE",launch==3?"0":"1",1);setenv("DM_PSO_BG_THREADS","1",1);
++    unsetenv("DM_PSO_MANIFEST");
++    if(launch==3){
++        transition_ready=dispatch_semaphore_create(0);transition_proceed=dispatch_semaphore_create(0);
++        atomic_store(&transition_worker_control,1);
++    }
++    transition_device();shmap_load();
++    if(launch==4) {
++        // There is no private cache or history in this directory. The fixture
++        //'s public-profile input uses real canonical descriptors recorded by the GPU.
++        while(atomic_load(&g_warm_running)) usleep(1000);
++        NSString *ref=[root stringByAppendingPathComponent:@"pso_reference.tsv"];
++        NSString *ext=[root stringByAppendingPathComponent:@"pso_external.tsv"];
++        NSString *witness=[NSString stringWithContentsOfFile:[root stringByAppendingPathComponent:@"fixture.tsv"]
++                                                    encoding:NSUTF8StringEncoding error:NULL];
++        NSMutableDictionary *byStage=[NSMutableDictionary dictionary];
++        for(NSString *line in [witness componentsSeparatedByString:@"\n"]) {
++            pso_skey sk; if(rb_ref_row(line,&sk)) byStage[warm_key(sk.fs,sizeof sk.fs)]=line;
++        }
++        GPU_CHECK(byStage[stage_name(ST_A)] && byStage[stage_name(ST_B)] && byStage[stage_name(ST_URGENT)]);
++        write_test_text(ref,@"# no mandatory fixture rows\n");
++        write_test_text(ext,[NSString stringWithFormat:@"%@\n# rb-kart-cup-row-v1\n%@\n# rb-kart-cup-row-v1\n%@\n",
++                             byStage[stage_name(ST_A)],byStage[stage_name(ST_B)],byStage[stage_name(ST_URGENT)]]);
++        long n=0;NSArray *tasks=warm_parse(@[ref,ext],&n);GPU_CHECK(n==3 && tasks.count==3);
++        warm_urgent_index(tasks);dispatch_sync(rb_trace_io(),^{});
++        GPU_CHECK(!g_course_prior.starts && !g_course_hints);
++        const char sel[]="Layout/CourseBtn_00.Nin_Ounce_NVN2.blarc.zs";
++        nvn_rb_route_read(sel,sizeof sel-1);nvn_rb_course_frame(1,100000001,0,0,0,0,0,0);
++        GPU_CHECK(g_course_hints==2 && g_course_current==RB_COURSE_MENU && g_course_samples[0].count==1);
++        _Atomic long next=0;int lease;long i=warm_pick(&next,n,0,&lease);
++        GPU_CHECK(i==1 && next==0);warm_task(tasks[(NSUInteger)i]);rb_spec_done(&lease);
++        id warm=handed_pipeline(ST_B,0);GPU_CHECK(warm);demand_and_draw(ST_B,warm);
++        i=warm_pick(&next,n,0,&lease);GPU_CHECK(i==2);rb_spec_done(&lease);
++        i=warm_pick(&next,n,0,&lease);GPU_CHECK(i==0);rb_spec_done(&lease);
++        GPU_CHECK(warm_pick(&next,n,0,&lease)==-1);
++        warm_urgent_end();
++        puts("PASS cold selection: observed Kartnative order promotes exact Metal PSO before generic work on first launch, correct pixel");
++    } else if(launch<3) {
++        while(atomic_load(&g_warm_running)) usleep(1000);
++        demand_and_draw(ST_A,nil); // common menu pipeline, explicitly NOT a race observation
++        const char race[]="Banc/Race_FirstCircuit_A_00[Game03].bcett.byml.zs";
++        nvn_rb_route_read(race,sizeof race-1);
++        nvn_rb_course_frame(1,500000001,2,3,4,1,5,6);
++        GPU_CHECK(g_course_samples[0].count==1 && g_course_samples[0].slow100==1 && g_course_samples[0].slow500==1);
++        demand_and_draw(ST_B,nil);demand_and_draw(ST_B,nil);
++        GPU_CHECK(g_course_live.course[0].key[0] && !g_course_live.course[0].key[1]);
++        nvn_rb_course_frame(2,100000000,5,7,6,1,2,3);
++        GPU_CHECK(g_course_samples[3].count==1 && !g_course_samples[3].slow100 && g_course_samples[3].upload==5 &&
++                  g_course_samples[3].upload_gpu==7 && g_course_samples[3].xwait==1 && g_course_samples[3].msl==3);
++        demand_and_draw(ST_URGENT,nil); // second true course bind
++    } else {
++        transition_wait(transition_ready);dispatch_sync(rb_trace_io(),^{});
++        const char selection[]="Layout/CourseBtn_00.Nin_Ounce_NVN2.blarc.zs";
++        nvn_rb_route_read(selection,sizeof selection-1);
++        nvn_rb_course_frame(1,100000001,0,0,0,0,0,0);
++        GPU_CHECK(g_course_prior.starts==2 && atomic_load(&g_course_hints)==2);
++        warm_bump(stage_name(ST_VERTEX).UTF8String,stage_name(ST_URGENT).UTF8String);
++        transition_step();GPU_CHECK(handed_pipeline(ST_URGENT,0) && !handed_pipeline(ST_B,0));
++        transition_step();id warm=handed_pipeline(ST_B,0);GPU_CHECK(warm);
++        demand_and_draw(ST_B,warm); // includes comparison of read-back pixel
++        atomic_store(&transition_worker_control,0);dispatch_semaphore_signal(transition_proceed);
++        const char r1[]="Banc/Race_One.bcett.byml.zs",r2[]="Banc/Race_Two.bcett.byml.zs";
++        nvn_rb_route_read(r1,sizeof r1-1);nvn_rb_route_read(r2,sizeof r2-1);
++        nvn_rb_course_frame(2,500000000,0,0,0,0,0,0);
++        GPU_CHECK(g_course_current==RB_COURSE_UNKNOWN && !g_course_hints);
++    }
++    GPU_CHECK(!nvn_be_request_stop() && !nvn_be_shutdown_session());
++    return 0;
++}
++static int course_test_main(int argc,char **argv) {
++    if(argc==4 && !strcmp(argv[1],"--course-launch")) return course_test_child(@(argv[2]),atoi(argv[3]));
++    GPU_CHECK(argc==2 && !strcmp(argv[1],"--course-gpu"));
++    char root[]="/tmp/rb-course-gpu-XXXXXX";GPU_CHECK(mkdtemp(root));
++    for(int i=1;i<=4;++i) {
++        NSString *directory=@(root);
++        if(i==4) {
++            directory=[directory stringByAppendingPathComponent:@"fresh"];
++            GPU_CHECK([NSFileManager.defaultManager createDirectoryAtPath:directory withIntermediateDirectories:YES attributes:nil error:NULL]);
++            GPU_CHECK([NSFileManager.defaultManager copyItemAtPath:[@(root) stringByAppendingPathComponent:@"pso_user.tsv"]
++                    toPath:[directory stringByAppendingPathComponent:@"fixture.tsv"] error:NULL]);
++        }
++        char n[2]={(char)('0'+i),0};char *args[]={argv[0],"--course-launch",(char *)directory.fileSystemRepresentation,n,NULL};
++        pid_t child;GPU_CHECK(!posix_spawnp(&child,argv[0],NULL,NULL,args,environ));
++        int status;pid_t waited;do { waited=waitpid(child,&status,0); } while(waited<0 && errno==EINTR);
++        GPU_CHECK(waited==child && WIFEXITED(status) && WEXITSTATUS(status)==0);
++    }
++    GPU_CHECK([NSFileManager.defaultManager removeItemAtPath:@(root) error:NULL]);
++    puts("PASS course asset windows: two real launches, exact priority after selection, urgent wins, correct Metal pixel and unknown boundary");
++    return 0;
++}
+diff --git a/graphics/nvn/tests/rb_pso_transition_gpu.inc b/graphics/nvn/tests/rb_pso_transition_gpu.inc
+index d2b30b2..c35ff29 100644
+--- a/graphics/nvn/tests/rb_pso_transition_gpu.inc
++++ b/graphics/nvn/tests/rb_pso_transition_gpu.inc
+@@ -203,8 +203,10 @@ static int transition_child(char *exe, NSString *directory, int launch, int dive
+     return waited == child && WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+ }
+ 
++#include "rb_course_gpu.inc"
+ #include "rb_reference_gpu.inc"
+ static int transition_test_main(int argc, char **argv) { @autoreleasepool {
++    if (argc>=2 && !strncmp(argv[1],"--course-",9)) return course_test_main(argc,argv);
+     if (argc>=2 && !strncmp(argv[1],"--reference-",12)) return reference_test_main(argc,argv);
+     if (argc == 5 && (!strcmp(argv[1], "--transition-launch") || !strcmp(argv[1], "--transition-no-replay"))) {
+         int launch = atoi(argv[3]), divergent = atoi(argv[4]), disabled = !strcmp(argv[1], "--transition-no-replay");
+diff --git a/graphics/nvn/tests/t_nvn_warmbump.m b/graphics/nvn/tests/t_nvn_warmbump.m
+index 9019cca..4e52ecc 100644
+--- a/graphics/nvn/tests/t_nvn_warmbump.m
++++ b/graphics/nvn/tests/t_nvn_warmbump.m
+@@ -17,11 +17,14 @@ static void reference_test_pause(int reason);
+ #define RB_REF_TEST_PAUSE(r) reference_test_pause(r)
+ static void transition_test_before_pick(void);
+ #define RB_TEST_BEFORE_WARM_PICK transition_test_before_pick
++#define s2a_npdm_program_id rb_course_test_title
+ #define s2a_nvn_game_id rb_reference_test_game_id
+ #define s2a_main_build_id rb_transition_test_game_build
+ #include "../gfx/nvn/nvn_mtl.m"
+ #undef s2a_main_build_id
+ #undef s2a_nvn_game_id
++#undef s2a_npdm_program_id
++uint64_t rb_course_test_title(void) { return 0x0400c3f00006e000ull; }
+ const char *rb_reference_test_game_id(void) { return "0400C3F00006E000"; }
+ #include "rb_pso_transition_gpu.inc"
+ @interface RBTestEncoder : NSObject
+diff --git a/graphics/nvn/tests/t_rb_course_history.c b/graphics/nvn/tests/t_rb_course_history.c
+new file mode 100644
+index 0000000..f3b130b
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_course_history.c
+@@ -0,0 +1,26 @@
++#include "../gfx/nvn/rb_course_history.h"
++#include <assert.h>
++#include <stdio.h>
++int main(void) {
++    static const char *names[]={"FirstCircuit_A_00[Game03]","CaseB","CaseC","CaseD"};
++    rb_course_db db={0};char name[RB_COURSE_NAME],path[128];
++    for (unsigned i=0;i<4;++i) {
++        snprintf(path,sizeof path,"Banc/Race_%s.bcett.byml.zs",names[i]);
++        assert(rb_course_parse(path,strlen(path),name)==0 && !strcmp(name,names[i]));
++        assert(rb_course_slot(&db,name)==(int)i && rb_course_slot(&db,name)==(int)i);
++    }
++    const char *bad[]={"Banc/Race_../z.bcett.byml.zs","other/race","Banc/Race_.bcett.byml.zs","Banc/Race_CaseZ.byml.zs"};
++    for(unsigned i=0;i<4;++i) assert(rb_course_parse(bad[i],strlen(bad[i]),name)==RB_COURSE_IGNORE);
++    for (uint64_t i=1;i<=RB_COURSE_KEYS;++i) assert(rb_course_add(&db.course[0],i) && !rb_course_add(&db.course[0],i));
++    assert(!rb_course_add(&db.course[0],17));
++    rb_course_first(&db,0);assert(db.starts==1);rb_course_first(&db,0);assert(db.starts==2);
++    rb_course_first(&db,1);assert(db.starts==1 && db.first==1);
++    db.version=1;db.checksum=rb_course_checksum(&db);assert(rb_course_valid(&db,sizeof db));
++    assert(!rb_course_valid(&db,sizeof db-1));db.course[1].key[1]++;assert(!rb_course_valid(&db,sizeof db));
++    rb_course_sample s={0};
++    uint64_t ns[]={100000000,100000001,500000000,500000001};
++    for(unsigned i=0;i<4;++i)rb_course_sample_add(&s,ns[i],3,2,1,4,2,5,1000,2000);
++    assert(s.count==4 && s.slow100==3 && s.slow500==1 && s.upload==12 && s.upload_gpu==8 &&
++           s.xlate==4 && s.xwait==16 && s.libs==8 && s.msl==20 && s.pso_wait==4000 && s.lib_wait==8000);
++    puts("PASS four distinct course asset keys, unknowns, bounded history, first-course consensus, damage and exact threshold counters");
++}
+diff --git a/runtime/src/loader.c b/runtime/src/loader.c
+index 0eceea3..c963d8f 100644
+--- a/runtime/src/loader.c
++++ b/runtime/src/loader.c
+@@ -148,6 +148,18 @@ module_t *module_of(const void *p) {
+ // ---------- 改写器随行表 ----------
+ static char g_main_build_id[40];
+ const char *s2a_main_build_id(void) { return g_main_build_id; }
++#if defined(__APPLE__)
++extern void nvn_rb_route_read(const char *, int) __attribute__((weak_import));
++#endif
++// Internal DirectPInvoke. Other renderers and unknown game builds keep their normal path.
++void s2a_rb_route_read(const char *p, int len) {
++#if defined(__APPLE__)
++    if (nvn_rb_route_read && !strcmp(g_main_build_id,"9e244438c3d8ef1c703a6a85ef99c4f0"))
++        nvn_rb_route_read(p,len);
++#else
++    (void)p; (void)len;
++#endif
++}
+ // 金手指目录给 C#（services Cheats.cs）：有界面入口的宿主（ios/vpad_cheats.m 装载时）先登记，才回 <文档根>/cheats（s2a_docs.h 唯一取法）；
+ //   没登记（Mac / 安卓，没有金手指界面）回空串，C# 就不起线程、不碰用户文稿夹。平台差异落在平台层登记这一步，共享代码不判平台
+ static _Atomic int g_cheats_host;
+diff --git a/services/S2A.Services/RomFsIndex.cs b/services/S2A.Services/RomFsIndex.cs
+index bfdb484..07a9d97 100644
+--- a/services/S2A.Services/RomFsIndex.cs
++++ b/services/S2A.Services/RomFsIndex.cs
+@@ -20,6 +20,20 @@ namespace S2A.Services
+     //              | i32 段数 | 段数 × {i64 偏移, i32 长度} | 各段字节依次
+     public static class RomFsIndex
+     {
++        public delegate void RouteRead(ReadOnlySpan<byte> path);
++        public static RouteRead RouteObserver;
++
++        internal static void NoteRouteFile(ReadOnlySpan<byte> path)
++        {
++            // Paths in the index are relative UTF-8. Only offset-zero successful
++            // reads reach here. Never decode or allocate strings in the storage path.
++            if (path.Length is < 10 or > 96 || RouteObserver == null) return;
++            if (path.SequenceEqual("Layout/CourseBtn_00.Nin_Ounce_NVN2.blarc.zs"u8) ||
++                path.SequenceEqual("AI/RaceSequence.root.ainb"u8) ||
++                (path.StartsWith("Banc/Race_"u8) && path.EndsWith(".bcett.byml.zs"u8)))
++                RouteObserver(path);
++        }
++
+         public const string FileName = "romfs.s2aidx";
+         public const string ImageName = "romfs.img";
+         public const string ImageMapName = "romfs.imgmap";
+@@ -1059,6 +1073,11 @@ namespace S2A.Services
+                         _idx.AsSpan(_segData[~_ref[i]] + (int)inner, count).CopyTo(destination);
+                     }
+ 
++                    if (inner == 0 && count > 0 && _ref[i] >= 0 && RouteObserver != null)
++                    {
++                        int file = _ref[i];
++                        NoteRouteFile(_idx.AsSpan(_pathBase + _pathOff[file], _pathLen[file]));
++                    }
+                     destination = destination[count..];
+                     offset += count;
+                     i++;
+diff --git a/services/aot/Compose.cs b/services/aot/Compose.cs
+index 1ef1486..7cf54f2 100644
+--- a/services/aot/Compose.cs
++++ b/services/aot/Compose.cs
+@@ -78,9 +78,17 @@ namespace S2A.Aot
+             S2A.Services.GuestMemory.GpuModifiedHook = &NxGal.NxTrack.GpuModified;
+         }
+ 
++        [DllImport("s2a_native")] private static extern void s2a_rb_route_read(byte* path, int length);
++
++        private static void RouteRead(System.ReadOnlySpan<byte> path)
++        {
++            fixed (byte* p = path) s2a_rb_route_read(p, path.Length);
++        }
++
+         [ModuleInitializer]
+         internal static void Init()
+         {
++            S2A.Services.RomFsIndex.RouteObserver = RouteRead;
+             S2A.Services.Exports.AudioFactory = &S2A.Apple.Audio.AppleAudio.Create;
+             // 视频解码（平台 adapter P1，#1069）：Nvdec 只认登记的工厂，苹果实现在 platform/apple/cs/video
+             S2A.Apple.Video.AppleVideo.Register();
+diff --git a/services/tests/rb_course_reads/Program.cs b/services/tests/rb_course_reads/Program.cs
+new file mode 100644
+index 0000000..6007cc2
+--- /dev/null
++++ b/services/tests/rb_course_reads/Program.cs
+@@ -0,0 +1,62 @@
++using System.Text;
++using LibHac.Fs;
++using S2A.Services;
++using Path = System.IO.Path;
++
++// The exact image/file offsets and UTF-8 paths come from the production index.
++var dir = Directory.CreateTempSubdirectory("rb-course-read");
++try
++{
++    string root = Path.Combine(dir.FullName, "romfs");
++    string index = Path.Combine(dir.FullName, RomFsIndex.FileName);
++    string[] files = { "Layout/CourseBtn_00.Nin_Ounce_NVN2.blarc.zs", "AI/RaceSequence.root.ainb",
++        "Banc/Race_FirstCircuit_A_00[Game03].bcett.byml.zs", "Banc/Race_Test2.bcett.byml.zs",
++        "Banc/Race_Test3.bcett.byml.zs", "Banc/Race_Test4.bcett.byml.zs", "Banc/Weather.bcett.byml.zs" };
++    foreach (string name in files)
++    {
++        string path = Path.Combine(root, name);
++        Directory.CreateDirectory(Path.GetDirectoryName(path));
++        File.WriteAllBytes(path, new byte[]{11, 22, 33, 44});
++    }
++    RomFsIndex.Write(root, index);
++    byte[] idx = File.ReadAllBytes(index);
++    int n = BitConverter.ToInt32(idx, 16), paths = 24 + 24*n;
++    var entries = new Dictionary<string,long>();
++    var offsets = new List<long>();
++    string imagePath = Path.Combine(dir.FullName,RomFsIndex.ImageName);
++    using (var image = File.Create(imagePath))
++    {
++        for (int i=0; i<n; ++i)
++        {
++            int at=20+24*i;
++            string path=Encoding.UTF8.GetString(idx, paths+BitConverter.ToInt32(idx,at+16),BitConverter.ToInt32(idx,at+20));
++            entries.Add(path, BitConverter.ToInt64(idx,at));
++            offsets.Add(image.Position);
++            image.Write(File.ReadAllBytes(Path.Combine(root,path)));
++        }
++    }
++    using (var m = new BinaryWriter(File.Create(Path.Combine(dir.FullName,RomFsIndex.ImageMapName))))
++    {
++        m.Write("S2ARIM01"u8); m.Write(new FileInfo(imagePath).Length);m.Write(n);
++        foreach(long offset in offsets)m.Write(offset);
++    }
++    var observed = new List<string>();
++    RomFsIndex.RouteObserver = p => observed.Add(Encoding.UTF8.GetString(p));
++    foreach (var source in new Func<IStorage>[] { () => RomFsIndex.Open(root,index), () => RomFsIndex.OpenImage(dir.FullName) })
++    {
++        observed.Clear();
++        using var s=source();
++        foreach(string name in files)
++        {
++            if (!s.Read(entries[name]+1,new byte[1]).IsSuccess() || !s.Read(entries[name],new byte[2]).IsSuccess())
++                throw new Exception("valid read failed");
++        }
++        if (!observed.SequenceEqual(files.Take(6)))throw new Exception("wrong course evidence from real storage reads");
++    }
++    File.WriteAllBytes(Path.Combine(root,files[2]),new byte[1]); observed.Clear();
++    using(var s=RomFsIndex.Open(root,index))
++        if (!s.Read(entries[files[2]],new byte[2]).IsFailure() || observed.Count!=0)
++            throw new Exception("incomplete source reported a route");
++    Console.WriteLine("PASS successful RomFS directory and image reads only, four independent circuit keys, partial and failed reads excluded");
++}
++finally { RomFsIndex.RouteObserver=null;dir.Delete(true); }
+diff --git a/services/tests/rb_course_reads/rb_course_reads.csproj b/services/tests/rb_course_reads/rb_course_reads.csproj
+new file mode 100644
+index 0000000..2ac66af
+--- /dev/null
++++ b/services/tests/rb_course_reads/rb_course_reads.csproj
+@@ -0,0 +1,4 @@
++<Project Sdk="Microsoft.NET.Sdk">
++  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><Nullable>disable</Nullable><ImplicitUsings>enable</ImplicitUsings></PropertyGroup>
++  <ItemGroup><ProjectReference Include="../../S2A.Services/S2A.Services.csproj" /></ItemGroup>
++</Project>

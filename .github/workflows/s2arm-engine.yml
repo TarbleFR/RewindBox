@@ -124,6 +124,9 @@ jobs:
           xcrun clang -std=c11 -O2 -Wall -Wextra -Werror "$RUNNER_TEMP/s2arm/graphics/nvn/tests/t_rb_submit_gap.c" -o "$RUNNER_TEMP/submit-gap"
           "$RUNNER_TEMP/submit-gap"
           python3 -B test/s2arm_shader_session_metrics_test.py
+          python3 -B "$RUNNER_TEMP/s2arm/graphics/tools/direct/tests/test_rb_mkw_external_profile.py"
+          xcrun clang -std=c11 -O2 -Wall -Wextra -Werror "$RUNNER_TEMP/s2arm/graphics/nvn/tests/t_rb_course_history.c" -o "$RUNNER_TEMP/rb-course-history"
+          "$RUNNER_TEMP/rb-course-history"
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
@@ -168,7 +171,12 @@ jobs:
           status=0
           build/tests/t_nvn_warmbump || status=1
           build/tests/t_nvn_warmbump --transition-gpu || status=1
-          if [[ "$FIRST_RACE" == yes ]]; then build/tests/t_nvn_warmbump --reference-gpu || status=1; fi
+          if [[ "$FIRST_RACE" == yes ]]; then
+            dotnet run --project services/tests/rb_course_reads/rb_course_reads.csproj -c Release || status=1
+            build/tests/t_nvn_warmbump --reference-gpu || status=1
+            build/tests/t_nvn_warmbump --reference-external-gpu || status=1
+            build/tests/t_nvn_warmbump --course-gpu || status=1
+          fi
           build/tests/t_nvn_shader_flight || status=1
           bash "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/test_native_stage_recovery.sh" "$PWD" "$RUNNER_TEMP/t_dsh_stats" || status=1
           exit "$status"
