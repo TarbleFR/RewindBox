@@ -12,8 +12,13 @@ xcrun --sdk macosx clang -std=gnu11 -O1 -fobjc-arc -fblocks \
 if "$work/archive-test" --probe; then
     sh "$engine/graphics/nvn/tests/t_rb_archive_relaunch.sh" "$work/archive-test"
     mkdir "$work/resume" "$work/close"
-    "$work/archive-test" --held "$work/resume" resume
-    "$work/archive-test" --held "$work/close" close
+    result=0
+    for mode in resume close; do
+        "$work/archive-test" --held "$work/$mode" "$mode" || result=1
+        # A miss in one process stays a failure even if the other probe succeeds.
+        "$work/archive-test" --held "$work/$mode" replay || result=1
+    done
+    exit "$result"
 else
     rc=$?
     if [ "$rc" -ne 77 ]; then exit "$rc"; fi

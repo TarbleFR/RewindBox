@@ -197,6 +197,19 @@ jobs:
           cat "$out/inventory.txt" | head -150
         env:
           S2A_RUN_ROOT: ${{ runner.temp }}/s2arm-run
+      - name: Verify shader-library sharing and warm priority on the Mac GPU
+        if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-shader-checks]')
+        working-directory: ${{ runner.temp }}/s2arm
+        env:
+          S2A_DEVELOPER_DIR: ${{ env.DEVELOPER_DIR }}
+          S2A_BUILD_CACHE: ${{ runner.temp }}/s2arm-build-cache
+          NUGET_PACKAGES: ${{ runner.temp }}/nuget
+        run: |
+          set -euo pipefail
+          make -j4 -f Makefile -f "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/host-tests.mk" \
+            build/tests/t_nvn_shader_flight build/tests/t_nvn_warmbump
+          build/tests/t_nvn_warmbump
+          build/tests/t_nvn_shader_flight
       - name: Check the guest entry points of the framework (patches 0003-0010)
         # RewindBox dlopens the framework and looks these up with dlsym; die() finds s2a_rb_guest_fatal by name.
         # rb_s2arm_engine_loaded belongs to RewindBox's host plugin and must not come from the framework.

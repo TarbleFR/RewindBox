@@ -33,7 +33,8 @@ static NSString *pso_user_path(void) {
 #include "pso_archive.h"
 #include "rb_archive_relaunch.inc"
 
-static void test_held_writer(const char *directory, int closing) {
+static void test_held_writer(const char *directory, const char *mode) {
+    int closing = !strcmp(mode, "close"), replay = !strcmp(mode, "replay");
     g_dev = MTLCreateSystemDefaultDevice();
     REQUIRE(g_dev);
     NSString *path = [@(directory) stringByAppendingPathComponent:@"pso_user.tsv"];
@@ -45,41 +46,74 @@ static void test_held_writer(const char *directory, int closing) {
         @"#include <metal_stdlib>\nusing namespace metal; kernel void held(device uint *v [[buffer(0)]]) { *v = 1; }"
         options:nil error:&error];
     REQUIRE(lib);
-    MTLComputePipelineDescriptor *desc = [MTLComputePipelineDescriptor new];
-    desc.computeFunction = [lib newFunctionWithName:@"held"];
-    REQUIRE(desc.computeFunction);
+    id<MTLFunction> function = [lib newFunctionWithName:@"held"];
+    REQUIRE(function);
     NSString *key = [@"c" stringByAppendingString:par_hash("held", 4)];
-    atomic_store(&g_spec_level, RB_SPEC_HOLD);
-    par_note(key, desc);
-    par_note(key, desc);
-    uint64_t timeout = bp_now() + 5000000000ull;
-    int pending = 0;
-    do {
-        pthread_mutex_lock(&g_par_mu);
-        pending = g_par_timer != 0 && g_par_todo.count == 1 && g_par_pending_keys.count == 1;
-        pthread_mutex_unlock(&g_par_mu);
-        if (!pending) sched_yield();
-    } while (!pending && bp_now() < timeout);
-    REQUIRE(pending);
-    if (closing) par_begin_close();
-    else atomic_store(&g_spec_level, RB_SPEC_RUN);
-    struct timespec deadline;
-    clock_gettime(CLOCK_REALTIME, &deadline);
-    deadline.tv_sec += 30;
-    REQUIRE(!par_wait_idle(&deadline));
-    REQUIRE(atomic_load(&g_par_written) == 1 && !g_par_pending_keys.count);
+    if (!replay) {
+        // Exercise the production sequence: the first draw builds an exact PSO,
+        // and par_compute then submits its descriptor to the deferred writer.
+        g_par_note_play = 1;
+        atomic_store(&g_spec_level, RB_SPEC_HOLD);
+        id<MTLComputePipelineState> first = par_compute(function, key, &error);
+        REQUIRE(first && atomic_load(&g_par_misses) == 1 && !atomic_load(&g_par_hits));
+        MTLComputePipelineDescriptor *duplicate = [MTLComputePipelineDescriptor new];
+        duplicate.computeFunction = function;
+        par_note(key, duplicate);
+        uint64_t timeout = bp_now() + 5000000000ull;
+        int pending = 0;
+        do {
+            pthread_mutex_lock(&g_par_mu);
+            pending = g_par_timer != 0 && g_par_todo.count == 1 && g_par_pending_keys.count == 1;
+            pthread_mutex_unlock(&g_par_mu);
+            if (!pending) sched_yield();
+        } while (!pending && bp_now() < timeout);
+        REQUIRE(pending);
+        if (closing) par_begin_close();
+        else atomic_store(&g_spec_level, RB_SPEC_RUN);
+        struct timespec deadline;
+        clock_gettime(CLOCK_REALTIME, &deadline);
+        deadline.tv_sec += 30;
+        REQUIRE(!par_wait_idle(&deadline));
+        REQUIRE(atomic_load(&g_par_written) == 1 && !g_par_pending_keys.count);
+    }
+    // New descriptor, same entry and configuration, like the next call to par_compute.
     id<MTLBinaryArchive> archive = par_archive_for(key);
     REQUIRE(archive);
-    desc.binaryArchives = @[archive];
-    REQUIRE([g_dev newComputePipelineStateWithDescriptor:desc options:MTLPipelineOptionFailOnBinaryArchiveMiss reflection:nil error:&error]);
-    puts(closing ? "PASS deferred writer on close" : "PASS deferred writer on return to RUN");
+    MTLComputePipelineDescriptor *probe = [MTLComputePipelineDescriptor new];
+    probe.computeFunction = function;
+    probe.binaryArchives = @[archive];
+    error = nil;
+    id<MTLComputePipelineState> from_archive = [g_dev newComputePipelineStateWithDescriptor:probe
+        options:MTLPipelineOptionFailOnBinaryArchiveMiss reflection:nil error:&error];
+    if (!from_archive) {
+        NSString *file = [g_par_dir stringByAppendingPathComponent:g_par_bmap[key]];
+        NSDictionary *attrs = [NSFileManager.defaultManager attributesOfItemAtPath:file error:nil];
+        fprintf(stderr, "strict compute miss mode=%s gpu=%s file=%s bytes=%llu error=%s/%ld %s\n",
+                mode, g_dev.name.UTF8String, file.lastPathComponent.UTF8String, [attrs fileSize],
+                error.domain.UTF8String, (long)error.code, error.description.UTF8String);
+    }
+    REQUIRE(from_archive);
+    id<MTLBuffer> output = [g_dev newBufferWithLength:sizeof(uint32_t) options:MTLResourceStorageModeShared];
+    REQUIRE(output);
+    *(uint32_t *)output.contents = 0;
+    id<MTLCommandQueue> queue = [g_dev newCommandQueue];
+    id<MTLCommandBuffer> cmd = [queue commandBuffer];
+    id<MTLComputeCommandEncoder> enc = [cmd computeCommandEncoder];
+    [enc setComputePipelineState:from_archive];
+    [enc setBuffer:output offset:0 atIndex:0];
+    [enc dispatchThreadgroups:MTLSizeMake(1,1,1) threadsPerThreadgroup:MTLSizeMake(1,1,1)];
+    [enc endEncoding];
+    [cmd commit];
+    [cmd waitUntilCompleted];
+    REQUIRE(cmd.status == MTLCommandBufferStatusCompleted && *(uint32_t *)output.contents == 1);
+    printf("PASS deferred writer mode=%s strict compute hit, output=1\n", mode);
 }
 int main(int argc, char **argv) { @autoreleasepool {
     if (argc == 2 && !strcmp(argv[1], "--probe")) return MTLCreateSystemDefaultDevice() ? 0 : 77;
     if (argc == 4 && !strcmp(argv[1], "--relaunch") && (!strcmp(argv[3], "cold") || !strcmp(argv[3], "warm")))
         return rb_archive_relaunch(argv[2], !strcmp(argv[3], "warm"));
-    if (argc == 4 && !strcmp(argv[1], "--held") && (!strcmp(argv[3], "resume") || !strcmp(argv[3], "close"))) {
-        test_held_writer(argv[2], !strcmp(argv[3], "close"));
+    if (argc == 4 && !strcmp(argv[1], "--held") && (!strcmp(argv[3], "resume") || !strcmp(argv[3], "close") || !strcmp(argv[3], "replay"))) {
+        test_held_writer(argv[2], argv[3]);
         return 0;
     }
     fprintf(stderr, "Unexpected arguments\n");
