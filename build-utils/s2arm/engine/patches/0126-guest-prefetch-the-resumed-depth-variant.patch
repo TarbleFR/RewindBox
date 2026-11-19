@@ -1,0 +1,80 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -226,7 +226,7 @@
+     NSDictionary<NSString *, NvShader *> *shaders = [g_shcache copy];
+     os_unfair_lock_unlock(&g_shader_lock);
+     NSMutableSet<NSString *> *cached_prefetch = [NSMutableSet set];
+-    int depth_zero = atomic_load(&g_depth_zero);
++    const int next_depth_zero = 0;  // nvnDeviceInitialize resets every new session to GL depth.
+     pthread_mutex_lock(&g_rmu);
+     for (NvShader *sh in shaders.allValues) {
+         sh->wsh = 0; sh->s_rec = 0;
+@@ -237,7 +237,7 @@
+         int st = stage ? stage_of(stage) : -1;
+         // Match exactly what shader_prefetch will load, not a layer or a
+         // vertex object captured under the other depth convention.
+-        if (st >= 0 && st != 2 && shaders[shader_identity(key, st, 0, depth_zero)] == sh)
++        if (st >= 0 && st != 2 && shaders[shader_identity(key, st, 0, next_depth_zero)] == sh)
+             [cached_prefetch addObject:hash];
+     }
+     pthread_mutex_unlock(&g_rmu);
+@@ -248,9 +248,8 @@
+     g_shpre_n = g_shpre_ns = 0;
+     atomic_store(&g_cold_skips, 0);
+     os_unfair_lock_unlock(&g_shpre_mu);
+-    // 深度约定计数（「depth mode changed after N vertex shader constructions」）是逐局的：上面按旧局 depth_zero 算完预取集合后清回 NVN 缺省（0），
+-    //   新局 nvnDeviceInitialize 设 0 不算翻转、游戏 SetDepthMode(1) 翻转时计数为 0 不报红（同首局）；着色器缓存键自带深度模式，旧局建的不会被错用
+-    atomic_store(&g_vs_loaded, 0); atomic_store(&g_depth_zero, 0);
++    // The next session starts in the convention used to seed its prefetch set above.
++    atomic_store(&g_vs_loaded, 0); atomic_store(&g_depth_zero, next_depth_zero);
+     memset(g_pq, 0, sizeof g_pq); g_ext_ev = nil; g_ext_pend3 = 0;
+     g_link_applied = 0; g_link_hold_until = g_link_vperiod = g_link_vhalf = 0;
+     g_link_pending = 0; g_link_pending_since = g_link_pending_period = 0;
+diff --git a/graphics/nvn/tests/t_nvn_shader_flight.m b/graphics/nvn/tests/t_nvn_shader_flight.m
+--- a/graphics/nvn/tests/t_nvn_shader_flight.m
++++ b/graphics/nvn/tests/t_nvn_shader_flight.m
+@@ -163,7 +163,9 @@
+     NvShader *layer=shader_load_depth(layer_key,0,1,0,NULL,NULL);
+     NvShader *depth=shader_load_depth(depth_key,0,0,1,NULL,NULL);
+     REQUIRE(layer && depth && [layer->ventry isEqual:@"layered"] && [depth->ventry isEqual:@"zero"]);
+-    nvn_be_set_depth_zero(0);
++    // Retire with only the depth=1 ordinary variant of depth_key.
++    // The reopened session must still prefetch its missing default variant.
++    nvn_be_set_depth_zero(1);
+     REQUIRE(!nvn_be_request_stop());
+     REQUIRE(!nvn_be_shutdown_session());
+     nvn_be_begin_session();
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -12518,8 +12518,9 @@
+     *lease = 0;
+     if (fu_yield_on() && atomic_load(&g_fu_waiting)) {   // 首遇让路：提交线程在等首遇管线时不领新行
+         uint64_t t0 = bp_now();
++        atomic_fetch_add(&g_fu_yield_n, 1);
+         while (atomic_load(&g_fu_waiting) && (bp_now() - t0) < FU_YIELD_MAX_MS * 1000000ull && !dm_gfx_session_stopping()) usleep(500);
+-        atomic_fetch_add(&g_fu_yield_n, 1); atomic_fetch_add(&g_fu_yield_ns, bp_now() - t0);
++        atomic_fetch_add(&g_fu_yield_ns, bp_now() - t0);
+     }
+     for (;;) {
+         uint64_t ticket = atomic_load(&g_spec_gate.epoch);
+diff --git a/graphics/nvn/tests/t_nvn_warmbump.m b/graphics/nvn/tests/t_nvn_warmbump.m
+--- a/graphics/nvn/tests/t_nvn_warmbump.m
++++ b/graphics/nvn/tests/t_nvn_warmbump.m
+@@ -49,11 +49,12 @@
+         atomic_store(&g_fu_waiting, 1);
+         __block _Atomic long got = -9; dispatch_semaphore_t done = dispatch_semaphore_create(0);
+         dispatch_async(dispatch_get_global_queue(QOS_CLASS_DEFAULT, 0), ^{ atomic_store(&got, warm_pick(&next, 6, -1, &(int){0})); dispatch_semaphore_signal(done); });
+-        usleep(100000);
+-        ck(atomic_load(&got) == -9, "④ 首遇在等：工人 100 ms 内没领新行");
++        uint64_t wait_deadline = bp_now() + 3000000000ull;
++        while (!atomic_load(&g_fu_yield_n) && bp_now() < wait_deadline) sched_yield();
++        ck(atomic_load(&g_fu_yield_n) == 1 && atomic_load(&got) == -9, "worker entered first-use wait before taking a manifest row");
+         atomic_store(&g_fu_waiting, 0);
+         ck(!dispatch_semaphore_wait(done, dispatch_time(DISPATCH_TIME_NOW, 1000000000ll)) && atomic_load(&got) == 0, "④ 首遇等完：工人放行，领第 0 行");
+-        ck(atomic_load(&g_fu_yield_n) == 1 && atomic_load(&g_fu_yield_ns) >= 90000000ull, "④ 计数：让路 1 次、累计 ≥90 ms");
++        ck(atomic_load(&g_fu_yield_n) == 1 && atomic_load(&g_fu_yield_ns) > 0, "one real first-use wait recorded");
+         // Freeze the last sample while changing tiers explicitly. A parked worker
+         // must serve a registered program even in HOLD; no sleeps define ordering.
+         // A prediction reorders one existing row, below the registered

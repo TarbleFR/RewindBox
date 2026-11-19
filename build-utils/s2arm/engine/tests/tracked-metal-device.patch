@@ -1,0 +1,73 @@
+--- a/graphics/nvn/tests/t_nvn_shader_flight.m
++++ b/graphics/nvn/tests/t_nvn_shader_flight.m
+@@ -55,17 +55,48 @@
+     }
+     REQUIRE(0 && "prefetch must enqueue a real shader"); return nil;
+ }
++// These shader tests submit ordinary Metal commands with tracked resources.
++// A paravirtual device can run all of them without the guest renderer's residency sets.
++static void fixture_device(void) {
++    id<MTLDevice> device = MTLCreateSystemDefaultDevice();
++    REQUIRE(device);
++    NSError *error = nil;
++    MTLResidencySetDescriptor *descriptor = [MTLResidencySetDescriptor new];
++    descriptor.initialCapacity = 4096;  // probe the same request as mtl_init
++    if ([device respondsToSelector:@selector(newResidencySetWithDescriptor:error:)] &&
++        [device newResidencySetWithDescriptor:descriptor error:&error]) {
++        mtl_init();
++        return;
++    }
++    s2a_mtl_slot_take("shader-flight fixture");
++    g_dev = device;
++    g_m3 = 1;  // real session retirement rebuilds its argument tables via DmTable3
++    g_q = [device newCommandQueue];
++    REQUIRE(g_q);
++    g_q3 = g_q;
++    printf("Shader fixture using tracked Metal command resources on %s (%s)\n",
++           device.name.UTF8String, error.localizedDescription.UTF8String ?: "residency sets unavailable");
++}
+ static void compute_gpu(NvShader *shader) {
+     REQUIRE(shader && shader->fn);
+     NSError *error=nil; id<MTLComputePipelineState> p=[g_dev newComputePipelineStateWithFunction:shader->fn error:&error]; REQUIRE(p);
+     id<MTLBuffer> out=[g_dev newBufferWithLength:4 options:MTLResourceStorageModeShared]; REQUIRE(out); *(uint32_t *)out.contents=0;
+     REQUIRE(shader->arg_len==8);   // 参数块按反射算长度、每个编号 8 字节放 GPU 地址（与生产 encode_args 同法；不再向 Metal 要编码器对象，nvn_mtl.m shader_args_init）
+-    id<MTLBuffer> arguments=[g_dev newBufferWithLength:shader->arg_len options:MTLResourceStorageModeShared]; REQUIRE(arguments);
+-    *(uint64_t *)arguments.contents=out.gpuAddress;
+-    id<MTLCommandQueue> q=[g_dev newCommandQueue]; id<MTLCommandBuffer> cb=[q commandBuffer];
++    id<MTLBuffer> arguments;
++    if (g_dev.argumentBuffersSupport == MTLArgumentBuffersTier2 && out.gpuAddress) {
++        arguments = [g_dev newBufferWithLength:shader->arg_len options:MTLResourceStorageModeShared]; REQUIRE(arguments);
++        *(uint64_t *)arguments.contents = out.gpuAddress;
++    } else {
++        // Tier 1 exposes its argument-buffer layout through MTLArgumentEncoder.
++        id<MTLArgumentEncoder> encoder = [shader->fn newArgumentEncoderWithBufferIndex:0]; REQUIRE(encoder);
++        arguments = [g_dev newBufferWithLength:encoder.encodedLength options:MTLResourceStorageModeShared]; REQUIRE(arguments);
++        [encoder setArgumentBuffer:arguments offset:0];
++        [encoder setBuffer:out offset:0 atIndex:0];
++    }
++    id<MTLCommandBuffer> cb=[g_q commandBuffer];
+     id<MTLComputeCommandEncoder> e=[cb computeCommandEncoder]; [e setComputePipelineState:p]; [e useResource:out usage:MTLResourceUsageWrite];
+     [e setBuffer:arguments offset:0 atIndex:0];
+-    [e dispatchThreads:MTLSizeMake(1,1,1) threadsPerThreadgroup:MTLSizeMake(1,1,1)]; [e endEncoding];
++    [e dispatchThreadgroups:MTLSizeMake(1,1,1) threadsPerThreadgroup:MTLSizeMake(1,1,1)]; [e endEncoding];
+     [cb commit]; [cb waitUntilCompleted]; REQUIRE(cb.status==MTLCommandBufferStatusCompleted);
+     CHECK(*(uint32_t *)out.contents==0x1234abcd,"compute GPU uint expected=0x1234abcd actual=0x%08x",*(uint32_t *)out.contents);
+ }
+@@ -83,7 +114,7 @@
+     MTLRenderPassDescriptor *rp=[MTLRenderPassDescriptor renderPassDescriptor]; rp.renderTargetArrayLength=layer?2:1;
+     rp.colorAttachments[0].texture=target; rp.colorAttachments[0].loadAction=MTLLoadActionClear;
+     rp.colorAttachments[0].storeAction=MTLStoreActionStore; rp.colorAttachments[0].clearColor=MTLClearColorMake(-1,-1,-1,-1);
+-    id<MTLCommandQueue> q=[g_dev newCommandQueue]; id<MTLCommandBuffer> cb=[q commandBuffer];
++    id<MTLCommandBuffer> cb=[g_q commandBuffer];
+     id<MTLRenderCommandEncoder> e=[cb renderCommandEncoderWithDescriptor:rp]; [e setRenderPipelineState:p];
+     [e drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3]; [e endEncoding];
+     id<MTLBuffer> out=[g_dev newBufferWithLength:512 options:MTLResourceStorageModeShared]; REQUIRE(out);
+@@ -202,7 +233,7 @@
+     setenv("DM_NVN_SHMAP",map.fileSystemRepresentation,1); setenv("DM_MSL_DIR",root.fileSystemRepresentation,1);
+     setenv("DM_MSL_FALLBACK",fallback.fileSystemRepresentation,1); setenv("DM_PSO_MANIFEST","off",1);
+     setenv("DM_PSO_ARCHIVE","0",1); setenv("DM_PSO_USER",[root stringByAppendingPathComponent:@"user.tsv"].fileSystemRepresentation,1);
+-    mtl_init(); shmap_load(); printf("GPU %s; backend %s\n",g_dev.name.UTF8String,g_m3?"Metal3":"Metal4");
++    fixture_device(); shmap_load(); printf("GPU %s; backend %s\n",g_dev.name.UTF8String,g_m3?"Metal3":"Metal4");
+ #ifndef NVN_SHADER_FLIGHT_IMPL
+     g_warm_dict=[NSMutableDictionary dictionary];
+ #endif

@@ -131,6 +131,7 @@ fetched at build time and never committed here (Apache-2.0, see `docs/s2arm-lega
 | `0123-guest-repair-stage-inputs-and-share-exact-metal-libraries.patch` | Checks and repairs the stage input used for retranslation. Identical effective vertex or mesh MSL can share a library in memory while preserving distinct shader functions. |
 | `0124-guest-learn-actual-pipeline-transitions-and-rearm-prewarm.patch` | Promotes an existing exact render-pipeline row when two prior runs agree on its successor, and rearms prewarming when a parked session actually rebuilds. |
 | `0125-guest-recover-usable-metal-archives.patch` | Recovers valid archive index rows after interruption, migrates legacy identity stamps with strict Metal validation and protects the slow-build timer lifetime. |
+| `0126-guest-prefetch-the-resumed-depth-variant.patch` | Uses the default depth convention of the new session when retaining prefetch entries and checks the real vertex function after reopening. |
 
 The title check for pending save slots compiled on both macOS runners in [run 44321233097](https://github.com/TarbleFR/RewindBox/actions/runs/44321233097). Zero warnings targeted its 19 added engine lines. The shader translator stamp matches IPA 787. [Library](https://github.com/TarbleFR/RewindBox/actions/runs/44321234483) and [bridge](https://github.com/TarbleFR/RewindBox/actions/runs/44321233960) checks passed.
 
