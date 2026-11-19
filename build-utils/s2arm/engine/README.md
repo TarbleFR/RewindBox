@@ -182,3 +182,5 @@ preparation checks on macOS and Linux in [run 44241257215](https://github.com/Ta
 and session checks passed in [run 44245547801](https://github.com/TarbleFR/RewindBox/actions/runs/44245547801),
 and the Dart checks passed in [run 44246340217](https://github.com/TarbleFR/RewindBox/actions/runs/44246340217).
 The relaunch, controller handoff and thermal effect still need an iPhone run.
+
+IPA 795 uses graphics revision 1 for the supported Mario Kart World build. The checks on the exact delivery source cover the legacy-cache migration, interrupt and resume, the foreground reference pipelines, pixel readback and deferred texture transfers. Delivery source `81e4b8963c1c749d76f5220cdbb3fa49c233c914`.
