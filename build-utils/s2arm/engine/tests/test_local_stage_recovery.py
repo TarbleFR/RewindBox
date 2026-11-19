@@ -9,6 +9,8 @@ import hashlib
 import importlib.util
 from pathlib import Path
 import struct
+import os
+import shutil
 import subprocess
 import tempfile
 
@@ -47,7 +49,7 @@ def run(tool,game,wire,profile,dsh,decoder):
 
 def main():
     p=argparse.ArgumentParser()
-    for name in ['source','tool','dsh','decoder','pixel']: p.add_argument(name,type=Path)
+    for name in ['source','tool','dsh','decoder','pixel','red']: p.add_argument(name,type=Path)
     a=p.parse_args()
     spec=importlib.util.spec_from_file_location('ampere',a.source/'tests/ampere_isa/cases.py')
     ampere=importlib.util.module_from_spec(spec);spec.loader.exec_module(ampere)
@@ -96,4 +98,45 @@ def main():
         (out2/(key+'_b.metal')).unlink()
         check_case(wire2,(2,0,1,0,1,1,0,1))
         print('PASS RomFS symlink, zstd/SARC/GLSLC, fresh/794 history, interrupted index, hot run and exact RGBA32Uint '+rgba)
+        def imported_generation(name,has_input=True,priority=True):
+            target=base/name; target_src=target/'shaders'; target_src.mkdir(parents=True)
+            for ext in ['metal','json']+(['in'] if has_input else []):
+                src=shaders/f'{key}_b.{ext}'; shutil.copyfile(src,target_src/src.name)
+            # A fully valid MSL source with the same translator fingerprint.
+            live=target_src/msl.name
+            live.write_bytes(live.read_bytes()+b'\n// marker from a compatible 794 generation\n')
+            marker=live.read_bytes()
+            listed=target/'pso_user.tsv'; listed.write_text(f'S\t{key}_b\t1\n')
+            return target,listed if priority else target/'unused-profile',live,marker
+
+        candidate,listed,live,marker=imported_generation('negative-0130')
+        assert run(a.red,game,candidate,listed,a.dsh,a.decoder)==(1,1,0,0,0,0,0,1)
+        assert live.read_bytes()==marker and not (candidate/'priority-stages-v1').exists()
+        print('RED 0130 retained a compatible 794 MSL without invoking the native translator')
+
+        candidate,listed,live,marker=imported_generation('generation-795')
+        interrupt=subprocess.run([str(a.tool),'--rb-local-stages',str(game),str(candidate),str(listed),str(a.dsh),str(a.decoder)],
+                                 env={**os.environ,'RB_TEST_CANCEL_AT_PRIORITY_PRODUCT':key},
+                                 capture_output=True,text=True)
+        print(interrupt.stdout,end='')
+        assert interrupt.returncode==1 and 'STAGES 1 1 0 0 0 1 0 1' in interrupt.stdout
+        assert (candidate/'priority-stages-v1'/key/'receipt.plist').is_file() and live.read_bytes()==marker
+        assert run(a.tool,game,candidate,listed,a.dsh,a.decoder)==(1,1,0,0,0,0,0,1)
+        assert live.read_bytes()==msl.read_bytes()
+        assert 'priority-checkpoint' in (candidate/'stage-recovery.tsv').read_text()
+        timestamp=live.stat().st_mtime_ns
+        assert run(a.tool,game,candidate,listed,a.dsh,a.decoder)==(1,1,0,0,0,0,0,1)
+        assert live.stat().st_mtime_ns==timestamp
+        assert subprocess.check_output([str(a.pixel),str(live)],text=True).strip()==rgba
+
+        candidate,listed,live,marker=imported_generation('history-only',priority=False)
+        assert run(a.tool,game,candidate,listed,a.dsh,a.decoder)==(1,1,0,0,0,0,0,1)
+        assert live.read_bytes()==marker and not (candidate/'priority-stages-v1').exists()
+
+        candidate,listed,live,marker=imported_generation('no-original',has_input=False)
+        no_assets=base/'no-assets';no_assets.mkdir()
+        (no_assets/'index.tsv').write_text('')
+        assert run(a.tool,no_assets,candidate,listed,a.dsh,a.decoder)==(1,1,0,0,0,0,0,0)
+        assert live.read_bytes()==marker and 'preserved-no-input' in (candidate/'stage-recovery.tsv').read_text()
+        print('GREEN NativeAOT retranslated one compatible priority stage, resumed before publication, emitted exact pixels; missing inputs and nonpriority MSL preserved')
 if __name__=='__main__': main()

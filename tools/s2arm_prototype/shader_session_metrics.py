@@ -41,6 +41,8 @@ def summarize(host, captures, first, last):
                    pipelineSkippedDraws=sum(n for _, n, _ in frames.values()))
 
     long_frames, waits, footprint, thermal = {}, [], [], {}
+    slow_logged = {100: 0, 200: 0, 500: 0}
+    full_windows, gap_rows, reference_binds = [], {}, []
     archive = None
     missing = None
     shared_library_count = None
@@ -54,6 +56,22 @@ def summarize(host, captures, first, last):
                 if i in long_frames:
                     raise ValueError(f"Duplicate host frame {i}. Supply a single session.")
                 long_frames[i] = list(map(float, parts.groups())) if parts else None
+                for threshold in slow_logged:
+                    slow_logged[threshold] += float(m[3]) > threshold
+                gaps = re.search(r"outside submit/present ([\d.]+) ms, longest ([\d.]+) ms over (\d+) gaps", line)
+                if gaps:
+                    gap_rows[i] = {"outsideMs": float(gaps[1]), "longestMs": float(gaps[2]), "count": int(gaps[3])}
+            m = re.search(r"RewindBox frame intervals (\d+)\.\.(\d+): (\d+) samples, (\d+) ns, above 100/200/500 ms (\d+)/(\d+)/(\d+)", line)
+            if m and selected(int(m[1])) and selected(int(m[2])):
+                a, b, n, ns, s100, s200, s500 = map(int, m.groups())
+                if b - a + 1 != n or not ns or not (0 <= s500 <= s200 <= s100 <= n):
+                    raise ValueError("Invalid frame-interval window")
+                if full_windows and full_windows[-1][1] >= a:
+                    raise ValueError("Overlapping frame-interval windows. Supply a single session.")
+                full_windows.append((a, b, n, ns, s100, s200, s500))
+            m = re.search(r"reference: encoder bound exact prewarmed PSO ([0-9a-f]{40}) at frame (\d+)", line)
+            if m and selected(int(m[2])):
+                reference_binds.append({"archiveKey": m[1], "frame": int(m[2])})
             m = re.search(r"first-use wait #\d+ frame (\d+): .*?waited for the queued compile ([\d.]+) ms", line)
             if m and selected(int(m[1])):
                 waits.append(float(m[2]))
@@ -86,7 +104,14 @@ def summarize(host, captures, first, last):
                                  "lowPowerMode": bool(int(m[5]))})
     available = [row for row in long_frames.values() if row is not None]
     sums = [round(sum(col), 2) for col in zip(*available)]
-    return {"frameSignatureIntervals": sig, "selectedLoggedFrames": {
+    intervals = None
+    if full_windows:
+        n, ns, s100, s200, s500 = map(sum, zip(*(w[2:] for w in full_windows)))
+        intervals = {"first": full_windows[0][0], "last": full_windows[-1][1], "samples": n,
+                     "missingWithinObservedSpan": full_windows[-1][1] - full_windows[0][0] + 1 - n,
+                     "averageFPS": round(n * 1e9 / ns, 3), "over100Ms": s100, "over200Ms": s200, "over500Ms": s500}
+    return {"frameSignatureIntervals": sig, "completeHostWindows": intervals, "referenceBinds": reference_binds,
+        "selectedLoggedFrames": {"rowsOverMs": slow_logged, "submitGaps": gap_rows,
         "longFrameRows": len(long_frames), "rowsWithCompilerBreakdown": len(available),
         "compilerTotalsOnTheseRows": dict(zip(
             ("translations", "translationMs", "inFlightWaits", "translationWaitMs", "mslSourceCalls", "mslSourceMs"), sums)) if sums else None,

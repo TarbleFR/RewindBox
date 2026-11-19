@@ -8,6 +8,26 @@ from shader_session_metrics import summarize
 
 
 class SessionMetricsTests(unittest.TestCase):
+    def test_complete_windows_and_timed_gaps(self):
+        with tempfile.TemporaryDirectory() as directory:
+            host = Path(directory) / "host.log"
+            lines = [
+                "RewindBox frame intervals 1..2: 2 samples, 300000002 ns, above 100/200/500 ms 2/0/0",
+                "RewindBox frame intervals 3..3: 1 samples, 500000001 ns, above 100/200/500 ms 1/1/1",
+                "[longframe] frame 3 (0.80 s) whole frame 500.0 ms; outside submit/present 409.2 ms, longest 301.0 ms over 3 gaps",
+                "RewindBox reference: encoder bound exact prewarmed PSO " + "abcde" * 8 + " at frame 2"]
+            host.write_text("\n".join(lines))
+            report = summarize(host, [], 1, 3)
+            win = report["completeHostWindows"]
+            self.assertEqual((win["samples"], win["over100Ms"], win["over200Ms"], win["over500Ms"]), (3, 3, 1, 1))
+            self.assertEqual(win["averageFPS"], 3.75)
+            self.assertEqual(report["selectedLoggedFrames"]["submitGaps"][3]["longestMs"], 301.)
+            self.assertEqual(len(report["referenceBinds"]), 1)
+            self.assertIsNone(summarize(host, [], 2, 2)["completeHostWindows"])
+            host.write_text("\n".join(lines + lines[:1]))
+            with self.assertRaisesRegex(ValueError, "Overlapping"):
+                summarize(host, [], 1, 3)
+
     def test_real_object_reuse_and_sampled_governor_changes(self):
         with tempfile.TemporaryDirectory() as directory:
             host = Path(directory) / "host.log"

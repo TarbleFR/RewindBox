@@ -1,0 +1,216 @@
+diff --git a/graphics/nvn/host/rb_prepare_stages.inc b/graphics/nvn/host/rb_prepare_stages.inc
+index 677c504..70bba5e 100644
+--- a/graphics/nvn/host/rb_prepare_stages.inc
++++ b/graphics/nvn/host/rb_prepare_stages.inc
+@@ -263,6 +263,8 @@ static int rb_stage_assets(NSString *game,NSString *wire,rb_local_scan *scan,rb_
+     return rc;
+ }
+ 
++#include "rb_priority_stage.inc"
++
+ static int rb_prepare_stage_batch(const char *game,const char *wire_path,const char *profile,int (*cancel)(void *),
+                                   void *ctx,uint64_t stats[8],rb_inflate_fn inflate,
+                                   void (*progress)(void *,uint64_t,uint64_t)) {
+@@ -270,6 +272,8 @@ static int rb_prepare_stage_batch(const char *game,const char *wire_path,const c
+     if (![NSFileManager.defaultManager createDirectoryAtPath:out withIntermediateDirectories:YES attributes:nil error:NULL]) return -1;
+     NSMutableOrderedSet *targets=[NSMutableOrderedSet orderedSet];
+     if (profile && *profile) rb_stage_targets(@(profile),targets);
++    NSSet *priority=[NSSet setWithArray:targets.array];
++    NSMutableSet *packed_only=[NSMutableSet set];
+     rb_stage_targets([wire stringByAppendingPathComponent:@"pso_user.tsv"],targets);
+     rb_stage_targets([@(game) stringByAppendingPathComponent:@"shaders/direct/pso_manifest.tsv"],targets);
+     NSMutableSet *current=[NSMutableSet set], *legacy=[NSMutableSet set];
+@@ -283,9 +287,11 @@ static int rb_prepare_stage_batch(const char *game,const char *wire_path,const c
+         if (rb_batch_cancel(&batch)) return 1;
+         const char *k=key.UTF8String;
+         BOOL packed=rb_translation_available(bundled.fileSystemRepresentation,[key stringByAppendingString:@"_b"],dsh_xfp(),1,NULL);
+-        if (packed || dsh_have(batch.out,k)) [current addObject:key];
++        BOOL local=dsh_have(batch.out,k);
++        if (packed && !local) [packed_only addObject:key];
++        if (packed || local) [current addObject:key];
+         else if ([NSFileManager.defaultManager fileExistsAtPath:[out stringByAppendingPathComponent:[key stringByAppendingString:@"_b.json"]]]) [legacy addObject:key];
+-        if (!packed) {
++        if (!packed || local) {
+             uint32_t h[4]; uint8_t *input=dsh_read_input(batch.out,k,h,1);
+             if (input) { free(input); if (![current containsObject:key]) stats[2]++; }
+             else {
+@@ -302,22 +308,35 @@ static int rb_prepare_stage_batch(const char *game,const char *wire_path,const c
+     if (rc) return rc;
+     NSMutableString *report=[NSMutableString stringWithString:@"key\tprevious_source\tinput\ttranslation\n"];
+     uint64_t old_kept=0,old_found=0,old_missing=0,done=0;
++    uint64_t priority_made=0,priority_reused=0,priority_no_input=0,priority_failed=0;
+     for (NSString *key in targets) { @autoreleasepool {
+         if (rb_batch_cancel(&batch)) return 1;
+         BOOL ready=[current containsObject:key], recovered=[found containsObject:key], missing=[need containsObject:key];
+         BOOL old=[legacy containsObject:key]; if (old) { if (missing) old_missing++; else if (recovered) old_found++; else old_kept++; }
+         NSString *result=ready ? @"current" : @"missing";
+-        if (!ready) {
+-            if (missing) stats[4]++;
+-            else {
+-                if (recovered) stats[3]++;
+-                uint32_t h[4]; uint8_t *input=dsh_read_input(batch.out,key.UTF8String,h,1);
++        if (!ready && missing) stats[4]++;
++        if (!ready && recovered) stats[3]++;
++        BOOL rebuild=[priority containsObject:key] && ![packed_only containsObject:key];
++        if (rebuild && ready && missing) { priority_no_input++; result=@"preserved-no-input"; }
++        if (!missing && (rebuild || !ready)) {
++            uint32_t h[4]; uint8_t *input=dsh_read_input(batch.out,key.UTF8String,h,1);
++            int ok=0,made=0;
++            if (input && rebuild) {
++                ok=rb_priority_stage(key,wire,out,&batch,h,input,&made);
++                priority_made+=made; stats[5]+=made;
++                if (ok>0 && !made) priority_reused++;
++                if (!ok) priority_failed++;
++                result=ok>0 ? (made?@"priority-retranslated":@"priority-checkpoint") : @"failed";
++            } else if (input) {
+                 dsh_comp_fn compile=dsh_comp();
+-                int ok=input && compile && !dsh_translate_locked(compile,key.UTF8String,h[1],input+h[2],h[3],input,h[2],batch.out,1)
+-                       && dsh_have(batch.out,key.UTF8String);
+-                free(input);
+-                stats[ok ? 5:6]++; result=ok ? @"translated" : @"failed";
+-            }
++                ok=compile && !dsh_translate_locked(compile,key.UTF8String,h[1],input+h[2],h[3],input,h[2],batch.out,1)
++                   && dsh_have(batch.out,key.UTF8String);
++                if (ok) stats[5]++;
++                result=ok ? @"translated" : @"failed";
++            } else { result=@"failed"; if (rebuild) priority_failed++; }
++            free(input);
++            if (ok<0) return 1;
++            if (!ok) stats[6]++;
+         }
+         [report appendFormat:@"%@\t%@\t%@\t%@\n",key,ready?@"current":old?@"stale":@"absent",
+                 missing?@"unavailable":[from_dump containsObject:key]?@"diagnostic-dump":recovered?@"resource":@"present-or-bundled",result];
+@@ -325,7 +344,9 @@ static int rb_prepare_stage_batch(const char *game,const char *wire_path,const c
+     } }
+     if (![report writeToFile:[wire stringByAppendingPathComponent:@"stage-recovery.tsv"] atomically:YES encoding:NSUTF8StringEncoding error:NULL]) return -1;
+     LOG("RewindBox: previously translated but stale: kept input %llu, recovered from local assets or dumps %llu, still missing %llu",old_kept,old_found,old_missing);
+-    return 0;
++    LOG("RewindBox: priority stage inputs: %llu newly retranslated, %llu generation checkpoints reused, %llu compatible sources preserved without input, %llu failed",
++        priority_made,priority_reused,priority_no_input,priority_failed);
++    return priority_failed ? -1 : 0;
+ }
+ 
+ // Explicit game root for NativeAOT's facts/pair tables before configure. The
+diff --git a/graphics/nvn/host/rb_priority_stage.inc b/graphics/nvn/host/rb_priority_stage.inc
+new file mode 100644
+index 0000000..82dc3f7
+--- /dev/null
++++ b/graphics/nvn/host/rb_priority_stage.inc
+@@ -0,0 +1,89 @@
++// Rebuild a witnessed stage once in its staging generation. DshCompiler removes
++// outputs before translating: never call it in a directory containing the user's
++// compatible files. A completed private product is also a restart checkpoint.
++static NSString *rb_stage_file_digest(NSString *path) {
++    int fd=open(path.fileSystemRepresentation,O_RDONLY|O_NONBLOCK|O_NOFOLLOW);
++    if (fd<0) return nil;
++    struct stat st;
++    if (fstat(fd,&st) || !S_ISREG(st.st_mode) || !st.st_size) { close(fd); return nil; }
++    CC_SHA256_CTX sha; CC_SHA256_Init(&sha);
++    uint8_t buf[32768]; ssize_t n;
++    while ((n=read(fd,buf,sizeof buf))!=0) {
++        if (n<0) { if (errno==EINTR) continue; close(fd); return nil; }
++        CC_SHA256_Update(&sha,buf,(CC_LONG)n);
++    }
++    close(fd);
++    uint8_t sum[32]; char hex[65]; CC_SHA256_Final(sum,&sha);
++    for (unsigned i=0;i<sizeof sum;i++) snprintf(hex+2*i,3,"%02x",sum[i]);
++    return @(hex);
++}
++
++static int rb_stage_product_name(NSString *name,NSString *key) {
++    if (![name.lastPathComponent isEqual:name] || ![name hasPrefix:[key stringByAppendingString:@"_"]]) return 0;
++    return [name.pathExtension isEqual:@"metal"] || [name.pathExtension isEqual:@"json"];
++}
++
++static NSDictionary *rb_stage_product_files(NSString *dir,NSString *key) {
++    NSArray *entries=[NSFileManager.defaultManager contentsOfDirectoryAtPath:dir error:NULL];
++    if (!entries || entries.count>128) return nil;
++    NSMutableDictionary *files=[NSMutableDictionary dictionary];
++    for (NSString *name in entries) {
++        if ([name isEqual:@"receipt.plist"]) continue;
++        if (!rb_stage_product_name(name,key)) return nil;
++        NSString *digest=rb_stage_file_digest([dir stringByAppendingPathComponent:name]);
++        if (!digest) return nil;
++        files[name]=digest;
++    }
++    return files.count ? files : nil;
++}
++
++// Missing outputs are atomically restored from the durable product. A process
++// interrupted between two renames resumes here before any guest can use the work.
++static int rb_stage_publish_products(NSDictionary *files,NSString *dir,NSString *out) {
++    for (NSString *name in files) {
++        NSString *src=[dir stringByAppendingPathComponent:name], *dst=[out stringByAppendingPathComponent:name];
++        if ([files[name] isEqual:rb_stage_file_digest(dst)]) continue;
++        NSString *tmp=[dst stringByAppendingString:@".rb-priority.tmp"];
++        unlink(tmp.fileSystemRepresentation);
++        if (link(src.fileSystemRepresentation,tmp.fileSystemRepresentation) ||
++            rename(tmp.fileSystemRepresentation,dst.fileSystemRepresentation)) { unlink(tmp.fileSystemRepresentation); return 0; }
++    }
++    return 1;
++}
++
++// 1 = ready (new or previously committed), 0 = translation/IO error,
++// -1 = cancellation. made counts an actual successful invocation in this call.
++static int rb_priority_stage(NSString *key,NSString *wire,NSString *out,rb_stage_batch *batch,
++                             uint32_t h[4],const uint8_t *input,int *made) {
++    *made=0;
++    const char *xfp=dsh_xfp();
++    if (!xfp || !*xfp) return 0;
++    char hex[65]; rb_row_digest((const char *)input,(size_t)h[2]+h[3],hex);
++    NSDictionary *identity=@{@"input":@(hex),@"xfp":@(xfp),@"chain":@DMSH_CHAIN,@"stage":@(h[1]),
++                             @"generation":wire.lastPathComponent};
++    NSFileManager *fm=NSFileManager.defaultManager;
++    NSString *root=[wire stringByAppendingPathComponent:@"priority-stages-v1"];
++    NSString *dir=[root stringByAppendingPathComponent:key], *receipt=[dir stringByAppendingPathComponent:@"receipt.plist"];
++    NSDictionary *meta=[NSDictionary dictionaryWithContentsOfFile:receipt];
++    NSDictionary *files=nil;
++    if ([meta[@"identity"] isEqual:identity]) {
++        files=rb_stage_product_files(dir,key);
++        if (![meta[@"files"] isEqual:files]) files=nil;
++    }
++    if (!files) {
++        NSString *tmp=[root stringByAppendingPathComponent:[key stringByAppendingString:@".work"]];
++        if ([fm fileExistsAtPath:tmp] && ![fm removeItemAtPath:tmp error:NULL]) return 0;
++        if (![fm createDirectoryAtPath:tmp withIntermediateDirectories:YES attributes:nil error:NULL]) return 0;
++        dsh_comp_fn compile=dsh_comp();
++        int stage=-1;
++        if (!compile || dsh_translate_locked(compile,key.UTF8String,h[1],input+h[2],h[3],input,h[2],tmp.fileSystemRepresentation,1) ||
++            !t_dsh_src_made || !dsh_current_stage(tmp.fileSystemRepresentation,key.UTF8String,&stage) || stage!=(int)h[1]) return 0;
++        files=rb_stage_product_files(tmp,key);
++        if (!files || ![@{@"identity":identity,@"files":files} writeToFile:[tmp stringByAppendingPathComponent:@"receipt.plist"] atomically:YES]) return 0;
++        if ([fm fileExistsAtPath:dir] && ![fm removeItemAtPath:dir error:NULL]) return 0;
++        if (rename(tmp.fileSystemRepresentation,dir.fileSystemRepresentation)) return 0;
++        *made=1;
++    }
++    if (rb_batch_cancel(batch)) return -1;
++    return rb_stage_publish_products(files,dir,out);
++}
+diff --git a/graphics/nvn/tests/t_dsh_stats.c b/graphics/nvn/tests/t_dsh_stats.c
+index 42c5e68..f367260 100644
+--- a/graphics/nvn/tests/t_dsh_stats.c
++++ b/graphics/nvn/tests/t_dsh_stats.c
+@@ -331,6 +331,14 @@ static int native_input_recovery(const char *mode, const char *dir, const char *
+     }
+     return 0;
+ }
++#ifdef RB_PREPARE_STAGES_V1
++static int rb_test_receipt_ready(void *wire) {
++    const char *key=getenv("RB_TEST_CANCEL_AT_PRIORITY_PRODUCT");
++    if (!key || strlen(key)!=16) return 0;
++    char file[2048];
++    return snprintf(file,sizeof file,"%s/priority-stages-v1/%s/receipt.plist",(char *)wire,key)<(int)sizeof file && !access(file,F_OK);
++}
++#endif
+ int main(int argc, char **argv) {
+ #ifdef RB_PREPARE_STAGES_V1
+     if (argc == 7 && !strcmp(argv[1],"--rb-local-stages")) { @autoreleasepool {
+@@ -340,7 +348,7 @@ int main(int argc, char **argv) {
+         rb_inflate_fn inflate=codec ? (rb_inflate_fn)dlsym(codec,"rb_s2arm_shader_inflate") : NULL;
+         check(native_dsh && inflate && dlsym(native_dsh,"s2a_dsh_compile"));
+         uint64_t counts[8];
+-        int rc=rb_prepare_stage_inputs(argv[2],argv[3],argv[4],NULL,NULL,counts,inflate,NULL);
++        int rc=rb_prepare_stage_inputs(argv[2],argv[3],argv[4],rb_test_receipt_ready,argv[3],counts,inflate,NULL);
+         for (unsigned i=0;i<8;i++) printf("%s%llu",i ? " " : "STAGES ",(unsigned long long)counts[i]);
+         puts("");
+         return rc;

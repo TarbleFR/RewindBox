@@ -1,0 +1,97 @@
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -2903,6 +2903,16 @@
+ #include "rb_submit_gap.h"
+ static pthread_mutex_t rb_gap_lock = PTHREAD_MUTEX_INITIALIZER;
+ static rb_gap_clock rb_calls;
++static rb_frame_window rb_intervals;
++static uint64_t rb_last_present;
++static void rb_report_intervals(uint64_t last) {
++    if (!rb_intervals.count) return;
++    LOG("[nvn] RewindBox frame intervals %llu..%llu: %u samples, %llu ns, above 100/200/500 ms %u/%u/%u",
++        (unsigned long long)(last + 1 - rb_intervals.count), (unsigned long long)last,
++        rb_intervals.count, (unsigned long long)rb_intervals.ns,
++        rb_intervals.slow100, rb_intervals.slow200, rb_intervals.slow500);
++    rb_intervals = (rb_frame_window){0};
++}
+ static _Atomic unsigned rb_callers;
+ static rb_gap_sample rb_call_enter(int present) {
+     atomic_fetch_add(&rb_callers, 1);
+@@ -3839,9 +3849,16 @@
+         trow(g_frame, "@rec_ms", rec * tb.numer / tb.denom / 1e6); trow(g_frame, "@submit_ms", sub * tb.numer / tb.denom / 1e6);
+         tpush(4, rec * tb.numer / tb.denom / 1e6); tpush(5, sub * tb.numer / tb.denom / 1e6);
+     }
++    if (f && rb_last_present && t0 >= rb_last_present) {
++        rb_frame_add(&rb_intervals, t0 - rb_last_present);
++        if (rb_intervals.count == 300) rb_report_intervals(f);
++    }
++    rb_last_present = t0;
+     if (prev_in) {
+         double fr = (t0 - prev_in) / 1e6, wk = (t0 - prev_out) / 1e6, nv = atomic_exchange(&g_nvn_ns, 0) / 1e6;
+         tpush(0, fr); tpush(1, wk); tpush(2, nv);
++        trow(f, "@outside_submit_present_ms", rb_gaps.total / 1e6);
++        trow(f, "@longest_submit_gap_ms", rb_gaps.longest / 1e6);
+         trow(f, "@frame_ms", fr); trow(f, "@work_ms", wk); trow(f, "@nvn_ms", nv); trow(f, "@itv", (double)present_itv(o));
+         // Slow-frame attribution (taken only when DM_NVN_TSV is on): this frame's present-thread CPU time (−1 if the thread changed), CPU of all threads in the process, acquire wait accumulated per frame, present call time (same base as the GPU / on-screen present times: ms since process start)
+         trow(f, "@wait_ms", g_acq_wait_ns / 1e6); trow(f, "@pq_wait_ms", g_pq_wait_ns / 1e6);
+@@ -5423,6 +5440,8 @@
+     free(g_tpb); free(g_spb); g_tpb = g_spb = NULL;   // 池表按需增长（#1209），整表释放，下个会话从初始容量重来
+     g_cap_tpb = g_cap_spb = g_ntpb = g_nspb = g_tnext = g_snext = 0;
+     pthread_mutex_lock(&rb_gap_lock); rb_calls = (rb_gap_clock){0}; pthread_mutex_unlock(&rb_gap_lock);
++    if (g_frame) rb_report_intervals(g_frame - 1);
++    rb_last_present = 0;
+     g_frame = 0; g_hz = -1; g_display_mode = 0; g_game_itv = 1;
+     // 当前设备指向上一局游戏内存里的设备结构：那片内存随会话撤掉，新局 nvnDeviceInitialize 读它的标记就 SIGBUS（11-06 索尼克×夏特切到序号 1，
+     //   h_nvnDeviceInitialize+0x44 读 g_cur_dev 0x75c61bf928）。同程序进程内重启同理，新局重新登记
+--- a/graphics/nvn/gfx/nvn/rb_submit_gap.h
++++ b/graphics/nvn/gfx/nvn/rb_submit_gap.h
+@@ -23,4 +23,12 @@
+     c->sample = (rb_gap_sample){0};
+     return result;
+ }
++typedef struct { uint64_t ns; unsigned count, slow100, slow200, slow500; } rb_frame_window;
++static inline void rb_frame_add(rb_frame_window *w, uint64_t ns) {
++    ++w->count;
++    w->ns += ns;
++    w->slow100 += ns > 100000000;
++    w->slow200 += ns > 200000000;
++    w->slow500 += ns > 500000000;
++}
+ #endif
+--- a/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
++++ b/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
+@@ -60,7 +60,7 @@
+ 
+ void nvn_be_advance_texture(void) {
+     if (!atomic_load_explicit(&g_tx_ahead.pending, memory_order_relaxed) ||
+-        !on_sub_thread() || dm_gfx_session_stopping() || g_cb || g_up_cb ||
++        !on_sub_thread() || dm_gfx_session_stopping() || g_cb || g_up_cb || atomic_load(&g_fu_waiting) ||
+         g_tx_ahead.bytes >= RB_TX_SESSION || atomic_load(&g_up_pending)) return;
+     uint64_t frame = atomic_load(&g_cur_frame);
+     if (g_tx_ahead.frame != frame) { g_tx_ahead.frame = frame; g_tx_ahead.in_frame = 0; }
+--- a/graphics/nvn/tests/t_nvn_up_tex_src.m
++++ b/graphics/nvn/tests/t_nvn_up_tex_src.m
+@@ -68,6 +68,11 @@
+     id<MTLTexture> early = tex_mtl(&wanted); REQUIRE(early);
+     CHECK(g_pkg_uploads == 1 && !wrong_value(early, 0x11223344),
+           "first use reuses the uploaded bytes on the GPU (%s)", g_dev.name.UTF8String);
++    // A host-side write enters the same pre-write hook used by guest services.
++    // This standalone executable has no guest signal trampoline.
++    uint64_t before = nvn_dirty_now();
++    dm_guest_write_prepare(wanted.mem, wanted.L.size);
++    REQUIRE(nvn_dirty_now() > before);
+     for (size_t i = 0; i < wanted.L.size / 4; ++i) ((uint32_t *)wanted.mem)[i] = 0x8899aabb;
+     id<MTLTexture> updated = tex_mtl(&wanted); REQUIRE(updated); wait_uploads();
+     CHECK(!wrong_value(updated, 0x8899aabb), "guest write before a draw reaches every texel");
+--- a/graphics/nvn/tests/t_rb_submit_gap.c
++++ b/graphics/nvn/tests/t_rb_submit_gap.c
+@@ -21,5 +21,9 @@
+     rb_gap_leave(&c, 219);
+     rb_gap_enter(&c, 4219);
+     assert(rb_gap_cut(&c).longest == 4000);
++    rb_frame_window w = {0};
++    const uint64_t ns[] = {100000000,100000001,200000000,200000001,500000000,500000001};
++    for (unsigned i = 0; i < 6; ++i) rb_frame_add(&w,ns[i]);
++    assert(w.count == 6 && w.ns == 1600000003 && w.slow100 == 5 && w.slow200 == 3 && w.slow500 == 1);
+     puts("submit gap: overlapping calls, presentation cut, 4-second gap passed");
+ }

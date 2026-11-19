@@ -96,7 +96,17 @@ test "$pixel" = '0000002a 00000007 00000063 00000001' || { echo "Unexpected nati
 echo "PASS exact RGBA32Uint from repaired production NVN2 fragment $pixel"
 # Reuse this published translator, shader host and Metal renderer.
 xcrun --sdk macosx clang -O2 -dynamiclib "$tests/../../../../native/s2arm/prepare/s2arm_zstd.c" -o "$case_dir/prepare-zstd.dylib"
-python3 "$tests/test_local_stage_recovery.py" "$root" "$dsh_stats" "$translator" "$case_dir/prepare-zstd.dylib" "$case_dir/fragment"
+# A separately compiled negative control runs the same true NativeAOT runtime
+# against the previous stage preparer. Reverse only its implementation; the
+# common test CLI and its cancellation probe are identical on both binaries.
+pre134="$case_dir/pre134"
+mkdir -p "$pre134/graphics" "$pre134/runtime"
+cp -R graphics/nvn "$pre134/graphics/"
+cp -R runtime/include "$pre134/runtime/"
+git -C "$pre134" apply -R --include='graphics/nvn/host/*' "$tests"/../patches/0134-*.patch
+xcrun --sdk macosx clang -x objective-c -std=gnu11 -fblocks -pthread -framework Foundation \
+  "$pre134/graphics/nvn/tests/t_dsh_stats.c" -o "$case_dir/dsh-before-priority"
+python3 "$tests/test_local_stage_recovery.py" "$root" "$dsh_stats" "$translator" "$case_dir/prepare-zstd.dylib" "$case_dir/fragment" "$case_dir/dsh-before-priority"
 rm "$data/${key}_b.in"
 cp "$data/truncated.metal" "$msl"
 # A valid path with repeated separators must address the very same refusal record.
