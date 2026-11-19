@@ -1,0 +1,171 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 053c6ec..ba89f28 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -4999,6 +4999,65 @@ static uint64_t rb_pa_queue_limit(void) {
+     int state = atomic_load_explicit(&thermal, memory_order_relaxed);
+     return (uint64_t)(state >= 2 ? 16 : state == 1 ? 32 : 64) << 20;
+ }
++
++// RewindBox (patch 0121): speculative shader and pipeline work held back under heat, memory pressure and Low Power Mode. The background prewarm (warm_start's
++//   DM_PSO_BG_THREADS workers, two by default), the start's retranslation of kept stages (dsh_miss.inc, patch 0069) and the archive writer's extra compile of each
++//   pipeline it writes (pso_archive.h) ran at the same pace whatever the phone's state: the compiler service's work is heat, and a long session that reaches the
++//   serious state throttles for minutes (IPA 781: serious from frame 3048). Three tiers: a draw's own pipeline or shader (critical) and the prewarm rows a program the game
++//   just registered moved to the front (warm_bump, the near future) never wait here; the rest of the prewarm, the retranslation pass and the archive writes are optional
++//   and do. Level, sampled at most every 500 ms on whichever thread asks: run (every worker), one (the first worker only: the fair thermal state, or Low Power Mode),
++//   hold (none: the serious or critical thermal state, or less than S2A_RB_SPEC_MIN_FREE_MB, 768 by default, left before the process limit, iOS). Nothing is dropped:
++//   held work resumes when the level allows, a draw that meets an unbuilt pipeline builds it as before, and a session stop releases every waiter. A line at each change
++//   (the first 8, then powers of two) and a summary in the prewarm's end line. S2A_RB_SPEC_GOVERN=0 restores the previous pace
++enum { RB_SPEC_RUN = 0, RB_SPEC_ONE = 1, RB_SPEC_HOLD = 2 };
++static _Atomic uint64_t g_spec_sampled, g_spec_changes, g_spec_parks, g_spec_parked_ns;
++static _Atomic int g_spec_level, g_spec_why;
++static const char *const k_spec_why[] = {"no reason", "the fair thermal state", "Low Power Mode", "the serious or critical thermal state", "little memory left before the process limit"};
++static int rb_spec_on(void) {
++    static _Atomic int v = -1; int x = atomic_load_explicit(&v, memory_order_relaxed);
++    if (x < 0) { const char *e = getenv("S2A_RB_SPEC_GOVERN"); x = !(e && !strcmp(e, "0")); int was = -1;
++        if (atomic_compare_exchange_strong(&v, &was, x)) MLOG("RewindBox: speculative shader work follows heat, memory and Low Power Mode: %s (S2A_RB_SPEC_GOVERN; patch 0121)", x ? "on" : "off"); }
++    return x;
++}
++static uint64_t rb_spec_min_free(void) {
++    static _Atomic int64_t v = -1; int64_t x = atomic_load_explicit(&v, memory_order_relaxed);
++    if (x < 0) { const char *e = getenv("S2A_RB_SPEC_MIN_FREE_MB"); long mb = e && *e ? atol(e) : 768; x = mb > 0 ? mb : 0; atomic_store_explicit(&v, x, memory_order_relaxed); }
++    return (uint64_t)x << 20;
++}
++static int rb_spec_level(void) {
++    if (!rb_spec_on()) return RB_SPEC_RUN;
++    uint64_t now = bp_now(), prev = atomic_load_explicit(&g_spec_sampled, memory_order_relaxed);
++    if ((!prev || now - prev >= 500000000ull) && atomic_compare_exchange_strong_explicit(&g_spec_sampled, &prev, now, memory_order_relaxed, memory_order_relaxed)) {
++        NSProcessInfo *pi = NSProcessInfo.processInfo; int th = (int)pi.thermalState, low = pi.isLowPowerModeEnabled ? 1 : 0;
++        size_t av = 0;
++#if TARGET_OS_IPHONE
++        av = os_proc_available_memory();   // 0: no limit known
++#endif
++        int level = RB_SPEC_RUN, why = 0;
++        if (th >= (int)NSProcessInfoThermalStateSerious) { level = RB_SPEC_HOLD; why = 3; }
++        else if (av && av < rb_spec_min_free()) { level = RB_SPEC_HOLD; why = 4; }
++        else if (th == (int)NSProcessInfoThermalStateFair) { level = RB_SPEC_ONE; why = 1; }
++        else if (low) { level = RB_SPEC_ONE; why = 2; }
++        atomic_store_explicit(&g_spec_why, why, memory_order_relaxed);
++        int was = atomic_exchange_explicit(&g_spec_level, level, memory_order_relaxed);
++        if (was != level) { uint64_t k = atomic_fetch_add(&g_spec_changes, 1) + 1;
++            if (k <= 8 || !(k & (k - 1))) MLOG("RewindBox: speculative shader work %s: %s (thermal state %d, %llu MB left before the process limit, Low Power Mode %d; %llu changes; patch 0121)",
++                                              level == RB_SPEC_HOLD ? "held" : level == RB_SPEC_ONE ? "on one worker" : "back on every worker", k_spec_why[why], th,
++                                              (unsigned long long)(av >> 20), low, (unsigned long long)k); }
++    }
++    return atomic_load_explicit(&g_spec_level, memory_order_relaxed);
++}
++static int rb_spec_may(int w) { int lv = rb_spec_level(); return lv == RB_SPEC_RUN || (lv == RB_SPEC_ONE && w <= 0); }
++// One park of a speculative worker (w: its index, 0 the first): 250 ms, counted. → 0 when the session stops
++static int rb_spec_park(void) {
++    uint64_t t0 = bp_now(); atomic_fetch_add(&g_spec_parks, 1);
++    usleep(250000);
++    atomic_fetch_add(&g_spec_parked_ns, bp_now() - t0);
++    return !dm_gfx_session_stopping();
++}
++// For the other translation units (dsh_miss.inc's retranslation pass, which has a weak stand-in that always allows and waits with its own stop test): may optional work run now
++int rb_spec_allow(int w);
++int rb_spec_allow(int w) { return rb_spec_may(w); }
+ static int rb_pa_reserve(uint64_t bytes, uint64_t limit) {
+     uint64_t old = atomic_load_explicit(&g_pa_pending, memory_order_relaxed), count;
+     do {
+@@ -12343,7 +12402,9 @@ static void warm_urgent_index(NSArray<WarmTask *> *tasks) {
+ }
+ static void warm_urgent_end(void) { os_unfair_lock_lock(&g_wu_lock); g_wu_pairs = nil; [g_wu_q removeAllObjects]; os_unfair_lock_unlock(&g_wu_lock); }   // 标记数组留给还没退出的工人读（随下一次索引换掉）
+ // 工人领下一行：先急件，再按清单顺序；已领的跳过。→ 下标，-1 = 没有了
+-static long warm_pick(_Atomic long *next, long n) {
++// RewindBox (patch 0121): w, the background worker's index (-1: the prepare step's workers, the first frame waits on them, never held): a sequential row waits for the
++//   speculative level (rb_spec_may); a row moved to the front by a program the game registered (warm_bump) is taken whatever the level
++static long warm_pick(_Atomic long *next, long n, int w) {
+     if (fu_yield_on() && atomic_load(&g_fu_waiting)) {   // 首遇让路：提交线程在等首遇管线时不领新行
+         uint64_t t0 = bp_now();
+         while (atomic_load(&g_fu_waiting) && (bp_now() - t0) < FU_YIELD_MAX_MS * 1000000ull && !dm_gfx_session_stopping()) usleep(500);
+@@ -12353,6 +12414,7 @@ static long warm_pick(_Atomic long *next, long n) {
+         long i = -1;
+         os_unfair_lock_lock(&g_wu_lock); if (g_wu_q.count) { i = g_wu_q[0].longValue; [g_wu_q removeObjectAtIndex:0]; } _Atomic(uint8_t) *c = g_wu_claim; long cn = g_wu_n; os_unfair_lock_unlock(&g_wu_lock);
+         int urgent = i >= 0;
++        if (!urgent && w >= 0 && !rb_spec_may(w)) { if (!rb_spec_park()) return -1; continue; }   // RewindBox (patch 0121): look at the front again after each park
+         if (!urgent) { i = atomic_fetch_add(next, 1); if (i >= n) return -1; }
+         if (!c || i >= cn || !atomic_exchange(&c[i], 1)) { if (urgent) atomic_fetch_add(&g_wu_taken, 1); return i; }
+     }
+@@ -12434,6 +12496,8 @@ static void warm_finish(void) {
+     warm_urgent_end();
+     if (atomic_load(&g_fu_yield_n)) MLOG("pipeline prewarm: workers held back %llu times while the submit thread waited for a first-use pipeline, %.1f ms in all", (unsigned long long)atomic_load(&g_fu_yield_n), atomic_load(&g_fu_yield_ns) / 1e6);
+     if (atomic_load(&g_wu_bumped)) MLOG("pipeline prewarm: %llu lines moved to the front when the game registered their programs, %llu of them built from the front", (unsigned long long)atomic_load(&g_wu_bumped), (unsigned long long)atomic_load(&g_wu_taken));
++    if (atomic_load(&g_spec_parks)) MLOG("RewindBox: speculative shader work parked %llu times, %.1f s in all, %llu level changes so far (patch 0121; last reason: %s)",
++                                          (unsigned long long)atomic_load(&g_spec_parks), atomic_load(&g_spec_parked_ns) / 1e9, (unsigned long long)atomic_load(&g_spec_changes), k_spec_why[atomic_load(&g_spec_why) % 5]);
+     warm_tick_full(atomic_load(&g_wp_total));   // the whole list is built (the front end's "fully prewarmed" mark)
+     par_flush_bg();
+ }
+@@ -12441,6 +12505,7 @@ static void warm_finish(void) {
+ // pipelines not yet warmed are compiled on the spot on the submit thread = in-run stutter; the loading screen on entering a run blocks the player anyway, so let it load a little longer (called where hle_nvn.c presents).
+ int mtl_warm_wait(int timeout_ms) {
+     if (!atomic_load(&g_warm_running)) return 0;
++    if (rb_spec_level() == RB_SPEC_HOLD) return 0;   // RewindBox (patch 0121): the prewarm's workers are parked; a loading screen would wait for nothing
+     uint64_t t0 = bp_now();
+     DM_BLOCK_BEGIN(); while (atomic_load(&g_warm_running) && (bp_now() - t0) / 1000000ull < (uint64_t)timeout_ms) usleep(2000); DM_BLOCK_END();
+     return (int)((bp_now() - t0) / 1000000ull) + 1;
+@@ -12512,7 +12577,7 @@ static int warm_prepare(NSArray<WarmTask *> *tasks, long lines) {
+     __block _Atomic long next = 0; __block _Atomic int stop = 0;   // stop：到点放行后满核的准备工人不再领新行（剩下的交后台低优先，见下）
+     dispatch_group_t g = dispatch_group_create();
+     for (int w = 0; w < workers; w++) dispatch_group_async(g, dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+-        for (;;) { if (atomic_load(&stop)) break; long i = warm_pick(&next, n); if (i < 0 || dm_gfx_session_stopping()) break; WARM_PREPARE_TASK(tasks[(NSUInteger)i]); }
++        for (;;) { if (atomic_load(&stop)) break; long i = warm_pick(&next, n, -1); if (i < 0 || dm_gfx_session_stopping()) break; WARM_PREPARE_TASK(tasks[(NSUInteger)i]); }
+     });
+     int shown = 0, late = 0; long seen = -1; uint64_t moved = t0;
+     int front = s2a_front_warm_tick(0, lines) >= 0;   // a front end decides when to stop waiting (it was told the total); else this file's guards
+@@ -12534,7 +12599,7 @@ static int warm_prepare(NSArray<WarmTask *> *tasks, long lines) {
+         atomic_store(&stop, 1);   // 满核的准备工人做完手上这行就退；剩下的从同一位置交给后台 DM_PSO_BG_THREADS 路 WARM_BG_QOS（11-02 怪猎发热：别让满核 user-initiated 一直编下去）
+         { const char *e = getenv("DM_PSO_BG_THREADS"); int bw = e && atoi(e) > 0 ? atoi(e) : 2; workers = bw;
+           for (int w = 0; w < bw; w++) dispatch_group_async(g, dispatch_get_global_queue(WARM_BG_QOS, 0), ^{
+-              for (;;) { long i = warm_pick(&next, n); if (i < 0 || dm_gfx_session_stopping()) break; atomic_fetch_add(&g_warm_bg_after_cap, 1); warm_task(tasks[(NSUInteger)i]); }
++              for (;;) { long i = warm_pick(&next, n, w); if (i < 0 || dm_gfx_session_stopping()) break; atomic_fetch_add(&g_warm_bg_after_cap, 1); warm_task(tasks[(NSUInteger)i]); }
+           }); }
+         atomic_store(&g_wp_why, late); atomic_store(&g_wp_phase, WARM_BG);
+         MLOG("pipeline prepare: the first frame waited %.0f ms (%s); %ld of %ld lines done, the rest goes on in the background on %d workers", (bp_now() - t0) / 1e6,
+@@ -12612,7 +12677,7 @@ static void warm_start(void) {
+         MLOG("pipeline prewarm: %ld lines in the background on %d workers at default QoS, the game does not wait for it", lines, workers);
+         __block _Atomic long next = 0; dispatch_group_t g = dispatch_group_create();
+         for (int w = 0; w < workers; w++) dispatch_group_async(g, dispatch_get_global_queue(WARM_BG_QOS, 0), ^{
+-            for (;;) { long i = warm_pick(&next, n); if (i < 0 || dm_gfx_session_stopping()) break; warm_task(ts[(NSUInteger)i]); }
++            for (;;) { long i = warm_pick(&next, n, w); if (i < 0 || dm_gfx_session_stopping()) break; warm_task(ts[(NSUInteger)i]); }
+         });
+         dispatch_group_notify(g, dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ warm_finish(); }); } });
+ }
+diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archive.h
+index fbf315d..19998fc 100644
+--- a/graphics/nvn/gfx/nvn/pso_archive.h
++++ b/graphics/nvn/gfx/nvn/pso_archive.h
+@@ -285,6 +285,11 @@ static void par_writer(void) { @autoreleasepool {
+         pthread_mutex_lock(&g_par_mu);
+         NSUInteger n = MIN(g_par_todo.count, (NSUInteger)PAR_BATCH);
+         uint64_t serial = 0, delays = 0, priority_delays = 0;
++        if (n && !rb_spec_may(0) && !dm_gfx_session_stopping()) {   // RewindBox (patch 0121): writing compiles the pipeline once more; held while the speculative level holds (nvn_mtl.m rb_spec_level)
++            pthread_mutex_unlock(&g_par_mu);
++            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)1000000000), s2a_qos_global(S2A_QOS_IO_BG), ^{ par_writer(); });
++            return;
++        }
+         if (n && g_rb_archive_coalesce && !g_rb_archive_has_warm) {
+             uint64_t age = clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - g_rb_archive_first;
+             uint64_t delay = 0;
+diff --git a/graphics/nvn/host/dsh_miss.inc b/graphics/nvn/host/dsh_miss.inc
+index 91e3352..a7653d4 100644
+--- a/graphics/nvn/host/dsh_miss.inc
++++ b/graphics/nvn/host/dsh_miss.inc
+@@ -285,6 +285,9 @@ int dm_shader_retranslate(const char *k16) {
+ //   none), the rest left to their first draw and counted. It holds back while the submit thread translates (dsh_yield_late) and while lookahead, bind or eager jobs wait to be
+ //   claimed (g_dsh_bg_q: they are for the scene being drawn), and stops at a session stop (nvn_be_stopping), which waits for it (dm_shader_bg_busy). Once per fallback
+ //   directory unless it stopped early, then the next start goes on. S2A_RB_REKEPT=0 turns it off
++// RewindBox (patch 0121): the pass is optional work; it waits while heat, memory or Low Power Mode hold speculative work (nvn_mtl.m rb_spec_allow; this stand-in lets it run
++//   where the Metal backend is not linked), testing the session's stop every 250 ms as the drain that waits for it needs
++__attribute__((weak)) int rb_spec_allow(int w) { (void)w; return 1; }
+ static int dsh_rk_max(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_REKEPT_MAX"); v = e && *e ? atoi(e) : 256; if (v < 0) v = 0; } return v; }
+ void dm_shader_retranslate_kept(void) {
+     static pthread_mutex_t mu = PTHREAD_MUTEX_INITIALIZER; static char last[1200];
+@@ -305,6 +308,7 @@ void dm_shader_retranslate_kept(void) {
+             if (dsh_have(o, k)) continue;
+             if (made + failed >= (uint64_t)max) { left++; continue; }   // past the bound: only counted
+             while (atomic_load(&g_dsh_bg_q) > 0 && !nvn_be_stopping()) usleep(5000);   // jobs for the scene being drawn come first
++            while (!rb_spec_allow(0) && !nvn_be_stopping()) usleep(250000);   // RewindBox (patch 0121)
+             if (nvn_be_stopping()) { stop = 1; break; }
+             if (dm_shader_retranslate(k)) { made++; atomic_fetch_add(&g_dsh_rk_n, 1); } else failed++;   // dm_shader_retranslate holds back for the submit thread itself
+         }

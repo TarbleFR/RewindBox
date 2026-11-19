@@ -524,3 +524,36 @@ frame time and audible interruptions. Use `S2A_RB_WG_CADENCE_IDLE=0` for the com
 The first IPA 783 application job was canceled before compilation when the maintainer made the
 thermal correction a condition of delivery. [Canceled run](https://github.com/TarbleFR/RewindBox/actions/runs/44230393977)
 
+
+## Shader and pipeline caches: audit and heat-aware prewarm (19 November 2026)
+
+Audit of the chain against the maintainer's "Adaptive Shader Pipeline Cache" request, on the engine of patches 0001-0120.
+
+Already in place and kept:
+- **Device translation kept across sessions.** The preparation writes an empty direct skeleton (`rb_s2arm_direct_skeleton`);
+  stages are translated on the device at first use and kept with their stage bytes (patches 0056, 0069, 0100). A
+  translator change makes them again from those bytes at the start (bounded pass, 0069). A preparation does not translate
+  the game's whole shader archives ahead: for Mario Kart World that is thousands of stages, each a translation and an MSL
+  compile of 0.2-2.4 s on the phone, so minutes of full load and heat. Not done.
+- **Pipeline record and archive.** `pso_user.tsv` lists every pipeline in first-use order; the Metal binary archive
+  (`pipelines/`, identity: OS version, GPU, translation chain) keeps each compiled pipeline, keyed by the full pipeline
+  state; Metal checks functions and state, so a wrong file is a miss, never a wrong pipeline. Writes are batched (0094) and
+  wait for a first-use stall (0094).
+- **Prewarm and prediction.** Each start builds the record in the background on two workers. Rows of a program the game
+  has just registered move to the front (`warm_bump`), pipelines that once stalled a frame for 50 ms or more come first
+  (0109).
+- **First uses.** Lookahead lanes guess the next pipelines (0069, 0081, 0085, 0111, 0117). Identical urgent loads are merged
+  (0101, 0110). A draw that waits for a build in flight raises that builder's QoS (`par_flight`).
+- **Metal 4.** The renderer already uses Metal 4 command queues where available. The pipeline archive stays a
+  `MTLBinaryArchive`. An `MTL4Archive` or `MTL4Compiler` path was not added: nothing measured shows it would beat the
+  archive, and the minimum iOS stays supported.
+
+Added by engine patch 0121: optional work follows the phone's state. The prewarm's ordinary rows, the start's
+retranslation pass and the archive writer's extra compile run on every worker, on one worker (fair thermal state or Low
+Power Mode), or are held (serious or critical state, or less than 768 MB before the process limit). A draw's own
+pipelines and the rows moved to the front are never held. The engine log says each change and sums the parked time at
+the end of the prewarm. `S2A_RB_SPEC_GOVERN=0` restores the previous pace; `S2A_RB_SPEC_MIN_FREE_MB` sets the memory
+floor. No cache format, key or identity changed.
+
+To measure on the phone: same route, cold and warm cache, similar starting temperature. Compare the `[longframe]` lines
+(pipelines and libraries), `first-use wait` lines, the prewarm end lines and the time to the serious thermal state.
