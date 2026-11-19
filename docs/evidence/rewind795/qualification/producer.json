@@ -1,0 +1,35 @@
+{
+  "run": 44558981086,
+  "job": 135682716146,
+  "source": "14347e7912856839d4c4c967a02d7eb2e4aa89f3",
+  "url": "https://github.com/TarbleFR/RewindBox/actions/runs/44558981086/job/135682716146",
+  "logSHA256": "d0a99d6206be19a36a9fef2a687b0c1f30799690ebbbaeb2ba3133ddb5915e33",
+  "passedSteps": [
+    "Check adaptive shader cache changes",
+    "Measure gaps across concurrent submissions and presentation",
+    "Verify shader-library sharing and warm priority on the Mac GPU",
+    "Read back a texture prepared from an earlier recorded bind",
+    "Check the guest entry points of the framework (patches 0003-0010)",
+    "Package the guest frameworks for RewindBox's delivery (macos-26 only)"
+  ],
+  "passedMarkers": [
+    "active-hold-urgent-run",
+    "close-unblocks-verification",
+    "first-submit-mandatory-barrier",
+    "game-stage-parsers",
+    "required-stage-failure"
+  ],
+  "recipeCounts": [
+    12
+  ],
+  "referenceRows": [
+    {
+      "functions": 3,
+      "exactPSOs": 2,
+      "strictPSOs": 2,
+      "missing": 0
+    }
+  ],
+  "passedFlutter": [],
+  "contracts": {}
+}

@@ -1,0 +1,25 @@
+{
+  "build": "795",
+  "callbacks": {
+    "_graphicsCancelled": "0x1003084ac",
+    "_graphicsProgress": "0x100308550",
+    "_rb_s2arm_shader_inflate": "0x1000fc97c",
+    "_rb_s2arm_shader_inflate_fd": "0x1000fcb0c"
+  },
+  "dispatch": {
+    "arguments": {
+      "sp+0": "_graphicsProgress",
+      "sp+8": "_rb_s2arm_shader_inflate_fd",
+      "x4": "_graphicsCancelled",
+      "x7": "_rb_s2arm_shader_inflate"
+    },
+    "indirect": "x27",
+    "pc": "0x100308068"
+  },
+  "ipa": {
+    "bytes": 333297719,
+    "name": "RewindBox-Build795-81e4b8963c1c749d76f5220cdbb3fa49c233c914-cold.ipa",
+    "sha256": "5d598aea119dba67e67c8f87294f1692d30b99074cb2f59cd9864ac2eb714858"
+  },
+  "runner_sha256": "7df801c4c42f91311ea594209a577078161a1f574dfdac9d64b2b7218170d783"
+}

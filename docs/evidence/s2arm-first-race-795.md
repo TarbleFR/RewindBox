@@ -39,3 +39,37 @@ Pour l’image 4 815, les identités exactes sont `ba2073dfd3a104a3130bc7ab521
 6. Confronter les lignes de récupération et de traduction, les créations de bibliothèques, les créations de PSO, la relecture stricte et la liaison dans l’encodeur. Pour le cas 4 815, exiger une ligne de liaison de l’objet préchauffé pour **chacune** des deux identités dès son premier dessin. Comparer les compteurs de dessins sautés aux signatures et à la vidéo.
 
 Aucune capture iPhone de la 795 appariée avec cette capture de la 794 n’est disponible au moment de la préparation du candidat.
+
+## Livraison privée 795
+
+Le run [44562030688](https://github.com/TarbleFR/RewindBox/actions/runs/44562030688) a produit l’IPA au commit `81e4b8963c1c749d76f5220cdbb3fa49c233c914`. Le téléchargement vérifié contient 333 297 719 octets et 97 images natives. Son SHA-256 est `5d598aea119dba67e67c8f87294f1692d30b99074cb2f59cd9864ac2eb714858`. Les 6 vérificateurs hors CI ont réussi.
+
+Le moteur installé provient du [producteur 44558981086](https://github.com/TarbleFR/RewindBox/actions/runs/44558981086), artefact `14550055216`. SHA-256 du binaire arm64 `d9f0da1286c7600f7bc79b24a8156355fa1c9147bdd6878af2fb8ec11769dea0`, empreinte de sa charge utile `b46ac2153c20c23b9da3786dcd93f1094acb1625e9d8e6e679a693c3dd34f1e1`. La bibliothèque de préparation provient du [run 44555747908](https://github.com/TarbleFR/RewindBox/actions/runs/44555747908). SHA-256 du XCFramework compressé `80ed6cd43bdc67fa1936f5ec130f29ffb309c1ad41d39ab068dfc16f76f53b4c`.
+
+| Pont | Comparaison avec la 794 |
+| --- | --- |
+| `armsx2_internal_bridge` | Même code après normalisation des références équivalentes à objc_msgSend |
+| `libretro_internal_bridge` | Même code après normalisation des références équivalentes à objc_msgSend |
+| `melonx_internal_bridge` | Empreinte identique |
+| `rpcs3_internal_bridge` | Même code après normalisation des références équivalentes à objc_msgSend |
+
+Les deux IPA signées ont été comparées pour ARMSX2. Les 935 chargements ARM64 qui diffèrent désignent le même symbole `_objc_msgSend` de la même bibliothèque. Les 65 exports, les 24 dépendances et la section de code du pont coïncident. Les autres différences d’octets se trouvent dans l’UUID et la signature. Le contrôle se reproduit avec `tools/s2arm_prototype/verify_bridge_stubs.py --include-armsx2`, l’IPA et les deux inventaires signés. [Comparaison ARMSX2](rewind795/qualification/armsx2-794-795.json)
+
+| Contrôle Actions | Portée | Étapes ou résultats confirmés |
+| --- | --- | --- |
+| [Job 135682716146](https://github.com/TarbleFR/RewindBox/actions/runs/44558981086/job/135682716146) | Source qualifiée `14347e79` | Check adaptive shader cache changes, Measure gaps across concurrent submissions and presentation, Verify shader-library sharing and warm priority on the Mac GPU, Read back a texture prepared from an earlier recorded bind, Check the guest entry points of the framework (patches 0003-0010), Package the guest frameworks for RewindBox's delivery (macos-26 only), active-hold-urgent-run, close-unblocks-verification, first-submit-mandatory-barrier, game-stage-parsers, required-stage-failure, 12 recettes complètes, 2 PSO relus strictement sur 2 objets, pixel contrôlé |
+| [Job 135671190758](https://github.com/TarbleFR/RewindBox/actions/runs/44555747908/job/135671190758) | Source qualifiée `f299358c` | Check the bounded decoder used by shader indexing, Build S2ArmPrepare.xcframework |
+| [Job 135693863216](https://github.com/TarbleFR/RewindBox/actions/runs/44562100663/job/135693863216) | Source exacte de l’IPA (moteur), déclencheur `0db0ebbb` `81e4b896` | Verify the tested source equals the delivered engine pin, Check adaptive shader cache changes, Measure gaps across concurrent submissions and presentation, Verify shader-library sharing and warm priority on the Mac GPU, Read back a texture prepared from an earlier recorded bind, active-hold-urgent-run, close-unblocks-verification, first-submit-mandatory-barrier, game-stage-parsers, required-stage-failure, 12 recettes complètes, 2 PSO relus strictement sur 2 objets, pixel contrôlé |
+| [Job 135693862339](https://github.com/TarbleFR/RewindBox/actions/runs/44562100572/job/135693862339) | Source exacte de l’IPA (pont iOS), déclencheur `0db0ebbb` `81e4b896` | Compile the bridge sources for iOS arm64, Upgrade, interrupt and reopen a prepared graphics generation, Bridge, session and preparation identity contracts, migration-and-repair, a reused game reports its separate graphics preparation and progress, retrying an interrupted graphics launch admits only the same unconfigured game, 11 unités iOS arm64 compilées, 17 tests du menu, 252 contrôles (bridge), 42 contrôles (park and resume), 20 contrôles (CPU identity) |
+
+Les suites générales ont le statut `not-run` pour Flutter et `not-run` pour les tests natifs. Le contrat de livraison a été exécuté. La fluidité, la température et la fidélité graphique de cette IPA sur iPhone restent à mesurer.
+
+[Inventaire signé](rewind795/signed-payload-identity.json) · [Contrôle du téléchargement](rewind795/download795-verification.json) · [Reçu de livraison](rewind795/delivery.json)
+
+### Observations du test Metal sur Mac
+
+Sur le GPU Apple paravirtualisé, la fixture avec historique vide et programmes de test a résolu trois fonctions, créé trois bibliothèques depuis le MSL et forcé deux créations de PSO. Les deux descripteurs ont réussi la relecture stricte de l’archive. L’encodeur a lié les deux objets et la lecture des pixels a réussi. À la relance de cette fixture, Metal a de nouveau créé trois bibliothèques depuis le MSL. Il a servi les deux PSO depuis l’archive avec zéro création forcée de PSO. Après interruption au premier reçu strict, une seule création de PSO a été forcée à la reprise. Un sommet obligatoire refusé a empêché l’activation malgré la présence d’une archive copiée.
+
+Le test de migration a forcé la retraduction NativeAOT d’une entrée prioritaire dont l’ancien MSL restait compatible et a vérifié sa reprise avant publication. La fixture de récupération a passé un fragment NVN2 par le traducteur NativeAOT de production, puis par Metal. La valeur RGBA32Uint relue était `0000002a 00000007 00000063 00000001`. La fixture de texture a contrôlé la première utilisation après un transfert anticipé de 262 144 octets, puis tous les texels après une écriture du jeu. Le nombre de clés récupérées sur les 196 de l’installation 794 et les attentes des deux pipelines de l’image 4 815 restent à lire dans les diagnostics de l’iPhone.
+
+Le SHA-256 du moteur signé extrait de l’IPA est `41f0009fc2e6098bc893da0795d6ca831ea6807e1d394cb3cb759c5429d9fe5a`. Le contrôle ARM64 retrouve dans le Runner signé les deux décodeurs de shaders transmis au moteur. Les chemins des liaisons de textures observées atteignent les fonctions d’anticipation. [Moteur signé](rewind795/qualification/engine-signed.json) · [Runner signé](rewind795/qualification/runner-signed.json)

@@ -1,0 +1,34 @@
+{
+  "run": 44562100572,
+  "job": 135693862339,
+  "source": "81e4b8963c1c749d76f5220cdbb3fa49c233c914",
+  "url": "https://github.com/TarbleFR/RewindBox/actions/runs/44562100572/job/135693862339",
+  "qualification": {
+    "kind": "exact-delivery-bridge",
+    "marker": "0db0ebbba7faf014b5b375e6814b72ae5f1d5507",
+    "deliveryRun": 44562030688,
+    "build": 795,
+    "compiledUnits": 11,
+    "menuContractTests": 17
+  },
+  "logSHA256": "6797c5d130d7f2959d38168f3a664970c23a695b64c5f76b6917ad6ffb5777b4",
+  "passedSteps": [
+    "Compile the bridge sources for iOS arm64",
+    "Upgrade, interrupt and reopen a prepared graphics generation",
+    "Bridge, session and preparation identity contracts"
+  ],
+  "passedMarkers": [
+    "migration-and-repair"
+  ],
+  "recipeCounts": [],
+  "referenceRows": [],
+  "passedFlutter": [
+    "a reused game reports its separate graphics preparation and progress",
+    "retrying an interrupted graphics launch admits only the same unconfigured game"
+  ],
+  "contracts": {
+    "bridge": 252,
+    "park and resume": 42,
+    "CPU identity": 20
+  }
+}

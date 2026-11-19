@@ -1,0 +1,14 @@
+{
+  "run": 44555747908,
+  "job": 135671190758,
+  "source": "f299358c05efe50cc182775902bffbeb96f46f0f",
+  "url": "https://github.com/TarbleFR/RewindBox/actions/runs/44555747908/job/135671190758",
+  "logSHA256": "dc3860af21135f20521cd5b995eb82ccb796c923143707daf71e0d0e017dd52b",
+  "passedSteps": [
+    "Check the bounded decoder used by shader indexing",
+    "Build S2ArmPrepare.xcframework"
+  ],
+  "passedMarkers": [],
+  "recipeCounts": [],
+  "referenceRows": []
+}

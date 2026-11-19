@@ -1,0 +1,60 @@
+{
+  "result": "passed",
+  "base": {
+    "source": "71942e66ab3cd596dd1e85d9d910cf302d201388",
+    "ipaSHA256": "856dd67183a028d90f80b2e1470ae6ed9ee435b2dc5f5d8e85a87a3b20f06103",
+    "memberSHA256": "4f1397e5509cb4c5e425b1a96af44ad435b62e3ea6d533ced0524c293f1bdc8a",
+    "fingerprint": "49a3db55d6eb00a89707aeb90d6982dcf38429509d1eb7d097d8c5ce11b5b0ef"
+  },
+  "delivery": {
+    "source": "81e4b8963c1c749d76f5220cdbb3fa49c233c914",
+    "ipaSHA256": "5d598aea119dba67e67c8f87294f1692d30b99074cb2f59cd9864ac2eb714858",
+    "memberSHA256": "747e16a4b758a5a6587525f72acfa241b5ab1fe7c8b560a8862dfb793abca634",
+    "fingerprint": "91ceaf60be4657f8816650d4acc3edc3999ae2619bcbc67d1f5583f42a6b938a"
+  },
+  "identicalSourceTrees": {
+    "packages/armsx2_internal_bridge": "4e86fee732a48a866776bbb75c9cc85862c37011",
+    "native/armsx2_internal_helper": "478115e97863e2d65dedcda31c25013abb2a372f"
+  },
+  "member": "Frameworks/armsx2_internal_bridge.framework/armsx2_internal_bridge",
+  "memberBytes": 1543024,
+  "architecture": "arm64",
+  "minimumOS": "18.0.0",
+  "installName": "@rpath/armsx2_internal_bridge.framework/armsx2_internal_bridge",
+  "compiledSections": 32,
+  "changedInstructions": {
+    "__stubs": {
+      "instructions": 1,
+      "differentBytes": 1
+    },
+    "__objc_stubs": {
+      "instructions": 934,
+      "differentBytes": 934
+    }
+  },
+  "otherDifferentBytes": {
+    "LC_UUID": 15,
+    "codeSignatureBlob": 318
+  },
+  "differentBytesOutsideVerifiedRanges": 0,
+  "exports": 65,
+  "definedSymbols": 65,
+  "undefinedSymbols": 432,
+  "orderedDylibDependencies": 24,
+  "rpaths": [
+    "@executable_path/Frameworks",
+    "@loader_path/Frameworks"
+  ],
+  "twoWayReconstructedFingerprints": true,
+  "binds": {
+    "symbol": "_objc_msgSend",
+    "dylib": "/usr/lib/libobjc.A.dylib",
+    "dylibOrdinal": 22,
+    "weak": 0,
+    "addend": 0,
+    "slots": [
+      "0xd4858",
+      "0xd4860"
+    ]
+  }
+}

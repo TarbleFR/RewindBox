@@ -1,4 +1,4 @@
-"""Verify the libretro, MeloNX and RPCS3 bridge fingerprints against a signed receipt.
+"""Verify the libretro, MeloNX and RPCS3 bridge fingerprints and optionally ARMSX2.
 
 Read-only. An alternate fingerprint exchanges only the encoded references to two
 equivalent objc_msgSend import slots. No executable or modified IPA is written.
@@ -101,12 +101,15 @@ def alternate(data):
     return payload_fingerprint(bytes(alternate_bytes)), counts
 
 
-def verify(ipa, receipt, reference):
+def verify(ipa, receipt, reference, *, include_armsx2=False):
     with ipa.open("rb") as stream:
         require(hashlib.file_digest(stream, "sha256").hexdigest() == receipt["ipaSha256"], "IPA SHA-256 mismatch")
     result = {}
     with ZipFile(ipa) as archive:
-        for prefix in ("libretro", "melonx", "rpcs3"):
+        bridges = ("libretro", "melonx", "rpcs3")
+        if include_armsx2:
+            bridges += ("armsx2",)
+        for prefix in bridges:
             bridge = prefix + "_internal_bridge"
             path = f"Frameworks/{bridge}.framework/{bridge}"
             data = archive.read("Payload/NeoStation.app/" + path)
@@ -123,6 +126,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("ipa", "receipt", "reference"):
         parser.add_argument(name, type=Path)
+    parser.add_argument("--include-armsx2", action="store_true", help="Also check the ARMSX2 bridge using the same signed-payload rules")
     args = parser.parse_args()
     print(json.dumps(verify(args.ipa, json.loads(args.receipt.read_bytes()),
-                            json.loads(args.reference.read_bytes())), indent=2))
+                            json.loads(args.reference.read_bytes()), include_armsx2=args.include_armsx2), indent=2))

@@ -1,0 +1,42 @@
+{
+  "run": 44562100663,
+  "job": 135693863216,
+  "source": "81e4b8963c1c749d76f5220cdbb3fa49c233c914",
+  "url": "https://github.com/TarbleFR/RewindBox/actions/runs/44562100663/job/135693863216",
+  "qualification": {
+    "kind": "exact-delivery-parent",
+    "marker": "0db0ebbba7faf014b5b375e6814b72ae5f1d5507",
+    "deliveryRun": 44562030688,
+    "build": 795,
+    "pinnedPatches": 139,
+    "engineFingerprint": "b46ac2153c20c23b9da3786dcd93f1094acb1625e9d8e6e679a693c3dd34f1e1"
+  },
+  "logSHA256": "1b942217526f2f6cf934d69f8900bf48210d4a29131cd4c05c2a3ea1a1f23fa0",
+  "passedSteps": [
+    "Verify the tested source equals the delivered engine pin",
+    "Check adaptive shader cache changes",
+    "Measure gaps across concurrent submissions and presentation",
+    "Verify shader-library sharing and warm priority on the Mac GPU",
+    "Read back a texture prepared from an earlier recorded bind"
+  ],
+  "passedMarkers": [
+    "active-hold-urgent-run",
+    "close-unblocks-verification",
+    "first-submit-mandatory-barrier",
+    "game-stage-parsers",
+    "required-stage-failure"
+  ],
+  "recipeCounts": [
+    12
+  ],
+  "referenceRows": [
+    {
+      "functions": 3,
+      "exactPSOs": 2,
+      "strictPSOs": 2,
+      "missing": 0
+    }
+  ],
+  "passedFlutter": [],
+  "contracts": {}
+}

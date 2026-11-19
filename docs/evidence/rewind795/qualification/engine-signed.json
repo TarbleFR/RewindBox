@@ -1,0 +1,152 @@
+{
+  "control794": {
+    "all_new_symbols_absent": true,
+    "positive_governor_edges": [
+      {
+        "address": "0x1b4ce4",
+        "destination": "_rb_spec_take_optional",
+        "instruction": "bl",
+        "opcode": "0x9400d747",
+        "pc": "0x17efc8",
+        "source": "___dm_shader_retranslate_kept_block_invoke"
+      },
+      {
+        "address": "0x1b4c58",
+        "destination": "_rb_spec_done",
+        "instruction": "bl",
+        "opcode": "0x9400d71e",
+        "pc": "0x17efe0",
+        "source": "___dm_shader_retranslate_kept_block_invoke"
+      }
+    ],
+    "sha256": "55077b6b3ac0e9e7cd7abb7a12bc29f7ed4b36cb2fbff80b88e916b4ea28fb21"
+  },
+  "decoder": "arm64-imm26 + Capstone 5.0.7",
+  "engine795": {
+    "exported": [
+      "_s2a_rb_guest_prepare_gpu_status",
+      "_s2a_rb_guest_prepare_graphics"
+    ],
+    "routes": [
+      [
+        {
+          "address": "0x181fcc",
+          "destination": "_rb_prepare_stage_inputs",
+          "instruction": "bl",
+          "opcode": "0x97ff0230",
+          "pc": "0x1c170c",
+          "source": "_s2a_rb_guest_prepare_graphics"
+        }
+      ],
+      [
+        {
+          "address": "0x1a07a8",
+          "destination": "_rec_bind_tex1",
+          "instruction": "b",
+          "opcode": "0x140010ee",
+          "pc": "0x19c3f0",
+          "source": "_h_nvnCommandBufferBindTexture"
+        },
+        {
+          "address": "0x1c3ab4",
+          "destination": "_nvn_be_record_texture_hint",
+          "instruction": "b",
+          "opcode": "0x14008c92",
+          "pc": "0x1a086c",
+          "source": "_rec_bind_tex1"
+        }
+      ],
+      [
+        {
+          "address": "0x1a0b90",
+          "destination": "_bind_handles",
+          "instruction": "b",
+          "opcode": "0x140011e2",
+          "pc": "0x19c408",
+          "source": "_h_nvnCommandBufferBindTextures"
+        },
+        {
+          "address": "0x1c3ab4",
+          "destination": "_nvn_be_record_texture_hint",
+          "instruction": "bl",
+          "opcode": "0x94008b7d",
+          "pc": "0x1a0cc0",
+          "source": "_bind_handles"
+        }
+      ],
+      [
+        {
+          "address": "0x1c3b80",
+          "destination": "_nvn_be_advance_texture",
+          "instruction": "bl",
+          "opcode": "0x9400c36e",
+          "pc": "0x192dc8",
+          "source": "_h_nvnQueueSubmitCommands"
+        }
+      ]
+    ],
+    "sha256": "41f0009fc2e6098bc893da0795d6ca831ea6807e1d394cb3cb759c5429d9fe5a",
+    "strong_definitions": {
+      "_nvn_be_advance_texture": {
+        "address": "0x1c3b80",
+        "n_desc": 0,
+        "size": 572
+      },
+      "_nvn_be_record_texture_hint": {
+        "address": "0x1c3ab4",
+        "n_desc": 0,
+        "size": 204
+      },
+      "_rb_prepare_stage_inputs": {
+        "address": "0x181fcc",
+        "n_desc": 0,
+        "size": 420
+      },
+      "_s2a_rb_guest_prepare_gpu_status": {
+        "address": "0x1c21f0",
+        "n_desc": 0,
+        "size": 128
+      },
+      "_s2a_rb_guest_prepare_graphics": {
+        "address": "0x1c1484",
+        "n_desc": 0,
+        "size": 760
+      }
+    },
+    "weak_presence_guard": {
+      "add": "0x1c1524",
+      "adrp": "0x1c1520",
+      "cbz": "0x1c152c",
+      "resolved_text_address": "0x181fcc"
+    }
+  },
+  "ipa": {
+    "bytes": 333297719,
+    "name": "RewindBox-Build795-81e4b8963c1c749d76f5220cdbb3fa49c233c914-cold.ipa",
+    "sha256": "5d598aea119dba67e67c8f87294f1692d30b99074cb2f59cd9864ac2eb714858"
+  },
+  "prepare795": {
+    "new_ranlib_symbols": [
+      "_rb_s2arm_shader_inflate",
+      "_rb_s2arm_shader_inflate_fd"
+    ],
+    "object_definitions": {
+      "_rb_s2arm_shader_inflate": {
+        "address": "0x6b5e0",
+        "member": "S2ArmPrepare.o",
+        "section": "__text"
+      },
+      "_rb_s2arm_shader_inflate_fd": {
+        "address": "0x6b770",
+        "member": "S2ArmPrepare.o",
+        "section": "__text"
+      }
+    },
+    "prototype_checked": [
+      "memory",
+      "file descriptor"
+    ],
+    "static_sha256": "91cce60c14f7f53501a1034baff78fba7876ebbca08112040c5b0e7dfc4dba8f",
+    "unchanged_undefined": 102
+  }
+}
