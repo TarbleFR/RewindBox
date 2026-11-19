@@ -10,6 +10,7 @@
 // the other stages (unpack from NSP/XCI, system data, RomFS index, package layout).
 #pragma once
 #include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
