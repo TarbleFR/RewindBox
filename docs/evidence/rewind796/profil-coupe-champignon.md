@@ -1,6 +1,6 @@
 # Coupe Champignon en 150 cc, Mario Kart World 1.0.0
 
-Le profil s’applique au programme `0400C3F00006E000` et au build principal `9e244438c3d8ef1c703a6a85ef99c4f0`. La révision graphique 2 ouvre une génération distincte. À partir d’une installation 795, l’application conserve le jeu importé, les réglages et la sauvegarde. Elle peut reprendre les données compatibles d’une génération 795 inachevée. Le premier écran en français affiche « Reconstruction des shaders et des pipelines graphiques ».
+Le profil s’applique au programme `0400C3F00006E000` et au build principal `9e244438c3d8ef1c703a6a85ef99c4f0`. La révision graphique 2 ouvre une génération distincte. À partir d’une installation 795, l’application conserve le jeu importé, les réglages et la sauvegarde. Elle peut reprendre les données compatibles d’une génération 795 inachevée. À l’ouverture de RewindBox, un jeu déjà préparé sur la 795 déclenche la copie des caches compatibles. L’écran affiche « Préparation du cache graphique » et le nombre de fichiers examinés. Si le joueur lance une course pendant la copie, la préparation du jeu reprend la même transaction. La compilation et le contrôle Metal démarrent au lancement du jeu, sous « Reconstruction des shaders et des pipelines graphiques ».
 
 | Source | Révision | Lignes de rendu observées | Portée documentée |
 | --- | --- | ---: | --- |

@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "b46ac2153c20c23b9da3786dcd93f1094acb1625e9d8e6e679a693c3dd34f1e1",
+  "packagedFingerprint": "1846421b0bd9ed23a95e595a2ec46b1a0c12bdeda9b2419957726e9d51933342",
   "producers": {
     "engine": {
-      "run": 44558981086,
+      "run": 44639231641,
       "attempt": 1,
-      "artifact": 14550055216,
-      "name": "s2arm-engine-framework-14347e7912856839d4c4c967a02d7eb2e4aa89f3",
-      "bytes": 24803891,
-      "sha256": "82d8b53b66663fd51ac1fff5d5ea09cc09df2c536694e6a99572010425fe9156",
-      "headSha": "14347e7912856839d4c4c967a02d7eb2e4aa89f3",
+      "artifact": 14585963728,
+      "name": "s2arm-engine-framework-7377b7438925c8a8d3c9b9494fbc5afa81f9562c",
+      "bytes": 24966343,
+      "sha256": "15978fa3710223a3a0d708e991349cf5077ae2cc7af5c7e945d7567c2f84e494",
+      "headSha": "7377b7438925c8a8d3c9b9494fbc5afa81f9562c",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-19T15:58:25Z",
+      "expiresAt": "2026-12-19T23:52:36Z",
       "members": {
-        "S2ArmEngine.framework.zip": "2d2113f91897434573debbb7c8dbe285149b2062514b6b00a735f4f88f062efb",
-        "NS2Pro.framework.zip": "bf6cdb13f0165af7d1dae2c0e30b9d0a12435281af9998b940312df1153af5d6"
+        "S2ArmEngine.framework.zip": "a28d73d986b5c44364bc34f38f90197ba709cb1ef1b3a1afdbc4068964b9b62e",
+        "NS2Pro.framework.zip": "74e9f39c5c405c32a9e20b842dc7af844a9f44f81ca3260c7e5b5f3318e2ac59"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "82d8b53b66663fd51ac1fff5d5ea09cc09df2c536694e6a99572010425fe9156",
+    "engine": "15978fa3710223a3a0d708e991349cf5077ae2cc7af5c7e945d7567c2f84e494",
     "prepare": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -90,9 +90,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "d9f0da1286c7600f7bc79b24a8156355fa1c9147bdd6878af2fb8ec11769dea0",
-      "bytes": 113692952,
-      "fingerprint": "b46ac2153c20c23b9da3786dcd93f1094acb1625e9d8e6e679a693c3dd34f1e1"
+      "sha256": "952a540b39caadaac41b8260588e539b2a8ae725224d20412c5b6e31b3d60c3e",
+      "bytes": 114470640,
+      "fingerprint": "1846421b0bd9ed23a95e595a2ec46b1a0c12bdeda9b2419957726e9d51933342"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -125,9 +125,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 44558981086,
+      "run": 44639231641,
       "attempt": 1,
-      "head_sha": "14347e7912856839d4c4c967a02d7eb2e4aa89f3",
+      "head_sha": "7377b7438925c8a8d3c9b9494fbc5afa81f9562c",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -686,11 +686,39 @@
         {
           "name": "0139-guest-gate-first-submit-on-mandatory-reference-proofs.patch",
           "sha256": "d951fc511078f9911e34fd9a963df630bb7c167adcda004274e57413ffe563e2"
+        },
+        {
+          "name": "0140-guest-identify-external-stages-from-local-program-bytes.patch",
+          "sha256": "1f5891994f98a3e4afec0670763efb386696d9d664bdacaf08e1240937d5ca30"
+        },
+        {
+          "name": "0141-guest-convert-witnessed-kartnative-and-plumber-profiles.patch",
+          "sha256": "0ce1c91d5014e66cd1fecfe9998a345dcfb387da6819c4851f0318673aaa2a0c"
+        },
+        {
+          "name": "0142-guest-prepare-device-recipes-with-exact-vertex-interfaces.patch",
+          "sha256": "9d5b037a8a39bb5120f6bdcc225e04a0be44842c19e604cb291eb410b504225a"
+        },
+        {
+          "name": "0143-guest-prioritize-and-measure-observed-course-windows.patch",
+          "sha256": "6c3b73d745983e6892344aa446378973982ff0286058921ee377e0c5c544a06e"
+        },
+        {
+          "name": "0144-test-observe-converted-pipeline-before-first-draw.patch",
+          "sha256": "6cd6cd37589e0c5e19aa214ff99b68d46a615e96d75575a0f2aebee06f993abf"
+        },
+        {
+          "name": "0145-guest-keep-discovered-cup-pipelines-on-their-first-draw.patch",
+          "sha256": "b4fcb50c4c4db37bdb051a5b818964b0339ce396e2e91b1ebf74be4db8ccd77e"
+        },
+        {
+          "name": "0146-guest-report-individual-slow-frames-for-the-cup.patch",
+          "sha256": "d59f41f90f824d8205a4488303c4ce6561fee09b6fa296abf0abbda1c8675479"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "2d2113f91897434573debbb7c8dbe285149b2062514b6b00a735f4f88f062efb",
-        "NS2Pro.framework.zip": "bf6cdb13f0165af7d1dae2c0e30b9d0a12435281af9998b940312df1153af5d6"
+        "S2ArmEngine.framework.zip": "a28d73d986b5c44364bc34f38f90197ba709cb1ef1b3a1afdbc4068964b9b62e",
+        "NS2Pro.framework.zip": "74e9f39c5c405c32a9e20b842dc7af844a9f44f81ca3260c7e5b5f3318e2ac59"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
