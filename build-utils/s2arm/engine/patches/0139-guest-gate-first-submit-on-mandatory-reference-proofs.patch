@@ -1,0 +1,200 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 8106a2c..b76a0e3 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -12495,7 +12495,7 @@ static NSArray<WarmTask *> *warm_parse(NSArray<NSString *> *paths, long *lines)
+     for (NSString *path in paths) {
+         NSString *txt = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
+         RBReferenceProof *reference=[path isEqual:referencePath] ? rb_ref_open(path,txt) : nil;
+-        if (!txt) { MLOG("【红】 cannot read prewarm list: %s", path.UTF8String); continue; }
++        if (!txt) { if (reference) rb_ref_abort(); MLOG("【红】 cannot read prewarm list: %s", path.UTF8String); continue; }
+         { unsigned long nl = 0; for (NSString *l in [txt componentsSeparatedByString:@"\n"]) nl += l.length && ![l hasPrefix:@"#"];
+           MLOG("pipeline prewarm list %s: %lu lines", path.UTF8String, nl); }   // Diagnostics: how many lines each manifest gave (when a device warms up 0, shows which one was missing)
+         for (NSString *line in [txt componentsSeparatedByString:@"\n"]) {
+@@ -12631,7 +12631,7 @@ static long warm_pick(_Atomic long *next, long n, int w, int *lease) {
+         }
+         long routeHint=(!urgent && w>=0 && !atomic_load(&g_fu_waiting)) ? rb_ref_take_hint() : 0;
+         long hint=routeHint ? routeHint : (!urgent && w>=0 ? atomic_exchange(&g_rb_next_row,0) : 0);
+-        if (hint && (atomic_load(&g_fu_waiting) || !c || hint > cn)) hint = 0;
++        if (hint && (atomic_load(&g_fu_waiting) || !c || hint > cn || hint > n)) hint = 0;
+         if (hint) {
+             i = hint - 1;
+             uint8_t freeRow = RB_ROW_FREE;
+@@ -12821,6 +12821,15 @@ static void warm_background_rows(NSArray<WarmTask *> *tasks, _Atomic long *next,
+ }
+ static int warm_prepare(NSArray<WarmTask *> *tasks, long lines, BOOL referencePreparation) {
+     int workers = prepare_workers(); long n = (long)tasks.count; uint64_t t0 = bp_now(), lim = (uint64_t)prepare_max_ms() * 1000000ull, stall = (uint64_t)prepare_stall_ms() * 1000000ull;
++    BOOL migration = referencePreparation && rb_ref_path() != nil;
++    long frontCount=n;
++    if (migration) {
++        // warm_parse puts every required R and its stages first. Optional rows
++        // run on the normal background workers after the strict disk proof.
++        frontCount=0;
++        while (frontCount<n && tasks[(NSUInteger)frontCount]->reference) ++frontCount;
++    }
++    __block _Atomic long optionalNext=frontCount;
+     atomic_store(&g_wp_total, lines); atomic_store(&g_wp_phase, WARM_FRONT);
+     __block _Atomic long next = 0; __block _Atomic int stop = 0;   // stop：到点放行后满核的准备工人不再领新行（剩下的交后台低优先，见下）
+     dispatch_group_t g = dispatch_group_create();
+@@ -12828,7 +12837,7 @@ static int warm_prepare(NSArray<WarmTask *> *tasks, long lines, BOOL referencePr
+         for (;;) {
+             if (atomic_load(&stop)) break;
+             int lease;
+-            long i=warm_pick(&next,n,referencePreparation ? w : -1,&lease);
++            long i=warm_pick(&next,frontCount,referencePreparation ? w : -1,&lease);
+             if (i<0 || dm_gfx_session_stopping()) { rb_spec_done(&lease); break; }
+             WarmTask *task=tasks[(NSUInteger)i];
+             WARM_PREPARE_TASK(task);
+@@ -12849,18 +12858,35 @@ static int warm_prepare(NSArray<WarmTask *> *tasks, long lines, BOOL referencePr
+         // 11-06（异度3 测试设备1 再启动局：归档 2048 / 2048 全命中，首帧仍等满 15 s，12523 行剩 26 行）：清单每一行都已有工人领走、只剩在编的几条时不再挡首帧——
+         //   再等也不会让任何一条更早开编；游戏真用到其中一条时，首遇路径按同键等那一条在编的（不重编），用不到的不该拖住进局。在编的照常在满核工人上编完
+         if (!why && atomic_load(&next) >= n) why = WARM_WHY_TAIL;
++        if (migration) {
++            if (dm_gfx_session_stopping() || nvn_be_stopping()) { rb_ref_abort(); late=WARM_WHY_CONFIG; break; }
++            if (s2a_rb_guest_prepare_gpu_status(NULL)) { late=WARM_WHY_CONFIG; break; }
++#ifdef RB_REF_TEST_SUBMIT_WAIT
++            RB_REF_TEST_SUBMIT_WAIT(el,lim,atomic_load(&next)>=frontCount,atomic_load(&g_wp_play));
++#endif
++            // The first guest submission is still waiting for an exact PSO or
++            // its archive writer. The usual cap, tail and play button govern
++            // only optional work. No lease or renderer lock is taken here.
++            continue;
++        }
+         if (why) { late = why; break; }
+         if (!shown && el >= 500000000ull && rest >= 3e8) { shown = 1; MLOG("pipeline prepare: %ld of %ld lines done after %.1f s (estimate %.1f s more)", done, lines, el / 1e9, rest / 1e9); }
+     }
++    if (migration) {
++        if (!s2a_rb_guest_prepare_gpu_status(NULL)) rb_ref_abort();
++        MLOG("RewindBox reference: first submission released after mandatory GPU check, status %d, %ld foreground rows, %ld optional rows",
++             s2a_rb_guest_prepare_gpu_status(NULL),frontCount,n-frontCount);
++        if (frontCount<n) late=WARM_WHY_CONFIG;
++    }
+     if (late) {
+         atomic_store(&stop, 1);   // 满核的准备工人做完手上这行就退；剩下的从同一位置交给后台 DM_PSO_BG_THREADS 路 WARM_BG_QOS（11-02 怪猎发热：别让满核 user-initiated 一直编下去）
+         { const char *e = getenv("DM_PSO_BG_THREADS"); int bw = e && atoi(e) > 0 ? atoi(e) : 2; workers = bw;
+           for (int w = 0; w < bw; w++) dispatch_group_async(g, dispatch_get_global_queue(WARM_BG_QOS, 0), ^{
+-              warm_background_rows(tasks, &next, w, 1);
++              warm_background_rows(tasks, migration ? &optionalNext : &next, w, 1);
+           }); }
+         atomic_store(&g_wp_why, late); atomic_store(&g_wp_phase, WARM_BG);
+         MLOG("pipeline prepare: the first frame waited %.0f ms (%s); %ld of %ld lines done, the rest goes on in the background on %d workers", (bp_now() - t0) / 1e6,
+-             late == WARM_WHY_PLAYER ? "the player chose to play now" : late == WARM_WHY_STALL ? "no line finished for DM_PSO_PREPARE_STALL_MS" :
++             migration ? "mandatory reference check finished" : late == WARM_WHY_PLAYER ? "the player chose to play now" : late == WARM_WHY_STALL ? "no line finished for DM_PSO_PREPARE_STALL_MS" :
+              late == WARM_WHY_TAIL ? "every line taken, only the ones being built left; they finish on the prepare workers" : "the cap, DM_PSO_PREPARE_MAX_MS",
+              (long)g_warm_done, lines, workers);
+         if (front) s2a_front_warm_released();
+@@ -12880,7 +12906,9 @@ static int warm_prepare(NSArray<WarmTask *> *tasks, long lines, BOOL referencePr
+ //   Without a seed, what is first compiled in play is also noted for the archive in the same run (g_par_note_play, pso_archive.h: each pipeline compiled the fewest times)
+ static NSArray<NSString *> *warm_paths(int say) {
+     const char *e = getenv("DM_PSO_MANIFEST");
+-    if (e && !strcmp(e,"off")) { if (say) rb_ref_abort(); return nil; }
++    if (e && !strcmp(e,"off")) {
++        NSString *required=rb_ref_path(); return required ? @[required] : nil;
++    }
+     if (e && *e) return rb_ref_path() ? @[rb_ref_path(),@(e)] : @[@(e)];
+     NSString *seed = [shmap_path().stringByDeletingLastPathComponent stringByAppendingPathComponent:@"pso_manifest.tsv"];
+     NSString *reference=rb_ref_path();
+@@ -12943,7 +12971,7 @@ static void warm_start_mode(int resumed) {
+     if (!g_warm_items) g_warm_items = [NSMutableArray array];
+     g_warm_t0 = bp_now(); atomic_store(&g_wp_t0, g_warm_t0);
+     atomic_store(&g_warm_running, 1);
+-    if (!resumed && prepare_on()) {
++    if (rb_ref_path() || (!resumed && prepare_on())) {
+         long lines = 0; NSArray<WarmTask *> *tasks = warm_parse(paths, &lines); warm_urgent_index(tasks);
+         if (!lines) { MLOG("pipeline prepare: the prewarm lists hold nothing to build"); warm_finish(); }
+         else {
+diff --git a/graphics/nvn/tests/rb_reference_gpu.inc b/graphics/nvn/tests/rb_reference_gpu.inc
+index a204856..754f879 100644
+--- a/graphics/nvn/tests/rb_reference_gpu.inc
++++ b/graphics/nvn/tests/rb_reference_gpu.inc
+@@ -1,11 +1,25 @@
+ // Reference input comes from two real draws in a different process. The next
+ // install begins with an empty personal history. The two distinct vertices
+ // share one fragment, as at frame 4815. The programs and pixels are synthetic.
++static BOOL reference_barrier;
++static _Atomic int reference_submit_probe;
++static dispatch_semaphore_t reference_submit_observed;
++static void reference_test_submit_wait(uint64_t elapsed,uint64_t limit,int tail,int play) {
++    if (!reference_barrier || atomic_load(&reference_submit_probe)!=1) return;
++    uint64_t counts[6];
++    GPU_CHECK(!s2a_rb_guest_prepare_gpu_status(counts) && counts[4]==1);
++    GPU_CHECK(limit && elapsed>=limit && tail && play);
++    atomic_store(&reference_submit_probe,2); dispatch_semaphore_signal(reference_submit_observed);
++}
+ static int reference_pause_mode;
+ static int reference_pause_state;
+ static int reference_other_lease;
+ static void reference_test_key(uint64_t count) {
+     if (count!=1 || !reference_pause_mode) return;
++    if (reference_barrier) {
++        s2a_warm_play_now(); atomic_store(&reference_submit_probe,1);
++        transition_wait(reference_submit_observed);
++    }
+     atomic_store(&g_fu_waiting,1);
+     GPU_CHECK(rb_spec_take(0,&reference_other_lease));
+     rb_spec_publish(&g_spec_gate,RB_SPEC_HOLD);
+@@ -50,12 +64,17 @@ static void reference_boot(NSString *root) {
+     setenv("DM_NVN_SHMAP",[[root stringByAppendingPathComponent:@"shader_map.tsv"] fileSystemRepresentation],1);
+     setenv("DM_MSL_DIR",root.fileSystemRepresentation,1);
+     setenv("DM_MSL_FALLBACK",[[root stringByAppendingPathComponent:@"translation"] fileSystemRepresentation],1);
+-    setenv("DM_PSO_PREPARE","1",1); setenv("DM_PSO_PREPARE_THREADS","1",1);
++    setenv("DM_PSO_PREPARE",reference_barrier?"0":"1",1); setenv("DM_PSO_PREPARE_THREADS","1",1);
++    if (reference_barrier) {
++        setenv("DM_PSO_PREPARE_MAX_MS","1",1);
++        setenv("DM_PSO_BG_THREADS","1",1);
++    }
+     setenv("DM_NVN_FIRST_SKIP","0",1); setenv("DM_NVN_PSO_WAIT_MS","0",1);
+     setenv("S2A_RB_SPEC_GOVERN","0",1);
+     setenv("S2A_RB_PSO_TRANSITIONS","0",1);
+     setenv("S2A_RB_PSO_ARCHIVE_COALESCE","0",1);
+-    unsetenv("DM_PSO_MANIFEST"); unsetenv("DM_PSO_ARCHIVE");
++    if (reference_barrier) setenv("DM_PSO_MANIFEST","off",1); else unsetenv("DM_PSO_MANIFEST");
++    unsetenv("DM_PSO_ARCHIVE");
+     transition_device(); shmap_load();
+ }
+ static void reference_collect(NSString *root) {
+@@ -107,6 +126,15 @@ static void reference_check(NSString *root,NSString *mode) {
+     if (active) GPU_CHECK([NSFileManager.defaultManager fileExistsAtPath:rb_ref_manifest(root)]);
+     else GPU_CHECK(!rb_ref_materialize(root,@[record],target,2,NULL,NULL));
+     GPU_CHECK(![NSFileManager.defaultManager fileExistsAtPath:[root stringByAppendingPathComponent:@"pso_user.tsv"]]);
++    reference_barrier=[mode isEqual:@"empty"];
++    if (reference_barrier) {
++        // A real valid optional shader, outside both mandatory draws.
++        FILE *f=fopen(rb_ref_manifest(root).fileSystemRepresentation,"a");
++        GPU_CHECK(f && fprintf(f,"S\t%s\t1\n",stage_name(ST_B).UTF8String)>0 && !fclose(f));
++        reference_submit_observed=dispatch_semaphore_create(0);
++        transition_ready=dispatch_semaphore_create(0); transition_proceed=dispatch_semaphore_create(0);
++        atomic_store(&transition_worker_control,1);
++    }
+     if (refused) {
+         NSString *dir=[root stringByAppendingPathComponent:@"translation"];
+         GPU_CHECK([NSFileManager.defaultManager removeItemAtPath:[dir stringByAppendingPathComponent:[reference_vertex_b stringByAppendingPathExtension:@"metal"]] error:nil]);
+@@ -117,6 +145,15 @@ static void reference_check(NSString *root,NSString *mode) {
+         unsetenv("S2A_RB_GPU_GENERATION");
+     } else setenv("S2A_RB_PREPARE_PROFILE",rb_ref_manifest(root).fileSystemRepresentation,1);
+     reference_boot(root);
++    if (reference_barrier) {
++        uint64_t result[6];
++        GPU_CHECK(atomic_load(&reference_submit_probe)==2 && s2a_rb_guest_prepare_gpu_status(result)==1 && result[4]==2);
++        // Normal background worker is still held before the optional stage.
++        transition_wait(transition_ready);
++        GPU_CHECK(atomic_load(&g_warm_running) && g_warm_done==5);
++        atomic_store(&transition_worker_control,0); dispatch_semaphore_signal(transition_proceed);
++        puts("PASS first submit waited through timeout, tail and play request for both strict PSOs; optional row continued afterwards");
++    }
+     while (atomic_load(&g_warm_running)) usleep(1000);
+     uint64_t gpu[6];
+     if (active) {
+diff --git a/graphics/nvn/tests/t_nvn_warmbump.m b/graphics/nvn/tests/t_nvn_warmbump.m
+index 5e048ec..9019cca 100644
+--- a/graphics/nvn/tests/t_nvn_warmbump.m
++++ b/graphics/nvn/tests/t_nvn_warmbump.m
+@@ -7,6 +7,8 @@
+ #include <sched.h>
+ static void rb_test_reservation(int result);
+ #define RB_SPEC_TEST_RESERVATION(result) rb_test_reservation(result)
++static void reference_test_submit_wait(uint64_t elapsed,uint64_t limit,int tail,int play);
++#define RB_REF_TEST_SUBMIT_WAIT(el,lim,tail,play) reference_test_submit_wait(el,lim,tail,play)
+ static void reference_test_held_pick(int worker);
+ #define RB_REF_TEST_HELD_PICK(w) reference_test_held_pick(w)
+ static void reference_test_key(uint64_t count);

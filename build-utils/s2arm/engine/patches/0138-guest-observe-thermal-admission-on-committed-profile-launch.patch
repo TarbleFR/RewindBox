@@ -1,0 +1,127 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index cf410a9..8106a2c 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -12623,7 +12623,12 @@ static long warm_pick(_Atomic long *next, long n, int w, int *lease) {
+         os_unfair_lock_lock(&g_wu_lock); if (g_wu_q.count) { i = g_wu_q[0].longValue; [g_wu_q removeObjectAtIndex:0]; } _Atomic(uint8_t) *c = g_wu_claim; long cn = g_wu_n; os_unfair_lock_unlock(&g_wu_lock);
+         int urgent = i >= 0;
+         if (!urgent && (atomic_load(next) >= n || (c && !atomic_load(&g_wu_remaining)))) return -1;
+-        if (!urgent && w >= 0 && !rb_spec_take(w, lease)) { rb_spec_park(ticket); continue; }
++        if (!urgent && w >= 0 && !rb_spec_take(w, lease)) {
++#ifdef RB_REF_TEST_HELD_PICK
++            RB_REF_TEST_HELD_PICK(w);
++#endif
++            rb_spec_park(ticket); continue;
++        }
+         long routeHint=(!urgent && w>=0 && !atomic_load(&g_fu_waiting)) ? rb_ref_take_hint() : 0;
+         long hint=routeHint ? routeHint : (!urgent && w>=0 ? atomic_exchange(&g_rb_next_row,0) : 0);
+         if (hint && (atomic_load(&g_fu_waiting) || !c || hint > cn)) hint = 0;
+@@ -12814,8 +12819,7 @@ static void warm_background_rows(NSArray<WarmTask *> *tasks, _Atomic long *next,
+         rb_spec_done(&lease); rb_ref_task_done(tasks[(NSUInteger)i]->reference);
+     }
+ }
+-static int warm_prepare(NSArray<WarmTask *> *tasks, long lines) {
+-    BOOL referencePreparation = tasks.count && tasks.firstObject->reference != nil;
++static int warm_prepare(NSArray<WarmTask *> *tasks, long lines, BOOL referencePreparation) {
+     int workers = prepare_workers(); long n = (long)tasks.count; uint64_t t0 = bp_now(), lim = (uint64_t)prepare_max_ms() * 1000000ull, stall = (uint64_t)prepare_stall_ms() * 1000000ull;
+     atomic_store(&g_wp_total, lines); atomic_store(&g_wp_phase, WARM_FRONT);
+     __block _Atomic long next = 0; __block _Atomic int stop = 0;   // stop：到点放行后满核的准备工人不再领新行（剩下的交后台低优先，见下）
+@@ -12942,7 +12946,13 @@ static void warm_start_mode(int resumed) {
+     if (!resumed && prepare_on()) {
+         long lines = 0; NSArray<WarmTask *> *tasks = warm_parse(paths, &lines); warm_urgent_index(tasks);
+         if (!lines) { MLOG("pipeline prepare: the prewarm lists hold nothing to build"); warm_finish(); }
+-        else if (warm_prepare(tasks, lines)) warm_finish();
++        else {
++            // A committed reference list has no migration proof object. Its opening
++            // batch still obeys the same HOLD/ONE admission, even if leading
++            // reference rows were stale and the first runnable row is personal.
++            BOOL governed = rb_ref_path() != nil || [paths.firstObject.lastPathComponent isEqual:@"pso_reference.tsv"];
++            if (warm_prepare(tasks, lines, governed)) warm_finish();
++        }
+         return;
+     }
+     // warm_bg: DM_PSO_BG_THREADS workers (default 2) at WARM_BG_QOS while the game plays: first uses (pso_pend, user-initiated) go ahead of them at the compiler service, and two
+diff --git a/graphics/nvn/tests/rb_reference_gpu.inc b/graphics/nvn/tests/rb_reference_gpu.inc
+index 171d550..a204856 100644
+--- a/graphics/nvn/tests/rb_reference_gpu.inc
++++ b/graphics/nvn/tests/rb_reference_gpu.inc
+@@ -24,6 +24,27 @@ static void reference_test_pause(int reason) {
+     }
+ }
+ static NSString *const reference_vertex_b = @"6600000000000000_b";
++static BOOL reference_active_hold;
++static unsigned reference_held_steps;
++static void reference_test_held_pick(int worker) {
++    if (!reference_active_hold) return;
++    GPU_CHECK(worker==0 && atomic_load(&g_spec_gate.level)==RB_SPEC_HOLD);
++    if (reference_held_steps==0) {
++        GPU_CHECK(!g_warm_done && !atomic_load(&g_wu_taken));
++        reference_held_steps=1;
++        // Same registration entry as prog_get: name the actual program, never
++        // an index into the queue. HOLD may admit this row and this row only.
++        warm_bump(reference_vertex_b.UTF8String,stage_name(ST_A).UTF8String);
++    } else {
++        GPU_CHECK(reference_held_steps==1 && atomic_load(&g_wu_taken)==1 && g_warm_rps==1 && g_warm_done==1);
++        BOOL urgentReady=NO;
++        os_unfair_lock_lock(&g_warm_lock);
++        for (WarmItem *item in g_warm_items) if ([item->vs_key isEqual:reference_vertex_b] && item->referenceKey && item->object)
++            urgentReady=YES;
++        os_unfair_lock_unlock(&g_warm_lock); GPU_CHECK(urgentReady);
++        reference_held_steps=2; rb_spec_publish(&g_spec_gate,RB_SPEC_RUN);
++    }
++}
+ static void reference_boot(NSString *root) {
+     setenv("DM_PSO_USER",[[root stringByAppendingPathComponent:@"pso_user.tsv"] fileSystemRepresentation],1);
+     setenv("DM_NVN_SHMAP",[[root stringByAppendingPathComponent:@"shader_map.tsv"] fileSystemRepresentation],1);
+@@ -91,6 +112,7 @@ static void reference_check(NSString *root,NSString *mode) {
+         GPU_CHECK([NSFileManager.defaultManager removeItemAtPath:[dir stringByAppendingPathComponent:[reference_vertex_b stringByAppendingPathExtension:@"metal"]] error:nil]);
+     }
+     if (active) {
++        reference_active_hold=YES; rb_spec_publish(&g_spec_gate,RB_SPEC_HOLD);
+         setenv("RB_TEST_GAME_BUILD",rb_ref_build,1); unsetenv("S2A_RB_PREPARE_PROFILE");
+         unsetenv("S2A_RB_GPU_GENERATION");
+     } else setenv("S2A_RB_PREPARE_PROFILE",rb_ref_manifest(root).fileSystemRepresentation,1);
+@@ -98,7 +120,7 @@ static void reference_check(NSString *root,NSString *mode) {
+     while (atomic_load(&g_warm_running)) usleep(1000);
+     uint64_t gpu[6];
+     if (active) {
+-        GPU_CHECK(!s2a_rb_guest_prepare_gpu_status(gpu) && !g_ref);
++        GPU_CHECK(reference_held_steps==2 && !s2a_rb_guest_prepare_gpu_status(gpu) && !g_ref);
+         GPU_CHECK(!atomic_load(&g_par_reference_created) && atomic_load(&g_par_hits)>=2 && !atomic_load(&g_par_misses));
+         NSMutableDictionary *warmed=[NSMutableDictionary dictionary];
+         for (WarmItem *w in g_warm_items) if (w->referenceKey && [w->referenceKey isEqual:digests[w->vs_key]])
+@@ -108,7 +130,7 @@ static void reference_check(NSString *root,NSString *mode) {
+         demand_vertex_and_draw(vertices[0],ST_A,warmed[vertices[0]]); GPU_CHECK(g_rb_seed_objects.n==1);
+         demand_vertex_and_draw(vertices[1],ST_A,warmed[vertices[1]]); GPU_CHECK(!g_rb_seed_objects.n);
+         GPU_CHECK(!nvn_be_request_stop() && !nvn_be_shutdown_session());
+-        puts("PASS active generation, 2 exact archived PSOs bound on normal launch, no migration, correct pixels"); return;
++        puts("PASS active generation HOLD parks speculative rows, real urgent PSO admitted, RUN resumes; 2 exact archived PSOs bound, correct pixels"); return;
+     }
+     GPU_CHECK(s2a_rb_guest_prepare_gpu_status(gpu)==(refused || interrupted ? -1 : 1));
+     if (interrupted) {
+diff --git a/graphics/nvn/tests/t_nvn_warmbump.m b/graphics/nvn/tests/t_nvn_warmbump.m
+index a454da6..5e048ec 100644
+--- a/graphics/nvn/tests/t_nvn_warmbump.m
++++ b/graphics/nvn/tests/t_nvn_warmbump.m
+@@ -7,6 +7,8 @@
+ #include <sched.h>
+ static void rb_test_reservation(int result);
+ #define RB_SPEC_TEST_RESERVATION(result) rb_test_reservation(result)
++static void reference_test_held_pick(int worker);
++#define RB_REF_TEST_HELD_PICK(w) reference_test_held_pick(w)
+ static void reference_test_key(uint64_t count);
+ static void reference_test_pause(int reason);
+ #define RB_REF_TEST_STRICT_KEY(n) reference_test_key(n)
+diff --git a/graphics/nvn/tests/t_nvn_warmtick.m b/graphics/nvn/tests/t_nvn_warmtick.m
+index 5d8aefd..8e3c901 100644
+--- a/graphics/nvn/tests/t_nvn_warmtick.m
++++ b/graphics/nvn/tests/t_nvn_warmtick.m
+@@ -25,7 +25,7 @@ static NSArray<WarmTask *> *tasks(void) {
+ static int run(int enter_at) {   // in a child: 0 = everything as expected
+     g_tick_enter_at = enter_at; g_tick_total = N;
+     NSArray *ts = tasks(); g_t_tasks = ts; uint64_t t0 = bp_now();
+-    int all = warm_prepare(ts, N); uint64_t back = bp_now() - t0; long full_at_back = atomic_load(&g_tick_full);   // 放行那一刻是否已全部编完（事件判据，不靠墙钟）
++    int all = warm_prepare(ts, N, NO); uint64_t back = bp_now() - t0; long full_at_back = atomic_load(&g_tick_full);   // 放行那一刻是否已全部编完（事件判据，不靠墙钟）
+     if (all) warm_finish();
+     for (int i = 0; i < 3000 && atomic_load(&g_tick_full) == 0; i++) usleep(10000);   // A: the rest finishes in the background, then warm_finish
+     warm_finish();   // a second call must not send (N, N) again

@@ -17,6 +17,12 @@ Les 769 lignes de ralentissement publiées comprennent **105 images au-delà de 
 
 Dans la fenêtre de 300 images qui se termine à l’image 5 100, les temps d’image p95 et p99 sont de 68,90 et 270,16 ms. Les 20 relevés de mémoire culminent à 5 175 Mio. L’état thermique relevé est nominal puis `fair`. Le gouverneur est aussi passé en HOLD, puis en RUN, alors que l’état thermique était encore nominal, sous l’effet de la mémoire disponible. Les FPS moyens et les centiles de la session entière nécessitent ses intervalles individuels.
 
+## Premier lancement après mise à jour
+
+Le moteur utilise les descriptions complètes du profil commun et recherche les deux variantes du circuit dans le manifeste personnel hérité de la 794. Le premier appel de soumission du jeu attend la construction du lot obligatoire et sa vérification par relecture de l’archive Metal. Les entrées ordinaires du manifeste personnel continuent en arrière-plan. Une suspension thermique reporte les admissions facultatives. L’arrêt de session conserve les points de reprise.
+
+Le reçu d’une génération validée permet à l’ouverture suivante de retrouver les archives. Pour vérifier leur effet dans une course, le journal distingue les constructions de bibliothèque depuis le MSL, les créations de pipelines, les relectures strictes de l’archive et la première liaison de l’objet préchauffé dans l’encodeur. Les lignes de `stage-recovery.tsv` identifient individuellement les retraductions et les entrées originales encore absentes.
+
 ## Sources des variantes
 
 Le profil livré comprend 12 lignes R de 432 octets et 58 lignes S. Pour chaque R, les 20 premiers octets du SHA-256 de l’état complet correspondent à l’identité d’archive enregistrée sur le jeu. Les traces situent les observations entre les images 0 et 9 830 de leurs parcours respectifs. L’association exhaustive entre ces images et les écrans de choix de pilote, de véhicule ou de circuit demande une capture synchronisée. Les traces et leurs numéros d’image sont identifiés dans [les empreintes de référence](s2arm-mkw-reference/reference-evidence.json). Le [manifeste lisible](s2arm-mkw-reference/reference-0400C3F00006E000.tsv) suit le format de `graphics/tools/direct/pso_seed.py`.
