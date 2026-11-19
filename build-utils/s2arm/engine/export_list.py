@@ -41,7 +41,8 @@ import re
 import sys
 from pathlib import Path
 
-GUEST_ENTRY_POINTS = ('s2a_rb_guest_configure', 's2a_rb_guest_make_view_controller', 's2a_rb_guest_start',
+GUEST_ENTRY_POINTS = ('s2a_rb_guest_prepare_graphics', 's2a_rb_guest_prepare_gpu_status',
+                      's2a_rb_guest_configure', 's2a_rb_guest_make_view_controller', 's2a_rb_guest_start',
                       's2a_rb_guest_stop', 's2a_rb_guest_fatal',
                       # patch 0010: the host resumes the game Quit parked (S2ArmEngineBridgePlugin.m resumeParkedGame)
                       's2a_rb_guest_parked', 's2a_rb_guest_view_controller', 's2a_rb_guest_resume',

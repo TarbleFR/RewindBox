@@ -708,6 +708,7 @@ List<String> s2armPreparationLines(Locale locale, S2ArmImportProgress? value) {
     'code': 'prepStepCode',
     'caps': 'prepStepCaps',
     'direct': 'prepStepDirect',
+    'graphics': 'prepStepDirect',
     'module': 'prepStepModule',
     'pack': 'prepStepPack',
   };
@@ -740,12 +741,12 @@ List<String> s2armPreparationLines(Locale locale, S2ArmImportProgress? value) {
   final phase = value.phase;
   if (phase != null && phaseKeys[phase] != null) detail.add(t(phaseKeys[phase]!));
   final done = value.unitsDone ?? 0, total = value.unitsTotal ?? 0;
-  if (phase == 'walk' && done > 0) {
+  if ((phase == 'walk' || (step == 'graphics' && total == 0)) && done > 0) {
     detail.add(t('prepCountEntries', {'count': done}));
   } else if (total > 0) {
     if (phase == 'analyze') {
       detail.add(t('prepCountFunctions', {'done': done, 'total': total}));
-    } else if (phase == 'generate') {
+    } else if (phase == 'generate' || step == 'graphics') {
       detail.add(t('prepCount', {'done': done, 'total': total}));
     } else if (const {'boundaries', 'scan', 'spins', 'zbic'}.contains(phase)) {
       detail.add(t('prepCountMegabytes', {'done': (done / 1000000).round(), 'total': (total / 1000000).round()}));

@@ -1,0 +1,396 @@
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -1947,12 +1947,16 @@
+ // recorded commands in place writes a new one (Luigi's Mansion 3 takes the command memory base + GetCommandMemoryUsed before each such bind, main+0x7c8964, and stores a
+ // handle there + 0x10 every frame, main+0xb7d0d4). So the handle is also written there, the one word of the game's memory a record writes, inside the 0x18 device bytes the
+ // command takes; the record keeps that address (BIND_TEX1_AT) and replay reads the handle from it (nvn_obj.h bind_rec). In a host-lent window there is no such word
++// Non-Metal backends do not schedule texture uploads on the CPU.
++__attribute__((weak)) void nvn_be_record_texture_hint(uint32_t id_) { (void)id_; }
++__attribute__((weak)) void nvn_be_advance_texture(void) {}
+ static void rec_bind_tex1(cmd_t *o, int32_t st, int32_t slot, uint64_t h, int32_t tb, int32_t sb, int cb_ok) { st = nvn2_stage_host(st);
+     uint8_t *p = cmd_alloc_cb(o, OP_BIND_TEX1, 8 + sizeof(p_bind_tex1) + 8, cb_ok);
+     uintptr_t g = o->rec && !o->gvirt ? o->gcur - dev_bytes(OP_BIND_TEX1, 0) + 0x10 : 0;
+     p_bind_tex1 r = {st, slot | (g ? BIND_TEX1_AT : 0), h, tb, sb}; uint64_t ga = g;
+     memcpy(p + 8, &r, sizeof r); memcpy(p + 8 + sizeof r, &ga, 8);
+     if (g) memcpy((void *)g, &h, 8);
++    else nvn_be_record_texture_hint((uint32_t)(h & 0xfffff) + (uint32_t)tb);
+ }
+ // Copy: the recording's records are copied into this buffer now (NVN: the caller may reuse the source memory right after the call); its JUMPs are followed, its END is not
+ //   copied. Call keeps only the handle and runs the source as it is at submit time. Both were recorded as a CALL (缺口横向扫描 11-01 族 41): a game reusing the copied
+@@ -2305,6 +2309,8 @@
+             else { tid += (uint64_t)tb; if (sid && op == OP_BIND_TEX) sid += (uint64_t)sb; r->h[i] = tid | sid << 20; }   // texture ID 0 is that pool's first entry, moved like any other
+         }
+     }
++    if (op == OP_BIND_TEX)
++        for (int i = 0; i < n; ++i) nvn_be_record_texture_hint((uint32_t)(r->h[i] & 0xfffff));
+     return r;
+ }
+ // Image (writable texture): handle = texture pool index (GetImageHandle returns it as-is; RegisterImage writes the same table as RegisterTexture)
+@@ -2894,11 +2900,30 @@
+     vsh_sync();   // copies of non-aliasable virtual pool pages: what the CPU wrote behind them since (hle_nvn.c vsh_*)
+ }
+ void nvn_hle_piece_begun(void) { nvn_ft_poll(); }
++#include "rb_submit_gap.h"
++static pthread_mutex_t rb_gap_lock = PTHREAD_MUTEX_INITIALIZER;
++static rb_gap_clock rb_calls;
++static _Atomic unsigned rb_callers;
++static rb_gap_sample rb_call_enter(int present) {
++    atomic_fetch_add(&rb_callers, 1);
++    pthread_mutex_lock(&rb_gap_lock);
++    rb_gap_enter(&rb_calls, now_ns());
++    rb_gap_sample s = present ? rb_gap_cut(&rb_calls) : (rb_gap_sample){0};
++    pthread_mutex_unlock(&rb_gap_lock);
++    return s;
++}
++static void rb_call_leave(void) {
++    pthread_mutex_lock(&rb_gap_lock);
++    rb_gap_leave(&rb_calls, now_ns());
++    pthread_mutex_unlock(&rb_gap_lock);
++    atomic_fetch_sub(&rb_callers, 1);
++}
+ NVN(nvnQueueSubmitCommands, void, NVNqueue *q, int n, const NVNcommandHandle *h) {
+     gfx_enter();
+     if (dm_gfx_session_stopping()) { gfx_leave(); return; }
++    rb_call_enter(0);
+     if (pthread_mutex_trylock(&g_sub_mu)) { uint64_t w0 = now_ns(); pthread_mutex_lock(&g_sub_mu); t_rb_lock_ns += now_ns() - w0; }   // RewindBox (patch 0068): a contended submit lock is timed
+-    if (dm_gfx_session_stopping()) { pthread_mutex_unlock(&g_sub_mu); gfx_leave(); return; }
++    if (dm_gfx_session_stopping()) { pthread_mutex_unlock(&g_sub_mu); rb_call_leave(); gfx_leave(); return; }
+     render_thread_qos();
+     thsc_lv lv0[2]; thr_counts_lv(lv0);
+     uint64_t t0 = now_ns(), c0 = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID), i0, y0, s0 = thr_sys_ns(); thr_counts(&i0, &y0);
+@@ -2906,6 +2931,9 @@
+     nvn_frec_submit((const uint64_t *)h, n);
+     // 按 NVN 跨队列事件顺序回放（nvn_mtl.m nvn_xqueue.inc）：等别的队列还没回放的信号时，这条队列余下的命令停住，信号回放后再接着回放；每段回放前走 nvn_hle_queue_enter / nvn_hle_piece_begun
+     nvn_be_submit(q, (const uint64_t *)h, n);
++    // The submitted draws have been committed. Spend slack only after a short
++    // replay, when no other queue is already waiting for the submit lock.
++    if (atomic_load(&rb_callers) == 1 && now_ns() - t0 < 2000000) nvn_be_advance_texture();
+     pthread_mutex_unlock(&g_sub_mu);
+     uint64_t dw = now_ns() - t0;
+     atomic_fetch_add(&g_nvn_ns, dw); atomic_fetch_add(&g_sub_wall_ns, dw);
+@@ -2915,6 +2943,7 @@
+     atomic_fetch_add(&g_sub_instr, di); atomic_fetch_add(&g_cum_sub_instr, di);
+     { thsc_lv lv1[2]; thr_counts_lv(lv1);
+       for (int k = 0; k < 2; k++) { atomic_fetch_add(&g_cum_sub_lv_t[k], (lv1[k].ut + lv1[k].st) - (lv0[k].ut + lv0[k].st)); atomic_fetch_add(&g_cum_sub_lv_cyc[k], lv1[k].cyc - lv0[k].cyc); } }
++    rb_call_leave();
+     gfx_leave();
+ }
+ 
+@@ -3268,7 +3297,7 @@
+ typedef struct { uint64_t f; double fr, nv, t_s, make_ms, up_mb, up_ms; unsigned pso, lib, up, rup;
+                  double cpu_ms, thr_ms, mp_ms, acq_ms, pq_ms; long flt, majflt, inblk, vcsw, ivcsw; unsigned wpf;   // cpu_ms ... wpf: patch 0065 (thr_ms -1: the presenting thread changed)
+                  double per, rd_mb, drw_ms, blk[5];   // RewindBox (patch 0068): the present period (ms), storage read (MB), drawable waits, the presenting thread's blocked time by reason (-1: not known)
+-                 unsigned xn, xwn, msl_n; double x_ms, xw_ms, msl_ms; } lf_rec;   // RewindBox (patch 0069): shader translations on the submit thread / waits for one in flight / MSL compiled there
++                 rb_gap_sample gaps; unsigned xn, xwn, msl_n; double x_ms, xw_ms, msl_ms; } lf_rec;   // RewindBox (patch 0069): shader translations on the submit thread / waits for one in flight / MSL compiled there
+ // RewindBox (patch 0068): storage the process read (runtime/src/energy.c, proc_pid_rusage ri_diskio_bytesread); none in hosts without it
+ __attribute__((weak)) int s2a_disk_io(uint64_t *written, uint64_t *read, uint64_t *pageins, uint64_t *logical) { (void)written; (void)read; (void)pageins; (void)logical; return -1; }
+ // RewindBox (patch 0068): the long-frame thresholds follow the frame's present period (S2A_RB_LONGFRAME_PERIOD=0: 20 / 16.7 ms and the 16-frame mean only, as before)
+@@ -3753,6 +3782,7 @@
+ }
+ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+     if (dm_gfx_session_stopping()) return;
++    rb_gap_sample rb_gaps = rb_call_enter(1);
+     win_t *o = (win_t *)w; o->presents++;
+     if (q) { if (pthread_mutex_trylock(&g_sub_mu)) { uint64_t w0 = now_ns(); pthread_mutex_lock(&g_sub_mu); t_rb_lock_ns += now_ns() - w0; } nvn_be_xq_flush(q, "a present on it"); pthread_mutex_unlock(&g_sub_mu); }   // 上屏排在这条队列的工作后面：停在跨队列等待上的部分先放行（nvn_xqueue.inc）  RewindBox (patch 0068): a contended submit lock is timed (the parked work it replays is CPU, and its own waits land in nvn_be_blocked_ns)
+     if (q && dev_ok(((queue_t *)q)->dev) && atomic_load(&g_cur_dev) != ((queue_t *)q)->dev) { pthread_mutex_lock(&g_sub_mu); dev_follow(((queue_t *)q)->dev); pthread_mutex_unlock(&g_sub_mu); }   // 上屏翻转跟上屏队列的设备
+@@ -3856,7 +3886,7 @@
+         double rb_drw_ms = nvn_be_drawable_ns_take() / 1e6;   // RewindBox (patch 0068): taken once, for the TSV row below and the long-frame line
+         {   // long-frame log: this frame's items are first recorded into the ring; whether to print is decided 8 frames later, once the GPU time has arrived (see below)
+             static uint64_t plns, ppns, pup, prup, pub; uint64_t lns, pns, up, rup, ub; nvn_be_create_ns(&lns, &pns); nvn_be_pkg_stats(&up, &rup); ub = nvn_be_upload_bytes();
+-            lf_rec *r = &g_lf[f % LFN]; r->f = f; r->fr = fr; r->nv = nv; r->t_s = (now_ns() - g_t0_ns) / 1e9; r->pso = (unsigned)(pso_ - ppso); r->lib = (unsigned)(lib_ - plib);
++            lf_rec *r = &g_lf[f % LFN]; r->f = f; r->fr = fr; r->nv = nv; r->gaps = rb_gaps; r->t_s = (now_ns() - g_t0_ns) / 1e9; r->pso = (unsigned)(pso_ - ppso); r->lib = (unsigned)(lib_ - plib);
+             r->make_ms = ((lns - plns) + (pns - ppns)) / 1e6; r->up = (unsigned)(up - pup); r->rup = (unsigned)(rup - prup); r->up_mb = (ub - pub) / 1048576.0; r->up_ms = up_ms;
+             plns = lns; ppns = pns; pup = up; prup = rup; pub = ub;
+             {   // RewindBox (patch 0065): what the process did during the frame
+@@ -3931,6 +3961,9 @@
+                 if (ab[0] >= 0) snprintf(b + bl, sizeof b - bl, "; texture storage reads found %lld host pages not in memory (%lld in pools without CPU access; %lld reads not looked at, outside the window's files)",
+                                          (long long)ab[0], (long long)ab[1], (long long)ab[2]); }
+               // Visibility: during the time a long frame "comes out late", what stays on screen is the previous frame; if the previous frame was a loading screen (or this frame itself is one), all the player sees is the loading screen staying a bit longer, with no motion interrupted
++              { size_t bl = strlen(b);
++                snprintf(b + bl, sizeof b - bl, "; outside submit/present %.1f ms, longest %.1f ms over %u gaps",
++                         r->gaps.total / 1e6, r->gaps.longest / 1e6, r->gaps.count); }
+               dm_longframe_note(b); } }
+         uint64_t g0, g1; if (frame_rec() && nvn_be_gpu_span(f - 8, &g0, &g1)) { trow(f - 8, "@gpu_beg_ms", (g0 - g_t0_ns) / 1e6); trow(f - 8, "@gpu_end_ms", (g1 - g_t0_ns) / 1e6); } }
+     // 撑不住就问玩家（runtime/src/qprompt.c）：每帧喂本帧绘制数、在放视频、过场标记（满屏判据结果由宿主侧自己读 mtl_fit_last）
+@@ -3959,6 +3992,7 @@
+         if (a_ > 0) trow(f - 8, "@pres_at_ms", a_ * 1e3 - g_t0_ns / 1e6); }   // on-screen present time (ms since process start; presentedTime shares a time base with mach_absolute_time)
+     if (f >= 8 && slow_on()) slow_emit(f - 8);
+     prev_out = now_ns();
++    rb_call_leave();
+ }
+ 
+ // ---------- State-only interfaces used by newer-SDK games (SMBW): buffer objects, pool / sampler / texture queries, views, color state, device and window ----------
+@@ -5388,6 +5422,7 @@
+     free(g_ft); g_ft = NULL; g_nft = g_cft = 0;
+     free(g_tpb); free(g_spb); g_tpb = g_spb = NULL;   // 池表按需增长（#1209），整表释放，下个会话从初始容量重来
+     g_cap_tpb = g_cap_spb = g_ntpb = g_nspb = g_tnext = g_snext = 0;
++    pthread_mutex_lock(&rb_gap_lock); rb_calls = (rb_gap_clock){0}; pthread_mutex_unlock(&rb_gap_lock);
+     g_frame = 0; g_hz = -1; g_display_mode = 0; g_game_itv = 1;
+     // 当前设备指向上一局游戏内存里的设备结构：那片内存随会话撤掉，新局 nvnDeviceInitialize 读它的标记就 SIGBUS（11-06 索尼克×夏特切到序号 1，
+     //   h_nvnDeviceInitialize+0x44 读 g_cur_dev 0x75c61bf928）。同程序进程内重启同理，新局重新登记
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -13039,6 +13039,7 @@
+     return !shared;
+ }
+ static int pool_size_cmp(const void *a, const void *b) { uint64_t x = *(const uint64_t *)a, y = *(const uint64_t *)b; return x < y ? -1 : x > y; }
++#include "rb_texture_ahead.inc"
+ static int pool_unmade(int id_) { return id_ > 0 && id_ < g_ntreg && g_treg[id_].ok && !g_treg[id_].gone && !g_treg[id_].view && !tex_get(g_treg[id_].t.serial); }
+ // The largest texture these IDs may make: this frame's room, spent from the smallest up. UINT64_MAX while they all fit. ids NULL: base .. base + n - 1
+ static uint64_t pool_walk_limit(int base, int n, const uint32_t *ids) {
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -119,6 +119,7 @@
+         if (t->view) CFRelease(t->view); if (t->alt) CFRelease(t->alt);
+         if (t->ar) CFRelease(t->ar); if (t->im) CFRelease(t->im);
+     }
++    rb_tx_reset();
+     free(g_treg); g_treg = NULL; g_ntreg = g_tpool_n = 0;
+     for (int i = 0; i < g_nsreg; i++) if (g_sview[i]) CFRelease(g_sview[i]);
+     free(g_sreg); free(g_sreg_ok); free(g_sview); free(g_srid);
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_submit_gap.h
+@@ -0,0 +1,26 @@
++// Interval with no CPU inside an NVN submit or present, across all queues.
++// Call with a monotonic clock sampled under the caller's lock. A present
++// closes the preceding window at entry and immediately starts its own call.
++#ifndef RB_SUBMIT_GAP_H
++#define RB_SUBMIT_GAP_H
++#include <stdint.h>
++typedef struct { uint64_t total, longest; unsigned count; } rb_gap_sample;
++typedef struct { rb_gap_sample sample; unsigned active, started; uint64_t idle_since; } rb_gap_clock;
++static inline void rb_gap_enter(rb_gap_clock *c, uint64_t now) {
++    if (!c->active && c->started && now > c->idle_since) {
++        uint64_t d = now - c->idle_since;
++        c->sample.total += d;
++        if (d > c->sample.longest) c->sample.longest = d;
++        ++c->sample.count;
++    }
++    ++c->active;
++}
++static inline void rb_gap_leave(rb_gap_clock *c, uint64_t now) {
++    if (!--c->active) { c->idle_since = now; c->started = 1; }
++}
++static inline rb_gap_sample rb_gap_cut(rb_gap_clock *c) {
++    rb_gap_sample result = c->sample;
++    c->sample = (rb_gap_sample){0};
++    return result;
++}
++#endif
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
+@@ -0,0 +1,99 @@
++// A recorded non-deferred sample is an early indication of real demand.
++// Keep only table coordinates. A registration may be replaced or destroyed
++// before replay. The submit owner resolves the identity again under g_rmu.
++enum { RB_TX_QUEUE = 128, RB_TX_MAX = 256 * 1024, RB_TX_SESSION = 32 * 1024 * 1024 };
++typedef struct { unsigned id; uint64_t serial; } rb_tx_hint;
++static struct {
++    pthread_mutex_t lock;
++    rb_tx_hint items[RB_TX_QUEUE];
++    unsigned head, count;
++    _Atomic unsigned pending;
++    _Atomic uint64_t recent[2048];
++    uint64_t bytes, made, frame;
++    unsigned in_frame;
++} g_tx_ahead = {.lock = PTHREAD_MUTEX_INITIALIZER};
++
++void nvn_be_record_texture_hint(uint32_t id_) {
++    if (id_ >= (1u << 20)) return;
++    uint64_t serial = atomic_load_explicit(&g_tser[id_], memory_order_relaxed);
++    _Atomic uint64_t *recent = &g_tx_ahead.recent[id_ % 2048];
++    if (!serial || atomic_load_explicit(recent, memory_order_relaxed) == serial) return;
++    if (pthread_mutex_trylock(&g_tx_ahead.lock)) return;
++    if (g_tx_ahead.count < RB_TX_QUEUE && atomic_load_explicit(recent, memory_order_relaxed) != serial) {
++        unsigned tail = (g_tx_ahead.head + g_tx_ahead.count) % RB_TX_QUEUE;
++        g_tx_ahead.items[tail] = (rb_tx_hint){id_, serial};
++        ++g_tx_ahead.count;
++        atomic_store_explicit(recent, serial, memory_order_relaxed);
++        atomic_store_explicit(&g_tx_ahead.pending, g_tx_ahead.count, memory_order_relaxed);
++    }
++    pthread_mutex_unlock(&g_tx_ahead.lock);
++}
++
++static int rb_tx_next(rb_tx_hint *h) {
++    if (pthread_mutex_trylock(&g_tx_ahead.lock)) return 0;
++    unsigned count = g_tx_ahead.count;
++    if (count) {
++        *h = g_tx_ahead.items[g_tx_ahead.head];
++        g_tx_ahead.head = (g_tx_ahead.head + 1) % RB_TX_QUEUE;
++        atomic_store_explicit(&g_tx_ahead.pending, --g_tx_ahead.count, memory_order_relaxed);
++    }
++    pthread_mutex_unlock(&g_tx_ahead.lock);
++    return count != 0;
++}
++
++// Only private, packaged data in ordinary texture-only memory. A pool ever
++// handed to the game as a GPU buffer can contain writes still in flight.
++static int rb_tx_eligible(const treg_t *r, uint64_t serial) {
++    const tex_t *t = &r->t;
++    if (!r->ok || r->gone || r->view || t->serial != serial || !t->has_layout ||
++        !t->mem || !t->pool || t->d.target != NVN_TEXTURE_TARGET_2D ||
++        t->d.flags || !t->L.size || t->L.size > RB_TX_MAX ||
++        t->pool->magic != MAGIC('P','O','O','L') ||
++        (t->pool->flags & (NVN_MEMORY_POOL_FLAGS_VIRTUAL | NVN_MEMORY_POOL_FLAGS_PHYSICAL)) ||
++        !nvn_dirty_tracked(t->mem, t->L.size) || !nvn_be_tex_is_live(serial) || tex_get(serial)) return 0;
++    pthread_mutex_lock(&g_mu);
++    int index = pool_find((uintptr_t)t->mem, t->L.size);
++    int ok = index >= 0 && !g_pools[index].res && !addr_meets(g_pools[index].lo, g_pools[index].hi);
++    pthread_mutex_unlock(&g_mu);
++    return ok;
++}
++
++void nvn_be_advance_texture(void) {
++    if (!atomic_load_explicit(&g_tx_ahead.pending, memory_order_relaxed) ||
++        !on_sub_thread() || dm_gfx_session_stopping() || g_cb || g_up_cb ||
++        g_tx_ahead.bytes >= RB_TX_SESSION || atomic_load(&g_up_pending)) return;
++    uint64_t frame = atomic_load(&g_cur_frame);
++    if (g_tx_ahead.frame != frame) { g_tx_ahead.frame = frame; g_tx_ahead.in_frame = 0; }
++    if (g_tx_ahead.in_frame >= 2 || rb_mem_low()) return;
++    if (pthread_mutex_trylock(&g_rmu)) return;
++    int lease = 0;
++    if (rb_spec_take(0, &lease)) {
++        rb_tx_hint h;
++        for (int i = 0; i < 4 && rb_tx_next(&h); ++i) {
++            if (h.id >= (unsigned)g_ntreg || !rb_tx_eligible(&g_treg[h.id], h.serial)) continue;
++            const tex_t *t = &g_treg[h.id].t;
++            if (t->L.size > RB_TX_SESSION - g_tx_ahead.bytes) break;
++            if (tex_mtl_(t)) {
++                g_tx_ahead.bytes += t->L.size;
++                ++g_tx_ahead.in_frame;
++                ++g_tx_ahead.made;
++                if (!(g_tx_ahead.made & (g_tx_ahead.made - 1)))
++                    MLOG("RewindBox: recorded texture binds uploaded ahead %llu, %llu bytes, frame %llu",
++                         (unsigned long long)g_tx_ahead.made, (unsigned long long)g_tx_ahead.bytes,
++                         (unsigned long long)frame);
++            }
++            break;
++        }
++        rb_spec_done(&lease);
++    }
++    pthread_mutex_unlock(&g_rmu);
++}
++
++static void rb_tx_reset(void) {
++    pthread_mutex_lock(&g_tx_ahead.lock);
++    g_tx_ahead.head = g_tx_ahead.count = g_tx_ahead.in_frame = 0;
++    g_tx_ahead.bytes = g_tx_ahead.made = g_tx_ahead.frame = 0;
++    atomic_store(&g_tx_ahead.pending, 0);
++    for (unsigned i = 0; i < 2048; ++i) atomic_store(&g_tx_ahead.recent[i], 0);
++    pthread_mutex_unlock(&g_tx_ahead.lock);
++}
+--- a/graphics/nvn/tests/t_nvn_up_tex_src.m
++++ b/graphics/nvn/tests/t_nvn_up_tex_src.m
+@@ -30,13 +30,13 @@
+     for (uint64_t i = 0; i < t->L.size / 4; i++) ((uint32_t *)t->mem)[i] = 0x11223344u;   // 上传前写好：上传会给这段加写保护
+     nvn_be_tex_init(t); nvn_be_tex_cpu_written(t);   // CPU 写过的块线性贴图：走随包上传（pkg_upload_）
+ }
+-static unsigned wrong_texels(id<MTLTexture> m) {   // 旧式队列拷到共享缓冲读回
++static unsigned wrong_value(id<MTLTexture> m, uint32_t value) {   // 旧式队列拷到共享缓冲读回
+     static id<MTLCommandQueue> q; if (!q) q = [g_dev newCommandQueue];
+     id<MTLBuffer> out = [g_dev newBufferWithLength:SIDE * SIDE * 4 options:MTLResourceStorageModeShared]; REQUIRE(out);
+     id<MTLCommandBuffer> cb = [q commandBuffer]; id<MTLBlitCommandEncoder> e = [cb blitCommandEncoder];
+     [e copyFromTexture:m sourceSlice:0 sourceLevel:0 sourceOrigin:MTLOriginMake(0, 0, 0) sourceSize:MTLSizeMake(SIDE, SIDE, 1) toBuffer:out destinationOffset:0 destinationBytesPerRow:SIDE * 4 destinationBytesPerImage:SIDE * SIDE * 4];
+     [e endEncoding]; [cb commit]; [cb waitUntilCompleted]; REQUIRE(cb.status == MTLCommandBufferStatusCompleted);
+-    unsigned n = 0; const uint32_t *w = out.contents; for (int i = 0; i < SIDE * SIDE; i++) n += w[i] != 0x11223344u;
++    unsigned n = 0; const uint32_t *w = out.contents; for (int i = 0; i < SIDE * SIDE; i++) n += w[i] != value;
+     return n;
+ }
+ static id<MTLTexture> upload(tex_t *t) {   // 提交线程上、提交里第一次解析 = 上传；提交做完、上传批退役
+@@ -44,9 +44,40 @@
+     uint64_t f = nvn_be_sub_commit(); REQUIRE(nvn_be_wait(f, 10000000000ull)); nvn_be_drain(); nvn_be_sub_begin();
+     return m;
+ }
+-int main(void) {
++static void wait_uploads(void) {
++    up_flush(); rec_drain(); up_wait_zero(&g_up_pending);
++}
++static int recorded_upload(void) {
++    // Exercise the classic blit path with tracked GPU resources on the Mac VM.
++    // It supports ordinary Metal textures but has no residency sets.
++    g_dev = MTLCreateSystemDefaultDevice(); REQUIRE(g_dev);
++    g_m3 = 1; g_q = [g_dev newCommandQueue]; g_q3 = g_q; REQUIRE(g_q);
++    g_fence3 = [g_dev newFence]; g_keep = [NSMutableArray array];
++    g_sub_thread = pthread_self(); atomic_store(&g_sub_thread_set, 1);
++    static box first, second; static tex_t stale, wanted;
++    make_pool(&first); make_tex(&stale, &first); stale.has_layout = 1;
++    make_pool(&second); make_tex(&wanted, &second); wanted.has_layout = 1;
++    nvn_dirty_add_range(first.mem, POOL); nvn_dirty_add_range(second.mem, POOL);
++    nvn_be_reg_tex(1, &stale, NULL); nvn_be_record_texture_hint(1);
++    nvn_be_reg_tex(1, &wanted, NULL); nvn_be_advance_texture();
++    CHECK(!tex_get(stale.serial) && !tex_get(wanted.serial), "replaced hint uploads neither registration");
++    nvn_be_record_texture_hint(1); nvn_be_record_texture_hint(1);
++    CHECK(atomic_load(&g_tx_ahead.pending) == 1, "identical recorded binds coalesce");
++    nvn_be_advance_texture(); wait_uploads();
++    REQUIRE(g_tx_ahead.made == 1 && g_pkg_uploads == 1);
++    id<MTLTexture> early = tex_mtl(&wanted); REQUIRE(early);
++    CHECK(g_pkg_uploads == 1 && !wrong_value(early, 0x11223344),
++          "first use reuses the uploaded bytes on the GPU (%s)", g_dev.name.UTF8String);
++    for (size_t i = 0; i < wanted.L.size / 4; ++i) ((uint32_t *)wanted.mem)[i] = 0x8899aabb;
++    id<MTLTexture> updated = tex_mtl(&wanted); REQUIRE(updated); wait_uploads();
++    CHECK(!wrong_value(updated, 0x8899aabb), "guest write before a draw reaches every texel");
++    rb_tx_reset(); CHECK(!atomic_load(&g_tx_ahead.pending) && !g_tx_ahead.made, "session retired");
++    return failures != 0;
++}
++int main(int argc, char **argv) {
+     @autoreleasepool {
+         setvbuf(stdout, NULL, _IOLBF, 0); alarm(120);
++        if (argc == 2 && !strcmp(argv[1], "--recorded-upload")) return recorded_upload();
+         mtl_init(); printf("DEVICE %s backend=Metal%d deswizzle on GPU %d page %d\n", g_dev.name.UTF8String, g_m3 ? 3 : 4, g_nvn_deswz_gpu, getpagesize());
+         REQUIRE(g_nvn_deswz_gpu);   // 被测的是 GPU 解交错的取源
+         nvn_be_sub_begin();
+@@ -57,7 +88,7 @@
+         CHECK(!g_pools[P.idx].res, "① 没给出过地址的池上传后不在常驻集合（res = %d）", g_pools[P.idx].res);
+         CHECK(g_pool_res_n == r0, "① 常驻池数 %d → %d（期望不变）", r0, g_pool_res_n);
+         CHECK(g_up_src_n == s0 + 1, "① 临时源 +%llu（期望 +1）", (unsigned long long)(g_up_src_n - s0));
+-        unsigned bad = wrong_texels(mp); CHECK(!bad, "① 读回 %d 个纹素里 %u 个不是 44 33 22 11", SIDE * SIDE, bad);
++        unsigned bad = wrong_value(mp, 0x11223344u); CHECK(!bad, "① 读回 %d 个纹素里 %u 个不是 44 33 22 11", SIDE * SIDE, bad);
+         // ②
+         static box Q; static tex_t tq; make_pool(&Q); nvn_be_pool_addressed(Q.mem, POOL); make_tex(&tq, &Q);
+         r0 = g_pool_res_n; s0 = g_up_src_n;
+@@ -65,7 +96,7 @@
+         CHECK(g_pools[Q.idx].res == 1, "② 给出过地址的池照旧进常驻（res = %d）", g_pools[Q.idx].res);
+         CHECK(g_pool_res_n == r0 + 1, "② 常驻池数 %d → %d（期望 +1）", r0, g_pool_res_n);
+         CHECK(g_up_src_n == s0, "② 临时源 +%llu（期望 0）", (unsigned long long)(g_up_src_n - s0));
+-        bad = wrong_texels(mq); CHECK(!bad, "② 读回不对的纹素 %u", bad);
++        bad = wrong_value(mq, 0x11223344u); CHECK(!bad, "② 读回不对的纹素 %u", bad);
+         // ③
+         static box R; static tex_t tr; make_pool(&R);
+         { void *b; uint64_t o; REQUIRE(nvn_be_addr((uint64_t)(uintptr_t)R.mem, 256, &b, &o)); REQUIRE(g_pools[R.idx].res); }
+@@ -73,7 +104,7 @@
+         s0 = g_up_src_n;
+         id<MTLTexture> mr = upload(&tr);
+         CHECK(g_up_src_n == s0, "③ 已常驻的池不另建临时源（+%llu，期望 0）", (unsigned long long)(g_up_src_n - s0));
+-        bad = wrong_texels(mr); CHECK(!bad, "③ 读回不对的纹素 %u", bad);
++        bad = wrong_value(mr, 0x11223344u); CHECK(!bad, "③ 读回不对的纹素 %u", bad);
+         nvn_be_drain();
+         printf("%s t_nvn_up_tex_src: %u checks %u failures; backend Metal%d\n", failures ? "✗" : "✓", checks, failures, g_m3 ? 3 : 4);
+         return failures != 0;
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_submit_gap.c
+@@ -0,0 +1,25 @@
++#include "../gfx/nvn/rb_submit_gap.h"
++#include <assert.h>
++#include <stdio.h>
++int main(void) {
++    rb_gap_clock c = {0};
++    rb_gap_enter(&c, 100);                   // first present
++    assert(rb_gap_cut(&c).total == 0);
++    rb_gap_enter(&c, 105);                   // overlapping submit
++    rb_gap_leave(&c, 110);
++    rb_gap_leave(&c, 120);
++    rb_gap_enter(&c, 150);
++    rb_gap_leave(&c, 163);
++    rb_gap_enter(&c, 170);                   // second present
++    rb_gap_sample s = rb_gap_cut(&c);
++    assert(s.count == 2 && s.total == 37 && s.longest == 30);
++    rb_gap_enter(&c, 171);                   // spans next boundary
++    rb_gap_leave(&c, 180);
++    rb_gap_enter(&c, 210);                   // no uncovered time
++    assert(rb_gap_cut(&c).count == 0);
++    rb_gap_leave(&c, 215);
++    rb_gap_leave(&c, 219);
++    rb_gap_enter(&c, 4219);
++    assert(rb_gap_cut(&c).longest == 4000);
++    puts("submit gap: overlapping calls, presentation cut, 4-second gap passed");
++}

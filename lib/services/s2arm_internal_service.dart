@@ -11,6 +11,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'package:neostation/l10n/s2arm_engine_locale.dart';
 import 'package:neostation/l10n/switch2_settings_locale.dart';
+import 'package:neostation/l10n/switch2_library_locale.dart';
 import 's2arm_settings.dart';
 import 'logger_service.dart';
 import 'storage/storage_import_activity.dart';
@@ -311,6 +312,7 @@ abstract final class S2ArmInternalService {
   /// The whole preparation in [0, 1] when [step] is at [fraction]; 1 when done; null for an unknown step.
   static double? preparationOverall(String step, double fraction) {
     if (step == 'done') return 1;
+    if (step == 'graphics') return fraction.clamp(0.0, 1.0);
     var before = 0.0;
     for (final entry in preparationSteps) {
       if (entry.key == step) return (before + entry.value * fraction.clamp(0.0, 1.0)).clamp(0.0, 1.0);
@@ -997,7 +999,7 @@ abstract final class S2ArmInternalService {
     final seconds = _prepareClock.elapsed.inSeconds;
     if (outcome['success'] == true) {
       LoggerService.instance.i('S2Arm prepare: ${outcome['reused'] == true ? 'reused' : 'passed'} in $seconds s, '
-          'steps ${outcome['durationsMs'] ?? {}} ms, sizes ${outcome['sizes'] ?? {}}');
+          'graphics ${outcome['graphicsStatus'] ?? 'unknown'}, steps ${outcome['durationsMs'] ?? {}} ms, sizes ${outcome['sizes'] ?? {}}');
     } else {
       LoggerService.instance.w('S2Arm prepare: failed after $seconds s at ${outcome['stage'] ?? '?'}: ${outcome['code']} '
           '${outcome['diagnostic'] ?? ''}');
@@ -1105,6 +1107,8 @@ abstract final class S2ArmInternalService {
       }
       final saveFolder = await saveFolderFor(detectedFolder);
       final endSerial = _sessionEndSerial;
+      _activePrepareProgress = onPrepareProgress;
+      final graphicsLocale = locale ?? PlatformDispatcher.instance.locale;
       final report = await channel.invokeMapMethod<String, dynamic>('launchGame', {
         'gid': prepared['gid'],
         'imagesPath': prepared['imagesPath'],
@@ -1115,6 +1119,8 @@ abstract final class S2ArmInternalService {
         'pairingFilePath': pairingFilePath,
         'uiLocale': uiLocale,
         'menuStrings': Switch2SettingsLocale.menuStrings(uiLocale),
+        'graphicsLabel': Switch2LibraryLocale.forLocale(graphicsLocale, 'prepStepDirect'),
+        'graphicsIncomplete': Switch2LibraryLocale.forLocale(graphicsLocale, 'graphicsIncomplete'),
         if (saveFolder != null) 'saveFolder': saveFolder.path,
       });
       if (report?['success'] == true) {
@@ -1130,6 +1136,7 @@ abstract final class S2ArmInternalService {
     } on PlatformException catch (error) {
       return S2ArmLaunchOutcome.failure(error.code, error.message);
     } finally {
+      _activePrepareProgress = null;
       _launching = false;
     }
   }

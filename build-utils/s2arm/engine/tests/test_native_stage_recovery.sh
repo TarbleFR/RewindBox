@@ -94,6 +94,9 @@ xcrun --sdk macosx clang -O1 -fobjc-arc -Igraphics/nvn/gfx/nvn -o "$case_dir/fra
 pixel=$("$case_dir/fragment" "$msl")
 test "$pixel" = '0000002a 00000007 00000063 00000001' || { echo "Unexpected native fragment output $pixel" >&2; exit 1; }
 echo "PASS exact RGBA32Uint from repaired production NVN2 fragment $pixel"
+# Reuse this published translator, shader host and Metal renderer.
+xcrun --sdk macosx clang -O2 -dynamiclib "$tests/../../../../native/s2arm/prepare/s2arm_zstd.c" -o "$case_dir/prepare-zstd.dylib"
+python3 "$tests/test_local_stage_recovery.py" "$root" "$dsh_stats" "$translator" "$case_dir/prepare-zstd.dylib" "$case_dir/fragment"
 rm "$data/${key}_b.in"
 cp "$data/truncated.metal" "$msl"
 # A valid path with repeated separators must address the very same refusal record.

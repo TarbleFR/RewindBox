@@ -1,0 +1,612 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index d9ab386..ac444fc 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1646,10 +1646,13 @@ static inline void enc_r_end(id e) { m4_end(e); }
+  // and remove the first actual encoder bind from the same tiny table.
+ static nvn_hmap g_rb_promoted_objects = {.klen = sizeof(void *)};
+ static int g_rb_observing = 1;
++static nvn_hmap g_rb_seed_objects = {.klen = sizeof(void *)}; // submit thread only
++static void rb_ref_bound(id ps);
+ static void rb_trace_bound(id ps);
+ static inline void enc_r_pso(id<MTL4RenderCommandEncoder> e, id<MTLRenderPipelineState> p) {
+     [e setRenderPipelineState:p];
+     if (g_rb_promoted_objects.n && e) rb_trace_bound(p);
++    if (g_rb_seed_objects.n && e) rb_ref_bound(p);
+ }
+ static inline void enc_r_dss(id<MTL4RenderCommandEncoder> e, id<MTLDepthStencilState> s) { [e setDepthStencilState:s]; }
+ static inline void enc_r_viewport(id<MTL4RenderCommandEncoder> e, MTLViewport v) { [e setViewport:v]; }
+@@ -8627,7 +8630,7 @@ static void rb_bi_again(const p_draw *dw, const p_draw_idx *di) {   // mdx_next:
+     if (g_rbb_last.on && (dw || di)) rb_bi_put(dw ? dw->ind : di->ind, !dw, dw ? dw->mdi_cnt : di->mdi_cnt, dw ? dw->mdi_i : di->mdi_i);
+ }
+ // Warm-up entry: built in the background, waiting to be taken by the submit thread. vs / fs retain the actual shared shader objects (pso holds only raw pointers).
+-@interface WarmItem : NSObject { @public int kind, fc, transition; NSString *key, *vs_key, *fs_key; NvShader *shader, *vs, *fs; pso_key pso; id<MTLFunction> fsfn; id object; NSData *mkey; } @end   // fc: a compute pipeline of the sampler-emulation variant (#800); mkey: a task / mesh pipeline's key (kind 4, nvn_geometry.inc mtk_warm)
++@interface WarmItem : NSObject { @public int kind, fc, transition; NSString *key, *vs_key, *fs_key; NvShader *shader, *vs, *fs; NSString *referenceKey; pso_key pso; id<MTLFunction> fsfn; id object; NSData *mkey; } @end   // fc: a compute pipeline of the sampler-emulation variant (#800); mkey: a task / mesh pipeline's key (kind 4, nvn_geometry.inc mtk_warm)
+ @implementation WarmItem @end
+ static NSMutableDictionary<NSString *, NvShader *> *g_shcache;
+ #define NVN_SHADER_FLIGHT_IMPL 1
+@@ -12120,6 +12123,13 @@ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_vs(NvProg *pr, NvS
+     if (!ps) { char hint[200]; MLOG("【红】 failed to create render pipeline (vertex %s fragment %s): %s%s", vs->key, fs ? fs->key : "-", e.localizedDescription.UTF8String, pso_fout_hint(fs, g_pass.cfmt, hint, sizeof hint));
+                hm_put_id(&g_pso_fail, &k, NSNull.null); return nil; }
+     if (!ms_fn) { pso_skey sk; char shex[sizeof sk * 2 + 1]; pso_skey_from(&k, vs, fs, g_pso_lmap != NULL, g_pso_lmap ? &g_pso_fz : NULL, &sk); pso_skey_hex(&sk, shex);
++        // Full exact recipes from slow first-use waits allow a later pack to
++        // resolve the observed archive digest without the personal manifest.
++        if (first_use_ns >= RB_PSO_HOT_MS * 1000000ull && !g_pso_lmap && !g_pso_fsfn) {
++            static _Atomic unsigned reported;
++            if (atomic_fetch_add(&reported,1)<64) MLOG("RewindBox reference recipe frame %llu %s R\t%s",
++                (unsigned long long)atomic_load(&g_cur_frame),par_hash(&sk,sizeof sk).UTF8String,shex);
++        }
+         pso_record("R\t%s\n", shex);
+         pso_user_record("R\t%s\n", shex);
+         if (rb_pso_hot_on() && !g_pso_lmap && !g_pso_fsfn && first_use_ns >= RB_PSO_HOT_MS * 1000000ull)
+@@ -12136,7 +12146,8 @@ static NSString *warm_key(const char *s, size_t n) {
+ // The prewarm runs the lines of its lists as tasks: a shader (S), a compute pipeline (C), or every render pipeline (R) of one shader pair (the pipelines of a pair share their
+ // shaders, so one worker builds them one after the other). The tasks keep the lists' order (a pair at its first line). shader_load shares successful objects and in-flight loads
+ // with prefetch and runtime, without negatively caching failures. After the upstream reference implementation (MIT) warm_parse / warm_task
+-@interface WarmTask : NSObject { @public int kind, stage, fc; uint32_t pad; NSString *key, *vkey, *fkey, *tkey; NSMutableArray<NSData *> *rs; } @end   // fc: a C line's sampler-emulation bits this GPU runs (#800, warm_parse)
++#include "rb_reference.inc"
++@interface WarmTask : NSObject { @public RBReferenceProof *reference; int kind, stage, fc; uint32_t pad; NSString *key, *vkey, *fkey, *tkey; NSMutableArray<NSData *> *rs; } @end   // fc: a C line's sampler-emulation bits this GPU runs (#800, warm_parse)
+ @implementation WarmTask @end
+ static _Atomic long g_warm_done;   // lines done (the prepare step's progress)
+ static _Atomic int g_wp_phase, g_wp_why, g_wp_play; static _Atomic long g_wp_total; static _Atomic uint64_t g_wp_t0;
+@@ -12473,8 +12484,11 @@ static NSArray<WarmTask *> *warm_parse(NSArray<NSString *> *paths, long *lines)
+     NSMutableOrderedSet<NSString *> *hot = rb_pso_hot_on() ? rb_pso_hot_read(rb_pso_hot_path()) : nil;
+     NSMutableArray<WarmTask *> *priority = hot.count ? [NSMutableArray array] : nil;
+     NSMutableSet<NSString *> *seen = [NSMutableSet set], *stale = [NSMutableSet set]; long n = 0;
++    NSString *referencePath=rb_ref_path();
++    NSMutableArray *referenceTasks=[NSMutableArray array];
+     for (NSString *path in paths) {
+         NSString *txt = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
++        RBReferenceProof *reference=[path isEqual:referencePath] ? rb_ref_open(path,txt) : nil;
+         if (!txt) { MLOG("【红】 cannot read prewarm list: %s", path.UTF8String); continue; }
+         { unsigned long nl = 0; for (NSString *l in [txt componentsSeparatedByString:@"\n"]) nl += l.length && ![l hasPrefix:@"#"];
+           MLOG("pipeline prewarm list %s: %lu lines", path.UTF8String, nl); }   // Diagnostics: how many lines each manifest gave (when a device warms up 0, shows which one was missing)
+@@ -12493,7 +12507,7 @@ static NSArray<WarmTask *> *warm_parse(NSArray<NSString *> *paths, long *lines)
+             }
+             if (([c[0] isEqualToString:@"S"] && c.count >= 3) || ([c[0] isEqualToString:@"C"] && c.count >= 2)) {
+                 if (!c[1].length || warm_stale(c[1], stale)) continue;
+-                t = [WarmTask new]; t->kind = [c[0] isEqualToString:@"S"] ? 0 : 2; t->key = c[1]; t->stage = t->kind ? 5 : c[2].intValue; t->fc = t->kind ? fc : 0; [tasks addObject:t];
++                t = [WarmTask new]; t->kind = [c[0] isEqualToString:@"S"] ? 0 : 2; t->key = c[1]; t->stage = t->kind ? 5 : c[2].intValue; t->fc = t->kind ? fc : 0; [(reference ? referenceTasks : tasks) addObject:t];
+             } else if ([c[0] isEqualToString:@"R"] && c.count >= 2) {
+                 pso_skey sk; if (pso_skey_parse(c[1].UTF8String, &sk)) continue;
+                 if (sk.k.fc & ~se_mask()) {
+@@ -12506,7 +12520,8 @@ static NSArray<WarmTask *> *warm_parse(NSArray<NSString *> *paths, long *lines)
+                 //   worker; its list has a pair with 73 lines, so the prepare step's last lines ran on one core while the rest idled and the first frame waited the whole 15 s cap with
+                 //   12497 of 12523 lines done. The shaders' loads are shared anyway (shader_load_depth: one load per key, waiters join the one in flight), so the pair bought nothing
+                 t = [WarmTask new]; t->kind = 1; t->vkey = vkey; t->fkey = fkey; t->rs = [NSMutableArray arrayWithObject:[NSData dataWithBytes:&sk length:sizeof sk]];
+-                if (priority.count < RB_PSO_HOT_LIMIT && [hot containsObject:line]) [priority addObject:t];
++                if (reference) [referenceTasks addObject:t];
++                else if (priority.count < RB_PSO_HOT_LIMIT && [hot containsObject:line]) [priority addObject:t];
+                 else [tasks addObject:t];
+             } else if ([c[0] isEqualToString:@"M"] && c.count >= 4) {   // a task / mesh pipeline (nvn_geometry.inc mtk_record): the mesh shader in the vertex place, then the task shader key ("-": none) and the padded variant's mask
+                 pso_skey sk; if (pso_skey_parse(c[1].UTF8String, &sk)) continue;
+@@ -12515,12 +12530,18 @@ static NSArray<WarmTask *> *warm_parse(NSArray<NSString *> *paths, long *lines)
+                 t = [WarmTask new]; t->kind = 4; t->vkey = mkey; t->fkey = fkey; t->tkey = tkey; t->pad = (uint32_t)strtoul(c[3].UTF8String, NULL, 16);
+                 t->rs = [NSMutableArray arrayWithObject:[NSData dataWithBytes:&sk length:sizeof sk]]; [tasks addObject:t];
+             } else continue;
++            if (reference) { t->reference=reference; atomic_fetch_add(&reference->remaining,1); }
+             n++;
+         }
++        if (reference && !atomic_load(&reference->remaining)) rb_ref_abort();
+     }
+     *lines = n;
+     if (hot.count) MLOG("RewindBox (patch 0109): prewarm promoted %lu previously slow pipelines from %lu recorded priorities",
+                         (unsigned long)priority.count, (unsigned long)hot.count);
++    if (referenceTasks.count) {
++        if (priority.count) [referenceTasks addObjectsFromArray:priority];
++        [referenceTasks addObjectsFromArray:tasks]; return referenceTasks;
++    }
+     if (!priority.count) return tasks;
+     [priority addObjectsFromArray:tasks];
+     return priority;
+@@ -12606,6 +12627,7 @@ static void warm_task_(WarmTask *t) {
+     @autoreleasepool {
+         if (t->kind == 0) {
+             NvShader *sh = warm_shader(t->key, t->stage);
++            if (sh && sh->fn) rb_ref_shader(t->reference);
+             if (sh) { WarmItem *item = [WarmItem new]; item->kind = 0; item->key = t->key; item->shader = sh; warm_enqueue(item); g_warm_shaders++; }
+             g_warm_done++; return;
+         }
+@@ -12638,12 +12660,14 @@ static void warm_task_(WarmTask *t) {
+             pso_key k = sk.k; k.vs = (__bridge void *)vs; k.fs = (__bridge void *)fs; k.fsfn = (__bridge void *)fsfn; pso_key_norm(&k, vs, fs, sk.merged);   // seeds written before the normalisation, and keys from elsewhere, still hit
+             if (k.fc && !se_warm(fs, k.fc)) { g_warm_skip_fz++; g_warm_done++; continue; }   // S2Arm #800: a sampler-emulation pipeline (fc masked to this GPU's bits, warm_parse) whose variant this device has not made (yet): made at its first use
+             NSString *akey = par_rkey(&k, vs, fs, sk.merged, fsfn);
+-            NSError *e = nil; id ps = par_render(pso_desc(&k, vs, fs, fsfn, sk.merged), akey, &e);
++            MTLRenderPipelineDescriptor *descriptor=pso_desc(&k,vs,fs,fsfn,sk.merged);
++            NSError *e=nil; id ps=par_render(descriptor,akey,&e);
+             if (!ps && !vs->layer_out && [e.localizedDescription containsString:@"render_target_array_index"]) {   // a vertex shader that writes the layer (see pso_get_)
+-                vs->layer_out = 1; e = nil; ps = par_render(pso_desc(&k, vs, fs, fsfn, sk.merged), akey, &e); }
++                vs->layer_out=1; e=nil; descriptor=pso_desc(&k,vs,fs,fsfn,sk.merged); ps=par_render(descriptor,akey,&e); }
+             g_warm_done++;
+             if (!ps) { MLOG("【红】 background render pipeline creation failed: %s", e.localizedDescription.UTF8String); continue; }
+             WarmItem *item = [WarmItem new]; item->kind = 1; item->transition = g_rb_picked_hint; item->vs_key = t->vkey; item->fs_key = t->fkey; item->vs = vs; item->fs = fs; item->fsfn = fsfn; item->pso = k; item->object = ps;
++            if (rb_ref_pipeline(t->reference,akey,descriptor)) item->referenceKey=akey;
+             warm_enqueue(item); g_warm_rps++;
+         }
+     }
+@@ -12750,16 +12774,26 @@ static void warm_background_rows(NSArray<WarmTask *> *tasks, _Atomic long *next,
+         if (i < 0 || dm_gfx_session_stopping() || nvn_be_stopping()) { rb_spec_done(&lease); break; }
+         if (after_cap) atomic_fetch_add(&g_warm_bg_after_cap, 1);
+         warm_task(tasks[(NSUInteger)i]);
+-        rb_spec_done(&lease);
++        rb_spec_done(&lease); rb_ref_task_done(tasks[(NSUInteger)i]->reference);
+     }
+ }
+ static int warm_prepare(NSArray<WarmTask *> *tasks, long lines) {
++    BOOL referencePreparation = tasks.count && tasks.firstObject->reference != nil;
+     int workers = prepare_workers(); long n = (long)tasks.count; uint64_t t0 = bp_now(), lim = (uint64_t)prepare_max_ms() * 1000000ull, stall = (uint64_t)prepare_stall_ms() * 1000000ull;
+     atomic_store(&g_wp_total, lines); atomic_store(&g_wp_phase, WARM_FRONT);
+     __block _Atomic long next = 0; __block _Atomic int stop = 0;   // stop：到点放行后满核的准备工人不再领新行（剩下的交后台低优先，见下）
+     dispatch_group_t g = dispatch_group_create();
+     for (int w = 0; w < workers; w++) dispatch_group_async(g, dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+-        for (;;) { if (atomic_load(&stop)) break; int lease; long i = warm_pick(&next, n, -1, &lease); if (i < 0 || dm_gfx_session_stopping()) break; WARM_PREPARE_TASK(tasks[(NSUInteger)i]); }
++        for (;;) {
++            if (atomic_load(&stop)) break;
++            int lease;
++            long i=warm_pick(&next,n,referencePreparation ? w : -1,&lease);
++            if (i<0 || dm_gfx_session_stopping()) { rb_spec_done(&lease); break; }
++            WarmTask *task=tasks[(NSUInteger)i];
++            WARM_PREPARE_TASK(task);
++            rb_spec_done(&lease);
++            rb_ref_task_done(task->reference);
++        }
+     });
+     int shown = 0, late = 0; long seen = -1; uint64_t moved = t0;
+     int front = s2a_front_warm_tick(0, lines) >= 0;   // a front end decides when to stop waiting (it was told the total); else this file's guards
+@@ -12805,10 +12839,23 @@ static int warm_prepare(NSArray<WarmTask *> *tasks, long lines) {
+ //   Without a seed, what is first compiled in play is also noted for the archive in the same run (g_par_note_play, pso_archive.h: each pipeline compiled the fewest times)
+ static NSArray<NSString *> *warm_paths(int say) {
+     const char *e = getenv("DM_PSO_MANIFEST");
+-    if (e && !strcmp(e, "off")) return nil;
+-    if (e && *e) return @[@(e)];
++    if (e && !strcmp(e,"off")) { if (say) rb_ref_abort(); return nil; }
++    if (e && *e) return rb_ref_path() ? @[rb_ref_path(),@(e)] : @[@(e)];
+     NSString *seed = [shmap_path().stringByDeletingLastPathComponent stringByAppendingPathComponent:@"pso_manifest.tsv"];
+-    NSMutableArray<NSString *> *all = [NSMutableArray arrayWithObject:seed];
++    NSString *reference=rb_ref_path();
++    if (!reference) {
++        // A committed generation still benefits on every process launch.
++        // Only the explicitly requested migration repeats disk archive proofs.
++        const char *build=s2a_main_build_id ? s2a_main_build_id() : NULL;
++        NSString *wire=pso_user_path().stringByDeletingLastPathComponent;
++        if (wire && build && !strcasecmp(build,rb_ref_build) && !strcasecmp(s2a_nvn_game_id(),"0400C3F00006E000")) {
++            NSString *stored=rb_ref_manifest(wire);
++            if ([NSFileManager.defaultManager fileExistsAtPath:stored]) reference=stored;
++        }
++    }
++    NSMutableArray<NSString *> *all=[NSMutableArray array];
++    if (reference) [all addObject:reference];
++    if ([NSFileManager.defaultManager fileExistsAtPath:seed]) [all addObject:seed];
+     NSString *user = pso_user_path();
+     int have_user = user && [NSFileManager.defaultManager fileExistsAtPath:user];   // RewindBox (patch 0033): kept for the case without a seed below
+     if (have_user) [all addObject:user];
+@@ -12817,7 +12864,7 @@ static NSArray<NSString *> *warm_paths(int say) {
+     // Seed lists describe known pipelines; new gameplay variants can still miss.
+     // Keep those successful builds through the same bounded utility writer.
+     g_par_note_play = 1;
+-    if (!have_seed) {
++    if (!have_seed && !reference) {
+         if (have_user && [[NSFileManager.defaultManager attributesOfItemAtPath:user error:nil] fileSize] > 0) {   // RewindBox (patch 0033): not an error, a plain line
+             if (say) MLOG("pipeline prewarm: the package has no seed list (%s): this device's user list alone (%s)", seed.UTF8String, user.UTF8String);
+             return @[user];
+@@ -18336,6 +18383,10 @@ static void warm_claim(void) {
+         } else if (item->kind == 1) {
+             if (!hm_get_id(&g_pso, &item->pso)) {
+                 hm_put_id(&g_pso, &item->pso, item->object); g_warm_claim_rps++;
++                if (item->referenceKey) {
++                    const void *raw=(__bridge const void *)item->object;
++                    hm_put_id(&g_rb_seed_objects,&raw,item->referenceKey);
++                }
+                 if (item->transition) {
+                     const void *raw = (__bridge const void *)item->object;
+                     if (!nvn_hm_put(&g_rb_promoted_objects, &raw, (void *)(uintptr_t)1)) ++g_rb_published;
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 41d86d8..5047d1a 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -110,6 +110,7 @@ int nvn_be_shutdown_session(void) {
+     // Keep completed immutable shader loads in the device cache. This also
+     // consumes the old prefetch handoff before its pipeline maps are cleared.
+     warm_claim();
++    rb_ref_abort(); nvn_hm_clear(&g_rb_seed_objects,hm_rel);
+     rb_trace_end();
+     pool_session_reset();   // before the owners below: its pins would keep what they remove resident
+     // No callbacks can touch these objects now. Drop descriptors first, then
+diff --git a/graphics/nvn/gfx/nvn/rb_reference.inc b/graphics/nvn/gfx/nvn/rb_reference.inc
+new file mode 100644
+index 0000000..3875779
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_reference.inc
+@@ -0,0 +1,203 @@
++// RewindBox. The public preparation API does file work before guest startup.
++// The same renderer that will draw owns the Metal device, compiler and workers.
++typedef int (*rb_stage_cancel)(void *);
++typedef int (*rb_stage_inflate)(const void *, size_t, void **, size_t *, size_t);
++typedef void (*rb_stage_progress)(void *, uint64_t, uint64_t);
++extern int rb_prepare_stage_inputs(const char *, const char *, const char *, rb_stage_cancel, void *,
++                                   uint64_t [8], rb_stage_inflate, rb_stage_progress) __attribute__((weak_import));
++struct rb_reference_target { const char *vs, *fs, *archive; };
++static const struct rb_reference_target rb_mkw_targets[] = {
++#include "rb_reference_mkw.inc"
++};
++static const char rb_ref_build[] = "9e244438c3d8ef1c703a6a85ef99c4f0";
++
++static void rb_ref_begin(void);
++static NSString *rb_ref_manifest(NSString *wire) { return [wire stringByAppendingPathComponent:@"pso_reference.tsv"]; }
++static NSString *rb_ref_files(NSString *manifest) {
++    return [manifest.stringByDeletingLastPathComponent stringByAppendingPathComponent:@"pso_reference.archives.tsv"];
++}
++static BOOL rb_ref_row(NSString *line, pso_skey *sk) {
++    return [line hasPrefix:@"R\t"] && line.length == 2 + 2 * sizeof *sk &&
++           !pso_skey_parse([line substringFromIndex:2].UTF8String, sk);
++}
++// Only accept canonical recipes whose *entire* 432-byte state yields a captured
++// archive identity. Shader names alone are insufficient. Scan incrementally so a
++// long personal manifest does not need to be loaded into memory for migration.
++static int rb_ref_materialize(NSString *wire, NSArray<NSString *> *sources,
++                              const struct rb_reference_target *targets, size_t count,
++                              rb_stage_cancel cancel, void *ctx) {
++    NSMutableOrderedSet *stageRows = [NSMutableOrderedSet orderedSet];
++    NSMutableDictionary *byPair = [NSMutableDictionary dictionary], *rows = [NSMutableDictionary dictionary];
++    NSMutableSet *wanted = [NSMutableSet set];
++    for (size_t i = 0; i < count; ++i) {
++        NSString *vs = @(targets[i].vs), *fs = @(targets[i].fs), *key = @(targets[i].archive);
++        [stageRows addObject:[NSString stringWithFormat:@"S\t%@\t0",vs]];
++        [stageRows addObject:[NSString stringWithFormat:@"S\t%@\t1",fs]];
++        [wanted addObject:key]; byPair[[NSString stringWithFormat:@"%@ %@",vs,fs]] = @YES;
++    }
++    for (NSString *path in sources) {
++        FILE *f = fopen(path.fileSystemRepresentation, "r"); if (!f) continue;
++        char buf[2 * sizeof(pso_skey) + 64]; unsigned lineNo = 0;
++        while (rows.count < wanted.count && fgets(buf,sizeof buf,f)) { @autoreleasepool {
++            if (!(lineNo++ % 128) && cancel && cancel(ctx)) { fclose(f); return 1; }
++            size_t len = strlen(buf); if (len && buf[len-1]=='\n') buf[--len]=0;
++            if (len != 2 + 2*sizeof(pso_skey) || buf[0]!='R' || buf[1]!='\t') continue;
++            pso_skey sk; if (pso_skey_parse(buf+2,&sk)) continue;
++            NSString *vs = warm_key(sk.vs,sizeof sk.vs), *fs = warm_key(sk.fs,sizeof sk.fs);
++            if (!byPair[[NSString stringWithFormat:@"%@ %@",vs,fs]]) continue;
++            NSString *digest = par_hash(&sk,sizeof sk);
++            if ([wanted containsObject:digest]) rows[digest] = @(buf);
++        } }
++        BOOL failed = ferror(f); fclose(f); if (failed) return -1;
++    }
++    if (cancel && cancel(ctx)) return 1;
++    NSMutableString *result = [NSMutableString stringWithFormat:@"# RewindBox reference 1 %@ %s %s %zu\n",
++                               @"0400C3F00006E000",rb_ref_build,DMSH_CHAIN,sizeof(pso_skey)];
++    for (size_t i=0; i<count; ++i) {
++        NSString *key = @(targets[i].archive);
++        if (rows[key]) [result appendFormat:@"%@\n",rows[key]];
++        else [result appendFormat:@"# missing\t%@\n",key];
++    }
++    for (NSString *row in stageRows) [result appendFormat:@"%@\n",row];
++    return [result writeToFile:rb_ref_manifest(wire) atomically:YES encoding:NSUTF8StringEncoding error:nil] ? 0 : -1;
++}
++struct rb_ref_callbacks { rb_stage_cancel cancel; rb_stage_progress progress; void *ctx; };
++static int rb_ref_checkpoint(void *opaque) {
++    struct rb_ref_callbacks *c = opaque;
++    for (;;) {
++        if (c->cancel && c->cancel(c->ctx)) return 1;
++        if (rb_spec_may(0)) return 0;
++        usleep(100000);
++    }
++}
++static void rb_ref_progress(void *opaque, uint64_t done, uint64_t total) {
++    struct rb_ref_callbacks *c = opaque;
++    if (c->progress) c->progress(c->ctx,done,total);
++}
++__attribute__((visibility("default"))) int s2a_rb_guest_prepare_graphics(
++        const char *gid, const char *build, const char *data, const char *wire, rb_stage_cancel cancel,
++        void *ctx, uint64_t stats[8], rb_stage_inflate inflate, rb_stage_progress progress) { @autoreleasepool {
++    if (stats) memset(stats,0,8*sizeof *stats);
++    if (!gid || !build || strcasecmp(gid,"0400C3F00006E000") || strcasecmp(build,rb_ref_build) ||
++        strcmp(DMSH_CHAIN,"0be3f28548fd") || sizeof(pso_skey)!=432) return 2;
++    if (!data || !wire || !stats || !rb_prepare_stage_inputs) return -1;
++    rb_ref_begin();
++    NSString *dir = @(wire), *assets = [@(data) stringByAppendingPathComponent:@"shaders/direct"];
++    if (![NSFileManager.defaultManager createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:nil]) return -1;
++    NSArray *sources = @[[assets stringByAppendingPathComponent:@"pso_manifest.tsv"],
++        [dir stringByAppendingPathComponent:@"pso_user.tsv.rb-priority"],[dir stringByAppendingPathComponent:@"pso_user.tsv"]];
++    struct rb_ref_callbacks callbacks = {cancel,progress,ctx};
++    int status = rb_ref_materialize(dir,sources,rb_mkw_targets,sizeof rb_mkw_targets/sizeof *rb_mkw_targets,rb_ref_checkpoint,&callbacks);
++    if (status) return status;
++    return rb_prepare_stage_inputs(data,wire,rb_ref_manifest(dir).fileSystemRepresentation,rb_ref_checkpoint,&callbacks,stats,inflate,rb_ref_progress);
++} }
++
++@interface RBReferenceProof : NSObject {
++@public NSString *path;
++    NSMutableSet *stages, *renders;
++    NSMutableDictionary<NSString *, MTLRenderPipelineDescriptor *> *descriptors;
++    uint64_t counts[6];
++    int state;
++    _Atomic long remaining;
++}
++@end
++@implementation RBReferenceProof @end
++static os_unfair_lock g_ref_lock = OS_UNFAIR_LOCK_INIT;
++static RBReferenceProof *g_ref;
++static void rb_ref_begin(void) {
++    os_unfair_lock_lock(&g_ref_lock); g_ref=nil; os_unfair_lock_unlock(&g_ref_lock);
++}
++static NSString *rb_ref_path(void) {
++    const char *env = getenv("S2A_RB_PREPARE_PROFILE");
++    return env && *env ? @(env) : nil;
++}
++// Called during warm_parse only for the explicitly selected reference manifest.
++static RBReferenceProof *rb_ref_open(NSString *path, NSString *text) {
++    RBReferenceProof *proof = [RBReferenceProof new]; proof->path = path;
++    proof->stages = [NSMutableSet set]; proof->renders = [NSMutableSet set];
++    proof->descriptors = [NSMutableDictionary dictionary];
++    for (NSString *line in [text componentsSeparatedByString:@"\n"]) {
++        if ([line hasPrefix:@"# missing\t"]) { ++proof->counts[5]; continue; }
++        if ([line hasPrefix:@"S\t"]) [proof->stages addObject:line];
++        pso_skey sk;
++        if (rb_ref_row(line,&sk)) [proof->renders addObject:par_hash(&sk,sizeof sk)];
++    }
++    proof->counts[0]=proof->stages.count; proof->counts[2]=proof->renders.count + proof->counts[5];
++    os_unfair_lock_lock(&g_ref_lock); g_ref=proof; os_unfair_lock_unlock(&g_ref_lock);
++    return proof;
++}
++static void rb_ref_shader(RBReferenceProof *proof) {
++    if (proof) { os_unfair_lock_lock(&g_ref_lock); ++proof->counts[1]; os_unfair_lock_unlock(&g_ref_lock); }
++}
++static BOOL rb_ref_pipeline(RBReferenceProof *proof, NSString *key, MTLRenderPipelineDescriptor *d) {
++    if (!proof || !key || !d || ![proof->renders containsObject:key]) return NO;
++    os_unfair_lock_lock(&g_ref_lock);
++    proof->descriptors[key]=[d copy]; proof->counts[3]=proof->descriptors.count;
++    os_unfair_lock_unlock(&g_ref_lock); return YES;
++}
++__attribute__((visibility("default"))) int s2a_rb_guest_prepare_gpu_status(uint64_t out[6]) {
++    os_unfair_lock_lock(&g_ref_lock);
++    RBReferenceProof *p=g_ref; int state=p ? p->state : 0;
++    if (out) { if (p) memcpy(out,p->counts,sizeof p->counts); else memset(out,0,6*sizeof *out); }
++    os_unfair_lock_unlock(&g_ref_lock); return state;
++}
++// Expose failure when an explicit migration is interrupted or cannot be parsed.
++static void rb_ref_abort(void) {
++    if (!rb_ref_path()) return;
++    os_unfair_lock_lock(&g_ref_lock); if (!g_ref) g_ref=[RBReferenceProof new];
++    if (!g_ref->state) g_ref->state=-1; os_unfair_lock_unlock(&g_ref_lock);
++}
++// Called off submit after the last warm worker has returned. g_warm_running
++// remains set until this bounded verification returns, including during stop.
++static void rb_ref_verify(RBReferenceProof *p) {
++    if (!p || !p->counts[0] || !p->counts[2] || !g_par_on) { rb_ref_abort(); return; }
++    // Wait only for this bounded set of exact keys, never for an unrelated
++    // archive queue or a sleeping worker. Yield to a required draw or HOLD.
++    uint64_t until=bp_now()+3000000000ull;
++    while (p->descriptors.count && bp_now()<until && !nvn_be_stopping() && !dm_gfx_session_stopping() &&
++           !atomic_load(&g_fu_waiting) && rb_spec_level()!=RB_SPEC_HOLD) {
++        pthread_mutex_lock(&g_par_mu);
++        BOOL pending=NO;
++        for (NSString *key in p->descriptors) if ([g_par_pending_keys containsObject:key]) { pending=YES; break; }
++        pthread_mutex_unlock(&g_par_mu);
++        if (!pending) break;
++        usleep(10000);
++    }
++    NSMutableString *files = [NSMutableString string];
++    for (NSString *key in p->descriptors) { @autoreleasepool {
++        if (nvn_be_stopping() || dm_gfx_session_stopping() || atomic_load(&g_fu_waiting) || rb_spec_level()==RB_SPEC_HOLD) break;
++        pthread_mutex_lock(&g_par_mu);
++        NSString *name=g_par_bmap[key] ?: [key stringByAppendingString:@".metalarchive"];
++        BOOL have=[g_par_have containsObject:key]; pthread_mutex_unlock(&g_par_mu);
++        if (!have) continue;
++        int lease=0; if (!rb_spec_take(0,&lease)) break;
++        NSString *path=[g_par_dir stringByAppendingPathComponent:name];
++        MTLBinaryArchiveDescriptor *ad=[MTLBinaryArchiveDescriptor new]; ad.url=[NSURL fileURLWithPath:path];
++        NSError *error=nil; id<MTLBinaryArchive> archive=[g_dev newBinaryArchiveWithDescriptor:ad error:&error];
++        MTLRenderPipelineDescriptor *d=[p->descriptors[key] copy];
++        if (archive) d.binaryArchives=@[archive];
++        id ps = archive ? [g_dev newRenderPipelineStateWithDescriptor:d options:MTLPipelineOptionFailOnBinaryArchiveMiss reflection:nil error:&error] : nil;
++        rb_spec_done(&lease);
++        if (ps) { [files appendFormat:@"%@\t%@\n",key,name]; os_unfair_lock_lock(&g_ref_lock); ++p->counts[4]; os_unfair_lock_unlock(&g_ref_lock); }
++    } }
++    BOOL ok=p->counts[0]==p->counts[1] && p->counts[2]==p->counts[3] && p->counts[3]==p->counts[4] && !p->counts[5];
++    if (ok) ok=[files writeToFile:rb_ref_files(p->path) atomically:YES encoding:NSUTF8StringEncoding error:nil];
++    else [NSFileManager.defaultManager removeItemAtPath:rb_ref_files(p->path) error:nil];
++    os_unfair_lock_lock(&g_ref_lock); p->state=ok ? 1 : -1; [p->descriptors removeAllObjects]; os_unfair_lock_unlock(&g_ref_lock);
++    MLOG("RewindBox reference: real functions %llu/%llu, exact PSOs %llu/%llu, strict disk archive %llu, missing descriptors %llu, verified %d",
++        (unsigned long long)p->counts[1],(unsigned long long)p->counts[0],(unsigned long long)p->counts[3],
++        (unsigned long long)p->counts[2],(unsigned long long)p->counts[4],(unsigned long long)p->counts[5],ok);
++}
++
++// Run on the last reference worker, after it releases its ONE lease. The warm
++// worker group owns its lifetime and drains it on shutdown. No extra worker.
++static void rb_ref_task_done(RBReferenceProof *proof) {
++    if (proof && atomic_fetch_sub(&proof->remaining,1)==1) rb_ref_verify(proof);
++}
++
++static void rb_ref_bound(id ps) {
++    const void *raw=(__bridge const void *)ps;
++    NSString *digest=CFBridgingRelease(nvn_hm_del(&g_rb_seed_objects,&raw));
++    if (digest) MLOG("RewindBox reference: encoder bound exact prewarmed PSO %s at frame %llu",
++                     digest.UTF8String,(unsigned long long)atomic_load(&g_cur_frame));
++}
+diff --git a/graphics/nvn/gfx/nvn/rb_reference_mkw.inc b/graphics/nvn/gfx/nvn/rb_reference_mkw.inc
+new file mode 100644
+index 0000000..9868df6
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_reference_mkw.inc
+@@ -0,0 +1,22 @@
++// Exact keys and archive digests observed at successful first use, in first-use order.
++// 0400C3F00006E000, main build 9e244438c3d8ef1c703a6a85ef99c4f0, ABI 0be3f28548fd.
++    {"21813789bc1879a8_b", "39ec7174ff144a54_b", "20e761a1404bd47a550822b0b51760b519ce8118"},
++    {"f9d4acf89cade64d_b", "78c2366e41129eba_b", "729512811db5ca299ce20c16bee7b7177e46ad3c"},
++    {"48cd1ad80f4b5844_b", "d7b57db31c80cba6_b", "95f02cd767365859cabea653015c9f213de4e76c"},
++    {"9678fe6942364b79_b", "a47117e84f2c4c0d_b", "07dfda7b60367136e9ccc12ddd8a97911537a2cb"},
++    {"7a182cdf2ad3cb4e_b", "673ffca9d6626955_b", "62102fa647c5423af3a3f0245409b8b147119edb"},
++    {"9d1594d7e15cb624_b", "1e98ce41d2540cfb_b", "70d501d91fdb0224d2369ea769c8cb3fa2ab7fe4"},
++    {"278cf18e09a95bf8_b", "2497a25c689a1234_b", "db0dbe1504cf9139efdcba20f678d16c1caa6c46"},
++    {"17efbb1d1f31fac6_b", "480289e81a1261c2_b", "5d7d507f5a02bf13fcf152c2238d075c28d51637"},
++    {"66ec35715f7ecd9a_b", "a16f011350674346_b", "b0d0d4c84e13f3fac2bc7a7b66d15bfbc863490b"},
++    {"2524467d394b8e2e_b", "eb4884ca0964a92f_b", "ba2073dfd3a104a3130bc7ab5212f7ff77144f32"},
++    {"c5984a7abe090de0_b", "eb4884ca0964a92f_b", "69097fd97c7b8882373adb1caa67c2ad72f64765"},
++    {"5ac1f06ab7942df0_b", "bed347d1a2bd645c_b", "2211ffd90ef5e249f66c21812228d41db60a26d7"},
++    {"08d6a03c524be9bc_b", "02825b11df2c9553_b", "0fd78f1c6dcc836ba646219c1493af1297d52d5f"},
++    {"7c1e467bd5f006a8_b", "d20c38edb8cbdf73_b", "c3adf254d36d10b904b8f89702753c505776705b"},
++    {"0774b4a8e2e5c284_b", "f2235d4699695c24_b", "4e6ee813c30f931b40d6c95823687c97e84fc7a3"},
++    {"7ac39b17524f49b2_b", "eb4884ca0964a92f_b", "76ace5def97162a953f92632bd88f02a6a97dbdc"},
++    {"8997a983b2effcae_b", "79fca6ec8f204441_b", "9521be1c5e01ac8ab8618a895db5a00298e1d74a"},
++    {"7d7ada49c17e1e43_b", "79fca6ec8f204441_b", "0dc2254062b003e6903a58b00a84f1d8b141b125"},
++    {"f005d9f2433870a5_b", "32014f1e891e6a1d_b", "f79dcab8a7be941b926ad1c176db6137ae273dda"},
++    {"63f19853a4985e1a_b", "e601f398ad42b763_b", "42848e3e059dd1406858a40e7c2285348f6625bb"},
+diff --git a/graphics/nvn/tests/rb_pso_transition_gpu.inc b/graphics/nvn/tests/rb_pso_transition_gpu.inc
+index 49a04f3..d2b30b2 100644
+--- a/graphics/nvn/tests/rb_pso_transition_gpu.inc
++++ b/graphics/nvn/tests/rb_pso_transition_gpu.inc
+@@ -67,9 +67,9 @@ static void transition_device(void) {
+     g_pass.samples = 1;
+ }
+ 
+-static void demand_and_draw(int stage, id<MTLRenderPipelineState> expected) {
++static void demand_vertex_and_draw(NSString *vertex, int stage, id<MTLRenderPipelineState> expected) {
+     NvProg *pr = [NvProg new];
+-    pr->sh[0] = shader_get(stage_name(ST_VERTEX), 0);
++    pr->sh[0] = shader_get(vertex, 0);
+     pr->sh[1] = shader_get(stage_name(stage), 1);
+     GPU_CHECK(pr->sh[0] && pr->sh[1]);
+     id<MTLRenderPipelineState> ps = pso_get(pr, nil);
+@@ -98,6 +98,10 @@ static void demand_and_draw(int stage, id<MTLRenderPipelineState> expected) {
+     GPU_CHECK(!memcmp(readback.contents, pixels[stage], 4));
+ }
+ 
++static void demand_and_draw(int stage, id<MTLRenderPipelineState> expected) {
++    demand_vertex_and_draw(stage_name(ST_VERTEX),stage,expected);
++}
++
+ // Inspect the normal handoff without mutating or publishing it. shader_get()
+ // on the subsequent demand calls the production warm_claim().
+ static id<MTLRenderPipelineState> handed_pipeline(int stage, int predicted) {
+@@ -199,7 +203,9 @@ static int transition_child(char *exe, NSString *directory, int launch, int dive
+     return waited == child && WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+ }
+ 
++#include "rb_reference_gpu.inc"
+ static int transition_test_main(int argc, char **argv) { @autoreleasepool {
++    if (argc>=2 && !strncmp(argv[1],"--reference-",12)) return reference_test_main(argc,argv);
+     if (argc == 5 && (!strcmp(argv[1], "--transition-launch") || !strcmp(argv[1], "--transition-no-replay"))) {
+         int launch = atoi(argv[3]), divergent = atoi(argv[4]), disabled = !strcmp(argv[1], "--transition-no-replay");
+         GPU_CHECK(launch >= 1 && launch <= 3 && (divergent == 0 || divergent == 1));
+diff --git a/graphics/nvn/tests/rb_reference_gpu.inc b/graphics/nvn/tests/rb_reference_gpu.inc
+new file mode 100644
+index 0000000..d8350a7
+--- /dev/null
++++ b/graphics/nvn/tests/rb_reference_gpu.inc
+@@ -0,0 +1,105 @@
++// Reference input comes from two real draws in a different process. The next
++// install begins with an empty personal history. The two distinct vertices
++// share one fragment, as at frame 4815. The programs and pixels are synthetic.
++static NSString *const reference_vertex_b = @"6600000000000000_b";
++static void reference_boot(NSString *root) {
++    setenv("DM_PSO_USER",[[root stringByAppendingPathComponent:@"pso_user.tsv"] fileSystemRepresentation],1);
++    setenv("DM_NVN_SHMAP",[[root stringByAppendingPathComponent:@"shader_map.tsv"] fileSystemRepresentation],1);
++    setenv("DM_MSL_DIR",root.fileSystemRepresentation,1);
++    setenv("DM_MSL_FALLBACK",[[root stringByAppendingPathComponent:@"translation"] fileSystemRepresentation],1);
++    setenv("DM_PSO_PREPARE","1",1); setenv("DM_PSO_PREPARE_THREADS","1",1);
++    setenv("DM_NVN_FIRST_SKIP","0",1); setenv("DM_NVN_PSO_WAIT_MS","0",1);
++    setenv("S2A_RB_SPEC_GOVERN","0",1);
++    setenv("S2A_RB_PSO_TRANSITIONS","0",1);
++    setenv("S2A_RB_PSO_ARCHIVE_COALESCE","0",1);
++    unsetenv("DM_PSO_MANIFEST"); unsetenv("DM_PSO_ARCHIVE");
++    transition_device(); shmap_load();
++}
++static void reference_collect(NSString *root) {
++    stage_assets(root);
++    NSString *dir = [root stringByAppendingPathComponent:@"translation"];
++    NSString *from=[dir stringByAppendingPathComponent:stage_name(ST_VERTEX)];
++    NSString *to=[dir stringByAppendingPathComponent:reference_vertex_b];
++    for (NSString *extension in @[@"json",@"metal"])
++        GPU_CHECK([NSFileManager.defaultManager copyItemAtPath:[from stringByAppendingPathExtension:extension]
++            toPath:[to stringByAppendingPathExtension:extension] error:nil]);
++    FILE *map=fopen([root stringByAppendingPathComponent:@"shader_map.tsv"].fileSystemRepresentation,"a");
++    GPU_CHECK(map && fputs("original\t0\tvertex\t6600000000000000\n",map)>=0 && !fclose(map));
++    NSString *src=[NSString stringWithContentsOfFile:[to stringByAppendingPathExtension:@"metal"] encoding:NSUTF8StringEncoding error:nil];
++    write_test_text([to stringByAppendingPathExtension:@"metal"],[src stringByAppendingString:@"\n// second stage identity\n"]);
++    setenv("DM_PSO_ARCHIVE","0",1);
++    reference_boot(root);
++    demand_vertex_and_draw(stage_name(ST_VERTEX),ST_A,nil);
++    demand_vertex_and_draw(reference_vertex_b,ST_A,nil);
++    GPU_CHECK(!nvn_be_request_stop() && !nvn_be_shutdown_session());
++    NSString *user=[root stringByAppendingPathComponent:@"pso_user.tsv"], *record=[root stringByAppendingPathComponent:@"captured-reference.tsv"];
++    GPU_CHECK([NSFileManager.defaultManager moveItemAtPath:user toPath:record error:nil]);
++    [NSFileManager.defaultManager removeItemAtPath:[root stringByAppendingPathComponent:@"pipelines"] error:nil];
++}
++static void reference_check(NSString *root,BOOL missing,BOOL replay) {
++    NSString *record=[root stringByAppendingPathComponent:@"captured-reference.tsv"];
++    NSString *text=[NSString stringWithContentsOfFile:record encoding:NSUTF8StringEncoding error:nil];
++    NSMutableDictionary *digests=[NSMutableDictionary dictionary]; GPU_CHECK(text);
++    for (NSString *line in [text componentsSeparatedByString:@"\n"]) {
++        pso_skey sk; if (!rb_ref_row(line,&sk)) continue;
++        GPU_CHECK([warm_key(sk.fs,sizeof sk.fs) isEqual:stage_name(ST_A)]);
++        digests[warm_key(sk.vs,sizeof sk.vs)]=par_hash(&sk,sizeof sk);
++    }
++    NSArray *vertices=@[stage_name(ST_VERTEX),reference_vertex_b];
++    GPU_CHECK(digests.count==2 && digests[vertices[0]] && digests[vertices[1]]);
++    struct rb_reference_target target[2];
++    for (int i=0;i<2;i++) {
++        NSString *key=digests[vertices[i]];
++        target[i]=(struct rb_reference_target){[vertices[i] UTF8String],stage_name(ST_A).UTF8String,key.UTF8String};
++    }
++    if (missing) target[1].archive="0000000000000000000000000000000000000000";
++    uint64_t stats[8];
++    GPU_CHECK(s2a_rb_guest_prepare_graphics("0400C3F00006E000","wrong",NULL,NULL,NULL,NULL,stats,NULL,NULL)==2);
++    GPU_CHECK(!rb_ref_materialize(root,@[record],target,2,NULL,NULL));
++    GPU_CHECK(![NSFileManager.defaultManager fileExistsAtPath:[root stringByAppendingPathComponent:@"pso_user.tsv"]]);
++    setenv("S2A_RB_PREPARE_PROFILE",rb_ref_manifest(root).fileSystemRepresentation,1);
++    reference_boot(root);
++    while (atomic_load(&g_warm_running)) usleep(1000);
++    uint64_t gpu[6];
++    GPU_CHECK(s2a_rb_guest_prepare_gpu_status(gpu)==(missing ? -1 : 1));
++    GPU_CHECK(gpu[0]==3 && gpu[1]==3 && gpu[2]==2 && gpu[3]==2-missing && gpu[4]==2-missing && gpu[5]==missing);
++    if (replay) GPU_CHECK(atomic_load(&g_par_hits)>=2 && !atomic_load(&g_par_misses));
++    NSMutableDictionary *objects=[NSMutableDictionary dictionary];
++    os_unfair_lock_lock(&g_warm_lock);
++    for (WarmItem *w in g_warm_items) if (w->referenceKey) objects[w->vs_key]=w->object;
++    os_unfair_lock_unlock(&g_warm_lock);
++    GPU_CHECK(objects.count==2-missing);
++    demand_vertex_and_draw(vertices[0],ST_A,objects[vertices[0]]);
++    if (!missing) demand_vertex_and_draw(vertices[1],ST_A,objects[vertices[1]]);
++    GPU_CHECK(!g_rb_seed_objects.n);
++    GPU_CHECK(!nvn_be_request_stop() && !nvn_be_shutdown_session());
++    printf("PASS reference %s: functions %llu, exact PSOs %llu, strict disk PSOs %llu, missing %llu, correct GPU pixel\n",
++        missing?"unresolved":replay?"relaunch":"empty history",(unsigned long long)gpu[1],(unsigned long long)gpu[3],
++        (unsigned long long)gpu[4],(unsigned long long)gpu[5]);
++}
++static int reference_child(char *exe,NSString *root,char *mode) {
++    char *args[]={exe,"--reference-child",(char *)root.fileSystemRepresentation,mode,NULL};
++    pid_t child; int s=0;
++    if(posix_spawnp(&child,exe,NULL,NULL,args,environ)) return -1;
++    pid_t done; do { done=waitpid(child,&s,0); } while(done<0 && errno==EINTR);
++    return done==child && WIFEXITED(s)?WEXITSTATUS(s):-1;
++}
++static int reference_test_main(int argc,char **argv) { @autoreleasepool {
++    alarm(120);
++    if (argc==4 && !strcmp(argv[1],"--reference-child")) {
++        NSString *root=@(argv[2]);
++        if (!strcmp(argv[3],"collect")) reference_collect(root);
++        else reference_check(root,!strcmp(argv[3],"missing"),!strcmp(argv[3],"replay"));
++        return 0;
++    }
++    GPU_CHECK(argc==2 && !strcmp(argv[1],"--reference-gpu"));
++    char tmp[]="/tmp/rb-ref-XXXXXX"; GPU_CHECK(mkdtemp(tmp)); NSString *root=@(tmp);
++    GPU_CHECK(!reference_child(argv[0],root,"collect"));
++    for (NSString *mode in @[@"empty",@"replay",@"missing"]) {
++        [NSFileManager.defaultManager removeItemAtPath:[root stringByAppendingPathComponent:@"pso_user.tsv"] error:nil];
++        GPU_CHECK(!reference_child(argv[0],root,(char *)mode.UTF8String));
++    }
++    GPU_CHECK([NSFileManager.defaultManager removeItemAtPath:root error:nil]);
++    puts("PASS real reference capture, empty personal history, archive relaunch, missing descriptor");
++    return 0;
++} }
+diff --git a/runtime/tests/mk/nvn_warmbump.mk b/runtime/tests/mk/nvn_warmbump.mk
+index 64f5c34..4c5e84d 100644
+--- a/runtime/tests/mk/nvn_warmbump.mk
++++ b/runtime/tests/mk/nvn_warmbump.mk
+@@ -3,7 +3,7 @@ NATIVE_TEST_OWN += nvn_warmbump
+ ifeq ($(shell uname -s),Darwin)
+ # 预热插队（warm_bump / warm_pick）：游戏登记程序时把清单里这对着色器的管线提到队头，不重复领
+ NVN_WARMBUMP_HOST_OBJS = $(filter-out %/loadprog.c.o,$(NVN_TEST_HOST_OBJS))   # 同 nvn_warmtick：前端换替身
+-$(BUILD)/tests/t_nvn_warmbump: graphics/nvn/tests/t_nvn_warmbump.m graphics/nvn/tests/rb_pso_transition_gpu.inc graphics/nvn/tests/warmtick_front_stub.c $(NVN_MTL_DEPS) $(NVN_WARMBUMP_HOST_OBJS) $(NVN_TEST_LIB) $(NVN_TEST_WIDEN)
++$(BUILD)/tests/t_nvn_warmbump: graphics/nvn/tests/t_nvn_warmbump.m graphics/nvn/tests/rb_pso_transition_gpu.inc graphics/nvn/tests/rb_reference_gpu.inc graphics/nvn/gfx/nvn/rb_reference.inc graphics/nvn/gfx/nvn/rb_reference_mkw.inc graphics/nvn/tests/warmtick_front_stub.c $(NVN_MTL_DEPS) $(NVN_WARMBUMP_HOST_OBJS) $(NVN_TEST_LIB) $(NVN_TEST_WIDEN)
+ 	$(CC) $(CFLAGS) -std=gnu11 -fobjc-arc -Wno-unused-function -Wno-unguarded-availability-new -Wno-unguarded-availability \
+ 	  $(NATIVE_INC) -Igraphics/nvn/host -Igraphics/nvn/gfx/nvn -Igraphics/nvn/gfx/nvn/include -Igraphics/nvn/third_party/vulkan-headers/include \
+ 	  -o $@ graphics/nvn/tests/t_nvn_warmbump.m graphics/nvn/tests/warmtick_front_stub.c $(NVN_WARMBUMP_HOST_OBJS) $(NVN_TEST_LIB) $(NVN_TEST_WIDEN) \

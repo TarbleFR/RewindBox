@@ -1,0 +1,659 @@
+diff --git a/graphics/nvn/host/dsh_miss.inc b/graphics/nvn/host/dsh_miss.inc
+index 1654f51..bb2f127 100644
+--- a/graphics/nvn/host/dsh_miss.inc
++++ b/graphics/nvn/host/dsh_miss.inc
+@@ -829,3 +829,5 @@ int dm_shader_se_fresh(const char *key16) {
+     LOG("直连采样器模拟变体：%s 是别的翻译链或比源码旧，不载、重出", k);
+     return 0;
+ }
++
++#include "rb_prepare_stages.inc"
+diff --git a/graphics/nvn/host/rb_local_stage.h b/graphics/nvn/host/rb_local_stage.h
+new file mode 100644
+index 0000000..6605d10
+--- /dev/null
++++ b/graphics/nvn/host/rb_local_stage.h
+@@ -0,0 +1,194 @@
++// Read-only NVN2 resource formats shared with translator/shader_split.py and
++// ns2_shaders.py. No guessed code offsets: only a consistent record is emitted.
++#pragma once
++#include "rb_stage_input.h"
++
++typedef int (*rb_inflate_fn)(const void *, size_t, void **, size_t *, size_t);
++typedef struct {
++    int (*cancel)(void *);
++    void (*stage)(void *, const uint8_t *, unsigned, const uint8_t *, unsigned, int);
++    void *ctx;
++    rb_inflate_fn inflate;
++    unsigned unsupported;
++    size_t budget;
++} rb_local_scan;
++
++static uint32_t rb_u32(const uint8_t *p) { uint32_t x; memcpy(&x,p,4); return x; }
++static uint64_t rb_u64(const uint8_t *p) { uint64_t x; memcpy(&x,p,8); return x; }
++static int rb_span(size_t n, uint64_t p, uint64_t len) { return p <= n && len <= n-p; }
++static int rb_scan_interrupted(rb_local_scan *s) { return s->cancel && s->cancel(s->ctx); }
++
++static void rb_emit_program(rb_local_scan *s, const uint8_t *b, size_t n, uint64_t c,
++                            uint64_t ctl_size, uint64_t k, uint64_t code_size, int nv_stage) {
++    if (ctl_size < 0xd8 || !rb_span(n,c,ctl_size) || !rb_span(n,k,code_size) || !nvn2_ctl(b+c)) return;
++    uint32_t nt, nc;
++    int stage = rb_nvn2_input_stage(b+c,&nc,&nt);
++    if (stage < 0 || nt > ctl_size || nc != code_size || (stage != 2 && nc < 0x80)
++        || (nv_stage >= 0 && b[c+0x56] != nv_stage)) return;
++    s->stage(s->ctx,b+c,nt,b+k,nc,stage);
++}
++
++static void rb_bnsh(rb_local_scan *s, const uint8_t *b, size_t n) {
++    if (n < 0x88 || memcmp(b+0x60,"grsc",4)) return;
++    uint32_t count = rb_u32(b+0x7c);
++    uint64_t table = rb_u64(b+0x80);
++    if (!rb_span(n,table,0x40ull*count) || count > (1u << 20)) return;
++    static const int stages[] = {0,3,4,2,1,5,-1,6,7};
++    for (uint32_t i=0; i<count; ++i) {
++        if (!(i % 256) && rb_scan_interrupted(s)) return;
++        uint64_t program = rb_u64(b+table+0x40ull*i+0x10);
++        if (!program) continue;
++        for (unsigned j=0; j<sizeof stages/sizeof stages[0]; ++j) {
++            if (stages[j] < 0 || !rb_span(n,program,16+8*j)) continue;
++            uint64_t desc = rb_u64(b+program+8+8*j);
++            if (!desc || !rb_span(n,desc,32)) continue;
++            rb_emit_program(s,b,n,rb_u64(b+desc+8),rb_u32(b+desc+28),rb_u64(b+desc+16),rb_u32(b+desc+24),stages[j]);
++        }
++    }
++}
++
++static void rb_glslc(rb_local_scan *s, const uint8_t *b, size_t n) {
++    if (n < 0xa8 || rb_u32(b+8) != 0x00220015) return;
++    unsigned size = rb_u32(b+0x5c), count = rb_u32(b+0x64);
++    if (size > n || !count || count > 16 || !rb_span(size,0xa8,0x98*count)) return;
++    const uint8_t *gpu = NULL;
++    for (unsigned i=0; i<count; ++i) {
++        const uint8_t *sec = b+0xa8+0x98*i;
++        if (!rb_u32(sec+8)) { if (gpu) return; gpu = sec; }
++    }
++    if (!gpu) return;
++    unsigned len = rb_u32(gpu), start = rb_u32(gpu+4);
++    if (rb_span(size,start,len)) rb_emit_program(s,b+start,len,rb_u32(gpu+0x30),rb_u32(gpu+0x3c),
++                                                  rb_u32(gpu+0x34),rb_u32(gpu+0x38),-1);
++}
++
++static void rb_bahs(rb_local_scan *s, const uint8_t *b, size_t n) {
++    if (n < 0x20) return;
++    unsigned start = rb_u32(b+0x1c), len = rb_u32(b+0x18);
++    if (!rb_span(n,start,len)) return;
++    for (size_t a=0x10; a+16<=start; a+=4) {
++        if (!(a % (1u<<20)) && rb_scan_interrupted(s)) return;
++        unsigned k=rb_u32(b+a), ct=rb_u32(b+a+8);
++        if (rb_u32(b+a+4) || k%256 || ct<0xd8 || ct>0xffff || rb_u32(b+a-16)<32) continue;
++        int64_t c=(int64_t)a+(int32_t)rb_u32(b+a+12);
++        if (c<0 || !rb_span(start,c,ct) || !nvn2_ctl(b+c)) continue;
++        unsigned sz=rb_u32(b+c+0x44), t=b[c+0x56], kind=rb_u32(b+a-12);
++        if ((t<=2 && kind!=t) || (t==5 && kind!=3) || !rb_span(len,k,sz)) continue;
++        rb_emit_program(s,b,n,(uint64_t)c,ct,(uint64_t)start+k,sz,-1);
++    }
++}
++
++static void rb_ndsr(rb_local_scan *s, const uint8_t *b, size_t n) {
++    size_t top = n<0x10000 ? n : 0x10000;
++    for (size_t a=8; a+16<=top; a+=4) {
++        unsigned c=rb_u32(b+a), cl=rb_u32(b+a+4), k=rb_u32(b+a+8), kl=rb_u32(b+a+12);
++        if ((cl&15)+1 == (kl&15) && c >= a+16 && (cl>>4) >= 0xd8)
++            rb_emit_program(s,b,n,c,cl>>4,k,kl>>4,-1);
++    }
++}
++
++static int rb_yaz0(const uint8_t *b, size_t n, void **dest, size_t *size, size_t budget) {
++    if (n < 16) return 0;
++    size_t total = __builtin_bswap32(rb_u32(b+4));
++    if (!total || total > budget) return 0;
++    uint8_t *d = malloc(total);
++    if (!d) return 0;
++    size_t at=16, wr=0;
++    while (wr < total && at<n) {
++        unsigned bits=b[at++];
++        for (unsigned bit=128; bit && wr<total; bit>>=1) {
++            if (at>=n) goto bad;
++            if (bits & bit) { d[wr++] = b[at++]; continue; }
++            if (n-at<2) goto bad;
++            unsigned a=b[at++], l=a>>4, distance=((a&15)<<8)+b[at++]+1;
++            if (!l) { if (at>=n) goto bad; l=b[at++]+18; } else l+=2;
++            if (distance>wr || l>total-wr) goto bad;
++            while (l--) { d[wr]=d[wr-distance]; ++wr; }
++        }
++    }
++    if (wr != total) goto bad;
++    *dest=d; *size=total; return 1;
++bad:
++    free(d); return 0;
++}
++
++static void rb_scan_blob(rb_local_scan *s, const uint8_t *b, size_t n, unsigned depth);
++static uint16_t rb_arc16(const uint8_t *p,int little) {
++    return little ? (uint16_t)(p[0]|(p[1]<<8)) : (uint16_t)((p[0]<<8)|p[1]);
++}
++static uint32_t rb_arc32(const uint8_t *p,int little) {
++    return little ? rb_u32(p) : __builtin_bswap32(rb_u32(p));
++}
++static void rb_scan_sarc(rb_local_scan *s,const uint8_t *b,size_t n,unsigned depth) {
++    if (n<0x20 || (b[6]!=0xff && b[6]!=0xfe) || b[7]!=(uint8_t)(b[6]^1u)) return;
++    int little = b[6]==0xff;
++    unsigned h=rb_arc16(b+4,little), size=rb_arc32(b+8,little), data=rb_arc32(b+12,little);
++    if (size>n || data>size || !rb_span(data,h,12) || memcmp(b+h,"SFAT",4)) return;
++    unsigned nodes=h+rb_arc16(b+h+4,little), count=rb_arc16(b+h+6,little);
++    if (!rb_span(data,nodes,16ull*count)) return;
++    for (unsigned i=0; i<count && !rb_scan_interrupted(s); ++i) {
++        const uint8_t *r=b+nodes+16*i;
++        unsigned a=rb_arc32(r+8,little), end=rb_arc32(r+12,little);
++        if (a<end && end<=size-data) rb_scan_blob(s,b+data+a,end-a,depth+1);
++    }
++}
++
++static void rb_scan_blob(rb_local_scan *s, const uint8_t *b, size_t n, unsigned depth) {
++    if (n<4 || rb_scan_interrupted(s)) return;
++    if (depth>6) { s->unsupported++; return; }
++    if (!memcmp(b,"SARC",4)) { rb_scan_sarc(s,b,n,depth); return; }
++    uint32_t magic=rb_u32(b);
++    if (magic==0xfd2fb528 || !memcmp(b,"Yaz0",4)) {
++        void *d=NULL; size_t size=0;
++        int ok=magic==0xfd2fb528 ? s->inflate && s->inflate(b,n,&d,&size,s->budget) :
++                                   rb_yaz0(b,n,&d,&size,s->budget);
++        if (ok && size<=s->budget) {
++            s->budget-=size;
++            rb_scan_blob(s,d,size,depth+1);
++            s->budget+=size;
++        } else ++s->unsupported;
++        free(d); return;
++    }
++    if (n>=16 && magic==DSH_IN_MAGIC) {
++        uint32_t nt=rb_u32(b+8), nc=rb_u32(b+12);
++        if (nt>=0xd8 && nt<=NVN2_CTL_COPY && n==16ull+nt+nc && nvn2_ctl(b+16)) {
++            uint32_t expected_nc,expected_nt;
++            int stage=rb_nvn2_input_stage(b+16,&expected_nc,&expected_nt);
++            if (stage>=0 && (uint32_t)stage==rb_u32(b+4) && nt==expected_nt && nc==expected_nc)
++                rb_emit_program(s,b,n,16,nt,16+nt,nc,-1);
++        }
++        return;
++    }
++    if (n>=16) {  // sead primitive drawer's two control/code pairs
++        for (int i=0;i<2;++i) {
++            uint32_t c=rb_u32(b+4*i), k=rb_u32(b+8+4*i);
++            if (c>=16 && rb_span(n,c,0xd8) && nvn2_ctl(b+c))
++                rb_emit_program(s,b,n,c,rb_u32(b+c+0x30),k,rb_u32(b+c+0x44),i);
++        }
++    }
++    // Fixed polling intervals even for a multi-GB plain, memory-mapped file.
++    static const uint8_t starts[] = {'B','N',0x91,0x34};
++    for (size_t chunk=0;chunk<n;chunk+=1u<<20) {
++        if (rb_scan_interrupted(s)) return;
++        size_t end=n-chunk>(1u<<20) ? chunk+(1u<<20) : n;
++        for (size_t m=0;m<sizeof starts;++m) {
++            const uint8_t *p=b+chunk, *limit=b+end;
++            while (p<limit && (p=memchr(p,starts[m],(size_t)(limit-p)))) {
++                size_t rest=(size_t)(b+n-p);
++                if (rest>=8 && !memcmp(p,"BNSH\0\0\0\0",8)) rb_bnsh(s,p,rest);
++                else if (rest>=0x38 && !memcmp(p,"BTCDBTCD",8)) {
++                    uint32_t nt=rb_u32(p+0x28), nc=rb_u32(p+0x2c);
++                    rb_emit_program(s,p,rest,0x38ull+nc,nt,0x38,nc,-1);
++                }
++                else if (rest>=4 && !memcmp(p,"BAHS",4)) rb_bahs(s,p,rest);
++                else if (rest>=4 && !memcmp(p,"NDSR",4)) rb_ndsr(s,p,rest);
++                else if (rest>=4 && rb_u32(p)==0x19866891) rb_glslc(s,p,rest);
++                else if (rest>=0xe0 && nvn2_ctl(p)) {
++                    unsigned block=rb_u32(p+0x30);
++                    if (block>0xe0 && block<(1u<<20)) rb_emit_program(s,p,rest,0,0xe0,block,rb_u32(p+0x44),-1);
++                }
++                ++p;
++            }
++        }
++    }
++}
+diff --git a/graphics/nvn/host/rb_prepare_stages.inc b/graphics/nvn/host/rb_prepare_stages.inc
+new file mode 100644
+index 0000000..677c504
+--- /dev/null
++++ b/graphics/nvn/host/rb_prepare_stages.inc
+@@ -0,0 +1,344 @@
++// Called exclusively before the guest starts. The host checkpoint includes
++// cancellation, thermal state and memory pressure. No render queue is touched.
++#define RB_PREPARE_STAGES_V1 1
++#include "rb_local_stage.h"
++#include <sys/mman.h>
++#include <CommonCrypto/CommonDigest.h>
++
++enum { RB_STAGE_ROW = 2<<20, RB_STAGE_KEYS_PER_ASSET = 65536 };
++
++static NSString *rb_observed_stage_key(const char *p) {
++    if (!p || strspn(p,"0123456789abcdef")!=16 || strncmp(p+16,"_b",2)) return nil;
++    char key[17]; memcpy(key,p,16); key[16]=0; return @(key);
++}
++
++static void rb_stage_targets(NSString *path, NSMutableOrderedSet<NSString *> *keys) {
++    FILE *f=fopen(path.fileSystemRepresentation,"r");
++    if (!f) return;
++    char row[4096];
++    while (fgets(row,sizeof row,f)) {
++        size_t len=strcspn(row,"\r\n"); row[len]=0;
++        if (len<3 || row[1]!='\t') continue;
++        char *payload=row+2, *next=strchr(payload,'\t');
++        if (next) *next++=0;
++        if (row[0]=='S' || row[0]=='C') {
++            NSString *key=rb_observed_stage_key(payload);
++            if (key) [keys addObject:key];
++        } else if ((row[0]=='R' || row[0]=='M') && strlen(payload)>=96 && !(strlen(payload)%2)
++                   && strspn(payload,"0123456789abcdefABCDEF")==strlen(payload)) {
++            // pso_skey begins with two 24-byte NUL-terminated names in every
++            // compatible layout. Only the renderer is allowed to consume the PSO.
++            for (int slot=0;slot<2;slot++) {
++                char name[25]={0};
++                for (int i=0;i<24;i++) {
++                    char h[3]={payload[48*slot+2*i],payload[48*slot+2*i+1],0};
++                    name[i]=(char)strtoul(h,NULL,16);
++                }
++                NSString *key=rb_observed_stage_key(name);
++                if (key) [keys addObject:key];
++            }
++            if (row[0]=='M' && next) {
++                NSString *key=rb_observed_stage_key(next);
++                if (key) [keys addObject:key];
++            }
++        }
++    }
++    fclose(f);
++}
++
++typedef struct {
++    __unsafe_unretained NSMutableSet<NSString *> *need;
++    __unsafe_unretained NSMutableOrderedSet<NSString *> *in_asset;
++    __unsafe_unretained NSMutableSet<NSString *> *found;
++    const char *out;
++    int (*cancel)(void *);
++    void *ctx;
++    int write_error, cancelled, overflow;
++} rb_stage_batch;
++
++static int rb_batch_cancel(void *arg) {
++    rb_stage_batch *b=arg;
++    if (!b->cancelled && b->cancel && b->cancel(b->ctx)) b->cancelled=1;
++    return b->cancelled;
++}
++
++static void rb_local_found(void *arg,const uint8_t *ctl,unsigned nt,const uint8_t *code,unsigned nc,int stage) {
++    rb_stage_batch *b=arg;
++    @autoreleasepool {
++    uint8_t hash[8]; char hex[17];
++    nvn2_key(ctl,code,hash);
++    for (int i=0;i<8;i++) snprintf(hex+2*i,3,"%02x",hash[i]);
++    NSString *key=@(hex);
++    if (b->in_asset.count < RB_STAGE_KEYS_PER_ASSET) [b->in_asset addObject:key];
++    else b->overflow=1;
++    if (![b->need containsObject:key]) return;
++    char path[1200];
++    if (snprintf(path,sizeof path,"%s/%s_b.in",b->out,hex)>=(int)sizeof path ||
++        !rb_stage_publish(path,stage,ctl,nt,code,nc)) { b->write_error=1; return; }
++    [b->need removeObject:key];
++    [b->found addObject:key];
++    }
++}
++
++// The shipping DSH/crash diagnostics may have captured a failed program
++// before a SIN1 existed. Accept paired bytes only after a full NVN2 key match.
++static int rb_recover_dump(NSString *dir,NSString *key,rb_stage_batch *batch) {
++    for (NSString *suffix in @[@"",@".fail",@".inflight"]) {
++        NSString *base=[dir stringByAppendingPathComponent:[key stringByAppendingString:suffix]];
++        int fd=open([base stringByAppendingPathExtension:@"ctl"].fileSystemRepresentation,O_RDONLY|O_NONBLOCK);
++        if (fd<0) continue;
++        uint8_t ctl[NVN2_CTL_COPY]; struct stat st;
++        int ok=!fstat(fd,&st) && S_ISREG(st.st_mode) && st.st_size>=0xd8 && st.st_size<=sizeof ctl &&
++               rb_stage_read(fd,ctl,(size_t)st.st_size) && nvn2_ctl(ctl);
++        close(fd); if (!ok) continue;
++        uint32_t nt,nc; int stage=rb_nvn2_input_stage(ctl,&nc,&nt);
++        if (stage<0 || nt>st.st_size) continue;
++        fd=open([base stringByAppendingPathExtension:@"code"].fileSystemRepresentation,O_RDONLY|O_NONBLOCK);
++        if (fd<0) continue;
++        uint8_t *code=NULL;
++        ok=!fstat(fd,&st) && S_ISREG(st.st_mode) && st.st_size==nc &&
++           (code=malloc(nc)) && rb_stage_read(fd,code,nc);
++        close(fd);
++        if (ok) {
++            uint8_t digest[8]; char actual[17];
++            nvn2_key(ctl,code,digest);
++            for (int i=0;i<8;i++) snprintf(actual+2*i,3,"%02x",digest[i]);
++            if (!strcmp(actual,key.UTF8String)) {
++                char dst[1200];
++                ok=snprintf(dst,sizeof dst,"%s/%s_b.in",batch->out,actual)<(int)sizeof dst
++                   && rb_stage_publish(dst,stage,ctl,nt,code,nc);
++                if (!ok) batch->write_error=1;
++            } else ok=0;
++        }
++        free(code);
++        if (batch->write_error) return -1;
++        if (ok) return 1;
++    }
++    return 0;
++}
++
++// A physical pack can contain links which the importer maintains across app
++// updates. Only visit relative paths named by its applied resource manifest.
++static int rb_resource_name(const char *p) {
++    if (strncmp(p,"romfs/",6) && strncmp(p,"aoc/",4)) return 0;
++    return !strstr(p,"/../") && !strstr(p,"/./") && !strchr(p,'\r') && !strchr(p,'\n');
++}
++static unsigned rb_resource_scan(rb_local_scan *scan,NSString *root,const char *rel,uint64_t expected) {
++    NSString *path=[root stringByAppendingPathComponent:@(rel)];
++    int fd=open(path.fileSystemRepresentation,O_RDONLY|O_NONBLOCK);
++    if (fd<0) return 1;
++    struct stat st;
++    if (fstat(fd,&st) || !S_ISREG(st.st_mode) || (uint64_t)st.st_size!=expected || expected>SIZE_MAX) {
++        close(fd); return 1;
++    }
++    if (expected<4) { close(fd); return 0; }
++    void *map=mmap(NULL,(size_t)expected,PROT_READ,MAP_PRIVATE,fd,0);
++    close(fd);
++    if (map==MAP_FAILED) return 1;
++    madvise(map,(size_t)expected,MADV_SEQUENTIAL);
++    scan->unsupported=0;
++    rb_scan_blob(scan,map,(size_t)expected,0);
++    munmap(map,(size_t)expected);
++    return scan->unsupported;
++}
++
++static void rb_row_digest(const char *row,size_t n,char hex[65]) {
++    unsigned char sum[CC_SHA256_DIGEST_LENGTH];
++    CC_SHA256(row,(CC_LONG)n,sum);
++    for (unsigned i=0;i<sizeof sum;i++) snprintf(hex+2*i,3,"%02x",sum[i]);
++}
++
++// One checksummed line per asset, in the exact order of pack/index.tsv.
++// A partial last line is discarded on resume. Only resources whose indexed
++// keys are still needed are reopened. An unreadable asset is always retried.
++static int rb_stage_assets(NSString *game,NSString *wire,rb_local_scan *scan,rb_stage_batch *b,
++                           uint64_t *candidates,void (*progress)(void *,uint64_t,uint64_t)) {
++    NSString *src=[game stringByAppendingPathComponent:@"index.tsv"];
++    FILE *manifest=fopen(src.fileSystemRepresentation,"r");
++    if (!manifest) return -1;
++    struct stat st;
++    if (fstat(fileno(manifest),&st)) { fclose(manifest); return -1; }
++    NSString *path=[wire stringByAppendingPathComponent:@"stage-index-v1.tsv"];
++    FILE *idx=fopen(path.fileSystemRepresentation,"r+");
++    if (!idx) idx=fopen(path.fileSystemRepresentation,"w+");
++    char *rec=malloc(RB_STAGE_ROW);
++    if (!idx || !rec) { free(rec); if (idx) fclose(idx); fclose(manifest); return -1; }
++    char item[8192];
++    int rc=0, reuse=1;
++    uint64_t limited=0, scanned=0, indexed=0;
++    // The phone's resource pack links RomFS, while its decompressed module
++    // images live beside pack/ in root/. Include embedded shaders from each
++    // rewritten ExeFS image as well. Their live SHA is still independently
++    // verified. Stamps include nanoseconds to avoid using a previous image.
++    NSString *modules=[[game stringByDeletingLastPathComponent] stringByAppendingPathComponent:@"root"];
++    NSArray *moduleNames=[[[NSFileManager.defaultManager contentsOfDirectoryAtPath:modules error:NULL]
++                           filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"SELF ENDSWITH %@", @".patched.bin"]]
++                          sortedArrayUsingSelector:@selector(compare:)];
++    NSUInteger module=0;
++    for (;;) { @autoreleasepool {
++        NSString *itemRoot=game;
++        if (!fgets(item,sizeof item,manifest)) {
++            if (ferror(manifest)) { rc=-1; break; }
++            if (module>=moduleNames.count) break;
++            NSString *name=moduleNames[module++];
++            const char *stem=name.UTF8String;
++            if (!stem || strpbrk(stem,"/\t\n\r")) continue;
++            struct stat fs;
++            if (stat([modules stringByAppendingPathComponent:name].fileSystemRepresentation,&fs) ||
++                !S_ISREG(fs.st_mode) || fs.st_size<=0) continue;
++            char metadata[128], stamp[65];
++            int used=snprintf(metadata,sizeof metadata,"%lld-%ld-%ld-%llu",(long long)fs.st_size,
++                              (long)fs.st_mtimespec.tv_sec,fs.st_mtimespec.tv_nsec,(unsigned long long)fs.st_ino);
++            rb_row_digest(metadata,(size_t)used,stamp);
++            if (snprintf(item,sizeof item,"%s\t%lld\t%s",stem,(long long)fs.st_size,stamp)>=(int)sizeof item) continue;
++            itemRoot=modules;
++        }
++        if (rb_batch_cancel(b)) { rc=1; break; }
++        char *sep=strchr(item,'\t'); if (!sep) continue;
++        *sep=0;
++        if (itemRoot==game && !rb_resource_name(item)) continue;
++        char *sha=strchr(sep+1,'\t'); if (!sha) { rc=-1; break; }
++        *sha++=0;
++        sha[strcspn(sha,"\r\n")]=0;
++        if (strlen(sha)!=64 || strspn(sha,"0123456789abcdef")!=64) { rc=-1; break; }
++        char *end_size=NULL;
++        unsigned long long bytes=strtoull(sep+1,&end_size,10);
++        if (end_size==sep+1 || *end_size) { rc=-1; break; }
++        off_t offset=ftello(idx);
++        int valid=0,matches=0;
++        uint64_t count=0;
++        if (reuse && fgets(rec,RB_STAGE_ROW,idx)) {
++            char *first=strchr(rec,'\t'), *keys=first?strchr(first+1,'\t'):NULL;
++            size_t len=strlen(rec);
++            if (first==rec+64 && keys && len>0 && rec[len-1]=='\n') {
++                rec[len-1]=0;
++                char *digest=strrchr(keys+1,'\t');
++                if (digest) {
++                    char actual[65]; rb_row_digest(rec,(size_t)(digest-rec),actual);
++                    *digest=0; *first=0; *keys++=0;
++                    valid=!strcmp(digest+1,actual) && !strcmp(rec,sha) && !strcmp(first+1,item);
++                    if (valid && *keys=='!') matches=b->need.count>0;
++                    else if (valid) {
++                        char *id;
++                        while ((id=strsep(&keys,",")) && *id) {
++                            count++;
++                            if (!matches && [b->need containsObject:@(id)]) matches=1;
++                        }
++                    }
++                }
++            }
++        }
++        if (!valid && reuse) {
++            clearerr(idx);
++            if (fseeko(idx,offset,SEEK_SET) || ftruncate(fileno(idx),offset)) { rc=-1; break; }
++            reuse=0;
++        }
++        if (!valid || matches) {
++            __attribute__((objc_precise_lifetime)) NSMutableOrderedSet *ids=[NSMutableOrderedSet orderedSet];
++            b->in_asset=ids; b->overflow=0;
++            unsigned skipped=rb_resource_scan(scan,itemRoot,item,bytes);
++            b->in_asset=nil;
++            if (b->cancelled || b->write_error) { rc=b->cancelled?1:-1; break; }
++            scanned++; if (skipped) limited++;
++            if (!valid) {
++                NSString *text=b->overflow || skipped ? @"!" : [ids.array componentsJoinedByString:@","];
++                int len=snprintf(rec,RB_STAGE_ROW,"%s\t%s\t%s",sha,item,text.UTF8String);
++                char hash[65];
++                if (len<0 || len>=RB_STAGE_ROW-67) { rc=-1; break; }
++                rb_row_digest(rec,(size_t)len,hash);
++                if (fprintf(idx,"%s\t%s\n",rec,hash)<0) { rc=-1; break; }
++                count=ids.count;
++            }
++        }
++        *candidates+=count; indexed++;
++        if (progress && !(indexed%32)) progress(b->ctx,(uint64_t)ftello(manifest),(uint64_t)st.st_size);
++    } }
++    if (ferror(manifest) || ferror(idx)) rc=-1;
++    if (!rc && !reuse && fflush(idx)) rc=-1;
++    if (!rc && reuse) { off_t end=ftello(idx); if (end<0 || ftruncate(fileno(idx),end)) rc=-1; }
++    free(rec); if (fclose(idx)) rc=-1;
++    fclose(manifest);
++    if (!rc && progress) progress(b->ctx,(uint64_t)st.st_size,(uint64_t)st.st_size);
++    LOG("RewindBox: local NVN2 index: %llu assets, %llu scanned, %llu with unreadable or unsupported content",indexed,scanned,limited);
++    return rc;
++}
++
++static int rb_prepare_stage_batch(const char *game,const char *wire_path,const char *profile,int (*cancel)(void *),
++                                  void *ctx,uint64_t stats[8],rb_inflate_fn inflate,
++                                  void (*progress)(void *,uint64_t,uint64_t)) {
++    NSString *wire=@(wire_path), *out=[wire stringByAppendingPathComponent:@"shaders"];
++    if (![NSFileManager.defaultManager createDirectoryAtPath:out withIntermediateDirectories:YES attributes:nil error:NULL]) return -1;
++    NSMutableOrderedSet *targets=[NSMutableOrderedSet orderedSet];
++    if (profile && *profile) rb_stage_targets(@(profile),targets);
++    rb_stage_targets([wire stringByAppendingPathComponent:@"pso_user.tsv"],targets);
++    rb_stage_targets([@(game) stringByAppendingPathComponent:@"shaders/direct/pso_manifest.tsv"],targets);
++    NSMutableSet *current=[NSMutableSet set], *legacy=[NSMutableSet set];
++    __attribute__((objc_precise_lifetime)) NSMutableSet *need=[NSMutableSet set], *found=[NSMutableSet set];
++    rb_stage_batch batch={.need=need,.found=found,.out=out.fileSystemRepresentation,.cancel=cancel,.ctx=ctx};
++    rb_local_scan scan={.cancel=rb_batch_cancel,.stage=rb_local_found,.ctx=&batch,.inflate=inflate,.budget=64u<<20};
++    NSString *bundled=[[@(game) stringByAppendingPathComponent:@"shaders/direct"] stringByAppendingPathComponent:@"b-" DMSH_CHAIN];
++    NSMutableSet *from_dump=[NSMutableSet set];
++    stats[0]=targets.count;
++    for (NSString *key in targets) { @autoreleasepool {
++        if (rb_batch_cancel(&batch)) return 1;
++        const char *k=key.UTF8String;
++        BOOL packed=rb_translation_available(bundled.fileSystemRepresentation,[key stringByAppendingString:@"_b"],dsh_xfp(),1,NULL);
++        if (packed || dsh_have(batch.out,k)) [current addObject:key];
++        else if ([NSFileManager.defaultManager fileExistsAtPath:[out stringByAppendingPathComponent:[key stringByAppendingString:@"_b.json"]]]) [legacy addObject:key];
++        if (!packed) {
++            uint32_t h[4]; uint8_t *input=dsh_read_input(batch.out,k,h,1);
++            if (input) { free(input); if (![current containsObject:key]) stats[2]++; }
++            else {
++                int saved=rb_recover_dump(out,key,&batch);
++                if (saved<0) return -1;
++                if (saved) { [found addObject:key]; [from_dump addObject:key]; }
++                else [need addObject:key];
++            }
++        }
++    } }
++    stats[1]=current.count;
++    if (progress) progress(ctx,0,0);
++    int rc=rb_stage_assets(@(game),wire,&scan,&batch,&stats[7],progress);
++    if (rc) return rc;
++    NSMutableString *report=[NSMutableString stringWithString:@"key\tprevious_source\tinput\ttranslation\n"];
++    uint64_t old_kept=0,old_found=0,old_missing=0,done=0;
++    for (NSString *key in targets) { @autoreleasepool {
++        if (rb_batch_cancel(&batch)) return 1;
++        BOOL ready=[current containsObject:key], recovered=[found containsObject:key], missing=[need containsObject:key];
++        BOOL old=[legacy containsObject:key]; if (old) { if (missing) old_missing++; else if (recovered) old_found++; else old_kept++; }
++        NSString *result=ready ? @"current" : @"missing";
++        if (!ready) {
++            if (missing) stats[4]++;
++            else {
++                if (recovered) stats[3]++;
++                uint32_t h[4]; uint8_t *input=dsh_read_input(batch.out,key.UTF8String,h,1);
++                dsh_comp_fn compile=dsh_comp();
++                int ok=input && compile && !dsh_translate_locked(compile,key.UTF8String,h[1],input+h[2],h[3],input,h[2],batch.out,1)
++                       && dsh_have(batch.out,key.UTF8String);
++                free(input);
++                stats[ok ? 5:6]++; result=ok ? @"translated" : @"failed";
++            }
++        }
++        [report appendFormat:@"%@\t%@\t%@\t%@\n",key,ready?@"current":old?@"stale":@"absent",
++                missing?@"unavailable":[from_dump containsObject:key]?@"diagnostic-dump":recovered?@"resource":@"present-or-bundled",result];
++        if (progress) progress(ctx,++done,targets.count);
++    } }
++    if (![report writeToFile:[wire stringByAppendingPathComponent:@"stage-recovery.tsv"] atomically:YES encoding:NSUTF8StringEncoding error:NULL]) return -1;
++    LOG("RewindBox: previously translated but stale: kept input %llu, recovered from local assets or dumps %llu, still missing %llu",old_kept,old_found,old_missing);
++    return 0;
++}
++
++// Explicit game root for NativeAOT's facts/pair tables before configure. The
++// caller owns the guest launch lock. Restore the process environment on all exits.
++int rb_prepare_stage_inputs(const char *game,const char *wire,const char *profile,int (*cancel)(void *),void *ctx,
++                            uint64_t stats[8],rb_inflate_fn inflate,void (*progress)(void *,uint64_t,uint64_t)) {
++    if (!game || !*game || !wire || !*wire || !stats) return -1;
++    memset(stats,0,8*sizeof *stats);
++    const char *old=getenv("S2A_GAME_DATA");
++    char *saved=old?strdup(old):NULL;
++    if ((old && !saved) || setenv("S2A_GAME_DATA",game,1)) { free(saved); return -1; }
++    int rc=-1;
++    @try { @autoreleasepool { rc=rb_prepare_stage_batch(game,wire,profile,cancel,ctx,stats,inflate,progress); } }
++    @finally { if (saved) setenv("S2A_GAME_DATA",saved,1); else unsetenv("S2A_GAME_DATA"); free(saved); }
++    return rc;
++}
+diff --git a/graphics/nvn/tests/t_dsh_stats.c b/graphics/nvn/tests/t_dsh_stats.c
+index cee0cc2..42c5e68 100644
+--- a/graphics/nvn/tests/t_dsh_stats.c
++++ b/graphics/nvn/tests/t_dsh_stats.c
+@@ -332,6 +332,20 @@ static int native_input_recovery(const char *mode, const char *dir, const char *
+     return 0;
+ }
+ int main(int argc, char **argv) {
++#ifdef RB_PREPARE_STAGES_V1
++    if (argc == 7 && !strcmp(argv[1],"--rb-local-stages")) { @autoreleasepool {
++        alarm(90);
++        native_dsh=dlopen(argv[5],RTLD_NOW|RTLD_LOCAL);
++        void *codec=dlopen(argv[6],RTLD_NOW|RTLD_LOCAL);
++        rb_inflate_fn inflate=codec ? (rb_inflate_fn)dlsym(codec,"rb_s2arm_shader_inflate") : NULL;
++        check(native_dsh && inflate && dlsym(native_dsh,"s2a_dsh_compile"));
++        uint64_t counts[8];
++        int rc=rb_prepare_stage_inputs(argv[2],argv[3],argv[4],NULL,NULL,counts,inflate,NULL);
++        for (unsigned i=0;i<8;i++) printf("%s%llu",i ? " " : "STAGES ",(unsigned long long)counts[i]);
++        puts("");
++        return rc;
++    } }
++#endif
+     if (argc == 6 && !strcmp(argv[1],"--rb-native-input")) { @autoreleasepool {
+         alarm(90); return native_input_recovery(argv[2],argv[3],argv[4],argv[5]);
+     } }
+diff --git a/graphics/nvn/tests/t_rb_local_stage.c b/graphics/nvn/tests/t_rb_local_stage.c
+new file mode 100644
+index 0000000..03de9bc
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_local_stage.c
+@@ -0,0 +1,68 @@
++// Portable malformed-record and exact identity checks on the parser used by iOS.
++#include <assert.h>
++#include "../host/rb_local_stage.h"
++#ifdef __APPLE__
++#include <CommonCrypto/CommonDigest.h>
++#else
++#define OPENSSL_SUPPRESS_DEPRECATED
++#include <openssl/sha.h>
++#define CC_SHA256_DIGEST_LENGTH SHA256_DIGEST_LENGTH
++#define CC_SHA256_CTX SHA256_CTX
++#define CC_SHA256_Init SHA256_Init
++#define CC_SHA256_Update SHA256_Update
++#define CC_SHA256_Final SHA256_Final
++#endif
++#include "../gfx/nvn/nvn2_key.inc"
++
++static void put32(uint8_t *p,uint32_t v) { memcpy(p,&v,4); }
++static void put64(uint8_t *p,uint64_t v) { memcpy(p,&v,8); }
++static uint8_t desired[8];
++static unsigned seen;
++static void candidate(void *arg,const uint8_t *ctl,unsigned nt,const uint8_t *code,unsigned nc,int stage) {
++    (void)arg;
++    uint8_t k[8]; nvn2_key(ctl,code,k);
++    assert(nt==0xd8 && nc==256 && stage==1 && !memcmp(k,desired,8));
++    seen++;
++}
++static void control(uint8_t *p,uint32_t own) {
++    put32(p,NVN2_CTL_MAGIC);put32(p+4,NVN2_CTL_VERSION);put32(p+0x30,own);put32(p+0x44,256);p[0x56]=1;
++}
++static void one(rb_local_scan *s,uint8_t *p,size_t len) {
++    seen=0; rb_scan_blob(s,p,len,0); assert(seen==1);
++}
++int main(void) {
++    rb_local_scan scan={.stage=candidate,.budget=64u<<20};
++    uint8_t d[2048]={0};
++    memcpy(d,"BNSH",4);memcpy(d+0x60,"grsc",4);put32(d+0x7c,1);put64(d+0x80,0x100);
++    put64(d+0x110,0x140);put64(d+0x140+8+4*8,0x200);
++    put64(d+0x208,0x300);put64(d+0x210,0x400);put32(d+0x218,256);put32(d+0x21c,0xd8);
++    control(d+0x300,0xd8);for (int i=0;i<256;i++) d[0x400+i]=(uint8_t)i;
++    nvn2_key(d+0x300,d+0x400,desired);
++    one(&scan,d,sizeof d);
++    for (size_t n=0;n<0x500;n++) { seen=0; rb_scan_blob(&scan,d,n,0); assert(!seen); }
++    put64(d+0x208,~0ull);seen=0;rb_scan_blob(&scan,d,sizeof d,0);assert(!seen);
++    memset(d,0,sizeof d);memcpy(d,"NDSR",4);
++    put32(d+24,0x100);put32(d+28,(0xd8<<4)|3);put32(d+32,0x400);put32(d+36,(256<<4)|4);
++    control(d+0x100,0xd8);for (int i=0;i<256;i++) d[0x400+i]=(uint8_t)i;
++    one(&scan,d,sizeof d);
++    memset(d,0,sizeof d);memcpy(d,"BAHS",4);put32(d+0x18,256);put32(d+0x1c,0x400);
++    put32(d+0x40,0x20);put32(d+0x44,1);put32(d+0x58,0xd8);put32(d+0x5c,0xb0);
++    control(d+0x100,0);for (int i=0;i<256;i++) d[0x400+i]=(uint8_t)i;
++    one(&scan,d,sizeof d);
++    put32(d+0x44,0);seen=0;rb_scan_blob(&scan,d,sizeof d,0);assert(!seen);
++    memset(d,0,sizeof d);control(d,0x180);for (int i=0;i<256;i++) d[0x180+i]=(uint8_t)i;
++    one(&scan,d,sizeof d);
++    put32(d+0x44,UINT32_MAX);seen=0;rb_scan_blob(&scan,d,sizeof d,0);assert(!seen);
++    memset(d,0,sizeof d);memcpy(d,"BTCDBTCD",8);put32(d+0x28,0xd8);put32(d+0x2c,256);
++    control(d+0x38+256,0xd8);for (int i=0;i<256;i++) d[0x38+i]=(uint8_t)i;
++    one(&scan,d,sizeof d);
++    memset(d,0,sizeof d);put32(d,DSH_IN_MAGIC);put32(d+4,1);put32(d+8,0xd8);put32(d+12,256);
++    control(d+16,0xd8);for (int i=0;i<256;i++) d[16+0xd8+i]=(uint8_t)i;
++    one(&scan,d,16+0xd8+256);
++    put32(d+4,0);seen=0;rb_scan_blob(&scan,d,16+0xd8+256,0);assert(!seen);
++    // An invalid Yaz0 back-reference cannot read before the start of output.
++    memset(d,0,sizeof d);memcpy(d,"Yaz0",4);d[7]=8;seen=0;
++    rb_scan_blob(&scan,d,18,0);assert(!seen && scan.unsupported);
++    puts("PASS exact NVN2 identities in BNSH, BAHS, NDSR, bare programs, S2Arm BTCD/SIN1, out-of-range pointers, truncated records and invalid Yaz0");
++    return 0;
++}

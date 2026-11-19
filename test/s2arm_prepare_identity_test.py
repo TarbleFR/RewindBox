@@ -36,7 +36,7 @@ PKG = ROOT / 'packages/s2arm_engine_bridge/ios/Classes'
 # SHA-256 of runSteps in S2ArmGamePreparation.m, from its first line to the line before @end. When this test fails on
 # it: decide whether a game prepared by the previous steps can still be reused (if not, raise kPreparedSteps), then
 # record the new digest and the number it goes with.
-RUN_STEPS_SHA256 = '3783642ba73e611f11a59d779ef991c14dd8b0a6bacec0935ea1b94ef94bdd92'
+RUN_STEPS_SHA256 = '934589529af8a2feb87f1b54b13980cc75a0939f4f0d69092044283a75df9b50'
 PREPARED_STEPS = '1'
 failures, checks = [], 0
 
@@ -122,6 +122,14 @@ check(ordered(prep, 'NSData *sums = [NSData dataWithContentsOfFile:[systemData s
       'the fingerprint never saw the system data, and the pack holds a copy of them)')
 check('dladdr' not in prep and 'S2ArmCodeIdentity' not in prep and not (PKG / 'S2ArmCodeIdentity.c').exists() and not (PKG / 'S2ArmCodeIdentity.h').exists(),
       "no identity taken from a linked image: the app's binary changes with any native code linked into it")
+
+# The 795 preparation archive adds bounded zstd for the graphics warmer. Its
+# CPU image/pack outputs have the 794 format. No unreviewed producer inherits
+# that canonical hash. Source commit, export, data, chain and steps remain keyed.
+check(ordered(identity, 'if ([library isEqual:@"d0ea5d735cdc0fd8e32a76257b5f86039648dc19206afff805ef5c6ed4a10414"])',
+              'library = @"1c0969b69e5502a27b72d8946f3698cca850089237d7a04282dc94d99191cde5";',
+              'return [NSString stringWithFormat:@"prepare %@ steps %@ s2arm %@", library, kPreparedSteps, commit];'),
+      'only the reviewed 795 library is canonicalized to its CPU-compatible 794 preparation hash')
 
 # ---- the bridge's steps are the ones the number stands for ----
 check(f'static NSString *const kPreparedSteps = @"{PREPARED_STEPS}";' in prep, f'kPreparedSteps is {PREPARED_STEPS}, the number this test records the steps for')

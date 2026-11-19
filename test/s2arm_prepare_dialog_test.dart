@@ -56,6 +56,17 @@ void main() {
     expect(s2armPreparationLines(fr, null), isEmpty);
   });
 
+  test('a reused game reports its separate graphics preparation and progress', () {
+    const copy = S2ArmImportProgress(name: 'graphics', index: 6, count: 7, done: 0, total: 1000,
+        step: 'graphics', phase: 'copy', unitsDone: 64, unitsTotal: 0);
+    const inputs = S2ArmImportProgress(name: 'graphics', index: 6, count: 7, done: 500, total: 1000,
+        step: 'graphics', phase: 'inputs', unitsDone: 8, unitsTotal: 16);
+    expect(s2armPreparationLines(fr, copy), ['Préparation graphique', '64 fichiers parcourus']);
+    expect(s2armPreparationLines(fr, inputs), ['Préparation graphique', '8 / 16']);
+    expect(S2ArmInternalService.preparationOverall('graphics', .5), .5);
+    expect(Switch2LibraryLocale.forLocale(fr, 'graphicsIncomplete'), 'Préparation graphique incomplète');
+  });
+
   test('the elapsed time in each locale', () {
     expect(s2armElapsedText(fr, const Duration(seconds: 42)), '42 s');
     expect(s2armElapsedText(fr, const Duration(seconds: 65)), '1 min 05 s');

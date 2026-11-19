@@ -1,5 +1,6 @@
 // See S2ArmGamePreparation.h. Runs native/s2arm/prepare's chain (S2ArmPrepareABI.h) into Library/S2Arm/<gid>.
 #import "S2ArmGamePreparation.h"
+#import "S2ArmGraphicsGeneration.h"
 #import "S2ArmGuestABI.h"
 #import "S2ArmPrepareABI.h"
 #import "S2ArmLaunchJournal.h"
@@ -523,6 +524,12 @@ static NSString *preparationCodeIdentity(const char **kind, long long *engineRun
   *engineRun = [run isKindOfClass:NSNumber.class] ? ((NSNumber *)run).longLongValue : 0;
   if (isLowerHex(library, 64) && isLowerHex(commit, 40)) {
     *kind = "pin";
+    // The 795 library adds a bounded shader decompression entry point. Its CPU
+    // unpack/rewrite/pack outputs are compatible with 794. Bind the exception
+    // to this pair of archive hashes so that any subsequent library change
+    // still invalidates the CPU preparation unless reviewed separately.
+    if ([library isEqual:@"d0ea5d735cdc0fd8e32a76257b5f86039648dc19206afff805ef5c6ed4a10414"])
+      library = @"1c0969b69e5502a27b72d8946f3698cca850089237d7a04282dc94d99191cde5";
     return [NSString stringWithFormat:@"prepare %@ steps %@ s2arm %@", library, kPreparedSteps, commit];
   }
   *kind = "build";
@@ -677,6 +684,32 @@ static NSString *mapPrepareCode(int rc) {
 - (NSDictionary *)run {
   atomic_fetch_add(&g_prepRunning, 1);
   NSDictionary *result = [self runSteps];
+  if ([result[@"success"] boolValue]) {
+    NSError *error = nil;
+    _graphicsGeneration = [S2ArmGraphicsGeneration planForGame:result[@"gid"] directory:result[@"gameDir"]
+        root:result[@"root"] chain:self.directChain ?: S2ArmShippedDirectChain() reused:[result[@"reused"] boolValue] error:&error];
+    _graphicsReady = _graphicsGeneration && _graphicsGeneration.active;
+    if (_graphicsGeneration && !_graphicsReady) {
+      [self emit:@"graphics" index:kPrepareSteps count:kPrepareSteps + 1 fraction:0 detail:@"copy"];
+      if (![_graphicsGeneration stage:^BOOL { return prep_cancelled((__bridge void *)self); }
+                           progress:^(NSUInteger files) {
+        [self emit:@"graphics" index:kPrepareSteps count:kPrepareSteps + 1 fraction:0 detail:@"copy"
+              work:@{@"phase":@"copy", @"done":@(files), @"total":@0}];
+      } error:&error]) {
+        result = [self fail:(prep_cancelled((__bridge void *)self) ? S2ArmErrorCancelled : S2ArmErrorIo)
+                       stage:@"graphics" detail:error.localizedDescription.UTF8String];
+      }
+    } else if (error) {
+      result = [self fail:S2ArmErrorPrepareFailed stage:@"graphics" detail:error.localizedDescription.UTF8String];
+    }
+    if ([result[@"success"] boolValue]) {
+      NSMutableDictionary *out = [result mutableCopy];
+      out[@"graphicsStatus"] = !_graphicsGeneration ? @"notApplicable" : _graphicsReady ? @"verified" : @"pending";
+      result = out;
+      if (!_graphicsGeneration || _graphicsReady)
+        [self emit:@"done" index:kPrepareSteps count:kPrepareSteps fraction:1 detail:[result[@"reused"] boolValue] ? @"reused" : nil];
+    }
+  }
   atomic_fetch_sub(&g_prepRunning, 1);
   // The previous root moved aside at the start (and any left by a preparation the app did not finish) goes now, in the
   // background: on success, on failure and on cancel alike.
@@ -719,7 +752,6 @@ static NSString *mapPrepareCode(int rc) {
   NSDictionary *reused = reusablePreparation(stampPath, fingerprint, gid, paths, exportDir, managedPath, chain, systemData);
   if (reused) {
     s2arm_journal("prepare", "reused", "\"gid\":\"%s\",\"identity\":\"%s\",\"engineRun\":%lld", gid.UTF8String, identityKind, engineRun);
-    [self emit:@"done" index:kPrepareSteps count:kPrepareSteps fraction:1 detail:@"reused"];
     return reused;
   }
   s2arm_journal("prepare", "begin", "\"gid\":\"%s\",\"identity\":\"%s\",\"engineRun\":%lld", gid.UTF8String, identityKind, engineRun);
@@ -785,7 +817,7 @@ static NSString *mapPrepareCode(int rc) {
   if (rc != RB_S2ARM_CAPS_OK) return [self fail:(rc == RB_S2ARM_CAPS_IO ? S2ArmErrorIo : S2ArmErrorExportInvalid) stage:@"caps" detail:error];
   durations[@"caps"] = @((s2arm_code_now_ns() - t0) / 1000000ull);
 
-  // 4. direct skeleton (empty shader library; shaders compile at first use).
+  // 4. Bootstrap the engine shader-map layout. Graphics migration runs for both fresh and reused games.
   [self emit:@"direct" index:3 count:steps fraction:0];
   t0 = s2arm_code_now_ns();
   rc = rb_s2arm_direct_skeleton(root.fileSystemRepresentation, chain.UTF8String, "rewindbox-phone", "RewindBox: shaders compiled on device", error, sizeof error);
@@ -829,7 +861,6 @@ static NSString *mapPrepareCode(int rc) {
                 (unsigned long long)((s2arm_code_now_ns() - t0) / 1000000ull),
                 (unsigned long long)(_packFirstNs ? (s2arm_code_now_ns() - _packFirstNs) / 1000000ull : 0), _packTotal);
 
-  [self emit:@"done" index:6 count:steps fraction:1];
   s2arm_journal("prepare", "passed", "\"gid\":\"%s\",\"imagePackBytes\":%llu", gid.UTF8String, [sizes[@"imagePack"] unsignedLongLongValue]);
   NSDictionary *result = @{
     @"success" : @YES,

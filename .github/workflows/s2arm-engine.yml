@@ -37,6 +37,7 @@ jobs:
     timeout-minutes: 120
     env:
       TEST_ONLY: ${{ (contains(github.event.head_commit.message, '[s2arm-check-delivery]') || (contains(github.event.head_commit.message, '[s2arm-shader-checks]') && !contains(github.event.head_commit.message, '[s2arm-engine]'))) && 'yes' || 'no' }}
+      FIRST_RACE: ${{ (contains(github.event.head_commit.message, '[s2arm-first-race]') || contains(github.event.head_commit.message, '[s2arm-check-delivery]')) && 'yes' || 'no' }}
       CHECK_DELIVERY: ${{ contains(github.event.head_commit.message, '[s2arm-check-delivery]') && 'yes' || 'no' }}
     steps:
       - uses: actions/checkout@v4
@@ -107,7 +108,7 @@ jobs:
         run: |
           set -euo pipefail
           source_tree="$RUNNER_TEMP/s2arm"
-          for fixture in spec_gate stage_input pso_trace archive_index; do
+          for fixture in spec_gate stage_input pso_trace archive_index local_stage; do
             xcrun --sdk macosx clang -std=gnu11 -D_DARWIN_C_SOURCE -O2 -Wall -Wextra -pthread \
               "$source_tree/graphics/nvn/tests/t_rb_$fixture.c" -o "$RUNNER_TEMP/t_rb_$fixture"
             "$RUNNER_TEMP/t_rb_$fixture"
@@ -116,6 +117,12 @@ jobs:
             "$source_tree/graphics/nvn/tests/t_dsh_stats.c" -o "$RUNNER_TEMP/t_dsh_stats"
           "$RUNNER_TEMP/t_dsh_stats" --rb-stage-recovery
           sh build-utils/s2arm/engine/tests/test_metal_archive.sh "$source_tree"
+      - name: Measure gaps across concurrent submissions and presentation
+        if: matrix.os == 'macos-26' && env.FIRST_RACE == 'yes'
+        run: |
+          set -eu
+          xcrun clang -std=c11 -O2 -Wall -Wextra -Werror "$RUNNER_TEMP/s2arm/graphics/nvn/tests/t_rb_submit_gap.c" -o "$RUNNER_TEMP/submit-gap"
+          "$RUNNER_TEMP/submit-gap"
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
@@ -160,9 +167,21 @@ jobs:
           status=0
           build/tests/t_nvn_warmbump || status=1
           build/tests/t_nvn_warmbump --transition-gpu || status=1
+          if [[ "$FIRST_RACE" == yes ]]; then build/tests/t_nvn_warmbump --reference-gpu || status=1; fi
           build/tests/t_nvn_shader_flight || status=1
           bash "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/test_native_stage_recovery.sh" "$PWD" "$RUNNER_TEMP/t_dsh_stats" || status=1
           exit "$status"
+      - name: Read back a texture prepared from an earlier recorded bind
+        if: matrix.os == 'macos-26' && env.FIRST_RACE == 'yes'
+        working-directory: ${{ runner.temp }}/s2arm
+        env:
+          S2A_DEVELOPER_DIR: ${{ env.DEVELOPER_DIR }}
+          S2A_BUILD_CACHE: ${{ runner.temp }}/s2arm-build-cache
+          NUGET_PACKAGES: ${{ runner.temp }}/nuget
+        run: |
+          set -euo pipefail
+          make -j4 -f Makefile -f "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/host-tests.mk" build/tests/t_nvn_up_tex_src
+          build/tests/t_nvn_up_tex_src --recorded-upload
       - name: Require all adaptive cache checks to pass
         if: ${{ !cancelled() && steps.adaptive_shader_checks.outcome == 'failure' }}
         run: exit 1
@@ -261,7 +280,7 @@ jobs:
           status=0
           note() { echo "$1" | tee -a "$report"; }
           nm -gU "$fw/S2ArmEngine" | awk '{print $3}' | sort > "$RUNNER_TEMP/guest-exports.txt"
-          for sym in _s2a_rb_guest_configure _s2a_rb_guest_make_view_controller _s2a_rb_guest_start _s2a_rb_guest_stop _s2a_rb_guest_fatal \
+          for sym in _s2a_rb_guest_prepare_graphics _s2a_rb_guest_prepare_gpu_status _s2a_rb_guest_configure _s2a_rb_guest_make_view_controller _s2a_rb_guest_start _s2a_rb_guest_stop _s2a_rb_guest_fatal \
                      _s2a_rb_guest_parked _s2a_rb_guest_view_controller _s2a_rb_guest_resume; do
             if grep -qx "$sym" "$RUNNER_TEMP/guest-exports.txt"; then note "ok   exported $sym"; else note "FAIL not exported: $sym"; status=1; fi
           done

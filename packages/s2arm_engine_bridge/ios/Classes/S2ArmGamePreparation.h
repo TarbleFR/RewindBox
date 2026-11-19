@@ -52,7 +52,10 @@ void S2ArmPreparationCleanupAtStart(void);
 typedef void (^S2ArmPrepareProgress)(NSString *step, NSInteger stepIndex, NSInteger stepCount, double fraction,
                                      NSString *_Nullable detail, NSDictionary *_Nullable work);
 
+@class S2ArmGraphicsGeneration;
 @interface S2ArmGamePreparation : NSObject
+@property(nonatomic, readonly, nullable) S2ArmGraphicsGeneration *graphicsGeneration;
+@property(nonatomic, readonly) BOOL graphicsReady;
 @property(nonatomic, copy) NSString *exportFolder;                // absolute, inside Documents/S2Arm/Games
 @property(nonatomic, copy, nullable) NSString *directChain;       // nil = S2ArmShippedDirectChain()
 @property(nonatomic, copy, nullable) NSString *systemDataFolder;  // nil = S2ArmShippedSystemData()
