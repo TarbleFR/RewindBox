@@ -47,6 +47,8 @@ jobs:
             git -C "$RUNNER_TEMP/s2arm" apply --whitespace=nowarn "$GITHUB_WORKSPACE/$patch"
             echo "$(basename "$patch") $(shasum -a 256 "$patch" | cut -d' ' -f1)" | tee -a "$RUNNER_TEMP/prepare-patches.txt"
           done
+      - name: Check the bounded decoder used by shader indexing
+        run: python3 -B build-utils/s2arm/engine/tests/test_shader_inflate.py
       - name: The rewriter patch only reports progress
         run: python3 -B test/s2arm_rewriter_progress_test.py
       - name: Build S2ArmPrepare.xcframework

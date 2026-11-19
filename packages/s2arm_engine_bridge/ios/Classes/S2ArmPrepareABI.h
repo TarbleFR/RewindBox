@@ -21,6 +21,10 @@ typedef struct {
     void *context;
     size_t max_module_bytes;
 } rb_s2arm_ns2_dump_request;
+// Decode one dictionary-free zstd shader resource within the caller's memory budget.
+// On success the caller owns *out (free). On failure outputs are NULL and zero.
+int rb_s2arm_shader_inflate(const void *src, size_t n, void **out, size_t *size, size_t limit);
+
 int rb_s2arm_ns2_detect(const char *root, char *dump, size_t dump_size, uint64_t *program_id, char *error, size_t error_size);
 int rb_s2arm_ns2_dump(const rb_s2arm_ns2_dump_request *request, char *error, size_t error_size);
 

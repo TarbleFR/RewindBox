@@ -42,6 +42,10 @@ typedef struct {
 // Each module's rewriter log goes to <output_dir>/<module>.rewrite.log.
 // On failure `error` (may be NULL) receives one line and the outputs of the
 // failing module are not to be used.
+// Decode one dictionary-free zstd shader resource within the caller's memory budget.
+// On success the caller owns *out (free). On failure outputs are NULL and zero.
+int rb_s2arm_shader_inflate(const void *src, size_t n, void **out, size_t *size, size_t limit);
+
 int rb_s2arm_prepare_rewrite(const rb_s2arm_rewrite_request *request, char *error, size_t error_size);
 
 typedef struct {
