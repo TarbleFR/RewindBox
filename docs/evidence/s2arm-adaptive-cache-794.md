@@ -1,4 +1,4 @@
-# S2Arm sur iPhone — comparaison de la 793 et du candidat 794
+# Cache S2Arm de RewindBox 794 et protocole de comparaison iPhone
 
 ## Point de départ
 
@@ -6,7 +6,7 @@ L’IPA privée 793 a été vérifiée après déchiffrement. Le run `4451997070
 
 La mesure de référence sur iPhone retrouvée pour Mario Kart World concerne la **786**. Sur 3 005 intervalles observés, elle donne 33,31 FPS, un p95 de 47,24 ms, un p99 de 102,79 ms et 34 / 13 / 4 intervalles au-dessus de 100 / 200 / 500 ms. Il manque 540 intervalles sur la plage. Les six attentes détaillées de PSO totalisent 698,3 ms. Les quatre appels MSL des images lentes détaillées totalisent 1 536,8 ms. Les 687 anciennes clés sans source viennent de la 779. Le démarrage de la 786 écartait encore 807 lignes associées à 434 clés. Les titres, parcours, versions de traducteur et états des caches doivent correspondre avant d’attribuer un écart à un correctif. À la rédaction, aucune paire de captures iPhone comparables 792/793 ou 793/794 n’est disponible. [Périmètre et méthode de mesure](s2arm-adaptive-cache-792.md)
 
-## Hypothèses à vérifier sur la 794
+## Scénarios de régression de la 794
 
 | Correctif | Situation exercée | Preuve attendue |
 | --- | --- | --- |
@@ -14,7 +14,7 @@ La mesure de référence sur iPhone retrouvée pour Mario Kart World concerne la
 | 0128 | Un fichier MSL présent est refusé par Metal ou une entrée de reconstruction existante diffère des octets réellement rencontrés. | Les octets de la rencontre réelle permettent de rétablir l’entrée. Une réparation publie une traduction utilisable et une demande ultérieure produit le résultat graphique attendu. Compter séparément les cas où les octets d’origine restent indisponibles. |
 | 0129 | Deux lancements observent la même succession de PSO. Le troisième doit préparer la prochaine variante exacte. Deux autres historiques divergent au même point. | Le worker sert d’abord une demande urgente, produit le PSO prédit, l’encodeur lie ce même objet et le pixel lu sur le GPU est correct. Le cas divergent s’abstient. Un témoin sur la même histoire, apprentissage désactivé au troisième lancement, doit échouer précisément au contrôle de l’objet prédit. |
 
-Le test 0129 utilise un jeu de shaders synthétiques, deux jeux de données séparés et des processus Mac distincts. La commande est `build/tests/t_nvn_warmbump --transition-gpu`. La présence du test et l’application de son patch ne suffisent pas à déclarer sa réussite. Les statuts de compilation du moteur, de l’IPA et des essais sur matériel sont à consigner séparément une fois les reçus disponibles.
+Le test 0129 utilise un jeu de shaders synthétiques, deux jeux de données séparés et des processus Mac distincts. La commande est `build/tests/t_nvn_warmbump --transition-gpu`. La présence du test et l’application de son patch ne suffisent pas à déclarer sa réussite. Les résultats sur le producteur et sur le commit applicatif sont consignés ci-dessous.
 
 ## Trois écarts de ponts natifs entre les IPA 792 et 793
 
@@ -34,7 +34,7 @@ python3 tools/s2arm_prototype/verify_bridge_stubs.py "$IPA_793" \
   docs/evidence/rewind792/signed-payload-identity.json
 ```
 
-Ces trois empreintes 793 sont différentes à l’octet de leurs références. L’analyse localise l’écart de charge utile dans le choix de deux entrées de liaison équivalentes. Un essai fonctionnel de chaque pont et la comparaison des images de l’IPA 794 sont des vérifications distinctes.
+Ces trois empreintes 793 sont différentes à l’octet de leurs références. L’analyse localise l’écart de charge utile dans le choix de deux entrées de liaison équivalentes. Le tableau porte sur les empreintes des images. Les suites fonctionnelles de ces trois ponts n’ont pas été relancées dans cette mission.
 
 ## Captures iPhone à exporter
 
@@ -93,3 +93,17 @@ Au commit `5e4e07c695f995c232fa61a84768554d53ca5408`, les deux builds du moteur 
 L’archive moteur authentifiée porte le SHA-256 `6f7e646028812dc0aec4af24a62e8de4ebbb4b42f0b90cd790f44b4f9aa61319` (artefact `14535823720`). Son Mach-O arm64 de 113 607 152 octets porte le SHA-256 `55077b6b3ac0e9e7cd7abb7a12bc29f7ed4b36cb2fbff80b88e916b4ea28fb21`. Son empreinte de charge utile est `f444d69a3d9ac4b8528f59f9172306b856e0298df6bfe4d2de7a956d20c2d360`. Les 141 exports du moteur, l’export de NS2Pro, les dépendances dynamiques, les chemins de chargement, le minimum iOS 18 et la chaîne de traduction `0be3f28548fd` concordent avec la 793. Le désassemblage confirme que la retraduction appelle directement les fonctions communes de réservation et de libération du permis. [Pin du moteur](../../build-utils/s2arm/engine-pin.json)
 
 Sur le GPU du producteur, le refus de sérialisation injecté en ONE a conservé le même objet Metal jusqu’au deuxième appel, avec exactement 32 ajouts dans l’ordre et 32 hits stricts. Deux refus successifs ont laissé un miss sans index, comme l’expiration du délai avant le deuxième essai. Les tests de relance ont également relu l’archive écrite pendant une fermeture en HOLD. Le chemin de cache avec séparateurs redondants a produit un seul appel Metal pour trois demandes de MSL invalide sans entrée saine. La réparation du fichier de même longueur, le pixel 42/7/99/1, les six lancements de prédiction avec leur témoin et les 42 contrôles de bibliothèques ont tous réussi sur cette version. [Journal du GPU](https://github.com/TarbleFR/RewindBox/actions/runs/44535281536/job/135598912097)
+
+## Livraison privée et contrôle du commit applicatif
+
+Le run de tests déclenché par `f6d52233` a vérifié dans son checkout le commit applicatif exact `71942e66ab3cd596dd1e85d9d910cf302d201388`, les 129 SHA-256 des correctifs et l’empreinte du moteur. Ce deuxième passage a exécuté les tests de gouverneur, d’entrées, d’historique et d’index, les archives GPU (dont fermeture et reprise), les lancements concordants et divergents, les 42 assertions de bibliothèques et les deux témoins 793 avec NativeAOT. Les contrôles du producteur et ceux de cette source ont tous réussi. [Recontrôle GPU 44538820401](https://github.com/TarbleFR/RewindBox/actions/runs/44538820401/job/135611365057)
+
+L’IPA privée compte 333 238 220 octets et son SHA-256 est `856dd67183a028d90f80b2e1470ae6ed9ee435b2dc5f5d8e85a87a3b20f06103`. Les quatre pièces chiffrées ont été vérifiées avant déchiffrement. Les six vérificateurs hors CI ont réussi. L’inventaire contient 97 images natives, dont le moteur S2Arm attendu. Le contrat de livraison a été exécuté. Les suites générales Flutter et natives ont le statut `not-run`. La vérification sur iPhone et la comparaison de fidélité de Mario Kart World attendent les exports appariés décrits ci-dessus. [Livraison 44538729225](https://github.com/TarbleFR/RewindBox/actions/runs/44538729225) · [Reçu privé](rewind794/delivery.json) · [Vérification du téléchargement](rewind794/download794-verification.json)
+
+| Pont de la 794 | Comparaison avec la 793 |
+| --- | --- |
+| `libretro_internal_bridge` | Empreinte identique |
+| `melonx_internal_bridge` | Empreinte de la 793 retrouvée après échange des deux références équivalentes à `_objc_msgSend` |
+| `rpcs3_internal_bridge` | Empreinte identique |
+
+[Empreintes détaillées des ponts](rewind794/bridge-stubs-793-794.json) · [Inventaire signé](rewind794/signed-payload-identity.json)

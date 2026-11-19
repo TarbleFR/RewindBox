@@ -1,0 +1,32 @@
+{
+  "libretro_internal_bridge": {
+    "actual": "da21cb1c0790676ba70a55d853d74cb823587bcbd93f0ac9b784718a854d68e4",
+    "reference": "da21cb1c0790676ba70a55d853d74cb823587bcbd93f0ac9b784718a854d68e4",
+    "alternate": "0cb53f3e8470d03114b0b8eb4fdcb6489bbec83bfdcea19c086843d2f4d58826",
+    "exact": true,
+    "references": {
+      "__stubs": 1,
+      "__objc_stubs": 2057
+    }
+  },
+  "melonx_internal_bridge": {
+    "actual": "584c953301ac4d103e7bef69154e85110b244dccb6424fcbf44a7b79012cd3f1",
+    "reference": "7938b9d2bbeab3edaf5025c9c618ca468555fd540e8ffb1fead2be6b92d98bc6",
+    "alternate": "7938b9d2bbeab3edaf5025c9c618ca468555fd540e8ffb1fead2be6b92d98bc6",
+    "exact": false,
+    "references": {
+      "__stubs": 1,
+      "__objc_stubs": 330
+    }
+  },
+  "rpcs3_internal_bridge": {
+    "actual": "f852400ebda027398fd8d39d1d136b62013ef87a6284fa3f33fc1bdaa9bc99d3",
+    "reference": "f852400ebda027398fd8d39d1d136b62013ef87a6284fa3f33fc1bdaa9bc99d3",
+    "alternate": "5cfa0b5b036ab36c2e18c9f81b05ed45ad7a8b847c937ec62437e60c12a88b19",
+    "exact": true,
+    "references": {
+      "__stubs": 1,
+      "__objc_stubs": 843
+    }
+  }
+}
